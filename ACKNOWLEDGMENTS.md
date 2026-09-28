@@ -33,7 +33,7 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 | [OpenMontage](https://github.com/calesthio/OpenMontage) | calesthio | AGPL-3.0 | Full agentic production system, used for comparison and ideas (no code reused) |
 | [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) | Vincent Wei | Apache-2.0 | 150+ shot recipe cards for product films (some bundled SFX have unverified sources) |
 | [video-talkcraft](https://github.com/Vincentwei1021/video-talkcraft) | Vincent Wei | PolyForm Noncommercial 1.0.0 | Voiceover-driven explainer motion (reference only; commercial use needs the author's permission) |
-| [guizang-product-video-skill](https://github.com/op7418/guizang-product-video-skill) | 归藏 (op7418) | AGPL-3.0 (`assets/fallback/` also BSL 1.1) | Product update films built from real product components |
+| [guizang-product-video-skill](https://github.com/op7418/guizang-product-video-skill) | 归藏 (op7418) | AGPL-3.0 (`assets/fallback/` also BSL 1.1) | Product update films built from real product components. Its audio method (music sourcing order: user track → local model → code-composed score; SFX as a separate event layer aligned to landmarks; music making way for key SFX) and its friendly README structure inspired ours. **No code was copied**: `tools/audio/music.py` and `sfx.py` are written from scratch under MIT |
 | [Paper-Cut](https://github.com/aijiduonadegou/Paper-Cut) | Paper Cut contributors | MIT | Vox-style paper collage without video models |
 | [gbro-collage-info](https://github.com/pyang5166/gbro-collage-info) | 狗哥笔记 (pyang5166) | MIT (bundled GSAP and Mixkit SFX under their own terms) | Halftone paper-collage info animation on HyperFrames |
 | [vox-director](https://github.com/Alisa0808/vox-director) | Alisa Qian | MIT | End-to-end Vox-style explainer pipeline |
@@ -44,6 +44,7 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 | [story-to-handdrawn-video](https://github.com/gnipbao/story-to-handdrawn-video) | gnipbao | MIT | Chinese story to hand-drawn diary-comic animation |
 | [remotion-guofeng-starter](https://github.com/AllenAI2014/remotion-guofeng-starter) | AllenAI2014 | MIT (code; demo assets excluded) | Guofeng (Chinese paper-cut) animation from poems and idioms |
 | [viral-video-decomposer](https://github.com/sharon-laicc/viral-video-decomposer) | sharon-laicc | MIT | Shot-level breakdown of reference videos (`playbook/07-reverse-engineer.md`) |
+| [awesome-opus5-5-videos](https://github.com/yihui-dev/awesome-opus5-5-videos) | yihui-dev | none declared: read only | 389 community Opus 5.5 code videos and their prompts; statistics and curated picks in `cases/opus55-gallery.md` |
 
 ## Research
 
@@ -59,7 +60,7 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 
 ## Toolchain
 
-[FFmpeg](https://ffmpeg.org), [Puppeteer](https://pptr.dev), [p5.js](https://p5js.org), [p5.brush](https://github.com/acamposuribe/p5.brush), [GSAP](https://gsap.com), [Remotion](https://www.remotion.dev), [Manim Community](https://www.manim.community), [whisper.cpp](https://github.com/ggml-org/whisper.cpp), [FunASR](https://github.com/modelscope/FunASR), [librosa](https://librosa.org), [beat_this](https://github.com/CPJKU/beat_this), [Demucs](https://github.com/adefossez/demucs), [mlx-audio](https://github.com/Blaizzy/mlx-audio), [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS), and the other projects in `references/open-source.md`.
+[Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) (Apache-2.0, default local voice via [mlx-audio](https://github.com/Blaizzy/mlx-audio), MIT), [NumPy](https://numpy.org) and [SciPy](https://scipy.org) (code-composed music and SFX), [Pillow](https://python-pillow.org) (timestamped contact sheets), [uv](https://github.com/astral-sh/uv), [FFmpeg](https://ffmpeg.org), [Puppeteer](https://pptr.dev), [p5.js](https://p5js.org), [p5.brush](https://github.com/acamposuribe/p5.brush), [GSAP](https://gsap.com), [Remotion](https://www.remotion.dev), [Manim Community](https://www.manim.community), [whisper.cpp](https://github.com/ggml-org/whisper.cpp), [FunASR](https://github.com/modelscope/FunASR), [librosa](https://librosa.org), [beat_this](https://github.com/CPJKU/beat_this), [Demucs](https://github.com/adefossez/demucs), [mlx-audio](https://github.com/Blaizzy/mlx-audio), [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS), and the other projects in `references/open-source.md`.
 
 ## Community creators
 
@@ -75,6 +76,7 @@ Public experiments and generously shared prompts from these creators shaped the 
 - **@kimmonismus**, **@pradeepXkapoor**, **@jake11moran**, **@dotey (宝玉)**, **@AxtonLiu** and **@goodside**: prompts analysed in `cases/community-prompts.md`.
 - **Chris Tyson (The Agent Architect)**: Claude Code + Remotion production lessons.
 - **Jason Zhu (@GoSailGlobal)** and **余温 (@gkxspace)**: curating and surfacing the community skill list.
+- **yihui-dev** and **huangserva (@servasyy_ai)**: collecting and surfacing 389 Opus 5.5 videos with their prompts.
 
 Style references named in prompts (3Blue1Brown, Kurzgesagt, Fireship, Vox, 回形针 PaperClip and others) are cited as vocabulary for direction. No affiliation is implied.
 

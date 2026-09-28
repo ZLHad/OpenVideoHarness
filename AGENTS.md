@@ -8,6 +8,7 @@
 ## 接到"做视频"的请求时
 
 1. **判断类型**：用下面的路由表，读对应的 `video-types/*.md`。一个视频可能横跨两类（例如"论文讲解"做成竖屏短视频），就两份都读，以主类型为准。
+   - **一句话需求是常态**：389 支社区 Opus 5.5 作品里，完整提示词的中位数不到 30 个词，四分之一直接套用同一句 showreel 提示词（见 `cases/opus55-gallery.md`）。收到一句话时，自己按类型文档的默认值补全 BRIEF，把关卡 ① 的审阅包写短，最多问 3 个真正影响制作的问题，不要反过来追问一长串。
 2. **读流程和自查**：读 `playbook/01-pipeline.md` 和 `playbook/02-verification.md`；涉及配音或音乐时，再读 `playbook/04-audio.md`。
 3. **建项目**：运行 `bin/vh new <type> <slug>`，它会建好 `projects/<日期>-<slug>/`，复制模板，并把该类型的 prompt 块填进 BRIEF；手绘类还会复制引擎、装好依赖。其他引擎的初始化方式见 `engines/README.md`。
 4. **看案例和参考**：打开类型文档"可参考的案例"和"社区 skill 参考"两节列出的文件；需要看真实代码时读 `references/repos/` 里的源码。本仓库自己做过的片子在 `showcase/`，各带 BRIEF、STORYBOARD、NOTES 和源码，是最直接的样板。
@@ -32,7 +33,11 @@
 | 网络梗、野兽派、科技推特风的快剪 | `video-types/08-brutalist-meme.md` | HyperFrames | `cases/mv-claude-pop.md` |
 | 需要写实人物、真实物理、实拍感 | `playbook/05-hybrid-genvideo.md`，再加上对应的类型文档 | 生成式视频 + 代码叠加 | `cases/mv-claude-pop.md` |
 | "这个视频是怎么做的"，想学某支参考视频 | `playbook/07-reverse-engineer.md` | —（产出一份 cases/ 拆解） | `cases/explainer-interstellar-blackhole.md` |
-| 想找现成的社区 skill 或某种画风 | `references/community-skills.md`（含 39 种风格库） | — | — |
+| 只给了一句话，或想找同类的社区提示词对照 | 主类型文档，加上 `cases/opus55-gallery.md`（先看第 1 节最后两条，再从第 3 节挑 2–3 条同类型的） | 按主类型 | `cases/opus55-gallery.md` |
+| 想找现成的社区 skill 或某种画风 | `references/community-skills.md`（含 39 种风格库） | — | `cases/opus55-gallery.md` |
+| 配音（中文或英文）、双语字幕、配乐、音效、歌曲 | `playbook/04-audio.md` | `bin/vh tts / captions / music / sfx / mix / mux` | `showcase/`（静音样板）+ 04 篇 |
+| 特效、转场、粒子、着色器、声画联动 | `playbook/08-vfx-and-motion-sources.md` | 随主引擎 | — |
+| 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md` | HyperFrames + Three.js 层 | `cases/opus55-gallery.md` 的 3D 一节 |
 
 以上都不贴切时，读 `playbook/00-paradigm.md` 的引擎选型表自己判断，并在 `NOTES.md` 里写明理由。
 
@@ -57,19 +62,23 @@ OpenVideoHarness/
 ├── CLAUDE.md / AGENTS.md     入口（本文件）
 ├── README.md / README.zh-CN.md  给人看的说明（英 / 中）
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
-├── bin/vh                  命令行：doctor · setup · types · new · sheet · check · gif
+├── install.sh                一键安装（克隆、依赖、参考仓库、注册 skill）
+├── bin/vh                    命令行：doctor · setup · types · new · hf-init · install-skill · tts · captions · music · sfx · mix · mux · sheet · check · gif
+├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、music、sfx、mix；sheet.py）
+├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              8 类视频：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
 ├── playbook/                 跨类型的通用知识
 │   ├── 00-paradigm.md          范式与引擎选型
 │   ├── 01-pipeline.md          十阶段流程（0–9）、reads、人工关卡、subagent 并行
 │   ├── 02-verification.md      验证闭环与各引擎的取帧命令
 │   ├── 03-motion-design.md     缓动、时长、排版、安全区、转场
-│   ├── 04-audio.md             TTS、时间戳、节拍、混音
+│   ├── 04-audio.md             配音（双语）、字幕、配乐、音效、歌曲、混音
 │   ├── 05-hybrid-genvideo.md   生成式视频 + 代码
 │   ├── 06-research-mechanisms.md  Code2Video 等学术工作里可借用的机制
-│   └── 07-reverse-engineer.md  拉片：拆解参考视频
-├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、NOTES、LESSONS、TASTE_CHECKLIST
-├── cases/                    真实案例拆解
+│   ├── 07-reverse-engineer.md  拉片：拆解参考视频
+│   └── 08-vfx-and-motion-sources.md  特效与动画的来源、声画联动
+├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、NOTES、LESSONS、TASTE_CHECKLIST
+├── cases/                    真实案例拆解 + opus55-gallery（社区作品精选）
 ├── showcase/                 本仓库自己做的片子（源码 + 成片 + 自评记录）
 ├── engines/                  ClaudeAnimationBase（内置）+ 其他引擎的安装说明
 ├── references/

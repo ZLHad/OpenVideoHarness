@@ -2,15 +2,16 @@
 
 # OpenVideoHarness
 
-**A code-to-video harness that turns Claude Code / Codex into a multi-genre video studio**
+**Hand Claude Code or Codex a one-line request and get a real video back, reliably.**
 
-one-line request → routed to a video type → storyboard with gates → frame-by-frame code → self-review on contact sheets → final cut
+An open-source video-as-code workbench with one pipeline for 8 kinds of video: explainers, science shorts, launch films, music videos, data stories, paper talks, hand-drawn shorts and memes.
 
 **English** · [中文](README.zh-CN.md)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-black)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush-blue)
+![Voice](https://img.shields.io/badge/voice-Qwen3--TTS%20zh%20%7C%20en-purple)
 ![Video types](https://img.shields.io/badge/video%20types-8-green)
 
 <a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/poster.png" width="820" alt="OpenVideoHarness"></a>
@@ -21,23 +22,58 @@ one-line request → routed to a video type → storyboard with gates → frame-
 
 ## What is this
 
-In September 2026 the timeline filled with videos that coding agents made from a single sentence: hand-painted music videos, black-hole explainers, product launch films, math animations. They share one paradigm, **video-as-code**. The model does not generate pixels. It writes a program in which **every frame is a pure function of time t**. A headless browser or Manim renders the frames, and ffmpeg muxes in the audio. Show Lab's [Code2Video](https://github.com/showlab/Code2Video) made the research case for this approach on educational video.
+In September 2026 the timeline filled up with videos that Claude Opus 5.5 made from a single sentence: black-hole explainers, hand-painted music videos, launch films, math animations. They all work the same way. The model doesn't generate pixels. It **writes a program where every frame is a function of time t**, a browser or Manim renders it frame by frame, and ffmpeg adds the sound. Show Lab's [Code2Video](https://github.com/showlab/Code2Video) made the research case for this on educational video.
 
-The catch: a one-liner can produce something stunning, but it cannot produce something *reliable*. Switch the genre or the topic and the pacing collapses, AI-slop tells creep in, and facts drift.
+One sentence can produce something stunning, but not something **dependable**. Change the genre and the pacing falls apart, the AI-slop tells come back, and facts start drifting.
 
-**OpenVideoHarness is not another renderer. It is a harness for the agent.** It turns scattered know-how from papers, open-source skills and community experiments into a structure an agent can execute:
+OpenVideoHarness is not another renderer. It is a **harness for the agent**. It turns scattered know-how from papers, open-source skills and community experiments into a structure an agent can follow:
 
-- **Routing.** `CLAUDE.md` / `AGENTS.md` sends each request to one of 8 video types. Each type has one workflow doc covering the engine, steps, aesthetics, banned patterns, a prompt block, review focus and reference cases.
-- **Human in the loop.** **Three human review gates**: outline, storyboard with a keyframe preview sheet, and first draft. At each one the agent stops and waits for your call, and your notes are logged in `REVIEW.md`. Changes happen while they are still cheap.
-- **Pipeline.** Ten stages (0–9), audio first. For long pieces, the director agent builds a reference chapter before subagents paint the rest in parallel.
-- **Taste as numbers.** Easing curves, durations, minimum type sizes, safe zones, transition laws, caption density, and a 20-item taste checklist.
-- **Self-review loop.** Agents can't watch video, so they read frames: contact sheets for structure, frame strips for timing, crops for detail. They score their own work and fix what fails.
-- **Cases and references.** 10 dissected case studies, plus one command that fetches 20+ reference repos: framework docs, case source code and curated community skills.
-- **Ready to run.** `bin/vh` checks your toolchain, installs dependencies and scaffolds a project for any type. A hand-painted engine ships in the repo and works out of the box.
+- **Routing by video type.** Ask for "a science short" or "a launch film" and the agent opens the matching workflow: which engine to use, the steps, what good looks like, what to avoid, a prompt block and reference cases.
+- **You stay in the loop.** There are three review gates: outline, storyboard and first draft. At each one the agent stops and waits for you, so changes happen while they are still cheap.
+- **Taste written down as numbers.** Easing curves, shot lengths, minimum type sizes, vertical-video safe zones, caption density, and a 20-item self-review checklist.
+- **It checks its own work.** An agent can't watch video, so it reads rendered frames: contact sheets for structure, frame strips for timing, crops for detail. It fixes what fails.
+- **Sound, end to end.** `bin/vh` covers Chinese and English voiceover (local open-source Qwen3-TTS by default), bilingual captions, code-composed music, sound effects and the final mix.
+- **Ready to run.** One command installs it, one command scaffolds a project, and a hand-painted engine is bundled so you can render right away.
+
+## 30-second start
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
+```
+
+This clones the repo to `~/OpenVideoHarness`, installs the bundled engine, fetches the reference material, and registers the `open-video-harness` skill for Claude Code and Codex, so asking for a video from any folder leads the agent here. Requirements are listed below.
+
+Then open Claude Code (or Codex) in the repo and say what you want:
+
+```bash
+cd ~/OpenVideoHarness && claude
+```
+
+```text
+Make a 30-second vertical explainer: why do LEO satellite signals change pitch? English voiceover, Chinese and English captions.
+```
+
+The agent first shows you a one-screen outline, then a storyboard with a keyframe preview sheet, then a first draft, and it points out its own two or three weakest spots. It renders the final only after you approve.
+
+## Ask for it like this
+
+You don't need a long brief. Say **what it's about, who it's for, and where it will play**.
+
+> **Science short:** 45 seconds, vertical, on why GPS needs relativity. For TikTok and Shorts, English voiceover, end on one concrete number.
+
+> **Math explainer:** 3Blue1Brown style, 20 seconds, how sine waves add up to a square wave. It should read with the sound off.
+
+> **Launch film:** a 20-second film for this repo. Use only its real terminal and file tree, give it a rhythmic score, and put a sound effect on every key action.
+
+> **Paper explainer:** explain the key mechanism in `papers/main.tex` in 3 minutes. Copy the metadata verbatim, walk through the equation term by term, English voiceover with Chinese captions.
+
+> **Music video:** a hand-painted MV for `audio/song.mp3`. No lyrics on screen, the pictures tell the story, and each chorus escalates.
+
+> **Reverse-engineer a video:** this video is great. Break down how it was made, then make one in a similar style with this harness.
 
 ## Showcase
 
-Each of these was made by an agent inside this repo, **following only `CLAUDE.md` and the docs**. Every folder contains the full BRIEF, STORYBOARD, self-review log and source.
+Every film below was made by an agent inside this repo, **following only `CLAUDE.md` and the docs**. Each folder holds the brief, storyboard, self-review log and full source, so any of them can be the starting point for a video of the same type.
 
 <table>
 <tr>
@@ -51,7 +87,7 @@ Each of these was made by an agent inside this repo, **following only `CLAUDE.md
 </tr>
 </table>
 
-Each folder holds `BRIEF.md` (the request), `STORYBOARD.md` (shots and reads), `NOTES.md` (self-review and fixes), `LESSONS.md` and the source, so any of them can be the starting point for a video of the same type. GIFs are compressed previews; the originals are `media/final.mp4`.
+The GIFs are compressed previews; each original is at `media/final.mp4`.
 
 <details>
 <summary><b>Community work dissected in the case library</b></summary>
@@ -60,58 +96,12 @@ Each folder holds `BRIEF.md` (the request), `STORYBOARD.md` (shots and reads), `
 |---|---|---|---|
 | [I'm Upping My P(doom)](https://x.com/other__reality/status/2102514581684052169) | Hand-painted MV · 156s | p5.brush, 9 chapters painted by parallel subagents | [cases/mv-pdoom.md](cases/mv-pdoom.md) |
 | [Functional Emotions](https://x.com/eudaemonea/status/2102610626321490404) | Painted MV · 372s | Custom WebGL brushstroke renderer, 7 subagents | [cases/mv-functional-emotions.md](cases/mv-functional-emotions.md) |
-| [Claude Pop](https://x.com/donaldjewkes/status/2102801274173587569) | Hybrid MV | Seedance base plates + JS rotoscoping, 12-hour run | [cases/mv-claude-pop.md](cases/mv-claude-pop.md) |
-| [The Real Physics of Interstellar: Black Holes](https://x.com/AndyL5cc/status/2104519528873103773) | Science explainer · 143s | One sentence; one hero shader carries the whole film | [cases/explainer-interstellar-blackhole.md](cases/explainer-interstellar-blackhole.md) |
-| [Applore promo](https://x.com/decohack/status/2104502625055949242) | Product film · 15s | One-line "showreel" prompt + real assets | [cases/promo-applore.md](cases/promo-applore.md) |
-| [HyperFrames launch films](https://github.com/heygen-com/hyperframes-launches) | Product films ×20 | HTML + GSAP, production grade | [cases/promo-hyperframes-launches.md](cases/promo-hyperframes-launches.md) |
+| [Claude Pop](https://x.com/donaldjewkes/status/2102801274173587569) | Hybrid MV | Seedance base plates plus JS rotoscoping, 12-hour run | [cases/mv-claude-pop.md](cases/mv-claude-pop.md) |
+| [The Real Physics of Interstellar: Black Holes](https://x.com/AndyL5cc/status/2104519528873103773) | Science explainer · 143s | One-line request; one hero shader carries the film | [cases/explainer-interstellar-blackhole.md](cases/explainer-interstellar-blackhole.md) |
+| [Applore promo](https://x.com/decohack/status/2104502625055949242) | Product film · 15s | One-line "showreel" prompt plus real assets | [cases/promo-applore.md](cases/promo-applore.md) |
+| [389 community videos](https://github.com/yihui-dev/awesome-opus5-5-videos) | Mixed | Prompt statistics, archetypes and curated picks | [cases/opus55-gallery.md](cases/opus55-gallery.md) |
 
 </details>
-
-## Quick start
-
-Requirements: macOS or Linux, Node ≥ 22, ffmpeg, Google Chrome, git. Math explainers also need Python (uv recommended) and LaTeX.
-
-```bash
-git clone https://github.com/ZLHad/OpenVideoHarness.git
-cd OpenVideoHarness
-bin/vh doctor     # check the toolchain
-bin/vh setup      # install the bundled engine, fetch reference repos, smoke-test a render
-```
-
-Then open Claude Code (or Codex) in the repo root and say what you want:
-
-```text
-Make a 30-second vertical explainer: why do LEO satellite signals change pitch?
-```
-
-The agent reads `CLAUDE.md`, routes to `video-types/02-knowledge-short.md`, creates a project under `projects/`, and stops for your review three times:
-
-1. **Outline**: a one-line pitch, a 3–7 part outline, style references, engine and cost.
-2. **Storyboard**: the shot table plus a preview sheet with one keyframe per shot, so you can judge it at a glance.
-3. **First draft**: the draft render and a contact sheet, with the agent's own 2–3 weakest spots called out first.
-
-At each gate you approve, send notes, or start over. The agent builds scene by scene, checks its own contact sheets against the checklist, and delivers `out/final.mp4`.
-
-Or scaffold from the command line first:
-
-```bash
-bin/vh types                          # list the 8 video types
-bin/vh new short leo-doppler          # scaffold a project; the type's prompt block is pre-filled into BRIEF
-bin/vh new handdrawn clawd-leaf       # hand-drawn types also copy the bundled engine and install deps
-```
-
-### One-line examples by type
-
-| Type | `bin/vh new` | Example request |
-|---|---|---|
-| Math / science explainer | `math` | "3b1b-style, 20 seconds: how sine waves add up to a square wave" |
-| Knowledge short | `short` | "45-second vertical: why GPS needs relativity" |
-| Product promo | `promo` | "A 20-second launch film for this repo, using its real terminal and file tree" |
-| Lyric video / MV | `mv` | "A hand-painted MV for assets/song.mp3; no lyrics on screen, the pictures tell the story" |
-| Data story | `data` | "Turn data/sales.csv into a 60-second data short, one takeaway per chart" |
-| Paper explainer | `paper` | "A 3-minute explainer of the key mechanism in papers/main.tex, with narration" |
-| Hand-drawn short | `handdrawn` | "Clawd tries to catch a butterfly, 15 seconds" |
-| Meme / fast cut | `meme` | "30-second tech-Twitter cut: what happened in AI this week" |
 
 ## How it works
 
@@ -125,140 +115,185 @@ flowchart LR
     D --> R1{{"👤 human review ①"}}
     R1 --> E["STORYBOARD + keyframe preview<br/>reads + timing per shot"]
     E --> R2{{"👤 human review ②"}}
-    R2 --> F
-    F["Audio first<br/>timeline.json · beats.json"]
+    R2 --> F["Sound first<br/>voice · score · beat map"]
     F --> G["Scene code, each frame f(t)<br/>long pieces: reference chapter + parallel subagents"]
     G --> H["Contact sheet / strip / crop"]
-    H --> I{"TASTE_CHECKLIST<br/>20 items"}
-    I -- FAIL --> G
-    I -- PASS --> J["Draft render + contact sheet"]
+    H --> I{"Taste checklist<br/>20 items"}
+    I -- fail --> G
+    I -- pass --> J["Draft + contact sheet"]
     J --> R3{{"👤 human review ③"}}
     R3 -- notes --> G
-    R3 -- approved --> K["Final cut + LESSONS.md<br/>lessons flow back into the playbook"]
+    R3 -- approved --> K["Final cut + LESSONS.md<br/>lessons flow back"]
 ```
 
-**Hard rules** (full list in [CLAUDE.md](CLAUDE.md)):
+Hard rules (full list in [CLAUDE.md](CLAUDE.md)):
 
-1. **Every frame is a pure function of t.** No `Math.random`, no `Date.now`, no CSS transitions, no state carried between frames. This is what makes parallel rendering, resumable renders and "jump to any frame to review" possible.
-2. **Audio sets the timing.** Voiceover or song first, turned into word timestamps and a beat grid. The picture follows the audio.
-3. **Storyboard before code.** Each shot lists the *reads* the viewer must get, in order, each with start and end times. Pacing is where models fail most.
-4. **Review every scene.** Contact sheet, strip and crop, checked against the checklist, then fixed.
-5. **Fact discipline.** Numbers and citations are copied verbatim from the source. Anything uncertain goes into NOTES, never into the video.
+1. **Every frame is a pure function of t.** No randomness, wall clock or CSS animation, and no state carried between frames. This is what makes parallel and resumable rendering possible, and lets you pull out any frame for review.
+2. **When there is sound, sound sets the timing.** Voiceover or score comes first and is turned into a timeline. The picture follows it.
+3. **Storyboard before code.** Each shot lists the *reads* the viewer must take in, in order, each with start and end times. Pacing is where models fail most.
+4. **Review every scene** against the checklist, and fix it until it passes.
+5. **Facts are copied verbatim.** Anything uncertain goes into NOTES, never into the video.
 
-## Video types
+## Eight video types
 
 | # | Type | Default engine | Core taste | Doc |
 |---|---|---|---|---|
-| 01 | Math / science explainer | Manim CE | One colour per entity, geometry before algebra, equations lit term by term | [video-types/01](video-types/01-math-science-explainer.md) |
-| 02 | Knowledge short (incl. vertical) | HyperFrames | Hook in the first second, a payoff every 3–5s, captions inside the safe box | [video-types/02](video-types/02-knowledge-short.md) |
-| 03 | Product promo / launch film | HyperFrames | Real UI only, one register (Apple or Linear), cursor clicks drive each beat | [video-types/03](video-types/03-product-promo.md) |
-| 04 | Lyric video / MV | ClaudeAnimationBase · HyperFrames | Cuts on the beat ±1 frame, choruses escalate, "not a lyric slideshow" | [video-types/04](video-types/04-lyric-music-video.md) |
-| 05 | Data story | HyperFrames + SVG | One takeaway per chart, staged transitions, every number traceable | [video-types/05](video-types/05-data-story.md) |
-| 06 | Paper explainer / conference video | Manim + HyperFrames | Three gates, metadata copied verbatim, figures redrawn as vectors | [video-types/06](video-types/06-paper-explainer.md) |
-| 07 | Hand-drawn / watercolour / whiteboard / paper-cut | ClaudeAnimationBase (p5.brush) | Handmade, alive, one piece; no text | [video-types/07](video-types/07-hand-drawn.md) |
-| 08 | Brutalist / meme / fast cut | HyperFrames | Break a grid on purpose; every joke reads in under a second | [video-types/08](video-types/08-brutalist-meme.md) |
+| 01 | Math / science explainer | Manim CE | One colour per concept, geometry before algebra, equations lit term by term | [01](video-types/01-math-science-explainer.md) |
+| 02 | Knowledge short (vertical or horizontal) | HyperFrames | Hook in the first second, a payoff every 3–5 s, captions inside the safe box | [02](video-types/02-knowledge-short.md) |
+| 03 | Product promo / launch film | HyperFrames | Real UI only, one register (Apple or Linear), cursor clicks drive each beat | [03](video-types/03-product-promo.md) |
+| 04 | Lyric video / MV | p5.brush or HyperFrames | Cuts land within 1 frame of the beat, each chorus escalates, never a lyric slideshow | [04](video-types/04-lyric-music-video.md) |
+| 05 | Data story | HyperFrames + SVG | One takeaway per chart, staged transitions, every number traceable | [05](video-types/05-data-story.md) |
+| 06 | Paper explainer / conference video | Manim + HyperFrames | Three gates, metadata copied verbatim, figures redrawn as vectors | [06](video-types/06-paper-explainer.md) |
+| 07 | Hand-drawn / watercolour / whiteboard / paper-cut | ClaudeAnimationBase (p5.brush) | Handmade, always moving, one continuous piece; no text on screen | [07](video-types/07-hand-drawn.md) |
+| 08 | Brutalist / meme / fast cut | HyperFrames | Build a grid, then break it on purpose; every joke reads in under a second | [08](video-types/08-brutalist-meme.md) |
 
-For photoreal people or real physics, bring in a generative video model and let code paint the final layer ([playbook/05](playbook/05-hybrid-genvideo.md)). To learn from a video you admire, have the agent reverse-engineer it with [playbook/07](playbook/07-reverse-engineer.md).
+There are also focused guides:
+- **photoreal people and real physics:** bring in a generative video model and let code draw the final layer ([playbook/05](playbook/05-hybrid-genvideo.md));
+- **VFX and motion sources:** [playbook/08](playbook/08-vfx-and-motion-sources.md);
+- **reverse-engineering a video:** [playbook/07](playbook/07-reverse-engineer.md).
 
-> The workflow docs are written in Chinese, with technical terms in English. Agents read them fine in either language. English translations are welcome.
+> The workflow docs are written in Chinese, with technical terms in English. Agents follow them fine either way. English translations are on the roadmap.
+
+## Sound: voice, captions, music, SFX, songs
+
+| Need | Command | Notes |
+|---|---|---|
+| **Voiceover (zh / en)** | `bin/vh tts <project> qwen Ryan en` | Defaults to local open-source **Qwen3-TTS**: offline and free, about a 2 GB download on first use. Five Chinese voices (Serena, Vivian, Uncle_Fu, Dylan with a Beijing accent, Eric with a Sichuan accent) and two English voices (Ryan, Aiden). Interfaces for cloud Qwen3-TTS (Alibaba Cloud) and ElevenLabs are ready |
+| **Bilingual captions** | `bin/vh captions <project>` | Write each script line as `中文 \|\| English` and get zh, en and two-line bilingual SRT, plus `captions.json` for the engine to draw. `bin/vh mux` can add them as switchable soft subtitle tracks |
+| **Music** | `bin/vh music score.json out.wav` | A code-composed score. Sections follow the shots, the same score always renders the same music, and it outputs an exact beat, section and hit map. Your own track works too (`bin/vh beats` analyses it) |
+| **Sound effects** | `bin/vh sfx place events.json …` | 15 original synthesized effects (click, pop, whoosh, riser, impact, ding and more), each placed so it lands exactly on its action |
+| **Mix** | `bin/vh mix out.wav voice=… music=… sfx=…` | The music ducks under voice and effects, and the whole mix is normalized to −14 LUFS |
+| **Songs** | — | Import from Suno or similar web tools. Interfaces for ElevenLabs Music and local song models are ready |
+
+Details in [playbook/04-audio.md](playbook/04-audio.md).
+
+## What you get
+
+- A **publish-ready MP4**, optionally with switchable zh/en subtitle tracks.
+- A **re-renderable project**: change one line to get a new version, or fork it into another language or style.
+- The paper trail: brief, storyboard, review log, self-review fixes and asset ledger.
+- Contact sheets and keyframes, for post-mortems and ready-made covers.
+
+## CLI cheat sheet: `bin/vh`
+
+| Command | Does |
+|---|---|
+| `doctor` / `setup` | Check the toolchain / install deps and fetch references |
+| `types` / `new <type> <slug>` | List the 8 types / scaffold a project with templates, prompt block and engine |
+| `tts` / `captions` | Voiceover (zh/en) / captions (zh, en, bilingual) |
+| `music` / `sfx` / `beats` | Code-composed score / SFX library and placement / beat analysis of external music |
+| `mix` / `mux` | Three-bus mix / add audio and subtitles to a render |
+| `sheet` / `check` / `gif` | Timestamped contact sheet / black, freeze and silence detection / README GIF |
+| `hf-init` / `install-skill` / `sync-agents` | Safe HyperFrames scaffold / register the skill / regenerate AGENTS.md |
+
+## Requirements
+
+| Dependency | Used for | Required? |
+|---|---|---|
+| macOS or Linux, git | Basics | ✅ |
+| Node.js ≥ 22, Google Chrome | Browser-engine rendering (HyperFrames, p5) | ✅ |
+| FFmpeg | Encoding, mixing, QA | ✅ |
+| Python 3 + [uv](https://github.com/astral-sh/uv) | Sound tools, Manim, contact sheets (dependencies install temporarily, never globally) | Recommended |
+| Apple Silicon | Local Qwen3-TTS (mlx-audio) | For local voiceover |
+| LaTeX | Manim equations | For math explainers |
+
+Rendering costs nothing extra. Only external services, such as cloud voices or generative video, bill under their own terms, and their API keys are read from environment variables only.
+
+## Install and update
+
+**One line:** see *30-second start*. Options:
+
+```bash
+bash install.sh --dir ~/code/OpenVideoHarness   # install somewhere else
+bash install.sh --no-refs                        # skip reference repos for now (run references/fetch.sh later)
+bash install.sh --no-skill                       # don't register the global skill
+```
+
+**Manual:**
+
+```bash
+git clone https://github.com/ZLHad/OpenVideoHarness.git && cd OpenVideoHarness
+bin/vh setup            # bundled engine + reference repos
+bin/vh install-skill    # optional: ~/.claude/skills and ~/.agents/skills
+```
+
+**Skill only**, for example with the [skills CLI](https://github.com/vercel-labs/skills):
+
+```bash
+npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness
+```
+
+The skill is a thin pointer. On first use it asks for permission, then installs the full workbench.
+
+**Update:** run `git pull` in the repo, then `references/fetch.sh`.
 
 ## Repository layout
 
 ```
 OpenVideoHarness/
-├── CLAUDE.md · AGENTS.md     agent entry: router, hard rules, map
-├── bin/vh                    CLI: doctor · setup · types · new · sheet · check · gif
-├── video-types/              8 workflow docs (each with a prompt block)
-├── playbook/                 cross-cutting knowledge
-│   ├── 00-paradigm.md          paradigm and engine choice
-│   ├── 01-pipeline.md          ten stages, reads, human gates, parallel subagents
-│   ├── 02-verification.md      seven-layer review loop, frame commands per engine
-│   ├── 03-motion-design.md     easing, timing, type, safe zones, transitions
-│   ├── 04-audio.md             TTS, timestamps, beats, mixing
-│   ├── 05-hybrid-genvideo.md   generative video + code
-│   ├── 06-research-mechanisms.md  mechanisms from Code2Video and related papers
-│   └── 07-reverse-engineer.md  dissecting a reference video
+├── CLAUDE.md · AGENTS.md     agent entry: router, hard rules, map (identical content)
+├── install.sh                one-line installer
+├── bin/vh · tools/           CLI and the scripts behind it (sound, contact sheets)
+├── skills/                   the open-video-harness skill
+├── video-types/              8 workflow docs
+├── playbook/                 know-how 00–08: paradigm, pipeline, review, motion, sound, hybrid, research, reverse-engineering, VFX
 ├── templates/                BRIEF · STORYBOARD · STYLE · REVIEW · NOTES · LESSONS · TASTE_CHECKLIST
-├── cases/                    10 case studies
-├── engines/                  ClaudeAnimationBase (bundled) + setup notes for HyperFrames / Remotion / Manim / Blender
-├── references/               fetch.sh · open-source.md · community-skills.md (repos/ is git-ignored)
-├── showcase/                 videos made with this harness (source + renders)
+├── cases/                    11 case studies + curated picks from 389 community videos
+├── showcase/                 films made with this harness (source + renders + logs)
+├── engines/                  bundled hand-drawn engine + setup notes for the others
+├── references/               fetch.sh (24 read-only repos) · open-source list · community skill picks
 └── projects/                 your video projects (git-ignored)
 ```
 
-## CLI: `bin/vh`
-
-| Command | What it does |
-|---|---|
-| `bin/vh doctor` | Check node, ffmpeg, Chrome, Python/uv, LaTeX, engine deps and reference repos |
-| `bin/vh setup` | Install the bundled engine, fetch reference repos, run a smoke render |
-| `bin/vh types` | List the 8 video types and their docs |
-| `bin/vh new <type> <slug>` | Create `projects/<date>-<slug>`, copy the templates, pre-fill BRIEF with the type's prompt block |
-| `bin/vh sheet <mp4> [cols] [fps]` | Contact sheet from a render |
-| `bin/vh check <mp4>` | ffprobe plus black, freeze and silence detection |
-| `bin/vh gif <mp4> [width] [fps]` | Palette-optimised GIF preview |
-
-## Engines
-
-| Engine | You write | Best for | Status |
-|---|---|---|---|
-| [HyperFrames](https://github.com/heygen-com/hyperframes) | HTML + GSAP | Promos, explainers, captions, data, memes | `npx hyperframes init` on first use |
-| [Remotion](https://www.remotion.dev) | React | Same, when you prefer React or cloud rendering | `npx create-video` |
-| [Manim CE](https://www.manim.community) | Python | Math, physics, algorithms, paper mechanisms | `uv add manim` |
-| [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) | p5.js + p5.brush | Hand-painted, watercolour, characters, MVs | **Bundled**; ready after `bin/vh setup` |
-| Blender | bpy | Real 3D | On demand |
-| Generative video (fal, etc.) | API + code overlay | Photoreal people, physics | Paid, on demand |
-
 ## How it relates to other projects
 
-| Project | What it is | How OpenVideoHarness differs |
+| Project | What it is | How this differs |
 |---|---|---|
-| [Code2Video](https://github.com/showlab/Code2Video) | Planner–Coder–Critic research pipeline for educational video (Manim) | Generalises its ideas (code as the medium, anchor grids, ScopeRefine, parallel sections) to 8 genres, run by a general-purpose coding agent |
-| [HyperFrames skills](https://github.com/heygen-com/hyperframes) / [Remotion skills](https://github.com/remotion-dev/skills) | Official skills for one engine | Sits one level up: picks the engine, sets the pipeline, taste and review, and calls those skills when useful |
-| [OpenMontage](https://github.com/calesthio/OpenMontage) | Full agentic production system (12 pipelines) | Lighter: markdown, templates and one bash script that any coding agent can read and change |
-| [awesome-claude-video-skills](https://github.com/zhuyansen/awesome-claude-video-skills) | Catalogue of 183 community video skills | Curates and maps them onto each video type ([community-skills.md](references/community-skills.md)) |
+| [Code2Video](https://github.com/showlab/Code2Video) | Planner–Coder–Critic research pipeline for educational video (Manim) | Generalises its ideas (code as the medium, anchor grids, scoped repair, parallel sections) to 8 genres, run by a general-purpose coding agent |
+| [HyperFrames](https://github.com/heygen-com/hyperframes) / [Remotion](https://github.com/remotion-dev/skills) skills | Official guides for one engine | Sits one level up: picks the engine, sets pipeline, taste and review, and calls those skills when useful |
+| [OpenMontage](https://github.com/calesthio/OpenMontage) | Full agentic production system | Lighter: mostly markdown, templates and one CLI that any coding agent can read and change |
+| [guizang product-video skill](https://github.com/op7418/guizang-product-video-skill) | Specialist for software update films | Covers 8 genres, adds three human gates and bilingual sound; its music and SFX method inspired ours (our code is independent) |
 
 ## FAQ
 
-**Do I need Claude?** No. `AGENTS.md` points to the same `CLAUDE.md`, so Codex and other agents that read markdown can use it. The showcase was made with Claude Opus 5.5.
+**Do I need Claude?** No. `AGENTS.md` and `CLAUDE.md` are identical, so Codex and other agents that read markdown work too. The showcase was made with Claude Opus 5.5.
 
-**Does it cost money or need a GPU?** Not on the pure-code route. Rendering runs locally in Chrome or Manim, and voiceover can use local TTS (mlx-audio on Apple Silicon). Only the generative-video route needs paid APIs.
+**Does it cost money or need a GPU?** Not on the pure-code route. Rendering runs locally in Chrome or Manim, voiceover uses local Qwen3-TTS, and music and effects are generated by code. Only cloud voices or generative video cost money.
 
-**What about the reference repos' licenses?** `references/repos/` is not part of this repository. `fetch.sh` pulls each repo from its authors for reading only. Licenses are listed in [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md). Some have no license or forbid commercial use, so check before reusing anything.
+**What about the reference repos' licenses?** `references/repos/` is not part of this repository. `fetch.sh` pulls each repo from its authors, for reading only, and renames their `CLAUDE.md` and `.claude/` to `_upstream_*` so agents never load them as instructions. Licenses are listed in [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md). Some repos have no license or forbid commercial use, so check before reusing anything.
 
 ## Roadmap
 
-- [ ] Type 09: editing and talking-head (cutting, captions and B-roll for existing footage)
+- [ ] An intro film for the project, going through the three review gates now
+- [ ] Type 09: editing and talking-head (cuts, captions and B-roll for existing footage)
+- [ ] Type 10: 3D scenes (Three.js and shaders)
+- [ ] Word-level forced alignment (Qwen3-ForcedAligner) for word-by-word caption highlights
 - [ ] English translations of the workflow docs
-- [ ] Automatic video QA (rubric scoring on contact sheets, timing-alignment checks)
-- [ ] Package as a Claude Code plugin so it can be used from any directory
-- [ ] More showcase pieces: data story, paper explainer, MV
+- [ ] Automatic quality scoring from contact sheets
 
 ## Contributing
 
 PRs welcome for:
-
 - new video types in `video-types/`;
-- case studies in `cases/` (register them in `cases/README.md`);
+- case studies in `cases/`;
 - general lessons distilled from your projects' `LESSONS.md` into `playbook/`;
-- videos you made with the harness, added to `showcase/` with their BRIEF, STORYBOARD, NOTES and source.
+- films you made with the harness, added to `showcase/` with their brief, storyboard, notes and source.
 
 ## Acknowledgments
 
-This project stands on many shoulders:
-
-- **Frameworks:** HyperFrames, Remotion, Manim, p5.brush.
+Thanks to these projects, researchers and creators:
+- **Frameworks and tools:** HyperFrames, Remotion, Manim, p5.brush, Qwen3-TTS, mlx-audio, FFmpeg.
 - **Research:** Code2Video, Paper2Video, TheoremExplainAgent and others.
-- **Open-source skills and case studies:** ClaudeAnimationBase, PDoomVideo, functional-emotions-video, lemo-opuscar, OpenMontage, awesome-claude-video-skills and others.
+- **Open-source skills and case studies:** ClaudeAnimationBase, PDoomVideo, functional-emotions-video, the guizang product-video skill, lemo-opuscar, OpenMontage, awesome-claude-video-skills, awesome-opus5-5-videos and others.
 - **Community creators** who shared their experiments and prompts publicly.
 
 The full list, with licenses and how each work is used, is in **[ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md)**.
 
-This is an independent project. It is not affiliated with Anthropic, HeyGen, Remotion or Show Lab.
+This is an independent project, not affiliated with Anthropic, HeyGen, Remotion, Show Lab or Alibaba Cloud.
 
 ## License
 
-Original content in this repository is released under the [MIT License](LICENSE). The bundled ClaudeAnimationBase is also MIT (© John Heibel). Fetched references keep their own licenses.
+Original content is released under the [MIT License](LICENSE). The bundled ClaudeAnimationBase is also MIT (© John Heibel). Fetched references keep their own licenses.
 
 ## Citation
 
