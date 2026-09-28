@@ -54,6 +54,7 @@ sparse AmitSubhash/3brown1blue                 3brown1blue    src/three_b1b/skil
 
 # 社区清单与精选 skill（清单 CC0；精选条目的说明见 references/community-skills.md）
 sparse   zhuyansen/awesome-claude-video-skills  awesome-claude-video-skills data   # 183 个视频 skill 的分类清单与 skills.json
+full     yihui-dev/awesome-opus5-5-videos       awesome-opus5-5-videos     # 389 支 Opus 5.5 代码视频 + 作者公开的 prompt（无 license：只读，精选见 cases/opus55-gallery.md）
 textonly lemomo-ai/lemo-opuscar                 lemo-opuscar               # 39 种影片风格：风格 prompt + Opus 5.5 纯代码样片（代码 MIT；指南、STYLE.md、成片 CC BY 4.0）
 textonly calesthio/OpenMontage                  OpenMontage                # 全套 agent 视频制作系统：12 条管线、700+ skill/知识文件（AGPL）
 textonly Vincentwei1021/video-shotcraft         video-shotcraft            # 产品片：150+ 张镜头配方卡 + Remotion（Apache-2.0；部分音效来源待核）
