@@ -4,9 +4,9 @@
 #   bash install.sh [--dir ~/OpenVideoHarness] [--no-refs] [--no-skill] [--skill claude|codex|all]
 # What it does:
 #   1. clone (or fast-forward) the repo into --dir
-#   2. check the toolchain (bin/vh doctor)
-#   3. install the bundled hand-drawn engine's deps and, unless --no-refs, fetch ~25 read-only reference repos
-#   4. unless --no-skill, register the open-video-harness skill for Claude Code (~/.claude/skills) and Codex (~/.agents/skills)
+#   2. install the bundled hand-drawn engine's deps and, unless --no-refs, fetch ~25 read-only reference repos
+#   3. unless --no-skill, register the open-video-harness skill for Claude Code (~/.claude/skills) and Codex (~/.agents/skills)
+#   4. run bin/vh doctor as a final check
 # Nothing else is installed globally. Models (e.g. local Qwen3-TTS, ~2 GB) download only when you first use them.
 set -euo pipefail
 REPO="${OVH_REPO:-https://github.com/ZLHad/OpenVideoHarness.git}"
@@ -22,11 +22,11 @@ need git "https://git-scm.com"; need node "Node.js ≥ 22: https://nodejs.org"; 
 if [ -d "$DIR/.git" ]; then say "updating $DIR"; git -C "$DIR" pull --ff-only -q
 else say "cloning into $DIR"; git clone -q "$REPO" "$DIR"; fi
 cd "$DIR"
-say "checking toolchain"; bin/vh doctor || true
 say "installing the bundled engine (ClaudeAnimationBase)"; (cd engines/ClaudeAnimationBase && npm install --silent)
 if [ "$REFS" = 1 ]; then say "fetching reference repos (read-only, git-ignored)"; references/fetch.sh; fi
 [ -f LOCAL.md ] || cp LOCAL.example.md LOCAL.md
 [ "$SKILL" = none ] || { say "registering the skill"; bin/vh install-skill "$SKILL"; }
+say "final check"; bin/vh doctor || true
 cat <<MSG
 
 ✓ OpenVideoHarness is ready at $DIR
