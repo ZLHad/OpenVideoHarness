@@ -20,7 +20,7 @@ node render.mjs --sheet=0.5,2,4 --cols=3 --w=480 --out=out/check/sheet.jpg   # �
 
 ## HyperFrames（HTML + GSAP）
 
-要求 Node ≥ 22 和 FFmpeg。**`bin/vh new short|promo|data|meme <slug>` 会自动初始化**，也可以对已有项目单独运行 `bin/vh hf-init <项目目录> [landscape|portrait|square]`。
+要求 Node ≥ 22 和 FFmpeg。**版本固定在实测过的 0.8.82**（`bin/vh` 默认使用；想试新版，就设 `HYPERFRAMES_VERSION=0.8.84`，先跑 lint 和一次冒烟渲染确认没有回归，再把默认版本改上去）。**`bin/vh new short|promo|data|meme <slug>` 会自动初始化**，也可以对已有项目单独运行 `bin/vh hf-init <项目目录> [landscape|portrait|square]`。
 
 > ⚠️ HyperFrames 0.8.x 的 `init` 和 `skills update` 会把 skills 装进**全局**的 `~/.claude/skills` 和 `~/.agents/skills`。`--skip-skills` 参数目前不生效，只能用环境变量 `HYPERFRAMES_SKIP_SKILLS=1` 跳过。`bin/vh hf-init` 已经设置了这个变量，并且只把工程文件拷进项目，不拷它生成的 CLAUDE.md 和 AGENTS.md，避免和本仓库的路由冲突。自己手动运行 npx 时，也要带上这个变量：
 

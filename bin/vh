@@ -124,9 +124,9 @@ cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/s
   local dir=${1:?usage: bin/vh hf-init <project-dir> [resolution]} res=${2:-landscape} tmp f b
   [ -d "$dir" ] || { echo "no such project: $dir"; return 1; }
   [ -f "$dir/hyperframes.json" ] && { echo "$c_ok HyperFrames already initialised in ${dir#$ROOT/}"; return 0; }
-  echo "→ scaffolding HyperFrames ($res) — npx, no global skills, telemetry off"
+  echo "→ scaffolding HyperFrames ${HYPERFRAMES_VERSION:-0.8.82} ($res) — pinned, no global skills, telemetry off"
   tmp=$(mktemp -d)
-  if ! (cd "$tmp" && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 npx --yes hyperframes init hf --non-interactive --resolution "$res" >/dev/null 2>&1); then
+  if ! (cd "$tmp" && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 npx --yes "hyperframes@${HYPERFRAMES_VERSION:-0.8.82}" init hf --non-interactive --resolution "$res" >/dev/null 2>&1); then
     echo "$c_wa hyperframes init failed (offline?) — retry later: bin/vh hf-init ${dir#$ROOT/} $res"; rm -rf "$tmp"; return 1; fi
   shopt -s dotglob
   for f in "$tmp"/hf/*; do b=$(basename "$f")
@@ -134,6 +134,7 @@ cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/s
     [ -e "$dir/$b" ] || cp -R "$f" "$dir/"
   done
   shopt -u dotglob; rm -rf "$tmp"
+  (cd "$dir" && npm i -D --save-exact --silent --no-fund --no-audit "hyperframes@${HYPERFRAMES_VERSION:-0.8.82}" >/dev/null 2>&1) || echo "$c_wa could not pin hyperframes locally (offline?)"
   echo "$c_ok HyperFrames scaffolded into ${dir#$ROOT/} (index.html, hyperframes.json …). Always prefix npx hyperframes with HYPERFRAMES_SKIP_SKILLS=1."
 }
 project_of() { # nearest ancestor of $1 that contains BRIEF.md (a project), else empty
