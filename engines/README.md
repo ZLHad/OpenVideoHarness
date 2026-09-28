@@ -44,6 +44,12 @@ npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 - **等宽字体的坑**：`ui-monospace, monospace` 能通过字体 lint，快照里看起来也是等宽，但 `hyperframes render` 渲染出来却是比例字体（showcase 00 在第一版全片都中了招）。要用 `@font-face` 显式声明，例如 `@font-face{font-family:"LF Mono";src:local("SF Mono"),local("Menlo")}`。**判断字体要看 mp4 渲染出的帧，不要看快照。**`check --snapshots` 只保存对比度检查用的 PNG，不能替代 `snapshot --at`。
 - `snapshot` 在 tween 刚开始的那一刻，可能和最终渲染出的帧不一致。关键帧以渲染出的 mp4 为准，逐帧 strip 的做法见 `playbook/02-verification.md`。
 - 完整样板：`showcase/02-short-leo-doppler/`（竖屏科普，单个 `index.html`）。
+- **HyperFrames 加 Three.js（3D 世界、一镜到底）的坑**，来自介绍片的制作：
+  - 每一帧都用 `renderAt(t)` 从 t 算出摄像机和所有物体的状态。摄像机路线用按 t 参数化的样条，关卡处加停顿关键帧，不用 Three.js 的动画时钟。
+  - `VideoTexture` 必须**每帧**设置 `texture.needsUpdate = true`，否则渲染出的屏幕是全黑的。视频按 t 去 seek，而且要等 seek 完成。
+  - `__hf.buildReady` 要在普通 `<script>`（不是 module）里**同步注册**，否则每个并行 worker 的开头都会出现空帧。
+  - 项目根目录只能有一个 composition。局部测试文件放在 `out/`，要跑时临时拷回来。
+  - `snapshot` 看不到视频纹理（屏幕是暗的），检查必须看渲染出的 mp4 帧。
 
 ## Remotion（React），未安装
 
