@@ -1,0 +1,12 @@
+node_modules/
+out/
+renders/
+.venv/
+references/repos/
+.DS_Store
+*.env
+.env*
+
+LOCAL.md
+projects/*
+!projects/README.md

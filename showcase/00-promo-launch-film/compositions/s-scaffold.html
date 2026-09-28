@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+  <head><meta charset="UTF-8" /></head>
+  <body>
+    <template>
+      <style>
+        @font-face { font-family: "LF Mono"; font-weight: 400; src: local("SF Mono"), local("SFMono-Regular"), local("Menlo-Regular"), local("Menlo"); }
+        @font-face { font-family: "LF Mono"; font-weight: 600 700; src: local("SF Mono Semibold"), local("SFMono-Semibold"), local("Menlo-Bold"); }
+        [data-composition-id="s-scaffold"] { position: absolute; inset: 0; }
+        .sc-move, .sc-blur { position: absolute; inset: 0; }
+        /* header (label + hairline) stays fixed; the camera works inside the viewport below it */
+        .sc-label { position: absolute; left: 144px; top: 150px; font-size: 44px; line-height: 56px; letter-spacing: -0.01em; color: #ededef; font-weight: 600; white-space: nowrap; }
+        .sc-label i { font-style: normal; font-family: "LF Mono", ui-monospace, monospace; font-weight: 400; color: #8b8b94; margin-right: 24px; }
+        .sc-rule { position: absolute; left: 144px; top: 240px; width: 1632px; height: 1px; background: #26262b; }
+        .sc-view { position: absolute; inset: 0; clip-path: inset(241px 0 0 0); }
+        .sc-cam { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+        .sc-pane { position: absolute; background: #111113; border: 1px solid #26262b; border-radius: 10px; overflow: hidden; }
+        .sc-head { height: 52px; border-bottom: 1px solid #26262b; padding: 0 26px; display: flex; align-items: center;
+                   font-family: "LF Mono", ui-monospace, monospace; font-size: 22px; color: #8b8b94; white-space: nowrap; }
+        .sc-term { left: 144px; top: 288px; width: 1176px; height: 600px; }
+        .sc-focus { position: absolute; left: 144px; top: 288px; width: 1176px; height: 600px; border: 2px solid #ffb224; border-radius: 10px; opacity: 0; }
+        .sc-body { padding: 22px 30px; font-family: "LF Mono", ui-monospace, monospace; font-size: 26px; line-height: 36px; color: #ededef; }
+        .sc-row { display: block; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 36px; }
+        .sc-prompt { color: #8b8b94; }
+        .sc-caret { display: inline-block; width: 14px; height: 30px; background: #ededef; vertical-align: -6px; margin-left: 2px; }
+        .sc-out { opacity: 0; }
+        .sc-ok { color: #ffb224; }
+        .sc-mid { color: #9a9aa3; }
+        .sc-dim { color: #74747d; }
+        .sc-key { color: #ededef; font-weight: 600; }
+        .sc-tree { left: 1368px; top: 288px; width: 408px; height: 600px; }
+        .sc-tbody { padding: 16px 26px; font-family: "LF Mono", ui-monospace, monospace; font-size: 24px; line-height: 36px; color: #ededef; }
+        .sc-item { display: block; white-space: pre; opacity: 0; }
+        .sc-item.dir { color: #8b8b94; }
+        .sc-item.hf { color: #b4b4bc; }
+      </style>
+      <div data-composition-id="s-scaffold" data-width="1920" data-height="1080">
+        <div class="sc-move">
+          <div class="sc-blur">
+            <div class="sc-label"><i>01</i>Scaffold a project in one command</div>
+            <div class="sc-rule"></div>
+            <div class="sc-view">
+              <div class="sc-cam">
+                <!-- stdout below is verbatim from `bin/vh new promo launch-film` run on 2026-09-29 01:38 (assets/vh-new-stdout.txt) -->
+                <div class="sc-pane sc-term">
+                  <div class="sc-head">zsh — OpenVideoHarness</div>
+                  <div class="sc-body">
+                    <span class="sc-row"><span class="sc-prompt">OpenVideoHarness $ </span><span class="sc-typed"></span><span class="sc-caret sc-caret1"></span></span>
+                    <span class="sc-row sc-out sc-dim">→ scaffolding HyperFrames (landscape) — npx, no global skills, telemetry off</span>
+                    <span class="sc-row sc-out sc-mid"><span class="sc-ok">✓</span> HyperFrames scaffolded into projects/2026-09-29-launch-film (index.html, hyperframes.json …). Always prefix npx hyperframes with HYPERFRAMES_SKIP_SKILLS=1.</span>
+                    <span class="sc-row sc-out sc-key"><span class="sc-ok">✓</span> created projects/2026-09-29-launch-film</span>
+                    <span class="sc-row sc-out sc-dim">   type doc : video-types/03-product-promo.md</span>
+                    <span class="sc-row sc-out sc-dim">   next     : open Claude Code in the repo root and say what the video is about;</span>
+                    <span class="sc-row sc-out sc-dim">              the agent fills projects/2026-09-29-launch-film/BRIEF.md and STORYBOARD.md and stops for your review.</span>
+                    <span class="sc-row sc-out"><span class="sc-prompt">OpenVideoHarness $ </span><span class="sc-caret"></span></span>
+                  </div>
+                </div>
+                <div class="sc-focus"></div>
+                <!-- `ls -p` of the project that command created (assets/vh-new-tree.txt) -->
+                <div class="sc-pane sc-tree">
+                  <div class="sc-head">2026-09-29-launch-film/</div>
+                  <div class="sc-tbody">
+                    <span class="sc-item">BRIEF.md</span>
+                    <span class="sc-item">LESSONS.md</span>
+                    <span class="sc-item">NOTES.md</span>
+                    <span class="sc-item">REVIEW.md</span>
+                    <span class="sc-item">STORYBOARD.md</span>
+                    <span class="sc-item">STYLE.md</span>
+                    <span class="sc-item">TASTE_CHECKLIST.md</span>
+                    <span class="sc-item dir">assets/</span>
+                    <span class="sc-item dir">audio/</span>
+                    <span class="sc-item hf">hyperframes.json</span>
+                    <span class="sc-item hf">index.html</span>
+                    <span class="sc-item hf">meta.json</span>
+                    <span class="sc-item dir">out/</span>
+                    <span class="sc-item hf">package.json</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script>
+        (function () {
+          const tl = gsap.timeline({ paused: true });
+          // ENTRY: cut-the-curve LEFT, mid-flight (x +230 → 0, opacity .35 → 1, blur 8 → 0).
+          tl.fromTo(".sc-move", { x: 230, opacity: 0.35 }, { x: 0, opacity: 1, duration: 0.36, ease: "power4.out" }, 0);
+          tl.fromTo(".sc-blur", { filter: "blur(8px)" }, { filter: "blur(0px)", duration: 0.3, ease: "power2.out" }, 0);
+
+          // CLICK at 0.52 (global 5.32) → focus ring, same frame.
+          const CLICK = 0.52;
+          tl.to(".sc-focus", { opacity: 1, duration: 0.12, ease: "power2.out" }, CLICK);
+          tl.to(".sc-focus", { opacity: 0.45, duration: 0.5, ease: "power2.out" }, CLICK + 0.3);
+
+          // TYPE-ON: 28 ms/char, a pure function of t.
+          const CMD = "bin/vh new promo launch-film";
+          const typed = document.querySelector(".sc-typed");
+          const ty = { n: 0 };
+          const T0 = CLICK + 0.08, TD = CMD.length * 0.028;
+          tl.to(ty, { n: CMD.length, duration: TD, ease: "none",
+            onUpdate: () => { typed.textContent = CMD.slice(0, Math.floor(ty.n + 1e-6)); } }, T0);
+
+          // RETURN → "scaffolding" line at once, the rest after hf-init "runs" (terminal output is binary, never faded).
+          const RET = T0 + TD + 0.1;
+          tl.set(".sc-caret1", { opacity: 0 }, RET);
+          gsap.utils.toArray(".sc-out").forEach((el, i) => tl.set(el, { opacity: 1 }, i === 0 ? RET + 0.04 : RET + 0.26 + (i - 1) * 0.05));
+
+          // TREE: waterfall entry, 30 ms per item, from below.
+          gsap.utils.toArray(".sc-item").forEach((el, i) => {
+            const t = RET + 0.36 + i * 0.03;
+            tl.set(el, { opacity: 1, y: 16 }, t);
+            tl.to(el, { y: 0, duration: 0.16, ease: "power4.out" }, t);
+          });
+
+          // CAMERA: push in on the ✓ lines + tree (1.0 → 1.18), move-then-stop.
+          tl.fromTo(".sc-cam", { x: 0, y: 0, scale: 1 }, { x: -110, y: -143, scale: 1.18, duration: 1.9, ease: "power2.inOut" }, CLICK + 0.1);
+
+          // EXIT: cut-the-curve LEFT, fade dies just before the cut.
+          const CUT = 3.3;
+          tl.to(".sc-move", { x: -230, duration: 0.3, ease: "power4.in" }, CUT - 0.3);
+          tl.to(".sc-move", { opacity: 0, duration: 0.26, ease: "none" }, CUT - 0.28);
+          tl.to(".sc-blur", { filter: "blur(8px)", duration: 0.3, ease: "power2.in" }, CUT - 0.3);
+          window.__timelines["s-scaffold"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

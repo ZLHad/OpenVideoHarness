@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+  <head><meta charset="UTF-8" /></head>
+  <body>
+    <template>
+      <style>
+        [data-composition-id="s-hook"] { position: absolute; inset: 0; }
+        .hk-lines { position: absolute; left: 144px; top: 384px; width: 1632px; }
+        .hk-line { display: block; font-size: 136px; line-height: 156px; letter-spacing: -0.035em; white-space: nowrap; }
+        .hk-l1 { color: #8b8b94; font-weight: 400; }
+        .hk-l2 { color: #ededef; font-weight: 600; }
+        .hk-w { display: inline-block; margin-right: 0.26em; opacity: 0; will-change: transform; }
+      </style>
+      <div data-composition-id="s-hook" data-width="1920" data-height="1080">
+        <div class="hk-lines">
+          <span class="hk-line hk-l1"><span class="hk-w">Your</span><span class="hk-w">coding</span><span class="hk-w">agent,</span></span>
+          <span class="hk-line hk-l2"><span class="hk-w">now</span><span class="hk-w">a</span><span class="hk-w">video</span><span class="hk-w">studio.</span></span>
+        </div>
+      </div>
+      <script>
+        (function () {
+          const tl = gsap.timeline({ paused: true });
+          const W = gsap.utils.toArray(".hk-w");
+          const F = 1 / 30;
+          // Waterfall ENTRY from below: binary reveal + whip up; heavier words travel further.
+          const spec = [
+            [0.25, 60, 0.18], [0.40, 46, 0.15], [0.52, 46, 0.16],          // Your coding agent,
+            [0.85, 44, 0.14], [0.96, 34, 0.11], [1.04, 76, 0.2], [1.20, 80, 0.22], // now a video studio.
+          ];
+          W.forEach((w, i) => {
+            const [t, dy, d] = spec[i];
+            tl.set(w, { opacity: 1, y: dy }, t);
+            tl.to(w, { y: 0, duration: d, ease: "power4.out" }, t);
+          });
+          // Waterfall CUT out, LEFT: words peel in reading order, last fade dies at the cut (2.60).
+          const CUT = 2.5;
+          W.forEach((w, i) => {
+            const t = CUT - 0.2 - (W.length - 1 - i) * 0.022;
+            tl.to(w, { x: -230, duration: 0.34, ease: "power4.in" }, t);
+            tl.to(w, { opacity: 0, duration: 0.18, ease: "none" }, t);
+          });
+          window.__timelines["s-hook"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

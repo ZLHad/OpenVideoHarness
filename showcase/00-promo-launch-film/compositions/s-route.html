@@ -1,0 +1,119 @@
+<!doctype html>
+<html>
+  <head><meta charset="UTF-8" /></head>
+  <body>
+    <template>
+      <style>
+        @font-face { font-family: "LF Mono"; font-weight: 400; src: local("SF Mono"), local("SFMono-Regular"), local("Menlo-Regular"), local("Menlo"); }
+        @font-face { font-family: "LF Mono"; font-weight: 600 700; src: local("SF Mono Semibold"), local("SFMono-Semibold"), local("Menlo-Bold"); }
+        [data-composition-id="s-route"] { position: absolute; inset: 0; }
+        .rt-move, .rt-blur { position: absolute; inset: 0; }
+        .rt-view { position: absolute; inset: 0; clip-path: inset(241px 0 0 0); }
+        .rt-cam { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; }
+        .rt-rule { position: absolute; left: 144px; top: 240px; width: 1632px; height: 1px; background: #26262b; }
+        .rt-label { position: absolute; left: 144px; top: 150px; font-size: 44px; line-height: 56px; letter-spacing: -0.01em; color: #ededef; font-weight: 600; white-space: nowrap; }
+        .rt-label i { font-style: normal; font-family: "LF Mono", ui-monospace, monospace; font-weight: 400; color: #8b8b94; margin-right: 24px; }
+        .rt-pane { position: absolute; left: 144px; top: 288px; width: 1632px; height: 600px; background: #111113; border: 1px solid #26262b; border-radius: 10px; overflow: hidden; }
+        .rt-head { height: 56px; border-bottom: 1px solid #26262b; padding: 0 28px; display: flex; align-items: center;
+                   font-family: "LF Mono", ui-monospace, monospace; font-size: 24px; color: #6c6c75; white-space: nowrap; }
+        .rt-req { position: absolute; left: 40px; top: 80px; width: 1552px; height: 72px; border: 1px solid #34343a; border-radius: 10px;
+                  display: flex; align-items: center; padding: 0 24px; font-size: 34px; color: #ededef; letter-spacing: -0.01em; white-space: nowrap; }
+        .rt-req em { font-style: normal; font-family: "LF Mono", ui-monospace, monospace; font-size: 24px; color: #6c6c75; margin-right: 24px; }
+        .rt-enter { position: absolute; right: 16px; top: 12px; width: 56px; height: 46px; border: 1px solid #44444b; border-radius: 8px;
+                    display: flex; align-items: center; justify-content: center; font-size: 28px; color: #8b8b94; }
+        .rt-enter-hit { position: absolute; inset: -1px; border-radius: 8px; background: #ffb224; opacity: 0; }
+        .rt-table { position: absolute; left: 20px; top: 176px; width: 1592px; }
+        .rt-tr { position: relative; height: 68px; display: flex; align-items: center; border-top: 1px solid #1f1f23; white-space: nowrap; }
+        .rt-th { height: 48px; border-top: none; font-size: 24px; color: #6c6c75; }
+        .rt-c { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .rt-want { width: 540px; padding-left: 24px; padding-right: 28px; font-size: 32px; color: #b4b4bc; }
+        .rt-path { width: 750px; padding-right: 10px; font-family: "LF Mono", ui-monospace, monospace; font-size: 30px; color: #8b8b94; }
+        .rt-eng { width: 302px; padding-right: 12px; font-size: 32px; color: #8b8b94; }
+        .rt-th .rt-want, .rt-th .rt-path, .rt-th .rt-eng { font-size: 24px; color: #6c6c75; font-family: -apple-system, system-ui, sans-serif; }
+        .rt-scan { position: absolute; left: 0; top: 0; width: 1592px; height: 68px; border: 1px solid #ffb224; border-radius: 6px; opacity: 0; }
+        .rt-lock { position: absolute; left: 0; top: 0; width: 1592px; height: 68px; border-radius: 6px; background: rgba(255,178,36,0.08); opacity: 0; }
+        .rt-bar { position: absolute; left: 0; top: 0; width: 4px; height: 68px; background: #ffb224; border-radius: 2px; transform-origin: 50% 50%; }
+        .rt-ul { position: absolute; left: 540px; bottom: 10px; width: 560px; height: 2px; background: #ffb224; transform-origin: 0 50%; }
+        /* DRAFT = "v1": the table and camera exactly as in draft v1 (the #3 FAIL the review beat shows) */
+        .rt-v1 .rt-pane { height: 580px; }
+        .rt-v1 .rt-tr:not(.rt-th) { height: 64px; }
+        .rt-v1 .rt-want { width: 724px; font-size: 30px; }
+        .rt-v1 .rt-path { width: 700px; padding-right: 24px; font-size: 27px; }
+        .rt-v1 .rt-eng { width: 166px; padding-right: 0; font-size: 28px; }
+        .rt-v1 .rt-scan, .rt-v1 .rt-lock, .rt-v1 .rt-bar { height: 64px; }
+        .rt-v1 .rt-ul { left: 724px; width: 504px; }
+      </style>
+      <div data-composition-id="s-route" data-width="1920" data-height="1080">
+        <div class="rt-move">
+          <div class="rt-blur">
+            <div class="rt-label"><i>02</i>CLAUDE.md routes the request</div>
+            <div class="rt-rule"></div>
+            <div class="rt-view">
+            <div class="rt-cam">
+              <div class="rt-pane">
+                <div class="rt-head">CLAUDE.md  ·  ## 路由表</div>
+                <div class="rt-req"><em>request</em>a 15–20 s launch film for OpenVideoHarness<div class="rt-enter">↵<div class="rt-enter-hit"></div></div></div>
+                <div class="rt-table">
+                  <div class="rt-tr rt-th"><span class="rt-c rt-want">用户想要</span><span class="rt-c rt-path">读</span><span class="rt-c rt-eng">首选引擎</span></div>
+                  <div class="rt-rows" style="position: relative">
+                    <div class="rt-lock"></div>
+                    <div class="rt-scan"><div class="rt-bar"></div></div>
+                    <div class="rt-tr rt-r"><span class="rt-c rt-want">数学、物理、算法的原理讲解，3b1b 风格</span><span class="rt-c rt-path">video-types/01-math-science-explainer.md</span><span class="rt-c rt-eng">Manim CE</span></div>
+                    <div class="rt-tr rt-r"><span class="rt-c rt-want">知识科普短视频、竖屏（抖音、B站、小红书、视频号、Shorts）</span><span class="rt-c rt-path">video-types/02-knowledge-short.md</span><span class="rt-c rt-eng">HyperFrames</span></div>
+                    <div class="rt-tr rt-r rt-hit"><span class="rt-c rt-want">产品宣传、发布片、App 或 SaaS 介绍、功能演示</span><span class="rt-c rt-path rt-hitpath">video-types/03-product-promo.md</span><span class="rt-c rt-eng rt-hiteng">HyperFrames</span><span class="rt-ul"></span></div>
+                    <div class="rt-tr rt-r"><span class="rt-c rt-want">歌词视频、MV、配合音乐的动画</span><span class="rt-c rt-path">video-types/04-lyric-music-video.md</span><span class="rt-c rt-eng">ClaudeAnimationBase（手绘）或 HyperFrames（排版）</span></div>
+                    <div class="rt-tr rt-r"><span class="rt-c rt-want">数据故事、动画图表、数字可视化</span><span class="rt-c rt-path">video-types/05-data-story.md</span><span class="rt-c rt-eng">HyperFrames + SVG</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script>
+        (function () {
+          const DRAFT = "final";   // tools/draft-v1.sh flips this to "v1" to rebuild the draft the review beat critiques
+          const V1 = DRAFT === "v1";
+          if (V1) document.querySelector(".rt-move").classList.add("rt-v1");
+          const tl = gsap.timeline({ paused: true });
+          const ROW = V1 ? 64 : 68;
+          // ENTRY: cut-the-curve LEFT, mid-flight.
+          tl.fromTo(".rt-move", { x: 230, opacity: 0.35 }, { x: 0, opacity: 1, duration: 0.36, ease: "power4.out" }, 0);
+          tl.fromTo(".rt-blur", { filter: "blur(8px)" }, { filter: "blur(0px)", duration: 0.3, ease: "power2.out" }, 0);
+
+          // CLICK ↵ at 0.50 (global 8.40): key press, same frame.
+          const CLICK = 0.5;
+          tl.to(".rt-enter-hit", { opacity: 0.9, duration: 0.08, ease: "power2.out" }, CLICK);
+          tl.to(".rt-enter-hit", { opacity: 0, duration: 0.3, ease: "power2.out" }, CLICK + 0.14);
+          tl.to(".rt-enter", { scale: 0.92, duration: 0.1, ease: "power2.in" }, CLICK);
+          tl.to(".rt-enter", { scale: 1, duration: 0.22, ease: "power2.out" }, CLICK + 0.1);
+
+          // SCAN: the harness reads the table top-down; box steps row 01 → 02 → 03 (slow-fast-slow).
+          tl.set(".rt-scan", { opacity: 1, y: 0 }, CLICK + 0.04);
+          tl.to(".rt-scan", { y: ROW * 1, duration: 0.2, ease: "power3.inOut" }, CLICK + 0.22);
+          tl.to(".rt-scan", { y: ROW * 2, duration: 0.26, ease: "power4.out" }, CLICK + 0.46);   // lands 1.22
+          // 0.33 s comma, then LOCK (global 9.45)
+          const LOCK = 1.55;
+          tl.set(".rt-lock", { y: ROW * 2 }, 0);
+          tl.to(".rt-lock", { opacity: 1, duration: 0.2, ease: "power2.out" }, LOCK);
+          tl.to(".rt-hitpath", { color: "#ffb224", duration: 0.18, ease: "power2.out" }, LOCK);
+          tl.to(".rt-hiteng", { color: "#ededef", duration: 0.18, ease: "power2.out" }, LOCK);
+          tl.to(".rt-hit .rt-want", { color: "#ededef", duration: 0.18, ease: "power2.out" }, LOCK);
+          tl.fromTo(".rt-ul", { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: "power3.out" }, LOCK + 0.05);
+          gsap.utils.toArray(".rt-r:not(.rt-hit)").forEach((r) => tl.to(r, { opacity: 0.32, duration: 0.3, ease: "power2.out" }, LOCK));
+
+          // CAMERA: establish wide → push in on row 03 (1.0 → 1.15), request pill stays in view, then stop.
+          tl.fromTo(".rt-cam", { x: 0, y: 0, scale: 1 }, Object.assign(V1 ? { x: -906, y: -380, scale: 1.4 } : { x: -144, y: -174, scale: 1.15 }, { duration: 1.5, ease: "power2.inOut" }), 1.3);
+
+          // EXIT: cut-the-curve LEFT.
+          const CUT = 3.3;
+          tl.to(".rt-move", { x: -230, duration: 0.3, ease: "power4.in" }, CUT - 0.3);
+          tl.to(".rt-move", { opacity: 0, duration: 0.26, ease: "none" }, CUT - 0.28);
+          tl.to(".rt-blur", { filter: "blur(8px)", duration: 0.3, ease: "power2.in" }, CUT - 0.3);
+          window.__timelines["s-route"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

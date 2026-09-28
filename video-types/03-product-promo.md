@@ -1,0 +1,96 @@
+# 03 产品宣传 / 发布片 / 功能演示
+
+**适用**：
+- 10–60 秒的产品发布片、App 或 SaaS 宣传片、功能揭示、网站导览、GitHub 项目介绍；
+- 也包括给自己的开源项目、工具或课题组做的介绍片。
+
+## 引擎
+
+- **首选**：HyperFrames，`bin/vh new promo <slug>` 会自动初始化。
+  - 借用 `/product-launch-video` 的参考资料（`references/repos/hyperframes/skills/product-launch-video/references/`），**默认不要直接运行这个工作流**。它是一整套独立的编排器，有自己的 BRIEF 契约、`videos/` 目录、网站抓取、HeyGen 登录和逐帧 subagent，和本仓库的模板、关卡不兼容。只有用户明确要走 HeyGen 那条路时才用。
+- **备选**：Remotion，配合 `remotion-skills` 里的 `remotion-saas`。
+- **3D 产品展示**：用 Blender（`engines/README.md`）。
+
+## 工作流
+
+1. **收集真实素材**：产品截图或录屏、logo、真实文案、品牌色和字体、网址。**不要用占位 UI。** viggo 的 Applore 宣传片之所以可信，就是因为用了自家库里 17,550 个真实 app 图标。
+2. **选语域**，二选一，写进 STYLE.md：
+   - **Apple 系**：黑底或白底，单镜只说一句主张，大面积留白，对真实 UI 做微距裁切，每次揭示 1–2 秒，慢。
+   - **Linear / Vercel / Stripe 系**：近黑底 `#0A0A0B`，1px 细线，低透明度的蓝图网格，Geist 或 Geist Mono 字体，用真实 UI。
+3. **节拍结构**【综合】：
+   1. hook，承诺一个结果（0–3s）；
+   2. 问题（1 拍）；
+   3. 3 个功能拍，每拍都是"真实 UI 在做这件事"，由超大光标点击触发；
+   4. 证据（数字计数）；
+   5. 0.5 秒静止；
+   6. logo 定版。
+4. **镜头**：
+   - 一台连续的虚拟摄像机，推、拉、摇各 1.5–3s，easeInOutCubic；
+   - 速度"按你默认速度的一半"（@jake11moran 的写法）；
+   - 快速运动加运动模糊，整体加轻微胶片颗粒。颗粒会让 GIF 体积暴涨（showcase 00：24MB 对比无颗粒时的 4.5MB），所以给 README 用的 GIF 预览要单独渲染一个无颗粒版本（例如用 `--variables '{"grain":0}'`）。
+5. **声音**（可选；静音版的节奏由分镜的 reads 决定，TASTE_CHECKLIST #18 里的拍点检查不适用）：
+   - 音乐驱动，关键点落在拍子上，配音效；
+   - 需要角色口播时（Applore 的吉祥物 Ace），用 ElevenLabs 或本地 TTS，配同步字幕。
+6. **多画幅**：主片 16:9，另出 4:5（1080×1350）或 9:16 的版本，按画幅重新构图，不要直接裁切。
+
+## 审美要点
+
+- **运动只走这几条路**：分阶段揭示、有意图的镜头运动、UI 自己在运作、光标点击触发下一拍。平滑优先于弹跳。
+- **警惕 Linear 风和 AI slop 撞车**：Inter + 暗底 + 紫色光球同时也是"AI slop"的头号特征。区别在于克制，以及用的是不是真实 UI。
+- **两种 prompt 路线**：
+  - **"一句话 + 让它自由发挥"**：比如 @achxvi 的 "make a 15-second motion graphics video ... like it's your showreel for a résumé. go all out"。模型自己选风格，炫技效果好，但品牌控制力弱。
+  - **"逐拍规定"**：比如 @jake11moran 的 7 个编号节拍。控制力强。
+  - 先用前者探索方向，再用后者定稿【综合】。
+
+## 禁止
+
+- 紫到青的渐变、玻璃拟态、霓虹；
+- 六张等大卡片；
+- 渐变文字；
+- 每个元素都弹；
+- lorem ipsum 或假数据；
+- ✨ 式的 AI 图标；
+- 使用未经授权的第三方品牌 logo。
+
+## Prompt 增量块
+
+```text
++ TYPE: product launch film. 1920x1080 (+1080x1350 and 1080x1920 re-framed cuts) 30fps {15–30}s, music-driven, SFX on key hits.
+Register: {Apple: black/white, one claim per shot, macro crops of the real UI | Linear/Vercel: near-black #0A0A0B, 1px hairlines, blueprint grid at 6% opacity}. Font {Geist/Geist Mono | SF-like grotesk}. No gradient text, glassmorphism, or purple-cyan gradients.
+One continuous virtual camera; camera moves 1.5–3s easeInOutCubic, about half your default speed; motion blur on fast moves; light grain.
+Beats: hook promise (0–3s) → problem (1 beat) → 3 feature beats, each = the real UI doing the thing, triggered by an oversized cursor click → proof count-up → 0.5s stillness → logo lockup.
+Use real copy/assets from {URL / assets/}; recreate the UI accurately; no placeholder text or invented numbers.
+{Optional mascot/voice: a character introduces the product; voice via {ElevenLabs | local TTS}, captions synced to word timestamps.}
+```
+
+## 片子里展示自己的草稿时
+
+如果某一拍要展示这支片子自己的草稿和修复过程（showcase 00 的 beat 03），就把草稿状态做成**可复现的开关**，例如在组件里写 `const DRAFT = "final" | "v1"`，再用一个脚本重建 v1 并截图（见 `showcase/00-promo-launch-film/tools/draft-v1.sh`）。这样改名、改文案之后，"草稿"截图能从源码重新生成，而不是手工 P 图。联系表放进片子时，把时间戳标签调成灰色：`VH_SHEET_LABEL=#9a9a9a bin/vh sheet …`，避免多出一个强调色。
+
+## 自查重点
+
+- 画面里的每个 UI 元素，在真实产品里都存在吗？
+- 数字有出处吗？
+- 每个功能拍能在 1 秒内看懂吗？
+- 镜头运动是否都是"先动后停"？一直漂移会让文字出现亚像素闪烁。
+- 多画幅版本是重新构图的，而不是直接裁的吗？
+
+## 可参考的案例与源码
+
+- `cases/promo-applore.md`：一句话 prompt 做出的 15 秒宣传片拆解。
+- `cases/promo-hyperframes-launches.md`：HeyGen 20 支发布片的源码，以及其中值得看的几支。
+- `references/repos/hyperframes/skills/product-launch-video/`：`SKILL.md`，以及 `references/` 下的 `story-design.md`、`visual-design.md`、`motion-language.md`、`cut-catalog.md`。
+- `references/repos/hyperframes/_upstream_claude/skills/`：
+  - `motion-doctrine/`：运动总纲，涉及动画时先读；
+  - `oversized-cursor/`：超大光标技法；
+  - `cut-the-curve/`：五种速度匹配的转场，加上 waterfall 入场和 nudge 曲线；
+  - `seam-craft/`：场景接缝的渲染正确性，例如切点白闪；
+  - `changelog-video/`：把更新日志做成品牌视频的完整流程。
+- `references/repos/remotion-skills/skills/remotion-saas/`：Remotion 路线的 SaaS 宣传片做法。
+
+## 社区 skill 参考
+
+以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
+
+- **video-shotcraft**（Apache-2.0）：150 多张镜头配方卡（SKILL.md 写 157 张）；视觉 tokens 从产品自己的设计系统提取；复刻页面必须用真实截图；每个镜头只讲一个动效。见 `references/repos/video-shotcraft/SKILL.md`、`references/repos/video-shotcraft/references/shots/`。
+- **guizang-product-video**（AGPL，只读）：先写 `DIRECTION.md`，列出"因为产品有 X，所以用 Y"的专属手法；同一工作区不复用上一支的开场。见 `references/repos/guizang-product-video/references/direction.md`。
