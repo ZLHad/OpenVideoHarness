@@ -6,11 +6,15 @@
 #   new <type> <slug>           create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme)
 #   hf-init <dir> [resolution]  scaffold HyperFrames into a project safely (no global skill install; landscape|portrait|square)
 #   sync-agents                 regenerate AGENTS.md from CLAUDE.md (keep both agents' entry points identical)
-#   tts <project> [provider] [voice]   voiceover from audio/script.txt → voiceover.wav + timeline.json
-#                               providers: say (offline) | edge | elevenlabs | dashscope | mlx  (keys via env vars)
+#   install-skill [claude|codex|all]  register the open-video-harness skill (~/.claude/skills, ~/.agents/skills)
+#   tts <project> [provider] [voice] [zh|en]  voiceover from audio/script.txt (bilingual: 中文 || English)
+#                               providers: qwen (default, local open-source Qwen3-TTS) | say | edge | dashscope | elevenlabs
+#   captions <project> [zh|en] [zh-max]  SRT (zh / en / bilingual) + captions.json from the TTS timeline
 #   beats <audio> [out.json]    beat grid (bpm, offset, beats, downbeats) with librosa
-#   mix <voice> [music] <out>   duck music under voice, loudnorm to -14 LUFS (either input may be "-")
-#   mux <video> <audio> <out>   put an audio track on a rendered video (video stream copied)
+#   music <score.json> <out.wav> | music --example   code-composed soundtrack + exact beat/section map
+#   sfx lib <dir> | sfx place <events.json> <out.wav> [dur]   built-in SFX library / place SFX on action times
+#   mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]   3-bus mix, music ducks under voice+SFX, −14 LUFS
+#   mux <video> <audio> <out> [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
 #   check <video>               ffprobe + black/freeze/silence detection
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
@@ -48,6 +52,16 @@ cmd_doctor() {
   if [ "$(agents_body)" = "$(tail -n +4 "$ROOT/AGENTS.md" 2>/dev/null)" ]; then echo "$c_ok AGENTS.md in sync with CLAUDE.md"; else echo "$c_wa AGENTS.md out of sync → bin/vh sync-agents"; fi
 }
 agents_body() { cat "$ROOT/CLAUDE.md"; }
+cmd_install_skill() { # writes a thin pointer skill whose harness path is this clone
+  local which=${1:-all} dests=() d
+  case "$which" in claude) dests=("$HOME/.claude/skills") ;; codex) dests=("$HOME/.agents/skills") ;; *) dests=("$HOME/.claude/skills" "$HOME/.agents/skills") ;; esac
+  for d in "${dests[@]}"; do
+    mkdir -p "$d/open-video-harness"
+    sed "s#^Harness path (set by install.sh): .*#Harness path (set by install.sh): $ROOT#" "$ROOT/skills/open-video-harness/SKILL.md" > "$d/open-video-harness/SKILL.md"
+    echo "$c_ok skill → $d/open-video-harness/SKILL.md (harness: $ROOT)"
+  done
+  echo "   restart Claude Code / Codex so it picks up the skill; then ask for a video from any folder."
+}
 cmd_sync_agents() {
   { echo "<!-- AGENTS.md is generated from CLAUDE.md by \`bin/vh sync-agents\`. Edit CLAUDE.md, then re-run. -->"
     echo "<!-- Same instructions for every coding agent (Claude Code reads CLAUDE.md; Codex and others read AGENTS.md). -->"
@@ -144,23 +158,29 @@ cmd_check() {
   else echo "$hits"; echo "$c_wa review each hit: dark backgrounds (e.g. 3b1b black), intentional holds and silent videos trigger these by design"; fi
 }
 cmd_tts() {
-  local proj=${1:?usage: bin/vh tts <project> [provider] [voice]} prov=${2:-say} voice=${3:-} deps=""
-  case "$prov" in edge) deps="--with edge-tts" ;; dashscope) deps="--with dashscope" ;; mlx) deps="--with mlx-audio" ;; esac
-  uv run -q $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${voice:+--voice "$voice"}
+  local proj=${1:?usage: bin/vh tts <project> [provider] [voice] [zh|en]} prov=${2:-qwen} voice=${3:-} lang=${4:-zh} deps=""
+  [ "$voice" = "-" ] && voice=""
+  case "$prov" in qwen) deps="--with mlx-audio" ;; edge) deps="--with edge-tts" ;; dashscope) deps="--with dashscope" ;; esac
+  uv run -q $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" --lang "$lang" ${voice:+--voice "$voice"}
+}
+cmd_captions() {
+  local proj=${1:?usage: bin/vh captions <project> [zh|en] [zh-max]}
+  python3 "$ROOT/tools/audio/captions.py" "$proj" ${2:+--lang "$2"} ${3:+--zh-max "$3"}
 }
 cmd_beats() { uv run -q --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
-cmd_mix() {
-  local voice=$1 music=$2 out=$3
-  [ -n "$out" ] || { out=$music; music="-"; }
-  if [ "$music" = "-" ]; then ffmpeg -v error -y -i "$voice" -af "loudnorm=I=-14:TP=-1.5:LRA=11" -ar 48000 "$out"
-  elif [ "$voice" = "-" ]; then ffmpeg -v error -y -i "$music" -af "loudnorm=I=-14:TP=-1.5:LRA=11" -ar 48000 "$out"
-  else ffmpeg -v error -y -i "$voice" -i "$music" -filter_complex \
-    "[1:a]volume=0.35[m];[m][0:a]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=300[duck];[0:a][duck]amix=inputs=2:duration=longest:normalize=0,loudnorm=I=-14:TP=-1.5:LRA=11" \
-    -ar 48000 "$out"; fi && echo "$c_ok $out"
-}
-cmd_mux() { # output length = video length (audio is padded with silence or trimmed)
-  local vd; vd=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$1")
-  ffmpeg -v error -y -i "$1" -i "$2" -filter_complex "[1:a]apad,atrim=0:$vd[a]" -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k "$3" && echo "$c_ok $3"
+cmd_music() { uv run -q --with numpy --with scipy python "$ROOT/tools/audio/music.py" "$@"; }
+cmd_sfx() { uv run -q --with numpy --with scipy python "$ROOT/tools/audio/sfx.py" "$@"; }
+cmd_mix() { python3 "$ROOT/tools/audio/mix.py" "$@"; }
+cmd_mux() { # output length = video length (audio padded/trimmed); extra .srt args become soft subtitle tracks
+  local v=${1:?usage: bin/vh mux <video> <audio> <out> [subs.srt…]} a=$2 out=$3; shift 3
+  local vd; vd=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$v")
+  local ins=(-i "$v" -i "$a") maps=(-map 0:v -map "[a]") meta=() i=2 s=0 f lang
+  for f in "$@"; do
+    lang=und; case "$f" in *.zh.*|*zh*.srt) lang=chi ;; *.en.*|*en*.srt) lang=eng ;; esac
+    ins+=(-i "$f"); maps+=(-map "$i"); meta+=(-metadata:s:s:$s "language=$lang"); i=$((i+1)); s=$((s+1))
+  done
+  ffmpeg -v error -y "${ins[@]}" -filter_complex "[1:a]apad,atrim=0:$vd[a]" "${maps[@]}" -c:v copy -c:a aac -b:a 192k \
+    ${1:+-c:s mov_text} "${meta[@]}" "$out" && echo "$c_ok $out${1:+ (+$s subtitle track(s))}"
 }
 cmd_gif() {
   local v=$1 w=${2:-640} fps=${3:-15} out="${1%.*}.gif"
@@ -169,7 +189,8 @@ cmd_gif() {
 
 case "${1:-help}" in
   doctor) cmd_doctor ;; setup) cmd_setup ;; types) cmd_types ;;
-  tts) shift; cmd_tts "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; mux) shift; cmd_mux "$@" ;;
+  tts) shift; cmd_tts "$@" ;; captions) shift; cmd_captions "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; mux) shift; cmd_mux "$@" ;;
+  install-skill) shift; cmd_install_skill "$@" ;;
   new) shift; cmd_new "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
-  *) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' ;;
 esac

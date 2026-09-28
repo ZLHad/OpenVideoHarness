@@ -2,37 +2,87 @@
 
 原则：**先有音频，再有时长。** 要先把音频变成时间表，agent 才能处理：旁白要有词级时间戳，音乐要有节拍网格，歌曲要有逐句歌词时间。
 
-## 现成接口：`bin/vh tts / beats / mix / mux`
+## 现成接口：`bin/vh` 的声音命令
 
-音频层已经封装成统一接口，服务商可以替换，其余流程不变。依赖由 `uv run --with` 临时提供，不装进全局环境；**API key 只从环境变量读取**。
+声音分成 **配音、配乐、音效、歌曲** 四类。每类都有统一的命令和输入输出格式，服务商或来源可以替换，流程不变。依赖由 `uv run --with` 临时提供，不装进全局环境；**API key 只从环境变量读取**。
 
 ```bash
-bin/vh tts projects/<p> say Tingting        # 旁白：audio/script.txt → audio/voiceover.wav + audio/timeline.json
-bin/vh beats projects/<p>/audio/music.mp3    # 节拍：→ music.beats.json（bpm、offset、beats、downbeats）
-bin/vh mix projects/<p>/audio/voiceover.wav projects/<p>/audio/music.mp3 projects/<p>/audio/mix.wav   # 人声出现时压低音乐，并统一到 -14 LUFS
-bin/vh mux projects/<p>/out/final.mp4 projects/<p>/audio/mix.wav projects/<p>/out/final-audio.mp4   # 给成片配音轨，时长与视频一致
+# 配音（双语）：audio/script.txt → voiceover.<lang>.wav + timeline.<lang>.json
+bin/vh tts projects/<p> qwen Serena zh            # 本地开源 Qwen3-TTS（默认；首次下载约 2GB）
+bin/vh tts projects/<p> qwen Ryan en              # 同一份稿子，英文旁白
+bin/vh captions projects/<p> zh                    # → captions.zh/en/bi.srt + captions.json（给引擎画进画面）
+# 配乐：代码作曲，段落对齐镜头，节拍精确
+bin/vh music --example > projects/<p>/audio/score.json
+bin/vh music projects/<p>/audio/score.json projects/<p>/audio/music.wav     # + music.beats.json（段落、节拍、冲击点）
+# 音效：内置库 + 按动作时间摆放
+bin/vh sfx lib projects/<p>/audio/sfx
+bin/vh sfx place projects/<p>/audio/events.json projects/<p>/audio/sfx.wav 45 --lib projects/<p>/audio/sfx
+# 混音与合成
+bin/vh mix projects/<p>/audio/mix.wav voice=…/voiceover.zh.wav music=…/music.wav sfx=…/sfx.wav
+bin/vh mux projects/<p>/out/final.mp4 projects/<p>/audio/mix.wav projects/<p>/out/final-av.mp4 \
+           projects/<p>/audio/captions.zh.srt projects/<p>/audio/captions.en.srt   # 软字幕轨（可开关）
+bin/vh beats <任意音乐文件>                          # 外来音乐的节拍分析（librosa）
 ```
 
-**旁白稿格式**（`audio/script.txt`）：一行一句，一句对应一条字幕或一个 cue；`#` 开头的是注释；可以加 `@id` 前缀，比如 `@hook 为什么信号会变调？`。按句合成的好处是每句的起止时间是**实测**的，画面和字幕可以直接按 `timeline.json` 对齐。
+### 配音（`tts` / `captions`）
 
-**配音服务商**（第二个参数）：
+**旁白稿**：`audio/script.txt` 一行一句，一句对应一条字幕或一个 cue。
+- 双语写成 `中文 || English`，`--lang` 决定念哪一边，两边都会进时间表；
+- 可以加 `@id` 前缀，比如 `@hook 一句话，做出一支片子。 || One sentence in, one film out.`。
 
-| provider | 用途 | 需要什么 | 时间精度 |
-|---|---|---|---|
-| `say` | macOS 自带，离线、免费，用来打草稿、跑通流程（中文音色：Tingting、Eddy、Flo…） | 无 | 句级 |
-| `edge` | 微软 Edge 在线音色（zh-CN-XiaoxiaoNeural 等），免费 | 联网；非官方接口，可能失效 | 句级 |
-| `elevenlabs` | 高质量多语种配音 | `ELEVENLABS_API_KEY`；第三个参数填 voice_id；`ELEVENLABS_MODEL` 可选 | **字符级**（with-timestamps） |
-| `dashscope` | 阿里云百炼 Qwen3-TTS（默认 `qwen3-tts-flash`，音色如 Cherry），中文和方言强 | `DASHSCOPE_API_KEY`；国际站设 `DASHSCOPE_BASE_URL`；`DASHSCOPE_TTS_MODEL` 可选 | 句级 |
-| `mlx` | 本地 Qwen3-TTS（Apple Silicon，mlx-audio），离线、免费 | `MLX_TTS_MODEL`（如 `mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit`）；**首次运行会下载 GB 级权重，先征得用户同意** | 句级 |
+按句合成，所以每句的起止时间都是**实测**的。
 
-需要字级时间戳（逐字高亮字幕、按词触发画面）时有两条路：用 `elevenlabs`，或者对句级结果再跑一遍强制对齐（FunASR、whisper.cpp，或 mlx-audio 的 Qwen3-ForcedAligner）。
+**同一份稿，中文和英文旁白长度不同**（实测一段 3 句的稿子：中文 9.3s，英文 10.8s）。所以双语成片要各自按 `timeline.<lang>.json` 排时间：
+- 画面可以共用，但节奏按语言重排；
+- 或者只出一种语言的旁白，配中英双语字幕。
 
-**音乐**：
-- **Suno**：没有官方公开 API（二手信息，UNVERIFIED），不接非官方封装。做法是用户在 Suno 生成、下载，放进 `audio/`，再跑 `bin/vh beats`；需要歌词时间时，按下文"歌词对齐"一行的流程处理。
-- **API 接口位**：ElevenLabs 的音乐和音效接口已经预留，还没实现。需要时在 `tools/audio/` 下加一个 provider。
-- **代码合成**：用 Web Audio 或 numpy 程序化生成 BGM 和音效，这样确定性最好，适合极简风格。
+| provider | 类型 | 需要什么 | 时间精度 | 状态 |
+|---|---|---|---|---|
+| `qwen`（默认） | **本地开源** Qwen3-TTS（Apache-2.0），mlx-audio 运行在 Apple Silicon 上。中文音色：Serena（温暖女声）、Vivian、Uncle_Fu、Dylan（京腔）、Eric（川话）；英文音色：Ryan、Aiden | 首次运行下载约 2GB；换 1.7B 模型（`QWEN_TTS_MODEL`）后可以用 `--instruct` 控制语气 | 句级 | ✅ 已实测中英 |
+| `say` | macOS 自带，离线，适合打草稿 | 无 | 句级 | ✅ 已实测 |
+| `edge` | 微软免费在线音色 | 联网；非官方接口 | 句级 | 待实测 |
+| `dashscope` | 阿里云百炼 Qwen3-TTS（`qwen3-tts-flash`），云端 | `DASHSCOPE_API_KEY` | 句级 | 接口已留，待实测 |
+| `elevenlabs` | 高质量多语种配音 | `ELEVENLABS_API_KEY`、voice_id | **字符级** | 接口已留，待实测 |
 
-**已实测**：`say` → `beats` → `mix` → `mux` 离线全链路可用；混音结果 -14.1 LUFS。`edge`、`elevenlabs`、`dashscope`、`mlx` 按官方文档实现，但因为没有 key 或没下载模型，**还没实测**。第一次使用时把可用的命令记进项目的 `LESSONS.md`。
+需要字级时间（逐字高亮）时，用 `elevenlabs`，或者对句级结果再跑一次强制对齐：mlx-audio 的 Qwen3-ForcedAligner、FunASR 或 whisper.cpp。这一步的接口已留好，还没封装。
+
+**字幕的两种交付方式**：
+- **烧进画面**：引擎读 `captions.json` 绘制，属于画面的一部分，同样必须是 t 的纯函数，样式按类型文档；
+- **软字幕轨**：`bin/vh mux … captions.zh.srt captions.en.srt` 封装进 mp4，播放器或平台可以开关。
+
+竖屏视频导出时用 `bin/vh captions <p> zh 11`，中文每行最多 11 字。
+
+### 配乐（`music`）
+
+来源优先级（借鉴自归藏 product-video skill 的做法）：
+1. **用户给的曲子**，或用户有授权的曲库。按它的实际节拍重新对齐画面：`bin/vh beats`。
+2. **本机确实能跑的音乐生成模型**：先确认权重已经下载、运行环境也装好，才算可用。接口位已留，见下文"歌曲"。
+3. **代码原创作曲**：`bin/vh music`。编曲源码 `score.json` 跟着项目一起提交，段落（`sections`）按镜头边界排，音色和速度按片子的气质选。因为曲子是我们自己写的，节拍网格和冲击点是**精确的**，不用再做节拍检测。
+
+**不要**下载来路不明的 BGM，不要扒参考视频的音乐，也不要把示例曲改个名字就当新配乐。
+
+`score.json` 的写法见 `bin/vh music --example`：
+- 顶层：`bpm`、`key`、`mode`；
+- `sections[]`：`bars`、`chords`（罗马数字）、`layers`（kick clap hats bass pad arp lead）、`energy`（0–1）；
+- 段落的特殊效果：`riser`（上升音推向下一段）、`impact`（段首冲击）、`fill`（最后一拍留白）。
+
+输出的 `music.beats.json` 包含 `sections`、`beats`、`downbeats`、`hits`，引擎直接读它来切镜和打点。
+
+### 音效（`sfx`）
+
+- **音效是独立的事件层**，和音乐分开：`audio/events.json` 写成 `[{t, sfx, gain_db}]`。
+- **`t` 是"落点"**：内置音效各自带落点偏移（例如 whoosh 的峰值、riser 的顶点），摆放时会自动对齐，保证声音峰值和动作在同一帧。
+- **来源顺序**：先用有授权的录音素材（在 NOTES 的素材台账里记下来源和许可）；缺的类别再用内置库补。内置库有 15 个代码合成音效：click、tick、pop、toggle、typing、whoosh、swish_rev、riser、impact、boom、ding、success、error、glitch、shutter，都是 MIT 原创，可以复现。
+- **混音**：`bin/vh mix` 让音乐在人声和音效出现时自动让位，这样关键的叮咚、确认、转场声一定听得见。
+
+### 歌曲（带人声演唱）
+
+| 来源 | 做法 | 状态 |
+|---|---|---|
+| **Suno 等网页服务** | 用户生成、下载后放进 `audio/`；歌词逐句对齐走下面的"歌词对齐"一行；节拍用 `bin/vh beats` | ✅ 流程可用（Suno 没有官方公开 API，不接非官方封装） |
+| **ElevenLabs Music**（云端） | 按提示词生成带人声的歌曲 | 接口位已留（`tools/audio/` 下加一个 provider） |
+| **本地开源歌曲模型**（如 ACE-Step、YuE 一类） | 需要确认本机能跑（多数需要 GPU） | 接口位已留，没有测过，UNVERIFIED |
+| **代码合成** | `bin/vh music` 只做器乐，不做人声 | ✅ |
 
 ## 选型
 

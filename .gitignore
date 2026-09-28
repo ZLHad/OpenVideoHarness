@@ -10,3 +10,5 @@ references/repos/
 LOCAL.md
 projects/*
 !projects/README.md
+__pycache__/
+*.pyc
