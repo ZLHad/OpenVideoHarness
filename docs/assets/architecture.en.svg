@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="610" viewBox="0 0 680 610" role="img"><title>OpenVideoHarness architecture</title><desc>From a one-line request to a final cut: the agent reads the CLAUDE.md router, consults type workflows, know-how, templates and cases, builds a project under projects/ with three human review gates, renders with an engine, and writes lessons back.</desc>
+<style>
+.t{font:500 14px system-ui,-apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif}
+.s{font:400 12px system-ui,-apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif}
+rect{stroke-width:0.8}
+.pu rect{fill:#EEEDFE;stroke:#534AB7}.pu .t{fill:#3C3489}.pu .s{fill:#534AB7}
+.te rect{fill:#E1F5EE;stroke:#0F6E56}.te .t{fill:#085041}.te .s{fill:#0F6E56}
+.gr rect{fill:#F1EFE8;stroke:#5F5E5A}.gr .t{fill:#444441}.gr .s{fill:#5F5E5A}
+.am rect{fill:#FAEEDA;stroke:#854F0B}.am .t{fill:#633806}.am .s{fill:#854F0B}
+.ar{stroke:#888780;stroke-width:1.2;fill:none}.ah{stroke:#888780;fill:none}.lg{fill:#5F5E5A}
+@media (prefers-color-scheme:dark){
+.pu rect{fill:#3C3489;stroke:#AFA9EC}.pu .t{fill:#EEEDFE}.pu .s{fill:#CECBF6}
+.te rect{fill:#085041;stroke:#5DCAA5}.te .t{fill:#E1F5EE}.te .s{fill:#9FE1CB}
+.gr rect{fill:#444441;stroke:#B4B2A9}.gr .t{fill:#F1EFE8}.gr .s{fill:#D3D1C7}
+.am rect{fill:#633806;stroke:#EF9F27}.am .t{fill:#FAEEDA}.am .s{fill:#FAC775}
+.ar,.ah{stroke:#B4B2A9}.lg{fill:#B4B2A9}}
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="ah" d="M2 1L8 5L2 9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<g class="gr"><rect x="140" y="40" width="180" height="44" rx="4"/><text class="t" x="230.0" y="67.0" text-anchor="middle">You: a one-line request</text></g>
+<g class="gr"><rect x="360" y="40" width="180" height="44" rx="4"/><text class="t" x="450.0" y="67.0" text-anchor="middle">Claude Code / Codex</text></g>
+<line class="ar" x1="320" y1="62" x2="358" y2="62" marker-end="url(#a)"/>
+<line class="ar" x1="450" y1="84" x2="450" y2="122" marker-end="url(#a)"/>
+<g class="pu"><rect x="190" y="124" width="320" height="52" rx="4"/><text class="t" x="350.0" y="147" text-anchor="middle">CLAUDE.md · AGENTS.md router</text><text class="s" x="350.0" y="166" text-anchor="middle">pick type · hard rules · 3 human gates</text></g>
+<line class="ar" x1="350" y1="176" x2="117" y2="214" marker-end="url(#a)"/>
+<line class="ar" x1="350" y1="176" x2="265" y2="214" marker-end="url(#a)"/>
+<line class="ar" x1="350" y1="176" x2="415" y2="214" marker-end="url(#a)"/>
+<line class="ar" x1="350" y1="176" x2="563" y2="214" marker-end="url(#a)"/>
+<g class="pu"><rect x="50" y="216" width="130" height="56" rx="4"/><text class="t" x="115.0" y="239" text-anchor="middle">video-types/</text><text class="s" x="115.0" y="258" text-anchor="middle">8 video workflows</text></g>
+<g class="pu"><rect x="200" y="216" width="130" height="56" rx="4"/><text class="t" x="265.0" y="239" text-anchor="middle">playbook/</text><text class="s" x="265.0" y="258" text-anchor="middle">8 know-how docs</text></g>
+<g class="pu"><rect x="350" y="216" width="130" height="56" rx="4"/><text class="t" x="415.0" y="239" text-anchor="middle">templates/</text><text class="s" x="415.0" y="258" text-anchor="middle">7 project templates</text></g>
+<g class="pu"><rect x="500" y="216" width="130" height="56" rx="4"/><text class="t" x="565.0" y="239" text-anchor="middle">Cases &amp; showcase</text><text class="s" x="565.0" y="258" text-anchor="middle">cases · showcase</text></g>
+<line class="ar" x1="115" y1="272" x2="250" y2="310" marker-end="url(#a)"/>
+<line class="ar" x1="265" y1="272" x2="310" y2="310" marker-end="url(#a)"/>
+<line class="ar" x1="415" y1="272" x2="390" y2="310" marker-end="url(#a)"/>
+<line class="ar" x1="565" y1="272" x2="450" y2="310" marker-end="url(#a)"/>
+<g class="te"><rect x="40" y="312" width="130" height="56" rx="4"/><text class="t" x="105.0" y="335" text-anchor="middle">bin/vh</text><text class="s" x="105.0" y="354" text-anchor="middle">scaffold · QA tools</text></g>
+<line class="ar" x1="170" y1="340" x2="188" y2="340" marker-end="url(#a)"/>
+<g class="te"><rect x="190" y="312" width="320" height="56" rx="4"/><text class="t" x="350.0" y="335" text-anchor="middle">projects/date-slug</text><text class="s" x="350.0" y="354" text-anchor="middle">outline → storyboard → draft → final</text></g>
+<line class="ar" x1="512" y1="340" x2="528" y2="340" marker-start="url(#a)" marker-end="url(#a)"/>
+<g class="am"><rect x="530" y="312" width="110" height="56" rx="4"/><text class="t" x="585.0" y="335" text-anchor="middle">You review</text><text class="s" x="585.0" y="354" text-anchor="middle">3 gates</text></g>
+<line class="ar" x1="270" y1="368" x2="232" y2="406" marker-end="url(#a)"/>
+<g class="te"><rect x="110" y="408" width="240" height="56" rx="4"/><text class="t" x="230.0" y="431" text-anchor="middle">engines/ renderers</text><text class="s" x="230.0" y="450" text-anchor="middle">HyperFrames · Manim · p5.brush</text></g>
+<g class="gr"><rect x="390" y="408" width="240" height="56" rx="4" stroke-dasharray="4 3"/><text class="t" x="510.0" y="431" text-anchor="middle">references/repos/</text><text class="s" x="510.0" y="450" text-anchor="middle">20+ repos · read-only</text></g>
+<line class="ar" x1="500" y1="408" x2="455" y2="370" stroke-dasharray="4 3" marker-end="url(#a)"/>
+<line class="ar" x1="230" y1="464" x2="230" y2="502" marker-end="url(#a)"/>
+<g class="gr"><rect x="110" y="504" width="240" height="44" rx="4"/><text class="t" x="230.0" y="531.0" text-anchor="middle">Final cut out/final.mp4</text></g>
+<line class="ar" x1="350" y1="526" x2="388" y2="526" marker-end="url(#a)"/>
+<g class="gr"><rect x="390" y="504" width="240" height="44" rx="4"/><text class="t" x="510.0" y="531.0" text-anchor="middle">Lessons → LESSONS.md</text></g>
+<g class="pu"><rect x="40" y="572" width="12" height="12" rx="2"/></g>
+<text class="s lg" x="58" y="582">Docs the agent reads</text>
+<g class="te"><rect x="190" y="572" width="12" height="12" rx="2"/></g>
+<text class="s lg" x="208" y="582">Execution: scaffold, code, render</text>
+<g class="am"><rect x="420" y="572" width="12" height="12" rx="2"/></g>
+<text class="s lg" x="438" y="582">Human review</text>
+<g class="gr"><rect x="530" y="572" width="12" height="12" rx="2" stroke-dasharray="3 2"/></g>
+<text class="s lg" x="548" y="582">Read-only references</text>
+</svg>

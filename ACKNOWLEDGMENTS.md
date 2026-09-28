@@ -1,0 +1,81 @@
+# Acknowledgments · 致谢
+
+OpenVideoHarness is a harness, not a renderer. It stands on the frameworks, research, open-source skills and publicly shared experiments listed below. Thank you to every author. Unless marked *vendored*, nothing here is redistributed: `references/fetch.sh` fetches each repository from its original source into `references/repos/`, which is git-ignored. Each work keeps its own license.
+
+This project is independent. It is not affiliated with or endorsed by Anthropic, HeyGen, Remotion, Show Lab (NUS), or any author listed here. Product and model names (Claude, Claude Code, Codex, Seedance, etc.) belong to their owners.
+
+## Vendored (shipped in this repository)
+
+| Component | Author | License | Where / how it is used |
+|---|---|---|---|
+| [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) | John Heibel | MIT | `engines/ClaudeAnimationBase/`: the hand-painted p5.js + p5.brush engine, its `ANIMATION_GUIDE.md` and renderer. Copied unmodified; `.git` and build output are not included. Its "reads" timing method, review loop and failure list shaped `playbook/01-pipeline.md`, `playbook/02-verification.md` and `templates/TASTE_CHECKLIST.md`. |
+
+## Fetched as read-only references (`references/fetch.sh`)
+
+**Case studies**
+
+| Repository | Author | License | What we learned from it |
+|---|---|---|---|
+| [PDoomVideo](https://github.com/JohnHeibel/PDoomVideo) | John Heibel (@other__reality) | none declared: read only | Contract files plus parallel chapter subagents; "something happens in every shot" (`cases/mv-pdoom.md`) |
+| [functional-emotions-video](https://github.com/ledbetterljoshua/functional-emotions-video) | Joshua Ledbetter | MIT (code; song and audio excluded) | Lyric-alignment pipeline, reference-chapter-first parallelism, GPU brushstroke renderer (`cases/mv-functional-emotions.md`) |
+| [hyperframes-launches](https://github.com/heygen-com/hyperframes-launches) | HeyGen | Apache-2.0 (bundled assets: see NOTICE) | 20 production launch films with storyboards and design systems (`cases/promo-hyperframes-launches.md`) |
+
+**Frameworks and skills**
+
+| Repository | Author | License | Used for |
+|---|---|---|---|
+| [HyperFrames](https://github.com/heygen-com/hyperframes) (skills only) | HeyGen | Apache-2.0 | Primary HTML/GSAP engine; motion-doctrine, caption aesthetics, style presets and CLI verification. Many numbers in `playbook/03-motion-design.md` come from these docs |
+| [remotion-dev/skills](https://github.com/remotion-dev/skills) | Remotion | no LICENSE file in the repo; Remotion itself is under the Remotion License | Remotion route, captions, determinism rules |
+| [Code2Video](https://github.com/showlab/Code2Video) (prompts, src) | Show Lab, NUS | MIT | Anchor-grid critic, ScopeRefine, parallel sections: the "code2video" idea this project generalises |
+| [3brown1blue](https://github.com/AmitSubhash/3brown1blue) (skill) | Amit Subhash | MIT | 3b1b-style and paper-explainer rules, Manim gotchas |
+| [awesome-claude-video-skills](https://github.com/zhuyansen/awesome-claude-video-skills) | Jason Zhu (@GoSailGlobal) / Agent Skills Hub | CC0-1.0 | Catalogue of 183 agent video skills with safety grades; source of `references/community-skills.md` |
+| [lemo-opuscar](https://github.com/lemomo-ai/lemo-opuscar) | LemoLab | MIT (code) + CC BY 4.0 (guides, styles, films) | 39-style library for aesthetic direction |
+| [OpenMontage](https://github.com/calesthio/OpenMontage) | calesthio | AGPL-3.0 | Full agentic production system, used for comparison and ideas (no code reused) |
+| [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) | Vincent Wei | Apache-2.0 | 150+ shot recipe cards for product films (some bundled SFX have unverified sources) |
+| [video-talkcraft](https://github.com/Vincentwei1021/video-talkcraft) | Vincent Wei | PolyForm Noncommercial 1.0.0 | Voiceover-driven explainer motion (reference only; commercial use needs the author's permission) |
+| [guizang-product-video-skill](https://github.com/op7418/guizang-product-video-skill) | 归藏 (op7418) | AGPL-3.0 (`assets/fallback/` also BSL 1.1) | Product update films built from real product components |
+| [Paper-Cut](https://github.com/aijiduonadegou/Paper-Cut) | Paper Cut contributors | MIT | Vox-style paper collage without video models |
+| [gbro-collage-info](https://github.com/pyang5166/gbro-collage-info) | 狗哥笔记 (pyang5166) | MIT (bundled GSAP and Mixkit SFX under their own terms) | Halftone paper-collage info animation on HyperFrames |
+| [vox-director](https://github.com/Alisa0808/vox-director) | Alisa Qian | MIT | End-to-end Vox-style explainer pipeline |
+| [claude-faceless-shorts-creator](https://github.com/hassancs91/claude-faceless-shorts-creator) | Hasan Aboul Hasan | MIT | Faceless Shorts factory with word-exact captions |
+| [data-animation-skills](https://github.com/iart-ai/data-animation-skills) | iart.ai | MIT | CSV to accurate animated charts |
+| [MathLens](https://github.com/shuyicc/MathLens) | shuyicc | CC BY-NC 4.0 (declared in README; no LICENSE file): read only | Chinese math-problem explainer with Manim |
+| [hand-drawn-explainer-video-nikola](https://github.com/hi-nikola/hand-drawn-explainer-video-nikola) | hi-nikola | Apache-2.0 | Chinese hand-drawn knowledge explainers |
+| [story-to-handdrawn-video](https://github.com/gnipbao/story-to-handdrawn-video) | gnipbao | MIT | Chinese story to hand-drawn diary-comic animation |
+| [remotion-guofeng-starter](https://github.com/AllenAI2014/remotion-guofeng-starter) | AllenAI2014 | MIT (code; demo assets excluded) | Guofeng (Chinese paper-cut) animation from poems and idioms |
+| [viral-video-decomposer](https://github.com/sharon-laicc/viral-video-decomposer) | sharon-laicc | MIT | Shot-level breakdown of reference videos (`playbook/07-reverse-engineer.md`) |
+
+## Research
+
+- Chen et al., **Code2Video: A Code-centric Paradigm for Educational Video Generation**, ICML 2026. [arXiv:2510.01174](https://arxiv.org/abs/2510.01174)
+- Zhu et al., **Paper2Video: Automatic Video Generation from Scientific Papers**. [arXiv:2510.05096](https://arxiv.org/abs/2510.05096)
+- Ku et al., **TheoremExplainAgent**, ACL 2025. [arXiv:2502.19400](https://arxiv.org/abs/2502.19400)
+- Rammuni Silva et al., **Training and Agentic Inference Strategies for LLM-based Manim Animation Generation** (ManimTrainer / RITL). [arXiv:2604.18364](https://arxiv.org/abs/2604.18364)
+- Jiang et al., **ManimAgent: Self-Evolving Multimodal Agents for Visual Education**. [arXiv:2606.30296](https://arxiv.org/abs/2606.30296)
+- Lopez et al., **SGA: Plug&Play Geometric Verification for Educational Video Synthesis**. [arXiv:2607.18116](https://arxiv.org/abs/2607.18116)
+- Huang et al., **Agentic Visual Generation: From Generative Models to Agentic Control** (survey). [arXiv:2609.06758](https://arxiv.org/abs/2609.06758)
+- Heer & Robertson, **Animated Transitions in Statistical Data Graphics**, InfoVis 2007.
+- EBU R95 (safe areas); Netflix Timed Text Style Guide (Chinese subtitles).
+
+## Toolchain
+
+[FFmpeg](https://ffmpeg.org), [Puppeteer](https://pptr.dev), [p5.js](https://p5js.org), [p5.brush](https://github.com/acamposuribe/p5.brush), [GSAP](https://gsap.com), [Remotion](https://www.remotion.dev), [Manim Community](https://www.manim.community), [whisper.cpp](https://github.com/ggml-org/whisper.cpp), [FunASR](https://github.com/modelscope/FunASR), [librosa](https://librosa.org), [beat_this](https://github.com/CPJKU/beat_this), [Demucs](https://github.com/adefossez/demucs), [mlx-audio](https://github.com/Blaizzy/mlx-audio), [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS), and the other projects in `references/open-source.md`.
+
+## Community creators
+
+Public experiments and generously shared prompts from these creators shaped the case studies and prompt templates. We link to them; we do not redistribute their media.
+
+- **deckard (@slimer48484)**: the song *Claude-Pop – I'm Upping My P(Doom)*.
+- **John Heibel (@other__reality)**: PDoomVideo and ClaudeAnimationBase.
+- **donald jewkes (@donaldjewkes)**: the Claude Pop prompt, and the idea of rotoscoping over generated footage.
+- **@pleometric**, **mexicat (@_mexicat)** and **YC (@yucheng)**: remixes and the Chinese version that showed video-as-code can be forked.
+- **@eudaemonea** and **Joshua Ledbetter**: *Functional Emotions*.
+- **viggo (@decohack)**, **@achxvi** and **@ajith_io**: the one-line "showreel" prompt lineage.
+- **Andy L (@AndyL5cc)**: one-sentence science explainers (*Interstellar* black hole, the Marquis Yi bells).
+- **@kimmonismus**, **@pradeepXkapoor**, **@jake11moran**, **@dotey (宝玉)**, **@AxtonLiu** and **@goodside**: prompts analysed in `cases/community-prompts.md`.
+- **Chris Tyson (The Agent Architect)**: Claude Code + Remotion production lessons.
+- **Jason Zhu (@GoSailGlobal)** and **余温 (@gkxspace)**: curating and surfacing the community skill list.
+
+Style references named in prompts (3Blue1Brown, Kurzgesagt, Fireship, Vox, 回形针 PaperClip and others) are cited as vocabulary for direction. No affiliation is implied.
+
+If we missed or mis-credited your work, please open an issue. We will fix it.

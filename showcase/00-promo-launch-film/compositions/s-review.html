@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+  <head><meta charset="UTF-8" /></head>
+  <body>
+    <template>
+      <style>
+        @font-face { font-family: "LF Mono"; font-weight: 400; src: local("SF Mono"), local("SFMono-Regular"), local("Menlo-Regular"), local("Menlo"); }
+        @font-face { font-family: "LF Mono"; font-weight: 600 700; src: local("SF Mono Semibold"), local("SFMono-Semibold"), local("Menlo-Bold"); }
+        [data-composition-id="s-review"] { position: absolute; inset: 0; }
+        .rv-move, .rv-blur { position: absolute; inset: 0; }
+        .rv-label { position: absolute; left: 144px; top: 150px; font-size: 44px; line-height: 56px; letter-spacing: -0.01em; color: #ededef; font-weight: 600; white-space: nowrap; }
+        .rv-label i { font-style: normal; font-family: "LF Mono", ui-monospace, monospace; font-weight: 400; color: #8b8b94; margin-right: 24px; }
+        .rv-rule { position: absolute; left: 144px; top: 240px; width: 1632px; height: 1px; background: #26262b; }
+        .rv-sheetwin { position: absolute; left: 144px; top: 262px; width: 1632px; height: 612px; overflow: hidden; border: 1px solid #26262b; border-radius: 10px; background: #111113; }
+        .rv-cam { position: absolute; left: 0; top: 0; width: 1632px; height: 612px; transform-origin: 0 0; }
+        .rv-lens { position: absolute; inset: 0; }
+        .rv-sheet { position: absolute; left: 0; top: 0; width: 1632px; height: 612px; display: block; filter: grayscale(1); } /* one accent: only the flagged cell keeps colour */
+        .rv-hi { position: absolute; display: block; }
+        .rv-fixed { position: absolute; display: block; opacity: 0; }
+        .rv-scan { position: absolute; left: 0; top: 0; width: 2px; height: 612px; background: #ffb224; opacity: 0; }
+        .rv-flag { position: absolute; border: 3px solid #ffb224; border-radius: 3px; opacity: 0; }
+        .rv-name { position: absolute; left: 1776px; top: 166px; transform: translateX(-100%); font-family: "LF Mono", ui-monospace, monospace; font-size: 22px; color: #8b8b94; white-space: nowrap; }
+        .rv-notes { position: absolute; left: 144px; top: 894px; width: 1632px; height: 72px; background: #111113; border: 1px solid #26262b; border-radius: 10px;
+                    display: flex; align-items: center; padding: 0 28px; font-family: "LF Mono", ui-monospace, monospace; font-size: 44px; color: #ededef; white-space: nowrap; overflow: hidden; }
+        .rv-file { color: #6c6c75; font-size: 24px; margin-right: 28px; }
+        .rv-verdict { display: inline-block; }
+        .rv-fail { color: #ffb224; }
+        .rv-pass { color: #ededef; }
+        .rv-typed { color: #b4b4bc; white-space: pre; }
+      </style>
+      <div data-composition-id="s-review" data-width="1920" data-height="1080">
+        <div class="rv-move">
+          <div class="rv-blur">
+            <div class="rv-label"><i>03</i>It reviews its own frames</div>
+            <div class="rv-rule"></div>
+            <div class="rv-name">bin/vh sheet projects/2026-09-28-launch-film/out/draft-v1.mp4 6 1</div>
+            <div class="rv-sheetwin">
+              <div class="rv-cam">
+                <div class="rv-lens">
+                  <img class="rv-sheet rv-final" src="assets/review-sheet.png" alt="" />
+                  <img class="rv-sheet rv-v1" src="assets/draft-v1/standin-sheet.jpg" alt="" />
+                  <img class="rv-hi" src="assets/review-flagged.png" alt="" />
+                  <img class="rv-fixed rv-final" src="assets/review-fixed.png" alt="" />
+                  <img class="rv-fixed rv-v1" src="assets/draft-v1/standin-cell.png" alt="" />
+                  <div class="rv-flag"></div>
+                  <div class="rv-scan"></div>
+                </div>
+              </div>
+            </div>
+            <div class="rv-notes"><span class="rv-file">NOTES.md</span><span class="rv-verdict"><span class="rv-fail">#3 FAIL</span></span><span class="rv-typed"></span></div>
+          </div>
+        </div>
+      </div>
+      <script>
+        (function () {
+          // ---- review data (real: from NOTES.md 自评记录, draft v1) ----
+          // DRAFT = "v1" rebuilds this beat as it was in draft v1: a stand-in sheet (ClaudeAnimationBase demo) and a placeholder line.
+          const DRAFT = "final";   // flipped by tools/draft-v1.sh
+          const V1 = DRAFT === "v1";
+          gsap.set(V1 ? ".rv-final, .rv-hi" : ".rv-v1", { display: "none" });
+          if (V1) gsap.set(".rv-sheet", { filter: "none" });
+          // real data: cell 11 of the 6×4 `bin/vh sheet` of draft v1 = tile "0:10.50" (f 315); line = NOTES.md #3
+          const FLAG = V1 ? { col: 3, row: 1 } : { col: 4, row: 1 };
+          const COLS = 6, CW = 1632 / COLS, CH = CW * 9 / 16;   // 272 × 153
+          const ID = V1 ? "#17" : "#3";
+          const LINE = V1 ? "  \u2192 placeholder" : "  10.50s  push-in cuts the row";
+          const PASS_TEXT = ID + " PASS";
+          const FIX_LINE = V1 ? "  \u2192 placeholder" : "  10.50s  full row visible";
+
+          const tl = gsap.timeline({ paused: true });
+          const cx = FLAG.col * CW, cy = FLAG.row * CH;
+          gsap.set(".rv-flag", { left: cx - 1, top: cy - 1, width: CW + 2, height: CH + 2 });
+          gsap.set(".rv-fixed, .rv-hi", { left: cx, top: cy, width: CW, height: CH });  // same frame as the cell, at 960×540 so the crop stays sharp
+          const verdict = document.querySelector(".rv-verdict");
+          verdict.innerHTML = '<span class="rv-fail">' + ID + ' FAIL</span>';
+          const typed = document.querySelector(".rv-typed");
+
+          // ENTRY: cut-the-curve LEFT, mid-flight.
+          tl.fromTo(".rv-move", { x: 230, opacity: 0.35 }, { x: 0, opacity: 1, duration: 0.36, ease: "power4.out" }, 0);
+          tl.fromTo(".rv-blur", { filter: "blur(8px)" }, { filter: "blur(0px)", duration: 0.3, ease: "power2.out" }, 0);
+
+          // SCAN: a playhead sweeps the sheet — the agent is reading frames.
+          tl.set(".rv-scan", { opacity: 0.9, x: 0 }, 0.34);
+          tl.to(".rv-scan", { x: cx + CW * 0.5, duration: 0.5, ease: "power2.inOut" }, 0.34);
+          tl.set(".rv-scan", { opacity: 0 }, 0.85);
+
+          // FLAG at 0.85 (global 11.75): box + the NOTES line type in on the same frame.
+          const FL = 0.85;
+          tl.set(".rv-flag", { opacity: 1 }, FL);
+          const tx = { n: 0 };
+          tl.to(tx, { n: LINE.length, duration: Math.min(0.6, LINE.length * 0.012), ease: "none",
+            onUpdate: () => { typed.textContent = LINE.slice(0, Math.floor(tx.n + 1e-6)); } }, FL);
+
+          // CAMERA: sheet → crop. Push the flagged cell to frame-centre at 3× (816×459 on screen), then stop.
+          const S = V1 ? 1.75 : 3.0, TX = 816 - S * (cx + CW / 2), TY = 300 - S * (cy + CH / 2);
+          tl.fromTo(".rv-cam", { x: 0, y: 0, scale: 1 }, { x: TX, y: TY, scale: S, duration: 1.1, ease: "power2.inOut" }, 1.0);
+
+          // CLICK at 2.4 (global 13.30) → rack-focus swap to the fixed frame, FAIL → PASS on the same frame.
+          const CLICK = 2.4;
+          tl.to(".rv-lens", { filter: "blur(10px)", scale: 1.03, transformOrigin: (cx + CW / 2) + "px " + (cy + CH / 2) + "px", duration: 0.14, ease: "power2.in" }, CLICK);
+          tl.set(".rv-fixed", { opacity: 1 }, CLICK + 0.14);
+          tl.set(".rv-flag", { borderColor: "#ededef" }, CLICK + 0.14);
+          tl.to(".rv-lens", { filter: "blur(0px)", scale: 1, duration: 0.26, ease: "power2.out" }, CLICK + 0.14);
+          const vs = { p: 0 };
+          tl.to(vs, { p: 1, duration: 0.01, ease: "none",
+            onUpdate: () => { verdict.innerHTML = vs.p >= 1 ? '<span class="rv-pass">✓ ' + PASS_TEXT + '</span>' : '<span class="rv-fail">' + ID + ' FAIL</span>';
+              typed.textContent = vs.p >= 1 ? FIX_LINE : LINE; } }, CLICK + 0.14);
+          tl.to(".rv-flag", { opacity: 0, duration: 0.4, ease: "power2.out" }, CLICK + 0.7);
+
+          // EXIT: cut-the-curve LEFT.
+          const CUT = 3.7;
+          tl.to(".rv-move", { x: -230, duration: 0.3, ease: "power4.in" }, CUT - 0.3);
+          tl.to(".rv-move", { opacity: 0, duration: 0.26, ease: "none" }, CUT - 0.28);
+          tl.to(".rv-blur", { filter: "blur(8px)", duration: 0.3, ease: "power2.in" }, CUT - 0.3);
+          window.__timelines["s-review"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

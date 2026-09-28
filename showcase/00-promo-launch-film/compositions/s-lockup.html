@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+  <head><meta charset="UTF-8" /></head>
+  <body>
+    <template>
+      <style>
+        [data-composition-id="s-lockup"] { position: absolute; inset: 0; }
+        .lk-z, .lk-blur, .lk-op { position: absolute; inset: 0; }
+        .lk-z { transform-origin: 960px 520px; }
+        .lk-bar { position: absolute; left: 234px; top: 404px; width: 10px; height: 176px; background: #ffb224; border-radius: 2px; transform-origin: 50% 100%; }
+        .lk-word { position: absolute; left: 286px; top: 392px; font-size: 168px; line-height: 200px; font-weight: 600; letter-spacing: -0.045em; color: #ededef; white-space: nowrap; }
+        .lk-tag { position: absolute; left: 294px; top: 620px; font-size: 56px; line-height: 68px; font-weight: 400; letter-spacing: -0.02em; color: #8b8b94; white-space: nowrap; }
+        .lk-w { display: inline-block; margin-right: 0.26em; opacity: 0; }
+      </style>
+      <div data-composition-id="s-lockup" data-width="1920" data-height="1080">
+        <div class="lk-op">
+          <div class="lk-z">
+            <div class="lk-blur">
+              <div class="lk-bar"></div>
+              <div class="lk-word">OpenVideoHarness</div>
+            </div>
+          </div>
+        </div>
+        <div class="lk-tag"><span class="lk-w">Video</span><span class="lk-w">as</span><span class="lk-w">code,</span><span class="lk-w">for</span><span class="lk-w">coding</span><span class="lk-w">agents.</span></div>
+      </div>
+      <script>
+        (function () {
+          const tl = gsap.timeline({ paused: true });
+          // ENTRY: inverse zoom-through — arrives oversized and retracts (scale sign matches proof's shrinking exit).
+          tl.fromTo(".lk-z", { scale: 1.25 }, { scale: 1, duration: 0.5, ease: "expo.out" }, 0);
+          tl.fromTo(".lk-blur", { filter: "blur(10px)" }, { filter: "blur(0px)", duration: 0.5, ease: "expo.out" }, 0);
+          tl.fromTo(".lk-op", { opacity: 0.15 }, { opacity: 1, duration: 0.5, ease: "expo.out" }, 0);
+          // Playhead bar: the accent migrates here — the last thing the harness "acts on" is its own name.
+          tl.fromTo(".lk-bar", { scaleY: 0 }, { scaleY: 1, duration: 0.45, ease: "power3.out" }, 0.4);
+          // Tagline: waterfall entry from below after the name settles.
+          const spec = [[0.65, 44, 0.16], [0.78, 34, 0.12], [0.86, 44, 0.15], [0.98, 34, 0.12], [1.06, 46, 0.15], [1.18, 60, 0.18]];
+          gsap.utils.toArray(".lk-w").forEach((w, i) => {
+            const [t, dy, d] = spec[i];
+            tl.set(w, { opacity: 1, y: dy }, t);
+            tl.to(w, { y: 0, duration: d, ease: "power4.out" }, t);
+          });
+          window.__timelines["s-lockup"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

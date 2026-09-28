@@ -1,0 +1,6 @@
+→ scaffolding HyperFrames (landscape) — npx, no global skills, telemetry off
+✓ HyperFrames scaffolded into projects/2026-09-29-launch-film (index.html, hyperframes.json …). Always prefix npx hyperframes with HYPERFRAMES_SKIP_SKILLS=1.
+✓ created projects/2026-09-29-launch-film
+   type doc : video-types/03-product-promo.md
+   next     : open Claude Code in the repo root and say what the video is about;
+              the agent fills projects/2026-09-29-launch-film/BRIEF.md and STORYBOARD.md and stops for your review.
