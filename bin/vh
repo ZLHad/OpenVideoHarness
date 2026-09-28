@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# vh — OpenVideoHarness helper. Run from anywhere: bin/vh <command>
+#   doctor                      check the toolchain (node, ffmpeg, chrome, python/uv, latex)
+#   setup                       install ClaudeAnimationBase deps + fetch reference repos
+#   types                       list video types and their docs
+#   new <type> <slug>           create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme)
+#   hf-init <dir> [resolution]  scaffold HyperFrames into a project safely (no global skill install; landscape|portrait|square)
+#   sync-agents                 regenerate AGENTS.md from CLAUDE.md (keep both agents' entry points identical)
+#   tts <project> [provider] [voice]   voiceover from audio/script.txt → voiceover.wav + timeline.json
+#                               providers: say (offline) | edge | elevenlabs | dashscope | mlx  (keys via env vars)
+#   beats <audio> [out.json]    beat grid (bpm, offset, beats, downbeats) with librosa
+#   mix <voice> [music] <out>   duck music under voice, loudnorm to -14 LUFS (either input may be "-")
+#   mux <video> <audio> <out>   put an audio track on a rendered video (video stream copied)
+#   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
+#   check <video>               ffprobe + black/freeze/silence detection
+#   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+c_ok=$'\033[32m✓\033[0m'; c_no=$'\033[31m✗\033[0m'; c_wa=$'\033[33m!\033[0m'
+
+declare -a TYPES=(
+  "math:01-math-science-explainer:数学/科学原理讲解（Manim）"
+  "short:02-knowledge-short:知识科普短视频，含竖屏（HyperFrames）"
+  "promo:03-product-promo:产品宣传/发布片（HyperFrames）"
+  "mv:04-lyric-music-video:歌词视频/MV（ClaudeAnimationBase 或 HyperFrames）"
+  "data:05-data-story:数据叙事/动画图表（HyperFrames + SVG）"
+  "paper:06-paper-explainer:论文讲解/会议视频（Manim + HyperFrames）"
+  "handdrawn:07-hand-drawn:手绘/水彩/白板/剪纸/角色短片（ClaudeAnimationBase）"
+  "meme:08-brutalist-meme:网络梗/野兽派快剪（HyperFrames）"
+)
+type_doc() { for t in "${TYPES[@]}"; do IFS=: read -r k f _ <<<"$t"; [ "$k" = "$1" ] && { echo "$f"; return; }; done; return 1; }
+
+cmd_doctor() {
+  chk() { if command -v "$1" >/dev/null 2>&1; then echo "$c_ok $1  $($2 2>&1 | head -1)"; else echo "$c_no $1  ($3)"; fi; }
+  local nv; nv=$(node -v 2>/dev/null | sed 's/v//;s/\..*//' || echo 0)
+  if [ "${nv:-0}" -ge 22 ] 2>/dev/null; then echo "$c_ok node  $(node -v)"; else echo "$c_no node ≥22 required (found: $(node -v 2>/dev/null || echo none))"; fi
+  chk ffmpeg "ffmpeg -version" "brew install ffmpeg"
+  local chrome=""
+  for p in "${CHROME_PATH:-}" "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" /usr/bin/google-chrome /usr/bin/chromium; do [ -n "$p" ] && [ -x "$p" ] && { chrome="$p"; break; }; done
+  [ -n "$chrome" ] && echo "$c_ok chrome  $chrome" || echo "$c_no chrome  (install Google Chrome or set CHROME_PATH)"
+  chk python3 "python3 --version" "needed for audio analysis / Manim"
+  chk uv "uv --version" "optional: brew install uv (Manim env)"
+  chk latex "latex --version" "optional: MacTeX / TeX Live, needed for Manim MathTex"
+  chk git "git --version" "needed by references/fetch.sh"
+  [ -d "$ROOT/engines/ClaudeAnimationBase/node_modules" ] && echo "$c_ok ClaudeAnimationBase deps installed" || echo "$c_wa ClaudeAnimationBase deps missing → bin/vh setup"
+  [ -d "$ROOT/references/repos" ] && echo "$c_ok references fetched ($(ls "$ROOT/references/repos" | wc -l | tr -d ' ') repos)" || echo "$c_wa reference repos not fetched → bin/vh setup"
+  [ -f "$ROOT/LOCAL.md" ] && echo "$c_ok LOCAL.md present" || echo "$c_wa no LOCAL.md → cp LOCAL.example.md LOCAL.md and fill it in"
+  if [ "$(agents_body)" = "$(tail -n +4 "$ROOT/AGENTS.md" 2>/dev/null)" ]; then echo "$c_ok AGENTS.md in sync with CLAUDE.md"; else echo "$c_wa AGENTS.md out of sync → bin/vh sync-agents"; fi
+}
+agents_body() { cat "$ROOT/CLAUDE.md"; }
+cmd_sync_agents() {
+  { echo "<!-- AGENTS.md is generated from CLAUDE.md by \`bin/vh sync-agents\`. Edit CLAUDE.md, then re-run. -->"
+    echo "<!-- Same instructions for every coding agent (Claude Code reads CLAUDE.md; Codex and others read AGENTS.md). -->"
+    echo
+    agents_body; } > "$ROOT/AGENTS.md"
+  echo "$c_ok AGENTS.md regenerated from CLAUDE.md"
+}
+
+cmd_setup() {
+  echo "→ installing ClaudeAnimationBase deps"; (cd "$ROOT/engines/ClaudeAnimationBase" && npm install --silent)
+  echo "→ fetching reference repos"; "$ROOT/references/fetch.sh"
+  [ -f "$ROOT/LOCAL.md" ] || cp "$ROOT/LOCAL.example.md" "$ROOT/LOCAL.md"
+  echo "→ smoke test"; (cd "$ROOT/engines/ClaudeAnimationBase" && node render.mjs --sheet=0.5,4,8 --cols=3 --w=320 --out="$ROOT/.reel-smoke.jpg" && rm -f "$ROOT/.reel-smoke.jpg")
+  echo "$c_ok setup done. Next: bin/vh new <type> <slug>   (types: bin/vh types)"
+}
+
+cmd_types() { for t in "${TYPES[@]}"; do IFS=: read -r k f d <<<"$t"; printf "  %-10s video-types/%-32s %s\n" "$k" "$f.md" "$d"; done; }
+
+cmd_new() {
+  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug>"; cmd_types; exit 1; }
+  local type=$1 slug=$2 doc; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 1; }
+  local dir="$ROOT/projects/$(date +%F)-$slug"
+  [ -e "$dir" ] && { echo "$dir already exists"; exit 1; }
+  if [ "$type" = handdrawn ] || [ "$type" = mv ]; then
+    rsync -a --exclude node_modules --exclude out "$ROOT/engines/ClaudeAnimationBase/" "$dir/"
+    mv "$dir/README.md" "$dir/ENGINE_README.md"   # the engine's own readme; project docs are BRIEF/STORYBOARD/…
+    (cd "$dir" && npm install --silent)
+  else mkdir -p "$dir"; fi
+  mkdir -p "$dir/audio" "$dir/assets" "$dir/out/check"
+  for f in BRIEF STYLE STORYBOARD REVIEW NOTES LESSONS TASTE_CHECKLIST; do cp "$ROOT/templates/$f.md" "$dir/$f.md"; done
+  python3 - "$ROOT/video-types/$doc.md" "$dir/BRIEF.md" <<'PY'
+import re, sys
+doc, brief = open(sys.argv[1]).read(), sys.argv[2]
+m = re.search(r"## Prompt 增量块\s*```text\n(.*?)```", doc, re.S)
+b = open(brief).read().replace("<!-- 在这里贴 video-types/*.md 的 \"Prompt 增量块\" -->", (m.group(1).strip() if m else "") + f"\n\n<!-- from {sys.argv[1].split('/')[-1]} -->")
+open(brief, "w").write(b)
+PY
+  case "$type" in
+    short) cmd_hf_init "$dir" portrait || true ;;
+    promo|data|meme) cmd_hf_init "$dir" landscape || true ;;
+    math|paper) echo "   engine   : Manim → cd ${dir#$ROOT/} && uv init --bare --python 3.12 && uv add manim   (see engines/README.md)" ;;
+  esac
+  if [ "$type" = handdrawn ] || [ "$type" = mv ]; then
+    python3 - "$dir/BRIEF.md" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+note = ("> **本项目用 ClaudeAnimationBase：`ANIMATION_GUIDE.md` 的规则优先于本模板的 Motion defaults 和 TASTE_CHECKLIST #12。**\n"
+        "> 卡通语域下，预备动作、挤压拉伸、overshoot、表情 take 和踩拍的 idle 动作都是必需的；不写字的影片可以删掉 Type、Text rules 两节。\n"
+        "> 成片输出为 `node render.mjs --clip --out=out/final.mp4`（长片用 `--frames` 再 `--encode --out=out/final.mp4`）。\n\n")
+open(p, "w").write(s.replace("# BRIEF\n", "# BRIEF\n\n" + note, 1))
+PY
+  fi
+  echo "$c_ok created ${dir#$ROOT/}"
+  echo "   type doc : video-types/$doc.md"
+  echo "   next     : open Claude Code in the repo root and say what the video is about;"
+  echo "              the agent fills ${dir#$ROOT/}/BRIEF.md and STORYBOARD.md and stops for your review."
+}
+
+cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/skills) unless HYPERFRAMES_SKIP_SKILLS=1
+  local dir=${1:?usage: bin/vh hf-init <project-dir> [resolution]} res=${2:-landscape} tmp f b
+  [ -d "$dir" ] || { echo "no such project: $dir"; return 1; }
+  [ -f "$dir/hyperframes.json" ] && { echo "$c_ok HyperFrames already initialised in ${dir#$ROOT/}"; return 0; }
+  echo "→ scaffolding HyperFrames ($res) — npx, no global skills, telemetry off"
+  tmp=$(mktemp -d)
+  if ! (cd "$tmp" && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 npx --yes hyperframes init hf --non-interactive --resolution "$res" >/dev/null 2>&1); then
+    echo "$c_wa hyperframes init failed (offline?) — retry later: bin/vh hf-init ${dir#$ROOT/} $res"; rm -rf "$tmp"; return 1; fi
+  shopt -s dotglob
+  for f in "$tmp"/hf/*; do b=$(basename "$f")
+    case "$b" in CLAUDE.md|AGENTS.md|.claude|.agents|README.md|.git) continue ;; esac   # keep the harness in charge of routing
+    [ -e "$dir/$b" ] || cp -R "$f" "$dir/"
+  done
+  shopt -u dotglob; rm -rf "$tmp"
+  echo "$c_ok HyperFrames scaffolded into ${dir#$ROOT/} (index.html, hyperframes.json …). Always prefix npx hyperframes with HYPERFRAMES_SKIP_SKILLS=1."
+}
+project_of() { # nearest ancestor of $1 that contains BRIEF.md (a project), else empty
+  local d; d=$(cd "$(dirname "$1")" && pwd)
+  while [ "$d" != "/" ]; do [ -f "$d/BRIEF.md" ] && { echo "$d"; return; }; d=$(dirname "$d"); done
+}
+cmd_sheet() {
+  local v=$1 cols=${2:-6} fps=${3:-1} name base; name=$(basename "${v%.*}")
+  base=$(project_of "$v"); [ -n "$base" ] || base="$(cd "$(dirname "$v")" && pwd)"
+  local out=${4:-"$base/out/check/${name}-sheet-$(date +%H%M%S).png"}; mkdir -p "$(dirname "$out")"
+  if command -v uv >/dev/null 2>&1; then   # timestamped tiles (ffmpeg builds often lack drawtext)
+    uv run -q --with pillow python "$ROOT/tools/sheet.py" "$v" "$out" "$cols" "$fps" && return
+  fi
+  local dur rows; dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$v"); rows=$(python3 -c "import math;print(max(1,math.ceil($dur*$fps/$cols)))")
+  ffmpeg -v error -y -i "$v" -vf "fps=$fps,scale=480:-1,tile=${cols}x${rows}" -frames:v 1 "$out" && echo "$out (no timestamps: install uv)"
+}
+cmd_check() {
+  local v=$1
+  ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,r_frame_rate -of compact "$v"
+  local hits; hits=$(ffmpeg -i "$v" -vf "blackdetect=d=0.3,freezedetect=d=3" -af silencedetect=d=3 -f null - 2>&1 | grep -E "black_|freeze_|silence_" | sed 's/.*\] //' || true)
+  if [ -z "$hits" ]; then echo "$c_ok no black/freeze/silence segments over threshold"
+  else echo "$hits"; echo "$c_wa review each hit: dark backgrounds (e.g. 3b1b black), intentional holds and silent videos trigger these by design"; fi
+}
+cmd_tts() {
+  local proj=${1:?usage: bin/vh tts <project> [provider] [voice]} prov=${2:-say} voice=${3:-} deps=""
+  case "$prov" in edge) deps="--with edge-tts" ;; dashscope) deps="--with dashscope" ;; mlx) deps="--with mlx-audio" ;; esac
+  uv run -q $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${voice:+--voice "$voice"}
+}
+cmd_beats() { uv run -q --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
+cmd_mix() {
+  local voice=$1 music=$2 out=$3
+  [ -n "$out" ] || { out=$music; music="-"; }
+  if [ "$music" = "-" ]; then ffmpeg -v error -y -i "$voice" -af "loudnorm=I=-14:TP=-1.5:LRA=11" -ar 48000 "$out"
+  elif [ "$voice" = "-" ]; then ffmpeg -v error -y -i "$music" -af "loudnorm=I=-14:TP=-1.5:LRA=11" -ar 48000 "$out"
+  else ffmpeg -v error -y -i "$voice" -i "$music" -filter_complex \
+    "[1:a]volume=0.35[m];[m][0:a]sidechaincompress=threshold=0.03:ratio=8:attack=20:release=300[duck];[0:a][duck]amix=inputs=2:duration=longest:normalize=0,loudnorm=I=-14:TP=-1.5:LRA=11" \
+    -ar 48000 "$out"; fi && echo "$c_ok $out"
+}
+cmd_mux() { # output length = video length (audio is padded with silence or trimmed)
+  local vd; vd=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$1")
+  ffmpeg -v error -y -i "$1" -i "$2" -filter_complex "[1:a]apad,atrim=0:$vd[a]" -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k "$3" && echo "$c_ok $3"
+}
+cmd_gif() {
+  local v=$1 w=${2:-640} fps=${3:-15} out="${1%.*}.gif"
+  ffmpeg -v error -y -i "$v" -vf "fps=$fps,scale=$w:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" "$out" && ls -lh "$out" | awk '{print $5, $9}'
+}
+
+case "${1:-help}" in
+  doctor) cmd_doctor ;; setup) cmd_setup ;; types) cmd_types ;;
+  tts) shift; cmd_tts "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; mux) shift; cmd_mux "$@" ;;
+  new) shift; cmd_new "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
+  *) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//' ;;
+esac

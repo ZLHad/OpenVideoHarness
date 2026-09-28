@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="zh-CN" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>为什么低轨卫星的信号会"变调"</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@500;800&display=block"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg: #0e1726;
+        --panel: #152238;
+        --earth: #24507a;
+        --earth-rim: #2f6394;
+        --fg: #f5efe6;
+        --muted: #7f8fa6;
+        --grid: #26364f;
+        --stroke: #0a111c;
+        --accent: #ff8a3d;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: var(--bg);
+      }
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        font-family: "Noto Sans SC", sans-serif;
+        color: var(--fg);
+      }
+      .scene {
+        position: absolute;
+        inset: 0;
+      }
+      .inner {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1080px;
+        height: 1920px;
+      }
+      svg.full {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1080px;
+        height: 1920px;
+        overflow: visible;
+      }
+      .acc {
+        color: var(--accent);
+      }
+      /* safe box x 90–900 → centered text lives in a 810px column starting at x=90 */
+      .col {
+        position: absolute;
+        left: 90px;
+        width: 810px;
+        text-align: center;
+      }
+      .hook {
+        font-size: 140px;
+        font-weight: 800;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+      }
+      .captxt {
+        font-size: 72px;
+        font-weight: 800;
+        line-height: 1.25;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        -webkit-text-stroke: 6px var(--stroke);
+        paint-order: stroke fill;
+      }
+      .cap {
+        position: absolute;
+        left: 90px;
+        top: 1375px;
+        width: 810px;
+        height: 110px;
+      }
+      .cap .captxt {
+        display: block;
+        width: 810px;
+        text-align: center;
+      }
+      .label {
+        font-size: 44px;
+        font-weight: 500;
+        color: var(--muted);
+      }
+      #stat {
+        top: 385px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      #stat-num {
+        font-size: 128px;
+        letter-spacing: -0.02em;
+      }
+      #stat-unit {
+        font-size: 56px;
+        font-weight: 500;
+        color: var(--muted);
+      }
+      #formula {
+        top: 380px;
+        font-size: 88px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+      }
+      #formula-note {
+        top: 498px;
+        white-space: nowrap;
+      }
+      svg text {
+        font-family: "Noto Sans SC", sans-serif;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="24.8"
+      data-width="1080"
+      data-height="1920"
+    >
+      <!-- ============ S1 · HOOK (0.0–3.2) ============ -->
+      <section id="s1" class="clip scene" data-start="0" data-duration="3.2" data-track-index="1">
+        <div id="s1-inner" class="inner">
+          <div id="hook-l1" class="col hook" style="top: 600px">卫星信号</div>
+          <div id="hook-l2" class="col hook" style="top: 770px">会<span class="acc">变调</span></div>
+          <svg class="full" viewBox="0 0 1080 1920">
+            <path
+              id="hook-wave"
+              d=""
+              fill="none"
+              stroke="#ff8a3d"
+              stroke-width="9"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <div id="hook-sub" class="col captxt" style="top: 1375px">原因：<span class="acc">多普勒频移</span></div>
+        </div>
+      </section>
+
+      <!-- ============ S2 · ORBIT (3.2–6.2) ============ -->
+      <section id="s2" class="clip scene" data-start="3.2" data-duration="3.0" data-track-index="1">
+        <div id="s2-inner" class="inner">
+          <svg class="full" viewBox="0 0 1080 1920">
+            <circle cx="495" cy="1010" r="300" fill="#2f6394" />
+            <circle cx="495" cy="1010" r="286" fill="#24507a" />
+            <circle
+              cx="495"
+              cy="1010"
+              r="350"
+              fill="none"
+              stroke="#7f8fa6"
+              stroke-opacity="0.55"
+              stroke-width="4"
+              stroke-dasharray="4 18"
+              stroke-linecap="round"
+            />
+            <path id="orb-trail" d="" fill="none" stroke="#f5efe6" stroke-opacity="0.35" stroke-width="8" stroke-linecap="round" />
+            <circle cx="495" cy="724" r="10" fill="#f5efe6" />
+            <text x="495" y="792" text-anchor="middle" font-size="44" font-weight="500" fill="#f5efe6">你</text>
+            <g id="orb-sat">
+              <rect x="-78" y="-14" width="52" height="28" rx="3" fill="#7f8fa6" />
+              <rect x="26" y="-14" width="52" height="28" rx="3" fill="#7f8fa6" />
+              <path d="M-61 -14 V14 M-44 -14 V14 M44 -14 V14 M61 -14 V14" stroke="#0e1726" stroke-width="3" />
+              <rect x="-30" y="-4" width="60" height="8" fill="#7f8fa6" />
+              <rect x="-21" y="-21" width="42" height="42" rx="7" fill="#f5efe6" />
+              <circle cx="0" cy="28" r="8" fill="#ff8a3d" />
+            </g>
+          </svg>
+          <div id="stat" class="col"><span id="stat-num">0.0</span><span id="stat-unit"> km/s</span></div>
+          <div id="stat-label" class="col label" style="top: 545px">离地 500–550 km 的低轨</div>
+        </div>
+      </section>
+
+      <!-- ============ S3–S7 · STAGE (6.2–24.8) ============ -->
+      <section id="s3" class="clip scene" data-start="6.2" data-duration="18.6" data-track-index="1">
+        <div id="s3-inner" class="inner">
+          <svg class="full" viewBox="0 0 1080 1920">
+            <defs>
+              <clipPath id="band-clip">
+                <rect x="0" y="0" width="1080" height="972" />
+              </clipPath>
+            </defs>
+            <!-- sky dome + ground + you (exits upward at 14.6) -->
+            <g id="dome-group">
+              <text id="dome-note" x="100" y="392" font-size="44" font-weight="500" fill="#7f8fa6">示意：波长变化已放大</text>
+              <path id="dome-arc" d="" fill="none" stroke="#7f8fa6" stroke-opacity="0.5" stroke-width="4" stroke-dasharray="4 18" stroke-linecap="round" />
+              <g id="st-sat">
+                <rect x="-78" y="-14" width="52" height="28" rx="3" fill="#7f8fa6" />
+                <rect x="26" y="-14" width="52" height="28" rx="3" fill="#7f8fa6" />
+                <path d="M-61 -14 V14 M-44 -14 V14 M44 -14 V14 M61 -14 V14" stroke="#0e1726" stroke-width="3" />
+                <rect x="-30" y="-4" width="60" height="8" fill="#7f8fa6" />
+                <rect x="-21" y="-21" width="42" height="42" rx="7" fill="#f5efe6" />
+                <circle cx="0" cy="28" r="8" fill="#ff8a3d" />
+              </g>
+              <g clip-path="url(#band-clip)">
+                <circle cx="495" cy="3300" r="2400" fill="#2f6394" />
+                <circle cx="495" cy="3300" r="2388" fill="#24507a" />
+              </g>
+              <path id="ribbon" d="" fill="none" stroke="#ff8a3d" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+              <g id="dish" transform="translate(495 900) scale(1.3)">
+                <path d="M-20 2 L20 2 L7 -30 L-7 -30 Z" fill="#7f8fa6" />
+                <g id="dish-bowl" transform="translate(0 -34)">
+                  <path d="M-40 -6 Q0 30 40 -6 Z" fill="#f5efe6" />
+                  <path d="M0 8 L0 -26" stroke="#f5efe6" stroke-width="5" stroke-linecap="round" />
+                  <circle cx="0" cy="-28" r="7" fill="#f5efe6" />
+                </g>
+              </g>
+              <text x="495" y="952" text-anchor="middle" font-size="44" font-weight="500" fill="#f5efe6">你</text>
+            </g>
+
+            <!-- chart (same object for the whole stage; geometry is a function of t) -->
+            <g id="chart" opacity="0">
+              <rect id="ch-panel" x="110" y="975" width="780" height="370" rx="26" fill="#152238" />
+              <line id="ch-grid-top" x1="170" x2="866" stroke="#26364f" stroke-width="3" stroke-dasharray="10 12" />
+              <line id="ch-grid-bot" x1="170" x2="866" stroke="#26364f" stroke-width="3" stroke-dasharray="10 12" />
+              <line id="ch-zero" x1="170" x2="866" stroke="#7f8fa6" stroke-width="3" />
+              <text id="ch-title" x="134" font-size="44" font-weight="500" fill="#7f8fa6">频移</text>
+              <text id="ch-xlabel" x="866" text-anchor="end" font-size="44" font-weight="500" fill="#7f8fa6">一次过顶：几分钟 →</text>
+              <text id="tk-top-sm" x="866" text-anchor="end" font-size="44" font-weight="500" fill="#7f8fa6">+ 偏高</text>
+              <text id="tk-bot-sm" x="134" font-size="44" font-weight="500" fill="#7f8fa6">− 偏低</text>
+              <text id="tk-top-50" x="866" text-anchor="end" font-size="48" font-weight="800" fill="#f5efe6" opacity="0">+50 kHz</text>
+              <text id="tk-bot-50" x="134" font-size="48" font-weight="800" fill="#f5efe6" opacity="0">−50 kHz</text>
+              <text id="tk-top-500" x="866" text-anchor="end" font-size="48" font-weight="800" fill="#f5efe6" opacity="0">+500 kHz</text>
+              <text id="tk-bot-500" x="134" font-size="48" font-weight="800" fill="#f5efe6" opacity="0">−500 kHz</text>
+              <path id="cv-2g" d="" fill="none" stroke="#ff8a3d" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" />
+              <path id="cv-mirror" d="" fill="none" stroke="#f5efe6" stroke-width="6" stroke-dasharray="16 14" stroke-linecap="round" opacity="0" />
+              <path id="cv-ka" d="" fill="none" stroke="#ff8a3d" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+              <circle id="zero-pulse" r="10" fill="none" stroke="#f5efe6" stroke-width="4" opacity="0" />
+              <circle id="zero-ring" r="15" fill="#152238" stroke="#f5efe6" stroke-width="5" opacity="0" />
+              <circle id="trace-dot" r="13" fill="#ff8a3d" opacity="0" />
+              <circle id="read-dot" r="13" fill="#ff8a3d" opacity="0" />
+              <text id="read-val" font-size="64" font-weight="800" fill="#f5efe6" opacity="0" style="font-variant-numeric: tabular-nums">+0 kHz</text>
+              <text id="lb-2g" x="866" text-anchor="end" font-size="44" font-weight="500" fill="#7f8fa6" opacity="0">2 GHz</text>
+              <text id="lb-ka" x="190" font-size="48" font-weight="800" fill="#ff8a3d" opacity="0">Ka 20 GHz</text>
+              <text id="lb-mirror" x="866" text-anchor="end" font-size="44" font-weight="500" fill="#f5efe6" opacity="0">提前反向补偿</text>
+              <text id="lb-zero" x="866" text-anchor="end" font-size="52" font-weight="800" fill="#f5efe6" opacity="0">补偿后 ≈ 0</text>
+            </g>
+          </svg>
+          <div id="formula" class="col">Δf ≈ (v / c) · f</div>
+          <div id="formula-note" class="col label">v 朝向你的速度 · c 光速 · f 载频</div>
+        </div>
+      </section>
+
+      <!-- ============ CAPTIONS (burned-in, silent film) ============ -->
+      <div id="c2" class="clip cap" data-start="4.0" data-duration="2.1" data-track-index="2"><span class="captxt">低轨卫星，飞得<span class="acc">极快</span></span></div>
+      <div id="c3" class="clip cap" data-start="6.8" data-duration="2.45" data-track-index="2"><span class="captxt">靠近：波变密，频率<span class="acc">升高</span></span></div>
+      <div id="c4" class="clip cap" data-start="9.3" data-duration="1.9" data-track-index="2"><span class="captxt">正头顶：频移<span class="acc">归零</span></span></div>
+      <div id="c5" class="clip cap" data-start="11.25" data-duration="3.25" data-track-index="2"><span class="captxt">远离：波变疏，频率<span class="acc">降低</span></span></div>
+      <div id="c6" class="clip cap" data-start="15.4" data-duration="2.15" data-track-index="2"><span class="captxt">2 GHz：接近 <span class="acc">±50 kHz</span></span></div>
+      <div id="c7" class="clip cap" data-start="17.7" data-duration="2.6" data-track-index="2"><span class="captxt">20 GHz：再大 <span class="acc">10 倍</span></span></div>
+      <div id="c8" class="clip cap" data-start="20.45" data-duration="2.15" data-track-index="2"><span class="captxt">轨道已知，能提前算出</span></div>
+      <div id="c9" class="clip cap" data-start="22.75" data-duration="2.05" data-track-index="2"><span class="captxt">反向补偿，<span class="acc">不再变调</span></span></div>
+    </div>
+
+    <script>
+      /* ------------------------------------------------------------------
+         Every frame is a pure function of t.
+         - GSAP tweens: text entrances/exits and scene seams.
+         - draw(t): all physics visuals (wave, orbit, pass, ribbon, chart),
+           driven by one ease:"none" proxy tween on the same paused timeline.
+         ------------------------------------------------------------------ */
+      const DUR = 24.8;
+      const ACCENT = "#ff8a3d";
+      const MUTED = "#7f8fa6";
+      const $ = (id) => document.getElementById(id);
+
+      // ---------- math helpers ----------
+      const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+      const seg = (t, a, b) => clamp((t - a) / (b - a));
+      const lerp = (a, b, x) => a + (b - a) * x;
+      const eOut = (x) => 1 - Math.pow(1 - x, 3);
+      const eIn = (x) => x * x * x;
+      const eInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+      const D2R = Math.PI / 180;
+      const f1 = (n) => n.toFixed(1);
+      function mixHex(a, b, x) {
+        const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+        const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+        return "rgb(" + pa.map((v, i) => Math.round(lerp(v, pb[i], x))).join(",") + ")";
+      }
+
+      // ---------- PHYS: LEO pass geometry (same formulas as NOTES.md) ----------
+      const PHYS = (() => {
+        const GM = 3.986004418e14, RE = 6371e3, H = 550e3, r = RE + H;
+        const v = Math.sqrt(GM / r); // 7.589 km/s
+        const MASK = 10 * D2R; // 10° elevation mask
+        const LAM = Math.acos((RE * Math.cos(MASK)) / r) - MASK; // half pass, central angle
+        const vrAtTheta = (th) => {
+          const dx = r * Math.sin(th), dy = r * Math.cos(th) - RE;
+          return (v * RE * Math.sin(th)) / Math.hypot(dx, dy); // range rate, + = receding
+        };
+        const VRMAX = Math.abs(vrAtTheta(LAM));
+        // normalized Doppler n = -vr/VRMAX (+1 approaching, 0 overhead, -1 receding)
+        const nAtX = (x) => -vrAtTheta((2 * x - 1) * LAM) / VRMAX; // x = physical time fraction
+        // dome angle alpha (0° left horizon .. 180° right horizon) -> physical time fraction x
+        const xAtAlpha = (aDeg) => {
+          const a = aDeg * D2R;
+          const side = a < Math.PI / 2 ? -1 : 1;
+          const e = side < 0 ? a : Math.PI - a;
+          const th = side * (Math.acos((RE * Math.cos(e)) / r) - e);
+          return (th / LAM + 1) / 2;
+        };
+        // share of the ±50 kHz (2 GHz) / ±500 kHz (20 GHz) gridline reached by the real peak
+        const PEAK = (VRMAX / 299792458) * 2e9 / 50e3; // ≈ 0.918
+        return { nAtX, xAtAlpha, PEAK };
+      })();
+      const SAMPLES = Array.from({ length: 161 }, (_, i) => PHYS.nAtX(i / 160));
+      const nAt = (x) => {
+        const f = clamp(x) * 160, i = Math.min(159, Math.floor(f));
+        return lerp(SAMPLES[i], SAMPLES[i + 1], f - i);
+      };
+
+      // ---------- S1: hook wave ----------
+      function drawHook(t) {
+        const c = eInOut(seg(t, 0.85, 1.45));
+        const s = eInOut(seg(t, 1.6, 2.3));
+        const rl = eInOut(seg(t, 2.45, 3.1));
+        const lam = lerp(lerp(lerp(96, 40, c), 170, s), 96, rl);
+        const xr = lerp(90, 900, eOut(seg(t, 0.25, 0.95)));
+        const y0 = 1130, A = 44, ph = 2 * Math.PI * 1.4 * t;
+        let d = "";
+        for (let x = 90; x <= xr + 0.01; x += 3) {
+          const env = Math.pow(Math.sin((Math.PI * (x - 90)) / 810), 0.45);
+          const y = y0 + A * env * Math.sin((2 * Math.PI * (x - 495)) / lam - ph);
+          d += (d ? "L" : "M") + f1(x) + " " + f1(y);
+        }
+        $("hook-wave").setAttribute("d", d);
+      }
+
+      // ---------- S2: orbit ----------
+      const OC = { x: 495, y: 1010, R: 350 };
+      const onOrbit = (deg) => [OC.x + OC.R * Math.sin(deg * D2R), OC.y - OC.R * Math.cos(deg * D2R)];
+      function drawOrbit(t) {
+        const phi = lerp(-165, -26, seg(t, 3.2, 6.2)); // clockwise from top; "you" sit at 0°
+        const [sx, sy] = onOrbit(phi);
+        const rot = Math.atan2(-(OC.x - sx), OC.y - sy) / D2R; // antenna (+y) to nadir
+        $("orb-sat").setAttribute("transform", `translate(${f1(sx)} ${f1(sy)}) rotate(${f1(rot)})`);
+        const [tx, ty] = onOrbit(phi - 32);
+        $("orb-trail").setAttribute("d", `M${f1(tx)} ${f1(ty)} A${OC.R} ${OC.R} 0 0 1 ${f1(sx)} ${f1(sy)}`);
+        $("stat-num").textContent = (7.6 * eOut(seg(t, 3.55, 4.6))).toFixed(1);
+      }
+
+      // ---------- S3–S7: stage ----------
+      const U = { x: 495, y: 900 }; // "you"
+      const DOME_R = 380;
+      const alphaAt = (t) => 10 + (t - 6.4) * (160 / 7.6); // 10° at 6.4s → 170° at 14.0s
+      const T_ZERO = 6.4 + 80 / (160 / 7.6); // overhead: 10.2s
+      function curvePath(g, xTo, amp) {
+        let d = "";
+        const N = Math.max(1, Math.round(160 * xTo));
+        for (let i = 0; i <= N; i++) {
+          const x = (i / N) * xTo;
+          const px = lerp(g.x0, g.x1, x), py = g.zero - amp * g.A * PHYS.PEAK * nAt(x);
+          d += (d ? "L" : "M") + f1(px) + " " + f1(py);
+        }
+        return xTo <= 0 ? "" : d;
+      }
+      const setA = (id, attrs) => {
+        const el = $(id);
+        for (const k in attrs) el.setAttribute(k, attrs[k]);
+      };
+      function drawStage(t) {
+        // --- sky dome, satellite, ribbon ---
+        const out = eIn(seg(t, 14.6, 15.2));
+        setA("dome-group", { transform: `translate(0 ${f1(-170 * out)})`, opacity: f1(1 - seg(t, 14.75, 15.2)) });
+        const a0 = 6, a1 = 174;
+        const p0 = [U.x - DOME_R * Math.cos(a0 * D2R), U.y - DOME_R * Math.sin(a0 * D2R)];
+        const p1 = [U.x - DOME_R * Math.cos(a1 * D2R), U.y - DOME_R * Math.sin(a1 * D2R)];
+        $("dome-arc").setAttribute("d", `M${f1(p0[0])} ${f1(p0[1])} A${DOME_R} ${DOME_R} 0 0 1 ${f1(p1[0])} ${f1(p1[1])}`);
+        $("dome-note").setAttribute("opacity", f1(seg(t, 7.6, 8.1)));
+
+        const al = clamp(alphaAt(t), -8, 186); // rises from / sets behind the ground band
+        const sx = U.x - DOME_R * Math.cos(al * D2R), sy = U.y - DOME_R * Math.sin(al * D2R);
+        const DS = 1.3, PIV = U.y - 34 * DS; // dish scale + bowl pivot (world)
+        const feed = [U.x, PIV - 28 * DS];
+        const rot = Math.atan2(-(feed[0] - sx), feed[1] - sy) / D2R;
+        setA("st-sat", { transform: `translate(${f1(sx)} ${f1(sy)}) rotate(${f1(rot)})`, opacity: f1(1 - seg(al, 176, 186)) });
+        const bowl = clamp(Math.atan2(sx - U.x, -(sy - PIV)) / D2R, -72, 72);
+        setA("dish-bowl", { transform: `translate(0 -34) rotate(${f1(bowl)})` });
+
+        // ribbon: antenna tip → dish feed, wavelength follows the real (normalized) Doppler
+        const xNow = PHYS.xAtAlpha(al);
+        const n = nAt(xNow);
+        const ant = [sx - 28 * Math.sin(rot * D2R), sy + 28 * Math.cos(rot * D2R)];
+        const bx = U.x + 28 * DS * Math.sin(bowl * D2R), by = PIV - 28 * DS * Math.cos(bowl * D2R);
+        const Lx = bx - ant[0], Ly = by - ant[1], L = Math.hypot(Lx, Ly);
+        const ux = Lx / L, uy = Ly / L, nx = -uy, ny = ux;
+        const lam = 64 * (1 - 0.5 * n); // approaching → shorter (exaggerated ~10^4×, labeled on screen)
+        const ph = 2 * Math.PI * 2.0 * t;
+        const grow = eOut(seg(t, 6.5, 7.0));
+        let d = "";
+        const Lv = L * grow;
+        for (let s = 0; s <= Lv + 0.01; s += 3) {
+          const env = Math.pow(Math.sin((Math.PI * s) / L), 0.5);
+          const off = 17 * env * Math.sin((2 * Math.PI * s) / lam - ph);
+          d += (d ? "L" : "M") + f1(ant[0] + ux * s + nx * off) + " " + f1(ant[1] + uy * s + ny * off);
+        }
+        setA("ribbon", { d, opacity: f1(1 - seg(t, 14.0, 14.5)) });
+
+        // --- chart geometry: small (under the dome) → big (center), one continuous object ---
+        const Lg = eInOut(seg(t, 14.7, 15.6));
+        const g = { x0: 170, x1: 866, zero: lerp(1160, 930, Lg), A: lerp(110, 260, Lg) };
+        const inC = eOut(seg(t, 7.2, 7.8));
+        setA("chart", { opacity: f1(inC), transform: `translate(0 ${f1(24 * (1 - inC))})` });
+        setA("ch-panel", { y: f1(g.zero - g.A - 80), height: f1(2 * g.A + 160) });
+        setA("ch-grid-top", { y1: f1(g.zero - g.A), y2: f1(g.zero - g.A) });
+        setA("ch-grid-bot", { y1: f1(g.zero + g.A), y2: f1(g.zero + g.A) });
+        setA("ch-zero", { y1: f1(g.zero), y2: f1(g.zero) });
+        const yTop = g.zero - g.A - 24, yBot = g.zero + g.A + 58;
+        setA("ch-title", { y: f1(yTop) });
+        setA("ch-xlabel", { y: f1(yBot) });
+
+        // tick labels: slide-swap  (+/- words) → ±50 kHz → ±500 kHz
+        const swap = (idT, idB, tin0, tin1, tout0, tout1) => {
+          const i = eOut(seg(t, tin0, tin1)), o = tout0 == null ? 0 : eIn(seg(t, tout0, tout1));
+          const op = f1(i * (1 - o));
+          setA(idT, { y: f1(yTop + 26 * (1 - i) - 26 * o), opacity: op });
+          setA(idB, { y: f1(yBot + 26 * (1 - i) - 26 * o), opacity: op });
+        };
+        swap("tk-top-sm", "tk-bot-sm", 7.5, 8.0, 15.15, 15.4);
+        swap("tk-top-50", "tk-bot-50", 15.45, 15.9, 17.75, 18.05);
+        swap("tk-top-500", "tk-bot-500", 18.1, 18.55, null, null);
+
+        // 2 GHz curve: drawn by the pass, then squashed ×0.1 when the axis zooms out
+        const xDraw = t < 6.4 ? 0 : clamp(PHYS.xAtAlpha(clamp(alphaAt(t), 10, 170)));
+        const sq = eInOut(seg(t, 17.8, 18.6));
+        const a2 = lerp(1, 0.1, sq);
+        setA("cv-2g", {
+          d: curvePath(g, t < 7.4 ? 0 : xDraw, a2),
+          stroke: mixHex(ACCENT, MUTED, seg(t, 17.9, 18.5)),
+          "stroke-width": f1(lerp(7, 5, sq)),
+          opacity: f1(1 - seg(t, 20.4, 20.8)),
+        });
+        // trace dot at the head of the curve during the pass
+        const hx = lerp(g.x0, g.x1, xDraw), hy = g.zero - g.A * PHYS.PEAK * nAt(xDraw);
+        setA("trace-dot", { cx: f1(hx), cy: f1(hy), opacity: f1(seg(t, 7.4, 7.6) * (1 - seg(t, 14.3, 14.7))) });
+        // zero crossing: pulse fires on the crossing frame, ring stays
+        const zx = lerp(g.x0, g.x1, 0.5);
+        const pz = seg(t, T_ZERO, T_ZERO + 0.7);
+        setA("zero-pulse", { cx: f1(zx), cy: f1(g.zero), r: f1(12 + 40 * eOut(pz)), opacity: f1(t < T_ZERO ? 0 : 1 - pz) });
+        setA("zero-ring", { cx: f1(zx), cy: f1(g.zero), opacity: f1(seg(t, T_ZERO, T_ZERO + 0.12) * (1 - seg(t, 14.4, 14.8))) });
+
+        // S6a readout: a dot re-reads the 2 GHz curve and prints the real value (peaks ≈ 46 kHz, i.e. "接近 50")
+        const rx = eInOut(seg(t, 15.95, 17.45));
+        const rn = nAt(rx), rv = Math.round(PHYS.PEAK * 50 * rn);
+        const rdx = lerp(g.x0, g.x1, rx), rdy = g.zero - g.A * PHYS.PEAK * rn;
+        const rop = f1(seg(t, 15.8, 15.95) * (1 - seg(t, 17.5, 17.7)));
+        setA("read-dot", { cx: f1(rdx), cy: f1(rdy), opacity: rop });
+        // fixed readout in the empty top-right quadrant (a descending S never enters it)
+        setA("read-val", { x: 866, y: f1(g.zero - 0.5 * g.A), "text-anchor": "end", opacity: rop });
+        $("read-val").textContent = (rv > 0 ? "+" : rv < 0 ? "−" : "") + Math.abs(rv) + " kHz";
+
+        // Ka 20 GHz curve at full height after the zoom-out; mirror (pre-compensation); merge to flat
+        const merge = eInOut(seg(t, 22.7, 23.5));
+        const kaDraw = eInOut(seg(t, 18.95, 19.75));
+        setA("cv-ka", { d: curvePath(g, kaDraw, 1 - merge) });
+        const mDraw = eInOut(seg(t, 20.6, 21.6));
+        setA("cv-mirror", { d: curvePath(g, mDraw, -(1 - merge)), opacity: f1(seg(t, 20.6, 20.7) * (1 - seg(t, 23.2, 23.5))) });
+
+        // labels
+        const lb2 = seg(t, 18.35, 18.7) * (1 - seg(t, 20.4, 20.7));
+        setA("lb-2g", { y: f1(g.zero - 26), opacity: f1(lb2) });
+        setA("lb-ka", { y: f1(g.zero - 0.3 * g.A), opacity: f1(seg(t, 19.55, 19.9) * (1 - seg(t, 22.6, 22.9))) });
+        setA("lb-mirror", { y: f1(g.zero - 0.3 * g.A), opacity: f1(seg(t, 21.3, 21.7) * (1 - seg(t, 22.6, 22.9))) });
+        const zIn = eOut(seg(t, 23.35, 23.8));
+        setA("lb-zero", { y: f1(g.zero - 34 + 20 * (1 - zIn)), opacity: f1(zIn) });
+      }
+
+      function draw(t) {
+        drawHook(t);
+        drawOrbit(t);
+        drawStage(t);
+      }
+
+      // ---------- timeline ----------
+      const tl = gsap.timeline({ paused: true });
+      const drv = { t: 0 };
+      // stable baselines for the scene wrappers (seam tweens below use immediateRender:false)
+      gsap.set("#s2-inner", { x: 420 });
+      gsap.set("#s3-inner", { scale: 0.72, opacity: 0.4, transformOrigin: "495px 900px" });
+      tl.fromTo(drv, { t: 0 }, { t: DUR, duration: DUR, ease: "none", onUpdate: () => draw(drv.t) }, 0);
+
+      // S1 hook text
+      tl.fromTo("#hook-l1", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: "power3.out" }, 0.1);
+      tl.fromTo("#hook-l2", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: "power3.out" }, 0.18);
+      tl.fromTo("#hook-sub", { y: 26, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 1.2);
+      // seam S1 → S2: push-slide LEFT (cut mid-motion on both sides)
+      tl.to("#s1-inner", { x: -380, duration: 0.3, ease: "power4.in" }, 2.9);
+      tl.fromTo("#s2-inner", { x: 420 }, { x: 0, duration: 0.42, ease: "power4.out", immediateRender: false }, 3.2);
+      tl.fromTo("#stat", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 3.5);
+      tl.fromTo("#stat-label", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 3.75);
+      // seam S2 → S3: zoom-through into "you" (scale grows on both sides)
+      tl.to("#s2-inner", { scale: 2.4, y: 176, transformOrigin: "495px 724px", duration: 0.3, ease: "power4.in" }, 5.9);
+      tl.to("#s2-inner", { opacity: 0.2, duration: 0.1, ease: "none" }, 6.1);
+      tl.fromTo("#s3-inner", { scale: 0.72, transformOrigin: "495px 900px" }, { scale: 1, duration: 0.6, ease: "power4.out", immediateRender: false }, 6.2);
+      tl.fromTo("#s3-inner", { opacity: 0.4 }, { opacity: 1, duration: 0.12, ease: "none", immediateRender: false }, 6.2);
+      // S6 header
+      tl.fromTo("#formula", { y: 34, opacity: 0 }, { y: 0, opacity: 1, duration: 0.55, ease: "power3.out" }, 15.2);
+      tl.fromTo("#formula-note", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 15.32);
+
+      // captions: enter up, exit up (current = left for seams, up for text)
+      const caps = [
+        ["c2", 4.0, 6.1], ["c3", 6.8, 9.25], ["c4", 9.3, 11.2], ["c5", 11.25, 14.5],
+        ["c6", 15.4, 17.55], ["c7", 17.7, 20.3], ["c8", 20.45, 22.6], ["c9", 22.75, DUR],
+      ];
+      for (const [id, a, b] of caps) {
+        const el = "#" + id + " > .captxt";
+        tl.fromTo(el, { y: 28, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, a);
+        if (b < DUR) tl.to(el, { y: -14, opacity: 0, duration: 0.28, ease: "power2.in" }, b - 0.28);
+      }
+
+      draw(0);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

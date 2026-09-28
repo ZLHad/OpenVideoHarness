@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+  <head><meta charset="UTF-8" /></head>
+  <body>
+    <template>
+      <style>
+        [data-composition-id="s-proof"] { position: absolute; inset: 0; }
+        .pf-move, .pf-blur, .pf-z { position: absolute; inset: 0; }
+        .pf-z { transform-origin: 960px 540px; }
+        .pf-row { position: absolute; left: 144px; top: 396px; width: 1632px; height: 288px; display: flex; }
+        .pf-stat { position: relative; flex: 1 1 0; padding-left: 48px; border-left: 1px solid #26262b; }
+        .pf-stat:first-child { border-left: none; padding-left: 0; }
+        .pf-num { display: block; font-size: 148px; line-height: 168px; font-weight: 600; letter-spacing: -0.04em; color: #ededef; font-variant-numeric: tabular-nums; }
+        .pf-lab { display: block; margin-top: 16px; font-size: 44px; line-height: 56px; color: #8b8b94; letter-spacing: -0.01em; white-space: nowrap; }
+        .pf-col { opacity: 0; }
+      </style>
+      <div data-composition-id="s-proof" data-width="1920" data-height="1080">
+        <div class="pf-move">
+          <div class="pf-z">
+            <div class="pf-blur">
+              <div class="pf-row">
+                <div class="pf-stat"><div class="pf-col"><span class="pf-num" data-to="8">0</span><span class="pf-lab">video types</span></div></div>
+                <div class="pf-stat"><div class="pf-col"><span class="pf-num" data-to="10">0</span><span class="pf-lab">stages</span></div></div>
+                <div class="pf-stat"><div class="pf-col"><span class="pf-num" data-to="3">0</span><span class="pf-lab">review gates</span></div></div>
+                <div class="pf-stat"><div class="pf-col"><span class="pf-num" data-to="20">0</span><span class="pf-lab">taste checks</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script>
+        (function () {
+          const tl = gsap.timeline({ paused: true });
+          // ENTRY: cut-the-curve LEFT, mid-flight (no cursor here — it left the frame in E).
+          tl.fromTo(".pf-move", { x: 230, opacity: 0.35 }, { x: 0, opacity: 1, duration: 0.36, ease: "power4.out" }, 0);
+          tl.fromTo(".pf-blur", { filter: "blur(8px)" }, { filter: "blur(0px)", duration: 0.3, ease: "power2.out" }, 0);
+          // Columns arrive left → right (80 ms), numbers count 0 → N (sources: video-types/, playbook/01-pipeline.md "十阶段流程（阶段 0–9）",
+          // CLAUDE.md step 5 (三道人工审阅关卡), templates/TASTE_CHECKLIST.md).
+          gsap.utils.toArray(".pf-stat").forEach((st, i) => {
+            const col = st.querySelector(".pf-col"), num = st.querySelector(".pf-num");
+            const to = +num.dataset.to, t = i * 0.06;  // column 1 is on screen at the cut frame (v1 had a dead frame)
+            tl.set(col, { opacity: 1, y: 40 }, t);
+            tl.to(col, { y: 0, duration: 0.5, ease: "power3.out" }, t);
+            const c = { v: 0 };
+            tl.to(c, { v: to, duration: 0.7, ease: "power2.out",
+              onUpdate: () => { num.textContent = String(Math.round(c.v)); } }, t + 0.05);
+          });
+          // 16.10–16.60 global: stillness. EXIT (Z pull, the reserved ARRIVAL vector): shrink 1 → 0.8, blur up.
+          const CUT = 2.0;
+          tl.to(".pf-z", { scale: 0.8, duration: 0.2, ease: "power3.in" }, CUT - 0.2);
+          tl.to(".pf-blur", { filter: "blur(10px)", duration: 0.2, ease: "power3.in" }, CUT - 0.2);
+          tl.to(".pf-move", { opacity: 0.15, duration: 0.2, ease: "none" }, CUT - 0.2);
+          window.__timelines["s-proof"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape"
+  data-composition-variables='[{"id":"grain","type":"number","label":"Film grain opacity (0 for the GIF cut)","default":0.045,"min":0,"max":0.2,"step":0.005}]'>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>OpenVideoHarness — launch film</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+        @font-face { font-family: "LF Mono"; font-weight: 400; src: local("SF Mono"), local("SFMono-Regular"), local("Menlo-Regular"), local("Menlo"); }
+        @font-face { font-family: "LF Mono"; font-weight: 600 700; src: local("SF Mono Semibold"), local("SFMono-Semibold"), local("Menlo-Bold"); }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #0a0a0b; }
+      /* Opaque stage ground: seam-craft white-flash guard for mid-motion cuts. */
+      #root {
+        position: relative; width: 100%; height: 100%; overflow: hidden;
+        background: #0a0a0b; color: #ededef;
+        font-family: -apple-system, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      /* 120px blueprint grid at 6% — static, never drifts. */
+      #bg-grid {
+        position: absolute; inset: 0;
+        background-image:
+          linear-gradient(to right, rgba(237,237,239,0.06) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(237,237,239,0.06) 1px, transparent 1px);
+        background-size: 120px 120px;
+        background-position: 0 0;
+      }
+      /* Oversized macOS-style cursor (oversized-cursor skill): 7cqw ≈ 134px. Tip at 21% 14%. */
+      #cursor {
+        position: absolute; left: 0; top: 0; width: 134px; height: 134px;
+        z-index: 40; pointer-events: none;
+        filter: drop-shadow(0 4px 6px rgba(0,0,0,0.45));
+      }
+      /* Motif: every frame prints the t it is a function of. */
+      #timecode {
+        position: absolute; left: 96px; top: 986px; z-index: 30;
+        font-family: "LF Mono", ui-monospace, monospace; font-size: 30px; line-height: 40px;
+        color: #6c6c75; letter-spacing: 0; white-space: pre;
+        font-variant-numeric: tabular-nums;
+      }
+      #timecode b { font-weight: 400; color: #8b8b94; }
+      /* Light film grain: seeded noise tile, offset per frame by a hash of the frame index. */
+      #grain {
+        position: absolute; inset: 0; z-index: 50; pointer-events: none;
+        background-image: url("assets/grain.png"); background-size: 256px 256px;
+        opacity: var(--grain, 0.045); mix-blend-mode: screen;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="20" data-width="1920" data-height="1080" data-fps="30">
+      <div id="bg-grid" class="clip" data-start="0" data-duration="20" data-track-index="0"></div>
+
+      <div id="s-hook" data-composition-id="s-hook" data-composition-src="compositions/s-hook.html"
+           data-start="0" data-duration="2.5" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="s-problem" data-composition-id="s-problem" data-composition-src="compositions/s-problem.html"
+           data-start="2.5" data-duration="2.2" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="s-scaffold" data-composition-id="s-scaffold" data-composition-src="compositions/s-scaffold.html"
+           data-start="4.7" data-duration="3.3" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="s-route" data-composition-id="s-route" data-composition-src="compositions/s-route.html"
+           data-start="8" data-duration="3.3" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="s-review" data-composition-id="s-review" data-composition-src="compositions/s-review.html"
+           data-start="11.3" data-duration="3.7" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="s-proof" data-composition-id="s-proof" data-composition-src="compositions/s-proof.html"
+           data-start="15" data-duration="2" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div id="s-lockup" data-composition-id="s-lockup" data-composition-src="compositions/s-lockup.html"
+           data-start="17" data-duration="3" data-track-index="1" data-width="1920" data-height="1080"></div>
+
+<img id="cursor" class="clip" src="assets/cursor.svg" alt="" data-start="4.7" data-duration="10.3" data-track-index="3" />
+
+      <div id="timecode" class="clip" data-start="0" data-duration="20" data-track-index="4"><b>t</b> 00.00  <b>f</b> 000</div>
+      <div id="grain" class="clip" data-start="0" data-duration="20" data-track-index="5"></div>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      const FPS = 30, DUR = 20;
+
+      // ---- timecode motif: text is a pure function of the playhead ----
+      const tc = document.getElementById("timecode");
+      const grain = document.getElementById("grain");
+      const clock = { t: 0 };
+      const hash = (i) => { let x = (i + 1) * 374761393; x = (x ^ (x >>> 13)) * 1274126177; x = x ^ (x >>> 16); return (x >>> 0) / 4294967295; };
+      tl.to(clock, {
+        t: DUR, duration: DUR, ease: "none",
+        onUpdate: () => {
+          const f = Math.min(DUR * FPS - 1, Math.floor(clock.t * FPS + 1e-6));
+          const t = f / FPS;
+          tc.innerHTML = "<b>t</b> " + t.toFixed(2).padStart(5, "0") + "  <b>f</b> " + String(f).padStart(3, "0");
+          grain.style.backgroundPosition = Math.floor(hash(f) * 256) + "px " + Math.floor(hash(f + 977) * 256) + "px";
+        },
+      }, 0);
+
+      // ---- cursor: the carrier across C → D → E (tip = +28px, +19px from the box origin) ----
+      const cur = "#cursor";
+      const P = (x, y) => ({ x: x - 28, y: y - 19 });
+      const tap = (t) => {
+        tl.to(cur, { scale: 0.84, duration: 0.1, ease: "power2.in", transformOrigin: "21% 14%" }, t);
+        tl.to(cur, { scale: 1, duration: 0.22, ease: "power2.out", transformOrigin: "21% 14%" }, t + 0.1);
+      };
+      // C (4.70–8.00): enter from below, one decelerating glide onto the terminal prompt, click at 5.22
+      tl.fromTo(cur, { ...P(470, 1240), scale: 1 }, { ...P(470, 382), duration: 0.52, ease: "power3.out", immediateRender: false }, 4.7);
+      tap(5.22);
+      // drift aside while the command types (never parked on the text)
+      tl.to(cur, { ...P(1250, 960), duration: 0.7, ease: "power2.out" }, 5.4);
+      // handoff to D's ↵ key: accelerate in the last 0.3 s of C, finish after the cut at matched speed
+      tl.to(cur, { ...P(1450, 720), duration: 0.3, ease: "power2.in" }, 7.7);
+      tl.to(cur, { ...P(1692, 403), duration: 0.45, ease: "power2.out" }, 8.0);
+      tap(8.5);
+      tl.to(cur, { ...P(1700, 960), duration: 0.6, ease: "power2.out" }, 8.7);
+      // handoff to E
+      tl.to(cur, { ...P(1450, 930), duration: 0.3, ease: "power2.in" }, 11.0);
+      tl.to(cur, { ...P(1260, 900), duration: 0.5, ease: "power2.out" }, 11.3);
+      // glide onto the flagged cell (below the routed row, ≥250 px from the cursors baked into the sheet); click 13.70
+      tl.to(cur, { ...P(940, 690), duration: 0.55, ease: "power3.out" }, 12.85);
+      tap(13.7);
+      // exit: accelerate off the bottom edge
+      tl.to(cur, { ...P(1000, 1300), duration: 0.6, ease: "power2.in" }, 14.15);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

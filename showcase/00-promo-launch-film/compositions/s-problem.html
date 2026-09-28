@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+  <head><meta charset="UTF-8" /></head>
+  <body>
+    <template>
+      <style>
+        [data-composition-id="s-problem"] { position: absolute; inset: 0; }
+        .pb-move { position: absolute; left: 144px; top: 384px; width: 1632px; }
+        .pb-line { display: block; font-size: 136px; line-height: 156px; letter-spacing: -0.035em; white-space: nowrap; }
+        .pb-l1 { color: #8b8b94; font-weight: 400; }
+        .pb-l2 { color: #ededef; font-weight: 600; }
+        .pb-w { display: inline-block; margin-right: 0.26em; opacity: 0; will-change: transform; }
+      </style>
+      <div data-composition-id="s-problem" data-width="1920" data-height="1080">
+        <div class="pb-move">
+          <div class="pb-blur">
+            <span class="pb-line pb-l1"><span class="pb-w">One</span><span class="pb-w">catch:</span></span>
+            <span class="pb-line pb-l2"><span class="pb-w">it</span><span class="pb-w">can’t</span><span class="pb-w">watch</span><span class="pb-w">video.</span></span>
+          </div>
+        </div>
+      </div>
+      <script>
+        (function () {
+          const tl = gsap.timeline({ paused: true });
+          const W = gsap.utils.toArray(".pb-w");
+          // Waterfall CUT in (seam from the hook): words ignite mid-flight at .35, same LEFT current,
+          // accelerating cascade (gaps shrink ×0.84).
+          // set-then-to: un-started words stay at CSS opacity 0 (seek-safe in both directions).
+          let t = 0, gap = 0.05;
+          W.forEach((w) => {
+            tl.set(w, { x: 230, opacity: 0.35 }, t);
+            tl.to(w, { x: 0, opacity: 1, duration: 0.3, ease: "power4.out" }, t);
+            t += gap; gap *= 0.84;
+          });
+          // hold = the doubt sinks in. Exit: cut-the-curve LEFT as one line, fade done just before the cut.
+          const CUT = 2.2;
+          tl.to(".pb-move", { x: -230, duration: 0.3, ease: "power4.in" }, CUT - 0.3);
+          tl.to(".pb-move", { opacity: 0, duration: 0.26, ease: "none" }, CUT - 0.28);
+          tl.to(".pb-blur", { filter: "blur(8px)", duration: 0.3, ease: "power2.in" }, CUT - 0.3);
+          window.__timelines["s-problem"] = tl;
+        })();
+      </script>
+    </template>
+  </body>
+</html>
