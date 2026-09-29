@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+**Linux fixes, found while setting up a cloud (Ubuntu 24.04) machine**
+- `bin/vh` used the macOS-only `sed -i ''`, which GNU sed reads as a file name. On Linux, `new … --effort` silently kept `standard` in BRIEF.md, and `hf-init` left GSAP on the CDN, so `hyperframes render` refused to run offline. Both now go through a portable `sedi` helper.
+- `styles/_swatch/package-lock.json` pinned every package to `registry.npmmirror.com`, so `npm ci` failed wherever that mirror is unreachable. It now records `registry.npmjs.org`, which npm swaps for whatever registry you have configured, so mirror users are unaffected.
+
 ## v0.2.0 — 2026-09-29
 
 **Effort hub: one switch for how hard the agents work**

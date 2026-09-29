@@ -36,6 +36,7 @@ declare -a TYPES=(
   "meme:08-brutalist-meme:网络梗/野兽派快剪（HyperFrames）"
 )
 type_doc() { for t in "${TYPES[@]}"; do IFS=: read -r k f _ <<<"$t"; [ "$k" = "$1" ] && { echo "$f"; return; }; done; return 1; }
+sedi() { local e=$1 f; shift; for f in "$@"; do sed "$e" "$f" > "$f.vh$$" && mv "$f.vh$$" "$f"; done; }   # in-place sed on both BSD/macOS and GNU/Linux
 
 cmd_doctor() {
   chk() { if command -v "$1" >/dev/null 2>&1; then echo "$c_ok $1  $($2 2>&1 | head -1)"; else echo "$c_no $1  ($3)"; fi; }
@@ -127,7 +128,7 @@ open(p, "w").write(s.replace("# BRIEF\n", "# BRIEF\n\n" + note, 1))
 PY
   fi
   if [ -n "$effort" ]; then
-    sed -i '' "s/^- Effort: standard /- Effort: $effort /" "$dir/BRIEF.md"
+    sedi "s/^- Effort: standard /- Effort: $effort /" "$dir/BRIEF.md"
     [ "$effort" = quick ] && printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
   fi
   if [ -n "$style" ]; then   # the preset rides along: its STYLE.md + tokens, and its prompt block appended to BRIEF
@@ -207,7 +208,7 @@ cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/s
   # the scaffold loads GSAP from a CDN; an offline render then hangs silently, so vend it locally (same pinned version)
   local gv; gv=$(grep -o 'cdn.jsdelivr.net/npm/gsap@[0-9.]*' "$dir"/*.html 2>/dev/null | head -1 | sed 's/.*gsap@//') || true
   if [ -n "$gv" ] && (cd "$dir" && npm i -D --save-exact --silent --no-fund --no-audit "gsap@$gv" >/dev/null 2>&1); then
-    sed -i '' "s#https://cdn.jsdelivr.net/npm/gsap@$gv/dist/gsap.min.js#node_modules/gsap/dist/gsap.min.js#g" "$dir"/*.html
+    sedi "s#https://cdn.jsdelivr.net/npm/gsap@$gv/dist/gsap.min.js#node_modules/gsap/dist/gsap.min.js#g" "$dir"/*.html
     echo "   gsap     : $gv vendored locally (node_modules/gsap), no CDN at render time"
   fi
   grep -lE 'https?://(cdn\.|unpkg\.com|cdnjs\.)' "$dir"/*.html 2>/dev/null | sed "s#^#$c_wa still loads from a CDN (vendor it before rendering): #" || true
