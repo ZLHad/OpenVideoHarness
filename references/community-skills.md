@@ -36,7 +36,7 @@
 |---|---|---|---|---|---|
 | shuyicc/MathLens（360⭐） | 贴一道数学题（图或文字），8 步走完：分析 → HTML/SVG 讲解页 → 分镜 → TTS → 音频校验 → Manim 脚手架 → 动画 → 渲染 | Manim + edge-tts（免费、需联网）；无 GPU 要求；README 写的是在 Cursor 里用 | 无 LICENSE 文件；README 声明 CC BY-NC 4.0 | `MathLens/SKILL.md`、`MathLens/templates/script_scaffold.py`、`MathLens/scripts/validate_audio.py` | `wait_for_narration(keyword)`：动画等到旁白说出含该关键词的句子才触发；`assert_geometry()` 先校验题目事实和画布范围；TTS 实测时长回写分镜 |
 | adithya-s-k/manim_skill（1.1k⭐） | Manim CE 与 ManimGL 的 agent skills | Manim | MIT | 未拉取（`open-source.md` §2 已收） | 【推测】CE 和 GL 分开写，能减少 LLM 混用两套 API |
-| lemo-opuscar 的 `whiteboard` 风格 | 白板讲解样片《Einstein in Your Pocket》：GPS、原子钟、相对论每天多出 38 微秒 | Canvas2D + 无头 Chrome，无付费 API | STYLE.md 为 CC BY 4.0 | `lemo-opuscar/styles/whiteboard/STYLE.md` | 不想要 3b1b 黑底时的替代画风：一块板一镜到底，字迹逐笔写出，最后拉远看整块板 |
+| lemo-opuscar 的 `whiteboard` 风格 | 白板讲解样片《Einstein in Your Pocket》：GPS、原子钟、相对论每天多出 38 微秒 | Canvas2D + 无头 Chrome，无付费 API | MIT | `lemo-opuscar/styles/whiteboard/STYLE.md` | 不想要 3b1b 黑底时的替代画风：一块板一镜到底，字迹逐笔写出，最后拉远看整块板 |
 
 ### 02 知识 / 科普短视频
 
@@ -57,14 +57,14 @@
 | kangarooking/promo-creator-skills（101⭐） | 从产品判断、分镜、素材、HyperFrames 剪辑到 BGM 设计的整条工作流 | HyperFrames | MIT | 未拉取 | 【推测】中文产品片全流程参考 |
 | Rieranthony/product-film-skill（358⭐，清单外） | 在产品自己的代码库里做落地页循环片、发布片、演示片，复用真实组件和设计 tokens | Remotion（README 提醒：较大的公司要买 Remotion 许可）+ Bun + uv；配乐要自带有授权的歌；不用生成模型 | MIT | `product-film-skill/plugins/product-film/skills/product-film/SKILL.md`、`.../templates/BRAND.md`、`.../reference/render.md`、`.../scripts/verify.py` | 先从设计系统（规则文件、tokens、组件、官网、能说和不能说的宣称）整理出 `videos/BRAND.md`，它优先于 skill 自带的默认值；节拍表写完先交 3 张风格帧再开工；母版按 240 fps 渲，用 ffmpeg `tmix` 每 4 个子帧平均成 60 fps，得到运动模糊；交付静音循环版、带音乐版、WebM 和海报（取标题帧，不取空白的第 0 帧）；`verify.py` 解码每个成品，核对时长、第 0 帧背景色（误差 ±2，防止 Remotion 的有限色域把 #0a0a0a 抬成 #171717）和首尾接缝 |
 
-lemo-opuscar 的 `dark-keynote`、`living-screencast`、`glass-product` 三种风格也适合本类，见第 2 节。
+lemo-opuscar 的 `dark-keynote`、`living-screencast`、`glass-product` 三种风格也适合本类，2026-09-29 新加的 `hologram-hud`（产品参数扫描）和 `midcentury-toon`（分步上手指南）同样适用，见第 2 节。
 
 ### 04 歌词视频 / MV
 
 | 仓库 | 做什么 | 引擎 / 付费 API / GPU | 许可证 | 本地路径 | 值得借用 |
 |---|---|---|---|---|---|
 | ledbetterljoshua/functional-emotions-video | 已在 `cases/mv-functional-emotions.md` 拆解 | 自写 WebGL 笔触渲染器 | MIT（代码；歌曲、歌词和 `assets/` 音频不在内） | `functional-emotions-video/analysis/` | 歌词对齐脚本（已写进 `video-types/04-lyric-music-video.md`） |
-| lemo-opuscar 的时间线与卡点检查 | 一个 `timeline.js`（段落、BPM、拍号、卡点）导出 JSON，配乐、混音、字幕和检查脚本共用 | Node + Python，采样库 CC0 / CC BY | 代码 MIT，指南 CC BY 4.0 | `lemo-opuscar/docs/zh-CN/TECHNIQUE.md` §3、`lemo-opuscar/styles/microgame/demo/tools/cuecheck.py`、`lemo-opuscar/styles/game-show/STYLE.md` | 用脚本逐个比对画面卡点和音乐 cue，目标偏差 0 ms；每个风格用自己的编制，不用通用的"钢琴 + 弦乐" |
+| lemo-opuscar 的时间线与卡点检查 | 一个 `timeline.js`（段落、BPM、拍号、卡点）导出 JSON，配乐、混音、字幕和检查脚本共用 | Node + Python，采样库 CC0 / CC BY | MIT | `lemo-opuscar/TECHNIQUE.md` §3、`lemo-opuscar/styles/microgame/demo/tools/cuecheck.py`、`lemo-opuscar/styles/game-show/STYLE.md` | 用脚本逐个比对画面卡点和音乐 cue，目标偏差 0 ms；每个风格用自己的编制，不用通用的"钢琴 + 弦乐" |
 | bestagentkits/motion-video-skill（97⭐） | HyperFrames 卡点 1080p 动态图形视频，带 AI 配音、卡拉 OK 字幕、音效和生成音乐 | HyperFrames；供应商描述未写 | MIT | 未拉取 | 【推测】对应 04 的 B 路线（动态排版 / 歌词视频） |
 | ZiadAbdelkarim/beat-synced-edit（10⭐） | 给一首歌和一堆素材，分析节拍、能量和场景后自动卡点剪 | 纯 Python + ffmpeg CLI | MIT | 未拉取 | 有实拍素材的 MV 可用 |
 
@@ -75,7 +75,7 @@ PDoomVideo 已在 `cases/mv-pdoom.md`，没有 LICENSE，只读。
 | 仓库 | 做什么 | 引擎 / 付费 API / GPU | 许可证 | 本地路径 | 值得借用 |
 |---|---|---|---|---|---|
 | iart-ai/data-animation-skills（6⭐） | 三个 skill：`chart-animation`（bar chart race、折线、计数器、一个模板批量套多份 CSV）、`animated-infographic`、`presentation-video` | Remotion + d3-scale；README 未提付费 API | MIT | `data-animation-skills/skills/chart-animation/SKILL.md`、`.../references/bar-chart-race.md`、`.../references/data-pipeline.md` | 每个值都由当前帧算出，关掉 Chart.js / D3 的内置动画，D3 只用比例尺；计数器先取整再格式化，用 `tabular-nums` 固定数字宽度；缓动作用在"值"上；排名也插值，超车才是滑过去而不是跳 |
-| lemo-opuscar 的 `dataviz`、`iso-infographic` | 《A Hundred Summers》：一百年夏季气温，红蓝铅笔逐点画出，图表本身就是镜头和节奏；等距信息图一镜到底，最后拉远成一张可打印的信息图 | Canvas2D | CC BY 4.0 | `lemo-opuscar/styles/dataviz/STYLE.md`、`lemo-opuscar/styles/iso-infographic/STYLE.md` | 手写批注钉在具体数字上 |
+| lemo-opuscar 的 `dataviz`、`iso-infographic` | 《A Hundred Summers》：一百年夏季气温，红蓝铅笔逐点画出，图表本身就是镜头和节奏；等距信息图一镜到底，最后拉远成一张可打印的信息图 | Canvas2D | MIT | `lemo-opuscar/styles/dataviz/STYLE.md`、`lemo-opuscar/styles/iso-infographic/STYLE.md` | 手写批注钉在具体数字上 |
 | pyang5166/gbro-collage-info | 数字冲击、清单收敛类段落 | HyperFrames | MIT | `gbro-collage-info/references/motion-grammar.md` | 屏幕文字只用稿子里有的数字，稿子没给的用空白卡占位，不替内容编数据 |
 
 ### 06 论文讲解 / 学术视频
@@ -105,7 +105,7 @@ lemo-opuscar 的蜡笔、水彩、水墨、厚涂、红色剪纸、皮影、纸�
 | 仓库 | 做什么 | 引擎 / 付费 API / GPU | 许可证 | 本地路径 | 值得借用 |
 |---|---|---|---|---|---|
 | sharon-laicc/viral-video-decomposer（6⭐） | 拆解爆款短视频：镜头级拉片、爆款机制、AI 生产蓝图、变量槽、JSON brief、HTML 报告 | 纯 skill，输入链接、逐字稿、截图或录屏 | MIT | `viral-video-decomposer/skill/SKILL.md`、`.../skill/references/output-contract.md` | 只复用结构，换成自己的选题，不复刻原文案和具体镜头，与 08"梗格式自己重做"一致；可配合 `playbook/07-reverse-engineer.md` |
-| lemo-opuscar 的 `halftone-dossier`、`microgame`、`swiss-motion`、`ascii-crt` | 半调案卷式"模拟调查"、越来越快的微游戏、瑞士网格排版、字符终端 | Canvas2D / SVG | CC BY 4.0 | `lemo-opuscar/styles/<slug>/STYLE.md` | 见第 2 节 |
+| lemo-opuscar 的 `halftone-dossier`、`microgame`、`swiss-motion`、`ascii-crt` | 半调案卷式"模拟调查"、越来越快的微游戏、瑞士网格排版、字符终端 | Canvas2D / SVG | MIT | `lemo-opuscar/styles/<slug>/STYLE.md` | 见第 2 节 |
 | smwbev/framewright（21⭐） | 单个 HTML 文件，每帧都是 (frame, seed, width) 的纯函数 | HTML | MIT | 未拉取 | 与我们的硬规则 1 同构 |
 
 ### 剪辑与口播（有现成素材时）
@@ -132,13 +132,13 @@ lemo-opuscar 的蜡笔、水彩、水墨、厚涂、红色剪纸、皮影、纸�
 
 ---
 
-## 2. 风格库：lemo-opuscar 的 39 种影片风格
+## 2. 风格库：lemo-opuscar 的 43 种影片风格
 
-lemomo-ai/lemo-opuscar（446⭐）是作者用 Claude Opus 5.5 做的 39 支纯代码样片。每种风格一份风格 prompt（`STYLE.md`），另有导演指南 `DIRECTOR.md` 和技术指南 `TECHNIQUE.md`。README 说明风格按 Opus 5.5 调过，换别的模型不保证效果；一支片子 agent 大约要做 30–60 分钟。画面用 Canvas / WebGL 逐帧渲染，配乐用免费采样库，配音用本地 TTS，不用视频生成，也不用素材库画面。
+lemomo-ai/lemo-opuscar（605⭐，2026-09-30）是作者 Lemomo（X 上是 @lemomo_ai，署名 LemoLab）用 Claude Opus 5.5 做的 43 支纯代码样片：2026-09-26 首发 39 种，09-29 的 `00343a2` 加了 `engraving`、`hologram-hud`、`midcentury-toon`、`silkscreen-poster` 四种。每种风格一份风格 prompt（`STYLE.md`），另有导演指南 `DIRECTOR.md` 和技术指南 `TECHNIQUE.md`。README 说明风格按 Opus 5.5 调过，换别的模型不保证效果；一支片子 agent 大约要做 30–60 分钟。画面用 Canvas / WebGL 逐帧渲染，配乐用免费采样库，配音用 TTS（英文默认离线的 Kokoro，中文可用联网的 edge-tts），不用视频生成，也不用素材库画面。本节按 2026-09-30 拉到的 HEAD `721f0b7` 核对。
 
-**许可（LICENSE 原文）**：代码 MIT（Copyright 2026 LemoLab）；`DIRECTOR.md`、`TECHNIQUE.md`、`docs/`、`styles/*/STYLE.md` 和成片为 CC BY 4.0；第三方素材保留各自许可，见每个样片的 `CREDITS`。`skills.json` 把它记成 `NOASSERTION`，`fetch.sh` 注释写"license 未声明"，都不准确。
+**许可（LICENSE 原文）**：现在整个仓库都是 MIT（Copyright 2026 LemoLab），另有一句说明样片里的第三方素材（采样库、字体、音乐、人声）保留各自许可，见每个样片的 `CREDITS`。CC BY 4.0 那一段是 `02dce5b`（2026-09-29，"Slim the library"）删掉的；在那之前（例如本仓库最初读的 `81e8903`），`DIRECTOR.md`、`TECHNIQUE.md`、`docs/`、`styles/*/STYLE.md` 和成片是 CC BY 4.0，只有代码是 MIT。CC 许可不能撤回，本仓库 `styles/` 里按旧快照改写、注明了 CC BY 4.0 的出处照旧成立（一般理解，非法律意见）。GitHub 和 `skills.json` 都把它识别成 `NOASSERTION`，不准确。
 
-**路径**：风格 prompt 在 `lemo-opuscar/styles/<slug>/STYLE.md`（英文）；中文版指南在 `lemo-opuscar/docs/zh-CN/`。STYLE.md 大多是 9–10 节：风格是什么、适合什么故事（含"原生招式"）、视觉语言、运动、镜头、声音、字幕与片名、踩过的坑、本片制作配方，有的还有引擎用法。`living-screencast` 另用"六条规则"的结构。下表"适合"一列是本文按 OpenVideoHarness 类型给的归类建议，不是原仓库的说法。
+**路径**：`02dce5b` 起每种风格拆成两份：`lemo-opuscar/styles/<slug>/STYLE.md` 只写风格本身，统一 11 节（本质与"不是什么"、材质与渲染、色彩逻辑、字体与字幕、运动质感、镜头语法、声音、原生招式、这种媒介的坑、引擎、变化空间）；同目录的 `DEMO.md` 写作者那支样片的故事、镜头、配乐、片尾和制作笔记，`style.json` 是元数据，`styles/README.md` 是由它生成的中英风格索引。新加的四种是"场景风格"，各自承担一件实际的活（参数讲解、分步指南、旅游海报等）。原来的中文版指南 `docs/zh-CN/` 在同一次提交里删掉了，`DIRECTOR.md` 和 `TECHNIQUE.md` 现在只有英文。下表"适合"一列是本文按 OpenVideoHarness 类型给的归类建议，不是原仓库的说法。
 
 | 大类 | slug · 中文名 | 一句话特征 | 适合 |
 |---|---|---|---|
@@ -156,6 +156,8 @@ lemomo-ai/lemo-opuscar（446⭐）是作者用 Claude Opus 5.5 做的 39 支纯�
 | 印刷与版画 | `risograph` Risograph 丝网印刷 | 2–3 种半透明专色叠印，半调网点，版永远套不准 | 08 · 02 |
 | | `halftone-dossier` 复古半调案卷 | 档案纸、四色网点、错位阴影大标题、印章砸下，把片子做成逐件出示证物的调查 | 08 |
 | | `woodcut` 木刻版画 | 黑木版上只有刀刻处有光，至多一种颜色，只给"燃烧的东西" | 07 |
+| | `engraving` 铜版画 | 博物志图版自己刻出来：雕刀推开铜版，主体一线一线成形，最后手工水彩上色 | 01 · 07 |
+| | `silkscreen-poster` 丝印旅行海报 | 海报一色一刮印出来，再沿画面一镜到底，从正午走到黄昏 | 02 · 03 |
 | 图形与排版 | `swiss-motion` 瑞士动态排版 | 模块网格、一种字体、一个信号红，动作像印刷机一样精确 | 08 · 03 |
 | | `spy-titles` 60s 间谍片头 | 四色剪纸片头，剪影在演职员表搭成的布景里追逐，铜管每一击是一刀 | 08 · 04 |
 | | `art-deco` 装饰艺术 | 黑漆、金色刻线、喷枪几何；构图有中轴，灯泡逐个亮起 | 03 |
@@ -167,9 +169,11 @@ lemomo-ai/lemo-opuscar（446⭐）是作者用 Claude Opus 5.5 做的 39 支纯�
 | | `iso-infographic` 等距信息图 | 一个等距立体模型一镜讲完整个系统，剖开看内部，最后拉远成一张信息图 | 05 · 06 |
 | | `dark-keynote` 暗色科技发布 | 界面即主角：近黑底、发丝网格、一个强调色，扫光揭示，承诺是一个巨大数字 | 03 |
 | | `living-screencast` 活体实机录屏 | 像真录屏，低分辨率吉祥物住在高分辨率界面里演出软件在做的事 | 03 |
+| | `hologram-hud` 科幻全息界面 | 物体被扫描成发光线框，目标框逐个锁定部件，参数从乱码滚到真值 | 03 |
 | 卡通与动画 | `rubber-hose` 1930s 橡皮管卡通 | 黑白手墨卡通，万物有生命，随热爵士摇摆 | 07 · 04 |
 | | `cel-anime-80s` 80 年代赛璐璐 | 双色赛璐璐 + 喷笔背景 + 背光霓虹，按 1987 年录像带在 CRT 上播放 | 07 · 04 |
 | | `scifi-toon` 科幻情景喜剧卡通 | 抖动粗描边、平涂色、绿色传送门，每个平行宇宙一套配色 | 07 · 08 |
+| | `midcentury-toon` 50s 扁平卡通 | 用 50 年代教育片的口吻，扁平卡通一步一步教人上手一样东西 | 03 · 07 |
 | 游戏 | `pixel-rpg` 16-bit 像素 RPG | 320×180、有限调色板、打字文本框、存档点、带回声的芯片音乐 | 08 · 07 |
 | | `hd-2d` HD-2D | 手工像素精灵像纸片一样立在有光有雾的 3D 立体模型里，高俯角加移轴 | 07 |
 | | `microgame` 微游戏快闪 | 一个指令词、几秒、一个动作，每关换一种画风，越来越快 | 08 · 02 |
@@ -192,10 +196,11 @@ lemomo-ai/lemo-opuscar（446⭐）是作者用 Claude Opus 5.5 做的 39 支纯�
 2. **故事三件套**：一个主体、一个目标、一次转折；开场 3 秒内抓人；结尾有回响；一个"只有这种媒介做得到"的原生招式，放在情绪最高点。
 3. **TREATMENT 七项**：一句话故事与情绪弧、对标、镜头表（景别 / 角度 / 运动 / 时长 / 为什么这样拍）、按秒的节拍表、cue map、声音设计表、字幕与片名设计。可对照补 `templates/STORYBOARD.md`。
 4. **声音**：画面上每个动作都有按材质区分的声音；分环境底、拟音、音乐三层；至少两处真正的静音，静音后的第一个声音要是全片最重要的之一；至少两次用 J-cut / L-cut 做声音转场。
-5. **读秒公式**：每句字幕至少停 1.8 秒，且不短于"语音 + 0.6 秒"；文字动画结束后，中文停（字数 ÷ 4.5 + 1.5）秒，英文停（字母数 ÷ 15 + 1.5）秒；标题页至少 4 秒。可并入 `playbook/03-motion-design.md`。
+5. **读秒公式**：每句字幕至少停 1.8 秒，且不短于"语音 + 0.6 秒"；文字动画结束后，中文停（字数 ÷ 4.5 + 1.5）秒，英文停（字母数 ÷ 15 + 1.5）秒；标题页至少 4 秒。后一条由 `core/render/readcheck.mjs` 自动查：页面实现 `window.TEXTS(t)`，逐个时间步报出画面上每段文字和它的屏幕框，工具算每段连续完整在画的时长，被裁出画框的也报错。已并入 `playbook/03-motion-design.md` §2 和 `templates/TASTE_CHECKLIST.md` #5（下限改为 2.5 秒），我们按时间表检查的版本是 `tools/readcheck.py`。
 6. **镜头**：全片至少 4 种镜头运动，要有一个签名镜头；转场在媒介里设计，全片一套语法；关键时刻主体至少占画面高度的 1/3。
 7. **表演**：姿势用关键帧缓动混合，不在 `if` 分支里切姿势；所有跟随主体的效果都走同一个"世界坐标 → 画面坐标"函数。
-8. **自检**：配音每句都能被 ASR 正确转写回来；无黑帧、无 NaN 帧；声音设计表里的每一项都真的进了混音。
+8. **自检**：配音每句都能被 ASR 正确转写回来（`core/tts/asr_check.py`：英文逐词比对，中日韩按字符相似度，默认 ≥ 0.92）；无黑帧、无 NaN 帧；声音设计表里的每一项都真的进了混音。
+9. **别再做一遍样片**：先写自己的 treatment，再打开 `DEMO.md` 对照结构、开场、签名镜头、镜头路径、配乐走向、结尾六项，至少四项要不同；交付前把自己的联系表和样片海报并排看一次。我们 `styles/` 的样片内容都一样，本来没有故事可照搬；这条主要管参考别人样片（包括 lemo 的）的时候。
 
 差异：lemo 默认开工前只问一次，分镜故事板**默认不看**，直接做完；OpenVideoHarness 默认在 BRIEF 和 STORYBOARD 两处停。借规则时保留我们的关卡。
 
@@ -205,9 +210,9 @@ lemomo-ai/lemo-opuscar（446⭐）是作者用 Claude Opus 5.5 做的 39 支纯�
 
 可以直接借的：
 
-1. **页面契约**：`window.DUR`、`window.render(t)`、`window.READY`，外加可选的 `window.EV = [{t, type}]` 事件表，让音效精确落在对应帧上。与硬规则 1 一致，`EV` 是我们还没有的部分。
+1. **页面契约**：`window.DUR`、`window.render(t)`、`window.READY`，外加可选的 `window.EV = [{t, type}]` 事件表（让音效精确落在对应帧上）和 `window.TEXTS(t)`（readcheck 用）。契约全表在 `core/README.md`。与硬规则 1 一致，`EV` 和 `TEXTS` 是我们还没有的部分。
 2. **一条时间线驱动一切**：`timeline.js` 写段落、BPM、卡点（`SECS`、`HIT`），导出 JSON 给配乐、字幕和检查脚本共用；`cuecheck.py` 比对卡点，目标偏差 0 ms。
-3. **提速**：截图用 JPEG（比 PNG 快约 8 倍）；每个 worker 各开一个浏览器；胶片颗粒在 ffmpeg 里加，不画在页面里。
+3. **提速**：截图用 JPEG（`81e8903` 版写的是比 PNG 快约 8 倍，现版本删了这个数）；每个 worker 各开一个浏览器；胶片颗粒在 ffmpeg 里加，不画在页面里。
 4. **一拍二只作用于画面**：定格、像素、赛璐璐可用 12 fps 步进，但机位和光每帧都要平滑，否则会被看成卡顿。
 5. **配音**：英文用本地 Kokoro，中文用 edge-tts（联网，商用前看微软条款）；faster-whisper 逐句转写比对，不通过就重生成；TTS 文本里数字拼成词，字幕里写阿拉伯数字；人声先压缩，再比音乐高约 10 dB。可对照 `playbook/04-audio.md`。
 6. **配乐**：CC0 采样库（VSCO 2 CE、VCSL、FreePats、Karoryfer）+ Karplus–Strong 拨弦；混完按频段检查，20–120 Hz 相对其余频段保持在 −3 dB 左右。
@@ -290,7 +295,7 @@ lemomo-ai/lemo-opuscar（446⭐）是作者用 Claude Opus 5.5 做的 39 支纯�
 | 仓库 | 本地核对的许可 | 代码 | 文档 / 素材 | 结论 |
 |---|---|---|---|---|
 | awesome-claude-video-skills | CC0 1.0（清单本身） | — | 清单文字可自由用；条目描述引自各仓库 | 可用 |
-| lemo-opuscar | 代码 MIT；指南、STYLE.md、成片 CC BY 4.0 | 可复用，保留 MIT 声明 | 可改写，须署名 LemoLab、注明 CC BY 4.0 和改动；第三方采样、字体见各 demo 的 `CREDITS` | 可复用（署名） |
+| lemo-opuscar | 整仓 MIT（`02dce5b` 起，2026-09-29；核对到 `721f0b7`）。更早的快照里指南、STYLE.md、成片是 CC BY 4.0 | 可复用，保留 MIT 声明（`tools/readcheck.py` 的读秒公式即改写自它的 `core/render/readcheck.mjs`） | 现版本的指南和 STYLE.md 同为 MIT，保留版权和许可声明即可；按旧快照改写的内容照旧署名 LemoLab、注明 CC BY 4.0；第三方采样、字体、音乐、人声见各样片的 `CREDITS` | 可复用（保留声明） |
 | OpenMontage | AGPL-3.0 | 复用即传染 | 同左 | 只读 |
 | video-shotcraft | Apache-2.0 | 可复用，保留 LICENSE、标注修改 | 音频多为 Mixkit，另有 6 个音效来源未能反查（见 `assets/audio/ATTRIBUTION.md`）；Remotion 自有许可 | 可复用；音频逐条核 |
 | guizang-product-video | AGPL-3.0；`assets/fallback/` 为 BSL 1.1 | 复用即传染 | BSL 部分另有使用限制 | 只读 |

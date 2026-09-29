@@ -52,13 +52,14 @@ sparse() { # sparse <owner/repo> <dir> <path...>：只检出指定目录（大�
   neutralize "$d"; echo "ok  $d ($*)"
 }
 textonly() { # textonly <owner/repo> <dir>：只检出代码和文档，跳过视频、音频、图片、字体（素材很大的仓库用）
-  local r=$1 d=$2
+  local r=$1 d=$2 fresh=
   skip "$d" && return 0
   restore "$d"
-  if [ ! -d "$d/.git" ]; then git clone -q --depth 1 --filter=blob:none --no-checkout "https://github.com/$r.git" "$d"; fi
+  if [ ! -d "$d/.git" ]; then git clone -q --depth 1 --filter=blob:none --no-checkout "https://github.com/$r.git" "$d"; fresh=1; fi
   git -C "$d" sparse-checkout set --no-cone '/*' '!*.mp4' '!*.mov' '!*.webm' '!*.mkv' '!*.gif' '!*.mp3' '!*.wav' '!*.m4a' '!*.aac' '!*.flac' \
     '!*.png' '!*.jpg' '!*.jpeg' '!*.webp' '!*.psd' '!*.ttf' '!*.otf' '!*.woff' '!*.woff2' '!*.zip' '!*.pdf' '!*.onnx' '!*.bin'
-  git -C "$d" checkout -q 2>/dev/null || git -C "$d" pull --ff-only -q || true
+  # 新克隆只需检出；已有克隆要 pull（空参数的 checkout 总是成功，放在 || 前面会让 pull 永远跑不到）
+  if [ -n "$fresh" ]; then git -C "$d" checkout -q; else git -C "$d" pull --ff-only -q || true; fi
   neutralize "$d"; echo "ok  $d (text only)"
 }
 
@@ -81,7 +82,7 @@ textonly athemeroy/awesome-opus-5-5-videos      opus55-guide-athemeroy     # Opu
 full     buildwithhanif/claude-animation-skill  claude-animation-skill     # 代码手绘 2D 动画：细节圣经（底色→纹理→边缘）、verify 乱序一致性、编码失败不覆盖好文件（MIT）
 full     Rieranthony/product-film-skill         product-film-skill         # Remotion 产品片：BRAND.md、先出 3 张风格帧、240fps 母版做运动模糊、verify.py 解码检查（MIT）
 textonly kuhnhomeuk-cell/procedural-film        procedural-film            # 纯 JS 绘制并配乐的 30 秒竖屏片：一镜一 agent、评审波次、六项关卡、零外部素材（MIT）
-textonly lemomo-ai/lemo-opuscar                 lemo-opuscar               # 39 种影片风格：风格 prompt + Opus 5.5 纯代码样片（代码 MIT；指南、STYLE.md、成片 CC BY 4.0）
+textonly lemomo-ai/lemo-opuscar                 lemo-opuscar               # 43 种影片风格：风格 prompt + Opus 5.5 纯代码样片 + core/ 渲染与检查工具（MIT；2026-09-29 之前的快照里文档和成片为 CC BY 4.0）
 textonly calesthio/OpenMontage                  OpenMontage                # 全套 agent 视频制作系统：12 条管线、700+ skill/知识文件（AGPL）
 textonly Vincentwei1021/video-shotcraft         video-shotcraft            # 产品片：150+ 张镜头配方卡 + Remotion（Apache-2.0；部分音效来源待核）
 full     op7418/guizang-product-video-skill     guizang-product-video      # 产品更新片：复用真实产品组件、原创配乐音效（AGPL；assets/fallback 另受 BSL 1.1 约束）

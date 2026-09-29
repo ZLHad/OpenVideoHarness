@@ -78,12 +78,14 @@ Place objects only via a 6x6 anchor grid (A1–F6) in the animation area; print 
 - 每个场景是否只讲了一个 insight？
 - 结尾是否落在"观众现在多懂了什么"的那个画面上，而不是一张总结清单？
 - 结论文字至少完整可读 2.5 秒；放大、转场的中途，有没有不透明的底色把被放大的部分盖住？（showcase 03 的评审就抓到过这一点）
+- 画面在演示一个数学性质时，数据是不是脚本算出来、并且 assert 过的？坐标和数字不能凭记忆手填。abstract-algebra-promo 的 `e8.py` 从定义生成 E8 根系，断言正好 240 个根、8 个单根，再把投影坐标写成 JSON；`qr.py` 生成 H 级纠错的二维码，把画面上要撕掉的那块分别涂白、涂黑各渲一张，用 OpenCV 解码，断言两种情况都还读得出原文。脚本和它写出的数据一起放进项目，页面直接读这份数据（它是手工嵌进 `promo.html` 的，重跑脚本不会更新画面，这一步别学）；NOTES.md 记下断言了什么。见 `cases/opus55-gallery.md` §7。
 - Manim 陷阱：传给 `self.play(..., rate_func=...)` 的 `rate_func` 会覆盖其中每个动画自己的缓动函数。想让各个动画用不同的缓动，就分开 play，或者只在动画上设置。
 - Manim 陷阱：`always_redraw` 每次重绘都会丢失 `z_index`，因为 `Mobject.become()` 只复制点和样式。结果所有动态曲线都停在图层 0，不透明面板会盖住它们。需要包一层，每次重绘后把 `z_index` 设回去，实现见 `showcase/03-math-fourier/scenes/` 里的 `live()`。showcase 03 前三版的放大转场闪黑，根源就是这个。
 
 ## 可参考的案例与源码
 
 - `cases/explainer-code2video.md`：Planner-Coder-Critic、锚点网格、ScopeRefine。
+- `cases/opus55-gallery.md` §7：abstract-algebra-promo，一支 4 分 23 秒的抽象代数宣传片（Canvas/WebGL，没有许可证，只读）。可看它按小节排的场景表、不跨切点的子帧运动模糊、脚本算出并断言的数学数据，以及代码合成的配乐。
 - `references/repos/3brown1blue/src/three_b1b/skill/`：
   - `rules/` 下的 `animation-design-thinking.md`、`explanation-design.md`、`equations.md`、`equation-derivations.md`、`visual-design-principles.md`、`pedagogy-checklist.md`、`voiceover.md`、`troubleshooting.md`；
   - `domains/`：数学、物理、算法、ML 各自的套路；
@@ -95,4 +97,4 @@ Place objects only via a 6x6 anchor grid (A1–F6) in the animation area; print 
 以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
 
 - **MathLens**（README 声明 CC BY-NC 4.0，只读）：`wait_for_narration(keyword)` 让动画等旁白说出关键词才触发；`assert_geometry()` 在动画前先校验几何事实和画布范围。见 `references/repos/MathLens/SKILL.md`、`references/repos/MathLens/templates/script_scaffold.py`。
-- **lemo-opuscar 的 `whiteboard` 风格**（CC BY 4.0）：一块白板一镜到底，逐笔写出，最后拉远看全板，是 3b1b 黑底之外的另一种画风。见 `references/repos/lemo-opuscar/styles/whiteboard/STYLE.md`。
+- **lemo-opuscar 的 `whiteboard` 风格**（MIT；2026-09-29 之前的快照为 CC BY 4.0）：一块白板一镜到底，逐笔写出，最后拉远看全板，是 3b1b 黑底之外的另一种画风。见 `references/repos/lemo-opuscar/styles/whiteboard/STYLE.md`。

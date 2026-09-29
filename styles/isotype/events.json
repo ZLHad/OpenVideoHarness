@@ -1,0 +1,18 @@
+[
+  {"t":0.1,"sfx":"boom","gain_db":-10,"pan":0},
+  {"t":0.1,"sfx":"pop","gain_db":-8,"pan":0},
+  {"t":0.62,"sfx":"whoosh","gain_db":-20,"pan":0.5},
+  {"t":0.8,"sfx":"click","gain_db":-12,"pan":-0.52},
+  {"t":1,"sfx":"click","gain_db":-12,"pan":-0.36},
+  {"t":1.2,"sfx":"click","gain_db":-12,"pan":-0.2},
+  {"t":1.4,"sfx":"click","gain_db":-12,"pan":-0.04},
+  {"t":1.5,"sfx":"tick","gain_db":-16,"pan":-0.53},
+  {"t":1.9,"sfx":"tick","gain_db":-16,"pan":-0.3},
+  {"t":2,"sfx":"toggle","gain_db":-14,"pan":-0.52},
+  {"t":2.2,"sfx":"toggle","gain_db":-14,"pan":-0.3},
+  {"t":2.5,"sfx":"toggle","gain_db":-14,"pan":0.04},
+  {"t":3.2,"sfx":"pop","gain_db":-12,"pan":0.5},
+  {"t":3.6,"sfx":"click","gain_db":-10,"pan":-0.14},
+  {"t":4,"sfx":"swish_rev","gain_db":-12,"pan":0.3},
+  {"t":4.4,"sfx":"ding","gain_db":-14,"pan":-0.4}
+]

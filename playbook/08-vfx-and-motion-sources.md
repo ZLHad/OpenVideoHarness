@@ -23,7 +23,7 @@
 | 光标、UI 演示 | `oversized-cursor` 技法（`_upstream_claude/skills/oversized-cursor/`） | — | — | 用真实 UI，不用占位 |
 
 更多风格来源：
-- `references/community-skills.md` §2 收录了 lemo-opuscar 的 39 种影片风格，每种都有风格 prompt 和纯代码样片；
+- `references/community-skills.md` §2 收录了 lemo-opuscar 的 43 种影片风格，每种都有风格 prompt 和纯代码样片；
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 是 8 种设计师风格预设。
 
 ## 特效做成预设栈
@@ -87,6 +87,11 @@ npx hyperframes render --variables '{"fx":"A"}' --output out/lookdev/A.mp4
 两种接法：
 - **在 Three.js 层里累积**：`renderAt(t)` 把场景在 N 个子时刻各渲一次，累加进一张浮点 render target 取平均；bloom、调色、颗粒这些后期只在平均之后做一次。
 - **整页高帧率渲染，再用 ffmpeg 平均**：[product-film-skill](https://github.com/Rieranthony/product-film-skill)（Remotion）就是这样做的：渲 240 fps 母版，用 `tmix=frames=4` 加 `select='not(mod(n+1\,4))'` 降到 60 fps，相当于 360° 快门。HyperFrames 本地渲染的 `--fps` 文档只列了 24/30/60，输出 30 fps 时这条路最多只有 2 个子帧；它较新的版本有整帧子采样的 `motionBlur` 渲染选项（见 `references/repos/hyperframes/skills/hyperframes-animation/references/motion-blur.md`），在 0.8.82 上没有验证过。社区里也有人用 Playwright 渲子帧做运动模糊（`cases/opus55-gallery.md` 里 @twoclipping 那条）。
+
+还有两个细节，来自 abstract-algebra-promo 的 `promo.html`（无许可证，只读；拆解见 `cases/opus55-gallery.md` §7）。它在单个 canvas 里每帧取 3–4 个子时刻，按 180° 快门以 t 为中心前后展开，累加进一张 WebGL 浮点纹理：
+
+- **子帧不能跨切点**：子时刻落进了另一个场景或另一个镜头，这个子帧就改用 t 本身来渲。不这样做，切点两侧的画面会在同一帧里叠印，硬切变成一帧溶。它的做法是每个场景除了 `draw(lt)` 还带一个 `shot(lt)`，返回场景内当前镜头的编号；子时刻 tₖ 所在的场景或 `shot(tₖ)` 和 t 的不一样，就退回 t。一拍一个镜头的快切蒙太奇最需要这条。
+- **顺手得到抗锯齿**：每个子帧再给整个画面加一个不同的亚像素平移（一张固定的 8 组偏移表，范围 ±0.5 px），平均之后边缘自然变柔，等于白送了一次超采样抗锯齿。偏移表是固定的，所以仍然是 t 的纯函数。偏移只加在画面层；字幕、章节标题、闪白在平均和调色之后按 t 单独画，不参与模糊，始终清晰。
 
 ## 一镜到底（3D 世界）的做法
 

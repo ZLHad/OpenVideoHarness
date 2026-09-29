@@ -9,8 +9,11 @@
 #   hf-init <dir> [resolution]  scaffold HyperFrames into a project safely (no global skill install; landscape|portrait|square)
 #   sync-agents                 regenerate AGENTS.md from CLAUDE.md (keep both agents' entry points identical)
 #   install-skill [claude|codex|all]  register the open-video-harness skill (~/.claude/skills, ~/.agents/skills)
-#   tts <project> [provider] [voice] [zh|en] [instruct]  voiceover from audio/script.txt (bilingual: 中文 || English)
+#   tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json] [--align gemini] [--join block|all]  voiceover from audio/script.txt
+#                               (中文 || English; [direction] per line; lines snap to beats; @speakers A=Kore B=Puck + "A: …" lines = a dialogue;
+#                               --align gemini: word timestamps + ASR-vs-script check per line; --join: several lines per request)
 #                               providers: qwen (default, local open-source Qwen3-TTS) | say | edge | dashscope | elevenlabs | gemini | gemini-lite
+#   voices list [lang] | design "<description>" [--out f.wav] | delete <voice_id>   Gemini voice library / voice design
 #   captions <project> [zh|en] [zh-max]  SRT (zh / en / bilingual) + captions.json from the TTS timeline
 #   beats <audio> [out.json]    beat grid (bpm, offset, beats, downbeats) + hits, kick/snare accents (librosa)
 #   music <score.json> <out.wav> | music --example [zh]   code-composed soundtrack + exact beat/section map
@@ -18,6 +21,7 @@
 #   mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]   3-bus mix, music ducks under voice+SFX, −14 LUFS
 #   qa <mix> [beats.json] [events.json]  final-mix QA: silence, dropouts, pumping, clicks + cue check (exit 1 on fail)
 #   mux <video> <audio> <out> [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video
+#   readcheck <texts.json|project> [--mode onscreen|subtitle] [--lang zh|en]  on-screen text held long enough / subtitles within reading speed (exit 1 on fail)
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
 #   check <video>               ffprobe + black/freeze/silence detection
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
@@ -170,6 +174,8 @@ for l in lines:
 ' "$lvl"
 }
 
+cmd_readcheck() { python3 "$ROOT/tools/readcheck.py" "$@"; }
+
 cmd_style() { # style library: styles/<preset>/{STYLE.md,tokens.json,swatch.js,media/}; renderer in styles/_swatch
   local sw="$ROOT/styles/_swatch"
   case "${1:-list}" in
@@ -235,11 +241,16 @@ cmd_check() {
   else echo "$hits"; echo "$c_wa review each hit: dark backgrounds (e.g. 3b1b black), intentional holds and silent videos trigger these by design"; fi
 }
 cmd_tts() {
-  local proj=${1:?usage: bin/vh tts <project> [provider] [voice] [zh|en] [instruct]} prov=${2:-qwen} voice=${3:-} lang=${4:-zh} instruct=${5:-} deps=""
-  [ "$voice" = "-" ] && voice=""
+  local proj=${1:?usage: bin/vh tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json --snap beat|half|downbeat --lead s] [--align gemini] [--join block|all]} pos=() deps=""
+  shift
+  while [ $# -gt 0 ] && [ ${#pos[@]} -lt 4 ] && [[ "$1" != --* ]]; do pos+=("$1"); shift; done   # positionals stop at the first --flag
+  local prov=${pos[0]:-qwen} voice=${pos[1]:-} lang=${pos[2]:-zh} instruct=${pos[3]:-}
+  # everything from the first --flag on goes straight to tts.py (--beats, --snap, --lead, --gap, --min-gap, --align, --join, --min-sim, --vocab)
+  [ "$voice" = "-" ] && voice=""; [ "$instruct" = "-" ] && instruct=""
   case "$prov" in qwen) deps="--with mlx-audio" ;; edge) deps="--with edge-tts" ;; dashscope) deps="--with dashscope" ;; esac
-  uv run -q $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" --lang "$lang" ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"}
+  uv run -q $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" --lang "$lang" ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"} "$@"
 }
+cmd_voices() { [ $# -gt 0 ] || set -- list; python3 "$ROOT/tools/audio/tts.py" voices "$@"; }
 cmd_captions() {
   local proj=${1:?usage: bin/vh captions <project> [zh|en] [zh-max]}
   python3 "$ROOT/tools/audio/captions.py" "$proj" ${2:+--lang "$2"} ${3:+--zh-max "$3"}
@@ -267,8 +278,8 @@ cmd_gif() {
 
 case "${1:-help}" in
   doctor) cmd_doctor ;; setup) cmd_setup ;; types) cmd_types ;;
-  tts) shift; cmd_tts "$@" ;; captions) shift; cmd_captions "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
+  tts) shift; cmd_tts "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
-  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
+  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
   *) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0" ;;
 esac
