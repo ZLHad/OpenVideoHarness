@@ -1,0 +1,5 @@
+[
+  {"id": "meet",    "t": 3.6, "sfx": "whoosh", "gain_db": -12, "pan": -0.25},
+  {"id": "meet",    "t": 3.6, "sfx": "whoosh", "gain_db": -12, "pan": 0.25},
+  {"id": "caisson", "t": 4.0, "sfx": "ding",   "gain_db": -7,  "pan": 0}
+]

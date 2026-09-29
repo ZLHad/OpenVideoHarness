@@ -1,10 +1,15 @@
-// fui-hud swatch — a fictional film interface where every readout is real: the frame number, t, the 5 s timeline.
-//   0.0–0.8  24 px dot grid; the FRAME readout panel boots (frame drawn from a corner in 6 frames, data fills in 4);
-//            a scan line reveals the timeline schematic
-//   0.8–2.6  the title decodes left → right (≤ 9 frames per glyph), then the Chinese line
-//   2.0–4.0  three stage panels boot 3 frames apart: 01 outline, 02 storyboard (done), 03 draft (running); the
-//            orange brackets — the one alert colour — blink twice at 2 Hz on the draft, then stay on
-//   4.0–5.0  panel-expand: the draft panel grows to full frame and becomes the end card
+// fui-hud swatch — a fictional film interface where every readout is real: this frame's index, t, the swatch's own
+// content spec, and the times at which each stage boots.
+//   0.0–0.8  the FRAME counter runs big in the centre of the dot grid from frame 1; at 0.65–0.95 s it flies to its
+//            corner panel and the panel frame draws around it
+//   0.8–2.6  the title decodes left → right (≤ 9 frames per glyph), then the Chinese line; a scan line reveals the
+//            spec schematic (four Gantt bars: establish / title / motif / outro) with the playhead at t
+//   2.0–4.0  a trajectory schematic: three waypoints boot on 2.0 / 2.2 / 2.4 s (circle drawn, then data), each with a
+//            wireframe icon and its real boot time; the orange brackets — the one alert colour — lock onto the draft
+//            waypoint (blink twice at 2 Hz, music drops to the drone); scan sweeps at 2.8 and 3.2; the marker locks
+//            on at 3.6
+//   4.0–5.0  the draft waypoint's bracket box expands to the full frame and becomes the end card
+// Depth: a slow camera drift with the dot grid at 0.9×, the HUD at 1.0× and a faint reticle foreground at 1.1×.
 // Numbers are Menlo (SF Mono is not a registered system font on this machine) with tabular figures.
 
 const G = 24;
@@ -13,112 +18,139 @@ export const fonts = ["DIN Condensed", "Menlo", "PingFang SC"];
 
 export async function setup(ctx, tokens, lib) {
   const dots = document.createElement("canvas"); dots.width = G; dots.height = G;
-  const d = dots.getContext("2d"); d.fillStyle = lib.color(tokens, "extra.1"); d.beginPath(); d.arc(G / 2, G / 2, 1.2, 0, lib.TAU); d.fill();
-  L = { dots, readout: { x: 56 * G, y: 6 * G, w: 19 * G, h: 11 * G }, panels: [0, 1, 2].map((k) => ({ x: 6 * G + k * 23 * G, y: 24 * G, w: 21 * G, h: 13 * G })) };
+  const d = dots.getContext("2d"); d.fillStyle = lib.color(tokens, "extra.1"); d.beginPath(); d.arc(G / 2, G / 2, 1.3, 0, lib.TAU); d.fill();
+  const path = []; for (let i = 0; i <= 80; i++) { const u = i / 80; path.push([lib.lerp(200, 1720, u), 846 - Math.sin(u * Math.PI) * 70 + Math.sin(u * 9) * 6]); }
+  const at = (u) => path[Math.round(u * 80)];
+  L = { dots, readout: { x: 56 * G, y: 5 * G, w: 19 * G, h: 10 * G }, path, wps: [0.09, 0.5, 0.91].map((u) => ({ u, p: at(u) })) };
 }
-
 const C = (lib, tokens, k) => lib.color(tokens, k);
-/** Panel boot: frame lines grow from the top-left corner (linear, 6 frames), then content alpha (4 frames). */
-function panelFrame(ctx, lib, tokens, p, f0, f, { bright = 1 } = {}) {
-  const u = lib.clamp((f - f0) / 6); if (u <= 0) return 0;
-  ctx.save(); ctx.strokeStyle = lib.rgba(C(lib, tokens, "fg"), 0.55 * bright); ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(p.x, p.y + p.h * u); ctx.lineTo(p.x, p.y); ctx.lineTo(p.x + p.w * u, p.y);
-  if (u >= 1) { ctx.lineTo(p.x + p.w, p.y + p.h); ctx.lineTo(p.x, p.y + p.h); ctx.closePath(); }
-  ctx.stroke();
-  // L-shaped corner ticks only on panels that carry data
-  ctx.strokeStyle = C(lib, tokens, "fg"); ctx.lineWidth = 2.5; const k = 14;
-  ctx.beginPath(); ctx.moveTo(p.x, p.y + k); ctx.lineTo(p.x, p.y); ctx.lineTo(p.x + k, p.y); ctx.stroke();
-  ctx.restore();
-  return lib.clamp((f - f0 - 6) / 4);
-}
-function brackets(ctx, lib, tokens, p, pad = 10) {
-  const o = C(lib, tokens, "accent"), k = 26;
+const drift = (t) => -22 * t / 5;                            // slow camera drift (px) for parallax
+
+function brackets(ctx, lib, tokens, b, pad = 10, k = 26) {
+  const o = C(lib, tokens, "accent");
   ctx.save(); ctx.strokeStyle = o; ctx.lineWidth = 3; ctx.shadowColor = o; ctx.shadowBlur = 14;
   for (const [sx, sy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
-    const x = p.x - pad + sx * (p.w + 2 * pad), y = p.y - pad + sy * (p.h + 2 * pad), dx = sx ? -k : k, dy = sy ? -k : k;
+    const x = b.x - pad + sx * (b.w + 2 * pad), y = b.y - pad + sy * (b.h + 2 * pad), dx = sx ? -k : k, dy = sy ? -k : k;
     ctx.beginPath(); ctx.moveTo(x + dx, y); ctx.lineTo(x, y); ctx.lineTo(x, y + dy); ctx.stroke();
   }
   ctx.restore();
 }
 
-function hud(ctx, t, tokens, lib, { fade = 1 } = {}) {
-  const f = lib.frame(t), fg = C(lib, tokens, "fg"), dim = C(lib, tokens, "extra.0");
-  ctx.save(); ctx.globalAlpha = fade;
-  // ── FRAME readout (real data: this frame's own index and time)
-  const R = L.readout, a = panelFrame(ctx, lib, tokens, R, 4, f);
+// ───────── layers ─────────
+function frameCounter(ctx, t, tokens, lib) {
+  const f = lib.frame(t), fg = C(lib, tokens, "fg"), dim = C(lib, tokens, "extra.0"), R = L.readout;
+  const fly = lib.easeOf(tokens.ease.enter)(lib.seg(t, 0.65, 0.95));
+  const big = { x: 960, y: 560, s: 2.1 }, small = { x: R.x + 26 + 160, y: R.y + 186, s: 1 };
+  const cx = lib.lerp(big.x, small.x, fly), cy = lib.lerp(big.y, small.y, fly), s = lib.lerp(big.s, small.s, fly);
+  if (t >= 1 / 30) {
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
+    lib.setFont(ctx, tokens, "mono", 150, { weight: 400 }); ctx.fillStyle = fg;
+    lib.drawText(ctx, String(f).padStart(3, "0"), -160, 0);
+    ctx.restore();
+  }
+  // the panel frame draws around it once it has landed
+  const u = lib.clamp((f - 27) / 6); if (u <= 0) return;
+  ctx.save(); ctx.strokeStyle = lib.rgba(fg, 0.55); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(R.x, R.y + R.h * u); ctx.lineTo(R.x, R.y); ctx.lineTo(R.x + R.w * u, R.y);
+  if (u >= 1) { ctx.lineTo(R.x + R.w, R.y + R.h); ctx.lineTo(R.x, R.y + R.h); ctx.closePath(); } ctx.stroke();
+  const a = lib.clamp((f - 33) / 4);
   if (a > 0) {
-    ctx.globalAlpha = fade * a; ctx.fillStyle = dim;
-    lib.setFont(ctx, tokens, "display", 32, { weight: 700 }); lib.drawText(ctx, "FRAME", R.x + 30, R.y + 50, { tracking: 32 * 0.14 });
-    lib.drawText(ctx, "30 FPS", R.x + R.w - 30, R.y + 50, { align: "right", tracking: 32 * 0.14 });
-    ctx.fillStyle = fg; lib.setFont(ctx, tokens, "mono", 150, { weight: 400 });
-    ctx.fontVariantNumeric = "tabular-nums";
-    lib.drawText(ctx, String(f).padStart(3, "0"), R.x + 26, R.y + 190);
-    lib.setFont(ctx, tokens, "mono", 30); ctx.fillStyle = dim;
-    lib.drawText(ctx, `t ${t.toFixed(2)} s  / 5.00`, R.x + 30, R.y + 244);
-    ctx.globalAlpha = fade;
+    ctx.globalAlpha = a; ctx.fillStyle = dim; lib.setFont(ctx, tokens, "display", 32, { weight: 700 });
+    lib.drawText(ctx, "FRAME", R.x + 30, R.y + 50, { tracking: 32 * 0.14 }); lib.drawText(ctx, "30 FPS", R.x + R.w - 30, R.y + 50, { align: "right", tracking: 32 * 0.14 });
+    lib.setFont(ctx, tokens, "mono", 30); lib.drawText(ctx, `t ${t.toFixed(2)} s  / 5.00`, R.x + 30, R.y + 222);
   }
-  // ── timeline schematic, revealed by a scan line (linear, 0.3–1.1 s)
-  const y = 20 * G, x0 = 6 * G, x1 = 74 * G, scan = lib.lerp(x0 - 60, x1 + 60, lib.seg(t, 0.3, 1.1));
-  const vis = (x) => lib.smoothstep(scan, scan - 60, x) * 0.75 + 0.25 * (scan > x ? 1 : 0);
-  const X = (s) => lib.lerp(x0, x1, s / 5);
-  if (t > 0.3) {
-    ctx.fillStyle = fg;
-    for (let s = 0; s <= 50; s++) {
-      const x = X(s / 10), major = s % 10 === 0, v = scan > x ? 1 : 0;
-      if (!v) continue;
-      ctx.globalAlpha = fade * (major ? 0.9 : 0.35); ctx.fillRect(x, y - (major ? 18 : 8), 1.5, major ? 18 : 8);
-      if (major) { lib.setFont(ctx, tokens, "mono", 24); ctx.fillStyle = dim; lib.drawText(ctx, `${s / 10}s`, x + 6, y + 28); ctx.fillStyle = fg; }
+  ctx.restore();
+}
+function specSchematic(ctx, t, tokens, lib) {              // the swatch's own content spec as a Gantt, playhead = t
+  const fg = C(lib, tokens, "fg"), dim = C(lib, tokens, "extra.0"), y0 = 19 * G, x0 = 6 * G, x1 = 74 * G, X = (s) => lib.lerp(x0, x1, s / 5);
+  const scan = lib.lerp(x0 - 60, x1 + 60, lib.seg(t, 0.3, 1.1)); if (t < 0.3) return;
+  const S = lib.SPEC, rows = [["ESTABLISH", S.establish], ["TITLE", S.title], ["MOTIF", S.motif], ["OUTRO", S.outro]];
+  ctx.save();
+  rows.forEach(([name, [a, b]], i) => {
+    const y = y0 + i * 16, xa = X(a), xb = Math.min(X(b), scan); if (xb <= xa) return;
+    const on = t >= a && t < b;
+    ctx.fillStyle = on ? lib.rgba(fg, 0.8) : lib.rgba(fg, 0.25); ctx.fillRect(xa, y, xb - xa, 6);
+  });
+  ctx.fillStyle = lib.rgba(fg, 0.5);
+  for (let s = 0; s <= 50; s++) { const x = X(s / 10); if (x > scan) break; const major = s % 10 === 0; ctx.fillRect(x, y0 + 70, 1.5, major ? 14 : 6); if (major) { lib.setFont(ctx, tokens, "mono", 22); ctx.fillStyle = dim; lib.drawText(ctx, `${s / 10}s`, x + 5, y0 + 104); ctx.fillStyle = lib.rgba(fg, 0.5); } }
+  if (scan < x1 + 60) { ctx.fillStyle = lib.rgba(fg, 0.85); ctx.fillRect(scan, y0 - 20, 2, 110); }
+  const px = X(t); if (scan > px) { ctx.fillStyle = fg; ctx.fillRect(px - 1, y0 - 14, 2, 100); ctx.beginPath(); ctx.moveTo(px - 8, y0 - 22); ctx.lineTo(px + 8, y0 - 22); ctx.lineTo(px, y0 - 12); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
+}
+function trajectory(ctx, t, tokens, lib) {
+  const f = lib.frame(t), fg = C(lib, tokens, "fg"), dim = C(lib, tokens, "extra.0"), acc = C(lib, tokens, "accent");
+  const pu = lib.clamp((f - 57) / 8); if (pu <= 0) return;
+  // the path (linear draw), then waypoints boot on 2.0 / 2.2 / 2.4 s
+  ctx.save(); ctx.strokeStyle = lib.rgba(fg, 0.45); ctx.lineWidth = 1.5; ctx.setLineDash([10, 8]); lib.strokePartial(ctx, L.path, pu); ctx.setLineDash([]); ctx.restore();
+  const sweeps = [2.8, 3.2].map((ts) => lib.seg(t, ts, ts + 0.18));
+  L.wps.forEach((w, k) => {
+    const f0 = 60 + k * 6, u = lib.clamp((f - f0) / 6), a = lib.clamp((f - f0 - 6) / 4); if (u <= 0) return;
+    const [x, y] = w.p;
+    const lit = sweeps.reduce((m, s) => Math.max(m, s > 0 && s < 1 ? 1 - Math.abs(s - (x - 200) / 1520) * 4 : 0), 0);   // scan line passing
+    ctx.save(); ctx.strokeStyle = lib.rgba(fg, 0.6 + 0.4 * Math.max(0, lit)); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 34, -Math.PI / 2, -Math.PI / 2 + lib.TAU * u); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 46, y); ctx.lineTo(x - 22, y); ctx.moveTo(x + 22, y); ctx.lineTo(x + 46, y); ctx.moveTo(x, y - 46); ctx.lineTo(x, y - 22); ctx.moveTo(x, y + 22); ctx.lineTo(x, y + 46); ctx.stroke();
+    if (a > 0) {
+      ctx.globalAlpha = a;
+      // wireframe icon above the waypoint (no play button: the draft is a rendered film frame)
+      const ix = x - 60, iy = y - 128; ctx.strokeStyle = lib.rgba(fg, 0.75); ctx.lineWidth = 1.5; ctx.beginPath();
+      if (k === 0) for (let j = 0; j < 3; j++) { ctx.moveTo(ix, iy + 14 + j * 24); ctx.lineTo(ix + (j === 2 ? 70 : 120), iy + 14 + j * 24); }
+      else if (k === 1) for (let j = 0; j < 3; j++) ctx.rect(ix + j * 42, iy, 34, 70);
+      else { ctx.rect(ix, iy, 120, 70); for (let j = 0; j < 5; j++) { ctx.rect(ix + 6 + j * 23, iy + 4, 10, 6); ctx.rect(ix + 6 + j * 23, iy + 60, 10, 6); } ctx.moveTo(ix + 20, iy + 55); ctx.lineTo(ix + 50, iy + 28); ctx.lineTo(ix + 70, iy + 44); ctx.lineTo(ix + 100, iy + 18); }
+      ctx.stroke();
+      // label and its real boot time
+      ctx.fillStyle = fg; lib.setFont(ctx, tokens, "display", 44, { weight: 700 });
+      lib.drawText(ctx, `0${k + 1} ${lib.MOTIF[k].en.toUpperCase()}`, x, y + 92, { align: "center", tracking: 44 * 0.08 });
+      lib.setFont(ctx, tokens, "zh", 50, { weight: 500 }); lib.drawText(ctx, lib.MOTIF[k].zh, x, y + 152, { align: "center", tracking: 6 });
+      lib.setFont(ctx, tokens, "mono", 26); ctx.fillStyle = dim;
+      const jit = lit > 0.2 ? lib.hash(k, f) * 9 | 0 : 0;                          // readouts flicker while scanned
+      lib.drawText(ctx, `T+${(f0 / 30).toFixed(2)}s  f ${String(f0).padStart(3, "0")}${jit ? " ·" + jit : ""}`, k === 2 ? x - 50 : x + 50, y - 12, { align: k === 2 ? "right" : "left" });
     }
-    ctx.globalAlpha = fade * 0.6; ctx.fillRect(x0, y, Math.max(0, Math.min(scan, x1) - x0), 1.5);
-    if (scan < x1 + 60) { ctx.globalAlpha = fade * 0.8; ctx.fillRect(scan, y - 40, 2, 56); }
-    // playhead = t (real)
-    ctx.globalAlpha = fade; ctx.fillStyle = fg; const px = X(t);
-    if (scan > px) { ctx.beginPath(); ctx.moveTo(px - 8, y - 30); ctx.lineTo(px + 8, y - 30); ctx.lineTo(px, y - 20); ctx.closePath(); ctx.fill(); ctx.fillRect(px - 0.75, y - 20, 1.5, 22); }
+    ctx.restore();
+  });
+  // the marker travels the path with t (2.0 → 3.6 s) and locks on the draft
+  const mu = lib.ease.inOutCubic(lib.seg(t, 2.0, 3.6)), mp = L.path[Math.round(lib.lerp(L.wps[0].u, L.wps[2].u, mu) * 80)];
+  if (t >= 2.0) { ctx.save(); ctx.fillStyle = fg; ctx.beginPath(); ctx.moveTo(mp[0], mp[1] - 12); ctx.lineTo(mp[0] + 9, mp[1]); ctx.lineTo(mp[0], mp[1] + 12); ctx.lineTo(mp[0] - 9, mp[1]); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  // alert: brackets blink twice at 2 Hz from 2.4 s, stay on from 2.9 s, flash on the lock at 3.6 s
+  const on = (t >= 2.4 && t < 2.53) || (t >= 2.66 && t < 2.79) || t >= 2.9;
+  if (on) {
+    const [x, y] = L.wps[2].p, lock = Math.exp(-Math.pow((t - 3.65) / 0.08, 2));
+    ctx.save(); ctx.globalAlpha = 0.85 + 0.15 * lock; brackets(ctx, lib, tokens, { x: x - 150, y: y - 150, w: 300, h: 330 }, 6 + 10 * lock); ctx.restore();
+    if (t >= 3.6) { ctx.save(); ctx.fillStyle = acc; lib.setFont(ctx, tokens, "mono", 26); lib.drawText(ctx, "LOCK", x + 110, y - 164); ctx.restore(); }
   }
-  ctx.globalAlpha = fade;
-  // ── title: decode, then hold
+  // scan sweeps (2.8 and 3.2): a bright vertical line crosses the schematic in 0.25 s
+  sweeps.forEach((s) => { if (s <= 0 || s >= 1) return; const sx = lib.lerp(160, 1760, s); ctx.save(); ctx.fillStyle = lib.rgba(fg, 0.7); ctx.shadowColor = fg; ctx.shadowBlur = 16; ctx.fillRect(sx, 600, 2, 420); ctx.restore(); });
+}
+function title(ctx, t, tokens, lib) {
+  const fg = C(lib, tokens, "fg");
   lib.setFont(ctx, tokens, "display", 132, { weight: 700 }); ctx.fillStyle = fg;
-  const lay = lib.layoutText(ctx, lib.TITLE_EN, { x: 6 * G, y: 12 * G, tracking: 2 });
+  const lay = lib.layoutText(ctx, lib.TITLE_EN, { x: 6 * G, y: 11 * G, tracking: 2 });
   const sg = lib.scrambleGlyphs(lib.TITLE_EN, t, { start: 0.85, stagger: 0.03, settle: 0.3, rate: 15, seed: 3 });
   lib.drawGlyphs(ctx, lay, (g, i) => sg[i].state === "hidden" ? null : { ch: sg[i].ch, alpha: sg[i].state === "done" ? 1 : 0.6 });
   lib.setFont(ctx, tokens, "zh", 64, { weight: 500 });
-  const zl = lib.layoutText(ctx, lib.TITLE_ZH, { x: 6 * G, y: 16 * G, tracking: 6 });
+  const zl = lib.layoutText(ctx, lib.TITLE_ZH, { x: 6 * G, y: 15 * G + 6, tracking: 6 });
   const zg = lib.scrambleGlyphs(lib.TITLE_ZH, t, { start: 1.3, stagger: 0.06, settle: 0.3, rate: 15, seed: 5 });
   lib.drawGlyphs(ctx, zl, (g, i) => zg[i].state === "hidden" ? null : { ch: zg[i].ch, alpha: zg[i].state === "done" ? 1 : 0.55 });
-  // ── stage panels
-  L.panels.forEach((p, k) => stage(ctx, t, tokens, lib, p, k, fade));
+}
+function foreground(ctx, t, tokens, lib) {                  // faint reticle glass nearer the lens (1.1× parallax, soft)
+  const fg = C(lib, tokens, "fg"), [x, y] = L.wps[2].p, a = lib.clamp((lib.frame(t) - 4) / 10);
+  if (a <= 0) return;
+  ctx.save(); ctx.globalAlpha = 0.14 * a; ctx.strokeStyle = fg; ctx.lineWidth = 3; ctx.filter = "blur(1.6px)";
+  ctx.beginPath(); ctx.arc(x + 40, y - 40, 420, Math.PI * 0.95, Math.PI * 1.6); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x + 40, y - 40, 470, Math.PI * 1.0, Math.PI * 1.45); ctx.stroke();
+  for (let k = 0; k < 14; k++) { const ang = Math.PI * (1.0 + k * 0.04), r0 = 470, r1 = k % 3 ? 486 : 500; ctx.beginPath(); ctx.moveTo(x + 40 + Math.cos(ang) * r0, y - 40 + Math.sin(ang) * r0); ctx.lineTo(x + 40 + Math.cos(ang) * r1, y - 40 + Math.sin(ang) * r1); ctx.stroke(); }
   ctx.restore();
 }
 
-function stage(ctx, t, tokens, lib, p, k, fade) {
-  const f = lib.frame(t), fg = C(lib, tokens, "fg"), dim = C(lib, tokens, "extra.0"), acc = C(lib, tokens, "accent");
-  const a = panelFrame(ctx, lib, tokens, p, 60 + k * 3, f);
-  if (a <= 0) return;
-  ctx.save(); ctx.globalAlpha = fade * a;
-  ctx.fillStyle = dim; lib.setFont(ctx, tokens, "mono", 30); lib.drawText(ctx, `0${k + 1}`, p.x + 28, p.y + 58);
-  ctx.fillStyle = fg; lib.setFont(ctx, tokens, "display", 44, { weight: 700 }); lib.drawText(ctx, lib.MOTIF[k].en.toUpperCase(), p.x + 86, p.y + 60, { tracking: 44 * 0.1 });
-  lib.setFont(ctx, tokens, "zh", 50, { weight: 500 }); lib.drawText(ctx, lib.MOTIF[k].zh, p.x + 28, p.y + 136, { tracking: 6 });
-  // wireframe icon on the right
-  const ix = p.x + p.w - 176, iy = p.y + 92;
-  ctx.strokeStyle = lib.rgba(fg, 0.6); ctx.lineWidth = 1.5; ctx.beginPath();
-  if (k === 0) for (let j = 0; j < 3; j++) { ctx.moveTo(ix, iy + 12 + j * 26); ctx.lineTo(ix + (j === 2 ? 90 : 148), iy + 12 + j * 26); }
-  else if (k === 1) for (let j = 0; j < 3; j++) ctx.rect(ix + j * 52, iy, 42, 78);
-  else { ctx.moveTo(ix + 50, iy); ctx.lineTo(ix + 116, iy + 39); ctx.lineTo(ix + 50, iy + 78); ctx.closePath(); }
-  ctx.stroke();
-  // progress: stages 1–2 done, stage 3 running (value counts in steps)
-  const pct = k < 2 ? 100 : Math.round(100 * lib.ease.outCubic(lib.seg(t, 2.3, 3.6)) * 0.99);
-  const by = p.y + 222, bw = p.w - 56;
-  ctx.fillStyle = lib.rgba(fg, 0.2); ctx.fillRect(p.x + 28, by, bw, 3);
-  ctx.fillStyle = k === 2 ? acc : fg; ctx.fillRect(p.x + 28, by, bw * pct / 100, 3);
-  lib.setFont(ctx, tokens, "mono", 28); ctx.fillStyle = k === 2 ? fg : dim;
-  lib.drawText(ctx, k < 2 ? "DONE" : "RUNNING", p.x + 28, by + 52);
-  lib.drawText(ctx, `${String(pct).padStart(3, " ")}%`, p.x + p.w - 28, by + 52, { align: "right" });
+function hud(ctx, t, tokens, lib, { fade = 1 } = {}) {
+  const dx = drift(t);
+  ctx.save(); ctx.globalAlpha = fade; ctx.translate(dx, 0);
+  specSchematic(ctx, t, tokens, lib);
+  title(ctx, t, tokens, lib);
+  trajectory(ctx, t, tokens, lib);
+  frameCounter(ctx, t, tokens, lib);
   ctx.restore();
-  // the alert: brackets blink twice at 2 Hz, then stay on (visible at the 3.0 s poster)
-  if (k === 2) {
-    const on = (t >= 2.3 && t < 2.47) || (t >= 2.63 && t < 2.8) || t >= 2.9;
-    if (on) { ctx.save(); ctx.globalAlpha = fade; brackets(ctx, lib, tokens, p); ctx.restore(); }
-  }
+  ctx.save(); ctx.globalAlpha = fade; ctx.translate(dx * 1.1 + 12, 0); foreground(ctx, t, tokens, lib); ctx.restore();
 }
 
 function endCard(ctx, t, tokens, lib, p) {
@@ -141,15 +173,27 @@ function endCard(ctx, t, tokens, lib, p) {
 export function renderAt(t, ctx, tokens, lib) {
   const { W, H } = lib;
   ctx.fillStyle = C(lib, tokens, "bg"); ctx.fillRect(0, 0, W, H);
-  ctx.save(); ctx.fillStyle = ctx.createPattern(L.dots, "repeat"); ctx.fillRect(0, 0, W, H); ctx.restore();
+  ctx.save(); const pat = ctx.createPattern(L.dots, "repeat"); pat.setTransform(new DOMMatrix().translate(drift(Math.min(t, 4)) * 0.9, 0)); ctx.fillStyle = pat; ctx.fillRect(0, 0, W, H); ctx.restore();
   if (t < 4.0) hud(ctx, t, tokens, lib);
   else {
-    // panel-expand: the draft panel grows to the full frame (easeOutExpo, 10 frames); the rest exits (easeInExpo, 6)
     const e = lib.easeOf(tokens.ease.enter)(lib.seg(t, 4.0, 4.0 + 10 / 30)), x = lib.easeOf(tokens.ease.exit)(lib.seg(t, 4.0, 4.2));
     if (x < 1) hud(ctx, 3.99, tokens, lib, { fade: 1 - x });
-    const p0 = L.panels[2], p1 = { x: 72, y: 72, w: W - 144, h: H - 144 };
+    const [wx, wy] = L.wps[2].p, d = drift(3.99);
+    const p0 = { x: wx - 150 + d, y: wy - 150, w: 300, h: 330 }, p1 = { x: 72, y: 72, w: W - 144, h: H - 144 };
     const p = { x: lib.lerp(p0.x, p1.x, e), y: lib.lerp(p0.y, p1.y, e), w: lib.lerp(p0.w, p1.w, e), h: lib.lerp(p0.h, p1.h, e) };
     endCard(ctx, t, tokens, lib, p);
   }
-  lib.scanlines(ctx, t, { spacing: 3, thickness: 1, alpha: 0.08 * 2.2, color: "#000000" });
+  lib.scanlines(ctx, t, { spacing: 3, thickness: 1, alpha: 0.12, color: "#000000" });
 }
+
+// foley (events.json is generated from this list; times are the same ones the scene uses)
+const px = (x) => Math.round((x / 960 - 1) * 100) / 100;
+export const FOLEY = [
+  ...[0.1, 0.4, 0.7].map((t) => ({ t, sfx: "tick", gain_db: -12, pan: 0 })),                        // the counter runs
+  { t: 0.85, sfx: "whoosh", gain_db: -16, pan: 0.5 }, { t: 0.86, sfx: "typing", gain_db: -18, pan: -0.5 },   // flies to its corner; decode
+  ...[2.0, 2.2, 2.4].map((t, k) => ({ t: t + 0.2, sfx: "toggle", gain_db: -10, pan: px([337, 960, 1583][k]) })),   // waypoints boot
+  { t: 2.66, sfx: "tick", gain_db: -10, pan: px(1583) },                                              // second alert blink
+  { t: 2.9, sfx: "swish_rev", gain_db: -18, pan: 0 }, { t: 3.3, sfx: "swish_rev", gain_db: -18, pan: 0 },   // scan sweeps land
+  { t: 3.6, sfx: "success", gain_db: -12, pan: px(1583) },                                               // lock
+  { t: 4.1, sfx: "whoosh", gain_db: -10, pan: 0.4 },                                                      // the panel expands
+];

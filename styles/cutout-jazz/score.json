@@ -1,10 +1,12 @@
 {
   "bpm": 150, "key": "F", "mode": "minor", "seed": 31,
-  "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "meters": {"1": 1, "2": 1, "3": 3, "4": 3, "5": 2, "6": 3},
   "sections": [
-    {"name": "establish", "bars": 1, "chords": ["i"], "layers": ["bass", "hats"], "energy": 0.5},
+    {"name": "stab", "bars": 1, "chords": ["i"], "layers": ["bass", "lead"], "energy": 0.8, "impact": true},
+    {"name": "breath", "bars": 1, "chords": ["i"], "layers": ["bass"], "energy": 0.6},
     {"name": "title", "bars": 1, "chords": ["iv"], "layers": ["bass", "hats", "clap", "pad"], "energy": 0.6},
-    {"name": "motif", "bars": 2, "chords": ["VI", "V"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.8, "fill": true},
+    {"name": "camera", "bars": 1, "chords": ["VI"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.8},
+    {"name": "mustard", "bars": 1, "chords": ["V"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.85, "fill": true},
     {"name": "strips", "bars": 1, "chords": ["i"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.9, "impact": true}
   ]
 }

@@ -1,0 +1,9 @@
+[
+  {"t":0.1,"sfx":"boom","gain_db":-6,"pan":0,"dist":3},
+  {"t":2.05,"sfx":"whoosh","gain_db":-12,"pan":-0.58,"dist":3},
+  {"t":2.35,"sfx":"whoosh","gain_db":-12,"pan":0,"dist":3},
+  {"t":2.8,"sfx":"boom","gain_db":-4,"pan":0.58,"dist":2},
+  {"t":3.25,"sfx":"whoosh","gain_db":-12,"pan":0.58,"dist":2},
+  {"t":3.75,"sfx":"boom","gain_db":-10,"pan":0,"dist":4},
+  {"t":4.3,"sfx":"whoosh","gain_db":-8,"pan":0.58,"dist":1.5}
+]

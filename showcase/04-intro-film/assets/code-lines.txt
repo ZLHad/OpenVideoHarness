@@ -1,0 +1,100 @@
+function drawHook(t) {
+  const c = eInOut(seg(t, 0.85, 1.45));
+  const s = eInOut(seg(t, 1.6, 2.3));
+  const rl = eInOut(seg(t, 2.45, 3.1));
+  const lam = lerp(lerp(lerp(96, 40, c), 170, s), 96, rl);
+  const xr = lerp(90, 900, eOut(seg(t, 0.25, 0.95)));
+  const y0 = 1130, A = 44, ph = 2 * Math.PI * 1.4 * t;
+  let d = "";
+  for (let x = 90; x <= xr + 0.01; x += 3) {
+    const env = Math.pow(Math.sin((Math.PI * (x - 90)) / 810), 0.45);
+    const y = y0 + A * env * Math.sin((2 * Math.PI * (x - 495)) / lam - 
+    d += (d ? "L" : "M") + f1(x) + " " + f1(y);
+  }
+  $("hook-wave").setAttribute("d", d);
+}
+
+// ---------- S2: orbit ----------
+const OC = { x: 495, y: 1010, R: 350 };
+const onOrbit = (deg) => [OC.x + OC.R * Math.sin(deg * D2R), OC.y - OC.R
+function drawOrbit(t) {
+  const phi = lerp(-165, -26, seg(t, 3.2, 6.2)); // clockwise from top; 
+  const [sx, sy] = onOrbit(phi);
+  const rot = Math.atan2(-(OC.x - sx), OC.y - sy) / D2R; // antenna (+y)
+  $("orb-sat").setAttribute("transform", `translate(${f1(sx)} ${f1(sy)})
+  const [tx, ty] = onOrbit(phi - 32);
+  $("orb-trail").setAttribute("d", `M${f1(tx)} ${f1(ty)} A${OC.R} ${OC.R
+  $("stat-num").textContent = (7.6 * eOut(seg(t, 3.55, 4.6))).toFixed(1)
+}
+
+// ---------- S3–S7: stage ----------
+const U = { x: 495, y: 900 }; // "you"
+const DOME_R = 380;
+const alphaAt = (t) => 10 + (t - 6.4) * (160 / 7.6); // 10° at 6.4s →
+const T_ZERO = 6.4 + 80 / (160 / 7.6); // overhead: 10.2s
+function curvePath(g, xTo, amp) {
+  let d = "";
+  const N = Math.max(1, Math.round(160 * xTo));
+  for (let i = 0; i <= N; i++) {
+    const x = (i / N) * xTo;
+    const px = lerp(g.x0, g.x1, x), py = g.zero - amp * g.A * PHYS.PEAK 
+    d += (d ? "L" : "M") + f1(px) + " " + f1(py);
+  }
+  return xTo <= 0 ? "" : d;
+}
+const setA = (id, attrs) => {
+  const el = $(id);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+};
+function drawStage(t) {
+  // --- sky dome, satellite, ribbon ---
+  const out = eIn(seg(t, 14.6, 15.2));
+  setA("dome-group", { transform: `translate(0 ${f1(-170 * out)})`, opac
+  const a0 = 6, a1 = 174;
+  const p0 = [U.x - DOME_R * Math.cos(a0 * D2R), U.y - DOME_R * Math.sin
+  const p1 = [U.x - DOME_R * Math.cos(a1 * D2R), U.y - DOME_R * Math.sin
+  $("dome-arc").setAttribute("d", `M${f1(p0[0])} ${f1(p0[1])} A${DOME_R}
+  $("dome-note").setAttribute("opacity", f1(seg(t, 7.6, 8.1)));
+
+  const al = clamp(alphaAt(t), -8, 186); // rises from / sets behind the
+  const sx = U.x - DOME_R * Math.cos(al * D2R), sy = U.y - DOME_R * Math
+  const DS = 1.3, PIV = U.y - 34 * DS; // dish scale + bowl pivot (world
+  const feed = [U.x, PIV - 28 * DS];
+  const rot = Math.atan2(-(feed[0] - sx), feed[1] - sy) / D2R;
+  setA("st-sat", { transform: `translate(${f1(sx)} ${f1(sy)}) rotate(${f
+  const bowl = clamp(Math.atan2(sx - U.x, -(sy - PIV)) / D2R, -72, 72);
+  setA("dish-bowl", { transform: `translate(0 -34) rotate(${f1(bowl)})` 
+
+  // ribbon: antenna tip → dish feed, wavelength follows the real (nor
+  const xNow = PHYS.xAtAlpha(al);
+  const n = nAt(xNow);
+  const ant = [sx - 28 * Math.sin(rot * D2R), sy + 28 * Math.cos(rot * D
+  const bx = U.x + 28 * DS * Math.sin(bowl * D2R), by = PIV - 28 * DS * 
+  const Lx = bx - ant[0], Ly = by - ant[1], L = Math.hypot(Lx, Ly);
+  const ux = Lx / L, uy = Ly / L, nx = -uy, ny = ux;
+  const lam = 64 * (1 - 0.5 * n); // approaching → shorter (exaggerate
+  const ph = 2 * Math.PI * 2.0 * t;
+  const grow = eOut(seg(t, 6.5, 7.0));
+  let d = "";
+  const Lv = L * grow;
+  for (let s = 0; s <= Lv + 0.01; s += 3) {
+    const env = Math.pow(Math.sin((Math.PI * s) / L), 0.5);
+    const off = 17 * env * Math.sin((2 * Math.PI * s) / lam - ph);
+    d += (d ? "L" : "M") + f1(ant[0] + ux * s + nx * off) + " " + f1(ant
+  }
+  setA("ribbon", { d, opacity: f1(1 - seg(t, 14.0, 14.5)) });
+
+  // --- chart geometry: small (under the dome) → big (center), one co
+  const Lg = eInOut(seg(t, 14.7, 15.6));
+  const g = { x0: 170, x1: 866, zero: lerp(1160, 930, Lg), A: lerp(110, 
+  const inC = eOut(seg(t, 7.2, 7.8));
+  setA("chart", { opacity: f1(inC), transform: `translate(0 ${f1(24 * (1
+  setA("ch-panel", { y: f1(g.zero - g.A - 80), height: f1(2 * g.A + 160)
+  setA("ch-grid-top", { y1: f1(g.zero - g.A), y2: f1(g.zero - g.A) });
+  setA("ch-grid-bot", { y1: f1(g.zero + g.A), y2: f1(g.zero + g.A) });
+  setA("ch-zero", { y1: f1(g.zero), y2: f1(g.zero) });
+  const yTop = g.zero - g.A - 24, yBot = g.zero + g.A + 58;
+  setA("ch-title", { y: f1(yTop) });
+  setA("ch-xlabel", { y: f1(yBot) });
+
+  // tick labels: slide-swap  (+/- words) → ±50 kHz → ±500 kHz

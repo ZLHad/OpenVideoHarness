@@ -1,15 +1,30 @@
 // swiss-grid-type swatch — International Typographic Style in motion. 150 BPM: 1 beat = 12 frames, 1/16 = 3 frames
 // (the swatch's section points 0.8 / 2.0 / 4.0 s all fall on beats; STYLE.md's 112.5 BPM is the long-form default).
-//   0.0–0.8  the 12-column grid draws down one line per frame (linear); a 700 px numeral climbs into cols 10–12 in
-//            four eased steps, one module per sixteenth (frames 9–21)
+//   0.0–0.8  hook: the 12-column grid shoots down the frame in 6 frames from frame 2 (bands + 2 px edges); a 700 px
+//            numeral climbs into cols 10–12 in four eased steps and lands on the 0.4 s beat
 //   0.8–2.6  headline words rise out of clip boxes from the baseline, one per sixteenth, landing on the beat; the
 //            Chinese line follows in three word groups; a 2 px rule is drawn across cols 1–9
 //   2.0–4.0  motif on cols 1–3 / 4–6 / 7–9: outline bars grow along their length, storyboard blocks wipe down, the
-//            draft is the one red block; labels rise from the baseline
+//            draft is the one red block (lands 2.4 s); labels rise from the baseline. Then one event per beat: 2.8 the
+//            short bar snaps to the top row; 3.2 the red block breaks the grid (linear, grows, readout 'off grid',
+//            drums out); 3.6 the storyboard blocks re-flow by distance from it
 //   4.0–5.0  wipe-left: ink fills the columns right → left, one column per frame; the end card rises on black
 // Only two curves: easeInOutQuart for snaps, linear for lines. No fades, no bounce, no shadow, no grain.
 
 const M = 96, COL = 122, GUT = 24, BL = 24;
+// foley: dry, close letterpress sounds; frame numbers are the same constants the snaps use (frame / 30)
+const fx = (x) => Math.round((x / 960 - 1) * 100) / 100, F = (f) => f / 30;
+export const FOLEY = [
+  { t: F(2), sfx: "swish_rev", gain_db: -14, pan: 0 },                                                               // the grid shoots down
+  ...[6, 12].map((f) => ({ t: F(f), sfx: "tick", gain_db: -10, pan: fx(1600) })),                                        // numeral steps (lands f12)
+  ...[24, 27, 30, 33].map((f, k) => ({ t: F(f), sfx: "click", gain_db: -8, pan: fx(300 + k * 300) })),               // headline words land
+  ...[36, 42, 48].map((f, k) => ({ t: F(f), sfx: "click", gain_db: -10, pan: fx(200 + k * 250) })),                   // Chinese groups
+  { t: F(66), sfx: "click", gain_db: -8, pan: fx(300) }, { t: F(72), sfx: "pop", gain_db: -4, pan: fx(1170) },       // modules; the red block
+  { t: F(84), sfx: "click", gain_db: -8, pan: fx(300) }, { t: F(94), sfx: "click", gain_db: -6, pan: fx(1600) },     // bar reorder; numeral snap
+  { t: F(108), sfx: "whoosh", gain_db: -14, pan: fx(1300) },                                                          // the exception leaves the grid
+  ...[105, 108, 111].map((f, k) => ({ t: F(f + 3), sfx: "tick", gain_db: -12, pan: fx(900 - k * 150) })),           // ripple, nearest first
+  { t: F(120), sfx: "shutter", gain_db: -6, pan: fx(1700) }, { t: F(138), sfx: "click", gain_db: -8, pan: fx(300) },
+];
 const colX = (n) => M + (n - 1) * (COL + GUT);                  // left edge of column n (1-based)
 const spanW = (a, b) => colX(b) + COL - colX(a);
 let L = null;
@@ -33,22 +48,24 @@ function rise(ctx, lib, t, f0, dur, x, y, h, draw) {
 function page(ctx, t, tokens, lib) {
   const C = (k) => lib.color(tokens, k), { W, H } = lib, f = fr(lib, t);
   ctx.fillStyle = C("bg"); ctx.fillRect(0, 0, W, H);
-  // grid: both edges of every column, drawn down one line per frame from f3 (linear)
-  ctx.fillStyle = C("extra.0");
-  for (let i = 0; i < 24; i++) {
-    const n = (i >> 1) + 1, x = i % 2 ? colX(n) + COL - 1 : colX(n), u = lib.clamp((f - 3 - i) / 8);
-    if (u > 0) ctx.fillRect(x, 54, 1, (1026 - 54) * u);
+  // hook: the grid itself. From frame 2 every column band and its two edges shoot down the frame (linear, 6 frames,
+  // staggered one frame per two columns); bands alternate tints so the module reads at phone size
+  for (let n = 1; n <= 12; n++) {
+    const u = lib.clamp((f - 2 - Math.floor((n - 1) / 2)) / 6); if (u <= 0) continue;
+    ctx.fillStyle = n % 2 ? "#E6E3DB" : "#ECEAE3"; ctx.fillRect(colX(n), 54, COL, (1026 - 54) * u);
+    ctx.fillStyle = C("extra.0"); ctx.fillRect(colX(n), 54, 2, (1026 - 54) * u); ctx.fillRect(colX(n) + COL - 2, 54, 2, (1026 - 54) * u);
   }
-  [108, 972].forEach((y, j) => { const u = lib.clamp((f - 6 - j * 4) / 16); if (u > 0) ctx.fillRect(M, y, (W - 2 * M) * u, 1); });
+  [108, 972].forEach((y, j) => { const u = lib.clamp((f - 4 - j * 2) / 8); if (u > 0) { ctx.fillStyle = C("extra.0"); ctx.fillRect(M, y, (W - 2 * M) * u, 2); } });
 
   // giant numeral: climbs into cols 10–12 in four steps (one module each), bottom-aligned at 792
   const nx = colX(10), top = 288, bot = 792;
   lib.setFont(ctx, tokens, "display", 700, { weight: 700 });
-  const m = ctx.measureText("3"), steps = [9, 12, 15, 18];
+  const m = ctx.measureText("3"), steps = [0, 3, 6, 9];                  // lands on frame 12 = 0.4 s
   let done = 0; for (const s of steps) done += SNAP(lib)(lib.clamp((f - s) / 3));
   if (done > 0) {
     ctx.save(); ctx.beginPath(); ctx.rect(nx - 20, top - 40, spanW(10, 12) + 40, bot - top + 64); ctx.clip();
-    ctx.fillStyle = C("fg"); ctx.fillText("3", nx + m.actualBoundingBoxLeft, bot + (4 - done) / 4 * (bot - top + 40));
+    const up = SNAP(lib)(lib.clamp((f - 91) / 3)) * 2 * BL;                     // 3.03 s: the numeral snaps up one module
+    ctx.fillStyle = C("fg"); ctx.fillText("3", nx + m.actualBoundingBoxLeft, bot - up + (4 - done) / 4 * (bot - top + 40));
     ctx.restore();
   }
 
@@ -75,20 +92,30 @@ function page(ctx, t, tokens, lib) {
   // motif
   const y0 = 23 * BL, bh = 7 * BL;                                         // band 552–720
   // outline: three bars grow along their length (linear), one per sixteenth
+  const ro = SNAP(lib)(lib.clamp((f - 81) / 3));                          // 2.8 s: the short bar snaps to the top row
   [[1, 3], [1, 3], [1, 2]].forEach(([a, b], j) => {
     const u = lib.clamp((f - 60 - j * 3) / 3); if (u <= 0) return;
-    ctx.fillStyle = C("fg"); ctx.fillRect(colX(a), y0 + 12 + j * 56, spanW(a, b) * u, 32);
+    const row = j === 2 ? lib.lerp(2, 0, ro) : j + ro;
+    ctx.fillStyle = C("fg"); ctx.fillRect(colX(a), y0 + 12 + row * 56, spanW(a, b) * u, 32);
   });
   // storyboard: three blocks, one per column, wiped down
   for (let j = 0; j < 3; j++) {
     const u = SNAP(lib)(lib.clamp((f - 63 - j * 3) / 3)); if (u <= 0) continue;
-    ctx.fillStyle = C("fg"); ctx.fillRect(colX(4 + j), y0 + 12, COL, (bh - 12) * u);
+    const rip = SNAP(lib)(lib.clamp((f - 105 - (2 - j) * 3) / 3)), top = y0 + 12 + rip * (j + 1) * BL;   // 3.6 s ripple
+    ctx.fillStyle = C("fg"); ctx.fillRect(colX(4 + j), top, COL, (bh - 12) * u - rip * (j + 1) * BL);
   }
   // draft: the one red element, wiped in from the left (frame 69 → lands on 72 = beat 6, 2.4 s)
   const du = SNAP(lib)(lib.clamp((f - 69) / 3));
   if (du > 0) {
-    ctx.fillStyle = C("accent"); ctx.fillRect(colX(7), y0 + 12, spanW(7, 9) * du, bh - 12);
-    if (du >= 1) { ctx.fillStyle = C("extra.2"); ctx.beginPath(); const cx = colX(8) + COL / 2, cy = y0 + 12 + (bh - 12) / 2; ctx.moveTo(cx - 30, cy - 38); ctx.lineTo(cx + 40, cy); ctx.lineTo(cx - 30, cy + 38); ctx.closePath(); ctx.fill(); }
+    // the one exception: at 3.2 s the red block leaves the grid in a straight line (linear, no snap) and grows;
+    // it pauses for one eighth mid-flight (a glance back); drums drop for this bar in score.json
+    const e0 = lib.clamp((f - 96) / 9), e1 = lib.clamp((f - 108) / 9), ex = 0.5 * e0 + 0.5 * e1;
+    const bx = colX(7) + ex * 64, by = y0 + 12 - ex * 40, bw = spanW(7, 9) * (1 + 0.12 * ex), bhh = (bh - 12) * (1 + 0.12 * ex);
+    ctx.fillStyle = C("accent"); ctx.fillRect(bx, by, bw * du, bhh);
+    if (f >= 96) {
+      lib.setFont(ctx, tokens, "display", 24, { weight: 500 }); ctx.fillStyle = ex > 0.02 ? C("accent") : C("fg");
+      lib.drawText(ctx, ex > 0.02 ? `col ${(7 + ex * 0.44).toFixed(2)}  row ${(-ex * 1.67).toFixed(2)}  off grid` : "col 7.00  row 0.00  on grid", colX(7), y0 - 16);
+    }
   }
   // labels rise from the baseline, flush left on each module
   [[1, 60], [4, 66], [7, 69]].forEach(([c, f0], k) => {

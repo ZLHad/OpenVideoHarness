@@ -9,6 +9,23 @@
 
 let L = null;
 const N = 64;
+// ONE timing table for the picture and the foley (FOLEY → events.json via styles/_swatch/foley.mjs)
+const TL = {
+  axes: [0.0, 0.42], grid: [0.0, 0.6], basis: [0.4, 0.47], title0: 0.85, stag: 0.055, write: 0.42, zh0: 1.55, zhStag: 0.08,
+  dot: [2.0, 2.25], vec: [2.22, 2.58], par: [2.52, 2.86], labels: [2.12, 2.5, 2.8], beats: [3.0, 3.5], push: [2.6, 4.0],
+  out: [4.0, 4.35], ball: [4.0, 4.4], sq: [4.35, 4.62], name: 4.35, nameZh: 4.45,
+};
+const SLOT_X = [448, 960, 1472];                                        // lib.slots(3, SAFE.title)
+const pan = (x) => Math.round(((2 * x) / 1920 - 1) * 70) / 100;          // pan = (2x/W − 1) · 0.7
+export const FOLEY = [
+  ...TL.basis.map((t, k) => ({ t: t + 0.05, sfx: "tick", gain_db: -14, pan: pan(k ? 960 : 1020) })),   // î, then ĵ pop out of the origin
+  { t: TL.title0 + 0.05, sfx: "tick", gain_db: -18, pan: pan(560) },                       // the pen touches down (English)
+  { t: TL.zh0 + 0.05, sfx: "tick", gain_db: -18, pan: pan(700) },                          // …and again (Chinese)
+  { t: TL.dot[0] + 0.12, sfx: "pop", gain_db: -12, pan: pan(SLOT_X[0]) },                 // the point appears
+  // the two TransformFromCopy morphs stay silent: this style has no whoosh
+  ...TL.beats.map((t) => ({ t, sfx: "ding", gain_db: -10 })),                              // indicate + flash
+  { t: TL.sq[1], sfx: "click", gain_db: -8, pan: pan(1240) },                              // ∎ the tombstone lands
+];
 
 function resample(poly, n = N) {                       // closed polygon → n points evenly spaced by arc length
   const segs = []; let tot = 0;
@@ -35,12 +52,14 @@ const scaleAbout = (A, s, cx, cy) => A.map(([x, y]) => [cx + (x - cx) * s, cy + 
 
 export async function setup(ctx, tokens, lib) {
   const s = lib.slots(3, { area: lib.SAFE.title, y: 640 });
-  const O = { x: 960, y: 700 }, U = 120;
-  const dot = circle(s[0].x, 640, 26);
-  const vec = resample(arrow(s[1].x - 140, 730, s[1].x + 140, 560, 11, 34, 52));
-  const par = resample([[s[2].x - 180, 730], [s[2].x + 80, 730], [s[2].x + 180, 560], [s[2].x - 80, 560]]);
+  const O = { x: 960, y: 800 }, U = 160;                              // the x axis is the motif's baseline
+  const TOP = 400;                                                     // motif 400–800 (centre ≈ 0.55 H), 1.3× the old height
+  const dot = circle(s[0].x, 610, 72);
+  const vec = resample(arrow(s[1].x - 270, O.y, s[1].x + 270, TOP + 30, 22, 70, 104));   // tip kept clear of the Chinese line
+  const par = resample([[s[2].x - 300, O.y], [s[2].x + 135, O.y], [s[2].x + 300, TOP], [s[2].x - 135, TOP]]);
+  const iHat = arrow(O.x, O.y, O.x + U, O.y, 13, 40, 50), jHat = arrow(O.x, O.y, O.x, O.y - U, 13, 40, 50);
   const cen = (A) => A.reduce((c, p) => [c[0] + p[0] / A.length, c[1] + p[1] / A.length], [0, 0]);
-  L = { s, O, U, dot, vec, par, cDot: cen(dot), cVec: cen(vec), cPar: cen(par), ball: circle(960, 470, 70) };
+  L = { s, O, U, dot, vec, par, iHat, jHat, cDot: cen(dot), cVec: cen(vec), cPar: cen(par), ball: circle(960, 470, 70) };
   // end frame layout: "Dark Math" + tombstone square
   lib.setFont(ctx, tokens, "display", 120, { weight: 500 });
   L.endW = ctx.measureText("Dark Math").width;
@@ -55,21 +74,29 @@ export function renderAt(t, ctx, tokens, lib) {
   const BLUE = P("extra.0"), RED = P("extra.1"), GREEN = P("extra.2"), YEL = P("accent"), WHITE = P("fg");
   ctx.fillStyle = P("bg"); ctx.fillRect(0, 0, W, H);
 
-  const out = tween(t, 4.0, 4.35, smooth);                        // everything but the shapes fades out at the end
-  // ── number plane: grid lines draw outward from the origin, then settle to a faint structure layer
+  const out = tween(t, ...TL.out, smooth);                        // everything but the shapes fades out at the end
+  // ── number plane: the whole grid sweeps out from the origin as a growing disc with a bright front (0–0.6 s),
+  //    then settles to a ~25 % structure layer
   const { O, U } = L;
   ctx.save(); ctx.lineWidth = 2;
-  const gridA = 0.22 * (1 - 0.55 * out);
-  for (let k = -9; k <= 9; k++) {
-    const x = O.x + k * U, u = tween(t, 0.1 + Math.abs(k) * 0.035, 0.55 + Math.abs(k) * 0.035, smooth);
-    if (u > 0 && k !== 0 && x > -2 && x < W + 2) { ctx.strokeStyle = lib.rgba(BLUE, gridA); lib.strokePartial(ctx, [[x, O.y], [x, O.y - 700 * u]], 1); lib.strokePartial(ctx, [[x, O.y], [x, O.y + 700 * u]], 1); }
+  const Rg = tween(t, ...TL.grid, lib.ease.outCubic) * 2100;
+  const gridPath = () => {
+    ctx.beginPath();
+    for (let k = -6; k <= 6; k++) { const x = O.x + k * U; if (k) { ctx.moveTo(x, 0); ctx.lineTo(x, H); } }
+    for (let k = -5; k <= 2; k++) { const y = O.y + k * U; if (k && y > 0 && y < H) { ctx.moveTo(0, y); ctx.lineTo(W, y); } }
+  };
+  if (Rg > 0) {
+    ctx.save(); ctx.beginPath(); ctx.arc(O.x, O.y, Rg, 0, lib.TAU); ctx.clip();
+    ctx.strokeStyle = lib.rgba(BLUE, 0.42 * (1 - 0.55 * out) * (1 - 0.3 * seg(t, 1.0, 1.6))); gridPath(); ctx.stroke();
+    const front = 1 - seg(t, TL.grid[1] - 0.15, TL.grid[1] + 0.25);          // the last 120 px behind the sweep glow
+    if (front > 0) {
+      ctx.beginPath(); ctx.arc(O.x, O.y, Rg, 0, lib.TAU); ctx.arc(O.x, O.y, Math.max(0, Rg - 120), 0, lib.TAU); ctx.clip("evenodd");
+      ctx.strokeStyle = lib.rgba(BLUE, 0.95 * front); ctx.lineWidth = 3; gridPath(); ctx.stroke();
+    }
+    ctx.restore();
   }
-  for (let k = -6; k <= 4; k++) {
-    const y = O.y + k * U, u = tween(t, 0.1 + Math.abs(k) * 0.05, 0.55 + Math.abs(k) * 0.05, smooth);
-    if (u > 0 && k !== 0 && y > -2 && y < H + 2) { ctx.strokeStyle = lib.rgba(BLUE, gridA); lib.strokePartial(ctx, [[O.x, y], [O.x - 1100 * u, y]], 1); lib.strokePartial(ctx, [[O.x, y], [O.x + 1100 * u, y]], 1); }
-  }
-  ctx.strokeStyle = lib.rgba(WHITE, 0.5 * (1 - 0.6 * out)); ctx.lineWidth = 3;
-  const ax = tween(t, 0.1, 0.7, smooth);
+  ctx.strokeStyle = lib.rgba(WHITE, 0.62 * (1 - 0.6 * out)); ctx.lineWidth = 4;
+  const ax = tween(t, ...TL.axes, lib.ease.outExpo);
   lib.strokePartial(ctx, [[O.x, O.y], [O.x - 1000 * ax, O.y]], 1); lib.strokePartial(ctx, [[O.x, O.y], [O.x + 1000 * ax, O.y]], 1);
   lib.strokePartial(ctx, [[O.x, O.y], [O.x, O.y - 720 * ax]], 1); lib.strokePartial(ctx, [[O.x, O.y], [O.x, O.y + 400 * ax]], 1);
   ctx.restore();
@@ -78,19 +105,34 @@ export function renderAt(t, ctx, tokens, lib) {
   band.addColorStop(0, "rgba(0,0,0,0)"); band.addColorStop(0.2, "rgba(0,0,0,0.88)"); band.addColorStop(0.78, "rgba(0,0,0,0.88)"); band.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = band; ctx.fillRect(0, 60, W, 390); ctx.restore();
 
+  // ── basis vectors î (green) and ĵ (red) pop out of the origin, then clear the stage for the motif
+  const hatOut = 1 - seg(t, TL.dot[0] - 0.15, TL.dot[0] + 0.15);
+  [[L.iHat, GREEN, "î", [U + 8, 64]], [L.jHat, RED, "ĵ", [-54, -U + 30]]].forEach(([A, col, name, [lx, ly]], k) => {
+    const sp = clamp(lib.spring(t - TL.basis[k], { w: 24, zeta: 0.5 }), 0, 1.4);
+    if (sp <= 0 || hatOut <= 0) return;
+    shape(ctx, scaleAbout(A, sp, O.x, O.y), col, hatOut);
+    ctx.save(); ctx.globalAlpha = hatOut * clamp(sp); ctx.fillStyle = col;
+    lib.setFont(ctx, tokens, "display", 76, { style: "italic", weight: 400 }); lib.drawText(ctx, name, O.x + lx, O.y + ly, { align: "center" });
+    ctx.restore();
+  });
+
   // ── title, hand-written
   ctx.save(); ctx.globalAlpha = 1 - out;
   lib.setFont(ctx, tokens, "display", 104, { weight: 500 });
-  write(ctx, lib, lib.TITLE_EN, 960, 232, t, 0.85, 0.055, 0.42, WHITE, 104);
+  write(ctx, lib, lib.TITLE_EN, 960, 244, t, TL.title0, TL.stag, TL.write, WHITE, 104);
   lib.setFont(ctx, tokens, "zh", 62, { weight: 400 });
-  write(ctx, lib, lib.TITLE_ZH, 960, 338, t, 1.55, 0.08, 0.42, WHITE, 62, 0.08 * 62);
+  write(ctx, lib, lib.TITLE_ZH, 960, 348, t, TL.zh0, TL.zhStag, TL.write, WHITE, 62, 0.08 * 62);
   ctx.restore();
 
   // ── motif: point → vector → parallelogram (TransformFromCopy chain)
-  const dIn = tween(t, 2.0, 2.25, smooth);
-  const vU = tween(t, 2.22, 2.58, smooth), pU = tween(t, 2.52, 2.86, smooth);
-  const endU = tween(t, 4.0, 4.4, smooth), sqU = tween(t, 4.35, 4.62, smooth);
-  const ind = (k) => { const a = 3.2 + k * 0.2; const u = seg(t, a, a + 0.28); return 1 + 0.12 * Math.sin(Math.PI * u); };
+  const dIn = tween(t, ...TL.dot, smooth);
+  const vU = tween(t, ...TL.vec, smooth), pU = tween(t, ...TL.par, smooth);
+  const endU = tween(t, ...TL.ball, smooth), sqU = tween(t, ...TL.sq, smooth);
+  // indicate: every object pulses 1.2× with a flash on 3.0 s and 3.5 s (bell), plus a slow push-in while it holds
+  const pulse = (a) => { const u = seg(t, a, a + 0.26); return Math.sin(Math.PI * u); };
+  const ind = (k) => 1 + 0.2 * TL.beats.reduce((a, b) => a + pulse(b), 0) * (k === 2 ? 1 : 0.7);
+  const push = 1 + 0.045 * lib.ease.inOutSine(seg(t, ...TL.push));
+  ctx.save(); ctx.translate(960, 640); ctx.scale(push, push); ctx.translate(-960, -640);
 
   const toEnd = (A) => sqU > 0 ? lerpPts(L.ball, L.sq, sqU) : lerpPts(A, L.ball, endU);
   // point (stays at slot 1)
@@ -110,26 +152,38 @@ export function renderAt(t, ctx, tokens, lib) {
     const fa = lib.lerp(lib.lerp(1, 0.35, pU), 1, Math.max(endU, sqU));
     shape(ctx, toEnd(lerpPts(L.vec, dst, pU)), col, fa, 4 * pU * (1 - endU));
   }
+  // flash: short yellow rays burst from each object on the two indicate beats
+  for (const a0 of TL.beats) {
+    const u = seg(t, a0, a0 + 0.3);
+    if (u <= 0 || u >= 1) continue;
+    [L.cDot, L.cVec, L.cPar].forEach((c, k) => {
+      const r0 = [95, 215, 230][k] + 90 * lib.ease.outCubic(u), r1 = r0 + 40 * (1 - u);
+      ctx.save(); ctx.strokeStyle = YEL; ctx.globalAlpha = 1 - u; ctx.lineWidth = 5; ctx.lineCap = "round";
+      for (let i = 0; i < 10; i++) { const q = (i / 10) * lib.TAU; ctx.beginPath(); ctx.moveTo(c[0] + Math.cos(q) * r0, c[1] + Math.sin(q) * r0); ctx.lineTo(c[0] + Math.cos(q) * r1, c[1] + Math.sin(q) * r1); ctx.stroke(); }
+      ctx.restore();
+    });
+  }
+  ctx.restore();
   // labels in entity colours
-  const labels = [[BLUE, 2.12], [GREEN, 2.5], [YEL, 2.8]];
+  const labels = [[BLUE, TL.labels[0]], [GREEN, TL.labels[1]], [YEL, TL.labels[2]]];
   labels.forEach(([col, a0], k) => {
     const a = seg(t, a0, a0 + 0.16) * (1 - out);
     if (a <= 0) return;
     ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = col;
-    lib.setFont(ctx, tokens, "display", 44, { style: "italic", weight: 400 });
-    lib.drawText(ctx, lib.MOTIF[k].en, L.s[k].x, 830, { align: "center" });
-    lib.setFont(ctx, tokens, "zh", 50, { weight: 400 });
-    lib.drawText(ctx, lib.MOTIF[k].zh, L.s[k].x, 902, { align: "center", tracking: 0.1 * 50 });
+    lib.setFont(ctx, tokens, "display", 52, { style: "italic", weight: 400 });
+    lib.drawText(ctx, lib.MOTIF[k].en, L.s[k].x, 878, { align: "center" });
+    lib.setFont(ctx, tokens, "zh", 58, { weight: 400 });
+    lib.drawText(ctx, lib.MOTIF[k].zh, L.s[k].x, 952, { align: "center", tracking: 0.1 * 58 });
     ctx.restore();
   });
 
   // ── end frame: the name is written next to the tombstone
-  if (t >= 4.35) {
+  if (t >= TL.name) {
     ctx.save(); lib.setFont(ctx, tokens, "display", 120, { weight: 500 });
     ctx.textAlign = "left";
-    write(ctx, lib, "Dark Math", L.endX + L.endW / 2, 560, t, 4.35, 0.03, 0.28, WHITE, 120);
+    write(ctx, lib, "Dark Math", L.endX + L.endW / 2, 560, t, TL.name, 0.03, 0.28, WHITE, 120);
     lib.setFont(ctx, tokens, "zh", 56, { weight: 400 });
-    write(ctx, lib, "暗底数学", L.endX + L.endW / 2, 660, t, 4.45, 0.05, 0.25, lib.color(tokens, "extra.4"), 56, 0.2 * 56);
+    write(ctx, lib, "暗底数学", L.endX + L.endW / 2, 660, t, TL.nameZh, 0.05, 0.25, lib.color(tokens, "extra.4"), 56, 0.2 * 56);
     ctx.restore();
   }
 }

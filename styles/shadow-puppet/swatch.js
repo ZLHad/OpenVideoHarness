@@ -1,11 +1,13 @@
 // shadow-puppet swatch · 皮影
 // Image model: frame = lampLight(x, y, t) × transmission(x, y). Every puppet piece is a dyed, carved, translucent hide
 // sprite multiplied onto a white cloth; carved holes stay white (brightest), overlapping pieces darken.
-//   0.00–0.80  a match flares behind the cloth, the oil lamp catches (overshoot, then a living flicker)
+//   0.00–0.80  HOOK: a match flares behind the cloth; on the 0.1 s beat the oil lamp catches and the whole cloth lights
+//              within ~3 frames (overshoot, then a living ±5 % flicker)
 //   0.35–1.20  SIGNATURE: a jointed puppet presses onto the cloth from big and blurry to sharp, glides and stops —
 //              its legs and hat tassel keep swinging (damped pendulums, closed form)
 //   0.80–1.33  title: a dark hide plaque with the words cut out presses on; it hangs from a pin and swings to rest
-//   2.00–2.80  motif: three carved cards on rods press on at 2.0 / 2.2 / 2.4 as the puppet points at each
+//   2.00–3.60  motif: three carved cards on rods press on at 2.0 / 2.4 / 2.8 as the puppet points at each with its hand
+//              rod (1.6× puppet); at 3.2 the cards sway, at 3.6 the puppet nods
 //              (hollow outline frame → three coloured panes → a densely carved, fully dyed medallion)
 //   4.00–4.80  SIGNATURE TRANSITION: the lamp gutters out and relights on the puppet alone, in its closing pose
 
@@ -27,7 +29,7 @@ const HOLES = {
 function hideTexture(lib) {
   const s = 256, c = document.createElement("canvas"); c.width = c.height = s; const x = c.getContext("2d"), img = x.createImageData(s, s);
   for (let j = 0; j < s; j++) for (let i = 0; i < s; i++) {
-    const v = 0.86 + 0.14 * (lib.fbm2(i / 22, j / 22, { octaves: 3, seed: 5 }) * 0.5 + 0.5) + 0.05 * lib.hashS(i, j, 7), k = (j * s + i) * 4;
+    const v = 0.76 + 0.24 * (lib.fbm2(i / 18, j / 26, { octaves: 4, seed: 5 }) * 0.5 + 0.5) + 0.06 * lib.hashS(i, j, 7), k = (j * s + i) * 4;   // fibrous, uneven hide
     img.data[k] = img.data[k + 1] = img.data[k + 2] = Math.round(Math.min(1, v) * 255); img.data[k + 3] = 255;
   }
   x.putImageData(img, 0, 0); return c;
@@ -39,7 +41,7 @@ function makePiece(lib, tex, spec) {
   const c = document.createElement("canvas"); c.width = w; c.height = h; const x = c.getContext("2d");
   x.translate(-x0, -y0);
   const body = pathOf(spec.shape);
-  x.fillStyle = spec.color; x.fill(body);
+  x.fillStyle = spec.color === "#1C120B" ? spec.color : lib.mixColor(spec.color, "#ffffff", 0.22); x.fill(body);   // dyed hide transmits light: lighter than paint
   if (spec.paint) spec.paint(x);
   x.save(); x.clip(body); x.globalCompositeOperation = "multiply"; x.drawImage(tex, x0, y0, Math.max(w, 256), Math.max(h, 256)); x.restore();
   x.strokeStyle = "#1C120B"; x.lineWidth = 2.6; x.stroke(body);
@@ -124,13 +126,13 @@ function pose(t, lib, mode) {
   const press = lib.tween(t, 0.35, 0.88, lib.ease.outCubic);
   const glide = lib.tween(t, 0.88, 1.2, lib.ease.inOutCubic);
   // pointing at the three cards (2.0 → 2.25 → 2.5), then easing back
-  const aim = lib.springTrack(t, [{ t: 0, v: 0.25 }, { t: 1.9, v: 1.38 }, { t: 2.1, v: 1.48 }, { t: 2.3, v: 1.6 }, { t: 3.3, v: 0.95 }], { w: 11, zeta: 0.75 });
+  const aim = lib.springTrack(t, [{ t: 0, v: 0.25 }, { t: S.card[0] - 0.05, v: 1.3 }, { t: S.card[1] - 0.05, v: 1.45 }, { t: S.card[2] - 0.05, v: 1.6 }, { t: 3.2, v: 0.9 }, { t: 3.6, v: 1.2 }], { w: 14, zeta: 0.7 });
   const lean = 0.06 * lib.tween(t, 1.9, 2.2, lib.ease.outCubic) * (1 - lib.tween(t, 3.3, 3.7, lib.ease.inOutCubic));
   const kick = (tk) => pend(t - tk, 1, 8, 0.25);
-  const swing = 0.3 * kick(1.2) + 0.08 * (kick(2.1) + kick(2.3) + kick(3.6));
-  return { x: 320 + 60 * glide + tr(1, 3), y: 610 + tr(2, 2.5), s: 1.3 * (1.8 - 0.8 * press), blur: 24 * (1 - press), rot: lean + tr(3),
+  const swing = 0.3 * kick(1.2) + 0.1 * (kick(S.card[0]) + kick(S.card[1]) + kick(S.card[2]) + kick(3.2) + kick(3.6));
+  return { x: 300 + 50 * glide + tr(1, 3), y: 616 + tr(2, 2.5), s: 1.6 * (1.8 - 0.8 * press), blur: 24 * (1 - press), rot: lean + tr(3),
     shN: aim + tr(4), elN: -0.25 + 0.12 * Math.sin(aim), shF: 0.35 + swing * 0.6 + tr(5), elF: 0.1 + swing * 0.4,
-    legA: 0.1 + swing, legB: -0.06 + 0.8 * swing + 0.06 * kick(1.28), tassel: 0.7 * kick(1.2) + 0.3 * (kick(2.1) + kick(2.3)) + 0.1 * Math.sin(1.7 * t), head: 0.05 * Math.sin(0.8 * t) };
+    legA: 0.1 + swing, legB: -0.06 + 0.8 * swing + 0.06 * kick(1.28), tassel: 0.7 * kick(1.2) + 0.35 * (kick(S.card[0]) + kick(S.card[1]) + kick(S.card[2]) + kick(3.6)) + 0.1 * Math.sin(1.7 * t), head: 0.05 * Math.sin(0.8 * t) - 0.12 * kick(3.6) };
 }
 function drawPuppet(T, lib, p) {
   const Pp = L.pup, M = (m) => m;
@@ -174,11 +176,25 @@ function buildCards(lib, tex, tokens) {
       x.save(); x.globalCompositeOperation = "destination-out"; const hp = new Path2D();
       for (let k = 0; k < 10; k++) HOLES.petal(hp, 0, -h / 2, 20, k * TAU / 10); for (let k = 0; k < 10; k++) { const a = (k + 0.5) * TAU / 10; HOLES.coin(hp, Math.cos(a) * 46, -h / 2 + Math.sin(a) * 46, 6); }
       HOLES.coin(hp, 0, -h / 2, 9); x.fill(hp, "evenodd"); x.restore(); } });
-  const tag = (k) => plaque(lib, tex, 250, 110, [{ role: "zh", size: 52, text: lib.MOTIF[k].zh, y: 58, tr: 6 }, { role: "en", size: 24, text: lib.MOTIF[k].en.toUpperCase(), y: 92, tr: 1 }], tokens);
+  const tag = (k) => plaque(lib, tex, 300, 128, [{ role: "zh", size: 54, text: lib.MOTIF[k].zh, y: 60, tr: 6 }, { role: "en", size: 34, text: lib.MOTIF[k].en.toUpperCase(), y: 106, tr: 0 }], tokens);
   return [outline, panes, full].map((pc, k) => ({ pc, tag: tag(k) }));
 }
 
+// Action times come from events.json, the file render.sh uses to place the foley, so picture and sound share one number
+// per action: T[id] for single actions (entries sharing an id layer sounds on one action and must share t), S[series]
+// for repeated ones (sorted, de-duplicated times).
+let T = null, S = null;
+async function loadTimes() {
+  const ev = await (await fetch(new URL("./events.json", import.meta.url))).json(), t = {}, s = {};
+  for (const e of ev) {
+    if (e.id) { if (e.id in t && t[e.id] !== e.t) throw new Error(`events.json: "${e.id}" has two times`); t[e.id] = e.t; }
+    if (e.series) (s[e.series] ||= []).push(e.t);
+  }
+  for (const k in s) s[k] = [...new Set(s[k])].sort((a, b) => a - b);
+  return [t, s];
+}
 export async function setup(ctx, tokens, lib) {
+  [T, S] = await loadTimes();
   const tex = hideTexture(lib);
   // cloth: near-white weave with low-frequency density, used as the transmission base
   const cloth = document.createElement("canvas"); cloth.width = lib.W; cloth.height = lib.H;
@@ -188,7 +204,7 @@ export async function setup(ctx, tokens, lib) {
   cx.globalCompositeOperation = "multiply"; cx.fillStyle = cx.createPattern(weave, "repeat"); cx.fillRect(0, 0, lib.W, lib.H);
   L = {
     tex, cloth, pup: buildPuppet(lib, tex), cards: buildCards(lib, tex, tokens),
-    title: plaque(lib, tex, 1120, 250, [{ role: "en", size: 66, text: lib.TITLE_EN, y: 104, tr: 2 }, { role: "zh", size: 92, text: lib.TITLE_ZH, y: 208, tr: 10 }], tokens),
+    title: plaque(lib, tex, 1240, 300, [{ role: "en", size: 80, text: lib.TITLE_EN, y: 124, tr: 2 }, { role: "zh", size: 104, text: lib.TITLE_ZH, y: 250, tr: 12 }], tokens),
     screen: { x0: 110, y0: 70, x1: 1810, y1: 930 }, cardX: [900, 1220, 1540], cardY: 760,
   };
 }
@@ -197,12 +213,12 @@ export async function setup(ctx, tokens, lib) {
 function lamp(t, lib) {
   const fl = 1 + 0.06 * lib.noise1(t * 7, 3) + 0.02 * Math.sin(TAU * 23 * t);
   if (t < 4.0) {
-    const on = t < 0.12 ? 0.03 : 0.03 + 0.97 * lib.spring(t - 0.12, { w: 9, zeta: 0.55 });
+    const on = t < T.lamp ? 0.03 : 0.03 + 0.97 * lib.spring(t - T.lamp, { w: 24, zeta: 0.5 });      // catches on the 0.1 s beat: the whole cloth lights in ~3 frames
     return Math.max(0.03, on * fl);
   }
   if (t < 4.28) { const u = lib.seg(t, 4.0, 4.28); return Math.max(0.02, (1 - u) * (1 + 0.45 * lib.hashS(9, lib.frame(t)))); }   // gutters: fast flicker down
-  if (t < 4.42) return 0.02;
-  return 0.02 + 0.98 * lib.spring(t - 4.42, { w: 12, zeta: 0.5 }) * fl;                                                    // relights with overshoot
+  if (t < T.relight) return 0.02;
+  return 0.02 + 0.98 * lib.spring(t - T.relight, { w: 12, zeta: 0.5 }) * fl;                                                    // relights with overshoot
 }
 function lampField(ctx, lib, I) {
   const S = L.screen;
@@ -238,14 +254,14 @@ function transmission(lib, t, tokens, mode) {
     if (ps.on) {
       const sw = 0.035 * Math.exp(-2.2 * Math.max(0, t - 1.38)) * Math.sin(8 * Math.max(0, t - 1.38)) + 0.004 * lib.noise1(t, 11);
       T.save(); if (ps.blur > 0.3) T.filter = `blur(${ps.blur.toFixed(2)}px)`;
-      T.setTransform(new DOMMatrix().translate(1010, 104).scale(ps.s).rotate(sw * 180 / Math.PI));
+      T.setTransform(new DOMMatrix().translate(1110, 88).scale(ps.s).rotate(sw * 180 / Math.PI));
       T.drawImage(L.title, -L.title.width / 2, 0); T.restore();
     }
     // cards on rods, pressing on as the puppet points
     const rodPts = [];
     L.cards.forEach((cd, k) => {
-      const t0 = 2.0 + k * 0.2, st = pressState(t, t0, 0.4); if (!st.on) return;
-      const sw = 0.09 * Math.exp(-2.6 * Math.max(0, t - t0 - 0.4)) * Math.sin(9 * Math.max(0, t - t0 - 0.4)) + 0.006 * lib.noise1(t * 1.2, 20 + k);
+      const t0 = S.card[k], st = pressState(t, t0, 0.2); if (!st.on) return;
+      const sw = 0.09 * Math.exp(-2.6 * Math.max(0, t - t0 - 0.2)) * Math.sin(9 * Math.max(0, t - t0 - 0.2)) + 0.03 * Math.exp(-3 * Math.max(0, t - 3.2)) * Math.sin(10 * Math.max(0, t - 3.2)) * (t >= 3.2 ? 1 : 0) + 0.006 * lib.noise1(t * 1.2, 20 + k);
       const m = new DOMMatrix().translate(L.cardX[k], L.cardY - 40).scale(st.s).rotate(sw * 180 / Math.PI);
       T.save(); if (st.blur > 0.3) T.filter = `blur(${st.blur.toFixed(2)}px)`;
       drawSprite(T, cd.pc, m);
@@ -268,7 +284,7 @@ export function renderAt(t, ctx, tokens, lib) {
   lampField(ctx, lib, lamp(t, lib));
   ctx.save(); ctx.globalCompositeOperation = "multiply"; ctx.drawImage(transmission(lib, t, tokens, mode), 0, 0); ctx.restore();
   if (t < 0.4) {                                                        // the match flaring behind the cloth
-    const a = lib.env(t, 0.05, 0.4, 0.04, 0.2);
+    const a = lib.env(t, 0.0, 0.4, 0.05, 0.25);
     const g = ctx.createRadialGradient(960, 360, 0, 960, 360, 140); g.addColorStop(0, `rgba(255,236,190,${0.9 * a})`); g.addColorStop(1, "rgba(255,200,120,0)");
     ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = g; ctx.fillRect(820, 220, 280, 280); ctx.restore();
   }

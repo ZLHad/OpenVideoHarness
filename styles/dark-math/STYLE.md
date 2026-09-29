@@ -2,7 +2,9 @@
 
 一句话：纯黑底上，几何对象靠连续变换推出结论；每个数学实体一个颜色，公式里的符号和它的图形同色，全片不变。适合讲清一个原理、定理或算法。本仓库的 `video-types/01-math-science-explainer.md` 和 `showcase/03-math-fourier/` 已经是这个风格的完整实现，本预设把它们的规则收成可复用的一页。
 
-样片：`media/swatch.mp4`（5 s）· 封面 `media/poster.jpg`
+样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
+
+样片里：0–0.6 s 整张网格以原点为圆心扫开（一个带亮边的圆盘在 0.1 s 已盖住大半个画面，扫完后亮度约 25% 灰，轴 60%），同拍一声 `bell`；0.4 s 起绿色 î、红色 ĵ 两个基向量从原点弹出（各一声 `tick`），2.0 s 母题出场前退掉；网格单位 160 px；标题先描轮廓再填充（手写式）；三元素以 x 轴（y = 800）为底、高约画面的 37%，中心约在 0.55H，标签在轴下方：蓝点（大纲）的一份拷贝拉成绿色向量（分镜），再扫成黄色平行四边形（初版），标签与对象同色，中文 58 px；2.6–4.0 s 整组慢推 4.5%，3.0 s 和 3.5 s 各一次 1.2× indicate 加黄色闪光，都配 `bell`；4.0 s 三者一起变换成一个黄圆，落成证毕方块，名字随之写出。实际字体：STIX Two Text（网页里没有 CMU Serif）、Songti SC。配乐记成 120 BPM（60 BPM 的双倍网格），`meters` 让 3.0、3.5、4.0 s 都是小节线：C 大调，只有 `pad`、很轻的 `arp` 和几声 `bell`。
 
 ## 学习对象
 
@@ -55,6 +57,7 @@
 - **配乐**：旁白是主角，音乐只垫底：C 大调，60 BPM（30 fps 下一拍 30 帧；2 s 和 4 s 都落在拍上），`pad` + 很轻的 `arp`，能量 0.2–0.35；结论出现时一声 `bell`。
 - **音效**：几乎没有。结论落定时可以有一声 −18 dB 的 `ding`。不用 whoosh。
 - **声画关系**：旁白先行，动画比 cue 词早 0.3–0.5 s 开始；问题卡之后的 2–3 s 只留 pad；每句话说完后画面停约 1 s。
+- **样片拟音**：`events.json` 只有 8 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），−3 dB 混在配乐下：î、ĵ 弹出各一声 `tick`；标题中英两次落笔各一声很轻的 `tick`；点出现一声 `pop`；3.0、3.5 s 两次 indicate 各一声 `ding`；证毕方块落定 `click`。两次 TransformFromCopy 和最后的合并都不配声，守住"不用 whoosh"。
 
 ## 适合与不适合
 
@@ -81,7 +84,7 @@ Visual style: dark mathematical explainer. Pure black background, no glow, no pa
 - **首选 Manim CE**。直接复用 `showcase/03-math-fourier/scenes/style.py`：`Grid`（6×6 锚点、`at()`、`area()`）、包围盒审计，以及修 `always_redraw` 丢 `z_index` 的 `live()` 包装。颜色只从一个 palette 模块取，代码里 grep 不到 palette 以外的 hex。
 - **网页引擎**（HyperFrames + KaTeX 或 Canvas）：公式用 `\textcolor` 按实体上色；形状统一重采样成 N 个点（例如 64 个），变换就是逐点 `lerp`，点、线段、面都能互相变。
 - **手写字**：Canvas 里 `strokeText` 配 `setLineDash([L, L])`，`lineDashOffset = L·(1 − u)` 让轮廓逐渐画出，u > 0.6 后填充渐入。
-- 样片 `swatch.js`：暗网格和坐标轴画出，标题手写；一个蓝点拉成绿色向量，再扫成黄色平行四边形（0 维 → 1 维 → 2 维），最后三者一起变换成一个黄圆，落成证毕的方块。
+- 样片 `swatch.js`：逐段做法见开头"样片里"。实现要点：点、向量、平行四边形都重采样成 64 个点的多边形，变换就是逐点插值；indicate 是一个 sin 脉冲的缩放，外加一圈向外扩散的短射线。
 
 ## 自查重点
 

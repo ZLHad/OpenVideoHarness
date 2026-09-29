@@ -1,0 +1,10 @@
+[
+  {"t":0.75,"sfx":"pop","gain_db":-20,"pan":0},
+  {"t":2,"sfx":"tick","gain_db":-12,"pan":-0.3},
+  {"t":2.3,"sfx":"tick","gain_db":-12,"pan":0},
+  {"t":2.6,"sfx":"tick","gain_db":-12,"pan":0.3},
+  {"t":2.85,"sfx":"tick","gain_db":-14,"pan":0},
+  {"t":3.3,"sfx":"whoosh","gain_db":-16,"pan":0.3},
+  {"t":4.3,"sfx":"whoosh","gain_db":-8,"pan":0},
+  {"t":4.6,"sfx":"ding","gain_db":-10,"pan":0}
+]

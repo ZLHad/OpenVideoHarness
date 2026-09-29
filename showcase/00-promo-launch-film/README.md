@@ -48,7 +48,7 @@ npx hyperframes lint && npx hyperframes check
 npx hyperframes render --quality high --output out/final.mp4
 npx hyperframes render --quality high --variables '{"grain":0}' --output out/final-nograin.mp4   # GIF source
 ```
-Needs macOS (SF Pro via `system-ui`, SF Mono/Menlo via `local()`, PingFang for the CJK table) and network for GSAP from jsDelivr. Beat-03 asset regeneration and every other command: LESSONS.md → 可用命令. Working project: `projects/2026-09-28-launch-film/` (drafts, snapshots, seam strips in `out/`).
+Needs macOS (SF Pro via `system-ui`, SF Mono/Menlo via `local()`, PingFang for the CJK table) (GSAP is installed by `npm i`; no network at render time). Beat-03 asset regeneration and every other command: LESSONS.md → 可用命令. Working project: `projects/2026-09-28-launch-film/` (drafts, snapshots, seam strips in `out/`).
 
 ## Install commands that worked
 

@@ -1,0 +1,15 @@
+[
+  {"t":0.1,"sfx":"tick","gain_db":-12,"pan":0},
+  {"t":0.4,"sfx":"tick","gain_db":-12,"pan":0},
+  {"t":0.7,"sfx":"tick","gain_db":-12,"pan":0},
+  {"t":0.85,"sfx":"whoosh","gain_db":-16,"pan":0.5},
+  {"t":0.86,"sfx":"typing","gain_db":-18,"pan":-0.5},
+  {"t":2.2,"sfx":"toggle","gain_db":-10,"pan":-0.65},
+  {"t":2.4,"sfx":"toggle","gain_db":-10,"pan":0},
+  {"t":2.6,"sfx":"toggle","gain_db":-10,"pan":0.65},
+  {"t":2.66,"sfx":"tick","gain_db":-10,"pan":0.65},
+  {"t":2.9,"sfx":"swish_rev","gain_db":-18,"pan":0},
+  {"t":3.3,"sfx":"swish_rev","gain_db":-18,"pan":0},
+  {"t":3.6,"sfx":"success","gain_db":-12,"pan":0.65},
+  {"t":4.1,"sfx":"whoosh","gain_db":-10,"pan":0.4}
+]

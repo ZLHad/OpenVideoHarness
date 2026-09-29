@@ -2,7 +2,7 @@
   "bpm": 150, "key": "D", "mode": "major", "seed": 72,
   "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
   "sections": [
-    {"name": "pan", "bars": 1, "chords": ["I"], "layers": ["pad"], "energy": 0.25},
+    {"name": "pan", "bars": 1, "chords": ["I"], "layers": ["pad", "zheng"], "energy": 0.3},
     {"name": "captions", "bars": 1, "chords": ["IV"], "layers": ["pad", "zheng"], "energy": 0.5},
     {"name": "board", "bars": 2, "chords": ["vi", "IV"], "layers": ["pad", "zheng", "lead"], "energy": 0.5},
     {"name": "dissolve", "bars": 1, "chords": ["I"], "layers": ["pad", "zheng"], "energy": 0.4}

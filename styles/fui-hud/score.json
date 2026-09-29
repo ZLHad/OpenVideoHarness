@@ -1,10 +1,12 @@
 {
   "bpm": 150, "key": "C", "mode": "minor", "seed": 100,
-  "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "meters": {"1": 2, "2": 3, "3": 1, "4": 2, "5": 2, "6": 3},
   "sections": [
-    {"name": "boot", "bars": 1, "chords": ["i"], "layers": ["pad"], "energy": 0.3},
+    {"name": "boot", "bars": 1, "chords": ["i"], "layers": ["pad", "arp"], "energy": 0.35},
     {"name": "decode", "bars": 1, "chords": ["i"], "layers": ["pad", "arp"], "energy": 0.4},
-    {"name": "stages", "bars": 2, "chords": ["VI", "VII"], "layers": ["pad", "arp", "bass", "hats"], "energy": 0.55},
+    {"name": "waypoints", "bars": 1, "chords": ["VI"], "layers": ["pad", "arp", "bass", "hats"], "energy": 0.55},
+    {"name": "alert", "bars": 1, "chords": ["VI"], "layers": ["pad"], "energy": 0.3},
+    {"name": "scan", "bars": 1, "chords": ["VII"], "layers": ["pad", "arp", "bass", "hats"], "energy": 0.6},
     {"name": "expand", "bars": 1, "chords": ["i"], "layers": ["pad", "arp", "bass"], "energy": 0.6}
   ]
 }

@@ -1,0 +1,11 @@
+[
+  {"id": "crt",    "t": 0.07, "sfx": "boom",   "gain_db": -8,  "pan": 0},
+  {"id": "crt",    "t": 0.07, "sfx": "glitch", "gain_db": -13, "pan": 0},
+  {"id": "glint1", "t": 1.6,  "sfx": "ding",   "gain_db": -17, "pan": -0.3},
+  {"series": "obj", "t": 2.0, "sfx": "click",  "gain_db": -9,  "pan": -0.29},
+  {"series": "obj", "t": 2.2, "sfx": "click",  "gain_db": -9,  "pan": 0},
+  {"series": "obj", "t": 2.4, "sfx": "click",  "gain_db": -9,  "pan": 0.29},
+  {"id": "glint2", "t": 2.8,  "sfx": "ding",   "gain_db": -17, "pan": 0.3},
+  {"id": "track",  "t": 4.0,  "sfx": "glitch", "gain_db": -7,  "pan": 0},
+  {"id": "outrun", "t": 4.4,  "sfx": "impact", "gain_db": -8,  "pan": 0}
+]

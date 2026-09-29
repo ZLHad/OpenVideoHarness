@@ -24,8 +24,14 @@ Providers (API keys come from environment variables only, never from files):
               DASHSCOPE_TTS_MODEL (default qwen3-tts-flash), voice e.g. Cherry, DASHSCOPE_BASE_URL (intl).
   elevenlabs  ELEVENLABS_API_KEY; --voice <voice_id>; ELEVENLABS_MODEL (default eleven_multilingual_v2);
               returns character-level timing.
+  gemini      Google Gemini 3.8 Flash TTS (released 2026-09-23; paid): GEMINI_API_KEY from Google AI Studio.
+              Very expressive narration in 100+ languages incl. Mandarin. --voice is a prebuilt voice (default Kore;
+              others: Puck, Charon, Fenrir, Leda, Aoede, Zephyr …). --instruct sets the delivery in plain words
+              ("calm, confident documentary narrator"), or GEMINI_TTS_STYLE; inline tags such as <short pause>,
+              <breath>, <laugh> can go straight into script.txt. GEMINI_TTS_MODEL overrides the model id.
+  gemini-lite the same API with gemini-3.8-flash-lite-tts: cheaper, for bulk single-speaker narration.
 """
-import argparse, base64, json, os, shutil, subprocess, sys, tempfile, urllib.request, wave
+import argparse, base64, json, os, re, shutil, subprocess, sys, tempfile, urllib.error, urllib.request, wave
 from pathlib import Path
 
 SR = 48000
@@ -103,7 +109,44 @@ def p_dashscope(text, voice, out: Path, tmp: Path, lang, instruct=None):
     raw = tmp / "ds.wav"; urllib.request.urlretrieve(url, raw); to_wav(raw, out)
     return None
 
-PROVIDERS = {"qwen": p_qwen, "say": p_say, "edge": p_edge, "dashscope": p_dashscope, "elevenlabs": p_elevenlabs}
+def p_gemini(text, voice, out: Path, tmp: Path, lang, instruct=None, model=None):
+    # Interactions API (ai.google.dev/gemini-api/docs/interactions/speech-generation): WAV 24 kHz mono in steps[].content[].data
+    key = os.environ.get("GEMINI_API_KEY") or sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)")
+    content = {"type": "text", "text": text}
+    style = instruct or os.environ.get("GEMINI_TTS_STYLE")
+    if style:
+        content["annotations"] = [{"type": "speech_metadata", "style": style}]
+    body = {"model": model or os.environ.get("GEMINI_TTS_MODEL", "gemini-3.8-flash-tts"),
+            "input": [{"type": "user_input", "content": [content]}],
+            "response_format": {"type": "audio", "mime_type": "audio/wav", "sample_rate": 24000},
+            "generation_config": {"speech_config": [{"voice": voice or "Kore"}]}}
+    req = urllib.request.Request("https://generativelanguage.googleapis.com/v1beta/interactions", data=json.dumps(body).encode(),
+                                 headers={"x-goog-api-key": key, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=180) as r:
+            resp = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        sys.exit(f"gemini error {e.code}: {e.read()[:500].decode(errors='replace')}")
+    audio = [c for st in resp.get("steps", []) if st.get("type") == "model_output"
+             for c in st.get("content", []) if c.get("type") == "audio" and c.get("data")]
+    if not audio:
+        sys.exit(f"gemini: no audio in the response: {json.dumps(resp)[:500]}")
+    raw = tmp / "gm.wav"; raw.write_bytes(base64.b64decode(audio[-1]["data"])); to_wav(raw, out)
+    return None
+
+def p_gemini_lite(text, voice, out: Path, tmp: Path, lang, instruct=None):
+    return p_gemini(text, voice, out, tmp, lang, instruct, model=os.environ.get("GEMINI_TTS_MODEL", "gemini-3.8-flash-lite-tts"))
+
+PROVIDERS = {"qwen": p_qwen, "say": p_say, "edge": p_edge, "dashscope": p_dashscope, "elevenlabs": p_elevenlabs,
+             "gemini": p_gemini, "gemini-lite": p_gemini_lite}
+
+TAG = re.compile(r"\s*<[A-Za-z][A-Za-z _-]{0,30}>\s*")          # performance tags such as <short pause>, <breath>, <laugh>
+CJK_GAP = re.compile(r"(?<=[\u3000-\u9fff\uff00-\uffef]) (?=[\u3000-\u9fff\uff00-\uffef])")
+
+def strip_tags(text: str) -> str:
+    """Remove inline performance tags: only gemini voices them; every other provider would read them aloud,
+    and captions must never show them."""
+    return CJK_GAP.sub("", re.sub(r" {2,}", " ", TAG.sub(" ", text))).strip()
 
 def read_script(path: Path):
     segs = []
@@ -137,9 +180,11 @@ def main():
     t, parts = 0.0, []
     with tempfile.TemporaryDirectory() as td:
         for i, s in enumerate(segs):
-            spoken = (s["zh"] if a.lang == "zh" else s["en"]) or s["zh"] or s["en"]
+            raw = (s["zh"] if a.lang == "zh" else s["en"]) or s["zh"] or s["en"]
+            spoken = strip_tags(raw)                                   # what captions show
+            s["zh"], s["en"] = strip_tags(s["zh"]), strip_tags(s["en"])
             out = vo / f"{i+1:02d}.wav"
-            words = PROVIDERS[a.provider](spoken, a.voice, out, Path(td), a.lang, a.instruct)
+            words = PROVIDERS[a.provider](raw if a.provider.startswith("gemini") else spoken, a.voice, out, Path(td), a.lang, a.instruct)
             d = duration(out)
             s.update(text=spoken, start=round(t, 3), end=round(t + d, 3), file=str(out.relative_to(proj)))
             if words:

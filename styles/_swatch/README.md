@@ -98,6 +98,13 @@ export function renderAt(t, ctx, tokens, lib) {
 - 结束画面可以是纯色、标志性构图或风格名，不要再塞新信息。
 - 不用原作的角色、logo、具体镜头和素材；学的是语法（见 `styles/_TEMPLATE.md`）。
 
+下面四条来自第一次全库评审（26 个样片由一位没参与制作的 reviewer 按 `TASTE_CHECKLIST` 的打分层逐个打分）。当时的毛病大多是全库共性的，所以写成规格：
+
+- **第一个事件在 0.1 s，而且要看得见**：占画面 ≥ 20% 的东西在动（一道光、一笔、一次开机、一次砸入），配乐在同一拍起音。"一张空纸慢慢亮"不算 hook。当时有 5 个样片前 1 s 几乎是空底。
+- **三元素就位以后不许干等**：2.6–4.0 s 每一拍至少有一个次要动作，例如慢推、一次 punch-in、元素晃一下、数字跳动、一道扫光。这一段通常是配乐能量最高的时候，画面冻住就像播放卡了。当时有 12 个样片在这里冻了 0.5 s 以上。
+- **用这个风格自己的图形语言画三元素，不要默认的 ▶**：当时 10 个样片都拿播放键当"初版"。结尾转场也要是这个风格自己的招牌，不要几个风格都用"一个圆长大铺满全屏"。
+- **声音语法里写了的屏息、抽层，`score.json` 里就要真的有**。评审会逐条对照 STYLE.md 的声音语法。
+
 ## tokens.json：lib 读哪些字段
 
 `tokens.json` 的其他字段随意（STYLE.md 的约定为准），lib 只读下面这些，读不到就用兜底值：
@@ -161,6 +168,8 @@ export function renderAt(t, ctx, tokens, lib) {
 ## 配乐（可选）
 
 `styles/<slug>/score.json` 存在时，`render.sh` 会依次调用 `bin/vh music score.json`，截到 5 s 并在最后 0.45 s 淡出，再用 `bin/vh mix`（两遍 loudnorm，−14 LUFS），然后以 AAC 128k 封进 swatch.mp4。写法见 `bin/vh music --example` 和 `playbook/04-audio.md`。BPM 选能让 5 s 落在整拍上的值：96 BPM 是 8 拍（2 小节），120 BPM 是 10 拍，72 BPM 是 6 拍。段落边界对齐内容规格（0.8、2.0、4.0 s）。实测：96 BPM、2 小节的测试曲，封装后成片 1.06 MB，−14.6 LUFS。
+
+**拟音**：再放一个 `styles/<slug>/events.json`，格式和 `bin/vh sfx place` 一样，是 `[{"t", "sfx", "gain_db", "pan", "dist"}]`，`render.sh` 就会把音效摆在每个动作发生的那一帧，和配乐一起混音（音效 −3 dB，不做 ducking）。`sfx` 可以是内置的 15 个音效名，也可以是风格文件夹里自己的 WAV，用相对路径，来源记进 STYLE.md。`t` 是声音落点，要和 swatch.js 里对应动作的时间取自同一个常量；声像 `pan` 取发声物体在画面上的 x。qa 会把这些落点当成设计好的起音，不报 click。推荐做法：在 swatch.js 里 `export const FOLEY = [{t, sfx, gain_db, pan}]`，t 直接引用动作的时间常量，再用 `node styles/_swatch/foley.mjs <slug>` 生成 events.json，画面和声音就只有一个时间来源。内置音效里没有合适的声音时，可以在 `styles/<slug>/sfx/` 放自己合成的 WAV，但生成代码必须写进 `styles/_swatch/custom_sfx.py`（带固定种子），保证 `uv run -q --with numpy --with scipy python styles/_swatch/custom_sfx.py` 能逐字节重建。不要放下载来的素材。
 
 想让段落点精确落在 0.8 / 2.0 / 4.0 s，最省事的是 150 BPM 加 `"meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3}`（9 个电影、品牌类样片都这么做）。封装后 `render.sh` 会自动跑 `bin/vh qa scan swatch.mp4 out/<slug>/music_raw.beats.json --from 0.3 --to 4.5`，结果写进 `out/<slug>/qa.txt`，出现数字静音、掉音或抽吸就判失败。不带节拍表的话，qa 在 5 s 的片段上只会检查 1.0–2.2 s，所以不要手动省掉它。第一轮最常见的两种失败：只有 hats 的段落在拍与拍之间出现数字静音；稀疏段落出现抽吸凹坑。修法都是加一层 pad 或 sub 持续垫底。
 

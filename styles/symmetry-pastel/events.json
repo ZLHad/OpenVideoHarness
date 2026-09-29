@@ -1,0 +1,13 @@
+[
+  {"t":0.033,"sfx":"click","gain_db":-6,"pan":0},
+  {"t":0.227,"sfx":"swish_rev","gain_db":-4,"pan":0},
+  {"t":0.82,"sfx":"ding","gain_db":-10,"pan":0},
+  {"t":1.6,"sfx":"swish_rev","gain_db":-16,"pan":0},
+  {"t":2,"sfx":"tick","gain_db":-8,"pan":-0.44},
+  {"t":2.4,"sfx":"tick","gain_db":-8,"pan":0},
+  {"t":2.8,"sfx":"tick","gain_db":-8,"pan":0.44},
+  {"t":3.2,"sfx":"toggle","gain_db":-12,"pan":0},
+  {"t":3.6,"sfx":"click","gain_db":-10,"pan":0},
+  {"t":4.15,"sfx":"whoosh","gain_db":-6,"pan":0.5},
+  {"t":4.3,"sfx":"ding","gain_db":-12,"pan":0}
+]

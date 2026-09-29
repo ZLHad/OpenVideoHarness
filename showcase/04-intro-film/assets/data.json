@@ -1,0 +1,233 @@
+{
+ "checklist": [
+  {
+   "n": 1,
+   "text": "眯眼看（或缩小到 20%）认不出第一焦点？一个镜头里有多个焦点在抢？"
+  },
+  {
+   "n": 2,
+   "text": "主视觉不到画面的 40%，或有大块死区？"
+  },
+  {
+   "n": 3,
+   "text": "有东西出了安全框、进了竖屏 UI 遮挡区、压到字幕带？"
+  },
+  {
+   "n": 4,
+   "text": "标签离对象超过一格，或元素之间有遮挡？"
+  },
+  {
+   "n": 5,
+   "text": "需要观众读完的文字：同屏超过 8 个英文词，或停留不到 2.5s？中文每行超过 16 字（竖屏 72px 时 11 字），或超过 9 字/秒？（真实 UI 截图里的文字、背景纹理文字只要求\"看得出是什么\"，不要求读完）"
+  },
+  {
+   "n": 6,
+   "text": "字号低于下限（1080 宽主标题 84px / 辅助 44px；竖屏字幕 65px）？按最终成片里的实际大小量：镜头推近后以推近后为准；Manim 等不以 px 定义字号的引擎，从 1080p 成片的 crop 上量像素。GIF 预览不在考核范围内。"
+  },
+  {
+   "n": 7,
+   "text": "用了不止一个无衬线族？用斜体做强调？每个词都在强调？"
+  },
+  {
+   "n": 8,
+   "text": "有写着剧情的牌子、标签、说明文字，而本可以用画面演出来？"
+  },
+  {
+   "n": 9,
+   "text": "饱和的强调色超过一个？颜色没有语义？"
+  },
+  {
+   "n": 10,
+   "text": "出现了并非刻意的紫青渐变、玻璃拟态、渐变字、霓虹？纯黑纯白（类型文档明确要求的除外，比如 3b1b 式讲解的纯黑背景）？黄光叠蓝底变成灰绿？"
+  },
+  {
+   "n": 11,
+   "text": "前 25% 把所有内容倒上屏，然后画面冻结？"
+  },
+  {
+   "n": 12,
+   "text": "默认用 bounce/elastic，卡片呼吸循环，或者匀速 lerp？（卡通、手绘类按 ANIMATION_GUIDE 执行：预备动作、overshoot、表情 take、踩拍的 idle 动作是必需的，不算失败；匀速 lerp 在任何类型里都算失败）"
+  },
+  {
+   "n": 13,
+   "text": "所有元素同一个缓动、同一个时长、同一方向、同时入场？两只手臂或一群角色完全同步？"
+  },
+  {
+   "n": 14,
+   "text": "切点两侧运动方向相反、一侧从静止开始，或者用了 crossfade？"
+  },
+  {
+   "n": 15,
+   "text": "表情或状态在两帧之间硬切，没有预备和过渡？"
+  },
+  {
+   "n": 16,
+   "text": "反应比原因晚了几帧或同时发生？高潮前没有 0.3–0.75s 的停顿？"
+  },
+  {
+   "n": 17,
+   "text": "某个 read 少于 12 帧（0.5s）就被下一件事盖掉？两个重要 reads 重叠？"
+  },
+  {
+   "n": 18,
+   "text": "超过 3s（短视频）或 8s（讲解）什么都没发生？落点没对准节拍（±1 帧）？"
+  },
+  {
+   "n": 19,
+   "text": "有占位文字、编造的数字、不存在的 UI？第 1 秒看不出这是什么、为什么要看？"
+  },
+  {
+   "n": 20,
+   "text": "把这一帧换到任何别的主题也照样成立（说明它是装饰，不是设计）？说不出这一镜看完观众多知道了什么？"
+  }
+ ],
+ "fails": {
+  "L36": "- #1 FAIL: Clawd tiny (u 24) in a wide frame and the leaf a speck → u 30, camera zoom 1.35 following between Clawd and the perch.",
+  "L26": "- FAIL: the 5-point maple leaf reads as a star (the demo's motif!) → broader, rounder lobes and a longer curved stem. It now reads as a leaf at 45 px.",
+  "L22": "- #12 FAIL: wind streaks look like thick cream sausages → thin dry-brush plus a fine ink curl; small rust leaves ride the streaks."
+ },
+ "types": [
+  {
+   "key": "math",
+   "doc": "video-types/01-math-science-explainer.md",
+   "zh": "数学/科学原理讲解（Manim）"
+  },
+  {
+   "key": "short",
+   "doc": "video-types/02-knowledge-short.md",
+   "zh": "知识科普短视频，含竖屏（HyperFrames）"
+  },
+  {
+   "key": "promo",
+   "doc": "video-types/03-product-promo.md",
+   "zh": "产品宣传/发布片（HyperFrames）"
+  },
+  {
+   "key": "mv",
+   "doc": "video-types/04-lyric-music-video.md",
+   "zh": "歌词视频/MV（ClaudeAnimationBase 或 HyperFrames）"
+  },
+  {
+   "key": "data",
+   "doc": "video-types/05-data-story.md",
+   "zh": "数据叙事/动画图表（HyperFrames + SVG）"
+  },
+  {
+   "key": "paper",
+   "doc": "video-types/06-paper-explainer.md",
+   "zh": "论文讲解/会议视频（Manim + HyperFrames）"
+  },
+  {
+   "key": "handdrawn",
+   "doc": "video-types/07-hand-drawn.md",
+   "zh": "手绘/水彩/白板/剪纸/角色短片（ClaudeAnimationBase）"
+  },
+  {
+   "key": "meme",
+   "doc": "video-types/08-brutalist-meme.md",
+   "zh": "网络梗/野兽派快剪（HyperFrames）"
+  }
+ ],
+ "code": [
+  "function drawHook(t) {",
+  "  const c = eInOut(seg(t, 0.85, 1.45));",
+  "  const s = eInOut(seg(t, 1.6, 2.3));",
+  "  const rl = eInOut(seg(t, 2.45, 3.1));",
+  "  const lam = lerp(lerp(lerp(96, 40, c), 170, s), 96, rl);",
+  "  const xr = lerp(90, 900, eOut(seg(t, 0.25, 0.95)));",
+  "  const y0 = 1130, A = 44, ph = 2 * Math.PI * 1.4 * t;",
+  "  let d = \"\";",
+  "  for (let x = 90; x <= xr + 0.01; x += 3) {",
+  "    const env = Math.pow(Math.sin((Math.PI * (x - 90)) / 810), 0.45);",
+  "    const y = y0 + A * env * Math.sin((2 * Math.PI * (x - 495)) / lam - ",
+  "    d += (d ? \"L\" : \"M\") + f1(x) + \" \" + f1(y);",
+  "  }",
+  "  $(\"hook-wave\").setAttribute(\"d\", d);",
+  "}",
+  "",
+  "// ---------- S2: orbit ----------",
+  "const OC = { x: 495, y: 1010, R: 350 };",
+  "const onOrbit = (deg) => [OC.x + OC.R * Math.sin(deg * D2R), OC.y - OC.R",
+  "function drawOrbit(t) {",
+  "  const phi = lerp(-165, -26, seg(t, 3.2, 6.2)); // clockwise from top; ",
+  "  const [sx, sy] = onOrbit(phi);",
+  "  const rot = Math.atan2(-(OC.x - sx), OC.y - sy) / D2R; // antenna (+y)",
+  "  $(\"orb-sat\").setAttribute(\"transform\", `translate(${f1(sx)} ${f1(sy)})",
+  "  const [tx, ty] = onOrbit(phi - 32);",
+  "  $(\"orb-trail\").setAttribute(\"d\", `M${f1(tx)} ${f1(ty)} A${OC.R} ${OC.R",
+  "  $(\"stat-num\").textContent = (7.6 * eOut(seg(t, 3.55, 4.6))).toFixed(1)",
+  "}",
+  "",
+  "// ---------- S3–S7: stage ----------",
+  "const U = { x: 495, y: 900 }; // \"you\"",
+  "const DOME_R = 380;",
+  "const alphaAt = (t) => 10 + (t - 6.4) * (160 / 7.6); // 10° at 6.4s →",
+  "const T_ZERO = 6.4 + 80 / (160 / 7.6); // overhead: 10.2s",
+  "function curvePath(g, xTo, amp) {",
+  "  let d = \"\";",
+  "  const N = Math.max(1, Math.round(160 * xTo));",
+  "  for (let i = 0; i <= N; i++) {",
+  "    const x = (i / N) * xTo;",
+  "    const px = lerp(g.x0, g.x1, x), py = g.zero - amp * g.A * PHYS.PEAK ",
+  "    d += (d ? \"L\" : \"M\") + f1(px) + \" \" + f1(py);",
+  "  }",
+  "  return xTo <= 0 ? \"\" : d;",
+  "}",
+  "const setA = (id, attrs) => {",
+  "  const el = $(id);",
+  "  for (const k in attrs) el.setAttribute(k, attrs[k]);",
+  "};",
+  "function drawStage(t) {",
+  "  // --- sky dome, satellite, ribbon ---",
+  "  const out = eIn(seg(t, 14.6, 15.2));",
+  "  setA(\"dome-group\", { transform: `translate(0 ${f1(-170 * out)})`, opac",
+  "  const a0 = 6, a1 = 174;",
+  "  const p0 = [U.x - DOME_R * Math.cos(a0 * D2R), U.y - DOME_R * Math.sin",
+  "  const p1 = [U.x - DOME_R * Math.cos(a1 * D2R), U.y - DOME_R * Math.sin",
+  "  $(\"dome-arc\").setAttribute(\"d\", `M${f1(p0[0])} ${f1(p0[1])} A${DOME_R}",
+  "  $(\"dome-note\").setAttribute(\"opacity\", f1(seg(t, 7.6, 8.1)));",
+  "",
+  "  const al = clamp(alphaAt(t), -8, 186); // rises from / sets behind the",
+  "  const sx = U.x - DOME_R * Math.cos(al * D2R), sy = U.y - DOME_R * Math",
+  "  const DS = 1.3, PIV = U.y - 34 * DS; // dish scale + bowl pivot (world",
+  "  const feed = [U.x, PIV - 28 * DS];",
+  "  const rot = Math.atan2(-(feed[0] - sx), feed[1] - sy) / D2R;",
+  "  setA(\"st-sat\", { transform: `translate(${f1(sx)} ${f1(sy)}) rotate(${f",
+  "  const bowl = clamp(Math.atan2(sx - U.x, -(sy - PIV)) / D2R, -72, 72);",
+  "  setA(\"dish-bowl\", { transform: `translate(0 -34) rotate(${f1(bowl)})` ",
+  "",
+  "  // ribbon: antenna tip → dish feed, wavelength follows the real (nor",
+  "  const xNow = PHYS.xAtAlpha(al);",
+  "  const n = nAt(xNow);",
+  "  const ant = [sx - 28 * Math.sin(rot * D2R), sy + 28 * Math.cos(rot * D",
+  "  const bx = U.x + 28 * DS * Math.sin(bowl * D2R), by = PIV - 28 * DS * ",
+  "  const Lx = bx - ant[0], Ly = by - ant[1], L = Math.hypot(Lx, Ly);",
+  "  const ux = Lx / L, uy = Ly / L, nx = -uy, ny = ux;",
+  "  const lam = 64 * (1 - 0.5 * n); // approaching → shorter (exaggerate",
+  "  const ph = 2 * Math.PI * 2.0 * t;",
+  "  const grow = eOut(seg(t, 6.5, 7.0));",
+  "  let d = \"\";",
+  "  const Lv = L * grow;",
+  "  for (let s = 0; s <= Lv + 0.01; s += 3) {",
+  "    const env = Math.pow(Math.sin((Math.PI * s) / L), 0.5);",
+  "    const off = 17 * env * Math.sin((2 * Math.PI * s) / lam - ph);",
+  "    d += (d ? \"L\" : \"M\") + f1(ant[0] + ux * s + nx * off) + \" \" + f1(ant",
+  "  }",
+  "  setA(\"ribbon\", { d, opacity: f1(1 - seg(t, 14.0, 14.5)) });",
+  "",
+  "  // --- chart geometry: small (under the dome) → big (center), one co",
+  "  const Lg = eInOut(seg(t, 14.7, 15.6));",
+  "  const g = { x0: 170, x1: 866, zero: lerp(1160, 930, Lg), A: lerp(110, ",
+  "  const inC = eOut(seg(t, 7.2, 7.8));",
+  "  setA(\"chart\", { opacity: f1(inC), transform: `translate(0 ${f1(24 * (1",
+  "  setA(\"ch-panel\", { y: f1(g.zero - g.A - 80), height: f1(2 * g.A + 160)",
+  "  setA(\"ch-grid-top\", { y1: f1(g.zero - g.A), y2: f1(g.zero - g.A) });",
+  "  setA(\"ch-grid-bot\", { y1: f1(g.zero + g.A), y2: f1(g.zero + g.A) });",
+  "  setA(\"ch-zero\", { y1: f1(g.zero), y2: f1(g.zero) });",
+  "  const yTop = g.zero - g.A - 24, yBot = g.zero + g.A + 58;",
+  "  setA(\"ch-title\", { y: f1(yTop) });",
+  "  setA(\"ch-xlabel\", { y: f1(yBot) });",
+  "",
+  "  // tick labels: slide-swap  (+/- words) → ±50 kHz → ±500 kHz"
+ ]
+}

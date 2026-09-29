@@ -1,0 +1,7 @@
+[
+  {"id": "lamp",    "t": 0.1,  "sfx": "boom", "gain_db": -12, "pan": 0, "dist": 2},
+  {"series": "card", "t": 2.0, "sfx": "tick", "gain_db": -8,  "pan": -0.05},
+  {"series": "card", "t": 2.4, "sfx": "tick", "gain_db": -8,  "pan": 0.18},
+  {"series": "card", "t": 2.8, "sfx": "tick", "gain_db": -8,  "pan": 0.42},
+  {"id": "relight", "t": 4.42, "sfx": "pop",  "gain_db": -8,  "pan": 0, "dist": 2}
+]

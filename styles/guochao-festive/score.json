@@ -57,7 +57,8 @@
         "zheng"
       ],
       "energy": 1.0,
-      "impact": true
+      "impact": true,
+      "fill": true
     },
     {
       "name": "doors",

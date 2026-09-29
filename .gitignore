@@ -12,3 +12,8 @@ projects/*
 !projects/README.md
 __pycache__/
 *.pyc
+
+# showcase 04: proxies rebuilt by tools/make_clips.sh from showcase 00–03; the film's regenerable audio
+showcase/04-intro-film/assets/clips/
+showcase/04-intro-film/audio/*.wav
+showcase/04-intro-film/audio/sfx/

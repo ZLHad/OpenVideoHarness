@@ -1,10 +1,10 @@
 # 纪念碑科幻 · monumental-scifi
 
-一句话：巨大的形体、层层的雾、极慢的镜头、极少的字，再加一条低到胸腔的持续音。它用尺度差讲"人面对一个比自己大得多的东西"。适合产品和技术发布的 teaser、宇宙和未来题材、大片感的开场与片名。本仓库自己的介绍片（`projects/2026-09-29-intro-film/`：一镜到底穿过雾中的"帧的档案馆"，琥珀色是唯一的光）就属于这一族。
+一句话：巨大的形体、层层的雾、极慢的镜头、极少的字，再加一条低到胸腔的持续音。它用尺度差讲"人面对一个比自己大得多的东西"。适合产品和技术发布的 teaser、宇宙和未来题材、大片感的开场与片名。本仓库自己的介绍片（`showcase/04-intro-film/`：一镜到底穿过雾中的"帧的档案馆"，琥珀色是唯一的光）就属于这一族。
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：雾中一块顶出画框的巨石，琥珀地平线从中间画开；片名宽字距逐字淡入；三块纪念碑从地面雾里依次浮出（只有边框 → 分段 → 实体加琥珀光缝），脚边一个 36 px 的人；4.0 s 起镜头加速推向光缝，整帧被雾吞没，再从雾里显出结束画面。实际字体：Avenir Next Regular、PingFang SC Light（样片没有用等宽字）。配乐是 150 BPM 网格上的 `pad`、`bell`、`taiko`，听感是慢的。
+样片里：三块黑色巨碑高于画框（被画框顶部裁掉），碑后是唯一的主光——琥珀色的雾。0.1 s 雾光亮起，地平线从中间画开，镜头开始慢推加下降。片名放在地平线下的暗地面上：76 px 宽字距大写，对比度远高于 7:1。2.0 s 起三块碑依次点亮：大纲只亮边线，分镜亮起接缝，初版的琥珀光缝在 2.8 s 点燃；名字刻在碑面上。3.2 s 一道光沿光缝往上爬，3.6 s 雾光涌起、人影被拉长。初版碑脚下站着一个 52 px 的人，挡在光前面。4.0 s 镜头加速推进光缝，整帧被雾吞没，再从雾里显出结束画面。实际字体：Avenir Next Medium、PingFang SC（样片没有用等宽字）。配乐 150 BPM：`pad`、`bell`、`taiko`；3.2–4.0 s 一小节只留 `pad`（收掉高频的屏息），4.0 s 一记 `impact`。拟音：0.1 s 雾光亮起、2.8 s 光缝点燃、3.75 s 雾光涌起各一记 boom（按距离做远），点亮和推进用低沉的 whoosh。拟音的落点写在 swatch.js 的 `FOLEY` 常量里，`events.json` 由它生成。
 
 ## 学习对象
 
@@ -105,7 +105,7 @@ Visual style: monumental, minimal science fiction. Vast unadorned forms (slabs, 
 ## 引擎做法
 
 - 首选 HyperFrames 加一层 Three.js：`FogExp2`，`PerspectiveCamera` 的 fov 取 28–40；UnrealBloom 的阈值放在 1.0 以上，只让琥珀色发光。纯 2D 时用 5 层 Canvas 做视差，每层按深度混入雾色。
-- **镜头路径**：写关键帧，用 Hermite 插值，按真实时间参数化。介绍片 `projects/2026-09-29-intro-film/js/main.js` 里的 `K[]` 是现成样板（只读参考，复制到自己的项目里再改）。
+- **镜头路径**：写关键帧，用 Hermite 插值，按真实时间参数化。介绍片 `showcase/04-intro-film/js/main.js` 里的 `K[]` 是现成样板（只读参考，复制到自己的项目里再改）。
 - **雾的漂移**：用 3D value noise 采样 `(x, y, t*0.03)`，只取低频。尘埃点用 `hash(i)` 初始化，随 t 线性漂移。
 - **体积光**：一张加色混合的竖直面片，沿光束方向渐隐；亮度上限设为字亮度的 0.8。
 - **字**：DOM 或 SDF 文本放在最上层，`depthTest: false`，但仍按透视放在空间里；中文副行放在英文下方 0.9 em 处。
@@ -120,7 +120,7 @@ Visual style: monumental, minimal science fiction. Vast unadorned forms (slabs, 
 
 ## 相关资源
 
-- 本仓库的介绍片：`projects/2026-09-29-intro-film/` 的 STYLE.md、`js/fx.js` 效果预设和 NOTES.md 里的取舍；`playbook/08-vfx-and-motion-sources.md` 的预设栈和"光效不能把字烧掉"底线。
+- 本仓库的介绍片：`showcase/04-intro-film/` 的 STYLE.md、`js/fx.js` 效果预设和 NOTES.md 里的取舍；`playbook/08-vfx-and-motion-sources.md` 的预设栈和"光效不能把字烧掉"底线。
 - lemo-opuscar 里没有直接对应的风格。`dark-keynote` 的扫光揭示、`glass-product` 的"慢爆炸图、静默之后落拍"可以借用（`references/repos/lemo-opuscar/styles/<slug>/STYLE.md`，LemoLab，CC BY 4.0）。
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 里的 Shadow Cut（从黑暗中浮现、慢推）。
 - `video-types/03-product-promo.md`、`cases/explainer-interstellar-blackhole.md`。
