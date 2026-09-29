@@ -1,0 +1,19 @@
+[
+  {"t":0.133,"sfx":"swish_rev","gain_db":-4,"pan":0.3},
+  {"t":0.2,"sfx":"impact","gain_db":-6,"pan":0},
+  {"t":0.4,"sfx":"glitch","gain_db":-12,"pan":0},
+  {"t":0.5,"sfx":"shutter","gain_db":-8,"pan":0.7},
+  {"t":0.82,"sfx":"swish_rev","gain_db":-16,"pan":-0.7},
+  {"t":1.045,"sfx":"swish_rev","gain_db":-16,"pan":-0.4},
+  {"t":1.2,"sfx":"glitch","gain_db":-12,"pan":0},
+  {"t":1.27,"sfx":"swish_rev","gain_db":-16,"pan":-0.05},
+  {"t":1.36,"sfx":"swish_rev","gain_db":-16,"pan":0.1},
+  {"t":1.6,"sfx":"swish_rev","gain_db":-16,"pan":-0.6},
+  {"t":2,"sfx":"glitch","gain_db":-12,"pan":0},
+  {"t":2.4,"sfx":"shutter","gain_db":-12,"pan":0},
+  {"t":2.8,"sfx":"glitch","gain_db":-12,"pan":0},
+  {"t":3.2,"sfx":"glitch","gain_db":-12,"pan":0},
+  {"t":3.6,"sfx":"shutter","gain_db":-12,"pan":0},
+  {"t":4,"sfx":"impact","gain_db":-4,"pan":0},
+  {"t":4.12,"sfx":"swish_rev","gain_db":-14,"pan":-0.5}
+]

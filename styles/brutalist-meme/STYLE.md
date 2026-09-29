@@ -4,6 +4,8 @@
 
 样片：`media/swatch.mp4`（5 s）· 封面 `media/poster.jpg`
 
+样片实况：所有"截图"都是本仓库的真实素材，不画假界面。第 0 帧就是全屏的原始终端，`bin/vh style list` 的真实输出按 12 fps 滚出；0.4 s 在拍上硬切到其中一行（brutalist-meme），放大到 96 px，用强调色粗暴地划一道线。0.8 s 硬切到标题，12 栏网格露在外面；1.6 s 再硬切出中文。2.0 / 2.2 / 2.4 s 三个直角窗口按八分音符砸进来：`templates/BRIEF.md` 的原文（大纲）、从 `styles/gallery.jpg` 裁下再压成 q28 的烂 JPEG（分镜）、这支样片早先一次 `render.sh` 的真实输出逐行打出（初版，斜 3° 破网格）。标签故意混排 Times New Roman 斜体、Arial Black 和 Menlo。2.0 / 2.4 / 2.8 s 一个手画的鼠标箭头跳到下一个窗口，每拍一次 115% 的 punch-in；3.2 s 推近后定格屏息到 3.6 s，3.6 s 橙色徒手框圈住 DRAFT，写上 "← SHIP IT"；4.0 s 5 帧 glitch 硬切到出血的大字，4.2 和 4.4 s 再各踩一次 punch-in。截图里的字只要求认得出是什么（`TASTE_CHECKLIST` #5）。
+
 ## 学习对象
 
 | 作品 | 年份 · 作者 / 工作室 | 从它身上学什么 |
@@ -25,7 +27,7 @@
   - 主标题：`Space Grotesk` Bold，120–220px，字距 −0.03em；退回 `Helvetica Neue` Bold；
   - 中文：`PingFang SC` Semibold → `Hiragino Sans GB` W6；中文标签不做全大写，改用 `【】` 括住；
   - Space Mono、Space Grotesk 是 OFL 字体，本机未装，放进项目的 `assets/fonts/`。
-  - 样片实际用字：`Space Grotesk` 和 `Space Mono` 本机没有，样片实际回落为 `Helvetica Neue` Bold 150px（英文）和 `Menlo` Bold（标签）；中文 `PingFang SC` Semibold 80px / 52px。
+  - 样片实际用字：`Space Grotesk` 和 `Space Mono` 本机没有，样片实际回落为 `Helvetica Neue` Bold 150px（英文）和 `Menlo` Bold（标签）；中文 `PingFang SC` Semibold 80px / 52px；三元素的英文标签故意混排系统字体：`Times New Roman` Bold Italic 42px、`Arial Black` 34px、`Menlo` Bold 36px；截图里的终端和编辑器文字用 `Menlo` 16–40px，0.4 s 放大的那一行 96px。
 - **构图**：
   - 先建一个看得见的 12 栏网格（1px `#2A2A2A` 线，1920 宽时边距 96px），所有元素先吸附到网格；
   - 再故意打破：每个画面只打破一处（一张截图旋转 2–4°、一个大字出框 10–20%、一块元素压住网格线）；
@@ -56,7 +58,7 @@
 - **配乐**：`bin/vh music`，`bpm: 120`（一拍 0.5 s，正好对上 0.5–1.5 s 的切点节奏），`key: "E"`，`mode: "minor"`；`kick`、`clap`、`hats`、`bass`，可选短促的 `lead` 做 stab。段落之间用 `fill` 留一拍空，给包袱前的 0.4 s 静默让位。
 - **音效**：定格 `shutter`、错误 `error`、弹出 `pop`、点击 `click`、打字 `typing`、段落分界 `glitch`、包袱 `impact`。每个音效对应画面上一个动作，不做装饰性铺底。
 - **声画关系**：卡点最密的一种风格：每个切点、每个 punch-in 都在拍上（±1 帧）。屏息是笑点的一部分：包袱前 0.4 s 撤掉鼓组、音量降 10 dB 以上，但保留底垫；`TASTE_CHECKLIST` #18 不允许片中出现数字静音。08 类型文档写的是"0.4 秒静默"，按新规则理解为屏息。
-- **样片小样**：样片的 5 s 声音小样（`score.json`）：样片按 150 BPM 走（每个切点都在 0.4 s 的格子上），E 小调；0.8 s 硬切处 `impact`，3.2–3.6 s 屏息只留 `pad` 和 `bass`，3.6 s 包袱和 4.0 s 故障各一记 `impact`。故障音效本身要用 `bin/vh sfx` 的 `glitch` 另铺，样片渲染器只混配乐。
+- **样片小样**：样片的 5 s 声音小样（`score.json`）：样片按 150 BPM 走（每个切点都在 0.4 s 的格子上），E 小调；0.8 s 硬切处 `impact`，3.2–3.6 s 屏息只留 `pad` 和 `bass`，3.6 s 包袱和 4.0 s 故障各一记 `impact`。拟音（`events.json`）：0.4 / 0.8 / 1.6 s 三处硬切和 4.0 s 故障转场各一声 glitch，其余每个 punch-in（2.0 2.2 2.4 2.8 3.2 3.6 4.2 4.4 s）一声 `click`，3.27 s 定格一声 `shutter`。glitch 用 `sfx/glitch_cut.wav`：照内置 `glitch` 的做法合成（方波在 80/160/640/1280 Hz 间每 12.5 ms 跳一次，10 ms 随机门控，指数衰减），但方波边沿和门控开合各有 1–2 ms 的斜坡。内置版本的硬门控会在起音后 45–130 ms 留下台阶，qa 把它们报成 click；这一版起音就落在切点上，不需要提前。
 
 ## 适合与不适合
 

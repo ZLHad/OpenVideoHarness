@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：暖白无缝台上，一个虚构的橙色圆角设备放大滑入、停稳，0.3 s 后标题上浮；随后它退到第三格，旁边出现它的线框稿和三段拼合稿（大纲 → 分镜 → 初版）；4.0 s 一道斜向光带扫过，光后是暗色舞台上的成品。实际字体：Avenir Next Demi Bold / Regular、PingFang SC。配乐 150 BPM：`pad` + `arp` 起，揭示处 `impact` 后进满编。
+样片里：暖白无缝台上只有一个英雄产品，WebGL2 片元着色器 ray-march 出来的圆角厚板（SDF）：机身是强调色的阳极氧化铝，正面是玻璃。灯光是解析的影棚环境：顶上一块大柔光箱在玻璃上留下一条高光带，背后两条轮廓光勾出倒角，另有接触阴影和淡淡的地面倒影；2×2 超采样。第 0 帧从一个倒角的微距特写开始，0.85 s 拉出全貌，同时设备在转台上转 18°（临界阻尼弹簧）。停稳 0.3 s 后标题上浮。屏幕依次点亮大纲 → 分镜 → 初版；初版是一个巨大的"1.0"，这是发布会里那个"唯一的大数字"。2.8 s 分镜卡的橙色描边闪一下，3.2 s 一道渲染光扫过初版卡；1.0–4.0 s 镜头慢推 7%，2.9–4.0 s 转台再转 12.6°。屏幕标签英文约 45 px、中文约 57 px。4.0 s 斜向光带扫过，转到暗舞台，同一台设备只剩轮廓光。实际字体：Avenir Next Demi Bold / Regular、PingFang SC。配乐 150 BPM：`pad` + `arp` 起，3.2–4.0 s 只留 `pad` 屏息，揭示处 `impact` 后进满编。拟音：落稳时一下极轻的 pop，卡片点亮用 tick，扫光和转场用 whoosh，片名出现时全片唯一一声 ding。拟音的落点写在 swatch.js 的 `FOLEY` 常量里，`events.json` 由它生成。
 
 ## 学习对象
 
@@ -97,7 +97,7 @@ Visual style: precise product keynote film. One idea per frame on a seamless sta
 ## 引擎做法
 
 - 首选 HyperFrames。有 3D 产品时加一层 Three.js（`MeshPhysicalMaterial`、strip light 环境、Neutral tone mapping）；只有 UI 的产品用 DOM + GSAP。
-- **产品**：用原创的程序化几何（圆角长方体、圆柱、胶囊）加材质。只有用户自己的产品才用真实模型或截图。
+- **产品**：用原创的程序化几何（圆角长方体、圆柱、胶囊）加材质。只有用户自己的产品才用真实模型或截图。不用 Three.js 也能做：样片用 `lib.shader` 写了一个 SDF ray-marcher（圆角挤出板、解析柔光箱 + 轮廓光环境、soft shadow、一次地面反射），1080p、2×2 超采样，一帧约 40 ms。屏幕内容先画在 2D canvas 上，当纹理传进 shader。不要用 2D 渐变去假装侧面，那样做出来像玩具或 U 盘。
 - **扫光**：一条宽 0.3W 的柔边亮带，沿 30° 斜线在 0.8–1.2 s 内扫过（`mix-blend-mode: screen`，或在 shader 里按 uv 加亮）；亮度上限 = 字亮度 × 0.8。
 - **先物后字**：在时间线上把标题的起点写成 `productSettle + 0.3`，不要手填时间。
 - **弹簧**：Remotion 里用 `spring({stiffness: 170, damping: 26, mass: 1})`，或者自己写解析解；GSAP 用 `power4.out` 近似。

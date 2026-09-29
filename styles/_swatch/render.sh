@@ -173,13 +173,24 @@ grep -h "\[swatch\]" "$LOG" 2>/dev/null | sort -u | head -10 | sed 's/^/   log: 
 [ $fail = 0 ] || exit 1
 echo "$ok ${n} frames at ${wh}, canvas drew, no error card ($((T1 - T0))s render)"
 
-# ── optional score → 5 s music bed
-AUDIO=""
+# ── optional score → 5 s music bed, optional events.json → foley placed on the frame of each action
+AUDIO=""; MIXARGS=()
 if [ $builtin = 0 ] && [ -f "$SRC/score.json" ]; then   # (SRC = styles/<slug> or the given folder)
   echo "→ music from ${SRC#$ROOT/}/score.json"
   "$ROOT/bin/vh" music "$SRC/score.json" "$OUT/music_raw.wav" >/dev/null
   ffmpeg -v error -y -i "$OUT/music_raw.wav" -af "atrim=0:$DUR,afade=t=out:st=$(python3 -c "print($DUR-0.45)"):d=0.45,apad=whole_dur=$DUR" "$OUT/music5.wav"
-  "$ROOT/bin/vh" mix "$OUT/music.wav" music="$OUT/music5.wav" >/dev/null
+  MIXARGS+=(music="$OUT/music5.wav" music_db=0)
+fi
+if [ $builtin = 0 ] && [ -f "$SRC/events.json" ]; then  # [{"t", "sfx", "gain_db", "pan", "dist"}]; own WAVs relative to the style folder
+  echo "→ foley from ${SRC#$ROOT/}/events.json"
+  "$ROOT/bin/vh" sfx lib "$OUT/sfxlib" >/dev/null       # rebuilt each time, so library fixes always reach the swatch
+  (cd "$SRC" && "$ROOT/bin/vh" sfx place events.json "$OUT/sfx_raw.wav" "$DUR" --lib "$OUT/sfxlib" >/dev/null)
+  # same 0.45 s fade as the score, so a long SFX that runs past the end isn't cut off with a click at 5.0 s
+  ffmpeg -v error -y -i "$OUT/sfx_raw.wav" -af "atrim=0:$DUR,afade=t=out:st=$(python3 -c "print($DUR-0.45)"):d=0.45,apad=whole_dur=$DUR" "$OUT/sfx.wav"
+  MIXARGS+=(sfx="$OUT/sfx.wav" sfx_db=-3)
+fi
+if [ ${#MIXARGS[@]} -gt 0 ]; then
+  "$ROOT/bin/vh" mix "$OUT/music.wav" "${MIXARGS[@]}" duck=off >/dev/null   # no ducker: a 5 s clip has no voice to make way for
   AUDIO="$OUT/music.wav"
 fi
 
@@ -199,12 +210,14 @@ for crf in 18 20 22 24 26 28 30 32 34; do
 done
 [ "$sz" -le $MP4_LIMIT ] || die "swatch.mp4 is still $sz bytes at CRF $crf: reduce full-frame grain/noise"
 mv "$TMP" "$MP4"
-echo "$ok ${MP4#$ROOT/}  $(python3 -c "print(f'{$sz/1e6:.2f} MB')")  (crf $crf$([ -n "$AUDIO" ] && echo ', +music' || echo ', silent'))"
+echo "$ok ${MP4#$ROOT/}  $(python3 -c "print(f'{$sz/1e6:.2f} MB')")  (crf $crf$([ -f "$SRC/score.json" ] && [ $builtin = 0 ] && echo ', +music')$([ -f "$SRC/events.json" ] && [ $builtin = 0 ] && echo ', +foley')$([ -z "$AUDIO" ] && echo ', silent'))"
 
 # ── audio QA on the shipped file: silence / dropouts / pumping over the whole clip (the fade-out tail excluded).
 #    Without the beat map, `qa scan` would only look at ~1.0–2.2 s of a 5 s clip, so always pass it.
 if [ -n "$AUDIO" ]; then
-  "$ROOT/bin/vh" qa scan "$MP4" "$OUT/music_raw.beats.json" --from 0.3 --to $(python3 -c "print($DUR-0.5)") > "$OUT/qa.txt" 2>&1 \
+  QA_ARGS=(); [ -f "$OUT/music_raw.beats.json" ] && [ -f "$SRC/score.json" ] && QA_ARGS+=("$OUT/music_raw.beats.json")
+  [ -f "$SRC/events.json" ] && QA_ARGS+=(--events "$SRC/events.json")   # foley onsets are designed, not clicks
+  "$ROOT/bin/vh" qa scan "$MP4" "${QA_ARGS[@]}" --from 0.3 --to $(python3 -c "print($DUR-0.5)") > "$OUT/qa.txt" 2>&1 \
     && echo "$ok audio qa passed (${OUT#$ROOT/}/qa.txt)" \
     || die "audio qa failed — see ${OUT#$ROOT/}/qa.txt (typical fixes: a pad/sub bed under sparse bars, no hats-only sections)"
 fi

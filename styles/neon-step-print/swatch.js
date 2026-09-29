@@ -1,9 +1,10 @@
 // neon-step-print swatch — neon night, step-printed motion smear, red/green with fixed meanings.
-//   0.0–0.8  night street under green fluorescent light; the crowd and traffic already stream past, step-printed:
+//   0.0–0.8  the street lights flicker on at 0.1 s; night street under green fluorescent light; the crowd and traffic already stream past, step-printed:
 //            sampled at 8 fps, each sample a long exposure (12 sub-frames, 432° shutter), held 3–4 frames.
 //            A still figure on the left third stays sharp. Handheld drift + 4° dutch tilt, stepped with the picture.
 //   0.8–2.6  the timestamp flips digit by digit (23:59:57 → …); the title types in as warm-white subtitles
-//   2.0–4.0  three neon signs ignite left → right (flicker, then steady): outline, storyboard (green), draft (red)
+//   2.0–4.0  three neon signs ignite on the beats 2.0 / 2.4 / 2.8 and spill their colour onto the figure: outline,
+//            storyboard (green), draft (a red neon film reel); the middle sign buzzes at 3.2, the cup comes up at 3.6
 //   4.0–5.0  step-smear cut: the whole frame goes step-printed on a fast pan; at the longest trail it cuts to a
 //            red freeze-frame (one long exposure held still)
 // Subtitles and the timestamp are drawn after the smear, so they never blur.
@@ -75,25 +76,57 @@ function stream(ctx, lib, tokens, ts) {       // the crowd (sampled; its smear c
   }
   ctx.restore();
 }
-function subject(ctx, lib, tokens) {           // the still figure: sharp, red rim = warmth
+function subject(ctx, lib, tokens, t) {        // the still figure: profile facing the signs, coat collar up, a paper cup
   const C = (k) => lib.color(tokens, k);
-  const x = 420, base = 1010, h = 560;
-  ctx.save(); ctx.fillStyle = "#030606";
-  ctx.beginPath(); ctx.moveTo(x - 150, base); ctx.bezierCurveTo(x - 140, base - h * 0.55, x - 60, base - h * 0.62, x, base - h * 0.62);
-  ctx.bezierCurveTo(x + 60, base - h * 0.62, x + 140, base - h * 0.55, x + 150, base); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(x, base - h * 0.78, 58, 72, 0, 0, lib.TAU); ctx.fill();
-  ctx.strokeStyle = C("accent"); ctx.lineWidth = 4; ctx.shadowColor = C("accent"); ctx.shadowBlur = 18;
-  ctx.beginPath(); ctx.ellipse(x, base - h * 0.78, 58, 72, 0, -0.9, 0.9); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x + 60, base - h * 0.61); ctx.bezierCurveTo(x + 138, base - h * 0.55, x + 148, base - h * 0.3, x + 150, base); ctx.stroke();
+  const x = 430, base = 1030;
+  const raise = lib.ease.inOutSine(lib.seg(t, 3.5, 3.75)) * 34;                 // 3.6 s: the cup comes up to the lips
+  const P = new Path2D();
+  P.moveTo(x - 190, base);                                                      // coat: back, shoulders, raised collar
+  P.bezierCurveTo(x - 190, base - 250, x - 170, base - 400, x - 118, base - 430);
+  P.lineTo(x - 70, base - 492); P.lineTo(x - 30, base - 456);                     // collar point at the nape
+  P.bezierCurveTo(x - 30, base - 470, x + 10, base - 470, x + 28, base - 452);
+  P.lineTo(x + 56, base - 470); P.lineTo(x + 70, base - 420);                     // collar front
+  P.bezierCurveTo(x + 120, base - 400, x + 150, base - 330, x + 158, base);
+  P.closePath();
+  const H = new Path2D();                                                       // head in profile: brow, nose, lips, chin
+  H.moveTo(x - 40, base - 470);
+  H.bezierCurveTo(x - 86, base - 520, x - 80, base - 620, x - 10, base - 640);   // back of skull / hair
+  H.bezierCurveTo(x + 50, base - 650, x + 76, base - 610, x + 74, base - 580);   // crown to brow
+  H.lineTo(x + 80, base - 560); H.lineTo(x + 98, base - 530); H.lineTo(x + 80, base - 522);   // nose
+  H.lineTo(x + 84, base - 506); H.lineTo(x + 76, base - 498); H.lineTo(x + 80, base - 486);   // lips
+  H.bezierCurveTo(x + 76, base - 468, x + 56, base - 462, x + 36, base - 466);   // chin, jaw
+  H.lineTo(x + 20, base - 452); H.closePath();
+  ctx.save();
+  ctx.fillStyle = "#030606"; ctx.fill(P); ctx.fill(H);
+  // arm and cup
+  const cx = x + 132, cy = base - 330 - raise;
+  ctx.beginPath(); ctx.moveTo(x + 60, base - 360); ctx.quadraticCurveTo(x + 150, base - 240, cx - 6, cy + 34); ctx.lineTo(cx + 18, cy + 30); ctx.quadraticCurveTo(x + 176, base - 230, x + 96, base - 330); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = lib.mixColor(C("fg"), C("extra.0"), 0.25);
+  ctx.beginPath(); ctx.moveTo(cx - 18, cy - 30); ctx.lineTo(cx + 22, cy - 30); ctx.lineTo(cx + 17, cy + 30); ctx.lineTo(cx - 13, cy + 30); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#0b1717"; ctx.fillRect(cx - 20, cy - 36, 44, 8);
+  ctx.strokeStyle = lib.rgba(C("fg"), 0.35); ctx.lineWidth = 3; ctx.lineCap = "round";            // steam (seeded wisps, drifting)
+  for (let k = 0; k < 2; k++) { ctx.beginPath(); for (let i = 0; i <= 12; i++) { const yy = cy - 44 - i * 9, xx = cx + k * 12 + Math.sin(i * 0.6 + t * 3 + k) * 7; i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy); } ctx.stroke(); }
+  // rim light: red on the face (warmth), green on the back; the signs' colour spills onto the front as they light
+  const spill = [2.0, 2.4].reduce((m, ts) => Math.max(m, lib.seg(t, ts, ts + 0.2)), 0), red = lib.seg(t, 2.8, 3.0);
+  ctx.lineWidth = 5; ctx.shadowBlur = 18;
+  ctx.strokeStyle = C("accent"); ctx.shadowColor = C("accent"); ctx.globalAlpha = 0.75 + 0.25 * red;
+  ctx.save(); ctx.beginPath(); ctx.rect(x + 34, base - 700, 120, 260); ctx.clip(); ctx.stroke(H); ctx.restore();   // rim on the face side only
+  ctx.strokeStyle = C("extra.0"); ctx.shadowColor = C("extra.0"); ctx.globalAlpha = 0.5 + 0.4 * spill;
+  ctx.save(); ctx.beginPath(); ctx.rect(x - 220, base - 700, 190, 700); ctx.clip(); ctx.stroke(P); ctx.restore();
+  ctx.shadowBlur = 0; ctx.globalAlpha = 1;
+  ctx.save(); ctx.clip(P); const g = ctx.createRadialGradient(x + 200, base - 520, 0, x + 200, base - 520, 380);
+  g.addColorStop(0, lib.rgba(lib.mixColor(C("extra.0"), C("accent"), red), 0.32 * Math.max(spill, red))); g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g; ctx.fillRect(x - 250, base - 700, 600, 700); ctx.restore();
   ctx.restore();
 }
 function signs(ctx, lib, tokens, t) {
   const C = (k) => lib.color(tokens, k);
   const xs = [820, 1150, 1480], y = 250;
   xs.forEach((x, k) => {
-    const t0 = 2.0 + k * 0.25, f = lib.frame(t) - lib.frame(t0);
+    const t0 = 2.0 + k * 0.4, f = lib.frame(t) - lib.frame(t0);
     if (f < 0) return;
-    const on = f > 6 ? 1 : [1, 0, 0.6, 0, 1, 0.3, 1][f];
+    let on = f > 6 ? 1 : [1, 0, 0.6, 0, 1, 0.3, 1][f];
+    if (k === 1) { const b = lib.frame(t) - 96; if (b >= 0 && b < 5) on = [0.2, 1, 0.1, 0.8, 1][b]; }        // 3.2 s: the middle sign buzzes
     const col = k === 2 ? C("accent") : C("extra.0");
     ctx.save();
     ctx.fillStyle = "#061010"; ctx.strokeStyle = "#1b2b2b"; ctx.lineWidth = 2;
@@ -103,7 +136,11 @@ function signs(ctx, lib, tokens, t) {
     ctx.beginPath();
     if (k === 0) for (let j = 0; j < 3; j++) { ctx.moveTo(x - 70, y - 40 + j * 40); ctx.lineTo(x + (j === 2 ? 20 : 70), y - 40 + j * 40); }
     else if (k === 1) for (let j = -1; j <= 1; j++) ctx.rect(x + j * 62 - 24, y - 40, 48, 80);
-    else { ctx.moveTo(x - 36, y - 44); ctx.lineTo(x + 46, y); ctx.lineTo(x - 36, y + 44); ctx.closePath(); }
+    else {                                                        // draft: a red neon film reel
+      ctx.moveTo(x + 52, y); ctx.arc(x, y, 52, 0, lib.TAU);
+      for (let j = 0; j < 5; j++) { const a = j / 5 * lib.TAU - Math.PI / 2, cx = x + Math.cos(a) * 28, cy = y + Math.sin(a) * 28; ctx.moveTo(cx + 10, cy); ctx.arc(cx, cy, 10, 0, lib.TAU); }
+      ctx.moveTo(x + 52, y + 40); ctx.lineTo(x + 100, y + 48);
+    }
     ctx.stroke(); ctx.stroke();
     ctx.restore();
   });
@@ -117,7 +154,7 @@ function occluder(ctx, lib) {                 // out-of-focus door frame, right 
 function labels(ctx, lib, tokens, t) {        // sign captions (screen space, sharp)
   const C = (k) => lib.color(tokens, k);
   [820, 1150, 1480].forEach((x, k) => {
-    const a = lib.seg(t, 2.25 + k * 0.25, 2.45 + k * 0.25);
+    const a = lib.seg(t, 2.05 + k * 0.4, 2.2 + k * 0.4);
     if (a <= 0) return;
     ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = C("fg");
     ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 6;
@@ -134,7 +171,7 @@ export function renderAt(t, ctx, tokens, lib) {
     const tq = Math.floor(lib.frame(t) * FPS_EFF / 30 + 1e-9) / FPS_EFF;        // the step-printed clock
     ctx.save(); camera(ctx, lib, tq); background(ctx, lib, tokens); signs(ctx, lib, tokens, t); trails(ctx, lib, tokens, tq, tq + SHUTTER / FPS_EFF); ctx.restore();
     ctx.drawImage(accumulate(lib, (x, ts) => { camera(x, lib, tq); stream(x, lib, tokens, ts); }, tq, SHUTTER), 0, 0);
-    ctx.save(); camera(ctx, lib, tq); subject(ctx, lib, tokens); ctx.restore();
+    ctx.save(); camera(ctx, lib, tq); subject(ctx, lib, tokens, t); ctx.restore();
     occluder(ctx, lib);
     halation(ctx, lib, tokens);
     labels(ctx, lib, tokens, t);
@@ -143,7 +180,7 @@ export function renderAt(t, ctx, tokens, lib) {
     const tq = Math.floor(lib.frame(t) * FPS_EFF / 30 + 1e-9) / FPS_EFF, sh = SHUTTER * (1 + 3 * lib.seg(t, 4.0, 4.34));
     const pan = (ts) => -1800 * Math.pow(lib.seg(ts, 3.95, 4.5), 2);
     ctx.drawImage(accumulate(lib, (x, ts) => {
-      camera(x, lib, tq, pan(ts)); background(x, lib, tokens); signs(x, lib, tokens, 3.99); trails(x, lib, tokens, ts, ts + 0.03); stream(x, lib, tokens, ts); subject(x, lib, tokens);
+      camera(x, lib, tq, pan(ts)); background(x, lib, tokens); signs(x, lib, tokens, 3.99); trails(x, lib, tokens, ts, ts + 0.03); stream(x, lib, tokens, ts); subject(x, lib, tokens, 3.99);
     }, tq, sh), 0, 0);
     occluder(ctx, lib);
     overlay(ctx, t, tokens, lib, { clock: 0 });
@@ -157,6 +194,9 @@ export function renderAt(t, ctx, tokens, lib) {
     occluder(ctx, lib);
     overlay(ctx, t, tokens, lib, { end: true });
   }
+  // hook: the street lights flicker on at 0.1 s (frames 0–2 dark, 3 on, 4 dim, 5 on)
+  const f = lib.frame(t), dark = f < 3 ? 0.82 : f === 4 ? 0.55 : 0;
+  if (dark > 0) { ctx.fillStyle = `rgba(0,3,3,${dark})`; ctx.fillRect(0, 0, W, H); }
   lib.grain(ctx, t, { amount: 0.11, fps: 24, seed: 8 });
   lib.vignette(ctx, { strength: 0.5, inner: 0.45, color: "#000000" });
 }
@@ -193,18 +233,31 @@ function overlay(ctx, t, tokens, lib, { end = false } = {}) {
   ctx.restore();
   if (end) {
     ctx.save(); ctx.fillStyle = C("fg"); ctx.shadowColor = "rgba(0,0,0,0.85)"; ctx.shadowBlur = 10;
-    lib.setFont(ctx, tokens, "zh", 72, { weight: 400 }); lib.drawText(ctx, "霓虹抽帧", W / 2, 880, { align: "center", tracking: 72 * 0.12 });
-    lib.setFont(ctx, tokens, "body", 44, { weight: 500, stretch: "condensed" }); lib.drawText(ctx, "NEON STEP-PRINT", W / 2, 950, { align: "center", tracking: 44 * 0.12 });
+    lib.setFont(ctx, tokens, "zh", 72, { weight: 400 }); lib.drawText(ctx, "霓虹抽帧", W / 2 + 110, 872, { align: "center", tracking: 72 * 0.12 });
+    lib.setFont(ctx, tokens, "body", 44, { weight: 500, stretch: "condensed" }); lib.drawText(ctx, "NEON STEP-PRINT", W / 2 + 110, 950, { align: "center", tracking: 44 * 0.12 });
     ctx.restore(); return;
   }
-  // subtitles: typed in, warm white, never smeared
+  // subtitles: typed in, warm white, never smeared; a soft dark band under them keeps them legible over the smear
   const zh = lib.typewriter(lib.TITLE_ZH, t, { start: 0.95, cps: 11 }), en = lib.typewriter(lib.TITLE_EN, t, { start: 1.35, cps: 22 });
+  const band = lib.seg(t, 0.85, 1.1), cxs = W / 2 + 110;
+  if (band > 0) { const g = ctx.createLinearGradient(0, 760, 0, 1080); g.addColorStop(0, "rgba(2,6,6,0)"); g.addColorStop(0.4, `rgba(2,6,6,${0.55 * band})`); g.addColorStop(1, `rgba(2,6,6,${0.7 * band})`); ctx.fillStyle = g; ctx.fillRect(560, 760, W - 560, 320); }
   ctx.save(); ctx.fillStyle = C("fg"); ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 10;
-  lib.setFont(ctx, tokens, "zh", 72, { weight: 400 });
-  const zw = lib.layoutText(ctx, lib.TITLE_ZH, { tracking: 72 * 0.08 }).width;
-  lib.drawText(ctx, zh, W / 2 - zw / 2, 880, { tracking: 72 * 0.08 });
-  lib.setFont(ctx, tokens, "body", 52, { weight: 500, stretch: "condensed" });
+  lib.setFont(ctx, tokens, "zh", 78, { weight: 400 });
+  const zw = lib.layoutText(ctx, lib.TITLE_ZH, { tracking: 78 * 0.08 }).width;
+  lib.drawText(ctx, zh, cxs - zw / 2, 872, { tracking: 78 * 0.08 });
+  lib.setFont(ctx, tokens, "body", 66, { weight: 500, stretch: "condensed" });
   const ew = lib.layoutText(ctx, lib.TITLE_EN, { tracking: 2 }).width;
-  lib.drawText(ctx, en, W / 2 - ew / 2, 952, { tracking: 2 });
+  lib.drawText(ctx, en, cxs - ew / 2, 958, { tracking: 2 });
   ctx.restore();
 }
+
+// foley (events.json is generated from this list; times are the same ones the scene uses)
+const px = (x) => Math.round((x / 960 - 1) * 100) / 100;
+export const FOLEY = [
+  { t: 0.1, sfx: "toggle", gain_db: -8, pan: 0 },                                                         // street lights flicker on
+  ...[0.5, 1.5, 2.5, 3.5].map((t) => ({ t, sfx: "tick", gain_db: -12, pan: px(250) })),                  // the timestamp flips
+  { t: 0.95, sfx: "typing", gain_db: -18, pan: px(1070) },                                               // subtitles type in
+  ...[2.0, 2.4, 2.8].map((t, k) => ({ t, sfx: "toggle", gain_db: -8, pan: px([820, 1150, 1480][k]) })),   // signs ignite
+  { t: 3.2, sfx: "glitch", gain_db: -16, pan: px(1150) },                                                // the middle sign buzzes
+  { t: 4.2, sfx: "whoosh", gain_db: -6, pan: -0.3 }, { t: 4.34, sfx: "shutter", gain_db: -6, pan: 0 },    // smear pan; freeze
+];

@@ -6,8 +6,9 @@
   "meters": {
     "1": 2,
     "2": 3,
-    "3": 5,
-    "4": 3
+    "3": 4,
+    "4": 1,
+    "5": 3
   },
   "sections": [
     {
@@ -20,7 +21,7 @@
         "taiko",
         "pad"
       ],
-      "energy": 0.5
+      "energy": 0.55
     },
     {
       "name": "entrance",
@@ -53,6 +54,17 @@
       "impact": true
     },
     {
+      "name": "hold",
+      "bars": 1,
+      "chords": [
+        "iv"
+      ],
+      "layers": [
+        "pad"
+      ],
+      "energy": 0.35
+    },
+    {
       "name": "relight",
       "bars": 1,
       "chords": [
@@ -63,7 +75,7 @@
         "pad",
         "taiko"
       ],
-      "energy": 0.45,
+      "energy": 0.5,
       "impact": true
     }
   ]

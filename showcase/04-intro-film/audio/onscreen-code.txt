@@ -1,0 +1,4 @@
+kick = taiko(f0=70, f1=40, decay=0.9, rng=rng)
+bass = saw(freq, len(freq), rng.random()) + 0.6 * np.sin(ph)
+hats = bandpass(squares, 7000, 14000) + air
+lead = sum(np.sin(k * ph) / k * gates[k] for k in odd)

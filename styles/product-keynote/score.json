@@ -4,7 +4,8 @@
   "sections": [
     {"name": "stage", "bars": 1, "chords": ["I"], "layers": ["pad", "arp"], "energy": 0.3},
     {"name": "headline", "bars": 1, "chords": ["vi"], "layers": ["pad", "arp", "bass"], "energy": 0.45},
-    {"name": "stages", "bars": 2, "chords": ["IV", "V"], "layers": ["pad", "arp", "bass", "hats"], "energy": 0.6, "riser": true, "fill": true},
+    {"name": "screen", "bars": 1, "chords": ["IV"], "layers": ["pad", "arp", "bass", "hats"], "energy": 0.6, "riser": true},
+    {"name": "breath", "bars": 1, "chords": ["V"], "layers": ["pad"], "energy": 0.35},
     {"name": "reveal", "bars": 1, "chords": ["I"], "layers": ["kick", "clap", "hats", "bass", "pad", "arp"], "energy": 0.9, "impact": true}
   ]
 }

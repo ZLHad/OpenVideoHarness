@@ -6,4 +6,5 @@
 - 渲染速度：{ClaudeAnimationBase 1080p 每帧耗时；其他引擎}
 - 可用的 API key（只写变量名，不写值）：{ELEVENLABS_API_KEY / FAL_KEY / …}
 - 个人资料目录：{论文、数据、素材放在哪里}
+- 默认努力程度：{quick | standard | studio}（不填就是 standard；规则见 CLAUDE.md"努力程度"，对话里说的优先）
 - 偏好：{常用平台、画幅、配音音色、品牌色}

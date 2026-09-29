@@ -1,6 +1,43 @@
 # Changelog
 
-## v0.2.0 — unreleased
+## v0.2.0 — 2026-09-29
+
+**Effort hub: one switch for how hard the agents work**
+- Three levels: `quick`, `standard` (default) and `studio`, defined in one table in `CLAUDE.md`. The table sets:
+  - the human gates;
+  - how many styles are offered;
+  - storyboard depth and self-check depth;
+  - rounds of independent scoring;
+  - sound;
+  - deliverables;
+  - draft count, subagents, research, and a suggested reasoning effort.
+- A floor that never drops at any level: hard rules 1, 5 and 7, no digital silence, flash safety, type minimums, licenses, `bin/vh check`.
+- `bin/vh new … --effort <level>` writes `Effort:` into BRIEF.md and, for `quick`, notes the gate waiver in REVIEW.md. `bin/vh effort [level]` prints the rules.
+- Only the user can lower the level; an agent may not downgrade to save time.
+- The checklist, pipeline, verification and review templates now say what each level does.
+
+**Intro film and a rewritten README**
+- `showcase/04-intro-film/`: the project's own 81 s intro film.
+  - One continuous 3D shot built with HyperFrames + Three.js, and a score composed in code. It shows the architecture, the workflow with its three gates, the features and the case library.
+  - It was made by agents following this repo and revised after two rounds of human notes: the music stuttered, and it wasn't cool enough. The notes, the look-dev in three intensities and every fix are in the folder.
+- README (en / zh) rewritten in plain language, with the intro film as the hero.
+- WeChat appreciation code at the end of both READMEs.
+
+**Style swatches, reviewed and reworked**
+- An independent "harsh motion director" scored all 26 swatches on the 7-dimension layer, twice. The median lowest score rose from about 4.5 to 6, but none has all seven scores at 8 or above yet: the library is honest about being work in progress (see `styles/README.md`).
+- Makers' self-scores ran 1–2 points above the independent reviewer's, which is why the checklist insists the scorer is not the author.
+- A pre-release fix round after the second review: editorial-data and dark-math got real hooks; ink-wash, silhouette-papercut and brutalist-meme had small rule violations fixed. Deferred to the next version: monumental-scifi (hook), the cutout-jazz / swiss-grid-type look-alike motif, and a shadow-puppet click warning.
+- `styles/_swatch/custom_sfx.py` rebuilds the few custom foley WAVs byte for byte, so nothing shipped is hand-made or downloaded.
+- Three rounds of fixes followed:
+  - a hook at 0.1 s;
+  - no freezes after the motif lands;
+  - each style draws "draft" in its own language instead of ▶;
+  - clones separated (cutout vs Swiss, CRT vs FUI, shadow puppet vs paper-cut, three "growing circle" endings);
+  - the Dunhuang flying apsaras redrawn with proper bodies;
+  - type sizes raised.
+- Foley: `styles/<slug>/events.json` is mixed under the score. `styles/_swatch/foley.mjs` generates it from a `FOLEY` export in `swatch.js`, so picture and sound share one timing table. The foley track fades out with the score.
+- The review's systemic findings became rules in the swatch content spec (`styles/_swatch/README.md`).
+
 
 **Style library `styles/`: 26 tastes instead of one**
 - 26 presets in 6 families (film titles, brand, data, illustration and print, Chinese aesthetics, retro). Each is distilled from famous works: Saul Bass titles, *Se7en*, *Blade Runner 2049*, Wes Anderson symmetry, Wong Kar-wai step-printing, Ken Burns, Müller-Brockmann, film FUI, 3Blue1Brown, NYT / The Pudding, Gapminder, *Spider-Verse*, risograph, CRT terminals, 水墨, 敦煌, 皮影, 国潮, Reiniger's silhouettes, watercolor backgrounds, synthwave, and more.
@@ -18,6 +55,7 @@
 - Motion: superposed springs, leading and trailing edge stiffness, layout functions for multi-aspect renders, decode-text rules.
 
 **Sound**
+- `bin/vh tts gemini` / `gemini-lite`: Google Gemini 3.8 Flash TTS and Flash-Lite TTS as cloud providers (`GEMINI_API_KEY`), with a plain-language delivery direction as the 5th argument. Inline tags such as `<short pause>` are voiced by Gemini and stripped for every other provider and from captions. Request and parsing tested against a mocked response; not yet called for real.
 - `bin/vh beats`: adds `hits` and `kick` / `snare` accents with strength (HPSS plus band-split onsets, within ±1 frame on test loops).
 - `bin/vh sfx place`: stereo, with per-event `pan` and `dist`, so sound follows on-screen position. The built-in `error` SFX loses its hard edges; the library is still 15 sounds.
 - `bin/vh music`:

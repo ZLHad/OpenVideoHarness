@@ -44,6 +44,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 | `edge` | 微软免费在线音色 | 联网；非官方接口 | 句级 | 待实测 |
 | `dashscope` | 阿里云百炼 Qwen3-TTS（`qwen3-tts-flash`），云端 | `DASHSCOPE_API_KEY` | 句级 | 接口已留，待实测 |
 | `elevenlabs` | 高质量多语种配音 | `ELEVENLABS_API_KEY`、voice_id | **字符级** | 接口已留，待实测 |
+| `gemini` / `gemini-lite` | Google Gemini 3.8 Flash TTS（2026-09-23 发布）/ Flash-Lite TTS，云端付费。表演力强，适合讲解旁白，支持中文。`--voice` 用 30 个预置音色之一（默认 Kore）；`bin/vh tts` 的第 5 个参数（`--instruct`）用一句话描述语气，例如"平静、笃定的纪录片旁白"；稿子里可以直接写 `<short pause>`、`<breath>`、`<laugh>` 这类标签，只有 gemini 会念出来，其他 provider 和字幕都会自动去掉 | `GEMINI_API_KEY`（Google AI Studio） | 句级 | 接口已留，用模拟响应测过请求和解析，还没有真实调用 |
 
 需要字级时间（逐字高亮）时，用 `elevenlabs`，或者对句级结果再跑一次强制对齐：mlx-audio 的 Qwen3-ForcedAligner、FunASR 或 whisper.cpp。这一步的接口已留好，还没封装。
 
@@ -137,7 +138,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 | 需求 | 方案 |
 |---|---|
 | 中文配音，本地 | `mlx-audio` 在 Apple Silicon 上跑 Qwen3-TTS（Apache-2.0，支持方言和声音设计）。要克隆声音用 CosyVoice 或 GPT-SoVITS。 |
-| 配音，云端，追求稳定 | ElevenLabs 的 `/v1/text-to-speech/{voice_id}/with-timestamps` 直接返回字符级时间；国内可选火山豆包、阿里百炼、MiniMax。 |
+| 配音，云端，追求稳定 | ElevenLabs 的 `/v1/text-to-speech/{voice_id}/with-timestamps` 直接返回字符级时间；讲解旁白要表演力时可用 Gemini 3.8 Flash TTS（`bin/vh tts … gemini`，能用一句话导演语气）；国内可选火山豆包、阿里百炼、MiniMax。 |
 | 免费、先凑合用 | `edge-tts`（微软中文音色，非官方接口，随时可能失效） |
 | 词级时间戳 | 中文用 FunASR（字级，带标点）；通用用 whisper.cpp（Mac 上有 Metal 加速）；已有讲稿或歌词、只需对齐时用 ctc-forced-aligner |
 | 节拍 | librosa 或 beat_this（后者 downbeat 更准）。音乐平缓时，检测出来的 BPM 只是一个强加的节拍器，不能拿来硬切。 |

@@ -6,8 +6,9 @@
   "meters": {
     "1": 2,
     "2": 3,
-    "3": 5,
-    "4": 3
+    "3": 4,
+    "4": 1,
+    "5": 3
   },
   "sections": [
     {
@@ -20,7 +21,7 @@
         "pad",
         "arp"
       ],
-      "energy": 0.3
+      "energy": 0.35
     },
     {
       "name": "letters",
@@ -32,7 +33,7 @@
         "arp",
         "pad"
       ],
-      "energy": 0.42
+      "energy": 0.45
     },
     {
       "name": "houses",
@@ -45,7 +46,18 @@
         "pad",
         "bass"
       ],
-      "energy": 0.5
+      "energy": 0.52
+    },
+    {
+      "name": "breath",
+      "bars": 1,
+      "chords": [
+        "III"
+      ],
+      "layers": [
+        "pad"
+      ],
+      "energy": 0.3
     },
     {
       "name": "iris",
@@ -57,7 +69,7 @@
         "pad",
         "arp"
       ],
-      "energy": 0.32
+      "energy": 0.35
     }
   ]
 }

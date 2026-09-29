@@ -30,7 +30,7 @@ The chart is not hand-drawn. Each point comes from v_r = v·R⊕·sinθ / d for 
 - `BRIEF.md`, `STYLE.md` (palette with one accent `#FF8A3D`, type, motion tokens), `STORYBOARD.md` (shots, reads with timings, final caption script), `NOTES.md` (fact checks with the calculation output, creative decisions, 4 review passes), `LESSONS.md`, `TASTE_CHECKLIST.md`
 - `index.html` (single monolithic composition: GSAP for text and seams, one `draw(t)` pure function for all physics visuals), `hyperframes.json`, `package.json`, `meta.json`, `tools/doppler_calc.mjs`
 
-Reproduce (Node ≥ 22, ffmpeg, Chrome; network for GSAP and Google Fonts):
+Reproduce (Node ≥ 22, ffmpeg, Chrome; network for Google Fonts (Noto Sans SC); GSAP comes from `npm i`):
 ```bash
 export DO_NOT_TRACK=1 HYPERFRAMES_SKIP_SKILLS=1   # no telemetry; don't touch global ~/.claude/skills
 node tools/doppler_calc.mjs
