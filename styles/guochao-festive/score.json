@@ -1,0 +1,78 @@
+{
+  "bpm": 150,
+  "key": "D",
+  "mode": "major",
+  "seed": 3,
+  "meters": {
+    "1": 2,
+    "2": 3,
+    "3": 5,
+    "4": 3
+  },
+  "sections": [
+    {
+      "name": "border",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "taiko",
+        "bell",
+        "pad"
+      ],
+      "energy": 0.6
+    },
+    {
+      "name": "title",
+      "bars": 1,
+      "chords": [
+        "iv"
+      ],
+      "layers": [
+        "taiko",
+        "kick",
+        "clap",
+        "zheng",
+        "bass",
+        "pad"
+      ],
+      "energy": 0.85,
+      "impact": true
+    },
+    {
+      "name": "medallions",
+      "bars": 1,
+      "chords": [
+        "v"
+      ],
+      "layers": [
+        "taiko",
+        "kick",
+        "clap",
+        "hats",
+        "bass",
+        "dizi",
+        "bell",
+        "zheng"
+      ],
+      "energy": 1.0,
+      "impact": true
+    },
+    {
+      "name": "doors",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "bell",
+        "taiko",
+        "pad",
+        "zheng"
+      ],
+      "energy": 0.6,
+      "impact": true
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "bpm": 150,
+  "key": "G",
+  "mode": "major",
+  "seed": 8,
+  "meters": {
+    "1": 2,
+    "2": 3,
+    "3": 5,
+    "4": 3
+  },
+  "sections": [
+    {
+      "name": "lamp",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "taiko",
+        "pad"
+      ],
+      "energy": 0.5
+    },
+    {
+      "name": "entrance",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "taiko",
+        "clap",
+        "zheng",
+        "pad"
+      ],
+      "energy": 0.78
+    },
+    {
+      "name": "cards",
+      "bars": 1,
+      "chords": [
+        "iv"
+      ],
+      "layers": [
+        "taiko",
+        "clap",
+        "dizi",
+        "zheng",
+        "pad"
+      ],
+      "energy": 0.92,
+      "impact": true
+    },
+    {
+      "name": "relight",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "bell",
+        "pad",
+        "taiko"
+      ],
+      "energy": 0.45,
+      "impact": true
+    }
+  ]
+}

@@ -14,6 +14,7 @@
 | [paper-paper2video.md](paper-paper2video.md)：Paper2Video / PaperTalker | 论文报告 | Beamer + TTS + 数字人 | 无（仓库在 GitHub） | 多通道对齐；让 VLM 从变体里选 |
 | [remotion-production.md](remotion-production.md)：Claude Code + Remotion 生产实践 | 通用 | Remotion | 无 | 真实踩过的坑（亚像素闪烁、缩放抖动、旧文件） |
 | [community-prompts.md](community-prompts.md)：社区公开的 prompt | 各类 | 各类 | 二手合集 | 成功 prompt 的八个共同点 |
+| [opus55-gallery.md](opus55-gallery.md)：Opus 5.5 社区代码视频精选 | 各类，另有 3D 长片深读 | 各类；Austerlitz 为 WebGL2 | `awesome-opus5-5-videos/`、`opus55-catalog-zhuyansen/`、`Battle-of-Austerlitz-Film/`（均无 license，只读） | 389 支作品的 prompt 统计和精选；Austerlitz 用旁白实测时长驱动镜头，从画面推导音效 |
 
 ## 按需求查案例
 
@@ -21,4 +22,5 @@
 - 要做产品片：applore（最简单的做法）→ hyperframes-launches（看工业级怎么做）。
 - 要做讲解或论文视频：interstellar-blackhole（一句话能做到什么程度）→ code2video → paper2video，外加 hyperframes-launches 里的 `claude-paper-launch/`。
 - 想拆解一支别人的视频：按 `playbook/07-reverse-engineer.md` 走，产出格式参考 interstellar-blackhole。
-- 想知道 prompt 怎么写：community-prompts。
+- 想知道 prompt 怎么写：community-prompts，再从 opus55-gallery 第 3 节挑同类型的。
+- 要做 3D 场景或几分钟的长片：opus55-gallery 第 6 节（Austerlitz 深读）。

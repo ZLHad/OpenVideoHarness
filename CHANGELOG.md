@@ -1,5 +1,46 @@
 # Changelog
 
+## v0.2.0 — unreleased
+
+**Style library `styles/`: 26 tastes instead of one**
+- 26 presets in 6 families (film titles, brand, data, illustration and print, Chinese aesthetics, retro). Each is distilled from famous works: Saul Bass titles, *Se7en*, *Blade Runner 2049*, Wes Anderson symmetry, Wong Kar-wai step-printing, Ken Burns, Müller-Brockmann, film FUI, 3Blue1Brown, NYT / The Pudding, Gapminder, *Spider-Verse*, risograph, CRT terminals, 水墨, 敦煌, 皮影, 国潮, Reiniger's silhouettes, watercolor backgrounds, synthwave, and more.
+- Each preset has `STYLE.md` (study works, visual / motion / sound grammar, bans, prompt block, engine recipe, self-check), `tokens.json`, and a **real 5 s swatch with its own code-composed score**.
+- All 26 swatches show the same content, so the only difference is the style. Overview: `styles/gallery.jpg` and `gallery.mp4`.
+- Swatch renderer `styles/_swatch/` (HyperFrames): scene API, shared `lib.js` (easing, springs, decode text, textures, transitions), per-slug staging, a watchdog, and automatic audio QA. Swatches are deterministic, with lossless frames compared across worker counts.
+- `bin/vh style list | <preset> | gallery | check`; `bin/vh new <type> <slug> --style <preset>` seeds the project with the preset.
+- Gate ① now proposes 2–3 contrasting presets instead of defaulting to one look. Principle: learn the grammar, never copy characters, logos or shots.
+
+**Review and verification**
+- A scored layer on top of the 20-item checklist: a harsh-director reviewer scores 7 dimensions, each must reach ≥ 8, over at least 3 rounds. It catches "correct but not exciting".
+- Phone-size (360 px) readability sheets, a loop-seam check, and determinism compared on lossless PNG frames rather than mp4.
+- Silent-failure detection: frozen frames (renderAt exceptions), empty frames (YAVG), and render watchdogs.
+- Look-dev (2–3 variants of one segment) when feedback is vague; optional full-length animatic at gate ②; authorized skips recorded verbatim.
+- Motion: superposed springs, leading and trailing edge stiffness, layout functions for multi-aspect renders, decode-text rules.
+
+**Sound**
+- `bin/vh beats`: adds `hits` and `kick` / `snare` accents with strength (HPSS plus band-split onsets, within ±1 frame on test loops).
+- `bin/vh sfx place`: stereo, with per-event `pan` and `dist`, so sound follows on-screen position. The built-in `error` SFX loses its hard edges; the library is still 15 sounds.
+- `bin/vh music`:
+  - Chinese colour layers `bell` 编钟, `zheng` 古筝 (Karplus–Strong with `bend`), `dizi` 竹笛 and `taiko` 大鼓;
+  - pentatonic modes;
+  - variable `meters` with a `bars` map;
+  - `--example zh`.
+- `bin/vh mix`: stereo, two-pass linear loudness (keeps LRA), `duck=voice` and `duck_ratio`. **Fix:** music was truncated to the voice length when ducking.
+- New `bin/vh qa`: final-mix QA covering digital silence, dropouts, pumping, click warnings to re-listen, and a cue check against the beat map and events.
+- Rules learned from the intro film: dramatic stops are held breaths, never digital silence; don't key the ducker on every SFX.
+
+**Robustness**
+- `bin/vh hf-init` vendors GSAP locally and warns about any remaining CDN links, because an offline render with a CDN import hangs silently. Showcase 00 and 02 were updated the same way.
+- `references/fetch.sh` neutralizes agent files (`.claude`, `.agents`, `CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md`, `.mcp.json`) at every depth, not only the repo root. New `fetch.sh <dir>` and `--neutralize` options.
+- `bin/vh` help lists every command.
+
+**Knowledge and references**
+- `playbook/08`: FX preset stack (`fx` = A/B/C) with a reason per effect, flash and readability limits, true sub-frame motion blur, SFX pan from screen position, and one-take 3D world techniques. `engines/README`: Three.js + HyperFrames pitfalls.
+- `video-types/03`: a promo shows the product itself; asset inventory before animating; look-dev step; up to ~90 s.
+- `video-types/07`: Chinese characters written in true stroke order (Make Me a Hanzi data fetched per project, never vendored).
+- `cases/opus55-gallery.md`: a second catalog (962 works) and a deep-dive into the *Battle of Austerlitz* 5-minute WebGL film. `cases/community-prompts.md`: new community data points.
+- References grow from 24 to **30** repos: athemeroy's research catalog, claude-animation-skill, product-film-skill, procedural-film, the 962-work catalog, and Battle-of-Austerlitz-Film.
+
 ## v0.1.0 — 2026-09-29 · first public release
 
 **Harness**

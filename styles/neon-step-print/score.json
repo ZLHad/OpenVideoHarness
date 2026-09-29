@@ -1,0 +1,10 @@
+{
+  "bpm": 150, "key": "D", "mode": "minor", "seed": 84,
+  "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "sections": [
+    {"name": "street", "bars": 1, "chords": ["i"], "layers": ["pad", "hats"], "energy": 0.4},
+    {"name": "subtitles", "bars": 1, "chords": ["VI"], "layers": ["pad", "hats", "lead"], "energy": 0.5},
+    {"name": "signs", "bars": 2, "chords": ["III", "VII"], "layers": ["pad", "hats", "lead", "bass"], "energy": 0.55},
+    {"name": "freeze", "bars": 1, "chords": ["i"], "layers": ["pad", "lead"], "energy": 0.4}
+  ]
+}

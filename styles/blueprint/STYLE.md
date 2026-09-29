@@ -1,0 +1,103 @@
+# 工程蓝图 · blueprint
+
+一句话：一张普鲁士蓝的晒图纸，白色工程线按制图顺序画出来：中心线 → 轮廓 → 细节 → 剖面线 → 尺寸 → 引出编号；尺寸会跟着零件的移动实时改变。适合讲结构、机制、硬件构造、系统架构，以及一切"被设计出来的东西"。
+
+样片：`media/swatch.mp4`（5 s）· 封面 `media/poster.jpg`
+
+## 学习对象
+
+| 作品 | 年份 · 作者 / 工作室 | 从它身上学什么 |
+|---|---|---|
+| 蓝晒法（cyanotype） | 1842 · John Herschel | 白线蓝底的由来：曝光处变成普鲁士蓝，线条处留白；纸上有涂布不匀、折痕和晒白的边 |
+| 19 世纪美国专利图纸的通行画法 | 19 世纪 · 美国专利局的图纸惯例（不指定具体图） | Fig. 1 / Fig. 2 的编号；零件引出线 + 编号圆圈；用细密排线表现曲面和剖面 |
+| 《Iron Man》片尾字幕 | 2008 · Prologue Films，创意总监 Danny Yount | 技术图解动起来：爆炸视图里零件沿轴飞出又归位；画面再跳，镜头移动始终稳定 |
+| 技术制图线型与字体标准 | ISO 128（现行版本号未核实）；GB/T 14691-1993《技术制图 字体》 | 线型就是语义：粗实线 = 可见轮廓，虚线 = 隐藏线，点划线 = 中心线，粗点划线 = 剖切面；中文字写成长仿宋体，字宽约为字高的 1/√2 |
+
+核实：蓝晒法的发明人和年份来自 Wikipedia（Cyanotype、Blueprint 条目）；《Iron Man》片尾的制作方和创意总监来自 Art of the Title 与 Motionographer；GB/T 14691 对长仿宋体的规定来自国家标准全文公开系统的条目和机械制图手册摘录。ISO 128 当前的分部版本号没有核对。
+
+**不照搬**：不用任何真实专利图、盔甲造型或真实品牌产品的外形；不复刻 lemo 样片里"修订云变成真云"这一桥段（"一个制图符号变成真东西"这个语法可以用，但换一个符号）。
+
+## 视觉语法
+
+- **色板**：蓝和白两种，外加一个"审图黄"。
+
+  | token | hex | 语义 |
+  |---|---|---|
+  | bg 深纸蓝 | `#173A6E` | 晒图纸暗处；纸面在它和浅纸蓝之间做低频起伏 |
+  | 浅纸蓝 | `#2A5C9E` | 晒图纸亮处 |
+  | fg 线白 | `#E8F1FA` | 已画定的线和字 |
+  | 辅线蓝白 | `#A9C6E8` | 尺寸线、引出线、构造线（构造线再降到 35%） |
+  | 晒白边 | `#5B83B8` | 纸边漂白、折痕的亮边 |
+  | 台面 | `#0E1218` | 纸以外的桌面 |
+  | accent 审图黄 | `#F4C542` | 本镜的改动或重点：修订云、被改的尺寸。每个镜头最多一处 |
+
+- **字体**：标题栏和大字用 DIN Condensed（工程感的窄体），尺寸数字和注释用 DIN Alternate，数字 `tabular-nums`；中文用 STFangsong（仿宋），横向压到 72% 宽，接近国标的长仿宋体。所有字先画两条淡淡的字高导线，再写字，这是手工制图的习惯。
+- **构图**：整片在一张图纸上：外框、右下角标题栏、一侧的注释栏。主图占画面高 55–70%，放在图纸左 2/3，右 1/3 留给零件表和注释。镜头像一双读图的眼睛，推近局部、横移到下一个 Fig.。
+- **线宽**（1080p 屏幕像素）：轮廓 3.0，细节 2.0，尺寸与引出 1.2，构造线 1.0 @ 35%。虚线：中心线 `[24, 6, 4, 6]`，隐藏线 `[10, 6]`，剖切线 `[28, 5, 4, 5, 4, 5]`。镜头推近时线宽按 `w × zoom^0.6` 变粗，不按 zoom 线性放大。
+- **质感**：纸面 fbm 亮度 ±8%、横向涂布条纹、十字折痕（亮边 + 暗边）、晒白的纸边；线条轻微洇开（0.6 px 模糊加 3 px、10% 的光晕）。纸纹强度 0.35，不加电子扫描线。
+
+## 运动语法
+
+帧数按 30 fps 计。
+
+- **画线**：每一笔用 easeInOutSine `cubic-bezier(0.37,0,0.63,1)`，整体笔速约 900 px/s；笔头有一个 4 px 的亮点；同一层内各笔错开 60 ms。每一层（中心线、轮廓、剖面线、尺寸……）从一个拍点开始。
+- **活的尺寸**（签名）：尺寸线量的是真实比例的东西；零件伸长或移动时，尺寸线跟着伸缩，数字按整数跳变（`tabular-nums`，单位 mm）。
+- **爆炸视图**：零件沿各自的轴飞出，每个零件间隔一个八分音符，easeInOutCubic；归位时用临界阻尼弹簧（stiffness 600 / damping 49，ζ = 1，不回弹）加一声咔哒。
+- **时长**：一层 0.5–1.2 s；一张图画完后停 ≥ 1.5 s；每 2–3 s 一个新层或新动作。
+- **转场**（只用这 3 种）：
+  - 图号横移（fig-pan）：把 "FIG. 1" 划掉改写成 "FIG. 2"，镜头横移到图纸的下一块区域；
+  - 剖切扫过（section-sweep）：一条剖切线 A–A 扫过零件，扫过的地方露出剖面排线；
+  - 爆炸与归位（explode）。
+- **镜头**：横移加推拉（pan），分段内连续；段与段之间可以在强拍上硬切一次。
+- **文字动画**：手写（handwrite）：导线先出，字母左到右逐笔写出，每字约 50 ms。
+
+## 声音语法
+
+- **配乐**：D 大调，90 BPM（30 fps 下一拍 20 帧），3/4 拍（`meters` 设成每小节 3 拍，2 s 一小节），拨弦 `arp` 走十六分音符的机械动机，`bass` 断奏，轻 `pad` 垫底；修订、定稿时一声 `bell`。像巴洛克的二部创意曲那样两条线互相模仿。
+- **音效**：签名是针管笔划纸声（2–6 kHz 的带通噪声，长度等于这一笔的时长；库里没有，需要在项目里合成或用授权录音）；直尺和圆规用低通过的短 `whoosh`；零件归位 `click`；定稿盖章 `impact`。
+- **声画关系**：每层线条开画落在拍上；爆炸视图的零件每个八分音符飞出一个；定稿前一小节只留 pad 和笔声。
+
+## 适合与不适合
+
+- **适合**：01 物理机制、工程原理；03 硬件产品构造、"它是怎么做出来的"；06 系统架构图；02 横屏科普。
+- **不适合**：以人物情感为主的故事；数据图表（用 `editorial-data`）；动物、人脸这类有机形体。
+- **容易被误用成**：暗蓝底青色霓虹的科幻 HUD，或者满屏没有意义的网格、数字和圆环装饰。
+
+## 禁止项
+
+1. 发光 HUD、扫描线、青色霓虹。这是纸，不是屏幕。
+2. 3D 渲染的实体。只用正交视图和斜轴测线图，深度靠斜投影系数做。
+3. 尺寸和数字是装饰：不量任何东西、比例对不上、单位不统一。
+4. 所有线一个粗细，没有线型层级。
+5. 线条整体淡入，而不是按制图顺序画出来。
+6. 满屏网格。图纸只有外框和标题栏，网格至多 5% 可见。
+
+## Prompt 块
+
+```text
+Visual style: engineering blueprint on cyanotype paper. The whole film is one sheet: uneven Prussian-blue paper (#173A6E to #2A5C9E low-frequency mottling, coating streaks, fold creases, sun-bleached edges) on a dark table #0E1218, with a border, a title block bottom-right and a notes column. White technical line work #E8F1FA is drawn in drafting order, each layer starting on a beat: centre lines (dash-dot), outlines (3 px), details (2 px), hidden lines (dashed), section hatching at 45°, dimension and leader lines in pale blue-white #A9C6E8 (1.2 px) with numbered balloons. Strokes draw on with a small bright nib, easeInOutSine per stroke, ~900 px/s. Dimensions are alive: when a part moves or stretches, its dimension line follows and the number updates in whole millimetres. Exploded views fly parts out along their axes one per eighth note and snap back with no overshoot. Lettering is condensed engineering caps (DIN Condensed) written stroke by stroke between faint guide lines; Chinese in a long Fangsong. Camera pans across the sheet like an eye reading a drawing; transitions are "FIG. 1" crossed out and rewritten as "FIG. 2" with a pan, a cutting-plane line sweeping to reveal a section, and explode/assemble. One accent only, reviewer yellow #F4C542, at most once per shot. No glow, no HUD, no scanlines, no 3D rendering. Sound: 90 BPM baroque-style plucked counterpoint, pen scratch on every stroke, a click on every assembled part.
+```
+
+## 引擎做法
+
+- **首选 HyperFrames**，SVG 或 Canvas2D。画线用弧长截断：SVG 用 `getTotalLength` 在 setup 里算好，逐帧改 `stroke-dashoffset`；Canvas 用 `lib.strokePartial`，笔头亮点画在截断处。
+- **斜投影代替 3D**：`x' = x + d·z·cos45°`、`y' = y − d·z·sin45°`，d 从 0 动到 0.5，一张正立面图就"转"出了厚度。
+- **纸**：setup 里生成一次，放在图纸坐标里（跟着镜头走，不跟屏幕走）；折痕是两条带亮暗边的线。
+- **活的尺寸**：尺寸线两端取零件在当前帧的端点，数字 `Math.round(长度 / 比例尺)`。
+- **长仿宋**：`ctx.scale(0.72, 1)` 后逐字绘制，字距按压缩后的字宽算。
+- 样片 `swatch.js`：纸和图框画出，标题在导线之间逐笔写出；三张小图 FIG. 1 大纲（中心线和构造线）→ FIG. 2 分镜（轮廓和隐藏线）→ FIG. 3 初版（剖面排线、尺寸、编号），初版的零件拉长时尺寸数字跟着变；最后镜头横移到标题栏。
+
+## 自查重点
+
+- 取一层的 strip：制图顺序对不对（中心线在轮廓之前，尺寸在最后）。
+- 缩到 360 px 宽的手机联系表：线宽层级还分得出吗？
+- 量一处：尺寸数字和图形比例一致吗？
+- 审图黄每个镜头最多一处。
+- 标题栏和注释里要读的字：英文 ≥ 28 px、中文 ≥ 46 px，停 ≥ 2.5 s。
+
+## 相关资源
+
+- `references/repos/lemo-opuscar/styles/blueprint/STYLE.md`（LemoLab，CC BY 4.0）：同名风格的完整样片。制图顺序、线宽随缩放的指数、斜投影系数动画、零件按八分音符飞出这几条来自它；本文改写了色值和字体（换成本机可用的 DIN 与仿宋）、改用审图黄代替红印章，并补了国标长仿宋和"活的尺寸"规则。
+- `video-types/01-math-science-explainer.md`、`video-types/03-product-promo.md`、`video-types/06-paper-explainer.md`。
+- `playbook/03-motion-design.md` §1（缓动表）、`playbook/08-vfx-and-motion-sources.md`。
+- 外部：Art of the Title 的《Iron Man》片尾页（<https://www.artofthetitle.com/title/iron-man/>），只看语法。

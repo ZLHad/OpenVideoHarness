@@ -1,0 +1,14 @@
+{
+  "name": "ovh-style-swatch",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "swatch": "./render.sh",
+    "determinism": "./determinism.sh",
+    "fonts": "python3 fonts.py",
+    "lint": "HYPERFRAMES_SKIP_SKILLS=1 hyperframes lint out/stage/demo"
+  },
+  "devDependencies": {
+    "hyperframes": "0.8.82"
+  }
+}

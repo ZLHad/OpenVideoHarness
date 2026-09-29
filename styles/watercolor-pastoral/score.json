@@ -1,0 +1,63 @@
+{
+  "bpm": 150,
+  "key": "F",
+  "mode": "major",
+  "seed": 17,
+  "meters": {
+    "1": 2,
+    "2": 3,
+    "3": 5,
+    "4": 3
+  },
+  "sections": [
+    {
+      "name": "sky",
+      "bars": 1,
+      "chords": [
+        "I"
+      ],
+      "layers": [
+        "pad"
+      ],
+      "energy": 0.32
+    },
+    {
+      "name": "title",
+      "bars": 1,
+      "chords": [
+        "IV"
+      ],
+      "layers": [
+        "pad",
+        "dizi"
+      ],
+      "energy": 0.4
+    },
+    {
+      "name": "trees",
+      "bars": 1,
+      "chords": [
+        "vi"
+      ],
+      "layers": [
+        "pad",
+        "dizi",
+        "arp"
+      ],
+      "energy": 0.42
+    },
+    {
+      "name": "light",
+      "bars": 1,
+      "chords": [
+        "I"
+      ],
+      "layers": [
+        "pad",
+        "bell",
+        "dizi"
+      ],
+      "energy": 0.35
+    }
+  ]
+}

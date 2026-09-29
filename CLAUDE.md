@@ -10,11 +10,11 @@
 3. **建项目**：运行 `bin/vh new <type> <slug>`，它会建好 `projects/<日期>-<slug>/`，复制模板，并把该类型的 prompt 块填进 BRIEF；手绘类还会复制引擎、装好依赖。其他引擎的初始化方式见 `engines/README.md`。
 4. **看案例和参考**：打开类型文档"可参考的案例"和"社区 skill 参考"两节列出的文件；需要看真实代码时读 `references/repos/` 里的源码。本仓库自己做过的片子在 `showcase/`，各带 BRIEF、STORYBOARD、NOTES 和源码，是最直接的样板。
 5. **三道人工审阅关卡（默认必过）**：按 `templates/REVIEW.md` 在对话里给出审阅包，然后**停下来等人回复**，不要自己往下做：
-   - ① **大纲**：BRIEF 加 3–7 段大纲、风格参考、引擎和费用；
-   - ② **分镜**：STORYBOARD 加一张分镜预览图 `out/check/storyboard.png`，每镜一张关键帧，让人看图判断；
+   - ① **大纲**：BRIEF 加 3–7 段大纲、引擎和费用。风格部分从 `styles/` 里挑 2–3 个彼此拉得开的预设，附上样片，让人选或混搭。不要默认只给一种口味；
+   - ② **分镜**：STORYBOARD 加一张分镜预览图 `out/check/storyboard.png`，每镜一张关键帧，让人看图判断。长片可以再附一版全长灰盒 animatic；
    - ③ **初版**：draft 成片加联系表，并写出你自己最不满意的 2–3 处。
    
-   人的意见逐条记进项目的 `REVIEW.md`。只有用户明确说"不用审、直接出"才能跳过，而且要在 REVIEW.md 里注明。
+   人的意见逐条记进项目的 `REVIEW.md`。只有用户在对话里亲口说"不用审、直接出"才能跳过，把原话和日期抄进 REVIEW.md，并由独立 reviewer 代审（见 `playbook/01-pipeline.md` 的授权无人值守模式）。人说不清哪里不对（"不够炫""感觉不对"）时，先做 look-dev：同一段 10–20 s 出 2–3 个变体让人挑。
 
 ## 路由表
 
@@ -31,19 +31,20 @@
 | 需要写实人物、真实物理、实拍感 | `playbook/05-hybrid-genvideo.md`，再加上对应的类型文档 | 生成式视频 + 代码叠加 | `cases/mv-claude-pop.md` |
 | "这个视频是怎么做的"，想学某支参考视频 | `playbook/07-reverse-engineer.md` | —（产出一份 cases/ 拆解） | `cases/explainer-interstellar-blackhole.md` |
 | 只给了一句话，或想找同类的社区提示词对照 | 主类型文档，加上 `cases/opus55-gallery.md`（先看第 1 节最后两条，再从第 3 节挑 2–3 条同类型的） | 按主类型 | `cases/opus55-gallery.md` |
-| 想找现成的社区 skill 或某种画风 | `references/community-skills.md`（含 39 种风格库） | — | `cases/opus55-gallery.md` |
-| 配音（中文或英文）、双语字幕、配乐、音效、歌曲 | `playbook/04-audio.md` | `bin/vh tts / captions / music / sfx / mix / mux` | `showcase/`（静音样板）+ 04 篇 |
+| 想找现成的社区 skill 或某种画风 | 先看本仓库的 `styles/`（带样片），再看 `references/community-skills.md`（含 lemo 的 39 种风格库） | — | `cases/opus55-gallery.md` |
+| 配音（中文或英文）、双语字幕、配乐、音效、歌曲 | `playbook/04-audio.md` | `bin/vh tts / captions / beats / music / sfx / mix / mux / qa` | `showcase/`（静音样板）+ 04 篇 |
 | 特效、转场、粒子、着色器、声画联动 | `playbook/08-vfx-and-motion-sources.md` | 随主引擎 | — |
-| 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md` | HyperFrames + Three.js 层 | `cases/opus55-gallery.md` 的 3D 一节 |
+| 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`（一镜到底、特效预设栈、子帧运动模糊） | HyperFrames + Three.js 层 | `cases/opus55-gallery.md` 的 3D 一节和第 6 节（Austerlitz 长片深读） |
+| 想要某种风格、参考某部名作，或者不想每支片子都一个口味 | `styles/README.md`，再读选中预设的 `styles/<slug>/STYLE.md` | 随主引擎 | 每个预设的 `media/swatch.mp4`，总览 `styles/gallery.jpg` |
 
 以上都不贴切时，读 `playbook/00-paradigm.md` 的引擎选型表自己判断，并在 `NOTES.md` 里写明理由。
 
 ## 硬规则
 
-1. **每一帧都是 t 的纯函数。** 不用 `Math.random()`、`Date.now()`、CSS transition 或 `@keyframes`，不保存跨帧状态；需要随机时用带种子的 `hash(i)`。乱序渲染同一帧，结果必须一致。检验方法：从中间抽几帧单独渲染，和整片里的同一帧比对，要逐像素相同；如果 GPU 光栅化带来细微差异，PSNR 至少 45 dB，而且肉眼看不出。
+1. **每一帧都是 t 的纯函数。** 不用 `Math.random()`、`Date.now()`、CSS transition 或 `@keyframes`，不保存跨帧状态；需要随机时用带种子的 `hash(i)`。乱序渲染同一帧，结果必须一致。检验方法：从中间抽几帧单独渲染，和整片里的同一帧比对，要逐像素相同；如果 GPU 光栅化带来细微差异，PSNR 至少 45 dB，而且肉眼看不出。比的是无损 PNG 帧，不是编码后的 mp4（x264 会放大差异）。
 2. **有声音时，音频决定时长。** 先生成配音或拿到歌曲，转成词级时间戳和节拍表，再用实测时长回写分镜，让画面去对齐音频。静音视频的时长由分镜里的 reads 决定，画面必须在静音下读得懂。
 3. **先分镜后代码。** 分镜里给每个镜头写出观众必须依次看懂的 reads，并标起止时间；重要的 reads 不能重叠。
-4. **每个场景都要自查。** 至少包括：一张联系表，关键动作一条逐帧 strip，承载剧情的脸或细节一个 crop；对照 `TASTE_CHECKLIST.md`，发现问题就修。自查成本很低，不要省。
+4. **每个场景都要自查。** 至少包括：一张联系表，关键动作一条逐帧 strip，承载剧情的脸或细节一个 crop；对照 `TASTE_CHECKLIST.md`，发现问题就修。整片 draft 还要过清单里的打分层：换一个严苛的 reviewer 按 7 个维度打分，每项都要 ≥ 8。自查成本很低，不要省。
 5. **事实有纪律。** 论文元数据、数字、引文一律照抄原文；拿不准的写进 `NOTES.md`，不编进视频。
 6. **只在 `projects/` 里改东西。** `engines/` 是模板，`references/repos/` 是只读参考；需要时复制到自己的项目里再改。
 7. **不在文件里写 API key。** 一律从环境变量读取；缺 key 时告诉用户需要哪个。
@@ -60,8 +61,8 @@ OpenVideoHarness/
 ├── README.md / README.zh-CN.md  给人看的说明（英 / 中）
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
 ├── install.sh                一键安装（克隆、依赖、参考仓库、注册 skill）
-├── bin/vh                    命令行：doctor · setup · types · new · hf-init · install-skill · tts · captions · music · sfx · mix · mux · sheet · check · gif
-├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、music、sfx、mix；sheet.py）
+├── bin/vh                    命令行：doctor · setup · types · new · hf-init · install-skill · tts · captions · beats · music · sfx · mix · mux · qa · sheet · check · gif
+├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py）
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              8 类视频：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
 ├── playbook/                 跨类型的通用知识
@@ -75,6 +76,7 @@ OpenVideoHarness/
 │   ├── 07-reverse-engineer.md  拉片：拆解参考视频
 │   └── 08-vfx-and-motion-sources.md  特效与动画的来源、声画联动
 ├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、NOTES、LESSONS、TASTE_CHECKLIST
+├── styles/                   风格库：从名作学来的风格预设（STYLE.md + tokens.json + 真渲的 5 s 样片），_swatch/ 是样片渲染器
 ├── cases/                    真实案例拆解 + opus55-gallery（社区作品精选）
 ├── showcase/                 本仓库自己做的片子（源码 + 成片 + 自评记录）
 ├── engines/                  ClaudeAnimationBase（内置）+ 其他引擎的安装说明
