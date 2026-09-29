@@ -30,7 +30,8 @@
    - 之后每 3–5 秒给一个新的视觉回报；
    - 字数按中文语速 4–5 字/秒倒推，45 秒约 200 字【综合】。
 3. **音频先行（有旁白时）**。静音版跳过这一步：时长由分镜的 reads 决定，字幕承载全部信息，而且必须静音可读。
-   - 把旁白逐句写进 `audio/script.txt`，运行 `bin/vh tts <项目> <provider> [voice]` 生成 `voiceover.wav` 和 `timeline.json`。草稿用 `say`，正式版用 `dashscope` 或 `elevenlabs`（见 `playbook/04-audio.md`）；
+   - 把旁白逐句写进 `audio/script.txt`，运行 `bin/vh tts <项目> <provider> [voice]` 生成 `voiceover.wav` 和 `timeline.json`。草稿用 `say`，正式版用 `gemini`、`dashscope` 或 `elevenlabs`（见 `playbook/04-audio.md`）；
+   - 旁白要导演：整体语气用"像在跟朋友讲一个惊人的事实：好奇、有起伏，关键词重读"，每句再在 `[ ]` 里单独导演；有配乐时加 `--beats` 让每句从拍点起。细节见 04 篇"让声音有表情、有节奏"；
    - 用 FunASR 拿字级时间戳，写入 `audio/timeline.json`；
    - 删掉口水词，在 ≥250ms 的停顿处断句。
 4. **分镜**：

@@ -63,7 +63,7 @@
 
 | 用户想要 | 读 | 首选引擎 | 案例 |
 |---|---|---|---|
-| 数学、物理、算法的原理讲解，3b1b 风格 | `video-types/01-math-science-explainer.md` | Manim CE | `showcase/03-math-fourier/`、`cases/explainer-code2video.md` |
+| 数学、物理、算法的原理讲解，3b1b 风格 | `video-types/01-math-science-explainer.md` | Manim CE | `showcase/03-math-fourier/`、`cases/explainer-code2video.md`、`cases/opus55-gallery.md` 第 7 节（抽象代数宣传片深读） |
 | 知识科普短视频，竖屏或横屏（抖音、B站、小红书、视频号、Shorts） | `video-types/02-knowledge-short.md` | HyperFrames | `showcase/02-short-leo-doppler/`、`cases/explainer-interstellar-blackhole.md` |
 | 产品宣传、发布片、App 或 SaaS 介绍、功能演示 | `video-types/03-product-promo.md` | HyperFrames | `showcase/00-promo-launch-film/`、`showcase/04-intro-film/`（一镜到底 3D + 代码作曲）、`cases/promo-hyperframes-launches.md` |
 | 歌词视频、MV、配合音乐的动画 | `video-types/04-lyric-music-video.md` | ClaudeAnimationBase（手绘）或 HyperFrames（排版） | `cases/mv-pdoom.md`、`cases/mv-functional-emotions.md`、`cases/mv-claude-pop.md` |
@@ -74,7 +74,7 @@
 | 需要写实人物、真实物理、实拍感 | `playbook/05-hybrid-genvideo.md`，再加上对应的类型文档 | 生成式视频 + 代码叠加 | `cases/mv-claude-pop.md` |
 | "这个视频是怎么做的"，想学某支参考视频 | `playbook/07-reverse-engineer.md` | —（产出一份 cases/ 拆解） | `cases/explainer-interstellar-blackhole.md` |
 | 只给了一句话，或想找同类的社区提示词对照 | 主类型文档，加上 `cases/opus55-gallery.md`（先看第 1 节最后两条，再从第 3 节挑 2–3 条同类型的） | 按主类型 | `cases/opus55-gallery.md` |
-| 想找现成的社区 skill 或某种画风 | 先看本仓库的 `styles/`（带样片），再看 `references/community-skills.md`（含 lemo 的 39 种风格库） | — | `cases/opus55-gallery.md` |
+| 想找现成的社区 skill 或某种画风 | 先看本仓库的 `styles/`（带样片），再看 `references/community-skills.md`（含 lemo-opuscar 的 43 种风格库，MIT） | — | `cases/opus55-gallery.md` |
 | 配音（中文或英文）、双语字幕、配乐、音效、歌曲 | `playbook/04-audio.md` | `bin/vh tts / captions / beats / music / sfx / mix / mux / qa` | `showcase/`（静音样板）+ 04 篇 |
 | 特效、转场、粒子、着色器、声画联动 | `playbook/08-vfx-and-motion-sources.md` | 随主引擎 | — |
 | 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`（一镜到底、特效预设栈、子帧运动模糊） | HyperFrames + Three.js 层 | `showcase/04-intro-film/`、`cases/opus55-gallery.md` 的 3D 一节和第 6 节（Austerlitz 长片深读） |
@@ -104,8 +104,8 @@ OpenVideoHarness/
 ├── README.md / README.zh-CN.md  给人看的说明（英 / 中）
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
 ├── install.sh                一键安装（克隆、依赖、参考仓库、注册 skill）
-├── bin/vh                    命令行：doctor · setup · types · effort · new · hf-init · install-skill · tts · captions · beats · music · sfx · mix · mux · qa · sheet · check · gif
-├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py）
+├── bin/vh                    命令行：doctor · setup · types · effort · new · hf-init · install-skill · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · sheet · check · gif
+├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py）
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              8 类视频：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
 ├── playbook/                 跨类型的通用知识

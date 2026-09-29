@@ -65,6 +65,7 @@ Recreate meme formats originally; no copyrighted images or real brand logos.
 - 硬切是不是都落在拍子上？
 - 所谓"破坏"是不是在一个成立的网格上的破坏？
 - 有没有侵权素材？
+- 配音是否够夸张、有戏？包袱前有没有 `<short pause>` 或屏息？每一刀有没有音效？见 `playbook/04-audio.md`"让声音有表情、有节奏"。
 
 ## 可参考的案例与源码
 
@@ -78,4 +79,4 @@ Recreate meme formats originally; no copyrighted images or real brand logos.
 以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
 
 - **viral-video-decomposer**（MIT）：镜头级拉片 → 爆款机制 → 变量槽 → JSON brief；只借结构，不照搬原片的文案和镜头。见 `references/repos/viral-video-decomposer/skill/SKILL.md`，配合 `playbook/07-reverse-engineer.md` 使用。
-- **lemo-opuscar 的 `halftone-dossier` / `microgame` 风格**（CC BY 4.0）：半调档案风的"模拟调查"，以及越来越快的微游戏快闪。见 `references/repos/lemo-opuscar/styles/halftone-dossier/STYLE.md`、`references/repos/lemo-opuscar/styles/microgame/STYLE.md`。
+- **lemo-opuscar 的 `halftone-dossier` / `microgame` 风格**（MIT）：半调档案风的"模拟调查"，以及越来越快的微游戏快闪。见 `references/repos/lemo-opuscar/styles/halftone-dossier/STYLE.md`、`references/repos/lemo-opuscar/styles/microgame/STYLE.md`。
