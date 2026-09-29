@@ -45,11 +45,27 @@ npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 - `snapshot` 在 tween 刚开始的那一刻，可能和最终渲染出的帧不一致。关键帧以渲染出的 mp4 为准，逐帧 strip 的做法见 `playbook/02-verification.md`。
 - 完整样板：`showcase/02-short-leo-doppler/`（竖屏科普，单个 `index.html`）。
 - **HyperFrames 加 Three.js（3D 世界、一镜到底）的坑**，来自介绍片的制作：
-  - 每一帧都用 `renderAt(t)` 从 t 算出摄像机和所有物体的状态。摄像机路线用按 t 参数化的样条，关卡处加停顿关键帧，不用 Three.js 的动画时钟。
+  - 每一帧都用 `renderAt(t)` 从 t 算出摄像机和所有物体的状态。摄像机路线用按 t 参数化的样条，不用 Three.js 的动画时钟。关卡处可以用 stop 关键帧停站，但要叠一层低幅的手持漂移，镜头不要完全停死（原因见 `playbook/08-vfx-and-motion-sources.md` 的"一镜到底"一节）。
   - `VideoTexture` 必须**每帧**设置 `texture.needsUpdate = true`，否则渲染出的屏幕是全黑的。视频按 t 去 seek，而且要等 seek 完成。
   - `__hf.buildReady` 要在普通 `<script>`（不是 module）里**同步注册**，否则每个并行 worker 的开头都会出现空帧。
   - 项目根目录只能有一个 composition。局部测试文件放在 `out/`，要跑时临时拷回来。
   - `snapshot` 看不到视频纹理（屏幕是暗的），检查必须看渲染出的 mp4 帧。
+  - **渲染时不要依赖在线 CDN。** importmap 指向 CDN 时，只要页面加载那一刻断网，渲染就会静默挂住：日志 0 字节，也不报错。介绍片的第一次 final 渲染就卡在这里。把 three.js 装进项目，importmap 指向 `node_modules`，snapshot 和 render 都能读到这些文件：
+
+    ```bash
+    npm i -D --save-exact three@0.181.2      # 写精确版本，换版本时重新比对无损帧
+    ```
+    ```html
+    <script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+    ```
+
+    渲染命令外面再包一层看门狗：超时就杀掉进程，核对退出码和帧数，再抽几帧查 YAVG，确认 3D 层确实画出来了。
+
+    GSAP 也一样。HyperFrames 的脚手架默认从 CDN 加载 `gsap@3.14.2`；`bin/vh hf-init` 现在会自动把它装进项目，并把 `<script src>` 改成 `node_modules/gsap/dist/gsap.min.js`，如果还有别的 CDN 引用，会打出警告。showcase 00 和 02 已经照此改过。剩下的网络依赖是 Google Fonts 的 `<link>`（showcase 02 的 Noto Sans SC、ClaudeAnimationBase 的 `studio.html`）：离线时要么先用本机字体（见 `styles/_swatch/README.md` 的字体表），要么把字体文件放进项目并在 NOTES 里记下许可。
+  - **`renderAt` 里抛异常时，画面会停在上一帧，不报错。** 介绍片有一版 draft 读了一个还没声明的 `const`（TDZ），36–48 s 整整 12 s 都停在 t=0 的画面。画面角落常驻一个 t 读数的 HUD，抽一帧就能看出停帧；成片级的检测方法见 `playbook/02-verification.md`。
+  - **Hermite 路径在"快甩、慢推"的站点会冲过头。** 关键帧的切线默认由前后两个邻居估出来，甩镜到站时，站点的切线带着甩镜的速度，镜头会冲进字里（介绍片的架构站把节点标签推出了画面）。给关键帧加一个切线模式：到站的关键帧用 `tm: "f"`，切线只取后面那段慢推；离站的关键帧用 `tm: "b"`，只取前面那段慢推。两站之间的甩镜就成了一条干净的 S 曲线。
+  - **世界里的节点标签按屏幕像素定字号**，不要按画面宽度的比例缩放，否则长标签的中文会掉到 20 多 px。介绍片的 `pin()` 每帧把节点投影到屏幕，用 `2·d·tan(fov/2) / 1080` 算出这个深度上 1 px 对应的世界长度（d 是节点沿视线方向的深度，fov 是竖直视场角），据此缩放面向镜头的标签平面，字号就固定了（英文 54–56 px，中文 ≥ 46 px）。另外两件事：标签框夹在安全框里；节点出画、或者标签被推离节点太远时就淡出，否则镜头离开后，标签会在画面边上堆成一摞。
+  - **变拍只改一个 `bar(k)`。** 画面、事件表、字幕、HUD 都从同一个 `bar(k, beat)` 取时间，不手写秒数。介绍片把第 11 小节改成 6/4 时，画面这边只在 `bar()` 里给第 12 小节以后统一加 2 拍，HUD 改用按真实拍号换算的 `barBeat()`；作曲那边在 `score.json` 写 `"meters": {"11": 6}`（`bin/vh music` 现在也支持这个字段，beat map 会多出 `bars`）。其他秒数一个都不用手改。
 
 ## Remotion（React），未安装
 

@@ -1,0 +1,8 @@
+{
+  "bpm": 120, "key": "E", "mode": "minor", "seed": 71,
+  "sections": [
+    { "name": "title-slam", "bars": 1, "chords": ["i"], "layers": ["kick", "hats", "bass"], "energy": 0.62, "impact": true },
+    { "name": "panels", "bars": 1, "chords": ["VI"], "layers": ["kick", "clap", "hats", "bass", "taiko"], "energy": 0.82, "fill": true },
+    { "name": "split", "bars": 1, "chords": ["i"], "layers": ["kick", "clap", "hats", "bass", "lead", "taiko"], "energy": 1.0, "impact": true }
+  ]
+}

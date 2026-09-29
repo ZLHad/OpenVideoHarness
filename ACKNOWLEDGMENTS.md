@@ -19,6 +19,7 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 | [PDoomVideo](https://github.com/JohnHeibel/PDoomVideo) | John Heibel (@other__reality) | none declared: read only | Contract files plus parallel chapter subagents; "something happens in every shot" (`cases/mv-pdoom.md`) |
 | [functional-emotions-video](https://github.com/ledbetterljoshua/functional-emotions-video) | Joshua Ledbetter | MIT (code; song and audio excluded) | Lyric-alignment pipeline, reference-chapter-first parallelism, GPU brushstroke renderer (`cases/mv-functional-emotions.md`) |
 | [hyperframes-launches](https://github.com/heygen-com/hyperframes-launches) | HeyGen | Apache-2.0 (bundled assets: see NOTICE) | 20 production launch films with storyboards and design systems (`cases/promo-hyperframes-launches.md`) |
+| [Battle-of-Austerlitz-Film](https://github.com/WinterArc21/Battle-of-Austerlitz-Film) | Winter (@WinterArc2125; GitHub WinterArc21) | none declared: read only | A five-minute WebGL2 history film on real terrain: measured narration drives every shot, and sound cues with distance and pan are derived from the picture (`cases/opus55-gallery.md` §6) |
 
 **Frameworks and skills**
 
@@ -45,6 +46,11 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 | [remotion-guofeng-starter](https://github.com/AllenAI2014/remotion-guofeng-starter) | AllenAI2014 | MIT (code; demo assets excluded) | Guofeng (Chinese paper-cut) animation from poems and idioms |
 | [viral-video-decomposer](https://github.com/sharon-laicc/viral-video-decomposer) | sharon-laicc | MIT | Shot-level breakdown of reference videos (`playbook/07-reverse-engineer.md`) |
 | [awesome-opus5-5-videos](https://github.com/yihui-dev/awesome-opus5-5-videos) | yihui-dev | none declared: read only | 389 community Opus 5.5 code videos and their prompts; statistics and curated picks in `cases/opus55-gallery.md` |
+| [awesome-opus-5.5-video](https://github.com/zhuyansen/awesome-opus-5.5-video) | Jason Zhu (@GoSailGlobal) | none declared: read only | Metadata for 962 Opus 5.5 works, with the prompts themselves on jasonzhu.ai (`cases/opus55-gallery.md` §5) |
+| [awesome-opus-5-5-videos](https://github.com/athemeroy/awesome-opus-5-5-videos) | athemeroy | CC BY 4.0 (stills, linked posts and prompts excluded) | Seven production paths, a production brief template, a visual-effects fit guide and a colour-mode study |
+| [claude-animation-skill](https://github.com/buildwithhanif/claude-animation-skill) | Hanif (@hanifproduktif) | MIT | Hand-drawn 2D in Node canvas: the detail bible (base → texture → edge), a seek-order `verify` step, and staged renders that never overwrite a good file after a failed encode |
+| [product-film-skill](https://github.com/Rieranthony/product-film-skill) | Anthony Riera | MIT (Remotion under its own license) | Product films from the product's own design system: `BRAND.md`, three style frames before building, a 240 fps master for motion blur, a muted loop plus poster, and decode checks in `verify.py` |
+| [procedural-film](https://github.com/kuhnhomeuk-cell/procedural-film) | Dean Kuhn | MIT | Zero-asset JavaScript films: one agent per shot, waves of critics and a six-check gate |
 
 ## Research
 
@@ -60,7 +66,11 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 
 ## Toolchain
 
-[Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) (Apache-2.0, default local voice via [mlx-audio](https://github.com/Blaizzy/mlx-audio), MIT), [NumPy](https://numpy.org) and [SciPy](https://scipy.org) (code-composed music and SFX), [Pillow](https://python-pillow.org) (timestamped contact sheets), [uv](https://github.com/astral-sh/uv), [FFmpeg](https://ffmpeg.org), [Puppeteer](https://pptr.dev), [p5.js](https://p5js.org), [p5.brush](https://github.com/acamposuribe/p5.brush), [GSAP](https://gsap.com), [Remotion](https://www.remotion.dev), [Manim Community](https://www.manim.community), [whisper.cpp](https://github.com/ggml-org/whisper.cpp), [FunASR](https://github.com/modelscope/FunASR), [librosa](https://librosa.org), [beat_this](https://github.com/CPJKU/beat_this), [Demucs](https://github.com/adefossez/demucs), [mlx-audio](https://github.com/Blaizzy/mlx-audio), [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS), and the other projects in `references/open-source.md`.
+[Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS) (Apache-2.0, default local voice via [mlx-audio](https://github.com/Blaizzy/mlx-audio), MIT), [NumPy](https://numpy.org) and [SciPy](https://scipy.org) (code-composed music and SFX), [Pillow](https://python-pillow.org) (timestamped contact sheets), [uv](https://github.com/astral-sh/uv), [FFmpeg](https://ffmpeg.org), [Puppeteer](https://pptr.dev), [p5.js](https://p5js.org), [p5.brush](https://github.com/acamposuribe/p5.brush), [GSAP](https://gsap.com), [Remotion](https://www.remotion.dev), [Manim Community](https://www.manim.community), [whisper.cpp](https://github.com/ggml-org/whisper.cpp), [FunASR](https://github.com/modelscope/FunASR), [librosa](https://librosa.org), [beat_this](https://github.com/CPJKU/beat_this), [Demucs](https://github.com/adefossez/demucs), and the other projects in `references/open-source.md`.
+
+## Data we point to (not shipped)
+
+- [Make Me a Hanzi](https://github.com/skishore/makemeahanzi) by Shaunak Kishore (skishore): stroke-order data for Chinese characters, described in `video-types/07-hand-drawn.md`. It is neither vendored nor fetched: `graphics.txt` is under the Arphic Public License and `dictionary.txt` under the LGPL, so each project downloads the characters it needs and records them in its asset ledger.
 
 ## Community creators
 
@@ -74,8 +84,11 @@ Public experiments and generously shared prompts from these creators shaped the 
 - **viggo (@decohack)**, **@achxvi** and **@ajith_io**: the one-line "showreel" prompt lineage.
 - **Andy L (@AndyL5cc)**: one-sentence science explainers (*Interstellar* black hole, the Marquis Yi bells).
 - **@kimmonismus**, **@pradeepXkapoor**, **@jake11moran**, **@dotey (宝玉)**, **@AxtonLiu** and **@goodside**: prompts analysed in `cases/community-prompts.md`.
+- **Movez (@0xMovez)**: the 12-step course *How to build motion design studio with Opus 5.5*, through which the techniques of **Tony Dinh**, **@oozn** and **@mablesjoseph** reached `cases/community-prompts.md`.
+- **Eian (@EianLu)**: a Chinese guide to making motion videos with Opus 5.5 and two films, *AGENT/0* and *华夏·五千年*: a code-composed score used as the script, and chapter titles written in true stroke order.
+- **Winter (@WinterArc2125)**: *Austerlitz, 2 December 1805*, with its full source.
 - **Chris Tyson (The Agent Architect)**: Claude Code + Remotion production lessons.
-- **Jason Zhu (@GoSailGlobal)** and **余温 (@gkxspace)**: curating and surfacing the community skill list.
+- **Jason Zhu (@GoSailGlobal)** and **余温 (@gkxspace)**: curating and surfacing the community skill list; Jason Zhu also for the 962-work Opus 5.5 catalogue (jasonzhu.ai) behind `cases/opus55-gallery.md` §5.
 - **yihui-dev** and **huangserva (@servasyy_ai)**: collecting and surfacing 389 Opus 5.5 videos with their prompts.
 
 Style references named in prompts (3Blue1Brown, Kurzgesagt, Fireship, Vox, 回形针 PaperClip and others) are cited as vocabulary for direction. No affiliation is implied.

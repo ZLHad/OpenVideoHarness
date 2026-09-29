@@ -1,0 +1,10 @@
+{
+  "bpm": 150, "key": "E", "mode": "minor", "seed": 91,
+  "meters": { "1": 2, "2": 3, "3": 5, "4": 4 },
+  "sections": [
+    { "name": "boot", "bars": 1, "chords": ["i"], "layers": ["pad"], "energy": 0.22 },
+    { "name": "typing", "bars": 1, "chords": ["i"], "layers": ["pad", "hats"], "energy": 0.36 },
+    { "name": "windows", "bars": 1, "chords": ["VI"], "layers": ["pad", "hats", "lead", "bass"], "energy": 0.5 },
+    { "name": "power-off", "bars": 1, "chords": ["i"], "layers": ["pad"], "energy": 0.18 }
+  ]
+}

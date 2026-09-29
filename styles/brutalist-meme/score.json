@@ -1,0 +1,100 @@
+{
+  "bpm": 150,
+  "key": "E",
+  "mode": "minor",
+  "seed": 6,
+  "meters": {
+    "1": 2,
+    "2": 3,
+    "3": 3,
+    "4": 1,
+    "5": 1,
+    "6": 3
+  },
+  "sections": [
+    {
+      "name": "setup",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "hats",
+        "bass"
+      ],
+      "energy": 0.55
+    },
+    {
+      "name": "title",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "kick",
+        "clap",
+        "hats",
+        "bass"
+      ],
+      "energy": 0.85,
+      "impact": true
+    },
+    {
+      "name": "cards",
+      "bars": 1,
+      "chords": [
+        "VI"
+      ],
+      "layers": [
+        "kick",
+        "clap",
+        "hats",
+        "bass",
+        "lead"
+      ],
+      "energy": 1.0
+    },
+    {
+      "name": "breath",
+      "bars": 1,
+      "chords": [
+        "VI"
+      ],
+      "layers": [
+        "pad",
+        "bass"
+      ],
+      "energy": 0.3
+    },
+    {
+      "name": "hit",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "kick",
+        "clap",
+        "hats",
+        "bass"
+      ],
+      "energy": 1.0,
+      "impact": true
+    },
+    {
+      "name": "glitch",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "kick",
+        "hats",
+        "bass",
+        "pad"
+      ],
+      "energy": 0.9,
+      "impact": true
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "bpm": 150,
+  "key": "E",
+  "mode": "major",
+  "seed": 5,
+  "meters": {
+    "1": 2,
+    "2": 3,
+    "3": 5,
+    "4": 3
+  },
+  "sections": [
+    {
+      "name": "wall",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "bell",
+        "pad"
+      ],
+      "energy": 0.4
+    },
+    {
+      "name": "ribbons",
+      "bars": 1,
+      "chords": [
+        "iv"
+      ],
+      "layers": [
+        "zheng",
+        "bell",
+        "pad"
+      ],
+      "energy": 0.5
+    },
+    {
+      "name": "strip",
+      "bars": 1,
+      "chords": [
+        "v"
+      ],
+      "layers": [
+        "zheng",
+        "dizi",
+        "bell",
+        "pad"
+      ],
+      "energy": 0.6
+    },
+    {
+      "name": "caisson",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "bell",
+        "zheng",
+        "pad"
+      ],
+      "energy": 0.5
+    }
+  ]
+}

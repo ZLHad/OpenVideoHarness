@@ -1,0 +1,9 @@
+{
+  "bpm": 90, "key": "D", "mode": "major", "seed": 61,
+  "meters": { "1": 3, "2": 3, "3": 3 },
+  "sections": [
+    { "name": "sheet", "bars": 1, "chords": ["I"], "layers": ["arp", "bass", "pad"], "energy": 0.4 },
+    { "name": "figures", "bars": 1, "chords": ["V"], "layers": ["arp", "bass", "pad"], "energy": 0.58 },
+    { "name": "title-block", "bars": 1, "chords": ["I"], "layers": ["pad", "bell", "arp"], "energy": 0.4 }
+  ]
+}

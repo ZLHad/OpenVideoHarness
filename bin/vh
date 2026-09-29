@@ -3,17 +3,19 @@
 #   doctor                      check the toolchain (node, ffmpeg, chrome, python/uv, latex)
 #   setup                       install ClaudeAnimationBase deps + fetch reference repos
 #   types                       list video types and their docs
-#   new <type> <slug>           create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme)
+#   new <type> <slug> [--style <preset>]  create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme)
+#   style list | <preset> [--draft] | gallery [--mp4] | check <preset>   style library: list presets, render a 5 s swatch, build styles/gallery.jpg
 #   hf-init <dir> [resolution]  scaffold HyperFrames into a project safely (no global skill install; landscape|portrait|square)
 #   sync-agents                 regenerate AGENTS.md from CLAUDE.md (keep both agents' entry points identical)
 #   install-skill [claude|codex|all]  register the open-video-harness skill (~/.claude/skills, ~/.agents/skills)
 #   tts <project> [provider] [voice] [zh|en]  voiceover from audio/script.txt (bilingual: 中文 || English)
 #                               providers: qwen (default, local open-source Qwen3-TTS) | say | edge | dashscope | elevenlabs
 #   captions <project> [zh|en] [zh-max]  SRT (zh / en / bilingual) + captions.json from the TTS timeline
-#   beats <audio> [out.json]    beat grid (bpm, offset, beats, downbeats) with librosa
-#   music <score.json> <out.wav> | music --example   code-composed soundtrack + exact beat/section map
-#   sfx lib <dir> | sfx place <events.json> <out.wav> [dur]   built-in SFX library / place SFX on action times
+#   beats <audio> [out.json]    beat grid (bpm, offset, beats, downbeats) + hits, kick/snare accents (librosa)
+#   music <score.json> <out.wav> | music --example [zh]   code-composed soundtrack + exact beat/section map
+#   sfx lib <dir> | sfx place <events.json> <out.wav> [dur]   built-in SFX library / place SFX on action times (stereo, pan/dist)
 #   mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]   3-bus mix, music ducks under voice+SFX, −14 LUFS
+#   qa <mix> [beats.json] [events.json]  final-mix QA: silence, dropouts, pumping, clicks + cue check (exit 1 on fail)
 #   mux <video> <audio> <out> [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
 #   check <video>               ffprobe + black/freeze/silence detection
@@ -73,6 +75,7 @@ cmd_sync_agents() {
 cmd_setup() {
   echo "→ installing ClaudeAnimationBase deps"; (cd "$ROOT/engines/ClaudeAnimationBase" && npm install --silent)
   echo "→ fetching reference repos"; "$ROOT/references/fetch.sh"
+  echo "→ installing the style swatch renderer"; (cd "$ROOT/styles/_swatch" && npm ci --silent)
   [ -f "$ROOT/LOCAL.md" ] || cp "$ROOT/LOCAL.example.md" "$ROOT/LOCAL.md"
   echo "→ smoke test"; (cd "$ROOT/engines/ClaudeAnimationBase" && node render.mjs --sheet=0.5,4,8 --cols=3 --w=320 --out="$ROOT/.reel-smoke.jpg" && rm -f "$ROOT/.reel-smoke.jpg")
   echo "$c_ok setup done. Next: bin/vh new <type> <slug>   (types: bin/vh types)"
@@ -81,8 +84,9 @@ cmd_setup() {
 cmd_types() { for t in "${TYPES[@]}"; do IFS=: read -r k f d <<<"$t"; printf "  %-10s video-types/%-32s %s\n" "$k" "$f.md" "$d"; done; }
 
 cmd_new() {
-  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug>"; cmd_types; exit 1; }
-  local type=$1 slug=$2 doc; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 1; }
+  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset>]"; cmd_types; exit 1; }
+  local type=$1 slug=$2 doc style=""; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 1; }
+  [ "${3:-}" = --style ] && { style=${4:?--style needs a preset (bin/vh style list)}; [ -f "$ROOT/styles/$style/STYLE.md" ] || { echo "unknown style: $style"; cmd_style list; exit 1; }; }
   local dir="$ROOT/projects/$(date +%F)-$slug"
   [ -e "$dir" ] && { echo "$dir already exists"; exit 1; }
   if [ "$type" = handdrawn ] || [ "$type" = mv ]; then
@@ -114,10 +118,41 @@ note = ("> **本项目用 ClaudeAnimationBase：`ANIMATION_GUIDE.md` 的规则�
 open(p, "w").write(s.replace("# BRIEF\n", "# BRIEF\n\n" + note, 1))
 PY
   fi
+  if [ -n "$style" ]; then   # the preset rides along: its STYLE.md + tokens, and its prompt block appended to BRIEF
+    cp "$ROOT/styles/$style/STYLE.md" "$dir/STYLE_PRESET.md"; cp "$ROOT/styles/$style/tokens.json" "$dir/style.tokens.json"
+    python3 - "$ROOT/styles/$style/STYLE.md" "$dir/BRIEF.md" "$dir/STYLE.md" "$style" <<'PY'
+import re, sys
+src, brief, style, slug = sys.argv[1:5]
+m = re.search(r"## Prompt 块\s*```text\n(.*?)```", open(src).read(), re.S)
+if m: open(brief, "a").write(f"\n\n## Style preset: {slug}\n\n```text\n{m.group(1).strip()}\n```\n")
+s = open(style).read()
+open(style, "w").write(f"> 本项目以风格预设 `styles/{slug}` 为底：先读 `STYLE_PRESET.md`，数值取 `style.tokens.json`；下面只写本片对预设的改动。\n\n" + s)
+PY
+  fi
   echo "$c_ok created ${dir#$ROOT/}"
   echo "   type doc : video-types/$doc.md"
+  [ -n "$style" ] && echo "   style    : styles/$style (STYLE_PRESET.md, style.tokens.json)"
   echo "   next     : open Claude Code in the repo root and say what the video is about;"
   echo "              the agent fills ${dir#$ROOT/}/BRIEF.md and STORYBOARD.md and stops for your review."
+}
+
+cmd_style() { # style library: styles/<preset>/{STYLE.md,tokens.json,swatch.js,media/}; renderer in styles/_swatch
+  local sw="$ROOT/styles/_swatch"
+  case "${1:-list}" in
+    list) python3 - "$ROOT/styles" <<'PY'
+import json, pathlib, sys
+for d in sorted(pathlib.Path(sys.argv[1]).iterdir()):
+    t = d / "tokens.json"
+    if d.name.startswith("_") or not t.exists(): continue
+    j = json.loads(t.read_text())
+    has = "swatch" if (d / "media" / "swatch.mp4").exists() else "—"
+    print(f"  {d.name:22} {j.get('family',''):13} {j.get('name',{}).get('zh',''):14} {has}")
+PY
+      ;;
+    gallery) shift; uv run -q --with pillow python "$sw/gallery.py" "$@" ;;
+    check) shift; "$sw/determinism.sh" "$@" ;;
+    *) [ -d "$sw/node_modules" ] || (cd "$sw" && npm ci --silent); exec "$sw/render.sh" "$@" ;;
+  esac
 }
 
 cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/skills) unless HYPERFRAMES_SKIP_SKILLS=1
@@ -135,6 +170,13 @@ cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/s
   done
   shopt -u dotglob; rm -rf "$tmp"
   (cd "$dir" && npm i -D --save-exact --silent --no-fund --no-audit "hyperframes@${HYPERFRAMES_VERSION:-0.8.82}" >/dev/null 2>&1) || echo "$c_wa could not pin hyperframes locally (offline?)"
+  # the scaffold loads GSAP from a CDN; an offline render then hangs silently, so vend it locally (same pinned version)
+  local gv; gv=$(grep -o 'cdn.jsdelivr.net/npm/gsap@[0-9.]*' "$dir"/*.html 2>/dev/null | head -1 | sed 's/.*gsap@//') || true
+  if [ -n "$gv" ] && (cd "$dir" && npm i -D --save-exact --silent --no-fund --no-audit "gsap@$gv" >/dev/null 2>&1); then
+    sed -i '' "s#https://cdn.jsdelivr.net/npm/gsap@$gv/dist/gsap.min.js#node_modules/gsap/dist/gsap.min.js#g" "$dir"/*.html
+    echo "   gsap     : $gv vendored locally (node_modules/gsap), no CDN at render time"
+  fi
+  grep -lE 'https?://(cdn\.|unpkg\.com|cdnjs\.)' "$dir"/*.html 2>/dev/null | sed "s#^#$c_wa still loads from a CDN (vendor it before rendering): #" || true
   echo "$c_ok HyperFrames scaffolded into ${dir#$ROOT/} (index.html, hyperframes.json …). Always prefix npx hyperframes with HYPERFRAMES_SKIP_SKILLS=1."
 }
 project_of() { # nearest ancestor of $1 that contains BRIEF.md (a project), else empty
@@ -172,6 +214,7 @@ cmd_beats() { uv run -q --with librosa python "$ROOT/tools/audio/beats.py" "$@";
 cmd_music() { uv run -q --with numpy --with scipy python "$ROOT/tools/audio/music.py" "$@"; }
 cmd_sfx() { uv run -q --with numpy --with scipy python "$ROOT/tools/audio/sfx.py" "$@"; }
 cmd_mix() { python3 "$ROOT/tools/audio/mix.py" "$@"; }
+cmd_qa() { uv run -q --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
 cmd_mux() { # output length = video length (audio padded/trimmed); extra .srt args become soft subtitle tracks
   local v=${1:?usage: bin/vh mux <video> <audio> <out> [subs.srt…]} a=$2 out=$3; shift 3
   local vd; vd=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$v")
@@ -190,8 +233,8 @@ cmd_gif() {
 
 case "${1:-help}" in
   doctor) cmd_doctor ;; setup) cmd_setup ;; types) cmd_types ;;
-  tts) shift; cmd_tts "$@" ;; captions) shift; cmd_captions "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; mux) shift; cmd_mux "$@" ;;
+  tts) shift; cmd_tts "$@" ;; captions) shift; cmd_captions "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
-  new) shift; cmd_new "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
-  *) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//' ;;
+  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
+  *) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0" ;;
 esac

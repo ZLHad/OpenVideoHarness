@@ -1,0 +1,10 @@
+{
+  "bpm": 150, "key": "C", "mode": "minor", "seed": 100,
+  "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "sections": [
+    {"name": "boot", "bars": 1, "chords": ["i"], "layers": ["pad"], "energy": 0.3},
+    {"name": "decode", "bars": 1, "chords": ["i"], "layers": ["pad", "arp"], "energy": 0.4},
+    {"name": "stages", "bars": 2, "chords": ["VI", "VII"], "layers": ["pad", "arp", "bass", "hats"], "energy": 0.55},
+    {"name": "expand", "bars": 1, "chords": ["i"], "layers": ["pad", "arp", "bass"], "energy": 0.6}
+  ]
+}

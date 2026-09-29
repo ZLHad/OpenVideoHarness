@@ -1,0 +1,78 @@
+{
+  "bpm": 150,
+  "key": "A",
+  "mode": "minor",
+  "seed": 21,
+  "meters": {
+    "1": 2,
+    "2": 3,
+    "3": 3,
+    "4": 2,
+    "5": 3
+  },
+  "sections": [
+    {
+      "name": "paper",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "zheng",
+        "pad"
+      ],
+      "energy": 0.3
+    },
+    {
+      "name": "title",
+      "bars": 1,
+      "chords": [
+        "III"
+      ],
+      "layers": [
+        "zheng",
+        "dizi",
+        "pad"
+      ],
+      "energy": 0.5
+    },
+    {
+      "name": "peaks",
+      "bars": 1,
+      "chords": [
+        "iv"
+      ],
+      "layers": [
+        "zheng",
+        "dizi",
+        "pad"
+      ],
+      "energy": 0.45
+    },
+    {
+      "name": "breath",
+      "bars": 1,
+      "chords": [
+        "VII"
+      ],
+      "layers": [
+        "pad",
+        "bell"
+      ],
+      "energy": 0.25
+    },
+    {
+      "name": "drop",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "zheng",
+        "bell",
+        "pad"
+      ],
+      "energy": 0.5
+    }
+  ]
+}

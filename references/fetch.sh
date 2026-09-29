@@ -2,24 +2,42 @@
 # 拉取参考仓库到 references/repos/，供 agent 阅读。可重复运行以更新。
 # 这些是只读参考：不要在里面改代码，要用就复制到 projects/ 下。
 #
-# 中和（neutralize）：很多仓库自带 .claude/（skills、settings）、CLAUDE.md、AGENTS.md、.mcp.json。
-# Claude Code 读到子目录文件时会自动加载它们，可能让别人的规则劫持本仓库的路由。
-# 所以拉取后统一改名为 _upstream_*（内容照样可读，但不会被自动加载）；更新前先还原，保证 git pull 不冲突。
+# 中和（neutralize）：很多仓库自带 .claude/、.agents/（skills、settings）、CLAUDE.md、AGENTS.md、.mcp.json，
+# 而且不只在根目录（hyperframes-launches 的每个子项目都有自己的 CLAUDE.md）。
+# Claude Code / Codex 读到子目录文件时会自动加载它们，可能让别人的规则劫持本仓库的路由。
+# 所以拉取后把所有层级的这些文件统一改名为 _upstream_*（内容照样可读，但不会被自动加载）；更新前先还原，保证 git pull 不冲突。
+#
+# 用法：bash references/fetch.sh               拉取或更新全部
+#       bash references/fetch.sh <dir>         只处理一个（dir 是下表第二列，例如 lemo-opuscar）
+#       bash references/fetch.sh --neutralize  不联网，只对已拉取的仓库重新做一遍中和
 set -euo pipefail
 cd "$(dirname "$0")" && mkdir -p repos && cd repos
+ARG=${1:-}
 
-AGENT_FILES=(.claude CLAUDE.md AGENTS.md .mcp.json)
+AGENT_FILES=(.claude .agents CLAUDE.md CLAUDE.local.md AGENTS.md .mcp.json)
+agent_paths() { # 列出 $1 下所有层级的 agent 文件（跳过 .git），深的在前，保证先改子项再改父目录
+  local d=$1 f args=()
+  for f in "${AGENT_FILES[@]}"; do args+=(-name "$f" -o); done
+  find "$d" -path "$d/.git" -prune -o \( "${args[@]:0:${#args[@]}-1}" \) -print | sort -r
+}
 restore() {    # 更新前：删掉改名副本，还原原文件，保证 git pull 不冲突
   local d=$1; [ -d "$d/.git" ] || return 0
-  rm -rf "$d"/_upstream_*; git -C "$d" checkout -q -- . 2>/dev/null || true
+  find "$d" -path "$d/.git" -prune -o -name '_upstream_*' -print | sort -r | while IFS= read -r p; do rm -rf "$p"; done
+  git -C "$d" checkout -q -- . 2>/dev/null || true
 }
-neutralize() { # 更新后：改名为 _upstream_*（git status 会把原路径显示为已删除，这是预期的）
-  local d=$1 f
-  for f in "${AGENT_FILES[@]}"; do [ -e "$d/$f" ] && mv "$d/$f" "$d/_upstream_${f#.}"; done
+neutralize() { # 更新后：改名为同目录下的 _upstream_*（git status 会把原路径显示为已删除，这是预期的）
+  local d=$1 p b
+  agent_paths "$d" | while IFS= read -r p; do b=$(basename "$p"); mv "$p" "$(dirname "$p")/_upstream_${b#.}"; done
   return 0
+}
+skip() {       # 按参数决定是否跳过这一行；--neutralize 模式只中和、不联网
+  local d=$1
+  if [ "$ARG" = "--neutralize" ]; then [ -d "$d" ] && neutralize "$d" && echo "ok  $d (neutralized)"; return 0; fi
+  [ -n "$ARG" ] && [ "$ARG" != "$d" ]
 }
 
 full() {   # full <owner/repo> <dir>：整仓浅克隆
+  skip "$2" && return 0
   restore "$2"
   if [ -d "$2/.git" ]; then git -C "$2" pull --ff-only -q || true
   else git clone -q --depth 1 "https://github.com/$1.git" "$2"; fi
@@ -27,6 +45,7 @@ full() {   # full <owner/repo> <dir>：整仓浅克隆
 }
 sparse() { # sparse <owner/repo> <dir> <path...>：只检出指定目录（大仓库用）
   local r=$1 d=$2; shift 2
+  skip "$d" && return 0
   restore "$d"
   if [ ! -d "$d/.git" ]; then git clone -q --depth 1 --filter=blob:none --sparse "https://github.com/$r.git" "$d"; fi
   git -C "$d" sparse-checkout set "$@" && git -C "$d" pull --ff-only -q || true
@@ -34,6 +53,7 @@ sparse() { # sparse <owner/repo> <dir> <path...>：只检出指定目录（大�
 }
 textonly() { # textonly <owner/repo> <dir>：只检出代码和文档，跳过视频、音频、图片、字体（素材很大的仓库用）
   local r=$1 d=$2
+  skip "$d" && return 0
   restore "$d"
   if [ ! -d "$d/.git" ]; then git clone -q --depth 1 --filter=blob:none --no-checkout "https://github.com/$r.git" "$d"; fi
   git -C "$d" sparse-checkout set --no-cone '/*' '!*.mp4' '!*.mov' '!*.webm' '!*.mkv' '!*.gif' '!*.mp3' '!*.wav' '!*.m4a' '!*.aac' '!*.flac' \
@@ -46,6 +66,7 @@ textonly() { # textonly <owner/repo> <dir>：只检出代码和文档，跳过�
 full   JohnHeibel/PDoomVideo                   PDoomVideo                 # 歌词 MV，p5.brush，无 license：只读参考
 full   ledbetterljoshua/functional-emotions-video functional-emotions-video # MV，歌词对齐 + 7 个 subagent 并行
 full   heygen-com/hyperframes-launches         hyperframes-launches       # HeyGen 发布会视频源码（产品宣传范例）
+textonly WinterArc21/Battle-of-Austerlitz-Film Battle-of-Austerlitz-Film  # 5 分钟 WebGL2 历史长片：SRTM 地形、Kokoro 旁白定镜头时长、events.js 推导音效（无 license：只读；成片 mp4 不拉，深读见 cases/opus55-gallery.md 第 6 节）
 # 框架文档与 skills
 sparse heygen-com/hyperframes                  hyperframes    skills .claude/skills   # motion-doctrine、字幕审美、风格预设、各工作流 skill
 full   remotion-dev/skills                     remotion-skills
@@ -55,6 +76,11 @@ sparse AmitSubhash/3brown1blue                 3brown1blue    src/three_b1b/skil
 # 社区清单与精选 skill（清单 CC0；精选条目的说明见 references/community-skills.md）
 sparse   zhuyansen/awesome-claude-video-skills  awesome-claude-video-skills data   # 183 个视频 skill 的分类清单与 skills.json
 full     yihui-dev/awesome-opus5-5-videos       awesome-opus5-5-videos     # 389 支 Opus 5.5 代码视频 + 作者公开的 prompt（无 license：只读，精选见 cases/opus55-gallery.md）
+full     zhuyansen/awesome-opus-5.5-video       opus55-catalog-zhuyansen   # 第二份 Opus 5.5 作品目录，只有元数据 cases.json，prompt 原文在网站上（无 license：只读，见 cases/opus55-gallery.md 第 5 节）
+textonly athemeroy/awesome-opus-5-5-videos      opus55-guide-athemeroy     # Opus 5.5 视频的研究型目录：168 条逐条核对来源、7 条制作路径、配色模式研究、制作 brief 模板（CC BY 4.0）
+full     buildwithhanif/claude-animation-skill  claude-animation-skill     # 代码手绘 2D 动画：细节圣经（底色→纹理→边缘）、verify 乱序一致性、编码失败不覆盖好文件（MIT）
+full     Rieranthony/product-film-skill         product-film-skill         # Remotion 产品片：BRAND.md、先出 3 张风格帧、240fps 母版做运动模糊、verify.py 解码检查（MIT）
+textonly kuhnhomeuk-cell/procedural-film        procedural-film            # 纯 JS 绘制并配乐的 30 秒竖屏片：一镜一 agent、评审波次、六项关卡、零外部素材（MIT）
 textonly lemomo-ai/lemo-opuscar                 lemo-opuscar               # 39 种影片风格：风格 prompt + Opus 5.5 纯代码样片（代码 MIT；指南、STYLE.md、成片 CC BY 4.0）
 textonly calesthio/OpenMontage                  OpenMontage                # 全套 agent 视频制作系统：12 条管线、700+ skill/知识文件（AGPL）
 textonly Vincentwei1021/video-shotcraft         video-shotcraft            # 产品片：150+ 张镜头配方卡 + Remotion（Apache-2.0；部分音效来源待核）

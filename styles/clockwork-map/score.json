@@ -1,0 +1,9 @@
+{
+  "bpm": 90, "key": "D", "mode": "minor", "seed": 11,
+  "meters": { "1": 3, "2": 3, "3": 3 },
+  "sections": [
+    { "name": "flight", "bars": 1, "chords": ["i"], "layers": ["pad", "bass", "bell"], "energy": 0.36 },
+    { "name": "mechanisms", "bars": 1, "chords": ["VI"], "layers": ["pad", "bass", "arp", "bell"], "energy": 0.55 },
+    { "name": "pull-back", "bars": 1, "chords": ["i"], "layers": ["pad", "bass", "taiko", "bell"], "energy": 0.72, "impact": true }
+  ]
+}

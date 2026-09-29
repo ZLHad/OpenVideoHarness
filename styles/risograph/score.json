@@ -1,0 +1,8 @@
+{
+  "bpm": 120, "key": "A", "mode": "major", "seed": 81,
+  "sections": [
+    { "name": "blue-plate", "bars": 1, "chords": ["I"], "layers": ["pad", "arp"], "energy": 0.36 },
+    { "name": "plates-arrive", "bars": 1, "chords": ["vi"], "layers": ["pad", "arp", "bass", "hats"], "energy": 0.55 },
+    { "name": "full-overprint", "bars": 1, "chords": ["IV"], "layers": ["pad", "arp", "bass", "hats", "clap", "bell"], "energy": 0.72 }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "bpm": 150, "key": "A", "mode": "minor", "seed": 8,
+  "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "sections": [
+    {"name": "grid", "bars": 1, "chords": ["i"], "layers": ["hats", "bass"], "energy": 0.5},
+    {"name": "headline", "bars": 1, "chords": ["IV"], "layers": ["hats", "kick", "clap"], "energy": 0.6},
+    {"name": "modules", "bars": 2, "chords": ["i", "IV"], "layers": ["hats", "kick", "clap", "bass", "arp"], "energy": 0.75, "fill": true},
+    {"name": "wipe", "bars": 1, "chords": ["i"], "layers": ["kick", "hats", "bass", "arp", "lead"], "energy": 0.85}
+  ]
+}
