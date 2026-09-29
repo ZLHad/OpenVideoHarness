@@ -4,7 +4,7 @@
 
 **Coding agents like Claude Code and Codex can make videos by writing programs. This makes them do it reliably.**
 
-Explainers, science shorts, product films, music videos, data stories, paper talks, hand-drawn shorts and meme edits: 8 video types, 26 styles, one workflow.
+Explainers, science shorts, product films, music videos, data stories, paper talks, hand-drawn shorts and meme edits: 8 video types, 28 styles, one workflow.
 
 **English** · [中文](README.zh-CN.md)
 
@@ -12,7 +12,7 @@ Explainers, science shorts, product films, music videos, data stories, paper tal
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush-blue)
 ![Voice](https://img.shields.io/badge/voice-Qwen3--TTS%20zh%20%7C%20en-purple)
-![Styles](https://img.shields.io/badge/styles-26-green)
+![Styles](https://img.shields.io/badge/styles-28-green)
 
 <a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/preview.gif" width="820" alt="OpenVideoHarness intro film"></a>
 
@@ -32,7 +32,7 @@ OpenVideoHarness is that craft, written as docs and tools an agent can follow:
 
 - **A method for each kind of video.** Say "make a science short" or "make a launch film", and it reads the workflow for that type: which engine, which steps, what looks good, what is off limits.
 - **It stops and asks you three times.** At the outline, the storyboard and the first draft, it waits for your go-ahead. Direction gets settled while changes are still cheap. For a quick try, switch to the `quick` level and it just renders.
-- **More than one taste.** 26 styles learned from famous work, each with a real rendered sample, offered to you before anything is built.
+- **More than one taste.** 28 styles learned from famous work, each with a real rendered sample, offered to you before anything is built.
 - **It checks its own work.** An agent can't watch video or hear sound, so it looks at rendered frames, measures the mix, and fixes things until a checklist passes. A reviewer who didn't make the film then scores it.
 - **Sound included.** Chinese and English voiceover (a local open-source model), bilingual subtitles, music and sound effects written as code, mixing and a final audio check.
 
@@ -100,26 +100,26 @@ The GIFs are compressed previews; each folder has the original in `media/final.m
 
 </details>
 
-## 26 styles, not one taste
+## 28 styles, not one taste
 
 AI-made videos drift toward one look: dark background, glow, glass cards, busy animated UI. Unless you say otherwise, that's where an agent goes.
 
-So we studied famous work and wrote down 26 styles in [`styles/`](styles/), grouped into film titles, brand and launch, data and explainers, illustration and print, Chinese aesthetics, and retro tech. The sources include:
+So we studied famous work and wrote down 28 styles in [`styles/`](styles/), grouped into film titles, brand and launch, data and explainers, illustration and print, Chinese aesthetics, and retro tech. The sources include:
 - **film and title design**: Saul Bass's titles, *Se7en*, *Blade Runner 2049*, Wes Anderson's symmetry, Wong Kar-wai's step-printing;
-- **design**: the Swiss grid, 3Blue1Brown, New York Times data graphics;
-- **animation and print**: the halftone dots of *Spider-Verse*;
+- **design**: the Swiss grid, 3Blue1Brown, New York Times data graphics, Otto Neurath's Isotype pictograms;
+- **animation and print**: the halftone dots of *Spider-Verse*, 16-bit Super Nintendo pixel art;
 - **Chinese aesthetics**: ink wash (水墨), Dunhuang murals, shadow puppetry and guochao.
 
 Each style is written as instructions an agent can follow: colors and fonts, composition, how things move, how scenes change, what it sounds like, and which clichés to avoid.
 
-**Every style comes with a real 5-second sample rendered by this repo**, each with its own code-written music. All 26 samples show exactly the same content, so the only difference is the style:
+**Every style comes with a real 5-second sample rendered by this repo**, each with its own code-written music. All 28 samples show exactly the same content, so the only difference is the style:
 
-<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="The 26 style samples, all showing the same content"></a>
+<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="The 28 style samples, all showing the same content"></a>
 
 Watch them back to back in [`styles/gallery.mp4`](styles/gallery.mp4). To use one:
 
 ```bash
-bin/vh style list                                  # see all 26
+bin/vh style list                                  # see all 28
 bin/vh new promo launch-film --style cutout-jazz   # start a project from a style
 ```
 
@@ -224,6 +224,7 @@ The agent can't hear, so sound is built to be computed and measured:
 | You want | Command | Notes |
 |---|---|---|
 | Voiceover (zh / en) | `bin/vh tts` | Local open-source **Qwen3-TTS** by default: offline, free, about 2 GB on first run. 5 Chinese voices (including Beijing and Sichuan accents), 2 English. Interfaces ready for Alibaba Cloud, ElevenLabs and Gemini 3.8 Flash TTS (very expressive; direct the delivery in one sentence) |
+| Narration with feeling and rhythm | `bin/vh tts … --beats` | Direct each line on its own, e.g. `[surprised question, fast, stress "one sentence"]`. With music, every line starts on a beat, and key lines can be pinned to a bar start or the drop. Default delivery per video type, frame-aligned tempos and mix settings are in [playbook/04](playbook/04-audio.md) |
 | Bilingual subtitles | `bin/vh captions` | Write the script as `中文 \|\| English` and get Chinese, English and two-line subtitles, which can be packed as switchable tracks |
 | Music | `bin/vh music` | Composed in code: the same score always gives the same music, plus the exact time of every beat for the picture to hit. Includes Chinese instruments (bells, guzheng, dizi, big drum) and changing time signatures. Using your own track? `bin/vh beats` finds its beats and drum hits |
 | Sound effects | `bin/vh sfx` | 15 original synthesized effects, each placed on the frame where its action happens; a sound on the left of the screen comes from the left |
@@ -248,9 +249,9 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | `types` / `new <type> <name> [--style <style>] [--effort <level>]` | List the 8 types / start a new project |
 | `effort [quick\|standard\|studio]` | What each effort level does |
 | `style list` / `style <style>` / `style gallery` | Browse styles / render a sample / rebuild the overview |
-| `tts` / `captions` / `music` / `sfx` / `beats` | Voiceover / subtitles / music / sound effects / analyse outside music |
+| `tts` / `voices` / `captions` / `music` / `sfx` / `beats` | Voiceover (per-line direction, beat snapping, word alignment, two-speaker dialogue) / Gemini voice library and voice design / subtitles / music / sound effects / analyse outside music |
 | `mix` / `qa` / `mux` | Mix / check the mix / put sound and subtitles on the video |
-| `sheet` / `check` / `gif` | Timestamped contact sheet / find black, frozen or silent stretches / make a GIF for your README |
+| `sheet` / `check` / `readcheck` / `gif` | Timestamped contact sheet / find black, frozen or silent stretches / is text on screen long enough to read / make a GIF for your README |
 | `hf-init` / `install-skill` / `sync-agents` | Set up HyperFrames / register the skill / sync AGENTS.md |
 
 ## Requirements
@@ -305,7 +306,7 @@ OpenVideoHarness/
 ├── video-types/              workflows for the 8 video types
 ├── playbook/                 shared know-how 00–08: pipeline, checks, motion, sound, effects and more
 ├── templates/                files each new project fills in: brief, storyboard, style, review, notes, lessons, checklist
-├── styles/                   26 styles, each with a sample; _swatch/ renders the samples
+├── styles/                   28 styles, each with a sample; _swatch/ renders the samples
 ├── cases/                    11 case studies + curated community work + a 3D long-form deep-dive
 ├── showcase/                 films made with this repo (source + final + process notes)
 ├── engines/                  the built-in hand-drawn engine + setup notes for the others

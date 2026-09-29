@@ -77,6 +77,7 @@ This is a music video, not a lyric slideshow.
 - 章节接缝处（前后各 0.5 秒）方向和颜色是否衔接？
 - 有没有哪段画面在某一拍上什么都没发生？
 - 按 Functional Emotions 的标准问一句：这是 MV，还是歌词视频？
+- 旁白或念白（如果有）是否贴着拍子、句间留白？每个画面重音是否有声音回应？见 `playbook/04-audio.md`"让声音有表情、有节奏"。
 
 ## 可参考的案例与源码
 
@@ -90,5 +91,5 @@ This is a music video, not a lyric slideshow.
 
 以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
 
-- **lemo-opuscar 的时间线**（代码 MIT，文档 CC BY 4.0）：一份 `timeline.js` 同时驱动配乐、字幕和检查脚本；`cuecheck.py` 核对画面卡点，目标误差 0 ms。见 `references/repos/lemo-opuscar/docs/zh-CN/TECHNIQUE.md` §3、`references/repos/lemo-opuscar/styles/microgame/demo/tools/cuecheck.py`。
+- **lemo-opuscar 的时间线**（MIT）：一份 `timeline.js` 同时驱动配乐、字幕和检查脚本；`cuecheck.py` 核对画面卡点，目标误差 0 ms。见 `references/repos/lemo-opuscar/TECHNIQUE.md` §3（中文版已删，只有英文）、`references/repos/lemo-opuscar/styles/microgame/demo/tools/cuecheck.py`。
 - **bestagentkits/motion-video-skill**（MIT，未拉取）：HyperFrames 卡点动态图形，带卡拉 OK 字幕，适合 B 路线。

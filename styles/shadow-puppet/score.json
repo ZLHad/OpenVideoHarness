@@ -2,7 +2,7 @@
   "bpm": 150,
   "key": "G",
   "mode": "major",
-  "seed": 8,
+  "seed": 10,
   "meters": {
     "1": 2,
     "2": 3,

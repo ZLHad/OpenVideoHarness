@@ -64,5 +64,5 @@
 
 ## 相关资源
 
-- 参考库里对应的风格文档（例如 `references/repos/lemo-opuscar/styles/<slug>/STYLE.md`，CC BY 4.0，改写时署名）；
+- 参考库里对应的风格文档（例如 `references/repos/lemo-opuscar/styles/<slug>/STYLE.md`，MIT，改写时署名 LemoLab）；
 - 相关的类型文档、playbook 章节和 showcase。

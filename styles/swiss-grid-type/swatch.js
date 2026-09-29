@@ -4,10 +4,11 @@
 //            numeral climbs into cols 10–12 in four eased steps and lands on the 0.4 s beat
 //   0.8–2.6  headline words rise out of clip boxes from the baseline, one per sixteenth, landing on the beat; the
 //            Chinese line follows in three word groups; a 2 px rule is drawn across cols 1–9
-//   2.0–4.0  motif on cols 1–3 / 4–6 / 7–9: outline bars grow along their length, storyboard blocks wipe down, the
-//            draft is the one red block (lands 2.4 s); labels rise from the baseline. Then one event per beat: 2.8 the
-//            short bar snaps to the top row; 3.2 the red block breaks the grid (linear, grows, readout 'off grid',
-//            drums out); 3.6 the storyboard blocks re-flow by distance from it
+//   2.0–4.0  motif on cols 1–3 / 4–6 / 7–9: outline bars grow along their length; the storyboard is pure type, "01 02
+//            03" stepping up the type scale and rising from the baseline; the draft is the one red block (lands 2.4 s);
+//            labels rise from the baseline. Then one event per beat: 2.8 the short bar snaps to the top row; 3.03 the
+//            big numeral steps up; 3.2 the red block breaks the grid (linear, grows, readout 'off grid', drums out);
+//            3.6 the storyboard numerals step up one size each, nearest the red block first
 //   4.0–5.0  wipe-left: ink fills the columns right → left, one column per frame; the end card rises on black
 // Only two curves: easeInOutQuart for snaps, linear for lines. No fades, no bounce, no shadow, no grain.
 
@@ -19,10 +20,11 @@ export const FOLEY = [
   ...[6, 12].map((f) => ({ t: F(f), sfx: "tick", gain_db: -10, pan: fx(1600) })),                                        // numeral steps (lands f12)
   ...[24, 27, 30, 33].map((f, k) => ({ t: F(f), sfx: "click", gain_db: -8, pan: fx(300 + k * 300) })),               // headline words land
   ...[36, 42, 48].map((f, k) => ({ t: F(f), sfx: "click", gain_db: -10, pan: fx(200 + k * 250) })),                   // Chinese groups
-  { t: F(66), sfx: "click", gain_db: -8, pan: fx(300) }, { t: F(72), sfx: "pop", gain_db: -4, pan: fx(1170) },       // modules; the red block
+  ...[66, 69].map((f, k) => ({ t: F(f), sfx: "click", gain_db: -8, pan: fx(560 + k * 110) })),                     // storyboard numerals
+  { t: F(72), sfx: "pop", gain_db: -4, pan: fx(1170) },                                                                // "03" + the red block
   { t: F(84), sfx: "click", gain_db: -8, pan: fx(300) }, { t: F(94), sfx: "click", gain_db: -6, pan: fx(1600) },     // bar reorder; numeral snap
   { t: F(108), sfx: "whoosh", gain_db: -14, pan: fx(1300) },                                                          // the exception leaves the grid
-  ...[105, 108, 111].map((f, k) => ({ t: F(f + 3), sfx: "tick", gain_db: -12, pan: fx(900 - k * 150) })),           // ripple, nearest first
+  ...[105, 108, 111].map((f, k) => ({ t: F(f + 3), sfx: "tick", gain_db: -12, pan: fx(860 - k * 150) })),           // numerals step up, nearest first
   { t: F(120), sfx: "shutter", gain_db: -6, pan: fx(1700) }, { t: F(138), sfx: "click", gain_db: -8, pan: fx(300) },
 ];
 const colX = (n) => M + (n - 1) * (COL + GUT);                  // left edge of column n (1-based)
@@ -98,11 +100,18 @@ function page(ctx, t, tokens, lib) {
     const row = j === 2 ? lib.lerp(2, 0, ro) : j + ro;
     ctx.fillStyle = C("fg"); ctx.fillRect(colX(a), y0 + 12 + row * 56, spanW(a, b) * u, 32);
   });
-  // storyboard: three blocks, one per column, wiped down
+  // storyboard: pure type, no pictogram. "01 02 03" stepping up the type scale (60 / 108 / 156 px: 2.5 / 4.5 / 6.5
+  // baselines), flush left on col 4 (optically aligned), all on the module baseline; each rises out of its clip box on
+  // a sixteenth (lands f66 / f69 / f72). 3.6 s ripple: each steps up one size (72 / 120 / 168), nearest the red block
+  // first, and the line re-flows into the space the exception has just left
+  const sbBase = 30 * BL, SCALE = [[60, 72], [108, 120], [156, 168]];
+  let sx = colX(4);
   for (let j = 0; j < 3; j++) {
-    const u = SNAP(lib)(lib.clamp((f - 63 - j * 3) / 3)); if (u <= 0) continue;
-    const rip = SNAP(lib)(lib.clamp((f - 105 - (2 - j) * 3) / 3)), top = y0 + 12 + rip * (j + 1) * BL;   // 3.6 s ripple
-    ctx.fillStyle = C("fg"); ctx.fillRect(colX(4 + j), top, COL, (bh - 12) * u - rip * (j + 1) * BL);
+    const rip = SNAP(lib)(lib.clamp((f - 105 - (2 - j) * 3) / 3)), sz = lib.lerp(SCALE[j][0], SCALE[j][1], rip), str = `0${j + 1}`;
+    lib.setFont(ctx, tokens, "display", sz, { weight: 700 });
+    const m = ctx.measureText(str), tr = sz >= 90 ? -0.02 * sz : 0, x0 = sx + (j === 0 ? m.actualBoundingBoxLeft : 0);
+    rise(ctx, lib, t, 63 + j * 3, 3, x0, sbBase, sz, () => { lib.setFont(ctx, tokens, "display", sz, { weight: 700 }); ctx.fillStyle = C("fg"); lib.drawText(ctx, str, x0, sbBase, { tracking: tr }); });
+    sx = x0 + m.width + tr + GUT;
   }
   // draft: the one red element, wiped in from the left (frame 69 → lands on 72 = beat 6, 2.4 s)
   const du = SNAP(lib)(lib.clamp((f - 69) / 3));
@@ -119,7 +128,7 @@ function page(ctx, t, tokens, lib) {
   }
   // labels rise from the baseline, flush left on each module
   [[1, 60], [4, 66], [7, 69]].forEach(([c, f0], k) => {
-    rise(ctx, lib, t, f0 + 3, 3, colX(c), 33 * BL, 30, () => { lib.setFont(ctx, tokens, "display", 30, { weight: 500 }); ctx.fillStyle = C("fg"); lib.drawText(ctx, `0${k + 1}  ${lib.MOTIF[k].en}`, colX(c), 33 * BL); });
+    rise(ctx, lib, t, f0 + 3, 3, colX(c), 33 * BL, 30, () => { lib.setFont(ctx, tokens, "display", 30, { weight: 500 }); ctx.fillStyle = C("fg"); lib.drawText(ctx, lib.MOTIF[k].en, colX(c), 33 * BL); });
     rise(ctx, lib, t, f0 + 6, 3, colX(c), 36 * BL, 46, () => { lib.setFont(ctx, tokens, "zh", 46, { weight: 400 }); ctx.fillStyle = C("fg"); lib.drawText(ctx, lib.MOTIF[k].zh, colX(c), 36 * BL); });
   });
 }

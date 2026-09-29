@@ -5,8 +5,8 @@
     {"name": "stab", "bars": 1, "chords": ["i"], "layers": ["bass", "lead"], "energy": 0.8, "impact": true},
     {"name": "breath", "bars": 1, "chords": ["i"], "layers": ["bass"], "energy": 0.6},
     {"name": "title", "bars": 1, "chords": ["iv"], "layers": ["bass", "hats", "clap", "pad"], "energy": 0.6},
-    {"name": "camera", "bars": 1, "chords": ["VI"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.8},
-    {"name": "mustard", "bars": 1, "chords": ["V"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.85, "fill": true},
+    {"name": "symbol", "bars": 1, "chords": ["VI"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.8},
+    {"name": "cream", "bars": 1, "chords": ["V"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.85, "fill": true},
     {"name": "strips", "bars": 1, "chords": ["i"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.9, "impact": true}
   ]
 }

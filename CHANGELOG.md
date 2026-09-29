@@ -6,6 +6,46 @@
 - `bin/vh` used the macOS-only `sed -i ''`, which GNU sed reads as a file name. On Linux, `new … --effort` silently kept `standard` in BRIEF.md, and `hf-init` left GSAP on the CDN, so `hyperframes render` refused to run offline. Both now go through a portable `sedi` helper.
 - `styles/_swatch/package-lock.json` pinned every package to `registry.npmmirror.com`, so `npm ci` failed wherever that mirror is unreachable. It now records `registry.npmjs.org`, which npm swaps for whatever registry you have configured, so mirror users are unaffected.
 
+## v0.2.1 — 2026-09-30
+
+**Narration with feeling and rhythm** (user: "声音是对的，但不够活泼，太僵硬")
+- `bin/vh tts` accepts a per-line direction in `[brackets]`, added to the overall `--instruct` for that line only and kept out of captions.
+- `--beats map.json [--snap beat|half|downbeat] [--lead s]` starts every line on the next grid point instead of a fixed gap. `@id:downbeat` pins one line, e.g. the answer on the drop. Tested live with Gemini at 120 BPM: lines landed at 0.50 / 4.00 / 5.00 / 10.00 s exactly.
+- `playbook/04` "让声音有表情、有节奏":
+  - how to direct narration, with a default delivery per video type;
+  - riding the beat;
+  - frame-aligned tempos at 30 and 24 fps;
+  - rhythm density per type;
+  - mixing so music stays present (a measured `duck_ratio=3` hole vs a clean `1.6`);
+  - writing sound as prompts.
+  
+  Types 02, 03, 04 and 08 point to it.
+
+**Gemini narration, further**
+- Gemini 3.8 Flash TTS is now tested live in Mandarin and English (it was only mock-tested in v0.2.0). Also documented: the default local Qwen3-TTS 0.6B sometimes runs on after short English lines.
+- `--align gemini`: every line, whatever the provider, is transcribed by `gemini-3.5-transcribe` for word timestamps and compared with the script. A line below `--min-sim` (default 0.85) is flagged, which catches the Qwen 0.6B run-on and skipped words. `--vocab` passes terms to the transcriber.
+- Two-speaker dialogue: an `@speakers A=Kore B=Puck` header, then `A: …` lines. Labels only count when declared, so an ordinary "注意：" line stays narration.
+- `--join block|all` sends consecutive lines as one request, so the delivery flows across sentences; the per-line files are then cut at word timestamps. A Gemini dialogue defaults to `block`.
+- `bin/vh voices list | design | delete` manages Gemini designed voices.
+- `bin/vh captions` writes per-word timing into `captions.json` and a `captions.<lang>.lines.srt` with one cue per wrapped line, each starting on its first spoken word.
+- The key is read from `GEMINI_API_KEY` only; nothing is written to the repo.
+
+**Reading time and motion rules**
+- `tools/readcheck.py` / `bin/vh readcheck`: on-screen text needs max(2.5 s, CJK ÷ 4.5 + other ÷ 15 + 1.5 s), adapted from lemo-opuscar (MIT); subtitles follow the Netflix ceilings (CJK ≤ 9 chars/s, English ≤ 20) with a 1.8 s floor. Checklist item #5 and `playbook/03` use it.
+- `playbook/03`: four spring registers by element (buttons, cards and camera, big type and logos, mascots), from xilo-opus-video, plus the NaN trap at ζ = 1.
+- `playbook/08`: sub-frame motion blur must not sample across a cut, and per-subframe sub-pixel jitter gives free anti-aliasing (from abstract-algebra-promo).
+- `playbook/02`: CJK web fonts on canvas arrive as unicode-range subsets, so `document.fonts.ready` can pass with glyphs missing. Call `document.fonts.load` once per weight with every character the film uses, and fail loudly on rejection, an empty result or a timeout.
+- `playbook/05`: green-screen character + code scene: key and despill with ffmpeg, keep alpha (PNG or ProRes 4444), let code own the scene, type and beat.
+
+**Styles: 28**
+- Two new presets, each with a swatch, QA and determinism check, and two rounds of independent review: `pixel-16bit` (Chrono Trigger, A Link to the Past; 320 × 180 integer scaling, a fixed 24-color palette, mosaic transitions; lowest score 7) and `isotype` (Neurath and Arntz; one symbol = a fixed quantity, added or removed on the beat; lowest score 6).
+- The deferred fixes from v0.2.0 are done: monumental-scifi has a hook, cutout-jazz and swiss-grid-type no longer share a motif, and the shadow-puppet click is gone. `gallery.jpg` / `gallery.mp4` rebuilt for 28.
+- lemo-opuscar is now 43 styles and MIT for the whole repo (since 2026-09-29; older snapshots were CC BY 4.0). Presets adapted from the older snapshot keep their CC BY attribution.
+
+**References**
+- `cases/opus55-gallery.md` §7: a deep read of abstract-algebra-promo (sub-frame blur, cut protection, math promo structure); §5 adds the dsxzai catalog.
+- `references/fetch.sh`: text-only clones now actually pull on update (the empty checkout used to short-circuit it).
+
 ## v0.2.0 — 2026-09-29
 
 **Effort hub: one switch for how hard the agents work**
