@@ -1,0 +1,9 @@
+{
+  "bpm": 60, "key": "C", "mode": "major", "seed": 31,
+  "meters": { "1": 2, "2": 2, "3": 2 },
+  "sections": [
+    { "name": "plane", "bars": 1, "chords": ["I"], "layers": ["pad"], "energy": 0.22 },
+    { "name": "transform", "bars": 1, "chords": ["IV"], "layers": ["pad", "arp"], "energy": 0.28 },
+    { "name": "qed", "bars": 1, "chords": ["I"], "layers": ["pad", "bell"], "energy": 0.32 }
+  ]
+}

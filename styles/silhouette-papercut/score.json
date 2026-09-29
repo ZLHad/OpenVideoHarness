@@ -1,0 +1,63 @@
+{
+  "bpm": 150,
+  "key": "A",
+  "mode": "minor",
+  "seed": 13,
+  "meters": {
+    "1": 2,
+    "2": 3,
+    "3": 5,
+    "4": 3
+  },
+  "sections": [
+    {
+      "name": "backdrop",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "pad",
+        "arp"
+      ],
+      "energy": 0.3
+    },
+    {
+      "name": "letters",
+      "bars": 1,
+      "chords": [
+        "VI"
+      ],
+      "layers": [
+        "arp",
+        "pad"
+      ],
+      "energy": 0.42
+    },
+    {
+      "name": "houses",
+      "bars": 1,
+      "chords": [
+        "III"
+      ],
+      "layers": [
+        "arp",
+        "pad",
+        "bass"
+      ],
+      "energy": 0.5
+    },
+    {
+      "name": "iris",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "pad",
+        "arp"
+      ],
+      "energy": 0.32
+    }
+  ]
+}

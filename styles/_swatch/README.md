@@ -1,0 +1,204 @@
+# styles/_swatch · 风格样片渲染器
+
+每个风格预设都要附一段用本仓库真渲出来的 5 秒样片，用样片证明风格之间确实不同。本目录负责把 `styles/<slug>/swatch.js` 渲成：
+
+- `styles/<slug>/media/swatch.mp4`：1280×720，H.264 High，yuv420p，faststart，≤ 1.5 MB；有 `score.json` 时带配乐，否则静音；
+- `styles/<slug>/media/poster.jpg`：t = 3.0 s 那一帧，1280×720，≤ 200 KB。
+
+引擎是固定在 0.8.82 的 HyperFrames。画面是一张 1920×1080 的 `<canvas>`，每一帧都是 `renderAt(t)` 的纯函数。
+
+## 快速开始
+
+```bash
+(cd styles/_swatch && npm ci)                    # 第一次：本地装 hyperframes@0.8.82（不装全局 skill）
+styles/_swatch/render.sh demo --draft            # 冒烟：内置 demo → styles/_swatch/out/demo/media/
+styles/_swatch/render.sh <slug>                  # 正式：styles/<slug>/ → styles/<slug>/media/
+styles/_swatch/render.sh <slug> --draft --hud    # 自查用：角上烧 t / 帧号（不要交付）
+styles/_swatch/determinism.sh <slug>             # 确定性检验（1 个 worker 对 3 个 worker，逐帧比对）
+uv run --with pillow python styles/_swatch/gallery.py --mp4   # styles/gallery.jpg + gallery.mp4
+```
+
+本机实测（M3 Max）：draft、1 个 worker，渲染 6–8 s，整条流程约 9 s；正式（`--quality delivery`、2 个 worker）渲染约 8 s，整条约 12 s；`determinism.sh` 要渲两遍无损 PNG，demo 约 2 分钟（颗粒让 PNG 编码变慢），catalog 约 30 s。demo 的正式产物：swatch.mp4 0.90 MB（CRF 18），poster.jpg 111 KB。
+
+`render.sh` 的参数：`--draft`（HyperFrames draft 画质；产物写到 `out/<slug>/media/`，不会覆盖 `styles/<slug>/media/` 里已发布的正式样片）、`--workers N`（默认 2；检测到别的 `hyperframes render` 在跑时自动降到 1）、`--hud`、`--png`（只渲无损 PNG 序列到 `out/<slug>/png-w<N>/`）、`--stage-only`（只搭 stage，打印 snapshot / preview 命令）、`--timeout S`。`<slug>` 也可以是一个带 `/` 的路径，指向任意位置的场景文件夹（草稿、测试用），产物写进该文件夹的 `media/`。
+
+## 目录
+
+```
+styles/_swatch/
+├── README.md          本文件
+├── index.html         唯一的 composition：5.0 s · 30 fps · 1920×1080 · 一张 canvas#c；变量 style / hud
+├── boot.js            运行时：读变量 → 加载 tokens 和场景 → 预载字体 → setup → 预热 → 每次 seek 画一帧
+├── lib.js             共享工具（传给场景的 lib）
+├── fonts.css          生成文件：本机系统字体的 @font-face local() 目录（fonts.py 生成）
+├── fonts.py           重新生成 fonts.css；--list 打印字体清单
+├── render.sh          渲染 + 看门狗 + 检查 + 转码 + 封面 + 联系表
+├── determinism.sh     确定性检验
+├── gallery.py         styles/gallery.jpg（+ gallery.mp4）
+├── demo/              中性示例场景：按统一内容规格走一遍 API，复制它起步
+├── catalog/           lib.js 测试卡：每个纹理、滤镜、转场、WebGL 各一格（改 lib.js 后渲它看）
+├── fontprobe/         字体探针：在渲染用的 Chrome 里逐个加载 fonts.css 的字体，红色 = 打不开
+├── package.json · package-lock.json · hyperframes.json · meta.json   （hyperframes 0.8.82 精确版本）
+└── out/               不入库：stage/、每个 slug 的中间文件（hf.mp4、render.log、sheet.png）
+```
+
+## 场景怎么被选中：stage，而不是 `current/`
+
+HyperFrames 把项目根目录当网站根目录，而且根目录只能有一个 composition。`render.sh` 每次渲染都搭一个一次性的 stage：`styles/_swatch/out/stage/<slug>/`。
+
+- 外壳文件（`index.html`、`boot.js`、`lib.js`、`fonts.css`、配置、内置场景）从 `_swatch/` 复制过去；
+- `styles/<slug>/` 整个复制到 `scenes/<slug>/`，不带 `media/` 和 `*.md`；
+- 场景由 HyperFrames 变量选：`--variables '{"style":"<slug>"}'`。`boot.js` 从 `./<slug>/`（内置场景）或 `./scenes/<slug>/` 加载 `tokens.json` 和 `swatch.js`；
+- stage 里 `index.html` 的 `style` 默认值被改成 `<slug>`。这样 `hyperframes snapshot` / `preview` 这两个不接受 `--variables` 的命令，在 stage 上也能直接看到这个风格：`render.sh <slug> --stage-only` 会把命令打印出来。
+
+没有用共享的 `_swatch/current/`，原因是三个 agent 会并行渲染不同的风格，共享目录会互相覆盖。每个 slug 有自己的 stage，还有一个锁目录（`out/stage/<slug>.lock`），同一个 slug 不会被同时渲两次。也没有用软链接：软链接指回 `styles/` 会让目录树成环，HyperFrames 的 lint 或打包一旦跟随链接就会出问题。stage 在 `out/` 下，已被根目录 `.gitignore` 的 `out/` 规则忽略。
+
+## 场景 API
+
+`styles/<slug>/swatch.js` 是一个 ES module：
+
+```js
+export const fonts = ["Didot"];          // 可选：renderAt 里用到、但 tokens.fonts 没写的字体族，会被预载
+
+export async function setup(ctx, tokens, lib) {
+  // 可选，每个 worker 启动时调用一次，可以 await。
+  // 用来算版式、生成纹理、编译 shader、加载图片。只能依赖 tokens 和常量，不能依赖时间。
+}
+
+export function renderAt(t, ctx, tokens, lib) {
+  // 必需。画出 t 时刻的完整一帧。
+}
+```
+
+约定：
+
+- `t` 是秒，已量化成 `k/30`（k = 0…149）；帧号用 `lib.frame(t)`。
+- `ctx` 是 1920×1080 的 `CanvasRenderingContext2D`。每帧调用前运行时会执行 `ctx.reset()`，像素和状态（变换、alpha、filter、字体……）全部清空，所以 `renderAt` 必须从背景开始画满整帧。
+- `tokens` 是解析后的 `tokens.json`；`lib` 是 `lib.js` 整个模块。
+- 需要着色器时，用 `lib.shader(frag)` 在离屏 WebGL2 canvas 上跑一个全屏片元着色器，再 `ctx.drawImage(fx.render(t, uniforms, textures), 0, 0)` 合进来。输入纹理可以是任何 canvas，所以"先用 2D 画，再过一遍 shader（半调、CRT、色差）"也能做到。
+- 同目录的图片等素材用模块相对路径加载：`const img = new Image(); img.src = new URL("./paper.png", import.meta.url); await img.decode();`（放在 `setup` 里）。素材必须是自己做的或许可允许的。
+- 风格文件夹里不能有 `.html` 文件（一个根目录只能有一个 composition，`render.sh` 会拒绝）。
+
+出错时的表现：`setup` 或加载失败，每一帧都画成品红色的 SWATCH ERROR 卡片；`renderAt` 在某一帧抛异常，只有那一帧是错误卡片。卡片上印着错误信息和调用栈，同时 `console.error` 进 HyperFrames 的日志（`[Browser:ERROR] [swatch] …`）。`render.sh` 抽帧发现品红卡片就判失败。
+
+## 统一内容规格
+
+所有样片讲同一件事，画廊里比的才只是风格。时间和文案在 `lib.SPEC`、`lib.TITLE_EN`、`lib.TITLE_ZH`、`lib.MOTIF` 里，场景直接引用，不要自己改写。
+
+| 时间 | 内容 |
+|---|---|
+| 0.0–0.8 s | 立起背景和质感（纸、颗粒、扫描线、光……）。第一个动作从 0.1–0.3 s 开始 |
+| 0.8–2.6 s | 标题 **"Every frame is code."** 和中文 **"每一帧，都是代码。"**，用这个风格的招牌文字动画进场 |
+| 2.0–4.0 s | 三元素母题：三个形状、节点、卡片或条，从左到右表示 大纲 → 分镜 → 初版（outline → storyboard → draft），用这个风格自己的图形语言画 |
+| 4.0–5.0 s | 这个风格的招牌转场，转到结束画面 |
+| **3.0 s** | 封面帧（poster.jpg）：标题、中文和三元素应该同时读得清 |
+
+- 标题和中文到 2.6 s 都要定住；中英两行都得在画面里，字号可以由风格决定，但中文不小于 46 px。
+- 文字留在安全框里：`lib.SAFE.action`（离左右 ≥ 96 px、上下 ≥ 54 px）；主标题最好在 `lib.SAFE.title` 里。
+- 结束画面可以是纯色、标志性构图或风格名，不要再塞新信息。
+- 不用原作的角色、logo、具体镜头和素材；学的是语法（见 `styles/_TEMPLATE.md`）。
+
+## tokens.json：lib 读哪些字段
+
+`tokens.json` 的其他字段随意（STYLE.md 的约定为准），lib 只读下面这些，读不到就用兜底值：
+
+- `palette`（或 `colors`）：`lib.color(tokens, "fg")`、`lib.color(tokens, "extra.2")`。值是 `"#hex"` 或 `{hex}`。键写错会返回品红，一眼能看出来。`lib.palette(tokens)` 返回全部颜色的数组。
+- `fonts`（或 `type` / `typography`）：每个角色（`display`、`body`、`zh`、`mono`，名字随意）可以是数组 `["Didot", "Bodoni 72"]`、字符串 `"Didot, Bodoni 72"`，或对象 `{ "family": [...], "weight": 700, "style": "italic", "tracking": -0.02 }`（tracking 以 em 计）。`lib.font(tokens, role, size, {weight})` 会在后面补上安全兜底：拉丁角色补 Helvetica Neue 和 PingFang SC，`zh` 补 PingFang SC 和 Hiragino Sans GB，`mono` 补 Menlo。
+- 缓动：`lib.easeOf(x)` 接受 `"cubic-bezier(0.76,0,0.24,1)"`、`"ease-out"`、`"steps(4)"`、`[x1,y1,x2,y2]`、`lib.ease` 里的名字或函数，所以 `lib.easeOf(tokens.ease.enter)` 可以直接用。
+
+## lib.js 速查
+
+| 类别 | 函数 |
+|---|---|
+| 常量 | `W H FPS DUR FRAMES POSTER_T SPEC TITLE_EN TITLE_ZH MOTIF SAFE.action/.title`（`{x0,y0,x1,y1,w,h,cx,cy}`） |
+| 布局 | `anchor("C4")`（安全框里的 6×6 锚点，A–F 是列，1–6 是行）· `slots(3, {area, y, gap})` 母题的三个槽位 |
+| 时间 | `frame(t)` · `step(t, 12)`（按 12 fps 停帧，"一拍二"用 15）· `seg(t,a,b)` · `env(t,a,b,fadeIn,fadeOut)` · `tween(t,a,b,ease)` |
+| 数学 | `clamp lerp invlerp remap smoothstep fract TAU` |
+| 随机 | `hash(...nums)` → [0,1)，按 IEEE 位模式哈希，跨机器一致 · `hashS` → [-1,1) · `hash32` · `rng(seed)`（只在 setup 或单次调用里用）· `noise1 noise2 fbm2` |
+| 缓动 | `bezier(x1,y1,x2,y2)` · `ease.{outExpo,outQuint,outCubic,inCubic,inExpo,inOutCubic,inOutQuart,inOutSine,outBack,steps(n)}` · `easeOf(spec)` |
+| 弹簧 | `spring(tau, {w, zeta} 或 {stiffness, damping, mass}, v0)`：闭式解，没有积分也没有状态 · `springTrack(t, [{t,v}…])`：叠加弹簧，中途改目标 |
+| 颜色 | `color(tokens, key)` · `palette(tokens)` · `rgb rgba mixColor luminance` · `tok(tokens, "a.b.c", fallback)` |
+| 文字 | `fontStack font setFont tracking` · `layoutText(ctx, str, {x,y,align,tracking})` 返回每个字形的框，字距保留 · `drawGlyphs(ctx, layout, (g,i)=>({alpha,dx,dy,scale,rot,fill,stroke,ch}))` · `drawText` · `fitText` · `wrapText`（中文逐字换行，避头标点）· `graphemes isCJK` · `fontAvailable(family)` |
+| 解码 | `scrambleGlyphs(str, t, {start, stagger, settle, rate, seed, charset, charsetCJK})` 返回 `[{ch, final, state, u}]`；`scramble(...)` 返回字符串；随机字按 `rate` 次/秒量化到帧 · `typewriter(str, t, {start, cps})` |
+| 图层 | `layer(name)` 返回清空过的离屏 ctx（名字全局共享，加自己的前缀）· `offscreen(name, draw)` 返回 canvas |
+| 质感 | `grain(ctx, t, {amount, size, fps, mode})` · `paper(ctx, {tone, blotch, tooth, fiber, seed})` · `halftone(ctx, src, {cell, angle, color, shape, rect})`（src 为 canvas 或 `(x,y)=>暗度`）· `scanlines(ctx, t, {spacing, alpha, roll, flicker})` · `vignette(ctx, {strength, inner, cx, cy})` · `inkBleed(ctx, draw, {spread, rough, sharp, seed})` · `roughen(ctx, draw, {amount, freq, seed})` · `rgbSplit(ctx, src, {r,g,b})` |
+| 线条 | `wobblePath(ctx, pts, {amp, seed, close})`（`seed: step(t, 8)` 就会"沸腾"）· `strokePartial(ctx, pts, u)`（描线动画） |
+| 转场 | `cut` · `wipe(ctx, u, drawA, drawB, {angle, soft})` · `iris(…, {cx, cy, mode:"open"/"close", shape, feather})` · `whip(…, {dir, duration, shutter, samples:"auto"})` · `motionBlur(ctx, t, drawAt, {samples, shutter})` |
+| WebGL | `shader(fragBody, {width, height})` 返回 `{canvas, render(t, uniforms, textures)}`。自动加的头部声明了 `v_uv outColor u_res u_time u_frame u_tex0 u_tex1` |
+
+`inkBleed` 和 `roughen` 用的是 `index.html` 里的 SVG 滤镜（`ctx.filter = "url(#ovh-ink)"`），每次调用时改写滤镜属性，在渲染里实测可用。转场函数的 `drawA` / `drawB` 必须往传进来的 ctx 上画（那是一个离屏图层），不能画到主 canvas。
+
+## 确定性规则
+
+1. 每一帧只由 `t`、`tokens` 和常量决定。不用 `Math.random()`、`Date.now()`、`performance.now()`、`requestAnimationFrame` 计时、CSS 动画或 transition。
+2. 随机一律 `lib.hash(seed, i, lib.frame(t))`。要"抖"或"沸腾"就把帧号量化：`lib.step(t, 8)`。
+3. 不保存跨帧状态。模块级变量只能存 setup 算出的纯数据（版式、纹理、shader），缓存也必须是确定的（lib 的纹理缓存就是这样）。
+4. 字体在第一帧之前必须加载完。`tokens.fonts` 里写到的字体族，以及 `export const fonts` 里列出的，运行时都会预载。另外运行时会先把 0、0.9、1.8、2.7、3.0、3.6、4.5、4.97 秒各预画一遍，再开始截帧。
+5. 检验：`determinism.sh <slug>` 用 1 个 worker 和 3 个 worker 各渲一遍无损 PNG，逐帧比对。多 worker 时每个分段都在全新的 Chrome 里冷启动，等于乱序渲染。要求逐像素相同，或者每个不同的帧 PSNR ≥ 45 dB。
+
+实测：demo 150/150 帧逐像素相同。catalog（WebGL、SVG 滤镜、getImageData）有 121 帧相同，29 帧在最多 88 个像素上差 1 个色阶（PSNR ≥ 96 dB）。差异来自 220 px 大字在 GPU 上的光栅化：Chrome 的字形缓存历史不同，结果会差一点。肉眼看不出，也在 45 dB 线以上。
+
+## 字体
+
+只用本机系统字体，通过 `@font-face { src: local("<PostScript 名>"), local("<全名>") }` 引用，不复制、不打包、不分发任何字体文件。`fonts.css` 由 `fonts.py` 从 `fc-list` 生成。每个字重都以真实族名单独声明，所以 tokens 里写 `"Songti SC"` 加 `weight: 900` 拿到的就是宋体 Black；只有一个字重的族声明成字重区间，Chrome 不会给它伪造粗体。
+
+为什么不直接写族名：在 `hyperframes render` 里，泛称族（`monospace`、`ui-monospace`）和裸族名不可靠（showcase 00 的等宽字就中过招）。判断字体只看 `render.sh` 渲出来的帧，不看 snapshot。
+
+下面是本机（macOS 15，Darwin 24.6）实测清单：`render.sh fontprobe` 在渲染用的 Chrome 里逐个加载，116/116 族通过。括号里是可用的 CSS 字重。† 表示 macOS 按需下载的资源字体：本机已下载，换一台 Mac 可能没有，这时会回落到栈里的下一个字体。‡ 表示用户自己装的字体，不可移植。
+
+- **sans**: Helvetica Neue (100,200,300,400,500,700,900); Helvetica (300,400,700); Arial (400,700); Arial Black (900); Arial Narrow (400,700); Arial Rounded MT Bold (400); Avenir (300,400,500,900); Avenir Next (100,400,500,600,700,900); Avenir Next Condensed (100,400,500,600,700,900); Futura (500,700,800); Gill Sans (300,400,600,700,800); DIN Alternate (700); DIN Condensed (700); Optima (400,700,950); Seravek (100,300,400,500,700); Skia (300,400,700,900); Trebuchet MS (400,700); Verdana (400,700); Tahoma (400,700); Lucida Grande (500,700); Geneva (400); PT Sans (400,700); PT Sans Narrow (400,700); Impact (400)
+- **serif**: Times New Roman (400,700); Times (400,700); Georgia (400,700); Baskerville (400,600,700); Big Caslon (500); Bodoni 72 (400,700); Bodoni 72 Oldstyle (400,700); Bodoni 72 Smallcaps (400); Didot (400,700); Hoefler Text (400,900); Palatino (400,700); Iowan Old Style (400,700,900); Charter (400,700,900); Cochin (500,700); Athelas (400,700); Superclarendon (300,400,700,900); Rockwell (400,700); American Typewriter (300,400,600,700); PT Serif (400,700); STIX Two Text (400,500,600,700); Marion (400,700)
+- **mono**: Menlo (400,700); Monaco (400); Courier New (400,700); Courier (400,500,700); Andale Mono (400); PT Mono (400,700)
+- **display / script**: Copperplate (300,400,700); Phosphate (400); Chalkduster (400); Chalkboard SE (300,400,700); Marker Felt (200,700); Noteworthy (300,700); Bradley Hand (700); Snell Roundhand (500,700,900); Zapfino (400); SignPainter (400,600); Savoye LET (400); Trattatello (400); Herculanum (400); Luminari (400); Party LET (400); Academy Engraved LET (400); Papyrus (400); Brush Script MT (400); Apple Chancery (400); Comic Sans MS (400,700); Krungthep (400); Silom (400)
+- **中文**: PingFang SC† (100–600); PingFang TC† (100–600); Hiragino Sans GB (300,600); Heiti SC (300,500); STHeiti† (300,400); Lantinghei SC† (100,600,900); Songti SC (300,400,700,900); Songti TC (300,400,700); STSong (300); SimSong† (400,700); Kaiti SC† (400,700,900); Kaiti TC† (400,700,900); STKaiti† (400); STFangsong† (400); Libian SC† 隶变 (400); Xingkai SC† 行楷 (300,700); Yuanti SC† 圆体 (300,400,700); Wawati SC† 娃娃体 (400); HanziPen SC† 翩翩体 (400,700); Hannotate SC† 手札体 (400,700); Baoli SC† 报隶 (400); LingWai SC† 凌慧体 (500); Yuppy SC† 雅痞 (500); LXGW WenKai‡ 霞鹜文楷 (300,400,700)
+- **日文**: Hiragino Sans (200–900); Hiragino Kaku Gothic ProN (300,600); Hiragino Mincho ProN (300,600); Hiragino Maru Gothic ProN (400); Toppan Bunkyu Mincho† (400); Toppan Bunkyu Gothic† (400,600); Toppan Bunkyu Midashi Mincho† (800); Toppan Bunkyu Midashi Gothic† (800); YuMincho† (500,600,800); YuGothic† (500,700); Klee† (500,600); Tsukushi A Round Gothic† (400,700); BIZ UDMincho† (400)
+- **韩文**: Apple SD Gothic Neo (100–900); Nanum Myeongjo† (400,700,800); Nanum Gothic† (400,700,800); Nanum Brush Script† (400); Nanum Pen Script† (400); BM Jua† (400)
+
+**本机没有、写了也会回落的字体**：`SF Mono` / `SF Pro`（SF Mono 只在 Terminal.app 包里，不是系统级字体，`local()` 找不到）、`Space Grotesk`、`Space Mono`、`Weibei SC`（魏碑）、`Noto Sans SC`、`Source Han *`、`Inter`。tokens 里写了没关系，会回落到栈里的下一个字体，渲染日志里会出现一行 `[Browser:WARN] [swatch] token font families not available (falling back): …`。但样片呈现的是回落后的字体，STYLE.md 里要照实写。等宽字体用 Menlo。
+
+换机器或装了新字体后：`python3 styles/_swatch/fonts.py` 重新生成，再跑 `render.sh fontprobe --draft`，看日志里的 `fontprobe: N/N families OK`。
+
+## 配乐（可选）
+
+`styles/<slug>/score.json` 存在时，`render.sh` 会依次调用 `bin/vh music score.json`，截到 5 s 并在最后 0.45 s 淡出，再用 `bin/vh mix`（两遍 loudnorm，−14 LUFS），然后以 AAC 128k 封进 swatch.mp4。写法见 `bin/vh music --example` 和 `playbook/04-audio.md`。BPM 选能让 5 s 落在整拍上的值：96 BPM 是 8 拍（2 小节），120 BPM 是 10 拍，72 BPM 是 6 拍。段落边界对齐内容规格（0.8、2.0、4.0 s）。实测：96 BPM、2 小节的测试曲，封装后成片 1.06 MB，−14.6 LUFS。
+
+想让段落点精确落在 0.8 / 2.0 / 4.0 s，最省事的是 150 BPM 加 `"meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3}`（9 个电影、品牌类样片都这么做）。封装后 `render.sh` 会自动跑 `bin/vh qa scan swatch.mp4 out/<slug>/music_raw.beats.json --from 0.3 --to 4.5`，结果写进 `out/<slug>/qa.txt`，出现数字静音、掉音或抽吸就判失败。不带节拍表的话，qa 在 5 s 的片段上只会检查 1.0–2.2 s，所以不要手动省掉它。第一轮最常见的两种失败：只有 hats 的段落在拍与拍之间出现数字静音；稀疏段落出现抽吸凹坑。修法都是加一层 pad 或 sub 持续垫底。
+
+## render.sh 做的检查
+
+- **看门狗**：HyperFrames 在自己的进程组里运行，超时（draft 300 s、正式 600 s）或日志连续 `SWATCH_STALL`（默认 120 s）不动时，整组杀掉，Chrome 一起杀。离线时依赖 CDN 的页面就是这样静默挂住的。
+- 退出码、输出文件存在、**帧数正好 150**、分辨率 1920×1080。
+- **抽 4 帧**（t = 0.4 / 1.7 / 3.0 / 4.6，每个规格段一帧）看 signalstats：至少一帧 Y 的极差 ≥ 24（canvas 确实画了东西）；任何一帧都不是品红错误卡片；4 帧的 md5 不能全部相同（排除冻帧）。
+- 日志里的 `[swatch]` 行去重后打印出来（字体回落、异常）。
+- 转码：CRF 从 18 往上加，直到文件 ≤ 1 500 000 字节；封面的 JPEG q 从 2 往上加，直到 ≤ 200 000 字节。
+- 自查联系表：`styles/_swatch/out/<slug>/sheet.png`（t = 0.25 … 4.75，10 格，带时间戳）。它只是中间产物，不交付；按 `playbook/02-verification.md` 自查时用它，转场前后再单独抽 strip。
+
+## 画廊
+
+`gallery.py` 扫描 `styles/*/media/poster.jpg`（跳过 `_` 开头的文件夹），拼成 5 列的 `styles/gallery.jpg`（≤ 2 MB），每张下面写风格名。风格名取 STYLE.md 第一行 `# <风格名> · <slug>`，没有就取 tokens.json 的 `name`，再没有就用 slug。加 `--mp4` 时还会生成 `styles/gallery.mp4`：每个样片取 1.9–3.4 s，叠上名字，按顺序硬切，1280×720，≤ 12 MB。实测 28 条的时候，jpg 是 0.84 MB，mp4 是 6.7 MB。
+
+## 给预设作者的坑
+
+1. **从 demo 起步**：`cp styles/_swatch/demo/{swatch.js,tokens.json} styles/<slug>/`，然后改。先 `render.sh <slug> --draft --hud` 看联系表，定稿后再不带参数渲正式版。
+2. **每帧从零画起**。运行时会 `ctx.reset()`，上一帧留下的任何东西都没有了。想要"拖尾"或"残影"，就在同一帧里把过去几帧重画一遍（`motionBlur`，或者对 `t − k/30` 循环）。
+3. **setup 不能依赖时间**。它在每个 worker 里各跑一次，而 worker 可能从第 100 帧开始。
+4. **字体写进 tokens**，否则不会被预载；只在 renderAt 里用到的字体族，加进 `export const fonts`。用 `lib.setFont` 或 `lib.font` 设字体，不要手写 `ctx.font`，否则兜底栈就没了。
+5. **颜色键写错会变品红**（`lib.color` 的兜底值）。整块品红同时也是错误卡片的颜色，看到就去查日志。
+6. **图层名是全局的**。`lib.layer("foo")` 在整个页面里共用一张 canvas，自己的图层加上 slug 前缀。lib 自己用的名字都以 `__` 开头。
+7. **转场的两个 painter 各画一整帧**，而且画到传进来的 ctx 上。转场前后的颗粒、暗角放在转场之后统一叠一次（demo 就是这么做的），否则会叠两遍。
+8. **大面积的逐帧颗粒会吃码率**。实测 demo 把颗粒开到 0.22，CRF 18 仍然只有 1.18 MB。更重的噪声会让 render.sh 自动提高 CRF，画面随之变糊。质感优先用低频的（纸、半调、扫描线），颗粒按 12–24 fps 刷新。
+9. **snapshot 不可信**：字体和某些时刻的画面以 render.sh 的输出为准。
+10. **不要用网络资源**：页面加载那一刻只要有外部请求挂住，渲染就会静默卡死（看门狗会杀掉）。需要的库放进风格文件夹，用 `import … from "./x.js"` 引入；多个风格共用的库放进 `styles/_swatch/vendor/`（stage 会一起复制），在 swatch.js 里写 `import … from "../../vendor/x.js"`。换库版本时重跑 `determinism.sh`。
+11. **中文最小字号 46 px**，英文 24 px 以上，1280×720 缩小后还要能读。
+12. **WebGL 可以用，但不是必需的**。lib 里的质感都是 Canvas2D 加 SVG 滤镜做的；只有真的需要逐像素运算时（CRT 曲面、色差、流体噪声）才用 `lib.shader`。GLSL 里的 `fract(sin(…))` 哈希在同一台机器上是确定的，换 GPU 可能略有不同。
+13. 本机 HyperFrames 曾经被切到较慢的截帧路径，日志里会出现 "Parallel drawElement capture stays off…"。swatch 很短，影响不大；想恢复就设 `HF_DE_PARALLEL_ROUTER=true`（见 `engines/README.md`）。
+
+## 给 `bin/vh style` 的接线
+
+```bash
+bin/vh style <slug> [--draft] [--hud] [--workers N]   →  exec "$ROOT/styles/_swatch/render.sh" "$@"
+bin/vh style --gallery [--mp4]                        →  uv run -q --with pillow python "$ROOT/styles/_swatch/gallery.py" [--mp4]
+bin/vh style --check <slug>                           →  "$ROOT/styles/_swatch/determinism.sh" <slug>
+```
+
+首次使用前要有 `styles/_swatch/node_modules`：`render.sh` 缺依赖时会报错并提示 `(cd styles/_swatch && npm ci)`。`bin/vh setup` 里也可以加上这一步。

@@ -15,6 +15,8 @@
 | muted | | 次要元素、基线 |
 | {entity colors} | | 讲解类：一个概念一个颜色，全片不变 |
 
+- Color arc（按幕）：{act 1 冷白 = 未知、安静 → act 2 琥珀 = 系统在运转 → act 3 红 = 高潮、警报}。每一幕写出主色调和它的含义，与 STORYBOARD 的 World 一行一致；换幕时强调色可以变，但同一时刻仍只有一个饱和强调色
+
 ## Type
 - Display: {font}, weights {..}; Body/caption: {font}; Mono: {font}
 - Sizes: title {..}px, body {..}px, caption {..}px; tracking {..}em

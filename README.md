@@ -29,10 +29,11 @@ One sentence can produce something stunning, but not something **dependable**. C
 OpenVideoHarness is not another renderer. It is a **harness for the agent**. It turns scattered know-how from papers, open-source skills and community experiments into a structure an agent can follow:
 
 - **Routing by video type.** Ask for "a science short" or "a launch film" and the agent opens the matching workflow: which engine to use, the steps, what good looks like, what to avoid, a prompt block and reference cases.
-- **You stay in the loop.** There are three review gates: outline, storyboard and first draft. At each one the agent stops and waits for you, so changes happen while they are still cheap.
-- **Taste written down as numbers.** Easing curves, shot lengths, minimum type sizes, vertical-video safe zones, caption density, and a 20-item self-review checklist.
-- **It checks its own work.** An agent can't watch video, so it reads rendered frames: contact sheets for structure, frame strips for timing, crops for detail. It fixes what fails.
-- **Sound, end to end.** `bin/vh` covers Chinese and English voiceover (local open-source Qwen3-TTS by default), bilingual captions, code-composed music, sound effects and the final mix.
+- **You stay in the loop.** There are three review gates: outline, storyboard and first draft. At each one the agent stops and waits for you, so changes happen while they are still cheap. Films where pacing matters can add a gray-box animatic at the storyboard gate, and if all you can say is "it feels off", the agent renders 2–3 variants of one segment for you to pick from.
+- **26 looks, not one.** A style library learned from famous work, from Saul Bass title sequences to 水墨 ink wash. Each preset comes with a real swatch rendered by the harness, and at the outline gate the agent offers two or three that pull in different directions.
+- **Taste written down as numbers.** Easing curves, shot lengths, minimum type sizes, vertical-video safe zones, caption density, and a 20-item self-review checklist. On top of it, a harsh-director reviewer scores the full draft on 7 dimensions over at least three rounds, and every score has to reach 8.
+- **It checks its own work.** An agent can't watch video, so it reads rendered frames: contact sheets for structure, frame strips for timing, crops for detail, and a 360 px phone-size sheet for readability. It also catches failures that never raise an error, such as frozen or blank frames and a render that hangs. It fixes what fails.
+- **Sound, end to end.** `bin/vh` covers Chinese and English voiceover (local open-source Qwen3-TTS by default), bilingual captions, code-composed music, stereo sound effects, the final mix, and a QA pass on that mix.
 - **Ready to run.** One command installs it, one command scaffolds a project, and a hand-painted engine is bundled so you can render right away.
 
 ## 30-second start
@@ -99,9 +100,27 @@ The GIFs are compressed previews; each original is at `media/final.mp4`.
 | [Claude Pop](https://x.com/donaldjewkes/status/2102801274173587569) | Hybrid MV | Seedance base plates plus JS rotoscoping, 12-hour run | [cases/mv-claude-pop.md](cases/mv-claude-pop.md) |
 | [The Real Physics of Interstellar: Black Holes](https://x.com/AndyL5cc/status/2104519528873103773) | Science explainer · 143s | One-line request; one hero shader carries the film | [cases/explainer-interstellar-blackhole.md](cases/explainer-interstellar-blackhole.md) |
 | [Applore promo](https://x.com/decohack/status/2104502625055949242) | Product film · 15s | One-line "showreel" prompt plus real assets | [cases/promo-applore.md](cases/promo-applore.md) |
-| [389 community videos](https://github.com/yihui-dev/awesome-opus5-5-videos) | Mixed | Prompt statistics, archetypes and curated picks | [cases/opus55-gallery.md](cases/opus55-gallery.md) |
+| [Austerlitz, 2 December 1805](https://x.com/WinterArc2125/status/2103116235009347650) | 3D history film · 301s | WebGL2 on real terrain; measured narration times every shot, and sound pan and distance come from the picture | [cases/opus55-gallery.md](cases/opus55-gallery.md) §6 |
+| [389 community videos](https://github.com/yihui-dev/awesome-opus5-5-videos) + a [962-work catalog](https://github.com/zhuyansen/awesome-opus-5.5-video) | Mixed | Prompt statistics, archetypes and curated picks | [cases/opus55-gallery.md](cases/opus55-gallery.md) |
 
 </details>
+
+## Style library
+
+Most community Opus 5.5 videos look alike: dark background, glow, glass cards, animated UI. Left alone, an agent drifts toward that look. [`styles/`](styles/) gives it 26 others, in 6 families: film and title sequences, brand and launch, data and explainers, illustration and print, Chinese aesthetics, and retro tech. Each preset distils the grammar of famous work (palette, type, composition, motion, transitions and sound): Saul Bass titles, *Se7en*, *Blade Runner 2049*, Wes Anderson's symmetry, Wong Kar-wai's step-printing, the Ken Burns pan, the Swiss grid, film FUI, 3Blue1Brown, NYT and The Pudding, Gapminder, blueprints, *Spider-Verse* halftone, risograph, CRT terminals, silhouette paper-cut, watercolor pastoral, synthwave, and Chinese 水墨 ink wash, 敦煌 murals, 皮影 shadow puppets and 国潮.
+
+<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="The 26 style swatches, all showing the same content"></a>
+
+Every preset ships a real 5-second swatch rendered by the harness, with its own code-composed score. All 26 show the same content (the line "Every frame is code." and three beats: outline, storyboard, draft), so the style is the only difference. Watch them back to back in [`styles/gallery.mp4`](styles/gallery.mp4).
+
+```bash
+bin/vh style list                                  # the 26 presets and their families
+bin/vh new promo launch-film --style cutout-jazz   # the project starts from the preset: STYLE_PRESET.md, tokens, and its prompt block in BRIEF
+bin/vh style cutout-jazz --draft                   # re-render a preset's swatch after editing it (drop --draft for the final)
+bin/vh style gallery --mp4                         # rebuild styles/gallery.jpg and gallery.mp4
+```
+
+At gate ① the agent proposes two or three contrasting presets with their swatches, and you pick one or mix them. The rule is to **learn the grammar, not copy the work**: no original characters, logos or shots, and prompt blocks describe the grammar instead of naming a living artist. Details in [styles/README.md](styles/README.md).
 
 ## How it works
 
@@ -111,14 +130,14 @@ The GIFs are compressed previews; each original is at `media/final.mp4`.
 flowchart LR
     A["One-line request"] --> B{"CLAUDE.md<br/>router"}
     B --> C["video-types/*.md<br/>engine · steps · taste · bans"]
-    C --> D["BRIEF + outline"]
+    C --> D["BRIEF + outline<br/>2–3 style presets"]
     D --> R1{{"👤 human review ①"}}
     R1 --> E["STORYBOARD + keyframe preview<br/>reads + timing per shot"]
     E --> R2{{"👤 human review ②"}}
     R2 --> F["Sound first<br/>voice · score · beat map"]
     F --> G["Scene code, each frame f(t)<br/>long pieces: reference chapter + parallel subagents"]
     G --> H["Contact sheet / strip / crop"]
-    H --> I{"Taste checklist<br/>20 items"}
+    H --> I{"Taste checklist<br/>20 items + 7 scores ≥ 8"}
     I -- fail --> G
     I -- pass --> J["Draft + contact sheet"]
     J --> R3{{"👤 human review ③"}}
@@ -128,10 +147,10 @@ flowchart LR
 
 Hard rules (full list in [CLAUDE.md](CLAUDE.md)):
 
-1. **Every frame is a pure function of t.** No randomness, wall clock or CSS animation, and no state carried between frames. This is what makes parallel and resumable rendering possible, and lets you pull out any frame for review.
+1. **Every frame is a pure function of t.** No randomness, wall clock or CSS animation, and no state carried between frames. This is what makes parallel and resumable rendering possible, and lets you pull out any frame for review. The check compares lossless PNG frames rendered out of order, not the encoded mp4.
 2. **When there is sound, sound sets the timing.** Voiceover or score comes first and is turned into a timeline. The picture follows it.
 3. **Storyboard before code.** Each shot lists the *reads* the viewer must take in, in order, each with start and end times. Pacing is where models fail most.
-4. **Review every scene** against the checklist, and fix it until it passes.
+4. **Review every scene** against the checklist, and fix it until it passes. The full draft also goes to a fresh reviewer that scores 7 dimensions; each must reach 8.
 5. **Facts are copied verbatim.** Anything uncertain goes into NOTES, never into the video.
 
 ## Eight video types
@@ -149,7 +168,8 @@ Hard rules (full list in [CLAUDE.md](CLAUDE.md)):
 
 There are also focused guides:
 - **photoreal people and real physics:** bring in a generative video model and let code draw the final layer ([playbook/05](playbook/05-hybrid-genvideo.md));
-- **VFX and motion sources:** [playbook/08](playbook/08-vfx-and-motion-sources.md);
+- **VFX and motion sources:** an FX preset stack, true sub-frame motion blur, SFX panned from screen position, and one-take 3D worlds ([playbook/08](playbook/08-vfx-and-motion-sources.md)); for a long 3D film, the *Austerlitz* deep-dive in [cases/opus55-gallery.md](cases/opus55-gallery.md) §6;
+- **Chinese characters written in true stroke order**, for ink-wash and calligraphy pieces: [video-types/07](video-types/07-hand-drawn.md);
 - **reverse-engineering a video:** [playbook/07](playbook/07-reverse-engineer.md).
 
 > The workflow docs are written in Chinese, with technical terms in English. Agents follow them fine either way. English translations are on the roadmap.
@@ -160,9 +180,10 @@ There are also focused guides:
 |---|---|---|
 | **Voiceover (zh / en)** | `bin/vh tts <project> qwen Ryan en` | Defaults to local open-source **Qwen3-TTS**: offline and free, about a 2 GB download on first use. Five Chinese voices (Serena, Vivian, Uncle_Fu, Dylan with a Beijing accent, Eric with a Sichuan accent) and two English voices (Ryan, Aiden). Interfaces for cloud Qwen3-TTS (Alibaba Cloud) and ElevenLabs are ready |
 | **Bilingual captions** | `bin/vh captions <project>` | Write each script line as `中文 \|\| English` and get zh, en and two-line bilingual SRT, plus `captions.json` for the engine to draw. `bin/vh mux` can add them as switchable soft subtitle tracks |
-| **Music** | `bin/vh music score.json out.wav` | A code-composed score. Sections follow the shots, the same score always renders the same music, and it outputs an exact beat, section and hit map. Your own track works too (`bin/vh beats` analyses it) |
-| **Sound effects** | `bin/vh sfx place events.json …` | 15 original synthesized effects (click, pop, whoosh, riser, impact, ding and more), each placed so it lands exactly on its action |
-| **Mix** | `bin/vh mix out.wav voice=… music=… sfx=…` | The music ducks under voice and effects, and the whole mix is normalized to −14 LUFS |
+| **Music** | `bin/vh music score.json out.wav` | A code-composed score. Sections follow the shots, the same score always renders the same music, and it outputs an exact beat, section and hit map. Chinese instrument layers (`bell` 编钟, `zheng` 古筝, `dizi` 竹笛, `taiko` 大鼓) play in pentatonic modes, `meters` changes the beat count of any single bar, and `bin/vh music --example zh` prints a starter score. Your own track works too: `bin/vh beats` returns its beats, hits and kick/snare accents |
+| **Sound effects** | `bin/vh sfx place events.json …` | 15 original synthesized effects (click, pop, whoosh, riser, impact, ding and more), each placed so it lands exactly on its action. Output is stereo: an event can carry `pan` and `dist`, so a sound comes from where its object is on screen |
+| **Mix** | `bin/vh mix out.wav voice=… music=… sfx=…` | A stereo mix. The music ducks under voice and effects, and loudness is set to −14 LUFS in two linear passes, so a cinematic score keeps its dynamics |
+| **Mix QA** | `bin/vh qa mix.wav beats.json events.json` | The agent can't listen, so it checks the final mix by numbers: digital silence, dropouts, pumping, clicks (as warnings to re-listen), and whether every cue lands within one frame. Exits with 1 on failure, so it works as a gate |
 | **Songs** | — | Import from Suno or similar web tools. Interfaces for ElevenLabs Music and local song models are ready |
 
 Details in [playbook/04-audio.md](playbook/04-audio.md).
@@ -179,12 +200,13 @@ Details in [playbook/04-audio.md](playbook/04-audio.md).
 | Command | Does |
 |---|---|
 | `doctor` / `setup` | Check the toolchain / install deps and fetch references |
-| `types` / `new <type> <slug>` | List the 8 types / scaffold a project with templates, prompt block and engine |
+| `types` / `new <type> <slug> [--style <preset>]` | List the 8 types / scaffold a project with templates, prompt block, engine and, optionally, a style preset |
+| `style list` / `style <preset> [--draft]` / `style gallery [--mp4]` / `style check <preset>` | List the 26 presets / render a 5 s swatch / rebuild the gallery / check a swatch's determinism |
 | `tts` / `captions` | Voiceover (zh/en) / captions (zh, en, bilingual) |
-| `music` / `sfx` / `beats` | Code-composed score / SFX library and placement / beat analysis of external music |
-| `mix` / `mux` | Three-bus mix / add audio and subtitles to a render |
+| `music` / `sfx` / `beats` | Code-composed score, Chinese instruments included / stereo SFX placement with pan and distance / beats, hits and kick/snare accents of external music |
+| `mix` / `qa` / `mux` | Stereo three-bus mix / final-mix QA with a cue check / add audio and subtitles to a render |
 | `sheet` / `check` / `gif` | Timestamped contact sheet / black, freeze and silence detection / README GIF |
-| `hf-init` / `install-skill` / `sync-agents` | Safe HyperFrames scaffold / register the skill / regenerate AGENTS.md |
+| `hf-init` / `install-skill` / `sync-agents` | Safe HyperFrames scaffold with GSAP vendored locally, so offline renders don't hang / register the skill / regenerate AGENTS.md |
 
 ## Requirements
 
@@ -213,7 +235,7 @@ bash install.sh --no-skill                       # don't register the global ski
 
 ```bash
 git clone https://github.com/ZLHad/OpenVideoHarness.git && cd OpenVideoHarness
-bin/vh setup            # bundled engine + reference repos
+bin/vh setup            # bundled engine + reference repos + style swatch renderer
 bin/vh install-skill    # optional: ~/.claude/skills and ~/.agents/skills
 ```
 
@@ -225,7 +247,7 @@ npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harn
 
 The skill is a thin pointer. On first use it asks for permission, then installs the full workbench.
 
-**Update:** run `git pull` in the repo, then `references/fetch.sh`.
+**Update:** run `git pull` in the repo, then `references/fetch.sh` (or `references/fetch.sh <dir>` to update a single reference repo).
 
 ## Repository layout
 
@@ -233,15 +255,16 @@ The skill is a thin pointer. On first use it asks for permission, then installs 
 OpenVideoHarness/
 ├── CLAUDE.md · AGENTS.md     agent entry: router, hard rules, map (identical content)
 ├── install.sh                one-line installer
-├── bin/vh · tools/           CLI and the scripts behind it (sound, contact sheets)
+├── bin/vh · tools/           CLI and the scripts behind it (sound, mix QA, contact sheets)
 ├── skills/                   the open-video-harness skill
 ├── video-types/              8 workflow docs
 ├── playbook/                 know-how 00–08: paradigm, pipeline, review, motion, sound, hybrid, research, reverse-engineering, VFX
 ├── templates/                BRIEF · STORYBOARD · STYLE · REVIEW · NOTES · LESSONS · TASTE_CHECKLIST
-├── cases/                    11 case studies + curated picks from 389 community videos
+├── styles/                   26 style presets with rendered swatches · gallery.jpg · _swatch/ renderer
+├── cases/                    11 case studies + curated picks from 389 community videos + a 3D film deep-dive
 ├── showcase/                 films made with this harness (source + renders + logs)
 ├── engines/                  bundled hand-drawn engine + setup notes for the others
-├── references/               fetch.sh (24 read-only repos) · open-source list · community skill picks
+├── references/               fetch.sh (30 read-only repos) · open-source list · community skill picks
 └── projects/                 your video projects (git-ignored)
 ```
 
@@ -260,7 +283,9 @@ OpenVideoHarness/
 
 **Does it cost money or need a GPU?** Not on the pure-code route. Rendering runs locally in Chrome or Manim, voiceover uses local Qwen3-TTS, and music and effects are generated by code. Only cloud voices or generative video cost money.
 
-**What about the reference repos' licenses?** `references/repos/` is not part of this repository. `fetch.sh` pulls each repo from its authors, for reading only, and renames their `CLAUDE.md` and `.claude/` to `_upstream_*` so agents never load them as instructions. Licenses are listed in [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md). Some repos have no license or forbid commercial use, so check before reusing anything.
+**Can I get something other than the dark, glowing look?** Yes. Name a preset such as `ink-wash`, or a film whose look you like, in your request. Even if you don't, the agent offers two or three contrasting presets from `styles/` at the outline gate.
+
+**What about the reference repos' licenses?** `references/repos/` is not part of this repository. `fetch.sh` pulls each repo from its authors, for reading only, and renames their agent files (`CLAUDE.md`, `AGENTS.md`, `.claude/`, `.agents/` and the like) to `_upstream_*` at every depth, so agents never load them as instructions. `fetch.sh --neutralize` redoes this offline. Licenses are listed in [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md). Some repos have no license or forbid commercial use, so check before reusing anything.
 
 ## Roadmap
 
@@ -269,12 +294,12 @@ OpenVideoHarness/
 - [ ] Type 10: 3D scenes (Three.js and shaders)
 - [ ] Word-level forced alignment (Qwen3-ForcedAligner) for word-by-word caption highlights
 - [ ] English translations of the workflow docs
-- [ ] Automatic quality scoring from contact sheets
 
 ## Contributing
 
 PRs welcome for:
 - new video types in `video-types/`;
+- new style presets in `styles/`, each with a swatch rendered by the harness (see [styles/README.md](styles/README.md));
 - case studies in `cases/`;
 - general lessons distilled from your projects' `LESSONS.md` into `playbook/`;
 - films you made with the harness, added to `showcase/` with their brief, storyboard, notes and source.
@@ -284,8 +309,8 @@ PRs welcome for:
 Thanks to these projects, researchers and creators:
 - **Frameworks and tools:** HyperFrames, Remotion, Manim, p5.brush, Qwen3-TTS, mlx-audio, FFmpeg.
 - **Research:** Code2Video, Paper2Video, TheoremExplainAgent and others.
-- **Open-source skills and case studies:** ClaudeAnimationBase, PDoomVideo, functional-emotions-video, the guizang product-video skill, lemo-opuscar, OpenMontage, awesome-claude-video-skills, awesome-opus5-5-videos and others.
-- **Community creators** who shared their experiments and prompts publicly.
+- **Open-source skills and case studies:** ClaudeAnimationBase, PDoomVideo, functional-emotions-video, Battle-of-Austerlitz-Film, the guizang product-video skill, lemo-opuscar, product-film-skill, claude-animation-skill, OpenMontage, awesome-claude-video-skills, awesome-opus5-5-videos and others.
+- **Community creators** who shared their experiments, courses and prompts publicly, including Movez and Eian.
 
 The full list, with licenses and how each work is used, is in **[ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md)**.
 

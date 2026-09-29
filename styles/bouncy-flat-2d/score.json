@@ -1,0 +1,8 @@
+{
+  "bpm": 120, "key": "F", "mode": "major", "seed": 41,
+  "sections": [
+    { "name": "stage", "bars": 1, "chords": ["I"], "layers": ["clap", "bass", "arp"], "energy": 0.5 },
+    { "name": "hops", "bars": 1, "chords": ["IV"], "layers": ["kick", "clap", "hats", "bass", "arp"], "energy": 0.7, "fill": true },
+    { "name": "wipe", "bars": 1, "chords": ["I"], "layers": ["bell", "arp", "pad", "bass"], "energy": 0.5 }
+  ]
+}

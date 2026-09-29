@@ -4,7 +4,8 @@
 
 已拉到本地的仓库都在 `references/repos/`（运行 `references/fetch.sh` 更新），包括：
 - PDoomVideo、functional-emotions-video、hyperframes-launches、remotion-skills；
-- HyperFrames 的 skills（部分检出）、Code2Video 的 prompts 和 src（部分检出）、3brown1blue 的 skill（部分检出）。
+- HyperFrames 的 skills（部分检出）、Code2Video 的 prompts 和 src（部分检出）、3brown1blue 的 skill（部分检出）；
+- 2026-09-29 补：Battle-of-Austerlitz-Film、claude-animation-skill、product-film-skill、procedural-film，以及两份 Opus 5.5 作品目录（athemeroy、zhuyansen）。社区 skill 和目录的完整清单见 `community-skills.md`。
 
 ClaudeAnimationBase 在 `engines/` 下，依赖已装好。清单里的其他项目需要时再装。
 
@@ -85,6 +86,12 @@ ClaudeAnimationBase 在 `engines/` 下，依赖已装好。清单里的其他项
 | HyperFrames 自带 skills | `/faceless-explainer`、`/product-launch-video`、`/music-to-video`、`/pr-to-video`、`/embedded-captions` 等；[hyperframes-launches](https://github.com/heygen-com/hyperframes-launches) 是 HeyGen 发布会视频源码，可当范例 | — | Apache-2.0 | A+ |
 | [JohnHeibel/ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) | p5.js + p5.brush 手绘入门工程，含 `ANIMATION_GUIDE.md` 和自查渲染器 | 0.5k / 2026-09 | MIT | A |
 | [JohnHeibel/PDoomVideo](https://github.com/JohnHeibel/PDoomVideo) | P(doom) MV 全部源码，含分镜和 subagent 指南 | 1.4k / 2026-09 | 无 license，仅参考 | 范例 |
+| [WinterArc21/Battle-of-Austerlitz-Film](https://github.com/WinterArc21/Battle-of-Austerlitz-Film) | 5 分钟 WebGL2 历史长片的全部源码：真实 SRTM 地形、Kokoro 离线旁白决定镜头时长、从画面推导带距离和声像的音效、代码合成配乐；深读见 `cases/opus55-gallery.md` 第 6 节 | 12 / 2026-09 | 无 license，仅参考 | 范例 |
+| [buildwithhanif/claude-animation-skill](https://github.com/buildwithhanif/claude-animation-skill) | 纯代码手绘 2D 动画：细节圣经、带解剖结构的角色骨架、毛笔水彩笔刷；`verify` 检查乱序渲染一致性，编码失败不覆盖旧文件；Node canvas + ffmpeg，不用浏览器和 GPU | 21 / 2026-09 | MIT | A |
+| [Rieranthony/product-film-skill](https://github.com/Rieranthony/product-film-skill) | 产品片 skill：从设计系统写出 `BRAND.md`，先交 3 张风格帧，240 fps 母版做运动模糊，`verify.py` 解码检查成品 | 358 / 2026-09 | MIT（Remotion 另有许可） | A |
+| [kuhnhomeuk-cell/procedural-film](https://github.com/kuhnhomeuk-cell/procedural-film) | 题材 → 30 秒竖屏片，纯 JS 绘制和合成声音，零素材；一镜一个 agent、评审波次、六项关卡 `check.cjs`；另有像素复古模式和一个可玩游戏 | 460 / 2026-09 | MIT | A（很耗额度） |
+| [athemeroy/awesome-opus-5-5-videos](https://github.com/athemeroy/awesome-opus-5-5-videos) | Opus 5.5 视频的研究型目录：168 条逐条核对来源、7 条制作路径、配色模式研究、制作 brief 模板、视觉效果适配指南 | 318 / 2026-09 | CC BY 4.0 | 参考资料 |
+| [zhuyansen/awesome-opus-5.5-video](https://github.com/zhuyansen/awesome-opus-5.5-video) | 962 支 Opus 5.5 作品的元数据目录（`cases.json`），prompt 原文在网页版上；见 `cases/opus55-gallery.md` 第 5 节 | 33 / 2026-09 | 无 license，仅参考 | 参考资料 |
 | [digitalsamba/claude-code-video-toolkit](https://github.com/digitalsamba/claude-code-video-toolkit) | `/setup`、`/video` 命令加模板；TTS、图像、音乐模型部署在自己的云 GPU | 2.1k / 2026-09 | MIT | A |
 | [geekjourneyx/hyperframes-motion-director](https://github.com/geekjourneyx/hyperframes-motion-director) | 中文优先的 HyperFrames 动效 skill | 0.45k / 2026-07 | AGPL-3.0 | A |
 | [iart-ai/motion-skills](https://github.com/iart-ai/motion-skills) | 动效和 kinetic typography skills | 0.5k | MIT | A |

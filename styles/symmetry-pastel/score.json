@@ -1,0 +1,10 @@
+{
+  "bpm": 150, "key": "G", "mode": "major", "seed": 12,
+  "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "sections": [
+    {"name": "truck", "bars": 1, "chords": ["I"], "layers": ["zheng", "pad"], "energy": 0.35},
+    {"name": "card", "bars": 1, "chords": ["IV"], "layers": ["zheng", "pad", "bell"], "energy": 0.45},
+    {"name": "pictures", "bars": 2, "chords": ["ii", "V"], "layers": ["zheng", "pad", "bell", "hats"], "energy": 0.6},
+    {"name": "chapter-two", "bars": 1, "chords": ["I"], "layers": ["zheng", "pad", "bell", "hats", "bass"], "energy": 0.7}
+  ]
+}

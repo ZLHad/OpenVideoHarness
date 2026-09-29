@@ -1,9 +1,9 @@
 # 社区 skill 参考（2026-09-28）
 
-这份清单从 183 个社区视频 skill 里，按 OpenVideoHarness 的 8 个类型挑出值得读的，并对已拉取到 `references/repos/` 的 16 个仓库逐个读了 README、LICENSE 和主 SKILL.md。它只回答"遇到某类视频时去哪个仓库找什么"，不替代 `open-source.md`（框架与引擎）和 `cases/`（案例拆解）。
+这份清单从 183 个社区视频 skill 里，按 OpenVideoHarness 的 8 个类型挑出值得读的，并对已拉取到 `references/repos/` 的 16 个仓库逐个读了 README、LICENSE 和主 SKILL.md。它只回答"遇到某类视频时去哪个仓库找什么"，不替代 `open-source.md`（框架与引擎）和 `cases/`（案例拆解）。2026-09-29 又补了 Opus 5.5 发布周出现的 6 个仓库，它们不在那 183 个里面，见第 6 节。
 
 - 下文"本地路径"都相对 `references/repos/`；写"未拉取"的只看过清单里的一句话描述，借用点标【推测】。
-- ⭐ 与许可证字段来自 `skills.json`（2026-09-28 生成）；标"本地核对"的以仓库里的 LICENSE / README 为准。
+- ⭐ 与许可证字段来自 `skills.json`（2026-09-28 生成）；标"本地核对"的以仓库里的 LICENSE / README 为准。标"清单外"的条目，⭐ 是 2026-09-29 在 GitHub 页面上读到的数，许可证读的是仓库里的 LICENSE。
 
 ---
 
@@ -45,6 +45,7 @@
 | hassancs91/claude-faceless-shorts-creator（272⭐） | 不露脸 Shorts 工厂，三条轨道：纯 TSX、视频模型、Vox 纸拼贴 | Remotion；配音、音效、音乐用 ElevenLabs（付费）；生成式轨道另需 fal.ai（付费） | MIT | `faceless-shorts-creator/_upstream_claude/skills/make-short/SKILL.md`、`faceless-shorts-creator/brand.md`、`faceless-shorts-creator/shorts/short-*/beats.json` | 节拍语法 HOOK（0–3.4s，第 0 帧就是完整画面，兼作缩略图）→ SETUP → QUIZ → REVEAL → TWIST → LOOP（末帧 = 首帧）；结尾不放"评论区告诉我"式 CTA；`<Sequence>` 内帧号是局部的，要换算 `local_f = global_s*fps − sequence_from` |
 | coding-ax/docvideoer（5⭐） | 文档 URL、文章、Markdown → 带中文旁白的 Remotion 讲解视频 | Remotion；描述写"免费 TTS" | MIT | 未拉取 | 【推测】中文文章转视频的全链路参考 |
 | pyang5166/gbro-collage-info | 从口播逐字稿挑段落，做成 1080×1920 半调纸拼贴信息动画 | 见第 4 节 | MIT | `gbro-collage-info/SKILL.md` | 信息只放在画面上 2/3（y ≤ 1280），底部 640px 留给字幕 |
+| kuhnhomeuk-cell/procedural-film（460⭐，清单外） | 给一个题材，出一支 30 秒上下的竖屏短片；样片是帝王蝶的一生（17 镜、32 秒、120 BPM、1080×1920、24 fps）。另有照片涂鸦和像素复古两种模式，还能做一个可玩的平台跳跃游戏 | 原生 JS Canvas 绘制、Web Audio 合成声音，零媒体素材；Playwright + ffmpeg 出片；一镜一个 agent，README 提醒一支片子很耗额度；游戏会部署到用户自己的 Vercel | MIT | `procedural-film/skills/procedural-film/SKILL.md`、`.../foundation/tools/check.cjs`、`.../reference/shot-types.md`、`procedural-film/examples/butterfly-life/docs/` | 六项关卡 `check.cjs`（媒体扫描、确定性、源码扫描、时间线、绘制、单帧耗时），从桩场景那一步起就必须全绿；确定性检查把每镜首、中、尾帧按正序、倒序、混入干扰帧、冷启动、顺序绘制几种方式分别画出来比哈希；先用桩场景把时间线、渲染和音频整条跑通再画真镜头；一个 agent 只拥有一个镜头文件，评审 subagent 分波次出 P1/P2 修改单，并在像素上量几何；竖屏底部 380px 留给平台 UI，必须读的文字不能落进去。也适合 07 |
 
 ### 03 产品宣传 / 发布片
 
@@ -54,6 +55,7 @@
 | op7418/guizang-product-video-skill（473⭐） | 接入真实产品组件做软件更新片，配原创配乐和动作音效 | React + esbuild + Playwright 出帧、FFmpeg 编码，GSAP / Three.js；也支持 HyperFrames；配乐可用代码合成 | AGPL-3.0；`assets/fallback/` 为 BSL 1.1 | `guizang-product-video/SKILL.md`、`guizang-product-video/references/direction.md`、`guizang-product-video/references/visual-vocabulary.md` | 写 `DIRECTION.md`：沿不同的轴提三个方向再选一个；列 3–5 条"因为产品有 X，所以用 Y"的专属手法；同一工作区不复用上一支片子的开场和背景；1080p 下界面正文 ≥ 22px |
 | norahe0304-art/30x-video（63⭐） | 输入一个 URL，输出发布片；自带 16 条审美准则，不用模板 | Remotion + React | MIT | 未拉取 | 【推测】审美准则可对照 `templates/TASTE_CHECKLIST.md` |
 | kangarooking/promo-creator-skills（101⭐） | 从产品判断、分镜、素材、HyperFrames 剪辑到 BGM 设计的整条工作流 | HyperFrames | MIT | 未拉取 | 【推测】中文产品片全流程参考 |
+| Rieranthony/product-film-skill（358⭐，清单外） | 在产品自己的代码库里做落地页循环片、发布片、演示片，复用真实组件和设计 tokens | Remotion（README 提醒：较大的公司要买 Remotion 许可）+ Bun + uv；配乐要自带有授权的歌；不用生成模型 | MIT | `product-film-skill/plugins/product-film/skills/product-film/SKILL.md`、`.../templates/BRAND.md`、`.../reference/render.md`、`.../scripts/verify.py` | 先从设计系统（规则文件、tokens、组件、官网、能说和不能说的宣称）整理出 `videos/BRAND.md`，它优先于 skill 自带的默认值；节拍表写完先交 3 张风格帧再开工；母版按 240 fps 渲，用 ffmpeg `tmix` 每 4 个子帧平均成 60 fps，得到运动模糊；交付静音循环版、带音乐版、WebM 和海报（取标题帧，不取空白的第 0 帧）；`verify.py` 解码每个成品，核对时长、第 0 帧背景色（误差 ±2，防止 Remotion 的有限色域把 #0a0a0a 抬成 #171717）和首尾接缝 |
 
 lemo-opuscar 的 `dark-keynote`、`living-screencast`、`glass-product` 三种风格也适合本类，见第 2 节。
 
@@ -92,6 +94,7 @@ PDoomVideo 已在 `cases/mv-pdoom.md`，没有 LICENSE，只读。
 | gnipbao/story-to-handdrawn-video（2.1k⭐） | 中文故事或有序图片 → 3:4 竖屏手绘日记漫画动画（静音画面轨） | Remotion；需要 agent 能调用的生图工具 | MIT | `story-to-handdrawn-video/skill-package/story-to-handdrawn-video/SKILL.md`、`.../references/handdrawn-style-library.json`、`.../references/style-library.html` | "文字 → 黑白画稿 → 彩色插画"三段揭示；327 项画风与配色资产，全部用同一个标准场景出示意图，便于横向比较 |
 | AllenAI2014/remotion-guofeng-starter（25⭐） | 国风纸片拼贴：给一首诗或一个成语，白描纸片叠在墨线山水上，盖朱红印章 | Remotion；纸片要外部生图（README 说 Claude Code 自己不出图）再手动抠透明底；配音用 MiniMax（付费）；依赖宋体、楷体等系统字体 | 代码 MIT；`public/` 演示素材不授予商用 | `remotion-guofeng-starter/SKILL.md`、`.../style/design.md`、`.../style/分镜与图层规范.md`、`.../src/components/PaperCollageLayer.tsx` | 风格资产（色卡 token、纸片规范、图层运动预设）和具体故事分开放；纸片入场回弹 + 呼吸浮动 + 纸投影 |
 | EverMind-AI/Raven（4.3k⭐） | 从一个仓库的 Git 历史导演一部两分钟手绘动画片：故事、角色、分镜、HTML 审片台、4K/60fps | 描述未写 | Apache-2.0 | 未拉取 | 【推测】HTML 审片台可对照我们的联系表自查 |
+| buildwithhanif/claude-animation-skill（21⭐，清单外） | 纯代码的手绘 2D 动画：纸纹、排线、毛笔水彩、带解剖结构的蚂蚁骨架、蚁巢剖面；附 4 支 30 秒上下的样片 | Node + `@napi-rs/canvas` + ffmpeg，不用浏览器、GPU 和 API key；音效和配乐都由代码合成 | MIT | `claude-animation-skill/plugins/claude-animation/skills/claude-animation/SKILL.md`、`.../references/detail.md`、`.../lib/film.mjs`、`.../references/prior-art.md` | 细节圣经：每个表面都画三层（底色 → 纹理 → 边缘），线宽和细节随景深递减，逐种材质写明纹理怎么画；笔触种子取自稳定的名字而不是帧号，线条抖不抖要明确决定；`verify` 把 5 个帧按正序、倒序、再正序渲三遍比 MD5；`render` 先写进暂存目录，编码成功才替换旧文件；音效从画面时间线生成，比接触帧早约 0.03 秒 |
 
 lemo-opuscar 的蜡笔、水彩、水墨、厚涂、红色剪纸、皮影、纸雕灯影等风格见第 2 节。它的笔触引擎在 `styles/watercolor/`、`ink-wash/`、`impasto/`。
 
@@ -307,3 +310,49 @@ lemomo-ai/lemo-opuscar（446⭐）是作者用 Claude Opus 5.5 做的 39 支纯�
 | functional-emotions-video | MIT（代码；歌曲、歌词和 `assets/` 音频不在内） | 可复用，保留声明 | 歌曲和音频不能用 | 代码可复用 |
 | remotion-skills | 本地没有 LICENSE 文件 | — | — | 只读 |
 | PDoomVideo | 没有 LICENSE | — | — | 只读 |
+| claude-animation-skill | MIT（Copyright Hanif） | 可复用，保留声明 | `references/prior-art.md` 写明只借了别家 skill 的思路、没复制代码 | 可复用 |
+| product-film-skill | MIT（skill 自身的文字和代码） | 可复用，保留声明 | 依赖的 Remotion 另受 Remotion License 约束；歌曲要自备授权 | 可复用；Remotion 另计 |
+| procedural-film | MIT（Copyright Dean Kuhn） | 可复用，保留声明 | 蝴蝶样片的外观和剪辑参照 Kevin Ngo 的片子（见样片的 `docs/reference-analysis.md`）；Claude Quest 是 README 声明的非官方同人作品 | 可复用；样片的形象另慎 |
+| opus55-guide-athemeroy | CC BY 4.0（原创文字、注释、表格、图表；整个仓库一份 LICENSE） | `scripts/` 也在 CC BY 4.0 下，复用须署名 | 帧缩略图、链接的帖子和视频、创作者 prompt 不在 CC BY 范围内，见 `THIRD_PARTY.md` | 可改写复用（署名） |
+| opus55-catalog-zhuyansen | 没有 LICENSE；README 声明收录不授予许可 | — | 作品和 prompt 归各自作者；prompt 原文不在仓库里 | 只读 |
+| Battle-of-Austerlitz-Film | 没有 LICENSE，README 也没提 | — | 成片、混音和字体未拉取 | 只读 |
+
+---
+
+## 6. Opus 5.5 发布周补充（2026-09-29）
+
+这 6 个仓库都不在 183 个的清单里（本地 `skills.json` 是 2026-09-28 的快照），没有 Agent Skills Hub 的安全评级。本文逐个读了 README、LICENSE 和主 SKILL.md（或主源码），都已加进 `fetch.sh`。
+
+| 仓库 | 本地路径 | ⭐（2026-09-29） | 许可 | 写在哪 |
+|---|---|---|---|---|
+| [athemeroy/awesome-opus-5-5-videos](https://github.com/athemeroy/awesome-opus-5-5-videos) | `opus55-guide-athemeroy/`（textonly） | 318 | CC BY 4.0 | 下文 |
+| [zhuyansen/awesome-opus-5.5-video](https://github.com/zhuyansen/awesome-opus-5.5-video) | `opus55-catalog-zhuyansen/` | 33 | 无 | `cases/opus55-gallery.md` 第 5 节 |
+| [WinterArc21/Battle-of-Austerlitz-Film](https://github.com/WinterArc21/Battle-of-Austerlitz-Film) | `Battle-of-Austerlitz-Film/`（textonly） | 12 | 无 | `cases/opus55-gallery.md` 第 6 节 |
+| [buildwithhanif/claude-animation-skill](https://github.com/buildwithhanif/claude-animation-skill) | `claude-animation-skill/` | 21 | MIT | 第 1 节 07 |
+| [Rieranthony/product-film-skill](https://github.com/Rieranthony/product-film-skill) | `product-film-skill/` | 358 | MIT | 第 1 节 03 |
+| [kuhnhomeuk-cell/procedural-film](https://github.com/kuhnhomeuk-cell/procedural-film) | `procedural-film/`（textonly） | 460 | MIT | 第 1 节 02 |
+
+claude-animation-skill 和 product-film-skill 带 `.claude-plugin/` 插件清单，那是 `claude plugin marketplace add` 时才读的文件，不会被自动加载，所以 `fetch.sh` 没有改它的名；三个 skill 的 SKILL.md 都放在 `plugins/` 或 `skills/` 下，也不会被当成本仓库的 skill。
+
+### 三个 skill 的自查各管什么
+
+三个 skill 都把"每帧是 t 的纯函数"当硬规则，但检查的重点各不相同，合起来正好是一条完整的链：
+
+| | 逐帧检查 | 流程保护 | 成品检查 |
+|---|---|---|---|
+| claude-animation-skill | `sheet` 看静帧，`strip` 看快动作前后 12 帧；`verify` 把 5 个帧按正序、倒序、再正序渲三遍比 MD5 | 先写暂存目录，编码失败不覆盖旧文件，另写一份 `render.json` 记参数 | 看编码后母版的联系表 |
+| procedural-film | `check.cjs` 六项关卡，确定性一项把同一帧按五种顺序画出来比哈希 | 从桩场景起关卡必须全绿；一个 agent 只拥有一个镜头文件，评审 subagent 分波次出 P1/P2 修改单 | 成片测响度，交付转码归一到约 −14 LUFS；逐镜写一行说明 |
+| product-film-skill | 每个交接点出静帧，再出联系表和半分辨率草稿；`--debug` 把量到的坐标直接画进画面（Remotion 渲静帧时不转发 console） | 每次渲染的版本单独保留在 `out/<film>/vN/` | `verify.py` 解码每个交付文件：时长、背景色、首尾接缝、取色探针 |
+
+我们的 `bin/vh check` 目前做 ffprobe 和黑帧、冻帧、静音检测。值得补的两件：一是把硬规则 1 的乱序比对做成命令，claude-animation-skill 的 `verify` 最简单；二是交付前解码成品核对色值，product-film-skill 踩到的色域问题在任何 Remotion 暗底片子上都会出现。
+
+### athemeroy 的指南能借什么
+
+athemeroy/awesome-opus-5-5-videos 是一份带来源的研究型目录：从 X 上 1,511 条候选帖、1,401 个去重后的视频里，挑 168 条逐条核对来源。作者反复提醒，这些数字只描述检索到的样本，不代表 X 上全部 Opus 视频。能借进 OpenVideoHarness 的有四样：
+
+1. **按"像素从哪来"分 7 条制作路径**：代码绘制的 2D、教学讲解、3D 或实时图形、改造已有素材、外部视频模型管线、应用或游戏录屏、混合或无法判断。它强调只看一帧判断不了像素来源，要区分作者自述、公开可对上的源码或 prompt、自己观察到的现象三类证据。拉片时（`playbook/07-reverse-engineer.md`）可以用同样的分级。
+2. **制作 brief 模板**（`docs/production-brief.md`）：比我们的 `templates/BRIEF.md` 多出三块：素材与权利表（每项素材的所有者、许可、怎么进片）、"谁做了什么"（模型、每个镜头的像素来源、人工）、实际成本与披露（调用次数、外部服务、人工返修、没核实的宣称）。可以对照 BRIEF 和 NOTES 的素材台账补。
+3. **视觉效果适配指南**（`docs/visual-effects-fit.md`）：按任务族给出"怎么判定失败"和"什么时候该换专业工具"。三段验收是 brief 加关键帧 → 最难的 2–4 秒样片（看 12–24 个相邻帧，按不同顺序重渲同一时间点）→ 全片和可复现的交付；中间的样片这一步，我们的三道关卡里没有单列。它还提醒，"液态金属""磁场""碎裂"这类词，先要说清验收目标是看起来像，还是物理上对。
+4. **配色模式研究**（`docs/color-modes.md`）：1,119 支预览里，13 种画风有 11 种分成两到三个配色模式，例如动效 / UI 类分成暗中性 198 支和亮中性 152 支。它的结论只到"颜色重要时，在 brief 里写明背景明度、主色和强调色，并逐镜检查色彩一致性"，并说明这不是实验证明的最佳配色，点赞差异也不说明因果。
+
+许可：原创文字、注释、表格和图表是 CC BY 4.0，改写引用要署名 athemeroy 并注明许可；帧缩略图、链接的帖子和视频、创作者的 prompt 都不在 CC BY 范围内。

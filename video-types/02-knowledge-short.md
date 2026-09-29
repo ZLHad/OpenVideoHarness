@@ -99,4 +99,5 @@ Also export a 3:4 cover frame with the hook text.
 以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
 
 - **claude-faceless-shorts-creator**（MIT）：节拍语法 HOOK → SETUP → QUIZ → REVEAL → TWIST → LOOP；第 0 帧就是完整画面，末帧等于首帧，可以无缝循环；不放"评论区告诉我"式的 CTA。见 `references/repos/faceless-shorts-creator/_upstream_claude/skills/make-short/SKILL.md`。
+- **procedural-film**（MIT，不在 183 个 skill 的清单里）：零媒体素材的 30 秒竖屏短片，一个镜头一个 agent；六项关卡 `check.cjs` 从桩场景那一步起就必须全绿，确定性检查把首、中、尾帧按正序、倒序、冷启动分别画出来比哈希；竖屏底部 380px 留给平台 UI。见 `references/repos/procedural-film/skills/procedural-film/SKILL.md`。
 - **gbro-collage-info**（MIT）：竖屏半调纸拼贴信息动画，纯 HTML/GSAP，不用图像模型；信息只放在上 2/3，底部 640px 留给字幕。见 `references/repos/gbro-collage-info/SKILL.md`。纸拼贴 / Vox 风的三种做法对比见 `references/community-skills.md` 第 4 节。

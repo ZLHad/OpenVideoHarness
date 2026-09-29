@@ -8,7 +8,7 @@
 |---|---|
 | Type / route | `short` → `video-types/02-knowledge-short.md`, engine HyperFrames |
 | Output | 1080x1920, 30 fps, **24.8 s** (744 frames), silent (no audio stream), h264, 5.1 MB |
-| HyperFrames | **0.8.82** via `npx` (Node 22), GSAP 3.14.2 from the scaffold's CDN tag, Noto Sans SC via Google Fonts `<link>` (localized at render time) |
+| HyperFrames | **0.8.82** via `npx` (Node 22), GSAP 3.14.2 (originally the scaffold's CDN tag; now vendored via `npm i` so renders don't hang offline), Noto Sans SC via Google Fonts `<link>` (localized at render time) |
 | Render time (M3 Max) | final `--quality delivery`: **46.2 s** ("rendered in"), 49.3 s wall. First draft rendered in 13.8 s; after that run HyperFrames printed "parallel drawElement capture fell back to the screenshot path and is now off for this install", and every later render took ~41–46 s |
 | Review iterations | 4 review passes: snapshot contact sheets → draft render + seam strips → frame-exact seam strips → final render + `bin/vh check`. Six renders in all (4 draft, 2 delivery). Every FAIL and fix is logged in [NOTES.md](NOTES.md) |
 | Agent wall time | ~1 h 45 min from reading `CLAUDE.md` to delivery, including an API rate-limit pause |

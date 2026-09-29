@@ -1,0 +1,74 @@
+{
+  "bpm": 150,
+  "key": "A",
+  "mode": "minor",
+  "seed": 4,
+  "meters": {
+    "1": 2,
+    "2": 3,
+    "3": 5,
+    "4": 3
+  },
+  "sections": [
+    {
+      "name": "power-on",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "pad",
+        "arp",
+        "bass"
+      ],
+      "energy": 0.5
+    },
+    {
+      "name": "chrome",
+      "bars": 1,
+      "chords": [
+        "VI"
+      ],
+      "layers": [
+        "kick",
+        "hats",
+        "bass",
+        "arp",
+        "pad"
+      ],
+      "energy": 0.8,
+      "impact": true
+    },
+    {
+      "name": "panels",
+      "bars": 1,
+      "chords": [
+        "III"
+      ],
+      "layers": [
+        "kick",
+        "clap",
+        "hats",
+        "bass",
+        "arp",
+        "pad",
+        "lead"
+      ],
+      "energy": 1.0
+    },
+    {
+      "name": "tracking",
+      "bars": 1,
+      "chords": [
+        "VII"
+      ],
+      "layers": [
+        "pad",
+        "arp",
+        "bass"
+      ],
+      "energy": 0.55,
+      "impact": true
+    }
+  ]
+}

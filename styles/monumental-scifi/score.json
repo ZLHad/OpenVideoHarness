@@ -1,0 +1,10 @@
+{
+  "bpm": 150, "key": "D", "mode": "minor", "seed": 60,
+  "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "sections": [
+    {"name": "fog", "bars": 1, "chords": ["i"], "layers": ["pad"], "energy": 0.3},
+    {"name": "title", "bars": 1, "chords": ["i"], "layers": ["pad", "bell"], "energy": 0.4},
+    {"name": "monoliths", "bars": 2, "chords": ["VI", "VII"], "layers": ["pad", "bell", "taiko"], "energy": 0.6, "riser": true, "fill": true},
+    {"name": "push", "bars": 1, "chords": ["i"], "layers": ["pad", "taiko", "bell"], "energy": 0.8, "impact": true}
+  ]
+}

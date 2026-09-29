@@ -1,0 +1,8 @@
+{
+  "bpm": 120, "key": "G", "mode": "major", "seed": 51,
+  "sections": [
+    { "name": "time-runs", "bars": 1, "chords": ["I"], "layers": ["pad", "hats", "arp"], "energy": 0.5 },
+    { "name": "narrator-holds", "bars": 1, "chords": ["vi"], "layers": ["pad", "bass"], "energy": 0.32 },
+    { "name": "scrub", "bars": 1, "chords": ["IV"], "layers": ["pad", "hats", "arp", "bass"], "energy": 0.62 }
+  ]
+}

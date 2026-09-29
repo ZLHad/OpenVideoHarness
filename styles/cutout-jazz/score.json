@@ -1,0 +1,10 @@
+{
+  "bpm": 150, "key": "F", "mode": "minor", "seed": 31,
+  "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "sections": [
+    {"name": "establish", "bars": 1, "chords": ["i"], "layers": ["bass", "hats"], "energy": 0.5},
+    {"name": "title", "bars": 1, "chords": ["iv"], "layers": ["bass", "hats", "clap", "pad"], "energy": 0.6},
+    {"name": "motif", "bars": 2, "chords": ["VI", "V"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.8, "fill": true},
+    {"name": "strips", "bars": 1, "chords": ["i"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.9, "impact": true}
+  ]
+}
