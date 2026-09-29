@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：片名逐字刻出，每 2 帧一抖，带重影和偶发跳帧；三格胶片里刮出大纲、分镜和唯一的干血红三角；4.0 s 一帧血红闪帧，叠印 5 帧后转到刻着风格名的黑片头。实测亮度跳变每秒最多 2 次。实际字体：Helvetica Neue Light（刮字骨架）、American Typewriter、Kaiti SC。配乐 150 BPM，taiko 隔拍一记，听感是 75 BPM 的半速。
+样片里：0.0 s taiko 一击，第 1–4 帧一道刮痕带着火花撕过全屏；第 6 帧血红闪一下，0.4 s 一个 2 帧的微距，第 15–16 帧片头打孔闪亮，之后留下一个刮出的叉。片名和中文都是"刮"出来的，不是字体：每个字先栅格化，做 Zhang–Suen 细化，再追踪成骨架折线；每一笔用 2–4 条粗细不均、会断的细刮痕沿骨架走，有起笔顿点和乳剂崩口的白点，每 2 帧换一次抖动相位，保留重影和偶发跳帧。母题是三格散开的片格，各自在片门里错位跳动，只在一侧露出半个片孔；大纲、分镜，以及初版的红色换卷标记（cue mark）刮在里面。1.2 s 以及 2.0 / 2.4 / 2.8 / 3.2 / 3.6 s 每拍切入一个 2–3 帧的微距插入：字形、片孔、刮痕，片孔和刮痕两种故意做成暗的。4.0 s 血红闪帧，叠印 5 帧后转到刻着风格名的黑片头。红色全片共出现 3 次，亮的全屏闪每秒不超过 2 次。骨架来源字体：Helvetica Neue Regular（拉丁字母）、Kaiti SC（中文）；标签用 American Typewriter。配乐 150 BPM，taiko 隔拍一记，最后一段只剩 drone。拟音：刮痕落点用 swish_rev，红闪用 impact，打孔和片孔插入用 shutter，其他插入用 glitch，每个词开刻时一声轻 swish_rev。拟音的落点写在 swatch.js 的 `FOLEY` 常量里，`events.json` 由它生成。
 
 ## 学习对象
 
@@ -100,7 +100,13 @@ Visual style: hand-scratched, jittery industrial title design. Warm black film b
 ## 引擎做法
 
 - 首选 HyperFrames 的 Canvas 层，或纯 Canvas2D 的 `render(t)`：每帧重画整张，方便叠鬼影和颗粒。p5 也可以。
-- **刮字**：用 `opentype.js` 或 canvas 拿到字形轮廓，算出中轴（用细字重的描边近似即可），再交给 `scratchStroke(path, seed)` 生成断续、错位的多条细线。结果按 (word, glyph) 缓存，逐帧只加抖动。
+- **刮字**：给每个字建骨架折线，别用"细字重描边 + 错位"，那样做出来是做旧字体。样片的做法：
+  - 字形以 2 倍尺寸画进离屏 canvas；
+  - Zhang–Suen 细化；
+  - 按 4 邻接优先追踪成折线，闭合的圈（o、e、口）要在离起点最远处拆开再做 RDP 简化，否则会塌成一个点；
+  - 标点这类细化后没剩下笔画的字，用墨迹质心补一小道刻痕。
+
+  每笔交给 `scratch(stroke, upto, phase, seed)`：2–4 条细线，宽度按噪声分三档批量描边，噪声超阈值处断开，起笔画顿点，沿线撒崩口白点。骨架在 `setup` 里算一次，逐帧只改相位和抖动。
 - **离散时间**：`tj = Math.floor(t * 15)`，抖动量 = `hash(tj, wordId)`。插入镜头的切点表写在 `timeline.json` 里，长度从斐波那契帧数里取。
 - **胶片层**：颗粒、灰尘、发丝全部由 `hash(frame, i)` 决定；gate weave 用两个低频正弦叠加（0.7 Hz 和 1.3 Hz）。颗粒也可以交给 ffmpeg 的 `noise=alls=12:allf=t`，强度看成片再调。
 - **闪帧检查**：渲染后用 ffmpeg 算出每帧的平均亮度，统计亮度跳变，保证每秒不超过 3 次。

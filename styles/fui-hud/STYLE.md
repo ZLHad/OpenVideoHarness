@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：点阵底上，FRAME 面板实时显示本帧的帧号和 t，时间轴由扫描线揭出，播放头就是 t；标题逐字解码；三个阶段面板相隔 3 帧启动，初版面板的橙色括号按 2 Hz 闪两下后常亮，进度数字按帧计数；4.0 s 初版面板展开成全屏结束卡。实际字体：DIN Condensed Bold、Menlo（SF Mono 回落）、PingFang SC Medium。配乐 150 BPM：`pad` drone + 16 分音符 `arp`。
+样片里：第 1 帧起，FRAME 计数在点阵中央放大跑数，0.65–0.95 s 飞回右上角，面板框随即画出。标题逐字解码。一道扫描线揭出样片自己的内容规格（四条甘特条：establish / title / motif / outro），播放头就是 t。下方是轨迹 schematic：三个航点在 2.0 / 2.2 / 2.4 s 依次启动（先画圆，再出数据），每个带线框图标和它真实的启动时刻；初版的图标是一格胶片，不用播放键。橙色括号锁定初版航点：2 Hz 闪两下，这时配乐只剩 drone。2.8 和 3.2 s 各一道扫描线扫过，读数跟着闪；3.6 s 标记点锁定。镜头慢慢漂移：点阵 0.9×、HUD 1.0×、一层淡淡的准星前景 1.1×，形成视差。4.0 s 初版航点的括号框展开成全屏结束卡。实际字体：DIN Condensed Bold、Menlo（SF Mono 回落）、PingFang SC Medium。配乐 150 BPM：`pad` drone + 16 分音符 `arp`，2.4–3.2 s 告警段只留 `pad`。拟音：计数用 tick，航点启动用 toggle，解码用 typing，扫描线用 swish_rev，3.6 s 锁定用 success，展开用 whoosh。拟音的落点写在 swatch.js 的 `FOLEY` 常量里，`events.json` 由它生成。
 
 ## 学习对象
 

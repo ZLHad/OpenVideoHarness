@@ -4,6 +4,8 @@
 
 样片：`media/swatch.mp4`（5 s）· 封面 `media/poster.jpg`
 
+样片实况：0.0–0.3 s 一笔很宽的湿笔触带着天色从左往右扫过天空上部，0.1 s 时已扫过约七成、占画面两成；随后湿接湿的天空从上往下晕开，带着回流形成的水花和积色的湿边。远山、树林、草地由远及近依次渲染出来，颜料有沉淀颗粒，整张画面再乘一层纸纹。风以波的形式从左往右吹过草地：每 1.2 s 一波，波长 1100 px，草叶弯 8–13°。三棵树（铅笔稿 → 平涂 → 完成稿）的树冠各分成 4 团叶簇，每团在风波到达它的位置 0.4 s 后才摆动、倾斜、被压扁，阵风时迎风一侧的叶缘翻亮；花瓣和落叶顺着同一阵风从左往右飘过。4.0 s 暖光从太阳处涨到满屏纸白（4.4 s 最亮）再退去，露出结束画面。标签英文 40 px。
+
 ## 学习对象
 
 | 作品 | 年份 · 作者 / 工作室 | 从它身上学什么 |
@@ -27,7 +29,7 @@
   - 标题：`Palatino` → `Georgia`，常规字重，字距 +0.01em；
   - 中文：`Songti SC` Light 用于标题，`Kaiti SC` 用于手写注；
   - 字幕：`Songti SC` 44–50px，颜色 `#3E3A34`，下衬 12px 纸色光晕，不加底框。
-  - 样片实际用字：`Palatino` Italic 96px（英文）、`Kaiti SC` 66px（中文）、标签 `Kaiti SC` 50px + `Palatino` Italic 30px。
+  - 样片实际用字：`Palatino` Italic 96px（英文）、`Kaiti SC` 66px（中文）、标签 `Kaiti SC` 50px + `Palatino` Italic 40px，结束画面 `Kaiti SC` 76px + `Palatino` Italic 44px。
 - **构图**：
   - 大天空：地平线在 0.6–0.66H，天空占画面 55–65%；
   - 四层纵深：远山、中景树林、近处草地、前景草丛（被画面下沿裁掉一部分）；
@@ -48,7 +50,7 @@
   - spring 无回弹：stiffness 90、damping 19（ζ≈1.0）；
   - 禁止 bounce 和 overshoot。
 - **风**（签名动作）：
-  - 草叶角度 `θ(x,t) = A·(0.6 + 0.4·g(t))·sin(2π(f·t − x/λ))`，f = 0.35 Hz，λ = 600px，A = 6–10°，风从左往右；`g(t)` 是用 `hash` 做种子的平滑噪声，模拟阵风；
+  - 草叶角度 `θ(x,t) = A·(0.6 + 0.4·g(t))·sin(2π(f·t − x/λ))`，每 1.2 s 一波（f ≈ 0.83 Hz），λ = 1100px，A = 8–12°，风从左往右；`g(t)` 是用 `hash` 做种子的平滑噪声，模拟阵风；
   - 树冠摆 1–2°，频率 0.2 Hz，比草晚 0.4 s（风后到）；
   - 云 8–15px/s 漂移，云影在地面上以同样速度移动。
 - **时长**：进场 36 帧（1.2 s）；每个画面至少停 2.5 s；每 4 s 发生一件新事（一阵风、一片叶子飞过、光斑移过来）。
@@ -61,7 +63,7 @@
 - **配乐**：`bin/vh music`，`bpm: 84`，`key: "F"`，`mode: "major"`。编制：`pad` 做温暖的底，`arp` 用软拨弦、低 `energy`（0.3–0.5），`dizi` 吹一条简单的旋律，`bell` 每段只响一两下。不要鼓组；需要推进时只加 `bass`。
 - **音效**：风（低通噪声，随 `g(t)` 起伏）、草叶沙沙、远处的风铃 `ding`（很轻）、溪水。风可以先用低通、拉长的 `whoosh` 占位；鸟鸣和溪水需要有授权的录音，内置库没有，记进 NOTES 的素材台账。
 - **声画关系**：卡点很松，按乐句对齐，不按拍子。阵风的音量和画面里草浪的幅度用同一个 `g(t)`，声画自然同步。
-- **样片小样**：样片的 5 s 声音小样（`score.json`）：150 BPM 记谱、听感很慢，F 宫；`pad` 铺底，0.8 s 起竹笛长音，2.0 s 加软拨弦，4.0 s 光晕时一声编钟。
+- **样片小样**：样片的 5 s 声音小样（`score.json`）：150 BPM 记谱、听感很慢，F 宫；`pad` 铺底，0.8 s 起竹笛长音，2.0 s 加软拨弦，4.0 s 光晕时一声编钟。拟音（`events.json`）：0.1 s 开场那一笔湿笔触一声 `whoosh`，每个风波经过画面中线时一声很轻的 `whoosh`（1.35 / 2.55 / 3.75 s），4.4 s 光晕最亮时一声 `swish_rev` 吸进去。
 
 ## 适合与不适合
 
@@ -82,7 +84,7 @@
 ```text
 STYLE: pastoral watercolour. Warm cotton paper #F4EEDF shows through as light. Wet-in-wet sky washes (#A9C7DF) take 55–65% of the frame; horizon at 0.6–0.66H. Four depth layers: blue-grey far hills #9DB3BF, mid treeline #7FA36B, near meadow #B9CF7E, cropped foreground grass #3F6B4A. Each step back is lighter, less saturated and bluer.
 One warm light #F2C46D from the upper left; every shadow, including drifting cloud shadows, is a cool violet #8E8FB5, never black. Granulating pigment, slightly darker wet edges, no gradients, no lens flares, no digital bloom.
-Motion is calm and continuous: wind travels left to right as a wave through the grass (0.35 Hz, 600px wavelength, gusts), trees answer 0.4s later, clouds drift 8–15px/s with their shadows. Sine easing, no bounce. Slow push-ins under 3% or a parallax pan.
+Motion is calm and continuous: wind travels left to right as a wave through the grass (one wave every 1.2s, 1100px wavelength, 8–12°, gusts), trees answer 0.4s later, clouds drift 8–15px/s with their shadows. Sine easing, no bounce. Slow push-ins under 3% or a parallax pan.
 Something still happens in every shot: a gust, a leaf crossing, a patch of light arriving. Transitions: a watercolour brush wipe, a warm light bloom to paper white, or a leaf carried by the wind across the cut.
 Music: warm pad, soft plucked arpeggio, a simple flute line, a bell or two; F major, 84 BPM, no drums. Wind sound follows the same gust curve as the grass.
 ```

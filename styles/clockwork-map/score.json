@@ -1,9 +1,10 @@
 {
   "bpm": 90, "key": "D", "mode": "minor", "seed": 11,
-  "meters": { "1": 3, "2": 3, "3": 3 },
+  "meters": { "1": 3, "2": 2, "3": 1, "4": 3 },
   "sections": [
-    { "name": "flight", "bars": 1, "chords": ["i"], "layers": ["pad", "bass", "bell"], "energy": 0.36 },
-    { "name": "mechanisms", "bars": 1, "chords": ["VI"], "layers": ["pad", "bass", "arp", "bell"], "energy": 0.55 },
+    { "name": "compass-drop", "bars": 1, "chords": ["i"], "layers": ["pad", "bass", "bell"], "energy": 0.42, "impact": true },
+    { "name": "mechanisms", "bars": 1, "chords": ["VI"], "layers": ["pad", "bass", "arp", "bell"], "energy": 0.6 },
+    { "name": "breath-ticks", "bars": 1, "chords": ["VII"], "layers": ["pad", "hats"], "energy": 0.16 },
     { "name": "pull-back", "bars": 1, "chords": ["i"], "layers": ["pad", "bass", "taiko", "bell"], "energy": 0.72, "impact": true }
   ]
 }

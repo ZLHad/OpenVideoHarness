@@ -1,0 +1,5 @@
+[
+  {"t":0.1,"sfx":"shutter","gain_db":-8,"pan":-0.4},
+  {"t":2.45,"sfx":"swish_rev","gain_db":-18,"pan":0.4},
+  {"t":4,"sfx":"shutter","gain_db":-8,"pan":0.2}
+]

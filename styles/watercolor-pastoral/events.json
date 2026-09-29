@@ -1,0 +1,37 @@
+[
+ {
+  "id": "stroke",
+  "t": 0.1,
+  "sfx": "whoosh",
+  "gain_db": -10,
+  "pan": 0
+ },
+ {
+  "series": "gust",
+  "t": 1.35,
+  "sfx": "whoosh",
+  "gain_db": -17,
+  "pan": 0
+ },
+ {
+  "series": "gust",
+  "t": 2.55,
+  "sfx": "whoosh",
+  "gain_db": -17,
+  "pan": 0
+ },
+ {
+  "series": "gust",
+  "t": 3.75,
+  "sfx": "whoosh",
+  "gain_db": -17,
+  "pan": 0
+ },
+ {
+  "id": "bloom",
+  "t": 4.4,
+  "sfx": "swish_rev",
+  "gain_db": -11,
+  "pan": -0.46
+ }
+]

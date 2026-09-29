@@ -1,9 +1,10 @@
 {
   "bpm": 90, "key": "A", "mode": "minor", "seed": 21,
-  "meters": { "1": 3, "2": 3, "3": 3 },
+  "meters": { "1": 2, "2": 1, "3": 3, "4": 3 },
   "sections": [
-    { "name": "page", "bars": 1, "chords": ["i"], "layers": ["pad", "arp"], "energy": 0.22 },
-    { "name": "reveal", "bars": 1, "chords": ["VI"], "layers": ["pad", "arp", "bass"], "energy": 0.36 },
-    { "name": "scroll", "bars": 1, "chords": ["iv"], "layers": ["pad", "arp", "bell"], "energy": 0.3 }
+    { "name": "page", "bars": 1, "chords": ["i"], "layers": ["pad", "arp"], "energy": 0.3 },
+    { "name": "breath-before-reveal", "bars": 1, "chords": ["iv"], "layers": ["pad"], "energy": 0.24 },
+    { "name": "reveal", "bars": 1, "chords": ["VI"], "layers": ["pad", "arp", "bass"], "energy": 0.4 },
+    { "name": "scroll", "bars": 1, "chords": ["iv"], "layers": ["pad", "arp", "bell"], "energy": 0.32 }
   ]
 }

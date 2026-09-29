@@ -37,7 +37,9 @@
         "pad"
       ],
       "energy": 0.8,
-      "impact": true
+      "impact": true,
+      "riser": true,
+      "fill": true
     },
     {
       "name": "panels",
@@ -54,7 +56,8 @@
         "pad",
         "lead"
       ],
-      "energy": 1.0
+      "energy": 1.0,
+      "impact": true
     },
     {
       "name": "tracking",

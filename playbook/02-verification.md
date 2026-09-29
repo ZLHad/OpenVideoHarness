@@ -4,6 +4,11 @@
 
 ## 七层检查
 
+做到第几层，按努力程度定（CLAUDE.md"努力程度"）：
+- `quick`：第 1、2 层，加上整片一张联系表，出片前跑 `bin/vh check`；
+- `standard`：七层都做，第 5 层的独立评审做 1 轮；
+- `studio`：七层都做，第 5 层至少 3 轮，外加下文的手机测试、循环接缝、无损确定性和音频 QA。
+
 1. **能不能跑**：lint、编译、dry-run。Manim 的报错按 ScopeRefine 的顺序修：先改出错行前后 ±1 行，不行就改整个代码块，再不行就重写整个场景。
 2. **不看图的结构检查**（确定性检验：从中间抽几帧单独渲染，和整片里的同一帧比对，要逐像素相同，或者 PSNR ≥ 45 dB；比的是无损 PNG 帧，不是编码后的 mp4，原因见下文"确定性"；`ffmpeg -i a.png -i b.png -lavfi psnr -f null -`）：
    - 渲染器自带的检查，例如 HyperFrames `check` 会查 DOM 包围盒、文字溢出和对比度；
@@ -27,7 +32,7 @@
 
 ## 预算
 
-来自 ClaudeAnimationBase：
+以下是 `standard` 和 `studio` 的最低量（`quick` 只要整片一张联系表）。来自 ClaudeAnimationBase：
 - 每个镜头至少一张联系表；
 - 每个关键动作和每个转场各一条 strip；
 - 每张承载剧情的脸一个 crop。

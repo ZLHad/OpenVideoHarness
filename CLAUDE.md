@@ -4,17 +4,60 @@
 
 ## 接到"做视频"的请求时
 
+0. **定档位**：先确定这支片子的努力程度（effort）：`quick`、`standard` 还是 `studio`，规则见下一节"努力程度"。后面每一步做多少，都按档位来。
 1. **判断类型**：用下面的路由表，读对应的 `video-types/*.md`。一个视频可能横跨两类（例如"论文讲解"做成竖屏短视频），就两份都读，以主类型为准。
    - **一句话需求是常态**：389 支社区 Opus 5.5 作品里，完整提示词的中位数不到 30 个词，四分之一直接套用同一句 showreel 提示词（见 `cases/opus55-gallery.md`）。收到一句话时，自己按类型文档的默认值补全 BRIEF，把关卡 ① 的审阅包写短，最多问 3 个真正影响制作的问题，不要反过来追问一长串。
 2. **读流程和自查**：读 `playbook/01-pipeline.md` 和 `playbook/02-verification.md`；涉及配音或音乐时，再读 `playbook/04-audio.md`。
 3. **建项目**：运行 `bin/vh new <type> <slug>`，它会建好 `projects/<日期>-<slug>/`，复制模板，并把该类型的 prompt 块填进 BRIEF；手绘类还会复制引擎、装好依赖。其他引擎的初始化方式见 `engines/README.md`。
 4. **看案例和参考**：打开类型文档"可参考的案例"和"社区 skill 参考"两节列出的文件；需要看真实代码时读 `references/repos/` 里的源码。本仓库自己做过的片子在 `showcase/`，各带 BRIEF、STORYBOARD、NOTES 和源码，是最直接的样板。
-5. **三道人工审阅关卡（默认必过）**：按 `templates/REVIEW.md` 在对话里给出审阅包，然后**停下来等人回复**，不要自己往下做：
+5. **三道人工审阅关卡（`standard` 和 `studio` 必过；`quick` 见下一节）**：按 `templates/REVIEW.md` 在对话里给出审阅包，然后**停下来等人回复**，不要自己往下做：
    - ① **大纲**：BRIEF 加 3–7 段大纲、引擎和费用。风格部分从 `styles/` 里挑 2–3 个彼此拉得开的预设，附上样片，让人选或混搭。不要默认只给一种口味；
    - ② **分镜**：STORYBOARD 加一张分镜预览图 `out/check/storyboard.png`，每镜一张关键帧，让人看图判断。长片可以再附一版全长灰盒 animatic；
    - ③ **初版**：draft 成片加联系表，并写出你自己最不满意的 2–3 处。
    
    人的意见逐条记进项目的 `REVIEW.md`。只有用户在对话里亲口说"不用审、直接出"才能跳过，把原话和日期抄进 REVIEW.md，并由独立 reviewer 代审（见 `playbook/01-pipeline.md` 的授权无人值守模式）。人说不清哪里不对（"不够炫""感觉不对"）时，先做 look-dev：同一段 10–20 s 出 2–3 个变体让人挑。
+
+## 努力程度（effort）：一个开关管所有"做多认真"
+
+同一套流程，按三个档位决定做多少轮、查多细、审几次。**默认 `standard`**。
+
+**怎么确定档位**（优先级从高到低）：
+1. 用户在对话里说的："快速出一版""随便做个草稿"是 `quick`，"精品""发布用""认真打磨"是 `studio`；
+2. 项目 `BRIEF.md` 里的 `Effort:` 一行（`bin/vh new … --effort <档位>` 会写进去）；
+3. `LOCAL.md` 里的默认档位；
+4. 都没有时用 `standard`。
+
+档位不清楚、而且会明显影响工作量时（例如一句话要做"发布片"），在关卡 ① 顺带问一句。
+
+**降档只能由用户决定**：`quick` 会跳过人工关卡，所以它必须来自用户本人，比如对话里说的、用户自己写在 LOCAL.md 或 BRIEF 里的。agent 不能为了省时间自己降档；同样，时间紧也不是把 `studio` 做成 `standard` 的理由，做不完就说明情况，让用户决定。
+
+| 旋钮 | `quick` 快出 | `standard` 标准 | `studio` 精品 |
+|---|---|---|---|
+| 适合 | 试方向、草稿、随手发 | 大多数正式视频 | 发布片、旗舰内容、会被反复看的片子 |
+| 人工关卡 | 0 道，直接出片。选 quick 就等于授权跳过关卡，把这一点记进 REVIEW.md；需求有歧义时最多问 1 个问题 | 3 道 | 3 道；关卡 ① 附候选风格的 look-dev 小样，关卡 ② 附全长 animatic |
+| 风格 | 自己从 `styles/` 选 1 个，写明理由 | 关卡 ① 给 2–3 个彼此拉得开的预设 | 同左，每个候选都真渲一段 10–20 s 的小样 |
+| 分镜 | 简表：镜头、时长、reads | 完整 STORYBOARD + 分镜预览图 | 同左 + animatic |
+| 自查 | 整片一张联系表，20 条清单速查一遍 | 每个场景：联系表、关键动作 strip、局部 crop；20 条清单 | 同左，再加手机尺寸测试、循环接缝、无损帧确定性、静默故障扫描 |
+| 独立评审（打分层） | 不做 | 1 轮：全新上下文的 reviewer 打 7 项分，修最差的 3 处 | ≥ 3 轮，7 项都 ≥ 8 才出片；达不到就带着分数进关卡 ③ |
+| 声音 | 可以没有，或一段配乐 / 配音加基础混音 | 配乐或配音 + 关键动作音效 + `bin/vh qa` | 同左 + 每个动作的拟音和声像 + 最终混音 cue check |
+| 渲染与交付 | draft 画质即可，一个 mp4 | 正式画质 mp4 + 联系表 | 同左 + 网页版、GIF、封面，按需出 9:16 |
+| draft 版数 | 1–2 版 | 一般 3–5 版 | 不设上限，直到过线 |
+| subagent | 不用 | 长片按章节并行 | 并行制作 + 独立评审，按需加作曲 subagent |
+| 参考研究 | 只读类型文档 | + 类型文档列的案例 | + 拉片参考（`playbook/07`）、深读 `references/` |
+| 大致耗时（30 s 左右的片子） | 10–30 分钟 | 1–2 小时 | 3 小时以上 |
+| 推理强度建议 | 中 | 高 | 最高档 |
+
+最后一行是给能调推理强度的 agent 的建议（例如 Claude Code 选模型时的 effort 档位），不能调就忽略。
+
+**任何档位都不降的底线**：
+- 硬规则 1（每一帧是 t 的纯函数）、5（事实照抄原文）、7（不在文件里写 key）；
+- 片中不出现数字静音；
+- 全屏闪白每秒不超过 3 次；
+- 字号不低于清单下限；
+- 素材许可要记清；
+- 出片前跑一次 `bin/vh check`。
+
+`quick` 省掉的是轮数和审阅，不是这些。
 
 ## 路由表
 
@@ -22,7 +65,7 @@
 |---|---|---|---|
 | 数学、物理、算法的原理讲解，3b1b 风格 | `video-types/01-math-science-explainer.md` | Manim CE | `showcase/03-math-fourier/`、`cases/explainer-code2video.md` |
 | 知识科普短视频，竖屏或横屏（抖音、B站、小红书、视频号、Shorts） | `video-types/02-knowledge-short.md` | HyperFrames | `showcase/02-short-leo-doppler/`、`cases/explainer-interstellar-blackhole.md` |
-| 产品宣传、发布片、App 或 SaaS 介绍、功能演示 | `video-types/03-product-promo.md` | HyperFrames | `showcase/00-promo-launch-film/`、`cases/promo-hyperframes-launches.md` |
+| 产品宣传、发布片、App 或 SaaS 介绍、功能演示 | `video-types/03-product-promo.md` | HyperFrames | `showcase/00-promo-launch-film/`、`showcase/04-intro-film/`（一镜到底 3D + 代码作曲）、`cases/promo-hyperframes-launches.md` |
 | 歌词视频、MV、配合音乐的动画 | `video-types/04-lyric-music-video.md` | ClaudeAnimationBase（手绘）或 HyperFrames（排版） | `cases/mv-pdoom.md`、`cases/mv-functional-emotions.md`、`cases/mv-claude-pop.md` |
 | 数据故事、动画图表、数字可视化 | `video-types/05-data-story.md` | HyperFrames + SVG | — |
 | 论文讲解、会议视频、学术报告 | `video-types/06-paper-explainer.md` | Manim（机制）或 HyperFrames（结构、结果） | `cases/paper-paper2video.md`、`cases/explainer-code2video.md` |
@@ -34,7 +77,7 @@
 | 想找现成的社区 skill 或某种画风 | 先看本仓库的 `styles/`（带样片），再看 `references/community-skills.md`（含 lemo 的 39 种风格库） | — | `cases/opus55-gallery.md` |
 | 配音（中文或英文）、双语字幕、配乐、音效、歌曲 | `playbook/04-audio.md` | `bin/vh tts / captions / beats / music / sfx / mix / mux / qa` | `showcase/`（静音样板）+ 04 篇 |
 | 特效、转场、粒子、着色器、声画联动 | `playbook/08-vfx-and-motion-sources.md` | 随主引擎 | — |
-| 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`（一镜到底、特效预设栈、子帧运动模糊） | HyperFrames + Three.js 层 | `cases/opus55-gallery.md` 的 3D 一节和第 6 节（Austerlitz 长片深读） |
+| 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`（一镜到底、特效预设栈、子帧运动模糊） | HyperFrames + Three.js 层 | `showcase/04-intro-film/`、`cases/opus55-gallery.md` 的 3D 一节和第 6 节（Austerlitz 长片深读） |
 | 想要某种风格、参考某部名作，或者不想每支片子都一个口味 | `styles/README.md`，再读选中预设的 `styles/<slug>/STYLE.md` | 随主引擎 | 每个预设的 `media/swatch.mp4`，总览 `styles/gallery.jpg` |
 
 以上都不贴切时，读 `playbook/00-paradigm.md` 的引擎选型表自己判断，并在 `NOTES.md` 里写明理由。
@@ -61,7 +104,7 @@ OpenVideoHarness/
 ├── README.md / README.zh-CN.md  给人看的说明（英 / 中）
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
 ├── install.sh                一键安装（克隆、依赖、参考仓库、注册 skill）
-├── bin/vh                    命令行：doctor · setup · types · new · hf-init · install-skill · tts · captions · beats · music · sfx · mix · mux · qa · sheet · check · gif
+├── bin/vh                    命令行：doctor · setup · types · effort · new · hf-init · install-skill · tts · captions · beats · music · sfx · mix · mux · qa · sheet · check · gif
 ├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py）
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              8 类视频：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill

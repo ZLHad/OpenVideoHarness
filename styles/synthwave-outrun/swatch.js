@@ -1,11 +1,15 @@
 // synthwave-outrun swatch · 合成器浪潮 (swatch grid 150 BPM: one grid line per beat, 0.4 s)
 // Everything is painted on a 2D canvas, then played back "from a videotape on a CRT" by one WebGL pass
 // (luma/chroma split with horizontal chroma bleed, red shift, 3 px scanlines, darkened corners, faint noise).
-//   0.00–0.45  CRT power-on: a dot, a line, then the picture opens vertically
+//   0.00–0.36  HOOK · CRT power-on: a dot, a line (0.00–0.07), then the picture opens vertically (a third open at 0.1 s)
 //   0.20–0.90  the striped sun rises; the cyan grid starts rolling toward the camera, locked to the beat
-//   0.80–2.10  title: chrome letters rise 60 ms apart; a specular sweep at 2.00; a four-point glint on the beat at 2.80
+//   0.80–2.10  title: chrome letters (with a white horizon band) rise 60 ms apart; a specular sweep at 2.00; four-point
+//              glints on the beat at 1.60 and 2.80
 //   1.20–1.70  the Chinese line flickers on like a neon tube
-//   2.00–2.40  motif: three neon panels power on half a beat apart: wireframe → three cells → a lit "tape" playing
+//   2.00–2.40  motif: objects of the era power on half a beat apart: a wireframe cassette (outline) → a chrome-edged
+//              VHS sleeve with three panels (storyboard) → a chrome CRT playing a tiny sunset (draft); 2.8 / 3.2 / 3.6
+//              one object flares per beat
+//   4.40       "Outrun" in neon script (300 px) lands on the beat; the sun lifts 10 px with it
 //   4.00–4.27  SIGNATURE TRANSITION: tracking noise (8 frames), then the end frame opens out of the horizon line
 
 export const fonts = ["Avenir Next Condensed", "SignPainter", "Andale Mono", "Lantinghei SC"];
@@ -47,7 +51,21 @@ void main(){
   outColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }`;
 
+// Action times come from events.json, the file render.sh uses to place the foley, so picture and sound share one number
+// per action: T[id] for single actions (entries sharing an id layer sounds on one action and must share t), S[series]
+// for repeated ones (sorted, de-duplicated times).
+let T = null, S = null;
+async function loadTimes() {
+  const ev = await (await fetch(new URL("./events.json", import.meta.url))).json(), t = {}, s = {};
+  for (const e of ev) {
+    if (e.id) { if (e.id in t && t[e.id] !== e.t) throw new Error(`events.json: "${e.id}" has two times`); t[e.id] = e.t; }
+    if (e.series) (s[e.series] ||= []).push(e.t);
+  }
+  for (const k in s) s[k] = [...new Set(s[k])].sort((a, b) => a - b);
+  return [t, s];
+}
 export async function setup(ctx, tokens, lib) {
+  [T, S] = await loadTimes();
   const P = (k) => lib.color(tokens, k);
   FX = lib.shader(POST);
   // stars and sky, once
@@ -59,8 +77,8 @@ export async function setup(ctx, tokens, lib) {
     panelX: [560, 960, 1360], panelY: 752 };
 }
 
-function sun(ctx, lib, t) {
-  const P = L.P, rise = lib.tween(t, 0.2, 0.95, lib.ease.outCubic), R = 238, cy = HY - 108 + (1 - rise) * 300;
+function sun(ctx, lib, t, lift = 0) {
+  const P = L.P, rise = lib.tween(t, 0.2, 0.95, lib.ease.outCubic), R = 238, cy = HY - 108 + (1 - rise) * 300 - lift;
   const s = lib.offscreen("sw_sun", (x) => {
     const g = x.createLinearGradient(0, cy - R, 0, cy + R); g.addColorStop(0, P("extra.2")); g.addColorStop(0.5, P("extra.1")); g.addColorStop(1, P("accent"));
     x.fillStyle = g; x.beginPath(); x.arc(VX, cy, R, 0, TAU); x.fill();
@@ -96,7 +114,7 @@ function chrome(ctx, lib, t) {
   const txt = lib.TITLE_EN.toUpperCase(), lay = lib.layoutText(ctx, txt, { x: VX, y: 290, align: "center", tracking: 0.01 * size });
   const top = 290 - size * 0.74, bot = 290 + size * 0.02;
   const grad = ctx.createLinearGradient(0, top - 290, 0, bot - 290);   // glyphs are drawn in baseline-local coordinates
-  [[P("extra.5"), 0], [P("fg"), 0.47], [P("extra.6"), 0.5], ["#8B4BC2", 0.72], ["#FF9B5E", 1]].forEach(([c, s]) => grad.addColorStop(s, c));
+  [[P("extra.5"), 0], ["#CFEFFF", 0.36], ["#FFFFFF", 0.44], ["#FFFFFF", 0.49], [P("extra.6"), 0.5], ["#8B4BC2", 0.72], ["#FF9B5E", 1]].forEach(([c, s]) => grad.addColorStop(s, c));   // chrome: sky, a white horizon band, dark ground, sunset
   const st = (i) => { const t0 = 0.8 + i * 0.06; if (t < t0) return null; const p = lib.spring(t - t0, { stiffness: 220, damping: 24 }); return { dy: (1 - p) * 90, alpha: lib.clamp((t - t0) / 0.1) }; };
   lib.drawGlyphs(ctx, lay, (g, i) => { const s = st(i); return s && { ...s, fill: "none", stroke: "#1A0B2E", lineWidth: 10 }; });
   lib.drawGlyphs(ctx, lay, (g, i) => { const s = st(i); return s && { ...s, fill: grad }; });
@@ -108,9 +126,12 @@ function chrome(ctx, lib, t) {
       gg.addColorStop(0, "rgba(255,255,255,0)"); gg.addColorStop(0.5, "rgba(255,255,255,0.9)"); gg.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = gg; x.fillRect(0, 0, lib.W, lib.H); });
     ctx.drawImage(m, 0, 0);
   }
-  const gl = lib.env(t, 2.8, 2.8 + 6 / 30, 0.05, 0.12);                          // glint on the beat
-  if (gl > 0) { const gx = lay.glyphs[0].x + 18, gy = top + 14, r = 46 * gl; ctx.save(); ctx.fillStyle = "#fff"; ctx.shadowColor = "#fff"; ctx.shadowBlur = 16;
-    ctx.beginPath(); ctx.moveTo(gx - r, gy); ctx.lineTo(gx, gy - 5); ctx.lineTo(gx + r, gy); ctx.lineTo(gx, gy + 5); ctx.closePath(); ctx.moveTo(gx, gy - r); ctx.lineTo(gx + 5, gy); ctx.lineTo(gx, gy + r); ctx.lineTo(gx - 5, gy); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  for (const [tg, gi] of [[T.glint1, 0], [T.glint2, lay.glyphs.length - 2]]) {                 // four-point glints, on the beat
+    const gl = lib.env(t, tg, tg + 8 / 30, 0.05, 0.16); if (gl <= 0) continue;
+    const gx = lay.glyphs[gi].x + 18, gy = top + 16, r = 70 * gl; ctx.save(); ctx.fillStyle = "#fff"; ctx.shadowColor = "#fff"; ctx.shadowBlur = 20;
+    ctx.beginPath(); ctx.moveTo(gx - r, gy); ctx.lineTo(gx, gy - 6); ctx.lineTo(gx + r, gy); ctx.lineTo(gx, gy + 6); ctx.closePath(); ctx.moveTo(gx, gy - r); ctx.lineTo(gx + 6, gy); ctx.lineTo(gx, gy + r); ctx.lineTo(gx - 6, gy); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(gx, gy, 9 * gl, 0, TAU); ctx.fill(); ctx.restore();
+  }
 }
 function neonZH(ctx, lib, t) {
   const P = L.P;
@@ -125,25 +146,54 @@ function neonZH(ctx, lib, t) {
   lib.drawGlyphs(ctx, lay, (g, i) => { const a = on(i); return a > 0 ? { alpha: a, fill: "#FFE3F1" } : null; });
   ctx.restore();
 }
+// the motif as objects of the era: a wireframe cassette (outline) → a VHS sleeve with three panels (storyboard) → a CRT
+// television playing the sunset (draft); chrome bezels. They power on half a beat apart; after that one neon pulse per beat.
+function chromeRect(ctx, x, y, w, h, r) {
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, "#5EC8FF"); g.addColorStop(0.45, "#F2ECFF"); g.addColorStop(0.5, "#3A1E4A"); g.addColorStop(0.75, "#8B4BC2"); g.addColorStop(1, "#FF9B5E");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill(); ctx.strokeStyle = "#1A0B2E"; ctx.lineWidth = 3; ctx.stroke();
+}
 function panels(ctx, lib, t) {
-  const P = L.P, w = 250, h = 150;
+  const P = L.P, w = 270, h = 170;
   L.panelX.forEach((cx, k) => {
-    const t0 = 2.0 + k * BEAT / 2; if (t < t0) return;
+    const t0 = S.obj[k]; if (t < t0) return;
     const sy = lib.tween(t, t0, t0 + 6 / 30, lib.ease.outExpo), fl = t < t0 + 0.2 ? (lib.hash(9, k, lib.frame(t)) > 0.3 ? 1 : 0.3) : 1, cy = L.panelY;
-    const col = [P("extra.0"), P("accent"), P("extra.0")][k];
+    const pulse = 1 + 0.9 * Math.max(0, 1 - Math.abs(t - (2.8 + k * BEAT)) * 6);            // 2.8 / 3.2 / 3.6: one object flares per beat
     ctx.save(); ctx.translate(cx, cy); ctx.scale(1, sy); ctx.globalAlpha = fl;
-    ctx.lineWidth = 3; ctx.strokeStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 12;
-    if (k === 0) { ctx.strokeRect(-w / 2, -h / 2, w, h); ctx.setLineDash([8, 8]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-w / 2, 0); ctx.lineTo(w / 2, 0); ctx.moveTo(0, -h / 2); ctx.lineTo(0, h / 2); ctx.stroke(); ctx.setLineDash([]); }
-    else if (k === 1) { ctx.strokeRect(-w / 2, -h / 2, w, h); for (let i = 0; i < 3; i++) { ctx.strokeStyle = P("extra.0"); ctx.shadowColor = P("extra.0"); ctx.lineWidth = 2; ctx.strokeRect(-w / 2 + 14 + i * (w - 28) / 3 + 4, -h / 2 + 22, (w - 28) / 3 - 8, h - 44); } }
-    else {
-      const g = ctx.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, P("extra.2")); g.addColorStop(0.5, P("extra.1")); g.addColorStop(1, P("accent"));
-      ctx.fillStyle = g; ctx.fillRect(-w / 2, -h / 2, w, h); ctx.strokeRect(-w / 2, -h / 2, w, h);
-      ctx.shadowBlur = 0; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(-26, -34); ctx.lineTo(38, 0); ctx.lineTo(-26, 34); ctx.closePath(); ctx.fill();
+    ctx.lineJoin = "round"; ctx.lineCap = "round";
+    if (k === 0) {                                             // cassette, wireframe only
+      ctx.strokeStyle = P("extra.0"); ctx.shadowColor = P("extra.0"); ctx.shadowBlur = 10 * pulse; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2 + 12, w, h - 24, 12); ctx.stroke();
+      ctx.beginPath(); ctx.roundRect(-w / 2 + 34, -h / 2 + 34, w - 68, 56, 6); ctx.stroke();
+      for (const dx of [-54, 54]) { ctx.beginPath(); ctx.arc(dx, -h / 2 + 62, 18, 0, TAU); ctx.stroke(); for (let s2 = 0; s2 < 6; s2++) { const a = s2 * TAU / 6 + t * 5; ctx.beginPath(); ctx.moveTo(dx + Math.cos(a) * 8, -h / 2 + 62 + Math.sin(a) * 8); ctx.lineTo(dx + Math.cos(a) * 16, -h / 2 + 62 + Math.sin(a) * 16); ctx.stroke(); } }
+      ctx.beginPath(); ctx.moveTo(-w / 2 + 50, h / 2 - 12); ctx.lineTo(-w / 2 + 70, h / 2 - 40); ctx.lineTo(w / 2 - 70, h / 2 - 40); ctx.lineTo(w / 2 - 50, h / 2 - 12); ctx.stroke();
+    } else if (k === 1) {                                      // VHS sleeve: chrome edge, cover art in three panels
+      chromeRect(ctx, -w / 2 + 30, -h / 2, w - 60, h, 6);
+      const px = -w / 2 + 44, pw = (w - 88 - 16) / 3;
+      for (let i = 0; i < 3; i++) {
+        const x = px + i * (pw + 8), gg = ctx.createLinearGradient(0, -h / 2 + 14, 0, h / 2 - 14);
+        gg.addColorStop(0, P("extra.4")); gg.addColorStop(1, [P("extra.3"), P("accent"), P("extra.1")][i]);
+        ctx.fillStyle = gg; ctx.fillRect(x, -h / 2 + 14, pw, h - 28);
+        ctx.strokeStyle = P("extra.0"); ctx.lineWidth = 2; ctx.shadowColor = P("extra.0"); ctx.shadowBlur = 6 * pulse; ctx.beginPath(); ctx.moveTo(x, h / 2 - 40); ctx.lineTo(x + pw, h / 2 - 40); ctx.stroke(); ctx.shadowBlur = 0;
+      }
+    } else {                                                   // CRT television playing: chrome bezel, a tiny sunset on the tube
+      chromeRect(ctx, -w / 2, -h / 2, w, h, 22);
+      ctx.save(); ctx.beginPath(); ctx.roundRect(-w / 2 + 18, -h / 2 + 16, w - 70, h - 32, 18); ctx.clip();
+      const sg = ctx.createLinearGradient(0, -h / 2, 0, h / 2); sg.addColorStop(0, P("extra.4")); sg.addColorStop(0.6, P("extra.3")); sg.addColorStop(1, P("extra.4"));
+      ctx.fillStyle = sg; ctx.fillRect(-w / 2, -h / 2, w, h);
+      const scx = -w / 2 + 18 + (w - 70) / 2, hz = 18;
+      const su = ctx.createLinearGradient(0, hz - 46, 0, hz); su.addColorStop(0, P("extra.2")); su.addColorStop(1, P("accent"));
+      ctx.fillStyle = su; ctx.beginPath(); ctx.arc(scx, hz, 44, Math.PI, TAU); ctx.fill();
+      ctx.strokeStyle = P("extra.0"); ctx.lineWidth = 1.5; const off = (t / BEAT) % 1;
+      for (let z = 1; z < 8; z++) { const y = hz + 40 / (z - off + 0.6); ctx.beginPath(); ctx.moveTo(-w / 2, y); ctx.lineTo(w / 2, y); ctx.stroke(); }
+      ctx.fillStyle = "rgba(0,0,0,0.25)"; for (let y = -h / 2; y < h / 2; y += 4) ctx.fillRect(-w / 2, y, w, 1.5);
+      ctx.restore();
+      ctx.fillStyle = "#1A0B2E"; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(w / 2 - 26, -h / 2 + 40 + i * 30, 7, 0, TAU); ctx.fill(); }
+      ctx.fillStyle = P("accent"); ctx.shadowColor = P("accent"); ctx.shadowBlur = 10 * pulse; ctx.beginPath(); ctx.arc(w / 2 - 26, h / 2 - 22, 5, 0, TAU); ctx.fill();
     }
     ctx.restore();
     ctx.save(); ctx.globalAlpha = lib.clamp((t - t0) * 6); ctx.textAlign = "center";
-    lib.setFont(ctx, F, "zhl", 48); ctx.fillStyle = P("fg"); ctx.fillText(lib.MOTIF[k].zh, cx, cy + h / 2 + 64);
-    lib.setFont(ctx, F, "label", 28); ctx.fillStyle = P("extra.0"); lib.drawText(ctx, lib.MOTIF[k].en.toUpperCase(), cx, cy + h / 2 + 104, { align: "center", tracking: 5 });
+    lib.setFont(ctx, F, "zhl", 48); ctx.fillStyle = P("fg"); ctx.fillText(lib.MOTIF[k].zh, cx, cy + h / 2 + 62);
+    lib.setFont(ctx, F, "label", 40); ctx.fillStyle = P("extra.0"); lib.drawText(ctx, lib.MOTIF[k].en.toUpperCase(), cx, cy + h / 2 + 110, { align: "center", tracking: 4 });
     ctx.restore();
   });
 }
@@ -155,12 +205,15 @@ function scene(ctx, t, tokens, lib, end = false) {
   const P = L.P;
   ctx.drawImage(L.sky, 0, 0);
   for (const s of L.stars) { const tw = 0.5 + 0.5 * Math.sin(TAU * (lib.step(t, 6) * 0.7 + s.ph)); ctx.fillStyle = `rgba(242,236,255,${0.35 + 0.55 * tw})`; ctx.fillRect(s.x, s.y, s.r, s.r); }
-  sun(ctx, lib, end ? 5 : t);
+  sun(ctx, lib, end ? 5 : t, end ? 10 * lib.tween(t, T.outrun, T.outrun + 0.2, lib.ease.outCubic) : 0);
   ground(ctx, lib, end ? 5 : t);
   if (!end) { chrome(ctx, lib, t); neonZH(ctx, lib, t); panels(ctx, lib, t); osd(ctx, lib, t); }
   else {
-    ctx.save(); ctx.textAlign = "center"; lib.setFont(ctx, F, "script", 150); ctx.shadowColor = P("accent"); ctx.shadowBlur = 16; ctx.fillStyle = "#FFE3F1";
-    ctx.translate(VX, 250); ctx.rotate(-0.08); ctx.fillText("Outrun", 0, 0); ctx.restore();
+    const land = lib.tween(t, T.outrun, T.outrun + 5 / 30, lib.ease.outExpo);
+    if (t >= T.outrun) { ctx.save(); ctx.textAlign = "center"; lib.setFont(ctx, F, "script", 300); ctx.globalAlpha = lib.clamp((t - T.outrun) * 15);
+      ctx.translate(VX, 330 - 60 * (1 - land)); ctx.rotate(-0.08); ctx.scale(1.25 - 0.25 * land, 1.25 - 0.25 * land);
+      ctx.lineWidth = 10; ctx.strokeStyle = P("accent"); ctx.shadowColor = P("accent"); ctx.shadowBlur = 30; ctx.strokeText("Outrun", 0, 0);
+      ctx.shadowBlur = 12; ctx.fillStyle = "#FFE3F1"; ctx.fillText("Outrun", 0, 0); ctx.restore(); }
     osd(ctx, lib, t, "STOP ■");
   }
 }
@@ -169,18 +222,18 @@ export function renderAt(t, ctx, tokens, lib) {
   const src = lib.offscreen("sw_src", (x) => {
     x.fillStyle = "#000"; x.fillRect(0, 0, lib.W, lib.H);
     if (t < 0.45) {                                                                  // CRT power-on
-      const lineU = lib.seg(t, 0.03, 0.18), openU = lib.tween(t, 0.18, 0.45, lib.ease.outCubic);
+      const lineU = lib.seg(t, 0.0, T.crt), openU = lib.tween(t, T.crt, T.crt + 0.29, lib.ease.outCubic);   // the picture is a third open on the 0.1 s beat
       if (openU > 0) { x.save(); x.beginPath(); x.rect(0, lib.H / 2 - openU * lib.H / 2 - 2, lib.W, openU * lib.H + 4); x.clip(); scene(x, t, tokens, lib); x.restore(); }
       const a = 1 - openU, lw = lib.lerp(8, lib.W, lib.ease.outExpo(lineU));
       x.fillStyle = `rgba(235,240,255,${a})`; x.fillRect(VX - lw / 2, lib.H / 2 - 3 - openU * 30, lw, 6 + openU * 60);
-    } else if (t < 4.0) scene(x, t, tokens, lib);
+    } else if (t < T.track) scene(x, t, tokens, lib);
     else {
-      const open = lib.tween(t, 4.27, 4.72, lib.ease.inOutCubic);                   // end frame opens out of the horizon line
+      const open = lib.tween(t, T.track + 0.27, T.track + 0.72, lib.ease.inOutCubic);                   // end frame opens out of the horizon line
       scene(x, t, tokens, lib);
       if (open > 0) { x.save(); x.beginPath(); x.rect(0, HY - open * HY, lib.W, open * (lib.H) + 2); x.clip(); scene(x, t, tokens, lib, true); x.restore();
         x.save(); x.strokeStyle = L.P("accent"); x.lineWidth = 3; x.shadowColor = L.P("accent"); x.shadowBlur = 12; x.beginPath(); x.moveTo(0, HY - open * HY); x.lineTo(lib.W, HY - open * HY); x.moveTo(0, HY + open * (lib.H - HY)); x.lineTo(lib.W, HY + open * (lib.H - HY)); if (open < 1) x.stroke(); x.restore(); }
     }
   });
-  const track = t >= 4.0 && t < 4.27 ? 1 : 0;
+  const track = t >= T.track && t < T.track + 0.27 ? 1 : 0;
   ctx.drawImage(FX.render(t, { u_track: track }, { u_tex0: src }), 0, 0);
 }

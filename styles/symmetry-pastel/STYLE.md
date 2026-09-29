@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：粉色房间沿轨道从右侧横移进来，停在中线上；象牙色章节卡直切入画，各行间隔 150 ms 出现；三幅画落到钉子上，下挂铭牌；4.0 s 一个 9 帧甩镜，到薄荷色的第二章。实际字体：Futura Medium / Bold、Songti SC Bold / Regular。配乐 150 BPM，`zheng`（拨弦）+ `bell`（钟琴）+ `pad`，每段多一件乐器。
+样片里：第 0 帧是一道合着的胭脂红幕布，0.03–0.42 s 从中线向两侧对称拉开（ease-out，0.1 s 已开约四成），配一下拉绳的 click 和 swish_rev。幕后是一间剖开的粉色玩偶屋，有天花板、地板、两侧墙的剖面，两扇对称的窗、窗帘和壁灯。第 0 帧就在沿轨道从右侧横移，停在中线上。象牙色章节卡直切入画（约 60% 宽，标题 92 px，中文 64 px），各行间隔 150 ms 出现；1.5 s 窗帘拉开，1.2–4.0 s 慢推 1.00 → 1.03。三幅画在 2.0 / 2.4 / 2.8 s 依次落到钉子上，晃几下停稳：大纲、分镜，初版是一枚胭脂红奖章花结。3.2 s 铭牌翻面，3.6 s 两盏壁灯亮起。4.0 s 一个 9 帧甩镜，到薄荷色的第二章，第二章继续慢推。实际字体：Futura Medium / Bold、Songti SC Bold / Regular。配乐 150 BPM，`zheng`（拨弦）+ `bell`（钟琴）+ `pad`，每段多一件乐器。拟音：开幕用 click + swish_rev，甩镜用 whoosh，字卡用 ding，窗帘用 swish_rev，画落钉子用 tick，铭牌翻面用 toggle，壁灯用 click。拟音的落点写在 swatch.js 的 `FOLEY` 常量里，`events.json` 由它生成。
 
 ## 学习对象
 

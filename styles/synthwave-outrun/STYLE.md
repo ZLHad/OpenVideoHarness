@@ -4,6 +4,8 @@
 
 样片：`media/swatch.mp4`（5 s）· 封面 `media/poster.jpg`
 
+样片实况：0.0 s CRT 开机，一个亮点拉成一条线，0.1 s 画面已经上下张开三分之一。条纹落日升起，青色透视网格按拍向镜头滚动。0.8 s 起铬字标题逐字升起，铬面渐变中间有一道白色地平线带，2.0 s 一道高光扫过，1.6 和 2.8 s 在拍上各闪一个四角星芒；中文像霓虹灯管一样闪着亮起。2.0 / 2.2 / 2.4 s 三件那个年代的物件依次通电：线框磁带（大纲）→ 铬边、封面分三格的录像带封套（分镜）→ 铬边 CRT 电视正在播一段小落日（初版），之后 2.8 / 3.2 / 3.6 s 每拍亮一件。4.0 s 录像带 tracking 噪声，结束画面从地平线那条线向上下展开，4.4 s 霓虹粉的手写体 "Outrun"（300 px）落拍，落日同时上升 10 px。标签英文 40 px。
+
 ## 学习对象
 
 | 作品 | 年份 · 作者 / 工作室 | 从它身上学什么 |
@@ -30,7 +32,7 @@
   - 霓虹手写副标题：`SignPainter`，一屏只写一个词，旋转 −8°；
   - 正文：`Avenir Next` Demi Bold；中文 `PingFang SC` Semibold；
   - 录像带 OSD（`PLAY ▶`、时码）：`Andale Mono` → `Menlo`，32px，全大写。
-  - 样片实际用字：`Avenir Next Condensed` Heavy Italic 150px 大写铬字、`Lantinghei SC` Heavy 72px 霓虹中文、标签 `PingFang SC` Semibold 48px + `Avenir Next Condensed` DemiBold 28px、OSD `Andale Mono` 32px、结束画面 `SignPainter`。
+  - 样片实际用字：`Avenir Next Condensed` Heavy Italic 150px 大写铬字、`Lantinghei SC` Heavy 72px 霓虹中文、标签 `PingFang SC` Semibold 48px + `Avenir Next Condensed` DemiBold 40px、OSD `Andale Mono` 32px、结束画面 `SignPainter` 300px 霓虹粉。
 - **构图**：
   - 单点透视：地平线 y = 0.55H，消失点在画面中心线上；
   - 太阳圆心在地平线上方 0.1H，半径 0.22H，被地平线截掉下缘；下半部切出 7 条横缝，缝高从 2px 递增到 18px；
@@ -56,7 +58,7 @@
 - **配乐**：`bin/vh music` 的现有层几乎就是为这个风格准备的：`bpm: 118`，`key: "A"`，`mode: "minor"`，和弦 `i–VI–III–VII`；`kick` 四拍、`clap` 当门限混响军鼓、`hats` 十六分、`bass` 八分音符八度跳、`arp` 十六分琶音、`pad` 长音、`lead` 主旋律只在副歌出现。段落用 `riser` 推进、`impact` 开副歌、`fill` 留一拍空。
 - **音效**：插入录像带的机械 `click`、tracking 时的 `glitch`、转场 `whoosh`、副歌前 `riser`、标题落位 `impact`。
 - **声画关系**：卡点密：切换、闪白、星芒都在拍上（±1 帧）。开场可以先放 1–2 小节只有 `pad` 和 `arp` 的前奏，网格慢慢滚进来，鼓进来的那一拍标题落下。
-- **样片小样**：样片的 5 s 声音小样（`score.json`）：样片按 150 BPM 走（网格每拍一条线），A 小调；开机时只有 `pad` + `arp` + `bass`，0.8 s 鼓机进来，2.0 s 全编制加 `lead`，4.0 s 跟踪噪声处一记 `impact`，回到琶音。
+- **样片小样**：样片的 5 s 声音小样（`score.json`）：样片按 150 BPM 走（网格每拍一条线），A 小调；开机时只有 `pad` + `arp` + `bass`，0.8 s 鼓机进来，2.0 s 全编制加 `lead`，4.0 s 跟踪噪声处一记 `impact`，回到琶音。拟音（`events.json`）：0.07 s 开机 `boom` 加 `glitch`，1.6 / 2.8 s 星芒各一声很轻的 `ding`，2.0 / 2.2 / 2.4 s 三件物件通电各一声 `click`，4.0 s tracking `glitch`，4.4 s "Outrun" 落拍 `impact`。
 
 ## 适合与不适合
 

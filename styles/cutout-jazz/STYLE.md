@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：黑色横梁和三根竖条先落位，片名字母按 16 分音符一片片拍上横梁，中文在芥黄纸条上；母题是三根黑条 → 三块黑版 → 唯一的朱红圆；结尾整幅画面切成 6 条交替滑走，朱红圆原地不动（形状匹配）。实际字体：Futura Condensed ExtraBold（`Futura` 800 + `font-stretch: condensed`）、Futura Medium、PingFang SC Semibold。样片配乐和画面都用 150 BPM（0.8 / 2.0 / 4.0 s 都落在拍上），正片仍按下文的 138 BPM。
+样片里：黑底开场，0.0 s 铜管一击，四根白纸条切入；0.4 s 只剩贝斯（片名前的屏息），第二组白条落下；0.8 s 切到奶油纸。片名字母按 16 分音符一片片拍上黑色横梁，中文在黑纸条上。母题拼成一个剪纸符号：一台摄影机，三根胶片条（大纲）喂进三块机身（分镜），前面是唯一的朱红镜头（初版）。之后每拍都有事：胶片在 2.8 / 3.6 s 各前进一格，镜头上的缺口每拍转 45°，3.2 s 一道黑条把底色擦成芥黄，3.6 和 3.8 s 整个符号向右各走一步、停死。结尾整幅画面切成 6 条等高、带剪刀边和投影的纸条，左右交替滑走，朱红镜头原地不动。实际字体：Futura Condensed ExtraBold（`Futura` 800 + `font-stretch: condensed`）、Futura Medium、PingFang SC Semibold。样片配乐和画面都用 150 BPM（0.8 / 2.0 / 4.0 s 落在拍上），正片仍按下文的 138 BPM。拟音：白条和字母落位用 pop，胶片前进用 tick，符号迈步用 click，3.2 s 擦底色用 whoosh，4.0 s 切条用 shutter（剪刀）。拟音的落点写在 swatch.js 的 `FOLEY` 常量里，`events.json` 由它生成。
 
 ## 学习对象
 

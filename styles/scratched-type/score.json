@@ -2,9 +2,9 @@
   "bpm": 150, "key": "E", "mode": "minor", "seed": 13,
   "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
   "sections": [
-    {"name": "leader", "bars": 1, "chords": ["i"], "layers": ["pad", "taiko"], "energy": 0.4},
+    {"name": "leader", "bars": 1, "chords": ["i"], "layers": ["pad", "taiko"], "energy": 0.4, "impact": true},
     {"name": "etch", "bars": 1, "chords": ["i"], "layers": ["pad", "taiko", "hats"], "energy": 0.5},
     {"name": "strip", "bars": 2, "chords": ["VI", "v"], "layers": ["pad", "taiko", "hats", "kick", "bass"], "energy": 0.65, "fill": true},
-    {"name": "splice", "bars": 1, "chords": ["i"], "layers": ["pad", "taiko"], "energy": 0.5, "impact": true}
+    {"name": "splice", "bars": 1, "chords": ["i"], "layers": ["pad"], "energy": 0.45, "impact": true}
   ]
 }

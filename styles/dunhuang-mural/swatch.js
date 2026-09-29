@@ -1,10 +1,12 @@
 // dunhuang-mural swatch · 敦煌（盛唐色板）
-//   0.00–0.80  earthen wall (plaster, cracks, flaking); red-ochre register lines draw on; the scroll-vine border paints in
-//   0.30–2.00  SIGNATURE: two flying ribbons (azurite, cinnabar) sweep in on long S-curves from both sides and converge
-//              on the centre axis; each segment trails the head by 35 ms, flowers fall from them
-//   0.85–2.55  title: every glyph appears as an ink outline first, then its colour fills in
-//   2.00–3.05  motif: one narrative strip at three stages of mural painting: ink sketch → flat colour in three
-//              compartments → banded shading (叠晕) and gold
+//   0.00       a bronze bell; a torch-like pool of light sweeps across the dark cave wall (0.0–0.8, whole frame)
+//   0.10–3.60  SIGNATURE: a PAIR of flying figures (飞天: head, bare torso with a sash, long skirt, feet, arms, one holding
+//              flowers), first drawn in iron-wire line (0.1–0.6), then coloured (0.45–0.95); each glides along a long
+//              S-arc from the outer edge and the two heads meet on the centre axis on the bell at 3.6. Their silk scarves
+//              (披帛) trail along the flight path, 3.5× the body length, with a fixed S-wave along their length (no jitter)
+//   0.80–2.40  title: every glyph appears as an ink outline first, then its colour fills in
+//   2.00–3.05  motif: ONE horizontal narrative strip (横卷) in three sections — ink sketch → flat colour → banded shading
+//              (叠晕) and gold; 2.8 / 3.2 / 3.6 add gold dots, lotus hearts and gold rules, one per beat
 //   4.00–4.75  SIGNATURE TRANSITION: a caisson (藻井) opens from the centre, square inside square, onto the end frame
 // The border band scrolls right→left the whole time (横卷). Pure function of t.
 
@@ -119,54 +121,119 @@ function buildCaisson(lib, tokens, size) {
   return c;
 }
 
+function bez(p, u) { const v = 1 - u; return [0, 1].map((k) => v * v * v * p[0][k] + 3 * v * v * u * p[1][k] + 3 * v * u * u * p[2][k] + u * u * u * p[3][k]); }
+function arcTable(ctrl, n = 600) {            // sample the flight curve by arc length (setup only)
+  const pts = [], S = [0];
+  for (let i = 0; i <= n; i++) pts.push(bez(ctrl, i / n));
+  for (let i = 1; i <= n; i++) S.push(S[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  return { pts, S, len: S[n] };
+}
+function atArc(tb, s) {                        // point + unit tangent at arc length s (clamped; extrapolated before 0)
+  const S = tb.S, n = S.length - 1;
+  if (s <= 0) { const [a, b] = [tb.pts[0], tb.pts[1]], l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, tx = (b[0] - a[0]) / l, ty = (b[1] - a[1]) / l; return { x: a[0] + tx * s, y: a[1] + ty * s, tx, ty }; }
+  let lo = 0, hi = n; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (S[m] < s) lo = m; else hi = m; }
+  const i = Math.min(hi, n), f = (s - S[i - 1]) / ((S[i] - S[i - 1]) || 1), a = tb.pts[i - 1], b = tb.pts[i];
+  const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  return { x: a[0] + (b[0] - a[0]) * f, y: a[1] + (b[1] - a[1]) * f, tx: (b[0] - a[0]) / l, ty: (b[1] - a[1]) / l };
+}
+// Action times come from events.json, the file render.sh uses to place the foley, so picture and sound share one number
+// per action: T[id] for single actions (entries sharing an id layer sounds on one action and must share t), S[series]
+// for repeated ones (sorted, de-duplicated times).
+let T = null, S = null;
+async function loadTimes() {
+  const ev = await (await fetch(new URL("./events.json", import.meta.url))).json(), t = {}, s = {};
+  for (const e of ev) {
+    if (e.id) { if (e.id in t && t[e.id] !== e.t) throw new Error(`events.json: "${e.id}" has two times`); t[e.id] = e.t; }
+    if (e.series) (s[e.series] ||= []).push(e.t);
+  }
+  for (const k in s) s[k] = [...new Set(s[k])].sort((a, b) => a - b);
+  return [t, s];
+}
 export async function setup(ctx, tokens, lib) {
+  [T, S] = await loadTimes();
   const P = (k) => lib.color(tokens, k);
-  const panels = [560, 960, 1360].map((cx) => ({ cx, cy: 634, w: 330, h: 196 }));
+  const left = arcTable([[-700, 440], [300, 480], [230, 90], [790, 176]]);
+  const right = arcTable([[2620, 440], [1620, 480], [1690, 90], [1130, 176]]);
+  const entry = (tb) => { let s = 0; while (s < tb.len && atArc(tb, s).x < 150) s += 4; return s; };     // on screen at 0.1 s
+  const entryR = (tb) => { let s = 0; while (s < tb.len && atArc(tb, s).x > 1770) s += 4; return s; };
   L = {
-    P, wall: buildWall(lib, tokens), vine: buildVine(lib, tokens), caisson: buildCaisson(lib, tokens, 620), panels,
-    flakes: buildFlakes(lib, [[300, 170, 1620, 420], [360, 500, 1560, 880]]),
-    enY: 262, zhY: 380, bandTop: 486, bandBot: 884,
+    P, wall: buildWall(lib, tokens), vine: buildVine(lib, tokens), caisson: buildCaisson(lib, tokens, 620),
+    flakes: buildFlakes(lib, [[300, 170, 1620, 430], [170, 490, 1750, 880]]),
+    enY: 292, zhY: 408, bandTop: 486, bandBot: 884,
+    strip: { x: 192, y: 506, w: 1536, h: 254 },
+    fly: { left: { tb: left, s0: entry(left) }, right: { tb: right, s0: entryR(right) } },
   };
 }
 
-// ── ribbons: each is a spine curve that unrolls from off-screen toward the centre axis (decelerating), with a curl
-//    wave travelling from the head to the tail: segment i repeats the head's motion 35 ms later.
-function bez(p, u) { const v = 1 - u; return [0, 1].map((k) => v * v * v * p[0][k] + 3 * v * v * u * p[1][k] + 3 * v * u * u * p[2][k] + u * u * u * p[3][k]); }
-const SPINE = { left: [[-160, 300], [420, 560], [160, 60], [880, 104]], right: [[2080, 300], [1500, 560], [1760, 60], [1040, 104]] };
-function ribbonPts(t, side, lib) {
-  const sp = SPINE[side], head = lib.tween(t, 0.3, 1.5, lib.ease.outCubic), N = 60, pts = [];
-  if (head <= 0) return pts;
+// ── the flying figures (飞天). Local frame: +x = direction of flight, y down, origin at the chest; drawn at scale 1.15.
+// prone, chest down, the head leading slightly low; legs and the long skirt sweep UP behind (the classic flying arc)
+const SKC = (u) => [-4 - 214 * u, -6 - 40 * Math.pow(u, 1.6)];
+const SK = (() => { const top = [], bot = []; for (let i = 0; i <= 16; i++) { const u = i / 16, [x, y] = SKC(u), [x2, y2] = SKC(Math.min(1, u + 0.02)), l = Math.hypot(x2 - x, y2 - y) || 1, nx = -(y2 - y) / l, ny = (x2 - x) / l;
+  const w = 34 * (1 - u) + 12 + 16 * Math.exp(-Math.pow((u - 0.82) / 0.1, 2)); top.push([x + nx * w / 2, y + ny * w / 2]); bot.push([x - nx * w / 2, y - ny * w / 2]); } return [...top, ...bot.reverse()]; })();
+const TORSO = [[52, -8], [34, -17], [4, -16], [-10, -12], [-8, 10], [22, 14], [50, 10]];
+function pathOf(pts) { const p = new Path2D(); pts.forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y))); p.closePath(); return p; }
+function flightS(t, f, lib) { return f.s0 + (f.tb.len - f.s0) * lib.ease.inOutSine(lib.seg(t, 0.1, T.meet)); }   // the heads meet on the axis on events.json "meet"
+function drawScarf(ctx, lib, t, f, sHead, len, off, w0, col, light, ph) {
+  const N = 70, pts = [];
   for (let i = 0; i <= N; i++) {
-    const u = head * (1 - i / N), p = bez(sp, u), q = bez(sp, Math.min(1, u + 0.01)), dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy) || 1;
-    const lag = i / N * 34 * 0.035;                                         // 34 segments × 35 ms from head to tail
-    const amp = 10 + 38 * (i / N);                                          // the free tail flutters most
-    const w = amp * Math.sin(lib.TAU * (0.75 * (t - lag) - i / 22)) * Math.min(1, i / 8) + 8 * Math.sin(lib.TAU * (1.3 * (t - lag)) + 1);
-    const twist = 0.45 + 0.55 * Math.abs(Math.cos(lib.TAU * (i / 26 - 0.35 * t)));   // the ribbon turns: edge-on → face-on
-    pts.push({ x: p[0] - dy / l * w, y: p[1] + dx / l * w, nx: -dy / l, ny: dx / l, wid: (30 * (1 - 0.8 * i / N) + 4) * twist });
+    const sig = i / N * len, q = atArc(f.tb, sHead - 30 - sig), nx = -q.ty, ny = q.tx;
+    const o = off + (14 + 30 * (i / N)) * Math.sin(sig / 190 + ph + 0.35 * t) * Math.min(1, i / 10);   // fixed S-wave along the scarf, drifting slowly
+    const tw = 0.45 + 0.55 * Math.abs(Math.cos(sig / 150 + ph));                                          // edge-on ↔ face-on
+    pts.push({ x: q.x + nx * o, y: q.y + ny * o, nx, ny, w: (w0 * (1 - 0.55 * i / N)) * tw });
   }
-  return pts;
+  const poly = (k) => { const p = new Path2D(); pts.forEach((q, i) => (i ? p.lineTo(q.x + q.nx * q.w / 2 * k, q.y + q.ny * q.w / 2 * k) : p.moveTo(q.x + q.nx * q.w / 2 * k, q.y + q.ny * q.w / 2 * k)));
+    for (let i = pts.length - 1; i >= 0; i--) { const q = pts[i]; p.lineTo(q.x - q.nx * q.w / 2 * k, q.y - q.ny * q.w / 2 * k); } p.closePath(); return p; };
+  return { outer: poly(1), inner: poly(0.36), col, light };
 }
-function drawRibbon(ctx, lib, t, side, col, light) {
-  const pts = ribbonPts(t, side, lib);
-  if (pts.length < 3) return;
-  const poly = (k) => { const p = new Path2D(); pts.forEach((q, i) => (i ? p.lineTo(q.x + q.nx * q.wid / 2 * k, q.y + q.ny * q.wid / 2 * k) : p.moveTo(q.x + q.nx * q.wid / 2 * k, q.y + q.ny * q.wid / 2 * k)));
-    for (let i = pts.length - 1; i >= 0; i--) { const q = pts[i]; p.lineTo(q.x - q.nx * q.wid / 2 * k, q.y - q.ny * q.wid / 2 * k); } p.closePath(); return p; };
-  const outer = poly(1), inner = poly(0.34);
-  ctx.save(); ctx.lineJoin = "round";
-  ctx.fillStyle = col; ctx.fill(outer); ctx.fillStyle = light; ctx.fill(inner);
-  ctx.strokeStyle = L.P("fg"); ctx.lineWidth = 2; ctx.stroke(outer);
-  const h = pts[0], a = Math.atan2(h.ny, h.nx) + Math.PI / 2;               // a cloud-scroll head leads each ribbon
-  ctx.translate(h.x, h.y); ctx.rotate(a + (side === "left" ? 0 : Math.PI)); const cp = cloudPath(0, 0, 0.62, side === "left" ? 1 : -1);
-  ctx.fillStyle = L.P("extra.5"); ctx.fill(cp); ctx.strokeStyle = L.P("fg"); ctx.lineWidth = 2; ctx.stroke(cp);
+function strokeReveal(ctx, path, u) { if (u <= 0) return; ctx.save(); if (u < 1) { ctx.setLineDash([2400 * u, 4000]); } ctx.stroke(path); ctx.restore(); }
+function apsara(ctx, lib, t, side) {
+  if (t < 0.1) return;
+  const P = L.P, f = L.fly[side], sHead = flightS(t, f, lib), q = atArc(f.tb, sHead);
+  const line = lib.tween(t, 0.1, 0.6, lib.ease.inOutSine), paint = lib.tween(t, 0.45, 0.95, lib.ease.inOutSine);
+  const skirtC = side === "left" ? P("accent") : P("extra.1"), skirtL = side === "left" ? "#6F9FBE" : "#D98A6E";
+  const scarfC = side === "left" ? P("extra.1") : P("accent"), scarfL = side === "left" ? "#D98A6E" : "#6F9FBE";
+  const bob = 3 * Math.sin(1.1 * t + (side === "left" ? 0 : 1.5));
+  // scarves first (behind the body): two, 3.5× and 3× the ~300 px body
+  const sc = [drawScarf(ctx, lib, t, f, sHead, 1050, 12, 20, scarfC, scarfL, 0.3), drawScarf(ctx, lib, t, f, sHead, 900, -16, 16, P("extra.0"), "#8FC4AE", 2.1)];
+  ctx.save(); ctx.lineJoin = "round"; ctx.strokeStyle = P("fg"); ctx.lineWidth = 2;
+  for (const r of sc) { if (paint > 0) { ctx.globalAlpha = paint; ctx.fillStyle = r.col; ctx.fill(r.outer); ctx.fillStyle = r.light; ctx.fill(r.inner); ctx.globalAlpha = 1; } strokeReveal(ctx, r.outer, line); }
+  ctx.restore();
+  // the figure, rigid, oriented along the flight tangent (mirrored for the right-hand figure so both face the axis)
+  const ang = Math.atan2(q.ty, q.tx);
+  ctx.save(); ctx.translate(q.x, q.y + bob); ctx.rotate(ang); if (side === "right") ctx.scale(1, -1); ctx.rotate(0.02); ctx.scale(1.2, 1.2);   // level, nose barely down
+  ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.strokeStyle = P("fg"); ctx.lineWidth = 1.8;
+  const skin = P("extra.5"), limb = (pts, w) => { const p = new Path2D(); pts.forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y)));
+    ctx.save(); ctx.lineWidth = w + 3.6; strokeReveal(ctx, p, line); ctx.restore();
+    if (paint > 0) { ctx.save(); ctx.globalAlpha = paint; ctx.strokeStyle = skin; ctx.lineWidth = w; ctx.stroke(p); ctx.restore(); } };
+  limb([[30, -14], [14, -40], [34, -60]], 7);                                                               // back arm, raised behind the head
+  const skirt = pathOf(SK), torso = pathOf(TORSO);
+  if (paint > 0) {
+    ctx.save(); ctx.globalAlpha = paint;
+    ctx.fillStyle = skirtC; ctx.fill(skirt); ctx.save(); ctx.clip(skirt); ctx.strokeStyle = skirtL; ctx.lineWidth = 12; ctx.stroke(skirt); ctx.restore();   // 叠晕 on the skirt
+    { const [fx, fy] = SKC(1); ctx.fillStyle = skin; ctx.beginPath(); ctx.moveTo(fx + 4, fy + 4); ctx.lineTo(fx - 22, fy - 14); ctx.lineTo(fx - 6, fy + 8); ctx.closePath(); ctx.fill(); ctx.stroke(); }   // feet
+    ctx.fillStyle = skin; ctx.fill(torso);
+    ctx.strokeStyle = P("extra.0"); ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(40, -17); ctx.lineTo(6, 13); ctx.stroke();                            // sash
+    ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(72, 2, 17, 0, TAU); ctx.fill();                                                                       // head
+    ctx.fillStyle = P("fg"); ctx.beginPath(); ctx.ellipse(64, -10, 15, 10, -0.2, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.arc(70, -24, 7, 0, TAU); ctx.fill();   // hair, high topknot
+    ctx.restore();
+  }
+  strokeReveal(ctx, skirt, line); strokeReveal(ctx, torso, line);
+  if (line > 0.3) {
+    ctx.beginPath(); ctx.arc(72, 2, 17, 0, TAU); ctx.stroke();
+    ctx.beginPath(); for (const off of [-6, 6]) { for (let i = 1; i <= 14; i++) { const u = i / 16, [x, y] = SKC(u); i === 1 ? ctx.moveTo(x, y + off * (1 - u)) : ctx.lineTo(x, y + off * (1 - u)); } } ctx.stroke();   // skirt folds
+    ctx.beginPath(); ctx.moveTo(78, 2); ctx.lineTo(84, 4); ctx.stroke();                                                                                 // eye, looking ahead and down
+  }
+  limb([[46, 4], [70, 22], [98, 18]], 7);                                                                   // front arm, reaching forward with flowers
+  if (paint > 0) { ctx.save(); ctx.globalAlpha = paint; ctx.fillStyle = P("extra.4"); ctx.beginPath(); ctx.ellipse(106, 14, 14, 5, 0, 0, TAU); ctx.fill(); ctx.fillStyle = P("extra.1"); ctx.beginPath(); ctx.arc(104, 7, 6, 0, TAU); ctx.fill(); ctx.stroke(); ctx.restore(); }
   ctx.restore();
 }
-function flowers(ctx, lib, t) {                                              // 散花: fall along the outer thirds, clear of the title
+function flowers(ctx, lib, t) {                                              // 散花 from the figures' hands, falling on the outer thirds
   const P = L.P, cols = [P("extra.1"), P("extra.0"), P("extra.5"), P("accent")];
-  for (let k = 0; k < 16; k++) {
-    const side = k % 2 ? "right" : "left", t0 = 0.7 + lib.hash(5, k) * 1.8; if (t < t0) continue;
-    const u0 = 0.25 + 0.35 * lib.hash(9, k), p0 = bez(SPINE[side], u0), a = t - t0;
-    const x = p0[0] + 26 * Math.sin(1.6 * a + k), y = p0[1] + 30 + a * (46 + 30 * lib.hash(7, k));
-    if (y > L.bandTop - 18) continue;
+  for (let k = 0; k < 18; k++) {
+    const side = k % 2 ? "right" : "left", t0 = 0.8 + lib.hash(5, k) * 2.4; if (t < t0) continue;
+    const f = L.fly[side], q = atArc(f.tb, flightS(t0, f, lib)), a = t - t0;
+    const x = q.x + (side === "left" ? -1 : 1) * (40 + a * 30) + 18 * Math.sin(1.6 * a + k), y = q.y + 20 + a * (60 + 30 * lib.hash(7, k));
+    if (y > L.bandTop - 18 || (x > 470 && x < 1450 && y > 200)) continue;   // keep the title clear
     const pth = flowerPath(x, y, 10 + 5 * lib.hash(8, k), a * 1.4 + k);
     ctx.fillStyle = cols[k % 4]; ctx.fill(pth); ctx.strokeStyle = P("fg"); ctx.lineWidth = 1.2; ctx.stroke(pth);
   }
@@ -208,66 +275,64 @@ function titles(ctx, t, tokens, lib) {
   });
 }
 
-// one panel = one strip at a given stage of painting: 0 起稿 ink sketch · 1 平涂 flat colour · 2 叠晕 + 点金
-function panel(ctx, t, tokens, lib, k) {
-  const P = L.P, pn = L.panels[k], t0 = 2.0 + k * 0.2;
+// the motif: ONE narrative strip (横卷) in three sections, each the same three scenes (cloud · lotus · cloud) at a later
+// stage of mural painting: 0 起稿 ink sketch · 1 平涂 flat colour · 2 叠晕 banded shading + 点金 gold
+function section(ctx, t, tokens, lib, k) {
+  const P = L.P, st = L.strip, sw = st.w / 3, x0 = st.x + k * sw + 8, y0 = st.y, w = sw - 16, h = st.h, t0 = 2.0 + k * 0.2;
   if (t < t0) return;
-  const x0 = pn.cx - pn.w / 2, y0 = pn.cy - pn.h / 2, cw = pn.w / 3;
-  const shapes = [cloudPath(x0 + cw * 0.5, pn.cy + 6, 0.9, 1), lotusPath(pn.cx, pn.cy + 36, 1.05), cloudPath(x0 + cw * 2.5, pn.cy + 6, 0.9, -1)];
+  const cw = w / 3, cy = y0 + h / 2;
+  const shapes = [cloudPath(x0 + cw * 0.5, cy + 8, 1.25, 1), lotusPath(x0 + w / 2, cy + 46, 1.45), cloudPath(x0 + cw * 2.5, cy + 8, 1.25, -1)];
   const uLine = lib.tween(t, t0, t0 + 0.4, lib.ease.inOutSine);
-  const uFill = k >= 1 ? lib.tween(t, t0 + 0.25, t0 + 0.55, lib.ease.inOutSine) : 0;
-  const uBand = k === 2 ? lib.tween(t, t0 + 0.35, t0 + 0.55, lib.ease.inOutSine) : 0;
-  const uGold = k === 2 ? lib.seg(t, t0 + 0.45, t0 + 0.6) : 0;
+  const uFill = k >= 1 ? lib.tween(t, t0 + 0.2, t0 + 0.5, lib.ease.inOutSine) : 0;
+  const uBand = k === 2 ? lib.tween(t, t0 + 0.3, t0 + 0.55, lib.ease.inOutSine) : 0;
   const comp = [P("accent"), P("extra.2"), P("extra.0")], light = ["#5A8BAB", "#B8664A", "#72B096"], pale = ["#86AFC8", "#CF8C70", "#9CCAB5"];
   ctx.save();
-  if (uFill > 0) {                                           // flat colour, one compartment per scene of the strip
-    ctx.globalAlpha = uFill;
-    comp.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(x0 + i * cw, y0, cw, pn.h); });
-    shapes.forEach((s) => { ctx.fillStyle = P("extra.5"); ctx.fill(s); });
-    ctx.globalAlpha = 1;
-  }
-  if (uBand > 0) {                                           // 叠晕: bands of the same hue, dark at the edge → light inside
+  if (uFill > 0) { ctx.globalAlpha = uFill; comp.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(x0 + i * cw, y0, cw, h); }); shapes.forEach((sh) => { ctx.fillStyle = P("extra.5"); ctx.fill(sh); }); ctx.globalAlpha = 1; }
+  if (uBand > 0) {
     ctx.globalAlpha = uBand;
-    comp.forEach((c, i) => {
-      ctx.fillStyle = light[i]; ctx.fillRect(x0 + i * cw + 12, y0 + 12, cw - 24, pn.h - 24);
-      ctx.fillStyle = pale[i]; ctx.fillRect(x0 + i * cw + 24, y0 + 24, cw - 48, pn.h - 48);
-    });
-    shapes.forEach((s, i) => { ctx.fillStyle = P("extra.5"); ctx.fill(s); ctx.save(); ctx.clip(s); ctx.strokeStyle = [light[0], "#E8A488", light[2]][i]; ctx.lineWidth = 14; ctx.stroke(s); ctx.restore(); });
+    comp.forEach((c, i) => { ctx.fillStyle = light[i]; ctx.fillRect(x0 + i * cw + 14, y0 + 14, cw - 28, h - 28); ctx.fillStyle = pale[i]; ctx.fillRect(x0 + i * cw + 28, y0 + 28, cw - 56, h - 56); });
+    shapes.forEach((sh, i) => { ctx.fillStyle = P("extra.5"); ctx.fill(sh); ctx.save(); ctx.clip(sh); ctx.strokeStyle = [light[0], "#E8A488", light[2]][i]; ctx.lineWidth = 18; ctx.stroke(sh); ctx.restore(); });
     ctx.globalAlpha = 1;
   }
-  // ink line (铁线描): frame, compartment dividers, the three shapes — drawn on in painting order
-  ctx.strokeStyle = P("fg"); ctx.lineWidth = 2.5; ctx.lineJoin = "round";
-  lib.strokePartial(ctx, [[x0, y0], [x0 + pn.w, y0], [x0 + pn.w, y0 + pn.h], [x0, y0 + pn.h], [x0, y0]], uLine);
+  ctx.strokeStyle = P("fg"); ctx.lineWidth = 2.6; ctx.lineJoin = "round";
+  lib.strokePartial(ctx, [[x0, y0], [x0 + w, y0], [x0 + w, y0 + h], [x0, y0 + h], [x0, y0]], uLine);
   if (uLine > 0.5) {
     ctx.globalAlpha = lib.clamp((uLine - 0.5) * 2);
-    ctx.beginPath(); ctx.moveTo(x0 + cw, y0); ctx.lineTo(x0 + cw, y0 + pn.h); ctx.moveTo(x0 + 2 * cw, y0); ctx.lineTo(x0 + 2 * cw, y0 + pn.h); ctx.stroke();
-    shapes.forEach((s) => ctx.stroke(s));
+    ctx.beginPath(); ctx.moveTo(x0 + cw, y0); ctx.lineTo(x0 + cw, y0 + h); ctx.moveTo(x0 + 2 * cw, y0); ctx.lineTo(x0 + 2 * cw, y0 + h); ctx.stroke();
+    shapes.forEach((sh) => ctx.stroke(sh));
     ctx.globalAlpha = 1;
   }
-  if (uGold > 0) {                                           // 点金: dotted gold border and a gold heart in the lotus
-    ctx.fillStyle = P("extra.4");
-    const n = Math.floor(uGold * 26 + 1e-9);
-    for (let i = 0; i < n; i++) { const u = i / 26; const px = x0 + 8 + (pn.w - 16) * u; ctx.beginPath(); ctx.arc(px, y0 + 8, 3.5, 0, TAU); ctx.arc(px, y0 + pn.h - 8, 3.5, 0, TAU); ctx.fill(); }
-    ctx.beginPath(); ctx.arc(pn.cx, pn.cy + 22, 8 * uGold, 0, TAU); ctx.fill();
+  if (k === 2) {                                               // 点金, one layer per beat: 2.8 border dots · 3.2 lotus heart · 3.6 gold rules
+    ctx.fillStyle = P("extra.4"); ctx.strokeStyle = P("extra.4");
+    if (t >= 2.8) { const n = Math.min(24, Math.floor((t - 2.8) * 30 * 3) + 1); for (let i = 0; i < n; i++) { const px = x0 + 10 + (w - 20) * i / 23; ctx.beginPath(); ctx.arc(px, y0 + 8, 4, 0, TAU); ctx.arc(px, y0 + h - 8, 4, 0, TAU); ctx.fill(); } }
+    if (t >= 3.2) { const r = 11 * lib.spring(t - 3.2, { w: 20, zeta: 0.8 }); ctx.beginPath(); ctx.arc(x0 + w / 2, cy + 26, r, 0, TAU); ctx.fill(); }
+    if (t >= 3.6) { ctx.lineWidth = 3; const u = lib.tween(t, 3.6, 3.8, lib.ease.outCubic); ctx.beginPath(); ctx.moveTo(x0 + cw, y0 + h * (0.5 - 0.5 * u)); ctx.lineTo(x0 + cw, y0 + h * (0.5 + 0.5 * u)); ctx.moveTo(x0 + 2 * cw, y0 + h * (0.5 - 0.5 * u)); ctx.lineTo(x0 + 2 * cw, y0 + h * (0.5 + 0.5 * u)); ctx.stroke(); }
   }
-  // label
-  const la = lib.tween(t, t0 + 0.15, t0 + 0.45, lib.ease.outCubic);
+  const la = lib.tween(t, t0 + 0.12, t0 + 0.4, lib.ease.outCubic);
   ctx.globalAlpha = la; ctx.textAlign = "center"; ctx.fillStyle = P("fg");
-  lib.setFont(ctx, tokens, "zh", 50, { weight: 400 }); ctx.fillText(lib.MOTIF[k].zh, pn.cx, pn.cy + pn.h / 2 + 76);
-  lib.setFont(ctx, LAT, "en", 28); ctx.fillStyle = P("extra.6"); lib.drawText(ctx, lib.MOTIF[k].en.toUpperCase(), pn.cx, pn.cy + pn.h / 2 + 120, { align: "center", tracking: 4 });
+  lib.setFont(ctx, tokens, "zh", 52, { weight: 400 }); ctx.fillText(lib.MOTIF[k].zh, x0 + w / 2, y0 + h + 54);
+  lib.setFont(ctx, LAT, "en", 40); ctx.fillStyle = P("extra.6"); lib.drawText(ctx, lib.MOTIF[k].en.toUpperCase(), x0 + w / 2, y0 + h + 100, { align: "center", tracking: 3 });
   ctx.restore();
+}
+// cave light: at 0.0 the wall is dark except a warm pool of light that sweeps left→right and opens up (whole frame)
+function caveLight(ctx, t, lib) {
+  if (t >= 0.85) return;
+  const u = lib.ease.inOutSine(lib.seg(t, 0, 0.85)), cx = lib.lerp(260, 960, u), r = lib.lerp(260, 2300, u);
+  const g = ctx.createRadialGradient(cx, 420, r * 0.25, cx, 420, r);
+  g.addColorStop(0, "rgba(40,24,14,0)"); g.addColorStop(1, `rgba(40,24,14,${0.78 * (1 - u)})`);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, lib.W, lib.H);
 }
 
 function scene(ctx, t, tokens, lib) {
   const P = L.P;
   ctx.drawImage(L.wall, 0, 0);
   registers(ctx, t, lib);
-  drawRibbon(ctx, lib, t, "left", P("accent"), "#6F9FBE");
-  drawRibbon(ctx, lib, t, "right", P("extra.1"), "#D98A6E");
+  apsara(ctx, lib, t, "left"); apsara(ctx, lib, t, "right");
   flowers(ctx, lib, t);
   titles(ctx, t, tokens, lib);
-  for (let k = 0; k < 3; k++) panel(ctx, t, tokens, lib, k);
+  for (let k = 0; k < 3; k++) section(ctx, t, tokens, lib, k);
   ctx.save(); ctx.globalAlpha = 0.9; ctx.drawImage(L.flakes, 0, 0); ctx.restore();   // time: flaked plaster over everything
+  caveLight(ctx, t, lib);
 }
 
 function endFrame(ctx, t, tokens, lib) {
@@ -281,9 +346,9 @@ function endFrame(ctx, t, tokens, lib) {
 }
 
 export function renderAt(t, ctx, tokens, lib) {
-  if (t < 4.0) { scene(ctx, t, tokens, lib); return; }
+  if (t < T.caisson) { scene(ctx, t, tokens, lib); return; }
   // caisson iris: B opens inside a square (rotated 45°), its edge framed by three nested borders
-  const P = L.P, u = lib.tween(t, 4.0, 4.75, lib.ease.inOutCubic), cx = lib.W / 2, cy = lib.H / 2 - 40;
+  const P = L.P, u = lib.tween(t, T.caisson, T.caisson + 0.75, lib.ease.inOutCubic), cx = lib.W / 2, cy = lib.H / 2 - 40;
   const hs = u * 1600, rot = Math.PI / 4 * (1 - u);
   scene(ctx, t, tokens, lib);
   if (hs < 1) return;

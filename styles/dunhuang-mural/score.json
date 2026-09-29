@@ -6,8 +6,9 @@
   "meters": {
     "1": 2,
     "2": 3,
-    "3": 5,
-    "4": 3
+    "3": 4,
+    "4": 1,
+    "5": 3
   },
   "sections": [
     {
@@ -20,10 +21,10 @@
         "bell",
         "pad"
       ],
-      "energy": 0.4
+      "energy": 0.45
     },
     {
-      "name": "ribbons",
+      "name": "figures",
       "bars": 1,
       "chords": [
         "iv"
@@ -48,6 +49,19 @@
         "pad"
       ],
       "energy": 0.6
+    },
+    {
+      "name": "meet",
+      "bars": 1,
+      "chords": [
+        "i"
+      ],
+      "layers": [
+        "bell",
+        "zheng",
+        "pad"
+      ],
+      "energy": 0.7
     },
     {
       "name": "caisson",

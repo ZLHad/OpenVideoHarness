@@ -1,0 +1,92 @@
+1
+00:00:00,350 --> 00:00:07,880
+frame = f(t) · Every frame is a function of time.
+
+2
+00:00:08,167 --> 00:00:10,667
+Request: Why does a LEO satellite's signal change pitch?
+
+3
+00:00:10,667 --> 00:00:13,233
+Claude Opus 5.5 doesn't paint pixels. It writes the program.
+
+4
+00:00:13,833 --> 00:00:15,750
+One sentence in. A film out.
+
+5
+00:00:16,000 --> 00:00:18,667
+Stunning, once.
+
+6
+00:00:18,667 --> 00:00:20,673
+Dependable? Not yet.
+
+7
+00:00:21,333 --> 00:00:23,880
+OpenVideoHarness turns Claude Code & Codex into a video studio.
+
+8
+00:00:24,000 --> 00:00:26,517
+You: a one-line request → Claude Code / Codex → CLAUDE.md · AGENTS.md router
+
+9
+00:00:26,667 --> 00:00:30,517
+video-types/ · 8 video workflows
+
+10
+00:00:30,667 --> 00:00:33,233
+playbook/ 9 know-how docs · templates/ 7 project templates · cases · showcase · bin/vh
+
+11
+00:00:33,333 --> 00:00:36,000
+engines/ · references/repos/ 20+ repos · projects/date-slug
+
+12
+00:00:36,000 --> 00:00:38,200
+How it works
+
+13
+00:00:38,200 --> 00:00:44,167
+Human review ①, ② · Scene code → contact sheet → taste checklist
+
+14
+00:00:44,200 --> 00:00:46,467
+Review every scene against the checklist, and fix it until it passes.
+
+15
+00:00:46,667 --> 00:00:49,333
+pass · human review ③ · Final cut + LESSONS.md
+
+16
+00:00:49,333 --> 00:00:52,000
+Taste written down as numbers.
+
+17
+00:00:52,000 --> 00:00:54,667
+Sound, end to end.
+
+18
+00:00:54,667 --> 00:00:57,333
+Ready to run. One command installs it, one command scaffolds a project.
+
+19
+00:00:57,333 --> 00:01:00,000
+11 case studies + curated picks from 389 community videos
+
+20
+00:01:00,233 --> 00:01:02,567
+Made by an agent, following only these docs.
+
+21
+00:01:11,333 --> 00:01:13,333
+This film, too.
+
+22
+00:01:13,333 --> 00:01:15,380
+Even the soundtrack is code.
+
+23
+00:01:16,000 --> 00:01:21,333
+OpenVideoHarness · Video as code, for coding agents. · github.com/ZLHad/OpenVideoHarness
+

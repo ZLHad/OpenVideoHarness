@@ -4,6 +4,8 @@
 
 样片：`media/swatch.mp4`（5 s）· 封面 `media/poster.jpg`
 
+样片实况：红剪纸一路的夜景。靛蓝夜空前是五层纸：远山、中景山、近地面、三座米白纸房子，加上前景的镂空枝叶。开场一整片通高的镂空纸篱笆（月牙纹加一朵团花）从右往左横滑过画面，像镜头掠过前景的灌木，0.1 s 时已占画面约 27%，0.4 s 正中，0.85 s 滑出。篱笆后面，这几层纸按 12 fps 一格一格从画面下方弹起到位（近地面最先，末格略冲过头），枝叶从上方落下，一轮打了孔的米白纸月亮顺着线垂下来。一个约 310 px 高的红剪纸行人 0.1 s 从左边迈步入画，一直走到片尾。他按 15 fps 步进，6 张一个循环，一步对一个八分音符，脚下有接触投影，身后有纸影。2.0 s 起三座房子逐格立起：空心轮廓 → 三扇窗 → 满镂空加红灯笼，最后这座的门窗透出金色灯光。3.6–4.0 s 拨弦撤掉屏息，4.0 s 默片 iris 收到灯笼上，4.42 s 合上，结束卡片的字在 4.58 s 前出齐。英文标签 38 px，结束卡片英文 48 px。
+
 ## 学习对象
 
 | 作品 | 年份 · 作者 / 工作室 | 从它身上学什么 |
@@ -17,18 +19,22 @@
 
 ## 视觉语法
 
-默认是"剪影"一路（写进 tokens）：黑色剪影立在染色的背景前。需要中国味时切到"红剪纸"一路。两路不在同一个镜头里混用。
+默认是"红剪纸"一路的夜景（写进 tokens，样片也用它）：深浅不同的靛蓝纸层，只有主角是红剪纸，房屋、月亮和字用米白纸。另一路是"黑剪影"立在染色背景前。两路不在同一个镜头里混用。黑剪影一路别用琥珀底配侧身人物，那会和 `shadow-puppet` 的琥珀逆光撞在一起。
 
-- **剪影色板**：
-  - 背景染色：每场选一种，琥珀 `#E6A33E`（白天、室内，默认）、夜蓝 `#3E6A96`、林绿 `#5E8C4A`、晨玫 `#C9646A`；
+- **红剪纸色板（默认）**：
+  - 夜：靛蓝纸 `#1E2A4A` 做底；样片的夜空是 `#3E5F92` → `#17223F` 的径向亮区，远山 `#2C3F6D`、中景 `#1D2B50`、近地面 `#121A33`、前景镂空 `#0B1126`，越近越暗；
+  - 主角和窗花用 `#C8232A`，近处肢体亮一档 `#D4332F`，远处肢体暗一档 `#8E1420`；
+  - 米白纸 `#EFE3C6` 给房屋、月亮和字；灯光金 `#F2C14E` 只在刻空的门窗后面透出来；
+  - 白天：宣纸 `#F2E8D0` 做底；金箔 `#D6A843` 只在结尾出现。夜里背景一律是深浅不同的靛蓝纸，红的只有主角和一件信物。
+- **黑剪影色板**：
+  - 背景染色：每场选一种，夜蓝 `#3E6A96`、林绿 `#5E8C4A`、晨玫 `#C9646A`、琥珀 `#E6A33E`（琥珀只在不和皮影片并排时用）；
   - 剪影层：近 `#16110D`（前景、主角）、中 `#4A2A1C`、远 `#9E5A2C`（越远越接近背景色）；
   - 强调：剪纸红 `#C62828`，全片只给一样东西（一盏灯、一朵花、一个信物）。
-- **红剪纸色板**：宣纸 `#F2E8D0` 做白天底，靛蓝纸 `#1E2A4A` 做夜晚底；主角和窗花用 `#C8232A`，近处肢体亮一档 `#D4332F`，远处肢体暗一档 `#8E1420`；金箔 `#D6A843` 只在结尾出现。夜里背景一律是深浅不同的靛蓝纸，只有主角是红的。
 - **字体**：
   - 片名：高反差衬线 `Didot` → `Bodoni 72`，做成剪出来的字（字腔是真的孔）；中文用 `Songti SC` Bold；
   - 字幕：`Baskerville` 40–48px 或 `Songti SC` 44–52px，放在画面下方的纸条上；
   - 小标签：`Kaiti SC`。
-  - 样片实际用字：`Didot` 112px（英文剪字）、`Songti SC` Bold 74px（中文）、标签 `Songti SC` Bold 50px + `Didot` Italic 28px（刻在地面纸带里）。
+  - 样片实际用字：`Didot` 112px（英文剪字）、`Songti SC` Bold 74px（中文）、标签 `Songti SC` Bold 50px + `Didot` Italic 38px，结束卡片 `Songti SC` Bold 96px + `Didot` Italic 48px。
 - **构图**：
   - 表演在一条水平舞台带里完成（y 0.55–0.85H），地平线 0.8H；角色高 0.3–0.5H，全部侧面；
   - 轮廓要读得出：手臂和身体之间留缝，道具伸出轮廓外，两个角色不重叠；
@@ -43,7 +49,7 @@
 
 帧数按 30 fps 计。
 
-- **步进**：角色姿势按 12 fps 取样，`tp = Math.floor(t·12)/12`；镜头、光、飘落物按 30 fps 平滑移动（镜头也步进会被看成卡顿）。
+- **步进**：角色姿势按 12 fps 取样，`tp = Math.floor(t·12)/12`；镜头、光、飘落物按 30 fps 平滑移动（镜头也步进会被看成卡顿）。走路要踩拍时改用 15 fps（一拍两格的"一拍二"）：150 BPM 下 6 张一个循环正好 0.4 s，一步 3 格对一个八分音符；12 fps 在 30 fps 的时间线上对不齐八分音符。
 - **缓动**：进场 easeOutCubic `cubic-bezier(0.33,1,0.68,1)`，出场 easeInCubic `cubic-bezier(0.32,0,0.67,0)`，都在步进后的时间上计算；spring：stiffness 200、damping 20（ζ≈0.71），只给落地和道具。
 - **微动**：每层纸 ±1.5° 的轻摆，0.3–0.6 Hz，也按 12 fps 步进，各层相位用 `hash(layer)` 错开。
 - **时长**：进场 15 帧（0.5 s，即 6 格）；每个画面至少停 1.4 s；每 2.2 s 发生一件新事。
@@ -53,10 +59,10 @@
 
 ## 声音语法
 
-- **配乐**：剪影一路：`bin/vh music`，`bpm: 96`，`key: "A"`，`mode: "minor"`；`arp` 做八音盒式的拨弦，`pad` 做弦乐底，`bass` 只在后半段进来；不用 `bell`（它的编钟音色和五声取音会把这一路拉向中国味）。红剪纸一路：改成 `key: "D"`、`mode: "major"`（中国色层取 D 宫五声）、`bpm: 120`，用 `zheng`、`dizi`，`clap` 当木鱼，`taiko` 打重拍。
+- **配乐**：默认是八音盒一路，两种画面都能用：`bin/vh music`，`bpm: 96`，`key: "A"`，`mode: "minor"`；`arp` 做八音盒式的拨弦，`pad` 做弦乐底，`bass` 只在后半段进来；不用 `bell`（它的编钟音色和五声取音会把片子拉向中国味）。讲民间故事、年节题材要中国味时，改成 `key: "D"`、`mode: "major"`（中国色层取 D 宫五声）、`bpm: 120`，用 `zheng`、`dizi`，`clap` 当木鱼，`taiko` 打重拍。
 - **音效**：剪刀开合（金属剪切声 2.5–9 kHz + 一声纸纤维断裂）、纸片滑动、纸片飘落、卡纸落地的闷响（55 Hz 左右，不用肉体撞击声）、翻纸。内置库可以先占位：剪刀用 `shutter` 叠 `tick`，纸片滑动用 `whoosh`，落地用压低的 `boom`，翻纸用 `swish_rev`。
 - **声画关系**：每一剪、每一次落地都对着一个八分音符。高潮前 0.5 s 屏息：拨弦撤掉，只留 `pad` 低低地垫着，揭纸或 iris 张开时齐奏回来；不做数字静音。
-- **样片小样**：样片的 5 s 声音小样（`score.json`）：150 BPM，A 小调；只有轻巧的 `arp` 拨弦和 `pad`，2.0 s 房子立起来时加一层 `bass`，4.0 s iris 收拢时回到拨弦。
+- **样片小样**：样片的 5 s 声音小样（`score.json`）：150 BPM，A 小调；只有轻巧的 `arp` 拨弦和 `pad`，2.0 s 房子立起来时加一层 `bass`，3.6–4.0 s 拨弦撤掉、只留 `pad` 屏息，4.0 s iris 收拢时回到拨弦。拟音（`events.json`）：0.1 s 纸层弹起一声压低的 `boom`（卡纸落地），0.4 s 篱笆滑过一声 `whoosh`；行人入画以后只在真实落步时出纸声（0.6–1.8 s、2.6–3.4 s），三种纸步声轮换、音量错开，声像跟着人走；2.0 / 2.2 / 2.4 s 三座房子立起时各一声剪刀剪纸（`sfx/snip.wav`，两下 2.5–9 kHz 的刀口闭合加一声纸纤维断裂）；3.6–4.0 s 的屏息里没有拟音，4.42 s iris 合上一声 `shutter`。纸步声 `sfx/paper_step_{a,b,c}.wav` 和剪刀声都是程序合成的带通噪声，种子固定。
 
 ## 适合与不适合
 
@@ -75,11 +81,11 @@
 ## Prompt 块
 
 ```text
-STYLE: layered cut paper. 3–5 flat paper layers stacked with soft 6px shadows (offset 4–8px). Default register: pure black silhouettes (#16110D near, #4A2A1C mid, #9E5A2C far) in front of a single tinted backdrop per scene (amber #E6A33E by default; night blue #3E6A96, forest green #5E8C4A or dawn rose #C9646A), with one red paper object #C62828 as the only accent. Alternative register: red paper figures on rice paper by day and indigo paper by night.
+STYLE: layered cut paper. 3–5 flat paper layers stacked with soft 6px shadows (offset 4–8px). Default register: a night of indigo papers (sky glowing #3E5F92 to #17223F, far hills #2C3F6D, middle #1D2B50, near ground #121A33, lace #0B1126); the protagonist is red paper #C8232A, the only red besides one keepsake; houses, moon and letters are cream paper #EFE3C6, and gold lamplight #F2C14E shows only through cut windows. By day the ground is rice paper #F2E8D0. Alternative register: pure black silhouettes (#16110D near, #4A2A1C mid, #9E5A2C far) in front of one tinted backdrop per scene (night blue #3E6A96, forest green #5E8C4A, dawn rose #C9646A).
 Everything is in profile on one horizontal stage band; silhouettes must read: gaps between arms and body, props sticking out of the outline, no interior lines. Lace-like cut foliage and arches frame the edges only. Hand-cut edges with slight wobble; no smooth vector curves.
-Character poses step at 12 fps; camera, light and falling pieces move smoothly. Each layer sways ±1.5° with offset phases. Parallax pan across layers.
+Character poses step at 12 fps (a walk that must land on the beat steps at 15 fps); camera, light and falling pieces move smoothly. Each layer sways ±1.5° with offset phases. Parallax pan across layers.
 Transitions: a circular silent-film iris, a full-frame foreground silhouette sliding across, or a paper sheet peeled from the corner. Titles are cut-out letters whose counters are real holes, popping in one per step.
-Sound: scissors, paper slides, cardboard thuds, a music-box pluck and soft pad in A minor at 96 BPM (or zither and flute in D pentatonic for the red register).
+Sound: scissors, paper slides, cardboard thuds, a music-box pluck and soft pad in A minor at 96 BPM (or zither and flute in D pentatonic for folk tales and festivals).
 ```
 
 ## 引擎做法

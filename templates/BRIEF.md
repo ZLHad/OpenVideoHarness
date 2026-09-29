@@ -3,6 +3,7 @@
 <!-- 由 agent 根据用户需求填写，填完给用户确认（关卡 1）。花括号里的都要替换。类型文档里的 "Prompt 增量块" 贴在文末 TYPE 一节。 -->
 
 ## Spec
+- Effort: standard  <!-- quick | standard | studio：做多认真，规则见 CLAUDE.md "努力程度"。用户在对话里说的优先 -->
 - Output: {W}x{H}, {fps} fps, exactly {N}s ({frames} frames)
 - Engine: {HyperFrames | Remotion | Manim CE | ClaudeAnimationBase (p5.brush) | other}
 - Platform / audience: {where it plays, who watches, sound-on or muted}

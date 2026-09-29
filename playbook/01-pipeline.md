@@ -2,6 +2,8 @@
 
 ## 总表
 
+下表是 `standard` 档位的做法。`quick` 会省掉人工关卡、独立评审和大部分逐场景自查；`studio` 会加上 look-dev、animatic 和多轮打分。各档位具体做多少，见 CLAUDE.md 的"努力程度"一节（`bin/vh effort <档位>`）。
+
 | 阶段 | 产物 | 工具 | 通过条件 |
 |---|---|---|---|
 | 0 选路径 | — | `00-paradigm.md` 的选型表和 `video-types/` | 能说清验收标准 |
