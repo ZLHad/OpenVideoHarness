@@ -1,0 +1,12 @@
+{
+  "bpm": 150, "key": "F", "mode": "major", "seed": 16,
+  "meters": { "1": 2, "2": 3, "3": 1, "4": 1, "5": 3, "6": 3 },
+  "sections": [
+    { "name": "tilemap", "bars": 1, "chords": ["I"], "layers": ["pad", "arp", "bass"], "energy": 0.5 },
+    { "name": "window", "bars": 1, "chords": ["vi"], "layers": ["pad", "arp", "bass", "hats"], "energy": 0.55 },
+    { "name": "panels", "bars": 1, "chords": ["IV"], "layers": ["pad", "arp", "bass", "kick"], "energy": 0.62 },
+    { "name": "breath", "bars": 1, "chords": ["IV"], "layers": ["pad"], "energy": 0.3 },
+    { "name": "draft", "bars": 1, "chords": ["V"], "layers": ["kick", "hats", "bass", "pad", "arp", "lead"], "energy": 0.9 },
+    { "name": "save", "bars": 1, "chords": ["I"], "layers": ["pad", "arp", "lead"], "energy": 0.45 }
+  ]
+}

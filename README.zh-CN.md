@@ -4,7 +4,7 @@
 
 **让 Claude Code、Codex 这类写代码的 AI，用写程序的方式做视频，而且做得稳。**
 
-科普、讲解、产品片、MV、数据、论文、手绘、梗图快剪：8 类视频，26 种风格，一套流程。
+科普、讲解、产品片、MV、数据、论文、手绘、梗图快剪：8 类视频，28 种风格，一套流程。
 
 [English](README.md) · **中文**
 
@@ -12,7 +12,7 @@
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush-blue)
 ![Voice](https://img.shields.io/badge/voice-Qwen3--TTS%20zh%20%7C%20en-purple)
-![Styles](https://img.shields.io/badge/styles-26-green)
+![Styles](https://img.shields.io/badge/styles-28-green)
 
 <a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/preview.gif" width="820" alt="OpenVideoHarness 介绍片"></a>
 
@@ -32,7 +32,7 @@ OpenVideoHarness 就是这套行规，写成了 AI 能照着执行的文档和�
 
 - **按片子类型给做法**：你说"做个科普"或"做个发布片"，它就去读那一类的工作流：用哪个引擎、分几步、什么算好看、什么不许做。
 - **三个节点停下来问你**：大纲、分镜、初版，每到一处都等你点头再往下做。方向在最便宜的时候定下来。只想快速试一版时，可以切到"快出"档，直接出片。
-- **不止一种口味**：26 个从名作里学来的风格，每个都附一段真渲的样片，开工前让你挑。
+- **不止一种口味**：28 个从名作里学来的风格，每个都附一段真渲的样片，开工前让你挑。
 - **自己检查自己**：AI 看不了视频，也听不了声音。所以让它看渲染出来的帧、测混音的数据，照着清单改到合格；整片还要交给一个没参与制作的 reviewer 打分。
 - **声音一起管**：中英配音（本地开源模型）、双语字幕、用代码写配乐和音效、混音和质检。
 
@@ -100,26 +100,26 @@ GIF 是压缩过的预览，原片在各目录的 `media/final.mp4`。你做出�
 
 </details>
 
-## 26 种风格，不止一种口味
+## 28 种风格，不止一种口味
 
 AI 做的视频很容易长成一个样子：暗底、发光、玻璃卡片、满屏动态 UI。你不说，它就往这个方向走。
 
-所以我们从名作里学了 26 种风格，放在 [`styles/`](styles/)，分成六类：电影片头、品牌发布、数据讲解、插画印刷、中国美学、复古科技。学习对象包括：
+所以我们从名作里学了 28 种风格，放在 [`styles/`](styles/)，分成六类：电影片头、品牌发布、数据讲解、插画印刷、中国美学、复古科技。学习对象包括：
 - **电影和片头**：Saul Bass 的片头、《七宗罪》、《银翼杀手 2049》、韦斯·安德森的对称构图、王家卫的抽帧；
-- **设计**：瑞士网格、3Blue1Brown、《纽约时报》的数据图；
-- **动画和印刷**：《蜘蛛侠：平行宇宙》的网点；
+- **设计**：瑞士网格、3Blue1Brown、《纽约时报》的数据图、纽拉特的图形统计（Isotype）；
+- **动画和印刷**：《蜘蛛侠：平行宇宙》的网点、超级任天堂的 16 位像素；
 - **中国美学**：水墨、敦煌、皮影、国潮。
 
 每种风格都写成一份 AI 能照着做的说明：用什么颜色和字体、怎么构图、东西怎么动、怎么转场、配什么声音、哪些俗套不许碰。
 
-**每种风格都用本仓库真渲了一段 5 秒样片**，配乐也是各自用代码写的。26 段样片的内容一模一样，差别只在风格：
+**每种风格都用本仓库真渲了一段 5 秒样片**，配乐也是各自用代码写的。28 段样片的内容一模一样，差别只在风格：
 
-<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="26 种风格的样片，内容完全相同"></a>
+<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="28 种风格的样片，内容完全相同"></a>
 
 连着看的版本在 [`styles/gallery.mp4`](styles/gallery.mp4)。用法：
 
 ```bash
-bin/vh style list                                  # 看 26 种风格
+bin/vh style list                                  # 看 28 种风格
 bin/vh new promo launch-film --style cutout-jazz   # 建项目时直接带上一种风格
 ```
 
@@ -224,6 +224,7 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 | 要什么 | 怎么做 | 说明 |
 |---|---|---|
 | 中英配音 | `bin/vh tts` | 默认用本地开源的 **Qwen3-TTS**，离线免费，首次运行下载约 2 GB。中文 5 个音色（含京腔、川话），英文 2 个。云端留好了阿里云百炼、ElevenLabs 和 Gemini 3.8 Flash TTS 的接口（后者表演力强，可以用一句话导演语气） |
+| 旁白有表情、有节奏 | `bin/vh tts … --beats` | 每句都能单独导演，比如 `[惊讶地提问，语速快，"一句话"重读]`；有配乐时，每句从拍点起，关键句可以指定落在小节头或 drop 上。各类视频的默认语气、帧对齐的速度表和混音参数见 [playbook/04](playbook/04-audio.md) "让声音有表情、有节奏" |
 | 双语字幕 | `bin/vh captions` | 旁白稿写成 `中文 \|\| English`，自动出中文、英文、中英双行字幕，还能封装成可开关的字幕轨 |
 | 配乐 | `bin/vh music` | 用代码作曲，同一份谱永远生成同一段音乐，还会给出每一拍的精确时间，画面拿它卡点。有编钟、古筝、竹笛、大鼓这些中国乐器，也可以改拍号。用你自己的曲子也行：`bin/vh beats` 会分析出节拍和鼓点 |
 | 音效 | `bin/vh sfx` | 15 个代码合成的原创音效，按动作发生的那一帧摆放；物体在画面左边，声音就偏左 |
@@ -248,9 +249,9 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 | `types` / `new <类型> <名字> [--style <风格>] [--effort <档位>]` | 列出 8 类视频 / 建一个新项目 |
 | `effort [quick\|standard\|studio]` | 看三档努力程度各做什么 |
 | `style list` / `style <风格>` / `style gallery` | 看风格 / 渲一段样片 / 重建风格总览 |
-| `tts` / `captions` / `music` / `sfx` / `beats` | 配音 / 字幕 / 配乐 / 音效 / 分析外部音乐 |
+| `tts` / `voices` / `captions` / `music` / `sfx` / `beats` | 配音（可逐句导演、对拍、逐字核对、双人对话）/ Gemini 音色库和设计音色 / 字幕 / 配乐 / 音效 / 分析外部音乐 |
 | `mix` / `qa` / `mux` | 混音 / 混音质检 / 给成片合上声音和字幕 |
-| `sheet` / `check` / `gif` | 带时间戳的联系表 / 查黑场、冻帧、静音 / 做 README 用的 GIF |
+| `sheet` / `check` / `readcheck` / `gif` | 带时间戳的联系表 / 查黑场、冻帧、静音 / 查字停得够不够久 / 做 README 用的 GIF |
 | `hf-init` / `install-skill` / `sync-agents` | 初始化 HyperFrames / 注册 skill / 同步 AGENTS.md |
 
 ## 需要什么环境
@@ -305,7 +306,7 @@ OpenVideoHarness/
 ├── video-types/              8 类视频的工作流
 ├── playbook/                 通用知识 00–08：流程、自查、运动设计、声音、特效等
 ├── templates/                每个新项目要填的文件：需求、分镜、风格、审阅、笔记、经验、清单
-├── styles/                   26 种风格，各带样片；_swatch/ 是样片渲染器
+├── styles/                   28 种风格，各带样片；_swatch/ 是样片渲染器
 ├── cases/                    11 个案例拆解 + 社区作品精选 + 一支 3D 长片深读
 ├── showcase/                 本仓库自己做的片子（源码 + 成片 + 过程记录）
 ├── engines/                  自带的手绘引擎 + 其他引擎的安装说明

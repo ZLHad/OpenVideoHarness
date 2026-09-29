@@ -75,4 +75,4 @@ Every on-screen number traced to its source row/calculation in NOTES.md.
 以下条目选自 183 个社区视频 skill，完整对照和许可证说明见 `references/community-skills.md`。只读参考；复用代码前，先确认它的许可证。
 
 - **data-animation-skills / chart-animation**（MIT）：每个值都由当前帧计算，关掉图表库自带的动画；计数先取整再格式化，用 tabular-nums；排名也插值，超车时滑过去而不是跳过去。见 `references/repos/data-animation-skills/skills/chart-animation/SKILL.md`、`references/repos/data-animation-skills/skills/chart-animation/references/bar-chart-race.md`。
-- **lemo-opuscar 的 `dataviz` 风格**（CC BY 4.0）：图表本身就是镜头和节奏，手写批注钉在具体数字上。见 `references/repos/lemo-opuscar/styles/dataviz/STYLE.md`。
+- **lemo-opuscar 的 `dataviz` 风格**（MIT）：图表本身就是镜头和节奏，手写批注钉在具体数字上。见 `references/repos/lemo-opuscar/styles/dataviz/STYLE.md`。

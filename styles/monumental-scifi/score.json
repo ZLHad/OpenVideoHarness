@@ -5,7 +5,7 @@
     {"name": "haze", "bars": 1, "chords": ["i"], "layers": ["pad", "bell"], "energy": 0.35},
     {"name": "title", "bars": 1, "chords": ["i"], "layers": ["pad", "bell"], "energy": 0.4},
     {"name": "monoliths", "bars": 1, "chords": ["VI"], "layers": ["pad", "bell", "taiko"], "energy": 0.6},
-    {"name": "hush", "bars": 1, "chords": ["VII"], "layers": ["pad"], "energy": 0.25},
-    {"name": "push", "bars": 1, "chords": ["i"], "layers": ["pad", "taiko", "bell"], "energy": 0.8, "impact": true}
+    {"name": "breath", "bars": 1, "chords": ["VII"], "layers": ["pad"], "energy": 0.25},
+    {"name": "braam", "bars": 1, "chords": ["i"], "layers": ["pad", "taiko", "bell"], "energy": 0.8, "impact": true}
   ]
 }

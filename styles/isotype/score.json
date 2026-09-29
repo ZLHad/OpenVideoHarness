@@ -1,0 +1,11 @@
+{
+  "bpm": 150, "key": "G", "mode": "major", "seed": 30,
+  "meters": { "1": 2, "2": 3, "3": 3, "4": 2, "5": 3 },
+  "sections": [
+    { "name": "census", "bars": 1, "chords": ["I"], "layers": ["kick", "bass", "pad", "arp"], "energy": 0.55 },
+    { "name": "title", "bars": 1, "chords": ["vi"], "layers": ["bass", "pad", "arp"], "energy": 0.45 },
+    { "name": "count", "bars": 1, "chords": ["IV"], "layers": ["kick", "hats", "bass", "pad", "arp"], "energy": 0.75 },
+    { "name": "cut", "bars": 1, "chords": ["V"], "layers": ["pad", "arp"], "energy": 0.4 },
+    { "name": "plate", "bars": 1, "chords": ["I"], "layers": ["kick", "bass", "pad", "arp"], "energy": 0.55 }
+  ]
+}
