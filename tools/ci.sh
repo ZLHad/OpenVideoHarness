@@ -29,17 +29,35 @@ static_checks() {
   else skip "shellcheck" "not installed"; fi
   # BSD-only or GNU-only flags, matched where a command starts: a statement start, a pipe, after if / while / until / do /
   # then / else, after `{`, `(`, `!` or a case arm, and behind a wrapper (xargs, sudo, exec, env, time, nohup, nice, command)
-  # with its flags, VAR=value tokens or arguments. Comments, single-quoted strings, double-quoted strings without $ or
-  # backticks, and heredoc bodies are blanked first, line numbers kept; a line may opt out with a trailing "# portable-ok: <why>"
+  # with its flags, VAR=value tokens or arguments. A small quote-aware scanner blanks comments, single-quoted strings,
+  # double-quoted strings without $ or backticks, and heredoc bodies first (line numbers kept): a heredoc opens only at a
+  # `<<name` outside quotes and comments with whitespace before it (not `<<<`, `1<<n` or a `<<EOF` in a comment), and its
+  # terminator is matched ignoring leading tabs and trailing blanks, so a stray `<<` cannot blank the rest of a file.
+  # A line may opt out with a trailing "# portable-ok: <why>"
   local np='(^|[;&|(){}!`]|\$\()[[:space:]]*((if|while|until|do|then|else|elif|xargs|sudo|exec|env|time|nohup|nice|command)([[:space:]]+(-[^[:space:]]*|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*|[A-Za-z0-9_.{}-]+))*[[:space:]]+)*(sed -i|stat -[cf] |md5 -q|md5sum|readlink -f|grep -[a-zA-Z]*P|date -[djv] |xargs -r|find [^;|]*-printf|base64 -D|sort -V|tac( |$))'   # portable-ok: the list itself
   local awkprog=''; IFS= read -r -d '' awkprog <<'AWK' || true   # a heredoc, not $(…): the awk text has a backtick
 BEGIN { term = "" }
-term != "" { t = $0; sub(/^\t+/, "", t); if (t == term) term = ""; print ""; next }
+term != "" { t = $0; sub(/^\t+/, "", t); sub(/[ \t]+$/, "", t); if (t == term) term = ""; print ""; next }
 /portable-ok/ { print ""; next }
-{ line = $0
-  if (match(line, /<<-?["']?[A-Za-z_][A-Za-z0-9_]*/)) { term = substr(line, RSTART + 2, RLENGTH - 2); sub(/^-/, "", term); gsub(/["']/, "", term) }
-  gsub(/'[^']*'/, "", line); gsub(/"[^"$`]*"/, "", line); sub(/(^|[[:space:];])#.*$/, "", line)
-  print line }
+{ line = $0; out = ""; q = ""; buf = ""; n = length(line); i = 1
+  while (i <= n) {
+    c = substr(line, i, 1)
+    if (q == "") {
+      if (c == "#" && (i == 1 || substr(line, i - 1, 1) ~ /[ \t;]/)) break
+      if (c == "\\") { out = out c substr(line, i + 1, 1); i += 2; continue }
+      if (c == "'" || c == "\"") { q = c; buf = ""; i++; continue }
+      if (c == "<" && substr(line, i, 2) == "<<" && substr(line, i + 2, 1) != "<" && (i == 1 || substr(line, i - 1, 1) ~ /[ \t]/)) {
+        rest = substr(line, i + 2); sub(/^-/, "", rest)
+        if (match(rest, /^["']?[A-Za-z_][A-Za-z0-9_]*/)) { term = substr(rest, RSTART, RLENGTH); gsub(/["']/, "", term) }
+      }
+      out = out c; i++
+    } else {
+      if (q == "\"" && c == "\\") { buf = buf c substr(line, i + 1, 1); i += 2; continue }
+      if (c == q) { out = out ((q == "\"" && buf ~ /[$`]/) ? q buf q : q q); q = ""; i++; continue }
+      buf = buf c; i++
+    }
+  }
+  print out }
 AWK
   out=$(while IFS= read -r f; do awk "$awkprog" "$f" | grep -n -E "$np" | sed "s#^#$f:#"; done < <(files bin/vh '*.sh'))
   if [ -n "$out" ]; then echo "$out"; bad "non-portable shell commands (use a helper that works with both BSD and GNU tools)"
