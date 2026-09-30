@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+**ElevenLabs word timing**
+- `bin/vh tts … elevenlabs` wrote every character as a "word": an English line became one entry per letter (90 for a 20-word sentence), so word-by-word captions flashed letters and the documented "same shape as --align" was not true. Character timestamps are now grouped into the same units as `--align gemini`: a Latin word or number each, a CJK character each, trailing punctuation kept on the word before it, opening quotes on the word after.
+
 **Repository and community files**
 - Releases `v0.1.0`, `v0.2.0` and `v0.2.1` are published on GitHub, with notes taken from this file, and version tags are protected by two rulesets (`.github/rulesets/tags-create.json`, `tags-immutable.json`): only admins can create a `v*` tag, and nobody, admins included, can move or delete one. The rules are split because GitHub applies bypass permissions per ruleset, not per rule. CONTRIBUTING describes how to cut a release.
 - GitHub now detects the license as MIT: `LICENSE` holds only the standard MIT text, and its note on third-party components moved to the top of `ACKNOWLEDGMENTS.md` ("License scope").

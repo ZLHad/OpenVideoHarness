@@ -48,7 +48,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 | `say` | macOS 自带，离线，适合打草稿 | 无 | 句级 | ✅ 已实测 |
 | `edge` | 微软免费在线音色 | 联网；非官方接口 | 句级 | ✅ 已实测英文 |
 | `dashscope` | 阿里云百炼 Qwen3-TTS（`qwen3-tts-flash`），云端 | `DASHSCOPE_API_KEY` | 句级 | 接口已留，待实测 |
-| `elevenlabs` | 高质量多语种配音 | `ELEVENLABS_API_KEY`、voice_id | **字符级** | 接口已留，待实测 |
+| `elevenlabs` | 高质量多语种配音 | `ELEVENLABS_API_KEY`、voice_id | **词级**（接口给字符级，`bin/vh tts` 拼成词） | 接口已留，待实测 |
 | `gemini` / `gemini-lite` | Google Gemini 3.8 Flash TTS（2026-09-23 发布）/ Flash-Lite TTS，云端。表演力强，适合讲解旁白和双人对话。Flash 支持 130 种语言，Lite 支持 101 种，都含中文，语言按文本自动识别。`--voice` 用 30 个 studio 音色之一（默认 Kore，每个都能说所有支持的语言）、音色库 id 或自己设计的 `voice_…`（见下文"音色"）；`bin/vh tts` 的第 5 个参数（`--instruct`）用一句话描述语气，例如"平静、笃定的纪录片旁白"；稿子里可以直接写 `<short pause>`、`<breath>`、`<laugh>` 这类标签，只有 gemini 会演出来，其他 provider 和字幕都会自动去掉 | `GEMINI_API_KEY`（Google AI Studio）。有免费档，但免费档的内容可能被 Google 用来改进产品；付费价格见下文"费用" | 句级；加 `--align gemini` 后为词级 | ✅ 2026-09-30 实测中英（Kore / Charon）：一次通过，逗号处有自然停顿。双人对话、整段合成、设计音色同日实测 |
 
 **已知问题**：默认的本地 Qwen3-TTS 0.6B 模型念英文短句时偶尔停不下来。实测 "One sentence in, a film out." 念完后又多出约 10 秒低电平的含糊声音，整句 12.6 s。所以每条配音都要查一遍：加 `--align gemini` 让机器查（见下一节），或者至少看一眼 `timeline.<lang>.json` 里的时长。被标出来的那句重跑，或者换 1.7B 模型、换 `gemini`。同一稿 Gemini 的四条都正常。
@@ -296,7 +296,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 | 需求 | 方案 |
 |---|---|
 | 中文配音，本地 | `mlx-audio` 在 Apple Silicon 上跑 Qwen3-TTS（Apache-2.0，支持方言和声音设计）。要克隆声音用 CosyVoice 或 GPT-SoVITS。 |
-| 配音，云端，追求稳定 | ElevenLabs 的 `/v1/text-to-speech/{voice_id}/with-timestamps` 直接返回字符级时间；讲解旁白要表演力、或者要双人对话时，用 Gemini 3.8 Flash TTS（`bin/vh tts … gemini`，能用一句话导演语气，有免费档）；国内可选火山豆包、阿里百炼、MiniMax。 |
+| 配音，云端，追求稳定 | ElevenLabs 的 `/v1/text-to-speech/{voice_id}/with-timestamps` 直接返回字符级时间（`bin/vh tts` 拼成词级）；讲解旁白要表演力、或者要双人对话时，用 Gemini 3.8 Flash TTS（`bin/vh tts … gemini`，能用一句话导演语气，有免费档）；国内可选火山豆包、阿里百炼、MiniMax。 |
 | 免费、先凑合用 | `edge-tts`（微软中文音色，非官方接口，随时可能失效） |
 | 词级时间戳 | 已封装：`bin/vh tts … --align gemini`（Gemini 3.5 Transcribe，词级，0.1 s 步长，顺带对稿）。离线的话，中文用 FunASR（字级，带标点）；通用用 whisper.cpp（Mac 上有 Metal 加速）；已有讲稿或歌词、只需对齐时用 ctc-forced-aligner |
 | 节拍 | librosa 或 beat_this（后者 downbeat 更准）。音乐平缓时，检测出来的 BPM 只是一个强加的节拍器，不能拿来硬切。 |
