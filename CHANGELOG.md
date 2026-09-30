@@ -15,6 +15,37 @@
 - The Python tools run with `uv run --no-project`, so they also work inside a uv project (a Manim project after `uv init`) without syncing it or leaving a `.venv` and `uv.lock` there. The pictures warn, naming the characters, when the font would draw some of them as boxes (`VH_FONT` picks another font).
 - CI installs uv (a pinned version, cached), so the new smoke tests run on Linux and under macOS bash 3.2: all of the above, including byte-identical storyboard pages on a second run, a storyboard feeding `bin/vh review`, and readcheck's HyperFrames timing.
 
+**Music parts: motifs, section counting, dynamics, stops**
+- Motifs. A score's `"motifs"` block defines a phrase once, and any note list calls it: `{"motif": "A", "at": 8, "shift": 1}`. The call unfolds in place into plain notes, so `loop`, swing, humanize, tremolo and hits treat it like hand-written notes. The ops:
+  - pitch: `shift` (scale steps), `transpose`, `octave`, `invert`, `mode`;
+  - time: `retro`, `augment`, `diminish`, `rhythm` (one length, or a list taken in turn), `legato`;
+  - fragments: `take`, `drop`, `slice`;
+  - velocity: `vels`, `vel`;
+  - sequences: `repeat` with `every`, `shift_each`, `transpose_each` and `vel_each`.
+  Pitch ops apply in the order written, even on tokens they cannot rewrite. A motif may call others, and a cycle is an error that names its path. An optional `len` keeps a leading or trailing rest through `retro` and `repeat`.
+- Section counting. A part that plays several sections counted its bar lists and `loop` windows from its own first bar, so a list given in `by_section` for a later section could start part-way through, with no error. `"index": "section"` on the part, or `"pattern_index": "section"` on the score, counts both from each section's first bar. The default is unchanged. The render now warns when a later section's list or loop does start part-way through, and names the bar; it also warns about notes that never land in any bar (past their `loop` window).
+- Dynamics inside a section:
+  - `dyn` on a part is a gain line in dB over the whole score (`{"1": -12, "8:3": 0}`), like a fader.
+  - In `by_section`, `cresc` / `dim` are a line in dB across that section. Everything the part sounds while the section lasts follows it, a note held over from before included. After the section, whatever still rings keeps the end level, so a ringing tail never jumps back up, and notes that start later play at their own level.
+  - `vel_ramp` scales velocities by each note's place in the section, so the timbre follows.
+  - `{"to": 0.9}` on a note is a hairpin on any voice; a tremolo's strikes follow it.
+  - Level steps glide over 10 ms.
+- Section `stop`: `{"at": "5:2", "keep": ["pad"], "tail": 0.15}`.
+  - From that beat to the section's end only the kept parts play. The others start no new notes, and whatever they still sound, held notes included, fades out over `tail` (at least 5 ms).
+  - A texture pauses until the next section. A pickup into the next section still plays.
+  - Stops are judged on the grid, before humanize.
+  - `"hold": true` lets the sounding notes ring instead; `"stop": true` stops every part from the section's first beat.
+  - The beat map gets a `stop:<section>` hit.
+- Pickups. A negative beat in a note list sounds before each loop window, even when the part is silent in the section before. A pickup before the start of the score is dropped with a warning.
+- Checks. These stop the render and name the part or section:
+  - a bad motif call: unknown motif, key, transform or mode; an op without its value; a count that is not whole; a fragment with no notes; `vels` of the wrong length;
+  - a bad stop: outside its section, an unknown key, a `hold` that is not true / false, a `keep` naming no part;
+  - a malformed or duplicate `dyn` position;
+  - `cresc` / `dim` / `vel_ramp` outside `by_section`;
+  - a hairpin in `params`.
+- Every existing score renders the same bytes: the two layer examples and the 28 swatch scores on `main`, the 28 re-scored swatches on `claude/swatch-soundtracks`, and an 89-score parts corpus (the `--example` scores, the composition-study demos and the feature corpus from the parts PRs), compared by sha256 of the WAV and of the beat map.
+- Not yet: a tempo map (ritardando, accelerando, fermata) and a top-level pickup bar. The PR has a design note.
+
 **Shot recipes: how a shot moves, and the pacing of a whole film**
 - `recipes/` is a new library of engine-agnostic shot recipes. A recipe carries the motion and pacing of one shot or seam: phases in frames at 30 fps, a parameter table with the critical values marked, pitfalls, the frames to check, and a canvas sketch on the `styles/_swatch` scene API, so any preset's `tokens.json` can skin it (`styles/_swatch/render.sh <dir>`). Style presets keep the look. When the two disagree, the order is user > type doc > project `STYLE.md` > style preset > recipe > playbook, and the CLAUDE.md floors beat all of them.
 - 24 seed recipes:
