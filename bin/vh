@@ -177,7 +177,7 @@ PY
   fi
   if [ -n "$effort" ]; then
     sedi "s/^- Effort: standard /- Effort: $effort /" "$dir/BRIEF.md"
-    [ "$effort" = quick ] && printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
+    [ "$effort" = quick ] && printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；人点名要拍板的事照样停（导演模式）；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
   fi
   if [ -n "$style" ]; then   # the preset rides along: its STYLE.md + tokens, and its prompt block appended to BRIEF
     cp "$ROOT/styles/$style/STYLE.md" "$dir/STYLE_PRESET.md"; cp "$ROOT/styles/$style/tokens.json" "$dir/style.tokens.json"
