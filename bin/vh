@@ -21,7 +21,10 @@
 #   music <score.json> <out.wav> | music --example [name|list] | music --instruments   code-composed soundtrack + exact beat/section map
 #   sfx lib <dir> | sfx place <events.json> <out.wav> [dur]   built-in SFX library / place SFX on action times (stereo, pan/dist)
 #   mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]   3-bus mix, music ducks under the voice (duck=on: + SFX), −14 LUFS
-#   qa <mix> [beats.json] [events.json]  final-mix QA: silence, dropouts, pumping, clicks + cue check (exit 1 on fail)
+#   mix <out.wav> profile=explainer|short|promo|cartoon|mv|swatch [voice=…] [music=…] [events=… lib=…] [timeline=…] [stems=DIR]
+#                               a level hierarchy from one anchor (the narration, else the music): VMR per line, SFX classes, depth
+#   qa <mix> [beats.json] [events.json] [--stems DIR]  final-mix QA: silence, dropouts, pumping, clicks + cue check (+ qa mix) (exit 1 on fail)
+#   qa mix <stems dir>          the mix report of a profile mix: VMR per line, words at risk, SFX classes, depth (exit 1 on a hard miss)
 #   mux <video> <audio> <out> [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video
 #   readcheck <texts.json|project> [--mode onscreen|subtitle] [--lang zh|en]  on-screen text held long enough / subtitles within reading speed (exit 1 on fail)
 #   review <project> [gate]     decision-first review page: out/review/gate-<gate>.json → gate-<gate>.html (+ index.html); prints the chat message (playbook/01-pipeline.md, 审阅页)
@@ -77,7 +80,7 @@ cmd_doctor() {
   chrome=$(chrome_path) || chrome=""
   [ -n "$chrome" ] && echo "$c_ok chrome  $chrome" || echo "$c_no chrome  ($(hint "install Google Chrome" "sudo apt install chromium, or npx playwright install chromium"), or set CHROME_PATH)"
   chk python3 "python3 --version" "needed for audio analysis / Manim"
-  chk uv "uv --version" "$(hint "brew install uv" "curl -LsSf https://astral.sh/uv/install.sh | sh"); bin/vh tts, beats, music, sfx, qa and sheet run through it, Manim envs too"
+  chk uv "uv --version" "$(hint "brew install uv" "curl -LsSf https://astral.sh/uv/install.sh | sh"); bin/vh tts, beats, music, sfx, qa, sheet and mix profiles run through it, Manim envs too"
   chk latex "latex --version" "optional: $(hint "MacTeX: brew install --cask mactex-no-gui" "TeX Live: sudo apt install texlive-latex-extra"), needed for Manim MathTex" "$c_wa"
   chk git "git --version" "needed by references/fetch.sh"
   [ -d "$ROOT/engines/ClaudeAnimationBase/node_modules" ] && echo "$c_ok ClaudeAnimationBase deps installed" || echo "$c_wa ClaudeAnimationBase deps missing → bin/vh setup"
@@ -318,7 +321,11 @@ cmd_captions() {
 cmd_beats() { uv run -q --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
 cmd_music() { uv run -q --with numpy --with scipy python "$ROOT/tools/audio/music.py" "$@"; }
 cmd_sfx() { uv run -q --with numpy --with scipy python "$ROOT/tools/audio/sfx.py" "$@"; }
-cmd_mix() { python3 "$ROOT/tools/audio/mix.py" "$@"; }
+cmd_mix() { # a mix profile computes in numpy/scipy (through uv); the default chain is ffmpeg only and runs on plain python3
+  local a
+  for a in "$@"; do case "$a" in profile=none) ;; profile=*) uv run -q --with numpy --with scipy python "$ROOT/tools/audio/mix.py" "$@"; return ;; esac; done
+  python3 "$ROOT/tools/audio/mix.py" "$@"
+}
 cmd_qa() { uv run -q --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
 cmd_mux() { # output length = video length (audio padded, or trimmed with a 40 ms fade-out); extra .srt args become soft subtitle tracks
   local u="usage: bin/vh mux <video> <audio> <out> [subs.srt…]"
