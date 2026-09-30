@@ -194,7 +194,7 @@ def _blocks(n, timed):
 def _timeline(html):
     """{(file, id): (start, end)} from `hyperframes timeline --json`, HyperFrames' own resolver (0.4 s, no browser),
     when the project has its pinned hyperframes and the file is its index.html; else None."""
-    proj = html.parent
+    proj = Path(html).resolve().parent   # absolute: the command runs with the project as its working directory
     hf = proj / "node_modules" / ".bin" / "hyperframes"
     if html.name != "index.html" or not hf.exists():
         return None

@@ -224,6 +224,16 @@ decision_checks() {
   case "$a" in *"a "*"1.00–   4.00s"*"b "*"4.00–   4.80s"*"c "*"5.30–   6.30s"*"k1"*"6.50–   7.50s"*"NOT checked"*"typo"*)
       case "$a" in *"every timed text"*) bad "readcheck claims it checked everything: $a" ;; *) ok "readcheck resolves relative starts and sub-composition templates" ;; esac ;;
     *) bad "readcheck relative / template timing: $a" ;; esac
+  # with the project's own hyperframes the spans are HyperFrames' (a stand-in prints its timeline), from a relative path too
+  mkdir -p "$t/rel/node_modules/.bin"
+  cat > "$t/rel/node_modules/.bin/hyperframes" <<'SH'
+#!/bin/sh
+echo '{"timeline": {"tracks": [{"rows": [{"id": "a", "absStart": 2, "absEnd": 5.5, "file": "index.html"}]}]}}'
+SH
+  chmod +x "$t/rel/node_modules/.bin/hyperframes"
+  a=$(cd "$t" && vh readcheck rel/index.html)
+  case "$a" in *"a "*"2.00–   5.50s"*"HyperFrames' own timeline"*) ok "readcheck takes the spans from the project's hyperframes timeline" ;;
+    *) bad "readcheck with a project hyperframes: $a" ;; esac
   if ! command -v uv >/dev/null || ! command -v ffmpeg >/dev/null; then skip "storyboard · rhythm · style compare · cover-preview · music --roll" "needs uv and ffmpeg"; rm -rf "$t"; return; fi
   # a small project: 3 shots (one over the type's 5 s, one unsure), a video, narration, captions (one too short) and a score
   printf '%s\n' '# BRIEF' '<!-- from 02-knowledge-short.md -->' > "$p/BRIEF.md"; rm -f "$p/texts.json"
