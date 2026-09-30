@@ -13,7 +13,7 @@
 ## 引擎
 
 - **首选**：HyperFrames。`bin/vh new short <slug>` 会自动以竖屏初始化，不会往全局装 skill。
-  - **短片或静音片**：读 `references/repos/hyperframes/skills/faceless-explainer/references/` 里的设计资料，手写一个 `index.html` 最快。showcase 02 就是这么做的。
+  - **短片或静音片**：读 `references/repos/hyperframes/skills/faceless-explainer/references/` 里的设计资料，手写一个 `index.html` 最快（最小写法见 `engines/README.md` 的"最小写法"）。showcase 02 就是这么做的。
   - **长片、有旁白、多场景**：可以走 HyperFrames 官方的 `/faceless-explainer` 工作流（每一帧派一个 subagent，带音频同步脚本）。它需要装插件或全局 skills（要用户同意），部分功能依赖 HeyGen 账号。
 - **备选**：Remotion + `template-tiktok`（用 whisper.cpp 做字幕）。
 - 穿插公式或几何片段时，用 Manim 单独渲染成片段，再嵌进来。
@@ -32,13 +32,13 @@
 3. **音频先行（有旁白时）**。静音版跳过这一步：时长由分镜的 reads 决定，字幕承载全部信息，而且必须静音可读。
    - 把旁白逐句写进 `audio/script.txt`，运行 `bin/vh tts <项目> <provider> [voice]` 生成 `voiceover.wav` 和 `timeline.json`。草稿用 `say`，正式版用 `gemini`、`dashscope` 或 `elevenlabs`（见 `playbook/04-audio.md`）；
    - 旁白要导演：整体语气用"像在跟朋友讲一个惊人的事实：好奇、有起伏，关键词重读"，每句再在 `[ ]` 里单独导演；有配乐时加 `--beats` 让每句从拍点起。细节见 04 篇"让声音有表情、有节奏"；
-   - 用 FunASR 拿字级时间戳，写入 `audio/timeline.json`；
+   - 要词级时间戳（逐字高亮的字幕）：生成时加 `--align gemini`，词级时间和对稿结果直接写进 `audio/timeline.json`（每句的 `words`，`bin/vh captions` 会用上）；需要 `GEMINI_API_KEY`，见 `playbook/04-audio.md` 的"词级时间和对稿检查"。要离线，用 whisper.cpp（`brew install whisper-cpp`），它没有封装，输出要自己整理进 timeline；
    - 删掉口水词，在 ≥250ms 的停顿处断句。
 4. **分镜**：
    - 一镜一个观点，切点放在旁白短语的边界上；
    - 剪辑频率（第三方统计）：TikTok 1.5–3s，Reels 2.5–4s，Shorts 教程类 3–5s。
 5. **字幕**：
-   - 单行，字号 72–90px，字重 800。竖屏安全框只有 810px 宽，所以 72px 时每行最多 11 个汉字，90px 时最多 9 个。横屏 16:9 才能用到每行 16 字；
+   - 单行，字号 72–90px，字重 800（macOS 的 PingFang SC 最粗只有 600，写 800 实测等于 600，要真 800 得自带字体，见 `engines/README.md`）。竖屏安全框只有 810px 宽，所以 72px 时每行最多 11 个汉字，90px 时最多 9 个。横屏 16:9 才能用到每行 16 字；
    - 只用一个强调色，每句最多强调 1–2 个关键词；
    - 不要永远固定在下三分之一，每 30 秒打破一次节奏；
    - 强调的分布大致是：70% 平常，20% 轻强调，8% 完全强调，2% 高潮。
