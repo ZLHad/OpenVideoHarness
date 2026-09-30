@@ -35,7 +35,7 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 | [Code2Video](https://github.com/showlab/Code2Video) (prompts, src) | Show Lab, NUS | MIT | Anchor-grid critic, ScopeRefine, parallel sections: the "code2video" idea this project generalises |
 | [3brown1blue](https://github.com/AmitSubhash/3brown1blue) (skill) | Amit Subhash | MIT | 3b1b-style and paper-explainer rules, Manim gotchas |
 | [awesome-claude-video-skills](https://github.com/zhuyansen/awesome-claude-video-skills) | Jason Zhu (@GoSailGlobal) / Agent Skills Hub | CC0-1.0 | Catalogue of 183 agent video skills with safety grades; source of `references/community-skills.md` |
-| [lemo-opuscar](https://github.com/lemomo-ai/lemo-opuscar) | LemoLab (Lemomo, @lemomo_ai) | MIT for the whole repo since `02dce5b` (2026-09-29); earlier snapshots put the guides, `STYLE.md` files and films under CC BY 4.0 | 43-style library for aesthetic direction. The reading-time rule and `tools/readcheck.py` are adapted from its `core/render/readcheck.mjs` (MIT) |
+| [lemo-opuscar](https://github.com/lemomo-ai/lemo-opuscar) | LemoLab (Lemomo, @lemomo_ai) | MIT for the whole repo since `02dce5b` (2026-09-29); earlier snapshots put the guides, `STYLE.md` files and films under CC BY 4.0 | 43-style library for aesthetic direction. The reading-time rule and `tools/readcheck.py` are adapted from its `core/render/readcheck.mjs` (MIT). The physically modelled plucked strings in `tools/audio/instruments.py` (the `_pm` voices, and guitar, koto, shamisen, banjo, kalimba): parameter ranges and several preset values from its `core/audio/pluck.py` (MIT); the code is our own |
 | [OpenMontage](https://github.com/calesthio/OpenMontage) | calesthio | AGPL-3.0 | Full agentic production system, used for comparison and ideas (no code reused) |
 | [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) | Vincent Wei (Wei Yihao) | Apache-2.0 | 157 shot recipe cards for product films (some bundled SFX have unverified sources). 17 recipes, 3 pacing skeletons and `recipes/sequences/README.md` are modified from its cards, demos and `promo-energy-arc` skeleton (commit `e2d8928`): the text is rewritten in our own words, no code was copied, and the parameters were adjusted to this repo's rules. Each file names its upstream files in `derived_from`; `recipes/NOTICE.md` lists them (`cases/promo-video-shotcraft.md`) |
 | [video-talkcraft](https://github.com/Vincentwei1021/video-talkcraft) | Vincent Wei | PolyForm Noncommercial 1.0.0 | Voiceover-driven explainer motion (reference only; commercial use needs the author's permission) |
@@ -57,6 +57,24 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 | [product-film-skill](https://github.com/Rieranthony/product-film-skill) | Anthony Riera | MIT (Remotion under its own license) | Product films from the product's own design system: `BRAND.md`, three style frames before building, a 240 fps master for motion blur, a muted loop plus poster, and decode checks in `verify.py` |
 | [procedural-film](https://github.com/kuhnhomeuk-cell/procedural-film) | Dean Kuhn | MIT | Zero-asset JavaScript films: one agent per shot, waves of critics and a six-check gate |
 
+**Read for type 09, editing your own footage** (not fetched by `references/fetch.sh`; ideas and rules only, no code copied)
+
+| Repository | Author | License | What we learned from it |
+|---|---|---|---|
+| [video-use](https://github.com/browser-use/video-use) | browser-use | MIT | An edit list with a reason per cut, a phrase-line view of the transcript, twelve hard rules for cutting talking heads (`engines/editing.md`) |
+| [open-edit](https://github.com/veedstudio/open-edit) | veedstudio | Apache-2.0 | The gap rule of `speech-probe`, frame-snapped single-pass edits, refusing sources with a different colour or frame rate |
+| [cut-motion](https://github.com/Endless1936/cut-motion) | Endless1936 | Apache-2.0 | Median of three thresholds for cut boundaries, asymmetric handles, picture-evidence classes, the Chinese subtitle segmentation standard |
+| [kinocut](https://github.com/KyaniteLabs/kinocut) | KyaniteLabs | Apache-2.0 | An approval hash over the edit list, six timeline-diff checks, a reframing planner that abstains |
+| [timecode-agent](https://github.com/mupozg823/timecode-agent) | mupozg823 | MIT | Seam metrics, FCPXML and OTIO export, refusing variable frame rate |
+| [ghost-editor](https://github.com/kurbaitaev/ghost-editor) | kurbaitaev | MIT | Face-safe caption placement, measured platform overlay pixels, YuNet tracking, snap zoom |
+| [mandarin-talking-head-rough-cut](https://github.com/m15851855393-boop/mandarin-talking-head-rough-cut) | m15851855393-boop | Apache-2.0 | Rules for Chinese fillers, retakes and false starts, the read-through test, energy-valley snapping (paraphrased in `engines/editing.md`, not copied) |
+| [proofcut](https://github.com/tydude001/proofcut) | tydude001 | PolyForm Shield 1.0.0 | The idea only: compare a fresh transcript of the render with the edit list by word order |
+| [SeeCut](https://github.com/YeJe-cpu/SeeCut) | YeJe-cpu | PolyForm Noncommercial 1.0.0 | The idea only: pairwise judging with swapped positions, a function-to-treatment table, layered hand-off for JianYing |
+| [clipify](https://github.com/louisedesadeleer/clipify), [doza-assist](https://github.com/DozaVisuals/doza-assist) | louisedesadeleer, DozaVisuals | MIT | Per-speaker crop expressions with a hard cut on speaker change; learning an editing style from the user's own cuts (pointers only) |
+| [auto-editor](https://github.com/WyattBlue/auto-editor) | WyattBlue | Unlicense | Silence cutting and export to several editors |
+| [capcut-cli](https://github.com/renezander030/capcut-cli), [pyJianYingDraft](https://github.com/GuanYixuan/pyJianYingDraft) | renezander030, GuanYixuan | MIT, Apache-2.0 | The CapCut and JianYing draft formats and the encryption since JianYing 6.0 (documentation only) |
+| [fcp-mcp-server](https://github.com/DareDev256/fcp-mcp-server) | DareDev256 | MIT | Rational frame rates in FCPXML (`fcpxml/rational.py`) |
+
 ## Research
 
 - Chen et al., **Code2Video: A Code-centric Paradigm for Educational Video Generation**, ICML 2026. [arXiv:2510.01174](https://arxiv.org/abs/2510.01174)
@@ -67,6 +85,15 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 - Lopez et al., **SGA: Plug&Play Geometric Verification for Educational Video Synthesis**. [arXiv:2607.18116](https://arxiv.org/abs/2607.18116)
 - Huang et al., **Agentic Visual Generation: From Generative Models to Agentic Control** (survey). [arXiv:2609.06758](https://arxiv.org/abs/2609.06758)
 - Heer & Robertson, **Animated Transitions in Statistical Data Graphics**, InfoVis 2007.
+- Karplus & Strong, **Digital Synthesis of Plucked-String and Drum Timbres**, Computer Music Journal 7(2): 43–55, 1983. [doi:10.2307/3680062](https://doi.org/10.2307/3680062)
+- Jaffe & Smith, **Extensions of the Karplus-Strong Plucked-String Algorithm**, Computer Music Journal 7(2): 56–69, 1983. [doi:10.2307/3680063](https://doi.org/10.2307/3680063)
+- Smith, **Physical Modeling Using Digital Waveguides**, Computer Music Journal 16(4): 74–91, 1992. [doi:10.2307/3680470](https://doi.org/10.2307/3680470)
+- Laakso, Välimäki, Karjalainen & Laine, **Splitting the Unit Delay: Tools for Fractional Delay Filter Design**, IEEE Signal Processing Magazine 13(1): 30–60, January 1996. [doi:10.1109/79.482137](https://doi.org/10.1109/79.482137)
+- Välimäki, Huopaniemi, Karjalainen & Jánosy, **Physical Modeling of Plucked String Instruments with Application to Real-Time Sound Synthesis**, Journal of the Audio Engineering Society 44(5): 331–353, May 1996.
+- Van Duyne & Smith, **A Simplified Approach to Modeling Dispersion Caused by Stiffness in Strings and Plates**, Proceedings of the International Computer Music Conference (ICMC), Århus, 1994, pp. 407–410.
+- Karjalainen & Smith, **Body Modeling Techniques for String Instrument Synthesis**, Proceedings of the International Computer Music Conference (ICMC), Hong Kong, 1996, pp. 232–239.
+- Tolonen, Välimäki & Karjalainen, **Modeling of Tension Modulation Nonlinearity in Plucked Strings**, IEEE Transactions on Speech and Audio Processing 8(3): 300–310, May 2000. [doi:10.1109/89.841212](https://doi.org/10.1109/89.841212)
+- Bensa, Bilbao, Kronland-Martinet & Smith, **The Simulation of Piano String Vibration: From Physical Models to Finite Difference Schemes and Digital Waveguides**, Journal of the Acoustical Society of America 114(2): 1095–1107, 2003 (the b1 + b3·f² decay law of the loss filter). [doi:10.1121/1.1587146](https://doi.org/10.1121/1.1587146)
 - EBU R95 (safe areas); Netflix Timed Text Style Guides (Chinese Simplified and English USA: line length and reading-speed limits used in `playbook/03-motion-design.md` and `tools/readcheck.py`).
 
 ## Toolchain
