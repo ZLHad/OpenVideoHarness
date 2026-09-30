@@ -13,7 +13,7 @@
 - Section counting. A part that plays several sections counted its bar lists and `loop` windows from its own first bar, so a list given in `by_section` for a later section could start part-way through, with no error. `"index": "section"` on the part, or `"pattern_index": "section"` on the score, counts both from each section's first bar. The default is unchanged. The render now warns when a later section's list or loop does start part-way through, and names the bar; it also warns about notes that never land in any bar (past their `loop` window).
 - Dynamics inside a section:
   - `dyn` on a part is a gain line in dB over the whole score (`{"1": -12, "8:3": 0}`), like a fader.
-  - In `by_section`, `cresc` / `dim` shape that section's notes in dB. A note follows the line while it sounds in the section and keeps the end level after it, so a ringing tail never jumps back up.
+  - In `by_section`, `cresc` / `dim` are a line in dB across that section. Everything the part sounds while the section lasts follows it, a note held over from before included. After the section, whatever still rings keeps the end level, so a ringing tail never jumps back up, and notes that start later play at their own level.
   - `vel_ramp` scales velocities by each note's place in the section, so the timbre follows.
   - `{"to": 0.9}` on a note is a hairpin on any voice; a tremolo's strikes follow it.
   - Level steps glide over 10 ms.

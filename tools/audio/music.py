@@ -111,9 +111,10 @@ Parts: instruments playing patterns, rendered beside the layers
     melody    a seeded placeholder tune in the scale on a rhythm "pattern" (chord tones on the beats)
   Dynamics: "dyn": {"1": -12, "8:3": 0, "12": -6} on a part is a gain line in dB over the whole score (bars counted in
     the whole score: "bar", "bar.beat" or "bar:beat"), flat before the first point and after the last: a fader ride on
-    the part, so ringing notes follow it. In by_section, "cresc": [-8, 0] or "dim": [0, -12] shape the notes of that
-    section in dB: a note follows the line while it sounds inside the section and keeps the end level after it (a tail
-    never jumps back up); the next section's notes play at their own level. "vel_ramp": [0.6, 1.0] scales each note's
+    the part, so ringing notes follow it. In by_section, "cresc": [-8, 0] or "dim": [0, -12] is a line in dB across that
+    section: everything the part sounds while it lasts follows the line (a note held over from before too); after it,
+    whatever still rings keeps the end level, so a tail never jumps back up, and notes that start later play at their
+    own level. Textures follow the line in that section's bars. "vel_ramp": [0.6, 1.0] scales each note's
     velocity by its place in the section, so the timbre follows. Level changes glide over 10 ms. Ramp up to 0 dB rather
     than boosting: the mix is normalised to its peak, so a section pushed to +12 dB turns every other one down by
     about as much, and the soft clip flattens its top. dyn, cresc and dim are straight lines in dB; a hairpin (above)
@@ -1039,16 +1040,12 @@ def part_events(part, spec, pbars, cx, R, label=None, cuts=(), stats=None):
         trem = cfg.get("tremolo", True if fig == "tremolo" else None)
         rate = float(spec.defaults.get("tremolo_rate", 12) if trem is True else (trem or 0)); tmin = float(cfg.get("tremolo_min", 0)) * cx.beat
         ramp = bs.get("vel_ramp")   # [from, to]: velocity across this section, by each note's place in it
-        rdb = bs.get("cresc", bs.get("dim"))   # [from, to] dB across this section, carried by each note (render_voice)
-        if rdb is not None:
-            s0 = cx.grid[B.i - B.b].tb; rdb = [s0, s0 + B.sec_beats * cx.beat, float(rdb[0]), float(rdb[1])]
         for pos, dur, p, vel, art, opts in raw:
             t = B.tb + warp(pos, sw, u) * cx.beat; d = max(B.tb + warp(pos + dur, sw, u) * cx.beat - t, 0.005); t -= early
             if pos < 0 and t + early < -1e-9:   # a pickup before the first bar has nowhere to sound
                 print(f"music: warning: part {label}: the pickup at beat {pos:g} before bar {B.i + 1} falls before the score starts "
                       'and is dropped (for an upbeat bar: "meters": {"1": 1})', file=sys.stderr); continue
             o = {**bs.get("params", {}), **opts}
-            if rdb is not None: o["_ramp"] = rdb
             rf = float(ramp[0]) + (float(ramp[1]) - float(ramp[0])) * min(max((B.sec_off + pos) / B.sec_beats, 0.0), 1.0) if ramp else 1.0
             if ramp: vel = vel * rf
             if "to" in o: o = {**o, "to": float(o["to"]) * g * rf}   # a hairpin's target scales like the note's velocity
@@ -1090,15 +1087,36 @@ def part_events(part, spec, pbars, cx, R, label=None, cuts=(), stats=None):
     evs.sort(key=lambda e: e[0])
     return evs
 
-MONO_NOTE = ("glide", "scoop", "slide", "bend", "vibrato", "retrigger", "to", "_ramp")   # knobs read per note inside a phrase
+MONO_NOTE = ("glide", "scoop", "slide", "bend", "vibrato", "retrigger", "to")   # knobs read per note inside a phrase
+
+def part_ramps(part, pbars, cx):
+    """[start s, end s, from dB, to dB] for each section this part plays with a "cresc" / "dim", in order."""
+    bs = part.get("by_section", {}); out = []
+    for B in pbars:
+        rd = bs.get(B.sec, {}).get("cresc", bs.get(B.sec, {}).get("dim"))
+        if rd is not None and B.b == 0: out.append([B.tb, B.tb + B.sec_beats * cx.beat, float(rd[0]), float(rd[1])])
+    return out
 
 def ramp_gain(rp, t, n):
-    """A section's cresc / dim ([start s, end s, from dB, to dB]) as gains for n samples from t: the line inside the
-    section, its end value after it (a ringing note keeps the level it was left at)."""
+    """One cresc / dim as gains for n samples from t: its line inside the section, its end value after it."""
     s0, s1, d0, d1 = rp; u = np.clip((t + np.arange(n) / SR - s0) / max(s1 - s0, 1e-9), 0.0, 1.0)
     return 10 ** ((d0 + (d1 - d0) * u) / 20)
 
-def render_mono(spec, P, notes, R, place, vi):
+def ramp_env(ramps, t, n, smooth=True):
+    """The gains a sound of n samples starting at t takes from its part's cresc / dim sections, or None when none
+    touches it. While a section lasts, everything the part sounds follows its line (a note held over from before too);
+    after it, whatever still rings keeps the end level, so a tail never jumps back up; a later section's line takes
+    over where that section starts. Sections that were over before the sound started leave it alone."""
+    g = None
+    for rp in ramps:
+        if rp[1] <= t or rp[0] >= t + n / SR: continue
+        i0 = max(0, int(round((rp[0] - t) * SR)))
+        if g is None: g = np.ones(n)
+        g[i0:] = ramp_gain(rp, t + i0 / SR, n - i0)
+        if i0 and smooth: k = np.exp(-1 / (0.01 * SR)); g = lfilter([1 - k], [1, -k], g, zi=[k * g[0]])[0]   # the step into the section glides
+    return g
+
+def render_mono(spec, P, notes, R, place, vi, ramps=()):
     """Monophonic phrases: notes closer than 40 ms join (legato: glide, re-bow dip, vibrato carries on). "retrigger" (a
     param, a section param or a note's knob) gives every note its own attack instead. A note whose section params differ
     (by_section) starts a new phrase that uses them; a section's gain_db is applied after the voice, so it never drives
@@ -1117,13 +1135,15 @@ def render_mono(spec, P, notes, R, place, vi):
         scoop, sct = float(Q.get("scoop", 0)), float(Q.get("scoop_time", 0.06))
         rng = R(2, vi, ph[0][5]); t0 = ph[0][0]; end = ph[-1][0] + ph[-1][1] - t0; n = int((end + rel) * SR) + 1; t = ins.secs(n)
         s, lvl, vd, onsets = np.zeros(n), np.zeros(n), np.zeros(n), []
-        gl = np.ones(n) if any(nt[6] != 1 or nt[4].get("_ramp") for nt in ph) else None
+        gl = np.ones(n) if any(nt[6] != 1 for nt in ph) or (ramps and ramp_env(ramps, t0, n, False) is not None) else None
         for j, (tn, dn, m, vel, o, idx, lv) in enumerate(ph):
             a = int(round((tn - t0) * SR)); b = int(round((ph[j + 1][0] - t0) * SR)) if j + 1 < len(ph) else n; tt = t[:b - a]
             s[a:b] = m; lvl[a:b] = vel
             if o.get("to") is not None:   # a hairpin: the level moves from vel to "to" across the note, then holds
                 nn = min(b - a, max(1, int(round(dn * SR)))); lvl[a:a + nn] = np.linspace(vel, float(o["to"]), nn); lvl[a + nn:b] = float(o["to"])
-            if gl is not None: gl[a:b] = lv if not o.get("_ramp") else lv * ramp_gain(o["_ramp"], t0 + a / SR, b - a)
+            if gl is not None:   # the section's level, and any cresc / dim it sounds under (the level line is smoothed below)
+                rg = ramp_env(ramps, t0 + a / SR, b - a, False) if ramps else None
+                gl[a:b] = lv if rg is None else lv * rg
             gln = min(b - a, int(float(o.get("glide", glide)) * SR))
             if j and gln > 0:
                 u = np.arange(gln) / gln; s[a:a + gln] = ph[j - 1][2] + (m - ph[j - 1][2]) * u * u * (3 - 2 * u)
@@ -1143,9 +1163,9 @@ def render_mono(spec, P, notes, R, place, vi):
         if gl is not None: x = x * lfilter([1 - k1], [1, -k1], gl, zi=[k1 * gl[0]])[0]   # the level, after the voice, smoothed
         place(x, t0, ph[0][4].get("_cut"))
 
-def render_voice(part, spec, evs, P, R, N, C, pbars, cuts=()):
+def render_voice(part, spec, evs, P, R, N, C, pbars, cuts=(), ramps=()):
     """One part → (mono stem, stereo stem or None). cuts: the section stops the part does not survive, as part_events
-    takes them; notes carry their own ("_cut"), a texture pauses through each stop."""
+    takes them; notes carry their own ("_cut"), a texture pauses through each stop. ramps: part_ramps."""
     mono = np.zeros(N); st2 = [None]; cache = {}   # the stereo buffer only exists once a stereo voice lands in it
     def place(x, t, cut=None):
         i = int(round(t * SR))
@@ -1197,11 +1217,11 @@ def render_voice(part, spec, evs, P, R, N, C, pbars, cuts=()):
         voices = {}
         for idx, e in enumerate(evs):
             for vi, m in enumerate(e[2] or []): voices.setdefault(vi, []).append((e[0], e[1], m, e[3], e[5], idx, e[7]))
-        for vi, notes in voices.items(): render_mono(spec, P, notes, R, place, vi)
+        for vi, notes in voices.items(): render_mono(spec, P, notes, R, place, vi, ramps)
     else:
         for idx, (t, dur, pitches, vel, art, opts, B, lv, _) in enumerate(evs):
-            hp, cut, rp = opts.get("to"), opts.get("_cut"), opts.get("_ramp")   # a hairpin, a section stop, a section's cresc / dim
-            if hp is not None or cut is not None or rp is not None: opts = {k: v for k, v in opts.items() if k not in ("to", "_cut", "_ramp")}
+            hp, cut = opts.get("to"), opts.get("_cut")   # a hairpin, a section stop
+            if hp is not None or cut is not None: opts = {k: v for k, v in opts.items() if k not in ("to", "_cut")}
             vq = min(8, max(1, round(min(vel, 1.0) * 8))) / 8 if spec.vt else 1.0; ok = json.dumps(opts, sort_keys=True) if opts else ""
             for vi, m in enumerate(pitches if pitches else [None]):
                 var = (idx + vi) % spec.rr; dq = round(dur, 2)
@@ -1211,13 +1231,14 @@ def render_voice(part, spec, evs, P, R, N, C, pbars, cuts=()):
                 else:
                     key = (round(m, 2), dq, vq, var, ok)
                     if key not in cache: cache[key] = spec.fn(m, dq, vq, R(1, int(round(m * 100)), var), {**P, **opts}) * spec.level
-                if hp is None and rp is None: y = cache[key] * vel if lv == 1 else cache[key] * (vel * lv)
+                rg = ramp_env(ramps, t, cache[key].shape[-1]) if ramps else None   # the cresc / dim sections it sounds under
+                if hp is None and rg is None: y = cache[key] * vel if lv == 1 else cache[key] * (vel * lv)
                 else:   # the hairpin moves the level from vel to "to" over the note's length, then holds; a ramp rides on top
                     y = cache[key]; amp = np.full(y.shape[-1], vel * lv)
                     if hp is not None:
                         nn = max(1, int(round(dur * SR))); k = min(nn, y.shape[-1]); amp[k:] = float(hp) * lv
                         amp[:k] = np.linspace(vel * lv, float(hp) * lv, nn)[:k]
-                    if rp is not None: amp *= ramp_gain(rp, t, y.shape[-1])
+                    if rg is not None: amp *= rg
                     y = y * amp
                 place(y, t, cut)
     return mono, st2[0]
@@ -1317,7 +1338,7 @@ def parts_bus(score, legacy, hits, stems=None, info_gain=None):
     dry = np.zeros((C, N)); sends = {}
     for part, spec, label, R, pbars, evs, cuts, silenced in plan:
         P = {**spec.defaults, **part.get("params", {})}
-        mono, st2 = render_voice({**part, "_bpm": score["bpm"]}, spec, evs, P, R, N, C, pbars, cuts)
+        mono, st2 = render_voice({**part, "_bpm": score["bpm"]}, spec, evs, P, R, N, C, pbars, cuts, part_ramps(part, pbars, cx))
         pan = float(part.get("pan", 0)); stem = mono[None] if C == 1 else ins.pan2(mono, pan)
         if st2 is not None: stem = stem + ins.pan2(st2, pan)
         del mono, st2
