@@ -117,9 +117,9 @@ LRA 只差 3 LU，差别在形状：一块平台，对"先压后放、有谷有�
 - **预告片、发布片**：三幕加 button：铺垫（钢琴、弦乐长音、轻的质感）→ 冲突加码（打击乐、更大的配器、riser）→ 高潮（大鼓、铜管、全奏）→ button（Nathan Fields、Rareform、Pryn）。riser 最好是音乐性的：定音鼓或军鼓滚奏的力度渐强、弦乐上行音阶、越来越密的固定音型；段落的 `riser`（噪声加扫频）不在调上，偶尔用一次可以，不要每 4 小节一次。braam 这类"预告片声音"一首最多一次，放在唯一的高点上。
 - **讲解、知识短视频（有旁白）**：
   - 人声段里音乐稳住：一个不动的持续和弦（iZotope），稳定的脉冲和受控的动态（Audio Network）；人声说话时不换配器、音区、调性或速度，不在人声里开始或结束一句旋律，大跳和倚音放进停顿（Garfinkle）；
-  - 按频段让位：人声的能量主体在 500 Hz–1 kHz 左右，辅音的清晰度在 1–4 kHz（Thinkspace）。持续的 pad 做低通（`"lp": 2500`），贝斯放在 250 Hz 以下，沙锤这类放在 6 kHz 以上（`"hp": 6000`）；
+  - 按频段让位：人声的能量主体在 500 Hz–1 kHz 左右（Thinkspace），辅音的清晰度在更高的 1–4 kHz【综合】。持续的 pad 做低通（`"lp": 2500`），贝斯放在 250 Hz 以下，沙锤这类放在 6 kHz 以上（`"hp": 6000`）；
   - 旋律只放在停顿里，越到后面越密；整片只有一处让音乐当主角：旁白停下来的"顿悟"段；
-  - 混音用 `bin/vh mix … music_db=0`。默认的 −6 dB 是按响度平直的配乐设计的；人声段本来就压着的配乐再降 6 dB，句间停顿就会被 `bin/vh qa` 判成掉音（判据：0.1 s 窗口低于这一段的中位电平 12 dB，有人声的段落中位电平主要是人声）。实测一段 40 s 的旁白底：默认 −6 dB 时 2 处掉音，`music_db=0` 时 0 处。
+  - 混音：配乐本身已经为旁白设计好了底（人声段压着，停顿处才上来，像第 7 节的第二个示例）时，用 `bin/vh mix … music_db=0`。默认的 −6 dB 是按响度平直的配乐设计的，对这种配乐再降 6 dB，句间停顿就会被 `bin/vh qa` 判成掉音（判据：0.1 s 窗口低于这一段的中位电平 12 dB，有人声的段落中位电平主要是人声）。那个示例实测：默认 −6 dB 时 2 处掉音，`music_db=0` 时 0 处。没有专门设计过底的配乐，仍按 `04-audio.md` 的默认混（`duck=voice`，−6 dB）。
 - **产品片**：动机可以当声音 logo：一个短而独特的旋律放在开头或结尾，和品牌绑在一起（Intel、Netflix，见 Sonic branding）。"问题"段用同一个动机的暗色版本（换调式、放低音区），揭晓时主题第一次完整出现，第 7 节的示例就是这样。
 - **中国题材**：起承转合可以直接当四章用。"转"的做法：同主音换五声调式（羽 → 宫），换音区，或者用节奏减值做出"加快"的感觉（整首只有一个 `bpm`，不能变速）。"合"可以用支声复调：两件乐器奏同一条旋律，一件加花（古琴的滑音、吟、猱），一件平直（箫低八度）。锣鼓经当标点：一个"仓"收住一章，余音接进下一章。
 - **共同的落点规则**：大的篇章切换落在小节线上，揭晓落在强拍上，标题落在 button 上；音乐的进入可以藏在音效或剪辑后面，让人察觉不到它从哪一刻开始（Art of Composing）；主题和动机的入口写成 `"hit": "section"`，节拍表里就有这些时间点，画面和 `bin/vh qa` 的 cue check 都能用。
@@ -132,6 +132,7 @@ agent 听不到声音，每一步都要能读出来。
 **响度曲线**：ffmpeg 的 `ebur128` 滤镜每 0.1 s 给一个 momentary（0.4 s 窗）和 short-term（3 s 窗）响度，最后给 LRA（short-term 响度分布的 10% 到 95% 分位之差；EBU Tech 3341、3342）。每个值标在窗口的末尾，所以 short-term 往前挪 1.5 s，再按节拍表的段落求平均：
 
 ```bash
+# 在项目目录里跑
 ffmpeg -nostats -i audio/music.wav -af ebur128=framelog=info -f null - 2> audio/ebur128.log
 python3 - audio/ebur128.log audio/music.beats.json <<'PY'
 import json, re, sys
@@ -154,6 +155,37 @@ PY
 - 旁白底和起承转合的起伏可以小一些，写示例时量到的是 7–8 LU，"转"也可以早一点（57%）；
 - 有旁白时再按第 5 节的判据看停顿处的掉音。
 
+**旋律压不压得住伴奏**："缺旋律"听不见，只能量。起步目标【综合】：主旋律比这一段最响的伴奏声部高 3 dB 以上；在旋律和人声所在的 300 Hz–4 kHz 里，比所有伴奏加起来至少高 2 dB。只剩一件乐器加一层底的段落，看第二个数就行。引擎的 `render()` 能交出每个声部的干声 stem（`music.py` 里给测试和工具用的接口，签名以代码为准），按段落比电平：
+
+```bash
+# 在仓库根目录跑；第二个参数是主旋律声部的 id，逗号分隔
+uv run --with numpy --with scipy python - projects/<p>/audio/score.json brass_theme,str_theme <<'PY'
+import json, sys; sys.path.insert(0, "tools/audio")
+import numpy as np, music, instruments as ins
+score, lead = json.load(open(sys.argv[1])), set(sys.argv[2].split(","))
+stems, info = {}, {}; _, bm = music.render(score, stems=stems, info=info)
+g, SR = info["gain"], music.SR
+plays, n = {}, {}
+for p in score["parts"]:                                   # 声部名和引擎的一样：id，或"乐器#序号"
+    k = p.get("id") or f'{p["inst"]}#{n.setdefault(p["inst"], 0)}'
+    if "id" not in p: n[p["inst"]] += 1
+    plays[k] = p.get("sections", "all")
+db = lambda x: 20 * np.log10(np.sqrt(np.mean(x ** 2)) + 1e-12)
+band = lambda x: ins.hpf(ins.lpf(x, 4000, 4), 300, 4)
+for s in bm["sections"]:
+    i, j = int(s["start"] * SR), int(s["end"] * SR)
+    here = {k: v[:, i:j].mean(0) * g for k, v in stems.items() if plays[k] == "all" or s["name"] in plays[k]}
+    L, O = [k for k in here if k in lead], [k for k in here if k not in lead]
+    if not L: continue
+    top = max((db(here[k]) for k in O), default=-120.0)
+    lo = sum((here[k] for k in O), np.zeros(j - i))
+    print(f"{s['name']:10s} lead {max(db(here[k]) for k in L) - top:+5.1f} dB over the loudest other part · "
+          f"{db(band(sum(here[k] for k in L))) - db(band(lo)):+5.1f} dB over all others in 300 Hz–4 kHz")
+PY
+```
+
+产品片示例（主旋律声部是 `piano_q`、`mel_str`、`mel_pno`、`mel_fl`、`brass_theme`、`str_theme`、`celesta`）：高潮段 +6.7 / +7.9 dB，主题后句 +6.8 / +8.3 dB；只剩钢琴加 drone 的问题段 +1.8 / +6.0 dB。
+
 **音符对不对**：如果 `bin/vh music --roll` 可用，渲染前先用它看每个声部每小节实际奏出的音：旋律是不是写的那样，模进是不是在走。
 
 **成品有没有毛病**：`bin/vh qa music.wav music.beats.json` 查数字静音、掉音、抽吸、click，并做 cue check。
@@ -165,7 +197,11 @@ PY
 - **鼓太响会吃掉峰值余量**：整首按峰值归一到 `master_db`（默认 −1 dBFS），鼓的瞬态一高，持续的旋律就被整体压低 → 鼓放在旋律下面。示例的第一版高潮段，定音鼓只比铜管主旋律低 0.7 dB；把鼓调低以后，主旋律高出最响的伴奏 7 dB，高潮段整体还响了 0.5 LU。
 - 两个小的：`loop` 和按小节的 `pattern` 列表数的是这个声部自己的小节，一个声部跨好几段时，列表要轮换，或者每段单独起一个声部；片头第一个音（t = 0）的 cue 检测会晚约 48 ms，不要把 t = 0 写成 hit。
 
-## 7. 示例：产品片弧线（58.5 s）
+## 7. 两个示例
+
+两首都只用现有引擎，两次渲染字节相同，`bin/vh qa` 通过。
+
+### 7.1 产品片弧线（58.5 s）
 
 120 BPM（30 fps 下一拍 15 帧），D 大调，开头用 D 弗里吉亚。一个动机撑起全曲：1-5-4-3（D A G F#），上行纯五度，再级进落回。`sections` 的小节数是 chaos 4 · nova 1 · question 2 · theme_a 4 · theme_b 4 · develop 5 · climax 4 · coda 3，`"meters": {"7": 6, "27": 6}`：第 7 小节的 6/4 相当于写出来的延长记号，第 27 小节让最后一个和弦响完。
 
@@ -210,6 +246,29 @@ PY
 ```
 
 发展段的和弦是 `["I", "ii", "iii", "IV V", "bVI bVII"]`：前三小节的 `c0 c2 +5` 自动变成 D-A-G、E-B-A、F#-C#-B；后两小节只剩"根音 → 五音"，一小节两个和弦。bVI、bVII 是调外和弦，所以这里用 `c` 记号。
+
+### 7.2 讲解片的旁白底（39.7 s）
+
+旁白讲"天空为什么是蓝的？"，100 BPM（30 fps 下一拍 18 帧），G 大调。动机是一个问句 Q：和弦的 3、5、6 音（`s2 s4 s5`，在 G 上是 B-D-E），往上停在不稳定的六级。它用和弦相对的记号写，每次出现自动换和声：D 上是 F#-A-B，C 上是 E-G-A。人声说话时音乐不动：一个低通到 2.5 kHz 的 pad、G2–D3 的低音、轻底鼓、6 kHz 以上的沙锤，500 Hz–3 kHz 里不起新东西；Q 只在句与句之间出现。
+
+| 段 | 时间 | 平均响度 | 音乐在做什么 |
+|---|---|---|---|
+| hook | 0–2.4 s | −18.6 LUFS | 问句之后，钢片琴只奏 Q：B-D-E |
+| setup | 2.4–12 s | −20.1 | 人声段只有底；第 5 小节人声停下后，Q 在属和弦上出现（F#-A-B），这一段停在"问号"上 |
+| explain | 12–24 s | −18.1 | 加边击和中低音区的竖琴分解和弦（有节奏、没有旋律）；Q 的片段只在两句之间，第 10 小节连续两次、第二次高一级；然后 stopdown，只留 pad 给"这就是——" |
+| aha | 24–31.2 s | −12.8（全曲最高，在 70% 处） | 没有人声，全片唯一让音乐当主角的地方：Q、高一级的 Q、答句 E-D-A-G 落在主音；钢琴，弦乐低八度，钟琴高八度，鼓进来 |
+| button | 31.2–37.2 s | −19.5 | 人声说出"瑞利散射"，只剩底；然后钢片琴单独奏答句，做片尾的 sting |
+
+Q 在讲解段的写法（摘录）：
+
+```json
+{"inst": "celesta", "id": "q_explain", "sections": ["explain"], "octave": 4, "loop": 5, "gain_db": -10, "hit": true,
+ "pattern": [[7, 0.25, "s2", 0.6], [7.25, 0.25, "s4", 0.62], [7.5, 0.5, "s5", 0.64],
+             [16, 0.25, "s2", 0.62], [16.25, 0.25, "s4", 0.64], [16.5, 0.5, "s5", 0.66],
+             [17, 0.25, "s3", 0.66], [17.25, 0.25, "s5", 0.68], [17.5, 0.5, "s6", 0.72]]}
+```
+
+第 10 小节第 2 拍的 stopdown 要在每个还在响的声部里分别写：伴奏型没法在小节中间停，就改写成网格；跨段的按小节列表（这里的底鼓、低音、沙锤）要按声部自己的小节数轮换：底鼓在 setup 里已经走了 4 个小节，所以 explain 的第 1 小节取的是列表的第 5 条。混音用 `music_db=0`（第 5 节）。
 
 ## 延伸阅读 / 来源
 

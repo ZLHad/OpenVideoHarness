@@ -29,7 +29,7 @@
    - 0–1 s 让人停下：第 1 秒给出结论、反常识的数字或有冲突的画面，不放 logo，不说"大家好"；
    - 1–3 s 讲清看完能得到什么；
    - 3–6 s 给第一个小回报，证明承诺是真的。TikTok 官方说前 3–6 秒最关键，每个钩子都要兑现 [S2]；
-   - 15 s 之前再给一个小问题或小回报，之后每 3–5 秒一个新的视觉回报；
+   - 15 s 之前再给一个小问题或小回报【推测】，之后每 3–5 秒一个新的视觉回报；
    - 关卡 ① 出 3 张不同类型的钩子卡，各配 2 个标题和 1 个封面，让人选（`playbook/10-hooks-and-packaging.md`）；
    - 字数按 `playbook/04-audio.md` 语速表的句内语速（知识科普 4.5–5.5 字/秒）乘 0.85 倒推，留出句间停顿：45 秒约 170–210 字。最终时长以 TTS 实测为准；
    - 长于 90 秒、要讲出起伏的，用 `playbook/09-narrative.md` 的节拍表。
@@ -40,7 +40,7 @@
    - 删掉口水词，在 ≥250ms 的停顿处断句。
 4. **分镜**：
    - 一镜一个观点，切点放在旁白短语的边界上；
-   - 刀速由 reads 决定，不定目标刀数。每一刀都要带新信息（新构图、新事实、新视角）：电视研究里，剪辑引发定向反应，是因为它向观众引入了新信息 [S19d]。成簇地快、成簇地慢，不用恒定的刀速 [S20]；
+   - 刀速由 reads 决定，不定目标刀数。电视研究里，剪辑引发定向反应，是因为它向观众引入了新信息 [S19d]；好莱坞电影里相邻镜头的长度越来越相关 [S20]。由此推出两条【综合】：每一刀都要带新信息（新构图、新事实、新视角）；成簇地快、成簇地慢，不用恒定的刀速；
    - 起点：钩子段 1.5–3 s，中段 3–5 s，"转"之前放慢，形状是"快 → 中 → 停 → 快 → 停"【综合】。流传的"TikTok 1.5–3 s、Reels 2.5–4 s、Shorts 教程类 3–5 s"是第三方统计，找不到原始数据【推测】。
 5. **字幕**：
    - 单行，字号 72–90px，字重 800（macOS 的 PingFang SC 最粗只有 600，写 800 实测等于 600，要真 800 得自带字体，见 `engines/README.md`）。竖屏安全框只有 810px 宽，所以 72px 时每行最多 11 个汉字，90px 时最多 9 个。横屏 16:9 才能用到每行 16 字；
@@ -48,9 +48,11 @@
    - 不要永远固定在下三分之一，每 30 秒打破一次节奏；
    - 强调的分布大致是：70% 平常，20% 轻强调，8% 完全强调，2% 高潮；
    - 选一种主风格【综合】：逐句（讲解的默认）；关键词强调（大多数知识片）；逐词高亮（只给高潮段，约 2% 的时长）；大字报（1–3 个词占满画面，只给钩子和转折，130–170 px）；对话条（问答）；双语（主语言大、副语言小，适合横屏，竖屏宽度不够）；
-   - 静音可读，有声更好。信息流里静音观看是常态：Meta 测过，加字幕的视频广告平均多看 12% [S16a]；美国的调查里 69% 的人在公共场合静音看视频，英国 18–24 岁的人 80% 看电视时开字幕【二手】[S17a][S17b]。但无声观看让认知负荷明显升高、沉浸和愉悦下降，理解只略低（161 人的眼动实验，81% 对 78% [S17c]），TikTok 也说自己是开声音的平台 [S2]。所以静音交付时同屏信息量减少，画面文字在 `playbook/03-motion-design.md` §2 的最少停留时间上再留 0.5–1 s（加多少没有数据【推测】）；有旁白时字幕只留关键词和短句（Mayer 的冗余原则 [S21]，见 `playbook/09-narrative.md` 第 4.2 节）；
+   - 静音可读，有声更好。信息流里静音观看是常态：Meta 测过，加字幕的视频广告平均多看 12% [S16a]；美国的调查里 69% 的人在公共场合静音看视频，英国 18–24 岁的人有 80% 看电视时部分或全部时间开着字幕【二手】[S17a][S17b]；
+   - 但无声观看更累：一项 161 人的眼动实验里，认知负荷明显升高、沉浸和愉悦下降，理解只略低（81% 对 78%）[S17c]；TikTok 也说自己是开声音的平台 [S2]。所以静音交付时同屏信息量减少，画面文字在 `playbook/03-motion-design.md` §2 的最少停留时间上再留 0.5–1 s（加多少没有数据【推测】）；
+   - 竖屏短视频多数人静音看，旁白照常逐句上字幕。只有学习目标强、以有声观看为主的讲解（横屏的课程、B站长讲解），字幕才可以只留关键词和短句（Mayer 的冗余原则，见 `playbook/09-narrative.md` 第 4.2 节）【综合】；
    - 横屏字幕按 Netflix 的规范：中文每行 ≤ 16 字、≤ 9 字/秒、最多 2 行，不用逗号句号，用空格代替，问号、感叹号保留 [S18b]；英文每行 ≤ 42 字符、≤ 20 字符/秒、最多 2 行 [S18a]。
-6. **安全框**：关键内容放在 x 90–900、y 330–1520 之内，背景可以铺满。UI 遮挡多少像素，官方没有固定值：TikTok 只说遮挡随比例、文案长度和格式变化，给的是可下载的模板 [S3]；第三方给的 TikTok 下沿从 324 到 484 px 不等【二手】[S23]。有长文案、带话题标签的平台（抖音、小红书），把字幕带放在 y ≤ 1440 以内，发布前拿真机截图叠在联系表上校准【推测】。
+6. **安全框**：关键内容放在 x 90–900、y 330–1520 之内，背景可以铺满。UI 遮挡多少像素，官方没有固定值：TikTok 只说遮挡随比例、文案长度和格式变化，给的是可下载的模板 [S3]；第三方给的 TikTok 下沿从 324 到 640 px 不等【二手】[S23]。有长文案、带话题标签的平台（抖音、小红书），把字幕带放在 y ≤ 1440 以内，发布前拿真机截图叠在联系表上校准【推测】。
 7. **交付**：
    - 视频在第 1 秒静音状态下就能看懂；
    - 另外出一张封面图：1080×1440（3:4）主图，关键元素放进中心 1080×1080，3:4、6:7、1:1 的裁切就都不丢字【综合】。标题、封面、前 6 秒承诺同一件事，版式见 `playbook/10-hooks-and-packaging.md`；
@@ -160,33 +162,32 @@ Cover: 1080x1440 (3:4) master with all key elements inside the central 1080x1080
 
 ## 来源
 
-调研日期 2026-10-01。编号和 `playbook/10-hooks-and-packaging.md` 的来源表一致，每条的等级和读取情况也写在那里。
+调研日期 2026-10-01，编号和 `playbook/10-hooks-and-packaging.md` 的来源表一致。括号里是等级和读取情况：官 = 平台或机构的官方页面，论 = 论文，媒 = 新闻、行业媒体或二手转述，搜 = 只读到搜索摘要；读 = 读了原页。
 
-- [S1] TikTok Newsroom, "How TikTok recommends videos #ForYou", 2020-06-18: https://newsroom.tiktok.com/en-us/how-tiktok-recommends-videos-for-you
-- [S1b] TikTok Newsroom, "More Tok on the Clock: Introducing longer videos on TikTok", 2021-07-01: https://newsroom.tiktok.com/longer-videos?lang=en
-- [S2] TikTok, "TikTok Creative Made Simple"（官方 PDF）: https://ads.tiktok.com/business/library/SMB_Creative_Playbook_External.pdf
-- [S3] TikTok Ads Help, "Video ad specifications": https://ads.tiktok.com/help/article/video-ads-specifications?lang=en
-- [S4] YouTube Help, "Understand three-minute YouTube Shorts": https://support.google.com/youtube/answer/15424877
-- [S5] YouTube Help, "Get started creating YouTube Shorts": https://support.google.com/youtube/answer/10059070
-- [S6] YouTube Help, "What's new in Studio Content Manager"（Shorts 播放量口径）: https://support.google.com/youtube/answer/9082582
-- [S7] YouTube Help, "Audience retention report": https://support.google.com/youtube/answer/9314415
+- [S1] TikTok Newsroom, "How TikTok recommends videos #ForYou", 2020-06-18: https://newsroom.tiktok.com/en-us/how-tiktok-recommends-videos-for-you （官 / 读）
+- [S1b] TikTok Newsroom, "More Tok on the Clock: Introducing longer videos on TikTok", 2021-07-01: https://newsroom.tiktok.com/longer-videos?lang=en （官 / 读）
+- [S2] TikTok, "TikTok Creative Made Simple"（官方 PDF）: https://ads.tiktok.com/business/library/SMB_Creative_Playbook_External.pdf （官 / 读，文本抽取）
+- [S3] TikTok Ads Help, "Video ad specifications": https://ads.tiktok.com/help/article/video-ads-specifications?lang=en （官 / 读）
+- [S4] YouTube Help, "Understand three-minute YouTube Shorts": https://support.google.com/youtube/answer/15424877 （官 / 读）
+- [S5] YouTube Help, "Get started creating YouTube Shorts": https://support.google.com/youtube/answer/10059070 （官 / 读）
+- [S6] YouTube Help, "What's new in Studio Content Manager"（Shorts 播放量口径）: https://support.google.com/youtube/answer/9082582 （官 / 读）
+- [S7] YouTube Help, "Audience retention report": https://support.google.com/youtube/answer/9314415 （官 / 读）
 - [S8] YouTube Community, "New YouTube Shorts Metric – Viewed vs Swiped Away"（正文没读到，定义取自二手描述）: https://support.google.com/youtube/community-video/273390203
-- [S9] YouTube Blog, "YouTube Shorts deep dive: a conversation with Todd Sherman and Jenny Hoyos": https://blog.youtube/creator-and-artist-stories/youtube-shorts-deep-dive/
-- [S10] YouTube Help, 标题与描述的字数上限: https://support.google.com/youtube/answer/57404
-- [S11] 抖音公开推荐算法原理的媒体报道：新浪财经 2025-04-02 https://finance.sina.com.cn/wm/2025-04-02/doc-inertmqz3816189.shtml ；新浪财经 2025-04-16 https://finance.sina.com.cn/roll/2025-04-16/doc-inetirww6989013.shtml ；财联社 https://www.cls.cn/detail/2007317
-- [S12] 新榜《微信视频号公开算法推荐原理》: https://newrank.cn/article/detail/30829
-- [S13] 人人都是产品经理《B站的推荐算法机制大揭秘》: https://www.woshipm.com/ai/5851759.html
-- [S15a] 网易科技《小红书上线视频号，支持 15 分钟时长视频发布》，2020-08-17: https://www.163.com/tech/article/FK7RC3T200097U7R.html
-- [S15b] 虎嗅《小红书获 2026 世界杯转播权…全面押注中长视频》: https://www.huxiu.com/article/4861801.html
+- [S9] YouTube Blog, "YouTube Shorts deep dive: a conversation with Todd Sherman and Jenny Hoyos": https://blog.youtube/creator-and-artist-stories/youtube-shorts-deep-dive/ （官 / 读）
+- [S10] YouTube Help, 标题与描述的字数上限: https://support.google.com/youtube/answer/57404 （官 / 读）
+- [S11] 抖音公开推荐算法原理的媒体报道：新浪财经 2025-04-02 https://finance.sina.com.cn/wm/2025-04-02/doc-inertmqz3816189.shtml ；新浪财经 2025-04-16 https://finance.sina.com.cn/roll/2025-04-16/doc-inetirww6989013.shtml ；财联社 https://www.cls.cn/detail/2007317 （媒，转述官方 / 读）
+- [S12] 新榜《微信视频号公开算法推荐原理》: https://newrank.cn/article/detail/30829 （媒，转述"微信珊瑚安全" / 读）
+- [S13] 人人都是产品经理《B站的推荐算法机制大揭秘》: https://www.woshipm.com/ai/5851759.html （媒 / 读）
+- [S15a] 网易科技《小红书上线视频号，支持 15 分钟时长视频发布》，2020-08-17: https://www.163.com/tech/article/FK7RC3T200097U7R.html （媒 / 读）
+- [S15b] 虎嗅《小红书获 2026 世界杯转播权…全面押注中长视频》: https://www.huxiu.com/article/4861801.html （媒 / 读）
 - [S15c] CES 加权的流传说法（搜索结果，没有官方原文）: https://www.woshipm.com/operate/3463792.html
-- [S16a] Meta, "Capture Attention with Updated Features for Video Ads"（页面无日期）: https://www.facebook.com/business/news/updated-features-for-video-ads
+- [S16a] Meta, "Capture Attention with Updated Features for Video Ads"（页面无日期）: https://www.facebook.com/business/news/updated-features-for-video-ads （官 / 读）
 - [S17a] Verizon Media 与 Publicis Media 2019 年调查，经 Forbes 转述（只读到搜索摘要）: https://www.forbes.com/sites/tjmccue/2019/07/31/verizon-media-says-69-percent-of-consumers-watching-video-with-sound-off/
 - [S17b] Stagetext 2021 年调查（只读到搜索摘要）: https://www.stagetext.org/news/yougov-survey-supports-stagetexts-findings/
-- [S17c] Szarkowska et al., "Watching subtitled videos with the sound off affects viewers' comprehension, cognitive load, immersion, enjoyment, and gaze patterns", PLoS ONE, 2024: https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0306251
-- [S18a] Netflix, English Timed Text Style Guide: https://partnerhelp.netflixstudios.com/hc/en-us/articles/217350977-English-Timed-Text-Style-Guide
-- [S18b] Netflix, Chinese (Simplified) Timed Text Style Guide: https://partnerhelp.netflixstudios.com/hc/en-us/articles/215986007-Chinese-Simplified-Timed-Text-Style-Guide
-- [S19d] Lang, Zhou, Schwartz, Bolls, Potter, "The effects of edits on arousal, attention, and memory for television messages", J. Broadcasting & Electronic Media 44(1), 2000（只读到搜索摘要：39 名大学生，唤起和记忆随剪辑频率增加而增加）；Potter, Bolls, Lang, Zhou et al., "What is it? Orienting to structural features of radio messages", 1997: https://files.eric.ed.gov/fulltext/ED415554.pdf
-- [S20] Cutting, DeLong, Nothelfer, "Attention and the evolution of Hollywood film", Psychological Science 21(3), 2010: https://journals.sagepub.com/doi/10.1177/0956797610361679
-- [S21] Mayer 的冗余原则及其例外（二手总结）: https://www.devlinpeck.com/content/mayers-principles-of-multimedia-learning
+- [S17c] Szarkowska et al., "Watching subtitled videos with the sound off affects viewers' comprehension, cognitive load, immersion, enjoyment, and gaze patterns", PLoS ONE, 2024: https://journals.plos.org/plosone/article?id=10.1371%2Fjournal.pone.0306251 （论 / 读）
+- [S18a] Netflix, English Timed Text Style Guide: https://partnerhelp.netflixstudios.com/hc/en-us/articles/217350977-English-Timed-Text-Style-Guide （官 / 读）
+- [S18b] Netflix, Chinese (Simplified) Timed Text Style Guide: https://partnerhelp.netflixstudios.com/hc/en-us/articles/215986007-Chinese-Simplified-Timed-Text-Style-Guide （官 / 读）
+- [S19d] Lang, Zhou, Schwartz, Bolls, Potter, "The effects of edits on arousal, attention, and memory for television messages", J. Broadcasting & Electronic Media 44(1), 2000（只读到搜索摘要：39 名大学生，唤起和记忆随剪辑频率增加而增加）；Potter, Bolls, Lang, Zhou et al., "What is it? Orienting to structural features of radio messages", 1997: https://files.eric.ed.gov/fulltext/ED415554.pdf （论 / Lang 2000 搜，ERIC 读）
+- [S20] Cutting, DeLong, Nothelfer, "Attention and the evolution of Hollywood film", Psychological Science 21(3), 2010: https://journals.sagepub.com/doi/10.1177/0956797610361679 （论 / 读摘要）
 - [S23] 第三方的规格和安全区数字（只读到搜索摘要，没有官方佐证），具体网站列在 `playbook/10-hooks-and-packaging.md` 的来源表
-- [S24] 中文短视频"黄金 3 秒"的二手总结: https://www.woshipm.com/operate/6181785.html 、https://www.ixunke.com/article/562
+- [S24] 中文短视频"黄金 3 秒"的二手总结: https://www.woshipm.com/operate/6181785.html 、https://www.ixunke.com/article/562 （搜）
