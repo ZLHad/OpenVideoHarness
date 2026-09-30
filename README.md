@@ -200,6 +200,8 @@ A few more guides:
 - **Realistic people or real physics:** bring in a generative video model, then layer code on top ([playbook/05](playbook/05-hybrid-genvideo.md)).
 - **Effects, transitions, one-take 3D:** [playbook/08](playbook/08-vfx-and-motion-sources.md).
 - **Breaking down someone else's film:** [playbook/07](playbook/07-reverse-engineer.md).
+- **A story with rises and falls, or a film of 3 minutes or more:** [playbook/09](playbook/09-narrative.md) (structures, beat sheets, the tension curve, act breaks).
+- **Posting to short-video platforms: the opening hook, title and cover:** [playbook/10](playbook/10-hooks-and-packaging.md).
 
 ## Sound
 
@@ -288,7 +290,7 @@ OpenVideoHarness/
 ├── bin/vh · tools/           the command line and the scripts behind it
 ├── skills/                   the open-video-harness skill
 ├── video-types/              workflows for the 8 video types
-├── playbook/                 shared know-how 00–08: pipeline, checks, motion, sound, effects and more
+├── playbook/                 shared know-how 00–10: pipeline, checks, motion, sound, effects, narrative, hooks and covers
 ├── templates/                files each new project fills in: brief, storyboard, style, review, notes, lessons, checklist
 ├── styles/                   28 styles, each with a sample; _swatch/ renders the samples
 ├── cases/                    11 case studies + curated community work + a 3D long-form deep-dive

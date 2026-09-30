@@ -32,6 +32,8 @@
    4. 证据（数字计数）；
    5. 0.5 秒静止；
    6. logo 定版。
+
+   60–90 秒的介绍片按 `playbook/09-narrative.md` 排节拍和换挡（压缩的三幕：问题 → 功能 → 证据）；要发平台的，开头钩子、标题和封面见 `playbook/10-hooks-and-packaging.md`。
 5. **镜头**：
    - 一台连续的虚拟摄像机，推、拉、摇各 1.5–3s，easeInOutCubic；
    - 速度"按你默认速度的一半"（@jake11moran 的写法）；

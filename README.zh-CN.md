@@ -199,7 +199,9 @@ bin/vh new promo launch-film --style cutout-jazz   # 建项目时直接带上一
 还有几份专题：
 - 要写实人物或真实物理，就接生成式视频模型，再用代码叠加：[playbook/05](playbook/05-hybrid-genvideo.md)；
 - 要特效、转场、一镜到底的 3D：[playbook/08](playbook/08-vfx-and-motion-sources.md)；
-- 要拆解别人的片子：[playbook/07](playbook/07-reverse-engineer.md)。
+- 要拆解别人的片子：[playbook/07](playbook/07-reverse-engineer.md)；
+- 要讲一个有起伏的故事，或做 3 分钟以上的长片：[playbook/09](playbook/09-narrative.md)（骨架、节拍表、张力曲线、换挡）；
+- 要发短视频平台，想好开头钩子、标题和封面：[playbook/10](playbook/10-hooks-and-packaging.md)。
 
 ## 声音
 
@@ -288,7 +290,7 @@ OpenVideoHarness/
 ├── bin/vh · tools/           命令行和背后的脚本
 ├── skills/                   open-video-harness skill
 ├── video-types/              8 类视频的工作流
-├── playbook/                 通用知识 00–08：流程、自查、运动设计、声音、特效等
+├── playbook/                 通用知识 00–10：流程、自查、运动设计、声音、特效、叙事、钩子与封面等
 ├── templates/                每个新项目要填的文件：需求、分镜、风格、审阅、笔记、经验、清单
 ├── styles/                   28 种风格，各带样片；_swatch/ 是样片渲染器
 ├── cases/                    11 个案例拆解 + 社区作品精选 + 一支 3D 长片深读
