@@ -339,12 +339,17 @@ def pipa(m, dur, vel, rng, P):
     return fade(x, 0.0005, 0.03)
 
 
+GUQIN_HARM_DB = ((24, 8.4), (30, 9.5), (36, 9.6), (42, 11.4), (48, 11.9), (54, 13.3), (60, 13.8), (66, 14.9), (72, 19.2), (78, 22.0),
+                 (84, 24.4), (90, 24.6), (96, 35.8))   # measured: harmonic minus pluck, loudest 400 ms, mean of velocity 0.5 / 0.7 / 1
+
+
 def guqin(m, dur, vel, rng, P):
     """Low silk string, very long ring. Per note (art dict or params): slide (start this many semitones away and glide in),
     bend (press after the pluck), yin (吟, small vibrato), nao (猱, wide slow vibrato), harm (泛音: a pure harmonic)."""
     f0 = float(mtof(m)); n = int(min(float(np.clip(6 * (131 / f0) ** 0.3, 3, 9)), 5.0) * SR); t = secs(n)
-    if P.get("harm"):
+    if P.get("harm"):   # as loud as a plucked note of the same pitch and velocity (loudest 400 ms), not 9–35 dB louder
         x = modal(f0, n, [(1, 1.0, 1.6), (2, 0.15, 0.6), (3, 0.04, 0.3)]) + burst(rng, n, 2000, 8000, 0.001, 0.1)
+        x = x * 10 ** (-float(np.interp(float(m), *zip(*GUQIN_HARM_DB))) / 20)
         return fade(x * _ringing(n, dur, P), 0.0008, 0.05)
     s = np.zeros(n)
     if P.get("slide"):
@@ -531,12 +536,16 @@ def sq_bass(m, dur, vel, rng, P):
 
 
 def seq(m, dur, vel, rng, P):
-    """HUD sequence voice: a short saw (or square) blip through a resonant low-pass with a snappy envelope."""
+    """HUD sequence voice: a short saw (or square) blip through a resonant low-pass with a snappy envelope; attack (s)
+    softens the note head (an open filter makes a hard edge that qa lists as a click)."""
     f0 = float(mtof(m)); n = int(min(dur + 0.05, 0.6) * SR); t = secs(n)
     x = pulse(f0, n, 0.5) if P.get("wave") == "square" else saw(f0, n)
     base = float(P.get("cutoff", 1200)); fc = base * (1 + float(P.get("env", 3.0)) * vel * np.exp(-t / 0.06))
     x = sweep_lp(x, fc, res=float(P.get("res", 3.0)), block=32)
-    return fade(x * np.exp(-t / float(P.get("decay", 0.12))) * release_after(n, dur, 0.02), 0.001, 0.005)
+    x = x * np.exp(-t / float(P.get("decay", 0.12))) * release_after(n, dur, 0.02)
+    att = float(P.get("attack", 0))
+    if att > 0: x = x * (0.5 - 0.5 * np.cos(np.pi * np.clip(t / att, 0, 1)))
+    return fade(x, 0.001, 0.005)
 
 
 def cs80(m, dur, vel, rng, P):
@@ -858,10 +867,12 @@ LUOGU = {   # 锣鼓经 syllables → gains of (大锣 big gong, 小锣 small go
 def luogu(vel, art, dur, rng, P, f=None):
     """锣鼓经 kit: write the syllables in the grid. 仓 (大锣 + 铙钹 + 鼓), 才 (铙钹 choked), 台 (小锣), 七 (soft 铙钹),
     令 (soft 小锣), 顷 (soft 大锣), 冬 / 大 (单皮鼓), 八 (a light stroke); x and X mean 仓. The 大锣 is an opera gong whose
-    pitch falls (240 Hz, -2.5 semitones); the 小锣 rises."""
+    pitch falls 2.5 semitones from 240 Hz; retune it with params {"daluo": Hz}, or give the part a "pitch" (e.g. "d1") and
+    it follows that note. {"xiaoluo": Hz} retunes the 小锣 (620 Hz, rising)."""
     g = LUOGU.get(art, LUOGU["仓"]); parts = []
-    if g[0]: parts.append(g[0] * gong(vel, "", dur, rng, {"tune": 240.0, "drop": -2.5, "drop_time": 0.25, "decay": 1.6, "length": 3.0}))
-    if g[1]: parts.append(g[1] * smallgong(vel, "", dur, rng, P) * 0.8)
+    tune = f or float(P.get("daluo", 240.0))
+    if g[0]: parts.append(g[0] * gong(vel, "", dur, rng, {"tune": tune, "drop": -2.5, "drop_time": 0.25, "decay": 1.6, "length": 3.0}))
+    if g[1]: parts.append(g[1] * smallgong(vel, "", dur, rng, P, P.get("xiaoluo") and float(P["xiaoluo"])) * 0.8)
     if g[2]: parts.append(g[2] * cymbals(vel, "", dur, rng, P) * 0.6)
     if g[3]: parts.append(g[3] * cymbals(vel, "o", dur, rng, P))
     if g[4]: parts.append(g[4] * danpigu(vel, "", dur, rng, P))
