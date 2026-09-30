@@ -120,16 +120,20 @@ cmd_doctor() {
 size_of() { # disk size of a folder, symlinks followed (a Hugging Face snapshot is all links): "202 MB", "2.0 GB"
   du -skL "$1" 2>/dev/null | awk '{m = $1 * 1024 / 1e6; if (m >= 1000) printf "%.1f GB", m / 1000; else printf "%.0f MB", m}'
 }
-hf_chrome() { # the chrome-headless-shell HyperFrames renders with: HYPERFRAMES_BROWSER_PATH, else its caches (renderSetupWorker.js)
+hf_chrome() { # the chrome-headless-shell HyperFrames renders with: HYPERFRAMES_BROWSER_PATH, else its caches (renderSetupWorker.js);
+  # a version folder counts only with the browser in it (an interrupted download leaves an empty one)
   local p=${HYPERFRAMES_BROWSER_PATH:-${PRODUCER_HEADLESS_SHELL_PATH:-}} d v
-  [ -n "$p" ] && [ -e "$p" ] && { echo "$p"; return 0; }
+  [ -n "$p" ] && [ -x "$p" ] && { echo "$p"; return 0; }
   for d in "$HOME/.cache/puppeteer/chrome-headless-shell" "$HOME/.cache/hyperframes/chrome/chrome-headless-shell"; do
     [ -d "$d" ] || continue
-    for v in $(ls "$d" 2>/dev/null | sort -r); do [ -d "$d/$v" ] && { echo "$d/$v"; return 0; }; done
+    for v in $(ls "$d" 2>/dev/null | sort -r); do
+      [ -n "$(find "$d/$v" -maxdepth 3 -type f \( -name chrome-headless-shell -o -name chrome-headless-shell.exe \) 2>/dev/null | head -1)" ] && { echo "$d/$v"; return 0; }
+    done
   done
   return 1
 }
-doctor_downloads() { # what the first runs download on their own and how big it is on disk (README "What gets downloaded")
+doctor_downloads() { # what the first runs download on their own and how big it is on disk. The sizes are the ones in the README's
+  # "What gets downloaded" table (measured on macOS arm64, 2026-10-01): keep the two in step when either changes
   echo "first-run downloads (README \"What gets downloaded\"; mirrors: 国内网络 in README.zh-CN.md):"
   local p pend="" hub model snap swatch="" voice_pkgs=""
   if p=$(hf_chrome); then echo "$c_ok HyperFrames Chrome  $(basename "$p") · $(size_of "$p") · $(rel "$(dirname "$p")")"
@@ -149,7 +153,7 @@ doctor_downloads() { # what the first runs download on their own and how big it 
   hub=${HF_HUB_CACHE:-${HF_HOME:-$HOME/.cache/huggingface}/hub}
   snap=$(ls -d "$hub/models--${model//\//--}/snapshots/"*/ 2>/dev/null | head -1 || true)
   if [ "$(uname)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
-    echo "- Qwen3-TTS (bin/vh tts's default voice) runs on Apple Silicon only (mlx-audio): use say, edge, gemini … here"
+    echo "- Qwen3-TTS (bin/vh tts's default voice) runs on Apple Silicon only (mlx-audio): use edge, gemini, dashscope or elevenlabs here"
   else
     command -v uv >/dev/null 2>&1 && ! uv run -q --no-project --offline --with mlx-audio python -c "" >/dev/null 2>&1 && voice_pkgs=1
     if [ -n "$snap" ] && [ -e "$(set -- "$snap"*.safetensors; echo "$1")" ]; then echo "$c_ok Qwen3-TTS model  $model · $(size_of "$snap")"
@@ -255,7 +259,7 @@ cmd_new() {
   [ -z "$style" ] || [ -f "$ROOT/styles/$style/STYLE.md" ] || { echo "unknown style: $style"; cmd_style list; exit 1; }
   case "${effort:-standard}" in quick|standard|studio) ;; *) echo "unknown effort: $effort (quick | standard | studio)"; exit 1 ;; esac
   if [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of the three; the other engines set their size themselves
-    case "$aspect" in 16:9|landscape) res=landscape ;; 9:16|portrait) res=portrait ;; 1:1|square) res=square ;;
+    case "$aspect" in 16:9|landscape) res=landscape; aspect=16:9 ;; 9:16|portrait) res=portrait; aspect=9:16 ;; 1:1|square) res=square; aspect=1:1 ;;
       *) echo "unknown aspect: $aspect (16:9 | 9:16 | 1:1)"; exit 1 ;; esac
     case "$type" in short|promo|data|meme) ;;
       *) echo "--aspect works for short, promo, data and meme (HyperFrames); $type sets its frame size in its engine (engines/README.md)"; exit 1 ;; esac

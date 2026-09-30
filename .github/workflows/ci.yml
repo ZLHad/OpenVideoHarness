@@ -33,10 +33,16 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      # uv runs the Python behind bin/vh (music, storyboard, rhythm, cover-preview …); without it those smoke tests skip.
+      # Its cache (pillow, numpy, scipy …) is kept between runs, keyed on this file: bump the pins here to refresh it.
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
+          cache-dependency-glob: .github/workflows/ci.yml
       - name: Install check tools
         run: |
-          # uv runs the Python behind bin/vh (music, storyboard, rhythm, cover-preview …); without it those smoke tests skip
-          python3 -m pip install --quiet pyflakes uv
+          python3 -m pip install --quiet pyflakes
           if [ "$RUNNER_OS" = Linux ]; then
             sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck ffmpeg >/dev/null
           else   # ffmpeg lets the bin/vh mux/gif smoke tests run under macOS /bin/bash 3.2 too

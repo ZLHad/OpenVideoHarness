@@ -299,6 +299,7 @@ def main():
         out = project / "out" / "check" / f"rhythm{tag}.png"
     V.save(img, out)
     print(f"rhythm: {V.shown(out)}  ({T0:.1f}–{T1:.1f} s; lanes: {', '.join(n for n, _ in lanes if n != 'issues')})")
+    print("  from: " + ", ".join(V.relpath(x, project) for x in ([project / "shots.json"] if shots else []) + [narr_src, cap_src, on_src, bm_src] if x))
     if limit is None and shots:
         print(f"  note: {limit_src}")
     for note in ONSCREEN_SKIPPED:
