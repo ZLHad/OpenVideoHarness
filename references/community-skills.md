@@ -297,7 +297,7 @@ lemomo-ai/lemo-opuscar（605⭐，2026-09-30）是作者 Lemomo（X 上是 @lemo
 | awesome-claude-video-skills | CC0 1.0（清单本身） | — | 清单文字可自由用；条目描述引自各仓库 | 可用 |
 | lemo-opuscar | 整仓 MIT（`02dce5b` 起，2026-09-29；核对到 `721f0b7`）。更早的快照里指南、STYLE.md、成片是 CC BY 4.0 | 可复用，保留 MIT 声明（`tools/readcheck.py` 的读秒公式即改写自它的 `core/render/readcheck.mjs`） | 现版本的指南和 STYLE.md 同为 MIT，保留版权和许可声明即可；按旧快照改写的内容照旧署名 LemoLab、注明 CC BY 4.0；第三方采样、字体、音乐、人声见各样片的 `CREDITS` | 可复用（保留声明） |
 | OpenMontage | AGPL-3.0 | 复用即传染 | 同左 | 只读 |
-| video-shotcraft | Apache-2.0 | 可复用，保留 LICENSE、标注修改 | 音频多为 Mixkit，另有 6 个音效来源未能反查（见 `assets/audio/ATTRIBUTION.md`）；Remotion 自有许可 | 可复用；音频逐条核。`recipes/` 只改写卡片文字和参数、不复制代码，每张配方的 `derived_from` 写明来源卡 |
+| video-shotcraft | Apache-2.0 | 可复用，保留 LICENSE、标注修改 | 音频多为 Mixkit，另有 6 个音效来源未能反查（见 `assets/audio/ATTRIBUTION.md`）；Remotion 自有许可 | 可复用；音频逐条核。`recipes/` 改写卡片文字和参数、不复制代码；改编的文件按第 4 条带许可原文和修改声明，清单见 `recipes/NOTICE.md` |
 | guizang-product-video | AGPL-3.0；`assets/fallback/` 为 BSL 1.1 | 复用即传染 | BSL 部分另有使用限制 | 只读 |
 | Paper-Cut | MIT | 可复用，保留声明 | — | 可复用 |
 | gbro-collage-info | MIT | 可复用，保留声明 | 自带的 `gsap.min.js`（GSAP 3.14.2）和 10 个 Mixkit 音效按各自条款 | 可复用；捆绑件另核 |

@@ -17,8 +17,8 @@ qa: {seam: 55, peak: 63, settle: 100}
 status: tuned
 max_per_film: 1
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/rhythm/montage-rhythm-moves.md, license: Apache-2.0, note: 三式中的 A 式}
-  - {repo: video-shotcraft, path: demos/rhythm/montage-rhythm-moves/DropBlackoutSlam.tsx, license: Apache-2.0, note: 黑场长度、砸入、震屏、亮环、收尾}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/rhythm/montage-rhythm-moves.md, license: Apache-2.0, note: 三式中的 A 式}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/rhythm/montage-rhythm-moves/DropBlackoutSlam.tsx, license: Apache-2.0, note: 黑场长度、砸入、震屏、亮环、收尾}
 ---
 
 # 黑场蓄爆 · drop-blackout-slam
@@ -110,3 +110,5 @@ export function renderAt(t, ctx, tokens, lib) {
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）节奏卡 `montage-rhythm-moves` 的 A 式和 demo `DropBlackoutSlam.tsx`。文字重写；黑场长度、砸入、震屏、亮环、收尾的数值取原值；黑场里保留一层低音底、不出数字静音，是按本仓库的底线改的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/rhythm/montage-rhythm-moves.md`、`demos/rhythm/montage-rhythm-moves/DropBlackoutSlam.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

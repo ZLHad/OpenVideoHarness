@@ -18,8 +18,8 @@ status: tuned
 max_per_film: 1
 pairs_with: [breath-title-card]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/rhythm/beat-cut-moves.md, license: Apache-2.0, note: 两式中的 B 式}
-  - {repo: video-shotcraft, path: demos/rhythm/beat-cut-moves/PaparazziFlash.tsx, license: Apache-2.0, note: 闪点、白层衰减、快门余韵、三个裁切}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/rhythm/beat-cut-moves.md, license: Apache-2.0, note: 两式中的 B 式}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/rhythm/beat-cut-moves/PaparazziFlash.tsx, license: Apache-2.0, note: 闪点、白层衰减、快门余韵、三个裁切}
 ---
 
 # 连闪定格 · paparazzi-flash
@@ -112,3 +112,5 @@ function footage(ctx, tokens, lib) {                                   // 同一
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）节奏卡 `beat-cut-moves` 的 B 式和 demo `PaparazziFlash.tsx`。文字重写；闪点、白层衰减、快门震动、余韵、三个裁切的倍率和定格长度取原值；闪烁底线的核算和暗底的替代做法是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/rhythm/beat-cut-moves.md`、`demos/rhythm/beat-cut-moves/PaparazziFlash.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

@@ -15,11 +15,11 @@ needs: [none]
 sound: optional
 pitfalls: [seam-mismatch, dead-frame]
 qa: {seam: 10, settle: 20}
-status: battle-tested
+status: tuned
 pairs_with: [oversized-cursor]
 impl: [showcase/00-promo-launch-film/compositions/s-scaffold.html, showcase/00-promo-launch-film/STYLE.md]
 derived_from:
-  - {repo: hyperframes, path: _upstream_claude/skills/cut-the-curve/SKILL.md, license: Apache-2.0, note: 第 3 式 cut the curve 的行程、镜像缓动、淡出技巧}
+  - {repo: github.com/heygen-com/hyperframes, commit: "a46095f", path: .claude/skills/cut-the-curve/SKILL.md, license: Apache-2.0, note: 第 3 式 cut the curve 的行程、镜像缓动、淡出技巧}
 ---
 
 # 速度匹配切 · cut-the-curve
@@ -98,6 +98,7 @@ function scene(ctx, tokens, lib, word, seed, x, aWord, aBar) {
 - **全屏推出**：整屏推走再推进来，速度感和连续感都不如只走 12%。
 - **反向**：相邻两个接缝方向相反，观众被来回拉扯。全片一个主流向，反方向留给有含义的时刻。
 - **没有底色**：切点附近会闪白。
+- **还没有人工判定**：showcase 00 全片的接缝都用它，那支片子的审阅关卡经用户授权跳过，评审只有一轮独立 reviewer（`showcase/00-promo-launch-film/NOTES.md` 的自评记录），还没有人给过判定。有人看过、给了判定，就升 `battle-tested`，把判定记在这里。
 
 ## 验收帧
 
@@ -107,3 +108,5 @@ function scene(ctx, tokens, lib, word, seed, x, aWord, aBar) {
 ## 来源
 
 改写自 HyperFrames（HeyGen，Apache-2.0）的 `cut-the-curve` skill 第 3 式。文字重写；行程、镜像缓动、淡出技巧、不透明底色的数值取原文；本仓库的发布片 showcase 00 全片用它做接缝（有独立 reviewer 的评审记录，见它的 NOTES.md），帧数换算和 DOM 里不动画 blur 的对齐是本仓库补的。
+
+**许可**：本文件修改自 [HyperFrames](https://github.com/heygen-com/hyperframes) 在 commit `a46095f` 时的 `.claude/skills/cut-the-curve/SKILL.md`（Copyright 2026 HeyGen, Inc.，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-hyperframes.txt`](../LICENSES/Apache-2.0-hyperframes.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

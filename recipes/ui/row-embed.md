@@ -1,7 +1,7 @@
 ---
 id: row-embed
 name: 行嵌入
-one_liner: 内容行像卡片一样从空中降下、俯仰收平、严丝合缝嵌进页面，嵌入瞬间底边亮一道强调色的缝
+one_liner: 数据行一条条从上方落下，从斜的俯仰角放平，卡进页面里自己的行位，卡进去的那一帧底边闪一道强调色的缝
 family: ui
 role: [feature]
 intent: [detail, process]
@@ -17,15 +17,15 @@ qa: {peak: 40, settle: 70}
 status: upstream-tested
 pairs_with: [portal-wipe]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/ui-entrance/row-embed.md, license: Apache-2.0, note: 结构、判例}
-  - {repo: video-shotcraft, path: demos/ui-entrance/row-embed/RowEmbed.tsx, license: Apache-2.0, note: 节拍、飞行姿态、补丁、强调色缝、相机}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/ui-entrance/row-embed.md, license: Apache-2.0, note: 结构、判例}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/ui-entrance/row-embed/RowEmbed.tsx, license: Apache-2.0, note: 节拍、飞行姿态、补丁、强调色缝、相机}
 ---
 
 # 行嵌入 · row-embed
 
 ## 意图
 
-详情页里的一行行数据不是"显示出来"，而是"长进去"：每一行从空中降下，严丝合缝地嵌进页面布局，嵌进去的那一下亮一道缝，像扣上时"咔哒"一声的视觉拟音。适合"结构化的数据长进页面"的镜头。
+要让观众觉得数据是长在页面里的，而不是凭空显示出来的。每一行从上方落下、放平，正好卡进属于它的那一行；卡进去的那一帧，行底亮起一道细缝，眼睛看到的是"咔哒"一声。结构化数据进入详情页、列表成批入场，都可以用它。
 
 ## 阶段与时值
 
@@ -112,3 +112,5 @@ export function renderAt(t, ctx, tokens, lib) {
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）的界面卡 `row-embed` 和 demo `RowEmbed.tsx`（模板片里有用户判例的一镜）。文字重写；节拍、飞行姿态、落地轻压、补丁、缝和相机的数值取原值；平面风格和竖屏的做法是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/ui-entrance/row-embed.md`、`demos/ui-entrance/row-embed/RowEmbed.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

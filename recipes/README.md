@@ -70,21 +70,21 @@
 | 配方 | 一句话 | 能量 | 时长 | 状态 |
 |---|---|---|---|---|
 | [black-card](seam/black-card.md) | 前镜淡进暗场，一句短话逐词压印上屏，停到读完，再淡入后镜：换章节和喘口气一起做 | 1–2 | 4.2–5.8 s | tuned |
-| [cut-the-curve](seam/cut-the-curve.md) | 前景加速着朝一个方向走出一小段，切点落在运动正快的时候，后景从反方向以同样的速度接着走、减速落定 | 2–4 | 0.53–0.73 s | battle-tested |
+| [cut-the-curve](seam/cut-the-curve.md) | 前景加速着朝一个方向走出一小段，切点落在运动正快的时候，后景从反方向以同样的速度接着走、减速落定 | 2–4 | 0.53–0.73 s | tuned |
 | [dark-tunnel](seam/dark-tunnel.md) | 前景顺着运动方向推出画面，穿过几帧有尘点的暗场，后景从景深里迎面放大、收焦 | 4–5 | 0.73–1.1 s | tuned |
 | [flash-cut](seam/flash-cut.md) | 前镜推近到切点，硬切处骑一层 10 帧的暖白光，盖住换页 | 2–4 | 0.33 s | upstream-tested |
 | [flash-stitch](seam/flash-stitch.md) | 两种画面媒介之间的硬切上插 1 帧（60 fps 是 2 帧）高反差的"底片"：二值、双色或负片，读不出内容，却把两边焊在一起 | 4–5 | 0.03–0.07 s | draft |
 | [focus-handoff](seam/focus-handoff.md) | 前景失焦、淡出、略向一侧滑走，后景错开 2 帧反向收焦进来，焦点本身就是剪辑点 | 2–3 | 0.4–0.67 s | tuned |
-| [gate-as-door](seam/gate-as-door.md) | 世界里立着一扇形状对应下一章的门（画框、竖屏、节点），镜头朝门心加速穿过去，门框掠出画面，门里的世界接管 | 3–5 | 0.8–1.6 s | battle-tested |
+| [gate-as-door](seam/gate-as-door.md) | 世界里立着一扇形状对应下一章的门（画框、竖屏、节点），镜头朝门心加速穿过去，门框掠出画面，门里的世界接管 | 3–5 | 0.8–1.6 s | tuned |
 | [portal-wipe](seam/portal-wipe.md) | 页面上的一张卡放大成全屏窗口，被点开的那个世界从窗里长出来接管画面 | 3–4 | 1.3–1.6 s | tuned |
 | [whip-pan](seam/whip-pan.md) | 相机一拍横甩到下一景，中段糊到认不出，借糊帧换景；两款：直接落位、急刹长尾 | 3–5 | 0.27–2 s | tuned |
-| [zoom-through](seam/zoom-through.md) | 沿镜头纵深方向切：推进款里旧字冲向镜头、新字从远处继续长大；拉回款里旧的退远、新的从镜头背后缩回来落定 | 2–4 | 0.6–0.8 s | battle-tested |
+| [zoom-through](seam/zoom-through.md) | 沿镜头纵深方向切：推进款里旧字冲向镜头、新字从远处继续长大；拉回款里旧的退远、新的从镜头背后缩回来落定 | 2–4 | 0.6–0.8 s | tuned |
 
 **节奏 `rhythm/`**
 
 | 配方 | 一句话 | 能量 | 时长 | 状态 |
 |---|---|---|---|---|
-| [accelerando-cuts](rhythm/accelerando-cuts.md) | 同一产品的 6 个构图硬切，切点间隔每两刀减半，越切越快地逼近，最后一刀定格回全景慢推 | 5 | 4–4.5 s | tuned |
+| [accelerando-cuts](rhythm/accelerando-cuts.md) | 同一产品的 6 个构图硬切，切点间隔每两刀减半，越切越快地逼近，最后一刀定格回全景慢推 | 5 | 4.3–4.8 s | tuned |
 | [drop-blackout-slam](rhythm/drop-blackout-slam.md) | 正常播放中一帧切进 12 帧的黑，画面里什么都没有，然后主视觉带着震屏和一圈亮环砸进来：全片最高潮的前一拍 | 5 | 3.7–4.7 s | tuned |
 | [paparazzi-flash](rhythm/paparazzi-flash.md) | 三次快门白闪，每闪硬切同一素材的一个更近的裁切（全景 → 卡片 → 数字），最后停在那个数字上 | 4–5 | 4.2–4.5 s | tuned |
 
@@ -94,26 +94,26 @@
 |---|---|---|---|---|
 | [brand-imprint-open](type/brand-imprint-open.md) | 一个小记号先画出来，字标逐字压印，副标打出，整组停到读完再上浮离场，交给产品画面 | 1–2 | 3.7–5.8 s | upstream-tested |
 | [breath-title-card](type/breath-title-card.md) | 一句话逐词压印上屏，只有一个强调词，短横线收住，停到读完：两段高能镜头之间的喘息和路标 | 1–2 | 3.3–5 s | upstream-tested |
-| [decode-type](type/decode-type.md) | 字像被程序一点点解出来：乱码按 2 帧一换，每个字在 0.3 s 内依次锁定，锁定之后才开始算读的时间 | 2–4 | 0.2–1 s | battle-tested |
+| [decode-type](type/decode-type.md) | 字像被程序一点点解出来：乱码按 2 帧一换，每个字在 0.3 s 内依次锁定，锁定之后才开始算读的时间 | 2–4 | 0.2–1 s | tuned |
 
 **开场 `open/`、界面 `ui/`、交互 `interaction/`、运镜 `camera/`、收尾 `outro/`**
 
 | 配方 | 一句话 | 能量 | 时长 | 状态 |
 |---|---|---|---|---|
-| [spotlight-hero](open/spotlight-hero.md) | 聚光灯在页面上游走后锁定一张卡，镜头斜侧推近，卡弹起悬停、轮廓光跑两圈、再贴回原位 | 3 | 4.3–4.8 s | upstream-tested |
-| [deal-to-grid](ui/deal-to-grid.md) | 一摞卡像发牌一样飞进网格的真实槽位，出牌越来越快，相机追着往下滚，满板后停半秒 | 4–5 | 2.7–3.8 s | upstream-tested |
+| [spotlight-hero](open/spotlight-hero.md) | 光在整页上找一圈、停在一张卡上，镜头从左侧斜着推近；卡抬起悬停，边框上跑两圈光，再落回自己的格子 | 3 | 4.8–5.3 s | upstream-tested |
+| [deal-to-grid](ui/deal-to-grid.md) | 一摞卡像发牌一样飞进网格的真实槽位，出牌越来越快，相机追着往下滚，满板后停半秒 | 4–5 | 2.9–3.8 s | upstream-tested |
 | [doc-self-writing](ui/doc-self-writing.md) | 一整页真排版的文档在光标后面一块块"写"出来，侧栏随后铺开，历史条目一条条落进侧栏 | 2 | 3.3–4 s | upstream-tested |
-| [row-embed](ui/row-embed.md) | 内容行像卡片一样从空中降下、俯仰收平、严丝合缝嵌进页面，嵌入瞬间底边亮一道强调色的缝 | 3 | 2.3–3.3 s | upstream-tested |
-| [oversized-cursor](interaction/oversized-cursor.md) | 一只画面宽度 7% 的光标从画外进来，把视线带到下一个目标，点一下让下一件事发生，然后离开或带进下一镜 | 2–3 | 1–3 s | battle-tested |
+| [row-embed](ui/row-embed.md) | 数据行一条条从上方落下，从斜的俯仰角放平，卡进页面里自己的行位，卡进去的那一帧底边闪一道强调色的缝 | 3 | 2.3–3.3 s | upstream-tested |
+| [oversized-cursor](interaction/oversized-cursor.md) | 一只画面宽度 7% 的光标从画外进来，把视线带到下一个目标，点一下让下一件事发生，然后离开或带进下一镜 | 2–3 | 1–3 s | tuned |
 | [type-and-filter](interaction/type-and-filter.md) | 在真实界面上按人手的速度打字搜索，网格自己收敛成一张卡，点击它，镜头推进交给详情 | 3 | 2.3–2.7 s | upstream-tested |
-| [one-take-world-travel](camera/one-take-world-travel.md) | 一台镜头在同一个 3D 世界里从一个站点飞到下一个：甩过去、到站减速成慢推、停站时保留低幅漂移，字在读的时候骑在镜头前 | 2–5 | 3–8 s | battle-tested |
+| [one-take-world-travel](camera/one-take-world-travel.md) | 一台镜头在同一个 3D 世界里从一个站点飞到下一个：甩过去、到站减速成慢推、停站时保留低幅漂移，字在读的时候骑在镜头前 | 2–5 | 3–8 s | tuned |
 | [group-photo-launch](outro/group-photo-launch.md) | 每个展示过的功能派一个代表元素，从四面八方飞来围成合影，字标最后压印落款，全片能量最高 | 5 | 5–6 s | upstream-tested |
 
 本库只收了一部分。shotcraft 的其余卡片（共 157 张）可以在它的[在线 Gallery](https://vincentwei1021.github.io/video-shotcraft/) 看样片，源码在 `references/repos/video-shotcraft/references/shots/`（Apache-2.0，只读）；借用时按下文"写一张新配方"改写进来。
 
 ## frontmatter
 
-frontmatter 是 YAML 的一个严格子集，任何 YAML 解析器读出来的结果都一样：一行一个 `key: value`；值是普通或加引号的标量、`[列表]` 或 `{映射}`；没有值的键下面跟 `  - 项` 的块列表。不用锚点，不写多行标量。`bin/vh recipes check` 会逐项校验，并在词表和本文不一致时报错。
+frontmatter 是 YAML 的一个严格子集：一行一个 `key: value`；值是普通或加引号的标量、`[列表]` 或 `{映射}`；没有值的键下面跟 `  - 项` 的块列表。不用锚点，不写多行标量。各家 YAML 解析器读法不一的写法，`bin/vh recipes check` 一律报错、不去猜：`yes`/`no`/`on`/`off`；带前导零、下划线、指数或冒号的数（`1:30` 在 YAML 1.1 里是 90）；日期；`{key:value}` 冒号后不空格；`[ ]`、`{ }` 里没加引号的 `?`；双引号里的反斜杠；既没有值也没有列表项的键。能通过校验的，PyYAML 读出来是同一个结果。`check` 还会逐项校验字段，并在词表和本文不一致时报错。
 
 | 字段 | 必填 | 写法 | 说明 |
 |---|---|---|---|
@@ -133,7 +133,7 @@ frontmatter 是 YAML 的一个严格子集，任何 YAML 解析器读出来的�
 | `pitfalls` | 是 | `[too-fast, no-hold]` | 容易犯的错，词表；正文"已知坑"逐条展开 |
 | `qa` | 是 | `{peak: 44, settle: 78}` | 验收帧：从配方第 0 帧起算（30 fps），键见词表 |
 | `status` | 是 | `tuned` | 验证到什么程度，见"状态" |
-| `derived_from` | 是 | 块列表 | 每项 `{repo, path, license}`，可加 `note`；原创的写 `[]` |
+| `derived_from` | 是 | 块列表 | 每项 `{repo, commit, path, license}`，可加 `note`。`repo` 写仓库地址（如 `github.com/Vincentwei1021/video-shotcraft`），`commit` 是借用时上游的提交（加引号的 7–40 位十六进制），`path` 是上游仓库里的路径；只来自拆解、`license: none` 的来源可以不写 `commit`。原创的写 `[]` |
 | `jump` | 接缝必填 | `[level, rise]` | 这个接缝适合哪种能量变化 |
 | `max_per_film` | 否 | `1` | 全片最多用几次 |
 | `conflicts` | 否 | `[paparazzi-flash]` | 不能同片出现的配方；两边都要写 |
@@ -177,7 +177,7 @@ frontmatter 是 YAML 的一个严格子集，任何 YAML 解析器读出来的�
 
 **status**：`battle-tested` · `upstream-tested` · `tuned` · `draft`（见下一节）
 
-**license**（`derived_from` 里的许可）：`Apache-2.0` · `MIT` · `CC0-1.0` · `CC-BY-4.0` · `none`（只来自拆解分析，没有复制任何文字或代码）
+**license**（`derived_from` 里的许可）：`Apache-2.0` · `MIT` · `CC0-1.0` · `CC-BY-4.0` · `none`（只来自拆解分析，没有复制任何文字或代码）。`Apache-2.0`、`MIT`、`CC-BY-4.0` 的来源要带许可原文和 NOTICE 行，见"写一张新配方"。
 
 **pitfalls**（容易犯的错）：
 
@@ -204,12 +204,12 @@ frontmatter 是 YAML 的一个严格子集，任何 YAML 解析器读出来的�
 
 ## 状态
 
-- `battle-tested`：本仓库做过的片子里用过，有人看过并给了判定。
+- `battle-tested`：本仓库做过的片子里用过，而且有人看过、给了判定，判定记在"已知坑"里。独立 reviewer 的打分不算判定。
 - `upstream-tested`：来源项目的成片里用过，有用户判例，参数是判例定下来的；本仓库还没用过。
-- `tuned`：在占位素材或灰盒上调过（来源自己这样说明），还没经过真实素材。
+- `tuned`：实现过、调过，但还没有人给过判定：在灰盒或占位素材上调的（来源自己这样说明），或者用在本仓库还没有人看过的片子里（只过了独立 reviewer 的也在这一档）。
 - `draft`：只来自拆解或描述，还没有人实现过。
 
-`quick` 档只用前两种。一张配方在本仓库的片子里用过、有了判定，就升一级，在"已知坑"里记下判例。
+`quick` 档只用前两种。一张配方在本仓库的片子里用过、有了人的判定，就升到 `battle-tested`，在"已知坑"里记下判例。showcase 00、04 用过的六张在"已知坑"里写了还差什么。
 
 ## 草图怎么跑
 
@@ -229,11 +229,17 @@ styles/_swatch/render.sh /tmp/try --draft --hud                         # → /t
 
 1. 复制 [`_TEMPLATE.md`](_TEMPLATE.md) 到 `<family>/<id>.md`，按模板的节写，全文控制在 150 行左右。
 2. 时间一律写 30 fps 的帧数，必要时附拍数；参数表标出 ★；验收帧写进 `qa`。
-3. 从别处学来的，用自己的话重写，不整段搬原文和代码；在 `derived_from` 写明来源文件和许可，正文"来源"一节写一行出处。只学时序、编排、缓动这类手法，不复刻具体的画面、文案和品牌。
+3. 从别处学来的，用自己的话重写，不整段搬原文和代码；只学时序、编排、缓动这类手法，不复刻具体的画面、文案和品牌。在 `derived_from` 写明仓库、commit、上游路径和许可，正文"来源"一节写清改了什么。来源是 `Apache-2.0`、`MIT` 或 `CC-BY-4.0` 的，还要做三件事（`check` 会查）：把它的许可原文逐字放进 `LICENSES/<许可>-<仓库名>.txt`；在"来源"一节末尾加一段"**许可**：本文件修改自 …"，写出上游文件、commit 和许可原文的链接（照现有配方的写法）；在 [`NOTICE.md`](NOTICE.md) 的表里加一行。
 4. 在上面的索引里加一行，然后跑 `bin/vh recipes check`。
 
 ## 来源与许可
 
-- 本库大部分配方改写自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft)（Vincent Wei，Apache-2.0）的镜头卡和全片骨架，逐张在 `derived_from` 写明来源卡。文字是重写的，没有复制它的代码；参数取自它的卡片和 demo 源码，已按本仓库的规则调整（见上文三处）。它的卡片本身研究自公开的商业片和个人作品，作者声明只取手法、全部重写；我们守同一条边界。
-- 拆解和取舍的全过程见 [`cases/promo-video-shotcraft.md`](../cases/promo-video-shotcraft.md)。
-- 同作者的 video-talkcraft、anything2explainer 是 PolyForm Noncommercial：`needs`（按输入素材筛）这个思路受 talkcraft 的输入类型索引启发，没有复制它的文字和代码。
+本仓库是 MIT 许可，但下面这些文件改编自 Apache-2.0 的项目，按 Apache-2.0 第 4 条处理。逐文件的清单在 [`NOTICE.md`](NOTICE.md)。
+
+- **哪些文件**：17 张配方、3 条骨架和 `sequences/README.md` 修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft)（Copyright 2026 Wei Yihao）的镜头卡、demo 和全片骨架；`cut-the-curve`、`zoom-through`、`oversized-cursor` 三张修改自 [HyperFrames](https://github.com/heygen-com/hyperframes)（Copyright 2026 HeyGen, Inc.）的 skill。
+- **许可怎么算**：来自上游的部分仍按 Apache-2.0，两个上游的许可原文连同版权行逐字放在 [`LICENSES/`](LICENSES/)；本仓库的改动按 MIT。把这些文件拿到别处用，要连同它的"许可"一段、对应的许可原文和 `NOTICE.md` 一起带走。
+- **每个文件怎么标**：frontmatter 的 `derived_from` 写上游仓库、commit 和路径；正文"来源"一节先写改了什么（文字重写，参数按本仓库的规则改过，见上文"和原文不同"的几处），末尾一段"**许可**"写明本文件修改自哪些上游文件、在哪个 commit，并链接许可原文。
+- **NOTICE 和署名**：两个上游在所用的 commit 都没有 NOTICE 文件，所以没有要转载的 NOTICE 文字；用到的上游文件里也没有单独的版权头，要保留的是两份 LICENSE 里的版权行。shotcraft 注明它的 B、C 两式转场来自对 Linear 发布片的抽帧逆向，这句话在 `dark-tunnel`、`focus-handoff` 的"来源"里保留了。
+- **其余都是本仓库的**：原创的配方（`decode-type`、`gate-as-door`、`one-take-world-travel`，以及只来自拆解、没有复制任何内容的 `flash-stitch`）、本文、`_TEMPLATE.md` 和 `tools/recipes.py` 按 MIT。
+
+shotcraft 的卡片本身研究自公开的商业片和个人作品，作者声明只取手法、全部重写；我们守同一条边界。拆解和取舍的全过程见 [`cases/promo-video-shotcraft.md`](../cases/promo-video-shotcraft.md)。同作者的 video-talkcraft、anything2explainer 是 PolyForm Noncommercial：`needs`（按输入素材筛）这个思路受 talkcraft 的输入类型索引启发，没有用它的文字和代码。

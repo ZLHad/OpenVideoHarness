@@ -10,7 +10,7 @@ arc: [3, 4, 1, 5]
 uses: [spotlight-hero, whip-pan, deal-to-grid, accelerando-cuts, drop-blackout-slam, group-photo-launch]
 status: draft
 derived_from:
-  - {repo: video-shotcraft, path: references/sequences/promo-energy-arc.md, license: Apache-2.0, note: 段位和先划 hold 的方法，压缩到 15 s}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/sequences/promo-energy-arc.md, license: Apache-2.0, note: 段位和先划 hold 的方法，压缩到 15 s}
 ---
 
 # 15 秒发布 teaser · launch-15s
@@ -62,3 +62,5 @@ derived_from:
 ## 来源
 
 按 video-shotcraft（Vincent Wei，Apache-2.0）全片骨架 `promo-energy-arc` 的规则（低开主角、先划 hold、峰值收场、限额）压缩到 15 s，拍号和帧数是本仓库排的，还没有在成片里验证过。"主角一出场就是钩子"来自本仓库样片的内容规格（`styles/_swatch/README.md`）；屏息的做法和本仓库一次拉片的观察一致：一支 174 BPM 的 showreel（@tkm_hmng8，2026-09-30）在最后一记之前留了约 2 s 近静音。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/sequences/promo-energy-arc.md`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

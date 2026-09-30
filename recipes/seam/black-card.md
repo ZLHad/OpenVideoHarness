@@ -19,8 +19,8 @@ status: tuned
 max_per_film: 2
 pairs_with: [focus-handoff, breath-title-card]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 D 式}
-  - {repo: video-shotcraft, path: demos/transition/shot-transitions/BlackCardTransition.tsx, license: Apache-2.0, note: 帧数、压印参数、暗底字色}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 D 式}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/BlackCardTransition.tsx, license: Apache-2.0, note: 帧数、压印参数、暗底字色}
 ---
 
 # 黑场字卡 · black-card
@@ -126,3 +126,5 @@ function page(ctx, tokens, lib, seed) {                                // 灰盒
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）转场卡 `shot-transitions` 的 D 式和 demo `BlackCardTransition.tsx`。文字重写；淡化、暗场、压印的帧数和暗底字色的规则取原值；停留时长改成本仓库的读时规则（原值 15 帧），强调词从斜体改成加粗，文案长度上限是本仓库加的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/transition/shot-transitions.md`、`demos/transition/shot-transitions/BlackCardTransition.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

@@ -19,9 +19,9 @@ status: tuned
 pairs_with: [dark-tunnel]
 impl: [showcase/04-intro-film/js/fx.js]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 E 式（基本款、急刹款）}
-  - {repo: video-shotcraft, path: demos/transition/shot-transitions/WhipPanReal.tsx, license: Apache-2.0, note: 跨度、缓动、快门}
-  - {repo: video-shotcraft, path: demos/transition/shot-transitions/WhipBrakeReal.tsx, license: Apache-2.0, note: 急刹款的路程配比}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 E 式（基本款、急刹款）}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/WhipPanReal.tsx, license: Apache-2.0, note: 跨度、缓动、快门}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/WhipBrakeReal.tsx, license: Apache-2.0, note: 急刹款的路程配比}
 ---
 
 # 甩镜 · whip-pan
@@ -37,7 +37,7 @@ derived_from:
 | 款 | 帧 | 发生什么 |
 |---|---|---|
 | 基本款 | 0–8 | 8 帧横移 1.5 屏（1080p 下 2880 px），`bezier(0.6,0,0.4,1)`：平均 360 px/帧，中段约 900 px/帧；到位即停 |
-| 急刹款 | 0–60 | 一条曲线 `bezier(0.05,0.6,0.2,1)`：前 12 帧走完 70% 的路（这段是糊的），后 48 帧减速滑进落点 |
+| 急刹款 | 0–60 | 横移约 2.1 屏（1080p 下约 4070 px），一条曲线 `bezier(0.05,0.6,0.2,1)`：起步即最快（约 650 px/帧），前 3 帧在 300 px/帧以上、糊透；前 12 帧走完 70% 的路，后 48 帧减速滑进落点 |
 | 落位后 | 基本款 8 起，急刹款 60 起 | 真静止，至少 20 帧 |
 
 ## 参数
@@ -48,10 +48,11 @@ derived_from:
 | 运动模糊 | 子帧模糊，快门约 200°（0.55 帧），采样按"拖影的相邻两次采样间距不超过字高"定，原 demo 用 20 | 只包甩的那几帧；整镜都包会把慢的部分也抹软 | ★ |
 | 两景的位置 | 在同一条水平线上拼接（同一个页面空间） | 上下错位，甩的中段会出现一道斜着的缝 | |
 | 基本款跨度 | 8 帧 1.5 屏 | 更长的跨度要按比例加帧，保持峰值速度而不是时长 | |
+| 急刹款跨度 | 约 2.1 屏（4070 px），一路上都有内容（原 demo 是一条 10 张卡的长廊） | 按 1.5 屏做，过 300 px/帧的只剩 2 帧，糊不透；路上留空，减速的那几十帧就是空画面 | ★ |
 | 急刹款长尾 | 48 帧，不超过 60 | 长尾再长就吃掉了后镜自己的入场；宁短勿长 | ★ |
 | 两款混用 | 同一支片子两款都用，算两种转场 | playbook/03 §6：一支片子只用 2–3 种转场 | |
 
-急刹款原 demo 把路程拆成两段，各自 ease-out，交界处速度会先掉到 0 再起步。这里改成一条曲线：起步即最快，速度一路连续地降到 0，前 20% 的时间走完 70% 的路。
+急刹款原 demo 把路程拆成两段，各自 ease-out，交界处速度会先掉到 0 再起步。这里改成一条曲线：起步即最快，速度一路连续地降到 0，前 20% 的时间走完 70% 的路。跨度同为约 4070 px 时，峰值约 650 px/帧（原 demo 约 710），糊透的是前 3 帧（原 demo 前 4 帧），要藏的拼缝或要换的景必须在这 3 帧里过去；之后是看得清的减速，所以长廊上要一直有内容。
 
 ## 声音
 
@@ -66,15 +67,17 @@ derived_from:
 ## 实现
 
 ```js
-// whip-pan：两景并排（相隔 2880 px），第 40 帧起甩；KIND 改成 "brake" 看急刹款。只在甩的时候做子帧模糊。
-const T0 = 40, D = 2880, KIND = "basic";
+// whip-pan：两景在同一条水平线上，第 40 帧起甩；KIND 改成 "brake" 看急刹款（跨度 4070 px，路上补一页，减速时不会空）。只在甩的时候做子帧模糊。
+const T0 = 40, KIND = "basic", D = KIND === "basic" ? 2880 : 4070;
 export function renderAt(t, ctx, tokens, lib) {
   const camX = (k) => KIND === "basic" ? D * lib.bezier(0.6, 0, 0.4, 1)(lib.seg(k, 0, 8))
                                        : D * lib.bezier(0.05, 0.6, 0.2, 1)(lib.seg(k, 0, 60));
   const world = (tt, c) => {                                          // 两个灰盒页面在同一条水平线上
     const x = camX(tt * 30 - T0);
     c.fillStyle = lib.color(tokens, "bg"); c.fillRect(0, 0, 1920, 1080);
-    c.save(); c.translate(-x, 0); page(c, tokens, lib, 5); c.translate(D, 0); page(c, tokens, lib, 9); c.restore();
+    c.save(); c.translate(-x, 0); page(c, tokens, lib, 5);
+    for (let px = 1720; px + 1860 <= D + 110; px += 1720) { c.save(); c.translate(px, 0); page(c, tokens, lib, 7); c.restore(); }   // 路上的页，页距 1720
+    c.translate(D, 0); page(c, tokens, lib, 9); c.restore();
   };
   const k = lib.frame(t) - T0, moving = KIND === "basic" ? k >= 0 && k <= 8 : k >= 0 && k <= 14;
   if (moving) lib.motionBlur(ctx, t, world, { samples: 20, shutter: 0.55 });
@@ -103,9 +106,11 @@ HyperFrames（DOM）里没有现成的子帧模糊：整页高帧率渲染再平
 
 ## 验收帧
 
-- `peak`（第 4 帧，基本款）：整屏糊透，认不出两景的边界，也认不出任何字。
+- `peak`（第 4 帧，基本款；急刹款看第 1 帧）：整屏糊透，认不出两景的边界，也认不出任何字。
 - `settle`（第 20 帧）：落位后完全静止，和第 19 帧逐像素相同（没有尾漂）。急刹款看第 60 帧以后。
 
 ## 来源
 
-改写自 video-shotcraft（Vincent Wei，Apache-2.0）转场卡 `shot-transitions` 的 E 式和 demo `WhipPanReal.tsx`、`WhipBrakeReal.tsx`。文字重写；跨度、缓动、快门、70/30 路程配比和长尾上限取原值；急刹款改成一条速度连续的曲线；一镜到底里的变速甩镜来自本仓库介绍片。
+改写自 video-shotcraft（Vincent Wei，Apache-2.0）转场卡 `shot-transitions` 的 E 式和 demo `WhipPanReal.tsx`、`WhipBrakeReal.tsx`。文字重写；两款的跨度、基本款的缓动、快门、70/30 路程配比和长尾上限取原值；急刹款改成一条速度连续的曲线，峰值和糊透的帧数按这条曲线重算；一镜到底里的变速甩镜来自本仓库介绍片。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/transition/shot-transitions.md`、`demos/transition/shot-transitions/WhipPanReal.tsx`、`demos/transition/shot-transitions/WhipBrakeReal.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

@@ -17,15 +17,15 @@ qa: {read: 34, peak: 50, settle: 64}
 status: upstream-tested
 pairs_with: [flash-cut, portal-wipe, oversized-cursor]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/interaction/type-and-filter.md, license: Apache-2.0, note: 结构、判例、音效位置}
-  - {repo: video-shotcraft, path: demos/interaction/type-and-filter/TypeAndFilter.tsx, license: Apache-2.0, note: 打字速度、呼吸位、错峰退场、滑位、双圈点击、推进}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/interaction/type-and-filter.md, license: Apache-2.0, note: 结构、判例、音效位置}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/interaction/type-and-filter/TypeAndFilter.tsx, license: Apache-2.0, note: 打字速度、呼吸位、错峰退场、滑位、双圈点击、推进}
 ---
 
 # 打字筛选点进 · type-and-filter
 
 ## 意图
 
-让观众跟着做一遍：看清输入了什么、页面怎么响应、点了哪里。这是一支产品片里模拟真人操作的镜头，节奏必须像人手，不像脚本。它接在高能量的镜头后面，是从容的一拍。
+观众看完要能复述这一步：搜了什么词，页面跟着怎么变，最后点中了哪一张。所以速度照人手来定：字一个个打出来，打完停一口气，点击之前视线先到。它常排在高能镜头后面，是一个观众跟得上的慢拍。
 
 ## 阶段与时值
 
@@ -75,11 +75,11 @@ export function renderAt(t, ctx, tokens, lib) {
   ctx.save(); ctx.translate(960, 540); ctx.scale(lib.lerp(1, 2.2, push), lib.lerp(1, 2.2, push));
   ctx.translate(-lib.lerp(960, cx, push), -lib.lerp(540, cy, push));
   ctx.fillStyle = lib.mixColor(bg, "#ffffff", 0.6); ctx.beginPath(); ctx.roundRect(110, 110, 1700, 76, 38); ctx.fill();
-  lib.setFont(ctx, tokens, "body", 40); ctx.fillStyle = fg;
+  lib.setFont(ctx, tokens, "body", 44); ctx.fillStyle = fg;
   const typed = Q.slice(0, f < TYPE ? 0 : Math.min(Q.length, Math.floor((f - TYPE) / 3) + 1));
-  ctx.fillText(typed, 170, 162);
+  ctx.fillText(typed, 170, 164);
   const caret = f >= TYPE - 2 && f <= 67 && (f <= TYPE + 24 || Math.floor((f - TYPE - 24) / 8) % 2 === 0);
-  if (caret) { ctx.fillStyle = ac; ctx.fillRect(176 + ctx.measureText(typed).width, 128, 3, 42); }
+  if (caret) { ctx.fillStyle = ac; ctx.fillRect(176 + ctx.measureText(typed).width, 126, 3, 46); }
   let rank = 0;
   for (let i = 0; i < 12; i++) {
     const s = slot(i);
@@ -116,10 +116,12 @@ function card(ctx, lib, fg, bg, x, y, a, lift, k) {
 
 ## 验收帧
 
-- `read`（第 34 帧）：搜索词完整，字够大（界面字号放大到能读：1080p 下 ≥ 40 px），光标在闪。
+- `read`（第 34 帧）：搜索词完整，字够大（界面字号放大到能读：1080p 下 ≥ 44 px，TASTE_CHECKLIST #6 的辅助文字下限），光标在闪。
 - `peak`（第 50 帧）：非目标卡按阅读顺序依次在走，目标卡正在滑向第一格、带着更宽的阴影。
 - `settle`（第 64 帧）：目标卡在第一格的真实位置上，选中框和涟漪可见，镜头开始推进。
 
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）的交互卡 `type-and-filter` 和 demo `TypeAndFilter.tsx`（模板片里有用户判例的一镜）。文字重写；打字速度、呼吸位、错峰、滑位、涟漪和推进的帧数取原值；命令行界面的替代做法、和超大光标的搭配是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/interaction/type-and-filter.md`、`demos/interaction/type-and-filter/TypeAndFilter.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

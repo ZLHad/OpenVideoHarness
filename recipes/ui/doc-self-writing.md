@@ -16,15 +16,15 @@ pitfalls: [too-fast, fake-ui, off-axis-read]
 qa: {peak: 30, read: 64, settle: 100}
 status: upstream-tested
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/typography/document-typewriter-reveal.md, license: Apache-2.0, note: 结构、判例、音效}
-  - {repo: video-shotcraft, path: demos/ui-entrance/document-typewriter-reveal/DocumentTypewriterReveal.tsx, license: Apache-2.0, note: 写入节拍、遮罩、光标、侧栏、历史条目、相机}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/typography/document-typewriter-reveal.md, license: Apache-2.0, note: 结构、判例、音效}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/ui-entrance/document-typewriter-reveal/DocumentTypewriterReveal.tsx, license: Apache-2.0, note: 写入节拍、遮罩、光标、侧栏、历史条目、相机}
 ---
 
 # 文档自己写出来 · doc-self-writing
 
 ## 意图
 
-这一镜的说服力全在"文档是真的"：观众会读清屏幕上的每个字。打字机式的写入把一张静态页面变成"正在被写出来的文档"，侧栏里一条条落进来的历史条目，补上"每周都在产出"的时间纵深。它通常是全片信息最密的一镜，排在收场前倒数第 2–3 位。
+这一镜靠"文档是真的"服人：观众会一个字一个字地读屏幕。内容在光标后面一块块写出来，静态截图就成了一份正在成形的文档；侧栏里的历史条目一条接一条落下，说明它不是一次性的，而是每周都在产出。它通常是全片信息最密的一镜，排在收场前倒数第 2–3 位。
 
 ## 阶段与时值
 
@@ -117,3 +117,5 @@ export function renderAt(t, ctx, tokens, lib) {
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）的卡 `document-typewriter-reveal` 和同名 demo（模板片里有用户判例的一镜）。文字重写；写入节拍、遮罩、光标、@ 提及、侧栏、历史条目和相机的数值取原值；竖屏和代码文档的做法是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/typography/document-typewriter-reveal.md`、`demos/ui-entrance/document-typewriter-reveal/DocumentTypewriterReveal.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

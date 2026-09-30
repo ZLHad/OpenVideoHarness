@@ -17,8 +17,8 @@ qa: {read: 46, settle: 90, last: 124}
 status: upstream-tested
 pairs_with: [spotlight-hero]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/opening/brand-ink-open.md, license: Apache-2.0, note: 开场结构和品牌 hold 的判例}
-  - {repo: video-shotcraft, path: demos/typography/brand-ink-open/BrandInkOpen.tsx, license: Apache-2.0, note: 帧数、缓动、glint、退场}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/opening/brand-ink-open.md, license: Apache-2.0, note: 开场结构和品牌 hold 的判例}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/typography/brand-ink-open/BrandInkOpen.tsx, license: Apache-2.0, note: 帧数、缓动、glint、退场}
 ---
 
 # 字标压印开场 · brand-imprint-open
@@ -117,3 +117,5 @@ export function renderAt(t, ctx, tokens, lib) {
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）的开场卡 `brand-ink-open` 和 demo `BrandInkOpen.tsx`。文字重写；记号、压印、glint、打字和退场的帧数与缓动取原值；停留改成"1 秒判例和本仓库读时规则取大"，"字标是图形 logo 时"的做法是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/opening/brand-ink-open.md`、`demos/typography/brand-ink-open/BrandInkOpen.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

@@ -76,3 +76,5 @@
 ## 来源
 
 五条规则和 60 s 骨架的段位改写自 video-shotcraft（Vincent Wei，Apache-2.0）的全片骨架 `references/sequences/promo-energy-arc.md`、转场卡 `shot-transitions` 和审美准则 R1–R4、P4、Q4；原骨架来自一支 36 s 模板片和两次独立复现，作者注明是"单例判例"。15 s 和 30 s 两条骨架是本仓库按同一套规则推出来的，还没有在成片里验证过。读时规则、闪白底线和接缝数量来自本仓库的 CLAUDE.md、TASTE_CHECKLIST 和 playbook/03。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/sequences/promo-energy-arc.md`、`references/shots/transition/shot-transitions.md`、`references/aesthetic-rules.md`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

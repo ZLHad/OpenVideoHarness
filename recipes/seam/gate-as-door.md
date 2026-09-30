@@ -15,7 +15,7 @@ needs: [3d]
 sound: recommended
 pitfalls: [seam-mismatch, glow-spill, text-blur]
 qa: {seam: 16, settle: 36}
-status: battle-tested
+status: tuned
 pairs_with: [one-take-world-travel]
 impl: [showcase/04-intro-film/js/arch.js, showcase/04-intro-film/js/main.js]
 derived_from: []
@@ -104,6 +104,7 @@ function page(ctx, tokens, lib, seed, a) {                             // 灰盒
 - **门的光变成闪白**：门亮用门自己的材质，亮度不压过画面里的字；整画面闪白另算次数（playbook/08 的底线）。
 - **穿门时有字**：穿门的那几帧最快，字都会被抹花；门框上的标签在穿门前就淡出，下一章的字在接管之后再出。
 - **穿过去就转向**：方向一变，穿门就读成切换。穿过去之后继续向前，下一次转向留给下一跳。
+- **还没有人工判定**：介绍片（showcase 04）v3 的三处穿帧用它；这一版过了两轮独立 reviewer，成片仍待用户本人观看（`showcase/04-intro-film/REVIEW.md` 关卡 ③；v2 的人工意见是"不够炫酷"，这一手法是 v3 为此加的）。有人看过、给了判定，就升 `battle-tested`，把判定记在这里。
 
 ## 验收帧
 

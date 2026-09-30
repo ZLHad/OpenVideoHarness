@@ -18,15 +18,15 @@ status: upstream-tested
 max_per_film: 1
 pairs_with: [brand-imprint-open]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/outro/outro-group-photo-launch.md, license: Apache-2.0, note: 合影结构、判例、固定的收尾声音句式}
-  - {repo: video-shotcraft, path: demos/outro/outro-group-photo-launch/OutroGroupPhotoLaunch.tsx, license: Apache-2.0, note: 飞入、退后排、crane、氛围三件套、字标}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/outro/outro-group-photo-launch.md, license: Apache-2.0, note: 合影结构、判例、固定的收尾声音句式}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/outro/outro-group-photo-launch/OutroGroupPhotoLaunch.tsx, license: Apache-2.0, note: 飞入、退后排、crane、氛围三件套、字标}
 ---
 
 # 发布会合影 · group-photo-launch
 
 ## 意图
 
-片尾把看过的每个功能各叫回来一个代表，围着字标拍一张全家福：观众离场前最后记住的是"这些东西属于同一个产品"。规格要像一场发布会，这是全片能量的最高点。
+收场时，前面出现过的每个功能都派一个代表回到画面，围着字标站成一张合影。观众最后带走的印象是：这些都是同一个产品的东西。排场要像发布会，全片的能量在这里到顶。
 
 ## 阶段与时值
 
@@ -141,3 +141,5 @@ export function renderAt(t, ctx, tokens, lib) {
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）的收尾卡 `outro-group-photo-launch` 和 demo `OutroGroupPhotoLaunch.tsx`。文字重写；飞入、退后排、crane、光带、舞台光、金尘、字标压印和短线的帧数与缓动取原值；落款停留改成本仓库的读时规则，标语字号提到 44 px，安静风格的降级做法是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/outro/outro-group-photo-launch.md`、`demos/outro/outro-group-photo-launch/OutroGroupPhotoLaunch.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

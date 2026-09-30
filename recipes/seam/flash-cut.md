@@ -18,9 +18,9 @@ qa: {peak: 4, seam: 5}
 status: upstream-tested
 pairs_with: [breath-title-card]
 derived_from:
-  - {repo: video-shotcraft, path: assets/lib/FlashCut.tsx, license: Apache-2.0, note: 光的形状和时值}
-  - {repo: video-shotcraft, path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 A 式}
-  - {repo: video-shotcraft, path: template/src/aifl/Main.tsx, license: Apache-2.0, note: 模板片里的 4 处用法和音效位置}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: assets/lib/FlashCut.tsx, license: Apache-2.0, note: 光的形状和时值}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 A 式}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: template/src/aifl/Main.tsx, license: Apache-2.0, note: 模板片里的 4 处用法和音效位置}
 ---
 
 # 推进流白 · flash-cut
@@ -113,3 +113,5 @@ HyperFrames（DOM）里是一个铺满的 `div`，背景是同样的径向渐变
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）的 `FlashCut` 组件、转场卡 `shot-transitions` 的 A 式，以及模板片 `Main.tsx` 里的 4 处用法和音效位置。文字重写；时值和形状取原值，暗底降亮、量化降级和"后镜第一帧要在动"是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `assets/lib/FlashCut.tsx`、`references/shots/transition/shot-transitions.md`、`template/src/aifl/Main.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

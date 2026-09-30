@@ -374,7 +374,7 @@ This is an independent project, not affiliated with Anthropic, HeyGen, Remotion,
 
 ## License
 
-Original content is [MIT](LICENSE). The bundled ClaudeAnimationBase is also MIT (© John Heibel). Reference repos keep their own licenses.
+Original content is [MIT](LICENSE). The bundled ClaudeAnimationBase is also MIT (© John Heibel). Some files in `recipes/` are modified from Apache-2.0 projects (video-shotcraft, HyperFrames): their upstream parts stay under Apache-2.0, and [`recipes/NOTICE.md`](recipes/NOTICE.md) lists them. Reference repos keep their own licenses.
 
 ## Citation
 

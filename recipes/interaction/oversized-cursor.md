@@ -14,11 +14,11 @@ needs: [ui-page]
 sound: recommended
 pitfalls: [sub-threshold, dead-frame, fake-ui]
 qa: {peak: 16, settle: 30}
-status: battle-tested
+status: tuned
 pairs_with: [type-and-filter, cut-the-curve]
 impl: [showcase/00-promo-launch-film/index.html]
 derived_from:
-  - {repo: hyperframes, path: _upstream_claude/skills/oversized-cursor/SKILL.md, license: Apache-2.0, note: 尺寸、入场、尖端对准、点击、离场和跨镜交接}
+  - {repo: github.com/heygen-com/hyperframes, commit: "a46095f", path: .claude/skills/oversized-cursor/SKILL.md, license: Apache-2.0, note: 尺寸、入场、尖端对准、点击、离场和跨镜交接}
 ---
 
 # 超大光标 · oversized-cursor
@@ -102,6 +102,7 @@ function cursor(ctx, x, y, size) {                                      // 箭�
 - **点了没后果**：每一次点击都要让下一件事同一帧发生，否则删掉这次点击。
 - **停在字上**：光标不主导的段落里要让开，不能压着正在出现的字，也不要原地晃来晃去。
 - **尖端没对准**：按图标框的中心对准，尖端会偏到按钮外面；按箭头尖对准，缩放也以尖端为轴。
+- **还没有人工判定**：showcase 00 用它串起三个功能镜头，那支片子的审阅关卡经用户授权跳过，评审只有一轮独立 reviewer（`showcase/00-promo-launch-film/NOTES.md` 的自评记录），还没有人给过判定。有人看过、给了判定，就升 `battle-tested`，把判定记在这里。
 
 ## 验收帧
 
@@ -111,3 +112,5 @@ function cursor(ctx, x, y, size) {                                      // 箭�
 ## 来源
 
 改写自 HyperFrames（HeyGen，Apache-2.0）的 `oversized-cursor` skill。文字重写；尺寸、进出场规则、尖端的轴点、点击的 1 : 2 时值和跨镜交接取原文；本仓库的发布片 showcase 00 用它串起三个功能镜头。风格适配和竖屏的做法是本仓库补的。
+
+**许可**：本文件修改自 [HyperFrames](https://github.com/heygen-com/hyperframes) 在 commit `a46095f` 时的 `.claude/skills/oversized-cursor/SKILL.md`（Copyright 2026 HeyGen, Inc.，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-hyperframes.txt`](../LICENSES/Apache-2.0-hyperframes.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

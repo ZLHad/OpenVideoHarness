@@ -18,8 +18,8 @@ qa: {peak: 5, seam: 15, settle: 30}
 status: tuned
 pairs_with: [whip-pan]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 B 式}
-  - {repo: video-shotcraft, path: demos/transition/shot-transitions/DarkTunnelTransition.tsx, license: Apache-2.0, note: 帧数和缓动}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 B 式}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/DarkTunnelTransition.tsx, license: Apache-2.0, note: 帧数和缓动}
 ---
 
 # 穿暗场直航 · dark-tunnel
@@ -128,3 +128,5 @@ function page(ctx, tokens, lib, seed) {                                // 灰盒
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）转场卡 `shot-transitions` 的 B 式和 demo `DarkTunnelTransition.tsx`；原作者注明它来自对 Linear 发布片的抽帧逆向。文字重写；帧数、缓动、起点缩放和模糊取原值，暗场颜色改成由风格底色推出，声音一节是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/transition/shot-transitions.md`、`demos/transition/shot-transitions/DarkTunnelTransition.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

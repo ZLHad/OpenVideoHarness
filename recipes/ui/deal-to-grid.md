@@ -6,7 +6,7 @@ family: ui
 role: [feature]
 intent: [abundance]
 energy: [4, 5]
-duration_f: [80, 115]
+duration_f: [88, 115]
 types: [promo, data, short]
 engines: [canvas, hyperframes, three]
 aspect: [landscape, portrait]
@@ -18,15 +18,15 @@ status: upstream-tested
 max_per_film: 1
 pairs_with: [portal-wipe]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/ui-entrance/deck-deal-flyin.md, license: Apache-2.0, note: 发牌隐喻、判例、预备拍幅度、拖拽层级}
-  - {repo: video-shotcraft, path: demos/ui-entrance/deck-deal-flyin/DeckDealFlyin.tsx, license: Apache-2.0, note: 出牌公式、单卡飞行、相机追逐}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/ui-entrance/deck-deal-flyin.md, license: Apache-2.0, note: 发牌隐喻、判例、预备拍幅度、拖拽层级}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/ui-entrance/deck-deal-flyin/DeckDealFlyin.tsx, license: Apache-2.0, note: 出牌公式、单卡飞行、相机追逐}
 ---
 
 # 发牌入网格 · deal-to-grid
 
 ## 意图
 
-让观众感到"东西很多，而且源源不断地涌进来"：一摞卡像发牌一样一张张甩进页面，每张都砸进自己的格子，越发越快，页面被填满，停住。先给悬念（这一摞是什么），再给答案（几十个项目各就各位）。
+要观众感到量大，而且还在不停地来。开头只有一摞卡，观众会好奇这是什么；接着卡一张张被甩出去，每张落进页面里自己的格子，出得越来越快，直到整页填满、停住，答案才揭晓：这是几十个真实的项目。
 
 ## 阶段与时值
 
@@ -58,7 +58,7 @@ derived_from:
 
 ## 声音
 
-不逐卡配音。拉远和首批出牌一声大 whoosh（模板片第 308 帧），加速段两声快 whoosh（第 340、356 帧，第二声轻一点）。如果要给落位配 pop，用三招防机枪：两个样本交替、音量逐次降、间隔跟着出牌加速，密到糊成一片时淡成一道 swoosh（shotcraft 判例 S2）。
+不逐卡配音，只打三下：镜头拉远、第一批牌飞出时一声大的 whoosh（模板片第 308 帧），加速段再来两声短的（第 340、356 帧，后一声轻些）。如果要给落位配 pop，用三招防机枪：两个样本交替、音量逐次降、间隔跟着出牌加速，密到糊成一片时淡成一道 swoosh（shotcraft 判例 S2）。
 
 ## 风格适配
 
@@ -127,3 +127,5 @@ function card(ctx, lib, P, x, y, sc, lift, alpha, k) {
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）的界面卡 `deck-deal-flyin` 和 demo `DeckDealFlyin.tsx`，以及它引用的判例 R2、Q1、Q7、Q9、S2。文字重写；出牌公式、预备拍幅度、单卡飞行与落定的帧数和缓动、残影和相机追逐的速度取原值；出牌公式的一般形式、手绘和竖屏的适配是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/ui-entrance/deck-deal-flyin.md`、`demos/ui-entrance/deck-deal-flyin/DeckDealFlyin.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

@@ -20,7 +20,9 @@ derived_from: []
 
 <!-- 复制到 recipes/<family>/<id>.md，id 和文件名一致。字段和词表见 recipes/README.md；写完跑 bin/vh recipes check。
      时间一律 30 fps 的帧数，从这张配方的第 0 帧算起。全文 150 行左右。
-     从别处学来的要用自己的话重写，derived_from 写来源文件和许可，"来源"一节写一行出处。 -->
+     从别处学来的要用自己的话重写。derived_from 每项一行，例如
+       - {repo: github.com/owner/name, commit: "abc1234", path: docs/card.md, license: Apache-2.0, note: 学了什么}
+     来源是 Apache-2.0、MIT 或 CC-BY-4.0 的，按 recipes/README.md "写一张新配方"第 3 步带上许可原文、"许可"一段和 NOTICE 行。 -->
 
 # 中文名 · my-recipe
 
@@ -79,3 +81,6 @@ export function renderAt(t, ctx, tokens, lib) {
 ## 来源
 
 改写自 …（作者，许可）的 …；本仓库改了哪些。原创的写"本仓库原创"。
+
+<!-- 改编自 Apache-2.0、MIT 或 CC-BY-4.0 的材料时，在这里再加一段（照现有配方的写法，check 会查）：
+**许可**：本文件修改自 [项目](URL) 在 commit `abc1234` 时的 `上游路径`（Copyright …，许可），改了什么见上一段。来自上游的部分仍按原许可授权，许可全文见 [`LICENSES/<许可>-<仓库名>.txt`](../LICENSES/)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。 -->

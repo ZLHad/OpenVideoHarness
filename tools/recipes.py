@@ -13,13 +13,21 @@ list   Every filter is optional. Values inside one flag are alternatives (`--int
        --md index rows for recipes/README.md.
 check  No file: every recipe and sequence under recipes/, plus the library-wide checks (unique ids, file and folder
        names, conflicts listed both ways, every recipe linked from recipes/README.md with the same energy, length and
-       status, every vocabulary term documented there). With files: those files, cross-checked against the library.
-       A sketch (a ```js block that defines renderAt) is syntax-checked with node when node is installed.
+       status, every vocabulary term documented there, every file derived from licensed material listed in
+       recipes/NOTICE.md). With files: those files, cross-checked against the library. A sketch (a ```js block that
+       defines renderAt) is syntax-checked with node when node is installed.
 
-Frontmatter is a strict subset of YAML, so any YAML parser reads it the same way: one `key: value` per line; a value
-is a plain or quoted scalar, a [flow list] or a {flow map}; a key with no value takes a block list of `  - item` lines.
-No anchors, no multi-line scalars. The fields and vocabularies are documented in recipes/README.md; VOCAB in
-tools/recipes.py is the machine copy, and `check` fails when the two drift apart.
+Frontmatter is a strict subset of YAML: one `key: value` per line; a value is a plain or quoted scalar, a [flow list]
+or a {flow map}; a key with no value takes a block list of `  - item` lines. No anchors, no multi-line scalars.
+Whatever YAML parsers read differently is refused rather than guessed: `yes`/`no`/`on`/`off`, numbers with leading
+zeros, underscores, exponents or colons (`1:30`), dates, `{key:value}` without the space, `?` inside a flow value,
+escapes in double quotes, a key with neither a value nor items. What passes reads the same in PyYAML. The fields and
+vocabularies are documented in recipes/README.md; VOCAB in tools/recipes.py is the machine copy, and `check` fails
+when the two drift apart.
+
+A source under Apache-2.0, MIT or CC-BY-4.0 needs its upstream `commit`, a copy of its licence as
+recipes/LICENSES/<license>-<repo>.txt, a "修改自 …" statement in the file's 来源 section that links that copy and names
+the commit, and a row in recipes/NOTICE.md (Apache-2.0 §4; MIT and CC BY ask for the same notices).
 
 Exit: 0 fine · 1 check found problems · 2 bad usage (unknown flag or vocabulary value). Reads files only.
 """
@@ -72,6 +80,18 @@ SEQUENCE = {
 RECIPE_HEADINGS = ["## 意图", "## 阶段与时值", "## 参数", "## 声音", "## 风格适配", "## 实现", "## 已知坑", "## 验收帧", "## 来源"]
 SEQUENCE_HEADINGS = ["## 能量弧", "## 预算", "## 接缝", "## 限额", "## 来源"]
 INDICATORS = set("-?:,[]{}#&*!|>'\"%@`")
+# Licences whose text and notices must travel with a file derived from the material (recipes/LICENSES/, NOTICE.md).
+KEEP_NOTICE = ("Apache-2.0", "MIT", "CC-BY-4.0")
+# Plain scalars that YAML 1.1 (PyYAML) or 1.2 parsers turn into something other than the text or number we would read.
+AMBIGUOUS = re.compile(r"""(?x)
+    (?i:y|yes|n|no|on|off|true|false|null|~|=|<<)                   # booleans and null in any case, YAML 1.1 keys
+  | [-+]?0b[01_]+ | [-+]?0x[0-9a-fA-F_]+ | [-+]?0o?[0-7_]+           # binary, hex, octal (017 is 15 in YAML 1.1)
+  | [-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+(?:\.[0-9_]*)?                # sexagesimal: 1:30 is 90
+  | [-+]?(?:\.[0-9][0-9_]*|[0-9][0-9_]*(?:\.[0-9_]*)?)(?:[eE][-+]?[0-9]+)?   # +1, 1_000, 1., .5, 1e3
+  | [-+]?\.(?i:inf|nan)
+  | [0-9]{4}-[0-9]{1,2}-[0-9]{1,2}(?:(?:[Tt]|[ \t]+)[0-9]{1,2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]*)?
+                                   (?:[ \t]*(?:Z|[-+][0-9]{1,2}(?::[0-9]{2})?))?)?   # dates and timestamps
+""")
 
 
 class FMError(Exception):
@@ -80,16 +100,35 @@ class FMError(Exception):
 
 # ---------------------------------------------------------------- the YAML subset
 def strip_comment(line):
-    """Drop a ` # comment` (YAML: a # starts a comment only at line start or after whitespace, outside quotes)."""
-    q = None
+    """Drop a trailing comment the way YAML does: `#` starts one at line start or after a blank, outside quotes. A quote
+    opens a quoted scalar only where a scalar starts (after `key: `, `- `, `[`, `{`, or `,` / `: ` inside a flow), so
+    the apostrophe in `don't` is a letter."""
+    q, depth, start = None, 0, True
     for i, c in enumerate(line):
         if q:
             if c == q:
-                q = None
-        elif c in "\"'":
-            q = c
-        elif c == "#" and (i == 0 or line[i - 1] in " \t"):
+                q, start = None, False
+            continue
+        if c in " \t":
+            continue
+        if c == "#" and (i == 0 or line[i - 1] in " \t"):
             return line[:i]
+        blank_after = line[i + 1:i + 2] in ("", " ", "\t")
+        if start and c in "\"'":
+            q = c
+            continue
+        if start and c in "[{":
+            depth += 1
+            continue
+        if depth and c == ",":
+            start = True
+            continue
+        if depth and c in "]}":
+            depth -= 1
+        elif (c == ":" and blank_after) or (c == "-" and blank_after and not line[:i].strip()):
+            start = True
+            continue
+        start = False
     return line
 
 
@@ -99,10 +138,12 @@ def scalar(s):
         return s == "true"
     if s in ("null", "~", ""):
         return None
-    if re.fullmatch(r"-?\d+", s):
+    if re.fullmatch(r"-?(?:0|[1-9][0-9]*)", s):
         return int(s)
-    if re.fullmatch(r"-?\d+\.\d+", s):
+    if re.fullmatch(r"-?(?:0|[1-9][0-9]*)\.[0-9]+", s):
         return float(s)
+    if AMBIGUOUS.fullmatch(s):
+        raise FMError(f"YAML parsers disagree on what {s!r} is (a yes/no, a date or a number): quote it")
     return s
 
 
@@ -134,6 +175,10 @@ class Flow:
         if j < 0:
             raise FMError(f"unclosed {q}")
         s = self.t[self.i + 1:j]
+        if q == '"' and "\\" in s:
+            raise FMError(f"a backslash inside double quotes is an escape in YAML: use single quotes ({self.t!r})")
+        if q == "'" and self.t[j + 1:j + 2] == "'":
+            raise FMError(f"'' (an escaped quote) is not supported: use double quotes ({self.t!r})")
         self.i = j + 1
         return s
 
@@ -152,6 +197,8 @@ class Flow:
             raise FMError(f"a plain value cannot start with {s[0]!r}: quote it ({s!r})")
         if ": " in s or s.endswith(":"):
             raise FMError(f"': ' inside a plain value is not YAML: quote it ({s!r})")
+        if depth and any(c in s for c in "?[{"):
+            raise FMError(f"inside [ ] or {{ }}, YAML does not allow ?, [ or {{ in an unquoted value: quote it ({s!r})")
         return scalar(s)
 
     def expect(self, c):
@@ -191,6 +238,8 @@ class Flow:
             k = m.group(0)
             self.i += len(k)
             self.expect(":")
+            if self.t[self.i:self.i + 1] not in (" ", "\t"):
+                raise FMError(f"put a space after {k}: in {self.t!r} (without it YAML reads one key, {k}:…)")
             if k in out:
                 raise FMError(f"duplicate key {k!r} in {self.t!r}")
             out[k] = self.value(depth + 1)
@@ -222,7 +271,7 @@ def read(path):
     end = next((i for i in range(1, len(lines)) if lines[i].rstrip() == "---"), None)
     if end is None:
         raise FMError("the frontmatter block is not closed with ---")
-    data, block = {}, None
+    data, block, indent, opened = {}, None, None, {}
     for n in range(1, end):
         raw = strip_comment(lines[n]).rstrip()
         if not raw.strip():
@@ -232,6 +281,10 @@ def read(path):
             if item:
                 if block is None:
                     raise FMError("a list item with no key above it")
+                if indent is None:
+                    indent = len(item.group(1))
+                elif len(item.group(1)) != indent:   # YAML would read a deeper `- b` as part of the item above
+                    raise FMError("list items must line up: same indentation for every `- ` of a list")
                 data[block].append(parse_value(item.group(2)))
                 continue
             if raw[0] in " \t":
@@ -243,11 +296,14 @@ def read(path):
             if key in data:
                 raise FMError(f"duplicate key {key!r}")
             if val is None or not val.strip():
-                data[key], block = [], key
+                data[key], block, indent, opened[key] = [], key, None, n
             else:
                 data[key], block = parse_value(val), None
         except FMError as e:
             raise FMError(f"line {n + 1}: {e}")
+    for key, n in opened.items():   # YAML reads `key:` with nothing under it as null, not as an empty list
+        if not data[key]:
+            raise FMError(f"line {n + 1}: `{key}:` has no value and no `  - item` lines (write `{key}: []` for none)")
     return data, "\n".join(lines[end + 1:])
 
 
@@ -313,27 +369,50 @@ def check_field(key, kind, v, fm):
         if not (isinstance(v, list) and v and all(isinstance(x, str) for x in v)):
             raise FMError(f"{key}: expected a [list] of repository paths")
         for p in v:
-            if p.startswith("/") or ".." in Path(p).parts or not (ROOT / p.split("#")[0]).exists():
+            f = p.split("#")[0]   # path#anchor is allowed
+            if not f or f.startswith("/") or ".." in Path(f).parts or not (ROOT / f).is_file():
                 raise FMError(f"{key}: {p!r} is not a file in this repository")
     elif kind == "sources":
         if not isinstance(v, list):
-            raise FMError(f"{key}: expected a block list of {{repo, path, license}} (or [] for an original recipe)")
+            raise FMError(f"{key}: expected a block list of {{repo, commit, path, license}} (or [] for an original recipe)")
         for s in v:
-            if not (isinstance(s, dict) and {"repo", "path", "license"} <= set(s) <= {"repo", "path", "license", "note"}):
-                raise FMError(f"{key}: each item is {{repo: …, path: …, license: …}} (+ optional note), got {s!r}")
+            if not (isinstance(s, dict) and {"repo", "path", "license"} <= set(s) <= {"repo", "commit", "path", "license", "note"}
+                    and all(isinstance(s[k], str) and s[k].strip() for k in ("repo", "path"))):
+                raise FMError(f"{key}: each item is {{repo: …, commit: …, path: …, license: …}} (+ optional note), got {s!r}")
             if s["license"] not in VOCAB["license"]:
                 raise FMError(f"{key}: license {s['license']!r} is not one of {', '.join(VOCAB['license'])}")
+            c = s.get("commit")
+            if (s["license"] != "none" or c is not None) and not (isinstance(c, str) and re.fullmatch(r"[0-9a-f]{7,40}", c)):
+                raise FMError(f"{key}: {s['repo']}: `commit` is the upstream commit the material was taken from, a quoted "
+                              f"hex string of 7–40 characters (only a `license: none` source may leave it out), got {c!r}")
     else:
         raise AssertionError(kind)
 
 
-def check_file(path, lib=None):
-    """→ (frontmatter or None, [problems]). lib: {id: (path, fm)} of the whole library, for cross-references."""
+def licence_copy(src):
+    """Where the licence of a KEEP_NOTICE source lives: recipes/LICENSES/<license>-<last part of repo>.txt."""
+    return f"LICENSES/{src['license']}-{src['repo'].rstrip('/').split('/')[-1]}.txt"
+
+
+def kept_sources(fm):
+    """The derived_from items whose licence and notices have to travel with the file."""
+    v = fm.get("derived_from")
+    return [s for s in v if isinstance(s, dict) and s.get("license") in KEEP_NOTICE
+            and isinstance(s.get("repo"), str) and isinstance(s.get("path"), str)] if isinstance(v, list) else []
+
+
+def as_list(v):
+    return v if isinstance(v, list) else []
+
+
+def section(body, heading):
+    m = re.search(rf"^{re.escape(heading)}\s*$(.*?)(?=^## |\Z)", body, re.M | re.S)
+    return m.group(1) if m else ""
+
+
+def frontmatter_problems(fm):
+    """Field-by-field problems of one parsed frontmatter (no body, no cross-references)."""
     probs = []
-    try:
-        fm, body = read(path)
-    except (FMError, OSError, UnicodeDecodeError) as e:
-        return None, [str(e)]
     kind = fm.get("kind", "recipe")
     fields = SEQUENCE if kind == "sequence" else RECIPE
     for key in fm:
@@ -353,9 +432,29 @@ def check_file(path, lib=None):
             probs.append("a seam recipe needs `jump` (rise | level | drop): which energy change it bridges")
         if fm.get("family") != "seam" and "jump" in fm:
             probs.append("`jump` is only for seam recipes")
+    return probs
+
+
+def check_file(path, lib=None):
+    """→ (frontmatter or None, [problems]). lib: {id: (path, fm)} of the whole library, for cross-references."""
+    try:
+        fm, body = read(path)
+    except (FMError, OSError, UnicodeDecodeError) as e:
+        return None, [str(e)]
+    probs = frontmatter_problems(fm)
+    kind = fm.get("kind", "recipe")
     heads = [h for h in (SEQUENCE_HEADINGS if kind == "sequence" else RECIPE_HEADINGS) if not re.search(rf"^{re.escape(h)}", body, re.M)]
     if heads:
         probs.append(f"missing body section(s): {', '.join(heads)} (copy recipes/_TEMPLATE.md)")
+    src_text = section(body, "## 来源")
+    for s in kept_sources(fm):   # Apache-2.0 §4 (a) and (b): the licence travels with the file, which says it was modified
+        lic = licence_copy(s)
+        if not (LIB / lic).is_file():
+            probs.append(f"derived_from: {s['repo']} is {s['license']}: put a copy of its licence at recipes/{lic}")
+        if lic not in src_text or "修改自" not in src_text:
+            probs.append(f"## 来源: say that the file is modified from {s['repo']} (修改自 …) and link recipes/{lic}")
+        if isinstance(s.get("commit"), str) and s["commit"][:7] not in src_text:
+            probs.append(f"## 来源: name the upstream commit {s['commit'][:7]} of {s['repo']}")
     probs += check_sketches(body)
     p = Path(path).resolve()
     inside = LIB in p.parents
@@ -366,16 +465,18 @@ def check_file(path, lib=None):
         if p.parent.name != want:
             probs.append(f"lives in {p.parent.name}/, expected {want}/")
     if lib is not None:
-        me = fm.get("id")
+        me = fm.get("id") if isinstance(fm.get("id"), str) else None
         if me in lib and lib[me][0] != p:
             probs.append(f"id {me!r} is already used by {rel(lib[me][0])}")
         for key in ("conflicts", "pairs_with", "uses"):
-            for other in fm.get(key) or []:
+            for other in as_list(fm.get(key)):   # a wrong type is already reported field by field
+                if not isinstance(other, str):
+                    continue
                 if other == me:
                     probs.append(f"{key}: lists itself")
                 elif other not in lib or lib[other][1].get("kind", "recipe") != "recipe":
                     probs.append(f"{key}: no recipe with id {other!r}")
-                elif key == "conflicts" and me not in (lib[other][1].get("conflicts") or []):
+                elif key == "conflicts" and me not in as_list(lib[other][1].get("conflicts")):
                     probs.append(f"conflicts: {other!r} does not list {me!r} back (conflicts go both ways)")
     return fm, probs
 
@@ -415,10 +516,14 @@ def rel(p):
         return str(p)
 
 
+def not_a_recipe(p):
+    """README.md, NOTICE.md and other upper-case docs, the _TEMPLATE and anything under a _folder."""
+    return Path(p).stem.isupper() or any(part.startswith("_") for part in Path(p).parts)
+
+
 def library_files():
-    """Every recipe and sequence: *.md under recipes/ except READMEs and anything under a _folder or named _*."""
-    return sorted(p for p in LIB.rglob("*.md")
-                  if p.name != "README.md" and not any(part.startswith("_") for part in p.relative_to(LIB).parts))
+    """Every recipe and sequence: *.md under recipes/ that is not a doc or a template."""
+    return sorted(p for p in LIB.rglob("*.md") if not not_a_recipe(p.relative_to(LIB)))
 
 
 def load_library():
@@ -464,14 +569,30 @@ def library_checks(lib):
         missing = [w for w in words if f"`{w}`" not in readme]
         if missing:
             probs.append(f"recipes/README.md: vocabulary {field!r} is missing {missing} (document each term in `backticks`)")
+    notice = (LIB / "NOTICE.md").read_text(encoding="utf-8") if (LIB / "NOTICE.md").exists() else ""
+    for rid, (p, fm) in sorted(lib.items()):   # Apache-2.0 §4: one place that lists every derived file and its upstream
+        srcs = kept_sources(fm)
+        if not srcs:
+            continue
+        target = rel(p)[len("recipes/"):]
+        rows = "\n".join(ln for ln in notice.splitlines() if f"`{target}`" in ln or f"({target})" in ln)
+        if not rows:
+            probs.append(f"recipes/NOTICE.md: {target} is derived from {srcs[0]['repo']} ({srcs[0]['license']}) but not listed")
+            continue
+        for s in srcs:
+            if s["path"] not in rows:
+                probs.append(f"recipes/NOTICE.md: the row for {target} does not name its upstream file {s['path']}")
     return probs
 
 
 def cmd_check(files):
+    flags = [f for f in files if f.startswith("-")]
+    if flags:
+        return usage(f"check takes file names, not options: {' '.join(flags)}")
     lib = load_library()
     todo = [Path(f) for f in files] if files else library_files()
-    skipped = [p for p in todo if p.name == "README.md" or p.name.startswith("_")]
-    for p in skipped:   # `check recipes/*/*.md` also matches READMEs and the template: not recipes
+    skipped = [p for p in todo if not_a_recipe(p.name)]
+    for p in skipped:   # `check recipes/*/*.md` also matches READMEs, NOTICE.md and the template: not recipes
         print(f"- {rel(p)}  (skipped: not a recipe)")
     todo = [p for p in todo if p not in skipped]
     bad = 0
@@ -520,11 +641,13 @@ def parse_span(text, flag):
 
 
 def cmd_list(args):
-    want, out = {}, "table"
+    want, out = {}, None
     i = 0
     while i < len(args):
         a = args[i]
         if a in ("--ids", "--json", "--md"):
+            if out and out != a[2:]:
+                return usage(f"--{out} and {a} are two output formats: pick one")
             out = a[2:]
             i += 1
             continue
@@ -538,6 +661,8 @@ def cmd_list(args):
             i += 2
         else:
             return usage(f"unknown option {a!r}")
+        if a in want:
+            return usage(f"{a} is given twice: put the alternatives in one flag ({a} x,y)")
         field, voc = FILTERS[a]
         if voc == "span":
             try:
@@ -550,10 +675,23 @@ def cmd_list(args):
             if bad or not vals:
                 return usage(f"{a}: unknown {bad or val!r}; known: {', '.join(VOCAB[voc])}")
             want[a] = set(vals)
-    rows = []
-    for rid, (p, fm) in sorted(load_library().items(), key=lambda kv: (kv[1][1].get("family", ""), kv[0])):
+    out = out or "table"
+    rows, recipes, broken = [], [], []
+    for p in library_files():   # list only what validates, so a half-written recipe cannot crash the table
+        try:
+            fm, _ = read(p)
+        except (FMError, OSError, UnicodeDecodeError):
+            broken.append(p)
+            continue
         if fm.get("kind", "recipe") != "recipe":
             continue
+        if frontmatter_problems(fm):
+            broken.append(p)
+            continue
+        recipes.append((fm["id"], p, fm))
+    for p in broken:
+        print(f"bin/vh recipes: skipped {rel(p)}: it does not pass `bin/vh recipes check`", file=sys.stderr)
+    for rid, p, fm in sorted(recipes, key=lambda r: (r[2]["family"], r[0])):
         ok = True
         for flag, cond in want.items():
             field, voc = FILTERS[flag]
@@ -592,8 +730,7 @@ def cmd_list(args):
     widths = [max(len(r[c]) for r in table) for c in range(len(head))]
     for r in table:
         print("  " + "  ".join(x.ljust(w) for x, w in zip(r, widths)).rstrip())
-    total = sum(1 for _, fm in load_library().values() if fm.get("kind", "recipe") == "recipe")
-    print(f"{len(rows)} of {total} recipes. Read the whole recipe before using it: recipes/<family>/<id>.md;"
+    print(f"{len(rows)} of {len(recipes)} recipes. Read the whole recipe before using it: recipes/<family>/<id>.md;"
           " pacing skeletons: recipes/sequences/")
     return 0
 

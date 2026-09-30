@@ -15,10 +15,10 @@ needs: [text]
 sound: optional
 pitfalls: [seam-mismatch, text-blur]
 qa: {seam: 6, settle: 21}
-status: battle-tested
+status: tuned
 impl: [showcase/00-promo-launch-film/compositions/s-lockup.html]
 derived_from:
-  - {repo: hyperframes, path: _upstream_claude/skills/cut-the-curve/SKILL.md, license: Apache-2.0, note: 第 1、2 式 zoom-through 和 inverse zoom-through、Z 方向的符号规则、模糊量}
+  - {repo: github.com/heygen-com/hyperframes, commit: "a46095f", path: .claude/skills/cut-the-curve/SKILL.md, license: Apache-2.0, note: 第 1、2 式 zoom-through 和 inverse zoom-through、Z 方向的符号规则、模糊量}
 ---
 
 # 纵深切 · zoom-through
@@ -96,6 +96,7 @@ function line(ctx, tokens, lib, text, s, blur, a) {
 - **模糊量不对**：字用 20 px、整屏用 10 px，都不对。
 - **用在正文上**：只给大标题和短句。
 - **推进款还没在本仓库用过**：showcase 00 只用了拉回款；推进款的数值来自 HyperFrames 的文档，第一次用要回看。
+- **还没有人工判定**：showcase 00 用拉回款做片尾字标的入场，那支片子的审阅关卡经用户授权跳过，评审只有一轮独立 reviewer（`showcase/00-promo-launch-film/NOTES.md` 的自评记录），还没有人给过判定。有人看过、给了判定，就升 `battle-tested`，把判定记在这里。
 
 ## 验收帧
 
@@ -105,3 +106,5 @@ function line(ctx, tokens, lib, text, s, blur, a) {
 ## 来源
 
 改写自 HyperFrames（HeyGen，Apache-2.0）`cut-the-curve` skill 的第 1、2 式和它的"Z 方向是一个符号"规则。文字重写；缩放、模糊、透明度和缓动的数值取原文；本仓库的发布片 showcase 00 用拉回款做片尾字标的入场。
+
+**许可**：本文件修改自 [HyperFrames](https://github.com/heygen-com/hyperframes) 在 commit `a46095f` 时的 `.claude/skills/cut-the-curve/SKILL.md`（Copyright 2026 HeyGen, Inc.，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-hyperframes.txt`](../LICENSES/Apache-2.0-hyperframes.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

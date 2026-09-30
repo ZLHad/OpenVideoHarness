@@ -10,8 +10,8 @@ arc: [1, 3, 1, 4, 3, 3, 1, 4, 2, 1, 5, 5]
 uses: [brand-imprint-open, spotlight-hero, breath-title-card, deal-to-grid, type-and-filter, oversized-cursor, portal-wipe, row-embed, doc-self-writing, flash-cut, focus-handoff, accelerando-cuts, paparazzi-flash, group-photo-launch]
 status: draft
 derived_from:
-  - {repo: video-shotcraft, path: references/sequences/promo-energy-arc.md, license: Apache-2.0, note: 四个段位、占比、字卡密度、填空流程}
-  - {repo: video-shotcraft, path: template/TEMPLATE.md, license: Apache-2.0, note: 36 s 模板片的镜头表，本骨架按 60 s 重排}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/sequences/promo-energy-arc.md, license: Apache-2.0, note: 四个段位、占比、字卡密度、填空流程}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: template/TEMPLATE.md, license: Apache-2.0, note: 36 s 模板片的镜头表，本骨架按 60 s 重排}
 ---
 
 # 60 秒产品发布片 · product-film-60s
@@ -90,3 +90,5 @@ hold 占到四分之一以上是正常的：shotcraft 的判例里，用户的�
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）的全片骨架 `references/sequences/promo-energy-arc.md` 和模板片的镜头表 `template/TEMPLATE.md`。原骨架是 36 s 模板片的单例判例，本骨架按 60 s 重排了帧数，字卡和落款的停留改成本仓库的读时规则（原模板每张字卡 1.8 s），接缝表按 `recipes/sequences/README.md` 的能量落差规则选。还没有在本仓库的成片里验证过。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/sequences/promo-energy-arc.md`、`template/TEMPLATE.md`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

@@ -18,8 +18,8 @@ qa: {seam: 9, settle: 20}
 status: tuned
 pairs_with: [black-card]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 C 式}
-  - {repo: video-shotcraft, path: demos/transition/shot-transitions/FocusHandoffTransition.tsx, license: Apache-2.0, note: 帧数、模糊量、错开起跑}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 C 式}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/FocusHandoffTransition.tsx, license: Apache-2.0, note: 帧数、模糊量、错开起跑}
 ---
 
 # 虚焦接力 · focus-handoff
@@ -104,3 +104,5 @@ function page(ctx, tokens, lib, seed) {                                // 灰盒
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）转场卡 `shot-transitions` 的 C 式和 demo `FocusHandoffTransition.tsx`；原作者注明它来自对 Linear 发布片的抽帧逆向。文字重写；帧数、模糊量、滑动距离和错开起跑取原值；像素风、半调风格的替代做法和"底色只画一次"是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/transition/shot-transitions.md`、`demos/transition/shot-transitions/FocusHandoffTransition.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

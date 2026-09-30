@@ -18,16 +18,16 @@ status: upstream-tested
 max_per_film: 4
 pairs_with: [flash-cut, black-card]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/typography/paper-title-card.md, license: Apache-2.0, note: 压印配方、单强调词、短线、同色系底}
-  - {repo: video-shotcraft, path: demos/typography/paper-title-card/PaperTitleCard.tsx, license: Apache-2.0, note: 帧数和缓动}
-  - {repo: video-shotcraft, path: references/sequences/promo-energy-arc.md, license: Apache-2.0, note: 呼吸字卡的密度规则}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/typography/paper-title-card.md, license: Apache-2.0, note: 压印配方、单强调词、短线、同色系底}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/typography/paper-title-card/PaperTitleCard.tsx, license: Apache-2.0, note: 帧数和缓动}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/sequences/promo-energy-arc.md, license: Apache-2.0, note: 呼吸字卡的密度规则}
 ---
 
 # 呼吸字卡 · breath-title-card
 
 ## 意图
 
-在两段产品画面之间给观众一句话的喘息，同时告诉他接下来看什么、它值什么。它不是装饰：重要功能出场之前的那张字卡，就是这一章的路标。
+高能镜头连着来，观众需要停一下。这张字卡用一句话占住这一拍：下一段讲什么、凭什么值得看，一句说完。它也是路标：重要功能出场前的那张字卡，标出了这一章从哪里开始。
 
 ## 阶段与时值
 
@@ -108,3 +108,5 @@ export function renderAt(t, ctx, tokens, lib) {
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）的字卡 `paper-title-card`、它的 demo `PaperTitleCard.tsx`，以及全片骨架 `promo-energy-arc` 里的字卡密度规则。文字重写；压印的帧数、缓动、单强调词、短线和同色系底取原值；停留改成本仓库的读时规则，强调从斜体改成加粗，中文按词块压印是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/typography/paper-title-card.md`、`demos/typography/paper-title-card/PaperTitleCard.tsx`、`references/sequences/promo-energy-arc.md`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

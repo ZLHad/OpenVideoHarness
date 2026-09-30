@@ -18,9 +18,9 @@ qa: {peak: 20, settle: 48}
 status: tuned
 pairs_with: [deal-to-grid]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 F 式（平面款、纵深款）}
-  - {repo: video-shotcraft, path: demos/transition/shot-transitions/PortalWipeV2.tsx, license: Apache-2.0, note: 纵深款的帧数、缓动、两层视差}
-  - {repo: video-shotcraft, path: demos/transition/shot-transitions/MaskWipeReal.tsx, license: Apache-2.0, note: 平面款的帧数和卡面淡出}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 F 式（平面款、纵深款）}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/PortalWipeV2.tsx, license: Apache-2.0, note: 纵深款的帧数、缓动、两层视差}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/MaskWipeReal.tsx, license: Apache-2.0, note: 平面款的帧数和卡面淡出}
 ---
 
 # 穿窗 · portal-wipe
@@ -127,3 +127,5 @@ HyperFrames（DOM）里是一个 `overflow: hidden` 的 div 当窗，`left/top/w
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）转场卡 `shot-transitions` 的 F 式，以及 demo `PortalWipeV2.tsx`（纵深款）和 `MaskWipeReal.tsx`（平面款）。文字重写；帧数、缓动、卡面淡出系数、窗内起始缩放和两层视差的系数取原值，风格适配和声音一节是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/transition/shot-transitions.md`、`demos/transition/shot-transitions/PortalWipeV2.tsx`、`demos/transition/shot-transitions/MaskWipeReal.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

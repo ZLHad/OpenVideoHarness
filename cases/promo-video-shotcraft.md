@@ -104,6 +104,6 @@
 
 ## 许可
 
-- 仓库是 Apache-2.0（Copyright 2026 Wei Yihao）。复用代码要保留版权声明并注明修改；改写卡片文字要写明出处，并在 `ACKNOWLEDGMENTS.md` 登记。本仓库的 `recipes/` 没有复制它的代码，文字是重写的，每张配方在 `derived_from` 和"来源"一节写明出处和改动。
+- 仓库是 Apache-2.0（Copyright 2026 Wei Yihao），在用到的 commit `e2d8928` 没有 NOTICE 文件。改编它的文件要按第 4 条处理：带上许可原文，标明改过、改自哪里，保留版权行，并在 `ACKNOWLEDGMENTS.md` 登记。本仓库 `recipes/` 里改编自它的 21 个文件都这样做了：没有复制代码，文字重写；许可原文在 `recipes/LICENSES/`，每个文件的"来源"一节写明改动、上游文件和 commit，总表在 `recipes/NOTICE.md`。
 - 音频按 `assets/audio/ATTRIBUTION.md` 逐条核对，来源待核的不用。
-- 卡片研究自公开的商业片和 X 个人作品，作者只取手法、全部重写（`references/shots/ATTRIBUTION.md`），并写明"公开发布不等于授予复刻许可"。我们借用时守同一条边界：只学时序、编排、缓动，不复刻具体的画面、文案和品牌。
+- 卡片研究自公开的商业片和 X 个人作品，作者只取手法、全部重写（`references/shots/ATTRIBUTION.md`，逐卡列了 48 张，本库改编的卡都不在其中），并写明"公开发布不等于授予复刻许可"。转场卡注明 B、C 两式来自对 Linear 发布片的抽帧逆向，这句话在 `dark-tunnel`、`focus-handoff` 的"来源"里保留了。我们借用时守同一条边界：只学时序、编排、缓动，不复刻具体的画面、文案和品牌。

@@ -14,7 +14,7 @@ needs: [text]
 sound: optional
 pitfalls: [state-leak, no-hold, overuse]
 qa: {peak: 4, read: 9}
-status: battle-tested
+status: tuned
 impl: [showcase/04-intro-film/js/fx.js, styles/_swatch/lib.js]
 derived_from: []
 ---
@@ -92,6 +92,7 @@ HyperFrames（DOM）里每个字一个定宽的 `span`，内容由同样的公�
 - **读时少算**：读的时间从锁定起算，不是从开始解码起算。用 `bin/vh readcheck` 核的时候，`start` 填锁定的时刻。
 - **字压在运动模糊下**：解码常和甩镜、冲击一起用；必读字在画面上时，屏幕空间的运动模糊压到约 5%（playbook/03 §4）。
 - **用太多**：每一行字都解码，就成了噪音。只给标题、关键数字、命令这类字用。
+- **还没有人工判定**：介绍片（showcase 04）v3 的动态字用它；这一版过了两轮独立 reviewer，成片仍待用户本人观看（`showcase/04-intro-film/REVIEW.md` 关卡 ③；v2 的人工意见是"不够炫酷"，这一手法是 v3 为此加的）。有人看过、给了判定，就升 `battle-tested`，把判定记在这里。
 
 ## 验收帧
 

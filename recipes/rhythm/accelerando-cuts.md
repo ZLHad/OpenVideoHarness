@@ -6,7 +6,7 @@ family: rhythm
 role: [climax, hook]
 intent: [accelerate, punctuate]
 energy: 5
-duration_f: [120, 135]
+duration_f: [130, 145]
 types: [promo, short, meme, mv]
 engines: [canvas, hyperframes, three]
 aspect: [landscape, portrait, square]
@@ -17,8 +17,8 @@ qa: {peak: 92, settle: 118}
 status: tuned
 max_per_film: 1
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/rhythm/beat-cut-moves.md, license: Apache-2.0, note: 两式中的 A 式}
-  - {repo: video-shotcraft, path: demos/rhythm/beat-cut-moves/BeatCutAccelerando.tsx, license: Apache-2.0, note: 切点帧、视图池、切帧提亮、末段慢推}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/rhythm/beat-cut-moves.md, license: Apache-2.0, note: 两式中的 A 式}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/rhythm/beat-cut-moves/BeatCutAccelerando.tsx, license: Apache-2.0, note: 切点帧、视图池、切帧提亮、末段慢推}
 ---
 
 # 递进硬切串 · accelerando-cuts
@@ -38,6 +38,8 @@ derived_from:
 | 最后一刀 | 95 | 切回全景 v0 |
 | 定格慢推 | 95–115 | 缩放 1 → 1.06，ease-out，之后不动 |
 | 静止 | 115–130 | 真静止；从最后一刀算起 hold 共 35 帧 |
+
+整段 130 帧（原 demo 的长度）。能伸缩的只有建立镜头：观众需要多认一会儿时可以加到 64 帧，整段不超过 145 帧；五连切的间隔和最后的 35 帧 hold 不变。
 
 ## 参数
 
@@ -108,3 +110,5 @@ function page(ctx, tokens, lib, seed, z = 1, cx = 960, cy = 540) {     // 灰盒
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）节奏卡 `beat-cut-moves` 的 A 式和 demo `BeatCutAccelerando.tsx`。文字重写；切点帧、视图池的构成、切帧提亮、末段慢推和 hold 取原值；按拍号排的换算、闪烁底线的说明和竖屏的做法是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/rhythm/beat-cut-moves.md`、`demos/rhythm/beat-cut-moves/BeatCutAccelerando.tsx`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

@@ -14,7 +14,7 @@ needs: [3d, text]
 sound: recommended
 pitfalls: [dead-frame, text-blur, motion-sickness, seam-mismatch]
 qa: {seam: 12, settle: 60}
-status: battle-tested
+status: tuned
 pairs_with: [gate-as-door, whip-pan]
 impl: [showcase/04-intro-film/js/main.js, showcase/04-intro-film/js/fx.js]
 derived_from: []
@@ -90,6 +90,7 @@ const hand = (t) => [0.018 * Math.sin(0.9 * t + 1.1) + 0.01 * Math.sin(2.3 * t +
 - **字被模糊抹花**：跟镜头的字和世界里的字都会被屏幕空间模糊抹花；必读字在画面上时压模糊，读长句时不要甩。
 - **标签太小或堆在画面边上**：标签按屏幕像素定字号，节点出画时标签淡出。
 - **连续甩镜看着晕**：每一跳之后都要停站；两次甩镜之间至少一个完整的停站。
+- **还没有人工判定**：介绍片（showcase 04）v3 整支是这一手法；这一版过了两轮独立 reviewer，成片仍待用户本人观看（`showcase/04-intro-film/REVIEW.md` 关卡 ③；v2 的人工意见是"不够炫酷"，这一手法是 v3 为此加的）。有人看过、给了判定，就升 `battle-tested`，把判定记在这里。
 
 ## 验收帧
 

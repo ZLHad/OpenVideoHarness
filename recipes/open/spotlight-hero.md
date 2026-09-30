@@ -1,12 +1,12 @@
 ---
 id: spotlight-hero
 name: 聚光单主角
-one_liner: 聚光灯在页面上游走后锁定一张卡，镜头斜侧推近，卡弹起悬停、轮廓光跑两圈、再贴回原位
+one_liner: 光在整页上找一圈、停在一张卡上，镜头从左侧斜着推近；卡抬起悬停，边框上跑两圈光，再落回自己的格子
 family: open
 role: [hero, open]
 intent: [hero, detail]
 energy: 3
-duration_f: [130, 145]
+duration_f: [145, 160]
 types: [promo, short, data]
 engines: [hyperframes, three, canvas]
 aspect: [landscape, portrait]
@@ -18,16 +18,16 @@ status: upstream-tested
 max_per_film: 1
 pairs_with: [brand-imprint-open]
 derived_from:
-  - {repo: video-shotcraft, path: references/shots/opening/spotlight-hero-card.md, license: Apache-2.0, note: 结构、判例、音效位置}
-  - {repo: video-shotcraft, path: demos/opening/spotlight-hero-card/SpotlightHeroCard.tsx, license: Apache-2.0, note: 相机关键帧、聚光站点、动作弧、光束两圈}
-  - {repo: video-shotcraft, path: references/aesthetic-rules.md, license: Apache-2.0, note: 判例 Q2、Q4、Q5、Q6、R1、R3}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/opening/spotlight-hero-card.md, license: Apache-2.0, note: 结构、判例、音效位置}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/opening/spotlight-hero-card/SpotlightHeroCard.tsx, license: Apache-2.0, note: 相机关键帧、聚光站点、动作弧、光束两圈}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/aesthetic-rules.md, license: Apache-2.0, note: 判例 Q2、Q4、Q5、Q6、R1、R3}
 ---
 
 # 聚光单主角 · spotlight-hero
 
 ## 意图
 
-开场只讲一件事：这一张卡就是产品的原子单位。聚光灯替观众找到它，弹起和悬停给它体积和重量，轮廓光是"检视"的隐喻，最后贴回原位，说明它属于这个页面。这是全片质感最高、节奏最慢的一镜。
+这一镜只立一个主角：产品里最小、最常见的那块积木，比如一张卡。全页先铺开，一束光在页面上找了几处，停在它身上，观众的视线就被带了过去；它从槽里抬起、悬在半空，才显出厚度和分量；一道光沿着边框转两圈，像在细看它；最后它落回原来的格子，交代它本来就是这一页的一部分。全片最慢、最讲质感的一镜通常是它。
 
 ## 阶段与时值
 
@@ -40,7 +40,7 @@ derived_from:
 | 弹起 | 48–58 | 卡离开槽位升起，`bezier(0.2,1.25,0.3,1)`（约 2% 过冲），阴影随高度变大变软 |
 | 悬停 | 58–112 | 54 帧：上下浮动 4 px、周期 40 帧；光束第一圈 60–74（快、亮），第二圈 80–100（慢、弱），余光 100–112 淡去 |
 | 贴回 | 112–130 | 18 帧落回槽位，`bezier(0.4,0,0.3,1.05)`，最后 4 帧轻压一下（缩放 0.997） |
-| 锁定 | 130–138 | 相机和卡全部不动，至少 15 帧 |
+| 锁定 | 130–145 | 相机和卡全部不动，至少 15 帧（原 demo 共 139 帧，落地后只锁了 9 帧；这里按"收尾"一行的 ★ 补足） |
 
 从锁定到落地约 98 帧（3.3 s），这是判例定下来的长度。
 
@@ -103,8 +103,9 @@ export function renderAt(t, ctx, tokens, lib) {
   };
   lap(60, 74, (u) => u, 5, 1); lap(80, 100, E(0.4, 0, 0.4, 1), 3.5, 0.62);
   ctx.restore(); ctx.restore();
-  const on = lib.seg(f, 2, 10), K = [4, 8, 16, 22, 28, 48];            // 聚光：屏幕空间里经过 4 个中间站，推近时跟到画面中心
-  const px = track(f, K, [480, 480, 1344, 806, 960, 960]), py = track(f, K, [324, 324, 486, 648, 724, 540]);
+  const on = lib.seg(f, 2, 10), K = [4, 8, 16, 22, 28, 48];            // 聚光：屏幕空间里经过几个中间站落到主角卡上，推近时跟到画面中心
+  const hx = 960 + (CX - 960) * 0.78, hy = 540 + (CY - 540) * 0.78;   // 主角卡在全景（0.78 倍）里的屏幕位置；中间站相对它摆，和原 demo 的走位一样
+  const px = track(f, K, [hx - 480, hx - 480, hx + 384, hx - 154, hx, 960]), py = track(f, K, [hy - 400, hy - 400, hy - 238, hy - 76, hy, 540]);
   const pulse = f < 36 ? 0.06 * lib.seg(f, 32, 36) : 0.06 * (1 - lib.seg(f, 36, 41));
   const R = track(f, [22, 32, 48], [620, 420, 360]) * (1 + pulse), vig = track(f, [22, 32, 48], [0.16, 0.34, 0.42], (u) => u) * on;
   ctx.save(); ctx.translate(px, py); ctx.scale(1, 0.8);                // 一个椭圆：中心暖光，外圈压暗（超出半径的部分取最后一个颜色）
@@ -144,3 +145,5 @@ function page(ctx, tokens, lib, hero) {                                // 灰盒
 ## 来源
 
 改写自 video-shotcraft（Vincent Wei，Apache-2.0）的开场卡 `spotlight-hero-card`、demo `SpotlightHeroCard.tsx` 和它引用的审美判例。文字重写；相机关键帧、聚光站点、光池半径、动作弧的帧数与缓动、光束两圈的参数取原值；平面风格的替代做法和正视的 canvas 近似是本仓库补的。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/shots/opening/spotlight-hero-card.md`、`demos/opening/spotlight-hero-card/SpotlightHeroCard.tsx`、`references/aesthetic-rules.md`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

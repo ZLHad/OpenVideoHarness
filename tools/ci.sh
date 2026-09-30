@@ -153,6 +153,12 @@ PY
   a=$(vh recipes check "$t/bad.md" 2>&1); rc=$?
   vh recipes check "$t/ok.md" >/dev/null && [ $rc = 1 ] && case "$a" in *energy*) true ;; *) false ;; esac \
     && ok "recipes check passes a valid copy and names the bad field" || bad "recipes check on a copy (bad one exited $rc)"
+  sed 's/^qa: .*/qa: {peak:4}/' "$t/ok.md" > "$t/yaml.md"   # YAML reads {peak:4} as one key, "peak:4"
+  a=$(vh recipes check "$t/yaml.md" 2>&1); rc=$?
+  [ $rc = 1 ] && case "$a" in *"space after"*) true ;; *) false ;; esac \
+    && ok "recipes check refuses frontmatter that YAML would read differently" || bad "recipes check on {peak:4} exited $rc"
+  vh recipes check --json >/dev/null 2>&1; rc=$?
+  [ $rc = 2 ] && ok "recipes check treats an option as bad usage" || bad "recipes check --json exited $rc"
   rm -rf "$t"
   if ! command -v ffmpeg >/dev/null; then skip "mux / gif smoke" "ffmpeg not installed"; return; fi
   # subtitle languages come from the file name, never from folders (a home dir like /home/zhang used to tag everything chi)

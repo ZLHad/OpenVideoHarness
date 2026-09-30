@@ -422,7 +422,7 @@ OpenVideoHarness/
 
 ## 许可
 
-原创内容采用 [MIT](LICENSE) 许可。自带的 ClaudeAnimationBase 也是 MIT（© John Heibel）。参考仓库遵循各自的许可证。
+原创内容采用 [MIT](LICENSE) 许可。自带的 ClaudeAnimationBase 也是 MIT（© John Heibel）。`recipes/` 里有些文件改编自 Apache-2.0 的项目（video-shotcraft、HyperFrames），来自上游的部分仍按 Apache-2.0，清单见 [`recipes/NOTICE.md`](recipes/NOTICE.md)。参考仓库遵循各自的许可证。
 
 ## 引用
 

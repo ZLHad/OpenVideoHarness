@@ -10,7 +10,7 @@ arc: [3, 2, 3, 3, 1, 4, 5, 2]
 uses: [flash-cut, cut-the-curve, focus-handoff, whip-pan, breath-title-card, black-card, decode-type, zoom-through]
 status: draft
 derived_from:
-  - {repo: video-shotcraft, path: references/sequences/promo-energy-arc.md, license: Apache-2.0, note: 先划 hold、高低交替、限额的方法}
+  - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/sequences/promo-energy-arc.md, license: Apache-2.0, note: 先划 hold、高低交替、限额的方法}
 ---
 
 # 30 秒讲解 · explainer-30s
@@ -72,3 +72,5 @@ derived_from:
 ## 来源
 
 按 video-shotcraft（Vincent Wei，Apache-2.0）全片骨架 `promo-energy-arc` 的方法（先划 hold、高低交替、限额）和本仓库的旁白规则（CLAUDE.md 硬规则 2、playbook/03、playbook/04、video-types/02）排出来的，段位和帧数是本仓库的，还没有在成片里验证过。
+
+**许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/sequences/promo-energy-arc.md`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。
