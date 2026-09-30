@@ -1,6 +1,13 @@
 """Code-composed soundtrack: a JSON score → a deterministic WAV + an exact beat/section map.
 
 usage (via bin/vh music): python tools/audio/music.py <score.json> <out.wav>      (writes <out>.beats.json too)
+       … [--length S|auto]  end the file exactly at S seconds (auto: where the last bar ends) instead of 2.5 s of tail
+                           after the last bar; the fade starts on a beat about a bar (1–3 s) before the end, a raised
+                           cosine to silence, and the beat map gets "fade" and loses what lies past the end. Longer than
+                           the default ending: silence is added. A 10 s score for a 10 s film then renders 10 s, not 12.5
+       … [--roll]          also draw <out>.roll/: overview.png (every part's notes and loudness on one time axis, the
+                           sections, the chords, the mix loudness against the score's "energy") and one piano roll per
+                           part in rows of 8 bars, with its loudness under each row (needs pillow: bin/vh adds it)
        python tools/audio/music.py --example [name] > score.json    (a starter score; --example list names them all)
        python tools/audio/music.py --instruments                    (every part instrument and figure, one line each)
 
@@ -346,7 +353,7 @@ DIZI = [[(0, 1.5, 2), (1.5, 0.5, 3), (2, 2, 4), (4, 1, 3), (5, 1, 2), (6, 2, 0)]
         [(0, 1, 4), (1, 1, 5), (2, 1.5, 4), (3.5, 0.5, 3), (4, 3, 2), (7, 1, 1)]]
 ZH = {"bell": 0.45, "zheng": 0.25, "dizi": 0.3, "taiko": 0.12}   # reverb send per layer (own hall, no kick pumping)
 
-def render(score, stems=None, info=None):
+def render(score, stems=None, info=None, length=None, note_log=None):
     validate(score)   # parts-related fields only; stops with the part's name before anything renders
     rng = np.random.default_rng(score.get("seed", 7))
     sub = lambda *k: np.random.default_rng([int(score.get("seed", 7)), *k])   # per-note streams for the new layers
@@ -438,7 +445,7 @@ def render(score, stems=None, info=None):
     if score.get("parts") or score.get("stereo") or score.get("lofi") or score.get("tape"):
         del out, sidechain, zh, send, wet   # the layers are mixed: free their buffers before the parts render (long scores)
         info_gain = [1.0]
-        mix, checks = parts_bus(score, mix, hits, stems, info_gain)   # parts, stereo, spaces, lofi/tape; (n,) or (n, 2)
+        mix, checks = parts_bus(score, mix, hits, stems, info_gain, note_log)   # parts, stereo, spaces, lofi/tape; (n,) or (n, 2)
     mix = np.tanh(mix * 1.2) / np.tanh(1.2)
     peak = np.max(np.abs(mix)) or 1.0
     if score.get("parts"):   # every part must be heard: ≥ −40 dBFS (loudest 50 ms RMS, or its peak − 18 dB) in the final file
@@ -449,12 +456,36 @@ def render(score, stems=None, info=None):
         if low: sys.exit("music: inaudible part(s) " + ", ".join(f"{k} at {d:.0f} dBFS RMS" for k, d in low) +
                          ' (the floor is −40): raise gain_db, or mark the part "quiet": true if that is intended')
     mix *= 10 ** (score.get("master_db", -1.0) / 20) / peak
-    end = int((t0 + 2.5) * SR); mix = mix[:end]
-    fade = int(1.5 * SR); mix[-fade:] *= np.linspace(1, 0, fade) if mix.ndim == 1 else np.linspace(1, 0, fade)[:, None]
+    end_at = None if length is None else (t0 if length == "auto" else float(length))
+    fade_at = None
+    if end_at is None or end_at >= t0 + 2.5:   # the default ending: 2.5 s of tail after the last bar, the last 1.5 s faded
+        end = int((t0 + 2.5) * SR); mix = mix[:end]
+        fade = int(1.5 * SR); mix[-fade:] *= np.linspace(1, 0, fade) if mix.ndim == 1 else np.linspace(1, 0, fade)[:, None]
+        if end_at is not None:   # longer than that: silence after it
+            n = int(round(end_at * SR)); tail = np.zeros((n - len(mix),) + mix.shape[1:]); mix = np.concatenate([mix, tail]); fade_at = (t0 + 1.0, t0 + 2.5)
+    else:   # --length: end exactly there; the fade starts on a beat about one bar (1–3 s) before, a raised cosine to silence
+        n = int(round(end_at * SR)); mix = mix[:n].copy(); fade_at = (music_fade_start(end_at, beats, bars, beat), end_at)
+        a = int(round(fade_at[0] * SR)); u = np.linspace(0, 1, n - a)
+        g = 0.5 * (1 + np.cos(np.pi * u)); mix[a:] *= g if mix.ndim == 1 else g[:, None]
     beatmap = {"bpm": bpm, "offset": 0.0, "beats": beats, "downbeats": downbeats, "sections": secs, "hits": hits,
                "duration": round(len(mix) / SR, 3)}
     if "meters" in score or "beats_per_bar" in score: beatmap.update(bars=bars, bars_note="[bar number (1-based, whole score), start (s), beats in bar]")
+    if end_at is not None:   # the map describes the file: nothing after its end
+        beatmap["beats"] = [b for b in beats if b < end_at - 1e-6]; beatmap["downbeats"] = [b for b in downbeats if b < end_at - 1e-6]
+        beatmap["hits"] = [h for h in hits if h["t"] < end_at - 1e-6]
+        beatmap["sections"] = [{**x, "end": min(x["end"], round(end_at, 3))} for x in secs if x["start"] < end_at - 1e-6]
+        if "bars" in beatmap: beatmap["bars"] = [b for b in bars if b[1] < end_at - 1e-6]
+        beatmap["fade"] = {"start": round(fade_at[0], 3), "end": round(fade_at[1], 3)}
     return mix, beatmap
+
+def music_fade_start(L, beats, bars, beat):
+    """Where a fade that ends at L starts: on the beat in [L − 3, L − 1] nearest one bar before L (the earlier one on a
+    tie); off the beat, at one bar clamped to 1–3 s, only when no beat falls in that window (under 30 bpm)."""
+    bar = next((b for b in reversed(bars) if b[1] < L - 1e-6), None)
+    want = min(3.0, max(1.0, (bar[2] if bar else 4) * beat))
+    grid = list(beats) + [beats[-1] + k * beat for k in range(1, int(4.0 / beat) + 2)] if beats else []
+    near = [b for b in grid if L - 3.0 - 1e-6 <= b <= L - 1.0 + 1e-6]
+    return max(0.0, min(near, key=lambda b: (round(abs(L - b - want), 6), b)) if near else L - want)   # rounded: a tie is a tie
 
 # ======================= parts: instruments playing patterns (voices in tools/audio/instruments.py) =======================
 import bisect, math
@@ -1305,7 +1336,7 @@ def section_stops(score, cx):
         out.append((t0, bars[-1].tb + bars[-1].nb * cx.beat, set(stp.get("keep", [])), float(stp.get("tail", 0.15)), stp.get("hold") is True, s["name"], si))
     return out
 
-def parts_bus(score, legacy, hits, stems=None, info_gain=None):
+def parts_bus(score, legacy, hits, stems=None, info_gain=None, note_log=None):
     """Render the parts, add them to the layers' mix (centred), run the spaces and master effects; returns ((n,) or (n, 2), checks).
     Two passes keep memory flat: first every part's notes (cheap; ducks and the beat map need all the onsets), then each part
     is rendered, mixed into the buses and dropped before the next one."""
@@ -1336,6 +1367,9 @@ def parts_bus(score, legacy, hits, stems=None, info_gain=None):
         if spec.kind != "texture" and not evs and not silenced:
             sys.exit(f'music: part {label} plays no notes: check its sections, pattern, figure and pitch ("quiet": true does not skip this)')
         plan.append((part, spec, label, R, pbars, evs, cuts, silenced))
+        if note_log is not None:   # for --roll: every note at its grid time, with its section's level folded into the velocity
+            note_log[label] = {"inst": inst, "kind": spec.kind, "sections": sorted({B.sec for B in pbars}, key=[B.sec for B in cx.grid].index),
+                            "events": [(e[0] + e[8], e[1], e[2], e[3] * e[7], e[6].sec) for e in evs]}
         for key in {inst, pid} - {None}: onsets.setdefault(key, []).extend(e[0] for e in evs)
         if part.get("hit"):
             seen = set()
@@ -1508,15 +1542,37 @@ def main():
             print(f"  {name:<12} {spec.kind:<7} {'octave ' + str(spec.octave) if spec.kind in ('note', 'mono') else '':<9} {doc}"
                   + (f"  [defaults: {knobs}]" if knobs else ""))
         print("  figures: " + " ".join(FIGURES)); return
-    if len(sys.argv) < 3: sys.exit("usage: music.py <score.json> <out.wav> | --example [name|list] | --instruments")
-    score = json.load(open(sys.argv[1])); out = sys.argv[2]
-    mix, beatmap = render(score)
+    usage = "usage: music.py <score.json> <out.wav> [--length S|auto] [--roll] | --example [name|list] | --instruments"
+    args, length, roll = [], None, False
+    it = iter(sys.argv[1:])
+    for a in it:
+        if a == "--roll": roll = True
+        elif a == "--length" or a.startswith("--length="):
+            length = a.split("=", 1)[1] if "=" in a else next(it, None)
+            if length is None: sys.exit("music: --length needs seconds or auto")
+            if length != "auto":
+                try: length = float(length)
+                except ValueError: sys.exit(f"music: --length {length!r}: give seconds (e.g. 10) or auto")
+                if not length > 0 or not math.isfinite(length): sys.exit("music: --length must be a positive number of seconds")
+        elif a.startswith("--"): sys.exit(f"music: unknown option {a}\n{usage}")
+        else: args.append(a)
+    if len(args) != 2: sys.exit(usage)
+    score = json.load(open(args[0])); out = args[1]
+    stems = notes = info = None
+    if roll:
+        import roll as R   # pillow, only for the pictures
+        stems, notes, info = R.Envelopes(), {}, {}
+    mix, beatmap = render(score, stems=stems, info=info, length=length, note_log=notes)
     with wave.open(out, "wb") as w:
         w.setnchannels(1 if mix.ndim == 1 else 2); w.setsampwidth(2); w.setframerate(SR)
         w.writeframes((np.clip(mix, -1, 1) * 32767).astype("<i2").tobytes())
     bm = out.rsplit(".", 1)[0] + ".beats.json"
     json.dump(beatmap, open(bm, "w"), indent=2)
-    print(f"{out} ({beatmap['duration']}s, {score['bpm']} bpm, {len(beatmap['sections'])} sections{', stereo' if mix.ndim == 2 else ''}) · beat map {bm}")
+    fade = f", ends at {beatmap['duration']}s: fade from {beatmap['fade']['start']}s" if "fade" in beatmap and length is not None else ""
+    print(f"{out} ({beatmap['duration']}s, {score['bpm']} bpm, {len(beatmap['sections'])} sections{', stereo' if mix.ndim == 2 else ''}{fade}) · beat map {bm}")
+    if roll:
+        for p in R.draw(score, args[0], out, mix, beatmap, stems, notes, info, Ctx(score)):
+            print(f"  roll: {p}")
 
 if __name__ == "__main__":
     main()
