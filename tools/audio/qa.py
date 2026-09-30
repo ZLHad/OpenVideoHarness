@@ -76,7 +76,7 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04):
     d5, t5 = rms_db(x, sr, .005, .005); sil = runs(d5 < -60, t5, .005, .02)
     inside = [r for r in sil if r[1] >= t_from and r[0] <= end]; fails += len(inside)
     out.append(f"[1] digital silence (< −60 dBFS, ≥ 20 ms): {len(inside)} inside the span" +
-               (f"; all runs: " + ", ".join(f"{a:.3f}-{b:.3f}" for a, b, *_ in sil) if sil else ""))
+               ("; all runs: " + ", ".join(f"{a:.3f}-{b:.3f}" for a, b, *_ in sil) if sil else ""))
     db, tt = rms_db(x, sr, .1, .05); viol = []
     for s in secs:
         m = (tt >= s["start"]) & (tt < s["end"])
