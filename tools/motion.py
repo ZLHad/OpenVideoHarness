@@ -11,6 +11,8 @@ a grey copy scaled to at most 480 px wide. Needs ffmpeg, nothing else. One JSON 
                                   within 90 % of its maximum; null when nothing moves
   peak_window_frames              first and last frame of that run: the peak is a window, not a frame, because the top of a
                                   smooth move is flat. Settle the cut on a strip of frames
+  peak_prominence                 the smoothed maximum divided by the median of the smoothed energy. Near 1 the curve is
+                                  flat and the peak and its window are noise (uniform move: 1.0 to 1.14; smoothstep: 1.33)
   duplicate_frames_inside_motion  frame numbers (from 0) that equal the frame before them while both neighbours are moving:
                                   energy under 15 % of motion_p75 between two frames above 50 %. A fps conversion that
                                   repeats frames shows as a regular pattern (24 -> 30 fps with `fps=30`: every 5th frame).
@@ -65,7 +67,7 @@ def summarize(pts, val):
     top = max(smooth)
     res = {"frames": n + 1, "motion_p75": round(p75, 3)}
     if top < 1e-3:   # nothing moves: the argmax of a flat-zero curve would be frame 1
-        res.update(peak_frame_smoothed=None, peak_t_smoothed=None, peak_window_frames=None)
+        res.update(peak_frame_smoothed=None, peak_t_smoothed=None, peak_window_frames=None, peak_prominence=None)
     else:
         # the top of a smooth move is flat and noisy, so take the middle of the run of frames within 90 % of the maximum
         lo = hi = max(range(n), key=smooth.__getitem__)
@@ -74,7 +76,8 @@ def summarize(pts, val):
         while hi < n - 1 and smooth[hi + 1] >= 0.9 * top:
             hi += 1
         mid = (lo + hi) // 2
-        res.update(peak_frame_smoothed=mid + 1, peak_t_smoothed=pts[mid], peak_window_frames=[lo + 1, hi + 1])
+        res.update(peak_frame_smoothed=mid + 1, peak_t_smoothed=pts[mid], peak_window_frames=[lo + 1, hi + 1],
+                   peak_prominence=round(top / max(statistics.median(smooth), 1e-3), 2))
     res["duplicate_frames_inside_motion"] = dups
     return smooth, res
 

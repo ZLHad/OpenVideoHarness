@@ -159,7 +159,7 @@
 **Generated clips in the hybrid pipeline: method apart from numbers**
 - `playbook/05` is now organised by task: taking in a generated clip, matching it to code-rendered footage, keying, character consistency, artefact QA, cost. Specs and prices moved to the dated `references/genvideo-market.md`, licences and disclosure to `references/genvideo-ledger.md`.
 - The market page was checked against the official pages on 2026-10-01. It corrects one claim: Seedance 2.5 tops out at 720p on fal only, Runway has had a 1080p tier since 2026-08-15. Sora's API was removed on 2026-09-24.
-- New tools, run from the repo root: `tools/motion.py` (window of the motion peak, frames repeated inside motion), `tools/match_grade.py` (Lab statistics to a `.cube` LUT), `tools/grain_est.py` (grain σ). Checked on synthetic clips; no video model has been called.
+- New tools, run from the repo root: `tools/motion.py` (window and prominence of the motion peak, frames repeated inside motion), `tools/match_grade.py` (Lab statistics to a `.cube` LUT), `tools/grain_est.py` (grain σ). Checked on synthetic clips; no video model has been called.
 - The grain in `playbook/08`, `noise=alls=6:allf=t`, is σ ≈ 3.5 after x264, not 1.8 (that is the `t+u` variant); the `playbook/05` table lists both, measured on a flat grey clip.
 - `playbook/02` gets a "色彩标签" section: the ffprobe check, the BT.709 encode command, and why it matters (eight test swatches up to 21 levels off, pure green 40; Chrome reads a file tagged only `bt470bg` with the BT.709 matrix, ffmpeg does not). Two committed showcase finals are off the contract and are not touched here.
 
