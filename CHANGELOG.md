@@ -3,8 +3,8 @@
 ## Unreleased
 
 **Repository and community files**
-- Releases `v0.1.0`, `v0.2.0` and `v0.2.1` are published on GitHub, with notes taken from this file, and version tags are protected by the `release-tags` ruleset (`.github/rulesets/tags.json`): only admins can create a `v*` tag, and nobody can move or delete one. CONTRIBUTING describes how to cut a release.
-- GitHub now detects the license as MIT: `LICENSE` holds only the standard MIT text, and its note on third-party components moved, unchanged, to the top of `ACKNOWLEDGMENTS.md`.
+- Releases `v0.1.0`, `v0.2.0` and `v0.2.1` are published on GitHub, with notes taken from this file, and version tags are protected by two rulesets (`.github/rulesets/tags-create.json`, `tags-immutable.json`): only admins can create a `v*` tag, and nobody, admins included, can move or delete one. The rules are split because GitHub applies bypass permissions per ruleset, not per rule. CONTRIBUTING describes how to cut a release.
+- GitHub now detects the license as MIT: `LICENSE` holds only the standard MIT text, and its note on third-party components moved to the top of `ACKNOWLEDGMENTS.md` ("License scope").
 - Issue forms (bug report, feature request, style proposal), a pull request template with the CONTRIBUTING checklist, `SECURITY.md` (private vulnerability reporting; what counts: key leaks, `fetch.sh` neutralisation bypasses, injection through `bin/vh`), `CODE_OF_CONDUCT.md` (Contributor Covenant 2.0), `CITATION.cff` (matches the README's BibTeX), a Sponsor button pointing to the README's support section, and Dependabot for the CI workflow's actions (npm left out: HyperFrames stays pinned to 0.8.82).
 
 **Linux fixes, found while setting up a cloud (Ubuntu 24.04) machine**
