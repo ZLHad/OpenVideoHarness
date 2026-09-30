@@ -16,7 +16,7 @@ node render.mjs --sheet=0.5,2,4 --cols=3 --w=480 --out=out/check/sheet.jpg   # �
 - 在 `src/scenes/` 下新建自己的场景文件，然后把 `studio.html` 里 `demo.js` 的 script 标签换成它。
 - 在 `src/config.js` 里设置 `duration`、`bpm`、`offset`，需要时再设 `fps`（默认 24，`--fps=` 可以临时覆盖）；有音乐时在配置里设 `PROJECT.audio`（路径相对项目根目录），或者加 `--audio=audio/song.mp3`。`--clip` 和 `--encode` 都会混入音频，并截到或补到画面的精确长度：音频比画面短时补静音并打出警告（硬规则 2：让 `duration` 跟着音频走），不会像 `-shortest` 那样把画面截掉。
 - 长片用 `--frames --workers=4` 渲 JPEG 帧（可并行、可续渲），再 `--encode`。`--encode` 不开浏览器，自己读 `src/config.js` 里的 PROJECT，按 `out/frames/frames.json` 记下的 fps 编码；只编 `duration × fps` 帧，从磁盘上的第一帧开始。时长改短后多出来的旧帧会被排除并提示。开头或结尾缺帧（只渲了一段 `--range`）只给警告；两段已渲染的帧中间有缺口时直接报错并列出缺的帧，因为编出来的视频会停在缺口处。`--loop=<name>` 的帧单独放在 `out/frames_loop_<name>`，编成 `out/loop_<name>.mp4`，不会和正片混在一起。
-- 没有 GPU 时加 `--soft-gl`，用 SwiftShader 软件渲染 WebGL。它同时关掉 2D canvas 的 GPU 加速：开着加速时，同一帧每次启动渲出来都不一样（PSNR 约 39 dB，过不了硬规则 1 的 45 dB）；关掉后，跨进程、乱序渲染都逐像素一致，demo 单帧也从约 40 s 降到约 12 s（无 GPU 的 Linux 实测）。另外，所有路径都关掉了 Chrome 的 CanvasNoise：它给 GPU 加速的 2D canvas 读回加每次启动都不同的噪声（反指纹功能），是上面那种差异的主因。有 GPU 的机器上 2D canvas 默认也走 GPU 加速，很可能同样受影响（还没在真 GPU 上验证）。
+- 没有 GPU 时加 `--soft-gl`，用 SwiftShader 软件渲染 WebGL。它同时关掉 2D canvas 的 GPU 加速：开着加速时，同一帧每次启动渲出来都不一样（PSNR 约 39 dB，过不了硬规则 1 的 45 dB）；关掉后，跨进程、乱序渲染都逐像素一致，demo 单帧也从约 40 s 降到约 12 s（无 GPU 的 Linux 实测）。另外，所有路径都关掉了 Chrome 的 CanvasNoise：它给 GPU 加速的 2D canvas 读回加每次启动都不同的噪声（反指纹功能），是上面那种差异的主因。有 GPU 的机器上 2D canvas 默认也走 GPU 加速，同样受 CanvasNoise 影响；关掉以后，2026-09-30 在 macOS 的 Metal GPU 上实测：同一帧跨启动、乱序渲染都逐像素一致（见 CHANGELOG 里的 “Verified on macOS with a GPU”）。
 - 本机实测：1080p 约 0.13 秒/帧（Metal），11 秒的 demo 渲染 37 秒。
 - 来源：[JohnHeibel/ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase)，MIT。复制过来时没有带 `.git`。
 
