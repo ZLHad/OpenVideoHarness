@@ -4,8 +4,9 @@ usage: python3 tools/review.py <project> [gate]
   <project>  the project directory (or a folder name under projects/)
   [gate]     1 | 2 | 3 | E0-E5 | 2b ...  reads out/review/gate-<gate>.json; default: the newest gate-*.json
 
-Writes out/review/gate-<gate>.html and the same page as out/review/index.html, then prints the chat message:
-the decisions, the reply that takes every recommendation, and the page path. Nothing else goes into the chat.
+Writes out/review/gate-<gate>.html, and the same page as out/review/index.html (always the latest page), then prints
+the chat message: the decisions, the reply that takes every recommendation, and the path of gate-<gate>.html, which
+a later page does not overwrite. Nothing else goes into the chat.
 Paths in the JSON are relative to the project; the page links them relatively, so it opens straight from disk
 (images, GIF, mp4 and audio play in the browser). templates/REVIEW.md explains the page and every field:
 
@@ -561,15 +562,15 @@ def main():
     gate = src.stem[5:] if src.stem.startswith("gate-") else src.stem
     for name in (f"gate-{gate}.html", "index.html"):
         (rdir / name).write_text(doc, encoding="utf-8")
-    index = rdir / "index.html"
+    page_path = rdir / f"gate-{gate}.html"
     for w in page.warnings:
         print(f"! {w}", file=sys.stderr)
     for e in page.errors:
         print(f"✗ {e}", file=sys.stderr)
     segs = data.get("segments") or []
-    print(f"✓ {index}  ({page.title()} · {len(data['decisions'])} decision(s) · {len(segs)} segment(s) · "
+    print(f"✓ {page_path}, also index.html  ({page.title()} · {len(data['decisions'])} decision(s) · {len(segs)} segment(s) · "
           f"{sum(len(s.get('shots') or []) for s in segs)} shot(s))", file=sys.stderr)
-    print(page.chat(index))
+    print(page.chat(page_path))
     return 1 if page.errors else 0
 
 

@@ -27,7 +27,7 @@ projects/2026-10-01-leo-doppler/
 ├── assets/           图片、字体、图标（记录来源和许可）
 ├── src/ 或 compositions/ 或 scenes/   场景代码（结构按引擎惯例）
 ├── out/check/        联系表、strip、crop
-├── out/review/       审阅页：gate-<n>.json → index.html（bin/vh review）
+├── out/review/       审阅页：gate-<n>.json → gate-<n>.html，最新一页也是 index.html（bin/vh review）
 └── out/final.mp4
 ```
 
