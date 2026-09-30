@@ -42,7 +42,7 @@
 | 分镜 | 简表：镜头、时长、reads | 完整 STORYBOARD + 分镜预览图 | 同左 + animatic |
 | 自查 | 整片一张联系表，20 条清单速查一遍 | 每个场景：联系表、关键动作 strip、局部 crop；20 条清单 | 同左，再加手机尺寸测试、循环接缝、无损帧确定性、静默故障扫描 |
 | 独立评审（打分层） | 不做 | 1 轮：全新上下文的 reviewer 打 7 项分，修最差的 3 处 | ≥ 3 轮，7 项都 ≥ 8 才出片；达不到就带着分数进关卡 ③ |
-| 声音 | 可以没有，或一段配乐 / 配音加基础混音 | 配乐或配音 + 关键动作音效 + `bin/vh qa` | 同左 + 每个动作的拟音和声像 + 最终混音 cue check |
+| 声音 | 可以没有，或一段配乐 / 配音加基础混音 | 配乐或配音 + 关键动作音效 + 按视频类型的混音 profile（`bin/vh mix … profile=`）+ `bin/vh qa` | 同左 + 每个动作的拟音和声像 + 最终混音 cue check + 混音报告（`bin/vh qa mix`）没有硬失败 |
 | 渲染与交付 | draft 画质即可，一个 mp4 | 正式画质 mp4 + 联系表 | 同左 + 网页版、GIF、封面，按需出 9:16 |
 | draft 版数 | 1–2 版 | 一般 3–5 版 | 不设上限，直到过线 |
 | subagent | 不用 | 长片按章节并行 | 并行制作 + 独立评审，按需加作曲 subagent |
@@ -142,8 +142,8 @@ OpenVideoHarness/
 ├── install.sh                一键安装（克隆、依赖、参考仓库、注册 skill）
 ├── CONTRIBUTING.md           改本仓库本身时的分支、PR 和推送规则（人和 agent 都适用）
 ├── .github/                  CI（Linux + macOS 跑 tools/ci.sh）和 main 分支的规则集
-├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · sheet · check · gif · review
-├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py、review.py）；ci.sh 是仓库自检
+├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · storyboard · rhythm · cover-preview · sheet · check · gif · review
+├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py、review.py；给人拍板用的图：storyboard.py、rhythm.py、style_compare.py、cover_preview.py、audio/roll.py，共用 vhdraw.py）；ci.sh 是仓库自检
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              9 类视频（09 实验中）：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
 ├── playbook/                 跨类型的通用知识

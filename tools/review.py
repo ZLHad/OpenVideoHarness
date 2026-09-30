@@ -1,7 +1,7 @@
 """Review page: out/review/gate-<n>.json -> a local HTML page a human can look at and listen to.
 
 usage: python3 tools/review.py <project> [gate]
-  <project>  the project directory (or a folder name under projects/)
+  <project>  the project directory, or its name under $OVH_PROJECTS / projects/ (the date prefix may be left out)
   [gate]     1 | 2 | 3 | E0-E5 | 2b ... (gate-2 and gate-2.json work too); default: the newest out/review/gate-*.json
 
 The file name sets the gate: gate-2b.json is page 2 of gate ②, whatever its "gate" field says (a mismatch is a
@@ -13,7 +13,8 @@ every field:
   summary, decisions[{id, question, options[{id, label, pro, con} | "id"], recommend, why, cost, reply}],
   assets[{path, caption, for, t0, t1, poster}], least_sure[{id, note} | "note"], animatic,
   segments[{id, title, t0, t1, note, shots[{id, t0, t1, frame, see, vo, note}]}], appendix[{title, text, path}]
-  optional: gate, title, lang (zh | en), decided[], delegated[], not_reviewed
+  optional: gate, title, lang (zh | en), decided[], delegated[], not_reviewed, include (a JSON file, or a list of them,
+  whose keys fill in what this file does not set: bin/vh storyboard writes out/check/storyboard/review.json for gate ②)
 
 Paths are relative to the project and linked relatively, so the page opens straight from disk (images, GIF, mp4 and
 audio play in the browser); http(s) URLs pass through, other schemes are refused. Every text is HTML-escaped; appendix
@@ -737,11 +738,40 @@ class Page:
 
 
 def find_project(arg):
-    p = Path(arg).expanduser()
-    if p.is_dir():
-        return p.resolve()
-    q = ROOT / "projects" / arg
-    return q.resolve() if q.is_dir() else None
+    """The same lookup as bin/vh new, storyboard and style apply: a folder, or a name under $OVH_PROJECTS or
+    <harness>/projects, the date prefix optional. None (with the reason on stderr) when nothing, or more than one, matches."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from vhdraw import project_dir   # no pillow needed for this
+    try:
+        return project_dir(arg)
+    except SystemExit as e:
+        print(e, file=sys.stderr)
+        return None
+
+
+def merge_includes(project, data):
+    """`"include": "out/check/storyboard/review.json"` (or a list): the included JSON fills in the keys this gate JSON does
+    not set; the gate JSON always wins. bin/vh storyboard writes that file with the segments, shots, least-sure shots,
+    pages and animatic of gate ②."""
+    inc = data.pop("include", None)
+    if inc is None:
+        return data
+    for i, p in enumerate([inc] if isinstance(inc, str) else inc if isinstance(inc, list) else [None]):
+        if not isinstance(p, str) or not p.strip():
+            raise ValueError(f"include[{i}]: a path relative to the project, e.g. out/check/storyboard/review.json")
+        f = Path(p) if os.path.isabs(p) else project / p
+        try:
+            extra = json.loads(f.read_text(encoding="utf-8-sig"))
+        except OSError as e:
+            raise ValueError(f"include {p}: {e.strerror or e} (bin/vh storyboard writes out/check/storyboard/review.json)")
+        except ValueError as e:
+            raise ValueError(f"include {p}: not valid JSON ({e})")
+        if not isinstance(extra, dict):
+            raise ValueError(f"include {p}: expected a JSON object")
+        for k, v in extra.items():
+            if k not in data and k != "include":
+                data[k] = v
+    return data
 
 
 def main():
@@ -750,8 +780,7 @@ def main():
     ap.add_argument("gate", nargs="?", help="1 | 2 | 3 | E0–E5 | 2b … (gate-2, gate-2.json too); default: the newest gate-*.json")
     a = ap.parse_args()
     project = find_project(a.project)
-    if not project:
-        print(f"no such project: {a.project}", file=sys.stderr)
+    if not project:   # find_project said why
         return 2
     rdir = project / "out" / "review"
     if a.gate:
@@ -772,6 +801,7 @@ def main():
         data = json.loads(src.read_text(encoding="utf-8-sig"))   # a BOM from a Windows editor is fine
         if not isinstance(data, dict):
             raise ValueError("expected a JSON object")
+        data = merge_includes(project, data)
     except OSError as e:
         print(f"can't read {src}: {e.strerror or e}", file=sys.stderr)
         return 2
