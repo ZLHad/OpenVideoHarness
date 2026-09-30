@@ -9,13 +9,18 @@ World: {场景设定；5–7 色的调色板；光线；颜色在全片中怎样
 Motif: {反复出现、最后有回应的东西}
 Arc: {主角（或核心概念）情绪/理解的关键节点，覆盖全片}
 Audio: {旁白/歌曲/音乐；BPM 与 offset；timeline.json 路径}
-Animatic: {out/animatic.mp4 · 960×540 灰盒 · 真实 / 占位音频；不做就写"无"。节奏要紧的片子在关卡 ② 前做，见 playbook/01}
+Animatic: {out/animatic.mp4 · draft 画质的灰盒 · 真实 / 占位音频；不做就写"无"。节奏要紧的片子在关卡 ② 前做，见 playbook/01}
 
 ## Shots
 
-| # | 时间 | 旁白 / 歌词 | 画面：看到什么 · 发生的事件 · 反应 · 镜头运动 | 焦点 | 转场出 |
-|---|---|---|---|---|---|
-| A | 0.0–3.6 | {…} | {…} | {…} | {brush wipe / match cut / cut on action / camera carry / iris …} |
+<!-- 配方、验收帧两列可选（quick 可以不填）：
+     配方 = recipes/ 里的 id（多式的写 id · 变体），按意图和能量挑：bin/vh recipes list --intent … --energy …；没有合适的写"自创：理由"。
+     验收帧 = 这一镜要逐帧看的 1–2 个片内帧号：峰值帧和落定帧，由配方 frontmatter 的 qa 加上本镜起点换算。
+     转场出 = 接缝配方的 id（flash-cut、whip-pan …），或 brush wipe / match cut 这类写法。全片节奏先套 recipes/sequences/ 的骨架。 -->
+
+| # | 时间 | 旁白 / 歌词 | 画面：看到什么 · 发生的事件 · 反应 · 镜头运动 | 焦点 | 配方 | 验收帧 | 转场出 |
+|---|---|---|---|---|---|---|---|
+| A | 0.0–3.6 | {…} | {…} | {…} | {spotlight-hero / 自创：理由} | {f… 峰值 · f… 落定} | {flash-cut / match cut / cut on action / camera carry / iris …} |
 
 ### A 的 reads
 | 时间 | read | 为什么这样定时 |
@@ -32,3 +37,4 @@ Animatic: {out/animatic.mp4 · 960×540 灰盒 · 真实 / 占位音频；不做
 - [ ] 文字用量符合类型文档的规则
 - [ ] 结尾与开头呼应（同一地点、姿势或母题，但有变化）
 - [ ] 全片只用 2–3 种转场、一个主运动方向
+- [ ] 用了配方的镜头：读过配方全文和它的实现，★ 参数没有降档；全片的 max_per_film、conflicts、整画面冲击 ≤ 3 处都对过（recipes/sequences/README.md）
