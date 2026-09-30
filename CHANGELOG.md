@@ -7,7 +7,7 @@
 - A section's `params` (`by_section`) now reach the mono voices (sub808, violin, cello, winds …); before, they were silently ignored. A change of params starts a new phrase.
 - A section's `gain_db` is now a level applied after the voice. Before, it lowered the velocity, so a driven sub808 dropped only about 8 dB for −12 dB, and voices whose brightness follows velocity (piano, brass, strings …) also got darker. Textures now take a section's `gain_db` and `vel` too.
 - `pattern` as a dict by beats per bar can hold one-bar note lists as well as grids; this used to crash with a `TypeError`.
-- A guqin harmonic (`harm`) was 9–15 dB louder than a plucked note at the same pitch and velocity (about 18 dB in the reported case); it is now level-matched, within about 2 dB.
+- A guqin harmonic (`harm`) was 9–15 dB louder than a plucked note at the same pitch and velocity (about 18 dB in the reported case); it is now level-matched: −3.2 to +2.2 dB from the pluck between MIDI 24 and 90 (median −0.3 dB).
 - `onset_ms` set in `by_section` now also moves that section's beat-map hits; they had used the part's value.
 - New, off by default:
   - `retrigger` for mono voices, so back-to-back notes (808 hits) each get their own attack instead of merging into a legato phrase;
