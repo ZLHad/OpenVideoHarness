@@ -311,11 +311,15 @@ export function drawGlyphs(ctx, lay, fn = () => ({})) {
     if (a <= 0) continue;
     const ch = o.ch ?? g.ch;
     if (!ch || ch === " ") continue;
+    // sx/sy default to scale. 0 is a real scale (a scale-in from nothing), not "unset"; a zero or non-finite scale draws
+    // nothing (canvas silently ignores scale(∞ or NaN) and would draw the glyph at full size).
+    const sc = o.scale ?? 1, sx = o.sx ?? sc, sy = o.sy ?? sc;
+    if (!(sx * sy) || !Number.isFinite(sx * sy)) continue;
     ctx.save();
     ctx.globalAlpha = baseAlpha * a;
     ctx.translate(g.cx + (o.dx || 0), g.y + (o.dy || 0));
     if (o.rot) ctx.rotate(o.rot);
-    const sc = o.scale ?? 1; if (sc !== 1 || o.sx || o.sy) ctx.scale(o.sx ?? sc, o.sy ?? sc);
+    if (sx !== 1 || sy !== 1) ctx.scale(sx, sy);
     ctx.fillStyle = o.fill ?? baseFill;
     if (o.fill !== "none") ctx.fillText(ch, 0, 0);
     if (o.stroke) { ctx.strokeStyle = o.stroke; ctx.lineWidth = o.lineWidth || 2; ctx.strokeText(ch, 0, 0); }
@@ -624,13 +628,23 @@ export function whip(ctx, u, drawA, drawB, { dir = [-1, 0], samples = "auto", sh
   }
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; ctx.drawImage(acc.canvas, 0, 0); ctx.restore();
 }
-/** Sub-frame motion blur for anything: averages drawAt(t', ctx) over the shutter (fraction of a frame). */
+/**
+ * Sub-frame motion blur for anything: averages drawAt(t', ctx) over the shutter (fraction of a frame). Transparent
+ * layers average correctly too: a sprite on a clear layer smears evenly, with no opaque first sample.
+ */
 export function motionBlur(ctx, t, drawAt, { samples = 8, shutter = 0.5 } = {}) {
+  // a float16 accumulator where the browser has one (else 8-bit), so repeated blending doesn't drift in 8-bit rounding
+  if (!_layers.has("__mb_acc")) { const c = document.createElement("canvas"); c.width = W; c.height = H; c.getContext("2d", { colorType: "float16" }); _layers.set("__mb_acc", c); }
   const acc = layer("__mb_acc");
   for (let s = 0; s < samples; s++) {
     const ts = t + (samples === 1 ? 0 : (s / (samples - 1) - 0.5) * shutter / FPS);
     const f = layer("__mb_f"); drawAt(ts, f);
-    acc.globalAlpha = 1 / (s + 1); acc.drawImage(f.canvas, 0, 0);
+    // running mean in premultiplied RGBA: acc · (1 − w) + f · w, w ≈ 1/(s+1) in 1/255 steps so both weights sum to 1
+    // even in 8 bits. (source-over at 1/(s+1) only dims acc where f is opaque, so earlier samples stayed fully opaque
+    // wherever later ones were transparent: a comet trail.)
+    const k = Math.round(255 / (s + 1));
+    if (s) { acc.globalCompositeOperation = "destination-in"; acc.globalAlpha = (255 - k) / 255; acc.fillRect(0, 0, acc.canvas.width, acc.canvas.height); }
+    acc.globalCompositeOperation = "lighter"; acc.globalAlpha = k / 255; acc.drawImage(f.canvas, 0, 0);
   }
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.drawImage(acc.canvas, 0, 0); ctx.restore();
 }

@@ -1,15 +1,23 @@
-"""Three-bus mix: voice + music + SFX → one stereo track at −14 LUFS, music ducking under voice and key SFX.
+"""Three-bus mix: voice + music + SFX → one stereo track at −14 LUFS, music ducking under the voice.
 
 usage (via bin/vh mix): python tools/audio/mix.py <out.wav> [voice=vo.wav] [music=m.wav] [sfx=s.wav]
-                        [music_db=-6] [sfx_db=0] [voice_db=0] [duck=on|voice|off] [duck_ratio=6] [lufs=-14] [tp=-1.5]
-Any bus may be omitted. With duck=on the music is side-chain compressed by (voice + sfx), so a narration line
-or a "ding" is always heard ("music makes way", playbook/04-audio.md). duck=voice keys on the voice only; with many
-SFX and no voice use duck=off or a low duck_ratio (2–3), or the music pumps on every hit.
-Stereo is preserved (mono buses are centred). Loudness uses TWO-PASS linear loudnorm: pass 1 measures, pass 2
-applies one static gain (true-peak limited), so a cinematic score keeps its dynamics (LRA) instead of being
-squashed by single-pass dynamic normalisation.
+                        [music_db=-6] [sfx_db=0] [voice_db=0] [duck=voice|on|off] [duck_ratio=6] [lufs=-14] [tp=-1.5]
+Any bus may be omitted. The default is duck=voice when there is a voice bus (the music is side-chain compressed by
+the voice, so a narration line is always heard: "music makes way", playbook/04-audio.md), else duck=off.
+duck=on keys on voice + SFX so a "ding" pushes the music down too: then keep duck_ratio low (2–3), or the music
+pumps on every hit.
+Stereo is preserved (mono buses are centred). Loudness is ONE static gain, so a cinematic score keeps its dynamics
+(LRA) instead of being squashed by dynamic normalisation: pass 1 measures the integrated loudness and the 4×-oversampled
+peaks, pass 2 applies gain = target − measured with `volume`; only if that gain would push the true peak above tp does
+a true-peak limiter follow (4× oversampled alimiter at the ceiling; the gain is re-measured and topped up for the
+loudness it takes), and a last pass measures the file written. The report says which of the two it was and prints the
+measured output. (loudnorm linear=true is not used: it silently falls back to dynamic mode whenever the gain would
+push the true peak over tp.)
 """
 import json, re, subprocess, sys
+
+def loudness(stderr):  # loudnorm's print_format=json block → {"input_i", "input_tp", "input_lra", …}
+    return json.loads(re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", stderr, re.S).group(0))
 
 def main():
     out = sys.argv[1]; kv = dict(a.split("=", 1) for a in sys.argv[2:])
@@ -22,7 +30,7 @@ def main():
     for k, _ in buses:
         f.append(f"[{idx[k]}:a]aresample=48000,aformat=channel_layouts=stereo,volume={g(k, -6 if k == 'music' else 0)}dB[{k}]")
     fg = [k for k, _ in buses if k != "music"]
-    duck = kv.get("duck", "on"); keys = [k for k in fg if duck == "on" or (duck == "voice" and k == "voice")]
+    duck = kv.get("duck", "voice" if "voice" in idx else "off"); keys = [k for k in fg if duck == "on" or (duck == "voice" and k == "voice")]
     ducked = "music" in idx and keys and duck != "off"
     if ducked:
         if len(keys) == 2:
@@ -35,18 +43,32 @@ def main():
     else:
         tracks = [f"[{k}]" for k, _ in buses]
     pre = ";".join(f) + ";" + "".join(tracks) + f"amix=inputs={len(tracks)}:duration=longest:normalize=0"
-    lufs, tp = kv.get("lufs", "-14"), kv.get("tp", "-1.5")
-    # pass 1: measure
+    lufs, tp = float(kv.get("lufs", -14)), float(kv.get("tp", -1.5))
+    ln = f"loudnorm=I={lufs}:TP={tp}:LRA=20:print_format=json"          # used only as a meter (BS.1770 I, true peak, LRA)
+    # pass 1: measure loudness, and the peak of every 10 ms at 4× oversampling (≈ true peak) to see what the gain hits
     r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", *ins, "-filter_complex",
-                        pre + f",loudnorm=I={lufs}:TP={tp}:LRA=20:print_format=json[out]", "-map", "[out]", "-f", "null", "-"],
-                       capture_output=True, text=True, check=True)
-    m = json.loads(re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", r.stderr, re.S).group(0))
-    # pass 2: apply one linear gain (loudnorm linear mode), true-peak limited
-    ln = (f"loudnorm=I={lufs}:TP={tp}:LRA=20:linear=true:measured_I={m['input_i']}:measured_TP={m['input_tp']}"
-          f":measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}:offset={m['target_offset']}")
-    subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", pre + f",{ln}[out]", "-map", "[out]", "-ar", "48000", out], check=True)
-    print(f"{out}  (stereo · {' + '.join(k for k, _ in buses)}{f', ducked by {chr(43).join(keys)}' if ducked else ''} · {lufs} LUFS two-pass linear · "
-          f"input {m['input_i']} LUFS, LRA {m['input_lra']} LU)")
+                        pre + f",asplit[a][b];[a]{ln}[out];[b]aresample=192000,asetnsamples=1920,astats=metadata=1:reset=1:"
+                        "measure_perchannel=none:measure_overall=Peak_level,ametadata=print:key=lavfi.astats.Overall.Peak_level,anullsink",
+                        "-map", "[out]", "-f", "null", "-"], capture_output=True, text=True, check=True)
+    m = loudness(r.stderr)
+    peaks = [float(v) for v in re.findall(r"Overall\.Peak_level=(\S+)", r.stderr)] or [float(m["input_tp"])]
+    gain, ceil, last = lufs - float(m["input_i"]), tp, None
+    for k in range(4):   # pass 2: one static gain; a limiter only where it would cross tp (then top up what it took)
+        over = [p + gain > ceil for p in peaks]
+        n = sum(1 for i, o in enumerate(over) if o and not (i and over[i - 1]))   # peaks = runs of 10 ms blocks over it
+        chain = f"volume={gain:.3f}dB" + (f",aresample=192000,alimiter=limit={10 ** (ceil / 20):.6f}:level=false:latency=true,aresample=48000" if n else "")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", pre + f",{chain}[out]", "-map", "[out]", "-ar", "48000", out], check=True)
+        o = loudness(subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", out, "-af", ln, "-f", "null", "-"],
+                                    capture_output=True, text=True, check=True).stderr)   # last pass: measure the file
+        i, t = float(o["input_i"]), float(o["input_tp"])
+        if k == 3 or (abs(i - lufs) <= .2 and t <= tp + .05) or (not n and t <= tp + .1):
+            break
+        ceil -= max(0, t - tp + .03)                                   # going back to 48 kHz adds ~0.2 dB between samples
+        slope = min(1, max(.2, (i - last[1]) / (gain - last[0]))) if last and gain != last[0] else 1   # limiting eats part of each dB
+        last, gain = (gain, i), gain + (lufs - i) / slope
+    how = f"static gain {gain:+.2f} dB" + (f" + true-peak limiter ({n} peak{'s' * (n > 1)}, up to {max(peaks) + gain - ceil:.1f} dB of reduction)" if n else "")
+    print(f"{out}  (stereo · {' + '.join(k for k, _ in buses)}{f', ducked by {chr(43).join(keys)}' if ducked else ''} · {how} · "
+          f"measured {o['input_i']} LUFS, true peak {o['input_tp']} dBTP, LRA {o['input_lra']} LU · input {m['input_i']} LUFS, LRA {m['input_lra']} LU)")
 
 if __name__ == "__main__":
     main()

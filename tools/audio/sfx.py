@@ -4,8 +4,8 @@ usage (via bin/vh sfx):
   python tools/audio/sfx.py lib <out_dir>                         write the built-in library (48 kHz mono WAVs)
   python tools/audio/sfx.py place <events.json> <out.wav> [duration_s] [--lib DIR]   → 48 kHz STEREO track
 events.json: [{"t": 3.20, "sfx": "click", "gain_db": -6}, {"t": 7.95, "sfx": "whoosh", "pan": -0.6, "dist": 3}, …]
-  "sfx" is a library name or a path to your own WAV (recorded / licensed: log its source in NOTES.md; stereo files are
-  folded to mono and treated as a point source).
+  "sfx" is a library name or a path to your own WAV (recorded / licensed: log its source in NOTES.md; any bit depth,
+  float or sample rate, decoded by ffmpeg; stereo files are folded to mono and treated as a point source).
   t is when the sound should LAND; each built-in sound's landmark (its perceptual hit) is aligned to t,
   so a whoosh peaks on the cut and a riser peaks on the drop.
   pan  (optional, −1 left … 0 centre … 1 right): equal-power, normalised so centre = the mono level on both channels
@@ -16,7 +16,7 @@ events.json: [{"t": 3.20, "sfx": "click", "gain_db": -6}, {"t": 7.95, "sfx": "wh
 Built-ins: click tick pop toggle typing whoosh swish_rev riser impact boom ding success error glitch shutter
 All are original, deterministic (seeded) and license-free (MIT, part of this repo).
 """
-import json, sys, wave
+import json, subprocess, sys, wave
 from pathlib import Path
 import numpy as np
 from scipy.signal import butter, lfilter
@@ -89,11 +89,12 @@ def spatial(x, pan=0.0, dist=1.0):
     gl, gr = (1.0, 1.0) if p == 0 else (np.sqrt(2) * np.cos(th), np.sqrt(2) * np.sin(th))
     return np.stack([x * gl, x * gr], 1)
 
-def read(path):
-    with wave.open(str(path)) as w:
-        a = np.frombuffer(w.readframes(w.getnframes()), "<i2").astype(np.float64) / 32768
-        if w.getnchannels() == 2: a = a.reshape(-1, 2).mean(1)
-        return a if w.getframerate() == SR else np.interp(np.arange(int(len(a) * SR / w.getframerate())) * w.getframerate() / SR, np.arange(len(a)), a)
+def read(path):  # → mono float at SR via ffmpeg (as qa.py loads): any bit depth, float or EXTENSIBLE WAV, any rate
+    ch = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=channels", "-of", "json", str(path)],
+                                   capture_output=True, text=True, check=True).stdout)["streams"][0]["channels"]
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-map", "0:a:0", "-ar", str(SR), "-f", "f32le", "-acodec", "pcm_f32le", "-"],
+                         capture_output=True, check=True).stdout
+    return np.frombuffer(raw, "<f4").reshape(-1, int(ch)).mean(1, dtype=np.float64)
 
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"

@@ -25,7 +25,7 @@ node render.mjs --clip --out=out/video.mp4
 
 That renders the 11-second demo in [src/scenes/demo.js](src/scenes/demo.js). Open [studio.html](studio.html) in Chrome to scrub through it. Add `?loop=emotions` or `?loop=views` to see the model sheets. If Chrome isn't in a standard location, pass `--chrome=<path>` or set `CHROME_PATH`.
 
-On Linux, `render.mjs` starts Chrome with `--no-sandbox` (Ubuntu 23.10+ blocks Chrome's sandbox in headless use) and also finds a Chromium installed by Playwright. With no GPU at all, add `--soft-gl` to render WebGL in software: slow on watercolour fills, but it works. On a headless Linux machine with an NVIDIA GPU (a cloud or cluster node), add `--gpu-angle=gl-egl` (or `vulkan`); `node gpu_probe.mjs <chrome path>` shows which renderer each set of flags gets.
+On Linux, `render.mjs` starts Chrome with `--no-sandbox` (Ubuntu 23.10+ blocks Chrome's sandbox in headless use) and also finds a Chromium installed by Playwright (in `$PLAYWRIGHT_BROWSERS_PATH` or `~/.cache/ms-playwright`). With no GPU at all, add `--soft-gl` to render WebGL in software: slow on watercolour fills, but it works. It also keeps 2D canvases off the GPU, so the same frame comes out pixel-identical on every run and in any render order (on SwiftShader, GPU-accelerated 2D canvas made it differ from launch to launch), and it's faster. On a headless Linux machine with an NVIDIA GPU (a cloud or cluster node), add `--gpu-angle=gl-egl` (or `vulkan`); `node gpu_probe.mjs <chrome path>` shows which renderer each set of flags gets.
 
 ## What's here
 

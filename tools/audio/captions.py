@@ -34,17 +34,22 @@ def wrap_zh(text: str, n: int):
         closing = re.fullmatch(r"[，。！？；、,.!?;：:）)」』”’]", tok) is not None
         if cur and cur_w + w > n and not closing:   # closing punctuation hangs on the line instead of starting one
             cut = last_punct + 1 if last_punct >= len(cur) // 2 else len(cur)
-            lines.append("".join(cur[:cut]).strip()); cur = cur[cut:]
+            lines.append(cur[:cut]); cur = cur[cut:]
             cur_w = sum(width(t) for t in cur); last_punct = -1
         cur.append(tok); cur_w += w
         if re.fullmatch(r"[，。！？；、,.!?;：:]", tok):
             last_punct = len(cur) - 1
     if cur:
-        lines.append("".join(cur).strip())
-    lines = [l for l in lines if l]
-    if len(lines) > 1 and width(lines[-1]) < 2.5 and len(lines[-2]) > 3:   # no one-character orphan line
-        lines[-1] = lines[-2][-2:] + lines[-1]; lines[-2] = lines[-2][:-2]
-    return lines
+        lines.append(cur)
+    j = lambda l: "".join(l).strip()
+    lines = [l for l in lines if j(l)]
+    if len(lines) > 1 and width(j(lines[-1])) < 2.5 and len(j(lines[-2])) > 3:   # no one-character orphan line:
+        prev, k = lines[-2], len(lines[-2])          # pull whole tokens down, ≈ 2 CJK characters or one Latin word
+        while k > 1 and width(j(prev[k:])) < 2:
+            k -= 1
+        if width(j(prev[:k])) >= 2 and width(j(prev[k:] + lines[-1])) <= n:     # and leave no new orphan behind
+            lines[-2:] = [prev[:k], prev[k:] + lines[-1]]
+    return [j(l) for l in lines]
 
 def wrap_en(text: str, n: int):
     words, lines, cur = text.split(), [], ""
@@ -64,21 +69,27 @@ def srt(items, key_fn):
     return "\n".join(blocks)
 
 def line_cues(lines, words, start, end):
-    """One cue per wrapped line: a line starts at the word under its first character (matched by non-space character
-    count, scaled when the two texts differ slightly) and runs until the next line starts."""
+    """One cue per wrapped line: a line starts when its first character is spoken (matched by non-space character
+    count, scaled when the two texts differ slightly, and interpolated inside a word that spans a line break) and runs
+    until the next line starts. Cues never overlap and each lasts ≥ 0.1 s (less only when the caption is that short),
+    so several lines inside one coarse ASR word no longer collapse into zero-length cues."""
     key = lambda x: re.sub(r"\s+", "", x)
     ll, wl = [len(key(l)) for l in lines], [len(key(w["w"])) for w in words]
     if len(lines) < 2 or not sum(ll) or not sum(wl):
         return [(start, end, lines)]
     starts, acc = [], 0
     for n in ll:
-        pos, c, hit = acc * sum(wl) / sum(ll), 0, words[-1]
+        pos, c, t = acc * sum(wl) / sum(ll), 0, words[-1]["start"]
         for w, k in zip(words, wl):
             if c + k > pos:
-                hit = w; break
+                t = w["start"] + (w["end"] - w["start"]) * (pos - c) / k; break
             c += k
-        starts.append(max(hit["start"], starts[-1] if starts else start)); acc += n
-    starts[0] = start
+        starts.append(min(max(t, starts[-1] if starts else start), end)); acc += n
+    starts[0], gap = start, min(.1, (end - start) / len(lines))
+    for i in range(1, len(starts)):                  # push apart lines that start together …
+        starts[i] = max(starts[i], starts[i - 1] + gap)
+    for i in range(len(starts) - 1, 0, -1):          # … and keep the last ones inside the caption
+        starts[i] = min(starts[i], (starts[i + 1] if i + 1 < len(starts) else end) - gap)
     return [(starts[i], starts[i + 1] if i + 1 < len(lines) else end, [lines[i]]) for i in range(len(lines))]
 
 def main():
@@ -95,7 +106,9 @@ def main():
     (audio / "captions.json").write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
     wrote = ["captions.json"]
     narr = tl.get("lang") if tl.get("lang") in ("zh", "en") else None
-    if narr and any(c.get("words") for c in items):   # word timing → one cue per wrapped line of the narrated side
+    if narr and not any(c[narr] for c in items):      # a one-language script under the other --lang: that side was spoken
+        narr = "en" if narr == "zh" else "zh"
+    if narr and any(c.get("words") for c in items) and any(c[narr] for c in items):   # word timing → one cue per wrapped line
         cues = [{"start": t0, "end": t1, "l": ls} for c in items if c[narr]
                 for t0, t1, ls in (line_cues(c[narr], c["words"], c["start"], c["end"]) if c.get("words") else [(c["start"], c["end"], c[narr])])]
         (audio / f"captions.{narr}.lines.srt").write_text(srt(cues, lambda c: c["l"]), encoding="utf-8"); wrote.append(f"captions.{narr}.lines.srt")

@@ -31,6 +31,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 **旁白稿**：`audio/script.txt` 一行一句，一句对应一条字幕或一个 cue。
 - 双语写成 `中文 || English`，`--lang` 决定念哪一边，两边都会进时间表；
+- 只写一边的句子照原样念。进字幕时，含中日韩字符的算中文，不含的算英文，所以纯英文稿出的是 `captions.en.srt`。想让一句纯英文（比如品牌名）留在中文一侧，写成 `Claude Code ||`；只有标点的一句（`……`）跟着前面的单边句走；
 - 可以加 `@id` 前缀，比如 `@hook 一句话，做出一支片子。 || One sentence in, one film out.`。
 - 双人对话：先写一行 `@speakers A=Kore B=Puck`，之后每句在 `@id` 和 `[指示]` 后面写说话人，见下文"双人对话"。
 
@@ -82,7 +83,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 ```
 
 - 只有 `@speakers` 里声明过的标签才算说话人，普通旁白里的"注意："不受影响。英文一侧重复写的标签（`A: …`）会一并去掉；
-- `|嗯？|` 是**对方**的插话（backchannel），写在当前说话人的句子里，竖线内侧不要留空格。它只在 gemini 对话里出声，字幕和其他 provider 都会去掉；
+- `|嗯？|` 是**对方**的插话（backchannel），写在当前说话人的句子里，竖线内侧不要留空格。它只在 gemini 对话里出声，字幕和其他 provider 都会去掉。只有写了 `@speakers` 的稿子才有插话，普通旁白里的 `|x|`（比如绝对值）原样保留；
 - gemini 默认把一段对话（空行之间的连续句子）放进一个请求，用 `mode: "conversational"`，轮次衔接更自然。一个请求最多 2 个说话人，而且只能用库里的音色（30 个 studio 音色或 `voices list` 里的 id）。用了设计出来的 `voice_…`，或者超过 2 人时，自动改成一句一个请求，插话也随之去掉；
 - 同一段里不能混着没有标签的旁白：旁白和对话之间空一行，分成不同的段；
 - 用 `say` 等出草稿时，第 3 个参数写 `A=Tingting,B=Meijia`，覆盖 `@speakers` 里的音色。
@@ -178,8 +179,8 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 - **`dist`**（≥ 1，单位是参考距离，1 = 原样）：电平乘 1/dist，距离每翻一倍 −6 dB；再加一个平缓的一阶低通，截止频率 16 kHz / dist，最低 1 kHz。低通带来的延迟不到 0.2 ms，落点不受影响。声速延迟没有加，因为 `t` 本来就是"该听到的时刻"；要做"先见闪光、后闻炮声"，自己把 `距离米数 / 343` 加到 `t` 上。
 - **pan 从画面上算，不要凭感觉写。** 取发声物体在那一刻的屏幕 x：`pan = 2·x / 画面宽度 − 1`，再乘 0.7–0.8 收一点，全左全右在耳机里很刺。3D 场景用相机坐标：`pan = v·right / |v|`，其中 v 是声源到相机的向量；距离也从同一个 v 来。镜头在动时，同一个声源在不同时刻的左右位置也不同。Austerlitz 那支片子的音效就是这样从场景事件里算出声像和距离的，见 `cases/opus55-gallery.md` 第 6 节。
 - **来源顺序**：先用有授权的录音素材（在 NOTES 的素材台账里记下来源和许可）；缺的类别再用内置库补。自己的立体声素材会先折成单声道，当作一个点声源来摆。内置库有 15 个代码合成音效：click、tick、pop、toggle、typing、whoosh、swish_rev、riser、impact、boom、ding、success、error、glitch、shutter，都是 MIT 原创，可以复现。
-- **混音**：`bin/vh mix` 让音乐在人声和音效出现时自动让位，这样关键的叮咚、确认、转场声一定听得见。混音保留立体声，音效总线上的声像会原样保留下来。响度分两遍处理：先测量，再只加一个整体增益，并限制真峰值。这样电影配乐的动态范围（LRA）不会被压扁；介绍片用单遍处理时，LRA 从 13.6 被压到了 7.0。
-- **不要让每个音效都去压音乐。** 介绍片 v2 把 74 个音效全接进了 ducker，ratio 是 6，配乐跟着每个音效一抽一抽。没有人声时用 `duck=off`，或者把 `duck_ratio` 降到 2–3；有人声时用 `duck=voice`，只让人声压音乐。`bin/vh qa` 的抽吸一项专门查这种问题。
+- **混音**：`bin/vh mix` 默认让音乐在人声出现时自动让位（有 voice 总线时是 `duck=voice`，没有时是 `duck=off`）。要让关键的叮咚、确认、转场声也压一下音乐，显式写 `duck=on`，同时把 `duck_ratio` 降到 2–3。混音保留立体声，音效总线上的声像会原样保留下来。响度只加一个整体增益：第一遍测量，第二遍加上"目标 − 实测"的增益；只有这个增益会把真峰值推过上限时，才在后面接一个 4 倍过采样的真峰值限幅器。最后再测一遍写出的文件，命令如实报告用的是 `static gain` 还是 `static gain + true-peak limiter (N peaks)`，并打印实测的响度和真峰值。这样电影配乐的动态范围（LRA）不会被压扁；介绍片用单遍处理时，LRA 从 13.6 被压到了 7.0。限幅器报了很多个 peak，说明音效或人声的峰值太高，先把 `sfx_db` 调低，不要靠限幅器硬压。
+- **不要让每个音效都去压音乐。** 介绍片 v2 把 74 个音效全接进了 ducker，ratio 是 6，配乐跟着每个音效一抽一抽。所以默认只让人声压音乐（`duck=voice`），没有人声时不压（`duck=off`）；真要用 `duck=on`，把 `duck_ratio` 降到 2–3。`bin/vh qa` 的抽吸一项专门查这种问题。
 
 ### 歌曲（带人声演唱）
 
@@ -212,7 +213,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
   - 写情绪、语速、重音、句尾走向、停顿，例如"像在跟朋友分享一个惊人的发现，语速偏快，'一句话'重读，尾音上扬成问句"；
   - 用"像在……"打比方，比"专业""自然"这种抽象词好用得多；
   - 同一段里相邻两句的语气要有落差：问句接答句，铺垫接爆点，快接慢。
-- **标签**：`<short pause>`、`<long pause>`、`<breath>`、`<laugh>`、`<sigh>` 可以直接写进句子里。只有 `gemini` 会演出来；其他 provider 和字幕都会自动去掉。中文稿里也写英文标签，官方说这样效果最好。标签只管某一刻的动作（停顿、呼吸、笑），持续的语气写在 `[ ]` 里。
+- **标签**：`<short pause>`、`<long pause>`、`<breath>`、`<laugh>`、`<sigh>` 可以直接写进句子里。只有 `gemini` 会演出来；其他 provider 和字幕都会自动去掉。去掉的规则：这 5 个和 `<cough>` 一律去掉；别的 `<词>` 只要不是两边都紧贴字母或数字，也当标签去掉，所以 `x<y and y>z` 这类式子会原样保留。中文稿里也写英文标签，官方说这样效果最好。标签只管某一刻的动作（停顿、呼吸、笑），持续的语气写在 `[ ]` 里。
 - **给 gemini 的指示要短**：一句话讲清情绪和节奏就够了。年龄、性别、口音属于音色，不要写进指示；长段的人设和导演笔记容易让音色漂移。
 - **谁能演**：
   - `gemini` 表演力最好，整体和逐句指示都听；
@@ -332,7 +333,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 1. **音频先行**：先生成音频，按实测时长确定每个场景的帧数。
 2. **按 cue 词触发**：旁白说到某个概念时，那个概念的画面正好出现。动画比旁白提前约 0.5s 开始，每句话说完后停约 1s。
 3. **按拍落点**：切镜、重音动作、大字出现都落在拍点上，误差 ±1 帧；大的场景切换放在小节线上。
-4. **混音**：有旁白的段落压低背景音乐（HyperFrames 的 voiceover carve 只压人声所在的频段）。响度用两遍线性处理：第一遍测量，第二遍只加一个整体增益，并限制真峰值，`bin/vh mix` 就是这样做的。单遍动态 loudnorm 会压扁配乐的动态，介绍片的 LRA 就是这样从 13.6 掉到 7.0 的。
+4. **混音**：有旁白的段落压低背景音乐（HyperFrames 的 voiceover carve 只压人声所在的频段）。响度只加一个整体增益：第一遍测量，第二遍加增益；只有增益会把真峰值推过上限时才接真峰值限幅器，最后实测输出，`bin/vh mix` 就是这样做的。单遍动态 loudnorm 会压扁配乐的动态，介绍片的 LRA 就是这样从 13.6 掉到 7.0 的。loudnorm 的 `linear=true` 也不可靠：增益会让真峰值超过 TP，或者 LRA 超过目标时，它会悄悄退回动态模式。
 5. **在最终混音上做 cue check**：`bin/vh qa` 拿最终混音的 onset 去对照节拍表和音效事件表，逐条检查是否在 1 帧以内，同时扫描静音、掉音、抽吸和 click。只查配乐不够，混进音效以后，有的 cue 会被盖住，有的会和别的并成一个。有旁白时加 `--voice voiceover.wav`，人声下面设计好的压低就不会被算成抽吸；另外把成片重新转写一遍，和 cue 表对比时间差。四项扫描的做法和判定标准见 `02-verification.md` 的"音频 QA"一节。
 
 ## 常用命令（示例，按项目调整）
@@ -340,9 +341,11 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 ```bash
 # 本地中文 TTS（安装：uv tool install mlx-audio 或在项目 venv 里 uv add mlx-audio；模型名以 mlx-audio README 为准）
 # 词级时间戳：whisper.cpp（brew install whisper-cpp）或 FunASR（uv add funasr）
-# 响度标准化到 -14 LUFS（短视频平台常用），两遍线性，bin/vh mix 已经内置；手动做时：
-ffmpeg -i mix.wav -af loudnorm=I=-14:TP=-1.5:LRA=20:print_format=json -f null -   # 第 1 遍：记下 input_i/tp/lra/thresh 和 target_offset
-ffmpeg -i mix.wav -af loudnorm=I=-14:TP=-1.5:LRA=20:linear=true:measured_I=…:measured_TP=…:measured_LRA=…:measured_thresh=…:offset=… mix_norm.wav
+# 响度标准化到 -14 LUFS（短视频平台常用），只加一个整体增益，bin/vh mix 已经内置；手动做时：
+ffmpeg -i mix.wav -af loudnorm=I=-14:TP=-1.5:LRA=20:print_format=json -f null -   # 第 1 遍：记下 input_i 和 input_tp
+ffmpeg -i mix.wav -af volume=<G>dB mix_norm.wav                                   # 第 2 遍：G = −14 − input_i；input_tp + G ≤ −1.5 时到此为止
+ffmpeg -i mix.wav -af "volume=<G>dB,aresample=192000,alimiter=limit=0.84:level=false:latency=true,aresample=48000" mix_norm.wav   # 否则加真峰值限幅（0.84 ≈ −1.5 dBFS）
+# 再用第 1 遍的命令测 mix_norm.wav：限幅会吃掉一点响度（把 G 补回去），回到 48 kHz 会让真峰值高出约 0.2 dB（把 limit 再降一点）
 # 视频与音轨合成：先出无声成片，再用 bin/vh mux 把音轨补齐或截到视频的精确长度（-shortest 按 AAC 帧截断，会吃掉最后 2 帧）
 ffmpeg -framerate 30 -i out/frames/f%05d.jpg -c:v libx264 -crf 17 -pix_fmt yuv420p out/final.mp4
 bin/vh mux out/final.mp4 audio/mix.wav out/final-av.mp4

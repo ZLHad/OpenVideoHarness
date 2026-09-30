@@ -107,8 +107,10 @@ OpenVideoHarness/
 ├── README.md / README.zh-CN.md  给人看的说明（英 / 中）
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
 ├── install.sh                一键安装（克隆、依赖、参考仓库、注册 skill）
-├── bin/vh                    命令行：doctor · setup · types · effort · new · hf-init · install-skill · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · sheet · check · gif
-├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py）
+├── CONTRIBUTING.md           改本仓库本身时的分支、PR 和推送规则（人和 agent 都适用）
+├── .github/                  CI（Linux + macOS 跑 tools/ci.sh）和 main 分支的规则集
+├── bin/vh                    命令行：doctor · setup · types · effort · new · style · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · sheet · check · gif
+├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py）；ci.sh 是仓库自检
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              8 类视频：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
 ├── playbook/                 跨类型的通用知识
@@ -141,3 +143,7 @@ OpenVideoHarness/
 ## 积累经验
 
 每个项目结束时，把踩过的坑和好用的做法写进项目自己的 `LESSONS.md`。其中通用的条目，再追加到 `playbook/` 对应的文件或类型文档的"自查重点"里，让下一个项目直接受益。
+
+## 改本仓库本身
+
+不是做视频，而是改 `bin/vh`、`tools/`、引擎、文档或风格库时，按 `CONTRIBUTING.md` 来：只在自己的分支上改，推送前跑 `tools/ci.sh`，开草稿 PR，不推 main，不自己合并。
