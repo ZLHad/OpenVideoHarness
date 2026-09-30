@@ -32,6 +32,9 @@ Input  <project>/audio/script.txt — one spoken line per row (a line = one capt
        |reaction| markers (no space just inside the pipes) are listener backchannels that the other speaker voices in
        a gemini conversation; every other path and the captions drop them, like the <tags> below. Only a script with
        an @speakers header has backchannels: elsewhere |x| is ordinary text (范围是 |x| keeps it).
+       Silence the provider leaves before and after a line (below −45 dBFS) is trimmed to 30 ms / 80 ms, so the gap
+       between lines is --gap (or the beat grid) and a snapped line's voice starts on the beat; --keep-edges keeps it.
+       With --join, only the edges of each block are trimmed; pauses inside a block are the delivery.
 Output <project>/audio/vo/<lang>/NN.wav, audio/voiceover.<lang>.wav (mono 48 kHz, joined with --gap s silence),
        audio/timeline.<lang>.json, and audio/timeline.json + audio/voiceover.wav as copies of the latest run:
        {"provider","voice","lang","duration","segments":[{"id","text","zh","en","start","end","file","words"?,
@@ -486,6 +489,30 @@ def set_flag(rec, min_sim):
 def cut(src: Path, t0, t1, dst: Path):
     run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-af", f"atrim=start={t0:.4f}:end={t1:.4f},asetpts=N/SR/TB", str(dst)])
 
+TRIM_DB, TRIM_HEAD, TRIM_TAIL = -45.0, 0.03, 0.08     # edges quieter than −45 dBFS; keep 30 ms before the voice, 80 ms after
+
+def trim_edges(wav: Path, tmp: Path):
+    """Cut the silence a provider leaves before and after the voice (qwen's Ryan: ~0.43 s, sometimes 2.8 s, at the
+    head of every line), keeping a short margin so onsets and decays stay whole. Spacing then comes only from --gap
+    or the beat grid. Loudness is measured in 10 ms windows (RMS), so a click or a noise floor does not count as voice.
+    Returns the seconds cut from the head (to shift word timings) and from the tail; a file with no voice is left as is."""
+    import array
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(wav), "-ac", "1", "-ar", str(SR), "-f", "s16le", "-"],
+                         check=True, capture_output=True).stdout
+    x = array.array("h"); x.frombytes(raw[: len(raw) // 2 * 2])
+    n = SR // 100; lim = (10 ** (TRIM_DB / 20) * 32768) ** 2 * n; wins = range(0, len(x), n)
+    loud = lambda i: sum(v * v for v in x[i:i + n]) > lim
+    first = next((i for i in wins if loud(i)), None)               # scan in from each end: stops at the voice
+    if first is None:
+        return 0.0, 0.0
+    last = next(i for i in reversed(wins) if loud(i))
+    dur = len(x) / SR
+    t0, t1 = max(0.0, first / SR - TRIM_HEAD), min(dur, (last + n) / SR + TRIM_TAIL)
+    if t0 < 0.005 and dur - t1 < 0.005:
+        return 0.0, 0.0
+    cut(wav, t0, t1, tmp / "trim.wav"); shutil.move(str(tmp / "trim.wav"), str(wav))
+    return t0, dur - t1
+
 # ---------- voices: the Gemini voice library and voice design ----------
 
 STUDIO = ("Zephyr Puck Charon Kore Fenrir Leda Orus Aoede Callirrhoe Autonoe Enceladus Iapetus Umbriel Algieba Despina "
@@ -578,6 +605,7 @@ def main():
     ap.add_argument("project"); ap.add_argument("--provider", default="qwen", choices=PROVIDERS)
     ap.add_argument("--voice"); ap.add_argument("--lang", choices=["zh", "en"], help="spoken side (default zh; en for an English-only script)")
     ap.add_argument("--gap", type=float, default=0.25); ap.add_argument("--instruct")
+    ap.add_argument("--keep-edges", action="store_true", help="keep the silence the provider puts before/after each line")
     ap.add_argument("--beats", help="beat map JSON: start each line on the next grid point")
     ap.add_argument("--snap", choices=["beat", "half", "downbeat"], help="with --beats: the grid (default beat)")
     ap.add_argument("--lead", type=float, default=0.0, help="earliest start of the first line (s)")
@@ -645,7 +673,7 @@ def main():
         return (raw if conv or not reactions else strip_reactions(raw)) if gemini else s["text"]
     def style_of(s):
         return "; ".join(x for x in (a.instruct, s.get("direction")) if x) or None
-    t, parts, asr_s, asr_n = 0.0, [], 0.0, 0
+    t, parts, asr_s, asr_n, trimmed = 0.0, [], 0.0, 0, 0.0
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
         if join == "none":
@@ -654,6 +682,10 @@ def main():
                 out = vo / f"{i+1:02d}.wav"
                 voice = speakers.get(s["speaker"], a.voice) if s.get("speaker") else a.voice
                 words = PROVIDERS[a.provider](text, voice, out, tmp, a.lang, style_of(s))
+                if not a.keep_edges:                                   # the provider's own lead-in / tail silence
+                    h, tl = trim_edges(out, tmp); trimmed += h + tl
+                    if words and h:
+                        words = [dict(w, start=max(0.0, w["start"] - h), end=max(0.0, w["end"] - h)) for w in words]
                 d = duration(out)
                 start = (next_start(a.lead if i == 0 else t + a.min_gap, s.get("snap")) if grid
                          else (a.lead if i == 0 else t + a.gap))
@@ -699,6 +731,8 @@ def main():
                     gemini_tts(turns, bout, tmp, gemini_model(a.provider), dict(speakers) if conv else a.voice)
                 else:
                     PROVIDERS[a.provider](("" if a.lang == "zh" else " ").join(texts), a.voice, bout, tmp, a.lang, a.instruct)
+                if not a.keep_edges:                                   # only the block's own edges: pauses inside stay
+                    h, tl = trim_edges(bout, tmp); trimmed += h + tl
                 bd = duration(bout)
                 t0 = time.time()
                 txt, ws = transcribe(bout, a.lang, tmp)
@@ -749,6 +783,8 @@ def main():
         for s in (x for x in segs if x["asr"].get("flag")):
             print(f"  FLAG {s['id']}: {s['asr']['flag']} — heard “{s['asr'].get('recheck', s['asr'])['text']}”"
                   f" · listen to {s['file']}, then re-run or rewrite the line")
+    if trimmed > 0.05:
+        print(f"  trimmed {trimmed:.2f} s of provider silence at line edges (--keep-edges to keep it)")
     print(f"→ {joined.relative_to(proj)} ({tl['duration']}s) · audio/timeline.{a.lang}.json · captions: bin/vh captions {a.project}")
 
 if __name__ == "__main__":

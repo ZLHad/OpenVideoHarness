@@ -29,6 +29,8 @@
 **Defaults settled on a Mac (Apple M3 Max)**
 - `bin/vh mix`: the default `duck_ratio` is now 1.6 (was 6). With narration that pauses ~0.25 s between lines, 6 and 3 made the music drop out between lines (`bin/vh qa`: 3 and 2 pumping dips); 1.6 had none and sounded best in a listening test.
 - `bin/vh tts` without a language: an English-only script is now spoken in English (English voice, English ASR, `voiceover.en.wav`) instead of by the Chinese voice. A script with any Chinese line stays `zh`, so one narrator reads it all; `--lang zh` keeps the old behaviour.
+- `bin/vh tts` trims the silence a provider leaves before and after each line (below −45 dBFS, keeping 30 ms before the voice and 80 ms after). qwen's English voice Ryan started every line with ~0.43 s of silence, sometimes 2.8 s, so gaps were far longer than `--gap` and a beat-snapped line started speaking late. With `--join`, only each block's edges are trimmed. `--keep-edges` keeps the old behaviour.
+- `bin/vh doctor` marks missing optional tools (uv, latex) with a yellow `!` instead of a red `✗`.
 - Verified on macOS with a GPU: `tools/ci.sh` under bash 5 and `/bin/bash` 3.2, `bin/vh doctor` (WebGL on Metal), frames pixel-identical across launches and render orders, `--encode` with `PROJECT.audio` and missing frames, a swatch determinism check and draft render, captions for English-only scripts and `|x|`, `--align gemini`, and `install.sh` from a fresh clone.
 
 ## v0.2.1 — 2026-09-30
