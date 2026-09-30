@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+**ElevenLabs word timing**
+- `bin/vh tts … elevenlabs` wrote every character as a "word": an English line became one entry per letter (90 for a 20-word sentence), so word-by-word captions flashed letters and the documented "same shape as --align" was not true. Character timestamps are now grouped into the same units as `--align gemini`: a Latin word or number each, a CJK character each, trailing punctuation kept on the word before it, opening quotes on the word after.
+
 **Linux fixes, found while setting up a cloud (Ubuntu 24.04) machine**
 - `bin/vh` used the macOS-only `sed -i ''`, which GNU sed reads as a file name. On Linux, `new … --effort` silently kept `standard` in BRIEF.md, and `hf-init` left GSAP on the CDN, so `hyperframes render` refused to run offline. Both now go through a portable `sedi` helper.
 - `styles/_swatch/package-lock.json` pinned every package to `registry.npmmirror.com`, so `npm ci` failed wherever that mirror is unreachable. It now records `registry.npmjs.org`, which npm swaps for whatever registry you have configured, so mirror users are unaffected.
