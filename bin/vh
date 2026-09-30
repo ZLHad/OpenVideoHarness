@@ -315,16 +315,18 @@ cmd_music() { uv run -q --with numpy --with scipy python "$ROOT/tools/audio/musi
 cmd_sfx() { uv run -q --with numpy --with scipy python "$ROOT/tools/audio/sfx.py" "$@"; }
 cmd_mix() { python3 "$ROOT/tools/audio/mix.py" "$@"; }
 cmd_qa() { uv run -q --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
-cmd_mux() { # output length = video length (audio padded/trimmed); extra .srt args become soft subtitle tracks
+cmd_mux() { # output length = video length (audio padded, or trimmed with a 40 ms fade-out); extra .srt args become soft subtitle tracks
   local u="usage: bin/vh mux <video> <audio> <out> [subs.srt…]"
   local v=${1:?$u} a=${2:?$u} out=${3:?$u}; shift 3
-  local vd; vd=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$v")
+  local vd ad fade=""; vd=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$v"); ad=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$a")
+  if python3 -c "import sys; sys.exit(0 if float('$ad') > float('$vd') + 0.001 else 1)"; then   # longer audio: fade the last 40 ms instead of a hard cut
+    fade=",afade=t=out:st=$(python3 -c "print(max(0.0, float('$vd') - 0.04))"):d=0.04"; fi
   local ins=(-i "$v" -i "$a") maps=(-map 0:v -map "[a]") meta=() i=2 s=0 f lang
   for f in "$@"; do   # language from the file name only (captions.zh.srt, subs_en.srt, en.srt …), never from its folders
     lang=und; case "${f##*/}" in zh.*|*[._-]zh.*) lang=chi ;; en.*|*[._-]en.*) lang=eng ;; esac
     ins+=(-i "$f"); maps+=(-map "$i"); meta+=("-metadata:s:s:$s" "language=$lang"); i=$((i+1)); s=$((s+1))
   done
-  ffmpeg -v error -y "${ins[@]}" -filter_complex "[1:a]apad,atrim=0:${vd}[a]" "${maps[@]}" -c:v copy -c:a aac -b:a 192k \
+  ffmpeg -v error -y "${ins[@]}" -filter_complex "[1:a]apad,atrim=0:${vd}${fade}[a]" "${maps[@]}" -c:v copy -c:a aac -b:a 192k \
     ${1:+-c:s mov_text} ${meta[@]+"${meta[@]}"} "$out" && echo "$c_ok $out${1:+ (+$s subtitle track(s))}"
 }
 cmd_gif() {
