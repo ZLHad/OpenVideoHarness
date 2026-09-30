@@ -244,6 +244,7 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 | `types` / `new <类型> <名字> [--style <风格>] [--effort <档位>]` | 列出 8 类视频 / 建一个新项目 |
 | `effort [quick\|standard\|studio]` | 看三档努力程度各做什么 |
 | `style list` / `style <风格>` / `style gallery` | 看风格 / 渲一段样片 / 重建风格总览 |
+| `recipes list [--intent …] [--energy …] [--engine …]` / `recipes check` | 按这一镜要说什么、多响来找镜头配方 / 校验一张配方 |
 | `tts` / `voices` / `captions` / `music` / `sfx` / `beats` | 配音（可逐句导演、对拍、逐字核对、双人对话）/ Gemini 音色库和设计音色 / 字幕 / 配乐 / 音效 / 分析外部音乐 |
 | `mix` / `qa` / `mux` | 混音 / 混音质检 / 给成片合上声音和字幕 |
 | `sheet` / `check` / `readcheck` / `gif` | 带时间戳的联系表 / 查黑场、冻帧、静音 / 查字停得够不够久 / 做 README 用的 GIF |
@@ -369,7 +370,8 @@ OpenVideoHarness/
 ├── playbook/                 通用知识 00–11：流程、自查、运动设计、声音、特效、叙事、钩子与封面、作曲等
 ├── templates/                每个新项目要填的文件：需求、分镜、风格、审阅、决定、笔记、经验、清单；按需再加旁白稿、角色、标题封面
 ├── styles/                   28 种风格，各带样片；_swatch/ 是样片渲染器
-├── cases/                    11 个案例拆解 + 社区作品精选 + 一支 3D 长片深读
+├── recipes/                  镜头配方：一镜怎么动（帧数、命门、坑）+ 整支片子的节奏骨架
+├── cases/                    12 个案例拆解 + 社区作品精选 + 一支 3D 长片深读
 ├── showcase/                 本仓库自己做的片子（源码 + 成片 + 过程记录）
 ├── engines/                  自带的手绘引擎 + 其他引擎的安装说明
 ├── references/               fetch.sh（拉取 30 个只读参考仓库）· 开源清单 · 社区 skill 精选
@@ -427,7 +429,7 @@ OpenVideoHarness/
 
 ## 许可
 
-原创内容采用 [MIT](LICENSE) 许可。自带的 ClaudeAnimationBase 也是 MIT（© John Heibel）。参考仓库遵循各自的许可证。
+原创内容采用 [MIT](LICENSE) 许可。自带的 ClaudeAnimationBase 也是 MIT（© John Heibel）。`recipes/` 里有些文件改编自 Apache-2.0 的项目（video-shotcraft、HyperFrames），来自上游的部分仍按 Apache-2.0，清单见 [`recipes/NOTICE.md`](recipes/NOTICE.md)。参考仓库遵循各自的许可证。
 
 ## 引用
 
