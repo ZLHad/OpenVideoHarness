@@ -125,7 +125,7 @@ export function renderAt(t, ctx, tokens, lib) {
 | 缓动 | `bezier(x1,y1,x2,y2)` · `ease.{outExpo,outQuint,outCubic,inCubic,inExpo,inOutCubic,inOutQuart,inOutSine,outBack,steps(n)}` · `easeOf(spec)` |
 | 弹簧 | `spring(tau, {w, zeta} 或 {stiffness, damping, mass}, v0)`：闭式解，没有积分也没有状态 · `springTrack(t, [{t,v}…])`：叠加弹簧，中途改目标 |
 | 颜色 | `color(tokens, key)` · `palette(tokens)` · `rgb rgba mixColor luminance` · `tok(tokens, "a.b.c", fallback)` |
-| 文字 | `fontStack font setFont tracking` · `layoutText(ctx, str, {x,y,align,tracking})` 返回每个字形的框，字距保留 · `drawGlyphs(ctx, layout, (g,i)=>({alpha,dx,dy,scale,rot,fill,stroke,ch}))` · `drawText` · `fitText` · `wrapText`（中文逐字换行，避头标点）· `graphemes isCJK` · `fontAvailable(family)` |
+| 文字 | `fontStack font setFont tracking` · `layoutText(ctx, str, {x,y,align,tracking})` 返回每个字形的框，字距保留 · `drawGlyphs(ctx, layout, (g,i)=>({alpha,dx,dy,scale,sx,sy,rot,fill,stroke,ch}))`（`sx`、`sy` 缺省时取 `scale`；缩放为 0 就不画） · `drawText` · `fitText` · `wrapText`（中文逐字换行，避头标点）· `graphemes isCJK` · `fontAvailable(family)` |
 | 解码 | `scrambleGlyphs(str, t, {start, stagger, settle, rate, seed, charset, charsetCJK})` 返回 `[{ch, final, state, u}]`；`scramble(...)` 返回字符串；随机字按 `rate` 次/秒量化到帧 · `typewriter(str, t, {start, cps})` |
 | 图层 | `layer(name)` 返回清空过的离屏 ctx（名字全局共享，加自己的前缀）· `offscreen(name, draw)` 返回 canvas |
 | 质感 | `grain(ctx, t, {amount, size, fps, mode})` · `paper(ctx, {tone, blotch, tooth, fiber, seed})` · `halftone(ctx, src, {cell, angle, color, shape, rect})`（src 为 canvas 或 `(x,y)=>暗度`）· `scanlines(ctx, t, {spacing, alpha, roll, flicker})` · `vignette(ctx, {strength, inner, cx, cy})` · `inkBleed(ctx, draw, {spread, rough, sharp, seed})` · `roughen(ctx, draw, {amount, freq, seed})` · `rgbSplit(ctx, src, {r,g,b})` |
@@ -167,7 +167,7 @@ export function renderAt(t, ctx, tokens, lib) {
 
 ## 配乐（可选）
 
-`styles/<slug>/score.json` 存在时，`render.sh` 会依次调用 `bin/vh music score.json`，截到 5 s 并在最后 0.45 s 淡出，再用 `bin/vh mix`（两遍 loudnorm，−14 LUFS），然后以 AAC 128k 封进 swatch.mp4。写法见 `bin/vh music --example` 和 `playbook/04-audio.md`。BPM 选能让 5 s 落在整拍上的值：96 BPM 是 8 拍（2 小节），120 BPM 是 10 拍，72 BPM 是 6 拍。段落边界对齐内容规格（0.8、2.0、4.0 s）。实测：96 BPM、2 小节的测试曲，封装后成片 1.06 MB，−14.6 LUFS。
+`styles/<slug>/score.json` 存在时，`render.sh` 会依次调用 `bin/vh music score.json`，截到 5 s 并在最后 0.45 s 淡出，再用 `bin/vh mix`（一个整体增益，必要时接真峰值限幅，−14 LUFS），然后以 AAC 128k 封进 swatch.mp4。写法见 `bin/vh music --example` 和 `playbook/04-audio.md`。BPM 选能让 5 s 落在整拍上的值：96 BPM 是 8 拍（2 小节），120 BPM 是 10 拍，72 BPM 是 6 拍。段落边界对齐内容规格（0.8、2.0、4.0 s）。实测：96 BPM、2 小节的测试曲，封装后成片 1.06 MB，−14.6 LUFS。
 
 **拟音**：再放一个 `styles/<slug>/events.json`，格式和 `bin/vh sfx place` 一样，是 `[{"t", "sfx", "gain_db", "pan", "dist"}]`，`render.sh` 就会把音效摆在每个动作发生的那一帧，和配乐一起混音（音效 −3 dB，不做 ducking）。`sfx` 可以是内置的 15 个音效名，也可以是风格文件夹里自己的 WAV，用相对路径，来源记进 STYLE.md。`t` 是声音落点，要和 swatch.js 里对应动作的时间取自同一个常量；声像 `pan` 取发声物体在画面上的 x。qa 会把这些落点当成设计好的起音，不报 click。推荐做法：在 swatch.js 里 `export const FOLEY = [{t, sfx, gain_db, pan}]`，t 直接引用动作的时间常量，再用 `node styles/_swatch/foley.mjs <slug>` 生成 events.json，画面和声音就只有一个时间来源。内置音效里没有合适的声音时，可以在 `styles/<slug>/sfx/` 放自己合成的 WAV，但生成代码必须写进 `styles/_swatch/custom_sfx.py`（带固定种子），保证 `uv run -q --with numpy --with scipy python styles/_swatch/custom_sfx.py` 能逐字节重建。不要放下载来的素材。
 
