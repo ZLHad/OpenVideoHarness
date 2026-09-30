@@ -95,6 +95,12 @@ smoke_checks() {
       && ok "bin/vh new --effort quick --style" || bad "bin/vh new: effort or style not written into the project"
     rm -rf "$dir"
   else bad "bin/vh new math"; fi
+  # tts picks the uv dependencies from --provider too (a fake uv prints the command instead of running it)
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); printf '#!/bin/sh\necho "$*"\n' > "$t/uv"; chmod +x "$t/uv"
+  a=$(PATH="$t:$PATH" vh tts "$t" --provider edge --lang en; PATH="$t:$PATH" vh tts "$t" --provider=dashscope)
+  case "$a" in *"--with edge-tts "*"--provider edge"*"--with dashscope "*) ok "tts --provider picks the provider's dependencies" ;;
+    *) bad "tts --provider: uv got '$a'" ;; esac
+  rm -rf "$t"
   if ! command -v ffmpeg >/dev/null; then skip "mux / gif smoke" "ffmpeg not installed"; return; fi
   # subtitle languages come from the file name, never from folders (a home dir like /home/zhang used to tag everything chi)
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); mkdir -p "$t/zhang/en.v1.2"

@@ -32,7 +32,7 @@ Input  <project>/audio/script.txt — one spoken line per row (a line = one capt
        |reaction| markers (no space just inside the pipes) are listener backchannels that the other speaker voices in
        a gemini conversation; every other path and the captions drop them, like the <tags> below. Only a script with
        an @speakers header has backchannels: elsewhere |x| is ordinary text (范围是 |x| keeps it).
-       Silence the provider leaves before and after a line (below −45 dBFS) is trimmed to 30 ms / 80 ms, so the gap
+       Silence the provider leaves before and after a line (below −50 dBFS) is trimmed to 30 ms / 80 ms, so the gap
        between lines is --gap (or the beat grid) and a snapped line's voice starts on the beat; --keep-edges keeps it.
        With --join, only the edges of each block are trimmed; pauses inside a block are the delivery.
 Output <project>/audio/vo/<lang>/NN.wav, audio/voiceover.<lang>.wav (mono 48 kHz, joined with --gap s silence),
@@ -63,7 +63,8 @@ Providers (API keys come from environment variables only, never from files):
   qwen        DEFAULT. Local open-source Qwen3-TTS (Apache-2.0) on Apple Silicon via mlx-audio, offline and free.
               Model: QWEN_TTS_MODEL (default mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit, ~2 GB download
               on first use). Voices — zh: Serena (warm female, default), Vivian, Uncle_Fu, Dylan (Beijing),
-              Eric (Sichuan); en: Ryan (default), Aiden. --instruct needs a 1.7B CustomVoice model.
+              Eric (Sichuan); en: Aiden (default), Ryan (slower, and the 0.6B model often runs on or mumbles
+              for seconds with it). --instruct needs a 1.7B CustomVoice model.
   say         macOS built-in, offline, free, draft quality. zh: Tingting (default) … en: Samantha.
   edge        Microsoft Edge online voices via the unofficial edge-tts package (free; may break).
   dashscope   Cloud Qwen3-TTS on Alibaba Cloud Model Studio (阿里云百炼): DASHSCOPE_API_KEY,
@@ -138,7 +139,7 @@ def p_qwen(text, voice, out: Path, tmp: Path, lang, instruct=None):
         _QWEN[model_id] = load_model(model_id)
     model = _QWEN[model_id]
     zh = lang.startswith("zh")
-    kw = dict(text=text, speaker=voice or ("Serena" if zh else "Ryan"), language="Chinese" if zh else "English")
+    kw = dict(text=text, speaker=voice or ("Serena" if zh else "Aiden"), language="Chinese" if zh else "English")
     if instruct:
         kw["instruct"] = instruct
     results = list(model.generate_custom_voice(**kw))
@@ -489,12 +490,15 @@ def set_flag(rec, min_sim):
 def cut(src: Path, t0, t1, dst: Path):
     run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-af", f"atrim=start={t0:.4f}:end={t1:.4f},asetpts=N/SR/TB", str(dst)])
 
-TRIM_DB, TRIM_HEAD, TRIM_TAIL = -45.0, 0.03, 0.08     # edges quieter than −45 dBFS; keep 30 ms before the voice, 80 ms after
+TRIM_DB, TRIM_HEAD, TRIM_TAIL = -50.0, 0.03, 0.08     # edges quieter than −50 dBFS; keep 30 ms before the voice, 80 ms after
 
 def trim_edges(wav: Path, tmp: Path):
-    """Cut the silence a provider leaves before and after the voice (qwen's Ryan: ~0.43 s, sometimes 2.8 s, at the
-    head of every line), keeping a short margin so onsets and decays stay whole. Spacing then comes only from --gap
-    or the beat grid. Loudness is measured in 10 ms windows (RMS), so a click or a noise floor does not count as voice.
+    """Cut the silence a provider leaves before and after the voice (qwen's Ryan: ~0.45 s at the head of every line;
+    edge: ~0.2 s before and ~0.85 s after), keeping a short margin so onsets and decays stay whole. Spacing then comes
+    only from --gap or the beat grid. −50 dBFS, not −45: at −45 the soft start of an f or h (up to 70 ms between −60 and
+    −45 dBFS) was cut. Breathing or mumbling above −50 dBFS before the first word is not silence and stays: that is
+    what --align gemini's head check is for. Loudness is measured in 10 ms windows (RMS), so a click or a noise floor
+    does not count as voice.
     Returns the seconds cut from the head (to shift word timings) and from the tail; a file with no voice is left as is."""
     import array
     raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(wav), "-ac", "1", "-ar", str(SR), "-f", "s16le", "-"],

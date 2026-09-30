@@ -9,7 +9,7 @@
 ```bash
 # 配音（双语）：audio/script.txt → voiceover.<lang>.wav + timeline.<lang>.json
 bin/vh tts projects/<p> qwen Serena zh            # 本地开源 Qwen3-TTS（默认；首次下载约 2GB）
-bin/vh tts projects/<p> qwen Ryan en              # 同一份稿子，英文旁白
+bin/vh tts projects/<p> qwen Aiden en             # 同一份稿子，英文旁白
 bin/vh tts projects/<p> gemini Kore zh --align gemini   # 云端 Gemini；--align：逐句词级时间 + ASR 对稿，跑偏的句子会被标出来
 bin/vh captions projects/<p> zh                    # → captions.zh/en/bi.srt + captions.json（给引擎画进画面）
 bin/vh voices list en-GB --gender female           # Gemini 音色库；bin/vh voices design "<描述>" 设计一个音色 → voice_… id
@@ -33,7 +33,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 - 双语写成 `中文 || English`，`--lang` 决定念哪一边，两边都会进时间表；
 - 只写一边的句子照原样念。进字幕时，含中日韩字符的算中文，不含的算英文，所以纯英文稿出的是 `captions.en.srt`。想让一句纯英文（比如品牌名）留在中文一侧，写成 `Claude Code ||`；只有标点的一句（`……`）跟着前面的单边句走；
 - 可以加 `@id` 前缀，比如 `@hook 一句话，做出一支片子。 || One sentence in, one film out.`。
-- 每句合成后，provider 自带的句首句尾静音（低于 −45 dBFS）会被裁掉，只留人声前 30 ms、后 80 ms，所以句间距离就是 `--gap`，按拍落点时人声也落在拍上。qwen 的英文音色 Ryan 每句开头有约 0.43 s 空白，偶尔 2.8 s，不裁的话节奏全被拖慢。`--join` 时只裁整段的首尾，段内的停顿是表演的一部分。想保留原样，加 `--keep-edges`；
+- 每句合成后，provider 自带的句首句尾静音（低于 −50 dBFS）会被裁掉，只留人声前 30 ms、后 80 ms，所以句间距离就是 `--gap`，按拍落点时人声也落在拍上。qwen 的英文音色 Ryan 每句开头有约 0.45 s 空白，edge 每句结尾有约 0.85 s，不裁的话节奏全被拖慢。阈值用 −50 而不用 −45：−45 会切掉 f、h 这类弱起音（最长 70 ms）。第一个词之前的呼吸声、含糊声高于 −50 dBFS，不算静音，裁不掉，要靠 `--align gemini` 的句首检查标出来。`--join` 时只裁整段的首尾，段内的停顿是表演的一部分。想保留原样，加 `--keep-edges`；
 - 双人对话：先写一行 `@speakers A=Kore B=Puck`，之后每句在 `@id` 和 `[指示]` 后面写说话人，见下文"双人对话"。
 
 按句合成，所以每句的起止时间都是**实测**的（`--join` 整段合成时除外，见下文）。
@@ -44,9 +44,9 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 | provider | 类型 | 需要什么 | 时间精度 | 状态 |
 |---|---|---|---|---|
-| `qwen`（默认） | **本地开源** Qwen3-TTS（Apache-2.0），mlx-audio 运行在 Apple Silicon 上。中文音色：Serena（温暖女声）、Vivian、Uncle_Fu、Dylan（京腔）、Eric（川话）；英文音色：Ryan、Aiden | 首次运行下载约 2GB；换 1.7B 模型（`QWEN_TTS_MODEL`）后可以用 `--instruct` 控制语气 | 句级 | ✅ 已实测中英 |
+| `qwen`（默认） | **本地开源** Qwen3-TTS（Apache-2.0），mlx-audio 运行在 Apple Silicon 上。中文音色：Serena（温暖女声）、Vivian、Uncle_Fu、Dylan（京腔）、Eric（川话）；英文音色：Aiden（默认）、Ryan（语速慢，0.6B 模型用它时经常拖出几秒到几十秒的含糊声） | 首次运行下载约 2GB；换 1.7B 模型（`QWEN_TTS_MODEL`）后可以用 `--instruct` 控制语气 | 句级 | ✅ 已实测中英 |
 | `say` | macOS 自带，离线，适合打草稿 | 无 | 句级 | ✅ 已实测 |
-| `edge` | 微软免费在线音色 | 联网；非官方接口 | 句级 | 待实测 |
+| `edge` | 微软免费在线音色 | 联网；非官方接口 | 句级 | ✅ 已实测英文 |
 | `dashscope` | 阿里云百炼 Qwen3-TTS（`qwen3-tts-flash`），云端 | `DASHSCOPE_API_KEY` | 句级 | 接口已留，待实测 |
 | `elevenlabs` | 高质量多语种配音 | `ELEVENLABS_API_KEY`、voice_id | **字符级** | 接口已留，待实测 |
 | `gemini` / `gemini-lite` | Google Gemini 3.8 Flash TTS（2026-09-23 发布）/ Flash-Lite TTS，云端。表演力强，适合讲解旁白和双人对话。Flash 支持 130 种语言，Lite 支持 101 种，都含中文，语言按文本自动识别。`--voice` 用 30 个 studio 音色之一（默认 Kore，每个都能说所有支持的语言）、音色库 id 或自己设计的 `voice_…`（见下文"音色"）；`bin/vh tts` 的第 5 个参数（`--instruct`）用一句话描述语气，例如"平静、笃定的纪录片旁白"；稿子里可以直接写 `<short pause>`、`<breath>`、`<laugh>` 这类标签，只有 gemini 会演出来，其他 provider 和字幕都会自动去掉 | `GEMINI_API_KEY`（Google AI Studio）。有免费档，但免费档的内容可能被 Google 用来改进产品；付费价格见下文"费用" | 句级；加 `--align gemini` 后为词级 | ✅ 2026-09-30 实测中英（Kore / Charon）：一次通过，逗号处有自然停顿。双人对话、整段合成、设计音色同日实测 |
