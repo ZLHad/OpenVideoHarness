@@ -96,7 +96,7 @@ open(p, "w").write(s[:m.start(1)] + json.dumps(v, ensure_ascii=False, separators
 PY
 if [ $stage_only = 1 ]; then
   echo "$ok stage ready: ${STAGE#$ROOT/}"
-  echo "   snapshot: HYPERFRAMES_SKIP_SKILLS=1 $HF snapshot ${STAGE#$ROOT/} --no-browser-gpu --at 0.4,1.7,3.0,4.6 --output ${OUT#$ROOT/}/snapshots"
+  echo "   snapshot: HYPERFRAMES_SKIP_SKILLS=1 $HF snapshot ${STAGE#$ROOT/} --no-browser-gpu --at 0.4,1.7,3.0,4.6 --describe false --output ${OUT#$ROOT/}/snapshots"
   echo "   preview : HYPERFRAMES_SKIP_SKILLS=1 $HF preview ${STAGE#$ROOT/}"
   echo "   (fonts: judge them on render.sh output, not snapshots)"
   exit 0

@@ -55,7 +55,7 @@ node render.mjs --strip=2.1:2.6 --crop-at=960,700,500,400 --out=out/check/feet.j
 ```bash
 npx hyperframes lint                       # 写 HTML 过程中随时跑
 npx hyperframes check --snapshots          # 最终关卡：lint + 运行时错误 + 布局 + 对比度，附带标注帧
-npx hyperframes snapshot --at 1.5,4.2,8.0  # 指定时刻的静帧
+npx hyperframes snapshot --at 1.5,4.2,8.0 --describe false  # 指定时刻的静帧；不带 --describe false，设了 GEMINI_API_KEY 时帧会发给 Gemini（见 engines/README.md）
 npx hyperframes preview --background       # 给用户看，确认后再 render
 npx hyperframes render --quality draft     # 快速出片；最终交付用 --quality delivery --output out.mp4
 # 命令前先 export HYPERFRAMES_SKIP_SKILLS=1（见 engines/README.md）
@@ -121,6 +121,15 @@ npx hyperframes render --format png-sequence --workers 1 --output out/det/w1
 npx hyperframes render --format png-sequence --workers 3 --output out/det/w3
 ffmpeg -i out/det/w1/frame_%06d.png -i out/det/w3/frame_%06d.png -lavfi psnr=stats_file=out/check/det.txt -f null -   # 看汇总的 min，和每帧的 psnr_avg
 ```
+
+**HyperFrames 的 PNG 序列是 RGBA，不画页面背景。** `--format png-sequence` 写的是带 alpha 的 PNG（命令行帮助里写的就是 RGBA 帧）：`html`、`body` 和合成根元素（带 `data-composition-id` 的那个）上的 `background` 不会画进去，那些地方 alpha = 0；只有元素自己的底色（比如一个铺满全屏的 `div`）会留下。这对上面的比对有三个影响：
+- **帧和 mp4 里的不是同一张图。** 没被元素盖住的地方是透明的，PNG 序列直接转成 mp4，背景是黑的（实测 RGB 0,0,0）；同一个合成直接 `render` 出的 mp4 是页面的底色。要和 mp4 的帧比，先把 PNG 叠到底色上。
+- **页面背景上的东西查不到。** 背景若画在 `html`、`body` 或根元素上，序列里根本没有它，它不确定也查不出来。要让检查盖住背景，把底色放进一个铺满全屏的子元素：整帧不透明，PNG 也就成了不带 alpha 的 RGB。
+- **上面那条 `ffmpeg … psnr` 可能不准。** 画面里只要还有一点透明，帧就是 RGBA；全部不透明了，帧就变成 RGB（比如底色淡入的前几帧是 RGBA，之后是 RGB）。ffmpeg 读到格式变化，会在中途重建滤镜：汇总打印两次，`stats_file` 只剩开头几行。RGBA 输入时 `average` 还把 alpha 当成第 4 个通道，比只算 RGB 高约 1.25 dB（实测 61.02 对 62.27），45 dB 的门槛被悄悄放宽（ffmpeg 8.0.1 实测）。序列里有透明的话，改成一对一对地比，先转成 rgb24，只列字节不同的帧（像素相同的显示 inf）：
+
+  ```bash
+  for f in out/det/w1/frame_*.png; do n=${f##*/}; cmp -s "$f" "out/det/w3/$n" || ffmpeg -nostdin -v info -i "$f" -i "out/det/w3/$n" -lavfi "[0:v]format=rgb24[a];[1:v]format=rgb24[b];[a][b]psnr" -f null - 2>&1 | sed -n "s/.*average:\([0-9.inf]*\).*/$n \1 dB/p"; done
+  ```
 
 长片不必全片都比。介绍片的做法是单独建一个 4 s 的局部 composition（用一个时间偏移变量把起点挪到要测的段落），6 s 就能渲完。Manim 的对应做法见上面 `--format png` 那一行。
 
