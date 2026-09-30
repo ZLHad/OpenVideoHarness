@@ -17,6 +17,8 @@ Input  <project>/audio/script.txt — one spoken line per row (a line = one capt
        fixed --gap, so narration rides the music; --snap picks the grid, --lead the earliest start of line 1.
        A single line can pick its own grid with @id:downbeat (or :beat, :half), e.g. the answer that lands on the drop.
        --lang picks which side is spoken (zh = left, en = right); both sides go into the timeline for captions.
+       Without --lang it is zh, unless no line has a Chinese side: an English-only script is spoken in English
+       (English voice, English ASR, voiceover.en.wav). A mixed script keeps one narrator, so it stays zh.
        A line with only one side is spoken as-is; for captions it is English when it has no CJK characters, else
        Chinese ("Claude Code ||" keeps a Latin-only line on the Chinese side; punctuation only, like "……", goes
        with the one-sided line before it).
@@ -574,7 +576,7 @@ def main():
         return voices_main(sys.argv[2:])
     ap = argparse.ArgumentParser()
     ap.add_argument("project"); ap.add_argument("--provider", default="qwen", choices=PROVIDERS)
-    ap.add_argument("--voice"); ap.add_argument("--lang", default="zh", choices=["zh", "en"])
+    ap.add_argument("--voice"); ap.add_argument("--lang", choices=["zh", "en"], help="spoken side (default zh; en for an English-only script)")
     ap.add_argument("--gap", type=float, default=0.25); ap.add_argument("--instruct")
     ap.add_argument("--beats", help="beat map JSON: start each line on the next grid point")
     ap.add_argument("--snap", choices=["beat", "half", "downbeat"], help="with --beats: the grid (default beat)")
@@ -593,6 +595,10 @@ def main():
                           "@hook 一句话，做出一支片子。 || One sentence in, one film out.\n", encoding="utf-8")
         sys.exit(f"wrote a sample {script} — edit it and re-run")
     segs, speakers = parse_script(script)
+    if a.lang is None:                                               # an English-only script is spoken in English
+        a.lang = "en" if any(s["en"] for s in segs) and not any(s["zh"] for s in segs) else "zh"
+        if a.lang == "en":
+            print("  English-only script: speaking it in English (pass --lang zh for the Chinese voice)")
     reactions = bool(speakers)                                       # |…| is a backchannel only under an @speakers header
     if a.voice and "=" in a.voice:                                   # "A=Tingting,B=Meijia" overrides @speakers
         speakers.update(p.split("=", 1) for p in re.split(r"[,\s]+", a.voice) if "=" in p); a.voice = None
