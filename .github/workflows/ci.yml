@@ -38,6 +38,8 @@ jobs:
           python3 -m pip install --quiet pyflakes
           if [ "$RUNNER_OS" = Linux ]; then
             sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck ffmpeg >/dev/null
+          else   # ffmpeg lets the bin/vh mux/gif smoke tests run under macOS /bin/bash 3.2 too
+            HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install --quiet ffmpeg >/dev/null
           fi
       # Linux: GNU userland. macOS: BSD userland, and bin/vh runs under the system /bin/bash 3.2 that Mac users have.
       - name: tools/ci.sh

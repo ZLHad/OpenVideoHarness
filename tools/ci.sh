@@ -3,6 +3,7 @@
 #
 #   tools/ci.sh                      everything the installed tools allow (shellcheck, pyflakes, ffmpeg are optional locally)
 #   tools/ci.sh --smoke              only the bin/vh smoke tests
+#   tools/ci.sh --committed          check HEAD in a clean temporary checkout: what a push sends, not the working tree
 #   VH_BASH=/bin/bash tools/ci.sh    run bin/vh and the syntax checks under another bash (macOS ships bash 3.2)
 #
 # Why each group exists: the v0.2.1 review found macOS-only sed/stat/md5 flags that broke every Linux user, a
@@ -106,14 +107,20 @@ smoke_checks() {
     a=$(ffprobe -v error -select_streams a -show_entries stream=duration -of csv=p=0 "$t/out.mp4"); python3 -c "import sys; sys.exit(0 if abs(float('$a') - 1) < 0.05 else 1)" \
       && ok "mux pads short audio to the video length" || bad "mux audio duration $a, want 1.0"
   else bad "bin/vh mux"; fi
+  # no subtitle files: an empty array under set -u, which bash before 4.4 (macOS /bin/bash) treats as unbound
+  vh mux "$t/zhang/en.v1.2/final" "$t/a.wav" "$t/out-nosubs.mp4" >/dev/null && [ -s "$t/out-nosubs.mp4" ] \
+    && ok "mux without subtitle files" || bad "bin/vh mux without subtitle files"
   vh gif "$t/zhang/en.v1.2/final" 64 5 >/dev/null && [ -f "$t/zhang/en.v1.2/final.gif" ] && ok "gif names the output after the file, not a dotted folder" || bad "bin/vh gif output name"
   rm -rf "$t"
 }
 
 case "${1:-all}" in
   --smoke) smoke_checks ;;
+  --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
+    w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
+    (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
   all) static_checks; doc_checks; smoke_checks ;;
-  *) echo "usage: tools/ci.sh [--smoke]"; exit 2 ;;
+  *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ $fails = 0 ] && ok "all checks passed" || printf '\033[31m%s check(s) failed\033[0m\n' "$fails"
 exit $fails
