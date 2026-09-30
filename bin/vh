@@ -24,6 +24,7 @@
 #   qa <mix> [beats.json] [events.json]  final-mix QA: silence, dropouts, pumping, clicks + cue check (exit 1 on fail)
 #   mux <video> <audio> <out> [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video
 #   readcheck <texts.json|project> [--mode onscreen|subtitle] [--lang zh|en]  on-screen text held long enough / subtitles within reading speed (exit 1 on fail)
+#   review <project> [gate]     decision-first review page: out/review/gate-<gate>.json → gate-<gate>.html (+ index.html); prints the chat message (playbook/01-pipeline.md, 审阅页)
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
 #   check <video>               ffprobe + black/freeze/silence detection
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
@@ -152,7 +153,7 @@ cmd_new() {
     (cd "$dir" && npm install --silent)
   else mkdir -p "$dir"; fi
   mkdir -p "$dir/audio" "$dir/assets" "$dir/out/check"
-  for f in BRIEF STYLE STORYBOARD REVIEW NOTES LESSONS TASTE_CHECKLIST; do cp "$ROOT/templates/$f.md" "$dir/$f.md"; done
+  for f in BRIEF STYLE STORYBOARD REVIEW DECISIONS NOTES LESSONS TASTE_CHECKLIST; do cp "$ROOT/templates/$f.md" "$dir/$f.md"; done
   python3 - "$ROOT/video-types/$doc.md" "$dir/BRIEF.md" <<'PY'
 import re, sys
 doc, brief = open(sys.argv[1]).read(), sys.argv[2]
@@ -177,7 +178,7 @@ PY
   fi
   if [ -n "$effort" ]; then
     sedi "s/^- Effort: standard /- Effort: $effort /" "$dir/BRIEF.md"
-    [ "$effort" = quick ] && printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
+    [ "$effort" = quick ] && printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；人点名要拍板的事照样停（导演模式）；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
   fi
   if [ -n "$style" ]; then   # the preset rides along: its STYLE.md + tokens, and its prompt block appended to BRIEF
     cp "$ROOT/styles/$style/STYLE.md" "$dir/STYLE_PRESET.md"; cp "$ROOT/styles/$style/tokens.json" "$dir/style.tokens.json"
@@ -196,7 +197,8 @@ PY
   [ -n "$style" ] && echo "   style    : styles/$style (STYLE_PRESET.md, style.tokens.json)"
   echo "   effort   : ${effort:-standard}  (bin/vh effort ${effort:-standard} shows what that means)"
   echo "   next     : open Claude Code in the repo root and say what the video is about;"
-  echo "              the agent fills ${dir#$ROOT/}/BRIEF.md and STORYBOARD.md and stops for your review."
+  if [ "$effort" = quick ]; then echo "              the agent fills ${dir#$ROOT/}/BRIEF.md and renders straight through; it stops only for what you say you'll decide."
+  else echo "              the agent fills ${dir#$ROOT/}/BRIEF.md and STORYBOARD.md and stops for your review (outline, storyboard, first draft)."; fi
 }
 
 cmd_effort() { # print the effort hub from CLAUDE.md; with a level, only that column of the table
@@ -221,6 +223,7 @@ for l in lines:
 }
 
 cmd_readcheck() { python3 "$ROOT/tools/readcheck.py" "$@"; }
+cmd_review() { python3 "$ROOT/tools/review.py" "$@"; }
 
 swatch_deps() { # the swatch renderer's pinned HyperFrames (render.sh and determinism.sh do not install it themselves)
   [ -x "$ROOT/styles/_swatch/node_modules/.bin/hyperframes" ] || (cd "$ROOT/styles/_swatch" && npm ci --silent)
@@ -343,6 +346,7 @@ case "${1:-help}" in
   tts) shift; cmd_tts "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
+  review) shift; cmd_review "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
   help|-h|--help) cmd_help ;;
   *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;
