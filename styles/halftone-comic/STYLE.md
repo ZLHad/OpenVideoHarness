@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：第 0 帧标题格砸进来并铺满画面（黄底，品红网点只在边缘，速度线按 6 fps 换张），配一记 `impact`；标题字母像字块一样一拍二砸到位，中文在黄色旁白框里；2.0 s 标题格缩成顶部横幅，三格同时落下："铅笔稿 → 墨线 → 上色"对应大纲、分镜、初版（画的是一道闪电，不用 ▶）；2.5 s 初版格弹出"BAM!"，C/M/Y 三块版一起踢开约 9 px 再回位，3.0 s 再砸一次，3.5 s 格内一抖；3.5–4.0 s 音乐抽空只剩 `pad`；4.0 s 一条斜切把页面切开，只用实色油墨的结束格（黄底红光芒）顺着切口滑进来。实际字体：Futura Condensed ExtraBold、Avenir Next Condensed Demi Bold、HanziPen SC Bold。配乐 120 BPM、E 小调、半速 breakbeat，小节排成 4 + 1 + 2 + 1 + 4 拍：0 s、2.5 s、4.0 s 各一记 `impact`，2.5–3.5 s 加 `taiko`。
+样片里：第 0 帧标题格砸进来并铺满画面（黄底，品红网点只在边缘，速度线按 6 fps 换张），配一记 `impact`；标题字母像字块一样一拍二砸到位，中文在黄色旁白框里；2.0 s 标题格缩成顶部横幅，三格同时落下："铅笔稿 → 墨线 → 上色"对应大纲、分镜、初版（画的是一道闪电，不用 ▶）；2.5 s 初版格弹出"BAM!"，C/M/Y 三块版一起踢开约 9 px 再回位，3.0 s 再砸一次，3.5 s 格内一抖；3.5–4.0 s 音乐抽空只剩 `pad`；4.0 s 一条斜切把页面切开，只用实色油墨的结束格（黄底红光芒）顺着切口滑进来。实际字体：Futura Condensed ExtraBold、Avenir Next Condensed Demi Bold、HanziPen SC Bold。配乐是 120 BPM、E 小调的 boom-bap（《Spider-Verse》那一路），小节排成 4 + 1 + 2 + 1 + 4 拍：0 s 标题砸下时一记铜管 stab、`bb_kick` 和 808，紧接一段搓碟（`scratch` 的 baby scratch 加 chirp）；标题逐词砸下的那一小节鼓只留 kick、hats 和第 2 拍的军鼓，第 4 拍的反拍让给字幕框的 `pop`，1.75 s 铜管再垫一下；2.0 s 三格落下只剩 kick 和 808；2.5 s BAM! 与 3.0 s 再砸各一记铜管 stab 加 kick，3.0 s 那下带军鼓，3.375 s 一声 chirp 把唱片切走；3.5–4.0 s 音乐抽空成一张床：808 的 D 长音和一个渐强的铜管 D 和弦（`swell`）；4.0 s 分格切时全编制砸回来，再接一段搓碟，4.75 s 又一记铜管。鼓是摇摆的十六分音符（`swing` 0.58），带一点黑胶噼啪。
 
 ## 学习对象
 
@@ -55,9 +55,9 @@
 
 ## 声音语法
 
-- **配乐**：E 小调，120 BPM（24 fps 下一拍 12 帧，一拍二正好 6 张；30 fps 下 15 帧），半速感的 breakbeat 律动：`kick`、`clap`、`hats`、`bass`，高潮加 `lead`，大击打加 `taiko`。
+- **配乐**：E 小调，120 BPM（24 fps 下一拍 12 帧，一拍二正好 6 张；30 fps 下 15 帧），boom-bap。签名是搓碟（`scratch`：`x` baby scratch，`o` chirp）加铜管 stab（`brass` 的 `stab`，`onset_ms` 8），都比鼓亮、比鼓靠前；鼓是摇摆的十六分音符 breakbeat（`bb_kick`、`bb_snare`、`hihat`，`swing` 0.58），`sub808` 垫底，轻黑胶噼啪（`lofi`）。大击打前音乐抽空成一张床（808 长音加 `swell` 渐强的铜管），再全编制砸下来。和 `risograph` 的 lo-fi 不同：这里亮、硬、有搓碟，那边暗、懒、只有 Rhodes。
 - **音效**：每个拟声词都有真实的声音，同一帧：`impact`、`boom`、`whoosh`、`swish_rev`；分格切用 `shutter`；套版踢一下配一声短 `glitch`（音量 −12 dB，不要电子味太重）。
-- **声画关系**：拟声词的字号 ∝ 音量；重击前 0.3–0.5 s 全部音乐抽空，再一起砸下去。
+- **声画关系**：拟声词的字号 ∝ 音量；重击前 0.3–0.5 s 音乐抽空，只留一张低 10 dB 左右的床（808 长音或渐强的铜管），再一起砸下去。
 - **样片拟音**：`events.json` 15 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），−3 dB 混在配乐下：标题格砸进来 `impact`；标题每个词砸下、中文字幕框弹出各一声 `pop`，落点按一拍二（12 fps 姿势）换算到实际出现的那一帧；标题格缩成横幅 `whoosh`；三格落下各一声 `pop`；BAM! `impact`，3.0 s 再砸一下小一点的 `impact`，最后一抖 `click`；对角分格 `shutter` + `whoosh`。
 
 ## 适合与不适合
@@ -78,7 +78,7 @@
 ## Prompt 块
 
 ```text
-Visual style: printed comic page in motion. Newsprint #F5EEDC, process inks only: black #1A1A1A keyline and solid shadows, cyan #00A3E0, magenta #E5287B, yellow #FFD400, with red #E63B2E (magenta over yellow) reserved for impacts. Shading is Ben-Day halftone, 10–14 px dots, screen angles C 15°, M 75°, Y 0°, K 45°; highlights stay bare paper, darks go solid black. Colour plates are slightly misregistered (C and M ±2 px, black always in register); distant layers get 6–10 px of misregistration instead of depth-of-field blur. The frame can split into 2–4 panels with white gutters and black borders, diagonal cuts for conflict. Characters, speed lines and onomatopoeia animate on twos (12 fps), calm beats on threes, the biggest hit on ones; camera moves and panel slides stay smooth every frame. Hits land in 3 frames with no easing, hold 2 frames, then follow through. Onomatopoeia in condensed heavy caps (Futura Condensed ExtraBold) with a thick black outline and an offset yellow shadow, popping 30%→115%→100% in 6 frames, held at least 0.6 s, always with a matching sound on the same frame. Transitions: diagonal panel split, halftone dot wipe, one white-flash smash cut. No RGB chromatic aberration, no per-frame registration jitter, no superhero costumes or web motifs. Sound: 120 BPM half-time breakbeat, silence 0.3 s before each big hit.
+Visual style: printed comic page in motion. Newsprint #F5EEDC, process inks only: black #1A1A1A keyline and solid shadows, cyan #00A3E0, magenta #E5287B, yellow #FFD400, with red #E63B2E (magenta over yellow) reserved for impacts. Shading is Ben-Day halftone, 10–14 px dots, screen angles C 15°, M 75°, Y 0°, K 45°; highlights stay bare paper, darks go solid black. Colour plates are slightly misregistered (C and M ±2 px, black always in register); distant layers get 6–10 px of misregistration instead of depth-of-field blur. The frame can split into 2–4 panels with white gutters and black borders, diagonal cuts for conflict. Characters, speed lines and onomatopoeia animate on twos (12 fps), calm beats on threes, the biggest hit on ones; camera moves and panel slides stay smooth every frame. Hits land in 3 frames with no easing, hold 2 frames, then follow through. Onomatopoeia in condensed heavy caps (Futura Condensed ExtraBold) with a thick black outline and an offset yellow shadow, popping 30%→115%→100% in 6 frames, held at least 0.6 s, always with a matching sound on the same frame. Transitions: diagonal panel split, halftone dot wipe, one white-flash smash cut. No RGB chromatic aberration, no per-frame registration jitter, no superhero costumes or web motifs. Sound: 120 BPM swung boom-bap breakbeat with vinyl scratches, brass stabs and an 808 sub; the music drops to a quiet bed 0.3–0.5 s before each big hit.
 ```
 
 ## 引擎做法

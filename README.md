@@ -79,7 +79,7 @@ Every film below was made by an agent **reading only this repo's docs**. Each fo
 </tr>
 <tr>
 <td width="35%" valign="top"><a href="showcase/03-math-fourier/"><img src="showcase/03-math-fourier/media/preview.gif" width="100%" alt="03 · 3b1b-style math explainer"></a><br><b>03 · 3b1b-style math explainer</b><br><sub>Manim · 25 s · revised after an independent review</sub><br><sub>“Build a square wave from sine waves, one at a time”</sub></td>
-<td width="35%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · Launch short"></a><br><b>00 · Launch short</b><br><sub>HyperFrames · 20 s · silent</sub><br><sub>“A launch film for this repo, using only its real terminal and folders”</sub></td>
+<td width="35%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · Launch short"></a><br><b>00 · Launch short</b><br><sub>HyperFrames · 20 s · code-composed score + foley</sub><br><sub>“A launch film for this repo, using only its real terminal and folders”</sub></td>
 </tr>
 </table>
 

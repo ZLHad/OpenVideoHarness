@@ -1,0 +1,281 @@
+[
+ {
+  "t": 0.267,
+  "sfx": "thock_hi",
+  "gain_db": -15,
+  "pan": -0.34,
+  "why": "A: hook word 'Your' lands (s-hook spec, t = 0.25)"
+ },
+ {
+  "t": 0.4,
+  "sfx": "thock_hi",
+  "gain_db": -15,
+  "pan": -0.09,
+  "why": "A: hook word 'coding' lands (s-hook spec, t = 0.4)"
+ },
+ {
+  "t": 0.533,
+  "sfx": "thock_hi",
+  "gain_db": -15,
+  "pan": 0.18,
+  "why": "A: hook word 'agent,' lands (s-hook spec, t = 0.52)"
+ },
+ {
+  "t": 0.867,
+  "sfx": "thock_mid",
+  "gain_db": -13,
+  "pan": -0.34,
+  "why": "A: hook word 'now' lands (s-hook spec, t = 0.85)"
+ },
+ {
+  "t": 0.967,
+  "sfx": "thock_mid",
+  "gain_db": -15,
+  "pan": -0.21,
+  "why": "A: hook word 'a' lands (s-hook spec, t = 0.96)"
+ },
+ {
+  "t": 1.067,
+  "sfx": "thock_mid",
+  "gain_db": -11,
+  "pan": -0.06,
+  "why": "A: hook word 'video' lands (s-hook spec, t = 1.04)"
+ },
+ {
+  "t": 1.2,
+  "sfx": "thock_lo",
+  "gain_db": -9,
+  "pan": 0.2,
+  "why": "A: hook word 'studio.' lands (s-hook spec, t = 1.2)"
+ },
+ {
+  "t": 2.5,
+  "sfx": "whoosh",
+  "gain_db": -12,
+  "pan": -0.2,
+  "why": "A→B: words peel LEFT 2.16–2.5, problem line enters mid-flight at 2.5 (whoosh peaks at the cut)"
+ },
+ {
+  "t": 2.6,
+  "sfx": "boom",
+  "gain_db": -18,
+  "why": "B: 'One catch: it can't watch video.' lands (cascade 2.5–2.68): sub weight under the doubt (34 Hz, no attack: kept at −18 so the onset cue check skips it)"
+ },
+ {
+  "t": 4.7,
+  "sfx": "whoosh",
+  "gain_db": -12,
+  "pan": -0.2,
+  "why": "B→C: cut-the-curve LEFT at 4.7"
+ },
+ {
+  "t": 5.233,
+  "sfx": "click",
+  "gain_db": -9,
+  "pan": -0.31,
+  "why": "C: cursor clicks the prompt, tap(5.22); focus ring same frame"
+ },
+ {
+  "t": 5.328,
+  "sfx": "keys_cmd",
+  "gain_db": -9,
+  "pan": -0.3,
+  "why": "C: the command types 5.33–6.08 (28 ms/char)"
+ },
+ {
+  "t": 6.2,
+  "sfx": "click",
+  "gain_db": -10,
+  "pan": -0.3,
+  "why": "C: Return at RET = 6.184"
+ },
+ {
+  "t": 6.233,
+  "sfx": "tick",
+  "gain_db": -12,
+  "pan": -0.16,
+  "why": "C: '→ scaffolding' line at RET+0.04"
+ },
+ {
+  "t": 6.5,
+  "sfx": "toggle",
+  "gain_db": -9,
+  "pan": -0.21,
+  "why": "C: '✓ created projects/…' line at RET+0.31 (the key read)"
+ },
+ {
+  "t": 6.567,
+  "sfx": "tree_run",
+  "gain_db": -14,
+  "pan": 0.38,
+  "why": "C: the file tree fills, 14 items from RET+0.36 (a rising E-pentatonic run)"
+ },
+ {
+  "t": 8.0,
+  "sfx": "whoosh",
+  "gain_db": -12,
+  "pan": -0.2,
+  "why": "C→D: cut at 8.0 (cursor carries)"
+ },
+ {
+  "t": 8.5,
+  "sfx": "click",
+  "gain_db": -9,
+  "pan": 0.46,
+  "why": "D: cursor presses ↵ at CLICK 0.5 (8.5)"
+ },
+ {
+  "t": 8.933,
+  "sfx": "tick",
+  "gain_db": -10,
+  "why": "D: scan box lands on row 02 (0.72–0.92, power3.inOut)"
+ },
+ {
+  "t": 9.1,
+  "sfx": "tick",
+  "gain_db": -10,
+  "why": "D: scan box lands on row 03 (0.96–1.22 power4.out, 90% of the way)"
+ },
+ {
+  "t": 9.567,
+  "sfx": "ding",
+  "gain_db": -9,
+  "why": "D: LOCK at 1.55 (9.55): row 03 → video-types/03-product-promo.md"
+ },
+ {
+  "t": 11.3,
+  "sfx": "whoosh",
+  "gain_db": -12,
+  "pan": -0.2,
+  "why": "D→E: cut at 11.3"
+ },
+ {
+  "t": 11.9,
+  "sfx": "whoosh",
+  "gain_db": -16,
+  "pan": 0.1,
+  "why": "E: the playhead scans the sheet 0.34–0.84"
+ },
+ {
+  "t": 12.167,
+  "sfx": "error",
+  "gain_db": -8,
+  "pan": 0.26,
+  "why": "E: FLAG at 0.85 (12.15): tile 0:10.50 boxed, '#3 FAIL'"
+ },
+ {
+  "t": 12.167,
+  "sfx": "keys_note",
+  "gain_db": -10,
+  "pan": -0.33,
+  "why": "E: the NOTES line types in with the flag (30 chars in 0.36 s)"
+ },
+ {
+  "t": 13.7,
+  "sfx": "click",
+  "gain_db": -9,
+  "pan": -0.01,
+  "why": "E: cursor clicks the flagged tile, tap(13.7)"
+ },
+ {
+  "t": 13.77,
+  "sfx": "shutter",
+  "gain_db": -10,
+  "why": "E: rack-focus blur spike 13.7–13.84"
+ },
+ {
+  "t": 13.867,
+  "sfx": "success",
+  "gain_db": -8,
+  "why": "E: swap to the fixed frame, '✓ #3 PASS' at CLICK+0.14 (13.84)"
+ },
+ {
+  "t": 15.0,
+  "sfx": "whoosh",
+  "gain_db": -17,
+  "pan": -0.2,
+  "why": "E→F: cut at 15.0 (softer: the count-up starts 0.1 s later)"
+ },
+ {
+  "t": 15.1,
+  "sfx": "count_8",
+  "gain_db": -11,
+  "pan": -0.45,
+  "why": "F: '8' counts up, 8 changes on screen (column 1)"
+ },
+ {
+  "t": 15.133,
+  "sfx": "count_10",
+  "gain_db": -14,
+  "pan": -0.17,
+  "why": "F: '10' counts up, 10 changes on screen (column 2)"
+ },
+ {
+  "t": 15.233,
+  "sfx": "count_3",
+  "gain_db": -14,
+  "pan": 0.06,
+  "why": "F: '3' counts up, 3 changes on screen (column 3)"
+ },
+ {
+  "t": 15.267,
+  "sfx": "count_20",
+  "gain_db": -14,
+  "pan": 0.34,
+  "why": "F: '20' counts up, 15 changes on screen (column 4)"
+ },
+ {
+  "t": 17.0,
+  "sfx": "swish_rev",
+  "gain_db": -12,
+  "why": "F→G: proof shrinks 1 → 0.8 over 16.8–17.0 (swish_rev ends at t)"
+ },
+ {
+  "t": 17.0,
+  "sfx": "impact",
+  "gain_db": -11,
+  "why": "G: the wordmark ARRIVES (inverse zoom-through, 17.0–17.5)"
+ },
+ {
+  "t": 17.667,
+  "sfx": "thock_hi",
+  "gain_db": -18,
+  "pan": -0.3,
+  "why": "G: tagline word 'Video' rises (17.0 + 0.65)"
+ },
+ {
+  "t": 17.8,
+  "sfx": "thock_hi",
+  "gain_db": -18,
+  "pan": -0.22,
+  "why": "G: tagline word 'as' rises (17.0 + 0.78)"
+ },
+ {
+  "t": 17.867,
+  "sfx": "thock_hi",
+  "gain_db": -18,
+  "pan": -0.15,
+  "why": "G: tagline word 'code,' rises (17.0 + 0.86)"
+ },
+ {
+  "t": 18.0,
+  "sfx": "thock_hi",
+  "gain_db": -18,
+  "pan": -0.07,
+  "why": "G: tagline word 'for' rises (17.0 + 0.98)"
+ },
+ {
+  "t": 18.067,
+  "sfx": "thock_hi",
+  "gain_db": -18,
+  "pan": 0.01,
+  "why": "G: tagline word 'coding' rises (17.0 + 1.06)"
+ },
+ {
+  "t": 18.2,
+  "sfx": "thock_mid",
+  "gain_db": -18,
+  "pan": 0.14,
+  "why": "G: tagline word 'agents.' rises (17.0 + 1.18)"
+ }
+]

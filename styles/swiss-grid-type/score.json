@@ -1,11 +1,45 @@
 {
-  "bpm": 150, "key": "A", "mode": "minor", "seed": 8,
+  "bpm": 150, "key": "A", "mode": "dorian", "seed": 8,
   "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "stereo": true, "space": "dry",
   "sections": [
-    {"name": "grid", "bars": 1, "chords": ["i"], "layers": ["hats", "bass", "pad"], "energy": 0.5},
-    {"name": "headline", "bars": 1, "chords": ["IV"], "layers": ["hats", "kick", "clap", "bass", "pad"], "energy": 0.6},
-    {"name": "modules", "bars": 1, "chords": ["i"], "layers": ["hats", "kick", "clap", "bass", "arp"], "energy": 0.75},
-    {"name": "break", "bars": 1, "chords": ["IV"], "layers": ["bass", "arp", "pad"], "energy": 0.6},
-    {"name": "wipe", "bars": 1, "chords": ["i"], "layers": ["kick", "hats", "bass", "arp", "lead"], "energy": 0.85}
+    {"name": "grid", "bars": 1, "chords": ["i7"]},
+    {"name": "headline", "bars": 1, "chords": ["IV"]},
+    {"name": "modules", "bars": 1, "chords": ["i7"]},
+    {"name": "break", "bars": 1, "chords": ["IV"]},
+    {"name": "wipe", "bars": 1, "chords": ["i7"]}
+  ],
+  "parts": [
+    {"inst": "sq_bass", "id": "bass", "figure": "ostinato", "rate": 8, "octave": 1, "legato": 0.85, "params": {"duty": 0.5, "cutoff": 220, "env": 0.06, "decay": 0.12, "res": 1.3}, "gain_db": 0, "hit": "section",
+     "cell": ["c0", "c0'", "c2", "c0'", "c0", "c0'", "s6", "c0'"],
+     "by_section": {
+       "headline": {"octave": 2},
+       "break": {"figure": null, "octave": 2, "gain_db": -2, "pattern": [
+         [0, 0.95, "c0", 0.7], [1.0, 0.2, "c0'", 0.8], [1.25, 0.2, "c1'", 0.85], [1.5, 0.48, "c2'", 0.9]
+       ]}
+     }},
+    {"inst": "sub808", "id": "kick", "loop": 5, "params": {"drop": 24, "decay": 0.07, "drive": 1.5}, "gain_db": -3, "hp": 30,
+     "pattern": [
+       [0.0, 0.3, "A1", 1.0], [0.5, 0.3, "A1", 0.45], [1.0, 0.3, "A1", 1.0], [1.5, 0.3, "A1", 0.45],
+       [2.0, 0.3, "A1", 1.0], [2.5, 0.3, "A1", 0.45], [3.0, 0.3, "A1", 1.0], [3.5, 0.3, "A1", 0.45],
+       [4.0, 0.3, "A1", 1.0], [4.5, 0.3, "A1", 0.45], [5.0, 0.3, "A1", 1.0], [5.5, 0.3, "A1", 0.45],
+       [6.0, 0.3, "A1", 1.0], [6.5, 0.3, "A1", 0.45], [7.0, 0.3, "A1", 1.0], [7.5, 0.3, "A1", 0.45],
+       [10.0, 0.3, "A1", 1.0], [10.5, 0.3, "A1", 0.45], [11.0, 0.3, "A1", 1.0], [11.5, 0.3, "A1", 0.45],
+       [12.0, 0.3, "A1", 1.0], [12.5, 0.3, "A1", 0.45]
+     ]},
+    {"inst": "clap", "id": "clap", "loop": 5, "gain_db": -6, "pan": 0.1,
+     "pattern": [
+       [1, 0.25, null, 0.9], [3, 0.25, null, 0.9], [5, 0.25, null, 0.9], [7, 0.25, null, 0.9], [11, 0.25, null, 0.9]
+     ]},
+    {"inst": "hihat", "id": "hats", "sections": ["grid", "headline", "modules", "wipe"], "gain_db": -6, "pan": 0.3,
+     "pattern": "3585"},
+    {"inst": "organ", "id": "bleep", "sections": ["headline", "modules", "wipe"], "figure": "ostinato", "rate": 16, "octave": 4, "legato": 0.5, "params": {"drawbars": "008000000", "leslie": 0, "click": false}, "gain_db": -4, "pan": -0.35,
+     "cell": ["c0'", ".", "c2'", ".", "c1'", ".", "c0'", "c2'"]},
+    {"inst": "organ", "id": "pad", "figure": "sustain", "octave": 4, "voicing": "close", "params": {"drawbars": "006600000", "leslie": 0, "click": false}, "gain_db": -7, "pan": 0.0},
+    {"inst": "sub808", "id": "glide", "sections": ["break"], "octave": 4, "params": {"drop": 0, "drive": 0, "decay": 3.0}, "gain_db": -10, "pan": 0.35,
+     "pattern": [
+       [0, 0.35, "c0", 0.8], [0.35, 0.5, "c2", 0.8, {"glide": 0.3}], [1.0, 0.12, "c0'", 0.9],
+       [1.25, 0.12, "c1'", 0.9], [1.5, 0.45, "c2'", 0.9]
+     ]}
   ]
 }

@@ -1,0 +1,259 @@
+[
+ {
+  "t": 0.0,
+  "sfx": "iris_open_a",
+  "gain_db": -10,
+  "why": "A: viewfinder iris opens on the leaf, 0–0.3 s; lock click at +0.28"
+ },
+ {
+  "t": 0.9,
+  "sfx": "whoosh",
+  "gain_db": -17,
+  "why": "A: the viewfinder widens (easeIn 0.55–1.0) as the camera pulls back (0.55–1.05): fastest ≈ 0.9"
+ },
+ {
+  "t": 0.95,
+  "sfx": "twig_creak",
+  "gain_db": -20,
+  "pan": -0.22,
+  "why": "A: the leaf tugs at its stem, 0.95–1.1"
+ },
+ {
+  "t": 1.167,
+  "sfx": "twig_snap",
+  "gain_db": -9,
+  "pan": -0.22,
+  "why": "A: the stem snaps, leaf lets go at tRel 1.15"
+ },
+ {
+  "t": 1.625,
+  "sfx": "sparkle",
+  "gain_db": -14,
+  "pan": 0.28,
+  "why": "A: excited take + spark, emotions() key at 1.6"
+ },
+ {
+  "t": 1.65,
+  "sfx": "crank_a",
+  "gain_db": -10,
+  "pan": 0.28,
+  "why": "A: crank turns 1.65 → tGust+0.2 = 2.75 (13 rad/s, click per 1/8 turn)"
+ },
+ {
+  "t": 2.33,
+  "sfx": "gust_1",
+  "gain_db": -18,
+  "pan": -0.55,
+  "why": "A: gust — streaks from tGust−0.2 = 2.35, gustEnv peaks 2.63–2.9 (left layer)"
+ },
+ {
+  "t": 2.45,
+  "sfx": "gust_2",
+  "gain_db": -18,
+  "pan": 0.55,
+  "why": "A: gust, right layer 0.12 s later: the wind crosses left → right"
+ },
+ {
+  "t": 2.9,
+  "sfx": "whoosh",
+  "gain_db": -14,
+  "pan": 0.4,
+  "why": "A: leaf snatched on an arc over Clawd, 2.55–2.97 (k^1.8: fastest at the end; it leaves the frame ≈ 2.9)"
+ },
+ {
+  "t": 3.0,
+  "sfx": "take_bwip",
+  "gain_db": -8,
+  "pan": 0.23,
+  "why": "A: surprise take + '!' at tSurp 3.0"
+ },
+ {
+  "t": 3.84,
+  "sfx": "zip_off",
+  "gain_db": -10,
+  "pan": 0.3,
+  "why": "A→B: crouch 3.66–3.84, launch 3.84 (cut on action at 4.0); the swish peaks at +0.16 = the cut"
+ },
+ {
+  "t": 4.049,
+  "sfx": "step_1",
+  "gain_db": -9,
+  "pan": 0.19,
+  "why": "B: dash footfall 1 (walk = 1)"
+ },
+ {
+  "t": 4.104,
+  "sfx": "step_2",
+  "gain_db": -11,
+  "pan": 0.14,
+  "why": "B: dash footfall 2 (walk = 2)"
+ },
+ {
+  "t": 4.168,
+  "sfx": "step_3",
+  "gain_db": -11,
+  "pan": 0.08,
+  "why": "B: dash footfall 3 (walk = 3)"
+ },
+ {
+  "t": 4.243,
+  "sfx": "step_1",
+  "gain_db": -11,
+  "pan": 0.03,
+  "why": "B: dash footfall 4 (walk = 4)"
+ },
+ {
+  "t": 4.34,
+  "sfx": "step_2",
+  "gain_db": -11,
+  "pan": -0.04,
+  "why": "B: dash footfall 5 (walk = 5)"
+ },
+ {
+  "t": 4.485,
+  "sfx": "step_3",
+  "gain_db": -11,
+  "pan": -0.13,
+  "why": "B: dash footfall 6 (walk = 6)"
+ },
+ {
+  "t": 4.625,
+  "sfx": "leaf_pat",
+  "gain_db": -16,
+  "pan": 0.36,
+  "why": "B: leaf settles on the pumpkin at lt 0.6 (4.6)"
+ },
+ {
+  "t": 4.86,
+  "sfx": "skid",
+  "gain_db": -9,
+  "pan": -0.29,
+  "why": "B: skid stop — dust at tStop−0.05 = 4.90, squash from 4.95"
+ },
+ {
+  "t": 5.35,
+  "sfx": "tiptoe",
+  "gain_db": -15,
+  "pan": -0.3,
+  "why": "B: tiptoe footfall (walk = 0, 1)"
+ },
+ {
+  "t": 5.75,
+  "sfx": "crank_b",
+  "gain_db": -10,
+  "pan": -0.17,
+  "why": "B: crank 1.75 → tGust+0.15 (5.75–6.15)"
+ },
+ {
+  "t": 5.78,
+  "sfx": "gust_1",
+  "gain_db": -18,
+  "pan": -0.55,
+  "why": "B: gust #2, left layer (gustEnv(lt, 2.0))"
+ },
+ {
+  "t": 5.863,
+  "sfx": "tiptoe",
+  "gain_db": -15,
+  "pan": -0.23,
+  "why": "B: tiptoe footfall (walk = 0, 1)"
+ },
+ {
+  "t": 5.9,
+  "sfx": "gust_2",
+  "gain_db": -18,
+  "pan": 0.55,
+  "why": "B: gust #2, right layer"
+ },
+ {
+  "t": 6.35,
+  "sfx": "whoosh",
+  "gain_db": -11,
+  "pan": 0.45,
+  "why": "B: leaf flips off the pumpkin at 6.0, loops, zips out the top by 6.5 (fastest as it leaves ≈ 6.35)"
+ },
+ {
+  "t": 6.78,
+  "sfx": "stomp",
+  "gain_db": -8,
+  "pan": -0.21,
+  "why": "B: angry stomp — jump(lt, 2.56, 2.76) lands 6.76 (visible frame 163 = 6.79)"
+ },
+ {
+  "t": 7.125,
+  "sfx": "toggle",
+  "gain_db": -13,
+  "pan": -0.21,
+  "why": "B: suspicious '?' at tSusp 3.1 (7.1)"
+ },
+ {
+  "t": 7.4,
+  "sfx": "whoosh",
+  "gain_db": -16,
+  "pan": -0.14,
+  "why": "B: camera turned round 7.3–7.5 (drawn key views)"
+ },
+ {
+  "t": 7.5,
+  "sfx": "click",
+  "gain_db": -15,
+  "pan": -0.14,
+  "why": "B: the camera settles, lens toward Clawd (7.5)"
+ },
+ {
+  "t": 8.2,
+  "sfx": "swish_rev",
+  "gain_db": -10,
+  "why": "B→C: push into the lens 7.7–8.2 (swish_rev ends at t)"
+ },
+ {
+  "t": 8.22,
+  "sfx": "iris_open_c",
+  "gain_db": -11,
+  "why": "C: viewfinder opens out of the dark lens, 8.22–8.58"
+ },
+ {
+  "t": 8.22,
+  "sfx": "whirr",
+  "gain_db": -19,
+  "why": "C: inside the running camera until the iris shuts (11.94)"
+ },
+ {
+  "t": 9.917,
+  "sfx": "leaf_pat",
+  "gain_db": -12,
+  "pan": 0.09,
+  "why": "C: leaf lands on Clawd's head at tLand 1.7 (9.9)"
+ },
+ {
+  "t": 10.083,
+  "sfx": "take_bwip",
+  "gain_db": -8,
+  "why": "C: notices — surprised take + '!' at tNotice 1.85 (10.05)"
+ },
+ {
+  "t": 10.625,
+  "sfx": "hearts",
+  "gain_db": -12,
+  "pan": 0.1,
+  "why": "C: delight + hearts at tJoy 2.4 (10.6)"
+ },
+ {
+  "t": 11.73,
+  "sfx": "swish_rev",
+  "gain_db": -16,
+  "why": "C: viewfinder shrinks onto the face 11.35–11.73"
+ },
+ {
+  "t": 11.815,
+  "sfx": "iris_hiss",
+  "gain_db": -18,
+  "why": "C: the iris blades close 11.8–11.94 (easeIn)"
+ },
+ {
+  "t": 11.955,
+  "sfx": "iris_thunk",
+  "gain_db": -9,
+  "why": "C: iris shuts to ink between frames 286 and 287 (11.96)"
+ }
+]

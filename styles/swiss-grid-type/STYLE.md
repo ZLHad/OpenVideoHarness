@@ -68,7 +68,8 @@
 
 ## 声音语法
 
-- **配乐**：motorik / krautrock 式的稳定律动，112.5 BPM，A 多利亚调式。`bin/vh music` 只有 minor 和 major 两种调式，用 minor 加一个大写的 `IV` 和弦就能近似多利亚。每加一条规则就多一件乐器：`hats` → `kick` + `clap` → `bass` → `arp` → `lead`。"打破规则"的那一小节撤掉鼓。注意第一段不要只放 `hats`：拍与拍之间会出现数字静音，`bin/vh qa scan` 判失败，样片在第一段加了 `bass`。
+- **配乐**：Kraftwerk 式的 motorik 电子乐，112.5 BPM，A 多利亚调式（`mode: "dorian"`：i7 配大三和弦的 IV）。签名是短促的方波音序贝斯（`sq_bass`，八分音符，根音、八度、五度、♭7 来回跳，门限短）；鼓是干的电子鼓：八分音符的 kick（正拍重、反拍轻），隔一拍一记 `clap`，十六分音符的闭镲；上面是干净的正弦 bleep（`organ` 只拉 8' 一根拉杆，十六分音符），底下一层同样是正弦的和弦垫着，拍与拍之间不掉空。全程 `space: dry`，不加混响；它和摇摆、原声的 `cutout-jazz` 正好相反：直、电、干。正片里每加一条规则就多一件乐器，"打破规则"的那一小节撤掉鼓。
+- **样片小样**：`score.json` 按 150 BPM、2 + 3 + 3 + 2 + 3 拍：0 s 起方波贝斯、八分 kick 和闭镲一起开跑，正弦和弦垫底，0.4 s 起每隔一拍一记 clap；0.8 s 标题段和弦换到 D（IV），正弦 bleep 进来；2.0–3.2 s 母题段回到 Am7；3.2–4.0 s 红块离开网格：鼓全部撤掉，贝斯停在一个长音上，一个正弦音从 D 滑到 A，离开格子；3.6 / 3.7 / 3.8 s 分镜数字逐个升级时，贝斯和正弦音也一格一格往上走（D–F♯–A）；4.0 s 墨色擦除，鼓和音序全部回来。
 - **音效**：干、近、不加混响。
   - `click`（活字落版）配每个词到位；
   - `tick` 配网格线生长；
@@ -94,7 +95,7 @@
 ## Prompt 块
 
 ```text
-Visual style: the International Typographic Style in motion. A visible modular grid (12 columns, 96 px margins, 24 px gutters, 24 px baseline) on off-white paper #F2F0EB, with ink #111111 and one signal red #E1251B that only one element per frame may wear. One grotesk family in two weights (Helvetica Neue Bold and Roman), flush left, ragged right, extreme scale contrast (a 700 px chapter numeral beside 44 px notes), large deliberate white space, elements allowed to bleed off the edge. Motion is exact and musical: only two curves (easeInOutQuart for snaps, linear for lines being drawn); durations are note values at 112.5 BPM (a sixteenth is 4 frames at 30 fps) and every snap lands on a beat. Words rise out of a clip box from the baseline, lines grow along their length, numerals climb in four steps, and deletions are a knife line followed by a collapse. No fades, no bounce, no shadows, no gradients, no grain. Transitions: a grid-aligned wipe to the left, a sideways slide of the whole grid, hard cuts on the downbeat. Sound: a 112.5 BPM motorik groove in A dorian that adds one instrument per rule, with dry letterpress clicks on every landing.
+Visual style: the International Typographic Style in motion. A visible modular grid (12 columns, 96 px margins, 24 px gutters, 24 px baseline) on off-white paper #F2F0EB, with ink #111111 and one signal red #E1251B that only one element per frame may wear. One grotesk family in two weights (Helvetica Neue Bold and Roman), flush left, ragged right, extreme scale contrast (a 700 px chapter numeral beside 44 px notes), large deliberate white space, elements allowed to bleed off the edge. Motion is exact and musical: only two curves (easeInOutQuart for snaps, linear for lines being drawn); durations are note values at 112.5 BPM (a sixteenth is 4 frames at 30 fps) and every snap lands on a beat. Words rise out of a clip box from the baseline, lines grow along their length, numerals climb in four steps, and deletions are a knife line followed by a collapse. No fades, no bounce, no shadows, no gradients, no grain. Transitions: a grid-aligned wipe to the left, a sideways slide of the whole grid, hard cuts on the downbeat. Sound: a 112.5 BPM Kraftwerk-style motorik groove in A dorian: a dry eighth-note electronic kick, tight closed hats, a short square sequenced bass, clean sine bleeps, no reverb; it adds one instrument per rule, with dry letterpress clicks on every landing.
 ```
 
 ## 引擎做法

@@ -41,7 +41,20 @@ fractional shift v_r/c 2.33e-05
 - 2026-09-28 c1（hook 副标题）1.2–3.2s，2.0s，8 字。
 - 2026-09-28 STYLE 里写的"S6–S7 字幕上移一次打破节奏"没做：图表放大后上方被公式占用；24.8s 不到类型文档说的"每 30 秒打破一次"，hook 大字本身已是一次变化。
 - 2026-09-28 保持单体 index.html（~430 行）。lint 建议拆成 compositions/ 子合成（composition_file_too_large、nested_structure_needs_subcomposition 等 5 条 warning），但 S3–S7 是一个连续舞台、由同一个 draw(t) 驱动，拆开反而要跨文件共享状态；warning 保留。
-- 2026-09-28 成片没有音轨（静音片，HyperFrames 不写空音轨）。多数平台接受无音轨视频；如平台要求，可用 ffmpeg 补一条 anullsrc 静音 AAC。
+- 2026-09-28 成片没有音轨（静音片，HyperFrames 不写空音轨；2026-10-01 起有音轨，见下）。多数平台接受无音轨视频；如平台要求，可用 ffmpeg 补一条 anullsrc 静音 AAC。
+
+- 2026-10-01 **给做好的画面补声音**（README › Soundtrack）：中文配音 + 轻配乐 + 音效。画面时间不动，声音去对齐画面。
+  - **旁白为 AI 合成（Gemini TTS，音色 Aoede，含 SynthID 水印）**，发布时按平台要求标注。
+  - 配音稿就是 STORYBOARD 的字幕 c0–c9，只加了"时"之类的口语连接，事实一个没加。英文一侧只进软字幕。
+  - 选音色：同两句稿子试了 Leda、Aoede、Puck、Sulafat，比语音识别相似度、语速、音高起伏。Puck（0.42，"我的星星…"）和 Sulafat（0.74）听不清；Leda 太慢（7 个字 2.0 s），塞不进镜头。Aoede 配上"语速快、一口气说完"的整体指示后，每秒 4.4–5.1 字，全部放得下。
+  - 落点：手写的行网格 `audio/vo_grid.json`（每个镜头起点后 0.2–0.35 s）加 `bin/vh tts … --beats`。每句都在自己的格点上起，并在它的字幕消失前念完；最紧的一句 fix 念到 24.51 s，离片尾还有 0.29 s。没有一句需要变速。
+  - 对稿：Gemini 转写的日配额（Tier 1 每天 100 次）在 09-30 用完，`--align gemini` 还没跑，timeline 里暂时没有词级时间。临时用本机 whisper-large-v3-turbo 按 tts.py 的算法对了一遍：leo、far 1.00；s2g、s20g 按读音比 1.00（念的是"吉赫兹""千赫兹"）。**待人听**：why 和 zero 里的"频移"两个识别器都听成"平移"，hook 里的"信号"听成"型号"，可能是前鼻音不清，也可能只是识别偏置。
+  - 配乐：100 BPM（每拍 18 帧），D 大调，从 0.2 s 起（build_audio.sh 把谱子延后 0.2 s，节拍表也一起平移）。小节长度 [5, 5, 4, 4, 6, 5, 5, 5, 2] 让 3.2、6.2、14.6、17.6、20.6 都落在小节头上，最后正好 24.8 s。和声跟着物理走：靠近用 I，头顶用 IV，远离用 vi → ii，主和弦 D 落在 23.6 s（"补偿后 ≈ 0"）。
+  - 配乐修改：S6a 本来是"屏息"，太弱，旁白两句之间降到 −30 dBFS，qa 报了掉音。改成持续的弦乐 + drone，bed 抬高 3 dB。进 S7 的 riser 去掉了：它的噪声盖住了"再大 10 倍"和 Ka 曲线出现那一下。
+  - 音效：卫星信标的"声化"（sonification，事件带 `"layer": "sonification"`）。开场的音高跟着被挤紧、拉松的波变；过顶时每拍一声，音高按图表同一条多普勒曲线变化（夸张成 ±3 半音，和画面一样是示意），声像跟着卫星走；过零响一声钟，结尾两声同一个音高，就是"不再变调"。`tools/build_audio.sh --no-sonify` 去掉这一层。
+  - 混音：`duck=voice duck_ratio=1.6`，−14 LUFS。qa：无数字静音、掉音、抽吸，18 个 cue 全在 1 帧内；click 警告是旁白里的辅音（原始 take 里就有，7–29 个采样宽）。
+  - 各条总线都比片子长 1 s，混完再切：ffmpeg 8.0.1 下 `bin/vh mix` 有时会把末尾约 0.3 s 清零（同一条命令，不同的运行结果不一样）。
+  - 待人听：信标声会不会和旁白打架，它的滑音和配乐跑调；"不再变调"的两声平音听不听得出来；S6b 每拍一下 kick 的推进够不够。
 
 ## 自评记录
 <!-- 每渲染完一个场景，对照 TASTE_CHECKLIST 写一次。格式：[场景 · 时间段] 联系表路径，然后列出 FAIL 的条目和改法 -->
@@ -86,3 +99,7 @@ fractional shift v_r/c 2.33e-05
 | 卫星、地面天线、地球、曲线（index.html 内联 SVG / JS 生成） | 本项目原创 | 随项目 |
 | Noto Sans SC | Google Fonts（渲染时由 HyperFrames 本地化） | SIL OFL 1.1 |
 | GSAP 3.14.2 | jsDelivr CDN（HyperFrames 脚手架默认） | GSAP Standard License（免费） |
+| audio/voiceover.zh.flac（旁白） | Gemini 3.8 Flash TTS，音色 Aoede，2026-09-30 合成；含 SynthID 水印 | AI 合成，按 Google 的服务条款使用；发布时标注 |
+| audio/score.json → 配乐 | 本项目作曲，`bin/vh music` 纯合成（不用采样） | 原创 |
+| 17 个自制音效（信标 ping、过零钟声） | `tools/foley.py` 代码合成，带种子 | 原创 |
+| 内置音效（whoosh、swish_rev、impact） | `bin/vh sfx lib`（`tools/audio/sfx.py`） | MIT，本仓库 |

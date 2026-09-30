@@ -17,12 +17,18 @@
 - 2026-09-28 Accent #FFB224 ("tally light") means *what the harness is acting on now*: focus ring → routed row → FAIL flag → wordmark playhead. PASS is not green (would be a second saturated colour, #9).
 - 2026-09-28 Fonts: Geist is not installed locally and downloading fonts was avoided; SF Pro via `system-ui`. Consequence: the composition renders as designed only on macOS.
 - 2026-09-29 **Mono correction**: `ui-monospace, monospace` passed lint and looked mono in `hyperframes snapshot`, but in `hyperframes render` (chrome-headless-shell) it fell back to a *proportional* face — every "terminal" in the first cut was SF Pro. Now `@font-face { font-family: "LF Mono"; src: local("SF Mono"), local("SFMono-Regular"), local("Menlo-Regular"), local("Menlo") }` in each file that uses mono (lint accepts it, render honours it). Route columns re-fitted for true mono (path col 750 px, underline 560 px).
-- 2026-09-28 Silent film: no SFX/music (brief). The type doc's "music-driven, SFX on key hits" and the 4:5 / 9:16 re-framed cuts are out of scope for a README hero.
+- 2026-09-28 Silent film: no SFX/music (brief). The type doc's "music-driven, SFX on key hits" and the 4:5 / 9:16 re-framed cuts are out of scope for a README hero. (Superseded for the audio on 2026-10-01: see the soundtrack entries below.)
 - 2026-09-28 Text blocks: hook and problem are each on screen ~2.2–2.3 s, a little under the 2.5 s template rule; each is ≤ 6 words and read in ~1.2 s. Accepted to keep the mandated 7-beat structure inside 20 s.
 - 2026-09-28 Clawd (ClaudeAnimationBase still) not used as a hero asset: the review beat is more honest with the film's own contact sheet. A ClaudeAnimationBase `--sheet` render was the stand-in sheet in draft v1 (kept as `assets/draft-v1/` so the v1 rebuild is faithful).
 - 2026-09-29 Rebrand: wordmark "OpenVideoHarness" (16 chars) at the same 168 px; the lockup is now a left-aligned block centred on the frame (word ≈ 288–1613 px) instead of hanging off x = 144 — fixes the left weight. Beat C +0.3 s (more real stdout), hook −0.1 s, review −0.1 s, proof −0.1 s; total still 20.0 s.
 - 2026-09-28 Cursor lives on the root timeline (not in a sub-composition) so it can carry the eye across the C→D→E seams; it is an `<img>` (assets/cursor.svg) because a nested `<svg>` in a root clip triggers lint `nested_structure_needs_subcomposition`.
 - 2026-09-28 Word gaps: inter-span spaces inside the sub-composition templates were lost in render ("Onecatch:", "watchvideo."); replaced by `margin-right: .26em` on the word spans.
+- 2026-10-01 **Soundtrack fitted to the finished picture** (README › Soundtrack): score + foley, no narration (the type is the voice). The picture's timing is fixed, so the audio fits it.
+  - Tempo: from the frame-aligned tempos (playbook/04), 120 BPM is the promo-range one that puts a beat on four of the six cuts; `meters` make those bar heads. The engine's meters take whole beats, so 4.7 and 11.3 stay 0.3 s / 0.2 s before the music's turn, and the whoosh on the cut frame carries them.
+  - Levels (qa + a per-event audibility proxy, no ears): `music_db=-5`. At −2 the music buried the typing, ticks and chirps (up to 16 dB under the rest of the mix in their 10 ms). The strings are low-passed at 3 kHz, the arpeggio and hats pulled down 2 dB, the UI sounds up 3 dB.
+  - Cue fixes: no score riser into the wordmark, because its peak hid the 17.0 s onset and the foley's swish_rev already swells there. A stop on beat 4 of bar 4 (9.5 s, no kick or clap) leaves the LOCK ding alone, and a glockenspiel E6 doubles it. The first count-up column is 3 dB up and the 15.0 s whoosh 5 dB down, so the first odometer tick isn't swallowed.
+  - `tools/build_audio.sh` runs every bus 1 s past the film and cuts the mix afterwards: with ffmpeg 8.0.1 `bin/vh mix` sometimes zeroed the last ~0.3 s before a common end of stream (the same command gave a different tail on another run).
+  - Not heard by anyone yet (please audition): the word thocks (busy or too soft?), the typing burst (every second character of a 36 char/s auto-type), the odometer ticks (41 in 0.7 s over four columns), the sub boom under "One catch" (−18 dB, may vanish on laptop speakers), the generic library whooshes, and whether the drone + pad bed is too present for a Linear/Vercel register.
 
 ## 自评记录
 <!-- 每渲染完一个场景，对照 TASTE_CHECKLIST 写一次。格式：[场景 · 时间段] 联系表路径，然后列出 FAIL 的条目和改法 -->
@@ -84,3 +90,6 @@
 | assets/draft-v1/standin-sheet.jpg, standin-cell.png | `engines/ClaudeAnimationBase` demo (Clawd), `node render.mjs --sheet=…` — the draft-v1 stand-in; appears only as tiny greyscale thumbnails inside the review sheet | MIT, © John Heibel |
 | fonts | SF Pro / SF Mono (or Menlo) / PingFang SC, macOS system fonts via `system-ui` and `local()`, not redistributed | Apple system fonts |
 | GSAP 3.14.2 | jsDelivr CDN (HyperFrames template default) | GSAP standard license |
+| audio/score.json → the music | composed here; rendered by `bin/vh music` (synthesis only, no samples) | original |
+| 10 custom foley sounds (thocks, typing, tree run, count ticks) | `tools/foley.py`, synthesized, seeded | original |
+| built-in SFX (click, tick, toggle, whoosh, swish_rev, boom, impact, ding, error, shutter, success) | `bin/vh sfx lib` (`tools/audio/sfx.py`) | MIT, part of this repo |

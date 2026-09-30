@@ -1,78 +1,22 @@
 {
-  "bpm": 150,
-  "key": "A",
-  "mode": "minor",
-  "seed": 21,
-  "meters": {
-    "1": 2,
-    "2": 3,
-    "3": 3,
-    "4": 2,
-    "5": 3
-  },
+  "bpm": 150, "key": "A", "mode": "minor", "seed": 21,
+  "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "stereo": true, "space": {"type": "hall", "rt60": 4.2},
   "sections": [
-    {
-      "name": "paper",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "zheng",
-        "pad"
-      ],
-      "energy": 0.3
-    },
-    {
-      "name": "title",
-      "bars": 1,
-      "chords": [
-        "III"
-      ],
-      "layers": [
-        "zheng",
-        "dizi",
-        "pad"
-      ],
-      "energy": 0.5
-    },
-    {
-      "name": "peaks",
-      "bars": 1,
-      "chords": [
-        "iv"
-      ],
-      "layers": [
-        "zheng",
-        "dizi",
-        "pad"
-      ],
-      "energy": 0.45
-    },
-    {
-      "name": "breath",
-      "bars": 1,
-      "chords": [
-        "VII"
-      ],
-      "layers": [
-        "pad",
-        "bell"
-      ],
-      "energy": 0.25
-    },
-    {
-      "name": "drop",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "zheng",
-        "bell",
-        "pad"
-      ],
-      "energy": 0.5
-    }
+    {"name": "paper", "bars": 1, "chords": ["i"]},
+    {"name": "title", "bars": 1, "chords": ["i"]},
+    {"name": "peaks", "bars": 1, "chords": ["i"]},
+    {"name": "breath", "bars": 1, "chords": ["i"]},
+    {"name": "drop", "bars": 1, "chords": ["i"]}
+  ],
+  "parts": [
+    {"id": "guqin", "inst": "guqin", "loop": 5, "gain_db": 0, "pan": -0.15, "send": 0.45,
+     "pattern": [[0.1675, 2, ["E3", "A3"], 0.7],
+                 [2, 2, "E3", 0.6, {"slide": -2, "yin": true}], [4, 1, "D3", 0.55, {"nao": true}],
+                 [5, 3, "A2", 0.6], [6.5, 1.5, "C3", 0.5, {"bend": 2}],
+                 [10, 1, ["E3", "A3"], 0.6], [11, 2, "A4", 0.12, {"harm": true}]]},
+    {"id": "xiao", "inst": "xiao", "loop": 5, "gain_db": -3, "pan": 0.25, "send": 0.55,
+     "pattern": [[5, 2, "E4", 0.7], [7, 1, "D4", 0.55], [10, 3, "A4", 0.6]]},
+    {"id": "room", "inst": "roomtone", "gain_db": -14, "quiet": true}
   ]
 }

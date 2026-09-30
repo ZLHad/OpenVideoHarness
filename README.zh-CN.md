@@ -79,7 +79,7 @@ cd ~/OpenVideoHarness && claude
 </tr>
 <tr>
 <td width="35%" valign="top"><a href="showcase/03-math-fourier/"><img src="showcase/03-math-fourier/media/preview.gif" width="100%" alt="03 · 3b1b 式数学讲解"></a><br><b>03 · 3b1b 式数学讲解</b><br><sub>Manim · 25 秒 · 独立评审后修订</sub><br><sub>“用正弦波一点点拼出方波”</sub></td>
-<td width="35%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · 发布短片"></a><br><b>00 · 发布短片</b><br><sub>HyperFrames · 20 秒 · 静音</sub><br><sub>“只用真实的终端和目录，给这个仓库做一支发布片”</sub></td>
+<td width="35%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · 发布短片"></a><br><b>00 · 发布短片</b><br><sub>HyperFrames · 20 秒 · 代码作曲 + 拟音</sub><br><sub>“只用真实的终端和目录，给这个仓库做一支发布片”</sub></td>
 </tr>
 </table>
 

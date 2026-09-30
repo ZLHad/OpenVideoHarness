@@ -1,11 +1,13 @@
 """Contact gallery of every style swatch.
 
     uv run --with pillow python styles/_swatch/gallery.py            # → styles/gallery.jpg (≤ 2 MB)
-    uv run --with pillow python styles/_swatch/gallery.py --mp4      # + styles/gallery.mp4 (~1.5 s per style, ≤ 12 MB)
+    uv run --with pillow python styles/_swatch/gallery.py --mp4      # + styles/gallery.mp4 (~1.5 s per style, ≤ 12 MB, with sound)
     options: --cols N (default 5) · --out-dir DIR · --clip-start 1.9 --clip-len 1.5 · [style folders …]
 
 Scans styles/*/media/poster.jpg (folders starting with "_" are skipped) unless folders are given. The label under
 each poster comes from the STYLE.md title line "# <风格名> · <slug>", else tokens.json "name", else the slug.
+The reel keeps each swatch's own sound for its clip, joined with 30 ms equal-power crossfades (no click, no dip at a seam);
+a swatch without an audio track gets room-level noise for its clip rather than digital silence, and a warning.
 """
 import argparse, json, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
@@ -14,6 +16,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[2]
 STYLES = ROOT / "styles"
 JPG_LIMIT, MP4_LIMIT = 2_000_000, 12_000_000
+XF = 0.03   # audio crossfade at each seam (s)
 BG, FG, MUTED = (20, 20, 23), (236, 234, 228), (138, 135, 127)
 
 def font(size, mono=False):
@@ -73,7 +76,7 @@ def build_mp4(dirs, out: Path, start: float, length: float):
     ff = lambda *a: subprocess.run(["ffmpeg", "-v", "error", "-y", *a], check=True)
     tmp = Path(tempfile.mkdtemp(prefix="swatch-gallery-"))
     try:
-        parts = []
+        parts, waves = [], []
         for i, d in enumerate(dirs):
             src = d / "media" / "swatch.mp4"
             name, slug = label_of(d)
@@ -89,12 +92,27 @@ def build_mp4(dirs, out: Path, start: float, length: float):
                "-filter_complex", "[0:v]scale=1280:720,fps=30,format=yuv420p[v];[v][1:v]overlay=0:0,format=yuv420p",
                "-an", "-c:v", "libx264", "-crf", "12", "-preset", "fast", str(part))
             parts.append(part)
+            wav = tmp / f"a{i:03d}.wav"   # the clip's own sound, sample-exact length, faded at both seams
+            has_audio = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index",
+                                        "-of", "csv=p=0", str(src)], capture_output=True, text=True).stdout.strip()
+            if not has_audio: print(f"! {slug}: swatch has no audio track; its clip gets room-level noise")
+            ln = length + (XF if i < len(dirs) - 1 else 0)   # each clip but the last runs XF into the next: the crossfades
+            src_a = ["-ss", f"{start}", "-t", f"{ln}", "-i", str(src)] if has_audio else \
+                    ["-f", "lavfi", "-t", f"{ln}", "-i", "anoisesrc=color=pink:amplitude=0.0005:seed=1"]
+            ff(*src_a, "-af", f"aresample=48000,aformat=channel_layouts=stereo,apad=whole_dur={ln},atrim=0:{ln}",
+               "-c:a", "pcm_s16le", str(wav))   # eat those XFs back, so the reel stays exactly len × length long
+            waves.append(wav)
         (tmp / "list.txt").write_text("".join(f"file '{p}'\n" for p in parts))
+        ins = [x for w in waves for x in ("-i", str(w))]
+        chain = "".join(f"[{'a' if k else '0:a'}{k if k else ''}][{k + 1}:a]acrossfade=d={XF}:c1=qsin:c2=qsin[a{k + 1}];"
+                        for k in range(len(waves) - 1)).rstrip(";") or "[0:a]anull[a0]"
+        ff(*ins, "-filter_complex", chain, "-map", f"[a{len(waves) - 1}]", "-c:a", "pcm_s16le", str(tmp / "reel.wav"))
         for crf in (20, 23, 26, 29, 32):
-            ff("-f", "concat", "-safe", "0", "-i", str(tmp / "list.txt"), "-c:v", "libx264", "-preset", "slow", "-crf", str(crf),
-               "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-an", str(out))
+            ff("-f", "concat", "-safe", "0", "-i", str(tmp / "list.txt"), "-i", str(tmp / "reel.wav"),
+               "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "slow", "-crf", str(crf),
+               "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", str(out))
             if out.stat().st_size <= MP4_LIMIT: break
-        print(f"✓ {out.relative_to(ROOT) if out.is_relative_to(ROOT) else out}  {len(dirs)} × {length}s  {out.stat().st_size/1e6:.2f} MB (crf {crf})")
+        print(f"✓ {out.relative_to(ROOT) if out.is_relative_to(ROOT) else out}  {len(dirs)} × {length}s  {out.stat().st_size/1e6:.2f} MB (crf {crf}, with sound)")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 

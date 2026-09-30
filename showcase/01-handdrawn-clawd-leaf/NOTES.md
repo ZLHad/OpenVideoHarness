@@ -11,6 +11,12 @@
 - 2026-09-28 Colour: the hero leaf is the only saturated gold in the film. The maple crown is rust, and the hero perch in B is a blue-green squash, not an orange pumpkin, so neither the leaf nor Clawd's terracotta gets lost.
 - 2026-09-28 Parallax: sky and hills sit on a background camera layer that moves at 35–40 % of the foreground camera. There are two sequential camBegin/camEnd pairs per shot, which the one-level rule allows.
 
+- 2026-10-01 **Soundtrack fitted to the finished picture** (README › Soundtrack): cartoon underscore + foley, no narration (pantomime).
+  - Tempo: the score uses the animation's own grid, 120 bpm from 0 s (`src/config.js`), even though 144 bpm would put both cuts within 33 ms. Clawd's beat-locked idles and the rec dot are drawn on 120.
+  - Mickey-mousing: the score's note lists sit on the action times that `tools/foley.py` derives from leaf.js. The chase pizzicato plays on the 1st, 4th and 6th footfalls (4.049, 4.243, 4.485 s). The xylophone "!" is on both takes (3.0 and 10.08 s), a timpani stroke on the stomp (6.78 s), and the harp repeats A's falling-leaf zigzag in C.
+  - Level and cue fixes (qa + a per-event audibility proxy, no ears): `music_db=-7` so the foley leads. The iris close is split into a hiss and a thunk, so the thunk is its own cue on the last frame (11.955 s). The first chase pluck is softened, so the next footfall 55 ms later still reads as its own onset. The takes and the stomp are 2 dB lower, to stay off the true-peak limiter.
+  - Not heard by anyone yet (please audition): the gust layers (they sit at −18 dB, where qa skips custom swells, and may be too polite for a gag gust), the crank ratchet (too mechanical?), the slide-whistle takes (shrill?), the skid squeak (1900 → 900 Hz, harsh?), the film-gate whirr in C (reads as camera or as noise?), the stomp (the loudest event), and whether the flute and harp zigzag reads as "falling leaf".
+
 ## 自评记录
 
 Iteration 1: first sheets of A, B and C.
@@ -84,4 +90,6 @@ Iteration 3: strips for key motions and every seam.
 | 文件 | 来源 | 许可 |
 |---|---|---|
 | all artwork | painted in code (src/scenes/leaf.js) on ClaudeAnimationBase | engine MIT (JohnHeibel/ClaudeAnimationBase) |
-| audio | none (silent) | — |
+| audio: the music | `audio/score.json`, composed here; rendered by `bin/vh music` (synthesis only, no samples) | original |
+| audio: 22 custom foley sounds | `tools/foley.py`, synthesized, seeded | original |
+| audio: built-in SFX (whoosh, swish_rev, toggle, click) | `bin/vh sfx lib` (`tools/audio/sfx.py`) | MIT, part of this repo |

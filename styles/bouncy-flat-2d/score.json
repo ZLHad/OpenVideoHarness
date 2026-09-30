@@ -1,8 +1,30 @@
 {
   "bpm": 120, "key": "F", "mode": "major", "seed": 41,
+  "stereo": true, "space": "room",
   "sections": [
-    { "name": "stage", "bars": 1, "chords": ["I"], "layers": ["clap", "bass", "arp"], "energy": 0.5 },
-    { "name": "hops", "bars": 1, "chords": ["IV"], "layers": ["kick", "clap", "hats", "bass", "arp"], "energy": 0.7, "fill": true },
-    { "name": "wipe", "bars": 1, "chords": ["I"], "layers": ["bell", "arp", "pad", "bass"], "energy": 0.5 }
+    {"name": "stage", "bars": 1, "chords": ["I"]},
+    {"name": "hops", "bars": 1, "chords": ["IV V"]},
+    {"name": "wipe", "bars": 1, "chords": ["I"]}
+  ],
+  "parts": [
+    {"id": "uke", "inst": "ukulele", "figure": "strum", "strings": 4, "gain_db": -4, "pan": -0.35, "send": 0.12,
+     "pattern": "D.xUDUxU", "by_section": {"hops": {"pattern": "D.xUDUx."}, "wipe": {"step": 24, "pattern": "d...X..................."}}},
+    {"id": "whistle", "inst": "whistle", "loop": 3, "gain_db": 0, "pan": 0.08, "send": 0.1, "params": {"kind": "lips"},
+     "pattern": [[0, 0.4, "C6", 0.75], [0.5, 0.4, "A5", 0.7], [1, 0.85, "F6", 0.9], [3.5, 0.45, "C6", 0.75],
+                 [4.84, 0.6, "A5", 0.7, {"bend": 5}], [5.44, 0.3, "D6", 0.85],
+                 [5.84, 0.6, "C6", 0.7, {"bend": 4}], [6.44, 0.3, "E6", 0.85],
+                 [6.84, 0.6, "E6", 0.7, {"bend": 3}], [7.44, 0.4, "G6", 0.9],
+                 [8, 0.68, "C6", 0.75, {"bend": 9}], [8.68, 1.6, "A6", 0.95]]},
+    {"id": "glock", "inst": "glockenspiel", "loop": 3, "gain_db": -7, "pan": 0.4, "send": 0.15,
+     "pattern": [[1.96, 0.5, "F6", 0.55], [2.5, 0.5, "A6", 0.6], [3.04, 0.5, "C7", 0.65], [3.31, 0.6, "F7", 0.7],
+                 [4.24, 0.5, "D6", 0.7], [4.54, 0.5, "F6", 0.75], [4.84, 0.5, "Bb6", 0.8],
+                 [5.44, 0.8, "D6", 0.9], [6.44, 0.8, "E6", 0.9], [7.44, 0.8, "G6", 0.95],
+                 [9, 2, ["F6", "A6", "C7"], 1.0]]},
+    {"id": "pizz", "inst": "pizzicato", "figure": "ostinato", "cell": ["c0", "c2,", "c0", "c2,"], "rate": 4, "octave": 2, "gain_db": 1, "pan": 0.0, "send": 0.06,
+     "by_section": {"wipe": {"figure": null, "pattern": [[0, 0.5, "c0", 0.6], [0.68, 2, "c0", 1.0]]}}},
+    {"id": "clap", "inst": "clap", "pattern": "....x.......x...", "gain_db": 1, "pan": 0.2, "send": 0.12,
+     "by_section": {"wipe": {"pattern": [[0.68, 0.5, null, 1.0]]}}},
+    {"id": "kick", "inst": "kick", "pattern": "x.......x.......", "gain_db": -5,
+     "by_section": {"wipe": {"pattern": [[0.68, 0.5, null, 1.0]]}}}
   ]
 }

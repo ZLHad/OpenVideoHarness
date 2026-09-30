@@ -1,0 +1,32 @@
+1
+00:00:00,300 --> 00:00:01,360
+Take a square wave.
+
+2
+00:00:02,200 --> 00:00:03,870
+One sine comes close.
+
+3
+00:00:04,700 --> 00:00:07,340
+Add odd sines, each one smaller.
+
+4
+00:00:08,200 --> 00:00:10,600
+Sine 3x: a third as tall.
+
+5
+00:00:11,300 --> 00:00:14,670
+5x, 7x, and the corners sharpen.
+
+6
+00:00:15,600 --> 00:00:18,130
+It squares up, except at the jump.
+
+7
+00:00:19,000 --> 00:00:21,800
+More terms only make the overshoot
+thinner.
+
+8
+00:00:22,600 --> 00:00:24,220
+About nine percent of the jump.

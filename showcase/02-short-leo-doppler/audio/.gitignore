@@ -1,0 +1,8 @@
+# Regenerable (see ../README.md › Soundtrack): tools/foley.py + bin/vh sfx → sfx/, sfx.wav; bin/vh music → music.wav;
+# bin/vh mix → mix.wav; bin/vh qa → qa.txt. The Gemini narration takes are not reproducible, so their master is the
+# committed voiceover.<lang>.flac: voiceover*.wav is decoded from it and the per-line cuts in vo/ are start–end slices
+# of it (timeline.<lang>.json). Rebuild everything with tools/build_audio.sh.
+*.wav
+sfx/
+vo/
+qa.txt

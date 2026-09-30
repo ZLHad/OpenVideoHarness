@@ -2,11 +2,13 @@
 
 Approval gates: the user explicitly authorized skipping both gates for this showcase ("still write BRIEF.md and STORYBOARD.md with reads and timings before coding"). Both files are written before any scene code and serve as the review contract.
 
+> 2026-10-01: the picture below was made and finished silent, as briefed. A cartoon score and foley were fitted to it afterwards on the same 120 bpm grid (README › Soundtrack); the timings here are unchanged.
+
 ## Spec
 - Output: 1920x1080, 24 fps, exactly 12.0 s (288 frames)
 - Engine: ClaudeAnimationBase (p5.js + p5.brush), copied into this project by `bin/vh new handdrawn clawd-leaf`
 - Platform / audience: README showcase for OpenVideoHarness (GitHub page, autoplay GIF + MP4), watched muted
-- Language: none on screen; narration: none; silent (no audio track)
+- Language: none on screen; narration: none; made silent (no audio track), soundtrack added afterwards (README › Soundtrack)
 - Deliverables: final.mp4, preview.gif (<6 MB), sheet.png, plus BRIEF / STORYBOARD / NOTES / LESSONS and scene source
 
 ## Content
@@ -32,12 +34,12 @@ Every frame is a pure function of t. No Math.random / Date.now; hash(i) for stab
 
 ## Process
 1. STORYBOARD.md with reads and start–end times (written before code; gate skipped by user).
-2. No audio: bpm 120 (BEAT = 0.5 s) sets the pulse; key hits land on beats where possible.
+2. No audio while the picture was made: bpm 120 (BEAT = 0.5 s) sets the pulse; key hits land on beats where possible. (The score added later runs on this same grid.)
 3. Build shot by shot; per shot a contact sheet, strips for key motions and every seam, crops for faces and prop contacts; log in NOTES.md; fix before moving on.
 4. Deliver: MP4, GIF, sheet, NOTES, LESSONS, and the 2–3 spots I'm least happy with.
 
 ## Acceptance
-- [ ] 12.0 s ±1 frame, 1920x1080, 24 fps, no audio stream
+- [ ] 12.0 s ±1 frame, 1920x1080, 24 fps; the picture render has no audio stream (the soundtrack is muxed on afterwards)
 - [ ] Story reads muted from the frames alone: leaf falls → snatched → snatched again → lands on Clawd in the viewfinder → delight
 - [ ] Every read ≥ 12 frames; no two important reads overlap
 - [ ] Transition at every seam including first and last frame; no text anywhere
