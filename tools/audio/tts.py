@@ -197,9 +197,17 @@ def p_elevenlabs(text, voice, out: Path, tmp: Path, lang, instruct=None):
         resp = json.loads(r.read())
     mp3 = tmp / "el.mp3"; mp3.write_bytes(base64.b64decode(resp["audio_base64"])); to_wav(mp3, out)
     a = resp.get("alignment") or {}
-    return [{"w": c, "start": s, "end": e} for c, s, e in
-            zip(a.get("characters", []), a.get("character_start_times_seconds", []), a.get("character_end_times_seconds", []))
-            if c.strip()]
+    return char_words(a.get("characters", []), a.get("character_start_times_seconds", []), a.get("character_end_times_seconds", []))
+
+def char_words(chars, starts, ends):
+    """Per-character timestamps (elevenlabs `alignment`) → script-spelled words: a Latin word or number each, a CJK
+    character each, punctuation kept on the word before it (the same units as --align). A word runs from the start
+    of its first character to the end of its last."""
+    n = min(len(chars), len(starts), len(ends))
+    idx = [k for k in range(n) for _ in chars[k]]              # position in the joined text → character entry
+    text = "".join(chars[:n])
+    return [{"w": u["d"], "start": starts[idx[m.start()]], "end": max(ends[idx[m.end() - 1]], starts[idx[m.start()]])}
+            for m, u in zip(UNIT.finditer(text), script_units(text))]
 
 def p_dashscope(text, voice, out: Path, tmp: Path, lang, instruct=None):
     import dashscope  # provided by `uv run --with dashscope`
