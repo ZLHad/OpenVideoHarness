@@ -17,7 +17,7 @@
 #   voices list [lang] | design "<description>" [--out f.wav] | delete <voice_id>   Gemini voice library / voice design
 #   captions <project> [zh|en] [zh-max]  SRT (zh / en / bilingual) + captions.json from the TTS timeline
 #   beats <audio> [out.json]    beat grid (bpm, offset, beats, downbeats) + hits, kick/snare accents (librosa)
-#   music <score.json> <out.wav> | music --example [zh]   code-composed soundtrack + exact beat/section map
+#   music <score.json> <out.wav> | music --example [name|list] | music --instruments   code-composed soundtrack + exact beat/section map
 #   sfx lib <dir> | sfx place <events.json> <out.wav> [dur]   built-in SFX library / place SFX on action times (stereo, pan/dist)
 #   mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]   3-bus mix, music ducks under the voice (duck=on: + SFX), −14 LUFS
 #   qa <mix> [beats.json] [events.json]  final-mix QA: silence, dropouts, pumping, clicks + cue check (exit 1 on fail)
