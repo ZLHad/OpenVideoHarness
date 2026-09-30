@@ -7,7 +7,7 @@ duration_f: [810, 990]
 types: [short, promo, paper, data, math]
 aspect: [landscape, portrait]
 arc: [3, 2, 3, 3, 1, 4, 5, 2]
-uses: [flash-cut, focus-handoff, whip-pan, breath-title-card, black-card]
+uses: [flash-cut, cut-the-curve, focus-handoff, whip-pan, breath-title-card, black-card, decode-type, zoom-through]
 status: draft
 derived_from:
   - {repo: video-shotcraft, path: references/sequences/promo-energy-arc.md, license: Apache-2.0, note: 先划 hold、高低交替、限额的方法}
@@ -21,13 +21,13 @@ derived_from:
 
 | # | 段位 | 帧 | 秒 | 能量 | 讲什么 | 配方 |
 |---|---|---|---|---|---|---|
-| 1 | 钩子 | 0–90 | 0–3 | 3 | 第 0.1 s 画面就有动作；旁白第一句抛出问题或承诺（2.5 s 以内） | 自创：一个具体的主体，不用抽象的开场动画 |
+| 1 | 钩子 | 0–90 | 0–3 | 3 | 第 0.1 s 画面就有动作；旁白第一句抛出问题或承诺（2.5 s 以内） | 自创：一个具体的主体，不用抽象的开场动画；代码、数据题材的标题字可以用 [decode-type](../type/decode-type.md) |
 | 2 | 背景 | 90–210 | 3–7 | 2 | 为什么要关心：一个具体的场景或数字 | 自创 |
 | 3 | 第一步 | 210–360 | 7–12 | 3 | 一步一个画面，一个画面一件事 | 自创 |
 | 4 | 第二步 | 360–510 | 12–17 | 3 | 在第一步的画面上继续，或者换一个空间 | 自创 |
 | 5 | 一口气 | 510–600 | 17–20 | 1 | 旁白停一拍；一句字卡（旁白念它），或画面只剩慢推 | [breath-title-card](../type/breath-title-card.md) |
 | 6 | 第三步 | 600–720 | 20–24 | 4 | 最有冲击的一步 | 自创 |
-| 7 | 兑现 | 720–810 | 24–27 | 5 | 结论或那个数字：全片最强的一击 | 自创 |
+| 7 | 兑现 | 720–810 | 24–27 | 5 | 结论或那个数字：全片最强的一击 | 自创；结论大字用 [zoom-through](../seam/zoom-through.md) 的拉回款进场 |
 | 8 | 回到开头 | 810–900 | 27–30 | 2 | 回应第 1 段的问题；落款或行动号召停到读完 | 自创 |
 
 - **每 3–5 s 换一件事**（video-types/02 的节奏）：上表每段 3–5 s，正好一段一个新信息。
@@ -52,7 +52,7 @@ derived_from:
 
 | 接缝 | 能量 | 用什么 |
 |---|---|---|
-| 1 → 2 | 3 → 2 | [flash-cut](../seam/flash-cut.md)；两段在同一个空间里时用 [focus-handoff](../seam/focus-handoff.md) |
+| 1 → 2 | 3 → 2 | [flash-cut](../seam/flash-cut.md)，平面风格用 [cut-the-curve](../seam/cut-the-curve.md)；两段在同一个空间里时用 [focus-handoff](../seam/focus-handoff.md) |
 | 2 → 3 | 2 → 3 | focus-handoff：同一个画面里把注意力交给第一步 |
 | 3 → 4 | 3 → 3 | 同一空间用 focus-handoff；换空间用 [whip-pan](../seam/whip-pan.md) |
 | 4 → 5 | 3 → 1 | flash-cut 进字卡；没有旁白念这句时，改用 [black-card](../seam/black-card.md)（黑场字卡 30 s 里最多 2 次） |

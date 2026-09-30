@@ -29,7 +29,7 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 
 | Repository | Author | License | Used for |
 |---|---|---|---|
-| [HyperFrames](https://github.com/heygen-com/hyperframes) (skills only) | HeyGen | Apache-2.0 | Primary HTML/GSAP engine; motion-doctrine, caption aesthetics, style presets and CLI verification. Many numbers in `playbook/03-motion-design.md` come from these docs |
+| [HyperFrames](https://github.com/heygen-com/hyperframes) (skills only) | HeyGen | Apache-2.0 | Primary HTML/GSAP engine; motion-doctrine, caption aesthetics, style presets and CLI verification. Many numbers in `playbook/03-motion-design.md` come from these docs. The recipes `cut-the-curve`, `zoom-through` and `oversized-cursor` in `recipes/` rewrite its `cut-the-curve` and `oversized-cursor` skills in our own words |
 | [remotion-dev/skills](https://github.com/remotion-dev/skills) | Remotion | no LICENSE file in the repo; Remotion itself is under the Remotion License | Remotion route, captions, determinism rules |
 | [Code2Video](https://github.com/showlab/Code2Video) (prompts, src) | Show Lab, NUS | MIT | Anchor-grid critic, ScopeRefine, parallel sections: the "code2video" idea this project generalises |
 | [3brown1blue](https://github.com/AmitSubhash/3brown1blue) (skill) | Amit Subhash | MIT | 3b1b-style and paper-explainer rules, Manim gotchas |

@@ -53,7 +53,12 @@
 
 **已经落地**（本次改写，逐张在 frontmatter 的 `derived_from` 写明来源卡）：
 
-- **镜头配方库** → [`recipes/`](../recipes/README.md)。把"一镜怎么动"写成带受控词表 frontmatter 的配方，和 `styles/` 正交：风格给皮，配方给骨。首批从它的卡里改写了 12 张：六式转场（`flash-cut`、`dark-tunnel`、`focus-handoff`、`black-card`、`whip-pan`、`portal-wipe`）、`accelerando-cuts`、`breath-title-card`、`brand-imprint-open`、`spotlight-hero`、`deal-to-grid`、`group-photo-launch`。其中 6 张来自模板片、有用户判例，标 `upstream-tested`；其余标 `tuned`。
+- **镜头配方库** → [`recipes/`](../recipes/README.md)。把"一镜怎么动"写成带受控词表 frontmatter 的配方，和 `styles/` 正交：风格给皮，配方给骨。首批 24 张里有 17 张改写自它的卡：
+  - 六式转场：`flash-cut`、`dark-tunnel`、`focus-handoff`、`black-card`、`whip-pan`、`portal-wipe`；
+  - 节奏：`accelerando-cuts`、`paparazzi-flash`、`drop-blackout-slam`；
+  - 模板片里有用户判例的镜头：`breath-title-card`、`brand-imprint-open`、`spotlight-hero`、`deal-to-grid`、`type-and-filter`、`row-embed`、`doc-self-writing`、`group-photo-launch`。
+
+  其中 9 张（模板片里的 8 张加 `flash-cut`）标 `upstream-tested`，其余标 `tuned`。另外 7 张来自别处：HyperFrames 的 `cut-the-curve`、`zoom-through`、`oversized-cursor`，本仓库介绍片的 `decode-type`、`one-take-world-travel`、`gate-as-door`，以及一次拉片拆解出来的 `flash-stitch`。
 - **全片骨架、hold 预算、转场选型、限额** → [`recipes/sequences/`](../recipes/sequences/README.md)：五条规则、按能量落差选接缝的表，以及 15 s、30 s、60 s 三条骨架（60 s 那条从它的 `promo-energy-arc` 重排而来）。
 - **可以按条件筛** → `bin/vh recipes list --intent … --energy … --engine …` 和 `bin/vh recipes check`。它的能量、时长是自由文本，我们改成固定词表和数字范围，`check` 会校验 frontmatter、README 索引和草图语法。
 - **分镜里写配方和验收帧** → `templates/STORYBOARD.md` 多了"配方""验收帧"两列（可选）。
@@ -69,7 +74,7 @@
 
 **还没做的**（箭头后是建议的落点）：
 
-- 剩下的种子配方：`paparazzi-flash`、`trailer-bumper`、`drop-blackout-slam`、`jump-cut-punch-in`、`speed-ramp-freeze`、`karaoke-fill`，以及它模板片里的另外 4 张判例卡（`type-and-filter`、`row-embed`、`document-typewriter-reveal`、`list-stack-press`）→ `recipes/`。其余的卡链到它的在线 Gallery。
+- 剩下的种子配方：`trailer-bumper`、`jump-cut-punch-in`、`speed-ramp-freeze`、`karaoke-fill`，以及模板片里的最后一张判例卡 `list-stack-press` → `recipes/`。其余的卡链到它的在线 Gallery。
 - reviewer 加"计划一致性"块（产品目标、功能完整、分镜一致、数据安全、配方还原度），每条附帧号 → `playbook/02` 第 5 层。
 - 需求到执行决策表 → `templates/BRIEF.md`、关卡 ①。
 - 真实页面采集三件套（2x 全页 + 元素 cutout + layout.json）和推近清晰度 → `video-types/03-product-promo.md` 工作流 1。

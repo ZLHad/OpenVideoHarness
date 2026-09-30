@@ -67,17 +67,23 @@
 | 配方 | 一句话 | 能量 | 时长 | 状态 |
 |---|---|---|---|---|
 | [black-card](seam/black-card.md) | 前镜淡进暗场，一句短话逐词压印上屏，停到读完，再淡入后镜：换章节和喘口气一起做 | 1–2 | 4.2–5.8 s | tuned |
-| [dark-tunnel](seam/dark-tunnel.md) | 前景顺着运动方向推出画面，穿过几帧有尘点的暗场，后景从景深里迎面放大、收焦 | 4–5 | 0.7–1.1 s | tuned |
-| [flash-cut](seam/flash-cut.md) | 前镜推近到切点，硬切处骑一层 10 帧的暖白光，盖住换页 | 2–4 | 0.3 s | upstream-tested |
-| [focus-handoff](seam/focus-handoff.md) | 前景失焦、淡出、略向一侧滑走，后景错开 2 帧反向收焦进来，焦点本身就是剪辑点 | 2–3 | 0.4–0.7 s | tuned |
+| [cut-the-curve](seam/cut-the-curve.md) | 前景加速着朝一个方向走出一小段，切点落在运动正快的时候，后景从反方向以同样的速度接着走、减速落定 | 2–4 | 0.53–0.73 s | battle-tested |
+| [dark-tunnel](seam/dark-tunnel.md) | 前景顺着运动方向推出画面，穿过几帧有尘点的暗场，后景从景深里迎面放大、收焦 | 4–5 | 0.73–1.1 s | tuned |
+| [flash-cut](seam/flash-cut.md) | 前镜推近到切点，硬切处骑一层 10 帧的暖白光，盖住换页 | 2–4 | 0.33 s | upstream-tested |
+| [flash-stitch](seam/flash-stitch.md) | 两种画面媒介之间的硬切上插 1 帧（60 fps 是 2 帧）高反差的"底片"：二值、双色或负片，读不出内容，却把两边焊在一起 | 4–5 | 0.03–0.07 s | draft |
+| [focus-handoff](seam/focus-handoff.md) | 前景失焦、淡出、略向一侧滑走，后景错开 2 帧反向收焦进来，焦点本身就是剪辑点 | 2–3 | 0.4–0.67 s | tuned |
+| [gate-as-door](seam/gate-as-door.md) | 世界里立着一扇形状对应下一章的门（画框、竖屏、节点），镜头朝门心加速穿过去，门框掠出画面，门里的世界接管 | 3–5 | 0.8–1.6 s | battle-tested |
 | [portal-wipe](seam/portal-wipe.md) | 页面上的一张卡放大成全屏窗口，被点开的那个世界从窗里长出来接管画面 | 3–4 | 1.3–1.6 s | tuned |
-| [whip-pan](seam/whip-pan.md) | 相机一拍横甩到下一景，中段糊到认不出，借糊帧换景；两款：直接落位、急刹长尾 | 3–5 | 0.3–2 s | tuned |
+| [whip-pan](seam/whip-pan.md) | 相机一拍横甩到下一景，中段糊到认不出，借糊帧换景；两款：直接落位、急刹长尾 | 3–5 | 0.27–2 s | tuned |
+| [zoom-through](seam/zoom-through.md) | 沿镜头纵深方向切：推进款里旧字冲向镜头、新字从远处继续长大；拉回款里旧的退远、新的从镜头背后缩回来落定 | 2–4 | 0.6–0.8 s | battle-tested |
 
 **节奏 `rhythm/`**
 
 | 配方 | 一句话 | 能量 | 时长 | 状态 |
 |---|---|---|---|---|
 | [accelerando-cuts](rhythm/accelerando-cuts.md) | 同一产品的 6 个构图硬切，切点间隔每两刀减半，越切越快地逼近，最后一刀定格回全景慢推 | 5 | 4–4.5 s | tuned |
+| [drop-blackout-slam](rhythm/drop-blackout-slam.md) | 正常播放中一帧切进 12 帧的黑，画面里什么都没有，然后主视觉带着震屏和一圈亮环砸进来：全片最高潮的前一拍 | 5 | 3.7–4.7 s | tuned |
+| [paparazzi-flash](rhythm/paparazzi-flash.md) | 三次快门白闪，每闪硬切同一素材的一个更近的裁切（全景 → 卡片 → 数字），最后停在那个数字上 | 4–5 | 4.2–4.5 s | tuned |
 
 **文字 `type/`**
 
@@ -85,13 +91,19 @@
 |---|---|---|---|---|
 | [brand-imprint-open](type/brand-imprint-open.md) | 一个小记号先画出来，字标逐字压印，副标打出，整组停到读完再上浮离场，交给产品画面 | 1–2 | 3.7–5.8 s | upstream-tested |
 | [breath-title-card](type/breath-title-card.md) | 一句话逐词压印上屏，只有一个强调词，短横线收住，停到读完：两段高能镜头之间的喘息和路标 | 1–2 | 3.3–5 s | upstream-tested |
+| [decode-type](type/decode-type.md) | 字像被程序一点点解出来：乱码按 2 帧一换，每个字在 0.3 s 内依次锁定，锁定之后才开始算读的时间 | 2–4 | 0.2–1 s | battle-tested |
 
-**开场 `open/`、界面 `ui/`、收尾 `outro/`**
+**开场 `open/`、界面 `ui/`、交互 `interaction/`、运镜 `camera/`、收尾 `outro/`**
 
 | 配方 | 一句话 | 能量 | 时长 | 状态 |
 |---|---|---|---|---|
 | [spotlight-hero](open/spotlight-hero.md) | 聚光灯在页面上游走后锁定一张卡，镜头斜侧推近，卡弹起悬停、轮廓光跑两圈、再贴回原位 | 3 | 4.3–4.8 s | upstream-tested |
 | [deal-to-grid](ui/deal-to-grid.md) | 一摞卡像发牌一样飞进网格的真实槽位，出牌越来越快，相机追着往下滚，满板后停半秒 | 4–5 | 2.7–3.8 s | upstream-tested |
+| [doc-self-writing](ui/doc-self-writing.md) | 一整页真排版的文档在光标后面一块块"写"出来，侧栏随后铺开，历史条目一条条落进侧栏 | 2 | 3.3–4 s | upstream-tested |
+| [row-embed](ui/row-embed.md) | 内容行像卡片一样从空中降下、俯仰收平、严丝合缝嵌进页面，嵌入瞬间底边亮一道强调色的缝 | 3 | 2.3–3.3 s | upstream-tested |
+| [oversized-cursor](interaction/oversized-cursor.md) | 一只画面宽度 7% 的光标从画外进来，把视线带到下一个目标，点一下让下一件事发生，然后离开或带进下一镜 | 2–3 | 1–3 s | battle-tested |
+| [type-and-filter](interaction/type-and-filter.md) | 在真实界面上按人手的速度打字搜索，网格自己收敛成一张卡，点击它，镜头推进交给详情 | 3 | 2.3–2.7 s | upstream-tested |
+| [one-take-world-travel](camera/one-take-world-travel.md) | 一台镜头在同一个 3D 世界里从一个站点飞到下一个：甩过去、到站减速成慢推、停站时保留低幅漂移，字在读的时候骑在镜头前 | 2–5 | 3–8 s | battle-tested |
 | [group-photo-launch](outro/group-photo-launch.md) | 每个展示过的功能派一个代表元素，从四面八方飞来围成合影，字标最后压印落款，全片能量最高 | 5 | 5–6 s | upstream-tested |
 
 本库只收了一部分。shotcraft 的其余卡片（共 157 张）可以在它的[在线 Gallery](https://vincentwei1021.github.io/video-shotcraft/) 看样片，源码在 `references/repos/video-shotcraft/references/shots/`（Apache-2.0，只读）；借用时按下文"写一张新配方"改写进来。

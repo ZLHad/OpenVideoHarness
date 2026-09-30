@@ -7,7 +7,7 @@ duration_f: [420, 480]
 types: [promo, short]
 aspect: [landscape, portrait, square]
 arc: [3, 4, 1, 5]
-uses: [spotlight-hero, whip-pan, deal-to-grid, accelerando-cuts, group-photo-launch]
+uses: [spotlight-hero, whip-pan, deal-to-grid, accelerando-cuts, drop-blackout-slam, group-photo-launch]
 status: draft
 derived_from:
   - {repo: video-shotcraft, path: references/sequences/promo-energy-arc.md, license: Apache-2.0, note: 段位和先划 hold 的方法，压缩到 15 s}
@@ -28,7 +28,7 @@ derived_from:
 
 - **钩子不另做**：聚光灯在第 0.1 s 亮起、开始游走，这就是第一个事件（styles/_swatch 的内容规格：第一个事件在 0.1 s，而且要看得见）。15 s 的片子不单独做钩子镜头，主角一出场就是钩子。
 - **一个功能**：选最有"量"或最有"手感"的那一个。产品有好几个画面值得看时，第 2 段换成 [accelerando-cuts](../rhythm/accelerando-cuts.md)（4–4.5 s），它的最后一刀定格正好接屏息。
-- **屏息**：第 3 段只有 1 s，是高潮之前的戏剧逗号（playbook/03 §2 要求 0.3–0.75 s，这里给足一拍）。画面不换，靠声音做"吸气"。
+- **屏息**：第 3 段只有 1 s，是高潮之前的戏剧逗号（playbook/03 §2 要求 0.3–0.75 s，这里给足一拍）。画面不换，靠声音做"吸气"。想更狠，把第 3、4 段的开头换成 [drop-blackout-slam](../rhythm/drop-blackout-slam.md)：12 帧空的黑，再砸出字标（黑场里保留一层低音底）。
 
 ## 预算
 

@@ -7,7 +7,7 @@ duration_f: [1650, 1950]
 types: [promo]
 aspect: [landscape, portrait]
 arc: [1, 3, 1, 4, 3, 3, 1, 4, 2, 1, 5, 5]
-uses: [brand-imprint-open, spotlight-hero, breath-title-card, deal-to-grid, portal-wipe, flash-cut, focus-handoff, accelerando-cuts, group-photo-launch]
+uses: [brand-imprint-open, spotlight-hero, breath-title-card, deal-to-grid, type-and-filter, oversized-cursor, portal-wipe, row-embed, doc-self-writing, flash-cut, focus-handoff, accelerando-cuts, paparazzi-flash, group-photo-launch]
 status: draft
 derived_from:
   - {repo: video-shotcraft, path: references/sequences/promo-energy-arc.md, license: Apache-2.0, note: 四个段位、占比、字卡密度、填空流程}
@@ -26,13 +26,13 @@ derived_from:
 | 2 | ② 单主角立传 | 产品的原子单位 | 140–285 | 4.7–9.5 | 3 | [spotlight-hero](../open/spotlight-hero.md) |
 | 3 | ③ 呼吸 1 | 引出第一组功能的字卡 | 285–390 | 9.5–13.0 | 1 | [breath-title-card](../type/breath-title-card.md) |
 | 4 | ③ 功能 A | 数量：内容很多、源源不断 | 390–510 | 13.0–17.0 | 4 | [deal-to-grid](../ui/deal-to-grid.md) |
-| 5 | ③ 功能 B | 交互：跟着操作一遍（打字、筛选、点击） | 510–660 | 17.0–22.0 | 3 | 自创，或 shotcraft 的 `type-and-filter` |
-| 6 | ③ 功能 B 详情 | 点开之后看到的东西 | 660–810 | 22.0–27.0 | 3 | 自创（由 [portal-wipe](../seam/portal-wipe.md) 带进来） |
+| 5 | ③ 功能 B | 交互：跟着操作一遍（打字、筛选、点击） | 510–660 | 17.0–22.0 | 3 | [type-and-filter](../interaction/type-and-filter.md)，可由 [oversized-cursor](../interaction/oversized-cursor.md) 的点击触发 |
+| 6 | ③ 功能 B 详情 | 点开之后看到的东西 | 660–810 | 22.0–27.0 | 3 | [row-embed](../ui/row-embed.md)（由 [portal-wipe](../seam/portal-wipe.md) 带进来） |
 | 7 | ③ 呼吸 2 | 引出下一组功能 | 810–915 | 27.0–30.5 | 1 | breath-title-card |
 | 8 | ③ 功能 C | 另一个功能，高能量 | 915–1095 | 30.5–36.5 | 4 | 自创 |
-| 9 | ③ 功能 D | 信息最密的一镜：文档、报告 | 1095–1305 | 36.5–43.5 | 2 | 自创，或 shotcraft 的 `document-typewriter-reveal` |
+| 9 | ③ 功能 D | 信息最密的一镜：文档、报告 | 1095–1305 | 36.5–43.5 | 2 | [doc-self-writing](../ui/doc-self-writing.md) |
 | 10 | ③ 呼吸 3 | 收场前最后一句话 | 1305–1410 | 43.5–47.0 | 1 | breath-title-card |
-| 11 | ④ 冲刺（可选） | 同一产品的几个构图越切越快 | 1410–1545 | 47.0–51.5 | 5 | [accelerando-cuts](../rhythm/accelerando-cuts.md) |
+| 11 | ④ 冲刺（可选） | 同一产品的几个构图越切越快；要给一个数字加冕时换成连闪定格 | 1410–1545 | 47.0–51.5 | 5 | [accelerando-cuts](../rhythm/accelerando-cuts.md) 或 [paparazzi-flash](../rhythm/paparazzi-flash.md)，二选一 |
 | 12 | ④ 发布会收场 | 每个功能派代表合影，字标落款；片尾有网址或行动号召时，落款停 3–4 s | 1545–1800 | 51.5–60.0 | 5 | [group-photo-launch](../outro/group-photo-launch.md) |
 
 段位的占比：① + ② 约 16%（原骨架：开场 8–12%，立传 12–15%，两段合计最多 20%）；③ 约 62%（原骨架 55–65%）；④ 约 22%（原骨架 13–16%，这里多了一段可选的冲刺；不用冲刺时 ④ 是 14%，135 帧还给功能段）。

@@ -397,9 +397,9 @@ def check_sketches(body):
 
 
 def span_text(v, scale=1):
-    """[a, b] or n → "a–b" / "n" (seconds when scale = FPS, one decimal, no trailing zeros)."""
+    """[a, b] or n → "a–b" / "n" (seconds when scale = FPS: one decimal, two under 1 s, no trailing zeros)."""
     a, b = (v, v) if isinstance(v, int) else v
-    f = (lambda x: f"{x / scale:.1f}".rstrip("0").rstrip(".")) if scale != 1 else str
+    f = (lambda x: f"{x / scale:.{2 if x < scale else 1}f}".rstrip("0").rstrip(".")) if scale != 1 else str   # < 1 s: 2 decimals
     return f(a) if a == b else f"{f(a)}–{f(b)}"
 
 
@@ -456,6 +456,10 @@ def library_checks(lib):
     for target in sorted(linked):
         if not (LIB / target).exists():
             probs.append(f"recipes/README.md: links {target}, which does not exist")
+    tpl = LIB / "_TEMPLATE.md"   # the template must stay a valid recipe (only its file name and folder are exempt)
+    if tpl.exists():
+        _, tp = check_file(tpl)
+        probs += [f"recipes/_TEMPLATE.md: {x}" for x in tp if not x.startswith(("file name", "lives in"))]
     for field, words in VOCAB.items():
         missing = [w for w in words if f"`{w}`" not in readme]
         if missing:
@@ -466,6 +470,10 @@ def library_checks(lib):
 def cmd_check(files):
     lib = load_library()
     todo = [Path(f) for f in files] if files else library_files()
+    skipped = [p for p in todo if p.name == "README.md" or p.name.startswith("_")]
+    for p in skipped:   # `check recipes/*/*.md` also matches READMEs and the template: not recipes
+        print(f"- {rel(p)}  (skipped: not a recipe)")
+    todo = [p for p in todo if p not in skipped]
     bad = 0
     for p in todo:
         fm, probs = check_file(p, lib)

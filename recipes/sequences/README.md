@@ -41,9 +41,12 @@
 | 两侧 | 首选 | 备选 | 为什么 |
 |---|---|---|---|
 | 高 → 高，换空间 | [dark-tunnel](../seam/dark-tunnel.md)（暗色调片子） | [whip-pan](../seam/whip-pan.md)（亮色调、要快） | 同一条镜头一路飞过去，动量不断 |
-| 中 → 中，页面到页面 | [flash-cut](../seam/flash-cut.md) | whip-pan | 最不抢戏，可以当全片的默认接缝 |
+| 中 → 中，页面到页面 | [flash-cut](../seam/flash-cut.md)；平面、排版为主的片子用 [cut-the-curve](../seam/cut-the-curve.md) | whip-pan | 最不抢戏，可以当全片的默认接缝 |
+| 大字到大字（同一场景里换一句） | [zoom-through](../seam/zoom-through.md) 推进款 | cut-the-curve 的逐词版 | 沿纵深走，"更深一层"；拉回款留给兑现和片尾 |
 | 同一空间里换地方看 | [focus-handoff](../seam/focus-handoff.md) | flash-cut | 镜头不动，焦点就是剪辑点 |
 | 总览 → 某一项的详情 | [portal-wipe](../seam/portal-wipe.md) | flash-cut 加推近 | 接缝本身在说"点开它" |
+| 一镜到底里换章节 | [gate-as-door](../seam/gate-as-door.md) | 甩镜变速（[one-take-world-travel](../camera/one-take-world-travel.md)） | 穿过一扇形状就是下一章的门 |
+| 快剪里换"世界"（媒介、配色全变） | 落拍的硬切 + [flash-stitch](../seam/flash-stitch.md) | 直接硬切 | 1 帧高反差把两种媒介焊在同一个节拍上 |
 | 任意 → 呼吸位、换章节 | [black-card](../seam/black-card.md)，或 flash-cut 接一张 [breath-title-card](../type/breath-title-card.md) | 直接硬切到字卡 | 能量往下落，给一句话的时间 |
 | 往上冲进高潮 | 落在最强拍上的硬切 | 让高潮镜头自己开场（例如 [accelerando-cuts](../rhythm/accelerando-cuts.md) 的建立段） | 高潮不需要过渡，需要一记准的 |
 

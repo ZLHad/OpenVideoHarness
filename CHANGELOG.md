@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+**Shot recipes: how a shot moves, and the pacing of a whole film**
+- `recipes/` is a new library of engine-agnostic shot recipes. A recipe carries the motion and pacing of one shot or seam: phases in frames at 30 fps, a parameter table with the critical values marked, pitfalls, the frames to check, and a canvas sketch on the `styles/_swatch` scene API, so any preset's `tokens.json` can skin it (`styles/_swatch/render.sh <dir>`). Style presets keep the look. When the two disagree, the order is user > type doc > project `STYLE.md` > style preset > recipe > playbook, and the CLAUDE.md floors beat all of them.
+- 24 seed recipes:
+  - rewritten from video-shotcraft (Apache-2.0): its six seams, accelerando cuts, paparazzi flash, drop-blackout slam, and the eight shots of its template film;
+  - from HyperFrames' skills: cut-the-curve, zoom-through, the oversized cursor;
+  - from this repo's intro film: decode type, one-take world travel, gate-as-door;
+  - a flash stitch measured from a public showreel.
+
+  Each recipe names its source in `derived_from` and says what it changed. On-screen text holds follow this repo's reading-time rule (shotcraft's title cards held 1.8 s). Emphasis uses weight or colour, not italics; blur is animated only on canvas; readable small text is at least 44 px; the braking whip-pan is one velocity-continuous curve.
+- `recipes/sequences/` holds the pacing grammar and three skeletons: a 15 s launch, a 30 s narrated explainer and a 60 s product film. The grammar is five energy levels, holds reserved before any motion, seams chosen by the energy jump, and caps such as at most 3 full-frame impacts per film.
+- `bin/vh recipes list [--intent … --energy … --engine … --have … --seconds …]` filters on fixed-vocabulary frontmatter; an unknown value is an error, not an empty list. `bin/vh recipes check [file…]` validates the frontmatter, the cross-references, the README index (its energy, length and status columns) and the sketches' syntax. CI runs both.
+- `templates/STORYBOARD.md` has optional recipe and QA-frame columns. CLAUDE.md routes "how should this shot move" and pacing requests to `recipes/`. New case study: `cases/promo-video-shotcraft.md`, so the README counts now say 12.
+
 **Music parts: fixes from the swatch re-scores**
 - Figures and grids no longer drop notes when their step doesn't divide the bar. Half notes in a 5-beat bar played 2 of 3 notes, and none in a 1-beat bar (banker's rounding); a step that starts inside the bar now plays, cut at the bar line. A step that used to ring past the bar line and overlap the next bar's note now stops there.
 - A section's `params` (`by_section`) now reach the mono voices (sub808, violin, cello, winds …); before, they were silently ignored. A change of params starts a new phrase.
