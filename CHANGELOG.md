@@ -141,7 +141,7 @@
 - `video-types/09-editing-talking-head.md` (new), listed by `bin/vh types`; `bin/vh new edit <slug>` prints the `hf-init` hint. Cuts come from the measured audio, not ASR word times, the edit list is stored in integer frames, and a human approves its hash before anything renders.
 - `engines/editing.md` (new) holds the detail: gap measurement, Chinese filler and retake rules, re-transcription check, pairwise review, reframing, face-safe captions, FCPXML/OTIO/CapCut export. JianYing 6.0+ drafts are encrypted, so no one-click export is promised.
 - The thresholds were calibrated on synthetic material only: no real footage was cut and no export was opened in an editor. The tools the docs mention (gap probe, seam metrics, edit-list compiler) do not exist yet; `transcript-cut.mjs` is the `quick` route.
-- README and README.zh-CN count 9 types (09 experimental), the diagrams and the skill say 9 and mention cutting your own footage, roadmap item "Type 9" is marked started, `video-types/02` points footage edits to 09, and the routing table has a row for it.
+- README and README.zh-CN count 9 types (09 experimental), the diagrams and the skill say 9 and mention cutting your own footage, roadmap item "Type 9" is marked started, `video-types/02` points footage edits to 09, the routing table has a row for it, and two stale "8 types" notes (`recipes/README.md`, `references/community-skills.md`) are fixed.
 - `ACKNOWLEDGMENTS.md` credits the repos whose ideas and rules 09 uses (video-use, open-edit, cut-motion, kinocut, mandarin-talking-head-rough-cut and others) with their licences; no code was copied.
 
 **Found in a full review of v0.2.1**
