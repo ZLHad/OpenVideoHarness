@@ -243,7 +243,7 @@ done
 echo "$ok ${JPG#$ROOT/}  $((psz / 1000)) KB (q $q)"
 
 # ── contact sheet for self-review (not shipped): 10 frames, t = 0.25 … 4.75
-if command -v uv >/dev/null 2>&1 && uv run -q --with pillow python "$ROOT/tools/sheet.py" "$HFMP4" "$OUT/sheet.png" 5 2 384 >/dev/null 2>&1; then
+if command -v uv >/dev/null 2>&1 && uv run -q --no-project --with pillow python "$ROOT/tools/sheet.py" "$HFMP4" "$OUT/sheet.png" 5 2 384 >/dev/null 2>&1; then
   echo "$ok sheet ${OUT#$ROOT/}/sheet.png"
 else
   ffmpeg -v error -y -i "$HFMP4" -vf "fps=2,scale=384:-1,tile=5x2" -frames:v 1 "$OUT/sheet.png" && echo "$ok sheet ${OUT#$ROOT/}/sheet.png (no timestamps)"

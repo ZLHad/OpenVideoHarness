@@ -20,8 +20,9 @@ text's contrast against the pixels around it (WCAG ratio: 4.5 good, 3 the floor 
 a line, and whether an overlay sits on one. It cannot read the words: a picture with lots of fine lines may show a
 box that is not text; --text-px replaces the guess.
 
-Output: --out, else <project>/out/check/cover-preview-<name>.png for a cover inside a project, else next to the first
-image as <name>-feeds.png. Tiles are 1× CSS size: view the PNG at 100 % to see the real size. Deterministic.
+Output: --out, else <project>/out/check/cover-preview-<name>.png for a cover inside a project, else
+./out/check/cover-preview-<name>.png under the current folder. Tiles are 1× CSS size: view the PNG at 100 % to see the
+real size. A transparent cover is flattened onto white (a light feed page) and the output says so. Deterministic.
 """
 import argparse, os, sys
 from pathlib import Path
@@ -171,7 +172,20 @@ def main():
     for p in paths:
         if not p.exists(): raise SystemExit(f"cover-preview: no such image: {p}")
     lang = a.lang or "zh"; zh = lang == "zh"
-    covers = [Image.open(p).convert("RGB") for p in paths]
+    covers, flat = [], []
+    for p in paths:
+        try:
+            with Image.open(p) as im:
+                im.load()
+                if im.mode in ("RGBA", "LA", "PA") or (im.mode == "P" and "transparency" in im.info):
+                    rgba = im.convert("RGBA")   # a feed shows its own page behind transparent pixels: white here, not black
+                    if rgba.getextrema()[3][0] < 255:
+                        flat.append(p.name)
+                    bg = Image.new("RGBA", rgba.size, (255, 255, 255, 255)); bg.alpha_composite(rgba); covers.append(bg.convert("RGB"))
+                else:
+                    covers.append(im.convert("RGB"))
+        except (OSError, ValueError, SyntaxError):
+            raise SystemExit(f"cover-preview: {p} is not an image")
     infos = [analyse(im, text_px) for im in covers]
     pad, gap, first_w = 28, 26, 300
     lab_h, rep_h = 58, 120
@@ -255,12 +269,14 @@ def main():
             report.append(f"{p.name}: no text line found; pass --text-px to check sizes")
     if a.out:
         out = Path(a.out)
-    else:
+    else:   # into the cover's project, else ./out/check/ here: never next to the image (it may sit in the repo's styles/)
         first = paths[0].resolve(); proj = next((q for q in first.parents if (q / "BRIEF.md").exists()), None)
-        out = (proj / "out" / "check" / f"cover-preview-{first.stem}.png") if proj else first.with_name(f"{first.stem}-feeds.png")
-    V.check_cjk_font(["字"] if zh else [])
+        out = (proj or Path.cwd()) / "out" / "check" / f"cover-preview-{first.stem}.png"
+    V.check_glyphs(["字"] if zh else [])
     V.save(img, out)
     print(f"cover-preview: {V.shown(out)}")
+    for name in flat:
+        print(f"  {name} has transparent pixels: flattened onto white, as a light feed page shows them")
     for r in report:
         print("  " + r)
 

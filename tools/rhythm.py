@@ -19,7 +19,7 @@ carry their ids and lengths, and the words are written out.
 Writes <project>/out/check/rhythm.png (rhythm-<segment>.png when zoomed) and prints the issues. Exit 0 even with
 issues: this is a picture to decide from, not a gate (bin/vh readcheck is the gate).
 """
-import argparse, os, re, sys
+import argparse, math, os, re, sys
 from pathlib import Path
 from types import SimpleNamespace
 from PIL import Image, ImageDraw
@@ -28,25 +28,10 @@ import vhdraw as V
 import readcheck as RC
 
 ONSCREEN = SimpleNamespace(min=2.5, cjk_cps=4.5, latin_cps=15.0, pad=1.5)   # readcheck's defaults
+ONSCREEN_SKIPPED = []   # what reading index.html left out, said once on stdout
+NICE = (0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600)
 NARR, NARR_EDGE, CAP, CAP_EDGE = (190, 204, 226), (120, 140, 180), (214, 224, 206), (140, 160, 130)
 SEC_A, SEC_B, SEC_EDGE = (216, 214, 206), (230, 228, 220), (170, 168, 160)
-
-def narration(project, lang):
-    audio = project / "audio"
-    cands = ([audio / "timeline.json"] + ([audio / f"timeline.{lang}.json"] if lang else []) +
-             sorted(audio.glob("timeline*.json")) if audio.is_dir() else [])
-    for p in cands:
-        if p.exists():
-            d = V.load_json(p)
-            segs = d.get("segments", d) if isinstance(d, dict) else d
-            out = []
-            for i, s in enumerate(segs if isinstance(segs, list) else []):
-                if not isinstance(s, dict) or s.get("start") is None or s.get("end") is None: continue
-                txt = s.get("text") or (s.get(lang) if lang else None) or s.get("zh") or s.get("en") or ""
-                out.append({"id": str(s.get("id", i + 1)), "start": float(s["start"]), "end": float(s["end"]), "text": str(txt)})
-            if out:
-                return out, p
-    return [], None
 
 def captions(project, lang):
     p = project / "audio" / "captions.json"
@@ -65,8 +50,10 @@ def captions(project, lang):
     return out, p
 
 def onscreen(project):
-    """texts.json (written or edited by hand) wins; else the timed text of index.html, read the way readcheck does."""
+    """texts.json (written or edited by hand) wins; else the timed text of index.html, read the way readcheck does
+    (what that read had to leave out goes into ONSCREEN_SKIPPED)."""
     p = project / "texts.json"
+    ONSCREEN_SKIPPED[:] = []
     if p.exists():
         _, items = RC.load_items(p)
         todo, src = list(RC.pieces(items, None)), p
@@ -74,7 +61,9 @@ def onscreen(project):
         html = project / "index.html"
         if not html.exists():
             return [], None
-        items = RC.export_html(html)
+        items, stats = RC.export_html(html)
+        note = RC.skipped_note(stats)
+        if note: ONSCREEN_SKIPPED.append(note)
         todo, src = [(it["id"], it["start"], it["end"], it["text"]) for it in items], html
     clips = {str(it.get("id")): it["clip"] for it in items if isinstance(it, dict) and it.get("clip")}
     out = []
@@ -135,7 +124,7 @@ def main():
     a = ap.parse_args()
     project = V.project_dir(a.project)
     shots, _ = V.load_shots(project / "shots.json") if (project / "shots.json").exists() else ([], {})
-    narr, narr_src = narration(project, a.lang)
+    narr, narr_src = V.narration(project, a.lang)
     caps, cap_src = captions(project, a.lang)
     ons, on_src = onscreen(project)
     bm, bm_src = beatmap(project, a.beats)
@@ -144,9 +133,15 @@ def main():
     limit, limit_src = V.payoff_limit(project, a.max)
     texts = [s["segment"] for s in shots] + [s for sh in shots for s in sh["reads"]] + [n["text"] for n in narr] + [c["text"] for c in caps]
     lang = V.lang_for(texts, a.lang); L = V.LABELS[lang]; zh = lang == "zh"
-    V.check_cjk_font(texts)
+    V.check_glyphs(texts)
     ends = [s["end"] for s in shots] + [n["end"] for n in narr] + [c["end"] for c in caps] + [o["end"] for o in ons]
-    if bm: ends += [s["end"] for s in bm.get("sections", [])] or [float(bm.get("duration", 0))]
+    if bm:   # a beat map ends where its sections end, else at its duration, else at its last beat or hit
+        ends += ([float(s["end"]) for s in bm.get("sections", []) if isinstance(s, dict) and "end" in s] or
+                 ([float(bm["duration"])] if bm.get("duration") else []) or
+                 [float(x) for x in bm.get("beats", [])[-1:]] + [float(h.get("t", 0)) for h in bm.get("hits", []) if isinstance(h, dict)])
+    if not ends or max(ends) <= 0:
+        raise SystemExit("rhythm: nothing here has a length: shots.json, the timelines, captions and the beat map "
+                         f"({V.shown(bm_src, project) if bm_src else 'none'}) end at 0 s or carry no times")
     T0, T1 = 0.0, max(ends)
     runs = V.segments_of(shots)
     if a.segment:
@@ -159,12 +154,12 @@ def main():
     zoom = (T1 - T0) < 0.999 * max(ends)
     colors = {}
     for n, _ in runs: colors.setdefault(n, V.seg_color(len(colors)))
-    long = lambda s: limit is not None and s["dur"] > limit + 1e-6
+    long = lambda s: limit is not None and s["dd"] > limit + 1e-6
 
     # issues, in time order
     issues = []
     for s in shots:
-        if long(s): issues.append((s["start"], f"{s['id']} {s['dur']:.1f} s > {limit:g} s", "shot"))
+        if long(s): issues.append((s["start"], f"{s['id']} {s['dd']:.1f} s > {limit:g} s", "shot"))
     for c in caps:
         if not c["ok"]: issues.append((c["start"], f"{L['captions']} {c['id']}: {c['why']}", "cap"))
     for o in ons:
@@ -206,7 +201,7 @@ def main():
 
     # vertical grid
     y_top = head; y_bot = H - 86
-    step = next(s for s in (0.5, 1, 2, 5, 10, 15, 30, 60, 120) if (T1 - T0) / s <= 20)
+    step = next((s for s in NICE if (T1 - T0) / s <= 20), 3600 * math.ceil((T1 - T0) / 20 / 3600))
     t = (int(T0 / step) + (1 if T0 % step else 0)) * step
     while t <= T1 + 1e-9:
         x = P.x(t); d.line([(x, y_top), (x, y_bot)], fill=V.FAINT, width=1)
@@ -235,7 +230,7 @@ def main():
                 col = V.RED if long(s) else colors[s["segment"]]
                 d.rectangle([xa + 1, base - hh, max(xa + 2, xb - 1), base], fill=col)
                 if long(s) or zoom:
-                    V.text(d, ((xa + xb) / 2, base - hh - 4), f"{s['dur']:.1f}s", f_small, V.RED if long(s) else V.MUTED, "md")
+                    V.text(d, ((xa + xb) / 2, base - hh - 4), f"{s['dd']:.1f}s", f_small, V.RED if long(s) else V.MUTED, "md")
                 sid = s["id"] if s["unsure"] is None else s["id"] + "?"
                 if zoom and xb - xa > V.tw(d, sid, f_small) + 6:
                     V.text(d, ((xa + xb) / 2, base + 6), sid, f_small, V.INK, "ma")
@@ -306,6 +301,8 @@ def main():
     print(f"rhythm: {V.shown(out)}  ({T0:.1f}–{T1:.1f} s; lanes: {', '.join(n for n, _ in lanes if n != 'issues')})")
     if limit is None and shots:
         print(f"  note: {limit_src}")
+    for note in ONSCREEN_SKIPPED:
+        print(f"  on-screen text NOT checked: {note}")
     for t, msg, _ in vis:
         print(f"  {t:7.2f}s  {msg}")
     if not vis:

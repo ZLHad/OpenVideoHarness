@@ -6,7 +6,6 @@ Chinese labels draw as boxes; the tools still run and say so once.
 """
 import json, os, re, subprocess, sys
 from pathlib import Path
-from PIL import ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,7 +33,10 @@ def _face(cands, env):
     spec = os.environ.get(env)
     if spec:
         p, _, i = spec.partition("#")
-        cands = [(p, int(i or 0))] + cands
+        if Path(p).is_file():
+            cands = [(p, int(i) if i.isdigit() else 0)] + cands
+        else:
+            warn_once(f"{env}={spec}: no such font file; using the system fonts")
     for p, i in cands:
         if Path(p).exists():
             return p, i
@@ -50,6 +52,7 @@ def _face(cands, env):
     return None, 0
 
 def font(size, bold=False, mono=False):
+    from PIL import ImageFont   # here, not at the top: review.py imports this module without pillow
     key = (int(size), bold, mono)
     if key not in _fonts:
         p, i = _face(MONO, "VH_FONT_MONO") if mono else _face(BOLD if bold else REGULAR, "VH_FONT_BOLD" if bold else "VH_FONT")
@@ -70,12 +73,32 @@ def is_cjk(ch):
 def has_cjk(s):
     return any(is_cjk(c) for c in str(s))
 
-def check_cjk_font(texts):
-    """Warn once when there is Chinese to draw but only a Latin font was found (the labels would be boxes)."""
-    if any(has_cjk(t) for t in texts):
-        p, _ = _face(REGULAR, "VH_FONT")
-        if p is None or p in {c[0] for c in LATIN}:
-            warn_once("no CJK font found: Chinese labels will draw as boxes (install fonts-noto-cjk, or set VH_FONT=/path/font.ttc)")
+def missing_glyphs(f, text):
+    """The characters of text that font f has no glyph for (FreeType draws its .notdef box, or nothing)."""
+    nd = f.getmask("\U0010FFFF"); notdef = (nd.size, bytes(nd))
+    out = []
+    for ch in sorted(set(str(text))):
+        if ch.isspace() or not ch.isprintable(): continue
+        m = f.getmask(ch)
+        if m.getbbox() is None or (m.size, bytes(m)) == notdef:
+            out.append(ch)
+    return out
+
+def is_emoji(ch):
+    o = ord(ch)
+    return 0x1F000 <= o <= 0x1FAFF or 0x2600 <= o <= 0x27BF or 0xFE00 <= o <= 0xFE0F
+
+def check_glyphs(texts):
+    """Warn once, naming them, when the labels hold characters the drawing font cannot draw (they come out as boxes):
+    Chinese without a CJK font, emoji, rare symbols. Checks the glyphs, not the font's name."""
+    missing = missing_glyphs(font(20), "".join(str(t) for t in texts))
+    if not missing: return
+    sample = "".join(missing[:12]) + ("…" if len(missing) > 12 else "")
+    cjk, emoji = [c for c in missing if is_cjk(c)], [c for c in missing if is_emoji(c)]
+    why = ("no CJK font: install fonts-noto-cjk, or set VH_FONT=/path/font.ttc" if cjk else
+           "emoji are not in the drawing font; write them as words" if emoji and len(emoji) == len(missing) else
+           "set VH_FONT to a font that has them")
+    warn_once(f"{len(missing)} character(s) will draw as boxes ({sample}): {why}")
 
 def tw(draw, s, f):
     return draw.textlength(str(s), font=f)
@@ -164,12 +187,16 @@ def lang_for(texts, forced=None):
     return "zh" if any(has_cjk(t) for t in texts) else "en"
 
 # ---------- projects ----------
+def projects_base():
+    """Where projects live: $OVH_PROJECTS, else <harness>/projects (bin/vh new --dir puts one elsewhere)."""
+    return Path(os.environ.get("OVH_PROJECTS") or ROOT / "projects").expanduser()
+
 def project_dir(arg):
     """A project given as a path, or as a name under $OVH_PROJECTS / <harness>/projects (the date prefix may be left out)."""
     p = Path(arg).expanduser()
     if p.is_dir():
         return p.resolve()
-    base = Path(os.environ.get("OVH_PROJECTS") or ROOT / "projects").expanduser()
+    base = projects_base()
     if (base / arg).is_dir():
         return (base / arg).resolve()
     hits = sorted(d for d in base.glob(f"*-{arg}") if d.is_dir()) if base.is_dir() else []
@@ -219,13 +246,40 @@ def _first(d, *keys):
             return d[k]
     return None
 
+def seconds(v):
+    """12.5, "12.5", "0:12.5" or "1:02:03" → seconds; None when it is none of these."""
+    if isinstance(v, bool): return None
+    if isinstance(v, (int, float)): x = float(v)
+    else:
+        m = re.fullmatch(r"\s*(?:(\d+):)?(\d+):(\d+(?:\.\d+)?)\s*", str(v))
+        try:
+            x = (int(m.group(1) or 0) * 3600 + int(m.group(2)) * 60 + float(m.group(3))) if m else float(v)
+        except (TypeError, ValueError):
+            return None
+    return x if x == x and abs(x) != float("inf") else None
+
+def plural(n, word):
+    return f"{n} {word}" + ("" if n == 1 else "s")
+
+def disp(start, end):
+    """(start, end, length) as the pictures print them: the ends to 0.1 s and the length derived from those two, so a
+    9.25–11.2 s shot reads 9.2–11.2 s (2.0 s), never 9.2–11.2 s (1.9 s)."""
+    a, b = f"{start:.1f}", f"{end:.1f}"
+    return a, b, round(float(b) - float(a), 1)
+
 def load_shots(path):
-    """→ (shots, meta). Each shot: id, start, end, segment, reads (list), label, frame, at, unsure (str or None)."""
-    data = load_json(path)
+    """→ (shots, meta). Each shot: id, start, end, segment, reads (list), label, frame, at, unsure (str or None).
+    Ids must be unique; overlapping shots and negative starts are allowed but said once (the pictures hide them)."""
+    try:
+        data = load_json(path)
+    except ValueError as e:
+        raise SystemExit(f"{shown(path)}: not valid JSON ({e})")
     meta = data if isinstance(data, dict) else {}
     raw = data.get("shots") if isinstance(data, dict) else data
-    if not isinstance(raw, list) or not raw:
+    if not isinstance(raw, list):
         raise SystemExit(f"{shown(path)}: expected a list of shots, or {{\"shots\": [...]}}\n{SHOTS_SCHEMA}")
+    if not raw:
+        raise SystemExit(f"{shown(path)}: the list of shots is empty\n{SHOTS_SCHEMA}")
     shots = []
     for i, s in enumerate(raw):
         if not isinstance(s, dict):
@@ -233,19 +287,67 @@ def load_shots(path):
         t0, t1 = _first(s, "start", "t0"), _first(s, "end", "t1")
         if t0 is None or t1 is None:
             raise SystemExit(f"{shown(path)}: shot {s.get('id', i + 1)} needs start and end (or t0 / t1)\n{SHOTS_SCHEMA}")
-        t0, t1 = float(t0), float(t1)
+        a, b = seconds(t0), seconds(t1)
+        if a is None or b is None:
+            raise SystemExit(f"{shown(path)}: shot {s.get('id', i + 1)}: {t0!r}–{t1!r} are not times (seconds such as 12.5, or 0:12.5)")
+        t0, t1 = a, b
         if t1 <= t0:
             raise SystemExit(f"{shown(path)}: shot {s.get('id', i + 1)} ends at {t1} s, not after its start {t0} s")
+        at = _first(s, "at", "snapshot")
+        if at is not None and seconds(at) is None:
+            raise SystemExit(f"{shown(path)}: shot {s.get('id', i + 1)}: at {at!r} is not a time")
         reads = _first(s, "reads", "read", "what")
         reads = [str(r) for r in reads] if isinstance(reads, list) else ([str(reads)] if reads else [])
         uns = _first(s, "unsure", "flag", "risk")
         uns = None if uns in (None, False) else ("" if uns is True else str(uns))
         seg = _first(s, "segment", "stage", "section")
-        shots.append({"id": str(s.get("id") or f"S{i + 1:02d}"), "start": t0, "end": t1, "dur": t1 - t0,
+        ds, de, dd = disp(t0, t1)
+        shots.append({"id": str(s.get("id") or f"S{i + 1:02d}"), "start": t0, "end": t1, "dur": t1 - t0, "ds": ds, "de": de, "dd": dd,
                       "segment": str(seg) if seg is not None else "", "reads": reads, "label": s.get("label") or "",
-                      "frame": _first(s, "frame", "image"), "at": _first(s, "at", "snapshot"), "unsure": uns})
+                      "frame": _first(s, "frame", "image"), "at": seconds(at) if at is not None else None, "unsure": uns})
+    seen, dup = set(), []
+    for x in shots:
+        if x["id"] in seen: dup.append(x["id"])
+        seen.add(x["id"])
+    if dup:
+        raise SystemExit(f"{shown(path)}: shot id(s) used twice: {', '.join(sorted(set(dup)))} (every shot needs its own id)")
     shots.sort(key=lambda x: (x["start"], x["end"]))
+    neg = [x["id"] for x in shots if x["start"] < 0]
+    if neg: warn_once(f"shot(s) starting before 0 s: {', '.join(neg)}")
+    over = [f"{p['id']}/{q['id']}" for p, q in zip(shots, shots[1:]) if q["start"] < p["end"] - 1e-6]
+    if over: warn_once(f"overlapping shots (the pictures draw them side by side, hiding the overlap): {', '.join(over)}")
     return shots, meta
+
+def narration(project, lang=None):
+    """The narration lines [{id, start, end, text}] and their file: timeline.<lang>.json first when a language is
+    asked for (timeline.json is whichever language bin/vh tts ran last), else timeline.json, then any timeline*.json."""
+    audio = Path(project) / "audio"
+    cands = (([audio / f"timeline.{lang}.json"] if lang else []) + [audio / "timeline.json"] +
+             sorted(audio.glob("timeline*.json")) if audio.is_dir() else [])
+    for p in cands:
+        if not p.exists(): continue
+        try:
+            d = load_json(p)
+        except ValueError:
+            warn_once(f"{shown(p, project)} is not valid JSON; skipped"); continue
+        segs = d.get("segments", d) if isinstance(d, dict) else d
+        out = []
+        for i, s in enumerate(segs if isinstance(segs, list) else []):
+            if not isinstance(s, dict): continue
+            a, b = seconds(s.get("start")), seconds(s.get("end"))
+            if a is None or b is None: continue
+            txt = s.get("text") or (s.get(lang) if lang else None) or s.get("zh") or s.get("en") or ""
+            out.append({"id": str(s.get("id", i + 1)), "start": a, "end": b, "text": str(txt)})
+        if out:
+            return out, p
+    return [], None
+
+def relpath(path, project):
+    """A path for files that live with the project (index.json, review.json): relative to the project when inside it,
+    else absolute; never relative to wherever the command was run."""
+    p = Path(path).resolve()
+    try: return p.relative_to(Path(project).resolve()).as_posix()
+    except ValueError: return str(p)
 
 def segments_of(shots):
     """[(name, [shots…])]: runs of consecutive shots with the same segment, in time order (a name that comes back

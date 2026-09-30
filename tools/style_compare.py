@@ -72,6 +72,8 @@ def main():
     ap.add_argument("--out", help="output PNG")
     ap.add_argument("--width", type=int, default=640, help="width of each picture (default 640)")
     a = ap.parse_args()
+    if not 160 <= a.width <= 2400: ap.error("--width must be 160–2400 (pixels per picture)")
+    if a.frame is not None and not a.frame >= 0: ap.error("--frame must be a time in seconds, 0 or more")
     slugs = [s.strip() for s in a.slugs.split(",") if s.strip()]
     have = presets()
     bad = [s for s in slugs if s not in have]
@@ -93,7 +95,7 @@ def main():
         md = (STYLES / slug / "STYLE.md").read_text(encoding="utf-8")
         tokens = json.loads((STYLES / slug / "tokens.json").read_text(encoding="utf-8")) if (STYLES / slug / "tokens.json").exists() else {}
         notes.append((slug, name_of(md, slug, tokens), note_of(md), tokens))
-    V.check_cjk_font([n for _, n, _, _ in notes] + [x for _, _, x, _ in notes])
+    V.check_glyphs([n for _, n, _, _ in notes] + [x for _, _, x, _ in notes])
     zh = any(V.has_cjk(n) for _, n, _, _ in notes)
     what = (f"swatch 第 {a.frame:g} s 的画面" if zh else f"swatch frame at {a.frame:g} s") if a.frame is not None else ("封面（poster）" if zh else "posters")
     V.text(d, (pad, 22), ("风格对照 · " if zh else "Style comparison · ") + what, V.font(30, bold=True), V.INK)
@@ -108,7 +110,10 @@ def main():
             poster = STYLES / slug / "media" / "poster.jpg"
             if not poster.exists():
                 raise SystemExit(f"style compare: {slug} has no media/poster.jpg (bin/vh style {slug} renders it)")
-            pic = Image.open(poster).convert("RGB")
+            try:
+                with Image.open(poster) as im: pic = im.convert("RGB")
+            except (OSError, ValueError, SyntaxError):
+                raise SystemExit(f"style compare: {V.shown(poster)} is not an image (bin/vh style {slug} renders it again)")
         pic = pic.resize((tw, th), Image.LANCZOS) if pic.size != (tw, th) else pic
         img.paste(pic, (x, y + head_h))
         ny = y + head_h + th + 12

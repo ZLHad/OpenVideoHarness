@@ -3,7 +3,7 @@
 usage: python3 tools/readcheck.py <texts.json | project_dir | composition.html> [--mode onscreen|subtitle] [--lang zh|en]
                                   [--cjk-cps 4.5] [--latin-cps 15] [--pad 1.5] [--min 2.5]
        python3 tools/readcheck.py --budget <seconds> [--mode …] [--lang …]    how much text fits in a span
-       python3 tools/readcheck.py <composition.html | project_dir> --export [texts.json] [--force]
+       python3 tools/readcheck.py <composition.html | project_dir> --export [--out texts.json] [--force]
 
 Input: a JSON list of {text, start, end} in seconds (`t0`/`t1` also accepted; `text` may be a list of lines),
 or a dict holding that list under "captions" / "texts" / "items" / "cues". Items without `text` but with `zh` / `en`
@@ -24,25 +24,31 @@ the floor is ours (2.5 s). The subtitle ceilings are the Netflix Timed Text Styl
 lemo's tool renders the page and asks window.TEXTS(t) for boxes; this one only reads timings, so it cannot see
 cropping or text that leaves the frame. Check those on the contact sheet.
 
-A HyperFrames composition (an .html file) is read without a browser: every element with data-start / data-duration
-(or data-end) is a clip, nested data-composition-src files are offset by their host's start, and the text of each
-clip becomes one item (split at block elements: two <div>s or an <h1> and a <p> in one scene are two items). The
-span is the clip's, so a text that fades in, or that a script shows and hides, is readable for less than that: set
-the start by hand for those (--export writes the list to edit). Text in a clip that spans the whole composition has
-no timing of its own (the usual "draw(t)" script) and is left out, with a count.
+A HyperFrames composition (an .html file) is read without a browser. The clip spans come from HyperFrames itself
+(`hyperframes timeline --json`, 0.4 s) when the file is a project's index.html and the project has its pinned
+hyperframes; otherwise they are resolved here the way HyperFrames does: a number is seconds, "id" starts when that
+clip ends, "id + n" / "id - n" shift it; a data-composition-src file is offset by its host's start and built from
+its <template> when it has one. The text of each clip becomes one item (split at block elements: two <div>s or an
+<h1> and a <p> in one scene are two items). The span is the clip's, so a text that fades in, or that a script shows
+and hides, is readable for less than that: set the start by hand for those (--export writes the list to edit).
+Left out, and counted: text in a clip as long as the whole film (the usual "draw(t)" script decides when it shows),
+and clips whose data-start resolves to nothing (HyperFrames silently puts those at 0).
 
 --budget <seconds> answers the question before the text exists: how many characters fit in that span, by the same
-rules (on-screen, subtitle), plus the spoken estimate for Chinese narration (4–5 字/s, video-types/02 and 06).
+rules (on-screen, subtitle), plus the spoken estimate for Chinese narration from playbook/04-audio.md (4.5–5.5 字/s
+for a knowledge short, 3.5–4.5 for an explainer or a paper, within a sentence; x 0.85 for the pauses).
 
 Exit: 0 all pass · 1 some too short / too fast · 2 nothing to check (bad input). Writes nothing, except --export.
 """
-import argparse, json, math, re, sys
+import argparse, json, math, os, re, subprocess, sys
 from html.parser import HTMLParser
 from pathlib import Path
 
 CJK_RANGES = [(0x3040, 0x30FF), (0x31F0, 0x31FF), (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF),
               (0xAC00, 0xD7AF), (0x1100, 0x11FF), (0x3130, 0x318F), (0x20000, 0x2FA1F)]   # kana, Han, Hangul
 SUB_FLOOR, SUB_CPS_CJK, SUB_CPS_LATIN = 1.8, 9.0, 20.0
+PAUSE = 0.85   # playbook/04-audio.md: script length = seconds x rate x 0.85, the rest is pauses between sentences
+LAST_STATS = {}   # what the last composition read left out (export_html)
 
 def is_cjk(ch: str) -> bool:
     o = ord(ch)
@@ -50,7 +56,9 @@ def is_cjk(ch: str) -> bool:
 
 def load_items(path: Path):
     if path.suffix.lower() in (".html", ".htm"):
-        return path, export_html(path)
+        items, stats = export_html(path)
+        LAST_STATS.clear(); LAST_STATS.update(stats)
+        return path, items
     if path.is_dir():
         path = path / "audio" / "captions.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -92,9 +100,9 @@ def subtitle_check(text, dur):
     need = max(SUB_FLOOR, n / limit)
     return need, n / dur if dur > 0 else float("inf"), limit
 
-# ---------- on-screen text straight from a HyperFrames composition (no browser) ----------
+# ---------- on-screen text straight from a HyperFrames composition ----------
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr", "param"}
-SKIP = {"script", "style", "template", "noscript", "title", "head"}
+SKIP = {"script", "style", "noscript", "title", "head"}
 BLOCK = {"div", "p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "ul", "ol", "section", "article", "header", "footer", "figure",
          "figcaption", "blockquote", "pre", "table", "tr", "td", "th", "svg", "g", "text", "foreignobject", "main", "aside", "nav"}
 
@@ -104,6 +112,8 @@ class _Node:
         self.tag, self.attrs, self.kids, self.parent = tag, attrs, [], parent
 
 class _Tree(HTMLParser):
+    """A small DOM. A <template> keeps its content as children: the page ignores it, but HyperFrames builds a
+    sub-composition from its file's template."""
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.root = _Node("#root", {}, None); self.cur = self.root; self.skip = 0
@@ -128,9 +138,32 @@ class _Tree(HTMLParser):
     def handle_data(self, data):
         if not self.skip and data.strip(): self.cur.kids.append(data)
 
+def _elements(n, templates=False):
+    """Element nodes under n in document order; a <template>'s content only when asked."""
+    for k in n.kids:
+        if isinstance(k, _Node):
+            if k.tag == "template" and not templates: continue
+            yield k
+            yield from _elements(k, templates)
+
 def _num(v):
-    try: return float(v)
-    except (TypeError, ValueError): return None
+    try:
+        x = float(v)
+        return x if math.isfinite(x) else None
+    except (TypeError, ValueError):
+        return None
+
+def _parse_start(v):
+    """data-start → ("abs", s) or ("ref", id, offset). HyperFrames' own rules: a number is absolute; "id" starts
+    when that clip ends; "id + n" / "id - n" shift it (the minus needs spaces: "intro-0.5" is an id)."""
+    v = (v or "").strip()
+    x = _num(v)
+    if x is not None: return ("abs", x)
+    m = re.fullmatch(r"(.+?)\s*\+\s*(\d+(?:\.\d+)?)", v)
+    if m: return ("ref", m.group(1).strip(), float(m.group(2)))
+    m = re.fullmatch(r"(.+?)\s+-\s+(\d+(?:\.\d+)?)", v)
+    if m: return ("ref", m.group(1).strip(), -float(m.group(2)))
+    return ("ref", v, 0.0)
 
 def _text(n, timed):
     """All text under n, leaving out timed descendants (they are items of their own); CJK runs join without spaces."""
@@ -138,14 +171,14 @@ def _text(n, timed):
     for k in n.kids:
         if isinstance(k, str): parts.append(k)
         elif k.tag == "br": parts.append(" ")
-        elif k not in timed: parts.append(_text(k, timed))
+        elif k.tag != "template" and k not in timed: parts.append(_text(k, timed))
     s = re.sub(r"\s+", " ", "".join(parts)).strip()
-    return re.sub(r"(?<=[\u3000-\u9fff\uff00-\uffef]) (?=[\u3000-\u9fff\uff00-\uffef])", "", s)
+    return re.sub(r"(?<=[　-鿿＀-￯]) (?=[　-鿿＀-￯])", "", s)
 
 def _blocks(n, timed):
     """n's text as items: a wrapper with one text-bearing block is looked into; two or more blocks (or blocks beside
     loose text) give one item each; inline-only content (spans, a <br>) stays one item."""
-    kids = [k for k in n.kids if (k.strip() if isinstance(k, str) else (k not in timed and _text(k, timed)))]
+    kids = [k for k in n.kids if (k.strip() if isinstance(k, str) else (k.tag != "template" and k not in timed and _text(k, timed)))]
     blocks = [k for k in kids if not isinstance(k, str) and k.tag in BLOCK]
     if not blocks:
         t = _text(n, timed)
@@ -158,52 +191,141 @@ def _blocks(n, timed):
         out += _blocks(b, timed)
     return out
 
-def export_html(path, offset=0.0, until=None, depth=0):
-    """[{id, text, start, end, from}] for the timed text in a composition (see the module doc)."""
-    path = Path(path)
-    tree = _Tree(); tree.feed(path.read_text(encoding="utf-8", errors="replace")); tree.close()
-    comp = None; stack = [tree.root]
-    while stack and comp is None:   # the composition root: the first data-composition-id
-        n = stack.pop(0)
-        if not isinstance(n, str):
-            if "data-composition-id" in n.attrs and n is not tree.root: comp = n
-            else: stack += [k for k in n.kids if not isinstance(k, str)]
-    total = _num((comp.attrs if comp else {}).get("data-duration"))
-    spans, timed, items, untimed = {}, set(), [], [0]
-    def walk(n, t0, t1):
-        for k in n.kids:
-            if isinstance(k, str): continue
-            a, b = t0, t1
-            st = _num(k.attrs.get("data-start"))
-            if st is not None and k is not comp:
-                a = offset + st
-                du, en = _num(k.attrs.get("data-duration")), _num(k.attrs.get("data-end"))
-                b = a + du if du is not None else (offset + en if en is not None else t1)
-                if until is not None and b is not None: b = min(b, until)
-                spans[k] = (a, b); timed.add(k)
-                src = k.attrs.get("data-composition-src")
-                if src and depth < 4 and (path.parent / src).exists():
-                    items.extend(export_html(path.parent / src, a, b, depth + 1)); continue
-            walk(k, a, b)
-    root_end = offset + total if total is not None else until
-    walk(tree.root, offset, root_end)
-    whole = (root_end - offset) if root_end is not None else None
-    for k, (a, b) in spans.items():
-        if b is None or b <= a: continue
-        full = whole is not None and a - offset <= 0.05 and b - offset >= whole - 0.05
-        for node, txt in _blocks(k, timed):
+def _timeline(html):
+    """{(file, id): (start, end)} from `hyperframes timeline --json`, HyperFrames' own resolver (0.4 s, no browser),
+    when the project has its pinned hyperframes and the file is its index.html; else None."""
+    proj = html.parent
+    hf = proj / "node_modules" / ".bin" / "hyperframes"
+    if html.name != "index.html" or not hf.exists():
+        return None
+    env = {**os.environ, "HYPERFRAMES_SKIP_SKILLS": "1", "DO_NOT_TRACK": "1"}
+    try:
+        r = subprocess.run([str(hf), "timeline", "--json"], cwd=str(proj), capture_output=True, text=True, env=env, timeout=120)
+        rows = [row for t in json.loads(r.stdout)["timeline"]["tracks"] for row in t.get("rows", [])]
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
+        return None
+    spans = {}
+    for row in rows:
+        ident = row.get("elementId") or row.get("id")
+        a, b = _num(row.get("absStart")), _num(row.get("absEnd"))
+        if ident and a is not None and b is not None:
+            spans[(str(row.get("file") or "index.html"), str(ident))] = (a, b)
+    return spans
+
+def _export(path, base, offset, until, depth, tl, stats, items):
+    """The timed text of one composition file, its sub-compositions included, offset by the host's start."""
+    root = _Tree(); root.feed(path.read_text(encoding="utf-8", errors="replace")); root.close(); root = root.root
+    if depth:   # a sub-composition is built from its file's <template>, when it has one
+        root = next((n for n in _elements(root, True) if n.tag == "template"), root)
+    rel = path.relative_to(base).as_posix() if base in path.parents or path.parent == base else path.name
+    nodes = list(_elements(root))
+    comp = next((n for n in nodes if "data-composition-id" in n.attrs), None)
+    comp_dur = _num(comp.attrs.get("data-duration")) if comp is not None else None
+    comp_end = offset + comp_dur if comp_dur is not None else until
+    if until is not None and comp_end is not None: comp_end = min(comp_end, until)
+    by_id = {}
+    for n in nodes:   # HyperFrames looks up getElementById, then [data-composition-id]
+        for key in (n.attrs.get("id"), n.attrs.get("data-composition-id")):
+            if key: by_id.setdefault(key, n)
+    timed = [n for n in nodes if n is not comp and ("data-start" in n.attrs or "data-composition-src" in n.attrs)]
+    tset = set(timed)
+    spans, busy = {}, set()
+    def parent_span(n):
+        p = n.parent
+        while p is not None and p not in tset: p = p.parent
+        return span(p) if p is not None else (offset, comp_end, comp_end)
+    def span(n):   # absolute (start, shown until, own end or None); None when the start cannot be resolved
+        if n in spans: return spans[n]
+        key = (rel, n.attrs.get("id") or "")
+        if tl is not None and key in tl and tl[key][1] > tl[key][0]:
+            spans[n] = (*tl[key], tl[key][1]); return spans[n]
+        if n in busy: return None   # a cycle: HyperFrames puts it at 0
+        busy.add(n)
+        ps = parent_span(n)
+        raw = n.attrs.get("data-start")
+        if raw is None: a = ps[0] if ps else offset   # a host without data-start starts with its parent
+        else:
+            kind = _parse_start(raw)
+            if kind[0] == "abs": a = offset + kind[1]
+            else:   # when the target clip ends; a target with no duration of its own: when it starts
+                tgt = by_id.get(kind[1]); ts = span(tgt) if tgt is not None and tgt is not n else None
+                a = None if ts is None else (ts[2] if ts[2] is not None else ts[0]) + kind[2]
+        busy.discard(n)
+        if tl is not None and key in tl:   # HyperFrames knows the start but not the end (no duration): keep its start
+            a = tl[key][0]
+        if a is None:
+            spans[n] = None; return None
+        du, en = _num(n.attrs.get("data-duration")), _num(n.attrs.get("data-end"))
+        own = a + du if du is not None else (offset + en if en is not None else None)
+        b = own if own is not None else (ps[1] if ps else comp_end)
+        if until is not None and b is not None: b = min(b, until)
+        spans[n] = (a, b, own); return spans[n]
+    whole = None if comp_end is None else comp_end - offset
+    for k in timed:
+        s = span(k)
+        if s is None:
+            stats["unresolved"].append(f"{rel}#{k.attrs.get('id') or k.tag}: data-start=\"{k.attrs.get('data-start')}\""); continue
+        a, b = s[0], s[1]
+        raw = k.attrs.get("data-start")
+        if tl is not None and raw is not None and _parse_start(raw)[0] == "ref" and _parse_start(raw)[1] not in by_id:
+            stats["zeroed"].append(f"{rel}#{k.attrs.get('id') or k.tag}: data-start=\"{raw}\"")   # the render puts it at 0
+        src = k.attrs.get("data-composition-src")
+        if src:
+            sub = (path.parent / src)
+            if depth < 4 and sub.is_file():
+                inner = _export_dur(sub)
+                end = b if k.attrs.get("data-duration") or k.attrs.get("data-end") else (a + inner if inner is not None else b)
+                _export(sub, base, a, end, depth + 1, tl, stats, items)
+            else:
+                stats["unresolved"].append(f"{rel}#{k.attrs.get('id') or k.tag}: sub-composition {src} not found")
+            continue
+        if b is None or b <= a:
+            if _blocks(k, tset): stats["unresolved"].append(f"{rel}#{k.attrs.get('id') or k.tag}: no duration and nothing to end it")
+            continue
+        full = depth == 0 and whole is not None and a - offset <= 0.05 and b - offset >= whole - 0.05
+        for node, txt in _blocks(k, tset):
             if full:
-                untimed[0] += 1; continue   # no timing of its own: a script decides when it shows
+                stats["untimed"] += 1; continue   # no timing of its own: a script decides when it shows
             ident = node.attrs.get("id") or k.attrs.get("id") or f"{node.tag}@{a:g}"
-            it = {"id": ident, "text": txt, "start": round(a, 3), "end": round(b, 3), "from": path.name}
+            it = {"id": ident, "text": txt, "start": round(a, 3), "end": round(b, 3), "from": rel}
             if node is not k:   # the span is the enclosing clip's (a scene), not a timing of the text's own
                 it["clip"] = k.attrs.get("id") or k.tag
             items.append(it)
-    if depth == 0:
-        items.sort(key=lambda x: (x["start"], x["end"], x["id"]))
-        export_html.untimed = untimed[0]
-    return items
-export_html.untimed = 0
+
+def _export_dur(path):
+    """A sub-composition's own duration: its root's data-duration."""
+    t = _Tree(); t.feed(path.read_text(encoding="utf-8", errors="replace")); t.close()
+    n = next((n for n in _elements(t.root, True) if "data-composition-id" in n.attrs), None)
+    return _num(n.attrs.get("data-duration")) if n is not None else None
+
+def composition_duration(html):
+    """The root composition's data-duration in a HyperFrames index.html (None when it has none)."""
+    return _export_dur(Path(html))
+
+def export_html(path):
+    """(items, stats): the composition's timed text [{id, text, start, end, from, clip?}], and stats = {"untimed": text
+    blocks left out because a clip as long as the whole film holds them, "unresolved": data-start values nothing
+    resolves (HyperFrames puts those at 0), "source": where the spans came from}."""
+    path = Path(path)
+    tl = _timeline(path)
+    stats = {"untimed": 0, "unresolved": [], "zeroed": [], "source": "HyperFrames' own timeline" if tl is not None else "the HTML (no hyperframes in the project to ask)"}
+    items = []
+    _export(path, path.parent, 0.0, None, 0, tl, stats, items)
+    items.sort(key=lambda x: (x["start"], x["end"], x["id"]))
+    return items, stats
+
+def skipped_note(stats):
+    """What the composition read left out, or "" when nothing was."""
+    bits = []
+    if stats.get("untimed"): bits.append(f"{stats['untimed']} text block(s) in a clip as long as the whole film (a script shows them)")
+    if stats.get("unresolved"): bits.append(f"{len(stats['unresolved'])} clip(s) whose data-start does not resolve: " + "; ".join(stats["unresolved"][:4])
+                                           + (" …" if len(stats["unresolved"]) > 4 else ""))
+    return " and ".join(bits)
+
+def zeroed_note(stats):
+    z = stats.get("zeroed") or []
+    return (f"{len(z)} clip(s) start at 0 because their data-start names no clip (HyperFrames does not complain): "
+            + "; ".join(z[:4]) + (" …" if len(z) > 4 else "")) if z else ""
 
 def budget(span, a):
     """Lines saying how much text fits in span seconds."""
@@ -222,9 +344,10 @@ def budget(span, a):
         else:
             rows.append(f"  subtitle (follows the voice):           up to {math.floor(span * SUB_CPS_CJK + 1e-9)} CJK characters (half-width count 1/2), "
                         f"or {math.floor(span * SUB_CPS_LATIN + 1e-9)} Latin characters with spaces  [x {SUB_CPS_CJK:g} / {SUB_CPS_LATIN:g} per s; floor {SUB_FLOOR:g} s]")
-    if a.lang in (None, "zh"):
-        rows.append(f"  narration, Chinese (spoken):            about {math.floor(span * 4 + 1e-9)}-{math.floor(span * 5 + 1e-9)} characters"
-                    "  [4-5 per s: video-types/02 and 06; measure with a draft bin/vh tts]")
+    if a.lang in (None, "zh"):   # playbook/04-audio.md, "旁白要导演": rates within a sentence, x 0.85 for the pauses between sentences
+        f = lambda r: math.floor(span * r * PAUSE + 1e-9)
+        rows.append(f"  narration, Chinese (spoken):            knowledge short about {f(4.5)}-{f(5.5)} characters, explainer or paper about {f(3.5)}-{f(4.5)}"
+                    f"  [playbook/04-audio.md: 4.5-5.5 / 3.5-4.5 per s within a sentence, x {PAUSE:g} for the pauses; measure with a draft bin/vh tts]")
     return rows
 
 def main():
@@ -232,8 +355,9 @@ def main():
     ap.add_argument("path", type=Path, nargs="?")
     ap.add_argument("--mode", choices=("onscreen", "subtitle"))
     ap.add_argument("--budget", type=float, metavar="SECONDS", help="how many characters fit in a span of this length")
-    ap.add_argument("--export", nargs="?", const="", metavar="OUT", help="write the composition's timed texts as JSON "
-                    "(default <project>/texts.json) instead of checking them")
+    ap.add_argument("--export", action="store_true", help="write the composition's timed text as JSON (to --out, default "
+                    "<project>/texts.json) instead of checking it")
+    ap.add_argument("--out", type=Path, help="where --export writes (a file, or a folder for texts.json in it)")
     ap.add_argument("--force", action="store_true", help="--export may overwrite an existing file")
     ap.add_argument("--lang", choices=("zh", "en"))
     ap.add_argument("--cjk-cps", type=float, default=4.5)
@@ -244,22 +368,27 @@ def main():
     if a.cjk_cps <= 0 or a.latin_cps <= 0:
         ap.error("--cjk-cps and --latin-cps must be > 0")
     if a.budget is not None:
-        if a.budget <= 0: ap.error("--budget must be > 0 seconds")
+        if not a.budget > 0 or not math.isfinite(a.budget): ap.error("--budget must be > 0 seconds")
         print("\n".join(budget(a.budget, a))); sys.exit(0)
     if a.path is None:
         ap.error("give a texts.json, a project folder or a composition .html (or --budget SECONDS)")
-    if a.export is not None:
+    if a.export:
         html = a.path / "index.html" if a.path.is_dir() else a.path
-        if html.suffix.lower() not in (".html", ".htm") or not html.exists():
+        if html.suffix.lower() not in (".html", ".htm") or not html.is_file():
             print(f"readcheck: NOT EXPORTED — {html} is not a composition .html", file=sys.stderr); sys.exit(2)
-        items = export_html(html)
-        out = Path(a.export) if a.export else html.parent / "texts.json"
+        items, stats = export_html(html)
+        out = a.out or html.parent / "texts.json"
+        if out.is_dir(): out = out / "texts.json"
         if out.exists() and not a.force:
-            print(f"readcheck: {out} exists (maybe edited by hand); pass --force to overwrite, or --export OTHER.json", file=sys.stderr); sys.exit(2)
-        out.write_text("[\n" + ",\n".join("  " + json.dumps(it, ensure_ascii=False) for it in items) + ("\n" if items else "") + "]\n", encoding="utf-8")
-        print(f"readcheck: {len(items)} timed text(s) from {html.name} → {out}")
-        if export_html.untimed:
-            print(f"  {export_html.untimed} text block(s) sit in a clip as long as the whole composition (a script shows them): add them by hand")
+            print(f"readcheck: {out} exists (maybe edited by hand); pass --force to overwrite, or --out OTHER.json", file=sys.stderr); sys.exit(2)
+        try:
+            out.write_text("[\n" + ",\n".join("  " + json.dumps(it, ensure_ascii=False) for it in items) + ("\n" if items else "") + "]\n", encoding="utf-8")
+        except OSError as e:
+            print(f"readcheck: NOT EXPORTED — cannot write {out}: {e.strerror or e}", file=sys.stderr); sys.exit(2)
+        print(f"readcheck: {len(items)} timed text(s) from {html.name} ({stats['source']}) → {out}")
+        note = skipped_note(stats)
+        if note: print(f"  not exported: {note}; add those by hand")
+        if zeroed_note(stats): print(f"  note: {zeroed_note(stats)}")
         print("  a text that fades in is readable later than its clip starts: move its start to that moment, then bin/vh readcheck " + str(out))
         sys.exit(0)
     a.mode = a.mode or "onscreen"
@@ -268,10 +397,10 @@ def main():
         todo = list(pieces(items, a.lang))
     except (OSError, ValueError) as e:
         print(f"readcheck: NOT CHECKED — {e}", file=sys.stderr); sys.exit(2)
+    is_html = path.suffix.lower() in (".html", ".htm")
+    note = skipped_note(LAST_STATS) if is_html else ""
     if not todo:
-        extra = (f" ({export_html.untimed} text block(s) have no timing of their own: a script shows them; list them in texts.json)"
-                 if path.suffix.lower() in (".html", ".htm") and export_html.untimed else "")
-        print(f"readcheck: NOT CHECKED — no text found in {path}{extra}. This is not a pass.", file=sys.stderr); sys.exit(2)
+        print(f"readcheck: NOT CHECKED — no text found in {path}{' (left out: ' + note + ')' if note else ''}. This is not a pass.", file=sys.stderr); sys.exit(2)
 
     bad, lw = 0, min(14, max(8, max(len(t[0]) for t in todo)))
     for label, t0, t1, text in todo:
@@ -288,9 +417,10 @@ def main():
         short = text if len(text) <= 28 else text[:27] + "…"
         print(f"{'OK ' if ok else 'BAD'} {label:<{lw}} {t0:7.2f}–{t1:7.2f}s  {detail}  {json.dumps(short, ensure_ascii=False)}")
     print(f"readcheck ({a.mode}): {len(todo) - bad}/{len(todo)} pass · {path}")
-    if path.suffix.lower() in (".html", ".htm"):
-        print("  spans are the clips' own (data-start/duration): a text that fades in is readable later; "
-              + (f"{export_html.untimed} script-shown block(s) not checked" if export_html.untimed else "all timed text checked"))
+    if is_html:   # never claim everything was checked when something was left out
+        print(f"  spans from {LAST_STATS.get('source', 'the composition')}; a text that fades in is readable later than its clip starts")
+        print(f"  NOT checked: {note}" if note else "  every timed text in the composition was checked")
+        if zeroed_note(LAST_STATS): print(f"  note: {zeroed_note(LAST_STATS)}")
     sys.exit(1 if bad else 0)
 
 if __name__ == "__main__":

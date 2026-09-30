@@ -133,7 +133,7 @@ doctor_downloads() { # what the first runs download on their own and how big it 
     pend="$pend Chrome 0.2 GB,"
   fi
   if command -v uv >/dev/null 2>&1; then
-    if uv run -q --offline --with numpy --with scipy --with librosa --with pillow python -c "" >/dev/null 2>&1; then
+    if uv run -q --no-project --offline --with numpy --with scipy --with librosa --with pillow python -c "" >/dev/null 2>&1; then
       echo "$c_ok Python packages of bin/vh (numpy, scipy, librosa, pillow) are in the uv cache"
     else echo "$c_wa Python packages not cached yet: the first bin/vh beats, qa, music, sheet or storyboard run fetches numpy, scipy, librosa and pillow (about 700 MB) into the uv cache"
       pend="$pend Python packages 0.7 GB,"
@@ -145,7 +145,7 @@ doctor_downloads() { # what the first runs download on their own and how big it 
   if [ "$(uname)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
     echo "- Qwen3-TTS (bin/vh tts's default voice) runs on Apple Silicon only (mlx-audio): use say, edge, gemini … here"
   else
-    command -v uv >/dev/null 2>&1 && ! uv run -q --offline --with mlx-audio python -c "" >/dev/null 2>&1 && voice_pkgs=1
+    command -v uv >/dev/null 2>&1 && ! uv run -q --no-project --offline --with mlx-audio python -c "" >/dev/null 2>&1 && voice_pkgs=1
     if [ -n "$snap" ] && [ -e "$(set -- "$snap"*.safetensors; echo "$1")" ]; then echo "$c_ok Qwen3-TTS model  $model · $(size_of "$snap")"
     else
       echo "$c_wa Qwen3-TTS model not downloaded: the first bin/vh tts with the default provider fetches $model (about 2 GB) from Hugging Face into $(rel "$hub")"
@@ -339,11 +339,11 @@ for l in lines:
 
 cmd_readcheck() { python3 "$ROOT/tools/readcheck.py" "$@"; }
 cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 1; }
-  uv run -q --with pillow python "$ROOT/tools/storyboard.py" "$@"; }
+  uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" "$@"; }
 cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--segment NAME | --from s --to s] [--max s] [--out file.png]"; exit 1; }
-  uv run -q --with pillow python "$ROOT/tools/rhythm.py" "$@"; }
+  uv run -q --no-project --with pillow python "$ROOT/tools/rhythm.py" "$@"; }
 cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image> [more…] [--text-px N] [--out file.png]"; exit 1; }
-  uv run -q --with pillow --with numpy --with scipy python "$ROOT/tools/cover_preview.py" "$@"; }
+  uv run -q --no-project --with pillow --with numpy --with scipy python "$ROOT/tools/cover_preview.py" "$@"; }
 
 swatch_deps() { # the swatch renderer's pinned HyperFrames (render.sh and determinism.sh do not install it themselves)
   [ -x "$ROOT/styles/_swatch/node_modules/.bin/hyperframes" ] || (cd "$ROOT/styles/_swatch" && npm ci --silent)
@@ -361,10 +361,10 @@ for d in sorted(pathlib.Path(sys.argv[1]).iterdir()):
     print(f"  {d.name:22} {j.get('family',''):13} {j.get('name',{}).get('zh',''):14} {has}")
 PY
       ;;
-    gallery) shift; uv run -q --with pillow python "$sw/gallery.py" "$@" ;;
+    gallery) shift; uv run -q --no-project --with pillow python "$sw/gallery.py" "$@" ;;
     check) shift; swatch_deps; "$sw/determinism.sh" "$@" ;;
     compare) shift; [ $# -gt 0 ] || { echo "usage: bin/vh style compare a,b,c [--frame t] [--out file.png]"; exit 1; }
-      uv run -q --with pillow python "$ROOT/tools/style_compare.py" "$@" ;;
+      uv run -q --no-project --with pillow python "$ROOT/tools/style_compare.py" "$@" ;;
     apply) shift; [ $# -eq 2 ] || { echo "usage: bin/vh style apply <preset> <project>   (bin/vh style list shows the presets)"; exit 1; }
       [ -f "$ROOT/styles/$1/STYLE.md" ] && [ "${1#_}" = "$1" ] || { echo "unknown style: $1"; cmd_style list; exit 1; }
       local dir; dir=$(project_dir "$2") || exit 1
@@ -408,7 +408,7 @@ cmd_sheet() {
   base=$(project_of "$v"); [ -n "$base" ] || base="$(cd "$(dirname "$v")" && pwd)"
   local out=${4:-"$base/out/check/${name}-sheet-$(date +%H%M%S).png"}; mkdir -p "$(dirname "$out")"
   if command -v uv >/dev/null 2>&1; then   # timestamped tiles (ffmpeg builds often lack drawtext)
-    uv run -q --with pillow python "$ROOT/tools/sheet.py" "$v" "$out" "$cols" "$fps" && return
+    uv run -q --no-project --with pillow python "$ROOT/tools/sheet.py" "$v" "$out" "$cols" "$fps" && return
     why="tools/sheet.py failed, error above"
   fi
   local dur rows; dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$v"); rows=$(python3 -c "import math;print(max(1,math.ceil($dur*$fps/$cols)))")
@@ -436,20 +436,20 @@ cmd_tts() {
   # everything from the first --flag on goes straight to tts.py (--beats, --snap, --lead, --gap, --min-gap, --align, --join, --min-sim, --vocab, --resume)
   [ "$voice" = "-" ] && voice=""; [ "$lang" = "-" ] && lang=""; [ "$instruct" = "-" ] && instruct=""   # no lang: tts.py picks zh, or en for an English-only script
   case "$prov" in qwen) deps="--with mlx-audio" ;; edge) deps="--with edge-tts" ;; dashscope) deps="--with dashscope" ;; esac
-  uv run -q $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${lang:+--lang "$lang"} ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"} "$@"
+  uv run -q --no-project $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${lang:+--lang "$lang"} ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"} "$@"
 }
 cmd_voices() { [ $# -gt 0 ] || set -- list; python3 "$ROOT/tools/audio/tts.py" voices "$@"; }
 cmd_captions() {
   local proj=${1:?usage: bin/vh captions <project> [zh|en] [zh-max]}
   python3 "$ROOT/tools/audio/captions.py" "$proj" ${2:+--lang "$2"} ${3:+--zh-max "$3"}
 }
-cmd_beats() { uv run -q --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
+cmd_beats() { uv run -q --no-project --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
 cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then
   local a pil=""; for a in "$@"; do [ "$a" = --roll ] && pil="--with pillow"; done
-  uv run -q --with numpy --with scipy $pil python "$ROOT/tools/audio/music.py" "$@"; }
-cmd_sfx() { uv run -q --with numpy --with scipy python "$ROOT/tools/audio/sfx.py" "$@"; }
+  uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/music.py" "$@"; }
+cmd_sfx() { uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/sfx.py" "$@"; }
 cmd_mix() { python3 "$ROOT/tools/audio/mix.py" "$@"; }
-cmd_qa() { uv run -q --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
+cmd_qa() { uv run -q --no-project --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
 cmd_mux() { # output length = video length (audio padded, or trimmed with a 40 ms fade-out); extra .srt args become soft subtitle tracks
   local u="usage: bin/vh mux <video> <audio> <out> [subs.srt…]"
   local v=${1:?$u} a=${2:?$u} out=${3:?$u}; shift 3

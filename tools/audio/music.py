@@ -441,12 +441,13 @@ def render(score, stems=None, info=None, length=None, note_log=None):
     return mix, beatmap
 
 def music_fade_start(L, beats, bars, beat):
-    """Where a fade that ends at L starts: one bar before L (clamped to 1–3 s), moved back to the beat at or before it."""
+    """Where a fade that ends at L starts: on the beat in [L − 3, L − 1] nearest one bar before L (the earlier one on a
+    tie); off the beat, at one bar clamped to 1–3 s, only when no beat falls in that window (under 30 bpm)."""
     bar = next((b for b in reversed(bars) if b[1] < L - 1e-6), None)
     want = min(3.0, max(1.0, (bar[2] if bar else 4) * beat))
-    grid = list(beats) + [beats[-1] + k * beat for k in range(1, 64)] if beats else []
-    on = [b for b in grid if b <= L - want + 1e-6]
-    return max(0.0, on[-1] if on and L - on[-1] <= 3.0 + 1e-6 else L - want)
+    grid = list(beats) + [beats[-1] + k * beat for k in range(1, int(4.0 / beat) + 2)] if beats else []
+    near = [b for b in grid if L - 3.0 - 1e-6 <= b <= L - 1.0 + 1e-6]
+    return max(0.0, min(near, key=lambda b: (abs(L - b - want), b)) if near else L - want)
 
 # ======================= parts: instruments playing patterns (voices in tools/audio/instruments.py) =======================
 import bisect, math

@@ -18,11 +18,12 @@ Writes <project>/out/check/storyboard/: overview.png, NN-<segment>.png (one per 
 --per shots is split into pages), frames/ (the tiles' source frames) and index.json (pages, shots, files: for review
 pages). Deterministic: the same shots and frames give the same PNG bytes. The shots.json schema: bin/vh storyboard -h.
 """
-import argparse, json, math, os, shutil, subprocess, sys, tempfile
+import argparse, json, math, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
 from PIL import Image, ImageDraw
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import vhdraw as V
+import readcheck as RC
 
 VIDEO_CANDIDATES = ["out/animatic.mp4", "out/draft.mp4", "out/final.mp4", "media/final.mp4"]
 
@@ -58,26 +59,60 @@ def grab(video, t, width, dst):
                     "-vf", f"scale={width}:-2", str(dst)], check=True)
     return dst if dst.exists() else None
 
-def snapshot(project, times, dst):
-    """HyperFrames snapshot of the composition at the given times → {index: path}; {} when it cannot run."""
+def snapshot(project, want, dst):
+    """HyperFrames snapshot of the composition: want = [(shot id, file name, t)] → {shot id: path}; {} when it cannot run.
+    HyperFrames names its files frame-NN-at-T.png in --at order, NN padded to two digits (frame-100 sorts before
+    frame-11 as text), so they are matched by the number."""
     hf = project / "node_modules" / ".bin" / "hyperframes"
     if not (project / "hyperframes.json").exists():
         V.warn_once("--snapshot needs a HyperFrames project (hyperframes.json); using the video instead"); return {}
     if not hf.exists():
         V.warn_once("--snapshot: no node_modules/.bin/hyperframes in the project (bin/vh hf-init installs it); using the video instead"); return {}
+    if not want: return {}
     tmp = Path(tempfile.mkdtemp(prefix="vh-snap-"))
     env = {**os.environ, "HYPERFRAMES_SKIP_SKILLS": "1", "DO_NOT_TRACK": "1"}
-    cmd = [str(hf), "snapshot", str(project), "--at", ",".join(f"{t:.3f}" for t in times), "--no-end", "--describe", "false", "-o", str(tmp)]
+    cmd = [str(hf), "snapshot", str(project), "--at", ",".join(f"{t:.3f}" for _, _, t in want), "--no-end", "--describe", "false", "-o", str(tmp)]
     r = subprocess.run(cmd, capture_output=True, text=True, env=env)
-    got = sorted(tmp.glob("frame-*.png"))
-    if r.returncode != 0 or len(got) < len(times):
+    got = {}
+    for f in tmp.glob("frame-*.png"):
+        m = re.match(r"frame-(\d+)-", f.name)
+        if m: got[int(m.group(1))] = f
+    if r.returncode != 0 or len(got) < len(want):
         V.warn_once(f"hyperframes snapshot failed ({(r.stderr or r.stdout).strip().splitlines()[-1:] or ['no output']}); using the video instead")
         shutil.rmtree(tmp, ignore_errors=True); return {}
     dst.mkdir(parents=True, exist_ok=True); res = {}
-    for i, p in enumerate(got[:len(times)]):   # frame-NN-at-T.png, NN in --at order
-        q = dst / f"snap-{i:03d}.png"; shutil.move(str(p), q); res[i] = q
+    for i, (sid, name, _) in enumerate(want):
+        q = dst / name; shutil.move(str(got[i]), q); res[sid] = q
     shutil.rmtree(tmp, ignore_errors=True)
     return res
+
+def safe_names(shots):
+    """{shot id: file name for its frame}: the id with anything odd replaced, made unique."""
+    out, used = {}, set()
+    for s in shots:
+        base = re.sub(r"[^\w.-]+", "_", s["id"]).strip("._") or "shot"
+        name, k = base, 1
+        while name.lower() in used: k += 1; name = f"{base}-{k}"
+        used.add(name.lower()); out[s["id"]] = name + ".png"
+    return out
+
+def fit(im, w, h, bg=(26, 26, 30)):
+    """im in a w×h box: resized when the shapes match, else letterboxed (a portrait frame is never stretched)."""
+    iw, ih = im.size
+    if abs(iw / ih - w / h) <= 0.02 * (w / h):
+        return im.resize((w, h), Image.LANCZOS) if im.size != (w, h) else im
+    k = min(w / iw, h / ih); nw, nh = max(1, round(iw * k)), max(1, round(ih * k))
+    box = Image.new("RGB", (w, h), bg); box.paste(im.resize((nw, nh), Image.LANCZOS), ((w - nw) // 2, (h - nh) // 2))
+    return box
+
+def pages_of(ss, per):
+    """A segment's shots over as few pages as --per allows, as evenly as possible: 26 at 6 a page → 5 5 5 5 6."""
+    k = max(1, math.ceil(len(ss) / per)); base, extra = divmod(len(ss), k)
+    sizes = [base] * (k - extra) + [base + 1] * extra
+    out, i = [], 0
+    for n in sizes:
+        out.append(ss[i:i + n]); i += n
+    return out
 
 def slug(s, i):
     keep = "".join(c if (c.isalnum() or V.is_cjk(c)) else "-" for c in s).strip("-")
@@ -87,8 +122,9 @@ def fmt(t):
     return f"{t:.1f}"
 
 class Sheet:
-    def __init__(self, a, project, shots, frames, aspect, limit, limit_src, lang, source_note):
+    def __init__(self, a, project, shots, frames, notes, aspect, limit, limit_src, lang, source_note):
         self.a, self.project, self.shots, self.frames, self.limit, self.limit_src = a, project, shots, frames, limit, limit_src
+        self.notes = notes   # shot id → why its tile is grey
         self.L, self.lang, self.source_note = V.LABELS[lang], lang, source_note
         self.ar = aspect
         if aspect >= 1.2: self.tw, self.cols = 600, 3
@@ -97,16 +133,23 @@ class Sheet:
         self.th = int(round(self.tw / aspect))
 
     def tile(self, s, w, h):
-        f = self.frames.get(s["id"])
-        if f:
-            im = Image.open(f).convert("RGB")
-            return im.resize((w, h), Image.LANCZOS) if im.size != (w, h) else im
+        f, note = self.frames.get(s["id"]), self.notes.get(s["id"])
+        if f and not note:
+            try:
+                with Image.open(f) as im:
+                    return fit(im.convert("RGB"), w, h)
+            except (OSError, ValueError, SyntaxError):
+                note = self.notes[s["id"]] = ("不是图片：" if self.lang == "zh" else "not an image: ") + V.shown(f, self.project)
+                V.warn_once(f"{s['id']}: {V.shown(f, self.project)} is not an image; its tile stays grey")
         im = Image.new("RGB", (w, h), (214, 211, 203)); d = ImageDraw.Draw(im)
-        V.text(d, (w // 2, h // 2), self.L["no_frame"], V.font(max(14, w // 18)), V.MUTED, "mm")
+        f_ = V.font(max(13, w // 22))
+        lines = V.wrap(d, note or self.L["no_frame"], f_, w - 20, 3)
+        for j, line in enumerate(lines):
+            V.text(d, (w // 2, h // 2 + (j - (len(lines) - 1) / 2) * f_.size * 1.3), line, f_, V.MUTED, "mm")
         return im
 
     def long(self, s):
-        return self.limit is not None and s["dur"] > self.limit + 1e-6
+        return self.limit is not None and s["dd"] > self.limit + 1e-6
 
     def strip(self, d, x0, y0, w, h, shots, t0, t1, colors):
         """Proportional bar of the shots' lengths: long ones red, unsure ones outlined red with a ?."""
@@ -118,10 +161,10 @@ class Sheet:
             if s["unsure"] is not None:
                 d.rectangle([a + 1, y0, b - 1, y0 + h], outline=V.RED, width=3)
             sid = s["id"] + (" ?" if s["unsure"] is not None else "")
-            lab = f"{sid}  {s['dur']:.1f}s"
+            lab = f"{sid}  {s['dd']:.1f}s"
             if V.tw(d, lab, fs) + 10 < b - a:
                 V.text(d, (a + 6, y0 + h / 2), sid, fs, (255, 255, 255), "lm")
-                V.text(d, (b - 6, y0 + h / 2), f"{s['dur']:.1f}s", fsm, (255, 255, 255), "rm")
+                V.text(d, (b - 6, y0 + h / 2), f"{s['dd']:.1f}s", fsm, (255, 255, 255), "rm")
             elif V.tw(d, s["id"], fsm) + 6 < b - a:
                 V.text(d, ((a + b) / 2, y0 + h / 2), s["id"], fsm, (255, 255, 255), "mm")
 
@@ -142,7 +185,7 @@ class Sheet:
         img = Image.new("RGB", (W, H), V.BG); d = ImageDraw.Draw(img)
         t0, t1 = shots[0]["start"], shots[-1]["end"]
         seg = name or (f"{L['shots']} {shots[0]['id']}–{shots[-1]['id']}")
-        V.text(d, (pad, 30), f"{seg}{part}   {fmt(t0)}–{fmt(t1)} s", V.font(40, bold=True), colors[name])
+        V.text(d, (pad, 30), f"{seg}{part}   {shots[0]['ds']}–{shots[-1]['de']} s", V.font(40, bold=True), colors[name])
         avg = sum(s["dur"] for s in shots) / len(shots)
         sub = f"{L['shot_1'] if len(shots) == 1 else L['shot_n'].format(n=len(shots))} · {L['avg']} {avg:.1f} s · {k}/{n}"
         if self.limit is not None:
@@ -159,16 +202,16 @@ class Sheet:
             else:
                 d.rectangle([x - 1, yy - 1, x + tw, yy + th], outline=V.RULE, width=1)
             ly = yy + th + 12
-            head_s = f"{s['id']}   {fmt(s['start'])}–{fmt(s['end'])} s"
-            dur_s = f"({s['dur']:.1f} s)"
+            head_s = f"{s['id']}   {s['ds']}–{s['de']} s"
+            dur_s = f"({s['dd']:.1f} s)"
             if V.tw(d, head_s, f_id) + 12 + V.tw(d, dur_s, f_dur) <= tw:   # one line when it fits, else id + duration, then the times
                 V.text(d, (x, ly), head_s, f_id, V.INK)
                 V.text(d, (x + V.tw(d, head_s, f_id) + 12, ly + 3), dur_s, f_dur, V.RED if self.long(s) else V.MUTED)
                 ly += 42
             else:
                 V.text(d, (x, ly), s["id"], f_id, V.INK)
-                V.text(d, (x + tw, ly + 3), f"{s['dur']:.1f} s", f_dur, V.RED if self.long(s) else V.MUTED, "ra")
-                V.text(d, (x, ly + 40), f"{fmt(s['start'])}–{fmt(s['end'])} s", V.font(22), V.MUTED)
+                V.text(d, (x + tw, ly + 3), f"{s['dd']:.1f} s", f_dur, V.RED if self.long(s) else V.MUTED, "ra")
+                V.text(d, (x, ly + 40), f"{s['ds']}–{s['de']} s", V.font(22), V.MUTED)
                 ly += 74
             reads = " / ".join(([s["label"]] if s["label"] else []) + s["reads"])
             nl = 2 if self.ar >= 0.8 else 3
@@ -207,7 +250,8 @@ class Sheet:
         T0, T1 = self.shots[0]["start"], self.shots[-1]["end"]
         V.text(d, (pad, 28), f"{L['overview']}   {fmt(T0)}–{fmt(T1)} s", V.font(38, bold=True), V.INK)
         nun = sum(s["unsure"] is not None for s in self.shots); nlong = sum(self.long(s) for s in self.shots)
-        sub = f"{L['shot_n'].format(n=len(self.shots))} · {len(runs)} " + ("段" if self.lang == "zh" else ("segment" if len(runs) == 1 else "segments"))
+        sub = (f"{L['shot_1'] if len(self.shots) == 1 else L['shot_n'].format(n=len(self.shots))} · {len(runs)} "
+               + ("段" if self.lang == "zh" else ("segment" if len(runs) == 1 else "segments")))
         if nun: sub += f" · {nun} " + ("镜没把握" if self.lang == "zh" else "unsure")
         if self.limit is not None: sub += f" · {nlong} " + (f"镜超过 {self.limit:g} s" if self.lang == "zh" else f"over {self.limit:g} s")
         V.text(d, (pad, 76), sub, V.font(22), V.MUTED)
@@ -242,7 +286,7 @@ class Sheet:
                 if s["unsure"] is not None:
                     d.rectangle([x - 3, y - 3, x + ow + 2, y + oh + 2], outline=V.RED, width=4)
                 V.text(d, (x, y + oh + 5), s["id"], fcap, V.INK)
-                V.text(d, (x + ow, y + oh + 6), f"{s['dur']:.1f}s", fdur, V.RED if self.long(s) else V.MUTED, "ra")
+                V.text(d, (x + ow, y + oh + 6), f"{s['dd']:.1f}s", fdur, V.RED if self.long(s) else V.MUTED, "ra")
             y += oh + cap_h + gap
         V.text(d, (pad, H - 40), V.fit(d, self.legend(), V.font(18), W - 2 * pad), V.font(18), V.MUTED)
         return img
@@ -282,32 +326,45 @@ def main():
             if (out / pg["file"]).is_file(): (out / pg["file"]).unlink()
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         pass
-    frames, need = {}, []
+    names = safe_names(shots)
+    frames, notes, need = {}, {}, []
     for s in shots:
         if s["frame"]:
             p = project / s["frame"]
-            if p.exists(): frames[s["id"]] = p; continue
+            if p.is_file(): frames[s["id"]] = p; continue
             V.warn_once(f"{s['id']}: frame {s['frame']} not found; taking one from the video")
         t = float(s["at"]) if s["at"] is not None else s["start"] + a.at_frac * s["dur"]
         need.append((s, t))
-    source = []
+    source, used_video = [], None
     aspect = None
+    past = lambda where, dur, ids: V.warn_once(f"{V.plural(len(ids), 'shot')} past the end of {where} ({dur:.1f} s), left grey: {', '.join(ids)}")
     if need and a.snapshot:
-        got = snapshot(project, [t for _, t in need], fdir)
-        for i, (s, t) in enumerate(need):
-            if i in got: frames[s["id"]] = got[i]
+        comp_dur = RC.composition_duration(project / "index.html") if (project / "index.html").is_file() else None
+        late = [s["id"] for s, t in need if comp_dur is not None and t > comp_dur + 1e-6]
+        got = snapshot(project, [(s["id"], names[s["id"]], t) for s, t in need if s["id"] not in late], fdir)
         if got:
-            need = []; source.append("hyperframes snapshot")
+            frames.update(got); source.append("hyperframes snapshot")
+            for sid in late: notes[sid] = (f"在 index.html 的结尾（{comp_dur:.1f} s）之后" if lang_hint(shots) == "zh"
+                                           else f"past the end of index.html ({comp_dur:.1f} s)")
+            if late: past("index.html", comp_dur, late)
+            need = []
     if need:
         video = pick_video(project, meta, a.video)
         if video:
             w, h, dur, last = probe(video)
             if w and h: aspect = w / h
             tw = 640 if (aspect or 1.78) >= 1.2 else (440 if (aspect or 1) >= 0.8 else 320)
+            late = []
             for s, t in need:
-                tt = min(max(0.0, t), last)
-                p = grab(video, tt, tw, fdir / f"{s['id']}.png")
+                if dur and t > dur + 1e-6:   # never a clamped last frame standing in for a shot the video does not reach
+                    late.append(s["id"])
+                    notes[s["id"]] = (f"在 {V.shown(video, project)} 的结尾（{dur:.1f} s）之后" if lang_hint(shots) == "zh"
+                                      else f"past the end of {V.shown(video, project)} ({dur:.1f} s)")
+                    continue
+                p = grab(video, min(max(0.0, t), last), tw, fdir / names[s["id"]])
                 if p: frames[s["id"]] = p
+            if late: past(V.shown(video, project), dur, late)
+            used_video = video
             pct = f"{int(round(a.at_frac * 100))} %"
             source.append(f"{V.shown(video, project)} @ {pct}" if not any(s['at'] is not None for s, _ in need) else V.shown(video, project))
         else:
@@ -316,28 +373,30 @@ def main():
     if any(s["frame"] and s["id"] in frames and Path(frames[s["id"]]).parent != fdir for s in shots):
         source.append("shots.json frame")
     if aspect is None:
-        first = next((frames[s["id"]] for s in shots if s["id"] in frames), None)
-        if first:
-            w, h = Image.open(first).size; aspect = w / h
+        for s in shots:
+            if s["id"] in frames and s["id"] not in notes:
+                try:
+                    with Image.open(frames[s["id"]]) as im: aspect = im.size[0] / im.size[1]
+                    break
+                except (OSError, ValueError, SyntaxError):
+                    continue
     aspect = aspect or 16 / 9
     limit, limit_src = V.payoff_limit(project, a.max)
     lang = V.lang_for([s["segment"] for s in shots] + [r for s in shots for r in s["reads"]], a.lang)
-    V.check_cjk_font([s["segment"] for s in shots] + [r for s in shots for r in s["reads"]])
+    V.check_glyphs([s["segment"] for s in shots] + [r for s in shots for r in s["reads"]] + [s["label"] for s in shots]
+                   + [s["unsure"] or "" for s in shots] + [s["id"] for s in shots])
     runs = V.segments_of(shots)
     colors = {}
     for i, (name, _) in enumerate(runs):
         colors.setdefault(name, V.seg_color(len(colors)))
-    sheet = Sheet(a, project, shots, frames, aspect, limit, limit_src, lang, " + ".join(source) or ("—" if lang == "en" else "无"))
+    sheet = Sheet(a, project, shots, frames, notes, aspect, limit, limit_src, lang, " + ".join(source) or ("—" if lang == "en" else "无"))
     pages = []
     for name, ss in runs:
-        chunks = [ss[i:i + a.per] for i in range(0, len(ss), a.per)]
-        if len(chunks) > 1 and len(chunks[-1]) < 3:   # keep 3–6 per page: rebalance a short tail
-            flat = ss; k = len(chunks); size = math.ceil(len(flat) / k)
-            chunks = [flat[i:i + size] for i in range(0, len(flat), size)]
+        chunks = pages_of(ss, a.per)
         for j, ch in enumerate(chunks):
             pages.append((name, ch, f" ({j + 1}/{len(chunks)})" if len(chunks) > 1 else ""))
-    index = {"project": V.shown(project), "shots": V.shown(sp), "limit_s": limit, "overview": "overview.png", "pages": []}
-    written = []
+    index = {"project": project.name, "shots": V.relpath(sp, project), "limit_s": limit, "overview": "overview.png", "pages": []}
+    written, segs = [], []
     for k, (name, ch, part) in enumerate(pages, 1):
         img = sheet.page(name, ch, k, len(pages), colors, part)
         fn = f"{slug(name, k)}.png"
@@ -345,18 +404,55 @@ def main():
         index["pages"].append({"file": fn, "segment": name, "start": ch[0]["start"], "end": ch[-1]["end"],
                                "shots": [s["id"] for s in ch], "unsure": [s["id"] for s in ch if s["unsure"] is not None],
                                "long": [s["id"] for s in ch if sheet.long(s)]})
+        segs.append((fn[:-4], name + part, ch))
     ov = V.save(sheet.overview(runs, colors), out / "overview.png")
     (out / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    review = review_pack(project, out, shots, segs, frames, notes, sheet, lang, used_video, limit, limit_src)
+    (out / "review.json").write_text(json.dumps(review, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     nun = sum(s["unsure"] is not None for s in shots)
-    print(f"storyboard: {len(shots)} shots · {len(runs)} segments · {len(pages)} pages · frames from {', '.join(source) or 'nowhere (grey tiles)'}")
-    print(f"  {V.shown(ov)}")
+    print(f"storyboard: {V.plural(len(shots), 'shot')} · {V.plural(len(runs), 'segment')} · {V.plural(len(pages), 'page')} · "
+          f"frames from {', '.join(source) or 'nowhere (grey tiles)'}")
+    print(f"  {V.shown(ov)}   (+ index.json, and review.json for bin/vh review: \"include\": \"{V.relpath(out / 'review.json', project)}\")")
     for p, (name, ch, part) in zip(written, pages):
         flags = [s["id"] + ("?" if s["unsure"] is not None else "") + ("!" if sheet.long(s) else "") for s in ch if s["unsure"] is not None or sheet.long(s)]
-        print(f"  {V.shown(p)}  {len(ch)} shot{'s' if len(ch) > 1 else ''}" + (f"  (? unsure, ! over {limit:g} s: {' '.join(flags)})" if flags else ""))
+        print(f"  {V.shown(p)}  {V.plural(len(ch), 'shot')}" + (f"  (? unsure, ! over {limit:g} s: {' '.join(flags)})" if flags else ""))
     if limit is None:
         print(f"  note: {limit_src}")
     if nun == 0:
         print("  note: no shot is marked unsure; add \"unsure\": \"why\" to the least sure ones in shots.json (or --unsure S02,S04)")
+
+def lang_hint(shots):
+    return V.lang_for([s["segment"] for s in shots] + [r for s in shots for r in s["reads"]])
+
+def review_pack(project, out, shots, segs, frames, notes, sheet, lang, video, limit, limit_src):
+    """out/check/storyboard/review.json in tools/review.py's shape, for a gate JSON to "include": one segment per page
+    (id = the page's file stem), the shots with their frames, reads and the narration they sit under, the least-sure
+    shots, the pages as assets and the video as the animatic. Too-long shots and grey tiles go into the segment's
+    note: a shot's own note is what review.py shows as a planned change."""
+    zh = lang == "zh"
+    narr, _ = V.narration(project, lang if lang in ("zh", "en") else None)
+    def vo(s):   # the narration lines this shot sits under (at least 0.3 s of overlap, or the whole shot)
+        return " ".join(n["text"] for n in narr if min(n["end"], s["end"]) - max(n["start"], s["start"]) >= min(0.3, s["dur"] - 1e-6) and n["text"])
+    rsegs, assets = [], [{"path": V.relpath(out / "overview.png", project), "caption": "分镜总览：全部镜头" if zh else "Storyboard overview: every shot"}]
+    for sid, title, ch in segs:
+        bits = []
+        longs = [s for s in ch if sheet.long(s)]
+        if longs:
+            what = "、".join(f"{s['id']} {s['dd']:.1f} s" for s in longs) if zh else ", ".join(f"{s['id']} {s['dd']:.1f} s" for s in longs)
+            bits.append((f"{what} 超过 {limit:g} s（{limit_src}）" if zh else f"{what} over {limit:g} s ({limit_src})"))
+        greys = [s for s in ch if s["id"] in notes]
+        if greys:
+            bits.append(("；".join(f"{s['id']}：{notes[s['id']]}" for s in greys)) if zh else "; ".join(f"{s['id']}: {notes[s['id']]}" for s in greys))
+        rsegs.append({"id": sid, "title": title, "t0": round(ch[0]["start"], 3), "t1": round(ch[-1]["end"], 3),
+                      "note": ("；" if zh else "; ").join(bits),
+                      "shots": [{"id": s["id"], "t0": round(s["start"], 3), "t1": round(s["end"], 3),
+                                 "frame": V.relpath(frames[s["id"]], project) if s["id"] in frames and s["id"] not in notes else "",
+                                 "see": " / ".join(([s["label"]] if s["label"] else []) + s["reads"]), "vo": vo(s), "note": ""} for s in ch]})
+        assets.append({"path": V.relpath(out / f"{sid}.png", project), "caption": title, "for": sid})
+    pack = {"lang": "zh" if zh else "en", "segments": rsegs, "assets": assets,
+            "least_sure": [{"id": s["id"], "note": s["unsure"]} for s in shots if s["unsure"] is not None]}
+    if video: pack["animatic"] = V.relpath(video, project)
+    return pack
 
 if __name__ == "__main__":
     main()

@@ -52,7 +52,7 @@ def chord_name(ch, names):
     """A music.Chord (pc, intervals) → 'Bm', 'G7', 'F#°' …"""
     iv = set(ch.iv)
     if 3 in iv and 6 in iv and 7 not in iv:   # diminished: ° / °7 / ø7 (half-diminished)
-        return names[ch.pc] + ("ø7" if 10 in iv else "°7" if 9 in iv else "°")
+        return names[ch.pc] + ("m7b5" if 10 in iv else "°7" if 9 in iv else "°")   # not ø: CJK fonts often lack it
     if 4 in iv and 8 in iv and 7 not in iv:
         return names[ch.pc] + "+"
     q = "m" if 3 in iv else ("sus4" if 5 in iv and 4 not in iv else "sus2" if 2 in iv and 4 not in iv else "5" if 4 not in iv else "")
@@ -150,7 +150,7 @@ def overview(score, score_path, mix, beatmap, stems, notes, gain, chords, names,
         ly0, ly1 = y, y + lane_h
         d.rectangle([ax.x0, ly0, ax.x1, ly1], outline=V.RULE)
         V.text(d, (pad, ly0 + 22), V.fit(d, label, V.font(20, bold=True), lab - 12), V.font(20, bold=True), col, "lm")
-        ev = [e for e in n["events"] if e[2]]
+        ev = [e for e in n["events"] if e[2] and e[0] < T1]   # a --length cut ends the picture too
         if ev:
             lo = min(min(e[2]) for e in ev); hi = max(max(e[2]) for e in ev)
             rng = f"{note_name(lo, names)}–{note_name(hi, names)}" if hi > lo else note_name(lo, names)
@@ -159,11 +159,12 @@ def overview(score, score_path, mix, beatmap, stems, notes, gain, chords, names,
             for t, dur, ps, vel, _ in ev:
                 for m in ps:
                     yy = ly1 - 6 - (m - lo2) / (hi2 - lo2) * (lane_h - 12)
-                    xa, xb = ax.x(t), max(ax.x(t) + 2, ax.x(t + dur))
+                    xa, xb = ax.x(t), max(ax.x(t) + 2, ax.x(min(t + dur, T1)))
                     d.rectangle([xa, yy - 2, xb, yy + 2], fill=V.mix(col, (255, 255, 255), 0.65 - 0.55 * min(1.0, vel)))
         else:
             V.text(d, (pad, ly0 + 50), f"{n['inst']} · {'texture' if n['kind'] == 'texture' else 'hits'}", V.font(16), V.MUTED, "lm")
             for t, dur, ps, vel, _ in n["events"]:   # drums: a tick per hit, taller = harder
+                if t >= T1: continue
                 x = ax.x(t); h = 8 + 30 * min(1.0, vel)
                 d.line([(x, ly1 - 6), (x, ly1 - 6 - h)], fill=V.mix(col, (255, 255, 255), 0.3), width=1)
         curve(d, ax, stems.get(label), gain, ly0 + 4, ly1 - 4, (70, 70, 78), 2, k=8)   # 0.4 s: the swell, not each note
@@ -186,7 +187,7 @@ def overview(score, score_path, mix, beatmap, stems, notes, gain, chords, names,
     if beatmap.get("fade"):
         xa = ax.x(beatmap["fade"]["start"]); d.polygon([(xa, my0), (ax.x(beatmap["fade"]["end"]), my1), (ax.x(beatmap["fade"]["end"]), my0)], outline=V.MUTED)
     # time axis
-    step = next(s for s in (1, 2, 5, 10, 15, 30, 60) if T1 / s <= 20)
+    step = next((s for s in (1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600) if T1 / s <= 20), 3600 * math.ceil(T1 / 20 / 3600))
     t = 0.0
     while t <= T1 + 1e-9:
         x = ax.x(t); V.text(d, (x, my1 + 10), f"{t:g}", V.font(16), V.MUTED, "ma"); t += step
@@ -200,7 +201,10 @@ def cx_beat(score):
 def part_page(score, label, n, env, gain, chords, names, idx, path):
     beat = cx_beat(score); col = PART[idx % len(PART)]
     per = 8
-    mine = [B for B, _ in chords if B.sec in n["sections"]] or [B for B, _ in chords]
+    ev_all = n["events"]
+    bar_end = lambda B: B.tb + B.nb * beat
+    sounding = {B.i for B, _ in chords for e in ev_all if e[0] < bar_end(B) - 1e-6 and e[0] + e[1] > B.tb + 1e-6}
+    mine = [B for B, _ in chords if B.sec in n["sections"] or B.i in sounding] or [B for B, _ in chords]   # pickups too
     runs = []   # consecutive bars it plays in; each run starts a new row, 8 bars a row
     for B in mine:
         if runs and runs[-1][-1].i == B.i - 1: runs[-1].append(B)
@@ -251,8 +255,8 @@ def part_page(score, label, n, env, gain, chords, names, idx, path):
             for q in range(1, B.nb):
                 xq = ax.x(B.tb + q * beat); d.line([(xq, ry0), (xq, ry1)], fill=V.FAINT, width=1)
         for t, dur, ps, vel, _ in ev:
-            if not t0 - 1e-6 <= t < t1 - 1e-6: continue
-            xa, xb = ax.x(t), max(ax.x(t) + 3, ax.x(min(t + dur, t1)) - 1)
+            if not (t < t1 - 1e-6 and t + dur > t0 + 1e-6): continue   # every note sounding in the row, a pickup's tail too
+            xa = ax.x(max(t, t0)); xb = max(xa + 3, ax.x(min(t + dur, t1)) - 1)
             shade = V.mix(col, (255, 255, 255), 0.7 - 0.6 * min(1.0, vel))
             if pitched and ps:
                 for m in ps:
