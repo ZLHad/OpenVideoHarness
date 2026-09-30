@@ -37,7 +37,7 @@ while [ $# -gt 0 ]; do
     --draft) draft=1 ;; --hud) hud=true ;; --png) png=1 ;; --stage-only) stage_only=1 ;;
     --workers) workers=${2:?}; shift ;; --workers=*) workers=${1#*=} ;;
     --timeout) timeout=${2:?}; shift ;; --timeout=*) timeout=${1#*=} ;;
-    -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"; exit 0 ;;
     -*) die "unknown option $1" ;;
     *) [ -z "$slug" ] && slug=$1 || die "one slug at a time" ;;
   esac; shift
@@ -96,7 +96,7 @@ open(p, "w").write(s[:m.start(1)] + json.dumps(v, ensure_ascii=False, separators
 PY
 if [ $stage_only = 1 ]; then
   echo "$ok stage ready: ${STAGE#$ROOT/}"
-  echo "   snapshot: HYPERFRAMES_SKIP_SKILLS=1 $HF snapshot ${STAGE#$ROOT/} --at 0.4,1.7,3.0,4.6 --output ${OUT#$ROOT/}/snapshots"
+  echo "   snapshot: HYPERFRAMES_SKIP_SKILLS=1 $HF snapshot ${STAGE#$ROOT/} --no-browser-gpu --at 0.4,1.7,3.0,4.6 --output ${OUT#$ROOT/}/snapshots"
   echo "   preview : HYPERFRAMES_SKIP_SKILLS=1 $HF preview ${STAGE#$ROOT/}"
   echo "   (fonts: judge them on render.sh output, not snapshots)"
   exit 0

@@ -5,7 +5,7 @@
 #
 # Renders the lossless PNG sequence twice: once with 1 worker (frames in order) and once with <workers_b>
 # workers, where every chunk after the first starts cold in a fresh Chrome (frames rendered out of order, no
-# history). Then compares all 150 frames. PASS = every frame identical, or every differing frame ≥ 45 dB PSNR.
+# history). Then compares all 150 frames. PASS = every frame pixel-identical (render.sh renders on the CPU, so it must be).
 # render.sh renders on the CPU (--no-browser-gpu), so the frames should be byte-identical: a pass with differing
 # frames means Chrome got a GPU path again (check the `gl=` line in out/<slug>/render.log).
 set -euo pipefail
@@ -37,7 +37,6 @@ echo "frames: $total · pixel-identical: $same · differing: $diff$([ $diff -gt 
   || { echo "✗ FAIL: compared $total frames, but ${A#$SW/} has $na PNGs and ${B#$SW/} has $nb"; exit 1; }
 # PNG sequences are big (demo: ~560 MB for both runs); they are kept only when the check fails
 if [ $diff = 0 ]; then echo "✓ PASS: identical across 1 and $wb workers"; rm -rf "$A" "$B"; exit 0; fi
-python3 -c "import sys; sys.exit(0 if float('$worst') >= 45 else 1)" \
-  && { echo "✓ PASS: worst frame ≥ 45 dB (not byte-identical, though: render.sh renders on the CPU, so check gl= in ${OUT#$SW/}/render.log)"; rm -rf "$A" "$B"; exit 0; }
-echo "✗ FAIL: a frame depends on render order (hidden state, Math.random, unloaded font, time-based cache)"
+echo "✗ FAIL: $diff frame(s) differ (worst ${worst} dB): a frame depends on render order (hidden state, Math.random,"
+echo "  unloaded font, time-based cache) or on the GPU. render.sh renders on the CPU: the gl= line in ${OUT#$SW/}/render.log should say swiftshader."
 echo "  frames kept for inspection: ${A#$SW/} and ${B#$SW/}"; exit 1
