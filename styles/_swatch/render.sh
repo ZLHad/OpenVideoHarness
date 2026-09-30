@@ -224,16 +224,18 @@ done
 [ "$sz" -le $MP4_LIMIT ] || die "swatch.mp4 is still $sz bytes at CRF $crf: reduce full-frame grain/noise"
 # The AAC encode raises the true peak by an amount that depends on the content (+0.2–0.9 dB at 128k on the swatches), so
 # the encode is measured (the same 4× BS.1770 meter as the mix) and, while it peaks over −1.5 dBTP, the mix is made again
-# with its ceiling lowered by the overshoot + 0.1 dB and encoded again at the same CRF (at most 3 times; the same bytes
-# every run).
+# with its ceiling set below the mix's own true peak (from stems/meta.json; a mix that never reached the limiter would
+# not change if only the old ceiling were lowered) by the overshoot + 0.1 dB, and encoded again at the same CRF. At most
+# 3 times, then it fails; the same bytes every run.
 if [ -n "$AUDIO" ]; then
   k=0
   while :; do
     etp=$(uv run -q --with numpy --with scipy python -c "import sys; sys.path.insert(0, sys.argv[1]); import mix; print(f'{mix.true_peak(mix.load(sys.argv[2])):.2f}')" \
           "$ROOT/tools/audio" "$TMP")
     python3 -c "import sys; sys.exit(0 if float(sys.argv[1]) <= -1.5 else 1)" "$etp" && break
-    if [ $k -eq 3 ]; then echo "$wa the AAC encode still peaks at $etp dBTP after 3 new mixes (tp=$TP): over −1.5"; break; fi
-    k=$((k + 1)); TP=$(python3 -c "import sys; print(f'{float(sys.argv[1]) - (float(sys.argv[2]) + 1.5) - 0.1:.2f}')" "$TP" "$etp")
+    [ $k -lt 3 ] || die "the AAC encode still peaks at $etp dBTP after 3 new mixes (mix tp=$TP): over −1.5 dBTP"
+    k=$((k + 1)); TP=$(python3 -c "import json, sys; m = json.load(open(sys.argv[3])).get('tp', float(sys.argv[1]))
+print(f'{min(float(sys.argv[1]), m) - (float(sys.argv[2]) + 1.5) - 0.1:.2f}')" "$TP" "$etp" "$OUT/stems/meta.json")
     echo "   the AAC encode peaks at $etp dBTP: the mix again with tp=$TP"
     mix_audio "$TP"; encode $crf; sz=$(fsize "$TMP")
   done
@@ -250,7 +252,7 @@ qa_gate() { # $1 = file, $2 = report
     echo "$ok audio qa passed on ${1#$ROOT/}: $(tail -1 "$2.log" | sed 's/ · full report.*//')"
   else   # what failed: OFF cues, hard misses, the scan's counts and runs (or the tail, when qa itself broke)
     { grep -E ' OFF |^FAIL|^✗|^\[[1-3]\]|^ +[0-9.]+- +[0-9.]+ s' "$2.log" || tail -5 "$2.log"; } | head -14 | sed 's/^/   /' || true
-    die "audio qa failed on ${1#$ROOT/} — see ${2#$ROOT/}.log (typical fixes: a pad/sub bed under sparse bars, no hats-only sections; a cue lost under the score: keep=<t> or a role; a cue not heard: raise its gain_db)"
+    die "audio qa failed on ${1#$ROOT/} — see ${2#$ROOT/}.log (typical fixes: a pad/sub bed under sparse bars, no hats-only sections; a cue lost under the score or not heard: raise its gain_db in FOLEY, or give it a role)"
   fi
 }
 if [ -n "$AUDIO" ]; then
@@ -259,9 +261,9 @@ if [ -n "$AUDIO" ]; then
   QA_ARGS+=(--fps "$FPS" --from 0.3 --to "$(python3 -c "print($DUR-0.5)")" --stems "$OUT/stems")
   qa_gate "$AUDIO" "$OUT/qa.txt"
 fi
+[ -z "$AUDIO" ] || qa_gate "$TMP" "$OUT/qa_mp4.txt"
 mv "$TMP" "$MP4"
 echo "$ok ${MP4#$ROOT/}  $(python3 -c "print(f'{$sz/1e6:.2f} MB')")  (crf $crf$([ -f "$SRC/score.json" ] && [ $builtin = 0 ] && echo ', +music')$([ -f "$SRC/events.json" ] && [ $builtin = 0 ] && echo ', +foley')$([ -n "$AUDIO" ] && echo ", mix tp $TP dBTP, encode $etp dBTP")$([ -z "$AUDIO" ] && echo ', silent'))"
-[ -z "$AUDIO" ] || qa_gate "$MP4" "$OUT/qa_mp4.txt"
 
 # ── poster.jpg: frame 90 (t = 3.0 s) from the 1080p render, 1280×720, ≤ 200 KB
 JPG="$MEDIA/poster.jpg"
