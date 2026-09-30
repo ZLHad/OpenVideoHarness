@@ -7,7 +7,8 @@
 #   <slug>        a folder styles/<slug>/ with swatch.js + tokens.json, or a built-in: demo | catalog | fontprobe,
 #                 or a path containing "/" to a scene folder anywhere (slug = its basename; media/ goes inside it)
 #   --draft       HyperFrames --quality draft (faster, softer); outputs go to out/<slug>/media, never over styles/<slug>/media
-#   --workers N   parallel Chrome workers (default 2; 1 when another `hyperframes render` is already running)
+#   --workers N   parallel Chrome workers (default 2; 1 when another `hyperframes render` is already running);
+#                 the count only changes the speed, the frames are byte-identical
 #   --hud         burn a t / frame readout into the corner (for checking only; never ship it)
 #   --png         ONLY render a lossless PNG sequence to styles/_swatch/out/<slug>/png-w<N>/ (see determinism.sh)
 #   --stage-only  build the stage (see README) and print how to snapshot / preview it; no render
@@ -15,6 +16,10 @@
 #                 silent for SWATCH_STALL seconds (default 120) is treated as hung and killed too
 #
 # Built-in scenes (demo, catalog, fontprobe) write to styles/_swatch/out/<slug>/media/ instead of styles/<slug>/media/.
+# HyperFrames runs with --no-browser-gpu (SwiftShader WebGL, 2D canvas and compositing on the CPU), its deterministic
+# mode: on the GPU, Chrome rasterised text edges differently from process to process (a few dozen pixels, one level),
+# x264 turned that into a different mp4 and poster on every run, and 1- and 2-worker renders took different capture
+# paths. Frames are now the same bytes at any worker count and on every run (README.md, "确定性").
 # Needs: node ≥ 22, ffmpeg/ffprobe, uv (contact sheet + music). Run `npm ci` in styles/_swatch once.
 set -euo pipefail
 SW="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -32,7 +37,7 @@ while [ $# -gt 0 ]; do
     --draft) draft=1 ;; --hud) hud=true ;; --png) png=1 ;; --stage-only) stage_only=1 ;;
     --workers) workers=${2:?}; shift ;; --workers=*) workers=${1#*=} ;;
     --timeout) timeout=${2:?}; shift ;; --timeout=*) timeout=${1#*=} ;;
-    -h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) die "unknown option $1" ;;
     *) [ -z "$slug" ] && slug=$1 || die "one slug at a time" ;;
   esac; shift
@@ -111,8 +116,9 @@ vars="{\"style\":\"$slug\",\"hud\":$hud}"
 run_hf() { # $@ = extra render args; runs in its own process group so a timeout kills Chrome too
   local rc=0 t0 now size last=-1 lastchg
   set -m
+  # --no-browser-gpu: every frame is a pure function of t only when nothing in the pipeline depends on GPU state (header)
   (cd "$STAGE" && exec env HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 "$HF" render . --fps $FPS --workers "$workers" \
-     --variables "$vars" "$@") >>"$LOG" 2>&1 &
+     --no-browser-gpu --variables "$vars" "$@") >>"$LOG" 2>&1 &
   HFPID=$!
   set +m
   t0=$(date +%s); lastchg=$t0
@@ -196,16 +202,19 @@ if [ ${#MIXARGS[@]} -gt 0 ]; then
   AUDIO="$OUT/music.wav"
 fi
 
-# ── swatch.mp4: 1280×720, H.264 High, yuv420p, faststart; CRF climbs until it fits the size cap
+# ── swatch.mp4: 1280×720, H.264 High, yuv420p, faststart; CRF climbs until it fits the size cap.
+#    -threads 1: x264's VBV rate control (-maxrate/-bufsize) is not repeatable with frame threads — four encodes of the
+#    same input spanned 1 493 473–1 503 291 B around the 1 500 000 B cap, flipping halftone-comic between CRF 24 and 26.
+#    One thread gives the same bytes every time and costs about 3 s per pass at 720p.
 MP4="$MEDIA/swatch.mp4"; TMP="$OUT/swatch.tmp.mp4"
 for crf in 18 20 22 24 26 28 30 32 34; do
   if [ -n "$AUDIO" ]; then
     ffmpeg -v error -y -i "$HFMP4" -i "$AUDIO" -map 0:v:0 -map 1:a:0 -vf "scale=1280:720:flags=lanczos,format=yuv420p" \
-      -c:v libx264 -preset slow -profile:v high -crf $crf -maxrate 2600k -bufsize 5200k -g 60 -r $FPS \
+      -c:v libx264 -preset slow -profile:v high -crf $crf -maxrate 2600k -bufsize 5200k -g 60 -r $FPS -threads 1 \
       -c:a aac -b:a 128k -ac 2 -t $DUR -movflags +faststart "$TMP"
   else
     ffmpeg -v error -y -i "$HFMP4" -vf "scale=1280:720:flags=lanczos,format=yuv420p" \
-      -c:v libx264 -preset slow -profile:v high -crf $crf -maxrate 2600k -bufsize 5200k -g 60 -r $FPS \
+      -c:v libx264 -preset slow -profile:v high -crf $crf -maxrate 2600k -bufsize 5200k -g 60 -r $FPS -threads 1 \
       -an -t $DUR -movflags +faststart "$TMP"
   fi
   sz=$(fsize "$TMP"); [ "$sz" -le $MP4_LIMIT ] && break
