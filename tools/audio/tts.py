@@ -104,13 +104,27 @@ def to_wav(src: Path, dst: Path):
 def duration(p: Path) -> float:
     return float(run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)]).stdout)
 
+RATE_WAIT_MAX, RATE_TRIES = 90.0, 5   # a 429 asking for more than 90 s is a daily quota: waiting will not help
+
+def retry_after(e, msg):
+    """Seconds a 429 asks for: the Retry-After header, else "retry in 59s" / "retryDelay": "59s" in the body, else 60."""
+    m = re.search(r'retry in ([0-9.]+)\s*s|"retryDelay":\s*"([0-9.]+)s"', msg)
+    s = (e.headers.get("Retry-After") if e.headers else None) or (next(g for g in m.groups() if g) if m else 60)
+    try:
+        return float(s) + 1
+    except ValueError:   # Retry-After as an HTTP date
+        return 61.0
+
 def gemini_call(path, body=None, method=None, query=None, timeout=180, tries=3):
     """One Gemini REST call. The key travels in a header only, never in the URL or an error message.
-    429 / 5xx are retried twice: the TTS docs note rare 500s when the model returns text instead of audio."""
+    5xx and network errors are retried twice: the TTS docs note rare 500s when the model returns text instead of audio.
+    A 429 waits as long as the API asks and is retried up to 5 times: Tier 1 allows 10 transcribe calls a minute, so
+    --align on 11 or more lines hits it. A 429 asking for more than 90 s (a daily quota) fails at once."""
     key = os.environ.get("GEMINI_API_KEY") or sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)")
     url = f"{GEMINI_API}/{path}" + (f"?{urllib.parse.urlencode(query, doseq=True)}" if query else "")
     data = None if body is None else json.dumps(body).encode()
-    for k in range(tries):
+    k = limited = 0
+    while True:
         req = urllib.request.Request(url, data=data, method=method or ("POST" if data else "GET"),
                                      headers={"x-goog-api-key": key, "Content-Type": "application/json"})
         try:
@@ -119,12 +133,17 @@ def gemini_call(path, body=None, method=None, query=None, timeout=180, tries=3):
             return json.loads(raw) if raw.strip() else {}
         except urllib.error.HTTPError as e:
             msg = e.read()[:500].decode(errors="replace")
-            if e.code in (429, 500, 502, 503, 504) and k < tries - 1:
-                time.sleep(3 * (k + 1)); continue
+            wait = retry_after(e, msg) if e.code == 429 else None
+            if wait is not None and wait <= RATE_WAIT_MAX and limited < RATE_TRIES:
+                limited += 1
+                print(f"  gemini rate limit ({path.split('/')[0]}): waiting {wait:.0f} s, then retrying", flush=True)
+                time.sleep(wait); continue
+            if e.code in (500, 502, 503, 504) and k < tries - 1:
+                k += 1; time.sleep(3 * k); continue
             sys.exit(f"gemini {path.split('/')[0]} error {e.code}: {msg}")
         except (urllib.error.URLError, TimeoutError) as e:
             if k < tries - 1:
-                time.sleep(3 * (k + 1)); continue
+                k += 1; time.sleep(3 * k); continue
             sys.exit(f"gemini {path.split('/')[0]}: {e}")
 
 # ---------- providers: each writes a WAV at `out` and may return word/char timings ----------
