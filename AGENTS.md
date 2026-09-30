@@ -107,7 +107,7 @@ OpenVideoHarness/
 ├── README.md / README.zh-CN.md  给人看的说明（英 / 中）
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
 ├── install.sh                一键安装（克隆、依赖、参考仓库、注册 skill）
-├── bin/vh                    命令行：doctor · setup · types · effort · new · hf-init · install-skill · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · sheet · check · gif
+├── bin/vh                    命令行：doctor · setup · types · effort · new · style · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · sheet · check · gif
 ├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py）
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              8 类视频：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
