@@ -150,8 +150,9 @@ Beat map (<out>.beats.json): {"bpm","offset":0,"beats":[…],"downbeats":[…],
 Layers are simple subtractive/percussive synthesis (numpy + scipy); ~1–3 s to render a minute on Apple Silicon. Parts
 cost more (each note is rendered once and cached per pitch, length and velocity step): a 5 s score with 9 parts takes
 ~1.5 s on an M3 Max; the heaviest voices are gong, luogu, braam, cs80 and cimbalom (~0.05–0.3 s per new note). The
-physically modelled ones take ~0.005–0.04 s per new note, ~0.08 s for a long guqin note with 吟 or 猱 (the pitch moves
-all through it), and up to 0.7 s for a shamisen note above MIDI 96 (the sawari keeps every sample on the slow path).
+physically modelled ones take up to ~0.05 s per new note, ~0.07–0.08 s for a long note whose pitch moves all through it
+(a guqin slide, 吟 or 猱), and a one-second shamisen note 0.2 s at MIDI 96, 0.7 s at 108, 1.4 s from 114 up (the sawari
+keeps every sample on the slow path).
 """
 import json, os, re, sys, wave
 import numpy as np

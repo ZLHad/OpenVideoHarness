@@ -405,6 +405,9 @@ def _lagrange(q):
 _LAG = _lagrange(np.arange(1025) / 1024)   # a 1024-step table: the read point is off by at most 1/2048 sample
 _SMOOTH = butter(2, 3000, "low", fs=SR, output="sos")
 LTI_MAX = 100     # a steady loop shorter than this (samples, above ~480 Hz) finishes with one lfilter: faster there
+_PRE = 512        # samples a finger's damping filter runs unheard first: its start-up transient dies away (to rounding)
+DAMP_FADE = 0.03  # s over which that filter crossfades in
+DAMP_LAG = 0.5    # the delay line's retune follows the crossfade this many periods late (see pm_string)
 _LMAX = 1 << 30   # a cap on the block length, for tests: the output does not depend on it
 
 
@@ -415,6 +418,12 @@ def _ss(u):
 def _tau(p, a, M, w):
     """Phase delay (samples) at w rad/sample of the loop filter: the loss (1-p)/(1-p z^-1) and M allpasses (a + z^-1)/(1 + a z^-1)."""
     t = np.arctan2(p * np.sin(w), 1 - p * np.cos(w)) / w
+    return t + M * (1 - 2 * np.arctan2(a * np.sin(w), 1 + a * np.cos(w)) / w) if M else t
+
+
+def _tau_mix(p, q, u, a, M, w):
+    """Phase delay (samples) at w of the loop filter while it crossfades: (1 − u)·loss(p) + u·loss(q), then the allpasses."""
+    z = np.exp(-1j * w); t = -np.angle((1 - u) * (1 - p) / (1 - p * z) + u * (1 - q) / (1 - q * z)) / w
     return t + M * (1 - 2 * np.arctan2(a * np.sin(w), 1 + a * np.cos(w)) / w) if M else t
 
 
@@ -468,7 +477,7 @@ def _taps(D):
     o = np.ceil(D); return o.astype(int), _LAG[((o - D) * 1024 + 0.5).astype(int)]
 
 
-def waveguide(x, Dl, g, filt, tm=0.0, buzz=None, switch=None):
+def waveguide(x, Dl, g, filt, tm=0.0, buzz=None, fade=None):
     """Strings as single delay loops, one per row: y = x + g · (F y, Dl samples back); F the loop filter (b, a), the delay
     line read through the Lagrange interpolator, so Dl (per row, or per row and sample) may glide.
     Vectorised a block at a time like ks(): a block is shorter than the shortest loop, so it reads only samples already
@@ -479,7 +488,9 @@ def waveguide(x, Dl, g, filt, tm=0.0, buzz=None, switch=None):
     glides between the values of periods k − 2 and k − 1, all of them finished samples.
     buzz (depth, threshold): where the returning wave passes the threshold the string wraps round a curved bridge and the
     loop shortens by depth samples per unit, smoothed by a 3 kHz low-pass that runs on across blocks (sawari).
-    switch (sample, (b, a)): the loop filter from that sample on (a finger damps the string).
+    fade (t0, t1, (b, a)): a finger damps the string. From t0 to t1 the loop filter's output crossfades to that filter's,
+    which starts _PRE samples earlier from the old one's recent input and output (lfiltic), so its own transient has
+    died away before it is heard; from t1 on it is the loop filter. The caller retunes the delay line to match.
     Once the loop is steady (no excitation, delay, gain or filter change left) and short (under LTI_MAX samples), the rest
     is one lfilter per row whose denominator folds in the delay, the taps and the loop filter: the same recursion."""
     S, n = x.shape; b, a = filt; Dl = np.asarray(Dl, float); gv = np.asarray(g, float); var = Dl.ndim == 2
@@ -487,12 +498,13 @@ def waveguide(x, Dl, g, filt, tm=0.0, buzz=None, switch=None):
     P = int(np.ceil(Dhi)) + 4; L = min(_LMAX, max(1, int((Dlo - dmax) / np.sqrt(1 + tm)) - 3))
     o0 = np.ceil(Dl[:, 0] if var else Dl).astype(int); sh = o0 - o0.min(); W = n + P + int(sh.max())
     wf = np.zeros(S * W); wb = wf.reshape(S, W); base = np.arange(S) * W + P + sh   # row i's w[t] sits at wf[base[i] + t]
-    y = np.zeros((S, n)); zi = np.zeros((S, max(len(a), len(b)) - 1)); cut = switch[0] if switch else -1
+    y = np.zeros((S, n)); zi = np.zeros((S, max(len(a), len(b)) - 1)); zi2 = None
+    t0, t1, (b2, a2) = fade if fade else (-1, -1, (None, None)); c0 = max(0, t0 - _PRE) if fade else -1
     ix = np.flatnonzero(np.abs(x).max(0)); xe = int(ix[-1]) + 1 if len(ix) else 0
     calm = xe   # from here on nothing changes: no excitation, delay, gain or filter change (the recursion needs a clean past)
     for z in ((Dl,) if var else ()) + ((gv,) if gv.ndim == 2 else ()):
         ch = np.flatnonzero((z[:, 1:] != z[:, :-1]).any(0)); calm = max(calm, int(ch[-1]) + 2 if len(ch) else 0)
-    if switch: calm = max(calm, cut + int(np.ceil(Dhi)) + 8)
+    if fade: calm = max(calm, t1 + int(np.ceil(Dhi)) + 8)
     calm += 16
     live = tm > 0; toff = 0
     if live:
@@ -525,7 +537,7 @@ def waveguide(x, Dl, g, filt, tm=0.0, buzz=None, switch=None):
                 y[i, s:] = lfilter(a, den, np.zeros(n - s), zi=lfiltic(a, den, y[i, s - 1::-1][:len(den) - 1]))[0]
             break
         e = min(n, s + L)
-        if s < cut: e = min(e, cut)
+        if s < c0: e = min(e, c0)
         if lti: e = min(e, ttail)
         ln = e - s
         if live:
@@ -566,9 +578,13 @@ def waveguide(x, Dl, g, filt, tm=0.0, buzz=None, switch=None):
                 v = wf[j] * C[..., 0] + wf[j + 1] * C[..., 1] + wf[j + 2] * C[..., 2] + wf[j + 3] * C[..., 3]
         yb = y[:, s:e]; np.multiply(gv[:, s:e] if gcol is None else gcol, v, out=yb)
         if s < xe: yb += x[:, s:e]
-        if s == cut:   # the new filter continues from the old one's recent input and output
-            b, a = switch[1]; zi = np.stack([lfiltic(b, a, _hist(wf[base[i]:base[i] + n], s), _hist(y[i], s)) for i in range(S)])
+        if s == c0:   # the damping filter starts from the old one's recent input and output
+            zi2 = np.stack([lfiltic(b2, a2, _hist(wf[base[i]:base[i] + n], s), _hist(y[i], s)) for i in range(S)])
         wo, zi = lfilter(b, a, yb, axis=-1, zi=zi)
+        if zi2 is not None:   # the crossfade, sample by sample (the same arithmetic whatever the block)
+            wo2, zi2 = lfilter(b2, a2, yb, axis=-1, zi=zi2); u = np.clip((np.arange(s, e) - t0) / (t1 - t0), 0.0, 1.0)
+            wo = (1 - u) * wo + u * wo2
+            if e >= t1: b, a, zi, zi2 = b2, a2, zi2, None   # from here on the damping filter alone
         for i in range(S): wf[base[i] + s:base[i] + e] = wo[i]
         if live and toff and e >= toff: live = False
         s = e
@@ -753,19 +769,25 @@ def pm_string(name, m, dur, vel, rng, P):
             x[i, i0:i0 + len(e)] += r[2] * hv * e[:n - i0]
         if i0:   # the nail catches the ringing string before it plucks: the loop gain dips for a period
             c = max(0, i0 - int(N)); gs[:, c:i0] *= 1 - 0.6 * np.hanning(i0 - c + 2)[1:-1]
-    sw = None
-    if not ring and dur * SR < n - 10:   # a finger damps the string: over 15 ms the loop gain falls, the loss filter closes
-        # (never brighter than the ringing string) and the delay line is retuned for that filter's phase delay
-        ri = int(dur * SR); trel = 0.05 if mute else S["rel"]; pr = max(_loss(fb, trel, trel / 4, 0.9), p)   # 0.9: a short retune
+    fd = None
+    if not ring and dur * SR < n - 10:   # a finger damps the string inside the loop: over 15 ms the loop gain falls, and
+        # over DAMP_FADE a darker loss filter crossfades in (never brighter than the ringing string; its pole 0.9 at most)
+        ri = int(dur * SR); trel = 0.05 if mute else S["rel"]; pr = max(_loss(fb, trel, trel / 4, 0.9), p)
         u = np.clip((np.arange(n) - ri) / (0.015 * SR), 0, 1); gs = gs * (1 - u) + _gain(fb, trel, pr) * u
-        Dl = Dl * (1 - u) + (SR / fr - _tau(pr, a, M, TAU * fr / SR)) * u; sw = (ri, _filt(pr, a, M))
+        if pr > p:   # that filter delays the wave a few samples more, and the delay line gives them back (at the lowest
+            # partial that sounds) half a period behind the crossfade: a sample read now went through the filter a period
+            # ago, so the loop's pitch stays within about 5 cents of the ring all through the damp
+            K = int(DAMP_FADE * SR); ul = np.clip((np.arange(ri, n) - ri - DAMP_LAG * Dl[:, [min(ri, Dl.shape[1] - 1)]]) / K, 0, 1)
+            Dl = np.repeat(Dl, n, 1) if Dl.shape[1] == 1 else Dl.copy(); wk = TAU * k * (fr[:, ri:] if fr.shape[1] > 1 else fr) / SR
+            Dl[:, ri:] = np.where(ul > 0, Dl[:, ri:] - (_tau_mix(p, pr, ul, a, M, wk) - _tau(p, a, M, wk)), Dl[:, ri:])
+            fd = (ri, ri + K, _filt(pr, a, M))
     nz = 0.0
     if S.get("squeak") and (sl or bd):   # 走手音: the finger travelling along silk rubs the string
         nz = bpf(rng.standard_normal(n), 1500, 5000) * np.clip(np.abs(np.gradient(s)) * SR / 8, 0, 1) * 0.03 * S["squeak"]; x[0] += nz
     bz = _knob(P, "buzz", S["buzz"], 0.0, 1.0) if "buzz" in S else 0.0; tm = (2 ** (S.get("tm", 0) / 600) - 1) * vel * vel
     buzz = (4.0 * bz * vel, 0.02 / max(vel, 0.05)) if bz > 0 else None   # a harder pluck swings wider: touches more, longer
     if Dl.min() < 4: _warn_high(name, "a bend or slide goes higher than the string can reach"); Dl = np.maximum(Dl, 4.0)
-    y = waveguide(x, Dl if Dl.shape[1] > 1 else Dl[:, 0], gs, _filt(p, a, M), tm, buzz, sw).sum(0) + 0.3 * nz
+    y = waveguide(x, Dl if Dl.shape[1] > 1 else Dl[:, 0], gs, _filt(p, a, M), tm, buzz, fd).sum(0) + 0.3 * nz
     tr = np.zeros(n)   # transients through the same body: the nail or pick tick, a plectrum on skin, a finger on a bass
     if S.get("click"): tr += burst(rng, n, 2500, 9000, 0.0005, S["click"] * br)
     if S.get("skin"): tr += burst(rng, n, 250, 3500, 0.006, S["skin"] * br)

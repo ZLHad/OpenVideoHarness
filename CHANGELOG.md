@@ -13,7 +13,7 @@
   - sawari on the shamisen, stronger when it is plucked harder;
   - a modal body with a radiation tilt.
   The kalimba and music box are modal bars.
-- When a note stops ringing, a finger damps the string inside the loop, never in a fade: the loop gain falls, the loss filter closes and the delay line is retuned for it, all over 15 ms, so the damped tail stays in tune.
+- When a note stops ringing, a finger damps the string inside the loop, never in a fade: the loop gain falls over 15 ms while a darker loss filter crossfades in over 30 ms. The delay line gives back that filter's extra phase delay half a period behind the crossfade, because a sample read now went through the filter a period earlier. Through the damp the pitch stays within 5 cents of the ring, for every string voice from MIDI 28 to 96, damped or muted.
 - A note's audio does not depend on the block length, so the loop can be sped up later without changing a byte. Once a short loop (above about 480 Hz) settles, its steady rest is one `lfilter` with the same recursion (within 6e-13 of the block loop).
 - Per-note knobs, in params or a note's fifth slot: `slide`, `bend`, `vib`, `yin`, `nao`, `harm` (a node harmonic, within ±1 dB of a pluck of the same pitch), `trem` (re-plucks the same string), `pos`, `bright`, `decay`, `ring`, `damp`, `mute`, `buzz`. Out-of-range values are clamped. The kalimba and music box read only `ring`, `damp` and `decay`. The part's `tremolo` works as for `pipa`.
 - Level: every note's tone peaks at 0.5 at velocity 1 and `gain_db` 0. That is the engine's rule, now applied to every note rather than only the reference note; a pick, skin or bachi transient rides on top. The Karplus–Strong voices lose level toward the top, so a part switched to a modelled voice is about as loud at the default octave (±5 dB) and louder higher up: 6–26 dB three octaves up (cimbalom 26, balalaika 17, pipa 16, ukulele 15, upright 13). Check its `gain_db`.
@@ -24,7 +24,7 @@
   - harmonics are within ±1 dB of a plucked note;
   - in 26 solo phrases, every `qa` click warning is a note's own attack. The exception is a hard-plucked shamisen, where qa also lists a few sawari slaps (one every period, by design; none with `buzz` 0);
   - renders are deterministic (sha256 of two renders) and identical whatever the block length;
-  - 5 s swatches render in about 1–2 s. A 2-minute film with five modelled parts takes about 11 s (5 s with the old voices). A new note costs 0.005–0.04 s, about 0.08 s for a long guqin note with 吟 or 猱, and up to 0.7 s for a shamisen note above MIDI 96.
+  - 5 s swatches render in about 1–2 s. A 2-minute film with five modelled parts takes about 10 s (5 s with the old voices). A new note costs up to 0.05 s (a ringing harp C5 is the slowest) and 0.07–0.08 s when its pitch moves all through a long note (a guqin slide, 吟 or 猱). A one-second shamisen note costs 0.2 s at MIDI 96, 0.7 s at 108 and 1.4 s from 114 up.
 - Existing scores render the same bytes: the 28 swatch scores, 4 showcase scores and the 8 examples (WAV and beat map).
 - Credits: the parameter ranges and several preset values come from lemo-opuscar `core/audio/pluck.py` (MIT); the code is our own. The papers behind the models are listed in ACKNOWLEDGMENTS.
 
