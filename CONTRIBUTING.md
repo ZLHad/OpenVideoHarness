@@ -77,4 +77,13 @@ VH_BASH=/bin/bash tools/ci.sh      # macOS：用系统自带的 bash 3.2 跑，M
 
 **规则集挡得住误操作，挡不住拿着管理员 token 的 agent。** agent 用的是主人的 token，技术上仍然可以在 PR 里用管理员身份绕过检查合并，甚至改掉规则集；现在靠的是上面"给 agent 的规则"。要在技术上真正限住 agent，给它单独一个低权限身份：比如一个只有 Contents 和 Pull requests 写权限、没有 Administration 权限的 fine-grained token。
 
-以后开始打版本 tag 时，再加一个 tag 规则集：目标 `v*`，限制更新和删除，只有管理员能创建。
+### 版本 tag 和 Release
+
+2026-09-30 起，版本 tag（`refs/tags/v*`）由两个规则集保护。GitHub 的绕过权限按规则集算，不按单条规则算，所以拆成两个：
+
+- `release-tags-create`（[`.github/rulesets/tags-create.json`](.github/rulesets/tags-create.json)）：限制创建，仓库管理员可以绕过，用来发新版本；
+- `release-tags-immutable`（[`.github/rulesets/tags-immutable.json`](.github/rulesets/tags-immutable.json)）：限制更新和删除，没有任何人能绕过，包括管理员和用管理员 token 的 agent。真要改，只能由人临时停用这个规则集。
+
+同一天补打了 `v0.1.0`、`v0.2.0`、`v0.2.1` 三个 Release，说明取自 `CHANGELOG.md` 对应的一节。
+
+发新版本的做法：把 `CHANGELOG.md` 的 Unreleased 改成 `## vX.Y.Z — 日期`，经 PR 合并进 main，然后由维护者在合并后的提交上建 Release（`gh release create vX.Y.Z --target <提交> --notes-file <这一节>`）。tag 一旦建好就不再移动；发错了就发一个新的补丁版本。改了这两个文件以后，用 `gh api --method PUT repos/ZLHad/OpenVideoHarness/rulesets/<id> --input <文件>` 同步线上配置，`<id>` 用 `gh api repos/ZLHad/OpenVideoHarness/rulesets` 查。

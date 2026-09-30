@@ -1,0 +1,34 @@
+name: Style proposal · 新风格提议
+description: Propose a new preset for styles/ (learned from a famous work). · 为 styles/ 提议一个新预设（从名作里学来的）。
+labels: ["style"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A preset ships with a STYLE.md, tokens.json and a real 5 s swatch rendered by this repo (see styles/README.md and styles/_TEMPLATE.md). Before proposing, check that none of the existing presets already covers it.
+        每个预设都要有 STYLE.md、tokens.json 和一段用本仓库真渲的 5 秒样片（见 styles/README.md 和 styles/_TEMPLATE.md）。提议前先确认现有预设里没有同类的。
+  - type: input
+    id: name
+    attributes:
+      label: Style name and slug · 风格名和 slug
+      placeholder: "木刻版画 · woodcut-print"
+    validations:
+      required: true
+  - type: textarea
+    id: works
+    attributes:
+      label: Works it learns from · 学习对象
+      description: Titles, authors, years, links. · 作品名、作者、年份、链接。
+    validations:
+      required: true
+  - type: textarea
+    id: grammar
+    attributes:
+      label: Its grammar · 它的语法
+      description: Palette, type, composition, motion, transitions, sound. What makes it different from the closest existing preset? · 色板、字体、构图、运动、转场、声音；和最接近的现有预设差在哪？
+    validations:
+      required: true
+  - type: textarea
+    id: fit
+    attributes:
+      label: Good for / not for · 适合与不适合

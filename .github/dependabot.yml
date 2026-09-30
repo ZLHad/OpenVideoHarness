@@ -1,0 +1,9 @@
+# Keep the CI workflow's actions up to date. npm is left out on purpose: HyperFrames is pinned to the validated 0.8.82.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
