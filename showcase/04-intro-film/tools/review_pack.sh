@@ -4,7 +4,7 @@ set -euo pipefail
 V=${1:?video}; O=${2:-out/check/review}; mkdir -p "$O"
 while read -r t d name; do
   n=$(python3 -c "print(int(round($d*10)))")
-  ffmpeg -v error -y -ss "$t" -t "$d" -i "$V" -vf "fps=10,scale=384:-1,tile=${n}x1" -frames:v 1 -update 1 "$O/strip-$name.png"
+  ffmpeg -nostdin -v error -y -ss "$t" -t "$d" -i "$V" -vf "fps=10,scale=384:-1,tile=${n}x1" -frames:v 1 -update 1 "$O/strip-$name.png"
 done <<'L'
 5.0 0.8 reveal
 10.2 0.8 cardflythrough

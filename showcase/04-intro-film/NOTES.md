@@ -97,7 +97,7 @@ v2（一镜到底）的迭代：spike → snap1–5 → draft1–4 → 独立评
 **关卡 ②③ 的状态（透明起见）**：这两道关卡**没有经过人工审阅**。协调者转达了"直接做到成片"的指令，我照此把自查和两轮独立评审当作替代。往 REVIEW.md 写"用户授权跳过"的那次编辑被权限检查拦下了，因为这个授权不是用户本人直接给的。所以 REVIEW.md 里关卡 ②③ 仍是空白，**需要用户本人确认或补记**。
 
 [score] 由作曲 subagent 完成，见 `audio/SCORE_NOTES.md`。
-- 整合进片子后的混音：两遍线性母带（`tools/master.sh`）−14.1 LUFS、LRA 12.8、true peak −1.9 dBTP。共享的 `bin/vh mix` 用单遍动态 loudnorm，会把 LRA 从 13.6 压到 7.0，所以这里没用它。
+- 整合进片子后的混音：两遍线性母带（`tools/master.sh`）−14.1 LUFS、LRA 12.8、true peak −1.9 dBTP。共享的 `bin/vh mix` 用单遍动态 loudnorm，会把 LRA 从 13.6 压到 7.0，所以这里没用它。（2026-09-30 注：这条已过时，`bin/vh mix` 现在也只加一个整体增益，必要时接真峰值限幅，做法和 `tools/master.sh` 一致，见 `playbook/04-audio.md`。）
 - 成片混音的 cue check（`tools/cuecheck_mix.py`，hop 2.7 ms）：121 个 cue 里 118 个在 1 帧以内，中位 9.3 ms。剩下 3 个是开门的 whoosh（渐强，没有瞬态），不算打点。
 - 协调者的检测（默认 hop，约 23 ms）有 4 个 hit 没找到 onset：
   - 5.33（冲击 + 渐强峰）和 67.83：在高分辨率检测里其实在（10.7 ms / 14.7 ms）；

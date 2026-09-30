@@ -207,6 +207,8 @@ node render.mjs --frames --workers=4                            # or: parallel +
 node render.mjs --encode --out=out/video.mp4                    # … then encode them
 ```
 
+Length, `fps` (default 24) and `audio` come from `PROJECT` in `src/config.js`; `--fps=` and `--audio=` override them. `--encode` doesn't open the page: it reads `PROJECT` itself, encodes at the fps recorded in `out/frames/frames.json`, and takes exactly `duration × fps` frames from the first one on disk. It leaves out stale frames past the end (after you shorten the video). Frames missing at the start or end (a `--range` render) only get a warning; a hole between rendered frames stops it with a list, since the video would end at the hole. With `--loop=<name>`, frames go to `out/frames_loop_<name>` and `--encode` writes `out/loop_<name>.mp4`. No GPU? Add `--soft-gl` (see README.md).
+
 ---
 
 ## Engine
@@ -215,7 +217,7 @@ node render.mjs --encode --out=out/video.mp4                    # … then encod
 
 | file | what's in it |
 |---|---|
-| `src/config.js` | `PROJECT = { duration, bpm, offset, audio? }` |
+| `src/config.js` | `PROJECT = { duration, bpm, offset, fps?, audio? }` |
 | `src/core.js` | canvas, palette, timing and motion helpers, `paint()`, camera, full-frame effects, `glow()`, lettering, paper, render hooks |
 | `src/clawd.js` | Clawd: views, emotions, eyes, mouths, hats, emotes, moves |
 | `src/timeline.js` | `shots()`, `LOOPS`, `brushWipe()` |
@@ -416,7 +418,7 @@ clawd(x, y, 24, { ...feel('proud', t), aR: 1.2, armR: (u, sw) => paint(starPts(u
 The kit doesn't need music, but it's built for it:
 
 1. Set `bpm` to the song's tempo in [src/config.js](src/config.js), and set `offset` to the time of its first downbeat in seconds. Every idle, dance and `pulse()` then locks to the song.
-2. Put the audio in `assets/` and set `PROJECT.audio` (or pass `--audio=`). `--clip` and `--encode` mux it in.
+2. Put the audio in `assets/` and set `PROJECT.audio` (or pass `--audio=`). `--clip` and `--encode` mux it in, cut to the video's exact length. A file shorter than the video is padded with silence, with a warning: set `duration` to the song's length instead.
 3. Land hits, cuts and takes on beats (`beatN`, `pulse`). Cut on bar lines for big changes, and give each musical phrase its own visual.
 4. **Lyrics are not text.** Don't put words on screen. Act the meaning of a line instead.
 

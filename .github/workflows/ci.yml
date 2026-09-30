@@ -1,0 +1,48 @@
+# The repo's own checks (tools/ci.sh) on Linux and on macOS.
+# Both job names are required status checks in the main-branch ruleset (.github/rulesets/main.json):
+# renaming a job or an OS here means updating that ruleset too.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install check tools
+        run: |
+          python3 -m pip install --quiet pyflakes
+          if [ "$RUNNER_OS" = Linux ]; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck ffmpeg >/dev/null
+          else   # ffmpeg lets the bin/vh mux/gif smoke tests run under macOS /bin/bash 3.2 too
+            HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install --quiet ffmpeg >/dev/null
+          fi
+      # Linux: GNU userland. macOS: BSD userland, and bin/vh runs under the system /bin/bash 3.2 that Mac users have.
+      - name: tools/ci.sh
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then export VH_BASH=/bin/bash; fi
+          tools/ci.sh

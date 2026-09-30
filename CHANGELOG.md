@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+**Linux fixes, found while setting up a cloud (Ubuntu 24.04) machine**
+- `bin/vh` used the macOS-only `sed -i ''`, which GNU sed reads as a file name. On Linux, `new … --effort` silently kept `standard` in BRIEF.md, and `hf-init` left GSAP on the CDN, so `hyperframes render` refused to run offline. Both now go through a portable `sedi` helper.
+- `styles/_swatch/package-lock.json` pinned every package to `registry.npmmirror.com`, so `npm ci` failed wherever that mirror is unreachable. It now records `registry.npmjs.org`, which npm swaps for whatever registry you have configured, so mirror users are unaffected.
+- The swatch renderer used BSD-only `stat -f` (every swatch render died on Linux after rendering) and the determinism check used macOS-only `md5 -q`. The determinism check also ran ffmpeg in a `while read` loop without `-nostdin`, so it could pass without comparing every frame; it now fails unless every PNG was compared.
+- `bin/vh doctor` probes headless WebGL, finds Playwright's Chromium, and gives install hints for the OS it runs on; `bin/vh setup` retries its smoke test with `--soft-gl` on machines without a GPU.
+
+**Found in a full review of v0.2.1**
+- Determinism (hard rule 1): with `--soft-gl`, ClaudeAnimationBase frames differed on every launch (~39 dB). The main cause was Chrome's canvas readback noise (fingerprinting protection), now disabled on every path; `--soft-gl` also keeps 2D canvases on the CPU. Frames are now pixel-identical across launches and render orders, and about 3× faster in software.
+- `render.mjs --encode` ignored `PROJECT.audio` (the parallel `--frames` → `--encode` path made a silent video), read fps only from `--fps`, assumed frames start at 0, encoded stale frames after a shorter cut, and shared `out/frames` with `--loop`. It now reads PROJECT in Node, records the fps in `frames.json`, encodes exactly `duration × fps` frames, stops on a hole between rendered frames, and gives loops their own folder. `--clip` and `--encode` pad or trim the audio to the picture instead of `-shortest`, which cut the video when the audio was shorter; `--clip` fails when ffmpeg does.
+- Narration and captions: an English-only script produced Chinese captions; `|x|` and `x<y … y>z` were deleted from speech and captions outside dialogue; `wrap_zh` split Latin words; several lines inside one ASR word became zero-length cues; `--align` crashed on a line with no words; a second `[direction]` stayed in the text; `say` on Linux crashed with a traceback.
+- `bin/vh sfx` read every WAV as 16-bit: 24-bit recordings became noise and float WAVs crashed. It now decodes through ffmpeg.
+- `bin/vh mix`: loudnorm's linear mode silently fell back to dynamic normalisation while the tool reported "two-pass linear". It now applies one static gain, adds a 4×-oversampled true-peak limiter only when needed, and prints the measured output. The default ducking is now `duck=voice` with a voice bus and `duck=off` without one; the old default (`duck=on`) made the documented mix fail `bin/vh qa`.
+- `bin/vh qa` detected digital silence in 5 ms windows, so whether a 20–25 ms gap was caught depended on where it started; it now works sample by sample and reports exact times.
+- `bin/vh mux` tagged subtitle languages from the whole path (everything under `/home/zhang/…` became Chinese). Unknown commands exit 1; `new` removes a half-built project; `install-skill` escapes the clone path and rejects unknown targets; `gif` and `sheet` name outputs from the file, not a dotted folder; `sheet` no longer reports success when nothing was written. `references/fetch.sh` skips an unreachable upstream instead of aborting the installer.
+- `lib.motionBlur` averaged transparent layers wrongly (a comet trail); `lib.drawGlyphs` ignored `sx: 0`.
+- Docs: `CLAUDE.md` omitted `bin/vh style` and `sync-agents`; `bin/vh style --gallery/--check` were documented with dashes; the pipeline table asked `standard` for three scoring rounds; and a few counts and file names were stale.
+
+**Checks and branch rules**
+- `tools/ci.sh` runs the repo's own checks: shell syntax (also under macOS `/bin/bash` 3.2), shellcheck, a ban on BSD-only or GNU-only commands, Python and JS syntax, pyflakes, docs against the CLI, and `bin/vh` smoke tests. `--committed` checks HEAD in a clean checkout. GitHub Actions runs it on Linux and macOS.
+- `main` accepts pull requests only: `.github/rulesets/main.json`, enabled on 2026-09-30. `CONTRIBUTING.md` has the branch, PR and push rules for people and agents.
+
+**Camera language for video models**
+- `playbook/05`: how to write camera moves a video model can execute (four layers, start → path → end → constraints, a trigger between two moves), after Adrian Punk's *AI 视频运镜词典*. `playbook/07` breaks camera motion down the same way; `playbook/08` treats one-take camera paths as a choreography and handheld drift as low-frequency noise.
+
+Known and left for a listening test: with narration that pauses ~0.25 s between lines, the default `duck_ratio=6` still leaves short music dropouts that `bin/vh qa` reports (it did before too). `music_db=-5 duck_ratio=1.6` passes, as `playbook/04` notes.
+
 ## v0.2.1 — 2026-09-30
 
 **Narration with feeling and rhythm** (user: "声音是对的，但不够活泼，太僵硬")
