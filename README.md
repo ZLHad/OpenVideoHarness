@@ -4,7 +4,7 @@
 
 **Coding agents like Claude Code and Codex can make videos by writing programs. This makes them do it reliably.**
 
-Explainers, science shorts, product films, music videos, data stories, paper talks, hand-drawn shorts, meme edits and talking-head edits: 9 video types (09 experimental), 28 styles, one workflow.
+Explainers, science shorts, product films, music videos, data stories, paper talks, hand-drawn shorts and meme edits: 8 video types, 28 styles, one workflow.
 
 **English** · [中文](README.zh-CN.md) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
@@ -175,6 +175,12 @@ Not every film deserves the full treatment. One switch controls how much effort 
 
 Just say "quick draft" or "make it studio quality" in your request, or start the project with `bin/vh new promo launch --effort studio`. The floor never drops at any level: every frame depends only on time, facts are copied exactly, no audio dropouts, flash-safe. `bin/vh effort` prints the full rules.
 
+### You choose what you decide
+
+Effort sets how hard the agent checks its own work; director mode sets what you decide yourself. Each of ten decisions (outline, script, style, hook, main character, theme music, storyboard, edit rhythm, voice, title and cover) can be yours to **own** (it shows you options and waits), yours to **review** (it shows you the result and carries on unless you object), or **delegated** (it decides and writes down why in `DECISIONS.md`). Every stop is, by default, a local page from `bin/vh review`: at most three decisions on the first screen, each with a recommendation and a one-line reply, then pictures, the animatic and music you can play in the browser. `standard` and `studio` still stop at the outline, storyboard and first draft.
+
+> **Deep involvement:** a 90 s explainer on how satellites avoid collisions, studio quality. I'll pick the hook, the main character, the theme melody, and the title and cover; decide the rest yourself.
+
 ### Why this makes it reliable
 
 A few hard rules (full version in [CLAUDE.md](CLAUDE.md)):
@@ -185,7 +191,7 @@ A few hard rules (full version in [CLAUDE.md](CLAUDE.md)):
 4. **Check every section.** Look at the frames, measure the sound, go through the checklist, fix what fails.
 5. **Copy facts exactly.** Numbers, paper details and quotes come straight from the source; anything uncertain gets noted, not put on screen.
 
-## 9 video types (09 experimental)
+## 8 video types
 
 | # | Type | Main engine | The gist | Doc |
 |---|---|---|---|---|
@@ -197,12 +203,14 @@ A few hard rules (full version in [CLAUDE.md](CLAUDE.md)):
 | 06 | Paper and conference videos | Manim + HyperFrames | Paper details copied exactly; figures redrawn as vectors | [06](video-types/06-paper-explainer.md) |
 | 07 | Hand-drawn, watercolor, whiteboard, paper-cut | p5.brush (built in) | Handmade and always moving; can write Chinese in stroke order | [07](video-types/07-hand-drawn.md) |
 | 08 | Brutalist, meme and fast-cut edits | HyperFrames | Build a grid, then break it; every joke lands in 1 s | [08](video-types/08-brutalist-meme.md) |
-| 09 | Editing and talking-head, from your own footage (experimental) | HyperFrames | Cut from measured audio, not ASR word times; nothing renders until you approve the edit list | [09](video-types/09-editing-talking-head.md) |
 
 A few more guides:
 - **Realistic people or real physics:** bring in a generative video model, then layer code on top ([playbook/05](playbook/05-hybrid-genvideo.md)).
 - **Effects, transitions, one-take 3D:** [playbook/08](playbook/08-vfx-and-motion-sources.md).
 - **Breaking down someone else's film:** [playbook/07](playbook/07-reverse-engineer.md).
+- **A story with rises and falls, or a film of 3 minutes or more:** [playbook/09](playbook/09-narrative.md) (structures, beat sheets, the tension curve, act breaks).
+- **Posting to short-video platforms: the opening hook, title and cover:** [playbook/10](playbook/10-hooks-and-packaging.md).
+- **Music with chapters, a theme you can hum, and real rises and falls:** [playbook/11](playbook/11-composition.md).
 
 ## Sound
 
@@ -213,7 +221,7 @@ The agent can't hear, so sound is built to be computed and measured:
 | Voiceover (zh / en) | `bin/vh tts` | Local open-source **Qwen3-TTS** by default: offline, free; the first run downloads about 2 GB of model and about 750 MB of Python packages. 5 Chinese voices (including Beijing and Sichuan accents), 2 English. Interfaces ready for Alibaba Cloud, ElevenLabs and Gemini 3.8 Flash TTS (very expressive; direct the delivery in one sentence) |
 | Narration with feeling and rhythm | `bin/vh tts … --beats` | Direct each line on its own, e.g. `[surprised question, fast, stress "one sentence"]`. With music, every line starts on a beat, and key lines can be pinned to a bar start or the drop. Default delivery per video type, frame-aligned tempos and mix settings are in [playbook/04](playbook/04-audio.md) |
 | Bilingual subtitles | `bin/vh captions` | Write the script as `中文 \|\| English` and get Chinese, English and two-line subtitles, which can be packed as switchable tracks |
-| Music | `bin/vh music` | Composed in code: the same score always gives the same music, plus the exact time of every beat for the picture to hit. Includes Chinese instruments (bells, guzheng, dizi, big drum) and changing time signatures. Using your own track? `bin/vh beats` finds its beats and drum hits |
+| Music | `bin/vh music` | Composed in code: the same score always gives the same music, plus the exact time of every beat for the picture to hit. Includes Chinese instruments (bells, guzheng, dizi, big drum) and changing time signatures. Using your own track? `bin/vh beats` finds its beats and drum hits. Chapters, a theme and dynamics: [playbook/11](playbook/11-composition.md) |
 | Sound effects | `bin/vh sfx` | 15 original synthesized effects, each placed on the frame where its action happens; a sound on the left of the screen comes from the left |
 | Mix | `bin/vh mix` | Music makes way for the voice; the whole mix is set to −14 LUFS without flattening a cinematic score |
 | Mix check | `bin/vh qa` | Measures the finished mix for gaps, dropouts, pumping and clicks, and checks every cue lands within 1 frame |
@@ -233,12 +241,13 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | Command | What it does |
 |---|---|
 | `doctor` / `setup` | Check your setup / install dependencies and fetch references |
-| `types` / `new <type> <name> [--style <style>] [--effort <level>]` | List the 9 types / start a new project |
+| `types` / `new <type> <name> [--style <style>] [--effort <level>]` | List the 8 types / start a new project |
 | `effort [quick\|standard\|studio]` | What each effort level does |
 | `style list` / `style <style>` / `style gallery` | Browse styles / render a sample / rebuild the overview |
 | `tts` / `voices` / `captions` / `music` / `sfx` / `beats` | Voiceover (per-line direction, beat snapping, word alignment, two-speaker dialogue) / Gemini voice library and voice design / subtitles / music / sound effects / analyse outside music |
 | `mix` / `qa` / `mux` | Mix / check the mix / put sound and subtitles on the video |
 | `sheet` / `check` / `readcheck` / `gif` | Timestamped contact sheet / find black, frozen or silent stretches / is text on screen long enough to read / make a GIF for your README |
+| `review <project> [gate]` | The review page for a stop: the decisions first, then pictures, animatic and audio, one page per storyboard segment |
 | `hf-init` / `install-skill` / `sync-agents` | Set up HyperFrames / register the skill / sync AGENTS.md |
 
 ## Requirements
@@ -308,9 +317,9 @@ OpenVideoHarness/
 ├── install.sh                one-line installer
 ├── bin/vh · tools/           the command line and the scripts behind it
 ├── skills/                   the open-video-harness skill
-├── video-types/              workflows for the 9 video types (09 experimental)
-├── playbook/                 shared know-how 00–08: pipeline, checks, motion, sound, effects and more
-├── templates/                files each new project fills in: brief, storyboard, style, review, notes, lessons, checklist
+├── video-types/              workflows for the 8 video types
+├── playbook/                 shared know-how 00–11: pipeline, checks, motion, sound, effects, narrative, hooks and covers, composition
+├── templates/                files each new project fills in: brief, storyboard, style, review, decisions, notes, lessons, checklist; script, character and packaging when needed
 ├── styles/                   28 styles, each with a sample; _swatch/ renders the samples
 ├── cases/                    11 case studies + curated community work + a 3D long-form deep-dive
 ├── showcase/                 films made with this repo (source + final + process notes)
@@ -323,7 +332,7 @@ OpenVideoHarness/
 
 | Project | What it is | How this differs |
 |---|---|---|
-| [Code2Video](https://github.com/showlab/Code2Video) | A research pipeline for teaching videos in Manim | Takes the code-as-video idea to 9 video types (09 experimental), run by a general coding agent |
+| [Code2Video](https://github.com/showlab/Code2Video) | A research pipeline for teaching videos in Manim | Takes the code-as-video idea to 8 video types, run by a general coding agent |
 | [HyperFrames](https://github.com/heygen-com/hyperframes) / [Remotion](https://github.com/remotion-dev/skills) official skills | How to use one engine | Sits above the engines: choosing one, setting the process and the taste, checking the result, calling them when needed |
 | [OpenMontage](https://github.com/calesthio/OpenMontage) | A full agent video production system | Lighter: mostly markdown, templates and one CLI that any coding agent can read and change |
 | [guizang product-video skill](https://github.com/op7418/guizang-product-video-skill) | Software product update films | Covers 8 types, with three human gates, a style library and bilingual sound; its approach to music and sound effects inspired ours (our code is independent) |
@@ -342,7 +351,7 @@ OpenVideoHarness/
 
 ## Roadmap
 
-- [ ] Type 9: editing and talking-head (cutting existing footage, adding subtitles and B-roll). Started: [09](video-types/09-editing-talking-head.md) is experimental, tuned on synthetic material only, with no real footage and no editor import tried yet
+- [ ] Type 9: editing and talking-head (cutting existing footage, adding subtitles and B-roll)
 - [ ] Type 10: a proper workflow for 3D scenes (Three.js and shaders)
 - [ ] Word-by-word highlighted subtitles (word-level forced alignment)
 - [ ] English versions of the workflow docs

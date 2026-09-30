@@ -15,7 +15,7 @@
    - 打印所有对象的包围盒，检查有没有重叠（SGA 的做法）；
    - 用像素统计找空白帧和卡住的帧：逐帧 YAVG 找突降，逐帧和第 0 帧比 PSNR，见下文"静默失败"；
    - 黑场、冻结、静音检测（命令见下文）；
-   - `ffprobe` 核对时长、fps、音轨和色彩标签（命令见下文"色彩标签"）；
+   - `ffprobe` 核对时长、fps 和音轨；
    - 检查输出文件的修改时间，防止把旧文件当成新结果。
 3. **看静帧**（用 Read 工具读图），分三种粒度：
    - **联系表**：看构图和整片的形状，每个镜头取首、中、末三帧。
@@ -152,37 +152,6 @@ npx hyperframes render --output out/draft.mp4 > out/draft.log 2>&1 & pid=$!; t=0
 while kill -0 $pid 2>/dev/null; do sleep 5; t=$((t+5)); [ $t -ge 1500 ] && { kill $pid; break; }; done
 wait $pid || echo "FAIL: render exited $? (timeout or error), see out/draft.log"
 ```
-
-## 色彩标签：每个 mp4 出片前查一次
-
-PNG（或别的 RGB 画面）编成 H.264 时，如果不指定 BT.709 矩阵和标签，swscale 按 BT.601 算矩阵，又不写标签；浏览器和手机把高清片按 BT.709 解码，饱和色就偏了。本机用 8 个色块实测：最大偏 21 个色阶（绯红 (225,29,72) 变成 (238,48,69)，翠绿 (16,185,129) 变成 (1,164,126)）；显式写 BT.709 矩阵和四个标签后最大偏 3，这是 8 位 YUV 往返的基线【本机实测】。
-
-```bash
-# 查一个文件：期望 pix_fmt=yuv420p，color_range=tv，color_space、color_transfer、color_primaries 都是 bt709
-ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt,color_range,color_space,color_transfer,color_primaries -of default=nw=1 out.mp4
-
-# 出片：PNG 序列编成 mp4 时，矩阵、范围和四个标签都显式写
-ffmpeg -framerate 30 -i out/plate/f_%04d.png \
-  -vf "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv" \
-  -c:v libx264 -crf 14 plate.mp4
-
-# 查整个仓库已提交的 mp4：列出不是 yuv420p,tv,bt709,bt709,bt709 的
-git ls-files '*.mp4' | while read -r f; do
-  t=$(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt,color_range,color_space,color_transfer,color_primaries -of csv=p=0 "$f" </dev/null | sed 's/,$//')
-  [ "$t" = "yuv420p,tv,bt709,bt709,bt709" ] || echo "$f  $t"
-done
-```
-
-`yuvj420p`、`color_range=pc`（全范围）、`bt470bg` 或 `smpte170m`（BT.601 矩阵）和 `unknown` 都不合本仓库的交付约定。
-
-<!-- 这两个成片修好之后，删掉下面"本仓库 2026-10-01 的审计"这一段 -->
-**本仓库 2026-10-01 的审计**：已提交的 34 个 mp4 里，32 个是约定值，两个不是：
-- `showcase/01-handdrawn-clawd-leaf/media/final.mp4`：`yuvj420p`、全范围、`bt470bg`。标签是诚实的（全范围 BT.601）：`engines/ClaudeAnimationBase/render.mjs` 的 `--clip` 和 `--encode` 把 JPEG 帧喂给 x264、不写色彩参数，这个引擎出的片子都是这种标签（本机用合成的 JPEG 帧走同一条编码命令复现了）。按标签解码没有问题（同样标签的合成色块上最大偏 1），只是不合约定；
-- `showcase/03-math-fourier/media/final.mp4`：没有任何标签。按 BT.601 解码，样片调色板里的 `#FFFF00` 原样还原（约 1000 个像素命中），按 BT.709 解码就变成 (255,239,0)，`#58C4DD` 变成约 (103,179,201)：像素是按 BT.601 编的，标签缺失，浏览器会按 BT.709 读。没有源帧时，就用已知调色板这样判断矩阵。
-
-`showcase/04-intro-film/assets/clips/` 在 `.gitignore` 里，是 `showcase/04-intro-film/tools/make_clips.sh` 从 00–03 的成片重建的代理；其中的 `01.mp4`、`03.mp4` 继承了上面两个文件的标签，成片修好后重跑脚本即可。
-
-**只补标签不等于修好。** 像素本来就是 BT.709 tv、只是缺标签的文件，可以不重编码：`-c copy -bsf:v h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1:video_full_range_flag=0`。像素是 BT.601 或全范围的文件（上面那两个），只改标签会让它们"看上去标对了"却错得更多：本机在按 BT.601 全范围编的色块上试过，只改成 BT.709 标签，最大偏 29 个色阶。这类文件要重编码，例如 `scale=in_range=pc:in_color_matrix=bt601:out_color_matrix=bt709:out_range=tv,format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv`（同一批色块上最大偏 6）【本机实测】；重编码一次有损，能从源头重出就从源头重出。
 
 ## 音频 QA
 
