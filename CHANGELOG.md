@@ -151,6 +151,12 @@
 - `--align gemini` failed on any script of more than 10 lines on Gemini's Tier 1, which allows 10 transcribe calls a minute: a 429 was retried after 3 s and 6 s, then the run exited without writing `voiceover.wav` or the timeline. A 429 now waits as long as the API asks (`Retry-After`, or "retry in 59s" in the message) and is retried up to 5 times; a 12-line script now finishes in 155 s. A 429 asking for more than 90 s (a daily quota) fails at once instead of retrying. This covers every Gemini call, including TTS and voice design.
 - Verified on macOS with a GPU: `tools/ci.sh` under bash 5 and `/bin/bash` 3.2, `bin/vh doctor` (WebGL on Metal), frames pixel-identical across launches and render orders, `--encode` with `PROJECT.audio` and missing frames, a swatch determinism check and draft render, captions for English-only scripts and `|x|`, `--align gemini`, and `install.sh` from a fresh clone.
 
+**Blender engine guide (experimental, never run)**
+- `engines/blender.md` (new): a two-stage `blender -b` pipeline (`timeline.json`, `scene.blend`, PNG frames) pinned to 5.2 LTS, the 5.0 Python API breaks checked against the release notes, keyframes sampled from our own easing, compositing with HyperFrames and ffmpeg.
+- Colour in the guide: view transforms, PNG against EXR (`-apply_trc iec61966_2_1` fixes the dark EXR read), premultiplied alpha in `overlay`, and the BT.709 matrix and tags for the final H.264. The ffmpeg results were measured on the maintainer's Mac.
+- Safety in the guide: no LLM-written bpy through a Blender MCP without a sandbox, and a `sandbox-exec` profile run under `env -i` with an allowlist, so `FAL_KEY` and the other keys never reach the script. Checked with `sh`, `curl`, `python3` and `ffmpeg`, not with Blender.
+- Blender is not installed on the maintainer's Mac, so nothing in the guide has been run; render times are to be calibrated with 5 frames first. Whether bpy scripts in this MIT repo need a GPL-compatible licence is left open, and none are added. `engines/README.md` and the 3D routing row link to it.
+
 ## v0.2.1 — 2026-09-30
 
 **Narration with feeling and rhythm** (user: "声音是对的，但不够活泼，太僵硬")
