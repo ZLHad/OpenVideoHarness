@@ -3,12 +3,33 @@
 ## Unreleased
 
 **Music parts: motifs, section counting, dynamics, stops**
-- Motifs. A score's `"motifs"` block defines a phrase once, and any note list calls it: `{"motif": "A", "at": 8, "shift": 1}`. The call unfolds in place into plain notes, so `loop`, swing, humanize, tremolo and hits treat it like hand-written notes. Transforms, as keys of the call or in order in `"transform"`: `shift` (scale steps), `transpose`, `octave`, `invert`, `retro`, `augment`, `diminish`, `rhythm` (one length, or a list taken in turn), `take` / `drop` / `slice`, `mode`, `legato`, then `vels` / `vel`, then `repeat` with `every`, `shift_each`, `transpose_each` and `vel_each` for sequences and ostinati. A motif may call another. Rewritten this way, the 35-part product-arc demo from the composition study goes from 137 note-list entries to 54 and renders the same bytes: its theme, copied into 5 parts as 82 notes, becomes three definitions and five calls.
-- Section counting. A part that plays several sections counted its bar lists and `loop` windows from its own first bar, so a list given in `by_section` for a later section started part-way through, with no error. `"index": "section"` on the part, or `"pattern_index": "section"` on the score, counts both from each section's first bar. The default is unchanged; the render now warns when a later section's list or loop is counted the old way.
-- Dynamics inside a section. `dyn` on a part is a gain line in dB over the whole score (`{"1": -12, "8:3": 0}`). In `by_section`, `cresc` / `dim` ramp the part's gain across that section, and `vel_ramp` scales velocities by each note's place in it, so the timbre follows. `{"to": 0.9}` on a note is a hairpin on any voice; a tremolo's strikes follow it. Level steps glide over 10 ms.
-- Section `stop`: `{"at": "5:2", "keep": ["pad"], "tail": 0.15}`. From that beat to the section's end only the kept parts play. The others start no new notes, what they still sound ends at the stop and fades out over `tail`, and a texture pauses until the next section. `"hold": true` lets the sounding notes ring instead, and `"stop": true` stops every part from the section's first beat. The beat map gets a `stop:<section>` hit.
-- Pickups. A negative beat in a note list sounds before the loop's first bar, even when the part is silent in the section before. A pickup before the start of the score is dropped with a warning.
-- Checks: a motif call (unknown motif, key or transform, `vels` of the wrong length, a cycle), a stop (outside its section, an unknown key, a `keep` naming no part) or a `dyn` position that is not `bar`, `bar.beat` or `bar:beat` stops the render and names the part or section.
+- Motifs. A score's `"motifs"` block defines a phrase once, and any note list calls it: `{"motif": "A", "at": 8, "shift": 1}`. The call unfolds in place into plain notes, so `loop`, swing, humanize, tremolo and hits treat it like hand-written notes. The ops:
+  - pitch: `shift` (scale steps), `transpose`, `octave`, `invert`, `mode`;
+  - time: `retro`, `augment`, `diminish`, `rhythm` (one length, or a list taken in turn), `legato`;
+  - fragments: `take`, `drop`, `slice`;
+  - velocity: `vels`, `vel`;
+  - sequences: `repeat` with `every`, `shift_each`, `transpose_each` and `vel_each`.
+  Pitch ops apply in the order written, even on tokens they cannot rewrite. A motif may call others, and a cycle is an error that names its path. An optional `len` keeps a leading or trailing rest through `retro` and `repeat`.
+- Section counting. A part that plays several sections counted its bar lists and `loop` windows from its own first bar, so a list given in `by_section` for a later section could start part-way through, with no error. `"index": "section"` on the part, or `"pattern_index": "section"` on the score, counts both from each section's first bar. The default is unchanged. The render now warns when a later section's list or loop does start part-way through, and names the bar; it also warns about notes that never land in any bar (past their `loop` window).
+- Dynamics inside a section:
+  - `dyn` on a part is a gain line in dB over the whole score (`{"1": -12, "8:3": 0}`), like a fader.
+  - In `by_section`, `cresc` / `dim` shape that section's notes in dB. A note follows the line while it sounds in the section and keeps the end level after it, so a ringing tail never jumps back up.
+  - `vel_ramp` scales velocities by each note's place in the section, so the timbre follows.
+  - `{"to": 0.9}` on a note is a hairpin on any voice; a tremolo's strikes follow it.
+  - Level steps glide over 10 ms.
+- Section `stop`: `{"at": "5:2", "keep": ["pad"], "tail": 0.15}`.
+  - From that beat to the section's end only the kept parts play. The others start no new notes, and whatever they still sound, held notes included, fades out over `tail` (at least 5 ms).
+  - A texture pauses until the next section. A pickup into the next section still plays.
+  - Stops are judged on the grid, before humanize.
+  - `"hold": true` lets the sounding notes ring instead; `"stop": true` stops every part from the section's first beat.
+  - The beat map gets a `stop:<section>` hit.
+- Pickups. A negative beat in a note list sounds before each loop window, even when the part is silent in the section before. A pickup before the start of the score is dropped with a warning.
+- Checks. These stop the render and name the part or section:
+  - a bad motif call: unknown motif, key, transform or mode; an op without its value; a count that is not whole; a fragment with no notes; `vels` of the wrong length;
+  - a bad stop: outside its section, an unknown key, a `hold` that is not true / false, a `keep` naming no part;
+  - a malformed or duplicate `dyn` position;
+  - `cresc` / `dim` / `vel_ramp` outside `by_section`;
+  - a hairpin in `params`.
 - Every existing score renders the same bytes: the two layer examples and the 28 swatch scores on `main`, the 28 re-scored swatches on `claude/swatch-soundtracks`, and an 89-score parts corpus (the `--example` scores, the composition-study demos and the feature corpus from the parts PRs), compared by sha256 of the WAV and of the beat map.
 - Not yet: a tempo map (ritardando, accelerando, fermata) and a top-level pickup bar. The PR has a design note.
 

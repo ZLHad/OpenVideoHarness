@@ -26,11 +26,13 @@ Score fields
                "fill": true   (drop the kick and taiko on the last beat for a breath),
                "bend": true   (zheng: every 2nd bar ends on a 按弦上滑 press-up note),
                "swing": this section's swing for parts (below),
-               "stop": {"at": "5:2", "keep": ["pad"], "tail": 0.15} (parts only: from bar 5, beat 2 of this section to
-                 its end, only the kept parts (ids or instruments) play; the others start no new notes, what they
-                 still sound ends there and fades out over tail s, and a texture pauses. "hold": true lets the sounding
-                 notes ring on instead; "bar" and "beat" can replace "at"; "stop": true stops every part from the
-                 section's first beat. The beat map gets a "stop:<section>" hit) }]
+               "stop": {"at": "5:2", "keep": ["pad"], "tail": 0.15} (parts only: from bar 5, beat 2 of this section
+                 (bars counted in the section) to its end, only the kept parts (ids or instruments) play. The others
+                 start no new notes; what they still sound fades out over tail s (default 0.15, at least 0.005) from
+                 the stop, held notes too; delay and reverb tails ring on; a texture pauses; a pickup into the next
+                 section still plays. "hold": true lets the sounding notes ring instead; "bar" and "beat" can replace
+                 "at"; "stop": true stops every part from the section's first beat. Judged on the grid, before
+                 humanize. The beat map gets a "stop:<section>" hit) }]
   stereo, space, swing, swing_unit, humanize, lofi, tape, drive, parts, motifs, pattern_index: below. A score with only
     `layers` and none of these renders exactly as before, byte for byte.
 
@@ -69,21 +71,22 @@ Parts: instruments playing patterns, rendered beside the layers
     keeps counting across bars) or "chord": true (the whole voicing on each hit); "legato" (0.9) scales note lengths.
   Note list "pattern": [[beat, beats, pitch, vel, art], …] — beat from the downbeat; "loop": N (default 1) lets the list
     span N bars (beats run on across bar lines; notes past the loop are dropped). loop counts the part's own bars (those of
-    the sections it plays), not the score's beats. A negative beat is a pickup: it sounds before the loop's first bar,
-    even when the part is silent in the section before (not before the score starts). pitch: a token, a list (a chord),
-    "chord" or null (a drum); vel default 0.8; art: "o" for drums, or per-note knobs such as {"slide": -2}, or
-    {"to": 0.9}: a hairpin, the note's level moving from vel to 0.9 over its length (a tremolo's strikes follow it).
+    the sections it plays), not the score's beats; a note that never lands in a bar makes the render warn. A negative
+    beat is a pickup: it sounds before the first bar of every loop window (with the default loop 1, before every bar),
+    even when the part is silent in the section before, but not before the score starts; its c and s tokens read the
+    chord of the bar it leads into. pitch: a token, a list (a chord), "chord" or null (a drum); vel default 0.8; art:
+    "o" for drums, or per-note knobs such as {"slide": -2}, or {"to": 0.9}: a hairpin, the note's velocity moving in a
+    straight line from vel to 0.9 over its length, then holding (a tremolo's strikes follow it).
   Section counting: a part that plays several sections counts its bar lists and its loop from its own first bar, so a
-    list given in by_section for a later section starts part-way through (the render warns). "index": "section" on the
-    part (or "pattern_index": "section" on the score) counts both from the first bar of each section instead.
+    list given in by_section for a later section can start part-way through; the render warns when it does and names
+    the bar. "index": "section" on the part (or "pattern_index": "section" on the score) counts both from the first
+    bar of each section instead.
   Motifs: "motifs": {"A": {"notes": [[0, 1, "d1"], [1, 2, "d5"], [3, 1, "d4"], [4, 1, "d3"]]}} defines a phrase once;
     any note list calls it, {"motif": "A", "at": 8, "shift": 2}, and the call unfolds in place into plain notes (a
-    pattern can also be a single call: "pattern": {"motif": "A"}). Transforms, as keys or in "transform": ["take:3",
-    "augment:2"] (applied in order): shift n scale steps (c tokens: chord tones) · transpose n semitones · octave n ·
-    invert · retro · augment k · diminish k · rhythm x (every note x beats) or [1.5, 0.5] (lengths in turn) · take n ·
-    drop n · slice "2-4" (a fragment starts at beat 0) · mode name (d and s in another scale) · legato k; then vels
-    [one per note] and vel (0.7, "*0.8" or "+0.1"); then repeat N, every beats, shift_each, transpose_each and vel_each
-    (sequences and ostinati); at last. A motif may call another; tools/audio/motifs.py has the details.
+    pattern can also be a single call: "pattern": {"motif": "A"}). Ops: shift (scale steps), transpose, octave,
+    invert, retro, augment, diminish, rhythm, take / drop / slice, mode, legato, then vels / vel, then repeat with every,
+    shift_each, transpose_each and vel_each (sequences). take / drop / slice given as keys run first, then the
+    "transform" list in its order, then the other keys in a fixed order; tools/audio/motifs.py has the syntax.
   Pitch tokens, against the chord sounding at that moment, in the part's octave:
     c0 c1 c2 c3 … chord tones (root 3rd 5th 7th; past the top they wrap up an octave, c-1 = top tone an octave down)
     s0 s1 s-2 …  scale steps from the chord root · d1 … d7 degrees of the key · +7 -5 semitones from the root ·
@@ -106,10 +109,15 @@ Parts: instruments playing patterns, rendered beside the layers
               "tremolo": Hz (or true) re-strikes every note of at least "tremolo_min" beats
     roots     the chord root at "rate" ("octaves": true alternates octaves, the synthwave bass)
     melody    a seeded placeholder tune in the scale on a rhythm "pattern" (chord tones on the beats)
-  Dynamics: "dyn": {"1": -12, "8:3": 0, "12": -6} on a part is a gain line in dB over the whole score, at "bar",
-    "bar.beat" or "bar:beat" (flat before the first point and after the last). In by_section, "cresc": [-8, 0] or "dim":
-    [0, -12] ramps the part's gain in dB across that section, and "vel_ramp": [0.6, 1.0] scales each note's velocity by
-    its place in the section (so the timbre follows). Level changes glide over 10 ms. One note: the hairpin above.
+  Dynamics: "dyn": {"1": -12, "8:3": 0, "12": -6} on a part is a gain line in dB over the whole score (bars counted in
+    the whole score: "bar", "bar.beat" or "bar:beat"), flat before the first point and after the last: a fader ride on
+    the part, so ringing notes follow it. In by_section, "cresc": [-8, 0] or "dim": [0, -12] shape the notes of that
+    section in dB: a note follows the line while it sounds inside the section and keeps the end level after it (a tail
+    never jumps back up); the next section's notes play at their own level. "vel_ramp": [0.6, 1.0] scales each note's
+    velocity by its place in the section, so the timbre follows. Level changes glide over 10 ms. Ramp up to 0 dB rather
+    than boosting: the mix is normalised to its peak, so a section pushed to +12 dB turns every other one down by
+    about as much, and the soft clip flattens its top. dyn, cresc and dim are straight lines in dB; a hairpin (above)
+    is a straight line in velocity.
   Feel: "swing" (score, section or part) delays each off-beat 8th: 0–0.33 is the delay as a fraction of an 8th (0.33 ≈
     triplet shuffle, 0.15–0.2 lazy); 0.5–0.75 is read as the first 8th's share of the beat (0.6 light, 0.667 triplet).
     "swing_unit": 16 swings 16ths. A part whose step grid does not line up with that unit (8th triplets, step 12, under
@@ -126,8 +134,10 @@ Parts: instruments playing patterns, rendered beside the layers
   Checks before anything renders, naming the part: an unknown instrument, section, space, duck target or by_section
     section; a duplicate id; a field that is not a finite number or out of range (pan beyond −1..1, step ≤ 0 …); a
     note-list entry that is not [beat, beats, …]; a strum without strokes; a pitch outside MIDI 0–127; a motif call
-    naming no motif, with an unknown key or transform, vels of the wrong length, or a cycle; a stop outside its section
-    or keeping no known part; a dyn position that is not "bar", "bar.beat" or "bar:beat".
+    naming no motif, with an unknown key, transform or mode, an op without its value, a count that is not whole, a
+    fragment that keeps no note, vels of the wrong length, or a cycle; a stop outside its section, with an unknown key,
+    a hold that is not true / false, or a keep that names no part; a dyn position that is not "bar", "bar.beat" or
+    "bar:beat", or two at the same place; cresc / dim / vel_ramp outside by_section; a "to" hairpin in params.
   Every part must sound: a part with no notes, or whose loudest 50 ms stays below −40 dBFS (power averaged over the
     channels, or its peak − 18 dB) in the final file, stops the render with its name. Raise its gain_db, or mark it
     "quiet": true (which does not excuse a part with no notes).
@@ -624,6 +634,8 @@ def _check_notes(pv, w_):
         if len(ev) > 3 and ev[3] is not None: _num(ev[3], f"{w_}: note {j} velocity", 0)
         if len(ev) > 4 and not isinstance(ev[4], (str, dict)): sys.exit(f'music: {w_}: note {j}: the 5th slot is a stroke ("o") or an object of knobs')
         if len(ev) > 4 and isinstance(ev[4], dict) and "to" in ev[4]: _num(ev[4]["to"], f"{w_}: note {j} hairpin \"to\"", 0)
+        if len(ev) > 4 and isinstance(ev[4], dict) and ev[4].get("_scale", "penta") not in ("penta", *SCALES):   # a motif call's mode
+            sys.exit(f"music: {w_}: mode {ev[4]['_scale']!r}: use {', '.join(['penta', *SCALES])}")
 
 def validate(score):
     """One pass over the parts-related fields before anything renders, naming the part (or field) that is wrong."""
@@ -651,21 +663,9 @@ def validate(score):
     if score.get("tape") not in (None, False, True): _num(score["tape"], "tape", 0)
     motifs = score.get("motifs", {})
     if not isinstance(motifs, dict): sys.exit('music: "motifs" maps names to notes: {"A": {"notes": [[0, 1, "d1"], …]}, …}')
-    for name in motifs: _check_notes(mt.motif_notes(motifs, name, "motifs", 0), f"motif {name!r}")
+    for name in motifs: _check_notes(mt.motif_notes(motifs, name, "motifs")[0], f"motif {name!r}")
     if score.get("pattern_index", "part") not in ("part", "section"): sys.exit('music: "pattern_index" is "part" or "section"')
-    meters = {int(k): int(v) for k, v in score.get("meters", {}).items()}; dflt = int(score.get("beats_per_bar", 4)); nbars = 0
-    for s in score["sections"]:
-        if s.get("stop"):
-            stp = s["stop"] if isinstance(s["stop"], dict) else {}; w_ = f"section {s.get('name')!r} stop"
-            if not parts: sys.exit(f"music: {w_}: a stop acts on parts, and this score has none")
-            if set(stp) - {"at", "bar", "beat", "keep", "tail", "hold"}:
-                sys.exit(f"music: {w_}: unknown key(s) {sorted(set(stp) - {'at', 'bar', 'beat', 'keep', 'tail', 'hold'})}; use at (or bar, beat), keep, tail, hold")
-            bar, beat = stop_at(stp, w_); _num(bar, f"{w_} bar", 1, s["bars"]); _num(beat, f"{w_} beat", 1, meters.get(nbars + bar, dflt) + 0.999)
-            _num(stp.get("tail", 0.15), f"{w_} tail", 0)
-            known = {p.get("id") for p in parts} | {p.get("inst") for p in parts} | {f"{p['inst']}#{sum(1 for q in parts[:j] if q.get('inst') == p.get('inst') and 'id' not in q)}" for j, p in enumerate(parts) if isinstance(p, dict)}
-            if not isinstance(stp.get("keep", []), list) or set(stp.get("keep", [])) - known:
-                sys.exit(f"music: {w_}: keep {stp.get('keep')!r} names no part (use ids or instruments)")
-        nbars += s["bars"]
+    meters = {int(k): int(v) for k, v in score.get("meters", {}).items()}; dflt = int(score.get("beats_per_bar", 4))
     ids, keys, idless = set(), set(), {}
     for i, part in enumerate(parts):
         if not isinstance(part, dict) or "inst" not in part: sys.exit(f'music: part {i} must be an object with an "inst", e.g. {{"inst": "piano", "figure": "sustain"}}')
@@ -677,6 +677,26 @@ def validate(score):
             ids.add(part["id"])
         else: idless[inst] = idless.get(inst, 0) + 1
         keys |= {inst, part.get("id")}
+    labels = {p.get("id") or f"{p['inst']}#{sum(1 for q in parts[:j] if q['inst'] == p['inst'] and 'id' not in q)}" for j, p in enumerate(parts)}
+    nbars = 0
+    for s in score["sections"]:
+        stp, w_ = s.get("stop"), f"section {s.get('name')!r} stop"
+        if stp is not None and stp is not False:
+            if stp is True: stp = {}   # every part stops at the section's first beat
+            elif not isinstance(stp, dict) or not stp:
+                sys.exit(f'music: {w_}: write {{"at": "5:2", "keep": ["pad"]}}, or true to stop every part from the section\'s first beat, not {stp!r}')
+            if not parts: sys.exit(f"music: {w_}: a stop acts on parts, and this score has none")
+            if set(stp) - {"at", "bar", "beat", "keep", "tail", "hold"}:
+                sys.exit(f"music: {w_}: unknown key(s) {sorted(set(stp) - {'at', 'bar', 'beat', 'keep', 'tail', 'hold'})}; use at (or bar, beat), keep, tail, hold")
+            bar, beat = stop_at(stp, w_); _num(bar, f"{w_} bar", 1, s["bars"]); _num(beat, f"{w_} beat", 1, meters.get(nbars + bar, dflt) + 0.999)
+            _num(stp.get("tail", 0.15), f"{w_} tail", 0)
+            if "hold" in stp and not isinstance(stp["hold"], bool): sys.exit(f"music: {w_}: hold is true or false, not {stp['hold']!r}")
+            keep = stp.get("keep", [])
+            if not isinstance(keep, list) or not all(isinstance(k, str) for k in keep):
+                sys.exit(f'music: {w_}: keep is a list of part ids or instruments, e.g. ["pad"], not {keep!r}')
+            if set(keep) - labels - keys:
+                sys.exit(f"music: {w_}: keep names no part: {sorted(set(keep) - labels - keys)} (use ids or instruments)")
+        nbars += s["bars"]
     for i, part in enumerate(parts):   # the same labels the renderer uses: the id, or instrument#occurrence
         name = part.get("id") or f"{part['inst']}#{sum(1 for p in parts[:i] if p['inst'] == part['inst'] and 'id' not in p)}"
         bs = part.get("by_section", {})
@@ -688,32 +708,32 @@ def validate(score):
         dyn = part.get("dyn")
         if dyn is not None:
             if not isinstance(dyn, dict) or not dyn: sys.exit(f'music: part {name}: "dyn" maps positions to dB: {{"16": -12, "20:3": -4}}')
+            seen_ = {}
             for pos_, v in dyn.items():
                 bar, beat = bar_beat(pos_, f"part {name}: dyn position")
                 if bar <= nbars: _num(beat, f"part {name}: dyn {pos_!r} beat", 1, meters.get(bar, dflt) + 0.999)
                 _num(v, f"part {name}: dyn {pos_!r}")
+                if (bar, beat) in seen_: sys.exit(f"music: part {name}: dyn {seen_[(bar, beat)]!r} and {pos_!r} are the same position")
+                seen_[(bar, beat)] = pos_
+        for key in ("cresc", "dim", "vel_ramp"):
+            if key in part: sys.exit(f'music: part {name}: {key} goes in by_section, for one section: "by_section": {{"b": {{"{key}": […]}}}} ("dyn" shapes the whole part)')
         for sec, o in bs.items():
             if "cresc" in o and "dim" in o: sys.exit(f"music: part {name} in section {sec!r}: give cresc or dim, not both")
             for key in ("cresc", "dim", "vel_ramp"):
                 if key in o:
                     if not isinstance(o[key], list) or len(o[key]) != 2: sys.exit(f"music: part {name} in section {sec!r}: {key} is [from, to]")
                     for v in o[key]: _num(v, f"part {name} in section {sec!r}: {key}", 0 if key == "vel_ramp" else None)
-        if part.get("index", score.get("pattern_index", "part")) != "section":   # a list given for a later section counts from the part's first bar
-            psecs = [x["name"] for x in score["sections"] if part.get("sections", "all") == "all" or x["name"] in (part["sections"] if isinstance(part["sections"], list) else [part["sections"]])]
-            for sec, o in bs.items():
-                pv = o.get("pattern"); many = isinstance(pv, list) and len(pv) > 1 and all(isinstance(e, str) for e in pv)
-                if psecs and sec != psecs[0] and (many or ((_is_notes(pv) or mt.has_calls(pv)) and int(o.get("loop", part.get("loop", 1))) > 1)):
-                    print(f"music: warning: part {name}: by_section {sec!r} gives a list (or a loop) that counts the part's bars from its first "
-                          f"section, {psecs[0]!r}, not from {sec!r}; add \"index\": \"section\" to count from the section", file=sys.stderr)
         for cfg, where in [(part, f"part {name}")] + [({**part, **o}, f"part {name} in section {sec!r}") for sec, o in bs.items()]:
             for k, (lo, hi, above) in PART_NUM.items():
                 if k in cfg: _num(cfg[k], f"{where}: {k}", lo, hi, above)
             if cfg.get("tremolo") not in (None, False, True): _num(cfg["tremolo"], f"{where}: tremolo (strikes a second)", hi=50, above=0)
             if not isinstance(cfg.get("params", {}), dict): sys.exit(f'music: {where}: "params" must be an object')
+            if "to" in cfg.get("params", {}): sys.exit(f'music: {where}: "to" is one note\'s hairpin; write it in the note: [0, 4, "d1", 0.4, {{"to": 0.9}}]')
             pat = cfg.get("pattern")
             if mt.is_call(pat): pat = [pat]   # a single motif call is a note list
             for key_, pv in (pat.items() if isinstance(pat, dict) else [(None, pat)]):   # a dict: a grid or a one-bar note list per bar length
                 w_ = f"{where} (pattern {key_!r})" if key_ is not None else where
+                if key_ is not None and mt.is_call(pv): pv = [pv]   # a single motif call is a one-bar note list here too
                 if isinstance(pv, list) and pv and not all(isinstance(e, str) for e in pv):
                     pv = mt.expand_pattern(pv, motifs, w_)   # motif calls → notes (a bad call stops here with its part)
                     if key_ is not None and not all(isinstance(e, (list, tuple)) for e in pv):
@@ -727,6 +747,20 @@ def validate(score):
                     sys.exit(f"music: {where}: a strum pattern is a string, or a list of strings (one per bar), not {pat!r}")
                 if not all(g.replace(" ", "").replace("|", "") for g in grids):
                     sys.exit(f"music: {where}: the strum pattern {pat!r} has no strokes; write D U d u X x and . (e.g. \"D.DU.UDU\")")
+        if part.get("index", score.get("pattern_index", "part")) != "section":   # a later section's list or loop starting part-way through
+            names_ = part.get("sections", "all"); names_ = [names_] if isinstance(names_, str) and names_ != "all" else names_
+            before, warned = 0, set()
+            for x in score["sections"]:
+                if names_ != "all" and x["name"] not in names_: continue
+                o = bs.get(x["name"]); pv = None if o is None else o.get("pattern", part.get("pattern") if "loop" in o else None)
+                n_, what = 1, ""
+                if isinstance(pv, list) and len(pv) > 1 and all(isinstance(e, str) for e in pv): n_, what = len(pv), "list"
+                elif _is_notes(pv) or mt.has_calls(pv): n_, what = int(_num(o.get("loop", part.get("loop", 1)), f"part {name}: loop")), "loop"
+                if before and n_ > 1 and before % n_ and x["name"] not in warned:
+                    warned.add(x["name"])
+                    print(f"music: warning: part {name}: section {x['name']!r} starts on bar {before % n_ + 1} of its {n_}-bar {what}, because "
+                          f"the part has played {before} bars before it; add \"index\": \"section\" to start it at the section's first bar", file=sys.stderr)
+                before += x["bars"]
         dk = part.get("duck")
         if dk is not None:
             by = dk if isinstance(dk, str) else dk.get("by") if isinstance(dk, dict) else None
@@ -800,11 +834,12 @@ def scale_step(m, n, sc):
     """m moved n steps along the scale sc (a note between scale notes keeps its distance from the one below)."""
     i = bisect.bisect_right(sc, m + 1e-9) - 1; return sc[min(max(i + n, 0), len(sc) - 1)] + (m - sc[max(i, 0)])
 
-def note_list(pat, B, k, cfg, pbars, pitched, res, O, cx=None):
+def note_list(pat, B, k, cfg, pbars, pitched, res, O, cx=None, seen=None):
     loop = int(cfg.get("loop", 1)); k0 = k - k % loop; off = sum(pb.nb for pb in pbars[k0:k]); out = []
-    for ev in pat:
+    for j, ev in enumerate(pat):
         b, d = float(ev[0]), float(ev[1])
         if not (off <= b < off + B.nb or (b < 0 and k == k0)): continue   # a negative beat: a pickup before the window
+        if seen is not None: seen.add(j)
         pos = b - off; vel = float(ev[3]) if len(ev) > 3 and ev[3] is not None else 0.8
         tok = ev[2] if len(ev) > 2 and ev[2] is not None else ((cfg.get("pitch") or "c0") if pitched else None)
         art = ev[4] if len(ev) > 4 else ""
@@ -818,8 +853,9 @@ def note_list(pat, B, k, cfg, pbars, pitched, res, O, cx=None):
         else:
             p = [m for m in (r_(x, pos) for x in (tok if isinstance(tok, list) else [tok])) if m is not None]
             if not p: continue
-        if p and kn.get("_shift"): p = [scale_step(m, kn["_shift"], cx.scale(kn.get("_scale") or cfg.get("scale"))) for m in p]
-        if p and kn.get("_semis"): p = [m + kn["_semis"] for m in p]
+        for op, v in kn.get("_ops", ()):   # pitch ops a motif transform left for after the pitch resolved, in their order
+            if not p: break
+            p = [scale_step(m, v, cx.scale(kn.get("_scale") or cfg.get("scale"))) for m in p] if op == "shift" else [m + v for m in p]
         out.append([pos, d, p, vel, art if isinstance(art, str) else "", art if isinstance(art, dict) else {}])
     return out
 
@@ -961,13 +997,17 @@ FIGURES = {"sustain": fig_sustain, "stab": fig_stab, "strum": fig_strum, "walkin
            "arp-down": fig_arp("arp-down"), "arp-updown": fig_arp("arp-updown"), "ostinato": fig_ostinato,
            "tremolo": fig_tremolo, "roots": fig_roots, "melody": fig_melody}
 
-def part_events(part, spec, pbars, cx, R, label=None):
+def part_events(part, spec, pbars, cx, R, label=None, cuts=(), stats=None):
     """Every note of a part: [t (s), dur (s), [MIDI…] or None, vel, art, opts, bar, level, early], sorted by time. level is
     the section's gain_db relative to the part's, applied after the voice renders (so it never drives a saturating voice);
-    early is the section's onset_ms in seconds (t is already that much early; the beat map adds it back)."""
+    early is the section's onset_ms in seconds (t is already that much early; the beat map adds it back).
+    cuts: the section stops this part does not survive, (start s, end s, tail s or None for a hold, section index). On
+    the grid, before humanize: a stopped section's notes inside its stop are dropped (stats["stopped"] counts them), and a
+    note that starts before a stop ends by its tail and carries "_cut" for render_voice."""
     evs, st, label = [], {}, label or part.get("id") or part["inst"]
     pitched = spec.kind != "drum" or spec.defaults.get("pitched") or "pitch" in part
     expanded, by_sec, run = {}, part.get("index", cx.index) == "section", 0   # motif calls unfolded once per pattern
+    placed = {}   # id of a note list → (the list, the indices of its notes that landed in a bar)
     for k, B in enumerate(pbars):
         bs = part.get("by_section", {}).get(B.sec, {}); cfg = {**part, **bs}
         O = int(cfg.get("octave", spec.octave)); sc = cx.scale(cfg.get("scale"))
@@ -984,8 +1024,9 @@ def part_events(part, spec, pbars, cx, R, label=None):
         if fig:
             if fig not in FIGURES: sys.exit(f"music: figure {fig!r}: use {' '.join(FIGURES)}")
             raw = FIGURES[fig](B, kk, cfg, O, res, cx, st, R)
-        elif isinstance(pat, dict) and _is_notes(bar_pat): raw = note_list(bar_pat, B, 0, {**cfg, "loop": 1}, [B], pitched, res, O, cx)   # one bar
-        elif _is_notes(pat): raw = note_list(pat, B, kk, cfg, lbars, pitched, res, O, cx)
+        elif isinstance(pat, dict) and _is_notes(bar_pat):   # one bar
+            raw = note_list(bar_pat, B, 0, {**cfg, "loop": 1}, [B], pitched, res, O, cx, placed.setdefault(id(bar_pat), (bar_pat, set()))[1])
+        elif _is_notes(pat): raw = note_list(pat, B, kk, cfg, lbars, pitched, res, O, cx, placed.setdefault(id(pat), (pat, set()))[1])
         elif pat is not None: raw = grid_events(pat, B, kk, cfg, pitched, res, st, cx, O)
         else: sys.exit(f"music: part {label} needs a \"pattern\" or a \"figure\"")
         sw = swing_amount(cfg.get("swing", B.swing if B.swing is not None else cx.swing)); u = 0.25 if int(cfg.get("swing_unit", cx.swing_unit)) == 16 else 0.5
@@ -998,12 +1039,16 @@ def part_events(part, spec, pbars, cx, R, label=None):
         trem = cfg.get("tremolo", True if fig == "tremolo" else None)
         rate = float(spec.defaults.get("tremolo_rate", 12) if trem is True else (trem or 0)); tmin = float(cfg.get("tremolo_min", 0)) * cx.beat
         ramp = bs.get("vel_ramp")   # [from, to]: velocity across this section, by each note's place in it
+        rdb = bs.get("cresc", bs.get("dim"))   # [from, to] dB across this section, carried by each note (render_voice)
+        if rdb is not None:
+            s0 = cx.grid[B.i - B.b].tb; rdb = [s0, s0 + B.sec_beats * cx.beat, float(rdb[0]), float(rdb[1])]
         for pos, dur, p, vel, art, opts in raw:
             t = B.tb + warp(pos, sw, u) * cx.beat; d = max(B.tb + warp(pos + dur, sw, u) * cx.beat - t, 0.005); t -= early
             if pos < 0 and t + early < -1e-9:   # a pickup before the first bar has nowhere to sound
                 print(f"music: warning: part {label}: the pickup at beat {pos:g} before bar {B.i + 1} falls before the score starts "
                       'and is dropped (for an upbeat bar: "meters": {"1": 1})', file=sys.stderr); continue
             o = {**bs.get("params", {}), **opts}
+            if rdb is not None: o["_ramp"] = rdb
             rf = float(ramp[0]) + (float(ramp[1]) - float(ramp[0])) * min(max((B.sec_off + pos) / B.sec_beats, 0.0), 1.0) if ramp else 1.0
             if ramp: vel = vel * rf
             if "to" in o: o = {**o, "to": float(o["to"]) * g * rf}   # a hairpin's target scales like the note's velocity
@@ -1017,6 +1062,23 @@ def part_events(part, spec, pbars, cx, R, label=None):
                 evs += [[t + j / rate, 1.2 / rate, p, v0[j] * (1.0, 0.8, 0.9, 0.75)[j % 4] * (0.85 + 0.15 * math.sin(math.pi * (j + 0.5) / n)),
                          art, {**o, "ring": False}, B, lv, early] for j in range(n)]
             else: evs.append([t, d, p, vel * g, art, o, B, lv, early])
+    for pat_, seen in placed.values():
+        miss = [j for j in range(len(pat_)) if j not in seen]
+        if miss:
+            print(f"music: warning: part {label}: {len(miss)} of the {len(pat_)} notes in a note list never play (the first at beat "
+                  f"{float(pat_[miss[0]][0]):g}): they fall outside every bar of its loop window; check \"loop\" and the sections", file=sys.stderr)
+    keep = None
+    if cuts:   # section stops, judged on the grid (before humanize moves anything)
+        keep = []
+        for e in evs:
+            g = e[0] + e[8]
+            if any(a <= g < b and e[6].si == si for a, b, _, si in cuts): keep.append(False); continue   # a pickup into the next section stays
+            c = min(((a, tl) for a, _, tl, _ in cuts if tl is not None and a > g), default=None)
+            if c is not None:   # it starts before a stop: it sounds at most until the stop's tail has faded
+                if e[0] + e[1] > c[0] + c[1]: e[1] = max(c[0] + c[1] - e[0], 0.005)
+                e[5] = {**e[5], "_cut": [c[0], c[1]]}
+            keep.append(True)
+        if stats is not None: stats["stopped"] = keep.count(False)
     h = float(part.get("humanize", cx.humanize))
     if h:
         rh = R(3)
@@ -1024,10 +1086,17 @@ def part_events(part, spec, pbars, cx, R, label=None):
             e[0] = max(0.0, e[0] + float(np.clip(rh.normal() * 0.008 * h, -0.02 * h, 0.02 * h)))
             f = float(np.clip(1 + rh.normal() * 0.1 * h, 0.7, 1.3)); e[3] *= f
             if "to" in e[5]: e[5] = {**e[5], "to": e[5]["to"] * f}
+    if keep is not None: evs = [e for e, k in zip(evs, keep) if k]
     evs.sort(key=lambda e: e[0])
     return evs
 
-MONO_NOTE = ("glide", "scoop", "slide", "bend", "vibrato", "retrigger", "to")   # knobs read per note inside a phrase
+MONO_NOTE = ("glide", "scoop", "slide", "bend", "vibrato", "retrigger", "to", "_ramp")   # knobs read per note inside a phrase
+
+def ramp_gain(rp, t, n):
+    """A section's cresc / dim ([start s, end s, from dB, to dB]) as gains for n samples from t: the line inside the
+    section, its end value after it (a ringing note keeps the level it was left at)."""
+    s0, s1, d0, d1 = rp; u = np.clip((t + np.arange(n) / SR - s0) / max(s1 - s0, 1e-9), 0.0, 1.0)
+    return 10 ** ((d0 + (d1 - d0) * u) / 20)
 
 def render_mono(spec, P, notes, R, place, vi):
     """Monophonic phrases: notes closer than 40 ms join (legato: glide, re-bow dip, vibrato carries on). "retrigger" (a
@@ -1042,19 +1111,19 @@ def render_mono(spec, P, notes, R, place, vi):
             p = phrases[-1]; p[-1] = (p[-1][0], nt[0] - p[-1][0], *p[-1][2:]); p.append(nt)
         else: phrases.append([nt])
     for ph in phrases:
-        Q = {**P, **{k: v for k, v in ph[0][4].items() if k not in MONO_NOTE}}   # the part's params, then the section's
+        Q = {**P, **{k: v for k, v in ph[0][4].items() if k not in MONO_NOTE and k != "_cut"}}   # the part's params, then the section's
         glide, att, rel = float(Q.get("glide", 0.06)), float(Q.get("attack", 0.05)), float(Q.get("release", 0.1))
         rea, vib = float(Q.get("rearticulate", 0.3)), Q.get("vib") or (0, 0, 0)
         scoop, sct = float(Q.get("scoop", 0)), float(Q.get("scoop_time", 0.06))
         rng = R(2, vi, ph[0][5]); t0 = ph[0][0]; end = ph[-1][0] + ph[-1][1] - t0; n = int((end + rel) * SR) + 1; t = ins.secs(n)
         s, lvl, vd, onsets = np.zeros(n), np.zeros(n), np.zeros(n), []
-        gl = np.ones(n) if any(nt[6] != 1 for nt in ph) else None
+        gl = np.ones(n) if any(nt[6] != 1 or nt[4].get("_ramp") for nt in ph) else None
         for j, (tn, dn, m, vel, o, idx, lv) in enumerate(ph):
             a = int(round((tn - t0) * SR)); b = int(round((ph[j + 1][0] - t0) * SR)) if j + 1 < len(ph) else n; tt = t[:b - a]
             s[a:b] = m; lvl[a:b] = vel
             if o.get("to") is not None:   # a hairpin: the level moves from vel to "to" across the note, then holds
                 nn = min(b - a, max(1, int(round(dn * SR)))); lvl[a:a + nn] = np.linspace(vel, float(o["to"]), nn); lvl[a + nn:b] = float(o["to"])
-            if gl is not None: gl[a:b] = lv
+            if gl is not None: gl[a:b] = lv if not o.get("_ramp") else lv * ramp_gain(o["_ramp"], t0 + a / SR, b - a)
             gln = min(b - a, int(float(o.get("glide", glide)) * SR))
             if j and gln > 0:
                 u = np.arange(gln) / gln; s[a:a + gln] = ph[j - 1][2] + (m - ph[j - 1][2]) * u * u * (3 - 2 * u)
@@ -1072,20 +1141,21 @@ def render_mono(spec, P, notes, R, place, vi):
             s = s + float(vib[1]) / 100 * vd * np.sin(ins.TAU * ph_ + rng.uniform(0, ins.TAU))
         x = spec.fn(ins.mtof(s), env, onsets, Q, rng) * spec.level
         if gl is not None: x = x * lfilter([1 - k1], [1, -k1], gl, zi=[k1 * gl[0]])[0]   # the level, after the voice, smoothed
-        place(x, t0)
+        place(x, t0, ph[0][4].get("_cut"))
 
 def render_voice(part, spec, evs, P, R, N, C, pbars, cuts=()):
-    """One part → (mono stem, stereo stem or None). cuts: the section stops the part does not survive, (start s, end s,
-    tail s, or None for a hold); a sound that starts before a stop fades out over its tail from there, a texture pauses."""
+    """One part → (mono stem, stereo stem or None). cuts: the section stops the part does not survive, as part_events
+    takes them; notes carry their own ("_cut"), a texture pauses through each stop."""
     mono = np.zeros(N); st2 = [None]; cache = {}   # the stereo buffer only exists once a stereo voice lands in it
-    ends = sorted((a, tl) for a, _, tl in cuts if tl is not None)
-    def place(x, t):
+    def place(x, t, cut=None):
         i = int(round(t * SR))
         if i >= N: return
-        c = next((c for c in ends if c[0] > t), None)
-        if c is not None and x.shape[-1] > int(round((c[0] - t) * SR)):   # still sounding at a stop: a cosine fade over its tail
-            k = int(round((c[0] - t) * SR)); nt = max(1, int(round(c[1] * SR))); m = min(x.shape[-1] - k, nt)
-            env = np.ones(k + m); env[k:] = 0.5 + 0.5 * np.cos(np.pi * np.arange(m) / nt); x = x[..., :k + m] * env
+        if cut is not None:   # [stop s, tail s]: whatever still sounds at the stop fades out over the tail (a cosine), then silence
+            k = int(round((cut[0] - t) * SR)); nt = max(1, int(round(cut[1] * SR)))
+            if k + nt <= 0: return
+            if x.shape[-1] > k:
+                n_ = min(x.shape[-1], k + nt); j0 = max(k, 0); env = np.ones(n_)
+                env[j0:] = 0.5 + 0.5 * np.cos(np.pi * (np.arange(j0, n_) - k) / nt); x = x[..., :n_] * env
         if i < 0: x = x[..., -i:]; i = 0
         j = min(N, i + x.shape[-1])
         if x.ndim == 1: mono[i:j] += x[:j - i]
@@ -1097,26 +1167,32 @@ def render_voice(part, spec, evs, P, R, N, C, pbars, cuts=()):
         runs = []
         for B in pbars:
             t1 = B.tb + B.nb * (60.0 / float(part["_bpm"]))
-            if runs and runs[-1][2] == B.i - 1: runs[-1][1:] = [t1, B.i]
-            else: runs.append([B.tb, t1, B.i])
-        for a, b, _ in cuts:   # a stop pauses a texture: its run breaks at the stop and picks up where the stop ends
+            if runs and runs[-1][2] == B.i - 1: runs[-1][1:3] = [t1, B.i]
+            else: runs.append([B.tb, t1, B.i, None])
+        for a, b, tl, _ in cuts:   # a stop pauses a texture: its run breaks at the stop and picks up where the stop ends
             cut = []
-            for r0, r1, ri in runs:
-                if r1 <= a or r0 >= b: cut.append([r0, r1, ri]); continue
-                if r0 < a: cut.append([r0, a, ri])
-                if r1 > b: cut.append([b, r1, ri])
+            for r0, r1, ri, c in runs:
+                if r1 <= a or r0 >= b: cut.append([r0, r1, ri, c]); continue
+                if r0 < a: cut.append([r0, a, ri, None if tl is None else [a, tl]])
+                if r1 > b: cut.append([b, r1, ri, c])
             runs = cut
         bs, v0, g0 = part.get("by_section", {}), float(part.get("vel", 1.0)), float(part.get("gain_db", 0))
         lvl = lambda B: ((float(bs.get(B.sec, {}).get("vel", v0)) / v0 if v0 else 1.0)   # a section's vel and gain_db, relative to the part's
                          * 10 ** ((float(bs.get(B.sec, {}).get("gain_db", g0)) - g0) / 20))
-        for r, (a, b, _) in enumerate(runs):
+        rdb = lambda B: bs.get(B.sec, {}).get("cresc", bs.get(B.sec, {}).get("dim"))   # a section's cresc / dim
+        beat = 60.0 / float(part["_bpm"])
+        for r, (a, b, _, cut) in enumerate(runs):
             n = int((b - a + 0.4) * SR); x = spec.fn(n, R(4, r), P) * spec.level * float(part.get("vel", 1.0))
             bars = [B for B in pbars if a - 1e-9 <= B.tb < b - 1e-9]
-            if any(lvl(B) != 1 for B in bars):   # a level per section, 10 ms glides between them (textures have no notes to carry it)
+            if any(lvl(B) != 1 or rdb(B) is not None for B in bars):   # a level per section, 10 ms glides between them (textures have no notes to carry it)
                 e = np.ones(n)
-                for B in bars: e[int(round((B.tb - a) * SR)):] = lvl(B)
+                for j, B in enumerate(bars):
+                    i0 = int(round((B.tb - a) * SR)); i1 = int(round((bars[j + 1].tb - a) * SR)) if j + 1 < len(bars) else n
+                    e[i0:i1] = lvl(B)
+                    if rdb(B) is not None:
+                        s0 = B.tb - B.sec_off * beat; e[i0:i1] *= ramp_gain([s0, s0 + B.sec_beats * beat, float(rdb(B)[0]), float(rdb(B)[1])], a + i0 / SR, i1 - i0)
                 k = np.exp(-1 / (0.01 * SR)); x = x * lfilter([1 - k], [1, -k], e, zi=[k * e[0]])[0]
-            place(ins.fade(x, 0.1, 0.4), a)
+            place(ins.fade(x, 0.1, 0.4), a, cut)
     elif spec.kind == "mono":
         voices = {}
         for idx, e in enumerate(evs):
@@ -1124,8 +1200,8 @@ def render_voice(part, spec, evs, P, R, N, C, pbars, cuts=()):
         for vi, notes in voices.items(): render_mono(spec, P, notes, R, place, vi)
     else:
         for idx, (t, dur, pitches, vel, art, opts, B, lv, _) in enumerate(evs):
-            hp = opts.get("to")   # a hairpin: the level moves from vel to "to" across the note, then holds
-            if hp is not None: opts = {k: v for k, v in opts.items() if k != "to"}
+            hp, cut, rp = opts.get("to"), opts.get("_cut"), opts.get("_ramp")   # a hairpin, a section stop, a section's cresc / dim
+            if hp is not None or cut is not None or rp is not None: opts = {k: v for k, v in opts.items() if k not in ("to", "_cut", "_ramp")}
             vq = min(8, max(1, round(min(vel, 1.0) * 8))) / 8 if spec.vt else 1.0; ok = json.dumps(opts, sort_keys=True) if opts else ""
             for vi, m in enumerate(pitches if pitches else [None]):
                 var = (idx + vi) % spec.rr; dq = round(dur, 2)
@@ -1135,10 +1211,15 @@ def render_voice(part, spec, evs, P, R, N, C, pbars, cuts=()):
                 else:
                     key = (round(m, 2), dq, vq, var, ok)
                     if key not in cache: cache[key] = spec.fn(m, dq, vq, R(1, int(round(m * 100)), var), {**P, **opts}) * spec.level
-                if hp is None: place(cache[key] * vel if lv == 1 else cache[key] * (vel * lv), t)
-                else:
-                    y = cache[key]; nn = max(1, int(round(dur * SR))); amp = np.full(y.shape[-1], float(hp) * lv); k = min(nn, y.shape[-1])
-                    amp[:k] = np.linspace(vel * lv, float(hp) * lv, nn)[:k]; place(y * amp, t)
+                if hp is None and rp is None: y = cache[key] * vel if lv == 1 else cache[key] * (vel * lv)
+                else:   # the hairpin moves the level from vel to "to" over the note's length, then holds; a ramp rides on top
+                    y = cache[key]; amp = np.full(y.shape[-1], vel * lv)
+                    if hp is not None:
+                        nn = max(1, int(round(dur * SR))); k = min(nn, y.shape[-1]); amp[k:] = float(hp) * lv
+                        amp[:k] = np.linspace(vel * lv, float(hp) * lv, nn)[:k]
+                    if rp is not None: amp *= ramp_gain(rp, t, y.shape[-1])
+                    y = y * amp
+                place(y, t, cut)
     return mono, st2[0]
 
 def delay_fx(x, D, beat):
@@ -1172,20 +1253,12 @@ def tape_fx(x, a):
     return ins.hpf(ins.lpf(y, 16000 - 6000 * a), 20)
 
 def dyn_db(part, cx, N):
-    """A part's dynamics in dB per sample, or None: "dyn" {"bar:beat": dB, …} as a line through the whole score (flat
-    before the first point and after the last), plus each section's "cresc" / "dim" [from, to] ramped over that section."""
-    pts, bs = part.get("dyn"), part.get("by_section", {})
-    ramps = [(si, sec, o.get("cresc", o.get("dim"))) for sec, o in bs.items() for si in sorted({B.si for B in cx.grid if B.sec == sec})
-             if o.get("cresc", o.get("dim")) is not None]
-    if not pts and not ramps: return None
-    db = np.zeros(N)
-    if pts:
-        xy = sorted((cx.at(k), float(v)) for k, v in pts.items()); xs = [x for x, _ in xy]; ys = [y for _, y in xy]
-        db += np.interp(np.arange(N) / SR, xs, ys)
-    for si, sec, (a_db, b_db) in ramps:
-        bars = [B for B in cx.grid if B.si == si]; i0 = int(round(bars[0].tb * SR)); i1 = min(N, int(round((bars[-1].tb + bars[-1].nb * cx.beat) * SR)))
-        if i1 > i0: db[i0:i1] += np.linspace(float(a_db), float(b_db), i1 - i0)
-    k = np.exp(-1 / (0.01 * SR)); return lfilter([1 - k], [1, -k], db, zi=[k * db[0]])[0]   # 10 ms glides: a step never clicks
+    """A part's "dyn" {"bar:beat": dB, …} in dB per sample, or None: a line through the whole score, flat before the first
+    point and after the last, like a fader ride on the stem (ringing notes follow it). 10 ms glides: a step never clicks."""
+    pts = part.get("dyn")
+    if not pts: return None
+    xy = sorted((cx.at(k), float(v)) for k, v in pts.items()); db = np.interp(np.arange(N) / SR, [x for x, _ in xy], [y for _, y in xy])
+    k = np.exp(-1 / (0.01 * SR)); return lfilter([1 - k], [1, -k], db, zi=[k * db[0]])[0]
 
 def stop_at(stp, what):
     """A stop's place in its section: "at": "5:2" (or "5.2", "5"), or "bar" and "beat"; (bar, beat), from 1."""
@@ -1193,7 +1266,7 @@ def stop_at(stp, what):
     return int(_num(stp.get("bar", 1), f"{what} bar", 1)), _num(stp.get("beat", 1), f"{what} beat", 1)
 
 def section_stops(score, cx):
-    """Each section's "stop": (start s, end of the section s, parts kept, tail s, hold, section name)."""
+    """Each section's "stop": (start s, end of the section s, parts kept, tail s, hold, section name, section index)."""
     out = []
     for si, s in enumerate(score["sections"]):
         stp = s.get("stop")
@@ -1201,7 +1274,7 @@ def section_stops(score, cx):
         stp = stp if isinstance(stp, dict) else {}   # "stop": true stops everything at the section's first beat
         bars = [B for B in cx.grid if B.si == si]; bar, beat = stop_at(stp, f"section {s['name']!r} stop")
         t0 = bars[bar - 1].tb + (beat - 1) * cx.beat
-        out.append((t0, bars[-1].tb + bars[-1].nb * cx.beat, set(stp.get("keep", [])), float(stp.get("tail", 0.15)), bool(stp.get("hold")), s["name"]))
+        out.append((t0, bars[-1].tb + bars[-1].nb * cx.beat, set(stp.get("keep", [])), float(stp.get("tail", 0.15)), stp.get("hold") is True, s["name"], si))
     return out
 
 def parts_bus(score, legacy, hits, stems=None, info_gain=None):
@@ -1212,7 +1285,7 @@ def parts_bus(score, legacy, hits, stems=None, info_gain=None):
     sp = score.get("space", "room"); sp = sp if isinstance(sp, dict) else {"type": sp}
     plan, onsets, part_hits, checks = [], {}, [], []
     stops = section_stops(score, cx)   # a section's stop: only the kept parts play on; the others stop sounding within its tail
-    part_hits += [{"t": round(t0, 3), "what": f"stop:{name}"} for t0, *_, name in stops]
+    part_hits += [{"t": round(t0, 3), "what": f"stop:{name}"} for t0, *_, name, _ in stops]
     for i, part in enumerate(parts):
         inst = part["inst"]; spec = ins.INSTR[inst]; pid = part.get("id"); occ = sum(1 for p in parts[:i] if p.get("inst") == inst and "id" not in p)
         pk = (ins.crc(pid), 0) if pid else (ins.crc(inst), occ); label = pid or f"{inst}#{occ}"
@@ -1222,23 +1295,18 @@ def parts_bus(score, legacy, hits, stems=None, info_gain=None):
             names = [names] if isinstance(names, str) else names; unknown = set(names) - {B.sec for B in cx.grid}
             if unknown: sys.exit(f"music: part {label}: no section named {sorted(unknown)}")
         pbars = [B for B in cx.grid if names == "all" or B.sec in names]
-        try: evs = [] if spec.kind == "texture" else part_events(part, spec, pbars, cx, R, label)
+        cuts = [(a, b, None if hold else max(tail, 0.005), si) for a, b, keep, tail, hold, _, si in stops if not ({label, inst, pid} & keep)]
+        stat = {}   # cuts: the stops this part does not survive; the tail is at least 5 ms, so a stop never clicks
+        try: evs = [] if spec.kind == "texture" else part_events(part, spec, pbars, cx, R, label, cuts, stat)
         except SystemExit as e:   # a bad pitch, grid or strum character, figure or scale: say which part
             msg = str(e)
             if msg.startswith("music: ") and f"part {label}" not in msg: sys.exit(f"music: part {label}: {msg[7:]}")
             raise
-        if spec.kind != "texture" and not evs:
-            sys.exit(f'music: part {label} plays no notes: check its sections, pattern, figure and pitch ("quiet": true does not skip this)')
-        cuts = [(a, b, None if hold else tail) for a, b, keep, tail, hold, _ in stops if not ({label, inst, pid} & keep)]
-        silenced = False   # cuts: the stops this part does not survive, (start, end, tail or None for a hold)
-        if cuts and evs:   # no new notes inside a stop; at a stop (not a hold) the notes already sounding end there
-            n0 = len(evs); evs = [e for e in evs if not any(a <= e[0] + e[8] < b for a, b, _ in cuts)]
-            for e in evs:
-                a = min((a for a, _, tl in cuts if tl is not None and a > e[0]), default=None)
-                if a is not None and e[0] + e[1] > a: e[1] = max(a - e[0], 0.005)
-            silenced = n0 and not evs   # every note fell inside a stop: nothing to measure
+        silenced = bool(stat.get("stopped")) and not evs   # every note fell inside a stop: nothing to measure
         if cuts and spec.kind == "texture":   # likewise a texture whose every bar is inside a stop
-            silenced = all(any(a <= B.tb + 1e-9 and B.tb + B.nb * cx.beat <= b + 1e-9 for a, b, _ in cuts) for B in pbars)
+            silenced = all(any(a <= B.tb + 1e-9 and B.tb + B.nb * cx.beat <= b + 1e-9 for a, b, _, _ in cuts) for B in pbars)
+        if spec.kind != "texture" and not evs and not silenced:
+            sys.exit(f'music: part {label} plays no notes: check its sections, pattern, figure and pitch ("quiet": true does not skip this)')
         plan.append((part, spec, label, R, pbars, evs, cuts, silenced))
         for key in {inst, pid} - {None}: onsets.setdefault(key, []).extend(e[0] for e in evs)
         if part.get("hit"):
