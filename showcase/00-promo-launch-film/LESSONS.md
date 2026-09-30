@@ -36,7 +36,7 @@ export HYPERFRAMES_SKIP_SKILLS=1 HYPERFRAMES_NO_TELEMETRY=1 DO_NOT_TRACK=1
 
 # verify
 npx hyperframes lint && npx hyperframes check
-npx hyperframes snapshot --at 5.2,6.9,10.5,13.4,16.2,19.5 --no-end -o out/check/snap
+npx hyperframes snapshot --at 5.2,6.9,10.5,13.4,16.2,19.5 --no-end --describe false -o out/check/snap
 npx hyperframes render --quality draft --output out/draft.mp4             # ~10 s for 600 frames
 bin/vh check out/draft.mp4 && bin/vh sheet out/draft.mp4 6 1               # timestamped tiles
 ffmpeg -ss 7.7 -i out/draft.mp4 -t 0.6 -vf "fps=10,scale=320:-1,tile=6x1" -frames:v 1 out/check/seam.png

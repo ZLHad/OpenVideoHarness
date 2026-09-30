@@ -30,7 +30,7 @@ cp leo-doppler-hf/{hyperframes.json,index.html,package.json,meta.json,CLAUDE.md,
 cd OpenVideoHarness/projects/2026-09-28-leo-doppler
 npx hyperframes lint
 npx hyperframes check
-npx hyperframes snapshot --at 0.5,1.2,2.0,...          # → snapshots/contact-sheet-*.jpg
+npx hyperframes snapshot --at 0.5,1.2,2.0,... --describe false   # → snapshots/contact-sheet-*.jpg
 npx hyperframes render --quality draft --fps 30 --output out/draft.mp4
 npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 ../../bin/vh check out/final.mp4
