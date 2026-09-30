@@ -201,7 +201,10 @@ bin/vh new promo launch-film --style cutout-jazz   # 建项目时直接带上一
 还有几份专题：
 - 要写实人物或真实物理，就接生成式视频模型，再用代码叠加：[playbook/05](playbook/05-hybrid-genvideo.md)；
 - 要特效、转场、一镜到底的 3D：[playbook/08](playbook/08-vfx-and-motion-sources.md)；
-- 要拆解别人的片子：[playbook/07](playbook/07-reverse-engineer.md)。
+- 要拆解别人的片子：[playbook/07](playbook/07-reverse-engineer.md)；
+- 要讲一个有起伏的故事，或做 3 分钟以上的长片：[playbook/09](playbook/09-narrative.md)（骨架、节拍表、张力曲线、换挡）；
+- 要发短视频平台，想好开头钩子、标题和封面：[playbook/10](playbook/10-hooks-and-packaging.md)；
+- 要配乐有篇章、有能哼出来的主题、有起伏：[playbook/11](playbook/11-composition.md)。
 
 ## 声音
 
@@ -212,7 +215,7 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 | 中英配音 | `bin/vh tts` | 默认用本地开源的 **Qwen3-TTS**，离线免费；首次运行要下载约 2 GB 的模型和约 750 MB 的 Python 依赖。中文 5 个音色（含京腔、川话），英文 2 个。云端留好了阿里云百炼、ElevenLabs 和 Gemini 3.8 Flash TTS 的接口（后者表演力强，可以用一句话导演语气） |
 | 旁白有表情、有节奏 | `bin/vh tts … --beats` | 每句都能单独导演，比如 `[惊讶地提问，语速快，"一句话"重读]`；有配乐时，每句从拍点起，关键句可以指定落在小节头或 drop 上。各类视频的默认语气、帧对齐的速度表和混音参数见 [playbook/04](playbook/04-audio.md) "让声音有表情、有节奏" |
 | 双语字幕 | `bin/vh captions` | 旁白稿写成 `中文 \|\| English`，自动出中文、英文、中英双行字幕，还能封装成可开关的字幕轨 |
-| 配乐 | `bin/vh music` | 用代码作曲，同一份谱永远生成同一段音乐，还会给出每一拍的精确时间，画面拿它卡点。有编钟、古筝、竹笛、大鼓这些中国乐器，也可以改拍号。用你自己的曲子也行：`bin/vh beats` 会分析出节拍和鼓点 |
+| 配乐 | `bin/vh music` | 用代码作曲，同一份谱永远生成同一段音乐，还会给出每一拍的精确时间，画面拿它卡点。有编钟、古筝、竹笛、大鼓这些中国乐器，也可以改拍号。用你自己的曲子也行：`bin/vh beats` 会分析出节拍和鼓点。篇章、主题和起伏怎么写见 [playbook/11](playbook/11-composition.md) |
 | 音效 | `bin/vh sfx` | 15 个代码合成的原创音效，按动作发生的那一帧摆放；物体在画面左边，声音就偏左 |
 | 混音 | `bin/vh mix` | 人声出现时音乐自动让位，整体响度调到 -14 LUFS，电影感配乐的起伏不会被压扁 |
 | 混音质检 | `bin/vh qa` | 用数据查成品：有没有断音、掉音、忽大忽小、爆音，每个卡点是否落在 1 帧以内 |
@@ -356,7 +359,7 @@ OpenVideoHarness/
 ├── bin/vh · tools/           命令行和背后的脚本
 ├── skills/                   open-video-harness skill
 ├── video-types/              8 类视频的工作流
-├── playbook/                 通用知识 00–08：流程、自查、运动设计、声音、特效等
+├── playbook/                 通用知识 00–11：流程、自查、运动设计、声音、特效、叙事、钩子与封面、作曲等
 ├── templates/                每个新项目要填的文件：需求、分镜、风格、审阅、笔记、经验、清单
 ├── styles/                   28 种风格，各带样片；_swatch/ 是样片渲染器
 ├── cases/                    11 个案例拆解 + 社区作品精选 + 一支 3D 长片深读
