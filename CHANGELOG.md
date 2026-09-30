@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+**Hand-drawn engine: videos in BT.709, tagged**
+- `engines/ClaudeAnimationBase/render.mjs` (`--clip` and `--encode`) fed Chrome's full-range BT.601 JPEG frames straight to x264, so its videos came out as `yuvj420p` tagged `pc`/`bt470bg`. Chromium plays such files with the BT.709 matrix, and saturated colours shift (up to ~40 levels on pure green). It now converts to limited-range BT.709 and writes all four colour tags, like the HyperFrames and swatch videos. Existing hand-drawn videos keep their colours until they are re-encoded (showcase 01 will be, with its new soundtrack).
+
 **Director mode and decision-first review pages**
 - Effort says how hard the agent checks its own work; the new director mode says what the human decides. Ten decisions can be named: outline, style, main character, theme music, voice, script, hook, storyboard, edit rhythm, title and cover. Each is `own` (options with a recommendation, then the agent waits), `review` (one result on the next page, which passes unless the human objects) or `delegate` (the agent decides and writes down why). The setting comes from the chat, a `Director:` line in BRIEF or a default in LOCAL.md; decisions nobody named follow the effort defaults. CLAUDE.md keeps a short section on it; `playbook/01-pipeline.md` has one table in time order of when each decision can first be made, what the agent shows (picture first), how many options and what changing it later costs.
 - The three gates stay the floor for standard and studio. Director mode only adds stops, at six checkpoints in time order: E0 style frames, E1 script (the voice is chosen here with the script, so the measured line lengths use it), E2 sound (where the theme plays and where it stays quiet), E3 timing lock (after the audio-first stage), E4 sample chapter, E5 picture lock.
