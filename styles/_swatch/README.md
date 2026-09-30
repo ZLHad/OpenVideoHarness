@@ -49,7 +49,7 @@ HyperFrames 把项目根目录当网站根目录，而且根目录只能有一�
 - 外壳文件（`index.html`、`boot.js`、`lib.js`、`fonts.css`、配置、内置场景）从 `_swatch/` 复制过去；
 - `styles/<slug>/` 整个复制到 `scenes/<slug>/`，不带 `media/` 和 `*.md`；
 - 场景由 HyperFrames 变量选：`--variables '{"style":"<slug>"}'`。`boot.js` 从 `./<slug>/`（内置场景）或 `./scenes/<slug>/` 加载 `tokens.json` 和 `swatch.js`；
-- stage 里 `index.html` 的 `style` 默认值被改成 `<slug>`。这样 `hyperframes snapshot` / `preview` 这两个不接受 `--variables` 的命令，在 stage 上也能直接看到这个风格：`render.sh <slug> --stage-only` 会把命令打印出来。
+- stage 里 `index.html` 的 `style` 默认值被改成 `<slug>`。这样 `hyperframes snapshot` / `preview` 这两个不接受 `--variables` 的命令，在 stage 上也能直接看到这个风格：`render.sh <slug> --stage-only` 会把命令打印出来（打印的 snapshot 命令带着 `--describe false`：设了 `GEMINI_API_KEY` 时，`snapshot` 默认会把帧发给 Gemini，见 `engines/README.md`）。
 
 没有用共享的 `_swatch/current/`，原因是三个 agent 会并行渲染不同的风格，共享目录会互相覆盖。每个 slug 有自己的 stage，还有一个锁目录（`out/stage/<slug>.lock`），同一个 slug 不会被同时渲两次。也没有用软链接：软链接指回 `styles/` 会让目录树成环，HyperFrames 的 lint 或打包一旦跟随链接就会出问题。stage 在 `out/` 下，已被根目录 `.gitignore` 的 `out/` 规则忽略。
 

@@ -6,7 +6,7 @@
 
 科普、讲解、产品片、MV、数据、论文、手绘、梗图快剪、口播剪辑：9 类视频（09 实验中），28 种风格，一套流程。
 
-[English](README.md) · **中文**
+[English](README.md) · **中文** · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-black)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
@@ -45,10 +45,12 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 ```
 
 这一条命令会：
-- 把仓库装到 `~/OpenVideoHarness`；
-- 装好自带的手绘引擎；
-- 拉取参考资料；
+- 把仓库克隆到 `~/OpenVideoHarness`（约 330 MB，样片和示例片都在里面）；
+- 装好自带手绘引擎和风格样片渲染器的依赖（约 210 MB）；
+- 拉取 30 个只读的参考仓库（约 195 MB，加 `--no-refs` 可以先不拉）；
 - 把 `open-video-harness` skill 注册给 Claude Code 和 Codex，之后在任何目录说"做个视频"，agent 都能找到这里。
+
+一共占约 730 MB 磁盘。第一次渲染和第一次用声音工具时还会再下载一批，各有多大、放在哪里，见[会下载什么](#会下载什么)。不知道从哪开始？看 wiki 里的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)，从零走到第一支视频。
 
 然后打开 Claude Code（或 Codex），直接说你要什么：
 
@@ -208,7 +210,7 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 
 | 要什么 | 怎么做 | 说明 |
 |---|---|---|
-| 中英配音 | `bin/vh tts` | 默认用本地开源的 **Qwen3-TTS**，离线免费，首次运行下载约 2 GB。中文 5 个音色（含京腔、川话），英文 2 个。云端留好了阿里云百炼、ElevenLabs 和 Gemini 3.8 Flash TTS 的接口（后者表演力强，可以用一句话导演语气） |
+| 中英配音 | `bin/vh tts` | 默认用本地开源的 **Qwen3-TTS**，离线免费；首次运行要下载约 2 GB 的模型和约 750 MB 的 Python 依赖。中文 5 个音色（含京腔、川话），英文 2 个。云端留好了阿里云百炼、ElevenLabs 和 Gemini 3.8 Flash TTS 的接口（后者表演力强，可以用一句话导演语气） |
 | 旁白有表情、有节奏 | `bin/vh tts … --beats` | 每句都能单独导演，比如 `[惊讶地提问，语速快，"一句话"重读]`；有配乐时，每句从拍点起，关键句可以指定落在小节头或 drop 上。各类视频的默认语气、帧对齐的速度表和混音参数见 [playbook/04](playbook/04-audio.md) "让声音有表情、有节奏" |
 | 双语字幕 | `bin/vh captions` | 旁白稿写成 `中文 \|\| English`，自动出中文、英文、中英双行字幕，还能封装成可开关的字幕轨 |
 | 配乐 | `bin/vh music` | 用代码作曲，同一份谱永远生成同一段音乐，还会给出每一拍的精确时间，画面拿它卡点。有编钟、古筝、竹笛、大鼓这些中国乐器，也可以改拍号。用你自己的曲子也行：`bin/vh beats` 会分析出节拍和鼓点 |
@@ -246,7 +248,7 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 | macOS 或 Linux、git | 基础 | ✅ |
 | Node.js ≥ 22、Google Chrome | 在浏览器里渲染画面 | ✅ |
 | FFmpeg | 编码、混音、检查 | ✅ |
-| Python 3 + [uv](https://github.com/astral-sh/uv) | 声音工具（`bin/vh tts`、`beats`、`music`、`sfx`、`qa`）、带时间戳的联系表、Manim（依赖临时安装，不污染全局环境） | 做声音和联系表时必需 |
+| Python 3 + [uv](https://github.com/astral-sh/uv) | 声音工具（`bin/vh tts`、`beats`、`music`、`sfx`、`qa`）、带时间戳的联系表、Manim（依赖第一次用时下载到 uv 的缓存，不装进全局环境） | 做声音和联系表时必需 |
 | Apple Silicon | 本地 Qwen3-TTS 配音 | 用本地配音时需要 |
 | LaTeX | Manim 里的公式 | 做数学讲解时需要 |
 
@@ -279,6 +281,72 @@ npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harn
 这个 skill 只是一个指针，第一次用时会征得你同意，再把完整的工作台装好。
 
 更新：在仓库目录运行 `git pull`，再运行 `references/fetch.sh`。
+
+### 会下载什么
+
+大小都是约数，在 macOS（Apple Silicon）上量的，你那边 `du -sh` 会差一点。
+
+| 下载的东西 | 什么时候 | 放在哪里 | 大小 |
+|---|---|---|---|
+| 本仓库，样片和示例片都在里面 | 安装时 | `~/OpenVideoHarness` | 约 330 MB |
+| 手绘引擎和风格样片渲染器的 Node 依赖 | 安装时 | 仓库里的 `node_modules` | 约 210 MB |
+| 30 个只读参考仓库 | 安装时，加 `--no-refs` 可跳过 | `references/repos/` | 约 195 MB |
+| HyperFrames 用的 Chrome（`chrome-headless-shell`） | 第一次 `hyperframes render` | `~/.cache/hyperframes` | 下载约 100 MB，解压后约 200 MB |
+| `bin/vh beats`、`music`、`sfx`、`qa`、`sheet` 用的 Python 依赖（librosa、numba、scipy 等） | 每个命令第一次运行时 | uv 的缓存 `~/.cache/uv` | 合计约 700 MB |
+| 每个 HyperFrames 项目自己的 `node_modules` | 每次 `bin/vh new short`、`promo`、`data`、`meme` | 项目目录里 | 每个约 140 MB |
+| 本地 Qwen3-TTS 配音：`mlx-audio` 和它的依赖，再加模型 | 第一次用默认的本地配音（`qwen`）跑 `bin/vh tts`；换别的配音服务就不用 | `~/.cache/uv` 和 `~/.cache/huggingface` | 约 750 MB 和 2 GB |
+
+安装脚本自己只写仓库目录；没加 `--no-skill` 时，还会在 `~/.claude/skills` 和 `~/.agents/skills` 下各写一个很小的 skill 文件，npm 也照常写它自己的缓存。从 `chrome-headless-shell` 那一行往下，都是用到才下载，不会问你，输出也很少：`bin/vh` 调 `uv` 是静默的；agent 在非交互的 shell 里跑第一次渲染，只看到 "Checking browser…" 转圈，Chrome 就是这时在下。HyperFrames 还会在 `~/.hyperframes` 放一份很小的配置和日志。这些都在你的用户目录下，不在仓库里；uv 和 Hugging Face 的缓存和你别的工具共用。网络慢或不通时，看下面的[国内网络](#国内网络)。
+
+**不想拉参考仓库**：它们是别人的 skill 和片子源码，浅克隆下来给 agent 阅读，渲染不依赖它们。用 `--no-refs` 安装；以后哪份工作流文档指向的 `references/repos/<名字>/` 你没有，就只拉那一个：`references/fetch.sh hyperframes`（约 30 MB）。不带参数的 `references/fetch.sh` 一次拉全部 30 个。
+
+## 国内网络
+
+第一次用的时候，有几处要连境外的服务。连不上或很慢，就按下面设镜像。地址和变量名都对照过各家的官方说明（2026-10-01 核对）；镜像站可能调整，失效时以官方页面为准。
+
+| 下载什么 | 怎么设 | 官方说明 |
+|---|---|---|
+| npm 包：引擎依赖、每个 HyperFrames 项目的 `node_modules` | `export npm_config_registry=https://registry.npmmirror.com` | [npmmirror](https://npmmirror.com/)、[npm config](https://docs.npmjs.com/cli/v10/using-npm/config) |
+| Python 依赖：声音工具和联系表，uv 现装 | `export UV_DEFAULT_INDEX=https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`（清华），或 `https://mirrors.aliyun.com/pypi/simple/`（阿里云） | [清华 PyPI](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)、[阿里云 PyPI](https://developer.aliyun.com/mirror/pypi)、[uv 环境变量](https://docs.astral.sh/uv/reference/environment/) |
+| Qwen3-TTS 模型（约 2 GB，来自 Hugging Face） | `export HF_ENDPOINT=https://hf-mirror.com` | [hf-mirror](https://hf-mirror.com/)、[huggingface_hub 环境变量](https://huggingface.co/docs/huggingface_hub/package_reference/environment_variables) |
+
+变量要在运行 `install.sh`、`bin/vh` **之前**设好：写进 `~/.zshrc` 长期有效，或者只给一条命令设，比如一键安装：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | npm_config_registry=https://registry.npmmirror.com bash
+```
+
+几处细节：
+- **npm**：仓库里的 `package-lock.json` 记的是 `registry.npmjs.org` 的地址，npm 默认会换成你设的镜像（`replace-registry-host` 的默认值是 `npmjs`），所以 `npm ci` 也走镜像，实测没有请求落到 npmjs.org。要写进配置：`npm config set registry https://registry.npmmirror.com`。
+- **uv、pip**：`UV_INDEX_URL` 是旧名字，uv 文档已标为弃用，请用 `UV_DEFAULT_INDEX`。要长期有效，写进 `~/.config/uv/uv.toml`（macOS 和 Linux 都是这个位置，环境变量比配置文件优先）：
+  ```toml
+  [[index]]
+  url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+  default = true
+  ```
+  直接用 pip 时：`pip config set global.index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple`。清华还有一个域名 `https://pypi.tuna.tsinghua.edu.cn/simple`，也能用。阿里云页面里的示例写的是 `http://` 加 `trusted-host`，`https://` 同样可用。
+- **Hugging Face**：`HF_ENDPOINT` 是 `huggingface_hub` 认的变量，`bin/vh tts` 下载 Qwen3-TTS 走的就是它。hf-mirror 不支持登录，gated 模型要先在 Hugging Face 官网申请、拿到 Access Token，再带 `--token` 下载（见 hf-mirror 首页）；默认的 Qwen3-TTS 是公开的，不用管这些。
+- **HyperFrames 的 Chrome**：第一次 `hyperframes render` 从 `storage.googleapis.com` 下载 chrome-headless-shell（0.8.82 固定用 152.0.7977.30）。连不上时，终端先一直转 "Checking browser…"，最后报 `Failed to download chrome-headless-shell`。可以先从 npmmirror 的二进制镜像装到 HyperFrames 找的位置，在任一 HyperFrames 项目或 `styles/_swatch` 里运行：
+  ```bash
+  npx browsers install chrome-headless-shell@152.0.7977.30 \
+    --path ~/.cache/hyperframes/chrome --base-url https://cdn.npmmirror.com/binaries/chrome-for-testing
+  ```
+  装好后 `npx hyperframes browser path` 会打印出它，再渲染就不下载了（实测渲染时显示 `Browser: cache`）。实在装不上，可以 `export HYPERFRAMES_BROWSER_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`（macOS 的路径，Linux 换成 `google-chrome` 或 `chromium` 的路径），直接用装好的 Chrome：能出片，但走较慢的截图路径，这个仓库没在这条路径上测过确定性。
+- **GitHub**：`install.sh` 和 `references/fetch.sh` 都从 GitHub 克隆。访问不稳时，先 `bash install.sh --no-refs`，参考仓库用到哪个再拉哪个（`references/fetch.sh <名字>`）；git 也可以走代理：`git config --global http.proxy http://127.0.0.1:端口`。
+
+### 渲染时会连 Google Fonts
+
+有几处在渲染时会请求 `fonts.googleapis.com`：
+- `engines/ClaudeAnimationBase/studio.html` 请求手写字用的 Permanent Marker；手绘和 MV 项目（`bin/vh new handdrawn`、`mv`）和 `showcase/01` 都是从它复制来的。`render.mjs` 要等页面网络空闲才开始渲：请求一直挂着时，30 秒后以 `Navigation timeout of 30000 ms exceeded` 退出；请求立刻失败时，只打一行 `Failed to load resource`，照常出片，手写字落到后备字体（`Comic Sans MS`）。
+- `showcase/02-short-leo-doppler/index.html`，和照它写的竖屏科普：Noto Sans SC 的 500、800 两个字重。
+- HyperFrames 自己：页面里没有用 `@font-face` 声明的字体，它在第一次渲染或 `snapshot` 时去 Google Fonts 取，缓存到 `~/.cache/hyperframes/fonts`；脚手架默认的 `Inter` 就在此列。请求挂着时没有任何输出（实测 2 分钟以上）；请求立刻失败时静默改用系统字体，也没有警告。
+
+本地化有三种做法，按省事程度排：
+1. **用系统字体，不联网。** 样片渲染器就是这么做的：在页面的 `<style>` 里声明 `@font-face`，`src` 写 `local()`，例如 `@font-face { font-family: "PingFang SC"; src: local("PingFangSC-Semibold"), local("PingFang SC Semibold"); font-weight: 600; }`。现成的声明在 `styles/_swatch/fonts.css`，换了机器用 `python3 styles/_swatch/fonts.py` 按本机字体重新生成；各字体有哪些字重，见 `styles/_swatch/README.md` 的"字体"一节。
+2. **字体文件放进项目。** 放到 `assets/fonts/`，在 `<style>` 里写 `@font-face { font-family: "…"; src: url("assets/fonts/….woff2") format("woff2"); }`，来源和许可记进 `NOTES.md`。HyperFrames 看到自己声明的字体，就不会再去取了（实测没有任何请求）。
+3. **用 npm 装。** Fontsource 把 Google Fonts 打成了 npm 包，走上面的 npm 镜像就行：
+   - 手绘引擎：`npm i -D @fontsource/permanent-marker`（0.1 MB），把 `studio.html` 里 `fonts.googleapis.com` 那行 `<link>` 换成 `<link rel="stylesheet" href="node_modules/@fontsource/permanent-marker/index.css">`。实测 Google Fonts 连不上时，字体 1 秒内加载完。
+   - Noto Sans SC：`npm i -D @fontsource-variable/noto-sans-sc`（约 5 MB 的可变字体，100–900 的字重都有），页面里写 `<link rel="stylesheet" href="node_modules/@fontsource-variable/noto-sans-sc/wght.css">`，`font-family` 写 `"Noto Sans SC Variable"`。showcase 02 照此改完，HyperFrames 的 snapshot 和原版逐像素一致（实测三个时刻）；snapshot 会打一条 `[StaticGuard] … Font family used without @font-face declaration`，字体其实已经加载，可以不管。
 
 ## 仓库里有什么
 

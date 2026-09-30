@@ -30,12 +30,45 @@ node render.mjs --sheet=0.5,2,4 --cols=3 --w=480 --out=out/check/sheet.jpg   # �
 export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1          # 每次开终端先设置
 npx hyperframes lint                                    # 写的过程中随时检查
 npx hyperframes check --snapshots                       # 最终关卡
-npx hyperframes snapshot --at 1.5,4.2                   # 单帧
+npx hyperframes snapshot --at 1.5,4.2 --describe false  # 单帧；--describe false 不能省，见下
 npx hyperframes preview                                 # 浏览器预览
 npx hyperframes render --quality draft --fps 30 --output out/draft.mp4
 npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 ```
 
+### 最小写法（0.8.82）
+
+`bin/vh hf-init` 搭出来的 `index.html` 就是最小的合成（`bin/vh new short|promo|data|meme` 会自动跑它），手写时照着改；完整样板见 `showcase/02-short-leo-doppler/index.html`。`<body>` 里是这样：
+
+```html
+<div id="root" data-composition-id="main" data-start="0" data-duration="10" data-width="1080" data-height="1920">
+  <h1 id="title" class="clip" data-start="0" data-duration="10" data-track-index="0">标题</h1>
+</div>
+<script>
+  const tl = gsap.timeline({ paused: true });   // 必须 paused：时间由渲染器推进，不是 GSAP 自己走
+  tl.fromTo("#title", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.6 }, 0);   // 第 3 个参数是绝对时间（秒）
+  window.__timelines["main"] = tl;              // 用 data-composition-id 当 key 登记，渲染器只认这里
+</script>
+```
+
+- **根元素**：`data-composition-id` 必填；`data-start`、`data-duration` 是秒；`data-width`、`data-height` 是像素。项目根目录只放一个 composition（`index.html`）。`<head>`（viewport、gsap 的 `<script>`、把 `html, body` 定成画布大小的样式）照脚手架抄。
+- **`.clip`**：要按时间出现的元素加 `class="clip"`，写 `data-start`（第几秒出现）和 `data-duration`（持续几秒），渲染器按它们决定元素什么时候在画面上。`data-track-index` 只是 Studio 时间线上的行号，渲染不读它，也管不了叠放顺序，叠放用 CSS `z-index`。
+- **动画都挂在这条 paused 的 timeline 上**（`to`、`from`、`fromTo`、`set`），不用 CSS `animation` / `transition`、`Math.random()`、`Date.now()`（硬规则 1）。
+- **驱动 tween**：曲线、轨道、物理这类每帧重算的画面，在同一条 timeline 上挂一个 `ease: "none"` 的代理 tween，在回调里按 t 重画，画面就仍是 t 的纯函数。showcase 02 的 `draw(t)` 这样画出了全部物理画面，`DUR` 是片长（秒）：
+
+  ```js
+  const drv = { t: 0 };
+  tl.fromTo(drv, { t: 0 }, { t: DUR, duration: DUR, ease: "none", onUpdate: () => draw(drv.t) }, 0);
+  ```
+
+- **写一段，查一段**：`npx hyperframes lint` 到 0 error 再往下；`snapshot --at <秒> --describe false` 看几个关键时刻的单帧；`render --quality draft --fps 30 --output out/draft.mp4` 出草稿，字体和接缝以渲出来的 mp4 为准；最后 `--quality delivery` 出成片。完整写法见上面那一块命令。
+
+### 注意事项和已知问题（0.8.82 实测）
+
+- **`snapshot` 一律带 `--describe false`。** 环境里有 `GEMINI_API_KEY`（或 `GOOGLE_API_KEY`）时，`snapshot` 默认把每一帧发给 Gemini 做画面描述，结果写进 `snapshots/descriptions.md`：画面离开本机，还要按 Gemini 计费。本仓库的 `bin/vh tts … --align gemini` 也要这个 key，所以 key 多半是设了的。`--describe false` 和 `--describe=false` 都能关掉；没设 key 时它只打一行 "skipping"。`check` 不受影响。
+- **第一次 `render` 会下载 chrome-headless-shell，而且几乎没有提示。** 现象：在非交互的 shell 里（agent 就是这样跑的），终端只有 "Checking browser…" 在转圈，没有大小和百分比，下载期间一直是这一行，网慢时看上去就像卡死了。原因：`render` 用 HyperFrames 自己管理的 chrome-headless-shell（0.8.82 固定为 152.0.7977.30），缓存里没有就先下载：约 100 MB，解压后约 200 MB，放在 `~/.cache/hyperframes/chrome`，所有项目共用；装了 Google Chrome 也一样（`snapshot`、`check` 在缓存为空时直接用系统 Chrome，不下载）。下完会打出 `Browser: download`，以后是 `Browser: cache`。解决：第一次渲染之前先跑 `npx hyperframes browser ensure`，它会写明在下什么、多大，下完打印路径；下不了，看 README.zh-CN.md 的"国内网络"。
+- **`font-weight: 800` 在 macOS 自带的 PingFang SC 上等于 600。** 现象：字幕规格写了字重 800，渲出来却不够粗，也没有报错。原因：PingFang SC 只有 6 个字重，从 Ultralight 到 Semibold（CSS 的 100–600），没有 Bold 和 Heavy；请求 700、800、900 都落到 600，实测渲出的字和 600 逐像素相同，浏览器也不会再合成粗体。解决：用 PingFang SC 就写 600，并在 STYLE.md 里记下；真要 800，自己带一个有这个字重的字体（Noto Sans SC 等，不联网的取法见 README.zh-CN.md 的"国内网络"），或者换一个有更粗字重的系统字体（比如 Songti SC 有 900，`styles/_swatch/README.md` 的字体表列了各字体实测可用的字重）。
+- **`--format png-sequence` 写出的是 RGBA，而且不画页面背景。** `html`、`body` 和合成根元素上的 `background` 都不会进 PNG（那些地方 alpha = 0），只有元素自己的底色会留下。做确定性检查时要留意，细节和比对办法见 `playbook/02-verification.md` 的"确定性"一节。
 - **不要运行 `npx hyperframes skills update`**。skill 文档已经拉到本地，直接读：`references/repos/hyperframes/skills/`（工作流和参考资料）、`references/repos/hyperframes/_upstream_claude/skills/`（motion-doctrine 等内部规范，写动画前先读 motion-doctrine）。
 - 想让所有项目都能用 `/hyperframes`、`/faceless-explainer` 等命令，可以装成 Claude Code 的用户级插件（`claude plugin marketplace add heygen-com/hyperframes && claude plugin install hyperframes@hyperframes`）。这会修改全局配置，**必须先征得用户同意**。
 - **中文字体**：lint 会拒绝没有 `@font-face` 或 Google Fonts `<link>` 的字体。Noto Sans SC 不在它的自动字体列表里（列表里只有 Noto Sans JP），要显式用 `<link>` 引入，或者把字体文件放进 `assets/` 并写 `@font-face`。
@@ -63,7 +96,7 @@ npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 
     渲染命令外面再包一层看门狗：超时就杀掉进程，核对退出码和帧数，再抽几帧查 YAVG，确认 3D 层确实画出来了。
 
-    GSAP 也一样。HyperFrames 的脚手架默认从 CDN 加载 `gsap@3.14.2`；`bin/vh hf-init` 现在会自动把它装进项目，并把 `<script src>` 改成 `node_modules/gsap/dist/gsap.min.js`，如果还有别的 CDN 引用，会打出警告。showcase 00 和 02 已经照此改过。剩下的网络依赖是 Google Fonts 的 `<link>`（showcase 02 的 Noto Sans SC、ClaudeAnimationBase 的 `studio.html`）：离线时要么先用本机字体（见 `styles/_swatch/README.md` 的字体表），要么把字体文件放进项目并在 NOTES 里记下许可。
+    GSAP 也一样。HyperFrames 的脚手架默认从 CDN 加载 `gsap@3.14.2`；`bin/vh hf-init` 现在会自动把它装进项目，并把 `<script src>` 改成 `node_modules/gsap/dist/gsap.min.js`，如果还有别的 CDN 引用，会打出警告。showcase 00 和 02 已经照此改过。剩下的网络依赖是 Google Fonts 的 `<link>`（showcase 02 的 Noto Sans SC、ClaudeAnimationBase 的 `studio.html`）：离线时要么先用本机字体（见 `styles/_swatch/README.md` 的字体表），要么把字体文件放进项目并在 NOTES 里记下许可；国内网络下的具体做法（系统字体、字体文件、从 npm 镜像装 Fontsource）见 README.zh-CN.md 的"国内网络"。
   - **`renderAt` 里抛异常时，画面会停在上一帧，不报错。** 介绍片有一版 draft 读了一个还没声明的 `const`（TDZ），36–48 s 整整 12 s 都停在 t=0 的画面。画面角落常驻一个 t 读数的 HUD，抽一帧就能看出停帧；成片级的检测方法见 `playbook/02-verification.md`。
   - **Hermite 路径在"快甩、慢推"的站点会冲过头。** 关键帧的切线默认由前后两个邻居估出来，甩镜到站时，站点的切线带着甩镜的速度，镜头会冲进字里（介绍片的架构站把节点标签推出了画面）。给关键帧加一个切线模式：到站的关键帧用 `tm: "f"`，切线只取后面那段慢推；离站的关键帧用 `tm: "b"`，只取前面那段慢推。两站之间的甩镜就成了一条干净的 S 曲线。
   - **世界里的节点标签按屏幕像素定字号**，不要按画面宽度的比例缩放，否则长标签的中文会掉到 20 多 px。介绍片的 `pin()` 每帧把节点投影到屏幕，用 `2·d·tan(fov/2) / 1080` 算出这个深度上 1 px 对应的世界长度（d 是节点沿视线方向的深度，fov 是竖直视场角），据此缩放面向镜头的标签平面，字号就固定了（英文 54–56 px，中文 ≥ 46 px）。另外两件事：标签框夹在安全框里；节点出画、或者标签被推离节点太远时就淡出，否则镜头离开后，标签会在画面边上堆成一摞。
