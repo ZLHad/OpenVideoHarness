@@ -3,6 +3,7 @@
 usage (via bin/vh sfx):
   python tools/audio/sfx.py lib <out_dir>                         write the built-in library (48 kHz mono WAVs)
   python tools/audio/sfx.py place <events.json> <out.wav> [duration_s] [--lib DIR]   → 48 kHz STEREO track
+                                                                  + <out>.events.json: each event's own level
 events.json: [{"t": 3.20, "sfx": "click", "gain_db": -6}, {"t": 7.95, "sfx": "whoosh", "pan": -0.6, "dist": 3}, …]
   "sfx" is a library name or a path to your own sound (recorded / licensed: log its source in NOTES.md; any format,
   bit depth or sample rate ffmpeg decodes; stereo files are folded to mono and treated as a point source).
@@ -13,16 +14,27 @@ events.json: [{"t": 3.20, "sfx": "click", "gain_db": -6}, {"t": 7.95, "sfx": "wh
        power constant. Derive it from the sounding object's on-screen x: pan = 2 · x / width − 1 (clamp; soften × 0.7).
   dist (optional, ≥ 1, distance in units of the reference distance; 1 = as recorded): level × 1/dist (−6 dB per
        doubling) plus a gentle 1st-order low-pass at 16 kHz / dist (≥ 1 kHz). Filter delay < 0.2 ms: landmarks hold.
+  role (optional: hero | detail | ambience | signal): the event's class for a mix profile (bin/vh mix … profile=…),
+       which levels each class relative to the narration or the music. Without it the class comes from "layer":
+       "sonification" (→ signal) or from a name hint (impact → hero, click → detail, gust → ambience …); write it when
+       the hint is wrong for the film, e.g. a gust that is the gag's action (detail) or the one thock that lands the hook
+       (hero). `place` checks it and writes it into the sidecar.
+The sidecar <out>.events.json lists, per event: its class and why, where it starts, and its own level as placed:
+  fast (loudest 100 ms, K-weighted LUFS), m400 (loudest 400 ms), tp (true peak, dBTP), len (s within 20 dB of fast),
+  lf (share of its energy under 150 Hz: above 0.6 a phone or laptop speaker barely plays it). A mix profile does not
+  need it (it measures each event itself); it is for reading the foley's levels before mixing.
 Built-ins: click tick pop toggle typing whoosh swish_rev riser impact boom ding success error glitch shutter
-All are original, deterministic (seeded) and license-free (MIT, part of this repo).
+All are original, deterministic and license-free (MIT, part of this repo). Each built-in draws from its own random
+stream, seeded by its name, so `sfx lib` and `sfx place` give the same samples whatever else was rendered first.
 """
-import json, subprocess, sys, wave
+import json, subprocess, sys, wave, zlib
 from pathlib import Path
 import numpy as np
-from scipy.signal import butter, lfilter
+from scipy.signal import butter, lfilter, sosfilt
 
 SR = 48000
-rng = np.random.default_rng(11)
+CLASSES = ("hero", "detail", "ambience", "signal")
+rng = np.random.default_rng(11)   # re-seeded for every built-in by builtin()
 
 def lp(x, f): b, a = butter(2, min(f, SR * .45) / (SR / 2), "low"); return lfilter(b, a, x)
 def hp(x, f): b, a = butter(2, f / (SR / 2), "high"); return lfilter(b, a, x)
@@ -51,9 +63,20 @@ def swish_rev(): return whoosh(.5)[::-1] * .8
 def riser(d=2.0):
     t = T(d); k = t / d
     return hp(noise(d), 500) * k ** 2.2 * .3 + tone(300 + 2400 * k ** 2, t) * k ** 3 * .15
+def crack(d=.05, tau=.005, peak=.8):
+    """a 1–4 kHz attack: the part of a hit that phone and laptop speakers actually play"""
+    t = T(d); x = sosfilt(butter(4, [1000 / (SR / 2), 4000 / (SR / 2)], "band", output="sos"), noise(d)) * np.exp(-t / tau)
+    return x / np.abs(x).max() * peak
+def hit(body, delay=.002, fade=.01, peak=.95):
+    """a crack on t, the body 2 ms behind it and faded in over 10 ms, the sum at most a 0.95 peak. Without the crack,
+    impact and boom had 98–100 % of their energy under 150 Hz: a thump on headphones, next to nothing on a phone."""
+    x = np.zeros(len(body)); i = int(delay * SR)
+    x[i:] = (body * np.minimum(1, np.arange(len(body)) / SR / fade))[:len(body) - i]
+    c = crack(); x[:len(c)] += c
+    return x * min(1.0, peak / np.abs(x).max())
 def impact():
-    t = T(1.6); return tone(40 + 90 * np.exp(-t / .05), t) * np.exp(-t / .6) * .9 + lp(noise(1.6), 1200) * np.exp(-t / .2) * .35
-def boom():    t = T(2.4); return tone(34 + 40 * np.exp(-t / .1), t) * np.exp(-t / 1.0) * .95
+    t = T(1.6); return hit(tone(40 + 90 * np.exp(-t / .05), t) * np.exp(-t / .6) * .9 + lp(noise(1.6), 1200) * np.exp(-t / .2) * .35)
+def boom():    t = T(2.4); return hit(tone(34 + 40 * np.exp(-t / .1), t) * np.exp(-t / 1.0) * .95)
 def ding():
     t = T(1.2); x = sum(a * np.sin(2*np.pi*f*t) * np.exp(-t / d) for f, a, d in [(1318, .5, .5), (2637, .2, .25), (3951, .08, .12)])
     return x * np.minimum(1, t / .002) * .6
@@ -76,6 +99,14 @@ LIB = {"click": click, "tick": tick, "pop": pop, "toggle": toggle, "typing": typ
 # landmark = seconds from the start of the sound to its perceptual hit (what should coincide with the action)
 LANDMARK = {"whoosh": .35, "swish_rev": .5, "riser": 2.0, "typing": 0.0}
 
+def builtin(name):
+    """a built-in sound, drawn from its own random stream (seeded by its name). One shared stream made every sound
+    depend on what was rendered before it: `sfx place` gave a whoosh different noise depending on the events before it,
+    and `sfx lib` another one again."""
+    global rng
+    rng = np.random.default_rng([11, zlib.crc32(name.encode())])
+    return LIB[name]()
+
 def write(path, x):  # x: (n,) mono or (n, 2) stereo
     x = np.clip(x, -1, 1)
     with wave.open(str(path), "wb") as w:
@@ -96,35 +127,60 @@ def read(path):  # → mono float at SR via ffmpeg (as qa.py loads): any bit dep
                          capture_output=True, check=True).stdout
     return np.frombuffer(raw, "<f4").reshape(-1, int(ch)).mean(1, dtype=np.float64)
 
+def source(name, lib_dir=None, root=None, t=None):
+    """an event's sound, mono float at SR: --lib DIR/<name>.wav first (so "v2.1" is a name), then a file of your own
+    (relative to root, default the working directory; anything ffmpeg decodes), then a built-in"""
+    at = f" (event at t={t})" if t is not None else ""
+    if lib_dir and (Path(lib_dir) / f"{name}.wav").exists(): return read(Path(lib_dir) / f"{name}.wav")
+    p = Path(root or ".") / name
+    if "/" in name or p.exists():                              # a file of your own: anything ffmpeg decodes
+        p.exists() or sys.exit(f"sfx: no such file: {name}{at}")
+        try: return read(p)
+        except subprocess.CalledProcessError: sys.exit(f"sfx: ffmpeg cannot decode {name}")
+    if name in LIB: return builtin(name)
+    sys.exit(f"sfx: unknown sound {name!r}: not in --lib, not a built-in ({', '.join(LIB)}), not a file")
+
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
     if cmd == "lib":
         d = Path(sys.argv[2]); d.mkdir(parents=True, exist_ok=True)
-        for name, fn in LIB.items(): write(d / f"{name}.wav", fn())
+        for name in LIB: write(d / f"{name}.wav", builtin(name))
         print(f"{len(LIB)} SFX → {d}/ ({', '.join(LIB)})"); return
     if cmd == "place":
         events = json.load(open(sys.argv[2])); out = sys.argv[3]
         dur = float(sys.argv[4]) if len(sys.argv) > 4 and not sys.argv[4].startswith("--") else max(e["t"] for e in events) + 3
         lib_dir = Path(sys.argv[sys.argv.index("--lib") + 1]) if "--lib" in sys.argv else None
-        track = np.zeros((int(dur * SR), 2)); cache = {}
+        for k, e in enumerate(events):
+            if e.get("role") is not None and e["role"] not in CLASSES:
+                sys.exit(f"sfx: event {k} ({e.get('sfx')} at t={e.get('t')}): role {e['role']!r} is not one of {', '.join(CLASSES)}")
+        track = np.zeros((int(dur * SR), 2)); cache = {}; placed = []
         for e in events:
             name = e["sfx"]
-            if name not in cache:
-                p = Path(name)
-                if lib_dir and (lib_dir / f"{name}.wav").exists(): cache[name] = read(lib_dir / f"{name}.wav")   # --lib first: "v2.1" is a name
-                elif "/" in name or p.exists():                      # a file of your own: anything ffmpeg decodes
-                    p.exists() or sys.exit(f"sfx: no such file: {name} (event at t={e['t']})")
-                    try: cache[name] = read(p)
-                    except subprocess.CalledProcessError: sys.exit(f"sfx: ffmpeg cannot decode {name}")
-                elif name in LIB: cache[name] = LIB[name]()
-                else: sys.exit(f"sfx: unknown sound {name!r}: not in --lib, not a built-in ({', '.join(LIB)}), not a file")
+            if name not in cache: cache[name] = source(name, lib_dir, None, e["t"])
             x = spatial(cache[name] * 10 ** (e.get("gain_db", 0) / 20), e.get("pan", 0), e.get("dist", 1))
             i = int(round((e["t"] - LANDMARK.get(name, 0.0)) * SR))
             if i < 0: x, i = x[-i:], 0
-            j = min(len(track), i + len(x)); track[i:j] += x[: j - i]
+            j = min(len(track), i + len(x)); track[i:j] += x[: j - i]; placed.append((e, i, x[: max(0, j - i)]))
         clip = int((np.abs(track) > 1).sum()); write(out, track)
-        print(f"{len(events)} events → {out} ({dur:.2f}s, stereo)" + (f"  ! {clip} samples clipped: lower gain_db" if clip else "")); return
+        side = sidecar(out, placed)
+        print(f"{len(events)} events → {out} ({dur:.2f}s, stereo) · levels → {side}" + (f"  ! {clip} samples clipped: lower gain_db" if clip else "")); return
     print(__doc__)
+
+def sidecar(out, placed):
+    """<out>.events.json: each event's class and its own level as placed (see the module docstring)"""
+    import mix   # the meter and the class hints live with the mix profiles (tools/audio/mix.py)
+    rows = []
+    for k, (e, i, x) in enumerate(placed):
+        c, why = mix.sfx_class(e)
+        row = {"i": k, "t": e["t"], "sfx": e["sfx"], "class": c, "why": why, "start": round(i / SR, 4)}
+        if len(x):
+            lv = mix.event_levels(x); lv["at"] += i / SR
+            row.update({k2: round(v, 3) for k2, v in lv.items() if k2 in ("fast", "m400", "tp", "at", "len", "lf")})
+        else: row["outside"] = True   # starts after the end of the track
+        rows.append(row)
+    path = str(Path(out).with_suffix("")) + ".events.json"
+    with open(path, "w") as fh: json.dump({"track": Path(out).name, "sr": SR, "events": rows}, fh, ensure_ascii=False, indent=1)
+    return path
 
 if __name__ == "__main__":
     main()

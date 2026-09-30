@@ -212,8 +212,8 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 | 双语字幕 | `bin/vh captions` | 旁白稿写成 `中文 \|\| English`，自动出中文、英文、中英双行字幕，还能封装成可开关的字幕轨 |
 | 配乐 | `bin/vh music` | 用代码作曲，同一份谱永远生成同一段音乐，还会给出每一拍的精确时间，画面拿它卡点。有编钟、古筝、竹笛、大鼓这些中国乐器，也可以改拍号。用你自己的曲子也行：`bin/vh beats` 会分析出节拍和鼓点 |
 | 音效 | `bin/vh sfx` | 15 个代码合成的原创音效，按动作发生的那一帧摆放；物体在画面左边，声音就偏左 |
-| 混音 | `bin/vh mix` | 人声出现时音乐自动让位，整体响度调到 -14 LUFS，电影感配乐的起伏不会被压扁 |
-| 混音质检 | `bin/vh qa` | 用数据查成品：有没有断音、掉音、忽大忽小、爆音，每个卡点是否落在 1 帧以内 |
+| 混音 | `bin/vh mix` | 按视频类型选 profile，人声、音乐、音效都相对一个锚点放：音乐逐句让到目标电平，音效按类分级；整体响度调到 -14 LUFS，电影感配乐的起伏不会被压扁 |
+| 混音质检 | `bin/vh qa` | 用数据查成品：有没有断音、掉音、忽大忽小、爆音，每个卡点是否落在 1 帧以内，层次是否达标（`qa mix`） |
 | 歌曲 | — | 在 Suno 这类网页服务生成后导入；ElevenLabs Music 和本地歌曲模型留好了接口 |
 
 详见 [playbook/04-audio.md](playbook/04-audio.md)。
@@ -245,7 +245,7 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 | macOS 或 Linux、git | 基础 | ✅ |
 | Node.js ≥ 22、Google Chrome | 在浏览器里渲染画面 | ✅ |
 | FFmpeg | 编码、混音、检查 | ✅ |
-| Python 3 + [uv](https://github.com/astral-sh/uv) | 声音工具（`bin/vh tts`、`beats`、`music`、`sfx`、`qa`）、带时间戳的联系表、Manim（依赖临时安装，不污染全局环境） | 做声音和联系表时必需 |
+| Python 3 + [uv](https://github.com/astral-sh/uv) | 声音工具（`bin/vh tts`、`beats`、`music`、`sfx`、`qa`、`mix … profile=`）、带时间戳的联系表、Manim（依赖临时安装，不污染全局环境） | 做声音和联系表时必需 |
 | Apple Silicon | 本地 Qwen3-TTS 配音 | 用本地配音时需要 |
 | LaTeX | Manim 里的公式 | 做数学讲解时需要 |
 

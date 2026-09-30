@@ -212,8 +212,8 @@ The agent can't hear, so sound is built to be computed and measured:
 | Bilingual subtitles | `bin/vh captions` | Write the script as `中文 \|\| English` and get Chinese, English and two-line subtitles, which can be packed as switchable tracks |
 | Music | `bin/vh music` | Composed in code: the same score always gives the same music, plus the exact time of every beat for the picture to hit. Includes Chinese instruments (bells, guzheng, dizi, big drum) and changing time signatures. Using your own track? `bin/vh beats` finds its beats and drum hits |
 | Sound effects | `bin/vh sfx` | 15 original synthesized effects, each placed on the frame where its action happens; a sound on the left of the screen comes from the left |
-| Mix | `bin/vh mix` | Music makes way for the voice; the whole mix is set to −14 LUFS without flattening a cinematic score |
-| Mix check | `bin/vh qa` | Measures the finished mix for gaps, dropouts, pumping and clicks, and checks every cue lands within 1 frame |
+| Mix | `bin/vh mix` | A profile per video type sets voice, music and SFX relative to one anchor: the music rides under each narration line to a target level and the SFX are levelled by class; the whole mix is set to −14 LUFS without flattening a cinematic score |
+| Mix check | `bin/vh qa` | Measures the finished mix for gaps, dropouts, pumping and clicks, checks every cue lands within 1 frame, and reports the level hierarchy (`qa mix`) |
 | Songs | — | Generate in a web service like Suno and import; interfaces ready for ElevenLabs Music and local song models |
 
 More in [playbook/04-audio.md](playbook/04-audio.md).
@@ -245,7 +245,7 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | macOS or Linux, git | the basics | ✅ |
 | Node.js ≥ 22, Google Chrome | rendering in the browser | ✅ |
 | FFmpeg | encoding, mixing, checks | ✅ |
-| Python 3 + [uv](https://github.com/astral-sh/uv) | sound tools (`bin/vh tts`, `beats`, `music`, `sfx`, `qa`), timestamped contact sheets, Manim (dependencies are installed on the fly, nothing global) | ✅ for sound and contact sheets |
+| Python 3 + [uv](https://github.com/astral-sh/uv) | sound tools (`bin/vh tts`, `beats`, `music`, `sfx`, `qa`, `mix … profile=`), timestamped contact sheets, Manim (dependencies are installed on the fly, nothing global) | ✅ for sound and contact sheets |
 | Apple Silicon | local Qwen3-TTS voiceover | For local voiceover |
 | LaTeX | equations in Manim | For math explainers |
 

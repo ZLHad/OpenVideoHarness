@@ -2,6 +2,51 @@
 
 ## Unreleased
 
+**Mix hierarchy: mix profiles, the mix report and a harder cue check**
+- The voice, music and SFX levels had no hierarchy. Measured on the showcase films: the narrated ones sat about 8 LU over the music (the worst line 1.3 LU), the music rose to 2–3 LU under the voice between lines, and 27–41 % of their words had under 6 dB of 1–4 kHz SNR. The SFX were inconsistent rather than uniformly loud: hits up to 8 LU over the music in one film, and swatch foley whose median sat 6 to 22 LU under the music.
+- `bin/vh mix … profile=explainer|short|promo|cartoon|mv|swatch` sets every level relative to one anchor: the narration's median line, or the music's 3 s loudness when there is no narration. The order is voice anchor → music VMR → SFX classes → depth → master:
+  - the narration's lines are levelled toward their median;
+  - the music is ridden per line, with look-ahead, in a closed loop until each line sits at the profile's VMR (voice − music). A 1–4 kHz carve goes only as deep as the words need; for Chinese narration it also carves 250 Hz–1 kHz;
+  - each SFX event is classed hero / detail / ambience / signal (`role` in events.json, `roles=`, `"layer": "sonification"`, or a name hint) and moves half way to its class's range. Gestures and busy passages move as one, and a low-frequency hit is never raised;
+  - one short room is shared by all SFX;
+  - the master is one static gain on a BS.1770 meter, then a numpy true-peak limiter at −1.65 dBTP, which leaves 0.15 dB for the AAC encode.
+- New keys: `events= lib= root= roles= timeline= stems=DIR keep= dur= fade=`. Numbers per profile are in `playbook/04-audio.md` ("混音"). Profile mixes run through uv (numpy, scipy).
+- On the mix lab's material, film 03 goes from VMR median / worst line 8.3 / 4.9 LU with 41 % of words at risk to 13.1 / 13.0 with 7 %. Film 02 goes from 7.9 / 1.3 with 27 % to 11.5 / 11.2 with 4 %. On the four test swatches, the spread of the foley medians (re the music) narrows from 16.0 to 6.1 LU. The port reproduces the prototype byte for byte on all eight test mixes.
+- Without `profile=` (or with `profile=none`) the ffmpeg chain is unchanged. Its outputs and its report line are byte-identical to before.
+- `bin/vh qa mix <stems dir>`: the mix report. It shows VMR per line, words at risk, the music in each pause, each SFX event re the anchor, the bed and the voice, the depth per bus, and the limiter. It exits 1 when:
+  - a line is under the VMR floor;
+  - a hero is over the voice during speech;
+  - too many words are at risk (with word times; 0.4 s chunks only warn);
+  - an SFX class median is more than 3 LU out of range.
+
+  `bin/vh qa <mix> … --stems DIR` runs the scan, the cue check and the report together. Its pumping check skips dips the music stem has too (the score's own dynamics).
+- Cue check:
+  - each cue prints its onset margin, and a margin under 0.02 is flagged `OK~` (a warning);
+  - a near-pure-tone SFX (tick, ding, toggle) that the onset detector misses is confirmed by cross-correlating its own sound, after motioner's sync_check;
+  - a cue on frame 0 gets one frame of silence before it, and that padded start is left out of the normalisation;
+  - on an AAC file the tolerance grows by 12 ms and cue problems only warn: the WAV is the gate.
+- `bin/vh sfx`:
+  - `place` checks each event's `role` and writes `<out>.events.json` with each event's class and its own level (fast, m400, true peak, length, share under 150 Hz);
+  - each built-in draws from its own seed, so a sound no longer depends on what was rendered before it (`lib` and `place` used to disagree);
+  - `impact` and `boom` get a 1–4 kHz crack on the hit, with the body 2 ms behind: they had 98–100 % of their energy under 150 Hz.
+
+  Built-ins that change:
+  - `impact`: −1.3 dB full-band (fast loudness), +8.3 dB above 400 Hz;
+  - `boom`: −1.0 dB full-band, +25.5 dB above 400 Hz;
+  - `click`, `typing`, `whoosh`, `swish_rev`, `riser`, `glitch` and `shutter` get new noise from the same recipes, within ±0.5 dB. `glitch` also picks a different random mix of its four pitches, so it sits higher (centroid 865 → 1479 Hz).
+
+  `tick`, `pop`, `toggle`, `ding`, `success` and `error` are byte-identical.
+- `styles/_swatch/render.sh` mixes the foley with `profile=swatch` (the starting balance is the old `music_db=0 sfx_db=-3`, with no ducking) and runs the full `bin/vh qa` on the WAV (the gate) and on the mp4. `foley.mjs` passes a `role` through from `FOLEY`. Swatches sound different once they are re-rendered, which happens on their own branches; no media is re-rendered here.
+- Docs: `playbook/04-audio.md` rewrites the mixing section:
+  - the profile table;
+  - the order;
+  - how to read the report;
+  - when to write `role`;
+  - the AAC margin;
+  - the limits.
+
+  `playbook/02-verification.md`, the swatch README, video type 03, the effort table in `CLAUDE.md`, the README tool tables (both languages), `bin/vh` help and `bin/vh doctor` point at the profiles.
+
 **Music parts: fixes from the swatch re-scores**
 - Figures and grids no longer drop notes when their step doesn't divide the bar. Half notes in a 5-beat bar played 2 of 3 notes, and none in a 1-beat bar (banker's rounding); a step that starts inside the bar now plays, cut at the bar line. A step that used to ring past the bar line and overlap the next bar's note now stops there.
 - A section's `params` (`by_section`) now reach the mono voices (sub808, violin, cello, winds …); before, they were silently ignored. A change of params starts a new phrase.

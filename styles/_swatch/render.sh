@@ -175,24 +175,24 @@ grep -h "\[swatch\]" "$LOG" 2>/dev/null | sort -u | head -10 | sed 's/^/   log: 
 [ $fail = 0 ] || exit 1
 echo "$ok ${n} frames at ${wh}, canvas drew, no error card ($((T1 - T0))s render)"
 
-# ── optional score → 5 s music bed, optional events.json → foley placed on the frame of each action
+# ── optional score → music, optional events.json → foley on the frame of each action, mixed with the swatch profile
 AUDIO=""; MIXARGS=()
 if [ $builtin = 0 ] && [ -f "$SRC/score.json" ]; then   # (SRC = styles/<slug> or the given folder)
   echo "→ music from ${SRC#$ROOT/}/score.json"
   "$ROOT/bin/vh" music "$SRC/score.json" "$OUT/music_raw.wav" >/dev/null
-  ffmpeg -v error -y -i "$OUT/music_raw.wav" -af "atrim=0:$DUR,afade=t=out:st=$(python3 -c "print($DUR-0.45)"):d=0.45,apad=whole_dur=$DUR" "$OUT/music5.wav"
-  MIXARGS+=(music="$OUT/music5.wav" music_db=0)
+  MIXARGS+=(music="$OUT/music_raw.wav")
 fi
-if [ $builtin = 0 ] && [ -f "$SRC/events.json" ]; then  # [{"t", "sfx", "gain_db", "pan", "dist"}]; own WAVs relative to the style folder
+if [ $builtin = 0 ] && [ -f "$SRC/events.json" ]; then  # [{"t", "sfx", "gain_db", "pan", "dist", "role"}]; own WAVs relative to the style folder
   echo "→ foley from ${SRC#$ROOT/}/events.json"
   "$ROOT/bin/vh" sfx lib "$OUT/sfxlib" >/dev/null       # rebuilt each time, so library fixes always reach the swatch
-  (cd "$SRC" && "$ROOT/bin/vh" sfx place events.json "$OUT/sfx_raw.wav" "$DUR" --lib "$OUT/sfxlib" >/dev/null)
-  # same 0.45 s fade as the score, so a long SFX that runs past the end isn't cut off with a click at 5.0 s
-  ffmpeg -v error -y -i "$OUT/sfx_raw.wav" -af "atrim=0:$DUR,afade=t=out:st=$(python3 -c "print($DUR-0.45)"):d=0.45,apad=whole_dur=$DUR" "$OUT/sfx.wav"
-  MIXARGS+=(sfx="$OUT/sfx.wav" sfx_db=-3)
+  MIXARGS+=(events="$SRC/events.json" lib="$OUT/sfxlib" root="$SRC")
 fi
 if [ ${#MIXARGS[@]} -gt 0 ]; then
-  "$ROOT/bin/vh" mix "$OUT/music.wav" "${MIXARGS[@]}" duck=off >/dev/null   # no ducker: a 5 s clip has no voice to make way for
+  # profile=swatch (playbook/04-audio.md, 混音): the music is the anchor; each foley event moves half way to its class's
+  # level re the music's 3 s loudness (hero / detail / ambience / signal), one short room behind them, one static gain to
+  # −14 LUFS. Cut to 5 s with the 0.45 s fade inside the mix, so an SFX running past the end fades with the score.
+  "$ROOT/bin/vh" mix "$OUT/music.wav" profile=swatch dur=$DUR fade=0.45 "${MIXARGS[@]}" stems="$OUT/stems" > "$OUT/mix.txt" \
+    || { cat "$OUT/mix.txt"; die "bin/vh mix failed"; }
   AUDIO="$OUT/music.wav"
 fi
 
@@ -214,14 +214,24 @@ done
 mv "$TMP" "$MP4"
 echo "$ok ${MP4#$ROOT/}  $(python3 -c "print(f'{$sz/1e6:.2f} MB')")  (crf $crf$([ -f "$SRC/score.json" ] && [ $builtin = 0 ] && echo ', +music')$([ -f "$SRC/events.json" ] && [ $builtin = 0 ] && echo ', +foley')$([ -z "$AUDIO" ] && echo ', silent'))"
 
-# ── audio QA on the shipped file: silence / dropouts / pumping over the whole clip (the fade-out tail excluded).
-#    Without the beat map, `qa scan` would only look at ~1.0–2.2 s of a 5 s clip, so always pass it.
+# ── audio QA over the whole clip (the fade-out tail excluded): the scan (silence, dropouts, pumping; the score's own
+#    dips, known from the music stem, are not pumping), the cue check of every foley event and transient music hit, and
+#    the mix report (qa mix). The WAV mix is the gate. The mp4 gets the same run: its scan and mix report gate too, its
+#    cue check only warns (the AAC encode smears onsets). Without the beat map the scan would only look at ~1.0–2.2 s
+#    of a 5 s clip, so always pass it.
 if [ -n "$AUDIO" ]; then
-  QA_ARGS=(); [ -f "$OUT/music_raw.beats.json" ] && [ -f "$SRC/score.json" ] && QA_ARGS+=("$OUT/music_raw.beats.json")
-  [ -f "$SRC/events.json" ] && QA_ARGS+=(--events "$SRC/events.json")   # foley onsets are designed, not clicks
-  "$ROOT/bin/vh" qa scan "$MP4" "${QA_ARGS[@]}" --from 0.3 --to "$(python3 -c "print($DUR-0.5)")" > "$OUT/qa.txt" 2>&1 \
-    && echo "$ok audio qa passed (${OUT#$ROOT/}/qa.txt)" \
-    || die "audio qa failed — see ${OUT#$ROOT/}/qa.txt (typical fixes: a pad/sub bed under sparse bars, no hats-only sections)"
+  BEATS=-; [ -f "$OUT/music_raw.beats.json" ] && [ -f "$SRC/score.json" ] && BEATS="$OUT/music_raw.beats.json"
+  QA_ARGS=("$BEATS"); [ -f "$SRC/events.json" ] && QA_ARGS+=("$SRC/events.json")   # foley onsets are cues, not clicks
+  QA_ARGS+=(--fps "$FPS" --from 0.3 --to "$(python3 -c "print($DUR-0.5)")" --stems "$OUT/stems")
+  for f in "$AUDIO" "$MP4"; do
+    r="$OUT/qa.txt"; [ "$f" = "$MP4" ] && r="$OUT/qa_mp4.txt"
+    if "$ROOT/bin/vh" qa "$f" "${QA_ARGS[@]}" --out "$r" > "$r.log" 2>&1; then
+      echo "$ok audio qa passed on ${f#$ROOT/}: $(tail -1 "$r.log" | sed 's/ · full report.*//')"
+    else
+      grep -E "^(FAIL|    [0-9]|\[|✗)" "$r.log" | head -12 | sed 's/^/   /'
+      die "audio qa failed on ${f#$ROOT/} — see ${r#$ROOT/} (typical fixes: a pad/sub bed under sparse bars, no hats-only sections; a cue lost under the score: keep=<t> or a role)"
+    fi
+  done
 fi
 
 # ── poster.jpg: frame 90 (t = 3.0 s) from the 1080p render, 1280×720, ≤ 200 KB
