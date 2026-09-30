@@ -15,6 +15,7 @@
   - note lists with chord-relative pitches (`c0 s2 d5 +7`);
   - figures: `walking`, `oompah` / `waltz`, `strum`, `alberti`, arpeggios, `ostinato`, `tremolo`, `sustain`, `stab`, `roots`;
   - feel: swing (0–0.33, or 0.5–0.75 as a ratio), seeded `humanize`, `onset_ms`, `beats_per_bar`. A triplet grid (`step: 12`) under 8th swing stays straight.
+- Sections: `riser` takes a level, `"riser": {"gain_db": -6}` or `"riser_db": -6` beside `true`, so it can sit under a narration line or an on-screen hit. The default is unchanged.
 - Buses: optional stereo with pan; reverb sends into `room`, `plate`, `hall`, `cathedral` or `gated`; master `lofi` and `tape`; per-part delay, drive and ducking.
 - A score with only `layers` in major or minor renders the same bytes as before (sha256 checked on all 28 swatch scores and both examples). In other modes (dorian, mixolydian …) the layers now take the same chord roots as the parts, and the 羽 pentatonic when the mode has a minor third; before, they fell back to major.
 - Parts are deterministic. Adding or removing a part leaves the stems of parts with another instrument, or with their own `id`, bit-identical. Two id-less parts of the same instrument are seeded by position, so removing one re-seeds the other; the render warns and suggests ids. Two parts with the same `id` are an error.

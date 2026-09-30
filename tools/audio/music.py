@@ -20,7 +20,8 @@ Score fields
                  in other modes, e.g. dorian, the layers take the parts' chord roots and 羽 when the mode has a
                  minor third, 宫 otherwise),
                "energy": 0..1 (layer gain + filter brightness),
-               "riser": true  (noise+tone rise over this section, into the next),
+               "riser": true  (noise+tone rise over this section, into the next; {"gain_db": -6}, or "riser_db": -6
+                               beside true, lowers it under a narration line or an on-screen hit; default 0 dB),
                "impact": true (boom on this section's first downbeat),
                "fill": true   (drop the kick and taiko on the last beat for a breath),
                "bend": true   (zheng: every 2nd bar ends on a 按弦上滑 press-up note),
@@ -370,7 +371,8 @@ def render(score, stems=None):
                     put("dizi", dizi(mtof(m), ln * beat * 0.97, e, sub(3, len(bars), int(at * 2)),
                                      mtof(scale[a + 6 + st]) if ln >= 2 else None) * (0.6 + 0.4 * e), tb + at * beat)
         if s.get("riser"):
-            add(out, riser(sec, rng), t0)
+            rdb = s["riser"].get("gain_db", 0) if isinstance(s["riser"], dict) else s.get("riser_db", 0)
+            add(out, riser(sec, rng) * 10 ** (float(rdb) / 20) if rdb else riser(sec, rng), t0)   # default: exactly as before
             hits.append({"t": round(t0 + sec, 3), "what": f"riser-peak:{s['name']}"})
         t0 += sec
     # pump everything except kick/impact would need stems; a gentle global pump reads as sidechain
@@ -569,6 +571,8 @@ def validate(score):
     if "swing_unit" in score and float(score["swing_unit"]) not in (8, 16): sys.exit('music: "swing_unit" is 8 or 16')
     for s in score["sections"]:
         if "swing" in s: _num(s["swing"], f"section {s.get('name')!r} swing", 0, 0.75)
+        if "riser_db" in s: _num(s["riser_db"], f"section {s.get('name')!r} riser_db")
+        if isinstance(s.get("riser"), dict) and "gain_db" in s["riser"]: _num(s["riser"]["gain_db"], f"section {s.get('name')!r} riser gain_db")
     if "space" in score:
         sp = score["space"] if isinstance(score["space"], dict) else {"type": score["space"]}
         if sp.get("type", "room") not in ("dry", *ins.SPACES): sys.exit(f"music: space {sp.get('type')!r}: use dry {' '.join(ins.SPACES)}")

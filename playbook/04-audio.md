@@ -154,7 +154,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 `score.json` 的写法见 `bin/vh music --example`：
 - 顶层：`bpm`、`key`、`mode`；可选 `meters`，例如 `{"11": 6}` 让整首的第 11 小节（从 1 数）变成 6/4，其余默认 4/4；可选 `beats_per_bar`，改整首的默认拍数，写 3 就是三拍子；
 - `sections[]`：`bars`、`chords`（罗马数字）、`layers`（kick clap hats bass pad arp lead，以及 bell zheng dizi taiko）、`energy`（0–1）；
-- 段落的特殊效果：`riser`（上升音推向下一段）、`impact`（段首冲击）、`fill`（最后一拍留白）、`bend`（古筝每两小节收在一个按弦上滑的音上）；
+- 段落的特殊效果：`riser`（上升音推向下一段；写成 `{"gain_db": -6}`，或在 `true` 旁边加 `"riser_db": -6`，可以把它调低，免得盖住旁白或画面上的重音）、`impact`（段首冲击）、`fill`（最后一拍留白）、`bend`（古筝每两小节收在一个按弦上滑的音上）；
 - `parts[]`：乐器声部，还有 `stereo`、`space`、`swing`、`lofi` 等总线设置，见下文"乐器声部"。
 
 输出的 `music.beats.json` 包含 `sections`、`beats`、`downbeats`、`hits`，引擎直接读它来切镜和打点。写了 `meters` 时还会多一个 `bars` 数组，每项是 `[小节号, 起点秒数, 本小节拍数]`，画面用同一个 `bar(k)` 取小节位置。加拍时要让配乐和画面一起改：介绍片第 11 小节就是这样多停了 2 拍，其他秒数一个都不用手改。
