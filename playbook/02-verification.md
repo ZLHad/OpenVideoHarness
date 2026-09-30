@@ -162,14 +162,14 @@ agent 听不见声音，声音也只能靠数字查。介绍片 v2 的画面自�
 | 掉音 | 成片混音 | 每 0.1 s 一个 RMS，和所在段落的中位数比 | 比段中位数低 12 dB 以上（片头片尾的淡入淡出除外）；片中任何数字静音（< −60 dBFS，持续 ≥ 20 ms） |
 | 抽吸（pumping） | 音乐总线 | 50 ms RMS 对 600 ms 滑动中位数 | 凹下超过 4 dB、持续 ≥ 60 ms，而且不在设计好的打点附近（打点前 0.05 s 到后 0.4 s） |
 | 爆音（click） | 成片混音 | 采样级的二阶差分，和前后 5 ms 的局部 RMS 比（不含该采样前后 ±1 ms，否则孤立的 click 永远超不过门槛） | **只报警告，不算失败**：机器分不清设计好的尖锐起音和真故障。超过局部 RMS 的 15 倍且高于 −40 dBFS、又不在设计好的起音附近（节拍表的 `hits`、`beats` 和音效事件落点的前后 40 ms，`--click-grace` 可调）的，按倍数排序列出最严重的 10 处，请人耳复听 |
-| cue check | 成片混音（WAV 是门禁；mp4 再查一遍，容差加 12 ms，只作警告） | onset 检测（hop 128 采样，48 kHz 下约 2.7 ms），和节拍表、音效事件表逐条比；每条打印 margin（超出检测门槛多少）；近乎纯音的音效 onset 没找到时，用它自己的声音做互相关确认；第 0 帧的 cue 先垫一帧静音 | 任何一个 cue 离最近的 onset 超过 1 帧；margin 低于 0.02 的标 `OK~`，只作警告 |
-| 层次（`qa mix`） | 混音 profile 写出的各总线（`--stems`） | 逐句 VMR（人声减音乐）、每个词的 1–4 kHz SNR、每个音效相对锚点的响度和类、纵深、限幅器，见 `04-audio.md` 的"混音" | 有一句低于 profile 的 VMR 下限；说话时 hero 盖过人声；危险的词超过比例；某类音效的中位数离范围超过 3 LU |
+| cue check | 成片混音（WAV 是门禁；mp4 再查一遍，容差加 12 ms，单个 cue 只作警告） | onset 检测（hop 128 采样，48 kHz 下约 2.7 ms），和节拍表、音效事件表逐条比；每条打印 margin（超出检测门槛多少）；近乎纯音的音效 onset 没找到时，用它自己的声音做互相关确认；第 0 帧的 cue 先垫一帧静音 | 任何一个 cue 离最近的 onset 超过 1 帧；margin 低于 0.02 的标 `OK~`，只作警告；mp4 上整个编码偏了（8 个以上 cue 时超过 20% 对不上，或中位误差超过 15 ms，是封装错位） |
+| 层次（`qa mix`） | 混音 profile 写出的各总线（`--stems`） | 逐句 VMR（人声减音乐）、每个词的 1–4 kHz SNR、每个音效相对锚点的响度和类、纵深、限幅器，见 `04-audio.md` 的"混音" | 有一句低于 profile 的 VMR 下限；说话时 hero 盖过人声；危险的词超过比例；某类音效的中位数离范围超过 3 LU；timeline 有句子，人声 stem 却全是静音；一个 cue 只以“弱”对上，报告又判它 `BURIED` |
 
 ```bash
 # 掉音扫描的原料：每 0.1 s 一个 RMS（48 kHz 下是 4800 采样，44.1 kHz 改成 4410），再按段落求中位数比较
 ffmpeg -i audio/mix.wav -af "asetnsamples=n=4800:p=0,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=out/check/rms.txt" -f null -
 bin/vh qa audio/mix.wav audio/music.beats.json audio/events.json --stems audio/stems --out out/check/audio-qa.txt   # 四项扫描 + cue check + 混音报告一条命令（tools/audio/qa.py），有问题时退出码为 1
-bin/vh qa out/final-av.mp4 audio/music.beats.json audio/events.json --out out/check/audio-qa-mp4.txt              # 成片再查一遍：扫描照常判定，cue 只作警告
+bin/vh qa out/final-av.mp4 audio/music.beats.json audio/events.json --out out/check/audio-qa-mp4.txt              # 成片再查一遍：扫描照常判定，单个 cue 只作警告，整体偏移（封装错位）判失败
 ```
 
 cue check 必须在最终混音上做，只查配乐不够。介绍片的配乐单独查时每个 hit 都准，混进音效后出了 3 处偏差：两个 pop 离配乐的按钮音只差 67 ms，onset 检测把它们并成了一个；另一处 whoosh 的上升段盖住了配乐的 hit。修法分别是把画面事件改对到按钮音上，以及删掉那个 whoosh。riser、swell 这类渐强没有瞬态，在节拍表里标成 `swell-peak`，不参加打点检查。

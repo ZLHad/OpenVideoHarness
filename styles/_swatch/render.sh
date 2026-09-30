@@ -182,7 +182,7 @@ grep -h "\[swatch\]" "$LOG" 2>/dev/null | sort -u | head -10 | sed 's/^/   log: 
 echo "$ok ${n} frames at ${wh}, canvas drew, no error card ($((T1 - T0))s render)"
 
 # ── optional score → music, optional events.json → foley on the frame of each action, mixed with the swatch profile
-AUDIO=""; MIXARGS=()
+AUDIO=""; MIXARGS=(); TP=-1.65
 if [ $builtin = 0 ] && [ -f "$SRC/score.json" ]; then   # (SRC = styles/<slug> or the given folder)
   echo "→ music from ${SRC#$ROOT/}/score.json"
   "$ROOT/bin/vh" music "$SRC/score.json" "$OUT/music_raw.wav" >/dev/null
@@ -193,55 +193,75 @@ if [ $builtin = 0 ] && [ -f "$SRC/events.json" ]; then  # [{"t", "sfx", "gain_db
   "$ROOT/bin/vh" sfx lib "$OUT/sfxlib" >/dev/null       # rebuilt each time, so library fixes always reach the swatch
   MIXARGS+=(events="$SRC/events.json" lib="$OUT/sfxlib" root="$SRC")
 fi
-if [ ${#MIXARGS[@]} -gt 0 ]; then
-  # profile=swatch (playbook/04-audio.md, 混音): the music is the anchor; each foley event moves half way to its class's
-  # level re the music's 3 s loudness (hero / detail / ambience / signal), one short room behind them, one static gain to
-  # −14 LUFS. Cut to 5 s with the 0.45 s fade inside the mix, so an SFX running past the end fades with the score.
-  "$ROOT/bin/vh" mix "$OUT/music.wav" profile=swatch dur=$DUR fade=0.45 "${MIXARGS[@]}" stems="$OUT/stems" > "$OUT/mix.txt" \
+# profile=swatch (playbook/04-audio.md, 混音): the music is the anchor; each foley event moves half way to its class's
+# level re the music's 3 s loudness (hero / detail / ambience / signal), one short room behind them, one static gain to
+# −14 LUFS, true peak ≤ $1 dBTP. Cut to 5 s with the 0.45 s fade inside the mix, so an SFX past the end fades with the score.
+mix_audio() {
+  "$ROOT/bin/vh" mix "$OUT/music.wav" profile=swatch dur=$DUR fade=0.45 tp="$1" "${MIXARGS[@]}" stems="$OUT/stems" > "$OUT/mix.txt" \
     || { cat "$OUT/mix.txt"; die "bin/vh mix failed"; }
-  AUDIO="$OUT/music.wav"
-fi
+}
+if [ ${#MIXARGS[@]} -gt 0 ]; then mix_audio "$TP"; AUDIO="$OUT/music.wav"; fi
 
 # ── swatch.mp4: 1280×720, H.264 High, yuv420p, faststart; CRF climbs until it fits the size cap.
 #    -threads 1: x264's VBV rate control (-maxrate/-bufsize) is not repeatable with frame threads — four encodes of the
 #    same input spanned 1 493 473–1 503 291 B around the 1 500 000 B cap, flipping halftone-comic between CRF 24 and 26.
 #    One thread gives the same bytes every time and costs about 3 s per pass at 720p.
 MP4="$MEDIA/swatch.mp4"; TMP="$OUT/swatch.tmp.mp4"
-for crf in 18 20 22 24 26 28 30 32 34; do
+encode() { # $1 = CRF → $TMP
   if [ -n "$AUDIO" ]; then
     ffmpeg -v error -y -i "$HFMP4" -i "$AUDIO" -map 0:v:0 -map 1:a:0 -vf "scale=1280:720:flags=lanczos,format=yuv420p" \
-      -c:v libx264 -preset slow -profile:v high -crf $crf -maxrate 2600k -bufsize 5200k -g 60 -r $FPS -threads 1 \
+      -c:v libx264 -preset slow -profile:v high -crf "$1" -maxrate 2600k -bufsize 5200k -g 60 -r $FPS -threads 1 \
       -c:a aac -b:a 128k -ac 2 -t $DUR -movflags +faststart "$TMP"
   else
     ffmpeg -v error -y -i "$HFMP4" -vf "scale=1280:720:flags=lanczos,format=yuv420p" \
-      -c:v libx264 -preset slow -profile:v high -crf $crf -maxrate 2600k -bufsize 5200k -g 60 -r $FPS -threads 1 \
+      -c:v libx264 -preset slow -profile:v high -crf "$1" -maxrate 2600k -bufsize 5200k -g 60 -r $FPS -threads 1 \
       -an -t $DUR -movflags +faststart "$TMP"
   fi
-  sz=$(fsize "$TMP"); [ "$sz" -le $MP4_LIMIT ] && break
+}
+for crf in 18 20 22 24 26 28 30 32 34; do
+  encode $crf; sz=$(fsize "$TMP"); [ "$sz" -le $MP4_LIMIT ] && break
 done
 [ "$sz" -le $MP4_LIMIT ] || die "swatch.mp4 is still $sz bytes at CRF $crf: reduce full-frame grain/noise"
-mv "$TMP" "$MP4"
-echo "$ok ${MP4#$ROOT/}  $(python3 -c "print(f'{$sz/1e6:.2f} MB')")  (crf $crf$([ -f "$SRC/score.json" ] && [ $builtin = 0 ] && echo ', +music')$([ -f "$SRC/events.json" ] && [ $builtin = 0 ] && echo ', +foley')$([ -z "$AUDIO" ] && echo ', silent'))"
+# The AAC encode raises the true peak by an amount that depends on the content (+0.2–0.9 dB at 128k on the swatches), so
+# the encode is measured (the same 4× BS.1770 meter as the mix) and, while it peaks over −1.5 dBTP, the mix is made again
+# with its ceiling lowered by the overshoot + 0.1 dB and encoded again at the same CRF (at most 3 times; the same bytes
+# every run).
+if [ -n "$AUDIO" ]; then
+  k=0
+  while :; do
+    etp=$(uv run -q --with numpy --with scipy python -c "import sys; sys.path.insert(0, sys.argv[1]); import mix; print(f'{mix.true_peak(mix.load(sys.argv[2])):.2f}')" \
+          "$ROOT/tools/audio" "$TMP")
+    python3 -c "import sys; sys.exit(0 if float(sys.argv[1]) <= -1.5 else 1)" "$etp" && break
+    if [ $k -eq 3 ]; then echo "$wa the AAC encode still peaks at $etp dBTP after 3 new mixes (tp=$TP): over −1.5"; break; fi
+    k=$((k + 1)); TP=$(python3 -c "import sys; print(f'{float(sys.argv[1]) - (float(sys.argv[2]) + 1.5) - 0.1:.2f}')" "$TP" "$etp")
+    echo "   the AAC encode peaks at $etp dBTP: the mix again with tp=$TP"
+    mix_audio "$TP"; encode $crf; sz=$(fsize "$TMP")
+  done
+  [ "$sz" -le $MP4_LIMIT ] || die "swatch.mp4 grew to $sz bytes with the new mix at CRF $crf"
+fi
 
 # ── audio QA over the whole clip (the fade-out tail excluded): the scan (silence, dropouts, pumping; the score's own
 #    dips, known from the music stem, are not pumping), the cue check of every foley event and transient music hit, and
-#    the mix report (qa mix). The WAV mix is the gate. The mp4 gets the same run: its scan and mix report gate too, its
-#    cue check only warns (the AAC encode smears onsets). Without the beat map the scan would only look at ~1.0–2.2 s
-#    of a 5 s clip, so always pass it.
+#    the mix report (qa mix). The WAV mix is the gate, and it runs before the mp4 goes into media/. The mp4 gets the scan
+#    and the cue check (its cue problems only warn, unless the whole encode is off: a mux offset); the report reads the
+#    stems, so it is not run twice. Without the beat map the scan would only look at ~1.0–2.2 s of a 5 s clip.
+qa_gate() { # $1 = file, $2 = report
+  if "$ROOT/bin/vh" qa "$1" "${QA_ARGS[@]}" --out "$2" > "$2.log" 2>&1; then
+    echo "$ok audio qa passed on ${1#$ROOT/}: $(tail -1 "$2.log" | sed 's/ · full report.*//')"
+  else   # what failed: OFF cues, hard misses, the scan's counts and runs (or the tail, when qa itself broke)
+    { grep -E ' OFF |^FAIL|^✗|^\[[1-3]\]|^ +[0-9.]+- +[0-9.]+ s' "$2.log" || tail -5 "$2.log"; } | head -14 | sed 's/^/   /' || true
+    die "audio qa failed on ${1#$ROOT/} — see ${2#$ROOT/}.log (typical fixes: a pad/sub bed under sparse bars, no hats-only sections; a cue lost under the score: keep=<t> or a role; a cue not heard: raise its gain_db)"
+  fi
+}
 if [ -n "$AUDIO" ]; then
   BEATS=-; [ -f "$OUT/music_raw.beats.json" ] && [ -f "$SRC/score.json" ] && BEATS="$OUT/music_raw.beats.json"
   QA_ARGS=("$BEATS"); [ -f "$SRC/events.json" ] && QA_ARGS+=("$SRC/events.json")   # foley onsets are cues, not clicks
   QA_ARGS+=(--fps "$FPS" --from 0.3 --to "$(python3 -c "print($DUR-0.5)")" --stems "$OUT/stems")
-  for f in "$AUDIO" "$MP4"; do
-    r="$OUT/qa.txt"; [ "$f" = "$MP4" ] && r="$OUT/qa_mp4.txt"
-    if "$ROOT/bin/vh" qa "$f" "${QA_ARGS[@]}" --out "$r" > "$r.log" 2>&1; then
-      echo "$ok audio qa passed on ${f#$ROOT/}: $(tail -1 "$r.log" | sed 's/ · full report.*//')"
-    else
-      grep -E "^(FAIL|    [0-9]|\[|✗)" "$r.log" | head -12 | sed 's/^/   /'
-      die "audio qa failed on ${f#$ROOT/} — see ${r#$ROOT/} (typical fixes: a pad/sub bed under sparse bars, no hats-only sections; a cue lost under the score: keep=<t> or a role)"
-    fi
-  done
+  qa_gate "$AUDIO" "$OUT/qa.txt"
 fi
+mv "$TMP" "$MP4"
+echo "$ok ${MP4#$ROOT/}  $(python3 -c "print(f'{$sz/1e6:.2f} MB')")  (crf $crf$([ -f "$SRC/score.json" ] && [ $builtin = 0 ] && echo ', +music')$([ -f "$SRC/events.json" ] && [ $builtin = 0 ] && echo ', +foley')$([ -n "$AUDIO" ] && echo ", mix tp $TP dBTP, encode $etp dBTP")$([ -z "$AUDIO" ] && echo ', silent'))"
+[ -z "$AUDIO" ] || qa_gate "$MP4" "$OUT/qa_mp4.txt"
 
 # ── poster.jpg: frame 90 (t = 3.0 s) from the 1080p render, 1280×720, ≤ 200 KB
 JPG="$MEDIA/poster.jpg"

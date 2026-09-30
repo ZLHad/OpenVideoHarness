@@ -11,8 +11,9 @@ usage (via bin/vh qa):
 <mix>: anything ffmpeg decodes (wav, m4a, the muxed mp4). beats.json: music.beats.json (sections, hits, fade) or the
 output of beats.py; events.json: the SFX event list. --stems DIR: the folder `bin/vh mix … stems=DIR` wrote (the buses
 as heard + meta.json); with it the scan knows the music's own dips, the cue check finds the events' sounds, and the
-mix report runs too. Exit status 1 if silence, dropouts, pumping, the cue check (on a lossless file) or a hard target of
-the mix report fail (usable as a gate); clicks, marginal cues and cue problems in an AAC encode are only warnings.
+mix report runs too. Exit status 1 if silence, dropouts, pumping, the cue check (on a lossless file; on an AAC encode
+only when the encode as a whole is off) or a hard target of the mix report fail (usable as a gate); clicks, marginal
+cues and single cue problems in an AAC encode are only warnings.
 
 scan (checked span: --from, default 1.0 s, to --to, default the beat map's fade start, else the last 2.8 s)
   silence   digital-silence runs: every channel below −60 dBFS, sample by sample, for ≥ 20 ms (exact start–end).
@@ -36,11 +37,15 @@ cues: onsets of the mix (librosa, hop 128 at 48 kHz) vs every transient music hi
   flatness < 0.01) starting under music, so when one of those is OFF or marginal, its own sound (from --lib / --root /
   the built-ins, or the stems' meta.json) is cross-correlated with the mix, 250 Hz – 9 kHz (after motioner's sync_check,
   MIT): a match ≥ 0.3 within the tolerance confirms it; ≥ 0.15 exactly on the planned sample (±1 ms) confirms the sync
-  but warns that it is faint; otherwise the best match within ±250 ms is printed with the OFF. The match can only
-  confirm a cue, never fail one: a same-pitch note in the score makes its position unreliable. When a cue sits within
-  1 frame of the start, one frame of silence is put in front first (an onset needs a frame to rise from) and that
-  padded start is left out of the normalisation. On a lossy file (AAC in an mp4) the tolerance is 1 frame + 12 ms and every cue problem is a warning: the
-  encode smears onsets, so the gate is the lossless mix (run qa on the WAV) and the mp4 only confirms the mux.
+  but warns that it is faint; otherwise the best match within ±250 ms is printed with the OFF. Neither counts when the
+  peak sits within 4 ms of the search window's edge, or when a match better by 0.05 lies further out within ±250 ms: a
+  sustained tone moved 60–100 ms still correlates well at the edge nearest to it. The match can only confirm a cue,
+  never fail one: a same-pitch note in the score makes its position unreliable. When a cue sits within 1 frame of the
+  start, one frame of silence is put in front first (an onset needs a frame to rise from) and that padded start is left
+  out of the normalisation. On a lossy file (AAC in an mp4) the tolerance is 1 frame + 12 ms and a single cue problem
+  is a warning: the encode smears onsets, so the gate is the lossless mix (run qa on the WAV) and the mp4 confirms the
+  mux. The encode as a whole fails when, with 8 or more cues, more than 20 % are off or their median error is over
+  15 ms (a mux offset; the detector's own lag is +3…+8 ms).
 mix (the level hierarchy, per bin/vh mix's profile table; see playbook/04-audio.md "混音"):
   [1] loudness: the stems' sum and each bus. [2] speech: per narration line (the timeline, else voiced runs) voice,
   music and bed loudness, VMR = voice − music (LU), its 10th percentile over 400 ms, VBR = voice − (music + SFX), the
@@ -49,10 +54,15 @@ mix (the level hierarchy, per bin/vh mix's profile table; see playbook/04-audio.
   event's class, its own loudness re the anchor (the class range is judged on this), re the local bed and re a
   speaking voice. [6] depth: width, correlation, a blind decay time and the dry/wet ratio per bus. [7] limiter: where
   the mix sits under the stems' sum.
+  Timeline lines past the end of the mix are left out (as the mixer does); a line with no speech in the voice stem
+  (≤ −70 LUFS, or 20 LU under the others) is flagged NO VOICE and one with no music under it "no music", and neither
+  is judged. A stretch of music alone of 2 s or more, over 3 LU above the narration, warns.
   Hard fails (exit 1): a line under the profile's VMR floor; a hero over its limit re the voice during speech; more
   words under the presence floor than the profile allows (with word times; 0.4 s chunks only warn: they straddle pauses
   and read a few points pessimistic); an SFX class median more than 3 LU outside its range (a low-frequency hit under
-  the range counts at its floor, as for a single event: the mixer never raises one).
+  the range counts at its floor, as for a single event: the mixer never raises one); timeline lines in the mix with
+  the voice stem silent under all of them. In a full run with --stems, also a cue that passes the cue check only as
+  faint while the report calls it BURIED: on sync, but not heard. On an encoded file the report is not repeated.
 Known limits: pumping misses long shallow dips (≈ 300 ms at −8 dB fills half the 600 ms median; only the −12 dB dropout
   check catches it); the onset detector normalises to the loudest onset in the file, so one huge onset elsewhere can
   make a weak cue marginal or OFF (the margin column shows it); clicks are judged against local HF content, so a click
@@ -69,6 +79,9 @@ AAC_MARGIN = 0.012     # s: in the mix lab's 16 AAC mp4s, 284 cues' onsets moved
 TONAL = 0.01           # spectral flatness under which an SFX counts as a (near-)pure tone
 MATCH = 0.3            # normalised cross-correlation that confirms a tone's own sound in the mix
 FAINT = 0.15           # … or this much, on the planned sample (±1 ms): on sync, but faint under the music (a warning)
+ENC_OFF, ENC_SHIFT, ENC_MIN = 0.2, 0.015, 8   # an encode with ≥ ENC_MIN cues fails when more than ENC_OFF of them are off or their
+                                              # median error exceeds ENC_SHIFT s (the detector's own lag is +3…+8 ms)
+EDGE = 0.004           # s: a match this close to the edge of its search window is a tone that sits beyond it, not a confirmation
 MARGINAL = 0.02        # onset strength over the detector's threshold under which a cue is marginal
 
 def load(path, sr=None):  # → float32 (n, ch), sr — via ffmpeg, so containers and codecs all work
@@ -109,6 +122,10 @@ def barpos(bm, t):  # "bar:beat" from the beat map (bars, else 4/4 downbeats), "
     bars = bm.get("bars") or [[i + 1, d, 4] for i, d in enumerate(bm.get("downbeats", []))]
     b = [x for x in bars if x[1] <= t + 1e-9]
     return f"{b[-1][0]}:{1 + (t - b[-1][1]) * float(bm['bpm']) / 60:.2f}" if b and "bpm" in bm else ""
+
+def in_stems(stems, p):  # a path from meta.json: relative to the stems folder (bin/vh mix writes it so), else as written
+    if not p or os.path.isabs(p) or not stems: return p
+    q = os.path.join(stems, p); return q if os.path.exists(q) else p
 
 def stem(stems, name):  # a stem of `bin/vh mix … stems=DIR`, or None
     p = os.path.join(stems, f"{name}.wav") if stems else None
@@ -214,7 +231,7 @@ def cues(path, bm, ev, fps, lib=None, root=None):
     # normalised strength over −100…+100 ms by delta; the margin is how far it clears it
     c = np.concatenate([[0.0], np.cumsum(x)]); pre, post = int(np.ceil(0.10 * sr // 128)), int(np.ceil(0.10 * sr // 128 + 1))
     a_, b_ = np.maximum(0, k - pre), np.minimum(n, k + post); margin = x - ((c[b_] - c[a_]) / (b_ - a_) + 0.04)
-    yb, cache, rows, errs, warns, bad = None, {}, [], [], 0, 0
+    yb, cache, rows, errs, signed, warns, bad, faint, nosound = None, {}, [], [], [], 0, 0, [], 0
     family = lambda e: os.path.splitext(os.path.basename(str(e["sfx"])))[0].rsplit("_", 1)[0]   # tick_2 and tick_7: one sound
     sfx_ev = [e for _, _, e in cs if e is not None]
     for t, what, e in sorted(cs, key=lambda c: c[0]):
@@ -226,31 +243,45 @@ def cues(path, bm, ev, fps, lib=None, root=None):
         if e is not None and (not ok or marginal):
             # a near-pure tone (tick, ding, toggle) barely moves an onset detector under music: look for its own sound
             tm = template(e, lib, root, cache, sr)
+            nosound += tm is None
             if tm is not None and tm[2] < TONAL:
                 from scipy.signal import butter, sosfiltfilt
                 band = butter(4, [250, 9000], "band", fs=sr, output="sos")
                 if yb is None: yb = sosfiltfilt(band, y.astype(np.float64))
                 nd = sosfiltfilt(band, np.concatenate([tm[1], np.zeros(int(0.02 * sr))]))[:len(tm[1])]   # the same band
                 gap = min([abs(o["t"] - e["t"]) for o in sfx_ev if o is not e and family(o) == family(e) and o["t"] != e["t"]] or [9.0])
-                off, sc = locate(yb, nd, tm[0] / sr, min(tol, 0.45 * gap), sr)        # is it there, within the tolerance?
-                if off is not None and sc >= MATCH:
+                w = min(tol, 0.45 * gap)
+                off, sc = locate(yb, nd, tm[0] / sr, w, sr)                            # is it there, within the tolerance?
+                off2, sc2 = locate(yb, nd, tm[0] / sr, min(0.25, 0.45 * gap), sr)      # … and where is its best match anyway
+                # a sustained tone that sits elsewhere still correlates well at the edge of the window nearest to it: a peak
+                # on the edge, or a clearly better match outside the tolerance, confirms nothing
+                edge = off is not None and abs(off) >= w - EDGE
+                elsewhere = off2 is not None and abs(off2) > w and (off is None or sc2 >= sc + 0.05)
+                if off is not None and sc >= MATCH and not edge and not elsewhere:
                     near, ok, marginal, note = off, True, False, f"  (its own sound, match {sc:.2f})"
-                elif off is not None and sc >= FAINT and abs(off) <= 0.001:   # on sync; whether it is heard is qa mix's question
+                elif off is not None and sc >= FAINT and abs(off) <= 0.001 and not elsewhere:   # on sync; heard or not is qa mix's question
                     near, ok, marginal, note = off, True, True, f"  (its own sound on the planned sample, but faint: match {sc:.2f})"
+                    faint.append((e["t"], e["sfx"]))
                 else:   # where is it then, if anywhere within ±250 ms (motioner's search window)
-                    off, sc = locate(yb, nd, tm[0] / sr, min(0.25, 0.45 * gap), sr)
-                    note = f"  (its own sound: best match {sc:.2f} at {off * 1000:+.0f} ms)" if off is not None else ""
-        errs.append(abs(near)); bad += (not ok) and not enc; warns += marginal or ((not ok) and enc)
+                    note = f"  (its own sound: best match {sc2:.2f} at {off2 * 1000:+.0f} ms)" if off2 is not None else ""
+        errs.append(abs(near)); signed.append(near); bad += (not ok) and not enc; warns += marginal or ((not ok) and enc)
         mtxt = f"{mg:+6.3f}" if mg is not None and not note.startswith(("  (its own sound, match", "  (its own sound on")) else "     –"
         rows.append(f"{t:8.3f}  {near * 1000:+7.1f} ms  {abs(near) * fps:5.2f} fr  {('OK~' if marginal else 'OK ') if ok else 'OFF'}  {mtxt}  {what}{note}")
     errs = np.array(errs); ok = int((errs <= tol).sum()) if len(errs) else 0
     head = (f"cue check · {path}: {len(errs)} cues, within {'1 frame + the AAC margin' if enc else '1 frame'} ({1000 * tol:.1f} ms): {ok}" +
             (f", median {np.median(errs) * 1000:.1f} ms, max {errs.max() * 1000:.1f} ms" if len(errs) else "") +
             (f" · margin = onset strength over the detector's threshold; OK~ = under {MARGINAL} (marginal)" if len(errs) else ""))
+    if nosound:
+        head += f"\n    {nosound} cue(s) off or marginal could not be matched against their own sound: it was not found (--lib / --root, or the stems' meta.json)"
     if enc and len(errs):
         head += (f"\n    {codec(path)} encode: cue problems here are warnings; the gate is the lossless mix (bin/vh qa mix.wav …)"
                  + (f": {len(errs) - ok} cue(s) off in the encode" if ok < len(errs) else ""))
-    return [head] + rows, bad, warns
+        med = float(np.median(signed))
+        if len(errs) >= ENC_MIN and (len(errs) - ok > ENC_OFF * len(errs) or abs(med) > ENC_SHIFT):   # the whole encode is late or early: the mux
+            bad += 1
+            head += (f"\n    ✗ the encode as a whole is off ({len(errs) - ok}/{len(errs)} cues off, median error {med * 1000:+.1f} ms): "
+                     f"a mux, trim or delay offset? AAC alone moved 3 of 284 cues in the mix lab")
+    return [head] + rows, bad, warns, faint
 
 def template(e, lib, root, cache, sr):
     """an event's sound as placed (mono) → (first sample in the mix, samples, spectral flatness), or None if unknown"""
@@ -354,9 +385,10 @@ def analyse(voice=None, music=None, sfx=None, mixed=None, events=(), timeline=No
     voiced = (vfast > np.percentile(vfast, 95) - 25) if "voice" in buses else np.zeros(len(tf), bool)
     at = lambda t: min(n, max(0, int(round(t * SR))))
     lines = []
-    if timeline:
+    if timeline:   # the lines inside the mix, as bin/vh mix takes them (a line past its end is not in it)
         for s in (timeline.get("segments") if isinstance(timeline, dict) else timeline):
-            lines.append((float(s["start"]), float(s["end"]), s.get("text") or s.get("en") or s.get("zh") or s.get("id", "")))
+            a, b = float(s["start"]), min(float(s["end"]), n / SR)
+            if a < n / SR and b > a: lines.append((a, b, s.get("text") or s.get("en") or s.get("zh") or s.get("id", "")))
     elif "voice" in buses:
         on = np.nonzero(voiced)[0]
         if len(on):
@@ -371,11 +403,19 @@ def analyse(voice=None, music=None, sfx=None, mixed=None, events=(), timeline=No
         R["lines"].append({"start": a, "end": b, "text": txt, "voice": Lv, "music": integrated(kM, i, j, gate=False),
                            "bed": integrated(kB, i, j, gate=False), "vmr_p10": float(np.percentile(vm, 10)) if len(vm) else None,
                            "snr": float(10 * np.log10((pv[fr].sum() + 1e-12) / (pm[fr].sum() + ps[fr].sum() + 1e-12))) if fr.any() else None})
-        R["lines"][-1].update(vmr=R["lines"][-1]["voice"] - R["lines"][-1]["music"], vbr=R["lines"][-1]["voice"] - R["lines"][-1]["bed"])
-    anchor = float(np.median([ln["voice"] for ln in R["lines"]])) if R["lines"] else integrated(kM) if "music" in buses else None
-    R["anchor"], R["anchor_kind"] = anchor, ("voice" if R["lines"] else "music")
+        ln = R["lines"][-1]; nm = ln["music"] <= -70                     # no music under the line: no VMR to judge
+        ln.update(vmr=None if nm else ln["voice"] - ln["music"], vbr=ln["voice"] - ln["bed"], vmr_p10=None if nm else ln["vmr_p10"])
+    # a line with no speech in the voice stem (≤ −70 LUFS, or 20 LU under the others): the timeline and the voice file
+    # disagree there; it says nothing about the balance, so it stays out of the anchor and the VMR checks
+    heard = [ln["voice"] for ln in R["lines"] if ln["voice"] > -70]; m0 = float(np.median(heard)) if heard else None
+    for ln in R["lines"]: ln["novoice"] = m0 is None or ln["voice"] <= -70 or ln["voice"] < m0 - 20
+    R["timeline_lines"] = len(R["lines"]) if timeline else 0
+    vl = [ln for ln in R["lines"] if not ln["novoice"]]
+    anchor = float(np.median([ln["voice"] for ln in vl])) if vl else integrated(kM) if "music" in buses else None
+    R["anchor"], R["anchor_kind"] = anchor, ("voice" if vl else "music")
     anchor_at = None
-    if not R["lines"] and anchor is not None:   # no voice: SFX re the music's 3 s level, floored 8 LU under its integrated
+    lines = [x for x, ln in zip(lines, R["lines"]) if not ln["novoice"]]   # the spoken lines: words, gaps, SFX under speech
+    if not vl and anchor is not None:   # no voice: SFX re the music's 3 s level, floored 8 LU under its integrated
         loc_curve = np.maximum(lufs(sM), anchor - 8.0)
         anchor_at = lambda t: float(loc_curve[min(len(loc_curve) - 1, max(0, int(round(t / 0.1))))])
         R["anchor_kind"] = "music (3 s, floor −8)"
@@ -401,7 +441,7 @@ def analyse(voice=None, music=None, sfx=None, mixed=None, events=(), timeline=No
             if b - a < 0.25: continue
             i, j = at(a + 0.1), at(b - 0.05)
             if j <= i: continue
-            under = [R["lines"][k]["music"] for k in (k0, k1) if k is not None]
+            under = [vl[k]["music"] for k in (k0, k1) if k is not None]
             g = {"start": a, "end": b, "music": integrated(kM, i, j, gate=False)}
             g["re_anchor"] = g["music"] - anchor if anchor is not None else None
             g["rise"] = g["music"] - float(np.mean(under)) if under else None
@@ -465,7 +505,15 @@ def flag(x, lo, hi): return "LOW" if x < lo else "HIGH" if x > hi else "ok"
 
 def verdict(R, P):
     fails, warns = [], []
+    nv = [ln for ln in R["lines"] if ln["novoice"]]
+    if R.get("timeline_lines") and len(nv) == len(R["lines"]):
+        fails.append(f"the timeline has {len(R['lines'])} line(s) in the mix, but the voice stem is silent under all of them: the narration is not in the mix")
+    elif nv:
+        warns.append("no speech in the voice stem under " + ", ".join(f"{ln['start']:.2f}–{ln['end']:.2f}" for ln in nv) +
+                     ": the timeline and the voice file disagree there (left out of the checks)")
     for ln in R["lines"]:
+        if ln["novoice"]: ln["flag"] = "NO VOICE"; continue
+        if ln["vmr"] is None: ln["flag"] = "no music"; continue
         ln["flag"] = "FAIL" if ln["vmr"] < P["vmr_floor"] else flag(ln["vmr"], *P["vmr"])
         if ln["flag"] == "FAIL": fails.append(f"line {ln['start']:.2f}–{ln['end']:.2f} '{ln['text'][:24]}' VMR {ln['vmr']:.1f} LU < floor {P['vmr_floor']}")
         elif ln["flag"] != "ok": warns.append(f"line {ln['start']:.2f}–{ln['end']:.2f} VMR {ln['vmr']:.1f} LU {ln['flag']} (target {P['vmr'][0]}–{P['vmr'][1]})")
@@ -477,6 +525,10 @@ def verdict(R, P):
                 f"under the presence floor {P['snr']} dB (limit {P['risk'] * 100:.0f} %)")
         elif risky: warns.append(f"{len(risky)} word(s) under the presence floor {P['snr']} dB: " + ", ".join(f"'{w['w']}' {w['start']:.2f}s" for w in risky[:6]))
     for g in R["gaps"]:
+        if g["re_anchor"] is not None and g["end"] - g["start"] >= 2.0 and g["re_anchor"] > 3.0:   # a long stretch of music alone
+            warns.append(f"{g['start']:.2f}–{g['end']:.2f}: music alone at {g['re_anchor']:+.1f} LU over the narration for {g['end'] - g['start']:.1f} s. "
+                         "The music has one static gain, set by the music under the lines: if it is much quieter there, this part comes out loud "
+                         "(bin/vh mix holds that gain at +6 dB); lower this part in the score")
         if g["rise"] is not None and g["end"] - g["start"] < 1.5 and g["rise"] > P["gap_rise"]:
             why = (" — the score has " + ", ".join(w for _, w in g["designed"][:2]) + " there (a designed swell?)") if g["designed"] else " (breathing: the bed comes up between lines)"
             warns.append(f"gap {g['start']:.2f}–{g['end']:.2f}: music rises {g['rise']:+.1f} LU to {g['re_anchor']:+.1f} re the voice in a {g['end'] - g['start']:.2f} s pause{why}")
@@ -506,9 +558,10 @@ def verdict(R, P):
         elif judged != med and med < lo - 3:
             warns.append(f"SFX class {c}: median {med:+.1f} LU re anchor, under {lo}…{hi} because of {R['classes'][c]['lf_low']} low-frequency hit(s), which the mixer never raises")
     meds = {c: d["median"] for c, d in R["classes"].items()}
-    order = [c for c in ("hero", "signal", "detail", "ambience") if c in meds]
-    R["order_ok"] = all(meds[a] >= meds[b] for a, b in zip(order, order[1:]) if (a, b) != ("hero", "signal"))
-    if not R["order_ok"]: warns.append("SFX class order broken: " + " > ".join(f"{c} {meds[c]:+.1f}" for c in order))
+    tier = {"hero": 0, "signal": 0, "detail": 1, "ambience": 2}   # hero and signal both over detail, detail over ambience;
+    broken = [(a, b) for a in meds for b in meds if tier.get(a, 1) < tier.get(b, 1) and meds[a] < meds[b]]   # hero vs signal: either
+    R["order_ok"] = not broken
+    if broken: warns.append("SFX class order broken (hero, signal ≥ detail ≥ ambience): " + ", ".join(f"{a} {meds[a]:+.1f} < {b} {meds[b]:+.1f}" for a, b in broken))
     d = R["depth"]
     rv, rs = (d.get(k, {}).get("rt60_est") for k in ("voice", "sfx"))
     if rv and rs and rs < rv * 0.9: warns.append(f"depth: SFX decay ({rs:.2f} s) no wetter than the voice ({rv:.2f} s): they sit on the narrator's plane")
@@ -527,11 +580,12 @@ def fmt(R):
         o.append("[2] speech line                                     voice  music   bed    VMR  VMRp10  VBR  SNR1-4k flag")
         nz = lambda v: float("nan") if v is None else v
         for ln in R["lines"]:
-            o.append(f"    {ln['start']:6.2f}–{ln['end']:6.2f} {ln['text'][:30]:30s} {ln['voice']:6.1f} {ln['music']:6.1f} {ln['bed']:6.1f} {ln['vmr']:6.1f} "
+            o.append(f"    {ln['start']:6.2f}–{ln['end']:6.2f} {ln['text'][:30]:30s} {ln['voice']:6.1f} {ln['music']:6.1f} {ln['bed']:6.1f} {nz(ln['vmr']):6.1f} "
                      f"{nz(ln['vmr_p10']):6.1f} {ln['vbr']:6.1f} {nz(ln['snr']):6.1f}  {ln['flag']}")
-        v = np.array([ln["vmr"] for ln in R["lines"]]); s = np.array([ln["snr"] for ln in R["lines"] if ln["snr"] is not None])
-        o.append(f"    VMR median {np.median(v):.1f} LU, min {v.min():.1f} · presence SNR median {np.median(s) if len(s) else float('nan'):.1f} dB, "
-                 f"min {s.min() if len(s) else float('nan'):.1f} · voice lines span {max(ln['voice'] for ln in R['lines']) - min(ln['voice'] for ln in R['lines']):.1f} LU")
+        vl = [ln for ln in R["lines"] if not ln["novoice"]]
+        v = np.array([ln["vmr"] for ln in vl if ln["vmr"] is not None]); s = np.array([ln["snr"] for ln in vl if ln["snr"] is not None])
+        if len(v): o.append(f"    VMR median {np.median(v):.1f} LU, min {v.min():.1f} · presence SNR median {np.median(s) if len(s) else float('nan'):.1f} dB, "
+                        f"min {s.min() if len(s) else float('nan'):.1f} · voice lines span {max(ln['voice'] for ln in vl) - min(ln['voice'] for ln in vl):.1f} LU")
     if R["words"]:
         ws = sorted(R["words"], key=lambda w: w["snr"])[:8]
         o.append(f"[3] masking: {len(R['words'])} {'words' if R['words_from'] == 'words' else '0.4 s chunks'}, {R.get('risk_share', 0) * 100:.0f} % under the floor; most at risk (SNR vs bed / music / sfx, dB): " +
@@ -623,17 +677,25 @@ def main():
     mix_path = pos[0]; bm = json.load(open(pos[1])) if len(pos) > 1 and pos[1] != "-" else {}
     ev = json.load(open(pos[2])) if len(pos) > 2 else []
     stems = opt("--stems"); meta = json.load(open(os.path.join(stems, "meta.json"))) if stems and os.path.exists(os.path.join(stems or "", "meta.json")) else {}
-    lib, root = opt("--lib", meta.get("lib")), opt("--root", meta.get("root"))
-    out, fails, warns = [], 0, 0
+    lib, root = opt("--lib", in_stems(stems, meta.get("lib"))), opt("--root", in_stems(stems, meta.get("root")))
+    out, fails, warns, faint = [], 0, 0, []
     if mode in ("scan", "all"):
         sev = json.load(open(opt("--events"))) if "--events" in a else ev
         o, f = scan(mix_path, bm, float(opt("--from", 1.0)), float(opt("--to")) if "--to" in a else None, opt("--voice") or stem(stems, "voice"), sev,
                     float(opt("--click-grace", 0.04)), stem(stems, "music")); out += o; fails += f
     if mode in ("cues", "all") and (bm.get("hits") or ev):
-        o, f, w = cues(mix_path, bm, ev, float(opt("--fps", 30)), lib, root); out += o; fails += f; warns += w
-    if mode == "all" and stems:   # the report reads the stems only: --voice / --events above are the scan's raw inputs
+        o, f, w, faint = cues(mix_path, bm, ev, float(opt("--fps", 30)), lib, root); out += o; fails += f; warns += w
+    if mode == "all" and stems and lossy(mix_path):   # the report reads the stems, not this file: it belongs to the lossless run
+        out.append("mix report: not repeated on an encoded file; it reads the stems (bin/vh qa <the mix WAV> … --stems)")
+    elif mode == "all" and stems:   # the report reads the stems only: --voice / --events above are the scan's raw inputs
         ra = [x for k in ("--words", "--timeline", "--profile") if k in a for x in (k, opt(k))]
         txt, R = report(ra + (["--beats", pos[1]] if len(pos) > 1 and pos[1] != "-" else []), stems); out += txt.splitlines(); fails += len(R["fails"])
+        buried = {(e["t"], e["sfx"]) for e in R["events"] if e["flag"] == "BURIED"}
+        for t, x in faint:   # on sync but faint in the cue check, and BURIED under the local bed in the report: nobody hears it
+            if (float(t), x) in buried:
+                out.append(f"FAIL  {t:.3f} s {x}: on the planned sample but faint in the cue check, and BURIED in the mix report: not heard "
+                           "(raise its gain_db, or use a sound with more 1–4 kHz)")
+                fails += 1
     txt = "\n".join(out)
     if "--out" in a: open(opt("--out"), "w").write(txt + "\n")
     print("\n".join(r for r in out if "  OK  " not in r))   # cue rows that pass cleanly are only written to --out

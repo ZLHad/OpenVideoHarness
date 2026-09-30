@@ -21,8 +21,10 @@ events.json: [{"t": 3.20, "sfx": "click", "gain_db": -6}, {"t": 7.95, "sfx": "wh
        (hero). `place` checks it and writes it into the sidecar.
 The sidecar <out>.events.json lists, per event: its class and why, where it starts, and its own level as placed:
   fast (loudest 100 ms, K-weighted LUFS), m400 (loudest 400 ms), tp (true peak, dBTP), len (s within 20 dB of fast),
-  lf (share of its energy under 150 Hz: above 0.6 a phone or laptop speaker barely plays it). A mix profile does not
-  need it (it measures each event itself); it is for reading the foley's levels before mixing.
+  lf (share of its energy under 150 Hz: above 0.6 a phone or laptop speaker barely plays it). The windows stop at the
+  event's edges, so a short or front-loaded sound reads high (tick +7, click +5, pop +3 LU): the mix profiles' class
+  ranges are calibrated on exactly this. A mix profile does not need the sidecar (it measures each event itself); it is
+  for reading the foley's levels before mixing.
 Built-ins: click tick pop toggle typing whoosh swish_rev riser impact boom ding success error glitch shutter
 All are original, deterministic and license-free (MIT, part of this repo). Each built-in draws from its own random
 stream, seeded by its name, so `sfx lib` and `sfx place` give the same samples whatever else was rendered first.
@@ -99,13 +101,21 @@ LIB = {"click": click, "tick": tick, "pop": pop, "toggle": toggle, "typing": typ
 # landmark = seconds from the start of the sound to its perceptual hit (what should coincide with the action)
 LANDMARK = {"whoosh": .35, "swish_rev": .5, "riser": 2.0, "typing": 0.0}
 
+def knee(x, k=0.9):
+    """a soft knee: samples over k bend smoothly toward 1.0 (continuous slope at k), so no noise peak reaches full scale
+    and `sfx lib`'s 16-bit write never hard-clips; a sound that stays under k is untouched"""
+    a = np.abs(x); over = a > k
+    if not over.any(): return x
+    y = x.copy(); y[over] = np.sign(x[over]) * (k + (1 - k) * np.tanh((a[over] - k) / (1 - k)))
+    return y
+
 def builtin(name):
     """a built-in sound, drawn from its own random stream (seeded by its name). One shared stream made every sound
     depend on what was rendered before it: `sfx place` gave a whoosh different noise depending on the events before it,
-    and `sfx lib` another one again."""
+    and `sfx lib` another one again. Peaks over 0.9 go through a soft knee (a few samples of the noisy ones)."""
     global rng
     rng = np.random.default_rng([11, zlib.crc32(name.encode())])
-    return LIB[name]()
+    return knee(LIB[name]())
 
 def write(path, x):  # x: (n,) mono or (n, 2) stereo
     x = np.clip(x, -1, 1)
@@ -148,6 +158,8 @@ def main():
         print(f"{len(LIB)} SFX → {d}/ ({', '.join(LIB)})"); return
     if cmd == "place":
         events = json.load(open(sys.argv[2])); out = sys.argv[3]
+        if Path(side_path(out)).resolve() == Path(sys.argv[2]).resolve():
+            sys.exit(f"sfx: the levels sidecar {side_path(out)} would overwrite the event list {sys.argv[2]}: name the output something else")
         dur = float(sys.argv[4]) if len(sys.argv) > 4 and not sys.argv[4].startswith("--") else max(e["t"] for e in events) + 3
         lib_dir = Path(sys.argv[sys.argv.index("--lib") + 1]) if "--lib" in sys.argv else None
         for k, e in enumerate(events):
@@ -160,11 +172,13 @@ def main():
             x = spatial(cache[name] * 10 ** (e.get("gain_db", 0) / 20), e.get("pan", 0), e.get("dist", 1))
             i = int(round((e["t"] - LANDMARK.get(name, 0.0)) * SR))
             if i < 0: x, i = x[-i:], 0
-            j = min(len(track), i + len(x)); track[i:j] += x[: j - i]; placed.append((e, i, x[: max(0, j - i)]))
+            j = min(len(track), i + len(x)); track[i:j] += x[: max(0, j - i)]; placed.append((e, i, x[: max(0, j - i)]))
         clip = int((np.abs(track) > 1).sum()); write(out, track)
         side = sidecar(out, placed)
         print(f"{len(events)} events → {out} ({dur:.2f}s, stereo) · levels → {side}" + (f"  ! {clip} samples clipped: lower gain_db" if clip else "")); return
     print(__doc__)
+
+def side_path(out): return str(Path(out).with_suffix("")) + ".events.json"
 
 def sidecar(out, placed):
     """<out>.events.json: each event's class and its own level as placed (see the module docstring)"""
@@ -178,7 +192,7 @@ def sidecar(out, placed):
             row.update({k2: round(v, 3) for k2, v in lv.items() if k2 in ("fast", "m400", "tp", "at", "len", "lf")})
         else: row["outside"] = True   # starts after the end of the track
         rows.append(row)
-    path = str(Path(out).with_suffix("")) + ".events.json"
+    path = side_path(out)
     with open(path, "w") as fh: json.dump({"track": Path(out).name, "sr": SR, "events": rows}, fh, ensure_ascii=False, indent=1)
     return path
 

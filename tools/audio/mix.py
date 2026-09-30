@@ -40,8 +40,10 @@ break). The order is voice anchor → music VMR → SFX classes → depth → ma
           look-ahead fader ride instead of a compressor: each line's depth is solved in a closed loop until the line
           sits at the profile's VMR (voice − music, LU); it starts `pre` s before the line, holds across pauses shorter
           than `hold` (a pause < 1.5 s keeps half of it) and releases over `release` s; plus a 1–4 kHz carve only as
-          deep as the words need (Chinese narration, from the timeline's lang: 250 Hz–1 kHz takes 60 % of it). No
-          narration: hero hits get a short dip instead.
+          deep as the words need (Chinese narration, from the timeline's lang: 250 Hz–1 kHz takes 60 % of it). The
+          music's one static gain comes from the same fit and is held within −24…+6 dB; a line with no music under it
+          stays out of the fit, a timeline line with no speech in the voice file is left out (both noted); a music file
+          that is silent (≤ −70 LUFS) is mixed as no music. No narration: hero hits get a short dip instead.
   sfx     middle plane. events= are placed as `bin/vh sfx place` places them, each classed hero / detail / ambience /
           signal ("role" in events.json or roles=, else "layer": "sonification" → signal, else a name hint), and moved
           half way to its class centre re the anchor, clamped 0.5 LU inside the class range (loud outliers come down
@@ -51,8 +53,11 @@ break). The order is voice anchor → music VMR → SFX classes → depth → ma
           dry voice, a presence carve clears the words an SFX would cover, bus peaks ≤ anchor + 11 dB (cartoon + 9).
           sfx= (one pre-placed bus, no events) is mixed as a single detail layer: nothing to class.
   master  fade, one static gain to lufs= on a BS.1770 meter (ffmpeg's ebur128 agrees; loudnorm differs on short clips,
-          −0.2 LU on a 25 s film, +0.3 on a 5 s swatch), then a look-ahead true-peak limiter only if needed. tp defaults to
-          −1.65 dBTP: 0.15 dB of margin for the AAC encode (+0.03–0.2 dB), so the mp4 stays at or under −1.5.
+          −0.2 LU on a 25 s film, +0.3 on a 5 s swatch), then a look-ahead true-peak limiter only if needed (4× oversampled,
+          as BS.1770: a 16× meter reads up to 0.16 dB more on transients). tp defaults to −1.65 dBTP. An AAC encode raises
+          the true peak by an amount that depends on the content and the bitrate: −0.1…+0.1 dB at 192k on the lab's three
+          films, +0.2…+0.9 dB at 128k on the swatches, more on a bare synthetic SFX bus. So measure the mp4 and mix again
+          with a lower tp= when it is over −1.5 (styles/_swatch/render.sh does).
   music_db / sfx_db / voice_db   the build's starting balance: SFX are judged from it (default −6 / 0 / 0; swatch 0 / −3)
   keep=   cue times whose passage keeps its designed SFX level (a synced onset the class moves made undetectable)
   stems=  a folder for the buses as heard at the final gain (voice, music, sfx, sfx_<class>.wav) and meta.json with
@@ -89,8 +94,9 @@ def main():
     out = sys.argv[1]; kv = dict(a.split("=", 1) for a in sys.argv[2:])
     for k in ("music_db", "sfx_db", "voice_db", "duck_ratio", "lufs", "tp", "dur", "fade"):
         if k in kv:
-            try: float(kv[k])
+            try: v = float(kv[k])
             except ValueError: sys.exit(f"{k}={kv[k]}: not a number")
+            if v != v or v in (float("inf"), float("-inf")): sys.exit(f"{k}={kv[k]}: not a finite number")
     if kv.get("profile", "none") == "none":
         extra = [k for k in PROFILE_KEYS[1:] if k in kv]
         if extra: sys.exit(f"{' '.join(k + '=' for k in extra)}: only with a mix profile (profile={'|'.join(PROFILES)})")
@@ -209,6 +215,7 @@ PROFILES = {
                   "hero_dip": 2.0, "check": {"vmr_fail": 6, "snr": 4, "risk": 0.15, "gap_rise": 8}},
 }
 ZH = {"music": {"body": 3.0, "body_share": 0.6}}   # Mandarin: tones live in 250 Hz–1 kHz too, so the carve reaches down there
+GM_RANGE = (-24.0, 6.0)   # dB: the music's static gain from the VMR fit is held inside this (a note says when)
 
 def profile(name, zh=False):
     """the full settings of a profile: BASE, the profile's changes, and the Chinese-narration carve"""
@@ -372,14 +379,15 @@ HINTS = (("ambience", ("whirr", "gust", "wind", "rain", "room", "hum", "drone", 
                      "blip", "iris")))
 
 def sfx_class(e):
-    """an event's class and why: its "role", else "signal" for a sonification layer, else the first name hint that starts
-    one of the name's words ("clock_tick" is a tick, not a lock), else detail"""
+    """an event's class and why: its "role", else "signal" for a sonification layer, else the first name hint that is one
+    of the name's words, or its plural ("clock_tick" and "ticks" are ticks; "airhorn", "dropdown" and "human" match nothing),
+    else detail"""
     if e.get("role"): return e["role"], "role"
     if e.get("layer") == "sonification": return "signal", "layer"
     n = re.sub(r"\.[A-Za-z0-9]+$", "", str(e.get("sfx", "")).lower().rsplit("/", 1)[-1])
-    words = [w for w in re.split(r"[^a-z]+", n) if w]
+    words = {w for w in re.split(r"[^a-z]+", n) if w}
     for cls, hints in HINTS:
-        hit = next((h for h in hints if any(w.startswith(h) for w in words)), None)
+        hit = next((h for h in hints if words & {h, h + "s", h + "es"}), None)
         if hit: return cls, f"name '{hit}'"
     return "detail", "default"
 
@@ -387,7 +395,11 @@ def event_levels(y):
     """one event alone, (m, 2): fast = its loudest 100 ms (K-weighted LUFS), m400 = loudest 400 ms, tp = true peak (dBTP),
     at = where the fast max is (s from the start of y), on = its first 5 ms step within 10 dB of that, len / len10 = how
     long it stays within 20 / 10 dB of it (len10 decides whether it collides with speech), lf = share of its energy
-    under 150 Hz (> 0.6: a hit that phone and laptop speakers barely play)"""
+    under 150 Hz (> 0.6: a hit that phone and laptop speakers barely play).
+    The windows are clipped to the event, as in the mix lab: a sound shorter than 100 ms, or loudest in its first 50 ms,
+    reads louder than a 100 ms window with silence around it would (built-ins: tick +7.0, click +5.2, pop +2.9, toggle
+    +2.8, error +1.9, shutter +1.5 LU; long sounds ≈ 0). The class ranges are calibrated on this measure, so it is
+    consistent inside the profiles; it is not a meter to compare with other tools."""
     k = kpow(y); L = lufs(win_mean(k, 0.1, 0.005)); im = int(np.argmax(L))
     on = np.nonzero(L >= L[im] - 20)[0]; on10 = np.nonzero(L >= L[im] - 10)[0]
     lo = sosfilt(sos_lp(150, 4), y.mean(1)); lf = float((lo ** 2).sum() / max((y.mean(1) ** 2).sum(), 1e-15))
@@ -426,6 +438,7 @@ def mixdown(P, voice=None, music=None, events=(), lib=None, root=None, sfx_bus=N
         for e in events: i, y = place(e, lib, root, cache); placed_end = max(placed_end, i + len(y))
     n = int(round(dur * SR)) if dur else max(lens) if lens else placed_end
     if n <= 0: sys.exit("mix: nothing to mix (no audio, and no events inside the duration)")
+    if fade and int(fade * SR) >= n: sys.exit(f"fade={fade}: as long as the mix or longer ({n / SR:.2f} s)")
     nf = 1 + (n - 1) // int(HOP * SR)
     zero2 = np.zeros((n, 2))
     if P.get("zh"): note("voice: Chinese narration: the presence carve reaches 250 Hz–1 kHz too (body 3 dB, 60 % of the carve)")
@@ -448,6 +461,16 @@ def mixdown(P, voice=None, music=None, events=(), lib=None, root=None, sfx_bus=N
                 segs.append({"start": st * HOP, "end": on[-1] * HOP})
         if segs:
             L = [integrated(kv, int(s["start"] * SR), int(min(float(s["end"]), n / SR) * SR)) for s in segs]
+            # a line with no speech in the voice file (a timeline line past its end, a silent take) would drag the anchor
+            # and the music fit with a −120 LUFS "voice": it is left out, with a note
+            ok = [l > -70 for l in L]
+            if any(ok):
+                m0 = float(np.median([l for l, o in zip(L, ok) if o])); ok = [o and l > m0 - 20 for l, o in zip(L, ok)]
+            if not all(ok):
+                note("voice: left out, no speech in the voice file there (≤ −70 LUFS, or 20 LU under the other lines): " +
+                     ", ".join(f"{s['start']:.2f}–{s['end']:.2f} s ({l:.0f} LUFS)" for s, l, o in zip(segs, L, ok) if not o))
+                segs = [s for s, o in zip(segs, ok) if o]; L = [l for l, o in zip(L, ok) if o]
+        if segs:
             med = float(np.median(L)); gain = np.zeros(n)
             for s, l in zip(segs, L):   # each line toward the median; the step sits in the pause before the line
                 g = float(np.clip((med - l) * Pv["level"], -Pv["level_max"], Pv["level_max"]))
@@ -492,6 +515,8 @@ def mixdown(P, voice=None, music=None, events=(), lib=None, root=None, sfx_bus=N
             note(f"music: L/R correlation 250 Hz–4 kHz {corr_mid:.2f} > {Pm['air_if_corr']}: hall air return at {Pm['air_db']:.0f} dB")
         note(f"music: HPF {Pm['hpf']} Hz, EQ {Pm['eq'] or 'flat'}, side +{Pm['width_db']} dB above 200 Hz")
     kM = kpow(M)
+    if has_music and integrated(kM) <= -70:   # a silent music file would become the SFX anchor at −120 LUFS
+        note("music: silent (≤ −70 LUFS integrated): mixed as no music"); has_music = False
     if has_music:
         I_music = integrated(kM)
         if Pm.get("plr"):   # a score whose peaks sit > plr dB over its loudness is tamed on its own bus, not by the master limiter
@@ -671,22 +696,35 @@ def mixdown(P, voice=None, music=None, events=(), lib=None, root=None, sfx_bus=N
             return out                                               # (the same sum, left to right, without the temporaries)
         if has_voice and Pm["vmr"]:
             tgt, vmin, vmax = Pm["vmr"]
-            raw = [ln["voice"] - integrated(kM, int(ln["start"] * SR), int(ln["end"] * SR), gate=False) for ln in lines]
+            mus = [integrated(kM, int(ln["start"] * SR), int(ln["end"] * SR), gate=False) for ln in lines]
+            raw = [ln["voice"] - m_ for ln, m_ in zip(lines, mus)]
+            fit = [m_ > -70 for m_ in mus]   # a line with no music under it has nothing to duck and says nothing about Gm
             d0, c0 = 6.0, 1.0   # model: VMR_k = raw_k − Gm + duck_k + ~1 LU from the carve
-            Gm = float(np.median(raw) + d0 + c0 - tgt)                  # the median line on target with a 6 dB duck
-            Gm = min(Gm, float(min(raw) + Pm["duck_max"] + c0 - vmin))   # … and the worst line reachable (≥ vmin)
-            depths = [float(np.clip(tgt - (r - Gm) - c0, Pm["duck_min"], Pm["duck_max"])) for r in raw]
+            if any(fit):
+                rf = [r for r, f in zip(raw, fit) if f]
+                Gm = float(np.median(rf) + d0 + c0 - tgt)                  # the median line on target with a 6 dB duck
+                Gm = min(Gm, float(min(rf) + Pm["duck_max"] + c0 - vmin))   # … and the worst line reachable (≥ vmin)
+            else:
+                Gm = 0.0; note("music: silent under every line, so there is no VMR to solve: static gain 0 dB (the starting balance, music_db)")
+            if not all(fit):
+                note("music: nothing under " + ", ".join(f"{ln['start']:.2f}–{ln['end']:.2f} s" for ln, f in zip(lines, fit) if not f) +
+                     ": those lines stay out of the music fit")
+            if not GM_RANGE[0] <= Gm <= GM_RANGE[1]:   # the music under the lines is far quieter or louder than the rest of it:
+                g0, Gm = Gm, float(np.clip(Gm, *GM_RANGE))   # a gain from those lines alone would wreck the music elsewhere
+                note(f"music: the VMR fit asked for a static gain of {g0:+.1f} dB, held at {Gm:+.1f} dB ({GM_RANGE[0]:+.0f}…{GM_RANGE[1]:+.0f}): "
+                     "the music under the lines is much quieter or louder than elsewhere; the lines' VMR will miss the target")
+            depths = [float(np.clip(tgt - (r - Gm) - c0, Pm["duck_min"], Pm["duck_max"])) if f else Pm["duck_min"] for r, f in zip(raw, fit)]
             for it in range(5):   # closed loop on the rendered music: every line toward the target
                 bb_db = render_gain(depths); carve_db = carve_env(bb_db); Mo = apply(bb_db, carve_db, Gm); kMo = kpow(Mo)
                 got = [ln["voice"] - integrated(kMo, int(ln["start"] * SR), int(ln["end"] * SR), gate=False) for ln in lines]
                 err = [tgt - g_ for g_ in got]
-                new = [float(np.clip(d + e_, Pm["duck_min"], Pm["duck_max"])) for d, e_ in zip(depths, err)]
+                new = [float(np.clip(d + e_, Pm["duck_min"], Pm["duck_max"])) if f else d for d, e_, f in zip(depths, err, fit)]
                 if max(abs(a_ - b_) for a_, b_ in zip(new, depths)) < 0.25: break
                 if it < 4: depths = new
             M = Mo; del Mo, kMo
-            for ln, d, g_ in zip(lines, depths, got): ln.update(duck=d, vmr=g_)
+            for ln, d, g_, f in zip(lines, depths, got, fit): ln.update(duck=d, vmr=g_ if f else None)
             note(f"music: static gain {Gm:+.1f} dB; per-line duck {', '.join(f'{d:.1f}' for d in depths)} dB → VMR "
-                 f"{', '.join(f'{g_:.1f}' for g_ in got)} LU (target {tgt}); presence carve up to −{carve_db.max():.1f} dB "
+                 f"{', '.join(f'{g_:.1f}' if f else '–' for g_, f in zip(got, fit))} LU (target {tgt}); presence carve up to −{carve_db.max():.1f} dB "
                  f"(mean −{carve_db[held].mean() if held.any() else 0:.1f} dB under speech)")
         else:
             bb_db = render_gain([]); carve_db = np.zeros(nf); M = apply(bb_db, carve_db, 0.0)
@@ -753,6 +791,8 @@ def layered(out, kv):
     if roles is not None and not isinstance(roles, dict): sys.exit(f"roles={kv['roles']}: a JSON object {{\"<event index or sfx name>\": \"hero\", …}}")
     for where, r in [(f"event {k} ({e['sfx']})", e.get("role")) for k, e in enumerate(events)] + [(f"roles {k}", v) for k, v in (roles or {}).items()]:
         if r is not None and r not in CLASSES: sys.exit(f"{where}: role {r!r} is not one of {', '.join(CLASSES)}")
+    stray = [k for k in (roles or {}) if not (k.isdigit() and int(k) < len(events)) and k not in {e["sfx"] for e in events}]
+    if stray: print(f"  roles: no event has the index or sfx name {', '.join(map(repr, stray))} (a typo?)")
     timeline = json.load(open(kv["timeline"])) if "timeline" in kv else None
     segs = (timeline.get("segments") if isinstance(timeline, dict) else timeline) if timeline is not None else []
     if not isinstance(segs, list) or not all(isinstance(x, dict) and isinstance(x.get("start"), (int, float)) and isinstance(x.get("end"), (int, float)) for x in segs):
@@ -770,10 +810,11 @@ def layered(out, kv):
     Z, stems, g, meta = mixdown(P, buses.pop("voice"), buses.pop("music"), events, kv.get("lib"), kv.get("root"), buses.pop("sfx"), timeline, dur, fade,
                              float(kv.get("lufs", -14)), float(kv.get("tp", -1.65)), roles, mdb, sdb, keep, class_stems="stems" in kv)
     save(out, Z)
-    meta.update(balance={"music_db": mdb, "sfx_db": sdb, "voice_db": vdb}, zh=zh, keep=keep, lib=kv.get("lib"), root=kv.get("root"),
-                inputs={k: kv[k] for k in ("voice", "music", "sfx", "events", "timeline", "roles") if k in kv})
-    if "stems" in kv:
-        d = kv["stems"]; os.makedirs(d, exist_ok=True)
+    if "stems" in kv:   # paths in meta.json are relative to the stems folder, so qa --stems works from anywhere
+        d = kv["stems"]; os.makedirs(d, exist_ok=True); rel = lambda p: os.path.relpath(os.path.abspath(p), os.path.abspath(d))
+        meta.update(balance={"music_db": mdb, "sfx_db": sdb, "voice_db": vdb}, zh=zh, keep=keep,
+                    lib=rel(kv["lib"]) if "lib" in kv else None, root=rel(kv.get("root", ".")) if "events" in kv else None,
+                    inputs={k: rel(kv[k]) for k in ("voice", "music", "sfx", "events", "timeline", "roles") if k in kv})
         names = ["voice", "music", "sfx"] + [f"sfx_{c}" for c in CLASSES]
         for k in names:   # only what this mix has: a stale stem from an earlier run would mislead qa mix
             p = os.path.join(d, f"{k}.wav")
