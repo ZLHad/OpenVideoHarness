@@ -9,7 +9,7 @@
 | 0 选路径 | — | `00-paradigm.md` 的选型表和 `video-types/` | 能说清验收标准 |
 | 1 Brief + 大纲 | `BRIEF.md`（受众、平台、时长、画幅、fps、有无声音、验收项）+ 3–7 段大纲 | `templates/BRIEF.md` | **人工关卡 ①** |
 | 2 风格 | `STYLE.md`：调色板、字体、缓动、安全区或锚点网格、禁止项 | `templates/STYLE.md` + 类型文档 | 一页纸能讲清 |
-| 3 脚本与分镜 | `SCRIPT.md`（有旁白时写，关键词标 `{cue}`）、`STORYBOARD.md`（每镜的时间、reads、转场）、每镜一张关键帧（分镜预览图 `out/check/storyboard.png`）；节奏要紧的片子再加一版 animatic `out/animatic.mp4` | `templates/SCRIPT.md`、`templates/STORYBOARD.md` | 每镜都有事件，reads 不重叠；**人工关卡 ②** |
+| 3 脚本与分镜 | `SCRIPT.md`（有旁白时写，关键词标 `{cue}`）、`STORYBOARD.md`（每镜的时间、reads、转场）、每镜一张关键帧（`shots.json` → `bin/vh storyboard`，出在 `out/check/storyboard/`）；节奏要紧的片子再加一版 animatic `out/animatic.mp4` | `templates/SCRIPT.md`、`templates/STORYBOARD.md` | 每镜都有事件，reads 不重叠；**人工关卡 ②** |
 | 4 音频先行 | `audio/*`、`timeline.json`（词级时间）、`beats.json` | 见 `04-audio.md` | 用实测时长回写分镜 |
 | 5 搭引擎 | 渲染脚本、公共库（hash、ease、keyframe、camera、pulse），先做一个样板场景 | `engines/README.md` | 乱序跳到同一帧，结果一致 |
 | 6 写场景 | 每个场景一个文件；长片按 chapter 分给多个 subagent | Claude Code subagents | 每个场景都过 lint、sheet、strip、crop |
@@ -88,6 +88,10 @@ projects/2026-10-01-leo-doppler/
 
 每次停，默认做一页：写 `out/review/gate-<n>.json`，运行 `bin/vh review <project> <n>`，得到 `out/review/gate-<n>.html`（最新一页另存为 `index.html`），图、GIF、mp4 和音频在浏览器里直接看、直接听。聊天里只发命令打印的那几行。`<n>` 是关卡 `1` `2` `3` 或检查点 `E0`–`E5`，同一站的第二页加 `b`（`2b`）；页属于哪一站，看文件名。只有一两个纯文字的选择时，直接在聊天里问也行。
 
+图不用手拼，`bin/vh` 有现成的：
+- **关卡 ②**：把 STORYBOARD 的镜头表写成 `shots.json`（格式见 `bin/vh storyboard -h`；最没把握的镜头写 `"unsure": "为什么"`），运行 `bin/vh storyboard <project>` 出每段一页的分镜和总览，同时写好 `out/check/storyboard/review.json`；再运行 `bin/vh rhythm <project>` 出节奏图，超过类型回报间隔的镜头、读不完的字幕标红。gate JSON 里写 `"include": "out/check/storyboard/review.json"`，分段、关键帧、每镜的旁白、没把握的镜头和 animatic 就都带进来了；gate JSON 只写 `summary`、`decisions`，节奏图作为 asset 挂在节奏那个决定下，最后 `bin/vh review <project> 2`。
+- **风格**：`bin/vh style compare a,b,c` 出并排对照（`--frame t` 取各 swatch 的同一时刻）。**封面**：`bin/vh cover-preview <封面>` 出各平台信息流的实际大小和小尺寸可读性。**主旋律**：`bin/vh music … --roll` 出每个声部的谱面和响度曲线，给听不见的一方一张能看的图。
+
 页面从上往下：
 1. **要你定的事**（默认 ≤ 3 件）：问题；推荐的选项加一句理由；以后再改要花多少（"现在改：低 · 分镜后改：高"）；怎么回（`H1 / H2 / H3`）。最后是照推荐的整句回复，其余默认通过。
 2. **图**：每个决定配图，每张一行说明。选项尽量并排成一张图（钩子几行 × 几帧，封面加信息流大小的缩略图）；声音给试听文件，agent 听不见的地方明说。
@@ -124,6 +128,7 @@ projects/2026-10-01-leo-doppler/
 - **选填**：`why`、`cost`，选项的 `label` / `pro` / `con`；`decided` 和 `delegated`（都是列表，一项一条）、`not_reviewed`（一句话：这页不审什么）、`title`、`lang`（`zh` / `en`）、`gate`（和文件名不一致时以文件名为准）。
 - `assets[].for` 写决定或分段的 `id`，图就放在它下面，不写就放进"其他材料"；视频加 `t0` / `t1` 只播一段，加 `poster` 指定封面帧。附录的 `text` 可以放简单的竖线表格（`| a | b |`、`|---|---|`）。写了 `animatic`，每个分段页只播自己那一段，播到段尾就停。
 - `least_sure` 写镜头号，那一镜就标红；文字里出现的镜头号会链到那一镜。镜头的 `note` 写"默认会这样改"，照样默认通过，但单独标出来。
+- `include`：一个 JSON 文件（或几个的列表），路径相对项目，只补 gate JSON 没写的键，gate JSON 写了的优先；`bin/vh storyboard` 写的 `out/check/storyboard/review.json` 就是给它用的。
 - 路径只收项目里的文件和 http(s) 链接。缺推荐、缺文件、`for` 指向不存在的 `id` 时，页面照样生成，但退出码是 1，也不打印聊天消息：先改好。字段形状不对（该是列表的写成了字符串）时退出码是 2，什么都不写。
 
 ### animatic：打磨之前先定节奏
