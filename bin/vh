@@ -41,6 +41,7 @@ declare -a TYPES=(
   "paper:06-paper-explainer:论文讲解/会议视频（Manim + HyperFrames）"
   "handdrawn:07-hand-drawn:手绘/水彩/白板/剪纸/角色短片（ClaudeAnimationBase）"
   "meme:08-brutalist-meme:网络梗/野兽派快剪（HyperFrames）"
+  "edit:09-editing-talking-head:真人素材剪辑/口播，用户自己的素材（实验中；HyperFrames）"
 )
 type_doc() { for t in "${TYPES[@]}"; do IFS=: read -r k f _ <<<"$t"; [ "$k" = "$1" ] && { echo "$f"; return; }; done; return 1; }
 sedi() { local e=$1 f; shift; for f in "$@"; do sed "$e" "$f" > "$f.vh$$" && mv "$f.vh$$" "$f"; done; }   # in-place sed on both BSD/macOS and GNU/Linux
@@ -165,6 +166,7 @@ PY
     short) cmd_hf_init "$dir" portrait || true ;;
     promo|data|meme) cmd_hf_init "$dir" landscape || true ;;
     math|paper) echo "   engine   : Manim → cd ${dir#$ROOT/} && uv init --bare --python 3.12 && uv add manim   (see engines/README.md)" ;;
+    edit) echo "   engine   : HyperFrames → bin/vh hf-init ${dir#$ROOT/} portrait   (or landscape; see video-types/09-editing-talking-head.md)" ;;
   esac
   if [ "$type" = handdrawn ] || [ "$type" = mv ]; then
     python3 - "$dir/BRIEF.md" <<'PY'

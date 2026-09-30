@@ -99,7 +99,8 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 | 论文讲解、会议视频、学术报告 | `video-types/06-paper-explainer.md` | Manim（机制）或 HyperFrames（结构、结果） | `cases/paper-paper2video.md`、`cases/explainer-code2video.md` |
 | 手绘、水彩、白板、剪纸、角色小短片 | `video-types/07-hand-drawn.md` | ClaudeAnimationBase（p5.brush） | `showcase/01-handdrawn-clawd-leaf/`、`cases/mv-pdoom.md` |
 | 网络梗、野兽派、科技推特风的快剪 | `video-types/08-brutalist-meme.md` | HyperFrames | `cases/mv-claude-pop.md` |
-| 需要写实人物、真实物理、实拍感 | `playbook/05-hybrid-genvideo.md`，再加上对应的类型文档 | 生成式视频 + 代码叠加 | `cases/mv-claude-pop.md` |
+| 剪用户自己录的素材：口播、访谈、Vlog，删口水词和重录、剪接缝、加字幕和图解、出竖屏版（实验性） | `video-types/09-editing-talking-head.md`，细节在 `engines/editing.md` | HyperFrames | `cases/community-prompts.md`（@AxtonLiu 的口播图解做法） |
+| 需要写实人物、真实物理、实拍感 | `playbook/05-hybrid-genvideo.md`，再加上对应的类型文档（用户自己录的真人素材不用生成，走 `video-types/09-editing-talking-head.md`） | 生成式视频 + 代码叠加 | `cases/mv-claude-pop.md` |
 | "这个视频是怎么做的"，想学某支参考视频 | `playbook/07-reverse-engineer.md` | —（产出一份 cases/ 拆解） | `cases/explainer-interstellar-blackhole.md` |
 | 只给了一句话，或想找同类的社区提示词对照 | 主类型文档，加上 `cases/opus55-gallery.md`（先看第 1 节最后两条，再从第 3 节挑 2–3 条同类型的） | 按主类型 | `cases/opus55-gallery.md` |
 | 想找现成的社区 skill 或某种画风 | 先看本仓库的 `styles/`（带样片），再看 `references/community-skills.md`（含 lemo-opuscar 的 43 种风格库，MIT） | — | `cases/opus55-gallery.md` |
@@ -141,7 +142,7 @@ OpenVideoHarness/
 ├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · sheet · check · gif · review
 ├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py、review.py）；ci.sh 是仓库自检
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
-├── video-types/              8 类视频：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
+├── video-types/              9 类视频（09 实验中）：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
 ├── playbook/                 跨类型的通用知识
 │   ├── 00-paradigm.md          范式与引擎选型
 │   ├── 01-pipeline.md          十阶段流程（0–9）、reads、人工关卡、导演模式和审阅页、subagent 并行
