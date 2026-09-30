@@ -32,12 +32,14 @@
    4. 证据（数字计数）；
    5. 0.5 秒静止；
    6. logo 定版。
+
+   60–90 秒的介绍片，把这六拍套进 `playbook/09-narrative.md` 模板 A 的比例【综合】：hook 和问题是"起"（约前 18%），功能拍是"承"，证据放在"转"的位置、做成全片最大的视觉事件，静止和定版是"合"，回扣开头。要发平台的，开头钩子、标题和封面见 `playbook/10-hooks-and-packaging.md`。
 5. **镜头**：
    - 一台连续的虚拟摄像机，推、拉、摇各 1.5–3s，easeInOutCubic；
    - 速度"按你默认速度的一半"（@jake11moran 的写法）；
    - 快速运动加运动模糊，整体加轻微胶片颗粒。颗粒会让 GIF 体积暴涨（showcase 00：24MB 对比无颗粒时的 4.5MB），所以给 README 用的 GIF 预览要单独渲染一个无颗粒版本（例如用 `--variables '{"grain":0}'`）。
 6. **声音**（可选；静音版的节奏由分镜的 reads 决定，TASTE_CHECKLIST #18 里的拍点检查不适用）：
-   - 音乐驱动，关键点落在拍子上，配音效：先用 `bin/vh music` 按镜头分段写配乐（段落就是镜头边界，冲击点就是揭示时刻），再把光标点击、弹出、完成提示写进 `audio/events.json`，最后用 `bin/vh mix … profile=promo events=audio/events.json lib=audio/sfx` 混音：以音乐为锚点，每个音效按类（hero、detail…）往各自的电平走一半，hero 命中处音乐让 2.5 dB，音乐不会被每个音效压一下（见 `playbook/04-audio.md` 的"混音"）；
+   - 音乐驱动，关键点落在拍子上，配音效：先用 `bin/vh music` 按镜头分段写配乐（段落就是镜头边界，冲击点就是揭示时刻），再把光标点击、弹出、完成提示写进 `audio/events.json`，最后用 `bin/vh mix … profile=promo events=audio/events.json lib=audio/sfx` 混音：以音乐为锚点，每个音效按类（hero、detail…）往各自的电平走一半，hero 命中处音乐让 2.5 dB，音乐不会被每个音效压一下（见 `playbook/04-audio.md` 的"混音"）。介绍片和较长的发布片要一个贯穿的主题动机：问题段用它的暗色版本，揭晓时第一次完整出现，做法和一支 58.5 s 的示例见 `playbook/11-composition.md`；
    - 需要角色口播时（Applore 的吉祥物 Ace），用 ElevenLabs、Gemini 或本地 TTS，配同步字幕。
    - 有旁白时，旁白骑在音乐上：`bin/vh tts projects/<p> … --beats projects/<p>/audio/music.beats.json`（路径相对运行命令的目录），答案句、卖点句用 `@id:downbeat` 落在 drop 或小节头；混音同样用 `profile=promo`，加上 `voice=` 和 `timeline=`，音乐逐句只让到旁白下方 10 LU，不会被压没。每个画面动作都要有一个音效或配乐重音回应。见 04 篇"让声音有表情、有节奏"。
 7. **多画幅**：主片 16:9，另出 4:5（1080×1350）或 9:16 的版本，按画幅重新构图，不要直接裁切。
