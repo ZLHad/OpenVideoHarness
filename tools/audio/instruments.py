@@ -13,10 +13,10 @@ LEVEL puts every voice at a comparable loudness at gain_db 0: a hit or pluck at 
 sits near -20 dBFS RMS, a texture near -34 dBFS RMS (a bed under the music).
 The braam, celesta, metal, frame-drum, 808-hat and saw recipes follow showcase/04-intro-film/audio/score_engine.py; ks()
 is music.ks with a pluck position and a hammer option. The physically modelled voices (the ones ending in _pm, and guitar,
-koto, shamisen, banjo, kalimba) are digital waveguides and modal bars; their parameter ranges and preset design are
-informed by lemo-opuscar core/audio/pluck.py (MIT, © LemoLab). Everything else is written for this file.
+koto, shamisen, banjo, kalimba) are digital waveguides and modal bars; their parameter ranges and several preset values
+come from lemo-opuscar core/audio/pluck.py (MIT, © LemoLab). Everything else is written for this file.
 """
-import zlib
+import functools, sys, zlib
 import numpy as np
 from scipy.signal import butter, sosfilt, sosfiltfilt, lfilter, lfiltic, fftconvolve, oaconvolve
 
@@ -385,17 +385,18 @@ def cimbalom(m, dur, vel, rng, P):
     return fade(x * _ringing(n, dur, P), 0.0005, 0.05)
 
 
-# ---------- physically modelled plucked strings (opt-in: guqin_pm, pipa_pm … koto, shamisen, banjo, kalimba) ----------
+# ---------- physically modelled plucked strings (opt-in: guqin_pm, pipa_pm … guitar, koto, shamisen, banjo, kalimba) ----------
 # Digital waveguides (Smith 1992, "Physical modeling using digital waveguides"): each string is a single delay loop with
 # the Karplus–Strong extensions of Jaffe & Smith (1983): a one-pole loss filter, so the high partials die first
-# (Välimäki, Huopaniemi, Karjalainen & Jánosy 1996); first-order allpasses for stiffness; the pluck position and the
-# finger, nail, pick or hammer in the excitation. The delay line is read through a third-order Lagrange interpolator
-# (Laakso, Välimäki, Karjalainen & Laine 1996) that may move every sample, so slides, bends and vibrato change the
-# string's length. Tension modulation makes a hard pluck start sharp (Tolonen, Välimäki & Karjalainen 2000); a bridge
-# contact shortens the string for the shamisen's sawari. Two polarisations, or the strings of a course, run as the rows
-# of one array; the body is an impulse response of modes (Karjalainen & Smith 1996). The kalimba and music box are modal
-# (clamped-free bars). Parameter ranges and preset design informed by lemo-opuscar core/audio/pluck.py (MIT, © LemoLab);
-# the code is written for this file, numpy and scipy only.
+# (Välimäki, Huopaniemi, Karjalainen & Jánosy 1996; the b1 + b3·f² decay law of Bensa, Bilbao, Kronland-Martinet & Smith
+# 2003); first-order allpasses for stiffness; the pluck position and the finger, nail, pick or hammer in the excitation.
+# The delay line is read through a third-order Lagrange interpolator (Laakso, Välimäki, Karjalainen & Laine 1996) that may
+# move every sample, so slides, bends and vibrato change the string's length. Tension modulation makes a hard pluck start
+# sharp (Tolonen, Välimäki & Karjalainen 2000); a bridge contact shortens the string for the shamisen's sawari. Two
+# polarisations, or the strings of a course, run as the rows of one array; the body is an impulse response of modes
+# (Karjalainen & Smith 1996). The kalimba and music box are modal (clamped-free bars). Parameter ranges and several preset
+# values (t60s, the kalimba's decay law, the bass thump, the pipa's body modes) come from lemo-opuscar
+# core/audio/pluck.py (MIT, © LemoLab); the code is written for this file, numpy and scipy only.
 def _lagrange(q):
     """Third-order Lagrange weights of taps -1, 0, 1, 2 for a read point q in [0, 1] past tap 0."""
     return np.stack([-q * (q - 1) * (q - 2) / 6, (q + 1) * (q - 1) * (q - 2) / 2, -(q + 1) * q * (q - 2) / 2, (q + 1) * q * (q - 1) / 6], -1)
@@ -403,10 +404,8 @@ def _lagrange(q):
 
 _LAG = _lagrange(np.arange(1025) / 1024)   # a 1024-step table: the read point is off by at most 1/2048 sample
 _SMOOTH = butter(2, 3000, "low", fs=SR, output="sos")
-
-
-def _lag(q):
-    return _LAG[(np.asarray(q) * 1024 + 0.5).astype(int)]
+LTI_MAX = 100     # a steady loop shorter than this (samples, above ~480 Hz) finishes with one lfilter: faster there
+_LMAX = 1 << 30   # a cap on the block length, for tests: the output does not depend on it
 
 
 def _ss(u):
@@ -419,15 +418,18 @@ def _tau(p, a, M, w):
     return t + M * (1 - 2 * np.arctan2(a * np.sin(w), 1 + a * np.cos(w)) / w) if M else t
 
 
-def _loss(f, T0, Th):
-    """Loss pole p for a string at f whose fundamental falls 60 dB in T0 s and 3 kHz in Th s (decay rate b1 + b3 f²;
-    the fundamental wins when both cannot hold)."""
+def _loss(f, T0, Th, pmax=0.97):
+    """Loss pole p for a string at f whose fundamental falls 60 dB in T0 s and 3 kHz in Th s (decay rate b1 + b3 f²; the
+    fundamental wins when both cannot hold). At most pmax: when the wanted darkening is out of a one-pole's reach, the
+    filter is as dark as allowed (the delay line is tuned for whatever phase delay that gives)."""
     s0, fd = 6.91 / T0, max(3000.0, 3 * f)
     b3 = min(max(0.0, (6.91 / Th - s0) / (9e6 - f * f)) if f < 3000 else 0.0, s0 / (f * f))
     R = np.exp(-b3 * (fd * fd - f * f) / f)   # the wanted |H(fd)| / |H(f)| for one trip round the loop
     if R >= 0.99999: return 0.0
-    c0, cd, R2 = np.cos(TAU * f / SR), np.cos(TAU * fd / SR), R * R; A, Bq = R2 - 1, R2 * cd - c0; dq = np.sqrt(max(Bq * Bq - A * A, 0.0))
-    return next((float(r) for r in ((Bq - dq) / A, (Bq + dq) / A) if 0 <= r < 0.97), 0.0)
+    c0, cd, R2 = np.cos(TAU * f / SR), np.cos(TAU * fd / SR), R * R; A, Bq = R2 - 1, R2 * cd - c0; disc = Bq * Bq - A * A
+    if disc < 0: return pmax
+    ok = [float(r) for r in ((Bq - np.sqrt(disc)) / A, (Bq + np.sqrt(disc)) / A) if 0 <= r < 1]   # the roots are p and 1/p
+    return min(ok[0], pmax) if ok else pmax
 
 
 def _gain(f, T, p):
@@ -435,6 +437,7 @@ def _gain(f, T, p):
     w = TAU * f / SR; return min(np.exp(-6.91 / (T * f)) * np.sqrt(1 - 2 * p * np.cos(w) + p * p) / (1 - p), 0.99999)
 
 
+@functools.lru_cache(maxsize=4096)
 def _disp(f, B, p):
     """Stiffness: M first-order allpasses (0–4) of coefficient a that move partial k to about k·f·sqrt(1 + B k²), fitted
     over the partials below 5 kHz (Jaffe & Smith 1983; Van Duyne & Smith 1994). Returns (a, M)."""
@@ -459,48 +462,115 @@ def _hist(z, s, k=8):
     return z[s - 1::-1][:k] if s > 0 else z[:0]   # the k samples before s, newest first (lfiltic's order)
 
 
+def _taps(D):
+    """A read D samples back: o = ceil(D) (the taps sit o + 1, o, o − 1, o − 2 samples back) and the four weights for
+    q = o − D, which is exact, so a fixed and a gliding delay give the very same weights for the same D."""
+    o = np.ceil(D); return o.astype(int), _LAG[((o - D) * 1024 + 0.5).astype(int)]
+
+
 def waveguide(x, Dl, g, filt, tm=0.0, buzz=None, switch=None):
     """Strings as single delay loops, one per row: y = x + g · (F y, Dl samples back); F the loop filter (b, a), the delay
-    line read through the Lagrange interpolator, so Dl (per row, or per row and sample) may glide. Vectorised a block at a
-    time like ks(): a block is shorter than the shortest loop, so it reads only samples already made.
-    tm: tension modulation, the relative tension a pluck adds: the pitch sits sqrt(1 + tm·E/E0) sharp and settles as the
-    string's energy E falls (E0: the first period's). buzz (depth, threshold): where the returning wave passes the
-    threshold the string wraps round a curved bridge and the loop shortens by depth samples per unit (sawari).
-    switch (sample, (b, a)): the loop filter from that sample on (a finger damps the string)."""
-    S, n = x.shape; b, a = filt; var = np.ndim(Dl) == 2; gv = np.asarray(g, float); Dlo, Dhi = float(np.min(Dl)), float(np.max(Dl))
-    dmax = 0.25 * Dlo if buzz else 0.0; P = int(np.ceil(Dhi)) + 4; L = max(1, int((Dlo - dmax) / np.sqrt(1 + tm)) - 3)
-    wb = np.zeros((S, n + P)); wf = wb.ravel(); y = np.zeros((S, n)); zi = np.zeros((S, max(len(a), len(b)) - 1))
-    row = (np.arange(S) * (n + P))[:, None]
-    if not var:   # a fixed length: four taps as a strided window (no gather)
-        Dl = np.asarray(Dl, float); di = np.floor(Dl).astype(int); o = di + (Dl > di); c = _lag(np.where(Dl > di, 1 - (Dl - di), 0.0))
-        sw = np.lib.stride_tricks.sliding_window_view(wb, 4, axis=-1)
-    live = tm > 0; rp = rn = np.full(S, np.sqrt(1 + tm)); E0 = None; cut = switch[0] if switch else -1; s = 0
-    xe = int(np.flatnonzero(np.abs(x).max(0))[-1]) + 1 if x.any() else 0   # past this the loop only feeds itself
+    line read through the Lagrange interpolator, so Dl (per row, or per row and sample) may glide.
+    Vectorised a block at a time like ks(): a block is shorter than the shortest loop, so it reads only samples already
+    made, and every sample is computed the same way whatever the block length (tests cap it with _LMAX). Each row's line
+    starts o_min − o_row samples later in the buffer, so a fixed delay reads all rows from the same columns.
+    tm: tension modulation, the relative tension a pluck adds. The pitch sits sqrt(1 + tm·E/E1) sharp and settles as the
+    string's energy E falls: E is the mean power of one period on a fixed grid (E1 the first), and sample t of period k
+    glides between the values of periods k − 2 and k − 1, all of them finished samples.
+    buzz (depth, threshold): where the returning wave passes the threshold the string wraps round a curved bridge and the
+    loop shortens by depth samples per unit, smoothed by a 3 kHz low-pass that runs on across blocks (sawari).
+    switch (sample, (b, a)): the loop filter from that sample on (a finger damps the string).
+    Once the loop is steady (no excitation, delay, gain or filter change left) and short (under LTI_MAX samples), the rest
+    is one lfilter per row whose denominator folds in the delay, the taps and the loop filter: the same recursion."""
+    S, n = x.shape; b, a = filt; Dl = np.asarray(Dl, float); gv = np.asarray(g, float); var = Dl.ndim == 2
+    Dlo, Dhi = float(Dl.min()), float(Dl.max()); dmax = 0.25 * Dlo if buzz else 0.0
+    P = int(np.ceil(Dhi)) + 4; L = min(_LMAX, max(1, int((Dlo - dmax) / np.sqrt(1 + tm)) - 3))
+    o0 = np.ceil(Dl[:, 0] if var else Dl).astype(int); sh = o0 - o0.min(); W = n + P + int(sh.max())
+    wf = np.zeros(S * W); wb = wf.reshape(S, W); base = np.arange(S) * W + P + sh   # row i's w[t] sits at wf[base[i] + t]
+    y = np.zeros((S, n)); zi = np.zeros((S, max(len(a), len(b)) - 1)); cut = switch[0] if switch else -1
+    ix = np.flatnonzero(np.abs(x).max(0)); xe = int(ix[-1]) + 1 if len(ix) else 0
+    calm = xe   # from here on nothing changes: no excitation, delay, gain or filter change (the recursion needs a clean past)
+    for z in ((Dl,) if var else ()) + ((gv,) if gv.ndim == 2 else ()):
+        ch = np.flatnonzero((z[:, 1:] != z[:, :-1]).any(0)); calm = max(calm, int(ch[-1]) + 2 if len(ch) else 0)
+    if switch: calm = max(calm, cut + int(np.ceil(Dhi)) + 8)
+    calm += 16
+    live = tm > 0; toff = 0
+    if live:
+        Dp = np.maximum(4, np.round(Dl[:, 0] if var else Dl).astype(int)).tolist(); R0 = float(np.sqrt(1 + tm))
+        Rt = [[R0, R0] for _ in range(S)]; E1 = [None] * S; joff = [None] * S   # Rt[i][j]: the value of grid period j
+
+        def Rj(i, j):   # sqrt(1 + tm·E_j/E_1) of row i; 1 from the first period under 0.35 cent on
+            if joff[i] is not None and j >= joff[i]: return 1.0
+            while len(Rt[i]) <= j:
+                jj = len(Rt[i]); d = Dp[i]; w_ = wf[base[i] + (jj - 1) * d:base[i] + jj * d]
+                if E1[i] is None: w1 = wf[base[i]:base[i] + d]; E1[i] = float(np.dot(w1, w1)) / d + 1e-30
+                r = float(np.sqrt(1 + tm * min(float(np.dot(w_, w_)) / d / E1[i], 1.0)))
+                if r < 1 + 2e-4: joff[i] = jj; r = 1.0
+                Rt[i].append(r)
+                if joff[i] is not None: return 1.0
+            return Rt[i][j]
+    if buzz: bzi = np.zeros((_SMOOTH.shape[0], S, 2))
+
+    def steady_tail(tt):   # finish with one recursion: steady from tt, a short loop, enough left and enough past
+        Dt = np.ceil(Dl[:, min(tt, n - 1)] if var else Dl)
+        return buzz is None and tt < n - 4096 and float(Dt.max()) < LTI_MAX and tt > float(Dt.max()) + 16
+    ttail = None if live else calm; lti = (not live) and steady_tail(calm); s = 0; fixed = None
+    gcol = None if gv.ndim == 2 else gv[:, None]
     while s < n:
-        e = min(n, s + L, cut if s < cut else n)
-        if var or live or buzz:
-            D = Dl[:, s:e] if var else Dl[:, None]
-            if live: D = D / (rp[:, None] + (rn - rp)[:, None] * (np.arange(1, e - s + 1) / (e - s)))
-            r = (np.arange(s, e) + P) - D; ri = r.astype(int); C = _lag(r - ri); j = ri + row
-            v = wf[j - 1] * C[..., 0] + wf[j] * C[..., 1] + wf[j + 1] * C[..., 2] + wf[j + 2] * C[..., 3]
-            if buzz and (v > buzz[1]).any():   # the contact moves the loop's end smoothly (a 3 kHz low-pass), never in jumps
-                dd = np.minimum(buzz[0] * np.maximum(v - buzz[1], 0.0), dmax); k = min(12, dd.shape[1])
-                r = r + sosfilt(_SMOOTH, np.concatenate([dd[:, :1].repeat(k, 1), dd], 1), axis=-1)[:, k:]
-                ri = r.astype(int); C = _lag(r - ri); j = ri + row
-                v = wf[j - 1] * C[..., 0] + wf[j] * C[..., 1] + wf[j + 1] * C[..., 2] + wf[j + 2] * C[..., 3]
+        if lti and s >= ttail:   # the steady rest as one recursion per row
+            Dt = Dl[:, s] if var else Dl; gt = gv[:, s] if gv.ndim == 2 else gv; o, c = _taps(Dt)
+            for i in range(S):
+                cb = np.convolve(c[i][::-1], b); den = np.zeros(max(len(a), o[i] - 2 + len(cb))); den[:len(a)] += a
+                den[o[i] - 2:o[i] - 2 + len(cb)] -= gt[i] * cb
+                y[i, s:] = lfilter(a, den, np.zeros(n - s), zi=lfiltic(a, den, y[i, s - 1::-1][:len(den) - 1]))[0]
+            break
+        e = min(n, s + L)
+        if s < cut: e = min(e, cut)
+        if lti: e = min(e, ttail)
+        ln = e - s
+        if live:
+            rho = np.empty((S, ln))
+            for i in range(S):   # a block spans at most two grid periods: a straight glide in each
+                d = Dp[i]; k0 = s // d; m = min(ln, (k0 + 1) * d - s)
+                for kk, a0, a1 in ((k0, 0, m), (k0 + 1, m, ln)):
+                    if a0 < a1:
+                        if kk < 3: rho[i, a0:a1] = R0
+                        else: ra = Rj(i, kk - 2); rho[i, a0:a1] = ra + (Rj(i, kk - 1) - ra) * ((np.arange(s + a0, s + a1) - kk * d) / d)
+            if toff == 0 and all(j is not None for j in joff):   # every row has settled: the steady part starts at ttail
+                toff = max((joff[i] + 2) * Dp[i] for i in range(S)); ttail = max(calm, toff + 16); lti = steady_tail(ttail)
+            D = (Dl[:, s:e] if var else Dl[:, None]) / rho
+        elif var and not (Dl[:, s:e] == Dl[:, s:s + 1]).all():
+            D = Dl[:, s:e]
         else:
-            v = np.stack([sw[i, s - o[i] - 1 + P:e - o[i] - 1 + P] @ c[i] for i in range(S)])
-        yb = y[:, s:e]; np.multiply(gv[:, s:e] if gv.ndim == 2 else gv[:, None], v, out=yb)
+            D = None
+        if D is None and not buzz:   # a fixed delay: four shifted slices (the same arithmetic as the gather below)
+            Dn = Dl[:, s] if var else Dl
+            if fixed is None or (var and not np.array_equal(fixed[0], Dn)):
+                o, c = _taps(Dn); col = P + sh - o - 1   # the column of the first tap, less s
+                fixed = (np.array(Dn), col, c, [c[:, k:k + 1] for k in range(4)], bool((col == col[0]).all()))
+            _, col, c, ck, same = fixed
+            if same:
+                q = s + int(col[0]); v = wb[:, q:q + ln] * ck[0] + wb[:, q + 1:q + 1 + ln] * ck[1] + wb[:, q + 2:q + 2 + ln] * ck[2] + wb[:, q + 3:q + 3 + ln] * ck[3]
+            else:
+                v = np.empty((S, ln))
+                for i in range(S):
+                    q = s + int(col[i]); c0, c1, c2, c3 = c[i].tolist()
+                    v[i] = wb[i, q:q + ln] * c0 + wb[i, q + 1:q + 1 + ln] * c1 + wb[i, q + 2:q + 2 + ln] * c2 + wb[i, q + 3:q + 3 + ln] * c3
+        else:
+            if D is None: D = Dl[:, s:e] if var else np.broadcast_to(Dl[:, None], (S, ln))
+            o, C = _taps(D); j = (np.arange(s, e) - o - 1) + base[:, None]
+            v = wf[j] * C[..., 0] + wf[j + 1] * C[..., 1] + wf[j + 2] * C[..., 2] + wf[j + 3] * C[..., 3]
+            if buzz:   # the contact shortens the loop, smoothly: a 3 kHz low-pass whose state runs on across blocks
+                dd = np.minimum(buzz[0] * np.maximum(v - buzz[1], 0.0), 0.9 * dmax); sm, bzi = sosfilt(_SMOOTH, dd, axis=-1, zi=bzi)
+                o, C = _taps(D - np.minimum(sm, dmax)); j = (np.arange(s, e) - o - 1) + base[:, None]
+                v = wf[j] * C[..., 0] + wf[j + 1] * C[..., 1] + wf[j + 2] * C[..., 2] + wf[j + 3] * C[..., 3]
+        yb = y[:, s:e]; np.multiply(gv[:, s:e] if gcol is None else gcol, v, out=yb)
         if s < xe: yb += x[:, s:e]
         if s == cut:   # the new filter continues from the old one's recent input and output
-            b, a = switch[1]; zi = np.stack([lfiltic(b, a, _hist(wb[i, P:], s), _hist(y[i], s)) for i in range(S)])
-        wb[:, P + s:P + e], zi = lfilter(b, a, yb, axis=-1, zi=zi)
-        if live:
-            rp = rn
-            if e > Dhi + L:   # the first period is back: energy relative to its loudest block
-                Eb = (v * v).mean(1) + 1e-30; E0 = Eb if E0 is None else (np.maximum(E0, Eb) if e < 3 * Dhi else E0)
-                rn = np.sqrt(1 + tm * np.minimum(Eb / E0, 1.0))
-                if e > 3 * Dhi and np.all(rn < 1 + 2e-4): live = False   # under 0.35 cent: the fixed-length path from here
+            b, a = switch[1]; zi = np.stack([lfiltic(b, a, _hist(wf[base[i]:base[i] + n], s), _hist(y[i], s)) for i in range(S)])
+        wo, zi = lfilter(b, a, yb, axis=-1, zi=zi)
+        for i in range(S): wf[base[i] + s:base[i] + e] = wo[i]
+        if live and toff and e >= toff: live = False
         s = e
     return y
 
@@ -587,11 +657,18 @@ PM_STRINGS = {
 }
 
 
-def _pm_out(tone, tr, body):
-    """Tone and transients through the body, 25 Hz high-pass, faded ends; the tone peaks at 1 (a click or slap rides on
-    top at its own level, so it never pushes the note down)."""
-    z = hpf(oaconvolve(np.stack([tone, tr]), body[None, :], axes=-1)[:, :len(tone)], 25)
-    return fade(z[0] + z[1], 0.001, 0.03) / (np.abs(z[0]).max() + 1e-12)
+def _pm_out(tone, tr, body, taper=0.0):
+    """Tone and transients through the body, 25 Hz high-pass, faded ends, the tone's peak at 1 (a click or slap rides on
+    top at its own level, so it never pushes the note down). taper (s): a longer fade at the end, so a note cut before it
+    has died away ends in a decay, not a cut."""
+    n = len(tone); z = np.zeros((2, n)); z[0] = hpf(oaconvolve(tone, body)[:n], 25)
+    k = np.flatnonzero(tr); k = int(k[-1]) + 1 if len(k) else 0
+    if k:   # a transient is short: its own convolution, with room for the high-pass to settle
+        c = oaconvolve(tr[:k], body); m = min(n, len(c) + int(0.1 * SR)); u = np.zeros(m); u[:min(m, len(c))] = c[:m]; z[1, :m] = hpf(u, 25)
+    z = fade(z, 0.001, 0.03)
+    if taper:
+        k = min(n, int(taper * SR)); z[:, -k:] *= 0.5 + 0.5 * np.cos(np.pi * np.arange(1, k + 1) / k)
+    pk = float(np.abs(z[0]).max()); return (z[0] + z[1]) / pk if pk > 1e-9 else z[0] + z[1]
 
 
 def _loud(y, w=int(0.4 * SR)):
@@ -599,37 +676,68 @@ def _loud(y, w=int(0.4 * SR)):
     c = np.concatenate([[0.0], np.cumsum(y * y)]); return max(float((c[w:] - c[:-w]).max()) if len(y) > w else float(c[-1]), 1e-20) / w
 
 
+_WARNED = set()
+
+
+def _knob(P, key, default, lo, hi):
+    """A knob as a number in [lo, hi]; the default when it is missing or not a finite number."""
+    try: v = float(P.get(key, default))
+    except (TypeError, ValueError): return default
+    return float(np.clip(v, lo, hi)) if np.isfinite(v) else default
+
+
+def _vib(v):
+    """vib: true (5 Hz, 15 cents), cents, or [Hz, cents, delay s] → (Hz, cents, delay), each clipped to a sane range."""
+    out = [5.0, 15.0, 0.2]; vals = list(v) if isinstance(v, (list, tuple)) else ([] if v is True else [None, v])
+    for i, (lo, hi) in enumerate(((0.1, 20.0), (0.0, 1200.0), (0.0, 10.0))):
+        if i < len(vals) and vals[i] is not None:
+            try: z = float(vals[i])
+            except (TypeError, ValueError): continue
+            if np.isfinite(z): out[i] = float(np.clip(z, lo, hi))
+    return tuple(out)
+
+
+def _warn_high(name, what="a note goes above 6 kHz (MIDI 114)"):
+    if (name, what) not in _WARNED:   # once per voice and reason
+        _WARNED.add((name, what)); print(f"music: warning: {name}: {what}; the string stops there", file=sys.stderr)
+
+
 def pm_string(name, m, dur, vel, rng, P):
-    """A string of the PM_STRINGS table. Knobs (params or a note's): ring, damp, mute; slide, bend (semitones); vib (cents,
-    or [Hz, cents, delay s]); yin, nao; harm (true, or the harmonic 2–8); trem (Hz, or true: re-pluck the same string);
-    pos, bright, decay; buzz (shamisen). Peak 1: the engine's level and velocity do the rest."""
-    S = PM_STRINGS[name]; f0 = min(float(mtof(m)), SR / 8); mute = bool(P.get("mute"))
-    ring = bool(P.get("ring", S["ring"])) and not P.get("damp") and not mute
-    Tr, fref, ex, lo, hi = S["t60"]; k = 1; seed = None
+    """A string of the PM_STRINGS table. Knobs (params or a note's): ring, damp, mute; slide, bend (semitones, ±36);
+    vib (cents, or [Hz, cents, delay s]); yin, nao; harm (true, or the harmonic 2–8); trem (Hz up to 40, or true:
+    re-pluck the same string); pos (0.03–0.5), bright (0–1), decay (0.02–20, × the ring); buzz (0–1, the shamisen).
+    The tone peaks at 1: the engine's level and velocity do the rest."""
+    S = PM_STRINGS[name]; mute = bool(P.get("mute")); ring = bool(P.get("ring", S["ring"])) and not P.get("damp") and not mute
+    f0 = float(mtof(m))
+    if f0 > SR / 8: _warn_high(name); f0 = SR / 8
+    Tr, fref, ex, lo, hi = S["t60"]; dec = _knob(P, "decay", 1.0, 0.02, 20.0); k = 1; seed = None
     if P.get("harm"):   # a harmonic: the string k times longer, touched at 1/k (the guqin picks k so the string is one of its own)
-        h = P["harm"]; k = int(h) if isinstance(h, (int, float)) and not isinstance(h, bool) and h >= 2 else 0
+        k = 0 if P["harm"] is True else int(round(_knob(P, "harm", 2.0, 2.0, 8.0)))
         if not k: k = next((q for q in (2, 3, 4, 5, 6, 8) if m - 12 * np.log2(q) <= 52), 8) if name == "guqin_pm" else 2   # 正调 open strings C2 … D3
         seed = int(rng.integers(1 << 31))
     B = S["B"] * f0 / k / fref; fb = f0 / k / np.sqrt((1 + B * k * k) / (1 + B))   # partial k of the string lands on the note
-    T0, Th = float(np.clip(Tr * (fref / fb) ** ex, lo, hi)) * float(P.get("decay", 1.0)), S["thi"]
+    T0, Th = float(np.clip(Tr * (fref / fb) ** ex, lo, hi)) * dec, S["thi"] * dec
     if mute: T0, Th = 0.15, 0.05
-    rows = S["rows"]; R = len(rows); trem = P.get("trem"); rate = float(P.get("tremolo_rate", 12) if trem is True else trem or 0)
-    L = min(S["cap"], max(0.9 * T0 * max(r[1] for r in rows), dur + 0.3)) if ring else dur + 1.2 * (0.05 if mute else S["rel"]) + 0.03
-    n = int(min(L, float(P.get("_n", L))) * SR); t = secs(n)
+    rows = S["rows"]; R = len(rows); trem = P.get("trem")
+    rate = (_knob(P, "tremolo_rate", 12.0, 1.0, 40.0) if trem is True else _knob(P, "trem", 0.0, 0.0, 40.0)) if trem else 0.0
+    Lnat = 0.9 * T0 * max(r[1] for r in rows); cap = min(S["cap"] * max(1.0, dec), 20.0)   # a ring lasts to about −55 dB
+    L = min(cap, max(Lnat, dur + 0.3)) if ring else dur + 1.2 * (0.05 if mute else S["rel"]) + 0.03
+    n = int(min(L, float(P.get("_n", L))) * SR); t = secs(n); taper = min(1.0, 0.25 * L) if ring and L < Lnat and "_n" not in P else 0.0
     s = np.zeros(n)   # pitch in semitones: slide in, bend after the pluck, vibrato (吟 yin small, 猱 nao wide)
-    if P.get("slide"): s += float(P["slide"]) * (1 - _ss((t - 0.04) / 0.25))
-    if P.get("bend"): s += float(P["bend"]) * _ss((t - min(0.25, 0.35 * dur)) / max(min(0.3, 0.4 * dur), 1e-3))
+    sl, bd = _knob(P, "slide", 0.0, -36.0, 36.0), _knob(P, "bend", 0.0, -36.0, 36.0)
+    if sl: s += sl * (1 - _ss((t - 0.04) / 0.25))
+    if bd: s += bd * _ss((t - min(0.25, 0.35 * dur)) / max(min(0.3, 0.4 * dur), 1e-3))
     if P.get("yin"): s += 0.2 * np.sin(TAU * 4.5 * t) * np.clip((t - 0.2) / 0.3, 0, 1)
     if P.get("nao"): s += 0.5 * np.sin(TAU * 2.5 * t) * np.clip((t - 0.15) / 0.3, 0, 1)
-    if P.get("vib"):
-        v = P["vib"]; hz, ce, dl = (5.0, 15.0, 0.2) if v is True else (float(v[0]), float(v[1]), float(v[2]) if len(v) > 2 else 0.2) if isinstance(v, (list, tuple)) else (5.0, float(v), 0.2)
-        s += ce / 100 * np.sin(TAU * hz * t) * np.clip((t - dl) / 0.3, 0, 1)
+    if P.get("vib"): hz, ce, dl = _vib(P["vib"]); s += ce / 100 * np.sin(TAU * hz * t) * np.clip((t - dl) / 0.3, 0, 1)
     moved = bool(s.any()); p = _loss(fb, T0, Th); a, M = _disp(fb, B, p)
     cents = np.array([r[0] for r in rows], float) + rng.uniform(-0.3, 0.3, R) * (np.arange(R) > 0)
     wt = np.array([r[2] * r[1] for r in rows]); cents -= (cents * wt).sum() / wt.sum()   # tuned by ear to the blend of the rows
-    fr = fb * 2 ** ((s[None, :] / 12 if moved else 0) + cents[:, None] / 1200); Dl = SR / fr - _tau(p, a, M, TAU * fr / SR)
-    Dl = Dl if moved else Dl[:, 0]; g = np.array([_gain(fb, T0 * r[1], p) for r in rows])
-    b0, b1 = S["bright"]; br = float(np.clip(P.get("bright", b0 + b1 * vel), 0, 1)); pos = float(P.get("pos", S["pos"])); N = SR / fb
+    fr = fb * 2 ** ((s[None, :] / 12 if moved else 0) + cents[:, None] / 1200)
+    if fr.max() > SR / 8: _warn_high(name)
+    fr = np.clip(fr, 8.0, SR / 8); Dl = SR / fr - _tau(p, a, M, TAU * fr / SR)   # (R, n) when the pitch moves, else (R, 1)
+    g = np.array([_gain(fb, T0 * r[1], p) for r in rows])
+    b0, b1 = S["bright"]; br = _knob(P, "bright", b0 + b1 * vel, 0.0, 1.0); pos = _knob(P, "pos", S["pos"], 0.03, 0.5); N = SR / fb
     x = np.zeros((R, n)); gs = np.repeat(g[:, None], n, 1) if rate or not ring else g
     hits = [(0, 1.0)] + ([(int(j / rate * SR), (1.0, 0.8, 0.9, 0.75)[j % 4] * (0.9 + 0.1 * rng.random())) for j in range(1, int(dur * rate - 0.3) + 1)] if rate else [])
     for i0, hv in hits:   # the pluck; for trem (轮指 / 摇指) the same string again and again
@@ -646,21 +754,25 @@ def pm_string(name, m, dur, vel, rng, P):
         if i0:   # the nail catches the ringing string before it plucks: the loop gain dips for a period
             c = max(0, i0 - int(N)); gs[:, c:i0] *= 1 - 0.6 * np.hanning(i0 - c + 2)[1:-1]
     sw = None
-    if not ring and dur * SR < n - 10:   # a finger damps the string: the loop gain falls over 15 ms and the loss darkens
-        ri = int(dur * SR); tr = 0.05 if mute else S["rel"]; pr = _loss(fb, tr, tr / 4)
-        u = np.clip((np.arange(n) - ri) / (0.015 * SR), 0, 1); gs = gs * (1 - u) + _gain(fb, tr, pr) * u; sw = (ri, _filt(pr, a, M))
+    if not ring and dur * SR < n - 10:   # a finger damps the string: over 15 ms the loop gain falls, the loss filter closes
+        # (never brighter than the ringing string) and the delay line is retuned for that filter's phase delay
+        ri = int(dur * SR); trel = 0.05 if mute else S["rel"]; pr = max(_loss(fb, trel, trel / 4, 0.9), p)   # 0.9: a short retune
+        u = np.clip((np.arange(n) - ri) / (0.015 * SR), 0, 1); gs = gs * (1 - u) + _gain(fb, trel, pr) * u
+        Dl = Dl * (1 - u) + (SR / fr - _tau(pr, a, M, TAU * fr / SR)) * u; sw = (ri, _filt(pr, a, M))
     nz = 0.0
-    if S.get("squeak") and (P.get("slide") or P.get("bend")):   # 走手音: the finger travelling along silk rubs the string
+    if S.get("squeak") and (sl or bd):   # 走手音: the finger travelling along silk rubs the string
         nz = bpf(rng.standard_normal(n), 1500, 5000) * np.clip(np.abs(np.gradient(s)) * SR / 8, 0, 1) * 0.03 * S["squeak"]; x[0] += nz
-    bz = float(P.get("buzz", S.get("buzz", 0))); tm = (2 ** (S.get("tm", 0) / 600) - 1) * vel * vel
-    y = waveguide(x, Dl, gs, _filt(p, a, M), tm, (4.0 * bz, 0.02) if bz > 0 else None, sw).sum(0) + 0.3 * nz
+    bz = _knob(P, "buzz", S["buzz"], 0.0, 1.0) if "buzz" in S else 0.0; tm = (2 ** (S.get("tm", 0) / 600) - 1) * vel * vel
+    buzz = (4.0 * bz * vel, 0.02 / max(vel, 0.05)) if bz > 0 else None   # a harder pluck swings wider: touches more, longer
+    if Dl.min() < 4: _warn_high(name, "a bend or slide goes higher than the string can reach"); Dl = np.maximum(Dl, 4.0)
+    y = waveguide(x, Dl if Dl.shape[1] > 1 else Dl[:, 0], gs, _filt(p, a, M), tm, buzz, sw).sum(0) + 0.3 * nz
     tr = np.zeros(n)   # transients through the same body: the nail or pick tick, a plectrum on skin, a finger on a bass
     if S.get("click"): tr += burst(rng, n, 2500, 9000, 0.0005, S["click"] * br)
     if S.get("skin"): tr += burst(rng, n, 250, 3500, 0.006, S["skin"] * br)
     if S.get("thump"):
         kk = min(n, int(0.08 * SR)); tr[:kk] += 0.35 * S["thump"] * np.sin(TAU * 70 * t[:kk]) * np.exp(-t[:kk] / 0.012)
         tr += burst(rng, n, 900, 3000, 0.003, 0.3 * S["thump"] * max(0.0, vel - 0.55))
-    y = _pm_out(y, tr, _pm_body(name, S))
+    y = _pm_out(y, tr, _pm_body(name, S), taper)
     if k > 1:   # as loud as a plucked note of the same pitch and velocity (loudest 400 ms)
         ref = pm_string(name, m, dur, vel, np.random.default_rng(seed), {**P, "harm": False, "trem": None, "_n": 0.45})
         y *= np.sqrt(_loud(ref) / _loud(y))
@@ -678,18 +790,19 @@ PM_BARS = {   # t60 of mode 1; r2, r3: ratios of modes 2 and 3 (± spread per pi
 
 
 def pm_bar(name, m, dur, vel, rng, P):
-    """A tine or comb tooth of the PM_BARS table: three cantilever modes, a thumbnail or pin click, the box. ring (default)
-    or damp, decay. Peak 1."""
-    S = PM_BARS[name]; f0 = float(mtof(m)); Tr, fref, ex, lo, hi = S["t60"]
-    T = float(np.clip(Tr * (fref / f0) ** ex, lo, hi)) * float(P.get("decay", 1.0))
+    """A tine or comb tooth of the PM_BARS table: three cantilever modes, a thumbnail or pin click, the box. It reads only
+    ring (default) or damp, and decay (0.02–20, × the ring). The tone peaks at 1."""
+    S = PM_BARS[name]; f0 = float(mtof(m)); Tr, fref, ex, lo, hi = S["t60"]; dec = _knob(P, "decay", 1.0, 0.02, 20.0)
+    T = float(np.clip(Tr * (fref / f0) ** ex, lo, hi)) * dec
     g = np.random.default_rng([crc(name), int(round(m * 100))])   # one tine or tooth per pitch: its own tuning and ratios
     heavy = float(np.clip((72 - m) / 24, 0, 1)) if name == "musicbox_pm" else 0.0; f0 *= 2 ** (g.uniform(-1, 1) * S["detune"] / 1200)
     r2 = S["r2"][0] + g.uniform(-1, 1) * S["r2"][1] + 2.5 * heavy; r3 = S["r3"][0] + g.uniform(-1, 1) * S["r3"][1] + 6 * heavy
-    ring = bool(P.get("ring", True)) and not P.get("damp")
-    n = int((min(max(T, dur + 0.2), 5.0) if ring else dur + 0.15) * SR); tau = T / 6.91; b = 0.6 + 0.4 * vel
+    ring = bool(P.get("ring", True)) and not P.get("damp"); cap = min(5.0 * max(1.0, dec), 20.0); Lr = max(T, dur + 0.2)
+    n = int((min(Lr, cap) if ring else dur + 0.15) * SR); tau = T / 6.91; b = 0.6 + 0.4 * vel
     modes = [(1.0, 1.0, tau), (r2, S["a2"][0] * b * b, tau * S["a2"][1]), (r3, S["a3"][0] * b ** 3, tau * S["a3"][1])]
     if S["twin"]: modes.append((2 ** (S["twin"][0] / 1200), S["twin"][1], 0.9 * tau))
-    x = _pm_out(modal(f0, n, modes), burst(rng, n, 2500, 11000, 0.0006, S["click"] * (0.4 + 0.6 * vel)), _pm_body(name, S))
+    x = _pm_out(modal(f0, n, modes), burst(rng, n, 2500, 11000, 0.0006, S["click"] * (0.4 + 0.6 * vel)), _pm_body(name, S),
+                min(1.0, 0.25 * n / SR) if ring and Lr > cap else 0.0)
     return x * np.clip(1 - (secs(n) - dur) / 0.12, 0, 1) ** 2 if not ring else x
 
 
@@ -1377,7 +1490,8 @@ LEVEL = {
     "timpani": 0.27, "clock": 0.363, "metal": 0.447, "noiseburst": 0.498, "scratch": 0.397, "noise": 1.0,
     "chipkick": 0.536, "danpigu": 0.254, "luogu": 0.111, "vinyl": 0.307, "tape": 0.039, "hum": 0.087, "wind": 0.378,
     "rain": 0.213, "roomtone": 0.109,
-    # the physically modelled voices peak at 1 on every note, so 0.5 is exact
+    # the physically modelled voices: every note's tone peaks at 1, so a velocity-1 pluck peaks at 0.5 (measured 0.48–0.51;
+    # 0.46–0.63 where a bachi, skin or pick transient rides on top, 0.47–0.57 for a level-matched harmonic)
     "guqin_pm": 0.5, "pipa_pm": 0.5, "harp_pm": 0.5, "nylon_pm": 0.5, "guitar": 0.5, "ukulele_pm": 0.5, "upright_pm": 0.5,
     "balalaika_pm": 0.5, "cimbalom_pm": 0.5, "koto": 0.5, "shamisen": 0.5, "banjo": 0.5, "kalimba": 0.5, "musicbox_pm": 0.5,
 }
@@ -1421,10 +1535,10 @@ ABOUT = {   # one line for --instruments where the function's docstring is share
     "balalaika_pm": "Balalaika, physical model: a course of two unison strings, nail strum, triangular body; tremolo.",
     "cimbalom_pm": "Cimbalom, physical model: three strings per course struck by cotton hammers, shimmering ring; damp.",
     "koto": "箏 (koto), physical model: ivory-pick pluck near the bridge, long ring; bend (押し), vib (揺り), harm, damp.",
-    "shamisen": "三味線, physical model: bachi on string and skin, sawari buzz (buzz 0–1); bend, vib.",
+    "shamisen": "三味線, physical model: bachi on string and skin, sawari buzz (buzz 0–1, stronger when plucked harder); bend, vib.",
     "banjo": "Banjo, physical model: steel strings on a drum head, metal fingerpicks, bright and short; bend, harm.",
-    "kalimba": "Kalimba, physical model: a tine's cantilever modes, thumbnail click, box; damp.",
-    "musicbox_pm": "Music box, physical model: comb teeth (weighted in the bass), pin click, twin teeth, box; damp.",
+    "kalimba": "Kalimba, physical model: a tine's cantilever modes, thumbnail click, box; reads ring, damp, decay.",
+    "musicbox_pm": "Music box, physical model: comb teeth (weighted in the bass), pin click, twin teeth, box; reads ring, damp, decay.",
 }
 for _k, _v in ABOUT.items():
     INSTR[_k].about = _v
