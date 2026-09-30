@@ -32,7 +32,7 @@ Read `<harness>/CLAUDE.md` (Codex: `<harness>/AGENTS.md`, which is identical) an
 - create the project with `<harness>/bin/vh new <type> <slug>`;
 - respect the **three human review gates** (outline → storyboard with a keyframe preview → first draft); stop at each gate and wait for the user;
 - follow the hard rules: every frame is a pure function of t; when there is sound, audio sets the timing; storyboard before code; self-review every scene; fact discipline;
-- keep work inside `<harness>/projects/`, or in a directory the user names.
+- keep work inside `<harness>/projects/`; when the user names another directory, create the project there with `bin/vh new <type> <slug> --dir <that directory>` (or set `OVH_PROJECTS`).
 
 Audio tools:
 - `bin/vh tts` — voiceover, Chinese or English, local Qwen3-TTS by default;

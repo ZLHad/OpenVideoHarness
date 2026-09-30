@@ -106,8 +106,8 @@ OpenVideoHarness/
 ├── install.sh                一键安装（克隆、依赖、参考仓库、注册 skill）
 ├── CONTRIBUTING.md           改本仓库本身时的分支、PR 和推送规则（人和 agent 都适用）
 ├── .github/                  CI（Linux + macOS 跑 tools/ci.sh）和 main 分支的规则集
-├── bin/vh                    命令行：doctor · setup · types · effort · new · style · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · sheet · check · gif
-├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py）；ci.sh 是仓库自检
+├── bin/vh                    命令行：doctor · setup · types · effort · new · style · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · storyboard · rhythm · cover-preview · sheet · check · gif
+├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py；给人拍板用的图：storyboard.py、rhythm.py、style_compare.py、cover_preview.py、audio/roll.py，共用 vhdraw.py）；ci.sh 是仓库自检
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              8 类视频：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
 ├── playbook/                 跨类型的通用知识

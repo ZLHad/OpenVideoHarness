@@ -4,8 +4,14 @@
 #   setup                       install ClaudeAnimationBase deps + fetch reference repos
 #   types                       list video types and their docs
 #   effort [quick|standard|studio]  how much iteration, review and polish each level means (CLAUDE.md "努力程度")
-#   new <type> <slug> [--style <preset>] [--effort quick|standard|studio]  create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme)
+#   new <type> <slug> [--style <preset>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1] [--dir <folder>]
+#                               create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);
+#                               --aspect: short/promo/data/meme only; --dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness
 #   style list | <preset> [--draft] | gallery [--mp4] | check <preset>   style library: list presets, render a 5 s swatch, build styles/gallery.jpg
+#   style compare a,b,c [--frame t] | apply <preset> <project>   presets side by side (posters, or swatch frames at t) / attach a preset to a project
+#   storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04]   labelled storyboard pages from shots.json: one per segment + an overview
+#   rhythm <project> [--segment NAME | --from s --to s] [--max s]   rhythm map: shots, narration and captions, music; too-long shots and failed reads in red
+#   cover-preview <image> [more…] [--text-px N]   a cover at real feed sizes (Bilibili, Douyin, YouTube, Xiaohongshu) + a small-size legibility check
 #   hf-init <dir> [resolution]  scaffold HyperFrames into a project safely (no global skill install; landscape|portrait|square)
 #   sync-agents                 regenerate AGENTS.md from CLAUDE.md (keep both agents' entry points identical)
 #   install-skill [claude|codex|all]  register the open-video-harness skill (~/.claude/skills, ~/.agents/skills)
@@ -17,12 +23,14 @@
 #   voices list [lang] | design "<description>" [--out f.wav] | delete <voice_id>   Gemini voice library / voice design
 #   captions <project> [zh|en] [zh-max]  SRT (zh / en / bilingual) + captions.json from the TTS timeline
 #   beats <audio> [out.json]    beat grid (bpm, offset, beats, downbeats) + hits, kick/snare accents (librosa)
-#   music <score.json> <out.wav> | music --example [name|list] | music --instruments   code-composed soundtrack + exact beat/section map
+#   music <score.json> <out.wav> [--length s|auto] [--roll] | music --example [name|list] | music --instruments   code-composed soundtrack + exact beat/section map
+#                               --length: end exactly there with a musical fade (auto: where the last bar ends); --roll: piano roll + energy curve per part (PNG)
 #   sfx lib <dir> | sfx place <events.json> <out.wav> [dur]   built-in SFX library / place SFX on action times (stereo, pan/dist)
 #   mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]   3-bus mix, music ducks under the voice (duck=on: + SFX), −14 LUFS
 #   qa <mix> [beats.json] [events.json]  final-mix QA: silence, dropouts, pumping, clicks + cue check (exit 1 on fail)
 #   mux <video> <audio> <out> [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video
-#   readcheck <texts.json|project> [--mode onscreen|subtitle] [--lang zh|en]  on-screen text held long enough / subtitles within reading speed (exit 1 on fail)
+#   readcheck <texts.json|project|index.html> [--mode onscreen|subtitle] [--lang zh|en]  on-screen text held long enough / subtitles within reading speed (exit 1 on fail)
+#                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [texts.json]: the composition's timed text
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
 #   check <video>               ffprobe + black/freeze/silence detection
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
@@ -88,9 +96,67 @@ cmd_doctor() {
     if r=$(webgl_probe "$chrome" $sb --ignore-gpu-blocklist --use-angle=swiftshader --enable-unsafe-swiftshader --disable-accelerated-2d-canvas 2>/dev/null)
     then echo "$c_ok WebGL with --soft-gl  $r"; else echo "$c_wa no WebGL with --soft-gl either: WebGL scenes will not render on this machine"; fi
   fi
-  [ -d "$ROOT/references/repos" ] && echo "$c_ok references fetched ($(ls "$ROOT/references/repos" | wc -l | tr -d ' ') repos)" || echo "$c_wa reference repos not fetched → bin/vh setup"
-  [ -f "$ROOT/LOCAL.md" ] && echo "$c_ok LOCAL.md present" || echo "$c_wa no LOCAL.md → cp LOCAL.example.md LOCAL.md and fill it in"
+  # reference repos: how many of the ones references/fetch.sh lists are here (install.sh --no-refs skips them)
+  local want have=0 d
+  want=$(grep -cE '^(full|sparse|textonly)[[:space:]]' "$ROOT/references/fetch.sh" || true)
+  for d in "$ROOT"/references/repos/*/; do [ -d "$d.git" ] && have=$((have + 1)); done
+  if [ "$have" -ge "$want" ]; then echo "$c_ok references fetched ($have/$want repos, $(size_of "$ROOT/references/repos"))"
+  else echo "$c_wa references: $have/$want repos fetched → bash references/fetch.sh (all $want: about 210 MB; agents read them for the case studies)"; fi
+  if [ ! -f "$ROOT/LOCAL.md" ]; then echo "$c_wa no LOCAL.md → cp LOCAL.example.md LOCAL.md and fill it in"
+  else   # a copied template still has its {…} placeholders
+    local ph; ph=$(grep -c '{[^}]*}' "$ROOT/LOCAL.md" || true)
+    if [ "${ph:-0}" -gt 0 ]; then echo "$c_wa LOCAL.md still has $ph template line(s) with {…} placeholders → fill them in (this output goes on the 已装工具 line)"
+    else echo "$c_ok LOCAL.md filled in"; fi
+  fi
   if [ "$(agents_body)" = "$(tail -n +4 "$ROOT/AGENTS.md" 2>/dev/null)" ]; then echo "$c_ok AGENTS.md in sync with CLAUDE.md"; else echo "$c_wa AGENTS.md out of sync → bin/vh sync-agents"; fi
+  doctor_downloads
+}
+size_of() { # disk size of a folder, symlinks followed (a Hugging Face snapshot is all links): "202 MB", "2.0 GB"
+  du -skL "$1" 2>/dev/null | awk '{m = $1 * 1024 / 1e6; if (m >= 1000) printf "%.1f GB", m / 1000; else printf "%.0f MB", m}'
+}
+hf_chrome() { # the chrome-headless-shell HyperFrames renders with: HYPERFRAMES_BROWSER_PATH, else its caches (renderSetupWorker.js)
+  local p=${HYPERFRAMES_BROWSER_PATH:-${PRODUCER_HEADLESS_SHELL_PATH:-}} d v
+  [ -n "$p" ] && [ -e "$p" ] && { echo "$p"; return 0; }
+  for d in "$HOME/.cache/puppeteer/chrome-headless-shell" "$HOME/.cache/hyperframes/chrome/chrome-headless-shell"; do
+    [ -d "$d" ] || continue
+    for v in $(ls "$d" 2>/dev/null | sort -r); do [ -d "$d/$v" ] && { echo "$d/$v"; return 0; }; done
+  done
+  return 1
+}
+doctor_downloads() { # what the first runs download on their own and how big it is on disk (README "What gets downloaded")
+  echo "first-run downloads (README \"What gets downloaded\"; mirrors: 国内网络 in README.zh-CN.md):"
+  local p pend="" hub model snap swatch="" voice_pkgs=""
+  if p=$(hf_chrome); then echo "$c_ok HyperFrames Chrome  $(basename "$p") · $(size_of "$p") · $(rel "$(dirname "$p")")"
+  else
+    [ -x "$ROOT/styles/_swatch/node_modules/.bin/hyperframes" ] && swatch="(cd styles/_swatch && npx hyperframes browser ensure)"
+    echo "$c_wa HyperFrames Chrome not downloaded: the first HyperFrames render or snapshot fetches chrome-headless-shell (about 200 MB on disk) into ~/.cache/hyperframes${swatch:+; now: $swatch}"
+    pend="$pend Chrome 0.2 GB,"
+  fi
+  if command -v uv >/dev/null 2>&1; then
+    if uv run -q --offline --with numpy --with scipy --with librosa --with pillow python -c "" >/dev/null 2>&1; then
+      echo "$c_ok Python packages of bin/vh (numpy, scipy, librosa, pillow) are in the uv cache"
+    else echo "$c_wa Python packages not cached yet: the first bin/vh beats, qa, music, sheet or storyboard run fetches numpy, scipy, librosa and pillow (about 700 MB) into the uv cache"
+      pend="$pend Python packages 0.7 GB,"
+    fi
+  fi
+  model=${QWEN_TTS_MODEL:-mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit}
+  hub=${HF_HUB_CACHE:-${HF_HOME:-$HOME/.cache/huggingface}/hub}
+  snap=$(ls -d "$hub/models--${model//\//--}/snapshots/"*/ 2>/dev/null | head -1 || true)
+  if [ "$(uname)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
+    echo "- Qwen3-TTS (bin/vh tts's default voice) runs on Apple Silicon only (mlx-audio): use say, edge, gemini … here"
+  else
+    command -v uv >/dev/null 2>&1 && ! uv run -q --offline --with mlx-audio python -c "" >/dev/null 2>&1 && voice_pkgs=1
+    if [ -n "$snap" ] && [ -e "$(set -- "$snap"*.safetensors; echo "$1")" ]; then echo "$c_ok Qwen3-TTS model  $model · $(size_of "$snap")"
+    else
+      echo "$c_wa Qwen3-TTS model not downloaded: the first bin/vh tts with the default provider fetches $model (about 2 GB) from Hugging Face into $(rel "$hub")"
+      pend="$pend Qwen3-TTS model 2 GB,"
+    fi
+    if [ -n "$voice_pkgs" ]; then echo "$c_wa mlx-audio and its packages (about 750 MB) are not in the uv cache yet: the first bin/vh tts with the default provider fetches them"
+      pend="$pend mlx-audio 0.75 GB,"; fi
+  fi
+  echo "- every bin/vh new short|promo|data|meme installs its own pinned HyperFrames into the project (about 140 MB of node_modules)"
+  [ -n "$pend" ] && echo "   still to come on first use:${pend%,}"
+  return 0
 }
 agents_body() { cat "$ROOT/CLAUDE.md"; }
 cmd_install_skill() { # writes a thin pointer skill whose harness path is this clone
@@ -130,21 +196,72 @@ cmd_setup() {
 
 cmd_types() { for t in "${TYPES[@]}"; do IFS=: read -r k f d <<<"$t"; printf "  %-10s video-types/%-32s %s\n" "$k" "$f.md" "$d"; done; }
 
+# shellcheck disable=SC2088   # the ~ is printed, not expanded
+rel() { case "$1" in "$ROOT"/*) printf '%s\n' "${1#"$ROOT"/}" ;; "$HOME"/*) printf '~/%s\n' "${1#"$HOME"/}" ;; *) printf '%s\n' "$1" ;; esac; }   # a path as printed
+projects_base() { # where new projects go: --dir, else $OVH_PROJECTS, else <harness>/projects (a leading ~ is expanded)
+  local b=${1:-${OVH_PROJECTS:-$ROOT/projects}}
+  # shellcheck disable=SC2088   # a literal ~ in the value (quoted in a shell, or set elsewhere) means home
+  case "$b" in "~") b=$HOME ;; "~/"*) b="$HOME/${b#"~/"}" ;; esac
+  printf '%s\n' "$b"
+}
+project_dir() { # a project folder, or a name under the projects folder (the date prefix may be left out)
+  local a=${1:?a project folder or name} base m n
+  if [ -d "$a" ]; then (cd "$a" && pwd); return; fi
+  base=$(projects_base)
+  if [ -d "$base/$a" ]; then (cd "$base/$a" && pwd); return; fi
+  m=$(ls -d "$base"/*-"$a" 2>/dev/null || true); n=$(printf '%s\n' "$m" | grep -c . || true)
+  if [ "$n" = 1 ]; then (cd "$m" && pwd); return; fi
+  if [ "$n" = 0 ]; then echo "no such project: $a (a folder, or a name under $(rel "$base"))" >&2; else echo "$a: several projects match: $(printf '%s\n' "$m" | xargs -n1 basename | tr '\n' ' ')" >&2; fi
+  return 1
+}
+attach_style() { # attach_style <project-dir> <preset>: STYLE_PRESET.md + style.tokens.json, the preset's prompt block at the end of
+  # BRIEF.md and a pointer at the top of STYLE.md (what `new --style` does). A preset attached before is replaced, not stacked.
+  local dir=$1 style=$2 old=""
+  [ -f "$dir/STYLE_PRESET.md" ] && old=$(sed -n '1s/.* · \([a-z0-9-]*\)$/\1/p' "$dir/STYLE_PRESET.md")
+  cp "$ROOT/styles/$style/STYLE.md" "$dir/STYLE_PRESET.md"; cp "$ROOT/styles/$style/tokens.json" "$dir/style.tokens.json"
+  python3 - "$ROOT/styles/$style/STYLE.md" "$dir/BRIEF.md" "$dir/STYLE.md" "$style" <<'PY'
+import re, sys
+src, brief, style, slug = sys.argv[1:5]
+m = re.search(r"## Prompt 块\s*```text\n(.*?)```", open(src).read(), re.S)
+b = open(brief).read()
+b = re.sub(r"\n\n## Style preset: [^\n]*\n\n```text\n.*?```\n", "", b, flags=re.S)   # the preset attached before, if any
+if m: b += f"\n\n## Style preset: {slug}\n\n```text\n{m.group(1).strip()}\n```\n"
+open(brief, "w").write(b)
+s = open(style).read()
+s = re.sub(r"\A> 本项目以风格预设 `styles/[^`]*` 为底：[^\n]*\n\n", "", s)
+open(style, "w").write(f"> 本项目以风格预设 `styles/{slug}` 为底：先读 `STYLE_PRESET.md`，数值取 `style.tokens.json`；下面只写本片对预设的改动。\n\n" + s)
+PY
+  [ -n "$old" ] && [ "$old" != "$style" ] && echo "   replaced : styles/$old (its prompt block in BRIEF.md and the pointer in STYLE.md; your own notes below it stay)"
+  return 0
+}
+
 cmd_new() {
-  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset>] [--effort quick|standard|studio]"; cmd_types; exit 1; }
-  local type=$1 slug=$2 doc style="" effort=""; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 1; }
+  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1] [--dir <folder>]"; cmd_types; exit 1; }
+  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh=""; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 1; }
   shift 2
   while [ $# -gt 0 ]; do case "$1" in
     --style)  style=${2:?--style needs a preset (bin/vh style list)}; shift 2 ;;
     --effort) effort=${2:?--effort needs quick, standard or studio}; shift 2 ;;
+    --aspect) aspect=${2:?--aspect needs 16:9, 9:16 or 1:1}; shift 2 ;;
+    --dir)    parent=${2:?--dir needs a folder: the project goes in <folder>/<date>-<slug>}; shift 2 ;;
     *) echo "unknown option: $1"; exit 1 ;;
   esac; done
   [ -z "$style" ] || [ -f "$ROOT/styles/$style/STYLE.md" ] || { echo "unknown style: $style"; cmd_style list; exit 1; }
   case "${effort:-standard}" in quick|standard|studio) ;; *) echo "unknown effort: $effort (quick | standard | studio)"; exit 1 ;; esac
-  local dir; dir="$ROOT/projects/$(date +%F)-$slug"
+  if [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of the three; the other engines set their size themselves
+    case "$aspect" in 16:9|landscape) res=landscape ;; 9:16|portrait) res=portrait ;; 1:1|square) res=square ;;
+      *) echo "unknown aspect: $aspect (16:9 | 9:16 | 1:1)"; exit 1 ;; esac
+    case "$type" in short|promo|data|meme) ;;
+      *) echo "--aspect works for short, promo, data and meme (HyperFrames); $type sets its frame size in its engine (engines/README.md)"; exit 1 ;; esac
+  fi
+  case "$type" in short) res=${res:-portrait} ;; promo|data|meme) res=${res:-landscape} ;; esac
+  case "$res" in portrait) wh=1080x1920 ;; square) wh=1080x1080 ;; landscape) wh=1920x1080 ;; esac
+  local base dir; base=$(projects_base "$parent")
+  mkdir -p "$base" || { echo "cannot create $base"; exit 1; }
+  base=$(cd "$base" && pwd); dir="$base/$(date +%F)-$slug"
   [ -e "$dir" ] && { echo "$dir already exists"; exit 1; }
   # a step that fails from here on must not leave a half-built dir behind (a retry would say "already exists")
-  NEW_DIR=$dir; trap 'rm -rf "$NEW_DIR"; echo "$c_no removed the unfinished ${NEW_DIR#$ROOT/}" >&2' EXIT
+  NEW_DIR=$dir; trap 'rm -rf "$NEW_DIR"; echo "$c_no removed the unfinished $(rel "$NEW_DIR")" >&2' EXIT
   if [ "$type" = handdrawn ] || [ "$type" = mv ]; then
     rsync -a --exclude node_modules --exclude out "$ROOT/engines/ClaudeAnimationBase/" "$dir/"
     mv "$dir/README.md" "$dir/ENGINE_README.md"   # the engine's own readme; project docs are BRIEF/STORYBOARD/…
@@ -159,10 +276,13 @@ m = re.search(r"## Prompt 增量块\s*```text\n(.*?)```", doc, re.S)
 b = open(brief).read().replace("<!-- 在这里贴 video-types/*.md 的 \"Prompt 增量块\" -->", (m.group(1).strip() if m else "") + f"\n\n<!-- from {sys.argv[1].split('/')[-1]} -->")
 open(brief, "w").write(b)
 PY
+  [ -n "$wh" ] && sedi "s/^- Output: {W}x{H},/- Output: $wh,/" "$dir/BRIEF.md"
+  case "$type:$res" in short:portrait|promo:landscape|data:landscape|meme:landscape|*:) ;;   # the type's own frame: nothing to say
+    *) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：上面 TYPE 块写的画幅，以及按它算的尺寸（安全框、每行字数、字号），以这一行为准按新画幅重算。\n' "$aspect" "$wh" >> "$dir/BRIEF.md" ;;
+  esac
   case "$type" in
-    short) cmd_hf_init "$dir" portrait || true ;;
-    promo|data|meme) cmd_hf_init "$dir" landscape || true ;;
-    math|paper) echo "   engine   : Manim → cd ${dir#$ROOT/} && uv init --bare --python 3.12 && uv add manim   (see engines/README.md)" ;;
+    short|promo|data|meme) cmd_hf_init "$dir" "$res" || true ;;
+    math|paper) echo "   engine   : Manim → cd $(rel "$dir") && uv init --bare --python 3.12 && uv add manim   (see engines/README.md)" ;;
   esac
   if [ "$type" = handdrawn ] || [ "$type" = mv ]; then
     python3 - "$dir/BRIEF.md" <<'PY'
@@ -176,26 +296,24 @@ PY
   fi
   if [ -n "$effort" ]; then
     sedi "s/^- Effort: standard /- Effort: $effort /" "$dir/BRIEF.md"
-    [ "$effort" = quick ] && printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
+    if [ "$effort" = quick ]; then
+      printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
+      sedi 's/ Stop for approval\.$/ Effort quick: a short shot list (shot, duration, reads) is enough; no stop for approval./' "$dir/BRIEF.md"
+    fi
   fi
-  if [ -n "$style" ]; then   # the preset rides along: its STYLE.md + tokens, and its prompt block appended to BRIEF
-    cp "$ROOT/styles/$style/STYLE.md" "$dir/STYLE_PRESET.md"; cp "$ROOT/styles/$style/tokens.json" "$dir/style.tokens.json"
-    python3 - "$ROOT/styles/$style/STYLE.md" "$dir/BRIEF.md" "$dir/STYLE.md" "$style" <<'PY'
-import re, sys
-src, brief, style, slug = sys.argv[1:5]
-m = re.search(r"## Prompt 块\s*```text\n(.*?)```", open(src).read(), re.S)
-if m: open(brief, "a").write(f"\n\n## Style preset: {slug}\n\n```text\n{m.group(1).strip()}\n```\n")
-s = open(style).read()
-open(style, "w").write(f"> 本项目以风格预设 `styles/{slug}` 为底：先读 `STYLE_PRESET.md`，数值取 `style.tokens.json`；下面只写本片对预设的改动。\n\n" + s)
-PY
-  fi
+  [ -n "$style" ] && attach_style "$dir" "$style"   # the preset rides along: its STYLE.md + tokens, and its prompt block appended to BRIEF
   trap - EXIT
-  echo "$c_ok created ${dir#$ROOT/}"
+  echo "$c_ok created $(rel "$dir")"
   echo "   type doc : video-types/$doc.md"
+  [ -n "$wh" ] && echo "   frame    : $wh ($res)"
   [ -n "$style" ] && echo "   style    : styles/$style (STYLE_PRESET.md, style.tokens.json)"
   echo "   effort   : ${effort:-standard}  (bin/vh effort ${effort:-standard} shows what that means)"
   echo "   next     : open Claude Code in the repo root and say what the video is about;"
-  echo "              the agent fills ${dir#$ROOT/}/BRIEF.md and STORYBOARD.md and stops for your review."
+  if [ "${effort:-standard}" = quick ]; then
+    echo "              effort quick has no review gates: the agent fills BRIEF.md and a short shot list, then renders straight to a video."
+  else
+    echo "              the agent fills $(rel "$dir")/BRIEF.md and STORYBOARD.md and stops for your review."
+  fi
 }
 
 cmd_effort() { # print the effort hub from CLAUDE.md; with a level, only that column of the table
@@ -220,6 +338,12 @@ for l in lines:
 }
 
 cmd_readcheck() { python3 "$ROOT/tools/readcheck.py" "$@"; }
+cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 1; }
+  uv run -q --with pillow python "$ROOT/tools/storyboard.py" "$@"; }
+cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--segment NAME | --from s --to s] [--max s] [--out file.png]"; exit 1; }
+  uv run -q --with pillow python "$ROOT/tools/rhythm.py" "$@"; }
+cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image> [more…] [--text-px N] [--out file.png]"; exit 1; }
+  uv run -q --with pillow --with numpy --with scipy python "$ROOT/tools/cover_preview.py" "$@"; }
 
 swatch_deps() { # the swatch renderer's pinned HyperFrames (render.sh and determinism.sh do not install it themselves)
   [ -x "$ROOT/styles/_swatch/node_modules/.bin/hyperframes" ] || (cd "$ROOT/styles/_swatch" && npm ci --silent)
@@ -239,6 +363,14 @@ PY
       ;;
     gallery) shift; uv run -q --with pillow python "$sw/gallery.py" "$@" ;;
     check) shift; swatch_deps; "$sw/determinism.sh" "$@" ;;
+    compare) shift; [ $# -gt 0 ] || { echo "usage: bin/vh style compare a,b,c [--frame t] [--out file.png]"; exit 1; }
+      uv run -q --with pillow python "$ROOT/tools/style_compare.py" "$@" ;;
+    apply) shift; [ $# -eq 2 ] || { echo "usage: bin/vh style apply <preset> <project>   (bin/vh style list shows the presets)"; exit 1; }
+      [ -f "$ROOT/styles/$1/STYLE.md" ] && [ "${1#_}" = "$1" ] || { echo "unknown style: $1"; cmd_style list; exit 1; }
+      local dir; dir=$(project_dir "$2") || exit 1
+      [ -f "$dir/BRIEF.md" ] && [ -f "$dir/STYLE.md" ] || { echo "$(rel "$dir") has no BRIEF.md and STYLE.md: not a bin/vh project"; exit 1; }
+      attach_style "$dir" "$1"
+      echo "$c_ok styles/$1 attached to $(rel "$dir") (STYLE_PRESET.md, style.tokens.json, its prompt block in BRIEF.md)" ;;
     *) swatch_deps; exec "$sw/render.sh" "$@" ;;
   esac
 }
@@ -312,7 +444,9 @@ cmd_captions() {
   python3 "$ROOT/tools/audio/captions.py" "$proj" ${2:+--lang "$2"} ${3:+--zh-max "$3"}
 }
 cmd_beats() { uv run -q --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
-cmd_music() { uv run -q --with numpy --with scipy python "$ROOT/tools/audio/music.py" "$@"; }
+cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then
+  local a pil=""; for a in "$@"; do [ "$a" = --roll ] && pil="--with pillow"; done
+  uv run -q --with numpy --with scipy $pil python "$ROOT/tools/audio/music.py" "$@"; }
 cmd_sfx() { uv run -q --with numpy --with scipy python "$ROOT/tools/audio/sfx.py" "$@"; }
 cmd_mix() { python3 "$ROOT/tools/audio/mix.py" "$@"; }
 cmd_qa() { uv run -q --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
@@ -341,7 +475,8 @@ case "${1:-help}" in
   doctor) cmd_doctor ;; setup) cmd_setup ;; types) cmd_types ;;
   tts) shift; cmd_tts "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
-  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
+  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;;
+  storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
   help|-h|--help) cmd_help ;;
   *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;
 esac

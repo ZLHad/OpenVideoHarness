@@ -35,7 +35,8 @@ jobs:
           python-version: "3.12"
       - name: Install check tools
         run: |
-          python3 -m pip install --quiet pyflakes
+          # uv runs the Python behind bin/vh (music, storyboard, rhythm, cover-preview …); without it those smoke tests skip
+          python3 -m pip install --quiet pyflakes uv
           if [ "$RUNNER_OS" = Linux ]; then
             sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck ffmpeg >/dev/null
           else   # ffmpeg lets the bin/vh mux/gif smoke tests run under macOS /bin/bash 3.2 too
