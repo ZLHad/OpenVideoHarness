@@ -10,6 +10,7 @@
 | [explainer-interstellar-blackhole.md](explainer-interstellar-blackhole.md)：星际穿越里的真物理·黑洞篇 | 横屏科普 | 未公开（推测为着色器 + HTML） | 无 | 一句话 prompt 加一个贯穿全片的主视觉；纪录片式的克制视觉系统；标准的科普结构 |
 | [promo-applore.md](promo-applore.md)：Applore 宣传片 | 产品宣传 | 未公开（推测为 HTML/JS） | 无 | 一句话 prompt 加真实素材；让模型把自己当成动效设计师 |
 | [promo-hyperframes-launches.md](promo-hyperframes-launches.md)：HeyGen 发布片合集 | 产品宣传、论文发布、梗复刻 | HyperFrames | `hyperframes-launches/`（Apache-2.0） | 20 支可以直接读源码的成片，以及它们的 STORYBOARD 和 DESIGN 文件 |
+| [promo-video-shotcraft.md](promo-video-shotcraft.md)：video-shotcraft 镜头配方库 | 产品宣传 | Remotion | `video-shotcraft/`（Apache-2.0） | 镜头写成"意图 + 参数表 + 命门 + 参考实现"；全片能量骨架和 hold 预算；终检对照计划。本仓库的 `recipes/` 由它改写 |
 | [explainer-code2video.md](explainer-code2video.md)：Code2Video 和 TheoremExplainAgent | 教学讲解 | Manim | `Code2Video/`（prompts、src） | 锚点网格、ScopeRefine、并行生成 |
 | [paper-paper2video.md](paper-paper2video.md)：Paper2Video / PaperTalker | 论文报告 | Beamer + TTS + 数字人 | 无（仓库在 GitHub） | 多通道对齐；让 VLM 从变体里选 |
 | [remotion-production.md](remotion-production.md)：Claude Code + Remotion 生产实践 | 通用 | Remotion | 无 | 真实踩过的坑（亚像素闪烁、缩放抖动、旧文件） |
@@ -19,7 +20,7 @@
 ## 按需求查案例
 
 - 要做 MV：pdoom → functional-emotions → claude-pop，按从易到难的顺序看。
-- 要做产品片：applore（最简单的做法）→ hyperframes-launches（看工业级怎么做）。
+- 要做产品片：applore（最简单的做法）→ hyperframes-launches（看工业级怎么做）→ video-shotcraft（镜头配方和节奏预算，落地在 `recipes/`）。
 - 要做讲解或论文视频：interstellar-blackhole（一句话能做到什么程度）→ code2video → paper2video，外加 hyperframes-launches 里的 `claude-paper-launch/`。
 - 想拆解一支别人的视频：按 `playbook/07-reverse-engineer.md` 走，产出格式参考 interstellar-blackhole。
 - 想知道 prompt 怎么写：community-prompts，再从 opus55-gallery 第 3 节挑同类型的。

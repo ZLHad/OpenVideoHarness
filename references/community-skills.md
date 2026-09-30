@@ -51,7 +51,7 @@
 
 | 仓库 | 做什么 | 引擎 / 付费 API / GPU | 许可证 | 本地路径 | 值得借用 |
 |---|---|---|---|---|---|
-| Vincentwei1021/video-shotcraft（9.8k⭐） | 电影感产品片：157 张镜头配方卡（清单写 152）、Ink Press 成片模板、浏览器工作台、剪映工程导出 | Remotion（README 提醒：公司使用可能要买 Remotion 许可）；真实页面用无头浏览器截图；不用生成模型 | Apache-2.0 | `video-shotcraft/SKILL.md`、`video-shotcraft/references/shots/`、`video-shotcraft/references/pipeline.md`、`video-shotcraft/references/aesthetic-rules.md` | 视觉语言从产品自身的设计系统提取 tokens，模板只继承镜头结构和节奏；复刻页面必须用真实截图；每个镜头只讲一个动效，信息落定后要"呼吸"；开工前让用户在"模板 / 自主创作 / 共同创作"三种模式里选一种 |
+| Vincentwei1021/video-shotcraft（10k⭐，2026-10-01 为 10,029） | 电影感产品片：157 张镜头配方卡（214 个样式；清单写 152）、Ink Press 成片模板、浏览器工作台、剪映工程导出 | Remotion（README 提醒：公司使用可能要买 Remotion 许可）；真实页面用无头浏览器截图；不用生成模型 | Apache-2.0 | `video-shotcraft/SKILL.md`、`video-shotcraft/references/shots/`、`video-shotcraft/references/pipeline.md`、`video-shotcraft/references/aesthetic-rules.md` | 视觉语言从产品自身的设计系统提取 tokens，模板只继承镜头结构和节奏；复刻页面必须用真实截图；每个镜头只讲一个动效，信息落定后要"呼吸"；开工前让用户在"模板 / 自主创作 / 共同创作"三种模式里选一种。本仓库的 `recipes/`（镜头配方）和 `recipes/sequences/`（全片骨架）由它改写，拆解见 `cases/promo-video-shotcraft.md` |
 | op7418/guizang-product-video-skill（473⭐） | 接入真实产品组件做软件更新片，配原创配乐和动作音效 | React + esbuild + Playwright 出帧、FFmpeg 编码，GSAP / Three.js；也支持 HyperFrames；配乐可用代码合成 | AGPL-3.0；`assets/fallback/` 为 BSL 1.1 | `guizang-product-video/SKILL.md`、`guizang-product-video/references/direction.md`、`guizang-product-video/references/visual-vocabulary.md` | 写 `DIRECTION.md`：沿不同的轴提三个方向再选一个；列 3–5 条"因为产品有 X，所以用 Y"的专属手法；同一工作区不复用上一支片子的开场和背景；1080p 下界面正文 ≥ 22px |
 | norahe0304-art/30x-video（63⭐） | 输入一个 URL，输出发布片；自带 16 条审美准则，不用模板 | Remotion + React | MIT | 未拉取 | 【推测】审美准则可对照 `templates/TASTE_CHECKLIST.md` |
 | kangarooking/promo-creator-skills（101⭐） | 从产品判断、分镜、素材、HyperFrames 剪辑到 BGM 设计的整条工作流 | HyperFrames | MIT | 未拉取 | 【推测】中文产品片全流程参考 |
@@ -297,7 +297,7 @@ lemomo-ai/lemo-opuscar（605⭐，2026-09-30）是作者 Lemomo（X 上是 @lemo
 | awesome-claude-video-skills | CC0 1.0（清单本身） | — | 清单文字可自由用；条目描述引自各仓库 | 可用 |
 | lemo-opuscar | 整仓 MIT（`02dce5b` 起，2026-09-29；核对到 `721f0b7`）。更早的快照里指南、STYLE.md、成片是 CC BY 4.0 | 可复用，保留 MIT 声明（`tools/readcheck.py` 的读秒公式即改写自它的 `core/render/readcheck.mjs`） | 现版本的指南和 STYLE.md 同为 MIT，保留版权和许可声明即可；按旧快照改写的内容照旧署名 LemoLab、注明 CC BY 4.0；第三方采样、字体、音乐、人声见各样片的 `CREDITS` | 可复用（保留声明） |
 | OpenMontage | AGPL-3.0 | 复用即传染 | 同左 | 只读 |
-| video-shotcraft | Apache-2.0 | 可复用，保留 LICENSE、标注修改 | 音频多为 Mixkit，另有 6 个音效来源未能反查（见 `assets/audio/ATTRIBUTION.md`）；Remotion 自有许可 | 可复用；音频逐条核 |
+| video-shotcraft | Apache-2.0 | 可复用，保留 LICENSE、标注修改 | 音频多为 Mixkit，另有 6 个音效来源未能反查（见 `assets/audio/ATTRIBUTION.md`）；Remotion 自有许可 | 可复用；音频逐条核。`recipes/` 只改写卡片文字和参数、不复制代码，每张配方的 `derived_from` 写明来源卡 |
 | guizang-product-video | AGPL-3.0；`assets/fallback/` 为 BSL 1.1 | 复用即传染 | BSL 部分另有使用限制 | 只读 |
 | Paper-Cut | MIT | 可复用，保留声明 | — | 可复用 |
 | gbro-collage-info | MIT | 可复用，保留声明 | 自带的 `gsap.min.js`（GSAP 3.14.2）和 10 个 Mixkit 音效按各自条款 | 可复用；捆绑件另核 |

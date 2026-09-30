@@ -233,6 +233,7 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | `types` / `new <type> <name> [--style <style>] [--effort <level>]` | List the 8 types / start a new project |
 | `effort [quick\|standard\|studio]` | What each effort level does |
 | `style list` / `style <style>` / `style gallery` | Browse styles / render a sample / rebuild the overview |
+| `recipes list [--intent …] [--energy …] [--engine …]` / `recipes check` | Find shot recipes by what the shot must say and how loud it is / validate a recipe |
 | `tts` / `voices` / `captions` / `music` / `sfx` / `beats` | Voiceover (per-line direction, beat snapping, word alignment, two-speaker dialogue) / Gemini voice library and voice design / subtitles / music / sound effects / analyse outside music |
 | `mix` / `qa` / `mux` | Mix / check the mix / put sound and subtitles on the video |
 | `sheet` / `check` / `readcheck` / `gif` | Timestamped contact sheet / find black, frozen or silent stretches / is text on screen long enough to read / make a GIF for your README |
@@ -291,7 +292,8 @@ OpenVideoHarness/
 ├── playbook/                 shared know-how 00–08: pipeline, checks, motion, sound, effects and more
 ├── templates/                files each new project fills in: brief, storyboard, style, review, notes, lessons, checklist
 ├── styles/                   28 styles, each with a sample; _swatch/ renders the samples
-├── cases/                    11 case studies + curated community work + a 3D long-form deep-dive
+├── recipes/                  shot recipes: how a shot moves (frames, critical values, pitfalls) + pacing skeletons for whole films
+├── cases/                    12 case studies + curated community work + a 3D long-form deep-dive
 ├── showcase/                 films made with this repo (source + final + process notes)
 ├── engines/                  the built-in hand-drawn engine + setup notes for the others
 ├── references/               fetch.sh (30 read-only reference repos) · open-source list · community skills

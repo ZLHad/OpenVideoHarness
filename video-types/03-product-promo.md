@@ -99,6 +99,7 @@ Show the product itself: {architecture | workflow | features | case studies} as 
 
 - `cases/promo-applore.md`：一句话 prompt 做出的 15 秒宣传片拆解。
 - `cases/promo-hyperframes-launches.md`：HeyGen 20 支发布片的源码，以及其中值得看的几支。
+- `recipes/sequences/product-film-60s.md`、`launch-15s.md`：发布片的全片骨架（能量弧、先划 hold、按能量落差选接缝、限额）；镜头配方在 `recipes/`，分镜时按意图和能量挑（`bin/vh recipes list --type promo …`）。它们改写自 video-shotcraft，拆解见 `cases/promo-video-shotcraft.md`。
 - `references/repos/hyperframes/skills/product-launch-video/`：`SKILL.md`，以及 `references/` 下的 `story-design.md`、`visual-design.md`、`motion-language.md`、`cut-catalog.md`。
 - `references/repos/hyperframes/_upstream_claude/skills/`：
   - `motion-doctrine/`：运动总纲，涉及动画时先读；

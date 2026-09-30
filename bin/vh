@@ -6,6 +6,7 @@
 #   effort [quick|standard|studio]  how much iteration, review and polish each level means (CLAUDE.md "努力程度")
 #   new <type> <slug> [--style <preset>] [--effort quick|standard|studio]  create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme)
 #   style list | <preset> [--draft] | gallery [--mp4] | check <preset>   style library: list presets, render a 5 s swatch, build styles/gallery.jpg
+#   recipes list [--intent X --energy N --engine E …] | check [file…]   shot recipes (recipes/): filter by frontmatter, validate it
 #   hf-init <dir> [resolution]  scaffold HyperFrames into a project safely (no global skill install; landscape|portrait|square)
 #   sync-agents                 regenerate AGENTS.md from CLAUDE.md (keep both agents' entry points identical)
 #   install-skill [claude|codex|all]  register the open-video-harness skill (~/.claude/skills, ~/.agents/skills)
@@ -341,6 +342,7 @@ case "${1:-help}" in
   doctor) cmd_doctor ;; setup) cmd_setup ;; types) cmd_types ;;
   tts) shift; cmd_tts "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
+  recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
   help|-h|--help) cmd_help ;;
   *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;
