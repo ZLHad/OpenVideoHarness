@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+**Music parts: fixes from the swatch re-scores**
+- Figures and grids no longer drop notes when their step doesn't divide the bar. Half notes in a 5-beat bar played 2 of 3 notes, and none in a 1-beat bar (banker's rounding); a step that starts inside the bar now plays, cut at the bar line. A step that used to ring past the bar line and overlap the next bar's note now stops there.
+- A section's `params` (`by_section`) now reach the mono voices (sub808, violin, cello, winds …); before, they were silently ignored. A change of params starts a new phrase.
+- A section's `gain_db` is now a level applied after the voice. Before, it lowered the velocity, so a driven sub808 dropped only about 8 dB for −12 dB, and voices whose brightness follows velocity (piano, brass, strings …) also got darker. Textures now take a section's `gain_db` and `vel` too.
+- `pattern` as a dict by beats per bar can hold one-bar note lists as well as grids; this used to crash with a `TypeError`.
+- A guqin harmonic (`harm`) was 9–15 dB louder than a plucked note at the same pitch and velocity (about 18 dB in the reported case); it is now level-matched: −3.2 to +2.2 dB from the pluck between MIDI 24 and 90 (median −0.3 dB).
+- `onset_ms` set in `by_section` now also moves that section's beat-map hits; they had used the part's value.
+- New, off by default:
+  - `retrigger` for mono voices, so back-to-back notes (808 hits) each get their own attack instead of merging into a legato phrase;
+  - `attack` for `seq`;
+  - `daluo` and `xiaoluo` (Hz) for the `luogu` kit, and its 大锣 follows the part's `pitch` when one is given.
+- Docs: which voices take `damp`, `"figure": null` in `by_section`, `loop` counting the part's own bars, the oompah/waltz bass octave (with a waltz example), and why a `lofi.lp` below about 6 kHz hides hi-hats without the audibility check noticing.
+- Scores with only `layers` render the same bytes. Of the 28 re-scored swatches, 7 change: 6 through a section `gain_db` (pixel-16bit also through a half note now cut at the bar line), and ink-wash through the guqin harmonic. The PR lists the per-part levels.
+
 **Code-composed music: instrument parts**
 - The 28 style swatches sounded alike because `bin/vh music` had one subtractive palette. A score can now add `parts`: 77 new instruments synthesised in `tools/audio/instruments.py` with no samples, plus the 11 old layer voices. They cover:
   - keys: piano (felt or bright), Rhodes, harpsichord, organ; celesta, music box, glockenspiel, toy piano; marimba, xylophone, vibraphone;
@@ -41,6 +55,16 @@
 - Word units keep the last piece of a line: `"Hello world ."` used to drop the final `.` and `"Hi 👋"` the emoji, and an interior tail kept its leading space (`"a , b"` gave `"a ,"`, now `"a,"`). `--align` and the elevenlabs word grouping share this.
 - Edge trimming ignores a click or pop that stays inside one 10 ms window, before or after the voice: see the trimming entry under "Defaults settled on a Mac".
 - `playbook/04`: the `bin/vh qa` digital-silence rule names the checked span; `gemini-lite` is marked as sharing `gemini`'s code path, not separately tested; the `--beats` example uses an unambiguous path and covers the two grid cases above.
+
+**Tools and docs: found by a second review of v0.2.1 and the PRs since**
+- `tools/ci.sh`'s ban on BSD-only / GNU-only commands only matched a command at the start of a statement: `for f in …; do sed -i '' …; done`, `if …; then stat -f %z …; fi`, `… | xargs sed -i '' …` and `sudo sed -i …` all passed. It now also looks after `if`, `while`, `until`, `do`, `then`, `else`, `elif`, after `{`, `(`, `!` and a case arm, and behind the wrappers `xargs`, `sudo`, `exec`, `env`, `time`, `nohup`, `nice` and `command` with their flags, `VAR=value` tokens and arguments (`sudo -u root sed -i`, `env FOO=1 sed -i`, `nice -n 5 sed -i`). Comments, single-quoted strings, double-quoted strings without `$` or backticks and heredoc bodies are blanked before the match by a small quote-aware scanner, so `echo "sudo sed -i"` or a prose line inside a heredoc is no longer a hit; a heredoc opens only at a `<<name` outside quotes and comments with whitespace before it (`<<<`, `$((1<<n))`, `"a <<b"` and a `<<EOF` in a comment do not), and its terminator is matched ignoring leading tabs and trailing blanks, so a stray `<<` cannot silently blank the rest of a file.
+- `render.mjs --encode` refused to run on a machine without Chrome although it never opens a browser; the Chrome check now comes after the encode path.
+- `bin/vh doctor` called uv optional; `bin/vh tts`, `beats`, `music`, `sfx`, `qa` and `sheet` run through it, so a missing uv is now a red ✗ that names them. The README's requirements table (both languages) says the same.
+- `bin/vh mix` was not deterministic with ffmpeg 8.0.1: twelve runs of one ducked mix gave six different files, differing from about a second before the end, and a voice bus that ended before the music left the last part of the mix silent. `sidechaincompress` ends its output as soon as its main input's frames are consumed and drops whatever its sidechain FIFO has not matched yet, so with the music and the key decoded in separate threads the ducked music lost a run-dependent tail; the loudness pass measured that truncated mix too. Now every bus is padded or trimmed to the longest one, the ducker's two inputs come from one merged stream (`amerge` → `asplit`, one frame of skew at most) padded a second past the end, the ducked music is trimmed back, and the mix is pinned to 48 kHz so the loudness pass (loudnorm only takes 192 kHz and used to pull the whole graph up to it) runs the same graph as the output pass. Repeated runs are byte-identical, the output is exactly as long as the longest bus, and a mix that came out complete before is byte-identical to it; the runs that were truncated now match those.
+- `bin/vh mux` fades the last 40 ms out when it trims a longer audio track to the picture, instead of cutting it hard; a shorter track is still padded with silence.
+- `bin/vh mix` with an argument that is not `key=value`, an unknown key, a non-numeric level (`music_db=abc`) or an unknown `duck=` value prints the usage or a one-line error instead of a traceback or silently ignoring it; `-h` / `--help` print the usage.
+- `bin/vh sfx place`: `"sfx"` may be a path to any file ffmpeg decodes, not only `.wav`; a missing file, an undecodable file or an unknown built-in name is a clear error instead of a `KeyError`. A `--lib` name is looked up first, so a name with a dot (`v2.1` → `DIR/v2.1.wav`) still works.
+- Docs: `styles/README.md` no longer lists the three v0.2.0 review items as unfixed (they were fixed in v0.2.1; the published swatches pass `bin/vh qa scan`); `engines/README.md` records that the CanvasNoise fix was verified on a real GPU (macOS, Metal) instead of "not yet verified".
 
 **ElevenLabs word timing**
 - `bin/vh tts … elevenlabs` wrote every character as a "word": an English line became one entry per letter (90 for a 20-word sentence), so word-by-word captions flashed letters and the documented "same shape as --align" was not true. Character timestamps are now grouped into the same units as `--align gemini`: a Latin word or number each, a CJK character each, trailing punctuation kept on the word before it, opening quotes on the word after.
