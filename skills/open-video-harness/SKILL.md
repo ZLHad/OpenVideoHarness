@@ -28,7 +28,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 Read `<harness>/CLAUDE.md` (Codex: `<harness>/AGENTS.md`, which is identical) and follow it exactly:
 
-- route the request to one of the 8 `video-types/` docs;
+- route the request to one of the 9 `video-types/` docs (09, editing real footage, is experimental);
 - create the project with `<harness>/bin/vh new <type> <slug>`;
 - respect the **three human review gates** (outline → storyboard with a keyframe preview → first draft); stop at each gate and wait for the user;
 - follow the hard rules: every frame is a pure function of t; when there is sound, audio sets the timing; storyboard before code; self-review every scene; fact discipline;

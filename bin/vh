@@ -39,6 +39,7 @@ declare -a TYPES=(
   "paper:06-paper-explainer:论文讲解/会议视频（Manim + HyperFrames）"
   "handdrawn:07-hand-drawn:手绘/水彩/白板/剪纸/角色短片（ClaudeAnimationBase）"
   "meme:08-brutalist-meme:网络梗/野兽派快剪（HyperFrames）"
+  "edit:09-editing-talking-head:写实剪辑/口播，用户自己的素材（实验中；HyperFrames）"
 )
 type_doc() { for t in "${TYPES[@]}"; do IFS=: read -r k f _ <<<"$t"; [ "$k" = "$1" ] && { echo "$f"; return; }; done; return 1; }
 sedi() { local e=$1 f; shift; for f in "$@"; do sed "$e" "$f" > "$f.vh$$" && mv "$f.vh$$" "$f"; done; }   # in-place sed on both BSD/macOS and GNU/Linux
