@@ -15,6 +15,21 @@
 - The Python tools run with `uv run --no-project`, so they also work inside a uv project (a Manim project after `uv init`) without syncing it or leaving a `.venv` and `uv.lock` there. The pictures warn, naming the characters, when the font would draw some of them as boxes (`VH_FONT` picks another font).
 - CI installs uv (a pinned version, cached), so the new smoke tests run on Linux and under macOS bash 3.2: all of the above, including byte-identical storyboard pages on a second run, a storyboard feeding `bin/vh review`, and readcheck's HyperFrames timing.
 
+**Shot recipes: how a shot moves, and the pacing of a whole film**
+- `recipes/` is a new library of engine-agnostic shot recipes. A recipe carries the motion and pacing of one shot or seam: phases in frames at 30 fps, a parameter table with the critical values marked, pitfalls, the frames to check, and a canvas sketch on the `styles/_swatch` scene API, so any preset's `tokens.json` can skin it (`styles/_swatch/render.sh <dir>`). Style presets keep the look. When the two disagree, the order is user > type doc > project `STYLE.md` > style preset > recipe > playbook, and the CLAUDE.md floors beat all of them.
+- 24 seed recipes:
+  - rewritten from video-shotcraft (Apache-2.0): its six seams, accelerando cuts, paparazzi flash, drop-blackout slam, and the eight shots of its template film;
+  - from HyperFrames' skills: cut-the-curve, zoom-through, the oversized cursor;
+  - from this repo's intro film: decode type, one-take world travel, gate-as-door;
+  - a flash stitch measured from a public showreel.
+
+  Each recipe names its source in `derived_from` and says what it changed. On-screen text holds follow this repo's reading-time rule (shotcraft's title cards held 1.8 s). Emphasis uses weight or colour, not italics; blur is animated only on canvas; readable small text is at least 44 px; the braking whip-pan is one velocity-continuous curve.
+
+  The 24 files modified from video-shotcraft and HyperFrames follow Apache-2.0 §4. Both upstream licences are copied into `recipes/LICENSES/` byte for byte, with their copyright lines. Each file ends its 来源 section with a 许可 paragraph that says it was modified and names the upstream files and commit, `derived_from` records the same repository, commit and paths, and `recipes/NOTICE.md` lists all 24. Neither upstream has a NOTICE file. Our changes are MIT. The six recipes used in showcases 00 and 04 are marked `tuned`: neither film has a human verdict yet (`battle-tested` needs one, and an independent reviewer's score does not count).
+- `recipes/sequences/` holds the pacing grammar and three skeletons: a 15 s launch, a 30 s narrated explainer and a 60 s product film. The grammar is an energy scale of 0–5 (the same one as the beat sheets in `playbook/09-narrative.md`), holds reserved before any motion, seams chosen by the energy jump, and caps such as at most 3 full-frame impacts per film.
+- `bin/vh recipes list [--intent … --energy … --engine … --have … --seconds …]` filters on fixed-vocabulary frontmatter; an unknown value is an error, not an empty list. `bin/vh recipes check [file…]` validates the frontmatter, the cross-references, the README index (its energy, length and status columns), the licence notices and the sketches' syntax. It refuses frontmatter that YAML parsers read in different ways (`yes`, `1:30`, dates, `{key:value}`, a key with neither a value nor items), so what passes reads the same in PyYAML. CI runs both.
+- `templates/STORYBOARD.md` has optional recipe and QA-frame columns. CLAUDE.md routes "how should this shot move" and pacing requests to `recipes/`. New case study: `cases/promo-video-shotcraft.md`, so the README counts now say 12.
+
 **Hand-drawn engine: videos in BT.709, tagged**
 - `engines/ClaudeAnimationBase/render.mjs` (`--clip` and `--encode`) fed Chrome's full-range BT.601 JPEG frames straight to x264, so its videos came out as `yuvj420p` tagged `pc`/`bt470bg`. Chromium plays such files with the BT.709 matrix, and saturated colours shift (up to ~40 levels on pure green). It now converts to limited-range BT.709 and writes all four colour tags, like the HyperFrames and swatch videos. Existing hand-drawn videos keep their colours until they are re-encoded (showcase 01 will be, with its new soundtrack).
 

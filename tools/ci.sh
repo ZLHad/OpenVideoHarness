@@ -131,6 +131,35 @@ smoke_checks() {
   case "$a" in *"--with edge-tts "*"--provider edge"*"--with dashscope "*) ok "tts --provider picks the provider's dependencies" ;;
     *) bad "tts --provider: uv got '$a'" ;; esac
   rm -rf "$t"
+  # recipes: every recipe's frontmatter validates, list filters agree with the files, bad values are errors
+  vh recipes check >/dev/null && ok "recipes check (frontmatter, README index, sketches)" || bad "bin/vh recipes check"
+  a=$(vh recipes list --intent carry,enter --energy 5 --engine three --ids)
+  if python3 - "$a" <<'PY'
+import pathlib, re, sys   # the expectation, read straight from the files with plain regexes (not tools/recipes.py)
+want = set()
+for p in pathlib.Path("recipes").glob("*/*.md"):
+    t = p.read_text(encoding="utf-8")
+    f = lambda k: re.findall(r"[a-z0-9-]+", (re.search(rf"^{k}: (.*)$", t, re.M) or [None, ""])[1])
+    e = [int(x) for x in f("energy")]
+    if p.parent.name != "sequences" and e and {"carry", "enter"} & set(f("intent")) and min(e) <= 5 <= max(e) and "three" in f("engines"):
+        want.add(f("id")[0])
+got = set(sys.argv[1].split())
+sys.exit(0 if want and got == want else 1)
+PY
+  then ok "recipes list --intent --energy --engine match the files"; else bad "recipes list filters: got '$(echo $a)'"; fi
+  vh recipes list --intent no-such-intent >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "recipes list rejects an unknown vocabulary value" || bad "recipes list --intent no-such-intent exited $rc"
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  sed 's/^id: .*/id: ci-copy/' recipes/seam/flash-cut.md > "$t/ok.md"; sed 's/^energy: .*/energy: 9/' "$t/ok.md" > "$t/bad.md"
+  a=$(vh recipes check "$t/bad.md" 2>&1); rc=$?
+  vh recipes check "$t/ok.md" >/dev/null && [ $rc = 1 ] && case "$a" in *energy*) true ;; *) false ;; esac \
+    && ok "recipes check passes a valid copy and names the bad field" || bad "recipes check on a copy (bad one exited $rc)"
+  sed 's/^qa: .*/qa: {peak:4}/' "$t/ok.md" > "$t/yaml.md"   # YAML reads {peak:4} as one key, "peak:4"
+  a=$(vh recipes check "$t/yaml.md" 2>&1); rc=$?
+  [ $rc = 1 ] && case "$a" in *"space after"*) true ;; *) false ;; esac \
+    && ok "recipes check refuses frontmatter that YAML would read differently" || bad "recipes check on {peak:4} exited $rc"
+  vh recipes check --json >/dev/null 2>&1; rc=$?
+  [ $rc = 2 ] && ok "recipes check treats an option as bad usage" || bad "recipes check --json exited $rc"
+  rm -rf "$t"
   if ! command -v ffmpeg >/dev/null; then skip "mux / gif smoke" "ffmpeg not installed"; return; fi
   # subtitle languages come from the file name, never from folders (a home dir like /home/zhang used to tag everything chi)
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); mkdir -p "$t/zhang/en.v1.2"
