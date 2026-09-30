@@ -111,7 +111,7 @@ Verify: re-transcribe the render and diff it against the EDL; every cut has meas
 ## 可参考的案例与源码
 
 - `engines/editing.md`：EDL、测量切点、口水词与重录规则、重转写对账、两两对比、重构图、避脸字幕、导出，以及借来的思路和出处（社区 skill 的许可证都在那里）。
-- `references/repos/hyperframes/skills/media-use/`：`scripts/transcript-cut.mjs`、`references/operations.md`（转写、剪切、响度）。
+- `references/repos/hyperframes/skills/media-use/`：`scripts/transcript-cut.mjs`、`references/repos/hyperframes/skills/media-use/references/operations.md`（转写、剪切、响度）。
 - `references/repos/hyperframes/skills/talking-head-recut/`：在不改动素材的前提下叠图解卡片，本类包装阶段的现成流程；不剪片。
 - `references/repos/hyperframes/skills/embedded-captions/`：本地转写、主体抠像、字幕绕到人物身后、安全区；`references/` 下有 `aesthetic-principles.md`、`anti-patterns.md`、`caption-grouping.md`、`layout-heuristics.md`。
 - `references/repos/video-talkcraft/`（PolyForm NC，只读）：真人录音先预剪再做时间戳；以稿子为真值，ASR 听错的字不剪。
