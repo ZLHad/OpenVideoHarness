@@ -57,8 +57,10 @@ Alignment check (--align gemini, any provider): every line is transcribed by gem
        so a transcribe call that fails for good (a daily quota, the network, a bad file) cannot lose the take: the line
        keeps its measured timing and gets asr {"error"}, the command exits 1, and --resume continues that run: it
        synthesizes only the files the run did not get to (after a synthesis failure too), reuses the ASR of the lines
-       that succeeded (vo/<lang>/*.asr.json) and redoes the rest. The run's script, provider, voice and join mode are
-       recorded in vo/<lang>/_run.json; --resume refuses a mismatch and names it (the timing flags may change).
+       that succeeded (vo/<lang>/*.asr.json) and redoes the rest; a file synthesized again gets a fresh transcription.
+       The run's script, provider, voice, --instruct / GEMINI_TTS_STYLE and join mode are recorded in vo/<lang>/_run.json;
+       --resume refuses a mismatch and names it (the timing flags may change). A plain run (no --align, no --join) that
+       failed midway continues the same way, and a finished plain run gets --align gemini without synthesizing again.
 Joined synthesis (--join block|all): consecutive lines go into one request — `block` = runs of lines between blank
        lines in script.txt, `all` = the whole script (8,192 input tokens per gemini request). Prosody flows across
        lines, but a line can no longer be re-run or beat-snapped on its own: only each block's start snaps to the grid
@@ -690,9 +692,10 @@ def main():
     ap.add_argument("--join", default="auto", choices=["auto", "none", "block", "all"],
                     help="synthesize consecutive lines in one request (block = lines between blank lines)")
     ap.add_argument("--resume", action="store_true",
-                    help="continue the last run in vo/<lang> instead of starting over (with --align gemini or --join): synthesize only "
-                         "the missing files, reuse the ASR of the lines that succeeded, redo the rest. The script, provider, voice and "
-                         "join mode must be the run's (recorded in vo/<lang>/_run.json); the timing flags may change")
+                    help="continue the last run in vo/<lang> instead of starting over: synthesize only the missing files, reuse the "
+                         "ASR of the lines that succeeded, redo the rest (a plain run that failed midway continues; a finished one can "
+                         "get --align gemini this way). The script, provider, voice, delivery direction and join mode must be the run's "
+                         "(recorded in vo/<lang>/_run.json); the timing flags may change")
     a = ap.parse_args()
     proj = Path(a.project).resolve(); audio = proj / "audio"; script = audio / "script.txt"
     if not script.exists():
@@ -714,13 +717,16 @@ def main():
             man = json.loads((vo / "_run.json").read_text(encoding="utf-8"))
         except OSError:
             sys.exit(f"--resume: no {vo.relative_to(proj)}/_run.json to continue from; run once without --resume")
-        for k, v in (("provider", a.provider), ("voice", a.voice)):
-            if v is not None and v != man[k]:
-                sys.exit(f"--resume: the run was made with {k} {man[k] or 'default'}, not {v}: re-run the same command with"
+        for k, v in (("provider", a.provider), ("voice", a.voice), ("instruct", a.instruct)):
+            if v is not None and v != man.get(k):
+                sys.exit(f"--resume: the run was made with {k} {man.get(k) or 'default'}, not {v}: re-run the same command with"
                          f" --resume, or drop --resume to start over")
         if speakers != man["speakers"]:
             sys.exit(f"--resume: the speaker voices changed (run: {man['speakers']}, now: {speakers}); drop --resume to start over")
-        a.provider, a.voice, a.keep_edges = man["provider"], man["voice"], man["keep_edges"]
+        if os.environ.get("GEMINI_TTS_STYLE") != man.get("style_env"):
+            sys.exit(f"--resume: GEMINI_TTS_STYLE was {man.get('style_env')!r} for the run, now {os.environ.get('GEMINI_TTS_STYLE')!r};"
+                     f" set it back, or drop --resume to start over")
+        a.provider, a.voice, a.instruct, a.keep_edges = man["provider"], man["voice"], man.get("instruct"), man["keep_edges"]
     a.provider = a.provider or "qwen"
     gemini = a.provider.startswith("gemini")
     dialogue = any(s.get("speaker") for s in segs)
@@ -740,8 +746,6 @@ def main():
         print("  --join recovers line boundaries from word timestamps → --align gemini is on")
     if (gemini or align) and not os.environ.get("GEMINI_API_KEY"):     # before anything is synthesized or deleted
         sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)" + ("" if gemini else ": --align gemini / --join transcribe with Gemini"))
-    if a.resume and not align:
-        sys.exit("--resume redoes only the ASR / alignment: it needs --align gemini or --join")
     if not a.resume:
         shutil.rmtree(vo, ignore_errors=True); vo.mkdir(parents=True)
     grids = {}
@@ -810,7 +814,8 @@ def main():
                          f" --resume needs the run's script; drop it to start over")
     else:
         (vo / "_run.json").write_text(json.dumps({"provider": a.provider, "voice": a.voice, "speakers": speakers, "lang": a.lang, "join": join,
-                                                  "keep_edges": a.keep_edges, "lines": lines}, ensure_ascii=False, indent=1), encoding="utf-8")
+                                                  "keep_edges": a.keep_edges, "instruct": a.instruct, "style_env": os.environ.get("GEMINI_TTS_STYLE"),
+                                                  "lines": lines}, ensure_ascii=False, indent=1), encoding="utf-8")
     t, parts, asr_s, asr_n, trimmed = 0.0, [], 0.0, 0, 0.0
     joined = audio / f"voiceover.{a.lang}.wav"
     def write_outputs():
@@ -854,6 +859,7 @@ def main():
                 out = vo / f"{i+1:02d}.wav"; words = None
                 if not (a.resume and out.exists()):                    # --resume: only what the run did not get to
                     voice = speakers.get(s["speaker"], a.voice) if s.get("speaker") else a.voice
+                    out.with_suffix(".asr.json").unlink(missing_ok=True)   # a new take gets a new transcription
                     try:
                         words = PROVIDERS[a.provider](s["_ptext"], voice, out, tmp, a.lang, style_of(s))
                         if not a.keep_edges:                           # the provider's own lead-in / tail silence
@@ -893,6 +899,9 @@ def main():
             for bi, (blk, conv) in enumerate(zip(blocks, convs)):
                 bout = vo / f"_block{bi+1:02d}.wav"
                 if not (a.resume and bout.exists()):                   # --resume: only the blocks the run did not get to
+                    bout.with_suffix(".asr.json").unlink(missing_ok=True)   # a new take gets a new transcription, and new cuts
+                    for k in range(len(blk)):                                 # their own re-checks
+                        (vo / f"{n + k + 1:02d}.asr.json").unlink(missing_ok=True)
                     try:
                         if gemini:
                             env_style = os.environ.get("GEMINI_TTS_STYLE")
