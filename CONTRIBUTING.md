@@ -43,7 +43,9 @@ VH_BASH=/bin/bash tools/ci.sh      # macOS：用系统自带的 bash 3.2 跑，M
 
 ## 在 GitHub 上启用规则集
 
-规则集的配置在 [`.github/rulesets/main.json`](.github/rulesets/main.json)。按这个顺序来：
+规则集的配置在 [`.github/rulesets/main.json`](.github/rulesets/main.json)。本仓库已经在 2026-09-30 按这个文件启用了规则集 `main-via-pr`。改了文件以后，把线上配置同步过去：`gh api --method PUT repos/ZLHad/OpenVideoHarness/rulesets/<id> --input .github/rulesets/main.json`，`<id>` 用 `gh api repos/ZLHad/OpenVideoHarness/rulesets` 查。
+
+新仓库或 fork 从头启用时，按这个顺序来：
 
 1. **先让 CI 跑起来。** 合并带 `.github/workflows/ci.yml` 的 PR，并确认它在一个 PR 上跑出过两项检查。要是 CI 还没跑过就启用规则集，它要求的两项检查永远等不到，所有 PR 都合不了。
 2. **导入规则集。** Settings → 规则集（Rules → Rulesets）→ 新建规则集（New ruleset）→ 导入规则集（Import a ruleset），选 `main.json`。也可以在"新分支规则集"页面里手动填：
@@ -65,9 +67,13 @@ VH_BASH=/bin/bash tools/ci.sh      # macOS：用系统自带的 bash 3.2 跑，M
 ### 为什么这样设计
 
 - **绕过模式选"仅限拉取请求"，不选"始终"。** agent 在这个仓库里推送时用的是主人的身份，[第一个 PR](https://github.com/ZLHad/OpenVideoHarness/pull/1) 的作者显示的就是仓库主人。给管理员开"始终绕过"，agent 也就能直接推 main。选"仅限拉取请求"以后，谁都不能直接推 main；主人在 PR 里仍然可以绕过检查强行合并，留作应急。
+- **两项检查只认 GitHub Actions 报的结果**（`integration_id` 15368）。agent 拿着主人的 token，能给提交写一个同名的"成功"状态；指定来源以后，这种伪造的状态不算数。
+- **提交关联不到 GitHub 账号时要多一个批准**（`require_extra_approval_for_unattributed_changes`）。GitHub 创建规则集时默认就会打开，文件里写明是为了和线上一致。agent 的提交要用关联了账号的邮箱，否则这个 PR 需要管理员在 PR 里绕过才能合并。
 - **批准数填 0。** GitHub 不允许批准自己的 PR，而 agent 开的 PR 作者也是主人自己。要求 1 个批准的话，没有第二个人就什么都合不了。以后有了协作者，改成 1。
 - **CI 同时跑 Linux 和 macOS。** 这次最严重的几个 bug 都只在一个平台上出现：维护者在 Mac 上一切正常，Linux 用户却渲染不了样片。在 macOS 上还专门用系统的 bash 3.2 跑 `bin/vh`。
 - **要求分支是最新的。** [第一个 PR](https://github.com/ZLHad/OpenVideoHarness/pull/1) 开着的时候 main 发了 v0.2.1，两边改了同一个文件。要求同步到最新以后，CI 检查的是合并后的真实结果，不是过期的分支。
 - **squash 加线性历史。** 一个 PR 在 main 上只留一个提交，和 CHANGELOG 的条目一一对应。
+
+**规则集挡得住误操作，挡不住拿着管理员 token 的 agent。** agent 用的是主人的 token，技术上仍然可以在 PR 里用管理员身份绕过检查合并，甚至改掉规则集；现在靠的是上面"给 agent 的规则"。要在技术上真正限住 agent，给它单独一个低权限身份：比如一个只有 Contents 和 Pull requests 写权限、没有 Administration 权限的 fine-grained token。
 
 以后开始打版本 tag 时，再加一个 tag 规则集：目标 `v*`，限制更新和删除，只有管理员能创建。
