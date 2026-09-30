@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+**Code-composed music: instrument parts**
+- The 28 style swatches sounded alike because `bin/vh music` had one subtractive palette. A score can now add `parts`: 77 new instruments synthesised in `tools/audio/instruments.py` with no samples, plus the 11 old layer voices. They cover:
+  - keys: piano (felt or bright), Rhodes, harpsichord, organ; celesta, music box, glockenspiel, toy piano; marimba, xylophone, vibraphone;
+  - plucked: nylon guitar, ukulele, harp, pizzicato, upright bass, pipa, guqin, balalaika, cimbalom;
+  - bowed and blown: a string section; violin, fiddle, cello and banhu with glides and vibrato; flute, xiao, whistle, suona, sheng; a brass section and a braam;
+  - synths: chip pulse and triangle, 808, CS-80-style pad, drone, polysynth;
+  - drums and percussion: kit, brushes, ride, boom-bap, trap and gated drums; gongs and cymbals; a 锣鼓经 kit; clock, metal, scratch;
+  - textures: vinyl, tape, hum, wind, rain, room tone.
+- Patterns:
+  - step grids (accent, ghost, roll, flam, the other stroke) that fit bars of any length;
+  - note lists with chord-relative pitches (`c0 s2 d5 +7`);
+  - figures: `walking`, `oompah` / `waltz`, `strum`, `alberti`, arpeggios, `ostinato`, `tremolo`, `sustain`, `stab`, `roots`;
+  - feel: swing (0–0.33, or 0.5–0.75 as a ratio), seeded `humanize`, `onset_ms`, `beats_per_bar`. A triplet grid (`step: 12`) under 8th swing stays straight.
+- Sections: `riser` takes a level, `"riser": {"gain_db": -6}` or `"riser_db": -6` beside `true`, so it can sit under a narration line or an on-screen hit. The default is unchanged.
+- Buses: optional stereo with pan; reverb sends into `room`, `plate`, `hall`, `cathedral` or `gated`; master `lofi` and `tape`; per-part delay, drive and ducking.
+- A score with only `layers` in major or minor renders the same bytes as before (sha256 checked on all 28 swatch scores and both examples). In other modes (dorian, mixolydian …) the layers now take the same chord roots as the parts, and the 羽 pentatonic when the mode has a minor third; before, they fell back to major.
+- Parts are deterministic. Adding or removing a part leaves the stems of parts with another instrument, or with their own `id`, bit-identical. Two id-less parts of the same instrument are seeded by position, so removing one re-seeds the other; the render warns and suggests ids. Two parts with the same `id` are an error.
+- Every part must be heard. A part with no notes, or quieter than −40 dBFS in the final file, stops the render and names the part. Loudness is power averaged over the channels, so a hard-panned part is not under-read. `"quiet": true` opts out of the level check, but not the no-notes check.
+- Scores are checked before rendering, and a wrong field stops the render with the part's name:
+  - an unknown instrument, section, space, duck target, or section name in `by_section`;
+  - a duplicate id;
+  - a number that is not finite or out of range, e.g. `pan` beyond ±1 or `step` 0;
+  - a malformed note list or a strum without strokes;
+  - a pitch outside MIDI 0–127.
+- Long scores: parts are rendered, mixed into the buses and freed one at a time. A 5-minute stereo score with 7 parts peaks at about 1.1 GB (was 2.8 GB) and renders the same bytes.
+- `--example list` shows six new starter scores: jazz, waltz, chip, lofi, guqin, trap. `--instruments` lists every instrument and figure with its knobs.
+
 **README: one picture of the whole project**
 - `docs/assets/overview.en.svg` / `overview.zh.svg` replace the mermaid flowchart under "How it works". The new diagram shows the path from a one-sentence request to the final film, with the three human gates, sound-first rendering, the self-review loop and gate ③ sending the film back. Beside it, it shows what the repository provides: knowledge, tools and engines, and the records that feed lessons back into the playbook. Both files follow the reader's light or dark theme.
 
