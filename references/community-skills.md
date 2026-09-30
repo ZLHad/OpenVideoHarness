@@ -1,6 +1,6 @@
 # 社区 skill 参考（2026-09-28）
 
-这份清单从 183 个社区视频 skill 里，按 OpenVideoHarness 的 8 个类型挑出值得读的，并对已拉取到 `references/repos/` 的 16 个仓库逐个读了 README、LICENSE 和主 SKILL.md。它只回答"遇到某类视频时去哪个仓库找什么"，不替代 `open-source.md`（框架与引擎）和 `cases/`（案例拆解）。2026-09-29 又补了 Opus 5.5 发布周出现的 6 个仓库，它们不在那 183 个里面，见第 6 节。
+这份清单从 183 个社区视频 skill 里，按 OpenVideoHarness 当时的 8 个类型（01–08）挑出值得读的，并对已拉取到 `references/repos/` 的 16 个仓库逐个读了 README、LICENSE 和主 SKILL.md。它只回答"遇到某类视频时去哪个仓库找什么"，不替代 `open-source.md`（框架与引擎）和 `cases/`（案例拆解）。2026-09-29 又补了 Opus 5.5 发布周出现的 6 个仓库，它们不在那 183 个里面，见第 6 节。
 
 - 下文"本地路径"都相对 `references/repos/`；写"未拉取"的只看过清单里的一句话描述，借用点标【推测】。
 - ⭐ 与许可证字段来自 `skills.json`（2026-09-28 生成）；标"本地核对"的以仓库里的 LICENSE / README 为准。标"清单外"的条目，⭐ 是 2026-09-29 在 GitHub 页面上读到的数，许可证读的是仓库里的 LICENSE。
@@ -119,6 +119,8 @@ lemo-opuscar 的蜡笔、水彩、水墨、厚涂、红色剪纸、皮影、纸�
 | zenstory-ai/video-recap-skills（539⭐） | 视频 → 中文解说成片：场景检测、ASR、VLM、脚本、TTS、ffmpeg 合成，可导出剪映草稿 | 本地 ffmpeg + 一个 MiMo key，不需要 GPU | MIT | 未拉取 | 剪映草稿导出（shotcraft 的 `jianying-export/` 也有） |
 
 同类的 `ops120/video-recap-skills-plus` 评级为 CAUTION，不用。
+
+类型 09（`video-types/09-editing-talking-head.md`）读过的另一批仓库，许可证和借用点见 `engines/editing.md` 的"社区 skill 参考"，不在本表里。
 
 ### 数字人
 

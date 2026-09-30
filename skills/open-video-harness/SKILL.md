@@ -1,6 +1,6 @@
 ---
 name: open-video-harness
-description: Make videos with code (video-as-code / code2video) through the OpenVideoHarness workbench. Covers 3Blue1Brown-style math and science explainers, knowledge shorts (vertical or horizontal; 抖音, B站, 小红书, Shorts), product launch films and promos, lyric videos and music videos, data stories, paper explainers, hand-drawn or watercolour shorts, and meme or fast-cut edits. Also covers voiceover (Chinese or English), bilingual captions, code-composed music, sound effects, and reverse-engineering a reference video. Use it whenever the user asks to make, animate, render or remake a video, 做视频, 做动画, 做科普视频, 做宣传片, 做 MV, 讲解视频, or 片头, even if they don't name the harness.
+description: Make videos with code (video-as-code / code2video) through the OpenVideoHarness workbench. Covers 3Blue1Brown-style math and science explainers, knowledge shorts (vertical or horizontal; 抖音, B站, 小红书, Shorts), product launch films and promos, lyric videos and music videos, data stories, paper explainers, hand-drawn or watercolour shorts, meme or fast-cut edits, and cutting the user's own footage (talking heads, interviews, vlogs; 剪口播). Also covers voiceover (Chinese or English), bilingual captions, code-composed music, sound effects, and reverse-engineering a reference video. Use it whenever the user asks to make, animate, render, remake or cut a video, 做视频, 做动画, 做科普视频, 做宣传片, 做 MV, 讲解视频, 片头, 剪用户自己录的素材, or 剪口播, even if they don't name the harness.
 ---
 
 # OpenVideoHarness
@@ -28,7 +28,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 Read `<harness>/CLAUDE.md` (Codex: `<harness>/AGENTS.md`, which is identical) and follow it exactly:
 
-- route the request to one of the 8 `video-types/` docs;
+- route the request to one of the 9 `video-types/` docs (09, editing the user's own footage, is experimental);
 - create the project with `<harness>/bin/vh new <type> <slug>`;
 - stop for the user where effort and director mode say (CLAUDE.md "努力程度" and "导演模式"): `standard` and `studio` stop at the **three human review gates** (outline → storyboard → first draft); `quick` renders straight through. Anything the user said they want to decide themselves (hook, main character, theme music, title and cover …) adds a stop before anything downstream needs it, or rides on the next gate if it can wait. Each stop is by default one local review page from `bin/vh review`, at most three decisions; send the user only the lines it prints, then wait;
 - follow the hard rules: every frame is a pure function of t; when there is sound, audio sets the timing; storyboard before code; self-review every scene; fact discipline;
