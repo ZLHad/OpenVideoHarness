@@ -113,6 +113,8 @@ ffmpeg -i out.mp4 -i out.mp4 -filter_complex "[0:v]select='gte(n,$N-6)'[a];[1:v]
 
 硬规则 1 的"PSNR ≥ 45 dB"指的是无损帧。x264 会沿参考帧把 GPU 光栅化带来的几个像素的差异放大。本仓库的介绍片（intro film）v3 做过对照：1 个 worker 和 3 个 worker 渲出的无损 PNG 序列，最低 PSNR 在 60–92 dB 之间，肉眼看不出；同样两次渲染编码成 mp4 再比，最低掉到约 42 dB，会被误判为不确定。
 
+那几个像素来自 GPU 上的 2D canvas 光栅化：文字边缘在不同的 Chrome 进程里差 1 个色阶，同一台机器上每次都不一样。要逐字节相同，给 `hyperframes render` 加 `--no-browser-gpu`（SwiftShader 渲 WebGL，canvas 和合成都在 CPU 上，截帧路径也不再随 worker 数变）；样片渲染器 `styles/_swatch/render.sh` 就是这么做的，代价是慢一些，原因和数据见 `styles/_swatch/README.md` 的"确定性"。
+
 ```bash
 # HyperFrames：同一段分别用 1 个和 3 个 worker 渲成 PNG 序列，再逐帧比
 npx hyperframes render --format png-sequence --workers 1 --output out/det/w1
