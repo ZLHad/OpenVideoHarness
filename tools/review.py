@@ -11,12 +11,13 @@ of gate-<n>.html, which a later page does not overwrite. playbook/01-pipeline.md
 every field:
 
   summary, decisions[{id, question, options[{id, label, pro, con} | "id"], recommend, why, cost, reply}],
-  assets[{path, caption, for, t0, t1}], least_sure[{id, note} | "note"], animatic,
+  assets[{path, caption, for, t0, t1, poster}], least_sure[{id, note} | "note"], animatic,
   segments[{id, title, t0, t1, note, shots[{id, t0, t1, frame, see, vo, note}]}], appendix[{title, text, path}]
   optional: gate, title, lang (zh | en), decided[], delegated[], not_reviewed
 
 Paths are relative to the project and linked relatively, so the page opens straight from disk (images, GIF, mp4 and
-audio play in the browser); http(s) URLs pass through, other schemes are refused. Every text is HTML-escaped.
+audio play in the browser); http(s) URLs pass through, other schemes are refused. Every text is HTML-escaped; appendix
+text may hold simple pipe tables (| a | b | / |---|---| / | 1 | 2 |).
 
 Exit: 0 written (warnings, e.g. more than 3 decisions, go to stderr) · 1 written, but the page breaks a rule
 (a decision without a question, recommendation or reply, an option without an id, a missing file, a refused URL,
@@ -53,7 +54,7 @@ T = {
                theme="切换深色 / 浅色", nav_decide="决定", nav_other="材料", nav_appendix="附录",
                page="页面", chat_head="{title} · 要你定 {n} 件事", chat_none="{title} · 没有要你定的事，看一眼，回“通过”或写要改的。",
                chat_item="{i}. {q} 回 {reply}\n   推荐 {r}{why}", chat_all="照推荐就回：{all}。其余默认通过。",
-               chat_least="我最没把握的：{items}{red}", chat_red="（页面里标红）",
+               chat_least="我最没把握的{red}：", chat_red="（镜头在页面里标红）",
                why="：{w}", sep="；", colon="：", quoted="「{x}」"),
     "en": dict(html_lang="en", decide="{n} thing(s) for you to decide", look="Just for a look",
                nothing="Nothing to decide on this page: take a look, then reply “ok” or say what to change.",
@@ -73,7 +74,7 @@ T = {
                chat_none="{title} · nothing to decide; take a look and reply “ok” or say what to change.",
                chat_item="{i}. {q} Reply {reply}\n   Recommended: {r}{why}",
                chat_all="To take every recommendation, reply: {all}. Everything else passes by default.",
-               chat_least="Least sure about: {items}{red}", chat_red=" (red on the page)",
+               chat_least="Least sure about{red}:", chat_red=" (shots are red on the page)",
                why=" — {w}", sep="; ", colon=": ", quoted=" “{x}”"),
 }
 
@@ -120,6 +121,7 @@ section{padding:26px 0 8px}
 .rest{color:var(--muted);font-size:14px;width:100%}
 .lines{margin:14px 2px 0;font-size:14.5px;display:grid;gap:5px}
 .lines .k{color:var(--muted);margin-right:8px}
+.mini{margin:3px 0 2px;padding-left:20px;columns:2;column-gap:32px;font-size:14px}.mini li{break-inside:avoid;margin:1px 0}
 .chip{display:inline-block;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:1px 10px;margin:2px 6px 2px 0;font-size:13.5px}
 .chip.flag{border-color:var(--flag);color:var(--flag);background:var(--flag-soft)}
 figure{margin:14px 0 18px}
@@ -132,7 +134,7 @@ table{border-collapse:collapse;width:100%;font-size:14.5px;margin:8px 0 6px}
 th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 th{color:var(--muted);font-weight:600;font-size:13px}
 tr.pick td{background:var(--acc-soft)}
-.tag{font-size:12px;border-radius:5px;padding:0 6px;margin-left:6px;background:var(--acc);color:#fff;vertical-align:1px}
+.tag{font-size:12px;border-radius:5px;padding:0 6px;margin-left:6px;background:var(--acc);color:#fff;vertical-align:1px;white-space:nowrap}
 :root[data-theme=dark] .tag{color:#0f1115}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]) .tag{color:#0f1115}}
 .segment{border-top:2px solid var(--line);margin-top:18px}
@@ -158,7 +160,7 @@ summary{cursor:pointer;font-weight:600}
 footer{color:var(--muted);font-size:13px;padding:26px 0 40px;border-top:1px solid var(--line);margin-top:30px}
 @media (max-width:900px){.shots{grid-template-columns:repeat(calc(var(--cols,3) - 1),minmax(0,1fr))}.segbody{grid-template-columns:1fr}
 .drow{grid-template-columns:34px 1fr}.cost{grid-column:2;justify-self:start;white-space:normal}}
-@media (max-width:560px){.wrap{padding:0 16px}.shots{grid-template-columns:1fr}.drow{grid-template-columns:30px 1fr}h1{font-size:21px}}
+@media (max-width:560px){.mini{columns:1}.wrap{padding:0 16px}.shots{grid-template-columns:1fr}.drow{grid-template-columns:30px 1fr}h1{font-size:21px}}
 """
 
 HEAD_JS = """(function(){var r=document.documentElement,t=null;try{t=new URLSearchParams(location.search).get('theme')}catch(e){}
@@ -353,6 +355,14 @@ class Page:
                           "combined reply (use T1, A, H2 …)")
             dec["id"] = dec["id"] or f"d{i}"
             ids.append(dec["id"])
+        seen = {}
+        for i, dec in enumerate(decs, 1):
+            for oid in {o["id"] for o in dec["options"] if o["id"]}:
+                seen.setdefault(oid, []).append(i)
+        rep = {k: v for k, v in seen.items() if len(v) > 1}
+        if rep:
+            self.warn(f"option ids {sorted(rep)} appear in more than one decision; the take-all reply keeps them apart by "
+                      "number, but a freeform reply like 'A' is ambiguous: give each decision its own ids (A/B, H1/H2, T1/T2 …)")
         least = []
         for i, x in enumerate(as_list(d.get("least_sure"), "least_sure")):
             x = dict(x) if isinstance(x, dict) else {"note": scalar(x, f"least_sure[{i}]")}
@@ -392,7 +402,7 @@ class Page:
         assets = []
         for i, a in enumerate(as_list(d.get("assets"), "assets")):
             a = dict(as_dict(a, f"assets[{i}]"))
-            for k in ("path", "caption", "for"):
+            for k in ("path", "caption", "for", "poster"):
                 a[k] = scalar(a.get(k), f"assets[{i}].{k}").strip()
             a["t0"], a["t1"] = self.span(a, f"asset {a['path']}")
             if not a["path"]:
@@ -466,6 +476,8 @@ class Page:
                 frag, data = f"#t={a:g},{t1:g}", f' data-t0="{a:g}" data-t1="{t1:g}"'
             elif t0 is not None:
                 frag = f"#t={t0:g}"
+            elif not poster:
+                frag = "#t=0.001"   # Safari paints nothing before play under preload="metadata" without it
             pu = self.url(poster, what) if poster else None
             pa = f' poster="{pu}"' if pu else ""
             return f'<figure><video controls preload="metadata" playsinline src="{u}{frag}"{data}{pa}></video>{cap}</figure>'
@@ -531,7 +543,10 @@ class Page:
                 chips.append(f'<span class="chip flag">{label}{self.text(it["note"])}</span>')
             out.append(f'<div><span class="k">{t["least"]}</span>{"".join(chips)}</div>')
         for key in ("decided", "delegated"):
-            if d[key]:
+            if len(d[key]) > 2:      # a long list reads as a wall on one line
+                items = "".join(f"<li>{self.text(v)}</li>" for v in d[key])
+                out.append(f'<div><span class="k">{t[key]}</span><ul class="mini">{items}</ul></div>')
+            elif d[key]:
                 out.append(f'<div><span class="k">{t[key]}</span>{t["sep"].join(self.text(v) for v in d[key])}</div>')
         if d["not_reviewed"]:
             out.append(f'<div><span class="k">{t["not_reviewed"]}</span>{self.text(d["not_reviewed"])}</div>')
@@ -540,7 +555,7 @@ class Page:
     def decision_sections(self):
         t, out = self.t, []
         for i, dec in enumerate(self.d["decisions"], 1):
-            figs = "".join(self.media(a["path"], a["caption"], f"decision {dec['id']}", a["t0"], a["t1"])
+            figs = "".join(self.media(a["path"], a["caption"], f"decision {dec['id']}", a["t0"], a["t1"], a["poster"] or None)
                            for a in self.assets_for(dec["id"]))
             opts, table = dec["options"], ""
             if opts:
@@ -568,7 +583,7 @@ class Page:
         rest = self.loose_assets()
         if not rest:
             return ""
-        figs = "".join(self.media(a["path"], a["caption"], "asset", a["t0"], a["t1"]) for a in rest)
+        figs = "".join(self.media(a["path"], a["caption"], "asset", a["t0"], a["t1"], a["poster"] or None) for a in rest)
         return f'<section id="other"><h2>{self.t["other"]}</h2>{figs}</section>'
 
     def segment_sections(self):
@@ -621,7 +636,7 @@ class Page:
                 cap = t["clip"].format(a=f'{s["t0"]:.1f}', b=f'{s["t1"]:.1f}')
                 clip = self.media(self.d["animatic"], cap, "animatic", s["t0"], s["t1"], first or None)
             body = f'<div class="segbody"><div>{clip}</div>{table}</div>' if (clip or table) else ""
-            extra = "".join(self.media(a["path"], a["caption"], f"segment {s['id']}", a["t0"], a["t1"])
+            extra = "".join(self.media(a["path"], a["caption"], f"segment {s['id']}", a["t0"], a["t1"], a["poster"] or None)
                             for a in self.assets_for(s["id"]))
             note = f'<div class="segnote">{self.text(s["note"])}</div>' if s["note"] else ""
             nflag = sum(1 for sh in shots if sh["id"] in self.flagged)
@@ -632,10 +647,33 @@ class Page:
                        f'<div class="shots" style="--cols:{cols};--ar:{ratio:.4f}">{"".join(cards)}</div>{body}{extra}</section>')
         return "".join(out)
 
+    def blocks(self, s):
+        """Text with simple pipe tables: a run of lines starting with | whose second line is |---| becomes a table."""
+        out, para, lines, i = [], [], txt(s).split("\n"), 0
+        cells = lambda l: [c.strip() for c in l.strip().strip("|").split("|")]
+        while i < len(lines):
+            j = i
+            while j < len(lines) and lines[j].strip().startswith("|"):
+                j += 1
+            if j - i >= 2 and re.fullmatch(r"\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?", lines[i + 1].strip()):
+                if para:
+                    out.append(f'<div class="text">{self.text(chr(10).join(para))}</div>')
+                    para = []
+                head = "".join(f"<th>{self.text(c)}</th>" for c in cells(lines[i]))
+                body = "".join("<tr>" + "".join(f"<td>{self.text(c)}</td>" for c in cells(l)) + "</tr>" for l in lines[i + 2:j])
+                out.append(f"<table><tr>{head}</tr>{body}</table>")
+                i = j
+            else:
+                para.append(lines[i])
+                i += 1
+        if para:
+            out.append(f'<div class="text">{self.text(chr(10).join(para))}</div>')
+        return "".join(out)
+
     def appendix_section(self):
         items = []
         for a in self.d["appendix"]:
-            body = f'<div class="text">{self.text(a["text"])}</div>' if a["text"] else ""
+            body = self.blocks(a["text"]) if a["text"] else ""
             if a["path"]:
                 body += self.media(a["path"], "", "appendix")
             items.append(f'<details><summary>{self.text(a["title"])}</summary>{body}</details>')
@@ -689,9 +727,11 @@ class Page:
         if decs:
             lines.append(t["chat_all"].format(all=self.take_all()))
         if self.d["least_sure"]:
-            items = [it["id"] or plain(it["note"]) for it in self.d["least_sure"]]
             red = t["chat_red"] if any(it["id"] in self.shot_ids for it in self.d["least_sure"]) else ""
-            lines.append(t["chat_least"].format(items=" · ".join(items), red=red))
+            lines.append(t["chat_least"].format(red=red))
+            for it in self.d["least_sure"]:
+                both = t["colon"].join(x for x in (it["id"], plain(it["note"])) if x)
+                lines.append(f"   {both}")
         lines.append(f'{t["page"]}{t["colon"]}{page_path}')
         return "\n".join(lines)
 
