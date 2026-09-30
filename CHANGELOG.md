@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+**README: one picture of the whole project**
+- `docs/assets/overview.en.svg` / `overview.zh.svg` replace the mermaid flowchart under "How it works". The new diagram shows the path from a one-sentence request to the final film, with the three human gates, sound-first rendering, the self-review loop and gate ③ sending the film back. Beside it, it shows what the repository provides: knowledge, tools and engines, and the records that feed lessons back into the playbook. Both files follow the reader's light or dark theme.
+
 **ElevenLabs word timing**
 - `bin/vh tts … elevenlabs` wrote every character as a "word": an English line became one entry per letter (90 for a 20-word sentence), so word-by-word captions flashed letters and the documented "same shape as --align" was not true. Character timestamps are now grouped into the same units as `--align gemini`: a Latin word or number each, a CJK character each, trailing punctuation kept on the word before it, opening quotes on the word after.
 
