@@ -9,7 +9,7 @@
 | 0 选路径 | — | `00-paradigm.md` 的选型表和 `video-types/` | 能说清验收标准 |
 | 1 Brief + 大纲 | `BRIEF.md`（受众、平台、时长、画幅、fps、有无声音、验收项）+ 3–7 段大纲 | `templates/BRIEF.md` | **人工关卡 ①** |
 | 2 风格 | `STYLE.md`：调色板、字体、缓动、安全区或锚点网格、禁止项 | `templates/STYLE.md` + 类型文档 | 一页纸能讲清 |
-| 3 脚本与分镜 | `SCRIPT.md`（有旁白时写，关键词标 `{cue}`）、`STORYBOARD.md`（每镜的时间、reads、转场）、分镜预览图 `out/check/storyboard.png`；节奏要紧的片子再加一版 animatic `out/animatic.mp4` | `templates/STORYBOARD.md` | 每镜都有事件，reads 不重叠；**人工关卡 ②** |
+| 3 脚本与分镜 | `SCRIPT.md`（有旁白时写，关键词标 `{cue}`）、`STORYBOARD.md`（每镜的时间、reads、转场）、每镜一张关键帧（分镜预览图 `out/check/storyboard.png`）；节奏要紧的片子再加一版 animatic `out/animatic.mp4` | `templates/SCRIPT.md`、`templates/STORYBOARD.md` | 每镜都有事件，reads 不重叠；**人工关卡 ②** |
 | 4 音频先行 | `audio/*`、`timeline.json`（词级时间）、`beats.json` | 见 `04-audio.md` | 用实测时长回写分镜 |
 | 5 搭引擎 | 渲染脚本、公共库（hash、ease、keyframe、camera、pulse），先做一个样板场景 | `engines/README.md` | 乱序跳到同一帧，结果一致 |
 | 6 写场景 | 每个场景一个文件；长片按 chapter 分给多个 subagent | Claude Code subagents | 每个场景都过 lint、sheet、strip、crop |
@@ -22,10 +22,12 @@
 ```
 projects/2026-10-01-leo-doppler/
 ├── BRIEF.md  STYLE.md  STORYBOARD.md  SCRIPT.md  NOTES.md  LESSONS.md  TASTE_CHECKLIST.md
+├── REVIEW.md  DECISIONS.md   人的原话 / agent 替人定的事（导演模式）
 ├── audio/            voiceover.wav、bgm.mp3、timeline.json、beats.json
 ├── assets/           图片、字体、图标（记录来源和许可）
 ├── src/ 或 compositions/ 或 scenes/   场景代码（结构按引擎惯例）
 ├── out/check/        联系表、strip、crop
+├── out/review/       审阅页：gate-<n>.json → index.html（bin/vh review）
 └── out/final.mp4
 ```
 
@@ -47,19 +49,32 @@ projects/2026-10-01-leo-doppler/
 
 ## 三道人工关卡
 
-人的判断力最值钱的地方，是在改动还便宜的时候。按 `templates/REVIEW.md` 给出审阅包，然后停下来：
+人的判断力最值钱的地方，是在改动还便宜的时候。`standard` 和 `studio` 在下面三处停下来；人还点名要亲自拍板的事，按 CLAUDE.md 的"导演模式"在关卡之间的检查点加停。每次停都做一页决定优先的审阅页（`templates/REVIEW.md`，`bin/vh review` 生成本地 HTML），聊天里只发要人定的 ≤3 件事和页面路径：
 
 1. **大纲（关卡 ①）**：视频是什么、给谁看、多长、什么风格，再加 3–7 段大纲。不确认就往下做，后面几乎所有工作都可能白做。
-2. **分镜（关卡 ②）**：逐镜头的画面、reads 和转场，外加一张**分镜预览图**，每镜一张关键帧，可以是草图或灰盒。人看图比读文字快得多。改分镜只要几分钟，改写好的代码要几小时。节奏要紧的片子（卡配乐、有旁白、长于约 30 秒），这一关再附一版 animatic，做法见下。
+2. **分镜（关卡 ②）**：逐镜头的画面、reads 和转场，按大纲的段落拆页，每页 3–6 镜的关键帧，可以是草图或灰盒。人看图比读文字快得多。改分镜只要几分钟，改写好的代码要几小时。节奏要紧的片子（卡配乐、有旁白、长于约 30 秒），这一关再附一版 animatic，做法见下。
 3. **初版（关卡 ③）**：draft 成片加联系表。agent 要主动说出自己最不满意的 2–3 处，并给出可选的修法，比等人来挑更高效。
 
-每一关，人的意见都逐条记进 `REVIEW.md`。只有用户明确说"不用审、直接出"才能跳过，做法见下面的"授权的无人值守模式"。跳过也不等于不写这些文件：BRIEF 和 STORYBOARD 仍然是后续自查的依据。
+每一关，人的原话都逐字记进 `REVIEW.md`，agent 替人定的事记进 `DECISIONS.md`。只有用户明确说"不用审、直接出"才能跳过，做法见下面的"授权的无人值守模式"。跳过也不等于不写这些文件：BRIEF 和 STORYBOARD 仍然是后续自查的依据。
+
+### 检查点 E0–E5：导演模式加的停
+
+关卡是底线，检查点按需加：人在 `Director:` 里把某件事设成 `own`，或者说"这一步也停一下"（`stop=E4`），才在这里停。每个检查点也是一页审阅页。
+
+| 检查点 | 在哪 | 这时能定的事 |
+|---|---|---|
+| E0 样帧 | 关卡 ① 之后 | 风格（本片内容的样帧或 look-dev）、主角设定图、主旋律两版试听 |
+| E1 脚本 | 写分镜之前 | 旁白稿（每句的实测时长）、钩子三选一 |
+| E2 锁时 | animatic 通过之后 | 剪辑节奏。锁定后 `timeline.json` 和分镜的时间列不再手改，REVIEW.md 记一行；要改先写清代价再解锁 |
+| E3 样板章 | 长片并行之前 | 主 agent 亲手做的第一章：动作、字、节奏能不能当全片的标准 |
+| E4 声音 | 写场景之前 | 配音 A / B、主旋律在哪几段出现、哪里留白 |
+| E5 锁画面 | 关卡 ③ 之后 | 锁画面，之后只改声音、颜色和收尾；附 `bin/vh qa` 的结果和"请听这 3 处" |
 
 ### animatic：打磨之前先定节奏
 
 animatic 是整片长度的灰盒预演，属于阶段 3，放进关卡 ② 的审阅包，不是一个新阶段。
 
-- **怎么做**：960×540，draft 质量。几何块代替真素材，字用最终文案、按最终比例的字号，镜头运动和切点按分镜走。配上真实音频，没有就用占位音频（节拍器、临时配乐、TTS 草稿）。
+- **怎么做**：draft 画质即可。HyperFrames 只能按 composition 的尺寸或它的整数倍渲染，不能缩小，所以直接用 `--quality draft` 出原尺寸；要小文件，渲完再用 ffmpeg 缩。几何块代替真素材，字用最终文案、按最终比例的字号，镜头运动和切点按分镜走。配上真实音频，没有就用占位音频（节拍器、临时配乐、TTS 草稿）。
 - **看什么**：只看节奏，不评审美。每条 read 来不来得及读完？哪里拖？哪里挤？对照 `STORYBOARD.md` 的 reads 表逐镜读一遍。
 - **为什么值得**：reads 的时长只有放到真实速度下才看得准，而在灰盒阶段改节奏只是改时间表；等到画面打磨完再改，就要改代码、重渲。
 - **之后**：通过后，animatic 的时间线就是阶段 5–6 的骨架，场景代码往里填，时间点不再手改。

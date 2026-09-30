@@ -1,9 +1,10 @@
 # BRIEF
 
-<!-- 由 agent 根据用户需求填写，填完给用户确认（关卡 1）。花括号里的都要替换。类型文档里的 "Prompt 增量块" 贴在文末 TYPE 一节。 -->
+<!-- 由 agent 根据用户需求填写。standard / studio 在关卡 ① 给人看；quick 不停，人点名要定的事除外（CLAUDE.md"导演模式"）。花括号里的都要替换。类型文档里的 "Prompt 增量块" 贴在文末 TYPE 一节。 -->
 
 ## Spec
 - Effort: standard  <!-- quick | standard | studio：做多认真，规则见 CLAUDE.md "努力程度"。用户在对话里说的优先 -->
+- Director: default  <!-- 谁拍板：default = 按 Effort 的默认；人点名的写成 hook=own, character=own, packaging=own, rest=delegate（own 人选 / review 人过目 / delegate agent 定），stop=E4 加一个检查点。规则见 CLAUDE.md "导演模式"，对话里说的优先 -->
 - Output: {W}x{H}, {fps} fps, exactly {N}s ({frames} frames)
 - Engine: {HyperFrames | Remotion | Manim CE | ClaudeAnimationBase (p5.brush) | other}
 - Platform / audience: {where it plays, who watches, sound-on or muted}
@@ -32,7 +33,7 @@ Entrances easeOutExpo cubic-bezier(0.16,1,0.3,1) / power3.out; exits ease-in at 
 Every frame is a pure function of t. No Math.random / Date.now / CSS transitions; seed all noise; no state carried between frames.
 
 ## Process
-1. STORYBOARD.md: per shot = time range, VO/lyric, visual, focal element, the reads (each with start–end), transition out. Stop for approval.
+1. STORYBOARD.md: per shot = time range, VO/lyric, visual, focal element, the reads (each with start–end), transition out. Then stop where Effort and Director say (CLAUDE.md "导演模式"): gate ② for standard and studio, plus a stop for each decision the human owns; quick stops only for those.
 2. Audio first: build audio/timeline.json; rewrite shot timings from measured durations.
 3. Build scene by scene; after each scene render first/mid/last stills + a contact sheet + strips for key motions; critique against TASTE_CHECKLIST.md and log in NOTES.md; fix before moving on.
 4. Uncertain facts and creative decisions go in NOTES.md, never invented into the video.

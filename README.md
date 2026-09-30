@@ -173,6 +173,12 @@ Not every film deserves the full treatment. One switch controls how much effort 
 
 Just say "quick draft" or "make it studio quality" in your request, or start the project with `bin/vh new promo launch --effort studio`. The floor never drops at any level: every frame depends only on time, facts are copied exactly, no audio dropouts, flash-safe. `bin/vh effort` prints the full rules.
 
+### You choose what you decide
+
+Effort sets how hard the agent checks its own work; director mode sets what you decide yourself. Each of ten decisions (outline, script, style, hook, main character, theme music, storyboard, edit rhythm, voice, title and cover) can be yours to **own** (it shows you options and waits), yours to **review** (it shows you the result and carries on unless you object), or **delegated** (it decides and writes down why in `DECISIONS.md`). Every stop is a local page from `bin/vh review`: at most three decisions on the first screen, each with a recommendation and a one-line reply, then pictures, the animatic and music you can play in the browser. `standard` and `studio` still stop at the outline, storyboard and first draft.
+
+> **Deep involvement:** a 90 s explainer on how satellites avoid collisions, studio quality. I'll pick the hook, the main character, the theme melody, and the title and cover; decide the rest yourself.
+
 ### Why this makes it reliable
 
 A few hard rules (full version in [CLAUDE.md](CLAUDE.md)):
@@ -236,6 +242,7 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | `tts` / `voices` / `captions` / `music` / `sfx` / `beats` | Voiceover (per-line direction, beat snapping, word alignment, two-speaker dialogue) / Gemini voice library and voice design / subtitles / music / sound effects / analyse outside music |
 | `mix` / `qa` / `mux` | Mix / check the mix / put sound and subtitles on the video |
 | `sheet` / `check` / `readcheck` / `gif` | Timestamped contact sheet / find black, frozen or silent stretches / is text on screen long enough to read / make a GIF for your README |
+| `review <project> [gate]` | The review page for a stop: the decisions first, then pictures, animatic and audio, one page per storyboard segment |
 | `hf-init` / `install-skill` / `sync-agents` | Set up HyperFrames / register the skill / sync AGENTS.md |
 
 ## Requirements
@@ -289,7 +296,7 @@ OpenVideoHarness/
 ├── skills/                   the open-video-harness skill
 ├── video-types/              workflows for the 8 video types
 ├── playbook/                 shared know-how 00–08: pipeline, checks, motion, sound, effects and more
-├── templates/                files each new project fills in: brief, storyboard, style, review, notes, lessons, checklist
+├── templates/                files each new project fills in: brief, storyboard, style, review, decisions, notes, lessons, checklist; script, character and packaging when needed
 ├── styles/                   28 styles, each with a sample; _swatch/ renders the samples
 ├── cases/                    11 case studies + curated community work + a 3D long-form deep-dive
 ├── showcase/                 films made with this repo (source + final + process notes)
