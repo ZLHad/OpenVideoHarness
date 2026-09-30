@@ -22,6 +22,7 @@
 **Checks and branch rules**
 - `tools/ci.sh` runs the repo's own checks: shell syntax (also under macOS `/bin/bash` 3.2), shellcheck, a ban on BSD-only or GNU-only commands, Python and JS syntax, pyflakes, docs against the CLI, and `bin/vh` smoke tests. `--committed` checks HEAD in a clean checkout. GitHub Actions runs it on Linux and macOS.
 - `main` accepts pull requests only: `.github/rulesets/main.json`, enabled on 2026-09-30. `CONTRIBUTING.md` has the branch, PR and push rules for people and agents.
+- Auto-merge is on (squash only): a PR can be set to merge itself once both required checks pass, so nobody has to wait on CI. The ruleset still applies in full. `.github/rulesets/main.json` now matches the live ruleset field for field.
 
 **Camera language for video models**
 - `playbook/05`: how to write camera moves a video model can execute (four layers, start → path → end → constraints, a trigger between two moves), after Adrian Punk's *AI 视频运镜词典*. `playbook/07` breaks camera motion down the same way; `playbook/08` treats one-take camera paths as a choreography and handheld drift as low-frequency noise.
