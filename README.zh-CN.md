@@ -4,7 +4,7 @@
 
 **让 Claude Code、Codex 这类写代码的 AI，用写程序的方式做视频，而且做得稳。**
 
-科普、讲解、产品片、MV、数据、论文、手绘、梗图快剪：8 类视频，28 种风格，一套流程。
+科普、讲解、产品片、MV、数据、论文、手绘、梗图快剪、真人素材剪辑：9 类视频（09 实验中），28 种风格，一套流程。
 
 [English](README.md) · **中文** · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
@@ -191,7 +191,7 @@ bin/vh new promo launch-film --style cutout-jazz   # 建项目时直接带上一
 4. **每一段都自查**：看帧、测声音、对清单，不合格就改。
 5. **事实照抄原文**：数字、论文信息、引文都从原文抄，拿不准的记下来，不编进视频。
 
-## 8 类视频
+## 9 类视频（09 实验中）
 
 | # | 类型 | 首选引擎 | 一句话要点 | 文档 |
 |---|---|---|---|---|
@@ -203,6 +203,7 @@ bin/vh new promo launch-film --style cutout-jazz   # 建项目时直接带上一
 | 06 | 论文讲解、会议视频 | Manim + HyperFrames | 论文信息照抄，图全部重画成矢量 | [06](video-types/06-paper-explainer.md) |
 | 07 | 手绘、水彩、白板、剪纸 | p5.brush（自带） | 手工感，画面一直在动；也能按笔顺写汉字 | [07](video-types/07-hand-drawn.md) |
 | 08 | 野兽派、网络梗、快剪 | HyperFrames | 先搭网格再故意打破，笑点 1 秒内看懂 | [08](video-types/08-brutalist-meme.md) |
+| 09 | 真人素材剪辑、口播（用你自己的素材，实验中） | HyperFrames | 按音频的静音处定切点，不按 ASR 的词时间；剪辑清单你批准了才渲染 | [09](video-types/09-editing-talking-head.md) |
 
 还有几份专题：
 - 要写实人物或真实物理，就接生成式视频模型，再用代码叠加：[playbook/05](playbook/05-hybrid-genvideo.md)；
@@ -241,7 +242,7 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 | 命令 | 作用 |
 |---|---|
 | `doctor` / `setup` | 检查环境 / 安装依赖、拉取参考资料 |
-| `types` / `new <类型> <名字> [--style <风格>] [--effort <档位>]` | 列出 8 类视频 / 建一个新项目 |
+| `types` / `new <类型> <名字> [--style <风格>] [--effort <档位>]` | 列出 9 类视频 / 建一个新项目 |
 | `effort [quick\|standard\|studio]` | 看三档努力程度各做什么 |
 | `style list` / `style <风格>` / `style gallery` | 看风格 / 渲一段样片 / 重建风格总览 |
 | `recipes list [--intent …] [--energy …] [--engine …]` / `recipes check` | 按这一镜要说什么、多响来找镜头配方 / 校验一张配方 |
@@ -366,7 +367,7 @@ OpenVideoHarness/
 ├── install.sh                一键安装
 ├── bin/vh · tools/           命令行和背后的脚本
 ├── skills/                   open-video-harness skill
-├── video-types/              8 类视频的工作流
+├── video-types/              9 类视频的工作流（09 实验中）
 ├── playbook/                 通用知识 00–11：流程、自查、运动设计、声音、特效、叙事、钩子与封面、作曲等
 ├── templates/                每个新项目要填的文件：需求、分镜、风格、审阅、决定、笔记、经验、清单；按需再加旁白稿、角色、标题封面
 ├── styles/                   28 种风格，各带样片；_swatch/ 是样片渲染器
@@ -382,10 +383,10 @@ OpenVideoHarness/
 
 | 项目 | 它是什么 | 我们的不同 |
 |---|---|---|
-| [Code2Video](https://github.com/showlab/Code2Video) | 用 Manim 做教学视频的研究管线 | 把"代码即视频"的思路推广到 8 类视频，交给通用的 coding agent 执行 |
+| [Code2Video](https://github.com/showlab/Code2Video) | 用 Manim 做教学视频的研究管线 | 把"代码即视频"的思路推广到 9 类视频（09 实验中），交给通用的 coding agent 执行 |
 | [HyperFrames](https://github.com/heygen-com/hyperframes) / [Remotion](https://github.com/remotion-dev/skills) 的官方 skills | 单个引擎的用法 | 在引擎之上：选引擎、定流程、定审美、做自查，需要时再调用它们 |
 | [OpenMontage](https://github.com/calesthio/OpenMontage) | 全套 agent 视频制作系统 | 更轻：主要是 markdown、模板和一个命令行，任何 coding agent 都读得懂、改得动 |
-| [归藏 product-video skill](https://github.com/op7418/guizang-product-video-skill) | 专做软件产品更新片 | 覆盖 8 类视频，有三道人工关卡、风格库和中英双语声音；配乐音效的思路受它启发，代码是独立写的 |
+| [归藏 product-video skill](https://github.com/op7418/guizang-product-video-skill) | 专做软件产品更新片 | 覆盖 9 类视频（09 实验中），有三道人工关卡、风格库和中英双语声音；配乐音效的思路受它启发，代码是独立写的 |
 
 ## 常见问题
 
@@ -401,7 +402,7 @@ OpenVideoHarness/
 
 ## 路线图
 
-- [ ] 第 9 类：剪辑与口播（给已有素材剪辑、加字幕和 B-roll）
+- [ ] 第 9 类：剪辑与口播（给已有素材剪辑、加字幕和 B-roll）。已开工：[09](video-types/09-editing-talking-head.md) 是实验性的，只在合成材料上标定过，还没有用真实素材和剪辑软件导入试过
 - [ ] 第 10 类：3D 场景（Three.js 和着色器）的正式工作流
 - [ ] 逐字高亮的字幕（字级强制对齐）
 - [ ] 工作流文档的英文版

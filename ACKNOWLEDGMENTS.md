@@ -57,6 +57,24 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 | [product-film-skill](https://github.com/Rieranthony/product-film-skill) | Anthony Riera | MIT (Remotion under its own license) | Product films from the product's own design system: `BRAND.md`, three style frames before building, a 240 fps master for motion blur, a muted loop plus poster, and decode checks in `verify.py` |
 | [procedural-film](https://github.com/kuhnhomeuk-cell/procedural-film) | Dean Kuhn | MIT | Zero-asset JavaScript films: one agent per shot, waves of critics and a six-check gate |
 
+**Read for type 09, editing your own footage** (not fetched by `references/fetch.sh`; ideas and rules only, no code copied)
+
+| Repository | Author | License | What we learned from it |
+|---|---|---|---|
+| [video-use](https://github.com/browser-use/video-use) | browser-use | MIT | An edit list with a reason per cut, a phrase-line view of the transcript, twelve hard rules for cutting talking heads (`engines/editing.md`) |
+| [open-edit](https://github.com/veedstudio/open-edit) | veedstudio | Apache-2.0 | The gap rule of `speech-probe`, frame-snapped single-pass edits, refusing sources with a different colour or frame rate |
+| [cut-motion](https://github.com/Endless1936/cut-motion) | Endless1936 | Apache-2.0 | Median of three thresholds for cut boundaries, asymmetric handles, picture-evidence classes, the Chinese subtitle segmentation standard |
+| [kinocut](https://github.com/KyaniteLabs/kinocut) | KyaniteLabs | Apache-2.0 | An approval hash over the edit list, six timeline-diff checks, a reframing planner that abstains |
+| [timecode-agent](https://github.com/mupozg823/timecode-agent) | mupozg823 | MIT | Seam metrics, FCPXML and OTIO export, refusing variable frame rate |
+| [ghost-editor](https://github.com/kurbaitaev/ghost-editor) | kurbaitaev | MIT | Face-safe caption placement, measured platform overlay pixels, YuNet tracking, snap zoom |
+| [mandarin-talking-head-rough-cut](https://github.com/m15851855393-boop/mandarin-talking-head-rough-cut) | m15851855393-boop | Apache-2.0 | Rules for Chinese fillers, retakes and false starts, the read-through test, energy-valley snapping (paraphrased in `engines/editing.md`, not copied) |
+| [proofcut](https://github.com/tydude001/proofcut) | tydude001 | PolyForm Shield 1.0.0 | The idea only: compare a fresh transcript of the render with the edit list by word order |
+| [SeeCut](https://github.com/YeJe-cpu/SeeCut) | YeJe-cpu | PolyForm Noncommercial 1.0.0 | The idea only: pairwise judging with swapped positions, a function-to-treatment table, layered hand-off for JianYing |
+| [clipify](https://github.com/louisedesadeleer/clipify), [doza-assist](https://github.com/DozaVisuals/doza-assist) | louisedesadeleer, DozaVisuals | MIT | Per-speaker crop expressions with a hard cut on speaker change; learning an editing style from the user's own cuts (pointers only) |
+| [auto-editor](https://github.com/WyattBlue/auto-editor) | WyattBlue | Unlicense | Silence cutting and export to several editors |
+| [capcut-cli](https://github.com/renezander030/capcut-cli), [pyJianYingDraft](https://github.com/GuanYixuan/pyJianYingDraft) | renezander030, GuanYixuan | MIT, Apache-2.0 | The CapCut and JianYing draft formats and the encryption since JianYing 6.0 (documentation only) |
+| [fcp-mcp-server](https://github.com/DareDev256/fcp-mcp-server) | DareDev256 | MIT | Rational frame rates in FCPXML (`fcpxml/rational.py`) |
+
 ## Research
 
 - Chen et al., **Code2Video: A Code-centric Paradigm for Educational Video Generation**, ICML 2026. [arXiv:2510.01174](https://arxiv.org/abs/2510.01174)
