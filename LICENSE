@@ -19,10 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Third-party components keep their own licenses:
-- engines/ClaudeAnimationBase is (c) John Heibel, MIT License (see engines/ClaudeAnimationBase/LICENSE).
-- Repositories fetched by references/fetch.sh into references/repos/ are NOT part of
-  this distribution; each is governed by its own license (see ACKNOWLEDGMENTS.md).

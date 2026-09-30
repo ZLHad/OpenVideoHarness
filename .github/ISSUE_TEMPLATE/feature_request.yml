@@ -1,0 +1,21 @@
+name: Feature request · 功能建议
+description: A new capability, video type, engine or workflow improvement. · 新能力、新视频类型、新引擎或流程改进。
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to make, and what gets in the way? · 你想做什么，卡在哪里？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help · 你希望怎么解决
+      description: A command, a doc, a check, a new type… Links to reference videos or repos are welcome. · 一个命令、一份文档、一项检查、一个新类型……欢迎附参考视频或仓库链接。
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried instead · 你试过的其他做法

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**Repository and community files**
+- GitHub now detects the license as MIT: `LICENSE` holds only the standard MIT text, and its note on third-party components moved, unchanged, to the top of `ACKNOWLEDGMENTS.md`.
+- Issue forms (bug report, feature request, style proposal), a pull request template with the CONTRIBUTING checklist, `SECURITY.md` (private vulnerability reporting; what counts: key leaks, `fetch.sh` neutralisation bypasses, injection through `bin/vh`), `CODE_OF_CONDUCT.md` (Contributor Covenant 2.0), `CITATION.cff` (matches the README's BibTeX), a Sponsor button pointing to the README's support section, and Dependabot for the CI workflow's actions (npm left out: HyperFrames stays pinned to 0.8.82).
+
 **Linux fixes, found while setting up a cloud (Ubuntu 24.04) machine**
 - `bin/vh` used the macOS-only `sed -i ''`, which GNU sed reads as a file name. On Linux, `new … --effort` silently kept `standard` in BRIEF.md, and `hf-init` left GSAP on the CDN, so `hyperframes render` refused to run offline. Both now go through a portable `sedi` helper.
 - `styles/_swatch/package-lock.json` pinned every package to `registry.npmmirror.com`, so `npm ci` failed wherever that mirror is unreachable. It now records `registry.npmjs.org`, which npm swaps for whatever registry you have configured, so mirror users are unaffected.

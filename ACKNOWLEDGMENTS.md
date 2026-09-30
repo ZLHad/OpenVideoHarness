@@ -4,6 +4,10 @@ OpenVideoHarness is a harness, not a renderer. It stands on the frameworks, rese
 
 This project is independent. It is not affiliated with or endorsed by Anthropic, HeyGen, Remotion, Show Lab (NUS), or any author listed here. Product and model names (Claude, Claude Code, Codex, Seedance, etc.) belong to their owners.
 
+**License scope.** The MIT license in [LICENSE](LICENSE) covers this repository's original content. Third-party components keep their own licenses:
+- `engines/ClaudeAnimationBase` is (c) John Heibel, MIT License (see `engines/ClaudeAnimationBase/LICENSE`).
+- Repositories fetched by `references/fetch.sh` into `references/repos/` are NOT part of this distribution; each is governed by its own license (listed below).
+
 ## Vendored (shipped in this repository)
 
 | Component | Author | License | Where / how it is used |

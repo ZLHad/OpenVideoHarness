@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and show-and-tell · 提问和作品展示
+    url: https://github.com/ZLHad/OpenVideoHarness/discussions
+    about: How-to questions, ideas, and videos you made with the harness. · 用法问题、想法，以及你用它做的片子。
+  - name: Security vulnerability · 安全漏洞
+    url: https://github.com/ZLHad/OpenVideoHarness/security/policy
+    about: Report privately, not in a public issue. · 请私下报告，不要开公开 issue。
