@@ -214,7 +214,8 @@ def part_page(score, label, n, env, gain, chords, names, idx, path):
     pitched = [e for e in ev if e[2]]
     W, pad, lab = 2000, 32, 90
     if pitched:
-        lo = int(math.floor(min(min(e[2]) for e in pitched))) - 2; hi = int(math.ceil(max(max(e[2]) for e in pitched))) + 2
+        pmin, pmax = min(min(e[2]) for e in pitched), max(max(e[2]) for e in pitched)   # the notes' own range, for the header
+        lo = int(math.floor(pmin)) - 2; hi = int(math.ceil(pmax)) + 2
         if hi - lo < 14: lo -= (14 - (hi - lo)) // 2; hi = lo + 14
     else:
         lo, hi = 0, 1
@@ -223,7 +224,7 @@ def part_page(score, label, n, env, gain, chords, names, idx, path):
     row_h = 40 + roll_h + 70 + 36
     H = 110 + len(rows) * row_h + 50
     img = Image.new("RGB", (W, H), V.BG); d = ImageDraw.Draw(img)
-    rng = f" · {note_name(lo + 2, names)}–{note_name(hi - 2, names)}" if pitched else ""
+    rng = f" · {note_name(pmin, names)}–{note_name(pmax, names)}" if pitched else ""
     V.text(d, (pad, 22), f"{label} · {n['inst']}", V.font(32, bold=True), col)
     V.text(d, (pad, 66), f"{len(ev)} notes{rng} · plays in: {', '.join(n['sections'])} · {score.get('bpm')} bpm, "
            f"{score.get('key', 'C')} {score.get('mode', 'minor')} · rows of {per} bars", V.font(20), V.MUTED)

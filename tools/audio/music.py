@@ -485,7 +485,7 @@ def music_fade_start(L, beats, bars, beat):
     want = min(3.0, max(1.0, (bar[2] if bar else 4) * beat))
     grid = list(beats) + [beats[-1] + k * beat for k in range(1, int(4.0 / beat) + 2)] if beats else []
     near = [b for b in grid if L - 3.0 - 1e-6 <= b <= L - 1.0 + 1e-6]
-    return max(0.0, min(near, key=lambda b: (abs(L - b - want), b)) if near else L - want)
+    return max(0.0, min(near, key=lambda b: (round(abs(L - b - want), 6), b)) if near else L - want)   # rounded: a tie is a tie
 
 # ======================= parts: instruments playing patterns (voices in tools/audio/instruments.py) =======================
 import bisect, math
