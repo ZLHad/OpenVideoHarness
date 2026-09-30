@@ -6,7 +6,7 @@
 
 Explainers, science shorts, product films, music videos, data stories, paper talks, hand-drawn shorts and meme edits: 8 video types, 28 styles, one workflow.
 
-**English** · [中文](README.zh-CN.md)
+**English** · [中文](README.zh-CN.md) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-black)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
@@ -45,10 +45,12 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 ```
 
 This one command:
-- installs the repo into `~/OpenVideoHarness`;
-- sets up the built-in hand-drawn engine;
-- fetches the reference material;
+- clones the repo into `~/OpenVideoHarness` (about 330 MB; the sample films are in it);
+- installs the dependencies of the built-in hand-drawn engine and the style renderer (about 210 MB);
+- fetches 30 read-only reference repos (about 195 MB; `--no-refs` skips them);
 - registers the `open-video-harness` skill for Claude Code and Codex, so saying "make a video" in any folder leads the agent here.
+
+That is about 730 MB on disk. The first render and the sound tools download more the first time you use them: [what gets downloaded](#what-gets-downloaded) lists how much and where. New here? The wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) page goes from nothing to a first video.
 
 Then open Claude Code (or Codex) and say what you want:
 
@@ -207,7 +209,7 @@ The agent can't hear, so sound is built to be computed and measured:
 
 | You want | Command | Notes |
 |---|---|---|
-| Voiceover (zh / en) | `bin/vh tts` | Local open-source **Qwen3-TTS** by default: offline, free, about 2 GB on first run. 5 Chinese voices (including Beijing and Sichuan accents), 2 English. Interfaces ready for Alibaba Cloud, ElevenLabs and Gemini 3.8 Flash TTS (very expressive; direct the delivery in one sentence) |
+| Voiceover (zh / en) | `bin/vh tts` | Local open-source **Qwen3-TTS** by default: offline, free; the first run downloads about 2 GB of model and about 750 MB of Python packages. 5 Chinese voices (including Beijing and Sichuan accents), 2 English. Interfaces ready for Alibaba Cloud, ElevenLabs and Gemini 3.8 Flash TTS (very expressive; direct the delivery in one sentence) |
 | Narration with feeling and rhythm | `bin/vh tts … --beats` | Direct each line on its own, e.g. `[surprised question, fast, stress "one sentence"]`. With music, every line starts on a beat, and key lines can be pinned to a bar start or the drop. Default delivery per video type, frame-aligned tempos and mix settings are in [playbook/04](playbook/04-audio.md) |
 | Bilingual subtitles | `bin/vh captions` | Write the script as `中文 \|\| English` and get Chinese, English and two-line subtitles, which can be packed as switchable tracks |
 | Music | `bin/vh music` | Composed in code: the same score always gives the same music, plus the exact time of every beat for the picture to hit. Includes Chinese instruments (bells, guzheng, dizi, big drum) and changing time signatures. Using your own track? `bin/vh beats` finds its beats and drum hits |
@@ -245,7 +247,7 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | macOS or Linux, git | the basics | ✅ |
 | Node.js ≥ 22, Google Chrome | rendering in the browser | ✅ |
 | FFmpeg | encoding, mixing, checks | ✅ |
-| Python 3 + [uv](https://github.com/astral-sh/uv) | sound tools (`bin/vh tts`, `beats`, `music`, `sfx`, `qa`), timestamped contact sheets, Manim (dependencies are installed on the fly, nothing global) | ✅ for sound and contact sheets |
+| Python 3 + [uv](https://github.com/astral-sh/uv) | sound tools (`bin/vh tts`, `beats`, `music`, `sfx`, `qa`), timestamped contact sheets, Manim (dependencies are fetched on first use into uv's cache, not into a global environment) | ✅ for sound and contact sheets |
 | Apple Silicon | local Qwen3-TTS voiceover | For local voiceover |
 | LaTeX | equations in Manim | For math explainers |
 
@@ -278,6 +280,24 @@ npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harn
 The skill is only a pointer. The first time it's used, it asks before installing the full workbench.
 
 To update: `git pull` in the repo, then `references/fetch.sh`.
+
+### What gets downloaded
+
+Sizes are approximate, measured on macOS (Apple Silicon); `du -sh` will show slightly different numbers.
+
+| What | When | Where | Size |
+|---|---|---|---|
+| This repo, with the sample films and style samples | install | `~/OpenVideoHarness` | about 330 MB |
+| Node packages of the hand-drawn engine and the style renderer | install | `node_modules` inside the repo | about 210 MB |
+| 30 read-only reference repos | install, unless `--no-refs` | `references/repos/` | about 195 MB |
+| Chrome for HyperFrames (`chrome-headless-shell`) | the first `hyperframes render` | `~/.cache/hyperframes` | about 100 MB to download, 200 MB on disk |
+| Python packages for `bin/vh beats`, `music`, `sfx`, `qa` and `sheet` (librosa, numba, scipy …) | the first time you run each | uv's cache, `~/.cache/uv` | about 700 MB in all |
+| `node_modules` of a HyperFrames project | each `bin/vh new short`, `promo`, `data` or `meme` | inside that project | about 140 MB each |
+| The local Qwen3-TTS voice: `mlx-audio` and its packages, then the model | the first `bin/vh tts` with the default local provider (`qwen`); not needed with another provider | `~/.cache/uv` and `~/.cache/huggingface` | about 750 MB and 2 GB |
+
+The installer writes inside the repo, plus (unless you pass `--no-skill`) two small skill files under `~/.claude/skills` and `~/.agents/skills`, and whatever npm keeps in its own cache. The rows from `chrome-headless-shell` down are fetched later, without asking and with little output: `bin/vh` runs `uv` quietly, and in a non-interactive shell (which is how an agent runs commands) the first render only shows "Checking browser…" while Chrome downloads. HyperFrames also keeps a small config and log in `~/.hyperframes`. All of this lives under your home directory, outside the repo, and uv's and Hugging Face's caches are shared with your other tools. On a slow or blocked connection (mainland China, for example) the 国内网络 section of [README.zh-CN.md](README.zh-CN.md) has mirror settings for each row.
+
+**Skipping the references.** They are other people's skills and film sources, cloned shallowly so that an agent can read them. Rendering doesn't depend on them. Install with `--no-refs`, and when a workflow doc points at a `references/repos/<name>/` you don't have, fetch just that one: `references/fetch.sh hyperframes` (about 30 MB). `references/fetch.sh` with no argument fetches all 30.
 
 ## What's in the repo
 
