@@ -4,7 +4,7 @@ usage (via bin/vh tts): python tools/audio/tts.py <project_dir> [--provider qwen
                                                  [--gap 0.25] [--instruct "calm, warm"]
                                                  [--beats music.beats.json [--snap beat|half|downbeat] [--lead 0.0]]
                                                  [--align gemini [--min-sim 0.85] [--vocab "术语,Term"]]
-                                                 [--join none|block|all]
+                                                 [--join none|block|all] [--resume]
        (via bin/vh voices): python tools/audio/tts.py voices list [lang] | design "<description>" | delete <voice_id>
 
 Input  <project>/audio/script.txt — one spoken line per row (a line = one caption / cue unit).
@@ -16,6 +16,8 @@ Input  <project>/audio/script.txt — one spoken line per row (a line = one capt
        --beats: start every line on the next grid point of a beat map (bin/vh music / bin/vh beats output) instead of a
        fixed --gap, so narration rides the music; --snap picks the grid, --lead the earliest start of line 1.
        A single line can pick its own grid with @id:downbeat (or :beat, :half), e.g. the answer that lands on the drop.
+       A map without the chosen grid is an error; when the narration outlives the grid, the lines past its end follow
+       --gap, and that is said once.
        --lang picks which side is spoken (zh = left, en = right); both sides go into the timeline for captions.
        Without --lang it is zh, unless no line has a Chinese side: an English-only script is spoken in English
        (English voice, English ASR, voiceover.en.wav). A mixed script keeps one narrator, so it stays zh.
@@ -51,13 +53,19 @@ Alignment check (--align gemini, any provider): every line is transcribed by gem
        word timestamps, so it cannot be used in the timing pass. ASR timestamps come in 0.1 s steps; numbers may come
        back normalised ("二十六" → "26"), which lowers similarity without being an error. GEMINI_ASR_MODEL,
        GEMINI_ASR_LANGS (default cmn-Hans-CN / en-US) override the model and language hints.
+       The key is checked before anything is synthesized. The voiceover and timeline are written right after synthesis,
+       so a transcribe call that fails for good (a daily quota, the network, a bad file) cannot lose the take: the line
+       keeps its measured timing and gets asr {"error"}, the command exits 1, and --resume redoes only the ASR /
+       alignment on the files of that run (no synthesis, no charge for it).
 Joined synthesis (--join block|all): consecutive lines go into one request — `block` = runs of lines between blank
        lines in script.txt, `all` = the whole script (8,192 input tokens per gemini request). Prosody flows across
        lines, but a line can no longer be re-run or beat-snapped on its own: only each block's start snaps to the grid
        (with its first line's @id:grid), lines inside keep their natural spacing. Line boundaries are recovered from
        word timestamps, so --join turns --align gemini on; vo/<lang>/NN.wav are then cuts of the block audio.
        A gemini dialogue defaults to --join block (mode "conversational", ≤ 2 speakers, library voices only);
-       designed voice_… ids or a third speaker fall back to one request per turn.
+       designed voice_… ids or a third speaker fall back to one request per turn. When the transcription of a block
+       fails, the block is kept whole (vo/<lang>/_blockNN.wav; its lines share the block's span in the timeline, with
+       asr {"error"}) and --resume re-transcribes and cuts it without synthesizing again.
 
 Providers (API keys come from environment variables only, never from files):
   qwen        DEFAULT. Local open-source Qwen3-TTS (Apache-2.0) on Apple Silicon via mlx-audio, offline and free.
@@ -105,6 +113,10 @@ def duration(p: Path) -> float:
     return float(run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)]).stdout)
 
 RATE_WAIT_MAX, RATE_TRIES = 90.0, 5   # a 429 asking for more than 90 s is a daily quota: waiting will not help
+BODY_PARSE, BODY_SHOW = 8192, 500     # bytes of an error body read for the retry delay / repeated in the message
+
+class GeminiError(RuntimeError):
+    """A Gemini call that failed for good (after its retries). tts keeps what it has and reports it; voices exits."""
 
 def retry_after(e, msg):
     """Seconds a 429 asks for: the Retry-After header, else "retry in 59s" / "retryDelay": "59s" in the body, else 60."""
@@ -119,7 +131,9 @@ def gemini_call(path, body=None, method=None, query=None, timeout=180, tries=3):
     """One Gemini REST call. The key travels in a header only, never in the URL or an error message.
     5xx and network errors are retried twice: the TTS docs note rare 500s when the model returns text instead of audio.
     A 429 waits as long as the API asks and is retried up to 5 times: Tier 1 allows 10 transcribe calls a minute, so
-    --align on 11 or more lines hits it. A 429 asking for more than 90 s (a daily quota) fails at once."""
+    --align on 11 or more lines hits it. A 429 asking for more than 90 s (a daily quota) fails at once.
+    The delay is read from the first 8 KB of the body: a long quota message puts "retry in Ns" past the first 500 bytes,
+    which are all that the error message repeats. A call that fails for good raises GeminiError."""
     key = os.environ.get("GEMINI_API_KEY") or sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)")
     url = f"{GEMINI_API}/{path}" + (f"?{urllib.parse.urlencode(query, doseq=True)}" if query else "")
     data = None if body is None else json.dumps(body).encode()
@@ -132,19 +146,19 @@ def gemini_call(path, body=None, method=None, query=None, timeout=180, tries=3):
                 raw = r.read()
             return json.loads(raw) if raw.strip() else {}
         except urllib.error.HTTPError as e:
-            msg = e.read()[:500].decode(errors="replace")
-            wait = retry_after(e, msg) if e.code == 429 else None
+            body = e.read()[:BODY_PARSE].decode(errors="replace")
+            wait = retry_after(e, body) if e.code == 429 else None
             if wait is not None and wait <= RATE_WAIT_MAX and limited < RATE_TRIES:
                 limited += 1
                 print(f"  gemini rate limit ({path.split('/')[0]}): waiting {wait:.0f} s, then retrying", flush=True)
                 time.sleep(wait); continue
             if e.code in (500, 502, 503, 504) and k < tries - 1:
                 k += 1; time.sleep(3 * k); continue
-            sys.exit(f"gemini {path.split('/')[0]} error {e.code}: {msg}")
+            raise GeminiError(f"gemini {path.split('/')[0]} error {e.code}: {body[:BODY_SHOW]}")
         except (urllib.error.URLError, TimeoutError) as e:
             if k < tries - 1:
                 k += 1; time.sleep(3 * k); continue
-            sys.exit(f"gemini {path.split('/')[0]}: {e}")
+            raise GeminiError(f"gemini {path.split('/')[0]}: {e}")
 
 # ---------- providers: each writes a WAV at `out` and may return word/char timings ----------
 
@@ -176,7 +190,7 @@ def p_say(text, voice, out: Path, tmp: Path, lang, instruct=None):
         sys.exit(f"tts: the `say` provider is macOS-only (no `say` command on {sys.platform}); use "
                  f"{', '.join(p for p in PROVIDERS if p not in ('say', 'qwen'))} (qwen needs Apple Silicon)")
     aiff = tmp / "say.aiff"
-    run(["say", "-v", voice or ("Tingting" if lang.startswith("zh") else "Samantha"), "-o", str(aiff), text])
+    run(["say", "-v", voice or ("Tingting" if lang.startswith("zh") else "Samantha"), "-o", str(aiff), "--", text])   # "--": a line may start with "-"
     to_wav(aiff, out)
     return None
 
@@ -244,7 +258,7 @@ def gemini_tts(turns, out: Path, tmp: Path, model, voice):
     audio = [c for st in resp.get("steps", []) if st.get("type") == "model_output"
              for c in st.get("content", []) if c.get("type") == "audio" and c.get("data")]
     if not audio:
-        sys.exit(f"gemini: no audio in the response: {json.dumps(resp)[:500]}")
+        raise GeminiError(f"gemini: no audio in the response: {json.dumps(resp)[:500]}")
     raw = tmp / "gm.wav"; raw.write_bytes(base64.b64decode(audio[-1]["data"])); to_wav(raw, out)
 
 def p_gemini(text, voice, out: Path, tmp: Path, lang, instruct=None, model=None):
@@ -351,18 +365,21 @@ def _norm(u):
 
 def script_units(text):
     """Speakable units (a CJK character or a Latin word / number) with their display text: trailing punctuation stays
-    on the unit before it, opening quotes and brackets move to the unit after."""
+    on the unit before it, opening quotes and brackets move to the unit after. The last unit keeps everything after it
+    ("world ." → "world .", "Hi 👋" → "Hi 👋"); an interior tail is stripped of spaces ("a , b" → "a," "b")."""
     ms, out, lead = list(UNIT.finditer(text)), [], ""
     if ms:
         lead = text[:ms[0].start()].strip()
     for i, m in enumerate(ms):
         gap = text[m.end(): ms[i + 1].start() if i + 1 < len(ms) else len(text)]
-        if re.search(r"\s", gap):
+        if i + 1 == len(ms):
+            tail, nxt = gap.rstrip(), ""
+        elif re.search(r"\s", gap):
             j = max(k for k, ch in enumerate(gap) if ch.isspace())
-            tail, nxt = gap[:j].rstrip(), gap[j + 1:]
+            tail, nxt = gap[:j].strip(), gap[j + 1:]
         else:
             j = len(gap)
-            while j and gap[j - 1] in OPENERS and i + 1 < len(ms):
+            while j and gap[j - 1] in OPENERS:
                 j -= 1
             tail, nxt = gap[:j], gap[j:]
         out.append({"n": _norm(m.group()), "u": m.group(), "d": lead + m.group() + tail, "cjk": bool(re.match(rf"[{_CJK}]", m.group()))})
@@ -419,10 +436,13 @@ def _words(units, times):
             out.append({"w": u["d"], "start": s, "end": e, "g": g, "cjk": u["cjk"]})
     return [{"w": w["w"], "start": round(w["start"], 3), "end": round(max(w["end"], w["start"]), 3)} for w in out]
 
+MIN_SPAN = 0.1    # a line the ASR skipped entirely still gets this much: no zero-length cue, no header-only WAV
+
 def align_lines(texts, asr_words, dur, alts=None):
     """Map the script lines spoken in one audio file onto its ASR words → per line: speech span, cut points for
     splitting the file, script-spelled words and the similarity to what was heard inside the line's span
-    (alts: the same lines with their |reaction| words kept, which the other speaker voices inside the turn)."""
+    (alts: the same lines with their |reaction| words kept, which the other speaker voices inside the turn).
+    A line nothing was heard for gets MIN_SPAN around its point (it is flagged anyway: similarity 0)."""
     lines = [script_units(t) for t in texts]
     a = asr_units(asr_words)
     times, res, k = _match([u["n"] for L in lines for u in L], a), [], 0
@@ -430,6 +450,11 @@ def align_lines(texts, asr_words, dur, alts=None):
         tt = times[k:k + len(L)]; k += len(L)
         prev = res[-1]["end"] if res else 0.0
         res.append({"units": L, "times": tt, "start": tt[0][0] if tt else prev, "end": tt[-1][1] if tt else prev})
+    for r in res:                                               # nothing heard for a line (its units were interpolated into
+        if r["units"] and r["end"] - r["start"] < MIN_SPAN / 2:   # one point): a MIN_SPAN around it, not a zero-length cut
+            mid = (r["start"] + r["end"]) / 2; r["start"], r["end"] = max(0.0, mid - MIN_SPAN / 2), min(dur, mid + MIN_SPAN / 2)
+            n, w = len(r["units"]), (r["end"] - r["start"]) / len(r["units"])
+            r["times"] = [(r["start"] + k * w, r["start"] + (k + 1) * w, None) for k in range(n)]
     for i, r in enumerate(res):
         r["cut0"] = 0.0 if i == 0 else (res[i - 1]["end"] + r["start"]) / 2
         r["cut1"] = dur if i == len(res) - 1 else (r["end"] + res[i + 1]["start"]) / 2
@@ -524,19 +549,21 @@ def trim_edges(wav: Path, tmp: Path):
     edge: ~0.2 s before and ~0.85 s after), keeping a short margin so onsets and decays stay whole. Spacing then comes
     only from --gap or the beat grid. −50 dBFS, not −45: at −45 the soft start of an f or h (up to 70 ms between −60 and
     −45 dBFS) was cut. Breathing or mumbling above −50 dBFS before the first word is not silence and stays: that is
-    what --align gemini's head check is for. Loudness is measured in 10 ms windows (RMS), so a click or a noise floor
-    does not count as voice.
+    what --align gemini's head check is for. Loudness is measured in 10 ms windows (RMS), and voice has to hold the
+    threshold for two consecutive windows (20 ms): an isolated click or pop before the first word does not stop the
+    trim, and a noise floor below −50 dBFS is not voice.
     Returns the seconds cut from the head (to shift word timings) and from the tail; a file with no voice is left as is."""
     import array
     raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(wav), "-ac", "1", "-ar", str(SR), "-f", "s16le", "-"],
                          check=True, capture_output=True).stdout
     x = array.array("h"); x.frombytes(raw[: len(raw) // 2 * 2])
     n = SR // 100; lim = (10 ** (TRIM_DB / 20) * 32768) ** 2 * n; wins = range(0, len(x), n)
-    loud = lambda i: sum(v * v for v in x[i:i + n]) > lim
-    first = next((i for i in wins if loud(i)), None)               # scan in from each end: stops at the voice
+    loud = lambda i: 0 <= i < len(x) and sum(v * v for v in x[i:i + n]) > lim
+    voice = lambda i: loud(i) and (loud(i - n) or loud(i + n))      # part of a ≥ 20 ms run above the threshold
+    first = next((i for i in wins if voice(i)), None)              # scan in from each end: stops at the voice
     if first is None:
         return 0.0, 0.0
-    last = next(i for i in reversed(wins) if loud(i))
+    last = next(i for i in reversed(wins) if voice(i))
     dur = len(x) / SR
     t0, t1 = max(0.0, first / SR - TRIM_HEAD), min(dur, (last + n) / SR + TRIM_TAIL)
     if t0 < 0.005 and dur - t1 < 0.005:
@@ -646,6 +673,8 @@ def main():
     ap.add_argument("--vocab", default="", help="with --align: extra terms (comma-separated) for the re-check of flagged lines")
     ap.add_argument("--join", default="auto", choices=["auto", "none", "block", "all"],
                     help="synthesize consecutive lines in one request (block = lines between blank lines)")
+    ap.add_argument("--resume", action="store_true",
+                    help="no synthesis: redo only the ASR / alignment on the files of the last run (after a failed transcription)")
     a = ap.parse_args()
     proj = Path(a.project).resolve(); audio = proj / "audio"; script = audio / "script.txt"
     if not script.exists():
@@ -675,7 +704,15 @@ def main():
     align = a.align == "gemini" or join != "none"
     if join != "none" and a.align != "gemini":
         print("  --join recovers line boundaries from word timestamps → --align gemini is on")
-    vo = audio / "vo" / a.lang; shutil.rmtree(vo, ignore_errors=True); vo.mkdir(parents=True)
+    if (gemini or align) and not os.environ.get("GEMINI_API_KEY"):     # before anything is synthesized or deleted
+        sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)" + ("" if gemini else ": --align gemini / --join transcribe with Gemini"))
+    if a.resume and not align:
+        sys.exit("--resume redoes only the ASR / alignment: it needs --align gemini or --join")
+    vo = audio / "vo" / a.lang
+    if a.resume:
+        vo.is_dir() or sys.exit(f"--resume: nothing in {vo.relative_to(proj)} to resume from; run once without it")
+    else:
+        shutil.rmtree(vo, ignore_errors=True); vo.mkdir(parents=True)
     grids = {}
     if a.beats:
         bm = json.loads(Path(a.beats).read_text())
@@ -688,9 +725,19 @@ def main():
         print(f"  warning: @{s['id']}:{s['snap']} — unknown grid (beat | half | downbeat); ignored, the line uses --snap {a.snap or 'beat'}")
     a.snap = a.snap or "beat"
     grid = grids.get(a.snap, [])
-    def next_start(earliest, which=None):  # first point of the chosen grid at or after `earliest` (past its end: as is)
-        g = grids.get(which or a.snap, grid)
-        return next((x for x in g if x >= earliest - 1e-6), earliest)
+    if a.beats and not grid:
+        have = ", ".join(k for k in ("beats", "downbeats") if bm.get(k)) or "neither beats nor downbeats"
+        sys.exit(f"--beats {a.beats}: no '{a.snap}' grid in it (it has {have}); pass --snap downbeat, or a map written by bin/vh music or bin/vh beats")
+    said = set()
+    def next_start(first, t, which=None):
+        """First point of the line's grid at or after its earliest start (--lead, else t + --min-gap). Past the end of
+        the grid (the narration outlives the music) the line follows --gap instead, and that is said once per grid."""
+        name = which or a.snap; g = grids.get(name, grid); earliest = a.lead if first else t + a.min_gap
+        x = next((x for x in g if x >= earliest - 1e-6), None)
+        if x is None and a.beats and name not in said:
+            said.add(name)
+            print(f"  warning: the {name} grid " + (f"ends at {g[-1]:.2f} s" if g else f"is empty in {a.beats}") + f"; from here lines follow --gap {a.gap}", flush=True)
+        return x if x is not None else (a.lead if first else t + a.gap)
     def silence(sec, k):
         f = vo / f"_gap{k:02d}.wav"
         run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"anullsrc=r={SR}:cl=mono", "-t", f"{max(sec, 0.001):.4f}", str(f)])
@@ -704,22 +751,41 @@ def main():
         return (raw if conv or not reactions else strip_reactions(raw)) if gemini else s["text"]
     def style_of(s):
         return "; ".join(x for x in (a.instruct, s.get("direction")) if x) or None
+    err = lambda e: str(e) if isinstance(e, GeminiError) else f"{type(e).__name__}: {e}"
     t, parts, asr_s, asr_n, trimmed = 0.0, [], 0.0, 0, 0.0
+    joined = audio / f"voiceover.{a.lang}.wav"
+    def write_outputs():
+        """voiceover.<lang>.wav, timeline.<lang>.json and the timeline.json / voiceover.wav copies: right after synthesis
+        (so a failing ASR call cannot lose the take) and again once the alignment is in."""
+        lst = vo / "_concat.txt"; lst.write_text("".join(f"file '{p.name}'\n" for p in parts))
+        run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "pcm_s16le", str(joined)])
+        tl = {"provider": a.provider, "voice": a.voice, "lang": a.lang, "duration": round(duration(joined), 3),
+              **({"grid": {"beats": a.beats, "snap": a.snap, "lead": a.lead}} if grid else {}),
+              **({"speakers": speakers} if dialogue else {}), **({"join": join} if join != "none" else {}),
+              **({"align": {"model": os.environ.get("GEMINI_ASR_MODEL", "gemini-3.5-transcribe"), "min_sim": a.min_sim}} if align else {}),
+              "segments": [{k: v for k, v in s.items() if not k.startswith("_")} for s in segs]}
+        body = json.dumps(tl, ensure_ascii=False, indent=2)
+        (audio / f"timeline.{a.lang}.json").write_text(body, encoding="utf-8")
+        (audio / "timeline.json").write_text(body, encoding="utf-8")
+        shutil.copyfile(joined, audio / "voiceover.wav")
+        return tl
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
         if join == "none":
             for i, s in enumerate(segs):
                 text = prepare(s)
-                out = vo / f"{i+1:02d}.wav"
-                voice = speakers.get(s["speaker"], a.voice) if s.get("speaker") else a.voice
-                words = PROVIDERS[a.provider](text, voice, out, tmp, a.lang, style_of(s))
-                if not a.keep_edges:                                   # the provider's own lead-in / tail silence
-                    h, tl = trim_edges(out, tmp); trimmed += h + tl
-                    if words and h:
-                        words = [dict(w, start=max(0.0, w["start"] - h), end=max(0.0, w["end"] - h)) for w in words]
-                d = duration(out)
-                start = (next_start(a.lead if i == 0 else t + a.min_gap, s.get("snap")) if grid
-                         else (a.lead if i == 0 else t + a.gap))
+                out = vo / f"{i+1:02d}.wav"; words = None
+                if a.resume:
+                    out.exists() or sys.exit(f"--resume: {out.relative_to(proj)} is missing (the script changed?); run without --resume")
+                else:
+                    voice = speakers.get(s["speaker"], a.voice) if s.get("speaker") else a.voice
+                    words = PROVIDERS[a.provider](text, voice, out, tmp, a.lang, style_of(s))
+                    if not a.keep_edges:                               # the provider's own lead-in / tail silence
+                        h, tail = trim_edges(out, tmp); trimmed += h + tail
+                        if words and h:
+                            words = [dict(w, start=max(0.0, w["start"] - h), end=max(0.0, w["end"] - h)) for w in words]
+                d = duration(out); s["_cutlen"] = d
+                start = next_start(i == 0, t, s.get("snap"))
                 if start > t:
                     parts.append(silence(start - t, i))
                 t = start
@@ -729,11 +795,16 @@ def main():
                 parts.append(out); t += d
                 print(f"  {s['id']:<8} {s['start']:6.2f}–{s['end']:6.2f}s  {(s['speaker'] + ': ') if s.get('speaker') else ''}{s['text']}", flush=True)
             if align:                                                  # every line in parallel, after synthesis
+                write_outputs()                                        # the take is on disk before the first ASR call
                 t0 = time.time()
                 with ThreadPoolExecutor(4) as ex:
-                    heard = list(ex.map(lambda s: transcribe(proj / s["file"], a.lang, tmp), segs))
+                    futs = [ex.submit(transcribe, proj / s["file"], a.lang, tmp) for s in segs]
                 asr_s, asr_n = time.time() - t0, len(segs)
-                for s, (txt, ws) in zip(segs, heard):
+                for s, f in zip(segs, futs):
+                    try:
+                        txt, ws = f.result()
+                    except Exception as e:                             # quota, network, a bad file: the line keeps its timing
+                        s["asr"] = {"error": err(e)}; continue
                     r = align_lines([s["text"]], ws, s["end"] - s["start"])[0]
                     s["asr"] = asr_record(txt, r, a.min_sim)
                     if "words" not in s:
@@ -755,29 +826,37 @@ def main():
                              f" them and use --join block, or use --join none.")
                 texts = [prepare(s, conv) for s in blk]
                 bout = vo / f"_block{bi+1:02d}.wav"
-                if gemini:
-                    env_style = os.environ.get("GEMINI_TTS_STYLE")
-                    turns = [{"text": x, "style": style_of(s) or env_style, "speaker": s.get("speaker") if conv else None}
-                             for x, s in zip(texts, blk)]
-                    gemini_tts(turns, bout, tmp, gemini_model(a.provider), dict(speakers) if conv else a.voice)
+                if a.resume:
+                    bout.exists() or sys.exit(f"--resume: {bout.relative_to(proj)} is missing (the script's blocks changed?); run without --resume")
                 else:
-                    PROVIDERS[a.provider](("" if a.lang == "zh" else " ").join(texts), a.voice, bout, tmp, a.lang, a.instruct)
-                if not a.keep_edges:                                   # only the block's own edges: pauses inside stay
-                    h, tl = trim_edges(bout, tmp); trimmed += h + tl
+                    if gemini:
+                        env_style = os.environ.get("GEMINI_TTS_STYLE")
+                        turns = [{"text": x, "style": style_of(s) or env_style, "speaker": s.get("speaker") if conv else None}
+                                 for x, s in zip(texts, blk)]
+                        gemini_tts(turns, bout, tmp, gemini_model(a.provider), dict(speakers) if conv else a.voice)
+                    else:
+                        PROVIDERS[a.provider](("" if a.lang == "zh" else " ").join(texts), a.voice, bout, tmp, a.lang, a.instruct)
+                    if not a.keep_edges:                               # only the block's own edges: pauses inside stay
+                        h, tail = trim_edges(bout, tmp); trimmed += h + tail
                 bd = duration(bout)
-                t0 = time.time()
-                txt, ws = transcribe(bout, a.lang, tmp)
+                t0 = time.time(); fail = None
+                try:
+                    txt, ws = transcribe(bout, a.lang, tmp)
+                except Exception as e:                                 # the block stays whole; its lines share its span, flagged
+                    fail = err(e)
                 asr_s += time.time() - t0; asr_n += 1
-                res = align_lines([s["text"] for s in blk], ws, bd, {i: s["_alt"] for i, s in enumerate(blk) if s.get("_alt")})
-                start = (next_start(a.lead if bi == 0 else t + a.min_gap, blk[0].get("snap")) if grid
-                         else (a.lead if bi == 0 else t + a.gap))
+                start = next_start(bi == 0, t, blk[0].get("snap"))
                 if start > t:
                     parts.append(silence(start - t, bi))
                 t = start
-                print(f"  block {bi+1}: {len(blk)} line(s), {bd:.2f} s in one request", flush=True)
+                print(f"  block {bi+1}: {len(blk)} line(s), {bd:.2f} s in one request" + (f" — not transcribed: {fail}" if fail else ""), flush=True)
+                res = [None] * len(blk) if fail else align_lines([s["text"] for s in blk], ws, bd, {i: s["_alt"] for i, s in enumerate(blk) if s.get("_alt")})
                 for s, r in zip(blk, res):
                     n += 1
-                    out = vo / f"{n:02d}.wav"; cut(bout, r["cut0"], r["cut1"], out)
+                    if r is None:
+                        s.update(start=round(t, 3), end=round(t + bd, 3), file=str(bout.relative_to(proj)), asr={"error": fail})
+                        continue
+                    out = vo / f"{n:02d}.wav"; cut(bout, r["cut0"], r["cut1"], out); s["_cutlen"] = r["cut1"] - r["cut0"]
                     s.update(start=round(t + r["start"], 3), end=round(t + r["end"], 3), file=str(out.relative_to(proj)),
                              words=[{"w": w["w"], "start": round(t + w["start"], 3), "end": round(t + w["end"], 3)} for w in r["words"]])
                     s["asr"] = asr_record(r["heard"], r, a.min_sim)
@@ -785,38 +864,39 @@ def main():
                 parts.append(bout); t += bd
         if align:
             terms = vocab_terms([s["text"] for s in segs], a.vocab)
-            for s in (x for x in segs if "similarity" in x["asr"].get("flag", "")):   # text-only re-check with custom_vocabulary
-                vocab = list(dict.fromkeys(disputed(s["text"], s["asr"]["text"]) + terms))[:100]
-                if not vocab:                                          # only extra words heard: nothing to bias toward
+            for s in (x for x in segs if "similarity" in x["asr"].get("flag", "") and x.get("_cutlen", 1.0) >= 0.05 - 1e-6):   # < 50 ms: nothing to hear
+                vocab = list(dict.fromkeys(disputed(s["text"], s["asr"]["text"]) + terms))[:100]   # text-only re-check with
+                if not vocab:                                          # custom_vocabulary; only extra words heard: nothing to bias toward
                     continue
                 t0 = time.time()
-                txt, _ = transcribe(proj / s["file"], a.lang, tmp, vocab=vocab)
+                try:
+                    txt, _ = transcribe(proj / s["file"], a.lang, tmp, vocab=vocab)
+                except Exception as e:                                 # the line stays flagged; the first pass is kept
+                    s["asr"]["recheck"] = {"error": err(e), "vocab": vocab}; continue
                 asr_s += time.time() - t0; asr_n += 1
                 s["asr"]["recheck"] = {"text": txt, "similarity": max(similarity(x, txt) for x in (s["text"], s.get("_alt", ""))), "vocab": vocab}
                 set_flag(s["asr"], a.min_sim)
-    for s in segs:
-        s.pop("_block", None); s.pop("_alt", None)
-    lst = vo / "_concat.txt"; lst.write_text("".join(f"file '{p.name}'\n" for p in parts))
-    joined = audio / f"voiceover.{a.lang}.wav"
-    run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "pcm_s16le", str(joined)])
-    tl = {"provider": a.provider, "voice": a.voice, "lang": a.lang, "duration": round(duration(joined), 3),
-          **({"grid": {"beats": a.beats, "snap": a.snap, "lead": a.lead}} if grid else {}),
-          **({"speakers": speakers} if dialogue else {}), **({"join": join} if join != "none" else {}),
-          **({"align": {"model": os.environ.get("GEMINI_ASR_MODEL", "gemini-3.5-transcribe"), "min_sim": a.min_sim}} if align else {}),
-          "segments": segs}
-    body = json.dumps(tl, ensure_ascii=False, indent=2)
-    (audio / f"timeline.{a.lang}.json").write_text(body, encoding="utf-8")
-    (audio / "timeline.json").write_text(body, encoding="utf-8")
-    shutil.copyfile(joined, audio / "voiceover.wav")
+    tl = write_outputs()
+    failed = [s for s in segs if "error" in s["asr"]] if align else []
+    rechecks = [s for s in segs if "error" in s["asr"].get("recheck", {})] if align else []
     if align:
-        print(f"align: {asr_n} transcribe call(s), {asr_s:.1f} s · similarity " +
-              " ".join(f"{s['id']}={max(s['asr']['similarity'], s['asr'].get('recheck', {}).get('similarity', 0)):.2f}" for s in segs))
+        sim = lambda s: f"{max(s['asr']['similarity'], s['asr'].get('recheck', {}).get('similarity', 0)):.2f}" if "similarity" in s["asr"] else "none"
+        print(f"align: {asr_n} transcribe call(s), {asr_s:.1f} s · similarity " + " ".join(f"{s['id']}={sim(s)}" for s in segs))
         for s in (x for x in segs if x["asr"].get("flag")):
-            print(f"  FLAG {s['id']}: {s['asr']['flag']} — heard “{s['asr'].get('recheck', s['asr'])['text']}”"
+            print(f"  FLAG {s['id']}: {s['asr']['flag']} — heard “{s['asr'].get('recheck', {}).get('text', s['asr']['text'])}”"
                   f" · listen to {s['file']}, then re-run or rewrite the line")
     if trimmed > 0.05:
         print(f"  trimmed {trimmed:.2f} s of provider silence at line edges (--keep-edges to keep it)")
     print(f"→ {joined.relative_to(proj)} ({tl['duration']}s) · audio/timeline.{a.lang}.json · captions: bin/vh captions {a.project}")
+    if failed or rechecks:
+        ids = lambda xs: ", ".join(s["id"] for s in xs)
+        what = (f"{len(failed)} line(s) not transcribed ({ids(failed)}): {failed[0]['asr']['error']}" if failed
+                else f"the re-check of {len(rechecks)} flagged line(s) failed ({ids(rechecks)}): {rechecks[0]['asr']['recheck']['error']}")
+        kept = f"; the block audio is kept in {vo.relative_to(proj)}/_blockNN.wav and its lines share the block's span" if failed and join != "none" else ""
+        sys.exit(f"align: {what}. The take is written (voiceover and timeline above{kept}); fix the cause, then re-run with --resume to redo only the ASR")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except GeminiError as e:       # a TTS or voices call that failed for good (a failed transcription is handled in main)
+        sys.exit(str(e))
