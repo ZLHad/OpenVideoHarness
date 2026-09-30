@@ -14,10 +14,18 @@
   - step grids (accent, ghost, roll, flam, the other stroke) that fit bars of any length;
   - note lists with chord-relative pitches (`c0 s2 d5 +7`);
   - figures: `walking`, `oompah` / `waltz`, `strum`, `alberti`, arpeggios, `ostinato`, `tremolo`, `sustain`, `stab`, `roots`;
-  - feel: swing (0–0.33, or 0.5–0.75 as a ratio), seeded `humanize`, `onset_ms`, `beats_per_bar`.
+  - feel: swing (0–0.33, or 0.5–0.75 as a ratio), seeded `humanize`, `onset_ms`, `beats_per_bar`. A triplet grid (`step: 12`) under 8th swing stays straight.
 - Buses: optional stereo with pan; reverb sends into `room`, `plate`, `hall`, `cathedral` or `gated`; master `lofi` and `tape`; per-part delay, drive and ducking.
-- A score with only `layers` renders the same bytes as before (sha256 checked on all 28 swatch scores and both examples). Parts are deterministic and independent: adding or removing a part leaves every other part's stem bit-identical.
-- Every part must be heard. A part with no notes, or quieter than −40 dBFS in the final file, stops the render and names the part; `"quiet": true` opts out.
+- A score with only `layers` in major or minor renders the same bytes as before (sha256 checked on all 28 swatch scores and both examples). In other modes (dorian, mixolydian …) the layers now take the same chord roots as the parts, and the 羽 pentatonic when the mode has a minor third; before, they fell back to major.
+- Parts are deterministic. Adding or removing a part leaves the stems of parts with another instrument, or with their own `id`, bit-identical. Two id-less parts of the same instrument are seeded by position, so removing one re-seeds the other; the render warns and suggests ids. Two parts with the same `id` are an error.
+- Every part must be heard. A part with no notes, or quieter than −40 dBFS in the final file, stops the render and names the part. Loudness is power averaged over the channels, so a hard-panned part is not under-read. `"quiet": true` opts out of the level check, but not the no-notes check.
+- Scores are checked before rendering, and a wrong field stops the render with the part's name:
+  - an unknown instrument, section, space, duck target, or section name in `by_section`;
+  - a duplicate id;
+  - a number that is not finite or out of range, e.g. `pan` beyond ±1 or `step` 0;
+  - a malformed note list or a strum without strokes;
+  - a pitch outside MIDI 0–127.
+- Long scores: parts are rendered, mixed into the buses and freed one at a time. A 5-minute stereo score with 7 parts peaks at about 1.1 GB (was 2.8 GB) and renders the same bytes.
 - `--example list` shows six new starter scores: jazz, waltz, chip, lofi, guqin, trap. `--instruments` lists every instrument and figure with its knobs.
 
 **README: one picture of the whole project**

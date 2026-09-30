@@ -37,7 +37,7 @@ def hpf(x, fc, order=2):
 
 
 def bpf(x, lo, hi, order=2):
-    lo = max(float(lo), 5.0); hi = max(min(float(hi), 0.45 * SR), lo * 1.1)
+    lo = min(max(float(lo), 5.0), 0.45 * SR / 1.1); hi = max(min(float(hi), 0.45 * SR), lo * 1.1)   # both edges stay below Nyquist
     return sosfilt(butter(order, [lo, hi], "band", fs=SR, output="sos"), x, axis=-1)
 
 
@@ -104,8 +104,9 @@ def pan2(x, pan=0.0):
     """Mono -> stereo, constant power with centre = unity per side; a stereo input is balanced instead."""
     if x.ndim == 2:
         return x * np.array([[min(1.0, 1 - pan)], [min(1.0, 1 + pan)]])
-    a = (pan + 1) * np.pi / 4
-    return np.stack([x * np.cos(a), x * np.sin(a)]) * np.sqrt(2)
+    a = (pan + 1) * np.pi / 4; y = np.empty((2,) + x.shape)
+    np.multiply(x, np.cos(a), out=y[0]); np.multiply(x, np.sin(a), out=y[1]); y *= np.sqrt(2)   # one buffer, no temporaries
+    return y
 
 
 def wander(rng, n, rate):

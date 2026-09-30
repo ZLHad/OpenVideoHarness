@@ -16,7 +16,9 @@ Score fields
   sections: [{ "name", "bars", "chords": ["i","VI","III","VII"] (roman, cycled per bar),
                "layers": subset of kick clap hats bass pad arp lead  +  bell zheng dizi taiko (Chinese colour:
                  bianzhong-like bell, Karplus–Strong guzheng, breathy dizi, taiko; melodic ones use the key's
-                 pentatonic — minor → 羽 1 b3 4 5 b7, major → 宫 1 2 3 5 6 — and share their own hall reverb),
+                 pentatonic — minor → 羽 1 b3 4 5 b7, major → 宫 1 2 3 5 6 — and share their own hall reverb;
+                 in other modes, e.g. dorian, the layers take the parts' chord roots and 羽 when the mode has a
+                 minor third, 宫 otherwise),
                "energy": 0..1 (layer gain + filter brightness),
                "riser": true  (noise+tone rise over this section, into the next),
                "impact": true (boom on this section's first downbeat),
@@ -70,7 +72,8 @@ Parts: instruments playing patterns, rendered beside the layers
     strum     "pattern" on 8ths: D down, U up, d / u soft, X accent, x muted chuck, . let ring; "strings" 4 | 6, "spread" s
     walking   walking bass: root on 1, chord and scale steps, a chromatic approach into the next bar; "ghost" 0–1
     oompah    bass on beats 1 and 3 (root, then the fifth), chord between; waltz: bass on 1, chord on the rest. Both fit
-              2-, 3- and 4-beat bars; "role": "bass" | "chord" splits them over two instruments
+              2-, 3- and 4-beat bars; "role": "bass" | "chord" splits them over two instruments. The bass sounds an
+              octave below the part's c0: "octave": 3 puts it in octave 2, so give a bass-only part one octave more
     alberti · arp-up · arp-down · arp-updown   keyboard figures at "rate" (8 | 12 | 16 | 24), over "span" octaves
     ostinato  a "cell" of tokens at "rate", running on across bar lines ("reset": "bar" restarts it each bar)
     tremolo   rapid re-strikes (pipa 轮指, balalaika, mandolin) of the "pitch" tokens spread over the bar. On any part,
@@ -79,15 +82,23 @@ Parts: instruments playing patterns, rendered beside the layers
     melody    a seeded placeholder tune in the scale on a rhythm "pattern" (chord tones on the beats)
   Feel: "swing" (score, section or part) delays each off-beat 8th: 0–0.33 is the delay as a fraction of an 8th (0.33 ≈
     triplet shuffle, 0.15–0.2 lazy); 0.5–0.75 is read as the first 8th's share of the beat (0.6 light, 0.667 triplet).
-    "swing_unit": 16 swings 16ths. "humanize" 0–1: seeded timing (±8 ms × h) and velocity jitter.
+    "swing_unit": 16 swings 16ths. A part whose step grid does not line up with that unit (8th triplets, step 12, under
+    8th swing) stays straight. "humanize" 0–1: seeded timing (±8 ms × h) and velocity jitter.
   Buses: "stereo": true writes stereo (pan, stereo instruments, decorrelated reverb); default mono. "space": dry | room |
     plate | hall | cathedral | gated, or {"type": "hall", "rt60": 3.2, "return_db": -2}; default room. "lofi":
     {"crackle": 0.3, "wow": 0.3, "lp": 6000, "hiss": 0.2} and "tape": 0–1 (saturation) act on the master. With parts,
     the mix is scaled to peak "drive" (default 1) before the old master: tanh, then peak-normalised to master_db.
   Determinism: a part's random streams come from (seed, its "id" or instrument and occurrence, note index), so adding or
-    removing a part never changes another part with a different instrument or id.
-  Every part must sound: a part with no notes, or whose loudest 50 ms stays below −40 dBFS (RMS, or peak − 18 dB) in
-    the final file, stops the render with its name. Raise its gain_db, or mark it "quiet": true.
+    removing a part never changes another part with a different instrument or id. Two parts of the same instrument
+    without ids are seeded by position (the render warns): give them ids, or removing one re-seeds the later ones.
+  Checks before anything renders, naming the part: an unknown instrument, section, space, duck target or by_section
+    section; a duplicate id; a field that is not a finite number or out of range (pan beyond −1..1, step ≤ 0 …); a
+    note-list entry that is not [beat, beats, …]; a strum without strokes; a pitch outside MIDI 0–127.
+  Every part must sound: a part with no notes, or whose loudest 50 ms stays below −40 dBFS (power averaged over the
+    channels, or its peak − 18 dB) in the final file, stops the render with its name. Raise its gain_db, or mark it
+    "quiet": true (which does not excuse a part with no notes).
+  Memory: parts are mixed and dropped one by one. A 5-minute stereo score with 7 parts peaks at about 1.1 GB (macOS peak
+    memory footprint; RSS reads higher because freed pages stay mapped), a 10-minute one at about 3.6 GB.
   Instruments (synthesis only, tools/audio/instruments.py; default octave in brackets where it matters):
     keys     piano (tone felt|bright, pedal) · epiano (trem) · harpsichord · celesta · musicbox · glockenspiel · toypiano ·
              organ (drawbars "888000000", leslie Hz, tone pipe)
@@ -148,7 +159,8 @@ def mtof(m): return 440.0 * 2 ** ((m - 69) / 12)
 
 def chord_notes(root_pc, mode, roman, octave=4):
     r = roman.strip().split()[0]
-    if r.lower() not in DEG:   # V7, bVII, iiø7 …: the layers play the triad (root, third or sus note, fifth)
+    if r.lower() not in DEG or mode not in ("minor", "major"):   # V7, bVII, iiø7 …, or a mode such as dorian: the parts'
+        # parser, so layers and parts agree on every root; the layers play its triad (root, third or sus note, fifth)
         c = parse_chord(r, mode); base = 12 * (octave + 1) + root_pc + c[0]
         return [base + c[1][0], base + c[1][1], base + c[1][min(2, len(c[1]) - 1)]]
     minor_quality = r.islower()
@@ -228,9 +240,9 @@ def impact(rng):
 # ---------- Chinese colour: bell zheng dizi taiko (each note has its own seeded rng, so adding a layer never changes the others) ----------
 BELL = [(0.5, .25, 1.4), (1.0, 1.0, 1.0), (1.19, .6, .75), (2.0, .3, .5), (2.76, .35, .32), (3.9, .2, .2), (5.4, .12, .12), (6.9, .07, .08)]
 
-def penta(root_pc, mode):  # pentatonic MIDI notes: minor → 羽 (1 b3 4 5 b7), major → 宫 (1 2 3 5 6)
+def penta(root_pc, mode):  # pentatonic MIDI notes: a minor third in the mode (minor, dorian …) → 羽 (1 b3 4 5 b7), else 宫 (1 2 3 5 6)
     # up to MIDI 111: dizi grace notes sit ~2 octaves above the chord's scale note, so B minor or high chords need the headroom
-    return [m for m in range(36, 112) if (m - root_pc) % 12 in ((0, 3, 5, 7, 10) if mode == "minor" else (0, 2, 4, 7, 9))]
+    return [m for m in range(36, 112) if (m - root_pc) % 12 in ((0, 3, 5, 7, 10) if mode7(mode)[2] == 3 else (0, 2, 4, 7, 9))]
 
 def near(scale, m): return min(range(len(scale)), key=lambda i: (abs(scale[i] - m), -scale[i]))
 
@@ -282,6 +294,7 @@ DIZI = [[(0, 1.5, 2), (1.5, 0.5, 3), (2, 2, 4), (4, 1, 3), (5, 1, 2), (6, 2, 0)]
 ZH = {"bell": 0.45, "zheng": 0.25, "dizi": 0.3, "taiko": 0.12}   # reverb send per layer (own hall, no kick pumping)
 
 def render(score, stems=None):
+    validate(score)   # parts-related fields only; stops with the part's name before anything renders
     rng = np.random.default_rng(score.get("seed", 7))
     sub = lambda *k: np.random.default_rng([int(score.get("seed", 7)), *k])   # per-note streams for the new layers
     bpm = float(score["bpm"]); beat = 60.0 / bpm
@@ -369,10 +382,11 @@ def render(score, stems=None):
     wet = fftconvolve(lp(out, 6000), ir)[: len(out)] * 0.012
     mix = out + wet
     if score.get("parts") or score.get("stereo") or score.get("lofi") or score.get("tape"):
+        del out, sidechain, zh, send, wet   # the layers are mixed: free their buffers before the parts render (long scores)
         mix, checks = parts_bus(score, mix, hits, stems)   # parts, stereo, spaces, lofi/tape; (n,) or (n, 2)
     mix = np.tanh(mix * 1.2) / np.tanh(1.2)
     peak = np.max(np.abs(mix)) or 1.0
-    if score.get("parts"):   # every part must be heard: ≥ −40 dBFS (loudest 50 ms RMS, or peak − 18 dB) in the final file
+    if score.get("parts"):   # every part must be heard: ≥ −40 dBFS (loudest 50 ms RMS, or its peak − 18 dB) in the final file
         g = 1.2 / np.tanh(1.2) * 10 ** (score.get("master_db", -1.0) / 20) / peak
         low = [(k, 20 * np.log10(v * g + 1e-12)) for k, v in checks if v * g < 0.01]
         if low: sys.exit("music: inaudible part(s) " + ", ".join(f"{k} at {d:.0f} dBFS RMS" for k, d in low) +
@@ -491,8 +505,11 @@ def resolve(tok, ch, O, key_pc, sc):
         elif m.group(1) == "s": v = at(bisect.bisect_right(sc, root) - 1 + k)
         else: v = at(bisect.bisect_right(sc, 12 * (O + 1) + key_pc) - 1 + k - 1)
     elif re.fullmatch(r"[+-]\d+", t): v = root + int(t)
+    elif t.isdigit(): v = int(t)
     elif NOTE_RE.match(t): n = NOTE_RE.match(t); v = 12 * (int(n.group(3)) + 1) + NOTE[n.group(1) + n.group(2)]
-    else: sys.exit(f"music: pitch {tok!r}: use c0 c1 … (chord tones), s0 s1 … (scale steps), d1 … (key degrees), +7, D4, 60")
+    else:
+        hint = (f' A drum stroke goes in the 5th slot: [beat, beats, null, vel, "{t}"].' if t in GRID or t in ins.LUOGU else "")
+        sys.exit(f"music: pitch {tok!r}: use c0 c1 … (chord tones), s0 s1 … (scale steps), d1 … (key degrees), +7, D4, 60.{hint}")
     return float(v + 12 * up)
 
 def voicing(ch, O, cfg):
@@ -518,6 +535,104 @@ def warp(p, s, u):
     if not s: return p
     q = math.floor(p / (2 * u) + 1e-9) * 2 * u; x = p - q
     return q + (x * (1 + s) if x < u else u * (1 + s) + (x - u) * (1 - s))
+
+def _num(v, what, lo=None, hi=None, above=None):
+    """A finite number (a numeric string or a bool is read as one), optionally ≥ lo, ≤ hi, > above; otherwise stop."""
+    try: x = float(v)
+    except (TypeError, ValueError): sys.exit(f"music: {what} must be a number, not {v!r}")
+    if not math.isfinite(x): sys.exit(f"music: {what} must be a finite number, not {v!r}")
+    if (lo is not None and x < lo) or (hi is not None and x > hi) or (above is not None and x <= above):
+        want = " and ".join(w for w in (f"≥ {lo:g}" if lo is not None else "", f"≤ {hi:g}" if hi is not None else "",
+                                        f"> {above:g}" if above is not None else "") if w)
+        sys.exit(f"music: {what} must be {want}, not {v!r}")
+    return x
+
+PART_NUM = {   # numeric part fields (also inside by_section): (≥ lo, ≤ hi, > above)
+    "gain_db": (None, None, None), "vel": (0, None, None), "pan": (-1, 1, None), "send": (0, None, None), "detune": (None, None, None),
+    "onset_ms": (None, None, None), "humanize": (0, None, None), "swing": (0, 0.75, None), "drive": (0, None, None), "lp": (None, None, 0),
+    "hp": (None, None, 0), "step": (None, None, 0), "rate": (None, None, 0), "legato": (0, None, None), "len": (0, None, None),
+    "octave": (-1, 9, None), "tremolo_min": (0, None, None), "ghost": (0, 1, None), "span": (1, None, None), "strings": (1, None, None),
+    "spread": (0, None, None), "bass_len": (0, None, None), "loop": (1, None, None), "roll": (1, None, None), "swing_unit": (8, 16, None)}
+
+def _is_grid(pat):
+    return isinstance(pat, (str, dict)) or (isinstance(pat, list) and bool(pat) and isinstance(pat[0], str))
+
+def validate(score):
+    """One pass over the parts-related fields before anything renders, naming the part (or field) that is wrong."""
+    parts = score.get("parts")
+    if parts is None: parts = []
+    if not isinstance(parts, list): sys.exit('music: "parts" must be a list: [{"inst": …}, …]')
+    secs = {s.get("name") for s in score["sections"]}
+    for k, (lo, hi, above) in {"swing": (0, 0.75, None), "humanize": (0, None, None), "drive": (None, None, 0), "swing_unit": (8, 16, None),
+                               "master_db": (None, None, None)}.items():
+        if k in score: _num(score[k], k, lo, hi, above)
+    if "swing_unit" in score and float(score["swing_unit"]) not in (8, 16): sys.exit('music: "swing_unit" is 8 or 16')
+    for s in score["sections"]:
+        if "swing" in s: _num(s["swing"], f"section {s.get('name')!r} swing", 0, 0.75)
+    if "space" in score:
+        sp = score["space"] if isinstance(score["space"], dict) else {"type": score["space"]}
+        if sp.get("type", "room") not in ("dry", *ins.SPACES): sys.exit(f"music: space {sp.get('type')!r}: use dry {' '.join(ins.SPACES)}")
+        if "rt60" in sp: _num(sp["rt60"], "space rt60", above=0)
+        if "return_db" in sp: _num(sp["return_db"], "space return_db")
+    if isinstance(score.get("lofi"), dict):
+        for k in ("crackle", "wow", "hiss"):
+            if k in score["lofi"]: _num(score["lofi"][k], f"lofi {k}", 0)
+        if "lp" in score["lofi"]: _num(score["lofi"]["lp"], "lofi lp", above=0)
+    if score.get("tape") not in (None, False, True): _num(score["tape"], "tape", 0)
+    ids, keys, idless = set(), set(), {}
+    for i, part in enumerate(parts):
+        if not isinstance(part, dict) or "inst" not in part: sys.exit(f'music: part {i} must be an object with an "inst", e.g. {{"inst": "piano", "figure": "sustain"}}')
+        inst = part["inst"]
+        if inst not in ins.INSTR: sys.exit(f"music: part {i}: instrument {inst!r} unknown; --instruments lists them")
+        if "id" in part:
+            if not isinstance(part["id"], str) or not part["id"]: sys.exit(f"music: part {i} ({inst}): \"id\" must be a non-empty string")
+            if part["id"] in ids: sys.exit(f"music: two parts share the id {part['id']!r}: ids name the parts and seed them, so each must be unique")
+            ids.add(part["id"])
+        else: idless[inst] = idless.get(inst, 0) + 1
+        keys |= {inst, part.get("id")}
+    for i, part in enumerate(parts):   # the same labels the renderer uses: the id, or instrument#occurrence
+        name = part.get("id") or f"{part['inst']}#{sum(1 for p in parts[:i] if p['inst'] == part['inst'] and 'id' not in p)}"
+        bs = part.get("by_section", {})
+        if not isinstance(bs, dict): sys.exit(f'music: part {name}: "by_section" must map section names to overrides, e.g. {{"b": {{"gain_db": -6}}}}')
+        for sec, o in bs.items():
+            if sec not in secs: sys.exit(f"music: part {name}: by_section names no section {sec!r} (sections: {', '.join(map(str, secs))})")
+            if not isinstance(o, dict): sys.exit(f"music: part {name}: by_section[{sec!r}] must be an object of overrides, not {o!r}")
+        for cfg, where in [(part, f"part {name}")] + [({**part, **o}, f"part {name} in section {sec!r}") for sec, o in bs.items()]:
+            for k, (lo, hi, above) in PART_NUM.items():
+                if k in cfg: _num(cfg[k], f"{where}: {k}", lo, hi, above)
+            if cfg.get("tremolo") not in (None, False, True): _num(cfg["tremolo"], f"{where}: tremolo (strikes a second)", hi=50, above=0)
+            if not isinstance(cfg.get("params", {}), dict): sys.exit(f'music: {where}: "params" must be an object')
+            pat = cfg.get("pattern")
+            if isinstance(pat, list) and pat and not all(isinstance(e, str) for e in pat):
+                for j, ev in enumerate(pat):
+                    if not isinstance(ev, (list, tuple)) or len(ev) < 2:
+                        sys.exit(f'music: {where}: note {j} of the note list is {ev!r}; write [beat, beats, pitch, vel, art]')
+                    _num(ev[0], f"{where}: note {j} beat"); _num(ev[1], f"{where}: note {j} length", 0)
+                    if len(ev) > 3 and ev[3] is not None: _num(ev[3], f"{where}: note {j} velocity", 0)
+                    if len(ev) > 4 and not isinstance(ev[4], (str, dict)): sys.exit(f'music: {where}: note {j}: the 5th slot is a stroke ("o") or an object of knobs')
+            elif pat is not None and not isinstance(pat, (str, dict, list)):
+                sys.exit(f"music: {where}: \"pattern\" is a grid string, a list of them, a dict by beats per bar, or a note list")
+            if cfg.get("figure") == "strum" and pat is not None:
+                grids = [pat] if isinstance(pat, str) else pat if isinstance(pat, list) else None
+                if not grids or not all(isinstance(g, str) for g in grids):
+                    sys.exit(f"music: {where}: a strum pattern is a string, or a list of strings (one per bar), not {pat!r}")
+                if not all(g.replace(" ", "").replace("|", "") for g in grids):
+                    sys.exit(f"music: {where}: the strum pattern {pat!r} has no strokes; write D U d u X x and . (e.g. \"D.DU.UDU\")")
+        dk = part.get("duck")
+        if dk is not None:
+            by = dk if isinstance(dk, str) else dk.get("by") if isinstance(dk, dict) else None
+            if by not in keys - {None}: sys.exit(f'music: part {name}: duck {dk!r} names no part (by an "inst" or an "id" of this score)')
+            if isinstance(dk, dict):
+                for k in ("depth", "release"):
+                    if k in dk: _num(dk[k], f"part {name}: duck {k}", 0)
+        if isinstance(part.get("delay"), dict):
+            for k in ("beats", "fb", "mix"):
+                if k in part["delay"]: _num(part["delay"][k], f"part {name}: delay {k}", 0)
+            if "lp" in part["delay"]: _num(part["delay"]["lp"], f"part {name}: delay lp", above=0)
+    dup = {k: n for k, n in idless.items() if n >= 2}
+    if dup:
+        print("music: warning: " + ", ".join(f"{n} {k} parts" for k, n in dup.items()) + ' have no "id"; they are seeded by position, '
+              'so removing one changes the sound of the later ones. Give each an "id" to keep it fixed.', file=sys.stderr)
 
 def pick_grid(pat, B, k):
     if isinstance(pat, dict): return pat.get(str(B.nb), pat.get("*"))
@@ -700,14 +815,24 @@ def fig_melody(B, k, cfg, O, res, cx, st, R):
     st["mi"] = i
     return out
 
+def swing_grid(cfg, fig, pat):
+    """The step grid a part plays on (steps per whole note), or None when its notes can sit anywhere (note lists, stabs on beats …)."""
+    if fig in ("arp-up", "arp-down", "arp-updown"): return float(cfg.get("rate", 16))
+    if fig in ("alberti", "ostinato", "roots"): return float(cfg.get("rate", 8))
+    if fig == "strum": return float(cfg.get("step", 8))
+    if fig == "melody" or ((fig == "stab" or not fig) and _is_grid(pat)): return float(cfg.get("step", 16))
+    return None
+
+def _whole(x): return abs(x - round(x)) < 1e-9
+
 FIGURES = {"sustain": fig_sustain, "stab": fig_stab, "strum": fig_strum, "walking": fig_walking, "oompah": fig_oompah,
            "waltz": lambda *a: fig_oompah(*a, waltz=True), "alberti": fig_arp("alberti"), "arp-up": fig_arp("arp-up"),
            "arp-down": fig_arp("arp-down"), "arp-updown": fig_arp("arp-updown"), "ostinato": fig_ostinato,
            "tremolo": fig_tremolo, "roots": fig_roots, "melody": fig_melody}
 
-def part_events(part, spec, pbars, cx, R):
+def part_events(part, spec, pbars, cx, R, label=None):
     """Every note of a part: [t (s), dur (s), [MIDI…] or None, vel, art, opts, bar], sorted by time."""
-    evs, st = [], {}
+    evs, st, label = [], {}, label or part.get("id") or part["inst"]
     pitched = spec.kind != "drum" or spec.defaults.get("pitched") or "pitch" in part
     for k, B in enumerate(pbars):
         bs = part.get("by_section", {}).get(B.sec, {}); cfg = {**part, **bs}
@@ -719,8 +844,10 @@ def part_events(part, spec, pbars, cx, R):
             raw = FIGURES[fig](B, k, cfg, O, res, cx, st, R)
         elif isinstance(pat, list) and pat and isinstance(pat[0], list): raw = note_list(pat, B, k, cfg, pbars, pitched, res, O)
         elif pat is not None: raw = grid_events(pat, B, k, cfg, pitched, res, st, cx, O)
-        else: sys.exit(f"music: part {part['inst']!r} needs a \"pattern\" or a \"figure\"")
+        else: sys.exit(f"music: part {label} needs a \"pattern\" or a \"figure\"")
         sw = swing_amount(cfg.get("swing", B.swing if B.swing is not None else cx.swing)); u = 0.25 if int(cfg.get("swing_unit", cx.swing_unit)) == 16 else 0.5
+        gs = swing_grid(cfg, fig, pat)
+        if sw and gs and not (_whole(u * gs / 4) or _whole(4 / (gs * u))): sw = 0.0   # 8th triplets under 8th swing stay straight
         g = float(cfg.get("vel", 1.0)) * 10 ** ((float(cfg.get("gain_db", 0)) - float(part.get("gain_db", 0))) / 20)
         early = float(cfg.get("onset_ms", 0)) / 1000   # a slow-speaking voice starts early; hits keep the grid time
         dt = float(cfg.get("detune", 0)) / 100          # cents: a detuned double of another part
@@ -730,6 +857,9 @@ def part_events(part, spec, pbars, cx, R):
             t = B.tb + warp(pos, sw, u) * cx.beat; d = max(B.tb + warp(pos + dur, sw, u) * cx.beat - t, 0.005); t -= early
             o = {**bs.get("params", {}), **opts}
             if p and dt: p = [m + dt for m in p]
+            if p and not all(0 <= m <= 127 for m in p):
+                sys.exit(f"music: part {label}: pitch {next(m for m in p if not 0 <= m <= 127):g} in bar {B.i + 1} is outside MIDI 0–127; "
+                         "check its \"octave\" and the ' , marks")
             if rate and d >= max(tmin, 1.5 / rate):   # tremolo: re-strike every 1/rate s, 4-finger accents, a gentle swell
                 n = int(d * rate + 0.5)
                 evs += [[t + j / rate, 1.2 / rate, p, vel * g * (1.0, 0.8, 0.9, 0.75)[j % 4] * (0.85 + 0.15 * math.sin(math.pi * (j + 0.5) / n)),
@@ -778,14 +908,16 @@ def render_mono(spec, P, notes, R, place, vi):
 
 def render_voice(part, spec, evs, P, R, N, C, pbars):
     """One part → (mono stem, stereo stem or None)."""
-    mono = np.zeros(N); st2 = np.zeros((2, N)) if C == 2 else None; cache = {}
+    mono = np.zeros(N); st2 = [None]; cache = {}   # the stereo buffer only exists once a stereo voice lands in it
     def place(x, t):
         i = int(round(t * SR))
         if i >= N: return
         if i < 0: x = x[..., -i:]; i = 0
         j = min(N, i + x.shape[-1])
         if x.ndim == 1: mono[i:j] += x[:j - i]
-        elif C == 2: st2[:, i:j] += x[:, :j - i]
+        elif C == 2:
+            if st2[0] is None: st2[0] = np.zeros((2, N))
+            st2[0][:, i:j] += x[:, :j - i]
         else: mono[i:j] += x[:, :j - i].mean(0)
     if spec.kind == "texture":   # continuous over each run of consecutive bars, 0.1 s in, 0.4 s out
         runs = []
@@ -813,7 +945,7 @@ def render_voice(part, spec, evs, P, R, N, C, pbars):
                     key = (round(m, 2), dq, vq, var, ok)
                     if key not in cache: cache[key] = spec.fn(m, dq, vq, R(1, int(round(m * 100)), var), {**P, **opts}) * spec.level
                 place(cache[key] * vel, t)
-    return mono, st2
+    return mono, st2[0]
 
 def delay_fx(x, D, beat):
     d = int(float(D.get("beats", 0.75)) * beat * SR); fb, mix, lp_hz = float(D.get("fb", 0.35)), float(D.get("mix", 0.3)), float(D.get("lp", 3500))
@@ -846,14 +978,14 @@ def tape_fx(x, a):
     return ins.hpf(ins.lpf(y, 16000 - 6000 * a), 20)
 
 def parts_bus(score, legacy, hits, stems=None):
-    """Render the parts, add them to the layers' mix (centred), run the spaces and master effects; returns (n,) or (n, 2)."""
+    """Render the parts, add them to the layers' mix (centred), run the spaces and master effects; returns ((n,) or (n, 2), checks).
+    Two passes keep memory flat: first every part's notes (cheap; ducks and the beat map need all the onsets), then each part
+    is rendered, mixed into the buses and dropped before the next one."""
     C = 2 if score.get("stereo") else 1; N = len(legacy); cx = Ctx(score); parts = score.get("parts") or []
     sp = score.get("space", "room"); sp = sp if isinstance(sp, dict) else {"type": sp}
-    dry = np.zeros((C, N)); sends = {}; rendered, onsets, part_hits, checks = [], {}, [], []
+    plan, onsets, part_hits, checks = [], {}, [], []
     for i, part in enumerate(parts):
-        inst = part.get("inst")
-        if inst not in ins.INSTR: sys.exit(f"music: part {i}: instrument {inst!r} unknown; --instruments lists them")
-        spec = ins.INSTR[inst]; pid = part.get("id"); occ = sum(1 for p in parts[:i] if p.get("inst") == inst and "id" not in p)
+        inst = part["inst"]; spec = ins.INSTR[inst]; pid = part.get("id"); occ = sum(1 for p in parts[:i] if p.get("inst") == inst and "id" not in p)
         pk = (ins.crc(pid), 0) if pid else (ins.crc(inst), occ); label = pid or f"{inst}#{occ}"
         R = lambda *k, pk=pk: np.random.default_rng([cx.seed, 101, *pk, *k])
         names = part.get("sections", "all")
@@ -861,29 +993,39 @@ def parts_bus(score, legacy, hits, stems=None):
             names = [names] if isinstance(names, str) else names; unknown = set(names) - {B.sec for B in cx.grid}
             if unknown: sys.exit(f"music: part {label}: no section named {sorted(unknown)}")
         pbars = [B for B in cx.grid if names == "all" or B.sec in names]
-        P = {**spec.defaults, **part.get("params", {})}
-        evs = [] if spec.kind == "texture" else part_events(part, spec, pbars, cx, R)
-        if spec.kind != "texture" and not evs: sys.exit(f"music: part {label} plays no notes: check its sections, pattern, figure and pitch")
-        mono, st2 = render_voice({**part, "_bpm": score["bpm"]}, spec, evs, P, R, N, C, pbars)
-        pan = float(part.get("pan", 0)); stem = mono[None] if C == 1 else ins.pan2(mono, pan)
-        if st2 is not None: stem = stem + ins.pan2(st2, pan)
-        if part.get("hp"): stem = ins.hpf(stem, part["hp"])
-        if part.get("lp"): stem = ins.lpf(stem, part["lp"])
-        if part.get("drive"): m = float(np.max(np.abs(stem))) or 1.0; stem = ins.drive(stem / m, float(part["drive"])) * m
-        if part.get("delay"): stem = delay_fx(stem, part["delay"], cx.beat)
-        stem = stem * 10 ** (float(part.get("gain_db", 0)) / 20)
-        rendered.append((part, label, stem))
-        if not part.get("quiet"):   # its level where it plays loudest: the top 50 ms RMS window, or the peak − 18 dB (crackle, ticks)
-            a = int((evs[0][0] if evs else pbars[0].tb) * SR); b = int(((evs[-1][0] + evs[-1][1]) if evs else pbars[-1].tb + pbars[-1].nb * cx.beat) * SR) + SR // 2
-            w = int(0.05 * SR); seg = stem.mean(0)[max(0, a):min(N, b)]; k = max(1, len(seg) // w)
-            checks.append((label, max(float(np.max(np.sqrt(np.mean(seg[:k * w].reshape(k, -1) ** 2, 1)))), float(np.max(np.abs(seg))) / 8) if len(seg) >= w else 0.0))
+        try: evs = [] if spec.kind == "texture" else part_events(part, spec, pbars, cx, R, label)
+        except SystemExit as e:   # a bad pitch, grid or strum character, figure or scale: say which part
+            msg = str(e)
+            if msg.startswith("music: ") and f"part {label}" not in msg: sys.exit(f"music: part {label}: {msg[7:]}")
+            raise
+        if spec.kind != "texture" and not evs:
+            sys.exit(f'music: part {label} plays no notes: check its sections, pattern, figure and pitch ("quiet": true does not skip this)')
+        plan.append((part, spec, label, R, pbars, evs))
         for key in {inst, pid} - {None}: onsets.setdefault(key, []).extend(e[0] for e in evs)
         if part.get("hit"):
             seen = set()
             for e in evs:
                 if part["hit"] == "section" and e[6].si in seen: continue
                 seen.add(e[6].si); part_hits.append({"t": round(e[0] + float(part.get("onset_ms", 0)) / 1000, 3), "what": f"{label}:{e[6].sec}"})
-    for part, label, stem in rendered:
+    dry = np.zeros((C, N)); sends = {}
+    for part, spec, label, R, pbars, evs in plan:
+        P = {**spec.defaults, **part.get("params", {})}
+        mono, st2 = render_voice({**part, "_bpm": score["bpm"]}, spec, evs, P, R, N, C, pbars)
+        pan = float(part.get("pan", 0)); stem = mono[None] if C == 1 else ins.pan2(mono, pan)
+        if st2 is not None: stem = stem + ins.pan2(st2, pan)
+        del mono, st2
+        if part.get("hp"): stem = ins.hpf(stem, part["hp"])
+        if part.get("lp"): stem = ins.lpf(stem, part["lp"])
+        if part.get("drive"): m = float(np.max(np.abs(stem))) or 1.0; stem = ins.drive(stem / m, float(part["drive"])) * m
+        if part.get("delay"): stem = delay_fx(stem, part["delay"], cx.beat)
+        stem *= 10 ** (float(part.get("gain_db", 0)) / 20)
+        if not part.get("quiet"):   # where it plays loudest: the top 50 ms of power averaged over the channels (a hard pan reads
+            # as loud as the centre), or the peak of that power − 18 dB (crackle, ticks)
+            a = int((evs[0][0] if evs else pbars[0].tb) * SR); b = int(((evs[-1][0] + evs[-1][1]) if evs else pbars[-1].tb + pbars[-1].nb * cx.beat) * SR) + SR // 2
+            w = int(0.05 * SR); seg = stem[:, max(0, a):min(N, b)]; pw = seg[0] ** 2
+            for c in range(1, C): pw += seg[c] ** 2
+            pw /= C; k = max(1, len(pw) // w)
+            checks.append((label, max(float(np.sqrt(pw[:k * w].reshape(k, -1).mean(1).max())), float(np.sqrt(pw.max())) / 8) if len(pw) >= w else 0.0))
         dk = part.get("duck")
         if dk:
             dk = dk if isinstance(dk, dict) else {"by": dk}; depth, rel = float(dk.get("depth", 0.5)), int(float(dk.get("release", 0.2)) * SR)
@@ -894,14 +1036,18 @@ def parts_bus(score, legacy, hits, stems=None):
             stem *= env
         if stems is not None: stems[label] = stem.copy()
         dry += stem; s = float(part.get("send", 0)); name = part.get("space", sp["type"])
-        if s and name != "dry": sends[name] = sends.get(name, 0) + stem * s
-    mix = np.vstack([legacy] * C) + dry
-    for name, bus in sends.items():
+        if s and name != "dry":
+            if name in sends: sends[name] += stem * s
+            else: sends[name] = 0 + stem * s
+        del stem
+    mix = dry; mix += legacy   # the layers' mix, centred on every channel
+    for name in list(sends):
         if name not in ins.SPACES: sys.exit(f"music: space {name!r}: use dry {' '.join(ins.SPACES)}")
         g = 10 ** (float(sp.get("return_db", 0)) / 20) if name == sp["type"] else 1.0
-        bus = ins.lpf(ins.hpf(bus, 150), 9000)
+        bus = ins.lpf(ins.hpf(sends.pop(name), 150), 9000)
         for c in range(C):
             mix[c] += fftconvolve(bus[c], ins.space_ir(name, c, sp.get("rt60") if name == sp["type"] else None))[:N] * g
+        del bus
     if score.get("lofi"): mix = lofi_fx(mix, score["lofi"], np.random.default_rng([cx.seed, 102]))
     if score.get("tape"): mix = tape_fx(mix, score["tape"])
     if parts:
@@ -959,11 +1105,11 @@ EXAMPLES = {
         "sections": [{"name": "town", "bars": 4, "chords": ["I", "vi", "IV", "V"]}],
         "parts": [{"inst": "pulse", "figure": "melody", "params": {"duty": 0.25, "vib": 15}, "pan": 0.1,
                    "delay": {"beats": 0.75, "fb": 0.35, "mix": 0.35, "pingpong": True}},
-                  {"inst": "pulse", "figure": "arp-up", "octave": 4, "params": {"duty": 0.125, "sus": 0.3}, "gain_db": -10, "pan": -0.3},
+                  {"inst": "pulse", "id": "arp", "figure": "arp-up", "octave": 4, "params": {"duty": 0.125, "sus": 0.3}, "gain_db": -10, "pan": -0.3},
                   {"inst": "triangle", "figure": "roots", "octaves": True, "octave": 2, "gain_db": -3},
                   {"inst": "chipkick", "pattern": "x.......x.x.....", "gain_db": -2},
                   {"inst": "noise", "pattern": "....x.......x...", "gain_db": -6},
-                  {"inst": "noise", "pattern": "o.o.o.o.o.o.o.o.", "gain_db": -14}]}),
+                  {"inst": "noise", "id": "hat", "pattern": "o.o.o.o.o.o.o.o.", "gain_db": -14}]}),
     "lofi": ("lo-fi hip-hop: Rhodes maj7 chords, dusty swung drums, soft upright, crackle and wow", {
         "bpm": 82, "key": "F", "mode": "major", "seed": 5, "stereo": True, "space": "room", "swing": 0.2, "swing_unit": 16,
         "humanize": 0.5, "lofi": {"crackle": 0.4, "wow": 0.5, "lp": 5000}, "tape": 0.4,
