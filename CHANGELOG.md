@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+**Code-composed music: instrument parts**
+- The 28 style swatches sounded alike because `bin/vh music` had one subtractive palette. A score can now add `parts`: 77 new instruments synthesised in `tools/audio/instruments.py` with no samples, plus the 11 old layer voices. They cover:
+  - keys: piano (felt or bright), Rhodes, harpsichord, organ; celesta, music box, glockenspiel, toy piano; marimba, xylophone, vibraphone;
+  - plucked: nylon guitar, ukulele, harp, pizzicato, upright bass, pipa, guqin, balalaika, cimbalom;
+  - bowed and blown: a string section; violin, fiddle, cello and banhu with glides and vibrato; flute, xiao, whistle, suona, sheng; a brass section and a braam;
+  - synths: chip pulse and triangle, 808, CS-80-style pad, drone, polysynth;
+  - drums and percussion: kit, brushes, ride, boom-bap, trap and gated drums; gongs and cymbals; a 锣鼓经 kit; clock, metal, scratch;
+  - textures: vinyl, tape, hum, wind, rain, room tone.
+- Patterns:
+  - step grids (accent, ghost, roll, flam, the other stroke) that fit bars of any length;
+  - note lists with chord-relative pitches (`c0 s2 d5 +7`);
+  - figures: `walking`, `oompah` / `waltz`, `strum`, `alberti`, arpeggios, `ostinato`, `tremolo`, `sustain`, `stab`, `roots`;
+  - feel: swing (0–0.33, or 0.5–0.75 as a ratio), seeded `humanize`, `onset_ms`, `beats_per_bar`.
+- Buses: optional stereo with pan; reverb sends into `room`, `plate`, `hall`, `cathedral` or `gated`; master `lofi` and `tape`; per-part delay, drive and ducking.
+- A score with only `layers` renders the same bytes as before (sha256 checked on all 28 swatch scores and both examples). Parts are deterministic and independent: adding or removing a part leaves every other part's stem bit-identical.
+- Every part must be heard. A part with no notes, or quieter than −40 dBFS in the final file, stops the render and names the part; `"quiet": true` opts out.
+- `--example list` shows six new starter scores: jazz, waltz, chip, lofi, guqin, trap. `--instruments` lists every instrument and figure with its knobs.
+
 **README: one picture of the whole project**
 - `docs/assets/overview.en.svg` / `overview.zh.svg` replace the mermaid flowchart under "How it works". The new diagram shows the path from a one-sentence request to the final film, with the three human gates, sound-first rendering, the self-review loop and gate ③ sending the film back. Beside it, it shows what the repository provides: knowledge, tools and engines, and the records that feed lessons back into the playbook. Both files follow the reader's light or dark theme.
 

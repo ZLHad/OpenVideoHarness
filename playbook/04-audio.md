@@ -14,7 +14,8 @@ bin/vh tts projects/<p> gemini Kore zh --align gemini   # 云端 Gemini；--alig
 bin/vh captions projects/<p> zh                    # → captions.zh/en/bi.srt + captions.json（给引擎画进画面）
 bin/vh voices list en-GB --gender female           # Gemini 音色库；bin/vh voices design "<描述>" 设计一个音色 → voice_… id
 # 配乐：代码作曲，段落对齐镜头，节拍精确
-bin/vh music --example > projects/<p>/audio/score.json        # --example zh：编钟、古筝、笛子、太鼓的中国风起步谱
+bin/vh music --example > projects/<p>/audio/score.json        # --example zh：编钟、古筝、笛子、太鼓的中国风起步谱；--example list：全部起步谱
+bin/vh music --instruments                                    # 乐器声部（parts）的全部乐器和伴奏型，一行一个
 bin/vh music projects/<p>/audio/score.json projects/<p>/audio/music.wav     # + music.beats.json（段落、节拍、冲击点）
 # 音效：内置库 + 按动作时间摆放（立体声，事件可带 pan、dist）
 bin/vh sfx lib projects/<p>/audio/sfx
@@ -151,9 +152,10 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 所以硬切之前，先对照一下拍子。
 
 `score.json` 的写法见 `bin/vh music --example`：
-- 顶层：`bpm`、`key`、`mode`；可选 `meters`，例如 `{"11": 6}` 让整首的第 11 小节（从 1 数）变成 6/4，其余默认 4/4；
+- 顶层：`bpm`、`key`、`mode`；可选 `meters`，例如 `{"11": 6}` 让整首的第 11 小节（从 1 数）变成 6/4，其余默认 4/4；可选 `beats_per_bar`，改整首的默认拍数，写 3 就是三拍子；
 - `sections[]`：`bars`、`chords`（罗马数字）、`layers`（kick clap hats bass pad arp lead，以及 bell zheng dizi taiko）、`energy`（0–1）；
-- 段落的特殊效果：`riser`（上升音推向下一段）、`impact`（段首冲击）、`fill`（最后一拍留白）、`bend`（古筝每两小节收在一个按弦上滑的音上）。
+- 段落的特殊效果：`riser`（上升音推向下一段）、`impact`（段首冲击）、`fill`（最后一拍留白）、`bend`（古筝每两小节收在一个按弦上滑的音上）；
+- `parts[]`：乐器声部，还有 `stereo`、`space`、`swing`、`lofi` 等总线设置，见下文"乐器声部"。
 
 输出的 `music.beats.json` 包含 `sections`、`beats`、`downbeats`、`hits`，引擎直接读它来切镜和打点。写了 `meters` 时还会多一个 `bars` 数组，每项是 `[小节号, 起点秒数, 本小节拍数]`，画面用同一个 `bar(k)` 取小节位置。加拍时要让配乐和画面一起改：介绍片第 11 小节就是这样多停了 2 拍，其他秒数一个都不用手改。
 
@@ -164,6 +166,92 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 - `taiko`：大鼓。音高下滑的正弦加鼓皮噪声。每两拍一个重击，能量高时加八分音符的接鼓；带 `riser` 的段落，最后两拍滚奏进下一段；`fill` 同样会空出最后一拍。
 
 旋律类音色都走调式的五声音阶：`minor` 用羽调（1 ♭3 4 5 ♭7），`major` 用宫调（1 2 3 5 6）。四种音色共用一个单独的混响（RT60 约 2.8 s），不跟 kick 一起抽吸。每个音符用独立的种子流，所以加减一种音色不会改变其他层的声音。`bin/vh music --example zh` 是一份 D 羽调、84 BPM、约 60 s 的起步谱，两次渲染的 md5 相同，峰值 −1.0 dBFS。
+
+**乐器声部（`parts`）**：`layers` 只有一套合成音色，所以不同风格的配乐听起来都差不多。要真的换一种声音，就在 score 里加 `parts`：每个声部是一件乐器，按一个节奏型演奏，和 `layers` 一起渲染。只写 `layers` 的旧谱子和以前逐字节相同。`bin/vh music --instruments` 列出全部乐器和伴奏型，每个一行，带默认参数；`--example list` 列出起步谱：jazz、waltz、chip、lofi、guqin、trap。
+
+- **乐器**（纯代码合成，不用采样，详见 `tools/audio/instruments.py`）：
+  - 键盘：`piano`（`tone: felt` 是柔和的毡锤钢琴，`pedal` 延音）、`epiano`（Rhodes）、`harpsichord`、`celesta`、`musicbox`、`glockenspiel`、`toypiano`、`organ`（拉杆风琴，`tone: pipe` 是管风琴）；
+  - 敲击旋律：`marimba`、`xylophone`、`vibraphone`（带电机颤音）；
+  - 拨弦：`nylon`、`ukulele`、`harp`、`pizzicato`、`upright`（走路贝斯用的低音提琴）、`pipa`、`guqin`（滑音、吟猱、泛音）、`balalaika`、`cimbalom`；
+  - 拉弦：`strings`（弦乐组，`marcato` 是短促有力的奏法）、`violin`、`fiddle`、`cello`、`banhu`。独奏乐器是单音的：连着的音会滑过去，有揉弦；
+  - 管乐：`flute`、`xiao`、`whistle`、`suona`、`sheng`；铜管 `brass`（`stab` 短促、`swell` 渐强、`mute` 弱音器），`braam`（《盗梦空间》式的低音铜管轰鸣）；
+  - 合成器：`pulse`（芯片方波，`duty` 占空比，`chiparp` 快速琶音当和弦）、`triangle`（4-bit 三角波贝斯）、`sq_bass`、`sub808`（带滑音和失真）、`seq`、`cs80`、`drone`、`polysynth`；旧的 `layers` 音色也能当声部用：`saw_pad` `saw_lead` `bell` `zheng` `dizi` `taiko` 等；
+  - 鼓和打击乐：`kick` `snare` `rim` `brush`（刷子，`o` 是扫）`ride` `hihat`、`bb_kick` `bb_snare`（boom-bap）、`trap_hat` `trap_snare` `clap` `gated`（合成波门限混响军鼓）、`cowbell` `shaker` `bongo` `conga` `woodblock`、`bangzi` `gong` `smallgong`（小锣，音高上扬）`cymbals`（铙钹）`danpigu`（单皮鼓）、`framedrum` `timpani` `clock` `metal` `noiseburst` `scratch`（搓碟）`noise` `chipkick`；`luogu` 直接读锣鼓经的字：仓 才 台 七 令 顷 冬 大 八；
+  - 底噪：`vinyl`（黑胶噼啪）`tape`（磁带嘶声）`hum`（50/60 Hz 电源嗡声加风扇）`wind` `rain` `roomtone`，在声部所在的段落里连续铺满。
+- **步进网格**：`"pattern": "x...x...x...x..."`，一个字符一步，默认 16 分音符（`"step": 8` 是八分，`12` 是八分三连）。字符的含义：
+  - `X` 重音，`x` 普通，`g` 幽灵音，`1`–`9` 力度 0.1–0.9；
+  - `o` / `O` 是这件乐器的另一种打法：开镲、边击、拍面、ride 的碗、刷子的扫、闷掉的铙钹；
+  - `r` 滚奏（一步里 2 下），`R` 滚 3 下，`f` 装饰音（flam）；
+  - `~` 把上一个音延长一步，`.` 休止；空格和 `|` 只为好读，不计。
+
+  小节长短不一时，每小节从头读：短了循环，长了截断。所以 `"x...x...x...x..."` 在 3 拍小节里打 3 下，在 2 拍小节里打 2 下。要按拍数换节奏，就写成字典：`{"3": "x...x.x.....", "*": "x...x...x...x..."}`；写成列表则一小节一条，依次循环。
+- **音符表**：`[[拍, 时值拍数, 音高, 力度, 奏法], …]`，拍从本小节的强拍数起，`"loop": N` 让一张表跨 N 小节。音高记号都相对"那一刻的和弦"和声部的八度：
+  - `c0` `c1` `c2` 是和弦的根音、三音、五音，`s1` `s-2` 是从根音起的音阶步数，`d1`…`d7` 是调式音级；
+  - `+7` 是根音上方七个半音，`D4` 是绝对音高；
+  - 后缀 `'` 升八度、`,` 降八度。
+
+  `"scale"` 可以换音阶：`penta`（大调用宫、小调用羽）、`gong shang jue zhi yu`、`dorian`、`harmonic` 等。和弦多了 `V7`、`Imaj7`、`iiø7`、`bVII`、`Vsus4` 这类写法，同一格写两个（`"ii7 V7"`）就是一小节换两个和弦。
+- **伴奏型**（`"figure"`）：
+  - `walking` 走路贝斯：强拍根音，最后一拍半音接进下一小节；
+  - `oompah` / `waltz`：低音在 1 拍，和弦在其余拍。2、3、4 拍的小节都能用；用 `"role": "bass"` 和 `"role": "chord"` 分给两件乐器；
+  - `strum` 扫弦，`D` 下扫、`U` 上扫、`x` 闷音；
+  - `alberti`、`arp-up`、`arp-updown` 是键盘分解和弦；
+  - `ostinato` 反复一个音型，跨小节线接着走；
+  - `tremolo` 轮指、颤奏（琵琶、巴拉莱卡）；
+  - `sustain` 每个和弦一个长音（`"hold": "section"` 整段一个长音，适合 drone）；
+  - `stab` 在指定拍上短促的和弦；
+  - `roots` 按固定节奏弹根音（`"octaves": true` 是合成波的八度贝斯）；
+  - `melody` 是按种子生成的占位旋律，只用来打草稿。
+- **律动**：`"swing"` 写 0–0.33 或 0.5–0.75，两种写法都行。0–0.33 表示后半拍推迟的比例，0.33 约等于三连音 shuffle；0.5–0.75 表示前半拍在一拍中所占的比例，0.667 就是三连音。`"humanize"` 是带种子的微小时间和力度抖动。起音慢的乐器写 `"onset_ms"`，提前起音，让听到的起点正好落在拍上（铜管 stab 用 8 ms）。
+- **总线**：
+  - `"stereo": true` 输出立体声，每个声部有 `pan`；默认仍是单声道；
+  - `"space"` 选混响：`dry room plate hall cathedral gated`，声部用 `"send"` 送进去；
+  - `"lofi"` 加黑胶噼啪、抖晃和低通，`"tape"` 是磁带饱和；
+  - 声部级的效果有 `delay`（例如 SNES 回声）、`duck`（被 kick 压，做合成波的泵感）、`lp` / `hp`、`drive`。
+
+**写法示例**：
+
+```json
+"swing": 0.3,
+"parts": [
+  {"inst": "upright", "figure": "walking", "ghost": 0.2},
+  {"inst": "ride", "pattern": "X.xx", "step": 8, "gain_db": -9, "pan": 0.35},
+  {"inst": "brush", "pattern": {"3": "o~x~o~", "*": "o~x~o~x~"}, "step": 8, "gain_db": -6},
+  {"inst": "brass", "figure": "stab", "beats": [0, 1.5], "params": {"stab": true, "mute": true}, "onset_ms": 8}
+]
+```
+
+这是冷爵士：走路贝斯、ride 加刷子、弱音铜管的短促和弦，八分音符摇摆，3 拍的小节也照样成立。
+
+```json
+{"inst": "guqin", "scale": "yu", "loop": 2, "send": 0.35, "pattern": [
+  [0, 1.5, "s0"], [1.5, 0.5, "s2", 0.6, {"slide": -2}], [2, 2, "s4", 0.7, {"yin": true}],
+  [4, 2, "s3'", 0.6, {"harm": true}], [6, 2, "s1", 0.7, {"bend": 2}]]},
+{"inst": "luogu", "pattern": "仓.才.台.才.仓.七.台台仓.", "gain_db": -6}
+```
+
+古琴的滑音、吟、泛音、按弦上滑都写在单个音的奏法里；锣鼓经直接写字。
+
+**电平**：`gain_db` 0 时，各乐器响度大致相当：单个打击或拨弦的峰值约 0.5，持续音约 −20 dBFS RMS，底噪约 −34 dBFS RMS。起步可以按这个范围写：
+- 主奏 0 到 −3；
+- 和弦、pad −6 到 −12；
+- 贝斯 0 到 −4；
+- kick、snare −1 到 −6；
+- 镲、沙锤 −8 到 −14；
+- 底噪 −3 到 −9；
+- `send` 0.1–0.4，大教堂混响可以到 0.6。
+
+**每个声部都必须听得见**：一个音也没有的声部，或者最终文件里最响的 50 ms 低于 −40 dBFS（RMS，或峰值减 18 dB）的声部，渲染会直接报错，并点名是哪个声部。这防的是"写了鼓却没出声"的静默故障。确实要很轻的声部，写 `"quiet": true`。
+
+**确定性**：每个声部的随机流来自"种子 + 声部的 `id`（或乐器名和第几次出现）+ 音符序号"。加一个声部、删一个声部，别的声部的 stem 逐位不变（已验证：删掉 bongo、chipkick、hihat、framedrum，或在最前面插一个 shaker）。同一份谱子渲染两次，sha256 相同。
+
+**老实说还做不到的**：
+- 这是合成，不是采样。钢琴、弦乐组、铜管在笔记本扬声器上认得出来，凑近听仍然是"合成的"；独奏提琴的换弓和弓压变化是简化模型。
+- 拨弦类用 Karplus–Strong，基频准，高次泛音略偏；古琴的泛音是近似纯音。
+- 旧音色 `saw_pad` 保留原样，失谐的锯齿波互相拍频，长音每秒起伏好几 dB，`qa` 可能报 pumping。新的 `strings`、`brass`、`drone`、`polysynth` 做了去拍频处理（弦乐组单音的起伏从 12 dB 降到 5 dB）。
+- `braam` 和低音大提琴的锯齿波边沿会出现在 `qa` 的 click 警告里，这是设计出来的声音，不是故障。
+- 没有人声。
+- 最耗时的是 `gong`、`luogu`、`braam`、`cs80`、`cimbalom`，每个新音约 0.05–0.3 s。一段 5 s、9 个声部的谱子，在 M3 Max 上约 1.5 s 渲染完。
 
 **戏剧性的"停"不能做成数字静音。** 要停的时候：
 - 保留一层底（sub 或 pad）；
