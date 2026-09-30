@@ -172,11 +172,11 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 - **乐器**（纯代码合成，不用采样，详见 `tools/audio/instruments.py`）：
   - 键盘：`piano`（`tone: felt` 是柔和的毡锤钢琴，`pedal` 延音）、`epiano`（Rhodes）、`harpsichord`、`celesta`、`musicbox`、`glockenspiel`、`toypiano`、`organ`（拉杆风琴，`tone: pipe` 是管风琴）；
   - 敲击旋律：`marimba`、`xylophone`、`vibraphone`（带电机颤音）；
-  - 拨弦：`nylon`、`ukulele`、`harp`、`pizzicato`、`upright`（走路贝斯用的低音提琴）、`pipa`、`guqin`（滑音、吟猱、泛音）、`balalaika`、`cimbalom`；
-  - 拉弦：`strings`（弦乐组，`marcato` 是短促有力的奏法）、`violin`、`fiddle`、`cello`、`banhu`。独奏乐器是单音的：连着的音会滑过去，有揉弦；
+  - 拨弦：`nylon`、`ukulele`、`harp`、`pizzicato`、`upright`（走路贝斯用的低音提琴）、`pipa`、`guqin`（滑音、吟猱、泛音；泛音和同音高、同力度的拨弦一样响）、`balalaika`、`cimbalom`。`celesta`、`musicbox`、`glockenspiel`、`toypiano`、`marimba`、`cimbalom`、`guqin` 都接受 `damp`：音符结束时止住余音；
+  - 拉弦：`strings`（弦乐组，`marcato` 是短促有力的奏法）、`violin`、`fiddle`、`cello`、`banhu`。独奏乐器是单音的：间隔不到 40 ms 的音连成一句，会滑过去，有揉弦；要每个音都重新起音，写 `"retrigger": true`（放在 params、某一段的 params，或单个音的奏法里）；
   - 管乐：`flute`、`xiao`、`whistle`、`suona`、`sheng`；铜管 `brass`（`stab` 短促、`swell` 渐强、`mute` 弱音器），`braam`（《盗梦空间》式的低音铜管轰鸣）；
-  - 合成器：`pulse`（芯片方波，`duty` 占空比，`chiparp` 快速琶音当和弦）、`triangle`（4-bit 三角波贝斯）、`sq_bass`、`sub808`（带滑音和失真）、`seq`、`cs80`、`drone`、`polysynth`；旧的 `layers` 音色也能当声部用：`saw_pad` `saw_lead` `bell` `zheng` `dizi` `taiko` 等；
-  - 鼓和打击乐：`kick` `snare` `rim` `brush`（刷子，`o` 是扫）`ride` `hihat`、`bb_kick` `bb_snare`（boom-bap）、`trap_hat` `trap_snare` `clap` `gated`（合成波门限混响军鼓）、`cowbell` `shaker` `bongo` `conga` `woodblock`、`bangzi` `gong` `smallgong`（小锣，音高上扬）`cymbals`（铙钹）`danpigu`（单皮鼓）、`framedrum` `timpani` `clock` `metal` `noiseburst` `scratch`（搓碟）`noise` `chipkick`；`luogu` 直接读锣鼓经的字：仓 才 台 七 令 顷 冬 大 八；
+  - 合成器：`pulse`（芯片方波，`duty` 占空比，`chiparp` 快速琶音当和弦）、`triangle`（4-bit 三角波贝斯）、`sq_bass`、`sub808`（带滑音和失真；和独奏弦乐一样，紧挨着的音会连成滑音，要一下一下地打就写 `"retrigger": true`）、`seq`（`attack` 给音头一点起音，滤波开得很大时 qa 就不会把音头当成 click）、`cs80`、`drone`、`polysynth`；旧的 `layers` 音色也能当声部用：`saw_pad` `saw_lead` `bell` `zheng` `dizi` `taiko` 等；
+  - 鼓和打击乐：`kick` `snare` `rim` `brush`（刷子，`o` 是扫）`ride` `hihat`、`bb_kick` `bb_snare`（boom-bap）、`trap_hat` `trap_snare` `clap` `gated`（合成波门限混响军鼓）、`cowbell` `shaker` `bongo` `conga` `woodblock`、`bangzi` `gong` `smallgong`（小锣，音高上扬）`cymbals`（铙钹）`danpigu`（单皮鼓）、`framedrum` `timpani` `clock` `metal` `noiseburst` `scratch`（搓碟）`noise` `chipkick`；`luogu` 直接读锣鼓经的字：仓 才 台 七 令 顷 冬 大 八。大锣默认从 240 Hz 往下滑，用 params 的 `daluo`（Hz）改音高，或者给声部写 `"pitch"`（例如 `"d1"`）让它跟着调走；小锣用 `xiaoluo`（Hz）；
   - 底噪：`vinyl`（黑胶噼啪）`tape`（磁带嘶声）`hum`（50/60 Hz 电源嗡声加风扇）`wind` `rain` `roomtone`，在声部所在的段落里连续铺满。
 - **步进网格**：`"pattern": "x...x...x...x..."`，一个字符一步，默认 16 分音符（`"step": 8` 是八分，`12` 是八分三连）。字符的含义：
   - `X` 重音，`x` 普通，`g` 幽灵音，`1`–`9` 力度 0.1–0.9；
@@ -184,8 +184,8 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
   - `r` 滚奏（一步里 2 下），`R` 滚 3 下，`f` 装饰音（flam）；
   - `~` 把上一个音延长一步，`.` 休止；空格和 `|` 只为好读，不计。
 
-  小节长短不一时，每小节从头读：短了循环，长了截断。所以 `"x...x...x...x..."` 在 3 拍小节里打 3 下，在 2 拍小节里打 2 下。要按拍数换节奏，就写成字典：`{"3": "x...x.x.....", "*": "x...x...x...x..."}`；写成列表则一小节一条，依次循环。
-- **音符表**：`[[拍, 时值拍数, 音高, 力度, 奏法], …]`，拍从本小节的强拍数起，`"loop": N` 让一张表跨 N 小节。音高记号都相对"那一刻的和弦"和声部的八度：
+  小节长短不一时，每小节从头读：短了循环，长了截断。所以 `"x...x...x...x..."` 在 3 拍小节里打 3 下，在 2 拍小节里打 2 下。起点落在小节里的那一步照样发声，只是被小节线截短：二分音符（`"step": 2`，或伴奏型的 `"rate": 2`）在 5 拍小节里是 3 个音，最后一个只剩一拍；在 1 拍小节里也有 1 个音。要按拍数换节奏，就写成字典，值可以是网格，也可以是一小节长的音符表：`{"3": "x...x.x.....", "*": [[0, 1, "c0"]]}`；写成列表则一小节一条，依次循环。
+- **音符表**：`[[拍, 时值拍数, 音高, 力度, 奏法], …]`，拍从本小节的强拍数起，`"loop": N` 让一张表跨 N 小节。N 数的是这个声部自己的小节（它所在的那些段落），不是整首的拍数。音高记号都相对"那一刻的和弦"和声部的八度：
   - `c0` `c1` `c2` 是和弦的根音、三音、五音，`s1` `s-2` 是从根音起的音阶步数，`d1`…`d7` 是调式音级；
   - `+7` 是根音上方七个半音，`D4` 是绝对音高；
   - 后缀 `'` 升八度、`,` 降八度。
@@ -193,7 +193,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
   `"scale"` 可以换音阶：`penta`（大调用宫、小调用羽）、`gong shang jue zhi yu`、`dorian`、`harmonic` 等。和弦多了 `V7`、`Imaj7`、`iiø7`、`bVII`、`Vsus4` 这类写法，同一格写两个（`"ii7 V7"`）就是一小节换两个和弦。
 - **伴奏型**（`"figure"`）：
   - `walking` 走路贝斯：强拍根音，最后一拍半音接进下一小节；
-  - `oompah` / `waltz`：低音在 1 拍，和弦在其余拍。2、3、4 拍的小节都能用；用 `"role": "bass"` 和 `"role": "chord"` 分给两件乐器。低音比声部的 `c0` 低一个八度：`"octave": 3` 时低音落在第 2 个八度，所以只弹低音的声部，八度要多写一档；
+  - `oompah` / `waltz`：低音在 1 拍，和弦在其余拍。2、3、4 拍的小节都能用；用 `"role": "bass"` 和 `"role": "chord"` 分给两件乐器。低音比声部的 `c0` 低一个八度：`"octave": 3` 时低音落在第 2 个八度（D 小调是 D2，约 73 Hz），`"octave": 2` 就掉到 D1（约 37 Hz），笔记本扬声器上听不见。所以只弹低音的声部写 3，见下面的华尔兹示例；
   - `strum` 扫弦，`D` 下扫、`U` 上扫、`x` 闷音；
   - `alberti`、`arp-up`、`arp-updown` 是键盘分解和弦；
   - `ostinato` 反复一个音型，跨小节线接着走；
@@ -203,10 +203,11 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
   - `roots` 按固定节奏弹根音（`"octaves": true` 是合成波的八度贝斯）；
   - `melody` 是按种子生成的占位旋律，只用来打草稿。
 - **律动**：`"swing"` 写 0–0.33 或 0.5–0.75，两种写法都行。0–0.33 表示后半拍推迟的比例，0.33 约等于三连音 shuffle；0.5–0.75 表示前半拍在一拍中所占的比例，0.667 就是三连音。`"humanize"` 是带种子的微小时间和力度抖动。起音慢的乐器写 `"onset_ms"`，提前起音，让听到的起点正好落在拍上（铜管 stab 用 8 ms）。步长和摇摆单位对不齐的声部保持平直，不被拉歪，例如八分摇摆下 `step: 12` 的三连音。
+- **按段落改写**：`by_section` 里写的覆盖只作用于那一段。`"figure": null` 让这一段改用声部的 `"pattern"`（例如整首是伴奏型，某一段换成音符表）。段落里的 `params` 对所有乐器都生效，包括单音乐器；参数一变，就从这里开始新的一句。段落里的 `gain_db` 是在乐器之后加的音量，不会推动乐器自己的失真（`sub808` 带 `drive` 时，−12 dB 就是 −12 dB），也不会改变音色。底噪声部认段落的 `gain_db` 和 `vel`，不认 `params`。段落里写的 `onset_ms`，节拍表里的 hit 也按它来算。
 - **总线**：
   - `"stereo": true` 输出立体声，每个声部有 `pan`；默认仍是单声道；
   - `"space"` 选混响：`dry room plate hall cathedral gated`，声部用 `"send"` 送进去；
-  - `"lofi"` 加黑胶噼啪、抖晃和低通，`"tape"` 是磁带饱和；
+  - `"lofi"` 加黑胶噼啪、抖晃和低通，`"tape"` 是磁带饱和。`lofi` 的 `lp` 低于 6 kHz 左右，hi-hat 就没了，因为它的声音都在这个频率之上。可听度检查量的是进总线之前的声部，看不到这个低通，所以不会提醒你：`lp` 保持在 6 kHz 以上，或者把 hat 调响；
   - 声部级的效果有 `delay`（例如 SNES 回声）、`duck`（被 kick 压，做合成波的泵感）、`lp` / `hp`、`drive`。
 
 **写法示例**：
@@ -231,6 +232,16 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 ```
 
 古琴的滑音、吟、泛音、按弦上滑都写在单个音的奏法里；锣鼓经直接写字。
+
+```json
+"beats_per_bar": 3,
+"parts": [
+  {"inst": "pizzicato", "figure": "waltz", "role": "bass", "octave": 3},
+  {"inst": "strings", "figure": "waltz", "role": "chord", "octave": 4, "gain_db": -8}
+]
+```
+
+三拍子华尔兹：拨弦低音在 1 拍，弦乐和弦在 2、3 拍。低音声部写 `"octave": 3`，低音落在第 2 个八度；写 2 会低到听不见。
 
 **电平**：`gain_db` 0 时，各乐器响度大致相当：单个打击或拨弦的峰值约 0.5，持续音约 −20 dBFS RMS，底噪约 −34 dBFS RMS（黑胶噼啪按峰值定，峰值约 0.2，RMS 更低）。起步可以按这个范围写：
 - 主奏 0 到 −3；
