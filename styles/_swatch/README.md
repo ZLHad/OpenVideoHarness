@@ -206,8 +206,8 @@ export function renderAt(t, ctx, tokens, lib) {
 
 ```bash
 bin/vh style <slug> [--draft] [--hud] [--workers N]   →  exec "$ROOT/styles/_swatch/render.sh" "$@"
-bin/vh style --gallery [--mp4]                        →  uv run -q --with pillow python "$ROOT/styles/_swatch/gallery.py" [--mp4]
-bin/vh style --check <slug>                           →  "$ROOT/styles/_swatch/determinism.sh" <slug>
+bin/vh style gallery [--mp4]                          →  uv run -q --with pillow python "$ROOT/styles/_swatch/gallery.py" [--mp4]
+bin/vh style check <slug> [workers_b]                 →  "$ROOT/styles/_swatch/determinism.sh" <slug> [workers_b]
 ```
 
-首次使用前要有 `styles/_swatch/node_modules`：`render.sh` 缺依赖时会报错并提示 `(cd styles/_swatch && npm ci)`。`bin/vh setup` 里也可以加上这一步。
+首次使用前要有 `styles/_swatch/node_modules`：`bin/vh setup` 和 `install.sh` 都会装；`bin/vh style <slug>` 和 `bin/vh style check <slug>` 发现缺依赖时会先自动 `npm ci`。直接调用 `render.sh` 或 `determinism.sh` 时缺依赖会报错，并提示 `(cd styles/_swatch && npm ci)`。

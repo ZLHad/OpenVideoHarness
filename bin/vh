@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # vh — OpenVideoHarness helper. Run from anywhere: bin/vh <command>
-#   doctor                      check the toolchain (node, ffmpeg, chrome, python/uv, latex)
+#   doctor                      check the toolchain (node, ffmpeg, chrome + a headless WebGL probe, python/uv, latex)
 #   setup                       install ClaudeAnimationBase deps + fetch reference repos
 #   types                       list video types and their docs
 #   effort [quick|standard|studio]  how much iteration, review and polish each level means (CLAUDE.md "努力程度")
@@ -42,30 +42,64 @@ declare -a TYPES=(
 type_doc() { for t in "${TYPES[@]}"; do IFS=: read -r k f _ <<<"$t"; [ "$k" = "$1" ] && { echo "$f"; return; }; done; return 1; }
 sedi() { local e=$1 f; shift; for f in "$@"; do sed "$e" "$f" > "$f.vh$$" && mv "$f.vh$$" "$f"; done; }   # in-place sed on both BSD/macOS and GNU/Linux
 
+chrome_path() { # the Chrome render.mjs would use: CHROME_PATH, system installs, then Playwright's Chromium builds (newest first)
+  local p d n
+  for p in "${CHROME_PATH:-}" "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium /usr/bin/chromium-browser; do
+    [ -n "$p" ] && [ -x "$p" ] && { echo "$p"; return 0; }; done
+  for d in "${PLAYWRIGHT_BROWSERS_PATH:-}" "$HOME/.cache/ms-playwright"; do
+    [ -n "$d" ] && [ -d "$d" ] || continue
+    for n in $(ls "$d" | sed -n 's/^chromium-\([0-9][0-9]*\)$/\1/p' | sort -rn); do
+      for p in "$d/chromium-$n/chrome-linux64/chrome" "$d/chromium-$n/chrome-linux/chrome"; do [ -x "$p" ] && { echo "$p"; return 0; }; done
+    done
+  done
+  return 1
+}
+webgl_probe() { # webgl_probe <chrome> <flag…>: headless, through the engine's puppeteer-core; prints the WebGL2 renderer, fails without one (20 s cap)
+  local c=$1; shift
+  (cd "$ROOT/engines/ClaudeAnimationBase" && VH_CHROME=$c VH_FLAGS="$*" node --input-type=module -e '
+import puppeteer from "puppeteer-core";
+setTimeout(() => process.exit(2), 20000).unref();
+const b = await puppeteer.launch({ executablePath: process.env.VH_CHROME, headless: true, args: process.env.VH_FLAGS.split(" ").filter(Boolean) });
+const r = await (await b.newPage()).evaluate(() => { const gl = document.createElement("canvas").getContext("webgl2"); if (!gl) return "";
+  const x = gl.getExtension("WEBGL_debug_renderer_info"); return String(gl.getParameter(x ? x.UNMASKED_RENDERER_WEBGL : gl.RENDERER)) || "webgl2"; });
+await b.close(); if (!r) process.exit(1); console.log(r);')
+}
 cmd_doctor() {
+  local mac="" chrome r gl sb=--no-sandbox; [ "$(uname)" = Darwin ] && { mac=1; sb=""; }
+  hint() { if [ -n "$mac" ]; then printf '%s\n' "$1"; else printf '%s\n' "$2"; fi; }   # $1 on macOS, $2 elsewhere
   chk() { if command -v "$1" >/dev/null 2>&1; then echo "$c_ok $1  $($2 2>&1 | head -1)"; else echo "$c_no $1  ($3)"; fi; }
   local nv; nv=$(node -v 2>/dev/null | sed 's/v//;s/\..*//' || echo 0)
   if [ "${nv:-0}" -ge 22 ] 2>/dev/null; then echo "$c_ok node  $(node -v)"; else echo "$c_no node ≥22 required (found: $(node -v 2>/dev/null || echo none))"; fi
-  chk ffmpeg "ffmpeg -version" "brew install ffmpeg"
-  local chrome=""
-  for p in "${CHROME_PATH:-}" "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" /usr/bin/google-chrome /usr/bin/chromium; do [ -n "$p" ] && [ -x "$p" ] && { chrome="$p"; break; }; done
-  [ -n "$chrome" ] && echo "$c_ok chrome  $chrome" || echo "$c_no chrome  (install Google Chrome or set CHROME_PATH)"
+  chk ffmpeg "ffmpeg -version" "$(hint "brew install ffmpeg" "sudo apt install ffmpeg, or your package manager")"
+  chrome=$(chrome_path) || chrome=""
+  [ -n "$chrome" ] && echo "$c_ok chrome  $chrome" || echo "$c_no chrome  ($(hint "install Google Chrome" "sudo apt install chromium, or npx playwright install chromium"), or set CHROME_PATH)"
   chk python3 "python3 --version" "needed for audio analysis / Manim"
-  chk uv "uv --version" "optional: brew install uv (Manim env)"
-  chk latex "latex --version" "optional: MacTeX / TeX Live, needed for Manim MathTex"
+  chk uv "uv --version" "optional: $(hint "brew install uv" "curl -LsSf https://astral.sh/uv/install.sh | sh") (Manim env)"
+  chk latex "latex --version" "optional: $(hint "MacTeX: brew install --cask mactex-no-gui" "TeX Live: sudo apt install texlive-latex-extra"), needed for Manim MathTex"
   chk git "git --version" "needed by references/fetch.sh"
   [ -d "$ROOT/engines/ClaudeAnimationBase/node_modules" ] && echo "$c_ok ClaudeAnimationBase deps installed" || echo "$c_wa ClaudeAnimationBase deps missing → bin/vh setup"
+  # a real headless WebGL2 context with render.mjs's default flags; Linux without a GPU only gets one in software (--soft-gl)
+  if [ -z "$chrome" ] || [ ! -d "$ROOT/engines/ClaudeAnimationBase/node_modules/puppeteer-core" ]; then echo "$c_wa WebGL probe skipped (needs Chrome and the ClaudeAnimationBase deps)"
+  elif r=$(webgl_probe "$chrome" $sb --ignore-gpu-blocklist "$(hint --use-angle=metal --use-gl=angle)" 2>/dev/null); then
+    case "$r" in *SwiftShader*|*llvmpipe*) gl=software ;; *) gl=GPU ;; esac; echo "$c_ok WebGL ($gl)  $r"
+  else
+    echo "$c_wa no WebGL with the GPU flags → render with node render.mjs --soft-gl"
+    if r=$(webgl_probe "$chrome" $sb --ignore-gpu-blocklist --use-angle=swiftshader --enable-unsafe-swiftshader --disable-accelerated-2d-canvas 2>/dev/null)
+    then echo "$c_ok WebGL with --soft-gl  $r"; else echo "$c_wa no WebGL with --soft-gl either: WebGL scenes will not render on this machine"; fi
+  fi
   [ -d "$ROOT/references/repos" ] && echo "$c_ok references fetched ($(ls "$ROOT/references/repos" | wc -l | tr -d ' ') repos)" || echo "$c_wa reference repos not fetched → bin/vh setup"
   [ -f "$ROOT/LOCAL.md" ] && echo "$c_ok LOCAL.md present" || echo "$c_wa no LOCAL.md → cp LOCAL.example.md LOCAL.md and fill it in"
   if [ "$(agents_body)" = "$(tail -n +4 "$ROOT/AGENTS.md" 2>/dev/null)" ]; then echo "$c_ok AGENTS.md in sync with CLAUDE.md"; else echo "$c_wa AGENTS.md out of sync → bin/vh sync-agents"; fi
 }
 agents_body() { cat "$ROOT/CLAUDE.md"; }
 cmd_install_skill() { # writes a thin pointer skill whose harness path is this clone
-  local which=${1:-all} dests=() d
-  case "$which" in claude) dests=("$HOME/.claude/skills") ;; codex) dests=("$HOME/.agents/skills") ;; *) dests=("$HOME/.claude/skills" "$HOME/.agents/skills") ;; esac
+  local which=${1:-all} dests=() d r
+  case "$which" in claude) dests=("$HOME/.claude/skills") ;; codex) dests=("$HOME/.agents/skills") ;; all) dests=("$HOME/.claude/skills" "$HOME/.agents/skills") ;;
+    *) echo "usage: bin/vh install-skill [claude|codex|all]   (unknown target: $which)" >&2; exit 1 ;; esac
+  r=$(printf '%s\n' "$ROOT" | sed 's/[\\&#]/\\&/g')   # the clone path, escaped for the sed replacement below
   for d in "${dests[@]}"; do
     mkdir -p "$d/open-video-harness"
-    sed "s#^Harness path (set by install.sh): .*#Harness path (set by install.sh): $ROOT#" "$ROOT/skills/open-video-harness/SKILL.md" > "$d/open-video-harness/SKILL.md"
+    sed "s#^Harness path (set by install.sh): .*#Harness path (set by install.sh): $r#" "$ROOT/skills/open-video-harness/SKILL.md" > "$d/open-video-harness/SKILL.md"
     echo "$c_ok skill → $d/open-video-harness/SKILL.md (harness: $ROOT)"
   done
   echo "   restart Claude Code / Codex so it picks up the skill; then ask for a video from any folder."
@@ -83,7 +117,13 @@ cmd_setup() {
   echo "→ fetching reference repos"; "$ROOT/references/fetch.sh"
   echo "→ installing the style swatch renderer"; (cd "$ROOT/styles/_swatch" && npm ci --silent)
   [ -f "$ROOT/LOCAL.md" ] || cp "$ROOT/LOCAL.example.md" "$ROOT/LOCAL.md"
-  echo "→ smoke test"; (cd "$ROOT/engines/ClaudeAnimationBase" && node render.mjs --sheet=0.5,4,8 --cols=3 --w=320 --out="$ROOT/.reel-smoke.jpg" && rm -f "$ROOT/.reel-smoke.jpg")
+  echo "→ smoke test"
+  smoke() { (cd "$ROOT/engines/ClaudeAnimationBase" && node render.mjs --sheet=0.5,4,8 --cols=3 --w=320 --out="$ROOT/.reel-smoke.jpg" "$@"); }
+  if ! smoke; then   # headless Linux without a GPU gets no WebGL context unless Chrome renders it in software
+    echo "   retrying with --soft-gl (software WebGL)"; smoke --soft-gl
+    echo "$c_wa this machine has no usable GPU: pass --soft-gl to render.mjs here (engines/ClaudeAnimationBase/README.md)"
+  fi
+  rm -f "$ROOT/.reel-smoke.jpg"
   echo "$c_ok setup done. Next: bin/vh new <type> <slug>   (types: bin/vh types)"
 }
 
@@ -100,8 +140,10 @@ cmd_new() {
   esac; done
   [ -z "$style" ] || [ -f "$ROOT/styles/$style/STYLE.md" ] || { echo "unknown style: $style"; cmd_style list; exit 1; }
   case "${effort:-standard}" in quick|standard|studio) ;; *) echo "unknown effort: $effort (quick | standard | studio)"; exit 1 ;; esac
-  local dir="$ROOT/projects/$(date +%F)-$slug"
+  local dir; dir="$ROOT/projects/$(date +%F)-$slug"
   [ -e "$dir" ] && { echo "$dir already exists"; exit 1; }
+  # a step that fails from here on must not leave a half-built dir behind (a retry would say "already exists")
+  NEW_DIR=$dir; trap 'rm -rf "$NEW_DIR"; echo "$c_no removed the unfinished ${NEW_DIR#$ROOT/}" >&2' EXIT
   if [ "$type" = handdrawn ] || [ "$type" = mv ]; then
     rsync -a --exclude node_modules --exclude out "$ROOT/engines/ClaudeAnimationBase/" "$dir/"
     mv "$dir/README.md" "$dir/ENGINE_README.md"   # the engine's own readme; project docs are BRIEF/STORYBOARD/…
@@ -146,6 +188,7 @@ s = open(style).read()
 open(style, "w").write(f"> 本项目以风格预设 `styles/{slug}` 为底：先读 `STYLE_PRESET.md`，数值取 `style.tokens.json`；下面只写本片对预设的改动。\n\n" + s)
 PY
   fi
+  trap - EXIT
   echo "$c_ok created ${dir#$ROOT/}"
   echo "   type doc : video-types/$doc.md"
   [ -n "$style" ] && echo "   style    : styles/$style (STYLE_PRESET.md, style.tokens.json)"
@@ -177,6 +220,9 @@ for l in lines:
 
 cmd_readcheck() { python3 "$ROOT/tools/readcheck.py" "$@"; }
 
+swatch_deps() { # the swatch renderer's pinned HyperFrames (render.sh and determinism.sh do not install it themselves)
+  [ -x "$ROOT/styles/_swatch/node_modules/.bin/hyperframes" ] || (cd "$ROOT/styles/_swatch" && npm ci --silent)
+}
 cmd_style() { # style library: styles/<preset>/{STYLE.md,tokens.json,swatch.js,media/}; renderer in styles/_swatch
   local sw="$ROOT/styles/_swatch"
   case "${1:-list}" in
@@ -191,8 +237,8 @@ for d in sorted(pathlib.Path(sys.argv[1]).iterdir()):
 PY
       ;;
     gallery) shift; uv run -q --with pillow python "$sw/gallery.py" "$@" ;;
-    check) shift; "$sw/determinism.sh" "$@" ;;
-    *) [ -d "$sw/node_modules" ] || (cd "$sw" && npm ci --silent); exec "$sw/render.sh" "$@" ;;
+    check) shift; swatch_deps; "$sw/determinism.sh" "$@" ;;
+    *) swatch_deps; exec "$sw/render.sh" "$@" ;;
   esac
 }
 
@@ -225,17 +271,20 @@ project_of() { # nearest ancestor of $1 that contains BRIEF.md (a project), else
   while [ "$d" != "/" ]; do [ -f "$d/BRIEF.md" ] && { echo "$d"; return; }; d=$(dirname "$d"); done
 }
 cmd_sheet() {
-  local v=$1 cols=${2:-6} fps=${3:-1} name base; name=$(basename "${v%.*}")
+  local v=${1:?usage: bin/vh sheet <video> [cols] [fps] [out]} cols=${2:-6} fps=${3:-1} name base why="install uv"; name=$(basename "$v"); name=${name%.*}
   base=$(project_of "$v"); [ -n "$base" ] || base="$(cd "$(dirname "$v")" && pwd)"
   local out=${4:-"$base/out/check/${name}-sheet-$(date +%H%M%S).png"}; mkdir -p "$(dirname "$out")"
   if command -v uv >/dev/null 2>&1; then   # timestamped tiles (ffmpeg builds often lack drawtext)
     uv run -q --with pillow python "$ROOT/tools/sheet.py" "$v" "$out" "$cols" "$fps" && return
+    why="tools/sheet.py failed, error above"
   fi
   local dur rows; dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$v"); rows=$(python3 -c "import math;print(max(1,math.ceil($dur*$fps/$cols)))")
-  ffmpeg -v error -y -i "$v" -vf "fps=$fps,scale=480:-1,tile=${cols}x${rows}" -frames:v 1 "$out" && echo "$out (no timestamps: install uv)"
+  rm -f "$out"; ffmpeg -v error -y -i "$v" -vf "fps=$fps,scale=480:-1,tile=${cols}x${rows}" -frames:v 1 "$out" || true
+  [ -s "$out" ] || { echo "$c_no no contact sheet written: the ffmpeg fallback produced no frame ($why)" >&2; return 1; }
+  echo "$out (no timestamps: $why)"
 }
 cmd_check() {
-  local v=$1
+  local v=${1:?usage: bin/vh check <video>}
   ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,r_frame_rate -of compact "$v"
   local hits; hits=$(ffmpeg -i "$v" -vf "blackdetect=d=0.3,freezedetect=d=3" -af silencedetect=d=3 -f null - 2>&1 | grep -E "black_|freeze_|silence_" | sed 's/.*\] //' || true)
   if [ -z "$hits" ]; then echo "$c_ok no black/freeze/silence segments over threshold"
@@ -262,25 +311,29 @@ cmd_sfx() { uv run -q --with numpy --with scipy python "$ROOT/tools/audio/sfx.py
 cmd_mix() { python3 "$ROOT/tools/audio/mix.py" "$@"; }
 cmd_qa() { uv run -q --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
 cmd_mux() { # output length = video length (audio padded/trimmed); extra .srt args become soft subtitle tracks
-  local v=${1:?usage: bin/vh mux <video> <audio> <out> [subs.srt…]} a=$2 out=$3; shift 3
+  local u="usage: bin/vh mux <video> <audio> <out> [subs.srt…]"
+  local v=${1:?$u} a=${2:?$u} out=${3:?$u}; shift 3
   local vd; vd=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$v")
   local ins=(-i "$v" -i "$a") maps=(-map 0:v -map "[a]") meta=() i=2 s=0 f lang
-  for f in "$@"; do
-    lang=und; case "$f" in *.zh.*|*zh*.srt) lang=chi ;; *.en.*|*en*.srt) lang=eng ;; esac
-    ins+=(-i "$f"); maps+=(-map "$i"); meta+=(-metadata:s:s:$s "language=$lang"); i=$((i+1)); s=$((s+1))
+  for f in "$@"; do   # language from the file name only (captions.zh.srt, subs_en.srt, en.srt …), never from its folders
+    lang=und; case "${f##*/}" in zh.*|*[._-]zh.*) lang=chi ;; en.*|*[._-]en.*) lang=eng ;; esac
+    ins+=(-i "$f"); maps+=(-map "$i"); meta+=("-metadata:s:s:$s" "language=$lang"); i=$((i+1)); s=$((s+1))
   done
-  ffmpeg -v error -y "${ins[@]}" -filter_complex "[1:a]apad,atrim=0:$vd[a]" "${maps[@]}" -c:v copy -c:a aac -b:a 192k \
-    ${1:+-c:s mov_text} "${meta[@]}" "$out" && echo "$c_ok $out${1:+ (+$s subtitle track(s))}"
+  ffmpeg -v error -y "${ins[@]}" -filter_complex "[1:a]apad,atrim=0:${vd}[a]" "${maps[@]}" -c:v copy -c:a aac -b:a 192k \
+    ${1:+-c:s mov_text} ${meta[@]+"${meta[@]}"} "$out" && echo "$c_ok $out${1:+ (+$s subtitle track(s))}"
 }
 cmd_gif() {
-  local v=$1 w=${2:-640} fps=${3:-15} out="${1%.*}.gif"
+  local v=${1:?usage: bin/vh gif <video> [width] [fps]} w=${2:-640} fps=${3:-15} b out; b=${v##*/}; out="${v%"$b"}${b%.*}.gif"   # extension off the file name, not a dotted folder
   ffmpeg -v error -y -i "$v" -vf "fps=$fps,scale=$w:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" "$out" && ls -lh "$out" | awk '{print $5, $9}'
 }
+
+cmd_help() { awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; }
 
 case "${1:-help}" in
   doctor) cmd_doctor ;; setup) cmd_setup ;; types) cmd_types ;;
   tts) shift; cmd_tts "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
-  *) awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0" ;;
+  help|-h|--help) cmd_help ;;
+  *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;
 esac

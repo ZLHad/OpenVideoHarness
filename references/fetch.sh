@@ -35,19 +35,27 @@ skip() {       # 按参数决定是否跳过这一行；--neutralize 模式只�
   if [ "$ARG" = "--neutralize" ]; then [ -d "$d" ] && neutralize "$d" && echo "ok  $d (neutralized)"; return 0; fi
   [ -n "$ARG" ] && [ "$ARG" != "$d" ]
 }
+SKIPPED=""
+failed() {     # failed <dir> <原因>：一个上游拉不下来只跳过这一行，不中断其余仓库和调用本脚本的安装流程
+  echo "skip $1 ($2)"; SKIPPED="$SKIPPED $1"
+}
+clone() {      # clone <owner/repo> <dir> [git clone 参数...]
+  local r=$1 d=$2; shift 2
+  git clone -q --depth 1 "$@" "https://github.com/$r.git" "$d" || { failed "$d" "clone failed"; return 1; }
+}
 
 full() {   # full <owner/repo> <dir>：整仓浅克隆
   skip "$2" && return 0
   restore "$2"
   if [ -d "$2/.git" ]; then git -C "$2" pull --ff-only -q || true
-  else git clone -q --depth 1 "https://github.com/$1.git" "$2"; fi
+  else clone "$1" "$2" || return 0; fi
   neutralize "$2"; echo "ok  $2"
 }
 sparse() { # sparse <owner/repo> <dir> <path...>：只检出指定目录（大仓库用）
   local r=$1 d=$2; shift 2
   skip "$d" && return 0
   restore "$d"
-  if [ ! -d "$d/.git" ]; then git clone -q --depth 1 --filter=blob:none --sparse "https://github.com/$r.git" "$d"; fi
+  if [ ! -d "$d/.git" ]; then clone "$r" "$d" --filter=blob:none --sparse || return 0; fi
   git -C "$d" sparse-checkout set "$@" && git -C "$d" pull --ff-only -q || true
   neutralize "$d"; echo "ok  $d ($*)"
 }
@@ -55,11 +63,13 @@ textonly() { # textonly <owner/repo> <dir>：只检出代码和文档，跳过�
   local r=$1 d=$2 fresh=
   skip "$d" && return 0
   restore "$d"
-  if [ ! -d "$d/.git" ]; then git clone -q --depth 1 --filter=blob:none --no-checkout "https://github.com/$r.git" "$d"; fresh=1; fi
+  if [ ! -d "$d/.git" ]; then clone "$r" "$d" --filter=blob:none --no-checkout || return 0; fresh=1; fi
   git -C "$d" sparse-checkout set --no-cone '/*' '!*.mp4' '!*.mov' '!*.webm' '!*.mkv' '!*.gif' '!*.mp3' '!*.wav' '!*.m4a' '!*.aac' '!*.flac' \
     '!*.png' '!*.jpg' '!*.jpeg' '!*.webp' '!*.psd' '!*.ttf' '!*.otf' '!*.woff' '!*.woff2' '!*.zip' '!*.pdf' '!*.onnx' '!*.bin'
   # 新克隆只需检出；已有克隆要 pull（空参数的 checkout 总是成功，放在 || 前面会让 pull 永远跑不到）
-  if [ -n "$fresh" ]; then git -C "$d" checkout -q; else git -C "$d" pull --ff-only -q || true; fi
+  # 新克隆的检出要联网取文件：失败就删掉这个空壳，下次重新克隆
+  if [ -n "$fresh" ]; then git -C "$d" checkout -q || { rm -rf "$d"; failed "$d" "checkout failed"; return 0; }
+  else git -C "$d" pull --ff-only -q || true; fi
   neutralize "$d"; echo "ok  $d (text only)"
 }
 
@@ -97,3 +107,6 @@ textonly hi-nikola/hand-drawn-explainer-video-nikola hand-drawn-explainer  # 中
 textonly gnipbao/story-to-handdrawn-video       story-to-handdrawn-video   # 中文故事 → 手绘日记漫画动画（MIT）
 textonly AllenAI2014/remotion-guofeng-starter   remotion-guofeng-starter   # 国风纸片动画：诗/成语 → Remotion（代码 MIT；public/ 演示素材不授权商用）
 full     sharon-laicc/viral-video-decomposer    viral-video-decomposer     # 拆解爆款视频：镜头级拉片 → 生产蓝图（MIT）
+
+[ -z "$SKIPPED" ] || echo "skipped (re-run later, e.g. bash references/fetch.sh <dir>):$SKIPPED"
+exit 0

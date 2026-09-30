@@ -24,6 +24,7 @@ FPS=30; DUR=5; FRAMES=150; POSTER_FRAME=90
 MP4_LIMIT=1500000; JPG_LIMIT=200000          # bytes (decimal MB/KB, so both readings of "1.5 MB" hold)
 ok=$'\033[32m✓\033[0m'; no=$'\033[31m✗\033[0m'; wa=$'\033[33m!\033[0m'
 die() { echo "$no $*" >&2; exit 1; }
+fsize() { wc -c < "$1" | tr -d ' '; }         # bytes; `stat` flags differ between BSD and GNU
 
 slug=""; draft=0; workers=""; hud=false; png=0; stage_only=0; timeout=""
 while [ $# -gt 0 ]; do
@@ -42,6 +43,7 @@ case "$slug" in */*) [ -d "$slug" ] || die "no such directory: $slug"; SRCDIR="$
 [[ "$slug" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "slug must be lowercase letters, digits and dashes: $slug"
 [ -x "$HF" ] || die "HyperFrames not installed: (cd styles/_swatch && npm ci)"
 command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null || die "ffmpeg/ffprobe not found"
+[ "$(uname)" = Darwin ] || echo "$wa swatch fonts are macOS system fonts (fonts.css local() faces): on $(uname) they fall back, so this output will differ from the published media (see the font table in styles/_swatch/README.md, or render the fontprobe built-in)"
 
 builtin=0; [ -z "$SRCDIR" ] && case "$slug" in demo|catalog|fontprobe) builtin=1 ;; esac
 if [ $builtin = 1 ]; then SRC="$SW/$slug"; MEDIA="$SW/out/$slug/media"
@@ -115,7 +117,7 @@ run_hf() { # $@ = extra render args; runs in its own process group so a timeout 
   set +m
   t0=$(date +%s); lastchg=$t0
   while kill -0 "$HFPID" 2>/dev/null; do
-    sleep 1; now=$(date +%s); size=$(stat -f %z "$LOG" 2>/dev/null || echo 0)
+    sleep 1; now=$(date +%s); size=$(fsize "$LOG" 2>/dev/null || echo 0)
     [ "$size" != "$last" ] && { last=$size; lastchg=$now; }
     if [ $((now - t0)) -gt "$timeout" ]; then
       kill -TERM -- "-$HFPID" 2>/dev/null || true; sleep 3; kill -KILL -- "-$HFPID" 2>/dev/null || true
@@ -206,7 +208,7 @@ for crf in 18 20 22 24 26 28 30 32 34; do
       -c:v libx264 -preset slow -profile:v high -crf $crf -maxrate 2600k -bufsize 5200k -g 60 -r $FPS \
       -an -t $DUR -movflags +faststart "$TMP"
   fi
-  sz=$(stat -f %z "$TMP"); [ "$sz" -le $MP4_LIMIT ] && break
+  sz=$(fsize "$TMP"); [ "$sz" -le $MP4_LIMIT ] && break
 done
 [ "$sz" -le $MP4_LIMIT ] || die "swatch.mp4 is still $sz bytes at CRF $crf: reduce full-frame grain/noise"
 mv "$TMP" "$MP4"
@@ -217,7 +219,7 @@ echo "$ok ${MP4#$ROOT/}  $(python3 -c "print(f'{$sz/1e6:.2f} MB')")  (crf $crf$(
 if [ -n "$AUDIO" ]; then
   QA_ARGS=(); [ -f "$OUT/music_raw.beats.json" ] && [ -f "$SRC/score.json" ] && QA_ARGS+=("$OUT/music_raw.beats.json")
   [ -f "$SRC/events.json" ] && QA_ARGS+=(--events "$SRC/events.json")   # foley onsets are designed, not clicks
-  "$ROOT/bin/vh" qa scan "$MP4" "${QA_ARGS[@]}" --from 0.3 --to $(python3 -c "print($DUR-0.5)") > "$OUT/qa.txt" 2>&1 \
+  "$ROOT/bin/vh" qa scan "$MP4" "${QA_ARGS[@]}" --from 0.3 --to "$(python3 -c "print($DUR-0.5)")" > "$OUT/qa.txt" 2>&1 \
     && echo "$ok audio qa passed (${OUT#$ROOT/}/qa.txt)" \
     || die "audio qa failed — see ${OUT#$ROOT/}/qa.txt (typical fixes: a pad/sub bed under sparse bars, no hats-only sections)"
 fi
@@ -226,7 +228,7 @@ fi
 JPG="$MEDIA/poster.jpg"
 for q in 2 3 4 5 6 7 8 10 12 15; do
   ffmpeg -v error -y -i "$HFMP4" -vf "select=eq(n\\,$POSTER_FRAME),scale=1280:720:flags=lanczos" -frames:v 1 -q:v $q "$JPG"
-  psz=$(stat -f %z "$JPG"); [ "$psz" -le $JPG_LIMIT ] && break
+  psz=$(fsize "$JPG"); [ "$psz" -le $JPG_LIMIT ] && break
 done
 [ "$psz" -le $JPG_LIMIT ] || die "poster.jpg is still $psz bytes at q $q"
 echo "$ok ${JPG#$ROOT/}  $((psz / 1000)) KB (q $q)"
