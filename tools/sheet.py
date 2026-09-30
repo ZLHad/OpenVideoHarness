@@ -3,6 +3,7 @@
 usage: uv run --with pillow python tools/sheet.py <video> <out.png> [cols=6] [fps=1] [width=480]
        label colour via env VH_SHEET_LABEL (default #ffdc00)
 Frames are sampled at t = (k + 0.5) / fps so each tile sits mid-interval; the label is that exact time.
+A time past the last frame is clamped to it, so a clip shorter than one interval (0.4 s at fps 1) still gets a tile.
 """
 import json, math, os, subprocess, sys, tempfile
 from pathlib import Path
@@ -10,10 +11,17 @@ from PIL import Image, ImageDraw, ImageFont
 
 LABEL = os.environ.get("VH_SHEET_LABEL", "#ffdc00")  # tile label colour; use a grey when the sheet appears inside a film
 
-def probe_duration(video: str) -> float:
-    out = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", video],
-                         capture_output=True, text=True, check=True).stdout
-    return float(json.loads(out)["format"]["duration"])
+def probe_duration(video: str):
+    """→ (duration, latest safe seek time): a seek past the last frame's start extracts nothing, so stop half a frame
+    before it (the seek then lands on the last frame, even after rounding to ms)."""
+    out = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                                     "format=duration:stream=duration,avg_frame_rate", "-of", "json", video],
+                                    capture_output=True, text=True, check=True).stdout)
+    st = (out.get("streams") or [{}])[0]
+    dur = float(st.get("duration") or out["format"]["duration"])          # the video stream, not a longer audio track
+    num, _, den = st.get("avg_frame_rate", "0/0").partition("/")
+    rate = float(num) / float(den) if float(den or 0) and float(num or 0) else 0
+    return dur, max(0.0, dur - 1.5 / rate) if rate else dur / 2
 
 def font(size: int):
     for f in ["/System/Library/Fonts/Menlo.ttc", "/System/Library/Fonts/SFNSMono.ttf",
@@ -27,8 +35,8 @@ def main():
     cols = int(sys.argv[3]) if len(sys.argv) > 3 else 6
     fps = float(sys.argv[4]) if len(sys.argv) > 4 else 1.0
     width = int(sys.argv[5]) if len(sys.argv) > 5 else 480
-    dur = probe_duration(video)
-    times = [(k + 0.5) / fps for k in range(max(1, math.floor(dur * fps)))]
+    dur, last = probe_duration(video)
+    times = [min((k + 0.5) / fps, last) for k in range(max(1, math.floor(dur * fps)))]   # a short clip still gets a tile
     tiles = []
     with tempfile.TemporaryDirectory() as tmp:
         for i, t in enumerate(times):

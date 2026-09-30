@@ -10,7 +10,8 @@ output of beats.py; events.json: the SFX event list. Exit status 1 if silence, d
 (usable as a gate); clicks are only a warning.
 
 scan (checked span: --from, default 1.0 s, to --to, default the beat map's fade start, else the last 2.8 s)
-  silence   digital-silence runs (< −60 dBFS, ≥ 20 ms). Inside the span they FAIL: a dramatic "stop" must keep a bed.
+  silence   digital-silence runs: every channel below −60 dBFS, sample by sample, for ≥ 20 ms (exact start–end).
+            Inside the span they FAIL: a dramatic "stop" must keep a bed.
   dropouts  0.1 s RMS windows < their section's median − 12 dB (sections from beats.json, else 8 s blocks).
   pumping   50 ms RMS vs a 600 ms rolling median: a dip > 4 dB for ≥ 60 ms that does not start within −0.05…+0.40 s
             of a transient music hit. A music ducker keyed on every SFX shows up here. Not counted: a gradual sag that
@@ -73,10 +74,11 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04):
                                                             else F if F else dur - 2.8)
     secs = bm.get("sections") or [{"name": f"{a:.0f}s", "start": a, "end": a + 8} for a in np.arange(0, dur, 8.0)]
     out, fails = [f"audio QA scan · {path} · {dur:.3f} s · {X.shape[1]} ch · checked {t_from:.2f}–{end:.2f} s"], 0
-    d5, t5 = rms_db(x, sr, .005, .005); sil = runs(d5 < -60, t5, .005, .02)
+    q = np.diff(np.concatenate([[0], (np.abs(X).max(1) < 1e-3).astype(np.int8), [0]]))    # every channel < −60 dBFS
+    sil = [(i / sr, j / sr) for i, j in zip(np.nonzero(q == 1)[0], np.nonzero(q == -1)[0]) if j - i >= .02 * sr]   # exact runs
     inside = [r for r in sil if r[1] >= t_from and r[0] <= end]; fails += len(inside)
     out.append(f"[1] digital silence (< −60 dBFS, ≥ 20 ms): {len(inside)} inside the span" +
-               ("; all runs: " + ", ".join(f"{a:.3f}-{b:.3f}" for a, b, *_ in sil) if sil else ""))
+               ("; all runs: " + ", ".join(f"{a:.3f}-{b:.3f}" for a, b in sil) if sil else ""))
     db, tt = rms_db(x, sr, .1, .05); viol = []
     for s in secs:
         m = (tt >= s["start"]) & (tt < s["end"])

@@ -18,7 +18,7 @@
 #   beats <audio> [out.json]    beat grid (bpm, offset, beats, downbeats) + hits, kick/snare accents (librosa)
 #   music <score.json> <out.wav> | music --example [zh]   code-composed soundtrack + exact beat/section map
 #   sfx lib <dir> | sfx place <events.json> <out.wav> [dur]   built-in SFX library / place SFX on action times (stereo, pan/dist)
-#   mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]   3-bus mix, music ducks under voice+SFX, −14 LUFS
+#   mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]   3-bus mix, music ducks under the voice (duck=on: + SFX), −14 LUFS
 #   qa <mix> [beats.json] [events.json]  final-mix QA: silence, dropouts, pumping, clicks + cue check (exit 1 on fail)
 #   mux <video> <audio> <out> [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video
 #   readcheck <texts.json|project> [--mode onscreen|subtitle] [--lang zh|en]  on-screen text held long enough / subtitles within reading speed (exit 1 on fail)

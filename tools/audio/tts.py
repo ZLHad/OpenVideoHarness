@@ -17,16 +17,19 @@ Input  <project>/audio/script.txt — one spoken line per row (a line = one capt
        fixed --gap, so narration rides the music; --snap picks the grid, --lead the earliest start of line 1.
        A single line can pick its own grid with @id:downbeat (or :beat, :half), e.g. the answer that lands on the drop.
        --lang picks which side is spoken (zh = left, en = right); both sides go into the timeline for captions.
-       A line with only one side is spoken as-is.
+       A line with only one side is spoken as-is; for captions it is English when it has no CJK characters, else
+       Chinese ("Claude Code ||" keeps a Latin-only line on the Chinese side; punctuation only, like "……", goes
+       with the one-sided line before it).
        Dialogue (two speakers): a header line maps speaker labels to voices, then a line starts with its label
-       (after the optional @id and [direction]):
+       (after the optional @id and [direction]; a [direction] right after the label works too, two are joined):
                                       @speakers A=Kore B=Puck
                                       @q1 A: 你猜这支片子手写了几行代码？ || Guess how many lines we wrote by hand?
                                       @a1 B: [压低声音，卖个关子] 一行都没有。 |oh| || Not a single one. |oh|
        Labels count only when declared in @speakers (header first), so an ordinary "注意：" line stays narration.
        "A=Tingting,B=Meijia" as --voice overrides the header (e.g. a `say` draft of a gemini dialogue).
        |reaction| markers (no space just inside the pipes) are listener backchannels that the other speaker voices in
-       a gemini conversation; every other path and the captions drop them, like the <tags> below.
+       a gemini conversation; every other path and the captions drop them, like the <tags> below. Only a script with
+       an @speakers header has backchannels: elsewhere |x| is ordinary text (范围是 |x| keeps it).
 Output <project>/audio/vo/<lang>/NN.wav, audio/voiceover.<lang>.wav (mono 48 kHz, joined with --gap s silence),
        audio/timeline.<lang>.json, and audio/timeline.json + audio/voiceover.wav as copies of the latest run:
        {"provider","voice","lang","duration","segments":[{"id","text","zh","en","start","end","file","words"?,
@@ -72,8 +75,9 @@ Providers (API keys come from environment variables only, never from files):
               ("calm, confident documentary narrator"). Identity traits (age, gender, accent) belong to the voice
               (bin/vh voices design), not to style; long director's notes are the most common cause of voice drift.
               Point-in-time tags go inline, in English even in a Chinese script: <short pause> <long pause> <breath>
-              <laugh> <sigh> <cough> … Every clip carries an inaudible SynthID watermark: disclose AI narration in
-              NOTES.md. GEMINI_TTS_MODEL overrides the model id.
+              <laugh> <sigh> <cough> … Other providers and the captions drop them: these six always, any other <word>
+              unless it is glued to letters/digits on both sides (if x<y and y>z stays text). Every clip carries an
+              inaudible SynthID watermark: disclose AI narration in NOTES.md. GEMINI_TTS_MODEL overrides the model id.
   gemini-lite gemini-3.8-flash-lite-tts: the same API, 101 languages, $0.50 / $6 per 1M (≈ $0.0015 per 10 s) through
               2026-12-31, $1 / $12 from 2027-01-01; for bulk single-speaker narration.
 """
@@ -143,6 +147,9 @@ def p_qwen(text, voice, out: Path, tmp: Path, lang, instruct=None):
     return None
 
 def p_say(text, voice, out: Path, tmp: Path, lang, instruct=None):
+    if not shutil.which("say"):                                      # macOS only: a clear exit, not a FileNotFoundError
+        sys.exit(f"tts: the `say` provider is macOS-only (no `say` command on {sys.platform}); use "
+                 f"{', '.join(p for p in PROVIDERS if p not in ('say', 'qwen'))} (qwen needs Apple Silicon)")
     aiff = tmp / "say.aiff"
     run(["say", "-v", voice or ("Tingting" if lang.startswith("zh") else "Samantha"), "-o", str(aiff), text])
     to_wav(aiff, out)
@@ -218,14 +225,22 @@ def p_gemini_lite(text, voice, out: Path, tmp: Path, lang, instruct=None):
 PROVIDERS = {"qwen": p_qwen, "say": p_say, "edge": p_edge, "dashscope": p_dashscope, "elevenlabs": p_elevenlabs,
              "gemini": p_gemini, "gemini-lite": p_gemini_lite}
 
-TAG = re.compile(r"\s*<[A-Za-z][A-Za-z _-]{0,30}>\s*")          # performance tags such as <short pause>, <breath>, <laugh>
+TAG = re.compile(r"\s*<([A-Za-z][A-Za-z _-]{0,30})>\s*")        # performance tags such as <short pause>, <breath>, <laugh>
+TAGS = ("short pause", "long pause", "breath", "laugh", "sigh", "cough")   # the documented ones: always a tag
 REACTION = re.compile(r"\s*\|(?=\S)[^|\n]{1,40}(?<=\S)\|\s*")   # dialogue backchannels such as |mhm|, |oh really?|
 CJK_GAP = re.compile(r"(?<=[　-鿿＀-￯]) (?=[　-鿿＀-￯])")
 
-def strip_tags(text: str) -> str:
-    """Remove inline performance tags and |reaction| markers: only gemini voices them; every other provider would read
-    them aloud, and captions must never show them."""
-    return CJK_GAP.sub("", re.sub(r" {2,}", " ", REACTION.sub(" ", TAG.sub(" ", text)))).strip()
+def _tag(m):
+    """Another <word> glued to letters/digits on both sides is text, not a tag: `if x<y and y>z` keeps it."""
+    s, a, b = m.string, m.start(1) - 1, m.end(1) + 1                       # "<" at a, ">" at b - 1
+    glued = a > 0 and s[a - 1].isascii() and s[a - 1].isalnum() and b < len(s) and s[b].isascii() and s[b].isalnum()
+    return m.group() if glued and m.group(1).lower() not in TAGS else " "
+
+def strip_tags(text: str, reactions=True) -> str:
+    """Remove inline performance tags and (in a dialogue script) |reaction| markers: only gemini voices them; every
+    other provider would read them aloud, and captions must never show them. Outside a dialogue |x| is text."""
+    text = TAG.sub(_tag, text)
+    return CJK_GAP.sub("", re.sub(r" {2,}", " ", REACTION.sub(" ", text) if reactions else text)).strip()
 
 def strip_reactions(text: str) -> str:
     """Remove |reaction| markers only (kept for a gemini conversation, where the other speaker voices them)."""
@@ -257,10 +272,10 @@ def parse_script(path: Path):
         m = re.match(r"(\S+?)\s*[:：]\s*", line.strip()) if speakers else None
         if m and m.group(1) in speakers:                             # "A: …" — only labels declared in @speakers
             spk, line = m.group(1), line.strip()[m.end():]
-            m = None if style else re.match(r"\[([^\]]+)\]\s*", line)   # "A: [direction] …" works too
+            m = re.match(r"\[([^\]]+)\]\s*", line)                   # "A: [direction] …" works too; "[d1] A: [d2]" → "d1; d2"
             if m:
-                style, line = m.group(1).strip(), line[m.end():]
-        zh, _, en = (p.strip() for p in line.partition("||"))
+                style, line = "; ".join(x for x in (style, m.group(1).strip()) if x), line[m.end():]
+        zh, bar, en = (p.strip() for p in line.partition("||"))
         if spk:                                                      # "A: 中文 || A: English"
             en = re.sub(rf"^{re.escape(spk)}\s*[:：]\s*", "", en)
         snap = None
@@ -274,7 +289,15 @@ def parse_script(path: Path):
         if spk:
             seg["speaker"] = spk
         seg["_block"] = block
+        if not bar:                                                  # one side only: which language is it?
+            seg["_one"] = "zh" if CJK_TEXT.search(zh) else "en" if re.search(r"[^\W_]", zh) else None
         segs.append(seg)
+    one = next((s["_one"] for s in segs if s.get("_one")), "zh")
+    for s in segs:                                                   # without CJK characters it is English; punctuation
+        if "_one" in s:                                              # only ("……") goes with the one-sided line before it
+            one = s.pop("_one") or one
+            if one == "en":
+                s["zh"], s["en"] = "", s["zh"]
     return segs, speakers
 
 def read_script(path: Path):
@@ -283,6 +306,7 @@ def read_script(path: Path):
 # ---------- alignment: gemini-3.5-transcribe word timestamps → script words + similarity ----------
 
 _CJK = "぀-ヿ㐀-䶿一-鿿豈-﫿가-힯"
+CJK_TEXT = re.compile(rf"[{_CJK}　-〿＀-￯]")                  # CJK characters, CJK / full-width punctuation
 UNIT = re.compile(rf"[{_CJK}]|(?:(?![{_CJK}])[^\W_])+(?:['’.\-](?:(?![{_CJK}])[^\W_])+)*")   # one CJK char / one word
 OPENERS = "“‘「『（《〈【"
 ASR_LANGS = {"zh": "cmn-Hans-CN", "en": "en-US"}
@@ -378,8 +402,12 @@ def align_lines(texts, asr_words, dur, alts=None):
         r["cut1"] = dur if i == len(res) - 1 else (r["end"] + res[i + 1]["start"]) / 2
         heard = [w for w in asr_words if r["cut0"] <= (w["start"] + w["end"]) / 2 < r["cut1"]]
         r["heard"] = ("" if any(u["cjk"] for u in r["units"]) else " ").join(w["w"] for w in heard).strip()
-        r["sim"] = max(similarity(x, [u[0] for u in asr_units(heard)]) for x in ([u["n"] for u in r["units"]], (alts or {}).get(i, "")) if x)
+        hn = [u[0] for u in asr_units(heard)]                  # a line without words ("……") scores 1.0 if nothing is heard
+        r["sim"] = max(similarity(x, hn) for x in ([u["n"] for u in r["units"]], (alts or {}).get(i)) if x is not None)
         r["words"] = _words(r["units"], r["times"])
+    for r in res:                                               # no words to time ("……"): the line spans its own cut
+        if not r["units"]:
+            r["start"], r["end"] = r["cut0"], r["cut1"]
     res[0]["head"] = round(asr_words[0]["start"] if asr_words else dur, 2)
     res[-1]["tail"] = round(dur - asr_words[-1]["end"] if asr_words else dur, 2)
     return res
@@ -549,7 +577,7 @@ def main():
     ap.add_argument("--voice"); ap.add_argument("--lang", default="zh", choices=["zh", "en"])
     ap.add_argument("--gap", type=float, default=0.25); ap.add_argument("--instruct")
     ap.add_argument("--beats", help="beat map JSON: start each line on the next grid point")
-    ap.add_argument("--snap", default="beat", choices=["beat", "half", "downbeat"])
+    ap.add_argument("--snap", choices=["beat", "half", "downbeat"], help="with --beats: the grid (default beat)")
     ap.add_argument("--lead", type=float, default=0.0, help="earliest start of the first line (s)")
     ap.add_argument("--min-gap", type=float, default=0.12, help="with --beats: minimum breath before the next grid point")
     ap.add_argument("--align", default="none", choices=["none", "gemini"], help="word timestamps + ASR check per line")
@@ -565,6 +593,7 @@ def main():
                           "@hook 一句话，做出一支片子。 || One sentence in, one film out.\n", encoding="utf-8")
         sys.exit(f"wrote a sample {script} — edit it and re-run")
     segs, speakers = parse_script(script)
+    reactions = bool(speakers)                                       # |…| is a backchannel only under an @speakers header
     if a.voice and "=" in a.voice:                                   # "A=Tingting,B=Meijia" overrides @speakers
         speakers.update(p.split("=", 1) for p in re.split(r"[,\s]+", a.voice) if "=" in p); a.voice = None
     gemini = a.provider.startswith("gemini")
@@ -588,6 +617,11 @@ def main():
         beats = sorted(bm.get("beats", []))
         grids = {"beat": beats, "downbeat": sorted(bm.get("downbeats", [])) or beats,
                  "half": sorted(beats + [(x + y) / 2 for x, y in zip(beats, beats[1:])])}
+    elif a.snap or any(s.get("snap") for s in segs):                  # timing is unchanged; only say so
+        print("  warning: --snap and @id:grid need --beats <music.beats.json>; without it every line follows --gap")
+    for s in (x for x in segs if x.get("snap") not in (None, "beat", "half", "downbeat")):
+        print(f"  warning: @{s['id']}:{s['snap']} — unknown grid (beat | half | downbeat); ignored, the line uses --snap {a.snap or 'beat'}")
+    a.snap = a.snap or "beat"
     grid = grids.get(a.snap, [])
     def next_start(earliest, which=None):  # first point of the chosen grid at or after `earliest` (past its end: as is)
         g = grids.get(which or a.snap, grid)
@@ -598,11 +632,11 @@ def main():
         return f
     def prepare(s, conv=False):  # → text for the provider; the segment keeps caption-clean sides
         raw = (s["zh"] if a.lang == "zh" else s["en"]) or s["zh"] or s["en"]
-        s["text"] = strip_tags(raw)                                  # what captions show
+        s["text"] = strip_tags(raw, reactions)                       # what captions show
         if conv and REACTION.search(raw):
             s["_alt"] = with_reactions(raw)                          # what the ASR hears in that turn
-        s["zh"], s["en"] = strip_tags(s["zh"]), strip_tags(s["en"])
-        return (raw if conv else strip_reactions(raw)) if gemini else s["text"]
+        s["zh"], s["en"] = strip_tags(s["zh"], reactions), strip_tags(s["en"], reactions)
+        return (raw if conv or not reactions else strip_reactions(raw)) if gemini else s["text"]
     def style_of(s):
         return "; ".join(x for x in (a.instruct, s.get("direction")) if x) or None
     t, parts, asr_s, asr_n = 0.0, [], 0.0, 0
