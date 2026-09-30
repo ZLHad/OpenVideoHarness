@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+**README: one picture of the whole project**
+- `docs/assets/overview.en.svg` / `overview.zh.svg` replace the mermaid flowchart under "How it works". The new diagram shows the path from a one-sentence request to the final film, with the three human gates, sound-first rendering, the self-review loop and gate ③ sending the film back. Beside it, it shows what the repository provides: knowledge, tools and engines, and the records that feed lessons back into the playbook. Both files follow the reader's light or dark theme.
+
 **Narration: found by a second review of v0.2.1 and the PRs since**
 - `bin/vh tts … --align gemini` and `--join` no longer lose the take when a transcription fails for good (a daily-quota 429, a 5xx that outlasts its retries, the network): the key is checked before anything is synthesized, `voiceover.<lang>.wav` and the timeline are written right after synthesis, a line the ASR could not check keeps its measured timing with `asr: {"error": …}`, and the command exits 1 with the reason. `--resume` then redoes only the ASR and alignment on the files of that run, without synthesizing (or paying) again; with `--join`, a block that could not be transcribed stays whole in `vo/<lang>/_blockNN.wav` and its lines share the block's span until then. Before, a missing key or a quota error after the last line was synthesized exited with nothing written.
 - `--beats` with a map that has no grid for `--snap` (for example only `downbeats` under the default `beat`) is an error instead of silent plain `--gap` spacing; when the narration outlives the grid, the lines past its end follow `--gap` and say so once (they used to be packed at `--min-gap`, 0.12 s).
