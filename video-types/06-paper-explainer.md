@@ -24,7 +24,7 @@
 写代码前先过三道关，每一关都停下来给用户确认。这套规则来自 3brown1blue 的 `paper-explainer.md`：
 
 1. **读源文件**：优先读 `.tex`，没有再读 PDF。把以下内容**照抄**进 `NOTES.md`：标题、作者、单位、会议或期刊、年份、每个要上屏的数字和它所在的表格或图的位置。
-2. **Gate 1：NARRATION.md**。写口播稿并估算时间。中文语速约 4–5 字/秒【综合】，可以据此倒推字数。不要照念摘要。定稿后逐句拆进 `audio/script.txt`，运行 `bin/vh tts <项目> dashscope <音色>`（草稿先用 `say`）得到 `timeline.json`。Manim 片段按其中每句的实测时长安排 `run_time`，HyperFrames 片段则直接读这个文件。
+2. **Gate 1：NARRATION.md**。写口播稿并估算时间。字数按 `playbook/04-audio.md` 语速表的句内语速（原理讲解、论文 3.5–4.5 字/秒）乘 0.85 倒推，3 分钟约 540–690 字。不要照念摘要。定稿后逐句拆进 `audio/script.txt`，运行 `bin/vh tts <项目> dashscope <音色>`（草稿先用 `say`）得到 `timeline.json`。Manim 片段按其中每句的实测时长安排 `run_time`，HyperFrames 片段则直接读这个文件。
 3. **Gate 2：CURRICULUM**，写进 STORYBOARD.md。每个场景写清时间范围、唯一的 insight 和视觉模式。
 4. **Gate 3：STYLE.md**。定调色板和字体，并约定语义色：输入绿、处理蓝、输出黄，本文方法用强调色，基线用灰色。
 5. **重画图**：论文里的图全部用矢量重画，不截 PDF。系统框图按从左到右的顺序逐个出现，两端的框都出现之后才画箭头。
@@ -40,7 +40,7 @@
 | 3–5 分钟 | 动机和问题 → 系统模型 → 关键想法（1–2 个机制动画）→ 结果（1–2 张图）→ 一句话总结 + 论文信息 |
 | 10 分钟以上 | 用 Manim 或 HyperFrames 做幻灯片式分段，每段对应论文的一节；配 TTS 或你的录音 |
 
-3brown1blue 的 `paper-explainer.md` 里有更详细的五分钟模板，也分领域（ML、物理/工程、生物医学）给出了常见套路。
+3brown1blue 的 `paper-explainer.md` 里有更详细的五分钟模板，也分领域（ML、物理/工程、生物医学）给出了常见套路。3–5 分钟的讲解怎么排节拍、在哪里换挡，见 `playbook/09-narrative.md` 的模板 B。
 
 ## 禁止
 
