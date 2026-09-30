@@ -32,11 +32,14 @@ cues: onsets of the mix (librosa, hop 128 at 48 kHz) vs every transient music hi
   skipped) and every SFX event louder than −18 dB (gain_db − 20·log10(dist); swells whoosh/swish_rev/riser skipped).
   OK = nearest onset within 1 frame (1/fps). Each row prints its margin: how far the onset clears the detector's
   threshold (the normalised onset strength over its local mean + 0.04); under 0.02 it is marginal ("OK~", a warning: a
-  small level change can lose it). A near-pure tone (tick, ding, toggle: spectral flatness < 0.05) is located by
-  cross-correlating its own sound (from --lib / --root / the built-ins, or the stems' meta.json) with the mix, 250 Hz –
-  9 kHz, ±250 ms (after motioner's sync_check, MIT): an onset detector barely sees a sine starting under music. When a
-  cue sits within 1 frame of the start, one frame of silence is put in front first (an onset needs a frame to rise
-  from). On a lossy file (AAC in an mp4) the tolerance is 1 frame + 12 ms and every cue problem is a warning: the
+  small level change can lose it). An onset detector barely sees a near-pure tone (tick, ding, toggle: spectral
+  flatness < 0.01) starting under music, so when one of those is OFF or marginal, its own sound (from --lib / --root /
+  the built-ins, or the stems' meta.json) is cross-correlated with the mix, 250 Hz – 9 kHz (after motioner's sync_check,
+  MIT): a match ≥ 0.3 within the tolerance confirms it; ≥ 0.15 exactly on the planned sample (±1 ms) confirms the sync
+  but warns that it is faint; otherwise the best match within ±250 ms is printed with the OFF. The match can only
+  confirm a cue, never fail one: a same-pitch note in the score makes its position unreliable. When a cue sits within
+  1 frame of the start, one frame of silence is put in front first (an onset needs a frame to rise from) and that
+  padded start is left out of the normalisation. On a lossy file (AAC in an mp4) the tolerance is 1 frame + 12 ms and every cue problem is a warning: the
   encode smears onsets, so the gate is the lossless mix (run qa on the WAV) and the mp4 only confirms the mux.
 mix (the level hierarchy, per bin/vh mix's profile table; see playbook/04-audio.md "混音"):
   [1] loudness: the stems' sum and each bus. [2] speech: per narration line (the timeline, else voiced runs) voice,
@@ -48,7 +51,8 @@ mix (the level hierarchy, per bin/vh mix's profile table; see playbook/04-audio.
   the mix sits under the stems' sum.
   Hard fails (exit 1): a line under the profile's VMR floor; a hero over its limit re the voice during speech; more
   words under the presence floor than the profile allows (with word times; 0.4 s chunks only warn: they straddle pauses
-  and read a few points pessimistic); an SFX class median more than 3 LU outside its range.
+  and read a few points pessimistic); an SFX class median more than 3 LU outside its range (a low-frequency hit under
+  the range counts at its floor, as for a single event: the mixer never raises one).
 Known limits: pumping misses long shallow dips (≈ 300 ms at −8 dB fills half the 600 ms median; only the −12 dB dropout
   check catches it); the onset detector normalises to the loudest onset in the file, so one huge onset elsewhere can
   make a weak cue marginal or OFF (the margin column shows it); clicks are judged against local HF content, so a click
@@ -64,6 +68,7 @@ LOSSLESS = ("flac", "alac", "wavpack", "tta", "ape", "mlp", "truehd", "shorten")
 AAC_MARGIN = 0.012     # s: in the mix lab's 16 AAC mp4s, 284 cues' onsets moved ≤ 5.4 ms from their WAV (marginal ones can flip)
 TONAL = 0.01           # spectral flatness under which an SFX counts as a (near-)pure tone
 MATCH = 0.3            # normalised cross-correlation that confirms a tone's own sound in the mix
+FAINT = 0.15           # … or this much, on the planned sample (±1 ms): on sync, but faint under the music (a warning)
 MARGINAL = 0.02        # onset strength over the detector's threshold under which a cue is marginal
 
 def load(path, sr=None):  # → float32 (n, ch), sr — via ffmpeg, so containers and codecs all work
@@ -230,11 +235,13 @@ def cues(path, bm, ev, fps, lib=None, root=None):
                 off, sc = locate(yb, nd, tm[0] / sr, min(tol, 0.45 * gap), sr)        # is it there, within the tolerance?
                 if off is not None and sc >= MATCH:
                     near, ok, marginal, note = off, True, False, f"  (its own sound, match {sc:.2f})"
+                elif off is not None and sc >= FAINT and abs(off) <= 0.001:   # on sync; whether it is heard is qa mix's question
+                    near, ok, marginal, note = off, True, True, f"  (its own sound on the planned sample, but faint: match {sc:.2f})"
                 else:   # where is it then, if anywhere within ±250 ms (motioner's search window)
                     off, sc = locate(yb, nd, tm[0] / sr, min(0.25, 0.45 * gap), sr)
                     note = f"  (its own sound: best match {sc:.2f} at {off * 1000:+.0f} ms)" if off is not None else ""
         errs.append(abs(near)); bad += (not ok) and not enc; warns += marginal or ((not ok) and enc)
-        mtxt = f"{mg:+6.3f}" if mg is not None and not note.startswith("  (its own sound, match") else "     –"
+        mtxt = f"{mg:+6.3f}" if mg is not None and not note.startswith(("  (its own sound, match", "  (its own sound on")) else "     –"
         rows.append(f"{t:8.3f}  {near * 1000:+7.1f} ms  {abs(near) * fps:5.2f} fr  {('OK~' if marginal else 'OK ') if ok else 'OFF'}  {mtxt}  {what}{note}")
     errs = np.array(errs); ok = int((errs <= tol).sum()) if len(errs) else 0
     head = (f"cue check · {path}: {len(errs)} cues, within {'1 frame + the AAC margin' if enc else '1 frame'} ({1000 * tol:.1f} ms): {ok}" +
@@ -477,7 +484,7 @@ def verdict(R, P):
     for e in R["events"]:
         lo, hi = P["sfx"].get(e["class"], P["sfx"].get("detail", (-99, 99))); e["flag"] = flag(e["re_anchor"], lo, hi) if e["re_anchor"] is not None else "ok"
         if e["flag"] == "LOW" and e.get("lf", 0) > 0.6: e["flag"] = "ok"   # a low-frequency hit reads loud on K-weighting: only HIGH counts
-        if e["re_anchor"] is not None: by.setdefault(e["class"], []).append(e["re_anchor"])
+        if e["re_anchor"] is not None: by.setdefault(e["class"], []).append((e["re_anchor"], e.get("lf", 0) > 0.6 and e["re_anchor"] < lo))
         if e["speaking"] and e["re_voice"] is not None and e["class"] == "hero" and e["re_voice"] > P["hero_under_voice"]:
             e["flag"] = "OVER-VOICE"; fails.append(f"{e['t']:.2f} s {e['sfx']} (hero) {e['re_voice']:+.1f} LU re the voice under speech")
         elif e.get("voice_snr") is not None and e["voice_snr"] < 6 and e["class"] != "hero":
@@ -490,10 +497,14 @@ def verdict(R, P):
             warns.append(f"{e['t']:.2f} s {e['sfx']} (hero): {e['lf'] * 100:.0f} % of its energy under 150 Hz — reads weak on phone/laptop speakers; "
                          "add a 1–4 kHz attack layer rather than more gain")
     R["classes"] = {}
-    for c, v in by.items():
-        lo, hi = P["sfx"].get(c, P["sfx"].get("detail", (-99, 99))); med = float(np.median(v))
-        R["classes"][c] = {"n": len(v), "median": med, "min": float(min(v)), "max": float(max(v)), "range": (lo, hi)}
-        if med < lo - 3 or med > hi + 3: fails.append(f"SFX class {c}: median {med:+.1f} LU re anchor, range {lo}…{hi}")
+    for c, vv in by.items():
+        lo, hi = P["sfx"].get(c, P["sfx"].get("detail", (-99, 99))); v = [x for x, _ in vv]; med = float(np.median(v))
+        R["classes"][c] = {"n": len(v), "median": med, "min": float(min(v)), "max": float(max(v)), "range": (lo, hi), "lf_low": sum(f for _, f in vv)}
+        judged = float(np.median([lo if f else x for x, f in vv]))   # a low-frequency hit under the range counts at its floor:
+        if judged < lo - 3 or judged > hi + 3:                       # the mixer never raises one (as the per-event LOW rule)
+            fails.append(f"SFX class {c}: median {med:+.1f} LU re anchor, range {lo}…{hi}")
+        elif judged != med and med < lo - 3:
+            warns.append(f"SFX class {c}: median {med:+.1f} LU re anchor, under {lo}…{hi} because of {R['classes'][c]['lf_low']} low-frequency hit(s), which the mixer never raises")
     meds = {c: d["median"] for c, d in R["classes"].items()}
     order = [c for c in ("hero", "signal", "detail", "ambience") if c in meds]
     R["order_ok"] = all(meds[a] >= meds[b] for a, b in zip(order, order[1:]) if (a, b) != ("hero", "signal"))

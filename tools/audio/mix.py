@@ -50,9 +50,9 @@ break). The order is voice anchor → music VMR → SFX classes → depth → ma
           voice, ambience ducks 4 dB under speech, one short shared room (RT60 0.25–0.3 s) puts the SFX just behind the
           dry voice, a presence carve clears the words an SFX would cover, bus peaks ≤ anchor + 11 dB (cartoon + 9).
           sfx= (one pre-placed bus, no events) is mixed as a single detail layer: nothing to class.
-  master  fade, one static gain to lufs= on a BS.1770 meter (ffmpeg's ebur128 agrees; loudnorm reads 0.15–0.2 LU low
-          on short clips), then a look-ahead true-peak limiter only if needed. tp defaults to −1.65 dBTP: 0.15 dB of
-          margin for the AAC encode (+0.03–0.2 dB), so the mp4 stays at or under −1.5.
+  master  fade, one static gain to lufs= on a BS.1770 meter (ffmpeg's ebur128 agrees; loudnorm differs on short clips,
+          −0.2 LU on a 25 s film, +0.3 on a 5 s swatch), then a look-ahead true-peak limiter only if needed. tp defaults to
+          −1.65 dBTP: 0.15 dB of margin for the AAC encode (+0.03–0.2 dB), so the mp4 stays at or under −1.5.
   music_db / sfx_db / voice_db   the build's starting balance: SFX are judged from it (default −6 / 0 / 0; swatch 0 / −3)
   keep=   cue times whose passage keeps its designed SFX level (a synced onset the class moves made undetectable)
   stems=  a folder for the buses as heard at the final gain (voice, music, sfx, sfx_<class>.wav) and meta.json with

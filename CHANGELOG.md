@@ -17,12 +17,12 @@
   - a line is under the VMR floor;
   - a hero is over the voice during speech;
   - too many words are at risk (with word times; 0.4 s chunks only warn);
-  - an SFX class median is more than 3 LU out of range.
+  - an SFX class median is more than 3 LU out of range (a low-frequency hit under the range counts at its floor, as the per-event rule already did: the mixer never raises one).
 
   `bin/vh qa <mix> … --stems DIR` runs the scan, the cue check and the report together. Its pumping check skips dips the music stem has too (the score's own dynamics).
 - Cue check:
   - each cue prints its onset margin, and a margin under 0.02 is flagged `OK~` (a warning);
-  - a near-pure-tone SFX (tick, ding, toggle) that the onset detector misses is confirmed by cross-correlating its own sound, after motioner's sync_check;
+  - a near-pure-tone SFX (tick, ding, toggle) that the onset detector misses is confirmed by cross-correlating its own sound, after motioner's sync_check. A match ≥ 0.3 within the tolerance confirms it; a faint match exactly on the planned sample confirms the sync with a warning. The match never fails a cue;
   - a cue on frame 0 gets one frame of silence before it, and that padded start is left out of the normalisation;
   - on an AAC file the tolerance grows by 12 ms and cue problems only warn: the WAV is the gate.
 - `bin/vh sfx`:
