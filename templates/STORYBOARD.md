@@ -9,7 +9,7 @@ World: {场景设定；5–7 色的调色板；光线；颜色在全片中怎样
 Motif: {反复出现、最后有回应的东西}
 Arc: {主角（或核心概念）情绪/理解的关键节点，覆盖全片}
 Audio: {旁白/歌曲/音乐；BPM 与 offset；timeline.json 路径}
-Animatic: {out/animatic.mp4 · 960×540 灰盒 · 真实 / 占位音频；不做就写"无"。节奏要紧的片子在关卡 ② 前做，见 playbook/01}
+Animatic: {out/animatic.mp4 · draft 画质的灰盒 · 真实 / 占位音频；不做就写"无"。节奏要紧的片子在关卡 ② 前做，见 playbook/01}
 
 ## Shots
 

@@ -47,6 +47,11 @@ const PROJECT = (() => { try { const g = vm.createContext({ console }); g.window
 const FRAMES_DIR = args.loop ? `out/frames_loop_${args.loop}` : 'out/frames', MADE = (() => { try { return JSON.parse(readFileSync(`${FRAMES_DIR}/frames.json`, 'utf8')); } catch { return {}; } })();
 const fps = +(args.fps || (args.encode && MADE.fps) || PROJECT.fps || 24), nOf = len => Math.ceil(len * fps - 1e-6);   // nOf: frames in len seconds
 const run = (cmd, a) => new Promise((ok, bad) => { const p = spawn(cmd, a, { stdio: 'inherit' }); p.on('close', c => c ? bad(new Error(cmd + ' exited ' + c)) : ok()); });
+// Chrome's JPEG frames are full-range BT.601. Left alone, x264 keeps them that way (yuvj420p, tagged pc/bt470bg), and
+// browsers decode such files with the BT.709 matrix: saturated colours shift by up to ~40 levels. Convert to the web
+// convention instead, limited-range BT.709 with all four colour tags, like every other video in this repo.
+const BT709 = 'scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709';
+
 // ffmpeg args for the audio under a video span: from `from` s into the file, trimmed or padded with silence to exactly
 // dur s, so every rendered frame is kept (-shortest used to cut the picture when the audio ran out). Padding is announced.
 const audioIn = (audio, from, dur) => {
@@ -82,7 +87,7 @@ if (args.encode) {
   mkdirSync(dirname(out), { recursive: true });
   await run('ffmpeg', ['-y', '-loglevel', 'error', '-stats', '-framerate', String(fps), '-start_number', String(first), '-i', `${FRAMES_DIR}/f%05d.jpg`,
     ...(audio ? audioIn(audio, first / fps, (end - first) / fps) : []),
-    '-frames:v', String(end - first), '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out]);
+    '-frames:v', String(end - first), '-vf', BT709, '-c:v', 'libx264', '-preset', 'slow', '-crf', '17', '-movflags', '+faststart', out]);
   console.log('wrote ' + out);
   process.exit(0);
 }
@@ -184,7 +189,7 @@ if (args.sheet || args.strip) {
   const out = args.out || 'out/clip.mp4', n = Math.round((b - a) * fps); mkdirSync(dirname(out), { recursive: true });
   const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
     ...(audio ? audioIn(audio, a, n / fps) : []),
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out],
+    '-vf', BT709, '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-movflags', '+faststart', out],
     { stdio: ['pipe', 'inherit', 'inherit'] });
   let code = null; const done = new Promise(r => ff.on('close', (c, sig) => r(code = c ?? sig)));
   ff.stdin.on('error', () => {});   // ffmpeg quit early: stop feeding it (its exit code is reported below)
