@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="716" viewBox="0 0 720 716" role="img"><title>OpenVideoHarness at a glance</title><desc>A one-sentence request goes through type and effort selection, three human gates, sound-first code rendering and a self-review loop to a finished film; on the right, what the repository provides: knowledge, tools and engines, and records that feed lessons back.</desc>
+<style>
+.t{font:500 14px system-ui,-apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif}
+.s{font:400 12px system-ui,-apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif}
+rect{stroke-width:0.8}
+.pu rect{fill:#EEEDFE;stroke:#534AB7}.pu .t{fill:#3C3489}.pu .s{fill:#534AB7}
+.co rect{fill:#FAECE7;stroke:#993C1D}.co .t{fill:#712B13}.co .s{fill:#993C1D}
+.te rect{fill:#E1F5EE;stroke:#0F6E56}.te .t{fill:#085041}.te .s{fill:#0F6E56}
+.gr rect{fill:#F1EFE8;stroke:#5F5E5A}.gr .t{fill:#444441}.gr .s{fill:#5F5E5A}
+.ar{stroke:#888780;stroke-width:1.2;fill:none}.ld{stroke:#888780;stroke-width:0.8;stroke-dasharray:4 3;fill:none}
+.ah{stroke:#888780;fill:none}.lg{fill:#5F5E5A}
+@media (prefers-color-scheme:dark){
+.pu rect{fill:#3C3489;stroke:#AFA9EC}.pu .t{fill:#EEEDFE}.pu .s{fill:#CECBF6}
+.co rect{fill:#712B13;stroke:#F0997B}.co .t{fill:#FAECE7}.co .s{fill:#F5C4B3}
+.te rect{fill:#085041;stroke:#5DCAA5}.te .t{fill:#E1F5EE}.te .s{fill:#9FE1CB}
+.gr rect{fill:#444441;stroke:#B4B2A9}.gr .t{fill:#F1EFE8}.gr .s{fill:#D3D1C7}
+.ar,.ld,.ah{stroke:#B4B2A9}.lg{fill:#B4B2A9}}
+</style>
+<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="ah" d="M2 1L8 5L2 9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<g class="gr"><rect x="135.0" y="30" width="180" height="40" rx="5"/><text class="t" x="225.0" y="55.0" text-anchor="middle">One-sentence request</text></g>
+<line class="ar" x1="225.0" y1="70" x2="225.0" y2="98" marker-end="url(#a)"/>
+<g class="pu"><rect x="60" y="100" width="330" height="52" rx="5"/><text class="t" x="225.0" y="122" text-anchor="middle">Pick the type and effort</text><text class="s" x="225.0" y="140" text-anchor="middle">8 video types · quick / standard / studio</text></g>
+<line class="ar" x1="225.0" y1="152" x2="225.0" y2="182" marker-end="url(#a)"/>
+<g class="co"><rect x="60" y="184" width="330" height="52" rx="5"/><text class="t" x="225.0" y="206" text-anchor="middle">Gate ①: outline and styles</text><text class="s" x="225.0" y="224" text-anchor="middle">2–3 style samples to choose from</text></g>
+<line class="ar" x1="225.0" y1="236" x2="225.0" y2="266" marker-end="url(#a)"/>
+<g class="co"><rect x="60" y="268" width="330" height="52" rx="5"/><text class="t" x="225.0" y="290" text-anchor="middle">Gate ②: storyboard</text><text class="s" x="225.0" y="308" text-anchor="middle">one keyframe per shot, judged by eye</text></g>
+<line class="ar" x1="225.0" y1="320" x2="225.0" y2="350" marker-end="url(#a)"/>
+<g class="pu"><rect x="60" y="352" width="330" height="52" rx="5"/><text class="t" x="225.0" y="374" text-anchor="middle">Sound first, then picture</text><text class="s" x="225.0" y="392" text-anchor="middle">every frame a pure function of t</text></g>
+<line class="ar" x1="225.0" y1="404" x2="225.0" y2="434" marker-end="url(#a)"/>
+<g class="pu"><rect x="60" y="436" width="330" height="52" rx="5"/><text class="t" x="225.0" y="458" text-anchor="middle">Self-review loop</text><text class="s" x="225.0" y="476" text-anchor="middle">contact sheets, audio QA, 7 scores ≥ 8</text></g>
+<line class="ar" x1="225.0" y1="488" x2="225.0" y2="518" marker-end="url(#a)"/>
+<g class="co"><rect x="60" y="520" width="330" height="52" rx="5"/><text class="t" x="225.0" y="542" text-anchor="middle">Gate ③: first draft</text><text class="s" x="225.0" y="560" text-anchor="middle">with its 3 weakest spots named</text></g>
+<line class="ar" x1="225.0" y1="572" x2="225.0" y2="602" marker-end="url(#a)"/>
+<g class="gr"><rect x="105.0" y="604" width="240" height="40" rx="5"/><text class="t" x="225.0" y="629.0" text-anchor="middle">Final: reproducible, editable</text></g>
+<path class="ar" d="M60 462 H44 V388 H58" marker-end="url(#a)"/>
+<path class="ar" d="M60 546 H26 V370 H58" marker-end="url(#a)"/>
+<g class="te"><rect x="450" y="100" width="230" height="124" rx="5"/><text class="t" x="565.0" y="124" text-anchor="middle">Knowledge</text><text class="s" x="565.0" y="148" text-anchor="middle">8 video types · 9 playbook docs</text><text class="s" x="565.0" y="168" text-anchor="middle">28 styles, each with a sample</text><text class="s" x="565.0" y="188" text-anchor="middle">11 case studies</text><text class="s" x="565.0" y="208" text-anchor="middle">30 reference repos</text></g>
+<line class="ld" x1="450" y1="126" x2="390" y2="126"/>
+<line class="ld" x1="450" y1="210" x2="390" y2="210"/>
+<g class="te"><rect x="450" y="352" width="230" height="124" rx="5"/><text class="t" x="565.0" y="376" text-anchor="middle">Tools and engines</text><text class="s" x="565.0" y="400" text-anchor="middle">bin/vh, 20+ commands</text><text class="s" x="565.0" y="420" text-anchor="middle">HyperFrames · Manim</text><text class="s" x="565.0" y="440" text-anchor="middle">p5.brush hand-drawn engine</text><text class="s" x="565.0" y="460" text-anchor="middle">score · voice · mix · QA</text></g>
+<line class="ld" x1="450" y1="378" x2="390" y2="378"/>
+<line class="ld" x1="450" y1="462" x2="390" y2="462"/>
+<g class="te"><rect x="450" y="520" width="230" height="120" rx="5"/><text class="t" x="565.0" y="544" text-anchor="middle">Records and lessons</text><text class="s" x="565.0" y="568" text-anchor="middle">REVIEW.md logs every note</text><text class="s" x="565.0" y="588" text-anchor="middle">LESSONS flow into the playbook</text><text class="s" x="565.0" y="608" text-anchor="middle">the next film starts better</text></g>
+<line class="ld" x1="450" y1="546" x2="390" y2="546"/>
+<line class="ld" x1="450" y1="624" x2="345.0" y2="624"/>
+<g class="co"><rect x="60" y="664" width="12" height="12" rx="2"/></g><text class="s lg" x="78" y="674">you decide</text>
+<g class="pu"><rect x="210" y="664" width="12" height="12" rx="2"/></g><text class="s lg" x="228" y="674">the agent does</text>
+<g class="te"><rect x="360" y="664" width="12" height="12" rx="2"/></g><text class="s lg" x="378" y="674">the repo provides</text>
+</svg>
