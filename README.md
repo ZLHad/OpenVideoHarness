@@ -204,6 +204,7 @@ A few more guides:
 - **Breaking down someone else's film:** [playbook/07](playbook/07-reverse-engineer.md).
 - **A story with rises and falls, or a film of 3 minutes or more:** [playbook/09](playbook/09-narrative.md) (structures, beat sheets, the tension curve, act breaks).
 - **Posting to short-video platforms: the opening hook, title and cover:** [playbook/10](playbook/10-hooks-and-packaging.md).
+- **Music with chapters, a theme you can hum, and real rises and falls:** [playbook/11](playbook/11-composition.md).
 
 ## Sound
 
@@ -214,7 +215,7 @@ The agent can't hear, so sound is built to be computed and measured:
 | Voiceover (zh / en) | `bin/vh tts` | Local open-source **Qwen3-TTS** by default: offline, free; the first run downloads about 2 GB of model and about 750 MB of Python packages. 5 Chinese voices (including Beijing and Sichuan accents), 2 English. Interfaces ready for Alibaba Cloud, ElevenLabs and Gemini 3.8 Flash TTS (very expressive; direct the delivery in one sentence) |
 | Narration with feeling and rhythm | `bin/vh tts … --beats` | Direct each line on its own, e.g. `[surprised question, fast, stress "one sentence"]`. With music, every line starts on a beat, and key lines can be pinned to a bar start or the drop. Default delivery per video type, frame-aligned tempos and mix settings are in [playbook/04](playbook/04-audio.md) |
 | Bilingual subtitles | `bin/vh captions` | Write the script as `中文 \|\| English` and get Chinese, English and two-line subtitles, which can be packed as switchable tracks |
-| Music | `bin/vh music` | Composed in code: the same score always gives the same music, plus the exact time of every beat for the picture to hit. Includes Chinese instruments (bells, guzheng, dizi, big drum) and changing time signatures. Using your own track? `bin/vh beats` finds its beats and drum hits |
+| Music | `bin/vh music` | Composed in code: the same score always gives the same music, plus the exact time of every beat for the picture to hit. Includes Chinese instruments (bells, guzheng, dizi, big drum) and changing time signatures. Using your own track? `bin/vh beats` finds its beats and drum hits. Chapters, a theme and dynamics: [playbook/11](playbook/11-composition.md) |
 | Sound effects | `bin/vh sfx` | 15 original synthesized effects, each placed on the frame where its action happens; a sound on the left of the screen comes from the left |
 | Mix | `bin/vh mix` | Music makes way for the voice; the whole mix is set to −14 LUFS without flattening a cinematic score |
 | Mix check | `bin/vh qa` | Measures the finished mix for gaps, dropouts, pumping and clicks, and checks every cue lands within 1 frame |
@@ -310,7 +311,7 @@ OpenVideoHarness/
 ├── bin/vh · tools/           the command line and the scripts behind it
 ├── skills/                   the open-video-harness skill
 ├── video-types/              workflows for the 8 video types
-├── playbook/                 shared know-how 00–10: pipeline, checks, motion, sound, effects, narrative, hooks and covers
+├── playbook/                 shared know-how 00–11: pipeline, checks, motion, sound, effects, narrative, hooks and covers, composition
 ├── templates/                files each new project fills in: brief, storyboard, style, review, notes, lessons, checklist
 ├── styles/                   28 styles, each with a sample; _swatch/ renders the samples
 ├── cases/                    11 case studies + curated community work + a 3D long-form deep-dive

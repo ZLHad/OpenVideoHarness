@@ -15,7 +15,7 @@ Functional Emotions 的教训：第一版是精致的排版歌词视频，被否
 
 ## 工作流
 
-0. **歌从哪里来**：用户提供（Suno 等网页生成后下载，或有授权的曲目）；需要纯器乐时可以用 `bin/vh music` 写一首，这样节拍表是精确的；带人声的歌曲生成模型只留了接口（见 `playbook/04-audio.md` 的"歌曲"一节）。
+0. **歌从哪里来**：用户提供（Suno 等网页生成后下载，或有授权的曲目）；需要纯器乐时可以用 `bin/vh music` 写一首，这样节拍表是精确的，主题、篇章和副歌怎么一次比一次强，见 `playbook/11-composition.md`；带人声的歌曲生成模型只留了接口（见 `playbook/04-audio.md` 的"歌曲"一节）。
 1. **音频分析**（`playbook/04-audio.md`）：
    - `bin/vh beats audio/song.mp3 audio/beats.json` 求 BPM、beats 和 downbeats，写入 `audio/beats.json`（不给第二个参数时写到 `audio/song.beats.json`）；需要更准的 downbeat 和段落结构（主歌、副歌、间奏）时，用 beat_this 或 all-in-one；
    - 歌词逐句、逐词对齐：先用 Demucs 分离人声，再用 Whisper 分块转写，最后把真实歌词对齐到转写结果上。functional-emotions-video 的 `analysis/` 目录有完整的脚本（`features.py`、`transcribe.py`、`align.py`、`build_data.py`），可以直接改来用；
