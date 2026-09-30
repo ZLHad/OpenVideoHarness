@@ -286,13 +286,13 @@ class Page:
         self.project, self.src, self.d, self.gate = project, src, data, gate
         self.out = project / "out" / "review"
         lang = data.get("lang")
-        self.lang = lang if lang in T else "zh"
+        self.lang = lang if isinstance(lang, str) and lang in T else "zh"
         self.t = T[self.lang]
         self.errors, self.warnings = [], []
         self.shot_ids = set()
         self.flagged = {}      # shot id → least-sure note
         self.bad_paths = set() # each missing or refused path is reported once, however many places use it
-        if lang is not None and lang not in T:
+        if lang is not None and self.lang != lang:
             self.warn(f"lang {lang!r} is not zh or en; using zh")
 
     def err(self, msg):
@@ -438,7 +438,7 @@ class Page:
                 self.err(f"{what}: {p!r} is neither a project path nor an http(s) URL; refused")
             return None
         f = Path(p) if os.path.isabs(p) else self.project / p
-        if not f.exists() and p not in self.bad_paths:
+        if not os.path.exists(f) and p not in self.bad_paths:
             self.bad_paths.add(p)
             self.err(f"{what}: {p} does not exist")
         rel = os.path.relpath(f, self.out).replace(os.sep, "/")
@@ -762,7 +762,7 @@ def main():
         found = [rdir / f"gate-{g}.json"]
     else:
         found = sorted(rdir.glob("gate-*.json"), key=lambda p: p.stat().st_mtime)
-    if not found or not found[-1].exists():
+    if not found or not os.path.exists(found[-1]):
         where = found[-1] if found else rdir / "gate-<n>.json"
         print(f"no review pack at {where}: write one first (playbook/01-pipeline.md, 审阅页)", file=sys.stderr)
         return 2

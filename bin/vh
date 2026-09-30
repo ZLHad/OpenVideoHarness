@@ -23,7 +23,7 @@
 #   qa <mix> [beats.json] [events.json]  final-mix QA: silence, dropouts, pumping, clicks + cue check (exit 1 on fail)
 #   mux <video> <audio> <out> [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video
 #   readcheck <texts.json|project> [--mode onscreen|subtitle] [--lang zh|en]  on-screen text held long enough / subtitles within reading speed (exit 1 on fail)
-#   review <project> [gate]     decision-first review page: out/review/gate-<gate>.json → gate-<gate>.html (+ index.html); prints the chat message (templates/REVIEW.md)
+#   review <project> [gate]     decision-first review page: out/review/gate-<gate>.json → gate-<gate>.html (+ index.html); prints the chat message (playbook/01-pipeline.md, 审阅页)
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
 #   check <video>               ffprobe + black/freeze/silence detection
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
