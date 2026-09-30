@@ -9,7 +9,7 @@
    - **一句话需求是常态**：389 支社区 Opus 5.5 作品里，完整提示词的中位数不到 30 个词，四分之一直接套用同一句 showreel 提示词（见 `cases/opus55-gallery.md`）。收到一句话时，自己按类型文档的默认值补全 BRIEF，把关卡 ① 的审阅页写短，最多问 3 个真正影响制作的问题，不要反过来追问一长串。
 2. **读流程和自查**：读 `playbook/01-pipeline.md` 和 `playbook/02-verification.md`；涉及配音或音乐时，再读 `playbook/04-audio.md`。
 3. **建项目**：运行 `bin/vh new <type> <slug>`，它会建好 `projects/<日期>-<slug>/`，复制模板，并把该类型的 prompt 块填进 BRIEF；手绘类还会复制引擎、装好依赖。其他引擎的初始化方式见 `engines/README.md`。
-4. **看案例和参考**：打开类型文档"可参考的案例"和"社区 skill 参考"两节列出的文件；需要看真实代码时读 `references/repos/` 里的源码。本仓库自己做过的片子在 `showcase/`，各带 BRIEF、STORYBOARD、NOTES 和源码，是最直接的样板。
+4. **看案例和参考**：打开类型文档"可参考的案例"和"社区 skill 参考"两节列出的文件；需要看真实代码时读 `references/repos/` 里的源码。本仓库自己做过的片子在 `showcase/`，各带 BRIEF、STORYBOARD、NOTES 和源码，是最直接的样板。分镜时，镜头怎么动、全片节奏怎么排，先查 `recipes/`：按意图和能量筛（`bin/vh recipes list`），把选中的配方 id 写进 STORYBOARD 的"配方"列，写代码前读配方全文。
 5. **停下来给人审**：`standard` 和 `studio` 必过下面三道关卡，`quick` 不设关卡；人点名要亲自拍板的事，按"导演模式"另外停，`quick` 也一样。每次停默认做一页决定优先的审阅页（`bin/vh review` 生成本地 HTML，做法见 `playbook/01-pipeline.md` 的"审阅页"），聊天里只发要人定的事和页面路径；只有一两个纯文字的选择时，直接在聊天里问也行。然后**停下来等人回复**，不要自己往下做：
    - ① **大纲**：BRIEF 加 3–7 段大纲、引擎和费用。风格部分从 `styles/` 里挑 2–3 个彼此拉得开的预设，附上样片，让人选或混搭。不要默认只给一种口味；
    - ② **分镜**：按大纲的段落拆页，每页 3–6 镜的关键帧，没把握的镜头标出来，逐镜默认通过。长片再附一版全长灰盒 animatic；
@@ -110,6 +110,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 | 要写有篇章、有主题的配乐（MV、介绍片和发布片、45 s 以上靠音乐撑起结构的片子、`studio` 档位，或者人要亲自定主题和 BGM） | `playbook/11-composition.md`；`score.json` 的写法见 `playbook/04-audio.md` | `bin/vh music` | — |
 | 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`（一镜到底、特效预设栈、子帧运动模糊） | HyperFrames + Three.js 层 | `showcase/04-intro-film/`、`cases/opus55-gallery.md` 的 3D 一节和第 6 节（Austerlitz 长片深读） |
 | 想要某种风格、参考某部名作，或者不想每支片子都一个口味 | `styles/README.md`，再读选中预设的 `styles/<slug>/STYLE.md` | 随主引擎 | 每个预设的 `media/swatch.mp4`，总览 `styles/gallery.jpg` |
+| 想知道某种镜头怎么动（开场、字卡、转场、卡点、收尾），或想要"专业的节奏" | `recipes/README.md`，再读 `recipes/sequences/` 里合适的骨架 | 随主引擎 | `cases/promo-video-shotcraft.md` |
 
 以上都不贴切时，读 `playbook/00-paradigm.md` 的引擎选型表自己判断，并在 `DECISIONS.md` 里写明理由。
 
@@ -137,7 +138,7 @@ OpenVideoHarness/
 ├── install.sh                一键安装（克隆、依赖、参考仓库、注册 skill）
 ├── CONTRIBUTING.md           改本仓库本身时的分支、PR 和推送规则（人和 agent 都适用）
 ├── .github/                  CI（Linux + macOS 跑 tools/ci.sh）和 main 分支的规则集
-├── bin/vh                    命令行：doctor · setup · types · effort · new · style · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · sheet · check · gif · review
+├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · sheet · check · gif · review
 ├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py、review.py）；ci.sh 是仓库自检
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              8 类视频：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
