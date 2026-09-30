@@ -27,11 +27,22 @@ static_checks() {
   if command -v shellcheck >/dev/null; then
     if out=$(files bin/vh '*.sh' | xargs shellcheck -S warning 2>&1); then ok "shellcheck -S warning"; else echo "$out"; bad "shellcheck"; fi
   else skip "shellcheck" "not installed"; fi
-  # BSD-only or GNU-only flags, matched where a command starts: a statement start or a pipe, also after do / then / else
-  # and behind a wrapper (xargs, sudo, exec, env, time, nohup, command); a line may opt out with a trailing "# portable-ok: <why>"
-  local np='(^|[;&|(`]|\$\()[[:space:]]*((do|then|else|elif|xargs|sudo|exec|env|time|nohup|command)( -[^[:space:]]+)*[[:space:]]+)*(sed -i|stat -[cf] |md5 -q|md5sum|readlink -f|grep -[a-zA-Z]*P|date -[djv] |xargs -r|find [^;|]*-printf|base64 -D|sort -V|tac )'   # portable-ok: the list itself
-  if out=$(files bin/vh '*.sh' | xargs grep -n -E "$np" | grep -v 'portable-ok'); then
-    echo "$out"; bad "non-portable shell commands (use a helper that works with both BSD and GNU tools)"
+  # BSD-only or GNU-only flags, matched where a command starts: a statement start, a pipe, after if / while / until / do /
+  # then / else, after `{`, `(`, `!` or a case arm, and behind a wrapper (xargs, sudo, exec, env, time, nohup, nice, command)
+  # with its flags, VAR=value tokens or arguments. Comments, single-quoted strings, double-quoted strings without $ or
+  # backticks, and heredoc bodies are blanked first, line numbers kept; a line may opt out with a trailing "# portable-ok: <why>"
+  local np='(^|[;&|(){}!`]|\$\()[[:space:]]*((if|while|until|do|then|else|elif|xargs|sudo|exec|env|time|nohup|nice|command)([[:space:]]+(-[^[:space:]]*|[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*|[A-Za-z0-9_.{}-]+))*[[:space:]]+)*(sed -i|stat -[cf] |md5 -q|md5sum|readlink -f|grep -[a-zA-Z]*P|date -[djv] |xargs -r|find [^;|]*-printf|base64 -D|sort -V|tac( |$))'   # portable-ok: the list itself
+  local awkprog=''; IFS= read -r -d '' awkprog <<'AWK' || true   # a heredoc, not $(…): the awk text has a backtick
+BEGIN { term = "" }
+term != "" { t = $0; sub(/^\t+/, "", t); if (t == term) term = ""; print ""; next }
+/portable-ok/ { print ""; next }
+{ line = $0
+  if (match(line, /<<-?["']?[A-Za-z_][A-Za-z0-9_]*/)) { term = substr(line, RSTART + 2, RLENGTH - 2); sub(/^-/, "", term); gsub(/["']/, "", term) }
+  gsub(/'[^']*'/, "", line); gsub(/"[^"$`]*"/, "", line); sub(/(^|[[:space:];])#.*$/, "", line)
+  print line }
+AWK
+  out=$(while IFS= read -r f; do awk "$awkprog" "$f" | grep -n -E "$np" | sed "s#^#$f:#"; done < <(files bin/vh '*.sh'))
+  if [ -n "$out" ]; then echo "$out"; bad "non-portable shell commands (use a helper that works with both BSD and GNU tools)"
   else ok "no BSD-only / GNU-only shell commands"; fi
   # python: compile everything, then pyflakes when available
   n=0; while IFS= read -r f; do python3 -m py_compile "$f" 2>/dev/null || { bad "py_compile $f"; n=$((n + 1)); }; done < <(files 'tools/*.py' 'styles/_swatch/*.py')

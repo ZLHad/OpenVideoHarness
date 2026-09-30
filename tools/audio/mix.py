@@ -26,10 +26,16 @@ USAGE = ("usage: bin/vh mix <out.wav> [voice=vo.wav] [music=m.wav] [sfx=s.wav] [
 KEYS = ("voice", "music", "sfx", "music_db", "sfx_db", "voice_db", "duck", "duck_ratio", "lufs", "tp")
 
 def main():
+    if sys.argv[1:2] in (["-h"], ["--help"]): print(USAGE); sys.exit(0)
     if len(sys.argv) < 2: sys.exit(USAGE)
     bad = [a for a in sys.argv[2:] if "=" not in a or a.split("=", 1)[0] not in KEYS]   # a bare path or a typo, not a traceback
     if bad: sys.exit(f"{USAGE}\nnot key=value, or not a known key: {' '.join(bad)}")
     out = sys.argv[1]; kv = dict(a.split("=", 1) for a in sys.argv[2:])
+    for k in ("music_db", "sfx_db", "voice_db", "duck_ratio", "lufs", "tp"):
+        if k in kv:
+            try: float(kv[k])
+            except ValueError: sys.exit(f"{k}={kv[k]}: not a number")
+    if kv.get("duck", "voice") not in ("voice", "on", "off"): sys.exit(f"duck={kv['duck']}: use duck=voice, duck=on or duck=off")
     buses = [(k, kv[k]) for k in ("voice", "music", "sfx") if kv.get(k)]
     if not buses: sys.exit("give at least one of voice= music= sfx=")
     ins, idx = [], {}

@@ -111,13 +111,13 @@ def main():
             name = e["sfx"]
             if name not in cache:
                 p = Path(name)
-                if p.suffix or "/" in name:                          # a file of your own: anything ffmpeg decodes
+                if lib_dir and (lib_dir / f"{name}.wav").exists(): cache[name] = read(lib_dir / f"{name}.wav")   # --lib first: "v2.1" is a name
+                elif "/" in name or p.exists():                      # a file of your own: anything ffmpeg decodes
                     p.exists() or sys.exit(f"sfx: no such file: {name} (event at t={e['t']})")
                     try: cache[name] = read(p)
                     except subprocess.CalledProcessError: sys.exit(f"sfx: ffmpeg cannot decode {name}")
-                elif lib_dir and (lib_dir / f"{name}.wav").exists(): cache[name] = read(lib_dir / f"{name}.wav")
                 elif name in LIB: cache[name] = LIB[name]()
-                else: sys.exit(f"sfx: unknown sound {name!r}: not a built-in ({', '.join(LIB)}), not in --lib, not a file")
+                else: sys.exit(f"sfx: unknown sound {name!r}: not in --lib, not a built-in ({', '.join(LIB)}), not a file")
             x = spatial(cache[name] * 10 ** (e.get("gain_db", 0) / 20), e.get("pan", 0), e.get("dist", 1))
             i = int(round((e["t"] - LANDMARK.get(name, 0.0)) * SR))
             if i < 0: x, i = x[-i:], 0
