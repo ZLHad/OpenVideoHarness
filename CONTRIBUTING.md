@@ -16,10 +16,10 @@
 
 1. 只推自己的分支。不推 main，不删分支，不动 tag。
 2. 推送前跑 `tools/ci.sh --committed`，全部通过才推。它在一份干净的检出上检查 HEAD，结果和 CI 一致；工作区里没提交的改动不算数。修 bug 要先复现，再证明修好，前后对比写进 PR。
-3. PR 一律开成草稿。不批准、不合并，合并由人决定。规则集允许管理员在 PR 里"绕过规则合并"，这个开关只留给人用，agent 不碰。
+3. PR 一律开成草稿。合并由人决定：人在对话里明确让 agent 合并时，agent 先确认 CI 全绿、自己审过 diff，再用 squash 合并。规则集允许管理员在 PR 里"绕过规则合并"，这个开关只留给人用，agent 不碰。
 4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。
 5. 用户能感知到的改动，在 `CHANGELOG.md` 的 Unreleased 里记一笔。改了 `CLAUDE.md`，跑 `bin/vh sync-agents` 重新生成 `AGENTS.md`。
-6. 提交信息写清改了什么、为什么，不写模型名称。
+6. 提交信息写清改了什么、为什么。末尾可以带 `Co-Authored-By:` 署名行。
 
 ## 推送前自查：`tools/ci.sh`
 
