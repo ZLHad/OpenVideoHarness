@@ -626,7 +626,7 @@ PY
 
 张力、起伏与编曲
 - Barchet, Rimmele & Pelofi (2024), [TenseMusic: An automatic prediction model for musical tension](https://pmc.ncbi.nlm.nih.gov/articles/PMC10798497/), *PLOS ONE*。
-- Morwaread Farbood (2012), [A parametric, temporal model of musical tension](https://nyuscholars.nyu.edu/en/publications/a-parametric-temporal-model-of-musical-tension), *Music Perception* 29(4)。
+- Morwaread Farbood (2012), [A parametric, temporal model of musical tension](https://nyuscholars.nyu.edu/en/publications/a-parametric-temporal-model-of-musical-tension), *Music Perception* 29(4)，[doi:10.1525/mp.2012.29.4.387](https://doi.org/10.1525/mp.2012.29.4.387)。
 - Dennis DeSantis, *Making Music* (Ableton)：[Dramatic Arc](https://makingmusic.ableton.com/dramatic-arc)、[Arranging as a Subtractive Process](https://makingmusic.ableton.com/arranging-as-a-subtractive-process)、[Unique Events](https://makingmusic.ableton.com/unique-events)。
 - Wikipedia, [Adaptive music](https://en.wikipedia.org/wiki/Adaptive_music)（vertical re-orchestration）。
 
