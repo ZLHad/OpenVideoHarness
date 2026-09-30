@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+**Music parts: physically modelled plucked strings**
+- 14 new voices, all opt-in; the Karplus–Strong voices are unchanged. Physical models of existing voices: `guqin_pm`, `pipa_pm`, `harp_pm`, `nylon_pm`, `ukulele_pm`, `upright_pm`, `balalaika_pm`, `cimbalom_pm`. New instruments: `guitar` (steel-string), `koto`, `shamisen`, `banjo`, `kalimba`, `musicbox_pm`. They are new names rather than a `model` switch: each gets its own level, default octave and `--instruments` line through the existing registry, the new instruments need names anyway, and an A/B is a one-word change.
+- The strings are digital waveguides in numpy, block-vectorised like `ks()`, with no numba:
+  - a one-pole loss filter, so high partials die first, and allpasses for stiffness;
+  - a third-order Lagrange fractional delay that can move every sample, for slides, bends and vibrato;
+  - the pluck point and the finger, nail, pick or hammer shaping the excitation;
+  - tension modulation: a hard pluck starts sharp and settles;
+  - two polarisations, or a course of strings;
+  - sawari on the shamisen, stronger when it is plucked harder;
+  - a modal body with a radiation tilt.
+  The kalimba and music box are modal bars.
+- When a note stops ringing, a finger damps the string inside the loop, never in a fade: the loop gain falls over 15 ms while a darker loss filter crossfades in over 30 ms. The delay line gives back that filter's extra phase delay half a period behind the crossfade, because a sample read now went through the filter a period earlier. Through the damp the pitch stays within 5 cents of the ring, for every string voice from MIDI 28 to 96, damped or muted.
+- A note's audio does not depend on the block length, so the loop can be sped up later without changing a byte. Once a short loop (above about 480 Hz) settles, its steady rest is one `lfilter` with the same recursion (within 6e-13 of the block loop).
+- Per-note knobs, in params or a note's fifth slot: `slide`, `bend`, `vib`, `yin`, `nao`, `harm` (a node harmonic, within ±1 dB of a pluck of the same pitch), `trem` (re-plucks the same string), `pos`, `bright`, `decay`, `ring`, `damp`, `mute`, `buzz`. Out-of-range values are clamped. The kalimba and music box read only `ring`, `damp` and `decay`. The part's `tremolo` works as for `pipa`.
+- Level: every note's tone peaks at 0.5 at velocity 1 and `gain_db` 0. That is the engine's rule, now applied to every note rather than only the reference note; a pick, skin or bachi transient rides on top. The Karplus–Strong voices lose level toward the top, so a part switched to a modelled voice is about as loud at the default octave (±5 dB) and louder higher up: 6–26 dB three octaves up (cimbalom 26, balalaika 17, pipa 16, ukulele 15, upright 13). Check its `gain_db`.
+- A part whose audio comes out as NaN or inf now stops the render with the part's name. Before, it wrote a silent file with exit 0, and the level check missed it.
+- Checked:
+  - the fundamental is within ±1.2 cents over three octaves for every single-string voice;
+  - the fundamental's 60 dB decay runs 1–31 % longer than the design value of the main polarisation (the slower second polarisation carries the tail). On the balalaika and cimbalom the beating strings of a course move it by −26 % to +61 %;
+  - harmonics are within ±1 dB of a plucked note;
+  - in 26 solo phrases, every `qa` click warning is a note's own attack. The exception is a hard-plucked shamisen, where qa also lists a few sawari slaps (one every period, by design; none with `buzz` 0);
+  - renders are deterministic (sha256 of two renders) and identical whatever the block length;
+  - 5 s swatches render in about 1–2 s. A 2-minute film with five modelled parts takes about 10 s (5 s with the old voices). A new note costs up to 0.05 s (a ringing harp C5 is the slowest) and 0.07–0.08 s when its pitch moves all through a long note (a guqin slide, 吟 or 猱). A one-second shamisen note costs 0.2 s at MIDI 96, 0.7 s at 108 and 1.4 s from 114 up.
+- Existing scores render the same bytes: the 28 swatch scores, 4 showcase scores and the 8 examples (WAV and beat map).
+- Credits: the parameter ranges and several preset values come from lemo-opuscar `core/audio/pluck.py` (MIT); the code is our own. The papers behind the models are listed in ACKNOWLEDGMENTS.
+
 **Pictures to decide from, and scaffolding that stops making you guess (found by the 2026-10-01 cold-start test)**
 - `bin/vh storyboard <project>`: labelled storyboard pages from `shots.json`, one per segment (3–6 shots a page, split evenly: 26 shots at 6 a page are 5-5-5-5-6) plus an overview, in `out/check/storyboard/`. Each tile is a frame of the shot (its own `frame` image, a video frame at 60 % of the shot, or `--snapshot` straight from the HyperFrames composition with `--describe false`), with its times, length and reads. Shots marked `"unsure"` (or `--unsure S02,S04`) get a red frame and their reason; a shot longer than the type's payoff interval has its length in red. A shot the video never reaches is left grey with a note instead of showing the last frame again, and two shots with the same id stop it. `bin/vh storyboard -h` prints the small `shots.json` schema (id, start/end, segment, reads, frame or `at`, unsure; the `t0`/`t1`/`stage`/`read` spellings are read too).
 - Storyboard → review page: next to `index.json` it writes each shot's frame to `frames/<id>.png` and a `review.json` in `bin/vh review`'s shape (one segment per page, each shot with its frame, reads and the narration under it, long shots in the segment note, the unsure shots as least sure, the pages as assets, the video as the animatic). A gate JSON takes it with `"include": "out/check/storyboard/review.json"`; keys the gate JSON sets itself win. `playbook/01`'s 审阅页 section lists gate ② in order: `shots.json` → `bin/vh storyboard` → `bin/vh rhythm` → `bin/vh review`. `bin/vh review` now finds projects the way `bin/vh new` places them (`--dir`, `$OVH_PROJECTS`, the name without its date).

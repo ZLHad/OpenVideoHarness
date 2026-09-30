@@ -159,6 +159,19 @@ Parts: instruments playing patterns, rendered beside the layers
     plucked  nylon · ukulele · harp · pizzicato · upright [2] · pipa · guqin (slide, bend, yin, nao, harm) · balalaika ·
              cimbalom; all take ring (let ring) and mute; a guqin harmonic is as loud as a plucked note of its pitch.
              celesta, musicbox, glockenspiel, toypiano, marimba, cimbalom and guqin take damp (stop at the note's end)
+    modelled plucked strings as physical models, opt-in beside the voices above: guqin_pm [3] · pipa_pm · harp_pm ·
+             nylon_pm [3] · ukulele_pm · upright_pm [2] · balalaika_pm · cimbalom_pm, and guitar [3] (steel-string) · koto ·
+             shamisen (buzz: sawari 0–1, stronger when plucked harder) · banjo · kalimba [5] · musicbox_pm [6]. The strings
+             are digital waveguides: the pitch can move inside a note, high partials die first, a hard pluck starts a little
+             sharp, and every note's tone peaks at the same level. Their knobs, as params or a note's: ring, damp, mute;
+             slide, bend (semitones, ±36); vib (cents, or [Hz, cents, delay s]); yin, nao; harm (true, or the harmonic 2–8:
+             a node harmonic, as loud as a pluck of its pitch); trem (Hz up to 40, or true: re-pluck the same string, 轮指);
+             pos (pluck point 0.03–0.5), bright (0–1), decay (0.02–20, × the ring); out-of-range values are clamped.
+             kalimba and musicbox_pm are modal bars and read only ring, damp and decay. A ringing note renders until it dies
+             away or reaches its voice's limit (2.5–8 s, the bars 5 s; decay stretches it, up to 20 s), and there it fades
+             over its last second. The part's "tremolo" works as for pipa. Switched from the Karplus–Strong voice, a part is
+             about as loud at the default octave (±5 dB) and louder higher up, since those fade toward the top: 6–26 dB
+             three octaves up (cimbalom 26, balalaika 17, pipa 16, ukulele 15, upright 13). Check its gain_db
     bowed    strings (section: marcato, attack, release) · violin · fiddle · cello [3] · banhu — the solo ones are mono:
              notes less than 40 ms apart join into one phrase and glide (glide s), vibrato (vib [Hz, cents, delay]), scoop
              into notes (scoop semitones); "retrigger": true (param, section param or a note's knob) gives every note
@@ -180,7 +193,10 @@ Beat map (<out>.beats.json): {"bpm","offset":0,"beats":[…],"downbeats":[…],
   hits ("hit": true or "section"), and each section stop one "stop:<section>".
 Layers are simple subtractive/percussive synthesis (numpy + scipy); ~1–3 s to render a minute on Apple Silicon. Parts
 cost more (each note is rendered once and cached per pitch, length and velocity step): a 5 s score with 9 parts takes
-~1.5 s on an M3 Max; the heaviest voices are gong, luogu, braam, cs80 and cimbalom (~0.05–0.3 s per new note).
+~1.5 s on an M3 Max; the heaviest voices are gong, luogu, braam, cs80 and cimbalom (~0.05–0.3 s per new note). The
+physically modelled ones take up to ~0.05 s per new note, ~0.07–0.08 s for a long note whose pitch moves all through it
+(a guqin slide, 吟 or 猱), and a one-second shamisen note 0.2 s at MIDI 96, 0.7 s at 108, 1.4 s from 114 up (the sawari
+keeps every sample on the slow path).
 """
 import json, os, re, sys, wave
 import numpy as np
@@ -446,6 +462,7 @@ def render(score, stems=None, info=None, length=None, note_log=None):
         del out, sidechain, zh, send, wet   # the layers are mixed: free their buffers before the parts render (long scores)
         info_gain = [1.0]
         mix, checks = parts_bus(score, mix, hits, stems, info_gain, note_log)   # parts, stereo, spaces, lofi/tape; (n,) or (n, 2)
+    if not np.isfinite(mix).all(): sys.exit("music: the mix has samples that are not finite numbers (NaN or inf)")
     mix = np.tanh(mix * 1.2) / np.tanh(1.2)
     peak = np.max(np.abs(mix)) or 1.0
     if score.get("parts"):   # every part must be heard: ≥ −40 dBFS (loudest 50 ms RMS, or its peak − 18 dB) in the final file
@@ -1390,6 +1407,8 @@ def parts_bus(score, legacy, hits, stems=None, info_gain=None, note_log=None):
         stem *= 10 ** (float(part.get("gain_db", 0)) / 20)
         db = dyn_db(part, cx, N)
         if db is not None: stem *= 10 ** (db / 20); del db
+        if not np.isfinite(stem).all():   # a NaN compares false, so the level check below would pass it and the file would be silence
+            sys.exit(f"music: part {label}: its voice produced samples that are not finite numbers (NaN or inf); check its params and note knobs")
         if not part.get("quiet") and not silenced:   # where it plays loudest: the top 50 ms of power averaged over the channels (a hard pan reads
             # as loud as the centre), or the peak of that power − 18 dB (crackle, ticks)
             a = int((evs[0][0] if evs else pbars[0].tb) * SR); b = int(((evs[-1][0] + evs[-1][1]) if evs else pbars[-1].tb + pbars[-1].nb * cx.beat) * SR) + SR // 2
