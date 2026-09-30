@@ -173,6 +173,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
   - 键盘：`piano`（`tone: felt` 是柔和的毡锤钢琴，`pedal` 延音）、`epiano`（Rhodes）、`harpsichord`、`celesta`、`musicbox`、`glockenspiel`、`toypiano`、`organ`（拉杆风琴，`tone: pipe` 是管风琴）；
   - 敲击旋律：`marimba`、`xylophone`、`vibraphone`（带电机颤音）；
   - 拨弦：`nylon`、`ukulele`、`harp`、`pizzicato`、`upright`（走路贝斯用的低音提琴）、`pipa`、`guqin`（滑音、吟猱、泛音；泛音和同音高、同力度的拨弦一样响）、`balalaika`、`cimbalom`。`celesta`、`musicbox`、`glockenspiel`、`toypiano`、`marimba`、`cimbalom`、`guqin` 都接受 `damp`：音符结束时止住余音；
+  - 物理建模拨弦（可选，和上面的音色并存，只把 `inst` 换个名字就能 A/B）：`guqin_pm` `pipa_pm` `harp_pm` `nylon_pm` `ukulele_pm` `upright_pm` `balalaika_pm` `cimbalom_pm`，另有新乐器 `guitar`（钢弦民谣吉他）、`koto`（箏）、`shamisen`（三味线，`buzz` 0–1 是 sawari 蜂鸣）、`banjo`、`kalimba`、`musicbox_pm`。弦是数字波导，卡林巴和八音盒是悬臂梁的模态合成：一个音里音高可以连续滑动，高次泛音先衰减，重拨时音头略高再回落，琴体是一组共鸣模态。单个音的奏法写在 params 或音符的第 5 格：`slide`、`bend`（半音）、`vib`（颤音：音分，或 `[Hz, 音分, 延迟秒]`）、`yin`、`nao`、`harm`（节点泛音：`true` 或第几泛音 2–8，和同音高、同力度的拨弦一样响）、`trem`（轮指：同一根弦反复拨，写 Hz 或 `true`）、`pos`（拨弦点 0.03–0.5）、`bright`（0–1）、`decay`（余韵倍数）、`ring`、`damp`、`mute`；声部的 `tremolo` 照旧可用。每个音的峰值都一样；旧音色只校准了参考音，越往高音越弱（三个八度的顶端弱到 15 dB），所以从旧音色换过来，低音区音量差不多，高音区会响出来，换完要重新听一下 `gain_db`；
   - 拉弦：`strings`（弦乐组，`marcato` 是短促有力的奏法）、`violin`、`fiddle`、`cello`、`banhu`。独奏乐器是单音的：间隔不到 40 ms 的音连成一句，会滑过去，有揉弦；要每个音都重新起音，写 `"retrigger": true`（放在 params、某一段的 params，或单个音的奏法里）；
   - 管乐：`flute`、`xiao`、`whistle`、`suona`、`sheng`；铜管 `brass`（`stab` 短促、`swell` 渐强、`mute` 弱音器），`braam`（《盗梦空间》式的低音铜管轰鸣）；
   - 合成器：`pulse`（芯片方波，`duty` 占空比，`chiparp` 快速琶音当和弦）、`triangle`（4-bit 三角波贝斯）、`sq_bass`、`sub808`（带滑音和失真；和独奏弦乐一样，紧挨着的音会连成滑音，要一下一下地打就写 `"retrigger": true`）、`seq`（`attack` 给音头一点起音，滤波开得很大时 qa 就不会把音头当成 click）、`cs80`、`drone`、`polysynth`；旧的 `layers` 音色也能当声部用：`saw_pad` `saw_lead` `bell` `zheng` `dizi` `taiko` 等；
@@ -266,11 +267,11 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 **老实说还做不到的**：
 - 这是合成，不是采样。钢琴、弦乐组、铜管在笔记本扬声器上认得出来，凑近听仍然是"合成的"；独奏提琴的换弓和弓压变化是简化模型。
-- 拨弦类用 Karplus–Strong，基频准，高次泛音略偏；古琴的泛音是近似纯音。
+- 旧的拨弦音色用 Karplus–Strong，基频准，高次泛音略偏；古琴的泛音是近似纯音。`_pm` 物理建模版本单根弦的基频误差在 ±1.2 音分以内，但琴体是合成的共鸣模型，不是从真琴测出来的脉冲响应，凑近听仍然是合成的。
 - 旧音色 `saw_pad` 保留原样，失谐的锯齿波互相拍频，长音每秒起伏好几 dB，`qa` 可能报 pumping。新的 `strings`、`brass`、`drone`、`polysynth` 做了去拍频处理（弦乐组单音的起伏从 12 dB 降到 5 dB）。
-- `braam` 和低音大提琴的锯齿波边沿会出现在 `qa` 的 click 警告里，这是设计出来的声音，不是故障。
+- `braam` 和低音大提琴的锯齿波边沿会出现在 `qa` 的 click 警告里，这是设计出来的声音，不是故障。三味线的 sawari（`buzz`）每个周期拍一下琴码，力度最大时 `qa` 也会列出几处；`"buzz": 0` 就没有。
 - 没有人声。
-- 最耗时的是 `gong`、`luogu`、`braam`、`cs80`、`cimbalom`，每个新音约 0.05–0.3 s。一段 5 s、9 个声部的谱子，在 M3 Max 上约 1.5 s 渲染完。
+- 最耗时的是 `gong`、`luogu`、`braam`、`cs80`、`cimbalom`，每个新音约 0.05–0.3 s；物理建模拨弦每个新音约 0.005–0.07 s。一段 5 s、9 个声部的谱子，在 M3 Max 上约 1.5 s 渲染完。
 - 内存：声部逐个渲染、混进总线后就释放。一首 7 个声部的立体声谱子，5 分钟峰值约 1.1 GB，10 分钟约 3.6 GB（macOS 的 peak memory footprint；RSS 会显示得更高，因为释放的页还挂在进程上）。展示片 20–81 s，用量在 0.5 GB 以内。
 
 **戏剧性的"停"不能做成数字静音。** 要停的时候：

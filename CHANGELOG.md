@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+**Music parts: physically modelled plucked strings**
+- 14 new voices, all opt-in; the Karplus–Strong voices are unchanged. Physical models of existing voices: `guqin_pm`, `pipa_pm`, `harp_pm`, `nylon_pm`, `ukulele_pm`, `upright_pm`, `balalaika_pm`, `cimbalom_pm`. New instruments: `guitar` (steel-string), `koto`, `shamisen`, `banjo`, `kalimba`, `musicbox_pm`. They are new names rather than a `model` switch: each gets its own level, default octave and `--instruments` line through the existing registry, the new instruments need names anyway, and an A/B is a one-word change.
+- The strings are digital waveguides in numpy, block-vectorised like `ks()`, with no numba:
+  - a one-pole loss filter, so high partials die first, and allpasses for stiffness;
+  - a third-order Lagrange fractional delay that can move every sample, for slides, bends and vibrato;
+  - the pluck point and the finger, nail, pick or hammer shaping the excitation;
+  - tension modulation: a hard pluck starts sharp and settles;
+  - two polarisations, or a course of strings; sawari on the shamisen;
+  - a modal body with a radiation tilt.
+  The kalimba and music box are modal bars.
+- Per-note knobs, in params or a note's fifth slot: `slide`, `bend`, `vib`, `yin`, `nao`, `harm` (a node harmonic, within ±1 dB of a pluck of the same pitch), `trem` (re-plucks the same string), `pos`, `bright`, `decay`, `ring`, `damp`, `mute`, `buzz`. The part's `tremolo` works as for `pipa`.
+- Level: every note peaks at 0.5 at velocity 1 and `gain_db` 0. That is the engine's rule, now applied to every note rather than only the reference note. The Karplus–Strong voices lose level toward the top, so a part switched to a modelled voice is about as loud in the low register and louder higher up (up to 15 dB three octaves up): check its `gain_db`.
+- Checked:
+  - the fundamental is within ±1.2 cents over three octaves for every single-string voice;
+  - the 60 dB decay per register follows the design;
+  - harmonics are within ±1 dB of a plucked note;
+  - in 26 solo phrases, every `qa` click warning is a note's own attack. The exception is the shamisen at full velocity, where qa also lists a few sawari slaps (one every period, by design; none with `buzz` 0);
+  - renders are deterministic (sha256 of two renders);
+  - 5 s swatches render in 0.7–2.1 s, and a 2-minute film with five modelled parts in about 12 s (4.7 s with the old voices).
+- Existing scores render the same bytes: the 28 swatch scores, 4 showcase scores and the 8 examples (WAV and beat map).
+- Credits: the parameter ranges and preset design are informed by lemo-opuscar `core/audio/pluck.py` (MIT); the code is our own.
+
 **Music parts: fixes from the swatch re-scores**
 - Figures and grids no longer drop notes when their step doesn't divide the bar. Half notes in a 5-beat bar played 2 of 3 notes, and none in a 1-beat bar (banker's rounding); a step that starts inside the bar now plays, cut at the bar line. A step that used to ring past the bar line and overlap the next bar's note now stops there.
 - A section's `params` (`by_section`) now reach the mono voices (sub808, violin, cello, winds …); before, they were silently ignored. A change of params starts a new phrase.

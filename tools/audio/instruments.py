@@ -12,11 +12,13 @@ timbre only (the engine scales the amplitude). P is the part's params merged ove
 LEVEL puts every voice at a comparable loudness at gain_db 0: a hit or pluck at velocity 1 peaks near 0.5, a held voice
 sits near -20 dBFS RMS, a texture near -34 dBFS RMS (a bed under the music).
 The braam, celesta, metal, frame-drum, 808-hat and saw recipes follow showcase/04-intro-film/audio/score_engine.py; ks()
-is music.ks with a pluck position and a hammer option. Everything else is written for this file.
+is music.ks with a pluck position and a hammer option. The physically modelled voices (the ones ending in _pm, and guitar,
+koto, shamisen, banjo, kalimba) are digital waveguides and modal bars; their parameter ranges and preset design are
+informed by lemo-opuscar core/audio/pluck.py (MIT, © LemoLab). Everything else is written for this file.
 """
 import zlib
 import numpy as np
-from scipy.signal import butter, sosfilt, sosfiltfilt, lfilter, fftconvolve
+from scipy.signal import butter, sosfilt, sosfiltfilt, lfilter, lfiltic, fftconvolve, oaconvolve
 
 SR = 48000
 TAU = 2 * np.pi
@@ -381,6 +383,319 @@ def cimbalom(m, dur, vel, rng, P):
     x = sum(ks(f0 * 2 ** (c / 1200), n, t60, 0.6 + 0.3 * vel, rng, 0.12, "hammer") for c in (-2.0, 0.0, 2.5)) / 3
     x = hpf(body(x, [(300, 3, 2), (2500, 3, 1.5)]), 100)
     return fade(x * _ringing(n, dur, P), 0.0005, 0.05)
+
+
+# ---------- physically modelled plucked strings (opt-in: guqin_pm, pipa_pm … koto, shamisen, banjo, kalimba) ----------
+# Digital waveguides (Smith 1992, "Physical modeling using digital waveguides"): each string is a single delay loop with
+# the Karplus–Strong extensions of Jaffe & Smith (1983): a one-pole loss filter, so the high partials die first
+# (Välimäki, Huopaniemi, Karjalainen & Jánosy 1996); first-order allpasses for stiffness; the pluck position and the
+# finger, nail, pick or hammer in the excitation. The delay line is read through a third-order Lagrange interpolator
+# (Laakso, Välimäki, Karjalainen & Laine 1996) that may move every sample, so slides, bends and vibrato change the
+# string's length. Tension modulation makes a hard pluck start sharp (Tolonen, Välimäki & Karjalainen 2000); a bridge
+# contact shortens the string for the shamisen's sawari. Two polarisations, or the strings of a course, run as the rows
+# of one array; the body is an impulse response of modes (Karjalainen & Smith 1996). The kalimba and music box are modal
+# (clamped-free bars). Parameter ranges and preset design informed by lemo-opuscar core/audio/pluck.py (MIT, © LemoLab);
+# the code is written for this file, numpy and scipy only.
+def _lagrange(q):
+    """Third-order Lagrange weights of taps -1, 0, 1, 2 for a read point q in [0, 1] past tap 0."""
+    return np.stack([-q * (q - 1) * (q - 2) / 6, (q + 1) * (q - 1) * (q - 2) / 2, -(q + 1) * q * (q - 2) / 2, (q + 1) * q * (q - 1) / 6], -1)
+
+
+_LAG = _lagrange(np.arange(1025) / 1024)   # a 1024-step table: the read point is off by at most 1/2048 sample
+_SMOOTH = butter(2, 3000, "low", fs=SR, output="sos")
+
+
+def _lag(q):
+    return _LAG[(np.asarray(q) * 1024 + 0.5).astype(int)]
+
+
+def _ss(u):
+    u = np.clip(u, 0, 1); return u * u * (3 - 2 * u)
+
+
+def _tau(p, a, M, w):
+    """Phase delay (samples) at w rad/sample of the loop filter: the loss (1-p)/(1-p z^-1) and M allpasses (a + z^-1)/(1 + a z^-1)."""
+    t = np.arctan2(p * np.sin(w), 1 - p * np.cos(w)) / w
+    return t + M * (1 - 2 * np.arctan2(a * np.sin(w), 1 + a * np.cos(w)) / w) if M else t
+
+
+def _loss(f, T0, Th):
+    """Loss pole p for a string at f whose fundamental falls 60 dB in T0 s and 3 kHz in Th s (decay rate b1 + b3 f²;
+    the fundamental wins when both cannot hold)."""
+    s0, fd = 6.91 / T0, max(3000.0, 3 * f)
+    b3 = min(max(0.0, (6.91 / Th - s0) / (9e6 - f * f)) if f < 3000 else 0.0, s0 / (f * f))
+    R = np.exp(-b3 * (fd * fd - f * f) / f)   # the wanted |H(fd)| / |H(f)| for one trip round the loop
+    if R >= 0.99999: return 0.0
+    c0, cd, R2 = np.cos(TAU * f / SR), np.cos(TAU * fd / SR), R * R; A, Bq = R2 - 1, R2 * cd - c0; dq = np.sqrt(max(Bq * Bq - A * A, 0.0))
+    return next((float(r) for r in ((Bq - dq) / A, (Bq + dq) / A) if 0 <= r < 0.97), 0.0)
+
+
+def _gain(f, T, p):
+    """Loop gain for a 60 dB decay in T s at f, allowing for the loss filter's own attenuation there."""
+    w = TAU * f / SR; return min(np.exp(-6.91 / (T * f)) * np.sqrt(1 - 2 * p * np.cos(w) + p * p) / (1 - p), 0.99999)
+
+
+def _disp(f, B, p):
+    """Stiffness: M first-order allpasses (0–4) of coefficient a that move partial k to about k·f·sqrt(1 + B k²), fitted
+    over the partials below 5 kHz (Jaffe & Smith 1983; Van Duyne & Smith 1994). Returns (a, M)."""
+    if B <= 0: return 0.0, 0
+    N0 = SR / f; k = np.arange(2, int(min(24, max(3, 5000 / f))) + 1); fk = k * f * np.sqrt((1 + B * k * k) / (1 + B))
+    w0, wk = TAU * f / SR, TAU * fk / SR; want = k * SR / fk - N0; a = -np.linspace(0.005, 0.9, 180)[:, None]; best = (np.inf, 0.0, 0)
+    for M in (1, 2, 3, 4):
+        err = (((_tau(p, a, M, wk) - _tau(p, a, M, w0)) - want) ** 2 / k).sum(1)
+        err[M * (1 - a[:, 0]) / (1 + a[:, 0]) > 0.3 * N0] = np.inf   # most of the loop stays in the delay line
+        i = int(np.argmin(err))
+        if err[i] < 0.8 * best[0]: best = (err[i], float(a[i, 0]), M)
+    return best[1], best[2]
+
+
+def _filt(p, a, M):
+    b, d = np.array([1 - p]), np.array([1.0, -p])
+    for _ in range(M): b, d = np.polymul(b, [a, 1.0]), np.polymul(d, [1.0, a])
+    return b, d
+
+
+def _hist(z, s, k=8):
+    return z[s - 1::-1][:k] if s > 0 else z[:0]   # the k samples before s, newest first (lfiltic's order)
+
+
+def waveguide(x, Dl, g, filt, tm=0.0, buzz=None, switch=None):
+    """Strings as single delay loops, one per row: y = x + g · (F y, Dl samples back); F the loop filter (b, a), the delay
+    line read through the Lagrange interpolator, so Dl (per row, or per row and sample) may glide. Vectorised a block at a
+    time like ks(): a block is shorter than the shortest loop, so it reads only samples already made.
+    tm: tension modulation, the relative tension a pluck adds: the pitch sits sqrt(1 + tm·E/E0) sharp and settles as the
+    string's energy E falls (E0: the first period's). buzz (depth, threshold): where the returning wave passes the
+    threshold the string wraps round a curved bridge and the loop shortens by depth samples per unit (sawari).
+    switch (sample, (b, a)): the loop filter from that sample on (a finger damps the string)."""
+    S, n = x.shape; b, a = filt; var = np.ndim(Dl) == 2; gv = np.asarray(g, float); Dlo, Dhi = float(np.min(Dl)), float(np.max(Dl))
+    dmax = 0.25 * Dlo if buzz else 0.0; P = int(np.ceil(Dhi)) + 4; L = max(1, int((Dlo - dmax) / np.sqrt(1 + tm)) - 3)
+    wb = np.zeros((S, n + P)); wf = wb.ravel(); y = np.zeros((S, n)); zi = np.zeros((S, max(len(a), len(b)) - 1))
+    row = (np.arange(S) * (n + P))[:, None]
+    if not var:   # a fixed length: four taps as a strided window (no gather)
+        Dl = np.asarray(Dl, float); di = np.floor(Dl).astype(int); o = di + (Dl > di); c = _lag(np.where(Dl > di, 1 - (Dl - di), 0.0))
+        sw = np.lib.stride_tricks.sliding_window_view(wb, 4, axis=-1)
+    live = tm > 0; rp = rn = np.full(S, np.sqrt(1 + tm)); E0 = None; cut = switch[0] if switch else -1; s = 0
+    xe = int(np.flatnonzero(np.abs(x).max(0))[-1]) + 1 if x.any() else 0   # past this the loop only feeds itself
+    while s < n:
+        e = min(n, s + L, cut if s < cut else n)
+        if var or live or buzz:
+            D = Dl[:, s:e] if var else Dl[:, None]
+            if live: D = D / (rp[:, None] + (rn - rp)[:, None] * (np.arange(1, e - s + 1) / (e - s)))
+            r = (np.arange(s, e) + P) - D; ri = r.astype(int); C = _lag(r - ri); j = ri + row
+            v = wf[j - 1] * C[..., 0] + wf[j] * C[..., 1] + wf[j + 1] * C[..., 2] + wf[j + 2] * C[..., 3]
+            if buzz and (v > buzz[1]).any():   # the contact moves the loop's end smoothly (a 3 kHz low-pass), never in jumps
+                dd = np.minimum(buzz[0] * np.maximum(v - buzz[1], 0.0), dmax); k = min(12, dd.shape[1])
+                r = r + sosfilt(_SMOOTH, np.concatenate([dd[:, :1].repeat(k, 1), dd], 1), axis=-1)[:, k:]
+                ri = r.astype(int); C = _lag(r - ri); j = ri + row
+                v = wf[j - 1] * C[..., 0] + wf[j] * C[..., 1] + wf[j + 1] * C[..., 2] + wf[j + 2] * C[..., 3]
+        else:
+            v = np.stack([sw[i, s - o[i] - 1 + P:e - o[i] - 1 + P] @ c[i] for i in range(S)])
+        yb = y[:, s:e]; np.multiply(gv[:, s:e] if gv.ndim == 2 else gv[:, None], v, out=yb)
+        if s < xe: yb += x[:, s:e]
+        if s == cut:   # the new filter continues from the old one's recent input and output
+            b, a = switch[1]; zi = np.stack([lfiltic(b, a, _hist(wb[i, P:], s), _hist(y[i], s)) for i in range(S)])
+        wb[:, P + s:P + e], zi = lfilter(b, a, yb, axis=-1, zi=zi)
+        if live:
+            rp = rn
+            if e > Dhi + L:   # the first period is back: energy relative to its loudest block
+                Eb = (v * v).mean(1) + 1e-30; E0 = Eb if E0 is None else (np.maximum(E0, Eb) if e < 3 * Dhi else E0)
+                rn = np.sqrt(1 + tm * np.minimum(Eb / E0, 1.0))
+                if e > 3 * Dhi and np.all(rn < 1 + 2e-4): live = False   # under 0.35 cent: the fixed-length path from here
+        s = e
+    return y
+
+
+def _excite(N, beta, kind, bright, rng, noise):
+    """One period (N samples) of the bridge force a pluck at beta (of the length, from the bridge) starts: an ideal pluck
+    gives a pulse beta·N wide (partial k ~ sin(k π beta) / k), a strike its derivative (a pulse pair). The finger, nail,
+    pick or hammer rounds it (a low-pass that opens with bright) and a little noise roughens it. Peak 1."""
+    N = max(4, int(round(N))); k = min(N - 1, max(1, int(round(beta * N))))
+    if kind == "hammer":   # a cotton-wrapped head in contact for tc: a half-sine force, then the same force from the far side
+        tc = max(2, int((0.35 + 1.6 * (1 - bright)) * 1e-3 * SR)); h = np.sin(np.pi * np.arange(tc) / tc)
+        e = np.zeros(N + tc); e[:tc] += h; e[k:k + tc] -= h
+    else:
+        e = np.zeros(N); e[:k] = 1.0; e -= e.mean(); e += noise * rng.standard_normal(N)
+        fc = {"finger": 700 + 9000 * bright ** 2, "nail": 1500 + 12000 * bright ** 1.5, "pick": 2500 + 14000 * bright}[kind]
+        e = sosfilt(butter(2 if kind == "finger" else 1, min(fc, 0.45 * SR), "low", fs=SR, output="sos"), np.concatenate([e, np.zeros(N // 2)]))
+    e -= e.mean(); return e / (np.abs(e).max() + 1e-12)
+
+
+_PM_BODY = {}
+
+
+def _pm_body(name, S):
+    """The body as an impulse response (Karjalainen & Smith 1996): the plate's mean response and its modes (Hz, Q, dB at the
+    peak) as decaying cosines (an admittance: in phase with the mean response at resonance, so no deep notch between
+    modes), a short tail of dense high modes (lo, hi Hz, decay s, dB), all radiated through a first-order
+    high-pass at frad (a plate radiates pressure as the rate of change of its motion). Fixed seed, cached."""
+    if name not in _PM_BODY:
+        modes, direct, (lo, hi, dec, db) = S["body"]; g = np.random.default_rng([crc("pm-body"), crc(name)])
+        n = int(min(0.4, 6 * max(q / (np.pi * f) for f, q, _ in modes) + 0.02) * SR); t = secs(n); h = np.zeros(n); h[0] = direct
+        for f, q, gdb in modes:
+            tau = q / (np.pi * f); h += 2 * 10 ** (gdb / 20) / (tau * SR) * np.cos(TAU * f * t + g.uniform(-0.3, 0.3)) * np.exp(-t / tau)
+        k = min(n, int(8 * dec * SR)); nz = bpf(g.standard_normal(k), lo, hi) * np.exp(-secs(k) / dec)
+        h[:k] += nz * 10 ** (db / 20) * direct / np.sqrt(np.sum(nz ** 2))
+        _PM_BODY[name] = hpf(h, S["frad"], 1)
+    return _PM_BODY[name]
+
+
+# t60 (T, f_ref, expo, lo, hi): the fundamental's 60 dB decay, T·(f_ref / f)^expo clipped to [lo, hi]; thi: the 60 dB decay
+# at 3 kHz (how long the brightness lasts); B: stiffness at f_ref, rising with pitch; pos: the pluck point (fraction of
+# the length from the bridge); exc: finger | nail | pick | hammer; bright: (base, + per velocity); rows (cents, t60
+# ratio, level, own pluck): the two polarisations of a string, or the strings of a course; tm: cents sharp at the attack of
+# a velocity-1 pluck; ring: rings past the note by default; rel: damping time (s) at the note's end; cap: longest render
+# (s); frad: radiation corner (Hz, small bodies higher); body: (modes (Hz, Q, dB), mean level, tail (lo, hi, decay, dB));
+# extras: click (nail or pick tick), squeak (a finger travelling along silk), thump (a finger on a bass), skin (a
+# plectrum hitting a skin head), buzz (sawari)
+PM_STRINGS = {
+    "guqin_pm": dict(t60=(7.0, 110, 0.45, 3.0, 11.0), thi=0.75, B=1e-5, pos=0.11, exc="finger", bright=(0.35, 0.35), noise=0.04,
+                     rows=((0, 1.0, 1.0, 0), (0.5, 1.5, 0.5, 0)), tm=4, ring=True, rel=0.25, cap=8.0, frad=700.0, squeak=1.0,
+                     body=([(98, 7, 6), (205, 9, 5), (310, 8, 2), (445, 8, 3), (700, 6, 1), (1050, 5, -1), (1650, 4, -3)], 0.6, (600, 4000, 0.006, -14))),
+    "pipa_pm": dict(t60=(1.8, 220, 0.35, 0.6, 3.0), thi=1.0, B=4e-5, pos=0.09, exc="nail", bright=(0.6, 0.4), noise=0.05,
+                    rows=((0, 1.0, 1.0, 0), (0.8, 1.5, 0.45, 0)), tm=6, ring=True, rel=0.07, cap=4.0, frad=1200.0, click=0.3,
+                    body=([(185, 8, 3), (430, 7, 5), (880, 6, 3), (1800, 5, 3), (3300, 4, 2)], 0.5, (1200, 6000, 0.004, -12))),
+    "harp_pm": dict(t60=(5.0, 262, 0.4, 1.5, 10.0), thi=0.7, B=2e-5, pos=0.33, exc="finger", bright=(0.45, 0.3), noise=0.02,
+                    rows=((0, 1.0, 1.0, 0), (0.5, 1.5, 0.5, 0)), tm=3, ring=True, rel=0.2, cap=8.0, frad=700.0,
+                    body=([(130, 6, 4), (260, 8, 3), (480, 7, 2), (950, 5, 0), (2000, 4, -3)], 0.7, (800, 5000, 0.008, -16))),
+    "nylon_pm": dict(t60=(3.2, 196, 0.4, 1.2, 6.0), thi=0.8, B=1.5e-5, pos=0.2, exc="finger", bright=(0.25, 0.35), noise=0.03,
+                     rows=((0, 1.0, 1.0, 0), (0.5, 1.6, 0.5, 0)), tm=3, ring=False, rel=0.12, cap=6.0, frad=800.0,
+                     body=([(98, 12, 8), (195, 10, 7), (245, 12, 3), (390, 9, 3), (550, 8, 2), (800, 6, 0), (1250, 5, -2), (2500, 4, -4)], 0.45, (1000, 5000, 0.005, -14))),
+    "guitar": dict(t60=(4.5, 196, 0.4, 1.5, 8.0), thi=1.5, B=6e-5, pos=0.12, exc="pick", bright=(0.6, 0.4), noise=0.03,
+                   rows=((0, 1.0, 1.0, 0), (0.6, 1.6, 0.5, 0)), tm=4, ring=False, rel=0.12, cap=6.0, frad=800.0, click=0.15,
+                   body=([(100, 12, 8), (200, 10, 7), (280, 10, 3), (380, 9, 3), (500, 8, 2), (700, 6, 1), (1000, 6, 0), (1500, 5, -2), (2500, 4, -4)], 0.45, (1200, 6000, 0.005, -13))),
+    "ukulele_pm": dict(t60=(1.4, 392, 0.4, 0.5, 3.0), thi=0.6, B=1e-5, pos=0.18, exc="finger", bright=(0.45, 0.4), noise=0.04,
+                       rows=((0, 1.0, 1.0, 0), (0.6, 1.5, 0.45, 0)), tm=3, ring=False, rel=0.08, cap=3.0, frad=1200.0,
+                       body=([(250, 9, 4), (450, 8, 4), (700, 7, 3), (1100, 6, 2), (2000, 5, 1)], 0.5, (1200, 6000, 0.0035, -12))),
+    "upright_pm": dict(t60=(2.6, 55, 0.3, 1.0, 4.0), thi=0.5, B=3e-5, pos=0.22, exc="finger", bright=(0.05, 0.25), noise=0.02,
+                       rows=((0, 1.0, 1.0, 0), (0.4, 1.4, 0.45, 0)), tm=14, ring=False, rel=0.06, cap=4.0, frad=500.0, thump=1.0,
+                       body=([(60, 6, 6), (100, 7, 6), (140, 8, 3), (200, 6, 3), (400, 5, 0), (800, 4, -4)], 0.5, (300, 2500, 0.008, -16))),
+    "balalaika_pm": dict(t60=(1.1, 392, 0.3, 0.4, 2.0), thi=0.8, B=3e-5, pos=0.13, exc="nail", bright=(0.6, 0.35), noise=0.05,
+                         rows=((-1.0, 1.0, 1.0, 1), (1.0, 1.15, 0.85, 1)), tm=6, ring=True, rel=0.05, cap=2.5, frad=1200.0, click=0.15,
+                         body=([(330, 7, 4), (560, 7, 4), (1100, 6, 3), (1900, 5, 3), (3200, 4, 1)], 0.5, (1500, 7000, 0.003, -12))),
+    "cimbalom_pm": dict(t60=(4.0, 262, 0.35, 1.5, 7.0), thi=1.5, B=1.2e-4, pos=0.12, exc="hammer", bright=(0.5, 0.45), noise=0.0,
+                        rows=((-1.5, 1.0, 1.0, 1), (0.0, 1.25, 0.9, 1), (1.5, 1.1, 0.95, 1)), tm=2, ring=True, rel=0.2, cap=6.0, frad=800.0,
+                        body=([(140, 6, 3), (290, 7, 3), (520, 6, 2), (900, 5, 2), (1700, 5, 1), (2800, 4, 0)], 0.6, (1500, 8000, 0.01, -12))),
+    "koto": dict(t60=(3.5, 294, 0.35, 1.2, 6.0), thi=0.8, B=2e-5, pos=0.12, exc="pick", bright=(0.45, 0.4), noise=0.04,
+                 rows=((0, 1.0, 1.0, 0), (0.6, 1.5, 0.5, 0)), tm=6, ring=True, rel=0.15, cap=6.0, frad=1000.0, click=0.15,
+                 body=([(150, 7, 5), (290, 8, 4), (480, 7, 3), (700, 6, 2), (1300, 5, 1), (2400, 4, -2)], 0.55, (1000, 6000, 0.005, -13))),
+    "shamisen": dict(t60=(1.5, 262, 0.3, 0.6, 2.5), thi=0.6, B=1.5e-5, pos=0.08, exc="pick", bright=(0.65, 0.35), noise=0.06,
+                     rows=((0, 1.0, 1.0, 0), (0.8, 1.4, 0.4, 0)), tm=8, ring=True, rel=0.08, cap=3.0, frad=1200.0, skin=0.5, buzz=0.6,
+                     body=([(260, 4, 5), (520, 4, 4), (780, 4, 3), (1250, 4, 3), (2100, 3, 2), (3300, 3, 1)], 0.5, (800, 5000, 0.006, -10))),
+    "banjo": dict(t60=(1.1, 294, 0.3, 0.5, 1.8), thi=1.0, B=8e-5, pos=0.08, exc="pick", bright=(0.8, 0.2), noise=0.04,
+                  rows=((0, 1.0, 1.0, 0), (1.0, 1.4, 0.5, 0)), tm=5, ring=True, rel=0.05, cap=2.5, frad=2000.0, skin=0.3,
+                  body=([(360, 5, 6), (590, 5, 5), (820, 5, 4), (1050, 5, 3), (1600, 4, 3), (2500, 4, 2), (3500, 3, 1)], 0.45, (1500, 8000, 0.003, -10))),
+}
+
+
+def _pm_out(tone, tr, body):
+    """Tone and transients through the body, 25 Hz high-pass, faded ends; the tone peaks at 1 (a click or slap rides on
+    top at its own level, so it never pushes the note down)."""
+    z = hpf(oaconvolve(np.stack([tone, tr]), body[None, :], axes=-1)[:, :len(tone)], 25)
+    return fade(z[0] + z[1], 0.001, 0.03) / (np.abs(z[0]).max() + 1e-12)
+
+
+def _loud(y, w=int(0.4 * SR)):
+    """Mean power of the loudest 400 ms."""
+    c = np.concatenate([[0.0], np.cumsum(y * y)]); return max(float((c[w:] - c[:-w]).max()) if len(y) > w else float(c[-1]), 1e-20) / w
+
+
+def pm_string(name, m, dur, vel, rng, P):
+    """A string of the PM_STRINGS table. Knobs (params or a note's): ring, damp, mute; slide, bend (semitones); vib (cents,
+    or [Hz, cents, delay s]); yin, nao; harm (true, or the harmonic 2–8); trem (Hz, or true: re-pluck the same string);
+    pos, bright, decay; buzz (shamisen). Peak 1: the engine's level and velocity do the rest."""
+    S = PM_STRINGS[name]; f0 = min(float(mtof(m)), SR / 8); mute = bool(P.get("mute"))
+    ring = bool(P.get("ring", S["ring"])) and not P.get("damp") and not mute
+    Tr, fref, ex, lo, hi = S["t60"]; k = 1; seed = None
+    if P.get("harm"):   # a harmonic: the string k times longer, touched at 1/k (the guqin picks k so the string is one of its own)
+        h = P["harm"]; k = int(h) if isinstance(h, (int, float)) and not isinstance(h, bool) and h >= 2 else 0
+        if not k: k = next((q for q in (2, 3, 4, 5, 6, 8) if m - 12 * np.log2(q) <= 52), 8) if name == "guqin_pm" else 2   # 正调 open strings C2 … D3
+        seed = int(rng.integers(1 << 31))
+    B = S["B"] * f0 / k / fref; fb = f0 / k / np.sqrt((1 + B * k * k) / (1 + B))   # partial k of the string lands on the note
+    T0, Th = float(np.clip(Tr * (fref / fb) ** ex, lo, hi)) * float(P.get("decay", 1.0)), S["thi"]
+    if mute: T0, Th = 0.15, 0.05
+    rows = S["rows"]; R = len(rows); trem = P.get("trem"); rate = float(P.get("tremolo_rate", 12) if trem is True else trem or 0)
+    L = min(S["cap"], max(0.9 * T0 * max(r[1] for r in rows), dur + 0.3)) if ring else dur + 1.2 * (0.05 if mute else S["rel"]) + 0.03
+    n = int(min(L, float(P.get("_n", L))) * SR); t = secs(n)
+    s = np.zeros(n)   # pitch in semitones: slide in, bend after the pluck, vibrato (吟 yin small, 猱 nao wide)
+    if P.get("slide"): s += float(P["slide"]) * (1 - _ss((t - 0.04) / 0.25))
+    if P.get("bend"): s += float(P["bend"]) * _ss((t - min(0.25, 0.35 * dur)) / max(min(0.3, 0.4 * dur), 1e-3))
+    if P.get("yin"): s += 0.2 * np.sin(TAU * 4.5 * t) * np.clip((t - 0.2) / 0.3, 0, 1)
+    if P.get("nao"): s += 0.5 * np.sin(TAU * 2.5 * t) * np.clip((t - 0.15) / 0.3, 0, 1)
+    if P.get("vib"):
+        v = P["vib"]; hz, ce, dl = (5.0, 15.0, 0.2) if v is True else (float(v[0]), float(v[1]), float(v[2]) if len(v) > 2 else 0.2) if isinstance(v, (list, tuple)) else (5.0, float(v), 0.2)
+        s += ce / 100 * np.sin(TAU * hz * t) * np.clip((t - dl) / 0.3, 0, 1)
+    moved = bool(s.any()); p = _loss(fb, T0, Th); a, M = _disp(fb, B, p)
+    cents = np.array([r[0] for r in rows], float) + rng.uniform(-0.3, 0.3, R) * (np.arange(R) > 0)
+    wt = np.array([r[2] * r[1] for r in rows]); cents -= (cents * wt).sum() / wt.sum()   # tuned by ear to the blend of the rows
+    fr = fb * 2 ** ((s[None, :] / 12 if moved else 0) + cents[:, None] / 1200); Dl = SR / fr - _tau(p, a, M, TAU * fr / SR)
+    Dl = Dl if moved else Dl[:, 0]; g = np.array([_gain(fb, T0 * r[1], p) for r in rows])
+    b0, b1 = S["bright"]; br = float(np.clip(P.get("bright", b0 + b1 * vel), 0, 1)); pos = float(P.get("pos", S["pos"])); N = SR / fb
+    x = np.zeros((R, n)); gs = np.repeat(g[:, None], n, 1) if rate or not ring else g
+    hits = [(0, 1.0)] + ([(int(j / rate * SR), (1.0, 0.8, 0.9, 0.75)[j % 4] * (0.9 + 0.1 * rng.random())) for j in range(1, int(dur * rate - 0.3) + 1)] if rate else [])
+    for i0, hv in hits:   # the pluck; for trem (轮指 / 摇指) the same string again and again
+        if i0 >= n: break
+        e = None
+        for i, r in enumerate(rows):
+            if e is None or r[3]:   # the strings of a course are plucked one by one; the polarisations share a pluck
+                e = _excite(N / k, pos * (1 + rng.uniform(-0.06, 0.06)), S["exc"], br * (0.85 + 0.15 * hv), rng, S["noise"])
+                if k > 1:   # the finger at 1/k: the string moves with period N/k, so only the multiples of k sound
+                    e1, e = e, np.zeros(int(N) + len(e))
+                    for q in range(k): o = int(round(q * N / k)); e[o:o + len(e1)] += e1
+                    e /= np.abs(e).max()
+            x[i, i0:i0 + len(e)] += r[2] * hv * e[:n - i0]
+        if i0:   # the nail catches the ringing string before it plucks: the loop gain dips for a period
+            c = max(0, i0 - int(N)); gs[:, c:i0] *= 1 - 0.6 * np.hanning(i0 - c + 2)[1:-1]
+    sw = None
+    if not ring and dur * SR < n - 10:   # a finger damps the string: the loop gain falls over 15 ms and the loss darkens
+        ri = int(dur * SR); tr = 0.05 if mute else S["rel"]; pr = _loss(fb, tr, tr / 4)
+        u = np.clip((np.arange(n) - ri) / (0.015 * SR), 0, 1); gs = gs * (1 - u) + _gain(fb, tr, pr) * u; sw = (ri, _filt(pr, a, M))
+    nz = 0.0
+    if S.get("squeak") and (P.get("slide") or P.get("bend")):   # 走手音: the finger travelling along silk rubs the string
+        nz = bpf(rng.standard_normal(n), 1500, 5000) * np.clip(np.abs(np.gradient(s)) * SR / 8, 0, 1) * 0.03 * S["squeak"]; x[0] += nz
+    bz = float(P.get("buzz", S.get("buzz", 0))); tm = (2 ** (S.get("tm", 0) / 600) - 1) * vel * vel
+    y = waveguide(x, Dl, gs, _filt(p, a, M), tm, (4.0 * bz, 0.02) if bz > 0 else None, sw).sum(0) + 0.3 * nz
+    tr = np.zeros(n)   # transients through the same body: the nail or pick tick, a plectrum on skin, a finger on a bass
+    if S.get("click"): tr += burst(rng, n, 2500, 9000, 0.0005, S["click"] * br)
+    if S.get("skin"): tr += burst(rng, n, 250, 3500, 0.006, S["skin"] * br)
+    if S.get("thump"):
+        kk = min(n, int(0.08 * SR)); tr[:kk] += 0.35 * S["thump"] * np.sin(TAU * 70 * t[:kk]) * np.exp(-t[:kk] / 0.012)
+        tr += burst(rng, n, 900, 3000, 0.003, 0.3 * S["thump"] * max(0.0, vel - 0.55))
+    y = _pm_out(y, tr, _pm_body(name, S))
+    if k > 1:   # as loud as a plucked note of the same pitch and velocity (loudest 400 ms)
+        ref = pm_string(name, m, dur, vel, np.random.default_rng(seed), {**P, "harm": False, "trem": None, "_n": 0.45})
+        y *= np.sqrt(_loud(ref) / _loud(y))
+    return y
+
+
+PM_BARS = {   # t60 of mode 1; r2, r3: ratios of modes 2 and 3 (± spread per pitch; a uniform cantilever is 1 : 6.27 : 17.55, a
+    # kalimba tine held over its bridge sits lower, a lead-weighted bass tooth higher); a2, a3: level at velocity 1 and
+    # decay relative to mode 1; twin: a second tooth (cents, level); click: the thumbnail or pin; detune: ± cents per pitch
+    "kalimba": dict(t60=(2.6, 330, 0.4, 0.9, 5.0), detune=1.5, r2=(5.9, 0.15), r3=(16.8, 0.4), a2=(0.45, 0.15), a3=(0.1, 0.05), twin=None, click=0.2, frad=500.0,
+                    body=([(215, 6, 6), (520, 7, 3), (1050, 6, 1), (2200, 5, -2)], 0.5, (2000, 7000, 0.003, -16))),
+    "musicbox_pm": dict(t60=(3.0, 1047, 0.4, 1.0, 5.0), detune=3.0, r2=(6.27, 0.05), r3=(17.55, 0.2), a2=(0.4, 0.12), a3=(0.12, 0.04), twin=(2.0, 0.35), click=0.3,
+                        frad=900.0, body=([(430, 6, 5), (900, 7, 4), (1550, 6, 3), (2600, 5, 1)], 0.45, (1500, 8000, 0.003, -10))),
+}
+
+
+def pm_bar(name, m, dur, vel, rng, P):
+    """A tine or comb tooth of the PM_BARS table: three cantilever modes, a thumbnail or pin click, the box. ring (default)
+    or damp, decay. Peak 1."""
+    S = PM_BARS[name]; f0 = float(mtof(m)); Tr, fref, ex, lo, hi = S["t60"]
+    T = float(np.clip(Tr * (fref / f0) ** ex, lo, hi)) * float(P.get("decay", 1.0))
+    g = np.random.default_rng([crc(name), int(round(m * 100))])   # one tine or tooth per pitch: its own tuning and ratios
+    heavy = float(np.clip((72 - m) / 24, 0, 1)) if name == "musicbox_pm" else 0.0; f0 *= 2 ** (g.uniform(-1, 1) * S["detune"] / 1200)
+    r2 = S["r2"][0] + g.uniform(-1, 1) * S["r2"][1] + 2.5 * heavy; r3 = S["r3"][0] + g.uniform(-1, 1) * S["r3"][1] + 6 * heavy
+    ring = bool(P.get("ring", True)) and not P.get("damp")
+    n = int((min(max(T, dur + 0.2), 5.0) if ring else dur + 0.15) * SR); tau = T / 6.91; b = 0.6 + 0.4 * vel
+    modes = [(1.0, 1.0, tau), (r2, S["a2"][0] * b * b, tau * S["a2"][1]), (r3, S["a3"][0] * b ** 3, tau * S["a3"][1])]
+    if S["twin"]: modes.append((2 ** (S["twin"][0] / 1200), S["twin"][1], 0.9 * tau))
+    x = _pm_out(modal(f0, n, modes), burst(rng, n, 2500, 11000, 0.0006, S["click"] * (0.4 + 0.6 * vel)), _pm_body(name, S))
+    return x * np.clip(1 - (secs(n) - dur) / 0.12, 0, 1) ** 2 if not ring else x
+
+
+def _pm(name):
+    fn = pm_bar if name in PM_BARS else pm_string
+    return lambda m, dur, vel, rng, P: fn(name, m, dur, vel, rng, P)
 
 
 # ---------- bowed ----------
@@ -1007,6 +1322,13 @@ INSTR = {
     "nylon": Inst("note", nylon, 3, 1.0), "ukulele": Inst("note", ukulele, 4, 1.0), "harp": Inst("note", harp, 4, 1.0),
     "pizzicato": Inst("note", pizzicato, 3, 1.0), "upright": Inst("note", upright, 2, 1.0), "pipa": Inst("note", pipa, 4, 1.0, tremolo_rate=14),
     "guqin": Inst("note", guqin, 3, 1.0), "balalaika": Inst("note", balalaika, 4, 1.0, tremolo_rate=11), "cimbalom": Inst("note", cimbalom, 4, 1.0),
+    # physically modelled plucked strings, tines and teeth (opt-in; see PM_STRINGS and PM_BARS)
+    "guqin_pm": Inst("note", _pm("guqin_pm"), 3, 1.0), "pipa_pm": Inst("note", _pm("pipa_pm"), 4, 1.0, tremolo_rate=14),
+    "harp_pm": Inst("note", _pm("harp_pm"), 4, 1.0), "nylon_pm": Inst("note", _pm("nylon_pm"), 3, 1.0), "guitar": Inst("note", _pm("guitar"), 3, 1.0),
+    "ukulele_pm": Inst("note", _pm("ukulele_pm"), 4, 1.0), "upright_pm": Inst("note", _pm("upright_pm"), 2, 1.0),
+    "balalaika_pm": Inst("note", _pm("balalaika_pm"), 4, 1.0, tremolo_rate=11), "cimbalom_pm": Inst("note", _pm("cimbalom_pm"), 4, 1.0),
+    "koto": Inst("note", _pm("koto"), 4, 1.0), "shamisen": Inst("note", _pm("shamisen"), 4, 1.0), "banjo": Inst("note", _pm("banjo"), 4, 1.0),
+    "kalimba": Inst("note", _pm("kalimba"), 5, 1.0), "musicbox_pm": Inst("note", _pm("musicbox_pm"), 6, 1.0),
     # bowed
     "strings": Inst("note", strings, 4, 1.0),
     "violin": _mono(bowed, "violin", 5, 1.0, vib=BOWED["violin"]["vib"], glide=0.07, attack=0.07, release=0.12, rearticulate=0.25),
@@ -1055,6 +1377,9 @@ LEVEL = {
     "timpani": 0.27, "clock": 0.363, "metal": 0.447, "noiseburst": 0.498, "scratch": 0.397, "noise": 1.0,
     "chipkick": 0.536, "danpigu": 0.254, "luogu": 0.111, "vinyl": 0.307, "tape": 0.039, "hum": 0.087, "wind": 0.378,
     "rain": 0.213, "roomtone": 0.109,
+    # the physically modelled voices peak at 1 on every note, so 0.5 is exact
+    "guqin_pm": 0.5, "pipa_pm": 0.5, "harp_pm": 0.5, "nylon_pm": 0.5, "guitar": 0.5, "ukulele_pm": 0.5, "upright_pm": 0.5,
+    "balalaika_pm": 0.5, "cimbalom_pm": 0.5, "koto": 0.5, "shamisen": 0.5, "banjo": 0.5, "kalimba": 0.5, "musicbox_pm": 0.5,
 }
 for _k, _v in LEVEL.items():
     INSTR[_k].level = _v
@@ -1086,6 +1411,20 @@ ABOUT = {   # one line for --instruments where the function's docstring is share
     "woodblock": "Woodblock: a resonant wooden click (1250 Hz); o = the low block.",
     "tape": "Tape hiss: band-limited noise with a slow wobble; stereo.",
     "roomtone": "Room tone: soft dark noise, the sound of an empty room; stereo.",
+    "guqin_pm": "古琴, physical model: silk string, long ring; slide, bend, yin, nao, vib, harm (a real node harmonic), trem, damp.",
+    "pipa_pm": "琵琶, physical model: nail pluck, bright, a sharp twang; 轮指 from the part's tremolo or a note's trem; bend, vib, harm.",
+    "harp_pm": "Harp, physical model: mid-string finger pluck, round and long; harm (octave harmonic), damp.",
+    "nylon_pm": "Nylon-string guitar, physical model: finger pluck, guitar body; ring, mute, slide, bend, vib, harm.",
+    "guitar": "Steel-string acoustic guitar, physical model: flatpick, bright long ring; strum it (strings 6), mute, bend, harm.",
+    "ukulele_pm": "Ukulele, physical model: soft finger strum, small body, short ring; ring, mute.",
+    "upright_pm": "Upright bass pizz, physical model: finger thump, pitch settling after a hard pluck, dark body; ring, slide.",
+    "balalaika_pm": "Balalaika, physical model: a course of two unison strings, nail strum, triangular body; tremolo.",
+    "cimbalom_pm": "Cimbalom, physical model: three strings per course struck by cotton hammers, shimmering ring; damp.",
+    "koto": "箏 (koto), physical model: ivory-pick pluck near the bridge, long ring; bend (押し), vib (揺り), harm, damp.",
+    "shamisen": "三味線, physical model: bachi on string and skin, sawari buzz (buzz 0–1); bend, vib.",
+    "banjo": "Banjo, physical model: steel strings on a drum head, metal fingerpicks, bright and short; bend, harm.",
+    "kalimba": "Kalimba, physical model: a tine's cantilever modes, thumbnail click, box; damp.",
+    "musicbox_pm": "Music box, physical model: comb teeth (weighted in the bass), pin click, twin teeth, box; damp.",
 }
 for _k, _v in ABOUT.items():
     INSTR[_k].about = _v
