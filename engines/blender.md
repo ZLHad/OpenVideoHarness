@@ -234,7 +234,7 @@ sandbox-exec -f vh_blender.sb env -i PATH="$PATH" HOME="$PWD/blender/out/.home" 
   blender -b --factory-startup ...
 ```
 
-Blender 自己需要写的位置（着色器缓存、用户配置目录）还没验证【未实测】，首次冒烟时按报错补白名单。沙箱不是安全边界的终点：`(allow default)` 只挡了网络和写入，读取 `~/.ssh` 这类文件仍然放行（`ls ~/.ssh` 验证过），要更严就把读取也收紧。
+Blender 自己需要写的位置（着色器缓存、用户配置目录）和 `env -i` 下还缺的环境变量都还没验证【未实测】，首次冒烟时按报错补白名单。沙箱不是安全边界的终点：`(allow default)` 只挡了网络和写入，读取 `~/.ssh`、`~/.zsh_secrets` 这类文件仍然放行（验证过）。要更严，在 profile 的 `(allow default)` 之后加一行拒读，例如 `(deny file-read* (subpath "/Users/<you>/.ssh") (literal "/Users/<you>/.zsh_secrets"))`（路径写绝对路径；实测读被拒，python 照常运行）。
 
 ## 许可证（维护者待定）
 

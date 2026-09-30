@@ -267,7 +267,7 @@
 **Blender engine guide (experimental, never run)**
 - `engines/blender.md` (new): a two-stage `blender -b` pipeline (`timeline.json`, `scene.blend`, PNG frames) pinned to 5.2 LTS, the 5.0 Python API breaks checked against the release notes, keyframes sampled from our own easing, compositing with HyperFrames and ffmpeg.
 - Colour in the guide: view transforms, PNG against EXR (`-apply_trc iec61966_2_1` fixes the dark EXR read), premultiplied alpha in `overlay`, and the BT.709 matrix and tags for the final H.264. The ffmpeg results were measured on the maintainer's Mac.
-- Safety in the guide: no LLM-written bpy through a Blender MCP without a sandbox, and a `sandbox-exec` profile run under `env -i` with an allowlist, so `FAL_KEY` and the other keys never reach the script. Checked with `sh`, `curl`, `python3` and `ffmpeg`, not with Blender.
+- Safety in the guide: no LLM-written bpy through a Blender MCP without a sandbox, and a `sandbox-exec` profile run under `env -i` with an allowlist, so keys in environment variables (`FAL_KEY` and the others) don't reach the script; keys stored in files stay readable unless the profile also denies reading them, which the guide shows. Checked with `sh`, `curl`, `python3` and `ffmpeg`, not with Blender.
 - Blender is not installed on the maintainer's Mac, so nothing in the guide has been run; render times are to be calibrated with 5 frames first. Whether bpy scripts in this MIT repo need a GPL-compatible licence is left open, and none are added. `engines/README.md` and the 3D routing row link to it.
 
 ## v0.2.1 — 2026-09-30
