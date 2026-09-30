@@ -1,0 +1,59 @@
+name: Bug report · 报告问题
+description: Something in bin/vh, the tools, an engine or the docs doesn't work as described. · bin/vh、工具、引擎或文档和描述不符。
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please don't paste API keys or tokens anywhere in this form. · 感谢反馈。请不要在表单里贴任何 API key 或 token。
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened? · 发生了什么？
+      description: What you expected, and what you got instead. · 你预期的结果和实际结果。
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce · 复现步骤
+      description: The exact commands, or the request you gave your agent. · 具体命令，或你对 agent 说的话。
+      placeholder: |
+        bin/vh new promo demo --style cutout-jazz
+        bin/vh tts projects/2026-…-demo gemini
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of bin/vh doctor · bin/vh doctor 的输出
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Coding agent · 使用的 agent
+      options: ["Claude Code", "Codex", "Other / none · 其他或不用 agent"]
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area · 涉及的部分
+      multiple: true
+      options:
+        - "bin/vh / install"
+        - "HyperFrames"
+        - "Manim"
+        - "ClaudeAnimationBase (hand-drawn)"
+        - "Styles / swatches · 风格库"
+        - "TTS / captions · 配音与字幕"
+        - "Music / SFX / mix / qa · 配乐、音效、混音、QA"
+        - "Docs / playbook · 文档"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, frames or contact sheets · 日志、帧或联系表
+      description: Error output, or a frame / contact sheet that shows the problem. · 报错输出，或能说明问题的帧或联系表。
