@@ -105,6 +105,9 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 | 想找现成的社区 skill 或某种画风 | 先看本仓库的 `styles/`（带样片），再看 `references/community-skills.md`（含 lemo-opuscar 的 43 种风格库，MIT） | — | `cases/opus55-gallery.md` |
 | 配音（中文或英文）、双语字幕、配乐、音效、歌曲 | `playbook/04-audio.md` | `bin/vh tts / captions / beats / music / sfx / mix / mux / qa` | `showcase/`（静音样板）+ 04 篇 |
 | 特效、转场、粒子、着色器、声画联动 | `playbook/08-vfx-and-motion-sources.md` | 随主引擎 | — |
+| 3 分钟以上的长片，或靠故事、谜题推进的片子（角色短片、长讲解） | 主类型文档，加上 `playbook/09-narrative.md`（骨架、节拍表、张力曲线、换挡） | 按主类型 | — |
+| 要发短视频平台：开头钩子、标题、封面 | `playbook/10-hooks-and-packaging.md`，加上主类型文档 | 按主类型 | — |
+| 要写有篇章、有主题的配乐（MV、介绍片和发布片、45 s 以上靠音乐撑起结构的片子、`studio` 档位，或者人要亲自定主题和 BGM） | `playbook/11-composition.md`；`score.json` 的写法见 `playbook/04-audio.md` | `bin/vh music` | — |
 | 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`（一镜到底、特效预设栈、子帧运动模糊） | HyperFrames + Three.js 层 | `showcase/04-intro-film/`、`cases/opus55-gallery.md` 的 3D 一节和第 6 节（Austerlitz 长片深读） |
 | 想要某种风格、参考某部名作，或者不想每支片子都一个口味 | `styles/README.md`，再读选中预设的 `styles/<slug>/STYLE.md` | 随主引擎 | 每个预设的 `media/swatch.mp4`，总览 `styles/gallery.jpg` |
 
@@ -147,7 +150,10 @@ OpenVideoHarness/
 │   ├── 05-hybrid-genvideo.md   生成式视频 + 代码
 │   ├── 06-research-mechanisms.md  Code2Video 等学术工作里可借用的机制
 │   ├── 07-reverse-engineer.md  拉片：拆解参考视频
-│   └── 08-vfx-and-motion-sources.md  特效与动画的来源、声画联动
+│   ├── 08-vfx-and-motion-sources.md  特效与动画的来源、声画联动
+│   ├── 09-narrative.md         叙事与长片：骨架、节拍表、张力、换挡、主体一致性
+│   ├── 10-hooks-and-packaging.md  开头钩子、标题与封面、平台说明、红线
+│   └── 11-composition.md       作曲：篇章、主题、起伏，听不见时怎么检查
 ├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、DECISIONS、NOTES、LESSONS、TASTE_CHECKLIST；用到时再复制：SCRIPT、CHARACTER、PACKAGING
 ├── styles/                   风格库：从名作学来的风格预设（STYLE.md + tokens.json + 真渲的 5 s 样片），_swatch/ 是样片渲染器
 ├── cases/                    真实案例拆解 + opus55-gallery（社区作品精选）
