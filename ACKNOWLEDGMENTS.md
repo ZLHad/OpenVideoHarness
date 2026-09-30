@@ -6,6 +6,7 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 
 **License scope.** The MIT license in [LICENSE](LICENSE) covers this repository's original content. Third-party components keep their own licenses:
 - `engines/ClaudeAnimationBase` is (c) John Heibel, MIT License (see `engines/ClaudeAnimationBase/LICENSE`).
+- `recipes/` holds 24 files modified from Apache-2.0 material: 21 from video-shotcraft (Copyright 2026 Wei Yihao) and 3 from HyperFrames (Copyright 2026 HeyGen, Inc.). The upstream parts stay under Apache-2.0 and our changes are MIT. Both upstream licences are in `recipes/LICENSES/`, each of these files says it was modified and names the upstream files and commit, and `recipes/NOTICE.md` lists them all (Apache-2.0 §4).
 - Repositories fetched by `references/fetch.sh` into `references/repos/` are NOT part of this distribution; each is governed by its own license (listed below).
 
 ## Vendored (shipped in this repository)
@@ -29,14 +30,14 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 
 | Repository | Author | License | Used for |
 |---|---|---|---|
-| [HyperFrames](https://github.com/heygen-com/hyperframes) (skills only) | HeyGen | Apache-2.0 | Primary HTML/GSAP engine; motion-doctrine, caption aesthetics, style presets and CLI verification. Many numbers in `playbook/03-motion-design.md` come from these docs |
+| [HyperFrames](https://github.com/heygen-com/hyperframes) (skills only) | HeyGen | Apache-2.0 | Primary HTML/GSAP engine; motion-doctrine, caption aesthetics, style presets and CLI verification. Many numbers in `playbook/03-motion-design.md` come from these docs. The recipes `cut-the-curve`, `zoom-through` and `oversized-cursor` in `recipes/` are modified from its `cut-the-curve` and `oversized-cursor` skills (commit `a46095f`), rewritten in our own words; see `recipes/NOTICE.md` |
 | [remotion-dev/skills](https://github.com/remotion-dev/skills) | Remotion | no LICENSE file in the repo; Remotion itself is under the Remotion License | Remotion route, captions, determinism rules |
 | [Code2Video](https://github.com/showlab/Code2Video) (prompts, src) | Show Lab, NUS | MIT | Anchor-grid critic, ScopeRefine, parallel sections: the "code2video" idea this project generalises |
 | [3brown1blue](https://github.com/AmitSubhash/3brown1blue) (skill) | Amit Subhash | MIT | 3b1b-style and paper-explainer rules, Manim gotchas |
 | [awesome-claude-video-skills](https://github.com/zhuyansen/awesome-claude-video-skills) | Jason Zhu (@GoSailGlobal) / Agent Skills Hub | CC0-1.0 | Catalogue of 183 agent video skills with safety grades; source of `references/community-skills.md` |
 | [lemo-opuscar](https://github.com/lemomo-ai/lemo-opuscar) | LemoLab (Lemomo, @lemomo_ai) | MIT for the whole repo since `02dce5b` (2026-09-29); earlier snapshots put the guides, `STYLE.md` files and films under CC BY 4.0 | 43-style library for aesthetic direction. The reading-time rule and `tools/readcheck.py` are adapted from its `core/render/readcheck.mjs` (MIT) |
 | [OpenMontage](https://github.com/calesthio/OpenMontage) | calesthio | AGPL-3.0 | Full agentic production system, used for comparison and ideas (no code reused) |
-| [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) | Vincent Wei | Apache-2.0 | 150+ shot recipe cards for product films (some bundled SFX have unverified sources) |
+| [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) | Vincent Wei (Wei Yihao) | Apache-2.0 | 157 shot recipe cards for product films (some bundled SFX have unverified sources). 17 recipes, 3 pacing skeletons and `recipes/sequences/README.md` are modified from its cards, demos and `promo-energy-arc` skeleton (commit `e2d8928`): the text is rewritten in our own words, no code was copied, and the parameters were adjusted to this repo's rules. Each file names its upstream files in `derived_from`; `recipes/NOTICE.md` lists them (`cases/promo-video-shotcraft.md`) |
 | [video-talkcraft](https://github.com/Vincentwei1021/video-talkcraft) | Vincent Wei | PolyForm Noncommercial 1.0.0 | Voiceover-driven explainer motion (reference only; commercial use needs the author's permission) |
 | [guizang-product-video-skill](https://github.com/op7418/guizang-product-video-skill) | 归藏 (op7418) | AGPL-3.0 (`assets/fallback/` also BSL 1.1) | Product update films built from real product components. Its audio method (music sourcing order: user track → local model → code-composed score; SFX as a separate event layer aligned to landmarks; music making way for key SFX) and its friendly README structure inspired ours. **No code was copied**: `tools/audio/music.py` and `sfx.py` are written from scratch under MIT |
 | [Paper-Cut](https://github.com/aijiduonadegou/Paper-Cut) | Paper Cut contributors | MIT | Vox-style paper collage without video models |
