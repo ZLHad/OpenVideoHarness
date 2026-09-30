@@ -261,7 +261,7 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | macOS or Linux, git | the basics | ✅ |
 | Node.js ≥ 22, Google Chrome | rendering in the browser | ✅ |
 | FFmpeg | encoding, mixing, checks | ✅ |
-| Python 3 + [uv](https://github.com/astral-sh/uv) | sound tools, Manim, contact sheets (dependencies are installed on the fly, nothing global) | Recommended |
+| Python 3 + [uv](https://github.com/astral-sh/uv) | sound tools (`bin/vh tts`, `beats`, `music`, `sfx`, `qa`), timestamped contact sheets, Manim (dependencies are installed on the fly, nothing global) | ✅ for sound and contact sheets |
 | Apple Silicon | local Qwen3-TTS voiceover | For local voiceover |
 | LaTeX | equations in Manim | For math explainers |
 

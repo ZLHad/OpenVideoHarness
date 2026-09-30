@@ -21,7 +21,14 @@ import json, re, subprocess, sys
 def loudness(stderr):  # loudnorm's print_format=json block → {"input_i", "input_tp", "input_lra", …}
     return json.loads(re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", stderr, re.S).group(0))
 
+USAGE = ("usage: bin/vh mix <out.wav> [voice=vo.wav] [music=m.wav] [sfx=s.wav] [music_db=-6] [sfx_db=0] [voice_db=0] "
+         "[duck=voice|on|off] [duck_ratio=1.6] [lufs=-14] [tp=-1.5]")
+KEYS = ("voice", "music", "sfx", "music_db", "sfx_db", "voice_db", "duck", "duck_ratio", "lufs", "tp")
+
 def main():
+    if len(sys.argv) < 2: sys.exit(USAGE)
+    bad = [a for a in sys.argv[2:] if "=" not in a or a.split("=", 1)[0] not in KEYS]   # a bare path or a typo, not a traceback
+    if bad: sys.exit(f"{USAGE}\nnot key=value, or not a known key: {' '.join(bad)}")
     out = sys.argv[1]; kv = dict(a.split("=", 1) for a in sys.argv[2:])
     buses = [(k, kv[k]) for k in ("voice", "music", "sfx") if kv.get(k)]
     if not buses: sys.exit("give at least one of voice= music= sfx=")

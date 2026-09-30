@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**Tools and docs: found by a second review of v0.2.1 and the PRs since**
+- `tools/ci.sh`'s ban on BSD-only / GNU-only commands only matched a command at the start of a statement: `for f in …; do sed -i '' …; done`, `if …; then stat -f %z …; fi`, `… | xargs sed -i '' …` and `sudo sed -i …` all passed. It now also looks after `do`, `then`, `else`, `elif` and behind the wrappers `xargs`, `sudo`, `exec`, `env`, `time`, `nohup` and `command` (with their flags).
+- `render.mjs --encode` refused to run on a machine without Chrome although it never opens a browser; the Chrome check now comes after the encode path.
+- `bin/vh doctor` called uv optional; `bin/vh tts`, `beats`, `music`, `sfx`, `qa` and `sheet` run through it, so a missing uv is now a red ✗ that names them. The README's requirements table (both languages) says the same.
+- `bin/vh mix` with an argument that is not `key=value`, or an unknown key, prints the usage instead of a traceback.
+- `bin/vh sfx place`: `"sfx"` may be a path to any file ffmpeg decodes, not only `.wav`; a missing file, an undecodable file or an unknown built-in name is a clear error instead of a `KeyError`.
+- Docs: `styles/README.md` no longer lists the three v0.2.0 review items as unfixed (they were fixed in v0.2.1; the published swatches pass `bin/vh qa scan`); `engines/README.md` records that the CanvasNoise fix was verified on a real GPU (macOS, Metal) instead of "not yet verified".
+
 **ElevenLabs word timing**
 - `bin/vh tts … elevenlabs` wrote every character as a "word": an English line became one entry per letter (90 for a 20-word sentence), so word-by-word captions flashed letters and the documented "same shape as --align" was not true. Character timestamps are now grouped into the same units as `--align gemini`: a Latin word or number each, a CJK character each, trailing punctuation kept on the word before it, opening quotes on the word after.
 

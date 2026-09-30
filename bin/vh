@@ -74,7 +74,7 @@ cmd_doctor() {
   chrome=$(chrome_path) || chrome=""
   [ -n "$chrome" ] && echo "$c_ok chrome  $chrome" || echo "$c_no chrome  ($(hint "install Google Chrome" "sudo apt install chromium, or npx playwright install chromium"), or set CHROME_PATH)"
   chk python3 "python3 --version" "needed for audio analysis / Manim"
-  chk uv "uv --version" "optional: $(hint "brew install uv" "curl -LsSf https://astral.sh/uv/install.sh | sh") (Manim env)" "$c_wa"
+  chk uv "uv --version" "$(hint "brew install uv" "curl -LsSf https://astral.sh/uv/install.sh | sh"); bin/vh tts, beats, music, sfx, qa and sheet run through it, Manim envs too"
   chk latex "latex --version" "optional: $(hint "MacTeX: brew install --cask mactex-no-gui" "TeX Live: sudo apt install texlive-latex-extra"), needed for Manim MathTex" "$c_wa"
   chk git "git --version" "needed by references/fetch.sh"
   [ -d "$ROOT/engines/ClaudeAnimationBase/node_modules" ] && echo "$c_ok ClaudeAnimationBase deps installed" || echo "$c_wa ClaudeAnimationBase deps missing → bin/vh setup"

@@ -27,8 +27,9 @@ static_checks() {
   if command -v shellcheck >/dev/null; then
     if out=$(files bin/vh '*.sh' | xargs shellcheck -S warning 2>&1); then ok "shellcheck -S warning"; else echo "$out"; bad "shellcheck"; fi
   else skip "shellcheck" "not installed"; fi
-  # BSD-only or GNU-only flags, matched where a command starts; a line may opt out with a trailing "# portable-ok: <why>"
-  local np='(^|[;&|(`]|\$\() *(sed -i|stat -[cf] |md5 -q|md5sum|readlink -f|grep -[a-zA-Z]*P|date -[djv] |xargs -r|find [^;|]*-printf|base64 -D|sort -V|tac )'   # portable-ok: the list itself
+  # BSD-only or GNU-only flags, matched where a command starts: a statement start or a pipe, also after do / then / else
+  # and behind a wrapper (xargs, sudo, exec, env, time, nohup, command); a line may opt out with a trailing "# portable-ok: <why>"
+  local np='(^|[;&|(`]|\$\()[[:space:]]*((do|then|else|elif|xargs|sudo|exec|env|time|nohup|command)( -[^[:space:]]+)*[[:space:]]+)*(sed -i|stat -[cf] |md5 -q|md5sum|readlink -f|grep -[a-zA-Z]*P|date -[djv] |xargs -r|find [^;|]*-printf|base64 -D|sort -V|tac )'   # portable-ok: the list itself
   if out=$(files bin/vh '*.sh' | xargs grep -n -E "$np" | grep -v 'portable-ok'); then
     echo "$out"; bad "non-portable shell commands (use a helper that works with both BSD and GNU tools)"
   else ok "no BSD-only / GNU-only shell commands"; fi

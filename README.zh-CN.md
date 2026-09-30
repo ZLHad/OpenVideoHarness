@@ -261,7 +261,7 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 | macOS 或 Linux、git | 基础 | ✅ |
 | Node.js ≥ 22、Google Chrome | 在浏览器里渲染画面 | ✅ |
 | FFmpeg | 编码、混音、检查 | ✅ |
-| Python 3 + [uv](https://github.com/astral-sh/uv) | 声音工具、Manim、联系表（依赖临时安装，不污染全局环境） | 推荐 |
+| Python 3 + [uv](https://github.com/astral-sh/uv) | 声音工具（`bin/vh tts`、`beats`、`music`、`sfx`、`qa`）、带时间戳的联系表、Manim（依赖临时安装，不污染全局环境） | 做声音和联系表时必需 |
 | Apple Silicon | 本地 Qwen3-TTS 配音 | 用本地配音时需要 |
 | LaTeX | Manim 里的公式 | 做数学讲解时需要 |
 

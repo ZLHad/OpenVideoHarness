@@ -4,8 +4,8 @@ usage (via bin/vh sfx):
   python tools/audio/sfx.py lib <out_dir>                         write the built-in library (48 kHz mono WAVs)
   python tools/audio/sfx.py place <events.json> <out.wav> [duration_s] [--lib DIR]   → 48 kHz STEREO track
 events.json: [{"t": 3.20, "sfx": "click", "gain_db": -6}, {"t": 7.95, "sfx": "whoosh", "pan": -0.6, "dist": 3}, …]
-  "sfx" is a library name or a path to your own WAV (recorded / licensed: log its source in NOTES.md; any bit depth,
-  float or sample rate, decoded by ffmpeg; stereo files are folded to mono and treated as a point source).
+  "sfx" is a library name or a path to your own sound (recorded / licensed: log its source in NOTES.md; any format,
+  bit depth or sample rate ffmpeg decodes; stereo files are folded to mono and treated as a point source).
   t is when the sound should LAND; each built-in sound's landmark (its perceptual hit) is aligned to t,
   so a whoosh peaks on the cut and a riser peaks on the drop.
   pan  (optional, −1 left … 0 centre … 1 right): equal-power, normalised so centre = the mono level on both channels
@@ -111,7 +111,13 @@ def main():
             name = e["sfx"]
             if name not in cache:
                 p = Path(name)
-                cache[name] = read(p) if p.suffix == ".wav" and p.exists() else read(lib_dir / f"{name}.wav") if lib_dir and (lib_dir / f"{name}.wav").exists() else LIB[name]()
+                if p.suffix or "/" in name:                          # a file of your own: anything ffmpeg decodes
+                    p.exists() or sys.exit(f"sfx: no such file: {name} (event at t={e['t']})")
+                    try: cache[name] = read(p)
+                    except subprocess.CalledProcessError: sys.exit(f"sfx: ffmpeg cannot decode {name}")
+                elif lib_dir and (lib_dir / f"{name}.wav").exists(): cache[name] = read(lib_dir / f"{name}.wav")
+                elif name in LIB: cache[name] = LIB[name]()
+                else: sys.exit(f"sfx: unknown sound {name!r}: not a built-in ({', '.join(LIB)}), not in --lib, not a file")
             x = spatial(cache[name] * 10 ** (e.get("gain_db", 0) / 20), e.get("pan", 0), e.get("dist", 1))
             i = int(round((e["t"] - LANDMARK.get(name, 0.0)) * SR))
             if i < 0: x, i = x[-i:], 0
