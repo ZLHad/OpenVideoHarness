@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+**README: one picture of the whole project**
+- `docs/assets/overview.en.svg` / `overview.zh.svg` replace the mermaid flowchart under "How it works". The new diagram shows the path from a one-sentence request to the final film, with the three human gates, sound-first rendering, the self-review loop and gate ③ sending the film back. Beside it, it shows what the repository provides: knowledge, tools and engines, and the records that feed lessons back into the playbook. Both files follow the reader's light or dark theme.
+
 **Tools and docs: found by a second review of v0.2.1 and the PRs since**
 - `tools/ci.sh`'s ban on BSD-only / GNU-only commands only matched a command at the start of a statement: `for f in …; do sed -i '' …; done`, `if …; then stat -f %z …; fi`, `… | xargs sed -i '' …` and `sudo sed -i …` all passed. It now also looks after `do`, `then`, `else`, `elif` and behind the wrappers `xargs`, `sudo`, `exec`, `env`, `time`, `nohup` and `command` (with their flags).
 - `render.mjs --encode` refused to run on a machine without Chrome although it never opens a browser; the Chrome check now comes after the encode path.

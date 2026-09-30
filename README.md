@@ -145,6 +145,8 @@ You don't need a long brief. Say **what it's about, who it's for and where it go
 
 ## How it works
 
+<p align="center"><img src="docs/assets/overview.en.svg" width="720" alt="OpenVideoHarness at a glance: a one-sentence request goes through type and effort selection, three human gates, sound-first code rendering and a self-review loop to a finished film; on the right, what the repository provides"></p>
+
 1. **Pick the type.** From your one sentence, the agent looks up the routing table in [CLAUDE.md](CLAUDE.md), decides what kind of video this is, and reads that type's workflow.
 2. **Gate ①, the outline.** It hands you an outline with two or three styles to pick from.
 3. **Gate ②, the storyboard.** For each shot: what the viewer must understand, in what order, and for how long. Plus a preview sheet with one frame per shot.
@@ -156,24 +158,6 @@ You don't need a long brief. Say **what it's about, who it's for and where it go
 6. **Gate ③, the first draft.** You watch it, and it tells you the parts it likes least. If you can't say what's wrong, it makes two or three versions of one section for you to choose from.
 7. **Wrap up.** It renders the final and writes what it learned back into the docs, so the next film starts better.
 
-```mermaid
-flowchart LR
-    A["One-sentence request"] --> B{"CLAUDE.md<br/>pick the type"}
-    B --> C["That type's workflow<br/>engine · steps · taste · bans"]
-    C --> D["Outline + 2–3 styles"]
-    D --> R1{{"👤 Gate ①"}}
-    R1 --> E["Storyboard + preview sheet"]
-    E --> R2{{"👤 Gate ②"}}
-    R2 --> F["Sound first<br/>voice · music · beat map"]
-    F --> G["Write code, section by section"]
-    G --> H["Look at frames · measure sound"]
-    H --> I{"20-point checklist<br/>7 scores ≥ 8"}
-    I -- fails --> G
-    I -- passes --> J["First draft"]
-    J --> R3{{"👤 Gate ③"}}
-    R3 -- changes --> G
-    R3 -- approved --> K["Final + lessons written back"]
-```
 
 ### You choose how hard it works
 
