@@ -1,9 +1,11 @@
 """Three-bus mix: voice + music + SFX → one stereo track at −14 LUFS, music ducking under the voice.
 
 usage (via bin/vh mix): python tools/audio/mix.py <out.wav> [voice=vo.wav] [music=m.wav] [sfx=s.wav]
-                        [music_db=-6] [sfx_db=0] [voice_db=0] [duck=voice|on|off] [duck_ratio=6] [lufs=-14] [tp=-1.5]
+                        [music_db=-6] [sfx_db=0] [voice_db=0] [duck=voice|on|off] [duck_ratio=1.6] [lufs=-14] [tp=-1.5]
 Any bus may be omitted. The default is duck=voice when there is a voice bus (the music is side-chain compressed by
 the voice, so a narration line is always heard: "music makes way", playbook/04-audio.md), else duck=off.
+duck_ratio=1.6 lets the music dip under the voice without dropping out in the ~0.25 s pauses between lines;
+6 and 3 did (bin/vh qa pumping) in a listening test on 2026-09-30.
 duck=on keys on voice + SFX so a "ding" pushes the music down too: then keep duck_ratio low (2–3), or the music
 pumps on every hit.
 Stereo is preserved (mono buses are centred). Loudness is ONE static gain, so a cinematic score keeps its dynamics
@@ -38,7 +40,7 @@ def main():
         else:
             f += [f"[{keys[0]}]asplit[key][f0]"]; fg_out = ["[f0]"] + [f"[{k}]" for k in fg if k not in keys]
         # apad: the compressor stops when its key ends, so a short voice/SFX bus used to cut the music off there
-        f.append(f"[key]apad[keyp];[music][keyp]sidechaincompress=threshold=0.02:ratio={kv.get('duck_ratio', '6')}:attack=15:release=350:makeup=1[duck]")
+        f.append(f"[key]apad[keyp];[music][keyp]sidechaincompress=threshold=0.02:ratio={kv.get('duck_ratio', '1.6')}:attack=15:release=350:makeup=1[duck]")
         tracks = ["[duck]"] + fg_out
     else:
         tracks = [f"[{k}]" for k, _ in buses]

@@ -26,7 +26,10 @@
 **Camera language for video models**
 - `playbook/05`: how to write camera moves a video model can execute (four layers, start → path → end → constraints, a trigger between two moves), after Adrian Punk's *AI 视频运镜词典*. `playbook/07` breaks camera motion down the same way; `playbook/08` treats one-take camera paths as a choreography and handheld drift as low-frequency noise.
 
-Known and left for a listening test: with narration that pauses ~0.25 s between lines, the default `duck_ratio=6` still leaves short music dropouts that `bin/vh qa` reports (it did before too). `music_db=-5 duck_ratio=1.6` passes, as `playbook/04` notes.
+**Defaults settled on a Mac (Apple M3 Max)**
+- `bin/vh mix`: the default `duck_ratio` is now 1.6 (was 6). With narration that pauses ~0.25 s between lines, 6 and 3 made the music drop out between lines (`bin/vh qa`: 3 and 2 pumping dips); 1.6 had none and sounded best in a listening test.
+- `bin/vh tts` without a language: an English-only script is now spoken in English (English voice, English ASR, `voiceover.en.wav`) instead of by the Chinese voice. A script with any Chinese line stays `zh`, so one narrator reads it all; `--lang zh` keeps the old behaviour.
+- Verified on macOS with a GPU: `tools/ci.sh` under bash 5 and `/bin/bash` 3.2, `bin/vh doctor` (WebGL on Metal), frames pixel-identical across launches and render orders, `--encode` with `PROJECT.audio` and missing frames, a swatch determinism check and draft render, captions for English-only scripts and `|x|`, `--align gemini`, and `install.sh` from a fresh clone.
 
 ## v0.2.1 — 2026-09-30
 
