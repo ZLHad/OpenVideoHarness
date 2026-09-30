@@ -11,7 +11,7 @@
 //   Make the video:
 //     node render.mjs --clip [--range=0:4] --out=out/video.mp4                               straight to MP4 (one worker)
 //     node render.mjs --frames [--range=0:8] --workers=4                                     JPEG frames → out/frames (parallel, resumable)
-//     node render.mjs --encode --out=out/video.mp4                                           out/frames → MP4 (checks the frame count)
+//     node render.mjs --encode --out=out/video.mp4                                           out/frames → MP4 (checks the frame count; no Chrome needed)
 //   Standalone loops (LOOPS in the page): add --loop=<name> to any of the above (times are then loop times; --frames and
 //   --encode use out/frames_loop_<name> and write out/loop_<name>.mp4), or
 //     node render.mjs --loop=emotions --png --out=out/loop_emotions                          one cycle as PNGs (for GIFs)
@@ -40,7 +40,6 @@ function playwrightChromes() {
       .flatMap(n => [`${dir}/${n}/chrome-linux64/chrome`, `${dir}/${n}/chrome-linux/chrome`]));
 }
 const CHROME = CHROMES.find(p => p && existsSync(p));
-if (!CHROME) { console.error('Chrome not found: pass --chrome=<path> or set CHROME_PATH'); process.exit(1); }
 // PROJECT, read in Node: config.js is a plain script, so it runs in a bare context with window/self. Every mode, --encode
 // included, then agrees on fps, length and audio without opening the page.
 const PROJECT = (() => { try { const g = vm.createContext({ console }); g.window = g.self = g; vm.runInContext(readFileSync('src/config.js', 'utf8'), g, { filename: 'src/config.js' }); return vm.runInContext('typeof PROJECT == "object" && PROJECT || {}', g); } catch (e) { console.warn(`couldn't read PROJECT from src/config.js (${e.message}): using --fps / --audio / defaults`); return {}; } })();
@@ -87,6 +86,9 @@ if (args.encode) {
   console.log('wrote ' + out);
   process.exit(0);
 }
+
+// --encode has returned above without a browser; every mode from here on renders in Chrome.
+if (!CHROME) { console.error('Chrome not found: pass --chrome=<path> or set CHROME_PATH'); process.exit(1); }
 
 // --soft-gl: no GPU on this machine; render WebGL in software (SwiftShader), which Chrome only allows when asked. It also
 // keeps 2D canvases on the CPU: accelerated 2D canvas on SwiftShader made frames differ on every launch (~39 dB PSNR
