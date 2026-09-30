@@ -385,7 +385,8 @@ def main():
             out.write_text("[\n" + ",\n".join("  " + json.dumps(it, ensure_ascii=False) for it in items) + ("\n" if items else "") + "]\n", encoding="utf-8")
         except OSError as e:
             print(f"readcheck: NOT EXPORTED — cannot write {out}: {e.strerror or e}", file=sys.stderr); sys.exit(2)
-        print(f"readcheck: {len(items)} timed text(s) from {html.name} ({stats['source']}) → {out}")
+        print(f"readcheck: {len(items)} timed text(s) from {html.name} → {out}")
+        print(f"  spans from {stats['source']}")
         note = skipped_note(stats)
         if note: print(f"  not exported: {note}; add those by hand")
         if zeroed_note(stats): print(f"  note: {zeroed_note(stats)}")
