@@ -286,15 +286,15 @@ def check_field(key, kind, v, fm):
         if v not in VOCAB[kind]:
             raise FMError(f"{key}: unknown {v!r} (vocabulary: {', '.join(VOCAB[kind])})")
     elif kind == "energy":
-        span(v, 1, 5, key)
+        span(v, 0, 5, key)
     elif kind == "range":
         span(v, 1, 30 * 60 * FPS, key)
     elif kind == "count":
         if not (isinstance(v, int) and not isinstance(v, bool) and v >= 1):
             raise FMError(f"{key}: expected a positive integer")
     elif kind == "arc":
-        if not (isinstance(v, list) and len(v) >= 2 and all(isinstance(x, int) and 1 <= x <= 5 for x in v)):
-            raise FMError(f"{key}: expected [e1, e2, …] with each energy 1–5")
+        if not (isinstance(v, list) and len(v) >= 2 and all(isinstance(x, int) and not isinstance(x, bool) and 0 <= x <= 5 for x in v)):
+            raise FMError(f"{key}: expected [e1, e2, …] with each energy 0–5")
     elif kind == "qamap":
         if not (isinstance(v, dict) and v):
             raise FMError(f"{key}: expected {{peak: frame, settle: frame, …}}")

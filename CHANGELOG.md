@@ -11,7 +11,7 @@
   - a flash stitch measured from a public showreel.
 
   Each recipe names its source in `derived_from` and says what it changed. On-screen text holds follow this repo's reading-time rule (shotcraft's title cards held 1.8 s). Emphasis uses weight or colour, not italics; blur is animated only on canvas; readable small text is at least 44 px; the braking whip-pan is one velocity-continuous curve.
-- `recipes/sequences/` holds the pacing grammar and three skeletons: a 15 s launch, a 30 s narrated explainer and a 60 s product film. The grammar is five energy levels, holds reserved before any motion, seams chosen by the energy jump, and caps such as at most 3 full-frame impacts per film.
+- `recipes/sequences/` holds the pacing grammar and three skeletons: a 15 s launch, a 30 s narrated explainer and a 60 s product film. The grammar is an energy scale of 0–5 (the same one as the beat sheets in `playbook/09-narrative.md`), holds reserved before any motion, seams chosen by the energy jump, and caps such as at most 3 full-frame impacts per film.
 - `bin/vh recipes list [--intent … --energy … --engine … --have … --seconds …]` filters on fixed-vocabulary frontmatter; an unknown value is an error, not an empty list. `bin/vh recipes check [file…]` validates the frontmatter, the cross-references, the README index (its energy, length and status columns) and the sketches' syntax. CI runs both.
 - `templates/STORYBOARD.md` has optional recipe and QA-frame columns. CLAUDE.md routes "how should this shot move" and pacing requests to `recipes/`. New case study: `cases/promo-video-shotcraft.md`, so the README counts now say 12.
 

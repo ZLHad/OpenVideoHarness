@@ -25,8 +25,11 @@
 3. 参数表里标 ★ 的是命门：风格可以给它换皮，不能降它的档。例如风格要求一拍二（12 fps），hold 仍按秒数给足，切点取整到 2 帧，而不是把 hold 砍半。风格明确不用某种手法时（例如 `product-keynote` 不用 glitch），换一张配方，不要把这张做残。
 4. 有意偏离配方（降档、改结构、换顺序），在 `NOTES.md` 写一句为什么。
 
-改写外部配方时已经和本仓库的规则对齐过，下面三处和原文不同：
+改写外部配方时已经和本仓库的规则对齐过，下面几处和原文不同，每张配方的"来源"一节写了具体改了什么：
 
+- **画面文字停到读完**：没人念的字从完整显示起至少停 max(2.5 s, 读时公式)（TASTE_CHECKLIST #5，`bin/vh readcheck`）。shotcraft 的字卡整张只有 1.8 s，所以改写后的字卡、黑场字卡、字标开场都变长了。
+- **要读的字不小于 44 px**（1080p 的辅助文字下限）：原文里 25–26 px 的副标、标语都提上来了。
+- **片中没有数字静音**：原文让黑场和死寂段的声音同帧全静，改写后保留一层很低的底（CLAUDE.md 底线）。
 - **强调词不用斜体**（`playbook/03-motion-design.md` §4），改用字重或强调色。
 - **blur 只在 canvas 层动画**：playbook/03 §4 不让在 DOM 里动画 `blur`。配方里需要虚焦的地方，在 canvas 上用 `ctx.filter` 做，或者在 DOM 里用预先模糊好的副本做交叉淡入。
 - **落地回弹不超过约 5%**，这是 playbook/03 §1 卡片档弹簧的上限。原配方里的过冲曲线实测在 1–5% 之间，都在这个范围内，配方里写了每条曲线的实际过冲。
@@ -34,13 +37,13 @@
 ## 怎么挑：先定意图，再看能量
 
 1. **先写 reads**（`playbook/01-pipeline.md`），然后给每个镜头定三样：它在片中的位置（`role`），要观众明白什么（`intent`），手上有什么素材（`needs`）。
-2. **套骨架定能量**：从 [`sequences/`](sequences/README.md) 选一条骨架，得到每个位置的目标能量（1–5）和 hold 预算。
+2. **套骨架定能量**：从 [`sequences/`](sequences/README.md) 选一条骨架，得到每个位置的目标能量（0–5，和 `playbook/09-narrative.md` 节拍表的能量是同一把尺子）和 hold 预算。叙事的形状（起承转合、好奇缺口、转在哪里）先按 playbook/09 定，骨架管的是能量和停顿。
 3. **筛**：条件之间是"并且"，同一个条件里用逗号写几个备选。
 
    ```bash
    bin/vh recipes list --intent abundance,process --energy 4 --engine hyperframes --have ui-page,ui-element
    bin/vh recipes list --family seam --jump rise          # 能量往上走的接缝
-   bin/vh recipes list --role breath --seconds 1.5-2      # 2 秒以内的呼吸位
+   bin/vh recipes list --role breath --seconds 3-4        # 3–4 秒的呼吸位
    ```
 4. **排序，定首选和备选**：意图对得最准的排前面；能量离骨架在这个位置的目标值最近的排前面；一种手法全片只当一次主角，已经用过的往后放。
 5. **查全片约束**：`max_per_film`、`conflicts`、整画面冲击不超过 3 处、呼吸位的数量（见骨架的"限额"）。
@@ -120,7 +123,7 @@ frontmatter 是 YAML 的一个严格子集，任何 YAML 解析器读出来的�
 | `family` | 是 | 词表 | 手法的类别，也是所在的目录 |
 | `role` | 是 | `[feature, climax]` | 在片中的位置，词表 |
 | `intent` | 是 | `[accelerate]` | 要观众明白什么，词表 |
-| `energy` | 是 | `4` 或 `[3, 5]` | 1 最静，5 最响；接缝写它适用的能量范围 |
+| `energy` | 是 | `4` 或 `[3, 5]` | 0 最静，5 最响（六档的含义见 `sequences/README.md`）；接缝写它适用的能量范围 |
 | `duration_f` | 是 | `[120, 135]` | 30 fps 下的帧数范围；接缝写它从两侧借走的帧 |
 | `types` | 是 | `[promo, short]` | 适合的视频类型，和 `bin/vh new` 的类型名一致 |
 | `engines` | 是 | `[canvas, hyperframes]` | 能做的引擎，词表 |
