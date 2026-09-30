@@ -181,57 +181,89 @@ grep -h "\[swatch\]" "$LOG" 2>/dev/null | sort -u | head -10 | sed 's/^/   log: 
 [ $fail = 0 ] || exit 1
 echo "$ok ${n} frames at ${wh}, canvas drew, no error card ($((T1 - T0))s render)"
 
-# ── optional score → 5 s music bed, optional events.json → foley placed on the frame of each action
-AUDIO=""; MIXARGS=()
+# ── optional score → music, optional events.json → foley on the frame of each action, mixed with the swatch profile
+AUDIO=""; MIXARGS=(); TP=-1.65
 if [ $builtin = 0 ] && [ -f "$SRC/score.json" ]; then   # (SRC = styles/<slug> or the given folder)
   echo "→ music from ${SRC#$ROOT/}/score.json"
   "$ROOT/bin/vh" music "$SRC/score.json" "$OUT/music_raw.wav" >/dev/null
-  ffmpeg -v error -y -i "$OUT/music_raw.wav" -af "atrim=0:$DUR,afade=t=out:st=$(python3 -c "print($DUR-0.45)"):d=0.45,apad=whole_dur=$DUR" "$OUT/music5.wav"
-  MIXARGS+=(music="$OUT/music5.wav" music_db=0)
+  MIXARGS+=(music="$OUT/music_raw.wav")
 fi
-if [ $builtin = 0 ] && [ -f "$SRC/events.json" ]; then  # [{"t", "sfx", "gain_db", "pan", "dist"}]; own WAVs relative to the style folder
+if [ $builtin = 0 ] && [ -f "$SRC/events.json" ]; then  # [{"t", "sfx", "gain_db", "pan", "dist", "role"}]; own WAVs relative to the style folder
   echo "→ foley from ${SRC#$ROOT/}/events.json"
   "$ROOT/bin/vh" sfx lib "$OUT/sfxlib" >/dev/null       # rebuilt each time, so library fixes always reach the swatch
-  (cd "$SRC" && "$ROOT/bin/vh" sfx place events.json "$OUT/sfx_raw.wav" "$DUR" --lib "$OUT/sfxlib" >/dev/null)
-  # same 0.45 s fade as the score, so a long SFX that runs past the end isn't cut off with a click at 5.0 s
-  ffmpeg -v error -y -i "$OUT/sfx_raw.wav" -af "atrim=0:$DUR,afade=t=out:st=$(python3 -c "print($DUR-0.45)"):d=0.45,apad=whole_dur=$DUR" "$OUT/sfx.wav"
-  MIXARGS+=(sfx="$OUT/sfx.wav" sfx_db=-3)
+  MIXARGS+=(events="$SRC/events.json" lib="$OUT/sfxlib" root="$SRC")
 fi
-if [ ${#MIXARGS[@]} -gt 0 ]; then
-  "$ROOT/bin/vh" mix "$OUT/music.wav" "${MIXARGS[@]}" duck=off >/dev/null   # no ducker: a 5 s clip has no voice to make way for
-  AUDIO="$OUT/music.wav"
-fi
+# profile=swatch (playbook/04-audio.md, 混音): the music is the anchor; each foley event moves half way to its class's
+# level re the music's 3 s loudness (hero / detail / ambience / signal), one short room behind them, one static gain to
+# −14 LUFS, true peak ≤ $1 dBTP. Cut to 5 s with the 0.45 s fade inside the mix, so an SFX past the end fades with the score.
+mix_audio() {
+  "$ROOT/bin/vh" mix "$OUT/music.wav" profile=swatch dur=$DUR fade=0.45 tp="$1" "${MIXARGS[@]}" stems="$OUT/stems" > "$OUT/mix.txt" \
+    || { cat "$OUT/mix.txt"; die "bin/vh mix failed"; }
+}
+if [ ${#MIXARGS[@]} -gt 0 ]; then mix_audio "$TP"; AUDIO="$OUT/music.wav"; fi
 
 # ── swatch.mp4: 1280×720, H.264 High, yuv420p, faststart; CRF climbs until it fits the size cap.
 #    -threads 1: x264's VBV rate control (-maxrate/-bufsize) is not repeatable with frame threads — four encodes of the
 #    same input spanned 1 493 473–1 503 291 B around the 1 500 000 B cap, flipping halftone-comic between CRF 24 and 26.
 #    One thread gives the same bytes every time and costs about 3 s per pass at 720p.
 MP4="$MEDIA/swatch.mp4"; TMP="$OUT/swatch.tmp.mp4"
-for crf in 18 20 22 24 26 28 30 32 34; do
+encode() { # $1 = CRF → $TMP
   if [ -n "$AUDIO" ]; then
     ffmpeg -v error -y -i "$HFMP4" -i "$AUDIO" -map 0:v:0 -map 1:a:0 -vf "scale=1280:720:flags=lanczos,format=yuv420p" \
-      -c:v libx264 -preset slow -profile:v high -crf $crf -maxrate 2600k -bufsize 5200k -g 60 -r $FPS -threads 1 \
+      -c:v libx264 -preset slow -profile:v high -crf "$1" -maxrate 2600k -bufsize 5200k -g 60 -r $FPS -threads 1 \
       -c:a aac -b:a 128k -ac 2 -t $DUR -movflags +faststart "$TMP"
   else
     ffmpeg -v error -y -i "$HFMP4" -vf "scale=1280:720:flags=lanczos,format=yuv420p" \
-      -c:v libx264 -preset slow -profile:v high -crf $crf -maxrate 2600k -bufsize 5200k -g 60 -r $FPS -threads 1 \
+      -c:v libx264 -preset slow -profile:v high -crf "$1" -maxrate 2600k -bufsize 5200k -g 60 -r $FPS -threads 1 \
       -an -t $DUR -movflags +faststart "$TMP"
   fi
-  sz=$(fsize "$TMP"); [ "$sz" -le $MP4_LIMIT ] && break
+}
+for crf in 18 20 22 24 26 28 30 32 34; do
+  encode $crf; sz=$(fsize "$TMP"); [ "$sz" -le $MP4_LIMIT ] && break
 done
 [ "$sz" -le $MP4_LIMIT ] || die "swatch.mp4 is still $sz bytes at CRF $crf: reduce full-frame grain/noise"
-mv "$TMP" "$MP4"
-echo "$ok ${MP4#$ROOT/}  $(python3 -c "print(f'{$sz/1e6:.2f} MB')")  (crf $crf$([ -f "$SRC/score.json" ] && [ $builtin = 0 ] && echo ', +music')$([ -f "$SRC/events.json" ] && [ $builtin = 0 ] && echo ', +foley')$([ -z "$AUDIO" ] && echo ', silent'))"
-
-# ── audio QA on the shipped file: silence / dropouts / pumping over the whole clip (the fade-out tail excluded).
-#    Without the beat map, `qa scan` would only look at ~1.0–2.2 s of a 5 s clip, so always pass it.
+# The AAC encode raises the true peak by an amount that depends on the content (+0.2–0.9 dB at 128k on the swatches), so
+# the encode is measured (the same 4× BS.1770 meter as the mix) and, while it peaks over −1.5 dBTP, the mix is made again
+# with its ceiling set below the mix's own true peak (from stems/meta.json; a mix that never reached the limiter would
+# not change if only the old ceiling were lowered) by the overshoot + 0.1 dB, and encoded again at the same CRF. At most
+# 3 times, then it fails; the same bytes every run.
 if [ -n "$AUDIO" ]; then
-  QA_ARGS=(); [ -f "$OUT/music_raw.beats.json" ] && [ -f "$SRC/score.json" ] && QA_ARGS+=("$OUT/music_raw.beats.json")
-  [ -f "$SRC/events.json" ] && QA_ARGS+=(--events "$SRC/events.json")   # foley onsets are designed, not clicks
-  "$ROOT/bin/vh" qa scan "$MP4" "${QA_ARGS[@]}" --from 0.3 --to "$(python3 -c "print($DUR-0.5)")" > "$OUT/qa.txt" 2>&1 \
-    && echo "$ok audio qa passed (${OUT#$ROOT/}/qa.txt)" \
-    || die "audio qa failed — see ${OUT#$ROOT/}/qa.txt (typical fixes: a pad/sub bed under sparse bars, no hats-only sections)"
+  k=0
+  while :; do
+    etp=$(uv run -q --no-project --with numpy --with scipy python -c "import sys; sys.path.insert(0, sys.argv[1]); import mix; print(f'{mix.true_peak(mix.load(sys.argv[2])):.2f}')" \
+          "$ROOT/tools/audio" "$TMP")
+    python3 -c "import sys; sys.exit(0 if float(sys.argv[1]) <= -1.5 else 1)" "$etp" && break
+    [ $k -lt 3 ] || die "the AAC encode still peaks at $etp dBTP after 3 new mixes (mix tp=$TP): over −1.5 dBTP"
+    k=$((k + 1)); TP=$(python3 -c "import json, sys; m = json.load(open(sys.argv[3])).get('tp', float(sys.argv[1]))
+print(f'{min(float(sys.argv[1]), m) - (float(sys.argv[2]) + 1.5) - 0.1:.2f}')" "$TP" "$etp" "$OUT/stems/meta.json")
+    echo "   the AAC encode peaks at $etp dBTP: the mix again with tp=$TP"
+    mix_audio "$TP"; encode $crf; sz=$(fsize "$TMP")
+  done
+  [ "$sz" -le $MP4_LIMIT ] || die "swatch.mp4 grew to $sz bytes with the new mix at CRF $crf"
 fi
+
+# ── audio QA over the whole clip (the fade-out tail excluded): the scan (silence, dropouts, pumping; the score's own
+#    dips, known from the music stem, are not pumping), the cue check of every foley event and transient music hit, and
+#    the mix report (qa mix). The WAV mix is the gate, and it runs before the mp4 goes into media/. The mp4 gets the scan
+#    and the cue check (its cue problems only warn, unless the whole encode is off: a mux offset); the report reads the
+#    stems, so it is not run twice. Without the beat map the scan would only look at ~1.0–2.2 s of a 5 s clip.
+qa_gate() { # $1 = file, $2 = report
+  if "$ROOT/bin/vh" qa "$1" "${QA_ARGS[@]}" --out "$2" > "$2.log" 2>&1; then
+    echo "$ok audio qa passed on ${1#$ROOT/}: $(tail -1 "$2.log" | sed 's/ · full report.*//')"
+  else   # what failed: OFF cues, hard misses, the scan's counts and runs (or the tail, when qa itself broke)
+    { grep -E ' OFF |^FAIL|^✗|^\[[1-3]\]|^ +[0-9.]+- +[0-9.]+ s' "$2.log" || tail -5 "$2.log"; } | head -14 | sed 's/^/   /' || true
+    die "audio qa failed on ${1#$ROOT/} — see ${2#$ROOT/}.log (typical fixes: a pad/sub bed under sparse bars, no hats-only sections; a cue lost under the score or not heard: raise its gain_db in FOLEY, or give it a role)"
+  fi
+}
+if [ -n "$AUDIO" ]; then
+  BEATS=-; [ -f "$OUT/music_raw.beats.json" ] && [ -f "$SRC/score.json" ] && BEATS="$OUT/music_raw.beats.json"
+  QA_ARGS=("$BEATS"); [ -f "$SRC/events.json" ] && QA_ARGS+=("$SRC/events.json")   # foley onsets are cues, not clicks
+  QA_ARGS+=(--fps "$FPS" --from 0.3 --to "$(python3 -c "print($DUR-0.5)")" --stems "$OUT/stems")
+  qa_gate "$AUDIO" "$OUT/qa.txt"
+fi
+[ -z "$AUDIO" ] || qa_gate "$TMP" "$OUT/qa_mp4.txt"
+mv "$TMP" "$MP4"
+echo "$ok ${MP4#$ROOT/}  $(python3 -c "print(f'{$sz/1e6:.2f} MB')")  (crf $crf$([ -f "$SRC/score.json" ] && [ $builtin = 0 ] && echo ', +music')$([ -f "$SRC/events.json" ] && [ $builtin = 0 ] && echo ', +foley')$([ -n "$AUDIO" ] && echo ", mix tp $TP dBTP, encode $etp dBTP")$([ -z "$AUDIO" ] && echo ', silent'))"
 
 # ── poster.jpg: frame 90 (t = 3.0 s) from the 1080p render, 1280×720, ≤ 200 KB
 JPG="$MEDIA/poster.jpg"
@@ -243,7 +275,7 @@ done
 echo "$ok ${JPG#$ROOT/}  $((psz / 1000)) KB (q $q)"
 
 # ── contact sheet for self-review (not shipped): 10 frames, t = 0.25 … 4.75
-if command -v uv >/dev/null 2>&1 && uv run -q --with pillow python "$ROOT/tools/sheet.py" "$HFMP4" "$OUT/sheet.png" 5 2 384 >/dev/null 2>&1; then
+if command -v uv >/dev/null 2>&1 && uv run -q --no-project --with pillow python "$ROOT/tools/sheet.py" "$HFMP4" "$OUT/sheet.png" 5 2 384 >/dev/null 2>&1; then
   echo "$ok sheet ${OUT#$ROOT/}/sheet.png"
 else
   ffmpeg -v error -y -i "$HFMP4" -vf "fps=2,scale=384:-1,tile=5x2" -frames:v 1 "$OUT/sheet.png" && echo "$ok sheet ${OUT#$ROOT/}/sheet.png (no timestamps)"

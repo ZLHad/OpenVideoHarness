@@ -20,9 +20,11 @@ bin/vh music projects/<p>/audio/score.json projects/<p>/audio/music.wav     # + 
 # 音效：内置库 + 按动作时间摆放（立体声，事件可带 pan、dist）
 bin/vh sfx lib projects/<p>/audio/sfx
 bin/vh sfx place projects/<p>/audio/events.json projects/<p>/audio/sfx.wav 45 --lib projects/<p>/audio/sfx
-# 混音、成片 QA 与合成
-bin/vh mix projects/<p>/audio/mix.wav voice=…/voiceover.zh.wav music=…/music.wav sfx=…/sfx.wav
-bin/vh qa projects/<p>/audio/mix.wav projects/<p>/audio/music.beats.json projects/<p>/audio/events.json   # 静音、掉音、抽吸、click + cue check
+# 混音、成片 QA 与合成：按视频类型选 profile（见下文"混音"），层次从一个锚点量起
+bin/vh mix projects/<p>/audio/mix.wav profile=short voice=…/voiceover.zh.wav music=…/music.wav \
+           events=…/events.json lib=…/sfx timeline=…/timeline.zh.json stems=projects/<p>/audio/stems
+bin/vh qa projects/<p>/audio/mix.wav projects/<p>/audio/music.beats.json projects/<p>/audio/events.json \
+          --stems projects/<p>/audio/stems   # 静音、掉音、抽吸、click + cue check + 混音报告（qa mix）
 bin/vh mux projects/<p>/out/final.mp4 projects/<p>/audio/mix.wav projects/<p>/out/final-av.mp4 \
            projects/<p>/audio/captions.zh.srt projects/<p>/audio/captions.en.srt   # 软字幕轨（可开关）
 bin/vh beats <任意音乐文件>                          # 外来音乐的节拍 + hits、kick、snare 重音（librosa）
@@ -318,9 +320,156 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 - **`pan`**（−1 最左，0 居中，1 最右）用等功率声像律，并且按"居中 = 原电平"归一。不写 pan 的事件和以前的单声道摆放逐采样相同。pan = ±1 时，那一侧 +3 dB，总功率不变，所以大声的音效打到最边上时注意削波（工具会提示削波的采样数）。
 - **`dist`**（≥ 1，单位是参考距离，1 = 原样）：电平乘 1/dist，距离每翻一倍 −6 dB；再加一个平缓的一阶低通，截止频率 16 kHz / dist，最低 1 kHz。低通带来的延迟不到 0.2 ms，落点不受影响。声速延迟没有加，因为 `t` 本来就是"该听到的时刻"；要做"先见闪光、后闻炮声"，自己把 `距离米数 / 343` 加到 `t` 上。
 - **pan 从画面上算，不要凭感觉写。** 取发声物体在那一刻的屏幕 x：`pan = 2·x / 画面宽度 − 1`，再乘 0.7–0.8 收一点，全左全右在耳机里很刺。3D 场景用相机坐标：`pan = v·right / |v|`，其中 v 是声源到相机的向量；距离也从同一个 v 来。镜头在动时，同一个声源在不同时刻的左右位置也不同。Austerlitz 那支片子的音效就是这样从场景事件里算出声像和距离的，见 `cases/opus55-gallery.md` 第 6 节。
-- **来源顺序**：先用有授权的录音素材（在 NOTES 的素材台账里记下来源和许可）；缺的类别再用内置库补。自己的立体声素材会先折成单声道，当作一个点声源来摆。内置库有 15 个代码合成音效：click、tick、pop、toggle、typing、whoosh、swish_rev、riser、impact、boom、ding、success、error、glitch、shutter，都是 MIT 原创，可以复现。
-- **混音**：`bin/vh mix` 默认让音乐在人声出现时自动让位（有 voice 总线时是 `duck=voice`，没有时是 `duck=off`）。要让关键的叮咚、确认、转场声也压一下音乐，显式写 `duck=on`，同时把 `duck_ratio` 降到 2–3。混音保留立体声，音效总线上的声像会原样保留下来。响度只加一个整体增益：第一遍测量，第二遍加上"目标 − 实测"的增益；只有这个增益会把真峰值推过上限时，才在后面接一个 4 倍过采样的真峰值限幅器。最后再测一遍写出的文件，命令如实报告用的是 `static gain` 还是 `static gain + true-peak limiter (N peaks)`，并打印实测的响度和真峰值。这样电影配乐的动态范围（LRA）不会被压扁；介绍片用单遍处理时，LRA 从 13.6 被压到了 7.0。限幅器报了很多个 peak，说明音效或人声的峰值太高，先把 `sfx_db` 调低，不要靠限幅器硬压。
-- **不要让每个音效都去压音乐。** 介绍片 v2 把 74 个音效全接进了 ducker，ratio 是 6，配乐跟着每个音效一抽一抽。所以默认只让人声压音乐（`duck=voice`），没有人声时不压（`duck=off`）；真要用 `duck=on`，把 `duck_ratio` 降到 2–3。`bin/vh qa` 的抽吸一项专门查这种问题。
+- **来源顺序**：先用有授权的录音素材（在 NOTES 的素材台账里记下来源和许可）；缺的类别再用内置库补。自己的立体声素材会先折成单声道，当作一个点声源来摆。内置库有 15 个代码合成音效：click、tick、pop、toggle、typing、whoosh、swish_rev、riser、impact、boom、ding、success、error、glitch、shutter，都是 MIT 原创，可以复现。每个内置音效用自己的随机种子（按名字），所以 `sfx lib` 和 `sfx place` 得到同样的采样，不会因为前面先渲染了别的音效而变。impact 和 boom 在命中点有一层 1–4 kHz 的起音（crack），身体晚 2 ms 进来：没有这一层时，它们 98–100% 的能量在 150 Hz 以下，手机和笔记本几乎放不出来。
+- **`role`**（可选：`hero`、`detail`、`ambience`、`signal`）：这个事件在混音 profile 里属于哪一类，什么时候要写见下文"混音"。`sfx place` 会检查它，并在输出旁边写一个 `<out>.events.json`：每个事件的类和原因、起点，以及它自己摆好后的电平（fast：最响 100 ms 的 K 加权响度；m400；tp：真峰值；len：持续时间；lf：150 Hz 以下能量占比），混音前就能读。
+- **不要让每个音效都去压音乐。** 介绍片 v2 把 74 个音效全接进了 ducker，ratio 是 6，配乐跟着每个音效一抽一抽。混音 profile 里音效从不压音乐（只有没人说话时，hero 命中处音乐让 2–2.5 dB）；不用 profile 时默认也只让人声压音乐（`duck=voice`），真要用 `duck=on`，把 `duck_ratio` 降到 2–3。`bin/vh qa` 的抽吸一项专门查这种问题。
+
+### 混音（`mix`）和混音报告（`qa mix`）
+
+**按视频类型选一个 profile，所有层都相对一个锚点放。** 有旁白时锚点是旁白（各句响度的中位数），没有旁白时是音乐（它 3 s 的短时响度，最低取整体响度下方 8 LU）。顺序是人声锚点 → 音乐 VMR → 音效分级 → 纵深 → 母带：
+- 旁白逐句往中位数拉平（最多 ±3 dB）；
+- 音乐逐句只压到目标 VMR（人声减音乐，LU），1–4 kHz 只挖词需要的深度，中文旁白连 250 Hz–1 kHz 一起挖；
+- 每个音效向本类范围的中心走一半；
+- 所有音效共用一个短房间；
+- 母带是一个整体增益加真峰值限幅器。
+
+各步的细节写在 `tools/audio/mix.py` 开头。
+
+```bash
+A=projects/<p>/audio
+# 旁白片：explainer / short；events= 让混音器自己摆音效（摆法和 sfx place 相同），每个事件才能单独分级
+bin/vh mix $A/mix.wav profile=explainer voice=$A/voiceover.en.wav music=$A/music.wav \
+           events=$A/events.json lib=$A/sfx timeline=$A/timeline.en.json music_db=-5 stems=$A/stems
+# 没有旁白的片子：锚点是音乐；dur / fade 在混音里截到片长并淡出，超出片尾的长音效一起淡出
+bin/vh mix $A/mix.wav profile=cartoon music=$A/music.wav events=$A/events.json lib=$A/sfx dur=12 fade=0.1 stems=$A/stems
+bin/vh qa mix $A/stems --beats $A/music.beats.json   # 只看混音报告（词级时间取 timeline 里的 words，或 --words）
+```
+
+**按类型选 profile**（数值是相对锚点的 LU）：
+
+| profile | 用于 | 锚点 | VMR 目标 / 正常范围 / 硬下限 | 挖让 SNR / 最深 (dB) | hero | detail | ambience | signal | 说话时 hero 最高 | 另外 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `explainer` | 01 原理讲解、06 论文 | 旁白 | 13 / 11–18 / 9 | 10 / 7 | −9…−2 | −18…−8 | −28…−16 | −12…−4 | 人声 −4 | |
+| `short` | 02 知识短视频 | 旁白 | 11.5 / 10–16 / 8 | 9 / 6 | −7…−1 | −16…−7 | −26…−14 | −8…−2 | 人声 −3 | 没人说话时 hero 下音乐让 2 dB |
+| `promo` | 03 发布片、05 数据故事、08 快剪 | 音乐（有旁白时是旁白） | 10 / 8–16 / 6 | 12 / 9 | −4…2 | −11…−3 | −20…−10 | −10…−3 | 人声 −2 | hero 下音乐让 2.5 dB |
+| `cartoon` | 07 手绘、角色短片 | 同 promo | 10 / 8–16 / 6 | 12 / 9 | −2…4 | −6…0 | −16…−8 | −6…0 | 人声 −2 | 音效峰值 ≤ 锚点 +9 dB；hero 让 2 dB |
+| `mv` | 04 MV | 音乐 | 6 / 4–12 / 3 | 12 / 9 | −8…−2 | −16…−8 | −26…−14 | −12…−5 | 人声 −4 | 不让、不加宽 |
+| `swatch` | 风格样片（`render.sh`） | 音乐 | –（没有旁白） | – | −5…1 | −11…−4 | −19…−11 | −10…−3 | – | 房间 0.25 s；hero 让 2 dB |
+
+VMR 这一列有三个数：
+- 目标：混音器把每句压到这里；
+- 正常范围：`qa mix` 在范围外报 `LOW`、`HIGH` 警告；
+- 硬下限：低于它是硬失败。
+
+所有 profile 一样的：
+- 每个事件最多动 ±9 dB；
+- 音乐的整体增益由各句下面的音乐定，限制在 −24…+6 dB 以内，被限住时日志会说明；
+- `lufs=-14`，`tp=-1.65`（见下面的 AAC 编码）；
+- 起始平衡是 `music_db=-6 sfx_db=0 voice_db=0`，swatch 用 `render.sh` 原来的 0 / −3。
+
+起始平衡要写成片子原来用的值：音效（以及没有旁白时的音乐）从它出发往目标走一半。有旁白时，音乐的位置由 VMR 决定，和 `music_db` 无关。
+
+其他参数：
+- `sfx=`（一整条摆好的音效轨）只能当一层 detail，不分级，所以有 events.json 时用 `events=`；
+- `roles=`、`keep=` 见下文；
+- `stems=DIR` 按最终增益写出各总线和 `meta.json`，`bin/vh qa` 的 `--stems` 读它；
+- 不写 `profile`（或写 `profile=none`）就是原来的 ffmpeg 链（`duck=voice` 侧链压缩，响度按 loudnorm 定），输出和以前逐字节相同。
+
+**什么时候写 `role`**：
+- 类先看事件的 `"role"`；没写时，`"layer": "sonification"` 是 signal；再没有就按名字里的整词判断（复数也算）：
+  - impact、boom、stomp、slam、ding、success、error、bell、snap… 是 hero；
+  - click、tick、pop、toggle、whoosh、step、typing… 是 detail；
+  - gust、wind、rain、hum、hiss、creak、room、drone… 是 ambience；
+  - 都不是就归 detail。`clock_tick`、`ticks` 算 tick；`airhorn`、`dropdown`、`human` 不会被当成 air、drop、hum。
+- 名字和它在这支片子里的作用不一致时就写 role：
+  - 01 的风（`gust_1`、`gust_2`）是这个包袱的动作本身，是 detail，不是 ambience；
+  - 00 的最后一个 thock（`thock_lo`）是整个 hook 落地的那一下，是 hero；
+  - 落在关键帧上的一记拨弦（ink-wash 墨滴落下时的古筝）也是 hero。
+- 不想改 events.json 时，用 `roles=roles.json`：`{"<事件序号>": "hero", "<sfx 名>": "detail"}`，它覆盖事件自己的 role。对不上任何事件的键会被列出来。样片在 swatch.js 的 `FOLEY` 里写 `role`，`foley.mjs` 会带进 events.json。
+- 报告 `[5]` 的 why 列写着每个事件的类是怎么来的，先看它。
+
+**怎么读混音报告**（`bin/vh qa mix <stems>`，或 `bin/vh qa <mix.wav> … --stems` 输出的最后一段）：
+- `[1] loudness`：各总线的响度和占总能量的比例。
+- `[2] speech`：逐句列出人声、音乐、bed（音乐 + 音效）的响度，以及：
+  - VMR；
+  - VMRp10：这句里 400 ms 窗口 VMR 的第 10 百分位，也就是句中最差的时刻；
+  - VBR：人声减整个底；
+  - 1–4 kHz SNR。
+
+  flag 的含义：
+  - `LOW`、`HIGH`：出了正常范围；
+  - `FAIL`：低于硬下限；
+  - `NO VOICE`：人声 stem 里那句没有声音，timeline 和配音文件对不上，这句不参加检查；
+  - `no music`：这句下面没有音乐，没有 VMR 可判。
+- `[3] masking`：每个词在 1–4 kHz 的 SNR，列出最危险的 8 个。三个数分别是对整个底、对音乐、对音效，看是谁盖住的。词级时间来自 `--words`，或 timeline 里 `bin/vh tts … --align gemini` 写的 words；都没有时按 0.4 s 一段算，只给警告（段会跨过停顿，读数偏悲观）。
+- `[4] gaps`：每个停顿里音乐的响度，相对锚点，也相对前后两句下的音乐。
+  - 短停顿里抬高很多，听起来就是"呼吸"；配乐在那里正好有段落或 hit 时，报告会注明"可能是设计的起势"。
+  - 2 s 以上只有音乐的一段，比旁白响 3 LU 以上时也会警告：音乐只有一个整体增益，如果各句下面的音乐比这里轻很多，这段就会显得很冲。
+- `[5] SFX`：每个事件的类、它自己的 fast 响度和真峰值，以及三个相对值：
+  - 相对锚点：类的范围判的就是这一列；
+  - 相对当时的底；
+  - 说话时相对人声。
+
+  flag 的含义：
+  - `HIGH`、`LOW`：出了类的范围；
+  - `OVER-VOICE`：说话时 hero 高于表里"说话时 hero 最高"那一列，硬失败；
+  - `MASKS-VOICE`：它的 1–4 kHz 离人声不到 6 dB；
+  - `BURIED`：比底低 14 dB 以上（mv 是 16 dB），听不见。
+
+  末尾是各类的中位数，和顺序检查：hero、signal 都应该 ≥ detail ≥ ambience，hero 和 signal 之间不排。
+- `[6] depth`：各总线的宽度、分频段左右相关、盲估的混响时间、频谱重心、干湿比。人声应当最干、居中，音效其次，音乐最宽最湿。
+- `[7] limiter`：母带限幅器压在哪里、压了多少。超过 2 dB，说明进限幅器之前的峰值太高。
+- **硬失败**（退出码 1）：
+  - 有一句低于硬下限；
+  - 说话时 hero 超过它的上限；
+  - 有词级时间时，低于 presence 地板的词超过 profile 允许的比例；
+  - 某一类的中位数离范围超过 3 LU。低频命中低于范围时按范围下限算，因为混音器本来就不抬它，这种情况只给警告；
+  - timeline 里有句子，但人声 stem 在所有句子下面都没声音；
+  - 在 `bin/vh qa … --stems` 里，一个 cue 只以"弱"通过对位检查，报告又说它 `BURIED`：它对上了，但听不见。
+- **怎么改**：
+  - 一句 `LOW`：多半是那句本身太轻（拉平最多 3 dB），或配乐在那里有个很响的峰（看 `[4]`）。重录那句，或在 score 里把那一段收一收；
+  - `OVER-VOICE`：把 hero 挪出句子，或者它本来就不是主角，写成 detail；
+  - 某类中位数偏：先看 why 列；分类对的话调 `gain_db`（混音器只走一半，设计的相对大小要先对）；
+  - `BURIED`：提高 `gain_db`，或换一个 1–4 kHz 更多的声音。样片里被判“弱 + BURIED”的 tick，提高 3 dB 就过了；
+  - 低频 hero 在手机上弱（报告说 "% of its energy under 150 Hz"）：加一层 1–4 kHz 的起音，不要加增益。
+
+**AAC 编码和 cue check**：
+- **真峰值**：
+  - AAC 编码会抬高真峰值，抬多少看内容和码率。用混音器的表（4 倍过采样）量，混音都是 `tp=-1.65`：
+    - showcase 的三支片子（01–03）用 profile 混：`bin/vh mux` 的 192k 下是 −0.12…+0.08 dB，成片都在 −1.5 以下；换成 128k 是 −0.01…+0.16 dB。
+    - 样片用 128k：+0.16…+0.86 dB（halftone-comic +0.86，cutout-jazz +0.53）。
+    - 限幅器压得很多的合成测试更高：一段没有旁白、限幅 2.6 dB 的混音在 192k 下 +0.80 dB，一条只有合成音效的总线 +1.2…+1.5 dB。
+
+    profile 默认的 `tp=-1.65` 只够第一种情况。
+  - `render.sh` 会测编码后的 mp4：高于 −1.5 dBTP 时，从混音实际的真峰值（和原上限取较低者）再降低超出的量加 0.1 dB，重混、重编码；最多 3 次，还超就报错退出。写这一节时，28 个样片里只有 guochao-festive 需要。
+  - 其他成片自己测：`ffmpeg -i final.mp4 -af ebur128=peak=true -f null -`，超了就用更低的 `tp=` 重混。
+  - 真峰值按 BS.1770 的 4 倍过采样算；16 倍过采样在瞬态上最多再高 0.16 dB。
+- **门禁是 WAV**：`bin/vh qa mix.wav …`。
+  - 成片 mp4 再跑一次，扫描照常判定。cue check 的容差加 12 ms，单个 cue 的问题只给警告：混音实验的 16 个 mp4 里有 284 个 cue，AAC 让 onset 最多偏 5.4 ms，另有 3 个临界的 onset 一边检测到、一边没有。
+  - 整个编码系统性地偏了才判失败，这是封装错位（有 8 个以上 cue，超过 20% 对不上，或者中位误差超过 15 ms）：音轨晚 20 ms 或 60 ms 都会失败。检测器自己的滞后是 +3…+8 ms。
+  - 混音报告读的是 stems，不在 mp4 上重跑。
+- **margin**：每个 cue 都打印 margin，即 onset 强度超出检测门槛多少。低于 0.02 标成 `OK~`，是警告：电平稍微一变，它就可能检测不到。
+- **近乎纯音的音效**（tick、ding、toggle，频谱平坦度低于 0.01）在配乐下很难触发 onset 检测。onset 没找到或者临界时，用它自己的声音和混音做互相关（250 Hz–9 kHz，参考 motioner 的 sync_check）：
+  - 在 1 帧以内找到、匹配度 ≥ 0.3，就算 OK；
+  - 正好落在计划的采样上（±1 ms）、匹配度只有 0.15–0.3，算对齐但很弱，给 `OK~` 警告；
+  - 峰值落在搜索窗边缘 4 ms 以内，或者 ±250 ms 内的更远处有明显更好的匹配（高 0.05 以上），都不算：长音挪走以后，窗口里最靠近它的那一边照样相关得很好。拿 28 个样片做了 96 个测试混音，每个把一个纯音挪开 60–100 ms：互相关原来确认了其中 19 个，现在一个也不确认（10 个变成 OFF，9 个只剩临界的 onset，给 `OK~` 警告）；位置正确的混音上，68 个确认一个没丢。
+
+  互相关只能确认一个 cue，不会判错一个 cue。
+- **第 0 帧的 cue**：前面先垫一帧静音再检测，否则 onset 没有起点。
+- **同步点被压没了**：profile 把某段音效压低以后，一个同步点检测不到了，就用 `keep=<这个 cue 的时间>` 重混，那一段保持设计电平；或者提高那个事件的 `gain_db`、改它的 role。
+- **抽吸**：给了 `--stems` 时，抽吸检查不算音乐 stem 里本来就有、而且一样深的凹陷（配乐自己的动态），只报混音造成的。
+
+**局限**（测出来了，还没解决）：
+- profile 只把每个事件往目标走一半：它压缩分布、保留设计的先后，不会替你判断哪个音效重要。`gain_db` 设计得离谱，结果还是会偏。
+- 低频命中不能靠增益解决，要加 1–4 kHz 的一层；名字提示会分错，看 `[5]` 的 why 列。
+- cue check 只看那个时刻有没有 onset，不知道是谁的：音效挪开以后，计划时刻上配乐自己的 onset，或者这个音效的第二个音（toggle 的第二下、success 的琶音），照样让它通过。上面 96 个挪开 60–100 ms 的测试里，有 39 个这样干净地通过，都是 toggle、ding、success。
+- 事件电平（fast、m400）的窗口截在事件两端，这是混音实验定下的算法，类的范围就是按它标定的。所以短的、或者最响的地方在开头 50 ms 以内的声音，读数偏高：内置的 tick +7.0、click +5.2、pop +2.9、toggle +2.8、error +1.9、shutter +1.5 LU。在 profile 内部它是一致的，但不能拿去和别的表比。
+- TTS 的峰均比有 13–16 dB。旁白为主的片子，人声的峰值控制最多压 2.5 dB，母带限幅器最多 1 dB。
+- 抽吸检查的门槛（4 dB、60 ms）偏敏感，会把配乐自己的凹陷报出来，给 `--stems` 可以排除。
+- 响度：profile 在 BS.1770 上定 −14（ebur128 读 −14.0），loudnorm 在混音实验的 8 段混音上读 −14.2 到 −13.7。不写 profile 的默认链仍按 loudnorm 定 −14。
+- 确定性：同一台机器上两次输出逐字节相同（房间的 IR 用固定种子，信号路径里没有 ffmpeg 滤镜）；跨平台时 FFT 的最低几位没有验证。
+- 速度和内存（M3 Max）：25 s 的片子 3–5 s（含解码），3 分钟约 24 s；内存约每分钟片长 1 GB。
+- 配乐自己的空间（每个 profile 该用多大的混响、旁白下旋律往两边摆）还没有接进 `bin/vh music`，是下一步。
 
 ### 歌曲（带人声演唱）
 
@@ -335,7 +484,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 下面这些已经测出来了，但还没有修。用工具的结果时，要把它们考虑进去：
 - **`qa` 的抽吸检查会漏掉又长又浅的凹陷**：约 300 ms、−8 dB 的凹陷占了 600 ms 中位数窗口的一半，查不出来，只能靠掉音检查（−12 dB）兜底。
-- **`qa` 的 cue check 按全片最响的 onset 归一化**：别处一个特别大的 onset，会让很弱的 cue 被判成 OFF。
+- **`qa` 的 cue check 按全片最响的 onset 归一化**：别处一个特别大的 onset，会让很弱的 cue 被判成 OFF。每个 cue 现在都打印 margin（超出门槛多少），临界的标成 `OK~`，近乎纯音的音效还会用自己的声音确认一次（见上文"混音"的 cue check），但归一化本身没有变。
 - **`qa` 的 click 只是警告，不算失败**：机器分不清设计好的尖锐起音和真故障，只豁免节拍表和事件表里的时间点。网格之外的设计性起音也会被列出来，比如十六分音符 ostinato 的音头、typing 连击、glitch 音效内部的门控。工具按倍数列出最严重的 10 处，要人耳逐个复听。门槛是局部电平的 15 倍：埋入测试里，6 个 0.37 幅度的 click 全部抓到，包括 riser 噪声下面那 2 个（17 倍、20 倍）；更深地埋在噪声里的 click 仍然可能漏掉。
 - **`beats` 的 BPM 在切分节奏上可能报成一半**：两段测试 loop 分别报成了 49.7（实际 100）和 63.0（实际 127）。
 - **两个内置音效的落点不在能量峰上**：whoosh 的能量峰在落点后约 34 ms（约 1 帧）；swish_rev 的落点是声音的结尾，能量峰在落点前约 280 ms。
@@ -417,9 +566,9 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 ### 4. 混音：有节奏的片子，音乐要一直在场
 
-- **旁白为主的讲解**：`duck=voice`，默认 `duck_ratio=1.6`，音乐退到旁白后面，但句间不断。要音乐退得更狠，再往 3 调，并跑一次 `bin/vh qa`。
-- **动效类**：音乐是节奏的来源，只能轻轻让位。用 `music_db=-5 duck=voice duck_ratio=1.5–2`，或者干脆 `duck=off`，把音乐整体放低 6–8 dB。
-- **实测**：`duck_ratio=3` 加 `music_db=-3` 时，旁白在短语之间停顿约 100 ms，音乐来不及回来，qa 在 6.90 s 和 7.90 s 报了 50 ms 的掉音，听起来像顿了一下。改成 `music_db=-5 duck_ratio=1.6` 后，掉音和抽吸都是 0。2026-09-30 又用一段句间停顿 0.25 s 的旁白加配乐比了三档：`duck_ratio=6` 抽吸 3 处，3 有 2 处，1.6 为 0，听感也最顺，于是 1.6 成了默认值。
+- **选 profile 就选了音乐的位置**（见上文"混音"）：讲解（`explainer`）让旁白高出音乐 13 LU，知识短视频（`short`）11.5 LU，句间停顿里音乐只回来一半，不会一顿一顿地呼吸；发布片（`promo`）和 MV（`mv`）以音乐为锚点，有旁白时也只让到 10 和 6 LU，音乐一直在场。
+- **不用 profile 的默认链**：旁白为主的讲解用 `duck=voice`，默认 `duck_ratio=1.6`，音乐退到旁白后面，但句间不断；要音乐退得更狠，再往 3 调，并跑一次 `bin/vh qa`。动效类用 `music_db=-5 duck=voice duck_ratio=1.5–2`，或者干脆 `duck=off`，把音乐整体放低 6–8 dB。
+- **实测**（默认链）：`duck_ratio=3` 加 `music_db=-3` 时，旁白在短语之间停顿约 100 ms，音乐来不及回来，qa 在 6.90 s 和 7.90 s 报了 50 ms 的掉音，听起来像顿了一下。改成 `music_db=-5 duck_ratio=1.6` 后，掉音和抽吸都是 0。2026-09-30 又用一段句间停顿 0.25 s 的旁白加配乐比了三档：`duck_ratio=6` 抽吸 3 处，3 有 2 处，1.6 为 0，听感也最顺，于是 1.6 成了默认值。
 
 ### 5. 声音也用提示词描述
 
@@ -479,8 +628,8 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 1. **音频先行**：先生成音频，按实测时长确定每个场景的帧数。
 2. **按 cue 词触发**：旁白说到某个概念时，那个概念的画面正好出现。动画比旁白提前约 0.5s 开始，每句话说完后停约 1s。
 3. **按拍落点**：切镜、重音动作、大字出现都落在拍点上，误差 ±1 帧；大的场景切换放在小节线上。
-4. **混音**：有旁白的段落压低背景音乐（HyperFrames 的 voiceover carve 只压人声所在的频段）。响度只加一个整体增益：第一遍测量，第二遍加增益；只有增益会把真峰值推过上限时才接真峰值限幅器，最后实测输出，`bin/vh mix` 就是这样做的。单遍动态 loudnorm 会压扁配乐的动态，介绍片的 LRA 就是这样从 13.6 掉到 7.0 的。loudnorm 的 `linear=true` 也不可靠：增益会让真峰值超过 TP，或者 LRA 超过目标时，它会悄悄退回动态模式。
-5. **在最终混音上做 cue check**：`bin/vh qa` 拿最终混音的 onset 去对照节拍表和音效事件表，逐条检查是否在 1 帧以内，同时扫描静音、掉音、抽吸和 click。只查配乐不够，混进音效以后，有的 cue 会被盖住，有的会和别的并成一个。有旁白时加 `--voice voiceover.wav`，人声下面设计好的压低就不会被算成抽吸；另外把成片重新转写一遍，和 cue 表对比时间差。四项扫描的做法和判定标准见 `02-verification.md` 的"音频 QA"一节。
+4. **混音**：有旁白的段落压低背景音乐，而且逐句压到目标 VMR，只挖人声需要的频段（`bin/vh mix … profile=`，见上文"混音"；HyperFrames 的 voiceover carve 也只压人声所在的频段）。响度只加一个整体增益：第一遍测量，第二遍加增益；只有增益会把真峰值推过上限时才接真峰值限幅器，最后实测输出，`bin/vh mix` 就是这样做的。单遍动态 loudnorm 会压扁配乐的动态，介绍片的 LRA 就是这样从 13.6 掉到 7.0 的。loudnorm 的 `linear=true` 也不可靠：增益会让真峰值超过 TP，或者 LRA 超过目标时，它会悄悄退回动态模式。
+5. **在最终混音上做 cue check**：`bin/vh qa` 拿最终混音的 onset 去对照节拍表和音效事件表，逐条检查是否在 1 帧以内，同时扫描静音、掉音、抽吸和 click。只查配乐不够，混进音效以后，有的 cue 会被盖住，有的会和别的并成一个。门禁是 WAV；成片 mp4 再查一遍，cue 的问题只作警告。有旁白时加 `--voice voiceover.wav`（或 `--stems`，它带着人声 stem），人声下面设计好的压低就不会被算成抽吸；另外把成片重新转写一遍，和 cue 表对比时间差。四项扫描的做法和判定标准见 `02-verification.md` 的"音频 QA"一节。
 
 ## 常用命令（示例，按项目调整）
 

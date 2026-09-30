@@ -169,11 +169,11 @@ export function renderAt(t, ctx, tokens, lib) {
 
 ## 配乐（可选）
 
-`styles/<slug>/score.json` 存在时，`render.sh` 会依次调用 `bin/vh music score.json`，截到 5 s 并在最后 0.45 s 淡出，再用 `bin/vh mix`（一个整体增益，必要时接真峰值限幅，−14 LUFS），然后以 AAC 128k 封进 swatch.mp4。写法见 `bin/vh music --example` 和 `playbook/04-audio.md`。BPM 选能让 5 s 落在整拍上的值：96 BPM 是 8 拍（2 小节），120 BPM 是 10 拍，72 BPM 是 6 拍。段落边界对齐内容规格（0.8、2.0、4.0 s）。实测：96 BPM、2 小节的测试曲，封装后成片 1.06 MB，−14.6 LUFS。
+`styles/<slug>/score.json` 存在时，`render.sh` 会依次调用 `bin/vh music score.json`，再用 `bin/vh mix … profile=swatch dur=5 fade=0.45` 和拟音一起混（混音里截到 5 s、最后 0.45 s 淡出；一个整体增益，必要时接真峰值限幅，−14 LUFS），然后以 AAC 128k 封进 swatch.mp4。AAC 会把真峰值抬高 0.2–0.9 dB（看内容），所以封装后再量一次：高于 −1.5 dBTP 时，从混音实际的真峰值（和原上限取较低者）再降低超出的量加 0.1 dB，重混、重新封装；最多 3 次，还超就报错退出。写这一节时，28 个样片里只有 guochao-festive 需要重混。写法见 `bin/vh music --example` 和 `playbook/04-audio.md`。BPM 选能让 5 s 落在整拍上的值：96 BPM 是 8 拍（2 小节），120 BPM 是 10 拍，72 BPM 是 6 拍。段落边界对齐内容规格（0.8、2.0、4.0 s）。实测：96 BPM、2 小节的测试曲，封装后成片 1.06 MB，−14.6 LUFS。
 
-**拟音**：再放一个 `styles/<slug>/events.json`，格式和 `bin/vh sfx place` 一样，是 `[{"t", "sfx", "gain_db", "pan", "dist"}]`，`render.sh` 就会把音效摆在每个动作发生的那一帧，和配乐一起混音（音效 −3 dB，不做 ducking）。`sfx` 可以是内置的 15 个音效名，也可以是风格文件夹里自己的 WAV，用相对路径，来源记进 STYLE.md。`t` 是声音落点，要和 swatch.js 里对应动作的时间取自同一个常量；声像 `pan` 取发声物体在画面上的 x。qa 会把这些落点当成设计好的起音，不报 click。推荐做法：在 swatch.js 里 `export const FOLEY = [{t, sfx, gain_db, pan}]`，t 直接引用动作的时间常量，再用 `node styles/_swatch/foley.mjs <slug>` 生成 events.json，画面和声音就只有一个时间来源。内置音效里没有合适的声音时，可以在 `styles/<slug>/sfx/` 放自己合成的 WAV，但生成代码必须写进 `styles/_swatch/custom_sfx.py`（带固定种子），保证 `uv run -q --with numpy --with scipy python styles/_swatch/custom_sfx.py` 能逐字节重建。不要放下载来的素材。
+**拟音**：再放一个 `styles/<slug>/events.json`，格式和 `bin/vh sfx place` 一样，是 `[{"t", "sfx", "gain_db", "pan", "dist"}]`，`render.sh` 就会把音效摆在每个动作发生的那一帧，按 swatch profile 和配乐一起混音：以配乐 3 s 的短时响度为锚点，每个音效按类（hero、detail、ambience、signal）往各自的电平走一半，身后一个 0.25 s 的短房间，配乐不做 ducking（起始平衡是原来的配乐 0 dB、音效 −3 dB；做法和数值见 `playbook/04-audio.md` 的"混音"）。名字提示分错类时，在 `FOLEY` 里给那个事件写 `role`，`foley.mjs` 会带进 events.json。`sfx` 可以是内置的 15 个音效名，也可以是风格文件夹里自己的 WAV，用相对路径，来源记进 STYLE.md。`t` 是声音落点，要和 swatch.js 里对应动作的时间取自同一个常量；声像 `pan` 取发声物体在画面上的 x。qa 会把这些落点当成设计好的起音，不报 click。推荐做法：在 swatch.js 里 `export const FOLEY = [{t, sfx, gain_db, pan}]`，t 直接引用动作的时间常量，再用 `node styles/_swatch/foley.mjs <slug>` 生成 events.json，画面和声音就只有一个时间来源。内置音效里没有合适的声音时，可以在 `styles/<slug>/sfx/` 放自己合成的 WAV，但生成代码必须写进 `styles/_swatch/custom_sfx.py`（带固定种子），保证 `uv run -q --with numpy --with scipy python styles/_swatch/custom_sfx.py` 能逐字节重建。不要放下载来的素材。
 
-想让段落点精确落在 0.8 / 2.0 / 4.0 s，最省事的是 150 BPM 加 `"meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3}`（9 个电影、品牌类样片都这么做）。封装后 `render.sh` 会自动跑 `bin/vh qa scan swatch.mp4 out/<slug>/music_raw.beats.json --from 0.3 --to 4.5`，结果写进 `out/<slug>/qa.txt`，出现数字静音、掉音或抽吸就判失败。不带节拍表的话，qa 在 5 s 的片段上只会检查 1.0–2.2 s，所以不要手动省掉它。第一轮最常见的两种失败：只有 hats 的段落在拍与拍之间出现数字静音；稀疏段落出现抽吸凹坑。修法都是加一层 pad 或 sub 持续垫底。
+想让段落点精确落在 0.8 / 2.0 / 4.0 s，最省事的是 150 BPM 加 `"meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3}`（9 个电影、品牌类样片都这么做）。封装后 `render.sh` 会自动跑完整的 `bin/vh qa`（扫描、cue check、混音报告），先对混音 WAV（`out/<slug>/music.wav`），它是门禁，通过了 swatch.mp4 才放进 `media/`；再对 swatch.mp4 跑扫描和 cue check（单个 cue 的问题只作警告，整个编码偏了才判失败，那是封装错位；混音报告读的是 stems，不重跑）。都是 `--from 0.3 --to 4.5` 加 `--stems out/<slug>/stems`，结果写进 `out/<slug>/qa.txt` 和 `qa_mp4.txt`，日志在同名的 `.log`：出现数字静音、掉音、抽吸（配乐自己的凹陷不算）、WAV 上对不上的 cue、只以“弱”对上又被报告判为 `BURIED` 的 cue，或混音报告的硬失败，就判失败，失败的几行会打印出来。不带节拍表的话，qa 在 5 s 的片段上只会检查 1.0–2.2 s，所以不要手动省掉它。第一轮最常见的两种失败：只有 hats 的段落在拍与拍之间出现数字静音；稀疏段落出现抽吸凹坑。修法都是加一层 pad 或 sub 持续垫底。
 
 ## render.sh 做的检查
 
@@ -181,7 +181,7 @@ export function renderAt(t, ctx, tokens, lib) {
 - 退出码、输出文件存在、**帧数正好 150**、分辨率 1920×1080。
 - **抽 4 帧**（t = 0.4 / 1.7 / 3.0 / 4.6，每个规格段一帧）看 signalstats：至少一帧 Y 的极差 ≥ 24（canvas 确实画了东西）；任何一帧都不是品红错误卡片；4 帧的 md5 不能全部相同（排除冻帧）。
 - 日志里的 `[swatch]` 行去重后打印出来（字体回落、异常）。
-- 转码：CRF 从 18 往上加，直到文件 ≤ 1 500 000 字节；封面的 JPEG q 从 2 往上加，直到 ≤ 200 000 字节。
+- 转码：CRF 从 18 往上加，直到文件 ≤ 1 500 000 字节；封面的 JPEG q 从 2 往上加，直到 ≤ 200 000 字节。有声音时再量 AAC 编码后的真峰值，高于 −1.5 dBTP 就降低混音的上限重混（见上面的配乐一节）。
 - 自查联系表：`styles/_swatch/out/<slug>/sheet.png`（t = 0.25 … 4.75，10 格，带时间戳）。它只是中间产物，不交付；按 `playbook/02-verification.md` 自查时用它，转场前后再单独抽 strip。
 
 ## 画廊

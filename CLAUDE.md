@@ -39,7 +39,7 @@
 | 分镜 | 简表：镜头、时长、reads | 完整 STORYBOARD + 分镜预览图 | 同左 + animatic |
 | 自查 | 整片一张联系表，20 条清单速查一遍 | 每个场景：联系表、关键动作 strip、局部 crop；20 条清单 | 同左，再加手机尺寸测试、循环接缝、无损帧确定性、静默故障扫描 |
 | 独立评审（打分层） | 不做 | 1 轮：全新上下文的 reviewer 打 7 项分，修最差的 3 处 | ≥ 3 轮，7 项都 ≥ 8 才出片；达不到就带着分数进关卡 ③ |
-| 声音 | 可以没有，或一段配乐 / 配音加基础混音 | 配乐或配音 + 关键动作音效 + `bin/vh qa` | 同左 + 每个动作的拟音和声像 + 最终混音 cue check |
+| 声音 | 可以没有，或一段配乐 / 配音加基础混音 | 配乐或配音 + 关键动作音效 + 按视频类型的混音 profile（`bin/vh mix … profile=`）+ `bin/vh qa` | 同左 + 每个动作的拟音和声像 + 最终混音 cue check + 混音报告（`bin/vh qa mix`）没有硬失败 |
 | 渲染与交付 | draft 画质即可，一个 mp4 | 正式画质 mp4 + 联系表 | 同左 + 网页版、GIF、封面，按需出 9:16 |
 | draft 版数 | 1–2 版 | 一般 3–5 版 | 不设上限，直到过线 |
 | subagent | 不用 | 长片按章节并行 | 并行制作 + 独立评审，按需加作曲 subagent |
@@ -108,7 +108,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 | 3 分钟以上的长片，或靠故事、谜题推进的片子（角色短片、长讲解） | 主类型文档，加上 `playbook/09-narrative.md`（骨架、节拍表、张力曲线、换挡） | 按主类型 | — |
 | 要发短视频平台：开头钩子、标题、封面 | `playbook/10-hooks-and-packaging.md`，加上主类型文档 | 按主类型 | — |
 | 要写有篇章、有主题的配乐（MV、介绍片和发布片、45 s 以上靠音乐撑起结构的片子、`studio` 档位，或者人要亲自定主题和 BGM） | `playbook/11-composition.md`；`score.json` 的写法见 `playbook/04-audio.md` | `bin/vh music` | — |
-| 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`（一镜到底、特效预设栈、子帧运动模糊） | HyperFrames + Three.js 层 | `showcase/04-intro-film/`、`cases/opus55-gallery.md` 的 3D 一节和第 6 节（Austerlitz 长片深读） |
+| 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`（一镜到底、特效预设栈、子帧运动模糊）。要路径追踪的光影（玻璃、皮肤、体积光）、物理模拟或真实景深时，读 `engines/blender.md`（实验性：维护者的 Mac 没装 Blender，没验证过，渲染时间先渲 5 帧校准） | HyperFrames + Three.js 层；重光影的镜头用 Blender | `showcase/04-intro-film/`、`cases/opus55-gallery.md` 的 3D 一节和第 6 节（Austerlitz 长片深读） |
 | 想要某种风格、参考某部名作，或者不想每支片子都一个口味 | `styles/README.md`，再读选中预设的 `styles/<slug>/STYLE.md` | 随主引擎 | 每个预设的 `media/swatch.mp4`，总览 `styles/gallery.jpg` |
 | 想知道某种镜头怎么动（开场、字卡、转场、卡点、收尾），或想要"专业的节奏" | `recipes/README.md`，再读 `recipes/sequences/` 里合适的骨架 | 随主引擎 | `cases/promo-video-shotcraft.md` |
 
@@ -138,8 +138,8 @@ OpenVideoHarness/
 ├── install.sh                一键安装（克隆、依赖、参考仓库、注册 skill）
 ├── CONTRIBUTING.md           改本仓库本身时的分支、PR 和推送规则（人和 agent 都适用）
 ├── .github/                  CI（Linux + macOS 跑 tools/ci.sh）和 main 分支的规则集
-├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · sheet · check · gif · review
-├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py、review.py）；ci.sh 是仓库自检
+├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · storyboard · rhythm · cover-preview · sheet · check · gif · review
+├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py、review.py；给人拍板用的图：storyboard.py、rhythm.py、style_compare.py、cover_preview.py、audio/roll.py，共用 vhdraw.py）；ci.sh 是仓库自检
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              8 类视频：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
 ├── playbook/                 跨类型的通用知识
