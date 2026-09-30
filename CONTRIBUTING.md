@@ -16,7 +16,7 @@
 
 1. 只推自己的分支。不推 main，不删分支，不动 tag。
 2. 推送前跑 `tools/ci.sh --committed`，全部通过才推。它在一份干净的检出上检查 HEAD，结果和 CI 一致；工作区里没提交的改动不算数。修 bug 要先复现，再证明修好，前后对比写进 PR。
-3. PR 一律开成草稿。合并由人决定：人在对话里明确让 agent 合并时，agent 先确认 CI 全绿、自己审过 diff，再用 squash 合并。规则集允许管理员在 PR 里"绕过规则合并"，这个开关只留给人用，agent 不碰。
+3. PR 一律开成草稿。合并由人决定：人在对话里明确让 agent 合并时，agent 先确认 CI 全绿、自己审过 diff，再用 squash 合并。人让 agent"检查通过后合并"时，agent 审过 diff、把草稿转成正式 PR 后，可以打开 auto-merge（squash），不用守着 CI：必需的检查都通过后由 GitHub 合并，有一项失败就不合。规则集允许管理员在 PR 里"绕过规则合并"，这个开关只留给人用，agent 不碰。
 4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。
 5. 用户能感知到的改动，在 `CHANGELOG.md` 的 Unreleased 里记一笔。改了 `CLAUDE.md`，跑 `bin/vh sync-agents` 重新生成 `AGENTS.md`。
 6. 提交信息写清改了什么、为什么。末尾可以带 `Co-Authored-By:` 署名行。
@@ -43,7 +43,7 @@ VH_BASH=/bin/bash tools/ci.sh      # macOS：用系统自带的 bash 3.2 跑，M
 
 ## 在 GitHub 上启用规则集
 
-规则集的配置在 [`.github/rulesets/main.json`](.github/rulesets/main.json)。本仓库已经在 2026-09-30 按这个文件启用了规则集 `main-via-pr`。改了文件以后，把线上配置同步过去：`gh api --method PUT repos/ZLHad/OpenVideoHarness/rulesets/<id> --input .github/rulesets/main.json`，`<id>` 用 `gh api repos/ZLHad/OpenVideoHarness/rulesets` 查。
+规则集的配置在 [`.github/rulesets/main.json`](.github/rulesets/main.json)。本仓库已经在 2026-09-30 按这个文件启用了规则集 `main-via-pr`，同一天打开了 Allow auto-merge（见下面第 3 步）。改了文件以后，把线上配置同步过去：`gh api --method PUT repos/ZLHad/OpenVideoHarness/rulesets/<id> --input .github/rulesets/main.json`，`<id>` 用 `gh api repos/ZLHad/OpenVideoHarness/rulesets` 查。
 
 新仓库或 fork 从头启用时，按这个顺序来：
 
@@ -62,7 +62,7 @@ VH_BASH=/bin/bash tools/ci.sh      # macOS：用系统自带的 bash 3.2 跑，M
    | 需要状态检查通过（Require status checks to pass） | 勾选。勾"合并前要求分支是最新的"（Require branches to be up to date）；添加 `checks (ubuntu-latest)` 和 `checks (macos-latest)` |
    | 阻止强制推送（Block force pushes） | 勾选 |
 
-3. **仓库设置。** Settings → General → Pull Requests：只保留 Allow squash merging；勾选 Always suggest updating pull request branches 和 Automatically delete head branches。
+3. **仓库设置。** Settings → General → Pull Requests：只保留 Allow squash merging；勾选 Always suggest updating pull request branches、Allow auto-merge 和 Automatically delete head branches。命令行：`gh api -X PATCH repos/ZLHad/OpenVideoHarness -F allow_squash_merge=true -F allow_merge_commit=false -F allow_rebase_merge=false -F allow_update_branch=true -F allow_auto_merge=true -F delete_branch_on_merge=true`。
 
 ### 为什么这样设计
 
@@ -73,6 +73,7 @@ VH_BASH=/bin/bash tools/ci.sh      # macOS：用系统自带的 bash 3.2 跑，M
 - **CI 同时跑 Linux 和 macOS。** 这次最严重的几个 bug 都只在一个平台上出现：维护者在 Mac 上一切正常，Linux 用户却渲染不了样片。在 macOS 上还专门用系统的 bash 3.2 跑 `bin/vh`。
 - **要求分支是最新的。** [第一个 PR](https://github.com/ZLHad/OpenVideoHarness/pull/1) 开着的时候 main 发了 v0.2.1，两边改了同一个文件。要求同步到最新以后，CI 检查的是合并后的真实结果，不是过期的分支。
 - **squash 加线性历史。** 一个 PR 在 main 上只留一个提交，和 CHANGELOG 的条目一一对应。
+- **打开 auto-merge。** 它只是"检查过了就合并"的排队，规则集的每一项照样要满足，合并方式也只能是 squash；好处是 CI 要跑几分钟时，人和 agent 都不用守着。
 
 **规则集挡得住误操作，挡不住拿着管理员 token 的 agent。** agent 用的是主人的 token，技术上仍然可以在 PR 里用管理员身份绕过检查合并，甚至改掉规则集；现在靠的是上面"给 agent 的规则"。要在技术上真正限住 agent，给它单独一个低权限身份：比如一个只有 Contents 和 Pull requests 写权限、没有 Administration 权限的 fine-grained token。
 
