@@ -67,15 +67,15 @@ await b.close(); if (!r) process.exit(1); console.log(r);')
 cmd_doctor() {
   local mac="" chrome r gl sb=--no-sandbox; [ "$(uname)" = Darwin ] && { mac=1; sb=""; }
   hint() { if [ -n "$mac" ]; then printf '%s\n' "$1"; else printf '%s\n' "$2"; fi; }   # $1 on macOS, $2 elsewhere
-  chk() { if command -v "$1" >/dev/null 2>&1; then echo "$c_ok $1  $($2 2>&1 | head -1)"; else echo "$c_no $1  ($3)"; fi; }
+  chk() { if command -v "$1" >/dev/null 2>&1; then echo "$c_ok $1  $($2 2>&1 | head -1)"; else echo "${4:-$c_no} $1  ($3)"; fi; }   # $4: the mark when missing
   local nv; nv=$(node -v 2>/dev/null | sed 's/v//;s/\..*//' || echo 0)
   if [ "${nv:-0}" -ge 22 ] 2>/dev/null; then echo "$c_ok node  $(node -v)"; else echo "$c_no node ≥22 required (found: $(node -v 2>/dev/null || echo none))"; fi
   chk ffmpeg "ffmpeg -version" "$(hint "brew install ffmpeg" "sudo apt install ffmpeg, or your package manager")"
   chrome=$(chrome_path) || chrome=""
   [ -n "$chrome" ] && echo "$c_ok chrome  $chrome" || echo "$c_no chrome  ($(hint "install Google Chrome" "sudo apt install chromium, or npx playwright install chromium"), or set CHROME_PATH)"
   chk python3 "python3 --version" "needed for audio analysis / Manim"
-  chk uv "uv --version" "optional: $(hint "brew install uv" "curl -LsSf https://astral.sh/uv/install.sh | sh") (Manim env)"
-  chk latex "latex --version" "optional: $(hint "MacTeX: brew install --cask mactex-no-gui" "TeX Live: sudo apt install texlive-latex-extra"), needed for Manim MathTex"
+  chk uv "uv --version" "optional: $(hint "brew install uv" "curl -LsSf https://astral.sh/uv/install.sh | sh") (Manim env)" "$c_wa"
+  chk latex "latex --version" "optional: $(hint "MacTeX: brew install --cask mactex-no-gui" "TeX Live: sudo apt install texlive-latex-extra"), needed for Manim MathTex" "$c_wa"
   chk git "git --version" "needed by references/fetch.sh"
   [ -d "$ROOT/engines/ClaudeAnimationBase/node_modules" ] && echo "$c_ok ClaudeAnimationBase deps installed" || echo "$c_wa ClaudeAnimationBase deps missing → bin/vh setup"
   # a real headless WebGL2 context with render.mjs's default flags; Linux without a GPU only gets one in software (--soft-gl)
@@ -294,7 +294,12 @@ cmd_tts() {
   local proj=${1:?usage: bin/vh tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json --snap beat|half|downbeat --lead s] [--align gemini] [--join block|all]} pos=() deps=""
   shift
   while [ $# -gt 0 ] && [ ${#pos[@]} -lt 4 ] && [[ "$1" != --* ]]; do pos+=("$1"); shift; done   # positionals stop at the first --flag
-  local prov=${pos[0]:-qwen} voice=${pos[1]:-} lang=${pos[2]:-} instruct=${pos[3]:-}
+  local prov=${pos[0]:-qwen} voice=${pos[1]:-} lang=${pos[2]:-} instruct=${pos[3]:-} a prev=""
+  for a in "$@"; do   # tts.py's own --provider X / --provider=X picks the dependencies too; the last one wins, as in argparse
+    [ "$prev" = --provider ] && prov=$a
+    case "$a" in --provider=*) prov=${a#--provider=} ;; esac
+    prev=$a
+  done
   # everything from the first --flag on goes straight to tts.py (--beats, --snap, --lead, --gap, --min-gap, --align, --join, --min-sim, --vocab)
   [ "$voice" = "-" ] && voice=""; [ "$lang" = "-" ] && lang=""; [ "$instruct" = "-" ] && instruct=""   # no lang: tts.py picks zh, or en for an English-only script
   case "$prov" in qwen) deps="--with mlx-audio" ;; edge) deps="--with edge-tts" ;; dashscope) deps="--with dashscope" ;; esac
