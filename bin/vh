@@ -33,6 +33,11 @@
 #   music <score.json> <out.wav> [--length s|auto] [--roll] | music --example [name|list] | music --instruments   code-composed soundtrack + exact beat/section map
 #                               --length: end exactly there with a musical fade (auto: where the last bar ends); --roll: piano roll + energy curve per part (PNG)
 #   sfx lib <dir> | sfx place <events.json> <out.wav> [dur]   built-in SFX library / place SFX on action times (stereo, pan/dist)
+#                               each event of a built-in gets a variant, a step along its film's walk for that sound (pin one:
+#                               "variant": n), and can be shaped to its move: dur, pitch|center, dir up|down, bright, tone,
+#                               pan_from/pan_to (tools/audio/sfx.py has the details); sfx lib also writes sfx-lib.json
+#   sfx audition <name|all> [n=8] [dur=… dir=…] [--walk] [--out f.wav] [--png]   hear a family: n variants 0.6 s apart (--walk: one
+#                               film's n in a row) + a line each (+ spectrogram)
 #   mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]   3-bus mix, music ducks under the voice (duck=on: + SFX), −14 LUFS
 #   mix <out.wav> profile=explainer|short|promo|cartoon|mv|swatch [voice=…] [music=…] [events=… lib=…] [timeline=…] [stems=DIR]
 #                               a level hierarchy from one anchor (the narration, else the music): VMR per line, SFX classes, depth
@@ -501,7 +506,9 @@ cmd_beats() { uv run -q --no-project --with librosa python "$ROOT/tools/audio/be
 cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then
   local a pil=""; for a in "$@"; do [ "$a" = --roll ] && pil="--with pillow"; done
   uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/music.py" "$@"; }
-cmd_sfx() { uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/sfx.py" "$@"; }
+cmd_sfx() { # audition --png draws a spectrogram: pillow joins numpy and scipy only then
+  local a pil=""; for a in "$@"; do [ "$a" = --png ] && pil="--with pillow"; done
+  uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/sfx.py" "$@"; }
 cmd_mix() { # a mix profile computes in numpy/scipy (through uv); the default chain is ffmpeg only and runs on plain python3
   local a
   for a in "$@"; do case "$a" in profile=none) ;; profile=*) uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/mix.py" "$@"; return ;; esac; done

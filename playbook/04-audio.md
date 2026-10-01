@@ -20,6 +20,7 @@ bin/vh music projects/<p>/audio/score.json projects/<p>/audio/music.wav     # + 
 # 音效：内置库 + 按动作时间摆放（立体声，事件可带 pan、dist）
 bin/vh sfx lib projects/<p>/audio/sfx
 bin/vh sfx place projects/<p>/audio/events.json projects/<p>/audio/sfx.wav 45 --lib projects/<p>/audio/sfx
+bin/vh sfx audition whoosh 8 --png                 # 先听：一个音效的 8 个 variant，每个一行参数和测量（--png：频谱图）
 # 混音、成片 QA 与合成：按视频类型选 profile（见下文"混音"），层次从一个锚点量起
 bin/vh mix projects/<p>/audio/mix.wav profile=short voice=…/voiceover.zh.wav music=…/music.wav \
            events=…/events.json lib=…/sfx timeline=…/timeline.zh.json stems=projects/<p>/audio/stems
@@ -321,12 +322,34 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 ### 音效（`sfx`）
 
-- **音效是独立的事件层**，和音乐分开：`audio/events.json` 写成 `[{t, sfx, gain_db, pan, dist}]`，后两项可选。`sfx place` 输出 48 kHz 立体声。
+- **音效是独立的事件层**，和音乐分开：`audio/events.json` 写成 `[{t, sfx, gain_db, pan, dist}]`，后两项可选；内置音效还可以带 `variant` 和塑形参数（见下）。`sfx place` 输出 48 kHz 立体声。
 - **`t` 是"落点"**：内置音效各自带落点偏移（例如 whoosh 的峰值、riser 的顶点），摆放时会自动对齐，保证声音峰值和动作在同一帧。
 - **`pan`**（−1 最左，0 居中，1 最右）用等功率声像律，并且按"居中 = 原电平"归一。不写 pan 的事件和以前的单声道摆放逐采样相同。pan = ±1 时，那一侧 +3 dB，总功率不变，所以大声的音效打到最边上时注意削波（工具会提示削波的采样数）。
 - **`dist`**（≥ 1，单位是参考距离，1 = 原样）：电平乘 1/dist，距离每翻一倍 −6 dB；再加一个平缓的一阶低通，截止频率 16 kHz / dist，最低 1 kHz。低通带来的延迟不到 0.2 ms，落点不受影响。声速延迟没有加，因为 `t` 本来就是"该听到的时刻"；要做"先见闪光、后闻炮声"，自己把 `距离米数 / 343` 加到 `t` 上。
 - **pan 从画面上算，不要凭感觉写。** 取发声物体在那一刻的屏幕 x：`pan = 2·x / 画面宽度 − 1`，再乘 0.7–0.8 收一点，全左全右在耳机里很刺。3D 场景用相机坐标：`pan = v·right / |v|`，其中 v 是声源到相机的向量；距离也从同一个 v 来。镜头在动时，同一个声源在不同时刻的左右位置也不同。Austerlitz 那支片子的音效就是这样从场景事件里算出声像和距离的，见 `cases/opus55-gallery.md` 第 6 节。
-- **来源顺序**：先用有授权的录音素材（在 NOTES 的素材台账里记下来源和许可）；缺的类别再用内置库补。自己的立体声素材会先折成单声道，当作一个点声源来摆。内置库有 15 个代码合成音效：click、tick、pop、toggle、typing、whoosh、swish_rev、riser、impact、boom、ding、success、error、glitch、shutter，都是 MIT 原创，可以复现。每个内置音效用自己的随机种子（按名字），所以 `sfx lib` 和 `sfx place` 得到同样的采样，不会因为前面先渲染了别的音效而变。impact 和 boom 在命中点有一层 1–4 kHz 的起音（crack），身体晚 2 ms 进来：没有这一层时，它们 98–100% 的能量在 150 Hz 以下，手机和笔记本几乎放不出来。
+- **来源顺序**：先用有授权的录音素材（在 NOTES 的素材台账里记下来源和许可）；缺的类别再用内置库补。自己的立体声素材会先折成单声道，当作一个点声源来摆。内置库有 21 个代码合成音效，都是 MIT 原创，用 numpy 合成，可以复现：
+  - 转场：whoosh、swish_rev、whip、swoosh_tonal、air、paper、tape、shimmer；
+  - 小动作：click、tick、pop、typing、shutter、glitch；
+  - 铺垫和命中：riser、impact、boom；
+  - 提示音：ding、success、error、toggle。
+
+  每个内置音效用自己的随机种子（按名字和 variant），同一个事件不管前面先渲染了什么，都得到同样的采样。`sfx lib` 写的是每个音效的 plain 版（variant 0），同时写一份 `sfx-lib.json`，记下每个 WAV 是哪个内置音效和它的 sha256。`--lib` 目录里列在清单上、哈希没变的 WAV 就是内置音效本身，照样按事件变化；其他 WAV（哪怕和内置音效同名）原样使用，不接受 variant 和塑形参数；清单上的 WAV 被改过，工具会点名提示。没有清单的旧目录按字节和今天的 plain 版比对，并提示一次重新跑 `sfx lib`。impact 和 boom 在命中点有一层 1–4 kHz 的起音（crack），身体晚 2 ms 进来：没有这一层时，它们 98–100% 的能量在 150 Hz 以下，手机和笔记本几乎放不出来。impact、boom、ding、success、glitch 的结尾有 50 ms 的升余弦淡出，riser 4 ms，tape 10 ms：以前尾巴是硬切的，qa 报过 1593 倍的 click。
+- **每个事件默认是自己的 variant，一支片子里连成一条路。** 除了四个提示音，内置音效的每个事件都有一个 variant：同一支片子里同一个音效按时间顺序走一条有界的路，从一个起点（由音效名和这支片子用了哪些音效、各几次算出来，和时间无关）出发，每出现一次走一步。相邻两下一定不同，又不会差得太远，整支片子里像同一只手的动作在慢慢变化；不同片子的起点不同。同一份 events.json 每次渲染逐字节相同。variant 写成 起点·1000 + 第几步，例如 4821003。它只动事件没写的参数，幅度保持在"同一家族、换一个手势"：转场的长度 ±25 %、音高 ±3 个半音、峰值的位置、扫频跨度、明暗、音色、电平 ±1.5 dB；click、tick、pop 这类小动作只动一点音高、长度和电平；impact、boom 动起音（crack 的频段、衰减、电平，身体晚进来的时间）、衰减和电平，不动身体的音高（40 Hz 的身体一动音高就和配乐的低音拍出"抽吸"）。提示音不变，观众会记住它们的意思。只挪动事件的时间不会重抽（除非同一个音效的两个事件换了先后）；增删事件会重抽这支片子里没钉住的事件。想留住某一下，就写 `"variant": n`：`sfx place` 的 sidecar 和 `bin/vh mix … stems=DIR` 的 `meta.json` 里都记着每个事件拿到的号，`bin/vh qa --stems` 用它把同一个声音重新渲染出来；`"variant": 0` 是 plain 的那一个。
+- **转场音效按风格选。** 下表是起点，不是规定：
+
+  | 风格（`styles/` 里的例子） | 转场 |
+  |---|---|
+  | 发布片、keynote、UI（product-keynote、fui-hud） | swoosh_tonal，短而亮的 whoosh |
+  | 科幻、合成器（monumental-scifi、synthwave-outrun、neon-step-print） | swoosh_tonal（tone 高一点），长而低的 whoosh |
+  | 卡通、扁平、漫画、梗（bouncy-flat-2d、halftone-comic、brutalist-meme、pixel-16bit） | whip，配 pop |
+  | 数据、讲解、纪录、留白多的（editorial-data、isotype、dark-math、archival-pan-zoom、ink-wash） | air，轻的 whoosh |
+  | 手绘、拼贴、剪纸、印刷（watercolor-pastoral、cutout-jazz、silhouette-papercut、risograph） | paper |
+  | 复古、录像带、终端（crt-terminal、scratched-type） | tape（`dir: "down"` 停带，`"up"` 倒带），glitch |
+  | 揭示、标题落定（哪种风格都可能有） | shimmer（按配乐的调设 `pitch`，默认是 A 大调五声音阶） |
+- **按动作给转场塑形。** 转场类内置音效都接受这几个可选字段：`dur`（跟着转场的长度走；不写 `pitch`、`center` 时，越长越低，长度每翻一倍低 4 个半音）、`pitch`（半音）或 `center`（Hz）、`dir`（`"up"` 上扫，`"down"` 下扫）、`bright`（−1…1，暗…亮）、`tone`（0 纯气流…1 带音高的共鸣）。任何音效都可以写 `pan_from`、`pan_to`，让声音跟着画面从一边划到另一边。小而快的动作短、高、亮，大而慢的动作长、低、厚。比如一张卡片从左往右快速划过：`{"t": 2.0, "sfx": "whoosh", "dur": 0.35, "pan_from": -0.6, "pan_to": 0.6}`；镜头慢慢退到大场景：`{"t": 6.0, "sfx": "whoosh", "dur": 1.2, "dir": "down", "tone": 0.4}`。
+- **一支片子里不要每一刀都是同一个声音。** 默认已经会变，再往前走一步：不同性质的切换用不同的转场（段落之间 whoosh，页内的小切换 air 或 paper），每一下按它的动作塑形。
+- **先听再定。** `bin/vh sfx audition whoosh 8` 把同一个音效的 8 个 variant 排进一个 WAV，两两之间隔 0.6 s，旁边的 txt 每行写出它的参数和测出来的长度、频谱重心、扫频方向；加 `dur=1.2 dir=down` 听塑形以后的家族，`--walk` 听一支片子里连着的 8 下，`all` 把 21 个内置音效的 plain 版各放一遍，`--png` 画一张标好号的频谱图（听不到的时候看它）。生成的 json 是放进去的事件表，可以直接给 `bin/vh qa`。
+- **重复会被提醒。** `bin/vh qa` 拿到事件表时会查：同一类声音（内置音效按名字；文件按去掉 `_a`、`_2` 这类编号后的名字）按时间连着 3 次以上听起来一样（逐字节相同，或者 150 Hz 以上的波形相关 > 0.98），就警告，不算失败，并提示去掉 variant 的钉、给每一下塑形，录音素材就轮换几条（A B C A B C 这样轮换不算重复）。判断靠测出来的相似度，不看 variant 号。提示音、`role: "signal"` 和 sonification 层本来就该每次一样，不查；渲染不出来的事件会列出来。
 - **`role`**（可选：`hero`、`detail`、`ambience`、`signal`）：这个事件在混音 profile 里属于哪一类，什么时候要写见下文"混音"。`sfx place` 会检查它，并在输出旁边写一个 `<out>.events.json`：每个事件的类和原因、起点，以及它自己摆好后的电平（fast：最响 100 ms 的 K 加权响度；m400；tp：真峰值；len：持续时间；lf：150 Hz 以下能量占比），混音前就能读。
 - **不要让每个音效都去压音乐。** 介绍片 v2 把 74 个音效全接进了 ducker，ratio 是 6，配乐跟着每个音效一抽一抽。混音 profile 里音效从不压音乐（只有没人说话时，hero 命中处音乐让 2–2.5 dB）；不用 profile 时默认也只让人声压音乐（`duck=voice`），真要用 `duck=on`，把 `duck_ratio` 降到 2–3。`bin/vh qa` 的抽吸一项专门查这种问题。
 
@@ -386,7 +409,7 @@ VMR 这一列有三个数：
 **什么时候写 `role`**：
 - 类先看事件的 `"role"`；没写时，`"layer": "sonification"` 是 signal；再没有就按名字里的整词判断（复数也算）：
   - impact、boom、stomp、slam、ding、success、error、bell、snap… 是 hero；
-  - click、tick、pop、toggle、whoosh、step、typing… 是 detail；
+  - click、tick、pop、toggle、whoosh、whip、paper、shimmer、step、typing… 是 detail；事件名就是 `air` 或 `tape`（不带路径和扩展名）时是内置转场，也是 detail，文件 `sfx/air.wav`、`TAPE.wav` 仍按词判断，是 ambience；`tape_stop`、`tape_rewind` 是 detail，`tape_hiss` 是 ambience；
   - gust、wind、rain、hum、hiss、creak、room、drone… 是 ambience；
   - 都不是就归 detail。`clock_tick`、`ticks` 算 tick；`airhorn`、`dropdown`、`human` 不会被当成 air、drop、hum。
 - 名字和它在这支片子里的作用不一致时就写 role：
@@ -495,7 +518,7 @@ VMR 这一列有三个数：
 - **`qa` 的 cue check 按全片最响的 onset 归一化**：别处一个特别大的 onset，会让很弱的 cue 被判成 OFF。每个 cue 现在都打印 margin（超出门槛多少），临界的标成 `OK~`，近乎纯音的音效还会用自己的声音确认一次（见上文"混音"的 cue check），但归一化本身没有变。
 - **`qa` 的 click 只是警告，不算失败**：机器分不清设计好的尖锐起音和真故障，只豁免节拍表和事件表里的时间点。网格之外的设计性起音也会被列出来，比如十六分音符 ostinato 的音头、typing 连击、glitch 音效内部的门控。工具按倍数列出最严重的 10 处，要人耳逐个复听。门槛是局部电平的 15 倍：埋入测试里，6 个 0.37 幅度的 click 全部抓到，包括 riser 噪声下面那 2 个（17 倍、20 倍）；更深地埋在噪声里的 click 仍然可能漏掉。
 - **`beats` 的 BPM 在切分节奏上可能报成一半**：两段测试 loop 分别报成了 49.7（实际 100）和 63.0（实际 127）。
-- **两个内置音效的落点不在能量峰上**：whoosh 的能量峰在落点后约 34 ms（约 1 帧）；swish_rev 的落点是声音的结尾，能量峰在落点前约 280 ms。
+- **几个内置音效的落点不在能量峰上**：plain 的 whoosh（variant 0）能量峰在落点后约 34 ms（约 1 帧），塑形过或换了 variant 的 whoosh、whip、swoosh_tonal、air、paper 落在自己最响的 50 ms 的中间；swish_rev、tape 和 riser 在落点上结束（最后一个采样），能量峰在前面（swish_rev 约 100–280 ms，tape 约 0.5 s）；shimmer 从落点开始往上叠，最响处在落点后约 50–400 ms。
 
 ## 让声音有表情、有节奏
 
@@ -586,7 +609,7 @@ VMR 这一列有三个数：
   - 写法：风格和参照、速度（从上面的帧对齐速度里选）、调式、配器、每段的能量曲线（例如"前奏 2 小节只有 pad 和琶音，第 3 小节 drop，全编制"）、必须落拍的时间点、哪里屏息；
   - 翻译成 `score.json` 的 `sections`（`bars`、`layers`、`energy`、`riser`、`impact`、`fill`）。`layers` 的 lead、arp 是固定音型，适合打草稿；要旋律、篇章和起伏，用 `parts` 写，做法见 `11-composition.md`；
   - 同一段简报也能直接用作 Suno 或 ElevenLabs Music 的提示词。
-- **音效简报**：每个动作写一句"什么东西、什么材质、多大、多远"，例如"纸片被快速抽走，干、短、偏高频，近"；先从内置 15 个里找，没有合适的再用 ElevenLabs Sound Effects 生成，或者在 `styles/_swatch/custom_sfx.py` 那样用代码合成。
+- **音效简报**：每个动作写一句"什么东西、什么材质、多大、多远"，例如"纸片被快速抽走，干、短、偏高频，近"；先从内置 21 个里找（`bin/vh sfx audition all` 一次听完），没有合适的再用 ElevenLabs Sound Effects 生成，或者在 `styles/_swatch/custom_sfx.py` 那样用代码合成。
 - **旁白简报**：就是上面第 1 条的整体语气和逐句指示。
 
 ## 作曲：篇章、主题与起伏

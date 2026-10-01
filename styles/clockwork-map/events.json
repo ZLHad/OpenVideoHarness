@@ -3,7 +3,7 @@
   {"t":0.2,"sfx":"whoosh","gain_db":-14,"pan":0},
   {"t":1,"sfx":"click","gain_db":-14,"pan":-0.42},
   {"t":1.379,"sfx":"tick","gain_db":-12,"pan":-0.37},
-  {"t":1.713,"sfx":"tick","gain_db":-12,"pan":-0.19},
+  {"t":1.713,"sfx":"tick","gain_db":-10,"pan":-0.19},
   {"t":1.9,"sfx":"click","gain_db":-14,"pan":0.24},
   {"t":2.046,"sfx":"click","gain_db":-8,"pan":-0.37},
   {"t":2.18,"sfx":"whoosh","gain_db":-16,"pan":-0.37},
