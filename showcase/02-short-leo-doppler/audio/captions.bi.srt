@@ -49,7 +49,7 @@ The orbit is known, so it can be computed
 ahead.
 
 10
-00:00:22,850 --> 00:00:24,510
+00:00:22,850 --> 00:00:24,650
 反向补偿，不再变调。
 Compensate in reverse: no more pitch
 change.

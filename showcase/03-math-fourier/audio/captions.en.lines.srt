@@ -31,5 +31,5 @@ More terms only make the overshoot
 thinner.
 
 9
-00:00:22,600 --> 00:00:24,220
+00:00:22,600 --> 00:00:24,400
 About nine percent of the jump.

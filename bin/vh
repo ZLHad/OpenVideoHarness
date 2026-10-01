@@ -27,7 +27,8 @@
 #                               --resume: continue the last run after a failed synthesis or transcription, same script and command)
 #                               providers: qwen (default, local open-source Qwen3-TTS) | say | edge | dashscope | elevenlabs | gemini | gemini-lite
 #   voices list [lang] | design "<description>" [--out f.wav] | delete <voice_id>   Gemini voice library / voice design
-#   captions <project> [zh|en] [zh-max]  SRT (zh / en / bilingual) + captions.json from the TTS timeline
+#   captions <project> [zh|en] [zh-max] [--media-end S]  SRT (zh / en / bilingual) + captions.json from the TTS timeline; a caption under 1.8 s is
+#                               lengthened into the gap after it, up to the picture's end (--media-end, else index.html's data-duration, media/final.mp4, the timeline)
 #   beats <audio> [out.json]    beat grid (bpm, offset, beats, downbeats) + hits, kick/snare accents (librosa)
 #   music <score.json> <out.wav> [--length s|auto] [--roll] | music --example [name|list] | music --instruments   code-composed soundtrack + exact beat/section map
 #                               --length: end exactly there with a musical fade (auto: where the last bar ends); --roll: piano roll + energy curve per part (PNG)
@@ -477,9 +478,19 @@ cmd_tts() {
   uv run -q --no-project $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${lang:+--lang "$lang"} ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"} "$@"
 }
 cmd_voices() { [ $# -gt 0 ] || set -- list; python3 "$ROOT/tools/audio/tts.py" voices "$@"; }
-cmd_captions() {
-  local proj=${1:?usage: bin/vh captions <project> [zh|en] [zh-max]}
-  python3 "$ROOT/tools/audio/captions.py" "$proj" ${2:+--lang "$2"} ${3:+--zh-max "$3"}
+cmd_captions() { # --media-end S: where a caption too short for the 1.8 s floor may be lengthened to (default: the picture's length)
+  local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--media-end S]"
+  local proj=${1:?$u}; shift
+  local pos=() end=()
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --media-end) end=(--media-end "${2:?$u}"); shift 2 ;;
+      -*) echo "bin/vh captions: unknown option $1 ($u)" >&2; return 1 ;;
+      *) pos+=("$1"); shift ;;
+    esac
+  done
+  set -- ${pos[@]+"${pos[@]}"}
+  python3 "$ROOT/tools/audio/captions.py" "$proj" ${1:+--lang "$1"} ${2:+--zh-max "$2"} ${end[@]+"${end[@]}"}
 }
 cmd_beats() { uv run -q --no-project --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
 cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then

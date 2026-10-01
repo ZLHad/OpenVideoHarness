@@ -76,7 +76,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 **字幕用上词级时间**：timeline 里有 `words` 时，`bin/vh captions` 会在 `captions.json` 的每条里加上 `words`（绝对时间，引擎可以做逐字高亮、逐词弹出），并多写一个 `captions.<lang>.lines.srt`：一条字幕折成几行，就拆成几个 cue，每行在它的第一个字念出来时才出现。原来的 `captions.zh.srt` 等文件不变。
 
-**字幕的最短时长**：念得快的短句，字幕自己可能只有 1–1.7 s，低于 `readcheck` 的字幕下限（1.8 s）。`bin/vh captions` 会把这样的字幕条的**结束时间**往后延进它后面的空隙：最多延到 1.8 s，或者下一条的开头减 0.1 s，或者 timeline 的 `duration`（媒体结尾），取最早的一个；开头不动，也不会和下一条重叠。每个字幕文件（`.lines.srt` 也是，它的最后一行跟着整条字幕一起结束）和 `captions.json` 里都是延长后的结束时间，`captions.json` 在被延长的条目上用 `speech_end` 留着念完的时间。空隙不够、延不到 1.8 s 的，命令会逐条列出来，由你决定把下一句往后挪，还是接受。
+**字幕的最短时长**：念得快的短句，字幕自己可能只有 1–1.7 s，低于 `readcheck` 的字幕下限（1.8 s）。`bin/vh captions` 会把这样的字幕条的**结束时间**往后延进它后面的空隙：最多延到 1.8 s，或者下一条的开头减 0.1 s，或者画面的结尾，取最早的一个（画面比最后一句话长，所以结尾不取配音的时长：依次取 `--media-end S`、项目 `index.html` 根节点的 `data-duration`、`media/final.mp4` 的时长、最后才是 timeline 的 `duration`）；开头不动，也不会和下一条重叠。每个字幕文件（`.lines.srt` 也是，它的最后一行跟着整条字幕一起结束）和 `captions.json` 里都是延长后的结束时间，`captions.json` 在被延长的条目上用 `speech_end` 留着念完的时间。空隙不够、延不到 1.8 s 的，命令会逐条列出来，由你决定把下一句往后挪，还是接受。
 
 需要更细的强制对齐（音素级、离线）时，仍然可以用 mlx-audio 的 Qwen3-ForcedAligner、FunASR 或 whisper.cpp，这些没有封装。
 
