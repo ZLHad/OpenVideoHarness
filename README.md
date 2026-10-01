@@ -212,6 +212,7 @@ A few more guides:
 - **A story with rises and falls, or a film of 3 minutes or more:** [playbook/09](playbook/09-narrative.md) (structures, beat sheets, the tension curve, act breaks).
 - **Posting to short-video platforms: the opening hook, title and cover:** [playbook/10](playbook/10-hooks-and-packaging.md).
 - **Music with chapters, a theme you can hum, and real rises and falls:** [playbook/11](playbook/11-composition.md).
+- **Research notes, what we measured and what changed because of it:** [docs/research](docs/research/en/README.md) (mix levels, soundtrack distance, render determinism, on-screen reading time, music form).
 
 ## Sound
 
