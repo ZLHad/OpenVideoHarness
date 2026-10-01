@@ -377,9 +377,11 @@ HINTS = (("ambience", ("whirr", "gust", "wind", "rain", "room", "hum", "drone", 
          ("detail", ("click", "tick", "pop", "toggle", "typing", "keys", "step", "tiptoe", "thock", "count", "pat", "ping",
                      "sparkle", "hearts", "shutter", "glitch", "skid", "zip", "whoosh", "swish", "riser", "crank", "run",
                      "blip", "iris", "whip", "swoosh", "paper", "shimmer")))
-# built-in transitions whose exact name is also an ambience hint (room air, tape hiss): as an event's whole name they are
-# the built-in, a short transition gesture; "room_air" or "tape_hiss" still read as ambience
+# the built-in transitions "air" and "tape" share a word with ambience (room air, tape hiss): only the bare name, exactly as
+# the built-in is written, is the built-in (detail); a file (sfx/air.wav, TAPE.wav) is classed by its words as before,
+# except that a tape that stops or rewinds (tape_stop, tape_rewind) is a transition gesture, not a bed
 EXACT = {"air": "detail", "tape": "detail"}
+GESTURE = ({"tape"}, {"stop", "rewind", "scrub"})
 
 def sfx_class(e):
     """an event's class and why: its "role", else "signal" for a sonification layer, else the first name hint that is one
@@ -387,9 +389,10 @@ def sfx_class(e):
     else detail"""
     if e.get("role"): return e["role"], "role"
     if e.get("layer") == "sonification": return "signal", "layer"
+    if str(e.get("sfx", "")) in EXACT: return EXACT[e["sfx"]], f"built-in '{e['sfx']}'"
     n = re.sub(r"\.[A-Za-z0-9]+$", "", str(e.get("sfx", "")).lower().rsplit("/", 1)[-1])
-    if n in EXACT: return EXACT[n], f"built-in '{n}'"
     words = {w for w in re.split(r"[^a-z]+", n) if w}
+    if words & GESTURE[0] and words & GESTURE[1]: return "detail", f"name '{n}'"
     for cls, hints in HINTS:
         hit = next((h for h in hints if words & {h, h + "s", h + "es"}), None)
         if hit: return cls, f"name '{hit}'"

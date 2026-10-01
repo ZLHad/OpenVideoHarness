@@ -333,8 +333,8 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
   - 铺垫和命中：riser、impact、boom；
   - 提示音：ding、success、error、toggle。
 
-  每个内置音效用自己的随机种子（按名字和 variant），同一个事件不管前面先渲染了什么，都得到同样的采样。`sfx lib` 写的是每个音效的 plain 版（variant 0），和加 variant 之前逐字节相同。`--lib` 目录里的 WAV 和 `sfx lib` 写的逐字节相同时，就当作内置音效本身，照样按事件变化；其他 WAV（哪怕和内置音效同名）原样使用，不接受 variant 和塑形参数。impact 和 boom 在命中点有一层 1–4 kHz 的起音（crack），身体晚 2 ms 进来：没有这一层时，它们 98–100% 的能量在 150 Hz 以下，手机和笔记本几乎放不出来。
-- **每个事件默认是自己的 variant。** 除了四个提示音，内置音效的每个事件都从（名字、落点的毫秒数、它是这个名字在列表里的第几次）算一个稳定的哈希，得到 1–99999 的 variant。同一支片子里的 whoosh 个个不同，不同片子之间也不同，同一份 events.json 每次渲染逐字节相同。variant 只动事件没写的参数，幅度保持在"同一家族、换一个手势"：转场的长度 ±25 %、音高 ±3 个半音、峰值的位置、扫频跨度、明暗、音色、电平 ±1.5 dB；click、tick、pop 这类小动作只动一点音高、长度和电平，impact、boom 只动衰减和电平。提示音不变，观众会记住它们的意思。想留住某一下，就写 `"variant": n`（`sfx place` 的 sidecar 里列着每个事件拿到的号）；`"variant": 0` 是原来那个固定的声音。在前面插入一个同名事件，后面的会重新抽，想留的先钉住。
+  每个内置音效用自己的随机种子（按名字和 variant），同一个事件不管前面先渲染了什么，都得到同样的采样。`sfx lib` 写的是每个音效的 plain 版（variant 0），同时写一份 `sfx-lib.json`，记下每个 WAV 是哪个内置音效和它的 sha256。`--lib` 目录里列在清单上、哈希没变的 WAV 就是内置音效本身，照样按事件变化；其他 WAV（哪怕和内置音效同名）原样使用，不接受 variant 和塑形参数；清单上的 WAV 被改过，工具会点名提示。没有清单的旧目录按字节和今天的 plain 版比对，并提示一次重新跑 `sfx lib`。impact 和 boom 在命中点有一层 1–4 kHz 的起音（crack），身体晚 2 ms 进来：没有这一层时，它们 98–100% 的能量在 150 Hz 以下，手机和笔记本几乎放不出来。impact、boom、ding、success、glitch 的结尾有 50 ms 的升余弦淡出，riser 4 ms，tape 10 ms：以前尾巴是硬切的，qa 报过 1593 倍的 click。
+- **每个事件默认是自己的 variant，一支片子里连成一条路。** 除了四个提示音，内置音效的每个事件都有一个 variant：同一支片子里同一个音效按时间顺序走一条有界的路，从一个起点（由音效名和这支片子用了哪些音效、各几次算出来，和时间无关）出发，每出现一次走一步。相邻两下一定不同，又不会差得太远，整支片子里像同一只手的动作在慢慢变化；不同片子的起点不同。同一份 events.json 每次渲染逐字节相同。variant 写成 起点·1000 + 第几步，例如 4821003。它只动事件没写的参数，幅度保持在"同一家族、换一个手势"：转场的长度 ±25 %、音高 ±3 个半音、峰值的位置、扫频跨度、明暗、音色、电平 ±1.5 dB；click、tick、pop 这类小动作只动一点音高、长度和电平；impact、boom 动起音（crack 的频段、衰减、电平，身体晚进来的时间）、衰减和电平，不动身体的音高（40 Hz 的身体一动音高就和配乐的低音拍出"抽吸"）。提示音不变，观众会记住它们的意思。只挪动事件的时间不会重抽（除非同一个音效的两个事件换了先后）；增删事件会重抽这支片子里没钉住的事件。想留住某一下，就写 `"variant": n`：`sfx place` 的 sidecar 和 `bin/vh mix … stems=DIR` 的 `meta.json` 里都记着每个事件拿到的号，`bin/vh qa --stems` 用它把同一个声音重新渲染出来；`"variant": 0` 是 plain 的那一个。
 - **转场音效按风格选。** 下表是起点，不是规定：
 
   | 风格（`styles/` 里的例子） | 转场 |
@@ -347,9 +347,9 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
   | 复古、录像带、终端（crt-terminal、scratched-type） | tape（`dir: "down"` 停带，`"up"` 倒带），glitch |
   | 揭示、标题落定（哪种风格都可能有） | shimmer（按配乐的调设 `pitch`，默认是 A 大调五声音阶） |
 - **按动作给转场塑形。** 转场类内置音效都接受这几个可选字段：`dur`（跟着转场的长度走；不写 `pitch`、`center` 时，越长越低，长度每翻一倍低 4 个半音）、`pitch`（半音）或 `center`（Hz）、`dir`（`"up"` 上扫，`"down"` 下扫）、`bright`（−1…1，暗…亮）、`tone`（0 纯气流…1 带音高的共鸣）。任何音效都可以写 `pan_from`、`pan_to`，让声音跟着画面从一边划到另一边。小而快的动作短、高、亮，大而慢的动作长、低、厚。比如一张卡片从左往右快速划过：`{"t": 2.0, "sfx": "whoosh", "dur": 0.35, "pan_from": -0.6, "pan_to": 0.6}`；镜头慢慢退到大场景：`{"t": 6.0, "sfx": "whoosh", "dur": 1.2, "dir": "down", "tone": 0.4}`。
-- **一支片子里不要每一刀都是同一个声音。** 以前每个 whoosh 逐字节相同，33 支片子里有 26 支用它，28 个样片的合辑里同一个 whoosh 在差不多的位置响了 28 次，听多了就疲劳。现在默认就会变，再往前走一步：不同性质的切换用不同的转场（段落之间 whoosh，页内的小切换 air 或 paper），每一下按它的动作塑形。
-- **先听再定。** `bin/vh sfx audition whoosh 8` 把同一个音效的 8 个 variant 排进一个 WAV，两两之间隔 0.6 s，旁边的 txt 每行写出它的参数和测出来的长度、频谱重心、扫频方向；加 `dur=1.2 dir=down` 听塑形以后的家族，`all` 把 21 个内置音效的 plain 版各放一遍，`--png` 画一张标好号的频谱图（听不到的时候看它）。生成的 json 是放进去的事件表，可以直接给 `bin/vh qa`。
-- **重复会被提醒。** `bin/vh qa` 拿到事件表时会查：同一个声音在一个混音里出现 3 次以上（逐字节相同，或者波形相关 > 0.98）就警告，不算失败，并提示去掉 variant 的钉、给每一下塑形；录音素材就换几条交替用。同一个内置音效的两个不同 variant 不算重复。提示音、`role: "signal"` 和 sonification 层本来就该每次一样，不查。
+- **一支片子里不要每一刀都是同一个声音。** 默认已经会变，再往前走一步：不同性质的切换用不同的转场（段落之间 whoosh，页内的小切换 air 或 paper），每一下按它的动作塑形。
+- **先听再定。** `bin/vh sfx audition whoosh 8` 把同一个音效的 8 个 variant 排进一个 WAV，两两之间隔 0.6 s，旁边的 txt 每行写出它的参数和测出来的长度、频谱重心、扫频方向；加 `dur=1.2 dir=down` 听塑形以后的家族，`--walk` 听一支片子里连着的 8 下，`all` 把 21 个内置音效的 plain 版各放一遍，`--png` 画一张标好号的频谱图（听不到的时候看它）。生成的 json 是放进去的事件表，可以直接给 `bin/vh qa`。
+- **重复会被提醒。** `bin/vh qa` 拿到事件表时会查：同一类声音（内置音效按名字；文件按去掉 `_a`、`_2` 这类编号后的名字）按时间连着 3 次以上听起来一样（逐字节相同，或者 150 Hz 以上的波形相关 > 0.98），就警告，不算失败，并提示去掉 variant 的钉、给每一下塑形，录音素材就轮换几条（A B C A B C 这样轮换不算重复）。判断靠测出来的相似度，不看 variant 号。提示音、`role: "signal"` 和 sonification 层本来就该每次一样，不查；渲染不出来的事件会列出来。
 - **`role`**（可选：`hero`、`detail`、`ambience`、`signal`）：这个事件在混音 profile 里属于哪一类，什么时候要写见下文"混音"。`sfx place` 会检查它，并在输出旁边写一个 `<out>.events.json`：每个事件的类和原因、起点，以及它自己摆好后的电平（fast：最响 100 ms 的 K 加权响度；m400；tp：真峰值；len：持续时间；lf：150 Hz 以下能量占比），混音前就能读。
 - **不要让每个音效都去压音乐。** 介绍片 v2 把 74 个音效全接进了 ducker，ratio 是 6，配乐跟着每个音效一抽一抽。混音 profile 里音效从不压音乐（只有没人说话时，hero 命中处音乐让 2–2.5 dB）；不用 profile 时默认也只让人声压音乐（`duck=voice`），真要用 `duck=on`，把 `duck_ratio` 降到 2–3。`bin/vh qa` 的抽吸一项专门查这种问题。
 
@@ -409,7 +409,7 @@ VMR 这一列有三个数：
 **什么时候写 `role`**：
 - 类先看事件的 `"role"`；没写时，`"layer": "sonification"` 是 signal；再没有就按名字里的整词判断（复数也算）：
   - impact、boom、stomp、slam、ding、success、error、bell、snap… 是 hero；
-  - click、tick、pop、toggle、whoosh、whip、paper、shimmer、step、typing… 是 detail；整个名字就是 `air` 或 `tape` 时是内置转场，也是 detail（`room_air`、`tape_hiss` 仍是 ambience）；
+  - click、tick、pop、toggle、whoosh、whip、paper、shimmer、step、typing… 是 detail；事件名就是 `air` 或 `tape`（不带路径和扩展名）时是内置转场，也是 detail，文件 `sfx/air.wav`、`TAPE.wav` 仍按词判断，是 ambience；`tape_stop`、`tape_rewind` 是 detail，`tape_hiss` 是 ambience；
   - gust、wind、rain、hum、hiss、creak、room、drone… 是 ambience；
   - 都不是就归 detail。`clock_tick`、`ticks` 算 tick；`airhorn`、`dropdown`、`human` 不会被当成 air、drop、hum。
 - 名字和它在这支片子里的作用不一致时就写 role：
@@ -518,7 +518,7 @@ VMR 这一列有三个数：
 - **`qa` 的 cue check 按全片最响的 onset 归一化**：别处一个特别大的 onset，会让很弱的 cue 被判成 OFF。每个 cue 现在都打印 margin（超出门槛多少），临界的标成 `OK~`，近乎纯音的音效还会用自己的声音确认一次（见上文"混音"的 cue check），但归一化本身没有变。
 - **`qa` 的 click 只是警告，不算失败**：机器分不清设计好的尖锐起音和真故障，只豁免节拍表和事件表里的时间点。网格之外的设计性起音也会被列出来，比如十六分音符 ostinato 的音头、typing 连击、glitch 音效内部的门控。工具按倍数列出最严重的 10 处，要人耳逐个复听。门槛是局部电平的 15 倍：埋入测试里，6 个 0.37 幅度的 click 全部抓到，包括 riser 噪声下面那 2 个（17 倍、20 倍）；更深地埋在噪声里的 click 仍然可能漏掉。
 - **`beats` 的 BPM 在切分节奏上可能报成一半**：两段测试 loop 分别报成了 49.7（实际 100）和 63.0（实际 127）。
-- **几个内置音效的落点不在能量峰上**：plain 的 whoosh（variant 0）能量峰在落点后约 34 ms（约 1 帧），塑形过或换了 variant 的 whoosh、whip、swoosh_tonal、air、paper 落在自己最响的 50 ms 的中间；swish_rev 和 tape 落在声音的结尾，能量峰在前面（swish_rev 约 100–280 ms，tape 约 0.5 s）；shimmer 从落点开始往上叠，最响处在落点后约 50–400 ms。
+- **几个内置音效的落点不在能量峰上**：plain 的 whoosh（variant 0）能量峰在落点后约 34 ms（约 1 帧），塑形过或换了 variant 的 whoosh、whip、swoosh_tonal、air、paper 落在自己最响的 50 ms 的中间；swish_rev、tape 和 riser 在落点上结束（最后一个采样），能量峰在前面（swish_rev 约 100–280 ms，tape 约 0.5 s）；shimmer 从落点开始往上叠，最响处在落点后约 50–400 ms。
 
 ## 让声音有表情、有节奏
 

@@ -64,13 +64,13 @@ mix (the level hierarchy, per bin/vh mix's profile table; see playbook/04-audio.
   the range counts at its floor, as for a single event: the mixer never raises one); timeline lines in the mix with
   the voice stem silent under all of them. In a full run with --stems, also a cue that passes the cue check only as
   faint while the report calls it BURIED: on sync, but not heard. On an encoded file the report is not repeated.
-repetition (with events, in every mode; a WARNING, never a failure): a sound that renders the same 3 or more times in the
-  mix, byte for byte or with a waveform correlation over 0.98 within ±5 ms, rendered alone before gain, pan and distance:
-  a whoosh pinned to one variant on every cut, a recorded file reused as is. Two different variants of one built-in
-  never count (a short tick's variants can correlate that well: that is the family's range, not a copy), nor do signals
-  (ding, success, error, toggle, "role": "signal", a sonification layer), which are meant to sound the same each time.
-  Each built-in event varies unless it pins "variant"; shape each to its move (dur, pitch|center, dir, bright, tone;
-  bin/vh sfx audition).
+repetition (with events, in every mode; a WARNING, never a failure): a sound that comes back the same 3 or more times in a
+  row within its family (a built-in's name; a file's name without its _a / _2 take mark), each event rendered alone before
+  gain, pan and distance: byte for byte, or a waveform correlation over 0.98 within ±5 ms above 150 Hz. A whoosh pinned to
+  one variant on every cut, a recording reused back to back; a rotation of takes (A B C A B C) is not a repeat. Signals
+  (ding, success, error, toggle, "role": "signal", a sonification layer) are meant to sound the same and are left out;
+  events that cannot be rendered are listed. Each built-in event varies unless it pins "variant"; shape each to its move
+  (dur, pitch|center, dir, bright, tone; bin/vh sfx audition).
 Known limits: pumping misses long shallow dips (≈ 300 ms at −8 dB fills half the 600 ms median; only the −12 dB dropout
   check catches it); the onset detector normalises to the loudest onset in the file, so one huge onset elsewhere can
   make a weak cue marginal or OFF (the margin column shows it); clicks are judged against local HF content, so a click
@@ -81,7 +81,7 @@ import json, os, subprocess, sys
 import numpy as np
 from scipy.ndimage import median_filter, maximum_filter1d
 
-REPEAT_CORR, REPEAT_MIN = 0.98, 3   # a sound rendering this alike (waveform correlation) this many times in a mix is a repetition
+REPEAT_CORR, REPEAT_MIN = 0.98, 3   # this alike (waveform correlation over 150 Hz), this many times in a row: a repetition
 LOSSLESS = ("flac", "alac", "wavpack", "tta", "ape", "mlp", "truehd", "shorten")
 AAC_MARGIN = 0.012     # s: in the mix lab's 16 AAC mp4s, 284 cues' onsets moved ≤ 5.4 ms from their WAV (marginal ones can flip)
 TONAL = 0.01           # spectral flatness under which an SFX counts as a (near-)pure tone
@@ -301,59 +301,60 @@ def template(e, lib, root, cache, sr):
 
 def alike(a, b, lag=240):
     """how alike two renders are: 1.0 when byte-identical, else the peak normalised waveform correlation within ±lag samples
-    (their first second each). Different noise seeds of one sound score near 0: this finds copies, not families."""
+    of their first second, over 150 Hz (the part every speaker plays: two hits on one 40 Hz body correlate 0.9 or more
+    whatever their attacks do). Different noise seeds of one sound score near 0: this finds copies, not families."""
     if len(a) == len(b) and np.array_equal(a, b): return 1.0
-    from scipy.signal import fftconvolve
-    a, b = a[:48000], b[:48000]; den = np.sqrt((a ** 2).sum() * (b ** 2).sum())
+    from scipy.signal import butter, fftconvolve, sosfilt
+    hp = butter(2, 150 / 24000, "high", output="sos"); a, b = sosfilt(hp, a[:48000]), sosfilt(hp, b[:48000])
+    den = np.sqrt((a ** 2).sum() * (b ** 2).sum())
     if den <= 0: return 0.0
     c = fftconvolve(a, b[::-1]); z = len(b) - 1
     return float(np.abs(c[max(0, z - lag):z + lag + 1]).max() / den)
 
 def repeats(ev, lib=None, root=None):
-    """SFX that render the same REPEAT_MIN or more times, each event rendered alone before gain, pan and distance →
-    (report lines, number of such groups). Two renders are the same when byte-identical, or alike > REPEAT_CORR unless
-    they are two different variants of one built-in (a 20 ms tick a few cents from another correlates that well: that is
-    the family's own range, not a copy). Signals are meant to repeat and are left out."""
+    """SFX that come back the same REPEAT_MIN or more times in a row → (report lines, number of such runs). Each event is
+    rendered alone, before gain, pan and distance, and compared with the one before it in its family (a built-in's name; a
+    file's name without a trailing _a / _2 take mark, so paper_step_a, _b and _c are one family): byte-identical, or alike
+    over REPEAT_CORR. A rotation of takes (A B C A B C) is the remedy, not a repeat. Signals are meant to repeat and are left
+    out; events that cannot be rendered are listed."""
     import hashlib, sfx
-    items, cache = [], {}
-    for e in sfx.numbered(ev):
+    fam = lambda n: n if n in sfx.LIB else os.path.splitext(os.path.basename(n))[0].rsplit("_", 1)[0]
+    items, cache, lost = {}, {}, []
+    for e in sorted(sfx.numbered(ev), key=lambda e: float(e["t"])):
         if e.get("sfx") in sfx.FIXED or e.get("role") == "signal" or e.get("layer") == "sonification": continue
         try: x, _, v, _ = sfx.event_sound(e, None, lib, root, cache)
-        except SystemExit: continue      # a sound that cannot be found: the cue check and the mixer say so
-        x = np.asarray(x, np.float64); items.append((float(e["t"]), str(e["sfx"]), v, x, hashlib.sha1(x.tobytes()).hexdigest()))
-    up = list(range(len(items)))
-    def top(k):
-        while up[k] != k: up[k] = up[up[k]]; k = up[k]
-        return k
-    first = {}
-    for k, it in enumerate(items):   # byte-identical: one group per render
-        if it[4] in first: up[top(k)] = top(first[it[4]])
-        else: first[it[4]] = k
-    for a in range(len(items)):
-        for b in range(a + 1, len(items)):
-            A, B = items[a], items[b]
-            if top(a) == top(b) or (A[2] is not None and B[2] is not None and A[1] == B[1] and A[2] != B[2]): continue
-            if not .8 <= len(A[3]) / max(len(B[3]), 1) <= 1.25: continue
-            if alike(A[3], B[3]) > REPEAT_CORR: up[top(b)] = top(a)
-    groups = {}
-    for k in range(len(items)): groups.setdefault(top(k), []).append(k)
+        except SystemExit as ex: lost.append(f"{e.get('sfx')} at {float(e['t']):.2f} s ({str(ex).removeprefix('sfx: ')})"); continue
+        x = np.asarray(x, np.float64)
+        items.setdefault(fam(str(e["sfx"])), []).append((float(e["t"]), str(e["sfx"]), v, x, hashlib.sha1(x.tobytes()).hexdigest()))
     rows = []
-    for ks in sorted((g for g in groups.values() if len(g) >= REPEAT_MIN), key=lambda g: items[g[0]][0]):
-        names = sorted({items[k][1] for k in ks}); vs = {items[k][2] for k in ks}
-        how = "byte-identical" if len({items[k][4] for k in ks}) == 1 else "correlation > 0.98"
-        what = names[0] if len(names) == 1 else " / ".join(names)
-        ts = [f"{items[k][0]:.2f}" for k in ks]
-        rows.append(f"    {what}: {len(ks)} events sound the same ({how}" + (f", variant {vs.pop()}" if len(vs) == 1 and None not in vs else "")
-                    + ") at " + ", ".join(ts[:12]) + (f" … ({len(ts) - 12} more)" if len(ts) > 12 else "") + " s")
-        built = [n for n in names if n in sfx.LIB]
-        takes = ", ".join(sfx.SPEC[built[0]]["takes"]).replace("pitch, center", "pitch|center") if built else ""
-        if built:
-            rows.append("      → a built-in pinned to one variant (\"variant\": 0 is the plain sound): drop the pins or give each its own"
-                        + (f", and shape each to its move ({takes})" if takes else "") + f"; bin/vh sfx audition {built[0]}")
-        else: rows.append("      → a recorded sound repeats as it is: more takes, or a built-in, which varies per event")
-    n = len(rows) // 2
-    head = (f"SFX repetition — WARNING, not a failure: {n} sound(s) render the same {REPEAT_MIN}+ times in this mix (the ear hears the copy)"
-            if n else f"SFX repetition: no sound renders the same {REPEAT_MIN}+ times")
+    for f, its in items.items():
+        runs, cur = [], [0]
+        for k in range(1, len(its)):
+            A, B = its[k - 1], its[k]
+            same = A[4] == B[4] or (.8 <= len(A[3]) / max(len(B[3]), 1) <= 1.25 and alike(A[3], B[3]) > REPEAT_CORR)
+            if same: cur.append(k)
+            else: runs.append(cur); cur = [k]
+        runs.append(cur)
+        for ks in (r for r in runs if len(r) >= REPEAT_MIN):
+            names = sorted({its[k][1] for k in ks}); vs = {its[k][2] for k in ks}
+            how = "byte-identical" if len({its[k][4] for k in ks}) == 1 else "correlation > 0.98 over 150 Hz"
+            ts = [f"{its[k][0]:.2f}" for k in ks]
+            rows.append((its[ks[0]][0], f"    {' / '.join(names)}: {len(ks)} in a row sound the same ({how}"
+                         + (f", variant {vs.pop()}" if len(vs) == 1 and None not in vs else "") + ") at " + ", ".join(ts[:12])
+                         + (f" … ({len(ts) - 12} more)" if len(ts) > 12 else "") + " s"))
+            built = [n for n in names if n in sfx.LIB]
+            if built:
+                takes = ", ".join(sfx.SPEC[built[0]]["takes"]).replace("pitch, center", "pitch|center")
+                pinned = len(vs) == 1 and None not in vs
+                rows.append((its[ks[0]][0], ("      → one pinned variant (\"variant\": 0 is the plain sound): drop the pins or give each its own"
+                                              if pinned else "      → the variants of this sound are too close to tell apart")
+                             + (f"; shape each to its move ({takes})" if takes else "") + f"; bin/vh sfx audition {built[0]}"))
+            else: rows.append((its[ks[0]][0], "      → a recorded sound back to back: rotate a few takes (A B C), or use a built-in, which varies per event"))
+    rows = [r for _, r in sorted(rows, key=lambda r: r[0])]
+    n = sum(1 for r in rows if not r.startswith("      →"))
+    head = (f"SFX repetition — WARNING, not a failure: {n} run(s) of the same sound {REPEAT_MIN}+ times in a row (the ear hears the copy)"
+            if n else f"SFX repetition: no sound comes back the same {REPEAT_MIN}+ times in a row")
+    if lost: head += f"\n    not checked, {len(lost)} event(s) that could not be rendered: " + "; ".join(lost[:6]) + (" …" if len(lost) > 6 else "")
     return [head] + rows, n
 
 # ═════════════════════════════ qa mix: the level hierarchy (the mix report) ═════════════════════════════
@@ -518,10 +519,10 @@ def analyse(voice=None, music=None, sfx=None, mixed=None, events=(), timeline=No
     if event_levels_list is None:
         event_levels_list = []
         import sfx as sfxmod
-        evs = sorted(sfxmod.numbered(events), key=lambda e: e["t"])
+        evs = sorted(sfxmod.numbered(events), key=lambda e: e["t"]); lmc = {}
         for q, e in enumerate(evs):
             nxt = evs[q + 1]["t"] if q + 1 < len(evs) else e["t"] + 0.5
-            a, b = at(e["t"] - 0.03 - sfxmod.landmark_of(e)), at(min(e["t"] + 0.45, max(e["t"] + 0.06, nxt - 0.02)))
+            a, b = at(e["t"] - 0.03 - sfxmod.landmark_of(e, cache=lmc)), at(min(e["t"] + 0.45, max(e["t"] + 0.06, nxt - 0.02)))
             lv = mix.event_levels(S[a:b]) if b > a + 480 else None
             if lv: lv["at"] += a / SR
             event_levels_list.append((e, lv))

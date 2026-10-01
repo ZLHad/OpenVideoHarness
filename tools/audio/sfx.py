@@ -4,9 +4,10 @@ usage (via bin/vh sfx):
   python tools/audio/sfx.py lib <out_dir>                         the built-in library: 48 kHz mono WAVs, the plain variant 0
   python tools/audio/sfx.py place <events.json> <out.wav> [duration_s] [--lib DIR]   → 48 kHz STEREO track
                                                                   + <out>.events.json: levels, variants
-  python tools/audio/sfx.py audition <name|all> [n] [key=value …] [--out FILE.wav] [--png]
-       hear a family: n variants of one built-in (default 8), 0.6 s of silence between them, or `all`: the plain sound of
-       every built-in. key=value shapes each variant (dur=1.2 dir=down tone=0.5). Writes FILE.wav (default
+  python tools/audio/sfx.py audition <name|all> [n] [key=value …] [--walk] [--out FILE.wav] [--png]
+       hear a family: n variants of one built-in (default 8: the first event of n different films), 0.6 s of silence
+       between them; --walk: one film's n events of it in a row; `all`: the plain sound of every built-in. key=value
+       shapes each variant (dur=1.2 dir=down tone=0.5). Writes FILE.wav (default
        ./sfx-audition-<name>.wav), FILE.txt (one line per sound: its parameters, and what it measures: length, spectral
        centroid, sweep in octaves per second), FILE.json (the event list it placed, for bin/vh qa) and, with --png,
        FILE.png: a spectrogram with each sound labelled, for anyone who has to judge it without listening.
@@ -15,7 +16,7 @@ events.json: [{"t": 3.20, "sfx": "click", "gain_db": -6}, {"t": 7.95, "sfx": "wh
   bit depth or sample rate ffmpeg decodes; stereo files are folded to mono and treated as a point source).
   t is when the sound should LAND; each built-in sound's landmark (its perceptual hit) is aligned to t,
   so a whoosh peaks on the cut and a riser peaks on the drop (a shaped or varied swell: the middle of its loudest 50 ms;
-  swish_rev and tape end on t; shimmer starts on it).
+  swish_rev, tape and riser end on t, on their last sample; shimmer starts on it).
   pan  (optional, −1 left … 0 centre … 1 right): equal-power, normalised so centre = the mono level on both channels
        (events without pan are sample-identical to the old mono placement); hard left/right = +3 dB on that side, total
        power constant. Derive it from the sounding object's on-screen x: pan = 2 · x / width − 1 (clamp; soften × 0.7).
@@ -29,25 +30,35 @@ events.json: [{"t": 3.20, "sfx": "click", "gain_db": -6}, {"t": 7.95, "sfx": "wh
        the hint is wrong for the film, e.g. a gust that is the gag's action (detail) or the one thock that lands the hook
        (hero). `place` checks it and writes it into the sidecar.
 SHAPING A BUILT-IN TO ITS MOVE (optional; the transitions take all of these, typing dur and pitch, riser dur, pitch and
-  bright, the other gestures and hits pitch, the signals none: SPEC below; `sfx audition` to hear them)
+  bright, the other gestures and hits pitch, the signals none: SPEC below; `sfx audition` to hear them). Every tool that
+  renders an event (sfx place, bin/vh mix … events=, qa, audition) checks these and stops on a wrong one.
   dur     length in s: follow the transition (a 0.3 s slide gets a 0.3 s whoosh). Without pitch or center, a longer
           sound is also lower (−4 semitones per doubling): small, fast moves come out higher and airier, big, slow ones
           lower and fuller.
-  pitch   semitones from the sound's own centre; center: that centre in Hz instead (pitch then shifts from it).
-  dir     "up" (a rising sweep) or "down" (falling). swish_rev's is as heard; tape: down = a tape stop, up = a rewind.
+  pitch   semitones from the sound's own centre; center: that centre in Hz instead (pitch then shifts from it), within
+          the family's range (whoosh 350–5000, whip 600–8000, swoosh_tonal 150–3000, air 600–7000, paper 800–9000, tape
+          55–880, shimmer 440–4000); where pitch and a variant would take it past the range, it stops at the edge.
+  dir     "up" (a rising sweep) or "down" (falling), either case. swish_rev's is as heard; tape: down = a stop, up = a rewind.
   bright  −1 … 1: darker (a 1.5 kHz low-pass blended in, all of it at −1) … brighter (up to +6 dB above 3 kHz).
   tone    0 … 1: pure air … a pitched, resonant layer that follows the sweep.
-VARIANTS: an event of a varying built-in that pins no "variant" gets its own, 1 … 99999, from a stable hash of (name,
-  onset in ms, how many events of that name come before it in the list). Every whoosh in a film differs, films differ
-  from each other, and the same events.json renders the same bytes. A variant moves only what the event leaves out,
-  within a range that keeps the family: the transitions' length (±25 %), pitch (±3 semitones, and lower when longer),
-  where the peak sits, how far the sweep travels, brightness, tone and level (±1.5 dB); the gestures' pitch (≤ ±1.5
-  semitones), length and level; impact and boom only their decay and level; riser its pitch, brightness and level.
-  Variant 0 is the plain sound, what `sfx lib` writes and every film had before variants. ding, success, error and
-  toggle are signals and never vary: a viewer learns what they mean. Inserting an earlier event of the same name
-  re-rolls the later ones: pin "variant": n (the sidecar lists each event's) to keep one you like.
-  A --lib WAV that is byte for byte what `sfx lib` writes for its name is that built-in and varies the same way; any
-  other WAV (your own, under a built-in's name or not) is used as recorded, and takes no variant or shaping.
+VARIANTS: an event of a varying built-in that pins no "variant" gets one from its film's walk for that sound. The film's
+  salt is which sounds the event list uses and how often ("click×6 pop×3 whoosh×5"), not when; the walk starts at a
+  base from (name, salt) and takes one step per event of that sound in time order, so the variant is base · 1000 + step
+  (e.g. 4821003: base 4821, the 4th whoosh). A step moves each dimension 25–60 % of its half-range, mostly the way it
+  moved last time, and turns back at the ends: consecutive whooshes are never the same and never far apart, and over a
+  film the gesture drifts, like one hand. Films differ from each other, and the same events.json renders the same
+  bytes. Retiming events re-rolls nothing unless two of one sound swap order; adding or removing an event re-rolls the
+  film's unpinned events. Pin "variant": n (the sidecar lists each event's) to keep one wherever it moves.
+  A variant moves only what the event leaves out, within a range that keeps the family: the transitions' length (±25 %),
+  pitch (±3 semitones, and lower when longer), where the peak sits, how far the sweep travels, brightness, tone and level
+  (±1.5 dB); the gestures' pitch (≤ ±1.5 semitones), length and level; impact and boom their attack (the crack's band,
+  decay and level, the body's delay), decay and level, never the body's pitch; riser its pitch, brightness and level.
+  Variant 0 is the plain sound, what `sfx lib` writes. ding, success, error and toggle are signals and never vary: a
+  viewer learns what they mean.
+  --lib: `sfx lib` also writes sfx-lib.json (each WAV's built-in name and sha256). A listed WAV with its hash unchanged is
+  that built-in and varies like it; any other WAV (your own, under a built-in's name or not) is used as recorded and
+  takes no variant or shaping, and a listed WAV that changed is named on stderr. A folder without the manifest (an older
+  `sfx lib`) falls back to comparing bytes with today's plain sound, with a note.
 The sidecar <out>.events.json lists, per event: its class and why, where it starts, the variant and shape it got, and
   its own level as placed: fast (loudest 100 ms, K-weighted LUFS), m400 (loudest 400 ms), tp (true peak, dBTP), len
   (s within 20 dB of fast), lf (share of its energy under 150 Hz: above 0.6 a phone or laptop speaker barely plays it).
@@ -63,9 +74,9 @@ Built-ins (all original, deterministic and license-free: MIT, part of this repo,
   gestures     click tick pop typing shutter glitch     builds and hits  riser impact boom
   signals      ding success error toggle
 Each built-in draws from its own random stream, seeded by its name and variant, so the same event gives the same
-samples whatever else was rendered first. A shaped or varied sound is levelled to its plain one and scaled to a 0.9
-peak or under, so the soft knee leaves it alone; the plain ones are as they always were (the noisy ones bend a few
-samples through the knee over 0.9).
+samples whatever else was rendered first. A shaped or varied sound is levelled to the loudest 50 ms of its plain one
+(± the variant's level) and goes through the same soft knee over 0.9 as the plain one. impact, boom, ding, success and
+glitch end in a 50 ms raised-cosine fade, riser in 4 ms, tape in 10 ms (their tails used to stop dead and click).
 """
 import json, subprocess, sys, wave, zlib
 from pathlib import Path
@@ -104,6 +115,10 @@ def osc(fc, partials=((1, 1.0),)):
     ph = 2 * np.pi * np.cumsum(fc) / SR
     return sum(a * np.sin(h * ph) * (h * fc < SR * .45) for h, a in partials)
 def fl(p): return (1.0, 1.0) if p is None else (p["f"], p["len"])   # frequency and length factors (1.0 = the plain sound)
+def tail(y, s=.05):
+    """a raised-cosine fade over the last s seconds: a body or a bell cut off mid-ring ended in a click (qa: up to 1593×)"""
+    m = min(len(y), int(s * SR)); y = np.array(y, dtype=np.float64); y[len(y) - m:] *= .5 + .5 * np.cos(np.pi * np.arange(m) / m)
+    return y
 
 # ── gestures, hits and signals. With p None or plain (factors of exactly 1.0) each is sample for sample the old sound.
 def click(p=None):
@@ -112,7 +127,8 @@ def click(p=None):
 def tick(p=None):
     f, L = fl(p); t = T(.02 * L); x = np.sin(2*np.pi*3200*f*t) * np.exp(-t / (.003 * L)) * .45
     if p is not None and p["variant"]:   # a faint inharmonic partial (1.7–2.7×, 0–24 %): wood or metal; 3 ms of sine alone barely differs
-        x = x + np.sin(2*np.pi*3200*f*(2.2 + .5 * p["x"][0])*t) * np.exp(-t / (.002 * L)) * .45 * .12 * (1 + p["x"][1])
+        fp = 3200 * f * (2.2 + .5 * p["x"][0])
+        if fp < SR * .45: x = x + np.sin(2*np.pi*fp*t) * np.exp(-t / (.002 * L)) * .45 * .12 * (1 + p["x"][1])
     return x
 def pop(p=None):     f, L = fl(p); t = T(.12 * L); return tone(900 * f * np.exp(-t / (.02 * L)) + 250 * f, t) * np.exp(-t / (.03 * L)) * .6
 def toggle(p=None):  t = T(.09); return tone(np.where(t < .03, 1300, 1900), t) * np.exp(-t / .03) * .35
@@ -149,25 +165,35 @@ def swish_rev(p): return whoosh(dict(p, dir="down" if p["dir"] == "up" else "up"
 def riser(p=None):
     f = 1.0 if p is None else p["f"]; d = 2.0 if p is None else p["dur"]
     t = T(d); k = t / d
-    return hp(noise(d), 500 * f) * k ** 2.2 * .3 + tone(300 * f + 2400 * f * k ** 2, t) * k ** 3 * .15
-def crack(d=.05, tau=.005, peak=.8):
+    return tail(hp(noise(d), 500 * f) * k ** 2.2 * .3 + tone(300 * f + 2400 * f * k ** 2, t) * k ** 3 * .15, .004)
+def crack(d=.05, tau=.005, peak=.8, band=(1000, 4000)):
     """a 1–4 kHz attack: the part of a hit that phone and laptop speakers actually play"""
-    t = T(d); x = sosfilt(butter(4, [1000 / (SR / 2), 4000 / (SR / 2)], "band", output="sos"), noise(d)) * np.exp(-t / tau)
+    t = T(d); x = sosfilt(butter(4, [band[0] / (SR / 2), band[1] / (SR / 2)], "band", output="sos"), noise(d)) * np.exp(-t / tau)
     return x / np.abs(x).max() * peak
-def hit(body, delay=.002, fade=.01, peak=.95):
+def attack(p):
+    """a hit's attack for p: the plain one (1–4 kHz crack, 5 ms decay, the body 2 ms behind), or a variant's: the crack's
+    band ±0.6 octave, its decay ×0.6–1.6, its level ±2.5 dB and the body 1–3 ms behind. The body's pitch stays put: a
+    moved 40 Hz body beat against a score's bass (a 7 dB "pump" in one swatch); the attack is what a phone plays."""
+    if p is None or not p["variant"]: return dict(crack=dict(), delay=.002)
+    x = p["x"]; b = 2 ** (.6 * x[0])
+    return dict(crack=dict(tau=.005 * 1.6 ** x[1], peak=.8 * 10 ** (2.5 * x[2] / 20), band=(1000 * b, 4000 * b)), delay=.002 + .001 * x[3])
+def hit(body, delay=.002, fade=.01, peak=.95, **ck):
     """a crack on t, the body 2 ms behind it and faded in over 10 ms, the sum at most a 0.95 peak. Without the crack,
     impact and boom had 98–100 % of their energy under 150 Hz: a thump on headphones, next to nothing on a phone."""
     x = np.zeros(len(body)); i = int(delay * SR)
     x[i:] = (body * np.minimum(1, np.arange(len(body)) / SR / fade))[:len(body) - i]
-    c = crack(); x[:len(c)] += c
+    c = crack(**ck); x[:len(c)] += c
     return x * min(1.0, peak / np.abs(x).max())
 def impact(p=None):
-    f, L = fl(p); t = T(1.6)
-    return hit(tone(40 * f + 90 * f * np.exp(-t / (.05 * L)), t) * np.exp(-t / (.6 * L)) * .9 + lp(noise(1.6), 1200 * f) * np.exp(-t / (.2 * L)) * .35)
-def boom(p=None):    f, L = fl(p); t = T(2.4); return hit(tone(34 * f + 40 * f * np.exp(-t / (.1 * L)), t) * np.exp(-t / (1.0 * L)) * .95)
+    f, L = fl(p); t = T(1.6); a = attack(p); n = 1200 * f * (1 if p is None or not p["variant"] else 2 ** (.5 * p["x"][4]))
+    return tail(hit(tone(40 * f + 90 * f * np.exp(-t / (.05 * L)), t) * np.exp(-t / (.6 * L)) * .9 + lp(noise(1.6), n) * np.exp(-t / (.2 * L)) * .35,
+                    a["delay"], **a["crack"]))
+def boom(p=None):
+    f, L = fl(p); t = T(2.4); a = attack(p)
+    return tail(hit(tone(34 * f + 40 * f * np.exp(-t / (.1 * L)), t) * np.exp(-t / (1.0 * L)) * .95, a["delay"], **a["crack"]))
 def ding(p=None):
     t = T(1.2); x = sum(a * np.sin(2*np.pi*f*t) * np.exp(-t / d) for f, a, d in [(1318, .5, .5), (2637, .2, .25), (3951, .08, .12)])
-    return x * np.minimum(1, t / .002) * .6
+    return tail(x * np.minimum(1, t / .002) * .6)   # (success's two dings get the fade too: the first one was cut at 1.2 s)
 def success(p=None):
     out = np.zeros(int(1.3 * SR)); a, b = ding() * .7, ding() * .8
     b = np.interp(np.arange(len(b)) * 1.335, np.arange(len(b)), b)  # up a fourth
@@ -181,7 +207,7 @@ def glitch(p=None):
     t = T(.25); x = np.sign(np.sin(2*np.pi*(rng.choice([80, 160, 640, 1280], len(t) // 600 + 1) * f).repeat(600)[: len(t)] * t))
     g = rng.random(len(t) // 480 + 1) > .35
     if p is not None and p["variant"]: g[0] = True   # a variant's first 10 ms always sound: it starts on t, as the plain one does
-    return x * g.repeat(480)[: len(t)] * .25 * np.exp(-t / .2)
+    return tail(x * g.repeat(480)[: len(t)] * .25 * np.exp(-t / .2))
 def shutter(p=None):
     f, L = fl(p); t = T(.18)
     x = hp(noise(.18), 1500 * f) * (np.exp(-t / .01) + .6 * np.exp(-np.maximum(t - .07 * L, 0) / .012) * (t > .07 * L)); return x * .45
@@ -203,12 +229,14 @@ def swoosh_tonal(p):
     y = p["tone"] * nrm(voice) + (1 - p["tone"]) * nb(np.clip(f0 * 2, 100, 14000), .5 * c)
     return lp(y, 7000) * swell(x, p["peak"], 1.4, 1.0)
 def air(p):
-    """soft noise whose low-pass opens (up) or closes (down) over ~1.2 octaves, a slow swell, a faint breath formant"""
-    d = p["dur"]; t = T(d); x = t / d; s = x if p["dir"] == "up" else 1 - x
-    c = 1100 * p["f"]; sp = 1.2 + p["span"]; n = hp(noise(d), 90)
-    y = sum(np.clip(1 - np.abs(2 * s - k), 0, 1) * lp(lp(n, c * 2 ** (sp * (k / 2 - .5))), c * 2 ** (sp * (k / 2 - .5))) for k in range(3))
-    y = nrm(y)
-    if p["tone"] > 0: y = (1 - .6 * p["tone"]) * y + p["tone"] * nb(np.clip(sweep(c * .8, sp * .5, s), 80, 8000), 220)
+    """breath through a soft band: noise over a gentle high-pass at c/5, under a 12 dB/octave low-pass that opens (up) or
+    closes (down) over ~1.4 octaves around c, a whisper of hiss over 5 kHz, a breath formant (tone) that the variant
+    moves; a slow swell. Brighter and more various than its first version (52 % of variant pairs alike, all under 4 kHz)"""
+    d = p["dur"]; t = T(d); x = t / d; s = x if p["dir"] == "up" else 1 - x; xx = p["x"]
+    c = 2400 * p["f"]; sp = 1.4 + p["span"]; n = hp(noise(d), max(80.0, c / 5 * 2 ** (.8 * xx[2])))
+    y = sum(np.clip(1 - np.abs(2 * s - k), 0, 1) * lp(n, c * 2 ** (sp * (k / 2 - .5))) for k in range(3))
+    y = nrm(y) + (.18 + .1 * xx[1]) * nrm(hp(n, 5000)) * (.4 + .6 * s)
+    if p["tone"] > 0: y = (1 - .6 * p["tone"]) * nrm(y) + p["tone"] * nb(np.clip(sweep(c * .6 * 2 ** (.9 * xx[0]), sp * .5, s), 120, 9000), 260)
     return y * swell(x, p["peak"], 1.6, 1.3)
 def paper(p):
     """a hiss band sliding up or down half an octave each way, grained by sparse 2 ms bumps (the fibres), with a soft
@@ -216,14 +244,15 @@ def paper(p):
     d = p["dur"]; t = T(d); x = t / d; s = x if p["dir"] == "up" else 1 - x; n = len(t)
     c = 3000 * p["f"]; sp = .8 + p["span"]; src = noise(d)
     band = lambda f: sosfilt(butter(4, [f / 1.8 / (SR / 2), min(f * 1.8, SR * .45) / (SR / 2)], "band", output="sos"), src)
-    a, b = (c * 2 ** (sp * h) for h in (-.5, .5))
+    a, b = (float(np.clip(c * 2 ** (sp * h), 200, SR * .45 / 1.9)) for h in (-.5, .5))   # a band's low edge under its high one
     slide = (1 - s) * band(a) + s * band(b)
     g = lp((rng.random(n) < 420 / SR) * rng.uniform(.25, 1, n), 260); g = g / max(np.abs(g).max(), 1e-12)
     y = nrm(slide) * (.55 + 1.2 * np.abs(g)) * swell(x, p["peak"], .7, 1.6)
     if p["tone"] > 0:
         m = int(.06 * SR); tt = np.arange(m) / SR; i = min(n - 1, int(p["peak"] * n))
         th = bp(rng.standard_normal(m), 280, 1400) * np.exp(-tt / .014) * np.minimum(1, tt / .002)
-        th = th[: n - i]; y[i:i + len(th)] += p["tone"] * th / max(np.abs(th).max(), 1e-12) * np.abs(y).max() * .8
+        y = np.pad(y, (0, max(0, i + m - n)))   # a short sheet: the landing rings past its end, not cut off
+        y[i:i + m] += p["tone"] * th / max(np.abs(th).max(), 1e-12) * np.abs(y).max() * .8
     return lp(y, 11000)
 def tape(p):
     """a root, fifth and octave (8 harmonics each, a moving low-pass) whose speed sinks to nothing (down: a tape stop) or
@@ -242,7 +271,8 @@ def tape(p):
         for h in range(1, 9):
             fh = f0 * r * h; y += a0 / h / np.sqrt(1 + (fh / cut) ** 4) * (fh < SR * .45) * np.sin(h * ph)
     hiss = lp(hp(noise(d), 1500), 9000) * sp ** 1.5
-    return (p["tone"] * nrm(y) + (1 - p["tone"]) * nrm(hiss)) * amp
+    y = sosfilt(butter(2, 22 / (SR / 2), "high", output="sos"), (p["tone"] * nrm(y) + (1 - p["tone"]) * nrm(hiss)) * amp)
+    return tail(y, .01)   # the last cycles of a stop sink under 20 Hz: high-passed (no DC or infrasound), then a 10 ms end
 PENTA = (0, 2, 4, 7, 9)
 def shimmer(p):
     """8–14 glassy grains (a sine and a quieter partial at 2.76×) on a major pentatonic over three octaves around A6,
@@ -276,21 +306,21 @@ SHAPE = TRANS                          # every shaping key there is
 #   octaves of sweep, bright and tone absolute, level in dB, q (band width) in octaves (2^±). vpeak: where a variant's peak
 #   centres; couple: a longer dur is also lower (COUPLE)
 SPEC = {
-    "whoosh":       dict(takes=TRANS, dur=.7, center=1414, dir="up", tone=0, peak=.5, couple=1,
+    "whoosh":       dict(takes=TRANS, dur=.7, center=1414, crange=(350, 5000), dir="up", tone=0, peak=.5, couple=1,
                          jitter=dict(dur=.32, pitch=3, peak=.15, span=.6, bright=.35, tone=.25, level=1.5, q=.5)),
-    "swish_rev":    dict(takes=TRANS, dur=.5, center=1414, dir="down", tone=0, peak=.5, vpeak=.25, couple=1,
+    "swish_rev":    dict(takes=TRANS, dur=.5, center=1414, crange=(350, 5000), dir="down", tone=0, peak=.5, vpeak=.25, couple=1,
                          jitter=dict(dur=.3, pitch=3, peak=.08, span=.6, bright=.35, tone=.25, level=1.5, q=.5)),
-    "whip":         dict(takes=TRANS, dur=.22, center=2400, dir="down", tone=.15, peak=.3, couple=1,
+    "whip":         dict(takes=TRANS, dur=.22, center=2400, crange=(600, 8000), dir="down", tone=.15, peak=.3, couple=1,
                          jitter=dict(dur=.3, pitch=3, peak=.08, span=.5, bright=.3, tone=.15, level=1.5)),
-    "swoosh_tonal": dict(takes=TRANS, dur=.6, center=700, dir="up", tone=.75, peak=.6, couple=1,
+    "swoosh_tonal": dict(takes=TRANS, dur=.6, center=700, crange=(150, 3000), dir="up", tone=.75, peak=.6, couple=1,
                          jitter=dict(dur=.3, pitch=3, peak=.1, span=.5, bright=.3, tone=.15, level=1.5)),
-    "air":          dict(takes=TRANS, dur=.9, center=1100, dir="up", tone=.1, peak=.55, couple=1,
-                         jitter=dict(dur=.3, pitch=3, peak=.1, span=.4, bright=.3, tone=.1, level=1.5)),
-    "paper":        dict(takes=TRANS, dur=.35, center=3000, dir="up", tone=.3, peak=.55, couple=1,
+    "air":          dict(takes=TRANS, dur=.9, center=2400, crange=(600, 7000), dir="up", tone=.25, peak=.55, couple=1,
+                         jitter=dict(dur=.35, pitch=5, peak=.12, span=.7, bright=.5, tone=.2, level=1.5)),
+    "paper":        dict(takes=TRANS, dur=.35, center=3000, crange=(800, 9000), dir="up", tone=.3, peak=.55, couple=1,
                          jitter=dict(dur=.3, pitch=2, peak=.1, span=.4, bright=.3, tone=.2, level=1.5)),
-    "tape":         dict(takes=TRANS, dur=.6, center=220, dir="down", tone=.7, peak=.96,
+    "tape":         dict(takes=TRANS, dur=.6, center=220, crange=(55, 880), dir="down", tone=.7, peak=1.0,
                          jitter=dict(dur=.25, pitch=3, span=.3, bright=.25, tone=.15, level=1.5)),
-    "shimmer":      dict(takes=TRANS, dur=.9, center=1760, dir="up", tone=.8, peak=0.0,    # no pitch jitter: it stays in its key
+    "shimmer":      dict(takes=TRANS, dur=.9, center=1760, crange=(440, 4000), dir="up", tone=.8, peak=0.0,   # no pitch jitter: in key
                          jitter=dict(dur=.25, span=.3, bright=.3, tone=.1, level=1.5)),
     "click":   dict(takes=("pitch",), jitter=dict(pitch=1, len=.2, level=1.5)),
     "tick":    dict(takes=("pitch",), jitter=dict(pitch=1.5, len=.25, level=1.2)),
@@ -306,7 +336,7 @@ SPEC = {
 FIXED = tuple(n for n, s in SPEC.items() if not s.get("jitter"))          # the signals: one sound each
 SWELLS = ("whoosh", "swish_rev", "riser", "whip", "swoosh_tonal", "air", "paper", "tape")   # no onset on t (a peak or an
                                                                           # end): bin/vh qa's cue check skips them
-TARGET = {"whip": -13.0, "swoosh_tonal": -14.0, "air": -17.0, "paper": -16.5, "tape": -14.0, "shimmer": -15.0}
+TARGET = {"whip": -13.0, "swoosh_tonal": -14.0, "air": -15.0, "paper": -16.5, "tape": -14.0, "shimmer": -15.0}
 # ↑ loudest 50 ms RMS (dBFS) of the new transitions' plain sounds, near the plain whoosh's −12.4 (air softer, as it is
 #   meant to be); the old built-ins are levelled to their own plain sound
 COUPLE = 4.0                            # semitones lower per doubling of dur, when the event gives no pitch or center
@@ -325,30 +355,55 @@ DESCRIBE = {
     "tape": "a tape stop (down) or rewind (up) that ends on t: retro, VHS", "shimmer": "a pentatonic glass sparkle from t: reveals",
 }
 
-def ujit(name, v):
-    """the variant's uniforms in −1…1 (12 of them, fixed order), from their own stream: variant 0 is all zeros"""
-    return np.zeros(12) if not v else np.random.default_rng([5, zlib.crc32(name.encode()), int(v)]).uniform(-1, 1, 12)
+STEP = (.25, .6)   # a walk's step: every dimension moves 0.25–0.6 of its half-range, reflected at the ends
+KEEP = .7          # … in the direction it moved last time, with this probability
+NJ = 16           # uniforms per variant: 9 named dimensions (below) and 7 extras ("x") a sound may use
 
-def derived(name, t, occ):
-    """the variant of an event that pins none: a stable hash of (name, onset in ms, its occurrence of that name)"""
-    return 1 + zlib.crc32(f"{name}|{int(round(float(t) * 1000))}|{int(occ)}".encode()) % 99999
+def ujit(name, v):
+    """a variant's uniforms in −1…1 (NJ, fixed order); variant 0 is all zeros. A variant is base · 1000 + step: the start
+    of the walk (base, from its own stream) and that many steps along it, so variants n and n + 1 are neighbours, never
+    the same and never far apart, and pinning a number gives that sound back wherever it sits"""
+    if not v: return np.zeros(NJ)
+    base, k = divmod(int(v), 1000); r = np.random.default_rng([5, zlib.crc32(name.encode()), base])
+    u = r.uniform(-1, 1, NJ); way = r.choice([-1.0, 1.0], NJ)
+    for _ in range(k):   # each dimension keeps its direction with p = KEEP (a drift, not a zig-zag), turning back at the ends
+        way = np.where(r.random(NJ) < KEEP, way, -way); u = u + r.uniform(*STEP, NJ) * way
+        way = np.where(np.abs(u) > 1, -way, way); u = np.where(u > 1, 2 - u, np.where(u < -1, -2 - u, u))
+    return u
+
+def salt(events):
+    """the film's fingerprint for the variants: which sounds it uses and how often ("click×6 pop×3 whoosh×5"), not when.
+    Retiming an event never re-rolls anything; adding or removing one re-rolls the unpinned events of the film."""
+    c = {}
+    for e in events: c[str(e.get("sfx"))] = c.get(str(e.get("sfx")), 0) + 1
+    return zlib.crc32(" ".join(f"{k}×{c[k]}" for k in sorted(c)).encode())
+
+def derived(name, salt_, occ):
+    """the variant of an event that pins none: the film's walk for this sound (base from the name and the film's salt),
+    `occ` steps along it, occ = how many events of this sound come before it in time"""
+    return (1 + zlib.crc32(f"{name}|{salt_}".encode()) % 9999) * 1000 + min(int(occ), 999)
 
 def check(e, k=None):
-    """the event's shaping fields are of the right kind and in range (whether the sound takes them: event_sound)"""
-    where = f"event {k} ({e.get('sfx')} at t={e.get('t')})" if k is not None else f"{e.get('sfx')}"
+    """the event's shaping fields are of the right kind and in range (whether the sound takes them: resolve)"""
+    name = e.get("sfx"); where = f"event {k} ({name} at t={e.get('t')})" if k is not None else f"{name}" + (f" at t={e['t']}" if "t" in e else "")
     for key, (lo, hi) in RANGE.items():
         if key in e:
             v = e[key]
             if isinstance(v, bool) or not isinstance(v, (int, float)) or not lo <= v <= hi:
                 sys.exit(f"sfx: {where}: {key} {v!r} must be a number in {lo} … {hi}")
-    if "dir" in e and e["dir"] not in ("up", "down"): sys.exit(f"sfx: {where}: dir {e['dir']!r} must be \"up\" or \"down\"")
+    if "dir" in e and str(e["dir"]).lower() not in ("up", "down"): sys.exit(f"sfx: {where}: dir {e['dir']!r} must be \"up\" or \"down\"")
     if "variant" in e and (isinstance(e["variant"], bool) or not isinstance(e["variant"], int) or e["variant"] < 0):
         sys.exit(f"sfx: {where}: variant {e['variant']!r} must be a whole number ≥ 0")
+    if "center" in e and name in SPEC and "crange" in SPEC[name]:
+        lo, hi = SPEC[name]["crange"]
+        if not lo <= e["center"] <= hi: sys.exit(f"sfx: {where}: center {e['center']!r} must be in {lo} … {hi} Hz for {name}")
 
 def resolve(name, e=None, occ=0):
     """a built-in's parameters for one event → p: the variant (pinned, else derived; None for a signal), the shaping the
-    event gives, and the rest from the variant's jitter around the defaults. p["plain"]: variant 0 with no shaping."""
+    event gives, and the rest from the variant's jitter around the defaults. p["plain"]: variant 0 with no shaping.
+    Checks the event first (bin/vh mix, sfx place, qa and audition all come through here)."""
     S, e = SPEC[name], (e or {}); J = S.get("jitter", {}); takes = S["takes"]
+    check(dict(e, sfx=name))
     given = {k: e[k] for k in SHAPE if k in e}
     bad = [k for k in given if k not in takes] + (["variant"] if not J and e.get("variant", 0) != 0 else [])
     if bad:
@@ -356,19 +411,20 @@ def resolve(name, e=None, occ=0):
         sys.exit(f"sfx: {where}: {name} takes no {', '.join(bad)}" + (f" (it takes {', '.join(takes)}{', variant' if J else ''})" if takes or J else
                  " (a signal: one fixed sound, so a viewer learns what it means)"))
     # no event (sfx lib, a --lib check): the plain sound; an event that pins none: derived from where it sits
-    v = None if not J else int(e["variant"]) if "variant" in e else derived(name, e["t"], occ) if "t" in e else 0
+    v = None if not J else int(e["variant"]) if "variant" in e else derived(name, e.get("_salt", 0), occ) if "t" in e else 0
     u = ujit(name, v); j = lambda k, i: float(J[k] * u[i]) if k in J and v else 0.0
     d0 = S.get("dur", 1.0); dur = float(given["dur"]) if "dur" in given else d0 * 2 ** j("dur", 0)
     if "pitch" in given or "center" in given: pitch = float(given.get("pitch", 0.0))
     else: pitch = j("pitch", 1) - (COUPLE * np.log2(dur / d0) if S.get("couple") else 0.0)
-    c0 = S.get("center", 1.0); center = float(given.get("center", c0))
+    c0 = S.get("center", 1.0); center = float(given.get("center", c0)); lo, hi = S.get("crange", (0, np.inf))
+    eff = float(np.clip(center * 2 ** (pitch / 12), lo, hi)) if "crange" in S else center * 2 ** (pitch / 12)   # held in the family's range
     peak = S.get("peak", .5)
     if v and "peak" in J: peak = float(np.clip(S.get("vpeak", peak) + j("peak", 2), .1, .9))
-    p = {"name": name, "variant": v, "plain": not v and not given, "dur": dur, "pitch": pitch, "f": center / c0 * 2 ** (pitch / 12),
-         "center": center * 2 ** (pitch / 12), "dir": given.get("dir", S.get("dir", "up")),
+    p = {"name": name, "variant": v, "plain": not v and not given, "dur": dur, "pitch": pitch, "f": eff / c0,
+         "center": eff, "dir": str(given.get("dir", S.get("dir", "up"))).lower(),
          "bright": float(given["bright"]) if "bright" in given else (j("bright", 4) if "bright" in J else 0.0),
          "tone": float(given["tone"]) if "tone" in given else float(np.clip(S.get("tone", 0) + j("tone", 5), 0, 1)),
-         "peak": peak, "span": j("span", 3), "level": j("level", 6), "len": 2 ** j("len", 7), "q": 2 ** j("q", 8), "x": list(u[9:])}
+         "peak": peak, "span": j("span", 3), "level": j("level", 6), "len": 2 ** j("len", 7), "q": 2 ** j("q", 8), "x": list(u[9:]) if v else [0.0] * (NJ - 9)}
     p["warp"] = 1.0 if peak == .5 else float(np.log(.5) / np.log(peak)) if 0 < peak < 1 else 1.0
     return p
 
@@ -377,7 +433,8 @@ PEAKED = ("whoosh", "whip", "swoosh_tonal", "air", "paper")   # a swell whose hi
 def landmark(name, p, x=None):
     """seconds from the start of the built-in to its hit, for these parameters. A swell (PEAKED) with its samples x lands
     on the middle of its loudest 50 ms, except the plain whoosh, which keeps its 0.35 s (the middle of its envelope, about
-    a frame before its loudest 50 ms) so a plain whoosh is placed where it always was. swish_rev, tape and riser end on t."""
+    a frame before its loudest 50 ms) so a plain whoosh is placed where it always was. swish_rev, tape and riser end on t
+    (tape: its last sample; a rewind's last 6 ms fade), shimmer and the gestures start on it."""
     if name in PEAKED and x is not None and not (p["plain"] and name in LANDMARK):
         w = int(.05 * SR); c = np.concatenate([[0.0], np.cumsum(np.asarray(x, np.float64) ** 2)])
         return (int(np.argmax(c[w:] - c[:-w])) + w / 2) / SR if len(x) > w else len(x) / 2 / SR
@@ -386,13 +443,11 @@ def landmark(name, p, x=None):
     if name == "tape": return p["peak"] * p["dur"]
     return LANDMARK.get(name, 0.0)
 
-def landmark_of(e, occ=None):
-    """an event's landmark without rendering it (a built-in by its parameters; anything else by name, LANDMARK)"""
-    name = e.get("sfx")
-    if name in LIB:
-        try: return landmark(name, resolve(name, e, e.get("_occ", 0) if occ is None else occ))
-        except SystemExit: pass
-    return LANDMARK.get(name, 0.0)
+def landmark_of(e, occ=None, lib_dir=None, root=None, cache=None):
+    """an event's landmark as it is placed (a built-in is rendered: a swell lands on its loudest 50 ms); a sound that cannot
+    be found: LANDMARK by name"""
+    try: return event_sound(e, occ, lib_dir, root, cache)[1]
+    except SystemExit: return LANDMARK.get(e.get("sfx"), 0.0)
 
 def shape(p):
     """the resolved parameters worth reading in a sidecar or an audition line"""
@@ -432,17 +487,16 @@ def ref_level(name):
     return _REF[name]
 
 def render(name, p):
-    """a built-in for resolved parameters p → mono float. The plain sounds are what they always were (with the soft knee);
-    a shaped or varied one gets its brightness, is levelled to the plain one (± the variant's level) and kept under 0.9."""
+    """a built-in for resolved parameters p → mono float. A plain sound goes through the soft knee over 0.9; a shaped or
+    varied one gets its brightness, is levelled to the loudest 50 ms of the plain one (± the variant's level: TARGET for the
+    new transitions) and goes through the same knee. (A hard 0.9 cap cost peaky variants 1–6 dB: click, shutter, riser.)"""
     ref = None if p["plain"] and name not in TARGET else ref_level(name)
     global rng
     rng = np.random.default_rng([11, zlib.crc32(name.encode())] + ([p["variant"]] if p["variant"] else []))
     y = LIB[name](p)
     if ref is None: return knee(y)
     if p["bright"]: y = tilt(y, p["bright"])
-    y = y * ref / max(loud50(y), 1e-12) * 10 ** (p["level"] / 20)
-    pk = float(np.abs(y).max()) if len(y) else 0.0
-    return y * (.9 / pk) if pk > .9 else y
+    return knee(y * ref / max(loud50(y), 1e-12) * 10 ** (p["level"] / 20))
 
 def builtin(name):
     """the plain built-in (variant 0), as `sfx lib` writes it"""
@@ -474,23 +528,50 @@ def read(path):  # → mono float at SR via ffmpeg (as qa.py loads): any bit dep
                          capture_output=True, check=True).stdout
     return np.frombuffer(raw, "<f4").reshape(-1, int(ch)).mean(1, dtype=np.float64)
 
-_PLAIN_BYTES, _IS_PLAIN = {}, {}
+MANIFEST = "sfx-lib.json"   # written by `sfx lib`: which WAV in the folder is which built-in, and its sha256
+_NOTED, _MAN, _PLAIN_BYTES, _IS_PLAIN = set(), {}, {}, {}
+def note_once(msg):
+    if msg not in _NOTED: _NOTED.add(msg); print(f"sfx: {msg}", file=sys.stderr)
+
+def sha256(path):
+    import hashlib
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+def manifest(lib_dir):
+    """the folder's sfx-lib.json as {name: sha256}, or None when there is none"""
+    key = str(Path(lib_dir).resolve())
+    if key not in _MAN:
+        f = Path(lib_dir) / MANIFEST
+        try: _MAN[key] = {k: v["sha256"] for k, v in json.loads(f.read_text())["sounds"].items()} if f.exists() else None
+        except (ValueError, KeyError, TypeError, AttributeError): note_once(f"{f} is not a manifest `sfx lib` wrote: ignored"); _MAN[key] = None
+    return _MAN[key]
+
 def is_lib_copy(path, name):
-    """is this WAV exactly what `sfx lib` writes for the built-in `name` (so it is that built-in, and may vary)?"""
+    """is this --lib WAV the built-in `name` as `sfx lib` wrote it (so it may vary and take shaping)? By the folder's
+    sfx-lib.json (listed, same sha256); a folder without one (an older `sfx lib`): by comparing its bytes with what `sfx lib`
+    would write now, with a note. Never silent: a listed WAV that changed is named."""
     key = (str(Path(path).resolve()), name)
-    if key not in _IS_PLAIN:
+    if key in _IS_PLAIN: return _IS_PLAIN[key]
+    m = manifest(Path(path).parent)
+    if m is not None:
+        same = name in m and sha256(path) == m[name]
+        if name in m and not same:
+            note_once(f"{path} changed since `sfx lib` wrote it ({MANIFEST}): used as a recording, without variants or shaping")
+    else:
+        note_once(f"{Path(path).parent} has no {MANIFEST}: its WAVs count as built-ins only where they match today's byte for byte "
+                  f"(`bin/vh sfx lib {Path(path).parent}` writes the manifest)")
         if name not in _PLAIN_BYTES: _PLAIN_BYTES[name] = (np.clip(builtin(name), -1, 1) * 32767).astype("<i2").tobytes()
         try:
             with wave.open(str(path), "rb") as w:
                 same = (w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()) == (1, 2, SR, len(_PLAIN_BYTES[name]) // 2) \
                        and w.readframes(w.getnframes()) == _PLAIN_BYTES[name]
         except (wave.Error, EOFError, OSError): same = False
-        _IS_PLAIN[key] = same
-    return _IS_PLAIN[key]
+    _IS_PLAIN[key] = same
+    return same
 
 def file_for(name, lib_dir=None, root=None, t=None):
     """where an event's sound comes from: a Path (a recorded or your own file), or None (a built-in). --lib DIR/<name>.wav
-    first (so "v2.1" is a name), unless it is a plain `sfx lib` copy of that built-in; then a file of your own (relative
+    first (so "v2.1" is a name), unless `sfx lib` wrote it for that built-in (is_lib_copy); then a file of your own (relative
     to root, default the working directory; anything ffmpeg decodes); then a built-in"""
     at = f" (event at t={t})" if t is not None else ""
     if lib_dir and (Path(lib_dir) / f"{name}.wav").exists():
@@ -511,23 +592,27 @@ def source(name, lib_dir=None, root=None, t=None):
     except subprocess.CalledProcessError: sys.exit(f"sfx: ffmpeg cannot decode {name}")
 
 def occurrences(events):
-    """for each event, how many events of the same sound come before it in the list"""
-    seen, out = {}, []
-    for e in events:
-        n = str(e.get("sfx")); out.append(seen.get(n, 0)); seen[n] = out[-1] + 1
+    """for each event, how many events of the same sound come before it in time (ties: list order)"""
+    seen, out = {}, [0] * len(events)
+    for k in sorted(range(len(events)), key=lambda k: (float(events[k].get("t", 0)), k)):
+        n = str(events[k].get("sfx")); out[k] = seen.get(n, 0); seen[n] = out[k] + 1
     return out
 
 def numbered(events):
-    """copies of the events with their occurrence ("_occ"), so one event rendered alone gets the variant it gets in the list"""
-    return [dict(e, _occ=o) for e, o in zip(events, occurrences(events))]
+    """copies of the events with their occurrence ("_occ") and the film's salt ("_salt"), so one event rendered alone gets
+    the variant it gets in the list"""
+    sl = salt(events)
+    return [dict(e, _occ=o, _salt=sl) for e, o in zip(events, occurrences(events))]
 
 def event_sound(e, occ=None, lib_dir=None, root=None, cache=None):
     """one event's sound before gain, pan and distance → (mono, landmark s, variant or None, shape or None)"""
     name = e["sfx"]; cache = {} if cache is None else cache; occ = e.get("_occ", 0) if occ is None else occ
+    check(e)
     f = file_for(name, lib_dir, root, e.get("t"))
     if f is not None:
         shaped = [k for k in SHAPE + ("variant",) if k in e]
-        if shaped: sys.exit(f"sfx: {name} at t={e.get('t')} is a file ({f}), used as recorded: {', '.join(shaped)} work on the built-ins only")
+        if shaped: sys.exit(f"sfx: {name} at t={e.get('t')} is a file ({f}), used as recorded: variant and the shaping fields "
+                            f"({', '.join(shaped)}) are for the built-ins only")
         if ("file", str(f)) not in cache:
             try: cache[("file", str(f))] = read(f)
             except subprocess.CalledProcessError: sys.exit(f"sfx: ffmpeg cannot decode {name}")
@@ -561,10 +646,10 @@ def measure(x):
     return {"len": L, "centroid": c, "sweep": sl, "peak": float(tt[int(np.argmax(E))])}
 
 def audition(args):
-    """bin/vh sfx audition <name|all> [n] [key=value …] [--out FILE.wav] [--png]"""
+    """bin/vh sfx audition <name|all> [n] [key=value …] [--walk] [--out FILE.wav] [--png]"""
     if not args or args[0] in ("-h", "--help"): sys.exit(__doc__)
     what = args[0]; rest = [a for a in args[1:]]
-    png = "--png" in rest; rest = [a for a in rest if a != "--png"]
+    png, walk = "--png" in rest, "--walk" in rest; rest = [a for a in rest if a not in ("--png", "--walk")]
     out = None
     if "--out" in rest: i = rest.index("--out"); out = rest[i + 1] if i + 1 < len(rest) else sys.exit("sfx audition: --out needs a file"); del rest[i:i + 2]
     n = 8; shp = {}
@@ -576,13 +661,15 @@ def audition(args):
             try: shp[k] = v if k == "dir" else float(v)
             except ValueError: sys.exit(f"sfx audition: {k}={v}: not a number")
         elif a.isdigit(): n = int(a)
-        else: sys.exit(f"sfx audition: what is {a!r}? (a count, key=value, --out FILE, --png)")
+        else: sys.exit(f"sfx audition: what is {a!r}? (a count, key=value, --walk, --out FILE, --png)")
+    if n < 1: sys.exit(f"sfx audition: {n} variants: give 1 or more")
     if what == "all":
         if shp: sys.exit("sfx audition all: plays each built-in's plain sound; shape one family at a time (sfx audition whoosh 8 dur=1.2)")
         evs = [{"sfx": k, "variant": 0} for k in LIB]
     elif what in LIB:
         if not SPEC[what].get("jitter"): evs = [{"sfx": what, **shp}]   # a signal: one sound
-        else: evs = [{"sfx": what, "variant": v, **shp} for v in range(1, n + 1)]
+        # the family's spread: the first step of n different films' walks (variant b·1000); --walk: one film's n steps
+        else: evs = [{"sfx": what, "variant": 1000 + k if walk else 1000 * (k + 1), **shp} for k in range(n)]
     else: sys.exit(f"sfx audition: {what!r} is not a built-in ({', '.join(LIB)}) or all")
     out = Path(out or f"sfx-audition-{what}.wav"); stem = out.with_suffix("")
     for e in evs: check(e)
@@ -597,7 +684,7 @@ def audition(args):
     write(out, track)
     lines = []
     for e, v, sh, m, d in rows:
-        head = f"{e['sfx']:13s}" if what == "all" else f"v{v:<4d}" if v else "plain"
+        head = f"{e['sfx']:13s}" if what == "all" else f"v{v:<7d}" if v else "plain"
         par = DESCRIBE[e["sfx"]] if what == "all" or not sh else \
             " · ".join(f"{k} {val:+.2f}" if k in ("pitch", "bright", "span", "level") else f"{k} {val}" for k, val in sh.items())
         way = "↑ rising" if m["sweep"] > .5 else "↓ falling" if m["sweep"] < -.5 else "→ flat"
@@ -636,7 +723,9 @@ def main():
     if cmd == "lib":
         d = Path(sys.argv[2]); d.mkdir(parents=True, exist_ok=True)
         for name in LIB: write(d / f"{name}.wav", builtin(name))
-        print(f"{len(LIB)} SFX → {d}/ ({', '.join(LIB)})"); return
+        man = {"written_by": "bin/vh sfx lib", "sr": SR, "sounds": {n: {"file": f"{n}.wav", "sha256": sha256(d / f"{n}.wav")} for n in LIB}}
+        (d / MANIFEST).write_text(json.dumps(man, indent=1) + "\n")
+        print(f"{len(LIB)} SFX → {d}/ ({', '.join(LIB)}) + {MANIFEST}"); return
     if cmd == "audition": audition(sys.argv[2:]); return
     if cmd == "place":
         events = json.load(open(sys.argv[2])); out = sys.argv[3]
@@ -649,8 +738,8 @@ def main():
                 sys.exit(f"sfx: event {k} ({e.get('sfx')} at t={e.get('t')}): role {e['role']!r} is not one of {', '.join(CLASSES)}")
             check(e, k)
         track = np.zeros((int(dur * SR), 2)); cache = {}; placed = []
-        for e, occ in zip(events, occurrences(events)):
-            i, x, info = put(e, occ, lib_dir, None, cache)
+        for e in numbered(events):
+            i, x, info = put(e, None, lib_dir, None, cache)
             j = min(len(track), i + len(x)); track[i:j] += x[: max(0, j - i)]; placed.append((e, i, x[: max(0, j - i)], info))
         clip = int((np.abs(track) > 1).sum()); write(out, track)
         side = sidecar(out, placed)

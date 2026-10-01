@@ -33,9 +33,11 @@
 #   music <score.json> <out.wav> [--length s|auto] [--roll] | music --example [name|list] | music --instruments   code-composed soundtrack + exact beat/section map
 #                               --length: end exactly there with a musical fade (auto: where the last bar ends); --roll: piano roll + energy curve per part (PNG)
 #   sfx lib <dir> | sfx place <events.json> <out.wav> [dur]   built-in SFX library / place SFX on action times (stereo, pan/dist)
-#                               each event of a built-in gets its own variant (pin one: "variant": n) and can be shaped to its move:
-#                               dur, pitch|center, dir up|down, bright, tone, pan_from/pan_to (tools/audio/sfx.py has the details)
-#   sfx audition <name|all> [n=8] [dur=… dir=…] [--out f.wav] [--png]   hear a family: n variants 0.6 s apart + a line each (+ spectrogram)
+#                               each event of a built-in gets a variant, a step along its film's walk for that sound (pin one:
+#                               "variant": n), and can be shaped to its move: dur, pitch|center, dir up|down, bright, tone,
+#                               pan_from/pan_to (tools/audio/sfx.py has the details); sfx lib also writes sfx-lib.json
+#   sfx audition <name|all> [n=8] [dur=… dir=…] [--walk] [--out f.wav] [--png]   hear a family: n variants 0.6 s apart (--walk: one
+#                               film's n in a row) + a line each (+ spectrogram)
 #   mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]   3-bus mix, music ducks under the voice (duck=on: + SFX), −14 LUFS
 #   mix <out.wav> profile=explainer|short|promo|cartoon|mv|swatch [voice=…] [music=…] [events=… lib=…] [timeline=…] [stems=DIR]
 #                               a level hierarchy from one anchor (the narration, else the music): VMR per line, SFX classes, depth
