@@ -8,7 +8,6 @@
 > - **Recomputed**: while writing it, #23 recomputed several numbers of this note with the merged engine and got the same values: the intro film's score (LRA 8.5, spread of section means 10.0 LU, loudest section at 28 %), `--example` (7.6 / 6.2), `--example zh` (7.0 / 6.7), the share of energy under 250 Hz (50–91 % in the intro film), bar 20 of demo 1 at about 44 note onsets per second against about 16 in the climax, and 143 hits in the intro film's beat map.
 > - **Engine**: the first four gaps and pickups are implemented in [#24](https://github.com/ZLHad/OpenVideoHarness/pull/24) (motif blocks in [`tools/audio/motifs.py`](../../../tools/audio/motifs.py), `"index": "section"`, `dyn` / `cresc` / `dim` / `vel_ramp`, a section `stop`, pickups on negative beats); its description shows demo 1 rewritten with motifs, with identical audio and 54 note-list entries instead of 137. The tempo map and a top-level pickup bar were not built; the description of #24 has a design note for them. `bin/vh music --roll` is in [#25](https://github.com/ZLHad/OpenVideoHarness/pull/25) ([`tools/audio/roll.py`](../../../tools/audio/roll.py)).
 > - **Scripts**: the measuring scripts `arc.py`, `stems.py` and `dump_events.py` are not in the repo; the commands below are how they were run.
-> - **One number reads differently**: the table here puts the loudest section of demo 1 at 80 % and `playbook/11` says 77 %. It is the same section: its midpoint (45 s) divided by 56 s (the sections added up) is 80 %, divided by 58.5 s (the file length) is 77 %.
 
 ## Question
 
@@ -34,14 +33,14 @@ Sources: the composition knowledge draft (its way of measuring is now in section
 
 **1. In loudness the current score is a plateau.** From 16 s to 76 s, eight sections of the intro film's score have mean loudness between −11.5 and −14.5 LUFS; the loudest, the braam, is only 1.8 LU above the second loudest. The three demos have a valley and a single peak.
 
-| piece | LRA (LU) | spread of section means (LU) | loudest section above the second (LU) | sections within 2 LU of the loudest | where the loudest sits |
+| piece | LRA (LU) | spread of section means (LU) | loudest section above the second (LU) | sections within 2 LU of the loudest | where the loudest sits (share of the file) |
 |---|---|---|---|---|---|
 | intro film, current score | 8.5 | 10.0 | 1.8 | 3 / 11 | 28 % |
-| `--example` (EDM) | 7.6 | 6.2 | 2.2 | 1 / 4 | 60 % |
-| `--example zh` | 7.0 | 6.7 | 1.6 | 2 / 5 | 70 % |
-| demo 1, product-film arc | 11.2 | 11.5 | 4.4 | 1 / 8 | 80 % |
-| demo 2, 起承转合 | 10.1 | 7.6 | 3.8 | 1 / 4 | 60 % |
-| demo 3, explainer underscore | 9.5 | 7.3 | 5.3 | 1 / 5 | 74 % |
+| `--example` (EDM) | 7.6 | 6.2 | 2.2 | 1 / 4 | 57 % |
+| `--example zh` | 7.0 | 6.7 | 1.6 | 2 / 5 | 67 % |
+| demo 1, product-film arc | 11.2 | 11.5 | 4.4 | 1 / 8 | 77 % |
+| demo 2, 起承转合 | 10.1 | 7.6 | 3.8 | 1 / 4 | 57 % |
+| demo 3, explainer underscore | 9.5 | 7.3 | 5.3 | 1 / 5 | 70 % |
 
 ![Short-term loudness of the intro film's current score and of three demos, with section means](../figs/05-loudness-arcs.png)
 
@@ -77,7 +76,7 @@ As raw numbers the difference is smaller than you would expect: the LRA differs 
 - Loud drums eat peak headroom because the whole piece is peak-normalised: in the first version the timpani sat only 0.7 dB under the brass melody; after lowering the drums the melody was 7 dB above the loudest accompaniment and the climax 0.5 LU louder overall.
 - `loop` and per-bar `pattern` lists count the part's own bars, not the section's: no error, it just sounds wrong; demo 3's kick needed a hand-rotated list. A cue at t = 0 is detected about 48 ms late.
 
-Sources: the loudness JSON of each piece (the section means come from the short-term means in it; the loudest section's position is its midpoint as a share of the piece); the number of hit entries in the beat maps (the intro film score's beat map is [`showcase/04-intro-film/audio/music.beats.json`](../../../showcase/04-intro-film/audio/music.beats.json): 143 entries, 123 onsets and 20 swell peaks; 81.33 s, 30 bars, 11 sections); the demo scores with `--density`, re-run, for the onsets per bar (point 4); the matching WAVs, for point 3; the knowledge draft's motif table and the drum and pumping details; and §11 of the engine-gap analysis. The demo data are the author's local files and are not in the repo; [#23](https://github.com/ZLHad/OpenVideoHarness/pull/23) recomputed a batch of them with the merged engine (see "Current state"). Figures 1 and 2 are the originals of the lab's plotting scripts, scaled down.
+Sources: the loudness JSON of each piece (the section means come from the short-term means in it; the loudest section's position is its midpoint as a share of the piece, where the piece is the `duration` of the beat map, i.e. the file length, as in the snippet of `playbook/11` section 6: a file rendered by the engine runs about 2.5 s past the end of its last section, and the intro film is a finished cut with no tail); the number of hit entries in the beat maps (the intro film score's beat map is [`showcase/04-intro-film/audio/music.beats.json`](../../../showcase/04-intro-film/audio/music.beats.json): 143 entries, 123 onsets and 20 swell peaks; 81.33 s, 30 bars, 11 sections); the demo scores with `--density`, re-run, for the onsets per bar (point 4); the matching WAVs, for point 3; the knowledge draft's motif table and the drum and pumping details; and §11 of the engine-gap analysis. The demo data are the author's local files and are not in the repo; [#23](https://github.com/ZLHad/OpenVideoHarness/pull/23) recomputed a batch of them with the merged engine (see "Current state"). Figures 1 and 2 are the originals of the lab's plotting scripts, scaled down.
 
 ## What we changed because of it
 

@@ -7,7 +7,6 @@
 > - **Landed**: the "re-scored" column is the 28 soundtracks of the WIP branch. They have been ported onto the current main and re-rendered on the current chain (CPU rendering, [#17](https://github.com/ZLHad/OpenVideoHarness/pull/17); the `profile=swatch` mix, [#21](https://github.com/ZLHad/OpenVideoHarness/pull/21)), and are merged in [#31](https://github.com/ZLHad/OpenVideoHarness/pull/31); the committed `score.json`, `swatch.mp4` and gallery are now this version.
 > - **Recomputed**: #31 re-measured the final soundtracks with the same recipe: median pairwise distance 3.71, closest pair 1.22 (guochao-festive / scratched-type), no pair under 1.2, the same as the "re-scored" column below; the description of #31 records no re-measurement of the other rows.
 > - **Unchanged**: the scores keep their original bpm and meters, and counting on main still gives 20 at 150 BPM, 5 at 120 and 3 at 90; the distance script is still not in the repo.
-> - **Listening**: the description of #31 says the maintainer listened to the WIP version of these 28 and approved it; that approves the soundtracks, it does not calibrate the distance ruler.
 > - **Engine**: since then [#20](https://github.com/ZLHad/OpenVideoHarness/pull/20) added 14 instrument parts (physically modelled plucked strings and others), so the synthesised instruments went from the 77 of #13, as stated below, to 91; #31 does not use them.
 
 ## Question
@@ -77,7 +76,7 @@ Sources: the descriptions of PR #13, #16 and #31; the sound-design brief of the 
 
 ## Limits and open questions
 
-- **Seven statistics over 5 s.** They cannot see melody, harmony, or whether two sounds are "the same instrument". When the note was written there was no listening record, so "pushed apart" means distance on this ruler (later, [#31](https://github.com/ZLHad/OpenVideoHarness/pull/31) recorded the maintainer's approval; see "Current state").
+- **Seven statistics over 5 s.** They cannot see melody, harmony, or whether two sounds are "the same instrument". No per-pair listening verdicts were recorded and the numbers are instrument readings, so "pushed apart" means distance on this ruler.
 - **The ruler can be optimised.** The agents who re-scored had this target and these features in hand; points 2 and 3 show that stereo width and the percussive share are the two cheapest levers.
 - **The closest re-scored pair is, by design, two very different sounds** (guochao-festive: suona over a trap beat; scratched-type: metal hits and an industrial pulse). Nobody listened to that pair; the ruler probably cannot tell them apart rather than them really being alike, but that is a guess.
 - **Rhythm was not spread.** To keep the picture's cues, BPM and meters stayed: on main, 28 scores are still 20 at 150 BPM, 5 at 120 and 3 at 90 (the count is the same before and after #31). The description of #13 and the sound-design brief say 18 of 28 at 150 BPM; counting `score.json` on main gives 20, and the two counts have not been reconciled.

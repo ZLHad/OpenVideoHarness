@@ -5,6 +5,7 @@
 **Research notes: what we measured, and what changed because of it**
 - `docs/research/` has five lab notes, in Chinese and in English (`docs/research/en/`), with 20 figures: voice, music and SFX levels (01), measuring how alike the 28 swatch soundtracks are (02), why the same code rendered different pixels (03), how long on-screen text has to stay (04), and the chapters, motif and dynamic arc of a score (05). Each gives the question, how it was measured, the numbers, what changed in the repo and what is still unclear, and a "现状" paragraph on what has landed since it was written.
 - They are records, not rules: the rules stay in `playbook/`. The raw data and the figure scripts are not in the repo; each sources line says what the data was and where the method lives now.
+- `playbook/11` §0 and §6, so that it agrees with note 05 of `docs/research`: the share of energy under 250 Hz in the product-arc demo runs from 12 % to 92 % (the 2 s nova section is 92 %; the text said 84 % at most), and the "% of the piece" positions now say they are measured against the file length (58.5 s for that demo, not the 56 s its sections add up to).
 - Linked from both READMEs (the "more guides" list) and from the `CLAUDE.md` tree (`AGENTS.md` synced), with no routing row. Docs only: no tool, media or CI change.
 
 **Style swatches: a soundtrack of their own for each of the 28**
