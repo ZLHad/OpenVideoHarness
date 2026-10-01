@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Showcase 02 and 03: word timings for the narration**
+- The narration timelines of 02 (Chinese) and 03 (English) have word timings and a speech-recognition check for every line (`words`, `asr`). They come from Gemini's transcription of the existing takes (`gemini-3.5-transcribe` through `tts.py`'s own transcribe → align_lines → asr_record, `--min-sim 0.9`); nothing was synthesized again. #32 left them out when the daily transcribe quota ran out.
+- `bin/vh captions` adds the words to each film's `audio/captions.json` and writes `audio/captions.zh.lines.srt` and `audio/captions.en.lines.srt`, one cue per wrapped line, each starting on its first spoken word. The subtitle tracks muxed into the finals (`captions.zh.srt`, `captions.en.srt`, `captions.bi.srt`) are byte-identical, so `media/final.mp4` is unchanged.
+- `tools/build_audio.sh` rebuilds both mixes byte for byte, and their mix reports now check masking word by word, not in 0.4 s chunks: 7 of 78 words (9 %) in 02 and 3 of 45 (7 %) in 03 are under the 6 dB presence floor. Both are inside the 10 % limit, so they only warn.
+- Similarity on the first pass: 8 of 02's 10 lines and 6 of 03's 8 are under 0.9 (02's hook 0.53, heard as "我已经信号回变调。"). After the re-check with a custom vocabulary, only 02's last line stays flagged (0.75). Each film's NOTES.md lists the spots to listen to; a line that is really misread can only be fixed by recording it again.
+
 **README: the sample films, one per row**
 - "See what it makes" in `README.md` and `README.zh-CN.md` is one sample per row, not a two-row grid of previews. On the left, the preview GIF (it links to the film's folder) with a ▶ link to the original with sound; on the right, what the film is, its request, a suggested workflow (type, effort, style preset and the `bin/vh` commands) and what it sounds like. The rows are 02, 03, 01, 00, 04, then the 28-style reel (`styles/gallery.jpg`, linking to `styles/gallery.mp4`).
 - The requests are short quotes from longer briefs (a paragraph each, not one sentence); the word "Request" links to the whole brief in the folder's README. For 04 the quote is the human's note at gate ①, not the first brief. The workflows are suggestions for a similar film (the effort levels and style presets came after films 00–03), and the section notes that 00–03 were finished silent and their sound was fitted afterwards.
