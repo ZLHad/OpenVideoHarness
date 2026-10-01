@@ -63,7 +63,7 @@
 
 状态的含义见下文"状态"。时长按 30 fps 换算；接缝的时长是它从两侧镜头里借走的帧，字卡和开场、收场的时长随文案变（停到读完）。这张表由 `bin/vh recipes list --md` 生成，`bin/vh recipes check` 会核对能量、时长和状态三列。
 
-**全片骨架 `sequences/`**：[launch-15s](sequences/launch-15s.md)（15 s 发布 teaser）· [explainer-30s](sequences/explainer-30s.md)（30 s 有旁白的讲解）· [product-film-60s](sequences/product-film-60s.md)（60 s 产品发布片）。规则和接缝选型表见 [sequences/README.md](sequences/README.md)。
+**全片骨架 `sequences/`**：[launch-15s](sequences/launch-15s.md)（15 s 发布 teaser）· [explainer-30s](sequences/explainer-30s.md)（30 s 有旁白的讲解）· [product-film-60s](sequences/product-film-60s.md)（60 s 产品发布片）；从立意出发的五条：[time-dilation-replay](sequences/time-dilation-replay.md)（时间放大镜）· [machine-eye-portrait](sequences/machine-eye-portrait.md)（机器视角的肖像）· [making-of-self](sequences/making-of-self.md)（用做法讲做法）· [mascot-style-tour](sequences/mascot-style-tour.md)（吉祥物穿越风格）· [workflow-as-story](sequences/workflow-as-story.md)（工作流即故事）。规则和接缝选型表见 [sequences/README.md](sequences/README.md)。
 
 **接缝 `seam/`**
 

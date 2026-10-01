@@ -4,13 +4,23 @@
 
 它和 `playbook/09-narrative.md` 分工：playbook/09 定片子的形状（讲什么、在哪里转、好奇缺口怎么走），这里把形状落成帧数、停顿和接缝。开头的钩子怎么写见 `playbook/10-hooks-and-packaging.md`。
 
-本目录有三条骨架，是填空用的起点，不是命令；有意偏离的地方在 `NOTES.md` 写一句为什么。
+本目录有八条骨架，是填空用的起点，不是命令；有意偏离的地方在 `DECISIONS.md` 写一句为什么。前三条按能量弧排，适合还没有特别立意的片子；后五条从一个立意出发（`playbook/12-ideation.md`），立意本身已经定了结构，选中了就照它的弧走。
 
 | 骨架 | 长度 | 适合 | 一句话 |
 |---|---|---|---|
 | [launch-15s](launch-15s.md) | 15 s | 发布 teaser、社交平台的短宣传 | 主角一弧、一个功能冲刺、屏息一秒、最响的一击砸出字标 |
 | [explainer-30s](explainer-30s.md) | 30 s | 有旁白的知识短片、产品讲解 | 钩子、三步、兑现、回到开头；旁白定时长，接缝跟着句子走 |
 | [product-film-60s](product-film-60s.md) | 60 s | 多功能 web / 桌面产品的发布片 | 低开品牌、单主角立传、功能和字卡交替爬升、发布会收场 |
+
+从立意出发的五条（拆解见 `cases/oneshot-five.md`）：
+
+| 骨架 | 长度 | 立意 | 适合 |
+|---|---|---|---|
+| [time-dilation-replay](time-dilation-replay.md) | 60–150 s | 时间放大镜：一瞬间放慢成一两分钟，计时和慢放倍数常驻 | "X 发生的那一瞬间"：回车之后、刷卡、快门、心跳 |
+| [machine-eye-portrait](machine-eye-portrait.md) | 90–240 s | 读过你全部记录的讲述者用第一人称写给你，证据和推断分开摆 | 年度回顾、项目周年、给团队或家人的片子 |
+| [making-of-self](making-of-self.md) | 20–60 s | 用做法讲做法：讲到哪一步，画面就用那一步的技术画 | 工具或流水线的自我介绍、"我是怎么做到的" |
+| [mascot-style-tour](mascot-style-tour.md) | 15–60 s | 一个主角穿过一个个风格世界，锚点不变 | showreel、品牌片、风格库展示；可以直接用 `styles/` 的预设当世界 |
+| [workflow-as-story](workflow-as-story.md) | 20–60 s | 一个主体走完产品的工作流，最后拉远揭示 | 输入到输出的创作类、流水线类产品 |
 
 ## 能量的六档
 
@@ -75,6 +85,6 @@
 
 ## 来源
 
-五条规则和 60 s 骨架的段位改写自 video-shotcraft（Vincent Wei，Apache-2.0）的全片骨架 `references/sequences/promo-energy-arc.md`、转场卡 `shot-transitions` 和审美准则 R1–R4、P4、Q4；原骨架来自一支 36 s 模板片和两次独立复现，作者注明是"单例判例"。15 s 和 30 s 两条骨架是本仓库按同一套规则推出来的，还没有在成片里验证过。读时规则、闪白底线和接缝数量来自本仓库的 CLAUDE.md、TASTE_CHECKLIST 和 playbook/03。
+五条从立意出发的骨架是本仓库根据 `cases/oneshot-five.md` 拆的五支社区片子排的，没有改编上游的文字或代码，`derived_from` 为空。五条规则和 60 s 骨架的段位改写自 video-shotcraft（Vincent Wei，Apache-2.0）的全片骨架 `references/sequences/promo-energy-arc.md`、转场卡 `shot-transitions` 和审美准则 R1–R4、P4、Q4；原骨架来自一支 36 s 模板片和两次独立复现，作者注明是"单例判例"。15 s 和 30 s 两条骨架是本仓库按同一套规则推出来的，还没有在成片里验证过。读时规则、闪白底线和接缝数量来自本仓库的 CLAUDE.md、TASTE_CHECKLIST 和 playbook/03。
 
 **许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/sequences/promo-energy-arc.md`、`references/shots/transition/shot-transitions.md`、`references/aesthetic-rules.md`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

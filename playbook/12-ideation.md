@@ -79,7 +79,7 @@
 自己的点子写下来以后，再打开参照，用来补强和校准，不是用来替换：
 
 - 同类型的案例：类型文档"可参考的案例"一节、`cases/opus55-gallery.md` 第 3 节、`cases/oneshot-five.md`；
-- 风格预设（`bin/vh style list`）、镜头配方和全片骨架（`bin/vh recipes list`）。
+- 风格预设（`bin/vh style list`）、镜头配方和全片骨架（`bin/vh recipes list`）。第 1 节表里的五个立意已经写成了全片骨架：`recipes/sequences/` 的 time-dilation-replay、machine-eye-portrait、making-of-self、mascot-style-tour、workflow-as-story。拿来用时，换掉的是材料，不是立意的检验：它还得对你的材料成立。
 
 然后收敛成 2–3 张**彼此拉得开**的立意卡，不是同一个点子的三个变体。至少一张不从风格预设出发。每张卡：
 
