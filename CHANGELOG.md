@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**Case study: five community films, concept before style**
+- `cases/oneshot-five.md`: five films posted 2026-09-29 to 10-01. A knowledge short that slows the 3 seconds after you press Enter down to 2 minutes, with the clock and the slow-motion factor on screen; a portrait Claude made of its user (one go from a short prompt, the author says) from his notes, quotes and commits, with each quote's source on screen and its own inferences labelled; a self-introduction that shows each technique as it names it (its prompt says not to use any installed skill); the FunTech showreel (one mascot through a dozen style worlds); Mirage's Tesseract launch (one chrome cube from design system to finished video). Frames were read in the browser without downloading, levels measured with WebAudio. It ends with where these films would fail our taste checklist, as input for deciding which taste rules are floors and which are one taste among others.
+- Linked from `cases/README.md` and the community tables in both READMEs (13 case studies).
+
 **`bin/vh music`: a note map for pictures driven note by note**
 - Why: in a film where a character walks on piano keys, or where each key goes down as its note sounds, the picture needs every note's start, end and pitch, and the beat map only had hit times (`hits: [{t, what}]`). Typing those times into the scene by hand breaks the rule that sound and picture come from one source.
 - A part with `"note_map": true` writes every note into the beat map's new `notes`: `[{"t", "end", "midi", "vel", "part"}]`, sorted by `t`.
