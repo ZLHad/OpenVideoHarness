@@ -112,7 +112,8 @@ GIF 是压缩过的无声预览。你做出来的片子也欢迎 PR 进 `showcas
 | [Claude Pop](https://x.com/donaldjewkes/status/2102801274173587569) | 混合 MV | 生成式视频打底，再用代码转描，连续跑了 12 小时 | [cases/mv-claude-pop.md](cases/mv-claude-pop.md) |
 | [星际穿越里的真物理·黑洞篇](https://x.com/AndyL5cc/status/2104519528873103773) | 横屏科普 · 143 秒 | 一句话需求，一个黑洞着色器撑起全片 | [cases/explainer-interstellar-blackhole.md](cases/explainer-interstellar-blackhole.md) |
 | [你问 AI 一句话之后的 3 秒钟](https://v.douyin.com/MONt8dOfuEo/) | 知识科普 · 126 秒 | 把 3 秒放慢成 2 分钟，计时和慢放倍数一直挂在屏幕上 | [cases/oneshot-five.md](cases/oneshot-five.md) 第 1 节 |
-| [我眼中的你](https://v.douyin.com/kTpIVOEMsEY/) | 肖像片 · 231 秒 | 一段短 prompt 一次直出；Claude 用用户自己的笔记、原话和提交来讲他 | [cases/oneshot-five.md](cases/oneshot-five.md) 第 2 节 |
+| [我眼中的你](https://v.douyin.com/kTpIVOEMsEY/) | 肖像片 · 231 秒 | 作者说一段短 prompt 一次生成；Claude 用用户自己的笔记、原话和提交来讲他 | [cases/oneshot-five.md](cases/oneshot-five.md) 第 2 节 |
+| [Opus 5.5 自我介绍](https://v.douyin.com/bGfv-xMIKWc/) | 动态图形 · 35 秒 | 讲到哪一步制作，画面就用那一步的技术画；prompt 写明不许用已装的 skill | [cases/oneshot-five.md](cases/oneshot-five.md) 第 3 节 |
 | [FunTech Showreel 2026](https://x.com/tkm_hmng8/status/2105255710531674358)、[Tesseract for design](https://x.com/trymirage/status/2105314048766033999) | showreel · 50 秒；发布片 · 31 秒 | 一个吉祥物穿过十几种风格；一个铬立方体从设计系统走到成片 | [cases/oneshot-five.md](cases/oneshot-five.md) 第 4–5 节 |
 | [Applore 宣传片](https://x.com/decohack/status/2104502625055949242) | 产品片 · 15 秒 | 一句 showreel 提示词加真实素材 | [cases/promo-applore.md](cases/promo-applore.md) |
 | [Austerlitz, 2 December 1805](https://x.com/WinterArc2125/status/2103116235009347650) | 3D 历史片 · 301 秒 | WebGL2 加真实地形；旁白有多长，镜头就有多长；音效的左右和远近从画面算出来 | [cases/opus55-gallery.md](cases/opus55-gallery.md) 第 6 节 |
