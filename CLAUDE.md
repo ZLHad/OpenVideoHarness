@@ -38,7 +38,7 @@
 | 立意 | 自己想 3 个一句话点子，挑 1 个，写一行理由 | 关卡 ① 给 2–3 张立意卡，每张配一帧画面 | 同左，每张配一段 10–20 s 的草图（look-dev） |
 | 风格 | 从立意推出来，可以借 `styles/` 的 1 个预设，写明理由 | 写在每张立意卡的"画面"一行（专属，或借一个预设）；选卡就一起定了，人可以在回复里换 | 同左；每张卡的草图就是那种风格的小样，借来的预设人想看时在 E0 补小样 |
 | 分镜 | 简表：镜头、时长、reads | 完整 STORYBOARD + 分镜预览图 | 同左 + animatic |
-| 自查 | 整片一张联系表，20 条清单速查一遍 | 每个场景：联系表、关键动作 strip、局部 crop；20 条清单 | 同左，再加手机尺寸测试、循环接缝、无损帧确定性、静默故障扫描 |
+| 自查 | 整片一张联系表、一张手机联系表、前 2 s 的 strip，20 条清单速查一遍 | 每个场景：联系表、关键动作 strip、局部 crop；20 条清单 | 同左，再加手机尺寸测试、循环接缝、无损帧确定性、静默故障扫描 |
 | 独立评审（打分层） | 不做 | 1 轮：全新上下文的 reviewer 打 8 项分（含立意），修最差的 3 处 | ≥ 3 轮，8 项都 ≥ 8 才出片；达不到就带着分数进关卡 ③ |
 | 声音 | 可以没有，或一段配乐 / 配音加基础混音 | 配乐或配音 + 关键动作音效 + 按视频类型的混音 profile（`bin/vh mix … profile=`）+ `bin/vh qa` | 同左 + 每个动作的拟音和声像 + 最终混音 cue check + 混音报告（`bin/vh qa mix`）没有硬失败 |
 | 渲染与交付 | draft 画质即可，一个 mp4 | 正式画质 mp4 + 联系表 | 同左 + 网页版、GIF、封面，按需出 9:16 |
@@ -85,7 +85,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 2. **建项目和立意**：`bin/vh new <type> <slug> --effort quick`。先写 3 个一句话立意，挑一个（`playbook/12-ideation.md` 第 7 节最后一条），再读 BRIEF 末尾的 TYPE 块，决定留哪些默认。风格从立意推出来，合适的话借一个预设：`bin/vh style apply <preset> <project>`（`bin/vh style list` 挑），它的 `STYLE_PRESET.md` 会带进项目，写代码前读一遍。立意和风格各写一行理由进 `DECISIONS.md`；改了哪些口味默认，交付时一并列出。
 3. **写**：补齐 BRIEF；分镜只写简表（镜头、时长、reads）；然后写场景代码。HyperFrames 写完一段，用 `npx hyperframes snapshot --at <秒> --describe false` 看几个关键时刻。
 4. **出片**：HyperFrames 先 `export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1`，再 `npx hyperframes render --quality draft --output out/draft.mp4`；手绘类用 `node render.mjs --clip --out=out/draft.mp4`。
-5. **自查一遍**：`bin/vh sheet out/draft.mp4` 看整片联系表，对着 `TASTE_CHECKLIST.md` 的 20 条速查；有字就跑 `bin/vh readcheck`。再看三样（命令见 `playbook/02-verification.md`）：手机尺寸的联系表，必读字读不读得出、HUD 和标签有没有低于字号下限；前 2 s 的逐帧 strip，开头是不是第 0 帧就在动；`bin/vh check` 报的冻结段，要么修掉，要么在交付里写明为什么留着。`quick` 没有 reviewer，这三样最容易漏（`docs/research/06-concept-first-ab.md`）。
+5. **自查一遍**：`bin/vh sheet out/draft.mp4` 看整片联系表，对着 `TASTE_CHECKLIST.md` 的 20 条速查；有字就跑 `bin/vh readcheck`。再看两样（命令见 `playbook/02-verification.md` 的"手机测试"）：一张手机尺寸的联系表，必读字在手机上读不读得出（横屏片的 44 px 在 360 px 宽的联系表上只有约 8 px，读数、标签别贴着下限）；前 2 s 的逐帧 strip，开头是不是第 0 帧就在动、有没有让人停下来的东西。`quick` 没有 reviewer，这两样最容易漏（`docs/research/06-concept-first-ab.md`）。
 6. **声音**（要的话）：`bin/vh music` 或 `bin/vh tts`，再 `bin/vh mix`、`bin/vh qa`、`bin/vh mux`。
 7. **交付**：`bin/vh check` 必跑；交 mp4 路径、联系表，以及自己最不满意的 1–2 处。
 
