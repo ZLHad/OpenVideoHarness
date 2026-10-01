@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**Research notes: what we measured, and what changed because of it**
+- `docs/research/` has five lab notes, in Chinese and in English (`docs/research/en/`), with 20 figures: voice, music and SFX levels (01), measuring how alike the 28 swatch soundtracks are (02), why the same code rendered different pixels (03), how long on-screen text has to stay (04), and the chapters, motif and dynamic arc of a score (05). Each gives the question, how it was measured, the numbers, what changed in the repo and what is still unclear, and a "现状" paragraph on what has landed since it was written.
+- They are records, not rules: the rules stay in `playbook/`. The raw data and the figure scripts are not in the repo; each sources line says what the data was and where the method lives now.
+- Linked from both READMEs (the "more guides" list) and from the `CLAUDE.md` tree (`AGENTS.md` synced), with no routing row. Docs only: no tool, media or CI change.
+
 **Style swatches: a soundtrack of their own for each of the 28**
 - Every swatch has a new `score.json`, written on the instrument parts (#13, #16): its own genre, signature instruments, groove and reverb space, in stereo except for crt-terminal's one small terminal speaker. The old scores all came from one subtractive palette and were mono. BPM, meters and section bars are unchanged, so the picture and the foley keep their timing. Each `STYLE.md` describes its score in its sound section and prompt block; `styles/README.md` has a new "声音" section with genre, signature instruments and one line per style.
 - How different they are, on 7 audio features (spectral centroid, onset rate, low / mid / high energy shares, stereo width, percussive share; z-scored over the old scores and the #13 demos): the median pairwise distance goes from 2.27 to 3.71 and the closest pair from 0.52 (bubble-chart-story / risograph) to 1.22 (guochao-festive / scratched-type); no pair of the 378 is under 1.2. Re-measured on the shipped renders, the numbers are the same.

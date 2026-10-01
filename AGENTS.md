@@ -163,6 +163,7 @@ OpenVideoHarness/
 ├── styles/                   风格库：从名作学来的风格预设（STYLE.md + tokens.json + 真渲的 5 s 样片），_swatch/ 是样片渲染器
 ├── cases/                    真实案例拆解 + opus55-gallery（社区作品精选）
 ├── showcase/                 本仓库自己做的片子（源码 + 成片 + 自评记录）
+├── docs/research/            研究笔记（中英）：量过的几件事、数字，和因此改了什么；是实验记录，不是规则（规则在 playbook/）
 ├── engines/                  ClaudeAnimationBase（内置）+ 其他引擎的安装说明
 ├── references/
 │   ├── fetch.sh                拉取或更新参考仓库（并把别家的 CLAUDE.md、.claude/ 改名为 _upstream_*）
