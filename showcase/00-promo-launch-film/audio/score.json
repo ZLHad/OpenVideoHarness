@@ -1,0 +1,32 @@
+{
+  "_about": "Launch-film score (bin/vh music). 120 BPM (15 frames a beat at 30 fps), E major, stereo, plate. Bar lengths (meters) put a bar head on every cut: A 0–2.5 (5 beats) · B 2.5–5.0 (5) · C 5.0–8.0 (6) · D 8.0–11.5 (4+3) · E 11.5–15.0 (4+3) · F1 15.0–16.0 (2) · F2 16.0–17.0 (2) · G 17.0–19.5 (5). The 4.7 and 11.3 cuts fall between beats (meters take whole beats), so the music turns 0.3 s / 0.2 s after them and the whoosh on the frame carries the cut. The swell into the wordmark is the foley's swish_rev (a score riser there hid the 17.0 onset). Breaths: B (the problem line), the comma in E (13.5–14.0, before the PASS click), F2 (the stillness before the wordmark). A stop on beat 4 of bar 4 (9.5: no kick, no clap) leaves the LOCK ding alone. A glockenspiel E6 doubles the LOCK ding at 9.567 (beat 3.133 of D).",
+  "bpm": 120,
+  "key": "E",
+  "mode": "major",
+  "seed": 20,
+  "stereo": true,
+  "space": "plate",
+  "meters": {"1": 5, "2": 5, "3": 6, "4": 4, "5": 3, "6": 4, "7": 3, "8": 2, "9": 2, "10": 5},
+  "sections": [
+    {"name": "A", "bars": 1, "chords": ["Imaj7"]},
+    {"name": "B", "bars": 1, "chords": ["iv"]},
+    {"name": "C", "bars": 1, "chords": ["I IV"]},
+    {"name": "D", "bars": 2, "chords": ["vi", "V"]},
+    {"name": "E", "bars": 2, "chords": ["ii7", "Vsus4 V"]},
+    {"name": "F1", "bars": 1, "chords": ["I"]},
+    {"name": "F2", "bars": 1, "chords": ["IVmaj7"]},
+    {"name": "G", "bars": 1, "chords": ["Iadd9"]}
+  ],
+  "parts": [
+    {"inst": "drone", "figure": "sustain", "pitch": ["c0"], "hold": "section", "gain_db": -9},
+    {"inst": "cs80", "figure": "sustain", "voicing": "spread", "gain_db": -11, "lp": 3200, "send": 0.3, "by_section": {"A": {"vel": 0.6}, "B": {"vel": 0.55}, "F2": {"vel": 0.6}}},
+    {"inst": "strings", "figure": "sustain", "voicing": "spread", "gain_db": -13, "send": 0.35, "params": {"attack": 0.4, "release": 0.8}, "by_section": {"A": {"vel": 0.6}}, "lp": 3000},
+    {"inst": "sq_bass", "sections": ["C", "D", "E", "F1"], "pattern": "x.x.x.x.x.x.x.x.", "pitch": ["c0"], "gain_db": -7, "by_section": {"E": {"pattern": ["x.x.x.x.x.x.x.x.", "....x.x.x.x."]}}},
+    {"inst": "kick", "sections": ["C", "D", "E", "F1"], "pattern": "x...x...x...x...", "gain_db": -9, "by_section": {"E": {"pattern": ["x...x...x...x...", "....x...x..."]}, "D": {"pattern": ["x...x...x.......", "x...x...x..."]}}},
+    {"inst": "hihat", "sections": ["C", "D", "E", "F1"], "pattern": "..x...x...x...x.", "gain_db": -17, "pan": 0.3, "by_section": {"E": {"pattern": ["..x...x...x...x.", "......x...x."]}}},
+    {"inst": "clap", "sections": ["D", "F1"], "pattern": "....x.......x...", "gain_db": -15, "send": 0.25, "by_section": {"D": {"pattern": ["....x...........", "....x......."]}}},
+    {"inst": "seq", "sections": ["C", "D", "E", "F1", "G"], "figure": "arp-up", "rate": 8, "span": 2, "gain_db": -15, "pan": -0.25, "delay": {"beats": 0.75, "fb": 0.3, "mix": 0.22, "lp": 4000}, "by_section": {"E": {"vel": 0.7}, "F1": {"rate": 8}, "G": {"vel": 0.55}}},
+    {"inst": "piano", "sections": ["G"], "figure": "stab", "beats": [0], "len": 4.5, "voicing": "spread", "params": {"tone": "felt", "pedal": true}, "gain_db": -4, "send": 0.4, "hit": "section"},
+    {"inst": "glockenspiel", "sections": ["D"], "pattern": [[3.1333, 1.0, "E6", 0.75]], "gain_db": -9, "send": 0.3, "hit": true, "id": "lock"}
+  ]
+}

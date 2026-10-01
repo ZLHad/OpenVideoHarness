@@ -1,0 +1,55 @@
+1
+00:00:00,200 --> 00:00:01,690
+卫星信号会变调？
+Satellite signals change pitch?
+
+2
+00:00:01,850 --> 00:00:03,380
+原因是多普勒频移。
+The cause: the Doppler shift.
+
+3
+00:00:03,550 --> 00:00:05,090
+低轨卫星，飞得极快！
+Low-orbit satellites fly incredibly fast.
+
+4
+00:00:06,450 --> 00:00:08,980
+靠近时，波变密，
+频率升高。
+Approaching: the waves bunch up, the
+frequency rises.
+
+5
+00:00:09,500 --> 00:00:11,180
+正头顶，频移归零。
+Overhead: the shift is zero.
+
+6
+00:00:11,450 --> 00:00:13,770
+远离时，波变疏，
+频率降低。
+Receding: the waves spread out, the
+frequency drops.
+
+7
+00:00:14,900 --> 00:00:17,320
+2 GHz：接近正负 50 kHz。
+At 2 GHz: close to ±50 kHz.
+
+8
+00:00:17,850 --> 00:00:19,820
+20 GHz，再大 10 倍！
+At 20 GHz: ten times more.
+
+9
+00:00:20,650 --> 00:00:22,170
+轨道已知，能提前算出。
+The orbit is known, so it can be computed
+ahead.
+
+10
+00:00:22,850 --> 00:00:24,510
+反向补偿，不再变调。
+Compensate in reverse: no more pitch
+change.

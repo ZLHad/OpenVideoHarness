@@ -37,7 +37,8 @@
 #                               a level hierarchy from one anchor (the narration, else the music): VMR per line, SFX classes, depth
 #   qa <mix> [beats.json] [events.json] [--stems DIR]  final-mix QA: silence, dropouts, pumping, clicks + cue check (+ qa mix) (exit 1 on fail)
 #   qa mix <stems dir>          the mix report of a profile mix: VMR per line, words at risk, SFX classes, depth (exit 1 on a hard miss)
-#   mux <video> <audio> <out> [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video
+#   mux <video> <audio> <out> [--subs-off] [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video, moov first
+#                               (--subs-off: no subtitle track starts switched on, for a picture with burned-in captions)
 #  check
 #   readcheck <texts.json|project|index.html> [--mode onscreen|subtitle] [--lang zh|en]  on-screen text held long enough / subtitles within reading speed (exit 1 on fail)
 #                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [--out f]: the composition's timed text
@@ -465,19 +466,48 @@ cmd_mix() { # a mix profile computes in numpy/scipy (through uv); the default ch
   python3 "$ROOT/tools/audio/mix.py" "$@"
 }
 cmd_qa() { uv run -q --no-project --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
-cmd_mux() { # output length = video length (audio padded, or trimmed with a 40 ms fade-out); extra .srt args become soft subtitle tracks
-  local u="usage: bin/vh mux <video> <audio> <out> [subs.srt…]"
+cmd_mux() { # output length = video length (audio padded, or trimmed with a 40 ms fade-out); extra .srt args become soft subtitle tracks;
+            # moov first (faststart), so a browser starts playing before the whole file has loaded
+  local u="usage: bin/vh mux <video> <audio> <out> [--subs-off] [subs.srt…]"
   local v=${1:?$u} a=${2:?$u} out=${3:?$u}; shift 3
+  local off="" subs=() f
+  for f in "$@"; do case "$f" in --subs-off) off=1 ;; -*) echo "bin/vh mux: unknown option $f ($u)" >&2; return 1 ;; *) subs+=("$f") ;; esac; done
+  set -- ${subs[@]+"${subs[@]}"}
   local vd ad fade=""; vd=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$v"); ad=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$a")
   if python3 -c "import sys; sys.exit(0 if float('$ad') > float('$vd') + 0.001 else 1)"; then   # longer audio: fade the last 40 ms instead of a hard cut
     fade=",afade=t=out:st=$(python3 -c "print(max(0.0, float('$vd') - 0.04))"):d=0.04"; fi
-  local ins=(-i "$v" -i "$a") maps=(-map 0:v -map "[a]") meta=() i=2 s=0 f lang
+  local ins=(-i "$v" -i "$a") maps=(-map 0:v -map "[a]") meta=() i=2 s=0 lang
   for f in "$@"; do   # language from the file name only (captions.zh.srt, subs_en.srt, en.srt …), never from its folders
     lang=und; case "${f##*/}" in zh.*|*[._-]zh.*) lang=chi ;; en.*|*[._-]en.*) lang=eng ;; esac
     ins+=(-i "$f"); maps+=(-map "$i"); meta+=("-metadata:s:s:$s" "language=$lang"); i=$((i+1)); s=$((s+1))
   done
   ffmpeg -v error -y "${ins[@]}" -filter_complex "[1:a]apad,atrim=0:${vd}${fade}[a]" "${maps[@]}" -c:v copy -c:a aac -b:a 192k \
-    ${1:+-c:s mov_text} ${meta[@]+"${meta[@]}"} "$out" && echo "$c_ok $out${1:+ (+$s subtitle track(s))}"
+    ${1:+-c:s mov_text} ${meta[@]+"${meta[@]}"} ${off:+-disposition:s 0} -movflags +faststart "$out" || return 1
+  if [ -n "$off" ] && [ $s -gt 0 ]; then   # --subs-off: no track starts switched on (the picture already has its captions burned in).
+    # The MP4 muxer always enables the first subtitle track when none is default, so clear the enabled bit of every
+    # subtitle track's tkhd in place (players read it as the default flag); the tracks stay listed and selectable.
+    python3 - "$out" <<'PY' || return 1
+import struct, sys
+p = sys.argv[1]; b = bytearray(open(p, "rb").read())
+def boxes(a, e):
+    while a + 8 <= e:
+        n, t = struct.unpack(">I4s", b[a:a + 8]); h = 8
+        if n == 1: n, h = struct.unpack(">Q", b[a + 8:a + 16])[0], 16
+        elif n == 0: n = e - a
+        if n < h: break
+        yield t, a + h, a + n
+        a += n
+for t, c, e in boxes(0, len(b)):
+    for tt, tc, te in (boxes(c, e) if t == b"moov" else ()):
+        if tt != b"trak": continue
+        kids = {k: (kc, ke) for k, kc, ke in boxes(tc, te)}
+        hdlr = next((bytes(b[hc + 8:hc + 12]) for h, hc, he in boxes(*kids.get(b"mdia", (0, 0))) if h == b"hdlr"), b"")
+        if b"tkhd" in kids and hdlr in (b"sbtl", b"subt", b"text"):
+            b[kids[b"tkhd"][0] + 3] &= 0xFE
+open(p, "wb").write(b)
+PY
+  fi
+  echo "$c_ok $out${1:+ (+$s subtitle track(s)${off:+, off by default})}"
 }
 cmd_gif() {
   local v=${1:?usage: bin/vh gif <video> [width] [fps]} w=${2:-640} fps=${3:-15} b out; b=${v##*/}; out="${v%"$b"}${b%.*}.gif"   # extension off the file name, not a dotted folder

@@ -2,6 +2,8 @@
 
 <!-- Gate 1: the user authorised skipping approval gates for this showcase ("still write BRIEF/STYLE/STORYBOARD before coding"). Written 2026-09-28 before any scene code. -->
 
+> 2026-10-01: the picture below was made and finished silent, as briefed. A code-composed score and foley were fitted to it afterwards (README › Soundtrack); the timings here are unchanged.
+
 ## Spec
 - Output: 1920x1080, 30 fps, exactly 20.0s (600 frames)
 - Engine: HyperFrames 0.8.82 (HTML + GSAP 3.14.2), installed locally in this project (`npm i -D hyperframes@0.8.82`)
@@ -37,7 +39,7 @@ Every frame is a pure function of t. No Math.random / Date.now / CSS transitions
 
 ## Process
 1. STORYBOARD.md with reads and timings (gate skipped by user, file still written).
-2. No audio (silent film) — timings come from reads, not from a track.
+2. No audio while the picture was made (silent film): timings come from reads, not from a track. The soundtrack was fitted to the finished picture later (README › Soundtrack).
 3. Build scene by scene; `hyperframes lint` / `check` / `snapshot`; draft render → `bin/vh sheet` + seam strips; critique against TASTE_CHECKLIST.md into NOTES.md; fix; final render.
 4. Uncertain facts and creative decisions go in NOTES.md.
 5. Deliver: MP4, GIF, sheet, poster, NOTES.md, the spots I'm least happy with.
@@ -45,13 +47,13 @@ Every frame is a pure function of t. No Math.random / Date.now / CSS transitions
 ## Acceptance
 - [ ] Hook readable within 1s, muted
 - [ ] Every on-screen string, path and number exists in the repo (checked against files)
-- [ ] 20.0s ±0.1s, 1920x1080, 30 fps, no audio stream
+- [ ] 20.0s ±0.1s, 1920x1080, 30 fps; the picture render has no audio stream (the soundtrack is muxed on afterwards)
 - [ ] Each feature beat readable in ~1s; a cursor click causes each feature beat's action
 - [ ] `hyperframes lint` 0 errors; `check` reviewed; no black/freeze segments except the deliberate end hold
 - [ ] GIF < 8 MB
 
 ## TYPE
-+ TYPE: product launch film. 1920x1080 30fps 20s, **silent** (user: no TTS/music) — so no SFX; beats are cut to reads, not to music.
++ TYPE: product launch film. 1920x1080 30fps 20s, **silent** (user: no TTS/music) — so no SFX; beats are cut to reads, not to music. (Picture phase. Music and SFX were added on 2026-10-01, fitted to these cuts.)
 Register: Linear/Vercel: near-black #0A0A0B, 1px hairlines, blueprint grid at 6% opacity. Font: SF-like grotesk (SF Pro via system-ui) + SF Mono. No gradient text, glassmorphism, or purple-cyan gradients.
 One continuous virtual camera; camera moves 1.5–3s easeInOutCubic, about half your default speed; motion blur on fast moves; light grain.
 Beats: hook promise (0–3s) → problem (1 beat) → 3 feature beats, each = the real UI doing the thing, triggered by an oversized cursor click → proof count-up → 0.5s stillness → logo lockup.

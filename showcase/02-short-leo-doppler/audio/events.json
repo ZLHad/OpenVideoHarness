@@ -1,0 +1,172 @@
+[
+ {
+  "t": 0.2,
+  "sfx": "hook_beacon",
+  "gain_db": -17,
+  "layer": "sonification",
+  "why": "S1: beacon beeps on eighths, pitch follows the hook wave (drawHook λ: squeeze 0.85–1.45, stretch 1.6–2.3)"
+ },
+ {
+  "t": 3.2,
+  "sfx": "whoosh",
+  "gain_db": -18,
+  "pan": -0.2,
+  "why": "S1→S2: push-slide LEFT, s1 out 2.9–3.2, s2 in from 3.2 (−18, not −14: at −14 its 1–4 kHz came within 5 dB of '频移', the end of the line under it)"
+ },
+ {
+  "t": 6.2,
+  "sfx": "swish_rev",
+  "gain_db": -9,
+  "why": "S2→S3: zoom-through, s2 scales 2.4× over 5.9–6.2 (swish_rev ends at the cut)"
+ },
+ {
+  "t": 6.8,
+  "sfx": "ping_01",
+  "gain_db": -14,
+  "pan": -0.56,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 18°, Doppler n = +0.96 → +2.9 semitones"
+ },
+ {
+  "t": 7.4,
+  "sfx": "ping_02",
+  "gain_db": -14,
+  "pan": -0.51,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 31°, Doppler n = +0.87 → +2.6 semitones"
+ },
+ {
+  "t": 8.0,
+  "sfx": "ping_03",
+  "gain_db": -14,
+  "pan": -0.44,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 44°, Doppler n = +0.73 → +2.2 semitones"
+ },
+ {
+  "t": 8.6,
+  "sfx": "ping_04",
+  "gain_db": -14,
+  "pan": -0.36,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 56°, Doppler n = +0.56 → +1.7 semitones"
+ },
+ {
+  "t": 9.2,
+  "sfx": "ping_05",
+  "gain_db": -14,
+  "pan": -0.25,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 69°, Doppler n = +0.36 → +1.1 semitones"
+ },
+ {
+  "t": 9.8,
+  "sfx": "ping_06",
+  "gain_db": -14,
+  "pan": -0.14,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 82°, Doppler n = +0.15 → +0.4 semitones"
+ },
+ {
+  "t": 10.2,
+  "sfx": "zero_bell",
+  "gain_db": -13,
+  "pan": -0.06,
+  "layer": "sonification",
+  "why": "S4: overhead, the curve crosses zero: zero-pulse + ring at T_ZERO = 10.2"
+ },
+ {
+  "t": 10.4,
+  "sfx": "ping_07",
+  "gain_db": -14,
+  "pan": -0.02,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 94°, Doppler n = -0.07 → -0.2 semitones"
+ },
+ {
+  "t": 11.0,
+  "sfx": "ping_08",
+  "gain_db": -14,
+  "pan": 0.09,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 107°, Doppler n = -0.29 → -0.9 semitones"
+ },
+ {
+  "t": 11.6,
+  "sfx": "ping_09",
+  "gain_db": -14,
+  "pan": 0.2,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 119°, Doppler n = -0.50 → -1.5 semitones"
+ },
+ {
+  "t": 12.2,
+  "sfx": "ping_10",
+  "gain_db": -14,
+  "pan": 0.29,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 132°, Doppler n = -0.68 → -2.0 semitones"
+ },
+ {
+  "t": 12.8,
+  "sfx": "ping_11",
+  "gain_db": -14,
+  "pan": 0.37,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 145°, Doppler n = -0.83 → -2.5 semitones"
+ },
+ {
+  "t": 13.4,
+  "sfx": "ping_12",
+  "gain_db": -14,
+  "pan": 0.42,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 157°, Doppler n = -0.94 → -2.8 semitones"
+ },
+ {
+  "t": 14.0,
+  "sfx": "ping_13",
+  "gain_db": -14,
+  "pan": 0.46,
+  "layer": "sonification",
+  "why": "S3–S5: beacon ping, α 170°, Doppler n = -1.00 → -3.0 semitones"
+ },
+ {
+  "t": 15.15,
+  "sfx": "whoosh",
+  "gain_db": -18,
+  "why": "S5→S6a: the dome lifts away (eIn 14.6–15.2), the chart grows to the centre (eInOut 14.7–15.6): fastest ≈ 15.15"
+ },
+ {
+  "t": 18.2,
+  "sfx": "whoosh",
+  "gain_db": -16,
+  "why": "S6b: the axis zooms out ×10 (ticks ±50 → ±500 kHz, 2 GHz curve squashed, 17.8–18.6)"
+ },
+ {
+  "t": 18.967,
+  "sfx": "impact",
+  "gain_db": -12,
+  "why": "S6b: the Ka 20 GHz curve draws at full height (18.95–19.75) — '再大 10 倍'"
+ },
+ {
+  "t": 23.5,
+  "sfx": "swish_rev",
+  "gain_db": -14,
+  "why": "S7: both curves collapse into the flat line (22.7–23.5)"
+ },
+ {
+  "t": 23.6,
+  "sfx": "ping_flat_1",
+  "gain_db": -14,
+  "layer": "sonification",
+  "why": "S7: the beacon again, now at one fixed pitch: compensated, no more change"
+ },
+ {
+  "t": 24.2,
+  "sfx": "ping_flat_2",
+  "gain_db": -14,
+  "layer": "sonification",
+  "why": "S7: the beacon again, now at one fixed pitch: compensated, no more change"
+ }
+]
