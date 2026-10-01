@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**README: the sample films, one per row**
+- "See what it makes" in `README.md` and `README.zh-CN.md` is one sample per row, not a two-row grid of previews. On the left, the preview GIF (it links to the film's folder) with a ▶ link to the original with sound; on the right, what the film is, its request, a suggested workflow (type, effort, style preset and the `bin/vh` commands) and what it sounds like. The rows are 02, 03, 01, 00, 04, then the 28-style reel (`styles/gallery.jpg`, linking to `styles/gallery.mp4`).
+- The requests are quoted from each film's brief, and the word "Request" links to the whole brief in the folder's README. Those briefs were a paragraph, not one sentence, and the section says so; for 04 the quote is the human's note at gate ①, not the first brief. The workflows are suggestions for a similar film (the effort levels and style presets came after films 00–03), and the section notes that 00–03 were finished silent and their sound was fitted afterwards.
+- No new image files. The table keeps its 40 / 60 split with no sideways scrolling from 320 to 1280 px wide.
+
 **Showcase 00–03 have sound**
 - The four showcase films were made and finished silent. Each now has a soundtrack fitted to its finished picture, whose timing is unchanged:
   - 00 launch film: a code-composed electronic score (E major, 120 BPM, bar heads on the cuts) and 41 foley events;
