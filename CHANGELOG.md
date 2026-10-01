@@ -10,6 +10,10 @@
 - No media changed. `media/final.mp4` of 02 and 03 still carries the old cue times in its soft subtitle tracks until they are muxed again; the mixes and pictures are untouched.
 - Docs: `playbook/03-motion-design.md` §2 (the mark, and the lengthening), `playbook/04-audio.md` (the minimum cue duration), `templates/STORYBOARD.md`, `recipes/sequences/explainer-30s.md`, the `bin/vh` help.
 
+**Two small tool fixes**
+- `bin/vh check` also reports the colour format: ✓ for `yuv420p`, limited range, BT.709 with all four tags; otherwise a warning naming what it found and pointing to the re-encode command in `playbook/02-verification.md` (色彩标签). Browsers read untagged or BT.601-tagged HD video with the wrong matrix.
+- `bin/vh music <score> <out>` creates the output folder when it is missing (it raised a traceback), and an unreadable or broken score gives a one-line error.
+
 **Showcase 02 and 03: word timings for the narration; 02's 2 GHz line re-taken**
 - The narration timelines of 02 (Chinese) and 03 (English) have word timings and a speech-recognition check for every line (`words`, `asr`). They come from Gemini's transcription of the takes (`gemini-3.5-transcribe` through `tts.py`'s own transcribe → align_lines → asr_record, `--min-sim 0.9`). #32 left them out when the daily transcribe quota ran out.
 - `bin/vh captions` adds the words to each film's `audio/captions.json` and writes `audio/captions.zh.lines.srt` and `audio/captions.en.lines.srt`, one cue per wrapped line, each starting on its first spoken word. The timings alone change neither the mixes nor the muxed subtitle tracks: 03's `media/final.mp4` is unchanged, and 03's mix rebuilds byte for byte.
