@@ -7,13 +7,13 @@
 | 阶段 | 产物 | 工具 | 通过条件 |
 |---|---|---|---|
 | 0 选路径 | — | `00-paradigm.md` 的选型表和 `video-types/` | 能说清验收标准 |
-| 1 Brief + 大纲 | `BRIEF.md`（受众、平台、时长、画幅、fps、有无声音、验收项）+ 3–7 段大纲 | `templates/BRIEF.md` | **人工关卡 ①** |
-| 2 风格 | `STYLE.md`：调色板、字体、缓动、安全区或锚点网格、禁止项 | `templates/STYLE.md` + 类型文档 | 一页纸能讲清 |
+| 1 素材、立意、Brief、大纲 | `NOTES.md` 的素材清单；2–3 张立意卡；`BRIEF.md`（立意、受众、平台、时长、画幅、fps、有无声音、验收项）+ 3–7 段大纲 | `12-ideation.md`、`templates/BRIEF.md` | 立意一句话说得出、换个题材就不成立；**人工关卡 ①** |
+| 2 风格 | `STYLE.md`：从立意推出的调色板、字体、缓动、安全区或锚点网格、禁止项；借了预设就只写改动 | `templates/STYLE.md` + 类型文档，可借 `styles/` | 一页纸能讲清，看得出是从立意来的 |
 | 3 脚本与分镜 | `SCRIPT.md`（有旁白时写，关键词标 `{cue}`）、`STORYBOARD.md`（每镜的时间、reads、转场）、每镜一张关键帧（`shots.json` → `bin/vh storyboard`，出在 `out/check/storyboard/`）；节奏要紧的片子再加一版 animatic `out/animatic.mp4` | `templates/SCRIPT.md`、`templates/STORYBOARD.md` | 每镜都有事件，reads 不重叠；**人工关卡 ②** |
 | 4 音频先行 | `audio/*`、`timeline.json`（词级时间）、`beats.json` | 见 `04-audio.md` | 用实测时长回写分镜 |
 | 5 搭引擎 | 渲染脚本、公共库（hash、ease、keyframe、camera、pulse），先做一个样板场景 | `engines/README.md` | 乱序跳到同一帧，结果一致 |
 | 6 写场景 | 每个场景一个文件；长片按 chapter 分给多个 subagent | Claude Code subagents | 每个场景都过 lint、sheet、strip、crop |
-| 7 Review | `out/check/*.jpg` 和 `NOTES.md` 里的评分记录 | 全新上下文的 reviewer subagent，对照 `TASTE_CHECKLIST.md` | 20 条全 PASS；整片 draft 过 1 轮打分层，修最差的 3 处（`studio` 至少 3 轮，七个维度都 ≥ 8） |
+| 7 Review | `out/check/*.jpg` 和 `NOTES.md` 里的评分记录 | 全新上下文的 reviewer subagent，对照 `TASTE_CHECKLIST.md` | 20 条全 PASS；整片 draft 过 1 轮打分层，修最差的 3 处（`studio` 至少 3 轮，八个维度都 ≥ 8） |
 | 8 渲染 | 先出 draft，给人审阅后再出 final | 并行 worker；ffmpeg 合成，加 `loudnorm` | `ffprobe`、`blackdetect`、`freezedetect` 都通过；**人工关卡 ③**（draft） |
 | 9 交付 | mp4、源码、渲染命令、素材台账、`LESSONS.md` | — | 用户完整看一遍、听一遍 |
 
@@ -51,7 +51,7 @@ projects/2026-10-01-leo-doppler/
 
 人的判断力最值钱的地方，是在改动还便宜的时候。`standard` 和 `studio` 在下面三处停下来；人还点名要亲自拍板的事，按 CLAUDE.md 的"导演模式"另外停。每次停默认做一页决定优先的审阅页（见下面的"审阅页"），聊天里只发要人定的事和页面路径：
 
-1. **大纲（关卡 ①）**：视频是什么、给谁看、多长、什么风格，再加 3–7 段大纲。不确认就往下做，后面几乎所有工作都可能白做。
+1. **立意和大纲（关卡 ①）**：先定立意：2–3 张立意卡，每张配一帧画面（`12-ideation.md` 第 7 节）。再定给谁看、多长、什么风格，加 3–7 段大纲。不确认就往下做，后面几乎所有工作都可能白做；立意定错的代价最大，因为风格、结构、主体都是从它推出来的。
 2. **分镜（关卡 ②）**：逐镜头的画面、reads 和转场，按大纲的段落拆页，每页 3–6 镜的关键帧，可以是草图或灰盒。人看图比读文字快得多。改分镜只要几分钟，改写好的代码要几小时。节奏要紧的片子（卡配乐、有旁白、长于约 30 秒），这一关再附一版 animatic，做法见下。
 3. **初版（关卡 ③）**：draft 成片加联系表。agent 要主动说出自己最不满意的 2–3 处，并给出可选的修法，比等人来挑更高效。
 
@@ -63,8 +63,9 @@ projects/2026-10-01-leo-doppler/
 
 | 站 | 在流程里 | 能定的事 | agent 交什么（先图后字） | 选项 | 以后再改 |
 |---|---|---|---|---|---|
-| 关卡 ① | 阶段 1 | `outline` 大纲 | 3–7 段，一段一句，加一条时长条；骨架和节拍见 `playbook/09-narrative.md` 的"骨架菜单"和"节拍表" | 1 | 分镜后：高 |
-| | | `style` 风格 | 候选风格在同一时刻的对照图；`studio` 每个候选再真渲一段本片内容的小样 | 2–3 | 写场景后：高 |
+| 关卡 ① | 阶段 1 | `concept` 立意 | 2–3 张彼此拉得开的立意卡：一句话装置、为什么是这份材料、主体、首尾、推出的画面和声音、风险；每张一帧画面，`studio` 每张一段 10–20 s 草图。见 `playbook/12-ideation.md` | 2–3 | 分镜后：很高，等于重做 |
+| | | `outline` 大纲 | 3–7 段，一段一句，加一条时长条；骨架和节拍见 `playbook/09-narrative.md` 的"骨架菜单"和"节拍表" | 1 | 分镜后：高 |
+| | | `style` 风格 | 从选中立意推出的画面，和 1–2 个可借的预设，在同一时刻的对照图；`studio` 每个候选再真渲一段本片内容的小样 | 2–3 | 写场景后：高 |
 | | | `hook` 钩子卡 | 要发平台的片子：3 张不同类型的钩子卡，每张配 2 个草拟标题和 1 个封面版式；见 `playbook/10-hooks-and-packaging.md` 的"在关卡 ① 怎么用" | 3 | 低：只动开头一段 |
 | E0 样帧 | 阶段 2 | `character` 主角 / 主体 | 设定图（`templates/CHARACTER.md`） | 1–2 | 镜头画完后：高 |
 | | | `theme` 主旋律 | 两版 4–8 小节的试听，加谱面图；主题怎么写见 `playbook/11-composition.md` 的"写主题" | 2 | 画面对上拍之后：中 |

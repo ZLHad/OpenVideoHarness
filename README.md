@@ -63,7 +63,7 @@ Make a 30-second vertical science short: why does a low-orbit satellite's signal
 ```
 
 What happens next:
-1. It hands you a one-screen outline, with two or three styles to choose from.
+1. It offers two or three concepts (an idea that makes the form itself tell the content, each with one frame), then a one-screen outline; the style follows from the concept you pick, or borrows from the style library.
 2. Then a storyboard and a sheet of keyframes.
 3. Then a first draft, along with the two or three things it likes least.
 
@@ -169,13 +169,13 @@ You don't need a long brief. Say **what it's about, who it's for and where it go
 <p align="center"><img src="docs/assets/overview.en.svg" width="720" alt="OpenVideoHarness at a glance: a one-sentence request goes through type and effort selection, three human gates, sound-first code rendering and a self-review loop to a finished film; on the right, what the repository provides"></p>
 
 1. **Pick the type.** From your one sentence, the agent looks up the routing table in [CLAUDE.md](CLAUDE.md), decides what kind of video this is, and reads that type's workflow.
-2. **Gate ①, the outline.** It hands you an outline with two or three styles to pick from.
+2. **Gate ①, the concept and the outline.** It offers two or three concepts, each a one-line idea such as "slow the 3 seconds after Enter down to 2 minutes", each with one frame; once you pick one, it hands you the outline. The style follows from the concept: its own, or a preset borrowed from the style library.
 3. **Gate ②, the storyboard.** For each shot: what the viewer must understand, in what order, and for how long. Plus a preview sheet with one frame per shot.
 4. **Sound first.** It makes the narration or music first and measures exactly when every line and beat lands, so the picture follows the sound.
 5. **Write the code and check it.**
    - After each section, it lays the rendered frames out on a contact sheet, looks at them, and fixes whatever fails a 20-point checklist.
    - It measures the mix for dropouts, clicks and missed cues.
-   - A reviewer who wasn't involved then scores the whole draft on 7 points; each one has to reach 8.
+   - A reviewer who wasn't involved then scores the whole draft on 8 points (the first is whether the idea holds up); each one has to reach 8.
 6. **Gate ③, the first draft.** You watch it, and it tells you the parts it likes least. If you can't say what's wrong, it makes two or three versions of one section for you to choose from.
 7. **Wrap up.** It renders the final and writes what it learned back into the docs, so the next film starts better.
 
@@ -189,14 +189,14 @@ Not every film deserves the full treatment. One switch controls how much effort 
 | For | trying a direction, drafts, casual posts | most real videos | launch films, flagship pieces |
 | Stops to ask you | never; it just renders | at the outline, storyboard and first draft | the same three, plus rendered style samples and a full-length animatic |
 | Checks its own work | one contact sheet for the whole film | frames and sound, section by section | plus phone size, determinism and a full audio check |
-| Outside reviewer | none | 1 round | at least 3 rounds, all 7 scores at 8+ |
+| Outside reviewer | none | 1 round | at least 3 rounds, all 8 scores at 8+ |
 | A 30 s film takes about | 10–30 min | 1–2 h | 3 h or more |
 
 Just say "quick draft" or "make it studio quality" in your request, or start the project with `bin/vh new promo launch --effort studio`. The floor never drops at any level: every frame depends only on time, facts are copied exactly, no audio dropouts, flash-safe. `bin/vh effort` prints the full rules.
 
 ### You choose what you decide
 
-Effort sets how hard the agent checks its own work; director mode sets what you decide yourself. Each of ten decisions (outline, script, style, hook, main character, theme music, storyboard, edit rhythm, voice, title and cover) can be yours to **own** (it shows you options and waits), yours to **review** (it shows you the result and carries on unless you object), or **delegated** (it decides and writes down why in `DECISIONS.md`). Every stop is, by default, a local page from `bin/vh review`: at most three decisions on the first screen, each with a recommendation and a one-line reply, then pictures, the animatic and music you can play in the browser. `standard` and `studio` still stop at the outline, storyboard and first draft.
+Effort sets how hard the agent checks its own work; director mode sets what you decide yourself. Each of eleven decisions (concept, outline, script, style, hook, main character, theme music, storyboard, edit rhythm, voice, title and cover) can be yours to **own** (it shows you options and waits), yours to **review** (it shows you the result and carries on unless you object), or **delegated** (it decides and writes down why in `DECISIONS.md`). Every stop is, by default, a local page from `bin/vh review`: at most three decisions on the first screen, each with a recommendation and a one-line reply, then pictures, the animatic and music you can play in the browser. `standard` and `studio` still stop at the outline, storyboard and first draft.
 
 > **Deep involvement:** a 90 s explainer on how satellites avoid collisions, studio quality. I'll pick the hook, the main character, the theme melody, and the title and cover; decide the rest yourself.
 
@@ -340,7 +340,7 @@ OpenVideoHarness/
 ├── bin/vh · tools/           the command line and the scripts behind it
 ├── skills/                   the open-video-harness skill
 ├── video-types/              workflows for the 9 video types (09 experimental)
-├── playbook/                 shared know-how 00–11: pipeline, checks, motion, sound, effects, narrative, hooks and covers, composition
+├── playbook/                 shared know-how 00–12: pipeline, checks, motion, sound, effects, narrative, hooks and covers, composition, concept
 ├── templates/                files each new project fills in: brief, storyboard, style, review, decisions, notes, lessons, checklist; script, character and packaging when needed
 ├── styles/                   28 styles, each with a sample; _swatch/ renders the samples
 ├── recipes/                  shot recipes: how a shot moves (frames, critical values, pitfalls) + pacing skeletons for whole films

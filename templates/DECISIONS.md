@@ -1,6 +1,6 @@
 # DECISIONS：谁拍板，定了什么，为什么
 
-<!-- 导演模式的账本（CLAUDE.md"导演模式"），也是项目里记创作决策的唯一地方：引擎、风格、结构、偏离 BRIEF 的地方都记在这里；
+<!-- 导演模式的账本（CLAUDE.md"导演模式"），也是项目里记创作决策的唯一地方：立意、引擎、风格、结构、偏离 BRIEF 的地方、立意改写了哪些口味默认（TASTE_CHECKLIST 里没标【底线】的条目、Motion defaults、类型的语域和节拍），都记在这里；
      NOTES.md 只记事实核对、自评和素材台账。上表每件事一行：谁拍板、定了没有、在哪看。
      下面按时间记 agent 定的事，每条带理由和翻案的代价，人随时可以翻。人自己说的话记在 REVIEW.md。 -->
 
@@ -8,7 +8,8 @@ Director: {照抄 BRIEF 的 Director 行；没写就写"按 {effort} 的默认"}
 
 | 决定 | 谁拍板 | 状态 | 在哪看 |
 |---|---|---|---|
-| outline 大纲 | {own / review / delegate} | {待定 / 已定（关卡 ①）} | {REVIEW.md 关卡 ①} |
+| concept 立意 | {own / review / delegate} | {待定 / 已定（关卡 ①）} | {REVIEW.md 关卡 ①；立意卡在 out/review/gate-1.html} |
+| outline 大纲 | | | |
 | style 风格 | | | |
 | character 主角 | | | |
 | theme 主旋律 | | | |
@@ -23,4 +24,5 @@ Director: {照抄 BRIEF 的 Director 行；没写就写"按 {effort} 的默认"}
 
 <!-- 一条一行：日期 · 决定 · 定了什么 — 理由 — 翻案：改哪里、要花多少 -->
 - {YYYY-MM-DD} engine · {HyperFrames} — 理由：{…} — 翻案：{…}
+- {YYYY-MM-DD} 口味覆盖 · TASTE #14 段落之间用 1.2 s 慢叠化 — 理由：书信体的立意，段落之间是翻页，不是切换 — 翻案：换回硬切或带承载物的转场，约 20 分钟（只动转场）
 - {YYYY-MM-DD} voice · {Qwen 女声 Serena，语速约 4.5 字/秒} — 理由：{…} — 翻案：重跑 `bin/vh tts`，约 5 分钟；每句的起止会变，要重新锁时（E3）

@@ -17,7 +17,7 @@
 1. **先有素材清单，再做动画**：产品截图或录屏、logo、真实文案、品牌色和字体、网址、架构图和流程图。**不要用占位 UI，也不要凭印象重画界面。** viggo 的 Applore 宣传片之所以可信，就是因为用了自家库里 17,550 个真实 app 图标。
    - 网页和 Web App 用 Playwright（或浏览器工具）按成片分辨率截图，例如 `npx playwright screenshot --viewport-size=1920,1080 <url> assets/ui/home.png`；终端、编辑器等本地界面用录屏或系统截图。
    - 全部存进项目的 `assets/`，逐条记进 NOTES.md 的素材台账（文件、来源、许可）。开始写场景代码前，把清单过一遍：片子里要出现的每块界面都要在清单里有对应的文件，清单里没有的就先去截，而不是自己造。
-2. **选语域**，二选一，写进 STYLE.md：
+2. **选语域**：先从立意推（`playbook/12-ideation.md`）。立意没给出更好的答案时，从下面两种里选一种，写进 STYLE.md：
    - **Apple 系**：黑底或白底，单镜只说一句主张，大面积留白，对真实 UI 做微距裁切，每次揭示 1–2 秒，慢。
    - **Linear / Vercel / Stripe 系**：近黑底 `#0A0A0B`，1px 细线，低透明度的蓝图网格，Geist 或 Geist Mono 字体，用真实 UI。
    
@@ -25,7 +25,7 @@
 3. **look-dev**：brief 里只说"炫酷""高级""大片感"，却没有说具体是什么样时，先做一轮 look-dev 再定：出 3 张 style frame，或者 2–3 段 10–20 s 的短变体，放在关卡 ② 之前或并进关卡 ②，让人挑。
    - 变体只换强度预设、不换内容，人比较的才是风格本身。介绍片 v3 用同一份代码、按 `fx` = A / B / C 渲了三段 22.7 s 的变体，每段都带一节产品信息图，另附一张 3 行 × 11 个时刻的对比图。预设栈的写法见 `playbook/08-vfx-and-motion-sources.md`。
    - 选定的预设写进 STYLE.md。
-4. **节拍结构**【综合】：
+4. **节拍结构**【综合】：下面是默认骨架。立意自带结构时以立意为准，例如产品的工作流本身就是故事线（`cases/oneshot-five.md` 第 5 节的 Mirage），或者用做法讲做法（第 3 节）。
    1. hook，承诺一个结果（0–3s）；
    2. 问题（1 拍）；
    3. 3 个功能拍，每拍都是"真实 UI 在做这件事"，由超大光标点击触发；
@@ -76,9 +76,9 @@
 
 ```text
 + TYPE: product launch film. 1920x1080 (+1080x1350 and 1080x1920 re-framed cuts) 30fps {15–30}s, music-driven, SFX on key hits.
-Register: {Apple: black/white, one claim per shot, macro crops of the real UI | Linear/Vercel: near-black #0A0A0B, 1px hairlines, blueprint grid at 6% opacity}. Font {Geist/Geist Mono | SF-like grotesk}. No gradient text, glassmorphism, or purple-cyan gradients.
+Register: {follows from the concept (playbook/12-ideation.md) | Apple: black/white, one claim per shot, macro crops of the real UI | Linear/Vercel: near-black #0A0A0B, 1px hairlines, blueprint grid at 6% opacity}. Font {Geist/Geist Mono | SF-like grotesk}. No gradient text, glassmorphism, or purple-cyan gradients.
 One continuous virtual camera; camera moves 1.5–3s easeInOutCubic, about half your default speed; motion blur on fast moves; light grain.
-Beats: hook promise (0–3s) → problem (1 beat) → 3 feature beats, each = the real UI doing the thing, triggered by an oversized cursor click → proof count-up → 0.5s stillness → logo lockup.
+Default beats (a concept with its own structure replaces them, e.g. the product's own workflow as the story): hook promise (0–3s) → problem (1 beat) → 3 feature beats, each = the real UI doing the thing, triggered by an oversized cursor click → proof count-up → 0.5s stillness → logo lockup.
 Use real copy/assets from {URL / assets/}; recreate the UI accurately; no placeholder text or invented numbers.
 Show the product itself: {architecture | workflow | features | case studies} as motion infographics built from its real diagrams and docs, labels copied verbatim.
 {Optional mascot/voice: a character introduces the product; voice via {ElevenLabs | local TTS}, captions synced to word timestamps.}
