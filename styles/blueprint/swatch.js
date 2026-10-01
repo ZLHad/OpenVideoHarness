@@ -24,7 +24,7 @@ const FIG_X = [448, 960, 1472], FIG_Y = 575;                              // lib
 const pan = (x) => Math.round(((2 * x) / 1920 - 1) * 70) / 100;   // pan = (2x/W − 1) · 0.7
 const wordStarts = (str, t0, stag) => { const out = []; let n = 0, prev = " "; for (const ch of str) { if (ch !== " ") { if (prev === " ") out.push(t0 + n * stag); n++; } prev = ch; } return out; };
 export const FOLEY = [
-  { t: TL.roll[0] + 0.6 * (TL.roll[1] - TL.roll[0]), sfx: "whoosh", gain_db: -12 },      // the sheet unrolls
+  { t: TL.roll[0] + 0.6 * (TL.roll[1] - TL.roll[0]), sfx: "paper", gain_db: -12, dur: 0.3, dir: "down" },   // the sheet unrolls
   { t: TL.roll[1], sfx: "click", gain_db: -8 },                                           // …and lands
   // the ticks sit 8 dB higher than first written (12 for the figure ticks): the marimbas' 16ths cover 1–4 kHz, and
   // at the old gains every tick was 15–21 dB under the bed (qa mix: BURIED), the figure ticks only a faint match
@@ -34,10 +34,10 @@ export const FOLEY = [
   { t: TL.zh, sfx: "tick", gain_db: -10, pan: pan(260) },
   ...FIG_X.map((x, k) => ({ t: TL.fig(k), sfx: "tick", gain_db: -2, pan: pan(x) })),     // each figure's first centre line
   { t: TL.fig(2) + 0.6, sfx: "click", gain_db: -10, pan: pan(FIG_X[2]) },                 // the dimension number appears
-  { t: TL.sweep[1], sfx: "swish_rev", gain_db: -14, pan: pan(FIG_X[1]) },                 // cutting plane A–A lands
+  { t: TL.sweep[1], sfx: "swish_rev", gain_db: -14, pan: pan(FIG_X[1]), dur: TL.sweep[1] - TL.sweep[0], bright: 0.3 },                 // cutting plane A–A lands
   { t: TL.cloud, sfx: "toggle", gain_db: -10, pan: pan(FIG_X[2]) },                       // revision cloud
   ...[0, 1, 2, 3].map((i) => ({ t: TL.stretch[0] + ((i + 0.5) * (TL.stretch[1] - TL.stretch[0])) / 4, sfx: "tick", gain_db: -8, pan: pan(FIG_X[2]) })),    // the count
-  { t: TL.pan[0] + 0.4, sfx: "whoosh", gain_db: -12, pan: 0.3 },                          // fig-pan to the title block
+  { t: TL.pan[0] + 0.4, sfx: "whoosh", gain_db: -12, pan: 0.3, dur: TL.pan[1] - TL.pan[0], dir: "up", pan_from: 0, pan_to: 0.45 },                          // fig-pan to the title block
   { t: TL.rev, sfx: "click", gain_db: -8, pan: 0.45 },                                    // revision triangle
 ];
 

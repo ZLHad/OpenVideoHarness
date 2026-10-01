@@ -18,7 +18,7 @@
                  [7, 0.6, ["B4", "Eb5", "F5", "Ab5"], 0.9],
                  [8, 0.6, ["Bb4", "Db5", "E5", "G5"], 0.95],
                  [10, 1.4, ["Ab4", "C5", "D5", "G5"], 1.0]]},
-    {"inst": "upright", "figure": "walking", "ghost": 0.3, "gain_db": -2, "pan": -0.15, "send": 0.08,
+    {"inst": "upright_pm", "figure": "walking", "ghost": 0.3, "gain_db": -1.6, "pan": -0.15, "send": 0.08,
      "by_section": {"stab": {"figure": null, "pattern": [[0.25, 1.0, "F2", 0.95]]},
                     "breath": {"figure": null, "pattern": [[0.25, 0.6, "C2", 0.8]]},
                     "title": {"figure": null, "pattern": [[2, 0.6, "Bb1", 0.9], [2.62, 0.38, "C2", 0.75]]},

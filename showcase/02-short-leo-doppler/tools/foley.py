@@ -82,14 +82,15 @@ def hook_beacon():
 
 def main():
     sounds, ev = {}, []
-    def add(t, sfx, gain_db, pan=0.0, why="", layer=None):
+    def add(t, sfx, gain_db, pan=0.0, why="", layer=None, **shape):   # shape: a built-in's dur, dir, pitch, bright, tone, pan_from / pan_to
         ev.append({"t": round(float(t), 3), "sfx": sfx, "gain_db": gain_db, **({"pan": pan} if pan else {}),
-                   **({"layer": layer} if layer else {}), "why": why})
+                   **({"layer": layer} if layer else {}), **shape, "why": why})
 
     sounds["hook_beacon"] = hook_beacon()
     add(BEAT0, "hook_beacon", -17, 0, "S1: beacon beeps on eighths, pitch follows the hook wave (drawHook λ: squeeze 0.85–1.45, stretch 1.6–2.3)", "sonification")
-    add(3.2, "whoosh", -18, -0.2, "S1→S2: push-slide LEFT, s1 out 2.9–3.2, s2 in from 3.2 (−18, not −14: at −14 its 1–4 kHz came within 5 dB of '频移', the end of the line under it)")
-    add(6.2, "swish_rev", -9, 0, "S2→S3: zoom-through, s2 scales 2.4× over 5.9–6.2 (swish_rev ends at the cut)")
+    add(3.2, "whoosh", -18, -0.2, "S1→S2: push-slide LEFT, s1 out 2.9–3.2, s2 in from 3.2 (−18, not −14: at −14 its 1–4 kHz came within 5 dB of '频移', the end of the line under it)",
+        dur=0.3, pan_from=0.3, pan_to=-0.5)
+    add(6.2, "swish_rev", -9, 0, "S2→S3: zoom-through, s2 scales 2.4× over 5.9–6.2 (swish_rev ends at the cut)", dur=0.3, dir="up")
     # S3–S5: one ping per beat while the satellite crosses the dome (α 10° at 6.4 s → 170° at 14.0 s)
     beats = [BEAT0 + BEAT * k for k in range(40) if 6.7 < BEAT0 + BEAT * k < 14.0]
     for i, t in enumerate(beats):
@@ -98,10 +99,11 @@ def main():
         add(t, name, -14, pan_of(sat_x(t)), f"S3–S5: beacon ping, α {alpha_at(t):.0f}°, Doppler n = {n:+.2f} → {3 * n:+.1f} semitones", "sonification")
     sounds["zero_bell"] = bell(F0)
     add(frame(T_ZERO), "zero_bell", -13, pan_of(495), "S4: overhead, the curve crosses zero: zero-pulse + ring at T_ZERO = 10.2", "sonification")
-    add(15.15, "whoosh", -18, 0, "S5→S6a: the dome lifts away (eIn 14.6–15.2), the chart grows to the centre (eInOut 14.7–15.6): fastest ≈ 15.15")
-    add(18.2, "whoosh", -16, 0, "S6b: the axis zooms out ×10 (ticks ±50 → ±500 kHz, 2 GHz curve squashed, 17.8–18.6)")
+    add(15.15, "swoosh_tonal", -18, 0, "S5→S6a: the dome lifts away (eIn 14.6–15.2), the chart grows to the centre (eInOut 14.7–15.6): fastest ≈ 15.15",
+        dur=0.6, dir="up")
+    add(18.2, "whoosh", -16, 0, "S6b: the axis zooms out ×10 (ticks ±50 → ±500 kHz, 2 GHz curve squashed, 17.8–18.6)", dur=0.8, dir="down")
     add(frame(18.95), "impact", -12, 0, "S6b: the Ka 20 GHz curve draws at full height (18.95–19.75) — '再大 10 倍'")
-    add(23.5, "swish_rev", -14, 0, "S7: both curves collapse into the flat line (22.7–23.5)")
+    add(23.5, "swish_rev", -14, 0, "S7: both curves collapse into the flat line (22.7–23.5)", dur=0.8, dir="down")
     for i, t in enumerate([BEAT0 + BEAT * 39, BEAT0 + BEAT * 40]):  # 23.6, 24.2: '补偿后 ≈ 0' is on from 23.35
         name = f"ping_flat_{i + 1}"; sounds[name] = ping(F0)
         add(t, name, -14, 0, "S7: the beacon again, now at one fixed pitch: compensated, no more change", "sonification")

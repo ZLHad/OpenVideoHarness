@@ -9,13 +9,13 @@
   {"t":2.12,"sfx":"pop","gain_db":-10,"pan":-0.37},
   {"t":2.27,"sfx":"pop","gain_db":-10,"pan":0},
   {"t":2.42,"sfx":"pop","gain_db":-10,"pan":0.37},
-  {"t":2.57,"sfx":"whoosh","gain_db":-20,"pan":-0.37},
+  {"t":2.57,"sfx":"whip","gain_db":-15,"pan":-0.37,"dur":0.3,"dir":"up","pan_from":-0.54,"pan_to":-0.37},
   {"t":2.72,"sfx":"pop","gain_db":-6,"pan":-0.37},
-  {"t":3.07,"sfx":"whoosh","gain_db":-20,"pan":0},
+  {"t":3.07,"sfx":"whip","gain_db":-15,"pan":0,"dur":0.3,"dir":"up","pan_from":-0.37,"pan_to":0},
   {"t":3.22,"sfx":"pop","gain_db":-6,"pan":0},
-  {"t":3.57,"sfx":"whoosh","gain_db":-20,"pan":0.37},
+  {"t":3.57,"sfx":"whip","gain_db":-15,"pan":0.37,"dur":0.3,"dir":"up","pan_from":0,"pan_to":0.37},
   {"t":3.72,"sfx":"pop","gain_db":-6,"pan":0.37},
-  {"t":4.1,"sfx":"whoosh","gain_db":-8,"pan":0.37},
+  {"t":4.1,"sfx":"whip","gain_db":-8,"pan":0.37,"dur":0.34,"pitch":-3,"dir":"up"},
   {"t":4.34,"sfx":"impact","gain_db":-8,"pan":0},
   {"t":4.5,"sfx":"ding","gain_db":-14,"pan":0}
 ]

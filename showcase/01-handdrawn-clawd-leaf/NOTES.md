@@ -104,4 +104,4 @@ Iteration 3: strips for key motions and every seam.
 | all artwork | painted in code (src/scenes/leaf.js) on ClaudeAnimationBase | engine MIT (JohnHeibel/ClaudeAnimationBase) |
 | audio: the music | `audio/score.json`, composed here; rendered by `bin/vh music` (synthesis only, no samples) | original |
 | audio: 22 custom foley sounds | `tools/foley.py`, synthesized, seeded | original |
-| audio: built-in SFX (whoosh, swish_rev, toggle, click) | `bin/vh sfx lib` (`tools/audio/sfx.py`) | MIT, part of this repo |
+| audio: built-in SFX (whoosh, whip, air, paper, swish_rev, toggle, click) | `bin/vh sfx lib` (`tools/audio/sfx.py`) | MIT, part of this repo |

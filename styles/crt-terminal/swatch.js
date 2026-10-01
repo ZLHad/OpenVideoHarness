@@ -43,7 +43,7 @@ export const FOLEY = [
   ...[2, 4, 6, 8].map((P) => ({ t: TL.barStart + P * TL.barStep, sfx: "tick", gain_db: -14, pan: pan(colX(27 + P)) })),   // bar fills (every 2nd cell)
   { t: TL.ready, sfx: "success", gain_db: -12, pan: pan(colX(48)) },                       // READY flips to inverse video
   { t: TL.off + 0.02, sfx: "glitch", gain_db: -14 },                                       // power-off
-  { t: TL.dot, sfx: "swish_rev", gain_db: -12 },                                           // collapses into the dot
+  { t: TL.dot, sfx: "tape", gain_db: -12, dur: TL.dot - TL.off, dir: "down" },                                           // collapses into the dot
   { t: TL.reOn, sfx: "click", gain_db: -8 },                                               // back on, inverse video (short: a boom tail would be cut at 5 s)
 ];
 

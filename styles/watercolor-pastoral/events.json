@@ -2,36 +2,49 @@
  {
   "id": "stroke",
   "t": 0.1,
-  "sfx": "whoosh",
+  "sfx": "paper",
   "gain_db": -10,
-  "pan": 0
+  "pan": 0,
+  "dur": 0.32,
+  "pan_from": -0.5,
+  "pan_to": 0.5
  },
  {
   "series": "gust",
   "t": 1.35,
-  "sfx": "whoosh",
+  "sfx": "air",
   "gain_db": -17,
-  "pan": 0
+  "pan": 0,
+  "dur": 1.0,
+  "pan_from": -0.6,
+  "pan_to": 0.6
  },
  {
   "series": "gust",
   "t": 2.55,
-  "sfx": "whoosh",
+  "sfx": "air",
   "gain_db": -17,
-  "pan": 0
+  "pan": 0,
+  "dur": 1.0,
+  "pan_from": -0.6,
+  "pan_to": 0.6
  },
  {
   "series": "gust",
   "t": 3.75,
-  "sfx": "whoosh",
+  "sfx": "air",
   "gain_db": -17,
-  "pan": 0
+  "pan": 0,
+  "dur": 1.0,
+  "pan_from": -0.6,
+  "pan_to": 0.6
  },
  {
   "id": "bloom",
   "t": 4.4,
   "sfx": "swish_rev",
   "gain_db": -11,
-  "pan": -0.46
+  "pan": -0.46,
+  "dur": 0.4
  }
 ]

@@ -7,8 +7,10 @@
  },
  {
   "t": 0.9,
-  "sfx": "whoosh",
-  "gain_db": -17,
+  "sfx": "air",
+  "gain_db": -14,
+  "dur": 0.5,
+  "dir": "down",
   "why": "A: the viewfinder widens (easeIn 0.55–1.0) as the camera pulls back (0.55–1.05): fastest ≈ 0.9"
  },
  {
@@ -57,9 +59,13 @@
  },
  {
   "t": 2.9,
-  "sfx": "whoosh",
-  "gain_db": -14,
+  "sfx": "paper",
+  "gain_db": -13,
   "pan": 0.4,
+  "dur": 0.42,
+  "dir": "up",
+  "pan_from": -0.1,
+  "pan_to": 0.6,
   "why": "A: leaf snatched on an arc over Clawd, 2.55–2.97 (k^1.8: fastest at the end; it leaves the frame ≈ 2.9)"
  },
  {
@@ -171,9 +177,13 @@
  },
  {
   "t": 6.35,
-  "sfx": "whoosh",
+  "sfx": "whip",
   "gain_db": -11,
   "pan": 0.45,
+  "dur": 0.35,
+  "dir": "up",
+  "pan_from": 0.2,
+  "pan_to": 0.6,
   "why": "B: leaf flips off the pumpkin at 6.0, loops, zips out the top by 6.5 (fastest as it leaves ≈ 6.35)"
  },
  {
@@ -195,6 +205,7 @@
   "sfx": "whoosh",
   "gain_db": -16,
   "pan": -0.14,
+  "dur": 0.25,
   "why": "B: camera turned round 7.3–7.5 (drawn key views)"
  },
  {
@@ -208,6 +219,8 @@
   "t": 8.2,
   "sfx": "swish_rev",
   "gain_db": -10,
+  "dur": 0.5,
+  "dir": "up",
   "why": "B→C: push into the lens 7.7–8.2 (swish_rev ends at t)"
  },
  {
@@ -244,9 +257,11 @@
  },
  {
   "t": 11.73,
-  "sfx": "swish_rev",
-  "gain_db": -16,
-  "why": "C: viewfinder shrinks onto the face 11.35–11.73"
+  "sfx": "paper",
+  "gain_db": -12,
+  "dur": 0.38,
+  "dir": "down",
+  "why": "C: viewfinder shrinks onto the face 11.35–11.73 (a drawn frame closing: paper)"
  },
  {
   "t": 11.815,

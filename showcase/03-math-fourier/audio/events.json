@@ -64,9 +64,11 @@
  },
  {
   "t": 18.35,
-  "sfx": "whoosh",
+  "sfx": "air",
   "gain_db": -19,
-  "why": "E: the zoom panel grows out of the magnifier box, 18.0–18.7 (whoosh peaks at t)"
+  "dur": 0.7,
+  "dir": "up",
+  "why": "E: the zoom panel grows out of the magnifier box, 18.0–18.7 (air peaks at t)"
  },
  {
   "t": 21.8,

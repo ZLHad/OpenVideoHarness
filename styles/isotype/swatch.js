@@ -65,13 +65,13 @@ const MOTIF = motifLayout();
 export const FOLEY = [
   { t: T.hook, sfx: "boom", gain_db: -10 },                                                   // the block stamps down
   { t: T.hook, sfx: "pop", gain_db: -8 },
-  { t: T.regroup[0] + 0.12, sfx: "whoosh", gain_db: -20, pan: 0.5 },                          // regroup to the corner
+  { t: T.regroup[0] + 0.12, sfx: "paper", gain_db: -16, pan: 0.5, dur: 0.36, pan_from: 0, pan_to: 0.5 },                          // regroup to the corner
   ...T.words.map((t, i) => ({ t, sfx: "click", gain_db: -12, pan: pan(250 + i * 220) })),    // title words
   ...[0, 4].map((i) => ({ t: T.zh0 + i * T.zhStep, sfx: "tick", gain_db: -13, pan: pan(230 + i * 80) })),   // −13, not −16: the first was BURIED under the pizzicato
   ...GROUPS.map((G, gi) => ({ t: ADDS.find((a) => a.g === gi).t, sfx: "toggle", gain_db: -14, pan: pan(MOTIF[gi].x0 + 60) })),
   { t: T.addCam, sfx: "pop", gain_db: -12, pan: pan(MOTIF[2].xs[4]) },                        // + one camera
   { t: T.cutShot, sfx: "click", gain_db: -10, pan: pan(MOTIF[1].xs[2]) },                     // − one storyboard shot
-  { t: T.out, sfx: "swish_rev", gain_db: -12, pan: 0.3 },                                     // count-down
+  { t: T.out + 0.2, sfx: "paper", gain_db: -12, pan: 0.3, dur: 0.4, dir: "down", pan_from: 0.5, pan_to: -0.2 },                                     // count-down
   { t: T.name, sfx: "ding", gain_db: -14, pan: -0.4 },                                        // end plate
 ];
 

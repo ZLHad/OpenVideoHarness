@@ -1,12 +1,12 @@
 [
   {"t":0.106,"sfx":"impact","gain_db":-8,"pan":0},
-  {"t":0.2,"sfx":"whoosh","gain_db":-14,"pan":0},
+  {"t":0.2,"sfx":"whoosh","gain_db":-14,"pan":0,"dur":0.42,"bright":0.3},
   {"t":1,"sfx":"click","gain_db":-14,"pan":-0.42},
   {"t":1.379,"sfx":"tick","gain_db":-12,"pan":-0.37},
   {"t":1.713,"sfx":"tick","gain_db":-10,"pan":-0.19},
   {"t":1.9,"sfx":"click","gain_db":-14,"pan":0.24},
   {"t":2.046,"sfx":"click","gain_db":-8,"pan":-0.37},
-  {"t":2.18,"sfx":"whoosh","gain_db":-16,"pan":-0.37},
+  {"t":2.18,"sfx":"swoosh_tonal","gain_db":-10,"pan":-0.37,"dur":0.32},
   {"t":2.379,"sfx":"click","gain_db":-8,"pan":0},
   {"t":2.573,"sfx":"shutter","gain_db":-12,"pan":0},
   {"t":2.713,"sfx":"click","gain_db":-8,"pan":0.37},
@@ -16,6 +16,6 @@
   {"t":3.701,"sfx":"tick","gain_db":-18,"pan":0,"dist":1},
   {"t":4.035,"sfx":"tick","gain_db":-18,"pan":0,"dist":1.02},
   {"t":4.368,"sfx":"tick","gain_db":-18,"pan":0,"dist":2.5},
-  {"t":4.4,"sfx":"whoosh","gain_db":-12,"pan":0},
+  {"t":4.4,"sfx":"whoosh","gain_db":-14,"pan":0,"dur":0.8,"dir":"down","tone":0.3},
   {"t":4.701,"sfx":"tick","gain_db":-18,"pan":0,"dist":4.26}
 ]

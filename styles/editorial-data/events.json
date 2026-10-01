@@ -6,7 +6,7 @@
   {"t":1.6,"sfx":"tick","gain_db":-20,"pan":0.39},
   {"t":2.16,"sfx":"click","gain_db":-16,"pan":-0.37},
   {"t":2.4,"sfx":"click","gain_db":-16,"pan":-0.08},
-  {"t":2.4,"sfx":"whoosh","gain_db":-16,"pan":-0.08},
+  {"t":2.4,"sfx":"air","gain_db":-16,"pan":-0.08,"dur":0.8,"pan_from":-0.56,"pan_to":0.39},
   {"t":2.64,"sfx":"click","gain_db":-16,"pan":0.2},
   {"t":2.8,"sfx":"toggle","gain_db":-14,"pan":0.39},
   {"t":3.33,"sfx":"tick","gain_db":-20,"pan":-0.56},

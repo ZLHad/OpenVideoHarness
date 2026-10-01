@@ -41,9 +41,9 @@ export const FOLEY = [
   { t: TL.drop[1], sfx: "impact", gain_db: -10, pan: pan(START_X) },                     // the hero lands (with the score's clap)
   ...wordIdx(TITLE).map((i) => ({ t: TL.letter0 + i * TL.stag + TL.fall, sfx: "pop", gain_db: -16, pan: pan(960 + (i / (TITLE.length - 1) - 0.5) * 1240) })),   // first letter of each word lands
   ...PROP_X.map((x, k) => ({ t: TL.prop(k) + 0.12, sfx: "pop", gain_db: -10, pan: pan(x) })),    // props pop out of the ground
-  ...HOPS.map(([t0, t1, k]) => ({ t: (t0 + t1) / 2, sfx: "whoosh", gain_db: -20, pan: pan(PROP_X[k]) })),   // air (whoosh peaks mid-hop)
+  ...HOPS.map(([t0, t1, k]) => ({ t: (t0 + t1) / 2, sfx: "whip", gain_db: -15, pan: pan(PROP_X[k]), dur: t1 - t0, dir: "up", pan_from: pan(k ? PROP_X[k - 1] : START_X), pan_to: pan(PROP_X[k]) })),   // air (a whip peaks mid-hop)
   ...HOPS.map(([, t1, k]) => ({ t: t1, sfx: "pop", gain_db: -6, pan: pan(PROP_X[k]) })),           // landing squash
-  { t: LEAP0 + 0.1, sfx: "whoosh", gain_db: -8, pan: pan(PROP_X[2]) },                  // the leap at the lens
+  { t: LEAP0 + 0.1, sfx: "whip", gain_db: -8, pan: pan(PROP_X[2]), dur: LEAP1 - LEAP0, dir: "up", pitch: -3 },                  // the leap at the lens
   { t: LEAP1, sfx: "impact", gain_db: -8 },                                             // the body fills the frame
   { t: TL.name + 0.1, sfx: "ding", gain_db: -14 },                                      // conclusion: the name
 ];

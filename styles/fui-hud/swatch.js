@@ -190,10 +190,10 @@ export function renderAt(t, ctx, tokens, lib) {
 const px = (x) => Math.round((x / 960 - 1) * 100) / 100;
 export const FOLEY = [
   ...[0.1, 0.4, 0.7].map((t) => ({ t, sfx: "tick", gain_db: -12, pan: 0 })),                        // the counter runs
-  { t: 0.85, sfx: "whoosh", gain_db: -16, pan: 0.5 }, { t: 0.86, sfx: "typing", gain_db: -18, pan: -0.5 },   // flies to its corner; decode
+  { t: 0.85, sfx: "swoosh_tonal", gain_db: -16, pan: 0.5, dur: 0.3, pan_from: 0, pan_to: 0.5 }, { t: 0.86, sfx: "typing", gain_db: -18, pan: -0.5 },   // flies to its corner; decode
   ...[2.0, 2.2, 2.4].map((t, k) => ({ t: t + 0.2, sfx: "toggle", gain_db: -10, pan: px([337, 960, 1583][k]) })),   // waypoints boot
   { t: 2.66, sfx: "tick", gain_db: -10, pan: px(1583) },                                              // second alert blink
-  { t: 2.9, sfx: "swish_rev", gain_db: -18, pan: 0 }, { t: 3.3, sfx: "swish_rev", gain_db: -18, pan: 0 },   // scan sweeps land
+  { t: 2.9, sfx: "swish_rev", gain_db: -18, pan: 0, dur: 0.3, bright: 0.5 }, { t: 3.3, sfx: "swish_rev", gain_db: -18, pan: 0, dur: 0.3, bright: 0.5 },   // scan sweeps land
   { t: 3.6, sfx: "success", gain_db: -12, pan: px(1583) },                                               // lock
-  { t: 4.1, sfx: "whoosh", gain_db: -10, pan: 0.4 },                                                      // the panel expands
+  { t: 4.1, sfx: "whoosh", gain_db: -10, pan: 0.4, dur: 0.7, dir: "up", tone: 0.4, pan_from: 0.4, pan_to: 0 },                                                   // the panel expands
 ];

@@ -97,4 +97,4 @@
 | GSAP 3.14.2 | jsDelivr CDN (HyperFrames template default) | GSAP standard license |
 | audio/score.json → the music | composed here; rendered by `bin/vh music` (synthesis only, no samples) | original |
 | 10 custom foley sounds (thocks, typing, tree run, count ticks) | `tools/foley.py`, synthesized, seeded | original |
-| built-in SFX (click, tick, toggle, whoosh, swish_rev, boom, impact, ding, error, shutter, success) | `bin/vh sfx lib` (`tools/audio/sfx.py`) | MIT, part of this repo |
+| built-in SFX (click, tick, toggle, whoosh, swoosh_tonal, whip, air, swish_rev, boom, impact, ding, error, shutter, success) | `bin/vh sfx lib` (`tools/audio/sfx.py`) | MIT, part of this repo |

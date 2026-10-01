@@ -8,14 +8,14 @@
  },
  {
   "t": 0.4,
-  "sfx": "thock_hi",
+  "sfx": "thock_hi_b",
   "gain_db": -15,
   "pan": -0.09,
   "why": "A: hook word 'coding' lands (s-hook spec, t = 0.4)"
  },
  {
   "t": 0.533,
-  "sfx": "thock_hi",
+  "sfx": "thock_hi_c",
   "gain_db": -15,
   "pan": 0.18,
   "why": "A: hook word 'agent,' lands (s-hook spec, t = 0.52)"
@@ -29,14 +29,14 @@
  },
  {
   "t": 0.967,
-  "sfx": "thock_mid",
+  "sfx": "thock_mid_b",
   "gain_db": -15,
   "pan": -0.21,
   "why": "A: hook word 'a' lands (s-hook spec, t = 0.96)"
  },
  {
   "t": 1.067,
-  "sfx": "thock_mid",
+  "sfx": "thock_mid_c",
   "gain_db": -11,
   "pan": -0.06,
   "why": "A: hook word 'video' lands (s-hook spec, t = 1.04)"
@@ -52,8 +52,11 @@
  {
   "t": 2.5,
   "sfx": "whoosh",
-  "gain_db": -12,
+  "gain_db": -14,
   "pan": -0.2,
+  "dur": 0.34,
+  "pan_from": 0.2,
+  "pan_to": -0.6,
   "why": "A→B: words peel LEFT 2.16–2.5, problem line enters mid-flight at 2.5 (whoosh peaks at the cut)"
  },
  {
@@ -64,10 +67,13 @@
  },
  {
   "t": 4.7,
-  "sfx": "whoosh",
+  "sfx": "swoosh_tonal",
   "gain_db": -12,
   "pan": -0.2,
-  "why": "B→C: cut-the-curve LEFT at 4.7"
+  "dur": 0.4,
+  "pan_from": 0.3,
+  "pan_to": -0.5,
+  "why": "B→C: cut-the-curve LEFT at 4.7 (each section cut its own gesture: whoosh, swoosh_tonal, whip)"
  },
  {
   "t": 5.233,
@@ -113,10 +119,11 @@
  },
  {
   "t": 8.0,
-  "sfx": "whoosh",
+  "sfx": "whip",
   "gain_db": -12,
   "pan": -0.2,
-  "why": "C→D: cut at 8.0 (cursor carries)"
+  "dur": 0.25,
+  "why": "C→D: cut at 8.0 (cursor carries): short and dry"
  },
  {
   "t": 8.5,
@@ -148,14 +155,20 @@
   "sfx": "whoosh",
   "gain_db": -12,
   "pan": -0.2,
+  "dur": 0.5,
+  "dir": "down",
+  "tone": 0.3,
   "why": "D→E: cut at 11.3"
  },
  {
   "t": 11.9,
-  "sfx": "whoosh",
-  "gain_db": -16,
+  "sfx": "air",
+  "gain_db": -14,
   "pan": 0.1,
-  "why": "E: the playhead scans the sheet 0.34–0.84"
+  "dur": 0.5,
+  "pan_from": -0.5,
+  "pan_to": 0.5,
+  "why": "E: the playhead scans the sheet 0.34–0.84, left to right"
  },
  {
   "t": 12.167,
@@ -192,9 +205,11 @@
  },
  {
   "t": 15.0,
-  "sfx": "whoosh",
-  "gain_db": -17,
+  "sfx": "swoosh_tonal",
+  "gain_db": -13,
   "pan": -0.2,
+  "dur": 0.3,
+  "dir": "down",
   "why": "E→F: cut at 15.0 (softer: the count-up starts 0.1 s later)"
  },
  {
@@ -229,6 +244,8 @@
   "t": 17.0,
   "sfx": "swish_rev",
   "gain_db": -12,
+  "dur": 0.2,
+  "dir": "down",
   "why": "F→G: proof shrinks 1 → 0.8 over 16.8–17.0 (swish_rev ends at t)"
  },
  {
@@ -246,14 +263,14 @@
  },
  {
   "t": 17.8,
-  "sfx": "thock_hi",
+  "sfx": "thock_hi_b",
   "gain_db": -18,
   "pan": -0.22,
   "why": "G: tagline word 'as' rises (17.0 + 0.78)"
  },
  {
   "t": 17.867,
-  "sfx": "thock_hi",
+  "sfx": "thock_hi_c",
   "gain_db": -18,
   "pan": -0.15,
   "why": "G: tagline word 'code,' rises (17.0 + 0.86)"
@@ -267,7 +284,7 @@
  },
  {
   "t": 18.067,
-  "sfx": "thock_hi",
+  "sfx": "thock_hi_b",
   "gain_db": -18,
   "pan": 0.01,
   "why": "G: tagline word 'coding' rises (17.0 + 1.06)"

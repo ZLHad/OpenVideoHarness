@@ -339,12 +339,12 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
   | 风格（`styles/` 里的例子） | 转场 |
   |---|---|
-  | 发布片、keynote、UI（product-keynote、fui-hud） | swoosh_tonal，短而亮的 whoosh |
-  | 科幻、合成器（monumental-scifi、synthwave-outrun、neon-step-print） | swoosh_tonal（tone 高一点），长而低的 whoosh |
-  | 卡通、扁平、漫画、梗（bouncy-flat-2d、halftone-comic、brutalist-meme、pixel-16bit） | whip，配 pop |
-  | 数据、讲解、纪录、留白多的（editorial-data、isotype、dark-math、archival-pan-zoom、ink-wash） | air，轻的 whoosh |
-  | 手绘、拼贴、剪纸、印刷（watercolor-pastoral、cutout-jazz、silhouette-papercut、risograph） | paper |
-  | 复古、录像带、终端（crt-terminal、scratched-type） | tape（`dir: "down"` 停带，`"up"` 倒带），glitch |
+  | 发布片、keynote、UI、机械（product-keynote、fui-hud、clockwork-map） | swoosh_tonal，短而亮的 whoosh |
+  | 科幻、宏大（monumental-scifi；dunhuang-mural 的飞天用柔和的一种） | swoosh_tonal（tone 高一点），长而低的 whoosh |
+  | 卡通、扁平、漫画、快摇（bouncy-flat-2d、halftone-comic、pixel-16bit、neon-step-print、swiss-grid-type，symmetry-pastel 的甩镜） | whip，配 pop |
+  | 数据、讲解、纪录、留白多的（editorial-data、bubble-chart-story、archival-pan-zoom、ink-wash；dark-math 干脆不加） | air，轻的 whoosh |
+  | 手绘、拼贴、剪纸、印刷（watercolor-pastoral、cutout-jazz、silhouette-papercut、risograph、isotype、guochao-festive、blueprint） | paper |
+  | 复古、录像带、终端、胶片（crt-terminal、synthwave-outrun、scratched-type；brutalist-meme 的硬切是两条 glitch 录音轮换） | tape（`dir: "down"` 停带，`"up"` 倒带），glitch |
   | 揭示、标题落定（哪种风格都可能有） | shimmer（按配乐的调设 `pitch`，默认是 A 大调五声音阶） |
 - **按动作给转场塑形。** 转场类内置音效都接受这几个可选字段：`dur`（跟着转场的长度走；不写 `pitch`、`center` 时，越长越低，长度每翻一倍低 4 个半音）、`pitch`（半音）或 `center`（Hz）、`dir`（`"up"` 上扫，`"down"` 下扫）、`bright`（−1…1，暗…亮）、`tone`（0 纯气流…1 带音高的共鸣）。任何音效都可以写 `pan_from`、`pan_to`，让声音跟着画面从一边划到另一边。小而快的动作短、高、亮，大而慢的动作长、低、厚。比如一张卡片从左往右快速划过：`{"t": 2.0, "sfx": "whoosh", "dur": 0.35, "pan_from": -0.6, "pan_to": 0.6}`；镜头慢慢退到大场景：`{"t": 6.0, "sfx": "whoosh", "dur": 1.2, "dir": "down", "tone": 0.4}`。
 - **一支片子里不要每一刀都是同一个声音。** 默认已经会变，再往前走一步：不同性质的切换用不同的转场（段落之间 whoosh，页内的小切换 air 或 paper），每一下按它的动作塑形。

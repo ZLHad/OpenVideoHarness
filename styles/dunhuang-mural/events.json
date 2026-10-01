@@ -1,5 +1,5 @@
 [
-  {"id": "meet",    "t": 3.6, "sfx": "whoosh", "gain_db": -12, "pan": -0.25},
-  {"id": "meet",    "t": 3.6, "sfx": "whoosh", "gain_db": -12, "pan": 0.25},
+  {"id": "meet",    "t": 3.6, "sfx": "swoosh_tonal", "gain_db": -12, "pan": -0.25, "dur": 1.0, "tone": 0.5, "bright": -0.3, "pan_from": -0.6, "pan_to": -0.1},
+  {"id": "meet",    "t": 3.6, "sfx": "swoosh_tonal", "gain_db": -12, "pan": 0.25, "dur": 1.0, "tone": 0.5, "bright": -0.3, "pan_from": 0.6, "pan_to": 0.1},
   {"id": "caisson", "t": 4.0, "sfx": "ding",   "gain_db": -7,  "pan": 0}
 ]

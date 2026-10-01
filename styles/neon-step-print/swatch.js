@@ -261,5 +261,5 @@ export const FOLEY = [
   { t: 0.95, sfx: "typing", gain_db: -10, pan: px(1070) },                                               // subtitles type in (at −18: 20 dB under the bed)
   ...[2.0, 2.4, 2.8].map((t, k) => ({ t, sfx: "toggle", gain_db: -8, pan: px([820, 1150, 1480][k]) })),   // signs ignite
   { t: 3.2, sfx: "glitch", gain_db: -16, pan: px(1150) },                                                // the middle sign buzzes
-  { t: 4.2, sfx: "whoosh", gain_db: -6, pan: -0.3 }, { t: 4.34, sfx: "shutter", gain_db: -6, pan: 0 },    // smear pan; freeze
+  { t: 4.2, sfx: "whip", gain_db: -6, pan: -0.3, dur: 0.35, pan_from: 0.4, pan_to: -0.4 }, { t: 4.34, sfx: "shutter", gain_db: -6, pan: 0 },    // smear pan; freeze
 ];

@@ -124,4 +124,4 @@ fractional shift v_r/c 2.33e-05
 | audio/voiceover.zh.flac（旁白） | Gemini 3.8 Flash TTS，音色 Aoede，2026-09-30 合成；含 SynthID 水印 | AI 合成，按 Google 的服务条款使用；发布时标注 |
 | audio/score.json → 配乐 | 本项目作曲，`bin/vh music` 纯合成（不用采样） | 原创 |
 | 17 个自制音效（信标 ping、过零钟声） | `tools/foley.py` 代码合成，带种子 | 原创 |
-| 内置音效（whoosh、swish_rev、impact） | `bin/vh sfx lib`（`tools/audio/sfx.py`） | MIT，本仓库 |
+| 内置音效（whoosh、swoosh_tonal、swish_rev、impact） | `bin/vh sfx lib`（`tools/audio/sfx.py`） | MIT，本仓库 |

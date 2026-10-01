@@ -13,7 +13,7 @@ scenes/fourier.py (cited per event). All sounds sit at gain_db ≤ −18 (they s
 usage: showcase/03-math-fourier/tools/build_audio.sh runs it (with uv --no-project, numpy and scipy), then
 bin/vh sfx lib for the built-ins beside the custom sounds; bin/vh mix places every event itself (profile=…, events=, lib=).
 Seeded, no downloads, the same bytes on every run. The tones carry "layer": "sonification", so a mix profile classes
-them as signal (bin/vh mix … profile=explainer); the zoom whoosh and the bell are classed by their names.
+them as signal (bin/vh mix … profile=explainer); the zoom air and the bell are classed by their names.
 """
 import json, math, wave
 from pathlib import Path
@@ -53,8 +53,8 @@ def sum_tone(N, d, a=0.12, r=0.5):  # S_N with every term at weight 1
 
 def main():
     sounds, ev = {}, []
-    def add(t, sfx, gain_db, why, layer="sonification"):
-        ev.append({"t": round(float(t), 3), "sfx": sfx, "gain_db": gain_db, **({"layer": layer} if layer else {}), "why": why})
+    def add(t, sfx, gain_db, why, layer="sonification", **shape):   # shape: a built-in's dur, dir, pitch, bright, tone
+        ev.append({"t": round(float(t), 3), "sfx": sfx, "gain_db": gain_db, **({"layer": layer} if layer else {}), **shape, "why": why})
 
     # A · 0.2–1.4 the target draws, hold to 2.1: the square wave itself (29 odd partials ≈ 8.5 kHz), softened
     sounds["target_square"] = lowpass(partials(1.9, [1.0] * 15), 2500) * env(1.9, 0.35, 0.5)
@@ -77,7 +77,7 @@ def main():
     sounds["sum_sweep"] = partials(d, [np.clip(w - k, 0, 1) for k in range(13)]) * env(d, 0.2, 0.5)
     add(t0, "sum_sweep", -23, "D∞: N runs 7 → 25 over 15.5–16.7 (w 4 → 13, smooth), hold to 17.2")
     # E · 17.2–18.9: parent shrinks, magnifier box, zoom panel grows 18.0–18.7
-    add(18.35, "whoosh", -19, "E: the zoom panel grows out of the magnifier box, 18.0–18.7 (whoosh peaks at t)", None)
+    add(18.35, "air", -19, "E: the zoom panel grows out of the magnifier box, 18.0–18.7 (air peaks at t)", None, dur=0.7, dir="up")
     # F · brace + '≈ 9% of the jump' fade in 21.8–22.4
     t = T(2.0)
     sounds["bell_a5"] = sum(a * np.sin(2 * np.pi * 880 * k * t) * np.exp(-t / dec) for k, a, dec in [(1, 1, .7), (2.76, .25, .25), (5.4, .08, .1)]) * np.minimum(1, t / 0.003)
