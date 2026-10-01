@@ -13,6 +13,7 @@ Some things we measured while making video with code, and what we changed in the
 | 03 | [Same code, different pixels](03-render-determinism.md) | GPU text rasterisation, the capture path and x264 threads each made the output differ, and x264 amplified a few pixels into a different stream. CPU rasterisation plus single-threaded encoding made the swatches byte-identical, at the cost of a one-time picture change and slower renders. |
 | 04 | [How long text has to stay on screen](04-readability.md) | Only 5 of the intro film v3's 63 on-screen texts stay long enough, and none of the 24 in the stretch that prompted the review (median readable 0.9 s, 2.7 s required): labels follow the camera, are pushed to half transparency by the safe frame, and decoding eats the reading time. |
 | 05 | [Chapters, motif and dynamic arc](05-music-form.md) | The intro film's score is a loudness plateau, its loudest section only 1.8 LU above the second; the three demos have a valley and a peak. With nobody able to listen, loudness curves, note density and parts sounding measure chapters and arc. |
+| 06 | [Does concept-first pay off?](06-concept-first-ab.md) | One request, floors only against the workflow, two films each, blind review: both times the reviewer found the workflow's film more original and chose the floors-only film to post (for text unreadable on a phone and a key transformation lost in a dissolve, not slowness: measured the same way, both arms are about as still). In one of the two pairs the model reached much the same idea without the workflow. So `quick` gets a phone sheet and a first-2 s strip. |
 
 ## Figures
 
@@ -25,6 +26,7 @@ Some things we measured while making video with code, and what we changed in the
 | ![Loudness curves of the intro film's score and three demos](../figs/05-loudness-arcs.png)<br>Figure 5.1 · 05: the intro film's current score against three demos | ![Demo 1: loudness curve, motif entrances and note density](../figs/05-product-arc.png)<br>Figure 5.2 · 05: demo 1, loudness, motif entrances and note density |
 | ![Film 02 doppler, versions A and C: VMR per line of the Chinese narration](../figs/01-doppler-ac.png)<br>Figure 1.3 · 01: A against C for the Chinese narration | ![Spectrograms of four re-scored swatches](../figs/02-spectrograms.png)<br>Figure 2.3 · 02: spectrograms of four re-scored swatches |
 | ![The same frame rendered on the GPU and on the CPU, and their difference times 8](../figs/03-gpu-cpu-diff.png)<br>Figure 3.3 · 03: the same frame on GPU and CPU, and the difference ×8 | ![A frame of the v4 prototype at 42.93 s](../figs/04-v4-prototype.jpg)<br>Figure 4.3 · 04: a v4 prototype frame: the loop label moved inside the ring |
+| ![Five frames from each of four films: floors only against the workflow](../figs/06-four-films.jpg)<br>Figure 6.1 · 06: five frames from each of the four films, A floors only, B the workflow | |
 
 ## How to read them
 

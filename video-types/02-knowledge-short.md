@@ -124,7 +124,7 @@ Style: {follows from the concept (playbook/12-ideation.md) | default: "Kurzgesag
 0–1s: the counterintuitive claim/number as a full-bleed visual (no logo, no greeting). By 3s: what the viewer will learn; by 6s: a first payoff that proves it.
 Hook (gate 1): each concept card carries one hook, typed from {question | counterintuitive | result-first | conflict | curiosity-gap}, optionally with a pattern interrupt: its first frame, first caption (<=11 CJK chars/line), the promise, the payoff time (first micro-payoff <=6s), and the fact source in NOTES.md. Three hook cards of different types only when hook=own, after the concept is picked.
 A new visual payoff every 3–5s; one idea per shot; cut on narration phrase boundaries.
-Captions: one line, <=11 CJK chars at 72px (<=9 at 90px; the vertical safe box is 810px wide), 72–90px, weight 800, #F5EFE6 with 3px dark stroke; accent on 1–2 key words max; split at pauses >=250ms; drop filler words. Hook text 140px.
+Captions: one line, <=11 CJK chars at 72px (<=9 at 90px; the vertical safe box is 810px wide), 72–90px, weight 800 (or the heaviest weight the local font has, e.g. PingFang SC 600), #F5EFE6 with 3px dark stroke; accent on 1–2 key words max; split at pauses >=250ms; drop filler words. Hook text 140px.
 Caption style: {sentence | keyword emphasis | word highlight (<=2% of runtime) | big-type for the hook}; silent-readable, sound-on better.
 Safe box x 90–900, y 330–1520 (platform UI zones stay clear). End on the payoff visual, not a subscribe card.
 Loop: {soft callback (default for explainers) | hard loop: last frame == first frame | none}.
