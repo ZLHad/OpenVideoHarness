@@ -16,7 +16,8 @@ OFFSET=0.2                      # the score's beat 0 is 0.2 s into the film (the
 VO_LANG=zh                      # the narration's language: audio/voiceover.zh.flac, audio/timeline.zh.json
 PROFILE=short                   # playbook/04-audio.md, 混音: knowledge short, the narration is the anchor (VMR 11.5 LU)
 MUSIC_DB=-5                     # the starting balance (with narration the music's level comes from the VMR, not from this)
-TP=-1.65                        # the mix's true-peak ceiling; lowered when the AAC encode peaks over −1.5 dBTP (step 6)
+TP=-1.84                        # the mix's true-peak ceiling; lowered when the AAC encode peaks over −1.5 dBTP (step 6).
+                                # −1.65 until the s2g re-take (2026-10-01), whose encode peaked at −1.41 with it
 SUBS=(--subs-off "$A/captions.zh.srt" "$A/captions.en.srt")   # soft tracks (chi / eng), off by default: the
                                 # picture has its Chinese captions burned in, and a player must not lay a second set over them
 out=""
