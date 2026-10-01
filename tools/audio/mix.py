@@ -376,7 +376,12 @@ HINTS = (("ambience", ("whirr", "gust", "wind", "rain", "room", "hum", "drone", 
                    "take", "snap", "reveal", "drop", "hit", "lock")),
          ("detail", ("click", "tick", "pop", "toggle", "typing", "keys", "step", "tiptoe", "thock", "count", "pat", "ping",
                      "sparkle", "hearts", "shutter", "glitch", "skid", "zip", "whoosh", "swish", "riser", "crank", "run",
-                     "blip", "iris")))
+                     "blip", "iris", "whip", "swoosh", "paper", "shimmer")))
+# the built-in transitions "air" and "tape" share a word with ambience (room air, tape hiss): only the bare name, exactly as
+# the built-in is written, is the built-in (detail); a file (sfx/air.wav, TAPE.wav) is classed by its words as before,
+# except that a tape that stops or rewinds (tape_stop, tape_rewind) is a transition gesture, not a bed
+EXACT = {"air": "detail", "tape": "detail"}
+GESTURE = ({"tape"}, {"stop", "rewind", "scrub"})
 
 def sfx_class(e):
     """an event's class and why: its "role", else "signal" for a sonification layer, else the first name hint that is one
@@ -384,8 +389,10 @@ def sfx_class(e):
     else detail"""
     if e.get("role"): return e["role"], "role"
     if e.get("layer") == "sonification": return "signal", "layer"
+    if str(e.get("sfx", "")) in EXACT: return EXACT[e["sfx"]], f"built-in '{e['sfx']}'"
     n = re.sub(r"\.[A-Za-z0-9]+$", "", str(e.get("sfx", "")).lower().rsplit("/", 1)[-1])
     words = {w for w in re.split(r"[^a-z]+", n) if w}
+    if words & GESTURE[0] and words & GESTURE[1]: return "detail", f"name '{n}'"
     for cls, hints in HINTS:
         hit = next((h for h in hints if words & {h, h + "s", h + "es"}), None)
         if hit: return cls, f"name '{hit}'"
@@ -407,14 +414,15 @@ def event_levels(y):
             "on": float(on10[0] * 0.005) if len(on10) else 0.0, "len": float((on[-1] - on[0]) * 0.005 + 0.1) if len(on) else 0.1,
             "len10": float((on10[-1] - im) * 0.005 + 0.05) if len(on10) else 0.05, "lf": lf}
 
+def place_info(e, lib=None, root=None, cache=None):
+    """one event the way `bin/vh sfx place` puts it on the track → (first sample, (m, 2) array, {variant, shape, landmark}).
+    Its variant (when it pins none) depends on its place in the event list: number the list first (sfx.numbered)"""
+    import sfx
+    return sfx.put(e, None, lib, root, cache)
+
 def place(e, lib=None, root=None, cache=None):
     """one event the way `bin/vh sfx place` puts it on the track → (first sample, (m, 2) array)"""
-    import sfx
-    cache = {} if cache is None else cache; name = e["sfx"]
-    if name not in cache: cache[name] = sfx.source(name, lib, root, e.get("t"))
-    y = sfx.spatial(cache[name] * 10 ** (e.get("gain_db", 0) / 20), e.get("pan", 0), e.get("dist", 1))
-    i = int(round((e["t"] - sfx.LANDMARK.get(name, 0.0)) * SR))
-    if i < 0: y, i = y[-i:], 0
+    i, y, _ = place_info(e, lib, root, cache)
     return i, y
 
 def narration_is_zh(timeline, voice_path):
@@ -434,6 +442,8 @@ def mixdown(P, voice=None, music=None, events=(), lib=None, root=None, sfx_bus=N
     def note(s): meta["decisions"].append(s); say("  " + s)
     lens = [len(x) for x in (voice, music, sfx_bus) if x is not None]
     placed_end, cache = 0, {}
+    import sfx
+    events = sfx.numbered(events)   # each event's occurrence of its sound: the variant it gets, wherever it is placed alone
     if not lens and not dur:   # events only: long enough for the last one
         for e in events: i, y = place(e, lib, root, cache); placed_end = max(placed_end, i + len(y))
     n = int(round(dur * SR)) if dur else max(lens) if lens else placed_end
@@ -536,10 +546,11 @@ def mixdown(P, voice=None, music=None, events=(), lib=None, root=None, sfx_bus=N
         if str(e["_i"]) in rolemap: e["role"] = rolemap[str(e["_i"])]
         elif e["sfx"] in rolemap: e["role"] = rolemap[e["sfx"]]
         c, why = sfx_class(e)
-        i, y = place(e, lib, root, cache); j = min(n, i + len(y)); y = y[:j - i] * 10 ** (sfx_db / 20)   # the build's SFX gain
+        i, y, info = place_info(e, lib, root, cache); j = min(n, i + len(y)); y = y[:j - i] * 10 ** (sfx_db / 20)   # the build's SFX gain
         if not len(y): continue
         lv = event_levels(y); lv["at"] += i / SR
-        placed.append({"e": e, "c": c, "why": why, "i": i, "y": y, "lv": lv, "re": lv["fast"] - anchor_t(lv["at"]) if anchor_t else None})
+        placed.append({"e": e, "c": c, "why": why, "i": i, "y": y, "lv": lv, "re": lv["fast"] - anchor_t(lv["at"]) if anchor_t else None,
+                       "v": info["variant"]})
     classes = P["sfx"]["classes"]; moves = {}
     if placed and not anchor_t:
         note("sfx: no voice and no music to anchor on: the events keep their designed levels")
@@ -747,7 +758,9 @@ def mixdown(P, voice=None, music=None, events=(), lib=None, root=None, sfx_bus=N
         lv_out.append((p["e"], lv, p))
     meta.update(anchor=anchor, music_I=I_music, music_corr_mid=corr_mid, lines=lines, sfx_moves=moves, master_gain_dB=float(20 * np.log10(g)),
                 limiter_dB=lim, limiter_peaks=npk, lufs=I2, tp=TP, how=how, seconds=round(time.time() - T0, 2),
-                events=[{k: v for k, v in q[0].items() if k != "_i"} for q in lv_out], event_levels=[dict(q[1]) for q in lv_out],
+                # the events as placed, each with the variant it got written in: re-rendered alone (bin/vh qa), it is the same sound
+                events=[dict({k: v for k, v in q[0].items() if not k.startswith("_")}, **({"variant": q[2]["v"]} if q[2]["v"] is not None else {}))
+                        for q in lv_out], event_levels=[dict(q[1]) for q in lv_out],
                 event_gains=[{"i": q[0]["_i"], "t": q[0]["t"], "sfx": q[0]["sfx"], "class": q[2]["c"], "why": q[2]["why"], "gain_dB": round(q[2]["g"], 2),
                               "re_anchor_before": None if q[2]["re"] is None else round(q[2]["re"], 2)} for q in lv_out])
     if timeline: meta["timeline"] = timeline
