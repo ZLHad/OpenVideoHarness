@@ -121,6 +121,8 @@ def apply(t, env): …       # 按 t（= k/30）直接设好每个会动的属�
    - **正式渲染（CPU）还不许读家目录**，只放行仓库、场景、Blender 安装目录和 `~/Library/Fonts`。`~/.ssh`、`~/.zsh_secrets` 这类文件读不到，要提交的帧里也就印不进它们（实测读取被拒；整片的第 90 帧和不加这条规则时逐像素相同）。
    - 草稿（Metal）加不了这条：家目录不可读时，Metal 加载 Cycles 缓存好的内核会崩溃（崩在 `-[_MTLDevice recordBinaryArchiveUsage:]`；放行 `~/Library` 也不行）。草稿的输出只留在不入库的 `out/` 里，又没有网络，读到什么也送不出去。
    - 冷启动时 Metal 编译内核要静默约 110 s，所以 Blender 场景的静默阈值默认是 300 s。日志里会有几行 "Error creating directory"，不影响渲染。
+   - 放行的 Blender 文件按 `BLENDER` 的真实路径算：.app 包，或它所在的文件夹；这个文件夹装着家目录（比如 Blender 直接放在 `/Users` 下）时直接报错，不渲。`BLENDER` 是一个 wrapper 脚本时（Homebrew 的 `blender` 就是），放行的是脚本所在的文件夹，不是它启动的 .app：app 在 `/Applications` 时没关系，装在 `~/Applications` 时正式渲染会因读不到而失败，把 `BLENDER` 直接设成 .app 里的 `Contents/MacOS/Blender` 就好。
+   - 规则文件写在系统临时目录里（沙箱里写不了），渲完或中断时删掉；macOS 上没有它，Blender 就不启动。
    - **Linux 上没有第 3 层**，只有前两层：只渲你读过的场景，或者放进容器里渲。
 
 **字体**：`FONTS` 的每个角色是一个 fontconfig 匹配式，`blender_prep.py fonts` 用 `fc-match` 找到本机的字体文件（和 `fonts.css` 用的是同一批系统字体），结果写进 `out/<slug>/fonts.json`。Blender 只读 .ttc 里的第一个字形【实测：`Songti.ttc` 读出来是 Songti SC Black】，所以匹配到的不是第一个时（宋体 Bold 是第 2 个），先用 fontTools 把那一面写成单独的字体文件，放在 `out/<slug>/fonts/`：本机缓存，不入库，不分发。匹配不到要的族时直接报错（中文角色落到拉丁字体上会印出方块），不悄悄回落。抽出来的字形每次重写（约 0.3 s），写到一半中断也不会留下坏文件。

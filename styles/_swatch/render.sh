@@ -101,10 +101,11 @@ bl_stamp() { # a checksum of everything a Blender scene's frames depend on: the 
 if [ $stamp_only = 1 ]; then bl_stamp; exit 0; fi
 mkdir -p "$SW/out/stage" "$OUT" "$MEDIA"
 mkdir "$LOCK" 2>/dev/null || die "another render of '$slug' holds $LOCK (remove it if that render is dead)"
-HFPID=""
+HFPID=""; SBX=""            # SBX: the sandbox profile bl_profile writes (macOS)
 cleanup() {
   [ -n "$HFPID" ] && kill -0 "$HFPID" 2>/dev/null && { kill -TERM -- "-$HFPID" 2>/dev/null || kill -TERM "$HFPID" 2>/dev/null || true; }
   rmdir "$LOCK" 2>/dev/null || true
+  case "$SBX" in */vh-sandbox.*/blender.sb) rm -rf "${SBX%/*}" ;; esac     # bl_profile's temp folder, also after a timeout
 }
 trap cleanup EXIT; trap 'exit 130' INT TERM
 
@@ -162,7 +163,7 @@ bl_render() { # $1 = frame folder, $2 = frame list ("0-149", "149,90,12"): the l
   # one fresh Blender per chunk, all at once (render.sh's --workers); each writes <folder>/frame_NNNN.png
   local dir=$1 chunk pids="" p k rc=0 q; q=$([ $draft = 1 ] && echo draft || echo final)
   set +m                    # this runs in run_watched's subshell: keep the Blenders in its process group, so a timeout kills them
-  mkdir -p "$dir"; bl_profile
+  mkdir -p "$dir"
   while IFS= read -r chunk; do
     bl_run -b --factory-startup --python-exit-code 1 --python "$SW/blender_render.py" -- "$SRC" "$dir" \
       --frames "$chunk" --quality "$q" --fonts "$OUT/fonts.json" ${hudarg:+"$hudarg"} </dev/null &
@@ -181,13 +182,12 @@ PY
   for p in $pids; do   # one chunk failing stops the others (each pid is its Blender: bl_run execs it)
     if ! wait "$p"; then rc=1; for k in $pids; do kill "$k" 2>/dev/null || true; done; fi
   done
-  [ -z "$SBX" ] || rm -rf "${SBX%/*}"
   return $rc
 }
 hudarg=""; [ "$hud" = true ] && hudarg=--hud
-SBX=""                     # the sandbox profile bl_profile writes (macOS)
 sbq() { printf '"%s"' "$(printf '%s' "$1" | sed 's/[\\"]/\\&/g')"; }   # a path as a sandbox-profile string
-bl_profile() { # the sandbox every Blender of this render runs in (macOS; written once, before the chunks start). The AST scan
+bl_profile() { # the sandbox every Blender of this render runs in (macOS; written once, before run_watched starts the chunks,
+  # and removed by cleanup). The AST scan
   # in blender_prep.py is a lint that catches mistakes; this is the boundary. No network, no handing URLs or Apple events to
   # other apps; writes only inside out/<slug>/ and Blender's own folder in the per-user cache, where Metal keeps its
   # compiled shaders (denied, every frame recompiles them: 13 s instead of 2 s). Final renders (CPU) also read nothing in
@@ -255,7 +255,7 @@ if [ $png = 1 ]; then       # lossless frames only (determinism checks); no mp4 
   PNGDIR="$OUT/png-w$workers"; [ -n "$frames" ] && PNGDIR="$OUT/png-sample-w$workers"; rm -rf "$PNGDIR"
   echo "→ PNG sequence '$slug' (${workers} worker(s)$([ -n "$frames" ] && echo ", frames $frames")) → ${PNGDIR#$ROOT/}"
   rc=0
-  if [ $engine = blender ]; then run_watched bl_render "$PNGDIR" "${frames:-0-$((FRAMES - 1))}" || rc=$?
+  if [ $engine = blender ]; then bl_profile; run_watched bl_render "$PNGDIR" "${frames:-0-$((FRAMES - 1))}" || rc=$?
   else run_hf --format png-sequence --output "$PNGDIR" || rc=$?; fi
   [ $rc = 0 ] || { echo "$no png-sequence render failed ($rc)"; tail -15 "$LOG"; exit 1; }
   np=$(find "$PNGDIR" -name '*.png' | wc -l | tr -d ' ')
@@ -274,7 +274,7 @@ if [ $engine = blender ]; then
   FR="$OUT/frames$([ $draft = 1 ] && echo -draft || true)"; rm -rf "$FR"
   stamp=""; [ $draft = 1 ] || [ "$hud" = true ] || stamp=$(bl_stamp)   # taken before rendering: an edit made meanwhile must not match
   echo "→ rendering '$slug' in Blender ($([ $draft = 1 ] && echo "draft, GPU" || echo "final, CPU"), ${workers} process(es), timeout ${timeout}s)"
-  rc=0; run_watched bl_render "$FR" "0-$((FRAMES - 1))" || rc=$?
+  rc=0; bl_profile; run_watched bl_render "$FR" "0-$((FRAMES - 1))" || rc=$?
   T1=$(date +%s)
   [ $rc = 0 ] || { echo "$no Blender exited with $rc — last lines of ${LOG#$ROOT/}:"; grep -h "\[swatch\]" "$LOG" | grep -v "\[swatch\] frame " | tail -15; tail -5 "$LOG"; exit 1; }
   np=$(find "$FR" -name 'frame_*.png' | wc -l | tr -d ' ')
