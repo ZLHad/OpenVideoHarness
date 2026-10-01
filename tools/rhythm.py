@@ -33,6 +33,12 @@ NICE = (0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600)
 NARR, NARR_EDGE, CAP, CAP_EDGE = (190, 204, 226), (120, 140, 180), (214, 224, 206), (140, 160, 130)
 SEC_A, SEC_B, SEC_EDGE = (216, 214, 206), (230, 228, 220), (170, 168, 160)
 
+def why_not(dur, need, rate, limit):
+    """Why a text fails its rule, in a few words: rate and limit are None for the on-screen rule."""
+    if rate is None:
+        return f"{dur:.1f} s < {need:.1f} s"
+    return f"{dur:.1f} s < {RC.SUB_FLOOR:g} s" if dur < RC.SUB_FLOOR - 1e-6 else f"{rate:.1f}/s > {limit:g}/s"
+
 def captions(project, lang):
     p = project / "audio" / "captions.json"
     if not p.exists():
@@ -41,11 +47,10 @@ def captions(project, lang):
     langs = [lang] if lang else [k for k in ("zh", "en") if any(it.get(k) for it in items if isinstance(it, dict))] or [None]
     use = langs[0]   # one language per lane: zh when there is Chinese, --lang otherwise
     out = []
-    for label, t0, t1, text in RC.pieces(items, use):
+    for label, t0, t1, text, _ in RC.pieces(items, use):
         dur = t1 - t0
-        need, rate, limit = RC.subtitle_check(text, dur)
-        ok = dur >= need - 1e-6
-        why = "" if ok else (f"{dur:.1f} s < {RC.SUB_FLOOR:g} s" if dur < RC.SUB_FLOOR - 1e-6 else f"{rate:.1f}/s > {limit:g}/s")
+        ok, need, rate, limit = RC.verdict(text, dur, "subtitle", ONSCREEN)
+        why = "" if ok else why_not(dur, need, rate, limit)
         out.append({"id": label, "start": t0, "end": t1, "text": text, "ok": ok, "why": why})
     return out, p
 
@@ -64,13 +69,13 @@ def onscreen(project):
         items, stats = RC.export_html(html)
         note = RC.skipped_note(stats)
         if note: ONSCREEN_SKIPPED.append(note)
-        todo, src = [(it["id"], it["start"], it["end"], it["text"]) for it in items], html
+        todo, src = [(it["id"], it["start"], it["end"], it["text"], it.get("read")) for it in items], html
     clips = {str(it.get("id")): it["clip"] for it in items if isinstance(it, dict) and it.get("clip")}
     out = []
-    for label, t0, t1, text in todo:
-        need = RC.onscreen_need(text, ONSCREEN)
-        ok = t1 - t0 >= need - 1e-6
-        out.append({"id": label, "start": t0, "end": t1, "text": text, "ok": ok, "why": "" if ok else f"{t1 - t0:.1f} s < {need:.1f} s"})
+    for label, t0, t1, text, mode in todo:   # a text marked data-read="subtitle" is judged by the subtitle rule
+        ok, need, rate, limit = RC.verdict(text, t1 - t0, mode or "onscreen", ONSCREEN)
+        why = "" if ok else why_not(t1 - t0, need, rate, limit)
+        out.append({"id": label, "start": t0, "end": t1, "text": text, "ok": ok, "why": why})
         if label in clips: out[-1]["clip"] = clips[label]
     return out, src if out else None
 

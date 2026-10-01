@@ -2,7 +2,8 @@
   {
     "id": "square",
     "start": 0.3,
-    "end": 1.36,
+    "end": 2.1,
+    "speech_end": 1.36,
     "zh": [],
     "en": [
       "Take a square wave."
@@ -33,7 +34,8 @@
   {
     "id": "sine",
     "start": 2.2,
-    "end": 3.87,
+    "end": 4.0,
+    "speech_end": 3.87,
     "zh": [],
     "en": [
       "One sine comes close."
@@ -280,7 +282,8 @@
   {
     "id": "gibbs",
     "start": 22.6,
-    "end": 24.22,
+    "end": 24.4,
+    "speech_end": 24.22,
     "zh": [],
     "en": [
       "About nine percent of the jump."
