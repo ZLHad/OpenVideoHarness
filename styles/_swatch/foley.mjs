@@ -12,18 +12,23 @@ const STYLES = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SHAPE = ["dur", "pitch", "center", "dir", "bright", "tone", "pan_from", "pan_to", "variant"];   // tools/audio/sfx.py
 const r3 = (x) => (typeof x === "number" ? Math.round(x * 1000) / 1000 : x);
 // A Blender scene's FOLEY: the scan first (blender_prep.py), then plain python3 with no inherited environment and, on
-// macOS, a sandbox with no network, no writes and no reads in the home folder outside the repo; the last line it prints
-// is the JSON
+// macOS, a sandbox with no network, no writes and no reads in the home folder outside the repo and the interpreter's
+// own install; the last line it prints is the JSON
 function pyFoley(py) {
-  execFileSync("python3", [`${STYLES}/_swatch/blender_prep.py`, "scan", py], { encoding: "utf8" });
+  try { execFileSync("python3", [`${STYLES}/_swatch/blender_prep.py`, "scan", py], { encoding: "utf8" }); }
+  catch (e) { throw new Error((e.stdout || "").trim() || e.message); }     // the scan's findings, not "Command failed"
   const env = { PATH: process.env.PATH, PYTHONDONTWRITEBYTECODE: "1" };
   let cmd = ["python3", [py, "--foley"]];
   if (process.platform === "darwin" && existsSync("/usr/bin/sandbox-exec")) {
+    const [exe, prefix] = execFileSync("python3", ["-c", "import os, sys; print(os.path.realpath(sys.executable)); " +
+      "print(os.path.realpath(sys.base_prefix))"], { encoding: "utf8", env }).trim().split("\n");   // pyenv, uv: may be under home
+    const home = realpathSync(homedir());
+    if ((home + "/").startsWith(prefix.replace(/\/$/, "") + "/")) throw new Error(`python3's install (${prefix}) holds the home folder`);
     const q = (p) => '"' + realpathSync(p).replace(/[\\"]/g, "\\$&") + '"';
     const profile = '(version 1)(allow default)(deny network*)(deny lsopen)(deny appleevent-send)(deny file-write*)' +
-      '(allow file-write* (literal "/dev/null"))' + `(deny file-read* (subpath ${q(homedir())}))` +
-      `(allow file-read* (subpath ${q(resolve(STYLES, ".."))}))`;
-    cmd = ["/usr/bin/sandbox-exec", ["-p", profile, "python3", py, "--foley"]];
+      '(allow file-write* (literal "/dev/null"))' + `(deny file-read* (subpath ${q(home)}))` +
+      `(allow file-read* (subpath ${q(resolve(STYLES, ".."))}) (subpath ${q(prefix)}))`;
+    cmd = ["/usr/bin/sandbox-exec", ["-p", profile, exe, py, "--foley"]];
   }
   const out = execFileSync(cmd[0], cmd[1], { encoding: "utf8", env }).trim().split("\n");
   return JSON.parse(out[out.length - 1]);

@@ -76,7 +76,7 @@ AWK
   out=$(files '*.py' | python3 -c '
 import ast, sys
 BLENDER = {"bpy", "bmesh", "mathutils", "bpy_extras", "gpu", "gpu_extras", "freestyle", "bl_math", "idprop", "aud", "imbuf", "blf", "bgl"}
-for f in sys.stdin.read().split():
+for f in sys.stdin.read().splitlines():
     src = open(f, encoding="utf-8").read()
     try: tree = ast.parse(src, f)
     except SyntaxError: continue

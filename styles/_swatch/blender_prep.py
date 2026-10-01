@@ -42,6 +42,7 @@ def scan(path):
         where = f"{os.path.basename(path)}:{getattr(n, 'lineno', '?')}"
         if isinstance(n, ast.Import):
             bad += [f"{where} import {a.name}" for a in n.names if a.name.split(".")[0] not in ALLOWED]
+            bad += [f"{where} import {a.name} as {a.asname}" for a in n.names if a.asname and a.name in ONLY]   # keeps ONLY on
         elif isinstance(n, ast.ImportFrom):
             mod = (n.module or "").split(".")[0]
             if mod not in ALLOWED or n.level: bad.append(f"{where} from {n.module} import …")

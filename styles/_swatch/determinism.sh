@@ -27,8 +27,9 @@ if [ $blender = 1 ]; then
   A="$OUT/frames"; own_a=0
   if [ ! -f "$A/inputs.txt" ] || [ "$(cat "$A/inputs.txt")" != "$("$SW/render.sh" "$slug" --stamp)" ]; then
     echo "→ no final frames for the scene as it is now: rendering all of them in order first (kept as out/<slug>/frames)"
+    st=$("$SW/render.sh" "$slug" --stamp)              # taken before rendering, as render.sh does
     "$SW/render.sh" "$slug" --png --workers 1
-    rm -rf "$A"; mv "$OUT/png-w1" "$A"; "$SW/render.sh" "$slug" --stamp > "$A/inputs.txt"
+    rm -rf "$A"; mv "$OUT/png-w1" "$A"; echo "$st" > "$A/inputs.txt"
   fi
   "$SW/render.sh" "$slug" --png --workers "$wb" --frames "$SAMPLE"
   B="$OUT/png-sample-w$wb"; LIST=$B
@@ -58,7 +59,7 @@ want=$([ $blender = 1 ] && echo "$nb" || echo "$na")
 [ "$total" -gt 0 ] && [ "$total" = "$want" ] && { [ $blender = 1 ] || [ "$total" = "$nb" ]; } \
   || { echo "✗ FAIL: compared $total frames, but ${A#$SW/} has $na PNGs and ${B#$SW/} has $nb"; exit 1; }
 # PNG sequences are big (demo: ~560 MB for both runs); they are kept only when the check fails. The final render's own
-# frames (out/<slug>/frames) are never removed here.
+# frames (out/<slug>/frames) are only ever replaced, above, by a complete fresh render of the scene as it is now.
 if [ $diff = 0 ]; then
   echo "✓ PASS: identical across 1 and $wb $([ $blender = 1 ] && echo "Blender processes (12 frames, last to first)" || echo workers)"
   rm -rf "$B"; [ $own_a = 1 ] && rm -rf "$A"; exit 0

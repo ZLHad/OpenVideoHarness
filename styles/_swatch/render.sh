@@ -178,12 +178,14 @@ for j in range(n):
     c = fr[i:i + k + (j < m)]; i += len(c); print(",".join(map(str, c)))
 PY
 )
-  for p in $pids; do   # one chunk failing stops the others: the render has failed, the rest is wasted time
+  for p in $pids; do   # one chunk failing stops the others (each pid is its Blender: bl_run execs it)
     if ! wait "$p"; then rc=1; for k in $pids; do kill "$k" 2>/dev/null || true; done; fi
   done
+  [ -z "$SBX" ] || rm -rf "${SBX%/*}"
   return $rc
 }
 hudarg=""; [ "$hud" = true ] && hudarg=--hud
+SBX=""                     # the sandbox profile bl_profile writes (macOS)
 sbq() { printf '"%s"' "$(printf '%s' "$1" | sed 's/[\\"]/\\&/g')"; }   # a path as a sandbox-profile string
 bl_profile() { # the sandbox every Blender of this render runs in (macOS; written once, before the chunks start). The AST scan
   # in blender_prep.py is a lint that catches mistakes; this is the boundary. No network, no handing URLs or Apple events to
@@ -193,24 +195,34 @@ bl_profile() { # the sandbox every Blender of this render runs in (macOS; writte
   # like stay out of reach of the frames that get committed. Drafts (Metal) can't take that rule: with the home folder
   # unreadable, Metal crashes loading Cycles' cached kernels (in -[_MTLDevice recordBinaryArchiveUsage:]; allowing
   # ~/Library does not help). Their output stays in the git-ignored out/ and they have no network
-  local o c h; o=$(cd "$OUT" && pwd -P); mkdir -p "$o/.blender/home" "$o/.blender/tmp"
+  # The profile lives outside out/<slug>/ (which the scene may write), and bl_run refuses to start without it.
+  local o c h r a; o=$(cd "$OUT" && pwd -P); mkdir -p "$o/.blender/home" "$o/.blender/tmp"; SBX=""
   [ "$(uname)" = Darwin ] && command -v sandbox-exec >/dev/null 2>&1 || return 0
   c=$(cd "$(getconf DARWIN_USER_CACHE_DIR)" && pwd -P); h=$(cd ~ && pwd -P)
+  r=$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$BL")   # Blender's own files: the .app bundle, or
+  case "$r" in */Contents/MacOS/*) a=${r%%/Contents/MacOS/*} ;; *) a=$(dirname "$r") ;; esac   # the folder it sits in
+  case "$h/" in "${a%/}"/*) die "Blender's install folder ($a) holds the home folder: a sandbox that reads it reads everything; install Blender elsewhere" ;; esac
+  SBX="$(mktemp -d "${TMPDIR:-/tmp}/vh-sandbox.XXXXXX")/blender.sb"
   { echo '(version 1)'; echo '(allow default)'; echo '(deny network*)'; echo '(deny lsopen)'; echo '(deny appleevent-send)'
     echo '(deny file-write*)'
     echo "(allow file-write* (subpath $(sbq "$o")) (subpath $(sbq "$c/org.blenderfoundation.blender")) (literal \"/dev/null\") (literal \"/dev/dtracehelper\"))"
     if [ $draft = 0 ]; then
       echo "(deny file-read* (subpath $(sbq "$h")))"
       echo "(allow file-read* (subpath $(sbq "$(cd "$ROOT" && pwd -P)")) (subpath $(sbq "$(cd "$SRC" && pwd -P)")) (subpath $(sbq "$o"))" \
-           "(subpath $(sbq "$(cd "$(dirname "$BL")/../.." && pwd -P)")) (subpath $(sbq "$h/Library/Fonts")))"
+           "(subpath $(sbq "$a")) (literal $(sbq "$(cd "$(dirname "$BL")" && pwd -P)/$(basename "$BL")")) (subpath $(sbq "$h/Library/Fonts")))"
     fi
-  } > "$o/.blender/sandbox.sb"
+  } > "$SBX"
 }
 bl_run() { # Blender with no inherited environment (env -i: no API keys reach it through the environment), its HOME and
-  # TMPDIR inside out/<slug>/.blender/, and on macOS inside the sandbox bl_profile wrote
+  # TMPDIR inside out/<slug>/.blender/, and on macOS inside the sandbox bl_profile wrote. It always runs in its own
+  # background subshell, so it execs: the pid bl_render waits on and kills is Blender itself, not a shell around it
   local o; o=$(cd "$OUT" && pwd -P)
   set -- env -i PATH="$PATH" HOME="$o/.blender/home" TMPDIR="$o/.blender/tmp/" LANG=en_US.UTF-8 PYTHONDONTWRITEBYTECODE=1 "$BL" "$@"
-  if [ -f "$o/.blender/sandbox.sb" ] && [ "$(uname)" = Darwin ]; then sandbox-exec -f "$o/.blender/sandbox.sb" "$@"; else "$@"; fi
+  if [ "$(uname)" = Darwin ] && command -v sandbox-exec >/dev/null 2>&1; then
+    [ -n "$SBX" ] && [ -f "$SBX" ] || { echo "[swatch] no sandbox profile: not starting Blender" >&2; exit 1; }
+    exec sandbox-exec -f "$SBX" "$@"
+  fi
+  exec "$@"
 }
 run_hf() { run_watched hf_render "$@"; }
 run_watched() { # $@ = a command, run in its own process group so a timeout kills Chrome or Blender too
