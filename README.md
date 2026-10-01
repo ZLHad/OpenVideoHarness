@@ -75,17 +75,17 @@ Every film below was made by an agent **reading only this repo's docs**. Each fo
 
 <table>
 <tr>
-<td rowspan="2" width="30%" valign="top"><a href="showcase/02-short-leo-doppler/"><img src="showcase/02-short-leo-doppler/media/preview.gif" width="100%" alt="02 · Vertical science short"></a><br><b>02 · Vertical science short</b><br><sub>HyperFrames · 24.8 s · 1080×1920 · reads without sound</sub><br><sub>“Why does a LEO satellite's signal change pitch?”</sub></td>
+<td rowspan="2" width="30%" valign="top"><a href="showcase/02-short-leo-doppler/"><img src="showcase/02-short-leo-doppler/media/preview.gif" width="100%" alt="02 · Vertical science short"></a><br><b>02 · Vertical science short</b><br><sub>HyperFrames · 24.8 s · 1080×1920 · Chinese voiceover, zh/en subtitles · reads without sound</sub><br><sub>“Why does a LEO satellite's signal change pitch?”</sub></td>
 <td width="35%" valign="top"><a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/poster.png" width="100%" alt="04 · Intro film"></a><br><b>04 · Intro film (one-take 3D)</b><br><sub>HyperFrames + Three.js · 81 s · code-composed score · zh/en subtitles</sub><br><sub>This repo's own product film, revised after two rounds of human notes</sub></td>
-<td width="35%" valign="top"><a href="showcase/01-handdrawn-clawd-leaf/"><img src="showcase/01-handdrawn-clawd-leaf/media/preview.gif" width="100%" alt="01 · Hand-drawn character short"></a><br><b>01 · Hand-drawn character short</b><br><sub>p5.brush · 12 s · 3 review rounds</sub><br><sub>“Clawd tries to film a falling leaf; the wind keeps stealing it”</sub></td>
+<td width="35%" valign="top"><a href="showcase/01-handdrawn-clawd-leaf/"><img src="showcase/01-handdrawn-clawd-leaf/media/preview.gif" width="100%" alt="01 · Hand-drawn character short"></a><br><b>01 · Hand-drawn character short</b><br><sub>p5.brush · 12 s · cartoon score + foley · 3 review rounds</sub><br><sub>“Clawd tries to film a falling leaf; the wind keeps stealing it”</sub></td>
 </tr>
 <tr>
-<td width="35%" valign="top"><a href="showcase/03-math-fourier/"><img src="showcase/03-math-fourier/media/preview.gif" width="100%" alt="03 · 3b1b-style math explainer"></a><br><b>03 · 3b1b-style math explainer</b><br><sub>Manim · 25 s · revised after an independent review</sub><br><sub>“Build a square wave from sine waves, one at a time”</sub></td>
-<td width="35%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · Launch short"></a><br><b>00 · Launch short</b><br><sub>HyperFrames · 20 s · silent</sub><br><sub>“A launch film for this repo, using only its real terminal and folders”</sub></td>
+<td width="35%" valign="top"><a href="showcase/03-math-fourier/"><img src="showcase/03-math-fourier/media/preview.gif" width="100%" alt="03 · 3b1b-style math explainer"></a><br><b>03 · 3b1b-style math explainer</b><br><sub>Manim · 25 s · English voiceover · revised after an independent review</sub><br><sub>“Build a square wave from sine waves, one at a time”</sub></td>
+<td width="35%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · Launch short"></a><br><b>00 · Launch short</b><br><sub>HyperFrames · 20 s · code-composed score + foley</sub><br><sub>“A launch film for this repo, using only its real terminal and folders”</sub></td>
 </tr>
 </table>
 
-The GIFs are compressed previews; each folder has the original in `media/final.mp4`. Films you make with it are welcome in `showcase/` as a PR.
+The GIFs are compressed, silent previews; each folder has the original, with its soundtrack, in `media/final.mp4`. Films you make with it are welcome in `showcase/` as a PR.
 
 <details>
 <summary><b>Similar work from the community, and our breakdowns of it</b></summary>

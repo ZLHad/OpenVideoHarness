@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+**Showcase 00–03 have sound**
+- The four showcase films were made and finished silent. Each now has a soundtrack fitted to its finished picture, whose timing is unchanged:
+  - 00 launch film: a code-composed electronic score (E major, 120 BPM, bar heads on the cuts) and 41 foley events;
+  - 01 Clawd: a cartoon underscore on the animation's own 120 BPM grid and 38 foley events that mickey-mouse the action;
+  - 02 Doppler: Chinese narration (Gemini TTS, voice Aoede), a light score, and the satellite's beacon made audible (its pitch follows the chart's Doppler curve);
+  - 03 Fourier: English narration (Gemini TTS, voice Iapetus), a felt-piano score, and the partial sums made audible (each harmonic sounds its own tone).
+- Sources per film: `audio/score.json`, `audio/events.json` (written by `tools/foley.py`, every event time cited from the scene code), `audio/music.beats.json`; for 02 and 03 also `audio/script.txt`, `audio/vo_grid.json`, the timelines and the captions. The Gemini takes cannot be regenerated, so the narration master is committed as lossless `audio/voiceover.<lang>.flac`. The narration is AI-synthesized, with a SynthID watermark; the NOTES say so.
+- `tools/build_audio.sh` rebuilds each soundtrack: foley, `bin/vh sfx lib`, `bin/vh music`, `bin/vh mix … profile=…`, `bin/vh qa` with the mix report, and with `--mux out.mp4` the mux onto `media/final.mp4`'s picture. It measures the true peak of the AAC encode and mixes again with a lower ceiling if that is over −1.5 dBTP. Every run gives the same bytes.
+- Mix profiles: 00 `promo`, 01 `cartoon`, 02 `short`, 03 `explainer`. `role` is set where the name hint put an event in the wrong class: 00's last hook thock is a hero, 01's gusts are details. Fixed by sound design along the way: 01's end fade is 40 ms (the 0.1 s fade took 7–12 dB off the iris thunk on the last frame), the leaf landing on Clawd's head is 3 dB up so the cue check finds the pat and not a harp note, and 02's whoosh on the 3.2 s cut is 4 dB down so it no longer covers 频移.
+- QA (`bin/vh qa` on each mix WAV, with the mix report; then on the mp4): no digital silence, dropouts or pumping; every cue within one frame (00: 29 of 29, 01: 30 of 30, 02: 18 of 18; 03 has no onset cues, its sounds all swell under −18 dB). VMR median / worst line: 02 11.5 / 11.2 LU, 03 13.1 / 13.0 (7.9 / 1.3 and 8.3 / 4.9 in the first candidates). All four at −14.0 LUFS; after the AAC encode the true peaks are −1.71, −1.65, −1.63 and −1.51 dBTP. The click warnings in 02 and 03 are consonants in the narration takes.
+- Colour: 01 (`yuvj420p`, full range, tagged `bt470bg`) and 03 (untagged BT.601) were re-encoded to limited-range BT.709 with all four colour tags (x264 `slow`, CRF 19 for 01 because CRF 17–18 grew it by 34–49 %, CRF 17 for 03). Pure yellow in 03 now decodes as (254, 254, 1) instead of (255, 240, 0) in Chromium's BT.709 reading; 01's saturated colours are within 1.4 levels of the original's own decode (6.4 before). 00 and 02 were already BT.709: their video is copied.
+- The READMEs (both languages) no longer call these films silent.
+
 **Music parts: physically modelled plucked strings**
 - 14 new voices, all opt-in; the Karplus–Strong voices are unchanged. Physical models of existing voices: `guqin_pm`, `pipa_pm`, `harp_pm`, `nylon_pm`, `ukulele_pm`, `upright_pm`, `balalaika_pm`, `cimbalom_pm`. New instruments: `guitar` (steel-string), `koto`, `shamisen`, `banjo`, `kalimba`, `musicbox_pm`. They are new names rather than a `model` switch: each gets its own level, default octave and `--instruments` line through the existing registry, the new instruments need names anyway, and an A/B is a one-word change.
 - The strings are digital waveguides in numpy, block-vectorised like `ks()`, with no numba:

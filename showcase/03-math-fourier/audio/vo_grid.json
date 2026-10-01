@@ -1,0 +1,26 @@
+{
+ "note": "Hand-made line grid for bin/vh tts --beats (not music): each point is where one narration line starts, from the reads in STORYBOARD.md and the play() timings in scenes/fourier.py. A square 0.2–2.1 → 0.3 · B sine 2.1 → 2.2 · C equation 4.3 → 4.7 · D3 term 3 lights 8.1 → 8.2 · D5 11.0 → 11.3 · Dinf N sweep 15.5 → 15.6 ('except at the jump' lands on the spikes and the zoom, 16.7–18.9) · F red peak line 18.9 → 19.15 (N sweep 19.9–21.5 under 'thinner') · F brace 21.8–22.4 → 22.6. The 'over' line was synthesized on 19.15 and then moved to 19.0 (same take, no re-synthesis) so it ends by 21.8, when the brace appears.",
+ "beats": [
+  0.3,
+  2.2,
+  4.7,
+  8.2,
+  11.3,
+  15.6,
+  19.15,
+  22.6
+ ],
+ "downbeats": [
+  0.3,
+  2.2,
+  4.7,
+  8.2,
+  11.3,
+  15.6,
+  19.15,
+  22.6
+ ],
+ "moved_after_synthesis": {
+  "over": 19.0
+ }
+}

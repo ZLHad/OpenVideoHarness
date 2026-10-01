@@ -1,0 +1,28 @@
+{
+  "_about": "Bed for the Doppler short (bin/vh music). 100 BPM (18 frames a beat at 30 fps), D major, stereo, room. The score starts 0.2 s into the film (tools/build_audio.sh delays it and shifts the beat map), so beat k is at 0.2 + 0.6 k s and the bar lengths put a bar head on every cut: S1 0.2–3.2 (5 beats) · S2 3.2–6.2 (5) · S3–S5 the pass 6.2–14.6 (4+4+6) · S6a 14.6–17.6 (5) · S6b 17.6–20.6 (5) · S7 20.6–24.8 (5+2; the mirror curve starts drawing on 20.6). The beacon pings (tools/foley.py) sit on these beats. Keep the melodic parts under ~700 Hz: the pings glide around A5 (740–1050 Hz) and the voice sits above the bass. Harmony follows the physics: approaching on I (bright), overhead on IV, receding on vi → ii (darker), and the tonic D lands on 23.6 with the first flat ping ('补偿后 ≈ 0'). Breath: S6a (strings, drone and a slower bass only, under the formula and the numbers; still loud enough to fill the pause between two lines). No score riser into S7: the layer riser's noise covered '再大 10 倍' and the Ka reveal; S6b builds with a kick on every beat instead.",
+  "bpm": 100,
+  "key": "D",
+  "mode": "major",
+  "seed": 24,
+  "stereo": true,
+  "space": "room",
+  "meters": {"1": 5, "2": 5, "3": 4, "4": 4, "5": 6, "6": 5, "7": 5, "8": 5, "9": 2},
+  "sections": [
+    {"name": "S1", "bars": 1, "chords": ["Imaj7"]},
+    {"name": "S2", "bars": 1, "chords": ["IV V"]},
+    {"name": "S3", "bars": 3, "chords": ["I", "IV", "vi ii"]},
+    {"name": "S6a", "bars": 1, "chords": ["IVmaj7"]},
+    {"name": "S6b", "bars": 1, "chords": ["V"]},
+    {"name": "S7", "bars": 2, "chords": ["IV V", "I"]}
+  ],
+  "parts": [
+    {"inst": "drone", "figure": "sustain", "pitch": ["c0"], "hold": "section", "gain_db": -11, "by_section": {"S1": {"gain_db": -8}, "S6a": {"gain_db": -6}}},
+    {"inst": "strings", "figure": "sustain", "voicing": "close", "gain_db": -12, "send": 0.3, "lp": 2500, "params": {"attack": 0.3, "release": 0.6}, "by_section": {"S1": {"vel": 0.9}, "S6a": {"vel": 1.0, "gain_db": -9}}},
+    {"inst": "marimba", "id": "hook", "sections": ["S1"], "octave": 3, "gain_db": -7, "send": 0.25, "pattern": [[0, 1.5, "c0", 0.7], [2.5, 1.5, "c2", 0.6]]},
+    {"inst": "marimba", "id": "run", "sections": ["S2", "S3", "S6b", "S7"], "octave": 3, "figure": "ostinato", "cell": ["c0", "c2", "c1", "c2"], "rate": 8, "gain_db": -10, "send": 0.2, "by_section": {"S3": {"vel": 0.8}, "S7": {"vel": 0.7}}},
+    {"inst": "sq_bass", "sections": ["S2", "S3", "S6a", "S6b", "S7"], "pattern": "x...x...x...x...", "pitch": ["c0"], "gain_db": -7, "by_section": {"S6a": {"pattern": "x.......x.......", "vel": 0.8}}},
+    {"inst": "kick", "sections": ["S3", "S6b", "S7"], "pattern": "x.......x.......", "gain_db": -12, "by_section": {"S6b": {"pattern": "x...x...x...x..."}, "S7": {"pattern": ["x.......x.......", "x......."]}}},
+    {"inst": "shaker", "sections": ["S2", "S3", "S6b", "S7"], "pattern": "x.x.x.x.x.x.x.x.", "gain_db": -17, "pan": 0.25},
+    {"inst": "vibraphone", "sections": ["S7"], "figure": "sustain", "voicing": "spread", "gain_db": -9, "send": 0.35, "params": {"motor": 4}}
+  ]
+}

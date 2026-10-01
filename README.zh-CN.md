@@ -75,17 +75,17 @@ cd ~/OpenVideoHarness && claude
 
 <table>
 <tr>
-<td rowspan="2" width="30%" valign="top"><a href="showcase/02-short-leo-doppler/"><img src="showcase/02-short-leo-doppler/media/preview.gif" width="100%" alt="02 · 竖屏科普"></a><br><b>02 · 竖屏科普</b><br><sub>HyperFrames · 24.8 秒 · 1080×1920 · 静音也能看懂</sub><br><sub>“为什么低轨卫星的信号会变调？”</sub></td>
+<td rowspan="2" width="30%" valign="top"><a href="showcase/02-short-leo-doppler/"><img src="showcase/02-short-leo-doppler/media/preview.gif" width="100%" alt="02 · 竖屏科普"></a><br><b>02 · 竖屏科普</b><br><sub>HyperFrames · 24.8 秒 · 1080×1920 · 中文旁白 · 中英字幕 · 关掉声音也能看懂</sub><br><sub>“为什么低轨卫星的信号会变调？”</sub></td>
 <td width="35%" valign="top"><a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/poster.png" width="100%" alt="04 · 介绍片"></a><br><b>04 · 介绍片（一镜到底 3D）</b><br><sub>HyperFrames + Three.js · 81 秒 · 代码作曲 · 中英字幕</sub><br><sub>本仓库的产品宣传片，改过两轮人的意见</sub></td>
-<td width="35%" valign="top"><a href="showcase/01-handdrawn-clawd-leaf/"><img src="showcase/01-handdrawn-clawd-leaf/media/preview.gif" width="100%" alt="01 · 手绘角色短片"></a><br><b>01 · 手绘角色短片</b><br><sub>p5.brush · 12 秒 · 3 轮自查</sub><br><sub>“Clawd 用手摇摄影机拍一片落叶，风总把叶子吹走”</sub></td>
+<td width="35%" valign="top"><a href="showcase/01-handdrawn-clawd-leaf/"><img src="showcase/01-handdrawn-clawd-leaf/media/preview.gif" width="100%" alt="01 · 手绘角色短片"></a><br><b>01 · 手绘角色短片</b><br><sub>p5.brush · 12 秒 · 卡通配乐 + 拟音 · 3 轮自查</sub><br><sub>“Clawd 用手摇摄影机拍一片落叶，风总把叶子吹走”</sub></td>
 </tr>
 <tr>
-<td width="35%" valign="top"><a href="showcase/03-math-fourier/"><img src="showcase/03-math-fourier/media/preview.gif" width="100%" alt="03 · 3b1b 式数学讲解"></a><br><b>03 · 3b1b 式数学讲解</b><br><sub>Manim · 25 秒 · 独立评审后修订</sub><br><sub>“用正弦波一点点拼出方波”</sub></td>
-<td width="35%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · 发布短片"></a><br><b>00 · 发布短片</b><br><sub>HyperFrames · 20 秒 · 静音</sub><br><sub>“只用真实的终端和目录，给这个仓库做一支发布片”</sub></td>
+<td width="35%" valign="top"><a href="showcase/03-math-fourier/"><img src="showcase/03-math-fourier/media/preview.gif" width="100%" alt="03 · 3b1b 式数学讲解"></a><br><b>03 · 3b1b 式数学讲解</b><br><sub>Manim · 25 秒 · 英文旁白 · 独立评审后修订</sub><br><sub>“用正弦波一点点拼出方波”</sub></td>
+<td width="35%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · 发布短片"></a><br><b>00 · 发布短片</b><br><sub>HyperFrames · 20 秒 · 代码作曲配乐 + 音效</sub><br><sub>“只用真实的终端和目录，给这个仓库做一支发布片”</sub></td>
 </tr>
 </table>
 
-GIF 是压缩过的预览，原片在各目录的 `media/final.mp4`。你做出来的片子也欢迎 PR 进 `showcase/`。
+GIF 是压缩过的无声预览，带声音的原片在各目录的 `media/final.mp4`。你做出来的片子也欢迎 PR 进 `showcase/`。
 
 <details>
 <summary><b>社区里的同类作品，以及我们对它们的拆解</b></summary>

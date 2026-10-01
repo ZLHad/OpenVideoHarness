@@ -177,14 +177,13 @@ done
 
 `yuvj420p`、`color_range=pc`（全范围）、`bt470bg` 或 `smpte170m`（BT.601 矩阵）和 `unknown` 都不合本仓库的交付约定。手绘引擎 `engines/ClaudeAnimationBase/render.mjs` 原来把 Chrome 的 JPEG 帧（全范围 BT.601）直接喂给 x264，出的片子正是 `yuvj420p, pc, bt470bg`；它现在已经转成 BT.709 tv 并写全四个标签，改之前渲的片子要重新编码才会变。
 
-<!-- 这两个成片修好之后，删掉下面"本仓库 2026-10-01 的审计"这一段 -->
-**本仓库 2026-10-01 的审计**：已提交的 34 个 mp4 里，32 个是约定值，两个不是：
-- `showcase/01-handdrawn-clawd-leaf/media/final.mp4`：`yuvj420p`、全范围、`bt470bg`，就是上面引擎改之前的输出。**浏览器里确实偏色**，不只是不合约定：在 Chrome 154 里，这个文件第 11.5 s 的饱和像素平均 R +6、G +5、B −5。ffmpeg 按标签读没有问题。
-- `showcase/03-math-fourier/media/final.mp4`：没有任何标签，但像素是 BT.601。按 BT.601 解码，样片调色板里的 `#FFFF00` 原样还原（第 15 s 一帧里约 3000 个像素），按 BT.709 解码（浏览器的做法）变成 (255,240,0)（约 6000 个像素）；`#58C4DD` 变成 (78,187,224)（算出来的值）。没有源帧时，就用已知调色板这样判断矩阵。
+**本仓库 2026-10-01 的审计**：已提交的 34 个 mp4 里，32 个是约定值，两个不是，都已在配声音时重编码成 BT.709 tv、写全四个标签（命令和核对数字在各自的 NOTES.md）：
+- `showcase/01-handdrawn-clawd-leaf/media/final.mp4` 原来是 `yuvj420p`、全范围、`bt470bg`，就是上面引擎改之前的输出。**浏览器里确实偏色**，不只是不合约定：在 Chrome 154 里，它第 11.5 s 的饱和像素平均 R +6、G +5、B −5。ffmpeg 按标签读没有问题。
+- `showcase/03-math-fourier/media/final.mp4` 原来没有任何标签，但像素是 BT.601。按 BT.601 解码，样片调色板里的 `#FFFF00` 原样还原（第 15 s 一帧里约 3000 个像素），按 BT.709 解码（浏览器的做法）变成 (255,240,0)（约 6000 个像素）；`#58C4DD` 变成 (78,187,224)（算出来的值）。没有源帧时，就用已知调色板这样判断矩阵。
 
-`showcase/04-intro-film/assets/clips/` 在 `.gitignore` 里，是 `showcase/04-intro-film/tools/make_clips.sh` 从 00–03 的成片重建的代理；其中的 `01.mp4`、`03.mp4` 继承了上面两个文件的标签，成片修好后重跑脚本即可。
+`showcase/04-intro-film/assets/clips/` 在 `.gitignore` 里，是 `showcase/04-intro-film/tools/make_clips.sh` 从 00–03 的成片重建的代理；重编码之前建的 `01.mp4`、`03.mp4` 还带着旧标签，重跑脚本即可。
 
-**只补标签不等于修好。** 像素本来就是 BT.709 tv、只是缺标签的文件，可以不重编码：`-c copy -bsf:v h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1:video_full_range_flag=0`。像素是 BT.601 或全范围的文件（上面那两个），只改标签会让它们"看上去标对了"却错得更多：在按 BT.601 全范围编的色块上试过，只改成 BT.709 标签，最大偏 29 个色阶。这类文件要重编码，用上面"出片"那条的滤镜链就行：
+**只补标签不等于修好。** 像素本来就是 BT.709 tv、只是缺标签的文件，可以不重编码：`-c copy -bsf:v h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1:video_full_range_flag=0`。像素是 BT.601 或全范围的文件（比如上面那两个原来的成片），只改标签会让它们"看上去标对了"却错得更多：在按 BT.601 全范围编的色块上试过，只改成 BT.709 标签，最大偏 29 个色阶。这类文件要重编码，用上面"出片"那条的滤镜链就行：
 
 ```bash
 ffmpeg -i in.mp4 -vf "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv" -c:v libx264 -crf 14 out.mp4

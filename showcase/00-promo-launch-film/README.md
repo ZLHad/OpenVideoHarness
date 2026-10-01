@@ -8,9 +8,9 @@
 |---|---|
 | Type / route | `promo` → `video-types/03-product-promo.md` (via the CLAUDE.md routing table) |
 | Engine | HyperFrames **0.8.82** (HTML + GSAP 3.14.2), installed as a project devDependency |
-| Output | 20.0 s, 1920×1080, 30 fps, 600 frames, silent (no audio stream) |
+| Output | 20.0 s, 1920×1080, 30 fps, 600 frames; stereo AAC soundtrack (code-composed score + foley, −14 LUFS, mix profile `promo`) added after the picture was finished, see [Soundtrack](#soundtrack) |
 | Render time (M3 Max) | final master `--quality high`: **27–29 s** (capture ~9 s + encode ~17 s, 5 workers, hardware GPU); draft: ~10 s; grain-free GIF source: ~11 s; web re-encode (x264 slow, CRF 23): ~12 s |
-| Files | master 72 MB (grain) → `media/final.mp4` 6.0 MB web encode; `media/preview.gif` 5.5 MB (800 px, 15 fps, grain-free cut) |
+| Files | master 72 MB (grain) → `media/final.mp4` 6.8 MB (the 6.3 MB web encode, copied, + AAC 192 kb/s); `media/preview.gif` 5.5 MB (800 px, 15 fps, grain-free cut) |
 | Review iterations | first cut: 5 snapshot rounds, 2 drafts, 2 final candidates, 1 fresh-context reviewer (12 FAILs fixed). Rebrand pass: 1 snapshot round, 3 drafts (incl. the rebuilt draft v1), 1 final (4 more FAILs fixed). All logged in NOTES.md 自评记录 |
 | Wall time | first cut ≈ 115 min (incl. one API rate-limit interruption); rebrand pass ≈ 25 min |
 
@@ -38,6 +38,31 @@ Register: **Linear/Vercel** — the harness has no glossy product surface to mac
 
 **How beat 03 stays honest after a rename.** The draft it critiques is rebuilt, not faked: `tools/draft-v1.sh` copies the source, flips `const DRAFT = "final"` → `"v1"` in `s-route.html` and `s-review.html` (the draft-v1 table widths + 1.4× push that produced #3, and the draft-v1 stand-in review beat), and renders `out/draft-v1.mp4`. Everything else in that rebuild is the current film (the other v1 bugs were already fixed). The flaw on screen is the real one, with the same numbers, under the new name.
 
+## Soundtrack
+
+The picture was made and finished silent, as the brief asked; the soundtrack was fitted to it afterwards (2026-10-01). So here the picture's timing is fixed and the audio fits it, the reverse of the harness's usual "audio decides the timing". The film has no narration: the type is the voice.
+
+- **Score** (`audio/score.json`, `bin/vh music` with instrument parts): minimal electronic in E major at 120 BPM (15 frames a beat). Bar lengths (`meters`) put a bar head on the cuts at 2.5, 8.0, 15.0 and 17.0 s. The cuts at 4.7 and 11.3 s fall between beats (meters take whole beats), so the music turns 0.3 s / 0.2 s after them and the whoosh on the cut frame carries the cut.
+  - Legato bed: a detuned drone, a CS-80-style pad and a string section.
+  - Rhythm: `sq_bass` 8ths, a soft kit (kick, hats, a clap in D and F) and a `seq` arpeggio with an echo.
+  - Accents: a glockenspiel doubles the ding on the routed row, and a felt-piano chord lands with the wordmark.
+  - It breathes three times: the problem line (2.5–5.0 s, no rhythm, a minor iv chord), a comma before the PASS click (13.5–14.0 s, kick and bass out) and the stillness before the wordmark (16.0–17.0 s).
+- **Foley** (`tools/foley.py` → `audio/events.json`, 41 events): a soft "thock" as each hook and tagline word lands, a whoosh peaking on every cut (where the motion is fastest), the prompt click, the typed command, Return, the `✓ created` chirp, a rising run as the file tree fills, ↵ and the scan ticks, the ding on the routed row, error → shutter → success for FAIL → PASS, odometer ticks on the exact frames where each proof number changes, and an impact on the wordmark. Times come from the GSAP timelines and are snapped to the first frame that shows the action; each event carries a `why`. Pan follows the sounding thing's on-screen x. Ten sounds are synthesized in code (numpy/scipy, seeded); the rest are `bin/vh sfx` built-ins.
+- **Mix** (`bin/vh mix … profile=promo`, see playbook/04-audio.md 混音): there is no narration, so the music's 3 s loudness is the anchor. Each SFX event is classed (hero, detail, ambience, signal) by its `role` in `events.json`, else by its name, and moved half way toward its class's range; events ≤ 0.2 s apart (the hook's word thocks, the count-up) move together. The last hook thock (`thock_lo`, "studio.") has `role: hero`: its name reads as a detail, but it lands the whole hook. The music dips 2.5 dB under each hero hit, and the SFX share one short room. One static gain to −14.0 LUFS; true peak −1.65 dBTP in the WAV (no limiting needed) and −1.71 dBTP after the AAC encode.
+- **QA** (`bin/vh qa` on the WAV, the gate; `--stems` adds the mix report):
+  - no digital silence, dropouts, pumping or clicks;
+  - 29 of 29 cues (the SFX events above −18 dB and the score's two hits) within one frame, median 6.3 ms, max 25.7 ms. Three rows are marginal (`OK~`): the NOTES line typing at 12.17 s, which starts with the error sound (that one is confirmed by its own sound), and the impact and piano chord at 17.0 s, where the detector fires on the first 2.7 ms hop of a steep onset that the next hop clears by +0.22;
+  - mix report: targets met. Hero median −2.1 LU re the anchor (range −4…2), detail −5.3 (−11…−3). Warnings: three detail events a little HIGH (the "video" thock at 1.07 s, the whoosh over the quiet problem line at 2.5 s, the first count-up column), and the sub boom under "One catch" is 100 % under 150 Hz, so it is felt rather than heard and may vanish on laptop speakers;
+  - the mp4 passes the scan and the cue check too (29 of 29), and `bin/vh check` finds no black, frozen or silent stretch.
+- The maintainer listened to the first candidate mixes on 2026-10-01 and chose a mix profile for each film. This profile mix has not been listened to yet; NOTES.md lists what to listen for.
+
+Rebuild (from the repo root; needs uv and ffmpeg):
+```bash
+showcase/00-promo-launch-film/tools/build_audio.sh                  # → audio/mix.wav, audio/stems/, audio/qa.txt
+showcase/00-promo-launch-film/tools/build_audio.sh --mux out.mp4    # … plus out.mp4 = the picture of media/final.mp4 + that mix
+```
+The script runs `tools/foley.py`, `bin/vh sfx lib`, `bin/vh music`, `bin/vh mix … profile=promo`, `bin/vh qa` and, with `--mux`, `bin/vh mux` (the picture is copied, not re-encoded), then measures the true peak of the AAC encode and mixes again with a lower ceiling if it is over −1.5 dBTP. Every run gives the same bytes. Only the sources are committed: `audio/score.json`, `audio/events.json`, `audio/music.beats.json`, `tools/foley.py`, `tools/build_audio.sh`. The WAVs, stems and reports are regenerated and ignored (`audio/.gitignore`).
+
 ## Reproduce
 
 ```bash
@@ -48,7 +73,7 @@ npx hyperframes lint && npx hyperframes check
 npx hyperframes render --quality high --output out/final.mp4
 npx hyperframes render --quality high --variables '{"grain":0}' --output out/final-nograin.mp4   # GIF source
 ```
-Needs macOS (SF Pro via `system-ui`, SF Mono/Menlo via `local()`, PingFang for the CJK table) (GSAP is installed by `npm i`; no network at render time). Beat-03 asset regeneration and every other command: LESSONS.md → 可用命令. Working project: `projects/2026-09-28-launch-film/` (drafts, snapshots, seam strips in `out/`).
+The soundtrack is rebuilt separately: see [Soundtrack](#soundtrack). Needs macOS (SF Pro via `system-ui`, SF Mono/Menlo via `local()`, PingFang for the CJK table) (GSAP is installed by `npm i`; no network at render time). Beat-03 asset regeneration and every other command: LESSONS.md → 可用命令. Working project: `projects/2026-09-28-launch-film/` (drafts, snapshots, seam strips in `out/`).
 
 ## Install commands that worked
 
@@ -105,6 +130,8 @@ Baked into images (frames 339–449; regenerate with the commands in LESSONS.md,
 │   ├── review-sheet.png  review-flagged.png  review-fixed.png   (this film's own drafts)
 │   └── draft-v1/         the draft-v1 stand-in sheet (ClaudeAnimationBase demo, MIT) for the rebuild
 ├── tools/                draft-v1.sh (rebuild the critiqued draft) · label-tile.py (tile label for the crop overlays)
+│                         foley.py (custom sounds + audio/events.json) · build_audio.sh (the whole soundtrack)
+├── audio/                score.json · events.json · music.beats.json (film time) · .gitignore (the WAVs are regenerated)
 ├── hyperframes.json  meta.json  package.json
 └── media/                final.mp4 · preview.gif · sheet.png · poster.png
 ```
