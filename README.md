@@ -71,7 +71,7 @@ Only when you say yes does it render the final.
 
 ## See what it makes
 
-The five films below were made by an agent **reading only this repo's docs**. Click a preview for its folder (brief, storyboard, review notes, fix-up log, full source), so you can start a similar video from it; ▶ plays the original with sound. Each request is quoted from a brief that was a paragraph, not one sentence (click “Request” for the whole text). Films 00–03 were finished silent, and their sound was fitted afterwards.
+The five films below were made by an agent **reading only this repo's docs**. Click a preview for its folder (brief, storyboard, review notes, fix-up log, full source), a good start for a similar video; ▶ plays the original with sound. Each request is a short quote from a longer brief, and “Request” links to the whole text. Films 00–03 were finished silent, and their sound was fitted afterwards.
 
 <table>
 <tr>
