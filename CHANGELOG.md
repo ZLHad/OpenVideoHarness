@@ -5,6 +5,23 @@
 **Case study: five community films, concept before style**
 - `cases/oneshot-five.md`: five films posted 2026-09-29 to 10-01. A knowledge short that slows the 3 seconds after you press Enter down to 2 minutes, with the clock and the slow-motion factor on screen; a portrait Claude made of its user (one go from a short prompt, the author says) from his notes, quotes and commits, with each quote's source on screen and its own inferences labelled; a self-introduction that shows each technique as it names it (its prompt says not to use any installed skill); the FunTech showreel (one mascot through a dozen style worlds); Mirage's Tesseract launch (one chrome cube from design system to finished video). Frames were read in the browser without downloading, levels measured with WebAudio. It ends with where these films would fail our taste checklist, as input for deciding which taste rules are floors and which are one taste among others.
 - Linked from `cases/README.md` and the community tables in both READMEs (13 case studies).
+**`bin/vh music`: a note map for pictures driven note by note**
+- Why: in a film where a character walks on piano keys, or where each key goes down as its note sounds, the picture needs every note's start, end and pitch, and the beat map only had hit times (`hits: [{t, what}]`). Typing those times into the scene by hand breaks the rule that sound and picture come from one source.
+- A part with `"note_map": true` writes every note into the beat map's new `notes`: `[{"t", "end", "midi", "vel", "part"}]`, sorted by `t`.
+  - The key is present, possibly empty, whenever a part asks for it.
+  - `t` is when the note lands, the same time `hits` use (humanize included, `onset_ms` added back).
+  - `end` is its note-off on the same clock: the written length, a section stop's cut included, never before `t`.
+  - `part` is the part's id, or `inst#n`, the label hits use.
+  - A chord gives one entry per pitch. An unpitched drum has `midi` null and carries its stroke as `art` (`o`, 锣鼓经 syllables). A `detune`d note is a float.
+  - A tremolo note is listed as its strikes, a strum as its strings.
+  - `vel` is the strike's velocity.
+  - `--length` drops notes that start after the end and cuts the rest there.
+  - `"note_map"` must be true or false, and only counts on the part itself. A texture part with it is refused, naming the part by its label.
+  - `bin/vh qa` does not read `notes`. A part whose notes should be cue-checked also sets `"hit": true`.
+- Nothing changes for scores without the field. The 28 swatch scores and showcase 00–03, rendered before and after, give the same WAV and beat-map bytes. (Showcase 04's `score.json` belongs to its own `score_engine.py` and is not a `music.py` score.)
+- Checked on a test score with a three-note chord, a snare, a 25-cent `detune`, `onset_ms` 30 with humanize, an 8 Hz tremolo, a section stop and `--length 2.3`: the chord gives three entries, the drum `midi` is null, the detuned E5 is 76.25, and the early note's `t` is its grid time plus its humanize. The tremolo gives four strikes. The note inside the stop is gone, and the trimmed map keeps 17 of 18 notes with every `end` at most 2.3.
+- Docs: the `music.py` docstring (the part field and the beat map), `playbook/04-audio.md` (what each field means), `playbook/08-vfx-and-motion-sources.md` ("声画联动的接法": keys down at `t` and up at `end`, a walk on a single-note line from one note's `t` to the next, the timing read from the map and never typed into the scene, and `"hit": true` for cue checks).
+- An independent review ran the field on every non-texture part of all 32 scores (WAVs unchanged, 2906 notes, every hit matched by a note) and found the three things fixed before merging: `end` could fall before `t` for a slow-speaking voice (`onset_ms` 150 on 16ths), `notes` was missing rather than empty when a stop removed every note, and playbook 08 said the cue check covered the notes.
 
 **Sound refresh: every film on the new SFX engine, a transition family per style, plucked parts on the modelled voices**
 - Why: the maintainer heard the same page-turn sound in every film, and the same one on every cut within a film ("切换音效都是一模一样的有审美疲劳，同一个片子同一个切换页音效一样可能也不是很好"). #39 built the variants and the new transitions; this applies them and renders everything again.
