@@ -211,7 +211,8 @@ bin/vh new promo launch-film --style cutout-jazz   # 建项目时直接带上一
 - 要拆解别人的片子：[playbook/07](playbook/07-reverse-engineer.md)；
 - 要讲一个有起伏的故事，或做 3 分钟以上的长片：[playbook/09](playbook/09-narrative.md)（骨架、节拍表、张力曲线、换挡）；
 - 要发短视频平台，想好开头钩子、标题和封面：[playbook/10](playbook/10-hooks-and-packaging.md)；
-- 要配乐有篇章、有能哼出来的主题、有起伏：[playbook/11](playbook/11-composition.md)。
+- 要配乐有篇章、有能哼出来的主题、有起伏：[playbook/11](playbook/11-composition.md)；
+- 想看我们量过什么、因此改了什么：[docs/research](docs/research/README.md)（混音层级、配乐距离、渲染确定性、画面文字读秒、配乐篇章）。
 
 ## 声音
 
