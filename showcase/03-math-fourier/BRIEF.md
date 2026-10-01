@@ -2,11 +2,13 @@
 
 <!-- Gate 1 skipped: the user authorised "no approval gates" for this README showcase. File still written as the reference for self-review. -->
 
+> 2026-10-01: the picture below was made and finished silent, as briefed. English narration, a piano score and a sonification of the partial sums were fitted to it afterwards (README › Soundtrack), and the video was re-encoded to limited-range BT.709 at the same time (NOTES); the timings here are unchanged.
+
 ## Spec
 - Output: 1920x1080, 30 fps, target 23–24 s (18–25 s allowed), ~700 frames
 - Engine: Manim CE 0.21.0 (Cairo renderer), single scene `FourierSquareWave`
 - Platform / audience: README showcase GIF/MP4 for OpenVideoHarness; autoplay, **muted**. Audience: curious undergrad / engineer who has heard "any signal is a sum of sines" but never watched it happen.
-- Language: en (math notation carries the content), narration: **none** (silent)
+- Language: en (math notation carries the content), narration: **none** while the picture was made (silent); English narration added afterwards (README › Soundtrack)
 - Deliverables: final.mp4, preview.gif (640 px, 15 fps, < 6 MB), sheet.png
 
 ## Content
@@ -32,13 +34,13 @@ Every frame is a pure function of ValueTrackers driven by the play() timeline; c
 
 ## Process
 1. STORYBOARD.md with reads + timings (gate 2 skipped by user; file still written).
-2. No audio: timings come from the storyboard, not from a voiceover.
+2. No audio while the picture was made: timings come from the storyboard, not from a voiceover. (The narration added later was fitted to these timings.)
 3. Build with `-ql`; per iteration: contact sheet + strips of the add-a-harmonic move and the zoom move + a crop of the horn; bounding boxes printed; critique vs TASTE_CHECKLIST in NOTES.md.
 4. Uncertain facts go in NOTES.md.
 5. Final at 1080p30 (`manim -qh --fps 30`; plain `-qh` is 1080p60), gif, sheet.
 
 ## Acceptance
-- [ ] 18–25 s, 1920x1080, 30 fps, no audio stream (or silent)
+- [ ] 18–25 s, 1920x1080, 30 fps; the picture render has no audio stream (the soundtrack is muxed on afterwards)
 - [ ] every number on screen matches tools/verify_math.py (4/π, 1/n, 1.179, 8.95% ≈ 9%)
 - [ ] each entity keeps one colour for the whole video
 - [ ] equation appears whole, dims, then lights term by term in sync with the graph
@@ -53,6 +55,6 @@ Geometry first, then the equation. Equations appear whole, dim to 30%, then ligh
 Keep the parent diagram visible (dimmed) when zooming into details; dim old layers, never delete them mid-argument.
 After a question card, hold 2.5s. Each play() 1–3s, then a 0.5–2s hold. No bounce, glow, particles, or bullet-list ending.
 Place objects only via a 6x6 anchor grid (A1–F6) in the animation area; print all bounding boxes and check overlaps before rendering.
-~~Narration via manim-voiceover; trigger visuals on bookmarks at {cue} words.~~ Silent video: no narration, no cues.
+~~Narration via manim-voiceover; trigger visuals on bookmarks at {cue} words.~~ Silent video: no narration, no cues. (Picture phase; the narration added on 2026-10-01 follows the picture, not the other way round.)
 
 <!-- from 01-math-science-explainer.md -->

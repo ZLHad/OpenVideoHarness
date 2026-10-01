@@ -1,0 +1,30 @@
+{
+  "_about": "Cartoon underscore for 'Clawd and the Leaf' (bin/vh music). 120 BPM from 0.0 s, the grid the animation itself runs on (src/config.js: bpm 120, offset 0: Clawd's beat-locked idles, the rec dot blinks every 2 beats), E major, 6 bars of 4/4: A 0–4 · B 4–8 (the cut at 4.0 is bar 3's downbeat) · C 8–12 (the lens push ends at 8.2; the POV music starts on bar 5, 0.2 s early, as the glass fills the frame). Mickey-mousing: the note lists sit on the storyboard's actions (beat = 0.5 s from the section start): the leaf's rocking fall (flute A, harp C, the same zigzag), the crank (pizz 8ths), the '!' takes (xylophone, 3.0 and 10.08), the chase (pizz on the 1st, 4th and 6th footfalls: 4.049, 4.243, 4.485 — solved from poseB's walk cycle in tools/foley.py), the stop-time skid, the sneak, the gust (music drops to the string bed), the angry grumble (muted brass) and the stomp (timpani, 6.78), the harp glissando into the lens, the rec dot (music box on 9.0 and 11.0), the joy (harp arpeggio, 10.625) and the ta-da (11.375 / 11.75).",
+  "bpm": 120,
+  "key": "E",
+  "mode": "major",
+  "seed": 11,
+  "stereo": true,
+  "space": "room",
+  "sections": [
+    {"name": "A", "bars": 2, "chords": ["I", "IV V"]},
+    {"name": "B", "bars": 2, "chords": ["I", "iv V"]},
+    {"name": "C", "bars": 2, "chords": ["I", "IV I"]}
+  ],
+  "parts": [
+    {"inst": "strings", "figure": "sustain", "voicing": "spread", "gain_db": -12, "send": 0.35, "params": {"attack": 0.3, "release": 0.6}, "by_section": {"B": {"vel": 0.7}}},
+    {"inst": "celesta", "id": "wonder", "sections": ["A"], "loop": 2, "gain_db": -6, "send": 0.35, "pattern": [[0.5, 0.5, "B5", 0.6], [1.0, 0.5, "G#5", 0.55], [1.5, 0.5, "E5", 0.55], [2.0, 1.0, "B5", 0.6]]},
+    {"inst": "flute", "id": "fall", "sections": ["A"], "loop": 2, "gain_db": -5, "send": 0.3, "pattern": [[2.5, 0.5, "B5", 0.7], [3.0, 0.5, "A5", 0.6], [3.5, 0.5, "B5", 0.65], [4.0, 0.5, "G#5", 0.6], [4.5, 0.5, "A5", 0.55]]},
+    {"inst": "pizzicato", "id": "pizz_a", "sections": ["A"], "loop": 2, "gain_db": -3, "pattern": [[3.5, 0.4, "E3", 0.7], [4.0, 0.4, "B2", 0.6], [4.5, 0.4, "E3", 0.7], [6.0, 0.5, ["B2", "B3"], 0.9], [7.0, 0.25, "B2", 0.6], [7.5, 0.25, "D#3", 0.7]]},
+    {"inst": "pizzicato", "id": "pizz_b", "sections": ["B"], "loop": 2, "gain_db": -3, "pattern": [[0.098, 0.3, "E3", 0.6], [0.486, 0.3, "B2", 0.7], [0.97, 0.3, "E3", 0.75], [1.5, 0.3, "B2", 0.6], [2.75, 0.2, "B2", 0.45], [3.25, 0.2, "C3", 0.45], [3.5, 0.2, "C#3", 0.5], [3.75, 0.2, "D3", 0.55]]},
+    {"inst": "pizzicato", "id": "pizz_c", "sections": ["C"], "loop": 2, "gain_db": -4, "pattern": [[6.75, 0.3, ["B2", "E3"], 0.8], [7.5, 0.5, ["E2", "B2", "E3"], 0.95]]},
+    {"inst": "xylophone", "id": "xylo_a", "sections": ["A"], "loop": 2, "gain_db": -5, "hit": true, "pattern": [[6.0, 0.5, ["E6", "B6"], 0.9], [7.0, 0.25, "B4", 0.6], [7.25, 0.25, "C#5", 0.65], [7.5, 0.25, "D#5", 0.7], [7.75, 0.25, "E5", 0.8]]},
+    {"inst": "xylophone", "id": "xylo_c", "sections": ["C"], "loop": 2, "gain_db": -5, "pattern": [[4.167, 0.5, ["E6", "B6"], 0.9], [7.5, 0.5, "E6", 0.9]]},
+    {"inst": "brass", "id": "grumble", "sections": ["B"], "loop": 2, "gain_db": -6, "params": {"mute": true}, "onset_ms": 8, "pattern": [[5.0, 0.35, "B2", 0.8], [5.5, 0.3, "C3", 0.75]]},
+    {"inst": "timpani", "sections": ["B"], "loop": 2, "gain_db": -4, "pattern": [[5.56, 1, null, 0.95]]},
+    {"inst": "harp", "id": "harp_b", "sections": ["B"], "loop": 2, "gain_db": -6, "send": 0.3, "pattern": [[6.5, 0.3, "E4", 0.5], [6.75, 0.3, "G#4", 0.55], [7.0, 0.3, "B4", 0.6], [7.25, 0.3, "E5", 0.65], [7.5, 0.3, "G#5", 0.7], [7.75, 0.4, "B5", 0.75]]},
+    {"inst": "harp", "id": "harp_c", "sections": ["C"], "loop": 2, "gain_db": -6, "send": 0.35, "pattern": [[2.0, 0.5, "B5", 0.6], [2.5, 0.5, "A5", 0.55], [3.0, 0.5, "B5", 0.55], [3.5, 0.5, "G#5", 0.5], [5.25, 0.3, "E5", 0.6], [5.45, 0.3, "G#5", 0.65], [5.65, 0.3, "B5", 0.7], [5.85, 0.6, "E6", 0.75]]},
+    {"inst": "vibraphone", "sections": ["C"], "figure": "sustain", "voicing": "spread", "gain_db": -12, "send": 0.3},
+    {"inst": "musicbox", "sections": ["C"], "loop": 2, "gain_db": -9, "send": 0.3, "pattern": [[0.5, 1, "E6", 0.5], [2.0, 1, "B5", 0.55], [6.0, 1, "E6", 0.55]]}
+  ]
+}

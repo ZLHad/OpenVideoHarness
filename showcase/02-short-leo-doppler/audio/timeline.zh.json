@@ -1,0 +1,113 @@
+{
+  "provider": "gemini",
+  "voice": "Aoede",
+  "lang": "zh",
+  "duration": 24.51,
+  "grid": {
+    "beats": "showcase/02-short-leo-doppler/audio/vo_grid.json",
+    "snap": "beat",
+    "lead": 0.2
+  },
+  "segments": [
+    {
+      "id": "hook",
+      "zh": "卫星信号会变调？",
+      "en": "Satellite signals change pitch?",
+      "direction": "好奇地抛出问题，快，尾音上扬",
+      "text": "卫星信号会变调？",
+      "start": 0.2,
+      "end": 1.69,
+      "file": "audio/vo/zh/01.wav"
+    },
+    {
+      "id": "why",
+      "zh": "原因是多普勒频移。",
+      "en": "The cause: the Doppler shift.",
+      "direction": "干脆揭晓，带笑意",
+      "text": "原因是多普勒频移。",
+      "start": 1.85,
+      "end": 3.38,
+      "file": "audio/vo/zh/02.wav"
+    },
+    {
+      "id": "leo",
+      "zh": "低轨卫星，飞得极快！",
+      "en": "Low-orbit satellites fly incredibly fast.",
+      "direction": "兴奋，语速快，\"极快\"重读",
+      "text": "低轨卫星，飞得极快！",
+      "start": 3.55,
+      "end": 5.09,
+      "file": "audio/vo/zh/03.wav"
+    },
+    {
+      "id": "near",
+      "zh": "靠近时，波变密，频率升高。",
+      "en": "Approaching: the waves bunch up, the frequency rises.",
+      "direction": "边指边讲，轻快，\"升高\"往上扬",
+      "text": "靠近时，波变密，频率升高。",
+      "start": 6.45,
+      "end": 8.98,
+      "file": "audio/vo/zh/04.wav"
+    },
+    {
+      "id": "zero",
+      "zh": "正头顶，频移归零。",
+      "en": "Overhead: the shift is zero.",
+      "direction": "稳稳落下，\"归零\"重读",
+      "text": "正头顶，频移归零。",
+      "start": 9.5,
+      "end": 11.18,
+      "file": "audio/vo/zh/05.wav"
+    },
+    {
+      "id": "far",
+      "zh": "远离时，波变疏，频率降低。",
+      "en": "Receding: the waves spread out, the frequency drops.",
+      "direction": "和上一句对称，\"降低\"往下走",
+      "text": "远离时，波变疏，频率降低。",
+      "start": 11.45,
+      "end": 13.77,
+      "file": "audio/vo/zh/06.wav"
+    },
+    {
+      "id": "s2g",
+      "zh": "2 GHz：接近正负 50 kHz。",
+      "en": "At 2 GHz: close to ±50 kHz.",
+      "direction": "报数字，利落",
+      "text": "2 GHz：接近正负 50 kHz。",
+      "start": 14.9,
+      "end": 17.32,
+      "file": "audio/vo/zh/07.wav"
+    },
+    {
+      "id": "s20g",
+      "zh": "20 GHz，再大 10 倍！",
+      "en": "At 20 GHz: ten times more.",
+      "direction": "惊叹，\"10 倍\"重读",
+      "text": "20 GHz，再大 10 倍！",
+      "start": 17.85,
+      "end": 19.82,
+      "file": "audio/vo/zh/08.wav"
+    },
+    {
+      "id": "known",
+      "zh": "轨道已知，能提前算出。",
+      "en": "The orbit is known, so it can be computed ahead.",
+      "direction": "语气转稳，像在说一个好消息",
+      "text": "轨道已知，能提前算出。",
+      "start": 20.65,
+      "end": 22.17,
+      "file": "audio/vo/zh/09.wav"
+    },
+    {
+      "id": "fix",
+      "zh": "反向补偿，不再变调。",
+      "en": "Compensate in reverse: no more pitch change.",
+      "direction": "轻松收尾，带笑意",
+      "text": "反向补偿，不再变调。",
+      "start": 22.85,
+      "end": 24.51,
+      "file": "audio/vo/zh/10.wav"
+    }
+  ]
+}

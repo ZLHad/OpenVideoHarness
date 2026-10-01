@@ -1,0 +1,118 @@
+[
+  {
+    "id": "hook",
+    "start": 0.2,
+    "end": 1.69,
+    "zh": [
+      "卫星信号会变调？"
+    ],
+    "en": [
+      "Satellite signals change pitch?"
+    ]
+  },
+  {
+    "id": "why",
+    "start": 1.85,
+    "end": 3.38,
+    "zh": [
+      "原因是多普勒频移。"
+    ],
+    "en": [
+      "The cause: the Doppler shift."
+    ]
+  },
+  {
+    "id": "leo",
+    "start": 3.55,
+    "end": 5.09,
+    "zh": [
+      "低轨卫星，飞得极快！"
+    ],
+    "en": [
+      "Low-orbit satellites fly incredibly fast."
+    ]
+  },
+  {
+    "id": "near",
+    "start": 6.45,
+    "end": 8.98,
+    "zh": [
+      "靠近时，波变密，",
+      "频率升高。"
+    ],
+    "en": [
+      "Approaching: the waves bunch up, the",
+      "frequency rises."
+    ]
+  },
+  {
+    "id": "zero",
+    "start": 9.5,
+    "end": 11.18,
+    "zh": [
+      "正头顶，频移归零。"
+    ],
+    "en": [
+      "Overhead: the shift is zero."
+    ]
+  },
+  {
+    "id": "far",
+    "start": 11.45,
+    "end": 13.77,
+    "zh": [
+      "远离时，波变疏，",
+      "频率降低。"
+    ],
+    "en": [
+      "Receding: the waves spread out, the",
+      "frequency drops."
+    ]
+  },
+  {
+    "id": "s2g",
+    "start": 14.9,
+    "end": 17.32,
+    "zh": [
+      "2 GHz：接近正负 50 kHz。"
+    ],
+    "en": [
+      "At 2 GHz: close to ±50 kHz."
+    ]
+  },
+  {
+    "id": "s20g",
+    "start": 17.85,
+    "end": 19.82,
+    "zh": [
+      "20 GHz，再大 10 倍！"
+    ],
+    "en": [
+      "At 20 GHz: ten times more."
+    ]
+  },
+  {
+    "id": "known",
+    "start": 20.65,
+    "end": 22.17,
+    "zh": [
+      "轨道已知，能提前算出。"
+    ],
+    "en": [
+      "The orbit is known, so it can be computed",
+      "ahead."
+    ]
+  },
+  {
+    "id": "fix",
+    "start": 22.85,
+    "end": 24.51,
+    "zh": [
+      "反向补偿，不再变调。"
+    ],
+    "en": [
+      "Compensate in reverse: no more pitch",
+      "change."
+    ]
+  }
+]

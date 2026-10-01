@@ -107,7 +107,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 | "这个视频是怎么做的"，想学某支参考视频 | `playbook/07-reverse-engineer.md` | —（产出一份 cases/ 拆解） | `cases/explainer-interstellar-blackhole.md` |
 | 只给了一句话，或想找同类的社区提示词对照 | 主类型文档，加上 `cases/opus55-gallery.md`（先看第 1 节最后两条，再从第 3 节挑 2–3 条同类型的） | 按主类型 | `cases/opus55-gallery.md` |
 | 想找现成的社区 skill 或某种画风 | 先看本仓库的 `styles/`（带样片），再看 `references/community-skills.md`（含 lemo-opuscar 的 43 种风格库，MIT） | — | `cases/opus55-gallery.md` |
-| 配音（中文或英文）、双语字幕、配乐、音效、歌曲 | `playbook/04-audio.md` | `bin/vh tts / captions / beats / music / sfx / mix / mux / qa` | `showcase/`（静音样板）+ 04 篇 |
+| 配音（中文或英文）、双语字幕、配乐、音效、歌曲 | `playbook/04-audio.md` | `bin/vh tts / captions / beats / music / sfx / mix / mux / qa` | `showcase/00–03`（各带 `tools/build_audio.sh`；02、03 是旁白 + 字幕 + mix profile 的现成样板）+ 04 篇 |
 | 特效、转场、粒子、着色器、声画联动 | `playbook/08-vfx-and-motion-sources.md` | 随主引擎 | — |
 | 3 分钟以上的长片，或靠故事、谜题推进的片子（角色短片、长讲解） | 主类型文档，加上 `playbook/09-narrative.md`（骨架、节拍表、张力曲线、换挡） | 按主类型 | — |
 | 要发短视频平台：开头钩子、标题、封面 | `playbook/10-hooks-and-packaging.md`，加上主类型文档 | 按主类型 | — |

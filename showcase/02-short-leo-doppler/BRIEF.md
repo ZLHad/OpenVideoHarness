@@ -2,11 +2,13 @@
 
 <!-- 关卡 1：用户已授权本次 showcase 跳过确认（"skip approval gates"），文件仍照写，作为自查依据。 -->
 
+> 2026-10-01：下面的画面按静音片做完、交付。之后才给它补了中文配音（念的就是字幕）、轻配乐和音效，时间对齐已经定好的画面（README › Soundtrack）；这里的时长和字幕一处没改。
+
 ## Spec
 - Output: 1080x1920, 30 fps, exactly 24.8s (744 frames)
 - Engine: HyperFrames 0.8.82 (HTML + GSAP), single monolithic `index.html`
 - Platform / audience: 竖屏知识短视频（抖音 / 视频号 / 小红书 / Shorts），好奇的普通观众；**静音观看**——没有旁白、没有音乐，所有信息靠烧录中文字幕和画面
-- Language: zh-CN, narration: none（字幕即旁白）
+- Language: zh-CN, narration: 画面阶段没有（字幕即旁白）；2026-10-01 补了配音，念的就是这些字幕
 - Deliverables: final.mp4, 3:4 cover frame（hook 文字），contact sheet，preview GIF（README 用）
 
 ## Content
@@ -32,7 +34,7 @@ Every frame is a pure function of t. No Math.random / Date.now / CSS transitions
 
 ## Process
 1. STORYBOARD.md: per shot = time range, caption, visual, focal element, the reads (each with start–end), transition out. （本次授权跳过确认）
-2. Audio first: **N/A — silent**。时间由字幕阅读量决定：每条字幕按 ≤ 6 字/秒、≥ 2.0s 留时（比 9 字/秒上限宽松，因为观众还要看图）。
+2. Audio first: **N/A — 画面按静音片做**（配音、配乐是成片之后补的，对齐画面）。时间由字幕阅读量决定：每条字幕按 ≤ 6 字/秒、≥ 2.0s 留时（比 9 字/秒上限宽松，因为观众还要看图）。
 3. Build scene by scene; after each scene render stills + a contact sheet + strips for key motions; critique against TASTE_CHECKLIST.md and log in NOTES.md; fix before moving on.
 4. Uncertain facts and creative decisions go in NOTES.md, never invented into the video.
 5. Deliver: MP4 path, contact sheet of the whole piece, NOTES.md, the 2–3 spots you're least happy with.
@@ -43,11 +45,11 @@ Every frame is a pure function of t. No Math.random / Date.now / CSS transitions
 - [ ] 每个数字都和 NOTES.md 的计算一致：7.6 km/s、500–550 km、2 GHz 接近 ±50 kHz、20 GHz 大 10 倍（约 ±500 kHz）、一次过顶几分钟
 - [ ] 频移曲线是用真实几何算出来的 S 形（正 → 0 → 负），不是手画的
 - [ ] 所有文字在安全框内；字幕单行 ≤ 16 字
-- [ ] 24.8s ±1 帧，1080x1920，30 fps，无音轨也可（静音片）
+- [ ] 24.8s ±1 帧，1080x1920，30 fps，画面渲染无音轨（配音、配乐和音效后来合进成片）
 - [ ] 画面上任何 3 秒窗口内都有变化
 
 ## TYPE
-+ TYPE: vertical knowledge short. 1080x1920 30fps 24.8s, **silent** (no narration, no music) + burned-in zh-CN captions carry everything. Platform: 抖音 / 视频号 / 小红书 / Shorts.
++ TYPE: vertical knowledge short. 1080x1920 30fps 24.8s, **silent** (no narration, no music) + burned-in zh-CN captions carry everything (picture phase; narration, music and SFX were added on 2026-10-01). Platform: 抖音 / 视频号 / 小红书 / Shorts.
 Style: "Kurzgesagt meets Fireship": flat vector shapes, one accent, dry humor. NOT: blue-purple tech gradients, particle backgrounds, stock icons.
 0–1s: the counterintuitive claim/number as a full-bleed visual (no logo, no greeting). By 3s: what the viewer will learn.
 A new visual payoff every 3–5s; one idea per shot; cut on caption phrase boundaries.

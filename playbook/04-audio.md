@@ -121,7 +121,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 **字幕的两种交付方式**：
 - **烧进画面**：引擎读 `captions.json` 绘制，属于画面的一部分，同样必须是 t 的纯函数，样式按类型文档；
-- **软字幕轨**：`bin/vh mux … captions.zh.srt captions.en.srt` 封装进 mp4，播放器或平台可以开关。
+- **软字幕轨**：`bin/vh mux … captions.zh.srt captions.en.srt` 封装进 mp4，播放器或平台可以开关。画面里已经烧了字幕时加 `--subs-off`：每条字幕轨都不设成默认，播放器不会自己打开一套叠在烧录字幕上（MP4 封装器总会把第一条字幕轨标成启用，`--subs-off` 把这一位清掉）。
 
 竖屏视频导出时用 `bin/vh captions <p> zh 11`，中文每行最多 11 字。
 
@@ -345,6 +345,8 @@ bin/vh mix $A/mix.wav profile=explainer voice=$A/voiceover.en.wav music=$A/music
 bin/vh mix $A/mix.wav profile=cartoon music=$A/music.wav events=$A/events.json lib=$A/sfx dur=12 fade=0.1 stems=$A/stems
 bin/vh qa mix $A/stems --beats $A/music.beats.json   # 只看混音报告（词级时间取 timeline 里的 words，或 --words）
 ```
+
+片尾的 `fade` 从 dur − fade 开始压所有总线，最后一帧上的音效也会被压下去：showcase 01 用 0.1 s 时，11.955 s 光圈合拢的那一声被压低了 7–12 dB，改成 0.04 s 才保住它的起音。片尾有动作时，`fade` 要短于它离片尾的距离。
 
 **按类型选 profile**（数值是相对锚点的 LU）：
 
