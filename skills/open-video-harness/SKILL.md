@@ -30,7 +30,7 @@ Read `<harness>/CLAUDE.md` (Codex: `<harness>/AGENTS.md`, which is identical) an
 
 - route the request to one of the 9 `video-types/` docs (09, editing the user's own footage, is experimental);
 - create the project with `<harness>/bin/vh new <type> <slug>`;
-- stop for the user where effort and director mode say (CLAUDE.md "努力程度" and "导演模式"): `standard` and `studio` stop at the **three human review gates** (outline → storyboard → first draft); `quick` renders straight through. Anything the user said they want to decide themselves (hook, main character, theme music, title and cover …) adds a stop before anything downstream needs it, or rides on the next gate if it can wait. Each stop is by default one local review page from `bin/vh review`, at most three decisions; send the user only the lines it prints, then wait;
+- stop for the user where effort and director mode say (CLAUDE.md "努力程度" and "导演模式"): `standard` and `studio` stop at the **three human review gates** (concept and outline → storyboard → first draft); `quick` renders straight through. Anything the user said they want to decide themselves (hook, main character, theme music, title and cover …) adds a stop before anything downstream needs it, or rides on the next gate if it can wait. Each stop is by default one local review page from `bin/vh review`, at most three decisions; send the user only the lines it prints, then wait;
 - follow the hard rules: every frame is a pure function of t; when there is sound, audio sets the timing; storyboard before code; self-review every scene; fact discipline;
 - keep work inside `<harness>/projects/`; when the user names another directory, create the project there with `<harness>/bin/vh new <type> <slug> --dir <that directory>` (or set `OVH_PROJECTS`).
 

@@ -23,7 +23,7 @@
 1. 顺序是：用户 > 类型文档 > 项目 `STYLE.md` > 风格预设 > 配方的默认值 > `playbook/` 的通用数值。配方比 playbook 具体，所以同一件事两边都写了数，以配方为准。
 2. CLAUDE.md 的硬规则和"任何档位都不降的底线"高于任何配方：每一帧是 t 的纯函数、全屏闪白每秒不超过 3 次、字号不低于下限、片中没有数字静音。
 3. 参数表里标 ★ 的是命门：风格可以给它换皮，不能降它的档。例如风格要求一拍二（12 fps），hold 仍按秒数给足，切点取整到 2 帧，而不是把 hold 砍半。风格明确不用某种手法时（例如 `product-keynote` 不用 glitch），换一张配方，不要把这张做残。
-4. 有意偏离配方（降档、改结构、换顺序），在 `NOTES.md` 写一句为什么。
+4. 有意偏离配方（降档、改结构、换顺序），在 `DECISIONS.md` 写一句为什么。
 
 改写外部配方时已经和本仓库的规则对齐过，下面几处和原文不同，每张配方的"来源"一节写了具体改了什么：
 
@@ -63,7 +63,7 @@
 
 状态的含义见下文"状态"。时长按 30 fps 换算；接缝的时长是它从两侧镜头里借走的帧，字卡和开场、收场的时长随文案变（停到读完）。这张表由 `bin/vh recipes list --md` 生成，`bin/vh recipes check` 会核对能量、时长和状态三列。
 
-**全片骨架 `sequences/`**：[launch-15s](sequences/launch-15s.md)（15 s 发布 teaser）· [explainer-30s](sequences/explainer-30s.md)（30 s 有旁白的讲解）· [product-film-60s](sequences/product-film-60s.md)（60 s 产品发布片）。规则和接缝选型表见 [sequences/README.md](sequences/README.md)。
+**全片骨架 `sequences/`**：[launch-15s](sequences/launch-15s.md)（15 s 发布 teaser）· [explainer-30s](sequences/explainer-30s.md)（30 s 有旁白的讲解）· [product-film-60s](sequences/product-film-60s.md)（60 s 产品发布片）；从立意出发的五条：[time-dilation-replay](sequences/time-dilation-replay.md)（时间放大镜）· [machine-eye-portrait](sequences/machine-eye-portrait.md)（机器视角的肖像）· [making-of-self](sequences/making-of-self.md)（用做法讲做法）· [mascot-style-tour](sequences/mascot-style-tour.md)（吉祥物穿越风格）· [workflow-as-story](sequences/workflow-as-story.md)（工作流即故事）。规则和接缝选型表见 [sequences/README.md](sequences/README.md)。
 
 **接缝 `seam/`**
 
