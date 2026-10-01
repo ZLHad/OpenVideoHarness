@@ -222,7 +222,7 @@ for crf in 18 20 22 24 26 28 30 32 34; do
   encode $crf; sz=$(fsize "$TMP"); [ "$sz" -le $MP4_LIMIT ] && break
 done
 [ "$sz" -le $MP4_LIMIT ] || die "swatch.mp4 is still $sz bytes at CRF $crf: reduce full-frame grain/noise"
-# The AAC encode moves the true peak by an amount that depends on the content (−1.9…+1.4 dB at 128k on the swatches), so
+# The AAC encode moves the true peak by an amount that depends on the content (−1.9…+1.4 dB at 128k on the swatches' first encodes, up to +2.4 on a heavily limited remix), so
 # the encode is measured (the same 4× BS.1770 meter as the mix) and, while it peaks over −1.5 dBTP, the mix is made again
 # with its ceiling set below the mix's own true peak (from stems/meta.json; a mix that never reached the limiter would
 # not change if only the old ceiling were lowered) by the overshoot + 0.1 dB, and encoded again at the same CRF. At most

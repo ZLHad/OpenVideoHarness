@@ -56,7 +56,7 @@ break). The order is voice anchor → music VMR → SFX classes → depth → ma
           −0.2 LU on a 25 s film, +0.3 on a 5 s swatch), then a look-ahead true-peak limiter only if needed (4× oversampled,
           as BS.1770: a 16× meter reads up to 0.16 dB more on transients). tp defaults to −1.65 dBTP. An AAC encode moves
           the true peak by an amount that depends on the content and the bitrate: −0.1…+0.1 dB at 192k on the lab's three
-          films, −1.9…+1.4 dB at 128k on the swatches, +1.2…+1.5 on a bare synthetic SFX bus. So measure the mp4 and mix again
+          films, −1.9…+1.4 dB at 128k on the swatches (up to +2.4 on a heavily limited remix), +1.2…+1.5 on a bare synthetic SFX bus. So measure the mp4 and mix again
           with a lower tp= when it is over −1.5 (styles/_swatch/render.sh does).
   music_db / sfx_db / voice_db   the build's starting balance: SFX are judged from it (default −6 / 0 / 0; swatch 0 / −3)
   keep=   cue times whose passage keeps its designed SFX level (a synced onset the class moves made undetectable)
