@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+**Style swatches can be Blender scenes; a 29th style, tabletop-miniature (桌面微缩剧场)**
+- Why: every swatch is drawn on a canvas, and none looks like a lit, physical set. Taking apart a community film (Kevin Ngo's piano short, made with Python and rendered in Blender) gave a stop-motion miniature grammar whose look rests on path-traced light and real depth of field, so the swatch renderer needed a Blender path. Blender 5.2.2 is now installed on the maintainer's Mac.
+- `styles/_swatch/`: a style folder with `swatch.py` instead of `swatch.js` renders in Blender (Cycles). `blender_render.py` runs the scene's `build(env)` once per process and `apply(t, env)` before every frame, setting properties directly (no keyframes, no handlers, so no motion blur, which suits stop-motion). It writes PNG frames, and `render.sh` encodes them into the same 1080p BT.709 `hf.mp4` the HyperFrames path makes, so the frame checks, music, foley, mix, `bin/vh qa`, encode, poster and contact sheet are shared. New `render.sh` options for Blender scenes: `--frames 149,90,12` (with `--png`: only those frames, in that order) and `--stamp`.
+- Final renders use Cycles on the CPU. Measured on an M3 Max: the same frame rendered twice is pixel-identical on the CPU, but not on Metal (92 dB) or EEVEE (85 dB), and this pipeline's CRF-to-size loop amplifies small differences. `--draft` uses the GPU. tabletop-miniature: about 15 s per frame on the CPU at 32 spp + OIDN (64 spp looked the same side by side), about 1.6 s on Metal.
+- Safety, following `engines/blender.md`: `blender_prep.py scan` reads `swatch.py` as a syntax tree before anything runs it, allowing only `bpy bmesh mathutils math colorsys json sys` and no `eval exec compile __import__ open`, .blend saving or loading, `execfile`, `app.handlers`, `app.timers` or `sys.modules`, so `random` and `time` are excluded too. Blender then runs under `env -i` (no API keys), with its HOME and TMPDIR in `out/<slug>/.blender/`, and on macOS under `sandbox-exec`: no network, writes only to `out/<slug>/` plus the per-user cache and temp folders. Metal needs those two folders: with the cache denied it recompiles shaders on every frame (13 s instead of 2 s), and with the temp folder denied Blender aborts when a scene needs new kernels. The `--python-exit-code 1` runs are started with job control off, so the watchdog's process-group kill reaches them; with it on, the Blenders landed in their own groups.
+- Fonts: a scene's `FONTS` are fontconfig patterns; `blender_prep.py fonts` resolves them with `fc-match` to the same system fonts `fonts.css` uses. Blender loads only face 0 of a `.ttc`, so another face (Songti SC Bold is face 1) is written out with fontTools to `out/<slug>/fonts/`, a local cache that is never committed.
+- `determinism.sh` on a Blender scene re-renders 12 frames spread over the clip, last to first, in 3 fresh Blender processes and compares them pixel by pixel with the final render's frames (`out/<slug>/frames/`, used when their `inputs.txt` checksum still matches the scene). It earned its place on the first final render: with `render.use_persistent_data` on, Cycles on the CPU rendered the teacup black on frames 27–44 of the in-order render and grey when those frames were rendered alone, and the check failed on frame 30 (24.5 dB). The renderer now keeps persistent data off (per-frame time barely changed, 15–19 s). `foley.mjs` reads `FOLEY` from `swatch.py` (after the scan). `bin/vh style` skips the HyperFrames install for a Blender scene.
+- Licence (the maintainer's decision, 2026-10-01): files that import bpy are GPL-3.0-or-later with an SPDX header, as Blender asks of published bpy scripts: `styles/_swatch/blender_render.py` and `styles/tabletop-miniature/swatch.py`. The rest of the repo stays MIT. Both READMEs' licence sections and `engines/blender.md` ("许可证") say so. `tools/ci.sh` runs the scan on every `styles/*/swatch.py` and fails a `.py` that imports bpy without the header.
+- The style (`styles/tabletop-miniature/`):
+  - Learned from Aardman's *A Grand Day Out* (1989), Laika's *Coraline* (2009), Olivo Barbieri's tilt-shift *Site Specific* series and the piano film.
+  - The grammar:
+    - a real-scale tabletop, with a geometric puppet that acts with its gait and two bead eyes;
+    - only practical light, whose colour and angle carry time;
+    - the camera at the puppet's eye height, f/4.5, so only a few millimetres are sharp;
+    - puppets on twos with a hand-placed jitter, camera and lights on ones, no motion blur;
+    - one acoustic instrument, with each action a note.
+  - The swatch: the camera starts tight on a sleeping felt puck. The desk lamp clicks on, the puck wakes, and the camera pulls back as a playbill card is lowered on two threads. The puck walks to three wooden blocks and hops up them: 大纲 is raw wood, 分镜 is half-dipped in red, 初版 is all red, so the paint is the progress. The lamp goes off on the last downbeat, the morning comes through the window, and the puck falls asleep. The puppet is on ones while the camera follows it: on twos it stepped back 8–16 px on every odd frame.
+  - The score is one upright piano: the low register pedalled underneath, a note on each takeoff and a dry high note on each landing, and a V7 chord held through the dark until dawn resolves it. Seven foley sounds are synthesized in `custom_sfx.py`: lamp switch on and off, felt on wood ×3, the thread pulled tight, a bird.
+  - Its layout was checked frame by frame with a pinhole projection before rendering: the hanging card clears the highest hop by 20 px.
+  - Four rounds of independent "harsh motion director" review on fresh contexts, with the worst three issues fixed between rounds. Lowest score 6, 7, 7, 7.
+  - Round 4: hook 8, phone 8, motion 7, variety 8, polish 7, accuracy 8, sync 9. Its three issues were fixed afterwards and not reviewed again:
+    - the last hop moved to ones (it had 3 air drawings on twos);
+    - a cool moonlight fill and a dark window frame were added, because the blackout had pure-black blocks while the frame glowed;
+    - a half-lid and a nod come before sleep.
+- `engines/blender.md` changes from "experimental, never run" to "partly verified". The first-smoke items that were run are written back as 【实测 5.2.2】:
+  - render repeatability by device;
+  - speeds;
+  - what `sandbox-exec` must allow;
+  - the `.ttc` face limit;
+  - Mix-node socket identifiers;
+  - dynamic `view_transform` enums;
+  - stdout buffering in background mode;
+  - job control.
+
+  `engines/README.md` and `CLAUDE.md` (and `AGENTS.md`) now point to the working swatch path.
+- Docs: `styles/README.md` (table row, sound row, how to add a Blender style), `styles/_swatch/README.md` ("Blender 场景"), both READMEs (29 styles). The gallery is rebuilt with the new poster and clip.
+
 **Sound refresh: every film on the new SFX engine, a transition family per style, plucked parts on the modelled voices**
 - Why: the maintainer heard the same page-turn sound in every film, and the same one on every cut within a film ("切换音效都是一模一样的有审美疲劳，同一个片子同一个切换页音效一样可能也不是很好"). #39 built the variants and the new transitions; this applies them and renders everything again.
 - **28 swatches, a transition family each**, chosen by style and shaped to the move (`dur` ≈ the move's length, `dir` with the motion, `pan_from` / `pan_to` where the screen direction is clear, smaller moves shorter and higher); variants stay unpinned. paper: blueprint, cutout-jazz, guochao-festive (one slide per door), isotype, risograph (every roller), silhouette-papercut, watercolor-pastoral (the brush stroke). air: archival-pan-zoom, bubble-chart-story, editorial-data, ink-wash, symmetry-pastel (curtains), watercolor-pastoral (the gusts). whip: bouncy-flat-2d, halftone-comic, neon-step-print, pixel-16bit, swiss-grid-type, symmetry-pastel (the whip pan). swoosh_tonal: clockwork-map (the rings), dunhuang-mural (the two flying figures, from the edges to the axis), fui-hud, monumental-scifi, pixel-16bit (the mosaic), product-keynote. tape: crt-terminal (a stop into the dot), scratched-type (the end), synthwave-outrun (a rewind through the tracking noise). Whoosh and swish_rev stay where they fit, shaped. dark-math and shadow-puppet keep no transition. Where a transition falls inside the gallery reel's clip (1.9–3.4 s), neighbouring swatches use different families.

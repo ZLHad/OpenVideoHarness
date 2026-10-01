@@ -1,0 +1,15 @@
+[
+  {"t":0.1,"sfx":"sfx/lamp_on.wav","gain_db":-2,"pan":-0.55,"role":"hero"},
+  {"t":0.467,"sfx":"sfx/felt_land_c.wav","gain_db":-14,"pan":-0.6,"role":"detail"},
+  {"t":1.05,"sfx":"paper","gain_db":-9,"pan":-0.1,"dur":0.4,"dir":"down"},
+  {"t":1.12,"sfx":"sfx/thread_tug.wav","gain_db":-9,"pan":-0.1},
+  {"t":1.333,"sfx":"sfx/felt_land_a.wav","gain_db":-12,"pan":-0.7,"role":"detail"},
+  {"t":1.533,"sfx":"sfx/felt_land_c.wav","gain_db":-11,"pan":-0.62,"role":"detail"},
+  {"t":2,"sfx":"sfx/felt_land_a.wav","gain_db":-1,"pan":-0.23,"role":"detail"},
+  {"t":2.4,"sfx":"sfx/felt_land_b.wav","gain_db":-1,"pan":0.1,"role":"detail"},
+  {"t":2.8,"sfx":"sfx/felt_land_c.wav","gain_db":-1,"pan":0.42,"role":"detail"},
+  {"t":3.6,"sfx":"sfx/felt_land_b.wav","gain_db":-9,"pan":0.42,"role":"detail"},
+  {"t":4,"sfx":"sfx/lamp_off.wav","gain_db":-1,"pan":-0.55,"role":"hero"},
+  {"t":4.7,"sfx":"air","gain_db":-16,"pan":0.45,"role":"ambience","dur":0.7,"dir":"up"},
+  {"t":4.72,"sfx":"sfx/bird.wav","gain_db":-12,"pan":0.75,"dist":3,"role":"ambience"}
+]
