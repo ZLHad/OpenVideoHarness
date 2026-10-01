@@ -59,7 +59,8 @@ Parts: instruments playing patterns, rendered beside the layers
             lp / hp (Hz), drive (tanh), delay {"beats": 0.75, "fb": 0.35, "mix": 0.3, "lp": 3000, "pingpong": true},
             duck ("kick", or {"by": part inst or id, "depth": 0.5, "release": 0.2}: dips under that part's hits),
             hit (true: every onset joins the beat map's hits; "section": the first onset of each section), id (a name),
-            note_map (true: every note joins the beat map's "notes" with its pitch and end, for pictures driven note by note),
+            note_map (true, on the part only, not in by_section: every note joins the beat map's "notes" with its pitch and
+            note-off, for pictures driven note by note),
             onset_ms (start that many ms early so a slow attack lands on the beat; hits keep the grid time, using the
             section's onset_ms when by_section sets one),
             detune (cents: a detuned double of another part), quiet (true: skip the audibility check below)
@@ -192,12 +193,16 @@ Parts: instruments playing patterns, rendered beside the layers
 Beat map (<out>.beats.json): {"bpm","offset":0,"beats":[…],"downbeats":[…],
   "sections":[{"name","start","end","bars"}], "hits":[{"t","what"}]}  — engines read it for cuts and punches. Parts add
   hits ("hit": true or "section"), and each section stop one "stop:<section>".
-  "notes":[{"t","end","midi","vel","part"}], only when a part sets "note_map": true: every note of those parts, sorted by
-  t, so a picture can be driven note by note (a key goes down at t and comes up at end; the pitch says which key). t is
-  when the note lands, the time "hits" use (humanize included, onset_ms added back); end is when its sound is released
-  (a section stop's cut included). A chord gives one entry per pitch; midi is null for an unpitched drum and a float
-  when "detune" moves it; a tremolo note is listed as its strikes; vel is the strike's velocity (0–1, the part's "vel",
-  ramps and humanize included, not its gain_db). --length drops the notes that start after the end and cuts the rest there.
+  "notes":[{"t","end","midi","vel","part"}], present (maybe empty) when a part sets "note_map": true: every note of those
+  parts, sorted by t, so a picture can be driven note by note (a key goes down at t and comes up at end; the pitch says
+  which key). t is when the note lands, the time "hits" use (humanize included, onset_ms added back); end is its note-off
+  on the same clock (the written length, a section stop's cut included, never before t; release tails ring past it).
+  part is the part's id, or inst#n for the n-th part of that instrument without one (from 0), the label hits use. A chord
+  gives one entry per pitch; midi is null for an unpitched drum, which carries its stroke as "art" when it has one ("o"
+  open hat, 锣鼓经 syllables …), and a float when "detune" moves it; a tremolo note is listed as its strikes and a strum
+  as its strings; vel is the strike's velocity (the part's "vel", vel_ramp and humanize included, not gain_db or
+  cresc/dim; above 1 when those push it). --length drops the notes that start after the end and cuts the rest there.
+  qa does not read "notes": set "hit": true on the part too when its onsets should be cue-checked.
 Layers are simple subtractive/percussive synthesis (numpy + scipy); ~1–3 s to render a minute on Apple Silicon. Parts
 cost more (each note is rendered once and cached per pitch, length and velocity step): a 5 s score with 9 parts takes
 ~1.5 s on an M3 Max; the heaviest voices are gong, luogu, braam, cs80 and cimbalom (~0.05–0.3 s per new note). The
@@ -493,7 +498,7 @@ def render(score, stems=None, info=None, length=None, note_log=None):
         g = 0.5 * (1 + np.cos(np.pi * u)); mix[a:] *= g if mix.ndim == 1 else g[:, None]
     beatmap = {"bpm": bpm, "offset": 0.0, "beats": beats, "downbeats": downbeats, "sections": secs, "hits": hits,
                "duration": round(len(mix) / SR, 3)}
-    if note_map:   # only when a part asks ("note_map": true), so every other beat map stays byte for byte as it was
+    if any(p.get("note_map") for p in score.get("parts") or []):   # only when a part asks: every other beat map stays as it was
         beatmap["notes"] = sorted(note_map, key=lambda n: (n["t"], n["part"], -1 if n["midi"] is None else n["midi"]))
     if "meters" in score or "beats_per_bar" in score: beatmap.update(bars=bars, bars_note="[bar number (1-based, whole score), start (s), beats in bar]")
     if end_at is not None:   # the map describes the file: nothing after its end
@@ -738,10 +743,11 @@ def validate(score):
             ids.add(part["id"])
         else: idless[inst] = idless.get(inst, 0) + 1
         keys |= {inst, part.get("id")}
+        lbl = part.get("id") or f"{inst}#{sum(1 for q in parts[:i] if q.get('inst') == inst and 'id' not in q)}"
         if "note_map" in part and not isinstance(part["note_map"], bool):
-            sys.exit(f'music: part {part.get("id") or inst}: "note_map" is true or false')
+            sys.exit(f'music: part {lbl}: "note_map" is true or false, not {part["note_map"]!r}')
         if part.get("note_map") and ins.INSTR[inst].kind == "texture":
-            sys.exit(f'music: part {part.get("id") or inst}: {inst} is a texture and plays no notes, so "note_map" has nothing to list')
+            sys.exit(f'music: part {lbl}: {inst} is a texture and plays no notes, so "note_map" has nothing to list')
     labels = {p.get("id") or f"{p['inst']}#{sum(1 for q in parts[:j] if q['inst'] == p['inst'] and 'id' not in q)}" for j, p in enumerate(parts)}
     nbars = 0
     for s in score["sections"]:
@@ -1408,12 +1414,16 @@ def parts_bus(score, legacy, hits, stems=None, info_gain=None, note_log=None, no
             for e in evs:
                 if part["hit"] == "section" and e[6].si in seen: continue
                 seen.add(e[6].si); part_hits.append({"t": round(e[0] + e[8], 3), "what": f"{label}:{e[6].sec}"})   # the section's onset_ms
-        if part.get("note_map") and notes is not None:   # the beat map's "notes": every note, landing time and release, per pitch
+        if part.get("note_map") and notes is not None:   # the beat map's "notes": every note, landing and note-off, per pitch
             for e in evs:
+                t, cut = e[0] + e[8], e[5].get("_cut")   # end on t's clock: the written length, a stop's cut included
+                end = max(t, min(t + e[1], cut[0] + cut[1] if cut else math.inf))
                 for m in (e[2] or [None]):
-                    notes.append({"t": round(e[0] + e[8], 3), "end": round(e[0] + e[1], 3),
-                                  "midi": None if m is None else (int(m) if float(m).is_integer() else round(float(m), 2)),
-                                  "vel": round(float(e[3]), 3), "part": label})
+                    n = {"t": round(t, 3), "end": round(end, 3),
+                         "midi": None if m is None else (int(m) if float(m).is_integer() else round(float(m), 2)),
+                         "vel": round(float(e[3]), 3), "part": label}
+                    if m is None and isinstance(e[4], str) and e[4]: n["art"] = e[4]   # which stroke of the kit (open hat, rim, 锣鼓经 …)
+                    notes.append(n)
     dry = np.zeros((C, N)); sends = {}
     for part, spec, label, R, pbars, evs, cuts, silenced in plan:
         P = {**spec.defaults, **part.get("params", {})}
