@@ -17,7 +17,8 @@ VO_LANG=zh                      # the narration's language: audio/voiceover.zh.f
 PROFILE=short                   # playbook/04-audio.md, 混音: knowledge short, the narration is the anchor (VMR 11.5 LU)
 MUSIC_DB=-5                     # the starting balance (with narration the music's level comes from the VMR, not from this)
 TP=-1.65                        # the mix's true-peak ceiling; lowered when the AAC encode peaks over −1.5 dBTP (step 6)
-SUBS=("$A/captions.zh.srt" "$A/captions.en.srt")   # soft subtitle tracks (bin/vh mux names them chi / eng)
+SUBS=(--subs-off "$A/captions.zh.srt" "$A/captions.en.srt")   # soft tracks (chi / eng), off by default: the
+                                # picture has its Chinese captions burned in, and a player must not lay a second set over them
 out=""
 while [ $# -gt 0 ]; do
   case $1 in
@@ -29,8 +30,9 @@ done
 calc() { python3 -c "print(round($1, 3))"; }
 if [ -n "$out" ]; then   # the picture is read from media/final.mp4: writing over it while reading it would destroy it
   case "$out" in /*) ;; *) out="$PWD/$out" ;; esac
-  [ "$(cd "$(dirname "$out")" && pwd -P)/$(basename "$out")" != "$(cd "$FILM/media" && pwd -P)/final.mp4" ] \
-    || { echo "--mux: write to another file, then move it over media/final.mp4" >&2; exit 2; }
+  if [ -e "$out" ] && [ "$out" -ef "$FILM/media/final.mp4" ]; then   # the same file however it is spelled (case, symlink, link)
+    echo "--mux: write to another file, then move it over media/final.mp4" >&2; exit 2
+  fi
 fi
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 

@@ -10,11 +10,8 @@ A 3b1b-style explainer wants almost no effects, so the "foley" here is a sonific
 Then two quiet marks: the zoom panel opening, and a bell on "≈ 9% of the jump". Times are the play()/wait() timings of
 scenes/fourier.py (cited per event). All sounds sit at gain_db ≤ −18 (they swell, they are not hits).
 
-usage (from the repo root):
-  uv run -q --with numpy --with scipy python showcase/03-math-fourier/tools/foley.py
-  bin/vh sfx lib showcase/03-math-fourier/audio/sfx
-  bin/vh sfx place showcase/03-math-fourier/audio/events.json showcase/03-math-fourier/audio/sfx.wav 25 \
-      --lib showcase/03-math-fourier/audio/sfx
+usage: showcase/03-math-fourier/tools/build_audio.sh runs it (with uv --no-project, numpy and scipy), then
+bin/vh sfx lib for the built-ins beside the custom sounds; bin/vh mix places every event itself (profile=…, events=, lib=).
 Seeded, no downloads, the same bytes on every run. The tones carry "layer": "sonification", so a mix profile classes
 them as signal (bin/vh mix … profile=explainer); the zoom whoosh and the bell are classed by their names.
 """

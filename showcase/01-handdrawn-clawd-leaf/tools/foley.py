@@ -3,11 +3,8 @@ audio/events.json. Every event time comes from src/scenes/leaf.js (the shot cons
 cited per event); pans come from the sounding thing's screen x under that shot's camera. Seeded, no downloads, and the
 same bytes on every run.
 
-usage (from the repo root):
-  uv run -q --with numpy --with scipy python showcase/01-handdrawn-clawd-leaf/tools/foley.py
-  bin/vh sfx lib showcase/01-handdrawn-clawd-leaf/audio/sfx          # the 15 built-ins, next to the custom ones
-  bin/vh sfx place showcase/01-handdrawn-clawd-leaf/audio/events.json showcase/01-handdrawn-clawd-leaf/audio/sfx.wav 12 \
-      --lib showcase/01-handdrawn-clawd-leaf/audio/sfx
+usage: showcase/01-handdrawn-clawd-leaf/tools/build_audio.sh runs it (with uv --no-project, numpy and scipy), then
+bin/vh sfx lib for the built-ins beside the custom sounds; bin/vh mix places every event itself (profile=…, events=, lib=).
 Custom sounds start at sample 0 on their hit (sfx.py aligns a non-library sound's first sample to t); sounds that build
 up (gusts, the camera whirr) sit at gain_db ≤ −18 so bin/vh qa's cue check, which wants an onset at t, skips them.
 """

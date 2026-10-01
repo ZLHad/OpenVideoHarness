@@ -61,7 +61,7 @@ Rebuild (from the repo root; needs uv and ffmpeg):
 showcase/00-promo-launch-film/tools/build_audio.sh                  # → audio/mix.wav, audio/stems/, audio/qa.txt
 showcase/00-promo-launch-film/tools/build_audio.sh --mux out.mp4    # … plus out.mp4 = the picture of media/final.mp4 + that mix
 ```
-The script runs `tools/foley.py`, `bin/vh sfx lib`, `bin/vh music`, `bin/vh mix … profile=promo`, `bin/vh qa` and, with `--mux`, `bin/vh mux` (the picture is copied, not re-encoded), then measures the true peak of the AAC encode and mixes again with a lower ceiling if it is over −1.5 dBTP. Every run gives the same bytes. Only the sources are committed: `audio/score.json`, `audio/events.json`, `audio/music.beats.json`, `tools/foley.py`, `tools/build_audio.sh`. The WAVs, stems and reports are regenerated and ignored (`audio/.gitignore`).
+The script runs `tools/foley.py`, `bin/vh sfx lib`, `bin/vh music`, `bin/vh mix … profile=promo`, `bin/vh qa` and, with `--mux`, `bin/vh mux` (the picture is copied, not re-encoded, and the moov goes first so a browser can start playing at once), then measures the true peak of the AAC encode and mixes again with a lower ceiling if it is over −1.5 dBTP. Every run gives the same bytes. Only the sources are committed: `audio/score.json`, `audio/events.json`, `audio/music.beats.json`, `tools/foley.py`, `tools/build_audio.sh`. The WAVs, stems and reports are regenerated and ignored (`audio/.gitignore`).
 
 ## Reproduce
 

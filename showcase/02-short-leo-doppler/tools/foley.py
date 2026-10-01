@@ -6,11 +6,8 @@ Knowledge-short density (playbook/04: only key reveals get a sound). The one ide
 picture exaggerates the wave density (and says so on screen); the pings sit on the planned score's beat (100 BPM, first
 beat at 0.2 s, see the music brief). At the end the pings come back at one fixed pitch: compensated, no more "变调".
 
-usage (from the repo root):
-  uv run -q --with numpy --with scipy python showcase/02-short-leo-doppler/tools/foley.py
-  bin/vh sfx lib showcase/02-short-leo-doppler/audio/sfx
-  bin/vh sfx place showcase/02-short-leo-doppler/audio/events.json showcase/02-short-leo-doppler/audio/sfx.wav 24.8 \
-      --lib showcase/02-short-leo-doppler/audio/sfx
+usage: showcase/02-short-leo-doppler/tools/build_audio.sh runs it (with uv --no-project, numpy and scipy), then
+bin/vh sfx lib for the built-ins beside the custom sounds; bin/vh mix places every event itself (profile=…, events=, lib=).
 Seeded, no downloads, the same bytes on every run. Custom sounds start on their first hit (sample 0 = t).
 The beacon events carry "layer": "sonification", so a mix profile classes them as signal (bin/vh mix … profile=short).
 """

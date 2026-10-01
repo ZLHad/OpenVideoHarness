@@ -57,6 +57,8 @@ fractional shift v_r/c 2.33e-05
   - 第一版候选的混音：`duck=voice duck_ratio=1.6`，−14 LUFS。qa：无数字静音、掉音、抽吸，18 个 cue 全在 1 帧内；click 警告是旁白里的辅音（原始 take 里就有，7–29 个采样宽）。混音实验量出来它的 VMR 中位数只有 7.9 LU，最差一句 1.3 LU，句间音乐一度比人声还响 2.6 LU。
   - 还要听的（维护者听的是第一版候选，不是下面这版 profile 混音）：信标声会不会和旁白打架，它的滑音和配乐跑调；"不再变调"的两声平音听不听得出来；S6b 每拍一下 kick 的推进够不够。
 - 2026-10-01 **定稿混音：profile `short`**（`bin/vh mix … profile=short`，playbook/04-audio.md 混音），维护者听过候选后定的。它取代了 ffmpeg 链（`duck=voice`）和"各条总线比片子长、混完再切"的绕路：profile 混音的信号路径里没有 ffmpeg 滤镜，截到片长和淡出都在混音里做（`dur=24.8 fade=0.3`），每次跑出来逐字节相同（查过）。
+  - 软字幕轨（中、英）都不设成默认（`bin/vh mux --subs-off`）：画面里已经烧了中文字幕，播放器不该自己再叠一套上去；两条轨都还在，可以手动选。MP4 封装器总会把第一条字幕轨标成启用，`--subs-off` 把它 tkhd 里的启用位清掉，ffprobe 读出来两条都是 default=0。
+  - 逐字节相同的前提（混音 WAV，以及加 `--mux` 时的 mp4）是这套工具链：ffmpeg 8.0.1、Python 3.14.7、numpy 2.5.3、scipy 1.18.1（经 uv 0.10.0，Apple Silicon 上的 macOS）。换了版本，混音和 AAC 码流的最低几位可能不同。
   - 旁白是锚点：10 句往中位数拉平（原始跨度 3.8 LU → 1.5 LU），峰值压在锚点 +10.5 dB（161 个峰，最多 2.5 dB）。配乐逐句压到 VMR 11.5 LU（10 句都在 11.2–11.6），1–4 kHz 只挖到词需要的深度，中文旁白连 250 Hz–1 kHz 一起挖；静态增益 −1.4 dB。
   - 音效：信标（`"layer": "sonification"`）是 signal 类，中位数在旁白下 3.9 LU（范围 −8…−2），和候选里差不多（−3.1）；过零钟声 −2.6、开场信标 −6.2。whoosh / swish_rev 是 detail（中位数 −8.6）。3.2 s 那一下 whoosh 从 −14 dB 改成 −18 dB：原来它的 1–4 kHz 离下面那句结尾的"频移"只差 4.6 dB（MASKS-VOICE），这个词本来就容易听成"平移"；改了以后混音里只低 2 dB（profile 往类中心走一半），但离人声超过 6 dB 了。Ka 曲线的 impact 是 hero，因为压在"再大 10 倍"上，按规则压到人声 −3 LU 以下（降了 4.5 dB）。音效共用一个短房间，盖住词的地方挖 1–4 kHz（最多 8 dB）。
   - 母带：静态增益 +3.3 dB，真峰值限幅器只碰了 6 个峰（最多 0.3 dB）：−14.00 LUFS，WAV 里 −1.65 dBTP，AAC 编码后 −1.63 dBTP（ffmpeg ebur128：−14.0 LUFS）。

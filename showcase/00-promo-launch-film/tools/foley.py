@@ -3,11 +3,8 @@ audio/events.json. Event times come from the GSAP timelines (index.html and comp
 are snapped to the first 30 fps frame that shows the action; pans come from the on-screen x of what makes the sound.
 Seeded, no downloads, and the same bytes on every run.
 
-usage (from the repo root):
-  uv run -q --with numpy --with scipy python showcase/00-promo-launch-film/tools/foley.py
-  bin/vh sfx lib showcase/00-promo-launch-film/audio/sfx
-  bin/vh sfx place showcase/00-promo-launch-film/audio/events.json showcase/00-promo-launch-film/audio/sfx.wav 20 \
-      --lib showcase/00-promo-launch-film/audio/sfx
+usage: showcase/00-promo-launch-film/tools/build_audio.sh runs it (with uv --no-project, numpy and scipy), then
+bin/vh sfx lib for the built-ins beside the custom sounds; bin/vh mix places every event itself (profile=…, events=, lib=).
 Custom sounds start on their first hit (sfx.py aligns a non-library sound's first sample to t).
 """
 import json, wave

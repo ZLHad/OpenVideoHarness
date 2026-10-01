@@ -70,7 +70,7 @@ Rebuild (from the repo root; needs uv and ffmpeg):
 showcase/03-math-fourier/tools/build_audio.sh                   # → audio/mix.wav, audio/stems/, audio/qa.txt
 showcase/03-math-fourier/tools/build_audio.sh --mux out.mp4     # … plus out.mp4 = the picture of media/final.mp4 + that mix + en subtitles
 ```
-The script decodes the narration master and cuts each line from it (`audio/vo/en/`), then runs `tools/foley.py`, `bin/vh sfx lib`, `bin/vh music` (delayed 0.3 s, with its beat map shifted), `bin/vh mix … profile=explainer`, `bin/vh qa` and, with `--mux`, `bin/vh mux` (the picture is copied, not re-encoded), then measures the true peak of the AAC encode and mixes again with a lower ceiling if it is over −1.5 dBTP. Every run gives the same bytes. Committed: `audio/script.txt`, `audio/vo_grid.json`, `audio/voiceover.en.flac`, `audio/timeline*.json`, `audio/captions.*`, `audio/score.json`, `audio/events.json`, `audio/music.beats.json`, `tools/foley.py`, `tools/build_audio.sh`. The WAVs, stems and reports are regenerated and ignored (`audio/.gitignore`).
+The script decodes the narration master and cuts each line from it (`audio/vo/en/`), then runs `tools/foley.py`, `bin/vh sfx lib`, `bin/vh music` (delayed 0.3 s, with its beat map shifted), `bin/vh mix … profile=explainer`, `bin/vh qa` and, with `--mux`, `bin/vh mux` (the picture is copied, not re-encoded, and the moov goes first so a browser can start playing at once), then measures the true peak of the AAC encode and mixes again with a lower ceiling if it is over −1.5 dBTP. Every run gives the same bytes. Committed: `audio/script.txt`, `audio/vo_grid.json`, `audio/voiceover.en.flac`, `audio/timeline*.json`, `audio/captions.*`, `audio/score.json`, `audio/events.json`, `audio/music.beats.json`, `tools/foley.py`, `tools/build_audio.sh`. The WAVs, stems and reports are regenerated and ignored (`audio/.gitignore`).
 
 **Colour.** Manim's output was `yuv420p` with no colour tags and BT.601 limited-range pixels, which Chromium reads as BT.709: the running sum's `#FFFF00` showed as (255, 240, 0). `media/final.mp4` was re-encoded once, with the soundtrack, to limited-range BT.709 with all four colour tags: x264 `slow`, CRF 17, the same 750 frames at 30 fps (25.000 s; the old file's timestamps drifted to 24.999 s). The yellow now decodes as (254, 254, 1); see NOTES.md.
 
@@ -85,7 +85,10 @@ uv sync            # or: uv init --bare --python 3.12 && uv add manim
 export PYTHONWARNINGS=ignore::SyntaxWarning
 uv run python tools/verify_math.py
 uv run manim -qh --fps 30 scenes/fourier.py FourierSquareWave
+# Manim writes untagged BT.601 pixels: re-encode to limited-range BT.709 with all four tags (NOTES.md › Colour)
+ffmpeg -i media/videos/fourier/1080p30/FourierSquareWave.mp4 -map 0:v:0 -vf "setpts=N/30/TB,scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709" -c:v libx264 -preset slow -crf 17 -r 30 -movflags +faststart picture.mp4
 ```
+Then, in this repo: copy `picture.mp4` over `showcase/03-math-fourier/media/final.mp4`, put the soundtrack on it with `showcase/03-math-fourier/tools/build_audio.sh --mux /tmp/final.mp4` (it refuses to write over the file it reads the picture from), and move `/tmp/final.mp4` over `media/final.mp4`.
 
 ## What the harness docs helped with
 - **Routing and the type doc** (`CLAUDE.md` route table → `video-types/01`). The whole visual grammar came from here: one colour per entity, the equation shown whole, dimmed, then lit term by term, and the parent graph kept visible at 30–40% while zoomed. The "one colour per entity" rule forced the key design choice: blue means "being added", yellow means "already in the sum", and no rainbow harmonics.
