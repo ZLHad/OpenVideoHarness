@@ -51,7 +51,7 @@ npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 </script>
 ```
 
-- **根元素**：`data-composition-id` 必填；`data-start`、`data-duration` 是秒；`data-width`、`data-height` 是像素。项目根目录只放一个 composition（`index.html`）。`<head>`（viewport、gsap 的 `<script>`、把 `html, body` 定成画布大小的样式）照脚手架抄。
+- **根元素**：`data-composition-id` 必填；`data-start`、`data-duration` 是秒；`data-width`、`data-height` 是像素。项目根目录只放一个 composition（`index.html`）。`<head>`（viewport、gsap 的 `<script>`、把 `html, body` 定成画布大小的样式、用 `local()` 声明本机字体的 `@font-face`）照脚手架抄。
 - **`.clip`**：要按时间出现的元素加 `class="clip"`，写 `data-start`（第几秒出现）和 `data-duration`（持续几秒），渲染器按它们决定元素什么时候在画面上。`data-track-index` 只是 Studio 时间线上的行号，渲染不读它，也管不了叠放顺序，叠放用 CSS `z-index`。
 - **动画都挂在这条 paused 的 timeline 上**（`to`、`from`、`fromTo`、`set`），不用 CSS `animation` / `transition`、`Math.random()`、`Date.now()`（硬规则 1）。
 - **驱动 tween**：曲线、轨道、物理这类每帧重算的画面，在同一条 timeline 上挂一个 `ease: "none"` 的代理 tween，在回调里按 t 重画，画面就仍是 t 的纯函数。showcase 02 的 `draw(t)` 这样画出了全部物理画面，`DUR` 是片长（秒）：
@@ -71,6 +71,7 @@ npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 - **`--format png-sequence` 写出的是 RGBA，而且不画页面背景。** `html`、`body` 和合成根元素上的 `background` 都不会进 PNG（那些地方 alpha = 0），只有元素自己的底色会留下。做确定性检查时要留意，细节和比对办法见 `playbook/02-verification.md` 的"确定性"一节。
 - **不要运行 `npx hyperframes skills update`**。skill 文档已经拉到本地，直接读：`references/repos/hyperframes/skills/`（工作流和参考资料）、`references/repos/hyperframes/_upstream_claude/skills/`（motion-doctrine 等内部规范，写动画前先读 motion-doctrine）。
 - 想让所有项目都能用 `/hyperframes`、`/faceless-explainer` 等命令，可以装成 Claude Code 的用户级插件（`claude plugin marketplace add heygen-com/hyperframes && claude plugin install hyperframes@hyperframes`）。这会修改全局配置，**必须先征得用户同意**。
+- **没有 `@font-face` 的字体，渲染时会去 Google Fonts 取。** `render`、`snapshot`、`check` 每次运行都请求，连不上就挂住（render 停在 5% 的 "Compiling composition"）。lint 拦不住其中两种：它别名表里的名字（Arial、Helvetica Neue、Menlo 等）没有声明也算通过，渲染时被换成 Inter、JetBrains Mono 去取；以 `sans-serif` 这类通用族名开头的栈，前面会被补上 Inter。所以本机字体也写 `@font-face`、`src` 用 `local()`，栈里排第一的写声明过的字体，照 `bin/vh hf-init` 搭的脚手架做。渲染日志里出现 `[Compiler] Injected deterministic @font-face rules`，就是还有字体没声明。国内网络下的做法见 README.zh-CN.md 的"国内网络"。
 - **中文字体**：lint 会拒绝没有 `@font-face` 或 Google Fonts `<link>` 的字体。Noto Sans SC 不在它的自动字体列表里（列表里只有 Noto Sans JP），要显式用 `<link>` 引入，或者把字体文件放进 `assets/` 并写 `@font-face`。
 - **0.8.82 实测的上游问题**：
   - 两条 lint 规则互相矛盾：`gsap_repeated_fromto_without_baseline` 建议加 `tl.set(…,0)`，加了又会触发 `gsap_timeline_set_initial_hide`。解法是在时间线外用 `gsap.set()` 设初始状态，同时给 tween 加 `immediateRender:false`。

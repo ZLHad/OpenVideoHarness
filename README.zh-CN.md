@@ -366,10 +366,10 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 有几处在渲染时会请求 `fonts.googleapis.com`：
 - `engines/ClaudeAnimationBase/studio.html` 请求手写字用的 Permanent Marker；手绘和 MV 项目（`bin/vh new handdrawn`、`mv`）和 `showcase/01` 都是从它复制来的。`render.mjs` 要等页面网络空闲才开始渲：请求一直挂着时，30 秒后以 `Navigation timeout of 30000 ms exceeded` 退出；请求立刻失败时，只打一行 `Failed to load resource`，照常出片，手写字落到后备字体（`Comic Sans MS`）。
 - `showcase/02-short-leo-doppler/index.html`，和照它写的竖屏科普：Noto Sans SC 的 500、800 两个字重。
-- HyperFrames 自己：页面里没有用 `@font-face` 声明的字体，它在第一次渲染或 `snapshot` 时去 Google Fonts 取，缓存到 `~/.cache/hyperframes/fonts`；脚手架默认的 `Inter` 就在此列。请求挂着时没有任何输出（实测 2 分钟以上）；请求立刻失败时静默改用系统字体，也没有警告。
+- HyperFrames 自己：字体栈里没有用 `@font-face` 声明的字体，`render`、`snapshot`、`check` 每次运行都会去 Google Fonts 请求（字体文件缓存在 `~/.cache/hyperframes/fonts`，缓存了也照样请求）。lint 放行的 Arial、Helvetica Neue、Menlo 等名字也在此列，渲染时被换成 Inter、JetBrains Mono 再去取；以 `sans-serif` 这类通用族名开头的栈，前面会被补上 Inter。请求挂着时，`render` 的进度停在 5% 的 "Compiling composition"，`snapshot` 和 `check` 什么也不输出（实测等了 90 到 150 秒都没有结束）；请求立刻失败时没有警告，Inter 只剩 HyperFrames 自带的 400、700、900 三个字重，原来脚手架里 600 的标题渲成了 700。`bin/vh hf-init` 现在把脚手架默认的 `Inter` 换成用 `local()` 声明的本机字体（下面第 1 种做法），新建的项目不再请求 Google Fonts；之前建的项目照第 1 种做法改。
 
 本地化有三种做法，按省事程度排：
-1. **用系统字体，不联网。** 样片渲染器就是这么做的：在页面的 `<style>` 里声明 `@font-face`，`src` 写 `local()`，例如 `@font-face { font-family: "PingFang SC"; src: local("PingFangSC-Semibold"), local("PingFang SC Semibold"); font-weight: 600; }`。现成的声明在 `styles/_swatch/fonts.css`，换了机器用 `python3 styles/_swatch/fonts.py` 按本机字体重新生成；各字体有哪些字重，见 `styles/_swatch/README.md` 的"字体"一节。
+1. **用系统字体，不联网。** 样片渲染器和 `bin/vh hf-init` 搭的脚手架都是这么做的：在页面的 `<style>` 里声明 `@font-face`，`src` 写 `local()`，例如 `@font-face { font-family: "PingFang SC"; src: local("PingFangSC-Semibold"), local("PingFang SC Semibold"); font-weight: 600; }`。字体栈里每个字体都要这样声明，排第一的也得是声明过的字体。现成的声明在 `styles/_swatch/fonts.css`，换了机器用 `python3 styles/_swatch/fonts.py` 按本机字体重新生成；各字体有哪些字重，见 `styles/_swatch/README.md` 的"字体"一节。
 2. **字体文件放进项目。** 放到 `assets/fonts/`，在 `<style>` 里写 `@font-face { font-family: "…"; src: url("assets/fonts/….woff2") format("woff2"); }`，来源和许可记进 `NOTES.md`。HyperFrames 看到自己声明的字体，就不会再去取了（实测没有任何请求）。
 3. **用 npm 装。** Fontsource 把 Google Fonts 打成了 npm 包，走上面的 npm 镜像就行：
    - 手绘引擎：`npm i -D @fontsource/permanent-marker`（0.1 MB），把 `studio.html` 里 `fonts.googleapis.com` 那行 `<link>` 换成 `<link rel="stylesheet" href="node_modules/@fontsource/permanent-marker/index.css">`。实测 Google Fonts 连不上时，字体 1 秒内加载完。
