@@ -10,7 +10,7 @@
     {"name": "drop", "bars": 1, "chords": ["i"]}
   ],
   "parts": [
-    {"id": "guqin", "inst": "guqin", "loop": 5, "gain_db": 0, "pan": -0.15, "send": 0.45,
+    {"id": "guqin", "inst": "guqin_pm", "loop": 5, "gain_db": -1.0, "pan": -0.15, "send": 0.45,
      "pattern": [[0.1675, 2, ["E3", "A3"], 0.7],
                  [2, 2, "E3", 0.6, {"slide": -2, "yin": true}], [4, 1, "D3", 0.55, {"nao": true}],
                  [5, 3, "A2", 0.6], [6.5, 1.5, "C3", 0.5, {"bend": 2}],

@@ -122,7 +122,7 @@ const GROUND = 148;
 
 export const FOLEY = [
   { t: s(F.boot), sfx: "boom", gain_db: -12, pan: pan(40) },                              // the tile map loads
-  { t: s(F.boot + 2), sfx: "whoosh", gain_db: -18, pan: pan(160) },
+  { t: s(F.boot + 2), sfx: "whip", gain_db: -13, pan: pan(160), dur: 0.25 },
   { t: s(F.star + 3), sfx: "ding", gain_db: -20, pan: pan(90) },                           // shooting star
   { t: s(F.win), sfx: "pop", gain_db: -12, pan: 0 },                                       // window opens
   ...[0, 6, 12].map((i) => ({ t: s(F.en0 + Math.floor(i / 2)), sfx: "tick", gain_db: -17, pan: pan(EN.x + i * 8) })),   // text blips per word
@@ -133,7 +133,7 @@ export const FOLEY = [
   ...F.keys.slice(1).map((f, k) => ({ t: s(f), sfx: "tick", gain_db: -16, pan: pan(SLOT[1] + (k ? 27 : 0)) })),
   { t: s(F.hero), sfx: "success", gain_db: -10, pan: pan(SLOT[2]) },                       // DRAFT: the sprite is alive
   ...F.hops.map((f) => ({ t: s(f), sfx: "pop", gain_db: -14, pan: pan(SLOT[2]) })),       // hops
-  { t: s(F.mos + 5), sfx: "whoosh", gain_db: -14, pan: 0 },                                // mosaic peak
+  { t: s(F.mos + 5), sfx: "swoosh_tonal", gain_db: -14, pan: 0, dur: 0.4, dir: "down", bright: 0.3 },                                // mosaic peak
   { t: s(F.clean), sfx: "ding", gain_db: -14, pan: 0 },                                    // mosaic clears on the night scene
 ];
 

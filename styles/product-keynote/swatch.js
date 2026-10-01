@@ -228,7 +228,7 @@ export const FOLEY = [
   { t: 0.75, sfx: "pop", gain_db: -20, pan: 0 },                                                          // the device comes to rest
   ...[2.0, 2.3, 2.6].map((t, k) => ({ t, sfx: "tick", gain_db: -12, pan: [-0.3, 0, 0.3][k] })),          // tiles light
   { t: 2.85, sfx: "tick", gain_db: -14, pan: 0 },                                                         // storyboard outline pulse
-  { t: 3.3, sfx: "whoosh", gain_db: -16, pan: 0.3 },                                                      // render pass / strip light
-  { t: 4.3, sfx: "whoosh", gain_db: -8, pan: 0 },                                                         // the light sweep
+  { t: 3.3, sfx: "swoosh_tonal", gain_db: -16, pan: 0.3, dur: 0.5, bright: 0.3, pan_from: -0.2, pan_to: 0.5 },                                                      // render pass / strip light
+  { t: 4.3, sfx: "whoosh", gain_db: -8, pan: 0, dur: 0.7, dir: "down", bright: 0.4 },                                                         // the light sweep
   { t: 4.6, sfx: "ding", gain_db: -10, pan: 0 },                                                          // the one chime: the name
 ];

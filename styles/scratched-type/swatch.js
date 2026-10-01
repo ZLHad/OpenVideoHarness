@@ -328,10 +328,10 @@ function film(ctx, t, tokens, lib) {
 
 // foley (events.json is generated from this list; insert and flash frames are the INSERTS / flash constants above)
 export const FOLEY = [
-  { t: 4 / 30, sfx: "swish_rev", gain_db: -4, pan: 0.3 },                                                // the rip lands
+  { t: 4 / 30, sfx: "swish_rev", gain_db: -4, pan: 0.3, dur: 0.15, pan_from: -0.6, pan_to: 0.6 },                                                // the rip lands
   { t: 6 / 30, sfx: "impact", gain_db: -6, pan: 0 }, { t: 15 / 30, sfx: "shutter", gain_db: -8, pan: 0.7 },   // red flash; punch
   ...INSERTS.map(([a, , kind]) => ({ t: a / 30, sfx: kind === "sprocket" ? "shutter" : "glitch", gain_db: -12, pan: 0 })),
-  ...[0.82, 1.045, 1.27, 1.36].map((t, k) => ({ t, sfx: "swish_rev", gain_db: -16, pan: [-0.7, -0.4, -0.05, 0.1][k] })),   // each word carved
-  { t: 1.6, sfx: "swish_rev", gain_db: -16, pan: -0.6 },
-  { t: 120 / 30, sfx: "impact", gain_db: -4, pan: 0 }, { t: 4.12, sfx: "swish_rev", gain_db: -14, pan: -0.5 },
+  ...[0.82, 1.045, 1.27, 1.36].map((t, k) => ({ t, sfx: "swish_rev", gain_db: -16, pan: [-0.7, -0.4, -0.05, 0.1][k], dur: 0.25, bright: 0.3 })),   // each word carved
+  { t: 1.6, sfx: "swish_rev", gain_db: -16, pan: -0.6, dur: 0.25, bright: 0.3 },
+  { t: 120 / 30, sfx: "impact", gain_db: -4, pan: 0 }, { t: 4.12, sfx: "tape", gain_db: -10, pan: -0.5, dur: 0.3, dir: "down" },
 ];

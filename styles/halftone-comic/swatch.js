@@ -69,13 +69,13 @@ export const FOLEY = [
   ...[...TITLE].flatMap((ch, i) => (ch !== " " && (i === 0 || TITLE[i - 1] === " ")
     ? [{ t: onTwos(TL.letter0 + i * TL.stag), sfx: "pop", gain_db: -14, pan: pan(960 + (i / (TITLE.length - 1) - 0.5) * 1400) }] : [])),   // each word slams
   { t: onTwos(TL.cap), sfx: "pop", gain_db: -12 },                                                         // yellow caption box
-  { t: (TL.shrink[0] + TL.shrink[1]) / 2, sfx: "whoosh", gain_db: -14 },                                   // title panel shrinks to the banner
+  { t: (TL.shrink[0] + TL.shrink[1]) / 2, sfx: "whip", gain_db: -14, dur: TL.shrink[1] - TL.shrink[0], dir: "down" },                                   // title panel shrinks to the banner
   ...PANEL_CX.map((x, k) => ({ t: onTwos(TL.panel(k)), sfx: "pop", gain_db: -10, pan: pan(x) })),           // panels drop in
   { t: onTwos(TL.bam), sfx: "impact", gain_db: -6, pan: pan(PANEL_CX[2] + 140) },                           // BAM!
   { t: onTwos(TL.repunch), sfx: "impact", gain_db: -13, pan: pan(PANEL_CX[2] + 140) },                     // re-punch
   { t: onTwos(TL.shakes[2]), sfx: "click", gain_db: -14, pan: pan(PANEL_CX[2]) },                          // last shake
   { t: TL.split[0], sfx: "shutter", gain_db: -10 },                                                        // diagonal panel split
-  { t: (TL.split[0] + TL.split[1]) / 2, sfx: "whoosh", gain_db: -12 },
+  { t: (TL.split[0] + TL.split[1]) / 2, sfx: "whip", gain_db: -12, dur: TL.split[1] - TL.split[0], dir: "up", pitch: -3 },
 ];
 
 export function renderAt(t, ctx, tokens, lib) {

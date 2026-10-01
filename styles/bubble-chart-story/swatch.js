@@ -47,14 +47,14 @@ function decadeTimes() {
   return out;
 }
 export const FOLEY = [
-  { t: 0.08, sfx: "whoosh", gain_db: -12 },                                               // axes shoot out
+  { t: 0.08, sfx: "air", gain_db: -12, dur: 0.35 },                                            // axes shoot out
   { t: TL.grow[0] + 0.18, sfx: "pop", gain_db: -10 },                                     // 44 bubbles pop (outBack peak)
   ...decadeTimes().map((t) => ({ t, sfx: "tick", gain_db: -11, pan: pan(1040) })),         // odometer rolls a decade (−11, not −16: the race to 2020 buried them under the marimba)
   { t: HOLD, sfx: "click", gain_db: -8, pan: pan(1040) },                                  // time stops on 2000
   ...TL.taps.map(([t, k], i) => ({ t, sfx: "pop", gain_db: i < 3 ? -12 : -14, pan: panInc(incAt(k, KEYS[i < 3 ? 2 : 4][1])) })),   // pointer taps
-  { t: KEYS[4][0], sfx: "swish_rev", gain_db: -8 },                                        // "wait — back to 1985" lands
+  { t: KEYS[4][0], sfx: "swish_rev", gain_db: -11, dur: KEYS[4][0] - KEYS[3][0] },                                     // "wait — back to 1985" lands
   { t: KEYS[6][0], sfx: "click", gain_db: -10, pan: pan(1040) },                           // races into 2020…
-  { t: KEYS[7][0], sfx: "swish_rev", gain_db: -10 },                                       // …and rewinds to 2000 while the axes zoom
+  { t: KEYS[7][0], sfx: "swish_rev", gain_db: -10, dur: KEYS[7][0] - KEYS[6][0], pitch: -3, bright: -0.3 },                                    // …and rewinds to 2000 while the axes zoom
   { t: TL.end + 0.2, sfx: "ding", gain_db: -8 },                                           // end title: the one hero (at −16 it sat 6 LU under the hero range)
 ];
 function yearAt(t, lib) {

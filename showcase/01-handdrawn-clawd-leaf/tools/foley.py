@@ -205,14 +205,14 @@ def main():
         write(k, v)
 
     ev = []
-    def add(t, sfx, gain_db, pan=0.0, why="", role=None):   # role: the mix profile's class where the name hint is wrong
-        ev.append({"t": round(float(t), 3), "sfx": sfx, "gain_db": gain_db, **({"pan": pan} if pan else {}),
-                   **({"role": role} if role else {}), "why": why})
+    def add(t, sfx, gain_db, pan=0.0, why="", role=None, **shape):   # role: the mix profile's class where the name hint is wrong
+        ev.append({"t": round(float(t), 3), "sfx": sfx, "gain_db": gain_db, **({"pan": pan} if pan else {}),   # shape: a built-in's
+                   **({"role": role} if role else {}), **shape, "why": why})   # dur, dir, pitch, bright, tone, pan_from / pan_to
 
     clawd_a = lambda lt: pan_of(screen_a(A["X"] + 1.5 * A["u"], lt))            # the camera sits ~1.5u ahead of Clawd
     # ---- shot A (0–4.0) ----
     add(frame(0.0), "iris_open_a", -10, 0, "A: viewfinder iris opens on the leaf, 0–0.3 s; lock click at +0.28")
-    add(0.9, "whoosh", -17, 0, "A: the viewfinder widens (easeIn 0.55–1.0) as the camera pulls back (0.55–1.05): fastest ≈ 0.9")
+    add(0.9, "air", -14, 0, "A: the viewfinder widens (easeIn 0.55–1.0) as the camera pulls back (0.55–1.05): fastest ≈ 0.9", dur=0.5, dir="down")
     add(0.95, "twig_creak", -20, pan_of(screen_a(656, 1.0)), "A: the leaf tugs at its stem, 0.95–1.1")
     add(frame(A["tRel"]), "twig_snap", -9, pan_of(screen_a(656, A["tRel"])), "A: the stem snaps, leaf lets go at tRel 1.15")
     add(frame(1.6), "sparkle", -14, clawd_a(1.6), "A: excited take + spark, emotions() key at 1.6")
@@ -220,7 +220,8 @@ def main():
     # the gusts are the gag's action (they snatch the leaf), not a background: detail, though "gust" reads as ambience
     add(A["tGust"] - 0.22, "gust_1", -18, -0.55, "A: gust — streaks from tGust−0.2 = 2.35, gustEnv peaks 2.63–2.9 (left layer)", "detail")
     add(A["tGust"] - 0.10, "gust_2", -18, 0.55, "A: gust, right layer 0.12 s later: the wind crosses left → right", "detail")
-    add(2.9, "whoosh", -14, 0.4, "A: leaf snatched on an arc over Clawd, 2.55–2.97 (k^1.8: fastest at the end; it leaves the frame ≈ 2.9)")
+    add(2.9, "paper", -13, 0.4, "A: leaf snatched on an arc over Clawd, 2.55–2.97 (k^1.8: fastest at the end; it leaves the frame ≈ 2.9)",
+        dur=0.42, dir="up", pan_from=-0.1, pan_to=0.6)
     add(frame(A["tSurp"]), "take_bwip", -8, clawd_a(3.0), "A: surprise take + '!' at tSurp 3.0")
     add(3.84, "zip_off", -10, 0.3, "A→B: crouch 3.66–3.84, launch 3.84 (cut on action at 4.0); the swish peaks at +0.16 = the cut")
     # ---- shot B (4.0–8.2), lt = t − 4 ----
@@ -236,19 +237,20 @@ def main():
     add(4 + 1.75, "crank_b", -10, pan_of(screen_b(900 + 45, 1.9)), "B: crank 1.75 → tGust+0.15 (5.75–6.15)")
     add(4 + B["tGust"] - 0.22, "gust_1", -18, -0.55, "B: gust #2, left layer (gustEnv(lt, 2.0))", "detail")
     add(4 + B["tGust"] - 0.10, "gust_2", -18, 0.55, "B: gust #2, right layer", "detail")
-    add(6.35, "whoosh", -11, 0.45, "B: leaf flips off the pumpkin at 6.0, loops, zips out the top by 6.5 (fastest as it leaves ≈ 6.35)")
+    add(6.35, "whip", -11, 0.45, "B: leaf flips off the pumpkin at 6.0, loops, zips out the top by 6.5 (fastest as it leaves ≈ 6.35)",
+        dur=0.35, dir="up", pan_from=0.2, pan_to=0.6)
     add(4 + B["tStomp"] + 0.26 + 0.02, "stomp", -8, pan_of(screen_b(900, 2.76)), "B: angry stomp — jump(lt, 2.56, 2.76) lands 6.76 (visible frame 163 = 6.79)")
     add(frame(4 + B["tSusp"]), "toggle", -13, pan_of(screen_b(900, 3.1)), "B: suspicious '?' at tSusp 3.1 (7.1)")
-    add(4 + B["tSpin"] + 0.1, "whoosh", -16, pan_of(screen_b(960, 3.4)), "B: camera turned round 7.3–7.5 (drawn key views)")
+    add(4 + B["tSpin"] + 0.1, "whoosh", -16, pan_of(screen_b(960, 3.4)), "B: camera turned round 7.3–7.5 (drawn key views)", dur=0.25)
     add(frame(4 + B["tSpin"] + 0.2), "click", -15, pan_of(screen_b(960, 3.5)), "B: the camera settles, lens toward Clawd (7.5)")
-    add(8.2, "swish_rev", -10, 0, "B→C: push into the lens 7.7–8.2 (swish_rev ends at t)")
+    add(8.2, "swish_rev", -10, 0, "B→C: push into the lens 7.7–8.2 (swish_rev ends at t)", dur=0.5, dir="up")
     # ---- shot C (8.2–12.0), lt = t − 8.2 ----
     add(8.2 + 0.02, "iris_open_c", -11, 0, "C: viewfinder opens out of the dark lens, 8.22–8.58")
     add(8.2 + 0.02, "whirr", -19, 0, "C: inside the running camera until the iris shuts (11.94)")
     add(frame(8.2 + C["tLand"]), "leaf_pat", -9, pan_of(960 + 1.4 * 84), "C: leaf lands on Clawd's head at tLand 1.7 (9.9): the story's landing, so it reads over the harp")
     add(frame(8.2 + C["tNotice"]), "take_bwip", -8, 0, "C: notices — surprised take + '!' at tNotice 1.85 (10.05)")
     add(frame(8.2 + C["tJoy"]), "hearts", -12, 0.1, "C: delight + hearts at tJoy 2.4 (10.6)")
-    add(8.2 + C["tClose"] + 0.38, "swish_rev", -16, 0, "C: viewfinder shrinks onto the face 11.35–11.73")
+    add(8.2 + C["tClose"] + 0.38, "paper", -12, 0, "C: viewfinder shrinks onto the face 11.35–11.73 (a drawn frame closing: paper)", dur=0.38, dir="down")
     add(11.955 - 0.14, "iris_hiss", -18, 0, "C: the iris blades close 11.8–11.94 (easeIn)")
     add(11.955, "iris_thunk", -9, 0, "C: iris shuts to ink between frames 286 and 287 (11.96)")
     ev.sort(key=lambda e: e["t"])

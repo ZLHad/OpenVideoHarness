@@ -58,6 +58,7 @@
 - **音效**：人打字每个字一声 `typing`（或逐字 `click`），机器输出只在行尾一声 `tick`，否则太吵；回车用更重的 `click`；报错用 `error`；开机用低通的 `impact` 加嗡声；关机用 `swish_rev` 的反向吸入。
 - **声画关系**：光标闪烁的等待里只留底噪，这是悬念；关机那一刻所有声音跟着塌缩，最后只剩一声很轻的高频余音。
 - **样片拟音**：`events.json` 22 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），按 `profile=swatch` 混在配乐下：开机 `boom`；开机日志每行行尾一声 `tick`；清屏 `toggle`；`> title` 和标题每个词各一段 `typing`（人手打字节奏表同时驱动画面和声音）；两次输入法上屏 `click`；`tree` 命令行尾 `tick`，渲染日志开始 `tick`，进度条每两格一声 `tick`，READY 一声 `success`；关机 `glitch` + 塌成亮点时 `swish_rev`，反白重开只用一声 `click`（`boom` 的长尾会在 5 s 片尾被硬截断，qa 报成 click）。
+- **样片的转场音效**：`tape`：关机收成一个点时是一声磁带停转（`dir: down`，0.2 s），不用 swish_rev。
 
 ## 适合与不适合
 

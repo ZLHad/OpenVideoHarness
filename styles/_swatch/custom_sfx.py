@@ -30,14 +30,19 @@ x[i:] += band(r.standard_normal(m), 1000, 4000) * np.exp(-tt / 0.03) * 0.35 * np
 write("styles/silhouette-papercut/sfx/snip.wav", x)
 
 # brutalist-meme: the built-in glitch recipe (tools/audio/sfx.py: square wave hopping 80/160/640/1280 Hz every 12.5 ms,
-# random 10 ms gates, exp decay) with 1 ms edges on the square and 2 ms ramps on every gate: no sample-level steps
-n = int(0.25 * SR); t = np.arange(n) / SR; rng = np.random.default_rng(23)
-sq = np.sign(np.sin(2 * np.pi * rng.choice([80, 160, 640, 1280], n // 600 + 1).repeat(600)[:n] * t))
-gate = (rng.random(n // 480 + 1) > .35).astype(float).repeat(480)[:n]; gate[:480] = 1.0          # always open on the hit
-k = int(0.002 * SR); ramp = np.convolve(gate, np.ones(k) / k, mode="same")                      # 2 ms ramps on every gate edge
-sq = np.convolve(sq, np.ones(48) / 48, mode="same")                                               # 1 ms edges: a buzz, not a click
-x = sq * ramp * .25 * np.exp(-t / .2) * np.minimum(1, t / 0.0005)
-x[-int(0.005 * SR):] *= np.linspace(1, 0, int(0.005 * SR))
-with wave.open("styles/brutalist-meme/sfx/glitch_cut.wav", "wb") as w:
-    w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((np.clip(x, -1, 1) * 32767).astype("<i2").tobytes())
+# random 10 ms gates, exp decay) with 1 ms edges on the square and 2 ms ramps on every gate: no sample-level steps.
+# Two takes, alternated A B A B over the four cuts (bin/vh qa warns when one file plays three times in a row): b has
+# its own gates and hops a fifth higher
+def glitch_cut(path, seed, hops):
+    n = int(0.25 * SR); t = np.arange(n) / SR; rng = np.random.default_rng(seed)
+    sq = np.sign(np.sin(2 * np.pi * rng.choice(hops, n // 600 + 1).repeat(600)[:n] * t))
+    gate = (rng.random(n // 480 + 1) > .35).astype(float).repeat(480)[:n]; gate[:480] = 1.0          # always open on the hit
+    k = int(0.002 * SR); ramp = np.convolve(gate, np.ones(k) / k, mode="same")                      # 2 ms ramps on every gate edge
+    sq = np.convolve(sq, np.ones(48) / 48, mode="same")                                               # 1 ms edges: a buzz, not a click
+    x = sq * ramp * .25 * np.exp(-t / .2) * np.minimum(1, t / 0.0005)
+    x[-int(0.005 * SR):] *= np.linspace(1, 0, int(0.005 * SR))
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((np.clip(x, -1, 1) * 32767).astype("<i2").tobytes())
+glitch_cut("styles/brutalist-meme/sfx/glitch_cut.wav", 23, [80, 160, 640, 1280])
+glitch_cut("styles/brutalist-meme/sfx/glitch_cut_b.wav", 31, [120, 240, 960, 1920])
 print("ok")

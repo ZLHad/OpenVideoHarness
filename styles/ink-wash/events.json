@@ -2,8 +2,8 @@
   {"id": "drop",     "t": 0.067, "sfx": "pop",              "gain_db": -4,  "pan": -0.12},
   {"id": "drop",     "t": 0.067, "sfx": "sfx/zheng_A2.wav", "gain_db": -7,  "pan": -0.12},
   {"id": "seal",     "t": 2.6,   "sfx": "pop",              "gain_db": -9,  "pan": 0.42},
-  {"id": "shoreEnd", "t": 3.15,  "sfx": "swish_rev",        "gain_db": -14, "pan": -0.03},
-  {"id": "drop2",    "t": 4.0,   "sfx": "whoosh",           "gain_db": -12, "pan": 0},
+  {"id": "shoreEnd", "t": 3.15,  "sfx": "air",              "gain_db": -14, "pan": -0.03, "dur": 0.9, "pan_from": 0.3, "pan_to": -0.3},
+  {"id": "drop2",    "t": 4.0,   "sfx": "whoosh",           "gain_db": -12, "pan": 0, "dur": 0.6, "dir": "down", "bright": -0.5},
   {"id": "drop2",    "t": 4.0,   "sfx": "pop",              "gain_db": -3,  "pan": 0},
   {"id": "drop2",    "t": 4.0,   "sfx": "sfx/zheng_A2.wav", "gain_db": -5,  "pan": 0}
 ]

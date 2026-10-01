@@ -9,6 +9,6 @@
   {"t":2.8,"sfx":"toggle","gain_db":-8,"pan":0.54},
   {"t":3.2,"sfx":"glitch","gain_db":-16,"pan":0.2},
   {"t":3.5,"sfx":"tick","gain_db":-6,"pan":-0.74,"role":"signal"},
-  {"t":4.2,"sfx":"whoosh","gain_db":-6,"pan":-0.3},
+  {"t":4.2,"sfx":"whip","gain_db":-6,"pan":-0.3,"dur":0.35,"pan_from":0.4,"pan_to":-0.4},
   {"t":4.34,"sfx":"shutter","gain_db":-6,"pan":0}
 ]

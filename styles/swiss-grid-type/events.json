@@ -1,5 +1,5 @@
 [
-  {"t":0.067,"sfx":"swish_rev","gain_db":-14,"pan":0},
+  {"t":0.167,"sfx":"whip","gain_db":-14,"pan":0,"dur":0.2,"dir":"down"},
   {"t":0.2,"sfx":"tick","gain_db":-10,"pan":0.67},
   {"t":0.4,"sfx":"tick","gain_db":-10,"pan":0.67},
   {"t":0.8,"sfx":"click","gain_db":-8,"pan":-0.69},
@@ -14,7 +14,7 @@
   {"t":2.4,"sfx":"pop","gain_db":-4,"pan":0.22},
   {"t":2.8,"sfx":"click","gain_db":-8,"pan":-0.69},
   {"t":3.133,"sfx":"click","gain_db":-6,"pan":0.67},
-  {"t":3.6,"sfx":"whoosh","gain_db":-14,"pan":0.35},
+  {"t":3.6,"sfx":"whoosh","gain_db":-14,"pan":0.35,"dur":0.4,"bright":0.3},
   {"t":3.6,"sfx":"tick","gain_db":-12,"pan":-0.1},
   {"t":3.7,"sfx":"tick","gain_db":-12,"pan":-0.26},
   {"t":3.8,"sfx":"tick","gain_db":-12,"pan":-0.42},

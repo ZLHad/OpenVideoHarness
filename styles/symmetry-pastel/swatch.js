@@ -177,10 +177,10 @@ function chapterTwo(ctx, t, tokens, lib) {
 // foley (events.json is generated from this list; times are the same ones the scene uses)
 export const FOLEY = [
   { t: CURTAIN[0], sfx: "click", gain_db: -6, pan: 0 },                                                  // the curtain cord
-  { t: (CURTAIN[0] + CURTAIN[1]) / 2, sfx: "swish_rev", gain_db: -4, pan: 0 },                            // the curtain parts
+  { t: (CURTAIN[0] + CURTAIN[1]) / 2, sfx: "air", gain_db: -4, pan: 0, dur: CURTAIN[1] - CURTAIN[0] },                            // the curtain parts
   { t: 0.82, sfx: "ding", gain_db: -10, pan: 0 },                                                         // the chapter card
-  { t: 1.6, sfx: "swish_rev", gain_db: -16, pan: 0 },                                                     // curtains open
+  { t: 1.6, sfx: "air", gain_db: -16, pan: 0, dur: 0.6 },                                                     // curtains open
   ...[2.0, 2.4, 2.8].map((t, k) => ({ t, sfx: "tick", gain_db: -8, pan: [-0.44, 0, 0.44][k] })),         // pictures land and swing
   { t: 3.2, sfx: "toggle", gain_db: -12, pan: 0 }, { t: 3.6, sfx: "click", gain_db: -10, pan: 0 },       // plaques flip; sconces
-  { t: 4.15, sfx: "whoosh", gain_db: -6, pan: 0.5 }, { t: 4.3, sfx: "ding", gain_db: -12, pan: 0 },      // whip pan; next chapter
+  { t: 4.15, sfx: "whip", gain_db: -9, pan: 0.5, dur: 0.3, pan_from: -0.3, pan_to: 0.6 }, { t: 4.3, sfx: "ding", gain_db: -12, pan: 0 },      // whip pan; next chapter
 ];

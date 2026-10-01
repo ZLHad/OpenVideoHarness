@@ -16,14 +16,14 @@ const M = 96, COL = 122, GUT = 24, BL = 24;
 // foley: dry, close letterpress sounds; frame numbers are the same constants the snaps use (frame / 30)
 const fx = (x) => Math.round((x / 960 - 1) * 100) / 100, F = (f) => f / 30;
 export const FOLEY = [
-  { t: F(2), sfx: "swish_rev", gain_db: -14, pan: 0 },                                                               // the grid shoots down
+  { t: F(5), sfx: "whip", gain_db: -14, pan: 0, dur: F(6), dir: "down" },                                                               // the grid shoots down
   ...[6, 12].map((f) => ({ t: F(f), sfx: "tick", gain_db: -10, pan: fx(1600) })),                                        // numeral steps (lands f12)
   ...[24, 27, 30, 33].map((f, k) => ({ t: F(f), sfx: "click", gain_db: -8, pan: fx(300 + k * 300) })),               // headline words land
   ...[36, 42, 48].map((f, k) => ({ t: F(f), sfx: "click", gain_db: -10, pan: fx(200 + k * 250) })),                   // Chinese groups
   ...[66, 69].map((f, k) => ({ t: F(f), sfx: "click", gain_db: -8, pan: fx(560 + k * 110) })),                     // storyboard numerals
   { t: F(72), sfx: "pop", gain_db: -4, pan: fx(1170) },                                                                // "03" + the red block
   { t: F(84), sfx: "click", gain_db: -8, pan: fx(300) }, { t: F(94), sfx: "click", gain_db: -6, pan: fx(1600) },     // bar reorder; numeral snap
-  { t: F(108), sfx: "whoosh", gain_db: -14, pan: fx(1300) },                                                          // the exception leaves the grid
+  { t: F(108), sfx: "whoosh", gain_db: -14, pan: fx(1300), dur: 0.4, bright: 0.3 },                                                          // the exception leaves the grid
   ...[105, 108, 111].map((f, k) => ({ t: F(f + 3), sfx: "tick", gain_db: -12, pan: fx(860 - k * 150) })),           // numerals step up, nearest first
   { t: F(120), sfx: "shutter", gain_db: -6, pan: fx(1700) }, { t: F(138), sfx: "click", gain_db: -8, pan: fx(300) },
 ];

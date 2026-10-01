@@ -19,6 +19,6 @@
   {"t":3.42,"sfx":"tick","gain_db":-14,"pan":0},
   {"t":3.62,"sfx":"success","gain_db":-12,"pan":0.23},
   {"t":4.02,"sfx":"glitch","gain_db":-14,"pan":0},
-  {"t":4.2,"sfx":"swish_rev","gain_db":-12,"pan":0},
+  {"t":4.2,"sfx":"tape","gain_db":-12,"pan":0,"dur":0.2,"dir":"down"},
   {"t":4.36,"sfx":"click","gain_db":-8,"pan":0}
 ]

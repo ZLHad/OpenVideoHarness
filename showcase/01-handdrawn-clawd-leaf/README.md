@@ -32,7 +32,7 @@ The picture was made and finished silent, as briefed; the soundtrack was fitted 
 - **Foley** (`tools/foley.py` → `audio/events.json`, 38 events, 22 sounds synthesized in code):
   - The iris opening and shutting, with a latch, blades and a thunk on the last frame.
   - The stem creaking and snapping, a spark on the excited take, and a ratchet crank that clicks every 1/8 turn at leaf.js's 13 rad/s.
-  - Two-layer gusts that cross from left to right, shaped like `gustEnv`; leaf whooshes peaking where the leaf moves fastest; cartoon takes (a pop and a slide whistle).
+  - Two-layer gusts that cross from left to right, shaped like `gustEnv`; the leaf's moves peaking where it moves fastest (a `paper` slide for the snatch, a `whip` as it zips out the top, an `air` for the pull-back), each shaped to its move; cartoon takes (a pop and a slide whistle).
   - A zip into the dash, and six footfalls solved from `poseB`'s walk cycle, plus two tiptoes.
   - A skid, leaf pats on the pumpkin and the head, the stomp with the camera rattling, and a "?".
   - The spin, a swish into the lens, the film gate chattering at 24 fps inside the camera for the whole POV shot, and hearts.

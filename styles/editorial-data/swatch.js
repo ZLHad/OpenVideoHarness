@@ -43,7 +43,7 @@ export const FOLEY = [
   ...HEAD_X.slice(1).map((x, w) => ({ t: TL.head0 + (w + 1) * TL.wordStag, sfx: "tick", gain_db: -24, pan: pan(x + 80) })),   // headline, word by word
   { t: TL.guess[1], sfx: "tick", gain_db: -20, pan: pan(xAt(10)) },                               // the guess ends: "expected"
   ...NOTES.map((n) => ({ t: reach(n.i), sfx: "click", gain_db: -16, pan: pan(xAt(n.i)) })),        // a note pins as the line reaches it
-  { t: (TL.red[0] + TL.red[1]) / 2, sfx: "whoosh", gain_db: -16, pan: pan(xAt(5)) },              // the brick-red line (the one whoosh)
+  { t: (TL.red[0] + TL.red[1]) / 2, sfx: "air", gain_db: -16, pan: pan(xAt(5)), dur: TL.red[1] - TL.red[0], pan_from: pan(xAt(0)), pan_to: pan(xAt(YEARS.length - 1)) },              // the brick-red line (the one whoosh)
   { t: TL.red[1], sfx: "toggle", gain_db: -14, pan: pan(xAt(10)) },                               // end dot + "Code"
   { t: TL.rescale[1], sfx: "tick", gain_db: -20, pan: pan(PLOT.x0) },                             // the y domain settles at 150 (= 1st pulse)
   { t: TL.pulses[1], sfx: "tick", gain_db: -22, pan: pan(xAt(10)) },                              // 2nd "latest value" pulse

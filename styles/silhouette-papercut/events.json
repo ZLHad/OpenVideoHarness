@@ -1,6 +1,6 @@
 [
   {"id": "pop", "t": 0.1, "sfx": "boom", "gain_db": -11, "pan": 0, "dist": 1.5},
-  {"id": "hedgeMid", "t": 0.4, "sfx": "whoosh", "gain_db": -13, "pan": 0},
+  {"id": "hedgeMid", "t": 0.4, "sfx": "paper", "gain_db": -13, "pan": 0, "dur": 0.8, "pan_from": 0.5, "pan_to": -0.5},
   {"series": "step", "t": 0.6, "sfx": "sfx/paper_step_a.wav", "gain_db": -13, "pan": -0.66},
   {"series": "step", "t": 0.8, "sfx": "sfx/paper_step_b.wav", "gain_db": -16, "pan": -0.61},
   {"series": "step", "t": 1.0, "sfx": "sfx/paper_step_c.wav", "gain_db": -14, "pan": -0.57},
@@ -9,7 +9,7 @@
   {"series": "step", "t": 1.6, "sfx": "sfx/paper_step_c.wav", "gain_db": -14, "pan": -0.45},
   {"series": "step", "t": 1.8, "sfx": "sfx/paper_step_a.wav", "gain_db": -13, "pan": -0.4},
   {"id": "house0", "t": 2.0, "sfx": "sfx/snip.wav", "gain_db": -10, "pan": -0.18},
-  {"id": "house1", "t": 2.2, "sfx": "sfx/snip.wav", "gain_db": -10, "pan": 0.1},
+  {"id": "house1", "t": 2.2, "sfx": "paper", "gain_db": -12, "pan": 0.1, "dur": 0.2, "dir": "up"},
   {"id": "house2", "t": 2.4, "sfx": "sfx/snip.wav", "gain_db": -10, "pan": 0.38},
   {"series": "step", "t": 2.6, "sfx": "sfx/paper_step_b.wav", "gain_db": -16, "pan": -0.24},
   {"series": "step", "t": 2.8, "sfx": "sfx/paper_step_c.wav", "gain_db": -14, "pan": -0.19},

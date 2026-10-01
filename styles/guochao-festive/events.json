@@ -8,5 +8,6 @@
   {"series": "flower", "t": 2.8, "sfx": "pop", "gain_db": -16, "pan": 0},
   {"series": "flower", "t": 3.2, "sfx": "pop", "gain_db": -13, "pan": 0},
   {"series": "flower", "t": 3.6, "sfx": "pop", "gain_db": -13, "pan": 0},
-  {"id": "doors",  "t": 4.0, "sfx": "whoosh", "gain_db": -10, "pan": 0}
+  {"id": "doors",  "t": 4.0, "sfx": "paper",  "gain_db": -13, "pan": -0.3, "dur": 0.44, "dir": "down", "pan_from": 0, "pan_to": -0.6},
+  {"id": "doors",  "t": 4.0, "sfx": "paper",  "gain_db": -13, "pan": 0.3, "dur": 0.44, "dir": "down", "pan_from": 0, "pan_to": 0.6}
 ]

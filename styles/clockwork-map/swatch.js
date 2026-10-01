@@ -281,20 +281,20 @@ const words = [...TITLE].flatMap((ch, i) => (ch !== " " && (i === 0 || TITLE[i -
 const smooth = (u) => { u = Math.min(1, Math.max(0, u)); return u * u * (3 - 2 * u); };   // ≈ the pull-back's inOutCubic, only for tick distance
 export const FOLEY = [
   { t: T.compass + arrive(SPR.compass), sfx: "impact", gain_db: -8 },                      // the brass compass lands on the sheet
-  { t: 0.2, sfx: "whoosh", gain_db: -14 },                                                  // bearing lines shoot out
+  { t: 0.2, sfx: "whoosh", gain_db: -14, dur: T.bearings[1] - T.bearings[0], bright: 0.3 },                                               // bearing lines shoot out
   ...[words[0], words[words.length - 1]].map((i) => ({ t: T.letter0 + i * T.stag + T.stamp, sfx: "click", gain_db: -14, pan: pan(960 + (i / (TITLE.length - 1) - 0.5) * 1150) })),   // first and last word stamped
   // tower escapement steps (eighth notes): tick on a step, click on a lock; pan = the site(s) moving
   ...[4 / 3, 5 / 3, 2, 7 / 3, 8 / 3].map((s0) => {
     const moving = [0, 1, 2].filter((k) => STEPS[k].includes(s0)), lock = [0, 1, 2].find((k) => T.lock(k) === s0);
     const x = lock != null ? SITE_X[lock] : moving.reduce((a, k) => a + SITE_X[k], 0) / moving.length;
-    return { t: s0 + arrive(SPR.step), sfx: lock != null ? "click" : "tick", gain_db: lock != null ? -8 : -12, pan: pan(x) };
+    return { t: s0 + arrive(SPR.step), sfx: lock != null ? "click" : "tick", gain_db: lock != null ? -8 : s0 === 5 / 3 ? -10 : -12, pan: pan(x) };   // the 1.713 s tick is faint under the bed: +2 dB
   }),
-  { t: (T.rings[0] + T.rings[1]) / 2, sfx: "whoosh", gain_db: -16, pan: pan(SITE_X[0]) },  // armillary rings swing open
+  { t: (T.rings[0] + T.rings[1]) / 2, sfx: "swoosh_tonal", gain_db: -10, pan: pan(SITE_X[0]), dur: T.rings[1] - T.rings[0] },  // armillary rings swing open
   { t: T.panels[0] + 0.07 + arrive(SPR.panel), sfx: "shutter", gain_db: -12, pan: pan(SITE_X[1]) },   // hinged panels stand up
   { t: T.flag + 0.02 + arrive(SPR.flag), sfx: "pop", gain_db: -10, pan: pan(SITE_X[2]) },            // the pennant
   // after the chain: the master escapement keeps ticking on eighths, receding as the camera climbs
   ...[9, 10, 11, 12, 13, 14].map((k) => { const t = k * EIGHTH + arrive(SPR.esc); return { t, sfx: "tick", gain_db: -18, dist: +(1 + 3.4 * smooth((t - T.pull[0]) / (T.pull[1] - T.pull[0]))).toFixed(2) }; }),
-  { t: (T.pull[0] + T.pull[1]) / 2, sfx: "whoosh", gain_db: -12 },                          // pull-back to top-down
+  { t: (T.pull[0] + T.pull[1]) / 2, sfx: "whoosh", gain_db: -14, dur: T.pull[1] - T.pull[0], dir: "down", tone: 0.3 },                       // pull-back to top-down
 ];
 const brass = (P) => ({ BR: P("extra.3"), HI: P("extra.4"), SHD: P("extra.5"), INK: P("extra.2"), MID: "#8A6A3C", DEEP: "#4A3820", SPEC: "#FFF0C4" });
 

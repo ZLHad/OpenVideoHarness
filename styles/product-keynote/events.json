@@ -4,7 +4,7 @@
   {"t":2.3,"sfx":"tick","gain_db":-12,"pan":0},
   {"t":2.6,"sfx":"tick","gain_db":-12,"pan":0.3},
   {"t":2.85,"sfx":"tick","gain_db":-14,"pan":0},
-  {"t":3.3,"sfx":"whoosh","gain_db":-16,"pan":0.3},
-  {"t":4.3,"sfx":"whoosh","gain_db":-8,"pan":0},
+  {"t":3.3,"sfx":"swoosh_tonal","gain_db":-16,"pan":0.3,"dur":0.5,"bright":0.3,"pan_from":-0.2,"pan_to":0.5},
+  {"t":4.3,"sfx":"whoosh","gain_db":-8,"pan":0,"dur":0.7,"dir":"down","bright":0.4},
   {"t":4.6,"sfx":"ding","gain_db":-10,"pan":0}
 ]
