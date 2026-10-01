@@ -119,6 +119,22 @@ const hit = beats.hits.find(h => Math.abs(h.t - t) < 1/30); // 冲击点所在�
 const cap = captions.find(c => c.start <= t && t < c.end);  // 当前字幕
 ```
 
+**细到每一个音。** 角色走在琴键上、每一步都是一个音的片子，要的不只是拍点，而是每个音的起止和音高。给那个声部写 `"note_map": true`，`bin/vh music` 就把它的每个音写进节拍表的 `notes`（字段见 `04-audio.md`）：
+
+```js
+// notes: [{t, end, midi, vel, part}]，按 t 排好
+const down = (m) => beats.notes.some(n => n.part === "keys" && n.midi === m && n.t <= t && t < n.end);   // 第 m 个键此刻按着吗
+const step = beats.notes.findLast(n => n.part === "walk" && n.t <= t);       // 角色最近踩下的那个音
+const next = beats.notes.find(n => n.part === "walk" && n.t > t);            // 下一步
+const u = step && next ? (t - step.t) / (next.t - step.t) : 0;               // 两步之间走到哪了
+const x = lerp(keyX(step?.midi ?? 60), keyX(next?.midi ?? step?.midi ?? 60), u);   // 音高 → 键在画面上的位置（keyX 是场景自己的映射）
+```
+
+- 琴键在 `t` 按下、在 `end` 抬起；按下的深度可以用 `vel` 调。
+- 角色的脚在 `t` 那一帧落到 `midi` 对应的键上，从一个音的 `t` 跳到下一个音的 `t`，走一条抛物线。
+- 时间一律从节拍表读，不要把秒数抄进场景代码：谱子改一个音，声音和画面一起变。
+- 同一个音既出声音又出画面，就不用再对 cue：`bin/vh qa` 的 cue check 仍然要跑，查的是混音以后这个音还听不听得见。
+
 音效同理：画面上发生动作的帧就是 `events.json` 里的 `t`。先定画面的时间，再生成音效轨，不要反过来去凑。
 
 **声像也跟着画面走。** 发声的物体在画面左边，声音就从左边来：事件的 pan 取发声物体在那一帧投影到屏幕上的 x（NDC，−1 到 1），出画的物体夹在 ±1；距离再决定衰减，例如距离每翻一倍降 6 dB。摄像机和物体都是 t 的纯函数，所以 pan 和衰减都由同一份相机代码按事件的 t 算出来，不要手填。`events.json` 里的声像字段，以及混音要保留立体声，见 `04-audio.md`。

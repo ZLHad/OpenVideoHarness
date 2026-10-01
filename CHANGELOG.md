@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+**`bin/vh music`: a note map for pictures driven note by note**
+- Why: in a film where a character walks on piano keys, or where each key goes down as its note sounds, the picture needs every note's start, end and pitch, and the beat map only had hit times (`hits: [{t, what}]`). Typing those times into the scene by hand breaks the rule that sound and picture come from one source.
+- A part with `"note_map": true` writes every note into the beat map's new `notes`: `[{"t", "end", "midi", "vel", "part"}]`, sorted by `t`.
+  - `t` is when the note lands, the same time `hits` use (humanize included, `onset_ms` added back).
+  - `end` is when its sound is released, including a section stop's cut.
+  - A chord gives one entry per pitch. `midi` is null for an unpitched drum and a float when `detune` moves it.
+  - A tremolo note is listed as its strikes.
+  - `vel` is the strike's velocity.
+  - `--length` drops notes that start after the end and cuts the rest there.
+  - `"note_map"` must be true or false, and a texture part (no notes) with it is refused with the part's name.
+- Nothing changes for scores without the field. The 28 swatch scores and showcase 00–03, rendered before and after, give the same WAV and beat-map bytes. (Showcase 04's `score.json` belongs to its own `score_engine.py` and is not a `music.py` score.)
+- Checked on a test score with a three-note chord, a snare, a 25-cent `detune`, `onset_ms` 30 with humanize, an 8 Hz tremolo, a section stop and `--length 2.3`: the chord gives three entries, the drum `midi` is null, the detuned E5 is 76.25, and the early note's `t` is its grid time plus its humanize. The tremolo gives four strikes. The note inside the stop is gone, and the trimmed map keeps 17 of 18 notes with every `end` at most 2.3.
+- Docs: the `music.py` docstring (the part field and the beat map), `playbook/04-audio.md` (what each field means), `playbook/08-vfx-and-motion-sources.md` ("声画联动的接法": keys down at `t` and up at `end`, a walk from one note's `t` to the next, and the timing read from the map, never typed into the scene).
+
 **Sound refresh: every film on the new SFX engine, a transition family per style, plucked parts on the modelled voices**
 - Why: the maintainer heard the same page-turn sound in every film, and the same one on every cut within a film ("切换音效都是一模一样的有审美疲劳，同一个片子同一个切换页音效一样可能也不是很好"). #39 built the variants and the new transitions; this applies them and renders everything again.
 - **28 swatches, a transition family each**, chosen by style and shaped to the move (`dur` ≈ the move's length, `dir` with the motion, `pan_from` / `pan_to` where the screen direction is clear, smaller moves shorter and higher); variants stay unpinned. paper: blueprint, cutout-jazz, guochao-festive (one slide per door), isotype, risograph (every roller), silhouette-papercut, watercolor-pastoral (the brush stroke). air: archival-pan-zoom, bubble-chart-story, editorial-data, ink-wash, symmetry-pastel (curtains), watercolor-pastoral (the gusts). whip: bouncy-flat-2d, halftone-comic, neon-step-print, pixel-16bit, swiss-grid-type, symmetry-pastel (the whip pan). swoosh_tonal: clockwork-map (the rings), dunhuang-mural (the two flying figures, from the edges to the axis), fui-hud, monumental-scifi, pixel-16bit (the mosaic), product-keynote. tape: crt-terminal (a stop into the dot), scratched-type (the end), synthwave-outrun (a rewind through the tracking noise). Whoosh and swish_rev stay where they fit, shaped. dark-math and shadow-puppet keep no transition. Where a transition falls inside the gallery reel's clip (1.9–3.4 s), neighbouring swatches use different families.
