@@ -103,16 +103,27 @@ def apply(t, env): …       # 按 t（= k/30）直接设好每个会动的属�
 - **不打关键帧**：`apply` 直接设属性，渲染器逐帧 `apply(k/30)` 再渲。所以没有运动模糊；要运动模糊的项目按 `engines/blender.md` 逐帧采样成关键帧。
 - **画质**：正式版是 CPU 上的 Cycles，默认 64 spp、自适应阈值 0.02、OIDN 降噪，`use_animated_seed`（噪点随帧号变，仍是 t 的函数）；`--draft` 改用 GPU（Metal、OptiX、CUDA、HIP 或 oneAPI，都没有就用 CPU），默认 16 spp。渲出的 PNG 在 `out/<slug>/frames/`（草稿是 `frames-draft/`），再按 BT.709、tv range 编成和 HyperFrames 一样的 1080p `hf.mp4`（CRF 8，单线程，每次同样的字节），后面的检查、配乐、混音、编码、封面、联系表全部共用。
 - **为什么正式版用 CPU**【实测，M3 Max、Blender 5.2.2】：同一帧渲两次，CPU 上的 Cycles 逐像素相同；Metal 上的 Cycles 差一点（PSNR 92 dB），EEVEE 差得多一点（85 dB）。都在硬规则 1 的 45 dB 线以上，但这条流水线按体积上限爬 CRF，会把很小的差异放大成另一个 mp4（见"确定性"），所以和 HyperFrames 一样取逐像素相同的那一条路。代价是慢：`tabletop-miniature` 正式版每帧 15–19 s（32 spp），150 帧约 40 分钟；草稿每帧约 1.6 s，150 帧约 4 分钟。
-- **时间预算**：Blender 场景的默认超时是草稿 1800 s、正式 5400 s。正式渲染前先用 `--png --frames 3,90,140` 渲三帧，按每帧的时间估全片。
+- **时间预算**：Blender 场景的默认超时是草稿 1800 s、正式 7200 s。正式渲染前先用 `--png --frames 3,90,140` 渲三帧，按每帧的时间估全片。
 - **`--png --frames 149,90,12`**：只渲这几帧，按这个顺序，写到 `out/<slug>/png-sample-w<N>/`（加 `--draft` 走 GPU）。看构图、调光的时候用它，几十秒一轮。
-- **`--workers N`**：起 N 个 Blender，各渲一段连续的帧。默认 1 个：Cycles 本来就用满所有核，多开不会更快；它是给确定性检验用的。
+- **`--workers N`**：起 N 个 Blender，各渲一段连续的帧。默认 1 个：Cycles 本来就用满所有核，多开不会更快；它是给确定性检验用的。一段失败，其余几段立刻停掉。
+- **`--hud`**：正式渲染加 `--hud` 时不写 `inputs.txt`，烧了读数的帧不会被 `determinism.sh` 拿去比。
 
-**先看再跑，跑在笼子里**（`engines/blender.md` 的"安全"）。agent 写的 bpy 脚本有用户的全部权限，所以：
-1. `blender_prep.py scan` 先把 `swatch.py` 当语法树读一遍，不执行。只许 import `bpy bmesh mathutils math colorsys json sys`（连 `random`、`time` 也不许，顺带保证帧只依赖 t），不许 `eval exec compile __import__ open`，不许存取 .blend、`execfile`、`as_module`、`save_render`、`app.handlers`、`app.timers`、`sys.modules`。不通过就不渲。`foley.mjs` 读 FOLEY 之前也先过这一步。
-2. Blender 用 `env -i` 启动，只带 `PATH`、`LANG`，`HOME` 和 `TMPDIR` 指向 `out/<slug>/.blender/`：环境变量里的 API key 到不了场景脚本。
-3. macOS 上再套 `sandbox-exec`：禁网络；只许写 `out/<slug>/` 和本用户的缓存、临时目录（`getconf DARWIN_USER_CACHE_DIR` / `DARWIN_USER_TEMP_DIR`）。后两个是 Metal 编译和缓存着色器的地方【实测】：缓存目录不许写，每一帧都要重编着色器，从 2 s 变成 13 s；临时目录不许写，场景需要新内核时 Blender 直接 abort。还会打印几行 "Error creating directory"，不影响渲染。Linux 上没有这一层，只有前两步。
+**先看再跑，跑在笼子里**（`engines/blender.md` 的"安全"）。agent 写的 bpy 脚本有用户的全部权限，所以有三层，真正的边界是第 3 层：
+1. **静态检查是 lint，不是门**。`blender_prep.py scan` 先把 `swatch.py` 当语法树读一遍，不执行，拦住手误和明显的出路，拦不住存心绕过的人。不通过就不渲；`foley.mjs` 读 FOLEY 之前也先过这一步。它拦的东西：
+   - import 只许 `bpy bmesh mathutils math colorsys json sys`，连 `random`、`time` 也不许，顺带保证帧只依赖 t；`json` 只许 `dumps`、`loads`，`sys` 只许 `argv`。
+   - 下划线开头的名字和属性一律不许，只放行 `_` 和 `__name__`；含 `__` 的字符串也不许。这挡住了 `bpy.utils._os`、`x.__dict__["__import__"]` 这类绕法。
+   - 不许 `eval exec compile open getattr setattr type dir globals vars`。
+   - 不许 bpy 读写或运行别的东西：.blend（`wm`、`libraries`）、文本块（`texts`、`run_script`）、驱动器（`driver_add`、`driver_namespace`）、`bpy.utils`、`save_render`、`handlers`、`timers`。
+2. **干净的环境**。Blender 用 `env -i` 启动，只带 `PATH`、`LANG` 和 `PYTHONDONTWRITEBYTECODE`，`HOME` 和 `TMPDIR` 指向 `out/<slug>/.blender/`：环境变量里的 API key 到不了场景脚本。
+3. **macOS 上的沙箱**（`sandbox-exec`，规则文件在渲染开始前写一次，见 `render.sh` 的 `bl_profile`）【实测，Blender 5.2.2】：
+   - 禁网络，也不许把网址或 Apple 事件交给别的程序。
+   - 只许写 `out/<slug>/` 和本用户缓存目录里 Blender 自己的那一个子目录（`$(getconf DARWIN_USER_CACHE_DIR)org.blenderfoundation.blender`），Metal 把编译好的着色器存在那里。不许写的话，每一帧都要重编，2 s 变成 13 s。临时目录不用放行。
+   - **正式渲染（CPU）还不许读家目录**，只放行仓库、场景、Blender 安装目录和 `~/Library/Fonts`。`~/.ssh`、`~/.zsh_secrets` 这类文件读不到，要提交的帧里也就印不进它们（实测读取被拒；整片的第 90 帧和不加这条规则时逐像素相同）。
+   - 草稿（Metal）加不了这条：家目录不可读时，Metal 加载 Cycles 缓存好的内核会崩溃（崩在 `-[_MTLDevice recordBinaryArchiveUsage:]`；放行 `~/Library` 也不行）。草稿的输出只留在不入库的 `out/` 里，又没有网络，读到什么也送不出去。
+   - 冷启动时 Metal 编译内核要静默约 110 s，所以 Blender 场景的静默阈值默认是 300 s。日志里会有几行 "Error creating directory"，不影响渲染。
+   - **Linux 上没有第 3 层**，只有前两层：只渲你读过的场景，或者放进容器里渲。
 
-**字体**：`FONTS` 的每个角色是一个 fontconfig 匹配式，`blender_prep.py fonts` 用 `fc-match` 找到本机的字体文件（和 `fonts.css` 用的是同一批系统字体），结果写进 `out/<slug>/fonts.json`。Blender 只读 .ttc 里的第一个字形【实测：`Songti.ttc` 读出来是 Songti SC Black】，所以匹配到的不是第一个时（宋体 Bold 是第 2 个），先用 fontTools 把那一面写成单独的字体文件，放在 `out/<slug>/fonts/`：本机缓存，不入库，不分发。匹配不到要的族时会打印回落到了哪个字体。
+**字体**：`FONTS` 的每个角色是一个 fontconfig 匹配式，`blender_prep.py fonts` 用 `fc-match` 找到本机的字体文件（和 `fonts.css` 用的是同一批系统字体），结果写进 `out/<slug>/fonts.json`。Blender 只读 .ttc 里的第一个字形【实测：`Songti.ttc` 读出来是 Songti SC Black】，所以匹配到的不是第一个时（宋体 Bold 是第 2 个），先用 fontTools 把那一面写成单独的字体文件，放在 `out/<slug>/fonts/`：本机缓存，不入库，不分发。匹配不到要的族时直接报错（中文角色落到拉丁字体上会印出方块），不悄悄回落。抽出来的字形每次重写（约 0.3 s），写到一半中断也不会留下坏文件。
 
 **不用 persistent data**【实测 5.2.2，CPU】：打开 `render.use_persistent_data`（跨帧保留场景数据，本想省同步时间），`tabletop-miniature` 按顺序渲的第 27–44 帧里茶杯整个变黑，单独渲这几帧又是正常的灰色：一帧的样子取决于它前面渲过哪些帧。`determinism.sh` 抓到了（第 30 帧，24.5 dB）。关掉以后每帧的时间几乎不变（15–19 s），所以渲染器固定关掉它。
 

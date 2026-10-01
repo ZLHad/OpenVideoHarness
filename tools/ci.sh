@@ -73,11 +73,18 @@ AWK
   n=0; while IFS= read -r f; do
     python3 styles/_swatch/blender_prep.py scan "$f" || { bad "blender_prep.py scan $f"; n=$((n + 1)); }
   done < <(files 'styles/*/swatch.py')
-  while IFS= read -r f; do
-    grep -q -E '^[[:space:]]*(import[[:space:]]+([A-Za-z_]+[[:space:]]*,[[:space:]]*)*bpy|from[[:space:]]+bpy)([[:space:],.]|$)' "$f" \
-      && ! awk 'NR <= 3 && /SPDX-License-Identifier: GPL-3.0-or-later/ { f = 1 } END { exit !f }' "$f" \
-      && { bad "$f imports bpy but has no GPL-3.0-or-later SPDX header"; n=$((n + 1)); }
-  done < <(files '*.py')
+  out=$(files '*.py' | python3 -c '
+import ast, sys
+BLENDER = {"bpy", "bmesh", "mathutils", "bpy_extras", "gpu", "gpu_extras", "freestyle", "bl_math", "idprop", "aud", "imbuf", "blf", "bgl"}
+for f in sys.stdin.read().split():
+    src = open(f, encoding="utf-8").read()
+    try: tree = ast.parse(src, f)
+    except SyntaxError: continue
+    mods = {a.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
+    mods |= {(n.module or "").split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+    if mods & BLENDER and "SPDX-License-Identifier: GPL-3.0-or-later" not in "".join(src.splitlines(True)[:3]): print(f)
+')
+  [ -z "$out" ] || { echo "$out" | sed 's/$/: imports a Blender module but has no GPL-3.0-or-later SPDX header in its first 3 lines/'; n=$((n + 1)); bad "GPL header on Blender scripts"; }
   [ $n = 0 ] && ok "Blender scenes: static check and GPL headers"
   # js: node --check detects ES modules by syntax (node ≥ 22)
   n=0; while IFS= read -r f; do node --check "$f" 2>/dev/null || { node --check "$f"; bad "node --check $f"; n=$((n + 1)); }; done < <(files '*.js' '*.mjs')

@@ -2,7 +2,7 @@
 # render.sh — render one style swatch (5 s, 30 fps, 1920×1080 canvas) with the pinned HyperFrames, then
 # write styles/<slug>/media/swatch.mp4 (1280×720 H.264, ≤ 1.5 MB) and media/poster.jpg (t = 3.0 s, ≤ 200 KB).
 #
-#   styles/_swatch/render.sh <slug> [--draft] [--workers N] [--hud] [--png] [--stage-only] [--timeout S]
+#   styles/_swatch/render.sh <slug> [--draft] [--workers N] [--hud] [--png [--frames L]] [--stage-only] [--stamp] [--timeout S]
 #
 #   <slug>        a folder styles/<slug>/ with swatch.js + tokens.json, or a built-in: demo | catalog | fontprobe,
 #                 or a path containing "/" to a scene folder anywhere (slug = its basename; media/ goes inside it).
@@ -17,8 +17,9 @@
 #   --frames L    Blender scenes, with --png: only these frames, in this order ("149,90,12"), into png-sample-w<N>/
 #   --stamp       Blender scenes: print a checksum of everything the frames depend on, and exit (determinism.sh)
 #   --stage-only  build the stage (see README) and print how to snapshot / preview it; no render
-#   --timeout S   kill the render after S seconds (default 300 draft / 600 final; Blender 1800 / 5400); a render whose
-#                 log stays silent for SWATCH_STALL seconds (default 120) is treated as hung and killed too
+#   --timeout S   kill the render after S seconds (default 300 draft / 600 final; Blender 1800 / 7200); a render whose
+#                 log stays silent for SWATCH_STALL seconds (default 120; Blender 300, as a cold Metal kernel compile
+#                 prints nothing for ~110 s) is treated as hung and killed too
 #
 # Built-in scenes (demo, catalog, fontprobe) write to styles/_swatch/out/<slug>/media/ instead of styles/<slug>/media/.
 # HyperFrames runs with --no-browser-gpu (SwiftShader WebGL, 2D canvas and compositing on the CPU), its deterministic
@@ -50,12 +51,12 @@ while [ $# -gt 0 ]; do
     *) [ -z "$slug" ] && slug=$1 || die "one slug at a time" ;;
   esac; shift
 done
-[ -n "$slug" ] || die "usage: styles/_swatch/render.sh <slug> [--draft] [--workers N] [--hud] [--png] [--stage-only]"
+[ -n "$slug" ] || die "usage: styles/_swatch/render.sh <slug> [--draft] [--workers N] [--hud] [--png [--frames L]] [--stage-only] [--stamp] [--timeout S]"
+[ -z "$workers" ] || [[ "$workers" =~ ^[1-9][0-9]*$ ]] || die "--workers takes a whole number ≥ 1, not '$workers'"
 SRCDIR=""
 case "$slug" in */*) [ -d "$slug" ] || die "no such directory: $slug"; SRCDIR="$(cd "$slug" && pwd)"; slug=$(basename "$SRCDIR") ;; esac
 [[ "$slug" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "slug must be lowercase letters, digits and dashes: $slug"
 command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null || die "ffmpeg/ffprobe not found"
-[ "$(uname)" = Darwin ] || echo "$wa swatch fonts are macOS system fonts (fonts.css local() faces): on $(uname) they fall back, so this output will differ from the published media (see the font table in styles/_swatch/README.md, or render the fontprobe built-in)"
 
 builtin=0; [ -z "$SRCDIR" ] && case "$slug" in demo|catalog|fontprobe) builtin=1 ;; esac
 if [ $builtin = 1 ]; then SRC="$SW/$slug"; MEDIA="$SW/out/$slug/media"
@@ -74,6 +75,7 @@ if [ $engine = hf ]; then
   if ! err=$(node --input-type=module --check < "$SRC/swatch.js" 2>&1); then
     echo "$err" | grep -E "^\[stdin\]:|SyntaxError" | head -3 >&2; die "syntax error in $SRC/swatch.js"; fi
   [ -z "$frames" ] && [ $stamp_only = 0 ] || die "--frames and --stamp are for Blender scenes (swatch.py)"
+  [ "$(uname)" = Darwin ] || echo "$wa swatch fonts are macOS system fonts (fonts.css local() faces): on $(uname) they fall back, so this output will differ from the published media (see the font table in styles/_swatch/README.md, or render the fontprobe built-in)" >&2
 else
   BL=${BLENDER:-}
   [ -n "$BL" ] || BL=$(command -v blender 2>/dev/null || true)
@@ -88,10 +90,12 @@ fi
 export PYTHONDONTWRITEBYTECODE=1                    # importing swatch.py must not leave a __pycache__ in styles/<slug>/
 
 OUT="$SW/out/$slug"; STAGE="$SW/out/stage/$slug"; LOCK="$SW/out/stage/$slug.lock"
-bl_stamp() { # a checksum of everything a Blender scene's frames depend on (not the audio, docs or media)
-  { "$BL" --version 2>/dev/null | sed -n 1p
-    find "$SRC" -type f ! -path '*/media/*' ! -path '*/__pycache__/*' ! -name '*.md' ! -name '*.wav' ! -name score.json \
-      ! -name events.json ! -name .DS_Store | LC_ALL=C sort | while IFS= read -r f; do cat "$f"; done
+bl_stamp() { # a checksum of everything a Blender scene's frames depend on: the Blender build, the scene folder's files
+  # (names and bytes; not its media, docs, audio or foley list) and the renderer. Not the machine's fonts: a font update
+  # needs a fresh final render before determinism.sh means anything
+  { "$BL" --version 2>/dev/null | sed -n '1,4p'
+    find "$SRC" -type f ! -path "$SRC/media/*" ! -path '*/__pycache__/*' ! -name '*.md' ! -name '*.wav' ! -name score.json \
+      ! -name events.json ! -name .DS_Store | LC_ALL=C sort | while IFS= read -r f; do printf '%s\n' "${f#"$SRC"/}"; cat "$f"; done
     cat "$SW/blender_render.py" "$SW/blender_prep.py"; } | cksum | cut -d' ' -f1
 }
 if [ $stamp_only = 1 ]; then bl_stamp; exit 0; fi
@@ -141,10 +145,10 @@ if [ -z "$workers" ]; then
   elif pgrep -f "hyperframes render" >/dev/null 2>&1; then workers=1; echo "$wa another hyperframes render is running → --workers 1"; else workers=2; fi
 fi
 if [ -z "$timeout" ]; then
-  if [ $engine = blender ]; then { [ $draft = 1 ] && timeout=1800; } || timeout=5400
+  if [ $engine = blender ]; then { [ $draft = 1 ] && timeout=1800; } || timeout=7200
   else { [ $draft = 1 ] && timeout=300; } || timeout=600; fi
 fi
-STALL=${SWATCH_STALL:-120}
+STALL=${SWATCH_STALL:-$([ $engine = blender ] && echo 300 || echo 120)}
 quality=$([ $draft = 1 ] && echo draft || echo delivery)
 HFMP4="$OUT/hf.mp4"; LOG="$OUT/render.log"
 rm -f "$HFMP4" "$LOG"
@@ -156,12 +160,12 @@ hf_render() { # --no-browser-gpu: every frame is a pure function of t only when 
 }
 bl_render() { # $1 = frame folder, $2 = frame list ("0-149", "149,90,12"): the list cut into $workers contiguous chunks,
   # one fresh Blender per chunk, all at once (render.sh's --workers); each writes <folder>/frame_NNNN.png
-  local dir=$1 chunk pids="" p rc=0 q; q=$([ $draft = 1 ] && echo draft || echo final)
+  local dir=$1 chunk pids="" p k rc=0 q; q=$([ $draft = 1 ] && echo draft || echo final)
   set +m                    # this runs in run_watched's subshell: keep the Blenders in its process group, so a timeout kills them
-  mkdir -p "$dir"
+  mkdir -p "$dir"; bl_profile
   while IFS= read -r chunk; do
     bl_run -b --factory-startup --python-exit-code 1 --python "$SW/blender_render.py" -- "$SRC" "$dir" \
-      --frames "$chunk" --quality "$q" --fonts "$OUT/fonts.json" ${hudarg:+"$hudarg"} &
+      --frames "$chunk" --quality "$q" --fonts "$OUT/fonts.json" ${hudarg:+"$hudarg"} </dev/null &
     pids="$pids $!"
   done < <(python3 - "$2" "$workers" <<'PY'
 import sys
@@ -174,23 +178,39 @@ for j in range(n):
     c = fr[i:i + k + (j < m)]; i += len(c); print(",".join(map(str, c)))
 PY
 )
-  for p in $pids; do wait "$p" || rc=1; done
+  for p in $pids; do   # one chunk failing stops the others: the render has failed, the rest is wasted time
+    if ! wait "$p"; then rc=1; for k in $pids; do kill "$k" 2>/dev/null || true; done; fi
+  done
   return $rc
 }
 hudarg=""; [ "$hud" = true ] && hudarg=--hud
-bl_run() { # Blender with no inherited environment (env -i: no API keys reach the scene's Python) and its HOME and
-  # TMPDIR inside out/<slug>/; on macOS also under sandbox-exec: no network, and writes only inside out/<slug>/ and the
-  # per-user cache and temp folders, where Metal compiles and keeps its shaders (with the cache folder denied every frame
-  # recompiles them, 13 s instead of 2 s; with the temp folder denied Blender aborts when a scene needs new kernels)
-  local o c tmp; o=$(cd "$OUT" && pwd -P)
-  mkdir -p "$o/.blender/home" "$o/.blender/tmp"
-  set -- env -i PATH="$PATH" HOME="$o/.blender/home" TMPDIR="$o/.blender/tmp/" LANG=en_US.UTF-8 "$BL" "$@"
-  if [ "$(uname)" = Darwin ] && command -v sandbox-exec >/dev/null 2>&1; then
-    c=$(cd "$(getconf DARWIN_USER_CACHE_DIR)" && pwd -P); tmp=$(cd "$(getconf DARWIN_USER_TEMP_DIR)" && pwd -P)
-    printf '(version 1)\n(allow default)\n(deny network*)\n(deny file-write*)\n(allow file-write* (subpath "%s") (subpath "%s") (subpath "%s"))\n(allow file-write* (literal "/dev/null") (literal "/dev/dtracehelper"))\n' \
-      "$o" "$c" "$tmp" > "$o/.blender/sandbox.sb"
-    sandbox-exec -f "$o/.blender/sandbox.sb" "$@"
-  else "$@"; fi
+sbq() { printf '"%s"' "$(printf '%s' "$1" | sed 's/[\\"]/\\&/g')"; }   # a path as a sandbox-profile string
+bl_profile() { # the sandbox every Blender of this render runs in (macOS; written once, before the chunks start). The AST scan
+  # in blender_prep.py is a lint that catches mistakes; this is the boundary. No network, no handing URLs or Apple events to
+  # other apps; writes only inside out/<slug>/ and Blender's own folder in the per-user cache, where Metal keeps its
+  # compiled shaders (denied, every frame recompiles them: 13 s instead of 2 s). Final renders (CPU) also read nothing in
+  # the home folder but the repo, the scene, the Blender install and ~/Library/Fonts, so ~/.ssh, ~/.zsh_secrets and the
+  # like stay out of reach of the frames that get committed. Drafts (Metal) can't take that rule: with the home folder
+  # unreadable, Metal crashes loading Cycles' cached kernels (in -[_MTLDevice recordBinaryArchiveUsage:]; allowing
+  # ~/Library does not help). Their output stays in the git-ignored out/ and they have no network
+  local o c h; o=$(cd "$OUT" && pwd -P); mkdir -p "$o/.blender/home" "$o/.blender/tmp"
+  [ "$(uname)" = Darwin ] && command -v sandbox-exec >/dev/null 2>&1 || return 0
+  c=$(cd "$(getconf DARWIN_USER_CACHE_DIR)" && pwd -P); h=$(cd ~ && pwd -P)
+  { echo '(version 1)'; echo '(allow default)'; echo '(deny network*)'; echo '(deny lsopen)'; echo '(deny appleevent-send)'
+    echo '(deny file-write*)'
+    echo "(allow file-write* (subpath $(sbq "$o")) (subpath $(sbq "$c/org.blenderfoundation.blender")) (literal \"/dev/null\") (literal \"/dev/dtracehelper\"))"
+    if [ $draft = 0 ]; then
+      echo "(deny file-read* (subpath $(sbq "$h")))"
+      echo "(allow file-read* (subpath $(sbq "$(cd "$ROOT" && pwd -P)")) (subpath $(sbq "$(cd "$SRC" && pwd -P)")) (subpath $(sbq "$o"))" \
+           "(subpath $(sbq "$(cd "$(dirname "$BL")/../.." && pwd -P)")) (subpath $(sbq "$h/Library/Fonts")))"
+    fi
+  } > "$o/.blender/sandbox.sb"
+}
+bl_run() { # Blender with no inherited environment (env -i: no API keys reach it through the environment), its HOME and
+  # TMPDIR inside out/<slug>/.blender/, and on macOS inside the sandbox bl_profile wrote
+  local o; o=$(cd "$OUT" && pwd -P)
+  set -- env -i PATH="$PATH" HOME="$o/.blender/home" TMPDIR="$o/.blender/tmp/" LANG=en_US.UTF-8 PYTHONDONTWRITEBYTECODE=1 "$BL" "$@"
+  if [ -f "$o/.blender/sandbox.sb" ] && [ "$(uname)" = Darwin ]; then sandbox-exec -f "$o/.blender/sandbox.sb" "$@"; else "$@"; fi
 }
 run_hf() { run_watched hf_render "$@"; }
 run_watched() { # $@ = a command, run in its own process group so a timeout kills Chrome or Blender too
@@ -227,7 +247,12 @@ if [ $png = 1 ]; then       # lossless frames only (determinism checks); no mp4 
   else run_hf --format png-sequence --output "$PNGDIR" || rc=$?; fi
   [ $rc = 0 ] || { echo "$no png-sequence render failed ($rc)"; tail -15 "$LOG"; exit 1; }
   np=$(find "$PNGDIR" -name '*.png' | wc -l | tr -d ' ')
-  want=$FRAMES; [ -n "$frames" ] && want=$(echo "$frames" | tr ',' '\n' | grep -c .)
+  want=$FRAMES; [ -n "$frames" ] && want=$(python3 -c 'import sys
+fr = set()
+for p in sys.argv[1].split(","):
+    if "-" in p[1:]: a, b = p.split("-", 1); fr.update(range(int(a), int(b) + 1))
+    elif p.strip(): fr.add(int(p))
+print(len(fr))' "$frames")
   [ "$np" = "$want" ] || die "$np PNG frames, expected $want"
   echo "$ok $np frames in $(( $(date +%s) - T0 ))s"; exit 0
 fi
@@ -235,6 +260,7 @@ if [ $engine = blender ]; then
   # Cycles renders PNG frames (out/<slug>/frames, or frames-draft); they become the same 1080p BT.709 H.264 the
   # HyperFrames path writes, near-lossless (CRF 8, one thread: the same bytes every run), so everything below is shared
   FR="$OUT/frames$([ $draft = 1 ] && echo -draft || true)"; rm -rf "$FR"
+  stamp=""; [ $draft = 1 ] || [ "$hud" = true ] || stamp=$(bl_stamp)   # taken before rendering: an edit made meanwhile must not match
   echo "→ rendering '$slug' in Blender ($([ $draft = 1 ] && echo "draft, GPU" || echo "final, CPU"), ${workers} process(es), timeout ${timeout}s)"
   rc=0; run_watched bl_render "$FR" "0-$((FRAMES - 1))" || rc=$?
   T1=$(date +%s)
@@ -245,7 +271,7 @@ if [ $engine = blender ]; then
     -vf "scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv" \
     -c:v libx264 -preset slow -crf 8 -threads 1 \
     "$HFMP4" || die "could not encode the frames to ${HFMP4#$ROOT/}"
-  [ $draft = 1 ] || bl_stamp > "$FR/inputs.txt"       # determinism.sh compares fresh frames against these
+  [ -z "$stamp" ] || echo "$stamp" > "$FR/inputs.txt"   # determinism.sh compares fresh frames against these
 else
   echo "→ rendering '$slug' (${quality}, ${workers} worker(s), timeout ${timeout}s)"
   rc=0; run_hf --quality "$quality" --output "$HFMP4" || rc=$?

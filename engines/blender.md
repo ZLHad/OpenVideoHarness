@@ -215,7 +215,7 @@ ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt,color_range,co
 
 **管线里跑 agent 写的 `build.py`**：① 静态检查：AST 扫描，禁 `os`、`subprocess`、`socket`、`urllib`、`shutil`、`eval/exec`、`__import__`，`open` 只许写输出目录；② `--factory-startup`、不加 `-y`；③ 套 `sandbox-exec` 和 `env -i`（下）。第三方 `.blend` 和素材当不可信输入：先 `--disable-autoexec`（默认已是）打开，扫描文本块和驱动器再用。要联网取素材，单独做一步，显式 URL、记来源和许可，不在渲染进程里取。
 
-**`sandbox-exec`**（手册标注 DEPRECATED，但在 macOS 15 上可用）。下面的 profile 在 `sh`、`curl`、`python3`、`ffmpeg` 上验证过：输出目录可写；其他位置（包括 `/tmp` 和真实的 home）写入得到 `Operation not permitted`；网络被拒（`curl` 返回 000，不加沙箱时是 200）【实测】。**没有用 Blender 本体验证过。**
+**`sandbox-exec`**（手册标注 DEPRECATED，但在 macOS 15 上可用）。下面的 profile 在 `sh`、`curl`、`python3`、`ffmpeg` 上验证过：输出目录可写；其他位置（包括 `/tmp` 和真实的 home）写入得到 `Operation not permitted`；网络被拒（`curl` 返回 000，不加沙箱时是 200）【实测】。套 Blender 本体还要补几行，见下面的"首次冒烟"和 `styles/_swatch/render.sh` 的 `bl_profile`（一份在 Blender 5.2.2 上跑通的完整 profile）。
 
 ```scheme
 (version 1)
@@ -234,7 +234,7 @@ sandbox-exec -f vh_blender.sb env -i PATH="$PATH" HOME="$PWD/blender/out/.home" 
   blender -b --factory-startup ...
 ```
 
-Blender 自己需要写的位置（着色器缓存、用户配置目录）和 `env -i` 下还缺的环境变量都还没验证【未实测】，首次冒烟时按报错补白名单。沙箱不是安全边界的终点：`(allow default)` 只挡了网络和写入，读取 `~/.ssh`、`~/.zsh_secrets` 这类文件仍然放行（验证过）。要更严，在 profile 的 `(allow default)` 之后加一行拒读，例如 `(deny file-read* (subpath "/Users/<you>/.ssh") (literal "/Users/<you>/.zsh_secrets"))`（路径写绝对路径；实测读被拒，python 照常运行）。
+沙箱不是安全边界的终点：`(allow default)` 只挡了网络和写入，读取 `~/.ssh`、`~/.zsh_secrets` 这类文件仍然放行（验证过）。要更严，在 profile 的 `(allow default)` 之后加一行拒读，例如 `(deny file-read* (subpath "/Users/<you>/.ssh") (literal "/Users/<you>/.zsh_secrets"))`（路径写绝对路径；实测读被拒，python 照常运行）；或者整个家目录拒读，再放行项目和字体目录（样片的正式渲染就是这样）。用 Metal 渲染时整个家目录拒读会崩，见"首次冒烟"。
 
 ## 许可证（2026-10-01 已定：选项 (2)）
 
@@ -282,7 +282,11 @@ Blender 自己需要写的位置（着色器缓存、用户配置目录）和 `e
 - **同一帧、同一设置、新进程渲两次**（一个简单场景：木纹桌面、一个方块、一行中文、两盏灯，1920×1080，64 spp + OIDN）：CPU 上的 Cycles 逐像素相同；Metal 上的 Cycles 不同，PSNR 92 dB；EEVEE 不同，85 dB。都在 45 dB 线以上，但只有 CPU 能做到逐像素相同。风格样片的正式版因此走 CPU；草稿走 Metal。
 - **乱序、多进程**：`tabletop-miniature` 的 12 帧倒序分给 3 个新进程重渲，和整片按顺序渲出来的同一帧比（`styles/_swatch/determinism.sh`），结果见 `styles/_swatch/README.md`。
 - **速度**：上面那个简单场景每帧 CPU 21 s、Metal 4.5 s、EEVEE 1.1 s（含启动）。`tabletop-miniature`（约 70 个物体、文字、景深、4 盏灯）CPU 64 spp 每帧 32–43 s，32 spp 每帧 15–19 s，两者并排放大看不出差别；Metal 20 spp 每帧约 1.6 s。
-- **`sandbox-exec` 套 Blender**：只放行输出目录时，Metal 不能写着色器缓存，每帧都重编（2 s 变成 13 s）；场景需要新内核时 Blender 直接 abort（`Abort trap: 6`）。再放行 `getconf DARWIN_USER_CACHE_DIR` 和 `DARWIN_USER_TEMP_DIR` 两个本用户目录后正常，日志里仍有几行无害的 "Error creating directory"。`env -i` 只带 `PATH`、`LANG`，`HOME` 和 `TMPDIR` 指进输出目录，Blender 照常运行，Cycles 的内核缓存写到 `$HOME/.cache/cycles`。
+- **`sandbox-exec` 套 Blender**（完整的 profile 见 `styles/_swatch/render.sh` 的 `bl_profile`）：
+  - 只放行输出目录时，Metal 不能写着色器缓存，每帧都重编（2 s 变成 13 s）。再放行本用户缓存目录里 Blender 自己的子目录（`$(getconf DARWIN_USER_CACHE_DIR)org.blenderfoundation.blender`）就正常了；临时目录不用放行。日志里仍有几行无害的 "Error creating directory"。
+  - 冷启动时 Metal 编译内核要静默约 110 s，日志一行不动：看门狗的静默阈值要放宽（样片用 300 s）。
+  - 整个家目录拒读（只放行项目、Blender 安装目录和 `~/Library/Fonts`）：CPU 渲染照常，和不加这条时逐像素相同。Metal 在内核已经缓存好时会崩溃（SIGSEGV，崩在 `-[_MTLDevice recordBinaryArchiveUsage:]`），放行 `~/Library` 也不行。所以样片只在正式渲染（CPU）上加这条，草稿（Metal）仍然断网、只写输出目录，但不禁读。
+  - `env -i` 只带 `PATH`、`LANG`，`HOME` 和 `TMPDIR` 指进输出目录，Blender 照常运行，Cycles 的内核缓存写到 `$HOME/.cache/cycles`。
 - **字体**：`bpy.data.fonts.load()` 只读 .ttc 的第一个字形：`Songti.ttc` 读出 Songti SC Black，`Hiragino Sans GB.ttc` 读出 W3。要别的字重，先把那一面写成单独的字体文件（`styles/_swatch/blender_prep.py` 用 fontTools 做）。
 - **API**：5.2 里新建的材质和世界自带节点树，再设 `use_nodes` 会报 DeprecationWarning（6.0 删除）；Mix 节点有三组同名输入（float、vector、color 都叫 "A"），要按 identifier 取（`A_Color`、`Factor_Float`、`Result_Color`）；`view_transform` 和 `look` 是动态枚举，`bl_rna` 里查不到选项，直接设、失败再退（`AgX` 和 `AgX - Medium High Contrast` 都可用）；后台模式下 `stdout` 是块缓冲，Cycles 的进度行不会实时进日志，渲染器要自己 `print(..., flush=True)`，否则看门狗会以为卡住了。
 - **persistent data 会留下跨帧状态**：一个进程里按顺序逐帧 `apply(t)` 再 `bpy.ops.render.render()`，开着 `render.use_persistent_data` 时，CPU 上的 Cycles 在一段帧里把一个物体（茶杯）渲成全黑，单独渲同一帧是正常的；乱序重渲 12 帧，有 1 帧对不上（24.5 dB）。关掉以后每帧时间几乎不变。逐帧改属性再渲的流程不要开它，开了就要做乱序比对。

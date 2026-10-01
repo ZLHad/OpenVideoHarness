@@ -24,6 +24,8 @@ The scene module is plain Python. It imports bpy only where Blender runs it, so 
 import importlib.util, json, os, struct, sys, time, traceback, zlib
 from types import SimpleNamespace
 
+sys.dont_write_bytecode = True                 # importing swatch.py must not leave a __pycache__ in styles/<slug>/
+
 import bpy
 
 # mirror of lib.js (the content spec every swatch follows; styles/_swatch/README.md, "统一内容规格")

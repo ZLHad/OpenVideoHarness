@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：第 0 帧镜头贴着桌面，近近地对着一块睡着的毛毡小圆饼（2.2 cm 高），它身后虚着一只真实尺寸的石器茶杯，窗外深蓝，远处几盏灯化成光斑，房间里只有冷蓝的月光，窗框是深色的剪影。0.1 s 画外左上的台灯咔哒一声亮起（三帧灯丝预热，第二帧略过曝），暖光铺满桌面。0.33 s 小圆饼被惊醒：压扁一个姿势，蹦起来拉长 18% 一个姿势，落地睁眼，往右看一眼。0.3–1.2 s 镜头往后拉、往右移，三块木块依次进画；0.8 s 一张象牙色节目单卡片挂在两根线上从画面上方降下，它抬头看着，1.12 s 卡片拉到线头，弹两下、晃一晃，1.7 s 前停稳。1.2–1.53 s 它在桌上挪两小步，走到第一块木块前。2.0 / 2.4 / 2.8 s 它依次跳上三块木块："大纲"是原木，"分镜"下半截刷了红漆，"初版"整块上了红漆：漆刷了多少就是进度。前两跳镜头跟着推近、右移，这一段角色改成一拍一；在"分镜"上它停一下，抬头看红色的木块，蹲得更深，2.6 s 起跳，这一跳最快，也是一拍一，落地压得更扁。每一跳起跳一个钢琴音，落地一个高音区的钢琴音，一级比一级高。3.03 s 它回头看一眼爬过的台阶，眨一下眼，3.2 s 眯眼笑（^ ^）扭一扭，3.47 s 原地蹦一下，3.73 s 转头看灯。4.0 s 正好在最后一小节的强拍上，灯灭：房间退回月光的蓝，木块上的字还看得见，镜头还在慢慢往里靠，钢琴的属七和弦在黑里悬着；4.4 s 和弦解决，窗外天亮，晨光从窗格里斜照进来，颜色从粉走到金，纸卡被背光照透，镜头往窗户那边摇；它转向窗户，眼皮先垂下一半，4.8 s 闭上眼睛，点一下头，最后 6 帧停住。角色和道具一拍二（15 fps），每个姿势带 ±0.3 mm、±0.6° 的手放抖动；镜头和灯一拍一，像运动控制轨道；没有运动模糊。实际字体：Big Caslon Medium、Songti SC Bold。配乐 150 BPM、F 大调，只用一台小房间里的立式钢琴（明亮音色）：低音区铺底，高音区是角色的落地，底下一层房间底噪；拟音是台灯开关、毛毡落在木头上、线被拉直、纸、一只鸟。引擎是 Blender（Cycles），做法见下面的"引擎做法"。
+样片里：第 0 帧镜头贴着桌面，近近地对着一块睡着的毛毡小圆饼（2.2 cm 高），它身后虚着一只真实尺寸的石器茶杯，窗外深蓝，远处几盏灯化成光斑，房间里只有冷蓝的月光，窗框是深色的剪影。0.1 s 画外左上的台灯咔哒一声亮起（三帧灯丝预热，第二帧略过曝），暖光铺满桌面。0.33 s 小圆饼被惊醒：压扁一个姿势，蹦起来拉长 18% 一个姿势，落地睁眼，往右看一眼。0.25–1.05 s 镜头往后拉、往右移，三块木块从右边依次滑进画（开场时它们整个在画外，不会有半截字卡在画框上）；镜头快停下时，0.87 s 一张象牙色节目单卡片挂在两根线上从画面上方降下，它抬头看着，1.12 s 卡片拉到线头，弹两下、晃一晃，1.7 s 前停稳。1.2–1.53 s 它在桌上挪两小步，走到第一块木块前。2.0 / 2.4 / 2.8 s 它依次跳上三块木块："大纲"是原木，"分镜"下半截刷了红漆，"初版"整块上了红漆：漆刷了多少就是进度。前两跳镜头跟着推近、右移，这一段角色改成一拍一；在"分镜"上它停一下，抬头看红色的木块，蹲得更深，2.6 s 起跳，这一跳最快，也是一拍一，落地压得更扁。每一跳起跳一个钢琴音，落地一个高音区的钢琴音，一级比一级高。3.03 s 它回头看一眼爬过的台阶，眨一下眼，3.05–3.8 s 镜头升到它的眼高，绕着布景往左转，窗户转到它身后；这期间它 3.2 s 眯眼笑（^ ^）左右扭一下，蹲下，3.4 s 原地蹦一下（起、顶、落三个姿势），3.73 s 转头看灯。4.0 s 正好在最后一小节的强拍上，灯灭：它吓一跳，往下一缩、头往后仰、眼睛睁大，过三个姿势才缓过来；房间退回月光的蓝，木块上的字还看得见，镜头在黑里接着往左漂、越漂越快，钢琴的属七和弦在黑里悬着；4.4 s 和弦解决，窗外天亮，晨光从窗格里斜照进来，颜色从粉走到金，纸卡被背光照透，镜头带着漂的速度慢慢停下，晨光正好在它身后；它转向窗户，眼皮先垂下一半，4.8 s 闭上眼睛，点一下头，最后 6 帧停住。角色和道具一拍二（15 fps），每个姿势带 ±0.3 mm、±0.6° 的手放抖动；镜头和灯一拍一，像运动控制轨道；没有运动模糊。实际字体：Big Caslon Medium、Songti SC Bold。配乐 150 BPM、F 大调，只用一台小房间里的立式钢琴（明亮音色）：低音区铺底，高音区是角色的落地，底下一层房间底噪；拟音是台灯开关、毛毡落在木头上、线被拉直、纸、一只鸟。引擎是 Blender（Cycles），做法见下面的"引擎做法"。
 
 ## 学习对象
 
@@ -21,8 +21,10 @@
 
 ## 视觉语法
 
-- **尺度**：按真实尺寸建模，单位是米。角色 2–4 cm 高，舞台是真实尺寸的日常物件。景深由尺度决定：50–55 mm、f/4–4.5、对焦 30 cm 时，清晰范围只有 7–9 mm，焦平面之外的东西全化开，这就是"微缩"的来源。字和角色的脸必须放在焦平面上。
-- **色板**：
+下面是样片的做法和背后的理由。数字是样片在这个场景里用的值：换场景、换故事时按理由调，不必照抄。
+
+- **尺度**：按真实尺寸建模，单位是米。角色几厘米高、舞台是真实尺寸的日常物件时，景深自然就浅：样片用 54 mm、f/4.5、对焦 30 cm，清晰范围只有 7–9 mm，焦平面外的东西全化开，"微缩"就是从这里来的。想更像玩具就开大光圈，想让观众看清布景就收小一点；要读的字和角色的脸一般放在焦平面上。
+- **色板**（样片）：
 
   | 角色 | 颜色 | 含义 |
   |---|---|---|
@@ -31,38 +33,32 @@
   | 晨光 | `#FF9A7A` → `#FFD08A` | 时间过去了 |
   | 胡桃木桌面 | `#6E4A2E`、`#3A2516` | 舞台 |
   | 纸、墨 | `#EFE4CC`、`#2A211C` | 印在道具上的字 |
-  | 角色毛毡 | `#3F7F78` | 唯一的冷色实体，和暖光互补 |
-  | 三块木头 | 原木 `#D9C29A`；下半截刷红漆；整块红漆 `#9C2C24` | 从毛坯到成品：漆刷了多少就是进度，只用一种漆色 |
+  | 角色毛毡 | `#3F7F78` | 画面里唯一的冷色实体，和暖光互补 |
+  | 三块木头 | 原木 `#D9C29A`；下半截刷红漆；整块红漆 `#9C2C24` | 从毛坯到成品：漆刷了多少就是进度 |
 
-  暖的实用光对冷的环境光。
-- **光**：只用房间里真有的光源：台灯、蜡烛、窗户。光源可以在画外，但要说得出是哪一盏，所有阴影都指回它。光的颜色和方向变了，就是时间变了。夜里不是一片黑：月光从房间里照回来，暗部落在冷蓝的 12–20（8 位），字还读得出；没有光照到的东西（窗框）在夜里是剪影，不能比灯下的主体亮。
-- **字**：印在道具上，不做浮在画面上的字幕层。卡片、标签、木块、乐谱、票根都行。英文用 Big Caslon Medium，中文用 Songti SC Bold，墨色 `#2A211C`；红漆上用奶油色 `#F2E6C8`。节目单式的双线框（外线粗、内线细，相距约 1 mm）。道具小，字就容易小：按 1080p 成片量，主标题不小于 84 px，辅助字不小于 44 px（`TASTE_CHECKLIST` 第 6 条）。样片的木块只印大字中文，英文"OUTLINE / STORYBOARD / DRAFT"在 2.8 cm 的木块上到不了 44 px，所以不印。
-- **构图**：机位在角色眼睛的高度（离桌面约 3 cm），微微仰拍；桌面前景占下方 5–10%，背景是化开的墙和窗。主体沿一条斜线或台阶从左往右排。放一件真实尺寸的日常物件（茶杯、书、线轴）虚在角色身后，它告诉观众角色有多小。道具挂在角色前面时，它在画面上的位置要避开角色的运动路线：样片里卡片的下边缘按每一帧的投影算过，跳到最高时角色头顶离它还有 20 px。
-- **质感**：真实材质，不加 2D 的颗粒或纸纹叠层：木纹、毛毡的绒毛、纸的纤维、漆面的清漆，都是材质本身。
+  暖的实用光对冷的环境光，是这个风格最常见的一对颜色。也可以整片只用一种光，比如一个全是窗光的下午。
+- **光**：样片只用房间里真有的光源（台灯、窗户）。光源可以在画外，但阴影都指回它，观众就信这是一个真的房间。光的颜色和方向一变，时间就变了，这是讲时间最省话的办法。夜里样片留了一点月光，让暗部是冷蓝的、木块上的字还读得出；也可以全黑，那是另一种情绪，只是要想清楚观众在黑里看什么。上了清漆的桌面在掠射角会把窗和月光反成一条冷亮带，比标题还亮时会把眼睛拉到画角：样片把月光放高，让这道反光落在画外，夜里桌面仍留一层柔和的月光。
+- **字**：样片把字印在道具上（节目单卡片、木块），字也是布景的一部分。英文用 Big Caslon Medium，中文用 Songti SC Bold，墨色 `#2A211C`，红漆上用奶油色 `#F2E6C8`。浮在画面上的字幕层也能用，比如要给旁白配字幕时，代价是把观众从桌面上拉出来一下。道具小，字就容易小，这一条是硬的：按 1080p 成片量，主标题不低于 84 px，辅助字不低于 44 px（`TASTE_CHECKLIST` 第 6 条）。样片的木块只印大字中文，是因为英文标签在 2.8 cm 的木块上到不了 44 px。
+- **构图**：机位放在角色眼睛的高度、微微仰拍，观众就和角色一样小。身后虚着一件真实尺寸的日常物件（样片是茶杯），尺度不用解释就读出来了。道具挂在角色前面时，留意它会不会挡住角色的动作：样片先用针孔投影逐帧算过再渲（见"引擎做法"）。
+- **质感**：样片全靠材质本身：木纹、毛毡的绒毛、纸的纤维、漆面的清漆，没有加 2D 的颗粒或纸纹。想要更旧的胶片感也可以叠一层，只是大面积的颗粒很吃码率。
 
 ## 运动语法
 
-帧数按 30 fps 计。
+定格动画的手感是这个风格的一半。下面同样是样片的选择和理由。
 
-- **一拍二**：角色和道具 15 fps（每两帧换一个姿势），每个姿势带 ±0.3 mm 位移、±0.6° 转角的手放抖动，抖动按姿势号哈希，同一个姿势两帧完全相同。镜头和灯 30 fps 平滑，像运动控制轨道。
-- **镜头跟着角色动的时候、最快的动作，角色改一拍一**：定格动画的行规，机位一动就逐格拍，快动作也逐格拍。不这样，角色在画面上每到奇数帧就往回退（样片里第一版退了 8–16 px，看起来在抖）；最后那一跳在空中只有 3 个姿势，也一卡一卡的。只有位置和姿势改一拍一，手放抖动仍按两帧换一次。
-- **没有运动模糊**：逐格拍摄的相机没有运动模糊。
-- **缓动**：
-  - 跳：起跳前蹲一个姿势（压到 0.88，后仰 4°）；空中每个姿势都离地，4 个姿势（8 帧，走抛物线，拉长到 1.08、向前倾 9°），爬得高的那一跳多给一个姿势；落地那个姿势压扁到 0.85，下一个姿势回弹到 1.03，再下一个停稳。连着跳时，落地的压扁就是下一跳的下蹲。少于 4 个姿势的跳看起来像瞬移。
-  - 挂着的道具：降下时用 ease-in（越落越慢），到线头后上下弹、左右晃，都是闭式的阻尼正弦，1.5 s 内停稳。
-  - 镜头：关键位置之间用 `cubic-bezier(0.37,0,0.63,1)`。样片的机位依次是：贴近睡着的角色（它占画面高度的四分之一）；0.3–1.2 s 往后拉、右移，把卡片和木块收进来；1.6–2.5 s 跟着角色推近 9%、横移约 3 cm；慢推，灭灯的那一拍也在慢慢往里靠；天亮时往窗户那边摇。镜头一直在动，但每一段只做一件事。
-- **时长**：每一拍（0.4 s）至少一个动作：一次眨眼、一次转头、一次落地、一次晃动都算。灯一亮就要有角色的反应（醒来、抬头），而且要整个身体动，不能只换眼睛。表情之间插一个闭眼的姿势当眨眼，不要硬切。高潮前停一下：最后一跳之前站住、抬头看目标、蹲得更深，三跳不能是同一个节拍器。光的大变化（开灯、关灯）落在强拍上。灭灯的那一拍镜头也别停。结尾的光走完以后停 6 帧。
-- **转场**（全片只用这 3 种）：
-  - 开关灯：一拍之内整个画面的光换掉，构图不动；
-  - 拉焦：焦点从前景的物件移到后面的物件，或者反过来；
-  - 窗光延时：光的颜色和角度在 0.5–1 s 里走完几个小时。
-- **文字动画**：字跟着道具出场：吊景降下、被翻过来、被灯照亮、被推进画面。不逐字出。
+- **一拍二和一拍一**：样片里角色和道具大多一拍二（每两帧一个姿势，每个姿势带约 ±0.3 mm、±0.6° 的手放抖动），镜头和灯一拍一，像运动控制轨道，这是定格片常见的组合。有两处样片改成了一拍一：镜头跟着角色走的时候（不然角色在画面上会一帧前一帧后地抖，第一版退了 8–16 px），和最快的那一跳（一拍二只有 3 个姿势，看起来卡）。定格片自己也这么做：快动作、跟拍的镜头逐格拍。全片一拍一会更顺、更像 CG，全片一拍二会更粗粝、更手作，都是选择。
+- **运动模糊**：样片没有，因为逐格拍摄的相机本来就没有。想要更电影化的 3D 质感时可以加（`engines/blender.md` 有逐帧打关键帧的做法），代价是少一点定格味。
+- **跳和挂着的道具**：样片的跳是起跳前蹲一下，空中走抛物线、拉长、前倾，落地压扁再弹回。空中的姿势太少（样片第一版只有 2 个）会像瞬移；具体几个按距离和想要的轻重定。挂着的卡片降下时越落越慢，到线头弹两下、晃一晃再停，像剧场的吊景。
+- **镜头**：样片的镜头是一台看不见的运动控制轨道：贴近睡着的角色 → 开灯后拉开、把木块收进来，停稳了再降卡片 → 跟着角色推近、右移 → 慢推 → 高潮时升到角色眼高、绕着布景转，换一个角度（字和木块都留在画里，所以不是推近） → 灭灯后在黑里接着漂 → 天亮时顺着这股劲停下。每一段只做一件事，缓动用 `cubic-bezier(0.37,0,0.63,1)` 这一类两头慢的曲线。固定机位也完全成立，那是更像舞台剧的看法。
+- **节奏**：样片几乎每一拍（0.4 s）都有一点事：眨眼、转头、落地、晃动。光的大变化落在强拍上，角色最好对它有反应（样片灭灯时它吓一跳，第五轮评审之前它没反应，评审说像没看见）。黑下来的那一拍镜头没停，屏息才不会看成画面卡住。最后一跳前停一下、蹲得更深，给高潮一个预备。这些是几轮评审后留下的经验，不是配额：一段长长的静止，只要观众知道自己在等什么，也是好的。
+- **转场**：样片用了三种属于这个风格的转场：开关灯（构图不动，光在一拍之内全换掉）、拉焦（焦点从一个物件移到另一个）、窗光延时（光的颜色和角度在一秒内走完几个小时）。
+- **文字动画**：字跟着道具出场：吊景降下、被翻过来、被灯照亮、被推进画面。
 
 ## 声音语法
 
-- **配乐**：一件原声乐器，近距离收在小房间里（rt60 0.3–0.5 s）。角色的每个动作是一个音（起跳、落地、醒来、转头、睡着），音高跟着高度走：往上跳，音就往上走。样片的 `score.json` 只用 `piano`（`tone: bright`）：低音区带踏板铺底，起跳一个中音，落地一个不带踏板的高音，`roomtone` 一直垫在下面。两个音挨得太近（60 ms 以内）时，cue check 分不开，会把它们当成一个起音。
-- **音效**：小、近、干：开关的咔哒、毛毡落在木头上的闷响、线被拉直、纸。声像跟着物体在画面上的 x。内置库里没有这类声音，样片的都在 `styles/_swatch/custom_sfx.py` 里合成（固定种子，可以逐字节重建）。
-- **声画关系**：落地音和画面上落地的那一帧对齐（cue check）；起跳、醒来、转头、闭眼也各有一个音。关灯落在强拍上，之后的一拍是屏息：钢琴的属七和弦在黑里悬着，房间底噪垫着，天亮时才解决到主和弦。
+- **配乐**：一件原声乐器、近距离、小房间（rt60 0.3–0.5 s），和桌面的尺度最搭。样片只用一台立式钢琴（`piano`，`tone: bright`）：低音区带踏板铺底，角色的动作是高音区不带踏板的音，往上跳音就往上走，让动作"被听见"，`roomtone` 一直垫在下面。换成八音盒、木琴或一把吉他都行。
+- **音效**：小、近、干：开关的咔哒、毛毡落在木头上的闷响、线被拉直、纸。声像跟着物体在画面上的 x。内置库偏 UI，样片的这些声音都在 `styles/_swatch/custom_sfx.py` 里合成（固定种子，可以逐字节重建）。
+- **声画关系**：样片让落地音对准落地的那一帧，灯灭在强拍上，之后一拍属七和弦悬着，天亮时才解决到主和弦。两个技术上的坑：两个音挨得太近（60 ms 以内），cue check 会把它们当成一个起音；片中不能有数字静音，这是全仓库的底线，"静"要做成留着底噪的屏息。
 - **样片的转场音效**：开关灯本身的咔哒就是转场声；天亮用 `air`（`dir: up`，0.7 s）托起来，再加一只远处的鸟。
 
 ## 适合与不适合
@@ -71,25 +67,25 @@
 - **不适合**：数据密集、需要大量文字的段落；快剪的梗片；需要写实人物的内容；要求当天出片的项目（见下面的渲染时间）。
 - **容易被误用成**：光滑的 CG 广告 3D：处处清楚、光从四面八方来、动作每帧平滑、带运动模糊。那只是"3D"，不是微缩。
 
-## 禁止项
+## 容易翻车的地方
 
-1. 全景深，从前到后都清楚：尺度感就没了。
-2. 说不出来源的补光、从不存在的方向来的轮廓光、互相矛盾的阴影方向。
-3. 浮在画面上的 2D 字幕层，或者悬在空中、不属于任何道具的标题。
-4. 运动模糊；角色每帧平滑插值。
-5. 照搬 Clawd、Gromit、*Coraline* 的角色造型。
-6. 渲染噪点在静止区域闪烁（采样或降噪不够）。
-7. 纯黑的夜：大片像素压到 0，看起来是 CG 的空洞，不是有月光的房间。
+下面这些会把它变成"普通的 3D"或者"假的房间"。故意反着做也可以，但要知道换来了什么。
+
+1. 从前到后都清楚：尺度感最先丢。
+2. 说不出来源的补光、方向互相矛盾的阴影：房间就不像真的了。
+3. 角色每帧都平滑插值，再加上运动模糊：定格的手感没了，像产品广告。
+4. 照搬 Clawd、Gromit、*Coraline* 的角色造型：这是原创和版权问题，不是口味。
+5. 渲染噪点在静止区域闪烁：采样或降噪不够，这是技术问题。
 
 ## Prompt 块
 
 ```text
-Visual style: tabletop miniature, shot like stop-motion miniature photography. The set is a real-scale tabletop (a desk, a piano, a windowsill) modelled in metres; the characters are simple geometric puppets 2–4 cm tall (a felt puck, a wooden block) that act only with their gait and two bead eyes. Put one real-size everyday object (a teacup, a book, a spool) out of focus behind them so the scale reads. Camera at the puppet's eye height (about 3 cm above the table), 50–55 mm, f/4, focused at 30 cm, so only a few millimetres are sharp and the room melts into blur; keep every word and every face on the focus plane. Light comes only from practical sources in the room (a desk lamp, a candle, a window), warm 2700 K practicals against cool night ambience; changing the colour and angle of that light is how time passes (lamp clicks off, moonlight, dawn through the window bars). All text is printed on props (a playbill card with a double rule, labels on blocks), serif Latin (Big Caslon) and bold Song Chinese, dark ink; never a floating caption layer. Puppets and props move on twos (15 fps) with a sub-millimetre hand-placed jitter per pose, and on ones while the camera follows them; camera and lights move smoothly on ones like a motion-control rig; no motion blur. Hops: one crouched drawing, at least four drawings in the air on a parabola with stretch and lean, one squashed drawing on landing, a small overshoot, settled. The puppet reacts the moment the light changes; the camera follows the action in and holds still at the end. Real materials only: wood grain, felt fuzz, paper fibre, lacquer; no 2D grain overlay. Sound: one acoustic instrument recorded close in a small room (an upright piano): a pedalled low register underneath, each puppet action a dry high note that climbs as the puppet climbs, small dry foley (switch clicks, felt on wood, paper, thread), room tone underneath, a breath of silence-with-room-tone when the light goes out.
+Visual style: tabletop miniature, shot like stop-motion miniature photography. A real-scale tabletop set (a desk, a piano, a windowsill) modelled in metres, with simple geometric puppets a few centimetres tall (a felt puck, a wooden block) that act through their gait and two bead eyes; a real-size everyday object (a teacup, a book) out of focus behind them makes the scale read. The camera sits near the puppet's eye height with a 50–55 mm lens around f/4 focused at about 30 cm, so only millimetres are sharp and the room melts into blur; the words and faces that matter usually sit on the focus plane. Light comes from practical sources the room really has (a desk lamp, a candle, a window), often warm practicals against cool ambience, and the colour and angle of that light carry time (a lamp clicking off, moonlight, dawn through the window bars). Text tends to be printed on props (a playbill card, labels on blocks) in a classic serif and bold Song Chinese. Puppets mostly move on twos with a sub-millimetre hand-placed jitter, going to ones for fast moves and while the camera follows them; the camera and lights move smoothly like a motion-control rig, without motion blur. Hops read best with an anticipation crouch, an arc with some stretch and lean, and a squash on landing. Materials do the texture work: wood grain, felt fuzz, paper fibre, lacquer. Sound: one acoustic instrument recorded close in a small room, the puppet's actions as notes that climb as it climbs, small dry foley, room tone underneath.
 ```
 
 ## 引擎做法
 
-- **首选 Blender（Cycles）**。样片是 `swatch.py`：`build(env)` 搭场景，`apply(t, env)` 按 t 设好每个会动的属性，`styles/_swatch/blender_render.py` 逐帧调用、渲成 PNG。不打关键帧、不用 handler，所以没有运动模糊，这正是本风格要的；需要运动模糊的项目按 `engines/blender.md` 的做法逐帧采样成关键帧。
+- **样片用 Blender（Cycles）**：路径追踪的光、软阴影和真实景深，是这个风格最省力的来源。样片是 `swatch.py`：`build(env)` 搭场景，`apply(t, env)` 按 t 设好每个会动的属性，`styles/_swatch/blender_render.py` 逐帧调用、渲成 PNG。不打关键帧、不用 handler，所以没有运动模糊，这正是本风格要的；需要运动模糊的项目按 `engines/blender.md` 的做法逐帧采样成关键帧。
 - **一拍二**：`twos(t) = floor(round(30 t) / 2) · 2 / 30`，角色和道具的姿势都从 `twos(t)` 算；镜头和灯直接用 `t`。手放抖动用 `env.hash(姿势号, i)`。
 - **景深**：相机的 `dof.focus_object` 放一个空物体在角色眼睛的平面上，`aperture_fstop = 4.5`、`aperture_blades = 0`（圆形光斑）；镜头 54 mm。窗外的远灯是天空面上的 Voronoi 小亮点，约一半亮着、亮度各不相同，经过景深变成光斑。
 - **光**：台灯是画外的 Spot（半径 3 cm，软影）加一盏大面光模拟它照亮房间；灯丝预热是逐帧的强度表（0.35、1.12、0.9、1.0）。月光是窗外的面光；天亮是一盏 Sun，`angle` 1.2°，仰角 9° → 18°，颜色粉 → 金，窗框挡出窗格的影子。天亮时整个场景是逆光，角色的脸会变成剪影，所以再加一盏窄的暖色 Spot 只照它的脸，代表镜头后面被晨光照亮的房间。纸卡的材质混 35% 的 Translucent，背光时会透亮。
@@ -101,13 +97,13 @@ Visual style: tabletop miniature, shot like stop-motion miniature photography. T
 
 ## 自查重点
 
-- **焦平面**：100% 裁切看标题、标签和角色的眼睛，字边是清楚的。焦点放在角色的眼睛上，字的平面放在离它 ±3.5 mm 以内。
+- **焦平面**：100% 裁切看标题、标签和角色的眼睛，该清楚的字边是清楚的。
 - **字号**：按 1080p 成片量，主标题 ≥ 84 px，辅助字 ≥ 44 px。道具上的小字最容易不够。
-- **光源一致**：每一道影子都能指回一盏灯；画面里没有说不出来源的亮面。
-- **一拍二**：逐帧 strip 里角色每两帧换一次姿势，而镜头每一帧都在动。两样都平滑或者都一拍二，就是错的。
-- **遮挡**：挂在前景的道具不能挡住角色的运动路线。最省事的办法是不渲染就先算：用和场景同一个针孔相机模型，把道具的边和角色的头顶逐帧投影到画面上，看最小间距（样片是 20 px）。
-- **闪烁**：静止区域相邻帧做差，降噪残余不能闪。
-- **声音**：每个落地音和画面上落地的那一帧对齐（`bin/vh qa` 的 cue check），关灯后的屏息里不能有数字静音。
+- **光源**：每一道影子能不能指回一盏灯，画面里有没有说不出来源的亮面。
+- **一拍二和一拍一**：逐帧 strip 里看角色和镜头是不是各按各的节奏；镜头跟拍时，角色有没有一帧前一帧后地抖。
+- **遮挡**：挂在前景的道具会不会挡住角色的动作。不渲染也能先算：用和场景同一个针孔相机模型，把道具的边和角色的头顶逐帧投影到画面上，看最小间距（样片是 20 px）。
+- **闪烁**：静止区域相邻帧做差，看降噪残余闪不闪。
+- **声音**：落地音和画面上落地的那一帧对不对得上（`bin/vh qa` 的 cue check），屏息里有没有数字静音。
 
 ## 相关资源
 

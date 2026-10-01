@@ -4,10 +4,10 @@
 
 Night, a walnut desk under a window, everything at its real size: the felt puck is 2 cm tall, so the depth of field is
 a few millimetres and the room behind it melts into blur. 0.1 s: a desk lamp off frame (top left) clicks on and floods
-the desk. 0.8 s: the title card is flown in on two threads and settles on them. 2.0 / 2.4 / 2.8 s: the puck hops up
-three wooden blocks, 大纲 → 分镜 → 初版, raw wood → half painted → lacquered, one note per landing. 4.15 s: the lamp
-clicks off, a breath of moonlight, and 4.35–5.0 s the window brings the morning in, its bars throwing shadows across
-the desk.
+the desk; the puck wakes and the camera pulls back. 0.87 s: the title card is flown in on two threads and settles on
+them. 2.0 / 2.4 / 2.8 s: the puck hops up three wooden blocks, 大纲 → 分镜 → 初版, raw wood → half painted → lacquered,
+one note per landing; the camera cranes up to its eye height for the payoff. 4.0 s: the lamp clicks off, the puck
+flinches, a breath of moonlight, and 4.4–5.0 s the window brings the morning in behind it.
 
 The puppets (puck, card, blocks) move on twos (15 fps) with a hand-placed jitter; the camera and the lights move on
 ones, like a motion-control rig. No motion blur: a stop-motion camera has none. Every value is a function of t.
@@ -24,13 +24,14 @@ except ImportError:          # plain python3 (foley.mjs reads FOLEY): no Blender
 # ── time: 150 BPM, a beat is 0.4 s (score.json uses the same grid and meters). Puppet times sit on even frames (twos).
 LAMP_ON, LAMP_OFF = 0.1, 4.0                   # off on the downbeat of the last bar
 WAKE = 10 / 30                                 # the wake take: squash, stretch up, eyes open, settle by 0.53 s
-CARD_IN, CARD_DOWN = 0.56, 1.12                # lowered from above the frame (its edge shows at 0.8 s); the end of its lines
+CARD_IN, CARD_DOWN = 0.76, 1.12                # lowered once the pull-back has slowed (its edge shows at 0.87 s); the end of its lines
 SCOOTS = [(36 / 30, 40 / 30), (42 / 30, 46 / 30)]   # two small steps along the desk to the first block
 HOPS = [(52 / 30, 2.0), (64 / 30, 2.4), (78 / 30, 2.8)]   # (takeoff, landing) onto 大纲, 分镜, 初版: landings on the beat
 GLEE = 3.2                                     # happy eyes ^ ^ and a wiggle
-BOUNCE = (104 / 30, 3.6)                       # a small hop in place on 初版
+BOUNCE = (102 / 30, 3.6)                       # a small hop in place on 初版: crouch, rise, apex, fall, squash
 LOOK_BACK = 91 / 30                            # looks back down the steps it climbed
 TURN = 112 / 30                                # turns to the lamp
+STARTLE = 122 / 30                             # the lamp goes off: a flinch, eyes wide, then it settles in the dark
 DAWN = (4.4, 4.8)                              # moonlight held a beat, the window light rises, the last frames hold
 LOOK_WINDOW, SLEEP = 132 / 30, 4.8            # turns to the morning; eyes close on the last beat
 
@@ -42,14 +43,16 @@ PUCK_R, PUCK_H = 0.0115, 0.022
 PUCK_X = (-0.092, -0.079, -0.066)              # asleep, after the first step, after the second (the foot of 大纲)
 CARD = {"x": -0.028, "y": -0.0150, "z": 0.0768, "w": 0.100, "h": 0.034}   # bottom edge above every hop on screen
 CAM_KEYS = [                                   # (t, camera, aim, ease into this key): a motion-control rig
-    (0.0, (-0.082, -0.212, 0.021), (-0.086, 0.0, 0.0175), None),       # tight on the sleeping puck, at its eye height
-    (0.3, (-0.081, -0.206, 0.021), (-0.085, 0.0, 0.0175), "out"),     # leans in a little as the lamp comes on
-    (1.2, (-0.034, -0.327, 0.031), (-0.031, 0.0, 0.0485), "inout"),   # pulls back as the card comes down: the blocks appear
-    (1.6, (-0.034, -0.327, 0.031), (-0.031, 0.0, 0.0485), "lin"),
+    (0.0, (-0.092, -0.185, 0.021), (-0.0975, 0.0, 0.0175), None),      # tight on the sleeping puck, at its eye height
+    (0.25, (-0.091, -0.180, 0.021), (-0.0965, 0.0, 0.0175), "out"),   # leans in a little as the lamp comes on
+    (1.05, (-0.034, -0.327, 0.031), (-0.031, 0.0, 0.0485), "inout"),  # pulls back as it wakes: the blocks slide in
+    (1.6, (-0.034, -0.327, 0.031), (-0.031, 0.0, 0.0485), "lin"),     # holds while the card is lowered in
     (2.5, (-0.006, -0.300, 0.032), (-0.003, 0.0, 0.0490), "inout"),   # follows the hops in and to the right
-    (4.0, (-0.005, -0.293, 0.032), (-0.002, 0.0, 0.0488), "inout"),
-    (4.4, (-0.005, -0.290, 0.032), (-0.002, 0.0, 0.0488), "lin"),     # the dark: still creeping in
-    (5.0, (-0.003, -0.288, 0.0325), (0.003, 0.0, 0.0498), "inout"),   # a pan towards the morning window
+    (3.05, (-0.0058, -0.2985, 0.032), (-0.0028, 0.0, 0.0489), "lin"),  # creeps in over the poster frame
+    (3.8, (-0.0558, -0.2985, 0.044), (0.0032, 0.0, 0.0469), "inout"),   # the payoff: cranes up to its eye height and swings left round the set, so the
+                                                                     # window comes in behind it
+    (4.4, (-0.06364, -0.29738, 0.044), (0.00404, 0.0, 0.0469), "in"),   # the dark: drifts on the same way, gathering speed
+    (5.0, (-0.0698, -0.2965, 0.044), (0.0047, 0.0, 0.0469), "out"),   # and carries on (same speed at 4.4) as the morning comes in behind it
 ]
 ONES = (1.6, 86 / 30)                          # the puppet on ones while the camera follows it (or it ratchets back on screen)
                                                # and through the last, fastest hop (fast action on ones, holds on twos)
@@ -82,6 +85,7 @@ def seg(t, a, b): return clamp((t - a) / (b - a))
 def smooth(u): return u * u * (3 - 2 * u)
 def in_out(u): return 0.5 - 0.5 * math.cos(math.pi * clamp(u))
 def out_cubic(u): return 1 - (1 - clamp(u)) ** 3
+def in_sine(u): return 1 - math.cos(math.pi / 2 * clamp(u))
 def lerp3(a, b, u): return tuple(lerp(p, q, u) for p, q in zip(a, b))
 def twos(t): return math.floor(round(t * 30) / 2) * 2 / 30           # the puppets are re-posed every second frame
 def pose_time(t): return t if ONES[0] <= t < ONES[1] else twos(t)    # … except while the camera follows them
@@ -102,11 +106,12 @@ def dawn(t): return in_out(seg(t, *DAWN))
 
 
 def camera_at(t):
-    """(camera, aim) of the motion-control rig: wide on the sleeping puck, a slow drift, then it follows the hops in
-    and to the right, eases into a slow push, and holds once the lamp is off"""
+    """(camera, aim) of the motion-control rig: close on the sleeping puck, a pull-back, then it follows the hops in
+    and to the right, creeps in, cranes up and swings left round the set for its payoff, and drifts on through the dark
+    into the morning"""
     for (t0, c0, a0, _), (t1, c1, a1, ease) in zip(CAM_KEYS, CAM_KEYS[1:]):
         if t <= t1:
-            u = seg(t, t0, t1); u = {"out": out_cubic(u), "inout": in_out(u)}.get(ease, u)
+            u = seg(t, t0, t1); u = {"out": out_cubic(u), "inout": in_out(u), "in": in_sine(u)}.get(ease, u)
             return lerp3(c0, c1, u), lerp3(a0, a1, u)
     return CAM_KEYS[-1][1], CAM_KEYS[-1][2]
 
@@ -135,7 +140,7 @@ def puck_pose(t):
     moves = [(SCOOTS[0], 0, 1, 0.003, 4.0, 0.04, 0.9, 0.08), (SCOOTS[1], 1, 2, 0.003, 4.0, 0.04, 0.9, 0.08),
              (HOPS[0], 2, 3, 0.0096, 9.0, 0.08, 0.88, 0.15), (HOPS[1], 3, 4, 0.0066, 9.0, 0.08, 0.88, 0.15),
              (HOPS[2], 4, 5, 0.0062, 11.0, 0.10, 0.78, 0.22),             # the climb to 初版: a deeper crouch, a harder landing
-             (BOUNCE, 5, 5, 0.0035, 0.0, 0.05, 0.9, 0.08)]
+             (BOUNCE, 5, 5, 0.0045, 0.0, 0.06, 0.86, 0.1)]
     x, z = stands[0]; s = 1.0; rx = ry = rz = 0.0
     for (t0, t1), i, k, h, lean, st, crouch, depth in moves:
         hop = arc(t, t0, t1, stands[i], stands[k], h, lean, st, crouch)
@@ -151,19 +156,22 @@ def puck_pose(t):
     rx -= 6 * (smooth(seg(t, 1.533, 1.6)) - smooth(seg(t, 1.667, 1.7333)))       # sizes up the first block
     if 74 / 30 <= t < 78 / 30: rx -= 9; rz += 6                                  # on 分镜, looks up at the red block before the climb
     if LOOK_BACK <= t < GLEE: rz -= 15 * smooth(seg(t, LOOK_BACK, LOOK_BACK + 0.1)); rx += 4  # down at the steps
-    if GLEE <= t < GLEE + 0.24: rz += 9 * math.sin(2 * math.pi * (t - GLEE) / 0.12)   # a wiggle of joy
+    if GLEE <= t < GLEE + 2 * DRAW: rz += 8 if t < GLEE + DRAW else -8             # a wiggle of joy, then the hop
     turn = smooth(seg(t, TURN, TURN + 0.12)) * (1 - smooth(seg(t, LOOK_WINDOW, LOOK_WINDOW + 0.13)))
     rz += -26 * turn; rx += -9 * turn                                           # to the lamp, up and left
     win = smooth(seg(t, LOOK_WINDOW, LOOK_WINDOW + 0.13)); rz += 18 * win; rx += -5 * win   # then to the window
+    if STARTLE <= t < STARTLE + 4 * DRAW:                                       # the flinch: squash and lean back, recover
+        f = round((t - STARTLE) * 15); s *= (0.94, 0.96, 0.98, 0.99)[f]; rx += (-6, -5, -3, -1)[f]
     s *= 1 - 0.035 * smooth(seg(t, SLEEP, SLEEP + 0.13))                        # settles as it falls asleep,
     ry += 2.0 * smooth(seg(t, SLEEP, SLEEP + 0.13)); rx += 3.0 * smooth(seg(t, SLEEP, SLEEP + 0.13))   # a small nod and lean
     return x, z, s, rx, ry, rz
 
 
 def eyes(t):
-    """'closed' (two arcs) | 'open' (glass beads) | 'happy' (^ ^)"""
+    """'closed' (two arcs) | 'open' (glass beads) | 'half' | 'wide' | 'happy' (^ ^)"""
     if t < WAKE + 2 / 30 or t >= SLEEP: return "closed"
     if SLEEP - 2 * DRAW <= t < SLEEP: return "half"                              # heavy lids before it falls asleep
+    if STARTLE <= t < STARTLE + 3 * DRAW: return "wide"                          # the lamp goes off
     if GLEE - DRAW <= t < GLEE or TURN - DRAW <= t < TURN: return "closed"      # a blink between expressions
     if GLEE <= t < TURN: return "happy"
     return "open"
@@ -304,8 +312,8 @@ def build(env):
     ink = principled("ink", tk["ink"], 0.55)
     gold = principled("cream-paint", tk["gilt"], 0.45)
 
-    # the desk: varnished walnut, grain along x
-    desk = box("desk", 1.6, 1.2, 0.03, grain(principled("walnut", tk["walnut"], 0.42, Coat_Weight=0.35, Coat_Roughness=0.12),
+    # the desk: walnut under a satin varnish (a glossier coat mirrors the window as a cold streak), grain along x
+    desk = box("desk", 1.6, 1.2, 0.03, grain(principled("walnut", tk["walnut"], 0.42, Coat_Weight=0.35, Coat_Roughness=0.28),
                                              tk["walnut_dark"], tk["walnut"], (6, 160, 6), 0.05), origin="bottom")
     desk.location = (0, 0.15, -0.03)
 
@@ -401,21 +409,25 @@ def build(env):
     puck = lathe("puck", prof, felt); S["puck"] = puck
     glass = principled("bead", tk["bead"], 0.12, Coat_Weight=1.0, Coat_Roughness=0.03)
     S["eyes"], S["happy"], S["closed"] = [], [], []
+    def on_face(side, x, z):     # a point of a stitched eye (4.2 mm from the middle, a little inside the beads), laid on
+                                 # the round face: a flat arc floats off it at the ends and shows past the edge as it turns
+        return x, PUCK_R - math.sqrt(PUCK_R ** 2 - (side * 0.0042 + x) ** 2), z
     for side in (-1, 1):
         e = lathe(f"eye-{side}", [(0, -0.002)] + [(0.002 * math.sin(math.pi * i / 8), -0.002 * math.cos(math.pi * i / 8)) for i in range(1, 8)] + [(0, 0.002)], glass, segs=24)
         e.parent = puck; e.location = (side * 0.0047, -PUCK_R + 0.0008, 0.0141); e.scale = (1, 0.7, 1.15); S["eyes"].append(e)
         arc = bpy.data.curves.new(f"happy-{side}", "CURVE"); arc.dimensions = "3D"; arc.bevel_depth = 0.0005
-        sp = arc.splines.new("POLY"); pts = [(-0.0024, 0, -0.0009), (0, 0, 0.0014), (0.0024, 0, -0.0009)]
+        sp = arc.splines.new("POLY"); pts = [on_face(side, -0.0021 * (1 - i / 4), 0.0014 - 0.0021 * (1 - i / 4)) for i in range(4)]
+        pts += [on_face(side, 0.0021 * i / 4, 0.0014 - 0.0021 * i / 4) for i in range(1, 5)]
         sp.points.add(len(pts) - 1)
         for p, co in zip(sp.points, pts): p.co = (*co, 1)
         h = link(bpy.data.objects.new(f"happy-{side}", arc)); h.data.materials.append(glass)
-        h.parent = puck; h.location = (side * 0.0047, -PUCK_R - 0.0001, 0.0141); S["happy"].append(h)
+        h.parent = puck; h.location = (side * 0.0042, -PUCK_R - 0.0001, 0.0141); S["happy"].append(h)
         lid = bpy.data.curves.new(f"closed-{side}", "CURVE"); lid.dimensions = "3D"; lid.bevel_depth = 0.00045
-        sp = lid.splines.new("POLY"); pts = [(-0.0023 + 0.0046 * i / 6, 0, -0.0011 * math.sin(math.pi * i / 6)) for i in range(7)]
+        sp = lid.splines.new("POLY"); pts = [on_face(side, -0.0021 + 0.0042 * i / 6, -0.0011 * math.sin(math.pi * i / 6)) for i in range(7)]
         sp.points.add(len(pts) - 1)
         for p, co in zip(sp.points, pts): p.co = (*co, 1)
         c = link(bpy.data.objects.new(f"closed-{side}", lid)); c.data.materials.append(glass)
-        c.parent = puck; c.location = (side * 0.0047, -PUCK_R - 0.0001, 0.0135); S["closed"].append(c)
+        c.parent = puck; c.location = (side * 0.0042, -PUCK_R - 0.0001, 0.0135); S["closed"].append(c)
 
     # light: the desk lamp (off frame, top left), its spill on the room, moonlight at the window, the morning sun
     lamp = link(bpy.data.objects.new("lamp", bpy.data.lights.new("lamp", "SPOT")))
@@ -426,7 +438,8 @@ def build(env):
     spill.location = (-0.3, -0.35, 0.35); aim(spill, (0.05, 0.2, 0.05)); spill.data.size = 0.4
     spill.data.color = kelvinish(0.7); S["spill"] = spill
     moon = link(bpy.data.objects.new("moon", bpy.data.lights.new("moon", "AREA")))
-    moon.location = (0.17, wy + 0.06, 0.16); aim(moon, (0.0, 0.0, 0.0)); moon.data.size = 0.25
+    moon.location = (0.17, wy + 0.06, 0.27); aim(moon, (0.0, 0.0, 0.0)); moon.data.size = 0.25   # high: its glint on the
+                                                                                    # desk falls below the frame
     moon.data.color = lin(tk["moon"]); S["moon"] = moon
     sun = link(bpy.data.objects.new("sun", bpy.data.lights.new("sun", "SUN")))
     sun.data.angle = math.radians(1.2); S["sun"] = sun
@@ -457,7 +470,7 @@ def apply(t, env):
     S["cam"].location = cam; aim(S["cam"], at)
     lv, d = lamp_level(t), dawn(t)
     S["lamp"].data.energy = 4.2 * lv; S["spill"].data.energy = 1.9 * lv
-    S["moon"].data.energy = lerp(7.0, 0.0, d); S["moonfill"].data.energy = 0.9 * (1 - min(lv, 1.0)) * (1 - d)
+    S["moon"].data.energy = lerp(7.0, 0.0, d); S["moonfill"].data.energy = 1.5 * (1 - min(lv, 1.0)) * (1 - d)
     sun = S["sun"]; sun.data.energy = 8.5 * d ** 1.3; S["morning"].data.energy = 18.0 * d
     sun.data.color = lerp3(lin(tk["dawn_sun_pink"]), lin(tk["dawn_sun_gold"]), d)
     el, az = math.radians(lerp(9, 18, d)), math.radians(lerp(150, 157, d))      # from behind the window, to the left
@@ -476,7 +489,8 @@ def apply(t, env):
     p.scale = (1 / math.sqrt(s), 1 / math.sqrt(s), s)
     state = eyes(tp)
     for e in S["eyes"]:
-        e.hide_render = state not in ("open", "half"); e.scale = (1, 0.7, 1.15 * (0.45 if state == "half" else 1.0))
+        e.hide_render = state not in ("open", "half", "wide")
+        e.scale = (1.25 if state == "wide" else 1, 0.7, 1.15 * {"half": 0.45, "wide": 1.3}.get(state, 1.0))
     for h in S["happy"]: h.hide_render = state != "happy"
     for c in S["closed"]: c.hide_render = state != "closed"
     dx, dz, tilt = card_offset(tp)

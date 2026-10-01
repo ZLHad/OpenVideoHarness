@@ -11,9 +11,10 @@
 #
 # A Blender scene (swatch.py) takes minutes per frame set, so it is checked the way hard rule 1 words it: 12 frames
 # spread over the clip are rendered again, last to first, in <workers_b> fresh Blender processes, and compared with the
-# same frames of the full in-order render (out/<slug>/frames from the last final render.sh, when its stamp still
-# matches the scene; otherwise a full --png render with 1 process first). Final renders use Cycles on the CPU, which
-# gives the same pixels on every run, so these must be identical too.
+# same frames of the full render (out/<slug>/frames from the last final render.sh, when its stamp still matches the
+# scene; in order when that render used 1 process, the default. Otherwise a full in-order --png render with 1 process
+# first, kept as out/<slug>/frames for the next check). Final renders use Cycles on the CPU, which gives the same pixels
+# on every run, so these must be identical too.
 set -euo pipefail
 SW="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 slug=${1:?usage: styles/_swatch/determinism.sh <slug> [workers_b=3]}; wb=${2:-3}
@@ -25,8 +26,9 @@ if [ $blender = 1 ]; then
   SAMPLE="149,137,120,104,90,75,61,45,30,12,3,0"
   A="$OUT/frames"; own_a=0
   if [ ! -f "$A/inputs.txt" ] || [ "$(cat "$A/inputs.txt")" != "$("$SW/render.sh" "$slug" --stamp)" ]; then
-    echo "→ no final frames for the scene as it is now: rendering all of them in order first"
-    "$SW/render.sh" "$slug" --png --workers 1; A="$OUT/png-w1"; own_a=1
+    echo "→ no final frames for the scene as it is now: rendering all of them in order first (kept as out/<slug>/frames)"
+    "$SW/render.sh" "$slug" --png --workers 1
+    rm -rf "$A"; mv "$OUT/png-w1" "$A"; "$SW/render.sh" "$slug" --stamp > "$A/inputs.txt"
   fi
   "$SW/render.sh" "$slug" --png --workers "$wb" --frames "$SAMPLE"
   B="$OUT/png-sample-w$wb"; LIST=$B
