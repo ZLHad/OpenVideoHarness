@@ -2,11 +2,17 @@
 
 ## Unreleased
 
-**Showcase 02 and 03: word timings for the narration**
-- The narration timelines of 02 (Chinese) and 03 (English) have word timings and a speech-recognition check for every line (`words`, `asr`). They come from Gemini's transcription of the existing takes (`gemini-3.5-transcribe` through `tts.py`'s own transcribe → align_lines → asr_record, `--min-sim 0.9`); nothing was synthesized again. #32 left them out when the daily transcribe quota ran out.
-- `bin/vh captions` adds the words to each film's `audio/captions.json` and writes `audio/captions.zh.lines.srt` and `audio/captions.en.lines.srt`, one cue per wrapped line, each starting on its first spoken word. The subtitle tracks muxed into the finals (`captions.zh.srt`, `captions.en.srt`, `captions.bi.srt`) are byte-identical, so `media/final.mp4` is unchanged.
-- `tools/build_audio.sh` rebuilds both mixes byte for byte, and their mix reports now check masking word by word, not in 0.4 s chunks: 7 of 78 words (9 %) in 02 and 3 of 45 (7 %) in 03 are under the 6 dB presence floor. Both are inside the 10 % limit, so they only warn.
-- Similarity on the first pass: 8 of 02's 10 lines and 6 of 03's 8 are under 0.9 (02's hook 0.53, heard as "我已经信号回变调。"). After the re-check with a custom vocabulary, only 02's last line stays flagged (0.75). Each film's NOTES.md lists the spots to listen to; a line that is really misread can only be fixed by recording it again.
+**Showcase 02 and 03: word timings for the narration; 02's 2 GHz line re-taken**
+- The narration timelines of 02 (Chinese) and 03 (English) have word timings and a speech-recognition check for every line (`words`, `asr`). They come from Gemini's transcription of the takes (`gemini-3.5-transcribe` through `tts.py`'s own transcribe → align_lines → asr_record, `--min-sim 0.9`). #32 left them out when the daily transcribe quota ran out.
+- `bin/vh captions` adds the words to each film's `audio/captions.json` and writes `audio/captions.zh.lines.srt` and `audio/captions.en.lines.srt`, one cue per wrapped line, each starting on its first spoken word. The timings alone change neither the mixes nor the muxed subtitle tracks: 03's `media/final.mp4` is unchanged, and 03's mix rebuilds byte for byte.
+- The mix reports now check masking word by word, not in 0.4 s chunks. Under the 6 dB presence floor: 6 of 78 words (8 %) in 02, after the re-take below, and 3 of 45 (7 %) in 03. Both are inside the 10 % limit, so they only warn.
+- Similarity on the first pass: 8 of 02's 10 lines and 6 of 03's 8 are under 0.9 (02's hook 0.53, heard as "我已经信号回变调。"). After the re-check with a custom vocabulary, only 02's last line stays flagged (0.75). Each film's NOTES.md lists the spots to listen to.
+- 02's s2g line is re-taken, the only one synthesized again. Listening to the flagged spots, the maintainer heard "2 GHz" spelled out as G-H-Z. The new take:
+  - It is synthesized from "2 G赫兹：接近正负 50 千赫兹。" with the same voice (Aoede) and directions. The captions keep GHz / kHz, and a comment in `audio/script.txt` keeps the spoken form.
+  - It was picked from three candidates by two local Whisper models, which hear it as "二级赫兹接近正负50千赫兹" (the old take: the letters "GHz").
+  - It is spliced into `voiceover.zh.flac` at the same start, 14.90 s, and ends at 17.41 s instead of 17.32. No other line's samples changed.
+  - The mix is rebuilt with its true-peak ceiling at −1.84 dBTP in `tools/build_audio.sh`; at −1.65 the AAC encode peaked at −1.41.
+  - `media/final.mp4` is re-muxed: the video stream is copied unchanged and the line's subtitle cue ends at 17.41 s. The mix stays at −14.0 LUFS, measures −1.59 dBTP after the encode, and keeps every cue within one frame.
 
 **`bin/vh hf-init`: the scaffold's font comes from the machine, not from Google Fonts**
 - HyperFrames 0.8.82's scaffold sets `font-family: Inter, ui-sans-serif, system-ui, sans-serif` with no `@font-face`, so `render`, `snapshot` and `check` ask Google Fonts for Inter on every run; the cached woff2 files do not stop the request. Where fonts.googleapis.com is blocked, the render sits at 5 % "Compiling composition" and `snapshot` and `check` print nothing (with the request held open, all three were still running when stopped after 90–150 s; a render with all of Inter already cached hung the same way). When the request fails at once there is no warning, and the 600 title renders in HyperFrames' bundled Inter 700.

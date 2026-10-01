@@ -1,6 +1,8 @@
 # 旁白 = STORYBOARD.md 的 Caption script（c0–c9），逐句贴着烧录字幕念；只加了"时""？"这类口语连接，不改事实。
 # 每句的起点由 audio/vo_grid.json 给出（镜头起点 + 0.2–0.3 s），bin/vh tts --beats audio/vo_grid.json 卡上去。
 # 右侧英文只进软字幕（captions.en.srt），不念。
+# s2g 的念法和字幕不同：现在的 take 是 2026-10-01 用"2 G赫兹：接近正负 50 千赫兹。"重录的（同一音色和指示），因为照下面的
+# 字幕原文合成，GHz 被念成了 G、H、Z 三个字母。字幕仍写 GHz / kHz。整稿重新合成时，这一句也要换成这个念法。
 @hook [好奇地抛出问题，快，尾音上扬] 卫星信号会变调？ || Satellite signals change pitch?
 @why [干脆揭晓，带笑意] 原因是多普勒频移。 || The cause: the Doppler shift.
 @leo [兴奋，语速快，"极快"重读] 低轨卫星，飞得极快！ || Low-orbit satellites fly incredibly fast.

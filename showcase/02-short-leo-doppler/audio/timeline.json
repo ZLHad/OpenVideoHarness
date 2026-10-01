@@ -430,18 +430,18 @@
       "direction": "报数字，利落",
       "text": "2 GHz：接近正负 50 kHz。",
       "start": 14.9,
-      "end": 17.32,
+      "end": 17.41,
       "file": "audio/vo/zh/07.wav",
       "asr": {
-        "text": "二级 THD在接近正负 50千赫兹。",
-        "similarity": 0.5,
+        "text": "二级核子仅仅政府 50千核子。",
+        "similarity": 0.1,
         "head": 0.1,
-        "tail": 0.12,
+        "tail": 0.11,
         "recheck": {
-          "text": "2 GHz 在接近正负 50 kHz。",
-          "similarity": 0.941,
+          "text": "2 GHz 接 近 正 负 50 kHz 。",
+          "similarity": 1.0,
           "vocab": [
-            "2 GHz",
+            "2 GHz 接 近 正 负 50",
             "50 kHz",
             "多普勒频移",
             "频移",
@@ -457,42 +457,42 @@
         {
           "w": "2",
           "start": 15.0,
-          "end": 15.4
+          "end": 15.217
         },
         {
           "w": "GHz：",
-          "start": 15.4,
-          "end": 15.8
+          "start": 15.217,
+          "end": 15.433
         },
         {
           "w": "接",
-          "start": 15.8,
-          "end": 15.9
+          "start": 15.433,
+          "end": 15.65
         },
         {
           "w": "近",
-          "start": 15.9,
-          "end": 16.0
+          "start": 15.65,
+          "end": 15.867
         },
         {
           "w": "正",
-          "start": 16.0,
-          "end": 16.1
+          "start": 15.867,
+          "end": 16.083
         },
         {
           "w": "负",
-          "start": 16.1,
+          "start": 16.083,
           "end": 16.3
         },
         {
           "w": "50",
           "start": 16.3,
-          "end": 16.7
+          "end": 16.8
         },
         {
           "w": "kHz。",
-          "start": 16.7,
-          "end": 17.2
+          "start": 16.8,
+          "end": 17.3
         }
       ]
     },
