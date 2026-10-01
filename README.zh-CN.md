@@ -111,6 +111,10 @@ GIF 是压缩过的无声预览。你做出来的片子也欢迎 PR 进 `showcas
 | [Functional Emotions](https://x.com/eudaemonea/status/2102610626321490404) | 绘画 MV · 372 秒 | 自己写的 WebGL 笔触渲染器，7 个 subagent | [cases/mv-functional-emotions.md](cases/mv-functional-emotions.md) |
 | [Claude Pop](https://x.com/donaldjewkes/status/2102801274173587569) | 混合 MV | 生成式视频打底，再用代码转描，连续跑了 12 小时 | [cases/mv-claude-pop.md](cases/mv-claude-pop.md) |
 | [星际穿越里的真物理·黑洞篇](https://x.com/AndyL5cc/status/2104519528873103773) | 横屏科普 · 143 秒 | 一句话需求，一个黑洞着色器撑起全片 | [cases/explainer-interstellar-blackhole.md](cases/explainer-interstellar-blackhole.md) |
+| [你问 AI 一句话之后的 3 秒钟](https://v.douyin.com/MONt8dOfuEo/) | 知识科普 · 126 秒 | 把 3 秒放慢成 2 分钟，计时和慢放倍数一直挂在屏幕上 | [cases/oneshot-five.md](cases/oneshot-five.md) 第 1 节 |
+| [我眼中的你](https://v.douyin.com/kTpIVOEMsEY/) | 肖像片 · 231 秒 | 作者说一段短 prompt 一次生成；Claude 用用户自己的笔记、原话和提交来讲他 | [cases/oneshot-five.md](cases/oneshot-five.md) 第 2 节 |
+| [Opus 5.5 自我介绍](https://v.douyin.com/bGfv-xMIKWc/) | 动态图形 · 35 秒 | 讲到哪一步制作，画面就用那一步的技术画；prompt 写明不许用已装的 skill | [cases/oneshot-five.md](cases/oneshot-five.md) 第 3 节 |
+| [FunTech Showreel 2026](https://x.com/tkm_hmng8/status/2105255710531674358)、[Tesseract for design](https://x.com/trymirage/status/2105314048766033999) | showreel · 50 秒；发布片 · 31 秒 | 一个吉祥物穿过十几种风格；一个铬立方体从设计系统走到成片 | [cases/oneshot-five.md](cases/oneshot-five.md) 第 4–5 节 |
 | [Applore 宣传片](https://x.com/decohack/status/2104502625055949242) | 产品片 · 15 秒 | 一句 showreel 提示词加真实素材 | [cases/promo-applore.md](cases/promo-applore.md) |
 | [Austerlitz, 2 December 1805](https://x.com/WinterArc2125/status/2103116235009347650) | 3D 历史片 · 301 秒 | WebGL2 加真实地形；旁白有多长，镜头就有多长；音效的左右和远近从画面算出来 | [cases/opus55-gallery.md](cases/opus55-gallery.md) 第 6 节 |
 | [389 支社区作品](https://github.com/yihui-dev/awesome-opus5-5-videos) 和 [962 支作品目录](https://github.com/zhuyansen/awesome-opus-5.5-video) | 各类 | 提示词统计、归类、精选 | [cases/opus55-gallery.md](cases/opus55-gallery.md) |
@@ -388,7 +392,7 @@ OpenVideoHarness/
 ├── templates/                每个新项目要填的文件：需求、分镜、风格、审阅、决定、笔记、经验、清单；按需再加旁白稿、角色、标题封面
 ├── styles/                   28 种风格，各带样片；_swatch/ 是样片渲染器
 ├── recipes/                  镜头配方：一镜怎么动（帧数、命门、坑）+ 整支片子的节奏骨架
-├── cases/                    12 个案例拆解 + 社区作品精选 + 一支 3D 长片深读
+├── cases/                    13 个案例拆解 + 社区作品精选 + 一支 3D 长片深读
 ├── showcase/                 本仓库自己做的片子（源码 + 成片 + 过程记录）
 ├── engines/                  自带的手绘引擎 + 其他引擎的安装说明
 ├── references/               fetch.sh（拉取 30 个只读参考仓库）· 开源清单 · 社区 skill 精选

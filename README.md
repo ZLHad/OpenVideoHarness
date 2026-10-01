@@ -111,6 +111,10 @@ The GIFs are compressed, silent previews. Films you make with it are welcome in 
 | [Functional Emotions](https://x.com/eudaemonea/status/2102610626321490404) | Painted MV · 372 s | A custom WebGL brush renderer, 7 subagents | [cases/mv-functional-emotions.md](cases/mv-functional-emotions.md) |
 | [Claude Pop](https://x.com/donaldjewkes/status/2102801274173587569) | Hybrid MV | Generative video as a base, traced over in code; a 12-hour run | [cases/mv-claude-pop.md](cases/mv-claude-pop.md) |
 | [The real physics of Interstellar: black holes](https://x.com/AndyL5cc/status/2104519528873103773) | Science explainer · 143 s | A one-sentence request; one black-hole shader carries the film | [cases/explainer-interstellar-blackhole.md](cases/explainer-interstellar-blackhole.md) |
+| [You ask an AI one question: the next 3 seconds](https://v.douyin.com/MONt8dOfuEo/) | Knowledge explainer · 126 s | 3 seconds slowed to 2 minutes; a clock and a slow-motion factor stay on screen | [cases/oneshot-five.md](cases/oneshot-five.md) §1 |
+| [我眼中的你 (You, as I see you)](https://v.douyin.com/kTpIVOEMsEY/) | Portrait · 231 s | The author says it came out in one go from a short prompt; Claude narrates its user from his notes, quotes and commits | [cases/oneshot-five.md](cases/oneshot-five.md) §2 |
+| [Opus 5.5 introduces itself](https://v.douyin.com/bGfv-xMIKWc/) | Motion graphics · 35 s | Each step of how it was made is drawn with that step's technique; the prompt says not to use installed skills | [cases/oneshot-five.md](cases/oneshot-five.md) §3 |
+| [FunTech Showreel 2026](https://x.com/tkm_hmng8/status/2105255710531674358) and [Tesseract for design](https://x.com/trymirage/status/2105314048766033999) | Showreel · 50 s; launch film · 31 s | One mascot through a dozen style worlds; one chrome cube from design system to finished video | [cases/oneshot-five.md](cases/oneshot-five.md) §4–5 |
 | [Applore promo](https://x.com/decohack/status/2104502625055949242) | Product film · 15 s | One showreel prompt plus real assets | [cases/promo-applore.md](cases/promo-applore.md) |
 | [Austerlitz, 2 December 1805](https://x.com/WinterArc2125/status/2103116235009347650) | 3D history film · 301 s | WebGL2 on real terrain; each shot lasts as long as its narration; sound effects are panned and distanced from the picture | [cases/opus55-gallery.md](cases/opus55-gallery.md) §6 |
 | [389 community videos](https://github.com/yihui-dev/awesome-opus5-5-videos) and [a 962-work catalog](https://github.com/zhuyansen/awesome-opus-5.5-video) | Mixed | Prompt statistics, categories, curated picks | [cases/opus55-gallery.md](cases/opus55-gallery.md) |
@@ -340,7 +344,7 @@ OpenVideoHarness/
 ├── templates/                files each new project fills in: brief, storyboard, style, review, decisions, notes, lessons, checklist; script, character and packaging when needed
 ├── styles/                   28 styles, each with a sample; _swatch/ renders the samples
 ├── recipes/                  shot recipes: how a shot moves (frames, critical values, pitfalls) + pacing skeletons for whole films
-├── cases/                    12 case studies + curated community work + a 3D long-form deep-dive
+├── cases/                    13 case studies + curated community work + a 3D long-form deep-dive
 ├── showcase/                 films made with this repo (source + final + process notes)
 ├── engines/                  the built-in hand-drawn engine + setup notes for the others
 ├── references/               fetch.sh (30 read-only reference repos) · open-source list · community skills
