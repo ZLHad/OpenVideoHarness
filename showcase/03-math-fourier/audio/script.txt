@@ -1,0 +1,12 @@
+# Narration written from STORYBOARD.md reads; the picture carries the maths, the voice says where to look and why.
+# Facts from tools/verify_math.py / NOTES.md: odd harmonics sin(nx)/n; Gibbs overshoot 8.95 % of the jump (≈ 9 %), its
+# height stays at 1.179 while its width shrinks as N grows (N = 25 → 99 on screen).
+# Line starts come from audio/vo_grid.json (read start + 0.1–0.4 s), placed with bin/vh tts --beats audio/vo_grid.json.
+@square [setting the scene] Take a square wave.
+@sine [mildly surprised] One sine comes close.
+@recipe [explaining, a touch playful] Add odd sines, each one smaller.
+@third [quick, matter-of-fact] Sine 3x: a third as tall.
+@more [pleased, picking up pace] 5x, 7x, and the corners sharpen.
+@except [leaning in, then a small twist] It squares up, except at the jump.
+@over [curious, a little amazed] More terms only make the overshoot thinner.
+@gibbs [calm and conclusive] About nine percent of the jump.

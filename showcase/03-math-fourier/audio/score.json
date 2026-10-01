@@ -1,0 +1,28 @@
+{
+  "_about": "Bed for the Fourier explainer (bin/vh music), 3Blue1Brown register: felt piano over soft strings and a low D drone, no drums. 75 BPM (24 frames a beat at 30 fps), D major. The score starts 0.3 s into the film (tools/build_audio.sh delays it), so beat k is at 0.3 + 0.8 k s: A 0.3–4.3 (5 beats) · C 4.3–8.3 (5; the equation writes from 4.3) · D 8.3–14.7 (4+4, the harmonics) · Dinf 14.7–17.1 (3) · E 17.1–18.7 (2, the zoom) · F 18.7–21.9 (4, the overshoot) · P 21.9–25.1 (4, the payoff). Without drums a chord 0.1–0.2 s off a picture change reads as phrasing; the frame-exact moments are the foley's partial-sum tones, which spell D4's harmonic series (D, A, F#, and a flat C). The piano answers them: A on the 3rd harmonic's merge (10.2), F# on the 5th (12.5), C on the 7th (14.4, a D7 colour that leans into G for the sweep). Hush on E (Dsus2), unresolved Bm7 under the horn, and the D major chord lands with the brace (21.8).",
+  "bpm": 75,
+  "key": "D",
+  "mode": "major",
+  "seed": 3,
+  "stereo": true,
+  "space": "hall",
+  "meters": {"1": 5, "2": 5, "3": 4, "4": 4, "5": 3, "6": 2, "7": 4, "8": 4},
+  "sections": [
+    {"name": "A", "bars": 1, "chords": ["I"]},
+    {"name": "C", "bars": 1, "chords": ["I"]},
+    {"name": "D", "bars": 2, "chords": ["I", "I"]},
+    {"name": "Dinf", "bars": 1, "chords": ["IV"]},
+    {"name": "E", "bars": 1, "chords": ["Isus2"]},
+    {"name": "F", "bars": 1, "chords": ["vi7"]},
+    {"name": "P", "bars": 1, "chords": ["I"]}
+  ],
+  "parts": [
+    {"inst": "drone", "figure": "sustain", "pitch": ["c0"], "hold": "section", "gain_db": -14},
+    {"inst": "strings", "figure": "sustain", "voicing": "spread", "gain_db": -12, "lp": 2200, "send": 0.4, "params": {"attack": 0.8, "release": 1.2}, "by_section": {"A": {"vel": 0.6}, "E": {"vel": 0.55}}},
+    {"inst": "piano", "id": "p_a", "sections": ["A"], "params": {"tone": "felt", "pedal": true}, "gain_db": -3, "send": 0.35, "pattern": [[0, 5, "D3", 0.35], [4.5, 1.5, "A5", 0.45]]},
+    {"inst": "piano", "id": "p_c", "sections": ["C"], "params": {"tone": "felt", "pedal": true}, "gain_db": -3, "send": 0.35, "pattern": [[0, 1, "D4", 0.5], [1, 1, "F#4", 0.42], [2, 1, "A4", 0.42], [3, 2, "D5", 0.48]]},
+    {"inst": "piano", "id": "p_d", "sections": ["D"], "loop": 2, "params": {"tone": "felt", "pedal": true}, "gain_db": -3, "send": 0.35, "pattern": [[0, 2, "D3", 0.35], [2.375, 2, "A4", 0.5], [5.25, 1.5, "F#5", 0.45], [7.625, 1.5, "C6", 0.45]]},
+    {"inst": "piano", "id": "p_inf", "sections": ["Dinf"], "params": {"tone": "felt", "pedal": true}, "gain_db": -3, "send": 0.35, "pattern": [[0, 3, ["G2", "D3", "B3", "G4", "D5"], 0.5]]},
+    {"inst": "piano", "id": "p_f", "sections": ["F"], "params": {"tone": "felt", "pedal": true}, "gain_db": -3, "send": 0.35, "pattern": [[0.25, 3.5, ["B2", "F#3", "A3", "D4", "F#4"], 0.38], [3.875, 4, ["D2", "A2", "F#3", "A3", "D4", "F#4", "A4"], 0.55]]}
+  ]
+}

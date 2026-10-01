@@ -1,0 +1,8 @@
+# Regenerable (see ../README.md › Soundtrack): tools/foley.py + bin/vh sfx lib → sfx/; bin/vh music → music.wav;
+# bin/vh mix → mix.wav, stems/, mix.log; bin/vh qa → qa*.txt*. Rebuild them all with tools/build_audio.sh.
+*.wav
+sfx/
+stems/
+mix.log
+qa*.txt
+qa*.txt.log

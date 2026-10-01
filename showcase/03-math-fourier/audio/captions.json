@@ -1,0 +1,75 @@
+[
+  {
+    "id": "square",
+    "start": 0.3,
+    "end": 1.36,
+    "zh": [],
+    "en": [
+      "Take a square wave."
+    ]
+  },
+  {
+    "id": "sine",
+    "start": 2.2,
+    "end": 3.87,
+    "zh": [],
+    "en": [
+      "One sine comes close."
+    ]
+  },
+  {
+    "id": "recipe",
+    "start": 4.7,
+    "end": 7.34,
+    "zh": [],
+    "en": [
+      "Add odd sines, each one smaller."
+    ]
+  },
+  {
+    "id": "third",
+    "start": 8.2,
+    "end": 10.6,
+    "zh": [],
+    "en": [
+      "Sine 3x: a third as tall."
+    ]
+  },
+  {
+    "id": "more",
+    "start": 11.3,
+    "end": 14.67,
+    "zh": [],
+    "en": [
+      "5x, 7x, and the corners sharpen."
+    ]
+  },
+  {
+    "id": "except",
+    "start": 15.6,
+    "end": 18.13,
+    "zh": [],
+    "en": [
+      "It squares up, except at the jump."
+    ]
+  },
+  {
+    "id": "over",
+    "start": 19.0,
+    "end": 21.8,
+    "zh": [],
+    "en": [
+      "More terms only make the overshoot",
+      "thinner."
+    ]
+  },
+  {
+    "id": "gibbs",
+    "start": 22.6,
+    "end": 24.22,
+    "zh": [],
+    "en": [
+      "About nine percent of the jump."
+    ]
+  }
+]
