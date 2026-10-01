@@ -11,7 +11,7 @@
 
 ## Question
 
-A listening pass found that the soundtracks of the 28 style swatches overlap in taste. Can one number say how alike two soundtracks are, and can we push them apart by that number?
+The soundtracks of the 28 style swatches overlap in taste: one synth palette, 20 of the 28 at 150 BPM, all mono (the numbers are under Setup). Can one number say how alike two soundtracks are, and can we push them apart by that number?
 
 ## Setup
 

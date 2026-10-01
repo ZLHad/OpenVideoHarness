@@ -11,7 +11,7 @@
 
 ## Question
 
-After listening to the current soundtracks, the maintainer found them formulaic: no melody, and no sense of emphasis or chapters. What is actually missing, and when nobody can listen, how do we measure whether a score has chapters, a theme and a dynamic arc?
+The loudness of the current soundtracks is a plateau, with no theme you could hum and little variation in emphasis or dynamics (see the table under Findings). What is actually missing, and when nobody can listen, how do we measure whether a score has chapters, a theme and a dynamic arc?
 
 ## Setup
 

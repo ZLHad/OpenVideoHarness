@@ -6,6 +6,7 @@
 >
 > - **落地**：[#21](https://github.com/ZLHad/OpenVideoHarness/pull/21) 把原型合并进了仓库。混音器是 [`tools/audio/mix.py`](../../tools/audio/mix.py)（`bin/vh mix … profile=explainer|short|promo|cartoon|mv|swatch`），混音报告是 [`tools/audio/qa.py`](../../tools/audio/qa.py) 的 `qa mix`，用法和各 profile 的数字写在 [`playbook/04-audio.md`](../../playbook/04-audio.md) 的"混音"一节。
 > - **复算**：用入库的实现重算，下面 C 行的 VMR 和风险词数没有变：03 的 VMR 中位数 / 最差句 13.1 / 13.0 LU，02 是 11.5 / 11.2 LU，风险词 3/46 和 1/26。
+> - **样板片**：[#32](https://github.com/ZLHad/OpenVideoHarness/pull/32) 把这些 profile 用在了样板片 00–03 上（00 `promo`、01 `cartoon`、02 `short`、03 `explainer`）。02 和 03 的 VMR（中位数 / 最差句）和这里的 C 行相同，11.5 / 11.2 LU 和 13.1 / 13.0 LU；A 行（7.9 / 1.3、8.3 / 4.9）就是 #32 说的第一个候选。
 > - **母带**：默认仍是 `tp=-1.65`，比 −1.5 dBTP 低 0.15 dB，但 AAC 对真峰值的影响取决于内容和码率（#21 在四个样片、128k 下测到 +0.16…+0.86 dB，[#31](https://github.com/ZLHad/OpenVideoHarness/pull/31) 在 28 份新配乐上是 −1.9…+1.4 dB），0.15 dB 不总是够。所以 `styles/_swatch/render.sh` 要量编码后的 mp4，超过 −1.5 dBTP 就降低 `tp` 重混，最多 3 次。
 > - **风险词**：没有词级时间时只警告、不判失败（按 0.4 s 一段算，03 上读 11 %，真实词是 7 %）。
 > - **抽吸检查**：给了 `--stems` 时，不再算配乐自己的凹陷。
