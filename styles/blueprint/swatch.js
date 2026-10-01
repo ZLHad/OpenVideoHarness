@@ -26,15 +26,17 @@ const wordStarts = (str, t0, stag) => { const out = []; let n = 0, prev = " "; f
 export const FOLEY = [
   { t: TL.roll[0] + 0.6 * (TL.roll[1] - TL.roll[0]), sfx: "whoosh", gain_db: -12 },      // the sheet unrolls
   { t: TL.roll[1], sfx: "click", gain_db: -8 },                                           // …and lands
-  { t: TL.hLine[0], sfx: "tick", gain_db: -12, pan: -0.7 },                            // the pen touches down
+  // the ticks sit 8 dB higher than first written (12 for the figure ticks): the marimbas' 16ths cover 1–4 kHz, and
+  // at the old gains every tick was 15–21 dB under the bed (qa mix: BURIED), the figure ticks only a faint match
+  { t: TL.hLine[0], sfx: "tick", gain_db: -4, pan: -0.7 },                             // the pen touches down
   { t: TL.cross[1], sfx: "click", gain_db: -6, pan: 0 },                                  // crosshair clicks into place
-  ...wordStarts("Every frame is code.", TL.letter0, TL.stag).map((t, i) => ({ t, sfx: "tick", gain_db: -18, pan: pan(260 + i * 300) })),
-  { t: TL.zh, sfx: "tick", gain_db: -18, pan: pan(260) },
-  ...FIG_X.map((x, k) => ({ t: TL.fig(k), sfx: "tick", gain_db: -14, pan: pan(x) })),    // each figure's first centre line
+  ...wordStarts("Every frame is code.", TL.letter0, TL.stag).map((t, i) => ({ t, sfx: "tick", gain_db: -10, pan: pan(260 + i * 300) })),
+  { t: TL.zh, sfx: "tick", gain_db: -10, pan: pan(260) },
+  ...FIG_X.map((x, k) => ({ t: TL.fig(k), sfx: "tick", gain_db: -2, pan: pan(x) })),     // each figure's first centre line
   { t: TL.fig(2) + 0.6, sfx: "click", gain_db: -10, pan: pan(FIG_X[2]) },                 // the dimension number appears
   { t: TL.sweep[1], sfx: "swish_rev", gain_db: -14, pan: pan(FIG_X[1]) },                 // cutting plane A–A lands
   { t: TL.cloud, sfx: "toggle", gain_db: -10, pan: pan(FIG_X[2]) },                       // revision cloud
-  ...[0, 1, 2, 3].map((i) => ({ t: TL.stretch[0] + ((i + 0.5) * (TL.stretch[1] - TL.stretch[0])) / 4, sfx: "tick", gain_db: -16, pan: pan(FIG_X[2]) })),   // the count
+  ...[0, 1, 2, 3].map((i) => ({ t: TL.stretch[0] + ((i + 0.5) * (TL.stretch[1] - TL.stretch[0])) / 4, sfx: "tick", gain_db: -8, pan: pan(FIG_X[2]) })),    // the count
   { t: TL.pan[0] + 0.4, sfx: "whoosh", gain_db: -12, pan: 0.3 },                          // fig-pan to the title block
   { t: TL.rev, sfx: "click", gain_db: -8, pan: 0.45 },                                    // revision triangle
 ];

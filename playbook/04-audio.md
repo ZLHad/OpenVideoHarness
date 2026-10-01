@@ -431,18 +431,18 @@ VMR 这一列有三个数：
   - 一句 `LOW`：多半是那句本身太轻（拉平最多 3 dB），或配乐在那里有个很响的峰（看 `[4]`）。重录那句，或在 score 里把那一段收一收；
   - `OVER-VOICE`：把 hero 挪出句子，或者它本来就不是主角，写成 detail；
   - 某类中位数偏：先看 why 列；分类对的话调 `gain_db`（混音器只走一半，设计的相对大小要先对）；
-  - `BURIED`：提高 `gain_db`，或换一个 1–4 kHz 更多的声音。样片里被判“弱 + BURIED”的 tick，提高 3 dB 就过了；
+  - `BURIED`：提高 `gain_db`，或换一个 1–4 kHz 更多的声音。样片里被判“弱 + BURIED”的 tick，在旧配乐下提高 3 dB 就过了；换成现在更密的配乐以后要 3–12 dB，原因写在各样片 `FOLEY` 的注释里（blueprint、crt-terminal、neon-step-print）；
   - 低频 hero 在手机上弱（报告说 "% of its energy under 150 Hz"）：加一层 1–4 kHz 的起音，不要加增益。
 
 **AAC 编码和 cue check**：
 - **真峰值**：
   - AAC 编码会抬高真峰值，抬多少看内容和码率。用混音器的表（4 倍过采样）量，混音都是 `tp=-1.65`：
     - showcase 的三支片子（01–03）用 profile 混：`bin/vh mux` 的 192k 下是 −0.12…+0.08 dB，成片都在 −1.5 以下；换成 128k 是 −0.01…+0.16 dB。
-    - 样片用 128k：+0.16…+0.86 dB（halftone-comic +0.86，cutout-jazz +0.53）。
+    - 样片用 128k：现在的 28 个样片第一次编码在 −1.9…+1.4 dB 之间，13 个变高（editorial-data 的钢琴 +1.35，dunhuang-mural +1.04）；换配乐以前是 +0.16…+0.86 dB。重混后限幅更重时还会更高：editorial-data 第二次重混 +2.4 dB。这个范围不是安全余量，每次都要量编码后的文件。
     - 限幅器压得很多的合成测试更高：一段没有旁白、限幅 2.6 dB 的混音在 192k 下 +0.80 dB，一条只有合成音效的总线 +1.2…+1.5 dB。
 
     profile 默认的 `tp=-1.65` 只够第一种情况。
-  - `render.sh` 会测编码后的 mp4：高于 −1.5 dBTP 时，从混音实际的真峰值（和原上限取较低者）再降低超出的量加 0.1 dB，重混、重编码；最多 3 次，还超就报错退出。写这一节时，28 个样片里只有 guochao-festive 需要。
+  - `render.sh` 会测编码后的 mp4：高于 −1.5 dBTP 时，从混音实际的真峰值（和原上限取较低者）再降低超出的量加 0.1 dB，重混、重编码；最多 3 次，还超就报错退出。现在的 28 个样片里有 3 个需要：cutout-jazz 一次，dunhuang-mural 和 editorial-data 各两次。
   - 其他成片自己测：`ffmpeg -i final.mp4 -af ebur128=peak=true -f null -`，超了就用更低的 `tp=` 重混。
   - 真峰值按 BS.1770 的 4 倍过采样算；16 倍过采样在瞬态上最多再高 0.16 dB。
 - **门禁是 WAV**：`bin/vh qa mix.wav …`。

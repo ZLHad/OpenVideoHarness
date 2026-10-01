@@ -1,12 +1,38 @@
 {
   "bpm": 150, "key": "F", "mode": "minor", "seed": 31,
   "meters": {"1": 1, "2": 1, "3": 3, "4": 3, "5": 2, "6": 3},
+  "stereo": true, "space": {"type": "room", "rt60": 0.8},
   "sections": [
-    {"name": "stab", "bars": 1, "chords": ["i"], "layers": ["bass", "lead"], "energy": 0.8, "impact": true},
-    {"name": "breath", "bars": 1, "chords": ["i"], "layers": ["bass"], "energy": 0.6},
-    {"name": "title", "bars": 1, "chords": ["iv"], "layers": ["bass", "hats", "clap", "pad"], "energy": 0.6},
-    {"name": "symbol", "bars": 1, "chords": ["VI"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.8},
-    {"name": "cream", "bars": 1, "chords": ["V"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.85, "fill": true},
-    {"name": "strips", "bars": 1, "chords": ["i"], "layers": ["bass", "hats", "clap", "lead", "pad"], "energy": 0.9, "impact": true}
+    {"name": "stab", "bars": 1, "chords": ["i7"]},
+    {"name": "breath", "bars": 1, "chords": ["i7"]},
+    {"name": "title", "bars": 1, "chords": ["iv7"]},
+    {"name": "symbol", "bars": 1, "chords": ["VI7"]},
+    {"name": "cream", "bars": 1, "chords": ["V7"]},
+    {"name": "strips", "bars": 1, "chords": ["i6"]}
+  ],
+  "parts": [
+    {"inst": "brass", "id": "harmon", "loop": 6, "onset_ms": 8, "hit": true, "gain_db": 4, "pan": 0.12, "send": 0.14,
+     "params": {"stab": true, "mute": true},
+     "pattern": [[0.25, 0.6, ["G4", "Ab4", "C5", "Eb5"], 0.95],
+                 [5, 0.5, ["Ab4", "B4", "Eb5", "F5"], 0.9], [6, 0.5, ["Ab4", "B4", "Eb5", "F5"], 0.78],
+                 [7, 0.6, ["B4", "Eb5", "F5", "Ab5"], 0.9],
+                 [8, 0.6, ["Bb4", "Db5", "E5", "G5"], 0.95],
+                 [10, 1.4, ["Ab4", "C5", "D5", "G5"], 1.0]]},
+    {"inst": "upright", "figure": "walking", "ghost": 0.3, "gain_db": -2, "pan": -0.15, "send": 0.08,
+     "by_section": {"stab": {"figure": null, "pattern": [[0.25, 1.0, "F2", 0.95]]},
+                    "breath": {"figure": null, "pattern": [[0.25, 0.6, "C2", 0.8]]},
+                    "title": {"figure": null, "pattern": [[2, 0.6, "Bb1", 0.9], [2.62, 0.38, "C2", 0.75]]},
+                    "strips": {"figure": null, "pattern": [[0, 2.5, "F2", 1.0]]}}},
+    {"inst": "ride", "sections": ["title", "symbol", "cream", "strips"], "step": 8, "swing": 0.62,
+     "pattern": {"3": "X.xxX.", "2": "X.xx", "*": "X."}, "gain_db": -10, "pan": 0.35, "send": 0.12,
+     "by_section": {"cream": {"pattern": "X..."}, "strips": {"pattern": "X....."}}},
+    {"inst": "brush", "step": 8, "swing": 0.62, "gain_db": 0, "pan": -0.25, "send": 0.08,
+     "sections": ["stab", "breath", "title", "symbol", "cream"],
+     "pattern": {"3": "o~x~o~", "2": "o~x~", "*": "o~"},
+     "by_section": {"stab": {"pattern": [[0, 2, null, 0.8, "o"]]}, "breath": {"pattern": ".."}, "title": {"pattern": "o~~~o~"}, "cream": {"pattern": "o~.."}}},
+    {"inst": "kick", "loop": 6, "gain_db": -15, "send": 0.05,
+     "pattern": [[0.25, 0.3, null, 0.8], [2, 0.3, null, 0.75], [5, 0.3, null, 0.6], [8, 0.3, null, 0.7], [10, 0.3, null, 0.95]]},
+    {"inst": "bongo", "sections": ["breath", "cream", "strips"], "step": 16, "gain_db": -7, "pan": 0.45, "send": 0.1,
+     "pattern": {"1": ".xxo", "2": "....xxox", "3": "....xx......"}}
   ]
 }

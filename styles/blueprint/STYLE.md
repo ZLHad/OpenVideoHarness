@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：第 0 帧起晒图纸从画面顶端展开，0.3 s 铺满（hook，同拍一记 `impact` 当纸拍桌面）；0.3 s 一条 5 px 的点划线基准中心线从画外射入，竖向中心线随后落下，0.55 s 交点上落一个十字准星；0.6 s 起标题在两条字高导线之间逐笔写出，笔头发亮；三张图放大到约 440×280：FIG. 1 大纲（中心线和构造线）→ FIG. 2 分镜（轮廓和隐藏线，2.6–3.0 s 一条剖切线 A–A 扫过）→ FIG. 3 初版（剖面排线、尺寸、编号）；3.1–3.7 s 初版零件拉长，58 px 的尺寸数字按整数从 440 数到 520，外面圈一圈审图黄修订云；4.0 s 镜头横移并推近到标题栏，镜头被限制在图纸以内，不露桌面。实际字体：DIN Condensed Bold、DIN Alternate Bold、STFangsong（横向压到 72%）。配乐 90 BPM，小节排成 3 + 2 + 1 + 3 拍，D 大调：拨弦 `arp` + 断奏 `bass`，3.33–4.0 s 定稿前一小节只留 `pad`，4.0 s 一声 `bell`。
+样片里：第 0 帧起晒图纸从画面顶端展开，0.3 s 铺满（hook，第一拍两台马林巴和颤音琴一起进来）；0.3 s 一条 5 px 的点划线基准中心线从画外射入，竖向中心线随后落下，0.55 s 交点上落一个十字准星；0.6 s 起标题在两条字高导线之间逐笔写出，笔头发亮；三张图放大到约 440×280：FIG. 1 大纲（中心线和构造线）→ FIG. 2 分镜（轮廓和隐藏线，2.6–3.0 s 一条剖切线 A–A 扫过）→ FIG. 3 初版（剖面排线、尺寸、编号）；3.1–3.7 s 初版零件拉长，58 px 的尺寸数字按整数从 440 数到 520，外面圈一圈审图黄修订云；4.0 s 镜头横移并推近到标题栏，镜头被限制在图纸以内，不露桌面。实际字体：DIN Condensed Bold、DIN Alternate Bold、STFangsong（横向压到 72%）。配乐 90 BPM、D 大调，小节排成 3 + 2 + 1 + 3 拍，是 Steve Reich 式的极简主义：左右两台 `marimba` 弹同一个 12 格的十六分音符音型（D–A–F♯–E–A–D–B–E，每三格空一格），右边那台晚两格，合起来是连续的十六分音符；`sub808` 当干净的正弦低音按四分音符打拍，每段第一拍 `vibraphone` 敲一个和弦报段落。2.0 s 进 V 级，右边那台再晚两格，合成出另一条旋律；3.33–4.0 s 定稿前一小节马林巴全停，只剩颤音琴的 vi7 和弱低音，计数的 `tick` 在这里听得最清楚；4.0 s 两台马林巴错开半圈回来，节奏对齐，像落定。
 
 ## 学习对象
 
@@ -55,10 +55,10 @@
 
 ## 声音语法
 
-- **配乐**：D 大调，90 BPM（30 fps 下一拍 20 帧），3/4 拍（`meters` 设成每小节 3 拍，2 s 一小节），拨弦 `arp` 走十六分音符的机械动机，`bass` 断奏，轻 `pad` 垫底；修订、定稿时一声 `bell`。像巴洛克的二部创意曲那样两条线互相模仿。
+- **配乐**：Steve Reich 式的极简主义（《Music for 18 Musicians》那一路），D 大调，90 BPM（30 fps 下一拍 20 帧），3 拍一小节（`meters` 设成每小节 3 拍，2 s 一小节；样片为了卡画面排成 3 + 2 + 1 + 3 拍）。签名是两台 `marimba` 交错的十六分音符：同一个带休止的音型（`ostinato` 的 `cell` 里写 `.`），一台比另一台晚几格，合起来是连续的十六分音符；错开的格数一变，合成出来的旋律就变，这就是相位移动，每进一个新段落多错开一点。低音是干净的正弦（`sub808`，`drop` 0、`drive` 很小），按四分音符打拍；`vibraphone` 关掉电机，每段第一拍敲一个和弦报段落。没有鼓，机械但全是原声；空间是小而干的 `room`，两台马林巴左右拉开。
 - **音效**：签名是针管笔划纸声（2–6 kHz 的带通噪声，长度等于这一笔的时长；库里没有，需要在项目里合成或用授权录音）；直尺和圆规用低通过的短 `whoosh`；零件归位 `click`；定稿盖章 `impact`。
-- **声画关系**：每层线条开画落在拍上；爆炸视图的零件每个八分音符飞出一个；定稿前一小节只留 pad 和笔声。
-- **样片拟音**：`events.json` 21 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），−3 dB 混在配乐下：纸展开 `whoosh`、铺满 `click`；基准线落笔 `tick`、准星 `click`；标题每个词起笔一声很轻的 `tick`；三张图各一声 `tick`，尺寸出现 `click`；剖切线扫到底 `swish_rev`；修订云 `toggle`；440→520 计数 4 声 `tick`；横移 `whoosh`，修订三角 `click`。针管笔划纸声库里没有，样片没做。
+- **声画关系**：每层线条开画落在拍上；爆炸视图的零件每个八分音符飞出一个；定稿前一小节马林巴全停，只留颤音琴、弱低音和笔声。
+- **样片拟音**：`events.json` 21 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），按 `profile=swatch` 混在配乐下：纸展开 `whoosh`、铺满 `click`；基准线落笔 `tick`、准星 `click`；标题每个词起笔一声很轻的 `tick`；三张图各一声 `tick`，尺寸出现 `click`；剖切线扫到底 `swish_rev`；修订云 `toggle`；440→520 计数 4 声 `tick`；横移 `whoosh`，修订三角 `click`。针管笔划纸声库里没有，样片没做。
 
 ## 适合与不适合
 
@@ -78,7 +78,7 @@
 ## Prompt 块
 
 ```text
-Visual style: engineering blueprint on cyanotype paper. The whole film is one sheet: uneven Prussian-blue paper (#173A6E to #2A5C9E low-frequency mottling, coating streaks, fold creases, sun-bleached edges) on a dark table #0E1218, with a border, a title block bottom-right and a notes column. White technical line work #E8F1FA is drawn in drafting order, each layer starting on a beat: centre lines (dash-dot), outlines (3 px), details (2 px), hidden lines (dashed), section hatching at 45°, dimension and leader lines in pale blue-white #A9C6E8 (1.2 px) with numbered balloons. Strokes draw on with a small bright nib, easeInOutSine per stroke, ~900 px/s. Dimensions are alive: when a part moves or stretches, its dimension line follows and the number updates in whole millimetres. Exploded views fly parts out along their axes one per eighth note and snap back with no overshoot. Lettering is condensed engineering caps (DIN Condensed) written stroke by stroke between faint guide lines; Chinese in a long Fangsong. Camera pans across the sheet like an eye reading a drawing; transitions are "FIG. 1" crossed out and rewritten as "FIG. 2" with a pan, a cutting-plane line sweeping to reveal a section, and explode/assemble. One accent only, reviewer yellow #F4C542, at most once per shot. No glow, no HUD, no scanlines, no 3D rendering. Sound: 90 BPM baroque-style plucked counterpoint, pen scratch on every stroke, a click on every assembled part.
+Visual style: engineering blueprint on cyanotype paper. The whole film is one sheet: uneven Prussian-blue paper (#173A6E to #2A5C9E low-frequency mottling, coating streaks, fold creases, sun-bleached edges) on a dark table #0E1218, with a border, a title block bottom-right and a notes column. White technical line work #E8F1FA is drawn in drafting order, each layer starting on a beat: centre lines (dash-dot), outlines (3 px), details (2 px), hidden lines (dashed), section hatching at 45°, dimension and leader lines in pale blue-white #A9C6E8 (1.2 px) with numbered balloons. Strokes draw on with a small bright nib, easeInOutSine per stroke, ~900 px/s. Dimensions are alive: when a part moves or stretches, its dimension line follows and the number updates in whole millimetres. Exploded views fly parts out along their axes one per eighth note and snap back with no overshoot. Lettering is condensed engineering caps (DIN Condensed) written stroke by stroke between faint guide lines; Chinese in a long Fangsong. Camera pans across the sheet like an eye reading a drawing; transitions are "FIG. 1" crossed out and rewritten as "FIG. 2" with a pan, a cutting-plane line sweeping to reveal a section, and explode/assemble. One accent only, reviewer yellow #F4C542, at most once per shot. No glow, no HUD, no scanlines, no 3D rendering. Sound: 90 BPM Steve Reich-style minimalism, two marimbas interlocking in 16ths and phasing apart section by section over a clean sine bass, a vibraphone chord on each new section, no drums; pen scratch on every stroke, a click on every assembled part.
 ```
 
 ## 引擎做法

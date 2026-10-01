@@ -32,11 +32,14 @@ export const FOLEY = [
   { t: TL.on[0], sfx: "boom", gain_db: -9 },                                              // the tube thumps on
   ...BOOT.map((s, i) => ({ t: TL.boot0 + i * TL.bootStag + s.length / 70, sfx: "tick", gain_db: -16, pan: pan(colX(2 * s.length)) })),   // machine output: one tick per line end
   { t: TL.clear, sfx: "toggle", gain_db: -16, pan: pan(colX(10)) },                        // rows clear
-  { t: TL.cmd, sfx: "typing", gain_db: -18, pan: pan(colX(3)) },                           // "> title"
-  ...[...TITLE].flatMap((ch, i) => (ch !== " " && (i === 0 || TITLE[i - 1] === " ") ? [{ t: TITLE_TIMES[i], sfx: "typing", gain_db: -14, pan: pan(colX(2 * i + 4)) }] : [])),   // a human types each word
+  // typing 4 dB up: at −18 / −14, three of the four bursts sat 15–18 dB under the square-wave arp (qa mix: BURIED).
+  // The `tree` tick lands on the first sample of the score's modem burst and 32 ms after a typing burst: at −16 the
+  // cue check could not find it (OFF); at −4 its own sound is found. The render-log tick follows it from −18 to −10
+  { t: TL.cmd, sfx: "typing", gain_db: -14, pan: pan(colX(3)) },                           // "> title"
+  ...[...TITLE].flatMap((ch, i) => (ch !== " " && (i === 0 || TITLE[i - 1] === " ") ? [{ t: TITLE_TIMES[i], sfx: "typing", gain_db: -10, pan: pan(colX(2 * i + 4)) }] : [])),   // a human types each word
   ...TL.ime.map((t, k) => ({ t, sfx: "click", gain_db: -10, pan: pan(colX(k ? 36 : 16)) })),   // IME commits
-  { t: TL.tree + "$ tree film/".length / 80, sfx: "tick", gain_db: -16, pan: pan(colX(12)) },   // `$ tree film/` (machine speed)
-  { t: TL.log, sfx: "tick", gain_db: -18, pan: pan(colX(14)) },                            // render log starts
+  { t: TL.tree + "$ tree film/".length / 80, sfx: "tick", gain_db: -4, pan: pan(colX(12)) },    // `$ tree film/` (machine speed)
+  { t: TL.log, sfx: "tick", gain_db: -10, pan: pan(colX(14)) },                            // render log starts
   ...[2, 4, 6, 8].map((P) => ({ t: TL.barStart + P * TL.barStep, sfx: "tick", gain_db: -14, pan: pan(colX(27 + P)) })),   // bar fills (every 2nd cell)
   { t: TL.ready, sfx: "success", gain_db: -12, pan: pan(colX(48)) },                       // READY flips to inverse video
   { t: TL.off + 0.02, sfx: "glitch", gain_db: -14 },                                       // power-off

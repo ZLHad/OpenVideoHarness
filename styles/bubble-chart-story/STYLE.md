@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：0.1 s 坐标轴射出、巨大的年份水印滚入、44 个虚构实体的气泡在 1950 年弹出，时间立刻开跑（30 年/秒），缓停在 2000 年；其余气泡降到 20%，一根带黄铜头的木指示棒依次点三个带轨迹的气泡（大纲、分镜、初版，中文标签 58 px）；2.5–3.0 s 签名倒带：年份倒着滚回 1985，轨迹回缩；3.0 s 停在 1985，指示棒点两下；3.5 s 时间再冲到 2020；4.0–4.6 s 结尾：时间倒回 2000，同时坐标轴重新定标（放大到故事所在的区间），主标题退场，结束标题出现。刻度字 36 px、轴标题 32 px。数据是示意的，画面写明。实际字体：Avenir Next（年份水印用 Ultra Light）、PingFang SC。配乐 120 BPM、G 大调，`meters` 让 2.0、2.5、3.0、3.5、4.0 s 都是小节线：时间在走时有 `hats` 和 `arp`，停住时只留 `pad` 和 `bass`，倒带段加 `hats`。
+样片里：0.1 s 坐标轴射出、巨大的年份水印滚入、44 个虚构实体的气泡在 1950 年弹出，时间立刻开跑（30 年/秒），缓停在 2000 年；其余气泡降到 20%，一根带黄铜头的木指示棒依次点三个带轨迹的气泡（大纲、分镜、初版，中文标签 58 px）；2.5–3.0 s 签名倒带：年份倒着滚回 1985，轨迹回缩；3.0 s 停在 1985，指示棒点两下；3.5 s 时间再冲到 2020；4.0–4.6 s 结尾：时间倒回 2000，同时坐标轴重新定标（放大到故事所在的区间），主标题退场，结束标题出现。刻度字 36 px、轴标题 32 px。数据是示意的，画面写明。实际字体：Avenir Next（年份水印用 Ultra Light）、PingFang SC。配乐 120 BPM、G 大调，`meters` 让 2.0、2.5、3.0、3.5、4.0 s 都是小节线；乐队演的就是年份计数器，音符时间由 swatch.js 的同一张 `KEYS` 缓动表反解：时间在走时，马林巴在每个 5 年刻度上敲一下（0.1 s 起每 1/6 s 一个，逢十年低、逢五年高，一低一高地弹跳），沙锤跟着同一个时钟，每过一个十年拨弦拨一下低音，0.2 s 气泡弹出时拨弦先进来；1995→2000 缓停时一年一个音，越来越慢，2.08 s 停在 2000 上响一个 Em 和弦；指示棒每点一个气泡，拨弦点一个高音；两次倒带时马林巴顺着缓动曲线往下落，冲向 2020 时 5 年刻度越来越密、越爬越高；4.6 s 结束标题出现时一记 G 大调和弦收尾。
 
 ## 学习对象
 
@@ -56,10 +56,10 @@
 
 ## 声音语法
 
-- **配乐**：旁白是主角。G 大调，120 BPM（30 fps 下一拍 15 帧），`pad` + 轻 `hats`，能量 0.3；时间快进时加入 `arp` 并把能量提到 0.5，停住时 arp 退出，pad 继续垫着（不能声画同时停死）。
+- **配乐**：旁白是主角，但音乐要"演"时间。G 大调，120 BPM（30 fps 下一拍 15 帧），轻快、俏皮，像统计科普片。签名是马林巴（`marimba`，短止音）的弹跳音型，它按年份计数器走：时间快进时每过一个固定的年数敲一下，缓停时跟着慢下来，停住时只剩一个响着的和弦，倒带时顺着缓动曲线往下落，冲刺时越来越密、越爬越高。沙锤（`shaker`）跟同一个时钟；拨弦（`pizzicato`）逢十年拨一下低音，也给指示棒的每一下点击配一个高音。小房间混响，不用鼓组。停住时和弦一直响着，不能声画同时停死。
 - **音效**：快进时每过一年一声很轻的 `tick`（最多 16 次/秒），停住一声 `click`，点名一个气泡一声轻 `pop`。
 - **声画关系**：年份停在关键年份的那一帧，旁白正好念出那个年份（cue 词触发）；讲述口吻口语、第一人称、实时（"看这里，它开始往右上跑了"）。
-- **样片拟音**：`events.json` 20 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），−3 dB 混在配乐下：坐标轴 `whoosh`、气泡弹出 `pop`；年份每过一个十年一声 `tick`（落点由同一张 `KEYS` 缓动表反解，比"每年一声"克制）；停在 2000 一声 `click`；指示棒每点一个气泡一声轻 `pop`；两次倒带各一声 `swish_rev`，落点在倒带结束；冲到 2020 一声 `click`，结束标题 `ding`。
+- **样片拟音**：`events.json` 20 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），按 `profile=swatch` 混在配乐下：坐标轴 `whoosh`、气泡弹出 `pop`；年份每过一个十年一声 `tick`（落点由同一张 `KEYS` 缓动表反解，比"每年一声"克制）；停在 2000 一声 `click`；指示棒每点一个气泡一声轻 `pop`；两次倒带各一声 `swish_rev`，落点在倒带结束；冲到 2020 一声 `click`，结束标题 `ding`。
 
 ## 适合与不适合
 
@@ -79,7 +79,7 @@
 ## Prompt 块
 
 ```text
-Visual style: live-narrated animated bubble chart. Light page #F7F5F0, ink #23211E. One chart is the whole stage: x = income per person on a log axis labelled at doublings, y = life expectancy, bubble area proportional to population (radius ∝ √value), colour = region (vermilion #E4572E, teal #29A0B1, olive #8FB339, amber #F2B134), 85% fill with a thin white rim. The current year sits behind the bubbles as a huge pale numeral (#E6E1D6, Avenir Next Ultra Light) that rolls like an odometer. Time is performed, not played: it races at ~10 years per second, eases out into a key year, holds 2–3 s while the narrator explains, sometimes rewinds; easing applies only to the year-versus-time mapping, never to the data, and bubbles interpolate linearly between data years (income in log space). The narrator is embodied by a thin ink pointer that reaches in from the edge and follows the bubble being discussed. Focus dims all other bubbles to 20% and leaves a dotted trail for at most three selected bubbles. Plain-language axis titles with units, direct labels, no legend. Avenir Next throughout, PingFang SC for Chinese. Quiet 120 BPM major-key pad; ticks while time runs, silence-with-pad while it holds.
+Visual style: live-narrated animated bubble chart. Light page #F7F5F0, ink #23211E. One chart is the whole stage: x = income per person on a log axis labelled at doublings, y = life expectancy, bubble area proportional to population (radius ∝ √value), colour = region (vermilion #E4572E, teal #29A0B1, olive #8FB339, amber #F2B134), 85% fill with a thin white rim. The current year sits behind the bubbles as a huge pale numeral (#E6E1D6, Avenir Next Ultra Light) that rolls like an odometer. Time is performed, not played: it races at ~10 years per second, eases out into a key year, holds 2–3 s while the narrator explains, sometimes rewinds; easing applies only to the year-versus-time mapping, never to the data, and bubbles interpolate linearly between data years (income in log space). The narrator is embodied by a thin ink pointer that reaches in from the edge and follows the bubble being discussed. Focus dims all other bubbles to 20% and leaves a dotted trail for at most three selected bubbles. Plain-language axis titles with units, direct labels, no legend. Avenir Next throughout, PingFang SC for Chinese. A playful 120 BPM major-key marimba that plays the year odometer (a note per fixed number of years, slowing and speeding with the easing, falling on rewinds), a shaker on the same clock, pizzicato plucks on each decade and each pointer tap; a held chord while time holds; ticks while time runs.
 ```
 
 ## 引擎做法

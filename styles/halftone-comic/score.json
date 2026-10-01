@@ -1,90 +1,45 @@
 {
-  "bpm": 120,
-  "key": "E",
-  "mode": "minor",
-  "seed": 71,
-  "meters": {
-    "1": 4,
-    "2": 1,
-    "3": 2,
-    "4": 1,
-    "5": 4
-  },
+  "bpm": 120, "key": "E", "mode": "minor", "seed": 71, "meters": {"1": 4, "2": 1, "3": 2, "4": 1, "5": 4},
+  "stereo": true, "space": "room", "swing": 0.58, "swing_unit": 16, "humanize": 0.3,
+  "lofi": {"crackle": 0.3, "wow": 0.05, "lp": 12000, "hiss": 0.1}, "tape": 0.3,
   "sections": [
-    {
-      "name": "title-slam",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "kick",
-        "hats",
-        "bass",
-        "pad"
-      ],
-      "energy": 0.62,
-      "impact": true
-    },
-    {
-      "name": "panels-drop",
-      "bars": 1,
-      "chords": [
-        "VI"
-      ],
-      "layers": [
-        "kick",
-        "clap",
-        "hats",
-        "bass",
-        "pad"
-      ],
-      "energy": 0.72
-    },
-    {
-      "name": "bam",
-      "bars": 1,
-      "chords": [
-        "VI"
-      ],
-      "layers": [
-        "kick",
-        "clap",
-        "hats",
-        "bass",
-        "taiko",
-        "pad"
-      ],
-      "energy": 0.84,
-      "impact": true
-    },
-    {
-      "name": "breath",
-      "bars": 1,
-      "chords": [
-        "VII"
-      ],
-      "layers": [
-        "pad"
-      ],
-      "energy": 0.14
-    },
-    {
-      "name": "split",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "kick",
-        "clap",
-        "hats",
-        "bass",
-        "taiko",
-        "pad"
-      ],
-      "energy": 0.88,
-      "impact": true
-    }
+    {"name": "title-slam", "bars": 1, "chords": ["i"]},
+    {"name": "panels-drop", "bars": 1, "chords": ["VI"]},
+    {"name": "bam", "bars": 1, "chords": ["VI"]},
+    {"name": "breath", "bars": 1, "chords": ["VII"]},
+    {"name": "split", "bars": 1, "chords": ["i"]}
+  ],
+  "parts": [
+    {"inst": "brass", "id": "brass-stab", "sections": ["title-slam", "bam", "split"], "figure": "stab", "beats": [0, 3.5], "len": 0.35, "voicing": "spread", "octave": 4, "params": {"stab": true}, "onset_ms": 8, "gain_db": 4, "send": 0.15, "hit": true,
+      "by_section": {
+        "bam": {"beats": [0, 1]},
+        "split": {"beats": [0, 1.5]}
+      } },
+    {"inst": "brass", "id": "brass-rise", "sections": ["breath"], "figure": "sustain", "voicing": "close", "octave": 4, "params": {"swell": true, "attack": 0.35}, "gain_db": 3, "send": 0.2},
+    {"inst": "scratch", "id": "scratch", "sections": ["title-slam", "bam", "split"], "pattern": ".x~o~...........", "gain_db": 7, "pan": 0.25,
+      "by_section": {
+        "bam": {"pattern": ".......o"},
+        "split": {"pattern": ".x~o~...x.xo~..."}
+      } },
+    {"inst": "bb_kick", "id": "kick", "sections": ["title-slam", "panels-drop", "bam", "split"], "pattern": "X.....X...X...x.", "gain_db": -4,
+      "by_section": {
+        "split": {"pattern": "X......XX.....x."},
+        "panels-drop": {"pattern": "X..."},
+        "bam": {"pattern": "X...X..."}
+      } },
+    {"inst": "bb_snare", "id": "snare", "sections": ["title-slam", "bam", "split"], "pattern": "....X..........g", "gain_db": -3,
+      "by_section": {
+        "split": {"pattern": "....X.......X..g"}
+      } },
+    {"inst": "hihat", "id": "hats", "sections": ["title-slam", "bam", "split"], "pattern": "xgxgxgx.xgxg...o", "gain_db": -9, "pan": -0.25,
+      "by_section": {
+        "split": {"pattern": "xgxgxgxgxgxgxgxo"}
+      } },
+    {"inst": "sub808", "id": "sub", "pattern": [[0, 3.9, "c0", 0.9]], "octave": 1, "params": {"drive": 1.2, "decay": 2.5}, "gain_db": -7, "hit": "section",
+      "by_section": {
+        "panels-drop": {"pattern": [[0, 0.9, "c0", 0.8]]},
+        "bam": {"pattern": [[0, 1.9, "c0", 0.9]]},
+        "breath": {"pattern": [[0, 0.95, "c0", 0.5]]}
+      } }
   ]
 }

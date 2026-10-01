@@ -1,75 +1,36 @@
 {
-  "bpm": 150,
-  "key": "A",
-  "mode": "minor",
-  "seed": 13,
-  "meters": {
-    "1": 2,
-    "2": 3,
-    "3": 4,
-    "4": 1,
-    "5": 3
-  },
+  "bpm": 150, "key": "A", "mode": "minor", "seed": 13,
+  "meters": {"1": 2, "2": 3, "3": 4, "4": 1, "5": 3},
+  "stereo": true, "space": {"type": "hall", "rt60": 1.9},
   "sections": [
-    {
-      "name": "backdrop",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "pad",
-        "arp"
-      ],
-      "energy": 0.35
-    },
-    {
-      "name": "letters",
-      "bars": 1,
-      "chords": [
-        "VI"
-      ],
-      "layers": [
-        "arp",
-        "pad"
-      ],
-      "energy": 0.45
-    },
-    {
-      "name": "houses",
-      "bars": 1,
-      "chords": [
-        "III"
-      ],
-      "layers": [
-        "arp",
-        "pad",
-        "bass"
-      ],
-      "energy": 0.52
-    },
-    {
-      "name": "breath",
-      "bars": 1,
-      "chords": [
-        "III"
-      ],
-      "layers": [
-        "pad"
-      ],
-      "energy": 0.3
-    },
-    {
-      "name": "iris",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "pad",
-        "arp"
-      ],
-      "energy": 0.35
-    }
+    {"name": "backdrop", "bars": 1, "chords": ["i"]},
+    {"name": "letters", "bars": 1, "chords": ["VI"]},
+    {"name": "houses", "bars": 1, "chords": ["III VII"]},
+    {"name": "breath", "bars": 1, "chords": ["V"]},
+    {"name": "iris", "bars": 1, "chords": ["i"]}
+  ],
+  "parts": [
+    {"id": "musicbox", "inst": "musicbox", "loop": 5, "gain_db": 0, "pan": 0.12, "send": 0.3,
+     "pattern": [[0.25, 1.75, "E7", 0.85], [1, 1.5, "C7", 0.7], [1.5, 1.5, "B6", 0.7],
+                 [2, 3, "A6", 0.85], [4, 1.5, "C7", 0.75, {"damp": true}],
+                 [5, 2, "E7", 0.85, {"damp": true}], [6, 1.5, "D7", 0.7, {"damp": true}], [6.5, 1.5, "C7", 0.7, {"damp": true}],
+                 [7, 2, "D7", 0.8, {"damp": true}], [8.5, 0.5, "B6", 0.7, {"damp": true}],
+                 [10, 1, "C7", 0.75], [10.5, 1, "B6", 0.7], [11.05, 2.95, "A6", 0.72]]},
+    {"id": "harp", "inst": "harp", "gain_db": -4, "pan": -0.2, "send": 0.25,
+     "pattern": [[0.0625, 2, "E3", 0.5], [0.125, 2, "A3", 0.55], [0.1875, 1.8, "C4", 0.6], [1, 1, "E4", 0.6], [1.5, 0.5, "A4", 0.55]],
+     "by_section": {
+       "letters": {"pattern": [[0, 3, "F3", 0.65], [0.5, 2.5, "A3", 0.55], [1, 2, "C4", 0.6], [1.5, 1.5, "F4", 0.55], [2, 1, "C4", 0.55], [2.5, 0.5, "A3", 0.5]]},
+       "houses": {"params": {"ring": false},
+                  "pattern": [[0, 2, "C3", 0.65], [0.5, 1.5, "E3", 0.55], [1, 1, "G3", 0.6], [1.5, 0.5, "C4", 0.55],
+                              [2, 2, "G3", 0.65], [2.5, 1.5, "B3", 0.55], [3, 1, "D4", 0.6], [3.5, 0.5, "G4", 0.55]]},
+       "breath": {"pattern": [[0, 1, "E3", 0.3], [0.08, 0.92, "G#3", 0.3], [0.16, 0.84, "B3", 0.3], [0.24, 0.76, "E4", 0.35]]},
+       "iris": {"pattern": [[0, 3, "A3", 0.65], [0.5, 2.5, "C4", 0.55], [1, 2, "E4", 0.6], [1.5, 1.5, "A4", 0.55], [2, 1, "E4", 0.55], [2.5, 0.5, "C4", 0.5]]}}},
+    {"id": "harp_bass", "inst": "harp", "octave": 2, "gain_db": -8, "pan": -0.1, "send": 0.2,
+     "pattern": [[0, 4, "c0", 0.7]],
+     "by_section": {"houses": {"params": {"ring": false}, "pattern": [[0, 2, "c0", 0.7], [2, 2, "c0", 0.65]]},
+                    "breath": {"pattern": [[0, 1, "c0", 0.3]]}}},
+    {"id": "celesta", "inst": "celesta", "sections": ["houses", "iris"], "loop": 2, "gain_db": -6, "pan": 0.3, "send": 0.35,
+     "pattern": [[0, 1, "E6", 0.6], [1, 0.5, "D6", 0.5], [1.5, 0.5, "C6", 0.5], [2, 1.5, "D6", 0.55, {"damp": true}], [3.5, 0.5, "B5", 0.5, {"damp": true}],
+                 [5.05, 2, "A5", 0.55]]}
   ]
 }

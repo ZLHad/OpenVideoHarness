@@ -1,11 +1,24 @@
 {
   "bpm": 120, "key": "C", "mode": "major", "seed": 31,
-  "meters": { "1": 4, "2": 2, "3": 1, "4": 1, "5": 4 },
+  "meters": {"1": 4, "2": 2, "3": 1, "4": 1, "5": 4},
+  "stereo": true, "space": {"type": "hall", "rt60": 3.0},
   "sections": [
-    { "name": "plane", "bars": 1, "chords": ["I"], "layers": ["pad", "bell"], "energy": 0.28 },
-    { "name": "transform", "bars": 1, "chords": ["IV"], "layers": ["pad", "arp"], "energy": 0.28 },
-    { "name": "indicate-1", "bars": 1, "chords": ["vi"], "layers": ["pad", "bell"], "energy": 0.3 },
-    { "name": "indicate-2", "bars": 1, "chords": ["V"], "layers": ["pad", "bell"], "energy": 0.3 },
-    { "name": "qed", "bars": 1, "chords": ["I"], "layers": ["pad", "bell"], "energy": 0.32 }
+    {"name": "plane", "bars": 1, "chords": ["Imaj7"]},
+    {"name": "transform", "bars": 1, "chords": ["IVmaj7"]},
+    {"name": "indicate-1", "bars": 1, "chords": ["vi7"]},
+    {"name": "indicate-2", "bars": 1, "chords": ["Vsus4"]},
+    {"name": "qed", "bars": 1, "chords": ["Iadd9"]}
+  ],
+  "parts": [
+    {"inst": "piano", "id": "arp", "figure": "arp-updown", "rate": 6, "span": 2, "octave": 3, "reset": "part", "params": {"tone": "felt", "pedal": true}, "send": 0.32, "pan": -0.05,
+     "by_section": {
+       "indicate-1": {"figure": null, "pattern": [[0, 1, ["c0", "c2", "c1'", "c3'"], 0.7]]},
+       "indicate-2": {"figure": null, "pattern": [[0, 1, ["c0", "c1", "c2", "c0'"], 0.7]]},
+       "qed": {"figure": null, "pattern": [[0, 4, ["c0", "c2", "c1'", "s1'"], 0.6]]}
+     }},
+    {"inst": "piano", "id": "low", "figure": "sustain", "pitch": "c0,", "octave": 3, "params": {"tone": "felt", "pedal": true}, "send": 0.3, "gain_db": -3, "pan": -0.15},
+    {"inst": "strings", "id": "pad", "figure": "sustain", "octave": 4, "voicing": "close", "params": {"attack": 0.6, "release": 1.0}, "gain_db": -17, "lp": 2200, "send": 0.45, "pan": 0.1},
+    {"inst": "celesta", "id": "qed", "sections": ["qed"], "octave": 5, "send": 0.4, "pan": 0.3, "gain_db": -15,
+     "pattern": [[0, 0.5, "c0'"], [0.5, 0.5, "c1'"], [1.0, 0.5, "c2'"], [1.5, 2.5, "c0''"]]}
   ]
 }
