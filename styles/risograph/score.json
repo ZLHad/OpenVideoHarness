@@ -1,51 +1,26 @@
 {
-  "bpm": 120,
-  "key": "A",
-  "mode": "major",
-  "seed": 81,
+  "bpm": 120, "key": "A", "mode": "major", "seed": 81, "stereo": true, "space": "room", "swing": 0.62,
+  "swing_unit": 16, "humanize": 0.5, "lofi": {"crackle": 0.25, "wow": 0.6, "lp": 5500, "hiss": 0.3}, "tape": 0.5,
   "sections": [
-    {
-      "name": "blue-plate",
-      "bars": 1,
-      "chords": [
-        "I"
-      ],
-      "layers": [
-        "pad",
-        "arp"
-      ],
-      "energy": 0.36,
-      "impact": true
-    },
-    {
-      "name": "plates-arrive",
-      "bars": 1,
-      "chords": [
-        "vi"
-      ],
-      "layers": [
-        "pad",
-        "arp",
-        "bass",
-        "hats"
-      ],
-      "energy": 0.55
-    },
-    {
-      "name": "full-overprint",
-      "bars": 1,
-      "chords": [
-        "IV"
-      ],
-      "layers": [
-        "pad",
-        "arp",
-        "bass",
-        "hats",
-        "clap",
-        "bell"
-      ],
-      "energy": 0.72
-    }
+    {"name": "blue-plate", "bars": 1, "chords": ["Imaj9"]},
+    {"name": "plates-arrive", "bars": 1, "chords": ["vi9"]},
+    {"name": "full-overprint", "bars": 1, "chords": ["IVmaj9"]}
+  ],
+  "parts": [
+    {"inst": "epiano", "id": "rhodes", "pattern": [[0, 1.6, ["c1", "c3", "c4", "c2'"], 0.72], [1.75, 2.1, ["c1", "c3", "c0'", "c2'"], 0.5]], "octave": 3, "params": {"trem": 0.18}, "gain_db": -5, "pan": 0, "send": 0.25},
+    {"inst": "upright", "id": "bass", "sections": ["plates-arrive", "full-overprint"], "pattern": [[0, 1.5, "c0", 0.8], [1.75, 0.5, "c0", 0.55], [2.5, 1.2, "c2,", 0.7]], "octave": 2, "lp": 900, "gain_db": 6,
+      "by_section": {
+        "plates-arrive": {"swing": 0, "pattern": [[0, 0.3, "c0", 0.8], [0.333, 0.3, "c1", 0.6], [0.667, 1.0, "c2", 0.75], [1.75, 0.5, "c0", 0.55], [2.5, 1.2, "c2,", 0.7]]}
+      } },
+    {"inst": "bb_kick", "id": "kick", "sections": ["plates-arrive", "full-overprint"], "pattern": "X......X..x...x.", "gain_db": 0,
+      "by_section": {
+        "plates-arrive": {"pattern": ".......X..x...x."}
+      } },
+    {"inst": "rim", "id": "rim", "sections": ["plates-arrive", "full-overprint"], "pattern": "....X.......X..g", "onset_ms": -22, "gain_db": 3, "pan": 0.05, "send": 0.15},
+    {"inst": "hihat", "id": "hats", "sections": ["plates-arrive", "full-overprint"], "pattern": "x.gxx.gxx.gxx.gx", "gain_db": 1, "pan": 0.15,
+      "by_section": {
+        "plates-arrive": {"pattern": "....x.gxx.gxx.gx"}
+      } },
+    {"inst": "vibraphone", "id": "vibes", "sections": ["full-overprint"], "pattern": [[0, 0.75, "E5", 0.7], [0.75, 0.75, "C#5", 0.55], [1.5, 2, "A4", 0.6]], "octave": 5, "params": {"motor": 4.5, "depth": 0.35}, "gain_db": 0, "pan": 0.2, "send": 0.3}
   ]
 }

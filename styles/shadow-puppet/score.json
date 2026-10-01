@@ -1,82 +1,35 @@
 {
-  "bpm": 150,
-  "key": "G",
-  "mode": "major",
-  "seed": 10,
-  "meters": {
-    "1": 2,
-    "2": 3,
-    "3": 4,
-    "4": 1,
-    "5": 3
-  },
+  "bpm": 150, "key": "G", "mode": "major", "seed": 10,
+  "meters": {"1": 2, "2": 3, "3": 4, "4": 1, "5": 3},
+  "stereo": true, "space": {"type": "room", "rt60": 0.9},
   "sections": [
-    {
-      "name": "lamp",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "taiko",
-        "pad"
-      ],
-      "energy": 0.55
-    },
-    {
-      "name": "entrance",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "taiko",
-        "clap",
-        "zheng",
-        "pad"
-      ],
-      "energy": 0.78
-    },
-    {
-      "name": "cards",
-      "bars": 1,
-      "chords": [
-        "iv"
-      ],
-      "layers": [
-        "taiko",
-        "clap",
-        "dizi",
-        "zheng",
-        "pad"
-      ],
-      "energy": 0.92,
-      "impact": true
-    },
-    {
-      "name": "hold",
-      "bars": 1,
-      "chords": [
-        "iv"
-      ],
-      "layers": [
-        "pad"
-      ],
-      "energy": 0.35
-    },
-    {
-      "name": "relight",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "bell",
-        "pad",
-        "taiko"
-      ],
-      "energy": 0.5,
-      "impact": true
-    }
+    {"name": "lamp", "bars": 1, "chords": ["I"]},
+    {"name": "entrance", "bars": 1, "chords": ["I"]},
+    {"name": "cards", "bars": 1, "chords": ["IV I"]},
+    {"name": "hold", "bars": 1, "chords": ["I"]},
+    {"name": "relight", "bars": 1, "chords": ["I"]}
+  ],
+  "parts": [
+    {"id": "banhu", "inst": "banhu", "loop": 5, "gain_db": 0, "pan": 0.0, "send": 0.08,
+     "pattern": [[1, 0.9, "D6", 0.85, {"slide": -3}],
+                 [2, 0.4, "D6", 0.8], [2.5, 0.4, "C6", 0.75], [3, 0.4, "A5", 0.75], [3.5, 0.4, "G5", 0.75], [4, 0.4, "A5", 0.8], [4.5, 0.4, "C6", 0.8],
+                 [5, 0.9, "D6", 0.9, {"slide": -2}], [6, 0.4, "E6", 0.85], [6.5, 0.4, "D6", 0.8], [7, 0.9, "C6", 0.85], [8, 0.4, "A5", 0.8], [8.5, 0.4, "C6", 0.8],
+                 [9, 0.45, "G5", 0.85, {"slide": -1}],
+                 [10, 1.0, 70.5, 0.16, {"slide": 1.5}], [11.05, 1.95, "G5", 0.95, {"slide": -3}]]},
+    {"id": "bangzi", "inst": "bangzi", "sections": ["entrance", "cards", "hold", "relight"], "gain_db": 4, "pan": 0.0,
+     "pattern": "X.x.", "step": 8,
+     "by_section": {"hold": {"pattern": [[0, 0.5, null, 1.0]]}, "relight": {"pattern": [[1.05, 0.5, null, 1.0]]}}},
+    {"id": "luogu", "inst": "luogu", "gain_db": -2, "pan": 0.0, "send": 0.08, "hit": "section",
+     "pattern": [[0.25, 1, null, 0.95, "仓"], [1.5, 0.5, null, 0.6, "才"]],
+     "by_section": {"entrance": {"pattern": [[0, 1, null, 0.75, "才"], [1, 0.5, null, 0.5, "七"], [2, 0.5, null, 0.7, "台"], [2.5, 0.5, null, 0.5, "七"]]},
+                    "cards": {"pattern": [[0, 0.5, null, 0.85, "冬"], [0.5, 0.5, null, 0.7, "才"], [1, 0.5, null, 0.85, "冬"], [1.5, 0.5, null, 0.7, "才"],
+                                          [2, 0.5, null, 0.85, "冬"], [2.5, 0.5, null, 0.7, "才"], [3, 0.5, null, 0.7, "台"], [3.5, 0.5, null, 0.7, "台"]]},
+                    "hold": {"pattern": [[0, 1, null, 0.9, "台"]]},
+                    "relight": {"pattern": [[1.05, 1, null, 1.0, "仓"]]}}},
+    {"id": "bangu", "inst": "danpigu", "sections": ["lamp", "entrance", "cards"], "gain_db": 0, "pan": 0.0, "send": 0.06,
+     "pattern": "x.xx", "by_section": {"lamp": {"pattern": [[0, 0.25, null, 0.9]]}, "cards": {"pattern": "x.xxx.xxx.xxx.xxx.xxxxxx"}}},
+    {"id": "tanggu", "inst": "taiko", "sections": ["lamp", "cards"], "gain_db": -11, "send": 0.05,
+     "pattern": [[0.25, 1, null, 1.0]],
+     "by_section": {"cards": {"pattern": [[0, 0.5, null, 0.8], [1, 0.5, null, 0.8], [2, 0.5, null, 0.85]]}}}
   ]
 }

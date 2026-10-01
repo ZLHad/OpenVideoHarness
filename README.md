@@ -118,7 +118,7 @@ Each style is written as instructions an agent can follow: colors and fonts, com
 
 <a href="styles/"><img src="styles/gallery.jpg" width="820" alt="The 28 style samples, all showing the same content"></a>
 
-Watch them back to back in [`styles/gallery.mp4`](styles/gallery.mp4). To use one:
+Watch them back to back, each with its own sound, in [`styles/gallery.mp4`](styles/gallery.mp4). To use one:
 
 ```bash
 bin/vh style list                                  # see all 28

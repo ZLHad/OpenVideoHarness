@@ -1,116 +1,42 @@
 {
-  "bpm": 150,
-  "key": "E",
-  "mode": "minor",
-  "seed": 10,
-  "meters": {
-    "1": 1,
-    "2": 1,
-    "3": 3,
-    "4": 3,
-    "5": 1,
-    "6": 1,
-    "7": 3
-  },
+  "bpm": 150, "key": "E", "mode": "minor", "seed": 10,
+  "meters": {"1": 1, "2": 1, "3": 3, "4": 3, "5": 1, "6": 1, "7": 3},
+  "stereo": true, "space": "dry", "drive": 1.3,
   "sections": [
-    {
-      "name": "terminal",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "hats",
-        "bass",
-        "pad"
-      ],
-      "energy": 0.6
-    },
-    {
-      "name": "cut",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "kick",
-        "hats",
-        "bass"
-      ],
-      "energy": 0.75,
-      "impact": true
-    },
-    {
-      "name": "title",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "kick",
-        "clap",
-        "hats",
-        "bass"
-      ],
-      "energy": 0.85,
-      "impact": true
-    },
-    {
-      "name": "cards",
-      "bars": 1,
-      "chords": [
-        "VI"
-      ],
-      "layers": [
-        "kick",
-        "clap",
-        "hats",
-        "bass",
-        "lead"
-      ],
-      "energy": 1.0
-    },
-    {
-      "name": "breath",
-      "bars": 1,
-      "chords": [
-        "VI"
-      ],
-      "layers": [
-        "pad",
-        "bass"
-      ],
-      "energy": 0.3
-    },
-    {
-      "name": "hit",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "kick",
-        "clap",
-        "hats",
-        "bass"
-      ],
-      "energy": 1.0,
-      "impact": true
-    },
-    {
-      "name": "glitch",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "kick",
-        "hats",
-        "bass",
-        "pad"
-      ],
-      "energy": 0.9,
-      "impact": true
-    }
+    {"name": "terminal", "bars": 1, "chords": ["i"]},
+    {"name": "cut", "bars": 1, "chords": ["i"]},
+    {"name": "title", "bars": 1, "chords": ["i"]},
+    {"name": "cards", "bars": 1, "chords": ["VI"]},
+    {"name": "breath", "bars": 1, "chords": ["VI"]},
+    {"name": "hit", "bars": 1, "chords": ["i"]},
+    {"name": "glitch", "bars": 1, "chords": ["i"]}
+  ],
+  "parts": [
+    {"inst": "sub808", "id": "808", "loop": 7, "params": {"drive": 4, "decay": 0.9, "drop": 7}, "gain_db": -2, "hit": "section",
+     "pattern": [
+       [0.0, 0.875, "E1", 1.0], [1.0, 0.5, "E1", 0.9], [1.5, 0.375, "E2", 0.9, {"glide": 0.07}],
+       [2.0, 1.375, "E1", 1.0], [3.5, 0.375, "D2", 0.85], [4.0, 0.875, "E1", 1.0], [5.0, 0.875, "C2", 1.0],
+       [6.0, 1.0, "C2", 0.95], [7.0, 0.875, "G1", 0.9, {"glide": 0.12}], [9.0, 0.875, "E1", 1.0],
+       [10.0, 0.125, "E1", 1.0], [10.25, 0.125, "E1", 0.8], [10.5, 0.375, "E2", 0.95], [11.0, 0.75, "E1", 1.0],
+       [11.75, 0.625, "G1", 0.9, {"glide": 0.07}], [12.5, 0.375, "E1", 0.9]
+     ]},
+    {"inst": "sub808", "id": "808dive", "sections": ["breath"], "params": {"drive": 2, "decay": 1.5, "drop": 3}, "gain_db": -15, "hit": "section",
+     "pattern": [[0, 0.95, "E2", 0.9, {"bend": -12}]]},
+    {"inst": "cowbell", "id": "bell", "loop": 7, "drive": 2.5, "gain_db": -2, "pan": 0.2, "delay": {"beats": 0.75, "fb": 0.35, "mix": 0.3, "lp": 2500},
+     "pattern": [
+       [0.0, 0.5, "E5", 1.0], [0.75, 0.5, "E5", 0.7], [1.5, 0.5, "G5", 0.85], [2.0, 0.5, "E5", 1.0],
+       [2.75, 0.5, "D5", 0.75], [3.5, 0.5, "B4", 0.8], [4.0, 0.5, "E5", 1.0], [4.75, 0.5, "E5", 0.7],
+       [5.5, 0.5, "G5", 0.85], [6.0, 0.5, "A5", 0.95], [6.75, 0.5, "G5", 0.75], [7.25, 0.5, "F5", 0.7],
+       [7.5, 0.5, "E5", 0.9], [9.0, 0.5, "E5", 1.0], [9.75, 0.5, "E5", 0.7], [10.5, 0.5, "G5", 0.85],
+       [11.0, 0.5, "E5", 1.0], [11.75, 0.5, "D5", 0.75], [12.5, 0.5, "B4", 0.8]
+     ]},
+    {"inst": "trap_hat", "id": "hats", "sections": ["terminal", "cut", "title", "cards", "hit", "glitch"], "gain_db": 2, "pan": -0.25,
+     "pattern": ["x.x.", "x.xx", "x.x.x.x.x.rr", "x.x.xrx.RRRR", "x.x.", "rrrrx.x.RRx."]},
+    {"inst": "trap_snare", "id": "snare", "sections": ["title", "cards", "hit", "glitch"], "gain_db": 2, "hit": true,
+     "pattern": ["X...........", "....X.......", "X...", "X..........."]},
+    {"inst": "clap", "id": "clap", "sections": ["title", "cards", "hit", "glitch"], "gain_db": 0, "drive": 2,
+     "pattern": ["X...........", "....X.......", "X...", "X..........."]},
+    {"inst": "drone", "id": "bed", "loop": 7, "params": {"attack": 0.4, "release": 0.6}, "gain_db": -12, "lp": 900,
+     "pattern": [[0, 13, ["E2", "B2"], 0.8]]}
   ]
 }

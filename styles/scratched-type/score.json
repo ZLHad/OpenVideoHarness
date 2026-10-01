@@ -1,10 +1,27 @@
 {
   "bpm": 150, "key": "E", "mode": "minor", "seed": 13,
   "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "stereo": true, "space": "dry",
   "sections": [
-    {"name": "leader", "bars": 1, "chords": ["i"], "layers": ["pad", "taiko"], "energy": 0.4, "impact": true},
-    {"name": "etch", "bars": 1, "chords": ["i"], "layers": ["pad", "taiko", "hats"], "energy": 0.5},
-    {"name": "strip", "bars": 2, "chords": ["VI", "v"], "layers": ["pad", "taiko", "hats", "kick", "bass"], "energy": 0.65, "fill": true},
-    {"name": "splice", "bars": 1, "chords": ["i"], "layers": ["pad"], "energy": 0.45, "impact": true}
+    {"name": "leader", "bars": 1, "chords": ["i"]},
+    {"name": "etch", "bars": 1, "chords": ["i"]},
+    {"name": "strip", "bars": 2, "chords": ["VI", "v"]},
+    {"name": "splice", "bars": 1, "chords": ["i"]}
+  ],
+  "parts": [
+    {"inst": "metal", "id": "anvil", "step": 16, "pitch": "Bb4", "gain_db": 2, "pan": 0.15, "hit": true,
+     "pattern": {"3": "X.......X...", "2": "X...X..."},
+     "by_section": {"leader": {"pattern": "X......."}, "etch": {"pattern": "....X......."}, "splice": {"pattern": "X..........."}}},
+    {"inst": "metal", "id": "pipe", "step": 16, "pitch": "E3", "gain_db": -4, "pan": -0.3, "sections": ["etch", "strip"],
+     "pattern": {"3": "....O.......", "2": "........"}, "by_section": {"etch": {"pattern": "........O..."}}},
+    {"inst": "kick", "step": 16, "gain_db": -2, "drive": 4, "params": {"tune": 48},
+     "pattern": {"3": "X...X...X..x", "2": "X...X.xx"},
+     "by_section": {"leader": {"pattern": "X......."}, "etch": {"pattern": "X.....x.x..."}, "splice": {"pattern": "X..........."}}},
+    {"inst": "noiseburst", "step": 16, "gain_db": 3, "pan": -0.1, "sections": ["leader", "etch", "strip"],
+     "pattern": {"3": "..x.o.x.rr.R", "2": "..x.o.RR"},
+     "by_section": {"leader": {"pattern": "....rrrr"}, "etch": {"pattern": "..x...o...rr"}}},
+    {"inst": "drone", "loop": 5, "gain_db": -5, "params": {"attack": 0.05, "release": 1.0, "cutoff": 700},
+     "pattern": [[0, 13, ["E2", "F2"], 0.8]]},
+    {"inst": "tape", "gain_db": 9}
   ]
 }

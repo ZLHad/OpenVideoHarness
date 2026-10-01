@@ -1,63 +1,30 @@
 {
-  "bpm": 150,
-  "key": "F",
-  "mode": "major",
-  "seed": 17,
-  "meters": {
-    "1": 2,
-    "2": 3,
-    "3": 5,
-    "4": 3
-  },
+  "bpm": 150, "key": "F", "mode": "major", "seed": 17,
+  "meters": {"1": 2, "2": 3, "3": 5, "4": 3},
+  "stereo": true, "space": {"type": "hall", "rt60": 2.6},
   "sections": [
-    {
-      "name": "sky",
-      "bars": 1,
-      "chords": [
-        "I"
-      ],
-      "layers": [
-        "pad"
-      ],
-      "energy": 0.32
-    },
-    {
-      "name": "title",
-      "bars": 1,
-      "chords": [
-        "IV"
-      ],
-      "layers": [
-        "pad",
-        "dizi"
-      ],
-      "energy": 0.4
-    },
-    {
-      "name": "trees",
-      "bars": 1,
-      "chords": [
-        "vi"
-      ],
-      "layers": [
-        "pad",
-        "dizi",
-        "arp"
-      ],
-      "energy": 0.42
-    },
-    {
-      "name": "light",
-      "bars": 1,
-      "chords": [
-        "I"
-      ],
-      "layers": [
-        "pad",
-        "bell",
-        "dizi"
-      ],
-      "energy": 0.35
-    }
+    {"name": "sky", "bars": 1, "chords": ["Iadd9"]},
+    {"name": "title", "bars": 1, "chords": ["IVmaj7"]},
+    {"name": "trees", "bars": 1, "chords": ["vi7 V"]},
+    {"name": "light", "bars": 1, "chords": ["Iadd9"]}
+  ],
+  "parts": [
+    {"id": "piano_rh", "inst": "piano", "loop": 4, "gain_db": 7, "pan": 0.2, "send": 0.35, "params": {"tone": "bright", "pedal": true},
+     "pattern": [[0, 1, "C6", 0.62], [1, 1, "A5", 0.56], [2, 2, "D6", 0.64], [4, 1, "C6", 0.56],
+                 [5, 2.5, ["A4", "D5"], 0.3], [7.5, 2.5, ["G4", "C5"], 0.3],
+                 [10, 3, ["A5", "C5"], 0.55]]},
+    {"id": "piano_lh", "inst": "piano", "loop": 4, "gain_db": -1, "pan": -0.45, "send": 0.35, "params": {"tone": "bright", "pedal": true},
+     "pattern": [[0, 2, "F2", 0.55], [0.5, 1.5, "C3", 0.55], [1, 1, "A3", 0.55], [1.5, 0.5, "C4", 0.55],
+                 [2, 3, ["Bb1", "Bb2"], 0.55], [2.5, 2.5, "F3", 0.55], [3, 2, "D4", 0.55], [3.5, 1.5, "F3", 0.5], [4, 1, "A3", 0.55], [4.5, 0.5, "F3", 0.5],
+                 [5, 2.5, ["D2", "D3"], 0.55], [5.5, 2, "A3", 0.55], [6, 1.5, "F4", 0.55], [6.5, 1, "A3", 0.5], [7, 0.5, "C4", 0.5],
+                 [7.5, 2.5, ["C2", "C3"], 0.55], [8, 2, "G3", 0.55], [8.5, 1.5, "E4", 0.55], [9, 1, "G3", 0.5], [9.5, 0.5, "D4", 0.5],
+                 [10, 3, ["F1", "F2"], 0.45], [10.5, 2.5, "C3", 0.55], [11, 2, "A3", 0.55], [11.5, 1.5, "C4", 0.55], [12, 1, "G4", 0.5]]},
+    {"id": "flute", "inst": "flute", "sections": ["trees", "light"], "loop": 2, "gain_db": -1, "pan": 0.45, "send": 0.4,
+     "pattern": [[0, 1.5, "A5", 0.75], [1.5, 0.5, "G5", 0.6], [2, 0.5, "F5", 0.6], [2.5, 1.5, "G5", 0.7], [4, 1, "C6", 0.72],
+                 [5, 3, "C6", 0.8]]},
+    {"id": "strings", "inst": "strings", "figure": "sustain", "sections": ["trees", "light"], "octave": 4, "gain_db": -7, "pan": -0.05, "send": 0.55,
+     "params": {"attack": 1.0, "release": 0.8},
+     "by_section": {"trees": {"vel": 0.5}, "light": {"vel": 1.0, "params": {"attack": 0.4}}}},
+    {"id": "wind", "inst": "wind", "gain_db": 3}
   ]
 }

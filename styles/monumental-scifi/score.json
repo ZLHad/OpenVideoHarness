@@ -1,11 +1,24 @@
 {
   "bpm": 150, "key": "D", "mode": "minor", "seed": 60,
   "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "stereo": true, "space": {"type": "cathedral", "rt60": 6.5},
   "sections": [
-    {"name": "haze", "bars": 1, "chords": ["i"], "layers": ["pad", "bell"], "energy": 0.35},
-    {"name": "title", "bars": 1, "chords": ["i"], "layers": ["pad", "bell"], "energy": 0.4},
-    {"name": "monoliths", "bars": 1, "chords": ["VI"], "layers": ["pad", "bell", "taiko"], "energy": 0.6},
-    {"name": "breath", "bars": 1, "chords": ["VII"], "layers": ["pad"], "energy": 0.25},
-    {"name": "braam", "bars": 1, "chords": ["i"], "layers": ["pad", "taiko", "bell"], "energy": 0.8, "impact": true}
+    {"name": "haze", "bars": 1, "chords": ["i"]},
+    {"name": "title", "bars": 1, "chords": ["i"]},
+    {"name": "monoliths", "bars": 1, "chords": ["VImaj7"]},
+    {"name": "breath", "bars": 1, "chords": ["bIImaj7"]},
+    {"name": "braam", "bars": 1, "chords": ["i"]}
+  ],
+  "parts": [
+    {"inst": "braam", "sections": ["haze", "braam"], "onset_ms": 25, "hit": true, "gain_db": 5, "send": 0.25, "params": {"third": 3},
+     "by_section": {"haze": {"pattern": [[0.25, 4.5, "c0", 0.9]]}, "braam": {"pattern": [[0, 3, "c0", 1.0]]}}},
+    {"inst": "cs80", "figure": "sustain", "sections": ["title", "monoliths", "breath", "braam"], "octave": 3, "voicing": "spread",
+     "gain_db": -7, "send": 0.3, "params": {"attack": 0.7, "release": 1.2},
+     "by_section": {"monoliths": {"params": {"release": 0.35}}, "breath": {"gain_db": -10, "params": {"attack": 0.78, "release": 0.3}}}},
+    {"inst": "drone", "figure": "sustain", "hold": "section", "pitch": "c0", "octave": 2, "gain_db": -8, "send": 0.2,
+     "params": {"attack": 0.8, "release": 1.5},
+     "by_section": {"monoliths": {"pitch": "D2"}, "breath": {"pitch": "D2", "gain_db": -12}}},
+    {"inst": "timpani", "sections": ["monoliths", "braam"], "gain_db": -6, "lp": 500, "send": 0.4, "pan": -0.2,
+     "pattern": "X.......x...", "pitch": ["D2", "D2"], "by_section": {"braam": {"pattern": "X..........."}}}
   ]
 }

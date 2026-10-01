@@ -1,12 +1,37 @@
 {
-  "bpm": 150, "key": "F", "mode": "major", "seed": 16,
-  "meters": { "1": 2, "2": 3, "3": 1, "4": 1, "5": 3, "6": 3 },
+  "bpm": 150, "key": "F", "mode": "major", "seed": 16, "master_db": -2,
+  "meters": {"1": 2, "2": 3, "3": 1, "4": 1, "5": 3, "6": 3}, "stereo": true, "space": "dry", "swing": 0.58,
   "sections": [
-    { "name": "tilemap", "bars": 1, "chords": ["I"], "layers": ["pad", "arp", "bass"], "energy": 0.5 },
-    { "name": "window", "bars": 1, "chords": ["vi"], "layers": ["pad", "arp", "bass", "hats"], "energy": 0.55 },
-    { "name": "panels", "bars": 1, "chords": ["IV"], "layers": ["pad", "arp", "bass", "kick"], "energy": 0.62 },
-    { "name": "breath", "bars": 1, "chords": ["IV"], "layers": ["pad"], "energy": 0.3 },
-    { "name": "draft", "bars": 1, "chords": ["V"], "layers": ["kick", "hats", "bass", "pad", "arp", "lead"], "energy": 0.9 },
-    { "name": "save", "bars": 1, "chords": ["I"], "layers": ["pad", "arp", "lead"], "energy": 0.45 }
+    {"name": "tilemap", "bars": 1, "chords": ["I"]},
+    {"name": "window", "bars": 1, "chords": ["vi"]},
+    {"name": "panels", "bars": 1, "chords": ["IV"]},
+    {"name": "breath", "bars": 1, "chords": ["IV"]},
+    {"name": "draft", "bars": 1, "chords": ["V"]},
+    {"name": "save", "bars": 1, "chords": ["I"]}
+  ],
+  "parts": [
+    {"inst": "pulse", "id": "lead", "sections": ["tilemap", "draft", "save"], "pattern": [[0, 0.25, "C5"], [0.25, 0.25, "F5"], [0.5, 0.25, "A5"], [0.75, 1.1, "C6"]], "params": {"duty": 0.25, "vib": 12, "decay": 0.5, "sus": 0.6}, "lp": 5500, "delay": {"beats": 0.6, "fb": 0.35, "mix": 0.5, "lp": 2500, "pingpong": true}, "gain_db": 0,
+      "by_section": {
+        "draft": {"pattern": [[0, 0.5, "C6"], [0.5, 0.25, "Bb5"], [0.75, 0.25, "A5"], [1, 0.5, "G5"], [1.5, 0.5, "C6"], [2, 1, "E6"]]},
+        "save": {"pattern": [[0, 1, "F6"], [1, 0.5, "C6"], [1.5, 0.5, "A5"], [2, 1, "F5"]]}
+      } },
+    {"inst": "pizzicato", "id": "pizz-arp", "sections": ["tilemap", "window", "panels", "draft", "save"], "figure": "arp-updown", "rate": 8, "octave": 4, "lp": 2500, "gain_db": 2, "pan": -0.6,
+      "by_section": {
+        "window": {"rate": 2, "gain_db": -4}
+      } },
+    {"inst": "brass", "id": "brass-pad", "sections": ["tilemap", "window", "panels", "draft", "save"], "figure": "sustain", "voicing": "close", "octave": 4, "params": {"swell": true, "attack": 0.35}, "lp": 1800, "gain_db": -6, "pan": 0.5,
+      "by_section": {
+        "panels": {"figure": "", "pattern": [[0, 1.95, "chord", 0.8]]},
+        "window": {"gain_db": -10}
+      } },
+    {"inst": "triangle", "id": "tri-bass", "sections": ["tilemap", "window", "panels", "draft", "save"], "figure": "ostinato", "cell": ["c0", "c2", "c0'", "c2"], "rate": 4, "reset": "bar", "octave": 2, "lp": 2000, "gain_db": -3,
+      "by_section": {
+        "window": {"rate": 2},
+        "draft": {"rate": 8},
+        "save": {"rate": 8}
+      } },
+    {"inst": "chipkick", "id": "chipkick", "sections": ["panels", "draft", "save"], "pattern": {"1": "x...", "*": "x.......x......."}, "gain_db": -8},
+    {"inst": "noise", "id": "noise-snare", "sections": ["draft", "save"], "pattern": "....x...", "lp": 6000, "gain_db": -9},
+    {"inst": "noise", "id": "noise-hat", "sections": ["draft", "save"], "pattern": "..o.", "lp": 6000, "gain_db": -12, "pan": 0.45}
   ]
 }

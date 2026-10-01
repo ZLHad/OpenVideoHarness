@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：第 1 帧起，FRAME 计数在点阵中央放大跑数，0.65–0.95 s 飞回右上角，面板框随即画出。标题逐字解码。一道扫描线揭出样片自己的内容规格（四条甘特条：establish / title / motif / outro），播放头就是 t。下方是轨迹 schematic：三个航点在 2.0 / 2.2 / 2.4 s 依次启动（先画圆，再出数据），每个带线框图标和它真实的启动时刻；初版的图标是一格胶片，不用播放键。橙色括号锁定初版航点：2 Hz 闪两下，这时配乐只剩 drone。2.8 和 3.2 s 各一道扫描线扫过，读数跟着闪；3.6 s 标记点锁定。镜头慢慢漂移：点阵 0.9×、HUD 1.0×、一层淡淡的准星前景 1.1×，形成视差。4.0 s 初版航点的括号框展开成全屏结束卡。实际字体：DIN Condensed Bold、Menlo（SF Mono 回落）、PingFang SC Medium。配乐 150 BPM：`pad` drone + 16 分音符 `arp`，2.4–3.2 s 告警段只留 `pad`。拟音：计数用 tick，航点启动用 toggle，解码用 typing，扫描线用 swish_rev，3.6 s 锁定用 success，展开用 whoosh。拟音的落点写在 swatch.js 的 `FOLEY` 常量里，`events.json` 由它生成。
+样片里：第 1 帧起，FRAME 计数在点阵中央放大跑数，0.65–0.95 s 飞回右上角，面板框随即画出。标题逐字解码。一道扫描线揭出样片自己的内容规格（四条甘特条：establish / title / motif / outro），播放头就是 t。下方是轨迹 schematic：三个航点在 2.0 / 2.2 / 2.4 s 依次启动（先画圆，再出数据），每个带线框图标和它真实的启动时刻；初版的图标是一格胶片，不用播放键。橙色括号锁定初版航点：2 Hz 闪两下，这时配乐只剩 drone。2.8 和 3.2 s 各一道扫描线扫过，读数跟着闪；3.6 s 标记点锁定。镜头慢慢漂移：点阵 0.9×、HUD 1.0×、一层淡淡的准星前景 1.1×，形成视差。4.0 s 初版航点的括号框展开成全屏结束卡。实际字体：DIN Condensed Bold、Menlo（SF Mono 回落）、PingFang SC Medium。配乐 150 BPM、D 小调（3.6 s 锁定用的 `success` 是 E、A 两个音，正好在调里），《创：战纪》式的冷电子：签名是一条带共振的滤波锯齿波音序（`seq`，十六分音符，八度来回跳），每拍一下短的 sub 脉冲（`sub808`），底下一层暗的失谐 `drone`，零星几声方波数字 blip，冷的 plate 混响；2.4–3.2 s 告警段音序和脉冲全撤，只剩 drone，括号每闪一次响一声 blip（2.4、2.66 s）；3.2 s 扫描段音序回来；4.0 s 展开成结束卡时滤波打开，音序变亮。拟音：计数用 tick，航点启动用 toggle，解码用 typing，扫描线用 swish_rev，3.6 s 锁定用 success，展开用 whoosh。拟音的落点写在 swatch.js 的 `FOLEY` 常量里，`events.json` 由它生成。
 
 ## 学习对象
 
@@ -64,10 +64,12 @@
 
 ## 声音语法
 
-- **配乐**：冷的电子 drone 加脉冲，100 BPM，C 小调。`bin/vh music` 的做法：
-  - `pad` 低通，energy 0.3；
-  - `arp` 走 16 分音符，energy 0.4–0.6，像数据流；
-  - `bass` 垫底，紧张段再加 `hats`。
+- **配乐**：冷的电子乐，《创：战纪》《遗落战境》界面的那一路，100 BPM，小调。`bin/vh music` 的声部写法：
+  - 签名是十六分音符的滤波锯齿波音序（`seq`：低截止、高共振、短包络），像数据流；
+  - 每拍一下 sub 脉冲（`sub808` 的短音），底下一层暗的失谐 `drone`；
+  - 零星的方波数字 blip（`seq` 的 `wave: "square"`，很短）；冷的 `plate` 混响；
+  - 紧张段把音序的滤波打开，告警时只留 drone。
+  - 选调时让 `success` 的 E、A 两个音落在调里（D 小调、A 小调都行；C 小调里 E 会刺耳）。
 - **音效**：一个家族，全部调到同一个调。
   - `tick` 配数字锁定；
   - `click` 配面板框线闭合；
@@ -95,7 +97,7 @@
 ## Prompt 块
 
 ```text
-Visual style: a fictional film user interface (FUI) built from real data. Blue-black ground #05080A with a 24 px dot grid; cool white #CFE7EA hairlines and readouts in three brightness levels; one alert orange #FF8A2B reserved for the single thing that matters right now; failure red only for failure. Hierarchy: one primary readout (a large tabular monospace number or a status), two to four secondary panels that each answer a question (how much, where, how long), and faint scrolling tertiary data as texture. Schematics are wireframes, sections and trajectories, revealed by a scan line. Motion: panels boot in two steps (the frame draws linearly from a corner in 6 frames, then the data fills in over 4), staggered 3 frames apart; numbers count in steps and lock digit by digit; text decodes for at most 9 frames and then holds; alerts blink twice at 2 Hz and stay on. Labels are condensed caps (DIN Condensed); numbers are monospace (SF Mono or Menlo) with tabular figures. Subtle scanlines, bloom only on orange. Transitions: a panel expanding to full frame, a scan-line wipe, hard cuts. Sound: a 100 BPM C-minor drone with a sixteenth-note arpeggio, and one tuned family of ticks and clicks panned to where each panel sits.
+Visual style: a fictional film user interface (FUI) built from real data. Blue-black ground #05080A with a 24 px dot grid; cool white #CFE7EA hairlines and readouts in three brightness levels; one alert orange #FF8A2B reserved for the single thing that matters right now; failure red only for failure. Hierarchy: one primary readout (a large tabular monospace number or a status), two to four secondary panels that each answer a question (how much, where, how long), and faint scrolling tertiary data as texture. Schematics are wireframes, sections and trajectories, revealed by a scan line. Motion: panels boot in two steps (the frame draws linearly from a corner in 6 frames, then the data fills in over 4), staggered 3 frames apart; numbers count in steps and lock digit by digit; text decodes for at most 9 frames and then holds; alerts blink twice at 2 Hz and stay on. Labels are condensed caps (DIN Condensed); numbers are monospace (SF Mono or Menlo) with tabular figures. Subtle scanlines, bloom only on orange. Transitions: a panel expanding to full frame, a scan-line wipe, hard cuts. Sound: a cold 100 BPM minor-key filtered saw sequence in sixteenths over short sub pulses and a dark drone, sparse digital blips, a cold plate; only the drone during alerts; one tuned family of ticks and clicks panned to where each panel sits.
 ```
 
 ## 引擎做法

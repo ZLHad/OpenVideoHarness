@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：第 0 帧滚筒已经压在纸上，蓝版随滚筒整幅扫过去（前沿一道浓蓝的滚筒带，后面是半调天空、底部地面带和四角套准十字），同拍一记 `impact` 当滚筒声；标题印在蓝版上；三个形状依次是一版（大纲，只有蓝）、两版（分镜：黄版滚上来，蓝网点压在黄上变绿）、三版（初版：粉版滚上来，三圆全叠印，中间镂空一个纸白的四角星，不用 ▶），粉版同时给标题"双击"一次，每加一版就踢一下；2.9–4.0 s 每拍重印一版：3.0 s 粉版、3.5 s 黄版各踢一下，落到新的套准位置，对应的形状同时压印一下（放大 12% 再回位）；右上角的太阳（黄 + 粉 45%）缩小并挪到标题右侧，不再压着初版三圆；4.0 s 整块矩形粉版从上方滑下盖住整张纸，落地时错位踢开 14 px；4.5 s 切到结束印张：蓝版一次整行印出"RISOGRAPH"，4.75 s 粉版偏 4–5 px 再印一次。实际字体：Futura Bold、PingFang SC Semibold。配乐 120 BPM、A 大调，每加一版进一件乐器。
+样片里：第 0 帧滚筒已经压在纸上，蓝版随滚筒整幅扫过去（前沿一道浓蓝的滚筒带，后面是半调天空、底部地面带和四角套准十字），同拍 Rhodes 弹下第一个和弦；标题印在蓝版上；三个形状依次是一版（大纲，只有蓝）、两版（分镜：黄版滚上来，蓝网点压在黄上变绿）、三版（初版：粉版滚上来，三圆全叠印，中间镂空一个纸白的四角星，不用 ▶），粉版同时给标题"双击"一次，每加一版就踢一下；2.9–4.0 s 每拍重印一版：3.0 s 粉版、3.5 s 黄版各踢一下，落到新的套准位置，对应的形状同时压印一下（放大 12% 再回位）；右上角的太阳（黄 + 粉 45%）缩小并挪到标题右侧，不再压着初版三圆；4.0 s 整块矩形粉版从上方滑下盖住整张纸，落地时错位踢开 14 px；4.5 s 切到结束印张：蓝版一次整行印出"RISOGRAPH"，4.75 s 粉版偏 4–5 px 再印一次。实际字体：Futura Bold、PingFang SC Semibold。配乐是 120 BPM、A 大调的 lo-fi hip-hop，每加一版进一件乐器：只有蓝版时是 Rhodes（`epiano`，轻颤音）的 Amaj9 和弦，按 3–7–9–5 的无根音排法，第二下里 9 音落到根音，底下只有黑胶噼啪；2.0 s 黄版进来时低音提琴（`upright`）用三连音 F♯–A–C♯ 走上来，正好对上三个形状 2.0 / 2.17 / 2.33 s 的印出；2.5 s 粉版进来时鼓进来：发灰的 `bb_kick`、晚 22 ms 的 `rim` 边击、十六分摇摆的 `hihat`（`swing` 0.62，懒）；4.0 s 整块粉版盖下时加 `vibraphone`，E–C♯–A 往下走。整轨过 `lofi`（低通 5.5 kHz、wow、噼啪、嘶声）和 `tape` 饱和。
 
 ## 学习对象
 
@@ -53,10 +53,10 @@
 
 ## 声音语法
 
-- **配乐**：A 大调，120 BPM（24 fps 下一拍 12 帧，30 fps 下 15 帧），暖、原声感。**分层 = 分版**：一版时只有 `pad` 或拨弦 `arp`；加一版进 `bass`；再加一版进 `hats` 和轻 `clap`；全叠印时加 `bell`。
+- **配乐**：lo-fi hip-hop，A 大调，120 BPM（24 fps 下一拍 12 帧，30 fps 下 15 帧），暖、原声感。签名是 Rhodes（`epiano`）的 maj7 / maj9 和弦，无根音排法（3–7–9–5），一小节只弹两三下；鼓懒、摇摆、发灰：`bb_kick`、比拍子晚一点点的 `rim`（负的 `onset_ms`，懒）、十六分摇摆的 `hihat`；低音是软的 `upright`；整轨带 `lofi` 的黑胶噼啪和磁带抖动、`tape` 饱和。**分层 = 分版**：一版时只有 Rhodes；加一版进低音提琴；再加一版进鼓；全叠印时加 `vibraphone`。
 - **音效**：签名是印刷机：走纸"唰"（高通的短 `whoosh`）+ 滚筒"咔嗒"（`click` 叠低通 `impact`），每加一版响一次；纸落下用 `swish_rev`。
 - **声画关系**：每加一版 = 一件新乐器进来 = 一声滚筒。各版漂开时音乐抽掉一小节（保留混响尾巴），回位落在强拍上。
-- **样片拟音**：`events.json` 15 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），−3 dB 混在配乐下：蓝版咬纸 `click`、滚筒扫过 `whoosh`；标题和中文的局部滚筒各一声轻 `whoosh`；三个形状印出各一声 `pop`（按一拍二换算到出现的帧）；黄版、粉版滚筒各一声 `whoosh`；3.0、3.5 s 每拍重印一版各一声 `click`；整块粉版落下 `swish_rev` + 落地 `click`；结束印张蓝版、粉版双击各一声 `click`。
+- **样片拟音**：`events.json` 15 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），按 `profile=swatch` 混在配乐下：蓝版咬纸 `click`、滚筒扫过 `whoosh`；标题和中文的局部滚筒各一声轻 `whoosh`；三个形状印出各一声 `pop`（按一拍二换算到出现的帧）；黄版、粉版滚筒各一声 `whoosh`；3.0、3.5 s 每拍重印一版各一声 `click`；整块粉版落下 `swish_rev` + 落地 `click`；结束印张蓝版、粉版双击各一声 `click`。
 
 ## 适合与不适合
 
@@ -76,7 +76,7 @@
 ## Prompt 块
 
 ```text
-Visual style: risograph print in motion. Warm paper #F4EFE4 and three translucent spot inks only: blue #0078BF, fluorescent pink #FF48B0, yellow #FFE800. Inks multiply where they overlap (blue+pink = deep indigo, blue+yellow = green, pink+yellow = orange-red); highlights are bare paper. Flat colour fields and silhouettes, no outlines, no gradients, no shadows; mid-tones are halftone dots (6–8 px, blue 15°, yellow 0°, pink 75°) fixed to the paper, never to the objects. Each plate is slightly misregistered (±1–3 px per shot), kicks 8–14 px on accents and springs back; ink has grain, pinholes and feed-direction streaks, and 35% of the dots re-roll 12 times a second like a fresh print. At most two plates in any area, only one of them as a tint. The story is told in plates: the opening is blue only, and each turning point adds a plate with a roller sweep (a denser ink band at the leading edge). Big shapes, one horizon, one big circle, one small figure. Titles are printed on the blue plate in a heavy geometric sans (Futura Bold), sometimes double-hit on pink with an 8 px offset; Chinese in PingFang SC. Figures step at 12 fps, camera pans stay smooth. Transitions: roller sweep, an ink shape growing over everything and becoming the next scene, the sheet pulled away. Sound: warm 120 BPM, one instrument per plate, a print-drum clunk whenever a plate arrives.
+Visual style: risograph print in motion. Warm paper #F4EFE4 and three translucent spot inks only: blue #0078BF, fluorescent pink #FF48B0, yellow #FFE800. Inks multiply where they overlap (blue+pink = deep indigo, blue+yellow = green, pink+yellow = orange-red); highlights are bare paper. Flat colour fields and silhouettes, no outlines, no gradients, no shadows; mid-tones are halftone dots (6–8 px, blue 15°, yellow 0°, pink 75°) fixed to the paper, never to the objects. Each plate is slightly misregistered (±1–3 px per shot), kicks 8–14 px on accents and springs back; ink has grain, pinholes and feed-direction streaks, and 35% of the dots re-roll 12 times a second like a fresh print. At most two plates in any area, only one of them as a tint. The story is told in plates: the opening is blue only, and each turning point adds a plate with a roller sweep (a denser ink band at the leading edge). Big shapes, one horizon, one big circle, one small figure. Titles are printed on the blue plate in a heavy geometric sans (Futura Bold), sometimes double-hit on pink with an 8 px offset; Chinese in PingFang SC. Figures step at 12 fps, camera pans stay smooth. Transitions: roller sweep, an ink shape growing over everything and becoming the next scene, the sheet pulled away. Sound: warm 120 BPM lo-fi hip-hop: Rhodes maj7/maj9 chords, lazy swung dusty drums, a soft upright bass, vinyl crackle and tape wobble; one instrument per plate, a print-drum clunk whenever a plate arrives.
 ```
 
 ## 引擎做法
