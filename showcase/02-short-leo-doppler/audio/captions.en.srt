@@ -1,13 +1,13 @@
 1
-00:00:00,200 --> 00:00:01,690
+00:00:00,200 --> 00:00:01,750
 Satellite signals change pitch?
 
 2
-00:00:01,850 --> 00:00:03,380
+00:00:01,850 --> 00:00:03,450
 The cause: the Doppler shift.
 
 3
-00:00:03,550 --> 00:00:05,090
+00:00:03,550 --> 00:00:05,350
 Low-orbit satellites fly incredibly fast.
 
 4
@@ -16,7 +16,7 @@ Approaching: the waves bunch up, the
 frequency rises.
 
 5
-00:00:09,500 --> 00:00:11,180
+00:00:09,500 --> 00:00:11,300
 Overhead: the shift is zero.
 
 6
@@ -33,7 +33,7 @@ At 2 GHz: close to ±50 kHz.
 At 20 GHz: ten times more.
 
 9
-00:00:20,650 --> 00:00:22,170
+00:00:20,650 --> 00:00:22,450
 The orbit is known, so it can be computed
 ahead.
 

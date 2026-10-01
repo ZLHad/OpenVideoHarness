@@ -18,6 +18,13 @@ Two rules, templates/TASTE_CHECKLIST.md #5 (rationale in playbook/03-motion-desi
   subtitle  lines that follow the voice: reading-speed ceiling, plus a 1.8 s floor
             CJK text ≤ 9 chars/s (half-width characters count 0.5), Latin text ≤ 20 chars/s (spaces and punctuation count)
 
+Per text: spoken captions that repeat the narration are subtitles, whatever the run's default. A timed element of a
+HyperFrames composition carrying data-read="subtitle", on the clip itself or on a clip or scene around it (a
+sub-composition's host included), is checked with the subtitle rule; everything else stays on the on-screen rule.
+data-read="onscreen" says the default aloud, and the nearest mark wins, so one label can opt out of a marked scene.
+Marked texts get a `sub` tag in the output and count in the totals. A texts.json item takes the same key,
+"read": "subtitle" (--export writes it). --mode is the rule for texts that carry no mark; a mark always wins over it.
+
 The onscreen formula comes from lemo-opuscar's core/render/readcheck.mjs and DIRECTOR.md §7 (MIT, © 2026 LemoLab);
 the floor is ours (2.5 s). The subtitle ceilings are the Netflix Timed Text Style Guide figures for adult programmes
 (Chinese Simplified 9 cps, English USA 20 cps); the 1.8 s floor is lemo's DIRECTOR.md §7.
@@ -41,12 +48,14 @@ for a knowledge short, 3.5–4.5 for an explainer or a paper, within a sentence;
 Exit: 0 all pass · 1 some too short / too fast · 2 nothing to check (bad input). Writes nothing, except --export.
 """
 import argparse, json, math, os, re, subprocess, sys
+from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
 
 CJK_RANGES = [(0x3040, 0x30FF), (0x31F0, 0x31FF), (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF),
               (0xAC00, 0xD7AF), (0x1100, 0x11FF), (0x3130, 0x318F), (0x20000, 0x2FA1F)]   # kana, Han, Hangul
 SUB_FLOOR, SUB_CPS_CJK, SUB_CPS_LATIN = 1.8, 9.0, 20.0
+TAGS = {"subtitle": "sub", "onscreen": "on"}   # the tag column of a run that mixes rules
 PAUSE = 0.85   # playbook/04-audio.md: script length = seconds x rate x 0.85, the rest is pauses between sentences
 LAST_STATS = {}   # what the last composition read left out (export_html)
 
@@ -68,13 +77,22 @@ def load_items(path: Path):
         raise ValueError(f"{path}: expected a JSON list of {{text, start, end}}")
     return path, data
 
+def read_mode(v):
+    """"subtitle" / "onscreen" from a data-read or "read" value (case, spaces and a hyphen are ignored); None for anything else."""
+    v = re.sub(r"[\s_-]", "", str(v or "")).lower()
+    return v if v in ("subtitle", "onscreen") else None
+
 def pieces(items, lang):
-    """Yield (label, start, end, text) for every text to check."""
+    """Yield (label, start, end, text, mode) for every text to check; mode is the item's own rule ("subtitle" /
+    "onscreen" from its "read" key) or None, which means the run's default."""
     for i, it in enumerate(items):
         t0, t1 = it.get("start", it.get("t0")), it.get("end", it.get("t1"))
         if t0 is None or t1 is None:
             raise ValueError(f"item {i}: needs start/end (or t0/t1)")
         label = str(it.get("id", i + 1))
+        mode = read_mode(it.get("read"))
+        if it.get("read") not in (None, "") and mode is None:
+            raise ValueError(f"item {label}: \"read\" is {it['read']!r}; use \"subtitle\" or \"onscreen\"")
         if "text" in it:
             fields = [("", it["text"])]
         else:
@@ -85,7 +103,7 @@ def pieces(items, lang):
                 txt = ("" if any(is_cjk(c) for c in "".join(map(str, txt))) else " ").join(map(str, txt))
             txt = str(txt)
             if txt.strip():
-                yield (f"{label}{'·' + k if k else ''}", float(t0), float(t1), txt)
+                yield (f"{label}{'·' + k if k else ''}", float(t0), float(t1), txt, mode)
 
 def onscreen_need(text, a):
     cjk = sum(1 for c in text if is_cjk(c))
@@ -99,6 +117,14 @@ def subtitle_check(text, dur):
         n, limit = float(len(text.strip())), SUB_CPS_LATIN
     need = max(SUB_FLOOR, n / limit)
     return need, n / dur if dur > 0 else float("inf"), limit
+
+def verdict(text, dur, mode, a):
+    """(ok, need, rate, limit): one text against the rule of its mode; rate and limit are None for the on-screen rule."""
+    if mode == "subtitle":
+        need, rate, limit = subtitle_check(text, dur)
+        return dur >= need - 1e-6, need, rate, limit
+    need = onscreen_need(text, a)
+    return dur >= need - 1e-6, need, None, None
 
 # ---------- on-screen text straight from a HyperFrames composition ----------
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr", "param"}
@@ -212,8 +238,17 @@ def _timeline(html):
             spans[(str(row.get("file") or "index.html"), str(ident))] = (a, b)
     return spans
 
-def _export(path, base, offset, until, depth, tl, stats, items):
-    """The timed text of one composition file, its sub-compositions included, offset by the host's start."""
+def _mark(n, inherit):
+    """(mode, raw) from the nearest data-read on n or above it, else (inherit, None); mode is None when raw is no known rule."""
+    while n is not None:
+        if "data-read" in n.attrs:
+            return read_mode(n.attrs["data-read"]), n.attrs["data-read"]
+        n = n.parent
+    return inherit, None
+
+def _export(path, base, offset, until, depth, tl, stats, items, read=None):
+    """The timed text of one composition file, its sub-compositions included, offset by the host's start.
+    `read` is the rule a host clip's data-read hands down to a sub-composition."""
     root = _Tree(); root.feed(path.read_text(encoding="utf-8", errors="replace")); root.close(); root = root.root
     if depth:   # a sub-composition is built from its file's <template>, when it has one
         root = next((n for n in _elements(root, True) if n.tag == "template"), root)
@@ -275,7 +310,7 @@ def _export(path, base, offset, until, depth, tl, stats, items):
             if depth < 4 and sub.is_file():
                 inner = _export_dur(sub)
                 end = b if k.attrs.get("data-duration") or k.attrs.get("data-end") else (a + inner if inner is not None else b)
-                _export(sub, base, a, end, depth + 1, tl, stats, items)
+                _export(sub, base, a, end, depth + 1, tl, stats, items, _mark(k, read)[0])
             else:
                 stats["unresolved"].append(f"{rel}#{k.attrs.get('id') or k.tag}: sub-composition {src} not found")
             continue
@@ -288,6 +323,9 @@ def _export(path, base, offset, until, depth, tl, stats, items):
                 stats["untimed"] += 1; continue   # no timing of its own: a script decides when it shows
             ident = node.attrs.get("id") or k.attrs.get("id") or f"{node.tag}@{a:g}"
             it = {"id": ident, "text": txt, "start": round(a, 3), "end": round(b, 3), "from": rel}
+            mode, raw = _mark(node, read)
+            if mode: it["read"] = mode
+            elif raw is not None: stats["badread"].append(f"{rel}#{ident}: data-read=\"{raw}\"")
             if node is not k:   # the span is the enclosing clip's (a scene), not a timing of the text's own
                 it["clip"] = k.attrs.get("id") or k.tag
             items.append(it)
@@ -305,10 +343,11 @@ def composition_duration(html):
 def export_html(path):
     """(items, stats): the composition's timed text [{id, text, start, end, from, clip?}], and stats = {"untimed": text
     blocks left out because a clip as long as the whole film holds them, "unresolved": data-start values nothing
-    resolves (HyperFrames puts those at 0), "source": where the spans came from}."""
+    resolves (HyperFrames puts those at 0), "badread": data-read values that name no rule, "source": where the
+    spans came from}. An item carries "read": "subtitle" / "onscreen" when its clip, or a clip around it, is marked."""
     path = Path(path)
     tl = _timeline(path)
-    stats = {"untimed": 0, "unresolved": [], "zeroed": [], "source": "HyperFrames' own timeline" if tl is not None else "the HTML (no hyperframes in the project to ask)"}
+    stats = {"untimed": 0, "unresolved": [], "zeroed": [], "badread": [], "source": "HyperFrames' own timeline" if tl is not None else "the HTML (no hyperframes in the project to ask)"}
     items = []
     _export(path, path.parent, 0.0, None, 0, tl, stats, items)
     items.sort(key=lambda x: (x["start"], x["end"], x["id"]))
@@ -326,6 +365,11 @@ def zeroed_note(stats):
     z = stats.get("zeroed") or []
     return (f"{len(z)} clip(s) start at 0 because their data-start names no clip (HyperFrames does not complain): "
             + "; ".join(z[:4]) + (" …" if len(z) > 4 else "")) if z else ""
+
+def badread_note(stats):
+    b = stats.get("badread") or []
+    return (f"{len(b)} text(s) have a data-read that is not \"subtitle\" or \"onscreen\", so they were checked as on-screen text: "
+            + "; ".join(b[:4]) + (" …" if len(b) > 4 else "")) if b else ""
 
 def budget(span, a):
     """Lines saying how much text fits in span seconds."""
@@ -390,6 +434,7 @@ def main():
         note = skipped_note(stats)
         if note: print(f"  not exported: {note}; add those by hand")
         if zeroed_note(stats): print(f"  note: {zeroed_note(stats)}")
+        if badread_note(stats): print(f"  note: {badread_note(stats)}")
         print("  a text that fades in is readable later than its clip starts: move its start to that moment, then bin/vh readcheck " + str(out))
         sys.exit(0)
     a.mode = a.mode or "onscreen"
@@ -404,24 +449,23 @@ def main():
         print(f"readcheck: NOT CHECKED — no text found in {path}{' (left out: ' + note + ')' if note else ''}. This is not a pass.", file=sys.stderr); sys.exit(2)
 
     bad, lw = 0, min(14, max(8, max(len(t[0]) for t in todo)))
-    for label, t0, t1, text in todo:
+    own = Counter(t[4] for t in todo if t[4] and t[4] != a.mode)   # texts whose own mark differs from the run's rule
+    for label, t0, t1, text, mode in todo:
         dur = t1 - t0
-        if a.mode == "onscreen":
-            need = onscreen_need(text, a)
-            ok = dur >= need - 1e-6
-            detail = f"shown {dur:5.2f}s  need {need:5.2f}s"
-        else:
-            need, rate, limit = subtitle_check(text, dur)
-            ok = dur >= need - 1e-6
-            detail = f"shown {dur:5.2f}s  need {need:5.2f}s  ({rate:4.1f}/s, limit {limit:g}/s)"
+        mode = mode or a.mode
+        ok, need, rate, limit = verdict(text, dur, mode, a)
+        detail = f"shown {dur:5.2f}s  need {need:5.2f}s" + (f"  ({rate:4.1f}/s, limit {limit:g}/s)" if mode == "subtitle" else "")
         bad += not ok
         short = text if len(text) <= 28 else text[:27] + "…"
-        print(f"{'OK ' if ok else 'BAD'} {label:<{lw}} {t0:7.2f}–{t1:7.2f}s  {detail}  {json.dumps(short, ensure_ascii=False)}")
-    print(f"readcheck ({a.mode}): {len(todo) - bad}/{len(todo)} pass · {path}")
+        tag = f" {TAGS[mode] if mode != a.mode else '':<3}" if own else ""   # a tag column only when some text is not on the run's rule
+        print(f"{'OK ' if ok else 'BAD'} {label:<{lw}}{tag} {t0:7.2f}–{t1:7.2f}s  {detail}  {json.dumps(short, ensure_ascii=False)}")
+    mixed = "".join(f", {n} of {len(todo)} as {m}" for m, n in own.items())
+    print(f"readcheck ({a.mode}{mixed}): {len(todo) - bad}/{len(todo)} pass · {path}")
     if is_html:   # never claim everything was checked when something was left out
         print(f"  spans from {LAST_STATS.get('source', 'the composition')}; a text that fades in is readable later than its clip starts")
         print(f"  NOT checked: {note}" if note else "  every timed text in the composition was checked")
         if zeroed_note(LAST_STATS): print(f"  note: {zeroed_note(LAST_STATS)}")
+        if badread_note(LAST_STATS): print(f"  note: {badread_note(LAST_STATS)}")
     sys.exit(1 if bad else 0)
 
 if __name__ == "__main__":

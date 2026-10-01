@@ -12,9 +12,19 @@ Word timing (timeline from bin/vh tts … --align gemini, or elevenlabs): each c
   "words": [{"w","start","end"}] (narrated side, absolute seconds) for karaoke / pop-in captions, and
   captions.<lang>.lines.srt splits every caption into one cue per wrapped line, each starting when its first word is
   spoken, so a long line no longer sits on screen as a two-line block for its whole duration.
+Minimum duration: a caption shorter than the subtitle floor (readcheck.SUB_FLOOR, 1.8 s; a one-line "Take a square
+  wave." is spoken in 1.1 s) has its end moved into the silence after it, never its start: up to 1.8 s, or as far as the
+  next caption's start minus 0.1 s, or the end of the media (the timeline's "duration"), whichever comes first.
+  Every file above carries the extended end (the .lines.srt too: its last line ends with the caption), and captions.json
+  keeps the spoken end as "speech_end" on the items it moved. A caption the gap cannot lengthen to 1.8 s is listed on
+  stdout (bin/vh readcheck <project> --mode subtitle fails it too). The timeline itself is not touched.
 """
-import argparse, json, re
+import argparse, json, math, re, sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from readcheck import SUB_FLOOR   # the one number readcheck's subtitle rule and this tool share
+
+CUE_GAP = 0.1   # seconds left between an extended caption and the next one
 
 def ts(t: float) -> str:
     ms = int(round(t * 1000)); h, ms = divmod(ms, 3600000); m, ms = divmod(ms, 60000); s, ms = divmod(ms, 1000)
@@ -68,6 +78,29 @@ def srt(items, key_fn):
             blocks.append(f"{i}\n{ts(c['start'])} --> {ts(c['end'])}\n" + "\n".join(lines) + "\n"); i += 1
     return "\n".join(blocks)
 
+def extend_short(items, media_end=None, floor=SUB_FLOOR, gap=CUE_GAP):
+    """Give every caption shorter than `floor` seconds the missing time after its end, never before its start:
+    up to start + floor, or the next caption's start - `gap`, or `media_end`, whichever is least; a caption is never
+    shortened and never made to overlap. An item moved keeps its spoken end as "speech_end". Returns [(item, why)] for
+    the captions still under `floor` (why: what stopped them), in time order. items are changed in place."""
+    live = sorted((c for c in items if c["zh"] or c["en"]), key=lambda c: c["start"])
+    still = []
+    for i, c in enumerate(live):
+        if c["end"] - c["start"] >= floor - 1e-6:
+            continue
+        limit, why = math.inf, ""
+        if i + 1 < len(live):
+            limit, why = live[i + 1]["start"] - gap, f"the next caption starts at {live[i + 1]['start']:g} s"
+        if media_end is not None and media_end < limit:
+            limit, why = media_end, f"the media ends at {media_end:g} s"
+        want = math.ceil((c["start"] + floor) * 1000 - 1e-6) / 1000          # whole milliseconds: the SRT rounds to them
+        end = min(want, math.floor(limit * 1000 + 1e-6) / 1000)
+        if end > c["end"] + 1e-6:
+            c["speech_end"], c["end"] = c["end"], round(end, 3)
+        if c["end"] - c["start"] < floor - 1e-6:
+            still.append((c, why))
+    return still
+
 def line_cues(lines, words, start, end):
     """One cue per wrapped line: a line starts when its first character is spoken (matched by non-space character
     count, scaled when the two texts differ slightly, and interpolated inside a word that spans a line break) and runs
@@ -103,6 +136,12 @@ def main():
     items = [{"id": s["id"], "start": s["start"], "end": s["end"],
               "zh": wrap_zh(s.get("zh", ""), a.zh_max), "en": wrap_en(s.get("en", ""), a.en_max),
               **({"words": s["words"]} if s.get("words") else {})} for s in tl["segments"]]
+    dur = tl.get("duration")
+    media_end = float(dur) if isinstance(dur, (int, float)) and not isinstance(dur, bool) and dur > 0 else None
+    n_short = sum(1 for c in items if (c["zh"] or c["en"]) and c["end"] - c["start"] < SUB_FLOOR - 1e-6)
+    still = extend_short(items, media_end)
+    moved = [c for c in items if "speech_end" in c]
+    items = [{k: c[k] for k in ("id", "start", "end", "speech_end", "zh", "en", "words") if k in c} for c in items]   # speech_end beside end
     (audio / "captions.json").write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
     wrote = ["captions.json"]
     narr = tl.get("lang") if tl.get("lang") in ("zh", "en") else None
@@ -119,6 +158,11 @@ def main():
     if any(c["zh"] for c in items) and any(c["en"] for c in items):
         (audio / "captions.bi.srt").write_text(srt(items, lambda c: c["zh"] + c["en"]), encoding="utf-8"); wrote.append("captions.bi.srt")
     print(f"timing from {tl_path.name} ({tl.get('lang', '?')} narration) → audio/" + ", ".join(wrote))
+    if n_short:
+        print(f"  {n_short} caption(s) under the {SUB_FLOOR:g} s minimum: {len(moved)} extended into the gap after them ("
+              + ", ".join(f"{c['id']} +{c['end'] - c['speech_end']:.2f} s" for c in moved) + ")")
+    for c, why in still:
+        print(f"  still {c['end'] - c['start']:.2f} s, under {SUB_FLOOR:g} s: {c['id']} ({c['start']:g}–{c['end']:g} s): {why}")
 
 if __name__ == "__main__":
     main()
