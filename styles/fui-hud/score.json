@@ -1,12 +1,24 @@
 {
-  "bpm": 150, "key": "C", "mode": "minor", "seed": 100,
+  "bpm": 150, "key": "D", "mode": "minor", "seed": 100,
   "meters": {"1": 2, "2": 3, "3": 1, "4": 2, "5": 2, "6": 3},
+  "stereo": true, "space": {"type": "plate", "rt60": 2.2},
   "sections": [
-    {"name": "boot", "bars": 1, "chords": ["i"], "layers": ["pad", "arp"], "energy": 0.35},
-    {"name": "decode", "bars": 1, "chords": ["i"], "layers": ["pad", "arp"], "energy": 0.4},
-    {"name": "waypoints", "bars": 1, "chords": ["VI"], "layers": ["pad", "arp", "bass", "hats"], "energy": 0.55},
-    {"name": "alert", "bars": 1, "chords": ["VI"], "layers": ["pad"], "energy": 0.3},
-    {"name": "scan", "bars": 1, "chords": ["VII"], "layers": ["pad", "arp", "bass", "hats"], "energy": 0.6},
-    {"name": "expand", "bars": 1, "chords": ["i"], "layers": ["pad", "arp", "bass"], "energy": 0.6}
+    {"name": "boot", "bars": 1, "chords": ["i"]},
+    {"name": "decode", "bars": 1, "chords": ["i"]},
+    {"name": "waypoints", "bars": 1, "chords": ["VI"]},
+    {"name": "alert", "bars": 1, "chords": ["VI"]},
+    {"name": "scan", "bars": 1, "chords": ["VII"]},
+    {"name": "expand", "bars": 1, "chords": ["i"]}
+  ],
+  "parts": [
+    {"inst": "seq", "id": "seq", "figure": "ostinato", "rate": 16, "octave": 3, "reset": "bar", "legato": 0.8, "params": {"cutoff": 700, "res": 3.2, "env": 2.5, "decay": 0.1}, "gain_db": 0, "send": 0.2, "pan": -0.15, "sections": ["boot", "decode", "waypoints", "scan", "expand"],
+     "cell": ["c0", "c0'", "c2", "c0'", "c1'", "c0'", "c2", "c0'"],
+     "by_section": {"expand": {"params": {"cutoff": 1100, "res": 3.2, "env": 2.8, "decay": 0.12}}}},
+    {"inst": "sub808", "id": "pulse", "pitch": "c0", "octave": 1, "sections": ["boot", "decode", "waypoints", "scan", "expand"], "params": {"drop": 5, "decay": 0.16, "drive": 2.0}, "gain_db": -8, "hit": "section",
+     "pattern": "x..."},
+    {"inst": "drone", "id": "bed", "figure": "sustain", "pitch": ["c0", "c2"], "octave": 2, "params": {"attack": 0.5, "release": 0.8, "cutoff": 450}, "gain_db": -9, "send": 0.25},
+    {"inst": "seq", "id": "blip", "octave": 6, "params": {"wave": "square", "cutoff": 5000, "res": 1.0, "env": 0.5, "decay": 0.03}, "pitch": ["c0", "c2", "c1"], "gain_db": -14, "send": 0.35, "pan": 0.45,
+     "pattern": "..x.....x..x....",
+     "by_section": {"alert": {"octave": 5, "pattern": [[0, 0.3, "c0'", 0.9], [0.65, 0.3, "c0'", 0.9]], "gain_db": -8}}}
   ]
 }

@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：0–0.1 s 基线、刻度线和四条灰色背景线一口气画满整宽（hook，0.1 s 一声 `tick`），0.1 s 起衬线标题逐词出现（80 ms/词）；1.2–1.6 s 一条灰虚线 "expected"（40 px 标签）画出并停到 2.0 s；砖红真实线在 2.0 s 强拍上开始线性画过，线头带着实时数值往上跳（14 → 122），三处注释（大纲、分镜、初版）在线经过时钉上；2.8 s 线冲出图框、端点标上"122 Code"，紧接着 2.8–3.33 s 纵轴从 0–100 重新定标到 0–150，注释跟着点走；3.33、3.67 s 端点各发一圈"最新值"脉冲；4.0 s 整版上滚到下一节。刻度和年份 36 px，注释英文 32 px。数据是示意的，画面左下角写明。实际字体：Charter Bold、Helvetica Neue、Songti SC Bold、PingFang SC。配乐 90 BPM，小节排成 2 + 1 + 3 + 3 拍，A 小调：`pad` + 低能量拨弦；1.33–2.0 s 抽掉拨弦只留 `pad`（揭示前的屏息），揭示段加 `bass`，4.0 s 一声 `bell`。
+样片里：0–0.1 s 基线、刻度线和四条灰色背景线一口气画满整宽（hook，0.1 s 一声 `tick`），0.1 s 起衬线标题逐词出现（80 ms/词）；1.2–1.6 s 一条灰虚线 "expected"（40 px 标签）画出并停到 2.0 s；砖红真实线在 2.0 s 强拍上开始线性画过，线头带着实时数值往上跳（14 → 122），三处注释（大纲、分镜、初版）在线经过时钉上；2.8 s 线冲出图框、端点标上"122 Code"，紧接着 2.8–3.33 s 纵轴从 0–100 重新定标到 0–150，注释跟着点走；3.33、3.67 s 端点各发一圈"最新值"脉冲；4.0 s 整版上滚到下一节。刻度和年份 36 px，注释英文 32 px。数据是示意的，画面左下角写明。实际字体：Charter Bold、Helvetica Neue、Songti SC Bold、PingFang SC。配乐 90 BPM，小节排成 2 + 1 + 3 + 3 拍，A 小调，Glass / Richter 式的极简：钢琴（`piano` 的 `bright`）反复弹同一个三音分解和弦，八分三连音，每拍一组，一段里音型不变，只有和声在走（Am → F → Dm）；大提琴（`cello`）在 A 上拉一个长音当持续低音，揭示时换一次弓；一只秒表式的 `clock` 按八分音符轻轻滴答；1.33–2.0 s 钢琴停下，只剩大提琴和滴答（揭示前的屏息）；2.0 s 红线开画时钢琴回来，每两拍的头上加一个低八度的 F；2.8 s 红线冲出图框时高音区一个 A；4.0 s 整版上滚时换到 Dm，音型照旧。
 
 ## 学习对象
 
@@ -52,7 +52,7 @@
 
 ## 声音语法
 
-- **配乐**：克制、低调。A 小调，90 BPM（30 fps 下一拍 20 帧），`pad` + 慢 `arp` + `bass`，能量 0.25–0.4；揭示真实数据前 0.5 s 抽掉 arp，只留 pad。
+- **配乐**：克制、低调，Philip Glass / Max Richter 式的极简。A 小调，90 BPM（30 fps 下一拍 20 帧）。签名是钢琴反复弹同一个分解和弦音型（八分三连音），一段里音型不变，只换和声；下面大提琴（`cello`）拉一个持续的 A；一只秒表式的 `clock` 按八分音符很轻地滴答，是编辑部的钟。小厅混响，钢琴在左、大提琴在右。揭示真实数据前 0.5 s 钢琴停下，只留大提琴和滴答。
 - **音效**：极少。注释出现一声 −20 dB 的 `tick`，柱子落定一声轻 `click`；不用 whoosh。
 - **声画关系**：旁白逐句驱动，每句对应一个图表状态；旁白念到某个数字的那一刻，对应标记高亮。
 - **样片拟音**：`events.json` 12 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），−3 dB 混在配乐下：0.1 s 图框和灰线画满一声 `tick`，标题后三个词各一声 −24 dB 的 `tick`；虚线画完、纵轴定标完成（同时第一圈脉冲）、第二圈脉冲各一声 −20 dB 左右的 `tick`；三处注释在红线经过的那一刻各一声轻 `click`（落点 = 红线到达该数据点的时间，同一个函数）；红线画出时唯一一声 `whoosh`（−16 dB）；端点和 "Code" 标签 `toggle`。整版上滚不配声。
@@ -74,7 +74,7 @@
 ## Prompt 块
 
 ```text
-Visual style: newspaper graphics desk. Warm newsprint page #FAF8F3, ink #1F1D1A. The headline is the finding, written as a sentence in a bookish serif (Charter Bold), left-aligned like an article, with a grey dek line for units and range; annotations and tick labels in Helvetica Neue with tabular numbers. Every series is grey #A9A39A except the one the headline is about, drawn thicker in brick red #B8312F; at most one muted blue #2F5E8C comparison. Label lines directly at their ends; no legend, no gridlines beyond a baseline and three faint rules, no dual axes, no pies, no 3D. Annotations are the storytelling: a thin ink leader from a small ring on a specific data point to a two-line note, pinned in data space so it follows the point through any rescale. Reveal order: first a dashed grey "what you might expect" line, a 1.5 s hold, then the real line draws linearly in red and each annotation appears as the line reaches it. Staged ~1 s transitions (axes first, then values), each annotated state held at least 2.5 s. Source line bottom-left at 60% opacity. Transitions: rescale in place, staged encoding morphs, or the whole page scrolls up to the next chart. Quiet 90 BPM minor-key pad under the narration.
+Visual style: newspaper graphics desk. Warm newsprint page #FAF8F3, ink #1F1D1A. The headline is the finding, written as a sentence in a bookish serif (Charter Bold), left-aligned like an article, with a grey dek line for units and range; annotations and tick labels in Helvetica Neue with tabular numbers. Every series is grey #A9A39A except the one the headline is about, drawn thicker in brick red #B8312F; at most one muted blue #2F5E8C comparison. Label lines directly at their ends; no legend, no gridlines beyond a baseline and three faint rules, no dual axes, no pies, no 3D. Annotations are the storytelling: a thin ink leader from a small ring on a specific data point to a two-line note, pinned in data space so it follows the point through any rescale. Reveal order: first a dashed grey "what you might expect" line, a 1.5 s hold, then the real line draws linearly in red and each annotation appears as the line reaches it. Staged ~1 s transitions (axes first, then values), each annotated state held at least 2.5 s. Source line bottom-left at 60% opacity. Transitions: rescale in place, staged encoding morphs, or the whole page scrolls up to the next chart. Quiet 90 BPM minor-key minimalism under the narration: one repeated piano figure in triplets, a held cello A, a soft stopwatch tick; the piano stops for half a second before the reveal.
 ```
 
 ## 引擎做法

@@ -1,77 +1,32 @@
 {
-  "bpm": 150,
-  "key": "A",
-  "mode": "minor",
-  "seed": 4,
-  "meters": {
-    "1": 2,
-    "2": 3,
-    "3": 5,
-    "4": 3
-  },
+  "bpm": 150, "key": "A", "mode": "minor", "seed": 4, "meters": {"1": 2, "2": 3, "3": 5, "4": 3}, "stereo": true,
+  "space": "hall",
   "sections": [
-    {
-      "name": "power-on",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "pad",
-        "arp",
-        "bass"
-      ],
-      "energy": 0.5
-    },
-    {
-      "name": "chrome",
-      "bars": 1,
-      "chords": [
-        "VI"
-      ],
-      "layers": [
-        "kick",
-        "hats",
-        "bass",
-        "arp",
-        "pad"
-      ],
-      "energy": 0.8,
-      "impact": true,
-      "riser": true,
-      "fill": true
-    },
-    {
-      "name": "panels",
-      "bars": 1,
-      "chords": [
-        "III"
-      ],
-      "layers": [
-        "kick",
-        "clap",
-        "hats",
-        "bass",
-        "arp",
-        "pad",
-        "lead"
-      ],
-      "energy": 1.0,
-      "impact": true
-    },
-    {
-      "name": "tracking",
-      "bars": 1,
-      "chords": [
-        "VII"
-      ],
-      "layers": [
-        "pad",
-        "arp",
-        "bass"
-      ],
-      "energy": 0.55,
-      "impact": true
-    }
+    {"name": "power-on", "bars": 1, "chords": ["i"]},
+    {"name": "chrome", "bars": 1, "chords": ["VI"]},
+    {"name": "panels", "bars": 1, "chords": ["III"]},
+    {"name": "tracking", "bars": 1, "chords": ["VII"]}
+  ],
+  "parts": [
+    {"inst": "polysynth", "id": "poly", "figure": "stab", "pattern": "X~.x~.x~", "voicing": "spread", "octave": 4, "gain_db": -3, "send": 0.25, "hit": "section",
+      "by_section": {
+        "power-on": {"pattern": "X~~~~~~~"},
+        "tracking": {"pattern": "X~~.X~~~~~~~"}
+      } },
+    {"inst": "gated", "id": "gated-snare", "sections": ["chrome", "panels", "tracking"], "pattern": "....X...", "gain_db": 4, "send": 0.1},
+    {"inst": "edm_kick", "id": "kick", "sections": ["chrome", "panels", "tracking"], "pattern": "x...", "gain_db": 0,
+      "by_section": {
+        "tracking": {"pattern": "....x...x..."}
+      } },
+    {"inst": "hihat", "id": "hats", "sections": ["chrome", "panels", "tracking"], "pattern": "xgXg", "gain_db": -8, "pan": 0.2,
+      "by_section": {
+        "tracking": {"pattern": "....xgXgxgXg"}
+      } },
+    {"inst": "saw_pluck", "id": "octave-bass", "sections": ["chrome", "panels", "tracking"], "figure": "roots", "rate": 8, "octaves": true, "octave": 1, "lp": 1100, "duck": {"by": "kick", "depth": 0.55, "release": 0.18}, "gain_db": -3,
+      "by_section": {
+        "panels": {"octave": 2}
+      } },
+    {"inst": "saw_pluck", "id": "arp", "figure": "arp-up", "rate": 16, "span": 2, "octave": 4, "delay": {"beats": 0.75, "fb": 0.35, "mix": 0.3, "lp": 3500, "pingpong": true}, "gain_db": -9, "pan": -0.25},
+    {"inst": "saw_pad", "id": "pad", "figure": "sustain", "octave": 3, "gain_db": -12, "send": 0.3}
   ]
 }

@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐和 `events.json` 拟音）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：前 3 帧是黑屏；0.1 s 起 8 × 8 的图块沿对角线从左下角装进画面，前沿那一排闪一帧金色，0.1 s 这一帧已经有超过 20% 的画面亮起来，0.37 s 装满。装载的同时镜头横移入场，从每帧约 11 px 减速到 0.9 s 的每帧 1 px，之后五层视差一直按整像素卷动：云、远山、树丘、地面、前景灌木。0.2–2.3 s 三只鸟排成一小队飞过天空（翅膀 7.5 fps），0.4 s 一颗流星划过。0.8 s 对话窗分 4 帧打开，英文标题每帧打两个字，中文每帧打一个字，1.57 s 打完，1.67 s 右下角出现上下跳的 ▼。母题是像素画师的三步：大纲（2.0 s，三个关键帧先是墨线草图，在白纸上按 12 fps 分 4 步描出来）→ 分镜（2.4 s，一张动作表上三个平涂的关键帧，每 0.1 s 蹦出一个）→ 初版（2.8 s，角色在世界里先白、再平涂、再上完阴影，接着开始走路）。站与站之间的路点用调色板循环点亮。2.8 s 起分镜表上的金框跟着角色当前的姿态走；3.2、3.6 s 角色各跳一下，闪一颗星。4.0 s 马赛克从 2 px 升到 16 px，亮度同时降 6 级；4.2 s 在最糊的时候世界停下、换成夜晚调色板，名字出现在同样的对话窗里；4.4 s 马赛克退回 1 px，角色继续往前走。实际字体：拉丁字母是 `swatch.js` 里手画的两套点阵字（15 行粗体标题字、5 × 7 大写字），中文是 Hiragino Sans GB W3 16 px 栅格化后二值化。配乐 150 BPM、F 大调，和声走 I–vi–IV–IV–V–I；2.4–2.8 s 只剩 `pad`，这是角色活过来之前的屏息。
+样片里：前 3 帧是黑屏；0.1 s 起 8 × 8 的图块沿对角线从左下角装进画面，前沿那一排闪一帧金色，0.1 s 这一帧已经有超过 20% 的画面亮起来，0.37 s 装满。装载的同时镜头横移入场，从每帧约 11 px 减速到 0.9 s 的每帧 1 px，之后五层视差一直按整像素卷动：云、远山、树丘、地面、前景灌木。0.2–2.3 s 三只鸟排成一小队飞过天空（翅膀 7.5 fps），0.4 s 一颗流星划过。0.8 s 对话窗分 4 帧打开，英文标题每帧打两个字，中文每帧打一个字，1.57 s 打完，1.67 s 右下角出现上下跳的 ▼。母题是像素画师的三步：大纲（2.0 s，三个关键帧先是墨线草图，在白纸上按 12 fps 分 4 步描出来）→ 分镜（2.4 s，一张动作表上三个平涂的关键帧，每 0.1 s 蹦出一个）→ 初版（2.8 s，角色在世界里先白、再平涂、再上完阴影，接着开始走路）。站与站之间的路点用调色板循环点亮。2.8 s 起分镜表上的金框跟着角色当前的姿态走；3.2、3.6 s 角色各跳一下，闪一颗星。4.0 s 马赛克从 2 px 升到 16 px，亮度同时降 6 级；4.2 s 在最糊的时候世界停下、换成夜晚调色板，名字出现在同样的对话窗里；4.4 s 马赛克退回 1 px，角色继续往前走。实际字体：拉丁字母是 `swatch.js` 里手画的两套点阵字（15 行粗体标题字、5 × 7 大写字），中文是 Hiragino Sans GB W3 16 px 栅格化后二值化。配乐 150 BPM、F 大调，和声走 I–vi–IV–IV–V–I，是 SNES 式的 JRPG：0 s 图块装载时，`pulse` 主旋律（25% 占空比、延迟颤音）带着 240 ms 的乒乓硬件回声吹一句上行琶音 C–F–A–C；0.8 s 对话窗打开后只剩低通的铜管垫、二分音符的拨弦和三角波低音，把位置让给打字音；2.0 s 面板弹出时进 `chipkick`；2.4–2.8 s 只剩铜管垫，这是角色活过来之前的屏息；2.8 s 起主旋律、八分音符的拨弦分解和弦、按八分音符弹跳的三角波低音、`noise` 军鼓和镲一起进来（轻摇摆），4.0 s 在 I 级上解决，主旋律 F–C–A–F 落下来。
 
 ## 学习对象
 
@@ -67,15 +67,16 @@
 
 ## 声音语法
 
-- **配乐**：16 位机的声音是 8 个采样声部加回声，不是 8 位机的方波。所以这里要的是短促的拨弦分解和弦，外加一条只在关键处出现的旋律。不要满屏的十六分音符"芯片乐乱弹"：分解和弦负责和声，旋律只在揭晓那一小节和结尾出现。150 BPM（一拍 12 帧），大调。
-  - `bin/vh music` 没有纯方波声部：`arp` 是滤波过的双锯齿拨弦，`lead` 是锯齿加方波，这是它能给的最接近的音色；混音里统一的混响可以粗略当作硬件回声。
+- **配乐**：16 位机的声音是 8 个采样声部加回声，不是 8 位机的方波。所以这里要的是短促的拨弦分解和弦，外加一条只在关键处出现的旋律。不要满屏的十六分音符"芯片乐乱弹"：分解和弦负责和声，旋律只在开场、揭晓那一小节和结尾出现。150 BPM（一拍 12 帧），大调。
+  - `bin/vh music` 里的对应声部：主旋律是 `pulse`（25% 占空比、`vib` 颤音），和其他声部一样低通过（主旋律 5.5 kHz、拨弦 2.5 kHz、铜管 1.8 kHz、噪声鼓 6 kHz），因为 SNES 的采样经过高斯插值，本来就发闷；硬件回声用声部级的 `delay`：`beats` 0.6（150 BPM 下 240 ms，正好是 SNES 回声的上限）、`fb` 0.35、`lp` 2500、`pingpong`；"采样"的和声是 `brass`（`swell` 铜管垫）和 `pizzicato` 拨弦分解和弦；低音是低通过的 `triangle`；鼓是 `chipkick` 和 `noise`（`x` 军鼓、`o` 镲）。`space: dry`，回声就是空间；整体轻摇摆（`swing` 0.58），弹跳感来自它。
   - 样片 `score.json`：`meters` 为 2 + 3 + 1 + 1 + 3 + 3 拍，段落边界落在 0.8、2.0、2.4、2.8、4.0 s，和弦 I–vi–IV–IV–V–I：
-    - `tilemap`：`pad`、`arp`、`bass`；
-    - `window`：再加 `hats`，充当打字声；
-    - `panels`：加 `kick`；
-    - `breath`（2.4–2.8 s）：只剩 `pad`，这是屏息；
-    - `draft`（2.8–4.0 s）：全部进来，`lead` 在 2.8 s 和 3.6 s 各起一句；
-    - `save`（4.0 s 起）：`pad`、`arp`、`lead`，回到 I 级。
+    - `tilemap`：`pulse` 主旋律带回声吹一句上行琶音，拨弦、铜管垫、三角波低音一起进；
+    - `window`：对话窗里只剩铜管垫（压低）、二分音符的拨弦和三角波低音，打字的 `tick` 都要听得见；
+    - `panels`：拨弦回到八分音符，加 `chipkick`，铜管和弦一直延到下一段；
+    - `breath`（2.4–2.8 s）：只剩这个铜管和弦，这是屏息；
+    - `draft`（2.8–4.0 s）：全部进来，主旋律 C–B♭–A–G–C–E 停在导音上，三角波低音按八分音符弹根音–五度–八度–五度，`noise` 军鼓在第 2 拍；
+    - `save`（4.0 s 起）：回到 I 级，主旋律 F–C–A–F 解决。
+  - `master_db` 设为 −2：配乐比默认低 1 dB，对话窗里的文字音才压得住。
 - **音效**：每个词或每两三个中文字一声 `tick`，当作文字音，每秒不超过 6 声；窗口和面板弹出用 `pop`；角色活过来时一声 `success`，相当于得到物品的小号角；跳跃用 `pop`；马赛克最糊的时候一声 `whoosh`，结束画面一声 `ding`。
 - **声画关系**：姿态每 0.1 s 换一次，正好对齐十六分音符，所以分解和弦就是角色的脚步；屏息的那一拍画面照常在动，声音先退后进。
 - **样片拟音**：`events.json` 共 19 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs pixel-16bit` 生成，落点和画面共用同一张帧号表，声像取发声物体的横坐标，`(2x/320 − 1)·0.7`：
@@ -110,7 +111,7 @@
 ## Prompt 块
 
 ```text
-Visual style: a 16-bit console screen. Draw everything into an indexed 320×180 framebuffer and scale it by an integer factor with nearest-neighbour (×6 for 1080p, ×4 for 720p); no smoothing, no sub-pixel positions, no rotation or scaling of sprites, no alpha, blur or glow. One fixed palette of 24 colours stored as 15-bit colour; gradients are banded skies with 2×2 ordered-dither seams; brightness changes only in 16 hardware-style steps. Layered parallax scrolls at integer speeds (ground 1 px per frame, hills 1/3, far mountains 1/6, clouds 1/10, foreground 2). Characters are about 24×32 px with a 1-px dark outline, a clear silhouette and one signature colour; they change pose about 10 times a second (walk cycle contact–pass–contact–pass, the body one pixel lower on contact frames). Text lives in a message window with a cream-and-ink double border: it opens in four stepped frames, prints one character per frame, and shows a bobbing down-arrow when done; titles use a bold original bitmap font with a row-banded warm fill and an eight-neighbour dark outline; Chinese is a 16-px one-bit bitmap. Transitions: mosaic from 2 to 16 px with the brightness stepping down and a palette swap at the peak; stepped window open and close; an 8×8 tile-load sweep. Sound: sample-style plucked arpeggios as harmony, a short lead line only at the reveal, a one-beat breath before it, text blips per word, an item-get fanfare; no wall-to-wall chiptune noodling.
+Visual style: a 16-bit console screen. Draw everything into an indexed 320×180 framebuffer and scale it by an integer factor with nearest-neighbour (×6 for 1080p, ×4 for 720p); no smoothing, no sub-pixel positions, no rotation or scaling of sprites, no alpha, blur or glow. One fixed palette of 24 colours stored as 15-bit colour; gradients are banded skies with 2×2 ordered-dither seams; brightness changes only in 16 hardware-style steps. Layered parallax scrolls at integer speeds (ground 1 px per frame, hills 1/3, far mountains 1/6, clouds 1/10, foreground 2). Characters are about 24×32 px with a 1-px dark outline, a clear silhouette and one signature colour; they change pose about 10 times a second (walk cycle contact–pass–contact–pass, the body one pixel lower on contact frames). Text lives in a message window with a cream-and-ink double border: it opens in four stepped frames, prints one character per frame, and shows a bobbing down-arrow when done; titles use a bold original bitmap font with a row-banded warm fill and an eight-neighbour dark outline; Chinese is a 16-px one-bit bitmap. Transitions: mosaic from 2 to 16 px with the brightness stepping down and a palette swap at the peak; stepped window open and close; an 8×8 tile-load sweep. Sound: a pulse-wave lead with a 240 ms ping-pong hardware echo, heard only at the load-in, the reveal and the end; sample-style plucked arpeggios and a muffled brass pad as harmony, a triangle-ish bass, noise drums with a light swing, a one-beat breath before the reveal, text blips per word, an item-get fanfare; no wall-to-wall chiptune noodling.
 ```
 
 ## 引擎做法

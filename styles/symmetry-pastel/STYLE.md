@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：第 0 帧是一道合着的胭脂红幕布，0.03–0.42 s 从中线向两侧对称拉开（ease-out，0.1 s 已开约四成），配一下拉绳的 click 和 swish_rev。幕后是一间剖开的粉色玩偶屋，有天花板、地板、两侧墙的剖面，两扇对称的窗、窗帘和壁灯。第 0 帧就在沿轨道从右侧横移，停在中线上。象牙色章节卡直切入画（约 60% 宽，标题 92 px，中文 64 px），各行间隔 150 ms 出现；1.5 s 窗帘拉开，1.2–4.0 s 慢推 1.00 → 1.03。三幅画在 2.0 / 2.4 / 2.8 s 依次落到钉子上，晃几下停稳：大纲、分镜，初版是一枚胭脂红奖章花结。3.2 s 铭牌翻面，3.6 s 两盏壁灯亮起。4.0 s 一个 9 帧甩镜，到薄荷色的第二章，第二章继续慢推。实际字体：Futura Medium / Bold、Songti SC Bold / Regular。配乐 150 BPM，`zheng`（拨弦）+ `bell`（钟琴）+ `pad`，每段多一件乐器。拟音：开幕用 click + swish_rev，甩镜用 whoosh，字卡用 ding，窗帘用 swish_rev，画落钉子用 tick，铭牌翻面用 toggle，壁灯用 click。拟音的落点写在 swatch.js 的 `FOLEY` 常量里，`events.json` 由它生成。
+样片里：第 0 帧是一道合着的胭脂红幕布，0.03–0.42 s 从中线向两侧对称拉开（ease-out，0.1 s 已开约四成），配一下拉绳的 click 和 swish_rev。幕后是一间剖开的粉色玩偶屋，有天花板、地板、两侧墙的剖面，两扇对称的窗、窗帘和壁灯。第 0 帧就在沿轨道从右侧横移，停在中线上。象牙色章节卡直切入画（约 60% 宽，标题 92 px，中文 64 px），各行间隔 150 ms 出现；1.5 s 窗帘拉开，1.2–4.0 s 慢推 1.00 → 1.03。三幅画在 2.0 / 2.4 / 2.8 s 依次落到钉子上，晃几下停稳：大纲、分镜，初版是一枚胭脂红奖章花结。3.2 s 铭牌翻面，3.6 s 两盏壁灯亮起。4.0 s 一个 9 帧甩镜，到薄荷色的第二章，第二章继续慢推。实际字体：Futura Medium / Bold、Songti SC Bold / Regular。配乐 150 BPM，G 大调，是 Desplat《布达佩斯大饭店》式的巴拉莱卡小进行曲，每段多一件乐器，房间小而亮：第 0 帧起 `balalaika` 用轮指（11 Hz tremolo）奏旋律，另一把巴拉莱卡低 6 dB 轮指和弦垫底，`pizzicato` 在强拍上拨低音；0.8 s 章节字卡进来时加 `cimbalom` 的十六分分解和弦和一声 `glockenspiel`；2.0 s 画落钉子时再加 `harpsichord` 的断奏反拍，低音和反拍组成"嘣—嚓"的行进；4.0 s 第二章加一面进行曲 `snare`（带滚奏），钟琴再敲一次。拟音：开幕用 click + swish_rev，甩镜用 whoosh，字卡用 ding，窗帘用 swish_rev，画落钉子用 tick，铭牌翻面用 toggle，壁灯用 click。拟音的落点写在 swatch.js 的 `FOLEY` 常量里，`events.json` 由它生成。
 
 ## 学习对象
 
@@ -64,11 +64,13 @@
 
 ## 声音语法
 
-- **配乐**：室内民谣 / 巴洛克小品，拨弦乐器的颤音、钟琴、羽管键琴，120 BPM，G 大调，2/4 拍的行进感。`bin/vh music` 的做法：
-  - `arp` 当拨弦（energy 0.5–0.7）；
-  - `pad` 压低 energy 垫底；
-  - 轻一点的 `bass` 和 `hats`；
-  - `bell` 层当钟琴；拨弦用 `zheng`（Karplus–Strong），比 `arp` 更像拨弦乐器，样片就是这么配的。
+- **配乐**：室内民谣 / 巴洛克小品，拨弦乐器的颤音、钟琴、羽管键琴，120 BPM，G 大调，2/4 拍的行进感。`bin/vh music` 的做法（`parts`）：
+  - `balalaika` 主奏，`tremolo` 11 Hz，`tremolo_min` 0.45 拍（八分音符也轮两下），另一把低几 dB 的巴拉莱卡轮指和弦垫底；
+  - `cimbalom` 用 `figure: arp-up`（`rate` 16，`damp`）；
+  - `figure: oompah` 分给 `pizzicato`（`role: bass`）和 `harpsichord`（`role: chord`，`len` 0.3，断奏）；
+  - `glockenspiel` 只在章节字卡上敲，新的一章加 `snare` 滚奏。
+
+  样片的 `score.json` 就是这么写的。
 
   每一章多加一件乐器，像乐器介绍曲那样一层层叠上去。
 - **音效**：

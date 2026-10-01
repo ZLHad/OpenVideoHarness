@@ -55,10 +55,10 @@
 
 ## 声音语法
 
-- **配乐**：`bin/vh music` 的现有层几乎就是为这个风格准备的：`bpm: 118`，`key: "A"`，`mode: "minor"`，和弦 `i–VI–III–VII`；`kick` 四拍、`clap` 当门限混响军鼓、`hats` 十六分、`bass` 八分音符八度跳、`arp` 十六分琶音、`pad` 长音、`lead` 主旋律只在副歌出现。段落用 `riser` 推进、`impact` 开副歌、`fill` 留一拍空。
+- **配乐**：`bpm: 118`，`key: "A"`，`mode: "minor"`，和弦 `i–VI–III–VII`。签名有两样：`gated`（军鼓进一个密的混响，0.3 s 处一刀切断，80 年代的门限混响）打在反拍上；明亮的 `polysynth`（7 声部 supersaw，立体声铺开）弹 3-3-2 切分的和弦 stab，它就是主奏。其余是这一路的标配：`edm_kick` 四拍，`hihat` 十六分，八分音符八度跳的锯齿贝斯（`saw_pluck` 用 `roots` + `octaves`，`duck` 给 kick，一拍一泵），十六分琶音（`saw_pluck` + 乒乓 `delay`），`saw_pad` 长音；`space: hall`。旧 `layers` 的锯齿音色（`saw_pluck` `saw_pad`）在这里只当配角。长片里 `lead` 主旋律只在副歌出现，段落用 `riser` 推进、`impact` 开副歌、`fill` 留一拍空。
 - **音效**：插入录像带的机械 `click`、tracking 时的 `glitch`、转场 `whoosh`、副歌前 `riser`、标题落位 `impact`。
 - **声画关系**：卡点密：切换、闪白、星芒都在拍上（±1 帧）。开场可以先放 1–2 小节只有 `pad` 和 `arp` 的前奏，网格慢慢滚进来，鼓进来的那一拍标题落下。
-- **样片小样**：样片的 5 s 声音小样（`score.json`）：样片按 150 BPM 走（网格每拍一条线），A 小调；开机时只有 `pad` + `arp` + `bass`，0.8 s 鼓机进来，2.0 s 全编制加 `lead`，4.0 s 跟踪噪声处一记 `impact`，回到琶音。拟音（`events.json`）：0.07 s 开机 `boom` 加 `glitch`，1.6 / 2.8 s 星芒各一声很轻的 `ding`，2.0 / 2.2 / 2.4 s 三件物件通电各一声 `click`，4.0 s tracking `glitch`，4.4 s "Outrun" 落拍 `impact`。
+- **样片小样**：样片的 5 s 声音小样（`score.json`）：样片按 150 BPM 走（网格每拍一条线），A 小调，i–VI–III–VII 每段一个和弦：0 s 开机时是 polysynth 的 Am 长和弦、十六分琶音和 pad，没有鼓；0.8 s 铬字升起时鼓机进来：四拍 kick、反拍的 gated 军鼓（第一下在 1.2 s）、十六分 hats、被 kick 压着泵的八度锯齿贝斯，polysynth 改弹 3-3-2 的切分和弦；2.0 s 进 C 和弦，三件物件在拍上通电；4.0 s tracking 噪声那一拍鼓全停，polysynth 只留一个短和弦；4.4 s "Outrun" 落拍，gated 军鼓、kick 和 polysynth 的 G 和弦一起砸回来。拟音（`events.json`）：0.07 s 开机 `boom` 加 `glitch`，1.6 / 2.8 s 星芒各一声很轻的 `ding`，2.0 / 2.2 / 2.4 s 三件物件通电各一声 `click`，4.0 s tracking `glitch`，4.4 s "Outrun" 落拍 `impact`。
 
 ## 适合与不适合
 
@@ -80,7 +80,7 @@
 STYLE: 1980s retro-futurist outrun. Night violet #14082E with #0B0620 depths and a #6B2FA3 horizon glow. One-point perspective: horizon at 0.55H, vanishing point on the centre line. A striped sunset sun (yellow #FFD23F to orange #FF7A3D to magenta #FF2E88) sits on the horizon, cut by 7 horizontal slits that widen toward the bottom. A cyan #29E0F0 wireframe ground grid rolls toward the camera, exactly one grid line per beat; thin lines, glow no wider than 6x the line width. Magenta wireframe ridge on the horizon, sparse stars.
 Gradients only in the sky, the sun and the chrome title. The title is heavy condensed italic chrome (sky blue to white horizon line to dark violet-brown to orange) with a dark outline; letters rise 60ms apart, a white specular sweep crosses them, a four-point star glints on a downbeat. One neon script word at -8°. Monospace VHS on-screen display in the corner.
 Everything plays from a videotape on a CRT: 3px scanlines, horizontal chroma bleed, slight red shift, faint noise. Transitions: 6–8 frames of tracking noise, a new scene opening out of the horizon line, a 2-frame flash cut on the beat.
-Music: 118 BPM A minor, i–VI–III–VII, four-on-the-floor kick, gated snare, octave-pumping bass, 16th-note arpeggio, warm pad, a lead only in the chorus, riser into the drop. Not vaporwave: no statues, dolphins or OS windows. No real car or game brands.
+Music: 118 BPM A minor, i–VI–III–VII, four-on-the-floor kick, a big gated-reverb snare on the backbeat, bright supersaw polysynth chord stabs, octave-pumping saw bass, 16th-note arpeggio with ping-pong delay, warm pad, a lead only in the chorus, riser into the drop. Not vaporwave: no statues, dolphins or OS windows. No real car or game brands.
 ```
 
 ## 引擎做法

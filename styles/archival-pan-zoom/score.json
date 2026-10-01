@@ -1,10 +1,32 @@
 {
   "bpm": 150, "key": "D", "mode": "major", "seed": 72,
   "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "stereo": true, "space": {"type": "room", "rt60": 1.1}, "humanize": 0.3,
   "sections": [
-    {"name": "pan", "bars": 1, "chords": ["I"], "layers": ["pad", "zheng"], "energy": 0.3},
-    {"name": "captions", "bars": 1, "chords": ["IV"], "layers": ["pad", "zheng"], "energy": 0.5},
-    {"name": "board", "bars": 2, "chords": ["vi", "IV"], "layers": ["pad", "zheng", "lead"], "energy": 0.5},
-    {"name": "dissolve", "bars": 1, "chords": ["I"], "layers": ["pad", "zheng"], "energy": 0.4}
+    {"name": "pan", "bars": 1, "chords": ["I"]},
+    {"name": "captions", "bars": 1, "chords": ["IV"]},
+    {"name": "board", "bars": 2, "chords": ["vi", "IV V"]},
+    {"name": "dissolve", "bars": 1, "chords": ["I"]}
+  ],
+  "parts": [
+    {"inst": "fiddle", "id": "lead", "loop": 5, "pan": 0.04, "send": 0.12,
+     "params": {"vib": [5.0, 16, 0.3], "attack": 0.09, "release": 0.18, "glide": 0.05, "scoop": -0.5, "scoop_time": 0.07},
+     "pattern": [[0, 1.5, "A4", 0.7, {"slide": -2}], [1.5, 0.5, "B4", 0.55],
+                 [2.05, 1.95, "D5", 0.8], [4, 0.5, "E5", 0.6], [4.5, 0.5, "D5", 0.55],
+                 [5.1, 1.9, "F#5", 0.85, {"slide": -1}], [7, 0.5, "E5", 0.62], [7.5, 0.5, "D5", 0.58],
+                 [8, 1, "B4", 0.68], [9, 0.85, "C#5", 0.7], [9.85, 0.2, "E5", 0.5],
+                 [10.08, 2.92, "D5", 0.78]]},
+    {"inst": "fiddle", "id": "drone", "loop": 5, "gain_db": -9, "pan": 0.04, "send": 0.12,
+     "params": {"vib": [5.0, 6, 0.4], "attack": 0.15, "release": 0.2, "glide": 0.05},
+     "pattern": [[0, 2, "D4", 0.5], [2.05, 2.95, "D4", 0.5], [5.1, 2.9, "A4", 0.5],
+                 [8, 1, "D4", 0.45], [9, 1, "A4", 0.45], [10.08, 2.92, "A4", 0.5]]},
+    {"inst": "piano", "loop": 5, "gain_db": -3, "pan": -0.06, "send": 0.1, "params": {"tone": "felt"},
+     "pattern": [[0, 2, "D2", 0.55], [0.05, 1.95, "A2", 0.42], [0.1, 1.9, "F#3", 0.4],
+                 [2, 3, "G2", 0.55], [2.05, 2.95, "D3", 0.42], [2.1, 2.9, "B3", 0.4],
+                 [5, 3, "B1", 0.55], [5.05, 2.95, "F#2", 0.42], [5.1, 2.9, "D3", 0.4],
+                 [8, 1, "G2", 0.5], [8.05, 0.95, "B3", 0.38],
+                 [9, 1, "A2", 0.5], [9.05, 0.95, "C#4", 0.38],
+                 [10, 3, "D2", 0.58], [10.08, 2.92, "A2", 0.45], [10.16, 2.84, "D3", 0.42], [10.24, 2.76, "F#3", 0.4]]},
+    {"inst": "roomtone", "gain_db": -9}
   ]
 }

@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐和 `events.json` 拟音）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：0.1 s，这支样片自己的 150 帧化成 25 个胶片符号（每个符号 = 6 帧），5 × 5 一整块同时盖章落下，每个高 160 px，占满画面中部（hook）。黑色表示还没播到，红色表示已经播过：从这一刻起，每 6 帧（150 BPM 的一个八分音符）就有一格变红，一直到片尾，这张图就是片子自己的钟。0.5 s 起，符号一行接一行移到右上角缩小成一块小图，下面落下图例"每个符号 = 6 帧"。标题每个八分音符落一个词，中文每个十六分音符落一个字；字从右边推 18 px 进位，用 3 帧，不淡入。母题是一行，从左到右三组：铅笔（大纲，黑）、画架（分镜，蓝）、摄影机（初版，红）。2.0 s 起每个十六分音符盖一个符号，每组下面的计数随之跳动；摄影机落定以后片盘每个八分音符转 45°。3.2 s 多加一台摄影机（4 → 5）；3.6 s 剪掉一个分镜（3 → 2），摄影机那一组随即左移补上空位。4.0 s 是签名转场"清点归零"：母题符号和标题每帧减掉一个，从右往左（英文词先走，给帧图让路）；同时帧图从最下一行开始逐行重排到右半边，放大成结束图版。4.4 s 名字落下，旁边是图例，4.8 s 最后一格变红。实际字体：Futura Bold / Medium、PingFang SC Semibold。配乐 150 BPM、G 大调，拨弦的十六分音符就是计数声；3.2–4.0 s 抽掉鼓和贝斯，是转场前的屏息，画面照常走。
+样片里：0.1 s，这支样片自己的 150 帧化成 25 个胶片符号（每个符号 = 6 帧），5 × 5 一整块同时盖章落下，每个高 160 px，占满画面中部（hook）。黑色表示还没播到，红色表示已经播过：从这一刻起，每 6 帧（150 BPM 的一个八分音符）就有一格变红，一直到片尾，这张图就是片子自己的钟。0.5 s 起，符号一行接一行移到右上角缩小成一块小图，下面落下图例"每个符号 = 6 帧"。标题每个八分音符落一个词，中文每个十六分音符落一个字；字从右边推 18 px 进位，用 3 帧，不淡入。母题是一行，从左到右三组：铅笔（大纲，黑）、画架（分镜，蓝）、摄影机（初版，红）。2.0 s 起每个十六分音符盖一个符号，每组下面的计数随之跳动；摄影机落定以后片盘每个八分音符转 45°。3.2 s 多加一台摄影机（4 → 5）；3.6 s 剪掉一个分镜（3 → 2），摄影机那一组随即左移补上空位。4.0 s 是签名转场"清点归零"：母题符号和标题每帧减掉一个，从右往左（英文词先走，给帧图让路）；同时帧图从最下一行开始逐行重排到右半边，放大成结束图版。4.4 s 名字落下，旁边是图例，4.8 s 最后一格变红。实际字体：Futura Bold / Medium、PingFang SC Semibold。配乐 150 BPM、G 大调，事件即音符：木鱼（`woodblock`）每个八分音符敲一下，就是帧图每变红一格（嘀、嗒交替），一直敲到 4.8 s 最后一格；玩具钢琴（`toypiano`）弹符号：0.1 s 整块落下是一个和弦，英文标题每个词一个音，2.0 s 起每盖一个符号一个音，一路往上数；拨弦（`pizzicato`）拨低音和中文标题的前五个字；3.2–4.0 s 撤掉低音，是转场前的屏息，画面照常走，加一台摄影机、剪一个分镜各是一个音；4.0 s 清点归零时玩具钢琴往下数，4.4 s 名字落下时一个和弦。
 
 ## 学习对象
 
@@ -84,15 +84,15 @@
 
 ## 声音语法
 
-- **配乐**：像节拍器一样干、准。大调，150 BPM：拨弦的十六分音符和"加一个符号"用同一个网格，所以听到的就是计数；底鼓打拍子；`pad` 压得很低。不用长混响，不用弦乐铺满，也不做进行曲式的军鼓。
-- **样片 `score.json`**：`meters` 为 2 + 3 + 3 + 2 + 3 拍，段落边界落在 0.8、2.0、3.2、4.0 s，和弦 I–vi–IV–V–I：
-  - `census`：`kick`、`bass`、`pad`、`arp`，帧图落下、重排到角上；
-  - `title`：`bass`、`pad`、`arp`；
-  - `count`：再加 `kick` 和 `hats`，母题逐个加入；
-  - `cut`（3.2–4.0 s）：只留 `pad` 和 `arp`。这是屏息：加一台摄影机、剪一个分镜，都发生在这里；
-  - `plate`：`kick` 和 `bass` 回来，清点归零，换上结束图版。
-- **音效**：极少，而且短。整行落下一声 `pop` 叠 `boom`；标题每个词一声 `click`；每组第一个符号一声 `toggle`；加一个用 `pop`，减一个用 `click`；清点归零一声 `swish_rev`；结束图版一声 `ding`。单个符号不配声，由拨弦代替，否则一秒会超过 6 声。
-- **声画关系**：数量变化必须落在十六分音符的网格上（±1 帧）；帧图变红和片盘转动都在八分音符上，所以拨弦一直有画面对应。屏息那一小节只剩拨弦，但画面不停，帧图照常变红，那一次加、一次减因此格外清楚。
+- **配乐**：像节拍器一样干、准，事件即音符。大调，150 BPM：木鱼（`woodblock`）在八分音符上走，就是钟；玩具钢琴（`toypiano`）只弹画面上的事件，加一个符号就是一个音，数量往上数，音也往上走，减一个就往下落；拨弦（`pizzicato`）做低音；一层压得很低的簧片和弦（`sheng` 当小风琴用）垫底，让拍与拍之间不掉空。不用长混响（`space: dry`），不用弦乐铺满，也不做进行曲式的军鼓。
+- **样片 `score.json`**：`meters` 为 2 + 3 + 3 + 2 + 3 拍，段落边界落在 0.8、2.0、3.2、4.0 s，和弦 I–vi–IV–V–I，每个音都对着 swatch.js 里的一个事件：
+  - `census`：木鱼从 0 s 开始数帧；0.1 s 帧图盖章落下，玩具钢琴一个 G 大调和弦；拨弦在强拍上；
+  - `title`：英文标题四个词（0.8 / 1.0 / 1.2 / 1.4 s）是玩具钢琴 E–G–B–E 往上走，中文前五个字（1.5–1.9 s）是拨弦往下走的十六分音符；
+  - `count`：2.0–2.8 s 每盖一个符号玩具钢琴一个音，从 G5 一级一级数到 A6（2 支铅笔、3 个画架、4 台摄影机）；
+  - `cut`（3.2–4.0 s）：屏息，撤掉拨弦低音，垫底的和弦稍微抬一点。3.2 s 多加一台摄影机是更高的 B6，3.6 s 剪掉一个分镜落到 D6，3.7 s 摄影机补位时再轻轻一个 G6；
+  - `plate`：4.0 s 清点归零，玩具钢琴按十六分音符往下数（A–F♯–D–B），拨弦回来；4.4 s 名字落下时一个 G 大调和弦；4.8 s 最后一格变红，木鱼敲最后一下。
+- **音效**：极少，而且短。整行落下一声 `pop` 叠 `boom`；标题每个词一声 `click`；每组第一个符号一声 `toggle`；加一个用 `pop`，减一个用 `click`；清点归零一声 `swish_rev`；结束图版一声 `ding`。单个符号不配声，由玩具钢琴代替，否则一秒会超过 6 声。
+- **声画关系**：数量变化必须落在十六分音符的网格上（±1 帧）；帧图变红和片盘转动都在八分音符上，所以木鱼一直有画面对应。屏息那一小节撤掉低音，只剩木鱼、玩具钢琴和垫底的和弦，但画面不停，帧图照常变红，那一次加、一次减因此格外清楚。
 - **样片拟音**：`events.json` 共 16 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs isotype` 生成，落点和画面共用同一张时间表，声像取发声物体的横坐标：
   - 0.1 s：`boom` 和 `pop`，帧图落下；0.62 s：`whoosh`，重排到角上；
   - 0.8、1.0、1.2、1.4 s：四个词各一声 `click`；1.5、1.9 s：中文两声 `tick`；
@@ -128,7 +128,7 @@
 ## Prompt 块
 
 ```text
-Visual style: pictorial statistics in the Vienna-method grammar. Flat, printing-ink colours on warm off-white paper (#F2ECDF): ink black #1E1D1B, vermilion #C23B2C, blue #2D5B8C, with green, ochre and brown in reserve; each colour is one category, never decoration, at most four per plate. Every quantity is shown by repeating one identical pictogram: more means more symbols, never a bigger symbol. Pictograms are solid silhouettes built from circles, rectangles and trapezoids, with detail only as cut-outs showing the paper; no outlines, no faces, no perspective, no shading, no 3D. Symbols stand in strict rows on a shared baseline at a constant pitch, left-aligned, with the category name and the live count written directly under each row, and the unit stated in a key next to its chart ("1 symbol = 6 frames"); illustrative numbers are labelled as such. Type is a geometric sans (Futura Bold for titles and numbers, Futura Medium for labels); Chinese in a clean semibold sans at 46 px or larger. The only changes are one symbol added, removed or re-coloured on the beat: additions stamp down over four frames (−24, −8, +3, 0 px), removals are cuts and the next group closes the gap, re-colouring is a cut, and the count changes on the same frame; a chart of the film's own frames can act as its clock, one symbol turning from black to red every eighth note. Title words slide 18 px into place, one per eighth note. Transitions: count-down (remove one symbol per frame, right to left), regroup (the remaining symbols travel one after another to a new layout), or a hard plate change on a downbeat. Locked camera. Sound: a dry 150 BPM counting grid, plucked sixteenth notes that coincide with each addition, a kick for the pulse, a bar with the drums dropped before the change.
+Visual style: pictorial statistics in the Vienna-method grammar. Flat, printing-ink colours on warm off-white paper (#F2ECDF): ink black #1E1D1B, vermilion #C23B2C, blue #2D5B8C, with green, ochre and brown in reserve; each colour is one category, never decoration, at most four per plate. Every quantity is shown by repeating one identical pictogram: more means more symbols, never a bigger symbol. Pictograms are solid silhouettes built from circles, rectangles and trapezoids, with detail only as cut-outs showing the paper; no outlines, no faces, no perspective, no shading, no 3D. Symbols stand in strict rows on a shared baseline at a constant pitch, left-aligned, with the category name and the live count written directly under each row, and the unit stated in a key next to its chart ("1 symbol = 6 frames"); illustrative numbers are labelled as such. Type is a geometric sans (Futura Bold for titles and numbers, Futura Medium for labels); Chinese in a clean semibold sans at 46 px or larger. The only changes are one symbol added, removed or re-coloured on the beat: additions stamp down over four frames (−24, −8, +3, 0 px), removals are cuts and the next group closes the gap, re-colouring is a cut, and the count changes on the same frame; a chart of the film's own frames can act as its clock, one symbol turning from black to red every eighth note. Title words slide 18 px into place, one per eighth note. Transitions: count-down (remove one symbol per frame, right to left), regroup (the remaining symbols travel one after another to a new layout), or a hard plate change on a downbeat. Locked camera. Sound: a dry 150 BPM counting grid where every event is a note: a woodblock ticking eighth notes as the clock, one toy-piano note for each symbol added (rising as the count rises, falling on a removal), a pizzicato bass, a low reed-organ bed; the bass drops out for the bar before the change.
 ```
 
 ## 引擎做法

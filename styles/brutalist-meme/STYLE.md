@@ -55,10 +55,10 @@
 
 ## 声音语法
 
-- **配乐**：`bin/vh music`，`bpm: 120`（一拍 0.5 s，正好对上 0.5–1.5 s 的切点节奏），`key: "E"`，`mode: "minor"`；`kick`、`clap`、`hats`、`bass`，可选短促的 `lead` 做 stab。段落之间用 `fill` 留一拍空，给包袱前的 0.4 s 静默让位。
+- **配乐**：phonk / trap 梗片节奏，用 `bin/vh music` 的乐器声部（`parts`）写，`bpm: 120`（一拍 0.5 s，正好对上 0.5–1.5 s 的切点节奏），`key: "E"`，`mode: "minor"`。签名是两件：失真的 808（`sub808`，`drive` 3–4，连奏的音之间滑音，上一个八度或往下滑）和一条 Memphis 式的牛铃 riff（`cowbell` 带音高，3-3-2 切分，带一点弗里几亚的 F，加短回声 `delay`）。鼓是 trap：半速的军鼓（`trap_snare` 叠一记硬 `clap`，每 4 拍一记），八分音符的 `trap_hat` 夹着 32 分和三连音滚奏。干、削顶：`space: dry`，总线 `drive` 1.3，不加混响。包袱前的屏息只撤鼓和牛铃，808 往下滑的长音和一层暗的 `drone` 垫着。
 - **音效**：定格 `shutter`、错误 `error`、弹出 `pop`、点击 `click`、打字 `typing`、段落分界 `glitch`、包袱 `impact`。每个音效对应画面上一个动作，不做装饰性铺底。
 - **声画关系**：卡点最密的一种风格：每个切点、每个 punch-in 都在拍上（±1 帧）。屏息是笑点的一部分：包袱前 0.4 s 撤掉鼓组、音量降 10 dB 以上，但保留底垫；`TASTE_CHECKLIST` #18 不允许片中出现数字静音。08 类型文档写的是"0.4 秒静默"，按新规则理解为屏息。
-- **样片小样**：样片的 5 s 声音小样（`score.json`）：样片按 150 BPM 走（每个切点都在 0.4 s 的格子上），E 小调；0.8 s 硬切处 `impact`，3.2–3.6 s 屏息只留 `pad` 和 `bass`，3.6 s 包袱和 4.0 s 故障各一记 `impact`。拟音（`events.json`）：0.4 / 0.8 / 1.6 s 三处硬切和 4.0 s 故障转场各一声 glitch，其余每个 punch-in（2.0 2.2 2.4 2.8 3.2 3.6 4.2 4.4 s）一声 `click`，3.27 s 定格一声 `shutter`。glitch 用 `sfx/glitch_cut.wav`：照内置 `glitch` 的做法合成（方波在 80/160/640/1280 Hz 间每 12.5 ms 跳一次，10 ms 随机门控，指数衰减），但方波边沿和门控开合各有 1–2 ms 的斜坡。内置版本的硬门控会在起音后 45–130 ms 留下台阶，qa 把它们报成 click；这一版起音就落在切点上，不需要提前。
+- **样片小样**：样片的 5 s 声音小样（`score.json`）：样片按 150 BPM 走（每个切点都在 0.4 s 的格子上），E 小调，小节排成 1 + 1 + 3 + 3 + 1 + 1 + 3 拍。0 s 起 808 和牛铃 riff 同时进，hats 走八分音符；0.4 s 硬切处 808 重打一下，0.6 s 滑上一个八度；0.8 s 标题切入是第一记半速军鼓加 clap；2.0–3.2 s 三个窗口砸进来时 808 换到 C（VI），牛铃第二遍 riff 走到 A–G–F–E，2.4 s 第二记军鼓，2.8 s 808 从 C 滑到 G，hats 用三连音滚奏冲进定格；3.2–3.6 s 屏息：鼓和牛铃撤掉，只剩 808 从 E2 往下滑一个八度（压得很低）、牛铃回声的尾巴和一层暗的 `drone`，比前后低约 11 dB；3.6 s 包袱时军鼓、clap、808 和牛铃一起砸回来；4.0 s 故障处第四记军鼓，808 结巴似地连打三下，hats 满格滚奏，4.2 / 4.4 s 两次 punch-in 都落在牛铃和 808 上。拟音（`events.json`）：0.4 / 0.8 / 1.6 s 三处硬切和 4.0 s 故障转场各一声 glitch，其余每个 punch-in（2.0 2.2 2.4 2.8 3.2 3.6 4.2 4.4 s）一声 `click`，3.27 s 定格一声 `shutter`。glitch 用 `sfx/glitch_cut.wav`：照内置 `glitch` 的做法合成（方波在 80/160/640/1280 Hz 间每 12.5 ms 跳一次，10 ms 随机门控，指数衰减），但方波边沿和门控开合各有 1–2 ms 的斜坡。内置版本的硬门控会在起音后 45–130 ms 留下台阶，qa 把它们报成 click；这一版起音就落在切点上，不需要提前。
 
 ## 适合与不适合
 
@@ -81,7 +81,7 @@ STYLE: internet-brutalist tech cut. #F0F0F0 on #111111, one alarm accent #D4501E
 Caps monospace labels (Space Mono, 28–36px, +0.08em) and one heavy grotesk (Space Grotesk Bold, 120–220px, −0.03em). Raw screenshots at native resolution with their UI chrome, integer scaling only, nearest-neighbour.
 Motion: hard cuts every 0.5–1.5s on the beat; a 2-frame punch-in to 115% on cuts; text appears with steps(6) like a typewriter; freeze-frame plus a hand-drawn #D4501E box on every punchline; glitch at no more than two section breaks. The only smooth ease in the whole piece is one slow push at the climax.
 Comedy timing: setup 1–2s, a 0.4s held breath (drums out, a low bed stays; never digital silence), then the hit with a sound effect; every joke reads in under one second.
-Sound: 120 BPM E minor, kick, clap, hats, bass; shutter, error, pop and impact effects tied one-to-one to on-screen actions. Recreate meme formats from scratch; no copyrighted images, no real logos, no real people's avatars or handles.
+Sound: 120 BPM E-minor phonk / trap: a distorted 808 with glides, a Memphis cowbell riff, rolling trap hats, a half-time snare with a hard clap, dry and clipped; shutter, error, pop and impact effects tied one-to-one to on-screen actions. Recreate meme formats from scratch; no copyrighted images, no real logos, no real people's avatars or handles.
 ```
 
 ## 引擎做法

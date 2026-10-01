@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：0–0.6 s 整张网格以原点为圆心扫开（一个带亮边的圆盘在 0.1 s 已盖住大半个画面，扫完后亮度约 25% 灰，轴 60%），同拍一声 `bell`；0.4 s 起绿色 î、红色 ĵ 两个基向量从原点弹出（各一声 `tick`），2.0 s 母题出场前退掉；网格单位 160 px；标题先描轮廓再填充（手写式）；三元素以 x 轴（y = 800）为底、高约画面的 37%，中心约在 0.55H，标签在轴下方：蓝点（大纲）的一份拷贝拉成绿色向量（分镜），再扫成黄色平行四边形（初版），标签与对象同色，中文 58 px；2.6–4.0 s 整组慢推 4.5%，3.0 s 和 3.5 s 各一次 1.2× indicate 加黄色闪光，都配 `bell`；4.0 s 三者一起变换成一个黄圆，落成证毕方块，名字随之写出。实际字体：STIX Two Text（网页里没有 CMU Serif）、Songti SC。配乐记成 120 BPM（60 BPM 的双倍网格），`meters` 让 3.0、3.5、4.0 s 都是小节线：C 大调，只有 `pad`、很轻的 `arp` 和几声 `bell`。
+样片里：0–0.6 s 整张网格以原点为圆心扫开（一个带亮边的圆盘在 0.1 s 已盖住大半个画面，扫完后亮度约 25% 灰，轴 60%），同拍钢琴琶音起；0.4 s 起绿色 î、红色 ĵ 两个基向量从原点弹出（各一声 `tick`），2.0 s 母题出场前退掉；网格单位 160 px；标题先描轮廓再填充（手写式）；三元素以 x 轴（y = 800）为底、高约画面的 37%，中心约在 0.55H，标签在轴下方：蓝点（大纲）的一份拷贝拉成绿色向量（分镜），再扫成黄色平行四边形（初版），标签与对象同色，中文 58 px；2.6–4.0 s 整组慢推 4.5%，3.0 s 和 3.5 s 各一次 1.2× indicate 加黄色闪光，都配一声 `ding` 和一个钢琴和弦；4.0 s 三者一起变换成一个黄圆，落成证毕方块，名字随之写出。实际字体：STIX Two Text（网页里没有 CMU Serif）、Songti SC。配乐记成 120 BPM（60 BPM 的双倍网格），`meters` 让 3.0、3.5、4.0 s 都是小节线，C 大调，没有鼓：毡锤钢琴（`piano` 的 `felt`，踩延音踏板）在两个八度里上下弹琶音，每秒 3 个音（按 60 BPM 算是八分三连音），每换一个和弦在低音区点一个根音；下面一层很轻、偏暗的弦乐 pad；和弦走 Cmaj7 → Fmaj7 → Am7 → Gsus4 → Cadd9；3.0、3.5 s 的 indicate 各是一个和弦；4.0 s 证毕时钢琴放下一个开放的 Cadd9，钢片琴（`celesta`）在上面把 C–E–G–C 唱一遍。混响是大厅。
 
 ## 学习对象
 
@@ -54,7 +54,7 @@
 
 ## 声音语法
 
-- **配乐**：旁白是主角，音乐只垫底：C 大调，60 BPM（30 fps 下一拍 30 帧；2 s 和 4 s 都落在拍上），`pad` + 很轻的 `arp`，能量 0.2–0.35；结论出现时一声 `bell`。
+- **配乐**：旁白是主角，音乐只垫底，是 3Blue1Brown 那种安静的钢琴：C 大调，60 BPM（30 fps 下一拍 30 帧；2 s 和 4 s 都落在拍上）。签名是毡锤钢琴的琶音（`piano` 的 `tone: "felt"` 加延音踏板，八分三连音，在两个八度里上下走），每换一个和弦低音区点一个根音；下面一层很轻、偏暗的弦乐 pad（`strings`，低通）；结论出现时钢片琴（`celesta`）唱一个上行琶音。大厅混响，没有鼓。
 - **音效**：几乎没有。结论落定时可以有一声 −18 dB 的 `ding`。不用 whoosh。
 - **声画关系**：旁白先行，动画比 cue 词早 0.3–0.5 s 开始；问题卡之后的 2–3 s 只留 pad；每句话说完后画面停约 1 s。
 - **样片拟音**：`events.json` 只有 8 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），−3 dB 混在配乐下：î、ĵ 弹出各一声 `tick`；标题中英两次落笔各一声很轻的 `tick`；点出现一声 `pop`；3.0、3.5 s 两次 indicate 各一声 `ding`；证毕方块落定 `click`。两次 TransformFromCopy 和最后的合并都不配声，守住"不用 whoosh"。
@@ -76,7 +76,7 @@
 ## Prompt 块
 
 ```text
-Visual style: dark mathematical explainer. Pure black background, no glow, no particles, no bounce. Every mathematical entity has one colour for the whole film, shared by its symbol in the equation and its geometry: blue #58C4DD for the input, yellow #FFFF00 for the current focus and the result, red #FC6255 for error or counterexamples, green #83C167, gold #F0AC5F for parameters, grey #888888 for context; white only for operators and titles. Text is a Computer Modern style serif (LaTeX; STIX Two Text on the web) with italic variables; Chinese in Songti SC. Geometry first, then algebra: equations appear whole, hold 2 s, dim to 30%, then light up term by term in their entity colours. Change is shown by continuous transformation (one object morphs into the next, matching symbols slide to their new places), never by fade-out/fade-in. Zooming into a detail keeps the parent diagram on screen, dimmed and shrunk to a corner. Each move 1–3 s with smooth in-out easing, then a 0.5–2 s hold; objects placed on a 6×6 anchor grid. Titles are hand-written: outlines trace, then fill. Quiet 60 BPM major-key pad under the narration.
+Visual style: dark mathematical explainer. Pure black background, no glow, no particles, no bounce. Every mathematical entity has one colour for the whole film, shared by its symbol in the equation and its geometry: blue #58C4DD for the input, yellow #FFFF00 for the current focus and the result, red #FC6255 for error or counterexamples, green #83C167, gold #F0AC5F for parameters, grey #888888 for context; white only for operators and titles. Text is a Computer Modern style serif (LaTeX; STIX Two Text on the web) with italic variables; Chinese in Songti SC. Geometry first, then algebra: equations appear whole, hold 2 s, dim to 30%, then light up term by term in their entity colours. Change is shown by continuous transformation (one object morphs into the next, matching symbols slide to their new places), never by fade-out/fade-in. Zooming into a detail keeps the parent diagram on screen, dimmed and shrunk to a corner. Each move 1–3 s with smooth in-out easing, then a 0.5–2 s hold; objects placed on a 6×6 anchor grid. Titles are hand-written: outlines trace, then fill. Quiet 60 BPM major-key felt-piano arpeggios over a soft string pad under the narration, a celesta on the conclusion, no drums.
 ```
 
 ## 引擎做法
