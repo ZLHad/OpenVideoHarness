@@ -52,7 +52,7 @@
 
 **任何档位都不降的底线**：
 - 硬规则 1（每一帧是 t 的纯函数）、5（事实照抄原文）、7（不在文件里写 key）；
-- 片中不出现数字静音；
+- 片中不出现数字静音（管有声片；用户要的无声片不带音轨，不适用）；
 - 全屏闪白每秒不超过 3 次；
 - 字号不低于清单下限；
 - 素材许可要记清；
@@ -85,7 +85,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 2. **建项目和立意**：`bin/vh new <type> <slug> --effort quick`。先写 3 个一句话立意，挑一个（`playbook/12-ideation.md` 第 7 节最后一条），再读 BRIEF 末尾的 TYPE 块，决定留哪些默认。风格从立意推出来，合适的话借一个预设：`bin/vh style apply <preset> <project>`（`bin/vh style list` 挑），它的 `STYLE_PRESET.md` 会带进项目，写代码前读一遍。立意和风格各写一行理由进 `DECISIONS.md`；改了哪些口味默认，交付时一并列出。
 3. **写**：补齐 BRIEF；分镜只写简表（镜头、时长、reads）；然后写场景代码。HyperFrames 写完一段，用 `npx hyperframes snapshot --at <秒> --describe false` 看几个关键时刻。
 4. **出片**：HyperFrames 先 `export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1`，再 `npx hyperframes render --quality draft --output out/draft.mp4`；手绘类用 `node render.mjs --clip --out=out/draft.mp4`。
-5. **自查一遍**：`bin/vh sheet out/draft.mp4` 看整片联系表，对着 `TASTE_CHECKLIST.md` 的 20 条速查；有字就跑 `bin/vh readcheck`。
+5. **自查一遍**：`bin/vh sheet out/draft.mp4` 看整片联系表，对着 `TASTE_CHECKLIST.md` 的 20 条速查；有字就跑 `bin/vh readcheck`。再看三样（命令见 `playbook/02-verification.md`）：手机尺寸的联系表，必读字读不读得出、HUD 和标签有没有低于字号下限；前 2 s 的逐帧 strip，开头是不是第 0 帧就在动；`bin/vh check` 报的冻结段，要么修掉，要么在交付里写明为什么留着。`quick` 没有 reviewer，这三样最容易漏（`docs/research/06-concept-first-ab.md`）。
 6. **声音**（要的话）：`bin/vh music` 或 `bin/vh tts`，再 `bin/vh mix`、`bin/vh qa`、`bin/vh mux`。
 7. **交付**：`bin/vh check` 必跑；交 mp4 路径、联系表，以及自己最不满意的 1–2 处。
 
