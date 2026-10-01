@@ -59,6 +59,7 @@
 - **音效**：插入录像带的机械 `click`、tracking 时的 `glitch`、转场 `whoosh`、副歌前 `riser`、标题落位 `impact`。
 - **声画关系**：卡点密：切换、闪白、星芒都在拍上（±1 帧）。开场可以先放 1–2 小节只有 `pad` 和 `arp` 的前奏，网格慢慢滚进来，鼓进来的那一拍标题落下。
 - **样片小样**：样片的 5 s 声音小样（`score.json`）：样片按 150 BPM 走（网格每拍一条线），A 小调，i–VI–III–VII 每段一个和弦：0 s 开机时是 polysynth 的 Am 长和弦、十六分琶音和 pad，没有鼓；0.8 s 铬字升起时鼓机进来：四拍 kick、反拍的 gated 军鼓（第一下在 1.2 s）、十六分 hats、被 kick 压着泵的八度锯齿贝斯，polysynth 改弹 3-3-2 的切分和弦；2.0 s 进 C 和弦，三件物件在拍上通电；4.0 s tracking 噪声那一拍鼓全停，polysynth 只留一个短和弦；4.4 s "Outrun" 落拍，gated 军鼓、kick 和 polysynth 的 G 和弦一起砸回来。拟音（`events.json`）：0.07 s 开机 `boom` 加 `glitch`，1.6 / 2.8 s 星芒各一声很轻的 `ding`，2.0 / 2.2 / 2.4 s 三件物件通电各一声 `click`，4.0 s tracking `glitch`，4.4 s "Outrun" 落拍 `impact`。
+- **样片的转场音效**：`tape`：4.0 s 磁带跟踪噪声是一声倒带（`dir: up`，0.27 s），落在结束帧从地平线打开的 4.27 s，代替原来的 `glitch`。
 
 ## 适合与不适合
 

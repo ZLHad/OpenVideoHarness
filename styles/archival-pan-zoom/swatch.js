@@ -226,6 +226,6 @@ function captions(ctx, t, tokens, lib) {
 // foley (events.json is generated from this list; times are the same ones the scene uses) — kept sparse
 export const FOLEY = [
   { t: 0.1, sfx: "shutter", gain_db: -8, pan: -0.4 },                                                     // the first look
-  { t: 2.45, sfx: "swish_rev", gain_db: -18, pan: 0.4 },                                                  // the red ring is drawn
+  { t: 2.45, sfx: "air", gain_db: -13, pan: 0.4, dur: 0.7 },                                               // the red ring is drawn
   { t: 4.0, sfx: "shutter", gain_db: -8, pan: 0.2 },                                                      // the dissolve to the next print
 ];

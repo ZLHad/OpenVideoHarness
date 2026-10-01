@@ -68,20 +68,26 @@ penta = lambda k, base=76: MIDI(base + 12 * (k // 5) + E_PENTA[k % 5] - 64)
 
 def main():
     ev, sounds = [], {}
-    def add(t, sfx, gain_db, pan=0.0, why="", role=None):   # role: the mix profile's class where the name hint is wrong
-        ev.append({"t": round(float(t), 3), "sfx": sfx, "gain_db": gain_db, **({"pan": pan} if pan else {}),
-                   **({"role": role} if role else {}), "why": why})
+    def add(t, sfx, gain_db, pan=0.0, why="", role=None, **shape):   # role: the mix profile's class where the name hint is wrong
+        ev.append({"t": round(float(t), 3), "sfx": sfx, "gain_db": gain_db, **({"pan": pan} if pan else {}),   # shape: a built-in's
+                   **({"role": role} if role else {}), **shape, "why": why})   # dur, dir, pitch, bright, tone, pan_from / pan_to
 
     # ---- A · hook (compositions/s-hook.html): words whip up at spec[i][0]; centres measured with SF Pro at 136 px ----
-    sounds.update(thock_hi=thock(1, 330), thock_mid=thock(2, 262), thock_lo=thock(3, 196))
-    hook = [(0.25, "Your", 316, "thock_hi", -15), (0.40, "coding", 783, "thock_hi", -15), (0.52, "agent,", 1313, "thock_hi", -15),
-            (0.85, "now", 312, "thock_mid", -13), (0.96, "a", 561, "thock_mid", -15), (1.04, "video", 849, "thock_mid", -11),
+    # three takes of each word thock (own tap noise, the body ±30 cents), rotated A B C: one sample three times in a
+    # row is the copy the ear catches (bin/vh qa's repetition check)
+    for name, seed, f0 in [("thock_hi", 1, 330), ("thock_mid", 2, 262)]:
+        sounds.update({name: thock(seed, f0), f"{name}_b": thock(seed + 10, f0 * 2 ** (0.3 / 12)), f"{name}_c": thock(seed + 20, f0 * 2 ** (-0.3 / 12))})
+    sounds["thock_lo"] = thock(3, 196)
+    hook = [(0.25, "Your", 316, "thock_hi", -15), (0.40, "coding", 783, "thock_hi_b", -15), (0.52, "agent,", 1313, "thock_hi_c", -15),
+            (0.85, "now", 312, "thock_mid", -13), (0.96, "a", 561, "thock_mid_b", -15), (1.04, "video", 849, "thock_mid_c", -11),
             (1.20, "studio.", 1338, "thock_lo", -9)]
     for t, w, x, s, g in hook:   # 'studio.' lands the whole hook: a hero, though a thock's name reads as detail
         add(frame(t), s, g, pan_of(x, 0.5), f"A: hook word '{w}' lands (s-hook spec, t = {t})", "hero" if w == "studio." else None)
-    add(2.5, "whoosh", -12, -0.2, "A→B: words peel LEFT 2.16–2.5, problem line enters mid-flight at 2.5 (whoosh peaks at the cut)")
+    add(2.5, "whoosh", -14, -0.2, "A→B: words peel LEFT 2.16–2.5, problem line enters mid-flight at 2.5 (whoosh peaks at the cut)",
+        dur=0.34, pan_from=0.2, pan_to=-0.6)
     add(2.6, "boom", -18, 0, "B: 'One catch: it can't watch video.' lands (cascade 2.5–2.68): sub weight under the doubt (34 Hz, no attack: kept at −18 so the onset cue check skips it)")
-    add(4.7, "whoosh", -12, -0.2, "B→C: cut-the-curve LEFT at 4.7")
+    add(4.7, "swoosh_tonal", -12, -0.2, "B→C: cut-the-curve LEFT at 4.7 (each section cut its own gesture: whoosh, swoosh_tonal, whip)",
+        dur=0.4, pan_from=0.3, pan_to=-0.5)
     # ---- C · scaffold (index.html cursor + compositions/s-scaffold.html; C starts at 4.7) ----
     add(frame(4.7 + 0.52), "click", -9, pan_of(470), "C: cursor clicks the prompt, tap(5.22); focus ring same frame")
     T0, TD = 4.7 + 0.52 + 0.08, 28 * 0.028                          # 'bin/vh new promo launch-film' = 28 chars, 28 ms each
@@ -94,22 +100,22 @@ def main():
     tree = [frame(RET + 0.36 + 0.03 * i) for i in range(14)]        # 14 tree items, 30 ms apart, from RET+0.36
     sounds["tree_run"] = run([x - tree[0] for x in tree], [penta(k) for k in range(14)], 0.8)
     add(tree[0], "tree_run", -14, pan_of(1572), "C: the file tree fills, 14 items from RET+0.36 (a rising E-pentatonic run)")
-    add(8.0, "whoosh", -12, -0.2, "C→D: cut at 8.0 (cursor carries)")
+    add(8.0, "whip", -12, -0.2, "C→D: cut at 8.0 (cursor carries): short and dry", dur=0.25)
     # ---- D · route (compositions/s-route.html; D starts at 8.0) ----
     add(frame(8.0 + 0.5), "click", -9, pan_of(1692), "D: cursor presses ↵ at CLICK 0.5 (8.5)")
     add(frame(8.0 + 0.92), "tick", -10, 0, "D: scan box lands on row 02 (0.72–0.92, power3.inOut)")
     add(frame(8.0 + 0.96 + 0.26 * (1 - 0.1 ** 0.25)), "tick", -10, 0, "D: scan box lands on row 03 (0.96–1.22 power4.out, 90% of the way)")
     add(frame(8.0 + 1.55), "ding", -9, 0, "D: LOCK at 1.55 (9.55): row 03 → video-types/03-product-promo.md")
-    add(11.3, "whoosh", -12, -0.2, "D→E: cut at 11.3")
+    add(11.3, "whoosh", -12, -0.2, "D→E: cut at 11.3", dur=0.5, dir="down", tone=0.3)
     # ---- E · review (compositions/s-review.html; E starts at 11.3) ----
-    add(11.3 + 0.6, "whoosh", -16, 0.1, "E: the playhead scans the sheet 0.34–0.84")
+    add(11.3 + 0.6, "air", -14, 0.1, "E: the playhead scans the sheet 0.34–0.84, left to right", dur=0.5, pan_from=-0.5, pan_to=0.5)
     add(frame(11.3 + 0.85), "error", -8, pan_of(144 + 4 * 272 + 136), "E: FLAG at 0.85 (12.15): tile 0:10.50 boxed, '#3 FAIL'")
     sounds["keys_note"] = keys([0.036 * k for k in range(10)], 12)
     add(frame(11.3 + 0.85), "keys_note", -10, pan_of(440), "E: the NOTES line types in with the flag (30 chars in 0.36 s)")
     add(frame(11.3 + 2.4), "click", -9, pan_of(940), "E: cursor clicks the flagged tile, tap(13.7)")
     add(11.3 + 2.4 + 0.07, "shutter", -10, 0, "E: rack-focus blur spike 13.7–13.84")
     add(frame(11.3 + 2.4 + 0.14), "success", -8, 0, "E: swap to the fixed frame, '✓ #3 PASS' at CLICK+0.14 (13.84)")
-    add(15.0, "whoosh", -17, -0.2, "E→F: cut at 15.0 (softer: the count-up starts 0.1 s later)")
+    add(15.0, "swoosh_tonal", -13, -0.2, "E→F: cut at 15.0 (softer: the count-up starts 0.1 s later)", dur=0.3, dir="down")
     # ---- F · proof (compositions/s-proof.html): column i at 0.06 i, count 0 → N over 0.7 s (power2.out) from +0.05 ----
     for i, (n, x, note) in enumerate([(8, 235, 76), (10, 685, 80), (3, 1051, 83), (20, 1501, 88)]):
         t0, shown, ticks = 15.0 + 0.06 * i + 0.05, 0, []
@@ -119,11 +125,11 @@ def main():
                 ticks.append(f / FPS); shown = v
         sounds[f"count_{n}"] = run([x - ticks[0] for x in ticks], [MIDI(note)] * len(ticks), 0.7)
         add(ticks[0], f"count_{n}", -11 if i == 0 else -14, pan_of(x), f"F: '{n}' counts up, {len(ticks)} changes on screen (column {i + 1})")
-    add(17.0, "swish_rev", -12, 0, "F→G: proof shrinks 1 → 0.8 over 16.8–17.0 (swish_rev ends at t)")
+    add(17.0, "swish_rev", -12, 0, "F→G: proof shrinks 1 → 0.8 over 16.8–17.0 (swish_rev ends at t)", dur=0.2, dir="down")
     add(17.0, "impact", -11, 0, "G: the wordmark ARRIVES (inverse zoom-through, 17.0–17.5)")
     tag = [(0.65, "Video", 387), (0.78, "as", 533), (0.86, "code,", 672), (0.98, "for", 818), (1.06, "coding", 985), (1.18, "agents.", 1226)]
     for t, w, x in tag:                                              # s-lockup spec; centres measured with SF Pro at 56 px
-        add(frame(17.0 + t), "thock_hi" if w != "agents." else "thock_mid", -18, pan_of(x, 0.5), f"G: tagline word '{w}' rises (17.0 + {t})")
+        add(frame(17.0 + t), "thock_mid" if w == "agents." else ("thock_hi", "thock_hi_b", "thock_hi_c")[tag.index((t, w, x)) % 3], -18, pan_of(x, 0.5), f"G: tagline word '{w}' rises (17.0 + {t})")
 
     for k, v in sounds.items():
         write(k, v)

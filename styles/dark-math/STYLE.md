@@ -58,6 +58,7 @@
 - **音效**：几乎没有。结论落定时可以有一声 −18 dB 的 `ding`。不用 whoosh。
 - **声画关系**：旁白先行，动画比 cue 词早 0.3–0.5 s 开始；问题卡之后的 2–3 s 只留 pad；每句话说完后画面停约 1 s。
 - **样片拟音**：`events.json` 只有 8 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），按 `profile=swatch` 混在配乐下：î、ĵ 弹出各一声 `tick`；标题中英两次落笔各一声很轻的 `tick`；点出现一声 `pop`；3.0、3.5 s 两次 indicate 各一声 `ding`；证毕方块落定 `click`。两次 TransformFromCopy 和最后的合并都不配声，守住"不用 whoosh"。
+- **样片的转场音效**：没有转场音效：两次 TransformFromCopy 变形保持安静（风格本来就不用 whoosh）。
 
 ## 适合与不适合
 

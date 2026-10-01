@@ -90,4 +90,4 @@
 | audio/voiceover.en.flac (narration) | Gemini 3.8 Flash TTS, voice Iapetus, synthesized 2026-09-30; SynthID watermark | AI-synthesized, used under Google's terms; disclose on publication |
 | audio/score.json → the music | composed here; rendered by `bin/vh music` (synthesis only, no samples) | original |
 | 10 sonification sounds (target square, sums, harmonics, sweep, bell) | `tools/foley.py`, synthesized | original |
-| built-in SFX (whoosh) | `bin/vh sfx lib` (`tools/audio/sfx.py`) | MIT, part of this repo |
+| built-in SFX (air) | `bin/vh sfx lib` (`tools/audio/sfx.py`) | MIT, part of this repo |

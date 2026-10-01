@@ -202,8 +202,8 @@ function motes(ctx, t, tokens, lib) {
 const px = (x) => Math.round((x / 960 - 1) * 100) / 100;
 export const FOLEY = [
   { t: T_HIT, sfx: "boom", gain_db: -3, pan: 0, dist: 2 },                                              // braam 1: the slit ignites
-  { t: 2.05, sfx: "whoosh", gain_db: -12, pan: px(400), dist: 3 }, { t: 2.35, sfx: "whoosh", gain_db: -12, pan: 0, dist: 3 },   // edges, seams
-  { t: T_SLIT, sfx: "whoosh", gain_db: -9, pan: px(1520), dist: 4 },                                      // the amber slit (low, far: not a braam)
+  { t: 2.05, sfx: "swoosh_tonal", gain_db: -6, pan: px(400), dist: 3, dur: 0.6, pitch: -3 }, { t: 2.35, sfx: "swoosh_tonal", gain_db: -6, pan: 0, dist: 3, dur: 0.6, pitch: 2 },   // edges, seams
+  { t: T_SLIT, sfx: "swoosh_tonal", gain_db: -3, pan: px(1520), dist: 4, dur: 0.9, pitch: -7, bright: -0.4 },                                      // the amber slit (low, far: not a braam)
   // 3.2–4.0: held breath, no foley (score: pad only). Braam 2 is the score's impact on 4.0.
-  { t: 4.3, sfx: "whoosh", gain_db: -8, pan: px(1520), dist: 1.5 },                                       // the push into the slit
+  { t: 4.3, sfx: "whoosh", gain_db: -8, pan: px(1520), dist: 1.5, dur: 1.0, dir: "up", tone: 0.5 },                                       // the push into the slit
 ];

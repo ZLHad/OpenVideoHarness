@@ -72,14 +72,14 @@ const pan = (x) => Math.round(((2 * x) / 1920 - 1) * 70) / 100;           // pan
 const mid = ([a, b]) => (a + b) / 2;
 export const FOLEY = [
   { t: TL.blueKick, sfx: "click", gain_db: -12, pan: pan(260) },                         // blue plate kicks as the roller bites
-  { t: 0.15, sfx: "whoosh", gain_db: -12 },                                               // blue roller sweeps the sheet
-  { t: mid(TL.title), sfx: "whoosh", gain_db: -18, pan: pan(700) },                       // title roller
-  { t: mid(TL.zh), sfx: "whoosh", gain_db: -20, pan: pan(520) },                          // Chinese roller
+  { t: 0.15, sfx: "paper", gain_db: -12, dur: 0.6 },                                               // blue roller sweeps the sheet
+  { t: mid(TL.title), sfx: "paper", gain_db: -13, pan: pan(700), dur: 0.6 },                       // title roller
+  { t: mid(TL.zh), sfx: "paper", gain_db: -15, pan: pan(520), dur: 0.5 },                          // Chinese roller
   ...SLOT_X.map((x, k) => ({ t: onTwos(TL.shape(k)), sfx: "pop", gain_db: -12, pan: pan(x) })),   // the three shapes print
-  { t: mid(ROLL.yellow), sfx: "whoosh", gain_db: -15 },                                   // yellow roller
-  { t: mid(ROLL.pink), sfx: "whoosh", gain_db: -15 },                                     // pink roller: full overprint
+  { t: mid(ROLL.yellow), sfx: "paper", gain_db: -11, dur: ROLL.yellow[1] - ROLL.yellow[0] },                                   // yellow roller
+  { t: mid(ROLL.pink), sfx: "paper", gain_db: -11, dur: ROLL.pink[1] - ROLL.pink[0] },                                     // pink roller: full overprint
   ...TL.rehit.map((r) => ({ t: r.t, sfx: "click", gain_db: -8, pan: pan(SLOT_X[r.k]) })), // a plate is re-printed on the beat
-  { t: TL.slide[1], sfx: "swish_rev", gain_db: -12 },                                     // the pink sheet drops…
+  { t: TL.slide[1], sfx: "swish_rev", gain_db: -12, dur: TL.slide[1] - TL.slide[0], dir: "down" },                                     // the pink sheet drops…
   { t: TL.slide[1], sfx: "click", gain_db: -8 },                                          // …and lands 14 px off
   { t: TL.cut, sfx: "click", gain_db: -10 },                                              // end sheet: blue line
   { t: TL.pinkHit, sfx: "click", gain_db: -12, pan: pan(1000) },                          // pink double-hit

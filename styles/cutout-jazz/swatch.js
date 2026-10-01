@@ -30,13 +30,13 @@ const px = (x) => Math.round((x / 960 - 1) * 100) / 100;
 export const FOLEY = [
   { t: T_BARS[0], sfx: "pop", gain_db: -4, pan: px(400) }, { t: T_BARS[1], sfx: "pop", gain_db: -4, pan: px(1400) },   // bars land
   ...[0, 2, 4, 6, 8].map((m) => ({ t: T_LET0 + m * STEP, sfx: "pop", gain_db: -12, pan: px(420 + m * 135) })),        // letter slaps
-  { t: T_ZH, sfx: "whoosh", gain_db: -14, pan: px(760) },                                                                // cream strip
+  { t: T_ZH, sfx: "paper", gain_db: -14, pan: px(760), dur: 0.25 },                                                                // cream strip
   { t: T_DOWN, sfx: "click", gain_db: -8, pan: 0 },                                                                      // block lands low
   { t: T_OUT, sfx: "click", gain_db: -6, pan: px(OUT.x) }, { t: T_SB, sfx: "pop", gain_db: -8, pan: px(SB.x) },
   { t: T_DR, sfx: "pop", gain_db: -4, pan: px(DR.x) },                                                                   // the disc drops
-  { t: T_G1, sfx: "tick", gain_db: -10, pan: px(600) }, { t: T_WIPE, sfx: "whoosh", gain_db: -10, pan: 0 },
+  { t: T_G1, sfx: "tick", gain_db: -10, pan: px(600) }, { t: T_WIPE, sfx: "paper", gain_db: -10, pan: 0, dur: 0.2, bright: 0.3 },
   { t: T_G2, sfx: "tick", gain_db: -10, pan: px(600) }, { t: T_G3, sfx: "click", gain_db: -10, pan: px(SB.x) },
-  { t: T_SCISSORS, sfx: "shutter", gain_db: -4, pan: 0 }, { t: T_SCISSORS + 0.25, sfx: "whoosh", gain_db: -12, pan: 0 },
+  { t: T_SCISSORS, sfx: "shutter", gain_db: -4, pan: 0, variant: 0 }, { t: T_SCISSORS + 0.25, sfx: "paper", gain_db: -12, pan: 0, dur: 0.6, dir: "down" },
   { t: T_END[0], sfx: "pop", gain_db: -6, pan: px(400) }, { t: T_END[1], sfx: "pop", gain_db: -8, pan: px(400) },
 ];
 const CUT = new Map();          // cut polygons in local space, keyed by id (pure data, identical per worker)
