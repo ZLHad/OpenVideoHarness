@@ -18,6 +18,7 @@
 - lint 的两条建议互相打架：`gsap_repeated_fromto_without_baseline` 建议 `tl.set(...,0)`，加了之后又报 `gsap_timeline_set_initial_hide` — 解决：基线用 timeline 外的 `gsap.set()`，后续 fromTo 加 `immediateRender:false`。
 - 第一次 render 打印 "A frame failed verification, so parallel drawElement capture fell back to the screenshot path and is now off for this install" — 之后每次渲染从 13.8s 变成 ~42s（24.8s 片长）。这是写在本机安装状态里的开关（`HF_DE_PARALLEL_ROUTER=true` 可重开），不是项目设置。
 - `bin/vh sheet` 的默认输出是**当前目录**下的 `out/check/`；从仓库根运行会在根目录建 `out/` — 解决：从项目目录运行，或传第 4 个参数指定输出。
+- 旁白稿照字幕写了"2 GHz"，Gemini TTS 把 GHz 念成了 G、H、Z 三个字母（维护者听出来的，本机 Whisper 也转成了字母"GHz"） — 原因：TTS 照字面念单位缩写，稿子写的是给人看的文字，不是念法 — 解决：送去合成的文字写真实念法（"2 G赫兹""50 千赫兹"），字幕保留原文；只重录这一句，拼回原来的起点（2026-10-01）。以后单位、缩写、符号都先写成念法再合成。
 
 ## 可用命令
 <!-- 第一次跑通的安装和调用命令，下个项目直接复用 -->
