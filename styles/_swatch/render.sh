@@ -230,7 +230,7 @@ done
 if [ -n "$AUDIO" ]; then
   k=0
   while :; do
-    etp=$(uv run -q --with numpy --with scipy python -c "import sys; sys.path.insert(0, sys.argv[1]); import mix; print(f'{mix.true_peak(mix.load(sys.argv[2])):.2f}')" \
+    etp=$(uv run -q --no-project --with numpy --with scipy python -c "import sys; sys.path.insert(0, sys.argv[1]); import mix; print(f'{mix.true_peak(mix.load(sys.argv[2])):.2f}')" \
           "$ROOT/tools/audio" "$TMP")
     python3 -c "import sys; sys.exit(0 if float(sys.argv[1]) <= -1.5 else 1)" "$etp" && break
     [ $k -lt 3 ] || die "the AAC encode still peaks at $etp dBTP after 3 new mixes (mix tp=$TP): over −1.5 dBTP"
@@ -275,7 +275,7 @@ done
 echo "$ok ${JPG#$ROOT/}  $((psz / 1000)) KB (q $q)"
 
 # ── contact sheet for self-review (not shipped): 10 frames, t = 0.25 … 4.75
-if command -v uv >/dev/null 2>&1 && uv run -q --with pillow python "$ROOT/tools/sheet.py" "$HFMP4" "$OUT/sheet.png" 5 2 384 >/dev/null 2>&1; then
+if command -v uv >/dev/null 2>&1 && uv run -q --no-project --with pillow python "$ROOT/tools/sheet.py" "$HFMP4" "$OUT/sheet.png" 5 2 384 >/dev/null 2>&1; then
   echo "$ok sheet ${OUT#$ROOT/}/sheet.png"
 else
   ffmpeg -v error -y -i "$HFMP4" -vf "fps=2,scale=384:-1,tile=5x2" -frames:v 1 "$OUT/sheet.png" && echo "$ok sheet ${OUT#$ROOT/}/sheet.png (no timestamps)"

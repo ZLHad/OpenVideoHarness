@@ -161,7 +161,7 @@ frontmatter 是 YAML 的一个严格子集：一行一个 `key: value`；值是�
 | 接缝 | `carry` 带着动量过去 · `enter` 钻进去看详情 · `chapter` 换章节 · `refocus` 同一空间里转移注意 |
 | 收尾 | `sign-off` 落款 · `cta` 行动号召 |
 
-**types**：`math` · `short` · `promo` · `mv` · `data` · `paper` · `handdrawn` · `meme`（即 `bin/vh types` 的 8 类）
+**types**：`math` · `short` · `promo` · `mv` · `data` · `paper` · `handdrawn` · `meme`（即 `bin/vh types` 里除 `edit` 以外的 8 类；`edit`（09）剪用户自己的素材，暂无配方）
 
 **engines**：`hyperframes` HTML/DOM + GSAP 的 composition · `canvas` 2D canvas 的 `renderAt(t)`（草图就是这种，在 HyperFrames 里跑） · `three` HyperFrames 里的 Three.js 层 · `p5` ClaudeAnimationBase · `manim` · `remotion`（来源的参考实现，本仓库不首选）
 

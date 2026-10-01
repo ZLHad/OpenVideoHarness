@@ -25,7 +25,7 @@ rect{stroke-width:0.8}
 <line class="ar" x1="350" y1="176" x2="265" y2="214" marker-end="url(#a)"/>
 <line class="ar" x1="350" y1="176" x2="415" y2="214" marker-end="url(#a)"/>
 <line class="ar" x1="350" y1="176" x2="563" y2="214" marker-end="url(#a)"/>
-<g class="pu"><rect x="50" y="216" width="130" height="56" rx="4"/><text class="t" x="115.0" y="239" text-anchor="middle">video-types/</text><text class="s" x="115.0" y="258" text-anchor="middle">8 video workflows</text></g>
+<g class="pu"><rect x="50" y="216" width="130" height="56" rx="4"/><text class="t" x="115.0" y="239" text-anchor="middle">video-types/</text><text class="s" x="115.0" y="258" text-anchor="middle">9 video workflows</text></g>
 <g class="pu"><rect x="200" y="216" width="130" height="56" rx="4"/><text class="t" x="265.0" y="239" text-anchor="middle">playbook/</text><text class="s" x="265.0" y="258" text-anchor="middle">12 know-how docs</text></g>
 <g class="pu"><rect x="350" y="216" width="130" height="56" rx="4"/><text class="t" x="415.0" y="239" text-anchor="middle">templates/</text><text class="s" x="415.0" y="258" text-anchor="middle">11 project templates</text></g>
 <g class="pu"><rect x="500" y="216" width="130" height="56" rx="4"/><text class="t" x="565.0" y="239" text-anchor="middle">Cases &amp; showcase</text><text class="s" x="565.0" y="258" text-anchor="middle">cases · showcase</text></g>

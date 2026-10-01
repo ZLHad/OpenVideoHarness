@@ -15,7 +15,7 @@
    - 打印所有对象的包围盒，检查有没有重叠（SGA 的做法）；
    - 用像素统计找空白帧和卡住的帧：逐帧 YAVG 找突降，逐帧和第 0 帧比 PSNR，见下文"静默失败"；
    - 黑场、冻结、静音检测（命令见下文）；
-   - `ffprobe` 核对时长、fps 和音轨；
+   - `ffprobe` 核对时长、fps、音轨和色彩标签（命令见下文"色彩标签"）；
    - 检查输出文件的修改时间，防止把旧文件当成新结果。
 3. **看静帧**（用 Read 工具读图），分三种粒度：
    - **联系表**：看构图和整片的形状，每个镜头取首、中、末三帧。
@@ -152,6 +152,45 @@ npx hyperframes render --output out/draft.mp4 > out/draft.log 2>&1 & pid=$!; t=0
 while kill -0 $pid 2>/dev/null; do sleep 5; t=$((t+5)); [ $t -ge 1500 ] && { kill $pid; break; }; done
 wait $pid || echo "FAIL: render exited $? (timeout or error), see out/draft.log"
 ```
+
+## 色彩标签：每个 mp4 出片前查一次
+
+PNG（或别的 RGB 画面）编成 H.264 时，如果不指定 BT.709 矩阵和标签，swscale 按 BT.601 算矩阵，又不写标签；浏览器和手机把高清片按 BT.709 解码，饱和色就偏了。用 8 个色块实测，最大偏 21 个色阶（绯红 (225,29,72) 读成 (238,48,69)，翠绿 (16,185,129) 读成 (1,164,126)）；显式写 BT.709 矩阵和四个标签后最大偏 3，这是 8 位 YUV 往返的基线【实测】。这 8 个色块里没有纯色；纯绿 (0,255,0) 用同样的方法量，读成 (0,215,0)，偏 40【实测】。
+
+**浏览器只认一部分标签。** 在 Chrome 154（无头）和 Chromium 152 里，用同一批 BT.601 像素只改标签实测：矩阵写 `smpte170m` 的都按 BT.601 读对（最大偏 1–2，transfer 和 primaries 写不写都一样）；矩阵写 `bt470bg` 的读错，只写矩阵偏 24（绯红读成 (241,50,69)，翠绿读成 (3,165,128)），三项都写成 `bt470bg` 反而偏 38–40；不写标签的高清片按 BT.709 读。ffmpeg 读这几种都对，浏览器不是。旧的手绘引擎输出 `yuvj420p, pc, bt470bg`，所以在浏览器里偏色。不要依赖浏览器怎么处理 BT.601 的各种标签：交付一律用 BT.709，四个标签写全。
+
+```bash
+# 查一个文件：期望 pix_fmt=yuv420p，color_range=tv，color_space、color_transfer、color_primaries 都是 bt709
+ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt,color_range,color_space,color_transfer,color_primaries -of default=nw=1 out.mp4
+
+# 出片：PNG 序列编成 mp4 时，矩阵、范围和四个标签都显式写
+ffmpeg -framerate 30 -i out/plate/f_%04d.png \
+  -vf "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv" \
+  -c:v libx264 -crf 14 plate.mp4
+
+# 查整个仓库已提交的 mp4：列出不是 yuv420p,tv,bt709,bt709,bt709 的
+git ls-files '*.mp4' | while read -r f; do
+  t=$(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt,color_range,color_space,color_transfer,color_primaries -of csv=p=0 "$f" </dev/null | sed 's/,$//')
+  [ "$t" = "yuv420p,tv,bt709,bt709,bt709" ] || echo "$f  $t"
+done
+```
+
+`yuvj420p`、`color_range=pc`（全范围）、`bt470bg` 或 `smpte170m`（BT.601 矩阵）和 `unknown` 都不合本仓库的交付约定。手绘引擎 `engines/ClaudeAnimationBase/render.mjs` 原来把 Chrome 的 JPEG 帧（全范围 BT.601）直接喂给 x264，出的片子正是 `yuvj420p, pc, bt470bg`；它现在已经转成 BT.709 tv 并写全四个标签，改之前渲的片子要重新编码才会变。
+
+<!-- 这两个成片修好之后，删掉下面"本仓库 2026-10-01 的审计"这一段 -->
+**本仓库 2026-10-01 的审计**：已提交的 34 个 mp4 里，32 个是约定值，两个不是：
+- `showcase/01-handdrawn-clawd-leaf/media/final.mp4`：`yuvj420p`、全范围、`bt470bg`，就是上面引擎改之前的输出。**浏览器里确实偏色**，不只是不合约定：在 Chrome 154 里，这个文件第 11.5 s 的饱和像素平均 R +6、G +5、B −5。ffmpeg 按标签读没有问题。
+- `showcase/03-math-fourier/media/final.mp4`：没有任何标签，但像素是 BT.601。按 BT.601 解码，样片调色板里的 `#FFFF00` 原样还原（第 15 s 一帧里约 3000 个像素），按 BT.709 解码（浏览器的做法）变成 (255,240,0)（约 6000 个像素）；`#58C4DD` 变成 (78,187,224)（算出来的值）。没有源帧时，就用已知调色板这样判断矩阵。
+
+`showcase/04-intro-film/assets/clips/` 在 `.gitignore` 里，是 `showcase/04-intro-film/tools/make_clips.sh` 从 00–03 的成片重建的代理；其中的 `01.mp4`、`03.mp4` 继承了上面两个文件的标签，成片修好后重跑脚本即可。
+
+**只补标签不等于修好。** 像素本来就是 BT.709 tv、只是缺标签的文件，可以不重编码：`-c copy -bsf:v h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1:video_full_range_flag=0`。像素是 BT.601 或全范围的文件（上面那两个），只改标签会让它们"看上去标对了"却错得更多：在按 BT.601 全范围编的色块上试过，只改成 BT.709 标签，最大偏 29 个色阶。这类文件要重编码，用上面"出片"那条的滤镜链就行：
+
+```bash
+ffmpeg -i in.mp4 -vf "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv" -c:v libx264 -crf 14 out.mp4
+```
+
+ffmpeg 有标签时按标签读，没有标签时按 BT.601 tv 读，所以 01（有标签）和 03（没有标签，像素是 601）都能转对：在 Chrome 里量过，转完的 03，第 15 s 的 `#FFFF00` 回到 (255,255,0)，不再是 (255,240,0)；转完的 01，同一帧饱和像素的平均偏差从 R +6 / B −5 变成 R −4 / B −4，没有方向性了，剩下的是重编码的损失。如果像素其实是 BT.709 却没写标签，在 `scale=` 里先加 `in_color_matrix=bt709:in_range=tv`。重编码一次有损，能从源头重出就从源头重出【实测】。
 
 ## 音频 QA
 

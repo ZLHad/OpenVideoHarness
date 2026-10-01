@@ -4,7 +4,7 @@
 
 **Coding agents like Claude Code and Codex can make videos by writing programs. This makes them do it reliably.**
 
-Explainers, science shorts, product films, music videos, data stories, paper talks, hand-drawn shorts and meme edits: 8 video types, 28 styles, one workflow.
+Explainers, science shorts, product films, music videos, data stories, paper talks, hand-drawn shorts, meme edits and edits of your own footage: 9 video types (09 experimental), 28 styles, one workflow.
 
 **English** · [中文](README.zh-CN.md) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
@@ -191,7 +191,7 @@ A few hard rules (full version in [CLAUDE.md](CLAUDE.md)):
 4. **Check every section.** Look at the frames, measure the sound, go through the checklist, fix what fails.
 5. **Copy facts exactly.** Numbers, paper details and quotes come straight from the source; anything uncertain gets noted, not put on screen.
 
-## 8 video types
+## 9 video types (09 experimental)
 
 | # | Type | Main engine | The gist | Doc |
 |---|---|---|---|---|
@@ -203,6 +203,7 @@ A few hard rules (full version in [CLAUDE.md](CLAUDE.md)):
 | 06 | Paper and conference videos | Manim + HyperFrames | Paper details copied exactly; figures redrawn as vectors | [06](video-types/06-paper-explainer.md) |
 | 07 | Hand-drawn, watercolor, whiteboard, paper-cut | p5.brush (built in) | Handmade and always moving; can write Chinese in stroke order | [07](video-types/07-hand-drawn.md) |
 | 08 | Brutalist, meme and fast-cut edits | HyperFrames | Build a grid, then break it; every joke lands in 1 s | [08](video-types/08-brutalist-meme.md) |
+| 09 | Editing your own footage, talking heads (experimental) | HyperFrames | Cut where the audio is quiet, not at ASR word times; nothing renders until you approve the edit list | [09](video-types/09-editing-talking-head.md) |
 
 A few more guides:
 - **Realistic people or real physics:** bring in a generative video model, then layer code on top ([playbook/05](playbook/05-hybrid-genvideo.md)).
@@ -241,7 +242,7 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | Command | What it does |
 |---|---|
 | `doctor` / `setup` | Check your setup / install dependencies and fetch references |
-| `types` / `new <type> <name> [--style <style>] [--effort <level>]` | List the 8 types / start a new project |
+| `types` / `new <type> <name> [--style <style>] [--effort <level>]` | List the 9 types / start a new project |
 | `effort [quick\|standard\|studio]` | What each effort level does |
 | `style list` / `style <style>` / `style gallery` | Browse styles / render a sample / rebuild the overview |
 | `recipes list [--intent …] [--energy …] [--engine …]` / `recipes check` | Find shot recipes by what the shot must say and how loud it is / validate a recipe |
@@ -318,7 +319,7 @@ OpenVideoHarness/
 ├── install.sh                one-line installer
 ├── bin/vh · tools/           the command line and the scripts behind it
 ├── skills/                   the open-video-harness skill
-├── video-types/              workflows for the 8 video types
+├── video-types/              workflows for the 9 video types (09 experimental)
 ├── playbook/                 shared know-how 00–11: pipeline, checks, motion, sound, effects, narrative, hooks and covers, composition
 ├── templates/                files each new project fills in: brief, storyboard, style, review, decisions, notes, lessons, checklist; script, character and packaging when needed
 ├── styles/                   28 styles, each with a sample; _swatch/ renders the samples
@@ -334,10 +335,10 @@ OpenVideoHarness/
 
 | Project | What it is | How this differs |
 |---|---|---|
-| [Code2Video](https://github.com/showlab/Code2Video) | A research pipeline for teaching videos in Manim | Takes the code-as-video idea to 8 video types, run by a general coding agent |
+| [Code2Video](https://github.com/showlab/Code2Video) | A research pipeline for teaching videos in Manim | Takes the code-as-video idea to 9 video types (09 experimental), run by a general coding agent |
 | [HyperFrames](https://github.com/heygen-com/hyperframes) / [Remotion](https://github.com/remotion-dev/skills) official skills | How to use one engine | Sits above the engines: choosing one, setting the process and the taste, checking the result, calling them when needed |
 | [OpenMontage](https://github.com/calesthio/OpenMontage) | A full agent video production system | Lighter: mostly markdown, templates and one CLI that any coding agent can read and change |
-| [guizang product-video skill](https://github.com/op7418/guizang-product-video-skill) | Software product update films | Covers 8 types, with three human gates, a style library and bilingual sound; its approach to music and sound effects inspired ours (our code is independent) |
+| [guizang product-video skill](https://github.com/op7418/guizang-product-video-skill) | Software product update films | Covers 9 types (09 experimental), with three human gates, a style library and bilingual sound; its approach to music and sound effects inspired ours (our code is independent) |
 
 ## FAQ
 
@@ -353,7 +354,7 @@ OpenVideoHarness/
 
 ## Roadmap
 
-- [ ] Type 9: editing and talking-head (cutting existing footage, adding subtitles and B-roll)
+- [ ] Type 9: editing and talking-head (cutting existing footage, adding subtitles and B-roll). Started: [09](video-types/09-editing-talking-head.md) is experimental, tuned on synthetic material only, with no real footage and no editor import tried yet
 - [ ] Type 10: a proper workflow for 3D scenes (Three.js and shaders)
 - [ ] Word-by-word highlighted subtitles (word-level forced alignment)
 - [ ] English versions of the workflow docs

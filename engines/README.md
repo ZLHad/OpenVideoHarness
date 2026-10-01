@@ -2,7 +2,7 @@
 
 新项目一律建在 `projects/<date>-<slug>/` 下。本目录里的东西是模板，不要直接在里面改。
 
-最快的方式是 `bin/vh new <type> <slug>`：它会建好目录、复制模板；手绘和 MV 类还会复制 ClaudeAnimationBase 并装好依赖，short、promo、data、meme 类会自动运行 `bin/vh hf-init` 装好 HyperFrames（离线失败时会提示稍后重跑）。只有 Remotion、Manim 要在建好目录后，按下面对应的一节手动初始化；MV 或论文类改用 HyperFrames 时，对项目目录单独运行一次 `bin/vh hf-init`。
+最快的方式是 `bin/vh new <type> <slug>`：它会建好目录、复制模板；手绘和 MV 类还会复制 ClaudeAnimationBase 并装好依赖，short、promo、data、meme 类会自动运行 `bin/vh hf-init` 装好 HyperFrames（离线失败时会提示稍后重跑）。只有 Remotion、Manim 要在建好目录后，按下面对应的一节手动初始化；MV 或论文类改用 HyperFrames 时，以及 edit 类（实验性，首选 HyperFrames，做法见 [`editing.md`](editing.md)），对项目目录单独运行一次 `bin/vh hf-init`。
 
 ## ClaudeAnimationBase（p5.js + p5.brush），已装好
 
@@ -133,11 +133,13 @@ uv run manim -qh --fps 30 scene.py MyScene       # 成片：1080p30（-qh 默认
 - 写代码前先读 `references/repos/3brown1blue/src/three_b1b/skill/SKILL.md` 里的 Gotchas。
 - 注意 CE 和 ManimGL 的 API 不能混用，参考 `references/repos/3brown1blue/src/three_b1b/skill/rules/manimgl-differences.md`。
 
-## Blender，未安装，按需使用
+## Blender，未安装，按需使用（实验性）
 
-- 安装：`brew install --cask blender`，也可以从官网下载。
-- 渲染用脚本方式，保证结果可复现：`blender -b scene.blend --python build.py -- --out out/`。同时固定随机种子，并烘焙好模拟缓存。
-- 需要交互式控制时，可以用 Blender 官方的 MCP server，或者社区的 `ahujasid/mcp-for-blender`。这两种方式都会直接执行 LLM 生成的 Python，使用前要先告诉用户。
+完整指南：[`blender.md`](blender.md)。**实验性：维护者的 Mac 没有装 Blender，指南没有验证过；渲染时间先渲 5 帧校准。**
+
+- 安装：`brew install --cask blender`，也可以从官网下载。指南钉在 5.2 LTS（5.0 起只支持 Apple Silicon，Python API 有破坏性改动）。
+- 渲染用脚本方式，保证结果可复现，分两段：`blender -b --factory-startup --python build.py -- …` 生成 `scene.blend`，再 `blender -b scene.blend … -a` 渲 PNG 序列。同时固定随机种子，并烘焙好模拟缓存。
+- 官方的 MCP server 和社区的 `ahujasid/mcp-for-blender` 都会直接执行 LLM 生成的 Python，没有任何防护。**默认不用**：要用先问用户，放在虚拟机或单独的 macOS 用户下；没有沙箱，就不要让 LLM 生成的 bpy 代码经过它们执行。管线里跑 agent 写的脚本，加静态检查、`sandbox-exec` 和 `env -i`（见指南的"安全"一节）。
 
 ## 生成式视频（fal 等），按需使用
 
