@@ -331,7 +331,7 @@ PY
   echo "   effort   : ${effort:-standard}  (bin/vh effort ${effort:-standard} shows what that means)"
   echo "   next     : open Claude Code in the repo root and say what the video is about;"
   if [ "${effort:-standard}" = quick ]; then echo "              the agent fills $(rel "$dir")/BRIEF.md and renders straight through; it stops only for what you say you'll decide."
-  else echo "              the agent fills $(rel "$dir")/BRIEF.md and STORYBOARD.md and stops for your review (outline, storyboard, first draft)."; fi
+  else echo "              the agent fills $(rel "$dir")/BRIEF.md and STORYBOARD.md and stops for your review (concept and outline, storyboard, first draft)."; fi
 }
 
 cmd_effort() { # print the effort hub from CLAUDE.md; with a level, only that column of the table
@@ -351,7 +351,7 @@ for l in lines:
             v = c[2] + ((" " if rest.startswith("+") else "；") + rest if rest else "")
         print(f"  {c[0]:<10} {v}")
     elif l.startswith("**任何档位都不降"): print("\n" + l)
-    elif l.startswith("- ") and "硬规则" in l or l.startswith("- 片中") or l.startswith("- 全屏") or l.startswith("- 字号") or l.startswith("- 素材") or l.startswith("- 出片前"): print("  " + l)
+    elif l.startswith("- ") and "硬规则" in l or l.startswith("- 片中") or l.startswith("- 全屏") or l.startswith("- 字号") or l.startswith("- 素材") or l.startswith("- `TASTE_CHECKLIST") or l.startswith("- 出片前"): print("  " + l)
 ' "$lvl"
 }
 

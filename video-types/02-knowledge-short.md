@@ -30,7 +30,7 @@
    - 1–3 s 讲清看完能得到什么；
    - 3–6 s 给第一个小回报，证明承诺是真的。TikTok 官方说前 3–6 秒最关键，每个钩子都要兑现 [S2]；
    - 15 s 之前再给一个小问题或小回报【推测】，之后每 3–5 秒一个新的视觉回报；
-   - 关卡 ① 先给 2–3 张立意卡（`playbook/12-ideation.md`），再出 3 张不同类型的钩子卡，钩子尽量从立意里来；各配 2 个标题和 1 个封面，让人选（`playbook/10-hooks-and-packaging.md`）；
+   - 关卡 ① 给 2–3 张立意卡（`playbook/12-ideation.md`），每张带一个钩子、2 个标题和 1 个封面版式；人点名 `hook=own` 时，选定立意后再出 3 张不同类型的钩子卡（`playbook/10-hooks-and-packaging.md`）；
    - 字数按 `playbook/04-audio.md` 语速表的句内语速（知识科普 4.5–5.5 字/秒）乘 0.85 倒推，留出句间停顿：45 秒约 170–210 字。最终时长以 TTS 实测为准；
    - 长于 90 秒、要讲出起伏的，用 `playbook/09-narrative.md` 的节拍表。
 3. **音频先行（有旁白时）**。静音版跳过这一步：时长由分镜的 reads 决定，字幕承载全部信息，而且必须静音可读。
@@ -120,7 +120,7 @@
 
 ```text
 + TYPE: vertical knowledge short. 1080x1920 30fps {30–60}s, {zh-CN narration + burned-in captions | SILENT: captions and visuals carry everything, timing from storyboard reads}. Platform: {抖音 | 小红书 | 视频号 | B站 | Shorts}.
-Style: {follows from the concept (playbook/12-ideation.md) | default: "Kurzgesagt meets Fireship": flat vector shapes, one accent, dry humor}. NOT (defaults; a concept may override one, logged in DECISIONS.md): blue-purple tech gradients, particle backgrounds, stock icons.
+Style: {follows from the concept (playbook/12-ideation.md) | default: "Kurzgesagt meets Fireship": flat vector shapes, one accent, dry humor}. NOT (defaults; a concept may override any of them, one line each in DECISIONS.md): blue-purple tech gradients, particle backgrounds, stock icons.
 0–1s: the counterintuitive claim/number as a full-bleed visual (no logo, no greeting). By 3s: what the viewer will learn; by 6s: a first payoff that proves it.
 Hook card (gate 1): offer 3 hooks of different types from {question | counterintuitive | result-first | conflict | curiosity-gap}, optionally with a pattern interrupt; for each give the first frame, first caption (<=11 CJK chars/line), the promise, the payoff time (first micro-payoff <=6s), and the fact source in NOTES.md.
 A new visual payoff every 3–5s; one idea per shot; cut on narration phrase boundaries.
