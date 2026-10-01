@@ -33,7 +33,7 @@ Receding: the waves spread out, the
 frequency drops.
 
 7
-00:00:14,900 --> 00:00:17,320
+00:00:14,900 --> 00:00:17,410
 2 GHz：接近正负 50 kHz。
 At 2 GHz: close to ±50 kHz.
 
