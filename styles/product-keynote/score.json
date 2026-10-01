@@ -1,11 +1,26 @@
 {
   "bpm": 150, "key": "E", "mode": "major", "seed": 112,
   "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "stereo": true, "space": {"type": "plate", "rt60": 2.6},
   "sections": [
-    {"name": "stage", "bars": 1, "chords": ["I"], "layers": ["pad", "arp"], "energy": 0.3},
-    {"name": "headline", "bars": 1, "chords": ["vi"], "layers": ["pad", "arp", "bass"], "energy": 0.45},
-    {"name": "screen", "bars": 1, "chords": ["IV"], "layers": ["pad", "arp", "bass", "hats"], "energy": 0.6, "riser": true},
-    {"name": "breath", "bars": 1, "chords": ["V"], "layers": ["pad"], "energy": 0.35},
-    {"name": "reveal", "bars": 1, "chords": ["I"], "layers": ["kick", "clap", "hats", "bass", "pad", "arp"], "energy": 0.9, "impact": true}
+    {"name": "stage", "bars": 1, "chords": ["Iadd9"]},
+    {"name": "headline", "bars": 1, "chords": ["vi7"]},
+    {"name": "screen", "bars": 1, "chords": ["IVmaj9"]},
+    {"name": "breath", "bars": 1, "chords": ["Vsus4"]},
+    {"name": "reveal", "bars": 1, "chords": ["I"]}
+  ],
+  "parts": [
+    {"inst": "piano", "id": "piano", "loop": 5, "params": {"tone": "felt", "pedal": true}, "send": 0.35, "hit": "section",
+     "pattern": [
+       [0, 5, ["E2", "B2", "F#3", "G#3", "B3", "E4"], 0.62], [2, 3, ["C#3", "G#3", "B3", "E4"], 0.5],
+       [2, 1, "G#5", 0.45], [3, 1, "B5", 0.38], [4, 1, "E5", 0.42], [5, 3, ["A2", "E3", "G#3", "B3", "C#4"], 0.55],
+       [5, 1, "C#6", 0.4], [6, 1, "B5", 0.36], [7, 1, "G#5", 0.34], [8, 2, ["B1", "F#2", "E3", "F#3", "B3"], 0.22],
+       [10, 3, ["E2", "B2", "E3", "G#3", "B3", "E4"], 0.7], [10, 1, "E6", 0.5], [11, 1, "G#5", 0.4],
+       [12, 1, "B5", 0.38]
+     ]},
+    {"inst": "strings", "id": "air", "figure": "sustain", "octave": 5, "voicing": "close", "params": {"attack": 0.7, "release": 1.2}, "gain_db": -15, "hp": 350, "lp": 5000, "send": 0.6, "pan": 0.0},
+    {"inst": "harp", "id": "pluck", "figure": "arp-up", "rate": 8, "octave": 5, "sections": ["screen", "reveal"], "gain_db": -13, "send": 0.5, "pan": 0.35},
+    {"inst": "sub808", "id": "sub", "sections": ["reveal"], "octave": 1, "params": {"drive": 1.5, "decay": 0.45, "drop": 9}, "gain_db": -8, "hit": true,
+     "pattern": [[0, 2, "c0", 1.0]]}
   ]
 }

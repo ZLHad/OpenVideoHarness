@@ -1,80 +1,31 @@
 {
-  "bpm": 150,
-  "key": "E",
-  "mode": "major",
-  "seed": 5,
-  "meters": {
-    "1": 2,
-    "2": 3,
-    "3": 4,
-    "4": 1,
-    "5": 3
-  },
+  "bpm": 150, "key": "E", "mode": "dorian", "seed": 5,
+  "meters": {"1": 2, "2": 3, "3": 4, "4": 1, "5": 3},
+  "stereo": true, "space": {"type": "hall", "rt60": 3.2},
   "sections": [
-    {
-      "name": "wall",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "bell",
-        "pad"
-      ],
-      "energy": 0.45
-    },
-    {
-      "name": "figures",
-      "bars": 1,
-      "chords": [
-        "iv"
-      ],
-      "layers": [
-        "zheng",
-        "bell",
-        "pad"
-      ],
-      "energy": 0.5
-    },
-    {
-      "name": "strip",
-      "bars": 1,
-      "chords": [
-        "v"
-      ],
-      "layers": [
-        "zheng",
-        "dizi",
-        "bell",
-        "pad"
-      ],
-      "energy": 0.6
-    },
-    {
-      "name": "meet",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "bell",
-        "zheng",
-        "pad"
-      ],
-      "energy": 0.7
-    },
-    {
-      "name": "caisson",
-      "bars": 1,
-      "chords": [
-        "i"
-      ],
-      "layers": [
-        "bell",
-        "zheng",
-        "pad"
-      ],
-      "energy": 0.5
-    }
+    {"name": "wall", "bars": 1, "chords": ["i5"]},
+    {"name": "figures", "bars": 1, "chords": ["IV"]},
+    {"name": "strip", "bars": 1, "chords": ["VII i"]},
+    {"name": "meet", "bars": 1, "chords": ["i5"]},
+    {"name": "caisson", "bars": 1, "chords": ["i5"]}
+  ],
+  "parts": [
+    {"id": "pipa", "inst": "pipa", "loop": 5, "tremolo": 14, "tremolo_min": 0.9, "gain_db": 2, "pan": 0.15, "send": 0.25,
+     "pattern": [[0, 0.4, "E3", 0.6], [0.03, 0.37, "B3", 0.6], [0.06, 0.34, "E4", 0.65], [0.09, 0.31, "B4", 0.7],
+                 [0.5, 1.5, "B4", 0.8],
+                 [2, 0.5, "E5", 0.85], [2.5, 0.5, "D5", 0.75], [3, 1, "C#5", 0.8], [4, 0.5, "B4", 0.75], [4.5, 0.5, "A4", 0.75],
+                 [5, 1, "F#5", 0.85], [6, 0.5, "E5", 0.75], [6.5, 0.5, "D5", 0.75], [7, 1, "E5", 0.85], [8, 0.5, "G5", 0.8], [8.5, 0.5, "F#5", 0.8],
+                 [9, 1, "B5", 0.95],
+                 [10, 0.25, "A5", 0.72], [10.25, 0.25, "F#5", 0.72], [10.5, 0.25, "E5", 0.72], [10.75, 0.25, "D5", 0.72], [11, 2, "E5", 0.8]]},
+    {"id": "konghou", "inst": "harp", "figure": "arp-updown", "rate": 8, "span": 1, "octave": 4, "gain_db": -11, "pan": -0.3, "send": 0.35,
+     "by_section": {"caisson": {"figure": null, "pattern": [[0, 3, "E4", 0.6], [0.075, 3, "F#4", 0.6], [0.15, 3, "A4", 0.62], [0.225, 3, "B4", 0.64],
+                                                            [0.3, 3, "D5", 0.66], [0.375, 3, "E5", 0.68], [0.45, 3, "F#5", 0.7], [0.525, 3, "A5", 0.72],
+                                                            [0.6, 3, "B5", 0.74], [0.675, 3, "D6", 0.76], [0.75, 3, "E6", 0.8]]}}},
+    {"id": "sheng", "inst": "sheng", "loop": 5, "gain_db": -9, "pan": -0.05, "send": 0.3,
+     "pattern": [[0, 13, ["E4", "B4", "E5"], 0.7]]},
+    {"id": "framedrum", "inst": "framedrum", "pattern": "X.......o.......", "gain_db": -6, "pan": 0.05, "send": 0.2},
+    {"id": "bell", "inst": "bell", "sections": ["wall", "meet"], "gain_db": -6, "send": 0.4,
+     "pattern": [[0, 2, "E4", 0.8]],
+     "by_section": {"meet": {"pattern": [[0, 1, "E5", 0.85]]}}}
   ]
 }

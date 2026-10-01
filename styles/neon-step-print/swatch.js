@@ -255,8 +255,10 @@ function overlay(ctx, t, tokens, lib, { end = false } = {}) {
 const px = (x) => Math.round((x / 960 - 1) * 100) / 100;
 export const FOLEY = [
   { t: 0.1, sfx: "toggle", gain_db: -8, pan: 0 },                                                         // street lights flicker on
-  ...[0.5, 1.5, 2.5, 3.5].map((t) => ({ t, sfx: "tick", gain_db: -12, pan: px(250) })),                  // the timestamp flips
-  { t: 0.95, sfx: "typing", gain_db: -18, pan: px(1070) },                                               // subtitles type in
+  // the timestamp flips: a readout, so `signal`; the one at 2.5 s crosses midnight (every digit turns over) and is 4 dB
+  // stronger. At −12 as details they were lost under the violin and the rain (1.5 s OFF, 2.5 s faint and BURIED)
+  ...[0.5, 1.5, 2.5, 3.5].map((t) => ({ t, sfx: "tick", gain_db: t === 2.5 ? -2 : -6, pan: px(250), role: "signal" })),
+  { t: 0.95, sfx: "typing", gain_db: -10, pan: px(1070) },                                               // subtitles type in (at −18: 20 dB under the bed)
   ...[2.0, 2.4, 2.8].map((t, k) => ({ t, sfx: "toggle", gain_db: -8, pan: px([820, 1150, 1480][k]) })),   // signs ignite
   { t: 3.2, sfx: "glitch", gain_db: -16, pan: px(1150) },                                                // the middle sign buzzes
   { t: 4.2, sfx: "whoosh", gain_db: -6, pan: -0.3 }, { t: 4.34, sfx: "shutter", gain_db: -6, pan: 0 },    // smear pan; freeze

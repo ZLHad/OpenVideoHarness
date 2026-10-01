@@ -1,10 +1,25 @@
 {
   "bpm": 150, "key": "D", "mode": "minor", "seed": 84,
   "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "stereo": true, "space": {"type": "hall", "rt60": 2.4},
   "sections": [
-    {"name": "street", "bars": 1, "chords": ["i"], "layers": ["pad", "hats", "bass"], "energy": 0.4},
-    {"name": "subtitles", "bars": 1, "chords": ["VI"], "layers": ["pad", "hats", "lead"], "energy": 0.5},
-    {"name": "signs", "bars": 2, "chords": ["III", "VII"], "layers": ["pad", "hats", "lead", "bass"], "energy": 0.55},
-    {"name": "freeze", "bars": 1, "chords": ["i"], "layers": ["pad", "lead"], "energy": 0.4}
+    {"name": "street", "bars": 1, "chords": ["i"]},
+    {"name": "subtitles", "bars": 1, "chords": ["iv"]},
+    {"name": "signs", "bars": 2, "chords": ["VI", "V7"]},
+    {"name": "freeze", "bars": 1, "chords": ["i"]}
+  ],
+  "parts": [
+    {"inst": "violin", "id": "theme", "loop": 5, "pan": 0.15, "send": 0.32,
+     "params": {"vib": [5.4, 36, 0.12], "glide": 0.16, "attack": 0.1, "release": 0.25, "rearticulate": 0.12},
+     "pattern": [[0.25, 1.25, "A4", 0.7], [1.5, 0.5, "D5", 0.6],
+                 [2, 2, "G5", 0.85], [4, 0.5, "F5", 0.62], [4.5, 0.5, "E5", 0.6],
+                 [5, 1.5, "F5", 0.8], [6.5, 1.5, "D5", 0.64],
+                 [8, 1, "C#5", 0.72], [9, 1, "A5", 0.82],
+                 [10, 1.5, "G5", 0.75], [11.5, 1.5, "F5", 0.7]]},
+    {"inst": "pizzicato", "figure": "waltz", "role": "bass", "octave": 3, "gain_db": -8, "pan": -0.2, "send": 0.25,
+     "by_section": {"street": {"figure": null, "pattern": [[0, 0.9, "c0,", 0.45]]}}},
+    {"inst": "strings", "figure": "waltz", "role": "chord", "octave": 4, "len": 0.85, "gain_db": -9, "pan": -0.05, "send": 0.35,
+     "params": {"attack": 0.12, "release": 0.3}},
+    {"inst": "rain", "gain_db": -3}
   ]
 }

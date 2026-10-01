@@ -4,7 +4,7 @@
 
 样片：`media/swatch.mp4`（5 s，含 `score.json` 配乐）· 封面 `media/poster.jpg`（t = 3.0 s）
 
-样片里：暖白无缝台上只有一个英雄产品，WebGL2 片元着色器 ray-march 出来的圆角厚板（SDF）：机身是强调色的阳极氧化铝，正面是玻璃。灯光是解析的影棚环境：顶上一块大柔光箱在玻璃上留下一条高光带，背后两条轮廓光勾出倒角，另有接触阴影和淡淡的地面倒影；2×2 超采样。第 0 帧从一个倒角的微距特写开始，0.85 s 拉出全貌，同时设备在转台上转 18°（临界阻尼弹簧）。停稳 0.3 s 后标题上浮。屏幕依次点亮大纲 → 分镜 → 初版；初版是一个巨大的"1.0"，这是发布会里那个"唯一的大数字"。2.8 s 分镜卡的橙色描边闪一下，3.2 s 一道渲染光扫过初版卡；1.0–4.0 s 镜头慢推 7%，2.9–4.0 s 转台再转 12.6°。屏幕标签英文约 45 px、中文约 57 px。4.0 s 斜向光带扫过，转到暗舞台，同一台设备只剩轮廓光。实际字体：Avenir Next Demi Bold / Regular、PingFang SC。配乐 150 BPM：`pad` + `arp` 起，3.2–4.0 s 只留 `pad` 屏息，揭示处 `impact` 后进满编。拟音：落稳时一下极轻的 pop，卡片点亮用 tick，扫光和转场用 whoosh，片名出现时全片唯一一声 ding。拟音的落点写在 swatch.js 的 `FOLEY` 常量里，`events.json` 由它生成。
+样片里：暖白无缝台上只有一个英雄产品，WebGL2 片元着色器 ray-march 出来的圆角厚板（SDF）：机身是强调色的阳极氧化铝，正面是玻璃。灯光是解析的影棚环境：顶上一块大柔光箱在玻璃上留下一条高光带，背后两条轮廓光勾出倒角，另有接触阴影和淡淡的地面倒影；2×2 超采样。第 0 帧从一个倒角的微距特写开始，0.85 s 拉出全貌，同时设备在转台上转 18°（临界阻尼弹簧）。停稳 0.3 s 后标题上浮。屏幕依次点亮大纲 → 分镜 → 初版；初版是一个巨大的"1.0"，这是发布会里那个"唯一的大数字"。2.8 s 分镜卡的橙色描边闪一下，3.2 s 一道渲染光扫过初版卡；1.0–4.0 s 镜头慢推 7%，2.9–4.0 s 转台再转 12.6°。屏幕标签英文约 45 px、中文约 57 px。4.0 s 斜向光带扫过，转到暗舞台，同一台设备只剩轮廓光。实际字体：Avenir Next Demi Bold / Regular、PingFang SC。配乐 150 BPM、E 大调：毡锤钢琴每段只弹一个和弦（0 s Eadd9、0.8 s C♯m7、2.0 s Amaj9），和弦之间点几个高音；高处一层很轻的弦乐 pad 从头垫到尾；屏幕点亮时加一串竖琴八分音符；3.2–4.0 s 屏息，只弹一个很轻的 Bsus4 悬着；4.0 s 揭示时回到 E，一记深的 sub 打在转场上，竖琴往上走。混响是长的 plate。拟音：落稳时一下极轻的 pop，卡片点亮用 tick，扫光和转场用 whoosh，片名出现时全片唯一一声 ding。拟音的落点写在 swatch.js 的 `FOLEY` 常量里，`events.json` 由它生成。
 
 ## 学习对象
 
@@ -60,11 +60,12 @@
 
 ## 声音语法
 
-- **配乐**：极简电子或钢琴脉冲，112 BPM，E 大调。`bin/vh music` 的分段写法：
-  - 开头只有 `pad` 和 `arp`，energy 0.3；
-  - 中段加 `bass` 和 `hats`；
-  - 揭示处一个 `impact`，然后进入完整的 `kick` + `clap`，energy 0.9；
-  - 揭示前的半小节只留 `pad` 屏息。
+- **配乐**：发布会式的揭示，112 BPM，E 大调，留大量空气。`bin/vh music` 的声部写法：
+  - 签名是毡锤钢琴（`piano` 的 `tone: "felt"`，踩延音踏板）：一个段落只弹一个和弦（add9、maj7、sus4 这类开放的排法），和弦之间只点几个高音；
+  - 高处一层很轻的弦乐 pad（`strings`，慢起音，高通掉低频）一直垫着，这是"空气"；中段加一串很轻的竖琴拨弦（`harp`，八分音符）；
+  - 揭示前的半小节屏息：只弹一个很轻的 sus4 和弦让它悬着，pad 继续；
+  - 揭示那一拍一记深的 sub（`sub808`，短衰减），和弦回到主和弦；
+  - 混响用长的 `plate`，送得多。不用鼓。
 - **音效**：
   - 0.4 s 的 `whoosh` 配扫光；
   - `tick` / `click` 配数字锁定和部件落位；
@@ -91,7 +92,7 @@
 ## Prompt 块
 
 ```text
-Visual style: precise product keynote film. One idea per frame on a seamless stage, either warm white #F4F4F1 or near-black #0A0A0B lifted to #17171A at the centre. The product fills 60–80% of the frame, or a macro detail fills all of it; soft top light, two rim lights, a slow light sweep no brighter than the type, a faint floor reflection; no grain, no gradients behind type. Typography: one geometric-humanist sans in two weights (Avenir Next Demi Bold for headlines at 96–140 px with -0.02em tracking, Regular for sublines). Text appears only after the object has come to rest, 0.3 s later; one line per screen; one giant number for the key claim. Motion is confident: easeOutQuart entrances over 18 frames, easeInOutQuart turns of 10–25° over 2–4 s, critically damped springs, no overshoot or bounce, every move ending in a hold. Transitions: hard cuts on the downbeat with matched motion, shape match cuts, a light sweep that reveals the next shot. Sound: a 112 BPM E-major minimal electronic pulse, half a bar of held breath before the reveal, one sonic family of ticks and a single chime.
+Visual style: precise product keynote film. One idea per frame on a seamless stage, either warm white #F4F4F1 or near-black #0A0A0B lifted to #17171A at the centre. The product fills 60–80% of the frame, or a macro detail fills all of it; soft top light, two rim lights, a slow light sweep no brighter than the type, a faint floor reflection; no grain, no gradients behind type. Typography: one geometric-humanist sans in two weights (Avenir Next Demi Bold for headlines at 96–140 px with -0.02em tracking, Regular for sublines). Text appears only after the object has come to rest, 0.3 s later; one line per screen; one giant number for the key claim. Motion is confident: easeOutQuart entrances over 18 frames, easeInOutQuart turns of 10–25° over 2–4 s, critically damped springs, no overshoot or bounce, every move ending in a hold. Transitions: hard cuts on the downbeat with matched motion, shape match cuts, a light sweep that reveals the next shot. Sound: a 112 BPM E-major reveal: sparse felt-piano chords with the pedal down, an airy high string pad, a soft harp pluck, lots of plate reverb, half a bar of held breath on a suspended chord, one deep sub hit on the reveal; one sonic family of ticks and a single chime.
 ```
 
 ## 引擎做法
