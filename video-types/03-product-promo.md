@@ -76,7 +76,7 @@
 
 ```text
 + TYPE: product launch film. 1920x1080 (+1080x1350 and 1080x1920 re-framed cuts) 30fps {15–30}s, music-driven, SFX on key hits.
-Register: {follows from the concept (playbook/12-ideation.md) | Apple: black/white, one claim per shot, macro crops of the real UI | Linear/Vercel: near-black #0A0A0B, 1px hairlines, blueprint grid at 6% opacity}. Font {Geist/Geist Mono | SF-like grotesk}. No gradient text, glassmorphism, or purple-cyan gradients.
+Register: {follows from the concept (playbook/12-ideation.md) | Apple: black/white, one claim per shot, macro crops of the real UI | Linear/Vercel: near-black #0A0A0B, 1px hairlines, blueprint grid at 6% opacity}. Font {Geist/Geist Mono | SF-like grotesk} (default). No gradient text, glassmorphism, or purple-cyan gradients (defaults; a concept may override any of them, one line each in DECISIONS.md).
 One continuous virtual camera; camera moves 1.5–3s easeInOutCubic, about half your default speed; motion blur on fast moves; light grain.
 Default beats (a concept with its own structure replaces them, e.g. the product's own workflow as the story): hook promise (0–3s) → problem (1 beat) → 3 feature beats, each = the real UI doing the thing, triggered by an oversized cursor click → proof count-up → 0.5s stillness → logo lockup.
 Use real copy/assets from {URL / assets/}; recreate the UI accurately; no placeholder text or invented numbers.

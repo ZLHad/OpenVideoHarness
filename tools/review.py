@@ -35,7 +35,7 @@ VID = {".mp4", ".webm", ".mov", ".m4v"}
 AUD = {".wav", ".mp3", ".m4a", ".ogg", ".flac", ".aac", ".opus"}
 MAX_DECISIONS, MAX_SHOTS = 3, 6
 
-GATES = {"1": ("关卡 ① 大纲", "Gate ① outline"), "2": ("关卡 ② 分镜", "Gate ② storyboard"),
+GATES = {"1": ("关卡 ① 立意和大纲", "Gate ① concept and outline"), "2": ("关卡 ② 分镜", "Gate ② storyboard"),
          "3": ("关卡 ③ 初版", "Gate ③ first draft"), "E0": ("检查点 E0 样帧", "Checkpoint E0 style frames"),
          "E1": ("检查点 E1 脚本", "Checkpoint E1 script"), "E2": ("检查点 E2 声音", "Checkpoint E2 sound"),
          "E3": ("检查点 E3 锁时", "Checkpoint E3 timing lock"), "E4": ("检查点 E4 样板章", "Checkpoint E4 sample chapter"),
@@ -223,7 +223,7 @@ def seconds(x, what):
 
 
 def gate_title(g, lang):
-    """1 → 关卡 ① 大纲, E1 → 检查点 E1 脚本, 2b → 关卡 ② 分镜（第 2 页）; anything else → 审阅页 <g>."""
+    """1 → 关卡 ① 立意和大纲, E1 → 检查点 E1 脚本, 2b → 关卡 ② 分镜（第 2 页）; anything else → 审阅页 <g>."""
     base, suffix = (g[:-1], g[-1]) if len(g) > 1 and g[-1].isalpha() and g[:-1] in GATES else (g, "")
     name = GATES.get(base, (f"审阅页 {g}", f"Review page {g}"))[0 if lang == "zh" else 1]
     if suffix:

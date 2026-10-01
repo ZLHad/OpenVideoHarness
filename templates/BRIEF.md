@@ -35,7 +35,7 @@ Entrances easeOutExpo cubic-bezier(0.16,1,0.3,1) / power3.out; exits ease-in at 
 Every frame is a pure function of t. No Math.random / Date.now / CSS transitions; seed all noise; no state carried between frames.
 
 ## Process
-0. Concept first: list the material's specifics in NOTES.md (素材清单), write 5–8 one-line ideas before opening styles/, recipes/ or cases, then 2–3 concept cards (playbook/12-ideation.md). Gate ① picks the concept, then the style that follows from it.
+0. Concept first: list the material's specifics in NOTES.md (素材清单), write 5–8 one-line ideas before opening styles/, recipes/, cases or the TYPE block below, then 2–3 concept cards, each with its look, hook and taste overrides (playbook/12-ideation.md). Gate ① picks one card, which settles concept, style direction and hook. quick: three one-line ideas, pick one, no cards. If the user already gave a concept, write it here and skip the cards.
 1. STORYBOARD.md: per shot = time range, VO/lyric, visual, focal element, the reads (each with start–end), transition out. Then stop where Effort and Director say (CLAUDE.md "导演模式"): gate ② for standard and studio, plus a stop for each decision the human owns; quick stops only for those.
 2. Audio first: build audio/timeline.json; rewrite shot timings from measured durations.
 3. Build scene by scene; after each scene render first/mid/last stills + a contact sheet + strips for key motions; critique against TASTE_CHECKLIST.md and log in NOTES.md; fix before moving on.
