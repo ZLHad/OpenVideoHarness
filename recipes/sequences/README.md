@@ -16,7 +16,7 @@
 
 | 骨架 | 长度 | 立意 | 适合 |
 |---|---|---|---|
-| [time-dilation-replay](time-dilation-replay.md) | 60–150 s | 时间放大镜：一瞬间放慢成一两分钟，计时和慢放倍数常驻 | "X 发生的那一瞬间"：回车之后、刷卡、快门、心跳 |
+| [time-dilation-replay](time-dilation-replay.md) | 60–150 s | 时间放大镜：一瞬间放慢成一两分钟，计时和慢放倍数常驻 | "X 发生的那一瞬间"：刷卡、快门、一次心跳、一次查询 |
 | [machine-eye-portrait](machine-eye-portrait.md) | 150–240 s（60–90 s 的短版只留首尾和推断段） | 读过你全部记录的讲述者用第一人称写给你，证据和推断分开摆 | 年度回顾、项目周年、给团队或家人的片子 |
 | [making-of-self](making-of-self.md) | 20–60 s | 用做法讲做法：讲到哪一步，画面就用那一步的技术画 | 工具或流水线的自我介绍、"我是怎么做到的" |
 | [mascot-style-tour](mascot-style-tour.md) | 15–60 s | 一个主角穿过一个个风格世界，锚点不变 | showreel、品牌片、风格库展示；可以直接用 `styles/` 的预设当世界 |
