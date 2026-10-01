@@ -12,6 +12,8 @@
 - Deliverables: {final.mp4 (+ 9:16 / 3:4 cuts?), cover image?, SRT?}
 
 ## Content
+- Concept (one line): {the device that makes the form tell the content, e.g. "the 3 seconds after Enter, slowed to 2 minutes, a clock always on screen". Chosen at gate ① from 2–3 concept cards (playbook/12-ideation.md); everything below follows from it}
+- Specifics: {the 3–5 items from NOTES.md 素材清单 the film is built on: numbers, verbatim quotes, artifacts, each with its source}
 - Spine (one line): {the story in one sentence: X wants/asks ___, but ___, so ___}
 - Recurring motif: {one object/visual that evolves and pays off}
 - What the viewer should know/feel at the end: {…}
@@ -23,7 +25,7 @@
 - Palette: bg {hex}, fg {hex}, ONE accent {hex}; no pure #000/#fff unless chosen or required by the type doc (e.g. 3b1b-style black)
 - Type: {display} + {mono | serif}; hierarchy by weight/size only
 
-## Motion defaults (override per type doc; cartoon / hand-drawn projects follow ANIMATION_GUIDE.md instead — overshoot, takes and beat-locked idle motion are required there)
+## Motion defaults (taste defaults, not floors: the concept may override any of them, one line each in DECISIONS.md; override per type doc; cartoon / hand-drawn projects follow ANIMATION_GUIDE.md instead — overshoot, takes and beat-locked idle motion are required there)
 Entrances easeOutExpo cubic-bezier(0.16,1,0.3,1) / power3.out; exits ease-in at ~75% of entry; entries <=0.8s; total stagger <=0.5s. No bounce/elastic, no idle breathing loops, no crossfades between scenes; transitions grow out of content; 0.3–0.75s stillness before each climax.
 
 ## Text rules
@@ -33,10 +35,11 @@ Entrances easeOutExpo cubic-bezier(0.16,1,0.3,1) / power3.out; exits ease-in at 
 Every frame is a pure function of t. No Math.random / Date.now / CSS transitions; seed all noise; no state carried between frames.
 
 ## Process
+0. Concept first: list the material's specifics in NOTES.md (素材清单), write 5–8 one-line ideas before opening styles/, recipes/, cases or the TYPE block below, then 2–3 concept cards, each with its look, hook and taste overrides (playbook/12-ideation.md). Gate ① picks one card, which settles concept, style direction and hook. quick: three one-line ideas, pick one, no cards. If the user already gave a concept, write it here and skip the cards.
 1. STORYBOARD.md: per shot = time range, VO/lyric, visual, focal element, the reads (each with start–end), transition out. Then stop where Effort and Director say (CLAUDE.md "导演模式"): gate ② for standard and studio, plus a stop for each decision the human owns; quick stops only for those.
 2. Audio first: build audio/timeline.json; rewrite shot timings from measured durations.
 3. Build scene by scene; after each scene render first/mid/last stills + a contact sheet + strips for key motions; critique against TASTE_CHECKLIST.md and log in NOTES.md; fix before moving on.
-4. Uncertain facts go in NOTES.md, never invented into the video; creative decisions and their reasons go in DECISIONS.md.
+4. Uncertain facts go in NOTES.md, never invented into the video; creative decisions and their reasons go in DECISIONS.md, including every taste default the concept overrides.
 5. Deliver: MP4 path, contact sheet of the whole piece, NOTES.md, the 2–3 spots you're least happy with.
 
 ## Acceptance
@@ -45,4 +48,5 @@ Every frame is a pure function of t. No Math.random / Date.now / CSS transitions
 - [ ] {e.g. 45s ±0.5s, 1080x1920, loudness -14 LUFS}
 
 ## TYPE
+<!-- 类型的默认做法：语域、配色、节拍顺序是默认值，立意定了以后再取舍，和立意冲突时以立意为准，在 DECISIONS.md 记一行（playbook/12-ideation.md 第 6 节）。尺寸、事实纪律、平台安全区照旧。 -->
 <!-- 在这里贴 video-types/*.md 的 "Prompt 增量块" -->
