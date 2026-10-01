@@ -1576,7 +1576,10 @@ def main():
         elif a.startswith("--"): sys.exit(f"music: unknown option {a}\n{usage}")
         else: args.append(a)
     if len(args) != 2: sys.exit(usage)
-    score = json.load(open(args[0])); out = args[1]
+    try: score = json.load(open(args[0], encoding="utf-8"))
+    except (OSError, ValueError) as e: sys.exit(f"music: can't read the score {args[0]}: {e}")
+    out = args[1]
+    if os.path.dirname(out): os.makedirs(os.path.dirname(out), exist_ok=True)   # a fresh project has no audio/ yet
     stems = notes = info = None
     if roll:
         import roll as R   # pillow, only for the pictures
