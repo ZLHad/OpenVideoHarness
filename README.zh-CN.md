@@ -71,21 +71,36 @@ cd ~/OpenVideoHarness && claude
 
 ## 看看它做出来的东西
 
-下面每支片子，都是 agent **只看本仓库的文档**做出来的。每个目录里都有需求、分镜、审阅记录、返工记录和全部源码，可以直接当同类视频的起点。
+下面五支片子，都是 agent **只看本仓库的文档**做出来的。点预览进入各自的目录（需求、分镜、审阅记录、返工记录和全部源码都在里面），可以直接当同类视频的起点；▶ 是带声音的 MP4 原片。每条提示词只摘了较长 brief 里的一小段，点“提示词”可以看全文。00–03 先做完了画面（静音），声音是之后配上的。
 
 <table>
 <tr>
-<td rowspan="2" width="30%" valign="top"><a href="showcase/02-short-leo-doppler/"><img src="showcase/02-short-leo-doppler/media/preview.gif" width="100%" alt="02 · 竖屏科普"></a><br><b>02 · 竖屏科普</b><br><sub>HyperFrames · 24.8 秒 · 1080×1920 · 中文旁白 · 中英字幕 · 关掉声音也能看懂</sub><br><sub>“为什么低轨卫星的信号会变调？”</sub></td>
-<td width="35%" valign="top"><a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/poster.png" width="100%" alt="04 · 介绍片"></a><br><b>04 · 介绍片（一镜到底 3D）</b><br><sub>HyperFrames + Three.js · 81 秒 · 代码作曲 · 中英字幕</sub><br><sub>本仓库的产品宣传片，改过两轮人的意见</sub></td>
-<td width="35%" valign="top"><a href="showcase/01-handdrawn-clawd-leaf/"><img src="showcase/01-handdrawn-clawd-leaf/media/preview.gif" width="100%" alt="01 · 手绘角色短片"></a><br><b>01 · 手绘角色短片</b><br><sub>p5.brush · 12 秒 · 卡通配乐 + 拟音 · 3 轮自查</sub><br><sub>“Clawd 用手摇摄影机拍一片落叶，风总把叶子吹走”</sub></td>
+<td width="40%" valign="top"><a href="showcase/02-short-leo-doppler/"><img src="showcase/02-short-leo-doppler/media/preview.gif" width="60%" alt="02 · 竖屏科普"></a><br><sub><a href="showcase/02-short-leo-doppler/media/final.mp4">▶ 带声音的原片</a></sub></td>
+<td valign="top"><b><a href="showcase/02-short-leo-doppler/">02 · 竖屏科普</a></b>（HyperFrames · 24.8 秒 · 1080×1920）<br>低轨卫星的多普勒频移，关掉声音也能看懂。<br><b><a href="showcase/02-short-leo-doppler/README.md#the-request-this-was-built-from">提示词</a>：</b>“为什么低轨卫星的信号会"变调"？——多普勒频移”<br><b>建议工作流</b>（标准档）：<br><code>bin/vh new short leo-doppler --aspect 9:16</code><br>配声音：<code>bin/vh tts</code>、<code>music</code>、<code>mix … profile=short</code>、<code>mux</code><br><b>声音：</b>中文配音（Gemini TTS，音色 Aoede）、轻配乐、把卫星信标做成能听见的声音；中英软字幕，默认关闭（画面里已烧录字幕）</td>
 </tr>
 <tr>
-<td width="35%" valign="top"><a href="showcase/03-math-fourier/"><img src="showcase/03-math-fourier/media/preview.gif" width="100%" alt="03 · 3b1b 式数学讲解"></a><br><b>03 · 3b1b 式数学讲解</b><br><sub>Manim · 25 秒 · 英文旁白 · 独立评审后修订</sub><br><sub>“用正弦波一点点拼出方波”</sub></td>
-<td width="35%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · 发布短片"></a><br><b>00 · 发布短片</b><br><sub>HyperFrames · 20 秒 · 代码作曲配乐 + 音效</sub><br><sub>“只用真实的终端和目录，给这个仓库做一支发布片”</sub></td>
+<td width="40%" valign="top"><a href="showcase/03-math-fourier/"><img src="showcase/03-math-fourier/media/preview.gif" width="100%" alt="03 · 3b1b 式数学讲解"></a><br><sub><a href="showcase/03-math-fourier/media/final.mp4">▶ 带声音的原片</a></sub></td>
+<td valign="top"><b><a href="showcase/03-math-fourier/">03 · 3b1b 式数学讲解</a></b>（Manim CE · 25 秒 · 1920×1080）<br>正弦波一层层叠成方波，最后落在吉布斯过冲上。<br><b><a href="showcase/03-math-fourier/README.md#the-request-this-was-built-from">提示词</a>：</b>“Building a square wave from sine waves”（用正弦波拼出方波）<br><b>建议工作流</b>（标准档）：<br><code>bin/vh new math fourier-square-wave --style dark-math</code><br>配声音：<code>bin/vh tts</code>、<code>music</code>、<code>mix … profile=explainer</code>、<code>mux</code><br><b>声音：</b>英文旁白（Gemini TTS，音色 Iapetus）、钢琴配乐比人声低 13 LU、每个谐波各发自己的音</td>
+</tr>
+<tr>
+<td width="40%" valign="top"><a href="showcase/01-handdrawn-clawd-leaf/"><img src="showcase/01-handdrawn-clawd-leaf/media/preview.gif" width="100%" alt="01 · 手绘角色短片"></a><br><sub><a href="showcase/01-handdrawn-clawd-leaf/media/final.mp4">▶ 带声音的原片</a></sub></td>
+<td valign="top"><b><a href="showcase/01-handdrawn-clawd-leaf/">01 · 手绘角色短片</a></b>（p5.brush · 12 秒 · 1920×1080）<br>手绘默剧：没有文字，没有旁白，三个镜头。<br><b><a href="showcase/01-handdrawn-clawd-leaf/README.md#the-request-this-was-built-from">提示词</a>：</b>“Clawd tries to film a falling autumn leaf with a tiny hand-cranked movie camera; the wind keeps snatching the leaf just as Clawd frames it …”（Clawd 用手摇小摄影机拍一片落叶，风总在它对准的时候把叶子抢走……）<br><b>建议工作流</b>（标准档）：<br><code>bin/vh new handdrawn leaf --style watercolor-pastoral</code><br>配声音：<code>bin/vh music</code>、<code>sfx</code>、<code>mix … profile=cartoon</code>、<code>mux</code><br><b>声音：</b>卡通配乐（拨弦、钢片琴、长笛、木琴），加上跟着每个动作走的拟音</td>
+</tr>
+<tr>
+<td width="40%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · 发布短片"></a><br><sub><a href="showcase/00-promo-launch-film/media/final.mp4">▶ 带声音的原片</a></sub></td>
+<td valign="top"><b><a href="showcase/00-promo-launch-film/">00 · 发布短片</a></b>（HyperFrames · 20 秒 · 1920×1080）<br>用这个仓库自己的终端、目录和联系表搭成。<br><b><a href="showcase/00-promo-launch-film/README.md#the-request">提示词</a>：</b>“Produce the README hero video — a short launch film for OpenVideoHarness itself …”（做 README 首屏的主视频：一支给 OpenVideoHarness 本身的发布短片……）<br><b>建议工作流</b>（标准档）：<br><code>bin/vh new promo launch-film</code><br>配声音：<code>bin/vh music</code>、<code>sfx</code>、<code>mix … profile=promo</code>、<code>mux</code><br><b>声音：</b>极简电子配乐，加上每个画面动作的拟音（打字、点击、转场处的 whoosh），没有人声</td>
+</tr>
+<tr>
+<td width="40%" valign="top"><a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/preview.gif" width="100%" alt="04 · 介绍片"></a><br><sub><a href="showcase/04-intro-film/media/final.mp4">▶ 带声音的原片</a></sub></td>
+<td valign="top"><b><a href="showcase/04-intro-film/">04 · 介绍片（一镜到底 3D）</a></b>（HyperFrames + Three.js · 81 秒 · 1920×1080）<br>本仓库自己的产品片，一个连续的 3D 长镜头。<br><b><a href="showcase/04-intro-film/README.md#what-was-asked-and-what-changed">提示词</a>（关卡 ① 时改的方向）：</b>“一镜到底 动画动效 音乐动态字等风格 叙事感 科幻感大片感”<br><b>建议工作流</b>（精品档，<code>--effort studio</code>）：<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>一镜到底 3D 见 <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>；<code>bin/vh sfx place</code>、<code>sheet</code>、<code>check</code><br><b>声音：</b>代码写的电影感配乐（D 小调，90 BPM）和 97 个音效；中英软字幕轨</td>
+</tr>
+<tr>
+<td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="28 种风格的样片，内容完全相同"></a><br><sub><a href="styles/gallery.mp4">▶ 带声音的连播（42 秒）</a></sub></td>
+<td valign="top"><b><a href="styles/">28 种风格，连播</a></b>（每段 5 秒）<br>同一段内容，换 28 种从名作里学来的风格。<br><b>从一种开始：</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> 列出全部 28 种，详见 <a href="styles/README.md">styles/README.md</a><br><b>声音：</b>每段样片一首配乐（<code>bin/vh music</code>，<code>mix … profile=swatch</code>）</td>
 </tr>
 </table>
 
-GIF 是压缩过的无声预览，带声音的原片在各目录的 `media/final.mp4`。你做出来的片子也欢迎 PR 进 `showcase/`。
+GIF 是压缩过的无声预览。你做出来的片子也欢迎 PR 进 `showcase/`。
 
 <details>
 <summary><b>社区里的同类作品，以及我们对它们的拆解</b></summary>

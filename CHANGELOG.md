@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**README: the sample films, one per row**
+- "See what it makes" in `README.md` and `README.zh-CN.md` is one sample per row, not a two-row grid of previews. On the left, the preview GIF (it links to the film's folder) with a ▶ link to the original with sound; on the right, what the film is, its request, a suggested workflow (type, effort, style preset and the `bin/vh` commands) and what it sounds like. The rows are 02, 03, 01, 00, 04, then the 28-style reel (`styles/gallery.jpg`, linking to `styles/gallery.mp4`).
+- The requests are short quotes from longer briefs (a paragraph each, not one sentence); the word "Request" links to the whole brief in the folder's README. For 04 the quote is the human's note at gate ①, not the first brief. The workflows are suggestions for a similar film (the effort levels and style presets came after films 00–03), and the section notes that 00–03 were finished silent and their sound was fitted afterwards.
+- No new image files. The table keeps its 40 / 60 split with no sideways scrolling from 320 to 1280 px wide.
+
 **Research notes: what we measured, and what changed because of it**
 - `docs/research/` has five lab notes, in Chinese and in English (`docs/research/en/`), with 20 figures: voice, music and SFX levels (01), measuring how alike the 28 swatch soundtracks are (02), why the same code rendered different pixels (03), how long on-screen text has to stay (04), and the chapters, motif and dynamic arc of a score (05). Each gives the question, how it was measured, the numbers, what changed in the repo and what is still unclear, and a "现状" paragraph on what has landed since it was written.
 - They are records, not rules: the rules stay in `playbook/`. The raw data and the figure scripts are not in the repo; each sources line says what the data was and where the method lives now.
@@ -36,7 +41,7 @@
   - brutalist-meme: `glitch_cut` +8 dB. It is 67 % under 150 Hz, so the mixer never raises it, and the four cuts sat 16–21 dB under the music.
   - isotype: the two title ticks −16 → −13 dB; the first was buried under the pizzicato.
 - ink-wash: the guqin harmonic's velocity 0.12 → 0.85. 0.12 was set while a harmonic played about 17 dB louder than a pluck at the same velocity; since #16 it plays level, so the note sat 23 dB under the plucks and 21 dB under the music around it. At 0.85 it is where the old render put it: about 6 dB under the E3 + A3 pluck before it, and 5 dB under the music around it.
-- `styles/gallery.mp4` has sound: each swatch's own sound for its clip, 30 ms equal-power crossfades at the cuts, and a 30 ms fade at both ends of the reel. A swatch without an audio track gets room-level noise, not digital silence. Rebuilt: `gallery.jpg` 1.04 MB, `gallery.mp4` 9.5 MB.
+- `styles/gallery.mp4` has sound: each swatch's own sound for its clip, 30 ms equal-power crossfades at the cuts, and a 30 ms fade at both ends of the reel. A swatch without an audio track gets room-level noise, not digital silence. Rebuilt: `gallery.jpg` 1.04 MB, `gallery.mp4` 7.0 MB.
 - The picture sources are unchanged, but CPU rendering changes some swatches visibly against the committed GPU renders: ink-wash (the ink-bleed outlines), synthwave-outrun (the 4.0 s VHS glitch), scratched-type (the traced glyph strokes) and risograph (the 4.0–4.5 s pink-plate slide). Others differ only at edges and in transition frames.
 - Not in this change: the physically modelled plucked voices (#20) are not used; the swatches keep their current voices.
 - Docs: the AAC true-peak range on the swatches is now −1.9 to +1.4 dB at 128k (13 of 28 go up) in `playbook/04-audio.md`, `styles/_swatch/README.md` and the comments of `render.sh` and `tools/audio/mix.py`; the swatch README's gallery section describes the reel's sound. Nine `STYLE.md` files said their foley sits −3 dB under the score; they now say it is mixed with `profile=swatch`.
