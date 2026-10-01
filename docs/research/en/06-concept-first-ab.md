@@ -47,14 +47,14 @@ None of the four passes: the bar is ≥ 8 on every dimension, and each film has 
 **2. Where arm B lost: the reviewer gave specific reasons, and "slowness" is not one that holds up.**
 - Milky Way B: the permanent HUD (light-pollution level, two brightness bars) is the concept itself, but its labels sit exactly at the 44 px floor (`.hk`, `.bl` and `.src` in the project's `index.html` are all 44 px), about 8 px on a 360 px phone sheet, which the reviewer could not read (phone readability 5, against 7 for A); its composition was also judged weaker than A's.
 - Bakery B: the key moment, ink becoming dough, is a dissolve, so "the actual transformation is never seen" (motion 5, against 7 for A); in the middle a baguette floats while a line of text types on, with no new event.
-- The reviewer gave both arm-B films 4 on variety, citing static stretches. Measured the same way, though, both arms are equally still:
+- The reviewer gave both arm-B films 4 on variety, citing static stretches (its own measure was looser and reported longer stretches, such as 18.5–27 s in Milky Way B). Measured again the same way for all four, the two arms are about as still:
 
 | | Milky Way · B | Milky Way · A | Bakery · A | Bakery · B |
 |---|---|---|---|---|
 | Static stretches ≥ 2 s, total | 12.8 s | 14.3 s | 9.0 s | 10.2 s |
 | Longest | 4.0 s (0.2–4.2 s) | 5.0 s (25.0–30.0 s) | 4.3 s (15.7–20.0 s) | 3.6 s (16.4–20.0 s) |
 
-Arm A is no less still than arm B, and the Milky Way pair is the other way round. So "the concept chose slowness and that is why B lost" does not hold. What does differ is where the stillness falls: both arm-B films go still from the start (Milky Way 0.2 s, bakery 0.5 s), while arm A's first still stretch starts at 2.3 s and 4.0 s, and its longest falls on the end card. Stillness at the start hurts more than on the end card, which fits finding 4 on hooks; this is a guess, not measured on viewers.
+A is stiller in the Milky Way pair and B slightly stiller in the bakery pair, opposite ways. So "the concept chose slowness and that is why B lost" does not hold up. One visible difference is where the stillness falls: both arm-B films go still from the start (Milky Way 0.2 s, bakery 0.5 s), while arm A's first still stretch starts at 2.3 s and 4.0 s, and its longest falls on the end card. The hook scores do not support it as a cause, though: the lowest hook is arm A's Milky Way (3), which also stops for 3.5 s from 2.3 s. It is only an observation.
 
 **3. Without the workflow, the model comes up with much the same idea, at least in one pair.** The Milky Way pair's core ideas rate 8/10 similar: the same city skyline, the lights going off to reveal the Milky Way, a "Milky Way light constant, background rising" bar, and the same paper (Falchi et al., 2016). The bakery pair rates 4/10: both make the character 一 ("one") the core, but arm A goes "a full shelf down to one loaf, whose score line becomes the 一 of the name" and arm B "a written stroke bakes into a baguette, then becomes the shop sign"; in this pair B's idea was judged newer. Concept-first at least did one thing: it made a step the model would take anyway a required one, and left a record (each arm-B film wrote 3 concepts and the reasons for rejecting 2, and 3–6 taste overrides, each with a reason and the cost of reverting).
 
@@ -68,7 +68,7 @@ Arm A is no less still than arm B, and the Milky Way pair is the other way round
 | Tokens (subagent total) | 221k | 239k | 189k | 206k |
 | Tool calls | 53 | 53 | 42 | 42 |
 
-**6. Two things the reviewer noticed along the way.** Bakery B named the shop 一条, which the reviewer pointed out is a well-known media and retail brand, so the name needs checking first. Bakery A put an opening date, 10月18日 (18 October), on its end card: for a fictional shop that is not an invented fact, but arm B chose not to write a date; the reviewer gave both films 8 on accuracy, so that dimension does not separate this kind of difference.
+**6. Two things the reviewer noticed along the way.** Bakery B named the shop 一条, which the reviewer pointed out is a well-known media and retail brand, so the name needs checking first. Bakery A put an opening date, 10月18日 (18 October), on its end card: against the floor arm A was given (no invented facts) that is debatable, and arm B chose not to write a date; the reviewer gave both films 8 on accuracy, so that dimension does not separate this kind of difference.
 
 **7. Two places in the docs were unclear.** Both arm-B agents spent some reasoning on whether the floor "no digital silence mid-film" applies to a silent film the user asked for (both concluded it does not, but the docs did not say); type 02's prompt block asks for caption weight 800, and the local PingFang's heaviest is 600.
 

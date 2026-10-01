@@ -105,7 +105,8 @@ ffmpeg -i out.mp4 -vf "fps=1/2,scale=360:-1:flags=area,tile=3x4" out/check/phone
 **开头 2 秒**：钩子要在第 0 帧就开始。把前 60 帧（30 fps 的 2 s）逐帧拼成一张，看画面是不是一开始就在动、有没有让人停下来的东西：
 
 ```bash
-ffmpeg -i out/draft.mp4 -vf "select='lt(n,60)',scale=320:-1,tile=10x6" -vsync vfr -frames:v 1 out/check/first2s.png
+# 30 fps 取前 60 帧；每格 150 px 宽，整张 1500 px 宽（长边规则同上）
+ffmpeg -i out/draft.mp4 -vf "select='lt(n,60)',scale=150:-1,tile=10x6" -vsync vfr -frames:v 1 out/check/first2s.png
 ```
 
 **循环接缝**：GIF、网页背景、平台自动循环这类交付物，末帧后面紧跟着首帧。把末 6 帧和首 6 帧拼成一条，像观众那样连着读：
