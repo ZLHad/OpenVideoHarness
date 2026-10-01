@@ -340,7 +340,7 @@ def repeats(ev, lib=None, root=None):
             how = "byte-identical" if len({its[k][4] for k in ks}) == 1 else "correlation > 0.98 over 150 Hz"
             ts = [f"{its[k][0]:.2f}" for k in ks]
             rows.append((its[ks[0]][0], f"    {' / '.join(names)}: {len(ks)} in a row sound the same ({how}"
-                         + (f", variant {vs.pop()}" if len(vs) == 1 and None not in vs else "") + ") at " + ", ".join(ts[:12])
+                         + (f", variant {next(iter(vs))}" if len(vs) == 1 and None not in vs else "") + ") at " + ", ".join(ts[:12])
                          + (f" … ({len(ts) - 12} more)" if len(ts) > 12 else "") + " s"))
             built = [n for n in names if n in sfx.LIB]
             if built:
