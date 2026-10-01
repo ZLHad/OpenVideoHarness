@@ -58,7 +58,7 @@
 - **配乐**：E 小调，120 BPM（24 fps 下一拍 12 帧，一拍二正好 6 张；30 fps 下 15 帧），boom-bap。签名是搓碟（`scratch`：`x` baby scratch，`o` chirp）加铜管 stab（`brass` 的 `stab`，`onset_ms` 8），都比鼓亮、比鼓靠前；鼓是摇摆的十六分音符 breakbeat（`bb_kick`、`bb_snare`、`hihat`，`swing` 0.58），`sub808` 垫底，轻黑胶噼啪（`lofi`）。大击打前音乐抽空成一张床（808 长音加 `swell` 渐强的铜管），再全编制砸下来。和 `risograph` 的 lo-fi 不同：这里亮、硬、有搓碟，那边暗、懒、只有 Rhodes。
 - **音效**：每个拟声词都有真实的声音，同一帧：`impact`、`boom`、`whoosh`、`swish_rev`；分格切用 `shutter`；套版踢一下配一声短 `glitch`（音量 −12 dB，不要电子味太重）。
 - **声画关系**：拟声词的字号 ∝ 音量；重击前 0.3–0.5 s 音乐抽空，只留一张低 10 dB 左右的床（808 长音或渐强的铜管），再一起砸下去。
-- **样片拟音**：`events.json` 15 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），−3 dB 混在配乐下：标题格砸进来 `impact`；标题每个词砸下、中文字幕框弹出各一声 `pop`，落点按一拍二（12 fps 姿势）换算到实际出现的那一帧；标题格缩成横幅 `whoosh`；三格落下各一声 `pop`；BAM! `impact`，3.0 s 再砸一下小一点的 `impact`，最后一抖 `click`；对角分格 `shutter` + `whoosh`。
+- **样片拟音**：`events.json` 15 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），按 `profile=swatch` 混在配乐下：标题格砸进来 `impact`；标题每个词砸下、中文字幕框弹出各一声 `pop`，落点按一拍二（12 fps 姿势）换算到实际出现的那一帧；标题格缩成横幅 `whoosh`；三格落下各一声 `pop`；BAM! `impact`，3.0 s 再砸一下小一点的 `impact`，最后一抖 `click`；对角分格 `shutter` + `whoosh`。
 
 ## 适合与不适合
 

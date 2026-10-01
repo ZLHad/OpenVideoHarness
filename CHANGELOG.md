@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+**Style swatches: a soundtrack of their own for each of the 28**
+- Every swatch has a new `score.json`, written on the instrument parts (#13, #16): its own genre, signature instruments, groove and reverb space, in stereo except for crt-terminal's one small terminal speaker. The old scores all came from one subtractive palette and were mono. BPM, meters and section bars are unchanged, so the picture and the foley keep their timing. Each `STYLE.md` describes its score in its sound section and prompt block; `styles/README.md` has a new "声音" section with genre, signature instruments and one line per style.
+- How different they are, on 7 audio features (spectral centroid, onset rate, low / mid / high energy shares, stereo width, percussive share; z-scored over the old scores and the #13 demos): the median pairwise distance goes from 2.27 to 3.71 and the closest pair from 0.52 (bubble-chart-story / risograph) to 1.22 (guochao-festive / scratched-type); no pair of the 378 is under 1.2. Re-measured on the shipped renders, the numbers are the same.
+- All 28 are re-rendered on the current chain: CPU rendering (#17), the `profile=swatch` mix, the WAV and mp4 qa gates, and the AAC true-peak check (#21). Every one passes both gates, sits at −14.0 to −14.3 LUFS and under −1.5 dBTP after the encode (the highest is −1.57), and stays under 1.5 MB (0.25–1.43 MB). Three needed a new mix for the encode's true peak: cutout-jazz once, dunhuang-mural and editorial-data twice. The chain is byte-repeatable: a second render of blueprint gave the same `swatch.mp4` and `poster.jpg`, and `determinism.sh` passes on crt-terminal and ink-wash.
+- On the new scores, five swatches failed the WAV gate and two had cues the mix report called `BURIED`. Fixed as sound design, in `FOLEY` (or `events.json` where the scene reads its times from it), and checked so each cue is found by the cue check, not just passed:
+  - blueprint: the ticks sat 15–21 dB under the marimbas and the detail class 0.9 LU past its limit. Ticks +8 dB, the three figure ticks +12.
+  - bubble-chart-story: the end-title `ding`, the one hero, was 6.2 LU under the hero range; −16 → −8 dB. The decade ticks −16 → −11 dB (the ones in the race to 2020 were buried).
+  - crt-terminal: the `tree` tick lands on the first sample of the score's modem burst and 32 ms after a typing burst, and the cue check could not find it; −16 → −4 dB. The render-log tick −18 → −10, the typing +4 dB.
+  - neon-step-print: the timestamp ticks become `role: "signal"` (they are a readout) at −6 dB, the midnight one at −2; at −12 the 1.5 s tick was off and the 2.5 s one faint and buried. The subtitle typing −18 → −10 dB.
+  - silhouette-papercut: the paper footsteps +8 dB, keeping their staggered levels; the detail class median goes from −18.1 to −10.9 LU.
+  - brutalist-meme: `glitch_cut` +8 dB. It is 67 % under 150 Hz, so the mixer never raises it, and the four cuts sat 16–21 dB under the music.
+  - isotype: the two title ticks −16 → −13 dB; the first was buried under the pizzicato.
+- ink-wash: the guqin harmonic's velocity 0.12 → 0.85. 0.12 was set while a harmonic played about 17 dB louder than a pluck at the same velocity; since #16 it plays level, so the note sat 23 dB under the plucks and 21 dB under the music around it. At 0.85 it is where the old render put it: about 6 dB under the E3 + A3 pluck before it, and 5 dB under the music around it.
+- `styles/gallery.mp4` has sound: each swatch's own sound for its clip, 30 ms equal-power crossfades at the cuts, and a 30 ms fade at both ends of the reel. A swatch without an audio track gets room-level noise, not digital silence. Rebuilt: `gallery.jpg` 1.04 MB, `gallery.mp4` 9.5 MB.
+- The picture sources are unchanged, but CPU rendering changes some swatches visibly against the committed GPU renders: ink-wash (the ink-bleed outlines), synthwave-outrun (the 4.0 s VHS glitch), scratched-type (the traced glyph strokes) and risograph (the 4.0–4.5 s pink-plate slide). Others differ only at edges and in transition frames.
+- Not in this change: the physically modelled plucked voices (#20) are not used; the swatches keep their current voices.
+- Docs: the AAC true-peak range on the swatches is now −1.9 to +1.4 dB at 128k (13 of 28 go up) in `playbook/04-audio.md`, `styles/_swatch/README.md` and the comments of `render.sh` and `tools/audio/mix.py`; the swatch README's gallery section describes the reel's sound. Nine `STYLE.md` files said their foley sits −3 dB under the score; they now say it is mixed with `profile=swatch`.
+
 **Music parts: motifs, section counting, dynamics, stops**
 - Motifs. A score's `"motifs"` block defines a phrase once, and any note list calls it: `{"motif": "A", "at": 8, "shift": 1}`. The call unfolds in place into plain notes, so `loop`, swing, humanize, tremolo and hits treat it like hand-written notes. The ops:
   - pitch: `shift` (scale steps), `transpose`, `octave`, `invert`, `mode`;

@@ -118,7 +118,7 @@ AI 做的视频很容易长成一个样子：暗底、发光、玻璃卡片、�
 
 <a href="styles/"><img src="styles/gallery.jpg" width="820" alt="28 种风格的样片，内容完全相同"></a>
 
-连着看的版本在 [`styles/gallery.mp4`](styles/gallery.mp4)。用法：
+连着看的版本在 [`styles/gallery.mp4`](styles/gallery.mp4)，每段带着自己的声音。用法：
 
 ```bash
 bin/vh style list                                  # 看 28 种风格

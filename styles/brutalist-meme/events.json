@@ -1,7 +1,7 @@
 [
-  {"series": "cut", "t": 0.4, "sfx": "sfx/glitch_cut.wav", "gain_db": -10, "pan": 0},
-  {"series": "cut", "t": 0.8, "sfx": "sfx/glitch_cut.wav", "gain_db": -10, "pan": 0},
-  {"series": "cut", "t": 1.6, "sfx": "sfx/glitch_cut.wav", "gain_db": -10, "pan": 0},
+  {"series": "cut", "t": 0.4, "sfx": "sfx/glitch_cut.wav", "gain_db": -2, "pan": 0},
+  {"series": "cut", "t": 0.8, "sfx": "sfx/glitch_cut.wav", "gain_db": -2, "pan": 0},
+  {"series": "cut", "t": 1.6, "sfx": "sfx/glitch_cut.wav", "gain_db": -2, "pan": 0},
   {"series": "cut", "t": 2.0, "sfx": "click", "gain_db": -6, "pan": 0},
   {"series": "cut", "t": 2.2, "sfx": "click", "gain_db": -6, "pan": 0},
   {"series": "cut", "t": 2.4, "sfx": "click", "gain_db": -6, "pan": 0},
@@ -9,7 +9,7 @@
   {"series": "cut", "t": 3.2, "sfx": "click", "gain_db": -6, "pan": 0},
   {"id": "freeze", "t": 3.267, "sfx": "shutter", "gain_db": -8, "pan": 0},
   {"series": "cut", "t": 3.6, "sfx": "click", "gain_db": -6, "pan": 0},
-  {"id": "glitch", "t": 4.0, "sfx": "sfx/glitch_cut.wav", "gain_db": -6, "pan": 0},
+  {"id": "glitch", "t": 4.0, "sfx": "sfx/glitch_cut.wav", "gain_db": 2, "pan": 0},
   {"series": "cut", "t": 4.2, "sfx": "click", "gain_db": -6, "pan": 0},
   {"series": "cut", "t": 4.4, "sfx": "click", "gain_db": -6, "pan": 0}
 ]

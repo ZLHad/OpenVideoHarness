@@ -6,8 +6,9 @@
 
 Scans styles/*/media/poster.jpg (folders starting with "_" are skipped) unless folders are given. The label under
 each poster comes from the STYLE.md title line "# <风格名> · <slug>", else tokens.json "name", else the slug.
-The reel keeps each swatch's own sound for its clip, joined with 30 ms equal-power crossfades (no click, no dip at a seam);
-a swatch without an audio track gets room-level noise for its clip rather than digital silence, and a warning.
+The reel keeps each swatch's own sound for its clip, joined with 30 ms equal-power crossfades (no click, no dip at a seam),
+and fades in and out over 30 ms at its two ends, which cut into the middle of a sound; a swatch without an audio track
+gets room-level noise for its clip rather than digital silence, and a warning.
 """
 import argparse, json, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
@@ -106,7 +107,9 @@ def build_mp4(dirs, out: Path, start: float, length: float):
         ins = [x for w in waves for x in ("-i", str(w))]
         chain = "".join(f"[{'a' if k else '0:a'}{k if k else ''}][{k + 1}:a]acrossfade=d={XF}:c1=qsin:c2=qsin[a{k + 1}];"
                         for k in range(len(waves) - 1)).rstrip(";") or "[0:a]anull[a0]"
-        ff(*ins, "-filter_complex", chain, "-map", f"[a{len(waves) - 1}]", "-c:a", "pcm_s16le", str(tmp / "reel.wav"))
+        # the reel's first and last samples cut into the middle of a sound: fade them, or the loop clicks there
+        chain += f";[a{len(waves) - 1}]afade=t=in:d={XF},afade=t=out:st={len(waves) * length - XF:.3f}:d={XF}[reel]"
+        ff(*ins, "-filter_complex", chain, "-map", "[reel]", "-c:a", "pcm_s16le", str(tmp / "reel.wav"))
         for crf in (20, 23, 26, 29, 32):
             ff("-f", "concat", "-safe", "0", "-i", str(tmp / "list.txt"), "-i", str(tmp / "reel.wav"),
                "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-preset", "slow", "-crf", str(crf),

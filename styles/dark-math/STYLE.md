@@ -57,7 +57,7 @@
 - **配乐**：旁白是主角，音乐只垫底，是 3Blue1Brown 那种安静的钢琴：C 大调，60 BPM（30 fps 下一拍 30 帧；2 s 和 4 s 都落在拍上）。签名是毡锤钢琴的琶音（`piano` 的 `tone: "felt"` 加延音踏板，八分三连音，在两个八度里上下走），每换一个和弦低音区点一个根音；下面一层很轻、偏暗的弦乐 pad（`strings`，低通）；结论出现时钢片琴（`celesta`）唱一个上行琶音。大厅混响，没有鼓。
 - **音效**：几乎没有。结论落定时可以有一声 −18 dB 的 `ding`。不用 whoosh。
 - **声画关系**：旁白先行，动画比 cue 词早 0.3–0.5 s 开始；问题卡之后的 2–3 s 只留 pad；每句话说完后画面停约 1 s。
-- **样片拟音**：`events.json` 只有 8 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），−3 dB 混在配乐下：î、ĵ 弹出各一声 `tick`；标题中英两次落笔各一声很轻的 `tick`；点出现一声 `pop`；3.0、3.5 s 两次 indicate 各一声 `ding`；证毕方块落定 `click`。两次 TransformFromCopy 和最后的合并都不配声，守住"不用 whoosh"。
+- **样片拟音**：`events.json` 只有 8 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），按 `profile=swatch` 混在配乐下：î、ĵ 弹出各一声 `tick`；标题中英两次落笔各一声很轻的 `tick`；点出现一声 `pop`；3.0、3.5 s 两次 indicate 各一声 `ding`；证毕方块落定 `click`。两次 TransformFromCopy 和最后的合并都不配声，守住"不用 whoosh"。
 
 ## 适合与不适合
 

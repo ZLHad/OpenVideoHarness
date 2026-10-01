@@ -57,7 +57,7 @@
 - **配乐**：冷、极简、近。E 小调，75 BPM（30 fps 下一拍 24 帧）。签名是低音区失谐的方波琶音：`pulse` 的 `duty` 0.5，`sus` 1（不要芯片式的音量台阶），低通 1.5 kHz，再叠一个高八度、偏 14 音分的第二振荡器（`detune` 1214）；一拍一个音或更慢，比 `fui-hud` 的十六分音符滤波音序慢、干、近。`hum` 的 60 Hz 电源嗡声（风扇只留一点）从头铺到尾，当机房底噪；机器应答用调制解调器式的哔声，两个高频（约 1976 / 2217 Hz）按 32 分音符快速交替。全片单声道、`space: dry`，像终端自己那只小喇叭。很多段落没有音乐，只有嗡声。不做芯片音乐。样片的 score 写成 150 BPM（75 BPM 的双倍网格，拍子不变密，只是让 0.8、2.0、4.0 s 都落在拍上），`master_db` 设为 −4（比默认低 3 dB），给打字声和 `tick` 让出位置。
 - **音效**：人打字每个字一声 `typing`（或逐字 `click`），机器输出只在行尾一声 `tick`，否则太吵；回车用更重的 `click`；报错用 `error`；开机用低通的 `impact` 加嗡声；关机用 `swish_rev` 的反向吸入。
 - **声画关系**：光标闪烁的等待里只留底噪，这是悬念；关机那一刻所有声音跟着塌缩，最后只剩一声很轻的高频余音。
-- **样片拟音**：`events.json` 22 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），−3 dB 混在配乐下：开机 `boom`；开机日志每行行尾一声 `tick`；清屏 `toggle`；`> title` 和标题每个词各一段 `typing`（人手打字节奏表同时驱动画面和声音）；两次输入法上屏 `click`；`tree` 命令行尾 `tick`，渲染日志开始 `tick`，进度条每两格一声 `tick`，READY 一声 `success`；关机 `glitch` + 塌成亮点时 `swish_rev`，反白重开只用一声 `click`（`boom` 的长尾会在 5 s 片尾被硬截断，qa 报成 click）。
+- **样片拟音**：`events.json` 22 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），按 `profile=swatch` 混在配乐下：开机 `boom`；开机日志每行行尾一声 `tick`；清屏 `toggle`；`> title` 和标题每个词各一段 `typing`（人手打字节奏表同时驱动画面和声音）；两次输入法上屏 `click`；`tree` 命令行尾 `tick`，渲染日志开始 `tick`，进度条每两格一声 `tick`，READY 一声 `success`；关机 `glitch` + 塌成亮点时 `swish_rev`，反白重开只用一声 `click`（`boom` 的长尾会在 5 s 片尾被硬截断，qa 报成 click）。
 
 ## 适合与不适合
 

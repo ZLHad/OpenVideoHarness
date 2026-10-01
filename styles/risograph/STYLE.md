@@ -56,7 +56,7 @@
 - **配乐**：lo-fi hip-hop，A 大调，120 BPM（24 fps 下一拍 12 帧，30 fps 下 15 帧），暖、原声感。签名是 Rhodes（`epiano`）的 maj7 / maj9 和弦，无根音排法（3–7–9–5），一小节只弹两三下；鼓懒、摇摆、发灰：`bb_kick`、比拍子晚一点点的 `rim`（负的 `onset_ms`，懒）、十六分摇摆的 `hihat`；低音是软的 `upright`；整轨带 `lofi` 的黑胶噼啪和磁带抖动、`tape` 饱和。**分层 = 分版**：一版时只有 Rhodes；加一版进低音提琴；再加一版进鼓；全叠印时加 `vibraphone`。
 - **音效**：签名是印刷机：走纸"唰"（高通的短 `whoosh`）+ 滚筒"咔嗒"（`click` 叠低通 `impact`），每加一版响一次；纸落下用 `swish_rev`。
 - **声画关系**：每加一版 = 一件新乐器进来 = 一声滚筒。各版漂开时音乐抽掉一小节（保留混响尾巴），回位落在强拍上。
-- **样片拟音**：`events.json` 15 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），−3 dB 混在配乐下：蓝版咬纸 `click`、滚筒扫过 `whoosh`；标题和中文的局部滚筒各一声轻 `whoosh`；三个形状印出各一声 `pop`（按一拍二换算到出现的帧）；黄版、粉版滚筒各一声 `whoosh`；3.0、3.5 s 每拍重印一版各一声 `click`；整块粉版落下 `swish_rev` + 落地 `click`；结束印张蓝版、粉版双击各一声 `click`。
+- **样片拟音**：`events.json` 15 个事件，由 `swatch.js` 导出的 `FOLEY` 经 `node styles/_swatch/foley.mjs <slug>` 生成，落点全部引用动作所用的同一张时间表，声像取发声物体的屏幕 x（`(2x/W − 1)·0.7`），按 `profile=swatch` 混在配乐下：蓝版咬纸 `click`、滚筒扫过 `whoosh`；标题和中文的局部滚筒各一声轻 `whoosh`；三个形状印出各一声 `pop`（按一拍二换算到出现的帧）；黄版、粉版滚筒各一声 `whoosh`；3.0、3.5 s 每拍重印一版各一声 `click`；整块粉版落下 `swish_rev` + 落地 `click`；结束印张蓝版、粉版双击各一声 `click`。
 
 ## 适合与不适合
 
