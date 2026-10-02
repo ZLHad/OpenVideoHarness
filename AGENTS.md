@@ -14,7 +14,7 @@
 3. **建项目**：运行 `bin/vh new <type> <slug>`，它会建好 `projects/<日期>-<slug>/`，复制模板，并把该类型的 prompt 块填进 BRIEF（类型的默认做法，立意定了再取舍）；手绘类还会复制引擎、装好依赖。其他引擎的初始化方式见 `engines/README.md`。
 4. **先想立意，再看案例和参考**：建完项目，先把材料里只属于它的数字、原话、物件列进 NOTES.md 的素材清单，自己想 5–8 个点子；这时先不看 BRIEF 末尾的 TYPE 块、`styles/`、`recipes/` 和案例，免得点子往看过的东西上靠。然后再看下面这些参考，用它们补强，收敛成 2–3 张立意卡（做法见 `playbook/12-ideation.md`，例子见 `cases/oneshot-five.md`）。人已经给了立意，就记进 BRIEF，不再出卡，最多附一个备选。参考：打开类型文档"可参考的案例"和"社区 skill 参考"两节列出的文件；需要看真实代码时读 `references/repos/` 里的源码。本仓库自己做过的片子在 `showcase/`，各带 BRIEF、STORYBOARD、NOTES 和源码，是最直接的样板。分镜时，镜头怎么动、全片节奏怎么排，先查 `recipes/`：按意图和能量筛（`bin/vh recipes list`），把选中的配方 id 写进 STORYBOARD 的"配方"列，写代码前读配方全文。
 5. **停下来给人审**：`standard` 和 `studio` 必过下面三道关卡，`quick` 不设关卡；人点名要亲自拍板的事，按"导演模式"另外停，`quick` 也一样。每次停默认做一页决定优先的审阅页（`bin/vh review` 生成本地 HTML，做法见 `playbook/01-pipeline.md` 的"审阅页"），聊天里只发要人定的事和页面路径；只有一两个纯文字的选择时，直接在聊天里问也行。然后**停下来等人回复**，不要自己往下做：
-   - ① **立意和大纲**：2–3 张彼此拉得开的立意卡，每张写明由它推出的画面（专属风格，或借 `styles/` 的一个预设）和钩子，配一帧画面（`playbook/12-ideation.md` 第 7 节）。选一张卡，立意、风格方向和钩子就一起定了，人可以在回复里换预设或钩子。再附按推荐立意写的 BRIEF、3–7 段大纲、引擎和费用。不要默认只给一种口味；
+   - ① **立意和大纲**：2–3 张彼此拉得开的立意卡，每张写明由它推出的画面（专属风格，或参考 `styles/` 的预设，可以几个）和钩子，配一帧画面（`playbook/12-ideation.md` 第 7 节）。选一张卡，立意、风格方向和钩子就一起定了，人可以在回复里换预设或钩子。再附按推荐立意写的 BRIEF、3–7 段大纲、引擎和费用。不要默认只给一种口味；
    - ② **分镜**：按大纲的段落拆页，每页 3–6 镜的关键帧，没把握的镜头标出来，逐镜默认通过。长片再附一版全长灰盒 animatic；
    - ③ **初版**：draft 成片加联系表，并写出你自己最不满意的 2–3 处。
 
@@ -39,7 +39,7 @@
 | 适合 | 试方向、草稿、随手发 | 大多数正式视频 | 发布片、旗舰内容、会被反复看的片子 |
 | 人工关卡 | 0 道，直接出片。选 quick 就等于授权跳过关卡，把这一点记进 REVIEW.md；需求有歧义时最多问 1 个问题；人点名要拍板的事照样停（导演模式） | 3 道 | 3 道；关卡 ① 每张立意卡附一段 10–20 s 草图，关卡 ② 附全长 animatic |
 | 立意 | 自己想 3 个一句话点子，挑 1 个，写一行理由 | 关卡 ① 给 2–3 张立意卡，每张配一帧画面 | 同左，每张配一段 10–20 s 的草图（look-dev） |
-| 风格 | 从立意推出来，可以借 `styles/` 的 1 个预设，写明理由 | 写在每张立意卡的"画面"一行（专属，或借一个预设）；选卡就一起定了，人可以在回复里换 | 同左；每张卡的草图就是那种风格的小样，借来的预设人想看时在 E0 补小样 |
+| 风格 | 从立意推出来，可以参考 `styles/` 的预设，写明借了什么 | 写在每张立意卡的"画面"一行（专属，或借一个预设）；选卡就一起定了，人可以在回复里换 | 同左；每张卡的草图就是那种风格的小样，借来的预设人想看时在 E0 补小样 |
 | 分镜 | 简表：镜头、时长、reads | 完整 STORYBOARD + 分镜预览图 | 同左 + animatic |
 | 自查 | 整片一张联系表、一张按目标屏缩的联系表、前 2 s 的 strip，20 条清单速查一遍 | 每个场景：联系表、关键动作 strip、局部 crop；20 条清单 | 同左，再加目标屏尺寸测试、循环接缝、无损帧确定性、静默故障扫描 |
 | 独立评审（打分层） | 不做 | 1 轮：全新上下文的 reviewer 打 8 项分（含立意），修最差的 3 处 | ≥ 3 轮，8 项都 ≥ 8 才出片；达不到就带着分数进关卡 ③ |
@@ -64,7 +64,7 @@
 
 `quick` 省掉的是轮数和审阅，不是这些。
 
-**底线之外都是默认口味**：`TASTE_CHECKLIST.md` 里没标【底线】的条目、BRIEF 的 Motion defaults、类型文档 Prompt 增量块里的语域和节拍、风格预设和配方，都是没有立意时的稳妥做法。立意需要时可以反着来：在写用到它的场景之前，把改了什么、立意为什么需要写在立意卡或 STYLE.md 上，记进 `DECISIONS.md`；人批过的卡上写了的，算人的决定，reviewer 只查有没有做到；之后才加的由 reviewer 判断站不站得住，判了 FAIL 再补的不算（`playbook/12-ideation.md` 第 6 节）。类型文档"禁止"一节也分两种：管事实、许可、可读和隐私的是底线，管长相的（配色、质感、缓动、图表样式）是默认口味。规则是用来防止犯错的，不是用来规定口味的。
+**底线之外都是默认口味**：`TASTE_CHECKLIST.md` 里没标【底线】的条目、BRIEF 的 Motion defaults、类型文档 Prompt 增量块里的语域和节拍、镜头配方，都是没有立意时的稳妥做法。风格预设只是参考：借了什么在 `DECISIONS.md` 记一行，不借、借一半、几个混着借都行，和它不一样不用解释；借来的东西碰到清单里没标【底线】的条目，照口味覆盖记一行。立意需要时可以反着来：在写用到它的场景之前，把改了什么、立意为什么需要写在立意卡或 STYLE.md 上，记进 `DECISIONS.md`；人批过的卡上写了的，算人的决定，reviewer 只查有没有做到；之后才加的由 reviewer 判断站不站得住，判了 FAIL 再补的不算（`playbook/12-ideation.md` 第 6 节）。类型文档"禁止"一节也分两种：管事实、许可、可读和隐私的是底线，管长相的（配色、质感、缓动、图表样式）是默认口味。规则是用来防止犯错的，不是用来规定口味的。
 
 ## 导演模式：谁来拍板
 
@@ -85,7 +85,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 用户要 `quick` 时，不用把上面各步列的文档都读完，照这张卡做：
 
 1. **读**：路由表对应的类型文档，只读"工作流"和"禁止"两节（"Prompt 增量块"会贴在 BRIEF 末尾，挑定立意以后再读）；再读 `engines/README.md` 里对应引擎的一节，HyperFrames 先看其中的"最小写法"。
-2. **建项目和立意**：`bin/vh new <type> <slug> --effort quick`。先写 3 个一句话立意，挑一个（`playbook/12-ideation.md` 第 7 节最后一条），再读 BRIEF 末尾的 TYPE 块，决定留哪些默认。风格从立意推出来，合适的话借一个预设：`bin/vh style apply <preset> <project>`（`bin/vh style list` 挑），它的 `STYLE_PRESET.md` 会带进项目，写代码前读一遍。立意和风格各写一行理由进 `DECISIONS.md`；改了哪些口味默认，交付时一并列出。
+2. **建项目和立意**：`bin/vh new <type> <slug> --effort quick`。先写 3 个一句话立意，挑一个（`playbook/12-ideation.md` 第 7 节最后一条），再读 BRIEF 末尾的 TYPE 块，决定留哪些默认。风格从立意推出来；想参考预设就 `bin/vh style apply <preset[,preset]> <project>`（`bin/vh style list` 挑），副本放进项目的 `style-refs/`，写 STYLE.md 前翻一遍；借了什么在 `DECISIONS.md` 记一行，和它不一样不用解释。立意和风格各写一行理由进 `DECISIONS.md`；改了哪些口味默认，交付时一并列出。
 3. **写**：补齐 BRIEF；分镜只写简表（镜头、时长、reads）；然后写场景代码。HyperFrames 写完一段，用 `npx hyperframes snapshot --at <秒> --describe false` 看几个关键时刻。
 4. **出片**：HyperFrames 先 `export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1`，再 `npx hyperframes render --quality draft --output out/draft.mp4`；手绘类用 `node render.mjs --clip --out=out/draft.mp4`。
 5. **自查一遍**：`bin/vh sheet out/draft.mp4` 看整片联系表，对着 `TASTE_CHECKLIST.md` 的 20 条速查；有字就跑 `bin/vh readcheck`。再看两样（命令见 `playbook/02-verification.md` 的"手机测试"）：一张按目标屏缩的联系表（BRIEF 的 `Watch on`：phone、feed 缩到 360 px 宽，desktop 缩到 640），必读字读不读得出，读数、标签别贴着下限；前 2 s 的逐帧 strip，开头是不是第 0 帧就在动、有没有让人停下来的东西。`quick` 没有 reviewer，这两样最容易漏（`docs/research/06-concept-first-ab.md`）。
