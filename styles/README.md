@@ -88,7 +88,7 @@
 | [CRT 终端](crt-terminal/) `crt-terminal` | 《异形》飞船屏幕、《战争游戏》、VT100 | 单色荧光、等宽字符、打字和余辉 | 代码、黑客、系统日志 |
 | [合成器浪潮](synthwave-outrun/) `synthwave-outrun` | 《电子世界争霸战》（1982）、《Out Run》（1986） | 条纹落日、霓虹透视网格、铬字、录像带质感 | 复古科技、游戏、强节拍片头 |
 | [16 位像素](pixel-16bit/) `pixel-16bit` | 《Chrono Trigger》（1995）、《塞尔达传说 众神的三角力量》（1991）、超级任天堂的马赛克和调色板 | 320 × 180 整数倍放大、固定 24 色，对话窗逐字打出，马赛克转场 | 把事情讲成游戏系统：升级、背包、存档 |
-| [Y2K 铬面](y2k-chrome/) `y2k-chrome` | *Wipeout*（1995，The Designers Republic）、Mac OS X 的 Aqua 界面（2000） | 充了气的液态铬字映着一间看不见的摄影棚，酸黄底、贴纸、游戏关卡标签，进场带弹性 | 品牌片和 showreel 里好玩的一段、科技梗快剪、流行 MV、游戏预告 |
+| [Y2K 铬面](y2k-chrome/) `y2k-chrome` | *Wipeout*（1995，The Designers Republic）、Mac OS X 的 Aqua 界面（2000） | 充了气的液态铬字映着一间看不见的摄影棚，酸黄底、模切贴纸，一团铬踩着拍子跳过三块关卡砖，进场带弹性 | 品牌片和 showreel 里好玩的一段、科技梗快剪、流行 MV、游戏预告 |
 
 本仓库自己的介绍片（[`showcase/04-intro-film/`](../showcase/04-intro-film/)）属于"纪念碑科幻"一族；showcase 01 和 03 分别接近"水彩田园"和"暗底数学"。
 
