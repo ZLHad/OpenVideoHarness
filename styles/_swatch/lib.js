@@ -175,7 +175,8 @@ export function tok(tokens, path, fallback) {
  */
 export function color(tokens, name, fallback = "#ff00ff") {
   const p = (tokens && (tokens.palette || tokens.colors)) || {};
-  const v = String(name).includes(".") ? tok(p, String(name), undefined) : p[name];
+  let v = String(name).includes(".") ? tok(p, String(name), undefined) : p[name];
+  if (v === undefined && name === "fg") v = p.ink ?? p.text;   // presets that name their foreground ink or text (pastel-ui)
   if (typeof v === "string") return v;
   if (v && typeof v === "object") return v.hex || v.value || fallback;
   return fallback;

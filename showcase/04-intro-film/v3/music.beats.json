@@ -1,0 +1,1140 @@
+{
+  "bpm": 90.0,
+  "offset": 0.0,
+  "duration": 81.3333,
+  "fps_note": "90 bpm @ 30 fps: beat = 20 frames; bar 11 is 6/4",
+  "beats": [
+    0.0,
+    0.6667,
+    1.3333,
+    2.0,
+    2.6667,
+    3.3334,
+    4.0,
+    4.6667,
+    5.3333,
+    6.0,
+    6.6666,
+    7.3333,
+    8.0,
+    8.6667,
+    9.3333,
+    10.0,
+    10.6667,
+    11.3334,
+    12.0,
+    12.6667,
+    13.3333,
+    14.0,
+    14.6666,
+    15.3333,
+    16.0,
+    16.6667,
+    17.3333,
+    18.0,
+    18.6667,
+    19.3334,
+    20.0,
+    20.6667,
+    21.3333,
+    22.0,
+    22.6666,
+    23.3333,
+    24.0,
+    24.6667,
+    25.3333,
+    26.0,
+    26.6667,
+    27.3334,
+    28.0,
+    28.6667,
+    29.3334,
+    30.0,
+    30.6667,
+    31.3334,
+    32.0,
+    32.6667,
+    33.3333,
+    34.0,
+    34.6666,
+    35.3333,
+    36.0,
+    36.6667,
+    37.3333,
+    38.0,
+    38.6667,
+    39.3334,
+    40.0,
+    40.6667,
+    41.3333,
+    42.0,
+    42.6666,
+    43.3333,
+    44.0,
+    44.6667,
+    45.3333,
+    46.0,
+    46.6667,
+    47.3334,
+    48.0,
+    48.6667,
+    49.3333,
+    50.0,
+    50.6666,
+    51.3333,
+    52.0,
+    52.6667,
+    53.3333,
+    54.0,
+    54.6667,
+    55.3334,
+    56.0,
+    56.6667,
+    57.3333,
+    58.0,
+    58.6666,
+    59.3333,
+    60.0,
+    60.6667,
+    61.3333,
+    62.0,
+    62.6667,
+    63.3334,
+    64.0,
+    64.6667,
+    65.3333,
+    66.0,
+    66.6666,
+    67.3333,
+    68.0,
+    68.6667,
+    69.3333,
+    70.0,
+    70.6667,
+    71.3334,
+    72.0,
+    72.6667,
+    73.3333,
+    74.0,
+    74.6666,
+    75.3333,
+    76.0,
+    76.6667,
+    77.3333,
+    78.0,
+    78.6667,
+    79.3334,
+    80.0,
+    80.6667
+  ],
+  "downbeats": [
+    0.0,
+    2.6667,
+    5.3333,
+    8.0,
+    10.6667,
+    13.3333,
+    16.0,
+    18.6667,
+    21.3333,
+    24.0,
+    26.6667,
+    30.6667,
+    33.3333,
+    36.0,
+    38.6667,
+    41.3333,
+    44.0,
+    46.6667,
+    49.3333,
+    52.0,
+    54.6667,
+    57.3333,
+    60.0,
+    62.6667,
+    65.3333,
+    68.0,
+    70.6667,
+    73.3333,
+    76.0,
+    78.6667
+  ],
+  "bars": [
+    [
+      1,
+      0.0,
+      4
+    ],
+    [
+      2,
+      2.6667,
+      4
+    ],
+    [
+      3,
+      5.3333,
+      4
+    ],
+    [
+      4,
+      8.0,
+      4
+    ],
+    [
+      5,
+      10.6667,
+      4
+    ],
+    [
+      6,
+      13.3333,
+      4
+    ],
+    [
+      7,
+      16.0,
+      4
+    ],
+    [
+      8,
+      18.6667,
+      4
+    ],
+    [
+      9,
+      21.3333,
+      4
+    ],
+    [
+      10,
+      24.0,
+      4
+    ],
+    [
+      11,
+      26.6667,
+      6
+    ],
+    [
+      12,
+      30.6667,
+      4
+    ],
+    [
+      13,
+      33.3333,
+      4
+    ],
+    [
+      14,
+      36.0,
+      4
+    ],
+    [
+      15,
+      38.6667,
+      4
+    ],
+    [
+      16,
+      41.3333,
+      4
+    ],
+    [
+      17,
+      44.0,
+      4
+    ],
+    [
+      18,
+      46.6667,
+      4
+    ],
+    [
+      19,
+      49.3333,
+      4
+    ],
+    [
+      20,
+      52.0,
+      4
+    ],
+    [
+      21,
+      54.6667,
+      4
+    ],
+    [
+      22,
+      57.3333,
+      4
+    ],
+    [
+      23,
+      60.0,
+      4
+    ],
+    [
+      24,
+      62.6667,
+      4
+    ],
+    [
+      25,
+      65.3333,
+      4
+    ],
+    [
+      26,
+      68.0,
+      4
+    ],
+    [
+      27,
+      70.6667,
+      4
+    ],
+    [
+      28,
+      73.3333,
+      4
+    ],
+    [
+      29,
+      76.0,
+      4
+    ],
+    [
+      30,
+      78.6667,
+      4
+    ]
+  ],
+  "bars_note": "[bar number, start (s), beats in bar]",
+  "sections": [
+    {
+      "name": "prologue",
+      "start": 0.0,
+      "end": 8.0,
+      "bars": 3,
+      "first_bar": 1
+    },
+    {
+      "name": "program",
+      "start": 8.0,
+      "end": 16.0,
+      "bars": 3,
+      "first_bar": 4
+    },
+    {
+      "name": "problem",
+      "start": 16.0,
+      "end": 21.3333,
+      "bars": 2,
+      "first_bar": 7
+    },
+    {
+      "name": "braam",
+      "start": 21.3333,
+      "end": 24.0,
+      "bars": 1,
+      "first_bar": 9
+    },
+    {
+      "name": "architecture",
+      "start": 24.0,
+      "end": 36.0,
+      "bars": 4,
+      "first_bar": 10
+    },
+    {
+      "name": "pipeline",
+      "start": 36.0,
+      "end": 49.3333,
+      "bars": 5,
+      "first_bar": 14
+    },
+    {
+      "name": "features",
+      "start": 49.3333,
+      "end": 57.3333,
+      "bars": 3,
+      "first_bar": 19
+    },
+    {
+      "name": "cases",
+      "start": 57.3333,
+      "end": 60.0,
+      "bars": 1,
+      "first_bar": 22
+    },
+    {
+      "name": "proof",
+      "start": 60.0,
+      "end": 70.6667,
+      "bars": 4,
+      "first_bar": 23
+    },
+    {
+      "name": "reveal",
+      "start": 70.6667,
+      "end": 76.0,
+      "bars": 2,
+      "first_bar": 27
+    },
+    {
+      "name": "title",
+      "start": 76.0,
+      "end": 81.3333,
+      "bars": 2,
+      "first_bar": 29
+    }
+  ],
+  "hits": [
+    {
+      "t": 0.1667,
+      "what": "spark",
+      "kind": "transient"
+    },
+    {
+      "t": 5.3333,
+      "what": "impact:corridor",
+      "kind": "transient"
+    },
+    {
+      "t": 5.3333,
+      "what": "swell>corridor",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 8.0,
+      "what": "swell>wake",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 8.0,
+      "what": "wake",
+      "kind": "transient"
+    },
+    {
+      "t": 10.6667,
+      "what": "program",
+      "kind": "transient"
+    },
+    {
+      "t": 13.3333,
+      "what": "film",
+      "kind": "transient"
+    },
+    {
+      "t": 13.5,
+      "what": "film:tile2",
+      "kind": "transient"
+    },
+    {
+      "t": 13.6667,
+      "what": "film:tile3",
+      "kind": "transient"
+    },
+    {
+      "t": 13.8333,
+      "what": "film:tile4",
+      "kind": "transient"
+    },
+    {
+      "t": 16.0,
+      "what": "riser>problem",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 16.6667,
+      "what": "stamp:1",
+      "kind": "transient"
+    },
+    {
+      "t": 17.3333,
+      "what": "stamp:2",
+      "kind": "transient"
+    },
+    {
+      "t": 18.0,
+      "what": "stamp:3",
+      "kind": "transient"
+    },
+    {
+      "t": 18.6667,
+      "what": "T7",
+      "kind": "transient"
+    },
+    {
+      "t": 20.6667,
+      "what": "hold:drop",
+      "kind": "transient"
+    },
+    {
+      "t": 21.3333,
+      "what": "braam",
+      "kind": "transient"
+    },
+    {
+      "t": 21.3333,
+      "what": "impact:drop",
+      "kind": "transient"
+    },
+    {
+      "t": 21.3333,
+      "what": "riser>braam",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 21.3333,
+      "what": "swell>braam",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 22.6667,
+      "what": "groove",
+      "kind": "transient"
+    },
+    {
+      "t": 24.0,
+      "what": "arch:you",
+      "kind": "transient"
+    },
+    {
+      "t": 24.0,
+      "what": "swell>whip10",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 24.6667,
+      "what": "arch:agent",
+      "kind": "transient"
+    },
+    {
+      "t": 25.3333,
+      "what": "arch:router",
+      "kind": "transient"
+    },
+    {
+      "t": 26.6667,
+      "what": "swell>whip11",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 26.6667,
+      "what": "types:1",
+      "kind": "transient"
+    },
+    {
+      "t": 27.0,
+      "what": "types:2",
+      "kind": "transient"
+    },
+    {
+      "t": 27.3333,
+      "what": "types:3",
+      "kind": "transient"
+    },
+    {
+      "t": 27.6667,
+      "what": "types:4",
+      "kind": "transient"
+    },
+    {
+      "t": 28.0,
+      "what": "types:5",
+      "kind": "transient"
+    },
+    {
+      "t": 28.3333,
+      "what": "types:6",
+      "kind": "transient"
+    },
+    {
+      "t": 28.6667,
+      "what": "types:7",
+      "kind": "transient"
+    },
+    {
+      "t": 29.0,
+      "what": "types:8",
+      "kind": "transient"
+    },
+    {
+      "t": 30.6667,
+      "what": "mod:playbook",
+      "kind": "transient"
+    },
+    {
+      "t": 30.6667,
+      "what": "swell>whip12",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 31.0,
+      "what": "mod:templates",
+      "kind": "transient"
+    },
+    {
+      "t": 31.3333,
+      "what": "mod:cases",
+      "kind": "transient"
+    },
+    {
+      "t": 31.6667,
+      "what": "mod:binvh",
+      "kind": "transient"
+    },
+    {
+      "t": 33.3333,
+      "what": "mod:engines",
+      "kind": "transient"
+    },
+    {
+      "t": 34.0,
+      "what": "mod:refs",
+      "kind": "transient"
+    },
+    {
+      "t": 34.6667,
+      "what": "mod:projects",
+      "kind": "transient"
+    },
+    {
+      "t": 36.0,
+      "what": "pipe:start",
+      "kind": "transient"
+    },
+    {
+      "t": 36.0,
+      "what": "riser>pipeline",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 36.3333,
+      "what": "node:1",
+      "kind": "transient"
+    },
+    {
+      "t": 36.6667,
+      "what": "node:2",
+      "kind": "transient"
+    },
+    {
+      "t": 37.0,
+      "what": "node:3",
+      "kind": "transient"
+    },
+    {
+      "t": 38.0,
+      "what": "gate1:hold",
+      "kind": "transient"
+    },
+    {
+      "t": 38.6667,
+      "what": "gate1:approve",
+      "kind": "transient"
+    },
+    {
+      "t": 38.6667,
+      "what": "gate1:clack",
+      "kind": "transient"
+    },
+    {
+      "t": 38.6667,
+      "what": "swell>gate1",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 39.0,
+      "what": "tick",
+      "kind": "transient"
+    },
+    {
+      "t": 40.6667,
+      "what": "gate2:hold",
+      "kind": "transient"
+    },
+    {
+      "t": 41.3333,
+      "what": "gate2:approve",
+      "kind": "transient"
+    },
+    {
+      "t": 41.3333,
+      "what": "gate2:clack",
+      "kind": "transient"
+    },
+    {
+      "t": 41.3333,
+      "what": "swell>gate2",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 42.6667,
+      "what": "fail:1",
+      "kind": "transient"
+    },
+    {
+      "t": 43.3333,
+      "what": "fail:2",
+      "kind": "transient"
+    },
+    {
+      "t": 44.0,
+      "what": "fail:3",
+      "kind": "transient"
+    },
+    {
+      "t": 46.6667,
+      "what": "pass",
+      "kind": "transient"
+    },
+    {
+      "t": 46.6667,
+      "what": "swell>pass",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 47.3333,
+      "what": "gate3:approve",
+      "kind": "transient"
+    },
+    {
+      "t": 47.3333,
+      "what": "gate3:clack",
+      "kind": "transient"
+    },
+    {
+      "t": 48.0,
+      "what": "final",
+      "kind": "transient"
+    },
+    {
+      "t": 48.0,
+      "what": "hold:final",
+      "kind": "transient"
+    },
+    {
+      "t": 49.3333,
+      "what": "feat:taste",
+      "kind": "transient"
+    },
+    {
+      "t": 49.3333,
+      "what": "riser>features",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 50.0,
+      "what": "taste:1",
+      "kind": "transient"
+    },
+    {
+      "t": 50.6667,
+      "what": "taste:2",
+      "kind": "transient"
+    },
+    {
+      "t": 51.3333,
+      "what": "taste:3",
+      "kind": "transient"
+    },
+    {
+      "t": 52.0,
+      "what": "feat:sound",
+      "kind": "transient"
+    },
+    {
+      "t": 52.0,
+      "what": "sound:voice",
+      "kind": "transient"
+    },
+    {
+      "t": 52.0,
+      "what": "swell>whip20",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 52.6667,
+      "what": "sound:captions",
+      "kind": "transient"
+    },
+    {
+      "t": 53.3333,
+      "what": "sound:score",
+      "kind": "transient"
+    },
+    {
+      "t": 54.0,
+      "what": "sound:sfx",
+      "kind": "transient"
+    },
+    {
+      "t": 54.6667,
+      "what": "curl:1",
+      "kind": "transient"
+    },
+    {
+      "t": 54.6667,
+      "what": "feat:install",
+      "kind": "transient"
+    },
+    {
+      "t": 54.6667,
+      "what": "swell>whip21",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 54.8333,
+      "what": "curl:2",
+      "kind": "transient"
+    },
+    {
+      "t": 55.0,
+      "what": "curl:3",
+      "kind": "transient"
+    },
+    {
+      "t": 55.1667,
+      "what": "curl:4",
+      "kind": "transient"
+    },
+    {
+      "t": 55.3333,
+      "what": "curl:5",
+      "kind": "transient"
+    },
+    {
+      "t": 55.5,
+      "what": "curl:6",
+      "kind": "transient"
+    },
+    {
+      "t": 55.6667,
+      "what": "curl:7",
+      "kind": "transient"
+    },
+    {
+      "t": 55.8333,
+      "what": "curl:8",
+      "kind": "transient"
+    },
+    {
+      "t": 56.0,
+      "what": "enter",
+      "kind": "transient"
+    },
+    {
+      "t": 56.6667,
+      "what": "scaffold",
+      "kind": "transient"
+    },
+    {
+      "t": 57.3333,
+      "what": "stars",
+      "kind": "transient"
+    },
+    {
+      "t": 57.5,
+      "what": "cases:1",
+      "kind": "transient"
+    },
+    {
+      "t": 57.6667,
+      "what": "cases:2",
+      "kind": "transient"
+    },
+    {
+      "t": 57.8333,
+      "what": "cases:3",
+      "kind": "transient"
+    },
+    {
+      "t": 58.0,
+      "what": "cases:4",
+      "kind": "transient"
+    },
+    {
+      "t": 58.1667,
+      "what": "cases:5",
+      "kind": "transient"
+    },
+    {
+      "t": 58.3333,
+      "what": "cases:6",
+      "kind": "transient"
+    },
+    {
+      "t": 58.5,
+      "what": "cases:7",
+      "kind": "transient"
+    },
+    {
+      "t": 58.6667,
+      "what": "cases:8",
+      "kind": "transient"
+    },
+    {
+      "t": 58.8333,
+      "what": "cases:9",
+      "kind": "transient"
+    },
+    {
+      "t": 59.0,
+      "what": "cases:10",
+      "kind": "transient"
+    },
+    {
+      "t": 59.1667,
+      "what": "cases:11",
+      "kind": "transient"
+    },
+    {
+      "t": 60.0,
+      "what": "impact:hall",
+      "kind": "transient"
+    },
+    {
+      "t": 60.0,
+      "what": "lead:theme",
+      "kind": "transient"
+    },
+    {
+      "t": 60.0,
+      "what": "riser>hall",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 62.0,
+      "what": "lead:theme-2",
+      "kind": "transient"
+    },
+    {
+      "t": 62.6667,
+      "what": "musicbox:1",
+      "kind": "transient"
+    },
+    {
+      "t": 62.8333,
+      "what": "musicbox:2",
+      "kind": "transient"
+    },
+    {
+      "t": 63.0,
+      "what": "musicbox:3",
+      "kind": "transient"
+    },
+    {
+      "t": 63.1667,
+      "what": "musicbox:4",
+      "kind": "transient"
+    },
+    {
+      "t": 63.3333,
+      "what": "musicbox:5",
+      "kind": "transient"
+    },
+    {
+      "t": 63.5,
+      "what": "musicbox:6",
+      "kind": "transient"
+    },
+    {
+      "t": 63.6667,
+      "what": "musicbox:7",
+      "kind": "transient"
+    },
+    {
+      "t": 63.8333,
+      "what": "musicbox:8",
+      "kind": "transient"
+    },
+    {
+      "t": 64.0,
+      "what": "musicbox:9",
+      "kind": "transient"
+    },
+    {
+      "t": 64.1667,
+      "what": "musicbox:10",
+      "kind": "transient"
+    },
+    {
+      "t": 64.3333,
+      "what": "musicbox:11",
+      "kind": "transient"
+    },
+    {
+      "t": 64.5,
+      "what": "musicbox:12",
+      "kind": "transient"
+    },
+    {
+      "t": 64.6667,
+      "what": "fourier:h1",
+      "kind": "transient"
+    },
+    {
+      "t": 65.3333,
+      "what": "fourier:h3",
+      "kind": "transient"
+    },
+    {
+      "t": 66.0,
+      "what": "fourier:h5",
+      "kind": "transient"
+    },
+    {
+      "t": 66.6667,
+      "what": "doppler",
+      "kind": "transient"
+    },
+    {
+      "t": 68.6667,
+      "what": "silent-film:1",
+      "kind": "transient"
+    },
+    {
+      "t": 69.3333,
+      "what": "silent-film:2",
+      "kind": "transient"
+    },
+    {
+      "t": 70.0,
+      "what": "silent-film:3",
+      "kind": "transient"
+    },
+    {
+      "t": 70.6667,
+      "what": "reveal",
+      "kind": "transient"
+    },
+    {
+      "t": 70.6667,
+      "what": "riser>reveal",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 70.6667,
+      "what": "swell>reveal",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 73.3333,
+      "what": "stem:kick",
+      "kind": "transient"
+    },
+    {
+      "t": 74.0,
+      "what": "stem:bass",
+      "kind": "transient"
+    },
+    {
+      "t": 74.6667,
+      "what": "stem:hats",
+      "kind": "transient"
+    },
+    {
+      "t": 75.3333,
+      "what": "stem:lead",
+      "kind": "transient"
+    },
+    {
+      "t": 76.0,
+      "what": "impact:title",
+      "kind": "transient"
+    },
+    {
+      "t": 76.0,
+      "what": "riser>title",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 76.0,
+      "what": "spark:title",
+      "kind": "transient"
+    },
+    {
+      "t": 76.0,
+      "what": "swell>title",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 76.0,
+      "what": "title-chord",
+      "kind": "transient"
+    },
+    {
+      "t": 78.0,
+      "what": "typing:1",
+      "kind": "transient"
+    },
+    {
+      "t": 78.1667,
+      "what": "typing:2",
+      "kind": "transient"
+    },
+    {
+      "t": 78.3333,
+      "what": "typing:3",
+      "kind": "transient"
+    },
+    {
+      "t": 78.5,
+      "what": "typing:4",
+      "kind": "transient"
+    },
+    {
+      "t": 78.6667,
+      "what": "typing:5",
+      "kind": "transient"
+    },
+    {
+      "t": 78.8333,
+      "what": "typing:6",
+      "kind": "transient"
+    },
+    {
+      "t": 79.0,
+      "what": "typing:7",
+      "kind": "transient"
+    },
+    {
+      "t": 79.1667,
+      "what": "typing:8",
+      "kind": "transient"
+    }
+  ],
+  "stops": [],
+  "holds": [
+    {
+      "start": 20.6667,
+      "end": 21.3333
+    },
+    {
+      "start": 38.0,
+      "end": 38.6667
+    },
+    {
+      "start": 40.6667,
+      "end": 41.3333
+    },
+    {
+      "start": 48.0,
+      "end": 49.3333
+    }
+  ],
+  "hits_note": "kind=transient hits are audible onsets (cue-checked in audio/check/cuecheck.txt); swell-peak entries mark where a riser / reverse swell culminates and are not onset cues. v3 has no stops: each former stop is a hold (held breath: a button hit on its first sample, drums out, bass and ostinato filter down, pad and sub sustain, a swell into the next downbeat).",
+  "fade": {
+    "start": 80.7,
+    "end": 81.2667
+  },
+  "master": {
+    "lufs": -14.51,
+    "true_peak_db": -1.91,
+    "max_gain_reduction_db": -3.08
+  }
+}

@@ -17,7 +17,7 @@ pitfalls: [seam-mismatch, glow-spill, text-blur]
 qa: {seam: 16, settle: 36}
 status: tuned
 pairs_with: [one-take-world-travel]
-impl: [showcase/04-intro-film/js/arch.js, showcase/04-intro-film/js/main.js]
+impl: [showcase/04-intro-film/js/arch.js, showcase/04-intro-film/js/pipeline.js, showcase/04-intro-film/js/main.js]
 derived_from: []
 ---
 
@@ -63,7 +63,7 @@ derived_from: []
 
 ## 实现
 
-介绍片（`showcase/04-intro-film/`）有两处：`js/main.js` 里第 9 小节的 9 个光环（S4 → S5），`js/arch.js` 里 `projects/` 那个可以穿过去的六边形节点（`shape: "portal"`，S5 → S6）。下面是 2D 的草图：用 1/距离算门和门后世界各自的缩放。
+介绍片（`showcase/04-intro-film/`）有几处：v3 在 `js/main.js` 里第 9 小节的 9 个光环（S4 → S5，v5 的正文从第 10 小节开始，看不到这一处）；`js/arch.js` 里 `projects/` 那个可以穿过去的六边形节点（`shape: "portal"`，S5 → S6）；v5 的 `js/pipeline.js` 里三道人工关卡，门里是被审的那份东西（这支片子自己的大纲、分镜联系表、初版联系表），镜头靠近时它铺满门框，穿过之前淡掉。下面是 2D 的草图：用 1/距离算门和门后世界各自的缩放。
 
 ```js
 // gate-as-door（2D 近似）：镜头 z 从 8 走到 10.4，门在 z=10（距离 1 时正好铺满画面，约第 17 帧），门后的世界在 z=14。
@@ -104,7 +104,7 @@ function page(ctx, tokens, lib, seed, a) {                             // 灰盒
 - **门的光变成闪白**：门亮用门自己的材质，亮度不压过画面里的字；整画面闪白另算次数（playbook/08 的底线）。
 - **穿门时有字**：穿门的那几帧最快，字都会被抹花；门框上的标签在穿门前就淡出，下一章的字在接管之后再出。
 - **穿过去就转向**：方向一变，穿门就读成切换。穿过去之后继续向前，下一次转向留给下一跳。
-- **还没有人工判定**：介绍片（showcase 04）v3 的三处穿帧用它；这一版过了两轮独立 reviewer，成片仍待用户本人观看（`showcase/04-intro-film/REVIEW.md` 关卡 ③；v2 的人工意见是"不够炫酷"，这一手法是 v3 为此加的）。有人看过、给了判定，就升 `battle-tested`，把判定记在这里。
+- **还没有人工判定**：介绍片（showcase 04）v3 的三处穿帧用它；这一版过了两轮独立 reviewer，成片仍待用户本人观看（`showcase/04-intro-film/v3/REVIEW.md` 关卡 ③；v2 的人工意见是"不够炫酷"，这一手法是 v3 为此加的）。有人看过、给了判定，就升 `battle-tested`，把判定记在这里。
 
 ## 验收帧
 

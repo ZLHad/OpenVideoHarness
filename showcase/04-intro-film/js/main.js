@@ -1,6 +1,6 @@
 // OpenVideoHarness intro film: one continuous camera through one world.
 // Every frame is a pure function of t (HyperFrames publishes t via "hf-seek").
-// Grid: 90 BPM, 30 fps -> beat = 20 frames, 16th = 5 frames, bar = 80 frames; 30 bars (bar 11 in 6/4) = 2440 frames (v3 Phase B).
+// Grid: 80 BPM in v5 (90 in v3), 30 fps -> beat = 22.5 frames, bar = 90 frames; 30 bars (bar 11 in 6/4) = 91.5 s. v5 shows it from bar 10 on.
 // Sections: S1 hook 1–3 · S2 program 4–6 · S3 problem 7–8 · S4 braam 9 · S5 architecture 10–13 (arch.js) · S6 workflow 14–18 (pipeline.js)
 //           S7 features 19–21 + S8 cases 22 (features.js) · S9 proof hall 23–26 · S10 reveal 27–28 · S11 title 29–30.
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
@@ -13,9 +13,10 @@ import { buildArch } from "./arch.js";
 import { buildPipeline } from "./pipeline.js";
 import { buildFeatures } from "./features.js";
 
-export const BPM = 90, BEAT = 60 / BPM, BAR = 4 * BEAT, FPS = 30, S16 = BEAT / 4;
+export const BPM = 80, BEAT = 60 / BPM, BAR = 4 * BEAT, FPS = 30, S16 = BEAT / 4;
 // bar k (1-based), beat offset b (0-based, may be fractional). Bar 11 is a 6/4 bar (the 8-type list holds 2 extra beats),
-// so every bar from 12 on starts 2 beats later than a plain 4/4 grid: 30 bars = 81.333 s = 2440 frames.
+// so every bar from 12 on starts 2 beats later than a plain 4/4 grid: 30 bars = 91.5 s = 2745 frames (the old timeline;
+// js/tmap.js stretches it to the film's 150.5 s).
 export const bar = (k, b = 0) => (k - 1) * BAR + b * BEAT + (k >= 12 ? 2 * BEAT : 0);
 export const DUR = bar(31);
 const barBeat = (t) => { // the true bar.beat under the 6/4 bar (for the HUD)
@@ -44,15 +45,23 @@ export function boot(THREE) {
   window.__hf = window.__hf || {};
   window.__hf.buildReady = window.__hf.buildReady || {};
   let renderAt = () => {};
-  const ready = build(THREE).then((fn) => { renderAt = fn; renderAt((window.__T0 || 0) + (window.__hfThreeTime || 0)); if (window.__introReady) window.__introReady(); });
+  // v5: the film's time tn → the story's old time (js/tmap.js stretches the holds); ambient motion keeps the film's time
+  const seek = (tn) => {
+    const old = window.__tOld || ((x) => x), to = old(tn); if (to < (window.__BODY_FROM ?? -1)) return;
+    const T0 = window.__T0 || 0, rate = (to - old(tn - 1 / 30)) * 30;   // story seconds per film second at tn (< 1 in a stretched hold)
+    renderAt(T0 + to, T0 + tn, rate);
+  };
+  const ready = build(THREE).then((fn) => { renderAt = fn; seek(window.__hfThreeTime || 0); if (window.__introReady) window.__introReady(); },
+    (e) => { console.error("intro-world: build failed:", e && e.stack || e); throw e; });   // never a silent black film
   if (!window.__introReady) window.__hf.buildReady["intro-world"] = ready;
-  window.addEventListener("hf-seek", (e) => renderAt((window.__T0 || 0) + e.detail.time));
+  window.addEventListener("hf-seek", (e) => seek(e.detail.time));
 }
 
 async function build(THREE) {
   const DATA = await (await fetch("assets/data.json")).json();
   const { id: FXID, P } = readPreset();
-  let BEATS = null; try { const r = await fetch("audio/music.beats.json"); if (r.ok) BEATS = await r.json(); } catch (e) {}
+  // the body score's beat map on the old timeline (written by audio/score_engine.py from audio/score.base.json): the pulses
+  let BEATS = null; try { const r = await fetch("audio/music.beats.json"); if (r.ok) BEATS = await r.json(); else console.warn("intro-world: no audio/music.beats.json, the beat pulses are off"); } catch (e) { console.warn("intro-world: beat map:", e); }
   const PUL = makePulses(BEATS, bar);
   let ONSCREEN = [];
   try { const r = await fetch("audio/onscreen-code.txt"); if (r.ok) ONSCREEN = (await r.text()).split("\n").filter((l) => l.trim()); } catch (e) {}
@@ -73,7 +82,17 @@ async function build(THREE) {
 
   const loader = new THREE.TextureLoader();
   const loadTex = (url) => new Promise((res) => loader.load(url, (tx) => { tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 8; res(tx); }, undefined, () => res(null)));
-  const [atlas, selfSheet] = await Promise.all([loadTex("assets/tex/atlas.jpg"), loadTex("assets/tex/self-sheet.png")]);
+  const [atlas, selfSheet, sb02, draft02, loop02] = await Promise.all(["atlas.jpg", "self-sheet.png", "02-storyboard.png", "02-draft-sheet.png", "02-loop.png"].map((f) => loadTex("assets/tex/" + f)));
+  // the gates show the request's own artifacts (showcase 02, the vertical short the terminal asked for; tools/request_tex.py)
+  const outlineTex = (() => { // gate ① art: 02's outline, its STORYBOARD.md shot list (texture, not a read)
+    const c = document.createElement("canvas"); c.width = 1600; c.height = 900; const g = c.getContext("2d");
+    g.fillStyle = "#0d0d10"; g.fillRect(0, 0, 1600, 900); g.strokeStyle = "#3a3a40"; g.lineWidth = 4; g.strokeRect(2, 2, 1596, 896);
+    g.fillStyle = "#8b8b94"; g.font = '400 40px "SF Mono", Menlo, monospace'; g.fillText("BRIEF.md · outline · 02 低轨卫星的多普勒", 90, 110);
+    const rows = [["S1", "钩子", "卫星信号会变调"], ["S2", "飞得快", "低轨卫星，飞得极快"], ["S3", "靠近", "波变密，频率升高"], ["S4", "过顶", "频移归零"], ["S5", "远离", "波变疏，频率降低"], ["S6", "量级", "2 GHz ±50 kHz；20 GHz 再大 10 倍"], ["S7", "补偿", "轨道已知，能提前算出"]];   // showcase/02's STORYBOARD.md shots
+    rows.forEach(([n, a, r], i) => { const y = 215 + i * 96; g.fillStyle = "#FFB224"; g.font = '500 46px "SF Mono", Menlo, monospace'; g.fillText(n, 90, y);
+      g.fillStyle = "#EDEDEF"; g.font = '500 52px "PingFang SC", sans-serif'; g.fillText(a, 190, y);
+      g.fillStyle = "#C4C4CC"; g.font = '400 48px "PingFang SC", sans-serif'; g.fillText(r, 520, y); });
+    const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 8; return tx; })();
 
   // ---------- text planes (canvas → texture) ----------
   const FONT_EN = '"SF Pro Display", system-ui, -apple-system, sans-serif';
@@ -104,8 +123,9 @@ async function build(THREE) {
   }
   const onTop = (m) => { m.material.depthTest = false; m.renderOrder = 10; return m; };
   const quietTex = (() => { const c = document.createElement("canvas"); c.width = 256; c.height = 128; const g = c.getContext("2d");
-    const gr = g.createRadialGradient(128, 64, 8, 128, 64, 128); gr.addColorStop(0, "rgba(6,7,8,0.92)"); gr.addColorStop(0.55, "rgba(6,7,8,0.7)"); gr.addColorStop(1, "rgba(6,7,8,0)");
-    g.fillStyle = gr; g.fillRect(0, 0, 256, 128); const tx = new THREE.CanvasTexture(c); return tx; })();
+    // an ellipse that fades to nothing on all four sides (the old circle was cut by the canvas top and bottom: it read as a box)
+    const gr = g.createRadialGradient(128, 128, 8, 128, 128, 128); gr.addColorStop(0, "rgba(6,7,8,0.94)"); gr.addColorStop(0.62, "rgba(6,7,8,0.82)"); gr.addColorStop(1, "rgba(6,7,8,0)");
+    g.setTransform(1, 0, 0, 0.5, 0, 0); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); const tx = new THREE.CanvasTexture(c); return tx; })();
   function quiet(m, k = 1.5) { // the background goes quiet under big type (a soft dark plate behind it, in the world)
     const w = m.geometry.parameters.width, h = m.geometry.parameters.height;
     const q = new THREE.Mesh(new THREE.PlaneGeometry(w * k, h * (k + 0.5)), new THREE.MeshBasicMaterial({ map: quietTex, transparent: true, opacity: 0, depthTest: false, depthWrite: false, toneMapped: false }));
@@ -113,8 +133,8 @@ async function build(THREE) {
   }
   const fontStr = (l) => `${l.weight || 600} ${l.size}px ${l.font || FONT_EN}`;
   let dynSeed = 1;
-  function dynPlane(lines, { pxPerUnit = 100, lineGap = 0.4 } = {}) { // decode/scramble type (v3); falls back to a static look when P.decode = 0
-    const D = makeDynText(THREE, lines, { lineGap, fontStr, spread: P.decode ? 0.22 : 0.0001, seed: (dynSeed += 17) });
+  function dynPlane(lines, { pxPerUnit = 100, lineGap = 0.4, decodeDur = 0.2 } = {}) { // decode/scramble type (v3); falls back to a static look when P.decode = 0
+    const D = makeDynText(THREE, lines, { lineGap, fontStr, spread: P.decode ? 0.22 : 0.0001, seed: (dynSeed += 17), decodeDur });
     const mat = textMaterial(THREE, D.tex); mat.depthTest = false;
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(D.canvas.width / pxPerUnit, D.canvas.height / pxPerUnit), mat);
     mesh.renderOrder = 10; mesh.userData.base = mesh.position.clone(); mesh.userData.dyn = D; mesh.userData.contentFrac = D.contentFrac; return mesh;
@@ -122,7 +142,8 @@ async function build(THREE) {
   const hero = (en, zh, { enSize = 150, zhSize = 0, enColor = FG } = {}) =>
     quiet(dynPlane([...en.split("\n").map((l) => ({ text: l, size: enSize, weight: 600, color: enColor, track: -0.025 })), ...(zh ? [{ text: zh, size: zhSize || Math.round(enSize * 0.62), weight: 500, font: FONT_ZH, color: "#D6D6DC" }] : [])]));
   // kinetic "slam": rise + settle scale on entry (easeOutExpo), fade out at exit
-  function slam(m, t, tIn, tOut, { rise = 0.25, sc = 1.08, fi = 0.5, fo = 0.6, maxO = 1 } = {}) {
+  const NODEC = { decode: 0 };   // draw state for type that lands without the decode scramble
+  function slam(m, t, tIn, tOut, { rise = 0.25, sc = 1.08, fi = 0.5, fo = 0.6, maxO = 1, nodec = 0 } = {}) {
     const u = eOutExpo(seg(t, tIn, tIn + 0.9));
     m.material.opacity = maxO * win(t, tIn, tOut, fi, fo);
     m.visible = m.material.opacity > 0.001;
@@ -133,7 +154,7 @@ async function build(THREE) {
     const s = lerp(sc, 1, u) * (m.userData.fit || 1); m.scale.set(s, s, 1);
     const D = m.userData.dyn;
     if (D && m.visible) {
-      D.draw(t - tIn, P);
+      D.draw(t - tIn, nodec ? NODEC : P);
       const U = m.material.uniforms;
       U.uSweep.value = P.sweep ? lerp(-0.25, 1.25, seg(t, tIn + 0.35, tIn + 1.05)) : -1;
       U.uGlitch.value = P.glitchExit * seg(t, tOut - 0.22, tOut) + (P.glitchFrame ? 0.25 * seg(t, tIn, tIn + 0.12) * (1 - seg(t, tIn + 0.12, tIn + 0.3)) : 0);
@@ -150,7 +171,7 @@ async function build(THREE) {
     m.position.copy(camera.position).addScaledVector(_f, d).addScaledVector(_u, dy * visW / camera.aspect / 2 - (m.userData.riseOff || 0) * 0.3).addScaledVector(_r, dx * visW / 2);
     m.quaternion.copy(camera.quaternion);
   }
-  const slamView = (m, t, tIn, tOut, d, frac, dx = 0, dy = 0) => { slam(m, t, tIn, tOut, { fo: 0.35 }); if (m.visible) rideView(m, d, frac, dx, dy); };
+  const slamView = (m, t, tIn, tOut, d, frac, dx = 0, dy = 0, nodec = 0) => { slam(m, t, tIn, tOut, { fo: 0.35, nodec }); if (m.visible) rideView(m, d, frac, dx, dy); };
   // pin: a camera-facing label anchored to a world point, sized in screen pixels (k = screen px per canvas px),
   // offset (dx, dy) in screen px; ax/ay choose which edge of the label sits on the offset point. Returns a near-fade 0..1.
   const _pf = new THREE.Vector3(), _pu = new THREE.Vector3(), _pr = new THREE.Vector3(), _pd = new THREE.Vector3();
@@ -400,7 +421,8 @@ async function build(THREE) {
   const key = (t, p, l, fov = 40, stop = false, tm = null) => K.push({ t, p, l, fov, stop, tm });
 
   // --- S5–S8 live in their own modules (they add their camera keys) ---
-  const X = { scene, key, V, textPlane, dynPlane, quiet, hero, slamView, barMat, setAmber, sprite, glowTex, softTex, FONT_MONO, FONT_ZH, FONT_EN, P, bar, BEAT, S16, seg, win, lerp, eOutExpo, eOutCubic, eInOut, clamp, hash, pin, tubeMat, WAVE, DUR };
+  const film02 = new THREE.VideoTexture(document.getElementById("v02k")); film02.colorSpace = THREE.SRGBColorSpace; VIDTEX.push(film02);   // the final cut: 02 itself
+  const X = { gateTex: { R1: outlineTex, R2: sb02, R3: draft02, K: film02, LOOP: loop02 }, scene, key, V, textPlane, dynPlane, quiet, hero, slamView, barMat, setAmber, sprite, glowTex, softTex, FONT_MONO, FONT_ZH, FONT_EN, P, bar, BEAT, S16, seg, win, lerp, eOutExpo, eOutCubic, eInOut, clamp, hash, pin, tubeMat, WAVE, DUR };
   const ARCH = buildArch(THREE, X);
   const PIPE = buildPipeline(THREE, X);
   const FEAT = buildFeatures(THREE, X);
@@ -419,7 +441,7 @@ async function build(THREE) {
     { id: "v01", x: HX - 6.8, y: 2.3, s: 100, ry: 0.42, w: 7.2, h: 4.05, n: "01", type: "HAND-DRAWN SHORT", meta: "p5.brush · 12 s · 1080p24 | 57 s render · 3 review rounds", tFocus: bar(24, 0) },
     { id: "v03", x: HX + 6.8, y: 2.6, s: 116, ry: -0.42, w: 7.2, h: 4.05, n: "03", type: "3B1B-STYLE MATH EXPLAINER", meta: "Manim CE 0.21 · 25 s · 1080p30 | 24 s render", tFocus: bar(24, 3) },
     { id: "v02", x: HX - 5.6, y: 3.1, s: 132, ry: 0.38, w: 3.3, h: 5.87, n: "02", type: "VERTICAL SCIENCE SHORT", meta: "HyperFrames · 24.8 s · 1080×1920 | 46 s render", tFocus: bar(25, 2) },
-    { id: "v00", x: HX + 6.4, y: 2.3, s: 148, ry: -0.42, w: 7.2, h: 4.05, n: "00", type: "LAUNCH FILM · SILENT", meta: "HyperFrames · 20 s · 1920×1080 | ~30 s render", tFocus: bar(26, 1) },
+    { id: "v00", x: HX + 6.4, y: 2.3, s: 148, ry: -0.42, w: 7.2, h: 4.05, n: "00", type: "LAUNCH SHORT", meta: "HyperFrames · 20 s · 1920×1080 | ~30 s render", tFocus: bar(26, 1) },
   ].map((m) => {
     const grp = new THREE.Group();
     const scr = new THREE.Mesh(new THREE.PlaneGeometry(m.w, m.h), new THREE.MeshBasicMaterial({ map: vt(m.id), color: new THREE.Color().setScalar(m.id === "v00" ? 0.95 : 1.15), toneMapped: false, fog: false })); // lifted (the films are the evidence); 00 is white-on-black, kept under the bloom threshold
@@ -427,18 +449,25 @@ async function build(THREE) {
     const back = new THREE.Mesh(new THREE.BoxGeometry(m.w + 0.3, m.h + 0.3, 0.4), new THREE.MeshBasicMaterial({ color: 0x0c0c0e, fog: true })); back.position.z = -0.25;
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(m.w * 2.6, m.h * 2.6), new THREE.MeshBasicMaterial({ map: neutralTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.0, toneMapped: false, fog: false })); halo.position.z = -0.6;
     grp.add(halo, back, scr, frame);
+    const vk = m.h > m.w ? 1.25 : 1; // the vertical film is narrower: its caption gets the same screen size as the others
     const lab = onTop(textPlane([
-      { text: `${m.n}  ${m.type}`, size: 62, weight: 600, color: FG, track: 0.04 },
-      ...m.meta.split(" | ").map((ln) => ({ text: ln, size: 48, weight: 400, font: FONT_MONO, color: "#B4B4BC" })),
+      { text: `${m.n}  ${m.type}`, size: Math.round(62 * vk), weight: 600, color: FG, track: 0.04 },
+      ...m.meta.split(" | ").map((ln) => ({ text: ln, size: Math.round(48 * vk), weight: 400, font: FONT_MONO, color: "#B4B4BC" })),
     ], { pxPerUnit: 160, align: "left", lineGap: 0.35 }));
     lab.position.set(-m.w / 2 + lab.geometry.parameters.width / 2 - 0.1, -m.h / 2 - 0.15 - lab.geometry.parameters.height / 2, 0.05); lab.userData.base = lab.position.clone();
     const sh = shaft(m.w * 0.9, 18); sh.position.set(0, 3.5, -1.2); sh.material.opacity = 0.1; grp.add(sh);
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(m.w * 1.8, m.w * 0.9), new THREE.MeshBasicMaterial({ map: neutralTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.55, toneMapped: false, fog: false })); pool.rotation.x = -Math.PI / 2; pool.position.set(0, -m.h / 2 - 1.2, 1.2); grp.add(pool);
     grp.add(lab);
+    let link = null;
+    if (m.id === "v02") { // 02 is the answer to the request typed at the start: say so, in the empty side of the frame
+      link = onTop(textPlane([{ text: "The request", size: 64, weight: 600, color: FG, track: -0.01 }, { text: "from the start", size: 64, weight: 600, color: FG, track: -0.01 }, { text: "→ this film.", size: 64, weight: 600, color: FG, track: -0.01 },   // white: amber vanished into the hall's amber streak
+        { text: "开头那句需求", size: 54, weight: 500, font: FONT_ZH, color: "#D6D6DC" }, { text: "就是这支片子。", size: 54, weight: 500, font: FONT_ZH, color: "#D6D6DC" }], { pxPerUnit: 150, align: "right", lineGap: 0.28 }));
+      link.position.set(-m.w / 2 - 0.45 - link.geometry.parameters.width / 2, 0.9, 0.05); grp.add(link);
+    }
     inLane(grp, m.x, m.y, m.s, m.ry);
-    return { ...m, grp, scr, halo, lab };
+    return { ...m, grp, scr, halo, lab, link };
   });
-  const T13 = inLane(hero("Made by an agent,\nfollowing only these docs.", "都是 agent 只照着这套文档做的。", { enSize: 150 }), HX, 6.4, 106);
+  const T13 = inLane(hero("Made by an agent\nfrom this repo's docs alone.", "都是 agent 只照本仓库的文档做的。", { enSize: 150 }), HX, 6.4, 106);
 
   // --- S10: this film's own contact sheet as a monument; the score as code; S11 the title ---
   const MW = { x: HX, y: 9.8, s: 196, cols: 10, rows: 6, tw: 4.2, th: 2.3625, gap: 0.18 };
@@ -474,18 +503,18 @@ async function build(THREE) {
   }
   const playhead = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.7, 0.03), barMat(2.6)); lane2.add(playhead);
   const TITLE = inLane(textPlane([{ text: "OpenVideoHarness", size: 220, weight: 600, color: FG, track: -0.03 }], { pxPerUnit: 118 }), HX, 10.35, MW.s - 0.5);
-  const TAG = inLane(textPlane([{ text: "Video as code, for coding agents.", size: 84, weight: 400, color: "#C9C9D0" }, { text: "给 coding agent 的视频工作台", size: 84, weight: 400, font: FONT_ZH, color: "#B4B4BC" }], { pxPerUnit: 118, lineGap: 0.35 }), HX, 8.05, MW.s - 0.5);
+  const TAG = inLane(textPlane([{ text: "Video as code, for coding agents.", size: 100, weight: 400, color: "#D4D4DA" }, { text: "给 coding agent 的视频工作台", size: 100, weight: 400, font: FONT_ZH, color: "#C4C4CC" }], { pxPerUnit: 118, lineGap: 0.35 }), HX, 7.95, MW.s - 0.5);
   const CTA = inLane(textPlane([
     { text: "$ bin/vh new <type> <slug>", size: 86, weight: 400, font: FONT_MONO, color: FG },
     { text: "github.com/ZLHad/OpenVideoHarness", size: 86, weight: 400, font: FONT_MONO, color: AMB },
   ], { pxPerUnit: 118, lineGap: 0.5 }), HX, 5.75, MW.s - 0.5);
-  const titleBar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.9, 0.05), barMat(2.6)); lane2.add(titleBar);
+  const titleBar = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.9, 0.05), barMat(1.7)); lane2.add(titleBar);
   // the CTA types in on the score's 8 typing 16ths (29:4 → 30:1.75); same layout as textPlane, so nothing shifts
   const CTA_L = [{ text: "$ bin/vh new <type> <slug>", color: FG }, { text: "github.com/ZLHad/OpenVideoHarness", color: AMB }];
   const ctaC = CTA.material.map.image, ctaG = ctaC.getContext("2d"); let ctaKey = null;
   function drawCTA(t) {
     const total = CTA_L[0].text.length + CTA_L[1].text.length;
-    const k = t < bar(29, 3) ? 0 : Math.min(8, Math.floor((t - bar(29, 3)) / S16 + 1e-6) + 1), n = Math.round(total * k / 8);
+    const k = t < bar(29, 2) ? 0 : Math.min(8, Math.floor((t - bar(29, 2)) / S16 + 1e-6) + 1), n = Math.round(total * k / 8);
     const cur = k < 8 ? Math.floor(t * 5) % 2 : 0, key = `${n}|${cur}`; if (key === ctaKey) return; ctaKey = key;
     ctaG.clearRect(0, 0, ctaC.width, ctaC.height); ctaG.font = `400 86px ${FONT_MONO}`; ctaG.textBaseline = "top"; ctaG.letterSpacing = "0px";
     let y = 24, left = n;
@@ -513,10 +542,10 @@ async function build(THREE) {
   key(bar(9) - 0.66, V(0, 1.45, -172), V(0, 1.6, -205), 40);
   key(bar(9), V(0, 1.55, -178), V(0, 1.9, -214), 42);
   key(bar(10) - 0.35, V(0, 1.95, -187), V(0, 2.0, -232), 42);
-  // S9 proof hall (after the star map), a slow slide past each screen
+  // S9 proof hall (after the star map), a slow slide past each screen (the tall film from further back: its caption stays inside the safe frame)
   key(bar(23, 1.2), L2(HX, 4.6, 86), L2(HX, 2.6, 128), 44);
   const camFor = (m, d, dy = -0.45) => [L2(m.x + Math.sin(m.ry) * d, m.y + dy + 0.2, m.s - Math.cos(m.ry) * d), L2(m.x, m.y + dy, m.s)];
-  MON.forEach((m) => { const vert = m.h > m.w; const [p0, l0] = camFor(m, vert ? 12.4 : 8.9, vert ? -0.75 : -0.85); const [p1, l1] = camFor(m, vert ? 11.8 : 8.3, vert ? -0.75 : -0.85); key(m.tFocus + 0.45 * BEAT, p0, l0, 40, false, "f"); key(m.tFocus + 2.55 * BEAT, p1, l1, 40, false, "b"); });
+  MON.forEach((m) => { const vert = m.h > m.w; const [p0, l0] = camFor(m, vert ? 11.8 : 8.9, vert ? -1.1 : -0.85); const [p1, l1] = camFor(m, vert ? 11.3 : 8.3, vert ? -1.1 : -0.85); key(m.tFocus + 0.45 * BEAT, p0, l0, 40, false, "f"); key(m.tFocus + 2.55 * BEAT, p1, l1, 40, false, "b"); });
   // S10 reveal: rise and pull back to the monument
   key(bar(27, 2), L2(HX, 5.2, 163), L2(HX, 8.2, MW.s), 46);
   key(bar(28), L2(HX, 7.3, 174.5), L2(HX, 7.5, MW.s), 44);
@@ -532,6 +561,9 @@ async function build(THREE) {
   const WHIPS = [[bar(3) - 0.1, 0.45], [bar(4), 0.4], [bar(7) - 0.15, 0.4], [bar(9) - 0.08, 0.3], ...ARCH.whips, ...PIPE.whips, ...FEAT.whips,
     [bar(23) + 0.1, 0.5], ...MON.slice(1).map((m) => [m.tFocus - 0.07, 0.4]), [bar(27, 1), 0.5], [bar(29) + 0.7, 0.4]].map(([t, h]) => ({ t, h }));
   const warp = makeWarp(WHIPS, P.whip);
+  // the three big moves keep the lens streaks (the dive into the repo, into the proof hall, into "this film, too"); the
+  // other whips are plain camera moves (round 3: one streak-whip repeated twelve times)
+  const BIGT = [bar(10) + 0.15, bar(23) + 0.1, bar(27, 1)], BIGW = (t) => Math.max(0, ...BIGT.map((w) => Math.exp(-(((t - w) / 0.6) ** 2))));
   const camP = (t) => herm((k) => k.p, warp(t)), camL = (t) => herm((k) => k.l, warp(t)), camF = (t) => herm((k) => k.fov, warp(t));
   function fitAt(m, tq, frac) { // size a world-fixed text so it spans `frac` of the frame width at its read moment
     scene.updateMatrixWorld(true);
@@ -595,6 +627,38 @@ async function build(THREE) {
   // particles: depth sparks along the whole camera path, data streams on the t-axis, warp lines at the lens
   const pathSamples = []; for (let i = 0; i <= 480; i++) pathSamples.push(camP((i / 480) * DUR)); [ARCH, PIPE, FEAT].forEach((M) => M.samples.forEach((q) => pathSamples.push(q)));
   const sparks = makeSparks(THREE, pathSamples, 9000); scene.add(sparks); sparks.visible = P.sparks > 0; sparks.material.uniforms.uAmt.value = P.sparks;
+  // v5: the archive is made of films. Small frames of the opening's films (the same atlases) drift beside the camera path,
+  // so "every star is a film" carries on into the body. Instanced billboards; each plays its film from t.
+  const filmField = await (async () => {
+    const [tP, tR, tA] = await Promise.all([loadTex("assets/films-proc.png"), loadTex("assets/films.jpg"), loadTex("assets/films-ai.jpg")]);
+    if (!tP || !tR || !tA) return null;
+    tP.colorSpace = THREE.NoColorSpace;                    // stored gamma-encoded without a tag (decoded in the shader)
+    const NF = 1000, geo = new THREE.PlaneGeometry(1, 0.5625);
+    const pos = new Float32Array(NF * 3), film = new Float32Array(NF * 4);
+    for (let i = 0; i < NF; i++) {
+      const q = pathSamples[Math.floor(hash(i * 2.37 + 0.3) * pathSamples.length)];
+      const a = hash(i * 3.11 + 0.7) * Math.PI * 2, r = 2.8 + 9 * Math.pow(hash(i * 4.29 + 0.1), 0.8);
+      pos.set([q.x + Math.cos(a) * r, q.y + Math.sin(a) * r * 0.6, q.z + (hash(i * 5.73) - 0.5) * 6], i * 3);
+      const k = hash(i * 6.91 + 0.2), kind = k < 0.4 ? 2 : k < 0.65 ? 1 : 0;
+      film.set([kind, Math.floor(hash(i * 7.77 + 0.4) * (kind === 2 ? 40 : kind === 1 ? 41 : 28)), hash(i * 8.13) * 16, 0.45 + 0.7 * hash(i * 9.37)], i * 4);
+    }
+    geo.setAttribute("aPos", new THREE.InstancedBufferAttribute(pos, 3)); geo.setAttribute("aFilm", new THREE.InstancedBufferAttribute(film, 4));
+    const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, toneMapped: false,
+      uniforms: { tP: { value: tP }, tR: { value: tR }, tA: { value: tA }, uT: { value: 0 }, uAmt: { value: 0 }, uFog: { value: 0.02 } },
+      vertexShader: `attribute vec3 aPos; attribute vec4 aFilm; varying vec2 vUv; varying vec4 vFilm; varying float vFade;
+        void main(){ vUv = uv; vFilm = aFilm; vec4 mv = modelViewMatrix * vec4(aPos, 1.0); mv.xy += position.xy * aFilm.w;
+          float d = -mv.z; vFade = exp(-0.012 * d * d * 0.02) * smoothstep(4.0, 9.0, d); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform sampler2D tP, tR, tA; uniform float uT, uAmt; varying vec2 vUv; varying vec4 vFilm; varying float vFade;
+        vec3 tap(float fr){ float kind = vFilm.x, rows = kind < 0.5 ? 28.0 : (kind < 1.5 ? 41.0 : 40.0);
+          vec2 a = vec2((fr + 0.5 + (vUv.x - 0.5) * 0.99) / 16.0, 1.0 - (vFilm.y + 0.5 - (vUv.y - 0.5) * 0.99) / rows);
+          if (kind < 0.5) return pow(texture2D(tP, a).rgb, vec3(2.2)); if (kind < 1.5) return texture2D(tR, a).rgb; return texture2D(tA, a).rgb; }
+        float frameOf(float k){ float m = mod(k, 30.0); return vFilm.x > 0.5 ? (m < 16.0 ? m : 30.0 - m) : mod(k, 16.0); }
+        void main(){ float f = uT * 8.0 + vFilm.z, k0 = floor(f); vec3 c = mix(tap(frameOf(k0)), tap(frameOf(k0 + 1.0)), f - k0);
+          vec2 e = min(vUv, 1.0 - vUv); float edge = 1.0 - smoothstep(0.0, 0.03, min(e.x * 1.78, e.y));
+          c = c * 0.36 + vec3(1.0, 0.72, 0.3) * edge * 0.2;
+          gl_FragColor = vec4(c, uAmt * vFade); }` });
+    const mesh = new THREE.InstancedMesh(geo, mat, NF); mesh.frustumCulled = false; mesh.renderOrder = -100; scene.add(mesh); return mesh;
+  })();
   const streams = makeStreams(THREE); scene.add(streams);
   const warpLines = makeWarpLines(THREE); camera.add(warpLines); scene.add(camera);
   const hudx = document.getElementById("hudx");
@@ -605,14 +669,16 @@ async function build(THREE) {
   // =====================================================================
   // RENDER AT t
   // =====================================================================
-  return function renderAt(t) {
-    t = Math.round(clamp(t, 0, DUR) * FPS) / FPS + 1e-4; // on the frame grid, nudged so hits stored as rounded seconds land on their own frame
-    const frame = Math.round(t * FPS);
+  return function renderAt(t, ta = t, rate = 1) {   // t: the story's time (old, stretched holds); ta: ambient time (the film's own clock)
+    // the film's time (ta) is on the frame grid; the story's time is continuous: snapping it too would make a stretched
+    // hold (where it runs at a fraction of real speed) hold still for frames and then step (judder)
+    t = clamp(t, 0, DUR) + 1e-4;
+    const frame = Math.round(ta * FPS);
     // camera: keyframed path through speed-ramped time + seeded shake + handheld drift + FOV punch on the big hits
-    const p = camP(t).add(shake(t)).add(hand(t)), l = camL(t);
+    const p = camP(t).add(shake(t)).add(hand(ta)), l = camL(t);
     let punch = 0; for (const h of PUNCHES) { const u = t - h; if (u >= 0 && u < 1.2) punch += 3.5 * Math.exp(-u / 0.22); }
     camera.position.copy(p); camera.fov = camF(t) - punch * P.fovPunch; camera.updateProjectionMatrix(); camera.lookAt(l);
-    if (P.hand) camera.rotateZ(0.004 * P.hand * Math.sin(0.7 * t + 0.5));
+    if (P.hand) camera.rotateZ(0.004 * P.hand * Math.sin(0.7 * ta + 0.5));
     camera.updateMatrixWorld(true);
 
     // global light level: blackout before the braam
@@ -684,12 +750,12 @@ async function build(THREE) {
     // S4: rings light in a wave on the braam
     rings.forEach((r) => { const a = t - r.userData.tIn; const k = a < 0 ? 0 : 1.1 + 3.2 * Math.exp(-a / 0.4); setAmber(r.userData.mat, k * 0.75); r.visible = t > bar(9) - 0.01 && t < bar(10, 2); });
     shafts4.forEach((s, i) => { s.material.opacity = 0.55 * win(t, bar(9) + i * 0.05, bar(10, 1), 0.3, 0.8); s.visible = s.material.opacity > 0; });
-    slam(T8, t, bar(9), bar(10) - 0.12, { sc: 1.12, rise: 0.1, fi: 0.25, fo: 0.35 }); if (T8.visible) { rideView(T8, 12, 0.68, 0, 0.02); T8.userData.quiet.material.opacity = 0.85 * T8.material.opacity; }
+    slam(T8, t, bar(9), bar(10) - 0.12, { sc: 1.12, rise: 0.1, fi: 0.25, fo: 0.35 }); if (window.__T0) T8.visible = false; if (T8.visible) { rideView(T8, 12, 0.68, 0, 0.02); T8.userData.quiet.material.opacity = 0.85 * T8.material.opacity; }
 
     // S5–S8 modules
     ARCH.update(t, { frame, PUL });
     PIPE.update(t, { camera, frame, PUL });
-    FEAT.update(t, { frame, PUL });
+    FEAT.update(t, { frame, PUL, ta });
 
     // S9 proof hall
     MON.forEach((m) => {
@@ -697,6 +763,7 @@ async function build(THREE) {
       m.halo.material.opacity = 0.1 + 0.25 * focus;
       m.lab.material.opacity = win(t, m.tFocus - 0.15, m.tFocus + FD + 0.05, 0.3, 0.3);
       m.lab.visible = m.lab.material.opacity > 0;
+      if (m.link) { m.link.material.opacity = win(t, m.tFocus + 0.1, m.tFocus + FD + 0.05, 0.3, 0.3); m.link.visible = m.link.material.opacity > 0; }
       m.grp.visible = t > bar(22, 2) && t < bar(28);
     });
     slam(T13, t, bar(23, 0.35), bar(24) - 0.1, { fo: 0.4 }); if (T13.visible) rideView(T13, 12, 0.6, 0, 0.44);
@@ -705,31 +772,32 @@ async function build(THREE) {
     const titleDim = (1 - 0.9 * seg(t, bar(29) - 0.1, bar(29) + 0.4)) * (1 - 0.68 * win(t, bar(27, 1), bar(29), 0.5, 0.3));
     const typeOn = Math.max(win(t, bar(27, 1), bar(29) - 0.5, 0.5, 0.3), seg(t, bar(29) - 0.2, bar(29) + 0.3));
     mwTiles.forEach((m) => { m.material.opacity = 0.92 * eOutCubic(seg(t, m.userData.tIn, m.userData.tIn + 0.35)) * titleDim * (1 - typeOn * (1 - m.userData.ell)); m.visible = m.material.opacity > 0.001; });
-    slam(T14, t, bar(27, 1), bar(28) - 0.05, { fo: 0.3 });
+    slam(T14, t, bar(27, 1) + 0.45, bar(28) - 0.05, { fo: 0.3, nodec: 1 });   // lands after the whip, no scramble
     const revealEnd = bar(29) - 0.04; // the 4th code line (stem:lead, 28:4) gets its read before the title lands
     slam(T15, t, bar(28), revealEnd, { fo: 0.25 });
     codeLines.forEach((m, i) => { const a = m.userData.tIn - 1 / FPS; m.material.opacity = t >= a ? win(t, a, revealEnd, 0.1, 0.25) : 0; m.visible = m.material.opacity > 0; codeMarks[i].visible = t >= m.userData.tIn && t < revealEnd; });
     if (waveLine) { waveLine.material.opacity = 0.85 * win(t, bar(27, 2), revealEnd, 0.8, 0.25); waveLine.visible = waveLine.material.opacity > 0; }
     playhead.visible = t > bar(27, 2) && t < revealEnd;
-    playhead.position.set(HX - 9.5 + 19 * (t / DUR), 5.45, -(MW.s - 9.55));
+    playhead.position.set(HX - 9.5 + 19 * clamp((ta - (window.__T0 || 0)) / ((WAVE && WAVE.duration) || DUR)), 5.45, -(MW.s - 9.55)); // the playhead sits on the film's own time in the waveform
     { const u = eOutExpo(seg(t, bar(29), bar(29) + 1.0)); const s2 = lerp(1.1, 1, u); TITLE.scale.set(s2, s2, 1); }
     TITLE.material.opacity = t >= bar(29) ? eOutCubic(seg(t, bar(29) - 1 / FPS, bar(29) + 0.3)) : 0; TITLE.visible = TITLE.material.opacity > 0;
     TAG.material.opacity = win(t, bar(29, 1), DUR + 5, 0.5, 0.1); TAG.visible = TAG.material.opacity > 0;
-    CTA.material.opacity = t >= bar(29, 3) ? 1 : 0; CTA.visible = CTA.material.opacity > 0; if (CTA.visible) drawCTA(t);
+    CTA.material.opacity = t >= bar(29, 2) ? 1 : 0; CTA.visible = CTA.material.opacity > 0; if (CTA.visible) drawCTA(t);
     const tw = TITLE.geometry.parameters.width * TITLE.scale.x;
-    titleBar.position.set(HX - tw / 2 - 0.55, 10.35, -(MW.s - 0.6)); titleBar.visible = t >= bar(29);
-    setAmber(titleBar.material, 2.6 + 3 * Math.exp(-Math.max(0, t - bar(29)) / 0.3));
+    titleBar.position.set(HX - tw / 2 - 0.75, 10.35, -(MW.s - 0.6)); titleBar.visible = t >= bar(29);
+    setAmber(titleBar.material, 1.7 + 1.6 * Math.exp(-Math.max(0, t - bar(29)) / 0.3)); // the bar's flare must never reach the O
 
     // footage: re-upload the frame HyperFrames seeked for this t
     VIDTEX.forEach((tx) => { const v = tx.image; if (v && v.readyState >= 2) tx.needsUpdate = true; });
     // FX: particles, pulses, motion blur, rays, shockwave, CA, grade (all from t and the camera state at t)
     const down = PUL.down(t), big = PUL.big(t);
-    sparks.material.uniforms.uTime.value = t; sparks.material.uniforms.uPulse.value = P.pulse * (0.6 * down + big); sparks.material.uniforms.uFog.value = scene.fog.density;
+    if (filmField) { filmField.material.uniforms.uT.value = ta; filmField.material.uniforms.uAmt.value = (window.__T0 ? 1 : 0) * win(t, bar(10) - 0.3, bar(27, 2), 0.6, 0.8); filmField.visible = filmField.material.uniforms.uAmt.value > 0.002; }
+    sparks.material.uniforms.uTime.value = ta; sparks.material.uniforms.uPulse.value = P.pulse * (0.6 * down + big); sparks.material.uniforms.uFog.value = scene.fog.density;
     streams.userData.update(t, P.streams * (t < bar(9) ? win(t, 1.5, bar(9) - 0.7, 1.0, 0.4) : 0), bar(9));
-    const pPrev = camP(Math.max(0, t - 1 / FPS)), lPrev = camL(Math.max(0, t - 1 / FPS));
+    const dtS = rate / FPS, pPrev = camP(Math.max(0, t - dtS)), lPrev = camL(Math.max(0, t - dtS));   // one film frame ago, in story time
     const fwd = l.clone().sub(p).normalize(), fwdPrev = lPrev.clone().sub(pPrev).normalize();
     const vel = p.clone().sub(pPrev).multiplyScalar(FPS), speed = vel.length(), vFwd = vel.dot(fwd);
-    warpLines.userData.update(t, speed, P.warp);
+    warpLines.userData.update(t, speed, P.warp * (0.15 + 0.85 * BIGW(t)));   // the lens streaks only on the three big moves
     if (FXID === "v2") { grainPass.uniforms.uFrame.value = frame; }
     else {
       const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
@@ -744,17 +812,17 @@ async function build(THREE) {
         : t < bar(14) ? ARCH.light(t) : t < bar(19) ? PIPE.light(t) : t < bar(23) ? FEAT.light(t) : t < bar(29) - 0.2 ? p.clone().addScaledVector(fwd, 40) : TITLE_LW;
       const ndc = LW.clone().project(camera), inFront = LW.clone().sub(p).dot(fwd) > 0;
       M.uLight.value = [ndc.x * 0.5 + 0.5, ndc.y * 0.5 + 0.5];
-      const rayEnv = t < bar(3) ? 0.45 + 0.45 * seg(t, bar(2) + 0.3, bar(3)) : t < bar(9) - 0.66 ? 0.25 : t < bar(10) ? 0.45 + 0.35 * big : t < bar(14) ? ARCH.rays(t) : t < bar(19) ? PIPE.rays(t) : t < bar(23) ? FEAT.rays(t) : t < bar(29) - 0.2 ? 0.25 : 0.55 + 0.9 * big;
+      const rayEnv = t < bar(3) ? 0.45 + 0.45 * seg(t, bar(2) + 0.3, bar(3)) : t < bar(9) - 0.66 ? 0.25 : t < bar(10) ? 0.45 + 0.35 * big : t < bar(14) ? ARCH.rays(t) : t < bar(19) ? PIPE.rays(t) : t < bar(23) ? FEAT.rays(t) : t < bar(29) - 0.2 ? 0.25 : 0.32 + 0.45 * big;
       M.uRays.value = inFront ? P.rays * rayEnv : 0;
       const netSec = t > bar(10) && t < bar(23);
-      M.uStreak.value = P.streak * (netSec ? 0.5 : 1) * (1 + 1.2 * big + 0.5 * PUL.hit(t)) * (1 - 0.8 * seg(t, bar(29, 2.4), bar(29, 3))); // the URL must stay clean
-      M.uCA.value = P.ca * (0.1 + 0.35 * down + 1.2 * big + PIPE.ca(t)) * (1 - 0.6 * guardO);
+      M.uStreak.value = P.streak * (netSec ? 0.5 : 1) * (1 + 1.2 * big + 0.5 * PUL.hit(t)) * (1 - 0.8 * seg(t, bar(29, 1.4), bar(29, 2))); // the URL must stay clean
+      M.uCA.value = P.ca * (0.1 + 0.35 * down + 1.2 * big + PIPE.ca(t)) * (1 - 0.95 * guardO);
       let ring = [0.5, 0.5, 0, 0];
-      for (const h of PUNCHES) { const u = (t - h) / 0.75; if (u >= 0 && u < 1) ring = [M.uLight.value[0], M.uLight.value[1], 0.03 + 1.3 * Math.pow(u, 0.7), P.ring * (1 - u)]; }
+      for (const h of PUNCHES) { const u = (t - h) / 0.75; if (u >= 0 && u < 1 && h < bar(28)) ring = [M.uLight.value[0], M.uLight.value[1], 0.03 + 1.3 * Math.pow(u, 0.7), 0.6 * P.ring * (1 - u)]; }
       M.uRing.value = ring;
       bloom.strength = P.bloom * (1 + 0.2 * P.pulse * down + 0.3 * big);
       const G = gradePass.uniforms;
-      G.uGrade.value = P.grade; G.uContrast.value = P.contrast; G.uExposure.value = 1 + 0.12 * P.pulse * down; G.uFlash.value = P.flash * PUL.flash(t);
+      G.uGrade.value = P.grade; G.uContrast.value = P.contrast; G.uExposure.value = 1 + 0.12 * P.pulse * down; G.uFlash.value = P.flash * PUL.flash(t) * (t > bar(10) ? 0.3 : 1);
       G.uScan.value = P.scan; G.uRGB.value = P.rgb; G.uGlitch.value = P.glitchFrame * (0.12 + 0.9 * Math.max(0, ...WHIPS.map((w) => 1 - Math.abs(t - w.t) / 0.12)));
       G.uFrame.value = frame;
       if (hudx) {
@@ -774,7 +842,7 @@ async function build(THREE) {
 
     // HUD: the timecode motif (film t, frame, bar.beat)
     const [bb, be] = barBeat(t);
-    hud.textContent = `t ${t.toFixed(2).padStart(5, "0")} · f ${String(frame).padStart(4, "0")} · ♩ ${String(Math.min(30, bb)).padStart(2, "0")}.${be}`;
+    const tf = t - (window.__T0 || 0), ff = Math.round(tf * FPS); hud.textContent = `t ${tf.toFixed(2).padStart(5, "0")} · f ${String(ff).padStart(4, "0")} · ♩ ${String(Math.min(30, bb)).padStart(2, "0")}.${be}`;
     hud.style.opacity = (t > bar(29, 2) ? 1 - seg(t, bar(29, 2), bar(30)) * 0.6 : 1 - win(t, bar(23) + 0.2, bar(27), 0.3, 0.3)).toFixed(3);
   };
 }

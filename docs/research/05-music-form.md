@@ -76,7 +76,7 @@ uv run --with numpy --with scipy python dump_events.py score.json <repo>/tools/a
 - 鼓太响会吃掉峰值余量（整首按峰值归一）：第一版高潮段里定音鼓只比铜管主旋律低 0.7 dB，调低鼓之后，主旋律比最响的伴奏高 7 dB，高潮段整体还响了 0.5 LU。
 - `loop` 和按小节的 `pattern` 列表数的是这个声部自己的小节，不是这一段的小节，不报错，只是听起来不对；示范 3 的底鼓只好手工轮换列表。片头 t = 0 的 cue 会被检测得晚约 48 ms。
 
-来源：各曲的响度 JSON（段平均由其中的 short-term 均值算出；最响一段的位置取该段中点占全片的比例，全片取节拍表里的 `duration`，也就是文件时长，和 playbook/11 第 6 节的代码一样：引擎渲出的文件比最后一段的终点多约 2.5 s 尾音，介绍片是剪好的片子，没有尾音）；节拍表里的 hit 条目数（介绍片配乐的节拍表是 [`showcase/04-intro-film/audio/music.beats.json`](../../showcase/04-intro-film/audio/music.beats.json)：143 条，123 个起音、20 个 swell 峰；81.33 s，30 小节，11 段）；三首示范的谱面配合 `--density` 重跑的每小节音头数（第 4 点）；对应 WAV 的分段 FFT（第 3 点）；作曲知识稿里的动机表、鼓和抽吸的细节；引擎缺口分析的 §11。示范的数据是作者本地的文件，没有入库；[#23](https://github.com/ZLHad/OpenVideoHarness/pull/23) 用入库的引擎复算过一批，见"现状"。图 1、2 是实验里画图脚本的原图缩小。
+来源：各曲的响度 JSON（段平均由其中的 short-term 均值算出；最响一段的位置取该段中点占全片的比例，全片取节拍表里的 `duration`，也就是文件时长，和 playbook/11 第 6 节的代码一样：引擎渲出的文件比最后一段的终点多约 2.5 s 尾音，介绍片是剪好的片子，没有尾音）；节拍表里的 hit 条目数（介绍片配乐的节拍表是 [`showcase/04-intro-film/v3/music.beats.json`](../../showcase/04-intro-film/v3/music.beats.json)：143 条，123 个起音、20 个 swell 峰；81.33 s，30 小节，11 段）；三首示范的谱面配合 `--density` 重跑的每小节音头数（第 4 点）；对应 WAV 的分段 FFT（第 3 点）；作曲知识稿里的动机表、鼓和抽吸的细节；引擎缺口分析的 §11。示范的数据是作者本地的文件，没有入库；[#23](https://github.com/ZLHad/OpenVideoHarness/pull/23) 用入库的引擎复算过一批，见"现状"。图 1、2 是实验里画图脚本的原图缩小。
 
 ## 因此改了什么
 
@@ -95,4 +95,4 @@ uv run --with numpy --with scipy python dump_events.py score.json <repo>/tools/a
 - **指标是钝的**：LRA 和"各段最大差"会被一个很轻的开头抬高（介绍片就是），所以另外看了最响一段是否唯一。
 - **命名容易混**：基线文件叫 `intro_v4_music`，但它是 `showcase/04-intro-film` 里那支 81.3 s 片子（修订计划文档里叫 v3）的配乐；playbook/11 里也叫"介绍片 v4 的配乐"，指的是同一份。
 
-来源：作曲知识稿；介绍片配乐的节拍表（81.33 s，30 小节），即 [`showcase/04-intro-film/audio/music.beats.json`](../../showcase/04-intro-film/audio/music.beats.json)。
+来源：作曲知识稿；介绍片配乐的节拍表（81.33 s，30 小节），即 [`showcase/04-intro-film/v3/music.beats.json`](../../showcase/04-intro-film/v3/music.beats.json)。

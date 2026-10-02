@@ -1,6 +1,6 @@
 # 00 · promo — OpenVideoHarness launch film (README hero)
 
-![OpenVideoHarness launch film](media/preview.gif)
+https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
 
 [media/final.mp4](media/final.mp4) · poster: [media/poster.png](media/poster.png) · contact sheet: [media/sheet.png](media/sheet.png)
 
@@ -52,7 +52,7 @@ The picture was made and finished silent, as the brief asked; the soundtrack was
 - **QA** (`bin/vh qa` on the WAV, the gate; `--stems` adds the mix report):
   - no digital silence, dropouts, pumping or clicks;
   - 29 of 29 cues (the SFX events above −18 dB and the score's two hits) within one frame, median 6.3 ms, max 25.7 ms. Three rows are marginal (`OK~`): the NOTES line typing at 12.17 s, which starts with the error sound (that one is confirmed by its own sound), and the impact and piano chord at 17.0 s, where the detector fires on the first 2.7 ms hop of a steep onset that the next hop clears by +0.22;
-  - mix report: targets met. Hero median −2.1 LU re the anchor (range −4…2), detail −5.3 (−11…−3). Warnings: three detail events a little HIGH (the "video" thock at 1.07 s, the whoosh over the quiet problem line at 2.5 s, the first count-up column), and the sub boom under "One catch" is 100 % under 150 Hz, so it is felt rather than heard and may vanish on laptop speakers;
+  - mix report (re-measured 2026-10-02 on the #40 sound refresh): targets met. Hero median −2.2 LU re the anchor (range −4…2), detail −5.6 (−11…−3). Warnings: three detail events a little HIGH (the "video" thock at 1.07 s, the whoosh over the quiet problem line at 2.5 s, the first count-up column), and the sub boom under "One catch" is 100 % under 150 Hz, so it is felt rather than heard and may vanish on laptop speakers;
   - the mp4 passes the scan and the cue check too (29 of 29), and `bin/vh check` finds no black, frozen or silent stretch.
 - The maintainer listened to the first candidate mixes on 2026-10-01 and chose a mix profile for each film. This profile mix has not been listened to yet; NOTES.md lists what to listen for.
 

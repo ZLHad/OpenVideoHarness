@@ -5,7 +5,7 @@
 export const PRESETS = {
   v2: { grade: 0, contrast: 1.0, bloom: 0.62, streak: 0.045, rays: 0, whip: 0, mblur: 0, shake: 1, hand: 0, fovPunch: 0, pulse: 0, ca: 0, ring: 0, sparks: 0, streams: 0, warp: 0, decode: 0, sweep: 0, glitchExit: 0, rgb: 0, scan: 0, hud: 0, glitchFrame: 0, flash: 0 },
   A: { grade: 1, contrast: 1.12, bloom: 0.95, streak: 0.11, rays: 0.75, whip: 0.55, mblur: 0.25, shake: 1.0, hand: 0.5, fovPunch: 0.5, pulse: 0.5, ca: 0.3, ring: 0.4, sparks: 0.5, streams: 0.6, warp: 0, decode: 0, sweep: 1, glitchExit: 0, rgb: 0, scan: 0, hud: 0, glitchFrame: 0, flash: 0.5 },
-  B: { grade: 1, contrast: 1.2, bloom: 1.0, streak: 0.17, rays: 1.0, whip: 1.0, mblur: 1.0, shake: 1.7, hand: 1.0, fovPunch: 1.0, pulse: 1.0, ca: 1.0, ring: 1.0, sparks: 1.0, streams: 1.0, warp: 1.0, decode: 1, sweep: 1, glitchExit: 0.35, rgb: 0, scan: 0, hud: 0.5, glitchFrame: 0, flash: 1 },
+  B: { grade: 1, contrast: 1.2, bloom: 1.0, streak: 0.17, rays: 1.0, whip: 1.0, mblur: 1.0, shake: 1.7, hand: 1.0, fovPunch: 1.0, pulse: 1.0, ca: 0.45, ring: 1.0, sparks: 1.0, streams: 1.0, warp: 0.4, decode: 1, sweep: 1, glitchExit: 0.35, rgb: 0, scan: 0, hud: 0.5, glitchFrame: 0, flash: 1 },
   C: { grade: 1, contrast: 1.22, bloom: 1.0, streak: 0.17, rays: 1.0, whip: 1.0, mblur: 1.0, shake: 1.7, hand: 1.0, fovPunch: 1.0, pulse: 1.0, ca: 1.0, ring: 1.0, sparks: 1.0, streams: 1.0, warp: 1.0, decode: 1, sweep: 1, glitchExit: 1, rgb: 1, scan: 1, hud: 1, glitchFrame: 1, flash: 1 },
 };
 export function readPreset() {

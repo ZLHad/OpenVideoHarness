@@ -1,6 +1,6 @@
 # 镜头配方库：一镜怎么动
 
-一张配方写的是一个镜头（或一个接缝）的运动和节奏：分几段、每段多少帧、哪些参数不能降、在哪里容易翻车、做完看哪一帧。颜色、字体、质感、音色不在配方里，它们归风格预设（[`styles/`](../styles/README.md)）。风格给皮，配方给骨，所以同一张配方可以穿 28 个预设里的任何一张皮。
+一张配方写的是一个镜头（或一个接缝）的运动和节奏：分几段、每段多少帧、哪些参数不能降、在哪里容易翻车、做完看哪一帧。颜色、字体、质感、音色不在配方里，它们归风格预设（[`styles/`](../styles/README.md)）。风格给皮，配方给骨，所以同一张配方可以穿 31 个预设里的任何一张皮。
 
 - **配方**：`<family>/<id>.md`，一张一个镜头或一个接缝，索引见下文；
 - **骨架**：[`sequences/`](sequences/README.md)，整支片子的节奏语法：能量弧、先划走的 hold、按能量落差选接缝、全片限额；
@@ -213,7 +213,7 @@ frontmatter 是 YAML 的一个严格子集：一行一个 `key: value`；值是�
 
 ## 草图怎么跑
 
-每张配方的"实现"一节给一段草图，写法是风格样片的场景接口（`styles/_swatch/README.md`）：一个 ES module，导出 `renderAt(t, ctx, tokens, lib)`，画在 1920×1080 的 canvas 上，`lib` 是 `styles/_swatch/lib.js`（缓动、`seg`、`hash`、`drawGlyphs`、`motionBlur` 等）。草图只读 `tokens` 里的 `bg`、`fg`、`accent` 三个颜色和 `display`、`body`、`zh`、`mono` 几个字体角色，28 个预设都有这些键。
+每张配方的"实现"一节给一段草图，写法是风格样片的场景接口（`styles/_swatch/README.md`）：一个 ES module，导出 `renderAt(t, ctx, tokens, lib)`，画在 1920×1080 的 canvas 上，`lib` 是 `styles/_swatch/lib.js`（缓动、`seg`、`hash`、`drawGlyphs`、`motionBlur` 等）。草图只读 `tokens` 里的 `bg`、`fg`、`accent` 三个颜色和 `display`、`body`、`zh`、`mono` 几个字体角色。大多数预设都有这些键；缺的时候 `lib.js` 的 `color()` 回退到前景色（`fg`、`ink`、`text` 依次找），字体角色回退到安全字体。
 
 试一张草图，并且换一张皮：
 

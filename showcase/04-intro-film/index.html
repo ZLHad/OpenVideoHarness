@@ -15,7 +15,9 @@
       @font-face { font-family: "LF Mono"; src: local("SF Mono"), local("SFMono-Regular"), local("Menlo-Regular"), local("Menlo"); }
       html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #08090a; }
       #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: #08090a; }
-      #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+      #gl, #gl-grid, #plate { position: absolute; inset: 0; width: 1920px; height: 1080px; display: block; }
+      #gl, #gl-grid { opacity: 0; }
+      #flash { position: absolute; inset: 0; background: #fff8ee; opacity: 0; pointer-events: none; }
       /* footage sources: HyperFrames seeks these; Three.js samples them as VideoTextures (kept nearly invisible) */
       .src { position: absolute; left: 0; top: 0; width: 64px; height: 36px; opacity: 0.01; }
       #vignette { position: absolute; inset: 0; pointer-events: none;
@@ -35,13 +37,16 @@
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="main" data-no-timeline data-start="0" data-duration="81.3333" data-width="1920" data-height="1080">
+    <div id="root" data-composition-id="main" data-no-timeline data-start="0" data-duration="150.5" data-width="1920" data-height="1080">
+      <video id="plate" src="assets/plate.mp4" data-start="0" data-duration="15.8" data-media-start="0" muted playsinline data-track-index="6"></video>
+      <canvas id="gl-grid" width="1920" height="1080"></canvas>
       <canvas id="gl" width="1920" height="1080"></canvas>
-      <video id="v02a" class="src" src="assets/clips/02.mp4" data-start="12.6" data-duration="4.4" data-media-start="0.2" muted playsinline data-track-index="1"></video>
-      <video id="v01" class="src" src="assets/clips/01.mp4" data-start="59.53" data-duration="5.6" data-media-start="6.3" muted playsinline data-track-index="2"></video>
-      <video id="v03" class="src" src="assets/clips/03.mp4" data-start="59.53" data-duration="11.9" data-media-start="11.67" muted playsinline data-track-index="3"></video>
-      <video id="v02" class="src" src="assets/clips/02.mp4" data-start="59.53" data-duration="11.9" data-media-start="11.36" muted playsinline data-track-index="4"></video>
-      <video id="v00" class="src" src="assets/clips/00.mp4" data-start="68.5" data-duration="2.2" data-media-start="0.2" muted playsinline data-track-index="5"></video>
+      <video id="v02a" class="src" src="assets/clips/02.mp4" data-start="11.6" data-duration="4.4" data-media-start="0.2" muted playsinline data-track-index="1"></video>
+      <video id="v01" class="src" src="assets/clips/01.mp4" data-start="110.947" data-duration="10.074" data-media-start="1.876" muted playsinline data-track-index="2"></video>
+      <video id="v03" class="src" src="assets/clips/03.mp4" data-start="110.947" data-duration="23.161" data-media-start="1.789" muted playsinline data-track-index="3"></video>
+      <video id="v02" class="src" src="assets/clips/02.mp4" data-start="110.947" data-duration="23.161" data-media-start="1.589" muted playsinline data-track-index="4"></video>
+      <video id="v02k" class="src" src="assets/clips/02.mp4" data-start="83.650" data-duration="4.550" data-media-start="7.500" muted playsinline data-track-index="7"></video>
+      <video id="v00" class="src" src="assets/clips/00.mp4" data-start="129.312" data-duration="3.975" data-media-start="5.500" muted playsinline data-track-index="5"></video>
       <div id="vignette"></div>
       <div id="fade"></div>
       <div id="hudx" style="display:none">
@@ -50,16 +55,41 @@
         <div class="rec"></div>
       </div>
       <div id="hud">t 00.00 · f 0000 · ♩ 01.1</div>
+      <div id="flash"></div>
     </div>
     <script>
       // register the build hold synchronously, before the runtime's first readiness check
       window.__hf = window.__hf || {}; window.__hf.buildReady = window.__hf.buildReady || {};
       window.__hf.buildReady["intro-world"] = new Promise((res) => { window.__introReady = res; });
+      window.__hf.buildReady["opening"] = new Promise((res) => { window.__openingReady = res; });
+      // v5: 0–15.8 s the Blender plate, 15.0–23 s the WebGL grid (dissolving in over 15.0–15.6 s) and terminal (js/grid.js, js/open-overlay.js),
+      // from 22.6 s the body's world (the v3 film from its bar 10, shifted 1.0 s earlier)
+      window.__T0 = 4.0; window.__BODY_FROM = 22.5;   // both in old film time (js/tmap.js maps the film's time to it)
     </script>
+    <script src="js/tmap.js"></script>
     <script type="module">
       import * as THREE from "three";
       import { boot } from "./js/main.js";
+      import { makeGrid } from "./js/grid.js";
+      import { makeOverlay } from "./js/open-overlay.js";
       boot(THREE);
+      await document.fonts.ready;
+      const grid = await makeGrid(document.getElementById("gl-grid"));
+      const ui = makeOverlay(document.getElementById("root"), { fx: "v5", hud: false });
+      const $ = (id) => document.getElementById(id), gl = $("gl"), gg = $("gl-grid"), plate = $("plate"), flash = $("flash"), hud = $("hud"), hudx = $("hudx"), vig = $("vignette");
+      const cl = (x) => Math.min(1, Math.max(0, x)), sm = (a, b, t) => { const k = cl((t - a) / (b - a)); return k * k * (3 - 2 * k); };
+      const at = (tn) => {
+        const t = window.__tOld(tn);   // the opening is written on the old timeline (the terminal's hold is stretched)
+        if (t >= 14.9 && t < 23.1) grid(t, tn);
+        plate.style.opacity = t < 15.8 ? "1" : "0";
+        gg.style.opacity = (sm(15.0, 15.6, t) * (1 - sm(22.55, 23.0, t))).toFixed(3);   // from 15.0: the plate's dark patch at the bottom (15.0–15.5) is under the grid
+        gl.style.opacity = sm(22.62, 22.92, t).toFixed(3);
+        hud.style.visibility = "hidden";   // v5: no timecode HUD (round-1 review)
+        vig.style.visibility = t < 22.6 ? "hidden" : "visible";
+        ui(t, tn);
+        const f = t >= 8.0 ? 0.92 * Math.exp(-(t - 8.0) / 0.03) : 0; flash.style.opacity = (f < 0.01 ? 0 : f).toFixed(3);
+      };
+      at(window.__hfThreeTime || 0); window.addEventListener("hf-seek", (e) => at(e.detail.time)); window.__openingReady();
     </script>
   </body>
 </html>

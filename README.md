@@ -10,13 +10,15 @@ Explainers, science shorts, product films, music videos, data stories, paper tal
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-black)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
-![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush-blue)
+![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush%20%7C%20Blender-blue)
 ![Voice](https://img.shields.io/badge/voice-Qwen3--TTS%20zh%20%7C%20en-purple)
 ![Styles](https://img.shields.io/badge/styles-31-green)
 
-<a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/preview.gif" width="820" alt="OpenVideoHarness intro film"></a>
 
-<sub>▶ The full intro film (81 s, with music, zh/en subtitle tracks) is in <a href="showcase/04-intro-film/media/final.mp4">showcase/04-intro-film</a>. An agent made it by following this repo, and the soundtrack is code too.</sub>
+https://github.com/user-attachments/assets/9d305423-0e5b-4276-a347-17a072993b6f
+
+
+<sub>▶ Chapter 1 of the intro film (the opening, 19 s, 1080p, with sound). The whole film, 150.5 s, plays in eight 1080p chapters in <a href="showcase/04-intro-film/">showcase/04-intro-film</a>; the single file is <a href="showcase/04-intro-film/media/final.mp4">final.mp4</a>. Its first 15.8 s are path-traced in Blender, driven by code: a galaxy of 1.18 million stars in which every star is a film. One continuous HyperFrames + Three.js take follows. An agent made it by following this repo, and the soundtrack is code too.</sub>
 
 </div>
 
@@ -32,11 +34,12 @@ OpenVideoHarness is that craft, written as docs and tools an agent can follow:
 
 - **A method for each kind of video.** Say "make a science short" or "make a launch film", and it reads the workflow for that type: which engine, which steps, what looks good, what is off limits.
 - **It stops and asks you three times.** At the outline, the storyboard and the first draft, it waits for your go-ahead. Direction gets settled while changes are still cheap. For a quick try, switch to the `quick` level and it just renders.
-- **More than one taste.** 31 styles learned from famous work, each with a real rendered sample, offered to you before anything is built.
+- **More than one taste.** 31 styles learned from famous work, each with a real rendered sample. They are references a concept can borrow from, not templates.
 - **It checks its own work.** An agent can't watch video or hear sound, so it looks at rendered frames, measures the mix, and fixes things until a checklist passes. A reviewer who didn't make the film then scores it.
 - **Sound included.** Chinese and English voiceover (a local open-source model), bilingual subtitles, music and sound effects written as code, mixing and a final audio check.
+- **Code-driven Blender.** When a shot needs real glass, nebulae and volumetric light, depth of field or a million particles, the agent writes Python that has Blender path-trace the plate, in a sandbox, and joins it with the web engine's pictures. The intro film opens this way; see [below](#code-driven-blender-3d-and-film-grade-effects).
 
-It isn't a new rendering engine. It is a layer of "how to do it" on top of engines like HyperFrames, Manim, Remotion and p5.brush.
+It isn't a new rendering engine. It is a layer of "how to do it" on top of engines like HyperFrames, Manim, Remotion, p5.brush and Blender.
 
 ## Start in 30 seconds
 
@@ -45,12 +48,12 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 ```
 
 This one command:
-- clones the repo into `~/OpenVideoHarness` (about 330 MB; the sample films are in it);
+- clones the repo into `~/OpenVideoHarness` (about 530 MB; the sample films are in it);
 - installs the dependencies of the built-in hand-drawn engine and the style renderer (about 210 MB);
 - fetches 30 read-only reference repos (about 195 MB; `--no-refs` skips them);
 - registers the `open-video-harness` skill for Claude Code and Codex, so saying "make a video" in any folder leads the agent here.
 
-That is about 730 MB on disk. The first render and the sound tools download more the first time you use them: [what gets downloaded](#what-gets-downloaded) lists how much and where. New here? The wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) page goes from nothing to a first video.
+That is about 935 MB on disk. The first render and the sound tools download more the first time you use them: [what gets downloaded](#what-gets-downloaded) lists how much and where. New here? The wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) page goes from nothing to a first video.
 
 Then open Claude Code (or Codex) and say what you want:
 
@@ -71,36 +74,66 @@ Only when you say yes does it render the final.
 
 ## See what it makes
 
-The five films below were made by an agent **reading only this repo's docs**. Click a preview for its folder (brief, storyboard, review notes, fix-up log, full source), a good start for a similar video; ▶ is the original MP4, with sound. Each request is a short quote from a longer brief, and “Request” links to the whole text. Films 00–03 were finished silent, and their sound was fitted afterwards.
+The five films below were made by an agent **reading only this repo's docs**. Every video plays right here (1080p, with sound; the 31-style reel at its native 720p), with the repo's name in a corner; click a title for its folder (brief, storyboard, review notes, fix-up log, full source), a good start for a similar video. Each request is a short quote from a longer brief, and “Request” links to the whole text. Films 00–03 were finished silent, and their sound was fitted afterwards.
 
 <table>
 <tr>
-<td width="40%" valign="top"><a href="showcase/02-short-leo-doppler/"><img src="showcase/02-short-leo-doppler/media/preview.gif" width="60%" alt="02 · Vertical science short"></a><br><sub><a href="showcase/02-short-leo-doppler/media/final.mp4">▶ the original, with sound</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/1f5873bd-a83f-4d5e-96fe-08aff0c3a96c
+
+<sub><a href="showcase/02-short-leo-doppler/media/final.mp4">the original file</a></sub>
+</td>
 <td valign="top"><b><a href="showcase/02-short-leo-doppler/">02 · Vertical science short</a></b> (HyperFrames · 24.8 s · 1080×1920)<br>A LEO satellite's Doppler shift, readable with the sound off.<br><b><a href="showcase/02-short-leo-doppler/README.md#the-request-this-was-built-from">Request</a>:</b> “为什么低轨卫星的信号会"变调"？——多普勒频移” (Why does a LEO satellite's signal "change pitch"? The Doppler shift.)<br><b>Suggested workflow</b> (standard effort):<br><code>bin/vh new short leo-doppler --aspect 9:16</code><br>sound: <code>bin/vh tts</code>, <code>music</code>, <code>mix … profile=short</code>, <code>mux</code><br><b>Sound:</b> Chinese voiceover (Gemini TTS, voice Aoede), a light score, the satellite beacon made audible; zh/en soft subtitles, off by default (captions are burned in)</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="showcase/03-math-fourier/"><img src="showcase/03-math-fourier/media/preview.gif" width="100%" alt="03 · 3b1b-style math explainer"></a><br><sub><a href="showcase/03-math-fourier/media/final.mp4">▶ the original, with sound</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/c2368f76-b157-4a48-9945-8048a515efd4
+
+<sub><a href="showcase/03-math-fourier/media/final.mp4">the original file</a></sub>
+</td>
 <td valign="top"><b><a href="showcase/03-math-fourier/">03 · 3b1b-style math explainer</a></b> (Manim CE · 25 s · 1920×1080)<br>Sine waves stack into a square wave, with the Gibbs overshoot as the payoff.<br><b><a href="showcase/03-math-fourier/README.md#the-request-this-was-built-from">Request</a>:</b> “Building a square wave from sine waves”<br><b>Suggested workflow</b> (standard effort):<br><code>bin/vh new math fourier-square-wave --style dark-math</code><br>sound: <code>bin/vh tts</code>, <code>music</code>, <code>mix … profile=explainer</code>, <code>mux</code><br><b>Sound:</b> English voiceover (Gemini TTS, voice Iapetus), a piano score kept 13 LU under the voice, each harmonic sounding its own tone</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="showcase/01-handdrawn-clawd-leaf/"><img src="showcase/01-handdrawn-clawd-leaf/media/preview.gif" width="100%" alt="01 · Hand-drawn character short"></a><br><sub><a href="showcase/01-handdrawn-clawd-leaf/media/final.mp4">▶ the original, with sound</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/da028240-fcff-4e02-95a0-a0abd3238d07
+
+<sub><a href="showcase/01-handdrawn-clawd-leaf/media/final.mp4">the original file</a></sub>
+</td>
 <td valign="top"><b><a href="showcase/01-handdrawn-clawd-leaf/">01 · Hand-drawn character short</a></b> (p5.brush · 12 s · 1920×1080)<br>A hand-painted pantomime: no text, no voice, three shots.<br><b><a href="showcase/01-handdrawn-clawd-leaf/README.md#the-request-this-was-built-from">Request</a>:</b> “Clawd tries to film a falling autumn leaf with a tiny hand-cranked movie camera; the wind keeps snatching the leaf just as Clawd frames it …”<br><b>Suggested workflow</b> (standard effort):<br><code>bin/vh new handdrawn leaf --style watercolor-pastoral</code><br>sound: <code>bin/vh music</code>, <code>sfx</code>, <code>mix … profile=cartoon</code>, <code>mux</code><br><b>Sound:</b> a cartoon score (pizzicato, celesta, flute, xylophone) plus foley that follows every action</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · Launch short"></a><br><sub><a href="showcase/00-promo-launch-film/media/final.mp4">▶ the original, with sound</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
+
+<sub><a href="showcase/00-promo-launch-film/media/final.mp4">the original file</a></sub>
+</td>
 <td valign="top"><b><a href="showcase/00-promo-launch-film/">00 · Launch short</a></b> (HyperFrames · 20 s · 1920×1080)<br>Built from the repo's own terminal, folders and contact sheets.<br><b><a href="showcase/00-promo-launch-film/README.md#the-request">Request</a>:</b> “Produce the README hero video — a short launch film for OpenVideoHarness itself …”<br><b>Suggested workflow</b> (standard effort):<br><code>bin/vh new promo launch-film</code><br>sound: <code>bin/vh music</code>, <code>sfx</code>, <code>mix … profile=promo</code>, <code>mux</code><br><b>Sound:</b> a minimal electronic score plus foley on every on-screen action (typing, clicks, whooshes on the cuts), no voice</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/preview.gif" width="100%" alt="04 · Intro film"></a><br><sub><a href="showcase/04-intro-film/media/final.mp4">▶ the original, with sound</a></sub></td>
-<td valign="top"><b><a href="showcase/04-intro-film/">04 · Intro film (one-take 3D)</a></b> (HyperFrames + Three.js · 81 s · 1920×1080)<br>The repo's own product film, one continuous 3D take.<br><b><a href="showcase/04-intro-film/README.md#what-was-asked-and-what-changed">Request</a>, as revised at gate ①:</b> “一镜到底 动画动效 音乐动态字等风格 叙事感 科幻感大片感” (one continuous shot, kinetic type on music, a narrative arc, a sci-fi blockbuster feel)<br><b>Suggested workflow</b> (studio effort, <code>--effort studio</code>):<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>one-take 3D: <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>; <code>bin/vh sfx place</code>, <code>sheet</code>, <code>check</code><br><b>Sound:</b> a code-composed cinematic score (D minor, 90 BPM) and 97 sound effects; zh/en soft subtitle tracks</td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/e4fa59b8-3941-4fdd-ada4-62b4be4f3a82
+
+<sub>Chapter 5 of 8 (the self-review loop and the final cut); <a href="showcase/04-intro-film/">all eight</a> · <a href="showcase/04-intro-film/media/final.mp4">the original file</a></sub>
+</td>
+<td valign="top"><b><a href="showcase/04-intro-film/">04 · Intro film (a galaxy of films, then one take)</a></b> (Blender + HyperFrames + Three.js · 150.5 s · 1920×1080)<br>The repo's own product film. The opening is path-traced in Blender: every star is a film, the galaxy collapses into a supernova and is flattened into a sea of films. Then one continuous 3D take through the repo.<br><b><a href="showcase/04-intro-film/README.md#what-was-asked">Request</a>, at the gates:</b> “玻璃、宇宙、星穹……令人瘫坐眩晕的感觉” (glass, cosmos, a starry sky… the feeling that makes you dizzy), then “或者使用blender？好莱坞大片质感” (or use Blender? Hollywood blockbuster quality)<br><b>Suggested workflow</b> (studio effort, <code>--effort studio</code>):<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>Blender plates: <a href="engines/blender.md">engines/blender.md</a>; one-take 3D: <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>; <code>bin/vh sheet</code>, <code>check</code><br><b>Sound:</b> a code-composed score (a 120 BPM opening, then D minor at 80 BPM) and 124 sound effects, mixed with <code>bin/vh mix … profile=promo</code></td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="The 31 style samples, all showing the same content"></a><br><sub><a href="styles/gallery.mp4">▶ the reel, with sound (42 s)</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
+
+<sub><a href="styles/gallery.mp4">the original file</a></sub>
+</td>
 <td valign="top"><b><a href="styles/">31 styles, one reel</a></b> (5-second samples)<br>The same content in 31 styles learned from famous work.<br><b>Borrow from one:</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> shows all 31; details in <a href="styles/README.md">styles/README.md</a><br><b>Sound:</b> one score per sample (<code>bin/vh music</code>, <code>mix … profile=swatch</code>)</td>
 </tr>
 </table>
 
-The GIFs are compressed, silent previews. Films you make with it are welcome in `showcase/` as a PR.
+“The original file” under each video links to the MP4 in the repo. Films you make with it are welcome in `showcase/` as a PR.
 
 <details>
 <summary><b>Similar work from the community, and our breakdowns of it</b></summary>
@@ -146,6 +179,20 @@ bin/vh new promo launch-film --style cutout-jazz   # attach a style as a referen
 
 We learn the *grammar* of these works; we don't copy them. No original characters, logos or shots, and the prompts never say "in the style of" a person. More in [styles/README.md](styles/README.md).
 
+## Code-driven Blender: 3D and film-grade effects
+
+Some pictures a web engine can't give you: real glass refraction, nebulae and volumetric light, real depth of field, motion blur on a million particles. For those the agent writes Python that drives Blender. Every frame still depends only on time: numpy computes where each star and each card is at time t, Cycles path-traces the plate, and the plate joins HyperFrames' type and UI in the same film.
+
+<p align="center"><img src="docs/assets/blender-strip.jpg" width="820" alt="Moments from the intro film's opening, all rendered in Blender: the Earth inside a glass film card, the pull-back to a galaxy, the supernova, the flattened sea of films"></p>
+
+- **The intro film opens this way.** A galaxy of 1.18 million stars where every star is a film: the camera pulls back from one glass card to the whole galaxy, spirals down, the galaxy collapses into a supernova and is flattened into a sea of films. 15.8 s at 1080p (475 frames) took 1 h 28 min on an M3 Max. The grid and the terminal that follow are HyperFrames, and the two dissolve into each other through the same camera. Source in [`showcase/04-intro-film/blender/`](showcase/04-intro-film/blender/).
+- **[`tabletop-miniature`](styles/tabletop-miniature/)** in the style library is rendered in Blender too.
+- **It runs in a sandbox.** The agent's bpy scripts get no network, can write only to their output folder, and never see the API keys in your environment.
+- **Count the time first.** Render 3–5 frames to calibrate and put "frames × seconds per frame × 1.5" in the brief; 4K takes about 4× as long as 1080p. Long renders run in chunks and can resume.
+- **License.** Files that import bpy are GPL-3.0-or-later (Blender's requirement for published bpy scripts); everything else stays MIT.
+
+When Blender is worth it, how to bring it into a film, and what went wrong along the way: [engines/blender.md](engines/blender.md) (partly verified; it marks what has actually been run).
+
 ## How to ask for a video
 
 You don't need a long brief. Say **what it's about, who it's for and where it goes**.
@@ -188,7 +235,7 @@ Not every film deserves the full treatment. One switch controls how much effort 
 |---|---|---|---|
 | For | trying a direction, drafts, casual posts | most real videos | launch films, flagship pieces |
 | Stops to ask you | never; it just renders | at the outline, storyboard and first draft | the same three, plus a rendered sketch of each concept and a full-length animatic |
-| Checks its own work | one contact sheet for the whole film | frames and sound, section by section | plus target-screen size, determinism and a full audio check |
+| Checks its own work | a contact sheet of the whole film, one at target-screen size, and a strip of the first 2 s | frames and sound, section by section | plus loop seams, determinism and a full audio check |
 | Outside reviewer | none | 1 round | at least 3 rounds, all 8 scores at 8+ |
 | A 30 s film takes about | 10–30 min | 1–2 h | 3 h or more |
 
@@ -231,7 +278,7 @@ A few more guides:
 - **A story with rises and falls, or a film of 3 minutes or more:** [playbook/09](playbook/09-narrative.md) (structures, beat sheets, the tension curve, act breaks).
 - **Posting to short-video platforms: the opening hook, title and cover:** [playbook/10](playbook/10-hooks-and-packaging.md).
 - **Music with chapters, a theme you can hum, and real rises and falls:** [playbook/11](playbook/11-composition.md).
-- **Research notes, what we measured and what changed because of it:** [docs/research](docs/research/en/README.md) (mix levels, soundtrack distance, render determinism, on-screen reading time, music form).
+- **Research notes, what we measured and what changed because of it:** [docs/research](docs/research/en/README.md) (mix levels, soundtrack distance, render determinism, on-screen reading time, music form, a concept-first A/B test).
 
 ## Sound
 
@@ -262,14 +309,15 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | Command | What it does |
 |---|---|
 | `doctor` / `setup` | Check your setup / install dependencies and fetch references |
-| `types` / `new <type> <name> [--style <style[,style]>] [--effort <level>]` | List the 9 types / start a new project |
+| `types` / `new <type> <name> [--style <style[,style]>] [--effort <level>] [--aspect 9:16] [--watch phone\|feed\|desktop] [--res 1080p\|4k]` | List the 9 types / start a new project (aspect, target screen and resolution can be set up front) |
 | `effort [quick\|standard\|studio]` | What each effort level does |
-| `style list` / `style <style>` / `style gallery` | Browse styles / render a sample / rebuild the overview |
+| `style list` / `style <style>` / `style gallery` / `style compare a,b,c` / `style apply <style> <project>` | Browse styles / render a sample / rebuild the overview / compare styles side by side / attach styles to a project as references |
 | `recipes list [--intent …] [--energy …] [--engine …]` / `recipes check` | Find shot recipes by what the shot must say and how loud it is / validate a recipe |
 | `tts` / `voices` / `captions` / `music` / `sfx` / `beats` | Voiceover (per-line direction, beat snapping, word alignment, two-speaker dialogue) / Gemini voice library and voice design / subtitles / music / sound effects / analyse outside music |
 | `mix` / `qa` / `mux` | Mix / check the mix / put sound and subtitles on the video |
 | `sheet` / `check` / `readcheck` / `gif` | Timestamped contact sheet / find black, frozen or silent stretches / is text on screen long enough to read / make a GIF for your README |
 | `review <project> [gate]` | The review page for a stop: the decisions first, then pictures, animatic and audio, one page per storyboard segment |
+| `storyboard` / `rhythm` / `cover-preview` | Pictures to decide from: labelled storyboard pages / a rhythm map (too-long shots and unreadable text in red) / a cover at real feed sizes |
 | `hf-init` / `install-skill` / `sync-agents` | Set up HyperFrames / register the skill / sync AGENTS.md |
 
 ## Requirements
@@ -319,7 +367,7 @@ Sizes are approximate, measured on macOS (Apple Silicon); `du -sh` will show sli
 
 | What | When | Where | Size |
 |---|---|---|---|
-| This repo, with the sample films and style samples | install | `~/OpenVideoHarness` | about 330 MB |
+| This repo, with the sample films and style samples | install | `~/OpenVideoHarness` | about 530 MB |
 | Node packages of the hand-drawn engine and the style renderer | install | `node_modules` inside the repo | about 210 MB |
 | 30 read-only reference repos | install, unless `--no-refs` | `references/repos/` | about 195 MB |
 | Chrome for HyperFrames (`chrome-headless-shell`) | the first `hyperframes render` | `~/.cache/hyperframes` | about 100 MB to download, 200 MB on disk |
@@ -368,7 +416,7 @@ OpenVideoHarness/
 
 **How good is the Chinese support?** The workflow docs are Chinese-first. Chinese subtitle layout, safe zones for vertical platforms, Chinese voiceover and bilingual subtitles are all handled, and the style library includes ink wash, Dunhuang, shadow puppetry and guochao.
 
-**Can I avoid the dark-and-glowing look?** Yes. Name a style in your request (for example `ink-wash`), or say which film you'd like it to feel like. Even if you don't, the agent offers two or three very different styles at the outline stage.
+**Can I avoid the dark-and-glowing look?** Yes. Name a style in your request (for example `ink-wash`), or say which film you'd like it to feel like. Even if you don't, the agent opens with two or three very different concept cards, and the look follows from the one you pick.
 
 **What about the reference repos' licenses?** `references/repos/` isn't part of this repo. `fetch.sh` pulls it from the original authors, for reading only. After fetching, the other repos' agent instruction files (`CLAUDE.md`, `AGENTS.md`, `.claude/` and so on) are renamed at every level, so an agent never mistakes someone else's rules for its own. Licenses for each are in [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md); some have none or forbid commercial use, so check before reusing anything.
 
@@ -402,7 +450,7 @@ This is an independent project, not affiliated with Anthropic, HeyGen, Remotion,
 
 ## License
 
-Original content is [MIT](LICENSE). The bundled ClaudeAnimationBase is also MIT (© John Heibel). Some files in `recipes/` are modified from Apache-2.0 projects (video-shotcraft, HyperFrames): their upstream parts stay under Apache-2.0, and [`recipes/NOTICE.md`](recipes/NOTICE.md) lists them. Files that call Blender's Python API (`import bpy`: `styles/_swatch/blender_render.py` and the Blender style scenes such as `styles/tabletop-miniature/swatch.py`) are GPL-3.0-or-later, as Blender asks of published bpy scripts; each carries an SPDX header (see [`engines/blender.md`](engines/blender.md), "许可证"). Reference repos keep their own licenses.
+Original content is [MIT](LICENSE). The bundled ClaudeAnimationBase is also MIT (© John Heibel). Some files in `recipes/` are modified from Apache-2.0 projects (video-shotcraft, HyperFrames): their upstream parts stay under Apache-2.0, and [`recipes/NOTICE.md`](recipes/NOTICE.md) lists them. Files that call Blender's Python API (`import bpy`: `styles/_swatch/blender_render.py`, the Blender style scenes such as `styles/tabletop-miniature/swatch.py`, and the intro film's `showcase/04-intro-film/blender/galaxy.py`) are GPL-3.0-or-later, as Blender asks of published bpy scripts; each carries an SPDX header (see [`engines/blender.md`](engines/blender.md), "许可证"). Reference repos keep their own licenses.
 
 ## Citation
 

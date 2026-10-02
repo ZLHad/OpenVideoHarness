@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=4096, height=4032" />
+    <title>opening film atlases</title>
+    <script type="importmap">{ "imports": { "three": "./node_modules/three/build/three.module.js", "three/addons/": "./node_modules/three/examples/jsm/" } }</script>
+    <style>html, body { margin: 0; width: 4096px; height: 4032px; overflow: hidden; background: #000; } #root { position: relative; width: 100%; height: 100%; } #gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }</style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-no-timeline data-start="0" data-duration="1" data-width="4096" data-height="4032">
+      <canvas id="gl" width="4096" height="4032"></canvas>
+    </div>
+    <script>window.__hf = window.__hf || {}; window.__hf.buildReady = window.__hf.buildReady || {}; window.__hf.buildReady["atlas"] = new Promise((res) => { window.__atlasReady = res; });</script>
+    <script type="module">
+      // Two textures for blender/galaxy.py and the film (gamma-encoded, exactly as stored), one per timestamp:
+      //   t < 0.5   the 28 procedural films, 16 frames each, 4096×4032 (→ assets/films-proc.png)
+      //   t ≥ 0.5   the opening film ("earth", procedural film 27) at 1024×576, 16 frames in a 4×4 sheet, the top 4096×2304 (→ assets/hero-earth.png)
+      // ../tools/opening_export.sh takes both snapshots and saves them.
+      import * as THREE from "three";
+      import { renderProcAtlas, filmMaterial } from "./films.js";
+      const canvas = document.getElementById("gl");
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(1); renderer.setSize(4096, 4032, false); renderer.outputColorSpace = THREE.LinearSRGBColorSpace; renderer.toneMapping = THREE.NoToneMapping;
+      const proc = renderProcAtlas(renderer);
+      const copy = new THREE.ShaderMaterial({ uniforms: { map: { value: proc.tex } }, depthTest: false,
+        vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }",
+        fragmentShader: "uniform sampler2D map; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(map, vUv).rgb, 1.0); }" });
+      const sA = new THREE.Scene(); sA.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), copy));
+      const hero = filmMaterial(); const sH = new THREE.Scene(); sH.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), hero));
+      const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      let T = 0;
+      const draw = () => {
+        renderer.setRenderTarget(null); renderer.setViewport(0, 0, 4096, 4032); renderer.setClearColor(0x000000, 1); renderer.clear();
+        if (T < 0.5) { renderer.render(sA, cam); return; }
+        renderer.setScissorTest(true);
+        for (let k = 0; k < 16; k++) {   // GL rows count from the bottom: the sheet sits in the top 2304 rows
+          const x = (k % 4) * 1024, y = 4032 - (Math.floor(k / 4) + 1) * 576;
+          renderer.setViewport(x, y, 1024, 576); renderer.setScissor(x, y, 1024, 576);
+          hero.uniforms.uFilm.value = 27; hero.uniforms.uK.value = k; renderer.render(sH, cam);
+        }
+        renderer.setScissorTest(false);
+      };
+      draw(); window.addEventListener("hf-seek", (e) => { T = e.detail.time; draw(); }); window.__atlasReady();
+    </script>
+  </body>
+</html>

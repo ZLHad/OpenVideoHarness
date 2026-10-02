@@ -1,0 +1,195 @@
+{
+ "I": -15.6,
+ "LRA": 10.9,
+ "true_peak": -1.0,
+ "sections": [
+  {
+   "name": "chaos",
+   "start": 0.0,
+   "end": 8.0,
+   "measured": -18.4,
+   "planned": -17.3,
+   "delta": -1.2
+  },
+  {
+   "name": "nova",
+   "start": 8.0,
+   "end": 10.0,
+   "measured": -15.9,
+   "planned": -15.4,
+   "delta": -0.4
+  },
+  {
+   "name": "question",
+   "start": 10.0,
+   "end": 14.0,
+   "measured": -21.9,
+   "planned": -22.2,
+   "delta": 0.3
+  },
+  {
+   "name": "reveal",
+   "start": 14.0,
+   "end": 22.0,
+   "measured": -17.4,
+   "planned": -17.1,
+   "delta": -0.2
+  },
+  {
+   "name": "route",
+   "start": 22.0,
+   "end": 32.0,
+   "measured": -15.8,
+   "planned": -16.2,
+   "delta": 0.4
+  },
+  {
+   "name": "gates",
+   "start": 32.0,
+   "end": 48.0,
+   "measured": -18.0,
+   "planned": -17.2,
+   "delta": -0.8
+  },
+  {
+   "name": "sound",
+   "start": 48.0,
+   "end": 56.0,
+   "measured": -14.8,
+   "planned": -16.6,
+   "delta": 1.8
+  },
+  {
+   "name": "code",
+   "start": 56.0,
+   "end": 62.0,
+   "measured": -16.0,
+   "planned": -14.8,
+   "delta": -1.2
+  },
+  {
+   "name": "loop",
+   "start": 62.0,
+   "end": 70.0,
+   "measured": -15.4,
+   "planned": -15.2,
+   "delta": -0.2
+  },
+  {
+   "name": "hold3",
+   "start": 70.0,
+   "end": 72.0,
+   "measured": -16.4,
+   "planned": -16.1,
+   "delta": -0.4
+  },
+  {
+   "name": "climax",
+   "start": 72.0,
+   "end": 80.0,
+   "measured": -10.6,
+   "planned": -10.1,
+   "delta": -0.5
+  },
+  {
+   "name": "proof",
+   "start": 80.0,
+   "end": 86.0,
+   "measured": -14.2,
+   "planned": -11.5,
+   "delta": -2.7
+  },
+  {
+   "name": "stop",
+   "start": 86.0,
+   "end": 88.0,
+   "measured": -19.6,
+   "planned": -20.6,
+   "delta": 1.0
+  },
+  {
+   "name": "rebuild",
+   "start": 88.0,
+   "end": 94.0,
+   "measured": -17.5,
+   "planned": -17.6,
+   "delta": 0.1
+  },
+  {
+   "name": "coda",
+   "start": 94.0,
+   "end": 106.0,
+   "measured": -21.2,
+   "planned": -19.3,
+   "delta": -1.9
+  }
+ ],
+ "chapters": [
+  {
+   "name": "开场",
+   "start": 0,
+   "end": 22,
+   "measured": -18.5,
+   "planned": -18.0,
+   "delta": -0.5
+  },
+  {
+   "name": "路由",
+   "start": 22,
+   "end": 32,
+   "measured": -15.8,
+   "planned": -16.2,
+   "delta": 0.4
+  },
+  {
+   "name": "关卡",
+   "start": 32,
+   "end": 48,
+   "measured": -18.0,
+   "planned": -17.2,
+   "delta": -0.8
+  },
+  {
+   "name": "制作",
+   "start": 48,
+   "end": 72,
+   "measured": -15.5,
+   "planned": -15.6,
+   "delta": 0.2
+  },
+  {
+   "name": "成片",
+   "start": 72,
+   "end": 86,
+   "measured": -12.1,
+   "planned": -10.7,
+   "delta": -1.5
+  },
+  {
+   "name": "揭晓",
+   "start": 86,
+   "end": 94,
+   "measured": -18.0,
+   "planned": -18.3,
+   "delta": 0.4
+  },
+  {
+   "name": "片名",
+   "start": 94,
+   "end": 106,
+   "measured": -21.2,
+   "planned": -19.3,
+   "delta": -1.9
+  }
+ ],
+ "peak": {
+  "section": "climax",
+  "measured": -10.6,
+  "margin_over_next": 3.7,
+  "position": [
+   0.68,
+   0.75
+  ]
+ },
+ "section_contrast_LU": 11.4
+}
