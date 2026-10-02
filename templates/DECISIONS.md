@@ -9,6 +9,7 @@ Director: {照抄 BRIEF 的 Director 行；没写就写"按 {effort} 的默认"}
 | 决定 | 谁拍板 | 状态 | 在哪看 |
 |---|---|---|---|
 | concept 立意 | {own / review / delegate} | {待定 / 已定（关卡 ①）} | {REVIEW.md 关卡 ①；立意卡在 out/review/gate-1.html} |
+| spec 规格 | | | {BRIEF 的 Spec 几行} |
 | outline 大纲 | | | |
 | style 风格 | | | |
 | character 主角 | | | |

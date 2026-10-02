@@ -8,7 +8,7 @@
 #  make
 #   types                       list video types and their docs
 #   effort [quick|standard|studio]  how much iteration, review and polish each level means (CLAUDE.md "努力程度")
-#   new <type> <slug> [--style <preset>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1] [--dir <folder>]
+#   new <type> <slug> [--style <preset>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1] [--watch phone|feed|desktop] [--res 1080p|4k] [--dir <folder>]
 #                               create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);
 #                               --aspect: short/promo/data/meme only; --dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness
 #   style list | <preset> [--draft] | gallery [--mp4] | check <preset>   style library: list presets, render a 5 s swatch, build styles/gallery.jpg
@@ -259,18 +259,23 @@ PY
 }
 
 cmd_new() {
-  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1] [--dir <folder>]"; cmd_types; exit 1; }
-  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh=""; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 1; }
+  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1] [--watch phone|feed|desktop] [--res 1080p|4k] [--dir <folder>]"; cmd_types; exit 1; }
+  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres=""; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 1; }
   shift 2
   while [ $# -gt 0 ]; do case "$1" in
     --style)  style=${2:?--style needs a preset (bin/vh style list)}; shift 2 ;;
     --effort) effort=${2:?--effort needs quick, standard or studio}; shift 2 ;;
     --aspect) aspect=${2:?--aspect needs 16:9, 9:16 or 1:1}; shift 2 ;;
     --dir)    parent=${2:?--dir needs a folder: the project goes in <folder>/<date>-<slug>}; shift 2 ;;
+    --watch)  watch=${2:?--watch needs phone, feed or desktop}; shift 2 ;;
+    --res)    outres=${2:?--res needs 1080p or 4k}; shift 2 ;;
     *) echo "unknown option: $1"; exit 1 ;;
   esac; done
   [ -z "$style" ] || [ -f "$ROOT/styles/$style/STYLE.md" ] || { echo "unknown style: $style"; cmd_style list; exit 1; }
   case "${effort:-standard}" in quick|standard|studio) ;; *) echo "unknown effort: $effort (quick | standard | studio)"; exit 1 ;; esac
+  case "$watch" in ""|phone|feed|desktop) ;; *) echo "unknown --watch: $watch (phone: a vertical phone · feed: landscape in a phone feed, not rotated · desktop: a computer, or a phone turned sideways)"; exit 1 ;; esac
+  case "$outres" in ""|1080p) ;; 4k|4K|2160p) outres=4k ;; *) echo "unknown --res: $outres (1080p | 4k)"; exit 1 ;; esac
+  if [ "$outres" = 4k ]; then case "$type" in handdrawn|mv) echo "--res 4k: the hand-drawn engine (ClaudeAnimationBase) has no 4K output yet; use 1080p, or another engine (engines/README.md)"; exit 1 ;; esac; fi
   if [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of the three; the other engines set their size themselves
     case "$aspect" in 16:9|landscape) res=landscape; aspect=16:9 ;; 9:16|portrait) res=portrait; aspect=9:16 ;; 1:1|square) res=square; aspect=1:1 ;;
       *) echo "unknown aspect: $aspect (16:9 | 9:16 | 1:1)"; exit 1 ;; esac
@@ -279,6 +284,9 @@ cmd_new() {
   fi
   case "$type" in short) res=${res:-portrait} ;; promo|data|meme) res=${res:-landscape} ;; esac
   case "$res" in portrait) wh=1080x1920 ;; square) wh=1080x1080 ;; landscape) wh=1920x1080 ;; esac
+  if [ -z "$watch" ]; then   # where it is mostly watched sets the text-size floor (playbook/03 §4); the frame gives the default
+    case "$res:$type" in portrait:*|square:*|:edit) watch=phone ;; *) watch=desktop ;; esac
+  fi
   local base dir; base=$(projects_base "$parent")
   mkdir -p "$base" || { echo "cannot create $base"; exit 1; }
   base=$(cd "$base" && pwd); dir="$base/$(date +%F)-$slug"
@@ -300,6 +308,7 @@ b = open(brief).read().replace("<!-- 在这里贴 video-types/*.md 的 \"Prompt 
 open(brief, "w").write(b)
 PY
   [ -n "$wh" ] && sedi "s/^- Output: {W}x{H},/- Output: $wh,/" "$dir/BRIEF.md"
+  sedi "s/^- Watch on: {watch}/- Watch on: $watch/; s/^- Resolution: {res}/- Resolution: ${outres:-1080p}/" "$dir/BRIEF.md"
   case "$type:$res" in short:portrait|promo:landscape|data:landscape|meme:landscape|*:) ;;   # the type's own frame: nothing to say
     *) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：上面 TYPE 块写的画幅，以及按它算的尺寸（安全框、每行字数、字号），以这一行为准按新画幅重算。\n' "$aspect" "$wh" >> "$dir/BRIEF.md" ;;
   esac
@@ -327,6 +336,7 @@ PY
   echo "$c_ok created $(rel "$dir")"
   echo "   type doc : video-types/$doc.md"
   [ -n "$wh" ] && echo "   frame    : $wh ($res)"
+  echo "   watch on : $watch · ${outres:-1080p}  (text-size floor and readability check: playbook/03 §4)"
   [ -n "$style" ] && echo "   style    : styles/$style (STYLE_PRESET.md, style.tokens.json)"
   echo "   effort   : ${effort:-standard}  (bin/vh effort ${effort:-standard} shows what that means)"
   echo "   next     : open Claude Code in the repo root and say what the video is about;"

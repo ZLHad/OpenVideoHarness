@@ -36,6 +36,10 @@ npx hyperframes render --quality draft --fps 30 --output out/draft.mp4
 npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 ```
 
+### 出 4K
+
+照常按 1080p 写合成，`render --resolution 4k`（竖屏 `portrait-4k`）让 Chrome 按 2 倍像素密度渲，合成、字号和布局都不用改。用 `<canvas>` 画的内容要按 `window.devicePixelRatio` 把画布开大（宽高乘 dpr，再用 CSS 缩回 1920×1080），否则 4K 下是放大的糊图。draft 和自查用 1080p。
+
 ### 最小写法（0.8.82）
 
 `bin/vh hf-init` 搭出来的 `index.html` 就是最小的合成（`bin/vh new short|promo|data|meme` 会自动跑它），手写时照着改；完整样板见 `showcase/02-short-leo-doppler/index.html`。`<body>` 里是这样：

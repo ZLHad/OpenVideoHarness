@@ -6,7 +6,7 @@
 
 0. **定档位和导演模式**：先确定这支片子的努力程度（effort）：`quick`、`standard` 还是 `studio`；再看人要亲自拍板哪些事（导演模式）。规则见"努力程度"和"导演模式"两节。后面每一步做多少、在哪里停，都按这两样来。`quick` 直接照"quick 路径卡"做。
 1. **判断类型**：用下面的路由表，读对应的 `video-types/*.md`（其中的"Prompt 增量块"留到想完立意再读）。一个视频可能横跨两类（例如"论文讲解"做成竖屏短视频），就两份都读，以主类型为准。
-   - **一句话需求是常态**：389 支社区 Opus 5.5 作品里，完整提示词的中位数不到 30 个词，四分之一直接套用同一句 showreel 提示词（见 `cases/opus55-gallery.md`）。收到一句话时，先想立意（第 4 步），再用类型文档的默认值补全 BRIEF 里剩下的项；把关卡 ① 的审阅页写短，最多问 3 个真正影响制作的问题，不要反过来追问一长串。
+   - **一句话需求是常态**：389 支社区 Opus 5.5 作品里，完整提示词的中位数不到 30 个词，四分之一直接套用同一句 showreel 提示词（见 `cases/opus55-gallery.md`）。收到一句话时，先想立意（第 4 步），再用类型文档的默认值补全 BRIEF 里剩下的项；把关卡 ① 的审阅页写短，最多问 3 个真正影响制作的问题，不要反过来追问一长串。规格（画幅、分辨率、帧率、时长、在哪看）由 `bin/vh new` 按类型填好默认值，见 `playbook/01-pipeline.md` 的"规格"；只有平台没说、又会改变画幅或字号下限时（比如横屏片要发抖音、小红书），才把它当成一个问题问。
 2. **读流程和自查**：读 `playbook/01-pipeline.md` 和 `playbook/02-verification.md`；涉及配音或音乐时，再读 `playbook/04-audio.md`。
 3. **建项目**：运行 `bin/vh new <type> <slug>`，它会建好 `projects/<日期>-<slug>/`，复制模板，并把该类型的 prompt 块填进 BRIEF（类型的默认做法，立意定了再取舍）；手绘类还会复制引擎、装好依赖。其他引擎的初始化方式见 `engines/README.md`。
 4. **先想立意，再看案例和参考**：建完项目，先把材料里只属于它的数字、原话、物件列进 NOTES.md 的素材清单，自己想 5–8 个点子；这时先不看 BRIEF 末尾的 TYPE 块、`styles/`、`recipes/` 和案例，免得点子往看过的东西上靠。然后再看下面这些参考，用它们补强，收敛成 2–3 张立意卡（做法见 `playbook/12-ideation.md`，例子见 `cases/oneshot-five.md`）。人已经给了立意，就记进 BRIEF，不再出卡，最多附一个备选。参考：打开类型文档"可参考的案例"和"社区 skill 参考"两节列出的文件；需要看真实代码时读 `references/repos/` 里的源码。本仓库自己做过的片子在 `showcase/`，各带 BRIEF、STORYBOARD、NOTES 和源码，是最直接的样板。分镜时，镜头怎么动、全片节奏怎么排，先查 `recipes/`：按意图和能量筛（`bin/vh recipes list`），把选中的配方 id 写进 STORYBOARD 的"配方"列，写代码前读配方全文。
@@ -38,7 +38,7 @@
 | 立意 | 自己想 3 个一句话点子，挑 1 个，写一行理由 | 关卡 ① 给 2–3 张立意卡，每张配一帧画面 | 同左，每张配一段 10–20 s 的草图（look-dev） |
 | 风格 | 从立意推出来，可以借 `styles/` 的 1 个预设，写明理由 | 写在每张立意卡的"画面"一行（专属，或借一个预设）；选卡就一起定了，人可以在回复里换 | 同左；每张卡的草图就是那种风格的小样，借来的预设人想看时在 E0 补小样 |
 | 分镜 | 简表：镜头、时长、reads | 完整 STORYBOARD + 分镜预览图 | 同左 + animatic |
-| 自查 | 整片一张联系表、一张手机联系表、前 2 s 的 strip，20 条清单速查一遍 | 每个场景：联系表、关键动作 strip、局部 crop；20 条清单 | 同左，再加手机尺寸测试、循环接缝、无损帧确定性、静默故障扫描 |
+| 自查 | 整片一张联系表、一张按目标屏缩的联系表、前 2 s 的 strip，20 条清单速查一遍 | 每个场景：联系表、关键动作 strip、局部 crop；20 条清单 | 同左，再加手机尺寸测试、循环接缝、无损帧确定性、静默故障扫描 |
 | 独立评审（打分层） | 不做 | 1 轮：全新上下文的 reviewer 打 8 项分（含立意），修最差的 3 处 | ≥ 3 轮，8 项都 ≥ 8 才出片；达不到就带着分数进关卡 ③ |
 | 声音 | 可以没有，或一段配乐 / 配音加基础混音 | 配乐或配音 + 关键动作音效 + 按视频类型的混音 profile（`bin/vh mix … profile=`）+ `bin/vh qa` | 同左 + 每个动作的拟音和声像 + 最终混音 cue check + 混音报告（`bin/vh qa mix`）没有硬失败 |
 | 渲染与交付 | draft 画质即可，一个 mp4 | 正式画质 mp4 + 联系表 | 同左 + 网页版、GIF、封面，按需出 9:16 |
@@ -54,7 +54,7 @@
 - 硬规则 1（每一帧是 t 的纯函数）、5（事实照抄原文）、7（不在文件里写 key）；
 - 片中不出现数字静音（管有声片；用户要的无声片不带音轨，不适用）；
 - 全屏闪白每秒不超过 3 次；
-- 字号不低于清单下限；
+- 字号不低于 BRIEF"在哪看"那一档的下限（`playbook/03-motion-design.md` §4）；
 - 素材许可要记清；
 - `TASTE_CHECKLIST.md` 里标【底线】的条目：安全框、读时、字号、字不被光烧白、reads 不被盖掉、循环接缝、分镜里声明的卡点、没有占位和编造；
 - 出片前跑一次 `bin/vh check`。
@@ -68,7 +68,7 @@
 effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个开关互不影响："quick 出片，但钩子我定""做成精品，风格和封面我来定"都说得通。
 
 - **怎么定**：用户在对话里说的 > BRIEF 的 `Director:` 行 > LOCAL.md 的默认 > 档位默认，人点名的永远优先。例如 `Director: hook=own, character=own, theme=own, packaging=own, rest=delegate`；人说"配音配乐定稿前也停一下"，就加 `stop=E3`。
-- **能点名的事**：`concept` 立意、`outline` 大纲、`style` 风格、`character` 主角、`theme` 主旋律、`voice` 配音、`script` 旁白稿、`hook` 钩子、`storyboard` 分镜、`rhythm` 剪辑节奏、`packaging` 标题和封面。每件最早在哪一站能定、给人看什么、以后再改要花多少，见 `playbook/01-pipeline.md` 的"导演模式"。
+- **能点名的事**：`concept` 立意、`spec` 规格（画幅、分辨率、帧率、在哪看）、`outline` 大纲、`style` 风格、`character` 主角、`theme` 主旋律、`voice` 配音、`script` 旁白稿、`hook` 钩子、`storyboard` 分镜、`rhythm` 剪辑节奏、`packaging` 标题和封面。每件最早在哪一站能定、给人看什么、以后再改要花多少，见 `playbook/01-pipeline.md` 的"导演模式"。
 - **每件事三种拍板方式**：
   - `own`：agent 出选项、附推荐，停下来等人选；
   - `review`：agent 出一个结果，放进下一页（没有下一页就随交付给），不为它单独停，人不说话就算通过；
@@ -85,7 +85,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 2. **建项目和立意**：`bin/vh new <type> <slug> --effort quick`。先写 3 个一句话立意，挑一个（`playbook/12-ideation.md` 第 7 节最后一条），再读 BRIEF 末尾的 TYPE 块，决定留哪些默认。风格从立意推出来，合适的话借一个预设：`bin/vh style apply <preset> <project>`（`bin/vh style list` 挑），它的 `STYLE_PRESET.md` 会带进项目，写代码前读一遍。立意和风格各写一行理由进 `DECISIONS.md`；改了哪些口味默认，交付时一并列出。
 3. **写**：补齐 BRIEF；分镜只写简表（镜头、时长、reads）；然后写场景代码。HyperFrames 写完一段，用 `npx hyperframes snapshot --at <秒> --describe false` 看几个关键时刻。
 4. **出片**：HyperFrames 先 `export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1`，再 `npx hyperframes render --quality draft --output out/draft.mp4`；手绘类用 `node render.mjs --clip --out=out/draft.mp4`。
-5. **自查一遍**：`bin/vh sheet out/draft.mp4` 看整片联系表，对着 `TASTE_CHECKLIST.md` 的 20 条速查；有字就跑 `bin/vh readcheck`。再看两样（命令见 `playbook/02-verification.md` 的"手机测试"）：一张手机尺寸的联系表，必读字在手机上读不读得出（横屏片的 44 px 在 360 px 宽的联系表上只有约 8 px，读数、标签别贴着下限）；前 2 s 的逐帧 strip，开头是不是第 0 帧就在动、有没有让人停下来的东西。`quick` 没有 reviewer，这两样最容易漏（`docs/research/06-concept-first-ab.md`）。
+5. **自查一遍**：`bin/vh sheet out/draft.mp4` 看整片联系表，对着 `TASTE_CHECKLIST.md` 的 20 条速查；有字就跑 `bin/vh readcheck`。再看两样（命令见 `playbook/02-verification.md` 的"手机测试"）：一张按目标屏缩的联系表（BRIEF 的 `Watch on`：phone、feed 缩到 360 px 宽，desktop 缩到 800），必读字读不读得出，读数、标签别贴着下限；前 2 s 的逐帧 strip，开头是不是第 0 帧就在动、有没有让人停下来的东西。`quick` 没有 reviewer，这两样最容易漏（`docs/research/06-concept-first-ab.md`）。
 6. **声音**（要的话）：`bin/vh music` 或 `bin/vh tts`，再 `bin/vh mix`、`bin/vh qa`、`bin/vh mux`。
 7. **交付**：`bin/vh check` 必跑；交 mp4 路径、联系表，以及自己最不满意的 1–2 处。
 
