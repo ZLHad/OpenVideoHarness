@@ -1,6 +1,6 @@
 # Showcase 02: Why does a LEO satellite's signal "change pitch"? (vertical knowledge short / HyperFrames)
 
-![preview](media/preview.gif)
+https://github.com/user-attachments/assets/1f5873bd-a83f-4d5e-96fe-08aff0c3a96c
 
 **Full video:** [media/final.mp4](media/final.mp4) · **Contact sheet:** [media/sheet.png](media/sheet.png) · **3:4 cover:** [media/cover.png](media/cover.png)
 

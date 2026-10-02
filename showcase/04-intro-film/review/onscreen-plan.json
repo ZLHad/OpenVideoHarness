@@ -1,0 +1,191 @@
+{
+ "_about": "v5 whole film, PLANNED windows with draft copy (gate ①). Proves the chapter lengths leave room for every read; the copy is re-checked at gate ②.",
+ "items": [
+  {
+   "id": "T1",
+   "en": "So many AI video tools.",
+   "zh": "AI 视频工具，多到数不清。",
+   "start": 0.6,
+   "end": 4.4
+  },
+  {
+   "id": "T2",
+   "en": "What’s missing?",
+   "zh": "差的是什么？",
+   "start": 10.4,
+   "end": 13.8
+  },
+  {
+   "id": "T3",
+   "en": "OpenVideoHarness Not more tools. Know-how.",
+   "zh": "OpenVideoHarness 不缺工具，缺门道。",
+   "start": 14.5,
+   "end": 18.8
+  },
+  {
+   "id": "REQ",
+   "en": "Make a 30-second vertical science short: why does a low-orbit satellite’s signal change pitch?",
+   "zh": "做一个 30 秒的竖屏科普：为什么低轨卫星的信号会“变调”。",
+   "start": 21.6,
+   "end": 28.6,
+   "_note": "typed 19.2–21.6; stays pinned through Ch1 (planned end 28.6)"
+  },
+  {
+   "id": "RESP",
+   "en": "→ type 02 of 8 · standard",
+   "zh": "→ 8 类里的 02 类 · standard",
+   "start": 28.6,
+   "end": 32.0,
+   "_note": "appears at 22.15 under the request; read after it"
+  },
+  {
+   "id": "G1",
+   "en": "Gate ①: outline + 2–3 styles",
+   "zh": "关卡 ①：大纲 + 两三个风格",
+   "start": 32.3,
+   "end": 36.1
+  },
+  {
+   "id": "SW",
+   "en": "28 styles, not one taste.",
+   "zh": "28 种风格，不止一种口味。",
+   "start": 36.1,
+   "end": 40.0
+  },
+  {
+   "id": "G2",
+   "en": "Gate ②: storyboard",
+   "zh": "关卡 ②：分镜",
+   "start": 40.4,
+   "end": 47.8
+  },
+  {
+   "id": "SF",
+   "en": "Sound first, then picture.",
+   "zh": "声音先行，再写画面。",
+   "start": 48.4,
+   "end": 56.0
+  },
+  {
+   "id": "SP1",
+   "en": "Narration with feeling and rhythm",
+   "zh": "旁白有表情、有节奏",
+   "start": 50.0,
+   "end": 57.0
+  },
+  {
+   "id": "SP2",
+   "en": "Bilingual subtitles",
+   "zh": "双语字幕",
+   "start": 51.0,
+   "end": 57.0
+  },
+  {
+   "id": "SP3",
+   "en": "Music in code: 88 instruments",
+   "zh": "代码作曲：88 种乐器",
+   "start": 52.0,
+   "end": 57.0,
+   "_note": "count: render 前再核"
+  },
+  {
+   "id": "SP4",
+   "en": "Effects, mix and QA",
+   "zh": "音效、混音与质检",
+   "start": 53.0,
+   "end": 57.0
+  },
+  {
+   "id": "PR",
+   "en": "It doesn’t paint pixels. It writes the program. frame = f(t)",
+   "zh": "它不画像素，它写程序。frame = f(t)",
+   "start": 57.2,
+   "end": 62.2
+  },
+  {
+   "id": "LOOP",
+   "en": "Self-review loop · 20-point checklist · 7 scores ≥ 8",
+   "zh": "自查闭环 · 20 条清单 · 7 项都到 8 分",
+   "start": 62.4,
+   "end": 67.0
+  },
+  {
+   "id": "FAIL",
+   "en": "✕ fail → ✓ pass",
+   "zh": "✕ 不合格 → ✓ 通过",
+   "start": 65.6,
+   "end": 70.2
+  },
+  {
+   "id": "G3",
+   "en": "Gate ③: first draft",
+   "zh": "关卡 ③：初版",
+   "start": 69.4,
+   "end": 72.6
+  },
+  {
+   "id": "FILM",
+   "en": "02 · vertical science short · HyperFrames",
+   "zh": "02 · 竖屏科普 · HyperFrames",
+   "start": 72.6,
+   "end": 76.8
+  },
+  {
+   "id": "MADE",
+   "en": "Made by an agent reading only this repo’s docs.",
+   "zh": "都是 agent 只看本仓库的文档做出来的。",
+   "start": 76.9,
+   "end": 82.0,
+   "_note": "README.md:74 / README.zh-CN.md:74 as of 4398f27 (v4 #14 wording is stale again)"
+  },
+  {
+   "id": "S01",
+   "en": "01 · hand-drawn short · p5.brush",
+   "zh": "01 · 手绘短片 · p5.brush",
+   "start": 78.8,
+   "end": 82.8
+  },
+  {
+   "id": "S03",
+   "en": "03 · math explainer · Manim",
+   "zh": "03 · 数学讲解 · Manim",
+   "start": 80.6,
+   "end": 84.4
+  },
+  {
+   "id": "S00",
+   "en": "00 · launch short · HyperFrames",
+   "zh": "00 · 发布短片 · HyperFrames",
+   "start": 82.3,
+   "end": 86.0
+  },
+  {
+   "id": "TOO",
+   "en": "This film, too.",
+   "zh": "这支片子也是。",
+   "start": 86.3,
+   "end": 89.3
+  },
+  {
+   "id": "CODE",
+   "en": "Even the soundtrack is code.",
+   "zh": "连配乐都是代码。",
+   "start": 89.5,
+   "end": 93.6
+  },
+  {
+   "id": "TITLE",
+   "en": "OpenVideoHarness Video as code, for coding agents.",
+   "zh": "OpenVideoHarness 给 coding agent 的视频工作台",
+   "start": 95.0,
+   "end": 106.0
+  },
+  {
+   "id": "CTA",
+   "en": "$ bin/vh new <type> <slug> · github.com/ZLHad/OpenVideoHarness",
+   "zh": "$ bin/vh new <type> <slug> · github.com/ZLHad/OpenVideoHarness",
+   "start": 97.5,
+   "end": 106.0
+  }
+ ]
+}

@@ -26,47 +26,30 @@ export function buildFeatures(THREE, X) {
   const add = (panel, m, x, y) => { m.position.set(x, y, 0.02); m.userData.base = m.position.clone(); panel.add(m); panel.userData.fades.push(m); return m; };
   const lineMat = (c = 0x5a5a63) => new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0, toneMapped: false, fog: false });
 
-  // =============== panel 1: Taste written down as numbers ===============
-  const PW = 8.8, PH = 3.9; // panel sits in the lower 60% of frame; the title above it is a real main read (>= 96 px)
+  // =============== panel 1: 31 styles (styles/*/media/poster.jpg as one wall; tiles light on 32nds) ===============
+  const PW = 8.8, PH = 3.9;
   const p1 = shell(PW, PH); p1.position.copy(W(-6.2, 2.0, 0)); p1.rotation.y = 0.32; scene.add(p1);
-  // easing curve (easeOutExpo), drawn progressively with a dot riding it
-  const gx0 = -4.05, gx1 = -1.75, gy0 = -0.5, gy1 = 1.45;
-  const axes = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(gx0, gy0, 0.02), new THREE.Vector3(gx1, gy0, 0.02), new THREE.Vector3(gx0, gy0, 0.02), new THREE.Vector3(gx0, gy1, 0.02)]), lineMat(0x6a6a72)); p1.add(axes); p1.userData.fades.push(axes);
-  const NC = 96, cpts = []; for (let i = 0; i <= NC; i++) { const u = i / NC, v = u >= 1 ? 1 : 1 - Math.pow(2, -10 * u); cpts.push(new THREE.Vector3(lerp(gx0, gx1, u), lerp(gy0, gy1, v), 0.03)); }
-  const curve = new THREE.Line(new THREE.BufferGeometry().setFromPoints(cpts), new THREE.LineBasicMaterial({ color: AMBC, transparent: true, opacity: 0, toneMapped: false, fog: false })); p1.add(curve);
-  const cdot = new THREE.Mesh(new THREE.CircleGeometry(0.07, 20), barMat(2.4)); cdot.material.transparent = true; p1.add(cdot);
-  add(p1, txt([{ text: "Easing curves", size: 48, weight: 600, color: FG }, { text: "缓动曲线", size: 46, weight: 500, font: FONT_ZH, color: ZHC }]), (gx0 + gx1) / 2, -1.15);
-  // vertical safe box: 9:16 frame with the 810 px-wide safe area inside
-  const vw = 1.0, vh = vw * 16 / 9, vx = -0.3, vy = 0.5;
-  const vframe = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(vw, vh)), lineMat(0x7a7a82)); vframe.position.set(vx, vy, 0.02); p1.add(vframe); p1.userData.fades.push(vframe);
-  const sw = vw * 810 / 1080, sh = vh * 0.82;
-  const sbox = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(sw, sh)), new THREE.LineBasicMaterial({ color: AMBC, transparent: true, opacity: 0, toneMapped: false, fog: false })); sbox.position.set(vx, vy, 0.03); p1.add(sbox);
-  const sLab = add(p1, txt([{ text: "810px", size: 46, weight: 500, font: FONT_MONO, color: AMB }]), vx, vy + sh / 2 - 0.22);
-  add(p1, txt([{ text: "vertical-video", size: 48, weight: 600, color: FG }, { text: "safe zones", size: 48, weight: 600, color: FG }, { text: "竖屏安全区", size: 46, weight: 500, font: FONT_ZH, color: ZHC }]), vx, -1.28);
-  // 20-item checklist: boxes tick on 32nds
-  const boxes = []; const bx0 = 1.98, by0 = 1.35, bs = 0.32, bg = 0.1;
-  for (let i = 0; i < 20; i++) {
-    const c = i % 4, r = Math.floor(i / 4), x = bx0 + c * (bs + bg), y = by0 - r * (bs + bg);
-    const fr = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(bs, bs)), lineMat(0x6a6a72)); fr.position.set(x, y, 0.02); p1.add(fr); p1.userData.fades.push(fr);
-    const fill = new THREE.Mesh(new THREE.PlaneGeometry(bs * 0.62, bs * 0.62), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.85, 0.6, 0.14), transparent: true, opacity: 0, toneMapped: false, fog: false })); fill.position.set(x, y, 0.03); p1.add(fill);
-    boxes.push({ fill, tOn: bar(19, 2) + i * S16 * 0.5 });
+  const wallTex = new THREE.TextureLoader().load("assets/tex/styles-wall.jpg"); wallTex.colorSpace = THREE.SRGBColorSpace; wallTex.anisotropy = 8;
+  const WC = 8, WR = 4, ww = 0.96, wh = ww * 9 / 16, wg = 0.06, wx0 = -((WC - 1) / 2) * (ww + wg), wy0 = 1.28;
+  const wall = [];
+  for (let i = 0; i < WC * WR; i++) {
+    const c = i % WC, r = Math.floor(i / WC), g = new THREE.PlaneGeometry(ww, wh), uv = g.attributes.uv;
+    for (let k = 0; k < uv.count; k++) uv.setXY(k, (c + uv.getX(k)) / WC, 1 - (r + 1 - uv.getY(k)) / WR);
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: wallTex, transparent: true, opacity: 0, toneMapped: false, fog: false }));
+    m.position.set(wx0 + c * (ww + wg), wy0 - r * (wh + wg), 0.02); p1.add(m);
+    wall.push({ m, tOn: bar(19, 0.5) + Math.floor(hash(i * 3.3 + 1) * 24) * S16 * 0.5 });
   }
-  add(p1, txt([{ text: "20-item self-review", size: 48, weight: 600, color: FG }, { text: "checklist", size: 48, weight: 600, color: FG }, { text: "20 条的自查清单", size: 46, weight: 500, font: FONT_ZH, color: ZHC }]), bx0 + 1.5 * (bs + bg), -1.28);
-  const H1 = hero("Taste written down\nas numbers.", "把品味写成数字", { enSize: 150 });
+  add(p1, txt([{ text: "each with a real sample", size: 50, weight: 600, color: FG }, { text: "每种都有真渲的样片", size: 48, weight: 500, font: FONT_ZH, color: ZHC }]), 0, -1.5);   // the title above already says 31
+  const H1 = hero("31 styles, not one taste.", "31 种风格，不止一种口味。", { enSize: 150 });
 
   // =============== panel 2: Sound, end to end ===============
   const p2 = shell(PW, PH); p2.position.copy(W(0, 2.0, -17)); scene.add(p2);
   const NB = 44, bars2 = [];
   for (let i = 0; i < NB; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 1), new THREE.MeshBasicMaterial({ color: AMBC, transparent: true, opacity: 0, toneMapped: false, fog: false })); m.position.set(-4.15 + i * 0.07, 0.2, 0.02); p2.add(m); bars2.push(m); }
-  const wLab = add(p2, txt([{ text: "this film's own score", size: 46, weight: 400, font: FONT_MONO, color: DIMC }]), -2.6, -1.35);
-  const ROWS = [
-    ["Chinese and English voiceover", "中英双语配音", "Qwen3-TTS"],
-    ["bilingual captions", "双语字幕", "bin/vh captions"],
-    ["code-composed music", "代码作曲", "bin/vh music"],
-    ["sound effects and the final mix", "音效、混音", "15 SFX · −14 LUFS"],
-  ];
-  const rows2 = ROWS.map(([en, zh, tag], i) => {
-    const m = add(p2, txt([{ text: en, size: 48, weight: 600, color: FG }, { text: `${zh} · ${tag}`, size: 46, weight: 500, font: FONT_ZH, color: ZHC }], { align: "left" }), 0, 1.35 - i * 0.92);
+  const wLab = add(p2, txt([{ text: "this film's own score", size: 46, weight: 400, font: FONT_MONO, color: DIMC }]), -2.62, 1.55);   // above the bars: clear of the sound list
+  const ROWS = [["Voiceover", "配音"], ["Captions", "字幕"], ["Score · 102 instruments", "作曲"], ["Mix · −14 LUFS", "混音"]];   // one line each (round 4: 25 words was too many to read)
+  const rows2 = ROWS.map(([en, zh], i) => {
+    const m = add(p2, txt([{ text: `${en} · ${zh}`, size: 54, weight: 600, color: FG }], { align: "left" }), 0, 1.35 - i * 0.92);
     m.position.x = -0.75 + m.geometry.parameters.width / 2; m.userData.base = m.position.clone();
     const dot = new THREE.Mesh(new THREE.CircleGeometry(0.06, 16), barMat(2.4)); dot.material.transparent = true; dot.position.set(-0.85, 1.35 - i * 0.92 + 0.15, 0.03); p2.add(dot);
     return { m, dot, tOn: bar(20, i) };
@@ -127,13 +110,13 @@ export function buildFeatures(THREE, X) {
     fragmentShader: `uniform float uAmt; varying float vA; void main(){ vec2 d = gl_PointCoord - 0.5; float r = length(d); float a = smoothstep(0.5, 0.0, r);
       gl_FragColor = vec4(vec3(1.0, 0.78, 0.42) * a * vA * uAmt, a * vA * uAmt); }`,
   })); stars.frustumCulled = false; scene.add(stars);
-  const CASES = Array.from({ length: 11 }, (_, j) => { const i = Math.floor(hash(j * 13.7 + 2.0) * NS); const s = sprite(glowTex, 0.5); s.position.set(sp[3 * i], sp[3 * i + 1], sp[3 * i + 2]); return { s, tOn: bar(22) + (j + 1) * S16 }; });
-  // chart rings in the disc plane (a star *map*), and the 11 case studies as one constellation, drawn star to star as each lights
+  const CASES = Array.from({ length: 13 }, (_, j) => { const i = Math.floor(hash(j * 13.7 + 2.0) * NS); const s = sprite(glowTex, 0.5); s.position.set(sp[3 * i], sp[3 * i + 1], sp[3 * i + 2]); return { s, tOn: bar(22) + (j + 1) * S16 }; });
+  // chart rings in the disc plane (a star *map*), and the 13 case studies as one constellation, drawn star to star as each lights
   const rings8 = [5, 10, 15].map((R) => { const pts = []; for (let k = 0; k <= 128; k++) { const a = (k / 128) * Math.PI * 2; pts.push(new THREE.Vector3(Math.cos(a) * R, 0, Math.sin(a) * R).applyAxisAngle(new THREE.Vector3(1, 0, 0), 0.62).add(CO)); }
     const m = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x6a5a3a, transparent: true, opacity: 0, toneMapped: false, fog: false })); scene.add(m); return m; });
   const cPts = CASES.map((c) => c.s.position.clone()).sort((a, b) => Math.atan2(a.z - CO.z, a.x - CO.x) - Math.atan2(b.z - CO.z, b.x - CO.x));
   const constel = new THREE.Line(new THREE.BufferGeometry().setFromPoints(cPts), new THREE.LineBasicMaterial({ color: new THREE.Color(1.0, 0.72, 0.2), transparent: true, opacity: 0, toneMapped: false, fog: false })); scene.add(constel);
-  const H4 = quiet(dynPlane([{ text: "11 case studies", size: 170, weight: 600, color: FG, track: -0.025 }, { text: "+ curated picks from 389 community videos", size: 96, weight: 500, color: "#E4E4E8" }, { text: "11 个案例拆解 + 389 支社区作品精选", size: 84, weight: 500, font: FONT_ZH, color: "#D6D6DC" }], { lineGap: 0.3 }));
+  const H4 = quiet(dynPlane([{ text: "13 case studies", size: 170, weight: 600, color: FG, track: -0.025 }, { text: "+ curated picks from 389 community videos", size: 96, weight: 500, color: "#E4E4E8" }, { text: "13 个案例拆解 + 389 支社区作品精选", size: 84, weight: 500, font: FONT_ZH, color: "#D6D6DC" }], { lineGap: 0.3 }));
 
   // ---- camera ----
   const camFor = (panel, d, dy = 0.55) => { const n = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), panel.rotation.y); return [panel.position.clone().addScaledVector(n, d).add(new THREE.Vector3(0, dy, 0)), panel.position.clone().add(new THREE.Vector3(0, dy - 0.05, 0))]; };
@@ -155,37 +138,32 @@ export function buildFeatures(THREE, X) {
       U.fades.forEach((m) => { m.material.opacity = o; });
       pn.visible = o > 0.002;
     });
-    // panel 1
+    // panel 1: the style wall
     const o1 = win(t, bar(19) - 0.3, bar(20) + 0.25, 0.35, 0.3);
-    const cu = eOutCubic(seg(t, bar(19, 0.1), bar(19, 1.0)));
-    curve.geometry.setDrawRange(0, Math.max(2, Math.round(cu * (NC + 1)))); curve.material.opacity = o1;
-    const ph = ((t - bar(19)) / (BEAT * 2)) % 1, pu = t < bar(19) ? 0 : ph, pv = 1 - Math.pow(2, -10 * pu);
-    cdot.position.set(lerp(gx0, gx1, pu), lerp(gy0, gy1, pv), 0.04); cdot.material.opacity = o1 * (t > bar(19, 1.0) ? 1 : 0);
-    const sOn = t >= bar(19, 1); sbox.material.opacity = o1 * (sOn ? 0.75 + 0.25 * Math.exp(-(t - bar(19, 1)) / 0.3) : 0); sLab.material.opacity = o1 * (sOn ? 1 : 0);
-    boxes.forEach((b) => { b.fill.material.opacity = o1 * (t >= b.tOn ? 0.9 : 0); });
+    wall.forEach((w) => { const a2 = t - w.tOn; w.m.material.opacity = o1 * (a2 < 0 ? 0.25 : 0.95); w.m.material.color.setScalar(a2 < 0 ? 0.3 : 0.78 + 0.12 * Math.exp(-a2 / 0.2)); });   // under the bloom threshold: the posters must read
     // panel 2: bars follow the film's own music (assets/wave.json RMS), centred on the playhead
     const o2 = win(t, bar(20) - 0.3, bar(21) + 0.25, 0.35, 0.3);
     bars2.forEach((m, i) => {
-      let a = 0.2; if (WAVE && WAVE.rms) { const N = WAVE.rms.length, tt = t + (i - NB / 2) * 0.05, j = clamp(Math.round((tt / DUR) * (N - 1)), 0, N - 1); a = WAVE.rms[j]; }
-      const h = 0.08 + 2.2 * a * (0.75 + 0.25 * Math.sin(i * 1.7 + t * 9.0)); m.scale.y = h; m.material.opacity = o2 * (i === NB / 2 ? 1 : 0.75);
+      let a = 0.2; if (WAVE && WAVE.rms) { const N = WAVE.rms.length, tt = ctx.ta - (window.__T0 || 0) + (i - NB / 2) * 0.05, j = clamp(Math.round((tt / (WAVE.duration || DUR)) * (N - 1)), 0, N - 1); a = WAVE.rms[j]; } // wave.json is in film time
+      const h = 0.08 + 2.2 * a * (0.75 + 0.25 * Math.sin(i * 1.7 + ctx.ta * 9.0)); m.scale.y = h; m.material.opacity = o2 * (i === NB / 2 ? 1 : 0.75);
     });
     const newest = rows2.filter((r) => t >= r.tOn).length - 1;
-    rows2.forEach((r, i) => { const k = t < r.tOn ? 0.22 : i === newest ? 1 : 0.55; r.m.material.opacity = o2 * k; r.dot.material.opacity = o2 * (t >= r.tOn ? 1 : 0); setAmber(r.dot.material, 1.2 + 2.2 * (t >= r.tOn ? Math.exp(-(t - r.tOn) / 0.2) : 0)); });
-    wLab.material.opacity = o2;
+    rows2.forEach((r, i) => { const k = t < r.tOn ? 0.22 : i === newest ? 1 : 0.8; r.m.material.opacity = o2 * k; r.dot.material.opacity = o2 * (t >= r.tOn ? 1 : 0); setAmber(r.dot.material, 1.2 + 2.2 * (t >= r.tOn ? Math.exp(-(t - r.tOn) / 0.2) : 0)); });
+    wLab.material.opacity = 0; wLab.visible = false;   // dropped in round 4 (one less thing to read)
     // panel 3
     const o3 = win(t, bar(21) - 0.3, bar(22) + 0.25, 0.35, 0.3);
     drawTerm(t); term.material.opacity = o3; tbar.material.opacity = o3; dots3.forEach((d) => { d.material.opacity = o3; });
     // heroes
     slamView(H1, t, bar(19) + 0.08, bar(20) - 0.12, 11, 0.44, 0, 0.55);
-    slamView(H2, t, bar(20) + 0.05, bar(21) - 0.12, 11, 0.52, 0, 0.68);
+    slamView(H2, t, bar(20) + 0.05, bar(20, 3.25), 11, 0.52, 0, 0.68);   // leaves inside the hold that follows the fourth row: the rows hold alone
     slamView(H3, t, bar(21) + 0.05, bar(22) - 0.12, 11, 0.42, 0, 0.68);
     // stars
-    stars.material.uniforms.uTime.value = t; stars.material.uniforms.uAmt.value = win(t, bar(22) - 0.35, bar(23) + 0.3, 0.2, 0.4) * (1 + 0.8 * Math.exp(-Math.max(0, t - bar(22)) / 0.25));
+    stars.material.uniforms.uTime.value = ctx.ta; stars.material.uniforms.uAmt.value = win(t, bar(22) - 0.35, bar(23) + 0.3, 0.2, 0.4) * (1 + 0.35 * Math.exp(-Math.max(0, t - bar(22)) / 0.25)) * (1 - 0.45 * H4.material.opacity);   // the map dims under its read
     stars.material.uniforms.uConv.value = eOutExpo(seg(t, bar(22) - 0.35, bar(22) + 0.05)); stars.material.uniforms.uPre.value = seg(t, bar(22) - 0.35, bar(22) - 0.15);
     CASES.forEach((c) => { const a = t - c.tOn; c.s.visible = a >= 0 && t < bar(23) + 0.3; c.s.material.opacity = c.s.visible ? (0.7 + 0.8 * Math.exp(-a / 0.2)) * win(t, c.tOn, bar(23) + 0.3, 0.02, 0.4) : 0; c.s.scale.setScalar(0.45 + 0.6 * Math.exp(-Math.max(0, a) / 0.25)); });
     rings8.forEach((m, i) => { m.material.opacity = 0.5 * win(t, bar(22) + i * S16, bar(23) + 0.3, 0.3, 0.4); m.visible = m.material.opacity > 0.002; });
     const nLit = CASES.filter((c) => t >= c.tOn).length; constel.geometry.setDrawRange(0, nLit); constel.material.opacity = 0.55 * win(t, bar(22), bar(23) + 0.3, 0.1, 0.4); constel.visible = nLit > 1;
-    slamView(H4, t, bar(22) + 0.1, bar(23) - 0.1, 11, 0.78, 0, 0.0);
+    slamView(H4, t, bar(22) + 0.1, bar(23) - 0.1, 11, 0.78, 0, 0.0); if (H4.userData.quiet) H4.userData.quiet.material.opacity = 0.9 * H4.material.opacity;
   }
   return {
     update, whips, samples, heroes: [H1, H2, H3, H4], labels: [],

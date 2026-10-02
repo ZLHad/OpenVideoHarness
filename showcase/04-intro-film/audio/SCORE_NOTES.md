@@ -343,3 +343,14 @@ The 27:1–28:1 breakdown ("This film, too.", 70.667–73.333 s) sat well under 
   - 0 holes (reveal section lowest window 3.1 dB under its median).
   - Largest dip 3.0 dB; 0 clicks.
   - Silent runs only at 0–0.08 s and 81.265 s → end.
+
+---
+
+## v5 (the intro film v5, 2026-10-02): 80 BPM, joined to the opening sketch
+
+The v5 film keeps this score for its body and changes one number: `"bpm": 80` instead of 90 (every read on screen stays 12.5 % longer; the notes, sections, hits and bar 11 in 6/4 are unchanged, so every bar is 3.0 s and bar 11 is 4.5 s). The film's music is two pieces joined at 23.0 s:
+
+- 0–23.0 s: the opening sketch (`audio/sketch.json`, 120 BPM, motif B: F# A B rising, left hanging in the question), rendered with `bin/vh music` and faded out over its last 0.65 s;
+- 23.0–87.5 s: this score from its 27.0 s mark (bar 10), with a 12 ms fade-in.
+
+`tools/build_audio.sh` builds both, joins them and mixes them with the 124 SFX of `audio/events.json` (`bin/vh mix … profile=promo`, −14.0 LUFS, true peak −1.65 dBTP); rebuilt from the repo, `music.wav` and `mix.wav` are byte-identical to the delivered ones. `bin/vh qa`: no silence, dropouts or pumping; 62/62 cues within one frame; 90 click warnings, all in this score's stem (sharp percussion attacks), none in the SFX.

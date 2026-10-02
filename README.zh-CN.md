@@ -10,13 +10,15 @@
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-black)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
-![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush-blue)
+![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush%20%7C%20Blender-blue)
 ![Voice](https://img.shields.io/badge/voice-Qwen3--TTS%20zh%20%7C%20en-purple)
 ![Styles](https://img.shields.io/badge/styles-31-green)
 
-<a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/preview.gif" width="820" alt="OpenVideoHarness 介绍片"></a>
 
-<sub>▶ 完整介绍片：81 秒，有配乐，可以开中英字幕，见 <a href="showcase/04-intro-film/media/final.mp4">showcase/04-intro-film</a>。这支片子本身也是 agent 照着这个仓库做的，连配乐都是代码写的。</sub>
+https://github.com/user-attachments/assets/9d305423-0e5b-4276-a347-17a072993b6f
+
+
+<sub>▶ 上面是介绍片的第 1 段（开场，19 秒，1080p，有声音）。整片 150.5 秒分 8 段，都在 <a href="showcase/04-intro-film/README.zh-CN.md">showcase/04-intro-film</a> 里直接播放；整片文件是 <a href="showcase/04-intro-film/media/final.mp4">final.mp4</a>。开场 15.8 秒是代码驱动 Blender 路径追踪渲出来的：118 万颗星组成一个星系，每颗星都是一支片子；之后是 HyperFrames + Three.js 的一镜到底。这支片子本身也是 agent 照着这个仓库做的，连配乐都是代码写的。</sub>
 
 </div>
 
@@ -32,11 +34,12 @@ OpenVideoHarness 就是这套行规，写成了 AI 能照着执行的文档和�
 
 - **按片子类型给做法**：你说"做个科普"或"做个发布片"，它就去读那一类的工作流：用哪个引擎、分几步、什么算好看、什么不许做。
 - **三个节点停下来问你**：大纲、分镜、初版，每到一处都等你点头再往下做。方向在最便宜的时候定下来。只想快速试一版时，可以切到"快出"档，直接出片。
-- **不止一种口味**：31 个从名作里学来的风格，每个都附一段真渲的样片，开工前让你挑。
+- **不止一种口味**：31 个从名作里学来的风格，每个都附一段真渲的样片。它们是立意可以借用的参考，不是套用的模板。
 - **自己检查自己**：AI 看不了视频，也听不了声音。所以让它看渲染出来的帧、测混音的数据，照着清单改到合格；整片还要交给一个没参与制作的 reviewer 打分。
 - **声音一起管**：中英配音（本地开源模型）、双语字幕、用代码写配乐和音效、混音和质检。
+- **代码驱动 Blender**：要真玻璃、星云体积光、景深和上百万粒子时，agent 写 Python 让 Blender 路径追踪出底片，在沙箱里跑，再和网页引擎的画面接在一起。介绍片的开场就是这样做的，见[下文](#用代码驱动-blender3d-和电影级特效)。
 
-它不是新的渲染引擎，而是架在 HyperFrames、Manim、Remotion、p5.brush 这些引擎之上的一层"怎么做"。
+它不是新的渲染引擎，而是架在 HyperFrames、Manim、Remotion、p5.brush、Blender 这些引擎之上的一层"怎么做"。
 
 ## 30 秒开始
 
@@ -45,12 +48,12 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 ```
 
 这一条命令会：
-- 把仓库克隆到 `~/OpenVideoHarness`（约 330 MB，样片和示例片都在里面）；
+- 把仓库克隆到 `~/OpenVideoHarness`（约 530 MB，样片和示例片都在里面）；
 - 装好自带手绘引擎和风格样片渲染器的依赖（约 210 MB）；
 - 拉取 30 个只读的参考仓库（约 195 MB，加 `--no-refs` 可以先不拉）；
 - 把 `open-video-harness` skill 注册给 Claude Code 和 Codex，之后在任何目录说"做个视频"，agent 都能找到这里。
 
-一共占约 730 MB 磁盘。第一次渲染和第一次用声音工具时还会再下载一批，各有多大、放在哪里，见[会下载什么](#会下载什么)。不知道从哪开始？看 wiki 里的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)，从零走到第一支视频。
+一共占约 935 MB 磁盘。第一次渲染和第一次用声音工具时还会再下载一批，各有多大、放在哪里，见[会下载什么](#会下载什么)。不知道从哪开始？看 wiki 里的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)，从零走到第一支视频。
 
 然后打开 Claude Code（或 Codex），直接说你要什么：
 
@@ -71,36 +74,66 @@ cd ~/OpenVideoHarness && claude
 
 ## 看看它做出来的东西
 
-下面五支片子，都是 agent **只看本仓库的文档**做出来的。点预览进入各自的目录（需求、分镜、审阅记录、返工记录和全部源码都在里面），可以直接当同类视频的起点；▶ 是带声音的 MP4 原片。每条提示词只摘了较长 brief 里的一小段，点“提示词”可以看全文。00–03 先做完了画面（静音），声音是之后配上的。
+下面五支片子，都是 agent **只看本仓库的文档**做出来的。视频都能直接播放（1080p，有声音；31 种风格的连播是原尺寸 720p），右下角是仓库名；点标题进入各自的目录（需求、分镜、审阅记录、返工记录和全部源码都在里面），可以直接当同类视频的起点。每条提示词只摘了较长 brief 里的一小段，点“提示词”可以看全文。00–03 先做完了画面（静音），声音是之后配上的。
 
 <table>
 <tr>
-<td width="40%" valign="top"><a href="showcase/02-short-leo-doppler/"><img src="showcase/02-short-leo-doppler/media/preview.gif" width="60%" alt="02 · 竖屏科普"></a><br><sub><a href="showcase/02-short-leo-doppler/media/final.mp4">▶ 带声音的原片</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/1f5873bd-a83f-4d5e-96fe-08aff0c3a96c
+
+<sub><a href="showcase/02-short-leo-doppler/media/final.mp4">原文件</a></sub>
+</td>
 <td valign="top"><b><a href="showcase/02-short-leo-doppler/">02 · 竖屏科普</a></b>（HyperFrames · 24.8 秒 · 1080×1920）<br>低轨卫星的多普勒频移，关掉声音也能看懂。<br><b><a href="showcase/02-short-leo-doppler/README.md#the-request-this-was-built-from">提示词</a>：</b>“为什么低轨卫星的信号会"变调"？——多普勒频移”<br><b>建议工作流</b>（标准档）：<br><code>bin/vh new short leo-doppler --aspect 9:16</code><br>配声音：<code>bin/vh tts</code>、<code>music</code>、<code>mix … profile=short</code>、<code>mux</code><br><b>声音：</b>中文配音（Gemini TTS，音色 Aoede）、轻配乐、把卫星信标做成能听见的声音；中英软字幕，默认关闭（画面里已烧录字幕）</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="showcase/03-math-fourier/"><img src="showcase/03-math-fourier/media/preview.gif" width="100%" alt="03 · 3b1b 式数学讲解"></a><br><sub><a href="showcase/03-math-fourier/media/final.mp4">▶ 带声音的原片</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/c2368f76-b157-4a48-9945-8048a515efd4
+
+<sub><a href="showcase/03-math-fourier/media/final.mp4">原文件</a></sub>
+</td>
 <td valign="top"><b><a href="showcase/03-math-fourier/">03 · 3b1b 式数学讲解</a></b>（Manim CE · 25 秒 · 1920×1080）<br>正弦波一层层叠成方波，最后落在吉布斯过冲上。<br><b><a href="showcase/03-math-fourier/README.md#the-request-this-was-built-from">提示词</a>：</b>“Building a square wave from sine waves”（用正弦波拼出方波）<br><b>建议工作流</b>（标准档）：<br><code>bin/vh new math fourier-square-wave --style dark-math</code><br>配声音：<code>bin/vh tts</code>、<code>music</code>、<code>mix … profile=explainer</code>、<code>mux</code><br><b>声音：</b>英文旁白（Gemini TTS，音色 Iapetus）、钢琴配乐比人声低 13 LU、每个谐波各发自己的音</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="showcase/01-handdrawn-clawd-leaf/"><img src="showcase/01-handdrawn-clawd-leaf/media/preview.gif" width="100%" alt="01 · 手绘角色短片"></a><br><sub><a href="showcase/01-handdrawn-clawd-leaf/media/final.mp4">▶ 带声音的原片</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/da028240-fcff-4e02-95a0-a0abd3238d07
+
+<sub><a href="showcase/01-handdrawn-clawd-leaf/media/final.mp4">原文件</a></sub>
+</td>
 <td valign="top"><b><a href="showcase/01-handdrawn-clawd-leaf/">01 · 手绘角色短片</a></b>（p5.brush · 12 秒 · 1920×1080）<br>手绘默剧：没有文字，没有旁白，三个镜头。<br><b><a href="showcase/01-handdrawn-clawd-leaf/README.md#the-request-this-was-built-from">提示词</a>：</b>“Clawd tries to film a falling autumn leaf with a tiny hand-cranked movie camera; the wind keeps snatching the leaf just as Clawd frames it …”（Clawd 用手摇小摄影机拍一片落叶，风总在它对准的时候把叶子抢走……）<br><b>建议工作流</b>（标准档）：<br><code>bin/vh new handdrawn leaf --style watercolor-pastoral</code><br>配声音：<code>bin/vh music</code>、<code>sfx</code>、<code>mix … profile=cartoon</code>、<code>mux</code><br><b>声音：</b>卡通配乐（拨弦、钢片琴、长笛、木琴），加上跟着每个动作走的拟音</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · 发布短片"></a><br><sub><a href="showcase/00-promo-launch-film/media/final.mp4">▶ 带声音的原片</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
+
+<sub><a href="showcase/00-promo-launch-film/media/final.mp4">原文件</a></sub>
+</td>
 <td valign="top"><b><a href="showcase/00-promo-launch-film/">00 · 发布短片</a></b>（HyperFrames · 20 秒 · 1920×1080）<br>用这个仓库自己的终端、目录和联系表搭成。<br><b><a href="showcase/00-promo-launch-film/README.md#the-request">提示词</a>：</b>“Produce the README hero video — a short launch film for OpenVideoHarness itself …”（做 README 首屏的主视频：一支给 OpenVideoHarness 本身的发布短片……）<br><b>建议工作流</b>（标准档）：<br><code>bin/vh new promo launch-film</code><br>配声音：<code>bin/vh music</code>、<code>sfx</code>、<code>mix … profile=promo</code>、<code>mux</code><br><b>声音：</b>极简电子配乐，加上每个画面动作的拟音（打字、点击、转场处的 whoosh），没有人声</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/preview.gif" width="100%" alt="04 · 介绍片"></a><br><sub><a href="showcase/04-intro-film/media/final.mp4">▶ 带声音的原片</a></sub></td>
-<td valign="top"><b><a href="showcase/04-intro-film/">04 · 介绍片（一镜到底 3D）</a></b>（HyperFrames + Three.js · 81 秒 · 1920×1080）<br>本仓库自己的产品片，一个连续的 3D 长镜头。<br><b><a href="showcase/04-intro-film/README.md#what-was-asked-and-what-changed">提示词</a>（关卡 ① 时改的方向）：</b>“一镜到底 动画动效 音乐动态字等风格 叙事感 科幻感大片感”<br><b>建议工作流</b>（精品档，<code>--effort studio</code>）：<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>一镜到底 3D 见 <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>；<code>bin/vh sfx place</code>、<code>sheet</code>、<code>check</code><br><b>声音：</b>代码写的电影感配乐（D 小调，90 BPM）和 97 个音效；中英软字幕轨</td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/e4fa59b8-3941-4fdd-ada4-62b4be4f3a82
+
+<sub>8 段里的第 5 段（自查回环和成片）；<a href="showcase/04-intro-film/README.zh-CN.md">全部 8 段</a> · <a href="showcase/04-intro-film/media/final.mp4">原文件</a></sub>
+</td>
+<td valign="top"><b><a href="showcase/04-intro-film/README.zh-CN.md">04 · 介绍片（星河开场 + 一镜到底）</a></b>（Blender + HyperFrames + Three.js · 150.5 秒 · 1920×1080）<br>本仓库自己的产品片。开场用 Blender 路径追踪：每颗星都是一支片子，星系坍缩成超新星，再被压成一片影片之海；之后一个连续的 3D 长镜头穿过整个仓库。<br><b><a href="showcase/04-intro-film/README.zh-CN.md#你说了什么原话">提示词</a>（关卡上的原话）：</b>“玻璃、宇宙、星穹等感觉要让人已看到开头就被吸引，令人瘫坐眩晕的感觉”，之后“或者使用blender？好莱坞大片质感”<br><b>建议工作流</b>（精品档，<code>--effort studio</code>）：<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>Blender 底片见 <a href="engines/blender.md">engines/blender.md</a>；一镜到底 3D 见 <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>；<code>bin/vh sheet</code>、<code>check</code><br><b>声音：</b>代码写的配乐（开场 120 BPM，正文 D 小调 80 BPM）和 124 个音效，<code>bin/vh mix … profile=promo</code> 混音</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="31 种风格的样片，内容完全相同"></a><br><sub><a href="styles/gallery.mp4">▶ 带声音的连播（42 秒）</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
+
+<sub><a href="styles/gallery.mp4">原文件</a></sub>
+</td>
 <td valign="top"><b><a href="styles/">31 种风格，连播</a></b>（每段 5 秒）<br>同一段内容，换 31 种从名作里学来的风格。<br><b>挂一种当参考：</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> 列出全部 31 种，详见 <a href="styles/README.md">styles/README.md</a><br><b>声音：</b>每段样片一首配乐（<code>bin/vh music</code>，<code>mix … profile=swatch</code>）</td>
 </tr>
 </table>
 
-GIF 是压缩过的无声预览。你做出来的片子也欢迎 PR 进 `showcase/`。
+视频下面的“原文件”链到仓库里的 MP4。你做出来的片子也欢迎 PR 进 `showcase/`。
 
 <details>
 <summary><b>社区里的同类作品，以及我们对它们的拆解</b></summary>
@@ -146,6 +179,20 @@ bin/vh new promo launch-film --style cutout-jazz   # 挂上一种风格当参考
 
 学的是这些作品的"语法"，不是照抄作品：不用原作的角色、logo 和镜头，写给 AI 的提示词里也不写"模仿某某导演"。详见 [styles/README.md](styles/README.md)。
 
+## 用代码驱动 Blender：3D 和电影级特效
+
+有些画面网页引擎给不了：真玻璃的折射、星云和体积光、真实的景深、上百万个粒子的运动模糊。这时 agent 直接写 Python 驱动 Blender。每一帧仍然只由时间决定：numpy 算出每颗星、每张卡片在 t 时刻的位置，Cycles 路径追踪渲成底片，再和 HyperFrames 的字、界面接在同一支片子里。
+
+<p align="center"><img src="docs/assets/blender-strip.jpg" width="820" alt="介绍片开场的几个时刻：玻璃片里的地球、拉远成星系、超新星、压平成影片之海，都是 Blender 渲的"></p>
+
+- **介绍片的开场就是这样做的**：118 万颗星组成一个星系，每颗星都是一支片子。镜头从一张玻璃片拉远到整个星系，螺旋下坠，星系坍缩成超新星，再被压成一片影片之海。15.8 秒、475 帧，1080p 在 M3 Max 上渲了 1 小时 28 分。之后的网格和终端交给 HyperFrames，两边用同一个相机交叉溶解。源码在 [`showcase/04-intro-film/blender/`](showcase/04-intro-film/blender/)。
+- **风格库里的 [`tabletop-miniature`](styles/tabletop-miniature/)**（桌面微缩剧场）也是 Blender 渲的。
+- **跑在沙箱里**：agent 写的 bpy 脚本不联网、只能写输出目录，也拿不到环境变量里的 key。
+- **先算时间账**：先渲 3–5 帧校准，把"帧数 × 每帧时间 × 1.5"写进 BRIEF；4K 大约是 1080p 的 4 倍。长渲染分块、可以续渲。
+- **许可**：import bpy 的文件按 GPL-3.0-or-later 分发（Blender 对公开发布的 bpy 脚本的要求），其余仍是 MIT。
+
+什么时候值得用 Blender、怎么接进片子、踩过哪些坑，见 [engines/blender.md](engines/blender.md)（部分已实测，文中标明了哪些跑过）。
+
 ## 你可以这样提需求
 
 不用写长篇 brief，说清楚**讲什么、给谁看、发在哪**就够了。
@@ -188,7 +235,7 @@ bin/vh new promo launch-film --style cutout-jazz   # 挂上一种风格当参考
 |---|---|---|---|
 | 适合 | 试方向、草稿、随手发 | 大多数正式视频 | 发布片、旗舰内容 |
 | 停下来问你 | 不问，直接出片 | 大纲、分镜、初版三次 | 三次，外加每个立意的真渲草图和全片灰模预演 |
-| 自己检查 | 整片一张联系表 | 每一段都看帧、测声音 | 再加目标屏尺寸、确定性、音频全检 |
+| 自己检查 | 整片一张联系表、一张按目标屏缩的联系表、前 2 秒的逐帧条 | 每一段都看帧、测声音 | 再加循环接缝、确定性、音频全检 |
 | 找人打分 | 不找 | 1 轮 | 至少 3 轮，8 项都要 8 分 |
 | 30 秒的片子大概要 | 10–30 分钟 | 1–2 小时 | 3 小时以上 |
 
@@ -231,7 +278,7 @@ bin/vh new promo launch-film --style cutout-jazz   # 挂上一种风格当参考
 - 要讲一个有起伏的故事，或做 3 分钟以上的长片：[playbook/09](playbook/09-narrative.md)（骨架、节拍表、张力曲线、换挡）；
 - 要发短视频平台，想好开头钩子、标题和封面：[playbook/10](playbook/10-hooks-and-packaging.md)；
 - 要配乐有篇章、有能哼出来的主题、有起伏：[playbook/11](playbook/11-composition.md)；
-- 想看我们量过什么、因此改了什么：[docs/research](docs/research/README.md)（混音层级、配乐距离、渲染确定性、画面文字读秒、配乐篇章）。
+- 想看我们量过什么、因此改了什么：[docs/research](docs/research/README.md)（混音层级、配乐距离、渲染确定性、画面文字读秒、配乐篇章、立意先行的 A/B 试验）。
 
 ## 声音
 
@@ -262,14 +309,15 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 | 命令 | 作用 |
 |---|---|
 | `doctor` / `setup` | 检查环境 / 安装依赖、拉取参考资料 |
-| `types` / `new <类型> <名字> [--style <风格[,风格]>] [--effort <档位>]` | 列出 9 类视频 / 建一个新项目 |
+| `types` / `new <类型> <名字> [--style <风格[,风格]>] [--effort <档位>] [--aspect 9:16] [--watch phone\|feed\|desktop] [--res 1080p\|4k]` | 列出 9 类视频 / 建一个新项目（画幅、在哪块屏上看、分辨率可以一开始就定） |
 | `effort [quick\|standard\|studio]` | 看三档努力程度各做什么 |
-| `style list` / `style <风格>` / `style gallery` | 看风格 / 渲一段样片 / 重建风格总览 |
+| `style list` / `style <风格>` / `style gallery` / `style compare a,b,c` / `style apply <风格> <项目>` | 看风格 / 渲一段样片 / 重建风格总览 / 几个风格并排对照 / 给项目挂参考风格 |
 | `recipes list [--intent …] [--energy …] [--engine …]` / `recipes check` | 按这一镜要说什么、多响来找镜头配方 / 校验一张配方 |
 | `tts` / `voices` / `captions` / `music` / `sfx` / `beats` | 配音（可逐句导演、对拍、逐字核对、双人对话）/ Gemini 音色库和设计音色 / 字幕 / 配乐 / 音效 / 分析外部音乐 |
 | `mix` / `qa` / `mux` | 混音 / 混音质检 / 给成片合上声音和字幕 |
 | `sheet` / `check` / `readcheck` / `gif` | 带时间戳的联系表 / 查黑场、冻帧、静音 / 查字停得够不够久 / 做 README 用的 GIF |
 | `review <项目> [关卡]` | 生成审阅页：先列要你定的事，再放图、animatic 和音频，分镜一段一页 |
+| `storyboard` / `rhythm` / `cover-preview` | 拍板用的图：带标注的分镜页 / 节奏图（太长的镜头、读不完的字标红）/ 封面在各平台信息流里的实际大小 |
 | `hf-init` / `install-skill` / `sync-agents` | 初始化 HyperFrames / 注册 skill / 同步 AGENTS.md |
 
 ## 需要什么环境
@@ -319,7 +367,7 @@ npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harn
 
 | 下载的东西 | 什么时候 | 放在哪里 | 大小 |
 |---|---|---|---|
-| 本仓库，样片和示例片都在里面 | 安装时 | `~/OpenVideoHarness` | 约 330 MB |
+| 本仓库，样片和示例片都在里面 | 安装时 | `~/OpenVideoHarness` | 约 530 MB |
 | 手绘引擎和风格样片渲染器的 Node 依赖 | 安装时 | 仓库里的 `node_modules` | 约 210 MB |
 | 30 个只读参考仓库 | 安装时，加 `--no-refs` 可跳过 | `references/repos/` | 约 195 MB |
 | HyperFrames 用的 Chrome（`chrome-headless-shell`） | 第一次 `hyperframes render` | `~/.cache/hyperframes` | 下载约 100 MB，解压后约 200 MB |
@@ -416,7 +464,7 @@ OpenVideoHarness/
 
 **中文支持怎么样？** 文档以中文为主。中文字幕排版、竖屏平台的安全区、中文配音和双语字幕都专门处理过，风格库里也有水墨、敦煌、皮影、国潮。
 
-**能不能不要暗底发光那一套？** 可以。在需求里点名一种风格（比如 `ink-wash`），或者说你喜欢哪部片子的样子。不说的话，agent 在大纲那一关也会给你两三种差别很大的风格来选。
+**能不能不要暗底发光那一套？** 可以。在需求里点名一种风格（比如 `ink-wash`），或者说你喜欢哪部片子的样子。不说的话，agent 开头也会先给两三张差别很大的立意卡，画面风格跟着你选的那张走。
 
 **参考仓库的版权怎么处理？** `references/repos/` 不进本仓库，由 `fetch.sh` 从原作者那里拉取，只供阅读。拉下来之后，别人仓库各层目录里给 agent 的指令文件（`CLAUDE.md`、`AGENTS.md`、`.claude/` 等）都会被改名，免得 agent 把别人的规则当成自己的。每个仓库的许可证见 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md)，有些没有许可证或禁止商用，复用前请先确认。
 
@@ -450,7 +498,7 @@ OpenVideoHarness/
 
 ## 许可
 
-原创内容采用 [MIT](LICENSE) 许可。自带的 ClaudeAnimationBase 也是 MIT（© John Heibel）。`recipes/` 里有些文件改编自 Apache-2.0 的项目（video-shotcraft、HyperFrames），来自上游的部分仍按 Apache-2.0，清单见 [`recipes/NOTICE.md`](recipes/NOTICE.md)。调用 Blender Python API 的文件（`import bpy`：`styles/_swatch/blender_render.py` 和 `styles/tabletop-miniature/swatch.py` 这类 Blender 风格场景）按 GPL-3.0-or-later 分发，这是 Blender 对公开发布的 bpy 脚本的要求；每个文件头都有 SPDX 标注（见 [`engines/blender.md`](engines/blender.md) 的"许可证"）。参考仓库遵循各自的许可证。
+原创内容采用 [MIT](LICENSE) 许可。自带的 ClaudeAnimationBase 也是 MIT（© John Heibel）。`recipes/` 里有些文件改编自 Apache-2.0 的项目（video-shotcraft、HyperFrames），来自上游的部分仍按 Apache-2.0，清单见 [`recipes/NOTICE.md`](recipes/NOTICE.md)。调用 Blender Python API 的文件（`import bpy`：`styles/_swatch/blender_render.py`、`styles/tabletop-miniature/swatch.py` 这类 Blender 风格场景，以及介绍片的 `showcase/04-intro-film/blender/galaxy.py`）按 GPL-3.0-or-later 分发，这是 Blender 对公开发布的 bpy 脚本的要求；每个文件头都有 SPDX 标注（见 [`engines/blender.md`](engines/blender.md) 的"许可证"）。参考仓库遵循各自的许可证。
 
 ## 引用
 

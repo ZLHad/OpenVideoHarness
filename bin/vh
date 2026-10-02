@@ -121,7 +121,7 @@ cmd_doctor() {
   want=$(grep -cE '^(full|sparse|textonly)[[:space:]]' "$ROOT/references/fetch.sh" || true)
   for d in "$ROOT"/references/repos/*/; do [ -d "$d.git" ] && have=$((have + 1)); done
   if [ "$have" -ge "$want" ]; then echo "$c_ok references fetched ($have/$want repos, $(size_of "$ROOT/references/repos"))"
-  else echo "$c_wa references: $have/$want repos fetched → bash references/fetch.sh (all $want: about 210 MB; agents read them for the case studies)"; fi
+  else echo "$c_wa references: $have/$want repos fetched → bash references/fetch.sh (all $want: about 195 MB; agents read them for the case studies)"; fi
   if [ ! -f "$ROOT/LOCAL.md" ]; then echo "$c_wa no LOCAL.md → cp LOCAL.example.md LOCAL.md and fill it in"
   else   # a copied template still has its {…} placeholders
     local ph; ph=$(grep -c '{[^}]*}' "$ROOT/LOCAL.md" || true)

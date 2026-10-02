@@ -13,7 +13,17 @@ projects/*
 __pycache__/
 *.pyc
 
-# showcase 04: proxies rebuilt by tools/make_clips.sh from showcase 00–03; the film's regenerable audio
+# showcase 04: proxies rebuilt by tools/make_clips.sh from showcase 00–03; the film's regenerable audio;
+# the film atlases (tools/opening_export.sh, film_atlas.py, ai_atlas.py), the Blender frames and plate, the grid state
 showcase/04-intro-film/assets/clips/
 showcase/04-intro-film/audio/*.wav
 showcase/04-intro-film/audio/sfx/
+showcase/04-intro-film/audio/sfxlib/
+showcase/04-intro-film/audio/stems/
+showcase/04-intro-film/assets/plate.mp4
+showcase/04-intro-film/assets/state.json
+showcase/04-intro-film/assets/hero-earth.png
+showcase/04-intro-film/assets/films*.jpg
+showcase/04-intro-film/assets/films*.png
+showcase/04-intro-film/blender/out/
+showcase/04-intro-film/opening/node_modules
