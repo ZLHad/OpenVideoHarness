@@ -2,6 +2,8 @@
 
 *Written 2026-10-02 · Status: the concept-first workflow is merged ([#44](https://github.com/ZLHad/OpenVideoHarness/pull/44), [#45](https://github.com/ZLHad/OpenVideoHarness/pull/45)); the changes this note led to are in this note's PR; the four films, the two projects and the review are the author's local files, not in the repo · [中文](../06-concept-first-ab.md)*
 
+> **Current state (2026-10-02)**: the text-size question left at the end of "Limitations" was later settled by tiering the floor by where the film is watched ([#47](https://github.com/ZLHad/OpenVideoHarness/pull/47)): the BRIEF gained `Watch on`, with different floors for `phone`, `desktop` and `feed`, and the readability check scales to the target screen. This experiment's reviewer looked at the two landscape films as they appear in a phone feed (360 px wide); for `desktop`, the 44 px labels are enough, for `feed` they would need 80 px.
+
 ## Question
 
 [#44](https://github.com/ZLHad/OpenVideoHarness/pull/44) changed the workflow to "concept first, then style" and split the taste rules into floors and defaults a concept may override. It came from the maintainer's worry that the workflow held Opus 5.5-class models too tight (`cases/oneshot-five.md`). Two questions were left unmeasured:
