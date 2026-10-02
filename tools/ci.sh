@@ -218,6 +218,9 @@ decision_checks() {
   a=$(vh new short ci-x --watch feed 2>&1); rc=$?; [ $rc = 1 ] && case "$a" in *"already --watch phone"*) true ;; *) false ;; esac && ok "new refuses a feed target for a vertical frame" || bad "new short --watch feed exited $rc: $a"
   a=$(vh new promo ci-x --watch phone 2>&1); rc=$?; [ $rc = 1 ] && case "$a" in *"--watch feed"*) true ;; *) false ;; esac && ok "new refuses a phone target for a landscape frame" || bad "new promo --watch phone exited $rc: $a"
   vh new math ci-x --watch phone >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "new refuses a phone target for a Manim (landscape) type" || bad "new math --watch phone exited $rc"
+  for bad_style in "dark-math,_swatch" "Dark-Math" "../styles/ink-wash" ","; do
+    vh new math ci-x --style "$bad_style" >/dev/null 2>&1; rc=$?; [ $rc = 1 ] || bad "new --style '$bad_style' exited $rc"; done
+  ok "new --style rejects a bad name anywhere in the list, paths and an empty list"
   [ -z "$(ls -d "$ROOT"/projects/*-ci-x 2>/dev/null)" ] || bad "a refused new left a project behind"
   # new: where it is watched and the output resolution land in the BRIEF (defaults from the frame, flags override)
   if grep -q '^- Watch on: desktop' "$p/BRIEF.md" && grep -q '^- Resolution: 1080p' "$p/BRIEF.md" \
@@ -232,6 +235,19 @@ decision_checks() {
     && [ "$(grep -c '^> 参考的风格预设：`styles/blueprint`、`styles/ink-wash`' "$p/STYLE.md")" = 1 ] && [ "$(grep -c '风格参考 · ' "$p/DECISIONS.md")" = 2 ] \
     && [ -f "$p/style-refs/blueprint/tokens.json" ] && [ -f "$p/style-refs/ink-wash/STYLE.md" ]; then ok "style apply attaches presets as references, side by side, without repeats"
   else bad "style apply: references missing, repeated, or an instruction block pasted into the BRIEF"; fi
+  # a comma list in one call, and a project made the old way (STYLE_PRESET.md + a pasted block + the 为底 pointer) keeps its base as a reference
+  if OVH_PROJECTS="$t/m" vh new math ci-m >/dev/null 2>&1; then
+    q=$(ls -d "$t"/m/*-ci-m)
+    cp "$ROOT/styles/cutout-jazz/STYLE.md" "$q/STYLE_PRESET.md"; cp "$ROOT/styles/cutout-jazz/tokens.json" "$q/style.tokens.json"
+    printf '\n\n## Style preset: cutout-jazz\n\n```text\nold block\n```\n' >> "$q/BRIEF.md"
+    { printf '> 本项目以风格预设 `styles/cutout-jazz` 为底：先读 `STYLE_PRESET.md`。\n\n'; cat "$q/STYLE.md"; } > "$q/STYLE.md.new" && mv "$q/STYLE.md.new" "$q/STYLE.md"
+    vh style apply blueprint,ink-wash "$q" >/dev/null 2>&1
+    if [ -f "$q/style-refs/cutout-jazz/STYLE.md" ] && [ -f "$q/style-refs/cutout-jazz/tokens.json" ] && [ ! -e "$q/STYLE_PRESET.md" ] \
+      && grep -q '^- Style refs (repo presets): `styles/cutout-jazz`, `styles/blueprint`, `styles/ink-wash`' "$q/BRIEF.md" \
+      && ! grep -q '^## Style preset' "$q/BRIEF.md" && ! grep -q '为底' "$q/STYLE.md" && [ "$(grep -c '风格参考 · ' "$q/DECISIONS.md")" = 3 ]; then
+      ok "style apply a,b: one call attaches both; an old base preset becomes a reference"
+    else bad "style apply: comma list or migration of an old project's preset failed"; fi
+  else bad "new math ci-m failed"; fi
   vh style apply no-such-style "$p" >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "style apply rejects an unknown preset" || bad "style apply unknown preset exited $rc"
   # readcheck: a budget, and the timed text of a composition without a browser
   a=$(vh readcheck --budget 3.2)

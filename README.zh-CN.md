@@ -96,7 +96,7 @@ cd ~/OpenVideoHarness && claude
 </tr>
 <tr>
 <td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="29 种风格的样片，内容完全相同"></a><br><sub><a href="styles/gallery.mp4">▶ 带声音的连播（42 秒）</a></sub></td>
-<td valign="top"><b><a href="styles/">29 种风格，连播</a></b>（每段 5 秒）<br>同一段内容，换 29 种从名作里学来的风格。<br><b>从一种开始：</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> 列出全部 29 种，详见 <a href="styles/README.md">styles/README.md</a><br><b>声音：</b>每段样片一首配乐（<code>bin/vh music</code>，<code>mix … profile=swatch</code>）</td>
+<td valign="top"><b><a href="styles/">29 种风格，连播</a></b>（每段 5 秒）<br>同一段内容，换 29 种从名作里学来的风格。<br><b>挂一种当参考：</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> 列出全部 29 种，详见 <a href="styles/README.md">styles/README.md</a><br><b>声音：</b>每段样片一首配乐（<code>bin/vh music</code>，<code>mix … profile=swatch</code>）</td>
 </tr>
 </table>
 
@@ -262,7 +262,7 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 | 命令 | 作用 |
 |---|---|
 | `doctor` / `setup` | 检查环境 / 安装依赖、拉取参考资料 |
-| `types` / `new <类型> <名字> [--style <风格>] [--effort <档位>]` | 列出 9 类视频 / 建一个新项目 |
+| `types` / `new <类型> <名字> [--style <风格[,风格]>] [--effort <档位>]` | 列出 9 类视频 / 建一个新项目 |
 | `effort [quick\|standard\|studio]` | 看三档努力程度各做什么 |
 | `style list` / `style <风格>` / `style gallery` | 看风格 / 渲一段样片 / 重建风格总览 |
 | `recipes list [--intent …] [--energy …] [--engine …]` / `recipes check` | 按这一镜要说什么、多响来找镜头配方 / 校验一张配方 |

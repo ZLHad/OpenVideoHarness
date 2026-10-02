@@ -96,7 +96,7 @@ The five films below were made by an agent **reading only this repo's docs**. Cl
 </tr>
 <tr>
 <td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="The 29 style samples, all showing the same content"></a><br><sub><a href="styles/gallery.mp4">▶ the reel, with sound (42 s)</a></sub></td>
-<td valign="top"><b><a href="styles/">29 styles, one reel</a></b> (5-second samples)<br>The same content in 29 styles learned from famous work.<br><b>Start from one:</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> shows all 29; details in <a href="styles/README.md">styles/README.md</a><br><b>Sound:</b> one score per sample (<code>bin/vh music</code>, <code>mix … profile=swatch</code>)</td>
+<td valign="top"><b><a href="styles/">29 styles, one reel</a></b> (5-second samples)<br>The same content in 29 styles learned from famous work.<br><b>Borrow from one:</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> shows all 29; details in <a href="styles/README.md">styles/README.md</a><br><b>Sound:</b> one score per sample (<code>bin/vh music</code>, <code>mix … profile=swatch</code>)</td>
 </tr>
 </table>
 
@@ -262,7 +262,7 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | Command | What it does |
 |---|---|
 | `doctor` / `setup` | Check your setup / install dependencies and fetch references |
-| `types` / `new <type> <name> [--style <style>] [--effort <level>]` | List the 9 types / start a new project |
+| `types` / `new <type> <name> [--style <style[,style]>] [--effort <level>]` | List the 9 types / start a new project |
 | `effort [quick\|standard\|studio]` | What each effort level does |
 | `style list` / `style <style>` / `style gallery` | Browse styles / render a sample / rebuild the overview |
 | `recipes list [--intent …] [--energy …] [--engine …]` / `recipes check` | Find shot recipes by what the shot must say and how loud it is / validate a recipe |

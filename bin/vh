@@ -237,21 +237,42 @@ project_dir() { # a project folder, or a name under the projects folder (the dat
   if [ "$n" = 0 ]; then echo "no such project: $a (a folder, or a name under $(rel "$base"))" >&2; else echo "$a: several projects match: $(printf '%s\n' "$m" | xargs -n1 basename | tr '\n' ' ')" >&2; fi
   return 1
 }
+parse_styles() { # parse_styles "<a,b>": the preset names, one per line (spaces and empty items dropped). Fails with a message
+  # on a name that is not a lower-case slug of a preset in styles/ (no paths, no _swatch, no glob), or when the list is empty.
+  local s n=0 IFS=,
+  set -f; set -- $1; set +f
+  for s in "$@"; do s=$(printf '%s' "$s" | tr -d ' \t'); [ -z "$s" ] && continue
+    case $s in *[!a-z0-9-]*|-*) echo "unknown style: $s" >&2; return 1 ;; esac
+    [ -f "$ROOT/styles/$s/STYLE.md" ] || { echo "unknown style: $s" >&2; return 1; }
+    printf '%s\n' "$s"; n=$((n+1))
+  done
+  [ "$n" -gt 0 ] || { echo "no style given" >&2; return 1; }
+}
 attach_style() { # attach_style <project-dir> <preset>: attach a preset as a reference, not a template. Its STYLE.md and tokens.json
   # are copied to style-refs/<preset>/, the BRIEF's "Style refs" line and the note at the top of STYLE.md list it, and DECISIONS.md
   # gets a line to fill in with what it lends. Nothing is pasted into the BRIEF as instructions. Several presets can be attached;
   # attaching one again changes nothing. (Projects made before this keep their STYLE_PRESET.md; the old pasted block goes.)
-  local dir=$1 style=$2
+  local dir=$1 style=$2 old=""
+  if [ -f "$dir/STYLE_PRESET.md" ]; then   # attached the old way (before 2026-10): it was the project's base; keep it, as a reference
+    old=$(sed -n '1s/.* · \([a-z0-9-]*\)$/\1/p' "$dir/STYLE_PRESET.md")
+    if [ -n "$old" ]; then
+      mkdir -p "$dir/style-refs/$old"; mv "$dir/STYLE_PRESET.md" "$dir/style-refs/$old/STYLE.md"
+      [ -f "$dir/style.tokens.json" ] && mv "$dir/style.tokens.json" "$dir/style-refs/$old/tokens.json"
+      echo "   migrated : styles/$old was this project's base (the old way); it is now a reference in style-refs/$old/ — STYLE.md's notes were written as changes to it"
+    fi
+  fi
+  [ -f "$dir/DECISIONS.md" ] || cp "$ROOT/templates/DECISIONS.md" "$dir/DECISIONS.md"
   mkdir -p "$dir/style-refs/$style"
   cp "$ROOT/styles/$style/STYLE.md" "$dir/style-refs/$style/STYLE.md"; cp "$ROOT/styles/$style/tokens.json" "$dir/style-refs/$style/tokens.json"
-  python3 - "$dir/BRIEF.md" "$dir/STYLE.md" "$dir/DECISIONS.md" "$style" <<'PY'
+  python3 - "$dir/BRIEF.md" "$dir/STYLE.md" "$dir/DECISIONS.md" "$style" "$old" <<'PY'
 import datetime, os, re, sys
-brief, style, dec, slug = sys.argv[1:5]
+brief, style, dec, slug, old = sys.argv[1:6]
 b = open(brief).read()
 b = re.sub(r"\n\n## Style preset: [^\n]*\n\n```text\n.*?```\n", "", b, flags=re.S)   # pasted by bin/vh before 2026-10: an instruction block
 m = re.search(r"^- Style refs \(repo presets\): (.*)$", b, re.M)
 refs = re.findall(r"styles/([a-z0-9-]+)", m.group(1).split("<!--")[0]) if m else []
-if slug not in refs: refs.append(slug)
+for r in ([old] if old else []) + [slug]:
+    if r not in refs: refs.append(r)
 line = "- Style refs (repo presets): " + ", ".join(f"`styles/{r}`" for r in refs) + "  <!-- 参考，不是规定：副本在 style-refs/，借了什么记进 DECISIONS.md，和它们不一样不用解释 -->"
 if m: b = b[:m.start()] + line + b[m.end():]
 elif "\n## Style\n" in b: b = b.replace("\n## Style\n", "\n## Style\n" + line + "\n", 1)
@@ -262,11 +283,11 @@ s = re.sub(r"\A> 本项目以风格预设 `styles/[^`]*` 为底：[^\n]*\n\n", "
 s = re.sub(r"\A> 参考的风格预设：[^\n]*\n\n", "", s)
 note = "> 参考的风格预设：" + "、".join(f"`styles/{r}`" for r in refs) + "（副本在 `style-refs/`）。只是参考：借了什么写进 `DECISIONS.md`，和它们不一样不用解释；本片的风格从立意来，写在下面。\n\n"
 open(style, "w").write(note + s)
-if os.path.exists(dec):
-    d = open(dec).read()
-    if f"风格参考 · `styles/{slug}`" not in d:
-        d = d.rstrip("\n") + f"\n- {datetime.date.today():%Y-%m-%d} 风格参考 · `styles/{slug}` — 借了：{{色板 / 字体 / 转场 / 声音 / 质感，写具体；没借就删掉这一行}}\n"
-        open(dec, "w").write(d)
+d = open(dec).read()
+for r in ([old] if old else []) + [slug]:
+    if f"风格参考 · `styles/{r}`" not in d:
+        d = d.rstrip("\n") + f"\n- {datetime.date.today():%Y-%m-%d} 风格参考 · `styles/{r}` — 借了：{{色板 / 字体 / 转场 / 声音 / 质感，写具体；没借就删掉这一行}}\n"
+open(dec, "w").write(d)
 PY
   return 0
 }
@@ -284,7 +305,7 @@ cmd_new() {
     --res)    outres=${2:?--res needs 1080p or 4k}; shift 2 ;;
     *) echo "unknown option: $1"; exit 1 ;;
   esac; done
-  local s; for s in $(printf '%s\n' "$style" | tr ',' ' '); do [ -f "$ROOT/styles/$s/STYLE.md" ] && [ "${s#_}" = "$s" ] || { echo "unknown style: $s"; cmd_style list; exit 1; }; done
+  local s styles=""; if [ -n "$style" ]; then styles=$(parse_styles "$style") || { cmd_style list; exit 1; }; fi
   case "${effort:-standard}" in quick|standard|studio) ;; *) echo "unknown effort: $effort (quick | standard | studio)"; exit 1 ;; esac
   case "$watch" in ""|phone|feed|desktop) ;; *) echo "unknown --watch: $watch (phone: a vertical phone · feed: landscape in a phone feed, not rotated · desktop: a computer, or a phone turned sideways)"; exit 1 ;; esac
   case "$outres" in ""|1080p) ;; 4k|4K|2160p) outres=4k ;; *) echo "unknown --res: $outres (1080p | 4k)"; exit 1 ;; esac
@@ -349,13 +370,13 @@ PY
     sedi "s/^- Effort: standard /- Effort: $effort /" "$dir/BRIEF.md"
     [ "$effort" = quick ] && printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；人点名要拍板的事照样停（导演模式）；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
   fi
-  for s in $(printf '%s\n' "$style" | tr ',' ' '); do attach_style "$dir" "$s"; done   # presets as references: copies in style-refs/, listed in BRIEF, a DECISIONS line
+  for s in $styles; do attach_style "$dir" "$s"; done   # presets as references: copies in style-refs/, listed in BRIEF, a DECISIONS line
   trap - EXIT
   echo "$c_ok created $(rel "$dir")"
   echo "   type doc : video-types/$doc.md"
   [ -n "$wh" ] && echo "   frame    : $wh ($res)"
   echo "   watch on : $watch · ${outres:-1080p}  (text-size floor and readability check: playbook/03 §4)"
-  [ -n "$style" ] && echo "   style ref: styles/$(printf '%s' "$style" | sed 's/,/, styles\//g') (copies in style-refs/; references, not rules: note in DECISIONS.md what each lends)"
+  [ -n "$styles" ] && echo "   style ref: $(printf '%s\n' $styles | sed 's|^|styles/|' | paste -sd, - | sed 's/,/, /g') (copies in style-refs/; references, not rules: note in DECISIONS.md what each lends)"
   echo "   effort   : ${effort:-standard}  (bin/vh effort ${effort:-standard} shows what that means)"
   echo "   next     : open Claude Code in the repo root and say what the video is about;"
   if [ "${effort:-standard}" = quick ]; then echo "              the agent fills $(rel "$dir")/BRIEF.md and renders straight through; it stops only for what you say you'll decide."
@@ -416,10 +437,10 @@ PY
     compare) shift; [ $# -gt 0 ] || { echo "usage: bin/vh style compare a,b,c [--frame t] [--out file.png]"; exit 1; }
       uv run -q --no-project --with pillow python "$ROOT/tools/style_compare.py" "$@" ;;
     apply) shift; [ $# -eq 2 ] || { echo "usage: bin/vh style apply <preset[,preset]> <project>   (bin/vh style list shows the presets)"; exit 1; }
-      local s; for s in $(printf '%s\n' "$1" | tr ',' ' '); do [ -f "$ROOT/styles/$s/STYLE.md" ] && [ "${s#_}" = "$s" ] || { echo "unknown style: $s"; cmd_style list; exit 1; }; done
+      local s styles; styles=$(parse_styles "$1") || { cmd_style list; exit 1; }
       local dir; dir=$(project_dir "$2") || exit 1
       [ -f "$dir/BRIEF.md" ] && [ -f "$dir/STYLE.md" ] || { echo "$(rel "$dir") has no BRIEF.md and STYLE.md: not a bin/vh project"; exit 1; }
-      for s in $(printf '%s\n' "$1" | tr ',' ' '); do attach_style "$dir" "$s"
+      for s in $styles; do attach_style "$dir" "$s"
         echo "$c_ok styles/$s attached to $(rel "$dir") as a reference (style-refs/$s/, BRIEF Style refs, a DECISIONS line to fill in)"; done ;;
     *) swatch_deps "$1"; exec "$sw/render.sh" "$@" ;;
   esac
