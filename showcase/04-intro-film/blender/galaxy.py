@@ -2,7 +2,7 @@
 # It calls Blender's Python API, so it is distributed under the GPL (engines/blender.md, "许可证"); the rest of the repo is MIT.
 #
 # The intro film's opening (Blender 5.2, Cycles on Metal): "a galaxy of films". Every star is a film; near the camera
-# the stars resolve into glass screens playing their film. Renders 0–15.8 s (frames 0–474); the film takes over at 15.4 s.
+# the stars resolve into glass screens playing their film. Renders 0–15.8 s (frames 0–474); the WebGL grid dissolves in over 15.0–15.6 s.
 #
 #   tools/bl.sh -b --factory-startup --python-exit-code 1 --python blender/galaxy.py -- \
 #       --frames 0,60,120 [--draft] [--fx B|C] [--out blender/out/frames] [--name f]
@@ -35,7 +35,7 @@ SHUTTER = 0.5
 T_BURST, FR0 = 8.0, 9.0
 CORE = np.array([0.0, 0.0, 0.0])
 
-# ---------------------------------------------------------------- helpers (mirror look/js/world.js)
+# ---------------------------------------------------------------- helpers (mirror the WebGL look-dev's world.js, which is not kept)
 def clamp(x, a=0.0, b=1.0): return np.minimum(b, np.maximum(a, x))
 def seg(t, a, b): return clamp((t - a) / (b - a))
 def lerp(a, b, u): return a + (b - a) * u

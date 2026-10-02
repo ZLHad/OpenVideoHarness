@@ -1,5 +1,7 @@
 # NOTES · v5（关卡 ① 的工作笔记）
 
+> 这是做片时的工作日志，路径按当时项目的布局写：项目的 `film/` 就是现在这个文件夹，`tools/look/` 现在是 `tools/`，`look/assets/`、`open/assets/` 现在是 `assets/`，`look/js/films.js` 现在是 `opening/films.js`，`audio/v5/` 现在是 `audio/`。`look/`、`look-*/`、`proto/`、`audio/score/` 等 look-dev 文件夹没有进仓库。
+
 ## 待核实的事实（屏幕上会出现的每个数字和原文，渲染前按当时的 main 再核）
 
 核对基准：`main` 的 9f60db7（行号都按这一版；README 每合并一次行号就会移）。4398f27（#22）之后，05:38 又合并了 #23（playbook 09 叙事、10 钩子与封面、11 作曲，playbook 现在是 00–11 共 12 篇）。在途的 PR 还会改计数：recipes/、新乐器、导演模式。所以下面的数字**现在不冻结**，渲染前再核一遍，逐条改“状态”。
@@ -183,7 +185,8 @@ proto/switch.sh A && (cd proto && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 env -
 
 ## 最终版（10-02，用户授权跳过关卡 ②③ 之后）
 
-- **开场**：Blender 只管 0–15.8 s（`blender/out/final2/`，475 帧，1080p，特写 96 spp、其余 64 spp，不降噪）；15.4–15.8 s 和 WebGL 网格（`film/js/grid.js`，同一相机、同一批卡片，`tools/look/export_state.py` 导出）交叉溶解，之后都是 HyperFrames 1080p。
+- **开场**：Blender 只管 0–15.8 s（`blender/out/final2/`，475 帧，1080p，特写 96 spp、其余 64 spp，不降噪）；15.4–15.8 s（第 5 轮后提前到 15.0–15.6 s）和 WebGL 网格（`film/js/grid.js`，同一相机、同一批卡片，`tools/look/export_state.py` 导出）交叉溶解，之后都是 HyperFrames 1080p。
+- **确定性（final2 底片）**：新进程里重渲第 100、300 帧，和序列比 PSNR 71.3、47.3 dB（底线 45 dB；300 帧是层层重叠的影片之海，余量最小）。上面 r3 的 inf / 49.3 / 95.4 dB 是 look-dev 那一版底片的数字。
 - **抖动和不连贯**（用户 10-02 指出）：`final_patch.py` 改了相机（显式 forward / up、四元数符号连续、爆炸抖动换成平滑噪声），帧差曲线（0–74 帧，480×270 灰度平均差）一路平滑升降，没有尖峰。
 - **正文**：K1（琥珀档案馆 + 星），速度 90 → 80 BPM；正文空间里飘着开场的影片（1000 张，最先画，字和面板永远盖在它上面）。
 
@@ -251,3 +254,25 @@ proto/switch.sh A && (cd proto && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 env -
 - 需求里删掉 “30-second / 30 秒的”（02 是 24.8 s）。
 - 底线：竖屏片的镜头离远一点、看点放低，说明回到安全框里；关卡 ② 的字幕在回环的字进来前退场；路由、关卡 ①、Final cut 再拉长；references/ 晚一点出，和 engines/ 不再挤；风格墙底部说明去掉重复的 “31 种风格”；规则句不再乱码解码。片长 147.5 → 150.5 s（4515 帧）。
 - 顺手发现并修了两个静默问题：组装正文的 async 失败原来不报错（整片黑场也不响），现在打印出来；`js/arch.js` 里一行注释吞掉了 `m.add(tab)`，目录卡的琥珀小标签一直没加上。
+
+## 素材台账（最终版）
+| 文件 | 来源 | 许可 |
+|---|---|---|
+| `blender/out/final2/`（0–15.8 s 底片） | `blender/galaxy.py` 用 Blender 5.2 Cycles 渲染，场景全由代码生成 | 原创；`galaxy.py` 是 GPL-3.0-or-later（调用 bpy），渲出的画面不受 GPL 约束 |
+| `look/assets/films-proc.png`、`hero-earth.png` | `look/js/films.js` 的 28 段着色器，`tools/opening_export.sh` 导出 | 原创 |
+| `look/assets/films.jpg` | `tools/look/film_atlas.py` 从本仓库 28 个风格样片和 showcase 00–04（当时的 v3）截的 41 段 | 本仓库 MIT |
+| `look/assets/ai/00–39.jpg` | 40 张 AI 静图：Gemini API，gemini-3.1-flash-image，2026-10-02 生成（用户批准，约 1.8 美元，用户自己的 key）；提示词逐张在 `look/assets/ai/prompts.json`；只画虚构的人和地方，没有品牌、商标、真人 | 生成图，不是第三方素材；按 Google 的 API 条款使用 |
+| `film/assets/tex/02-*.png` | `film/tools/request_tex.py` 从本仓库 showcase/02 的 STORYBOARD 和成片画的 | 本仓库 MIT |
+| `film/assets/tex/styles-wall.jpg`、`atlas.jpg`、`self-sheet.png` | 本仓库 31 个风格样片的帧；这支片子自己的草稿帧 | 本仓库 MIT |
+| 片中播放的 showcase 00–03 和 02 竖屏（`assets/clips/`） | 本仓库 showcase 的成片 | 本仓库 MIT |
+| `audio/score/sketch-v5.json` → 开场配乐 | `bin/vh music` 代码作曲 | 本仓库 MIT |
+| `film/audio/score.json` → 正文配乐 | `film/audio/score_engine.py` 代码作曲（v3 的谱子改成 80 BPM，按 `js/tmap.js` 加拍） | 本仓库 MIT |
+| 音效 | `bin/vh sfx lib` 的 21 个内置音效（代码合成） | 本仓库 MIT |
+| 字体 | 系统字体 SF Pro、PingFang SC、SF Mono（渲染时用本机字体；README 播放用的角标是 SF Mono 画的 PNG） | 系统自带 |
+
+## 交付：README 里的播放器（10-03）
+- GitHub 免费账号的 user-attachments 每个视频 ≤ 10 MB；单独一行的附件链接会渲染成播放器（表格单元格里前后留空行也行），`<video>` 标签拿不到签名地址。
+- 介绍片切成 8 段 1080p（`film/tools/chapters.sh`，每段 ≤ 9.6 MB），每段右下角一个 “ZLHad/OpenVideoHarness” 小字（`film/tools/watermark.sh`，Pillow 画 PNG 再 overlay，这台 ffmpeg 没有 drawtext）；showcase 00–03 和 31 种风格的样片集锦用同一个脚本加角标。
+- 播放器没有 poster、`preload=metadata`，缩略图就是第 0 帧：第 2–8 段起初有 0.25 s 画面淡入，缩略图全黑；改成只淡声音，重切重传。
+- 未登录的访客也能播（未登录的浏览器打开分支页面，15 个播放器都拿到签名地址并加载完成）。
+

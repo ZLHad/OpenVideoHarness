@@ -3,7 +3,7 @@
 Each image is saved to assets/ai/NN.jpg with its prompt in assets/ai/prompts.json (the ledger in NOTES.md).
 
 The key is read from the environment (GEMINI_API_KEY); it is never written or printed.
-usage (from the project root): uv run --no-project python tools/look/gen_images.py [--only 3,7]
+usage (from the project root): uv run --no-project python tools/gen_images.py [--only 3,7]
 """
 import base64
 import json
@@ -97,7 +97,7 @@ def keys_of(obj, depth=0):
 
 def main():
     key = os.environ.get("GEMINI_API_KEY")
-    if not key: sys.exit("GEMINI_API_KEY is not set (source ~/.zsh_secrets in the same command)")
+    if not key: sys.exit("GEMINI_API_KEY is not set")
     only = None
     if "--only" in sys.argv: only = {int(x) for x in sys.argv[sys.argv.index("--only") + 1].split(",")}
     OUT.mkdir(parents=True, exist_ok=True)

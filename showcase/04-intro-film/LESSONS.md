@@ -5,8 +5,8 @@
 ## M+ 好用的做法
 - **立意先于引擎** — 场景：用户说 WebGL 版“有一点点廉价特效的感觉”。换引擎之前先换立意：“每颗星都是一支片子”让“多到数不清”变成一个画面（一张片子拉远成一个星系），路径追踪最擅长的星点、星云、体积光正好用上 — 效果：一个画面同时解决了“质感”和“讲什么”。
 - **Blender 只做它比网页强的那一段** — 场景：开场 0–15.8 s 用 Blender，网格、终端和正文都在 HyperFrames — 效果：475 帧渲染，比全片 Blender 省一个数量级；字永远在 DOM 层，清晰、不被运动模糊。
-- **两个引擎用同一个相机接力** — 场景：15.4–15.8 s 从 Blender 底片溶解到 WebGL 网格。`tools/look/export_state.py` 不启动 Blender，把 galaxy.py 当普通 Python 跑（bpy 打桩），导出每张卡片的格位和逐帧相机 — 效果：交接处看不出换了引擎。（engines/blender.md，“大场景”）
-- **用 numpy 逐帧写几何 + `velocity` 属性** — 场景：118 万颗星、1.6 万张卡片每帧重算 — 效果：Cycles 有真运动模糊，帧仍是 t 的纯函数；打乱顺序重渲 PSNR ≥ 49 dB。（engines/blender.md）
+- **两个引擎用同一个相机接力** — 场景：15.0–15.6 s 从 Blender 底片溶解到 WebGL 网格。`tools/export_state.py` 不启动 Blender，把 galaxy.py 当普通 Python 跑（bpy 打桩），导出每张卡片的格位和逐帧相机 — 效果：交接处看不出换了引擎。（engines/blender.md，“大场景”）
+- **用 numpy 逐帧写几何 + `velocity` 属性** — 场景：118 万颗星、1.6 万张卡片每帧重算 — 效果：Cycles 有真运动模糊，帧仍是 t 的纯函数；打乱顺序重渲 PSNR ≥ 47 dB（look-dev 底片三帧 49.3 dB 起，正式底片两帧 47.3、71.3 dB；底线 45）。（engines/blender.md）
 - **长渲染脱离会话跑** — 场景：后台任务 30 分钟会被杀 — 做法：`nohup caffeinate -i … & disown`，30 帧一块、`--resume` 续渲，用 Monitor 盯日志。
 - **相机连续性用数字查** — 场景：用户说“抖动”“不连贯” — 做法：Blender 段算 480×270 灰度帧差曲线（应平滑升降，没有尖峰）；WebGL 段在浏览器里逐帧读相机位置，找速度方向反向的帧 — 效果：找到了正文 44.4–45.3 s 的 Hermite 过冲（停留段之后的下一个关键帧在远处，曲线先冲过头再回来），这种问题看联系表几乎看不出来。（playbook/02，取帧之外的检查）
 - **关卡画成“门”，门里是被审的东西** — 场景：工作流一节只有空六边形和字 — 做法：门里放这支片子自己的大纲、分镜联系表、初版联系表，镜头穿门而过；关卡的字幕在通过那一拍从 ○ 变成琥珀色 ✓（同一句话，不是新的一读）。
@@ -27,12 +27,13 @@
 
 ## 可用命令
 ```bash
-# Blender：沙箱里渲一段（30 帧一块，可续渲；后台任务会被杀，所以 nohup + disown）
-nohup caffeinate -i tools/look/bl_render.sh 0 474 final2 > blender/out/final2.log 2>&1 & disown
+# 都在 showcase/04-intro-film 里跑。Blender 开场只在 macOS 上（沙箱用 sandbox-exec，galaxy.py 用 Metal）：
+# 30 帧一块，可续渲；后台任务会被杀，所以 nohup + disown
+mkdir -p blender/out && nohup caffeinate -i tools/bl_render.sh 0 474 final2 > blender/out/final2.log 2>&1 & disown
 # 不启动 Blender，导出网格接力要的卡片和相机
-uv run --no-project --with numpy python tools/look/export_state.py
+uv run --no-project --with numpy python tools/export_state.py
 # 正文快照（不发给 Gemini）
 env -u GEMINI_API_KEY HYPERFRAMES_SKIP_SKILLS=1 node_modules/.bin/hyperframes snapshot . --at 41,45.5 --no-end --describe false -o out/snap
-# 混音质检（没有节拍表时用 -）
-../../../bin/vh qa audio/v5/mix.wav - audio/v5/events.json --lib audio/v5/sfxlib --stems audio/v5/stems --to 86.9 --out out/qa.txt
+# 重建配乐和混音，并跑混音质检
+bash tools/build_audio.sh
 ```

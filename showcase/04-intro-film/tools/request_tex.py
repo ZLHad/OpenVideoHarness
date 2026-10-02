@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 S2 = Path(sys.argv[1]); OUT = Path(__file__).resolve().parents[1] / "assets/tex"
 FILM = S2 / "media/final.mp4"
 ZH = next((f for f in ["/System/Library/Fonts/PingFang.ttc", "/System/Library/Fonts/Hiragino Sans GB.ttc", "/System/Library/Fonts/STHeiti Medium.ttc"] if Path(f).exists()), None)
-MONO = "/System/Library/Fonts/SFNSMono.ttf"
+MONO = "/System/Library/Fonts/SFNSMono.ttf"   # macOS fonts; elsewhere point ZH and MONO at a CJK and a mono .ttf
 font = lambda p, n: ImageFont.truetype(p, n) if p and Path(p).exists() else ImageFont.load_default()
 
 

@@ -62,7 +62,7 @@
       window.__hf = window.__hf || {}; window.__hf.buildReady = window.__hf.buildReady || {};
       window.__hf.buildReady["intro-world"] = new Promise((res) => { window.__introReady = res; });
       window.__hf.buildReady["opening"] = new Promise((res) => { window.__openingReady = res; });
-      // v5: 0–15.8 s the Blender plate, 15.4–23 s the WebGL grid and terminal (js/grid.js, js/open-overlay.js),
+      // v5: 0–15.8 s the Blender plate, 15.0–23 s the WebGL grid (dissolving in over 15.0–15.6 s) and terminal (js/grid.js, js/open-overlay.js),
       // from 22.6 s the body's world (the v3 film from its bar 10, shifted 1.0 s earlier)
       window.__T0 = 4.0; window.__BODY_FROM = 22.5;   // both in old film time (js/tmap.js maps the film's time to it)
     </script>

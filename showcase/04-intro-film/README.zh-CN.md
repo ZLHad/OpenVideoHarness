@@ -15,31 +15,31 @@ https://github.com/user-attachments/assets/9d305423-0e5b-4276-a347-17a072993b6f
 
 **2 · 一句话需求、路由、9 类视频**（19–42.5 s）
 
-https://github.com/user-attachments/assets/e8b2244e-ca6b-4f2a-957e-f1df0cf15924
+https://github.com/user-attachments/assets/e3edd617-1450-4484-ad34-040eabcda9e7
 
-**3 · 文档、工具、引擎**（42.5–57 s）
+**3 · 文档、工具、引擎**（42.5–56.75 s）
 
-https://github.com/user-attachments/assets/97229621-c60c-4977-93f8-bb193f982fdf
+https://github.com/user-attachments/assets/14549b89-d95a-4713-ab19-aeb21ddc7856
 
-**4 · 它是怎么工作的：人工关卡**（57–68 s）
+**4 · 它是怎么工作的：人工关卡**（56.75–67.75 s）
 
-https://github.com/user-attachments/assets/a7e26949-b99b-4bcb-a491-265d77f42354
+https://github.com/user-attachments/assets/4303505d-b13e-4b1e-b767-4b3d71c77ae1
 
-**5 · 自查回环和成片**（68–87.5 s）
+**5 · 自查回环和成片**（67.75–87.5 s）
 
-https://github.com/user-attachments/assets/bc9ec77a-a3a8-463e-a622-9f6d6ae8fa4d
+https://github.com/user-attachments/assets/e4fa59b8-3941-4fdd-ada4-62b4be4f3a82
 
 **6 · 风格、声音、开箱即用、案例**（87.5–111.5 s）
 
-https://github.com/user-attachments/assets/1300a17c-579e-4241-9fbd-c766f197c572
+https://github.com/user-attachments/assets/0742ee3a-edfc-479a-aff5-b44cf2f3c75f
 
-**7 · 放映厅：四支真实的片子**（111.5–133 s）
+**7 · 放映厅：四支真实的片子**（111.5–133.25 s）
 
-https://github.com/user-attachments/assets/d65a9393-2cb4-497c-8341-97ccb5b80d68
+https://github.com/user-attachments/assets/38b34557-3232-4a87-be0f-b1c85e919f2b
 
-**8 · 这支片子也是；片名**（133–150.5 s）
+**8 · 这支片子也是；片名**（133.25–150.5 s）
 
-https://github.com/user-attachments/assets/d0040464-bd4a-43c8-83cd-fe0c9e4119bf
+https://github.com/user-attachments/assets/22c034c6-c6c1-46ba-9e68-3da30dcac882
 
 ## 你说了什么（原话）
 
@@ -60,7 +60,7 @@ https://github.com/user-attachments/assets/d0040464-bd4a-43c8-83cd-fe0c9e4119bf
 | 8.0 s | 星系坍缩成超新星：冲击环、带红青两色丝缕的气体壳、四散的片子（全片唯一一次闪白） | Blender |
 | 9.0–10.4 s | 二向箔：一道光环扫过，三维的碎片被压成一片影片之海 | Blender |
 | 10.4–13.8 s | What's missing? / 差的是什么？ | Blender |
-| 14.0–18.8 s | 琥珀扫光把影片整理成通向地平线的网格；OpenVideoHarness · Not more tools. Know-how. / 不缺工具，缺门道。 | Blender → 15.4 s 起 WebGL |
+| 14.0–18.8 s | 琥珀扫光把影片整理成通向地平线的网格；OpenVideoHarness · Not more tools. Know-how. / 不缺工具，缺门道。 | Blender，15.0–15.6 s 溶解进 WebGL |
 | 18.6–29.0 s | 网格收成一行行文字，终端里打出一句需求（“做一个竖屏科普：为什么低轨卫星的信号会‘变调’”，就是 showcase 02 回答的那一句）；回车，镜头钻进终端 | WebGL + DOM |
 | 29.0–56.75 s | 路由：这句需求 → Claude Code / Codex → CLAUDE.md 路由 → 9 类视频，它自己那一类（02 科普）亮起来，其余变暗 → playbook、templates、styles、bin/vh → engines、references → projects/ | Three.js |
 | 56.75–87.5 s | 这句需求走一遍工作流：三道人工关卡，每道门都是被审的东西（02 的大纲、分镜、初版联系表）；自查回环（三次不合格，每次 02 的一帧变红，然后全部通过）；成片处播的就是 02，+ LESSONS.md | Three.js |
@@ -85,7 +85,7 @@ https://github.com/user-attachments/assets/d0040464-bd4a-43c8-83cd-fe0c9e4119bf
 - `bin/vh check`：没有黑场、定格、静音段；yuv420p、limited range、BT.709，四个色彩标签齐全。
 - 全片只有一次全屏闪白（8.0 s 的超新星）。
 - 镜头连续性用数字查过：475 帧 Blender 底片的帧差曲线平滑起落，只有超新星和 5.1 s 一张卡片掠过镜头两处跳变，都是设计的；每次改时间线以后整片再扫一遍，拉长的停留段里没有“停几帧再跳一下”，剩下的跳变都是甩镜、节点通电和放映厅里那几支片子自己的剪切。
-- Blender 确定性：第 100、300 帧在新进程里重渲，和序列比 PSNR 71.3 dB、47.3 dB（底线 45 dB）。
+- Blender 确定性（正式底片）：第 100、300 帧在新进程里重渲，和序列比 PSNR 71.3 dB、47.3 dB（底线 45 dB）。
 - 音频（`bin/vh qa`）：0 数字静音、0 掉音、0 抽吸；62 个卡点都在 1 帧以内（中位 5.1 ms）；−14.0 LUFS，−1.65 dBTP。click 提醒见下文。
 - 读时：reviewer 从帧上按清单公式、分语言量；第 3、4、5 轮之后各拉长过一次停留（第 5 轮最后的修改没有再量）。
 
@@ -107,17 +107,17 @@ https://github.com/user-attachments/assets/d0040464-bd4a-43c8-83cd-fe0c9e4119bf
 
 ```bash
 cd showcase/04-intro-film
-npm ci && bash tools/make_clips.sh                                   # HyperFrames、three；showcase 00–03 的代理 → assets/clips/
-uv run --no-project --with pillow python tools/film_atlas.py         # 41 段本仓库样片 → assets/films.jpg
-uv run --no-project --with pillow python tools/ai_atlas.py           # 40 张 AI 生图 → assets/films-ai.jpg（以及远处卡片用的小图集）
+npm i && bash tools/make_clips.sh                                   # HyperFrames、three；showcase 00–03 的代理 → assets/clips/
 bash tools/opening_export.sh                                         # 着色器片源 → assets/films-proc.png，开场那张片 → assets/hero-earth.png
-tools/bl_render.sh 0 474 final2                                      # Blender 开场，1080p，约 1 小时 28 分
+uv run --no-project --with pillow python tools/film_atlas.py         # 41 段本仓库样片 → assets/films.jpg（逐字节相同）
+uv run --no-project --with pillow python tools/ai_atlas.py           # 40 张 AI 生图 → assets/films-ai.jpg（以及远处卡片用的小图集）
+tools/bl_render.sh 0 474 final2                                      # Blender 开场，1080p，约 1 小时 28 分（只在 macOS 上）
 uv run --no-project --with numpy python tools/export_state.py       # 卡片和相机 → assets/state.json
 uv run --no-project --with pillow python tools/request_tex.py ../02-short-leo-doppler   # 关卡的门和自查回环：02 的分镜、初版联系表、帧
-bash tools/deliver.sh                                                # 底片、HyperFrames 渲染、声音（tools/build_audio.sh）、质检、编码、封面、联系表
+bash tools/deliver.sh                                                # 底片、HyperFrames 渲染、声音（tools/build_audio.sh）、质检、编码、README 的 8 段、封面、联系表
 ```
 
-AI 生图不能逐字节重来：`assets/ai/` 里就是用的那 40 张。片子写在旧的 87.5 s 时间线上，按 [`js/tmap.js`](js/tmap.js) 播放；改了这张表以后跑 `python3 tools/retime.py`（配乐、音效、几段素材的窗口），再重建声音。`tools/self_sheets.sh <draft.mp4>` 把这支片子自己的帧烤进“这支片子也是”后面那面墙（先渲 draft，再出正式版）。
+Blender 这几步只在 macOS 上跑：`tools/bl.sh` 用 `sandbox-exec` 套沙箱，`galaxy.py` 用 Metal 渲染（别的系统自己跑 Blender，并改 Cycles 的设备）。`tools/chapters.sh` 切出 README 里的 8 段（1080p，每段 ≤ 9.6 MB），`tools/watermark.sh` 加角上的小字；其他样片在 README 里的播放版也是用它加的。AI 生图不能逐字节重来：`assets/ai/` 里就是用的那 40 张。片子写在旧的 87.5 s 时间线上，按 [`js/tmap.js`](js/tmap.js) 播放；改了这张表以后跑 `python3 tools/retime.py`（配乐、音效、几段素材的窗口），再重建声音。`tools/self_sheets.sh <draft.mp4>` 把这支片子自己的帧烤进“这支片子也是”后面那面墙（先渲 draft，再出正式版）。
 
 ## 已知的不完美
 
@@ -127,4 +127,4 @@ AI 生图不能逐字节重来：`assets/ai/` 里就是用的那 40 张。片子
 - **8.0 s 超新星那一下**大部分能量在 150 Hz 以下，笔记本扬声器上偏弱；起音靠叠的一层 whip。
 - **终端那一停**是把开场草图的一个小节多奏了三遍。
 - **重新导出着色器图集**（`tools/opening_export.sh`）时第 27 行（地球片）会和 Blender 用的那版略有不同：地球着色器在导出之后改过（其余 27 行逐像素相同）。
-- **无损帧确定性**只量了 Blender 底片，这一版的 HyperFrames 正文没有重量。
+- **无损帧确定性**只量了 Blender 底片，这一版的 HyperFrames 正文没有重新量过。

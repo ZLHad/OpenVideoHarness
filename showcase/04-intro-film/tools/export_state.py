@@ -6,7 +6,6 @@
 usage (from the project root): uv run --no-project --with numpy python tools/export_state.py
 """
 import json
-import math
 import sys
 import types
 from pathlib import Path

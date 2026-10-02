@@ -6,6 +6,7 @@
 #
 # usage: tools/bl.sh <blender args…>          e.g. tools/bl.sh -b --factory-startup --python blender/test.py -- …
 set -euo pipefail
+[ "$(uname)" = Darwin ] || { echo "bl.sh: macOS only (sandbox-exec; blender/galaxy.py renders on Metal). Elsewhere run blender -b … yourself and set the Cycles device in galaxy.py." >&2; exit 1; }
 P="$(cd "$(dirname "$0")/.." && pwd -P)"          # the project
 O="$P/blender/out"; mkdir -p "$O/.blender/home" "$O/.blender/tmp"
 BL="$(command -v blender)"

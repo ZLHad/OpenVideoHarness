@@ -3,8 +3,8 @@
 Logline：工具多到把人淹没；差的不是工具，是门道；你打一句话，harness 读懂、停下来问你、自己检查，交出片子——这支片子也是。
 World：v3 的「帧的档案馆」。开场是杂色的工具世界，被压成一张纸；之后只有黑底和琥珀光。
 Motif：一句需求（开场打出来，全片跟着它走，Ch4 变成成片）；主旋律 B 的 F# A B（问句里悬住，片尾落到 D）。
-Audio：`audio/sketch-v5.wav`（草图）· 120 BPM，offset 0，一小节 2 s · 节拍表 `audio/sketch-v5.beats.json`。
-Animatic：开场 0–23 s 已做（`review/opening-animatic.mp4`，960×540 灰盒 + 配乐草图）；全长灰盒在关卡 ② 做。
+Audio：草图 `audio/sketch.json`（`bin/vh music` 渲染）· 120 BPM，offset 0，一小节 2 s（当时渲出的 wav 和节拍表留在项目里，没进仓库）。
+Animatic：开场 0–23 s 已做（`review/opening-animatic.gif`，960×540 灰盒；带配乐草图的 mp4 留在项目里）；全长灰盒在关卡 ② 做。
 
 ## Beats（叙事草稿 narrative-longform §3 的 90 s 模板按 106 s 拉长）
 

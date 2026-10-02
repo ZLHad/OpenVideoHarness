@@ -1,0 +1,1140 @@
+{
+  "bpm": 80.0,
+  "offset": 0.0,
+  "duration": 91.5,
+  "fps_note": "90 bpm @ 30 fps: beat = 20 frames; bar 11 is 6/4",
+  "beats": [
+    0.0,
+    0.75,
+    1.5,
+    2.25,
+    3.0,
+    3.75,
+    4.5,
+    5.25,
+    6.0,
+    6.75,
+    7.5,
+    8.25,
+    9.0,
+    9.75,
+    10.5,
+    11.25,
+    12.0,
+    12.75,
+    13.5,
+    14.25,
+    15.0,
+    15.75,
+    16.5,
+    17.25,
+    18.0,
+    18.75,
+    19.5,
+    20.25,
+    21.0,
+    21.75,
+    22.5,
+    23.25,
+    24.0,
+    24.75,
+    25.5,
+    26.25,
+    27.0,
+    27.75,
+    28.5,
+    29.25,
+    30.0,
+    30.75,
+    31.5,
+    32.25,
+    33.0,
+    33.75,
+    34.5,
+    35.25,
+    36.0,
+    36.75,
+    37.5,
+    38.25,
+    39.0,
+    39.75,
+    40.5,
+    41.25,
+    42.0,
+    42.75,
+    43.5,
+    44.25,
+    45.0,
+    45.75,
+    46.5,
+    47.25,
+    48.0,
+    48.75,
+    49.5,
+    50.25,
+    51.0,
+    51.75,
+    52.5,
+    53.25,
+    54.0,
+    54.75,
+    55.5,
+    56.25,
+    57.0,
+    57.75,
+    58.5,
+    59.25,
+    60.0,
+    60.75,
+    61.5,
+    62.25,
+    63.0,
+    63.75,
+    64.5,
+    65.25,
+    66.0,
+    66.75,
+    67.5,
+    68.25,
+    69.0,
+    69.75,
+    70.5,
+    71.25,
+    72.0,
+    72.75,
+    73.5,
+    74.25,
+    75.0,
+    75.75,
+    76.5,
+    77.25,
+    78.0,
+    78.75,
+    79.5,
+    80.25,
+    81.0,
+    81.75,
+    82.5,
+    83.25,
+    84.0,
+    84.75,
+    85.5,
+    86.25,
+    87.0,
+    87.75,
+    88.5,
+    89.25,
+    90.0,
+    90.75
+  ],
+  "downbeats": [
+    0.0,
+    3.0,
+    6.0,
+    9.0,
+    12.0,
+    15.0,
+    18.0,
+    21.0,
+    24.0,
+    27.0,
+    30.0,
+    34.5,
+    37.5,
+    40.5,
+    43.5,
+    46.5,
+    49.5,
+    52.5,
+    55.5,
+    58.5,
+    61.5,
+    64.5,
+    67.5,
+    70.5,
+    73.5,
+    76.5,
+    79.5,
+    82.5,
+    85.5,
+    88.5
+  ],
+  "bars": [
+    [
+      1,
+      0.0,
+      4
+    ],
+    [
+      2,
+      3.0,
+      4
+    ],
+    [
+      3,
+      6.0,
+      4
+    ],
+    [
+      4,
+      9.0,
+      4
+    ],
+    [
+      5,
+      12.0,
+      4
+    ],
+    [
+      6,
+      15.0,
+      4
+    ],
+    [
+      7,
+      18.0,
+      4
+    ],
+    [
+      8,
+      21.0,
+      4
+    ],
+    [
+      9,
+      24.0,
+      4
+    ],
+    [
+      10,
+      27.0,
+      4
+    ],
+    [
+      11,
+      30.0,
+      6
+    ],
+    [
+      12,
+      34.5,
+      4
+    ],
+    [
+      13,
+      37.5,
+      4
+    ],
+    [
+      14,
+      40.5,
+      4
+    ],
+    [
+      15,
+      43.5,
+      4
+    ],
+    [
+      16,
+      46.5,
+      4
+    ],
+    [
+      17,
+      49.5,
+      4
+    ],
+    [
+      18,
+      52.5,
+      4
+    ],
+    [
+      19,
+      55.5,
+      4
+    ],
+    [
+      20,
+      58.5,
+      4
+    ],
+    [
+      21,
+      61.5,
+      4
+    ],
+    [
+      22,
+      64.5,
+      4
+    ],
+    [
+      23,
+      67.5,
+      4
+    ],
+    [
+      24,
+      70.5,
+      4
+    ],
+    [
+      25,
+      73.5,
+      4
+    ],
+    [
+      26,
+      76.5,
+      4
+    ],
+    [
+      27,
+      79.5,
+      4
+    ],
+    [
+      28,
+      82.5,
+      4
+    ],
+    [
+      29,
+      85.5,
+      4
+    ],
+    [
+      30,
+      88.5,
+      4
+    ]
+  ],
+  "bars_note": "[bar number, start (s), beats in bar]",
+  "sections": [
+    {
+      "name": "prologue",
+      "start": 0.0,
+      "end": 9.0,
+      "bars": 3,
+      "first_bar": 1
+    },
+    {
+      "name": "program",
+      "start": 9.0,
+      "end": 18.0,
+      "bars": 3,
+      "first_bar": 4
+    },
+    {
+      "name": "problem",
+      "start": 18.0,
+      "end": 24.0,
+      "bars": 2,
+      "first_bar": 7
+    },
+    {
+      "name": "braam",
+      "start": 24.0,
+      "end": 27.0,
+      "bars": 1,
+      "first_bar": 9
+    },
+    {
+      "name": "architecture",
+      "start": 27.0,
+      "end": 40.5,
+      "bars": 4,
+      "first_bar": 10
+    },
+    {
+      "name": "pipeline",
+      "start": 40.5,
+      "end": 55.5,
+      "bars": 5,
+      "first_bar": 14
+    },
+    {
+      "name": "features",
+      "start": 55.5,
+      "end": 64.5,
+      "bars": 3,
+      "first_bar": 19
+    },
+    {
+      "name": "cases",
+      "start": 64.5,
+      "end": 67.5,
+      "bars": 1,
+      "first_bar": 22
+    },
+    {
+      "name": "proof",
+      "start": 67.5,
+      "end": 79.5,
+      "bars": 4,
+      "first_bar": 23
+    },
+    {
+      "name": "reveal",
+      "start": 79.5,
+      "end": 85.5,
+      "bars": 2,
+      "first_bar": 27
+    },
+    {
+      "name": "title",
+      "start": 85.5,
+      "end": 91.5,
+      "bars": 2,
+      "first_bar": 29
+    }
+  ],
+  "hits": [
+    {
+      "t": 0.1875,
+      "what": "spark",
+      "kind": "transient"
+    },
+    {
+      "t": 6.0,
+      "what": "impact:corridor",
+      "kind": "transient"
+    },
+    {
+      "t": 6.0,
+      "what": "swell>corridor",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 9.0,
+      "what": "swell>wake",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 9.0,
+      "what": "wake",
+      "kind": "transient"
+    },
+    {
+      "t": 12.0,
+      "what": "program",
+      "kind": "transient"
+    },
+    {
+      "t": 15.0,
+      "what": "film",
+      "kind": "transient"
+    },
+    {
+      "t": 15.1875,
+      "what": "film:tile2",
+      "kind": "transient"
+    },
+    {
+      "t": 15.375,
+      "what": "film:tile3",
+      "kind": "transient"
+    },
+    {
+      "t": 15.5625,
+      "what": "film:tile4",
+      "kind": "transient"
+    },
+    {
+      "t": 18.0,
+      "what": "riser>problem",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 18.75,
+      "what": "stamp:1",
+      "kind": "transient"
+    },
+    {
+      "t": 19.5,
+      "what": "stamp:2",
+      "kind": "transient"
+    },
+    {
+      "t": 20.25,
+      "what": "stamp:3",
+      "kind": "transient"
+    },
+    {
+      "t": 21.0,
+      "what": "T7",
+      "kind": "transient"
+    },
+    {
+      "t": 23.25,
+      "what": "hold:drop",
+      "kind": "transient"
+    },
+    {
+      "t": 24.0,
+      "what": "braam",
+      "kind": "transient"
+    },
+    {
+      "t": 24.0,
+      "what": "impact:drop",
+      "kind": "transient"
+    },
+    {
+      "t": 24.0,
+      "what": "riser>braam",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 24.0,
+      "what": "swell>braam",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 25.5,
+      "what": "groove",
+      "kind": "transient"
+    },
+    {
+      "t": 27.0,
+      "what": "arch:you",
+      "kind": "transient"
+    },
+    {
+      "t": 27.0,
+      "what": "swell>whip10",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 27.75,
+      "what": "arch:agent",
+      "kind": "transient"
+    },
+    {
+      "t": 28.5,
+      "what": "arch:router",
+      "kind": "transient"
+    },
+    {
+      "t": 30.0,
+      "what": "swell>whip11",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 30.0,
+      "what": "types:1",
+      "kind": "transient"
+    },
+    {
+      "t": 30.375,
+      "what": "types:2",
+      "kind": "transient"
+    },
+    {
+      "t": 30.75,
+      "what": "types:3",
+      "kind": "transient"
+    },
+    {
+      "t": 31.125,
+      "what": "types:4",
+      "kind": "transient"
+    },
+    {
+      "t": 31.5,
+      "what": "types:5",
+      "kind": "transient"
+    },
+    {
+      "t": 31.875,
+      "what": "types:6",
+      "kind": "transient"
+    },
+    {
+      "t": 32.25,
+      "what": "types:7",
+      "kind": "transient"
+    },
+    {
+      "t": 32.625,
+      "what": "types:8",
+      "kind": "transient"
+    },
+    {
+      "t": 34.5,
+      "what": "mod:playbook",
+      "kind": "transient"
+    },
+    {
+      "t": 34.5,
+      "what": "swell>whip12",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 34.875,
+      "what": "mod:templates",
+      "kind": "transient"
+    },
+    {
+      "t": 35.25,
+      "what": "mod:cases",
+      "kind": "transient"
+    },
+    {
+      "t": 35.625,
+      "what": "mod:binvh",
+      "kind": "transient"
+    },
+    {
+      "t": 37.5,
+      "what": "mod:engines",
+      "kind": "transient"
+    },
+    {
+      "t": 38.25,
+      "what": "mod:refs",
+      "kind": "transient"
+    },
+    {
+      "t": 39.0,
+      "what": "mod:projects",
+      "kind": "transient"
+    },
+    {
+      "t": 40.5,
+      "what": "pipe:start",
+      "kind": "transient"
+    },
+    {
+      "t": 40.5,
+      "what": "riser>pipeline",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 40.875,
+      "what": "node:1",
+      "kind": "transient"
+    },
+    {
+      "t": 41.25,
+      "what": "node:2",
+      "kind": "transient"
+    },
+    {
+      "t": 41.625,
+      "what": "node:3",
+      "kind": "transient"
+    },
+    {
+      "t": 42.75,
+      "what": "gate1:hold",
+      "kind": "transient"
+    },
+    {
+      "t": 43.5,
+      "what": "gate1:approve",
+      "kind": "transient"
+    },
+    {
+      "t": 43.5,
+      "what": "gate1:clack",
+      "kind": "transient"
+    },
+    {
+      "t": 43.5,
+      "what": "swell>gate1",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 43.875,
+      "what": "tick",
+      "kind": "transient"
+    },
+    {
+      "t": 45.75,
+      "what": "gate2:hold",
+      "kind": "transient"
+    },
+    {
+      "t": 46.5,
+      "what": "gate2:approve",
+      "kind": "transient"
+    },
+    {
+      "t": 46.5,
+      "what": "gate2:clack",
+      "kind": "transient"
+    },
+    {
+      "t": 46.5,
+      "what": "swell>gate2",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 48.0,
+      "what": "fail:1",
+      "kind": "transient"
+    },
+    {
+      "t": 48.75,
+      "what": "fail:2",
+      "kind": "transient"
+    },
+    {
+      "t": 49.5,
+      "what": "fail:3",
+      "kind": "transient"
+    },
+    {
+      "t": 52.5,
+      "what": "pass",
+      "kind": "transient"
+    },
+    {
+      "t": 52.5,
+      "what": "swell>pass",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 53.25,
+      "what": "gate3:approve",
+      "kind": "transient"
+    },
+    {
+      "t": 53.25,
+      "what": "gate3:clack",
+      "kind": "transient"
+    },
+    {
+      "t": 54.0,
+      "what": "final",
+      "kind": "transient"
+    },
+    {
+      "t": 54.0,
+      "what": "hold:final",
+      "kind": "transient"
+    },
+    {
+      "t": 55.5,
+      "what": "feat:taste",
+      "kind": "transient"
+    },
+    {
+      "t": 55.5,
+      "what": "riser>features",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 56.25,
+      "what": "taste:1",
+      "kind": "transient"
+    },
+    {
+      "t": 57.0,
+      "what": "taste:2",
+      "kind": "transient"
+    },
+    {
+      "t": 57.75,
+      "what": "taste:3",
+      "kind": "transient"
+    },
+    {
+      "t": 58.5,
+      "what": "feat:sound",
+      "kind": "transient"
+    },
+    {
+      "t": 58.5,
+      "what": "sound:voice",
+      "kind": "transient"
+    },
+    {
+      "t": 58.5,
+      "what": "swell>whip20",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 59.25,
+      "what": "sound:captions",
+      "kind": "transient"
+    },
+    {
+      "t": 60.0,
+      "what": "sound:score",
+      "kind": "transient"
+    },
+    {
+      "t": 60.75,
+      "what": "sound:sfx",
+      "kind": "transient"
+    },
+    {
+      "t": 61.5,
+      "what": "curl:1",
+      "kind": "transient"
+    },
+    {
+      "t": 61.5,
+      "what": "feat:install",
+      "kind": "transient"
+    },
+    {
+      "t": 61.5,
+      "what": "swell>whip21",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 61.6875,
+      "what": "curl:2",
+      "kind": "transient"
+    },
+    {
+      "t": 61.875,
+      "what": "curl:3",
+      "kind": "transient"
+    },
+    {
+      "t": 62.0625,
+      "what": "curl:4",
+      "kind": "transient"
+    },
+    {
+      "t": 62.25,
+      "what": "curl:5",
+      "kind": "transient"
+    },
+    {
+      "t": 62.4375,
+      "what": "curl:6",
+      "kind": "transient"
+    },
+    {
+      "t": 62.625,
+      "what": "curl:7",
+      "kind": "transient"
+    },
+    {
+      "t": 62.8125,
+      "what": "curl:8",
+      "kind": "transient"
+    },
+    {
+      "t": 63.0,
+      "what": "enter",
+      "kind": "transient"
+    },
+    {
+      "t": 63.75,
+      "what": "scaffold",
+      "kind": "transient"
+    },
+    {
+      "t": 64.5,
+      "what": "stars",
+      "kind": "transient"
+    },
+    {
+      "t": 64.6875,
+      "what": "cases:1",
+      "kind": "transient"
+    },
+    {
+      "t": 64.875,
+      "what": "cases:2",
+      "kind": "transient"
+    },
+    {
+      "t": 65.0625,
+      "what": "cases:3",
+      "kind": "transient"
+    },
+    {
+      "t": 65.25,
+      "what": "cases:4",
+      "kind": "transient"
+    },
+    {
+      "t": 65.4375,
+      "what": "cases:5",
+      "kind": "transient"
+    },
+    {
+      "t": 65.625,
+      "what": "cases:6",
+      "kind": "transient"
+    },
+    {
+      "t": 65.8125,
+      "what": "cases:7",
+      "kind": "transient"
+    },
+    {
+      "t": 66.0,
+      "what": "cases:8",
+      "kind": "transient"
+    },
+    {
+      "t": 66.1875,
+      "what": "cases:9",
+      "kind": "transient"
+    },
+    {
+      "t": 66.375,
+      "what": "cases:10",
+      "kind": "transient"
+    },
+    {
+      "t": 66.5625,
+      "what": "cases:11",
+      "kind": "transient"
+    },
+    {
+      "t": 67.5,
+      "what": "impact:hall",
+      "kind": "transient"
+    },
+    {
+      "t": 67.5,
+      "what": "lead:theme",
+      "kind": "transient"
+    },
+    {
+      "t": 67.5,
+      "what": "riser>hall",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 69.75,
+      "what": "lead:theme-2",
+      "kind": "transient"
+    },
+    {
+      "t": 70.5,
+      "what": "musicbox:1",
+      "kind": "transient"
+    },
+    {
+      "t": 70.6875,
+      "what": "musicbox:2",
+      "kind": "transient"
+    },
+    {
+      "t": 70.875,
+      "what": "musicbox:3",
+      "kind": "transient"
+    },
+    {
+      "t": 71.0625,
+      "what": "musicbox:4",
+      "kind": "transient"
+    },
+    {
+      "t": 71.25,
+      "what": "musicbox:5",
+      "kind": "transient"
+    },
+    {
+      "t": 71.4375,
+      "what": "musicbox:6",
+      "kind": "transient"
+    },
+    {
+      "t": 71.625,
+      "what": "musicbox:7",
+      "kind": "transient"
+    },
+    {
+      "t": 71.8125,
+      "what": "musicbox:8",
+      "kind": "transient"
+    },
+    {
+      "t": 72.0,
+      "what": "musicbox:9",
+      "kind": "transient"
+    },
+    {
+      "t": 72.1875,
+      "what": "musicbox:10",
+      "kind": "transient"
+    },
+    {
+      "t": 72.375,
+      "what": "musicbox:11",
+      "kind": "transient"
+    },
+    {
+      "t": 72.5625,
+      "what": "musicbox:12",
+      "kind": "transient"
+    },
+    {
+      "t": 72.75,
+      "what": "fourier:h1",
+      "kind": "transient"
+    },
+    {
+      "t": 73.5,
+      "what": "fourier:h3",
+      "kind": "transient"
+    },
+    {
+      "t": 74.25,
+      "what": "fourier:h5",
+      "kind": "transient"
+    },
+    {
+      "t": 75.0,
+      "what": "doppler",
+      "kind": "transient"
+    },
+    {
+      "t": 77.25,
+      "what": "silent-film:1",
+      "kind": "transient"
+    },
+    {
+      "t": 78.0,
+      "what": "silent-film:2",
+      "kind": "transient"
+    },
+    {
+      "t": 78.75,
+      "what": "silent-film:3",
+      "kind": "transient"
+    },
+    {
+      "t": 79.5,
+      "what": "reveal",
+      "kind": "transient"
+    },
+    {
+      "t": 79.5,
+      "what": "riser>reveal",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 79.5,
+      "what": "swell>reveal",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 82.5,
+      "what": "stem:kick",
+      "kind": "transient"
+    },
+    {
+      "t": 83.25,
+      "what": "stem:bass",
+      "kind": "transient"
+    },
+    {
+      "t": 84.0,
+      "what": "stem:hats",
+      "kind": "transient"
+    },
+    {
+      "t": 84.75,
+      "what": "stem:lead",
+      "kind": "transient"
+    },
+    {
+      "t": 85.5,
+      "what": "impact:title",
+      "kind": "transient"
+    },
+    {
+      "t": 85.5,
+      "what": "riser>title",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 85.5,
+      "what": "spark:title",
+      "kind": "transient"
+    },
+    {
+      "t": 85.5,
+      "what": "swell>title",
+      "kind": "swell-peak (no transient)"
+    },
+    {
+      "t": 85.5,
+      "what": "title-chord",
+      "kind": "transient"
+    },
+    {
+      "t": 87.75,
+      "what": "typing:1",
+      "kind": "transient"
+    },
+    {
+      "t": 87.9375,
+      "what": "typing:2",
+      "kind": "transient"
+    },
+    {
+      "t": 88.125,
+      "what": "typing:3",
+      "kind": "transient"
+    },
+    {
+      "t": 88.3125,
+      "what": "typing:4",
+      "kind": "transient"
+    },
+    {
+      "t": 88.5,
+      "what": "typing:5",
+      "kind": "transient"
+    },
+    {
+      "t": 88.6875,
+      "what": "typing:6",
+      "kind": "transient"
+    },
+    {
+      "t": 88.875,
+      "what": "typing:7",
+      "kind": "transient"
+    },
+    {
+      "t": 89.0625,
+      "what": "typing:8",
+      "kind": "transient"
+    }
+  ],
+  "stops": [],
+  "holds": [
+    {
+      "start": 23.25,
+      "end": 24.0
+    },
+    {
+      "start": 42.75,
+      "end": 43.5
+    },
+    {
+      "start": 45.75,
+      "end": 46.5
+    },
+    {
+      "start": 54.0,
+      "end": 55.5
+    }
+  ],
+  "hits_note": "kind=transient hits are audible onsets (cue-checked in audio/check/cuecheck.txt); swell-peak entries mark where a riser / reverse swell culminates and are not onset cues. v3 has no stops: each former stop is a hold (held breath: a button hit on its first sample, drums out, bass and ostinato filter down, pad and sub sustain, a swell into the next downbeat).",
+  "fade": {
+    "start": 90.7875,
+    "end": 91.425
+  },
+  "master": {
+    "lufs": -14.59,
+    "true_peak_db": -1.92,
+    "max_gain_reduction_db": -3.56
+  }
+}

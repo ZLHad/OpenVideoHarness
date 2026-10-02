@@ -8,6 +8,8 @@
 #   mix    bin/vh mix profile=promo → −14 LUFS; then bin/vh qa (the gate)
 #   tools/build_audio.sh        → audio/music.wav, audio/mix.wav, audio/stems/, out/qa.txt
 # audio/make_sketch.py wrote audio/sketch.json; tools/retime.py wrote audio/score.json and audio/events.json.
+# audio/music.beats.json (the body score's beat map on the old timeline, for the film's pulses) is written by
+# audio/score_engine.py when it renders audio/score.base.json; it is kept as rendered.
 # Needs uv, ffmpeg and the repo's bin/vh. O= sets the output folder (default audio), VH= the path to bin/vh.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -25,4 +27,4 @@ ffmpeg -v error -y -i "$tmp/m1.wav" -i "$tmp/m2.wav" -filter_complex "[1:a]adela
   -t $DUR -c:a pcm_s24le "$O/music.wav"
 "$VH" sfx lib "$O/sfxlib" >/dev/null
 "$VH" mix "$O/mix.wav" profile=promo music="$O/music.wav" events="$O/events.json" lib="$O/sfxlib" dur=$DUR fade=0.6 stems="$O/stems" | tail -1
-"$VH" qa "$O/mix.wav" - "$O/events.json" --lib "$O/sfxlib" --stems "$O/stems" --to $(python3 -c "print($DUR - 0.6)") --out out/qa.txt | tail -1
+"$VH" qa "$O/mix.wav" - "$O/events.json" --lib "$O/sfxlib" --stems "$O/stems" --to "$(python3 -c "print($DUR - 0.6)")" --out out/qa.txt | tail -1

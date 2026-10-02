@@ -1,5 +1,5 @@
 {
- "title": "OpenVideoHarness intro film: cinematic hybrid score (v5: 80 BPM, the reads' holds stretched, 25 bars longer by the beats in meters)",
+ "title": "OpenVideoHarness intro film: cinematic hybrid score (v5: 80 BPM, the reads' holds stretched, 20 bars longer by the beats in meters)",
  "engine": "audio/score_engine.py",
  "bpm": 80,
  "bars": 30,

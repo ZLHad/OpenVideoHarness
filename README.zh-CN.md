@@ -48,12 +48,12 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 ```
 
 这一条命令会：
-- 把仓库克隆到 `~/OpenVideoHarness`（约 330 MB，样片和示例片都在里面）；
+- 把仓库克隆到 `~/OpenVideoHarness`（约 530 MB，样片和示例片都在里面）；
 - 装好自带手绘引擎和风格样片渲染器的依赖（约 210 MB）；
 - 拉取 30 个只读的参考仓库（约 195 MB，加 `--no-refs` 可以先不拉）；
 - 把 `open-video-harness` skill 注册给 Claude Code 和 Codex，之后在任何目录说"做个视频"，agent 都能找到这里。
 
-一共占约 730 MB 磁盘。第一次渲染和第一次用声音工具时还会再下载一批，各有多大、放在哪里，见[会下载什么](#会下载什么)。不知道从哪开始？看 wiki 里的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)，从零走到第一支视频。
+一共占约 935 MB 磁盘。第一次渲染和第一次用声音工具时还会再下载一批，各有多大、放在哪里，见[会下载什么](#会下载什么)。不知道从哪开始？看 wiki 里的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)，从零走到第一支视频。
 
 然后打开 Claude Code（或 Codex），直接说你要什么：
 
@@ -116,9 +116,9 @@ https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
 <tr>
 <td width="40%" valign="top">
 
-https://github.com/user-attachments/assets/bc9ec77a-a3a8-463e-a622-9f6d6ae8fa4d
+https://github.com/user-attachments/assets/e4fa59b8-3941-4fdd-ada4-62b4be4f3a82
 
-<sub><a href="showcase/04-intro-film/media/final.mp4">原文件</a></sub>
+<sub>8 段里的第 5 段（自查回环和成片）；<a href="showcase/04-intro-film/README.zh-CN.md">全部 8 段</a> · <a href="showcase/04-intro-film/media/final.mp4">原文件</a></sub>
 </td>
 <td valign="top"><b><a href="showcase/04-intro-film/README.zh-CN.md">04 · 介绍片（星河开场 + 一镜到底）</a></b>（Blender + HyperFrames + Three.js · 150.5 秒 · 1920×1080）<br>本仓库自己的产品片。开场用 Blender 路径追踪：每颗星都是一支片子，星系坍缩成超新星，再被压成一片影片之海；之后一个连续的 3D 长镜头穿过整个仓库。<br><b><a href="showcase/04-intro-film/README.zh-CN.md#你说了什么原话">提示词</a>（关卡上的原话）：</b>“玻璃、宇宙、星穹等感觉要让人已看到开头就被吸引，令人瘫坐眩晕的感觉”，之后“或者使用blender？好莱坞大片质感”<br><b>建议工作流</b>（精品档，<code>--effort studio</code>）：<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>Blender 底片见 <a href="engines/blender.md">engines/blender.md</a>；一镜到底 3D 见 <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>；<code>bin/vh sheet</code>、<code>check</code><br><b>声音：</b>代码写的配乐（开场 120 BPM，正文 D 小调 80 BPM）和 124 个音效，<code>bin/vh mix … profile=promo</code> 混音</td>
 </tr>
@@ -367,7 +367,7 @@ npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harn
 
 | 下载的东西 | 什么时候 | 放在哪里 | 大小 |
 |---|---|---|---|
-| 本仓库，样片和示例片都在里面 | 安装时 | `~/OpenVideoHarness` | 约 330 MB |
+| 本仓库，样片和示例片都在里面 | 安装时 | `~/OpenVideoHarness` | 约 530 MB |
 | 手绘引擎和风格样片渲染器的 Node 依赖 | 安装时 | 仓库里的 `node_modules` | 约 210 MB |
 | 30 个只读参考仓库 | 安装时，加 `--no-refs` 可跳过 | `references/repos/` | 约 195 MB |
 | HyperFrames 用的 Chrome（`chrome-headless-shell`） | 第一次 `hyperframes render` | `~/.cache/hyperframes` | 下载约 100 MB，解压后约 200 MB |

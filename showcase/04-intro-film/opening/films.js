@@ -1,5 +1,5 @@
 // The films on the waterfall cards: 28 procedural shots (cosmos, glass, landscapes …) rendered once into an atlas at build,
-// plus look/assets/films.jpg (41 cuts of this repo's own swatches and showcases, tools/look/film_atlas.py).
+// plus assets/films.jpg (41 cuts of this repo's own swatches and showcases, tools/film_atlas.py).
 // Atlas layout for both: one film per row, 16 frames per row, 256x144 per tile.
 // Procedural shots loop seamlessly over their 16 frames (all motion is periodic in ph = 2π·k/16); real cuts ping-pong.
 import * as THREE from "three";

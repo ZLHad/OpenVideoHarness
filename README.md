@@ -48,12 +48,12 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 ```
 
 This one command:
-- clones the repo into `~/OpenVideoHarness` (about 330 MB; the sample films are in it);
+- clones the repo into `~/OpenVideoHarness` (about 530 MB; the sample films are in it);
 - installs the dependencies of the built-in hand-drawn engine and the style renderer (about 210 MB);
 - fetches 30 read-only reference repos (about 195 MB; `--no-refs` skips them);
 - registers the `open-video-harness` skill for Claude Code and Codex, so saying "make a video" in any folder leads the agent here.
 
-That is about 730 MB on disk. The first render and the sound tools download more the first time you use them: [what gets downloaded](#what-gets-downloaded) lists how much and where. New here? The wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) page goes from nothing to a first video.
+That is about 935 MB on disk. The first render and the sound tools download more the first time you use them: [what gets downloaded](#what-gets-downloaded) lists how much and where. New here? The wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) page goes from nothing to a first video.
 
 Then open Claude Code (or Codex) and say what you want:
 
@@ -116,9 +116,9 @@ https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
 <tr>
 <td width="40%" valign="top">
 
-https://github.com/user-attachments/assets/bc9ec77a-a3a8-463e-a622-9f6d6ae8fa4d
+https://github.com/user-attachments/assets/e4fa59b8-3941-4fdd-ada4-62b4be4f3a82
 
-<sub><a href="showcase/04-intro-film/media/final.mp4">the original file</a></sub>
+<sub>Chapter 5 of 8 (the self-review loop and the final cut); <a href="showcase/04-intro-film/">all eight</a> · <a href="showcase/04-intro-film/media/final.mp4">the original file</a></sub>
 </td>
 <td valign="top"><b><a href="showcase/04-intro-film/">04 · Intro film (a galaxy of films, then one take)</a></b> (Blender + HyperFrames + Three.js · 150.5 s · 1920×1080)<br>The repo's own product film. The opening is path-traced in Blender: every star is a film, the galaxy collapses into a supernova and is flattened into a sea of films. Then one continuous 3D take through the repo.<br><b><a href="showcase/04-intro-film/README.md#what-was-asked">Request</a>, at the gates:</b> “玻璃、宇宙、星穹……令人瘫坐眩晕的感觉” (glass, cosmos, a starry sky… the feeling that makes you dizzy), then “或者使用blender？好莱坞大片质感” (or use Blender? Hollywood blockbuster quality)<br><b>Suggested workflow</b> (studio effort, <code>--effort studio</code>):<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>Blender plates: <a href="engines/blender.md">engines/blender.md</a>; one-take 3D: <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>; <code>bin/vh sheet</code>, <code>check</code><br><b>Sound:</b> a code-composed score (a 120 BPM opening, then D minor at 80 BPM) and 124 sound effects, mixed with <code>bin/vh mix … profile=promo</code></td>
 </tr>
@@ -367,7 +367,7 @@ Sizes are approximate, measured on macOS (Apple Silicon); `du -sh` will show sli
 
 | What | When | Where | Size |
 |---|---|---|---|
-| This repo, with the sample films and style samples | install | `~/OpenVideoHarness` | about 330 MB |
+| This repo, with the sample films and style samples | install | `~/OpenVideoHarness` | about 530 MB |
 | Node packages of the hand-drawn engine and the style renderer | install | `node_modules` inside the repo | about 210 MB |
 | 30 read-only reference repos | install, unless `--no-refs` | `references/repos/` | about 195 MB |
 | Chrome for HyperFrames (`chrome-headless-shell`) | the first `hyperframes render` | `~/.cache/hyperframes` | about 100 MB to download, 200 MB on disk |

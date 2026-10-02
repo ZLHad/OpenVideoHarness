@@ -15,31 +15,31 @@ https://github.com/user-attachments/assets/9d305423-0e5b-4276-a347-17a072993b6f
 
 **2 · The request, the router, the nine types** (19–42.5 s)
 
-https://github.com/user-attachments/assets/e8b2244e-ca6b-4f2a-957e-f1df0cf15924
+https://github.com/user-attachments/assets/e3edd617-1450-4484-ad34-040eabcda9e7
 
-**3 · Docs, tools and engines** (42.5–57 s)
+**3 · Docs, tools and engines** (42.5–56.75 s)
 
-https://github.com/user-attachments/assets/97229621-c60c-4977-93f8-bb193f982fdf
+https://github.com/user-attachments/assets/14549b89-d95a-4713-ab19-aeb21ddc7856
 
-**4 · How it works: the human gates** (57–68 s)
+**4 · How it works: the human gates** (56.75–67.75 s)
 
-https://github.com/user-attachments/assets/a7e26949-b99b-4bcb-a491-265d77f42354
+https://github.com/user-attachments/assets/4303505d-b13e-4b1e-b767-4b3d71c77ae1
 
-**5 · The self-review loop and the final cut** (68–87.5 s)
+**5 · The self-review loop and the final cut** (67.75–87.5 s)
 
-https://github.com/user-attachments/assets/bc9ec77a-a3a8-463e-a622-9f6d6ae8fa4d
+https://github.com/user-attachments/assets/e4fa59b8-3941-4fdd-ada4-62b4be4f3a82
 
 **6 · Styles, sound, ready to run, cases** (87.5–111.5 s)
 
-https://github.com/user-attachments/assets/1300a17c-579e-4241-9fbd-c766f197c572
+https://github.com/user-attachments/assets/0742ee3a-edfc-479a-aff5-b44cf2f3c75f
 
-**7 · The proof hall: four real films** (111.5–133 s)
+**7 · The proof hall: four real films** (111.5–133.25 s)
 
-https://github.com/user-attachments/assets/d65a9393-2cb4-497c-8341-97ccb5b80d68
+https://github.com/user-attachments/assets/38b34557-3232-4a87-be0f-b1c85e919f2b
 
-**8 · This film, too; the title** (133–150.5 s)
+**8 · This film, too; the title** (133.25–150.5 s)
 
-https://github.com/user-attachments/assets/d0040464-bd4a-43c8-83cd-fe0c9e4119bf
+https://github.com/user-attachments/assets/22c034c6-c6c1-46ba-9e68-3da30dcac882
 
 ## What was asked
 
@@ -60,7 +60,7 @@ The concept: **every star is a film.** There are so many AI video tools that the
 | 8.0 s | The galaxy collapses into a supernova: a shock ring, a gas shell with red and teal filaments, films flung outward (the film's one white flash) | Blender |
 | 9.0–10.4 s | The two-dimensional foil: a ring of light sweeps the plane and flattens the debris into a sea of films | Blender |
 | 10.4–13.8 s | "What's missing?" | Blender |
-| 14.0–18.8 s | An amber scan sorts the films into a grid that runs to the horizon; "OpenVideoHarness · Not more tools. Know-how." | Blender → WebGL from 15.4 s |
+| 14.0–18.8 s | An amber scan sorts the films into a grid that runs to the horizon; "OpenVideoHarness · Not more tools. Know-how." | Blender, dissolving into WebGL over 15.0–15.6 s |
 | 18.6–29.0 s | The rows collapse into lines of text; a request is typed into a terminal ("Make a vertical science short: why does a low-orbit satellite's signal change pitch?", the one showcase 02 answers); Enter, and the camera dives in | WebGL + DOM |
 | 29.0–56.75 s | Routing: the request → Claude Code / Codex → the CLAUDE.md router → 9 video types, where the request's own (02, science shorts) lights up and the rest dim → playbook, templates, styles, bin/vh → engines, references → projects/ | Three.js |
 | 56.75–87.5 s | The workflow on that request: three human gates, each a door made of what is reviewed (02's outline, storyboard, draft sheet); the self-review loop (a frame of 02 turns red on each of three fails, then all pass); the final cut, where 02 plays, + LESSONS.md | Three.js |
@@ -85,7 +85,7 @@ Small frames of the opening's films keep drifting past in the body's world, so "
 - `bin/vh check`: no black, frozen or silent stretch; yuv420p, limited range, BT.709 with all four colour tags.
 - One full-screen white flash in the whole film (the supernova at 8.0 s).
 - Camera continuity, measured: a frame-difference curve over the 475 Blender frames (smooth rises and falls; the only jumps are the supernova and one card sweeping past the lens at 5.1 s, both designed), and over the whole film after every re-timing (no stepping in the slowed holds; the remaining jumps are whips, power-ons and the cuts inside the proof hall's films).
-- Blender determinism: frames 100 and 300 rendered again in a fresh process, PSNR 71.3 dB and 47.3 dB against the sequence (the floor is 45 dB).
+- Blender determinism (the final plate): frames 100 and 300 rendered again in a fresh process, PSNR 71.3 dB and 47.3 dB against the sequence (the floor is 45 dB).
 - Audio (`bin/vh qa`): no digital silence, dropouts or pumping; 62 of 62 cues within one frame (median 5.1 ms); −14.0 LUFS, −1.65 dBTP. Click warnings: see below.
 - Reading time: measured from frames by the reviewers against the checklist's formula, per language; the holds were stretched after rounds 3, 4 and 5 (round 5's last fixes were not re-measured).
 
@@ -107,17 +107,17 @@ What each round changed is in [NOTES.md](NOTES.md). Round 5's fixes are in this 
 
 ```bash
 cd showcase/04-intro-film
-npm ci && bash tools/make_clips.sh                                   # HyperFrames, three; proxies of showcase 00–03 → assets/clips/
-uv run --no-project --with pillow python tools/film_atlas.py         # 41 cuts of this repo's films → assets/films.jpg
-uv run --no-project --with pillow python tools/ai_atlas.py           # the 40 AI stills → assets/films-ai.jpg (and the small atlases)
+npm i && bash tools/make_clips.sh                                   # HyperFrames, three; proxies of showcase 00–03 → assets/clips/
 bash tools/opening_export.sh                                         # the shader films → assets/films-proc.png, the opening film → assets/hero-earth.png
-tools/bl_render.sh 0 474 final2                                      # the Blender opening, 1080p, about 1 h 28 min
+uv run --no-project --with pillow python tools/film_atlas.py         # 41 cuts of this repo's films → assets/films.jpg (byte for byte)
+uv run --no-project --with pillow python tools/ai_atlas.py           # the 40 AI stills → assets/films-ai.jpg (and the small atlases)
+tools/bl_render.sh 0 474 final2                                      # the Blender opening, 1080p, about 1 h 28 min (macOS only)
 uv run --no-project --with numpy python tools/export_state.py       # cards and camera → assets/state.json
 uv run --no-project --with pillow python tools/request_tex.py ../02-short-leo-doppler   # the gates' doors and the loop: 02's storyboard, draft sheet, frames
-bash tools/deliver.sh                                                # plate, HyperFrames render, audio (tools/build_audio.sh), QA, encodes, poster, sheet
+bash tools/deliver.sh                                                # plate, HyperFrames render, audio (tools/build_audio.sh), QA, encodes, the README chapters, poster, sheet
 ```
 
-The AI stills can't be regenerated byte for byte; `assets/ai/` holds the 40 that were used. The film is written on the old 87.5 s timeline and plays through [`js/tmap.js`](js/tmap.js); after changing that map, run `python3 tools/retime.py` (score, SFX, the footage windows) and rebuild the audio. `tools/self_sheets.sh <draft.mp4>` bakes this film's own frames into the wall behind "This film, too." (render a draft first, then the final).
+The Blender steps run on macOS only: `tools/bl.sh` sandboxes Blender with `sandbox-exec`, and `galaxy.py` renders on Metal (elsewhere, run Blender yourself and set the Cycles device). `tools/chapters.sh` cuts the eight README chapters (1080p, ≤ 9.6 MB each) and `tools/watermark.sh` adds the corner mark; the other samples' README clips were made with the same script. The AI stills can't be regenerated byte for byte; `assets/ai/` holds the 40 that were used. The film is written on the old 87.5 s timeline and plays through [`js/tmap.js`](js/tmap.js); after changing that map, run `python3 tools/retime.py` (score, SFX, the footage windows) and rebuild the audio. `tools/self_sheets.sh <draft.mp4>` bakes this film's own frames into the wall behind "This film, too." (render a draft first, then the final).
 
 ## Known imperfections
 
@@ -125,6 +125,6 @@ The AI stills can't be regenerated byte for byte; `assets/ai/` holds the 40 that
 - **150.5 s is long for an intro.** The reading-time floor made it grow from 87.5 s; a shorter cut would need fewer stations, not faster ones.
 - **Click warnings in the music.** `bin/vh qa` flags about 190 sharp edges in the score stem; they come from the v3 score's gated saw ostinato and stand out more in the held breaths, where the drums drop out. Not checked by ear.
 - **The 8.0 s supernova hit** is mostly below 150 Hz, so it is weak on laptop speakers; a whip layer carries its attack.
-- **The terminal's hold** repeats one bar of the opening sketch three times.
+- **The terminal's hold** plays one bar of the opening sketch three extra times (four in all).
 - **Re-exporting the shader atlas** (`tools/opening_export.sh`) gives a slightly different row 27 (the Earth film): its shader changed after the atlas the Blender render used was exported (the other 27 rows are pixel-identical).
 - **Lossless determinism** was measured for the Blender plate, not for this cut's HyperFrames body.

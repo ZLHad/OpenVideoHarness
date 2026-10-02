@@ -2,7 +2,7 @@
 # Export the opening's two shader textures from opening/index.html (opening/films.js: 28 procedural films):
 #   assets/films-proc.png  4096×4032, 28 films × 16 frames   (the snapshot at 0.25 s)
 #   assets/hero-earth.png  4096×2304, the opening film at 1024×576, 16 frames   (the top of the snapshot at 0.75 s)
-# Both are gamma-encoded exactly as stored; blender/galaxy.py and the film read them. Needs `npm ci` in the film folder.
+# Both are gamma-encoded exactly as stored; blender/galaxy.py and the film read them. Needs `npm i` in the film folder.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1

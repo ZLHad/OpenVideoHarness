@@ -1,7 +1,7 @@
 # BRIEF · OpenVideoHarness 介绍片 v5
 
 <!-- 关卡 ① 草稿，2026-10-01。只写目标、观众、放在哪、多长；细节在 REVIEW-gate1.md、STORYBOARD.md（节拍表）、NOTES.md。
-     v3 源码：showcase/04-intro-film/（81 s）。v4 修订计划的发现照用，格式不用。 -->
+     v3：showcase/04-intro-film/v3/（81 s，文档和成片；源码在提交 7057c74）。v4 修订计划的发现照用，格式不用。 -->
 
 ## Spec
 - Effort: studio  <!-- 旗舰片：README 首屏、B站、X。档位可以由你降 -->
@@ -23,7 +23,7 @@
 - 素材：README / CLAUDE.md / TASTE_CHECKLIST 的原文，showcase 00–03 的成片，本片自己的配乐代码。事实表见 NOTES.md，渲染前再核。
 
 ## Style
-- 沿用 v3「帧的档案馆」：近黑底、唯一的琥珀强调色只以光出现、一镜到底（showcase/04-intro-film/STYLE.md）。
+- 沿用 v3「帧的档案馆」：近黑底、唯一的琥珀强调色只以光出现、一镜到底（showcase/04-intro-film/v3/STYLE.md）。
 - v5 的改动：开场的工具卡片允许杂色（代表“市面上的”），harness 出现后回到只有琥珀。
 - 不要：真实产品的 logo 和名字（只用通用类别名）、紫青渐变、玻璃拟态、任何一帧照抄真实 App 的界面。
 

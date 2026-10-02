@@ -96,7 +96,7 @@ for a, b in holds:
         merged.append((a, b))
 sc["holds"] = [[to_pos(a), to_pos(b)] for a, b in merged]
 sc["meters"] = {str(k): n for k, n in enumerate(new_beats, 1) if n != 4}
-sc["title"] = sc["title"].split(" (")[0] + f" (v5: 80 BPM, the reads' holds stretched, {len(BODY)} bars longer by the beats in meters)"
+sc["title"] = sc["title"].split(" (")[0] + f" (v5: 80 BPM, the reads' holds stretched, {sum(n != o for n, o in zip(new_beats, old_beats))} bars longer by the beats in meters)"
 (ROOT / "audio/score.json").write_text(json.dumps(sc, indent=1, ensure_ascii=False) + "\n")
 
 # ---- the SFX ----

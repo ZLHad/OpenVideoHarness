@@ -2,7 +2,7 @@
 (they ping-pong on the cards, so the move goes in and back out), one film per row, 256x144 tiles like the other atlases.
 Also writes the 1/4-size atlases the far cards use: films-proc-small.png, films-small.jpg, films-ai-small.jpg.
 
-usage (from the project root): uv run --no-project --with pillow python tools/look/ai_atlas.py
+usage (from the project root): uv run --no-project --with pillow python tools/ai_atlas.py
 """
 import json
 import math

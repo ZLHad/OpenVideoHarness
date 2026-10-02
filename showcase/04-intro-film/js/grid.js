@@ -1,6 +1,6 @@
 // The opening from 15 s on, in WebGL: the film grid under the stars, the title, the rows collapsing into the terminal's
 // lines. It takes over from the Blender plate with the same cards, films and camera (exported from blender/galaxy.py by
-// tools/look/export_state.py), so the hand-over is a dissolve between two renders of one scene.
+// tools/export_state.py), so the hand-over is a dissolve between two renders of one scene.
 // Blender is Z-up with a horizontal field of view; three.js is Y-up with a vertical one: (x, y, z) → (x, z, −y).
 import * as THREE from "three";
 

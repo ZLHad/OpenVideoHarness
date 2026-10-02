@@ -3,7 +3,7 @@
 #   1. the Blender plate: blender/out/final2/f_0000–0474.png → assets/plate.mp4 (0–15.8 s)
 #   2. HyperFrames render, high quality (the plate + the WebGL grid and terminal + the body's world + DOM type)
 #   3. audio: music (opening sketch 0–23 s + the body score from its bar 10) + SFX → bin/vh mix profile=promo → qa
-#   4. mux, encodes (master, web, ≤ 10 MB README clip), GIF, poster, sheet, checks
+#   4. mux, encodes (master, repo copy), the eight README chapters (tools/chapters.sh: 1080p, ≤ 9.6 MB, corner mark), poster, sheet, checks
 set -euo pipefail
 export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1
 B=../../bin/vh; FRAMES=4515; DUR=150.5; mkdir -p out
@@ -21,23 +21,18 @@ A=audio
 [ -f $A/mix.wav ] || VH=$B O=$A bash tools/build_audio.sh   # music + SFX → mix → qa
 $B qa $A/mix.wav - $A/events.json --lib $A/sfxlib --stems $A/stems --to 149.9 --out out/qa.txt | tail -2
 CT="-color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv"
-AF="[1:a]apad,atrim=0:$DUR[a]"
+AF="[1:a]apad,atrim=0:${DUR}[a]"
 ffmpeg -v error -y -i out/final-silent.mp4 -i $A/mix.wav -filter_complex "$AF" -map 0:v -map "[a]" -c:v libx264 -preset slow -crf 16 -tune film -pix_fmt yuv420p $CT -c:a aac -b:a 256k -movflags +faststart out/final-master.mp4
 # repo copy (≤ 50 MB): two-pass 2.5 Mbit/s; the Blender opening (frames 0–474: unbanded star noise) gets 3× the bits of the body
 # through x264 zones (SSIM vs the master 0.82 → 0.88 in 0–16 s, body 0.95 → 0.93, same size)
-Z1="-x264-params zones=0,474,b=3.0" Z2="-x264-params zones=0,474,b=2.5"
+Z1="-x264-params zones=0,474,b=3.0"
 ffmpeg -v error -y -i out/final-silent.mp4 -c:v libx264 -preset slow -b:v 2500k -maxrate 16000k -bufsize 32000k $Z1 -pass 1 -passlogfile out/p2 -pix_fmt yuv420p $CT -an -f null /dev/null
 ffmpeg -v error -y -i out/final-silent.mp4 -i $A/mix.wav -filter_complex "$AF" -map 0:v -map "[a]" -c:v libx264 -preset slow -b:v 2500k -maxrate 16000k -bufsize 32000k $Z1 -pass 2 -passlogfile out/p2 -pix_fmt yuv420p $CT -c:a aac -b:a 160k -movflags +faststart out/final.mp4
-# README clip (GitHub user-attachments: ≤ 10 MB), 1280×720: 430k + 96k over 150.5 s ≈ 9.9 MB
-ffmpeg -v error -y -i out/final-silent.mp4 -vf scale=1280:-2 -c:v libx264 -preset slow -b:v 430k -maxrate 3000k -bufsize 6000k $Z2 -pass 1 -passlogfile out/p3 -pix_fmt yuv420p $CT -an -f null /dev/null
-ffmpeg -v error -y -i out/final-silent.mp4 -i $A/mix.wav -filter_complex "[0:v]scale=1280:-2[v];$AF" -map "[v]" -map "[a]" -c:v libx264 -preset slow -b:v 430k -maxrate 3000k -bufsize 6000k $Z2 -pass 2 -passlogfile out/p3 -pix_fmt yuv420p $CT -c:a aac -b:a 96k -movflags +faststart out/final-720p.mp4
-# preview: the pull-back from one film to the galaxy, the dive, the blast (0.0–9.6 s), 960 px, 15 fps, animated WebP
-# (a GIF of the same span is 18 MB at 720 px: the star fields don't palettise); ffmpeg here has no WebP encoder, Pillow does
-rm -rf out/pv && mkdir -p out/pv && ffmpeg -v error -y -ss 0.0 -t 9.6 -i out/final-silent.mp4 -vf "fps=15,scale=960:-1:flags=lanczos" out/pv/%04d.png
-uv run -q --no-project --with pillow python -c "import glob, sys; from PIL import Image; f = sorted(glob.glob('out/pv/*.png')); im = [Image.open(x).convert('RGB') for x in f]; im[0].save('out/preview.webp', save_all=True, append_images=im[1:], duration=67, loop=0, quality=50, method=4)"
-rm -rf out/pv
+# README players (GitHub user-attachments: ≤ 10 MB per video): eight 1080p chapters cut at the section changes,
+# each with the small corner mark (tools/watermark.sh); upload them by hand and put the links in the READMEs
+bash tools/chapters.sh . out/chapters
 ffmpeg -v error -y -ss 16.2 -i out/final-master.mp4 -frames:v 1 out/poster.png
 rm -f out/sheet.png; $B sheet out/final-master.mp4 8 0.5 out/sheet.png
 uv run -q --no-project --with pillow python -c "from PIL import Image; Image.open('out/sheet.png').convert('RGB').save('out/sheet.jpg', quality=85, optimize=True)"   # the repo keeps the JPEG (the PNG is ~12 MB)
 $B check out/final.mp4
-ls -la out/final.mp4 out/final-master.mp4 out/final-720p.mp4 out/preview.webp out/poster.png out/sheet.jpg
+ls -la out/final.mp4 out/final-master.mp4 out/poster.png out/sheet.jpg out/chapters/

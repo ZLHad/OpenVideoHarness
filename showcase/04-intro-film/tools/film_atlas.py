@@ -1,11 +1,12 @@
-"""Build look/assets/films.jpg: real footage for the opening's waterfall cards.
+"""Build assets/films.jpg: real footage for the opening's waterfall cards.
 
 Every film is one row of 16 tiles (256x144, 8 fps, 2 s loop) cut from this repo's own films:
-the 28 style swatches and showcases 00-04 (all MIT, made in this repo). The procedural films
-(cosmos, glass, landscapes) are rendered in the page itself, see look/js/films.js.
+the 28 style swatches the film was made with (pinned from assets/films.json; styles added later are left out) and
+showcases 00-04 (all MIT, made in this repo; 04 is v3, now at v3/final.mp4). The procedural films
+(cosmos, glass, landscapes) are rendered in the page itself, see opening/films.js.
 
 usage (from the project root):
-  uv run --no-project --with pillow python tools/look/film_atlas.py
+  uv run --no-project --with pillow python tools/film_atlas.py
 """
 import json
 import subprocess
@@ -22,12 +23,14 @@ TW, TH, NF, FPS = 256, 144, 16, 8
 # (name, file, start s, crop as fractions of the frame: x, y, w, h)
 SW_CROP = (0.15, 0.30, 0.70, 0.70)                 # swatches: lower centre, so the shared title line is mostly out
 films = []
-for d in sorted((REPO / "styles").iterdir()):
-    f = d / "media" / "swatch.mp4"
+PINNED = json.loads((OUT / "films.json").read_text())["films"]   # the 41 rows galaxy.py and the film index by number
+for name in PINNED:
+    f = REPO / "styles" / name / "media" / "swatch.mp4"
     if f.exists():
-        films.append((d.name, f, 2.0, SW_CROP))
+        films.append((name, f, 2.0, SW_CROP))
 SC = REPO / "showcase"
 FULL = (0.0, 0.0, 1.0, 1.0)
+assert len(films) == 28, len(films)
 films += [
     ("00-launch-a", SC / "00-promo-launch-film/media/final.mp4", 3.0, FULL),
     ("00-launch-b", SC / "00-promo-launch-film/media/final.mp4", 12.5, FULL),
@@ -37,11 +40,11 @@ films += [
     ("02-doppler-b", SC / "02-short-leo-doppler/media/final.mp4", 15.0, (0.0, 0.34, 1.0, 0.316)),
     ("03-fourier-a", SC / "03-math-fourier/media/final.mp4", 6.0, FULL),
     ("03-fourier-b", SC / "03-math-fourier/media/final.mp4", 18.0, FULL),
-    ("04-intro-a", SC / "04-intro-film/media/final.mp4", 5.0, FULL),
-    ("04-intro-b", SC / "04-intro-film/media/final.mp4", 21.0, FULL),
-    ("04-intro-c", SC / "04-intro-film/media/final.mp4", 38.0, FULL),
-    ("04-intro-d", SC / "04-intro-film/media/final.mp4", 55.0, FULL),
-    ("04-intro-e", SC / "04-intro-film/media/final.mp4", 70.0, FULL),
+    ("04-intro-a", SC / "04-intro-film/v3/final.mp4", 5.0, FULL),
+    ("04-intro-b", SC / "04-intro-film/v3/final.mp4", 21.0, FULL),
+    ("04-intro-c", SC / "04-intro-film/v3/final.mp4", 38.0, FULL),
+    ("04-intro-d", SC / "04-intro-film/v3/final.mp4", 55.0, FULL),
+    ("04-intro-e", SC / "04-intro-film/v3/final.mp4", 70.0, FULL),
 ]
 
 

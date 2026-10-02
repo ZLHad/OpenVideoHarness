@@ -304,9 +304,9 @@ sandbox-exec -f vh_blender.sb env -i PATH="$PATH" HOME="$PWD/blender/out/.home" 
 - **相机的上方向要自己给**：`Vector.to_track_quat("-Z", "Y")` 让 Y 轴尽量对着世界 Z 轴，镜头接近垂直俯视时这个方向不稳定，画面会扭和抖。改成自己算 forward 和 up，用 `Matrix((right, up, -forward)).transposed().to_quaternion()`，相邻两帧的四元数取同号（`q.dot(prev) < 0` 就取反），否则运动模糊会沿长弧插值。
 - **数学式写成着色器节点**：旋臂、尘埃带、超新星的丝缕都是节点树。`blender/nodexpr.py` 把 `"exp(-r / 21) * smooth(80, 120, r)"` 这样的表达式编译成 Math、Map Range、Noise 节点，场景代码和 numpy 那一份读起来一样。它本身不 import bpy（MIT），由调用它的场景脚本传入节点树。
 - **速度**（M3 Max，Metal，1080p，64 spp，不降噪）：按块实测：特写 28–39 s 一帧（96 spp），拉远到星系 7–14 s，螺旋下坠和坍缩 12–21 s，超新星之后约 6 s，压平以后约 2 s。15.8 s 的开场（475 帧）实际渲了 1 小时 28 分（2026-10-02，分 16 块）。4K 按像素数约 ×4。
-- **Metal 的确定性**：新进程里打乱顺序重渲 3 帧，和序列里的同一帧比：一帧逐像素相同，另两帧 PSNR 95 dB 和 49 dB（49 dB 那帧是几千张卡片叠在一起的影片之海），都过 45 dB 的线；PNG 文件哈希不同，是元数据。
+- **Metal 的确定性**：新进程里打乱顺序重渲，和序列里的同一帧比。look-dev 那版底片 3 帧：一帧逐像素相同，另两帧 PSNR 95 dB 和 49 dB；正式底片 2 帧：71.3 dB 和 47.3 dB。最低的都是几千张卡片叠在一起的影片之海，都过 45 dB 的线；PNG 文件哈希不同，是元数据。
 - **长渲染不要挂在 agent 的后台任务上**：Claude Code 的后台任务 30 分钟会被收掉，渲到一半就断。分块（每块 30 帧一个新进程）、可续渲（已存在的帧跳过），用 `nohup caffeinate -i … & disown` 脱离会话，再用 Monitor 盯日志。`showcase/04-intro-film/tools/bl_render.sh` 就是这样写的。
-- **和网页引擎接力**：Blender 只渲到 15.8 s，之后的网格、片名和终端交给 HyperFrames 的 WebGL。接法是从同一份 `galaxy.py` 导出卡片的格位、片源和逐帧相机（`tools/export_state.py`，不启动 Blender），WebGL 按同一个相机重画同一批卡片，两边在 15.4–15.8 s 交叉溶解。Blender 是 Z 朝上、水平视角，three.js 是 Y 朝上、垂直视角，换算是 (x, y, z) → (x, z, −y)。
+- **和网页引擎接力**：Blender 只渲到 15.8 s，之后的网格、片名和终端交给 HyperFrames 的 WebGL。接法是从同一份 `galaxy.py` 导出卡片的格位、片源和逐帧相机（`tools/export_state.py`，不启动 Blender），WebGL 按同一个相机重画同一批卡片，两边在 15.0–15.6 s 交叉溶解（Blender 底片渲到 15.8 s，留一点余量）。Blender 是 Z 朝上、水平视角，three.js 是 Y 朝上、垂直视角，换算是 (x, y, z) → (x, z, −y)。
 
 还没做的：
 

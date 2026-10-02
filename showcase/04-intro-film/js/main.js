@@ -15,7 +15,8 @@ import { buildFeatures } from "./features.js";
 
 export const BPM = 80, BEAT = 60 / BPM, BAR = 4 * BEAT, FPS = 30, S16 = BEAT / 4;
 // bar k (1-based), beat offset b (0-based, may be fractional). Bar 11 is a 6/4 bar (the 8-type list holds 2 extra beats),
-// so every bar from 12 on starts 2 beats later than a plain 4/4 grid: 30 bars = 81.333 s = 2440 frames.
+// so every bar from 12 on starts 2 beats later than a plain 4/4 grid: 30 bars = 91.5 s = 2745 frames (the old timeline;
+// js/tmap.js stretches it to the film's 150.5 s).
 export const bar = (k, b = 0) => (k - 1) * BAR + b * BEAT + (k >= 12 ? 2 * BEAT : 0);
 export const DUR = bar(31);
 const barBeat = (t) => { // the true bar.beat under the 6/4 bar (for the HUD)
@@ -59,7 +60,8 @@ export function boot(THREE) {
 async function build(THREE) {
   const DATA = await (await fetch("assets/data.json")).json();
   const { id: FXID, P } = readPreset();
-  let BEATS = null; try { const r = await fetch("audio/music.beats.json"); if (r.ok) BEATS = await r.json(); } catch (e) {}
+  // the body score's beat map on the old timeline (written by audio/score_engine.py from audio/score.base.json): the pulses
+  let BEATS = null; try { const r = await fetch("audio/music.beats.json"); if (r.ok) BEATS = await r.json(); else console.warn("intro-world: no audio/music.beats.json, the beat pulses are off"); } catch (e) { console.warn("intro-world: beat map:", e); }
   const PUL = makePulses(BEATS, bar);
   let ONSCREEN = [];
   try { const r = await fetch("audio/onscreen-code.txt"); if (r.ok) ONSCREEN = (await r.text()).split("\n").filter((l) => l.trim()); } catch (e) {}
