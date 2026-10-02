@@ -242,7 +242,7 @@ parse_styles() { # parse_styles "<a,b>": the preset names, one per line (spaces 
   local s n=0 IFS=,
   set -f; set -- $1; set +f
   for s in "$@"; do s=$(printf '%s' "$s" | tr -d ' \t'); [ -z "$s" ] && continue
-    case $s in *[!a-z0-9-]*|-*) echo "unknown style: $s" >&2; return 1 ;; esac
+    case $s in *[!abcdefghijklmnopqrstuvwxyz0123456789-]*|-*) echo "unknown style: $s" >&2; return 1 ;; esac   # spelled out: a-z ranges follow the locale (bash 3.2) and can match capitals
     [ -f "$ROOT/styles/$s/STYLE.md" ] || { echo "unknown style: $s" >&2; return 1; }
     printf '%s\n' "$s"; n=$((n+1))
   done
