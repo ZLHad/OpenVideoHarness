@@ -135,13 +135,15 @@ smoke_checks() {
   HOME="$t" vh install-skill no-such-target >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "install-skill rejects unknown targets" || bad "install-skill bad target exited $rc"
   rm -rf "$t"
   vh types >/dev/null && vh effort quick >/dev/null && vh style list >/dev/null && ok "types · effort · style list" || bad "types / effort / style list"
-  # -h prints the command's own usage and exits 0 (these used to take -h as a video, project or preset name)
-  rc=0; for a in sheet check gif hf-init mux style; do
+  # -h prints the command's usage from the help header and exits 0, without running it (setup -h used to install everything,
+  # sync-agents -h rewrote AGENTS.md, and others took -h as a video, project or preset name); the ones with a help of their own keep it
+  rc=0; for a in doctor setup install-skill sync-agents types effort new style "style check" hf-init tts music sfx beats qa mux sheet check gif; do
     for h in -h --help; do
-      o=$(vh "$a" "$h" 2>&1) && case "$o" in "usage: bin/vh $a "*) continue ;; esac
+      # shellcheck disable=SC2086   # "style check" is two words on purpose
+      o=$(vh $a "$h" 2>&1) && case "$o" in "usage: bin/vh $a "*) continue ;; esac
       bad "bin/vh $a $h: '$(printf '%s' "$o" | head -1)'"; rc=1
     done
-  done; [ $rc = 0 ] && ok "sheet · check · gif · hf-init · mux · style -h print their usage"
+  done; [ $rc = 0 ] && ok "-h and --help print the usage for every command without a help of its own"
   # a project: effort and style are written in, and the quick gate waiver is recorded
   dir=$(ls -d "$ROOT"/projects/*-"$slug" 2>/dev/null); [ -z "$dir" ] || rm -rf "$dir"
   if vh new math "$slug" --effort quick --style dark-math >/dev/null; then

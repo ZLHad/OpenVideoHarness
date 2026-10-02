@@ -2,8 +2,9 @@
 
 ## Unreleased
 
-**`-h` prints the usage for six more commands**
-- `bin/vh sheet`, `check`, `gif`, `hf-init`, `mux` and `style` took `-h` as a video, project or preset name: `sheet -h` failed in `basename`, `check -h` printed ffprobe's own help, `gif -h` failed in ffmpeg, `hf-init -h` said "no such project", `mux -h` printed a bash parameter error, and `style -h` checked the swatch renderer's npm install and printed `render.sh`'s help. Each now prints its own usage line and exits 0 for `-h` and `--help` (`style -h` also points to `render.sh -h` for the render options); without arguments they behave as before. CI checks all six.
+**`bin/vh <command> -h` prints its usage instead of running the command**
+- Before, `-h` and `--help` reached the command as an argument: `setup -h` ran the whole install, `sync-agents -h` rewrote AGENTS.md, `doctor -h` and `types -h` ran as usual; `sheet`, `check`, `gif`, `hf-init`, `mux`, `beats` and `qa` took `-h` as a video, project or mix (`basename`, ffprobe, ffmpeg, librosa or JSON errors, or ffprobe's own help); `style -h` checked the swatch renderer's npm install and printed `render.sh`'s help, and `style check -h` reached `determinism.sh` as a preset name; `new`, `effort`, `install-skill`, `music` and `sfx` printed a usage but exited 1.
+- Now the dispatcher answers `bin/vh <command> -h|--help` with that command's lines from the help header at the top of `bin/vh` (with their continuation lines) and exits 0; `style check -h` prints its own line. Commands with a fuller help of their own keep it: `captions`, `readcheck`, `review`, `storyboard`, `rhythm`, `cover-preview`, `voices`, `mix`, `recipes`. Without arguments, every command behaves as before. CI runs `-h` and `--help` for the other 18 and for `style check`.
 
 **Two more styles: pastel-ui (浅色界面讲解) and y2k-chrome (Y2K 铬面), 31 in all**
 - Why: two of the five community films in `cases/oneshot-five.md` work in registers the library lacked: a light, friendly UI explainer (科了个喵's "3 seconds") and late-90s liquid chrome pop (FunTech's showreel).
