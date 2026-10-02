@@ -734,6 +734,7 @@ def report(a, stems=None):
 
 def main():
     a = sys.argv[1:]; opt = lambda k, d=None: a[a.index(k) + 1] if k in a else d
+    if {"-h", "--help"} & set(a): print(__doc__); return   # also `qa mix -h`: no file is called -h
     pos = [v for i, v in enumerate(a) if not v.startswith("--") and (i == 0 or not a[i - 1].startswith("--"))]
     mode = pos.pop(0) if pos and pos[0] in ("scan", "cues", "mix") else "all"
     if mode == "mix":

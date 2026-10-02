@@ -12,6 +12,7 @@
 #                               create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);
 #                               --aspect: short/promo/data/meme only; --dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness
 #   style list | <preset> [--draft] | gallery [--mp4] | check <preset>   style library: list presets, render a 5 s swatch, build styles/gallery.jpg
+#                               (the swatch render's other options: styles/_swatch/render.sh -h)
 #   recipes list [--intent X --energy N --engine E …] | check [file…]   shot recipes (recipes/): filter by frontmatter, validate it
 #   hf-init <dir> [resolution]  scaffold HyperFrames into a project safely (no global skill install; landscape|portrait|square)
 #  decide: pictures and pages for the human
@@ -433,7 +434,8 @@ for d in sorted(pathlib.Path(sys.argv[1]).iterdir()):
 PY
       ;;
     gallery) shift; uv run -q --no-project --with pillow python "$sw/gallery.py" "$@" ;;
-    check) shift; swatch_deps "${1:-}"; "$sw/determinism.sh" "$@" ;;
+    check) shift; case "${1:-}" in -h|--help) echo "usage: bin/vh style check <preset> [workers_b=3]   frames from 1 and N render workers must match (styles/_swatch/determinism.sh)"; return ;; esac
+      swatch_deps "${1:-}"; "$sw/determinism.sh" "$@" ;;
     compare) shift; [ $# -gt 0 ] || { echo "usage: bin/vh style compare a,b,c [--frame t] [--out file.png]"; exit 1; }
       uv run -q --no-project --with pillow python "$ROOT/tools/style_compare.py" "$@" ;;
     apply) shift; [ $# -eq 2 ] || { echo "usage: bin/vh style apply <preset[,preset]> <project>   (bin/vh style list shows the presets)"; exit 1; }
@@ -616,6 +618,19 @@ cmd_gif() {
 }
 
 cmd_help() { awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; }
+cmd_usage() { # one command's lines from the header above, with their continuation lines; exit 1 if it has none
+  c=$1 awk 'NR == 1 {next} !/^#/ {exit}
+    /^#   [^ ]/ {split(substr($0, 5), w, " "); on = (w[1] == ENVIRON["c"]); if (on) {found = 1; print "usage: bin/vh " substr($0, 5)}; next}
+    on && /^#     / {sub(/^# +/, ""); print "              " $0; next}
+    {on = 0}
+    END {exit !found}' "$0"
+}
+
+case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
+  case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa) ;;   # these print their own, fuller help
+    tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
+    *) cmd_usage "$1" && exit 0 ;; esac ;;
+esac
 
 case "${1:-help}" in
   doctor) cmd_doctor ;; setup) cmd_setup ;; types) cmd_types ;;
