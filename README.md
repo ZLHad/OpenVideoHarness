@@ -4,7 +4,7 @@
 
 **Coding agents like Claude Code and Codex can make videos by writing programs. This makes them do it reliably.**
 
-Explainers, science shorts, product films, music videos, data stories, paper talks, hand-drawn shorts, meme edits and edits of your own footage: 9 video types (09 experimental), 29 styles, one workflow.
+Explainers, science shorts, product films, music videos, data stories, paper talks, hand-drawn shorts, meme edits and edits of your own footage: 9 video types (09 experimental), 31 styles, one workflow.
 
 **English** · [中文](README.zh-CN.md) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
@@ -12,7 +12,7 @@ Explainers, science shorts, product films, music videos, data stories, paper tal
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush-blue)
 ![Voice](https://img.shields.io/badge/voice-Qwen3--TTS%20zh%20%7C%20en-purple)
-![Styles](https://img.shields.io/badge/styles-29-green)
+![Styles](https://img.shields.io/badge/styles-31-green)
 
 <a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/preview.gif" width="820" alt="OpenVideoHarness intro film"></a>
 
@@ -32,7 +32,7 @@ OpenVideoHarness is that craft, written as docs and tools an agent can follow:
 
 - **A method for each kind of video.** Say "make a science short" or "make a launch film", and it reads the workflow for that type: which engine, which steps, what looks good, what is off limits.
 - **It stops and asks you three times.** At the outline, the storyboard and the first draft, it waits for your go-ahead. Direction gets settled while changes are still cheap. For a quick try, switch to the `quick` level and it just renders.
-- **More than one taste.** 29 styles learned from famous work, each with a real rendered sample, offered to you before anything is built.
+- **More than one taste.** 31 styles learned from famous work, each with a real rendered sample, offered to you before anything is built.
 - **It checks its own work.** An agent can't watch video or hear sound, so it looks at rendered frames, measures the mix, and fixes things until a checklist passes. A reviewer who didn't make the film then scores it.
 - **Sound included.** Chinese and English voiceover (a local open-source model), bilingual subtitles, music and sound effects written as code, mixing and a final audio check.
 
@@ -95,8 +95,8 @@ The five films below were made by an agent **reading only this repo's docs**. Cl
 <td valign="top"><b><a href="showcase/04-intro-film/">04 · Intro film (one-take 3D)</a></b> (HyperFrames + Three.js · 81 s · 1920×1080)<br>The repo's own product film, one continuous 3D take.<br><b><a href="showcase/04-intro-film/README.md#what-was-asked-and-what-changed">Request</a>, as revised at gate ①:</b> “一镜到底 动画动效 音乐动态字等风格 叙事感 科幻感大片感” (one continuous shot, kinetic type on music, a narrative arc, a sci-fi blockbuster feel)<br><b>Suggested workflow</b> (studio effort, <code>--effort studio</code>):<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>one-take 3D: <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>; <code>bin/vh sfx place</code>, <code>sheet</code>, <code>check</code><br><b>Sound:</b> a code-composed cinematic score (D minor, 90 BPM) and 97 sound effects; zh/en soft subtitle tracks</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="The 29 style samples, all showing the same content"></a><br><sub><a href="styles/gallery.mp4">▶ the reel, with sound (42 s)</a></sub></td>
-<td valign="top"><b><a href="styles/">29 styles, one reel</a></b> (5-second samples)<br>The same content in 29 styles learned from famous work.<br><b>Borrow from one:</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> shows all 29; details in <a href="styles/README.md">styles/README.md</a><br><b>Sound:</b> one score per sample (<code>bin/vh music</code>, <code>mix … profile=swatch</code>)</td>
+<td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="The 31 style samples, all showing the same content"></a><br><sub><a href="styles/gallery.mp4">▶ the reel, with sound (42 s)</a></sub></td>
+<td valign="top"><b><a href="styles/">31 styles, one reel</a></b> (5-second samples)<br>The same content in 31 styles learned from famous work.<br><b>Borrow from one:</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> shows all 31; details in <a href="styles/README.md">styles/README.md</a><br><b>Sound:</b> one score per sample (<code>bin/vh music</code>, <code>mix … profile=swatch</code>)</td>
 </tr>
 </table>
 
@@ -121,11 +121,11 @@ The GIFs are compressed, silent previews. Films you make with it are welcome in 
 
 </details>
 
-## 29 styles, not one taste
+## 31 styles, not one taste
 
 AI-made videos drift toward one look: dark background, glow, glass cards, busy animated UI. Unless you say otherwise, that's where an agent goes.
 
-So we studied famous work and wrote down 29 styles in [`styles/`](styles/), grouped into film titles, brand and launch, data and explainers, illustration and print, Chinese aesthetics, and retro tech. The sources include:
+So we studied famous work and wrote down 31 styles in [`styles/`](styles/), grouped into film titles, brand and launch, data and explainers, illustration and print, Chinese aesthetics, and retro tech. The sources include:
 - **film and title design**: Saul Bass's titles, *Se7en*, *Blade Runner 2049*, Wes Anderson's symmetry, Wong Kar-wai's step-printing, Aardman's and Laika's stop-motion miniatures;
 - **design**: the Swiss grid, 3Blue1Brown, New York Times data graphics, Otto Neurath's Isotype pictograms;
 - **animation and print**: the halftone dots of *Spider-Verse*, 16-bit Super Nintendo pixel art;
@@ -133,14 +133,14 @@ So we studied famous work and wrote down 29 styles in [`styles/`](styles/), grou
 
 Each style is written as instructions an agent can follow: colors and fonts, composition, how things move, how scenes change, what it sounds like, and which clichés to avoid.
 
-**Every style comes with a real 5-second sample rendered by this repo**, each with its own code-written music. All 29 samples show exactly the same content, so the only difference is the style:
+**Every style comes with a real 5-second sample rendered by this repo**, each with its own code-written music. All 31 samples show exactly the same content, so the only difference is the style:
 
-<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="The 29 style samples, all showing the same content"></a>
+<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="The 31 style samples, all showing the same content"></a>
 
 Watch them back to back, each with its own sound, in [`styles/gallery.mp4`](styles/gallery.mp4). To use one:
 
 ```bash
-bin/vh style list                                  # see all 29
+bin/vh style list                                  # see all 31
 bin/vh new promo launch-film --style cutout-jazz   # attach a style as a reference (several: --style a,b)
 ```
 
@@ -342,7 +342,7 @@ OpenVideoHarness/
 ├── video-types/              workflows for the 9 video types (09 experimental)
 ├── playbook/                 shared know-how 00–12: pipeline, checks, motion, sound, effects, narrative, hooks and covers, composition, concept
 ├── templates/                files each new project fills in: brief, storyboard, style, review, decisions, notes, lessons, checklist; script, character and packaging when needed
-├── styles/                   29 styles, each with a sample; _swatch/ renders the samples
+├── styles/                   31 styles, each with a sample; _swatch/ renders the samples
 ├── recipes/                  shot recipes: how a shot moves (frames, critical values, pitfalls) + pacing skeletons for whole films
 ├── cases/                    13 case studies + curated community work + a 3D long-form deep-dive
 ├── showcase/                 films made with this repo (source + final + process notes)
