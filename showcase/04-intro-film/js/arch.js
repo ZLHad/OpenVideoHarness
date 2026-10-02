@@ -11,10 +11,10 @@ export function buildArch(THREE, X) {
   // bilingual label (screen-pixel sized by pin(): English 54 px, supporting lines 44–46 px)
   function label(en, zh, o = {}) {
     const lines = [{ text: en, size: o.enSize || 54, weight: 600, color: "#EDEDEF", font: o.mono ? FONT_MONO : undefined, track: o.mono ? 0 : -0.01 }];
-    if (o.sub) lines.push({ text: o.sub, size: 46, weight: 400, color: "#C8C8D0", font: o.subMono ? FONT_MONO : undefined });
+    if (o.sub) lines.push({ text: o.sub, size: 48, weight: 400, color: "#C8C8D0", font: o.subMono ? FONT_MONO : undefined });
     if (zh) lines.push({ text: zh, size: o.zhSize || 48, weight: 500, font: FONT_ZH, color: "#D6D6DC" });
     if (o.zhSub) lines.push({ text: o.zhSub, size: 48, weight: 400, font: FONT_ZH, color: "#C4C4CC" });
-    const m = quiet(dynPlane(lines, { pxPerUnit: 100, lineGap: 0.26 }), 1.16); scene.add(m); return m;
+    const m = quiet(dynPlane(lines, { pxPerUnit: 100, lineGap: 0.26, decodeDur: 0.1 }), 1.4); scene.add(m); return m;
   }
   // a card frame + amber tab that scale with their label (station 3)
   function card(m) {
@@ -22,28 +22,28 @@ export function buildArch(THREE, X) {
     const fr = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(w, h)), new THREE.LineBasicMaterial({ color: 0x4a4a52, transparent: true, opacity: 0, depthTest: false, toneMapped: false }));
     fr.renderOrder = 10; fr.position.z = -0.01; m.add(fr);
     const body = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: 0x0b0b0e, transparent: true, opacity: 0, depthTest: false, toneMapped: false })); body.renderOrder = 9; body.position.z = -0.02; m.add(body);
-    const tab = new THREE.Mesh(new THREE.PlaneGeometry(0.1, h * 0.8), barMat(2.0)); tab.material.depthTest = false; tab.material.transparent = true; tab.renderOrder = 11; tab.position.set(-w / 2 - 0.02, 0, 0); // the amber tab sits on the card's edge, clear of the text m.add(tab);
+    const tab = new THREE.Mesh(new THREE.PlaneGeometry(0.1, h * 0.8), barMat(2.0)); tab.material.depthTest = false; tab.material.transparent = true; tab.renderOrder = 11; tab.position.set(-w / 2 - 0.02, 0, 0); m.add(tab); // the amber tab sits on the card's edge, clear of the text
     m.userData.card = { fr, tab, body }; return m;
   }
 
-  const TYPES = [["explainers", "讲解"], ["science shorts", "科普"], ["launch films", "发布片"], ["music videos", "MV"], ["data stories", "数据"], ["paper talks", "论文"], ["hand-drawn shorts", "手绘"], ["memes", "梗"]];
+  const TYPES = [["explainers", "讲解"], ["science shorts", "科普"], ["product films", "产品片"], ["music videos", "MV"], ["data stories", "数据"], ["paper talks", "论文"], ["hand-drawn", "手绘"], ["meme edits", "梗图快剪"], ["your footage", "素材剪辑"]];
   // stations: 1 = request → agent → router; 2 = video-types/ + 8 spokes; 3 = four doc/tool cards; 4 = engines, references, projects/ (the portal)
   const N = [
     { id: "you", p: W(-4.6, 2.5, 0), on: bar(10, 0), labAt: bar(10) + 0.55, off: bar(11) - 0.15, st: 1, L: () => label("You: a one-line request", "你：一句话需求"), pl: { dy: -58, ay: "t" } },
     { id: "agent", from: "you", p: W(4.6, 2.5, 0), on: bar(10, 1), off: bar(11) - 0.15, st: 1, L: () => label("Claude Code / Codex", null, { enSize: 58 }), pl: { dy: -58, ay: "t" } },
     { id: "router", from: "agent", p: W(0, -0.4, -6), on: bar(10, 2), off: bar(11) - 0.15, st: 1, shape: "diamond", R: 0.95,
-      L: () => label("CLAUDE.md · AGENTS.md router", null, { mono: false, sub: "pick type · hard rules · 3 human gates", zhSub: "判断类型 · 硬规则 · 三道人工关卡" }), pl: { dy: -78, ay: "t" } },
+      L: () => label("CLAUDE.md router", "CLAUDE.md 路由", { enSize: 58 }), pl: { dy: -78, ay: "t" } },   // short: read in the station's hold
     { id: "vt", from: "router", p: W(-11.2, 1.3, -20), on: bar(11, 0), off: bar(12) - 0.15, st: 2, R: 0.85,
-      L: () => label("video-types/", "8 类视频工作流", { mono: true, enSize: 58, sub: "8 video workflows" }), pl: { dy: -74, ay: "t" } },
-    ...TYPES.map(([en, zh], j) => ({ id: "t" + j, from: "vt", p: W(-4.6, 4.3 - j * 0.86, -20 - 0.4 * Math.sin(j * 0.9)), on: bar(11, 0.5 * j), off: bar(12) - 0.15, st: 2, shape: "dot",
-      L: () => label(`0${j + 1}  ${en} · ${zh}`, null, { enSize: 50 }), pl: { dx: 46, ax: "l" } })),
-    { id: "pb", from: "router", p: W(3.1, 3.0, -36), on: bar(12, 0), off: bar(13) - 0.1, st: 3, shape: "card", L: () => card(label("playbook/", "通用知识 9 篇", { mono: true, sub: "9 know-how docs" })) },
-    { id: "tp", from: "router", p: W(9.9, 3.0, -36), on: bar(12, 0.5), off: bar(13) - 0.1, st: 3, shape: "card", L: () => card(label("templates/", "7 个项目模板", { mono: true, sub: "7 project templates" })) },
-    { id: "cs", from: "router", p: W(3.1, -0.1, -36), on: bar(12, 1), off: bar(13) - 0.1, st: 3, shape: "card", L: () => card(label("Cases & showcase", "案例与样板", { sub: "cases · showcase", subMono: true })) },
-    { id: "bv", from: "router", p: W(9.9, -0.1, -36), on: bar(12, 1.5), off: bar(13) - 0.1, st: 3, shape: "card", L: () => card(label("bin/vh", "建项目 · 自查工具", { mono: true, sub: "scaffold · QA tools" })) },
-    { id: "eng", from: "cs", p: W(-5.2, 0.9, -54), on: bar(13, 0), off: bar(13, 1.95), st: 4, L: () => label("engines/ renderers", "engines/ 渲染引擎", { mono: true, sub: "HyperFrames · Manim · p5.brush" }), pl: { dy: -56, ay: "t" } },
-    { id: "ref", from: "bv", p: W(5.2, 0.9, -54), on: bar(13, 1), off: bar(13, 1.95), st: 4, L: () => label("references/repos/", "20+ 参考仓库 · 只读", { mono: true, sub: "20+ repos · read-only" }), pl: { dy: -56, ay: "t" } },
-    { id: "prj", from: "bv", p: W(0, 3.0, -62), on: bar(13, 2), off: bar(13, 3.55), st: 4, shape: "portal", R: 2.4,
+      L: () => label("video-types/", "9 类视频工作流", { mono: true, enSize: 58, sub: "9 video workflows" }), pl: { dy: -74, ay: "t" } },
+    ...TYPES.map(([en, zh], j) => ({ id: "t" + j, from: "vt", p: W(-5.6, 4.45 - j * 0.78, -20 - 0.4 * Math.sin(j * 0.9)), on: bar(11, 0.5 * j), off: bar(12) - 0.15, st: 2, shape: "dot",
+      L: () => label(`0${j + 1}  ${en}${j === 8 ? " (exp.)" : ""} · ${zh}`, null, { enSize: 50 }), pl: { dx: 46, ax: "l" } })),
+    { id: "pb", from: "router", p: W(3.1, 3.0, -36), on: bar(12, 0), off: bar(13) - 0.1, st: 3, shape: "card", L: () => card(label("playbook/", "通用知识 13 篇", { mono: true, sub: "13 know-how docs" })) },
+    { id: "tp", from: "router", p: W(9.9, 3.0, -36), on: bar(12, 0.5), off: bar(13) - 0.1, st: 3, shape: "card", L: () => card(label("templates/", "11 个项目模板", { mono: true, sub: "11 project templates" })) },
+    { id: "cs", from: "router", p: W(3.1, -0.1, -36), on: bar(12, 2.0), off: bar(13) - 0.1, st: 3, shape: "card", L: () => card(label("styles/", "31 种风格 · 各带样片", { mono: true, sub: "31 styles · real samples" })) },
+    { id: "bv", from: "router", p: W(9.9, -0.1, -36), on: bar(12, 2.4), off: bar(13) - 0.1, st: 3, shape: "card", L: () => card(label("bin/vh", "建项目 · 自查工具", { mono: true, sub: "scaffold · QA tools" })) },
+    { id: "eng", from: "cs", p: W(-5.2, 0.9, -54), on: bar(13, 0), off: bar(13, 3.1), st: 4, L: () => label("engines/", "p5.brush · Blender", { mono: true, sub: "HyperFrames · Manim", zhSub: "渲染引擎" }), pl: { dx: 30, dy: -50, ax: "l", ay: "t" } }, // below, toward the centre: clear of its feed, the portal and the frame edge
+    { id: "ref", from: "bv", p: W(5.2, 0.9, -54), on: bar(13, 1.3), off: bar(13, 3.1), st: 4, L: () => label("references/", "30 个参考仓库，只读", { mono: true, sub: "30 repos, read-only" }), pl: { dx: -30, dy: -50, ax: "r", ay: "t" } },
+    { id: "prj", from: "bv", p: W(0, 3.0, -62), on: bar(13, 2), off: bar(13, 2), noLab: 1, st: 4, shape: "portal", R: 2.4,
       L: () => label("projects/date-slug", "大纲 → 分镜 → 初版 → 成片", { mono: true, enSize: 60, sub: "outline → storyboard → draft → final", zhSize: 48 }), pl: { dy: -250, ay: "t" } },
   ];
   const NID = Object.fromEntries(N.map((n) => [n.id, n]));
@@ -94,19 +94,23 @@ export function buildArch(THREE, X) {
     [bar(12, 0.75), W(6.5, 2.1, -22.4), W(6.5, 1.45, -36), 40, "f"],
     [bar(12, 3.3), W(6.5, 2.05, -23.6), W(6.5, 1.45, -36), 40, "b"],
     [bar(13, 0.7), W(0, 2.9, -39.5), W(0, 1.9, -58), 42, "f"],
-    [bar(13, 2.0), W(0, 3.0, -42.5), W(0, 2.3, -60), 42, "b"],
+    [bar(13, 2.6), W(0, 3.0, -43.0), W(0, 2.3, -60), 42, "b"],
     [bar(13, 3.5), W(0, 3.1, -55.5), W(0, 3.0, -70), 42, null],
   ];
   K.forEach(([t, p, l, f, tm]) => key(t, p, l, f, false, tm));
   const whips = [[bar(10) + 0.15, 0.5], [bar(11) - 0.1, 0.45], [bar(12) - 0.1, 0.45], [bar(13) - 0.05, 0.5]];
   const samples = []; for (let z = 5; z > -70; z -= 2) samples.push(W((hash(z) - 0.5) * 16, 1.5, z));
 
-  const LAB_ALL = N.map((n) => n.lab);
+  const LAB_ALL = N.map((n) => n.lab); const NODEC = { decode: 0 };
   function update(t, ctx) {
     const on = t > bar(9, 3) && t < bar(14) + 0.4; root.visible = on;
     if (!on) { N.forEach((n) => { n.lab.visible = false; }); return; }
     const wide = 0;
-    tubes.forEach((tb) => { const U = tb.m.material.uniforms; U.uFill.value = eOutCubic(seg(t, tb.t0, tb.t1)); U.uGain.value = 1 + 1.3 * wide; tb.m.visible = !(tb.st === 1 && t > bar(11) - 0.1) && !(tb.id === "prj" && t > bar(13, 3.1)); });
+    // the request's thread: once the list is up, its type (02) lights and the other eight become texture; among the
+    // folders, styles/ (the one a request borrows from) stays lit
+    const hlT = seg(t, bar(11, 4.5), bar(11, 4.5) + 0.4), hlC = seg(t, bar(12, 2.8), bar(12, 2.8) + 0.4);
+    const dimOf = (id) => (/^t[0-8]$/.test(id) && id !== "t1" ? 1 - 0.65 * hlT : ["pb", "tp", "bv"].includes(id) ? 1 - 0.55 * hlC : 1);
+    tubes.forEach((tb) => { const U = tb.m.material.uniforms; U.uFill.value = eOutCubic(seg(t, tb.t0, tb.t1)); U.uGain.value = (1 + 1.3 * wide) * (tb.id === "t1" ? 1 + 1.5 * hlT : dimOf(tb.id)); tb.m.visible = !(tb.st === 1 && t > bar(11) - 0.1) && !(tb.id === "prj" && t > bar(13, 3.1)); });
     N.forEach((n) => {
       const age = t - n.on, powered = age >= 0, flash = powered ? Math.exp(-age / 0.22) : 0;
       setAmber(n.mat, powered ? 1.15 + 1.8 * flash : 0.25);
@@ -118,11 +122,13 @@ export function buildArch(THREE, X) {
       n.g.visible = !(n.st === 1 && t > bar(11) - 0.1) && !(n.id === "prj" && t > bar(14) - 0.15);
       if (n.id === "prj") setAmber(n.mat, (powered ? 1.15 + 1.8 * flash : 0.25) * clamp((bar(14) - 0.1 - t) / 0.35));
       const la = t - (n.labAt || n.on); // the request label waits for the whip into station 1 to land
-      const L = n.lab, near = pin(L, n.p, n.shape === "card" ? { dx: 0, dy: 0 } : n.pl);
-      const o = (la >= 0 ? eOutCubic(seg(la, 0, 0.18)) : 0) * (1 - seg(t, n.off - 0.25, n.off)) * near;
-      L.material.opacity = o; L.visible = o > 0.002; L.userData.quiet.material.opacity = (n.shape === "card" ? 0.85 : 0.6) * o;
+      const big = n.id === "t1" ? 1 + 0.15 * hlT : n.id === "cs" ? 1 + 0.08 * hlC : 1;
+      const L = n.lab, near = pin(L, n.p, n.shape === "card" ? { dx: 0, dy: 0, k: big } : { ...n.pl, k: big });
+      const o = n.noLab ? 0 : (la >= 0 ? eOutCubic(seg(la, 0, 0.22)) : 0) * (1 - seg(t, n.off - 0.25, n.off)) * near * dimOf(n.id);
+      if (n.id === "t1" && hlT > 0) setAmber(n.mat, 1.15 + 2.0 * hlT);
+      L.material.opacity = o; L.visible = o > 0.002; L.userData.quiet.material.opacity = (n.shape === "card" ? 0.94 : 0.92) * o;
       if (L.visible) {
-        L.userData.dyn.draw(la, P); L.material.uniforms.uSweep.value = P.sweep ? lerp(-0.25, 1.25, seg(age, 0.2, 0.7)) : -1; L.material.uniforms.uFrame.value = ctx.frame;
+        L.userData.dyn.draw(la, NODEC); L.material.uniforms.uSweep.value = -1; L.material.uniforms.uFrame.value = ctx.frame;
         L.material.uniforms.uGlitch.value = 0;
       }
       if (L.userData.card) { L.userData.card.fr.material.opacity = 0.9 * o; L.userData.card.tab.material.opacity = o; L.userData.card.body.material.opacity = 0.9 * o; }
@@ -130,7 +136,8 @@ export function buildArch(THREE, X) {
   }
   return {
     update, root, whips, samples, labels: LAB_ALL, heroes: [],
-    punches: [bar(13, 2)], shakes: [[bar(10, 2), 0.012], [bar(11), 0.008], [bar(13, 2), 0.02]],
+    punches: [], shakes:   // no shock ring at the portal: it swept across the engines/references labels (round 3)
+      [[bar(10, 2), 0.012], [bar(11), 0.008], [bar(13, 2), 0.02]],
     light: (t) => (t < bar(11) ? NID.router.p : t < bar(12) ? NID.vt.p : t < bar(13) ? W(6.5, 1.4, -36) : NID.prj.p),
     rays: (t) => { let r = 0.12; for (const n of [NID.router, NID.vt, NID.prj]) { const u = t - n.on; if (u >= 0 && u < 2) r += 0.35 * Math.exp(-u / 0.5); } return r; },
   };

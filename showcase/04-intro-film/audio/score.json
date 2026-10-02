@@ -1,269 +1,2265 @@
 {
-  "title": "OpenVideoHarness intro film: cinematic hybrid score (v3.4, 30 bars, bar 11 in 6/4)",
-  "engine": "audio/score_engine.py",
-  "bpm": 90,
-  "bars": 30,
-  "meters": {"11": 6},
-  "key": "D minor",
-  "seed": 2029,
-  "positions": "\"bar:beat\" with 1-based bars and beats; \"12:1.5\" is the eighth after beat 1 of bar 12",
-  "chords": [
-    "Dm", "Dm", "Bb", "Dm", "Bb", "F",
-    "Bb", "C", "Dm", "Bb", "F", "C",
-    "Dm", "Bb", "F", "Dm", "Bb", "D",
-    "Bb", "F", "C", "Dm", "Bb", "C",
-    "D5", "F", "Bbmaj7", "C", "Dm9", "Dm9"
+ "title": "OpenVideoHarness intro film: cinematic hybrid score (v5: 80 BPM, the reads' holds stretched, 25 bars longer by the beats in meters)",
+ "engine": "audio/score_engine.py",
+ "bpm": 80,
+ "bars": 30,
+ "meters": {
+  "10": 9,
+  "11": 9,
+  "12": 11,
+  "13": 8,
+  "14": 6,
+  "15": 6,
+  "16": 6,
+  "17": 10,
+  "18": 13,
+  "19": 7,
+  "20": 10,
+  "21": 8,
+  "22": 7,
+  "23": 7,
+  "24": 6,
+  "25": 10,
+  "26": 6,
+  "27": 6,
+  "28": 6,
+  "30": 7
+ },
+ "key": "D minor",
+ "seed": 2029,
+ "positions": "\"bar:beat\" with 1-based bars and beats; \"12:1.5\" is the eighth after beat 1 of bar 12",
+ "chords": [
+  "Dm",
+  "Dm",
+  "Bb",
+  "Dm",
+  "Bb",
+  "F",
+  "Bb",
+  "C",
+  "Dm",
+  "Bb",
+  "F",
+  "C",
+  "Dm",
+  "Bb",
+  "F",
+  "Dm",
+  "Bb",
+  "D",
+  "Bb",
+  "F",
+  "C",
+  "Dm",
+  "Bb",
+  "C",
+  "D5",
+  "F",
+  "Bbmaj7",
+  "C",
+  "Dm9",
+  "Dm9"
+ ],
+ "voicings": {
+  "Dm": [
+   "D3",
+   "A3",
+   "D4",
+   "F4",
+   "A4"
   ],
-  "voicings": {
-    "Dm": ["D3", "A3", "D4", "F4", "A4"],
-    "Bb": ["Bb2", "F3", "Bb3", "D4", "F4"],
-    "Bbmaj7": ["Bb2", "F3", "A3", "D4", "F4"],
-    "F": ["C3", "F3", "A3", "C4", "F4"],
-    "C": ["C3", "G3", "C4", "E4", "G4"],
-    "D5": ["D3", "A3", "D4", "A4"],
-    "Dm9": ["D2", "A2", "E3", "A3", "F4", "A4", "D5"],
-    "Dmaj": ["D4", "F#4", "A4", "D5", "F#5", "A5"],
-    "C_hi": ["G4", "C5", "E5", "G5"],
-    "F_hi": ["A4", "C5", "F5", "A5"],
-    "Bb_hi": ["F4", "Bb4", "D5", "F5"],
-    "fail": ["D2", "D3", "Eb3"],
-    "D": ["D3", "A3", "D4", "F#4", "A4"],
-    "D_hi": ["A4", "D5", "F#5", "A5"],
-    "Dadd9": ["D3", "A3", "E4", "F#4", "A4", "D5"],
-    "Dm_hi": ["A4", "D5", "F5", "A5"]
+  "Bb": [
+   "Bb2",
+   "F3",
+   "Bb3",
+   "D4",
+   "F4"
+  ],
+  "Bbmaj7": [
+   "Bb2",
+   "F3",
+   "A3",
+   "D4",
+   "F4"
+  ],
+  "F": [
+   "C3",
+   "F3",
+   "A3",
+   "C4",
+   "F4"
+  ],
+  "C": [
+   "C3",
+   "G3",
+   "C4",
+   "E4",
+   "G4"
+  ],
+  "D5": [
+   "D3",
+   "A3",
+   "D4",
+   "A4"
+  ],
+  "Dm9": [
+   "D2",
+   "A2",
+   "E3",
+   "A3",
+   "F4",
+   "A4",
+   "D5"
+  ],
+  "Dmaj": [
+   "D4",
+   "F#4",
+   "A4",
+   "D5",
+   "F#5",
+   "A5"
+  ],
+  "C_hi": [
+   "G4",
+   "C5",
+   "E5",
+   "G5"
+  ],
+  "F_hi": [
+   "A4",
+   "C5",
+   "F5",
+   "A5"
+  ],
+  "Bb_hi": [
+   "F4",
+   "Bb4",
+   "D5",
+   "F5"
+  ],
+  "fail": [
+   "D2",
+   "D3",
+   "Eb3"
+  ],
+  "D": [
+   "D3",
+   "A3",
+   "D4",
+   "F#4",
+   "A4"
+  ],
+  "D_hi": [
+   "A4",
+   "D5",
+   "F#5",
+   "A5"
+  ],
+  "Dadd9": [
+   "D3",
+   "A3",
+   "E4",
+   "F#4",
+   "A4",
+   "D5"
+  ],
+  "Dm_hi": [
+   "A4",
+   "D5",
+   "F5",
+   "A5"
+  ]
+ },
+ "sections": [
+  {
+   "name": "prologue",
+   "bars": [
+    1,
+    3
+   ],
+   "layers": [
+    {
+     "inst": "drone",
+     "notes": [
+      "D1",
+      "A1"
+     ],
+     "gain": -18,
+     "fade_in": 1.0,
+     "fade_out": 1.5
+    },
+    {
+     "inst": "pad",
+     "gain": 2,
+     "cutoff": [
+      400,
+      1200
+     ],
+     "attack": 0.8
+    },
+    {
+     "inst": "pulse",
+     "from": "1:2",
+     "gain": [
+      -24,
+      -13
+     ],
+     "cutoff": [
+      300,
+      1000
+     ],
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "ticks",
+     "bars": [
+      2,
+      3
+     ],
+     "gain": -25,
+     "density": [
+      0.15,
+      0.35
+     ],
+     "notes": [
+      "D6",
+      "F6",
+      "G6",
+      "A6",
+      "C7"
+     ]
+    }
+   ]
   },
-  "sections": [
-    {"name": "prologue", "bars": [1, 3], "layers": [
-      {"inst": "drone", "notes": ["D1", "A1"], "gain": -18, "fade_in": 1.0, "fade_out": 1.5},
-      {"inst": "pad", "gain": 2, "cutoff": [400, 1200], "attack": 0.8},
-      {"inst": "pulse", "from": "1:2", "gain": [-24, -13], "cutoff": [300, 1000], "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "ticks", "bars": [2, 3], "gain": -25, "density": [0.15, 0.35], "notes": ["D6", "F6", "G6", "A6", "C7"]}
-    ]},
-    {"name": "program", "bars": [4, 6], "layers": [
-      {"inst": "pad", "gain": -5, "cutoff": [900, 1600]},
-      {"inst": "sub", "gain": -16},
-      {"inst": "pulse", "gain": [-15, -13], "cutoff": [900, 1800], "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "bass", "bars": [5, 6], "gain": [-13, -11], "cutoff": [300, 600], "pattern": "XxxxXxxxXxxxXxxx", "hit": "program"},
-      {"inst": "taiko", "bars": [5, 6], "gain": -7, "pattern": "X.......X......."},
-      {"inst": "typing", "bars": [5, 5], "gain": -27},
-      {"inst": "snare", "bars": [6, 6], "gain": -14, "pattern": "........X......."},
-      {"inst": "hats", "bars": [6, 6], "gain": -26, "pattern": "x.x.x.x.x.x.x.x."}
-    ]},
-    {"name": "problem", "bars": [7, 8], "layers": [
-      {"inst": "pad", "gain": -5, "cutoff": [1500, 2600]},
-      {"inst": "sub", "gain": -14},
-      {"inst": "bass", "gain": [-11, -8], "cutoff": [600, 1400], "pattern": "XxxxXxxxXxxxXxxx"},
-      {"inst": "pulse", "gain": [-13, -9], "cutoff": [1800, 3200], "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "taiko", "bars": [7, 7], "gain": [-9, -6], "pattern": "X.x.X.x.X.x.X.x."},
-      {"inst": "taiko", "bars": [8, 8], "gain": [-7, -3], "pattern": "XxxxXxxxXxxx...."},
-      {"inst": "snare", "bars": [7, 7], "gain": -12, "pattern": "....X.......X..."},
-      {"inst": "snare", "bars": [8, 8], "gain": [-16, -8], "pattern": "xxxxxxxxXXXX...."},
-      {"inst": "hats", "bars": [7, 7], "gain": -25, "pattern": "x.x.x.x.x.x.x.x."},
-      {"inst": "hats", "bars": [8, 8], "gain": -24, "pattern": "xxxxxxxxRRRR...."}
-    ]},
-    {"name": "braam", "bars": [9, 9], "layers": [
-      {"inst": "pad", "gain": -4, "cutoff": [1800, 2200]},
-      {"inst": "sub", "gain": -12},
-      {"inst": "bass", "from": "9:3", "gain": -9, "cutoff": 900, "pattern": "XxxxXxxxXxxxXxxx"},
-      {"inst": "pulse", "from": "9:3", "gain": -12, "cutoff": 2600, "pattern": "XxxXxxXxXxxXxxXx", "hit": "groove"},
-      {"inst": "taiko", "gain": -5, "pattern": "X..x..x.X.....x."},
-      {"inst": "snare", "from": "9:3", "gain": -10, "pattern": "........X......."},
-      {"inst": "hats", "from": "9:3", "gain": -22, "pattern": "xxxxxxxxxxxxxxxx"},
-      {"inst": "metal", "from": "9:3", "gain": -22, "pattern": "....x.......x..."}
-    ]},
-    {"name": "architecture", "bars": [10, 13], "layers": [
-      {"inst": "pad", "gain": -4, "cutoff": [1800, 2200]},
-      {"inst": "sub", "gain": -12},
-      {"inst": "bass", "gain": -10, "cutoff": [800, 1100], "pattern": "XxxxXxxxXxxxXxxx"},
-      {"inst": "pulse", "bars": [10, 10], "gain": -13, "cutoff": 2400, "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "pulse", "bars": [11, 11], "gain": -15, "cutoff": 1800, "post_lp": 2500, "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "pulse", "bars": [12, 13], "gain": -12, "cutoff": 2600, "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "taiko", "bars": [10, 10], "gain": -6, "pattern": "X..x..x.X.....x."},
-      {"inst": "taiko", "bars": [11, 11], "gain": -6, "pattern": "X.......X.......x...x.xX"},
-      {"inst": "taiko", "bars": [12, 12], "gain": -5, "pattern": "X..x..x.X...x.xX"},
-      {"inst": "taiko", "bars": [13, 13], "gain": -5, "pattern": "X..x..x.X..x..x."},
-      {"inst": "snare", "bars": [10, 10], "gain": -11, "pattern": "........X......."},
-      {"inst": "snare", "bars": [11, 11], "gain": -13, "pattern": "............X.......xxXX"},
-      {"inst": "snare", "bars": [12, 12], "gain": -11, "pattern": "....X.......xxXX"},
-      {"inst": "snare", "bars": [13, 13], "gain": -11, "pattern": "....X.......X..."},
-      {"inst": "hats", "bars": [10, 10], "gain": -23, "pattern": "xxxxxxxxxxxxxxRR"},
-      {"inst": "hats", "bars": [11, 11], "gain": -23, "pattern": "xxxxxxxxxxxxxxxxxxxxRRRR"},
-      {"inst": "hats", "bars": [12, 12], "gain": -23, "pattern": "xxxxxxxxxxxxRRRR"},
-      {"inst": "hats", "bars": [13, 13], "gain": -23, "pattern": "xxxxxxxxxxxxxxRR"}
-    ]},
-    {"name": "pipeline", "bars": [14, 18], "layers": [
-      {"inst": "pad", "bars": [14, 16], "gain": -4, "cutoff": [1800, 2200]},
-      {"inst": "pad", "bars": [17, 17], "gain": -8, "cutoff": 1200},
-      {"inst": "pad", "bars": [18, 18], "gain": -2, "cutoff": [2200, 2600]},
-      {"inst": "sub", "gain": -12},
-      {"inst": "bass", "bars": [14, 16], "gain": -10, "cutoff": [800, 1100], "pattern": "XxxxXxxxXxxxXxxx"},
-      {"inst": "bass", "bars": [17, 17], "gain": -12, "cutoff": 500, "pattern": "XxxxXxxxXxxxXxxx"},
-      {"inst": "bass", "bars": [18, 18], "gain": -9, "cutoff": 1400, "pattern": "XxxxXxxxXxxxXxxx"},
-      {"inst": "pulse", "bars": [14, 16], "gain": -12, "cutoff": 2600, "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "pulse", "bars": [17, 17], "gain": -17, "cutoff": 700, "post_lp": 900, "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "pulse", "bars": [18, 18], "gain": -11, "cutoff": [2600, 3000], "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "taiko", "bars": [14, 15], "gain": -5, "pattern": "X..x..x.X..X...."},
-      {"inst": "taiko", "bars": [16, 16], "gain": -5, "pattern": "X..x..x........."},
-      {"inst": "taiko", "bars": [17, 17], "gain": -6, "pattern": "X.......X......."},
-      {"inst": "taiko", "bars": [18, 18], "gain": -5, "pattern": "X..x..x.X......."},
-      {"inst": "snare", "bars": [14, 15], "gain": -10, "pattern": "....X...xxXX...."},
-      {"inst": "snare", "bars": [16, 16], "gain": -10, "pattern": "....X..........."},
-      {"inst": "snare", "bars": [17, 17], "gain": -12, "pattern": "........X......."},
-      {"inst": "snare", "bars": [18, 18], "gain": -10, "pattern": "....X..........."},
-      {"inst": "hats", "bars": [14, 16], "gain": -23, "pattern": "xxxxxxxxxxxxxxxx"},
-      {"inst": "hats", "bars": [17, 17], "gain": -26, "pattern": "x.x.x.x.x.x.x.x."},
-      {"inst": "hats", "bars": [18, 18], "gain": -22, "pattern": "O.xxxxxx........"}
-    ]},
-    {"name": "features", "bars": [19, 21], "layers": [
-      {"inst": "pad", "gain": -5, "cutoff": 2000},
-      {"inst": "sub", "gain": -13},
-      {"inst": "bass", "bars": [19, 19], "gain": -10, "cutoff": [900, 1200], "pattern": "XxxxXxxxXxxxXxxx"},
-      {"inst": "bass", "bars": [20, 20], "gain": -12, "cutoff": 700, "pattern": "XxxxXxxxXxxxXxxx"},
-      {"inst": "bass", "bars": [21, 21], "gain": -10, "cutoff": 1200, "pattern": "XxxxXxxxXxxxXxxx"},
-      {"inst": "pulse", "bars": [19, 19], "gain": -13, "cutoff": 2200, "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "pulse", "bars": [20, 20], "gain": -17, "cutoff": 1000, "post_lp": 1400, "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "pulse", "bars": [21, 21], "gain": -13, "cutoff": 2200, "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "taiko", "bars": [19, 19], "gain": -6, "pattern": "X..x..x.X.....x."},
-      {"inst": "taiko", "bars": [20, 20], "gain": -7, "pattern": "X.......X......."},
-      {"inst": "taiko", "bars": [21, 21], "gain": -6, "pattern": "X..x..x.X..x..x."},
-      {"inst": "snare", "bars": [19, 19], "gain": -11, "pattern": "........X......."},
-      {"inst": "snare", "bars": [20, 20], "gain": -14, "pattern": "............X..."},
-      {"inst": "snare", "bars": [21, 21], "gain": -11, "pattern": "....X.......X..."},
-      {"inst": "hats", "bars": [19, 19], "gain": -23, "pattern": "xxxxxxxxxxxxxxxx"},
-      {"inst": "hats", "bars": [20, 20], "gain": -27, "pattern": "x.x.x.x.x.x.x.x."},
-      {"inst": "hats", "bars": [21, 21], "gain": -22, "pattern": "xxxxxxxxxxxxxxRR"}
-    ]},
-    {"name": "cases", "bars": [22, 22], "layers": [
-      {"inst": "pad", "gain": -5, "cutoff": 2000},
-      {"inst": "sub", "gain": -13},
-      {"inst": "bass", "gain": -11, "cutoff": 800, "pattern": "XxxxXxxxXxxxXxxx"},
-      {"inst": "pulse", "gain": -15, "cutoff": 1800, "post_lp": 2500, "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "taiko", "gain": -7, "pattern": "X.......X......."},
-      {"inst": "hats", "gain": -25, "pattern": "x.x.x.x.x.x.x.x."}
-    ]},
-    {"name": "proof", "bars": [23, 26], "layers": [
-      {"inst": "pad", "bars": [23, 24], "gain": -4, "cutoff": 2000},
-      {"inst": "pad", "bars": [25, 25], "gain": -10, "cutoff": 1600},
-      {"inst": "pad", "bars": [26, 26], "gain": -6, "cutoff": [800, 1800]},
-      {"inst": "sub", "bars": [23, 23], "gain": -12},
-      {"inst": "sub", "bars": [24, 24], "gain": -15},
-      {"inst": "sub", "bars": [25, 26], "gain": -12},
-      {"inst": "bass", "bars": [23, 23], "gain": -9, "cutoff": 1200, "pattern": "XxxxXxxxXxxxXxxx"},
-      {"inst": "bass", "bars": [24, 24], "gain": -13, "cutoff": 600, "pattern": "X.x.X.x.X.x.X.x."},
-      {"inst": "bass", "bars": [25, 25], "gain": -13, "cutoff": 450, "pattern": "X...x...X...x..."},
-      {"inst": "bass", "bars": [26, 26], "gain": [-14, -10], "cutoff": [300, 1200], "pattern": "XxxxXxxxXxxxXxxx"},
-      {"inst": "pulse", "bars": [23, 23], "gain": -11, "cutoff": 2800, "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "pulse", "bars": [24, 24], "gain": -18, "cutoff": 1000, "post_lp": 1800, "pattern": "X.x.x.x.x.x.x.x."},
-      {"inst": "pulse", "bars": [26, 26], "gain": [-18, -12], "cutoff": [400, 2000], "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "taiko", "bars": [23, 23], "gain": -5, "pattern": "X..x..x.X.....x."},
-      {"inst": "taiko", "bars": [25, 25], "gain": -6, "pattern": "X.......X..x..x."},
-      {"inst": "taiko", "bars": [26, 26], "gain": [-12, -5], "pattern": "X...X...X...X..."},
-      {"inst": "frame", "bars": [24, 24], "gain": -14, "pattern": "X..x..x.X...x..."},
-      {"inst": "snare", "bars": [23, 23], "gain": -10, "pattern": "........X......."},
-      {"inst": "snare", "bars": [25, 25], "gain": -11, "pattern": "............X..."},
-      {"inst": "snare", "bars": [26, 26], "gain": [-16, -10], "pattern": "............xxXX"},
-      {"inst": "hats", "bars": [23, 23], "gain": -22, "pattern": "xxxxxxxxxxxxxxRR"},
-      {"inst": "hats", "bars": [24, 24], "gain": -26, "pattern": "x.x.x.x.x.x.x.x."},
-      {"inst": "hats", "bars": [25, 25], "gain": -22, "pattern": "........xxxxxxxx"},
-      {"inst": "hats", "bars": [26, 26], "gain": -25, "pattern": "x.x.x.x.x.x.xxxx"}
-    ]},
-    {"name": "reveal", "bars": [27, 28], "layers": [
-      {"inst": "pad", "bars": [27, 27], "gain": 7, "cutoff": [1300, 1900], "attack": 0.05},
-      {"inst": "pad", "bars": [28, 28], "gain": 3, "cutoff": [1500, 1900]},
-      {"inst": "sub", "gain": -13},
-      {"inst": "pulse", "bars": [27, 27], "gain": -14, "cutoff": 800, "post_lp": 1200, "pattern": "X.x.x.x.x.x.x.x."},
-      {"inst": "taiko", "bars": [27, 27], "gain": -9, "ensemble": false, "pattern": "X..............."},
-      {"inst": "pulse", "bars": [28, 28], "gain": [-13.5, -12], "cutoff": [700, 2000], "pattern": "XxxXxxXxXxxXxxXx"},
-      {"inst": "taiko", "bars": [28, 28], "gain": -7, "pattern": "X..x..x.X.....x.", "hit": "stem:kick"},
-      {"inst": "bass", "bars": [28, 28], "from": "28:2", "gain": -10, "cutoff": [500, 1200], "pattern": "XxxxXxxxXxxxXxxx", "hit": "stem:bass"},
-      {"inst": "hats", "bars": [28, 28], "from": "28:3", "gain": -22, "pattern": "xxxxxxxxxxxxxxxx", "hit": "stem:hats"}
-    ]},
-    {"name": "title", "bars": [29, 30], "layers": [
-      {"inst": "pad", "gain": 5, "cutoff": [2400, 1800]},
-      {"inst": "sub", "gain": -15}
-    ]}
+  {
+   "name": "program",
+   "bars": [
+    4,
+    6
+   ],
+   "layers": [
+    {
+     "inst": "pad",
+     "gain": -5,
+     "cutoff": [
+      900,
+      1600
+     ]
+    },
+    {
+     "inst": "sub",
+     "gain": -16
+    },
+    {
+     "inst": "pulse",
+     "gain": [
+      -15,
+      -13
+     ],
+     "cutoff": [
+      900,
+      1800
+     ],
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "bass",
+     "bars": [
+      5,
+      6
+     ],
+     "gain": [
+      -13,
+      -11
+     ],
+     "cutoff": [
+      300,
+      600
+     ],
+     "pattern": "XxxxXxxxXxxxXxxx",
+     "hit": "program"
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      5,
+      6
+     ],
+     "gain": -7,
+     "pattern": "X.......X......."
+    },
+    {
+     "inst": "typing",
+     "bars": [
+      5,
+      5
+     ],
+     "gain": -27
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      6,
+      6
+     ],
+     "gain": -14,
+     "pattern": "........X......."
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      6,
+      6
+     ],
+     "gain": -26,
+     "pattern": "x.x.x.x.x.x.x.x."
+    }
+   ]
+  },
+  {
+   "name": "problem",
+   "bars": [
+    7,
+    8
+   ],
+   "layers": [
+    {
+     "inst": "pad",
+     "gain": -5,
+     "cutoff": [
+      1500,
+      2600
+     ]
+    },
+    {
+     "inst": "sub",
+     "gain": -14
+    },
+    {
+     "inst": "bass",
+     "gain": [
+      -11,
+      -8
+     ],
+     "cutoff": [
+      600,
+      1400
+     ],
+     "pattern": "XxxxXxxxXxxxXxxx"
+    },
+    {
+     "inst": "pulse",
+     "gain": [
+      -13,
+      -9
+     ],
+     "cutoff": [
+      1800,
+      3200
+     ],
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      7,
+      7
+     ],
+     "gain": [
+      -9,
+      -6
+     ],
+     "pattern": "X.x.X.x.X.x.X.x."
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      8,
+      8
+     ],
+     "gain": [
+      -7,
+      -3
+     ],
+     "pattern": "XxxxXxxxXxxx...."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      7,
+      7
+     ],
+     "gain": -12,
+     "pattern": "....X.......X..."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      8,
+      8
+     ],
+     "gain": [
+      -16,
+      -8
+     ],
+     "pattern": "xxxxxxxxXXXX...."
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      7,
+      7
+     ],
+     "gain": -25,
+     "pattern": "x.x.x.x.x.x.x.x."
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      8,
+      8
+     ],
+     "gain": -24,
+     "pattern": "xxxxxxxxRRRR...."
+    }
+   ]
+  },
+  {
+   "name": "braam",
+   "bars": [
+    9,
+    9
+   ],
+   "layers": [
+    {
+     "inst": "pad",
+     "gain": -4,
+     "cutoff": [
+      1800,
+      2200
+     ]
+    },
+    {
+     "inst": "sub",
+     "gain": -12
+    },
+    {
+     "inst": "bass",
+     "from": "9:3",
+     "gain": -9,
+     "cutoff": 900,
+     "pattern": "XxxxXxxxXxxxXxxx"
+    },
+    {
+     "inst": "pulse",
+     "from": "9:3",
+     "gain": -12,
+     "cutoff": 2600,
+     "pattern": "XxxXxxXxXxxXxxXx",
+     "hit": "groove"
+    },
+    {
+     "inst": "taiko",
+     "gain": -5,
+     "pattern": "X..x..x.X.....x."
+    },
+    {
+     "inst": "snare",
+     "from": "9:3",
+     "gain": -10,
+     "pattern": "........X......."
+    },
+    {
+     "inst": "hats",
+     "from": "9:3",
+     "gain": -22,
+     "pattern": "xxxxxxxxxxxxxxxx"
+    },
+    {
+     "inst": "metal",
+     "from": "9:3",
+     "gain": -22,
+     "pattern": "....x.......x..."
+    }
+   ]
+  },
+  {
+   "name": "architecture",
+   "bars": [
+    10,
+    13
+   ],
+   "layers": [
+    {
+     "inst": "pad",
+     "gain": -4,
+     "cutoff": [
+      1800,
+      2200
+     ]
+    },
+    {
+     "inst": "sub",
+     "gain": -12
+    },
+    {
+     "inst": "bass",
+     "gain": -10,
+     "cutoff": [
+      800,
+      1100
+     ],
+     "pattern": "XxxxXxxxXxxxXxxx"
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      10,
+      10
+     ],
+     "gain": -13,
+     "cutoff": 2400,
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      11,
+      11
+     ],
+     "gain": -15,
+     "cutoff": 1800,
+     "post_lp": 2500,
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      12,
+      13
+     ],
+     "gain": -12,
+     "cutoff": 2600,
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      10,
+      10
+     ],
+     "gain": -6,
+     "pattern": "X..x..x.X.....x."
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      11,
+      11
+     ],
+     "gain": -6,
+     "pattern": "X.......X.......x...x.xX"
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      12,
+      12
+     ],
+     "gain": -5,
+     "pattern": "X..x..x.X...x.xX"
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      13,
+      13
+     ],
+     "gain": -5,
+     "pattern": "X..x..x.X..x..x."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      10,
+      10
+     ],
+     "gain": -11,
+     "pattern": "........X......."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      11,
+      11
+     ],
+     "gain": -13,
+     "pattern": "............X.......xxXX"
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      12,
+      12
+     ],
+     "gain": -11,
+     "pattern": "....X.......xxXX"
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      13,
+      13
+     ],
+     "gain": -11,
+     "pattern": "....X.......X..."
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      10,
+      10
+     ],
+     "gain": -23,
+     "pattern": "xxxxxxxxxxxxxxRR"
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      11,
+      11
+     ],
+     "gain": -23,
+     "pattern": "xxxxxxxxxxxxxxxxxxxxRRRR"
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      12,
+      12
+     ],
+     "gain": -23,
+     "pattern": "xxxxxxxxxxxxRRRR"
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      13,
+      13
+     ],
+     "gain": -23,
+     "pattern": "xxxxxxxxxxxxxxRR"
+    }
+   ]
+  },
+  {
+   "name": "pipeline",
+   "bars": [
+    14,
+    18
+   ],
+   "layers": [
+    {
+     "inst": "pad",
+     "bars": [
+      14,
+      16
+     ],
+     "gain": -4,
+     "cutoff": [
+      1800,
+      2200
+     ]
+    },
+    {
+     "inst": "pad",
+     "bars": [
+      17,
+      17
+     ],
+     "gain": -8,
+     "cutoff": 1200
+    },
+    {
+     "inst": "pad",
+     "bars": [
+      18,
+      18
+     ],
+     "gain": -2,
+     "cutoff": [
+      2200,
+      2600
+     ]
+    },
+    {
+     "inst": "sub",
+     "gain": -12
+    },
+    {
+     "inst": "bass",
+     "bars": [
+      14,
+      16
+     ],
+     "gain": -10,
+     "cutoff": [
+      800,
+      1100
+     ],
+     "pattern": "XxxxXxxxXxxxXxxx"
+    },
+    {
+     "inst": "bass",
+     "bars": [
+      17,
+      17
+     ],
+     "gain": -12,
+     "cutoff": 500,
+     "pattern": "XxxxXxxxXxxxXxxx"
+    },
+    {
+     "inst": "bass",
+     "bars": [
+      18,
+      18
+     ],
+     "gain": -9,
+     "cutoff": 1400,
+     "pattern": "XxxxXxxxXxxxXxxx"
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      14,
+      16
+     ],
+     "gain": -12,
+     "cutoff": 2600,
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      17,
+      17
+     ],
+     "gain": -17,
+     "cutoff": 700,
+     "post_lp": 900,
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      18,
+      18
+     ],
+     "gain": -11,
+     "cutoff": [
+      2600,
+      3000
+     ],
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      14,
+      15
+     ],
+     "gain": -5,
+     "pattern": "X..x..x.X..X...."
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      16,
+      16
+     ],
+     "gain": -5,
+     "pattern": "X..x..x........."
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      17,
+      17
+     ],
+     "gain": -6,
+     "pattern": "X.......X......."
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      18,
+      18
+     ],
+     "gain": -5,
+     "pattern": "X..x..x.X......."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      14,
+      15
+     ],
+     "gain": -10,
+     "pattern": "....X...xxXX...."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      16,
+      16
+     ],
+     "gain": -10,
+     "pattern": "....X..........."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      17,
+      17
+     ],
+     "gain": -12,
+     "pattern": "........X......."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      18,
+      18
+     ],
+     "gain": -10,
+     "pattern": "....X..........."
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      14,
+      16
+     ],
+     "gain": -23,
+     "pattern": "xxxxxxxxxxxxxxxx"
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      17,
+      17
+     ],
+     "gain": -26,
+     "pattern": "x.x.x.x.x.x.x.x."
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      18,
+      18
+     ],
+     "gain": -22,
+     "pattern": "O.xxxxxx........"
+    }
+   ]
+  },
+  {
+   "name": "features",
+   "bars": [
+    19,
+    21
+   ],
+   "layers": [
+    {
+     "inst": "pad",
+     "gain": -5,
+     "cutoff": 2000
+    },
+    {
+     "inst": "sub",
+     "gain": -13
+    },
+    {
+     "inst": "bass",
+     "bars": [
+      19,
+      19
+     ],
+     "gain": -10,
+     "cutoff": [
+      900,
+      1200
+     ],
+     "pattern": "XxxxXxxxXxxxXxxx"
+    },
+    {
+     "inst": "bass",
+     "bars": [
+      20,
+      20
+     ],
+     "gain": -12,
+     "cutoff": 700,
+     "pattern": "XxxxXxxxXxxxXxxx"
+    },
+    {
+     "inst": "bass",
+     "bars": [
+      21,
+      21
+     ],
+     "gain": -10,
+     "cutoff": 1200,
+     "pattern": "XxxxXxxxXxxxXxxx"
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      19,
+      19
+     ],
+     "gain": -13,
+     "cutoff": 2200,
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      20,
+      20
+     ],
+     "gain": -17,
+     "cutoff": 1000,
+     "post_lp": 1400,
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      21,
+      21
+     ],
+     "gain": -13,
+     "cutoff": 2200,
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      19,
+      19
+     ],
+     "gain": -6,
+     "pattern": "X..x..x.X.....x."
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      20,
+      20
+     ],
+     "gain": -7,
+     "pattern": "X.......X......."
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      21,
+      21
+     ],
+     "gain": -6,
+     "pattern": "X..x..x.X..x..x."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      19,
+      19
+     ],
+     "gain": -11,
+     "pattern": "........X......."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      20,
+      20
+     ],
+     "gain": -14,
+     "pattern": "............X..."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      21,
+      21
+     ],
+     "gain": -11,
+     "pattern": "....X.......X..."
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      19,
+      19
+     ],
+     "gain": -23,
+     "pattern": "xxxxxxxxxxxxxxxx"
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      20,
+      20
+     ],
+     "gain": -27,
+     "pattern": "x.x.x.x.x.x.x.x."
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      21,
+      21
+     ],
+     "gain": -22,
+     "pattern": "xxxxxxxxxxxxxxRR"
+    }
+   ]
+  },
+  {
+   "name": "cases",
+   "bars": [
+    22,
+    22
+   ],
+   "layers": [
+    {
+     "inst": "pad",
+     "gain": -5,
+     "cutoff": 2000
+    },
+    {
+     "inst": "sub",
+     "gain": -13
+    },
+    {
+     "inst": "bass",
+     "gain": -11,
+     "cutoff": 800,
+     "pattern": "XxxxXxxxXxxxXxxx"
+    },
+    {
+     "inst": "pulse",
+     "gain": -15,
+     "cutoff": 1800,
+     "post_lp": 2500,
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "taiko",
+     "gain": -7,
+     "pattern": "X.......X......."
+    },
+    {
+     "inst": "hats",
+     "gain": -25,
+     "pattern": "x.x.x.x.x.x.x.x."
+    }
+   ]
+  },
+  {
+   "name": "proof",
+   "bars": [
+    23,
+    26
+   ],
+   "layers": [
+    {
+     "inst": "pad",
+     "bars": [
+      23,
+      24
+     ],
+     "gain": -4,
+     "cutoff": 2000
+    },
+    {
+     "inst": "pad",
+     "bars": [
+      25,
+      25
+     ],
+     "gain": -10,
+     "cutoff": 1600
+    },
+    {
+     "inst": "pad",
+     "bars": [
+      26,
+      26
+     ],
+     "gain": -6,
+     "cutoff": [
+      800,
+      1800
+     ]
+    },
+    {
+     "inst": "sub",
+     "bars": [
+      23,
+      23
+     ],
+     "gain": -12
+    },
+    {
+     "inst": "sub",
+     "bars": [
+      24,
+      24
+     ],
+     "gain": -15
+    },
+    {
+     "inst": "sub",
+     "bars": [
+      25,
+      26
+     ],
+     "gain": -12
+    },
+    {
+     "inst": "bass",
+     "bars": [
+      23,
+      23
+     ],
+     "gain": -9,
+     "cutoff": 1200,
+     "pattern": "XxxxXxxxXxxxXxxx"
+    },
+    {
+     "inst": "bass",
+     "bars": [
+      24,
+      24
+     ],
+     "gain": -13,
+     "cutoff": 600,
+     "pattern": "X.x.X.x.X.x.X.x."
+    },
+    {
+     "inst": "bass",
+     "bars": [
+      25,
+      25
+     ],
+     "gain": -13,
+     "cutoff": 450,
+     "pattern": "X...x...X...x..."
+    },
+    {
+     "inst": "bass",
+     "bars": [
+      26,
+      26
+     ],
+     "gain": [
+      -14,
+      -10
+     ],
+     "cutoff": [
+      300,
+      1200
+     ],
+     "pattern": "XxxxXxxxXxxxXxxx"
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      23,
+      23
+     ],
+     "gain": -11,
+     "cutoff": 2800,
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      24,
+      24
+     ],
+     "gain": -18,
+     "cutoff": 1000,
+     "post_lp": 1800,
+     "pattern": "X.x.x.x.x.x.x.x."
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      26,
+      26
+     ],
+     "gain": [
+      -18,
+      -12
+     ],
+     "cutoff": [
+      400,
+      2000
+     ],
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      23,
+      23
+     ],
+     "gain": -5,
+     "pattern": "X..x..x.X.....x."
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      25,
+      25
+     ],
+     "gain": -6,
+     "pattern": "X.......X..x..x."
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      26,
+      26
+     ],
+     "gain": [
+      -12,
+      -5
+     ],
+     "pattern": "X...X...X...X..."
+    },
+    {
+     "inst": "frame",
+     "bars": [
+      24,
+      24
+     ],
+     "gain": -14,
+     "pattern": "X..x..x.X...x..."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      23,
+      23
+     ],
+     "gain": -10,
+     "pattern": "........X......."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      25,
+      25
+     ],
+     "gain": -11,
+     "pattern": "............X..."
+    },
+    {
+     "inst": "snare",
+     "bars": [
+      26,
+      26
+     ],
+     "gain": [
+      -16,
+      -10
+     ],
+     "pattern": "............xxXX"
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      23,
+      23
+     ],
+     "gain": -22,
+     "pattern": "xxxxxxxxxxxxxxRR"
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      24,
+      24
+     ],
+     "gain": -26,
+     "pattern": "x.x.x.x.x.x.x.x."
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      25,
+      25
+     ],
+     "gain": -22,
+     "pattern": "........xxxxxxxx"
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      26,
+      26
+     ],
+     "gain": -25,
+     "pattern": "x.x.x.x.x.x.xxxx"
+    }
+   ]
+  },
+  {
+   "name": "reveal",
+   "bars": [
+    27,
+    28
+   ],
+   "layers": [
+    {
+     "inst": "pad",
+     "bars": [
+      27,
+      27
+     ],
+     "gain": 7,
+     "cutoff": [
+      1300,
+      1900
+     ],
+     "attack": 0.05
+    },
+    {
+     "inst": "pad",
+     "bars": [
+      28,
+      28
+     ],
+     "gain": 3,
+     "cutoff": [
+      1500,
+      1900
+     ]
+    },
+    {
+     "inst": "sub",
+     "gain": -13
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      27,
+      27
+     ],
+     "gain": -14,
+     "cutoff": 800,
+     "post_lp": 1200,
+     "pattern": "X.x.x.x.x.x.x.x."
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      27,
+      27
+     ],
+     "gain": -9,
+     "ensemble": false,
+     "pattern": "X..............."
+    },
+    {
+     "inst": "pulse",
+     "bars": [
+      28,
+      28
+     ],
+     "gain": [
+      -13.5,
+      -12
+     ],
+     "cutoff": [
+      700,
+      2000
+     ],
+     "pattern": "XxxXxxXxXxxXxxXx"
+    },
+    {
+     "inst": "taiko",
+     "bars": [
+      28,
+      28
+     ],
+     "gain": -7,
+     "pattern": "X..x..x.X.....x.",
+     "hit": "stem:kick"
+    },
+    {
+     "inst": "bass",
+     "bars": [
+      28,
+      28
+     ],
+     "from": "28:2",
+     "gain": -10,
+     "cutoff": [
+      500,
+      1200
+     ],
+     "pattern": "XxxxXxxxXxxxXxxx",
+     "hit": "stem:bass"
+    },
+    {
+     "inst": "hats",
+     "bars": [
+      28,
+      28
+     ],
+     "from": "28:3",
+     "gain": -22,
+     "pattern": "xxxxxxxxxxxxxxxx",
+     "hit": "stem:hats"
+    }
+   ]
+  },
+  {
+   "name": "title",
+   "bars": [
+    29,
+    30
+   ],
+   "layers": [
+    {
+     "inst": "pad",
+     "gain": 5,
+     "cutoff": [
+      2400,
+      1800
+     ]
+    },
+    {
+     "inst": "sub",
+     "gain": -15
+    }
+   ]
+  }
+ ],
+ "events": [
+  {
+   "at": "1:1.25",
+   "do": "hook",
+   "note": "D6",
+   "gain": -15,
+   "label": "spark"
+  },
+  {
+   "at": "3:1",
+   "do": "swell",
+   "chord": "Bb",
+   "beats": 6,
+   "gain": -15,
+   "label": "corridor"
+  },
+  {
+   "at": "3:1",
+   "do": "impact",
+   "size": "soft",
+   "gain": -9,
+   "label": "impact:corridor"
+  },
+  {
+   "at": "4:1",
+   "do": "swell",
+   "chord": "Dm",
+   "beats": 4,
+   "gain": -14,
+   "label": "wake"
+  },
+  {
+   "at": "4:1",
+   "do": "metal",
+   "gain": -16,
+   "label": "wake"
+  },
+  {
+   "at": "6:1",
+   "do": "celesta",
+   "repeat": 4,
+   "every": 0.25,
+   "gain": -12,
+   "notes": [
+    "A5",
+    "D6",
+    "F5",
+    "C6"
+   ],
+   "labels": [
+    "film",
+    "film:tile2",
+    "film:tile3",
+    "film:tile4"
+   ]
+  },
+  {
+   "at": "6:1",
+   "do": "riser",
+   "until": "7:1",
+   "gain": -16,
+   "label": "problem"
+  },
+  {
+   "at": "7:2",
+   "do": "fail",
+   "repeat": 3,
+   "every": 1,
+   "gain": -8,
+   "label": "stamp"
+  },
+  {
+   "at": "7:1",
+   "do": "riser",
+   "until": "9:1",
+   "gain": -9,
+   "label": "braam"
+  },
+  {
+   "at": "8:1",
+   "do": "metal",
+   "gain": -14,
+   "label": "T7"
+  },
+  {
+   "at": "8:4",
+   "do": "button",
+   "gain": -4,
+   "label": "hold:drop"
+  },
+  {
+   "at": "9:1",
+   "do": "swell",
+   "chord": "Dm",
+   "beats": 2,
+   "gain": -12,
+   "label": "braam"
+  },
+  {
+   "at": "9:1",
+   "do": "braam",
+   "gain": 4,
+   "label": "braam"
+  },
+  {
+   "at": "9:1",
+   "do": "impact",
+   "size": "big",
+   "gain": -7,
+   "drop_db": -6,
+   "label": "impact:drop"
+  },
+  {
+   "at": "10:1",
+   "do": "swell",
+   "chord": "Bb",
+   "beats": 1,
+   "gain": -18,
+   "label": "whip10"
+  },
+  {
+   "at": "10:1",
+   "do": "stab",
+   "chord": "Bb_hi",
+   "beats": 1,
+   "gain": -16,
+   "label": "arch:you"
+  },
+  {
+   "at": "10:2",
+   "do": "stab",
+   "chord": "Bb_hi",
+   "beats": 1,
+   "gain": -13,
+   "label": "arch:agent"
+  },
+  {
+   "at": "10:3",
+   "do": "stab",
+   "chord": "Bb_hi",
+   "beats": 2,
+   "gain": -9,
+   "ring": true,
+   "label": "arch:router"
+  },
+  {
+   "at": "11:1",
+   "do": "swell",
+   "chord": "F",
+   "beats": 1,
+   "gain": -18,
+   "label": "whip11"
+  },
+  {
+   "at": "11:1",
+   "do": "celesta",
+   "repeat": 8,
+   "every": 0.5,
+   "gain": -11,
+   "label": "types",
+   "notes": [
+    "D5",
+    "E5",
+    "F5",
+    "G5",
+    "A5",
+    "Bb5",
+    "C6",
+    "D6"
+   ]
+  },
+  {
+   "at": "12:1",
+   "do": "swell",
+   "chord": "C",
+   "beats": 1,
+   "gain": -18,
+   "label": "whip12"
+  },
+  {
+   "at": "12:1",
+   "do": "bell",
+   "repeat": 4,
+   "every": 0.5,
+   "gain": -16,
+   "notes": [
+    "C5",
+    "E5",
+    "G5",
+    "C6"
+   ],
+   "labels": [
+    "mod:playbook",
+    "mod:templates",
+    "mod:cases",
+    "mod:binvh"
+   ]
+  },
+  {
+   "at": "13:1",
+   "do": "bell",
+   "repeat": 2,
+   "every": 1,
+   "gain": -16,
+   "notes": [
+    "D5",
+    "F5"
+   ],
+   "labels": [
+    "mod:engines",
+    "mod:refs"
+   ]
+  },
+  {
+   "at": "13:5.4348",
+   "do": "stab",
+   "chord": "Dm_hi",
+   "beats": 2,
+   "gain": -9,
+   "ring": true,
+   "label": "mod:projects"
+  },
+  {
+   "at": "13:5.4348",
+   "do": "riser",
+   "until": "14:1",
+   "gain": -13,
+   "label": "pipeline"
+  },
+  {
+   "at": "14:1",
+   "do": "stab",
+   "chord": "Bb_hi",
+   "beats": 1,
+   "gain": -13,
+   "ring": true,
+   "label": "pipe:start"
+  },
+  {
+   "at": "14:1.5",
+   "do": "tick",
+   "note": "A5",
+   "repeat": 3,
+   "every": 0.5,
+   "gain": -20,
+   "labels": [
+    "node:1",
+    "node:2",
+    "node:3"
+   ]
+  },
+  {
+   "at": "14:6",
+   "do": "button",
+   "gain": -6,
+   "label": "gate1:hold"
+  },
+  {
+   "at": "15:1",
+   "do": "swell",
+   "chord": "F",
+   "beats": 1,
+   "gain": -13,
+   "label": "gate1"
+  },
+  {
+   "at": "15:1",
+   "do": "clack",
+   "gain": -12,
+   "label": "gate1:clack"
+  },
+  {
+   "at": "15:1",
+   "do": "stab",
+   "chord": "F_hi",
+   "beats": 2,
+   "gain": -12,
+   "label": "gate1:approve"
+  },
+  {
+   "at": "15:3.5",
+   "do": "tick",
+   "note": "A5",
+   "gain": -20,
+   "label": "tick"
+  },
+  {
+   "at": "15:6",
+   "do": "button",
+   "gain": -6,
+   "label": "gate2:hold"
+  },
+  {
+   "at": "16:1",
+   "do": "swell",
+   "chord": "Dm",
+   "beats": 1,
+   "gain": -13,
+   "label": "gate2"
+  },
+  {
+   "at": "16:1",
+   "do": "clack",
+   "gain": -12,
+   "label": "gate2:clack"
+  },
+  {
+   "at": "16:1",
+   "do": "stab",
+   "chord": "F_hi",
+   "beats": 2,
+   "gain": -12,
+   "label": "gate2:approve"
+  },
+  {
+   "at": "16:5",
+   "do": "fail",
+   "repeat": 3,
+   "every": 1,
+   "gain": -8,
+   "label": "fail"
+  },
+  {
+   "at": "18:1",
+   "do": "swell",
+   "chord": "Dmaj",
+   "beats": 3,
+   "gain": -13,
+   "label": "pass"
+  },
+  {
+   "at": "18:1",
+   "do": "stab",
+   "chord": "Dmaj",
+   "beats": 2,
+   "gain": -8,
+   "ring": true,
+   "label": "pass"
+  },
+  {
+   "at": "18:5",
+   "do": "clack",
+   "gain": -12,
+   "label": "gate3:clack"
+  },
+  {
+   "at": "18:5",
+   "do": "stab",
+   "chord": "D_hi",
+   "beats": 1,
+   "gain": -12,
+   "label": "gate3:approve"
+  },
+  {
+   "at": "18:9",
+   "do": "stab",
+   "chord": "Dadd9",
+   "beats": 2.5,
+   "tau": 1.6,
+   "bright": 2800,
+   "gain": -8,
+   "label": "final"
+  },
+  {
+   "at": "18:9",
+   "do": "button",
+   "gain": -14,
+   "label": "hold:final"
+  },
+  {
+   "at": "18:9",
+   "do": "riser",
+   "until": "19:1",
+   "gain": -12,
+   "label": "features"
+  },
+  {
+   "at": "19:1",
+   "do": "bell",
+   "note": "D6",
+   "gain": -13,
+   "label": "feat:taste"
+  },
+  {
+   "at": "19:2",
+   "do": "tick",
+   "note": "A5",
+   "repeat": 3,
+   "every": 1,
+   "gain": -19,
+   "labels": [
+    "taste:1",
+    "taste:2",
+    "taste:3"
+   ]
+  },
+  {
+   "at": "20:1",
+   "do": "swell",
+   "chord": "F",
+   "beats": 1,
+   "gain": -18,
+   "label": "whip20"
+  },
+  {
+   "at": "20:1",
+   "do": "bell",
+   "note": "C6",
+   "gain": -15,
+   "label": "feat:sound"
+  },
+  {
+   "at": "20:1",
+   "do": "voice",
+   "note": "A4",
+   "gain": -11,
+   "label": "sound:voice"
+  },
+  {
+   "at": "20:2",
+   "do": "tick",
+   "note": "E6",
+   "click": 1.2,
+   "tau": 0.006,
+   "gain": -14,
+   "label": "sound:captions"
+  },
+  {
+   "at": "20:3",
+   "do": "stab",
+   "chord": "F_hi",
+   "beats": 1,
+   "gain": -11,
+   "label": "sound:score"
+  },
+  {
+   "at": "20:4",
+   "do": "sfx",
+   "gain": -13,
+   "label": "sound:sfx"
+  },
+  {
+   "at": "21:1",
+   "do": "swell",
+   "chord": "C",
+   "beats": 1,
+   "gain": -18,
+   "label": "whip21"
+  },
+  {
+   "at": "21:1",
+   "do": "bell",
+   "note": "G5",
+   "gain": -13,
+   "label": "feat:install"
+  },
+  {
+   "at": "21:1",
+   "do": "typing",
+   "repeat": 8,
+   "every": 0.25,
+   "gain": -20,
+   "label": "curl"
+  },
+  {
+   "at": "21:3",
+   "do": "clack",
+   "gain": -11,
+   "label": "enter"
+  },
+  {
+   "at": "21:4",
+   "do": "stab",
+   "chord": "C_hi",
+   "beats": 1,
+   "gain": -12,
+   "ring": true,
+   "label": "scaffold"
+  },
+  {
+   "at": "22:1",
+   "do": "sparkle",
+   "gain": -9,
+   "label": "stars"
+  },
+  {
+   "at": "22:1.25",
+   "do": "celesta",
+   "repeat": 11,
+   "every": 0.25,
+   "gain": -12,
+   "label": "cases",
+   "notes": [
+    "D5",
+    "F5",
+    "A5",
+    "C6",
+    "D6",
+    "F6",
+    "A6",
+    "F6",
+    "D6",
+    "A5",
+    "F5"
+   ]
+  },
+  {
+   "at": "22:1",
+   "do": "riser",
+   "until": "23:1",
+   "gain": -12,
+   "label": "hall"
+  },
+  {
+   "at": "23:1",
+   "do": "impact",
+   "size": "big",
+   "gain": -4,
+   "label": "impact:hall"
+  },
+  {
+   "at": "23:1",
+   "do": "lead",
+   "note": "D5",
+   "beats": 3,
+   "gain": -12,
+   "label": "lead:theme"
+  },
+  {
+   "at": "23:6.25",
+   "do": "lead",
+   "note": "C5",
+   "beats": 1,
+   "gain": -12,
+   "label": "lead:theme-2"
+  },
+  {
+   "at": "24:1",
+   "do": "celesta",
+   "repeat": 12,
+   "every": 0.25,
+   "gain": -10,
+   "label": "musicbox",
+   "notes": [
+    "E5",
+    "G5",
+    "C6",
+    "E6",
+    "D6",
+    "C6",
+    "G5",
+    "E5",
+    "G5",
+    "C6",
+    "E6",
+    "G6"
+   ]
+  },
+  {
+   "at": "24:6",
+   "do": "fourier",
+   "note": "A4",
+   "beats": 3,
+   "harmonics": [
+    1,
+    3,
+    5
+   ],
+   "spotlight": 0.8,
+   "accent": 0.8,
+   "gain": -8,
+   "label": "fourier"
+  },
+  {
+   "at": "25:5",
+   "do": "doppler",
+   "note": "A4",
+   "beats": 2.75,
+   "cents": 80,
+   "gain": -11,
+   "label": "doppler"
+  },
+  {
+   "at": "26:2",
+   "do": "tick",
+   "note": "A5",
+   "repeat": 3,
+   "every": 1,
+   "gain": -20,
+   "label": "silent-film"
+  },
+  {
+   "at": "26:2",
+   "do": "riser",
+   "until": "27:1",
+   "gain": -14,
+   "label": "reveal"
+  },
+  {
+   "at": "27:1",
+   "do": "swell",
+   "chord": "Bbmaj7",
+   "beats": 2,
+   "gain": -16,
+   "label": "reveal"
+  },
+  {
+   "at": "27:1",
+   "do": "bell",
+   "note": "D5",
+   "gain": -9,
+   "label": "reveal"
+  },
+  {
+   "at": "28:1",
+   "do": "riser",
+   "until": "29:1",
+   "gain": -12,
+   "label": "title"
+  },
+  {
+   "at": "28:4",
+   "do": "lead",
+   "note": "E5",
+   "beats": 4,
+   "gain": -15,
+   "label": "stem:lead"
+  },
+  {
+   "at": "29:1",
+   "do": "swell",
+   "chord": "Dm9",
+   "beats": 4,
+   "gain": -13,
+   "label": "title"
+  },
+  {
+   "at": "29:1",
+   "do": "impact",
+   "size": "final",
+   "gain": -1,
+   "label": "impact:title"
+  },
+  {
+   "at": "29:1",
+   "do": "stab",
+   "chord": "Dm9",
+   "beats": 8,
+   "tau": 8.0,
+   "bright": 2600,
+   "gain": -4,
+   "label": "title-chord"
+  },
+  {
+   "at": "29:1",
+   "do": "spark",
+   "gain": -20,
+   "label": "spark:title"
+  },
+  {
+   "at": "29:4",
+   "do": "typing",
+   "repeat": 8,
+   "every": 0.25,
+   "gain": -22,
+   "label": "typing"
+  }
+ ],
+ "holds": [
+  [
+   "8:4",
+   "9:1"
   ],
-  "events": [
-    {"at": "1:1.25", "do": "hook", "note": "D6", "gain": -15, "label": "spark"},
-    {"at": "3:1", "do": "swell", "chord": "Bb", "beats": 6, "gain": -15, "label": "corridor"},
-    {"at": "3:1", "do": "impact", "size": "soft", "gain": -9, "label": "impact:corridor"},
-    {"at": "4:1", "do": "swell", "chord": "Dm", "beats": 4, "gain": -14, "label": "wake"},
-    {"at": "4:1", "do": "metal", "gain": -16, "label": "wake"},
-    {"at": "6:1", "do": "celesta", "repeat": 4, "every": 0.25, "gain": -12, "notes": ["A5", "D6", "F5", "C6"], "labels": ["film", "film:tile2", "film:tile3", "film:tile4"]},
-    {"at": "6:1", "do": "riser", "until": "7:1", "gain": -16, "label": "problem"},
-    {"at": "7:2", "do": "fail", "repeat": 3, "every": 1, "gain": -8, "label": "stamp"},
-    {"at": "7:1", "do": "riser", "until": "9:1", "gain": -9, "label": "braam"},
-    {"at": "8:1", "do": "metal", "gain": -14, "label": "T7"},
-    {"at": "8:4", "do": "button", "gain": -4, "label": "hold:drop"},
-    {"at": "9:1", "do": "swell", "chord": "Dm", "beats": 2, "gain": -12, "label": "braam"},
-    {"at": "9:1", "do": "braam", "gain": 4, "label": "braam"},
-    {"at": "9:1", "do": "impact", "size": "big", "gain": -7, "drop_db": -6, "label": "impact:drop"},
-    {"at": "10:1", "do": "swell", "chord": "Bb", "beats": 1, "gain": -18, "label": "whip10"},
-    {"at": "10:1", "do": "stab", "chord": "Bb_hi", "beats": 1, "gain": -16, "label": "arch:you"},
-    {"at": "10:2", "do": "stab", "chord": "Bb_hi", "beats": 1, "gain": -13, "label": "arch:agent"},
-    {"at": "10:3", "do": "stab", "chord": "Bb_hi", "beats": 2, "gain": -9, "ring": true, "label": "arch:router"},
-    {"at": "11:1", "do": "swell", "chord": "F", "beats": 1, "gain": -18, "label": "whip11"},
-    {"at": "11:1", "do": "celesta", "repeat": 8, "every": 0.5, "gain": -11, "label": "types", "notes": ["D5", "E5", "F5", "G5", "A5", "Bb5", "C6", "D6"]},
-    {"at": "12:1", "do": "swell", "chord": "C", "beats": 1, "gain": -18, "label": "whip12"},
-    {"at": "12:1", "do": "bell", "repeat": 4, "every": 0.5, "gain": -16, "notes": ["C5", "E5", "G5", "C6"], "labels": ["mod:playbook", "mod:templates", "mod:cases", "mod:binvh"]},
-    {"at": "13:1", "do": "bell", "repeat": 2, "every": 1, "gain": -16, "notes": ["D5", "F5"], "labels": ["mod:engines", "mod:refs"]},
-    {"at": "13:3", "do": "stab", "chord": "Dm_hi", "beats": 2, "gain": -9, "ring": true, "label": "mod:projects"},
-    {"at": "13:3", "do": "riser", "until": "14:1", "gain": -13, "label": "pipeline"},
-    {"at": "14:1", "do": "stab", "chord": "Bb_hi", "beats": 1, "gain": -13, "ring": true, "label": "pipe:start"},
-    {"at": "14:1.5", "do": "tick", "note": "A5", "repeat": 3, "every": 0.5, "gain": -20, "labels": ["node:1", "node:2", "node:3"]},
-    {"at": "14:4", "do": "button", "gain": -6, "label": "gate1:hold"},
-    {"at": "15:1", "do": "swell", "chord": "F", "beats": 1, "gain": -13, "label": "gate1"},
-    {"at": "15:1", "do": "clack", "gain": -12, "label": "gate1:clack"},
-    {"at": "15:1", "do": "stab", "chord": "F_hi", "beats": 2, "gain": -12, "label": "gate1:approve"},
-    {"at": "15:1.5", "do": "tick", "note": "A5", "gain": -20, "label": "tick"},
-    {"at": "15:4", "do": "button", "gain": -6, "label": "gate2:hold"},
-    {"at": "16:1", "do": "swell", "chord": "Dm", "beats": 1, "gain": -13, "label": "gate2"},
-    {"at": "16:1", "do": "clack", "gain": -12, "label": "gate2:clack"},
-    {"at": "16:1", "do": "stab", "chord": "F_hi", "beats": 2, "gain": -12, "label": "gate2:approve"},
-    {"at": "16:3", "do": "fail", "repeat": 3, "every": 1, "gain": -8, "label": "fail"},
-    {"at": "18:1", "do": "swell", "chord": "Dmaj", "beats": 3, "gain": -13, "label": "pass"},
-    {"at": "18:1", "do": "stab", "chord": "Dmaj", "beats": 2, "gain": -8, "ring": true, "label": "pass"},
-    {"at": "18:2", "do": "clack", "gain": -12, "label": "gate3:clack"},
-    {"at": "18:2", "do": "stab", "chord": "D_hi", "beats": 1, "gain": -12, "label": "gate3:approve"},
-    {"at": "18:3", "do": "stab", "chord": "Dadd9", "beats": 2.5, "tau": 1.6, "bright": 2800, "gain": -8, "label": "final"},
-    {"at": "18:3", "do": "button", "gain": -14, "label": "hold:final"},
-    {"at": "18:3", "do": "riser", "until": "19:1", "gain": -12, "label": "features"},
-    {"at": "19:1", "do": "bell", "note": "D6", "gain": -13, "label": "feat:taste"},
-    {"at": "19:2", "do": "tick", "note": "A5", "repeat": 3, "every": 1, "gain": -19, "labels": ["taste:1", "taste:2", "taste:3"]},
-    {"at": "20:1", "do": "swell", "chord": "F", "beats": 1, "gain": -18, "label": "whip20"},
-    {"at": "20:1", "do": "bell", "note": "C6", "gain": -15, "label": "feat:sound"},
-    {"at": "20:1", "do": "voice", "note": "A4", "gain": -11, "label": "sound:voice"},
-    {"at": "20:2", "do": "tick", "note": "E6", "click": 1.2, "tau": 0.006, "gain": -14, "label": "sound:captions"},
-    {"at": "20:3", "do": "stab", "chord": "F_hi", "beats": 1, "gain": -11, "label": "sound:score"},
-    {"at": "20:4", "do": "sfx", "gain": -13, "label": "sound:sfx"},
-    {"at": "21:1", "do": "swell", "chord": "C", "beats": 1, "gain": -18, "label": "whip21"},
-    {"at": "21:1", "do": "bell", "note": "G5", "gain": -13, "label": "feat:install"},
-    {"at": "21:1", "do": "typing", "repeat": 8, "every": 0.25, "gain": -20, "label": "curl"},
-    {"at": "21:3", "do": "clack", "gain": -11, "label": "enter"},
-    {"at": "21:4", "do": "stab", "chord": "C_hi", "beats": 1, "gain": -12, "ring": true, "label": "scaffold"},
-    {"at": "22:1", "do": "sparkle", "gain": -9, "label": "stars"},
-    {"at": "22:1.25", "do": "celesta", "repeat": 11, "every": 0.25, "gain": -12, "label": "cases", "notes": ["D5", "F5", "A5", "C6", "D6", "F6", "A6", "F6", "D6", "A5", "F5"]},
-    {"at": "22:1", "do": "riser", "until": "23:1", "gain": -12, "label": "hall"},
-    {"at": "23:1", "do": "impact", "size": "big", "gain": -4, "label": "impact:hall"},
-    {"at": "23:1", "do": "lead", "note": "D5", "beats": 3, "gain": -12, "label": "lead:theme"},
-    {"at": "23:4", "do": "lead", "note": "C5", "beats": 1, "gain": -12, "label": "lead:theme-2"},
-    {"at": "24:1", "do": "celesta", "repeat": 12, "every": 0.25, "gain": -10, "label": "musicbox", "notes": ["E5", "G5", "C6", "E6", "D6", "C6", "G5", "E5", "G5", "C6", "E6", "G6"]},
-    {"at": "24:4", "do": "fourier", "note": "A4", "beats": 3, "harmonics": [1, 3, 5], "spotlight": 0.8, "accent": 0.8, "gain": -8, "label": "fourier"},
-    {"at": "25:3", "do": "doppler", "note": "A4", "beats": 2.75, "cents": 80, "gain": -11, "label": "doppler"},
-    {"at": "26:2", "do": "tick", "note": "A5", "repeat": 3, "every": 1, "gain": -20, "label": "silent-film"},
-    {"at": "26:2", "do": "riser", "until": "27:1", "gain": -14, "label": "reveal"},
-    {"at": "27:1", "do": "swell", "chord": "Bbmaj7", "beats": 2, "gain": -16, "label": "reveal"},
-    {"at": "27:1", "do": "bell", "note": "D5", "gain": -9, "label": "reveal"},
-    {"at": "28:1", "do": "riser", "until": "29:1", "gain": -12, "label": "title"},
-    {"at": "28:4", "do": "lead", "note": "E5", "beats": 4, "gain": -15, "label": "stem:lead"},
-    {"at": "29:1", "do": "swell", "chord": "Dm9", "beats": 4, "gain": -13, "label": "title"},
-    {"at": "29:1", "do": "impact", "size": "final", "gain": -1, "label": "impact:title"},
-    {"at": "29:1", "do": "stab", "chord": "Dm9", "beats": 8, "tau": 8.0, "bright": 2600, "gain": -4, "label": "title-chord"},
-    {"at": "29:1", "do": "spark", "gain": -20, "label": "spark:title"},
-    {"at": "29:4", "do": "typing", "repeat": 8, "every": 0.25, "gain": -22, "label": "typing"}
+  [
+   "10:3.3333",
+   "10:9.2"
   ],
-  "holds": [["8:4", "9:1"], ["14:4", "15:1"], ["15:4", "16:1"], ["18:3", "19:1"]],
-  "stops": [],
-  "reverb": {"hall": {"rt60": 4.2, "return": 0.9, "seeds": [11, 12]}, "plate": {"rt60": 2.6, "return": 0.7, "seeds": [21, 22]}},
-  "master": {"lufs": -14.5, "ceiling_db": -2.0, "true_peak_db": -1.6, "fade": ["30:4.05", "30:4.9"]}
+  [
+   "11:5.3333",
+   "11:9.3"
+  ],
+  [
+   "12:1.8",
+   "12:5.9333"
+  ],
+  [
+   "12:6.6667",
+   "12:11.3"
+  ],
+  [
+   "13:2.0667",
+   "13:7.6"
+  ],
+  [
+   "14:2.2",
+   "14:5.4"
+  ],
+  [
+   "14:6",
+   "15:1"
+  ],
+  [
+   "15:1.0267",
+   "15:3.2933"
+  ],
+  [
+   "15:6",
+   "16:1"
+  ],
+  [
+   "16:1.0533",
+   "16:3.6"
+  ],
+  [
+   "17:1.0267",
+   "17:4.1"
+  ],
+  [
+   "17:5.3",
+   "17:10.2"
+  ],
+  [
+   "18:1.0533",
+   "18:4.6933"
+  ],
+  [
+   "18:5.0533",
+   "18:8.4"
+  ],
+  [
+   "18:9",
+   "19:1"
+  ],
+  [
+   "19:2.2",
+   "19:7.3"
+  ],
+  [
+   "20:4.1",
+   "20:10.3"
+  ],
+  [
+   "21:4.0533",
+   "21:8.3"
+  ],
+  [
+   "22:3.8",
+   "22:7.3"
+  ],
+  [
+   "23:2.5",
+   "23:7.5"
+  ],
+  [
+   "24:1.6",
+   "24:5.55"
+  ],
+  [
+   "25:1",
+   "25:4.55"
+  ],
+  [
+   "25:5.6",
+   "26:1"
+  ],
+  [
+   "26:4.0667",
+   "26:6.55"
+  ],
+  [
+   "27:2.5",
+   "27:6.5"
+  ],
+  [
+   "28:4.1",
+   "28:6.9"
+  ],
+  [
+   "30:2.3333",
+   "30:7.3333"
+  ]
+ ],
+ "stops": [],
+ "reverb": {
+  "hall": {
+   "rt60": 4.2,
+   "return": 0.9,
+   "seeds": [
+    11,
+    12
+   ]
+  },
+  "plate": {
+   "rt60": 2.6,
+   "return": 0.7,
+   "seeds": [
+    21,
+    22
+   ]
+  }
+ },
+ "master": {
+  "lufs": -14.5,
+  "ceiling_db": -2.0,
+  "true_peak_db": -1.6,
+  "fade": [
+   "30:6.625",
+   "30:7.9"
+  ]
+ }
 }

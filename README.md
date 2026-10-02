@@ -14,9 +14,11 @@ Explainers, science shorts, product films, music videos, data stories, paper tal
 ![Voice](https://img.shields.io/badge/voice-Qwen3--TTS%20zh%20%7C%20en-purple)
 ![Styles](https://img.shields.io/badge/styles-31-green)
 
-<a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/preview.gif" width="820" alt="OpenVideoHarness intro film"></a>
 
-<sub>▶ The full intro film (81 s, with music, zh/en subtitle tracks) is in <a href="showcase/04-intro-film/media/final.mp4">showcase/04-intro-film</a>. An agent made it by following this repo, and the soundtrack is code too.</sub>
+https://github.com/user-attachments/assets/9d305423-0e5b-4276-a347-17a072993b6f
+
+
+<sub>▶ Chapter 1 of the intro film (the opening, 19 s, 1080p, with sound). The whole film, 150.5 s, plays in eight 1080p chapters in <a href="showcase/04-intro-film/">showcase/04-intro-film</a>; the single file is <a href="showcase/04-intro-film/media/final.mp4">final.mp4</a>. Its first 15.8 s are path-traced in Blender, driven by code: a galaxy of 1.18 million stars in which every star is a film. One continuous HyperFrames + Three.js take follows. An agent made it by following this repo, and the soundtrack is code too.</sub>
 
 </div>
 
@@ -72,36 +74,66 @@ Only when you say yes does it render the final.
 
 ## See what it makes
 
-The five films below were made by an agent **reading only this repo's docs**. Click a preview for its folder (brief, storyboard, review notes, fix-up log, full source), a good start for a similar video; ▶ is the original MP4, with sound. Each request is a short quote from a longer brief, and “Request” links to the whole text. Films 00–03 were finished silent, and their sound was fitted afterwards.
+The five films below were made by an agent **reading only this repo's docs**. Every video plays right here (1080p, with sound; the 31-style reel at its native 720p), with the repo's name in a corner; click a title for its folder (brief, storyboard, review notes, fix-up log, full source), a good start for a similar video. Each request is a short quote from a longer brief, and “Request” links to the whole text. Films 00–03 were finished silent, and their sound was fitted afterwards.
 
 <table>
 <tr>
-<td width="40%" valign="top"><a href="showcase/02-short-leo-doppler/"><img src="showcase/02-short-leo-doppler/media/preview.gif" width="60%" alt="02 · Vertical science short"></a><br><sub><a href="showcase/02-short-leo-doppler/media/final.mp4">▶ the original, with sound</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/1f5873bd-a83f-4d5e-96fe-08aff0c3a96c
+
+<sub><a href="showcase/02-short-leo-doppler/media/final.mp4">the original file</a></sub>
+</td>
 <td valign="top"><b><a href="showcase/02-short-leo-doppler/">02 · Vertical science short</a></b> (HyperFrames · 24.8 s · 1080×1920)<br>A LEO satellite's Doppler shift, readable with the sound off.<br><b><a href="showcase/02-short-leo-doppler/README.md#the-request-this-was-built-from">Request</a>:</b> “为什么低轨卫星的信号会"变调"？——多普勒频移” (Why does a LEO satellite's signal "change pitch"? The Doppler shift.)<br><b>Suggested workflow</b> (standard effort):<br><code>bin/vh new short leo-doppler --aspect 9:16</code><br>sound: <code>bin/vh tts</code>, <code>music</code>, <code>mix … profile=short</code>, <code>mux</code><br><b>Sound:</b> Chinese voiceover (Gemini TTS, voice Aoede), a light score, the satellite beacon made audible; zh/en soft subtitles, off by default (captions are burned in)</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="showcase/03-math-fourier/"><img src="showcase/03-math-fourier/media/preview.gif" width="100%" alt="03 · 3b1b-style math explainer"></a><br><sub><a href="showcase/03-math-fourier/media/final.mp4">▶ the original, with sound</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/c2368f76-b157-4a48-9945-8048a515efd4
+
+<sub><a href="showcase/03-math-fourier/media/final.mp4">the original file</a></sub>
+</td>
 <td valign="top"><b><a href="showcase/03-math-fourier/">03 · 3b1b-style math explainer</a></b> (Manim CE · 25 s · 1920×1080)<br>Sine waves stack into a square wave, with the Gibbs overshoot as the payoff.<br><b><a href="showcase/03-math-fourier/README.md#the-request-this-was-built-from">Request</a>:</b> “Building a square wave from sine waves”<br><b>Suggested workflow</b> (standard effort):<br><code>bin/vh new math fourier-square-wave --style dark-math</code><br>sound: <code>bin/vh tts</code>, <code>music</code>, <code>mix … profile=explainer</code>, <code>mux</code><br><b>Sound:</b> English voiceover (Gemini TTS, voice Iapetus), a piano score kept 13 LU under the voice, each harmonic sounding its own tone</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="showcase/01-handdrawn-clawd-leaf/"><img src="showcase/01-handdrawn-clawd-leaf/media/preview.gif" width="100%" alt="01 · Hand-drawn character short"></a><br><sub><a href="showcase/01-handdrawn-clawd-leaf/media/final.mp4">▶ the original, with sound</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/da028240-fcff-4e02-95a0-a0abd3238d07
+
+<sub><a href="showcase/01-handdrawn-clawd-leaf/media/final.mp4">the original file</a></sub>
+</td>
 <td valign="top"><b><a href="showcase/01-handdrawn-clawd-leaf/">01 · Hand-drawn character short</a></b> (p5.brush · 12 s · 1920×1080)<br>A hand-painted pantomime: no text, no voice, three shots.<br><b><a href="showcase/01-handdrawn-clawd-leaf/README.md#the-request-this-was-built-from">Request</a>:</b> “Clawd tries to film a falling autumn leaf with a tiny hand-cranked movie camera; the wind keeps snatching the leaf just as Clawd frames it …”<br><b>Suggested workflow</b> (standard effort):<br><code>bin/vh new handdrawn leaf --style watercolor-pastoral</code><br>sound: <code>bin/vh music</code>, <code>sfx</code>, <code>mix … profile=cartoon</code>, <code>mux</code><br><b>Sound:</b> a cartoon score (pizzicato, celesta, flute, xylophone) plus foley that follows every action</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="showcase/00-promo-launch-film/media/preview.gif" width="100%" alt="00 · Launch short"></a><br><sub><a href="showcase/00-promo-launch-film/media/final.mp4">▶ the original, with sound</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
+
+<sub><a href="showcase/00-promo-launch-film/media/final.mp4">the original file</a></sub>
+</td>
 <td valign="top"><b><a href="showcase/00-promo-launch-film/">00 · Launch short</a></b> (HyperFrames · 20 s · 1920×1080)<br>Built from the repo's own terminal, folders and contact sheets.<br><b><a href="showcase/00-promo-launch-film/README.md#the-request">Request</a>:</b> “Produce the README hero video — a short launch film for OpenVideoHarness itself …”<br><b>Suggested workflow</b> (standard effort):<br><code>bin/vh new promo launch-film</code><br>sound: <code>bin/vh music</code>, <code>sfx</code>, <code>mix … profile=promo</code>, <code>mux</code><br><b>Sound:</b> a minimal electronic score plus foley on every on-screen action (typing, clicks, whooshes on the cuts), no voice</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/preview.gif" width="100%" alt="04 · Intro film"></a><br><sub><a href="showcase/04-intro-film/media/final.mp4">▶ the original, with sound</a></sub></td>
-<td valign="top"><b><a href="showcase/04-intro-film/">04 · Intro film (one-take 3D)</a></b> (HyperFrames + Three.js · 81 s · 1920×1080)<br>The repo's own product film, one continuous 3D take.<br><b><a href="showcase/04-intro-film/README.md#what-was-asked-and-what-changed">Request</a>, as revised at gate ①:</b> “一镜到底 动画动效 音乐动态字等风格 叙事感 科幻感大片感” (one continuous shot, kinetic type on music, a narrative arc, a sci-fi blockbuster feel)<br><b>Suggested workflow</b> (studio effort, <code>--effort studio</code>):<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>one-take 3D: <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>; <code>bin/vh sfx place</code>, <code>sheet</code>, <code>check</code><br><b>Sound:</b> a code-composed cinematic score (D minor, 90 BPM) and 97 sound effects; zh/en soft subtitle tracks</td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/bc9ec77a-a3a8-463e-a622-9f6d6ae8fa4d
+
+<sub><a href="showcase/04-intro-film/media/final.mp4">the original file</a></sub>
+</td>
+<td valign="top"><b><a href="showcase/04-intro-film/">04 · Intro film (a galaxy of films, then one take)</a></b> (Blender + HyperFrames + Three.js · 150.5 s · 1920×1080)<br>The repo's own product film. The opening is path-traced in Blender: every star is a film, the galaxy collapses into a supernova and is flattened into a sea of films. Then one continuous 3D take through the repo.<br><b><a href="showcase/04-intro-film/README.md#what-was-asked">Request</a>, at the gates:</b> “玻璃、宇宙、星穹……令人瘫坐眩晕的感觉” (glass, cosmos, a starry sky… the feeling that makes you dizzy), then “或者使用blender？好莱坞大片质感” (or use Blender? Hollywood blockbuster quality)<br><b>Suggested workflow</b> (studio effort, <code>--effort studio</code>):<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>Blender plates: <a href="engines/blender.md">engines/blender.md</a>; one-take 3D: <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>; <code>bin/vh sheet</code>, <code>check</code><br><b>Sound:</b> a code-composed score (a 120 BPM opening, then D minor at 80 BPM) and 124 sound effects, mixed with <code>bin/vh mix … profile=promo</code></td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="The 31 style samples, all showing the same content"></a><br><sub><a href="styles/gallery.mp4">▶ the reel, with sound (46 s)</a></sub></td>
+<td width="40%" valign="top">
+
+https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
+
+<sub><a href="styles/gallery.mp4">the original file</a></sub>
+</td>
 <td valign="top"><b><a href="styles/">31 styles, one reel</a></b> (5-second samples)<br>The same content in 31 styles learned from famous work.<br><b>Borrow from one:</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> shows all 31; details in <a href="styles/README.md">styles/README.md</a><br><b>Sound:</b> one score per sample (<code>bin/vh music</code>, <code>mix … profile=swatch</code>)</td>
 </tr>
 </table>
 
-The GIFs are compressed, silent previews. Films you make with it are welcome in `showcase/` as a PR.
+“The original file” under each video links to the MP4 in the repo. Films you make with it are welcome in `showcase/` as a PR.
 
 <details>
 <summary><b>Similar work from the community, and our breakdowns of it</b></summary>
@@ -153,7 +185,7 @@ Some pictures a web engine can't give you: real glass refraction, nebulae and vo
 
 <p align="center"><img src="docs/assets/blender-strip.jpg" width="820" alt="Moments from the intro film's opening, all rendered in Blender: the Earth inside a glass film card, the pull-back to a galaxy, the supernova, the flattened sea of films"></p>
 
-- **The intro film opens this way.** A galaxy of 1.18 million stars where every star is a film: the camera pulls back from one glass card to the whole galaxy, spirals down, the galaxy collapses into a supernova and is flattened into a sea of films. 15.8 s at 1080p took about 2.5 hours on an M3 Max. The grid and the terminal that follow are HyperFrames, and the two dissolve into each other through the same camera. Source in [`showcase/04-intro-film/blender/`](showcase/04-intro-film/blender/).
+- **The intro film opens this way.** A galaxy of 1.18 million stars where every star is a film: the camera pulls back from one glass card to the whole galaxy, spirals down, the galaxy collapses into a supernova and is flattened into a sea of films. 15.8 s at 1080p (475 frames) took 1 h 28 min on an M3 Max. The grid and the terminal that follow are HyperFrames, and the two dissolve into each other through the same camera. Source in [`showcase/04-intro-film/blender/`](showcase/04-intro-film/blender/).
 - **[`tabletop-miniature`](styles/tabletop-miniature/)** in the style library is rendered in Blender too.
 - **It runs in a sandbox.** The agent's bpy scripts get no network, can write only to their output folder, and never see the API keys in your environment.
 - **Count the time first.** Render 3–5 frames to calibrate and put "frames × seconds per frame × 1.5" in the brief; 4K takes about 4× as long as 1080p. Long renders run in chunks and can resume.
@@ -418,7 +450,7 @@ This is an independent project, not affiliated with Anthropic, HeyGen, Remotion,
 
 ## License
 
-Original content is [MIT](LICENSE). The bundled ClaudeAnimationBase is also MIT (© John Heibel). Some files in `recipes/` are modified from Apache-2.0 projects (video-shotcraft, HyperFrames): their upstream parts stay under Apache-2.0, and [`recipes/NOTICE.md`](recipes/NOTICE.md) lists them. Files that call Blender's Python API (`import bpy`: `styles/_swatch/blender_render.py` and the Blender style scenes such as `styles/tabletop-miniature/swatch.py`) are GPL-3.0-or-later, as Blender asks of published bpy scripts; each carries an SPDX header (see [`engines/blender.md`](engines/blender.md), "许可证"). Reference repos keep their own licenses.
+Original content is [MIT](LICENSE). The bundled ClaudeAnimationBase is also MIT (© John Heibel). Some files in `recipes/` are modified from Apache-2.0 projects (video-shotcraft, HyperFrames): their upstream parts stay under Apache-2.0, and [`recipes/NOTICE.md`](recipes/NOTICE.md) lists them. Files that call Blender's Python API (`import bpy`: `styles/_swatch/blender_render.py`, the Blender style scenes such as `styles/tabletop-miniature/swatch.py`, and the intro film's `showcase/04-intro-film/blender/galaxy.py`) are GPL-3.0-or-later, as Blender asks of published bpy scripts; each carries an SPDX header (see [`engines/blender.md`](engines/blender.md), "许可证"). Reference repos keep their own licenses.
 
 ## Citation
 

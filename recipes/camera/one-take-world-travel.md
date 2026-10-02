@@ -81,7 +81,7 @@ const hand = (t) => [0.018 * Math.sin(0.9 * t + 1.1) + 0.01 * Math.sin(2.3 * t +
 // 到站关键帧 tm = "f"（切线取后一段），离站关键帧 tm = "b"（切线取前一段）
 ```
 
-介绍片的坑都记在 `showcase/04-intro-film/LESSONS.md`：VideoTexture 要每帧手动上传、`buildReady` 要在经典脚本里同步注册、渲染不能依赖在线 CDN、`renderAt` 抛异常时画面会停在上一帧。
+介绍片的坑都记在 `showcase/04-intro-film/v3/LESSONS.md`：VideoTexture 要每帧手动上传、`buildReady` 要在经典脚本里同步注册、渲染不能依赖在线 CDN、`renderAt` 抛异常时画面会停在上一帧。
 
 ## 已知坑
 
@@ -90,7 +90,7 @@ const hand = (t) => [0.018 * Math.sin(0.9 * t + 1.1) + 0.01 * Math.sin(2.3 * t +
 - **字被模糊抹花**：跟镜头的字和世界里的字都会被屏幕空间模糊抹花；必读字在画面上时压模糊，读长句时不要甩。
 - **标签太小或堆在画面边上**：标签按屏幕像素定字号，节点出画时标签淡出。
 - **连续甩镜看着晕**：每一跳之后都要停站；两次甩镜之间至少一个完整的停站。
-- **还没有人工判定**：介绍片（showcase 04）v3 整支是这一手法；这一版过了两轮独立 reviewer，成片仍待用户本人观看（`showcase/04-intro-film/REVIEW.md` 关卡 ③；v2 的人工意见是"不够炫酷"，这一手法是 v3 为此加的）。有人看过、给了判定，就升 `battle-tested`，把判定记在这里。
+- **还没有人工判定**：介绍片（showcase 04）v3 整支是这一手法；这一版过了两轮独立 reviewer，成片仍待用户本人观看（`showcase/04-intro-film/v3/REVIEW.md` 关卡 ③；v2 的人工意见是"不够炫酷"，这一手法是 v3 为此加的）。有人看过、给了判定，就升 `battle-tested`，把判定记在这里。
 
 ## 验收帧
 

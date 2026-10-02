@@ -1,0 +1,2584 @@
+{
+ "_about": "OpenVideoHarness intro v5 · chapter sketch for gate ① (not the final score). 53 bars at 120 BPM = 106 s, D major; one motif (B: 3-5-6, F# A B) hidden in the chaos, left hanging at the question, stated whole at the reveal, developed through the gates and the self-review loop, sung tutti once at the climax, left hanging again at 'this film, too' and resolved (B → D) in the coda. Built by make_sketch.py.",
+ "_chapters": {
+  "Ch0": [
+   "chaos",
+   "nova",
+   "question",
+   "reveal"
+  ],
+  "Ch1": [
+   "route"
+  ],
+  "Ch2": [
+   "gates"
+  ],
+  "Ch3": [
+   "sound",
+   "code",
+   "loop",
+   "hold3"
+  ],
+  "Ch4": [
+   "climax",
+   "proof"
+  ],
+  "Ch5": [
+   "stop",
+   "rebuild"
+  ],
+  "Ch6": [
+   "coda"
+  ]
+ },
+ "_marks": [
+  {
+   "bar": 1,
+   "label": "motif hidden (phrygian 16ths)"
+  },
+  {
+   "bar": 3,
+   "label": "shadow: low brass"
+  },
+  {
+   "bar": 5,
+   "label": "supernova (gong on D)"
+  },
+  {
+   "bar": 6,
+   "label": "question: F# A B … (hangs)"
+  },
+  {
+   "bar": 8,
+   "label": "reveal: first full statement"
+  },
+  {
+   "bar": 12,
+   "label": "consequent, flute 8va"
+  },
+  {
+   "bar": 17,
+   "label": "head sequenced per gate"
+  },
+  {
+   "bar": 18,
+   "label": "28-note styles run"
+  },
+  {
+   "bar": 25,
+   "label": "sound first: one part per bar"
+  },
+  {
+   "bar": 29,
+   "label": "code: head sequenced, fragmented"
+  },
+  {
+   "bar": 34,
+   "beat": 0,
+   "label": "fail ×3"
+  },
+  {
+   "bar": 36,
+   "label": "hold before gate ③"
+  },
+  {
+   "bar": 37,
+   "label": "climax: tutti"
+  },
+  {
+   "bar": 39,
+   "label": "peak note A5"
+  },
+  {
+   "bar": 44,
+   "label": "stop: the question's B"
+  },
+  {
+   "bar": 45,
+   "label": "rebuild: one part per beat"
+  },
+  {
+   "bar": 48,
+   "label": "coda: augmented, B → D"
+  }
+ ],
+ "bpm": 120,
+ "key": "D",
+ "mode": "major",
+ "seed": 17,
+ "stereo": true,
+ "space": {
+  "type": "hall",
+  "rt60": 2.6
+ },
+ "sections": [
+  {
+   "name": "chaos",
+   "bars": 4,
+   "chords": [
+    "i",
+    "bII",
+    "i",
+    "bII"
+   ]
+  },
+  {
+   "name": "nova",
+   "bars": 1,
+   "chords": [
+    "i"
+   ]
+  },
+  {
+   "name": "question",
+   "bars": 2,
+   "chords": [
+    "IVadd9",
+    "Vsus4"
+   ]
+  },
+  {
+   "name": "reveal",
+   "bars": 4,
+   "chords": [
+    "I",
+    "IV",
+    "vi",
+    "V"
+   ]
+  },
+  {
+   "name": "route",
+   "bars": 5,
+   "chords": [
+    "I",
+    "IV",
+    "vi",
+    "V I",
+    "I"
+   ]
+  },
+  {
+   "name": "gates",
+   "bars": 8,
+   "chords": [
+    "I",
+    "ii",
+    "IV",
+    "Vsus4",
+    "I",
+    "iii",
+    "IV",
+    "Vsus4"
+   ]
+  },
+  {
+   "name": "sound",
+   "bars": 4,
+   "chords": [
+    "vi",
+    "IV",
+    "I",
+    "V"
+   ]
+  },
+  {
+   "name": "code",
+   "bars": 3,
+   "chords": [
+    "vi",
+    "IV",
+    "V"
+   ]
+  },
+  {
+   "name": "loop",
+   "bars": 4,
+   "chords": [
+    "ii",
+    "IV",
+    "bVI",
+    "V"
+   ]
+  },
+  {
+   "name": "hold3",
+   "bars": 1,
+   "chords": [
+    "Vsus4"
+   ]
+  },
+  {
+   "name": "climax",
+   "bars": 4,
+   "chords": [
+    "I",
+    "IV",
+    "vi",
+    "V I"
+   ]
+  },
+  {
+   "name": "proof",
+   "bars": 3,
+   "chords": [
+    "IV",
+    "I",
+    "V"
+   ]
+  },
+  {
+   "name": "stop",
+   "bars": 1,
+   "chords": [
+    "IVadd9"
+   ]
+  },
+  {
+   "name": "rebuild",
+   "bars": 3,
+   "chords": [
+    "I",
+    "IV",
+    "V"
+   ]
+  },
+  {
+   "name": "coda",
+   "bars": 6,
+   "chords": [
+    "IV",
+    "IV",
+    "iv",
+    "I",
+    "I",
+    "I"
+   ]
+  }
+ ],
+ "parts": [
+  {
+   "inst": "drone",
+   "id": "drone",
+   "sections": [
+    "chaos",
+    "nova",
+    "question",
+    "hold3",
+    "stop"
+   ],
+   "figure": "sustain",
+   "pitch": [
+    "d1"
+   ],
+   "octave": 2,
+   "hold": "section",
+   "gain_db": -10,
+   "send": 0.1,
+   "by_section": {
+    "nova": {
+     "gain_db": -7
+    },
+    "question": {
+     "gain_db": -21
+    },
+    "hold3": {
+     "gain_db": -24
+    },
+    "stop": {
+     "gain_db": -22
+    }
+   }
+  },
+  {
+   "inst": "strings",
+   "id": "ost_chaos",
+   "sections": [
+    "chaos"
+   ],
+   "scale": "phrygian",
+   "octave": 3,
+   "step": 16,
+   "pitch": [
+    "d3",
+    "d5",
+    "d6",
+    "d5"
+   ],
+   "params": {
+    "marcato": true
+   },
+   "legato": 0.8,
+   "gain_db": -3,
+   "pan": -0.2,
+   "send": 0.12,
+   "pattern": [
+    "3111311131113111",
+    "4222422242224222",
+    "6444644464446444",
+    "8666866686668666"
+   ]
+  },
+  {
+   "inst": "seq",
+   "id": "seq_chaos",
+   "sections": [
+    "chaos"
+   ],
+   "scale": "phrygian",
+   "octave": 4,
+   "step": 16,
+   "pitch": [
+    "d8",
+    "d6",
+    "d5"
+   ],
+   "pitch_cycle": "part",
+   "params": {
+    "cutoff": 900,
+    "decay": 0.1,
+    "attack": 0.004
+   },
+   "gain_db": -12,
+   "pan": 0.4,
+   "send": 0.15,
+   "delay": {
+    "beats": 0.75,
+    "fb": 0.3,
+    "mix": 0.25,
+    "lp": 3000,
+    "pingpong": true
+   },
+   "pattern": [
+    "................",
+    "3333333333333333",
+    "5445445445445445",
+    "7667667667667667"
+   ]
+  },
+  {
+   "inst": "strings",
+   "id": "swell_chaos",
+   "sections": [
+    "chaos"
+   ],
+   "chord": true,
+   "voicing": "close",
+   "octave": 3,
+   "step": 1,
+   "params": {
+    "attack": 1.6,
+    "release": 0.6
+   },
+   "gain_db": -10,
+   "send": 0.25,
+   "pattern": [
+    "3",
+    "5",
+    "6",
+    "8"
+   ]
+  },
+  {
+   "inst": "brass",
+   "id": "brass_shadow",
+   "sections": [
+    "chaos"
+   ],
+   "scale": "phrygian",
+   "octave": 3,
+   "loop": 4,
+   "gain_db": -3,
+   "send": 0.2,
+   "pattern": [
+    [
+     8,
+     2,
+     "d3",
+     0.55
+    ],
+    [
+     10,
+     2,
+     "d5",
+     0.68
+    ],
+    [
+     12,
+     4,
+     "d6",
+     0.82
+    ]
+   ]
+  },
+  {
+   "inst": "taiko",
+   "id": "taiko",
+   "sections": [
+    "chaos",
+    "nova",
+    "gates",
+    "code",
+    "loop",
+    "climax",
+    "proof",
+    "rebuild"
+   ],
+   "gain_db": -9,
+   "send": 0.12,
+   "pattern": [
+    "................",
+    "7.......5.......",
+    "8...5...8...5...",
+    "9.6.6.6.9.6.7789"
+   ],
+   "by_section": {
+    "nova": {
+     "pattern": "X...............",
+     "gain_db": -6
+    },
+    "gates": {
+     "pattern": [
+      "5.......3.......",
+      "5...3...5...3...",
+      "6...3...6...3.3.",
+      "................",
+      "5.......3.......",
+      "5...3...5...3...",
+      "6...4...6...4.4.",
+      "................"
+     ],
+     "gain_db": -14
+    },
+    "code": {
+     "pattern": [
+      "6...3...6...3...",
+      "6...4...6...4...",
+      "7...4...7.4.4.4."
+     ],
+     "gain_db": -13
+    },
+    "loop": {
+     "pattern": [
+      "6.......6.......",
+      "6...4...6...4...",
+      "X...X...X.......",
+      "8.......6......."
+     ],
+     "gain_db": -12
+    },
+    "climax": {
+     "pattern": "X.......8.......",
+     "gain_db": -11
+    },
+    "proof": {
+     "pattern": "6.......4...4...",
+     "gain_db": -12
+    },
+    "rebuild": {
+     "pattern": [
+      "................",
+      "................",
+      "6...4...7...5.6."
+     ],
+     "gain_db": -13
+    }
+   }
+  },
+  {
+   "inst": "timpani",
+   "id": "timp_nova",
+   "sections": [
+    "nova"
+   ],
+   "pitch": [
+    "d1"
+   ],
+   "octave": 2,
+   "pattern": "X...............",
+   "gain_db": -6,
+   "send": 0.2
+  },
+  {
+   "inst": "gong",
+   "id": "gong_nova",
+   "sections": [
+    "nova"
+   ],
+   "pitch": [
+    "d1"
+   ],
+   "octave": 2,
+   "pattern": "X...............",
+   "params": {
+    "decay": 2.5,
+    "length": 6.0
+   },
+   "gain_db": -9,
+   "send": 0.3,
+   "hit": true
+  },
+  {
+   "inst": "cymbals",
+   "id": "cym_nova",
+   "sections": [
+    "nova"
+   ],
+   "pattern": "X...............",
+   "gain_db": -9,
+   "send": 0.25
+  },
+  {
+   "inst": "brass",
+   "id": "brass_nova",
+   "sections": [
+    "nova"
+   ],
+   "figure": "stab",
+   "beats": [
+    0
+   ],
+   "len": 1.2,
+   "voicing": "spread",
+   "octave": 3,
+   "params": {
+    "stab": true
+   },
+   "gain_db": -2,
+   "send": 0.3
+  },
+  {
+   "inst": "piano",
+   "id": "piano_q",
+   "sections": [
+    "question"
+   ],
+   "octave": 4,
+   "loop": 2,
+   "params": {
+    "tone": "felt",
+    "pedal": true
+   },
+   "gain_db": 4,
+   "send": 0.35,
+   "hit": "section",
+   "pattern": [
+    [
+     0,
+     8,
+     "d1,,",
+     0.35
+    ],
+    [
+     0,
+     1.5,
+     "d3",
+     0.62
+    ],
+    [
+     1.5,
+     1.5,
+     "d5",
+     0.66
+    ],
+    [
+     3,
+     4,
+     "d6",
+     0.6
+    ],
+    [
+     5,
+     1,
+     "d3",
+     0.44
+    ],
+    [
+     6,
+     2,
+     "d5",
+     0.4
+    ]
+   ]
+  },
+  {
+   "inst": "strings",
+   "id": "air_q",
+   "sections": [
+    "question"
+   ],
+   "figure": "sustain",
+   "pitch": [
+    "d6"
+   ],
+   "octave": 5,
+   "hold": "section",
+   "params": {
+    "attack": 1.5,
+    "release": 2.0
+   },
+   "vel": 0.5,
+   "gain_db": -11,
+   "send": 0.4
+  },
+  {
+   "inst": "strings",
+   "id": "breath_q",
+   "sections": [
+    "question"
+   ],
+   "loop": 2,
+   "params": {
+    "attack": 2.2,
+    "release": 0.5
+   },
+   "gain_db": -12,
+   "send": 0.35,
+   "pattern": [
+    [
+     4.5,
+     3.5,
+     [
+      "A3",
+      "D4",
+      "E4"
+     ],
+     0.55
+    ]
+   ]
+  },
+  {
+   "inst": "strings",
+   "id": "mel_rev",
+   "sections": [
+    "reveal"
+   ],
+   "octave": 4,
+   "loop": 4,
+   "params": {
+    "attack": 0.1,
+    "release": 0.35
+   },
+   "gain_db": -2,
+   "send": 0.3,
+   "hit": "section",
+   "pattern": [
+    [
+     0,
+     1,
+     "d3",
+     0.6
+    ],
+    [
+     1,
+     1,
+     "d5",
+     0.64
+    ],
+    [
+     2,
+     2,
+     "d6",
+     0.7
+    ],
+    [
+     4,
+     1.5,
+     "d8",
+     0.72
+    ],
+    [
+     5.5,
+     0.5,
+     "d6",
+     0.62
+    ],
+    [
+     6,
+     2,
+     "d5",
+     0.64
+    ],
+    [
+     8,
+     1,
+     "d3",
+     0.62
+    ],
+    [
+     9,
+     1,
+     "d5",
+     0.66
+    ],
+    [
+     10,
+     1,
+     "d6",
+     0.7
+    ],
+    [
+     11,
+     1,
+     "d8",
+     0.74
+    ],
+    [
+     12,
+     4,
+     "d9",
+     0.7
+    ]
+   ]
+  },
+  {
+   "inst": "piano",
+   "id": "pno_rev",
+   "sections": [
+    "reveal"
+   ],
+   "octave": 5,
+   "loop": 4,
+   "gain_db": -7,
+   "send": 0.25,
+   "pan": 0.1,
+   "pattern": [
+    [
+     0,
+     1,
+     "d3",
+     0.6
+    ],
+    [
+     1,
+     1,
+     "d5",
+     0.64
+    ],
+    [
+     2,
+     2,
+     "d6",
+     0.7
+    ],
+    [
+     4,
+     1.5,
+     "d8",
+     0.72
+    ],
+    [
+     5.5,
+     0.5,
+     "d6",
+     0.62
+    ],
+    [
+     6,
+     2,
+     "d5",
+     0.64
+    ],
+    [
+     8,
+     1,
+     "d3",
+     0.62
+    ],
+    [
+     9,
+     1,
+     "d5",
+     0.66
+    ],
+    [
+     10,
+     1,
+     "d6",
+     0.7
+    ],
+    [
+     11,
+     1,
+     "d8",
+     0.74
+    ],
+    [
+     12,
+     4,
+     "d9",
+     0.7
+    ]
+   ]
+  },
+  {
+   "inst": "cello",
+   "id": "answer",
+   "sections": [
+    "reveal"
+   ],
+   "octave": 3,
+   "loop": 4,
+   "gain_db": -7,
+   "send": 0.25,
+   "pan": -0.25,
+   "pattern": [
+    [
+     13,
+     0.5,
+     "d5",
+     0.6
+    ],
+    [
+     13.5,
+     0.5,
+     "d6",
+     0.64
+    ],
+    [
+     14,
+     0.5,
+     "d8",
+     0.68
+    ],
+    [
+     14.5,
+     1.5,
+     "d9",
+     0.7
+    ]
+   ]
+  },
+  {
+   "inst": "harp",
+   "id": "arps",
+   "sections": [
+    "reveal",
+    "route",
+    "gates",
+    "proof"
+   ],
+   "figure": "arp-updown",
+   "rate": 8,
+   "span": 2,
+   "octave": 3,
+   "gain_db": -17,
+   "send": 0.3,
+   "pan": 0.2,
+   "by_section": {
+    "route": {
+     "gain_db": -15
+    },
+    "gates": {
+     "gain_db": -18
+    },
+    "proof": {
+     "gain_db": -13
+    }
+   }
+  },
+  {
+   "inst": "strings",
+   "id": "pad",
+   "sections": [
+    "reveal",
+    "route",
+    "gates",
+    "sound",
+    "code",
+    "loop",
+    "hold3",
+    "climax",
+    "proof",
+    "stop",
+    "rebuild",
+    "coda"
+   ],
+   "figure": "sustain",
+   "voicing": "close",
+   "octave": 3,
+   "params": {
+    "attack": 0.8,
+    "release": 1.2
+   },
+   "gain_db": -19,
+   "send": 0.3,
+   "by_section": {
+    "route": {
+     "gain_db": -17
+    },
+    "gates": {
+     "gain_db": -17
+    },
+    "sound": {
+     "gain_db": -20
+    },
+    "code": {
+     "gain_db": -17
+    },
+    "loop": {
+     "gain_db": -16
+    },
+    "hold3": {
+     "gain_db": -22
+    },
+    "climax": {
+     "gain_db": -13
+    },
+    "proof": {
+     "gain_db": -13
+    },
+    "stop": {
+     "gain_db": -20
+    },
+    "rebuild": {
+     "gain_db": -18
+    },
+    "coda": {
+     "gain_db": -16
+    }
+   }
+  },
+  {
+   "inst": "cello",
+   "id": "bass",
+   "sections": [
+    "reveal",
+    "route",
+    "gates",
+    "code",
+    "loop",
+    "climax",
+    "proof",
+    "coda"
+   ],
+   "figure": "sustain",
+   "pitch": [
+    "c0,"
+   ],
+   "octave": 3,
+   "params": {
+    "retrigger": true,
+    "glide": 0.02
+   },
+   "gain_db": -11,
+   "send": 0.15,
+   "by_section": {
+    "route": {
+     "gain_db": -10
+    },
+    "gates": {
+     "gain_db": -10
+    },
+    "code": {
+     "gain_db": -9
+    },
+    "loop": {
+     "gain_db": -9
+    },
+    "climax": {
+     "gain_db": -8
+    },
+    "proof": {
+     "gain_db": -10
+    },
+    "coda": {
+     "gain_db": -13
+    }
+   }
+  },
+  {
+   "inst": "strings",
+   "id": "mel_route",
+   "sections": [
+    "route"
+   ],
+   "octave": 4,
+   "loop": 5,
+   "params": {
+    "attack": 0.1,
+    "release": 0.35
+   },
+   "gain_db": -2,
+   "send": 0.3,
+   "hit": "section",
+   "pattern": [
+    [
+     0,
+     1,
+     "d3",
+     0.66
+    ],
+    [
+     1,
+     1,
+     "d5",
+     0.7
+    ],
+    [
+     2,
+     2,
+     "d6",
+     0.76
+    ],
+    [
+     4,
+     1.5,
+     "d8",
+     0.78
+    ],
+    [
+     5.5,
+     0.5,
+     "d9",
+     0.8
+    ],
+    [
+     6,
+     2,
+     "d10",
+     0.86
+    ],
+    [
+     8,
+     1,
+     "d9",
+     0.8
+    ],
+    [
+     9,
+     1,
+     "d8",
+     0.76
+    ],
+    [
+     10,
+     1,
+     "d6",
+     0.72
+    ],
+    [
+     11,
+     1,
+     "d5",
+     0.7
+    ],
+    [
+     12,
+     1,
+     "d6",
+     0.72
+    ],
+    [
+     13,
+     1,
+     "d9",
+     0.78
+    ],
+    [
+     14,
+     6,
+     "d8",
+     0.72
+    ]
+   ]
+  },
+  {
+   "inst": "flute",
+   "id": "fl_route",
+   "sections": [
+    "route"
+   ],
+   "octave": 5,
+   "loop": 5,
+   "gain_db": -8,
+   "send": 0.2,
+   "pan": -0.15,
+   "pattern": [
+    [
+     0,
+     1,
+     "d3",
+     0.66
+    ],
+    [
+     1,
+     1,
+     "d5",
+     0.7
+    ],
+    [
+     2,
+     2,
+     "d6",
+     0.76
+    ],
+    [
+     4,
+     1.5,
+     "d8",
+     0.78
+    ],
+    [
+     5.5,
+     0.5,
+     "d9",
+     0.8
+    ],
+    [
+     6,
+     2,
+     "d10",
+     0.86
+    ],
+    [
+     8,
+     1,
+     "d9",
+     0.8
+    ],
+    [
+     9,
+     1,
+     "d8",
+     0.76
+    ],
+    [
+     10,
+     1,
+     "d6",
+     0.72
+    ],
+    [
+     11,
+     1,
+     "d5",
+     0.7
+    ],
+    [
+     12,
+     1,
+     "d6",
+     0.72
+    ],
+    [
+     13,
+     1,
+     "d9",
+     0.78
+    ],
+    [
+     14,
+     6,
+     "d8",
+     0.72
+    ]
+   ]
+  },
+  {
+   "inst": "shaker",
+   "id": "shk",
+   "sections": [
+    "route",
+    "gates",
+    "proof"
+   ],
+   "gain_db": -20,
+   "pan": 0.3,
+   "pattern": "x.g.x.g.x.g.x.g.",
+   "by_section": {
+    "gates": {
+     "pattern": [
+      "x.g.x.g.x.g.x.g.",
+      "x.g.x.g.x.g.x.g.",
+      "x.g.x.g.x.g.x.g.",
+      "................",
+      "x.g.x.g.x.g.x.g.",
+      "x.g.x.g.x.g.x.g.",
+      "x.g.x.g.xgxgxgxg",
+      "................"
+     ]
+    },
+    "proof": {
+     "gain_db": -18
+    }
+   }
+  },
+  {
+   "inst": "brass",
+   "id": "brass_gates",
+   "sections": [
+    "gates"
+   ],
+   "octave": 4,
+   "loop": 8,
+   "gain_db": -2,
+   "send": 0.25,
+   "pan": 0.1,
+   "hit": "section",
+   "pattern": [
+    [
+     0,
+     1,
+     "s2",
+     0.66
+    ],
+    [
+     1,
+     1,
+     "s4",
+     0.7
+    ],
+    [
+     2,
+     2,
+     "s5",
+     0.74
+    ],
+    [
+     4,
+     1,
+     "s2",
+     0.66
+    ],
+    [
+     5,
+     1,
+     "s4",
+     0.7
+    ],
+    [
+     6,
+     2,
+     "s5",
+     0.74
+    ],
+    [
+     8,
+     1,
+     "s2",
+     0.66
+    ],
+    [
+     9,
+     1,
+     "s4",
+     0.7
+    ],
+    [
+     10,
+     2,
+     "s5",
+     0.74
+    ],
+    [
+     16,
+     1,
+     "s2",
+     0.66
+    ],
+    [
+     17,
+     1,
+     "s4",
+     0.7
+    ],
+    [
+     18,
+     2,
+     "s5",
+     0.74
+    ],
+    [
+     20,
+     1,
+     "s2",
+     0.66
+    ],
+    [
+     21,
+     1,
+     "s4",
+     0.7
+    ],
+    [
+     22,
+     2,
+     "s5",
+     0.74
+    ],
+    [
+     24,
+     1,
+     "s2",
+     0.66
+    ],
+    [
+     25,
+     1,
+     "s4",
+     0.7
+    ],
+    [
+     26,
+     2,
+     "s5",
+     0.74
+    ]
+   ]
+  },
+  {
+   "inst": "celesta",
+   "id": "styles_run",
+   "sections": [
+    "gates"
+   ],
+   "octave": 4,
+   "loop": 8,
+   "gain_db": -13,
+   "send": 0.35,
+   "pan": -0.2,
+   "pattern": [
+    [
+     4.0,
+     0.25,
+     "d1",
+     0.45
+    ],
+    [
+     4.25,
+     0.25,
+     "d2",
+     0.47
+    ],
+    [
+     4.5,
+     0.25,
+     "d3",
+     0.49
+    ],
+    [
+     4.75,
+     0.25,
+     "d5",
+     0.51
+    ],
+    [
+     5.0,
+     0.25,
+     "d6",
+     0.53
+    ],
+    [
+     5.25,
+     0.25,
+     "d8",
+     0.55
+    ],
+    [
+     5.5,
+     0.25,
+     "d9",
+     0.57
+    ],
+    [
+     5.75,
+     0.25,
+     "d10",
+     0.45
+    ],
+    [
+     6.0,
+     0.25,
+     "d12",
+     0.47
+    ],
+    [
+     6.25,
+     0.25,
+     "d13",
+     0.49
+    ],
+    [
+     6.5,
+     0.25,
+     "d15",
+     0.51
+    ],
+    [
+     6.75,
+     0.25,
+     "d16",
+     0.53
+    ],
+    [
+     7.0,
+     0.25,
+     "d17",
+     0.55
+    ],
+    [
+     7.25,
+     0.25,
+     "d19",
+     0.57
+    ],
+    [
+     7.5,
+     0.25,
+     "d19",
+     0.45
+    ],
+    [
+     7.75,
+     0.25,
+     "d17",
+     0.47
+    ],
+    [
+     8.0,
+     0.25,
+     "d16",
+     0.49
+    ],
+    [
+     8.25,
+     0.25,
+     "d15",
+     0.51
+    ],
+    [
+     8.5,
+     0.25,
+     "d13",
+     0.53
+    ],
+    [
+     8.75,
+     0.25,
+     "d12",
+     0.55
+    ],
+    [
+     9.0,
+     0.25,
+     "d10",
+     0.57
+    ],
+    [
+     9.25,
+     0.25,
+     "d9",
+     0.45
+    ],
+    [
+     9.5,
+     0.25,
+     "d8",
+     0.47
+    ],
+    [
+     9.75,
+     0.25,
+     "d6",
+     0.49
+    ],
+    [
+     10.0,
+     0.25,
+     "d5",
+     0.51
+    ],
+    [
+     10.25,
+     0.25,
+     "d3",
+     0.53
+    ],
+    [
+     10.5,
+     0.25,
+     "d2",
+     0.55
+    ],
+    [
+     10.75,
+     0.25,
+     "d1",
+     0.57
+    ]
+   ]
+  },
+  {
+   "inst": "glockenspiel",
+   "id": "check",
+   "sections": [
+    "gates",
+    "hold3"
+   ],
+   "octave": 5,
+   "loop": 8,
+   "gain_db": -14,
+   "send": 0.3,
+   "hit": true,
+   "pattern": [
+    [
+     16,
+     1.5,
+     "d8",
+     0.7
+    ],
+    [
+     16.25,
+     1.25,
+     "d10",
+     0.6
+    ]
+   ],
+   "by_section": {
+    "hold3": {
+     "pattern": [
+      [
+       3.5,
+       0.5,
+       "d5",
+       0.5
+      ]
+     ],
+     "loop": 1
+    }
+   }
+  },
+  {
+   "inst": "pizzicato",
+   "id": "pizz",
+   "sections": [
+    "gates",
+    "sound"
+   ],
+   "octave": 3,
+   "step": 8,
+   "pitch": [
+    "c0",
+    "c2",
+    "c1",
+    "c2"
+   ],
+   "gain_db": -12,
+   "send": 0.2,
+   "pan": -0.1,
+   "pattern": [
+    "xxxxxxxx",
+    "xxxxxxxx",
+    "xxxxxxxx",
+    "........",
+    "xxxxxxxx",
+    "xxxxxxxx",
+    "xxxxxxxx",
+    "........"
+   ],
+   "by_section": {
+    "sound": {
+     "pattern": [
+      "........",
+      "x...x...",
+      "x.x.x.x.",
+      "x.x.x.x."
+     ],
+     "gain_db": -11
+    }
+   }
+  },
+  {
+   "inst": "marimba",
+   "id": "mar",
+   "sections": [
+    "sound",
+    "rebuild"
+   ],
+   "octave": 4,
+   "step": 8,
+   "pitch": [
+    "c0",
+    "c1",
+    "c2",
+    "c1'"
+   ],
+   "gain_db": -10,
+   "send": 0.25,
+   "pan": 0.25,
+   "hit": "section",
+   "pattern": "xxxxxxxx",
+   "by_section": {
+    "rebuild": {
+     "pattern": [
+      "..xxxxxx",
+      "xxxxxxxx",
+      "xxxxxxxx"
+     ],
+     "gain_db": -12
+    }
+   }
+  },
+  {
+   "inst": "celesta",
+   "id": "cel_sound",
+   "sections": [
+    "sound"
+   ],
+   "octave": 5,
+   "loop": 4,
+   "gain_db": -5,
+   "send": 0.35,
+   "pattern": [
+    [
+     8,
+     1,
+     "d3",
+     0.6
+    ],
+    [
+     9,
+     1,
+     "d5",
+     0.62
+    ],
+    [
+     10,
+     2,
+     "d6",
+     0.66
+    ],
+    [
+     12,
+     1,
+     "d3",
+     0.62
+    ],
+    [
+     13,
+     1,
+     "d5",
+     0.64
+    ],
+    [
+     14,
+     1,
+     "d6",
+     0.66
+    ],
+    [
+     15,
+     1,
+     "d8",
+     0.7
+    ]
+   ]
+  },
+  {
+   "inst": "hihat",
+   "id": "hat",
+   "sections": [
+    "sound",
+    "code",
+    "loop"
+   ],
+   "gain_db": -18,
+   "pan": 0.35,
+   "pattern": "................",
+   "by_section": {
+    "sound": {
+     "pattern": [
+      "................",
+      "................",
+      "................",
+      "x.x.x.x.x.x.xxxx"
+     ]
+    },
+    "code": {
+     "pattern": "x.xgx.xgx.xgx.xg",
+     "gain_db": -15
+    },
+    "loop": {
+     "pattern": "x.x.x.x.x.x.x.x.",
+     "gain_db": -18
+    }
+   }
+  },
+  {
+   "inst": "seq",
+   "id": "seq_code",
+   "sections": [
+    "code",
+    "loop"
+   ],
+   "octave": 4,
+   "step": 16,
+   "pitch": [
+    "c0",
+    "c1",
+    "c2",
+    "c1'",
+    "c2",
+    "c1"
+   ],
+   "pitch_cycle": "part",
+   "params": {
+    "cutoff": 1400,
+    "decay": 0.09,
+    "attack": 0.004
+   },
+   "gain_db": -10,
+   "pan": 0.3,
+   "send": 0.15,
+   "delay": {
+    "beats": 0.75,
+    "fb": 0.25,
+    "mix": 0.2,
+    "lp": 3500,
+    "pingpong": true
+   },
+   "pattern": [
+    "4444444444444444",
+    "5555555555555555",
+    "6666666666666666"
+   ],
+   "by_section": {
+    "loop": {
+     "pattern": [
+      "5555555555555555",
+      "5555555555555555",
+      "7.7.7.7.7.7.....",
+      "................"
+     ]
+    }
+   }
+  },
+  {
+   "inst": "brass",
+   "id": "brass_code",
+   "sections": [
+    "code"
+   ],
+   "octave": 4,
+   "loop": 3,
+   "gain_db": -2,
+   "send": 0.25,
+   "pattern": [
+    [
+     0,
+     1,
+     "s2",
+     0.66
+    ],
+    [
+     1,
+     1,
+     "s4",
+     0.7
+    ],
+    [
+     2,
+     2,
+     "s5",
+     0.74
+    ],
+    [
+     4,
+     1,
+     "s2",
+     0.66
+    ],
+    [
+     5,
+     1,
+     "s4",
+     0.7
+    ],
+    [
+     6,
+     2,
+     "s5",
+     0.74
+    ],
+    [
+     8,
+     0.5,
+     "s2",
+     0.8
+    ],
+    [
+     8.5,
+     0.5,
+     "s4",
+     0.84
+    ],
+    [
+     9,
+     1,
+     "s5",
+     0.88
+    ],
+    [
+     10,
+     0.5,
+     "s2",
+     0.84
+    ],
+    [
+     10.5,
+     0.5,
+     "s4",
+     0.88
+    ],
+    [
+     11,
+     1,
+     "s5",
+     0.92
+    ]
+   ]
+  },
+  {
+   "inst": "snare",
+   "id": "snare",
+   "sections": [
+    "code",
+    "loop",
+    "hold3",
+    "climax"
+   ],
+   "gain_db": -14,
+   "send": 0.15,
+   "pattern": [
+    "....4.......4...",
+    "....5.......5...",
+    "....6.......6.66"
+   ],
+   "by_section": {
+    "loop": {
+     "pattern": [
+      "....5.......5...",
+      "....5.......5.5.",
+      "X...X...X.......",
+      "....6.......6..."
+     ]
+    },
+    "hold3": {
+     "pattern": "........23456789",
+     "gain_db": -15
+    },
+    "climax": {
+     "pattern": "....X.......X...",
+     "gain_db": -15
+    }
+   }
+  },
+  {
+   "inst": "celesta",
+   "id": "try_loop",
+   "sections": [
+    "loop"
+   ],
+   "octave": 5,
+   "loop": 4,
+   "gain_db": -8,
+   "send": 0.3,
+   "pattern": [
+    [
+     0,
+     0.5,
+     "d3",
+     0.6
+    ],
+    [
+     0.5,
+     0.5,
+     "d5",
+     0.62
+    ],
+    [
+     1,
+     1,
+     "d6",
+     0.64
+    ],
+    [
+     2,
+     1,
+     "C6",
+     0.6
+    ],
+    [
+     4,
+     0.5,
+     "d3",
+     0.62
+    ],
+    [
+     4.5,
+     0.5,
+     "d5",
+     0.64
+    ],
+    [
+     5,
+     1,
+     "d6",
+     0.66
+    ],
+    [
+     6,
+     1,
+     "C6",
+     0.62
+    ],
+    [
+     12,
+     0.5,
+     "d3",
+     0.7
+    ],
+    [
+     12.5,
+     0.5,
+     "d5",
+     0.72
+    ],
+    [
+     13,
+     1,
+     "d6",
+     0.76
+    ],
+    [
+     14,
+     2,
+     "d8",
+     0.8
+    ]
+   ]
+  },
+  {
+   "inst": "brass",
+   "id": "fail",
+   "sections": [
+    "loop"
+   ],
+   "octave": 3,
+   "loop": 4,
+   "gain_db": -4,
+   "send": 0.2,
+   "hit": true,
+   "pattern": [
+    [
+     8,
+     0.45,
+     [
+      "F#3",
+      "G3",
+      "C4"
+     ],
+     0.9
+    ],
+    [
+     9,
+     0.45,
+     [
+      "F#3",
+      "G3",
+      "C4"
+     ],
+     0.9
+    ],
+    [
+     10,
+     0.45,
+     [
+      "F#3",
+      "G3",
+      "C4"
+     ],
+     0.95
+    ]
+   ]
+  },
+  {
+   "inst": "strings",
+   "id": "pass",
+   "sections": [
+    "loop"
+   ],
+   "chord": true,
+   "voicing": "close",
+   "octave": 4,
+   "step": 1,
+   "params": {
+    "attack": 0.05,
+    "release": 0.8
+   },
+   "gain_db": -8,
+   "send": 0.3,
+   "hit": true,
+   "pattern": [
+    ".",
+    ".",
+    ".",
+    "7"
+   ]
+  },
+  {
+   "inst": "timpani",
+   "id": "timp_roll",
+   "sections": [
+    "hold3"
+   ],
+   "pitch": [
+    "d5"
+   ],
+   "octave": 2,
+   "gain_db": -13,
+   "send": 0.2,
+   "pattern": "........3456789X"
+  },
+  {
+   "inst": "strings",
+   "id": "air_hold",
+   "sections": [
+    "hold3",
+    "stop",
+    "coda"
+   ],
+   "figure": "sustain",
+   "pitch": [
+    "d5"
+   ],
+   "octave": 5,
+   "hold": "section",
+   "params": {
+    "attack": 1.0,
+    "release": 1.5
+   },
+   "vel": 0.5,
+   "gain_db": -12,
+   "send": 0.4
+  },
+  {
+   "inst": "brass",
+   "id": "brass_climax",
+   "sections": [
+    "climax"
+   ],
+   "octave": 4,
+   "loop": 4,
+   "gain_db": 0,
+   "send": 0.3,
+   "hit": "section",
+   "pattern": [
+    [
+     0,
+     1,
+     "d3",
+     0.86
+    ],
+    [
+     1,
+     1,
+     "d5",
+     0.9
+    ],
+    [
+     2,
+     2,
+     "d6",
+     0.94
+    ],
+    [
+     4,
+     1.5,
+     "d8",
+     0.92
+    ],
+    [
+     5.5,
+     0.5,
+     "d9",
+     0.94
+    ],
+    [
+     6,
+     2,
+     "d10",
+     0.98
+    ],
+    [
+     8,
+     2,
+     "d12",
+     1.0
+    ],
+    [
+     10,
+     1,
+     "d9",
+     0.92
+    ],
+    [
+     11,
+     1,
+     "d8",
+     0.9
+    ],
+    [
+     12,
+     1,
+     "d6",
+     0.88
+    ],
+    [
+     13,
+     1,
+     "d9",
+     0.92
+    ],
+    [
+     14,
+     2,
+     "d8",
+     0.94
+    ]
+   ]
+  },
+  {
+   "inst": "strings",
+   "id": "str_climax",
+   "sections": [
+    "climax"
+   ],
+   "octave": 5,
+   "loop": 4,
+   "params": {
+    "attack": 0.06,
+    "release": 0.4
+   },
+   "gain_db": -1,
+   "send": 0.35,
+   "pattern": [
+    [
+     0,
+     1,
+     "d3",
+     0.86
+    ],
+    [
+     1,
+     1,
+     "d5",
+     0.9
+    ],
+    [
+     2,
+     2,
+     "d6",
+     0.94
+    ],
+    [
+     4,
+     1.5,
+     "d8",
+     0.92
+    ],
+    [
+     5.5,
+     0.5,
+     "d9",
+     0.94
+    ],
+    [
+     6,
+     2,
+     "d10",
+     0.98
+    ],
+    [
+     8,
+     2,
+     "d12",
+     1.0
+    ],
+    [
+     10,
+     1,
+     "d9",
+     0.92
+    ],
+    [
+     11,
+     1,
+     "d8",
+     0.9
+    ],
+    [
+     12,
+     1,
+     "d6",
+     0.88
+    ],
+    [
+     13,
+     1,
+     "d9",
+     0.92
+    ],
+    [
+     14,
+     2,
+     "d8",
+     0.94
+    ]
+   ]
+  },
+  {
+   "inst": "strings",
+   "id": "ost_climax",
+   "sections": [
+    "climax"
+   ],
+   "octave": 3,
+   "step": 8,
+   "pitch": [
+    "c0",
+    "c2",
+    "c1'",
+    "c2"
+   ],
+   "params": {
+    "marcato": true
+   },
+   "legato": 0.7,
+   "gain_db": -8,
+   "pan": -0.2,
+   "send": 0.15,
+   "pattern": "X8X8X8X8"
+  },
+  {
+   "inst": "brass",
+   "id": "brass_pad",
+   "sections": [
+    "climax"
+   ],
+   "figure": "sustain",
+   "voicing": "close",
+   "octave": 3,
+   "vel": 0.65,
+   "gain_db": -9,
+   "send": 0.25
+  },
+  {
+   "inst": "timpani",
+   "id": "timp_climax",
+   "sections": [
+    "climax"
+   ],
+   "octave": 2,
+   "pattern": "X.......6.......",
+   "gain_db": -12,
+   "send": 0.2
+  },
+  {
+   "inst": "cymbals",
+   "id": "cym_climax",
+   "sections": [
+    "climax"
+   ],
+   "loop": 4,
+   "pattern": [
+    [
+     0,
+     1,
+     null,
+     1.0
+    ],
+    [
+     8,
+     1,
+     null,
+     0.85
+    ]
+   ],
+   "gain_db": -11,
+   "send": 0.25
+  },
+  {
+   "inst": "strings",
+   "id": "mel_proof",
+   "sections": [
+    "proof"
+   ],
+   "octave": 5,
+   "loop": 3,
+   "params": {
+    "attack": 0.12,
+    "release": 0.4
+   },
+   "gain_db": 0,
+   "send": 0.35,
+   "pattern": [
+    [
+     0,
+     1,
+     "d3",
+     0.62
+    ],
+    [
+     1,
+     1,
+     "d5",
+     0.66
+    ],
+    [
+     2,
+     2,
+     "d6",
+     0.7
+    ],
+    [
+     4,
+     1.5,
+     "d8",
+     0.72
+    ],
+    [
+     5.5,
+     0.5,
+     "d6",
+     0.64
+    ],
+    [
+     6,
+     2,
+     "d5",
+     0.66
+    ],
+    [
+     8,
+     1,
+     "d6",
+     0.64
+    ],
+    [
+     9,
+     1,
+     "d9",
+     0.7
+    ],
+    [
+     10,
+     2,
+     "d8",
+     0.66
+    ]
+   ]
+  },
+  {
+   "inst": "piano",
+   "id": "pno_proof",
+   "sections": [
+    "proof"
+   ],
+   "octave": 4,
+   "step": 8,
+   "pitch": [
+    "c0",
+    "c2",
+    "c1'",
+    "c2"
+   ],
+   "gain_db": -8,
+   "send": 0.25,
+   "pattern": "xxxxxxxx"
+  },
+  {
+   "inst": "piano",
+   "id": "pno_stop",
+   "sections": [
+    "stop"
+   ],
+   "octave": 4,
+   "loop": 1,
+   "params": {
+    "tone": "felt",
+    "pedal": true
+   },
+   "gain_db": 2,
+   "send": 0.4,
+   "hit": "section",
+   "pattern": [
+    [
+     0,
+     4,
+     "d6",
+     0.55
+    ]
+   ]
+  },
+  {
+   "inst": "cello",
+   "id": "bass_rb",
+   "sections": [
+    "rebuild"
+   ],
+   "octave": 3,
+   "loop": 3,
+   "gain_db": -10,
+   "send": 0.15,
+   "pattern": [
+    [
+     1,
+     3,
+     "c0,",
+     0.7
+    ],
+    [
+     4,
+     4,
+     "c0,",
+     0.72
+    ],
+    [
+     8,
+     4,
+     "c0,",
+     0.75
+    ]
+   ]
+  },
+  {
+   "inst": "piano",
+   "id": "pno_rb",
+   "sections": [
+    "rebuild"
+   ],
+   "octave": 5,
+   "loop": 3,
+   "gain_db": -2,
+   "send": 0.3,
+   "hit": "section",
+   "pattern": [
+    [
+     3,
+     0.5,
+     "d3",
+     0.6
+    ],
+    [
+     3.5,
+     0.5,
+     "d5",
+     0.62
+    ],
+    [
+     4,
+     2,
+     "d6",
+     0.66
+    ],
+    [
+     8,
+     1,
+     "d3",
+     0.64
+    ],
+    [
+     9,
+     1,
+     "d5",
+     0.66
+    ],
+    [
+     10,
+     1,
+     "d6",
+     0.7
+    ],
+    [
+     11,
+     1,
+     "d8",
+     0.74
+    ]
+   ]
+  },
+  {
+   "inst": "brass",
+   "id": "brass_rb",
+   "sections": [
+    "rebuild"
+   ],
+   "figure": "sustain",
+   "voicing": "close",
+   "octave": 3,
+   "vel": 0.6,
+   "gain_db": -15,
+   "send": 0.25,
+   "params": {
+    "swell": true
+   }
+  },
+  {
+   "inst": "celesta",
+   "id": "cel_coda",
+   "sections": [
+    "coda"
+   ],
+   "octave": 5,
+   "loop": 6,
+   "gain_db": -4,
+   "send": 0.4,
+   "hit": "section",
+   "pattern": [
+    [
+     0,
+     2,
+     "d3",
+     0.6
+    ],
+    [
+     2,
+     2,
+     "d5",
+     0.62
+    ],
+    [
+     4,
+     4,
+     "d6",
+     0.6
+    ],
+    [
+     8,
+     8,
+     "d8",
+     0.62
+    ]
+   ]
+  },
+  {
+   "inst": "piano",
+   "id": "pno_coda",
+   "sections": [
+    "coda"
+   ],
+   "figure": "sustain",
+   "voicing": "close",
+   "octave": 3,
+   "params": {
+    "tone": "felt",
+    "pedal": true
+   },
+   "vel": 0.5,
+   "gain_db": -8,
+   "send": 0.35
+  }
+ ]
+}

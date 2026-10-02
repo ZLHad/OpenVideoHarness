@@ -1,6 +1,6 @@
 # Showcase 03: Building a square wave from sine waves (math / Manim CE)
 
-![preview](media/preview.gif)
+https://github.com/user-attachments/assets/c2368f76-b157-4a48-9945-8048a515efd4
 
 **Full video:** [media/final.mp4](media/final.mp4) · **Contact sheet:** [media/sheet.png](media/sheet.png)
 

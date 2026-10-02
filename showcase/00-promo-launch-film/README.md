@@ -1,6 +1,6 @@
 # 00 · promo — OpenVideoHarness launch film (README hero)
 
-![OpenVideoHarness launch film](media/preview.gif)
+https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
 
 [media/final.mp4](media/final.mp4) · poster: [media/poster.png](media/poster.png) · contact sheet: [media/sheet.png](media/sheet.png)
 

@@ -1,59 +1,43 @@
 #!/usr/bin/env bash
-# Final deliverables from the current source (run from the project root). v3 Phase B: 81.333 s, 2440 frames.
-#   1. re-bake the self-reference sheets from the latest draft (two-pass)
-#   2. master render (high) + grain-free render (GIF source)
-#   3. audio: sfx → stereo mix → linear master (−14 LUFS) → cue check
-#   4. mux (+ zh/en soft subtitles), web encode, GIF, poster, sheet, checks
+# Intro film v5 deliverables (run from the film folder): 150.5 s, 4515 frames (js/tmap.js).
+#   1. the Blender plate: blender/out/final2/f_0000–0474.png → assets/plate.mp4 (0–15.8 s)
+#   2. HyperFrames render, high quality (the plate + the WebGL grid and terminal + the body's world + DOM type)
+#   3. audio: music (opening sketch 0–23 s + the body score from its bar 10) + SFX → bin/vh mix profile=promo → qa
+#   4. mux, encodes (master, web, ≤ 10 MB README clip), GIF, poster, sheet, checks
 set -euo pipefail
 export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1
-DRAFT=${1:?latest draft mp4 for the self-sheets}
-B=../../bin/vh
-FRAMES=2440
-# render with a watchdog: a stalled render (e.g. a network hiccup while the page loads) fails loudly instead of hanging
-verify() { # frame count + the 3D layer present at 4 moments
-  local out=$1 n; n=$(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 "$out")
-  [ "$n" = "$FRAMES" ] || { echo "FAIL: $out has $n frames, expected $FRAMES" >&2; exit 1; }
-  for ts in 1.5 30.2 45.2 79.0; do
-    local y; y=$(ffmpeg -v error -ss "$ts" -i "$out" -frames:v 1 -vf "signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-" -f null - | grep -o 'YAVG=[0-9.]*' | head -1 | cut -d= -f2)
-    awk -v y="$y" 'BEGIN { exit !(y > 20) }' || { echo "FAIL: $out looks empty at ${ts}s (YAVG $y)" >&2; exit 1; }
-  done
-  echo "verified $out: $n frames, 3D layer present"
-}
-render() {
-  local out=$1; shift
-  if [ -n "${SKIP_RENDER:-}" ] && [ -f "$out" ]; then verify "$out"; return; fi
-  npx hyperframes render "$@" --output "$out" > "$out.log" 2>&1 &
-  local pid=$! t=0
-  while kill -0 "$pid" 2>/dev/null; do
-    sleep 5; t=$((t + 5))
-    if [ "$t" -ge "${RENDER_TIMEOUT:-1500}" ]; then kill "$pid"; echo "FAIL: render timed out after ${t}s: $out" >&2; exit 1; fi
-  done
-  wait "$pid" || { echo "FAIL: render exited non-zero: $out" >&2; tail -5 "$out.log" >&2; exit 1; }
-  grep -q "rendered in" "$out.log" || { echo "FAIL: render did not report completion: $out" >&2; exit 1; }
-  verify "$out"
-  grep "rendered in" "$out.log"
-}
-tools/self_sheets.sh "$DRAFT"
-cp assets/tex/storyboard-sheet.png out/check/storyboard.png
-npx hyperframes lint
-# grain-free master (per-pixel grain made the master 1.2–1.5 GB even at CRF 17; see LESSONS.md)
-render out/final-nograin.mp4 --quality high --fps 30 --workers 4 --variables '{"grain":0}' | tee out/final-render.log
-# audio
-$B sfx lib audio/sfx >/dev/null
-$B sfx place audio/events.json audio/sfx.wav 81.3333 --lib audio/sfx
-uv run -q python tools/mix_stereo.py audio/mix_raw.wav music=audio/music.wav sfx=audio/sfx.wav music_db=0 sfx_db=-2 duck=off lufs=off
-tools/master.sh audio/mix_raw.wav audio/mix.wav
-uv run -q --with librosa python tools/cuecheck_mix.py
-python3 tools/captions_from_type.py
-# mux + encodes
-SRC=out/final-nograin.mp4; AF="[1:a]apad,atrim=0:81.3333333[a]"   # audio padded/trimmed to the exact 2440 frames
-ffmpeg -v error -y -i $SRC -i audio/mix.wav -i audio/captions.zh.srt -i audio/captions.en.srt -filter_complex "$AF" -map 0:v -map "[a]" -map 2 -map 3 -c:v libx264 -preset slow -crf 16 -tune film -pix_fmt yuv420p -profile:v high -c:a aac -b:a 256k -c:s mov_text -metadata:s:s:0 language=chi -metadata:s:s:1 language=eng -movflags +faststart out/final.mp4
-ffmpeg -v error -y -i $SRC -c:v libx264 -preset slow -b:v 1900k -maxrate 3000k -bufsize 6000k -pass 1 -passlogfile out/web2pass -an -f null /dev/null
-ffmpeg -v error -y -i $SRC -i audio/mix.wav -i audio/captions.zh.srt -i audio/captions.en.srt -filter_complex "$AF" -map 0:v -map "[a]" -map 2 -map 3 -c:v libx264 -preset slow -b:v 1900k -maxrate 3000k -bufsize 6000k -pass 2 -passlogfile out/web2pass -pix_fmt yuv420p -c:a aac -b:a 128k -c:s mov_text -metadata:s:s:0 language=chi -metadata:s:s:1 language=eng -movflags +faststart out/final-web.mp4
-# GIF: braam → name → architecture → the 8-type list (21.0–30.6 s)
-ffmpeg -v error -y -ss 21.0 -t 9.6 -i $SRC -vf "fps=10,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" out/preview.gif
-ffmpeg -v error -y -ss 80.9 -i out/final.mp4 -frames:v 1 -update 1 out/poster.png
-rm -f out/sheet.png; $B sheet out/final.mp4 8 0.75 out/sheet.png
+B=../../bin/vh; FRAMES=4515; DUR=150.5; mkdir -p out
+PLATE=blender/out/final2
+n=$(ls "$PLATE"/f_*.png | wc -l | tr -d ' '); [ "$n" -ge 475 ] || { echo "plate has $n frames, need 475" >&2; exit 1; }
+ffmpeg -v error -y -framerate 30 -start_number 0 -i "$PLATE/f_%04d.png" -frames:v 475 \
+  -vf "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv" \
+  -c:v libx264 -crf 12 -preset slow -g 15 -movflags +faststart assets/plate.mp4
+env -u GEMINI_API_KEY node_modules/.bin/hyperframes render . --quality high --workers 3 --variables '{"grain":0}' --output out/final-silent.mp4 > out/render.log 2>&1
+grep -q "rendered in" out/render.log || { tail -5 out/render.log >&2; exit 1; }
+nf=$(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 out/final-silent.mp4)
+[ "$nf" = "$FRAMES" ] || { echo "FAIL: $nf frames, expected $FRAMES" >&2; exit 1; }
+# audio: tools/build_audio.sh builds the mix from source (delete it to rebuild)
+A=audio
+[ -f $A/mix.wav ] || VH=$B O=$A bash tools/build_audio.sh   # music + SFX → mix → qa
+$B qa $A/mix.wav - $A/events.json --lib $A/sfxlib --stems $A/stems --to 149.9 --out out/qa.txt | tail -2
+CT="-color_primaries bt709 -color_trc bt709 -colorspace bt709 -color_range tv"
+AF="[1:a]apad,atrim=0:$DUR[a]"
+ffmpeg -v error -y -i out/final-silent.mp4 -i $A/mix.wav -filter_complex "$AF" -map 0:v -map "[a]" -c:v libx264 -preset slow -crf 16 -tune film -pix_fmt yuv420p $CT -c:a aac -b:a 256k -movflags +faststart out/final-master.mp4
+# repo copy (≤ 50 MB): two-pass 2.5 Mbit/s; the Blender opening (frames 0–474: unbanded star noise) gets 3× the bits of the body
+# through x264 zones (SSIM vs the master 0.82 → 0.88 in 0–16 s, body 0.95 → 0.93, same size)
+Z1="-x264-params zones=0,474,b=3.0" Z2="-x264-params zones=0,474,b=2.5"
+ffmpeg -v error -y -i out/final-silent.mp4 -c:v libx264 -preset slow -b:v 2500k -maxrate 16000k -bufsize 32000k $Z1 -pass 1 -passlogfile out/p2 -pix_fmt yuv420p $CT -an -f null /dev/null
+ffmpeg -v error -y -i out/final-silent.mp4 -i $A/mix.wav -filter_complex "$AF" -map 0:v -map "[a]" -c:v libx264 -preset slow -b:v 2500k -maxrate 16000k -bufsize 32000k $Z1 -pass 2 -passlogfile out/p2 -pix_fmt yuv420p $CT -c:a aac -b:a 160k -movflags +faststart out/final.mp4
+# README clip (GitHub user-attachments: ≤ 10 MB), 1280×720: 430k + 96k over 150.5 s ≈ 9.9 MB
+ffmpeg -v error -y -i out/final-silent.mp4 -vf scale=1280:-2 -c:v libx264 -preset slow -b:v 430k -maxrate 3000k -bufsize 6000k $Z2 -pass 1 -passlogfile out/p3 -pix_fmt yuv420p $CT -an -f null /dev/null
+ffmpeg -v error -y -i out/final-silent.mp4 -i $A/mix.wav -filter_complex "[0:v]scale=1280:-2[v];$AF" -map "[v]" -map "[a]" -c:v libx264 -preset slow -b:v 430k -maxrate 3000k -bufsize 6000k $Z2 -pass 2 -passlogfile out/p3 -pix_fmt yuv420p $CT -c:a aac -b:a 96k -movflags +faststart out/final-720p.mp4
+# preview: the pull-back from one film to the galaxy, the dive, the blast (0.0–9.6 s), 960 px, 15 fps, animated WebP
+# (a GIF of the same span is 18 MB at 720 px: the star fields don't palettise); ffmpeg here has no WebP encoder, Pillow does
+rm -rf out/pv && mkdir -p out/pv && ffmpeg -v error -y -ss 0.0 -t 9.6 -i out/final-silent.mp4 -vf "fps=15,scale=960:-1:flags=lanczos" out/pv/%04d.png
+uv run -q --no-project --with pillow python -c "import glob, sys; from PIL import Image; f = sorted(glob.glob('out/pv/*.png')); im = [Image.open(x).convert('RGB') for x in f]; im[0].save('out/preview.webp', save_all=True, append_images=im[1:], duration=67, loop=0, quality=50, method=4)"
+rm -rf out/pv
+ffmpeg -v error -y -ss 16.2 -i out/final-master.mp4 -frames:v 1 out/poster.png
+rm -f out/sheet.png; $B sheet out/final-master.mp4 8 0.5 out/sheet.png
+uv run -q --no-project --with pillow python -c "from PIL import Image; Image.open('out/sheet.png').convert('RGB').save('out/sheet.jpg', quality=85, optimize=True)"   # the repo keeps the JPEG (the PNG is ~12 MB)
 $B check out/final.mp4
-ffprobe -v error -show_entries stream=codec_type,nb_frames,duration -of compact out/final.mp4
-ls -la out/final.mp4 out/final-web.mp4 out/preview.gif out/poster.png out/sheet.png
+ls -la out/final.mp4 out/final-master.mp4 out/final-720p.mp4 out/preview.webp out/poster.png out/sheet.jpg
