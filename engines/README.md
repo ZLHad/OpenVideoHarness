@@ -143,12 +143,13 @@ uv run manim -qh --fps 30 scene.py MyScene       # 成片：1080p30（-qh 默认
 - 写代码前先读 `references/repos/3brown1blue/src/three_b1b/skill/SKILL.md` 里的 Gotchas。
 - 注意 CE 和 ManimGL 的 API 不能混用，参考 `references/repos/3brown1blue/src/three_b1b/skill/rules/manimgl-differences.md`。
 
-## Blender，未安装，按需使用（实验性）
+## Blender，按需使用（部分验证）
 
-完整指南：[`blender.md`](blender.md)。**实验性：维护者的 Mac 没有装 Blender，指南没有验证过；渲染时间先渲 5 帧校准。**
+完整指南：[`blender.md`](blender.md)。**部分验证：维护者的 Mac 装了 Blender 5.2.2，风格样片 `tabletop-miniature` 用它渲染（`styles/_swatch/README.md` 的"Blender 场景"）；指南里项目用的两段式命令有几条还没跑过。渲染时间先渲 3–5 帧校准。**
 
 - 安装：`brew install --cask blender`，也可以从官网下载。指南钉在 5.2 LTS（5.0 起只支持 Apple Silicon，Python API 有破坏性改动）。
 - 渲染用脚本方式，保证结果可复现，分两段：`blender -b --factory-startup --python build.py -- …` 生成 `scene.blend`，再 `blender -b scene.blend … -a` 渲 PNG 序列。同时固定随机种子，并烘焙好模拟缓存。
+- 能跑的样板：`styles/_swatch/blender_render.py`（逐帧 `apply(t)` 再渲，正式版走 CPU 求逐像素相同）、`blender_prep.py`（渲染前的静态检查和字体解析）和 `render.sh` 里的 `bl_run`（`env -i` 加 `sandbox-exec`）。调用 bpy 的文件按 GPL-3.0-or-later 分发（见指南的"许可证"）。
 - 官方的 MCP server 和社区的 `ahujasid/mcp-for-blender` 都会直接执行 LLM 生成的 Python，没有任何防护。**默认不用**：要用先问用户，放在虚拟机或单独的 macOS 用户下；没有沙箱，就不要让 LLM 生成的 bpy 代码经过它们执行。管线里跑 agent 写的脚本，加静态检查、`sandbox-exec` 和 `env -i`（见指南的"安全"一节）。
 
 ## 生成式视频（fal 等），按需使用

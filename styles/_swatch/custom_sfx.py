@@ -45,4 +45,53 @@ def glitch_cut(path, seed, hops):
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((np.clip(x, -1, 1) * 32767).astype("<i2").tobytes())
 glitch_cut("styles/brutalist-meme/sfx/glitch_cut.wav", 23, [80, 160, 640, 1280])
 glitch_cut("styles/brutalist-meme/sfx/glitch_cut_b.wav", 31, [120, 240, 960, 1920])
+# tabletop-miniature: small, close, physical sounds for a desk at 2 cm scale
+def modes(n, freqs, decays, amps, rng=None, jitter=0.0):
+    """a struck object: decaying sines (wood, plastic, metal), each mode a little detuned by the seed"""
+    t = np.arange(n) / SR; x = np.zeros(n)
+    for f, d, a in zip(freqs, decays, amps):
+        f = f * (1 + (rng.uniform(-jitter, jitter) if rng is not None else 0)); x += a * np.sin(2 * np.pi * f * t) * np.exp(-t / d)
+    return x
+def burst(n, lo, hi, dec, rng, rise=0.0005):
+    t = np.arange(n) / SR; return band(rng.standard_normal(n), lo, hi) * np.exp(-t / dec) * np.minimum(1, t / rise)
+def place(x, y, at):
+    i = int(at * SR); x[i:i + len(y)] += y[:len(x) - i]; return x
+def mixed(*parts):
+    """the parts summed from 0, padded to the longest"""
+    x = np.zeros(max(len(a) for a in parts))
+    for a in parts: x[:len(a)] += a
+    return x
+def lamp_switch(path, seed, first, second, gap):
+    """a desk-lamp push switch: the press (plastic) and, gap s later, the latch (a sharper click with a spring ring)"""
+    r = np.random.default_rng(seed); n = int(0.2 * SR); x = np.zeros(n)
+    place(x, burst(int(0.03 * SR), *first, 0.004, r) * 0.7 + modes(int(0.03 * SR), [first[0] * 0.9], [0.006], [0.3]), 0.0)
+    place(x, mixed(burst(int(0.05 * SR), *second, 0.003, r), modes(int(0.08 * SR), [4100, 6300], [0.022, 0.012], [0.22, 0.1], r, 0.03),
+                   modes(int(0.04 * SR), [180], [0.012], [0.35])), gap)
+    write(path, x)
+lamp_switch("styles/tabletop-miniature/sfx/lamp_on.wav", 41, (1200, 3200), (2500, 7000), 0.028)
+lamp_switch("styles/tabletop-miniature/sfx/lamp_off.wav", 43, (1000, 2600), (2000, 5600), 0.034)
+# the felt puck landing on a wooden block: a soft felt impulse into a block's few wood modes and a low body thump;
+# three takes (a, b, c), the blocks step up in pitch as they step up in height
+for name, seed, k in [("a", 51, 1.0), ("b", 52, 1.12), ("c", 53, 1.26)]:
+    r = np.random.default_rng(seed); n = int(0.16 * SR)
+    felt = burst(n, 200, 1600, 0.006, r, rise=0.0015) * 0.5
+    wood = modes(n, [820 * k, 1930 * k, 3150 * k], [0.032, 0.018, 0.010], [0.5, 0.28, 0.12], r, 0.02)
+    thump = modes(n, [150 * k], [0.03], [0.8]) * np.minimum(1, np.arange(n) / SR / 0.003)
+    write(f"styles/tabletop-miniature/sfx/felt_land_{name}.wav", felt + wood + thump)
+# the title card reaching the end of its threads: a dry jolt of card and a short fibre creak
+r = np.random.default_rng(61); n = int(0.18 * SR); x = np.zeros(n)
+place(x, mixed(burst(int(0.03 * SR), 900, 4200, 0.005, r), modes(int(0.05 * SR), [110], [0.02], [0.6])), 0.0)
+cr = burst(int(0.09 * SR), 700, 2400, 0.04, r, rise=0.01) * (1 + 0.6 * np.sin(2 * np.pi * 95 * np.arange(int(0.09 * SR)) / SR))
+place(x, cr * 0.35, 0.02)
+write("styles/tabletop-miniature/sfx/thread_tug.wav", x)
+# one morning bird outside the window: two rising chirps with a quick trill
+def chirp(n, f0, f1, vib, rng):
+    t = np.arange(n) / SR; f = f0 + (f1 - f0) * (t / t[-1]) ** 0.7 + 180 * np.sin(2 * np.pi * vib * t)
+    ph = 2 * np.pi * np.cumsum(f) / SR; env = np.sin(np.pi * t / t[-1]) ** 1.5
+    return (np.sin(ph) + 0.18 * np.sin(2 * ph)) * env
+r = np.random.default_rng(71); x = np.zeros(int(0.42 * SR))
+place(x, chirp(int(0.07 * SR), 3200, 4500, 38, r), 0.0)
+place(x, chirp(int(0.06 * SR), 3600, 4900, 42, r) * 0.85, 0.11)
+place(x, chirp(int(0.12 * SR), 4200, 3900, 55, r) * 0.6, 0.22)
+write("styles/tabletop-miniature/sfx/bird.wav", x)
 print("ok")

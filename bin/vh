@@ -379,7 +379,10 @@ cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image
   uv run -q --no-project --with pillow --with numpy --with scipy python "$ROOT/tools/cover_preview.py" "$@"; }
 cmd_review() { python3 "$ROOT/tools/review.py" "$@"; }
 
-swatch_deps() { # the swatch renderer's pinned HyperFrames (render.sh and determinism.sh do not install it themselves)
+swatch_deps() { # the swatch renderer's pinned HyperFrames (render.sh and determinism.sh do not install it themselves);
+  # $1 = the slug or scene folder: a Blender scene (swatch.py and no swatch.js) does not need it
+  local d="$ROOT/styles/${1:-}"; case "${1:-}" in */*) d=$1 ;; esac
+  [ -f "$d/swatch.py" ] && [ ! -f "$d/swatch.js" ] && return 0
   [ -x "$ROOT/styles/_swatch/node_modules/.bin/hyperframes" ] || (cd "$ROOT/styles/_swatch" && npm ci --silent)
 }
 cmd_style() { # style library: styles/<preset>/{STYLE.md,tokens.json,swatch.js,media/}; renderer in styles/_swatch
@@ -396,7 +399,7 @@ for d in sorted(pathlib.Path(sys.argv[1]).iterdir()):
 PY
       ;;
     gallery) shift; uv run -q --no-project --with pillow python "$sw/gallery.py" "$@" ;;
-    check) shift; swatch_deps; "$sw/determinism.sh" "$@" ;;
+    check) shift; swatch_deps "${1:-}"; "$sw/determinism.sh" "$@" ;;
     compare) shift; [ $# -gt 0 ] || { echo "usage: bin/vh style compare a,b,c [--frame t] [--out file.png]"; exit 1; }
       uv run -q --no-project --with pillow python "$ROOT/tools/style_compare.py" "$@" ;;
     apply) shift; [ $# -eq 2 ] || { echo "usage: bin/vh style apply <preset> <project>   (bin/vh style list shows the presets)"; exit 1; }
@@ -405,7 +408,7 @@ PY
       [ -f "$dir/BRIEF.md" ] && [ -f "$dir/STYLE.md" ] || { echo "$(rel "$dir") has no BRIEF.md and STYLE.md: not a bin/vh project"; exit 1; }
       attach_style "$dir" "$1"
       echo "$c_ok styles/$1 attached to $(rel "$dir") (STYLE_PRESET.md, style.tokens.json, its prompt block in BRIEF.md)" ;;
-    *) swatch_deps; exec "$sw/render.sh" "$@" ;;
+    *) swatch_deps "$1"; exec "$sw/render.sh" "$@" ;;
   esac
 }
 

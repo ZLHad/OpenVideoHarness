@@ -63,11 +63,29 @@ AWK
   if [ -n "$out" ]; then echo "$out"; bad "non-portable shell commands (use a helper that works with both BSD and GNU tools)"
   else ok "no BSD-only / GNU-only shell commands"; fi
   # python: compile everything, then pyflakes when available
-  n=0; while IFS= read -r f; do python3 -m py_compile "$f" 2>/dev/null || { bad "py_compile $f"; n=$((n + 1)); }; done < <(files 'tools/*.py' 'styles/_swatch/*.py')
+  n=0; while IFS= read -r f; do python3 -m py_compile "$f" 2>/dev/null || { bad "py_compile $f"; n=$((n + 1)); }; done < <(files 'tools/*.py' 'styles/_swatch/*.py' 'styles/*/swatch.py')
   [ $n = 0 ] && ok "python syntax"
   if python3 -m pyflakes --version >/dev/null 2>&1; then
-    if out=$(files 'tools/*.py' 'styles/_swatch/*.py' | xargs python3 -m pyflakes 2>&1); then ok "pyflakes"; else echo "$out"; bad "pyflakes"; fi
+    if out=$(files 'tools/*.py' 'styles/_swatch/*.py' 'styles/*/swatch.py' | xargs python3 -m pyflakes 2>&1); then ok "pyflakes"; else echo "$out"; bad "pyflakes"; fi
   else skip "pyflakes" "pip install pyflakes"; fi
+  # Blender style scenes: the static check render.sh runs before Blender (no os, subprocess, open, random, handlers …),
+  # and the GPL header every file that imports bpy carries (engines/blender.md, "许可证")
+  n=0; while IFS= read -r f; do
+    python3 styles/_swatch/blender_prep.py scan "$f" || { bad "blender_prep.py scan $f"; n=$((n + 1)); }
+  done < <(files 'styles/*/swatch.py')
+  out=$(files '*.py' | python3 -c '
+import ast, sys
+BLENDER = {"bpy", "bmesh", "mathutils", "bpy_extras", "gpu", "gpu_extras", "freestyle", "bl_math", "idprop", "aud", "imbuf", "blf", "bgl"}
+for f in sys.stdin.read().splitlines():
+    src = open(f, encoding="utf-8").read()
+    try: tree = ast.parse(src, f)
+    except SyntaxError: continue
+    mods = {a.name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
+    mods |= {(n.module or "").split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)}
+    if mods & BLENDER and "SPDX-License-Identifier: GPL-3.0-or-later" not in "".join(src.splitlines(True)[:3]): print(f)
+')
+  [ -z "$out" ] || { echo "$out" | sed 's/$/: imports a Blender module but has no GPL-3.0-or-later SPDX header in its first 3 lines/'; n=$((n + 1)); bad "GPL header on Blender scripts"; }
+  [ $n = 0 ] && ok "Blender scenes: static check and GPL headers"
   # js: node --check detects ES modules by syntax (node ≥ 22)
   n=0; while IFS= read -r f; do node --check "$f" 2>/dev/null || { node --check "$f"; bad "node --check $f"; n=$((n + 1)); }; done < <(files '*.js' '*.mjs')
   [ $n = 0 ] && ok "js syntax"
