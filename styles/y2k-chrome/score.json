@@ -1,0 +1,35 @@
+{
+  "bpm": 150, "key": "A", "mode": "major", "seed": 2000, "meters": {"1": 2, "2": 3, "3": 3, "4": 2, "5": 3},
+  "stereo": true, "space": "plate",
+  "sections": [
+    {"name": "slam", "bars": 1, "chords": ["I"]},
+    {"name": "title", "bars": 1, "chords": ["V"]},
+    {"name": "levels", "bars": 1, "chords": ["vi"]},
+    {"name": "select", "bars": 1, "chords": ["IV"], "riser": {"gain_db": -18}},
+    {"name": "wipe", "bars": 1, "chords": ["I"]}
+  ],
+  "parts": [
+    {"inst": "edm_kick", "id": "kick", "pattern": "x...", "gain_db": -1, "hit": true,
+      "by_section": {"slam": {"pattern": "X...x..."}, "select": {"pattern": "X...", "gain_db": 3}, "wipe": {"pattern": "X...x...x..."}}},
+    {"inst": "clap", "id": "clap", "pattern": "....X.......", "gain_db": -5, "pan": 0.05, "send": 0.15,
+      "by_section": {"slam": {"pattern": "....X..."}, "levels": {"pattern": "X.......X..."}, "select": {"pattern": "....X.x."}}},
+    {"inst": "hihat", "id": "hats", "sections": ["title", "levels", "select", "wipe"], "pattern": "g.o.", "gain_db": -10, "pan": -0.3},
+    {"inst": "sub808", "id": "sub", "sections": ["slam", "wipe"], "pattern": [[0, 1.6, "c0", 1.0]], "octave": 1, "params": {"drive": 1.1, "decay": 0.9, "retrigger": true}, "gain_db": -6,
+      "by_section": {"wipe": {"pattern": [[0, 2.4, "c0", 0.9]]}}},
+    {"inst": "sq_bass", "id": "bass", "sections": ["title", "levels", "select", "wipe"], "octave": 2, "gain_db": -3, "params": {"cutoff": 320, "env": 0.06},
+      "pattern": [[0.5, 0.35, "c0"], [1.5, 0.35, "c0'"], [2.5, 0.35, "c0"]]},
+    {"inst": "organ", "id": "organ", "figure": "stab", "pattern": "X..x..x...x.", "voicing": "spread", "octave": 4, "gain_db": -6, "send": 0.2, "pan": 0.2, "hit": "section",
+      "by_section": {"slam": {"pattern": "X~~....."}, "select": {"pattern": "X..x..x."}, "wipe": {"pattern": "X..x..x...X."}}},
+    {"inst": "pulse", "id": "coin", "sections": ["levels", "select"], "params": {"duty": 0.25, "decay": 0.25, "sus": 0.3}, "gain_db": -9, "pan": -0.35, "hit": true,
+      "by_section": {"levels": {"pattern": [[2, 0.2, "B5", 0.9]]}, "select": {"pattern": [[0, 0.2, "C#6", 0.9], [1, 0.2, "E6", 0.9]]}}},
+    {"inst": "pulse", "id": "coin2", "sections": ["levels", "select"], "params": {"duty": 0.25, "decay": 0.25, "sus": 0.3}, "gain_db": -9, "pan": -0.35,
+      "by_section": {"levels": {"pattern": [[2.2, 0.7, "E6", 0.9]]}, "select": {"pattern": [[0.2, 0.7, "F#6", 0.9], [1.2, 0.75, "A6", 0.9]]}}},
+    {"inst": "metal", "id": "anvil", "sections": ["slam", "wipe"], "pattern": "X.......", "gain_db": -6, "pan": 0, "send": 0.2, "hit": true},
+    {"inst": "glockenspiel", "id": "glock", "sections": ["slam", "wipe"], "gain_db": -10, "pan": 0.4, "send": 0.3,
+      "by_section": {
+        "slam": {"pattern": [[0, 1, "A6", 0.7], [1, 1, "E7", 0.6]]},
+        "wipe": {"pattern": [[1, 0.25, "A6", 0.6], [1.25, 0.25, "C#7", 0.6], [1.5, 0.5, "E7", 0.7], [2, 1, "A7", 0.6]]}
+      }},
+    {"inst": "strings", "id": "bed", "figure": "sustain", "octave": 3, "gain_db": -14, "send": 0.25}
+  ]
+}

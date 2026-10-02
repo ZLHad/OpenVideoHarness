@@ -1,0 +1,18 @@
+[
+  {"t":0.1,"sfx":"air","gain_db":-8,"pan":0,"dur":0.5,"dir":"up","bright":0.35},
+  {"t":0.15,"sfx":"typing","gain_db":0,"pan":-0.22,"dur":0.6},
+  {"t":0.8,"sfx":"click","gain_db":-8,"pan":0.45},
+  {"t":0.82,"sfx":"swoosh_tonal","gain_db":-7,"pan":0.3,"dur":0.38,"dir":"up","bright":0.3,"pan_from":0.45,"pan_to":0},
+  {"t":1,"sfx":"pop","gain_db":-5,"pan":0,"pitch":3},
+  {"t":1.46,"sfx":"tick","gain_db":-2,"pan":0.05},
+  {"t":2.06,"sfx":"pop","gain_db":-4,"pan":-0.43},
+  {"t":2.18,"sfx":"pop","gain_db":-4,"pan":0},
+  {"t":2.3,"sfx":"pop","gain_db":-1,"pan":0.43},
+  {"t":2.4,"sfx":"toggle","gain_db":-4,"pan":-0.43},
+  {"t":2.8,"sfx":"toggle","gain_db":-6,"pan":0},
+  {"t":3.2,"sfx":"toggle","gain_db":-6,"pan":0.43},
+  {"t":3.3,"sfx":"tick","gain_db":-3,"pan":0.34},
+  {"t":4,"sfx":"whoosh","gain_db":-9,"pan":0.2,"dur":0.5,"dir":"up","bright":0.4,"tone":0.2,"pan_from":0.45,"pan_to":0},
+  {"t":4.5,"sfx":"pop","gain_db":-5,"pan":0.48,"pitch":-2},
+  {"t":4.6,"sfx":"shimmer","gain_db":-10,"pan":0,"dur":0.8,"pitch":-7}
+]
