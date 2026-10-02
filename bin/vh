@@ -442,12 +442,15 @@ PY
       [ -f "$dir/BRIEF.md" ] && [ -f "$dir/STYLE.md" ] || { echo "$(rel "$dir") has no BRIEF.md and STYLE.md: not a bin/vh project"; exit 1; }
       for s in $styles; do attach_style "$dir" "$s"
         echo "$c_ok styles/$s attached to $(rel "$dir") as a reference (style-refs/$s/, BRIEF Style refs, a DECISIONS line to fill in)"; done ;;
+    -h|--help) echo "usage: bin/vh style list | <preset> [--draft] | gallery [--mp4] | check <preset> | compare a,b,c [--frame t] | apply <preset[,preset]> <project>"
+      echo "       render options: styles/_swatch/render.sh -h" ;;
     *) swatch_deps "$1"; exec "$sw/render.sh" "$@" ;;
   esac
 }
 
 cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/skills) unless HYPERFRAMES_SKIP_SKILLS=1
-  local dir=${1:?usage: bin/vh hf-init <project-dir> [resolution]} res=${2:-landscape} tmp f b font=
+  local u="usage: bin/vh hf-init <project-dir> [landscape|portrait|square]"; asks_help "${1:-}" && { echo "$u"; return; }
+  local dir=${1:?$u} res=${2:-landscape} tmp f b font=
   [ -d "$dir" ] || { echo "no such project: $dir"; return 1; }
   [ -f "$dir/hyperframes.json" ] && { echo "$c_ok HyperFrames already initialised in ${dir#$ROOT/}"; return 0; }
   echo "→ scaffolding HyperFrames ${HYPERFRAMES_VERSION:-0.8.82} ($res) — pinned, no global skills, telemetry off"
@@ -495,12 +498,14 @@ PY
   grep -lE 'https?://(cdn\.|unpkg\.com|cdnjs\.)' "$dir"/*.html 2>/dev/null | sed "s#^#$c_wa still loads from a CDN (vendor it before rendering): #" || true
   echo "$c_ok HyperFrames scaffolded into ${dir#$ROOT/} (index.html, hyperframes.json …). Always prefix npx hyperframes with HYPERFRAMES_SKIP_SKILLS=1."
 }
+asks_help() { case "${1:-}" in -h|--help) return 0 ;; *) return 1 ;; esac; }   # `bin/vh <command> -h` prints the usage, not runs the tool on a file called -h
 project_of() { # nearest ancestor of $1 that contains BRIEF.md (a project), else empty
   local d; d=$(cd "$(dirname "$1")" && pwd)
   while [ "$d" != "/" ]; do [ -f "$d/BRIEF.md" ] && { echo "$d"; return; }; d=$(dirname "$d"); done
 }
 cmd_sheet() {
-  local v=${1:?usage: bin/vh sheet <video> [cols] [fps] [out]} cols=${2:-6} fps=${3:-1} name base why="install uv"; name=$(basename "$v"); name=${name%.*}
+  local u="usage: bin/vh sheet <video> [cols] [fps] [out]"; asks_help "${1:-}" && { echo "$u"; return; }
+  local v=${1:?$u} cols=${2:-6} fps=${3:-1} name base why="install uv"; name=$(basename "$v"); name=${name%.*}
   base=$(project_of "$v"); [ -n "$base" ] || base="$(cd "$(dirname "$v")" && pwd)"
   local out=${4:-"$base/out/check/${name}-sheet-$(date +%H%M%S).png"}; mkdir -p "$(dirname "$out")"
   if command -v uv >/dev/null 2>&1; then   # timestamped tiles (ffmpeg builds often lack drawtext)
@@ -513,7 +518,8 @@ cmd_sheet() {
   echo "$out (no timestamps: $why)"
 }
 cmd_check() {
-  local v=${1:?usage: bin/vh check <video>}
+  local u="usage: bin/vh check <video>"; asks_help "${1:-}" && { echo "$u"; return; }
+  local v=${1:?$u}
   ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,r_frame_rate -of compact "$v"
   local hits; hits=$(ffmpeg -i "$v" -vf "blackdetect=d=0.3,freezedetect=d=3" -af silencedetect=d=3 -f null - 2>&1 | grep -E "black_|freeze_|silence_" | sed 's/.*\] //' || true)
   if [ -z "$hits" ]; then echo "$c_ok no black/freeze/silence segments over threshold"
@@ -569,7 +575,7 @@ cmd_mix() { # a mix profile computes in numpy/scipy (through uv); the default ch
 cmd_qa() { uv run -q --no-project --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
 cmd_mux() { # output length = video length (audio padded, or trimmed with a 40 ms fade-out); extra .srt args become soft subtitle tracks;
             # moov first (faststart), so a browser starts playing before the whole file has loaded
-  local u="usage: bin/vh mux <video> <audio> <out> [--subs-off] [subs.srt…]"
+  local u="usage: bin/vh mux <video> <audio> <out> [--subs-off] [subs.srt…]"; asks_help "${1:-}" && { echo "$u"; return; }
   local v=${1:?$u} a=${2:?$u} out=${3:?$u}; shift 3
   local off="" subs=() f
   for f in "$@"; do case "$f" in --subs-off) off=1 ;; -*) echo "bin/vh mux: unknown option $f ($u)" >&2; return 1 ;; *) subs+=("$f") ;; esac; done
@@ -611,7 +617,8 @@ PY
   echo "$c_ok $out${1:+ (+$s subtitle track(s)${off:+, off by default})}"
 }
 cmd_gif() {
-  local v=${1:?usage: bin/vh gif <video> [width] [fps]} w=${2:-640} fps=${3:-15} b out; b=${v##*/}; out="${v%"$b"}${b%.*}.gif"   # extension off the file name, not a dotted folder
+  local u="usage: bin/vh gif <video> [width] [fps]"; asks_help "${1:-}" && { echo "$u"; return; }
+  local v=${1:?$u} w=${2:-640} fps=${3:-15} b out; b=${v##*/}; out="${v%"$b"}${b%.*}.gif"   # extension off the file name, not a dotted folder
   ffmpeg -v error -y -i "$v" -vf "fps=$fps,scale=$w:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" "$out" && ls -lh "$out" | awk '{print $5, $9}'
 }
 

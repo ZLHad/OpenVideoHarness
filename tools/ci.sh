@@ -128,13 +128,20 @@ PY
 
 vh() { "$VH_BASH" "$ROOT/bin/vh" "$@"; }
 smoke_checks() {
-  local slug="ci-smoke-$$" dir t rc langs a
+  local slug="ci-smoke-$$" dir t rc langs a h o
   vh help >/dev/null && vh --help >/dev/null && ok "bin/vh help exits 0" || bad "bin/vh help"
   vh no-such-command >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "unknown command exits 1" || bad "unknown command exited $rc"
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")   # a throwaway HOME: an old bin/vh would install the skill for a bad target
   HOME="$t" vh install-skill no-such-target >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "install-skill rejects unknown targets" || bad "install-skill bad target exited $rc"
   rm -rf "$t"
   vh types >/dev/null && vh effort quick >/dev/null && vh style list >/dev/null && ok "types · effort · style list" || bad "types / effort / style list"
+  # -h prints the command's own usage and exits 0 (these used to take -h as a video, project or preset name)
+  rc=0; for a in sheet check gif hf-init mux style; do
+    for h in -h --help; do
+      o=$(vh "$a" "$h" 2>&1) && case "$o" in "usage: bin/vh $a "*) continue ;; esac
+      bad "bin/vh $a $h: '$(printf '%s' "$o" | head -1)'"; rc=1
+    done
+  done; [ $rc = 0 ] && ok "sheet · check · gif · hf-init · mux · style -h print their usage"
   # a project: effort and style are written in, and the quick gate waiver is recorded
   dir=$(ls -d "$ROOT"/projects/*-"$slug" 2>/dev/null); [ -z "$dir" ] || rm -rf "$dir"
   if vh new math "$slug" --effort quick --style dark-math >/dev/null; then
