@@ -10,16 +10,16 @@
 
 ## 怎么用
 
-1. **在关卡 ① 借用**。风格从立意里推出来（`playbook/12-ideation.md`）；立意卡的"画面"一行可以借这里的一个预设，附上样片（`<slug>/media/swatch.mp4`）。人想多看几种时，从这里挑 2–3 个彼此拉得开的，让人选或混搭。不要默认只给一种口味。
-2. **建项目时带上预设**：
+1. **在关卡 ① 借用**。风格从立意里推出来（`playbook/12-ideation.md`）；立意卡的"画面"一行可以参考这里的预设（一个或几个），附上样片（`<slug>/media/swatch.mp4`）。人想多看几种时，从这里挑 2–3 个彼此拉得开的，让人选或混搭。不要默认只给一种口味。
+2. **建项目时挂上参考**：
 
    ```bash
    bin/vh style list                                  # 31 个风格、家族、有没有样片
-   bin/vh new promo launch-film --style cutout-jazz   # 项目里多出 STYLE_PRESET.md 和 style.tokens.json，BRIEF 末尾追加预设的 prompt 块
+   bin/vh new promo launch-film --style cutout-jazz   # 副本放进项目的 style-refs/，BRIEF 的 Style refs 记上它；可以 --style a,b 挂几个
    ```
-3. **在项目的 `STYLE.md` 里只写改动**。预设是起点，不是牢笼：换一个强调色、改转场节奏都可以，写清楚改了什么、为什么改。
-4. **混搭的规矩**：一个主风格，最多再借一样东西，例如借另一个风格的转场或字体；不要同时叠两种质感（半调加水墨、扫描线加纸纹）。
-5. **自查**：先按预设 STYLE.md 的"自查重点"，再按 `templates/TASTE_CHECKLIST.md`。
+3. **预设是参考，不是模板**。项目的 `STYLE.md` 从立意写起；从预设里借了什么（色板、字体、转场、声音、质感），在 `DECISIONS.md` 记一行，和它不一样不用解释。预设里的数字是样片的值，换场景就按理由重新定。
+4. **可以混搭**：从几个预设里各借一样，例如这个的色板、那个的转场。叠两种质感（半调加水墨、扫描线加纸纹）很容易糊，真要叠，先渲一小段看。
+5. **自查**：按 `templates/TASTE_CHECKLIST.md`；借来的那部分，可以顺手看一眼原预设的"自查重点"。
 
 ## 31 个风格
 
