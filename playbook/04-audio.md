@@ -350,7 +350,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
   | 风格（`styles/` 里的例子） | 转场 |
   |---|---|
-  | 发布片、keynote、UI、机械（product-keynote、fui-hud、clockwork-map） | swoosh_tonal，短而亮的 whoosh |
+  | 发布片、keynote、UI、机械（product-keynote、fui-hud、clockwork-map、pastel-ui 的发送和甩出、y2k-chrome 的铬管） | swoosh_tonal，短而亮的 whoosh |
   | 科幻、宏大（monumental-scifi；dunhuang-mural 的飞天用柔和的一种） | swoosh_tonal（tone 高一点），长而低的 whoosh |
   | 卡通、扁平、漫画、快摇（bouncy-flat-2d、halftone-comic、pixel-16bit、neon-step-print、swiss-grid-type，symmetry-pastel 的甩镜） | whip，配 pop |
   | 数据、讲解、纪录、留白多的（editorial-data、bubble-chart-story、archival-pan-zoom、ink-wash；dark-math 干脆不加） | air，轻的 whoosh |
