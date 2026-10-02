@@ -2,6 +2,8 @@
 
 *记录于 2026-10-02 · 状态：立意先行的流程已合并（[#44](https://github.com/ZLHad/OpenVideoHarness/pull/44)、[#45](https://github.com/ZLHad/OpenVideoHarness/pull/45)），这篇笔记带来的几处修改在本笔记的 PR 里；四支片子、两个项目和评审记录是作者本地的文件，没有入库 · [English](en/06-concept-first-ab.md)*
 
+> **现状（2026-10-02）**：笔记"局限"最后留下的字号问题，后来按"在哪看"分了档（[#47](https://github.com/ZLHad/OpenVideoHarness/pull/47)）：BRIEF 多了 `Watch on`，`phone`、`desktop`、`feed` 三档下限不同，可读性检查也按目标屏缩。本实验的评审是按手机信息流（360 px 宽）看两支横屏片的；按 `desktop` 档，44 px 的标签是够的，按 `feed` 档要 80 px。
+
 ## 问题
 
 [#44](https://github.com/ZLHad/OpenVideoHarness/pull/44) 把流程改成"先想立意，再定风格"，把审美规则分成底线和可以被立意改写的默认口味。起因是维护者担心流程把 Opus 5.5 这类模型管得太死（`cases/oneshot-five.md`）。改完以后有两个问题没人量过：

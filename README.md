@@ -188,7 +188,7 @@ Not every film deserves the full treatment. One switch controls how much effort 
 |---|---|---|---|
 | For | trying a direction, drafts, casual posts | most real videos | launch films, flagship pieces |
 | Stops to ask you | never; it just renders | at the outline, storyboard and first draft | the same three, plus a rendered sketch of each concept and a full-length animatic |
-| Checks its own work | one contact sheet for the whole film | frames and sound, section by section | plus phone size, determinism and a full audio check |
+| Checks its own work | one contact sheet for the whole film | frames and sound, section by section | plus target-screen size, determinism and a full audio check |
 | Outside reviewer | none | 1 round | at least 3 rounds, all 8 scores at 8+ |
 | A 30 s film takes about | 10–30 min | 1–2 h | 3 h or more |
 
@@ -196,7 +196,7 @@ Just say "quick draft" or "make it studio quality" in your request, or start the
 
 ### You choose what you decide
 
-Effort sets how hard the agent checks its own work; director mode sets what you decide yourself. Each of eleven decisions (concept, outline, script, style, hook, main character, theme music, storyboard, edit rhythm, voice, title and cover) can be yours to **own** (it shows you options and waits), yours to **review** (it shows you the result and carries on unless you object), or **delegated** (it decides and writes down why in `DECISIONS.md`). Every stop is, by default, a local page from `bin/vh review`: at most three decisions on the first screen, each with a recommendation and a one-line reply, then pictures, the animatic and music you can play in the browser. `standard` and `studio` still stop at the concept and outline, storyboard and first draft.
+Effort sets how hard the agent checks its own work; director mode sets what you decide yourself. Each of twelve decisions (concept, spec, outline, script, style, hook, main character, theme music, storyboard, edit rhythm, voice, title and cover) can be yours to **own** (it shows you options and waits), yours to **review** (it shows you the result and carries on unless you object), or **delegated** (it decides and writes down why in `DECISIONS.md`). Every stop is, by default, a local page from `bin/vh review`: at most three decisions on the first screen, each with a recommendation and a one-line reply, then pictures, the animatic and music you can play in the browser. `standard` and `studio` still stop at the concept and outline, storyboard and first draft.
 
 > **Deep involvement:** a 90 s explainer on how satellites avoid collisions, studio quality. I'll pick the hook, the main character, the theme melody, and the title and cover; decide the rest yourself.
 
