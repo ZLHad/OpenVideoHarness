@@ -28,11 +28,11 @@ ffmpeg -v error -y -i out/final-silent.mp4 -i $A/mix.wav -filter_complex "$AF" -
 Z1="-x264-params zones=0,474,b=3.0"
 ffmpeg -v error -y -i out/final-silent.mp4 -c:v libx264 -preset slow -b:v 2500k -maxrate 16000k -bufsize 32000k $Z1 -pass 1 -passlogfile out/p2 -pix_fmt yuv420p $CT -an -f null /dev/null
 ffmpeg -v error -y -i out/final-silent.mp4 -i $A/mix.wav -filter_complex "$AF" -map 0:v -map "[a]" -c:v libx264 -preset slow -b:v 2500k -maxrate 16000k -bufsize 32000k $Z1 -pass 2 -passlogfile out/p2 -pix_fmt yuv420p $CT -c:a aac -b:a 160k -movflags +faststart out/final.mp4
-# README players (GitHub user-attachments: ≤ 10 MB per video): eight 1080p chapters cut at the section changes,
-# each with the small corner mark (tools/watermark.sh); upload them by hand and put the links in the READMEs
-bash tools/chapters.sh . out/chapters
 ffmpeg -v error -y -ss 16.2 -i out/final-master.mp4 -frames:v 1 out/poster.png
 rm -f out/sheet.png; $B sheet out/final-master.mp4 8 0.5 out/sheet.png
 uv run -q --no-project --with pillow python -c "from PIL import Image; Image.open('out/sheet.png').convert('RGB').save('out/sheet.jpg', quality=85, optimize=True)"   # the repo keeps the JPEG (the PNG is ~12 MB)
 $B check out/final.mp4
+# README players (GitHub user-attachments: ≤ 10 MB per video): eight 1080p chapters cut at the section changes,
+# each with the small corner mark (tools/watermark.sh; SF Mono on macOS, FONT=<a .ttf> elsewhere); upload them by hand and put the links in the READMEs
+bash tools/chapters.sh . out/chapters
 ls -la out/final.mp4 out/final-master.mp4 out/poster.png out/sheet.jpg out/chapters/
