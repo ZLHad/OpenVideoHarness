@@ -135,15 +135,32 @@ smoke_checks() {
   HOME="$t" vh install-skill no-such-target >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "install-skill rejects unknown targets" || bad "install-skill bad target exited $rc"
   rm -rf "$t"
   vh types >/dev/null && vh effort quick >/dev/null && vh style list >/dev/null && ok "types · effort · style list" || bad "types / effort / style list"
-  # -h prints the command's usage from the help header and exits 0, without running it (setup -h used to install everything,
-  # sync-agents -h rewrote AGENTS.md, and others took -h as a video, project or preset name); the ones with a help of their own keep it
-  rc=0; for a in doctor setup install-skill sync-agents types effort new style "style check" hf-init tts music sfx beats qa mux sheet check gif; do
+  # -h prints a usage and exits 0 without running the command (setup -h used to install everything, sync-agents -h rewrote
+  # AGENTS.md, and others took -h as a video, project or preset name). Every dispatched command without a help of its own
+  # is tried, on a copy of bin/vh whose ROOT has only tools/: if the check ever broke, setup would stop at its first cd
+  local cmds n
+  cmds=$(python3 - <<'PY'
+import re, sys
+src = open("bin/vh", encoding="utf-8").read()
+block = src[src.index('case "${1:-help}" in'):]
+block = block[:block.index("\nesac")]
+cmds = {c for pat in re.findall(r"(?:^|;;)\s*([a-z|-]+)\)", block, re.M) for c in pat.split("|") if c and not c.startswith("-")} - {"help"}
+own = set(re.search(r'case "\$1" in ([a-z|-]+)\) ;;   # these print their own', src).group(1).split("|"))
+if own - cmds: sys.exit(f"own-help list names commands bin/vh does not dispatch: {sorted(own - cmds)}")
+print(" ".join(sorted(cmds - own)))
+PY
+) || bad "bin/vh's own-help list"
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); mkdir "$t/bin"; cp bin/vh "$t/bin/vh"; ln -s "$ROOT/tools" "$t/tools"
+  rc=0; for a in $cmds "style check"; do
     for h in -h --help; do
       # shellcheck disable=SC2086   # "style check" is two words on purpose
-      o=$(vh $a "$h" 2>&1) && case "$o" in "usage: bin/vh $a "*) continue ;; esac
+      o=$(HOME="$t" "$VH_BASH" "$t/bin/vh" $a "$h" 2>&1) && case "$o" in "usage: bin/vh $a "*) continue ;; esac
       bad "bin/vh $a $h: '$(printf '%s' "$o" | head -1)'"; rc=1
     done
-  done; [ $rc = 0 ] && ok "-h and --help print the usage for every command without a help of its own"
+  done; rm -rf "$t"
+  n=$(printf '%s\n' $cmds | grep -c .)
+  if [ $rc = 1 ]; then :; elif [ "$n" -gt 15 ]; then ok "-h and --help print a usage for the $n commands without a help of their own, and style check"
+  else bad "only $n commands found in bin/vh's dispatch for the -h check"; fi
   # a project: effort and style are written in, and the quick gate waiver is recorded
   dir=$(ls -d "$ROOT"/projects/*-"$slug" 2>/dev/null); [ -z "$dir" ] || rm -rf "$dir"
   if vh new math "$slug" --effort quick --style dark-math >/dev/null; then

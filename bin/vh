@@ -12,6 +12,7 @@
 #                               create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);
 #                               --aspect: short/promo/data/meme only; --dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness
 #   style list | <preset> [--draft] | gallery [--mp4] | check <preset>   style library: list presets, render a 5 s swatch, build styles/gallery.jpg
+#                               (the swatch render's other options: styles/_swatch/render.sh -h)
 #   recipes list [--intent X --energy N --engine E …] | check [file…]   shot recipes (recipes/): filter by frontmatter, validate it
 #   hf-init <dir> [resolution]  scaffold HyperFrames into a project safely (no global skill install; landscape|portrait|square)
 #  decide: pictures and pages for the human
@@ -618,15 +619,16 @@ cmd_gif() {
 
 cmd_help() { awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; }
 cmd_usage() { # one command's lines from the header above, with their continuation lines; exit 1 if it has none
-  awk -v c="$1" 'NR == 1 {next} !/^#/ {exit}
-    /^#   [^ ]/ {split(substr($0, 5), w, " "); on = (w[1] == c); if (on) {found = 1; print "usage: bin/vh " substr($0, 5)}; next}
+  c=$1 awk 'NR == 1 {next} !/^#/ {exit}
+    /^#   [^ ]/ {split(substr($0, 5), w, " "); on = (w[1] == ENVIRON["c"]); if (on) {found = 1; print "usage: bin/vh " substr($0, 5)}; next}
     on && /^#     / {sub(/^# +/, ""); print "              " $0; next}
     {on = 0}
     END {exit !found}' "$0"
 }
 
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa) ;;   # these print their own, fuller help
+    tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 
