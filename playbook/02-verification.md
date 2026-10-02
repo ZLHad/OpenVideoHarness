@@ -32,7 +32,7 @@
 
 ## 预算
 
-以下是 `standard` 和 `studio` 的最低量（`quick` 只要整片一张联系表）。来自 ClaudeAnimationBase：
+以下是 `standard` 和 `studio` 的最低量（`quick` 的量见上面第 8 行）。来自 ClaudeAnimationBase：
 - 每个镜头至少一张联系表；
 - 每个关键动作和每个转场各一条 strip；
 - 每张承载剧情的脸一个 crop。

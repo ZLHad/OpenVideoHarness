@@ -292,10 +292,26 @@ sandbox-exec -f vh_blender.sb env -i PATH="$PATH" HOME="$PWD/blender/out/.home" 
 - **persistent data 会留下跨帧状态**：一个进程里按顺序逐帧 `apply(t)` 再 `bpy.ops.render.render()`，开着 `render.use_persistent_data` 时，CPU 上的 Cycles 在一段帧里把一个物体（茶杯）渲成全黑，单独渲同一帧是正常的；乱序重渲 12 帧，有 1 帧对不上（24.5 dB）。关掉以后每帧时间几乎不变。逐帧改属性再渲的流程不要开它，开了就要做乱序比对。
 - **job control**：在 `set -m` 打开的 shell 里把 Blender 放到后台，它会进另一个进程组，看门狗按组杀不到它；在起 Blender 的子 shell 里先 `set +m`。
 
+## 大场景：numpy 逐帧驱动上百万个点（介绍片 v5 的开场）
+
+2026-10-02 用 5.2.2、Cycles、Metal 做的介绍片开场（`showcase/04-intro-film/blender/galaxy.py`）【实测 5.2.2】：一个星系由 118 万颗星、1.6 万张会变成玻璃卡片的“片星”、体积光雾和尘埃带组成，镜头从一张卡片的特写拉远成整个星系，再螺旋下坠、坍缩、超新星、压平成一张影片之海。做法和坑：
+
+- **全部是 t 的纯函数，但不用关键帧动画**：每帧在 Python 里用 numpy 算出所有点和卡片的位置，`mesh.vertices.foreach_set("co", …)` 一次写进去，再渲这一帧。118 万个点算加写约 0.5 s。只有相机逐帧打关键帧（`keyframe_insert`），这样相机的运动模糊来自关键帧插值。
+- **这样写的几何没有运动模糊，要自己给速度**：Cycles 不知道上一帧点在哪。给网格加一个点属性 `velocity`（`FLOAT_VECTOR`，单位 m/s），值取快门两端位置的中心差分，Cycles 就按它拉出拖影（同一场景有无 `velocity` 对照过）。点云走 Geometry Nodes 的 Mesh to Points，半径来自一个属性。
+- **星点不要降噪**：OIDN 会把星点抹成一团团糊。星空关降噪、靠采样数（这里 64 spp，特写 96 spp）；没有降噪就要接受一层细颗粒。
+- **贴着镜头的体积发光会冲白画面**：镜头穿进星系的光雾里时整帧发白。用 Camera Data 节点的 View Distance 把镜头 4–60 m 内的体积发光压掉。
+- **层层重叠的玻璃会吞掉光线**：几千张玻璃卡片压平叠在一起时，光线穿过的层数超过透射反弹上限，画面成了黑块。压平以后的卡片收起玻璃外壳（特写才需要玻璃）。
+- **相机的上方向要自己给**：`Vector.to_track_quat("-Z", "Y")` 让 Y 轴尽量对着世界 Z 轴，镜头接近垂直俯视时这个方向不稳定，画面会扭和抖。改成自己算 forward 和 up，用 `Matrix((right, up, -forward)).transposed().to_quaternion()`，相邻两帧的四元数取同号（`q.dot(prev) < 0` 就取反），否则运动模糊会沿长弧插值。
+- **数学式写成着色器节点**：旋臂、尘埃带、超新星的丝缕都是节点树。`blender/nodexpr.py` 把 `"exp(-r / 21) * smooth(80, 120, r)"` 这样的表达式编译成 Math、Map Range、Noise 节点，场景代码和 numpy 那一份读起来一样。它本身不 import bpy（MIT），由调用它的场景脚本传入节点树。
+- **速度**（M3 Max，Metal，1080p，64 spp，不降噪）：特写和坍缩每帧 30–60 s，星系全景约 8 s，压平以后约 5 s。15.8 s 的开场约 2.5 小时。4K 按像素数约 ×4。
+- **Metal 的确定性**：新进程里打乱顺序重渲 3 帧，和序列里的同一帧比：一帧逐像素相同，另两帧 PSNR 95 dB 和 49 dB（49 dB 那帧是几千张卡片叠在一起的影片之海），都过 45 dB 的线；PNG 文件哈希不同，是元数据。
+- **长渲染不要挂在 agent 的后台任务上**：Claude Code 的后台任务 30 分钟会被收掉，渲到一半就断。分块（每块 30 帧一个新进程）、可续渲（已存在的帧跳过），用 `nohup caffeinate -i … & disown` 脱离会话，再用 Monitor 盯日志。`showcase/04-intro-film/tools/bl_render.sh` 就是这样写的。
+- **和网页引擎接力**：Blender 只渲到 15.8 s，之后的网格、片名和终端交给 HyperFrames 的 WebGL。接法是从同一份 `galaxy.py` 导出卡片的格位、片源和逐帧相机（`tools/export_state.py`，不启动 Blender），WebGL 按同一个相机重画同一批卡片，两边在 15.4–15.8 s 交叉溶解。Blender 是 Z 朝上、水平视角，three.js 是 Y 朝上、垂直视角，换算是 (x, y, z) → (x, z, −y)。
+
 还没做的：
 
 1. 5.2 上 EEVEE 命令行渲 300 帧，看内存曲线（#125333 的后续）。
-2. Cycles Metal 的确定性：`-f N` 对 `-a`、单进程对多进程、重启前后；自适应采样开、关各一组（CPU 的乱序一致见上）。
+2. Cycles Metal 的确定性：`-f N` 对 `-a`、自适应采样开、关各一组（CPU 的乱序一致见上；Metal 新进程乱序重渲见“大场景”一节）。
 3. OIDN 开、关的静态区域闪烁。
 4. 刚体烘焙缓存乱序渲染是否一致。
 5. HyperFrames 的 `<video>` 是否保留输入视频的 alpha（WebM VP9、ProRes 4444），PNG 序列方案是否够用。

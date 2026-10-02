@@ -10,7 +10,7 @@
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-black)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
-![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush-blue)
+![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush%20%7C%20Blender-blue)
 ![Voice](https://img.shields.io/badge/voice-Qwen3--TTS%20zh%20%7C%20en-purple)
 ![Styles](https://img.shields.io/badge/styles-31-green)
 
@@ -32,11 +32,12 @@ OpenVideoHarness 就是这套行规，写成了 AI 能照着执行的文档和�
 
 - **按片子类型给做法**：你说"做个科普"或"做个发布片"，它就去读那一类的工作流：用哪个引擎、分几步、什么算好看、什么不许做。
 - **三个节点停下来问你**：大纲、分镜、初版，每到一处都等你点头再往下做。方向在最便宜的时候定下来。只想快速试一版时，可以切到"快出"档，直接出片。
-- **不止一种口味**：31 个从名作里学来的风格，每个都附一段真渲的样片，开工前让你挑。
+- **不止一种口味**：31 个从名作里学来的风格，每个都附一段真渲的样片。它们是立意可以借用的参考，不是套用的模板。
 - **自己检查自己**：AI 看不了视频，也听不了声音。所以让它看渲染出来的帧、测混音的数据，照着清单改到合格；整片还要交给一个没参与制作的 reviewer 打分。
 - **声音一起管**：中英配音（本地开源模型）、双语字幕、用代码写配乐和音效、混音和质检。
+- **代码驱动 Blender**：要真玻璃、星云体积光、景深和上百万粒子时，agent 写 Python 让 Blender 路径追踪出底片，在沙箱里跑，再和网页引擎的画面接在一起。介绍片的开场就是这样做的，见[下文](#用代码驱动-blender3d-和电影级特效)。
 
-它不是新的渲染引擎，而是架在 HyperFrames、Manim、Remotion、p5.brush 这些引擎之上的一层"怎么做"。
+它不是新的渲染引擎，而是架在 HyperFrames、Manim、Remotion、p5.brush、Blender 这些引擎之上的一层"怎么做"。
 
 ## 30 秒开始
 
@@ -95,7 +96,7 @@ cd ~/OpenVideoHarness && claude
 <td valign="top"><b><a href="showcase/04-intro-film/">04 · 介绍片（一镜到底 3D）</a></b>（HyperFrames + Three.js · 81 秒 · 1920×1080）<br>本仓库自己的产品片，一个连续的 3D 长镜头。<br><b><a href="showcase/04-intro-film/README.md#what-was-asked-and-what-changed">提示词</a>（关卡 ① 时改的方向）：</b>“一镜到底 动画动效 音乐动态字等风格 叙事感 科幻感大片感”<br><b>建议工作流</b>（精品档，<code>--effort studio</code>）：<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>一镜到底 3D 见 <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>；<code>bin/vh sfx place</code>、<code>sheet</code>、<code>check</code><br><b>声音：</b>代码写的电影感配乐（D 小调，90 BPM）和 97 个音效；中英软字幕轨</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="31 种风格的样片，内容完全相同"></a><br><sub><a href="styles/gallery.mp4">▶ 带声音的连播（42 秒）</a></sub></td>
+<td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="31 种风格的样片，内容完全相同"></a><br><sub><a href="styles/gallery.mp4">▶ 带声音的连播（46 秒）</a></sub></td>
 <td valign="top"><b><a href="styles/">31 种风格，连播</a></b>（每段 5 秒）<br>同一段内容，换 31 种从名作里学来的风格。<br><b>挂一种当参考：</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> 列出全部 31 种，详见 <a href="styles/README.md">styles/README.md</a><br><b>声音：</b>每段样片一首配乐（<code>bin/vh music</code>，<code>mix … profile=swatch</code>）</td>
 </tr>
 </table>
@@ -146,6 +147,20 @@ bin/vh new promo launch-film --style cutout-jazz   # 挂上一种风格当参考
 
 学的是这些作品的"语法"，不是照抄作品：不用原作的角色、logo 和镜头，写给 AI 的提示词里也不写"模仿某某导演"。详见 [styles/README.md](styles/README.md)。
 
+## 用代码驱动 Blender：3D 和电影级特效
+
+有些画面网页引擎给不了：真玻璃的折射、星云和体积光、真实的景深、上百万个粒子的运动模糊。这时 agent 直接写 Python 驱动 Blender。每一帧仍然只由时间决定：numpy 算出每颗星、每张卡片在 t 时刻的位置，Cycles 路径追踪渲成底片，再和 HyperFrames 的字、界面接在同一支片子里。
+
+<p align="center"><img src="docs/assets/blender-strip.jpg" width="820" alt="介绍片开场的几个时刻：玻璃片里的地球、拉远成星系、超新星、压平成影片之海，都是 Blender 渲的"></p>
+
+- **介绍片的开场就是这样做的**：118 万颗星组成一个星系，每颗星都是一支片子。镜头从一张玻璃片拉远到整个星系，螺旋下坠，星系坍缩成超新星，再被压成一片影片之海。15.8 秒，1080p 在 M3 Max 上渲了约 2.5 小时。之后的网格和终端交给 HyperFrames，两边用同一个相机交叉溶解。源码在 [`showcase/04-intro-film/blender/`](showcase/04-intro-film/blender/)。
+- **风格库里的 [`tabletop-miniature`](styles/tabletop-miniature/)**（桌面微缩剧场）也是 Blender 渲的。
+- **跑在沙箱里**：agent 写的 bpy 脚本不联网、只能写输出目录，也拿不到环境变量里的 key。
+- **先算时间账**：先渲 3–5 帧校准，把"帧数 × 每帧时间 × 1.5"写进 BRIEF；4K 大约是 1080p 的 4 倍。长渲染分块、可以续渲。
+- **许可**：import bpy 的文件按 GPL-3.0-or-later 分发（Blender 对公开发布的 bpy 脚本的要求），其余仍是 MIT。
+
+什么时候值得用 Blender、怎么接进片子、踩过哪些坑，见 [engines/blender.md](engines/blender.md)（部分已实测，文中标明了哪些跑过）。
+
 ## 你可以这样提需求
 
 不用写长篇 brief，说清楚**讲什么、给谁看、发在哪**就够了。
@@ -188,7 +203,7 @@ bin/vh new promo launch-film --style cutout-jazz   # 挂上一种风格当参考
 |---|---|---|---|
 | 适合 | 试方向、草稿、随手发 | 大多数正式视频 | 发布片、旗舰内容 |
 | 停下来问你 | 不问，直接出片 | 大纲、分镜、初版三次 | 三次，外加每个立意的真渲草图和全片灰模预演 |
-| 自己检查 | 整片一张联系表 | 每一段都看帧、测声音 | 再加目标屏尺寸、确定性、音频全检 |
+| 自己检查 | 整片一张联系表、一张按目标屏缩的联系表、前 2 秒的逐帧条 | 每一段都看帧、测声音 | 再加循环接缝、确定性、音频全检 |
 | 找人打分 | 不找 | 1 轮 | 至少 3 轮，8 项都要 8 分 |
 | 30 秒的片子大概要 | 10–30 分钟 | 1–2 小时 | 3 小时以上 |
 
@@ -231,7 +246,7 @@ bin/vh new promo launch-film --style cutout-jazz   # 挂上一种风格当参考
 - 要讲一个有起伏的故事，或做 3 分钟以上的长片：[playbook/09](playbook/09-narrative.md)（骨架、节拍表、张力曲线、换挡）；
 - 要发短视频平台，想好开头钩子、标题和封面：[playbook/10](playbook/10-hooks-and-packaging.md)；
 - 要配乐有篇章、有能哼出来的主题、有起伏：[playbook/11](playbook/11-composition.md)；
-- 想看我们量过什么、因此改了什么：[docs/research](docs/research/README.md)（混音层级、配乐距离、渲染确定性、画面文字读秒、配乐篇章）。
+- 想看我们量过什么、因此改了什么：[docs/research](docs/research/README.md)（混音层级、配乐距离、渲染确定性、画面文字读秒、配乐篇章、立意先行的 A/B 试验）。
 
 ## 声音
 
@@ -262,14 +277,15 @@ AI 听不见声音，所以声音这边尽量做成"可以计算、可以测量"
 | 命令 | 作用 |
 |---|---|
 | `doctor` / `setup` | 检查环境 / 安装依赖、拉取参考资料 |
-| `types` / `new <类型> <名字> [--style <风格[,风格]>] [--effort <档位>]` | 列出 9 类视频 / 建一个新项目 |
+| `types` / `new <类型> <名字> [--style <风格[,风格]>] [--effort <档位>] [--aspect 9:16] [--watch phone\|feed\|desktop] [--res 1080p\|4k]` | 列出 9 类视频 / 建一个新项目（画幅、在哪块屏上看、分辨率可以一开始就定） |
 | `effort [quick\|standard\|studio]` | 看三档努力程度各做什么 |
-| `style list` / `style <风格>` / `style gallery` | 看风格 / 渲一段样片 / 重建风格总览 |
+| `style list` / `style <风格>` / `style gallery` / `style compare a,b,c` / `style apply <风格> <项目>` | 看风格 / 渲一段样片 / 重建风格总览 / 几个风格并排对照 / 给项目挂参考风格 |
 | `recipes list [--intent …] [--energy …] [--engine …]` / `recipes check` | 按这一镜要说什么、多响来找镜头配方 / 校验一张配方 |
 | `tts` / `voices` / `captions` / `music` / `sfx` / `beats` | 配音（可逐句导演、对拍、逐字核对、双人对话）/ Gemini 音色库和设计音色 / 字幕 / 配乐 / 音效 / 分析外部音乐 |
 | `mix` / `qa` / `mux` | 混音 / 混音质检 / 给成片合上声音和字幕 |
 | `sheet` / `check` / `readcheck` / `gif` | 带时间戳的联系表 / 查黑场、冻帧、静音 / 查字停得够不够久 / 做 README 用的 GIF |
 | `review <项目> [关卡]` | 生成审阅页：先列要你定的事，再放图、animatic 和音频，分镜一段一页 |
+| `storyboard` / `rhythm` / `cover-preview` | 拍板用的图：带标注的分镜页 / 节奏图（太长的镜头、读不完的字标红）/ 封面在各平台信息流里的实际大小 |
 | `hf-init` / `install-skill` / `sync-agents` | 初始化 HyperFrames / 注册 skill / 同步 AGENTS.md |
 
 ## 需要什么环境
@@ -416,7 +432,7 @@ OpenVideoHarness/
 
 **中文支持怎么样？** 文档以中文为主。中文字幕排版、竖屏平台的安全区、中文配音和双语字幕都专门处理过，风格库里也有水墨、敦煌、皮影、国潮。
 
-**能不能不要暗底发光那一套？** 可以。在需求里点名一种风格（比如 `ink-wash`），或者说你喜欢哪部片子的样子。不说的话，agent 在大纲那一关也会给你两三种差别很大的风格来选。
+**能不能不要暗底发光那一套？** 可以。在需求里点名一种风格（比如 `ink-wash`），或者说你喜欢哪部片子的样子。不说的话，agent 开头也会先给两三张差别很大的立意卡，画面风格跟着你选的那张走。
 
 **参考仓库的版权怎么处理？** `references/repos/` 不进本仓库，由 `fetch.sh` 从原作者那里拉取，只供阅读。拉下来之后，别人仓库各层目录里给 agent 的指令文件（`CLAUDE.md`、`AGENTS.md`、`.claude/` 等）都会被改名，免得 agent 把别人的规则当成自己的。每个仓库的许可证见 [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md)，有些没有许可证或禁止商用，复用前请先确认。
 

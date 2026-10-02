@@ -10,7 +10,7 @@ Explainers, science shorts, product films, music videos, data stories, paper tal
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-black)
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
-![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush-blue)
+![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush%20%7C%20Blender-blue)
 ![Voice](https://img.shields.io/badge/voice-Qwen3--TTS%20zh%20%7C%20en-purple)
 ![Styles](https://img.shields.io/badge/styles-31-green)
 
@@ -32,11 +32,12 @@ OpenVideoHarness is that craft, written as docs and tools an agent can follow:
 
 - **A method for each kind of video.** Say "make a science short" or "make a launch film", and it reads the workflow for that type: which engine, which steps, what looks good, what is off limits.
 - **It stops and asks you three times.** At the outline, the storyboard and the first draft, it waits for your go-ahead. Direction gets settled while changes are still cheap. For a quick try, switch to the `quick` level and it just renders.
-- **More than one taste.** 31 styles learned from famous work, each with a real rendered sample, offered to you before anything is built.
+- **More than one taste.** 31 styles learned from famous work, each with a real rendered sample. They are references a concept can borrow from, not templates.
 - **It checks its own work.** An agent can't watch video or hear sound, so it looks at rendered frames, measures the mix, and fixes things until a checklist passes. A reviewer who didn't make the film then scores it.
 - **Sound included.** Chinese and English voiceover (a local open-source model), bilingual subtitles, music and sound effects written as code, mixing and a final audio check.
+- **Code-driven Blender.** When a shot needs real glass, nebulae and volumetric light, depth of field or a million particles, the agent writes Python that has Blender path-trace the plate, in a sandbox, and joins it with the web engine's pictures. The intro film opens this way; see [below](#code-driven-blender-3d-and-film-grade-effects).
 
-It isn't a new rendering engine. It is a layer of "how to do it" on top of engines like HyperFrames, Manim, Remotion and p5.brush.
+It isn't a new rendering engine. It is a layer of "how to do it" on top of engines like HyperFrames, Manim, Remotion, p5.brush and Blender.
 
 ## Start in 30 seconds
 
@@ -95,7 +96,7 @@ The five films below were made by an agent **reading only this repo's docs**. Cl
 <td valign="top"><b><a href="showcase/04-intro-film/">04 · Intro film (one-take 3D)</a></b> (HyperFrames + Three.js · 81 s · 1920×1080)<br>The repo's own product film, one continuous 3D take.<br><b><a href="showcase/04-intro-film/README.md#what-was-asked-and-what-changed">Request</a>, as revised at gate ①:</b> “一镜到底 动画动效 音乐动态字等风格 叙事感 科幻感大片感” (one continuous shot, kinetic type on music, a narrative arc, a sci-fi blockbuster feel)<br><b>Suggested workflow</b> (studio effort, <code>--effort studio</code>):<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>one-take 3D: <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>; <code>bin/vh sfx place</code>, <code>sheet</code>, <code>check</code><br><b>Sound:</b> a code-composed cinematic score (D minor, 90 BPM) and 97 sound effects; zh/en soft subtitle tracks</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="The 31 style samples, all showing the same content"></a><br><sub><a href="styles/gallery.mp4">▶ the reel, with sound (42 s)</a></sub></td>
+<td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="The 31 style samples, all showing the same content"></a><br><sub><a href="styles/gallery.mp4">▶ the reel, with sound (46 s)</a></sub></td>
 <td valign="top"><b><a href="styles/">31 styles, one reel</a></b> (5-second samples)<br>The same content in 31 styles learned from famous work.<br><b>Borrow from one:</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> shows all 31; details in <a href="styles/README.md">styles/README.md</a><br><b>Sound:</b> one score per sample (<code>bin/vh music</code>, <code>mix … profile=swatch</code>)</td>
 </tr>
 </table>
@@ -146,6 +147,20 @@ bin/vh new promo launch-film --style cutout-jazz   # attach a style as a referen
 
 We learn the *grammar* of these works; we don't copy them. No original characters, logos or shots, and the prompts never say "in the style of" a person. More in [styles/README.md](styles/README.md).
 
+## Code-driven Blender: 3D and film-grade effects
+
+Some pictures a web engine can't give you: real glass refraction, nebulae and volumetric light, real depth of field, motion blur on a million particles. For those the agent writes Python that drives Blender. Every frame still depends only on time: numpy computes where each star and each card is at time t, Cycles path-traces the plate, and the plate joins HyperFrames' type and UI in the same film.
+
+<p align="center"><img src="docs/assets/blender-strip.jpg" width="820" alt="Moments from the intro film's opening, all rendered in Blender: the Earth inside a glass film card, the pull-back to a galaxy, the supernova, the flattened sea of films"></p>
+
+- **The intro film opens this way.** A galaxy of 1.18 million stars where every star is a film: the camera pulls back from one glass card to the whole galaxy, spirals down, the galaxy collapses into a supernova and is flattened into a sea of films. 15.8 s at 1080p took about 2.5 hours on an M3 Max. The grid and the terminal that follow are HyperFrames, and the two dissolve into each other through the same camera. Source in [`showcase/04-intro-film/blender/`](showcase/04-intro-film/blender/).
+- **[`tabletop-miniature`](styles/tabletop-miniature/)** in the style library is rendered in Blender too.
+- **It runs in a sandbox.** The agent's bpy scripts get no network, can write only to their output folder, and never see the API keys in your environment.
+- **Count the time first.** Render 3–5 frames to calibrate and put "frames × seconds per frame × 1.5" in the brief; 4K takes about 4× as long as 1080p. Long renders run in chunks and can resume.
+- **License.** Files that import bpy are GPL-3.0-or-later (Blender's requirement for published bpy scripts); everything else stays MIT.
+
+When Blender is worth it, how to bring it into a film, and what went wrong along the way: [engines/blender.md](engines/blender.md) (partly verified; it marks what has actually been run).
+
 ## How to ask for a video
 
 You don't need a long brief. Say **what it's about, who it's for and where it goes**.
@@ -188,7 +203,7 @@ Not every film deserves the full treatment. One switch controls how much effort 
 |---|---|---|---|
 | For | trying a direction, drafts, casual posts | most real videos | launch films, flagship pieces |
 | Stops to ask you | never; it just renders | at the outline, storyboard and first draft | the same three, plus a rendered sketch of each concept and a full-length animatic |
-| Checks its own work | one contact sheet for the whole film | frames and sound, section by section | plus target-screen size, determinism and a full audio check |
+| Checks its own work | a contact sheet of the whole film, one at target-screen size, and a strip of the first 2 s | frames and sound, section by section | plus loop seams, determinism and a full audio check |
 | Outside reviewer | none | 1 round | at least 3 rounds, all 8 scores at 8+ |
 | A 30 s film takes about | 10–30 min | 1–2 h | 3 h or more |
 
@@ -231,7 +246,7 @@ A few more guides:
 - **A story with rises and falls, or a film of 3 minutes or more:** [playbook/09](playbook/09-narrative.md) (structures, beat sheets, the tension curve, act breaks).
 - **Posting to short-video platforms: the opening hook, title and cover:** [playbook/10](playbook/10-hooks-and-packaging.md).
 - **Music with chapters, a theme you can hum, and real rises and falls:** [playbook/11](playbook/11-composition.md).
-- **Research notes, what we measured and what changed because of it:** [docs/research](docs/research/en/README.md) (mix levels, soundtrack distance, render determinism, on-screen reading time, music form).
+- **Research notes, what we measured and what changed because of it:** [docs/research](docs/research/en/README.md) (mix levels, soundtrack distance, render determinism, on-screen reading time, music form, a concept-first A/B test).
 
 ## Sound
 
@@ -262,14 +277,15 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | Command | What it does |
 |---|---|
 | `doctor` / `setup` | Check your setup / install dependencies and fetch references |
-| `types` / `new <type> <name> [--style <style[,style]>] [--effort <level>]` | List the 9 types / start a new project |
+| `types` / `new <type> <name> [--style <style[,style]>] [--effort <level>] [--aspect 9:16] [--watch phone\|feed\|desktop] [--res 1080p\|4k]` | List the 9 types / start a new project (aspect, target screen and resolution can be set up front) |
 | `effort [quick\|standard\|studio]` | What each effort level does |
-| `style list` / `style <style>` / `style gallery` | Browse styles / render a sample / rebuild the overview |
+| `style list` / `style <style>` / `style gallery` / `style compare a,b,c` / `style apply <style> <project>` | Browse styles / render a sample / rebuild the overview / compare styles side by side / attach styles to a project as references |
 | `recipes list [--intent …] [--energy …] [--engine …]` / `recipes check` | Find shot recipes by what the shot must say and how loud it is / validate a recipe |
 | `tts` / `voices` / `captions` / `music` / `sfx` / `beats` | Voiceover (per-line direction, beat snapping, word alignment, two-speaker dialogue) / Gemini voice library and voice design / subtitles / music / sound effects / analyse outside music |
 | `mix` / `qa` / `mux` | Mix / check the mix / put sound and subtitles on the video |
 | `sheet` / `check` / `readcheck` / `gif` | Timestamped contact sheet / find black, frozen or silent stretches / is text on screen long enough to read / make a GIF for your README |
 | `review <project> [gate]` | The review page for a stop: the decisions first, then pictures, animatic and audio, one page per storyboard segment |
+| `storyboard` / `rhythm` / `cover-preview` | Pictures to decide from: labelled storyboard pages / a rhythm map (too-long shots and unreadable text in red) / a cover at real feed sizes |
 | `hf-init` / `install-skill` / `sync-agents` | Set up HyperFrames / register the skill / sync AGENTS.md |
 
 ## Requirements
@@ -368,7 +384,7 @@ OpenVideoHarness/
 
 **How good is the Chinese support?** The workflow docs are Chinese-first. Chinese subtitle layout, safe zones for vertical platforms, Chinese voiceover and bilingual subtitles are all handled, and the style library includes ink wash, Dunhuang, shadow puppetry and guochao.
 
-**Can I avoid the dark-and-glowing look?** Yes. Name a style in your request (for example `ink-wash`), or say which film you'd like it to feel like. Even if you don't, the agent offers two or three very different styles at the outline stage.
+**Can I avoid the dark-and-glowing look?** Yes. Name a style in your request (for example `ink-wash`), or say which film you'd like it to feel like. Even if you don't, the agent opens with two or three very different concept cards, and the look follows from the one you pick.
 
 **What about the reference repos' licenses?** `references/repos/` isn't part of this repo. `fetch.sh` pulls it from the original authors, for reading only. After fetching, the other repos' agent instruction files (`CLAUDE.md`, `AGENTS.md`, `.claude/` and so on) are renamed at every level, so an agent never mistakes someone else's rules for its own. Licenses for each are in [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md); some have none or forbid commercial use, so check before reusing anything.
 

@@ -51,7 +51,7 @@ for s in json.load(open(tl, encoding="utf-8"))["segments"]:
     with wave.open(dst, "wb") as o:
         o.setparams(p); o.writeframes(pcm[a * width:b * width])
 PY
-# 2 foley: the custom sounds + the event list, and the 15 built-ins beside them (the mix places every event itself)
+# 2 foley: the custom sounds + the event list, and the 21 built-ins beside them (the mix places every event itself)
 uv run -q --no-project --with numpy --with scipy python "$FILM/tools/foley.py"   # --no-project: run from 03's folder, uv would sync its Manim env
 "$VH" sfx lib "$A/sfx" >/dev/null
 # 3 music: render the score and start it OFFSET s into the film; shift its beat map to film time
