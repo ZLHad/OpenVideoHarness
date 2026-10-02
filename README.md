@@ -141,7 +141,7 @@ Watch them back to back, each with its own sound, in [`styles/gallery.mp4`](styl
 
 ```bash
 bin/vh style list                                  # see all 29
-bin/vh new promo launch-film --style cutout-jazz   # start a project from a style
+bin/vh new promo launch-film --style cutout-jazz   # attach a style as a reference (several: --style a,b)
 ```
 
 We learn the *grammar* of these works; we don't copy them. No original characters, logos or shots, and the prompts never say "in the style of" a person. More in [styles/README.md](styles/README.md).

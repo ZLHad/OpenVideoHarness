@@ -141,7 +141,7 @@ AI 做的视频很容易长成一个样子：暗底、发光、玻璃卡片、�
 
 ```bash
 bin/vh style list                                  # 看 29 种风格
-bin/vh new promo launch-film --style cutout-jazz   # 建项目时直接带上一种风格
+bin/vh new promo launch-film --style cutout-jazz   # 挂上一种风格当参考（几种：--style a,b）
 ```
 
 学的是这些作品的"语法"，不是照抄作品：不用原作的角色、logo 和镜头，写给 AI 的提示词里也不写"模仿某某导演"。详见 [styles/README.md](styles/README.md)。

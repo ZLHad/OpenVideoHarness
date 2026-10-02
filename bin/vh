@@ -8,7 +8,7 @@
 #  make
 #   types                       list video types and their docs
 #   effort [quick|standard|studio]  how much iteration, review and polish each level means (CLAUDE.md "努力程度")
-#   new <type> <slug> [--style <preset>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1] [--watch phone|feed|desktop] [--res 1080p|4k] [--dir <folder>]
+#   new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1] [--watch phone|feed|desktop] [--res 1080p|4k] [--dir <folder>]
 #                               create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);
 #                               --aspect: short/promo/data/meme only; --dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness
 #   style list | <preset> [--draft] | gallery [--mp4] | check <preset>   style library: list presets, render a 5 s swatch, build styles/gallery.jpg
@@ -17,7 +17,7 @@
 #  decide: pictures and pages for the human
 #   storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04]   labelled storyboard pages from shots.json: one per segment + an overview (+ review.json)
 #   rhythm <project> [--segment NAME | --from s --to s] [--max s]   rhythm map: shots, narration and captions, music; too-long shots and failed reads in red
-#   style compare a,b,c [--frame t] | style apply <preset> <project>   presets side by side (posters, or swatch frames at t) / attach a preset to a project
+#   style compare a,b,c [--frame t] | style apply <preset[,preset]> <project>   presets side by side (posters, or swatch frames at t) / attach presets to a project as references
 #   cover-preview <image> [more…] [--text-px N]   a cover at real feed sizes (Bilibili, Douyin, YouTube, Xiaohongshu) + a small-size legibility check
 #   review <project> [gate]     decision-first review page: out/review/gate-<gate>.json → gate-<gate>.html (+ index.html); prints the chat message (playbook/01-pipeline.md, 审阅页)
 #  sound
@@ -237,33 +237,46 @@ project_dir() { # a project folder, or a name under the projects folder (the dat
   if [ "$n" = 0 ]; then echo "no such project: $a (a folder, or a name under $(rel "$base"))" >&2; else echo "$a: several projects match: $(printf '%s\n' "$m" | xargs -n1 basename | tr '\n' ' ')" >&2; fi
   return 1
 }
-attach_style() { # attach_style <project-dir> <preset>: STYLE_PRESET.md + style.tokens.json, the preset's prompt block at the end of
-  # BRIEF.md and a pointer at the top of STYLE.md (what `new --style` does). A preset attached before is replaced, not stacked.
-  local dir=$1 style=$2 old=""
-  [ -f "$dir/STYLE_PRESET.md" ] && old=$(sed -n '1s/.* · \([a-z0-9-]*\)$/\1/p' "$dir/STYLE_PRESET.md")
-  cp "$ROOT/styles/$style/STYLE.md" "$dir/STYLE_PRESET.md"; cp "$ROOT/styles/$style/tokens.json" "$dir/style.tokens.json"
-  python3 - "$ROOT/styles/$style/STYLE.md" "$dir/BRIEF.md" "$dir/STYLE.md" "$style" <<'PY'
-import re, sys
-src, brief, style, slug = sys.argv[1:5]
-m = re.search(r"## Prompt 块\s*```text\n(.*?)```", open(src).read(), re.S)
+attach_style() { # attach_style <project-dir> <preset>: attach a preset as a reference, not a template. Its STYLE.md and tokens.json
+  # are copied to style-refs/<preset>/, the BRIEF's "Style refs" line and the note at the top of STYLE.md list it, and DECISIONS.md
+  # gets a line to fill in with what it lends. Nothing is pasted into the BRIEF as instructions. Several presets can be attached;
+  # attaching one again changes nothing. (Projects made before this keep their STYLE_PRESET.md; the old pasted block goes.)
+  local dir=$1 style=$2
+  mkdir -p "$dir/style-refs/$style"
+  cp "$ROOT/styles/$style/STYLE.md" "$dir/style-refs/$style/STYLE.md"; cp "$ROOT/styles/$style/tokens.json" "$dir/style-refs/$style/tokens.json"
+  python3 - "$dir/BRIEF.md" "$dir/STYLE.md" "$dir/DECISIONS.md" "$style" <<'PY'
+import datetime, os, re, sys
+brief, style, dec, slug = sys.argv[1:5]
 b = open(brief).read()
-b = re.sub(r"\n\n## Style preset: [^\n]*\n\n```text\n.*?```\n", "", b, flags=re.S)   # the preset attached before, if any
-if m: b += f"\n\n## Style preset: {slug}\n\n```text\n{m.group(1).strip()}\n```\n"
+b = re.sub(r"\n\n## Style preset: [^\n]*\n\n```text\n.*?```\n", "", b, flags=re.S)   # pasted by bin/vh before 2026-10: an instruction block
+m = re.search(r"^- Style refs \(repo presets\): (.*)$", b, re.M)
+refs = re.findall(r"styles/([a-z0-9-]+)", m.group(1).split("<!--")[0]) if m else []
+if slug not in refs: refs.append(slug)
+line = "- Style refs (repo presets): " + ", ".join(f"`styles/{r}`" for r in refs) + "  <!-- 参考，不是规定：副本在 style-refs/，借了什么记进 DECISIONS.md，和它们不一样不用解释 -->"
+if m: b = b[:m.start()] + line + b[m.end():]
+elif "\n## Style\n" in b: b = b.replace("\n## Style\n", "\n## Style\n" + line + "\n", 1)
+else: b += "\n" + line + "\n"
 open(brief, "w").write(b)
 s = open(style).read()
 s = re.sub(r"\A> 本项目以风格预设 `styles/[^`]*` 为底：[^\n]*\n\n", "", s)
-open(style, "w").write(f"> 本项目以风格预设 `styles/{slug}` 为底：先读 `STYLE_PRESET.md`，数值取 `style.tokens.json`；下面只写本片对预设的改动。\n\n" + s)
+s = re.sub(r"\A> 参考的风格预设：[^\n]*\n\n", "", s)
+note = "> 参考的风格预设：" + "、".join(f"`styles/{r}`" for r in refs) + "（副本在 `style-refs/`）。只是参考：借了什么写进 `DECISIONS.md`，和它们不一样不用解释；本片的风格从立意来，写在下面。\n\n"
+open(style, "w").write(note + s)
+if os.path.exists(dec):
+    d = open(dec).read()
+    if f"风格参考 · `styles/{slug}`" not in d:
+        d = d.rstrip("\n") + f"\n- {datetime.date.today():%Y-%m-%d} 风格参考 · `styles/{slug}` — 借了：{{色板 / 字体 / 转场 / 声音 / 质感，写具体；没借就删掉这一行}}\n"
+        open(dec, "w").write(d)
 PY
-  [ -n "$old" ] && [ "$old" != "$style" ] && echo "   replaced : styles/$old (its prompt block in BRIEF.md and the pointer in STYLE.md; your own notes below it stay)"
   return 0
 }
 
 cmd_new() {
-  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1] [--watch phone|feed|desktop] [--res 1080p|4k] [--dir <folder>]"; cmd_types; exit 1; }
+  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1] [--watch phone|feed|desktop] [--res 1080p|4k] [--dir <folder>]"; cmd_types; exit 1; }
   local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres=""; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 1; }
   shift 2
   while [ $# -gt 0 ]; do case "$1" in
-    --style)  style=${2:?--style needs a preset (bin/vh style list)}; shift 2 ;;
+    --style)  style=${2:?--style needs a preset or a comma list (bin/vh style list)}; shift 2 ;;
     --effort) effort=${2:?--effort needs quick, standard or studio}; shift 2 ;;
     --aspect) aspect=${2:?--aspect needs 16:9, 9:16 or 1:1}; shift 2 ;;
     --dir)    parent=${2:?--dir needs a folder: the project goes in <folder>/<date>-<slug>}; shift 2 ;;
@@ -271,7 +284,7 @@ cmd_new() {
     --res)    outres=${2:?--res needs 1080p or 4k}; shift 2 ;;
     *) echo "unknown option: $1"; exit 1 ;;
   esac; done
-  [ -z "$style" ] || [ -f "$ROOT/styles/$style/STYLE.md" ] || { echo "unknown style: $style"; cmd_style list; exit 1; }
+  local s; for s in $(printf '%s\n' "$style" | tr ',' ' '); do [ -f "$ROOT/styles/$s/STYLE.md" ] && [ "${s#_}" = "$s" ] || { echo "unknown style: $s"; cmd_style list; exit 1; }; done
   case "${effort:-standard}" in quick|standard|studio) ;; *) echo "unknown effort: $effort (quick | standard | studio)"; exit 1 ;; esac
   case "$watch" in ""|phone|feed|desktop) ;; *) echo "unknown --watch: $watch (phone: a vertical phone · feed: landscape in a phone feed, not rotated · desktop: a computer, or a phone turned sideways)"; exit 1 ;; esac
   case "$outres" in ""|1080p) ;; 4k|4K|2160p) outres=4k ;; *) echo "unknown --res: $outres (1080p | 4k)"; exit 1 ;; esac
@@ -336,13 +349,13 @@ PY
     sedi "s/^- Effort: standard /- Effort: $effort /" "$dir/BRIEF.md"
     [ "$effort" = quick ] && printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；人点名要拍板的事照样停（导演模式）；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
   fi
-  [ -n "$style" ] && attach_style "$dir" "$style"   # the preset rides along: its STYLE.md + tokens, and its prompt block appended to BRIEF
+  for s in $(printf '%s\n' "$style" | tr ',' ' '); do attach_style "$dir" "$s"; done   # presets as references: copies in style-refs/, listed in BRIEF, a DECISIONS line
   trap - EXIT
   echo "$c_ok created $(rel "$dir")"
   echo "   type doc : video-types/$doc.md"
   [ -n "$wh" ] && echo "   frame    : $wh ($res)"
   echo "   watch on : $watch · ${outres:-1080p}  (text-size floor and readability check: playbook/03 §4)"
-  [ -n "$style" ] && echo "   style    : styles/$style (STYLE_PRESET.md, style.tokens.json)"
+  [ -n "$style" ] && echo "   style ref: styles/$(printf '%s' "$style" | sed 's/,/, styles\//g') (copies in style-refs/; references, not rules: note in DECISIONS.md what each lends)"
   echo "   effort   : ${effort:-standard}  (bin/vh effort ${effort:-standard} shows what that means)"
   echo "   next     : open Claude Code in the repo root and say what the video is about;"
   if [ "${effort:-standard}" = quick ]; then echo "              the agent fills $(rel "$dir")/BRIEF.md and renders straight through; it stops only for what you say you'll decide."
@@ -402,12 +415,12 @@ PY
     check) shift; swatch_deps "${1:-}"; "$sw/determinism.sh" "$@" ;;
     compare) shift; [ $# -gt 0 ] || { echo "usage: bin/vh style compare a,b,c [--frame t] [--out file.png]"; exit 1; }
       uv run -q --no-project --with pillow python "$ROOT/tools/style_compare.py" "$@" ;;
-    apply) shift; [ $# -eq 2 ] || { echo "usage: bin/vh style apply <preset> <project>   (bin/vh style list shows the presets)"; exit 1; }
-      [ -f "$ROOT/styles/$1/STYLE.md" ] && [ "${1#_}" = "$1" ] || { echo "unknown style: $1"; cmd_style list; exit 1; }
+    apply) shift; [ $# -eq 2 ] || { echo "usage: bin/vh style apply <preset[,preset]> <project>   (bin/vh style list shows the presets)"; exit 1; }
+      local s; for s in $(printf '%s\n' "$1" | tr ',' ' '); do [ -f "$ROOT/styles/$s/STYLE.md" ] && [ "${s#_}" = "$s" ] || { echo "unknown style: $s"; cmd_style list; exit 1; }; done
       local dir; dir=$(project_dir "$2") || exit 1
       [ -f "$dir/BRIEF.md" ] && [ -f "$dir/STYLE.md" ] || { echo "$(rel "$dir") has no BRIEF.md and STYLE.md: not a bin/vh project"; exit 1; }
-      attach_style "$dir" "$1"
-      echo "$c_ok styles/$1 attached to $(rel "$dir") (STYLE_PRESET.md, style.tokens.json, its prompt block in BRIEF.md)" ;;
+      for s in $(printf '%s\n' "$1" | tr ',' ' '); do attach_style "$dir" "$s"
+        echo "$c_ok styles/$s attached to $(rel "$dir") as a reference (style-refs/$s/, BRIEF Style refs, a DECISIONS line to fill in)"; done ;;
     *) swatch_deps "$1"; exec "$sw/render.sh" "$@" ;;
   esac
 }

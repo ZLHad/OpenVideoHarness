@@ -139,7 +139,8 @@ smoke_checks() {
   dir=$(ls -d "$ROOT"/projects/*-"$slug" 2>/dev/null); [ -z "$dir" ] || rm -rf "$dir"
   if vh new math "$slug" --effort quick --style dark-math >/dev/null; then
     dir=$(ls -d "$ROOT"/projects/*-"$slug")
-    grep -q '^- Effort: quick' "$dir/BRIEF.md" && grep -q 'Effort: quick' "$dir/REVIEW.md" && [ -f "$dir/STYLE_PRESET.md" ] \
+    grep -q '^- Effort: quick' "$dir/BRIEF.md" && grep -q 'Effort: quick' "$dir/REVIEW.md" && [ -f "$dir/style-refs/dark-math/STYLE.md" ] \
+      && grep -q '^- Style refs (repo presets): `styles/dark-math`' "$dir/BRIEF.md" && ! grep -q '^## Style preset' "$dir/BRIEF.md" \
       && ok "bin/vh new --effort quick --style" || bad "bin/vh new: effort or style not written into the project"
     rm -rf "$dir"
   else bad "bin/vh new math"; fi
@@ -225,10 +226,12 @@ decision_checks() {
     && OVH_PROJECTS="$t/w2" vh new edit ci-e --res 4K >/dev/null 2>&1 && grep -q '^- Watch on: phone' "$(ls -d "$t"/w2/*-ci-e)/BRIEF.md" \
     && grep -q '^- Resolution: 4k' "$(ls -d "$t"/w2/*-ci-e)/BRIEF.md"; then ok "new writes Watch on and Resolution into the BRIEF (defaults, flags, the 4K alias)"
   else bad "new: Watch on / Resolution missing or wrong in the BRIEF"; fi
-  # style apply: attach, replace, re-apply without stacking; by name under OVH_PROJECTS
+  # style apply: presets are references; two attach side by side, re-attaching one adds nothing; by name under OVH_PROJECTS
   vh style apply blueprint "$p" >/dev/null && vh style apply ink-wash "$p" >/dev/null && OVH_PROJECTS="$t/elsewhere" vh style apply ink-wash ci-dir >/dev/null
-  if [ "$(grep -c '^## Style preset' "$p/BRIEF.md")" = 1 ] && grep -q '^## Style preset: ink-wash' "$p/BRIEF.md" && [ "$(grep -c '本项目以风格预设' "$p/STYLE.md")" = 1 ] \
-    && head -1 "$p/STYLE_PRESET.md" | grep -q 'ink-wash'; then ok "style apply replaces the preset instead of stacking it"; else bad "style apply: presets stacked or missing"; fi
+  if grep -q '^- Style refs (repo presets): `styles/blueprint`, `styles/ink-wash`  <!--' "$p/BRIEF.md" && ! grep -q '^## Style preset' "$p/BRIEF.md" \
+    && [ "$(grep -c '^> 参考的风格预设：`styles/blueprint`、`styles/ink-wash`' "$p/STYLE.md")" = 1 ] && [ "$(grep -c '风格参考 · ' "$p/DECISIONS.md")" = 2 ] \
+    && [ -f "$p/style-refs/blueprint/tokens.json" ] && [ -f "$p/style-refs/ink-wash/STYLE.md" ]; then ok "style apply attaches presets as references, side by side, without repeats"
+  else bad "style apply: references missing, repeated, or an instruction block pasted into the BRIEF"; fi
   vh style apply no-such-style "$p" >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "style apply rejects an unknown preset" || bad "style apply unknown preset exited $rc"
   # readcheck: a budget, and the timed text of a composition without a browser
   a=$(vh readcheck --budget 3.2)

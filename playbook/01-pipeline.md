@@ -8,7 +8,7 @@
 |---|---|---|---|
 | 0 选路径 | — | `00-paradigm.md` 的选型表和 `video-types/` | 能说清验收标准 |
 | 1 素材、立意、Brief、大纲 | `NOTES.md` 的素材清单；2–3 张立意卡；`BRIEF.md`（立意、受众、平台、时长、画幅、fps、分辨率、在哪看、有无声音、验收项）+ 3–7 段大纲 | `12-ideation.md`、`templates/BRIEF.md` | 立意一句话说得出、换个题材就不成立；**人工关卡 ①** |
-| 2 风格 | `STYLE.md`：从立意推出的调色板、字体、缓动、安全区或锚点网格、禁止项；借了预设就只写改动 | `templates/STYLE.md` + 类型文档，可借 `styles/` | 一页纸能讲清，看得出是从立意来的 |
+| 2 风格 | `STYLE.md`：从立意推出的调色板、字体、缓动、安全区或锚点网格、禁止项；参考了预设，就在 `DECISIONS.md` 记借了什么 | `templates/STYLE.md` + 类型文档，可参考 `styles/` | 一页纸能讲清，看得出是从立意来的 |
 | 3 脚本与分镜 | `SCRIPT.md`（有旁白时写，关键词标 `{cue}`）、`STORYBOARD.md`（每镜的时间、reads、转场）、每镜一张关键帧（`shots.json` → `bin/vh storyboard`，出在 `out/check/storyboard/`）；节奏要紧的片子再加一版 animatic `out/animatic.mp4` | `templates/SCRIPT.md`、`templates/STORYBOARD.md` | 每镜都有事件，reads 不重叠；**人工关卡 ②** |
 | 4 音频先行 | `audio/*`、`timeline.json`（词级时间）、`beats.json` | 见 `04-audio.md` | 用实测时长回写分镜 |
 | 5 搭引擎 | 渲染脚本、公共库（hash、ease、keyframe、camera、pulse），先做一个样板场景 | `engines/README.md` | 乱序跳到同一帧，结果一致 |
