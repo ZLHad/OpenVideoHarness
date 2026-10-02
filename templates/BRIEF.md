@@ -22,6 +22,7 @@
 - Source material: {paper path / product URL / data.csv / song path / script}
 
 ## Style
+- Style refs (repo presets): {none}  <!-- styles/ 里拿来参考的预设，bin/vh new --style a,b 或 bin/vh style apply 会填；参考，不是规定：借了什么记进 DECISIONS.md，和它们不一样不用解释 -->
 - Refs (2–3 named works): {…}
 - Explicitly NOT: {anti-refs, e.g. purple-cyan gradients, Pixar-like 3D, bullet-point slides}
 - Palette: bg {hex}, fg {hex}, ONE accent {hex}; no pure #000/#fff unless chosen or required by the type doc (e.g. 3b1b-style black)
