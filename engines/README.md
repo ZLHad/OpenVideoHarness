@@ -40,7 +40,7 @@ npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 
 照常按 1080p 写合成，`render --resolution 4k` 让 Chrome 按 2 倍像素密度渲，合成、字号和布局都不用改。预设要和合成的画幅一致：横屏 `4k`（即 `landscape-4k`），竖屏 `portrait-4k`，方形 `square-4k`；4:5（1080×1350）没有 4K 预设。DOM 里的字和 SVG 自动变清楚，自己画像素的要跟着开大，否则 4K 下是放大的糊图：
 
-- `<canvas>` 2D：宽高乘 `devicePixelRatio`，CSS 尺寸仍是 1920×1080，再 `ctx.scale(dpr, dpr)`，坐标照旧按 1080p 写（只开大画布、不 scale，画面会挤在左上角四分之一）；
+- `<canvas>` 2D：宽高乘 `devicePixelRatio`，CSS 尺寸仍是合成尺寸，再 `ctx.scale(dpr, dpr)`，坐标照旧按 1080p 写（只开大画布、不 scale，画面会挤在左上角四分之一）；
 - Three.js：`renderer.setPixelRatio(window.devicePixelRatio)`。`showcase/04-intro-film/js/main.js` 写死了 `setPixelRatio(1)`，照它做 4K 要改这一处。
 
 draft 和自查用 1080p；4K 成片出来后，从里面裁一两帧原尺寸看字和细线锐不锐。

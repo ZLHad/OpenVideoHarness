@@ -287,7 +287,8 @@ cmd_new() {
   if [ -z "$watch" ]; then   # where it is mostly watched sets the text-size floor (playbook/03 §4); the frame gives the default
     case "$res:$type" in portrait:*|square:*|:edit) watch=phone ;; landscape:meme) watch=feed ;; *) watch=desktop ;; esac
   fi
-  case "$watch:$res" in   # a frame and a target that contradict each other (the feed floor is for a 1920-wide frame)
+  local frame=$res; case "$type" in math|paper) frame=${frame:-landscape} ;; esac   # Manim renders landscape
+  case "$watch:$frame" in   # a frame and a target that contradict each other (the feed floor is for a 1920-wide frame)
     feed:portrait|feed:square) echo "--watch feed is for a landscape film shown in a phone feed; a ${aspect:-vertical} frame is already --watch phone"; exit 1 ;;
     phone:landscape) echo "--watch phone is for a vertical or square frame; a landscape film watched on a phone is --watch feed (in a feed, not rotated) or desktop (turned sideways)"; exit 1 ;;
   esac
