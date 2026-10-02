@@ -1,8 +1,8 @@
 # Blender 引擎指南（实验性）
 
-> **实验性（experimental, not yet verified on this machine）：维护者的 Mac（M3 Max）没有装 Blender**，下面所有 Blender 命令、API 和数字都来自官方文档、release notes 和 issue，没有跑过。ffmpeg、色彩、alpha、EXR 和 `sandbox-exec` 相关的结论在维护者的 Mac 上跑过，标【实测】。**渲染时间先渲 5 帧校准，把结果写进 BRIEF**（见"渲染时间"）。
+> **部分验证（partly verified）**：2026-10-01 维护者的 Mac（M3 Max，macOS 15）装上了 Blender 5.2.2 LTS，风格库的 `tabletop-miniature` 样片（`styles/_swatch/` 的 Blender 场景）是在它上面做的。"首次冒烟"里做过的几项已经写回本文，标【实测 5.2.2】；没做的几项和其余的 Blender 命令、API 和数字仍来自官方文档、release notes 和 issue。ffmpeg、色彩、alpha、EXR 和 `sandbox-exec` 相关的结论标【实测】。**渲染时间先渲 3–5 帧校准，把结果写进 BRIEF**（见"渲染时间"）。
 >
-> 标记：【实测】在维护者的 Mac（macOS 15，ffmpeg 8.0.1）上跑过；【二手】只读到搜索摘要或第三方转述，没能打开原文；【推测】没有证据的推断。引用编号 `[n]` 见文末"来源"。`bin/vh` 里还没有 Blender 的子命令，下文都是直接调用 `blender`。首次装上 Blender 之后，先做"首次冒烟"里的几项，把结果写回本文，再去掉这段警告。
+> 标记：【实测】在维护者的 Mac（macOS 15，ffmpeg 8.0.1）上跑过；【实测 5.2.2】用 Blender 5.2.2 跑过；【二手】只读到搜索摘要或第三方转述，没能打开原文；【推测】没有证据的推断。引用编号 `[n]` 见文末"来源"。`bin/vh` 里没有项目用的 Blender 子命令，下文都是直接调用 `blender`；风格样片走 `bin/vh style <slug>`，做法见 `styles/_swatch/README.md` 的"Blender 场景"，那里的 `blender_render.py` 是一个能跑的逐帧渲染器。
 
 ## 要点
 
@@ -13,7 +13,7 @@
 5. **纯函数**：时间线用我们自己的缓动、样条和节拍函数，逐帧采样成关键帧；不用 Python handler，不靠实时模拟。
 6. **合成与颜色**：默认交 PNG（straight alpha，视图变换已烘进去）；EXR 是 scene-linear，进 ffmpeg 要显式 `-apply_trc iec61966_2_1`；最后一步 H.264 要写 BT.709 矩阵和四个标签，否则饱和色偏 20 个色阶左右。
 7. **安全**：官方 MCP 自己警告，它会直接执行 LLM 生成的代码，没有任何防护 [16]。**没有沙箱，就不要让 LLM 生成的 bpy 代码经过任何 MCP 执行**；管线里跑 agent 写的脚本同理。
-8. **许可**：输出归自己，但公开发布的、调用 bpy 的脚本要以 GPL 兼容协议发布 [17]。仓库是 MIT，这里的做法**维护者待定**（见"许可证"）。
+8. **许可**：输出归自己，但公开发布的、调用 bpy 的脚本要以 GPL 兼容协议发布 [17]。本仓库的做法（维护者 2026-10-01 决定）：import bpy 的文件标 `SPDX-License-Identifier: GPL-3.0-or-later`，按 GPL 分发，其余仍是 MIT（见"许可证"）。
 
 ## 什么时候用 Blender
 
@@ -215,7 +215,7 @@ ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt,color_range,co
 
 **管线里跑 agent 写的 `build.py`**：① 静态检查：AST 扫描，禁 `os`、`subprocess`、`socket`、`urllib`、`shutil`、`eval/exec`、`__import__`，`open` 只许写输出目录；② `--factory-startup`、不加 `-y`；③ 套 `sandbox-exec` 和 `env -i`（下）。第三方 `.blend` 和素材当不可信输入：先 `--disable-autoexec`（默认已是）打开，扫描文本块和驱动器再用。要联网取素材，单独做一步，显式 URL、记来源和许可，不在渲染进程里取。
 
-**`sandbox-exec`**（手册标注 DEPRECATED，但在 macOS 15 上可用）。下面的 profile 在 `sh`、`curl`、`python3`、`ffmpeg` 上验证过：输出目录可写；其他位置（包括 `/tmp` 和真实的 home）写入得到 `Operation not permitted`；网络被拒（`curl` 返回 000，不加沙箱时是 200）【实测】。**没有用 Blender 本体验证过。**
+**`sandbox-exec`**（手册标注 DEPRECATED，但在 macOS 15 上可用）。下面的 profile 在 `sh`、`curl`、`python3`、`ffmpeg` 上验证过：输出目录可写；其他位置（包括 `/tmp` 和真实的 home）写入得到 `Operation not permitted`；网络被拒（`curl` 返回 000，不加沙箱时是 200）【实测】。套 Blender 本体还要补几行，见下面的"首次冒烟"和 `styles/_swatch/render.sh` 的 `bl_profile`（一份在 Blender 5.2.2 上跑通的完整 profile）。
 
 ```scheme
 (version 1)
@@ -234,9 +234,9 @@ sandbox-exec -f vh_blender.sb env -i PATH="$PATH" HOME="$PWD/blender/out/.home" 
   blender -b --factory-startup ...
 ```
 
-Blender 自己需要写的位置（着色器缓存、用户配置目录）和 `env -i` 下还缺的环境变量都还没验证【未实测】，首次冒烟时按报错补白名单。沙箱不是安全边界的终点：`(allow default)` 只挡了网络和写入，读取 `~/.ssh`、`~/.zsh_secrets` 这类文件仍然放行（验证过）。要更严，在 profile 的 `(allow default)` 之后加一行拒读，例如 `(deny file-read* (subpath "/Users/<you>/.ssh") (literal "/Users/<you>/.zsh_secrets"))`（路径写绝对路径；实测读被拒，python 照常运行）。
+沙箱不是安全边界的终点：`(allow default)` 只挡了网络和写入，读取 `~/.ssh`、`~/.zsh_secrets` 这类文件仍然放行（验证过）。要更严，在 profile 的 `(allow default)` 之后加一行拒读，例如 `(deny file-read* (subpath "/Users/<you>/.ssh") (literal "/Users/<you>/.zsh_secrets"))`（路径写绝对路径；实测读被拒，python 照常运行）；或者整个家目录拒读，再放行项目和字体目录（样片的正式渲染就是这样）。用 Metal 渲染时整个家目录拒读会崩，见"首次冒烟"。
 
-## 许可证（维护者待定）
+## 许可证（2026-10-01 已定：选项 (2)）
 
 以下是官方原文的要点，不是法律意见；许可页和 FAQ 的原文 2026-10-01 对着页面核对过 [17]。
 
@@ -249,7 +249,7 @@ Blender 自己需要写的位置（着色器缓存、用户配置目录）和 `e
 | 官方 MCP、`bpy` PyPI 包 | 元数据都标 GPL-3.0 [16][18] | 只读参考 |
 | 素材 | 各自许可：Poly Haven 等为 CC0，Poly Pizza 多为 CC-BY，Sketchfab 逐件不同 [16] | 一律记素材台账 |
 
-**维护者待定**：本仓库是 MIT。`engines/blender/` 下如果放调用 bpy 的脚本，许可怎么写，有三个选项：(1) 仓库里不放 `import bpy` 的文件，`build.py` 由 agent 在项目目录里生成（`projects/` 不入库），仓库只放不 import bpy 的封装和模板 JSON；(2) `import bpy` 的文件标 `SPDX-License-Identifier: GPL-3.0-or-later`，在 `ACKNOWLEDGMENTS.md` 里说明，这部分文件按 GPL 分发；(3) 保持 MIT，承担 FAQ 字面要求和 MIT 之间的差距。**决定之前按 (1) 做**：仓库里不放 `import bpy` 的文件，本指南也只有流程、伪代码和 API 名称。Blender 的名称和 logo 受单独的商标政策约束，片子里出现 Blender 界面截图前先看一眼 [17]。
+本仓库是 MIT。调用 bpy 的脚本放进仓库时，许可怎么写，原有三个选项：(1) 仓库里不放 `import bpy` 的文件，`build.py` 由 agent 在项目目录里生成（`projects/` 不入库），仓库只放不 import bpy 的封装和模板 JSON；(2) `import bpy` 的文件标 `SPDX-License-Identifier: GPL-3.0-or-later`，这部分文件按 GPL 分发；(3) 保持 MIT，承担 FAQ 字面要求和 MIT 之间的差距。**维护者 2026-10-01 选了 (2)**：现在仓库里 import bpy 的文件是 `styles/_swatch/blender_render.py` 和 `styles/tabletop-miniature/swatch.py`，文件头都有 SPDX 标注，`README.md` 的 License 一节写明了；不 import bpy 的封装（`blender_prep.py`、`render.sh`）仍是 MIT。以后加 import bpy 的文件，照样标。项目里 agent 生成的 `build.py` 在 `projects/` 下，不入库，不受影响。Blender 的名称和 logo 受单独的商标政策约束，片子里出现 Blender 界面截图前先看一眼 [17]。
 
 ## 流程与验证
 
@@ -277,14 +277,30 @@ Blender 自己需要写的位置（着色器缓存、用户配置目录）和 `e
 
 ## 首次冒烟（装上 Blender 之后）
 
+2026-10-01 用 5.2.2（Homebrew cask，M3 Max）做过的【实测 5.2.2】：
+
+- **同一帧、同一设置、新进程渲两次**（一个简单场景：木纹桌面、一个方块、一行中文、两盏灯，1920×1080，64 spp + OIDN）：CPU 上的 Cycles 逐像素相同；Metal 上的 Cycles 不同，PSNR 92 dB；EEVEE 不同，85 dB。都在 45 dB 线以上，但只有 CPU 能做到逐像素相同。风格样片的正式版因此走 CPU；草稿走 Metal。
+- **乱序、多进程**：`tabletop-miniature` 的 12 帧倒序分给 3 个新进程重渲，和整片按顺序渲出来的同一帧比（`styles/_swatch/determinism.sh`），结果见 `styles/_swatch/README.md`。
+- **速度**：上面那个简单场景每帧 CPU 21 s、Metal 4.5 s、EEVEE 1.1 s（含启动）。`tabletop-miniature`（约 70 个物体、文字、景深、4 盏灯）CPU 64 spp 每帧 32–43 s，32 spp 每帧 15–19 s，两者并排放大看不出差别；Metal 20 spp 每帧约 1.6 s。
+- **`sandbox-exec` 套 Blender**（完整的 profile 见 `styles/_swatch/render.sh` 的 `bl_profile`）：
+  - 只放行输出目录时，Metal 不能写着色器缓存，每帧都重编（2 s 变成 13 s）。再放行本用户缓存目录里 Blender 自己的子目录（`$(getconf DARWIN_USER_CACHE_DIR)org.blenderfoundation.blender`）就正常了；临时目录不用放行。日志里仍有几行无害的 "Error creating directory"。
+  - 冷启动时 Metal 编译内核要静默约 110 s，日志一行不动：看门狗的静默阈值要放宽（样片用 300 s）。
+  - 整个家目录拒读（只放行项目、Blender 安装目录和 `~/Library/Fonts`）：CPU 渲染照常，和不加这条时逐像素相同。Metal 在内核已经缓存好时会崩溃（SIGSEGV，崩在 `-[_MTLDevice recordBinaryArchiveUsage:]`），放行 `~/Library` 也不行。所以样片只在正式渲染（CPU）上加这条，草稿（Metal）仍然断网、只写输出目录，但不禁读。
+  - `env -i` 只带 `PATH`、`LANG`，`HOME` 和 `TMPDIR` 指进输出目录，Blender 照常运行，Cycles 的内核缓存写到 `$HOME/.cache/cycles`。
+- **字体**：`bpy.data.fonts.load()` 只读 .ttc 的第一个字形：`Songti.ttc` 读出 Songti SC Black，`Hiragino Sans GB.ttc` 读出 W3。要别的字重，先把那一面写成单独的字体文件（`styles/_swatch/blender_prep.py` 用 fontTools 做）。
+- **API**：5.2 里新建的材质和世界自带节点树，再设 `use_nodes` 会报 DeprecationWarning（6.0 删除）；Mix 节点有三组同名输入（float、vector、color 都叫 "A"），要按 identifier 取（`A_Color`、`Factor_Float`、`Result_Color`）；`view_transform` 和 `look` 是动态枚举，`bl_rna` 里查不到选项，直接设、失败再退（`AgX` 和 `AgX - Medium High Contrast` 都可用）；后台模式下 `stdout` 是块缓冲，Cycles 的进度行不会实时进日志，渲染器要自己 `print(..., flush=True)`，否则看门狗会以为卡住了。
+- **persistent data 会留下跨帧状态**：一个进程里按顺序逐帧 `apply(t)` 再 `bpy.ops.render.render()`，开着 `render.use_persistent_data` 时，CPU 上的 Cycles 在一段帧里把一个物体（茶杯）渲成全黑，单独渲同一帧是正常的；乱序重渲 12 帧，有 1 帧对不上（24.5 dB）。关掉以后每帧时间几乎不变。逐帧改属性再渲的流程不要开它，开了就要做乱序比对。
+- **job control**：在 `set -m` 打开的 shell 里把 Blender 放到后台，它会进另一个进程组，看门狗按组杀不到它；在起 Blender 的子 shell 里先 `set +m`。
+
+还没做的：
+
 1. 5.2 上 EEVEE 命令行渲 300 帧，看内存曲线（#125333 的后续）。
-2. Cycles Metal 的确定性：`-f N` 对 `-a`、单进程对多进程、重启前后；自适应采样开、关各一组。
+2. Cycles Metal 的确定性：`-f N` 对 `-a`、单进程对多进程、重启前后；自适应采样开、关各一组（CPU 的乱序一致见上）。
 3. OIDN 开、关的静态区域闪烁。
 4. 刚体烘焙缓存乱序渲染是否一致。
-5. `sandbox-exec` 套 Blender 本体：着色器缓存和用户配置目录要补哪些写目录。
-6. HyperFrames 的 `<video>` 是否保留输入视频的 alpha（WebM VP9、ProRes 4444），PNG 序列方案是否够用。
-7. PNG 元数据里是否含渲染时间等字段（影响"文件哈希"）。
-8. 上文各条命令（`-o //../out/…`、`-E BLENDER_EEVEE`、`--cycles-device METAL`）在 5.2 上的实际行为，和 M3 Max 的真实渲染速度。
+5. HyperFrames 的 `<video>` 是否保留输入视频的 alpha（WebM VP9、ProRes 4444），PNG 序列方案是否够用。
+6. PNG 元数据里是否含渲染时间等字段（影响"文件哈希"）。
+7. 上文各条命令（`-o //../out/…`、`-E BLENDER_EEVEE`、`--cycles-device METAL`）在 5.2 上的实际行为（样片渲染器在一个进程里逐帧调 `bpy.ops.render.render`，没走这些参数）。
 
 ## 来源
 

@@ -1,11 +1,11 @@
 # styles/_swatch · 风格样片渲染器
 
-每个风格预设都要附一段用本仓库真渲出来的 5 秒样片，用样片证明风格之间确实不同。本目录负责把 `styles/<slug>/swatch.js` 渲成：
+每个风格预设都要附一段用本仓库真渲出来的 5 秒样片，用样片证明风格之间确实不同。本目录负责把 `styles/<slug>/swatch.js`（或 Blender 场景 `swatch.py`，见"Blender 场景"）渲成：
 
 - `styles/<slug>/media/swatch.mp4`：1280×720，H.264 High，yuv420p，faststart，≤ 1.5 MB；有 `score.json` 时带配乐，否则静音；
 - `styles/<slug>/media/poster.jpg`：t = 3.0 s 那一帧，1280×720，≤ 200 KB。
 
-引擎是固定在 0.8.82 的 HyperFrames。画面是一张 1920×1080 的 `<canvas>`，每一帧都是 `renderAt(t)` 的纯函数。
+引擎是固定在 0.8.82 的 HyperFrames。画面是一张 1920×1080 的 `<canvas>`，每一帧都是 `renderAt(t)` 的纯函数。需要路径追踪的光、真实景深的风格（目前是 `tabletop-miniature`）改用 Blender 的 Cycles，场景写成 `swatch.py`，渲出的帧走同一套检查、配乐、混音和编码。
 
 ## 快速开始
 
@@ -34,6 +34,8 @@ styles/_swatch/
 ├── fonts.py           重新生成 fonts.css；--list 打印字体清单
 ├── render.sh          渲染 + 看门狗 + 检查 + 转码 + 封面 + 联系表
 ├── determinism.sh     确定性检验
+├── blender_render.py  Blender 场景的渲染器（在 Blender 里运行；GPL-3.0-or-later，见"Blender 场景"）
+├── blender_prep.py    Blender 场景渲染前的两步：静态检查 swatch.py、把它的 FONTS 解析成字体文件
 ├── gallery.py         styles/gallery.jpg（+ 带声音的 gallery.mp4）
 ├── demo/              中性示例场景：按统一内容规格走一遍 API，复制它起步
 ├── catalog/           lib.js 测试卡：每个纹理、滤镜、转场、WebGL 各一格（改 lib.js 后渲它看）
@@ -80,6 +82,56 @@ export function renderAt(t, ctx, tokens, lib) {
 - 风格文件夹里不能有 `.html` 文件（一个根目录只能有一个 composition，`render.sh` 会拒绝）。
 
 出错时的表现：`setup` 或加载失败，每一帧都画成品红色的 SWATCH ERROR 卡片；`renderAt` 在某一帧抛异常，只有那一帧是错误卡片。卡片上印着错误信息和调用栈，同时 `console.error` 进 HyperFrames 的日志（`[Browser:ERROR] [swatch] …`）。`render.sh` 抽帧发现品红卡片就判失败。
+
+## Blender 场景（swatch.py）
+
+风格文件夹里只有 `swatch.py`、没有 `swatch.js` 时，`render.sh` 改用 Blender（Cycles）渲染。装法：`brew install --cask blender`（指南钉在 5.2 LTS，见 `engines/blender.md`），或者设 `BLENDER=/path/to/blender`；还要 fontconfig 的 `fc-match`。HyperFrames 和这一节无关，`bin/vh style <slug>` 遇到 Blender 场景时不装它。
+
+`swatch.py` 是一个普通的 Python 模块，只在函数里用 bpy，所以 `python3 swatch.py --foley` 在 Blender 之外也能跑：
+
+```python
+FOLEY = [{"t": LAMP_ON, "sfx": "sfx/lamp_on.wav", "gain_db": -2, "pan": -0.55}, …]   # foley.mjs 照常写成 events.json
+FONTS = {"title": "Big Caslon", "zh": "Songti SC:weight=bold"}                     # fontconfig 的匹配式；env.fonts["zh"] 是加载好的字体
+RENDER = {"final": {"samples": 32}, "draft": {"samples": 20}}                      # 可选：覆盖 blender_render.py 的默认值
+
+def build(env): …          # 每个 Blender 进程调用一次：搭整个场景，只能依赖 env.tokens 和常量
+def apply(t, env): …       # 按 t（= k/30）直接设好每个会动的属性：t 的纯函数，不留跨帧状态
+```
+
+`env` 里有 `W H FPS DUR FRAMES POSTER_T SPEC TITLE_EN TITLE_ZH MOTIF`（和 `lib.js` 同值）、`tokens`、`fonts`、`scene`、`quality`（final 或 draft）和 `hash(*xs)`（[0, 1)，跨机器一致，用来做手放抖动之类的"随机"）。
+
+- **不打关键帧**：`apply` 直接设属性，渲染器逐帧 `apply(k/30)` 再渲。所以没有运动模糊；要运动模糊的项目按 `engines/blender.md` 逐帧采样成关键帧。
+- **画质**：正式版是 CPU 上的 Cycles，默认 64 spp、自适应阈值 0.02、OIDN 降噪，`use_animated_seed`（噪点随帧号变，仍是 t 的函数）；`--draft` 改用 GPU（Metal、OptiX、CUDA、HIP 或 oneAPI，都没有就用 CPU），默认 16 spp。渲出的 PNG 在 `out/<slug>/frames/`（草稿是 `frames-draft/`），再按 BT.709、tv range 编成和 HyperFrames 一样的 1080p `hf.mp4`（CRF 8，单线程，每次同样的字节），后面的检查、配乐、混音、编码、封面、联系表全部共用。
+- **为什么正式版用 CPU**【实测，M3 Max、Blender 5.2.2】：同一帧渲两次，CPU 上的 Cycles 逐像素相同；Metal 上的 Cycles 差一点（PSNR 92 dB），EEVEE 差得多一点（85 dB）。都在硬规则 1 的 45 dB 线以上，但这条流水线按体积上限爬 CRF，会把很小的差异放大成另一个 mp4（见"确定性"），所以和 HyperFrames 一样取逐像素相同的那一条路。代价是慢：`tabletop-miniature` 正式版每帧 15–19 s（32 spp），150 帧约 40 分钟；草稿每帧约 1.6 s，150 帧约 4 分钟。
+- **时间预算**：Blender 场景的默认超时是草稿 1800 s、正式 7200 s。正式渲染前先用 `--png --frames 3,90,140` 渲三帧，按每帧的时间估全片。
+- **`--png --frames 149,90,12`**：只渲这几帧，按这个顺序，写到 `out/<slug>/png-sample-w<N>/`（加 `--draft` 走 GPU）。看构图、调光的时候用它，几十秒一轮。
+- **`--workers N`**：起 N 个 Blender，各渲一段连续的帧。默认 1 个：Cycles 本来就用满所有核，多开不会更快；它是给确定性检验用的。一段失败，其余几段立刻停掉。
+- **`--hud`**：正式渲染加 `--hud` 时不写 `inputs.txt`，烧了读数的帧不会被 `determinism.sh` 拿去比。
+
+**先看再跑，跑在笼子里**（`engines/blender.md` 的"安全"）。agent 写的 bpy 脚本有用户的全部权限，所以有三层，真正的边界是第 3 层：
+1. **静态检查是 lint，不是门**。`blender_prep.py scan` 先把 `swatch.py` 当语法树读一遍，不执行，拦住手误和明显的出路，拦不住存心绕过的人。不通过就不渲；`foley.mjs` 读 FOLEY 之前也先过这一步。它拦的东西：
+   - import 只许 `bpy bmesh mathutils math colorsys json sys`，连 `random`、`time` 也不许，顺带保证帧只依赖 t；`json` 只许 `dumps`、`loads`，`sys` 只许 `argv`。
+   - 下划线开头的名字和属性一律不许，只放行 `_` 和 `__name__`；含 `__` 的字符串也不许。这挡住了 `bpy.utils._os`、`x.__dict__["__import__"]` 这类绕法。
+   - 不许 `eval exec compile open getattr setattr type dir globals vars`。
+   - 不许 bpy 读写或运行别的东西：.blend（`wm`、`libraries`）、文本块（`texts`、`run_script`）、驱动器（`driver_add`、`driver_namespace`）、`bpy.utils`、`save_render`、`handlers`、`timers`。
+2. **干净的环境**。Blender 用 `env -i` 启动，只带 `PATH`、`LANG` 和 `PYTHONDONTWRITEBYTECODE`，`HOME` 和 `TMPDIR` 指向 `out/<slug>/.blender/`：环境变量里的 API key 到不了场景脚本。
+3. **macOS 上的沙箱**（`sandbox-exec`，规则文件在渲染开始前写一次，见 `render.sh` 的 `bl_profile`）【实测，Blender 5.2.2】：
+   - 禁网络，也不许把网址或 Apple 事件交给别的程序。
+   - 只许写 `out/<slug>/` 和本用户缓存目录里 Blender 自己的那一个子目录（`$(getconf DARWIN_USER_CACHE_DIR)org.blenderfoundation.blender`），Metal 把编译好的着色器存在那里。不许写的话，每一帧都要重编，2 s 变成 13 s。临时目录不用放行。
+   - **正式渲染（CPU）还不许读家目录**，只放行仓库、场景、Blender 安装目录和 `~/Library/Fonts`。`~/.ssh`、`~/.zsh_secrets` 这类文件读不到，要提交的帧里也就印不进它们（实测读取被拒；整片的第 90 帧和不加这条规则时逐像素相同）。
+   - 草稿（Metal）加不了这条：家目录不可读时，Metal 加载 Cycles 缓存好的内核会崩溃（崩在 `-[_MTLDevice recordBinaryArchiveUsage:]`；放行 `~/Library` 也不行）。草稿的输出只留在不入库的 `out/` 里，又没有网络，读到什么也送不出去。
+   - 冷启动时 Metal 编译内核要静默约 110 s，所以 Blender 场景的静默阈值默认是 300 s。日志里会有几行 "Error creating directory"，不影响渲染。
+   - 放行的 Blender 文件按 `BLENDER` 的真实路径算：.app 包，或它所在的文件夹；这个文件夹装着家目录（比如 Blender 直接放在 `/Users` 下）时直接报错，不渲。`BLENDER` 是一个 wrapper 脚本时（Homebrew 的 `blender` 就是），放行的是脚本所在的文件夹，不是它启动的 .app：app 在 `/Applications` 时没关系，装在 `~/Applications` 时正式渲染会因读不到而失败，把 `BLENDER` 直接设成 .app 里的 `Contents/MacOS/Blender` 就好。
+   - 规则文件写在系统临时目录里（沙箱里写不了），渲完或中断时删掉；macOS 上没有它，Blender 就不启动。
+   - **Linux 上没有第 3 层**，只有前两层：只渲你读过的场景，或者放进容器里渲。
+
+**字体**：`FONTS` 的每个角色是一个 fontconfig 匹配式，`blender_prep.py fonts` 用 `fc-match` 找到本机的字体文件（和 `fonts.css` 用的是同一批系统字体），结果写进 `out/<slug>/fonts.json`。Blender 只读 .ttc 里的第一个字形【实测：`Songti.ttc` 读出来是 Songti SC Black】，所以匹配到的不是第一个时（宋体 Bold 是第 2 个），先用 fontTools 把那一面写成单独的字体文件，放在 `out/<slug>/fonts/`：本机缓存，不入库，不分发。匹配不到要的族时直接报错（中文角色落到拉丁字体上会印出方块），不悄悄回落。抽出来的字形每次重写（约 0.3 s），写到一半中断也不会留下坏文件。
+
+**不用 persistent data**【实测 5.2.2，CPU】：打开 `render.use_persistent_data`（跨帧保留场景数据，本想省同步时间），`tabletop-miniature` 按顺序渲的第 27–44 帧里茶杯整个变黑，单独渲这几帧又是正常的灰色：一帧的样子取决于它前面渲过哪些帧。`determinism.sh` 抓到了（第 30 帧，24.5 dB）。关掉以后每帧的时间几乎不变（15–19 s），所以渲染器固定关掉它。
+
+**确定性**：`determinism.sh <slug>` 对 Blender 场景不重渲整片（太慢），按硬规则 1 的原话做：从片中均匀抽 12 帧，倒着顺序分给 3 个新开的 Blender 进程重渲，和整片按顺序渲出来的同一帧逐像素比。整片的帧取上一次正式渲染留下的 `out/<slug>/frames/`，前提是它的 `inputs.txt`（场景、tokens、渲染器和 Blender 版本的校验和，`render.sh <slug> --stamp` 打印当前值）和现在一致；不一致就先按顺序整片渲一遍。
+
+**许可**：`blender_render.py` 和每个 `swatch.py` 调用 Blender 的 Python API，按 GPL-3.0-or-later 分发，文件头有 SPDX 标注（维护者 2026-10-01 的决定，见 `engines/blender.md` 的"许可证"）；`blender_prep.py` 不 import bpy，和仓库其余部分一样是 MIT。
 
 ## 统一内容规格
 
@@ -186,7 +238,7 @@ export function renderAt(t, ctx, tokens, lib) {
 
 ## 画廊
 
-`gallery.py` 扫描 `styles/*/media/poster.jpg`（跳过 `_` 开头的文件夹），拼成 5 列的 `styles/gallery.jpg`（≤ 2 MB），每张下面写风格名。风格名取 STYLE.md 第一行 `# <风格名> · <slug>`，没有就取 tokens.json 的 `name`，再没有就用 slug。加 `--mp4` 时还会生成 `styles/gallery.mp4`：每个样片取 1.9–3.4 s，叠上名字，按顺序硬切，1280×720，≤ 12 MB。声音就是每个样片自己那一段，接缝处做 30 ms 的等功率交叉淡化（不爆音，也不凹下去），整条的开头和结尾各淡入淡出 30 ms；没有音轨的样片那一段垫房间底噪，不留数字静音，并打印一条警告。音频是 AAC 160k。实测 28 条的时候，jpg 是 1.04 MB，mp4 是 9.5 MB。
+`gallery.py` 扫描 `styles/*/media/poster.jpg`（跳过 `_` 开头的文件夹），拼成 5 列的 `styles/gallery.jpg`（≤ 2 MB），每张下面写风格名。风格名取 STYLE.md 第一行 `# <风格名> · <slug>`，没有就取 tokens.json 的 `name`，再没有就用 slug。加 `--mp4` 时还会生成 `styles/gallery.mp4`：每个样片取 1.9–3.4 s，叠上名字，按顺序硬切，1280×720，≤ 12 MB。声音就是每个样片自己那一段，接缝处做 30 ms 的等功率交叉淡化（不爆音，也不凹下去），整条的开头和结尾各淡入淡出 30 ms；没有音轨的样片那一段垫房间底噪，不留数字静音，并打印一条警告。音频是 AAC 160k。实测 29 条（2026-10-02）：jpg 1.06 MB，mp4 7.2 MB（43.5 s，CRF 23）。
 
 ## 给预设作者的坑
 
@@ -212,4 +264,4 @@ bin/vh style gallery [--mp4]                          →  uv run -q --with pill
 bin/vh style check <slug> [workers_b]                 →  "$ROOT/styles/_swatch/determinism.sh" <slug> [workers_b]
 ```
 
-首次使用前要有 `styles/_swatch/node_modules`：`bin/vh setup` 和 `install.sh` 都会装；`bin/vh style <slug>` 和 `bin/vh style check <slug>` 发现缺依赖时会先自动 `npm ci`。直接调用 `render.sh` 或 `determinism.sh` 时缺依赖会报错，并提示 `(cd styles/_swatch && npm ci)`。
+首次使用前要有 `styles/_swatch/node_modules`：`bin/vh setup` 和 `install.sh` 都会装；`bin/vh style <slug>` 和 `bin/vh style check <slug>` 发现缺依赖时会先自动 `npm ci`（Blender 场景不需要它，跳过这一步）。直接调用 `render.sh` 或 `determinism.sh` 时缺依赖会报错，并提示 `(cd styles/_swatch && npm ci)`。

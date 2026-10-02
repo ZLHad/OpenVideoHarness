@@ -4,7 +4,7 @@
 
 **让 Claude Code、Codex 这类写代码的 AI，用写程序的方式做视频，而且做得稳。**
 
-科普、讲解、产品片、MV、数据、论文、手绘、梗图快剪、真人素材剪辑：9 类视频（09 实验中），28 种风格，一套流程。
+科普、讲解、产品片、MV、数据、论文、手绘、梗图快剪、真人素材剪辑：9 类视频（09 实验中），29 种风格，一套流程。
 
 [English](README.md) · **中文** · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
@@ -12,7 +12,7 @@
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20Remotion%20%7C%20Manim%20%7C%20p5.brush-blue)
 ![Voice](https://img.shields.io/badge/voice-Qwen3--TTS%20zh%20%7C%20en-purple)
-![Styles](https://img.shields.io/badge/styles-28-green)
+![Styles](https://img.shields.io/badge/styles-29-green)
 
 <a href="showcase/04-intro-film/"><img src="showcase/04-intro-film/media/preview.gif" width="820" alt="OpenVideoHarness 介绍片"></a>
 
@@ -32,7 +32,7 @@ OpenVideoHarness 就是这套行规，写成了 AI 能照着执行的文档和�
 
 - **按片子类型给做法**：你说"做个科普"或"做个发布片"，它就去读那一类的工作流：用哪个引擎、分几步、什么算好看、什么不许做。
 - **三个节点停下来问你**：大纲、分镜、初版，每到一处都等你点头再往下做。方向在最便宜的时候定下来。只想快速试一版时，可以切到"快出"档，直接出片。
-- **不止一种口味**：28 个从名作里学来的风格，每个都附一段真渲的样片，开工前让你挑。
+- **不止一种口味**：29 个从名作里学来的风格，每个都附一段真渲的样片，开工前让你挑。
 - **自己检查自己**：AI 看不了视频，也听不了声音。所以让它看渲染出来的帧、测混音的数据，照着清单改到合格；整片还要交给一个没参与制作的 reviewer 打分。
 - **声音一起管**：中英配音（本地开源模型）、双语字幕、用代码写配乐和音效、混音和质检。
 
@@ -95,8 +95,8 @@ cd ~/OpenVideoHarness && claude
 <td valign="top"><b><a href="showcase/04-intro-film/">04 · 介绍片（一镜到底 3D）</a></b>（HyperFrames + Three.js · 81 秒 · 1920×1080）<br>本仓库自己的产品片，一个连续的 3D 长镜头。<br><b><a href="showcase/04-intro-film/README.md#what-was-asked-and-what-changed">提示词</a>（关卡 ① 时改的方向）：</b>“一镜到底 动画动效 音乐动态字等风格 叙事感 科幻感大片感”<br><b>建议工作流</b>（精品档，<code>--effort studio</code>）：<br><code>bin/vh new promo intro-film --style monumental-scifi</code><br>一镜到底 3D 见 <a href="playbook/08-vfx-and-motion-sources.md">playbook/08</a>；<code>bin/vh sfx place</code>、<code>sheet</code>、<code>check</code><br><b>声音：</b>代码写的电影感配乐（D 小调，90 BPM）和 97 个音效；中英软字幕轨</td>
 </tr>
 <tr>
-<td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="28 种风格的样片，内容完全相同"></a><br><sub><a href="styles/gallery.mp4">▶ 带声音的连播（42 秒）</a></sub></td>
-<td valign="top"><b><a href="styles/">28 种风格，连播</a></b>（每段 5 秒）<br>同一段内容，换 28 种从名作里学来的风格。<br><b>从一种开始：</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> 列出全部 28 种，详见 <a href="styles/README.md">styles/README.md</a><br><b>声音：</b>每段样片一首配乐（<code>bin/vh music</code>，<code>mix … profile=swatch</code>）</td>
+<td width="40%" valign="top"><a href="styles/gallery.mp4"><img src="styles/gallery.jpg" width="100%" alt="29 种风格的样片，内容完全相同"></a><br><sub><a href="styles/gallery.mp4">▶ 带声音的连播（42 秒）</a></sub></td>
+<td valign="top"><b><a href="styles/">29 种风格，连播</a></b>（每段 5 秒）<br>同一段内容，换 29 种从名作里学来的风格。<br><b>从一种开始：</b><br><code>bin/vh new promo launch-film --style cutout-jazz</code><br><code>bin/vh style list</code> 列出全部 29 种，详见 <a href="styles/README.md">styles/README.md</a><br><b>声音：</b>每段样片一首配乐（<code>bin/vh music</code>，<code>mix … profile=swatch</code>）</td>
 </tr>
 </table>
 
@@ -121,26 +121,26 @@ GIF 是压缩过的无声预览。你做出来的片子也欢迎 PR 进 `showcas
 
 </details>
 
-## 28 种风格，不止一种口味
+## 29 种风格，不止一种口味
 
 AI 做的视频很容易长成一个样子：暗底、发光、玻璃卡片、满屏动态 UI。你不说，它就往这个方向走。
 
-所以我们从名作里学了 28 种风格，放在 [`styles/`](styles/)，分成六类：电影片头、品牌发布、数据讲解、插画印刷、中国美学、复古科技。学习对象包括：
-- **电影和片头**：Saul Bass 的片头、《七宗罪》、《银翼杀手 2049》、韦斯·安德森的对称构图、王家卫的抽帧；
+所以我们从名作里学了 29 种风格，放在 [`styles/`](styles/)，分成六类：电影片头、品牌发布、数据讲解、插画印刷、中国美学、复古科技。学习对象包括：
+- **电影和片头**：Saul Bass 的片头、《七宗罪》、《银翼杀手 2049》、韦斯·安德森的对称构图、王家卫的抽帧、Aardman 和 Laika 的定格微缩；
 - **设计**：瑞士网格、3Blue1Brown、《纽约时报》的数据图、纽拉特的图形统计（Isotype）；
 - **动画和印刷**：《蜘蛛侠：平行宇宙》的网点、超级任天堂的 16 位像素；
 - **中国美学**：水墨、敦煌、皮影、国潮。
 
 每种风格都写成一份 AI 能照着做的说明：用什么颜色和字体、怎么构图、东西怎么动、怎么转场、配什么声音、哪些俗套不许碰。
 
-**每种风格都用本仓库真渲了一段 5 秒样片**，配乐也是各自用代码写的。28 段样片的内容一模一样，差别只在风格：
+**每种风格都用本仓库真渲了一段 5 秒样片**，配乐也是各自用代码写的。29 段样片的内容一模一样，差别只在风格：
 
-<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="28 种风格的样片，内容完全相同"></a>
+<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="29 种风格的样片，内容完全相同"></a>
 
 连着看的版本在 [`styles/gallery.mp4`](styles/gallery.mp4)，每段带着自己的声音。用法：
 
 ```bash
-bin/vh style list                                  # 看 28 种风格
+bin/vh style list                                  # 看 29 种风格
 bin/vh new promo launch-film --style cutout-jazz   # 建项目时直接带上一种风格
 ```
 
@@ -390,7 +390,7 @@ OpenVideoHarness/
 ├── video-types/              9 类视频的工作流（09 实验中）
 ├── playbook/                 通用知识 00–12：流程、自查、运动设计、声音、特效、叙事、钩子与封面、作曲、立意等
 ├── templates/                每个新项目要填的文件：需求、分镜、风格、审阅、决定、笔记、经验、清单；按需再加旁白稿、角色、标题封面
-├── styles/                   28 种风格，各带样片；_swatch/ 是样片渲染器
+├── styles/                   29 种风格，各带样片；_swatch/ 是样片渲染器
 ├── recipes/                  镜头配方：一镜怎么动（帧数、命门、坑）+ 整支片子的节奏骨架
 ├── cases/                    13 个案例拆解 + 社区作品精选 + 一支 3D 长片深读
 ├── showcase/                 本仓库自己做的片子（源码 + 成片 + 过程记录）
@@ -450,7 +450,7 @@ OpenVideoHarness/
 
 ## 许可
 
-原创内容采用 [MIT](LICENSE) 许可。自带的 ClaudeAnimationBase 也是 MIT（© John Heibel）。`recipes/` 里有些文件改编自 Apache-2.0 的项目（video-shotcraft、HyperFrames），来自上游的部分仍按 Apache-2.0，清单见 [`recipes/NOTICE.md`](recipes/NOTICE.md)。参考仓库遵循各自的许可证。
+原创内容采用 [MIT](LICENSE) 许可。自带的 ClaudeAnimationBase 也是 MIT（© John Heibel）。`recipes/` 里有些文件改编自 Apache-2.0 的项目（video-shotcraft、HyperFrames），来自上游的部分仍按 Apache-2.0，清单见 [`recipes/NOTICE.md`](recipes/NOTICE.md)。调用 Blender Python API 的文件（`import bpy`：`styles/_swatch/blender_render.py` 和 `styles/tabletop-miniature/swatch.py` 这类 Blender 风格场景）按 GPL-3.0-or-later 分发，这是 Blender 对公开发布的 bpy 脚本的要求；每个文件头都有 SPDX 标注（见 [`engines/blender.md`](engines/blender.md) 的"许可证"）。参考仓库遵循各自的许可证。
 
 ## 引用
 

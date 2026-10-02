@@ -116,7 +116,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 | 3 分钟以上的长片，或靠故事、谜题推进的片子（角色短片、长讲解） | 主类型文档，加上 `playbook/09-narrative.md`（骨架、节拍表、张力曲线、换挡） | 按主类型 | — |
 | 要发短视频平台：开头钩子、标题、封面 | `playbook/10-hooks-and-packaging.md`，加上主类型文档 | 按主类型 | — |
 | 要写有篇章、有主题的配乐（MV、介绍片和发布片、45 s 以上靠音乐撑起结构的片子、`studio` 档位，或者人要亲自定主题和 BGM） | `playbook/11-composition.md`；`score.json` 的写法见 `playbook/04-audio.md` | `bin/vh music` | — |
-| 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`（一镜到底、特效预设栈、子帧运动模糊）。要路径追踪的光影（玻璃、皮肤、体积光）、物理模拟或真实景深时，读 `engines/blender.md`（实验性：维护者的 Mac 没装 Blender，没验证过，渲染时间先渲 5 帧校准） | HyperFrames + Three.js 层；重光影的镜头用 Blender | `showcase/04-intro-film/`、`cases/opus55-gallery.md` 的 3D 一节和第 6 节（Austerlitz 长片深读） |
+| 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`（一镜到底、特效预设栈、子帧运动模糊）。要路径追踪的光影（玻璃、皮肤、体积光）、物理模拟或真实景深时，读 `engines/blender.md`（部分验证：风格样片 `tabletop-miniature` 已用 Blender 5.2.2 渲染，项目用的命令还有几条没跑过；渲染时间先渲 3–5 帧校准） | HyperFrames + Three.js 层；重光影的镜头用 Blender | `showcase/04-intro-film/`、`cases/opus55-gallery.md` 的 3D 一节和第 6 节（Austerlitz 长片深读） |
 | 想要新点子、立意，一句话需求想做得出彩，或者不想千篇一律 | `playbook/12-ideation.md`，再加主类型文档 | 按主类型 | `cases/oneshot-five.md`、`cases/explainer-interstellar-blackhole.md` |
 | 想要某种风格、参考某部名作，或者不想每支片子都一个口味 | `styles/README.md`，再读选中预设的 `styles/<slug>/STYLE.md` | 随主引擎 | 每个预设的 `media/swatch.mp4`，总览 `styles/gallery.jpg` |
 | 想知道某种镜头怎么动（开场、字卡、转场、卡点、收尾），或想要"专业的节奏" | `recipes/README.md`，再读 `recipes/sequences/` 里合适的骨架 | 随主引擎 | `cases/promo-video-shotcraft.md` |
