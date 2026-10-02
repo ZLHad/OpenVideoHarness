@@ -285,8 +285,12 @@ cmd_new() {
   case "$type" in short) res=${res:-portrait} ;; promo|data|meme) res=${res:-landscape} ;; esac
   case "$res" in portrait) wh=1080x1920 ;; square) wh=1080x1080 ;; landscape) wh=1920x1080 ;; esac
   if [ -z "$watch" ]; then   # where it is mostly watched sets the text-size floor (playbook/03 §4); the frame gives the default
-    case "$res:$type" in portrait:*|square:*|:edit) watch=phone ;; *) watch=desktop ;; esac
+    case "$res:$type" in portrait:*|square:*|:edit) watch=phone ;; landscape:meme) watch=feed ;; *) watch=desktop ;; esac
   fi
+  case "$watch:$res" in   # a frame and a target that contradict each other (the feed floor is for a 1920-wide frame)
+    feed:portrait|feed:square) echo "--watch feed is for a landscape film shown in a phone feed; a ${aspect:-vertical} frame is already --watch phone"; exit 1 ;;
+    phone:landscape) echo "--watch phone is for a vertical or square frame; a landscape film watched on a phone is --watch feed (in a feed, not rotated) or desktop (turned sideways)"; exit 1 ;;
+  esac
   local base dir; base=$(projects_base "$parent")
   mkdir -p "$base" || { echo "cannot create $base"; exit 1; }
   base=$(cd "$base" && pwd); dir="$base/$(date +%F)-$slug"

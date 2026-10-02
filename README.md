@@ -188,7 +188,7 @@ Not every film deserves the full treatment. One switch controls how much effort 
 |---|---|---|---|
 | For | trying a direction, drafts, casual posts | most real videos | launch films, flagship pieces |
 | Stops to ask you | never; it just renders | at the outline, storyboard and first draft | the same three, plus a rendered sketch of each concept and a full-length animatic |
-| Checks its own work | one contact sheet for the whole film | frames and sound, section by section | plus phone size, determinism and a full audio check |
+| Checks its own work | one contact sheet for the whole film | frames and sound, section by section | plus target-screen size, determinism and a full audio check |
 | Outside reviewer | none | 1 round | at least 3 rounds, all 8 scores at 8+ |
 | A 30 s film takes about | 10–30 min | 1–2 h | 3 h or more |
 

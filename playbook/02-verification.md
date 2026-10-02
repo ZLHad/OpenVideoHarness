@@ -91,13 +91,13 @@ ffprobe -v error -show_entries format=duration:stream=codec_name,width,height,r_
 
 ## 手机测试与循环接缝
 
-**手机测试**（按目标屏缩）：缩到多宽看 BRIEF 的 `Watch on`。`phone`（竖屏）和 `feed`（横屏片放进手机信息流、不转屏）都按 360 px：常见手机在 360–430 个 CSS 像素之间，取下限。`desktop`（电脑，或手机转成横屏全屏）按 800 px：手机横屏全屏约 800–930，电脑播放器多在 1000 以上，取下限。把每格缩到这个宽度，按原尺寸看：必读字读不出、主体认不出，就对应 TASTE_CHECKLIST 的 #5、#6，也是打分层"目标屏可读"一项的证据。
+**手机测试**（按目标屏缩）：缩到多宽看 BRIEF 的 `Watch on`。`phone`（竖屏）和 `feed`（横屏片放进手机信息流、不转屏）都按 360 px：常见手机在 360–430 个 CSS 像素之间，取下限。`desktop`（电脑，或手机转成横屏全屏）按 640 px：手机比 16:9 长，转成横屏全屏时画面按屏幕高度放，约 640–760 px 宽；电脑播放器默认约 850–1000，取下限。把每格缩到这个宽度，按原尺寸看：必读字读不出、主体认不出，就对应 TASTE_CHECKLIST 的 #5、#6，也是打分层"目标屏可读"一项的证据。
 
 ```bash
 # 每 2 秒 1 格，每格 360 px 宽；片子长会自动出多张，不要为了塞进一张而把格子再缩小（竖屏改 tile=4x2）
 ffmpeg -i out.mp4 -vf "fps=1/2,scale=360:-1:flags=area,tile=3x4" out/check/phone_%02d.png
-# desktop：每格 800 px 宽，一张 3 格
-ffmpeg -i out.mp4 -vf "fps=1/2,scale=800:-1:flags=area,tile=1x3" out/check/screen_%02d.png
+# desktop：每格 640 px 宽，一张 2×3 格
+ffmpeg -i out.mp4 -vf "fps=1/2,scale=640:-1:flags=area,tile=2x3" out/check/screen_%02d.png
 ```
 
 整张图的长边控制在约 1500 px 以内。图太大时，读图会把它再缩一次，测出来就不准了。
