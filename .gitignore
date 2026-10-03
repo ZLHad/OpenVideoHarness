@@ -27,3 +27,9 @@ showcase/04-intro-film/assets/films*.jpg
 showcase/04-intro-film/assets/films*.png
 showcase/04-intro-film/blender/out/
 showcase/04-intro-film/opening/node_modules
+
+# videos live in the GitHub release "media" (tools/fetch_media.sh puts them here; tools/media.txt lists them)
+showcase/*/media/final.mp4
+showcase/04-intro-film/v3/final.mp4
+styles/gallery.mp4
+*.part

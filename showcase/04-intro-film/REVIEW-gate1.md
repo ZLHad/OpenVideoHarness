@@ -50,9 +50,8 @@ OpenVideoHarness 介绍片 v5 · 16:9 · 完整版 1:46 · studio · 2026-10-01 
 | 降临 | 瘫坐 + 大罗金仙：光环从天而降，又缩成他屏幕的边框 | 有人，最好共情 | 人要做得好，否则廉价；光环先压迫后救星，意思可能打架 |
 | 坍缩 | 眩晕 + 超新星：只剩一粒余烬，画出时间轴 | 和 v3 的时间轴最连贯，最像大片 | 超新星之后画面空；和很多科幻片头撞车 |
 
-动起来的样子（压平，灰盒 + 配乐草图 + 几个占位音效，0–23 s）（下面的 GIF 没有声音；带声音的 mp4 留在项目里，没进仓库）
+动起来的样子（压平，灰盒 + 配乐草图 + 几个占位音效，0–23 s）：[带声音的 mp4](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-gate1-animatic.mp4)（在 GitHub Release 里）
 
-![压平方案的灰盒 animatic](review/opening-animatic.gif)
 
 ## 4. 决定 3：主旋律
 
@@ -142,7 +141,7 @@ OpenVideoHarness 介绍片 v5 · 16:9 · 完整版 1:46 · studio · 2026-10-01 
 
 这里列的是做片时项目里的文件；仓库里只收了 `review/` 的图和 JSON。
 
-- `review/`：chapters.png、opening-options.png、opening-animatic.gif、motif-options.png、music-arc.png（+ .json）、onscreen-opening.json、onscreen-plan.json
+- `review/`：chapters.png、opening-options.png、opening-animatic.mp4 / .gif（mp4 在 Release 里）、motif-options.png、music-arc.png（+ .json）、onscreen-opening.json、onscreen-plan.json
 - `audio/`：motif-A.wav、motif-B.wav、sketch-v5.wav（+ beats.json）；谱子在 `audio/score/`（`make_sketch.py` 生成整片草图）
 - `proto/`：开场灰盒，HyperFrames 0.8.82 + Three.js，`proto/switch.sh A|B|C` 选方案；960×540、draft、2 个 worker，一个方案渲 23 s 约 16 s
 - `tools/figs/`：出上面这些图的脚本；`BRIEF.md`、`STYLE.md`、`STORYBOARD.md`（节拍表）、`NOTES.md`（事实表、测量、决定）

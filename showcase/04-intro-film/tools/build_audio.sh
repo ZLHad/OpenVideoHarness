@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # Rebuild the film's soundtrack from source:
-#   music  the opening sketch (audio/sketch.json, 120 BPM; bin/vh music) for 0–29 s, its bar 11 (20–22 s) played four
-#          times for the terminal's hold (js/tmap.js: +6 s), then the body score (audio/score.json, 80 BPM, D minor, bars
-#          stretched for the reads' holds; audio/score_engine.py) from its 27.0 s mark (bar 10), joined at 29.0 s (faded in
+#   music  the opening sketch (audio/sketch.json, 120 BPM; bin/vh music) for 0–29 s, its bar 11 (20–22 s) played twice
+#          for the terminal's hold (js/tmap.js: +2 s), then the body score (audio/score.json, 80 BPM, D minor, bars
+#          stretched for the reads' holds; audio/score_engine.py) from its 27.0 s mark (bar 10), joined at 25.0 s (faded in
 #          over the 0.15 s before)
 #   SFX    audio/events.json (124 events, the 21 built-ins of bin/vh sfx lib)
 #   mix    bin/vh mix profile=promo → −14 LUFS; then bin/vh qa (the gate)
-#   tools/build_audio.sh        → audio/music.wav, audio/mix.wav, audio/stems/, out/qa.txt
+#   tools/build_audio.sh        → audio/music.wav, audio/mix.wav, audio/stems/, out/qa.txt, assets/wave.json
 # audio/make_sketch.py wrote audio/sketch.json; tools/retime.py wrote audio/score.json and audio/events.json.
 # audio/music.beats.json (the body score's beat map on the old timeline, for the film's pulses) is written by
 # audio/score_engine.py when it renders audio/score.base.json; it is kept as rendered.
 # Needs uv, ffmpeg and the repo's bin/vh. O= sets the output folder (default audio), VH= the path to bin/vh.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-VH=${VH:-../../bin/vh} A=audio O=${O:-audio} DUR=150.5 REP=3 JOIN=29.0   # REP: extra plays of the sketch's bar 11
+VH=${VH:-../../bin/vh} A=audio O=${O:-audio} DUR=103.0 REP=1 JOIN=25.0   # REP: extra plays of the sketch's bar 11
 mkdir -p out "$O"; tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 "$VH" music $A/sketch.json "$tmp/sketch.wav" >/dev/null
 uv run -q --no-project --with numpy --with scipy python $A/score_engine.py $A/score.json "$tmp/body.wav" >/dev/null
@@ -28,3 +28,14 @@ ffmpeg -v error -y -i "$tmp/m1.wav" -i "$tmp/m2.wav" -filter_complex "[1:a]adela
 "$VH" sfx lib "$O/sfxlib" >/dev/null
 "$VH" mix "$O/mix.wav" profile=promo music="$O/music.wav" events="$O/events.json" lib="$O/sfxlib" dur=$DUR fade=0.6 stems="$O/stems" | tail -1
 "$VH" qa "$O/mix.wav" - "$O/events.json" --lib "$O/sfxlib" --stems "$O/stems" --to "$(python3 -c "print($DUR - 0.6)")" --out out/qa.txt | tail -1
+# assets/wave.json: the music's loudness in 400 bins (the film draws its waveform and the sound panel's bars from it)
+uv run -q --no-project --with numpy python - "$O/music.wav" "$DUR" <<'PYW'
+import json, sys, wave
+import numpy as np
+w = wave.open(sys.argv[1]); n, ch, sw = w.getnframes(), w.getnchannels(), w.getsampwidth()
+raw = np.frombuffer(w.readframes(n), np.uint8).reshape(-1, sw)
+x = (np.pad(raw, ((0, 0), (4 - sw, 0))).copy().view("<i4").ravel().astype(np.float64) / 2**31).reshape(-1, ch).mean(1)
+N = 400; rms = np.array([np.sqrt(np.mean(b ** 2)) if len(b) else 0.0 for b in np.array_split(x, N)])
+open("assets/wave.json", "w").write(json.dumps({"rms": [round(float(v), 4) for v in rms / rms.max()], "n": N, "duration": float(sys.argv[2]),
+    "note": "linear RMS of audio/music.wav (the film's music, film time) in n equal bins over 0..duration, divided by the loudest bin"}) + "\n")
+PYW

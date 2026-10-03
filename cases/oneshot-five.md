@@ -181,7 +181,7 @@
 ### 用本仓库复刻
 
 - 类型：`video-types/03-product-promo.md`（品牌片），节奏借 `08-brutalist-meme.md`。
-- 本仓库的风格库正好可以这样用：一个吉祥物或一个字标，依次穿过 6–10 个预设世界，每个 2–4 s；`styles/gallery.mp4` 已经是这个结构的雏形，只差一个贯穿的主角。
+- 本仓库的风格库正好可以这样用：一个吉祥物或一个字标，依次穿过 6–10 个预设世界，每个 2–4 s；[`styles-gallery.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/styles-gallery.mp4) 已经是这个结构的雏形，只差一个贯穿的主角。
 - 静音：本仓库的底线禁止片中出现数字静音（来自介绍片 v2 被听成"卡住"的教训），复刻时做成屏息：留一层低音垫，镜头慢漂，不要声画一起停死（`playbook/04-audio.md`、TASTE_CHECKLIST #18）。
 
 ## 5. Tesseract for design（Mirage）

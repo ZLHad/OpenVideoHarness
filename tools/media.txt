@@ -1,0 +1,9 @@
+# The videos kept in the GitHub release "media" instead of git: <path in the repo> <release asset> <sha256>.
+# tools/fetch_media.sh downloads them to these paths (the paths are in .gitignore).
+showcase/00-promo-launch-film/media/final.mp4 00-launch-short.mp4 f93321c753af806d03d80d81362a46bdb23b19b36f3765a38cd1a16015949272
+showcase/01-handdrawn-clawd-leaf/media/final.mp4 01-handdrawn-short.mp4 f42681f2a2f09fa1cb56aeebe1e296d9efebc0155b674733dd0c8baac96b5c97
+showcase/02-short-leo-doppler/media/final.mp4 02-vertical-science-short.mp4 8224e90435498512bf38558579aec6463d2070372818b36e8b48aefeb975e231
+showcase/03-math-fourier/media/final.mp4 03-math-explainer.mp4 f6eff1bcd133f6c9f4e1d2898f5b5dbde7c0843d27ebf039b0d6f63683c41616
+showcase/04-intro-film/media/final.mp4 intro-film-1080p.mp4 ae58357edb42380adb5811738509674cb851a3f9181c649bba243dc5846c4423
+showcase/04-intro-film/v3/final.mp4 intro-film-v3-81s.mp4 c1aea967f79b33d4892010805a1dc4d2b8c1653593ab5076047ac72889328f03
+styles/gallery.mp4 styles-gallery.mp4 bbebc9b66063ac172906631f33954e70621abfc9a8426cff3c8671215fff0f40

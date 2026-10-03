@@ -2,7 +2,7 @@
 
 https://github.com/user-attachments/assets/c2368f76-b157-4a48-9945-8048a515efd4
 
-**Full video:** [media/final.mp4](media/final.mp4) · **Contact sheet:** [media/sheet.png](media/sheet.png)
+**Full video:** [03-math-explainer.mp4](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/03-math-explainer.mp4) (GitHub release; `tools/fetch_media.sh` puts it at `media/final.mp4`) · **Contact sheet:** [media/sheet.png](media/sheet.png)
 
 | | |
 |---|---|

@@ -146,9 +146,9 @@ hf_chrome() { # the chrome-headless-shell HyperFrames renders with: HYPERFRAMES_
   done
   return 1
 }
-doctor_downloads() { # what the first runs download on their own and how big it is on disk. The sizes are the ones in the README's
-  # "What gets downloaded" table (measured on macOS arm64, 2026-10-01): keep the two in step when either changes
-  echo "first-run downloads (README \"What gets downloaded\"; mirrors: 国内网络 in README.zh-CN.md):"
+doctor_downloads() { # what the first runs download on their own and how big it is on disk. The sizes are the ones in the wiki's
+  # "What gets downloaded" table (Getting Started; measured on macOS arm64, 2026-10-01): keep the two in step when either changes
+  echo "first-run downloads (wiki: Getting Started; mirrors behind a slow or blocked network: wiki China-Network / 国内网络):"
   local p pend="" hub model snap swatch="" voice_pkgs=""
   if p=$(hf_chrome); then echo "$c_ok HyperFrames Chrome  $(basename "$p") · $(size_of "$p") · $(rel "$(dirname "$p")")"
   else

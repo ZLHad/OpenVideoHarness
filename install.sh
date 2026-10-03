@@ -3,7 +3,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
 #   bash install.sh [--dir ~/OpenVideoHarness] [--no-refs] [--no-skill] [--skill claude|codex|all]
 # What it does, and where it puts things:
-#   1. clone the repo into --dir, newest commit only (about 420 MB; a re-run moves it to the newest commit, keeping LOCAL.md and projects/)
+#   1. clone the repo into --dir, newest commit only (about 185 MB on disk; a re-run moves it to the newest commit, keeping LOCAL.md and projects/)
 #   2. npm install in engines/ClaudeAnimationBase and npm ci in styles/_swatch (HyperFrames 0.8.82), both inside --dir (about 210 MB of
 #      node_modules; npm also writes its own cache, ~/.npm); unless --no-refs, fetch 30 read-only reference repos into references/repos/
 #      (about 195 MB, git-ignored; references/fetch.sh <name> fetches one later)

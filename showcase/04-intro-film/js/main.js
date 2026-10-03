@@ -16,7 +16,7 @@ import { buildFeatures } from "./features.js";
 export const BPM = 80, BEAT = 60 / BPM, BAR = 4 * BEAT, FPS = 30, S16 = BEAT / 4;
 // bar k (1-based), beat offset b (0-based, may be fractional). Bar 11 is a 6/4 bar (the 8-type list holds 2 extra beats),
 // so every bar from 12 on starts 2 beats later than a plain 4/4 grid: 30 bars = 91.5 s = 2745 frames (the old timeline;
-// js/tmap.js stretches it to the film's 150.5 s).
+// js/tmap.js stretches it to the film's 100 s).
 export const bar = (k, b = 0) => (k - 1) * BAR + b * BEAT + (k >= 12 ? 2 * BEAT : 0);
 export const DUR = bar(31);
 const barBeat = (t) => { // the true bar.beat under the 6/4 bar (for the HUD)

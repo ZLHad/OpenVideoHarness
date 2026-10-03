@@ -2,7 +2,7 @@
 
 https://github.com/user-attachments/assets/da028240-fcff-4e02-95a0-a0abd3238d07
 
-**Full video:** [media/final.mp4](media/final.mp4) · **Contact sheet:** [media/sheet.png](media/sheet.png)
+**Full video:** [01-handdrawn-short.mp4](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/01-handdrawn-short.mp4) (GitHub release; `tools/fetch_media.sh` puts it at `media/final.mp4`) · **Contact sheet:** [media/sheet.png](media/sheet.png)
 
 | | |
 |---|---|

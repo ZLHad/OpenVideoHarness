@@ -89,6 +89,13 @@ for f in sys.stdin.read().splitlines():
   # js: node --check detects ES modules by syntax (node ≥ 22)
   n=0; while IFS= read -r f; do node --check "$f" 2>/dev/null || { node --check "$f"; bad "node --check $f"; n=$((n + 1)); }; done < <(files '*.js' '*.mjs')
   [ $n = 0 ] && ok "js syntax"
+  # media: videos live in the GitHub release "media" (tools/media.txt, tools/fetch_media.sh), so a clone stays small;
+  # the style swatches (about 1 MB each, read by the tools) are the one exception. No file over 8 MB either.
+  out=$(files | while IFS= read -r f; do
+      if [[ "$f" != styles/*/media/swatch.mp4 && "$f" =~ \.(mp4|mov|webm|mkv|gif)$ ]]; then echo "$f: a video (put it in the media release, see tools/fetch_media.sh)"; continue; fi   # [[ ]], not case: bash 3.2 can't parse case inside $( )
+      if [ -f "$f" ]; then s=$(wc -c < "$f"); [ "$s" -gt 8000000 ] && echo "$f: $((s / 1000000)) MB, over 8 MB"; fi
+    done)
+  if [ -n "$out" ]; then echo "$out"; bad "videos or large files in git"; else ok "no videos or files over 8 MB in git"; fi
 }
 
 doc_checks() {

@@ -158,9 +158,9 @@ export function buildFeatures(THREE, X) {
     slamView(H2, t, bar(20) + 0.05, bar(20, 3.25), 11, 0.52, 0, 0.68);   // leaves inside the hold that follows the fourth row: the rows hold alone
     slamView(H3, t, bar(21) + 0.05, bar(22) - 0.12, 11, 0.42, 0, 0.68);
     // stars
-    stars.material.uniforms.uTime.value = ctx.ta; stars.material.uniforms.uAmt.value = win(t, bar(22) - 0.35, bar(23) + 0.3, 0.2, 0.4) * (1 + 0.35 * Math.exp(-Math.max(0, t - bar(22)) / 0.25)) * (1 - 0.45 * H4.material.opacity);   // the map dims under its read
+    stars.material.uniforms.uTime.value = t;   // aLit is story time (bar(22) …), so the ripple runs on the story's clock stars.material.uniforms.uAmt.value = win(t, bar(22) - 0.35, bar(23) + 0.3, 0.2, 0.4) * (1 + 0.35 * Math.exp(-Math.max(0, t - bar(22)) / 0.25)) * (1 - 0.45 * H4.material.opacity);   // the map dims under its read
     stars.material.uniforms.uConv.value = eOutExpo(seg(t, bar(22) - 0.35, bar(22) + 0.05)); stars.material.uniforms.uPre.value = seg(t, bar(22) - 0.35, bar(22) - 0.15);
-    CASES.forEach((c) => { const a = t - c.tOn; c.s.visible = a >= 0 && t < bar(23) + 0.3; c.s.material.opacity = c.s.visible ? (0.7 + 0.8 * Math.exp(-a / 0.2)) * win(t, c.tOn, bar(23) + 0.3, 0.02, 0.4) : 0; c.s.scale.setScalar(0.45 + 0.6 * Math.exp(-Math.max(0, a) / 0.25)); });
+    CASES.forEach((c) => { const a = t - c.tOn; c.s.visible = a >= 0 && t < bar(23) + 0.3; c.s.material.opacity = c.s.visible ? (0.7 + 0.8 * Math.exp(-a / 0.2)) * win(t, c.tOn, bar(23) + 0.3, 0.02, 0.4) : 0; c.s.scale.setScalar(0.5 + 1.2 * Math.exp(-Math.max(0, a) / 0.25)); });   // each case star pops on its celesta note
     rings8.forEach((m, i) => { m.material.opacity = 0.5 * win(t, bar(22) + i * S16, bar(23) + 0.3, 0.3, 0.4); m.visible = m.material.opacity > 0.002; });
     const nLit = CASES.filter((c) => t >= c.tOn).length; constel.geometry.setDrawRange(0, nLit); constel.material.opacity = 0.55 * win(t, bar(22), bar(23) + 0.3, 0.1, 0.4); constel.visible = nLit > 1;
     slamView(H4, t, bar(22) + 0.1, bar(23) - 0.1, 11, 0.78, 0, 0.0); if (H4.userData.quiet) H4.userData.quiet.material.opacity = 0.9 * H4.material.opacity;
