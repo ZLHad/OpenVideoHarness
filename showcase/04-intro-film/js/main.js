@@ -16,7 +16,7 @@ import { buildFeatures } from "./features.js";
 export const BPM = 80, BEAT = 60 / BPM, BAR = 4 * BEAT, FPS = 30, S16 = BEAT / 4;
 // bar k (1-based), beat offset b (0-based, may be fractional). Bar 11 is a 6/4 bar (the 8-type list holds 2 extra beats),
 // so every bar from 12 on starts 2 beats later than a plain 4/4 grid: 30 bars = 91.5 s = 2745 frames (the old timeline;
-// js/tmap.js stretches it to the film's 150.5 s).
+// js/tmap.js stretches it to the film's 103 s).
 export const bar = (k, b = 0) => (k - 1) * BAR + b * BEAT + (k >= 12 ? 2 * BEAT : 0);
 export const DUR = bar(31);
 const barBeat = (t) => { // the true bar.beat under the 6/4 bar (for the HUD)
@@ -70,8 +70,9 @@ async function build(THREE) {
   await document.fonts.ready;
 
   const canvas = document.getElementById("gl");
+  const PR = Math.max(1, Math.round(window.devicePixelRatio || 1));   // 2 for `hyperframes render --resolution 4k`: the WebGL layer and the type canvases at that density
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-  renderer.setPixelRatio(1);
+  renderer.setPixelRatio(PR);
   renderer.setSize(1920, 1080, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   const scene = new THREE.Scene();
@@ -104,20 +105,21 @@ async function build(THREE) {
     const fontStr = (l) => `${l.weight || 600} ${l.size}px ${l.font || FONT_EN}`;
     let w = 0, h = pad * 2;
     const metrics = lines.map((l, i) => { g.font = fontStr(l); g.letterSpacing = "0px"; const m = g.measureText(l.text); const lw = m.width + Math.abs(l.track || 0) * l.size * l.text.length; w = Math.max(w, lw); h += l.size * 1.12 + (i ? l.size * lineGap : 0); return lw; });
-    c.width = Math.ceil(w + pad * 2); c.height = Math.ceil(h);
+    c.width = Math.ceil((w + pad * 2) * PR); c.height = Math.ceil(h * PR); const CW = c.width / PR;
+    g.setTransform(PR, 0, 0, PR, 0, 0);
     let y = pad;
     lines.forEach((l, i) => {
       if (i) y += l.size * lineGap;
       g.font = fontStr(l); g.fillStyle = l.color || FG; g.textBaseline = "top";
       if (l.track) g.letterSpacing = `${l.track}em`; else g.letterSpacing = "0px";
-      const x = align === "center" ? (c.width - metrics[i]) / 2 : align === "right" ? c.width - pad - metrics[i] : pad;
+      const x = align === "center" ? (CW - metrics[i]) / 2 : align === "right" ? CW - pad - metrics[i] : pad;
       g.fillText(l.text, x, y + l.size * 0.06);
       y += l.size * 1.12;
     });
     const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = 8; tx.minFilter = THREE.LinearMipmapLinearFilter;
     const mat = new THREE.MeshBasicMaterial({ map: tx, transparent: true, depthWrite: false, fog, toneMapped: false, opacity: 0 });
-    if (width) pxPerUnit = c.width / width;
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(c.width / pxPerUnit, c.height / pxPerUnit), mat);
+    if (width) pxPerUnit = CW / width;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(CW / pxPerUnit, c.height / PR / pxPerUnit), mat);
     mesh.userData.base = mesh.position.clone();
     return mesh;
   }
@@ -134,9 +136,9 @@ async function build(THREE) {
   const fontStr = (l) => `${l.weight || 600} ${l.size}px ${l.font || FONT_EN}`;
   let dynSeed = 1;
   function dynPlane(lines, { pxPerUnit = 100, lineGap = 0.4, decodeDur = 0.2 } = {}) { // decode/scramble type (v3); falls back to a static look when P.decode = 0
-    const D = makeDynText(THREE, lines, { lineGap, fontStr, spread: P.decode ? 0.22 : 0.0001, seed: (dynSeed += 17), decodeDur });
+    const D = makeDynText(THREE, lines, { lineGap, fontStr, spread: P.decode ? 0.22 : 0.0001, seed: (dynSeed += 17), decodeDur, scale: PR });
     const mat = textMaterial(THREE, D.tex); mat.depthTest = false;
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(D.canvas.width / pxPerUnit, D.canvas.height / pxPerUnit), mat);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(D.w / pxPerUnit, D.h / pxPerUnit), mat);
     mesh.renderOrder = 10; mesh.userData.base = mesh.position.clone(); mesh.userData.dyn = D; mesh.userData.contentFrac = D.contentFrac; return mesh;
   }
   const hero = (en, zh, { enSize = 150, zhSize = 0, enColor = FG } = {}) =>
@@ -600,7 +602,7 @@ async function build(THREE) {
   [[T1, 4.0, 0.46], [T14, bar(27, 1) + 0.9, 0.5], [T15, bar(28) + 0.6, 0.7]].forEach(([m, tq, fr]) => fitAt(m, tq, fr));
   // ---------- post: bloom + motion + grade ----------
   const composer = new EffectComposer(renderer);
-  composer.setPixelRatio(1); composer.setSize(1920, 1080);
+  composer.setPixelRatio(PR); composer.setSize(1920, 1080);
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(new THREE.Vector2(1920, 1080), P.bloom, 0.5, 1.0); composer.addPass(bloom);
   let GRAIN = 0.035; try { const v = window.__hyperframes && window.__hyperframes.getVariables && window.__hyperframes.getVariables(); if (v && typeof v.grain === "number") GRAIN = v.grain; } catch (e) {}
@@ -626,7 +628,7 @@ async function build(THREE) {
   else { composer.addPass(motionPass); composer.addPass(new OutputPass()); composer.addPass(gradePass); gradePass.uniforms.uGrain.value = GRAIN; }
   // particles: depth sparks along the whole camera path, data streams on the t-axis, warp lines at the lens
   const pathSamples = []; for (let i = 0; i <= 480; i++) pathSamples.push(camP((i / 480) * DUR)); [ARCH, PIPE, FEAT].forEach((M) => M.samples.forEach((q) => pathSamples.push(q)));
-  const sparks = makeSparks(THREE, pathSamples, 9000); scene.add(sparks); sparks.visible = P.sparks > 0; sparks.material.uniforms.uAmt.value = P.sparks;
+  const sparks = makeSparks(THREE, pathSamples, 9000, null, PR); scene.add(sparks); sparks.visible = P.sparks > 0; sparks.material.uniforms.uAmt.value = P.sparks;
   // v5: the archive is made of films. Small frames of the opening's films (the same atlases) drift beside the camera path,
   // so "every star is a film" carries on into the body. Instanced billboards; each plays its film from t.
   const filmField = await (async () => {

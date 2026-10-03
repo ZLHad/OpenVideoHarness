@@ -2,7 +2,7 @@
 
 https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
 
-[media/final.mp4](media/final.mp4) · poster: [media/poster.png](media/poster.png) · contact sheet: [media/sheet.png](media/sheet.png)
+[the film (MP4, GitHub release)](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/00-launch-short.mp4) · poster: [media/poster.png](media/poster.png) · contact sheet: [media/sheet.png](media/sheet.png)
 
 | | |
 |---|---|
@@ -10,7 +10,7 @@ https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
 | Engine | HyperFrames **0.8.82** (HTML + GSAP 3.14.2), installed as a project devDependency |
 | Output | 20.0 s, 1920×1080, 30 fps, 600 frames; stereo AAC soundtrack (code-composed score + foley, −14 LUFS, mix profile `promo`) added after the picture was finished, see [Soundtrack](#soundtrack) |
 | Render time (M3 Max) | final master `--quality high`: **27–29 s** (capture ~9 s + encode ~17 s, 5 workers, hardware GPU); draft: ~10 s; grain-free GIF source: ~11 s; web re-encode (x264 slow, CRF 23): ~12 s |
-| Files | master 72 MB (grain) → `media/final.mp4` 6.8 MB (the 6.3 MB web encode, copied, + AAC 192 kb/s); `media/preview.gif` 5.5 MB (800 px, 15 fps, grain-free cut) |
+| Files | master 72 MB (grain) → `media/final.mp4` 6.8 MB (the 6.3 MB web encode, copied, + AAC 192 kb/s), kept in the GitHub release `media` (`tools/fetch_media.sh` puts it back); the 800 px preview GIF was retired when the README got a player |
 | Review iterations | first cut: 5 snapshot rounds, 2 drafts, 2 final candidates, 1 fresh-context reviewer (12 FAILs fixed). Rebrand pass: 1 snapshot round, 3 drafts (incl. the rebuilt draft v1), 1 final (4 more FAILs fixed). All logged in NOTES.md 自评记录 |
 | Wall time | first cut ≈ 115 min (incl. one API rate-limit interruption); rebrand pass ≈ 25 min |
 
@@ -59,6 +59,7 @@ The picture was made and finished silent, as the brief asked; the soundtrack was
 Rebuild (from the repo root; needs uv and ffmpeg):
 ```bash
 showcase/00-promo-launch-film/tools/build_audio.sh                  # → audio/mix.wav, audio/stems/, audio/qa.txt
+tools/fetch_media.sh 00-                                            # the film from the GitHub release "media" (--mux reads its picture)
 showcase/00-promo-launch-film/tools/build_audio.sh --mux out.mp4    # … plus out.mp4 = the picture of media/final.mp4 + that mix
 ```
 The script runs `tools/foley.py`, `bin/vh sfx lib`, `bin/vh music`, `bin/vh mix … profile=promo`, `bin/vh qa` and, with `--mux`, `bin/vh mux` (the picture is copied, not re-encoded, and the moov goes first so a browser can start playing at once), then measures the true peak of the AAC encode and mixes again with a lower ceiling if it is over −1.5 dBTP. Every run gives the same bytes. Only the sources are committed: `audio/score.json`, `audio/events.json`, `audio/music.beats.json`, `tools/foley.py`, `tools/build_audio.sh`. The WAVs, stems and reports are regenerated and ignored (`audio/.gitignore`).
@@ -133,6 +134,6 @@ Baked into images (frames 339–449; regenerate with the commands in LESSONS.md,
 │                         foley.py (custom sounds + audio/events.json) · build_audio.sh (the whole soundtrack)
 ├── audio/                score.json · events.json · music.beats.json (film time) · .gitignore (the WAVs are regenerated)
 ├── hyperframes.json  meta.json  package.json
-└── media/                final.mp4 · preview.gif · sheet.png · poster.png
+└── media/                sheet.png · poster.png (final.mp4: the release `media`, tools/fetch_media.sh)
 ```
 HyperFrames' generated CLAUDE.md / AGENTS.md are left out on purpose. Credits: HyperFrames (Apache-2.0, HeyGen) and its motion-doctrine / oversized-cursor / cut-the-curve skills as technique references; the draft-v1 stand-in sheet is a render of the bundled ClaudeAnimationBase demo (Clawd, MIT, © John Heibel) and appears only as tiny greyscale thumbnails inside beat 03.

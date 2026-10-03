@@ -30,6 +30,7 @@ while [ $# -gt 0 ]; do
 done
 calc() { python3 -c "print(round($1, 3))"; }
 if [ -n "$out" ]; then   # the picture is read from media/final.mp4: writing over it while reading it would destroy it
+  [ -f "$FILM/media/final.mp4" ] || { echo "no $FILM/media/final.mp4: the film is in the GitHub release \"media\"; run tools/fetch_media.sh 02- from the repo root" >&2; exit 2; }
   case "$out" in /*) ;; *) out="$PWD/$out" ;; esac
   if [ -e "$out" ] && [ "$out" -ef "$FILM/media/final.mp4" ]; then   # the same file however it is spelled (case, symlink, link)
     echo "--mux: write to another file, then move it over media/final.mp4" >&2; exit 2

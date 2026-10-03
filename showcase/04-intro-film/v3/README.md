@@ -2,9 +2,9 @@
 
 > This is the v3 film (2026-09-29), kept for the record. The current intro film is [v5](../README.md); its body is this film's world, updated and slowed from 90 to 80 BPM. The v5 files replaced v3's in the film folder; v3's own source (`js/`, `tools/`, `audio/` below) is at commit 7057c74: `git checkout 7057c74 -- showcase/04-intro-film` (the installer's clone has only the newest commit, so fetch it there first: `git fetch --depth 1 origin 7057c74725c42b38fe545d85916cab11fe78bed4`).
 
-![OpenVideoHarness intro film](preview.gif)
+![OpenVideoHarness intro film v3](poster.png)
 
-[final.mp4](final.mp4) (with sound and zh/en subtitle tracks) · poster: [poster.png](poster.png) · contact sheet: [sheet.png](sheet.png) · 中文说明：[README.zh-CN.md](README.zh-CN.md)
+[final.mp4](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-v3-81s.mp4) (GitHub release; with sound and zh/en subtitle tracks) · poster: [poster.png](poster.png) · contact sheet: [sheet.png](sheet.png) · 中文说明：[README.zh-CN.md](README.zh-CN.md)
 
 | | |
 |---|---|

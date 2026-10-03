@@ -39,7 +39,7 @@ void main(){
 export async function makeGrid(canvas) {
   const S = await (await fetch("assets/state.json")).json();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
-  renderer.setPixelRatio(1); renderer.setSize(1920, 1080, false);
+  renderer.setPixelRatio(Math.max(1, Math.round(window.devicePixelRatio || 1))); renderer.setSize(1920, 1080, false);   // 2 at --resolution 4k
   renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.AgXToneMapping; renderer.toneMappingExposure = 1.0;
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0, 0, 0);
   const camera = new THREE.PerspectiveCamera(40, 1920 / 1080, 0.3, 4000);

@@ -579,7 +579,7 @@ def build():
     sc.cycles.diffuse_bounces = 1; sc.cycles.caustics_reflective = False; sc.cycles.caustics_refractive = False
     sc.cycles.volume_step_rate = 2.0 if DRAFT else 1.0; sc.cycles.volume_max_steps = 512
     sc.render.resolution_x, sc.render.resolution_y = W, H
-    sc.render.resolution_percentage = 50 if DRAFT else 100
+    sc.render.resolution_percentage = int(arg("--pct", "50" if DRAFT else "100"))   # --pct 200: 3840×2160 (stars and cards are world-sized, so they scale with it)
     sc.render.fps = FPS; sc.frame_start, sc.frame_end = 0, 689
     sc.render.use_motion_blur = True; sc.render.motion_blur_shutter = SHUTTER
     sc.render.image_settings.file_format = "PNG"; sc.render.image_settings.color_depth = "8"
