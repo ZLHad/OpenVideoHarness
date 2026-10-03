@@ -1,0 +1,8 @@
+{
+ "note": "测试用的三镜",
+ "shots": [
+  {"id": "S1", "segment": "拧开水龙头", "start": 0, "end": 8, "label": "水龙头", "reads": ["有人口渴", "拧开水龙头"], "caption": "口渴了，拧开水龙头。"},
+  {"id": "S2", "segment": "水厂和管道", "start": 8, "end": 16, "label": "管道", "reads": "水在管道里走", "unsure": "管道剖面会不会太像课件"},
+  {"id": "S3", "segment": "合 · 落进杯子", "start": 16, "end": 24, "label": "杯子", "reads": ["水滴落进杯子"], "transition": "硬切"}
+ ]
+}

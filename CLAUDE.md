@@ -10,7 +10,7 @@
 2. **读流程和自查**：读 `playbook/01-pipeline.md` 和 `playbook/02-verification.md`；涉及配音或音乐时，再读 `playbook/04-audio.md`。
 3. **建项目**：运行 `bin/vh new <type> <slug>`，它会建好 `projects/<日期>-<slug>/`，复制模板，并把该类型的 prompt 块填进 BRIEF（类型的默认做法，立意定了再取舍）；手绘类还会复制引擎、装好依赖。其他引擎的初始化方式见 `engines/README.md`。
 4. **先想立意，再看案例和参考**：建完项目，先把材料里只属于它的数字、原话、物件列进 NOTES.md 的素材清单，自己想 5–8 个点子；这时先不看 BRIEF 末尾的 TYPE 块、`styles/`、`recipes/` 和案例，免得点子往看过的东西上靠。然后再看下面这些参考，用它们补强，收敛成 2–3 张立意卡（做法见 `playbook/12-ideation.md`，例子见 `cases/oneshot-five.md`）。人已经给了立意，就记进 BRIEF，不再出卡，最多附一个备选。参考：打开类型文档"可参考的案例"和"社区 skill 参考"两节列出的文件；需要看真实代码时读 `references/repos/` 里的源码。本仓库自己做过的片子在 `showcase/`，各带 BRIEF、STORYBOARD、NOTES 和源码，是最直接的样板。分镜时，镜头怎么动、全片节奏怎么排，先查 `recipes/`：按意图和能量筛（`bin/vh recipes list`），把选中的配方 id 写进 STORYBOARD 的"配方"列，写代码前读配方全文。
-5. **停下来给人审**：`standard` 和 `studio` 必过下面三道关卡，`quick` 不设关卡；人点名要亲自拍板的事，按"导演模式"另外停，`quick` 也一样。每次停默认做一页决定优先的审阅页（`bin/vh review` 生成本地 HTML，做法见 `playbook/01-pipeline.md` 的"审阅页"），聊天里只发要人定的事和页面路径；只有一两个纯文字的选择时，直接在聊天里问也行。然后**停下来等人回复**，不要自己往下做：
+5. **停下来给人审**：`standard` 和 `studio` 必过下面三道关卡，`quick` 不设关卡；人点名要亲自拍板的事，按"导演模式"另外停，`quick` 也一样。每次停默认做一页决定优先的审阅页（`bin/vh review` 生成本地 HTML，做法见 `playbook/01-pipeline.md` 的"审阅页"），聊天里只发要人定的事和页面路径；只有一两个纯文字的选择时，直接在聊天里问也行。`studio` 默认在审阅台停（`bin/vh desk`，同一份 gate JSON，人在页面里逐条勾选、点评、提交）：停之前在后台挂上 `bin/vh desk wait`，人一提交就接着做；没有后台唤醒的 agent 退回"人回聊天说一声"（`playbook/01-pipeline.md` 的"审阅台"）。审阅页和审阅台的界面语言按用户第一句话的语言定（BRIEF 的 `Review language`，`bin/vh new … --lang en`）。然后**停下来等人回复**，不要自己往下做：
    - ① **立意和大纲**：2–3 张彼此拉得开的立意卡，每张写明由它推出的画面（专属风格，或参考 `styles/` 的预设，可以几个）和钩子，配一帧画面（`playbook/12-ideation.md` 第 7 节）。选一张卡，立意、风格方向和钩子就一起定了，人可以在回复里换预设或钩子。再附按推荐立意写的 BRIEF、3–7 段大纲、引擎和费用。不要默认只给一种口味；
    - ② **分镜**：按大纲的段落拆页，每页 3–6 镜的关键帧，没把握的镜头标出来，逐镜默认通过。长片再附一版全长灰盒 animatic；
    - ③ **初版**：draft 成片加联系表，并写出你自己最不满意的 2–3 处。
@@ -35,6 +35,7 @@
 |---|---|---|---|
 | 适合 | 试方向、草稿、随手发 | 大多数正式视频 | 发布片、旗舰内容、会被反复看的片子 |
 | 人工关卡 | 0 道，直接出片。选 quick 就等于授权跳过关卡，把这一点记进 REVIEW.md；需求有歧义时最多问 1 个问题；人点名要拍板的事照样停（导演模式） | 3 道 | 3 道；关卡 ① 每张立意卡附一段 10–20 s 草图，关卡 ② 附全长 animatic |
+| 在哪审 | 不设关卡；导演模式要停的在聊天里问，或用静态审阅页 | 静态审阅页（`bin/vh review`）；人想逐条勾选、点评时开审阅台（`bin/vh desk`） | 审阅台（`bin/vh desk`）：人在页面里勾选、点评、提交；每次停后在后台挂上 `bin/vh desk wait`，提交就接着做；没有后台唤醒的 agent 退回"人回聊天说一声" |
 | 立意 | 自己想 3 个一句话点子，挑 1 个，写一行理由 | 关卡 ① 给 2–3 张立意卡，每张配一帧画面 | 同左，每张配一段 10–20 s 的草图（look-dev） |
 | 风格 | 从立意推出来，可以参考 `styles/` 的预设，写明借了什么 | 写在每张立意卡的"画面"一行（专属，或借一个预设）；选卡就一起定了，人可以在回复里换 | 同左；每张卡的草图就是那种风格的小样，借来的预设人想看时在 E0 补小样 |
 | 分镜 | 简表：镜头、时长、reads | 完整 STORYBOARD + 分镜预览图 | 同左 + animatic |
@@ -74,7 +75,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
   - `review`：agent 出一个结果，放进下一页（没有下一页就随交付给），不为它单独停，人不说话就算通过；
   - `delegate`：agent 自己定，写进 `DECISIONS.md`，人随时能翻案。
 - **没点名的按档位**：`quick` 全部 `delegate`；`standard` 的 `concept` 是 `own`（风格和钩子写在立意卡上，选卡就一起定了；人单独点名 `style` 或 `hook` 时另问），`outline` 和 `storyboard` 是 `review`，其余 `delegate`；`studio` 同 `standard`，其余改成 `review`。
-- **每次停，默认做一页审阅页**，聊天里只发 `bin/vh review` 打印的几行；只有一两个纯文字的选择时，直接在聊天里问也行。一页默认最多 3 个决定，每个带推荐，上游的先问，其余默认通过；人想一次看更多也可以。人的原话逐字记进 `REVIEW.md`。人说不清哪里不对时，先做 look-dev：同一段 10–20 s，只改一个变量，出 2–3 个变体。
+- **每次停，默认做一页审阅页**，聊天里只发 `bin/vh review` 打印的几行；`studio` 再开审阅台（`bin/vh desk`），把它的地址一起发；只有一两个纯文字的选择时，直接在聊天里问也行。一页默认最多 3 个决定，每个带推荐，上游的先问，其余默认通过；人想一次看更多也可以。人的原话逐字记进 `REVIEW.md`。人说不清哪里不对时，先做 look-dev：同一段 10–20 s，只改一个变量，出 2–3 个变体。
 - **关卡是底线**：`standard` 和 `studio` 的关卡 ①②③ 照停，导演模式只加停、不减停；要全程不停，只能由用户本人说"不用审、直接出"。
 
 ## quick 路径卡
@@ -144,13 +145,13 @@ OpenVideoHarness/
 ├── install.sh                一键安装（克隆、依赖、参考仓库、注册 skill）
 ├── CONTRIBUTING.md           改本仓库本身时的分支、PR 和推送规则（人和 agent 都适用）
 ├── .github/                  CI（Linux + macOS 跑 tools/ci.sh）和 main 分支的规则集
-├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · storyboard · rhythm · cover-preview · sheet · check · gif · review
-├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py、review.py；给人拍板用的图：storyboard.py、rhythm.py、style_compare.py、cover_preview.py、audio/roll.py，共用 vhdraw.py）；ci.sh 是仓库自检
+├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · storyboard · rhythm · cover-preview · sheet · check · gif · review · desk
+├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py、review.py；desk/：审阅台的服务、读取约定和等待提交，约定写在 desk/README.md；给人拍板用的图：storyboard.py、rhythm.py、style_compare.py、cover_preview.py、audio/roll.py，共用 vhdraw.py）；ci.sh 是仓库自检
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              9 类视频（09 实验中）：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
 ├── playbook/                 跨类型的通用知识
 │   ├── 00-paradigm.md          范式与引擎选型
-│   ├── 01-pipeline.md          十阶段流程（0–9）、reads、人工关卡、导演模式和审阅页、subagent 并行
+│   ├── 01-pipeline.md          十阶段流程（0–9）、reads、人工关卡、导演模式、审阅页和审阅台、subagent 并行
 │   ├── 02-verification.md      验证闭环与各引擎的取帧命令
 │   ├── 03-motion-design.md     缓动、时长、排版、安全区、转场
 │   ├── 04-audio.md             配音（双语）、字幕、配乐、音效、歌曲、混音
