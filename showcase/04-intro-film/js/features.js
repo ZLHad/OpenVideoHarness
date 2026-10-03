@@ -1,5 +1,5 @@
 // S7 (bars 19–21): three feature modules as holographic panels; S8 (bar 22): the cases star map.
-// Copy is verbatim from README.md / README.zh-CN.md ("What is this" bullets, the 30-second install, the cases/ line)
+// Copy follows README.md / README.zh-CN.md as they were for v5 (the README has since been rewritten; the numbers still hold)
 // and playbook/03-motion-design.md (the 810 px vertical safe box). Every panel element is a function of t.
 export function buildFeatures(THREE, X) {
   const { scene, key, textPlane, dynPlane, quiet, hero, slamView, barMat, setAmber, sprite, glowTex, softTex, FONT_MONO, FONT_ZH, FONT_EN, P, bar, BEAT, S16, seg, win, lerp, eOutExpo, eOutCubic, clamp, hash, WAVE, DUR } = X;
@@ -59,9 +59,10 @@ export function buildFeatures(THREE, X) {
   // =============== panel 3: Ready to run (a terminal types the install) ===============
   const p3 = shell(PW, PH); p3.position.copy(W(6.2, 2.0, -34)); p3.rotation.y = -0.32; scene.add(p3);
   const TL = ["$ curl -fsSL https://raw.githubusercontent.com/", "  ZLHad/OpenVideoHarness/main/install.sh | bash", "$ bin/vh new <type> <slug>"];
-  const tc = document.createElement("canvas"), tg = tc.getContext("2d"); tc.width = 1440; tc.height = 350;
+  const TPR = Math.max(1, Math.round(window.devicePixelRatio || 1));   // the terminal's canvas at the device pixel ratio (crisp at 4K)
+  const tc = document.createElement("canvas"), tg = tc.getContext("2d"); tc.width = 1440 * TPR; tc.height = 350 * TPR;
   const ttx = new THREE.CanvasTexture(tc); ttx.colorSpace = THREE.SRGBColorSpace; ttx.anisotropy = 8;
-  const term = new THREE.Mesh(new THREE.PlaneGeometry(tc.width / PPU, tc.height / PPU), new THREE.MeshBasicMaterial({ map: ttx, transparent: true, opacity: 0, toneMapped: false, fog: false, depthWrite: false }));
+  const term = new THREE.Mesh(new THREE.PlaneGeometry(1440 / PPU, 350 / PPU), new THREE.MeshBasicMaterial({ map: ttx, transparent: true, opacity: 0, toneMapped: false, fog: false, depthWrite: false }));
   term.position.set(0, 0.45, 0.02); p3.add(term);
   const tbar = new THREE.Mesh(new THREE.PlaneGeometry(PW - 0.02, 0.36), new THREE.MeshBasicMaterial({ color: 0x1a1a1f, transparent: true, opacity: 0, toneMapped: false, fog: false })); tbar.position.set(0, PH / 2 - 0.18, 0.015); p3.add(tbar);
   const dots3 = [0, 1, 2].map((i) => { const d = new THREE.Mesh(new THREE.CircleGeometry(0.055, 16), new THREE.MeshBasicMaterial({ color: 0x55555d, transparent: true, opacity: 0, toneMapped: false, fog: false })); d.position.set(-PW / 2 + 0.3 + i * 0.2, PH / 2 - 0.18, 0.02); p3.add(d); return d; });
@@ -74,7 +75,7 @@ export function buildFeatures(THREE, X) {
     const n3 = t < bar(21, 2) ? 0 : Math.min(TL[2].length, Math.round(TL[2].length * Math.min(1, (Math.floor((t - bar(21, 2)) / S16) + 1) / 4)));
     const cur = Math.floor(t * 2.5) % 2; // cursor blink at 2.5 Hz
     const kk = `${n1}|${n3}|${cur}|${t >= bar(21, 3) ? 1 : 0}`; if (kk === termKey) return; termKey = kk;
-    tg.clearRect(0, 0, tc.width, tc.height); tg.font = `400 48px ${FONT_MONO}`; tg.textBaseline = "top";
+    tg.setTransform(1, 0, 0, 1, 0, 0); tg.clearRect(0, 0, tc.width, tc.height); tg.setTransform(TPR, 0, 0, TPR, 0, 0); tg.font = `400 48px ${FONT_MONO}`; tg.textBaseline = "top";
     const shown = [TL[0].slice(0, Math.min(n1, TL[0].length)), TL[1].slice(0, Math.max(0, n1 - TL[0].length)), TL[2].slice(0, n3)];
     let cx = 0, cy = 0;
     shown.forEach((s, i) => {
@@ -106,7 +107,7 @@ export function buildFeatures(THREE, X) {
     uniforms: { uTime: { value: 0 }, uAmt: { value: 0 }, uConv: { value: 1 }, uPre: { value: 0 }, uC: { value: CO } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     vertexShader: `attribute float aLit; attribute float aSz; uniform float uTime, uConv, uPre; uniform vec3 uC; varying float vA;
       void main(){ vec3 p = uC + (position - uC) * mix(2.6, 1.0, uConv); vec4 mv = modelViewMatrix * vec4(p, 1.0); float age = uTime - aLit; float on = step(0.0, age);
-        vA = max(on * (1.3 + 1.6 * exp(-max(age, 0.0) / 0.18)), 0.6 * uPre); gl_PointSize = min(26.0, aSz * (1.0 + 1.2 * on * exp(-max(age,0.0)/0.18)) * 64.0 / -mv.z); gl_Position = projectionMatrix * mv; }`,
+        vA = max(on * (1.3 + 1.6 * exp(-max(age, 0.0) / 0.18)), 0.6 * uPre); gl_PointSize = min(26.0, aSz * (1.0 + 1.2 * on * exp(-max(age,0.0)/0.18)) * 64.0 / -mv.z) * ${TPR.toFixed(1)}; gl_Position = projectionMatrix * mv; }`,
     fragmentShader: `uniform float uAmt; varying float vA; void main(){ vec2 d = gl_PointCoord - 0.5; float r = length(d); float a = smoothstep(0.5, 0.0, r);
       gl_FragColor = vec4(vec3(1.0, 0.78, 0.42) * a * vA * uAmt, a * vA * uAmt); }`,
   })); stars.frustumCulled = false; scene.add(stars);
@@ -158,7 +159,8 @@ export function buildFeatures(THREE, X) {
     slamView(H2, t, bar(20) + 0.05, bar(20, 3.25), 11, 0.52, 0, 0.68);   // leaves inside the hold that follows the fourth row: the rows hold alone
     slamView(H3, t, bar(21) + 0.05, bar(22) - 0.12, 11, 0.42, 0, 0.68);
     // stars
-    stars.material.uniforms.uTime.value = t;   // aLit is story time (bar(22) …), so the ripple runs on the story's clock stars.material.uniforms.uAmt.value = win(t, bar(22) - 0.35, bar(23) + 0.3, 0.2, 0.4) * (1 + 0.35 * Math.exp(-Math.max(0, t - bar(22)) / 0.25)) * (1 - 0.45 * H4.material.opacity);   // the map dims under its read
+    // aLit is story time (bar(22) …), so the ripple runs on the story's clock
+    stars.material.uniforms.uTime.value = t; stars.material.uniforms.uAmt.value = win(t, bar(22) - 0.35, bar(23) + 0.3, 0.2, 0.4) * (1 + 0.35 * Math.exp(-Math.max(0, t - bar(22)) / 0.25)) * (1 - 0.45 * H4.material.opacity);   // the map dims under its read
     stars.material.uniforms.uConv.value = eOutExpo(seg(t, bar(22) - 0.35, bar(22) + 0.05)); stars.material.uniforms.uPre.value = seg(t, bar(22) - 0.35, bar(22) - 0.15);
     CASES.forEach((c) => { const a = t - c.tOn; c.s.visible = a >= 0 && t < bar(23) + 0.3; c.s.material.opacity = c.s.visible ? (0.7 + 0.8 * Math.exp(-a / 0.2)) * win(t, c.tOn, bar(23) + 0.3, 0.02, 0.4) : 0; c.s.scale.setScalar(0.5 + 1.2 * Math.exp(-Math.max(0, a) / 0.25)); });   // each case star pops on its celesta note
     rings8.forEach((m, i) => { m.material.opacity = 0.5 * win(t, bar(22) + i * S16, bar(23) + 0.3, 0.3, 0.4); m.visible = m.material.opacity > 0.002; });

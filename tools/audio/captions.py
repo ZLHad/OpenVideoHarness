@@ -170,6 +170,9 @@ def main():
               "zh": wrap_zh(s.get("zh", ""), a.zh_max), "en": wrap_en(s.get("en", ""), a.en_max),
               **({"words": s["words"]} if s.get("words") else {})} for s in tl["segments"]]
     end_s, end_from = find_media_end(Path(a.project).resolve(), tl.get("duration"), a.media_end)
+    if end_from == "timeline duration" and (Path(a.project) / "media").is_dir() and not (Path(a.project) / "media" / "final.mp4").is_file():
+        print("captions: media/final.mp4 is missing, so the media end falls back to the timeline's duration; for a showcase,"
+              " tools/fetch_media.sh puts its film there (the videos are in the GitHub release \"media\")", file=sys.stderr)
     n_short = sum(1 for c in items if (c["zh"] or c["en"]) and c["end"] - c["start"] < SUB_FLOOR - 1e-6)
     still = extend_short(items, end_s)
     moved = [c for c in items if "speech_end" in c]

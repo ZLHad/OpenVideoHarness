@@ -80,9 +80,9 @@ https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
 <tr>
 <td width="40%" valign="top">
 
-https://github.com/user-attachments/assets/cd98390a-a333-4350-9afe-05c8f871eb75
+https://github.com/user-attachments/assets/dfa4a89e-ab81-4d2a-abab-5ba3eec57fbe
 
-<sub>6 段里的第 3 段；<a href="showcase/04-intro-film/README.zh-CN.md">全部 6 段</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">下载原片</a></sub>
+<sub>6 段里的第 3 段；<a href="showcase/04-intro-film/README.zh-CN.md">全部 6 段</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">下载原片（297 MB）</a></sub>
 </td>
 <td valign="top"><b><a href="showcase/04-intro-film/README.zh-CN.md">04 · 介绍片</a></b>（Blender + HyperFrames + Three.js · 103 秒 · 1920×1080）<br>本仓库自己的产品片。立意是"每颗星都是一支片子"：开场的星系用 Blender 路径追踪渲出来，坍缩、爆开、被压平；之后一个连续的 3D 长镜头，跟着一句需求走完整个仓库。这一段讲的是三道关卡和自查回环。<br><b><a href="showcase/04-intro-film/README.zh-CN.md#你说了什么原话">需求</a>（关卡上的原话）：</b>"玻璃、宇宙、星穹……令人瘫坐眩晕的感觉"，之后"或者使用blender？好莱坞大片质感"</td>
 </tr>
@@ -97,7 +97,7 @@ https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
 </tr>
 </table>
 
-视频都在 GitHub 上：README 里播的是 1080p 片段（每个不到 10 MB，右下角是仓库名），完整文件在 [Release `media`](https://github.com/ZLHad/OpenVideoHarness/releases/tag/media)，不进 git，所以克隆仓库不用下载它们。社区里的同类作品和我们的拆解在 [cases/](cases/README.md)。你做出来的片子也欢迎 PR 进 `showcase/`。
+视频都在 GitHub 上：README 里播的片段每个不到 10 MB（1080p，风格连播是 720p），右下角是仓库名，完整文件在 [Release `media`](https://github.com/ZLHad/OpenVideoHarness/releases/tag/media)，不进 git，所以克隆仓库不用下载它们。社区里的同类作品和我们的拆解在 [cases/](cases/README.md)。你做出来的片子也欢迎 PR 进 `showcase/`。
 
 ## 快速开始
 
@@ -154,7 +154,7 @@ cd ~/OpenVideoHarness && claude
 
 几条从不放松的规则（完整版见 [CLAUDE.md](CLAUDE.md)）：每一帧只由时间决定，同一时刻永远算出同一帧，所以能并行渲染、随时抽查任意一帧；有声音时声音决定时长；先分镜后代码；数字、引文、论文信息照抄原文，拿不准的不编进片子。
 
-**和直接让 AI 做有什么不同？** 我们拿同一句需求做过一次小实验（[docs/research/06](docs/research/06-concept-first-ab.md)）：按流程做的那支点子更有新意，但做工没有明显更好，两边的耗时和 token 差不多；盲评指出的问题（字太小、开头太慢）后来都补进了检查。这类对比还在继续做。流程真正省下的是返工：方向在写代码前定，问题在出片前查。
+**和直接让 AI 做有什么不同？** 我们做过一次小实验（[docs/research/06](docs/research/06-concept-first-ab.md)）：两句一句话需求，各按流程（快出档）做一支、只给几条底线做一支，都是无声片，盲评。按流程做的点子更新，但评审觉得只守底线的那两支做得更好，两次都选了它们去发；两边的耗时和 token 差不多。评审指出的问题（字在手机上太小、开头太慢）后来都补进了检查。流程想省的是返工：方向在写代码前定，问题在出片前查；这一点还没有量过。
 
 ## 类型和风格
 
@@ -193,7 +193,7 @@ AI 听不见，所以声音尽量做成能计算、能测量的：
 - **配音**（`bin/vh tts`）：默认是本地开源的 Qwen3-TTS，离线免费，中文 5 个音色、英文 2 个；也接了阿里云百炼、ElevenLabs、Gemini TTS（样片 02、03 用的是 Gemini）。每句都能单独指定语气和重音，有配乐时可以落在拍点上。
 - **字幕**（`bin/vh captions`）：旁白稿写成 `中文 || English`，出中文、英文或双行字幕，也能封装成可开关的字幕轨。
 - **配乐**（`bin/vh music`）：用代码作曲，同一份谱永远生成同一段音乐，并给出每一拍的时间让画面卡点；有编钟、古筝、竹笛这些中国乐器。用你自己的曲子时，`bin/vh beats` 分析节拍。
-- **音效**（`bin/vh sfx`）：21 个代码合成的原创音效，摆在动作发生的那一帧；同一个音效每次略有变化，听着不重复。
+- **音效**（`bin/vh sfx`）：21 个代码合成的原创音效，摆在动作发生的那一帧；大多数音效每次略有变化，听着不重复。
 - **混音和质检**（`bin/vh mix`、`bin/vh qa`）：有旁白时音乐自动让开，整体响度按 −14 LUFS；`qa` 查断音、掉音、忽大忽小、爆音，以及每个卡点是否落在一帧以内。
 
 详见 [playbook/04-audio.md](playbook/04-audio.md)。
@@ -205,13 +205,13 @@ AI 听不见，所以声音尽量做成能计算、能测量的：
 | | 快出 `quick` | 标准 `standard`（默认） | 精品 `studio` |
 |---|---|---|---|
 | 适合 | 试方向、草稿 | 大多数正式视频 | 发布片、旗舰内容 |
-| 停下来等你 | 不停，直接出片 | 三次 | 三次，另附每个创意方向的样片和全片粗剪动画 |
+| 停下来等你 | 不停，直接出片 | 三次 | 三次，另附每个创意方向的样片和全片动态分镜（animatic） |
 | 另一个 agent 打分 | 不打 | 1 轮 | 至少 3 轮，8 项都要 8 分以上 |
 | 30 秒的片子大概要 | 10–30 分钟 | 1–2 小时 | 3 小时以上 |
 
 哪一档都不放松的：事实不编、有声片里没有突然的静音、画面不频闪、字不小于目标屏幕的下限。
 
-除了档位，你还可以点名哪些事自己定：开头钩子、风格、主角、主旋律、配音、旁白稿、分镜、标题和封面等。点了名的，它会出几个选项等你挑；没点名的，它自己定，理由写进项目的 `DECISIONS.md`，你随时能改。每次停下来，它会生成一个本地审阅页（`bin/vh review`），第一屏只放要你定的事，图、粗剪动画和配乐都能在浏览器里直接看、直接听。
+除了档位，你还可以点名哪些事自己定：开头钩子、风格、主角、主旋律、配音、旁白稿、分镜、标题和封面等。点了名的，它会出几个选项等你挑；没点名的，它自己定，理由写进项目的 `DECISIONS.md`，你随时能改。每次停下来，它会生成一个本地审阅页（`bin/vh review`），第一屏只放要你定的事，图、动态分镜和配乐都能在浏览器里直接看、直接听。
 
 ## 要求、成本和限制
 

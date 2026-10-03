@@ -141,7 +141,7 @@ OpenVideoHarness 介绍片 v5 · 16:9 · 完整版 1:46 · studio · 2026-10-01 
 
 这里列的是做片时项目里的文件；仓库里只收了 `review/` 的图和 JSON。
 
-- `review/`：chapters.png、opening-options.png、opening-animatic.mp4 / .gif（mp4 在 Release 里）、motif-options.png、music-arc.png（+ .json）、onscreen-opening.json、onscreen-plan.json
+- `review/`：chapters.png、opening-options.png、opening-animatic.mp4（在 Release 里）、motif-options.png、music-arc.png（+ .json）、onscreen-opening.json、onscreen-plan.json
 - `audio/`：motif-A.wav、motif-B.wav、sketch-v5.wav（+ beats.json）；谱子在 `audio/score/`（`make_sketch.py` 生成整片草图）
 - `proto/`：开场灰盒，HyperFrames 0.8.82 + Three.js，`proto/switch.sh A|B|C` 选方案；960×540、draft、2 个 worker，一个方案渲 23 s 约 16 s
 - `tools/figs/`：出上面这些图的脚本；`BRIEF.md`、`STYLE.md`、`STORYBOARD.md`（节拍表）、`NOTES.md`（事实表、测量、决定）

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Rebuild the film's soundtrack from source:
-#   music  the opening sketch (audio/sketch.json, 120 BPM; bin/vh music) for 0–29 s, its bar 11 (20–22 s) played twice
+#   music  the opening sketch (audio/sketch.json, 120 BPM; bin/vh music) for 0–25 s, its bar 11 (20–22 s) played twice
 #          for the terminal's hold (js/tmap.js: +2 s), then the body score (audio/score.json, 80 BPM, D minor, bars
 #          stretched for the reads' holds; audio/score_engine.py) from its 27.0 s mark (bar 10), joined at 25.0 s (faded in
 #          over the 0.15 s before)

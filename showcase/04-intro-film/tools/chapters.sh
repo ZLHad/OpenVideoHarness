@@ -7,7 +7,7 @@ F=$1 O=$2; mkdir -p "$O"
 S=$(cd "$(dirname "$0")" && pwd)
 M="$F/out/final-master.mp4"
 # name start end (film seconds, the 103 s cut; each starts where its section arrives)
-CH=("1-opening 0 25.0" "2-request-router-docs 25.0 42.25" "3-how-it-works 42.25 61.3" "4-styles-sound-cases 61.3 74.5" "5-proof-hall 74.5 89.75" "6-this-film-too 89.75 103.0")
+CH=("1-opening 0 25.0" "2-request-router-docs 25.0 41.5" "3-how-it-works 41.5 62.05" "4-styles-sound-cases 62.05 75.25" "5-proof-hall 75.25 90.5" "6-this-film-too 90.5 103.0")
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 ONLY=${3:-}
 for c in "${CH[@]}"; do

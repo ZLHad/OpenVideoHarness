@@ -17,7 +17,7 @@
 #   - the first bin/vh tts with the default qwen provider (skipped with another one): its Python packages (about 750 MB, ~/.cache/uv)
 #     and the Qwen3-TTS model (about 2 GB, ~/.cache/huggingface)
 #   - every bin/vh new short, promo, data or meme: about 140 MB of node_modules in that project
-# The README's "What gets downloaded" has the same list.
+# The wiki's Getting Started ("What gets downloaded") has the same list.
 set -euo pipefail
 REPO="${OVH_REPO:-https://github.com/ZLHad/OpenVideoHarness.git}"
 DIR="${OVH_DIR:-$HOME/OpenVideoHarness}"; REFS=1; SKILL=all
@@ -65,5 +65,5 @@ cat <<MSG
   Or scaffold first:  bin/vh new short my-first-video
   Docs:  README.md · CLAUDE.md · bin/vh help
   Note:  the first render downloads Chrome (about 200 MB) and the first sound commands download Python packages (about 700 MB)
-         into ~/.cache; see "What gets downloaded" in README.md
+         into ~/.cache; see "What gets downloaded" on the wiki's Getting Started page
 MSG

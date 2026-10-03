@@ -52,10 +52,9 @@ v2（69.3 s）完整保存在 `out/v2/`。v3 的起因是用户的两条意见�
 
 | 文件 | 规格 | 大小 |
 |---|---|---|
-| `final.mp4` | H.264 CRF 16 + AAC 256k 立体声 + zh/en 软字幕（各 23 条），2440 帧 | 266.1 MB |
+| `final.mp4`（网页版在 Release `media` 里，`intro-film-v3-81s.mp4`） | H.264 CRF 16 + AAC 256k 立体声 + zh/en 软字幕（各 23 条），2440 帧 | 266.1 MB |
 | `final-web.mp4` | 两遍 1900 kbps（maxrate 3000k）+ AAC 128k + 软字幕 | 20.8 MB |
 | `final-nograin.mp4` | HyperFrames `--quality high` 母版，不带音频 | 308.4 MB |
-| `preview.gif` | 21.0–30.6 s，640 px，10 fps，64 色 | 7.9 MB |
 | `poster.png` | t = 80.9 s（片名 + 命令 + 地址） | 1.8 MB |
 | `sheet.png` | `bin/vh sheet`，每 1.33 s 一格 | 9.7 MB |
 

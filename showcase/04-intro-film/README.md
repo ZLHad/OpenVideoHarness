@@ -1,6 +1,6 @@
 # 04 · promo — OpenVideoHarness intro film v5 (a galaxy-of-films opening, then one continuous take)
 
-1920×1080 · 30 fps · **103 s (3090 frames)** · −14 LUFS · the film: [`intro-film-1080p.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4) (295 MB, GitHub release) · poster [`media/poster.jpg`](media/poster.jpg) · contact sheet [`media/sheet.jpg`](media/sheet.jpg) · 中文：[README.zh-CN.md](README.zh-CN.md)
+1920×1080 · 30 fps · **103 s (3090 frames)** · −14 LUFS · the film: [`intro-film-1080p.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4) (297 MB, GitHub release) · poster [`media/poster.jpg`](media/poster.jpg) · contact sheet [`media/sheet.jpg`](media/sheet.jpg) · 中文：[README.zh-CN.md](README.zh-CN.md)
 
 Made at the studio effort level. The first 15.8 s are path-traced in Blender, driven by code; HyperFrames and Three.js take over from there. Every number on screen is copied from the repo; the sources are in [NOTES.md](NOTES.md). The previous version (v3, 81 s) is in [v3/](v3/).
 
@@ -12,25 +12,25 @@ Each chapter plays here with sound (1080p, under 10 MB each: GitHub's limit for 
 
 https://github.com/user-attachments/assets/48923404-eff1-41cd-b303-82c9ede51c1f
 
-**2 · The router, the nine types, the docs** (25–42.25 s)
+**2 · The router, the nine types, the docs** (25–41.5 s)
 
-https://github.com/user-attachments/assets/71f1b4b9-a111-48f0-bd11-c20046a1dffc
+https://github.com/user-attachments/assets/841df5f9-837d-4138-ab6a-3ff9a092fb57
 
-**3 · How it works: the gates, the self-review loop, the final cut** (42.25–61.3 s)
+**3 · How it works: the gates, the self-review loop, the final cut** (41.5–62.05 s)
 
-https://github.com/user-attachments/assets/cd98390a-a333-4350-9afe-05c8f871eb75
+https://github.com/user-attachments/assets/dfa4a89e-ab81-4d2a-abab-5ba3eec57fbe
 
-**4 · Styles, sound, ready to run, cases** (61.3–74.5 s)
+**4 · Styles, sound, ready to run, cases** (62.05–75.25 s)
 
-https://github.com/user-attachments/assets/811ce8ee-dd7b-4f7e-9278-7b4f9eca6438
+https://github.com/user-attachments/assets/341c462f-dfc2-4272-84c2-3a68936fd957
 
-**5 · The proof hall: four real films** (74.5–89.75 s)
+**5 · The proof hall: four real films** (75.25–90.5 s)
 
-https://github.com/user-attachments/assets/ad345818-f36b-44e1-88b0-d939bcda3814
+https://github.com/user-attachments/assets/27cc7042-f160-4f49-8590-3c93661d4377
 
-**6 · This film, too; the title** (89.75–103 s)
+**6 · This film, too; the title** (90.5–103 s)
 
-https://github.com/user-attachments/assets/a7ff6e5e-24af-49de-b005-b68e48188b57
+https://github.com/user-attachments/assets/a8bf490c-3fae-4d3b-84a4-39d725def0f5
 
 ## What was asked
 
@@ -54,13 +54,13 @@ The concept: **every star is a film.** There are so many AI video tools that the
 | 10.4–13.8 s | "What's missing?" | Blender |
 | 14.0–18.8 s | An amber scan sorts the films into a grid that runs to the horizon; "OpenVideoHarness · Not more tools. Know-how." | Blender, dissolving into WebGL over 15.0–15.6 s |
 | 18.6–25.0 s | The rows collapse into lines of text; a request is typed into a terminal ("Make a vertical science short: why does a low-orbit satellite's signal change pitch?", the one showcase 02 answers); Enter, and the camera dives in | WebGL + DOM |
-| 25.0–42.25 s | Routing: the request → Claude Code / Codex → the CLAUDE.md router → 9 video types, where the request's own (02, science shorts) lights up and the rest dim → playbook, templates, styles, bin/vh → engines, references → projects/ | Three.js |
-| 42.25–61.3 s | The workflow on that request: three human gates, each a door made of what is reviewed (02's outline, storyboard, draft sheet); the self-review loop (a frame of 02 turns red on each of three fails, then all pass); the final cut, where 02 plays, + LESSONS.md | Three.js |
-| 61.3–70.75 s | A wall of the 31 style samples · sound end to end · ready to run | Three.js |
-| 70.75–74.5 s | 13 case studies, lit one star at a time + 389 community videos | Three.js |
-| 74.5–88.75 s | The screening hall: the real films of showcase 01, 03, 02 and 00 | Three.js |
-| 88.75–95.5 s | This film, too · even the soundtrack is code | Three.js |
-| 95.5–103 s | Title, the install command, the GitHub address | Three.js |
+| 25.0–41.5 s | Routing: the request → Claude Code / Codex → the CLAUDE.md router → 9 video types, where the request's own (02, science shorts) lights up and the rest dim → playbook, templates, styles, bin/vh → engines, references → projects/ | Three.js |
+| 41.5–62.05 s | The workflow on that request: three human gates, each a door made of what is reviewed (02's outline, storyboard, draft sheet); the self-review loop (a frame of 02 turns red on each of three fails, then all pass); the final cut, where 02 plays, + LESSONS.md | Three.js |
+| 62.05–71.5 s | A wall of the 31 style samples · sound end to end · ready to run | Three.js |
+| 71.5–75.25 s | 13 case studies, lit one star at a time + 389 community videos | Three.js |
+| 75.25–89.5 s | The screening hall: the real films of showcase 01, 03, 02 and 00 | Three.js |
+| 89.5–96.25 s | This film, too · even the soundtrack is code | Three.js |
+| 96.25–103 s | Title, the install command, the GitHub address | Three.js |
 
 Small frames of the opening's films keep drifting past in the body's world, so "every star is a film" runs from the first frame to the last.
 
@@ -71,14 +71,14 @@ Small frames of the opening's films keep drifting past in the body's world, so "
 - **Body (from 25 s): v3's one-take world** ([`js/main.js`](js/main.js), [`js/arch.js`](js/arch.js), [`js/pipeline.js`](js/pipeline.js), [`js/features.js`](js/features.js)), at 80 BPM instead of 90, with the counts brought up to date (9 types, 13 playbook docs, 11 templates, 31 styles, 30 reference repos, 13 case studies, 21 SFX, 102 instruments), a wall of the 31 style samples, films drifting beside the path and no timecode HUD.
 - **Pacing.** The story is written on an 87.5 s timeline and plays through a time map ([`js/tmap.js`](js/tmap.js)) that slows 15 short holds where a line would otherwise flash by: each line stays long enough to read once in either language (English at about 20 characters a second, Chinese at about 7, plus 0.8 s, at least 1.5 s), then the camera moves on. The drifting films, sparks and hand-held drift keep the film's own clock, so a slowed hold never freezes the world. An earlier cut stretched 26 holds to a stricter reading formula and ran 150.5 s; it felt slow after every line, so this cut went back to the 87.5 s pacing and added only 15.5 s.
 - **Films: 109 sources.** 28 are shaders (nebulae, a black hole, glass, aurora, sea…, [`opening/films.js`](opening/films.js)), 41 are cut from this repo's style samples and showcase films ([`tools/film_atlas.py`](tools/film_atlas.py)), and 40 are AI stills (`gemini-3.1-flash-image`, 16:9 at 512 px, about $1.80; images and prompts in [`assets/ai/`](assets/ai/), [`tools/gen_images.py`](tools/gen_images.py)) given a slow push so they read as playing. Fictional people and places only, no brands or logos.
-- **Sound.** The opening uses the gate-① score sketch (120 BPM, motif B: F# A B rising and left hanging in the question); its bar 11 plays twice for the terminal's hold. From 25 s the v3 cinematic score ([`audio/score.json`](audio/score.json), 80 BPM, D minor) takes over from its bar 10; [`tools/retime.py`](tools/retime.py) lengthens the 12 bars that hold a stretch by whole beats, and their patterns keep playing, so the music never stops for a read. 124 SFX events land on picture events ([`audio/events.json`](audio/events.json), in film time). A sync check paired every named music accent with the sound effect of the same picture event and moved four that had drifted when the picture changed in earlier rounds: the second pair of directory cards, the 13 case stars (13 celesta notes, one per star), "This film, too." and the end card's typing. `bin/vh mix profile=promo` to −14 LUFS; [`tools/build_audio.sh`](tools/build_audio.sh) rebuilds it all and runs `bin/vh qa`.
+- **Sound.** The opening uses the gate-① score sketch (120 BPM, motif B: F# A B rising and left hanging in the question); its bar 11 plays twice for the terminal's hold. From 25 s the v3 cinematic score ([`audio/score.json`](audio/score.json), 80 BPM, D minor) takes over from its bar 10; [`tools/retime.py`](tools/retime.py) lengthens the 12 bars that hold a stretch by whole beats, and their patterns keep playing, so the music never stops for a read. 124 SFX events land on picture events ([`audio/events.json`](audio/events.json), in film time). A sync check paired every named music accent with the sound effect of the same picture event and moved four that had drifted when the picture changed in earlier rounds: the second pair of directory cards, the 13 case stars (13 celesta notes, one per star; the case-study hold now starts after the 13th star, so the notes stay on them), "This film, too." and the end card's typing. `bin/vh mix profile=promo` to −14 LUFS; [`tools/build_audio.sh`](tools/build_audio.sh) rebuilds it all and runs `bin/vh qa`.
 
 ## Checks
 
 - `bin/vh check`: no black, frozen or silent stretch; yuv420p, limited range, BT.709 with all four colour tags.
 - One full-screen white flash in the whole film (the burst at 8.0 s).
-- Reading time, measured on frames at 4 fps for every line the earlier cuts had trouble with: each holds 1.4–2.75 s.
-- Sync, measured: every large picture event (the burst, each arrival, the gate passes, the fails, the pass, the title) has a sound within one frame, and every named music accent sits on the sound effect of its picture event (offset 0.00 s).
+- Reading time, measured on frames (4–10 fps) for every line the earlier cuts had trouble with: each now holds at least its short-label time from `templates/TASTE_CHECKLIST.md` #5 (the router line about 2.0 s, gate ② about 2.7 s, "pass" about 2.0 s, gate ③ and "Final cut" about 2.3 s, "This film, too." about 1.9 s).
+- Sync, measured: every large picture event (the burst, each arrival, the gate passes, the fails, the pass, the title) has a sound within one frame; every named music accent that shares a picture event with a sound effect sits on it (offset 0.00 s), and the 13 celesta notes land on the 13 case stars (0.000 s). The accents with no effect of their own (the sound panel's rows, "This film, too.") were checked against the frames.
 - Camera continuity, measured: a frame-difference curve over the 475 Blender frames (smooth rises and falls; the only jumps are the burst and one card sweeping past the lens at 5.1 s, both designed), and over the whole film after every re-timing (no stepping in the slowed holds; the remaining jumps are whips, power-ons and the cuts inside the proof hall's films).
 - Blender determinism (the final plate): frames 100 and 300 rendered again in a fresh process, PSNR 71.3 dB and 47.3 dB against the sequence (the floor is 45 dB).
 - Audio (`bin/vh qa`): no digital silence, dropouts or pumping; 62 of 62 cues within one frame (median 6.0 ms); −14.0 LUFS, −1.65 dBTP. Click warnings: see below.

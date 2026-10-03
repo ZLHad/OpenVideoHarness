@@ -16,7 +16,7 @@ Explainers, science shorts, product films, music videos, data stories, paper tal
 https://github.com/user-attachments/assets/48923404-eff1-41cd-b303-82c9ede51c1f
 
 
-<sub>▶ The opening of the intro film (25 s, with sound). An agent made the film from this repo's docs alone; the opening is rendered by Blender under code, and the soundtrack is code too. The full 103 s is in <a href="showcase/04-intro-film/">showcase/04</a>.</sub>
+<sub>▶ The opening of the intro film (25 s, with sound). An agent made the film from this repo's docs alone; the opening is rendered in Blender, driven by code, and the soundtrack is code too. The full 103 s is in <a href="showcase/04-intro-film/">showcase/04</a>.</sub>
 
 </div>
 
@@ -80,9 +80,9 @@ https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
 <tr>
 <td width="40%" valign="top">
 
-https://github.com/user-attachments/assets/cd98390a-a333-4350-9afe-05c8f871eb75
+https://github.com/user-attachments/assets/dfa4a89e-ab81-4d2a-abab-5ba3eec57fbe
 
-<sub>Chapter 3 of 6; <a href="showcase/04-intro-film/">all six</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">Download</a></sub>
+<sub>Chapter 3 of 6; <a href="showcase/04-intro-film/">all six</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">Download (297 MB)</a></sub>
 </td>
 <td valign="top"><b><a href="showcase/04-intro-film/">04 · Intro film</a></b> (Blender + HyperFrames + Three.js · 103 s · 1920×1080)<br>The repo's own product film. The concept: every star is a film. The opening galaxy is path-traced in Blender, collapses, bursts and is flattened; then one continuous 3D take follows a single request through the whole repo. This chapter shows the three checkpoints and the self-review loop.<br><b><a href="showcase/04-intro-film/README.md#what-was-asked">Request</a>, at the checkpoints:</b> "玻璃、宇宙、星穹……令人瘫坐眩晕的感觉" (glass, cosmos, a starry sky… dizzying), then "或者使用blender？好莱坞大片质感" (or use Blender? Hollywood blockbuster quality)</td>
 </tr>
@@ -97,7 +97,7 @@ https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
 </tr>
 </table>
 
-The players show 1080p clips (under 10 MB each, GitHub's limit, with the repo's name in a corner); the full files are in the [`media` release](https://github.com/ZLHad/OpenVideoHarness/releases/tag/media), outside git, so a clone doesn't download them. Community films in the same vein, and how they were made, are in [cases/](cases/README.md). Films you make with this repo are welcome in `showcase/`.
+The players show clips under 10 MB each (GitHub's limit; 1080p, the style reel 720p), with the repo's name in a corner; the full files are in the [`media` release](https://github.com/ZLHad/OpenVideoHarness/releases/tag/media), outside git, so a clone doesn't download them. Community films in the same vein, and how they were made, are in [cases/](cases/README.md). Films you make with this repo are welcome in `showcase/`.
 
 ## Quick start
 
@@ -154,7 +154,7 @@ Say what it's about, who it's for and where it will be shown. You don't need a l
 
 A few rules never relax ([CLAUDE.md](CLAUDE.md) has them all): every frame depends only on its time, so any frame can be rendered alone, in parallel, at any point; when there is sound, the sound sets the length; storyboard before code; numbers, quotes and paper details are copied from the source, and anything uncertain stays out.
 
-**How is this different from just asking an agent?** We ran one small comparison ([docs/research/06](docs/research/06-concept-first-ab.md), in Chinese): with the same one-line request, the film made with the workflow had the fresher idea, but its craft wasn't clearly better, and time and tokens were about the same. What the blind reviewer flagged (type too small for phones, slow openings) went into the checks. More comparisons are planned. What the process saves, mostly, is rework: direction is settled before code, and problems are caught before the render.
+**How is this different from just asking an agent?** We ran one small comparison ([docs/research/06](docs/research/06-concept-first-ab.md), in Chinese): two one-line requests, each made once with the workflow (at the quick level) and once with only a few floor rules, silent, judged blind. The workflow's films had the fresher ideas, but the reviewer found the floors-only films better made and would have posted those both times; time and tokens were about the same. What it flagged (type too small for phones, slow openings) went into the checks. The process aims to save rework, by settling direction before code and catching problems before the render; that saving hasn't been measured yet.
 
 ## Types and styles
 
@@ -193,7 +193,7 @@ An agent can't hear, so the sound is built to be computed and measured:
 - **Voiceover** (`bin/vh tts`): local, open-source Qwen3-TTS by default (offline and free; five Chinese voices, two English), with Alibaba Cloud Model Studio, ElevenLabs and Gemini TTS as cloud options (showcases 02 and 03 use Gemini). Every line can get its own delivery and stress, and lines can land on the music's beats.
 - **Subtitles** (`bin/vh captions`): write the script as `中文 || English` to get Chinese, English or two-line subtitles, burned in or as switchable tracks.
 - **Music** (`bin/vh music`): composed as code, so the same score always renders the same audio, with the time of every beat for the picture to hit; it has Chinese instruments such as bianzhong, guzheng and dizi. For your own track, `bin/vh beats` finds the beats.
-- **Sound effects** (`bin/vh sfx`): 21 original, code-synthesized effects placed on the frame where the action happens, each use slightly varied so repeats don't sound identical.
+- **Sound effects** (`bin/vh sfx`): 21 original, code-synthesized effects placed on the frame where the action happens; most vary slightly from use to use, so repeats don't sound identical.
 - **Mixing and checks** (`bin/vh mix`, `bin/vh qa`): the music ducks under narration and the mix lands at −14 LUFS; `qa` checks for silence, dropouts, pumping and clipping, and that every cue lands within one frame.
 
 More in [playbook/04-audio.md](playbook/04-audio.md) (in Chinese).
