@@ -48,12 +48,12 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 ```
 
 This one command:
-- clones the repo into `~/OpenVideoHarness` (about 530 MB; the sample films are in it);
+- clones the newest version of the repo into `~/OpenVideoHarness`, without its history (about 420 MB; the sample films are in it);
 - installs the dependencies of the built-in hand-drawn engine and the style renderer (about 210 MB);
 - fetches 30 read-only reference repos (about 195 MB; `--no-refs` skips them);
 - registers the `open-video-harness` skill for Claude Code and Codex, so saying "make a video" in any folder leads the agent here.
 
-That is about 935 MB on disk. The first render and the sound tools download more the first time you use them: [what gets downloaded](#what-gets-downloaded) lists how much and where. New here? The wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) page goes from nothing to a first video.
+That is about 825 MB on disk. The first render and the sound tools download more the first time you use them: [what gets downloaded](#what-gets-downloaded) lists how much and where. New here? The wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) page goes from nothing to a first video.
 
 Then open Claude Code (or Codex) and say what you want:
 
@@ -343,7 +343,7 @@ bash install.sh --no-refs                        # skip references for now (run 
 bash install.sh --no-skill                       # don't register the global skill
 ```
 
-By hand:
+The installer's clone has only the newest commit, which is all you need to make videos. To contribute, or to look through the history, clone it normally instead (about 550 MB, since earlier versions of the sample films stay in the history), then install the rest by hand:
 
 ```bash
 git clone https://github.com/ZLHad/OpenVideoHarness.git && cd OpenVideoHarness
@@ -359,7 +359,7 @@ npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harn
 
 The skill is only a pointer. The first time it's used, it asks before installing the full workbench.
 
-To update: `git pull` in the repo, then `references/fetch.sh`.
+To update, run the install command again with the same options (the one-line install takes them after `bash -s --`: `curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash -s -- --no-refs`). In the installer's clone it fetches only the newest commit; it keeps `LOCAL.md` and `projects/`, and stops rather than overwrite a file you changed. In a full clone you can also `git pull`, then `references/fetch.sh`.
 
 ### What gets downloaded
 
@@ -367,7 +367,7 @@ Sizes are approximate, measured on macOS (Apple Silicon); `du -sh` will show sli
 
 | What | When | Where | Size |
 |---|---|---|---|
-| This repo, with the sample films and style samples | install | `~/OpenVideoHarness` | about 530 MB |
+| This repo's newest commit, with the sample films and style samples | install | `~/OpenVideoHarness` | about 215 MB to download, 420 MB on disk |
 | Node packages of the hand-drawn engine and the style renderer | install | `node_modules` inside the repo | about 210 MB |
 | 30 read-only reference repos | install, unless `--no-refs` | `references/repos/` | about 195 MB |
 | Chrome for HyperFrames (`chrome-headless-shell`) | the first `hyperframes render` | `~/.cache/hyperframes` | about 100 MB to download, 200 MB on disk |
