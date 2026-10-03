@@ -201,18 +201,24 @@ def _link(m):
     return text
 
 
+MAX_INLINE = 5000   # characters: a longer line is shown escaped, without inline markup, so no pattern can run long
+
+
 def inline(s):
-    """One line of markdown → HTML. Everything is escaped; code spans stay literal."""
+    """One line of markdown → HTML. Everything is escaped; code spans stay literal. The patterns stop at the next
+    delimiter (no '.+?' across the line), so each runs in linear time."""
+    if len(s) > MAX_INLINE:
+        return html.escape(s, quote=False)
     out = []
     for i, part in enumerate(re.split(r"(`[^`]+`)", s)):
         if i % 2:
             out.append("<code>" + html.escape(part[1:-1]) + "</code>")
             continue
         p = html.escape(part, quote=False)
-        p = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", _link, p)
-        p = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", p)
-        p = re.sub(r"~~(.+?)~~", r"<del>\1</del>", p)
-        p = re.sub(r"(?<![*\w])\*(?![\s*])(.+?)(?<![\s*])\*(?![*\w])", r"<em>\1</em>", p)
+        p = re.sub(r"\[([^\[\]]+)\]\(([^()\s]+)\)", _link, p)
+        p = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", p)
+        p = re.sub(r"~~([^~]+)~~", r"<del>\1</del>", p)
+        p = re.sub(r"(?<![*\w])\*([^\s*](?:[^*]*[^\s*])?)\*(?![*\w])", r"<em>\1</em>", p)
         out.append(p)
     return "".join(out)
 
@@ -242,7 +248,10 @@ def _starts_block(lines, i):
             or (s.startswith("|") and i + 1 < len(lines) and SEP.match(lines[i + 1]) is not None))
 
 
-def render_md(text):
+MAX_QUOTE_DEPTH = 8
+
+
+def render_md(text, depth=0):
     """Markdown → HTML for display. Everything is escaped first; only a small subset becomes markup: headings,
     paragraphs, lists (nested by indent, task boxes), pipe tables, fenced code, blockquotes, rules, **bold**, *italic*,
     `code`, ~~strike~~, and links to http(s) or to a project file (/p/…). HTML comments are dropped."""
@@ -287,7 +296,9 @@ def render_md(text):
             while i < len(lines) and lines[i].strip().startswith(">"):
                 buf.append(re.sub(r"^\s*>\s?", "", lines[i]))
                 i += 1
-            out.append("<blockquote>" + render_md("\n".join(buf)) + "</blockquote>")
+            inner = render_md("\n".join(buf), depth + 1) if depth < MAX_QUOTE_DEPTH else \
+                "<p>" + "<br>".join(inline(b) for b in buf) + "</p>"   # deeper quotes stay flat: no runaway recursion
+            out.append("<blockquote>" + inner + "</blockquote>")
             continue
         if LIST.match(line):
             items = []
@@ -494,14 +505,26 @@ def _history(review_md):
     return out, paused
 
 
+GATE_ORDER = {"1": 1, "E0": 2, "E1": 3, "2": 4, "E2": 5, "E3": 6, "E4": 7, "3": 8, "E5": 9}
+
+
+def gate_pages(project):
+    """out/review/gate-*.json in review order; the last is this round. Order: the stop (1, E0, E1, 2, E2, E3, E4, 3,
+    E5), then the page within it (1, 1b, 1c …). Modification time only breaks ties between page names outside that
+    pattern (they come first), so copying or touching a file never makes an earlier page current again."""
+    rdir = Path(project) / "out" / "review"
+
+    def key(p):
+        m = re.fullmatch(r"(E\d|\d)([a-z]*)", p.stem[5:])
+        return (GATE_ORDER.get(m.group(1), 0), len(m.group(2)), m.group(2), 0, p.name) if m else (0, 0, "", p.stat().st_mtime, p.name)
+    pages = [p for p in rdir.glob("gate-*.json") if re.fullmatch(r"[A-Za-z0-9_-]{1,24}", p.stem[5:])] if rdir.is_dir() else []
+    return sorted(pages, key=key)
+
+
 def _rounds(project, warnings):
-    rdir = project / "out" / "review"
-    found = sorted(rdir.glob("gate-*.json"), key=lambda p: (p.stat().st_mtime, p.name)) if rdir.is_dir() else []
     out = []
-    for g in found:
+    for g in gate_pages(project):
         rid = g.stem[5:]
-        if not re.fullmatch(r"[A-Za-z0-9_-]{1,24}", rid):
-            continue
         d = _json(g, warnings)
         if not isinstance(d, dict):
             if d is not None:
@@ -637,8 +660,10 @@ def read_project(project):
     history, paused = _history(review_md)
     title = (re.search(r"^#\s+BRIEF\s*[：:]\s*(.+)$", brief, re.M) or [None, ""])[1].strip() or project.name
     effort = next((re.split(r"\s", s["v"])[0] for s in spec if s["k"].lower() == "effort"), "")
-    lang = R.review_lang(project) or next((r["data"].get("lang") for r in reversed(rounds) if r["data"].get("lang") in ("zh", "en")), "") or "zh"
     cur = rounds[-1] if rounds else None
+    # one rule with bin/vh review: this round's gate JSON lang, else the BRIEF's Review language, else zh
+    page_lang = cur["data"].get("lang") if cur else None
+    lang = page_lang if isinstance(page_lang, str) and page_lang in ("zh", "en") else (R.review_lang(project) or "zh")
     stage = STAGE_OF_GATE.get(cur["gate"], 1) if cur else 0
     return {"version": 1, "lang": lang,
             "project": {"slug": project.name, "title": title, "effort": effort, "paused": paused},

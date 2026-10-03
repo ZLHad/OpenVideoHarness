@@ -389,6 +389,17 @@ SH
 # whose table is missing, which must come back as text), a server on a free port (the page, the data, a 206 range, and
 # what it refuses), a submission that wakes bin/vh desk wait and lands verbatim in REVIEW.md, the watcher's timeout,
 # bin/vh new --lang, and bin/vh review's language default
+desk_start() { # desk_start <project> <log>: bin/vh desk on a free port in the background; sets desk_pid and desk_url
+  local i a; desk_url=""
+  "$VH_BASH" "$ROOT/bin/vh" desk "$1" --port 0 > "$2" 2>&1 & desk_pid=$!   # bin/vh execs python: $! is the server
+  for i in $(seq 150); do   # up to 30 s; stop early if the server exits
+    desk_url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*#\1#p' "$2"); [ -n "$desk_url" ] && return 0
+    kill -0 "$desk_pid" 2>/dev/null || break; sleep 0.2; done
+  if kill -0 "$desk_pid" 2>/dev/null; then a="no address after 30 s, still running"; kill "$desk_pid" 2>/dev/null; wait "$desk_pid" 2>/dev/null
+  else wait "$desk_pid"; a="exited with $?"; fi
+  bad "desk server for $(basename "$1") did not start ($a); its output: $(tr '\n' ' ' < "$2" | head -c 800)$([ -s "$2" ] || echo '(none)')"
+  return 1
+}
 desk_checks() {
   local t pid wpid url i rc a
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
@@ -430,19 +441,56 @@ sys.exit(1 if bad else 0)
 PY
   then ok "desk reads the zh and en fixtures (outline, captions and terms, bars, facts, ledger, history, gate extras), and a doc without its table as text"
   else bad "desk reader on tools/desk/fixtures"; fi
-  # a server on a free port, on a copy (a submission writes into the project)
+  # this round is the last page in review order, not the newest file; one language rule; markdown in bounded time;
+  # the newest submission within one second is the highest -n. (A file, not a heredoc inside $(…): bash 3.2 counts the
+  # parentheses in the heredoc's body.)
+  cat > "$t/order.py" <<'PY'
+import json, os, shutil, sys, time
+sys.path.insert(0, "tools/desk")
+import feedback, reader
+bad = []
+def want(cond, what):
+    if not cond: bad.append(what)
+t0 = time.time()
+for s in ("*a " * 20000, "[" * 60000, "**a " * 15000, "~~a " * 15000, "`" * 30000, "a](b " * 12000):
+    reader.render_md(s)
+want(time.time() - t0 < 3, f"long lines took {time.time() - t0:.1f} s")
+try:
+    h = reader.render_md(">" * 3000 + " x")
+    want(h.count("<blockquote>") <= reader.MAX_QUOTE_DEPTH + 1 and h.endswith("x</p>" + "</blockquote>" * h.count("<blockquote>")), "3000 nested quotes")
+except RecursionError:
+    bad.append("3000 nested quotes: RecursionError")
+want(reader.render_md("a *b* c") == "<p>a <em>b</em> c</p>" and reader.render_md("**b** ~~c~~") == "<p><strong>b</strong> <del>c</del></p>", "inline markup")
+d = os.path.join(sys.argv[1], "order")
+shutil.copytree("tools/desk/fixtures/zh", d)
+g = os.path.join(d, "out", "review")
+shutil.copy(os.path.join(g, "gate-1.json"), os.path.join(g, "gate-1b.json"))
+os.utime(os.path.join(g, "gate-1.json"), (time.time() + 60, time.time() + 60))   # the earlier page touched later
+r = reader.read_project(d)
+want([x["id"] for x in r["rounds"]] == ["1", "1b"] and r["lang"] == "zh", f"order after a touch: {[x['id'] for x in r['rounds']]}, lang {r['lang']}")
+j = json.load(open(os.path.join(g, "gate-1b.json"), encoding="utf-8"))
+json.dump(dict(j, lang="en"), open(os.path.join(g, "gate-1b.json"), "w", encoding="utf-8"))
+want(reader.read_project(d)["lang"] == "en", "this round's gate JSON lang should override the BRIEF")
+fd = os.path.join(g, "feedback")
+os.makedirs(fd)
+for n in ("1b-20261004-030440", "1b-20261004-030440-2", "1b-20261004-030440-10"):
+    json.dump({"round": "1b", "submitted_at": "2026-10-04T03:04:40", "n": n}, open(os.path.join(fd, n + ".json"), "w"))
+want(feedback.latest(d)[1]["n"] == "1b-20261004-030440-10", f"latest within one second: {feedback.latest(d)[1]}")
+if bad:
+    print("; ".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  if a=$(python3 "$t/order.py" "$t"); then ok "desk: this round is the last page in review order (a touched file doesn't win), the gate JSON's lang overrides the BRIEF, long and deeply nested markdown in bounded time, -10 after -2"
+  else bad "desk order / lang / markdown / latest: $a"; fi
+  # a server on a free port, on a copy (a submission writes into the project); a hidden file, a link to it, an upper-case
+  # .ENV and an SVG with a script in it: none may be served same-origin
   cp -R tools/desk/fixtures/zh "$t/p" && printf '<img src=x onerror=alert(1)>\n' >> "$t/p/STORYBOARD.md"
-  "$VH_BASH" "$ROOT/bin/vh" desk "$t/p" --port 0 > "$t/srv.log" 2>&1 & pid=$!   # bin/vh execs python: $! is the server
-  url=""; for i in $(seq 150); do   # up to 30 s; stop early if the server exits
-    url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*#\1#p' "$t/srv.log"); [ -n "$url" ] && break
-    kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
-  if [ -z "$url" ]; then
-    if kill -0 "$pid" 2>/dev/null; then a="no address after 30 s, still running"; kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
-    else wait "$pid"; a="exited with $?"; fi
-    bad "desk server did not start ($a); its output: $(tr '\n' ' ' < "$t/srv.log" | head -c 800)$([ -s "$t/srv.log" ] || echo '(none)')"
-    rm -rf "$t"; return; fi
+  printf 'KEY=secret\n' > "$t/p/.env" && ln -s .env "$t/p/visible.txt" && printf 'KEY=secret\n' > "$t/p/keys.ENV"
+  printf '<svg xmlns="http://www.w3.org/2000/svg"><script>fetch("/")</script></svg>\n' > "$t/p/ref.svg"
+  if ! desk_start "$t/p" "$t/srv.log"; then rm -rf "$t"; return; fi
+  pid=$desk_pid; url=$desk_url
   cat > "$t/client.py" <<'PY'
-import http.client, json, sys, urllib.parse
+import http.client, json, socket, sys, urllib.parse
 u = urllib.parse.urlsplit(sys.argv[1]); proj = sys.argv[2]; what = sys.argv[3]
 def req(method, path, body=None, headers=None):
     c = http.client.HTTPConnection(u.hostname, u.port, timeout=10)
@@ -470,8 +518,23 @@ if what == "serve":
     want(s == 206 and h["Content-Range"] == f"bytes 2-9/{len(raw)}" and body == raw[2:10], f"Range: {s} {h.get('Content-Range')}")
     s, h, body = req("GET", "/p/NOTES.md")
     want(s == 200 and body == raw and h["Accept-Ranges"] == "bytes", f"whole file: {s}")
-    for p in ("/p/%2e%2e/BRIEF.md", "/p/..%2f..%2fetc/passwd", "/p/out/review/.desk.json", "/p/nope.md", "/BRIEF.md"):
+    for p in ("/p/NOTES.md", "/p/ref.svg"):   # opened in the browser, a project page runs in an opaque origin
+        csp = req("GET", p)[1].get("Content-Security-Policy", "")
+        want(csp.startswith("sandbox") and "allow-same-origin" not in csp, f"{p} not sandboxed: {csp!r}")
+    for p in ("/p/%2e%2e/BRIEF.md", "/p/..%2f..%2fetc/passwd", "/p/out/review/.desk.json", "/p/nope.md", "/BRIEF.md",
+              "/p/.env", "/p/visible.txt", "/p/keys.ENV", "/p/keys.env"):
         want(req("GET", p)[0] == 404, f"{p} served")
+    want(req("POST", "/api/feedback", fb(defaulted=5), H)[0] == 400, "defaulted: 5")
+    want(req("POST", "/api/feedback", fb(lang=[1]), H)[0] == 400, "lang: [1]")
+    want(req("POST", "/api/feedback", b"[" * 200000, H)[0] == 400, "200,000 nested arrays")
+    want(req("POST", "/api/feedback", fb(), dict(H, **{"X-Desk-Token": "tök€n".encode("utf-8")}))[0] == 403, "a non-ASCII token")
+    sk = socket.create_connection((u.hostname, u.port), timeout=10)   # a body shorter than its Content-Length
+    sk.sendall(f"POST /api/feedback HTTP/1.1\r\nHost: 127.0.0.1:{u.port}\r\nContent-Type: application/json\r\n"
+               f"X-Desk-Token: {token}\r\nContent-Length: 100\r\n\r\n".encode() + b'{"round": "1"}')
+    sk.shutdown(socket.SHUT_WR)
+    resp = sk.recv(200)
+    sk.close()
+    want(resp.split(b" ")[1:2] == [b"400"], f"a short body: {resp[:40]!r}")
     want(req("GET", "/api/data", headers={"Host": "evil.test"})[0] == 403, "another Host answered")
     want(req("POST", "/api/feedback", fb(), {"Content-Type": "application/json"})[0] == 403, "a post without the token")
     want(req("POST", "/api/feedback", fb(), dict(H, Origin="http://evil.test"))[0] == 403, "a post from another origin")
@@ -480,14 +543,20 @@ if what == "serve":
     want(req("POST", "/api/feedback", fb(decisions={"look": "L9"}), H)[0] == 400, "an option the gate page doesn't have")
     want(req("POST", "/api/feedback", fb(items=[{"target": "x", "status": "ok"}]), H)[0] == 400, "a bad target")
     want(json.loads(req("GET", "/api/status")[2])["listening"] is False, "listening before the watcher")
+elif what == "status":
+    print(json.loads(req("GET", "/api/status")[2])["listening"])
+elif what == "post":   # no watcher: argv[4] is the comment
+    s, _, d = req("POST", "/api/feedback", fb(items=[{"target": "seg:2", "status": "change", "label": "大纲 第 2 段", "text": sys.argv[4]}]), H)
+    want(s == 200, f"post: {s} {d[:200]}")
 else:
     want(json.loads(req("GET", "/api/status")[2])["listening"] is True, "the page doesn't see the watcher")
     s, _, d = req("POST", "/api/feedback", fb(), H)
     want(s == 200 and json.loads(d)["listening"] is True and json.loads(d)["saved"].startswith("out/review/feedback/1-"), f"submit: {s} {d[:200]}")
-print("\n".join(bad))
+if bad:
+    print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  if a=$(python3 "$t/client.py" "$url" "$t/p" serve); then ok "desk server: page, data with markup escaped, a 206 range; refuses other hosts, paths out of the project, hidden files, posts without the token, from another origin or not JSON, an unknown round, option or target"
+  if a=$(python3 "$t/client.py" "$url" "$t/p" serve); then ok "desk server: page, data with markup escaped, a 206 range, project files sandboxed; refuses other hosts, paths out of the project, hidden files (also through a link, any case), posts without the token, from another origin or not JSON, an unknown round, option or target; malformed bodies and tokens get 400/403"
   else bad "desk server: $a"; fi
   "$VH_BASH" "$ROOT/bin/vh" desk wait "$t/p" --timeout 30 > "$t/wait.out" 2>&1 & wpid=$!
   for i in $(seq 50); do [ -f "$t/p/out/review/feedback/.listening" ] && break; sleep 0.2; done
@@ -506,6 +575,22 @@ PY
   a=$(vh desk feedback "$t/p" --round 1) && case "$a" in *"第 0 帧就要有水声"*"json: "*) true ;; *) false ;; esac \
     && vh desk feedback "$t/p" --json | python3 -c "import json, sys; d = json.load(sys.stdin); sys.exit(0 if d['decisions'] == {'look': 'L2'} and d['project'] == 'p' else 1)" \
     && ok "desk feedback prints the latest submission (text and --json)" || bad "desk feedback: $a"
+  # a submission made while no watcher runs (after a timeout, say) is handed over by the next wait at once, and only once;
+  # what desk feedback printed counts as handed over too
+  a=$(python3 "$t/client.py" "$url" "$t/p" post "提前到的一条" && vh desk wait "$t/p" --timeout 20 2>&1); rc=$?
+  vh desk wait "$t/p" --timeout 1 >/dev/null 2>&1; i=$?
+  case "$rc:$i:$a" in 0:3:*"提前到的一条"*) ok "desk wait hands over a submission made before it was armed, at once and only once" ;;
+    *) bad "desk wait with a submission already there: rc $rc, then $i: $(printf '%s' "$a" | head -c 300)" ;; esac
+  a=$(python3 "$t/client.py" "$url" "$t/p" post "第三条" && vh desk feedback "$t/p")
+  vh desk wait "$t/p" --timeout 1 >/dev/null 2>&1; rc=$?
+  case "$rc:$a" in 3:*"第三条"*) ok "desk feedback counts what it printed as handed over" ;; *) bad "desk feedback then wait: rc $rc: $(printf '%s' "$a" | head -c 300)" ;; esac
+  # a copy of the project carries the running server's .desk.json and a .listening that names another folder: neither counts
+  cp -R "$t/p" "$t/p2" && printf '{"pid": %s, "since": 0, "until": 99999999999, "project": "%s"}\n' "$$" "$t/p" > "$t/p2/out/review/feedback/.listening"
+  if desk_start "$t/p2" "$t/srv2.log"; then
+    a=$(python3 "$t/client.py" "$desk_url" "$t/p2" status)
+    [ "$a" = False ] && ok "desk: a copied project starts its own server, and a .listening from another folder doesn't count" || bad "desk on a copy: listening said '$a'"
+    kill "$desk_pid"; wait "$desk_pid" 2>/dev/null
+  fi
   a=$(vh desk "$t/p" --port 0 2>&1); case "$a" in *"already serving p"*) ok "desk: a second start points to the running server" ;; *) bad "desk second start: $a" ;; esac
   kill "$pid"; wait "$pid" 2>/dev/null
   [ ! -e "$t/p/out/review/.desk.json" ] && ok "desk: stopping the server removes out/review/.desk.json" || bad "desk left .desk.json behind"
@@ -516,8 +601,11 @@ PY
     vh new math ci-x --lang fr >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "new --lang writes Review language (default zh) and rejects fr" || bad "new --lang fr exited $rc"
   else bad "new --lang: Review language not written"; fi
   cp -R tools/desk/fixtures/zh "$t/rz" && cp -R tools/desk/fixtures/zh "$t/re" && sed 's/^- Review language: zh /- Review language: en /' tools/desk/fixtures/zh/BRIEF.md > "$t/re/BRIEF.md"
-  if vh review "$t/rz" 1 >/dev/null 2>&1 && vh review "$t/re" 1 >/dev/null 2>&1 && grep -q '<html lang="zh-CN">' "$t/rz/out/review/gate-1.html" && grep -q '<html lang="en">' "$t/re/out/review/gate-1.html"
-  then ok "review: a gate JSON without lang takes the BRIEF's Review language, and the desk's extra keys pass"; else bad "review language from the BRIEF"; fi
+  sed 's/^{/{"lang": "en",/' tools/desk/fixtures/zh/out/review/gate-1.json > "$t/rz/out/review/gate-1b.json"
+  if vh review "$t/rz" 1 >/dev/null 2>&1 && vh review "$t/re" 1 >/dev/null 2>&1 && vh review "$t/rz" 1b >/dev/null 2>&1 \
+    && grep -q '<html lang="zh-CN">' "$t/rz/out/review/gate-1.html" && grep -q '<html lang="en">' "$t/re/out/review/gate-1.html" \
+    && grep -q '<html lang="en">' "$t/rz/out/review/gate-1b.html"
+  then ok "review: the gate JSON's lang, else the BRIEF's Review language (the desk's rule), and the desk's extra keys pass"; else bad "review language rule"; fi
   rm -rf "$t"
 }
 

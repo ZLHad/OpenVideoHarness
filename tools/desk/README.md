@@ -9,7 +9,7 @@
 ```bash
 bin/vh desk <项目> [--port N]                  # 起服务，只听 127.0.0.1；默认 8780–8799 里第一个空闲端口；这个项目已经有一个在跑，就只打印它的地址
 bin/vh desk wait <项目> [--timeout 秒]          # 等人提交：打印反馈，退出码 0；超时退出码 3（默认 7100 s）
-bin/vh desk feedback <项目> [--round 1b] [--json]   # 打印最近一次提交
+bin/vh desk feedback <项目> [--round 1b] [--json]   # 打印最近一次提交，并记为"已交给 agent"
 bin/vh desk data <项目>                        # 审阅台从项目里读出了什么（JSON），排查"为什么这一页是空的"时用
 ```
 
@@ -24,7 +24,7 @@ bin/vh desk data <项目>                        # 审阅台从项目里读出�
 | 位置 | 读什么 | 英文项目 |
 |---|---|---|
 | 第一行 `# BRIEF：片名` | 片名 | `# BRIEF: title` |
-| `## Spec` 的 `- 键: 值` | 全部列出；`Effort`、`Review language`（`zh` / `en`，界面语言）、`Output`、`Watch on` 放在立意卡上 | 同左 |
+| `## Spec` 的 `- 键: 值` | 全部列出；`Effort`、`Review language`（`zh` / `en`，界面语言；这一轮的 gate JSON 写了 `lang` 时以它为准，和 `bin/vh review` 同一条规则）、`Output`、`Watch on` 放在立意卡上 | 同左 |
 | `## Content` 的 `- 键: 值` | `Concept (one line)`、`Spine (one line)`、`Recurring motif`、`What the viewer should know/feel at the end`；`Specifics` 下面缩进的几条 | 同左 |
 | `## Outline`（或 `## 大纲`）里的表 | 每段一行，见下 | `## Outline` |
 
@@ -77,7 +77,7 @@ bin/vh desk data <项目>                        # 审阅台从项目里读出�
 
 ### out/review/gate-<n>.json
 
-和 `bin/vh review` 是同一份文件，字段见 `playbook/01-pipeline.md` 的"审阅页"（`include` 照样生效）。最新的一份（按修改时间）是"这一轮"。审阅台另外认几个可选字段，`bin/vh review` 不管它们：
+和 `bin/vh review` 是同一份文件，字段见 `playbook/01-pipeline.md` 的"审阅页"（`include` 照样生效）。"这一轮"是按流程排在最后的那一页：先按站（1、E0、E1、2、E2、E3、E4、3、E5），同一站再按页（1、1b、1c……）；不合这个写法的页名排在最前，彼此之间才看修改时间。所以复制项目、碰一下旧文件，都不会让已经过去的一页变回"这一轮"。审阅台另外认几个可选字段，`bin/vh review` 不管它们：
 
 ```json
 {
@@ -100,7 +100,9 @@ bin/vh desk data <项目>                        # 审阅台从项目里读出�
 
 1. `out/review/feedback/<轮>-<YYYYMMDD-HHMMSS>.md`：一条一行的文字版，人的话原样不动；
 2. `REVIEW.md`：插一节 `## 审阅台反馈 · 关卡 <轮> · <日期 时间>`，把上面的文字整段原样放进代码块，下面留一行"定了：　改了："给 agent 填；插在模板的"授权跳过怎么记"之前，没有这一节就接在文末；
-3. `out/review/feedback/<轮>-<YYYYMMDD-HHMMSS>.json`：最后写，原子替换。`bin/vh desk wait` 等的就是它。
+3. `out/review/feedback/<轮>-<YYYYMMDD-HHMMSS>.json`：最后写，原子替换。`bin/vh desk wait` 等的就是它。同一秒里的第二份、第三份加 `-2`、`-3`，按数字排。
+
+交给 agent 的提交记在 `out/review/feedback/.consumed`：`bin/vh desk wait` 打印过的、`bin/vh desk feedback` 打印过的，都算交过了。`wait` 一启动，先看这一轮有没有还没交过、又晚于这一页 gate JSON 的提交（比如上一次 `wait` 超时之后人才提交），有就立刻打印、退出 0；没有才开始等新的。`.listening`（有 agent 在等）和 `.desk.json`（服务在跑）里都记着项目目录的完整路径，从别的项目拷来的这两个文件不算数。
 
 JSON 的格式：
 
@@ -122,14 +124,16 @@ JSON 的格式：
 - `items[].target` 的前缀说明点评的是什么：`dec:` 决定、`least:` 没把握的、`deleg:` 替人定的（gate JSON `delegated` 的序号）、`concept:line` 立意、`seg:` 大纲段、`cap:` 字幕或旁白条、`shot:` 镜头、`fact:` 素材、`time:` 小样的某一秒、`atime:` 音轨的某一秒、`led:` DECISIONS 里 agent 定的事（序号）、`doc:<文件>#<小节>` 文档的某一节。
 - `suggest` 是人直接写的"改成"，`orig` 是原句。
 
-服务会检查：轮次对得上一份 `gate-<轮>.json`（还没有审阅页时用 `notes`），决定和选项都在那一页里，状态和 target 合法，单条文字不超过 4000 字、整份不超过 256 KiB。
+服务会检查：轮次对得上一份 `gate-<轮>.json`（还没有审阅页时用 `notes`），决定和选项都在那一页里，每个字段的类型、状态和 target 合法，单条文字不超过 4000 字、整份不超过 256 KiB，正文和 Content-Length 对得上；不合的回 400，不会断开连接。
 
 ## 安全
 
 - 只绑定 127.0.0.1，只回答 Host 是自己的请求（挡住 DNS rebinding）。
 - 提交要带页面里那一次启动生成的令牌、JSON 格式，浏览器带了 Origin 时必须是同源；所以同一个浏览器里别的网页既读不到项目，也没法冒充人提交反馈。
-- `/p/` 只给项目目录里的普通文件：不出目录、不跟着符号链接出去、不给隐藏文件和 `*.env`。
+- `/p/` 下的每个文件都带 `Content-Security-Policy: sandbox allow-scripts allow-popups`（没有 `allow-same-origin`）：项目里的 HTML、SVG（HyperFrames 的 `index.html`、`node_modules` 里的页面、下载来的参考图）在浏览器里打开时是一个不透明的源，脚本照样能跑，但读不到审阅台的页面和令牌，也没法替人提交。
+- `/p/` 只给项目目录里的普通文件：不出目录、不跟着符号链接出去；隐藏文件和 `*.env` 不给，按请求的名字和解析后的真实文件各查一遍，不分大小写（指向 `.env` 的链接、`keys.ENV` 都不给）。
+- 每个连接 30 s 不动就断开，发了一半的请求不会一直占着线程。
 
 ## 测试
 
-`tools/ci.sh` 用 `tools/desk/fixtures/` 里的两个小项目（中文、英文）测读取（包括读不出表格时退回原文），在空闲端口起一个服务测 `/api/data`、206 Range、提交到临时副本、REVIEW.md 的追加，测 `wait` 在有提交时退出 0，以及 `bin/vh desk -h`。
+`tools/ci.sh` 用 `tools/desk/fixtures/` 里的两个小项目（中文、英文）测读取（包括读不出表格时退回原文、"这一轮"的顺序、语言规则、超长和深层嵌套的 markdown），在空闲端口起一个服务测 `/api/data`、206 Range、`/p/` 的 sandbox、各种拒绝和坏请求、提交到临时副本、REVIEW.md 的追加，测 `wait` 在有提交时退出 0、启动前就到的提交立刻交出、交过的不再交，拷来的 `.desk.json` 和 `.listening` 不算数，以及 `bin/vh desk -h`。

@@ -4,8 +4,10 @@
                                                 --port 0: any free port). Already serving this project: print its URL.
   bin/vh desk wait <project> [--timeout s]      block until the reviewer submits, print the feedback, exit 0 (3 on
                                                 timeout; default 7100 s). An agent runs it in the background after each
-                                                stop: its exit is the wake-up call.
-  bin/vh desk feedback <project> [--round r] [--json]   print the latest submission (exit 1 when there is none)
+                                                stop: its exit is the wake-up call. A submission for the current page that
+                                                came in before it was armed, and was never handed over, is printed at once.
+  bin/vh desk feedback <project> [--round r] [--json]   print the latest submission (exit 1 when there is none); it then
+                                                counts as handed over (out/review/feedback/.consumed)
   bin/vh desk data <project>                    print the data the desk shows, as JSON (what reader.py makes of the files)
 
 The desk reads the same out/review/gate-<n>.json as bin/vh review, plus the project's markdown (the contract is in
@@ -61,6 +63,7 @@ def main(argv):
             print(json.dumps(rec, ensure_ascii=False, indent=1))
         else:
             F.show(path, rec)
+        F.mark_consumed(project, [path])   # handed over: a later bin/vh desk wait doesn't print it again
         return 0
     import reader
     print(json.dumps(reader.read_project(project), ensure_ascii=False, indent=1))

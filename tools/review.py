@@ -289,14 +289,15 @@ class Page:
         self.project, self.src, self.d, self.gate = project, src, data, gate
         self.out = project / "out" / "review"
         lang = data.get("lang")
-        self.lang = lang if isinstance(lang, str) and lang in T else (review_lang(project) if lang is None else None) or "zh"
+        # the same rule as the review desk: this page's lang, else the BRIEF's Review language, else zh
+        self.lang = lang if isinstance(lang, str) and lang in T else (review_lang(project) or "zh")
         self.t = T[self.lang]
         self.errors, self.warnings = [], []
         self.shot_ids = set()
         self.flagged = {}      # shot id → least-sure note
         self.bad_paths = set() # each missing or refused path is reported once, however many places use it
         if lang is not None and self.lang != lang:
-            self.warn(f"lang {lang!r} is not zh or en; using zh")
+            self.warn(f"lang {lang!r} is not zh or en; using {self.lang}")
 
     def err(self, msg):
         if msg not in self.errors:   # a missing animatic used by six segments is reported once

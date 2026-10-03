@@ -7,6 +7,8 @@ word for word). The .json is written last, atomically: it is what the watcher (w
 import datetime, json, os, re, signal, sys, threading, time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # reader.py, for the current gate page
+
 MAX_BODY = 256 * 1024
 MAX_ITEMS, MAX_DECISIONS = 400, 20
 LIMIT = {"text": 4000, "suggest": 2000, "orig": 2000, "label": 300, "general": 8000}
@@ -50,8 +52,10 @@ def gate_options(project, rid):
         d = json.loads(p.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError):
         return None
+    if not isinstance(d, dict):
+        return None
     out = {}
-    for x in (d.get("decisions") or []) if isinstance(d, dict) else []:
+    for x in d.get("decisions") if isinstance(d.get("decisions"), list) else []:
         if isinstance(x, dict) and isinstance(x.get("id"), str):
             out[x["id"]] = [o.get("id") if isinstance(o, dict) else str(o) for o in x.get("options") or []]
     return out
@@ -75,7 +79,10 @@ def validate(project, fb):
         if not isinstance(v, str) or k not in (opts or {}) or (opts[k] and v not in opts[k]):
             raise ValueError(f"decisions: {k!r} → {v!r} is not a decision and option of gate-{rid}.json")
         decisions[k] = v
-    for k in fb.get("defaulted") or []:
+    dflt = fb.get("defaulted") or []
+    if not isinstance(dflt, list):
+        raise ValueError("defaulted: a list of decision ids")
+    for k in dflt:
         if isinstance(k, str) and k in decisions:
             defaulted.append(k)
     items = fb.get("items") or []
@@ -102,14 +109,21 @@ def validate(project, fb):
                 raise ValueError(f"{w}.t: seconds")
             c["t"] = round(float(t), 2)
         clean.append(c)
-    lang = fb.get("lang") if fb.get("lang") in WORDS else "zh"
+    lang = fb.get("lang") or "zh"
+    if not isinstance(lang, str) or lang not in WORDS:
+        raise ValueError("lang: zh or en")
     return {"round": rid, "lang": lang, "decisions": decisions, "defaulted": defaulted, "items": clean,
             "general": _text(fb.get("general"), "general", "general").strip()}
 
 
+def _words(fb):
+    lang = fb.get("lang")
+    return WORDS[lang if isinstance(lang, str) and lang in WORDS else "zh"]
+
+
 def to_markdown(fb):
     """The .md copy: what the reviewer marked and wrote, one line each, their words untouched."""
-    w = WORDS[fb.get("lang") if fb.get("lang") in WORDS else "zh"]
+    w = _words(fb)
     lines = [w["title"].format(round=fb["round"], at=fb.get("submitted_at", "")), ""]
     for k, v in fb["decisions"].items():
         lines.append("- " + w["decision"].format(id=k, v=v) + (w["default"] if k in fb.get("defaulted", []) else ""))
@@ -137,7 +151,7 @@ def _write(p, text):
 def append_review(project, fb, md, json_rel):
     """Copy the submission into REVIEW.md as a dated section, before the template's reference sections
     (授权跳过怎么记 / 给人看的提示) when they are there, else at the end. The agent adds 定了 / 改了 under it."""
-    w = WORDS[fb.get("lang") if fb.get("lang") in WORDS else "zh"]
+    w = _words(fb)
     p = Path(project) / "REVIEW.md"
     old = p.read_text(encoding="utf-8") if p.exists() else ("# REVIEW：人的原话\n" if fb.get("lang") != "en" else "# REVIEW: the human's words\n")
     run = max([len(x) for x in re.findall(r"`+", md)] + [2])
@@ -172,35 +186,72 @@ def save(project, fb, now=None):
 
 
 def listening(project):
-    """Is an agent waiting for this project's feedback (bin/vh desk wait running)? {listening, since, until}."""
+    """Is an agent waiting for this project's feedback (bin/vh desk wait running)? {listening, since, until}.
+    The flag must name this very folder: one copied from another project (or left by an older tool) doesn't count."""
     flag = Path(project) / "out" / "review" / "feedback" / ".listening"
     try:
         info = json.loads(flag.read_text())
+        if info.get("project") != os.path.realpath(str(project)):
+            return {"listening": False}
         os.kill(int(info["pid"]), 0)
     except PermissionError:   # alive, someone else's process
         pass
-    except (OSError, ValueError, KeyError, TypeError):
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return {"listening": False}
     if float(info.get("until") or 0) < time.time():
         return {"listening": False}
     return {"listening": True, "since": info.get("since"), "until": info.get("until")}
 
 
-def latest(project, rid=None):
-    """The newest submission (for one round when rid is given): (json path, record) or (None, None)."""
+def _order(f, j):
+    """Sort key of a submission: its time, then the -2, -10 … suffix save() adds within one second, numerically."""
+    m = re.search(r"-(\d+)\.json$", f.name) if re.search(r"-\d{8}-\d{6}-\d+\.json$", f.name) else None
+    return (str(j.get("submitted_at", "")), int(m.group(1)) if m else 1, f.name)
+
+
+def _records(project):
     fdir = Path(project) / "out" / "review" / "feedback"
-    best = (None, None, "")
     for f in fdir.glob("*.json") if fdir.is_dir() else []:
         try:
             j = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        if not isinstance(j, dict) or (rid and j.get("round") != rid):
-            continue
-        key = f"{j.get('submitted_at', '')}|{f.name}"
-        if key > best[2]:
-            best = (f, j, key)
-    return best[0], best[1]
+        if isinstance(j, dict):
+            yield f, j
+
+
+def latest(project, rid=None):
+    """The newest submission (for one round when rid is given): (json path, record) or (None, None)."""
+    best = max(((f, j) for f, j in _records(project) if not rid or j.get("round") == rid), key=lambda x: _order(*x), default=None)
+    return best if best else (None, None)
+
+
+def consumed(project):
+    """Names of the submissions an agent has already been handed (feedback/.consumed)."""
+    try:
+        names = json.loads((Path(project) / "out" / "review" / "feedback" / ".consumed").read_text()).get("files", [])
+        return {n for n in names if isinstance(n, str)}
+    except (OSError, ValueError, AttributeError):
+        return set()
+
+
+def mark_consumed(project, paths):
+    fdir = Path(project) / "out" / "review" / "feedback"
+    with _lock:
+        names = consumed(project) | {Path(p).name for p in paths}
+        fdir.mkdir(parents=True, exist_ok=True)
+        _write(fdir / ".consumed", json.dumps({"files": sorted(names)}, ensure_ascii=False) + "\n")
+
+
+def pending(project):
+    """Submissions for the current gate page, made after that page was written, that no agent has been handed yet
+    (oldest first). The current page is the one the desk shows as this round (reader.gate_pages)."""
+    import reader
+    pages = [p for p in reader.gate_pages(project) if gate_options(project, p.stem[5:]) is not None]   # readable ones, as the desk
+    rid, since = (pages[-1].stem[5:], pages[-1].stat().st_mtime) if pages else (NO_ROUND, 0)
+    done = consumed(project)
+    out = [(f, j) for f, j in _records(project) if f.name not in done and j.get("round") == rid and f.stat().st_mtime >= since]
+    return sorted(out, key=lambda x: _order(*x))
 
 
 def show(path, record, out=sys.stdout):
@@ -214,14 +265,28 @@ def show(path, record, out=sys.stdout):
     out.flush()
 
 
+HANDED = ("The reviewer's words are also in REVIEW.md (a dated section): add what you decided and changed under it. "
+          "Items not marked pass by default.\n")
+
+
 def wait(project, timeout, poll=1.0, out=sys.stdout):
-    """Block until a new feedback file appears, print it, return 0; 3 on timeout. Keeps feedback/.listening
-    ({pid, since, until}) while waiting, so the desk can say an agent is waiting; files already there are ignored."""
+    """Hand the agent the reviewer's submission: print it, mark it consumed, return 0; 3 on timeout.
+    A submission for the current page that arrived before the watcher was armed (say, while it was re-armed after a
+    timeout) and that no agent has been handed yet is printed at once. Otherwise it waits for a new one, keeping
+    feedback/.listening ({pid, since, until, project}) so the desk can say an agent is waiting."""
     fdir = Path(project) / "out" / "review" / "feedback"
     fdir.mkdir(parents=True, exist_ok=True)
+    early = pending(project)
+    if early:
+        for f, j in early:
+            show(f, j, out)
+        mark_consumed(project, [f for f, _ in early])
+        out.write(HANDED)
+        out.flush()
+        return 0
     flag, start = fdir / ".listening", time.time()
     seen = {p.name for p in fdir.glob("*.json")}
-    _write(flag, json.dumps({"pid": os.getpid(), "since": start, "until": start + timeout}))
+    _write(flag, json.dumps({"pid": os.getpid(), "since": start, "until": start + timeout, "project": os.path.realpath(str(project))}))
 
     def done(code):
         try:
@@ -236,15 +301,12 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
     for s in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         signal.signal(s, stop)
     while time.time() - start < timeout:
-        new = sorted(p for p in fdir.glob("*.json") if p.name not in seen)
+        new = sorted(((f, j) for f, j in _records(project) if f.name not in seen), key=lambda x: _order(*x))
         if new:
-            for p in new:
-                try:
-                    show(p, json.loads(p.read_text(encoding="utf-8")), out)
-                except (OSError, ValueError):
-                    continue
-            out.write("The reviewer's words are also in REVIEW.md (a dated section): add what you decided and changed "
-                      "under it. Items not marked pass by default.\n")
+            for f, j in new:
+                show(f, j, out)
+            mark_consumed(project, [f for f, _ in new])
+            out.write(HANDED)
             out.flush()
             return done(0)
         time.sleep(poll)

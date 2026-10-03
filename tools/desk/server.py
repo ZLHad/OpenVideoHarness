@@ -25,6 +25,10 @@ STATIC = {"desk.js": "text/javascript; charset=utf-8", "desk.css": "text/css; ch
 DEFAULT_PORTS = range(8780, 8800)
 CSP = ("default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; style-src 'self' 'unsafe-inline'; "
        "script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+# every project file is served sandboxed without allow-same-origin: an HTML or SVG in the project (a HyperFrames
+# index.html, node_modules, a downloaded reference) opened from the desk runs in an opaque origin, so it can neither
+# read the page's token nor post feedback in the reviewer's name
+P_CSP = "sandbox allow-scripts allow-popups"
 mimetypes.add_type("text/markdown", ".md")
 mimetypes.add_type("audio/wav", ".wav")
 
@@ -53,6 +57,7 @@ class Desk(http.server.ThreadingHTTPServer):
 class Handler(http.server.BaseHTTPRequestHandler):
     server_version = "vh-desk"
     sys_version = ""
+    timeout = 30   # a socket that stops sending (a body shorter than its Content-Length) frees its thread
 
     def log_message(self, fmt, *a):   # quiet: an agent's background log stays readable
         pass
@@ -112,14 +117,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self._error(404, "not found")
 
     def _resolve(self, rel):
-        """A file inside the project, or None: no '..', no hidden parts (.env, .git, .listening), no *.env."""
+        """A file inside the project, or None: no '..', no hidden parts (.env, .git, .listening), no *.env, checked
+        on the name asked for and on the file it resolves to (a symlink to .env is refused too), ignoring case."""
         rel = unquote(rel)
         parts = [p for p in rel.split("/") if p not in ("", ".")]
-        if not parts or "\x00" in rel or any(p == ".." or p.startswith(".") or p.endswith(".env") for p in parts):
+        hidden = lambda ps: any(p == ".." or p.startswith(".") or p.lower().endswith(".env") for p in ps)   # noqa: E731
+        if not parts or "\x00" in rel or hidden(parts):
             return None
-        root = str(self.server.project)
+        root = os.path.realpath(str(self.server.project))
         f = os.path.realpath(os.path.join(root, *parts))
-        if os.path.commonpath([f, root]) != root or not os.path.isfile(f):
+        if os.path.commonpath([f, root]) != root or not os.path.isfile(f) or hidden(os.path.relpath(f, root).split(os.sep)):
             return None
         return f
 
@@ -133,6 +140,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             ctype += "; charset=utf-8"
         rng = self.headers.get("Range", "")
         m = re.fullmatch(r"bytes=(\d*)-(\d*)", rng.strip())
+        sandbox = {"Content-Security-Policy": P_CSP}
         if rng and m and (m.group(1) or m.group(2)):
             if m.group(1):
                 start, end = int(m.group(1)), int(m.group(2)) if m.group(2) else size - 1
@@ -140,11 +148,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 start, end = max(0, size - int(m.group(2))), size - 1
             end = min(end, size - 1)
             if start > end or start >= size:
-                return self._send(416, b"", "text/plain", {"Content-Range": f"bytes */{size}"})
-            self._head(206, ctype, end - start + 1, {"Content-Range": f"bytes {start}-{end}/{size}", "Accept-Ranges": "bytes"})
+                return self._send(416, b"", "text/plain", dict(sandbox, **{"Content-Range": f"bytes */{size}"}))
+            self._head(206, ctype, end - start + 1, dict(sandbox, **{"Content-Range": f"bytes {start}-{end}/{size}", "Accept-Ranges": "bytes"}))
         else:
             start, end = 0, size - 1
-            self._head(200, ctype, size, {"Accept-Ranges": "bytes"})
+            self._head(200, ctype, size, dict(sandbox, **{"Accept-Ranges": "bytes"}))
         if self.command == "HEAD":
             return
         try:
@@ -157,8 +165,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         break
                     self.wfile.write(chunk)
                     left -= len(chunk)
-        except (BrokenPipeError, ConnectionResetError):   # the player seeked away
-            pass
+        except OSError:   # the player seeked away, or stopped reading until the socket timed out
+            self.close_connection = True
 
     # ---------- POST ----------
     def do_POST(self):
@@ -169,7 +177,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         if origin and urlsplit(origin).netloc not in self.server.hosts:
             return self._error(403, "cross-origin request refused")
-        if not secrets.compare_digest(self.headers.get("X-Desk-Token", ""), self.server.token):
+        given = self.headers.get("X-Desk-Token", "").encode("utf-8", "replace")   # bytes: a non-ASCII str would raise
+        if not secrets.compare_digest(given, self.server.token.encode("ascii")):
             return self._error(403, "missing or wrong desk token: reload the page")
         if not self.headers.get("Content-Type", "").startswith("application/json"):
             return self._error(415, "send JSON")
@@ -180,9 +189,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if n <= 0 or n > F.MAX_BODY:
             return self._error(413 if n > 0 else 400, f"empty, or larger than {F.MAX_BODY // 1024} KiB")
         try:
-            fb = F.validate(self.server.project, json.loads(self.rfile.read(n).decode("utf-8")))
-        except (ValueError, UnicodeDecodeError) as e:
-            return self._error(400, str(e))
+            body = self.rfile.read(n)
+        except OSError:   # timed out waiting for the rest of the body
+            self.close_connection = True
+            return self._error(408, "the request body did not arrive")
+        if len(body) < n:
+            self.close_connection = True
+            return self._error(400, f"the body is {len(body)} bytes, not the {n} its Content-Length says")
+        try:
+            fb = F.validate(self.server.project, json.loads(body.decode("utf-8")))
+        except (ValueError, TypeError, AttributeError, RecursionError) as e:   # UnicodeDecodeError is a ValueError
+            return self._error(400, str(e) or type(e).__name__)
         path = F.save(self.server.project, fb)
         sys.stderr.write(f"desk: feedback saved → {path} (also in REVIEW.md)\n")
         sys.stderr.flush()
@@ -192,10 +209,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
 # ---------- start, once per project ----------
 
 def running(project):
-    """The URL of a desk already serving this project (out/review/.desk.json and it answers), else None."""
+    """The URL of a desk already serving this project (out/review/.desk.json names this very folder, its process is
+    alive and its port answers), else None. A copied project carries the original's file; the path tells them apart."""
     info_p = Path(project) / "out" / "review" / ".desk.json"
     try:
         info = json.loads(info_p.read_text())
+        if info.get("project") != os.path.realpath(str(project)):
+            return None
         os.kill(int(info["pid"]), 0)
         with socket.create_connection(("127.0.0.1", int(info["port"])), timeout=1):
             pass
@@ -225,7 +245,7 @@ def serve(project, port=None):
         return 2
     info_p = project / "out" / "review" / ".desk.json"
     info_p.parent.mkdir(parents=True, exist_ok=True)
-    info_p.write_text(json.dumps({"pid": os.getpid(), "port": srv.port, "url": srv.url,
+    info_p.write_text(json.dumps({"pid": os.getpid(), "port": srv.port, "url": srv.url, "project": os.path.realpath(str(project)),
                                   "started": datetime.datetime.now().isoformat(timespec="seconds")}))
 
     def stop(signum, _frame):
