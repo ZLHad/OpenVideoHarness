@@ -48,12 +48,12 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 ```
 
 这一条命令会：
-- 把仓库克隆到 `~/OpenVideoHarness`（约 530 MB，样片和示例片都在里面）；
+- 把仓库的最新版本克隆到 `~/OpenVideoHarness`，不带历史（约 420 MB，样片和示例片都在里面）；
 - 装好自带手绘引擎和风格样片渲染器的依赖（约 210 MB）；
 - 拉取 30 个只读的参考仓库（约 195 MB，加 `--no-refs` 可以先不拉）；
 - 把 `open-video-harness` skill 注册给 Claude Code 和 Codex，之后在任何目录说"做个视频"，agent 都能找到这里。
 
-一共占约 935 MB 磁盘。第一次渲染和第一次用声音工具时还会再下载一批，各有多大、放在哪里，见[会下载什么](#会下载什么)。不知道从哪开始？看 wiki 里的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)，从零走到第一支视频。
+一共占约 825 MB 磁盘。第一次渲染和第一次用声音工具时还会再下载一批，各有多大、放在哪里，见[会下载什么](#会下载什么)。不知道从哪开始？看 wiki 里的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)，从零走到第一支视频。
 
 然后打开 Claude Code（或 Codex），直接说你要什么：
 
@@ -343,7 +343,7 @@ bash install.sh --no-refs                        # 先不拉参考资料，之�
 bash install.sh --no-skill                       # 不注册全局 skill
 ```
 
-手动安装：
+安装脚本克隆的仓库只有最新的一个提交，做视频用这些就够了。想参与贡献，或者要翻历史，就正常克隆（约 550 MB，因为样片的旧版本都留在历史里），其余的手动装：
 
 ```bash
 git clone https://github.com/ZLHad/OpenVideoHarness.git && cd OpenVideoHarness
@@ -359,7 +359,7 @@ npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harn
 
 这个 skill 只是一个指针，第一次用时会征得你同意，再把完整的工作台装好。
 
-更新：在仓库目录运行 `git pull`，再运行 `references/fetch.sh`。
+更新：再运行一次安装命令（`--dir` 和上次一样）。安装脚本克隆的仓库只拉最新的一个提交；`LOCAL.md` 和 `projects/` 都不动，要覆盖你改过的文件时会停下来，不会硬改。完整克隆的仓库也可以 `git pull`，再运行 `references/fetch.sh`。
 
 ### 会下载什么
 
@@ -367,7 +367,7 @@ npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harn
 
 | 下载的东西 | 什么时候 | 放在哪里 | 大小 |
 |---|---|---|---|
-| 本仓库，样片和示例片都在里面 | 安装时 | `~/OpenVideoHarness` | 约 530 MB |
+| 本仓库的最新提交，样片和示例片都在里面 | 安装时 | `~/OpenVideoHarness` | 下载约 210 MB，占磁盘约 420 MB |
 | 手绘引擎和风格样片渲染器的 Node 依赖 | 安装时 | 仓库里的 `node_modules` | 约 210 MB |
 | 30 个只读参考仓库 | 安装时，加 `--no-refs` 可跳过 | `references/repos/` | 约 195 MB |
 | HyperFrames 用的 Chrome（`chrome-headless-shell`） | 第一次 `hyperframes render` | `~/.cache/hyperframes` | 下载约 100 MB，解压后约 200 MB |

@@ -3,7 +3,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
 #   bash install.sh [--dir ~/OpenVideoHarness] [--no-refs] [--no-skill] [--skill claude|codex|all]
 # What it does, and where it puts things:
-#   1. clone (or fast-forward) the repo into --dir (about 530 MB)
+#   1. clone the repo into --dir, newest commit only (about 420 MB; a re-run moves it to the newest commit, keeping LOCAL.md and projects/)
 #   2. npm install in engines/ClaudeAnimationBase and npm ci in styles/_swatch (HyperFrames 0.8.82), both inside --dir (about 210 MB of
 #      node_modules; npm also writes its own cache, ~/.npm); unless --no-refs, fetch 30 read-only reference repos into references/repos/
 #      (about 195 MB, git-ignored; references/fetch.sh <name> fetches one later)
@@ -30,8 +30,19 @@ need() { command -v "$1" >/dev/null 2>&1 || { echo "✗ $1 is required ($2)"; MI
 MISSING=0
 need git "https://git-scm.com"; need node "Node.js ≥ 22: https://nodejs.org"; need ffmpeg "macOS: brew install ffmpeg"
 [ "$MISSING" = 0 ] || { echo "install the missing tools above, then re-run"; exit 1; }
-if [ -d "$DIR/.git" ]; then say "updating $DIR"; git -C "$DIR" pull --ff-only -q
-else say "cloning into $DIR"; git clone -q "$REPO" "$DIR"; fi
+if [ -d "$DIR/.git" ]; then say "updating $DIR"
+  if [ -f "$DIR/.git/shallow" ]; then
+    # A shallow install: fetch the newest commit alone and move to it. Its parent isn't fetched, so there is nothing to fast-forward
+    # along; reset --keep leaves untracked and ignored files (LOCAL.md, projects/) and edits to files this update doesn't touch as they
+    # are, and stops rather than overwrite an edited file. It would leave commits of your own behind, so look for those first.
+    grep -qx "$(git -C "$DIR" rev-parse HEAD)" "$DIR/.git/shallow" || [ -z "$(git -C "$DIR" rev-list '@{u}..HEAD')" ] ||
+      { echo "✗ $DIR has commits of your own, which this update would leave behind; update it yourself: git -C \"$DIR\" pull --rebase"; exit 1; }
+    git -C "$DIR" fetch -q --depth 1
+    git -C "$DIR" reset -q --keep '@{u}' ||
+      { echo "✗ $DIR not updated: it would overwrite files you changed or added (named above). Set them aside (git -C \"$DIR\" stash -u),"
+        echo "  re-run, then bring them back (git -C \"$DIR\" stash pop)"; exit 1; }
+  else git -C "$DIR" pull --ff-only -q; fi   # a full clone (made by hand, or by an installer from before shallow clones) keeps its history
+else say "cloning into $DIR (newest commit only)"; git clone -q --depth 1 --single-branch "$REPO" "$DIR"; fi
 cd "$DIR"
 say "installing the bundled engine (ClaudeAnimationBase)"; (cd engines/ClaudeAnimationBase && npm install --silent)
 if [ "$REFS" = 1 ]; then say "fetching 30 reference repos (about 195 MB, read-only, git-ignored; --no-refs skips them)"; references/fetch.sh; fi
