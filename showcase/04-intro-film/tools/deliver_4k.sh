@@ -9,6 +9,7 @@
 set -euo pipefail
 export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1
 B=../../bin/vh; FRAMES=3090; DUR=103.0; PLATE=blender/out/final4k; A=audio
+[ -d "$PLATE" ] || { echo "no 4K plate at $PLATE: render it with tools/bl_render.sh 0 474 final4k --pct 200" >&2; exit 1; }
 n=$(find "$PLATE" -name 'f_*.png' | wc -l | tr -d ' '); [ "$n" -ge 475 ] || { echo "4K plate has $n frames, need 475" >&2; exit 1; }
 [ -f $A/mix.wav ] || { echo "no $A/mix.wav: run tools/deliver.sh (or tools/build_audio.sh) first" >&2; exit 1; }
 mkdir -p out

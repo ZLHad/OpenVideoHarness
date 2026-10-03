@@ -47,7 +47,7 @@
 #   mux <video> <audio> <out> [--subs-off] [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video, moov first
 #                               (--subs-off: no subtitle track starts switched on, for a picture with burned-in captions)
 #  check
-#   readcheck <texts.json|project|index.html> [--mode onscreen|subtitle] [--lang zh|en]  on-screen text held long enough / subtitles within reading speed (exit 1 on fail);
+#   readcheck <texts.json|project|index.html> [--mode onscreen|label|subtitle] [--lang zh|en]  on-screen text held long enough / subtitles within reading speed (exit 1 on fail);
 #                               a clip marked data-read="subtitle" (a caption that repeats the narration) is checked as a subtitle
 #                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [--out f]: the composition's timed text
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)

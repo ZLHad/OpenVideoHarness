@@ -78,10 +78,10 @@ Small frames of the opening's films keep drifting past in the body's world, so "
 - `bin/vh check`: no black, frozen or silent stretch; yuv420p, limited range, BT.709 with all four colour tags.
 - One full-screen white flash in the whole film (the burst at 8.0 s).
 - Reading time, measured on frames (4–10 fps) for every line the earlier cuts had trouble with: each now holds at least its short-label time from `templates/TASTE_CHECKLIST.md` #5 (the router line about 2.0 s, gate ② about 2.7 s, "pass" about 2.0 s, gate ③ and "Final cut" about 2.3 s, "This film, too." about 1.9 s).
-- Sync, measured: every large picture event (the burst, each arrival, the gate passes, the fails, the pass, the title) has a sound within one frame; every named music accent that shares a picture event with a sound effect sits on it (offset 0.00 s), and the 13 celesta notes land on the 13 case stars (0.000 s). The accents with no effect of their own (the sound panel's rows, "This film, too.") were checked against the frames.
+- Sync, measured: every large picture event (the burst, each arrival, the gate passes, the fails, the pass, the title) has a sound within one frame; every named music accent that shares a picture event with a sound effect sits on it (offset 0.00 s), and the 13 celesta notes land on the 13 case stars (0.000 s). Of the accents with no effect of their own, the sound panel's rows and "This film, too." were checked against the frames; the style wall's first row (`taste:1`) was not.
 - Camera continuity, measured: a frame-difference curve over the 475 Blender frames (smooth rises and falls; the only jumps are the burst and one card sweeping past the lens at 5.1 s, both designed), and over the whole film after every re-timing (no stepping in the slowed holds; the remaining jumps are whips, power-ons and the cuts inside the proof hall's films).
 - Blender determinism (the final plate): frames 100 and 300 rendered again in a fresh process, PSNR 71.3 dB and 47.3 dB against the sequence (the floor is 45 dB).
-- Audio (`bin/vh qa`): no digital silence, dropouts or pumping; 62 of 62 cues within one frame (median 6.0 ms); −14.0 LUFS, −1.65 dBTP. Click warnings: see below.
+- Audio (`bin/vh qa`): no digital silence, dropouts or pumping; 62 of 62 cues within one frame (median 5.3 ms); −14.0 LUFS, −1.65 dBTP. Click warnings: see below.
 
 ## Independent review
 
@@ -117,7 +117,7 @@ The Blender steps run on macOS only: `tools/bl.sh` sandboxes Blender with `sandb
 ## Known imperfections
 
 - **Not every score reached 8.** The weakest is variety (6): from 25 s the stations share one grammar (glide in, hold, labels, whip out) in one amber corridor.
-- **Click warnings in the music.** `bin/vh qa` flags about 140 sharp edges in the score stem, from the v3 score's gated saw ostinato. Now that the drums keep playing through the holds they are less exposed than in the 150.5 s cut (about 190), but nobody has checked them by ear.
+- **Click warnings in the music.** `bin/vh qa` flags about 150 sharp edges in the score stem, from the v3 score's gated saw ostinato. Now that the drums keep playing through the holds they are less exposed than in the 150.5 s cut (about 190), but nobody has checked them by ear.
 - **The 8.0 s burst** is mostly below 150 Hz, so it is weak on laptop speakers; a whip layer carries its attack.
 - **The terminal's hold** plays one bar of the opening sketch twice.
 - **Re-exporting the shader atlas** (`tools/opening_export.sh`) gives a slightly different row 27 (the Earth film): its shader changed after the atlas the Blender render used was exported (the other 27 rows are pixel-identical).
