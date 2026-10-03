@@ -433,8 +433,14 @@ PY
   # a server on a free port, on a copy (a submission writes into the project)
   cp -R tools/desk/fixtures/zh "$t/p" && printf '<img src=x onerror=alert(1)>\n' >> "$t/p/STORYBOARD.md"
   "$VH_BASH" "$ROOT/bin/vh" desk "$t/p" --port 0 > "$t/srv.log" 2>&1 & pid=$!   # bin/vh execs python: $! is the server
-  url=""; for i in $(seq 50); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*#\1#p' "$t/srv.log"); [ -n "$url" ] && break; sleep 0.2; done
-  if [ -z "$url" ]; then bad "desk server did not start: $(head -3 "$t/srv.log")"; kill "$pid" 2>/dev/null; rm -rf "$t"; return; fi
+  url=""; for i in $(seq 150); do   # up to 30 s; stop early if the server exits
+    url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*#\1#p' "$t/srv.log"); [ -n "$url" ] && break
+    kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
+  if [ -z "$url" ]; then
+    if kill -0 "$pid" 2>/dev/null; then a="no address after 30 s, still running"; kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
+    else wait "$pid"; a="exited with $?"; fi
+    bad "desk server did not start ($a); its output: $(tr '\n' ' ' < "$t/srv.log" | head -c 800)$([ -s "$t/srv.log" ] || echo '(none)')"
+    rm -rf "$t"; return; fi
   cat > "$t/client.py" <<'PY'
 import http.client, json, sys, urllib.parse
 u = urllib.parse.urlsplit(sys.argv[1]); proj = sys.argv[2]; what = sys.argv[3]

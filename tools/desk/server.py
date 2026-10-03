@@ -12,7 +12,7 @@ Only requests whose Host is this server's own address are answered (no DNS rebin
 printed into the page, a JSON body and, when the browser sends one, a same-origin Origin. So another web page open
 in the same browser can neither read the project nor submit feedback in the reviewer's name.
 """
-import datetime, http.server, json, mimetypes, os, re, secrets, signal, socket, sys
+import datetime, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -38,6 +38,12 @@ class Desk(http.server.ThreadingHTTPServer):
         self.token = secrets.token_urlsafe(24)
         self.port = self.server_address[1]
         self.hosts = {f"{h}:{self.port}" for h in ("127.0.0.1", "localhost")}
+
+    def server_bind(self):
+        # HTTPServer.server_bind asks socket.getfqdn("127.0.0.1"), a reverse DNS lookup that can stall for many seconds
+        # (it did on GitHub's macOS runners, before the server printed its address); the desk only answers on 127.0.0.1
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = "127.0.0.1", self.server_address[1]
 
     @property
     def url(self):
