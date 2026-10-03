@@ -145,7 +145,7 @@ OpenVideoHarness/
 ├── CONTRIBUTING.md           改本仓库本身时的分支、PR 和推送规则（人和 agent 都适用）
 ├── .github/                  CI（Linux + macOS 跑 tools/ci.sh）和 main 分支的规则集
 ├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · voices · captions · beats · music · sfx · mix · mux · qa · readcheck · storyboard · rhythm · cover-preview · sheet · check · gif · review
-├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py、review.py；给人拍板用的图：storyboard.py、rhythm.py、style_compare.py、cover_preview.py、audio/roll.py，共用 vhdraw.py）；ci.sh 是仓库自检
+├── tools/                    bin/vh 背后的脚本（audio/：tts、captions、beats、music、sfx、mix、qa；sheet.py、readcheck.py、review.py；给人拍板用的图：storyboard.py、rhythm.py、style_compare.py、cover_preview.py、audio/roll.py，共用 vhdraw.py）；ci.sh 是仓库自检；fetch_media.sh 从 Release 下载样片视频
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              9 类视频（09 实验中）：工作流、审美、禁止项、prompt 增量块、自查重点、案例、社区 skill
 ├── playbook/                 跨类型的通用知识
@@ -165,7 +165,7 @@ OpenVideoHarness/
 ├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、DECISIONS、NOTES、LESSONS、TASTE_CHECKLIST；用到时再复制：SCRIPT、CHARACTER、PACKAGING
 ├── styles/                   风格库：从名作学来的风格预设（STYLE.md + tokens.json + 真渲的 5 s 样片），_swatch/ 是样片渲染器
 ├── cases/                    真实案例拆解 + opus55-gallery（社区作品精选）
-├── showcase/                 本仓库自己做的片子（源码 + 成片 + 自评记录）
+├── showcase/                 本仓库自己做的片子（源码 + 封面和联系表 + 自评记录；成片在 GitHub Release `media`，`tools/fetch_media.sh` 下载）
 ├── docs/research/            研究笔记（中英）：量过的几件事、数字，和因此改了什么；是实验记录，不是规则（规则在 playbook/）
 ├── engines/                  ClaudeAnimationBase（内置）+ 其他引擎的安装说明
 ├── references/

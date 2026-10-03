@@ -1,6 +1,6 @@
 """Reading-time check: is every text on screen long enough to be read?
 
-usage: python3 tools/readcheck.py <texts.json | project_dir | composition.html> [--mode onscreen|subtitle] [--lang zh|en]
+usage: python3 tools/readcheck.py <texts.json | project_dir | composition.html> [--mode onscreen|label|subtitle] [--lang zh|en]
                                   [--cjk-cps 4.5] [--latin-cps 15] [--pad 1.5] [--min 2.5]
        python3 tools/readcheck.py --budget <seconds> [--mode …] [--lang …]    how much text fits in a span
        python3 tools/readcheck.py <composition.html | project_dir> --export [--out texts.json] [--force]
@@ -11,22 +11,27 @@ or a dict holding that list under "captions" / "texts" / "items" / "cues". Items
 A directory means <dir>/audio/captions.json. `start` must be the moment the text is fully shown and readable
 (typing, decode and fly-in finished), `end` the moment it starts to leave.
 
-Two rules, templates/TASTE_CHECKLIST.md #5 (rationale in playbook/03-motion-design.md §2):
+Three rules, templates/TASTE_CHECKLIST.md #5 (rationale in playbook/03-motion-design.md §2):
   onscreen  (default) titles, labels, number cards that nobody reads aloud: minimum time on screen
             need = max(--min, CJK chars / --cjk-cps + other non-space chars / --latin-cps + --pad)
             defaults 4.5 CJK chars/s, 15 chars/s, pad 1.5 s, floor 2.5 s.
+  label     a short label in a moving shot, there to point at something, read once: need = max(1.5 s, CJK chars / 7
+            + other non-space chars / 20 + 0.8 s). For tags, node names, captions on a passing gate; a sentence the viewer
+            must take away (a claim, a number to remember) stays on the on-screen rule. Mark it data-read="label".
   subtitle  lines that follow the voice: reading-speed ceiling, plus a 1.8 s floor
             CJK text ≤ 9 chars/s (half-width characters count 0.5), Latin text ≤ 20 chars/s (spaces and punctuation count)
 
 Per text: spoken captions that repeat the narration are subtitles, whatever the run's default. A timed element of a
 HyperFrames composition carrying data-read="subtitle", on the clip itself or on a clip or scene around it (a
 sub-composition's host included), is checked with the subtitle rule; everything else stays on the on-screen rule.
-data-read="onscreen" says the default aloud, and the nearest mark wins, so one label can opt out of a marked scene.
-Marked texts get a `sub` tag in the output and count in the totals. A texts.json item takes the same key,
-"read": "subtitle" (--export writes it). --mode is the rule for texts that carry no mark; a mark always wins over it.
+data-read="label" uses the label rule; data-read="onscreen" says the default aloud, and the nearest mark wins, so one
+text can opt out of a marked scene.
+Marked texts get a `sub` or `lab` tag in the output and count in the totals. A texts.json item takes the same key,
+"read": "subtitle" or "label" (--export writes it). --mode is the rule for texts that carry no mark; a mark always wins over it.
 
 The onscreen formula comes from lemo-opuscar's core/render/readcheck.mjs and DIRECTOR.md §7 (MIT, © 2026 LemoLab);
-the floor is ours (2.5 s). The subtitle ceilings are the Netflix Timed Text Style Guide figures for adult programmes
+the floor is ours (2.5 s). The label rule is ours too (2026-10-04, from the intro film: holds that met the on-screen
+rule everywhere made a promo drag, so short labels get one read). The subtitle ceilings are the Netflix Timed Text Style Guide figures for adult programmes
 (Chinese Simplified 9 cps, English USA 20 cps); the 1.8 s floor is lemo's DIRECTOR.md §7.
 lemo's tool renders the page and asks window.TEXTS(t) for boxes; this one only reads timings, so it cannot see
 cropping or text that leaves the frame. Check those on the contact sheet.
@@ -55,7 +60,8 @@ from pathlib import Path
 CJK_RANGES = [(0x3040, 0x30FF), (0x31F0, 0x31FF), (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF),
               (0xAC00, 0xD7AF), (0x1100, 0x11FF), (0x3130, 0x318F), (0x20000, 0x2FA1F)]   # kana, Han, Hangul
 SUB_FLOOR, SUB_CPS_CJK, SUB_CPS_LATIN = 1.8, 9.0, 20.0
-TAGS = {"subtitle": "sub", "onscreen": "on"}   # the tag column of a run that mixes rules
+LABEL_FLOOR, LABEL_CPS_CJK, LABEL_CPS_LATIN, LABEL_PAD = 1.5, 7.0, 20.0, 0.8   # a short label, read once
+TAGS = {"subtitle": "sub", "onscreen": "on", "label": "lab"}   # the tag column of a run that mixes rules
 PAUSE = 0.85   # playbook/04-audio.md: script length = seconds x rate x 0.85, the rest is pauses between sentences
 LAST_STATS = {}   # what the last composition read left out (export_html)
 
@@ -78,9 +84,9 @@ def load_items(path: Path):
     return path, data
 
 def read_mode(v):
-    """"subtitle" / "onscreen" from a data-read or "read" value (case, spaces and a hyphen are ignored); None for anything else."""
+    """"subtitle" / "onscreen" / "label" from a data-read or "read" value (case, spaces and a hyphen are ignored); None otherwise."""
     v = re.sub(r"[\s_-]", "", str(v or "")).lower()
-    return v if v in ("subtitle", "onscreen") else None
+    return v if v in ("subtitle", "onscreen", "label") else None
 
 def pieces(items, lang):
     """Yield (label, start, end, text, mode) for every text to check; mode is the item's own rule ("subtitle" /
@@ -92,7 +98,7 @@ def pieces(items, lang):
         label = str(it.get("id", i + 1))
         mode = read_mode(it.get("read"))
         if it.get("read") not in (None, "") and mode is None:
-            raise ValueError(f"item {label}: \"read\" is {it['read']!r}; use \"subtitle\" or \"onscreen\"")
+            raise ValueError(f"item {label}: \"read\" is {it['read']!r}; use \"subtitle\", \"onscreen\" or \"label\"")
         if "text" in it:
             fields = [("", it["text"])]
         else:
@@ -110,6 +116,11 @@ def onscreen_need(text, a):
     other = sum(1 for c in text if not c.isspace() and not is_cjk(c))
     return max(a.min, cjk / a.cjk_cps + other / a.latin_cps + a.pad)
 
+def label_need(text):
+    cjk = sum(1 for c in text if is_cjk(c))
+    other = sum(1 for c in text if not c.isspace() and not is_cjk(c))
+    return max(LABEL_FLOOR, cjk / LABEL_CPS_CJK + other / LABEL_CPS_LATIN + LABEL_PAD)
+
 def subtitle_check(text, dur):
     if any(is_cjk(c) for c in text):   # Netflix CJK rule: half-width characters count 0.5
         n, limit = sum(0.5 if ord(c) < 128 else 1.0 for c in text.strip()), SUB_CPS_CJK
@@ -123,7 +134,7 @@ def verdict(text, dur, mode, a):
     if mode == "subtitle":
         need, rate, limit = subtitle_check(text, dur)
         return dur >= need - 1e-6, need, rate, limit
-    need = onscreen_need(text, a)
+    need = label_need(text) if mode == "label" else onscreen_need(text, a)
     return dur >= need - 1e-6, need, None, None
 
 # ---------- on-screen text straight from a HyperFrames composition ----------
@@ -368,7 +379,7 @@ def zeroed_note(stats):
 
 def badread_note(stats):
     b = stats.get("badread") or []
-    return (f"{len(b)} text(s) have a data-read that is not \"subtitle\" or \"onscreen\", so they were checked as on-screen text: "
+    return (f"{len(b)} text(s) have a data-read that is not \"subtitle\", \"onscreen\" or \"label\", so they were checked as on-screen text: "
             + "; ".join(b[:4]) + (" …" if len(b) > 4 else "")) if b else ""
 
 def budget(span, a):
@@ -382,6 +393,13 @@ def budget(span, a):
             cjk, lat = math.floor(avail * a.cjk_cps + 1e-9), math.floor(avail * a.latin_cps + 1e-9)
             rows.append(f"  on-screen text (nobody reads it aloud): up to {cjk} CJK characters, or {lat} other characters"
                         f"  [({span:.2f} - {a.pad:g} s) x {a.cjk_cps:g} / {a.latin_cps:g} per s; floor {a.min:g} s; mixed: CJK/{a.cjk_cps:g} + other/{a.latin_cps:g} <= {avail:.2f}]")
+    if a.mode in (None, "label"):
+        avail = span - LABEL_PAD
+        if span < LABEL_FLOOR - 1e-9:
+            rows.append(f"  label (short, read once):               nothing: {span:.2f} s is under the {LABEL_FLOOR:g} s floor")
+        else:
+            rows.append(f"  label (short, read once):               up to {math.floor(avail * LABEL_CPS_CJK + 1e-9)} CJK characters, or "
+                        f"{math.floor(avail * LABEL_CPS_LATIN + 1e-9)} other characters  [({span:.2f} - {LABEL_PAD:g} s) x {LABEL_CPS_CJK:g} / {LABEL_CPS_LATIN:g} per s; floor {LABEL_FLOOR:g} s]")
     if a.mode in (None, "subtitle"):
         if span < SUB_FLOOR - 1e-9:
             rows.append(f"  subtitle (follows the voice):           nothing: {span:.2f} s is under the {SUB_FLOOR:g} s floor")
@@ -397,7 +415,7 @@ def budget(span, a):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("path", type=Path, nargs="?")
-    ap.add_argument("--mode", choices=("onscreen", "subtitle"))
+    ap.add_argument("--mode", choices=("onscreen", "label", "subtitle"))
     ap.add_argument("--budget", type=float, metavar="SECONDS", help="how many characters fit in a span of this length")
     ap.add_argument("--export", action="store_true", help="write the composition's timed text as JSON (to --out, default "
                     "<project>/texts.json) instead of checking it")

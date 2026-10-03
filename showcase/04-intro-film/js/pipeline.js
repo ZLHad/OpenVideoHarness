@@ -1,5 +1,5 @@
 // S6 (bars 14–18): the product's real workflow as a powered 3D node network.
-// Labels are README.md / README.zh-CN.md "How it works" mermaid nodes and edge labels, verbatim.
+// Labels follow the README's "How it works" steps as they were for v5 (the README has since been rewritten).
 // Local beat b = (t - T0) / BEAT, T0 = bar(14) = 36.0 s (bar 11 is 6/4); 20 beats = 5 bars. Hits (score v3.3):
 //   gate ① approve b4 (38.667), gate ② approve b8 (41.333); fail b10 / b11 / b12 (42.667 / 43.333 / 44.0);
 //   pass b16 (46.667); gate ③ approve b17 (47.333); final node b18 (48.0), held through b20 (49.333).

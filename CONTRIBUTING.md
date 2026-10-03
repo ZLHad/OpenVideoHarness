@@ -17,7 +17,7 @@
 1. 只推自己的分支。不推 main，不删分支，不动 tag。
 2. 推送前跑 `tools/ci.sh --committed`，全部通过才推。它在一份干净的检出上检查 HEAD，结果和 CI 一致；工作区里没提交的改动不算数。修 bug 要先复现，再证明修好，前后对比写进 PR。
 3. PR 一律开成草稿。合并由人决定：人在对话里明确让 agent 合并时，agent 先确认 CI 全绿、自己审过 diff，再用 squash 合并。人让 agent"检查通过后合并"时，agent 审过 diff、把草稿转成正式 PR 后，可以打开 auto-merge（squash），不用守着 CI：必需的检查都通过后由 GitHub 合并，有一项失败就不合。规则集允许管理员在 PR 里"绕过规则合并"，这个开关只留给人用，agent 不碰。
-4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。
+4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。视频不进 git（风格样片 `swatch.mp4` 除外）：成片、样片集锦这类文件放在 GitHub Release `media`，`tools/media.txt` 登记它们在仓库里的路径、文件名和 sha256，`tools/fetch_media.sh` 按它下载。往这个 Release 里放文件是维护者的事，agent 只在维护者要求时做。换一个文件时用新文件名上传（例如 `intro-film-1080p-v2.mp4`），在同一个 PR 里改 `tools/media.txt` 和引用它的链接，合并以后再删旧文件；不要覆盖 main 还在引用的文件，否则在合并之前，按 main 的校验和下载会失败。README 里要直接播放的短片段走 GitHub 的附件链接（每个不到 10 MB）。`tools/ci.sh` 会拦住视频和超过 8 MB 的文件。
 5. 用户能感知到的改动，在 `CHANGELOG.md` 的 Unreleased 里记一笔。改了 `CLAUDE.md`，跑 `bin/vh sync-agents` 重新生成 `AGENTS.md`。
 6. 提交信息写清改了什么、为什么。末尾可以带 `Co-Authored-By:` 署名行。
 
@@ -85,5 +85,7 @@ VH_BASH=/bin/bash tools/ci.sh      # macOS：用系统自带的 bash 3.2 跑，M
 - `release-tags-immutable`（[`.github/rulesets/tags-immutable.json`](.github/rulesets/tags-immutable.json)）：限制更新和删除，没有任何人能绕过，包括管理员和用管理员 token 的 agent。真要改，只能由人临时停用这个规则集。
 
 同一天补打了 `v0.1.0`、`v0.2.0`、`v0.2.1` 三个 Release，说明取自 `CHANGELOG.md` 对应的一节。
+
+另有一个不是版本的 Release `media`（tag `media`，2026-10-04 由 agent 在维护者同意后建）：放样片和风格集锦的视频文件，规则见上面第 4 条。它的 tag 不移动，也不受上面两个规则集保护（规则集只管 `v*`）；换文件按第 4 条用新文件名，不覆盖。
 
 发新版本的做法：把 `CHANGELOG.md` 的 Unreleased 改成 `## vX.Y.Z — 日期`，经 PR 合并进 main，然后由维护者在合并后的提交上建 Release（`gh release create vX.Y.Z --target <提交> --notes-file <这一节>`）。tag 一旦建好就不再移动；发错了就发一个新的补丁版本。改了这两个文件以后，用 `gh api --method PUT repos/ZLHad/OpenVideoHarness/rulesets/<id> --input <文件>` 同步线上配置，`<id>` 用 `gh api repos/ZLHad/OpenVideoHarness/rulesets` 查。

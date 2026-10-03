@@ -126,7 +126,7 @@ export function gradeShader() {
 
 // ---------------------------------------------------------------------------------------------
 // particles: depth sparks along the camera path (lit, beat-pulsed) + data streams along the t-axis + warp lines
-export function makeSparks(THREE, samplesAlongPath, count, softTexHint) {
+export function makeSparks(THREE, samplesAlongPath, count, softTexHint, pr = 1) {   // pr: the device pixel ratio (point sizes are in device pixels)
   const N = count, pos = new Float32Array(N * 3), seed = new Float32Array(N), size = new Float32Array(N);
   for (let i = 0; i < N; i++) {
     const p = samplesAlongPath[Math.floor(hash(i * 1.3) * samplesAlongPath.length)];
@@ -141,7 +141,7 @@ export function makeSparks(THREE, samplesAlongPath, count, softTexHint) {
     vertexShader: `attribute float aSeed; attribute float aSize; uniform float uTime, uPulse, uFog; varying float vA; varying float vS;
       void main(){ vec3 p = position; p.y += sin(uTime * (0.3 + aSeed) + aSeed * 40.0) * 0.25 + uPulse * 0.12 * (aSeed - 0.3); p.x += cos(uTime * 0.21 + aSeed * 17.0) * 0.18;
         vec4 mv = modelViewMatrix * vec4(p, 1.0); float d = -mv.z; gl_Position = projectionMatrix * mv;
-        gl_PointSize = min(22.0, aSize * (1.0 + uPulse * 0.8) * 200.0 / max(d, 0.5));
+        gl_PointSize = min(22.0, aSize * (1.0 + uPulse * 0.8) * 200.0 / max(d, 0.5)) * ${pr.toFixed(1)};
         vA = exp(-uFog * uFog * d * d * 0.6) * smoothstep(0.3, 1.5, d); vS = aSeed; }`,
     fragmentShader: `uniform float uAmt, uPulse; varying float vA; varying float vS;
       void main(){ vec2 q = gl_PointCoord - 0.5; float r = length(q); float a = smoothstep(0.5, 0.0, r); a *= a;
@@ -210,7 +210,7 @@ export function textMaterial(THREE, tex) {
   return mat;
 }
 // lines: [{text,size,weight,font,color,track}] → { canvas, tex, draw(key, tRel), contentFrac }
-export function makeDynText(THREE, lines, { pad = 24, lineGap = 0.4, spread = 0.22, fontStr, decodeDur = 0.3, seed = 1 }) { // Phase B: must-read text resolves in <= 0.3 s
+export function makeDynText(THREE, lines, { pad = 24, lineGap = 0.4, spread = 0.22, fontStr, decodeDur = 0.3, seed = 1, scale = 1 }) {   // scale: canvas pixels per layout pixel (the device pixel ratio) // Phase B: must-read text resolves in <= 0.3 s
   const c = document.createElement("canvas"), g = c.getContext("2d");
   let w = 0, h = pad * 2;
   const L = lines.map((l, i) => {
@@ -220,7 +220,7 @@ export function makeDynText(THREE, lines, { pad = 24, lineGap = 0.4, spread = 0.
     const lw = acc; w = Math.max(w, lw); const lh = l.size * 1.12 + (i ? l.size * lineGap : 0); h += lh;
     return { ...l, chars, xs, lw };
   });
-  const M = 1 + spread; c.width = Math.ceil(w * M + pad * 2); c.height = Math.ceil(h);
+  const M = 1 + spread; c.width = Math.ceil((w * M + pad * 2) * scale); c.height = Math.ceil(h * scale); const CW = c.width / scale, CH = c.height / scale;
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; tex.minFilter = THREE.LinearMipmapLinearFilter;
   const total = L.reduce((s, l) => s + l.chars.length, 0);
   let lastKey = null;
@@ -230,13 +230,13 @@ export function makeDynText(THREE, lines, { pad = 24, lineGap = 0.4, spread = 0.
     const key = tRel < 0 ? "pre" : dec || trk ? `d${Math.floor(tRel * 15)}` : "final";
     if (key === lastKey) return false; lastKey = key;
     if (key !== "final") tRel = Math.floor(Math.max(0, tRel) * 15) / 15 + (tRel < 0 ? -1 : 0); // state is a pure function of the key (order-independent rendering)
-    g.clearRect(0, 0, c.width, c.height);
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, c.width, c.height); g.setTransform(scale, 0, 0, scale, 0, 0);
     const ease = 1 - Math.pow(1 - clamp(tRel / 0.5), 3); const sp = trk ? spread * 0.9 * (1 - ease) : 0;
     let y = pad, gi = 0;
     L.forEach((l, li) => {
       if (li) y += l.size * lineGap;
       g.font = fontStr(l); g.textBaseline = "top"; g.letterSpacing = "0px";
-      const x0 = (c.width - l.lw) / 2, cx = c.width / 2;
+      const x0 = (CW - l.lw) / 2, cx = CW / 2;
       l.chars.forEach((ch, k) => {
         const idx = gi + k, thr = decodeDur * (0.75 * (idx / Math.max(1, total)) + 0.25 * hash(idx * 7.3 + seed));
         const resolved = !dec || tRel >= thr || ch === " ";
@@ -255,7 +255,7 @@ export function makeDynText(THREE, lines, { pad = 24, lineGap = 0.4, spread = 0.
     tex.needsUpdate = true; return true;
   }
   draw(99, { decode: 0 });
-  return { canvas: c, tex, draw, contentFrac: (w + pad * 2) / c.width };
+  return { canvas: c, tex, draw, contentFrac: (w + pad * 2) / CW, w: CW, h: CH };
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -2,9 +2,8 @@
 
 > 这是 v3（2026-09-29），留作记录。现在的介绍片是 [v5](../README.zh-CN.md)：正文沿用这支片子的世界，更新了数字，速度从 90 降到 80 BPM。片子目录里的文件已换成 v5 的；下文提到的 v3 源码（`js/`、`tools/`、`audio/`）在提交 7057c74：`git checkout 7057c74 -- showcase/04-intro-film`（安装脚本克隆的仓库只有最新的提交，要先 `git fetch --depth 1 origin 7057c74725c42b38fe545d85916cab11fe78bed4`）。
 
-成片 `final.mp4`（网页版 20.8 MB，带立体声和中英软字幕轨）· 1920×1080 · 30 fps · **81.333 s（2440 帧）** · fx 预设 B · −14.0 LUFS
+成片 [`final.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-v3-81s.mp4)（在 GitHub Release 里；网页版 20.8 MB，带立体声和中英软字幕轨）· 1920×1080 · 30 fps · **81.333 s（2440 帧）** · fx 预设 B · −14.0 LUFS
 
-- 预览 `preview.gif`（21.0–30.6 s：braam → 片名 → 架构 → 8 类列表）
 - 封面 `poster.png`
 - 联系表 `sheet.png`
 - 英文说明 [README.md](README.md)，复现步骤也在那里
@@ -53,10 +52,9 @@ v2（69.3 s）完整保存在 `out/v2/`。v3 的起因是用户的两条意见�
 
 | 文件 | 规格 | 大小 |
 |---|---|---|
-| `final.mp4` | H.264 CRF 16 + AAC 256k 立体声 + zh/en 软字幕（各 23 条），2440 帧 | 266.1 MB |
+| `final.mp4`（CRF 16 母版，没进仓库；20.8 MB 的网页版在 Release `media` 里：`intro-film-v3-81s.mp4`） | H.264 CRF 16 + AAC 256k 立体声 + zh/en 软字幕（各 23 条），2440 帧 | 266.1 MB |
 | `final-web.mp4` | 两遍 1900 kbps（maxrate 3000k）+ AAC 128k + 软字幕 | 20.8 MB |
 | `final-nograin.mp4` | HyperFrames `--quality high` 母版，不带音频 | 308.4 MB |
-| `preview.gif` | 21.0–30.6 s，640 px，10 fps，64 色 | 7.9 MB |
 | `poster.png` | t = 80.9 s（片名 + 命令 + 地址） | 1.8 MB |
 | `sheet.png` | `bin/vh sheet`，每 1.33 s 一格 | 9.7 MB |
 

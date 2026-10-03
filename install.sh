@@ -3,7 +3,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
 #   bash install.sh [--dir ~/OpenVideoHarness] [--no-refs] [--no-skill] [--skill claude|codex|all]
 # What it does, and where it puts things:
-#   1. clone the repo into --dir, newest commit only (about 420 MB; a re-run moves it to the newest commit, keeping LOCAL.md and projects/)
+#   1. clone the repo into --dir, newest commit only (about 185 MB on disk; a re-run moves it to the newest commit, keeping LOCAL.md and projects/)
 #   2. npm install in engines/ClaudeAnimationBase and npm ci in styles/_swatch (HyperFrames 0.8.82), both inside --dir (about 210 MB of
 #      node_modules; npm also writes its own cache, ~/.npm); unless --no-refs, fetch 30 read-only reference repos into references/repos/
 #      (about 195 MB, git-ignored; references/fetch.sh <name> fetches one later)
@@ -17,7 +17,7 @@
 #   - the first bin/vh tts with the default qwen provider (skipped with another one): its Python packages (about 750 MB, ~/.cache/uv)
 #     and the Qwen3-TTS model (about 2 GB, ~/.cache/huggingface)
 #   - every bin/vh new short, promo, data or meme: about 140 MB of node_modules in that project
-# The README's "What gets downloaded" has the same list.
+# The wiki's Getting Started ("What gets downloaded") has the same list.
 set -euo pipefail
 REPO="${OVH_REPO:-https://github.com/ZLHad/OpenVideoHarness.git}"
 DIR="${OVH_DIR:-$HOME/OpenVideoHarness}"; REFS=1; SKILL=all
@@ -65,5 +65,5 @@ cat <<MSG
   Or scaffold first:  bin/vh new short my-first-video
   Docs:  README.md · CLAUDE.md · bin/vh help
   Note:  the first render downloads Chrome (about 200 MB) and the first sound commands download Python packages (about 700 MB)
-         into ~/.cache; see "What gets downloaded" in README.md
+         into ~/.cache; see "What gets downloaded" on the wiki's Getting Started page
 MSG
