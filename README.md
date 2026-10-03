@@ -359,7 +359,7 @@ npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harn
 
 The skill is only a pointer. The first time it's used, it asks before installing the full workbench.
 
-To update, run the install command again (with the same `--dir`). In the installer's clone it fetches only the newest commit; it keeps `LOCAL.md` and `projects/`, and stops rather than overwrite a file you changed. In a full clone you can also `git pull`, then `references/fetch.sh`.
+To update, run the install command again with the same options (the one-line install takes them after `bash -s --`: `curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash -s -- --no-refs`). In the installer's clone it fetches only the newest commit; it keeps `LOCAL.md` and `projects/`, and stops rather than overwrite a file you changed. In a full clone you can also `git pull`, then `references/fetch.sh`.
 
 ### What gets downloaded
 
@@ -367,7 +367,7 @@ Sizes are approximate, measured on macOS (Apple Silicon); `du -sh` will show sli
 
 | What | When | Where | Size |
 |---|---|---|---|
-| This repo's newest commit, with the sample films and style samples | install | `~/OpenVideoHarness` | about 210 MB to download, 420 MB on disk |
+| This repo's newest commit, with the sample films and style samples | install | `~/OpenVideoHarness` | about 215 MB to download, 420 MB on disk |
 | Node packages of the hand-drawn engine and the style renderer | install | `node_modules` inside the repo | about 210 MB |
 | 30 read-only reference repos | install, unless `--no-refs` | `references/repos/` | about 195 MB |
 | Chrome for HyperFrames (`chrome-headless-shell`) | the first `hyperframes render` | `~/.cache/hyperframes` | about 100 MB to download, 200 MB on disk |

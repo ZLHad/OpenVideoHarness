@@ -359,7 +359,7 @@ npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harn
 
 这个 skill 只是一个指针，第一次用时会征得你同意，再把完整的工作台装好。
 
-更新：再运行一次安装命令（`--dir` 和上次一样）。安装脚本克隆的仓库只拉最新的一个提交；`LOCAL.md` 和 `projects/` 都不动，要覆盖你改过的文件时会停下来，不会硬改。完整克隆的仓库也可以 `git pull`，再运行 `references/fetch.sh`。
+更新：用和上次一样的参数再运行一次安装命令（一键安装的参数写在 `bash -s --` 后面：`curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash -s -- --no-refs`）。安装脚本克隆的仓库只拉最新的一个提交；`LOCAL.md` 和 `projects/` 都不动，要覆盖你改过的文件时会停下来，不会硬改。完整克隆的仓库也可以 `git pull`，再运行 `references/fetch.sh`。
 
 ### 会下载什么
 
@@ -367,7 +367,7 @@ npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harn
 
 | 下载的东西 | 什么时候 | 放在哪里 | 大小 |
 |---|---|---|---|
-| 本仓库的最新提交，样片和示例片都在里面 | 安装时 | `~/OpenVideoHarness` | 下载约 210 MB，占磁盘约 420 MB |
+| 本仓库的最新提交，样片和示例片都在里面 | 安装时 | `~/OpenVideoHarness` | 下载约 215 MB，占磁盘约 420 MB |
 | 手绘引擎和风格样片渲染器的 Node 依赖 | 安装时 | 仓库里的 `node_modules` | 约 210 MB |
 | 30 个只读参考仓库 | 安装时，加 `--no-refs` 可跳过 | `references/repos/` | 约 195 MB |
 | HyperFrames 用的 Chrome（`chrome-headless-shell`） | 第一次 `hyperframes render` | `~/.cache/hyperframes` | 下载约 100 MB，解压后约 200 MB |

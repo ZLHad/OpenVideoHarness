@@ -35,12 +35,17 @@ if [ -d "$DIR/.git" ]; then say "updating $DIR"
     # A shallow install: fetch the newest commit alone and move to it. Its parent isn't fetched, so there is nothing to fast-forward
     # along; reset --keep leaves untracked and ignored files (LOCAL.md, projects/) and edits to files this update doesn't touch as they
     # are, and stops rather than overwrite an edited file. It would leave commits of your own behind, so look for those first.
-    grep -qx "$(git -C "$DIR" rev-parse HEAD)" "$DIR/.git/shallow" || [ -z "$(git -C "$DIR" rev-list '@{u}..HEAD')" ] ||
+    up=$(git -C "$DIR" rev-parse -q --verify '@{u}') ||
+      { echo "✗ $DIR is not on a branch that tracks the repo (a detached HEAD, or a branch of your own): git -C \"$DIR\" switch main, then re-run"; exit 1; }
+    own=$(git -C "$DIR" rev-list '@{u}..HEAD')
+    grep -qx "$(git -C "$DIR" rev-parse HEAD)" "$DIR/.git/shallow" || [ -z "$own" ] ||
       { echo "✗ $DIR has commits of your own, which this update would leave behind; update it yourself: git -C \"$DIR\" pull --rebase"; exit 1; }
     git -C "$DIR" fetch -q --depth 1
-    git -C "$DIR" reset -q --keep '@{u}' ||
-      { echo "✗ $DIR not updated: it would overwrite files you changed or added (named above). Set them aside (git -C \"$DIR\" stash -u),"
-        echo "  re-run, then bring them back (git -C \"$DIR\" stash pop)"; exit 1; }
+    git -C "$DIR" reset -q --keep '@{u}' || {
+      # put origin/main back where it was, so git status, git pull and the next run see the checkout as it was before this run
+      git -C "$DIR" update-ref "$(git -C "$DIR" rev-parse --symbolic-full-name '@{u}')" "$up"
+      echo "✗ $DIR not updated: it would overwrite the files named above. Edited ones: git -C \"$DIR\" stash, re-run, then git -C \"$DIR\" stash pop."
+      echo "  Untracked ones: move them out of the way, then re-run."; exit 1; }
   else git -C "$DIR" pull --ff-only -q; fi   # a full clone (made by hand, or by an installer from before shallow clones) keeps its history
 else say "cloning into $DIR (newest commit only)"; git clone -q --depth 1 --single-branch "$REPO" "$DIR"; fi
 cd "$DIR"
