@@ -13,8 +13,10 @@ every field:
   summary, decisions[{id, question, options[{id, label, pro, con} | "id"], recommend, why, cost, reply}],
   assets[{path, caption, for, t0, t1, poster}], least_sure[{id, note} | "note"], animatic,
   segments[{id, title, t0, t1, note, shots[{id, t0, t1, frame, see, vo, note}]}], appendix[{title, text, path}]
-  optional: gate, title, lang (zh | en), decided[], delegated[], not_reviewed, include (a JSON file, or a list of them,
-  whose keys fill in what this file does not set: bin/vh storyboard writes out/check/storyboard/review.json for gate ②)
+  optional: gate, title, lang (zh | en; default: the BRIEF's "Review language" line, else zh), decided[], delegated[],
+  not_reviewed, include (a JSON file, or a list of them, whose keys fill in what this file does not set: bin/vh storyboard
+  writes out/check/storyboard/review.json for gate ②). The review desk (bin/vh desk, tools/desk/README.md) reads the
+  same file and a few more optional keys (listen, music, film); this page ignores them.
 
 Paths are relative to the project and linked relatively, so the page opens straight from disk (images, GIF, mp4 and
 audio play in the browser); http(s) URLs pass through, other schemes are refused. Every text is HTML-escaped; appendix
@@ -287,7 +289,7 @@ class Page:
         self.project, self.src, self.d, self.gate = project, src, data, gate
         self.out = project / "out" / "review"
         lang = data.get("lang")
-        self.lang = lang if isinstance(lang, str) and lang in T else "zh"
+        self.lang = lang if isinstance(lang, str) and lang in T else (review_lang(project) if lang is None else None) or "zh"
         self.t = T[self.lang]
         self.errors, self.warnings = [], []
         self.shot_ids = set()
@@ -735,6 +737,18 @@ class Page:
                 lines.append(f"   {both}")
         lines.append(f'{t["page"]}{t["colon"]}{page_path}')
         return "\n".join(lines)
+
+
+def review_lang(project):
+    """The project's review language, from the BRIEF's Spec line "- Review language: zh | en" (bin/vh new --lang writes
+    it; the agent sets it from the language of the user's first request). None when the line is missing or unclear."""
+    try:
+        s = (Path(project) / "BRIEF.md").read_text(encoding="utf-8-sig", errors="replace")
+    except OSError:
+        return None
+    m = re.search(r"^- Review language:[ \t]*([^\s<]+)", s, re.M)
+    v = m.group(1).lower() if m else ""
+    return "en" if v.startswith("en") else "zh" if v.startswith("zh") or v.startswith("中") else None
 
 
 def find_project(arg):

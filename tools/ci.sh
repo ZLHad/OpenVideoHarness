@@ -385,12 +385,142 @@ SH
   rm -rf "$t"
 }
 
+# the review desk (bin/vh desk, tools/desk/README.md): its reader on the committed fixtures (zh, and en with a NOTES.md
+# whose table is missing, which must come back as text), a server on a free port (the page, the data, a 206 range, and
+# what it refuses), a submission that wakes bin/vh desk wait and lands verbatim in REVIEW.md, the watcher's timeout,
+# bin/vh new --lang, and bin/vh review's language default
+desk_checks() {
+  local t pid wpid url i rc a
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  vh desk data tools/desk/fixtures/zh > "$t/zh.json" && vh desk data tools/desk/fixtures/en > "$t/en.json"
+  if python3 - "$t/zh.json" "$t/en.json" <<'PY'
+import json, sys
+zh, en = (json.load(open(p, encoding="utf-8")) for p in sys.argv[1:3])
+bad = []
+def want(cond, what):
+    if not cond: bad.append(what)
+o = zh["outline"]
+want(zh["lang"] == "zh" and zh["project"]["title"] == "一杯水的旅程" and zh["project"]["effort"] == "studio", "zh: lang, title, effort")
+want([x["title"] for x in o] == ["拧开水龙头", "水厂和管道", "落进杯子"] and [x["tag"] for x in o] == ["起", "承", "合"], "zh: outline titles and tags")
+want([(x["t0"], x["t1"]) for x in o] == [(0, 8), (8, 16), (16, 24)], "zh: outline times")
+c = {r["id"]: r for r in zh["captions"]["rows"]}
+want(zh["captions"]["kind"] == "caption" and len(c) == 5 and c["c03"]["term"] == "沉淀" and c["c03"]["seg"] == "2", "zh: captions, terms, segments")
+want((c["c05"]["t0"], c["c05"]["t1"]) == (16, 24) and c["c04"]["facts"] == ["#1"], "zh: bars → seconds past the beat map, fact refs")
+f = {x["id"]: x for x in zh["facts"]}
+want(f["#3"]["dropped"] and not f["#1"]["dropped"] and f["#1"]["onscreen"] and [x["done"] for x in zh["fact_todo"]] == [False, True], "zh: facts, struck rows, to-verify")
+a = zh["agent_decided"]
+want([x["superseded"] for x in a] == [False, True, False] and a[1]["note"] == "（关卡 ① 后作废）" and a[2]["group"] == "关卡 ① 之后", "zh: DECISIONS strikethrough and groups")
+h = zh["history"]
+want(len(h) == 1 and h[0]["quotes"][0]["text"].startswith("大纲按内容分段") and [n["k"] for n in h[0]["notes"]] == ["定了", "改了"], "zh: REVIEW history")
+r = zh["rounds"]
+want([x["id"] for x in r] == ["1"] and r[0]["data"]["listen"][0]["t"] == 7.5 and r[0]["data"]["least_sure"][1] == {"id": "", "note": "配乐会不会太甜"}, "zh: the gate page and its listen prompts")
+want([s["label"] for s in zh["music"]["sections"]] == ["拧开", "管道", "杯子"], "zh: music section labels from the gate JSON")
+want([s["seg"] for s in zh["shots"]["items"]] == ["1", "2", "3"], "zh: shots matched to the outline")
+sb = next((d for d in zh["docs"] if d["file"] == "STORYBOARD.md"), None)
+want(sb and sb["sections"][0]["title"] == "Shots" and "<li>S1" in sb["sections"][0]["html"] and not zh["warnings"], "zh: STORYBOARD.md (no table) as formatted text")
+want(en["lang"] == "en" and [x["title"] for x in en["outline"]][0] == "Open the tap" and en["outline"][0]["tag"] == "setup", "en: lang, outline from English headers")
+c = {r["id"]: r for r in en["captions"]["rows"]}
+want(en["captions"]["kind"] == "narration" and c["n3"]["seg"] == "3" and c["n2"]["term"] == "settling" and c["n1"]["t0"] == 0.5, "en: narration table")
+notes = next((d for d in en["docs"] if d["file"] == "NOTES.md"), {"sections": []})
+want(en["facts"] == [] and any("NOTES.md" in w for w in en["warnings"]) and any("water in city pipes" in s["html"] for s in notes["sections"]), "en: NOTES.md without its table comes back as text, with a warning")
+want(en["agent_decided"][1]["superseded"] and en["history"][0]["quotes"][0]["text"] == "Name the parts by what happens in them." and en["rounds"] == [], "en: DECISIONS, REVIEW, no gate page")
+if bad:
+    print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "desk reads the zh and en fixtures (outline, captions and terms, bars, facts, ledger, history, gate extras), and a doc without its table as text"
+  else bad "desk reader on tools/desk/fixtures"; fi
+  # a server on a free port, on a copy (a submission writes into the project)
+  cp -R tools/desk/fixtures/zh "$t/p" && printf '<img src=x onerror=alert(1)>\n' >> "$t/p/STORYBOARD.md"
+  "$VH_BASH" "$ROOT/bin/vh" desk "$t/p" --port 0 > "$t/srv.log" 2>&1 & pid=$!   # bin/vh execs python: $! is the server
+  url=""; for i in $(seq 50); do url=$(sed -n 's#^desk: \(http://127\.0\.0\.1:[0-9]*/\).*#\1#p' "$t/srv.log"); [ -n "$url" ] && break; sleep 0.2; done
+  if [ -z "$url" ]; then bad "desk server did not start: $(head -3 "$t/srv.log")"; kill "$pid" 2>/dev/null; rm -rf "$t"; return; fi
+  cat > "$t/client.py" <<'PY'
+import http.client, json, sys, urllib.parse
+u = urllib.parse.urlsplit(sys.argv[1]); proj = sys.argv[2]; what = sys.argv[3]
+def req(method, path, body=None, headers=None):
+    c = http.client.HTTPConnection(u.hostname, u.port, timeout=10)
+    h = {"Host": f"127.0.0.1:{u.port}"}
+    h.update(headers or {})
+    c.request(method, path, body=body, headers=h)
+    r = c.getresponse(); data = r.read(); c.close()
+    return r.status, r.headers, data
+bad = []
+def want(cond, msg):
+    if not cond: bad.append(msg)
+s, _, page = req("GET", "/")
+token = page.decode().split('name="desk-token" content="')[1].split('"')[0]
+fb = lambda **k: json.dumps(dict({"round": "1", "lang": "zh", "decisions": {"look": "L2"}, "defaulted": [], "general": "",
+    "items": [{"target": "seg:1", "status": "change", "label": "大纲 第 1 段", "text": "开头再快一点 ``` 第 0 帧就要有水声"}]}, **k)).encode()
+H = {"Content-Type": "application/json", "X-Desk-Token": token}
+if what == "serve":
+    s, _, d = req("GET", "/api/data")
+    d = json.loads(d) if s == 200 else {}
+    sb = next((x for x in d.get("docs", []) if x["file"] == "STORYBOARD.md"), {"sections": [], "intro": ""})
+    html = sb["intro"] + "".join(x["html"] for x in sb["sections"])
+    want(s == 200 and d["project"]["slug"] == "p" and "&lt;img src=x" in html and "<img src=x" not in html, f"GET /api/data: {s}, markup in a doc escaped")
+    raw = open(proj + "/NOTES.md", "rb").read()
+    s, h, body = req("GET", "/p/NOTES.md", headers={"Range": "bytes=2-9"})
+    want(s == 206 and h["Content-Range"] == f"bytes 2-9/{len(raw)}" and body == raw[2:10], f"Range: {s} {h.get('Content-Range')}")
+    s, h, body = req("GET", "/p/NOTES.md")
+    want(s == 200 and body == raw and h["Accept-Ranges"] == "bytes", f"whole file: {s}")
+    for p in ("/p/%2e%2e/BRIEF.md", "/p/..%2f..%2fetc/passwd", "/p/out/review/.desk.json", "/p/nope.md", "/BRIEF.md"):
+        want(req("GET", p)[0] == 404, f"{p} served")
+    want(req("GET", "/api/data", headers={"Host": "evil.test"})[0] == 403, "another Host answered")
+    want(req("POST", "/api/feedback", fb(), {"Content-Type": "application/json"})[0] == 403, "a post without the token")
+    want(req("POST", "/api/feedback", fb(), dict(H, Origin="http://evil.test"))[0] == 403, "a post from another origin")
+    want(req("POST", "/api/feedback", fb(), dict(H, **{"Content-Type": "text/plain"}))[0] == 415, "a post that isn't JSON")
+    want(req("POST", "/api/feedback", fb(round="9"), H)[0] == 400, "a round with no gate page")
+    want(req("POST", "/api/feedback", fb(decisions={"look": "L9"}), H)[0] == 400, "an option the gate page doesn't have")
+    want(req("POST", "/api/feedback", fb(items=[{"target": "x", "status": "ok"}]), H)[0] == 400, "a bad target")
+    want(json.loads(req("GET", "/api/status")[2])["listening"] is False, "listening before the watcher")
+else:
+    want(json.loads(req("GET", "/api/status")[2])["listening"] is True, "the page doesn't see the watcher")
+    s, _, d = req("POST", "/api/feedback", fb(), H)
+    want(s == 200 and json.loads(d)["listening"] is True and json.loads(d)["saved"].startswith("out/review/feedback/1-"), f"submit: {s} {d[:200]}")
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  if a=$(python3 "$t/client.py" "$url" "$t/p" serve); then ok "desk server: page, data with markup escaped, a 206 range; refuses other hosts, paths out of the project, hidden files, posts without the token, from another origin or not JSON, an unknown round, option or target"
+  else bad "desk server: $a"; fi
+  "$VH_BASH" "$ROOT/bin/vh" desk wait "$t/p" --timeout 30 > "$t/wait.out" 2>&1 & wpid=$!
+  for i in $(seq 50); do [ -f "$t/p/out/review/feedback/.listening" ] && break; sleep 0.2; done
+  a=$(python3 "$t/client.py" "$url" "$t/p" submit); rc=$?
+  wait "$wpid"; i=$?
+  if [ $rc = 0 ] && [ $i = 0 ] && grep -q '第 0 帧就要有水声' "$t/wait.out" && [ ! -e "$t/p/out/review/feedback/.listening" ] \
+    && python3 - "$t/p/REVIEW.md" <<'PY'
+import re, sys
+s = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"^## 审阅台反馈 · 关卡 1 · .*?(?=^## )", s, re.M | re.S)
+sys.exit(0 if m and "开头再快一点 ``` 第 0 帧就要有水声" in m.group(0) and "\n````text\n" in m.group(0)
+         and s.index("## 审阅台反馈") < s.index("## 授权跳过怎么记") and "决定 look：L2" in m.group(0) else 1)
+PY
+  then ok "desk: a submission wakes bin/vh desk wait (exit 0) and goes into REVIEW.md verbatim, fenced, before the template's reference sections"
+  else bad "desk submit + wait: client '$a' rc $rc, wait rc $i: $(head -c 300 "$t/wait.out")"; fi
+  a=$(vh desk feedback "$t/p" --round 1) && case "$a" in *"第 0 帧就要有水声"*"json: "*) true ;; *) false ;; esac \
+    && vh desk feedback "$t/p" --json | python3 -c "import json, sys; d = json.load(sys.stdin); sys.exit(0 if d['decisions'] == {'look': 'L2'} and d['project'] == 'p' else 1)" \
+    && ok "desk feedback prints the latest submission (text and --json)" || bad "desk feedback: $a"
+  a=$(vh desk "$t/p" --port 0 2>&1); case "$a" in *"already serving p"*) ok "desk: a second start points to the running server" ;; *) bad "desk second start: $a" ;; esac
+  kill "$pid"; wait "$pid" 2>/dev/null
+  [ ! -e "$t/p/out/review/.desk.json" ] && ok "desk: stopping the server removes out/review/.desk.json" || bad "desk left .desk.json behind"
+  vh desk wait "$t/p" --timeout 1 > /dev/null 2>&1; rc=$?; [ $rc = 3 ] && ok "desk wait exits 3 on timeout" || bad "desk wait --timeout 1 exited $rc"
+  # the language: bin/vh new --lang writes the BRIEF line; bin/vh review takes it when the gate JSON has no lang
+  if OVH_PROJECTS="$t/new" vh new math ci-lang --lang en >/dev/null 2>&1 && grep -q '^- Review language: en ' "$t"/new/*-ci-lang/BRIEF.md \
+    && OVH_PROJECTS="$t/new" vh new math ci-zh >/dev/null 2>&1 && grep -q '^- Review language: zh ' "$t"/new/*-ci-zh/BRIEF.md; then
+    vh new math ci-x --lang fr >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "new --lang writes Review language (default zh) and rejects fr" || bad "new --lang fr exited $rc"
+  else bad "new --lang: Review language not written"; fi
+  cp -R tools/desk/fixtures/zh "$t/rz" && cp -R tools/desk/fixtures/zh "$t/re" && sed 's/^- Review language: zh /- Review language: en /' tools/desk/fixtures/zh/BRIEF.md > "$t/re/BRIEF.md"
+  if vh review "$t/rz" 1 >/dev/null 2>&1 && vh review "$t/re" 1 >/dev/null 2>&1 && grep -q '<html lang="zh-CN">' "$t/rz/out/review/gate-1.html" && grep -q '<html lang="en">' "$t/re/out/review/gate-1.html"
+  then ok "review: a gate JSON without lang takes the BRIEF's Review language, and the desk's extra keys pass"; else bad "review language from the BRIEF"; fi
+  rm -rf "$t"
+}
+
 case "${1:-all}" in
-  --smoke) smoke_checks; decision_checks ;;
+  --smoke) smoke_checks; decision_checks; desk_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; smoke_checks; decision_checks ;;
+  all) static_checks; doc_checks; smoke_checks; decision_checks; desk_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ $fails = 0 ] && ok "all checks passed" || printf '\033[31m%s check(s) failed\033[0m\n' "$fails"

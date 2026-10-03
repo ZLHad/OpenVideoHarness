@@ -243,7 +243,7 @@ Just say "quick draft" or "make it studio quality" in your request, or start the
 
 ### You choose what you decide
 
-Effort sets how hard the agent checks its own work; director mode sets what you decide yourself. Each of twelve decisions (concept, spec, outline, script, style, hook, main character, theme music, storyboard, edit rhythm, voice, title and cover) can be yours to **own** (it shows you options and waits), yours to **review** (it shows you the result and carries on unless you object), or **delegated** (it decides and writes down why in `DECISIONS.md`). Every stop is, by default, a local page from `bin/vh review`: at most three decisions on the first screen, each with a recommendation and a one-line reply, then pictures, the animatic and music you can play in the browser. `standard` and `studio` still stop at the concept and outline, storyboard and first draft.
+Effort sets how hard the agent checks its own work; director mode sets what you decide yourself. Each of twelve decisions (concept, spec, outline, script, style, hook, main character, theme music, storyboard, edit rhythm, voice, title and cover) can be yours to **own** (it shows you options and waits), yours to **review** (it shows you the result and carries on unless you object), or **delegated** (it decides and writes down why in `DECISIONS.md`). Every stop is, by default, a local page from `bin/vh review`: at most three decisions on the first screen, each with a recommendation and a one-line reply, then pictures, the animatic and music you can play in the browser. At `studio` the stop is the review desk (`bin/vh desk`) instead: the outline, captions, storyboard, sound, facts and the draft each get a page, you mark any item ok, change or question, add a line, and submit; the agent is waiting in the background and carries on as soon as you do, with your words copied into `REVIEW.md`. Both pages come in English or Chinese, set from the language of your first request. `standard` and `studio` still stop at the concept and outline, storyboard and first draft.
 
 > **Deep involvement:** a 90 s explainer on how satellites avoid collisions, studio quality. I'll pick the hook, the main character, the theme melody, and the title and cover; decide the rest yourself.
 
@@ -309,7 +309,7 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | Command | What it does |
 |---|---|
 | `doctor` / `setup` | Check your setup / install dependencies and fetch references |
-| `types` / `new <type> <name> [--style <style[,style]>] [--effort <level>] [--aspect 9:16] [--watch phone\|feed\|desktop] [--res 1080p\|4k]` | List the 9 types / start a new project (aspect, target screen and resolution can be set up front) |
+| `types` / `new <type> <name> [--style <style[,style]>] [--effort <level>] [--aspect 9:16] [--watch phone\|feed\|desktop] [--res 1080p\|4k] [--lang zh\|en]` | List the 9 types / start a new project (aspect, target screen, resolution and the review pages' language can be set up front) |
 | `effort [quick\|standard\|studio]` | What each effort level does |
 | `style list` / `style <style>` / `style gallery` / `style compare a,b,c` / `style apply <style> <project>` | Browse styles / render a sample / rebuild the overview / compare styles side by side / attach styles to a project as references |
 | `recipes list [--intent …] [--energy …] [--engine …]` / `recipes check` | Find shot recipes by what the shot must say and how loud it is / validate a recipe |
@@ -317,6 +317,7 @@ More in [playbook/04-audio.md](playbook/04-audio.md).
 | `mix` / `qa` / `mux` | Mix / check the mix / put sound and subtitles on the video |
 | `sheet` / `check` / `readcheck` / `gif` | Timestamped contact sheet / find black, frozen or silent stretches / is text on screen long enough to read / make a GIF for your README |
 | `review <project> [gate]` | The review page for a stop: the decisions first, then pictures, animatic and audio, one page per storyboard segment |
+| `desk <project>` / `desk wait <project>` | The review desk: a local page to tick, comment and submit each stop / wait for the submission (what the agent runs in the background) |
 | `storyboard` / `rhythm` / `cover-preview` | Pictures to decide from: labelled storyboard pages / a rhythm map (too-long shots and unreadable text in red) / a cover at real feed sizes |
 | `hf-init` / `install-skill` / `sync-agents` | Set up HyperFrames / register the skill / sync AGENTS.md |
 

@@ -1,0 +1,20 @@
+{
+ "title": "一杯水的旅程 · 关卡 ①",
+ "summary": "测试用的审阅页：只有 1 件要定",
+ "decisions": [
+  {"id": "look", "question": "用哪种画面？",
+   "options": [{"id": "L1", "label": "浅色清新", "pro": "人要清新", "con": "偏凉"},
+               {"id": "L2", "label": "纸面手绘", "pro": "暖", "con": "和管道的硬线条不搭"}],
+   "recommend": "L1", "why": "人说要清新", "cost": "现在改：低", "reply": "L1 / L2"}
+ ],
+ "decided": ["大纲按内容分三段"],
+ "delegated": ["档位 studio", "横屏 1080p、30 fps"],
+ "least_sure": [{"id": "S2", "note": "管道剖面会不会太像课件"}, "配乐会不会太甜"],
+ "listen": [{"t": 7.5, "note": "水滴落下前的停顿"}],
+ "music": {"beats": "audio/music.beats.json", "labels": {"tap": "拧开", "pipes": "管道", "glass": "杯子"}},
+ "not_reviewed": "不审分镜",
+ "appendix": [
+  {"title": "大纲（表）", "text": "| 段 | 时间 |\n|---|---|\n| 拧开水龙头 | 0–8 s |"},
+  {"title": "字幕稿", "path": "SCRIPT.md"}
+ ]
+}
