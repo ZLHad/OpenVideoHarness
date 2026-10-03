@@ -276,6 +276,7 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
     feedback/.listening ({pid, since, until, project}) so the desk can say an agent is waiting."""
     fdir = Path(project) / "out" / "review" / "feedback"
     fdir.mkdir(parents=True, exist_ok=True)
+    seen = {p.name for p in fdir.glob("*.json")}   # first: a submission landing after this is either pending or new
     early = pending(project)
     if early:
         for f, j in early:
@@ -285,7 +286,6 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
         out.flush()
         return 0
     flag, start = fdir / ".listening", time.time()
-    seen = {p.name for p in fdir.glob("*.json")}
     _write(flag, json.dumps({"pid": os.getpid(), "since": start, "until": start + timeout, "project": os.path.realpath(str(project))}))
 
     def done(code):

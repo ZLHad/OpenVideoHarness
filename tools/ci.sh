@@ -441,11 +441,12 @@ sys.exit(1 if bad else 0)
 PY
   then ok "desk reads the zh and en fixtures (outline, captions and terms, bars, facts, ledger, history, gate extras), and a doc without its table as text"
   else bad "desk reader on tools/desk/fixtures"; fi
-  # this round is the last page in review order, not the newest file; one language rule; markdown in bounded time;
+  # this round is the page bin/vh review made last (.current), else the last in review order, never the newest file;
+  # one language rule; markdown in bounded time;
   # the newest submission within one second is the highest -n. (A file, not a heredoc inside $(…): bash 3.2 counts the
   # parentheses in the heredoc's body.)
   cat > "$t/order.py" <<'PY'
-import json, os, shutil, sys, time
+import json, os, shutil, subprocess, sys, time
 sys.path.insert(0, "tools/desk")
 import feedback, reader
 bad = []
@@ -476,11 +477,29 @@ os.makedirs(fd)
 for n in ("1b-20261004-030440", "1b-20261004-030440-2", "1b-20261004-030440-10"):
     json.dump({"round": "1b", "submitted_at": "2026-10-04T03:04:40", "n": n}, open(os.path.join(fd, n + ".json"), "w"))
 want(feedback.latest(d)[1]["n"] == "1b-20261004-030440-10", f"latest within one second: {feedback.latest(d)[1]}")
+# the page bin/vh review made last is this round (out/review/.current), whatever the stop order or its name
+c = os.path.join(sys.argv[1], "current")
+shutil.copytree("tools/desk/fixtures/zh", c)
+cg = os.path.join(c, "out", "review")
+def publish(n):
+    shutil.copy(os.path.join(cg, "gate-1.json"), os.path.join(cg, f"gate-{n}.json"))
+    return subprocess.run([sys.executable, "tools/review.py", c, n], capture_output=True, text=True).returncode
+cur = lambda: reader.read_project(c)["rounds"][-1]["id"]   # noqa: E731
+for seq, page in ((["2", "1b"], "1b"), (["3", "E3b"], "E3b"), (["final"], "final"), (["2B"], "2B")):
+    rcs = [publish(n) for n in seq]
+    want(rcs == [0] * len(seq) and cur() == page, f"published {seq} (exit {rcs}): this round is {cur()}, not {page}")
+fd2 = os.path.join(cg, "feedback")
+os.makedirs(fd2)
+for rid in ("2B", "E3b"):
+    json.dump({"round": rid, "submitted_at": "2026-10-04T12:00:00"}, open(os.path.join(fd2, f"{rid}-20261004-120000.json"), "w"))
+want([f.name for f, _ in feedback.pending(c)] == ["2B-20261004-120000.json"], f"pending follows .current: {[f.name for f, _ in feedback.pending(c)]}")
+os.remove(os.path.join(cg, "gate-2B.json"))   # .current names a page that is gone: the review order decides
+want(cur() == "3", f"with .current pointing at a removed page: {cur()}")
 if bad:
     print("; ".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  if a=$(python3 "$t/order.py" "$t"); then ok "desk: this round is the last page in review order (a touched file doesn't win), the gate JSON's lang overrides the BRIEF, long and deeply nested markdown in bounded time, -10 after -2"
+  if a=$(python3 "$t/order.py" "$t"); then ok "desk: this round is the page bin/vh review made last (1b after 2, E3b after 3, final, 2B; pending follows it), else review order (a touched file doesn't win); the gate JSON's lang overrides the BRIEF; long and deeply nested markdown in bounded time; -10 after -2"
   else bad "desk order / lang / markdown / latest: $a"; fi
   # a server on a free port, on a copy (a submission writes into the project); a hidden file, a link to it, an upper-case
   # .ENV and an SVG with a script in it: none may be served same-origin

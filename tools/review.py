@@ -5,7 +5,8 @@ usage: python3 tools/review.py <project> [gate]
   [gate]     1 | 2 | 3 | E0-E5 | 2b ... (gate-2 and gate-2.json work too); default: the newest out/review/gate-*.json
 
 The file name sets the gate: gate-2b.json is page 2 of gate ②, whatever its "gate" field says (a mismatch is a
-warning). Writes out/review/gate-<n>.html, and the same page as out/review/index.html (always the latest page), then
+warning). Writes out/review/gate-<n>.html, and the same page as out/review/index.html (always the latest page), notes
+<n> in out/review/.current (the review desk's "this round"), then
 prints the chat message: the decisions, the reply that takes every recommendation, the least-sure shots, and the path
 of gate-<n>.html, which a later page does not overwrite. playbook/01-pipeline.md ("审阅页") explains the page and
 every field:
@@ -834,6 +835,9 @@ def main():
     try:
         for p in (page_path, rdir / "index.html"):
             p.write_text(doc, encoding="utf-8")
+        # the page just made is "this round" for the review desk and its watcher, whatever its name or the order of
+        # the stops (a concept page 1b after gate 2, a voice page E3b after gate 3, a page called "final")
+        (rdir / ".current").write_text(gate + "\n", encoding="utf-8")
     except OSError as e:
         print(f"can't write {rdir}: {e.strerror or e}", file=sys.stderr)
         return 2

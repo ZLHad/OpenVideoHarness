@@ -508,17 +508,30 @@ def _history(review_md):
 GATE_ORDER = {"1": 1, "E0": 2, "E1": 3, "2": 4, "E2": 5, "E3": 6, "E4": 7, "3": 8, "E5": 9}
 
 
+def current_page(project):
+    """The page bin/vh review made last (out/review/.current), if its gate JSON still exists; else None."""
+    rdir = Path(project) / "out" / "review"
+    try:
+        rid = (rdir / ".current").read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeDecodeError):
+        return None
+    return rid if re.fullmatch(r"[A-Za-z0-9_-]{1,24}", rid) and (rdir / f"gate-{rid}.json").is_file() else None
+
+
 def gate_pages(project):
-    """out/review/gate-*.json in review order; the last is this round. Order: the stop (1, E0, E1, 2, E2, E3, E4, 3,
-    E5), then the page within it (1, 1b, 1c …). Modification time only breaks ties between page names outside that
-    pattern (they come first), so copying or touching a file never makes an earlier page current again."""
+    """out/review/gate-*.json in order; the last is this round. This round is the page bin/vh review made last
+    (out/review/.current), whatever its name: a concept page 1b after gate 2, a page E3b after gate 3, "final".
+    Without it (or when it names a page that is gone), the review order decides: the stop (1, E0, E1, 2, E2, E3, E4,
+    3, E5), then the page within it (1, 1b, 1c …, any case); other names come first, ordered by modification time.
+    Copying or touching a file never changes which page is current."""
     rdir = Path(project) / "out" / "review"
 
     def key(p):
-        m = re.fullmatch(r"(E\d|\d)([a-z]*)", p.stem[5:])
-        return (GATE_ORDER.get(m.group(1), 0), len(m.group(2)), m.group(2), 0, p.name) if m else (0, 0, "", p.stat().st_mtime, p.name)
-    pages = [p for p in rdir.glob("gate-*.json") if re.fullmatch(r"[A-Za-z0-9_-]{1,24}", p.stem[5:])] if rdir.is_dir() else []
-    return sorted(pages, key=key)
+        m = re.fullmatch(r"(E\d|\d)([A-Za-z]*)", p.stem[5:])
+        return (GATE_ORDER.get(m.group(1), 0), len(m.group(2)), m.group(2).lower(), 0, p.name) if m else (0, 0, "", p.stat().st_mtime, p.name)
+    pages = sorted([p for p in rdir.glob("gate-*.json") if re.fullmatch(r"[A-Za-z0-9_-]{1,24}", p.stem[5:])] if rdir.is_dir() else [], key=key)
+    cur = current_page(project)
+    return [p for p in pages if p.stem[5:] != cur] + [p for p in pages if p.stem[5:] == cur]
 
 
 def _rounds(project, warnings):

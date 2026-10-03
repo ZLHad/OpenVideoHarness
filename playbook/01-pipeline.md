@@ -156,7 +156,7 @@ projects/2026-10-01-leo-doppler/
 - **什么时候用**：`studio` 默认用它；`standard` 默认还是静态审阅页，人想逐条点评时也可以开审阅台；`quick` 不设关卡，导演模式要停的那几处在聊天里问或用静态页。
 - **语言**：界面语言取 BRIEF 的 `Review language`（`zh` / `en`），按用户第一句话的语言定，建项目时用 `bin/vh new … --lang en`；这一轮的 gate JSON 写了 `lang` 时以它为准（和静态审阅页同一条规则）；页面右上角也能切换。字幕和项目文档照旧用项目自己的语言。
 - **每次停，agent 这样做**：
-  1. 写 `out/review/gate-<n>.json`，运行 `bin/vh review <project> <n>`：检查 JSON、生成静态页当备份、打印聊天消息；
+  1. 写 `out/review/gate-<n>.json`，运行 `bin/vh review <project> <n>`：检查 JSON、生成静态页当备份、打印聊天消息，并把这一页记成审阅台的"这一轮"（`out/review/.current`）；
   2. 在后台运行 `bin/vh desk <project>` 起服务（只听 127.0.0.1；已经在跑就只打印地址）；
   3. 在后台运行 `bin/vh desk wait <project>`，人一提交它就打印反馈、退出，agent 随之被唤醒；`wait` 超时以后人才提交的，下一次 `wait` 一启动就交出来。Claude Code 用后台命令，超时给到上限（`timeout` 7200000 ms，`wait` 默认等 7100 s）；服务也一样，超时被停掉了，下一次停时再起一遍；
   4. 聊天里发 `bin/vh review` 打印的几行，加上审阅台的地址，然后停下；
