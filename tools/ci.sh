@@ -495,12 +495,41 @@ for rid in ("2B", "E3b"):
 want([f.name for f, _ in feedback.pending(c)] == ["2B-20261004-120000.json"], f"pending follows .current: {[f.name for f, _ in feedback.pending(c)]}")
 os.remove(os.path.join(cg, "gate-2B.json"))   # .current names a page that is gone: the review order decides
 want(cur() == "3", f"with .current pointing at a removed page: {cur()}")
+# bin/vh review: the page as spelled on disk (APFS finds gate-1d.json for 1D); no gate: this round, not the newest
+# file; ids of 1-24 characters; a gate file that links out of the project is not read
+shutil.copy(os.path.join(cg, "gate-1.json"), os.path.join(cg, "gate-1d.json"))
+rv = lambda *a: subprocess.run([sys.executable, "tools/review.py", c, *a], capture_output=True, text=True)   # noqa: E731
+r = rv("1D")
+names = os.listdir(cg)
+want(r.returncode == 0 and open(os.path.join(cg, ".current")).read().strip() == "1d" and "gate-1d.html" in names and "gate-1D.html" not in names,
+     f"review 1D for gate-1d.json: exit {r.returncode}, .current {open(os.path.join(cg, '.current')).read().strip()!r}, {sorted(n for n in names if n.endswith('.html'))}")
+publish("E3b")
+os.utime(os.path.join(cg, "gate-3.json"), (time.time() + 60, time.time() + 60))
+r = rv()
+want(r.returncode == 0 and "gate-E3b.html" in r.stderr and "gate-3.json is newer" in r.stderr, f"review with no gate: {r.returncode} {r.stderr[-300:]}")
+r = rv("a" * 25)
+want(r.returncode == 2 and "1 to 24" in r.stderr, f"a 25-character id: {r.returncode} {r.stderr}")
+shutil.copy(os.path.join(cg, "gate-1.json"), os.path.join(sys.argv[1], "outside.json"))
+os.symlink(os.path.join(sys.argv[1], "outside.json"), os.path.join(cg, "gate-9.json"))
+want("9" not in [x["id"] for x in reader.read_project(c)["rounds"]] and rv("9").returncode == 2, "a gate file linking out of the project was read")
+# writers in several processes at once: each _write has its own temp file, .consumed's read-modify-write is locked
+code = ("import sys; sys.path.insert(0, 'tools/desk'); import feedback; from pathlib import Path\n"
+        "d, k = sys.argv[1], sys.argv[2]\n"
+        "for i in range(40):\n"
+        "    feedback._write(Path(d) / 'out' / 'review' / 'feedback' / '.listening', k)\n"
+        "    feedback.mark_consumed(d, [f'{k}-{i}.json'])\n")
+procs = [subprocess.Popen([sys.executable, "-c", code, c, f"w{k}"], stderr=subprocess.PIPE, text=True) for k in range(8)]
+errs = [(p.wait(), p.stderr.read()) for p in procs]
+parts = [n for n in os.listdir(fd2) if n.endswith(".part")]
+want(all(rc == 0 for rc, _ in errs) and len([n for n in feedback.consumed(c) if n.startswith("w")]) == 320 and not parts,
+     f"8 concurrent writers: exits {[rc for rc, _ in errs]}, {len(feedback.consumed(c))} names, leftovers {parts}, {[e[-200:] for _, e in errs if e][:1]}")
 if bad:
     print("; ".join(bad))
 sys.exit(1 if bad else 0)
 PY
   if a=$(python3 "$t/order.py" "$t"); then ok "desk: this round is the page bin/vh review made last (1b after 2, E3b after 3, final, 2B; pending follows it), else review order (a touched file doesn't win); the gate JSON's lang overrides the BRIEF; long and deeply nested markdown in bounded time; -10 after -2"
-  else bad "desk order / lang / markdown / latest: $a"; fi
+    ok "review: 1D renders gate-1d.json as 1d; no gate renders this round (and names a newer file); ids over 24 characters and gate links out of the project are refused; 8 concurrent writers all exit 0 with every name kept"
+  else bad "desk order / lang / markdown / latest / review ids / concurrent writers: $a"; fi
   # a server on a free port, on a copy (a submission writes into the project); a hidden file, a link to it, an upper-case
   # .ENV and an SVG with a script in it: none may be served same-origin
   cp -R tools/desk/fixtures/zh "$t/p" && printf '<img src=x onerror=alert(1)>\n' >> "$t/p/STORYBOARD.md"

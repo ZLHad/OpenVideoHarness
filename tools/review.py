@@ -2,7 +2,8 @@
 
 usage: python3 tools/review.py <project> [gate]
   <project>  the project directory, or its name under $OVH_PROJECTS / projects/ (the date prefix may be left out)
-  [gate]     1 | 2 | 3 | E0-E5 | 2b ... (gate-2 and gate-2.json work too); default: the newest out/review/gate-*.json
+  [gate]     1 | 2 | 3 | E0-E5 | 2b ... (gate-2 and gate-2.json work too; 1 to 24 letters, digits, - or _);
+             default: this round, i.e. out/review/.current, else the last page in review order (name a new page)
 
 The file name sets the gate: gate-2b.json is page 2 of gate ②, whatever its "gate" field says (a mismatch is a
 warning). Writes out/review/gate-<n>.html, and the same page as out/review/index.html (always the latest page), notes
@@ -741,6 +742,52 @@ class Page:
         return "\n".join(lines)
 
 
+GATE_ID = re.compile(r"[A-Za-z0-9_-]{1,24}")   # a page name: gate-<id>.json (the review desk uses the same rule)
+GATE_ORDER = {"1": 1, "E0": 2, "E1": 3, "2": 4, "E2": 5, "E3": 6, "E4": 7, "3": 8, "E5": 9}
+
+
+def _pages_on_disk(project):
+    """out/review/gate-<id>.json files with a valid id whose real path stays inside the project (a symlink that
+    leads out of it is skipped)."""
+    rdir = Path(project) / "out" / "review"
+    root = os.path.realpath(str(project))
+    return [p for p in (rdir.glob("gate-*.json") if rdir.is_dir() else [])
+            if GATE_ID.fullmatch(p.stem[5:]) and os.path.commonpath([os.path.realpath(str(p)), root]) == root]
+
+
+def _on_disk(pages, rid):
+    """The page whose id is rid, spelled as on disk: an exact match, else the one that matches ignoring case (APFS
+    finds gate-1d.json for 1D, and the file's own name is what counts)."""
+    exact = [p for p in pages if p.stem[5:] == rid]
+    loose = [p for p in pages if p.stem[5:].lower() == rid.lower()]
+    return exact[0] if exact else loose[0] if len(loose) == 1 else None
+
+
+def current_page(project):
+    """The id of the page bin/vh review made last (out/review/.current), as spelled on disk, if that page still
+    exists; else None."""
+    try:
+        rid = (Path(project) / "out" / "review" / ".current").read_text(encoding="utf-8").strip()
+    except (OSError, UnicodeDecodeError):
+        return None
+    p = _on_disk(_pages_on_disk(project), rid) if GATE_ID.fullmatch(rid) else None
+    return p.stem[5:] if p else None
+
+
+def gate_pages(project):
+    """out/review/gate-*.json in order; the last is this round. This round is the page bin/vh review made last
+    (out/review/.current), whatever its name: a concept page 1b after gate 2, a page E3b after gate 3, "final".
+    Without it (or when it names a page that is gone), the review order decides: the stop (1, E0, E1, 2, E2, E3, E4,
+    3, E5), then the page within it (1, 1b, 1c …, any case); other names come first, ordered by modification time.
+    Copying or touching a file never changes which page is current."""
+    def key(p):
+        m = re.fullmatch(r"(E\d|\d)([A-Za-z]*)", p.stem[5:])
+        return (GATE_ORDER.get(m.group(1), 0), len(m.group(2)), m.group(2).lower(), 0, p.name) if m else (0, 0, "", p.stat().st_mtime, p.name)
+    pages = sorted(_pages_on_disk(project), key=key)
+    cur = current_page(project)
+    return [p for p in pages if p.stem[5:] != cur] + [p for p in pages if p.stem[5:] == cur]
+
+
 def review_lang(project):
     """The project's review language, from the BRIEF's Spec line "- Review language: zh | en" (bin/vh new --lang writes
     it; the agent sets it from the language of the user's first request). None when the line is missing or unclear."""
@@ -793,25 +840,32 @@ def merge_includes(project, data):
 def main():
     ap = argparse.ArgumentParser(description="Build the decision-first review page from out/review/gate-<n>.json")
     ap.add_argument("project", help="project directory, or its folder name under projects/")
-    ap.add_argument("gate", nargs="?", help="1 | 2 | 3 | E0–E5 | 2b … (gate-2, gate-2.json too); default: the newest gate-*.json")
+    ap.add_argument("gate", nargs="?", help="1 | 2 | 3 | E0–E5 | 2b … (gate-2, gate-2.json too); default: this round "
+                                            "(out/review/.current, else the last page in review order)")
     a = ap.parse_args()
     project = find_project(a.project)
     if not project:   # find_project said why
         return 2
     rdir = project / "out" / "review"
+    pages = _pages_on_disk(project)
     if a.gate:
         g = re.sub(r"\.json$", "", re.sub(r"^gate-", "", a.gate.strip()))
-        if not re.fullmatch(r"[A-Za-z0-9_-]+", g):
-            print(f"not a gate name: {a.gate!r} (1, 2, 3, E0–E5, 2b …)", file=sys.stderr)
+        if not GATE_ID.fullmatch(g):
+            print(f"not a gate name: {a.gate!r} (1 to 24 letters, digits, - or _: 1, 2, 3, E0–E5, 2b …)", file=sys.stderr)
             return 2
-        found = [rdir / f"gate-{g}.json"]
+        src = _on_disk(pages, g)   # spelled as on disk: on APFS "1D" finds gate-1d.json, and the page is 1d
+        where = rdir / f"gate-{g}.json"
     else:
-        found = sorted(rdir.glob("gate-*.json"), key=lambda p: p.stat().st_mtime)
-    if not found or not os.path.exists(found[-1]):
-        where = found[-1] if found else rdir / "gate-<n>.json"
+        ordered = gate_pages(project)
+        src = ordered[-1] if ordered else None
+        where = rdir / "gate-<n>.json"
+        newer = [p for p in pages if src and p.stat().st_mtime > src.stat().st_mtime]
+        if newer:
+            print(f"! rendering this round, {src.stem[5:]}; {', '.join(sorted(p.name for p in newer))} is newer: to render "
+                  f"a new page, name it (bin/vh review {a.project} <n>)", file=sys.stderr)
+    if src is None or not src.is_file():
         print(f"no review pack at {where}: write one first (playbook/01-pipeline.md, 审阅页)", file=sys.stderr)
         return 2
-    src = found[-1]
     gate = src.stem[5:]
     try:
         data = json.loads(src.read_text(encoding="utf-8-sig"))   # a BOM from a Windows editor is fine

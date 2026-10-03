@@ -4,7 +4,7 @@ A submission is saved as out/review/feedback/<round>-<YYYYMMDD-HHMMSS>.json plus
 reads; the same .md text goes into REVIEW.md verbatim, as a dated section (CLAUDE.md: the human's words are recorded
 word for word). The .json is written last, atomically: it is what the watcher (wait) waits for.
 """
-import datetime, json, os, re, signal, sys, threading, time
+import datetime, fcntl, json, os, re, signal, sys, tempfile, threading, time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # reader.py, for the current gate page
@@ -32,6 +32,8 @@ WORDS = {
                said="- Verbatim (written item by item in the desk):", after="- Decided:　Changed:"),
 }
 _lock = threading.Lock()
+_UMASK = os.umask(0)   # read once, at import (single-threaded), and put back
+os.umask(_UMASK)
 
 
 def _text(x, key, where):
@@ -143,9 +145,24 @@ def to_markdown(fb):
 
 
 def _write(p, text):
-    tmp = p.with_name(p.name + ".part")
-    tmp.write_text(text, encoding="utf-8")
-    os.replace(tmp, p)
+    """Write p atomically: a temp file of its own (two processes writing p at once each have theirs, so neither
+    replace fails), then os.replace. The temp name ends in .part, never .json, so the watcher doesn't see it."""
+    fd, tmp = tempfile.mkstemp(dir=str(p.parent), prefix=p.name + ".", suffix=".part")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            try:   # mkstemp makes 0600: keep the file's own mode (REVIEW.md), or the usual one for a new file
+                mode = os.stat(p).st_mode & 0o777
+            except FileNotFoundError:
+                mode = 0o666 & ~_UMASK
+            os.fchmod(f.fileno(), mode)
+            f.write(text)
+        os.replace(tmp, p)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def append_review(project, fb, md, json_rel):
@@ -236,11 +253,17 @@ def consumed(project):
 
 
 def mark_consumed(project, paths):
+    """Add these submissions to feedback/.consumed. The read-modify-write holds an flock on feedback/.consumed.lock,
+    so two bin/vh desk processes doing it at once both get their names in."""
     fdir = Path(project) / "out" / "review" / "feedback"
-    with _lock:
-        names = consumed(project) | {Path(p).name for p in paths}
-        fdir.mkdir(parents=True, exist_ok=True)
-        _write(fdir / ".consumed", json.dumps({"files": sorted(names)}, ensure_ascii=False) + "\n")
+    fdir.mkdir(parents=True, exist_ok=True)
+    with _lock, open(fdir / ".consumed.lock", "a") as lk:
+        fcntl.flock(lk.fileno(), fcntl.LOCK_EX)
+        try:
+            names = consumed(project) | {Path(p).name for p in paths}
+            _write(fdir / ".consumed", json.dumps({"files": sorted(names)}, ensure_ascii=False) + "\n")
+        finally:
+            fcntl.flock(lk.fileno(), fcntl.LOCK_UN)
 
 
 def pending(project):
