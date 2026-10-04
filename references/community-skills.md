@@ -351,7 +351,7 @@ claude-animation-skill 和 product-film-skill 带 `.claude-plugin/` 插件清单
 | procedural-film | `check.cjs` 六项关卡，确定性一项把同一帧按五种顺序画出来比哈希 | 从桩场景起关卡必须全绿；一个 agent 只拥有一个镜头文件，评审 subagent 分波次出 P1/P2 修改单 | 成片测响度，交付转码归一到约 −14 LUFS；逐镜写一行说明 |
 | product-film-skill | 每个交接点出静帧，再出联系表和半分辨率草稿；`--debug` 把量到的坐标直接画进画面（Remotion 渲静帧时不转发 console） | 每次渲染的版本单独保留在 `out/<film>/vN/` | `verify.py` 解码每个交付文件：时长、背景色、首尾接缝、取色探针 |
 
-我们的 `bin/vh check` 目前做 ffprobe 和黑帧、冻帧、静音检测。值得补的两件：一是把硬规则 1 的乱序比对做成命令，claude-animation-skill 的 `verify` 最简单；二是交付前解码成品核对色值，product-film-skill 踩到的色域问题在任何 Remotion 暗底片子上都会出现。
+我们的 `bin/vh check` 目前做 ffprobe、黑帧、冻帧、静音检测、孤立帧扫描和色彩标签检查。值得补的两件：一是把硬规则 1 的乱序比对做成命令，claude-animation-skill 的 `verify` 最简单；二是交付前解码成品核对色值，product-film-skill 踩到的色域问题在任何 Remotion 暗底片子上都会出现。
 
 ### athemeroy 的指南能借什么
 

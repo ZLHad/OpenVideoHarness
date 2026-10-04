@@ -231,6 +231,21 @@ PY
   vh mux "$t/zhang/en.v1.2/final" "$t/a.wav" "$t/out-nosubs.mp4" >/dev/null && [ -s "$t/out-nosubs.mp4" ] \
     && ok "mux without subtitle files" || bad "bin/vh mux without subtitle files"
   vh gif "$t/zhang/en.v1.2/final" 64 5 >/dev/null && [ -f "$t/zhang/en.v1.2/final.gif" ] && ok "gif names the output after the file, not a dotted folder" || bad "bin/vh gif output name"
+  # check: one odd frame in a moving clip fails with its time; the same clip without it, or with a two-frame flash, passes
+  if command -v uv >/dev/null || python3 -c "import numpy" 2>/dev/null; then
+    for a in "clean:0" "odd:eq(n,30)" "flash2:between(n,30,31)"; do
+      ffmpeg -nostdin -v error -f lavfi -i testsrc=s=320x180:r=30:d=2 -vf "drawbox=c=red:t=fill:enable='${a#*:}'" -pix_fmt yuv420p "$t/${a%%:*}.mp4"; done
+    a=$(vh check "$t/clean.mp4" 2>&1) && o=$(vh check "$t/flash2.mp4" 2>&1) && case "$a$o" in *"no isolated frames in 60"*"no isolated frames in 60"*) true ;; *) false ;; esac \
+      && ok "check passes a clip without an odd frame, and a two-frame flash" || bad "check on clean / two-frame flash clips: $a $o"
+    a=$(vh check "$t/odd.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 1:*"1 isolated frame(s) in 60: 1.000 s"*"--no-browser-gpu"*) ok "check fails on one odd frame and names its time" ;; *) bad "check on one odd frame (rc $rc): $a" ;; esac
+    a=$(vh check "$t/odd.mp4" --allow 0.4,1.0 2>&1); rc=$?
+    case "$rc:$a" in 0:*"no isolated frames in 60"*"declared (--allow): 1.000 s"*) ok "check --allow: a declared flash is listed and passes" ;; *) bad "check --allow (rc $rc): $a" ;; esac
+    a=$(vh check "$t/odd.mp4" --allow 1s 2>&1); rc=$?
+    [ $rc = 1 ] && ok "check --allow with a typo fails instead of skipping the scan" || bad "check --allow 1s exited $rc: $a"
+    a=$(vh check "$t/a.wav" 2>&1); rc=$?
+    case "$rc:$a" in 0:*"isolated"*) bad "check on audio only mentions the frame scan: $a" ;; 0:*) ok "check on an audio file skips the frame scan quietly" ;; *) bad "check on audio only (rc $rc): $a" ;; esac
+  else skip "check: isolated frames" "needs uv or numpy"; fi
   rm -rf "$t"
 }
 
