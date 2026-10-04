@@ -23,6 +23,7 @@ render: 11 stretches of 0.5 s or more under 18 dB). The thresholds come from tha
 the comparison image, not proof of a bug.
 """
 import argparse, json, subprocess, sys
+from itertools import zip_longest
 from fractions import Fraction
 from pathlib import Path
 import numpy as np
@@ -81,16 +82,19 @@ def main():
         sys.exit(1)
     w = min(W, rw // 2 * 2); h = round(w * rh / rw / 2) * 2   # never upscale the reference
     th, tw = h // GY, w // GX
-    score = []
-    for x, y in zip(frames(a.video, w, h), frames(a.reference, w, h)):
+    score, nv, nr = [], 0, 0
+    for x, y in zip_longest(frames(a.video, w, h), frames(a.reference, w, h)):
+        nv += x is not None; nr += y is not None
+        if x is None or y is None:
+            continue
         d = ((x - y) ** 2)[: th * GY, : tw * GX].reshape(GY, th, GX, tw).mean(axis=(1, 3))
         m = float(d.max())
         score.append(99.0 if m < 1e-10 else 10 * np.log10(255 ** 2 / m))
     score = np.array(score)
     if len(score) == 0:
         die("no frames decoded")
-    if len(score) != vn:   # a truncated or broken decode must not pass on the frames it did read
-        print(f"FAIL decoded {len(score)} of {vn} frames: a file is broken or cut short")
+    if nv != nr:   # a truncated or broken decode must not pass on the frames it did read
+        print(f"FAIL the video decodes to {nv} frames, the reference to {nr}: a file is broken or cut short")
         sys.exit(1)
     fps = float(rfps); least = max(3, round(fps / 2))
     fail, warn = spans(score, FAIL_DB, least), spans(score, WARN_DB, least)
@@ -110,9 +114,9 @@ def main():
             ts = f"{i * 1000 // rfps / 1000:.3f}"   # floored to the ms, so -ss lands on frame i and not the next
             f = out / f"scale-{name}-{ts}s.png"
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", ts, "-i", a.reference, "-ss", ts, "-i", a.video, "-frames:v", "1", "-filter_complex",
-                            "[0:v]scale=640:-2,split[a][a2];[1:v]scale=640:-2:flags=area,split[b][b2];"
+                            "[0:v]scale=640:-2,format=rgb24,split[a][a2];[1:v]scale=640:-2:flags=area,format=rgb24,split[b][b2];"
                             "[a2]format=gray[ag];[b2]format=gray[bg];[ag][bg]blend=all_mode=difference,lutyuv=y='min(255,val*6)',format=rgb24[d];"
-                            "[a]format=rgb24[a3];[b]format=rgb24[b3];[a3][b3][d]hstack=3", str(f)], check=False)
+                            "[a][b][d]hstack=3", str(f)], check=False)
             print(f"  {f}  (reference | video scaled down | difference)")
     if not fail and not warn:
         print("ok: the same picture throughout")

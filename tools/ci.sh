@@ -247,7 +247,7 @@ PY
   case "$rc:$a|$rb:$b|$rcc:$c" in 0:*"spec: 320x180, 30 fps, 30 frames"*"|1:"*"FAIL frame 640x360"*"Resolution: 1080p, 4k"*"|1:"*"FAIL 25.000 fps, the BRIEF says 30"*)
       ok "check compares the file with the BRIEF: size, a 4K the BRIEF doesn't list, frame rate" ;; *) bad "check against the BRIEF ($rc/$rb/$rcc): $a | $b | $c" ;; esac
   a=$(vh check "$t/sp/out/long.mp4" 2>&1); rc=$?; b=$(vh check "$t/sp/out/draft.mp4" 2>&1); rb=$?
-  case "$rc:$a|$rb:$b" in 1:*"FAIL 60 frames, the BRIEF says 30"*"|0:"*"WARN 160x90 is smaller than every delivery"*) ok "check: a wrong length fails; a smaller draft only warns" ;;
+  case "$rc:$a|$rb:$b" in 1:*"FAIL 2.000 s of picture, the BRIEF says exactly 1.0 s"*"|0:"*"WARN 160x90 is smaller than every delivery"*) ok "check: a wrong length fails; a smaller draft only warns" ;;
     *) bad "check length / draft ($rc/$rb): $a | $b" ;; esac
   brief '320x180, 30 fps, exactly 1.0s (30 frames)' '1080p、4k'; a=$(vh check "$t/sp/out/x2.mp4" 2>&1); rc=$?
   brief '320x180, 30 fps, {2–3}s' 1080p; b=$(vh check "$t/sp/out/ref.mp4" 2>&1); rb=$?
@@ -281,7 +281,7 @@ PY
     a=$(vh check "$t/sp/out/x2.mp4" --against "$t/sp/out/fps25.mp4" 2>&1); rc=$?
     case "$rc:$a" in 1:*"FAIL different frame rate"*"twice the"*) bad "check --against on different cuts points at comparison images: $a" ;;
       1:*"FAIL different frame rate"*) ok "check --against refuses to compare different cuts" ;; *) bad "check --against on different cuts (rc $rc): $a" ;; esac
-  else skip "check: isolated frames, spec, --against" "needs uv or numpy"; fi
+  else skip "check: isolated frames, --against" "needs uv or numpy"; fi
   rm -rf "$t"
 }
 
