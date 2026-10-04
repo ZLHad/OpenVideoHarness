@@ -237,7 +237,7 @@ bash install.sh --no-refs                        # 先不拉参考仓库（之�
 bash install.sh --no-skill                       # 不注册全局 skill
 ```
 
-- 安装脚本只拉最新的一个提交（下载约 80 MB）；想参与贡献或翻历史，就正常 `git clone`，再运行 `bin/vh setup`。
+- 安装脚本只拉最新的一个提交（下载约 80 MB；完整历史约 95 MB）；想参与贡献或翻历史，就正常 `git clone`，再运行 `bin/vh setup`。
 - 更新：用同样的参数再运行一次安装命令；`LOCAL.md` 和 `projects/` 不动，要覆盖你改过的文件时会先停下来。
 - 样片的视频不在 git 里，要在本地复现样片时运行 `tools/fetch_media.sh`，它从 Release 下载到原来的位置。
 - 第一次渲染、第一次用声音工具时还会下载 Chrome、Python 依赖和配音模型，各有多大、放在哪里，见 wiki 的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)。

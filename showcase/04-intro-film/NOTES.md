@@ -4,7 +4,7 @@
 
 ## 待核实的事实（屏幕上会出现的每个数字和原文，渲染前按当时的 main 再核）
 
-核对基准：`main` 的 9f60db7（行号都按这一版；README 每合并一次行号就会移）。4398f27（#22）之后，05:38 又合并了 #23（playbook 09 叙事、10 钩子与封面、11 作曲，playbook 现在是 00–11 共 12 篇）。在途的 PR 还会改计数：recipes/、新乐器、导演模式。所以下面的数字**现在不冻结**，渲染前再核一遍，逐条改“状态”。
+核对基准：`main` 的 fd59f3a（行号都按这一版；README 每合并一次行号就会移）。8eccff0（#22）之后，05:38 又合并了 #23（playbook 09 叙事、10 钩子与封面、11 作曲，playbook 现在是 00–11 共 12 篇）。在途的 PR 还会改计数：recipes/、新乐器、导演模式。所以下面的数字**现在不冻结**，渲染前再核一遍，逐条改“状态”。
 
 | # | 屏幕上（计划） | 现在的值 | 出处 | 状态 |
 |---|---|---|---|---|
@@ -22,7 +22,7 @@
 | 12 | 自查闭环 · 20 条清单 · 7 项都到 8 分 | 20、7、8 | `templates/TASTE_CHECKLIST.md`；README.zh-CN.md:157–159 | 渲染前再核 |
 | 13 | frame = f(t) | — | CLAUDE.md 硬规则 1 | 不会变 |
 | 14 | 01 手绘短片 · p5.brush；03 数学讲解 · Manim；00 发布短片 · HyperFrames | — | README 展示表（v4 #11：00 不再写 SILENT，样板片在加配乐） | 渲染前再核；样板片的新版 final 出来要重做代理 |
-| 15 | 都是 agent 只看本仓库的文档做出来的 / Made by an agent reading only this repo's docs. | — | README.zh-CN.md:74、README.md:74 | 已对 9f60db7。**v4 #14 的写法（reading only these docs）又过期了** |
+| 15 | 都是 agent 只看本仓库的文档做出来的 / Made by an agent reading only this repo's docs. | — | README.zh-CN.md:74、README.md:74 | 已对 fd59f3a。**v4 #14 的写法（reading only these docs）又过期了** |
 | 16 | 这支片子也是 · 连配乐都是代码 | — | README.md:19、README.zh-CN.md:19 | 渲染前再核 |
 | 17 | Video as code, for coding agents. / 给 coding agent 的视频工作台 | — | 不在 README；和 v3、showcase 00 一致 | 你定留不留 |
 | 18 | `$ bin/vh new <type> <slug>` · github.com/ZLHad/OpenVideoHarness | — | CLAUDE.md 第 3 步；README 安装命令 | 渲染前再核 |
@@ -149,7 +149,7 @@ proto/switch.sh A && (cd proto && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 env -
 | `audio/look/music-opening.wav` | `audio/sketch-v5.wav` 前 23.6 s（`bin/vh music` 代码作曲） | 本仓库 MIT |
 
 ### 10-02 复核：别的会话合并 #41–#50 之后变了的事实（渲染前再按当时的 main 核一遍）
-| 屏幕上（计划） | 关卡 ① 时 | 现在（main 7057c74） | 出处 |
+| 屏幕上（计划） | 关卡 ① 时 | 现在（main c649392） | 出处 |
 |---|---|---|---|
 | N 类视频 | 8 | **9（09 实验中）**；终端回显已改成“9 类里的 02 类” | README.zh-CN.md:7 |
 | N 种风格 | 28 | **31**（#42 加 tabletop-miniature，#49 加 pastel-ui、y2k-chrome） | README.zh-CN.md:7、124 |

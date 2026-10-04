@@ -1,7 +1,7 @@
 # BRIEF · OpenVideoHarness 介绍片 v5
 
 <!-- 关卡 ① 草稿，2026-10-01。只写目标、观众、放在哪、多长；细节在 REVIEW-gate1.md、STORYBOARD.md（节拍表）、NOTES.md。
-     v3：showcase/04-intro-film/v3/（81 s，文档和成片；源码在提交 7057c74）。v4 修订计划的发现照用，格式不用。 -->
+     v3：showcase/04-intro-film/v3/（81 s，文档和成片；源码在提交 c649392）。v4 修订计划的发现照用，格式不用。 -->
 
 ## Spec
 - Effort: studio  <!-- 旗舰片：README 首屏、B站、X。档位可以由你降 -->
