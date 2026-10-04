@@ -36,6 +36,17 @@ npx hyperframes render --quality draft --fps 30 --output out/draft.mp4
 npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 ```
 
+放到后台渲染、这次命令先返回时（agent 常这样跑），再加 `HYPERFRAMES_RENDER_DETACHED=1`：
+
+```bash
+export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_RENDER_DETACHED=1
+nohup caffeinate -i npx hyperframes render --quality draft --fps 30 --output out/draft.mp4 > out/draft.log 2>&1 &
+```
+
+- **为什么**：0.8.82 的 render 开始时记下启动它的那串父进程，之后其中任何一个退出，它就自己取消，日志末尾是 `Render cancelled: render_cancelled_parent_exited`。agent 的一条 Bash 命令返回，那个 shell 就退出了。`nohup … & disown` 挡不住，因为渲染查的是父进程还在不在，不是收没收到信号。设了这个变量，它就不再记父进程（`render --help` 里没写，见 CLI 的 `dist/cli.js` 里的 `createRenderCancellationScope`）。
+- **时有时无**：shell 在渲染起来之前就退了的话，父进程链里已经没有它，能渲完；同一条命令里还在 `sleep` 或 `tail` 日志，就会被取消。所以跑通过一次，不说明可以不加。
+- **代价**：父进程都没了，渲染也不停。不要了就按输出路径停掉：`pkill -f "hyperframes render.*out/draft.mp4"`。前台渲染不用加。`caffeinate -i` 防止 Mac 睡眠，只有 macOS 有，Linux 上去掉。
+
 ### 出 4K
 
 照常按 1080p 写合成。`render --resolution 4k` 让 Chrome 按 2 倍像素密度渲（`devicePixelRatio` = 2）：页面仍按 1920×1080 排版，每个排版像素画成 2×2 个物理像素。这不是把 1080 的画面放大。DOM 和 SVG 自己会变清楚；代码自己画像素的地方，要自己处理这个 2 倍，处理错了不是发糊，而是大小和位置错（介绍片第一版 4K 的标签大了一倍，就是这样）。

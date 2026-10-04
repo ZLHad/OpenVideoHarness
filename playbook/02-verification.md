@@ -62,7 +62,7 @@ npx hyperframes check --snapshots          # 最终关卡：lint + 运行时错�
 npx hyperframes snapshot --at 1.5,4.2,8.0 --describe false  # 指定时刻的静帧；不带 --describe false，设了 GEMINI_API_KEY 时帧会发给 Gemini（见 engines/README.md）
 npx hyperframes preview --background       # 给用户看，确认后再 render
 npx hyperframes render --quality draft     # 快速出片；最终交付用 --quality delivery --output out.mp4
-# 命令前先 export HYPERFRAMES_SKIP_SKILLS=1（见 engines/README.md）
+# 命令前先 export HYPERFRAMES_SKIP_SKILLS=1；render 放到后台、命令先返回时再加 HYPERFRAMES_RENDER_DETACHED=1，否则 shell 退出时渲染会自己取消（见 engines/README.md）
 # snapshot 在 tween 起点可能和渲染结果不一致，关键帧以 mp4 为准。逐帧 strip：
 ffmpeg -i out/draft.mp4 -vf "select='between(n,95,106)',scale=320:-1,tile=6x2" -vsync vfr -frames:v 1 out/check/strip.png
 ```
@@ -169,6 +169,7 @@ ffmpeg -i out.mp4 -loop 1 -i out/check/f0.png -lavfi "psnr=stats_file=out/check/
 ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 out.mp4   # 帧数应等于时长 × fps
 
 # 看门狗（macOS 默认没有 timeout 命令）：超过 25 分钟就杀掉，退出码非 0 就报错
+# 整段在同一个 shell 里等渲染结束，不用加 HYPERFRAMES_RENDER_DETACHED；启动和等待拆成两条命令时要加
 npx hyperframes render --output out/draft.mp4 > out/draft.log 2>&1 & pid=$!; t=0
 while kill -0 $pid 2>/dev/null; do sleep 5; t=$((t+5)); [ $t -ge 1500 ] && { kill $pid; break; }; done
 wait $pid || echo "FAIL: render exited $? (timeout or error), see out/draft.log"

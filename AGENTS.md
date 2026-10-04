@@ -90,7 +90,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 1. **读**：路由表对应的类型文档，只读"工作流"和"禁止"两节（"Prompt 增量块"会贴在 BRIEF 末尾，挑定立意以后再读）；再读 `engines/README.md` 里对应引擎的一节，HyperFrames 先看其中的"最小写法"。
 2. **建项目和立意**：`bin/vh new <type> <slug> --effort quick`。先写 3 个一句话立意，挑一个（`playbook/12-ideation.md` 第 7 节最后一条），再读 BRIEF 末尾的 TYPE 块，决定留哪些默认。风格从立意推出来；想参考预设就 `bin/vh style apply <preset[,preset]> <project>`（`bin/vh style list` 挑），副本放进项目的 `style-refs/`，写 STYLE.md 前翻一遍；借了什么在 `DECISIONS.md` 记一行，和它不一样不用解释。立意和风格各写一行理由进 `DECISIONS.md`；改了哪些口味默认，交付时一并列出。
 3. **写**：补齐 BRIEF；分镜只写简表（镜头、时长、reads）；然后写场景代码。HyperFrames 写完一段，用 `npx hyperframes snapshot --at <秒> --describe false` 看几个关键时刻。
-4. **出片**：HyperFrames 先 `export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1`，再 `npx hyperframes render --quality draft --output out/draft.mp4`；手绘类用 `node render.mjs --clip --out=out/draft.mp4`。
+4. **出片**：HyperFrames 先 `export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1`，再 `npx hyperframes render --quality draft --output out/draft.mp4`；放到后台跑、命令先返回时再加 `HYPERFRAMES_RENDER_DETACHED=1`，否则 shell 一退出，渲染就自己取消（`engines/README.md`）。手绘类用 `node render.mjs --clip --out=out/draft.mp4`。
 5. **自查一遍**：`bin/vh sheet out/draft.mp4` 看整片联系表，对着 `TASTE_CHECKLIST.md` 的 20 条速查；有字就跑 `bin/vh readcheck`。再看两样（命令见 `playbook/02-verification.md` 的"手机测试"）：一张按目标屏缩的联系表（BRIEF 的 `Watch on`：phone、feed 缩到 360 px 宽，desktop 缩到 640），必读字读不读得出，读数、标签别贴着下限；前 2 s 的逐帧 strip，开头是不是第 0 帧就在动、有没有让人停下来的东西。`quick` 没有 reviewer，这两样最容易漏（`docs/research/06-concept-first-ab.md`）。
 6. **声音**（要的话）：`bin/vh music` 或 `bin/vh tts`，再 `bin/vh mix`、`bin/vh qa`、`bin/vh mux`。
 7. **交付**：`bin/vh check` 必跑；交 mp4 路径、联系表，以及自己最不满意的 1–2 处。
