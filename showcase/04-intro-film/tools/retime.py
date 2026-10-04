@@ -1,9 +1,9 @@
-"""Put the film's sound and footage on the stretched timeline of js/tmap.js (review round 3: the reads' holds).
+"""Put the film's sound and footage on the stretched timeline of js/tmap.js (the holds where a read needs more time).
 
 The picture is written on the old 87.5 s timeline and plays through the time map. This script applies the same map to
   - audio/score.json   from audio/score.base.json (the body score, v3.4 at 80 BPM): a bar that holds a stretch is
-                       longer by add / beat; every position (events, holds, layer from/until) moves through the map;
-                       each stretch becomes a hold (a held breath: drums out, bass darkens), merged with existing holds;
+                       longer by add / beat and its patterns keep repeating (no held breath: the music never stalls
+                       for a read); every position (events, the score's own holds, layer from/until) moves through the map;
   - audio/events.json  from audio/events.base.json (the SFX, old film time), after moving two card pops (the station's
                        second pair of cards now lands 0.75 s later);
   - index.html         the composition's duration and the proof hall's four <video> windows (start, duration,
@@ -86,7 +86,6 @@ for sec in sc["sections"]:
                 L[key] = pos_new(L[key])
 sc["master"]["fade"] = [pos_new(x) for x in sc["master"]["fade"]]   # the end fade moves with the last bar's stretch
 holds = [(at_time(pos_new(a), new_starts), at_time(pos_new(b), new_starts)) for a, b in sc.get("holds", [])]
-holds += [(tb(a), tb(b) + 0.0) for a, b, add in BODY]
 holds.sort()
 merged = []
 for a, b in holds:
@@ -96,7 +95,7 @@ for a, b in holds:
         merged.append((a, b))
 sc["holds"] = [[to_pos(a), to_pos(b)] for a, b in merged]
 sc["meters"] = {str(k): n for k, n in enumerate(new_beats, 1) if n != 4}
-sc["title"] = sc["title"].split(" (")[0] + f" (v5: 80 BPM, the reads' holds stretched, {sum(n != o for n, o in zip(new_beats, old_beats))} bars longer by the beats in meters)"
+sc["title"] = sc["title"].split(" (")[0] + f" (v5: 80 BPM, {sum(n != o for n, o in zip(new_beats, old_beats))} bars longer by the beats in meters)"
 (ROOT / "audio/score.json").write_text(json.dumps(sc, indent=1, ensure_ascii=False) + "\n")
 
 # ---- the SFX ----

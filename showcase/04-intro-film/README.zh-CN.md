@@ -1,130 +1,124 @@
 # OpenVideoHarness 介绍片 v5：星河开场 + 一镜到底
 
+1920×1080 · 30 fps · **103 秒（3090 帧）** · −14 LUFS · 成片：[`intro-film-1080p.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4)（297 MB，在 GitHub Release 里）· 封面 [`media/poster.jpg`](media/poster.jpg) · 联系表 [`media/sheet.jpg`](media/sheet.jpg) · English: [README.md](README.md)
 
-成片 [`media/final.mp4`](media/final.mp4) · 1920×1080 · 30 fps · **150.5 s（4515 帧）** · −14 LUFS · 封面 [`media/poster.png`](media/poster.png) · 联系表 [`media/sheet.jpg`](media/sheet.jpg) · English: [README.md](README.md)
+按精品档（studio）做的。前 15.8 秒是代码驱动 Blender 路径追踪渲出来的，之后交给 HyperFrames 和 Three.js。屏幕上的每个数字都照抄仓库，出处在 [NOTES.md](NOTES.md)。上一版（v3，81 秒）在 [v3/](v3/)。
 
-做法：精品档（studio）。开场 15.8 秒用代码驱动 Blender 路径追踪渲出来，之后交给 HyperFrames + Three.js。片里的每个数字都照抄自仓库，出处在 [NOTES.md](NOTES.md)。上一版（v3，81 秒）在 [v3/](v3/)。
+## 观看：6 段 1080p
 
-## 观看：8 段 1080p
+每段都能在这里直接播放，有声音（1080p，每段不到 10 MB，这是 GitHub 在 README 里放视频的上限）。整片一个文件，见上面的 Release 链接。
 
-每段都能在这里直接播放，有声音（1080p，每段不到 10 MB，这是 GitHub 内嵌视频的上限）。整片一个文件：[`media/final.mp4`](media/final.mp4)。
+**1 · 星河开场和那句需求**（0–25 s）
 
-**1 · 星河开场**（0–19 s）
+https://github.com/user-attachments/assets/48923404-eff1-41cd-b303-82c9ede51c1f
 
-https://github.com/user-attachments/assets/9d305423-0e5b-4276-a347-17a072993b6f
+**2 · 路由、9 类视频、文档**（25–41.5 s）
 
-**2 · 一句话需求、路由、9 类视频**（19–42.5 s）
+https://github.com/user-attachments/assets/841df5f9-837d-4138-ab6a-3ff9a092fb57
 
-https://github.com/user-attachments/assets/e3edd617-1450-4484-ad34-040eabcda9e7
+**3 · 它是怎么工作的：关卡、自查回环、成片**（41.5–62.05 s）
 
-**3 · 文档、工具、引擎**（42.5–56.75 s）
+https://github.com/user-attachments/assets/dfa4a89e-ab81-4d2a-abab-5ba3eec57fbe
 
-https://github.com/user-attachments/assets/14549b89-d95a-4713-ab19-aeb21ddc7856
+**4 · 风格、声音、开箱即用、案例**（62.05–75.25 s）
 
-**4 · 它是怎么工作的：人工关卡**（56.75–67.75 s）
+https://github.com/user-attachments/assets/341c462f-dfc2-4272-84c2-3a68936fd957
 
-https://github.com/user-attachments/assets/4303505d-b13e-4b1e-b767-4b3d71c77ae1
+**5 · 放映厅：四支真实的片子**（75.25–90.5 s）
 
-**5 · 自查回环和成片**（67.75–87.5 s）
+https://github.com/user-attachments/assets/27cc7042-f160-4f49-8590-3c93661d4377
 
-https://github.com/user-attachments/assets/e4fa59b8-3941-4fdd-ada4-62b4be4f3a82
+**6 · 这支片子也是；片名**（90.5–103 s）
 
-**6 · 风格、声音、开箱即用、案例**（87.5–111.5 s）
-
-https://github.com/user-attachments/assets/0742ee3a-edfc-479a-aff5-b44cf2f3c75f
-
-**7 · 放映厅：四支真实的片子**（111.5–133.25 s）
-
-https://github.com/user-attachments/assets/38b34557-3232-4a87-be0f-b1c85e919f2b
-
-**8 · 这支片子也是；片名**（133.25–150.5 s）
-
-https://github.com/user-attachments/assets/22c034c6-c6c1-46ba-9e68-3da30dcac882
+https://github.com/user-attachments/assets/a8bf490c-3fae-4d3b-84a4-39d725def0f5
 
 ## 你说了什么（原话）
 
 - 关卡 ①（2026-10-01）："开场还可以，但是不够震撼，特效不好，不连贯，而且瀑布流看起来都是一样的片子，最好各种各样很多片子，玻璃、宇宙、星穹等感觉要让人已看到开头就被吸引，令人瘫坐眩晕的感觉"
 - 看完 WebGL 版的 look-dev（10-02）："有一点点廉价特效的感觉？……是否这些片子可以以星河、恒星等形式展现？或者使用blender？好莱坞大片质感"
 - 看完 Blender 版（10-02）："不过是否很多地方存在一些抖动，前面有几处不是特别连贯……从15秒开始还是正常非blender的渲染1080p，就前15秒blender……直接做最终版吧"
+- 看完 150.5 秒那版（10-04）："整体片子开头之后的内容节奏都太慢了，文字显示后停顿时间过长了最早的版本节奏是合理的，除了当时个别镜头太快"；"很多字的停顿就太长了  但也不是那种一闪而过的 要优化体验"。看完这一版："节奏可以（个别bgm音效要和视频内容节奏同步就好了）"
 
 完整的原话、每一关的决定和代审记录在 [REVIEW.md](REVIEW.md)，agent 自己定的事和理由在 [DECISIONS.md](DECISIONS.md)。
 
 ## 片子讲什么
 
-立意：**每颗星都是一支片子。** AI 做视频的工具多到成了一个星系；它坍缩、被二向箔压平，再被 harness 整理成网格和一行需求：不缺工具，缺门道。
+立意：**每颗星都是一支片子。** AI 视频工具多到成了一个星系；星系坍缩、爆开，被二向箔压平，再由 harness 整理成网格，收成一句需求：不缺工具，缺门道。
 
 | 时间 | 画面 | 引擎 |
 |---|---|---|
-| 0–4.2 s | 一张玻璃片里的地球；镜头飞速拉远，四周全是片子，原来它只是一个星系里的一颗星。字：So many AI video tools. / AI 视频工具，多到数不清。 | Blender |
-| 4.2–8.0 s | 星系越转越快，镜头在上方螺旋下坠，一层片子被卷着掠过（眩晕） | Blender |
-| 8.0 s | 星系坍缩成超新星：冲击环、带红青两色丝缕的气体壳、四散的片子（全片唯一一次闪白） | Blender |
-| 9.0–10.4 s | 二向箔：一道光环扫过，三维的碎片被压成一片影片之海 | Blender |
-| 10.4–13.8 s | What's missing? / 差的是什么？ | Blender |
-| 14.0–18.8 s | 琥珀扫光把影片整理成通向地平线的网格；OpenVideoHarness · Not more tools. Know-how. / 不缺工具，缺门道。 | Blender，15.0–15.6 s 溶解进 WebGL |
-| 18.6–29.0 s | 网格收成一行行文字，终端里打出一句需求（“做一个竖屏科普：为什么低轨卫星的信号会‘变调’”，就是 showcase 02 回答的那一句）；回车，镜头钻进终端 | WebGL + DOM |
-| 29.0–56.75 s | 路由：这句需求 → Claude Code / Codex → CLAUDE.md 路由 → 9 类视频，它自己那一类（02 科普）亮起来，其余变暗 → playbook、templates、styles、bin/vh → engines、references → projects/ | Three.js |
-| 56.75–87.5 s | 这句需求走一遍工作流：三道人工关卡，每道门都是被审的东西（02 的大纲、分镜、初版联系表）；自查回环（三次不合格，每次 02 的一帧变红，然后全部通过）；成片处播的就是 02，+ LESSONS.md | Three.js |
-| 87.5–106.25 s | 31 种风格的样片墙 · 声音一条龙 · 开箱即用 | Three.js |
-| 106.25–111.5 s | 13 个案例拆解 + 389 支社区作品 | Three.js |
-| 111.5–133.25 s | 放映厅：showcase 01、03、02、00 的真实成片 | Three.js |
-| 133.25–142.25 s | 这支片子也是 · 连配乐都是代码 | Three.js |
-| 142.25–150.5 s | 片名、安装命令、GitHub 地址 | Three.js |
+| 0–4.2 s | 一张玻璃卡片里是地球；镜头飞速拉远，四周都是片子，原来这张卡只是一个星系里的一颗星。"AI 视频工具，多到数不清。" | Blender |
+| 4.2–8.0 s | 星系越转越快，镜头螺旋着往下坠，一层影片从镜头前扫过 | Blender |
+| 8.0 s | 星系坍缩、爆开：冲击环、带红青丝缕的气体壳、四散的影片（全片唯一一次全屏闪白） | Blender |
+| 9.0–10.4 s | 二向箔：一圈光扫过平面，把碎片压成一片影片之海 | Blender |
+| 10.4–13.8 s | "差的是什么？" | Blender |
+| 14.0–18.8 s | 琥珀色扫光把影片整理成通向地平线的网格；OpenVideoHarness · Not more tools. Know-how. / 不缺工具，缺门道。 | Blender，15.0–15.6 s 溶解进 WebGL |
+| 18.6–25.0 s | 一行行收成文字；终端里打出一句需求（"做一个竖屏科普：为什么低轨卫星的信号会'变调'"，也就是样片 02 回答的那个问题）；回车，镜头扎进去 | WebGL + DOM |
+| 25.0–41.5 s | 路由：需求 → Claude Code / Codex → CLAUDE.md 路由 → 9 类视频（需求所属的 02 科普短视频亮起，其余变暗）→ playbook、模板、风格、bin/vh → 引擎、参考仓库 → projects/ | Three.js |
+| 41.5–62.05 s | 这句需求走一遍流程：三道人工关卡，每道都是用被审的东西做成的门（02 的大纲、分镜、初版联系表）；自查回环（三次报错各有一帧 02 变红，最后全部通过）；成片处播的就是 02，外加 LESSONS.md | Three.js |
+| 62.05–71.5 s | 31 种风格的样片墙 · 声音一条龙 · 开箱即用 | Three.js |
+| 71.5–75.25 s | 13 个案例拆解，一颗星一颗星亮起 + 389 支社区作品 | Three.js |
+| 75.25–89.5 s | 放映厅：样片 01、03、02、00 的真实片子 | Three.js |
+| 89.5–96.25 s | 这支片子也是 · 连配乐都是代码 | Three.js |
+| 96.25–103 s | 片名、安装命令、GitHub 地址 | Three.js |
 
-正文的空间里一直飘着开场那些片子的小画面，"每颗星都是一支片子"从头走到尾。
+开场那些影片的小画框在正文的世界里一直飘着，"每颗星都是一支片子"从第一帧贯穿到最后一帧。
 
 ## 怎么做的
 
-- **开场（0–15.8 s）：Blender 5.2，Cycles，Metal。** [`blender/galaxy.py`](blender/galaxy.py) 用 numpy 逐帧算出 118 万颗星、1.6 万张会变成玻璃卡片的"片星"和 260 张影片帘幕的位置，写进网格再渲；运动模糊来自每个点的 `velocity` 属性和相机的逐帧关键帧。旋臂光雾、尘埃带、超新星的气体都是体积着色器，用 [`blender/nodexpr.py`](blender/nodexpr.py) 把数学式编译成节点。1080p、64 采样（特写 96）、不降噪，475 帧渲了 1 小时 28 分（M3 Max）。Blender 在沙箱里跑：不联网、只能写输出目录、不继承环境变量（[`tools/bl.sh`](tools/bl.sh)）；分块、可续渲（[`tools/bl_render.sh`](tools/bl_render.sh)）。
-- **接力（15.0–29 s）：WebGL。** [`tools/export_state.py`](tools/export_state.py) 不启动 Blender，从同一份 `galaxy.py` 导出每张卡片的格位、片源和逐帧相机；[`js/grid.js`](js/grid.js) 用同一个相机重画同一批卡片，两边在 15.0–15.6 s 交叉溶解。字和终端是 DOM（[`js/open-overlay.js`](js/open-overlay.js)），不经过任何后期，永远清晰。
-- **正文（29 s 起）：v3 的一镜到底世界。** [`js/main.js`](js/main.js)、[`js/arch.js`](js/arch.js)、[`js/pipeline.js`](js/pipeline.js)、[`js/features.js`](js/features.js)。相对 v3：速度从 90 降到 80 BPM；第 3、4 轮评审之后，又把 26 个停留段拉长，让每句字都停够清单的读时下限（[`js/tmap.js`](js/tmap.js)：故事写在旧的 87.5 s 时间线上，按这张表取帧，飘着的片子、火花和手持漂移走真实时间；[`tools/retime.py`](tools/retime.py) 按同一张表搬配乐的小节、事件和音效）；数字更新到现在的仓库（9 类、13 篇 playbook、11 个模板、31 种风格、30 个参考仓库、13 个案例、21 个音效、102 种乐器）；"把品味写成数字"那块换成 31 种风格的样片墙；路径两边飘着开场的片子；标签加了更深的底板，连线从字后面穿过；去掉了时间码 HUD。
-- **片源：109 段。** 28 段是着色器生成的（星云、黑洞、玻璃、极光、海……，[`opening/films.js`](opening/films.js)），41 段截自本仓库的风格样片和样板片（[`tools/film_atlas.py`](tools/film_atlas.py)），40 张是 AI 生图（`gemini-3.1-flash-image`，16:9、512 px，约 1.8 美元；图和提示词在 [`assets/ai/`](assets/ai/)，[`tools/gen_images.py`](tools/gen_images.py)），在卡片里做慢推，看起来像在播放。只用虚构的人物和地点，没有品牌和 logo。
-- **声音。** 开场是关卡 ① 的配乐草图（120 BPM，主旋律 B：F# A B 往上走、在问句里悬住）；第 11 小节为终端那一停多奏三遍；29 s 起接 v3 的电影感配乐（[`audio/score.json`](audio/score.json)，改成 80 BPM，D 小调，为停留段加长了 20 个小节，加出来的部分是一口屏住的气，鼓撤掉），从它的第 10 小节开始。124 个音效事件按画面动作摆（开场的在 [`audio/events.json`](audio/events.json) 前 39 条）。`bin/vh mix profile=promo` 混到 −14 LUFS，`bin/vh qa` 通过。
+- **开场（0–15.8 s）：Blender 5.2，Cycles，Metal。** [`blender/galaxy.py`](blender/galaxy.py) 用 numpy 逐帧算出 118 万颗星、1.6 万颗靠近镜头会变成玻璃卡片的"片星"，以及帘幕里的 260 张卡片的位置，写进网格再渲染。运动模糊靠每个点的 `velocity` 属性和逐帧的相机关键帧。旋臂光雾、尘埃带、爆开的气体都是体积着色器，[`blender/nodexpr.py`](blender/nodexpr.py) 把数学式编译成着色器节点。1080p，64 采样（特写 96），不降噪，475 帧在 M3 Max 上用了 1 小时 28 分。Blender 在沙箱里跑（不联网、只能写输出目录、不继承环境变量，见 [`tools/bl.sh`](tools/bl.sh)），分块、可续渲（[`tools/bl_render.sh`](tools/bl_render.sh)）。
+- **交接（15.0–25 s）：WebGL。** [`tools/export_state.py`](tools/export_state.py) 不启动 Blender，从同一份 `galaxy.py` 导出每张卡片的格位、片源和逐帧相机；[`js/grid.js`](js/grid.js) 用同一个相机重画同一批卡片，两边在 15.0–15.6 s 交叉溶解。字和终端是 DOM（[`js/open-overlay.js`](js/open-overlay.js)），不经过任何后期。
+- **正文（25 s 起）：v3 的一镜到底世界**（[`js/main.js`](js/main.js)、[`js/arch.js`](js/arch.js)、[`js/pipeline.js`](js/pipeline.js)、[`js/features.js`](js/features.js)），速度从 90 BPM 改成 80 BPM，数字更新到现在的仓库（9 类、13 篇 playbook、11 个模板、31 种风格、30 个参考仓库、13 个案例、21 个音效、102 种乐器），加了 31 种风格的样片墙和路边飘着的影片，去掉了时码 HUD。
+- **节奏。** 故事写在一条 87.5 秒的时间线上，经过一张时间表（[`js/tmap.js`](js/tmap.js)）播放：只有 15 处会一闪而过的地方放慢一点，每条字停到中英文任选一种能读完一遍为止（英文约每秒 20 个字符，中文约每秒 7 个字，再加 0.8 秒，最少 1.5 秒），然后镜头就走。飘着的影片、火花、手持晃动按片子自己的时间走，放慢的那几处世界不会停。之前有一版按更严的读时公式拉长了 26 处，片长 150.5 秒，每条字后面都像卡住了；这一版回到 87.5 秒的节奏，只多了 15.5 秒。
+- **片源：109 段。** 28 段是着色器（星云、黑洞、玻璃、极光、海……，[`opening/films.js`](opening/films.js)），41 段截自本仓库的风格样片和样片成片（[`tools/film_atlas.py`](tools/film_atlas.py)），40 张 AI 静图（`gemini-3.1-flash-image`，16:9、512 px，约 1.8 美元；图和提示词在 [`assets/ai/`](assets/ai/)，[`tools/gen_images.py`](tools/gen_images.py)）加慢推，看起来像在播放。只画虚构的人和地方，没有品牌和商标。
+- **声音。** 开场用关卡 ① 的配乐草图（120 BPM，主旋律 B：F# A B 往上走，停在问句上），终端那一停把它的第 11 小节奏两遍。25 秒起接 v3 的电影感配乐（[`audio/score.json`](audio/score.json)，80 BPM，D 小调），从它的第 10 小节进；[`tools/retime.py`](tools/retime.py) 把含放慢处的 12 个小节按整拍加长，加长的部分织体照常往下走，音乐不会为读字停下来。124 个音效落在画面事件上（[`audio/events.json`](audio/events.json)，片子时间）。做过一次声画同步检查：把配乐里每个有名字的重音和同一画面事件的音效配对，挪回了之前几轮改画面时没跟着动的四处：第二对目录卡片、13 颗案例星（13 个钢片琴音，一颗星一个；案例那一停改到第 13 颗星亮起之后，音才不会被拉偏）、"这支片子也是"、片尾打字。`bin/vh mix profile=promo` 混到 −14 LUFS；[`tools/build_audio.sh`](tools/build_audio.sh) 从源文件重建全部声音并跑 `bin/vh qa`。
 
 ## 检查
 
-- `bin/vh check`：没有黑场、定格、静音段；yuv420p、limited range、BT.709，四个色彩标签齐全。
-- 全片只有一次全屏闪白（8.0 s 的超新星）。
-- 镜头连续性用数字查过：475 帧 Blender 底片的帧差曲线平滑起落，只有超新星和 5.1 s 一张卡片掠过镜头两处跳变，都是设计的；每次改时间线以后整片再扫一遍，拉长的停留段里没有“停几帧再跳一下”，剩下的跳变都是甩镜、节点通电和放映厅里那几支片子自己的剪切。
+- `bin/vh check`：没有黑场、定格、静音；yuv420p、limited range、BT.709，四个颜色标签齐全。
+- 全片只有一次全屏闪白（8.0 s 爆开）。
+- 读时：之前几版出过问题的字逐帧量过（每秒 4–10 帧），现在每条都不短于 `templates/TASTE_CHECKLIST.md` 第 5 条给短标签的时间（路由那行约 2.0 秒，关卡 ② 约 2.7 秒，pass 约 2.0 秒，关卡 ③ 和 Final cut 约 2.3 秒，"这支片子也是"约 1.9 秒）。
+- 声画同步，量过：每个大的画面事件（爆开、每次到站、关卡通过、报错、通过、片名）都有声音落在一帧之内；配乐里有名字的重音，凡是和音效属于同一个画面事件的，都和那个音效重合（偏差 0.00 秒），13 个钢片琴音落在 13 颗案例星上（0.000 秒）。没有对应音效的几处里，声音面板的四行和"这支片子也是"对着帧查过，风格墙第一行（`taste:1`）没查。
+- 镜头连贯，量过：Blender 的 475 帧算了帧差曲线（平滑起落；只有爆开和 5.1 s 一张卡片掠过镜头两处跳变，都是设计的），每次改时间以后整片也算一遍（放慢处没有一顿一顿；剩下的跳变是甩镜、上电和放映厅片子里的剪辑点）。
 - Blender 确定性（正式底片）：第 100、300 帧在新进程里重渲，和序列比 PSNR 71.3 dB、47.3 dB（底线 45 dB）。
-- 音频（`bin/vh qa`）：0 数字静音、0 掉音、0 抽吸；62 个卡点都在 1 帧以内（中位 5.1 ms）；−14.0 LUFS，−1.65 dBTP。click 提醒见下文。
-- 读时：reviewer 从帧上按清单公式、分语言量；第 3、4、5 轮之后各拉长过一次停留（第 5 轮最后的修改没有再量）。
+- 声音（`bin/vh qa`）：没有数字静音、掉音、抽吸；62 个卡点全部在一帧以内（中位 5.3 ms）；−14.0 LUFS，−1.65 dBTP。click 提醒见下面。
 
 ## 独立评审
 
-关卡 ②③ 你授权跳过（"直接做最终版吧"），由全新上下文的 reviewer 代审，按 `templates/TASTE_CHECKLIST.md` 的 20 条和 8 项打分：
+你授权跳过关卡 ②③（"直接做最终版"），所以由全新上下文的 reviewer 代审，对照 `templates/TASTE_CHECKLIST.md` 的 20 条和 8 项打分：
 
-| 轮 | 片子 | 立意 | 钩子 | 桌面可读 | 运动 | 变化 | 完成度 | 准确 | 声画 |
+| 轮 | 版本 | 立意 | 钩子 | 桌面可读 | 运动 | 变化 | 完成度 | 准确 | 声画 |
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | draft 2（第一版 Blender 底片） | 6 | 7 | 5 | 6 | 6 | 5 | 7 | 7 |
 | 2 | draft 3，87.5 s | 6 | 7 | 6 | 7 | 8 | 5 | 7 | 7 |
-| 3 | 最终底片，87.5 s | 7 | 8 | 6 | 7 | 7 | 6 | 7 | 8 |
-| 4 | 130 s（拉长 21 个停留段） | 8 | 7 | 8 | 7 | 7 | 7 | 9 | 8 |
-| 5 | 147.5 s（26 个停留段） | 7 | 7 | 8 | 8 | 6 | 7 | 7 | 7 |
+| 3 | 正式底片，87.5 s | 7 | 8 | 6 | 7 | 7 | 6 | 7 | 8 |
+| 4 | 130 s（拉长 21 处） | 8 | 7 | 8 | 7 | 7 | 7 | 9 | 8 |
+| 5 | 147.5 s（拉长 26 处） | 7 | 7 | 8 | 8 | 6 | 7 | 7 | 7 |
 
-每轮改了什么在 [NOTES.md](NOTES.md)。第 5 轮的修改都在这一版里，没有再审：你说这一轮做完就提交。精品档的线（8 项都 ≥ 8）没有到，剩下的写在“已知的不完美”。改动最大的一处来自第 5 轮：开头打的那句需求现在贯穿正文（9 类里它那一类亮起来，三道关卡的门是它的大纲、分镜、初版，自查回环里是它的帧变红，成片处播的就是它）。
+每轮改了什么在 [NOTES.md](NOTES.md)。改动最大的一处来自第 5 轮：开头打的那句需求贯穿了正文（9 类里它那一类亮起来，三道关卡的门是它的大纲、分镜、初版，自查回环里是它的帧变红，成片处播的就是它）。五轮之后你自己看了：第 3–5 轮把停留按严格的读时公式越拉越长，150.5 秒那版看着很慢。这一版 103 秒就是针对这个改的，节奏你认可了；reviewer 没有再给它打分。
 
 ## 复现
 
 ```bash
+tools/fetch_media.sh 00-promo 01-hand 02-short 03-math v3            # 在仓库根目录：从 GitHub Release 下载截片源要用的样片和 v3
 cd showcase/04-intro-film
-npm i && bash tools/make_clips.sh                                   # HyperFrames、three；showcase 00–03 的代理 → assets/clips/
+npm i && bash tools/make_clips.sh                                    # HyperFrames、three；样片 00–03 的代理 → assets/clips/
 bash tools/opening_export.sh                                         # 着色器片源 → assets/films-proc.png，开场那张片 → assets/hero-earth.png
 uv run --no-project --with pillow python tools/film_atlas.py         # 41 段本仓库样片 → assets/films.jpg（逐字节相同）
 uv run --no-project --with pillow python tools/ai_atlas.py           # 40 张 AI 生图 → assets/films-ai.jpg（以及远处卡片用的小图集）
 tools/bl_render.sh 0 474 final2                                      # Blender 开场，1080p，约 1 小时 28 分（只在 macOS 上）
 uv run --no-project --with numpy python tools/export_state.py       # 卡片和相机 → assets/state.json
 uv run --no-project --with pillow python tools/request_tex.py ../02-short-leo-doppler   # 关卡的门和自查回环：02 的分镜、初版联系表、帧
-bash tools/deliver.sh                                                # 底片、HyperFrames 渲染、声音（tools/build_audio.sh）、质检、编码、README 的 8 段、封面、联系表
+bash tools/deliver.sh                                                # 底片、HyperFrames 渲染、声音（tools/build_audio.sh）、质检、编码、封面、联系表、README 的 6 段
 ```
 
-Blender 这几步只在 macOS 上跑：`tools/bl.sh` 用 `sandbox-exec` 套沙箱，`galaxy.py` 用 Metal 渲染（别的系统自己跑 Blender，并改 Cycles 的设备）。`tools/chapters.sh` 切出 README 里的 8 段（1080p，每段 ≤ 9.6 MB），`tools/watermark.sh` 加角上的小字；其他样片在 README 里的播放版也是用它加的。AI 生图不能逐字节重来：`assets/ai/` 里就是用的那 40 张。片子写在旧的 87.5 s 时间线上，按 [`js/tmap.js`](js/tmap.js) 播放；改了这张表以后跑 `python3 tools/retime.py`（配乐、音效、几段素材的窗口），再重建声音。`tools/self_sheets.sh <draft.mp4>` 把这支片子自己的帧烤进“这支片子也是”后面那面墙（先渲 draft，再出正式版）。
+Blender 这几步只在 macOS 上跑：`tools/bl.sh` 用 `sandbox-exec` 套沙箱，`galaxy.py` 用 Metal 渲染（别的系统自己跑 Blender，并改 Cycles 的设备）。`tools/deliver.sh` 写出的 `out/final.mp4` 就是 Release 里那个文件；`tools/chapters.sh` 切出 README 里的 6 段（1080p，每段不到 10 MB），`tools/watermark.sh` 加角上的小字（其他样片在 README 里的播放版也是用它加的）。AI 生图不能逐字节重来，`assets/ai/` 里就是用的那 40 张。改了 [`js/tmap.js`](js/tmap.js) 以后跑 `python3 tools/retime.py`（配乐、音效、几段素材的窗口），再重建声音。`tools/self_sheets.sh <draft.mp4>` 把这支片子自己的帧烤进"这支片子也是"后面那面墙（先渲 draft，再出正式版）。
 
 ## 已知的不完美
 
-- **8 项没有全到 8 分。** 最低是“变化”（6）：29 s 以后每一站都是同一套语法（滑进来、停、标签、甩走），在同一条琥珀色的走廊里。
-- **150.5 s 对介绍片来说偏长。** 读时下限让它从 87.5 s 长到这么长；要更短得减站点，不能把每站再加快。
-- **配乐里的 click 提醒。** `bin/vh qa` 在配乐 stem 里报了约 190 处硬边，来自 v3 配乐 pulse 声部锯齿波的门限；停留段里鼓撤掉以后更露。没有人耳复听过。
-- **8.0 s 超新星那一下**大部分能量在 150 Hz 以下，笔记本扬声器上偏弱；起音靠叠的一层 whip。
-- **终端那一停**是把开场草图的一个小节多奏了三遍。
+- **8 项没有全到 8 分。** 最低是"变化"（6）：25 秒以后每一站都是同一套语法（滑进来、停、标签、甩走），在同一条琥珀色的走廊里。
+- **配乐里的 click 提醒。** `bin/vh qa` 在配乐 stem 里报了约 150 处硬边，来自 v3 配乐 pulse 声部锯齿波的门限。现在放慢处鼓不撤了，没有 150.5 秒那版（约 190 处）那么露，但还没有人耳复听过。
+- **8.0 秒爆开那一下**大部分能量在 150 Hz 以下，笔记本扬声器上偏弱；起音靠叠的一层 whip。
+- **终端那一停**是把开场草图的一个小节奏了两遍。
 - **重新导出着色器图集**（`tools/opening_export.sh`）时第 27 行（地球片）会和 Blender 用的那版略有不同：地球着色器在导出之后改过（其余 27 行逐像素相同）。
-- **无损帧确定性**只量了 Blender 底片，这一版的 HyperFrames 正文没有重新量过。
+- **无损帧确定性**只量了 Blender 底片，这一版的 HyperFrames 正文没有量过。

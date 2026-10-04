@@ -43,7 +43,7 @@ export function makeOverlay(root, opts) {
     t2.style.opacity = win(t, TL.t2[0], TL.t2[1]).toFixed(3); arrive(t2, t, TL.t2[0]);
     t3.style.opacity = win(t, TL.t3[0], TL.t3[1], 0.3, 0.15).toFixed(3); arrive(t3, t, TL.t3[0]);
     const ot = eOut(seg(t, TL.term[0], TL.term[0] + 0.45));
-    const hold = 0.03 * eInOut(seg(tn, 21.3, 27.3));   // a slow push while the request holds (the story is nearly still there)
+    const hold = 0.03 * eInOut(seg(tn, 21.3, window.__tNew(22.0)));   // a slow push while the request holds (the story is nearly still there)
     const push = eIn(seg(t, TL.enter, 23.0)); term.style.transform = `scale(${(0.97 + 0.03 * ot + hold + 0.12 * push + 1.4 * eIn(seg(t, 22.45, 23.0))).toFixed(4)})`;
     term.style.opacity = (ot * (1 - seg(t, 22.72, 22.95))).toFixed(3);
     const n = Math.floor(clamp((t - 19.15) / 1.85) * TXT.req.en.length); typed.textContent = TXT.req.en.slice(0, n);
