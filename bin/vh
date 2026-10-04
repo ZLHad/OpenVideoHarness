@@ -51,7 +51,7 @@
 #                               a clip marked data-read="subtitle" (a caption that repeats the narration) is checked as a subtitle
 #                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [--out f]: the composition's timed text
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
-#   check <video>               ffprobe + black/freeze/silence detection
+#   check <video>               ffprobe + black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any) + colour tags
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -520,11 +520,30 @@ cmd_check() {
   local hits; hits=$(ffmpeg -i "$v" -vf "blackdetect=d=0.3,freezedetect=d=3" -af silencedetect=d=3 -f null - 2>&1 | grep -E "black_|freeze_|silence_" | sed 's/.*\] //' || true)
   if [ -z "$hits" ]; then echo "$c_ok no black/freeze/silence segments over threshold"
   else echo "$hits"; echo "$c_wa review each hit: dark backgrounds (e.g. 3b1b black), intentional holds and silent videos trigger these by design"; fi
+  # isolated frames: one frame unlike both neighbours while they agree (another scene flashed in, garbled text): a capture
+  # glitch too short for freezedetect, and a snapshot of that time is clean (playbook/02-verification.md, 静默失败)
+  local iso rc=0 py=()
+  if command -v uv >/dev/null 2>&1; then py=(uv run -q --no-project --with numpy python)
+  elif python3 -c "import numpy" 2>/dev/null; then py=(python3); fi
+  if [ ${#py[@]} = 0 ]; then echo "$c_wa isolated-frame scan skipped: it needs numpy (install uv)"
+  else
+    iso=$("${py[@]}" "$ROOT/tools/isoframes.py" "$v") || rc=$?
+    case "$rc:$iso" in   # uv also exits 1 when it cannot install numpy, so the words decide, not the status alone
+      0:*) echo "$c_ok $iso" ;;
+      1:[0-9]*" isolated frame"*) echo "$c_no $iso"
+        echo "   a flash you designed (a flash frame, a flicker) is listed too; otherwise snapshot that time (HyperFrames: npx hyperframes"
+        echo "   snapshot --at <s> --describe false) and compare it with the mp4's frame (ffmpeg -ss <s> -i <video> -frames:v 1 f.png)."
+        echo "   A bad snapshot: the scene itself jumps there. A clean one: the render's capture glitched; for HyperFrames, re-render"
+        echo "   with --no-browser-gpu --experimental-fast-capture=false and scan again (playbook/02-verification.md, 静默失败)" ;;
+      *) rc=2; echo "$c_wa isolated-frame scan failed (error above)" ;;
+    esac
+  fi
   # colour: browsers read untagged or BT.601-tagged HD video with the wrong matrix (playbook/02-verification.md, 色彩标签)
   local col; col=$(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt,color_range,color_space,color_transfer,color_primaries -of csv=p=0 "$v" 2>/dev/null)
   if [ -z "$col" ]; then :
   elif [ "$col" = "yuv420p,tv,bt709,bt709,bt709" ]; then echo "$c_ok colour: yuv420p, limited range, BT.709 with all four tags"
   else echo "$c_wa colour: $col (pix_fmt,range,matrix,transfer,primaries); deliver yuv420p, tv, bt709 ×3 — re-encode with the command in playbook/02-verification.md (色彩标签)"; fi
+  [ "$rc" != 1 ]   # exit 1 on isolated frames; the other findings are for review
 }
 cmd_tts() {
   local proj=${1:?usage: bin/vh tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json --snap beat|half|downbeat --lead s] [--align gemini] [--join block|all] [--resume]} pos=() deps=""

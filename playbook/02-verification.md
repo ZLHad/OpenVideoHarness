@@ -14,7 +14,7 @@
    - 渲染器自带的检查，例如 HyperFrames `check` 会查 DOM 包围盒、文字溢出和对比度；
    - 打印所有对象的包围盒，检查有没有重叠（SGA 的做法）；
    - 用像素统计找空白帧和卡住的帧：逐帧 YAVG 找突降，逐帧和第 0 帧比 PSNR，见下文"静默失败"；
-   - 黑场、冻结、静音检测（命令见下文）；
+   - 黑场、冻结、静音检测（命令见下文），孤立帧扫描（`bin/vh check` 一并做，见下文"静默失败"）；
    - `ffprobe` 核对时长、fps、音轨和色彩标签（命令见下文"色彩标签"）；
    - 检查输出文件的修改时间，防止把旧文件当成新结果。
 3. **看静帧**（用 Read 工具读图），分三种粒度：
@@ -152,6 +152,7 @@ ffmpeg -i out/det/w1/frame_%06d.png -i out/det/w3/frame_%06d.png -lavfi psnr=sta
 - **空帧。** 异步 build 还没完成，worker 的第一帧就被截了图。介绍片里是每个 worker chunk 开头的 1–2 帧，YAVG 24，前后都是 62。逐帧读 `signalstats` 的 YAVG，找突降。修法：在一段经典内联脚本里同步注册一个就绪 promise，由模块脚本在 build 完成、第一帧画完之后 resolve，渲染器等它再截图。
 - **build 的 promise 失败没人接，整段黑场。** 介绍片 v5 里正文的组装抛了一个“先用后定义”的错，`build().then(...)` 没有失败分支：页面不报错，快照和渲染都是只剩暗角的黑底。异步组装的 promise 一律接上失败分支，`console.error` 打出堆栈再抛出去，让渲染器和快照都能看见。
 - **渲染永远挂住。** importmap 指向 CDN 时，断网会让渲染卡在页面加载处：日志 0 字节，不报错，进程也不退出。依赖一律装进项目（`npm i -D --save-exact`，importmap 指向 `./node_modules/`），渲染外面再包一层看门狗：超时就杀掉，检查退出码，核对帧数，抽几个时间点查 YAVG，确认主画面层确实画出来了。
+- **单帧坏帧：闪进别的场景，或者字被画成乱码，同一时刻的 snapshot 却是干净的。** 一支 160 s 的 canvas 片子用 HyperFrames 0.8.82 渲染，浏览器 GPU 开着，drawElement 截帧自检失败后退回多 worker 截屏（日志：`drawElement self-verification failed; re-rendering via screenshot`）。同样的设置渲了 4 次，有 1 次出了 6 处坏帧，每处只有一帧：太短，黑场和冻结检测看不到；snapshot 走另一条截帧路径，抽 snapshot 也查不出。`bin/vh check` 的孤立帧扫描（`tools/isoframes.py`）专找这种帧：192×108 灰度下，一帧和前、后两帧都有超过 1% 的像素差 12 级以上，而前后两帧彼此很像，就判失败，列出时间（向下取整到毫秒，`ffmpeg -ss <秒> -i out.mp4 -frames:v 1 f.png` 正好取到那一帧）。切镜不算；设计好的单帧闪会被列出来（风格样片 `scratched-type` 的红闪帧、`neon-step-print` 的路灯和招牌一闪），对照分镜排除。其余的，在那个时刻 snapshot 一张，和 mp4 里的那一帧比：snapshot 也坏，是画面本身在那一帧跳了（比如镜头路径）；snapshot 干净、mp4 坏，就是截帧出的错。修法（还在验证）：加 `--no-browser-gpu --experimental-fast-capture=false` 软件渲染，这支片子 4800 帧约 1–2 分钟，之后 7 次渲染扫出来都是 0。扫描有漏：那 6 处里它抓到画面大块出错的 4 处，漏了只坏几个字的 2 处（几个字的碎片占 0.3% 的像素，手机里缺了几个字占 0.1%），所以有字的段落照样看 strip。
 
 ```bash
 ffmpeg -i out.mp4 -vf "signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=out/check/yavg.txt" -f null -   # 逐帧平均亮度，找突降
