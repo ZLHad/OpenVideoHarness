@@ -164,7 +164,7 @@ uv run manim -qh --fps 30 scene.py MyScene       # 成片：1080p30（-qh 默认
   frame_rate = 30
   ```
 
-  场景里的坐标照旧以画面高 8 个单位为准，横向只剩 4.5 个单位，按竖屏重新排版。
+  渲染时要带 `-r`：`-ql`、`-qh`、`-qk` 都会把像素尺寸改回横屏预设，而 `frame_width` 留在 4.5，结果是一张横屏片、只露出竖屏画面中间的一段（0.21 实测）。草稿 `uv run manim -ql -r 540,960 scene.py MyScene`，成片 `uv run manim -r 1080,1920 --fps 30 scene.py MyScene`（不带 `-q`），4K `-r 2160,3840 --fps 30`。场景里的坐标照旧以画面高 8 个单位为准，横向只剩 4.5 个单位，按竖屏重新排版。
 - 【综合】选 Python 3.12 是求稳；如果装不上，以 docs.manim.community 的安装说明为准，并把最终可用的命令记进 `LESSONS.md`。
 - manim-voiceover 需要的 TTS 后端，按它的 README 选装。
 - 锚点网格和包围盒审计有现成实现：`showcase/03-math-fourier/scenes/style.py`，可以复制到自己的项目里用。
