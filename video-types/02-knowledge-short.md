@@ -69,27 +69,30 @@
 |---|---|---|---|---|
 | YouTube Shorts | 竖屏或方形，上传上限 1080p [S5] | 3 分钟：2024-10-15 起上传的方形或竖屏、不超过 3 分钟的视频归为 Shorts [S4] | 在 Shorts feed 里作用弱 [S9] | 标题 ≤ 100 字符，描述 ≤ 5000 字符 [S10] |
 | TikTok | 9:16 全屏，不低于 720P [S2]；广告建议 ≥ 540×960 [S3] | 自然内容 2021-07-01 起可到 3 分钟 [S1b]；10 分钟、60 分钟的测试只见媒体报道 | — | 文案 4000 字符【二手】 |
-| 抖音 | 1080×1920 是行业默认；横屏 16:9 也有（10-04 补：案例里的 10 支"Vibe知识大赏"，赞数最高的四支都是横屏，`cases/douyin-vibe-knowledge.md`） | 和账号权限有关，说法不一 | 主页按 3:4（1080×1440）展示，9:16 封面上下被裁【二手】 | 没核实 |
+| 抖音 | 1080×1920 是行业默认；横屏 16:9 也有（10-04 补：案例里的 10 支抖音 AI 动画，赞数最高的四支都是横屏，`cases/douyin-vibe-knowledge.md`） | 和账号权限有关，说法不一 | 主页按 3:4（1080×1440）展示，9:16 封面上下被裁【二手】 | 没核实 |
 | B站 | 竖屏 9:16、横屏 16:9 都可投 | 没核实；中长视频是主场 | 上传推荐 1146×717（16:10）【二手】；网页信息流按 16:9 显示，底部一条是播放、弹幕数和右下角的时长（2026-10-01 网页实测，`playbook/10` [S25]；`bin/vh cover-preview` 按这些格子出图） | 标题 ≤ 80 字【二手】 |
 | 小红书 | 竖屏 9:16 或 3:4 | 15 分钟（2020-08 媒体报道）[S15a]；2026 年媒体报道平台在推 2 分钟以上的中长视频、4K 和横屏播放器 [S15b] | 4:3、3:4、1:1 三选一，3:4 展示面积最大【二手】 | 标题 ≤ 20 字【二手】 |
 | 视频号 | 从竖屏 6:7（1080×1260）到横屏 16:9，9:16 只保证中间 6:7 完整【二手】 | 30 分钟【二手】 | 信息流 6:7【二手】 | 没核实 |
 
-时长上限对本类（30–90 s）影响不大，但要知道 Shorts 已经到 3 分钟，小红书在往 2 分钟以上推。长度由信息量和 reads 定，不为凑平台惯例加减内容；第三方的"平均时长"统计只当背景【推测】。
+时长上限对本类的竖屏主线（30–90 s）影响不大，但要知道 Shorts 已经到 3 分钟，小红书在往 2 分钟以上推。长度由信息量和 reads 定，不为凑平台惯例加减内容；第三方的"平均时长"统计只当背景【推测】。
 
 ## 变体：抖音横屏中视频（2–5 分钟）
 
-案例里 2026 年 9 月底的 10 支抖音 AI 知识动画（"Vibe知识大赏"），赞数最高的四支（15 万到 67 万赞）都是 16:9 横屏、2.5–5 分钟（`cases/douyin-vibe-knowledge.md`）。要讲一个有名的概念，又需要一点故事和推导时，可以不压进 90 秒的竖屏，直接做横屏中视频。
+案例里的 10 支抖音 AI 动画（9 支发于 2026 年 9 月底，多数挂 #vibe知识大赏 话题），赞数最高的四支（15 万到 67 万赞）都是 16:9 横屏、2.5–5 分钟（`cases/douyin-vibe-knowledge.md`）。要讲一个有名的概念，又需要一点故事和推导时，可以不压进 90 秒的竖屏，直接做横屏中视频。
 
-- **建项目**：`bin/vh new short <slug> --aspect 16:9`。画幅 1920×1080，`Watch on` 默认是 `desktop`（电脑，或手机转成横屏全屏）。BRIEF 末尾会多一行提示：TYPE 块里按竖屏算的尺寸（安全框、每行字数、字号）都按横屏重算；TYPE 块的第一行可以换成下面这行：
+- **建项目**：`bin/vh new short <slug> --aspect 16:9`。画幅 1920×1080，`Watch on` 默认是 `desktop`（电脑，或手机转成横屏全屏）。BRIEF 末尾会多一行提示：TYPE 块里按竖屏算的尺寸（安全框、每行字数、字号）都按横屏重算；TYPE 块里这几行可以换成下面的横屏版（TYPE、Captions、Safe box、Cover 各一行，Hook text 并进 Captions）：
 
   ```text
-  + TYPE: landscape knowledge film for 抖音. 1920x1080 30fps {120–300}s, zh-CN narration + burned-in captions (<=16 CJK chars per line, <=2 lines). Watch on: desktop.
+  + TYPE: landscape knowledge film for 抖音. 1920x1080 30fps {120–300}s, zh-CN narration + burned-in captions. Watch on: desktop.
+  Captions: <=16 CJK chars per line, <=2 lines, 56–64px (desktop floor 48), weight 800 (or the heaviest weight the local font has), #F5EFE6 with 3px dark stroke; an English line one size smaller. Hook text >=150px so the hook reads in the feed.
+  Safe box x 96–1824, y 54–1026 (EBU 90% graphics-safe); the bottom ~17% is the caption band.
+  Cover: 1920x1080 (16:9) master; how the 抖音 profile grid (3:4) crops a landscape cover is unverified, so keep the title in the centre.
   ```
 
-  用 `--watch feed` 建项目时，把这行末尾的 desktop 改成 feed。
+  用 `--watch feed` 建项目时，把 TYPE 行末尾的 desktop 改成 feed，Captions 改到 ≥ 115px（每行字数跟着减）。
 
 - **按哪一档的字号**：`playbook/01-pipeline.md` 把"横屏片发抖音"归到 `feed` 档（字幕 ≥ 115）。这个变体默认按 `desktop` 档（字幕 ≥ 48），是有意不同：案例里量的两支，字幕按 1080p 换算约 42–56 px，在 `desktop` 档附近，一支略低，看起来是按"点开全屏、横过来看"做的；观众是不是多半会点开全屏，抖音没有公开数据【推测】。片子主要会被竖着刷过、不会被点开的，建项目时加 `--watch feed`。
-- **钩子的字**：观众决定点不点开，是在竖着拿的信息流里，那时画面只有约 360 px 宽。想让钩子在信息流里也读得出，可以把那几秒的字做到 `feed` 档（主标题 ≥ 150）。案例里开场的字都比正文大得多，但不一定到这一档：一支第一帧满屏一个"37%"，大约占画面高度的一半；另一支开场那行诗约 100 px【推测】。
+- **钩子的字**：观众决定点不点开，是在竖着拿的信息流里，那时画面只有约 360 px 宽。想让钩子在信息流里也读得出，可以把那几秒的字做到 `feed` 档（主标题 ≥ 150）。案例里开场的字都比正文大得多，但不一定到这一档：一支第一帧满屏一个"37%"，大约占画面高度的一半；另一支开场那行诗目测约 100 px。做完把前 2 s 的 strip 缩到 360 px 宽再看一次（`playbook/02-verification.md` 的手机测试；`desktop` 档的联系表只缩到 640）。
 - **字幕**：照第 5 步的横屏规范（每行 ≤ 16 字，最多 2 行）。可以加英文，英文那行小一号。
 - **时长和结构**：
   - 2–5 分钟，超过 90 秒，用 `playbook/09-narrative.md` 的节拍表排起伏；第 2 步的钩子梯子照用。
@@ -173,7 +176,7 @@ Cover: 1080x1440 (3:4) master with all key elements inside the central 1080x1080
 ## 可参考的案例与源码
 
 - `cases/community-prompts.md`：@AxtonLiu 的口播图解做法、@dotey 的中文讲解 prompt。
-- `cases/douyin-vibe-knowledge.md`：10 支抖音 AI 知识动画（2026-09 底）。赞数最高的四支都是横屏，长 2.5–5 分钟；案例记了它们的几处相似、实测的字幕大小、一个号连发 15 支的赞数分布，以及同一个题目（37% 法则）的两种做法。
+- `cases/douyin-vibe-knowledge.md`：10 支抖音 AI 动画（9 支发于 2026-09 底）。赞数最高的四支都是横屏，长 2.5–5 分钟；案例记了它们的几处相似、实测的字幕大小、一个号连发 15 支的赞数分布，以及同一个题目（37% 法则）的两种做法。
 - `references/repos/hyperframes/skills/faceless-explainer/`：
   - `SKILL.md`：完整流程，包括 BRIEF → frame.md → STORYBOARD → 音频 → 线框草图 → 每个 frame 派一个 subagent；
   - `references/` 下的 `story-design.md`、`visual-design.md`、`motion-language.md`、`cut-catalog.md`。
