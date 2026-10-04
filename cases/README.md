@@ -17,7 +17,7 @@
 | [community-prompts.md](community-prompts.md)：社区公开的 prompt | 各类 | 各类 | 二手合集 | 成功 prompt 的八个共同点 |
 | [opus55-gallery.md](opus55-gallery.md)：Opus 5.5 社区代码视频精选 | 各类，另有 3D 长片深读 | 各类；Austerlitz 为 WebGL2 | `awesome-opus5-5-videos/`、`opus55-catalog-zhuyansen/`、`Battle-of-Austerlitz-Film/`（均无 license，只读） | 389 支作品的 prompt 统计和精选；Austerlitz 用旁白实测时长驱动镜头，从画面推导音效 |
 | [oneshot-five.md](oneshot-five.md)：五支社区代码视频（3 秒钟、我眼中的你、用做法讲做法、FunTech、Mirage） | 科普、肖像、自我介绍、showreel、发布片 | 未公开（推测为 HTML/WebGL，FunTech 混有生成素材） | 无 | 立意装置先于风格；具体的数字和原话；和我们口味规则的出入 |
-| [douyin-vibe-knowledge.md](douyin-vibe-knowledge.md)：抖音"Vibe知识大赏"十支（2026-09 底） | 知识讲解为主，横屏中视频 | 未公开（多数自述用 Claude / Opus 写代码；1 支生成式视频） | 无 | 赞数最高的几支的共同排法：具体场景开场、带年份的人和事、回到观众；横屏 2.5–5 分钟、字幕按全屏看；同一个题目的两种立意 |
+| [douyin-vibe-knowledge.md](douyin-vibe-knowledge.md)：抖音"Vibe知识大赏"十支（2026-09 底） | 知识讲解为主，横屏中视频 | 未公开（多数自述用 Claude / Opus 写代码；1 支生成式视频） | 无 | 这 10 支里赞数最高的四支有几处相似：具体场景开场、带年份的人和事、一句话收尾；都是横屏 2.5–5 分钟，字幕偏小；一个号连发 15 支的赞数分布；同一个题目的两种立意 |
 
 ## 按需求查案例
 
