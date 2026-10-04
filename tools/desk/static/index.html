@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="desk-token" content="{{TOKEN}}">
+<title>审阅台 · Review desk</title>
+<link rel="stylesheet" href="/static/desk.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><b id="brand">审阅台</b><span class="proj" id="ptitle">…</span><span class="pill" id="pstatus"></span></div>
+  <ol class="rail" id="rail"></ol>
+  <div class="actions">
+    <span class="live" id="live"><span>●</span><span id="liveTxt">…</span></span>
+    <button class="btn ghost" id="reload" type="button">↻</button>
+    <button class="btn ghost" id="lang" type="button">EN</button>
+    <button class="btn ghost" id="theme" type="button">◐</button>
+    <button class="btn" id="openTray" type="button"><span id="myLabel">我的点评</span><span class="n" id="cnt">0</span></button>
+    <button class="btn primary" id="submitTop" type="button">提交</button>
+  </div>
+</header>
+<div class="layout">
+  <nav class="side" id="side"></nav>
+  <main id="view"><div class="empty">…</div></main>
+</div>
+<aside class="tray" id="tray">
+  <header><b id="trayTitle">我的点评</b><button class="btn ghost" id="closeTray" type="button">×</button></header>
+  <div class="list" id="trayList"></div>
+  <footer>
+    <label class="small muted" id="generalLabel" for="general"></label>
+    <textarea id="general" rows="3"></textarea>
+    <details><summary class="small" id="previewLabel"></summary><pre class="out" id="preview"></pre></details>
+    <button class="btn primary" id="submit" type="button"></button>
+    <div class="tiny muted" id="submitHint"></div>
+  </footer>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="/static/desk.js"></script>
+</body>
+</html>
