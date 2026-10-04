@@ -44,7 +44,7 @@ derived_from:
 | 第 8 段落款 | 停到读完：旁白念的字跟旁白走，没人念的字按读时规则 | 读时 |
 | 合计 | | 约 245 + 读时 |
 
-画面上和旁白同一句话的字，按字幕的规则算（跟着配音走，每条 ≥ 1.8 s；HyperFrames 里给这样的片段标 `data-read="subtitle"`，`bin/vh readcheck` 才按这条查）；画面上旁白没念的字，按画面文字的规则算（底线是够快读一遍（汉字数 ÷ 7 + 其他字符数 ÷ 20 + 0.5 s），舒服的时长按 BRIEF 的 Pace）。两条都能用 `bin/vh readcheck` 核。
+画面上和旁白同一句话的字，按字幕的规则算（跟着配音走，每条 ≥ 1.8 s；HyperFrames 里给这样的片段标 `data-read="subtitle"`，`bin/vh readcheck` 才按这条查）；画面上旁白没念的字，按画面文字的规则算（底线是够快读一遍（max(1.5 s, 汉字数 ÷ 7 + 其他字符数 ÷ 20 + 0.8 s)），舒服的时长按 BRIEF 的 Pace）。两条都能用 `bin/vh readcheck` 核。
 
 ## 接缝
 
