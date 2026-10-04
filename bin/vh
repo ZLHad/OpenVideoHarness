@@ -539,7 +539,8 @@ cmd_check() {
   local v=${1:?usage: bin/vh check <video> [--allow t,t…]} allow=""
   shift
   while [ $# -gt 0 ]; do case "$1" in
-    --allow) allow=${2:?--allow needs the seconds of designed flashes, comma-separated}; shift 2 ;;
+    --allow) [ $# -ge 2 ] || { echo "bin/vh check: --allow needs the seconds of designed flashes, comma-separated (e.g. 1.0,3.2)" >&2; return 1; }
+      allow=$2; shift 2 ;;
     --allow=*) allow=${1#--allow=}; shift ;;
     *) echo "bin/vh check: unknown option $1 (usage: bin/vh check <video> [--allow t,t…])" >&2; return 1 ;;
   esac; done
@@ -565,6 +566,7 @@ cmd_check() {
         echo "   (ffmpeg -ss <s> -i <video> -frames:v 1 f.png)."
         echo "   A bad snapshot: the scene itself jumps there. A clean one: the render's capture glitched; for HyperFrames, re-render"
         echo "   with --no-browser-gpu --experimental-fast-capture=false and scan again (playbook/02-verification.md, 静默失败)" ;;
+      3:*) rc=1; echo "$c_no isolated-frame scan: bad --allow (error above); nothing was declared" ;;   # a typo must not switch the gate off
       *) rc=2; echo "$c_wa isolated-frame scan failed (error above)" ;;
     esac
   fi

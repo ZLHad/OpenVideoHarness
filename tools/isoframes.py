@@ -1,7 +1,8 @@
 """Isolated-frame scan: a frame unlike both of its neighbours while the neighbours agree with each other.
 
 usage: uv run --with numpy python tools/isoframes.py <video> [--allow t,t,…]
-exit status: 0 none found (or only declared ones), 1 isolated frames found (times floored to the ms), 2 the video could not be read
+exit status: 0 none found (or only declared ones), 1 isolated frames found (times floored to the ms), 2 the video could not be
+             read, 3 a bad --allow (bin/vh check fails on it, so a typo cannot switch the scan off)
   --allow  times in seconds of flashes you designed: a hit within one frame of one is listed as declared and does not fail
 
 That is what a capture glitch looks like: a single frame that flashes another scene, or text drawn as garbage, between two
@@ -16,8 +17,8 @@ Frames are decoded at 192x108 grey (108x192 for a portrait video) and compared t
 A cut never qualifies (the frames on either side of it differ); a one-frame flash inside a shot does, intended or not.
 What it cannot see: a glitch two or more frames long (a run of bad frames looks like motion), the first and last frame,
 glitches under 1 % of the picture (a few garbled characters), and any frame whose neighbours already differ by a quarter
-of the picture or more (particles, camera moves, line boil): those frames are counted and their stretches listed, so
-strip-check them.
+of the picture or more (particles, camera moves, line boil): those frames are counted (leaving out the one or two a cut
+makes) and their stretches of half a second or more listed, so strip-check them.
 """
 import argparse, json, subprocess, sys
 from fractions import Fraction
@@ -96,35 +97,41 @@ def main():
     try:
         allow = [float(x) for x in a.allow.split(",") if x.strip()]
     except ValueError:
-        die(f"--allow takes seconds separated by commas, not {a.allow!r}")
+        print(f"isoframes: --allow takes seconds separated by commas, not {a.allow!r}", file=sys.stderr); sys.exit(3)
     try:
         n, rate, hits, blind = scan(a.video)
     except OSError as e:   # ffprobe or ffmpeg missing: not a finding
         die(f"cannot run {e.filename or 'ffmpeg'}: {e.strerror}")
     fps = float(Fraction(rate)) if rate else None
     def t(i):   # floored to the ms, so `ffmpeg -ss <t> -i video` lands on this frame and not the next
-        return f"{i * 1000 // Fraction(rate) / 1000:.3f}" if rate else f"frame {i}"
-    def span(r):
-        return f"{t(r[0])} s" if r[0] == r[1] else f"{t(r[0])}–{t(r[1])} s ({r[1] - r[0] + 1} frames)"
-    declared = [x for x in hits if fps and any(abs(x[0] / fps - s) <= 1 / fps + 1e-6 for s in allow)]
+        return f"{i * 1000 // Fraction(rate) / 1000:.3f} s" if rate else f"frame {i}"
+    def span(r, count=True):
+        if r[0] == r[1]:
+            return t(r[0])
+        return f"{t(r[0]).removesuffix(' s')}–{t(r[1])}" + (f" ({r[1] - r[0] + 1} frames)" if count else "")
+    # a declared time matches a hit within one frame either way; +1 ms because printed times are floored to the ms
+    declared = [x for x in hits if fps and any(abs(x[0] / fps - s) <= 1 / fps + 0.001 for s in allow)]
     found = [x for x in hits if x not in declared]
     if found:
         print(f"{len(found)} isolated frame(s) in {n}: " + ", ".join(span(r) for r in runs([i for i, *_ in found], 2)))
         for i, d1, d2, d3 in found[:10]:
-            print(f"  frame {i:>6}  {t(i):>9} s   differs from prev {d1:6.1%}, next {d2:6.1%}; prev vs next {d3:5.1%}")
+            print(f"  frame {i:>6}  {t(i):>11}   differs from prev {d1:6.1%}, next {d2:6.1%}; prev vs next {d3:5.1%}")
         if len(found) > 10:
             print(f"  … {len(found) - 10} more")
     else:
         print(f"no isolated frames in {n} frames")
     if declared:
         print("  declared (--allow): " + ", ".join(span(r) for r in runs([i for i, *_ in declared], 2)))
+    if allow and not fps:
+        print("  --allow ignored: the video has no usable frame rate, so times cannot be matched")
     near = {j for i, *_ in hits for j in (i - 1, i + 1)}   # a flagged frame's neighbours see it, not motion
-    rs = [r for r in runs([i for i in blind if i not in near], 3) if r[1] - r[0] + 1 >= max(3, round((fps or 30) / 2))]
-    if rs:   # stretches of half a second or more; a cut makes one or two such frames, not listed
-        k = sum(r[1] - r[0] + 1 for r in rs)
+    free = [i for i in blind if i not in near]
+    k = sum(r[1] - r[0] + 1 for r in runs(free, 1) if r[1] - r[0] + 1 >= 3)   # a cut makes one or two such frames
+    if k:
+        rs = [r for r in runs(free, 3) if r[1] - r[0] + 1 >= max(3, round((fps or 30) / 2))]
         more = f" (+{len(rs) - 6} more)" if len(rs) > 6 else ""
-        print(f"  {k} of {n} frames ({k / n:.0%}) move too much to judge, strip-check them: "
-              + ", ".join(span(r).split(" (")[0] for r in rs[:6]) + more)
+        where = (": " + ", ".join(span(r, False) for r in rs[:6]) + more) if rs else " (all in stretches under half a second)"
+        print(f"  {k} of {n} frames ({k / n:.0%}) move too much to judge, strip-check them{where}")
     sys.exit(1 if found else 0)
 
 if __name__ == "__main__":
