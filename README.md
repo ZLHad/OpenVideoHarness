@@ -237,7 +237,7 @@ bash install.sh --no-refs                        # skip the reference repos for 
 bash install.sh --no-skill                       # don't register the global skill
 ```
 
-- The installer fetches only the latest commit (about 80 MB to download; the whole history is about 95 MB). To contribute or browse the history, `git clone` normally and run `bin/vh setup`.
+- The installer fetches only the latest commit (about 85 MB to download; the whole history is about 95 MB). To contribute or browse the history, `git clone` normally and run `bin/vh setup`.
 - To update, run the installer again with the same options; `LOCAL.md` and `projects/` are left alone, and it stops before overwriting files you changed.
 - The showcase videos aren't in git; to rebuild a showcase locally, `tools/fetch_media.sh` downloads them from the release to where the scripts expect them.
 - The first render and the first use of the sound tools download Chrome, Python packages and the voice model; the sizes and locations are on the wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) page. If npm, PyPI, Hugging Face or Google Fonts are blocked or slow where you are, [China network](https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network) has the mirror settings.
