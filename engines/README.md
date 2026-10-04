@@ -40,7 +40,7 @@ npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 
 照常按 1080p 写合成。`render --resolution 4k` 让 Chrome 按 2 倍像素密度渲（`devicePixelRatio` = 2）：页面仍按 1920×1080 排版，每个排版像素画成 2×2 个物理像素。这不是把 1080 的画面放大。DOM 和 SVG 自己会变清楚；代码自己画像素的地方，要自己处理这个 2 倍，处理错了不是发糊，而是大小和位置错（介绍片第一版 4K 的标签大了一倍，就是这样）。
 
-`--resolution 4k` 会按合成的画幅自动选预设（竖屏合成用 `portrait-4k`）；显式写 `landscape-4k`、`portrait-4k`、`square-4k` 时要和画幅一致，4:5 没有 4K 预设。4K 只是渲染参数：建项目、`bin/vh hf-init` 的画幅都写 landscape、portrait 或 square，用 `*-4k` 预设会搭出原生 3840 宽的合成，按 1080p 定的字号下限就失效了。
+`--resolution 4k` 会按合成的画幅自动选预设（竖屏合成用 `portrait-4k`）；显式写 `landscape-4k`、`portrait-4k`、`square-4k` 时要和画幅一致，4:5 没有 4K 预设。4K 只是渲染参数：建项目、`bin/vh hf-init` 的画幅写 landscape、portrait、square、4:5 或 3:4（`*-4k` 预设会搭出原生 3840 宽的合成，按 1080p 定的字号下限就失效了，`hf-init` 会拒绝）。4:5 和 3:4 只出 1080p。
 
 | 自己就对，不用改代码 | 要写代码 |
 |---|---|
@@ -63,7 +63,7 @@ npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 
 ### 最小写法（0.8.82）
 
-`bin/vh hf-init` 搭出来的 `index.html` 就是最小的合成（`bin/vh new short|promo|data|meme` 会自动跑它），手写时照着改；完整样板见 `showcase/02-short-leo-doppler/index.html`。`<body>` 里是这样：
+`bin/vh hf-init` 搭出来的 `index.html` 就是最小的合成（`bin/vh new short|promo|data|meme` 会自动跑它；`--aspect 4:5` / `3:4` 用竖屏模板，把视口、CSS 高度和 `data-height` 改成 1350 / 1440），手写时照着改；完整样板见 `showcase/02-short-leo-doppler/index.html`。`<body>` 里是这样：
 
 ```html
 <div id="root" data-composition-id="main" data-start="0" data-duration="10" data-width="1080" data-height="1920">
@@ -154,6 +154,17 @@ uv run manim -qh --fps 30 scene.py MyScene       # 成片：1080p30（-qh 默认
 ```
 
 - 用 `--bare`：普通的 `uv init` 会在项目里多生成 `.git`、`main.py`、`README.md`、`.python-version`。
+- **4K**：`-qk --fps 30`（`-qk` 默认 60 fps），画面比例和构图不变。
+- **竖屏**：只给 `-r 1080,1920` 时，`frame_width` 还是横屏的 14.22，16:9 的画面缩在中间一条，`to_edge(UP)` 落在画面中段（0.21 实测）。在项目里写一个 `manim.cfg`，Manim 才会按画幅重算 `frame_width`（8 × 1080 / 1920 = 4.5），画面铺满：
+
+  ```ini
+  [CLI]
+  pixel_width = 1080
+  pixel_height = 1920
+  frame_rate = 30
+  ```
+
+  渲染时要带 `-r`：`-ql`、`-qh`、`-qk` 都会把像素尺寸改回横屏预设，而 `frame_width` 留在 4.5，结果是一张横屏片、只露出竖屏画面中间的一段（0.21 实测）。草稿 `uv run manim -ql -r 540,960 scene.py MyScene`，成片 `uv run manim -r 1080,1920 --fps 30 scene.py MyScene`（不带 `-q`），4K `-r 2160,3840 --fps 30`。场景里的坐标照旧以画面高 8 个单位为准，横向只剩 4.5 个单位，按竖屏重新排版。
 - 【综合】选 Python 3.12 是求稳；如果装不上，以 docs.manim.community 的安装说明为准，并把最终可用的命令记进 `LESSONS.md`。
 - manim-voiceover 需要的 TTS 后端，按它的 README 选装。
 - 锚点网格和包围盒审计有现成实现：`showcase/03-math-fourier/scenes/style.py`，可以复制到自己的项目里用。

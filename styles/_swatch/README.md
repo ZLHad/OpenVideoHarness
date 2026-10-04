@@ -5,7 +5,7 @@
 - `styles/<slug>/media/swatch.mp4`：1280×720，H.264 High，yuv420p，faststart，≤ 1.5 MB；有 `score.json` 时带配乐，否则静音；
 - `styles/<slug>/media/poster.jpg`：t = 3.0 s 那一帧，1280×720，≤ 200 KB。
 
-引擎是固定在 0.8.82 的 HyperFrames。画面是一张 1920×1080 的 `<canvas>`，每一帧都是 `renderAt(t)` 的纯函数。需要路径追踪的光、真实景深的风格（目前是 `tabletop-miniature`）改用 Blender 的 Cycles，场景写成 `swatch.py`，渲出的帧走同一套检查、配乐、混音和编码。
+引擎是固定在 0.8.82 的 HyperFrames。画面是一张 1920×1080 的 `<canvas>`，每一帧都是 `renderAt(t)` 的纯函数。这张 canvas 固定按 1 倍像素画：把样片的画法搬进要出 4K 的项目时，canvas 要按 `devicePixelRatio` 开大再 `ctx.scale`，以像素为单位的效果（颗粒、网点大小、用 `getImageData` 取的遮罩，例如 `scratched-type`、`pixel-16bit`）要跟着换算（`engines/README.md`"出 4K"）。需要路径追踪的光、真实景深的风格（目前是 `tabletop-miniature`）改用 Blender 的 Cycles，场景写成 `swatch.py`，渲出的帧走同一套检查、配乐、混音和编码。
 
 ## 快速开始
 

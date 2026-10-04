@@ -8,14 +8,15 @@
 #  make
 #   types                       list video types and their docs
 #   effort [quick|standard|studio]  how much iteration, review and polish each level means (CLAUDE.md "努力程度")
-#   new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--dir <folder>]
+#   new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--dir <folder>]
 #                               create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);
-#                               --aspect: short/promo/data/meme only; --lang: the review pages' language (default zh; set it from the user's first request);
+#                               --aspect: short/promo/data/meme only (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only); --lang: the review pages' language (default zh; set it from the user's first request);
 #                               --dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness
 #   style list | <preset> [--draft] | gallery [--mp4] | check <preset>   style library: list presets, render a 5 s swatch, build styles/gallery.jpg
 #                               (the swatch render's other options: styles/_swatch/render.sh -h)
 #   recipes list [--intent X --energy N --engine E …] | check [file…]   shot recipes (recipes/): filter by frontmatter, validate it
-#   hf-init <dir> [resolution]  scaffold HyperFrames into a project safely (no global skill install; landscape|portrait|square)
+#   hf-init <dir> [frame]       scaffold HyperFrames into a project safely (no global skill install); frame: landscape|portrait|square|4:5|3:4
+#                               (the composition size; 4K is a render flag, render --resolution 4k, not a frame)
 #  decide: pictures and pages for the human
 #   storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04]   labelled storyboard pages from shots.json: one per segment + an overview (+ review.json)
 #   rhythm <project> [--segment NAME | --from s --to s] [--max s]   rhythm map: shots, narration and captions, music; too-long shots and failed reads in red
@@ -303,13 +304,13 @@ PY
 }
 
 cmd_new() {
-  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--dir <folder>]"; cmd_types; exit 1; }
-  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang=""; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 1; }
+  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--dir <folder>]"; cmd_types; exit 1; }
+  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh=""; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 1; }
   shift 2
   while [ $# -gt 0 ]; do case "$1" in
     --style)  style=${2:?--style needs a preset or a comma list (bin/vh style list)}; shift 2 ;;
     --effort) effort=${2:?--effort needs quick, standard or studio}; shift 2 ;;
-    --aspect) aspect=${2:?--aspect needs 16:9, 9:16 or 1:1}; shift 2 ;;
+    --aspect) aspect=${2:?--aspect needs 16:9, 9:16, 1:1, 4:5 or 3:4}; shift 2 ;;
     --dir)    parent=${2:?--dir needs a folder: the project goes in <folder>/<date>-<slug>}; shift 2 ;;
     --watch)  watch=${2:?--watch needs phone, feed or desktop}; shift 2 ;;
     --res)    outres=${2:?--res needs 1080p or 4k}; shift 2 ;;
@@ -322,14 +323,18 @@ cmd_new() {
   case "$watch" in ""|phone|feed|desktop) ;; *) echo "unknown --watch: $watch (phone: a vertical phone · feed: landscape in a phone feed, not rotated · desktop: a computer, or a phone turned sideways)"; exit 1 ;; esac
   case "$outres" in ""|1080p) ;; 4k|4K|2160p) outres=4k ;; *) echo "unknown --res: $outres (1080p | 4k)"; exit 1 ;; esac
   if [ "$outres" = 4k ]; then case "$type" in handdrawn|mv) echo "--res 4k: the hand-drawn engine (ClaudeAnimationBase) has no 4K output yet; use 1080p, or another engine (engines/README.md)"; exit 1 ;; esac; fi
-  if [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of the three; the other engines set their size themselves
+  if [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of these; the other engines set their size themselves
     case "$aspect" in 16:9|landscape) res=landscape; aspect=16:9 ;; 9:16|portrait) res=portrait; aspect=9:16 ;; 1:1|square) res=square; aspect=1:1 ;;
-      *) echo "unknown aspect: $aspect (16:9 | 9:16 | 1:1)"; exit 1 ;; esac
+      4:5) res=portrait; frameh=1350 ;; 3:4) res=portrait; frameh=1440 ;;   # feed posts (Instagram, 小红书): the portrait scaffold, shorter
+      *) echo "unknown aspect: $aspect (16:9 | 9:16 | 1:1 | 4:5 | 3:4)"; exit 1 ;; esac
     case "$type" in short|promo|data|meme) ;;
-      *) echo "--aspect works for short, promo, data and meme (HyperFrames); $type sets its frame size in its engine (engines/README.md)"; exit 1 ;; esac
+      math|paper) echo "--aspect: Manim renders 16:9 here; for a vertical film set pixel_width/pixel_height in manim.cfg (engines/README.md, Manim 竖屏)"; exit 1 ;;
+      handdrawn|mv) echo "--aspect: the hand-drawn engine (ClaudeAnimationBase) draws 1920x1080 only"; exit 1 ;;
+      *) echo "--aspect works for short, promo, data and meme (HyperFrames); $type follows its footage (video-types/09-editing-talking-head.md)"; exit 1 ;; esac
+    if [ -n "$frameh" ] && [ "$outres" = 4k ]; then echo "--res 4k: HyperFrames has no 4K preset for $aspect; it renders 1080x$frameh only"; exit 1; fi
   fi
   case "$type" in short) res=${res:-portrait} ;; promo|data|meme) res=${res:-landscape} ;; esac
-  case "$res" in portrait) wh=1080x1920 ;; square) wh=1080x1080 ;; landscape) wh=1920x1080 ;; esac
+  case "$res" in portrait) wh=1080x${frameh:-1920} ;; square) wh=1080x1080 ;; landscape) wh=1920x1080 ;; esac
   [ -n "$wh" ] || case "$type" in math|paper|handdrawn|mv) wh=1920x1080 ;; edit) wh=1080x1920 ;; esac   # the other engines' frame (edit: follow the footage)
   local res4k=""; [ "$outres" = 4k ] && res4k="1080p, 4k"   # drafts and the reference cut stay 1080p
   if [ -z "$watch" ]; then   # where it is mostly watched sets the text-size floor (playbook/03 §4); the frame gives the default
@@ -362,11 +367,11 @@ open(brief, "w").write(b)
 PY
   [ -n "$wh" ] && sedi "s/^- Output: {W}x{H},/- Output: $wh,/" "$dir/BRIEF.md"
   sedi "s/^- Watch on: {watch}/- Watch on: $watch/; s/^- Resolution: {res}/- Resolution: ${res4k:-1080p}/; s/^- Review language: zh /- Review language: ${lang:-zh} /" "$dir/BRIEF.md"
-  case "$type:$res" in short:portrait|promo:landscape|data:landscape|meme:landscape|*:) ;;   # the type's own frame: nothing to say
+  case "$type:$res:$frameh" in short:portrait:|promo:landscape:|data:landscape:|meme:landscape:|*::) ;;   # the type's own frame: nothing to say
     *) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：上面 TYPE 块写的画幅，以及按它算的尺寸（安全框、每行字数、字号），以这一行为准按新画幅重算。\n' "$aspect" "$wh" >> "$dir/BRIEF.md" ;;
   esac
   case "$type" in
-    short|promo|data|meme) cmd_hf_init "$dir" "$res" || true ;;
+    short|promo|data|meme) if [ -n "$frameh" ]; then cmd_hf_init "$dir" "$aspect" || true; else cmd_hf_init "$dir" "$res" || true; fi ;;
     math|paper) echo "   engine   : Manim → cd $(rel "$dir") && uv init --bare --python 3.12 && uv add manim   (see engines/README.md)" ;;
     edit) echo "   engine   : HyperFrames → bin/vh hf-init $(rel "$dir") portrait   (or landscape; see video-types/09-editing-talking-head.md)" ;;
   esac
@@ -392,7 +397,7 @@ PY
   trap - EXIT
   echo "$c_ok created $(rel "$dir")"
   echo "   type doc : video-types/$doc.md"
-  [ -n "$wh" ] && echo "   frame    : $wh ($res)"
+  [ -n "$wh" ] && echo "   frame    : $wh (${frameh:+$aspect, }$res)"
   echo "   watch on : $watch · ${outres:-1080p}  (text-size floor and readability check: playbook/03 §4)"
   [ -n "$styles" ] && echo "   style ref: $(printf '%s\n' $styles | sed 's|^|styles/|' | paste -sd, - | sed 's/,/, /g') (copies in style-refs/; references, not rules: note in DECISIONS.md what each lends)"
   echo "   effort   : ${effort:-standard}  (bin/vh effort ${effort:-standard} shows what that means)"
@@ -474,13 +479,24 @@ PY
 }
 
 cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/skills) unless HYPERFRAMES_SKIP_SKILLS=1
-  local dir=${1:?usage: bin/vh hf-init <project-dir> [resolution]} res=${2:-landscape} tmp f b font=
+  local dir=${1:?usage: bin/vh hf-init <project-dir> [landscape|portrait|square|4:5|3:4]} res=${2:-landscape} tmp f b font="" h=""
+  local frame=$res   # as given, for the messages (res becomes the preset)
+  case "$res" in   # the composition's frame; HyperFrames renders 4K from it with render --resolution 4k
+    landscape|16:9) res=landscape ;; portrait|9:16) res=portrait ;; square|1:1) res=square ;;
+    4:5) res=portrait; h=1350 ;; 3:4) res=portrait; h=1440 ;;
+    *-4k|*-4K|4k|4K|*2160p) echo "$c_no hf-init $res: 4K is a render flag (render --resolution 4k), not a frame. Scaffold landscape, portrait or square and write the composition at 1080p, so the size floors hold"; return 1 ;;
+    *) echo "$c_no hf-init: unknown frame $res (landscape | portrait | square | 4:5 | 3:4)"; return 1 ;;
+  esac
   [ -d "$dir" ] || { echo "no such project: $dir"; return 1; }
-  [ -f "$dir/hyperframes.json" ] && { echo "$c_ok HyperFrames already initialised in ${dir#$ROOT/}"; return 0; }
-  echo "→ scaffolding HyperFrames ${HYPERFRAMES_VERSION:-0.8.82} ($res) — pinned, no global skills, telemetry off"
+  if [ -f "$dir/hyperframes.json" ]; then
+    echo "$c_ok HyperFrames already initialised in ${dir#$ROOT/}"
+    [ -z "$h" ] || echo "$c_wa nothing was changed for $frame: set the viewport, the CSS height and data-height in index.html to $h by hand"
+    return 0
+  fi
+  echo "→ scaffolding HyperFrames ${HYPERFRAMES_VERSION:-0.8.82} (${h:+1080x$h from }$res) — pinned, no global skills, telemetry off"
   tmp=$(mktemp -d)
   if ! (cd "$tmp" && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 npx --yes "hyperframes@${HYPERFRAMES_VERSION:-0.8.82}" init hf --non-interactive --resolution "$res" >/dev/null 2>&1); then
-    echo "$c_wa hyperframes init failed (offline?) — retry later: bin/vh hf-init ${dir#$ROOT/} $res"; rm -rf "$tmp"; return 1; fi
+    echo "$c_wa hyperframes init failed (offline?) — retry later: bin/vh hf-init ${dir#$ROOT/} $frame"; rm -rf "$tmp"; return 1; fi
   # the scaffold's Inter has no @font-face, so every render, snapshot and check requests it from Google Fonts and hangs where
   # that is blocked: declare system fonts through local() instead, as styles/_swatch/fonts.css does (in the scaffold, before the copy)
   python3 - "$tmp/hf/index.html" <<'PY' && font=local
@@ -501,6 +517,15 @@ s, n = re.subn(r"font-family: Inter\b[^;]*;", 'font-family: "Helvetica Neue", "L
 if not n or "<style>\n" not in s: sys.exit(1)
 open(p, "w", encoding="utf-8").write(s.replace("<style>\n", "<style>\n" + faces, 1))
 PY
+  if [ -n "$h" ]; then   # 4:5 and 3:4 have no preset: the portrait scaffold, its height set in the three places it is written
+    python3 - "$tmp/hf/index.html" "$h" <<'PY' || echo "$c_wa could not set the composition to 1080x$h: set the viewport, the CSS height and data-height in index.html by hand"
+import sys
+p, h = sys.argv[1], sys.argv[2]; s = open(p, encoding="utf-8").read()
+t = s.replace("height=1920", f"height={h}").replace("height: 1920px", f"height: {h}px").replace('data-height="1920"', f'data-height="{h}"')
+if "1920" in t or t.count(h) < 3: sys.exit(1)
+open(p, "w", encoding="utf-8").write(t)
+PY
+  fi
   [ -e "$dir/index.html" ] && font=own   # the project's own index.html stays as it is (nothing below replaces an existing file)
   shopt -s dotglob
   for f in "$tmp"/hf/*; do b=$(basename "$f")
@@ -517,6 +542,7 @@ PY
   fi
   case $font in
     local) echo "   font     : Helvetica Neue (macOS), Liberation Sans or DejaVu Sans (Linux) through local(), no Google Fonts at render time" ;;
+    own) echo "$c_wa the project's own index.html was kept as it is: its fonts${h:+ and its height (set the viewport, the CSS height and data-height to $h)} are yours to check" ;;
     "") echo "$c_wa the scaffold's font was not rewritten: give each font in index.html a local() @font-face before rendering, or the render fetches it from Google Fonts" ;;
   esac
   grep -lE 'https?://(cdn\.|unpkg\.com|cdnjs\.)' "$dir"/*.html 2>/dev/null | sed "s#^#$c_wa still loads from a CDN (vendor it before rendering): #" || true
