@@ -7,6 +7,7 @@
 > - **落地**：笔记里"在做"的那一块已经由 [#25](https://github.com/ZLHad/OpenVideoHarness/pull/25) 合并：[`tools/readcheck.py`](../../tools/readcheck.py) 能不开浏览器读 HyperFrames 合成文件（`bin/vh readcheck index.html`），按 HyperFrames 的规则解出每个片段的起止，项目自带 HyperFrames 时用它的 `timeline --json`；`--export` 把这份时间表写成 `texts.json` 供手改，`--budget <秒>` 先问一段时间放得下多少字。算不出时间的（解析不了的引用、脚本在整片长的片段里画的字）会列为"没检查"，不算通过。
 > - **介绍片**：它的文字是 Three.js 场景里的脚本逐帧画的，`index.html` 里没有文字片段，所以对它跑 `bin/vh readcheck showcase/04-intro-film/index.html` 只得到"没检查：没有找到文字"；那 63 条的窗口仍然是照 JS 公式重建的，下面"局限"的第一条没变。
 > - **没动的**：`showcase/04-intro-film` 在 main 上没有改动。
+> - **规则改了（2026-10-04）**：下文的 max(2.5 s, 汉字数 ÷ 4.5 + 其他字符数 ÷ 15 + 1.5 s) 不再是底线。底线改成够快读一遍（汉字数 ÷ 7 + 其他字符数 ÷ 20 + 0.5 s，不到 1 s 按 1 s），舒服的时长按 BRIEF 的 `Pace`（relaxed / normal / brisk），`readcheck` 低于底线报 FAIL、只低于目标报 WARN；见 [`playbook/03-motion-design.md`](../../playbook/03-motion-design.md) §2。下文的数字和图都是按旧规则算的。
 
 ## 问题
 

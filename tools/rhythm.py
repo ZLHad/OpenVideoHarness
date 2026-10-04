@@ -10,7 +10,8 @@ Lanes, all aligned to the same seconds:
   captions    the cues of audio/captions.json: red when bin/vh readcheck --mode subtitle fails (under 1.8 s, or faster
               than 9 CJK / 20 Latin characters a second)
   on-screen   texts.json or out/check/texts.json, else the timed text in index.html (bin/vh readcheck --export): red when
-              the on-screen rule fails (max(2.5 s, CJK/4.5 + other/15 + 1.5 s))
+              under the floor (one brisk read: CJK/7 + other/20 + 0.5 s, never under 1 s), amber when only under the
+              target of the BRIEF's Pace (relaxed / normal / brisk; bin/vh readcheck -h has the numbers)
   music       sections, beats (downbeats taller) and hits of audio/music.beats.json (bin/vh music), or --beats
   issues      every red thing again, with its reason, so it can be read without hunting
 Missing inputs just leave their lane out. --segment (a shots.json segment) or --from/--to zooms in: shot boxes then
@@ -21,23 +22,27 @@ issues: this is a picture to decide from, not a gate (bin/vh readcheck is the ga
 """
 import argparse, math, os, re, sys
 from pathlib import Path
-from types import SimpleNamespace
 from PIL import Image, ImageDraw
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import vhdraw as V
 import readcheck as RC
 
-ONSCREEN = SimpleNamespace(min=2.5, cjk_cps=4.5, latin_cps=15.0, pad=1.5)   # readcheck's defaults
 ONSCREEN_SKIPPED = []   # what reading index.html left out, said once on stdout
 NICE = (0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600)
 NARR, NARR_EDGE, CAP, CAP_EDGE = (190, 204, 226), (120, 140, 180), (214, 224, 206), (140, 160, 130)
 SEC_A, SEC_B, SEC_EDGE = (216, 214, 206), (230, 228, 220), (170, 168, 160)
+AMBER_SOFT = (244, 224, 178)   # an on-screen text over the floor but under the pace's target
 
 def why_not(dur, need, rate, limit):
     """Why a text fails its rule, in a few words: rate and limit are None for the on-screen rule."""
     if rate is None:
-        return f"{dur:.1f} s < {need:.1f} s"
+        return f"{dur:.2f} s < {need:.2f} s"   # the floor is often near 1 s: tenths would read "1.2 s < 1.2 s"
     return f"{dur:.1f} s < {RC.SUB_FLOOR:g} s" if dur < RC.SUB_FLOOR - 1e-6 else f"{rate:.1f}/s > {limit:g}/s"
+
+def run_settings(project):
+    """readcheck's settings for this project: the BRIEF's Pace, else normal."""
+    pace, _, _ = RC.find_pace(project)
+    return RC.settings(pace or RC.DEFAULT_PACE)
 
 def captions(project, lang):
     p = project / "audio" / "captions.json"
@@ -47,9 +52,10 @@ def captions(project, lang):
     langs = [lang] if lang else [k for k in ("zh", "en") if any(it.get(k) for it in items if isinstance(it, dict))] or [None]
     use = langs[0]   # one language per lane: zh when there is Chinese, --lang otherwise
     out = []
-    for label, t0, t1, text, _ in RC.pieces(items, use):
+    for label, t0, t1, text, _, _ in RC.pieces(items, use):
         dur = t1 - t0
-        ok, need, rate, limit = RC.verdict(text, dur, "subtitle", ONSCREEN)
+        state, need, _, rate, limit = RC.verdict(text, dur, "subtitle", RC.settings())
+        ok = state != "fail"
         why = "" if ok else why_not(dur, need, rate, limit)
         out.append({"id": label, "start": t0, "end": t1, "text": text, "ok": ok, "why": why})
     return out, p
@@ -69,13 +75,14 @@ def onscreen(project):
         items, stats = RC.export_html(html)
         note = RC.skipped_note(stats)
         if note: ONSCREEN_SKIPPED.append(note)
-        todo, src = [(it["id"], it["start"], it["end"], it["text"], it.get("read")) for it in items], html
+        todo, src = [(it["id"], it["start"], it["end"], it["text"], it.get("read"), it.get("pace")) for it in items], html
     clips = {str(it.get("id")): it["clip"] for it in items if isinstance(it, dict) and it.get("clip")}
-    out = []
-    for label, t0, t1, text, mode in todo:   # a text marked data-read="subtitle" is judged by the subtitle rule
-        ok, need, rate, limit = RC.verdict(text, t1 - t0, mode or "onscreen", ONSCREEN)
+    out, run = [], run_settings(project)
+    for label, t0, t1, text, mode, pace in todo:   # a text marked data-read="subtitle" is judged by the subtitle rule
+        state, need, _, rate, limit = RC.verdict(text, t1 - t0, mode or "onscreen", run, pace)
+        ok = state != "fail"
         why = "" if ok else why_not(t1 - t0, need, rate, limit)
-        out.append({"id": label, "start": t0, "end": t1, "text": text, "ok": ok, "why": why})
+        out.append({"id": label, "start": t0, "end": t1, "text": text, "ok": ok, "warn": state == "warn", "why": why})
         if label in clips: out[-1]["clip"] = clips[label]
     return out, src if out else None
 
@@ -249,8 +256,8 @@ def main():
             items, rows = (caps, cap_rows) if name == "captions" else (ons, on_rows)
             for it in sorted(items, key=lambda i: i["ok"], reverse=True):   # the failing ones last, on top
                 ry = y + 10 + 44 * rows[id(it)]
-                block(d, P, it["start"], it["end"], ry, ry + 38, V.RED_SOFT if not it["ok"] else CAP,
-                      V.RED if not it["ok"] else CAP_EDGE, it["text"], f_small if zoom else f_tiny, V.INK)
+                fill, edge = (V.RED_SOFT, V.RED) if not it["ok"] else (AMBER_SOFT, V.AMBER) if it.get("warn") else (CAP, CAP_EDGE)
+                block(d, P, it["start"], it["end"], ry, ry + 38, fill, edge, it["text"], f_small if zoom else f_tiny, V.INK)
         elif name == "music":
             for i, s in enumerate(bm.get("sections", [])):
                 block(d, P, float(s["start"]), float(s["end"]), y + 6, y + h - 34, SEC_A if i % 2 == 0 else SEC_B, SEC_EDGE,
@@ -309,6 +316,10 @@ def main():
         print(f"  note: {limit_src}")
     for note in ONSCREEN_SKIPPED:
         print(f"  on-screen text NOT checked: {note}")
+    warn = [o["id"] for o in ons if o.get("warn") and T0 - 1e-6 <= o["start"] <= T1 + 1e-6]
+    if warn:
+        print(f"  {len(warn)} on-screen text(s) over the floor but under the {run_settings(project).pace} target (amber, not an issue): "
+              + ", ".join(warn[:8]) + (" …" if len(warn) > 8 else ""))
     for t, msg, _ in vis:
         print(f"  {t:7.2f}s  {msg}")
     if not vis:

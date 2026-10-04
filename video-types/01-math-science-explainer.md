@@ -65,7 +65,7 @@ Bind one color per math entity for the whole video; symbol and its geometry shar
 Open on the concrete puzzle with the core object on screen; say why it matters within 30s. Concrete example before the general rule.
 Geometry first, then the equation. Equations appear whole, dim to 30%, then light up and get colored term by term.
 Keep the parent diagram visible (dimmed) when zooming into details; dim old layers, never delete them mid-argument.
-After a question card, hold 2.5s. Each play() 1–3s, then a 0.5–2s hold. No bounce, glow, particles, or bullet-list ending.
+After a question card, hold until it is read at the BRIEF's Pace, plus a beat to think. Each play() 1–3s, then a 0.5–2s hold. No bounce, glow, particles, or bullet-list ending.
 Place objects only via a 6x6 anchor grid (A1–F6) in the animation area; print all bounding boxes and check overlaps before rendering.
 {Narrated: manim-voiceover, trigger visuals on bookmarks at {cue} words | Silent: timing comes from the storyboard reads; short on-screen labels carry the meaning}. Final render: -qh --fps 30.
 ```

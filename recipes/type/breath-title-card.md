@@ -6,14 +6,14 @@ family: type
 role: [breath]
 intent: [breath, promise]
 energy: [1, 2]
-duration_f: [100, 150]
+duration_f: [90, 160]
 types: [promo, short, data, paper]
 engines: [canvas, hyperframes]
 aspect: [landscape, portrait, square]
 needs: [text]
 sound: optional
 pitfalls: [no-hold, copy-drift, overuse]
-qa: {read: 34, settle: 80}
+qa: {read: 34, settle: 60}
 status: upstream-tested
 max_per_film: 4
 pairs_with: [flash-cut, black-card]
@@ -37,14 +37,14 @@ derived_from:
 |---|---|---|
 | 压印 | 4–21 | 第 i 个词（中文是词块）在 4 + 4i 帧开始，9 帧压到位：缩放 1.28 → 1，透明度 0 → 1，`bezier(0.2,0.75,0.3,1)` |
 | 短线 | 16–34 | 强调色短线从 0 长到 220 px，`bezier(0.3,0,0.2,1)` |
-| 停留 | 34–130 | 从短线长完算起，按读时规则停：这一句是 96 帧（3.2 s） |
-| 退场 | 130–138 | 整张卡 8 帧淡出，交给下一镜 |
+| 停留 | 34–90 | 从短线长完算起，按读时规则停：这一句 Pace 为 normal 时是 56 帧（1.9 s） |
+| 退场 | 90–98 | 整张卡 8 帧淡出，交给下一镜 |
 
 ## 参数
 
 | 参数 | 值 | 调节手感 | ★ |
 |---|---|---|---|
-| 停留 | 没人念：max(2.5 s, 汉字数 ÷ 4.5 + 其他字符数 ÷ 15 + 1.5 s)；旁白念这句：跟旁白走，念完再停 0.4–0.6 s | 本仓库的读时规则（TASTE_CHECKLIST #5，`bin/vh readcheck`）。shotcraft 原卡整张只有 50–55 帧（1.8 s），过不了这条线 | ★ |
+| 停留 | 没人念：底线是够快读一遍（汉字数 ÷ 7 + 其他字符数 ÷ 20 + 0.5 s），舒服的时长按 BRIEF 的 Pace；旁白念这句：跟旁白走，念完再停 0.4–0.6 s | 本仓库的读时规则（TASTE_CHECKLIST #5，`bin/vh readcheck`）。shotcraft 原卡整张只有 50–55 帧（1.8 s），压印完剩下的停留连快读一遍都不够 | ★ |
 | 强调词 | 一句恰好一个：强调色 + 加粗一档；选功能名或收益词 | 两个强调词等于没有。原卡用斜体，本仓库不用斜体做强调（playbook/03 §4） | ★ |
 | 压印 | 起始缩放 1.28，9 帧，词间隔 4 帧 | 1.28 是"压上纸"的读感；逐词间隔再大就像打字机 | |
 | 底色 | 片子自己的底色，中心加一块很淡的暖光 | 和产品画面同一个世界，字卡才不像插播的广告 | ★ |
@@ -68,7 +68,9 @@ derived_from:
 ```js
 // breath-title-card：逐词压印 → 短线 → 停到读完（readcheck）→ 淡出。中文按词块，拉丁文按空格分词。
 const WORDS = ["每一帧，", "都是", "代码。"], ACCENT = 2;
-const HOLD = Math.round(Math.max(2.5, 7 / 4.5 + 2 / 15 + 1.5) * 30);  // 7 个汉字、2 个标点 → 96 帧
+const PACE = { relaxed: [4.5, 15, 1.0], normal: [6, 18, 0.6], brisk: [7, 20, 0.5] };  // 汉字/秒、其他字符/秒、另加秒数（playbook/03 §2）
+const [CJK, OTHER, PAD] = PACE.normal;                                // BRIEF 的 Pace
+const HOLD = Math.round(Math.max(1, 7 / CJK + 2 / OTHER + PAD) * 30);  // 7 个汉字、2 个标点 → 56 帧（底线 48 帧）
 const DONE = 34, OUT = DONE + HOLD;                                    // 短线长完 = 完整显示的那一刻
 export function renderAt(t, ctx, tokens, lib) {
   const f = lib.frame(t), bg = lib.color(tokens, "bg");
@@ -94,7 +96,7 @@ export function renderAt(t, ctx, tokens, lib) {
 
 ## 已知坑
 
-- **停得不够**：照搬原卡的 1.8 s，读时检查会不通过，观众也读不完。停留按规则算，排分镜时用 `bin/vh readcheck` 核一遍。
+- **停得不够**：照搬原卡的 1.8 s，压印完剩下的停留不够快读一遍，读时检查报 FAIL，观众也读不完。停留按规则算，排分镜时用 `bin/vh readcheck` 核一遍。
 - **文案抽象**：用户逐字改掉过"one board"一类的隐喻，要求写成"团队 + 功能名 + 收益"（shotcraft 判例 C2）。画面锁定以后，对着最终的镜头把字卡文案重写一遍（判例 C1）。
 - **字卡和收尾标语重复**：同一句话全片只出现一次（判例 P4）。
 - **副行数字没滚完就淡出**：排节拍时从字卡淡出的那一帧往回倒推数字滚动的起点。
@@ -103,7 +105,7 @@ export function renderAt(t, ctx, tokens, lib) {
 ## 验收帧
 
 - `read`（第 34 帧）：整句完整，强调词只有一个，短线已经长完；字号在 1080p 下不小于 84 px。
-- `settle`（第 80 帧）：停留中，画面完全静止，没有还在飘的东西。
+- `settle`（第 60 帧）：停留中，画面完全静止，没有还在飘的东西。
 
 ## 来源
 

@@ -27,7 +27,7 @@
 
 改写外部配方时已经和本仓库的规则对齐过，下面几处和原文不同，每张配方的"来源"一节写了具体改了什么：
 
-- **画面文字停到读完**：没人念的字从完整显示起至少停 max(2.5 s, 读时公式)（TASTE_CHECKLIST #5，`bin/vh readcheck`）。shotcraft 的字卡整张只有 1.8 s，所以改写后的字卡、黑场字卡、字标开场都变长了。
+- **画面文字停到读完**：没人念的字从完整显示起，底线是够快读一遍（汉字数 ÷ 7 + 其他字符数 ÷ 20 + 0.5 s），舒服的时长按 BRIEF 的 Pace（TASTE_CHECKLIST #5，`bin/vh readcheck`）。配方里的例子按 normal 算；shotcraft 的字卡整张只有 1.8 s，停留那一截不够快读一遍，所以改写后的字卡、黑场字卡、字标开场都长一些。
 - **要读的字不小于 44 px**（1080p 的辅助文字下限）：原文里 25–26 px 的副标、标语都提上来了。
 - **片中没有数字静音**：原文让黑场和死寂段的声音同帧全静，改写后保留一层很低的底（CLAUDE.md 底线）。
 - **强调词不用斜体**（`playbook/03-motion-design.md` §4），改用字重或强调色。
@@ -69,7 +69,7 @@
 
 | 配方 | 一句话 | 能量 | 时长 | 状态 |
 |---|---|---|---|---|
-| [black-card](seam/black-card.md) | 前镜淡进暗场，一句短话逐词压印上屏，停到读完，再淡入后镜：换章节和喘口气一起做 | 1–2 | 4.2–5.8 s | tuned |
+| [black-card](seam/black-card.md) | 前镜淡进暗场，一句短话逐词压印上屏，停到读完，再淡入后镜：换章节和喘口气一起做 | 1–2 | 3–5.2 s | tuned |
 | [cut-the-curve](seam/cut-the-curve.md) | 前景加速着朝一个方向走出一小段，切点落在运动正快的时候，后景从反方向以同样的速度接着走、减速落定 | 2–4 | 0.53–0.73 s | tuned |
 | [dark-tunnel](seam/dark-tunnel.md) | 前景顺着运动方向推出画面，穿过几帧有尘点的暗场，后景从景深里迎面放大、收焦 | 4–5 | 0.73–1.1 s | tuned |
 | [flash-cut](seam/flash-cut.md) | 前镜推近到切点，硬切处骑一层 10 帧的暖白光，盖住换页 | 2–4 | 0.33 s | upstream-tested |
@@ -92,8 +92,8 @@
 
 | 配方 | 一句话 | 能量 | 时长 | 状态 |
 |---|---|---|---|---|
-| [brand-imprint-open](type/brand-imprint-open.md) | 一个小记号先画出来，字标逐字压印，副标打出，整组停到读完再上浮离场，交给产品画面 | 1–2 | 3.7–5.8 s | upstream-tested |
-| [breath-title-card](type/breath-title-card.md) | 一句话逐词压印上屏，只有一个强调词，短横线收住，停到读完：两段高能镜头之间的喘息和路标 | 1–2 | 3.3–5 s | upstream-tested |
+| [brand-imprint-open](type/brand-imprint-open.md) | 一个小记号先画出来，字标逐字压印，副标打出，整组停到读完再上浮离场，交给产品画面 | 1–2 | 2.7–4.7 s | upstream-tested |
+| [breath-title-card](type/breath-title-card.md) | 一句话逐词压印上屏，只有一个强调词，短横线收住，停到读完：两段高能镜头之间的喘息和路标 | 1–2 | 3–5.3 s | upstream-tested |
 | [decode-type](type/decode-type.md) | 字像被程序一点点解出来：乱码按 2 帧一换，每个字在 0.3 s 内依次锁定，锁定之后才开始算读的时间 | 2–4 | 0.2–1 s | tuned |
 
 **开场 `open/`、界面 `ui/`、交互 `interaction/`、运镜 `camera/`、收尾 `outro/`**

@@ -1,8 +1,8 @@
 """Reading-time check: is every text on screen long enough to be read?
 
-usage: python3 tools/readcheck.py <texts.json | project_dir | composition.html> [--mode onscreen|label|subtitle] [--lang zh|en]
-                                  [--cjk-cps 4.5] [--latin-cps 15] [--pad 1.5] [--min 2.5]
-       python3 tools/readcheck.py --budget <seconds> [--mode …] [--lang …]    how much text fits in a span
+usage: python3 tools/readcheck.py <texts.json | project_dir | composition.html> [--pace relaxed|normal|brisk]
+                                  [--mode onscreen|label|subtitle] [--lang zh|en] [--cjk-cps N] [--latin-cps N] [--pad S] [--min S]
+       python3 tools/readcheck.py --budget <seconds> [--pace …] [--mode …] [--lang …] [project]   how much text fits in a span
        python3 tools/readcheck.py <composition.html | project_dir> --export [--out texts.json] [--force]
 
 Input: a JSON list of {text, start, end} in seconds (`t0`/`t1` also accepted; `text` may be a list of lines),
@@ -11,28 +11,41 @@ or a dict holding that list under "captions" / "texts" / "items" / "cues". Items
 A directory means <dir>/audio/captions.json. `start` must be the moment the text is fully shown and readable
 (typing, decode and fly-in finished), `end` the moment it starts to leave.
 
-Three rules, templates/TASTE_CHECKLIST.md #5 (rationale in playbook/03-motion-design.md §2):
-  onscreen  (default) titles, labels, number cards that nobody reads aloud: minimum time on screen
-            need = max(--min, CJK chars / --cjk-cps + other non-space chars / --latin-cps + --pad)
-            defaults 4.5 CJK chars/s, 15 chars/s, pad 1.5 s, floor 2.5 s.
-  label     a short label in a moving shot, there to point at something, read once: need = max(1.5 s, CJK chars / 7
-            + other non-space chars / 20 + 0.8 s). For tags, node names, captions on a passing gate; a sentence the viewer
-            must take away (a claim, a number to remember) stays on the on-screen rule. Mark it data-read="label".
-  subtitle  lines that follow the voice: reading-speed ceiling, plus a 1.8 s floor
+No fixed seconds: on-screen text has a floor and a target (templates/TASTE_CHECKLIST.md #5, playbook/03-motion-design.md §2).
+  seconds at a pace = CJK chars / CJK rate + other non-space chars / other rate + pad; mixed zh/en lines count both.
+  floor     one read at a brisk speed, any film: CJK/7 + other/20 + 0.5 s, never under 1 s (only so a flash can't pass).
+            Below it the text FAILs (exit 1).
+  target    the film's pace, a taste default: the BRIEF's "- Pace:" line, else normal; --pace overrides it.
+              relaxed  CJK/4.5 + other/15 + 1.0 s     explainers, papers, letters: the viewer reads and thinks
+              normal   CJK/6   + other/18 + 0.6 s     most films
+              brisk    CJK/7   + other/20 + 0.5 s     fast cuts, memes, beat-cut MVs; the same as the floor
+            Below it (but over the floor) the text gets a WARN, exit 0: a look, not a fix list. --cjk-cps, --latin-cps,
+            --pad and --min retune the target for one run; the floor never moves.
+
+Three kinds of text:
+  onscreen  (default) titles, claims, number cards that nobody reads aloud: the floor, and the film's pace as the target.
+  label     a short label in a moving shot, there to point at something (node names, station names, a gate's caption):
+            its target is brisk, i.e. one read. Mark it data-read="label". A sentence the viewer must take away stays
+            onscreen.
+  subtitle  lines that follow the voice: reading-speed ceiling, plus a 1.8 s floor; the voice sets the pace
             CJK text ≤ 9 chars/s (half-width characters count 0.5), Latin text ≤ 20 chars/s (spaces and punctuation count)
 
 Per text: spoken captions that repeat the narration are subtitles, whatever the run's default. A timed element of a
 HyperFrames composition carrying data-read="subtitle", on the clip itself or on a clip or scene around it (a
 sub-composition's host included), is checked with the subtitle rule; everything else stays on the on-screen rule.
 data-read="label" uses the label rule; data-read="onscreen" says the default aloud, and the nearest mark wins, so one
-text can opt out of a marked scene.
-Marked texts get a `sub` or `lab` tag in the output and count in the totals. A texts.json item takes the same key,
-"read": "subtitle" or "label" (--export writes it). --mode is the rule for texts that carry no mark; a mark always wins over it.
+text can opt out of a marked scene. data-pace="relaxed|normal|brisk" works the same way and changes the target of
+the texts under it (a brisk montage in a normal film; text the viewer already knows, such as a caption saying what the
+picture just showed, may run at brisk).
+Marked texts get a `sub` or `lab` tag in the output and count in the totals. A texts.json item takes the same keys,
+"read": "subtitle" or "label" and "pace": "brisk" (--export writes them). --mode is the rule for texts that carry no
+mark; a mark always wins over it.
 
-The onscreen formula comes from lemo-opuscar's core/render/readcheck.mjs and DIRECTOR.md §7 (MIT, © 2026 LemoLab);
-the floor is ours (2.5 s). The label rule is ours too (2026-10-04, from the intro film: holds that met the on-screen
-rule everywhere made a promo drag, so short labels get one read). The subtitle ceilings are the Netflix Timed Text Style Guide figures for adult programmes
-(Chinese Simplified 9 cps, English USA 20 cps); the 1.8 s floor is lemo's DIRECTOR.md §7.
+The shape of the on-screen formula (characters / rate + pad) comes from lemo-opuscar's core/render/readcheck.mjs and
+DIRECTOR.md §7 (MIT, © 2026 LemoLab), whose 4.5 CJK / 15 other chars a second the relaxed pace keeps. The floor, the
+paces and the label rule are ours (2026-10-04: a fixed 2.5 s minimum and a 1.5 s pad made fast films drag; the
+maintainer asked for no hard-coded intervals). The subtitle ceilings are the Netflix Timed Text Style Guide figures for
+adult programmes (Chinese Simplified 9 cps, English USA 20 cps); the 1.8 s floor is lemo's DIRECTOR.md §7.
 lemo's tool renders the page and asks window.TEXTS(t) for boxes; this one only reads timings, so it cannot see
 cropping or text that leaves the frame. Check those on the contact sheet.
 
@@ -46,11 +59,12 @@ and hides, is readable for less than that: set the start by hand for those (--ex
 Left out, and counted: text in a clip as long as the whole film (the usual "draw(t)" script decides when it shows),
 and clips whose data-start resolves to nothing (HyperFrames silently puts those at 0).
 
---budget <seconds> answers the question before the text exists: how many characters fit in that span, by the same
-rules (on-screen, subtitle), plus the spoken estimate for Chinese narration from playbook/04-audio.md (4.5–5.5 字/s
+--budget <seconds> answers the question before the text exists: how many characters fit in that span, at the pace
+and at the floor, as a subtitle, plus the spoken estimate for Chinese narration from playbook/04-audio.md (4.5–5.5 字/s
 for a knowledge short, 3.5–4.5 for an explainer or a paper, within a sentence; x 0.85 for the pauses).
 
-Exit: 0 all pass · 1 some too short / too fast · 2 nothing to check (bad input). Writes nothing, except --export.
+Exit: 0 nothing under the floor (WARNs allowed) · 1 some text under the floor / subtitles too fast · 2 nothing to
+check (bad input). Writes nothing, except --export.
 """
 import argparse, json, math, os, re, subprocess, sys
 from collections import Counter
@@ -60,8 +74,11 @@ from pathlib import Path
 CJK_RANGES = [(0x3040, 0x30FF), (0x31F0, 0x31FF), (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF),
               (0xAC00, 0xD7AF), (0x1100, 0x11FF), (0x3130, 0x318F), (0x20000, 0x2FA1F)]   # kana, Han, Hangul
 SUB_FLOOR, SUB_CPS_CJK, SUB_CPS_LATIN = 1.8, 9.0, 20.0
-LABEL_FLOOR, LABEL_CPS_CJK, LABEL_CPS_LATIN, LABEL_PAD = 1.5, 7.0, 20.0, 0.8   # a short label, read once
+# reading paces: (CJK chars/s, other non-space chars/s, pad s); playbook/03-motion-design.md §2 says why these numbers
+PACES = {"relaxed": (4.5, 15.0, 1.0), "normal": (6.0, 18.0, 0.6), "brisk": (7.0, 20.0, 0.5)}
+FLOOR_PACE, FLOOR_MIN, DEFAULT_PACE = "brisk", 1.0, "normal"   # the floor: one brisk read, never under 1 s (a flash)
 TAGS = {"subtitle": "sub", "onscreen": "on", "label": "lab"}   # the tag column of a run that mixes rules
+STATUS = {"ok": "OK  ", "warn": "WARN", "fail": "FAIL"}   # WARN: over the floor, under the pace's target
 PAUSE = 0.85   # playbook/04-audio.md: script length = seconds x rate x 0.85, the rest is pauses between sentences
 LAST_STATS = {}   # what the last composition read left out (export_html)
 
@@ -88,9 +105,37 @@ def read_mode(v):
     v = re.sub(r"[\s_-]", "", str(v or "")).lower()
     return v if v in ("subtitle", "onscreen", "label") else None
 
+def pace_name(v):
+    """"relaxed" / "normal" / "brisk" from a Pace line, a data-pace or a "pace" value (case and spaces are ignored); None otherwise."""
+    v = re.sub(r"\s", "", str(v or "")).lower()
+    return v if v in PACES else None
+
+def find_pace(path):
+    """(pace, brief, raw): the "- Pace:" line of the nearest BRIEF.md at or above path. pace is None when there is no
+    BRIEF.md, no Pace line (raw None) or a value that names no pace (raw is that value)."""
+    if path is None:
+        return None, None, None
+    d = Path(path).resolve()
+    d = d if d.is_dir() else d.parent
+    while True:
+        brief = d / "BRIEF.md"
+        if brief.is_file():
+            m = re.search(r"(?m)^\s*[-*]\s*Pace\s*[:：]\s*([^<\n]*)", brief.read_text(encoding="utf-8", errors="replace"))
+            if not m:
+                return None, brief, None
+            raw = m.group(1).strip()
+            return pace_name(raw), brief, raw
+        if d.parent == d:
+            return None, None, None
+        d = d.parent
+
+def settings(pace=DEFAULT_PACE, cjk_cps=None, latin_cps=None, pad=None, min=None):
+    """The run settings verdict() and budget() read: the film's pace and the overrides of its target (None: the pace's)."""
+    return argparse.Namespace(pace=pace, cjk_cps=cjk_cps, latin_cps=latin_cps, pad=pad, min=min, mode=None, lang=None)
+
 def pieces(items, lang):
-    """Yield (label, start, end, text, mode) for every text to check; mode is the item's own rule ("subtitle" /
-    "onscreen" from its "read" key) or None, which means the run's default."""
+    """Yield (label, start, end, text, mode, pace) for every text to check; mode is the item's own rule ("subtitle" /
+    "onscreen" / "label" from its "read" key) and pace its own pace ("pace" key), None for the run's."""
     for i, it in enumerate(items):
         t0, t1 = it.get("start", it.get("t0")), it.get("end", it.get("t1"))
         if t0 is None or t1 is None:
@@ -99,6 +144,9 @@ def pieces(items, lang):
         mode = read_mode(it.get("read"))
         if it.get("read") not in (None, "") and mode is None:
             raise ValueError(f"item {label}: \"read\" is {it['read']!r}; use \"subtitle\", \"onscreen\" or \"label\"")
+        pace = pace_name(it.get("pace"))
+        if it.get("pace") not in (None, "") and pace is None:
+            raise ValueError(f"item {label}: \"pace\" is {it['pace']!r}; use \"relaxed\", \"normal\" or \"brisk\"")
         if "text" in it:
             fields = [("", it["text"])]
         else:
@@ -109,17 +157,31 @@ def pieces(items, lang):
                 txt = ("" if any(is_cjk(c) for c in "".join(map(str, txt))) else " ").join(map(str, txt))
             txt = str(txt)
             if txt.strip():
-                yield (f"{label}{'·' + k if k else ''}", float(t0), float(t1), txt, mode)
+                yield (f"{label}{'·' + k if k else ''}", float(t0), float(t1), txt, mode, pace)
 
-def onscreen_need(text, a):
+def seconds_at(text, cjk_cps, latin_cps, pad):
+    """CJK chars / cjk_cps + other non-space chars / latin_cps + pad."""
     cjk = sum(1 for c in text if is_cjk(c))
     other = sum(1 for c in text if not c.isspace() and not is_cjk(c))
-    return max(a.min, cjk / a.cjk_cps + other / a.latin_cps + a.pad)
+    return cjk / cjk_cps + other / latin_cps + pad
 
-def label_need(text):
-    cjk = sum(1 for c in text if is_cjk(c))
-    other = sum(1 for c in text if not c.isspace() and not is_cjk(c))
-    return max(LABEL_FLOOR, cjk / LABEL_CPS_CJK + other / LABEL_CPS_LATIN + LABEL_PAD)
+def floor_need(text):
+    """The floor (TASTE_CHECKLIST #5): one read at a brisk speed, never under FLOOR_MIN."""
+    return max(FLOOR_MIN, seconds_at(text, *PACES[FLOOR_PACE]))
+
+def pace_rule(a, pace=None):
+    """(CJK rate, other rate, pad, minimum) of a pace: a text's own pace as it is, the run's (a.pace) with its overrides."""
+    run = getattr(a, "pace", None) or DEFAULT_PACE
+    if pace and pace != run:
+        return (*PACES[pace], 0.0)
+    cjk, lat, pad = PACES[run]
+    o = lambda k: getattr(a, k, None)
+    return (o("cjk_cps") or cjk, o("latin_cps") or lat, pad if o("pad") is None else o("pad"), o("min") or 0.0)
+
+def target_need(text, a, pace=None):
+    """The comfortable time at the pace (a taste default), never under the floor."""
+    cjk, lat, pad, lo = pace_rule(a, pace)
+    return max(floor_need(text), lo, seconds_at(text, cjk, lat, pad))
 
 def subtitle_check(text, dur):
     if any(is_cjk(c) for c in text):   # Netflix CJK rule: half-width characters count 0.5
@@ -129,13 +191,16 @@ def subtitle_check(text, dur):
     need = max(SUB_FLOOR, n / limit)
     return need, n / dur if dur > 0 else float("inf"), limit
 
-def verdict(text, dur, mode, a):
-    """(ok, need, rate, limit): one text against the rule of its mode; rate and limit are None for the on-screen rule."""
+def verdict(text, dur, mode, a, pace=None):
+    """(state, need, target, rate, limit): one text against the rule of its mode. state is "ok", "warn" (over the
+    floor, under the pace's target) or "fail"; need is the floor (a subtitle: its own rule), target the time at the
+    text's pace (a label: brisk, the floor; None for a subtitle); rate and limit only for a subtitle."""
     if mode == "subtitle":
         need, rate, limit = subtitle_check(text, dur)
-        return dur >= need - 1e-6, need, rate, limit
-    need = label_need(text) if mode == "label" else onscreen_need(text, a)
-    return dur >= need - 1e-6, need, None, None
+        return ("ok" if dur >= need - 1e-6 else "fail"), need, None, rate, limit
+    need = floor_need(text)
+    target = need if mode == "label" else target_need(text, a, pace)
+    return ("fail" if dur < need - 1e-6 else "warn" if dur < target - 1e-6 else "ok"), need, target, None, None
 
 # ---------- on-screen text straight from a HyperFrames composition ----------
 VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr", "param"}
@@ -249,17 +314,18 @@ def _timeline(html):
             spans[(str(row.get("file") or "index.html"), str(ident))] = (a, b)
     return spans
 
-def _mark(n, inherit):
-    """(mode, raw) from the nearest data-read on n or above it, else (inherit, None); mode is None when raw is no known rule."""
+def _mark(n, inherit, attr="data-read", parse=read_mode):
+    """(value, raw) from the nearest attr (data-read, data-pace) on n or above it, else (inherit, None); value is None
+    when raw names nothing known."""
     while n is not None:
-        if "data-read" in n.attrs:
-            return read_mode(n.attrs["data-read"]), n.attrs["data-read"]
+        if attr in n.attrs:
+            return parse(n.attrs[attr]), n.attrs[attr]
         n = n.parent
     return inherit, None
 
-def _export(path, base, offset, until, depth, tl, stats, items, read=None):
+def _export(path, base, offset, until, depth, tl, stats, items, read=None, pace=None):
     """The timed text of one composition file, its sub-compositions included, offset by the host's start.
-    `read` is the rule a host clip's data-read hands down to a sub-composition."""
+    `read` and `pace` are what a host clip's data-read and data-pace hand down to a sub-composition."""
     root = _Tree(); root.feed(path.read_text(encoding="utf-8", errors="replace")); root.close(); root = root.root
     if depth:   # a sub-composition is built from its file's <template>, when it has one
         root = next((n for n in _elements(root, True) if n.tag == "template"), root)
@@ -321,7 +387,7 @@ def _export(path, base, offset, until, depth, tl, stats, items, read=None):
             if depth < 4 and sub.is_file():
                 inner = _export_dur(sub)
                 end = b if k.attrs.get("data-duration") or k.attrs.get("data-end") else (a + inner if inner is not None else b)
-                _export(sub, base, a, end, depth + 1, tl, stats, items, _mark(k, read)[0])
+                _export(sub, base, a, end, depth + 1, tl, stats, items, _mark(k, read)[0], _mark(k, pace, "data-pace", pace_name)[0])
             else:
                 stats["unresolved"].append(f"{rel}#{k.attrs.get('id') or k.tag}: sub-composition {src} not found")
             continue
@@ -337,6 +403,9 @@ def _export(path, base, offset, until, depth, tl, stats, items, read=None):
             mode, raw = _mark(node, read)
             if mode: it["read"] = mode
             elif raw is not None: stats["badread"].append(f"{rel}#{ident}: data-read=\"{raw}\"")
+            pm, raw = _mark(node, pace, "data-pace", pace_name)
+            if pm: it["pace"] = pm
+            elif raw is not None: stats["badread"].append(f"{rel}#{ident}: data-pace=\"{raw}\"")
             if node is not k:   # the span is the enclosing clip's (a scene), not a timing of the text's own
                 it["clip"] = k.attrs.get("id") or k.tag
             items.append(it)
@@ -354,8 +423,9 @@ def composition_duration(html):
 def export_html(path):
     """(items, stats): the composition's timed text [{id, text, start, end, from, clip?}], and stats = {"untimed": text
     blocks left out because a clip as long as the whole film holds them, "unresolved": data-start values nothing
-    resolves (HyperFrames puts those at 0), "badread": data-read values that name no rule, "source": where the
-    spans came from}. An item carries "read": "subtitle" / "onscreen" when its clip, or a clip around it, is marked."""
+    resolves (HyperFrames puts those at 0), "badread": data-read / data-pace values that name nothing, "source": where
+    the spans came from}. An item carries "read" ("subtitle" / "onscreen" / "label") and "pace" when its clip, or a clip
+    around it, is marked."""
     path = Path(path)
     tl = _timeline(path)
     stats = {"untimed": 0, "unresolved": [], "zeroed": [], "badread": [], "source": "HyperFrames' own timeline" if tl is not None else "the HTML (no hyperframes in the project to ask)"}
@@ -379,59 +449,82 @@ def zeroed_note(stats):
 
 def badread_note(stats):
     b = stats.get("badread") or []
-    return (f"{len(b)} text(s) have a data-read that is not \"subtitle\", \"onscreen\" or \"label\", so they were checked as on-screen text: "
+    return (f"{len(b)} text(s) have a data-read that is not \"subtitle\", \"onscreen\" or \"label\", or a data-pace that is not "
+            "\"relaxed\", \"normal\" or \"brisk\", so they were checked as on-screen text at the film's pace: "
             + "; ".join(b[:4]) + (" …" if len(b) > 4 else "")) if b else ""
 
 def budget(span, a):
     """Lines saying how much text fits in span seconds."""
     rows = [f"readcheck budget for {span:.2f} s"]
+    def fits(name, cjk, lat, pad, lo, how):
+        avail = span - pad
+        if span < lo - 1e-9 or avail <= 0:
+            why = f"under the {lo:g} s minimum" if span < lo - 1e-9 else f"no longer than the {pad:g} s pad"
+            rows.append(f"  {name:<44} nothing: {span:.2f} s is {why}")
+        else:
+            rows.append(f"  {name:<44} up to {math.floor(avail * cjk + 1e-9)} CJK characters, or {math.floor(avail * lat + 1e-9)} other characters"
+                        f"  [({span:.2f} - {pad:g} s) x {cjk:g} / {lat:g} per s{how}; mixed: CJK/{cjk:g} + other/{lat:g} <= {avail:.2f}]")
     if a.mode in (None, "onscreen"):
-        avail = span - a.pad
-        if span < a.min - 1e-9 or avail <= 0:
-            rows.append(f"  on-screen text (nobody reads it aloud): nothing: {span:.2f} s is under the {a.min:g} s floor")
-        else:
-            cjk, lat = math.floor(avail * a.cjk_cps + 1e-9), math.floor(avail * a.latin_cps + 1e-9)
-            rows.append(f"  on-screen text (nobody reads it aloud): up to {cjk} CJK characters, or {lat} other characters"
-                        f"  [({span:.2f} - {a.pad:g} s) x {a.cjk_cps:g} / {a.latin_cps:g} per s; floor {a.min:g} s; mixed: CJK/{a.cjk_cps:g} + other/{a.latin_cps:g} <= {avail:.2f}]")
-    if a.mode in (None, "label"):
-        avail = span - LABEL_PAD
-        if span < LABEL_FLOOR - 1e-9:
-            rows.append(f"  label (short, read once):               nothing: {span:.2f} s is under the {LABEL_FLOOR:g} s floor")
-        else:
-            rows.append(f"  label (short, read once):               up to {math.floor(avail * LABEL_CPS_CJK + 1e-9)} CJK characters, or "
-                        f"{math.floor(avail * LABEL_CPS_LATIN + 1e-9)} other characters  [({span:.2f} - {LABEL_PAD:g} s) x {LABEL_CPS_CJK:g} / {LABEL_CPS_LATIN:g} per s; floor {LABEL_FLOOR:g} s]")
+        cjk, lat, pad, lo = pace_rule(a)
+        lo = max(lo, FLOOR_MIN)   # the target is never under the floor
+        fits(f"on-screen text, {a.pace} pace (the target):", cjk, lat, pad, lo, f"; never under {lo:g} s")
+    if a.mode in (None, "onscreen", "label"):
+        fits("the floor, one brisk read (also labels):", *PACES[FLOOR_PACE], FLOOR_MIN, f"; never under {FLOOR_MIN:g} s")
     if a.mode in (None, "subtitle"):
         if span < SUB_FLOOR - 1e-9:
-            rows.append(f"  subtitle (follows the voice):           nothing: {span:.2f} s is under the {SUB_FLOOR:g} s floor")
+            rows.append(f"  {'subtitle (follows the voice):':<44} nothing: {span:.2f} s is under the {SUB_FLOOR:g} s floor")
         else:
-            rows.append(f"  subtitle (follows the voice):           up to {math.floor(span * SUB_CPS_CJK + 1e-9)} CJK characters (half-width count 1/2), "
+            rows.append(f"  {'subtitle (follows the voice):':<44} up to {math.floor(span * SUB_CPS_CJK + 1e-9)} CJK characters (half-width count 1/2), "
                         f"or {math.floor(span * SUB_CPS_LATIN + 1e-9)} Latin characters with spaces  [x {SUB_CPS_CJK:g} / {SUB_CPS_LATIN:g} per s; floor {SUB_FLOOR:g} s]")
     if a.lang in (None, "zh"):   # playbook/04-audio.md, "旁白要导演": rates within a sentence, x 0.85 for the pauses between sentences
         f = lambda r: math.floor(span * r * PAUSE + 1e-9)
-        rows.append(f"  narration, Chinese (spoken):            knowledge short about {f(4.5)}-{f(5.5)} characters, explainer or paper about {f(3.5)}-{f(4.5)}"
+        rows.append(f"  {'narration, Chinese (spoken):':<44} knowledge short about {f(4.5)}-{f(5.5)} characters, explainer or paper about {f(3.5)}-{f(4.5)}"
                     f"  [playbook/04-audio.md: 4.5-5.5 / 3.5-4.5 per s within a sentence, x {PAUSE:g} for the pauses; measure with a draft bin/vh tts]")
     return rows
 
+def pace_source(a):
+    """Set a.pace (--pace, else the BRIEF's Pace line, else normal) and say where it came from."""
+    if a.pace:
+        return "--pace"
+    pace, brief, raw = find_pace(a.path)
+    shown = brief and (os.path.relpath(brief) if not os.path.relpath(brief).startswith("..") else str(brief))
+    if pace:
+        a.pace = pace
+        return f"Pace in {shown}"
+    a.pace = DEFAULT_PACE
+    if raw:
+        return f"default; {shown} says Pace: {raw!r}, which is not relaxed, normal or brisk"
+    return f"default; no Pace line in {shown}" if brief else "default"
+
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("path", type=Path, nargs="?")
-    ap.add_argument("--mode", choices=("onscreen", "label", "subtitle"))
+    parts = __doc__.split("\n\n")   # -h: the usage, the two rules, the kinds of text and the exit codes
+    ap = argparse.ArgumentParser(prog="bin/vh readcheck", formatter_class=argparse.RawDescriptionHelpFormatter,
+                                 description="\n\n".join(x for x in parts if x.startswith(("Reading-time", "No fixed", "Three kinds", "Exit:"))),
+                                 epilog="data-read and data-pace marks, compositions and --budget: the top of tools/readcheck.py.")
+    ap.add_argument("path", type=Path, nargs="?", help="a texts.json, a project folder (its audio/captions.json) or a composition .html")
+    ap.add_argument("--pace", choices=tuple(PACES), help="the film's reading pace (default: the BRIEF's Pace line, else normal)")
+    ap.add_argument("--mode", choices=("onscreen", "label", "subtitle"), help="the rule for texts without a data-read mark (default onscreen)")
     ap.add_argument("--budget", type=float, metavar="SECONDS", help="how many characters fit in a span of this length")
     ap.add_argument("--export", action="store_true", help="write the composition's timed text as JSON (to --out, default "
                     "<project>/texts.json) instead of checking it")
     ap.add_argument("--out", type=Path, help="where --export writes (a file, or a folder for texts.json in it)")
     ap.add_argument("--force", action="store_true", help="--export may overwrite an existing file")
-    ap.add_argument("--lang", choices=("zh", "en"))
-    ap.add_argument("--cjk-cps", type=float, default=4.5)
-    ap.add_argument("--latin-cps", type=float, default=15.0)
-    ap.add_argument("--pad", type=float, default=1.5)
-    ap.add_argument("--min", type=float, default=2.5)
+    ap.add_argument("--lang", choices=("zh", "en"), help="check one language of a bilingual captions.json")
+    ap.add_argument("--cjk-cps", type=float, help="retune the target: CJK characters a second (the floor does not move)")
+    ap.add_argument("--latin-cps", type=float, help="retune the target: other non-space characters a second")
+    ap.add_argument("--pad", type=float, help="retune the target: seconds added to every text")
+    ap.add_argument("--min", type=float, help="retune the target: a minimum in seconds")
     a = ap.parse_args()
-    if a.cjk_cps <= 0 or a.latin_cps <= 0:
+    if any(v is not None and not (v > 0 and math.isfinite(v)) for v in (a.cjk_cps, a.latin_cps)):
         ap.error("--cjk-cps and --latin-cps must be > 0")
+    if any(v is not None and not (v >= 0 and math.isfinite(v)) for v in (a.pad, a.min)):
+        ap.error("--pad and --min must be >= 0 seconds")
     if a.budget is not None:
         if not a.budget > 0 or not math.isfinite(a.budget): ap.error("--budget must be > 0 seconds")
-        print("\n".join(budget(a.budget, a))); sys.exit(0)
+        src = pace_source(a)
+        print("\n".join(budget(a.budget, a)))
+        if a.mode in (None, "onscreen"): print(f"  pace {a.pace} ({src})")
+        sys.exit(0)
     if a.path is None:
         ap.error("give a texts.json, a project folder or a composition .html (or --budget SECONDS)")
     if a.export:
@@ -456,6 +549,7 @@ def main():
         print("  a text that fades in is readable later than its clip starts: move its start to that moment, then bin/vh readcheck " + str(out))
         sys.exit(0)
     a.mode = a.mode or "onscreen"
+    src = pace_source(a)
     try:
         path, items = load_items(a.path)
         todo = list(pieces(items, a.lang))
@@ -466,25 +560,38 @@ def main():
     if not todo:
         print(f"readcheck: NOT CHECKED — no text found in {path}{' (left out: ' + note + ')' if note else ''}. This is not a pass.", file=sys.stderr); sys.exit(2)
 
-    bad, lw = 0, min(14, max(8, max(len(t[0]) for t in todo)))
+    count, lw = Counter(), min(14, max(8, max(len(t[0]) for t in todo)))
     own = Counter(t[4] for t in todo if t[4] and t[4] != a.mode)   # texts whose own mark differs from the run's rule
-    for label, t0, t1, text, mode in todo:
+    paced = False   # did any text go by a pace (not a subtitle)?
+    tuned = any(v is not None for v in (a.cjk_cps, a.latin_cps, a.pad, a.min))   # the run's target retuned by hand
+    for label, t0, t1, text, mode, pace in todo:
         dur = t1 - t0
         mode = mode or a.mode
-        ok, need, rate, limit = verdict(text, dur, mode, a)
-        detail = f"shown {dur:5.2f}s  need {need:5.2f}s" + (f"  ({rate:4.1f}/s, limit {limit:g}/s)" if mode == "subtitle" else "")
-        bad += not ok
+        state, need, target, rate, limit = verdict(text, dur, mode, a, pace)
+        if mode == "subtitle":
+            detail = f"shown {dur:5.2f}s  need  {need:5.2f}s  ({rate:4.1f}/s, limit {limit:g}/s)"
+        elif mode == "label":
+            detail = f"shown {dur:5.2f}s  floor {need:5.2f}s  (a label: one read)"
+            paced = True
+        else:
+            name = "target" if tuned and pace in (None, a.pace) else pace or a.pace
+            detail = f"shown {dur:5.2f}s  floor {need:5.2f}s  {name} {target:5.2f}s"
+            paced = True
+        count[state] += 1
         short = text if len(text) <= 28 else text[:27] + "…"
         tag = f" {TAGS[mode] if mode != a.mode else '':<3}" if own else ""   # a tag column only when some text is not on the run's rule
-        print(f"{'OK ' if ok else 'BAD'} {label:<{lw}}{tag} {t0:7.2f}–{t1:7.2f}s  {detail}  {json.dumps(short, ensure_ascii=False)}")
+        print(f"{STATUS[state]} {label:<{lw}}{tag} {t0:7.2f}–{t1:7.2f}s  {detail}  {json.dumps(short, ensure_ascii=False)}")
     mixed = "".join(f", {n} of {len(todo)} as {m}" for m, n in own.items())
-    print(f"readcheck ({a.mode}{mixed}): {len(todo) - bad}/{len(todo)} pass · {path}")
+    rule = f"{a.mode}{mixed}" + (f"; pace {a.pace}, {src}" if paced else "")
+    tally = f"{len(todo) - count['fail']}/{len(todo)} pass" + (f" · {count['fail']} FAIL" if count["fail"] else "") \
+        + (f" · {count['warn']} WARN (under the {'retuned' if tuned else a.pace} target, over the floor: a look, not a fix list)" if count["warn"] else "")
+    print(f"readcheck ({rule}): {tally} · {path}")
     if is_html:   # never claim everything was checked when something was left out
         print(f"  spans from {LAST_STATS.get('source', 'the composition')}; a text that fades in is readable later than its clip starts")
         print(f"  NOT checked: {note}" if note else "  every timed text in the composition was checked")
         if zeroed_note(LAST_STATS): print(f"  note: {zeroed_note(LAST_STATS)}")
         if badread_note(LAST_STATS): print(f"  note: {badread_note(LAST_STATS)}")
-    sys.exit(1 if bad else 0)
+    sys.exit(1 if count["fail"] else 0)
 
 if __name__ == "__main__":
     main()
