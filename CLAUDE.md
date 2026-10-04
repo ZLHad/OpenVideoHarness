@@ -99,7 +99,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 | 用户想要 | 读 | 首选引擎 | 案例 |
 |---|---|---|---|
 | 数学、物理、算法的原理讲解，3b1b 风格 | `video-types/01-math-science-explainer.md` | Manim CE | `showcase/03-math-fourier/`、`cases/explainer-code2video.md`、`cases/opus55-gallery.md` 第 7 节（抽象代数宣传片深读） |
-| 知识科普短视频，竖屏或横屏（抖音、B站、小红书、视频号、Shorts） | `video-types/02-knowledge-short.md` | HyperFrames | `showcase/02-short-leo-doppler/`、`cases/explainer-interstellar-blackhole.md` |
+| 知识科普短视频，竖屏或横屏（抖音、B站、小红书、视频号、Shorts） | `video-types/02-knowledge-short.md` | HyperFrames | `showcase/02-short-leo-doppler/`、`cases/explainer-interstellar-blackhole.md`、`cases/douyin-vibe-knowledge.md` |
 | 产品宣传、发布片、App 或 SaaS 介绍、功能演示 | `video-types/03-product-promo.md` | HyperFrames | `showcase/00-promo-launch-film/`、`showcase/04-intro-film/`（Blender 星河开场 + 一镜到底 3D + 代码作曲）、`cases/promo-hyperframes-launches.md` |
 | 歌词视频、MV、配合音乐的动画 | `video-types/04-lyric-music-video.md` | ClaudeAnimationBase（手绘）或 HyperFrames（排版） | `cases/mv-pdoom.md`、`cases/mv-functional-emotions.md`、`cases/mv-claude-pop.md` |
 | 数据故事、动画图表、数字可视化 | `video-types/05-data-story.md` | HyperFrames + SVG | — |
