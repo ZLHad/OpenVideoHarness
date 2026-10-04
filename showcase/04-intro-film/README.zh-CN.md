@@ -1,6 +1,6 @@
 # OpenVideoHarness 介绍片 v5：星河开场 + 一镜到底
 
-1920×1080 · 30 fps · **103 秒（3090 帧）** · −14 LUFS · 成片：[`intro-film-1080p.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4)（297 MB，在 GitHub Release 里）· 封面 [`media/poster.jpg`](media/poster.jpg) · 联系表 [`media/sheet.jpg`](media/sheet.jpg) · English: [README.md](README.md)
+1920×1080 · 30 fps · **103 秒（3090 帧）** · −14 LUFS · 成片：[`intro-film-1080p.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4)（297 MB，在 GitHub Release 里），4K 版 [`intro-film-4k.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-4k.mp4)（3840×2160，1.04 GB：Blender 开场按 4K 原生渲，其余按 2 倍像素密度渲，用 `bin/vh check --against` 对过 1080p 版）· 封面 [`media/poster.jpg`](media/poster.jpg) · 联系表 [`media/sheet.jpg`](media/sheet.jpg) · English: [README.md](README.md)
 
 按精品档（studio）做的。前 15.8 秒是代码驱动 Blender 路径追踪渲出来的，之后交给 HyperFrames 和 Three.js。屏幕上的每个数字都照抄仓库，出处在 [NOTES.md](NOTES.md)。上一版（v3，81 秒）在 [v3/](v3/)。
 

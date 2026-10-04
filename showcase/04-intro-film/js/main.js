@@ -183,7 +183,7 @@ async function build(THREE) {
     const d = _pd.copy(a).sub(camera.position).dot(_pf);
     if (d < 0.8) return 0;
     const wpp = 2 * d * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / 1080;
-    const img = m.userData.dyn ? m.userData.dyn.canvas : m.material.map.image, cw = img.width, ch = img.height;
+    const img = m.userData.dyn ? m.userData.dyn.canvas : m.material.map.image, cw = img.width / PR, ch = img.height / PR;   // canvas px are PR x the layout px
     const s = k * wpp * cw / m.geometry.parameters.width; m.scale.set(s, s, 1);
     const wpx = (m.userData.contentFrac || 1) * cw * k, hpx = ch * k;
     let ox = dx + (ax === "l" ? wpx / 2 : ax === "r" ? -wpx / 2 : 0), oy = dy + (ay === "b" ? hpx / 2 : ay === "t" ? -hpx / 2 : 0);
@@ -518,11 +518,11 @@ async function build(THREE) {
     const total = CTA_L[0].text.length + CTA_L[1].text.length;
     const k = t < bar(29, 2) ? 0 : Math.min(8, Math.floor((t - bar(29, 2)) / S16 + 1e-6) + 1), n = Math.round(total * k / 8);
     const cur = k < 8 ? Math.floor(t * 5) % 2 : 0, key = `${n}|${cur}`; if (key === ctaKey) return; ctaKey = key;
-    ctaG.clearRect(0, 0, ctaC.width, ctaC.height); ctaG.font = `400 86px ${FONT_MONO}`; ctaG.textBaseline = "top"; ctaG.letterSpacing = "0px";
+    ctaG.clearRect(0, 0, ctaC.width / PR, ctaC.height / PR); ctaG.font = `400 86px ${FONT_MONO}`; ctaG.textBaseline = "top"; ctaG.letterSpacing = "0px";
     let y = 24, left = n;
     CTA_L.forEach((l, i) => {
       if (i) y += 86 * 0.5;
-      const x = (ctaC.width - ctaG.measureText(l.text).width) / 2, s = l.text.slice(0, clamp(left, 0, l.text.length));
+      const x = (ctaC.width / PR - ctaG.measureText(l.text).width) / 2, s = l.text.slice(0, clamp(left, 0, l.text.length));
       ctaG.fillStyle = l.color; ctaG.fillText(s, x, y + 86 * 0.06);
       if (cur && left >= 0 && left < l.text.length) { ctaG.fillStyle = AMB; ctaG.fillRect(x + ctaG.measureText(s).width + 4, y + 8, 44, 90); }
       left -= l.text.length; y += 86 * 1.12;

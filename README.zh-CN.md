@@ -82,7 +82,7 @@ https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
 
 https://github.com/user-attachments/assets/dfa4a89e-ab81-4d2a-abab-5ba3eec57fbe
 
-<sub>6 段里的第 3 段；<a href="showcase/04-intro-film/README.zh-CN.md">全部 6 段</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">下载原片（297 MB）</a></sub>
+<sub>6 段里的第 3 段；<a href="showcase/04-intro-film/README.zh-CN.md">全部 6 段</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">下载 1080p（297 MB）</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-4k.mp4">4K（1.04 GB）</a></sub>
 </td>
 <td valign="top"><b><a href="showcase/04-intro-film/README.zh-CN.md">04 · 介绍片</a></b>（Blender + HyperFrames + Three.js · 103 秒 · 1920×1080）<br>本仓库自己的产品片。立意是"每颗星都是一支片子"：开场的星系用 Blender 路径追踪渲出来，坍缩、爆开、被压平；之后一个连续的 3D 长镜头，跟着一句需求走完整个仓库。这一段讲的是三道关卡和自查回环。<br><b><a href="showcase/04-intro-film/README.zh-CN.md#你说了什么原话">需求</a>（关卡上的原话）：</b>"玻璃、宇宙、星穹……令人瘫坐眩晕的感觉"，之后"或者使用blender？好莱坞大片质感"</td>
 </tr>

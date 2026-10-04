@@ -82,7 +82,7 @@ https://github.com/user-attachments/assets/7b5e2d6a-1683-4a01-8cf8-2b27b5bf0c97
 
 https://github.com/user-attachments/assets/dfa4a89e-ab81-4d2a-abab-5ba3eec57fbe
 
-<sub>Chapter 3 of 6; <a href="showcase/04-intro-film/">all six</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">Download (297 MB)</a></sub>
+<sub>Chapter 3 of 6; <a href="showcase/04-intro-film/">all six</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">Download 1080p (297 MB)</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-4k.mp4">4K (1.04 GB)</a></sub>
 </td>
 <td valign="top"><b><a href="showcase/04-intro-film/">04 · Intro film</a></b> (Blender + HyperFrames + Three.js · 103 s · 1920×1080)<br>The repo's own product film. The concept: every star is a film. The opening galaxy is path-traced in Blender, collapses, bursts and is flattened; then one continuous 3D take follows a single request through the whole repo. This chapter shows the three checkpoints and the self-review loop.<br><b><a href="showcase/04-intro-film/README.md#what-was-asked">Request</a>, at the checkpoints:</b> "玻璃、宇宙、星穹……令人瘫坐眩晕的感觉" (glass, cosmos, a starry sky… dizzying), then "或者使用blender？好莱坞大片质感" (or use Blender? Hollywood blockbuster quality)</td>
 </tr>
