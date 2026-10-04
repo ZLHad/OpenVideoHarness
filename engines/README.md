@@ -38,12 +38,28 @@ npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 
 ### 出 4K
 
-照常按 1080p 写合成，`render --resolution 4k` 让 Chrome 按 2 倍像素密度渲，合成、字号和布局都不用改。预设要和合成的画幅一致：横屏 `4k`（即 `landscape-4k`），竖屏 `portrait-4k`，方形 `square-4k`；4:5（1080×1350）没有 4K 预设。DOM 里的字和 SVG 自动变清楚，自己画像素的要跟着开大，否则 4K 下是放大的糊图：
+照常按 1080p 写合成。`render --resolution 4k` 让 Chrome 按 2 倍像素密度渲（`devicePixelRatio` = 2）：页面仍按 1920×1080 排版，每个排版像素画成 2×2 个物理像素。这不是把 1080 的画面放大。DOM 和 SVG 自己会变清楚；代码自己画像素的地方，要自己处理这个 2 倍，处理错了不是发糊，而是大小和位置错（介绍片第一版 4K 的标签大了一倍，就是这样）。
 
-- `<canvas>` 2D：宽高乘 `devicePixelRatio`，CSS 尺寸仍是合成尺寸，再 `ctx.scale(dpr, dpr)`，坐标照旧按 1080p 写（只开大画布、不 scale，画面会挤在左上角四分之一）；
-- Three.js：`renderer.setPixelRatio(window.devicePixelRatio)`。`showcase/04-intro-film/js/main.js` 写死了 `setPixelRatio(1)`，照它做 4K 要改这一处。
+`--resolution 4k` 会按合成的画幅自动选预设（竖屏合成用 `portrait-4k`）；显式写 `landscape-4k`、`portrait-4k`、`square-4k` 时要和画幅一致，4:5 没有 4K 预设。4K 只是渲染参数：建项目、`bin/vh hf-init` 的画幅都写 landscape、portrait 或 square，用 `*-4k` 预设会搭出原生 3840 宽的合成，按 1080p 定的字号下限就失效了。
 
-draft 和自查用 1080p；4K 成片出来后，从里面裁一两帧原尺寸看字和细线锐不锐。
+| 自己就对，不用改代码 | 要写代码 |
+|---|---|
+| DOM 文字、CSS 的线和边框、SVG | 2D `<canvas>`：宽高乘 `devicePixelRatio`，CSS 尺寸仍是合成尺寸，再 `ctx.scale(dpr, dpr)`，之后坐标照旧按 1080p 写（只开大画布、不 scale，画面会挤在左上角四分之一） |
+| `ctx.scale` 之后画的 canvas 内容，包括 `lineWidth`、`measureText` | 拿 `canvas.width`、`image.width`、`getImageData` 去算布局的地方：这些是物理像素，要除以 dpr |
+| 4K 的 `<video>` 源（HyperFrames 按源分辨率取帧） | Three.js：`renderer.setPixelRatio(dpr)`，后期链 `composer.setPixelRatio(dpr)` |
+| | 着色器里的 `gl_PointSize` 按设备像素算，要乘 dpr，上限的 `min()` 也要乘 |
+| | 1 px 的 WebGL 线永远是 1 个设备像素，4K 下变细；要粗细一致，用 `Line2` 或面片 |
+| | `shadowBlur`、`ctx.filter` 的 blur、`UnrealBloomPass` 的核按设备像素算，4K 下光晕变紧；用 `gl_FragCoord` 算的图案频率加倍 |
+| | 1080 尺寸的贴图、截图、视频代理在 4K 下会被放大发糊：这类素材按 2 倍准备 |
+| | 按设备像素加的颗粒会让文件变大约 4 倍 |
+
+每次出 4K 都这样查：
+
+1. 先渲一个 4K draft（`--quality draft` 就够），和人认可过的 1080p 成片比：`bin/vh check out/draft-4k.mp4 --against out/final.mp4`。两边缩到 480 宽逐帧比（颗粒、抗锯齿这类正常的分辨率差异会被平均掉），连续半秒画面不一样就失败，并在视频旁边的 `check/` 里出"1080 | 4K 缩小 | 差值"的对照图。布局错（大一倍、挪了位置、少了东西）会掉到 18 dB 以下，判失败；光晕、细线、模糊的差别通常在 18–24 dB，给 WARN，看对照图确认只是观感差异就留着。阈值只在介绍片和合成测试片上标定过（2026-10-04）。
+2. 再从 4K 成片里裁一两帧原尺寸，看字和细线锐不锐。这一步只查"发糊"，查不出大小和位置错。
+3. `hyperframes snapshot` 永远按 dpr 1 渲，`--zoom-scale 2` 也是页面建好以后才放大，不能当 4K 预览。
+
+成本（介绍片 103 s，M3 Max）：HyperFrames high 画质 1080p 约 4 分钟、509 MB，4K 约 9–13 分钟、1.5 GB（约 125 Mbps，2 个 worker）。发布前用 x264 CRF 18–19、`-preset slow` 重编码：1080p 297 MB，4K 1.04 GB。GitHub release 每个文件不能超过 2 GiB，按 high 画质的码率，超过约 135 s 的 4K 要先重编码。Blender 原生 4K 每帧约是 1080p 的 4 倍（`engines/blender.md`）。
 
 ### 最小写法（0.8.82）
 

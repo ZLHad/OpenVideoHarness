@@ -245,7 +245,29 @@ PY
     [ $rc = 1 ] && ok "check --allow with a typo fails instead of skipping the scan" || bad "check --allow 1s exited $rc: $a"
     a=$(vh check "$t/a.wav" 2>&1); rc=$?
     case "$rc:$a" in 0:*"isolated"*) bad "check on audio only mentions the frame scan: $a" ;; 0:*) ok "check on an audio file skips the frame scan quietly" ;; *) bad "check on audio only (rc $rc): $a" ;; esac
-  else skip "check: isolated frames" "needs uv or numpy"; fi
+    # spec: the file against the BRIEF's Output and Resolution lines; scale: a 2x render against its 1x reference
+    mkdir -p "$t/sp/out"
+    sp() { ffmpeg -nostdin -v error -f lavfi -i "color=c=0x202020:s=${1}:r=${2}:d=1,${3}" -pix_fmt yuv420p "$t/sp/out/$4.mp4"; }
+    sp 320x180 30 "drawbox=x=40:y=40:w=80:h=40:c=white:t=fill,drawbox=x=200:y=100:w=60:h=40:c=orange:t=fill" ref
+    sp 640x360 30 "drawbox=x=80:y=80:w=160:h=80:c=white:t=fill,drawbox=x=400:y=200:w=120:h=80:c=orange:t=fill" x2
+    sp 640x360 30 "drawbox=x=80:y=80:w=160:h=80:c=white:t=fill,drawbox=x=400:y=200:w=120:h=80:c=orange:t=fill,noise=alls=30:allf=t+u" noisy
+    sp 640x360 30 "drawbox=x=80:y=80:w=320:h=160:c=white:t=fill,drawbox=x=400:y=200:w=120:h=80:c=orange:t=fill" big
+    sp 320x180 25 "drawbox=x=40:y=40:w=80:h=40:c=white:t=fill" fps25
+    printf '%s\n' '# BRIEF' '## Spec' '- Output: 320x180, 30 fps, exactly 1.0s (30 frames)' '- Resolution: 1080p  <!-- 1080p | 4k -->' > "$t/sp/BRIEF.md"
+    a=$(vh check "$t/sp/out/ref.mp4" 2>&1); rc=$?; b=$(vh check "$t/sp/out/x2.mp4" 2>&1); rb=$?; c=$(vh check "$t/sp/out/fps25.mp4" 2>&1); rcc=$?
+    case "$rc:$a|$rb:$b|$rcc:$c" in 0:*"spec: 320x180, 30 fps, 30 frames"*"|1:"*"FAIL frame 640x360"*"add 4k"*"|1:"*"FAIL 25.000 fps, the BRIEF says 30"*)
+        ok "check compares the file with the BRIEF: size, a 4K the BRIEF doesn't list, frame rate" ;; *) bad "check against the BRIEF ($rc/$rb/$rcc): $a | $b | $c" ;; esac
+    sed 's/^- Resolution: 1080p /- Resolution: 1080p, 4k /' "$t/sp/BRIEF.md" > "$t/sp/B2" && mv "$t/sp/B2" "$t/sp/BRIEF.md"
+    a=$(vh check "$t/sp/out/x2.mp4" --against "$t/sp/out/ref.mp4" 2>&1); rc=$?; b=$(vh check "$t/sp/out/noisy.mp4" --against "$t/sp/out/ref.mp4" 2>&1); rb=$?
+    case "$rc:$a|$rb:$b" in 0:*"spec: 640x360"*"the same picture throughout"*"|0:"*"the same picture throughout"*) ok "check --against: a correct 2x render and a noisy one pass, and 4k in the BRIEF allows 2x" ;;
+      *) bad "check --against on correct clips ($rc/$rb): $a | $b" ;; esac
+    a=$(vh check "$t/sp/out/big.mp4" --against "$t/sp/out/ref.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 1:*"FAIL 0.00–1.00 s: the picture differs"*"scale-fail-0.000s.png"*) [ -s "$t/sp/out/check/scale-fail-0.000s.png" ] \
+        && ok "check --against fails on an element drawn at twice the size, with a comparison image" || bad "check --against wrote no comparison image" ;;
+      *) bad "check --against on a 2x element (rc $rc): $a" ;; esac
+    a=$(vh check "$t/sp/out/x2.mp4" --against "$t/sp/out/fps25.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 1:*"FAIL different frame rate"*) ok "check --against refuses to compare different cuts" ;; *) bad "check --against on different cuts (rc $rc): $a" ;; esac
+  else skip "check: isolated frames, spec, --against" "needs uv or numpy"; fi
   rm -rf "$t"
 }
 

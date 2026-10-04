@@ -1,6 +1,6 @@
 # 04 · promo — OpenVideoHarness intro film v5 (a galaxy-of-films opening, then one continuous take)
 
-1920×1080 · 30 fps · **103 s (3090 frames)** · −14 LUFS · the film: [`intro-film-1080p.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4) (297 MB, GitHub release) · poster [`media/poster.jpg`](media/poster.jpg) · contact sheet [`media/sheet.jpg`](media/sheet.jpg) · 中文：[README.zh-CN.md](README.zh-CN.md)
+1920×1080 · 30 fps · **103 s (3090 frames)** · −14 LUFS · the film: [`intro-film-1080p.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4) (297 MB, GitHub release), and at 4K [`intro-film-4k.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-4k.mp4) (3840×2160, 1.04 GB: the Blender opening rendered at 4K, the rest at device scale 2, checked against the 1080p cut with `bin/vh check --against`) · poster [`media/poster.jpg`](media/poster.jpg) · contact sheet [`media/sheet.jpg`](media/sheet.jpg) · 中文：[README.zh-CN.md](README.zh-CN.md)
 
 Made at the studio effort level. The first 15.8 s are path-traced in Blender, driven by code; HyperFrames and Three.js take over from there. Every number on screen is copied from the repo; the sources are in [NOTES.md](NOTES.md). The previous version (v3, 81 s) is in [v3/](v3/).
 

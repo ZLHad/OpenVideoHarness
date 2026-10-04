@@ -57,8 +57,10 @@
 #                               Pace (exit 0); subtitles within reading speed. data-read="subtitle"|"label" and data-pace="…" mark clips
 #                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [--out f]: the composition's timed text
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
-#   check <video> [--allow t,t…]  ffprobe + black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on
-#                               any not declared with --allow <seconds of designed flashes>) + colour tags
+#   check <video> [--allow t,t…] [--against <ref.mp4>]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) +
+#                               black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any not declared
+#                               with --allow <seconds of designed flashes>) + colour tags; --against: a 4K render vs the approved 1080p cut
+#                               (exit 1 when the picture differs: a layout that breaks at device scale 2)
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -328,6 +330,7 @@ cmd_new() {
   fi
   case "$type" in short) res=${res:-portrait} ;; promo|data|meme) res=${res:-landscape} ;; esac
   case "$res" in portrait) wh=1080x1920 ;; square) wh=1080x1080 ;; landscape) wh=1920x1080 ;; esac
+  [ -n "$wh" ] || case "$type" in math|paper|handdrawn|mv) wh=1920x1080 ;; edit) wh=1080x1920 ;; esac   # the other engines' frame (edit: follow the footage)
   if [ -z "$watch" ]; then   # where it is mostly watched sets the text-size floor (playbook/03 §4); the frame gives the default
     case "$res:$type" in portrait:*|square:*|:edit) watch=phone ;; landscape:meme) watch=feed ;; *) watch=desktop ;; esac
   fi
@@ -536,15 +539,30 @@ cmd_sheet() {
   echo "$out (no timestamps: $why)"
 }
 cmd_check() {
-  local v=${1:?usage: bin/vh check <video> [--allow t,t…]} allow=""
+  local u="usage: bin/vh check <video> [--allow t,t…] [--against <reference.mp4>]"
+  local v=${1:?$u} allow="" against="" fail=0
   shift
   while [ $# -gt 0 ]; do case "$1" in
     --allow) [ $# -ge 2 ] || { echo "bin/vh check: --allow needs the seconds of designed flashes, comma-separated (e.g. 1.0,3.2)" >&2; return 1; }
       allow=$2; shift 2 ;;
     --allow=*) allow=${1#--allow=}; shift ;;
-    *) echo "bin/vh check: unknown option $1 (usage: bin/vh check <video> [--allow t,t…])" >&2; return 1 ;;
+    --against) [ $# -ge 2 ] || { echo "bin/vh check: --against needs the reference video (the approved 1080p cut)" >&2; return 1; }
+      against=$2; shift 2 ;;
+    --against=*) against=${1#--against=}; shift ;;
+    *) echo "bin/vh check: unknown option $1 ($u)" >&2; return 1 ;;
   esac; done
+  [ -z "$against" ] || [ -f "$against" ] || { echo "bin/vh check: no reference video at $against" >&2; return 1; }
   ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,r_frame_rate -of compact "$v"
+  # spec: the frame size, rate and length against the project's BRIEF (Output, Resolution); playbook/01-pipeline.md, 规格
+  local spec src=0
+  if [ -n "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 "$v" 2>/dev/null)" ]; then
+    spec=$(python3 "$ROOT/tools/speccheck.py" "$v") || src=$?
+    case "$src" in
+      0) case "$spec" in *$'\nWARN '*) echo "$c_wa $spec" ;; *) echo "$c_ok $spec" ;; esac ;;
+      1) fail=1; echo "$c_no $spec"; echo "   fix the render, or the BRIEF's Output / Resolution line if the spec changed (a 4K delivery: Resolution: 1080p, 4k)" ;;
+      *) echo "$c_wa spec check failed (error above)" ;;
+    esac
+  fi
   local hits; hits=$(ffmpeg -i "$v" -vf "blackdetect=d=0.3,freezedetect=d=3" -af silencedetect=d=3 -f null - 2>&1 | grep -E "black_|freeze_|silence_" | sed 's/.*\] //' || true)
   if [ -z "$hits" ]; then echo "$c_ok no black/freeze/silence segments over threshold"
   else echo "$hits"; echo "$c_wa review each hit: dark backgrounds (e.g. 3b1b black), intentional holds and silent videos trigger these by design"; fi
@@ -575,7 +593,24 @@ cmd_check() {
   if [ -z "$col" ]; then :
   elif [ "$col" = "yuv420p,tv,bt709,bt709,bt709" ]; then echo "$c_ok colour: yuv420p, limited range, BT.709 with all four tags"
   else echo "$c_wa colour: $col (pix_fmt,range,matrix,transfer,primaries); deliver yuv420p, tv, bt709 ×3 — re-encode with the command in playbook/02-verification.md (色彩标签)"; fi
-  [ "$rc" != 1 ]   # exit 1 on isolated frames; the other findings are for review
+  # scale: a 4K render against the approved 1080p cut, so a layout that only breaks at device scale 2 shows up
+  # (engines/README.md, 出 4K). Needs numpy, like the frame scan.
+  if [ -n "$against" ]; then
+    local sc arc=0
+    if [ ${#py[@]} = 0 ]; then fail=1; echo "$c_no --against needs numpy (install uv)"
+    else
+      sc=$("${py[@]}" "$ROOT/tools/scalecheck.py" "$v" "$against" --sheet "$(dirname "$v")/check") || arc=$?
+      case "$arc:$sc" in
+        0:*"WARN "*) echo "$c_wa $sc" ;;
+        0:*) echo "$c_ok $sc" ;;
+        1:*"FAIL "*) fail=1; echo "$c_no $sc"
+          echo "   the two renders differ for half a second or more: look at the comparison images above. A label or panel at twice the"
+          echo "   size or shifted is code reading canvas or image pixel sizes at devicePixelRatio 2 (engines/README.md, 出 4K)" ;;
+        *) fail=1; echo "$c_no scale check failed (error above)" ;;
+      esac
+    fi
+  fi
+  [ "$rc" != 1 ] && [ "$fail" = 0 ]   # exit 1 on isolated frames, a spec mismatch or a scale FAIL; the other findings are for review
 }
 cmd_tts() {
   local proj=${1:?usage: bin/vh tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json --snap beat|half|downbeat --lead s] [--align gemini] [--join block|all] [--resume]} pos=() deps=""
