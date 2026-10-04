@@ -48,9 +48,10 @@ if [ -d "$DIR/.git" ]; then say "updating $DIR"
       echo "✗ $DIR not updated: it would overwrite the files named above. Edited ones: git -C \"$DIR\" stash, re-run, then git -C \"$DIR\" stash pop."
       echo "  Untracked ones: move them out of the way, then re-run."; exit 1; }
   else git -C "$DIR" pull --ff-only -q || {   # a full clone (made by hand, or by an installer from before shallow clones) keeps its history
-      echo "✗ $DIR could not fast-forward to origin/main: either it has commits of its own, or it was cloned before the"
-      echo "  2026-10-04 history rewrite (every commit hash changed). For the rewrite: clone again and move LOCAL.md and projects/"
-      echo "  over, or see CHANGELOG.md (\"The git history no longer carries the old videos\")."; exit 1; }
+      echo "✗ $DIR could not fast-forward to origin/main: a network error (above), commits of your own, or a clone made"
+      echo "  before the 2026-10-04 history rewrite (every commit hash changed). For the rewrite, don't merge or rebase (that"
+      echo "  brings the old videos back): clone again and move LOCAL.md and projects/ over. Details:"
+      echo "  git -C \"$DIR\" show origin/main:CHANGELOG.md (\"The git history no longer carries the old videos\")"; exit 1; }
   fi
 else say "cloning into $DIR (newest commit only)"; git clone -q --depth 1 --single-branch "$REPO" "$DIR"; fi
 cd "$DIR"
