@@ -85,7 +85,7 @@ draft 和自查用 1080p；4K 成片出来后，从里面裁一两帧原尺寸�
 - **0.8.82 实测的上游问题**：
   - 两条 lint 规则互相矛盾：`gsap_repeated_fromto_without_baseline` 建议加 `tl.set(…,0)`，加了又会触发 `gsap_timeline_set_initial_hide`。解法是在时间线外用 `gsap.set()` 设初始状态，同时给 tween 加 `immediateRender:false`。
   - 某次渲染后，本机被切换到较慢的截帧路径，之后每次渲染的耗时约为原来的 3 倍。这是本机设置，不跟着项目走；用 `HF_DE_PARALLEL_ROUTER=true` 可以恢复。
-  - **浏览器 GPU 开着时，长片偶尔出单帧坏帧。** drawElement 截帧自检失败、退回多 worker 截屏以后（日志：`drawElement self-verification failed; re-rendering via screenshot`），一支 160 s 的 canvas 片子渲 4 次有 1 次出了几处只有一帧的坏帧：闪进别的场景，或者字被画成乱码。同一时刻的 snapshot 是干净的，抽 snapshot 查不出；`bin/vh check` 的孤立帧扫描会列出这些时刻。修法（还在验证，之后 7 次渲染都干净）：`npx hyperframes render … --no-browser-gpu --experimental-fast-capture=false`，软件渲染。扫描的做法和它漏掉的情况见 `playbook/02-verification.md` 的"静默失败"。
+  - **浏览器 GPU 开着时，长片偶尔出单帧坏帧。** drawElement 截帧自检失败、退回多 worker 截屏以后（日志：`drawElement self-verification failed; re-rendering via screenshot`），一支 160 s 的 canvas 片子渲 4 次有 1 次出了坏帧：6 处各一帧、一处连着 3 帧，闪进别的场景，或者字被画成乱码。同一时刻的 snapshot 是干净的，抽 snapshot 查不出；`bin/vh check` 的孤立帧扫描会列出其中的单帧坏帧（连着几帧的看不到）。修法（还在验证，之后 7 次渲染都干净）：`npx hyperframes render … --no-browser-gpu --experimental-fast-capture=false`，软件渲染。扫描的做法和它漏掉的情况见 `playbook/02-verification.md` 的"静默失败"。
 - 空格会被吞：sub-composition 模板里的连续空格和词间空格、JS 设置的文本前导空格，都可能被 HTML 合并掉。需要保留时用 `&nbsp;` 或 `white-space: pre`。
 - **等宽字体的坑**：`ui-monospace, monospace` 能通过字体 lint，快照里看起来也是等宽，但 `hyperframes render` 渲染出来却是比例字体（showcase 00 在第一版全片都中了招）。要用 `@font-face` 显式声明，例如 `@font-face{font-family:"LF Mono";src:local("SF Mono"),local("Menlo")}`。**判断字体要看 mp4 渲染出的帧，不要看快照。**`check --snapshots` 只保存对比度检查用的 PNG，不能替代 `snapshot --at`。
 - `snapshot` 在 tween 刚开始的那一刻，可能和最终渲染出的帧不一致。关键帧以渲染出的 mp4 为准，逐帧 strip 的做法见 `playbook/02-verification.md`。
