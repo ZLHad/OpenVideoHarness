@@ -42,7 +42,7 @@
    - 音乐驱动，关键点落在拍子上，配音效：先用 `bin/vh music` 按镜头分段写配乐（段落就是镜头边界，冲击点就是揭示时刻），再把光标点击、弹出、完成提示写进 `audio/events.json`，最后用 `bin/vh mix … profile=promo events=audio/events.json lib=audio/sfx` 混音：以音乐为锚点，每个音效按类（hero、detail…）往各自的电平走一半，hero 命中处音乐让 2.5 dB，音乐不会被每个音效压一下（见 `playbook/04-audio.md` 的"混音"）。介绍片和较长的发布片要一个贯穿的主题动机：问题段用它的暗色版本，揭晓时第一次完整出现，做法和一支 58.5 s 的示例见 `playbook/11-composition.md`；
    - 需要角色口播时（Applore 的吉祥物 Ace），用 ElevenLabs、Gemini 或本地 TTS，配同步字幕。
    - 有旁白时，旁白骑在音乐上：`bin/vh tts projects/<p> … --beats projects/<p>/audio/music.beats.json`（路径相对运行命令的目录），答案句、卖点句用 `@id:downbeat` 落在 drop 或小节头；混音同样用 `profile=promo`，加上 `voice=` 和 `timeline=`，音乐逐句只让到旁白下方 10 LU，不会被压没。每个画面动作都要有一个音效或配乐重音回应。见 04 篇"让声音有表情、有节奏"。
-7. **多画幅**：主片 16:9，另出 4:5（1080×1350）或 9:16 的版本，按画幅重新构图，不要直接裁切。
+7. **多画幅**：主片 16:9，另出 4:5（1080×1350，`bin/vh new promo <slug>-45 --aspect 4:5`）或 9:16 的版本，按画幅重新构图，不要直接裁切。
 
 ## 审美要点
 

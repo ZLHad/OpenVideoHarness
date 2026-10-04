@@ -165,7 +165,11 @@ render 要带看门狗（沿用 `playbook/02` 的做法）、检查退出码、�
 
 ## 渲染时间：先用 5 帧校准
 
-没有 M3 Max 上的逐帧数据，下面的做法代替估算。**校准协议**（写进 BRIEF 的费用预算）：挑最重的镜头，渲 t=0、⅓、⅔、末尾各 1 帧，再加一帧最重的特写，记下每帧墙钟时间和 `--cycles-print-stats` 的内存；预算 = 帧数 × 中位数 × 1.5（重试）。结果写进 `LOCAL.md` 的渲染速度一行，和 `engines/README.md` 里 ClaudeAnimationBase 的"1080p 约 0.13 秒/帧（Metal）"并列。超过预算 1.5 倍就停下告诉用户。
+M3 Max 上介绍片开场的实测见下文"Metal"一节的"速度"（1080p 每帧 7–39 s，4K 约 4 倍）；新场景照样先校准，不要套用。**校准协议**（写进 BRIEF 的费用预算）：挑最重的镜头，渲 t=0、⅓、⅔、末尾各 1 帧，再加一帧最重的特写，记下每帧墙钟时间和 `--cycles-print-stats` 的内存；预算 = 帧数 × 中位数 × 1.5（重试）。结果写进 `LOCAL.md` 的渲染速度一行，和 `engines/README.md` 里 ClaudeAnimationBase 的"1080p 约 0.13 秒/帧（Metal）"并列。超过预算 1.5 倍就停下告诉用户。
+
+### 出 4K
+
+和 1080p 用同一份场景：只把 `render.resolution_percentage` 从 100 改成 200（介绍片的 `galaxy.py --pct 200`），相机、焦距、景深都不动。星点、卡片、光带这些东西要按世界尺寸摆（米），不要按像素，这样 4K 下大小自然对；以像素为单位的参数要逐个换算，例如 Freestyle 的绝对线宽、合成器里 Blur 和 Glare 的尺寸、像素滤波宽度【推测，没逐个验证】。每帧约是 1080p 的 4 倍：介绍片 475 帧的开场约 6 小时。渲出来的帧和 1080p 那一版一起过 `bin/vh check <4K> --against <1080p>`（`engines/README.md`"出 4K"）。
 
 ## Metal 上的 Cycles 与 EEVEE
 
