@@ -52,8 +52,9 @@
 #   mux <video> <audio> <out> [--subs-off] [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video, moov first
 #                               (--subs-off: no subtitle track starts switched on, for a picture with burned-in captions)
 #  check
-#   readcheck <texts.json|project|index.html> [--mode onscreen|label|subtitle] [--lang zh|en]  on-screen text held long enough / subtitles within reading speed (exit 1 on fail);
-#                               a clip marked data-read="subtitle" (a caption that repeats the narration) is checked as a subtitle
+#   readcheck <texts.json|project|index.html> [--pace relaxed|normal|brisk] [--mode onscreen|label|subtitle] [--lang zh|en]  reading time, no fixed seconds:
+#                               FAIL under one brisk read (CJK/7 + other/20 + 0.8 s, at least 1.5 s; exit 1), WARN under the target of the BRIEF's
+#                               Pace (exit 0); subtitles within reading speed. data-read="subtitle"|"label" and data-pace="…" mark clips
 #                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [--out f]: the composition's timed text
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
 #   check <video> [--allow t,t…]  ffprobe + black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on
@@ -379,6 +380,10 @@ PY
     sedi "s/^- Effort: standard /- Effort: $effort /" "$dir/BRIEF.md"
     [ "$effort" = quick ] && printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；人点名要拍板的事照样停（导演模式）；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
   fi
+  case "$type" in   # the type's usual reading pace (the BRIEF's Pace comment); the BRIEF line can change it
+    math|paper) sedi "s/^- Pace: normal /- Pace: relaxed /" "$dir/BRIEF.md" ;;
+    meme) sedi "s/^- Pace: normal /- Pace: brisk /" "$dir/BRIEF.md" ;;
+  esac
   for s in $styles; do attach_style "$dir" "$s"; done   # presets as references: copies in style-refs/, listed in BRIEF, a DECISIONS line
   trap - EXIT
   echo "$c_ok created $(rel "$dir")"
@@ -413,6 +418,7 @@ for l in lines:
             rest = v[2:].lstrip("，,；; ")
             v = c[2] + ((" " if rest.startswith("+") else "；") + rest if rest else "")
         print(f"  {c[0]:<10} {v}")
+    elif l.startswith("**评审有上限") and lvl != "quick": print("\n" + l)   # quick has no review rounds
     elif l.startswith("**任何档位都不降"): print("\n" + l)
     elif l.startswith("- ") and "硬规则" in l or l.startswith("- 片中") or l.startswith("- 全屏") or l.startswith("- 字号") or l.startswith("- 素材") or l.startswith("- `TASTE_CHECKLIST") or l.startswith("- 出片前"): print("  " + l)
 ' "$lvl"

@@ -97,7 +97,7 @@ Visual style: engineering blueprint on cyanotype paper. The whole film is one sh
 - 缩到 360 px 宽的手机联系表：线宽层级还分得出吗？
 - 量一处：尺寸数字和图形比例一致吗？
 - 审图黄每个镜头最多一处。
-- 标题栏和注释里要读的字：英文 ≥ 28 px、中文 ≥ 46 px，停 ≥ 2.5 s。
+- 标题栏和注释里要读的字：英文 ≥ 28 px、中文 ≥ 46 px，停到读完（读时规则，TASTE_CHECKLIST #5）。
 
 ## 相关资源
 
