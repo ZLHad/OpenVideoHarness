@@ -8,6 +8,29 @@
 - On the glitched render it lists 34.500, 98.733, 136.000 and 136.233 s in about 2 s; the seven renders made afterwards with the software flags scan clean. Across 148 local videos (the swatches, that film's 12 renders, other projects' renders and plates) the only other hits are the designed flashes above and two frames in an old look-dev plate of the intro film's opening where the camera framing jumps for one frame and comes back. What it misses: glitches that touch only a few characters (two more bad frames in that render, 0.3 % and 0.1 % of the pixels, are under the 1 % threshold); a run of two or more bad frames (a three-frame garble at 7.87 s in that render reads as motion); the first and last frame; and frames whose neighbours already differ by a quarter of the picture or more (particles, camera moves). It counts those and lists the stretches of half a second or more (about a third of the intro film), so the ✓ says what it could not judge. Hits within two frames of each other print as one range; details stop after ten. An audio file skips the scan; a missing ffmpeg is a scan error (exit 2), not a finding.
 - CI: a 2 s testsrc clip with one red frame fails with its time and passes with `--allow` at that time; the same clip without it, or with a two-frame flash, passes; an audio file gets no frame scan. playbook/02 (静默失败) describes the failure mode, the scan and what it misses; engines/README.md (HyperFrames known issues) the workaround.
 
+**Docs: a Douyin case study, a landscape variant for knowledge films, and two ideation prompts**
+- Why: of ten AI-made Douyin films (nine posted in late September 2026, most tagged #vibe知识大赏), the four most-liked (148k–667k likes) are all 16:9 and 2.5–5 min long. Type 02 had described 30–90 s vertical films as the main case; Douyin landscape films appeared only in `cases/oneshot-five.md`.
+- `cases/douyin-vibe-knowledge.md` covers the ten films: post date, likes (a 10-04 snapshot), length, frame and opening. It also records:
+  - a few things the top four share, each marked with which films do it;
+  - caption sizes measured on two of them (about 42–56 px at 1080p, around the `desktop` floor);
+  - one account's 15 films in a week (likes 2,246–427,108, not counting one posted that day);
+  - two films on the same topic (the 37% rule).
+  The case is linked from `cases/README.md`, type 02 and the CLAUDE.md route table.
+- `video-types/02-knowledge-short.md` adds a "Douyin landscape mid-length" variant:
+  - start it with `bin/vh new short <slug> --aspect 16:9`;
+  - body text and captions at the `desktop` floor; the variant says why this departs from playbook/01's "landscape on Douyin = feed", that viewers going full screen is an inference, and when to use `--watch feed` instead;
+  - hook text at the `feed` floor as an option;
+  - 2–5 min, laid out with playbook/09's beat sheet;
+  - notes on captions, post copy and series titles.
+  The platform table also notes that landscape exists on Douyin. playbook/01 points to the variant.
+- `playbook/12-ideation.md`: two new rows in the prompt table ("find a historical scene" to carry the concept; "hand it back to the viewer" at the end), plus a real pair of films on the same topic.
+- `playbook/07-reverse-engineer.md`: how to get Douyin frames without logging in:
+  - resolve the short link to an id, which also gives the post time;
+  - the mobile share page's description has the caption, the date and the like count;
+  - the `playwm` URL plays as a bare media file;
+  - the creator's post-list request that the page makes gives every film's likes and length.
+  Also added: getting 1080p frames from X, measuring caption size against the §4 floors, and opening your own browser tab when other agents share the browser.
+
 **The review desk: tick, comment and submit in a page, and the agent carries on by itself (`bin/vh desk`)**
 - Why: reviewing a film's first gate through the static pages, the maintainer found the outline, captions and stages hard to read (some were raw `.md` links), had no way to tick or comment in place, had to reply in chat with codes like "1 S1", and got a new one-off page every time. A prototype desk fixed that, and after two real rounds in it: "返回还是要手动给你触发，我觉得可以加一个监控", the outline should be split by content, not by 起承转合, reuse needs a basic infrastructure, and the desk belongs to `studio`, in Chinese or English by the first request.
 - `tools/desk/` (stdlib Python, offline, no CDN, light and dark): `bin/vh desk <project> [--port N]` serves one project on 127.0.0.1 (the first free port of 8780–8799; a second start prints the running one's address). Ten views read fresh from the project's own files: this round (decisions with options, least sure, decided for you), concept and outline (a time bar by segment), captions or narration (grouped by segment, term chips, a rough reading speed), the storyboard synced to its video, sound (sections named from the gate JSON, listen prompts, timecoded notes), fact check, the film with timecoded notes (C key), the decision ledger, history, and every doc rendered as text. Any item can be marked ok / change / question with a line and a "change to"; a tray collects them and submits once.
