@@ -5,10 +5,18 @@
 ## 1. 拿到帧
 
 - **本地文件**：用 ffmpeg 抽帧（见下面的命令）。
-- **网页上的视频**（X、B站、YouTube）：
+- **网页上的视频**（X、B站、YouTube、抖音）：
   - 下载属于文件下载，要先征得用户同意；还要注意平台条款和版权，拆解结果只用于学习，不要重新发布原片的画面。
   - 不下载的做法：在浏览器里用 JS 把 `<video>` 跳到指定时刻，用 canvas 的 `drawImage` 画出当前帧，拼成联系表显示在页面上，再截图。截图工具直接拍视频层往往是黑的，所以要先画到 canvas 上。本仓库的 `cases/explainer-interstellar-blackhole.md` 就是这样拆出来的。
   - 每次调用只处理 6–9 帧，否则会超时；流媒体会自适应降低分辨率，属于正常现象。
+  - **抖音**（2026-10 实测，`cases/douyin-vibe-knowledge.md` 就是这样拆的）：电脑版页面不登录会弹登录框，还会跳回首页。改走手机版分享页：
+    1. `curl -sI -A "Mozilla/5.0" https://v.douyin.com/<短码>/`，从返回的 Location 里取 `video/<id>`。id 右移 32 位就是发布时间（unix 秒）。
+    2. 浏览器切到手机尺寸（内置浏览器用 `resize_window` 的 mobile），打开 `https://www.iesdouyin.com/share/video/<id>/`，等几秒；标题只显示"抖音"时再开一次。页面的 `meta[name=description]` 里有完整文案、发布日期和精确赞数；`<video>` 的 src 是一个 `playwm` 地址；页面文字里还列着作者的其他作品和赞数。用 curl 抓分享页拿不到这些，它们是前端加载的。
+    3. 切回电脑尺寸，直接打开那个 `playwm` 地址，浏览器会当作媒体文件播放，再照上面 canvas 的做法取帧。
+    4. 要作者的全部作品：分享页自己会请求作者作品列表的接口（地址里有 `/web/api/v2/aweme/post/`，可以在 `performance.getEntriesByType('resource')` 里找到），在页面里用 fetch 再请求一次，能拿到每支的 id、文案、赞数和时长；发布时间用 id 推。地址里带着本机的 IP 和设备号，不要抄进文档。
+  - **X**（2026-10 实测）：不登录也能播。`<video>` 一开始是 480p，先 `play()` 约 3 秒再跳帧，能拿到 1080p。
+  - **量字幕和标签多大**：只把那一条画到 canvas 上并放大，叠一层网格（每格 10 个原片像素），截图数格子，换算成 1080p 的 px，再对照 `03-motion-design.md` §4 各档的下限。
+  - 和别的 agent 共用一个浏览器时，先开自己的标签页，后面每一步都指定这个标签页。
 
 ```bash
 ffmpeg -i ref.mp4 -vf "fps=1/3,scale=480:-1,tile=4x6" -frames:v 1 ref_sheet.png      # 每 3 秒一帧的总览
