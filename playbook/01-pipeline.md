@@ -13,7 +13,7 @@
 | 4 音频先行 | `audio/*`、`timeline.json`（词级时间）、`beats.json` | 见 `04-audio.md` | 用实测时长回写分镜 |
 | 5 搭引擎 | 渲染脚本、公共库（hash、ease、keyframe、camera、pulse），先做一个样板场景 | `engines/README.md` | 乱序跳到同一帧，结果一致 |
 | 6 写场景 | 每个场景一个文件；长片按 chapter 分给多个 subagent | Claude Code subagents | 每个场景都过 lint、sheet、strip、crop |
-| 7 Review | `out/check/*.jpg` 和 `NOTES.md` 里的评分记录 | 全新上下文的 reviewer subagent，对照 `TASTE_CHECKLIST.md` | 20 条全 PASS；整片 draft 过 1 轮打分层，修最差的 3 处（`studio` 至少 3 轮，八个维度都 ≥ 8） |
+| 7 Review | `out/check/*.jpg` 和 `NOTES.md` 里的评分记录 | 全新上下文的 reviewer subagent，对照 `TASTE_CHECKLIST.md` | 20 条全 PASS；整片 draft 过 1 轮打分层，修最差的 3 处（`studio` 至少 3 轮、最多 10 轮，八个维度都 ≥ 8）；小修只做局部复查 |
 | 8 渲染 | 先出 draft，给人审阅后再出 final | 并行 worker；ffmpeg 合成，加 `loudnorm` | `ffprobe`、`blackdetect`、`freezedetect` 都通过；**人工关卡 ③**（draft） |
 | 9 交付 | mp4、源码、渲染命令、素材台账、`LESSONS.md` | — | 用户完整看一遍、听一遍 |
 
@@ -191,7 +191,7 @@ animatic 是整片长度的灰盒预演，属于阶段 3，放进关卡 ② 的�
 
 - **只认用户本人的原话。** 必须是用户在对话里明确说的；协调者或别的 agent 转述的不算。subagent 收到"直接做完"的转述时，由持有原话的主会话去记录授权。
 - **原话逐字记进 `REVIEW.md`**，写在每道被跳过的关卡下，附日期和范围（跳哪几关）。格式见 `templates/REVIEW.md` 文末。
-- **独立 reviewer 代审。** 被跳过的关卡由全新上下文的 reviewer 代替人来审：`02-verification.md` 第 5 层的人设，TASTE_CHECKLIST 的 20 条加打分层。每轮的问题和修法记进 `NOTES.md`。
+- **独立 reviewer 代审。** 被跳过的关卡由全新上下文的 reviewer 代替人来审：`02-verification.md` 第 5 层的人设，TASTE_CHECKLIST 的 20 条加打分层。每轮的问题和修法记进 `NOTES.md`。上限照旧：整片评审最多 10 轮，同一类问题最多改 5 次；到了上限还没解决的口味问题，随成片交给人。底线条目（TASTE_CHECKLIST 标【底线】的）到了上限还 FAIL，交付物第一行写明"有底线 FAIL，不是可发版本"，不出 final，等人定。
 - **交付时说清楚**哪些关卡是代审的。用户看完成片的意见照常记进 `REVIEW.md`，之后回到正常流程。
 
 本仓库的介绍片是一个例子（项目在 `projects/` 下，不入库，这里只描述）：关卡 ① 之后，用户在对话里说"你自己做好 早上9点我希望能看到成片"。关卡 ②③ 由协调者和两轮独立 reviewer 代审，第一轮的结论是"修完才能发"，第二轮是"小修即可发"。REVIEW.md 里记着原话、日期和代审记录。用户看完成片后的意见按正常流程处理，见文末"多轮迭代是常态"的最后一条。
