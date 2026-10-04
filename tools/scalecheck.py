@@ -15,9 +15,12 @@ How: both videos are scaled to 480 px wide with an area filter (that averages aw
 anti-aliasing, which differ between resolutions and are fine) and compared frame by frame on an 8x6 grid; a frame's
 score is its worst tile's PSNR. Half a second or more of consecutive frames under FAIL_DB is a FAIL, under WARN_DB a
 WARN to look at. --sheet writes, for each such stretch, the reference, the video scaled down and their difference side by
-side. The thresholds come from two films and synthetic clips (2026-10-04): correct renders scored 30-41 dB at the median
-and above 18 everywhere; layout bugs fell to 2-16 dB. Glow radii, 1-pixel WebGL lines and blur are expected to differ a
-little at 4K (they are measured in device pixels): they show up as WARN, not FAIL.
+side. What decides a FAIL is how long a difference lasts, not how low it goes: designed differences dip and recover
+(on the intro film's correct 4K render, bloom and flares fell as low as 10 dB, but never for more than 9 frames in a
+row; its worst-tile median is 29 dB), while a layout bug stays low for as long as the element is on screen (the buggy
+render: 11 stretches of 0.5 s or more under 18 dB). The thresholds come from that film and synthetic clips only
+(2026-10-04), and the margin is thin (9 frames against 15): a WARN or FAIL on a glow or flash is a reason to look at
+the comparison image, not proof of a bug.
 """
 import argparse, json, subprocess, sys
 from fractions import Fraction
@@ -86,6 +89,9 @@ def main():
     score = np.array(score)
     if len(score) == 0:
         die("no frames decoded")
+    if len(score) != vn:   # a truncated or broken decode must not pass on the frames it did read
+        print(f"FAIL decoded {len(score)} of {vn} frames: a file is broken or cut short")
+        sys.exit(1)
     fps = float(rfps); least = max(3, round(fps / 2))
     fail, warn = spans(score, FAIL_DB, least), spans(score, WARN_DB, least)
     warn = [r for r in warn if not any(f[0] <= r[1] and r[0] <= f[1] for f in fail)]
@@ -100,16 +106,18 @@ def main():
     if a.sheet and (fail or warn):
         out = Path(a.sheet); out.mkdir(parents=True, exist_ok=True)
         for name, r in [("fail", r) for r in fail[:8]] + [("warn", r) for r in warn[:8]]:
-            i = r[0] + int(score[r[0]:r[1] + 1].argmin()); ts = f"{i / fps:.3f}"
+            i = r[0] + int(score[r[0]:r[1] + 1].argmin())
+            ts = f"{i * 1000 // rfps / 1000:.3f}"   # floored to the ms, so -ss lands on frame i and not the next
             f = out / f"scale-{name}-{ts}s.png"
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", ts, "-i", a.reference, "-ss", ts, "-i", a.video, "-frames:v", "1", "-filter_complex",
-                            "[0:v]scale=640:-2,format=rgb24,split[a][a2];[1:v]scale=640:-2:flags=area,format=rgb24,split[b][b2];"
-                            "[a2][b2]blend=all_mode=difference,eq=brightness=0.1:contrast=4[d];[a][b][d]hstack=3", str(f)], check=False)
+                            "[0:v]scale=640:-2,split[a][a2];[1:v]scale=640:-2:flags=area,split[b][b2];"
+                            "[a2]format=gray[ag];[b2]format=gray[bg];[ag][bg]blend=all_mode=difference,lutyuv=y='min(255,val*6)',format=rgb24[d];"
+                            "[a]format=rgb24[a3];[b]format=rgb24[b3];[a3][b3][d]hstack=3", str(f)], check=False)
             print(f"  {f}  (reference | video scaled down | difference)")
     if not fail and not warn:
         print("ok: the same picture throughout")
     elif not fail:
-        print("ok, with WARN stretches: look at them (glow, 1 px lines and blur differ a little by design; a shifted or resized element does not)")
+        print("ok, with WARN stretches: look at the comparison images (glow, flares, 1 px lines and blur can differ at 4K; a shifted or resized element should not)")
     sys.exit(1 if fail else 0)
 
 if __name__ == "__main__":

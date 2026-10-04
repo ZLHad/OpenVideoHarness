@@ -331,6 +331,7 @@ cmd_new() {
   case "$type" in short) res=${res:-portrait} ;; promo|data|meme) res=${res:-landscape} ;; esac
   case "$res" in portrait) wh=1080x1920 ;; square) wh=1080x1080 ;; landscape) wh=1920x1080 ;; esac
   [ -n "$wh" ] || case "$type" in math|paper|handdrawn|mv) wh=1920x1080 ;; edit) wh=1080x1920 ;; esac   # the other engines' frame (edit: follow the footage)
+  local res4k=""; [ "$outres" = 4k ] && res4k="1080p, 4k"   # drafts and the reference cut stay 1080p
   if [ -z "$watch" ]; then   # where it is mostly watched sets the text-size floor (playbook/03 §4); the frame gives the default
     case "$res:$type" in portrait:*|square:*|:edit) watch=phone ;; landscape:meme) watch=feed ;; *) watch=desktop ;; esac
   fi
@@ -360,7 +361,7 @@ b = open(brief).read().replace("<!-- 在这里贴 video-types/*.md 的 \"Prompt 
 open(brief, "w").write(b)
 PY
   [ -n "$wh" ] && sedi "s/^- Output: {W}x{H},/- Output: $wh,/" "$dir/BRIEF.md"
-  sedi "s/^- Watch on: {watch}/- Watch on: $watch/; s/^- Resolution: {res}/- Resolution: ${outres:-1080p}/; s/^- Review language: zh /- Review language: ${lang:-zh} /" "$dir/BRIEF.md"
+  sedi "s/^- Watch on: {watch}/- Watch on: $watch/; s/^- Resolution: {res}/- Resolution: ${res4k:-1080p}/; s/^- Review language: zh /- Review language: ${lang:-zh} /" "$dir/BRIEF.md"
   case "$type:$res" in short:portrait|promo:landscape|data:landscape|meme:landscape|*:) ;;   # the type's own frame: nothing to say
     *) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：上面 TYPE 块写的画幅，以及按它算的尺寸（安全框、每行字数、字号），以这一行为准按新画幅重算。\n' "$aspect" "$wh" >> "$dir/BRIEF.md" ;;
   esac
@@ -559,7 +560,7 @@ cmd_check() {
     spec=$(python3 "$ROOT/tools/speccheck.py" "$v") || src=$?
     case "$src" in
       0) case "$spec" in *$'\nWARN '*) echo "$c_wa $spec" ;; *) echo "$c_ok $spec" ;; esac ;;
-      1) fail=1; echo "$c_no $spec"; echo "   fix the render, or the BRIEF's Output / Resolution line if the spec changed (a 4K delivery: Resolution: 1080p, 4k)" ;;
+      1) fail=1; echo "$c_no $spec"; echo "   the render does not match the BRIEF: fix the render. Change the BRIEF's Output or Resolution line only when the spec itself changed" ;;
       *) echo "$c_wa spec check failed (error above)" ;;
     esac
   fi
@@ -603,9 +604,10 @@ cmd_check() {
       case "$arc:$sc" in
         0:*"WARN "*) echo "$c_wa $sc" ;;
         0:*) echo "$c_ok $sc" ;;
-        1:*"FAIL "*) fail=1; echo "$c_no $sc"
+        1:*"the picture differs"*) fail=1; echo "$c_no $sc"
           echo "   the two renders differ for half a second or more: look at the comparison images above. A label or panel at twice the"
           echo "   size or shifted is code reading canvas or image pixel sizes at devicePixelRatio 2 (engines/README.md, 出 4K)" ;;
+        1:*"FAIL "*) fail=1; echo "$c_no $sc" ;;
         *) fail=1; echo "$c_no scale check failed (error above)" ;;
       esac
     fi
