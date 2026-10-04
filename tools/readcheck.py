@@ -13,12 +13,12 @@ A directory means <dir>/audio/captions.json. `start` must be the moment the text
 
 No fixed seconds: on-screen text has a floor and a target (templates/TASTE_CHECKLIST.md #5, playbook/03-motion-design.md §2).
   seconds at a pace = CJK chars / CJK rate + other non-space chars / other rate + pad; mixed zh/en lines count both.
-  floor     one read at a brisk speed, any film: CJK/7 + other/20 + 0.5 s, never under 1 s (only so a flash can't pass).
+  floor     one read at a brisk speed, any film: max(1.5 s, CJK/7 + other/20 + 0.8 s), #53's short-label rule (1.5 s: no flash).
             Below it the text FAILs (exit 1).
   target    the film's pace, a taste default: the BRIEF's "- Pace:" line, else normal; --pace overrides it.
               relaxed  CJK/4.5 + other/15 + 1.0 s     explainers, papers, letters: the viewer reads and thinks
-              normal   CJK/6   + other/18 + 0.6 s     most films
-              brisk    CJK/7   + other/20 + 0.5 s     fast cuts, memes, beat-cut MVs; the same as the floor
+              normal   CJK/6   + other/18 + 0.8 s     most films
+              brisk    CJK/7   + other/20 + 0.8 s     fast cuts, memes, beat-cut MVs; the same as the floor
             Below it (but over the floor) the text gets a WARN, exit 0: a look, not a fix list. --cjk-cps, --latin-cps,
             --pad and --min retune the target for one run; the floor never moves.
 
@@ -43,8 +43,8 @@ mark; a mark always wins over it.
 
 The shape of the on-screen formula (characters / rate + pad) comes from lemo-opuscar's core/render/readcheck.mjs and
 DIRECTOR.md §7 (MIT, © 2026 LemoLab), whose 4.5 CJK / 15 other chars a second the relaxed pace keeps. The floor, the
-paces and the label rule are ours (2026-10-04: a fixed 2.5 s minimum and a 1.5 s pad made fast films drag; the
-maintainer asked for no hard-coded intervals). The subtitle ceilings are the Netflix Timed Text Style Guide figures for
+paces are ours (2026-10-04: a fixed 2.5 s minimum and a 1.5 s pad made fast films drag; the maintainer asked for no
+hard-coded intervals); the floor is the short-label rule the intro film was cut to (#53). The subtitle ceilings are the Netflix Timed Text Style Guide figures for
 adult programmes (Chinese Simplified 9 cps, English USA 20 cps); the 1.8 s floor is lemo's DIRECTOR.md §7.
 lemo's tool renders the page and asks window.TEXTS(t) for boxes; this one only reads timings, so it cannot see
 cropping or text that leaves the frame. Check those on the contact sheet.
@@ -75,8 +75,8 @@ CJK_RANGES = [(0x3040, 0x30FF), (0x31F0, 0x31FF), (0x3400, 0x4DBF), (0x4E00, 0x9
               (0xAC00, 0xD7AF), (0x1100, 0x11FF), (0x3130, 0x318F), (0x20000, 0x2FA1F)]   # kana, Han, Hangul
 SUB_FLOOR, SUB_CPS_CJK, SUB_CPS_LATIN = 1.8, 9.0, 20.0
 # reading paces: (CJK chars/s, other non-space chars/s, pad s); playbook/03-motion-design.md §2 says why these numbers
-PACES = {"relaxed": (4.5, 15.0, 1.0), "normal": (6.0, 18.0, 0.6), "brisk": (7.0, 20.0, 0.5)}
-FLOOR_PACE, FLOOR_MIN, DEFAULT_PACE = "brisk", 1.0, "normal"   # the floor: one brisk read, never under 1 s (a flash)
+PACES = {"relaxed": (4.5, 15.0, 1.0), "normal": (6.0, 18.0, 0.8), "brisk": (7.0, 20.0, 0.8)}
+FLOOR_PACE, FLOOR_MIN, DEFAULT_PACE = "brisk", 1.5, "normal"   # the floor: one brisk read, never under 1.5 s (a flash)
 TAGS = {"subtitle": "sub", "onscreen": "on", "label": "lab"}   # the tag column of a run that mixes rules
 STATUS = {"ok": "OK  ", "warn": "WARN", "fail": "FAIL"}   # WARN: over the floor, under the pace's target
 PAUSE = 0.85   # playbook/04-audio.md: script length = seconds x rate x 0.85, the rest is pauses between sentences

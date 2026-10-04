@@ -6,7 +6,7 @@ family: seam
 role: [seam, breath]
 intent: [chapter, breath]
 energy: [1, 2]
-duration_f: [90, 155]
+duration_f: [96, 161]
 jump: [drop, level]
 types: [promo, short, paper, data, math]
 engines: [canvas, hyperframes]
@@ -14,7 +14,7 @@ aspect: [landscape, portrait, square]
 needs: [text]
 sound: recommended
 pitfalls: [no-hold, dead-frame, copy-drift, overuse]
-qa: {read: 45, settle: 60, last: 90}
+qa: {read: 45, settle: 60, last: 96}
 status: tuned
 max_per_film: 2
 pairs_with: [focus-handoff, breath-title-card]
@@ -38,16 +38,16 @@ derived_from:
 | 前镜淡出 | 0–8（6–10） | 淡到暗场，`bezier(0.5,0,0.4,1)` |
 | 暗场 | 8–20 | 静，只有底垫的声音在继续 |
 | 压印 | 18–38 | 字卡淡入（18–26）；第 i 个词在 20 + 3i 帧开始，9 帧压到位；强调色短线 32–44 帧长出 |
-| 停留 | 38–78 | 整句静止，时长按读时规则算：这句 13 个字符，Pace 为 normal 时是 40 帧 |
-| 退场 | 78–86 | 整张字卡 8 帧淡出 |
-| 后镜淡入 | 86–94（6–10） | 字卡完全退掉以后再进后镜 |
+| 停留 | 38–84 | 整句静止，时长按读时规则算：这句 13 个字符，Pace 为 normal 时是 46 帧 |
+| 退场 | 84–92 | 整张字卡 8 帧淡出 |
+| 后镜淡入 | 92–100（6–10） | 字卡完全退掉以后再进后镜 |
 
 ## 参数
 
 | 参数 | 值 | 调节手感 | ★ |
 |---|---|---|---|
-| 停留 | 从最后一个词落定算起，底线是够快读一遍（汉字数 ÷ 7 + 其他字符数 ÷ 20 + 0.5 s），舒服的时长按 BRIEF 的 Pace（normal：汉字数 ÷ 6 + 其他字符数 ÷ 18 + 0.6 s）；旁白念这句时跟旁白走 | 这是本仓库的读时规则（TASTE_CHECKLIST #5，`bin/vh readcheck` 可算）。shotcraft 原 demo 只停 15 帧，连快读一遍都不够 | ★ |
-| 文案长度 | ≤ 5 个英文词或 ≤ 10 个汉字 | 越长停得越久，字卡就成了一页 PPT；7 个英文词按 normal 要停约 2.4 s，按 relaxed 要 3 s 多 | ★ |
+| 停留 | 从最后一个词落定算起，底线是够快读一遍（max(1.5 s, 汉字数 ÷ 7 + 其他字符数 ÷ 20 + 0.8 s)），舒服的时长按 BRIEF 的 Pace（normal：汉字数 ÷ 6 + 其他字符数 ÷ 18 + 0.8 s，不低于底线）；旁白念这句时跟旁白走；当喘息用时可以停得比读时长，落在小节线上 | 这是本仓库的读时规则（TASTE_CHECKLIST #5，`bin/vh readcheck` 可算）。shotcraft 原 demo 只停 15 帧，连快读一遍都不够 | ★ |
+| 文案长度 | ≤ 5 个英文词或 ≤ 10 个汉字 | 越长停得越久，字卡就成了一页 PPT；7 个英文词按 normal 要停约 2.5 s，按 relaxed 要 3 s 多 | ★ |
 | 逐词压印 | 第 i 个词 delay = 20 + 3i 帧，9 帧；缩放 1.3 → 1、透明度 0 → 1、模糊 7 px → 0；`bezier(0.2,0.75,0.3,1)` | 和 `breath-title-card` 同一套压印，只是更快（3 帧一个词）、底换成暗场 | |
 | 字色 | 用风格里较亮的那个颜色（亮底风格就是底色） | 暗底配强调色正文、或者配纯白等宽字，像系统报错弹窗 | ★ |
 | 强调 | 一句只有一个强调词：强调色 + 加粗一档，不用斜体 | 两个强调词等于没有；斜体见 playbook/03 §4 | |
@@ -69,8 +69,8 @@ derived_from:
 
 ```js
 // black-card：A 在 10–18 帧暗下去，短句逐词压印，停到读完（按 BRIEF 的 Pace），字卡退场后淡入 B。
-// HOLD：13 个字符，normal 是 13 / 18 + 0.6 s ≈ 40 帧（底线 13 / 20 + 0.5 s ≈ 35 帧，playbook/03 §2）。
-const T0 = 10, WORDS = ["One", "place", "to", "go."], ACCENT = 1, HOLD = 40;
+// HOLD：13 个字符，normal 是 13 / 18 + 0.8 s ≈ 46 帧（底线 max(1.5 s, 13 / 20 + 0.8 s) = 45 帧，playbook/03 §2）。
+const T0 = 10, WORDS = ["One", "place", "to", "go."], ACCENT = 1, HOLD = 46;
 export function renderAt(t, ctx, tokens, lib) {
   const k = lib.frame(t) - T0, bg = lib.color(tokens, "bg"), fg = lib.color(tokens, "fg");
   const bgLight = lib.luminance(bg) > lib.luminance(fg);
@@ -122,7 +122,7 @@ function page(ctx, tokens, lib, seed) {                                // 灰盒
 
 - `read`（第 45 帧）：整句已经落定：字号够大，强调词只有一个，短线已经长出。
 - `settle`（第 60 帧）：停留中，画面完全静止；配乐的底垫还在（查音频，不是查画面）。
-- `last`（第 90 帧）：字卡已经退完，后镜正在淡入，两者没有叠在一起。
+- `last`（第 96 帧）：字卡已经退完，后镜正在淡入，两者没有叠在一起。
 
 ## 来源
 

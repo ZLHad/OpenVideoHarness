@@ -6,7 +6,7 @@ family: type
 role: [breath]
 intent: [breath, promise]
 energy: [1, 2]
-duration_f: [90, 160]
+duration_f: [96, 166]
 types: [promo, short, data, paper]
 engines: [canvas, hyperframes]
 aspect: [landscape, portrait, square]
@@ -37,14 +37,14 @@ derived_from:
 |---|---|---|
 | 压印 | 4–21 | 第 i 个词（中文是词块）在 4 + 4i 帧开始，9 帧压到位：缩放 1.28 → 1，透明度 0 → 1，`bezier(0.2,0.75,0.3,1)` |
 | 短线 | 16–34 | 强调色短线从 0 长到 220 px，`bezier(0.3,0,0.2,1)` |
-| 停留 | 34–90 | 从短线长完算起，按读时规则停：这一句 Pace 为 normal 时是 56 帧（1.9 s） |
-| 退场 | 90–98 | 整张卡 8 帧淡出，交给下一镜 |
+| 停留 | 34–96 | 从短线长完算起，按读时规则停：这一句 Pace 为 normal 时是 62 帧（2.1 s） |
+| 退场 | 96–104 | 整张卡 8 帧淡出，交给下一镜 |
 
 ## 参数
 
 | 参数 | 值 | 调节手感 | ★ |
 |---|---|---|---|
-| 停留 | 没人念：底线是够快读一遍（汉字数 ÷ 7 + 其他字符数 ÷ 20 + 0.5 s），舒服的时长按 BRIEF 的 Pace；旁白念这句：跟旁白走，念完再停 0.4–0.6 s | 本仓库的读时规则（TASTE_CHECKLIST #5，`bin/vh readcheck`）。shotcraft 原卡整张只有 50–55 帧（1.8 s），压印完剩下的停留连快读一遍都不够 | ★ |
+| 停留 | 没人念：底线是够快读一遍（max(1.5 s, 汉字数 ÷ 7 + 其他字符数 ÷ 20 + 0.8 s)），舒服的时长按 BRIEF 的 Pace；旁白念这句：跟旁白走，念完再停 0.4–0.6 s；当喘息用时可以停得比读时长，落在小节线上 | 本仓库的读时规则（TASTE_CHECKLIST #5，`bin/vh readcheck`）。shotcraft 原卡整张只有 50–55 帧（1.8 s），压印完剩下的停留连快读一遍都不够 | ★ |
 | 强调词 | 一句恰好一个：强调色 + 加粗一档；选功能名或收益词 | 两个强调词等于没有。原卡用斜体，本仓库不用斜体做强调（playbook/03 §4） | ★ |
 | 压印 | 起始缩放 1.28，9 帧，词间隔 4 帧 | 1.28 是"压上纸"的读感；逐词间隔再大就像打字机 | |
 | 底色 | 片子自己的底色，中心加一块很淡的暖光 | 和产品画面同一个世界，字卡才不像插播的广告 | ★ |
@@ -68,9 +68,9 @@ derived_from:
 ```js
 // breath-title-card：逐词压印 → 短线 → 停到读完（readcheck）→ 淡出。中文按词块，拉丁文按空格分词。
 const WORDS = ["每一帧，", "都是", "代码。"], ACCENT = 2;
-const PACE = { relaxed: [4.5, 15, 1.0], normal: [6, 18, 0.6], brisk: [7, 20, 0.5] };  // 汉字/秒、其他字符/秒、另加秒数（playbook/03 §2）
+const PACE = { relaxed: [4.5, 15, 1.0], normal: [6, 18, 0.8], brisk: [7, 20, 0.8] };  // 汉字/秒、其他字符/秒、另加秒数（playbook/03 §2）
 const [CJK, OTHER, PAD] = PACE.normal;                                // BRIEF 的 Pace
-const HOLD = Math.round(Math.max(1, 7 / CJK + 2 / OTHER + PAD) * 30);  // 7 个汉字、2 个标点 → 56 帧（底线 48 帧）
+const HOLD = Math.round(Math.max(1.5, 7 / CJK + 2 / OTHER + PAD) * 30);  // 7 个汉字、2 个标点 → 62 帧（底线 57 帧）
 const DONE = 34, OUT = DONE + HOLD;                                    // 短线长完 = 完整显示的那一刻
 export function renderAt(t, ctx, tokens, lib) {
   const f = lib.frame(t), bg = lib.color(tokens, "bg");

@@ -10,7 +10,7 @@ Lanes, all aligned to the same seconds:
   captions    the cues of audio/captions.json: red when bin/vh readcheck --mode subtitle fails (under 1.8 s, or faster
               than 9 CJK / 20 Latin characters a second)
   on-screen   texts.json or out/check/texts.json, else the timed text in index.html (bin/vh readcheck --export): red when
-              under the floor (one brisk read: CJK/7 + other/20 + 0.5 s, never under 1 s), amber when only under the
+              under the floor (one brisk read: CJK/7 + other/20 + 0.8 s, never under 1.5 s), amber when only under the
               target of the BRIEF's Pace (relaxed / normal / brisk; bin/vh readcheck -h has the numbers)
   music       sections, beats (downbeats taller) and hits of audio/music.beats.json (bin/vh music), or --beats
   issues      every red thing again, with its reason, so it can be read without hunting
@@ -36,7 +36,7 @@ AMBER_SOFT = (244, 224, 178)   # an on-screen text over the floor but under the 
 def why_not(dur, need, rate, limit):
     """Why a text fails its rule, in a few words: rate and limit are None for the on-screen rule."""
     if rate is None:
-        return f"{dur:.2f} s < {need:.2f} s"   # the floor is often near 1 s: tenths would read "1.2 s < 1.2 s"
+        return f"{dur:.2f} s < {need:.2f} s"   # the floor is often near 1.5 s: tenths would read "1.2 s < 1.2 s"
     return f"{dur:.1f} s < {RC.SUB_FLOOR:g} s" if dur < RC.SUB_FLOOR - 1e-6 else f"{rate:.1f}/s > {limit:g}/s"
 
 def run_settings(project):

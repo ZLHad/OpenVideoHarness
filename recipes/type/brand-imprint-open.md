@@ -6,14 +6,14 @@ family: type
 role: [open]
 intent: [brand-imprint]
 energy: [1, 2]
-duration_f: [80, 140]
+duration_f: [89, 149]
 types: [promo, short, data, paper]
 engines: [canvas, hyperframes]
 aspect: [landscape, portrait, square]
 needs: [logo]
 sound: recommended
 pitfalls: [no-hold, too-fast]
-qa: {read: 46, settle: 60, last: 86}
+qa: {read: 46, settle: 60, last: 95}
 status: upstream-tested
 pairs_with: [spotlight-hero]
 derived_from:
@@ -37,8 +37,8 @@ derived_from:
 | 字标压印 | 10–46 | 第 i 个字在 10 + 3i 帧开始，12 帧压到位：缩放 1.6 → 1（以字的底边为轴），`bezier(0.2,0.7,0.25,1)`；每个字到位时字底闪一道 8 帧的强调色短划 |
 | 记号淡出 | 24–34 | 记号画完就退，不和字标抢 |
 | 副标打字 | 28 起 | 等宽小字逐字出现，块状光标跟着；打完光标闪，停留期结束前停闪 |
-| 停留 | 46–82 | 从字标完整算起，按读时规则停：Pace 为 normal 时是 36 帧（副标 11 个字符最慢，1.2 s） |
-| 退场 | 82–89 | 7 帧：整组上浮 40 px、缩小 12%、淡出，交给下一镜 |
+| 停留 | 46–91 | 从字标完整算起，按读时规则停：Pace 为 normal 时是 45 帧（副标 11 个字符最慢，算出 1.4 s，不到底线的 1.5 s，取 1.5 s） |
+| 退场 | 91–98 | 7 帧：整组上浮 40 px、缩小 12%、淡出，交给下一镜 |
 
 ## 参数
 
@@ -69,8 +69,8 @@ derived_from:
 // brand-imprint-open：记号描出 → 字标逐字压印（字底 glint）→ 副标打字 → 停到读完 → 7 帧上浮离场。
 const MARK = "Frame Lab", KICKER = "VIDEO AS CODE";
 const DONE = 10 + 3 * (MARK.length - 1) + 12;                          // 字标完整：第 46 帧
-const CPS = 18, PAD = 0.6;                                              // BRIEF 的 Pace = normal：其他字符 18 个/秒，另加 0.6 s（playbook/03 §2）
-const OUT = DONE + Math.round(Math.max(1, MARK.replace(/ /g, "").length / CPS + PAD, KICKER.replace(/ /g, "").length / CPS + PAD) * 30);
+const CPS = 18, PAD = 0.8, FLOOR = 1.5;                                // BRIEF 的 Pace = normal：其他字符 18 个/秒，另加 0.8 s，不低于底线 1.5 s（playbook/03 §2）
+const OUT = DONE + Math.round(Math.max(FLOOR, MARK.replace(/ /g, "").length / CPS + PAD, KICKER.replace(/ /g, "").length / CPS + PAD) * 30);
 export function renderAt(t, ctx, tokens, lib) {
   const f = lib.frame(t), fg = lib.color(tokens, "fg"), ac = lib.color(tokens, "accent");
   ctx.fillStyle = lib.color(tokens, "bg"); ctx.fillRect(0, 0, 1920, 1080);
@@ -113,7 +113,7 @@ export function renderAt(t, ctx, tokens, lib) {
 
 - `read`（第 46 帧）：字标完整，所有字都已落位；glint 只剩最后一个字的尾巴。
 - `settle`（第 60 帧）：停留中，只有光标在闪，其他全部静止。
-- `last`（第 86 帧）：退场中段，整组在上浮、缩小、变淡，方向和下一镜的运动一致。
+- `last`（第 95 帧）：退场中段，整组在上浮、缩小、变淡，方向和下一镜的运动一致。
 
 ## 来源
 

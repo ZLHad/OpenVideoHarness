@@ -287,17 +287,17 @@ decision_checks() {
   vh style apply no-such-style "$p" >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "style apply rejects an unknown preset" || bad "style apply unknown preset exited $rc"
   # readcheck: a budget, and the timed text of a composition without a browser
   a=$(vh readcheck --budget 3.2)
-  case "$a" in *"normal pace"*"up to 15 CJK"*"one brisk read"*"up to 18 CJK"*"up to 28 CJK"*) ok "readcheck --budget: the pace's target, the floor, subtitles" ;; *) bad "readcheck --budget 3.2 said: $a" ;; esac
-  # no fixed seconds: under one brisk read (CJK/7 + other/20 + 0.5 s, at least 1 s) FAILs; under the pace's target only WARNs
+  case "$a" in *"normal pace"*"up to 14 CJK"*"one brisk read"*"up to 16 CJK"*"up to 28 CJK"*) ok "readcheck --budget: the pace's target, the floor, subtitles" ;; *) bad "readcheck --budget 3.2 said: $a" ;; esac
+  # no fixed seconds: under one brisk read (CJK/7 + other/20 + 0.8 s, at least 1.5 s) FAILs; under the pace's target only WARNs
   tl=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
-  printf '%s' '[{"id":"a","text":"CLAUDE.md router","start":0,"end":1.3,"read":"label"},{"id":"b","text":"CLAUDE.md router","start":0,"end":1.3},' \
-    '{"id":"c","text":"CLAUDE.md router","start":0,"end":1.3,"pace":"brisk"}]' > "$tl/label.json"
+  printf '%s' '[{"id":"a","text":"CLAUDE.md router","start":0,"end":1.6,"read":"label"},{"id":"b","text":"CLAUDE.md router","start":0,"end":1.6},' \
+    '{"id":"c","text":"CLAUDE.md router","start":0,"end":1.6,"pace":"brisk"}]' > "$tl/label.json"
   a=$(vh readcheck "$tl/label.json"); rc=$?
-  case "$rc:$a" in 0:*"OK   a"*"lab"*"WARN b"*"normal  1.43s"*"OK   c"*"pace normal, default"*"3/3 pass · 1 WARN"*)
+  case "$rc:$a" in 0:*"OK   a"*"lab"*"WARN b"*"normal  1.63s"*"OK   c"*"pace normal, default"*"3/3 pass · 1 WARN"*)
       ok "readcheck: under the pace's target is a WARN (exit 0); a label and a brisk text need one read" ;; *) bad "readcheck WARN band (rc $rc): $a" ;; esac
   printf '%s' '[{"id":"f","text":"CLAUDE.md router","start":0,"end":1.2},{"id":"g","text":"短","start":2,"end":2.9}]' > "$tl/flash.json"
   a=$(vh readcheck "$tl/flash.json"); rc=$?
-  case "$rc:$a" in 1:*"FAIL f"*"floor  1.25s"*"FAIL g"*"floor  1.00s"*"2 FAIL"*) ok "readcheck: under the floor FAILs, and nothing passes under 1 s" ;; *) bad "readcheck floor (rc $rc): $a" ;; esac
+  case "$rc:$a" in 1:*"FAIL f"*"floor  1.55s"*"FAIL g"*"floor  1.50s"*"2 FAIL"*) ok "readcheck: under the floor FAILs, and nothing passes under 1.5 s" ;; *) bad "readcheck floor (rc $rc): $a" ;; esac
   printf '%s\n' '# BRIEF' '- Pace: relaxed  <!-- relaxed | normal | brisk -->' > "$tl/BRIEF.md"
   a=$(vh readcheck "$tl/label.json"); b=$(vh readcheck "$tl/label.json" --pace brisk); rc=$?
   case "$a" in *"WARN b"*"relaxed  2.00s"*"pace relaxed, Pace in"*)
@@ -311,7 +311,7 @@ decision_checks() {
     '<div id="c1" class="clip" data-start="1" data-duration="4"><span>四个汉字</span></div>' \
     '<div id="c2" class="clip" data-start="6" data-duration="1.2">太短了的字</div></div><script>var x="<div>";</script></body></html>' > "$p/index.html"
   a=$(vh readcheck "$p/index.html"); rc=$?
-  case "$rc:$a" in 1:*"OK   c1"*"FAIL c2"*"pace normal, Pace in"*"NOT checked: 1 text block"*) ok "readcheck reads a composition's clips and the new project's Pace (and says what it left out)" ;; *) bad "readcheck index.html (rc $rc): $a" ;; esac
+  case "$rc:$a" in 1:*"OK   c1"*"FAIL c2"*"pace relaxed, Pace in"*"NOT checked: 1 text block"*) ok "readcheck reads a composition's clips and the new project's Pace (a math project: relaxed; and says what it left out)" ;; *) bad "readcheck index.html (rc $rc): $a" ;; esac
   vh readcheck --export "$p" >/dev/null && grep -q '"id": "c2"' "$p/texts.json" && { vh readcheck "$p" --export >/dev/null 2>&1; [ $? = 2 ]; } \
     && ok "readcheck --export writes texts.json and will not overwrite it" || bad "readcheck --export"
   # HyperFrames timing the way HyperFrames resolves it: "id", "id+n", a sub-composition's <template>, a typo'd reference

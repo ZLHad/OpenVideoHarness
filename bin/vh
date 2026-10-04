@@ -53,7 +53,7 @@
 #                               (--subs-off: no subtitle track starts switched on, for a picture with burned-in captions)
 #  check
 #   readcheck <texts.json|project|index.html> [--pace relaxed|normal|brisk] [--mode onscreen|label|subtitle] [--lang zh|en]  reading time, no fixed seconds:
-#                               FAIL under one brisk read (CJK/7 + other/20 + 0.5 s, at least 1 s; exit 1), WARN under the target of the BRIEF's
+#                               FAIL under one brisk read (CJK/7 + other/20 + 0.8 s, at least 1.5 s; exit 1), WARN under the target of the BRIEF's
 #                               Pace (exit 0); subtitles within reading speed. data-read="subtitle"|"label" and data-pace="…" mark clips
 #                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [--out f]: the composition's timed text
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
@@ -379,6 +379,10 @@ PY
     sedi "s/^- Effort: standard /- Effort: $effort /" "$dir/BRIEF.md"
     [ "$effort" = quick ] && printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；人点名要拍板的事照样停（导演模式）；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
   fi
+  case "$type" in   # the type's usual reading pace (the BRIEF's Pace comment); the BRIEF line can change it
+    math|paper) sedi "s/^- Pace: normal /- Pace: relaxed /" "$dir/BRIEF.md" ;;
+    meme) sedi "s/^- Pace: normal /- Pace: brisk /" "$dir/BRIEF.md" ;;
+  esac
   for s in $styles; do attach_style "$dir" "$s"; done   # presets as references: copies in style-refs/, listed in BRIEF, a DECISIONS line
   trap - EXIT
   echo "$c_ok created $(rel "$dir")"

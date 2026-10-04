@@ -93,7 +93,7 @@ Visual style: dark mathematical explainer. Pure black background, no glow, no pa
 - 放大细节时，父对象是否还在画面里？
 - 公式是否超出安全区，或和图形重叠？（打印包围盒）
 - 每个场景是否只讲了一个 insight？
-- 结论文字完整显示后停到读完（读时规则，TASTE_CHECKLIST #5）；放大或转场的中途，有没有不透明底色盖住被放大的部分？
+- 结论文字至少完整可读 2.5 s（风格节拍：结论要留时间想；比读时底线长）；放大或转场的中途，有没有不透明底色盖住被放大的部分？
 - Manim 陷阱：`self.play(..., rate_func=…)` 会覆盖每个子动画自己的缓动；`always_redraw` 会丢 `z_index`（见 `video-types/01`）。
 
 ## 相关资源
