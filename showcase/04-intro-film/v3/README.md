@@ -1,6 +1,8 @@
 # 04 · promo — OpenVideoHarness intro film (one-take 3D, code-composed score)
 
-> This is the v3 film (2026-09-29), kept for the record. The current intro film is [v5](../README.md); its body is this film's world, updated and slowed from 90 to 80 BPM. The v5 files replaced v3's in the film folder; v3's own source (`js/`, `tools/`, `audio/` below) is at commit 7057c74: `git checkout 7057c74 -- showcase/04-intro-film` (the installer's clone has only the newest commit, so fetch it there first: `git fetch --depth 1 origin 7057c74725c42b38fe545d85916cab11fe78bed4`).
+> This is the v3 film (2026-09-29), kept for the record. The current intro film is [v5](../README.md); its body is this film's world, updated and slowed from 90 to 80 BPM. The v5 files replaced v3's in the film folder; v3's own source (`js/`, `tools/`, `audio/` below) is at commit c649392: `git checkout c649392 -- showcase/04-intro-film` (the installer's clone has only the newest commit, so fetch it there first: `git fetch --depth 1 origin c6493922522a2ef20d4d5f1dd5bca9fd6e3492d7`).
+>
+> Three texture sheets it uses (`assets/tex/draft-sheet.png`, `storyboard-sheet.png` and `self-sheet.png`, 2–6 MB each) left the git history in the 2026-10-04 cleanup. After the checkout, download [`intro-film-v3-tex.zip`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-v3-tex.zip) (10.8 MB, sha256 `d18dac3b585ae8adec7021c7f57ea27266da734754b5be4593ae063fad4357bb`) and run `unzip -o intro-film-v3-tex.zip` in the repo root: `-o` matters, because main has its own (v5) `self-sheet.png` there, which the checkout leaves in place and v3 must not use.
 
 ![OpenVideoHarness intro film v3](poster.png)
 
@@ -79,4 +81,4 @@ mkdir -p out/check && npx hyperframes render --quality draft --output out/draft.
 bash tools/deliver.sh out/draft.mp4                     # self-sheets, master, SFX, mix, mux, web encode, GIF, poster, checks
 ```
 
-The proxies are re-encoded, so screen frames can differ slightly from `final.mp4`. The built-in `error` SFX was later smoothed in `tools/audio/sfx.py`, so the mix differs slightly at 44.0 s. Everything else is deterministic. All working notes are in Chinese: [NOTES.md](NOTES.md) (decisions, sources, every review round), [LESSONS.md](LESSONS.md), [REVIEW.md](REVIEW.md), [STORYBOARD.md](STORYBOARD.md), [audio/SCORE_NOTES.md](https://github.com/ZLHad/OpenVideoHarness/blob/7057c74/showcase/04-intro-film/audio/SCORE_NOTES.md).
+The proxies are re-encoded, so screen frames can differ slightly from `final.mp4`. The built-in `error` SFX was later smoothed in `tools/audio/sfx.py`, so the mix differs slightly at 44.0 s. Everything else is deterministic. All working notes are in Chinese: [NOTES.md](NOTES.md) (decisions, sources, every review round), [LESSONS.md](LESSONS.md), [REVIEW.md](REVIEW.md), [STORYBOARD.md](STORYBOARD.md), [audio/SCORE_NOTES.md](https://github.com/ZLHad/OpenVideoHarness/blob/c649392/showcase/04-intro-film/audio/SCORE_NOTES.md).

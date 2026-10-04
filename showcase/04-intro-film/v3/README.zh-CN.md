@@ -1,6 +1,8 @@
 # OpenVideoHarness 介绍片 v3：一镜到底 · 产品宣传片
 
-> 这是 v3（2026-09-29），留作记录。现在的介绍片是 [v5](../README.zh-CN.md)：正文沿用这支片子的世界，更新了数字，速度从 90 降到 80 BPM。片子目录里的文件已换成 v5 的；下文提到的 v3 源码（`js/`、`tools/`、`audio/`）在提交 7057c74：`git checkout 7057c74 -- showcase/04-intro-film`（安装脚本克隆的仓库只有最新的提交，要先 `git fetch --depth 1 origin 7057c74725c42b38fe545d85916cab11fe78bed4`）。
+> 这是 v3（2026-09-29），留作记录。现在的介绍片是 [v5](../README.zh-CN.md)：正文沿用这支片子的世界，更新了数字，速度从 90 降到 80 BPM。片子目录里的文件已换成 v5 的；下文提到的 v3 源码（`js/`、`tools/`、`audio/`）在提交 c649392：`git checkout c649392 -- showcase/04-intro-film`（安装脚本克隆的仓库只有最新的提交，要先 `git fetch --depth 1 origin c6493922522a2ef20d4d5f1dd5bca9fd6e3492d7`）。
+>
+> 它用到的三张贴图（`assets/tex/draft-sheet.png`、`storyboard-sheet.png`、`self-sheet.png`，每张 2–6 MB）在 2026-10-04 清理历史时移出了 git。checkout 之后，下载 Release `media` 里的 [`intro-film-v3-tex.zip`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-v3-tex.zip)（10.8 MB，sha256 `d18dac3b585ae8adec7021c7f57ea27266da734754b5be4593ae063fad4357bb`），在仓库根目录运行 `unzip -o intro-film-v3-tex.zip`。一定要带 `-o`：main 自己有一张 v5 的 `self-sheet.png`，checkout 不会动它，v3 不能用它。
 
 成片 [`final.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-v3-81s.mp4)（在 GitHub Release 里；网页版 20.8 MB，带立体声和中英软字幕轨）· 1920×1080 · 30 fps · **81.333 s（2440 帧）** · fx 预设 B · −14.0 LUFS
 
