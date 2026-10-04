@@ -211,7 +211,7 @@ Not every film deserves the full process. Say "quick draft" or "studio quality" 
 
 At every level: no invented facts, no sudden silence in a film with sound, no rapid flashing, and type no smaller than the floor for the target screen.
 
-Apart from the level, you can name what you want to decide yourself: the hook, the look, the main character, the theme tune, the voice, the script, the storyboard, the title and the cover. For those it offers options and waits; the rest it decides, writes down why in the project's `DECISIONS.md`, and you can overrule it at any time. At each stop it builds a local review page (`bin/vh review`) that opens with only the decisions it needs from you, with the frames, animatic and music playable in the browser.
+Apart from the level, you can name what you want to decide yourself: the hook, the look, the main character, the theme tune, the voice, the script, the storyboard, the title and the cover. For those it offers options and waits; the rest it decides, writes down why in the project's `DECISIONS.md`, and you can overrule it at any time. At each stop it builds a local review page (`bin/vh review`) that opens with only the decisions it needs from you, with the frames, animatic and music playable in the browser. At `studio` the stop is the review desk (`bin/vh desk`): the outline, captions, storyboard, sound, facts and the draft each get a page; you mark any item ok, change or question, add a line and submit, and the agent, waiting in the background, carries on with your words copied into `REVIEW.md`. Both pages come in English or Chinese, set from the language of your first request.
 
 ## Requirements, cost and limits
 
