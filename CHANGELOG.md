@@ -7,7 +7,7 @@
 - `cases/douyin-vibe-knowledge.md` covers the ten films: post date, likes (a 10-04 snapshot), length, frame and opening. It also records:
   - a few things the top four share, each marked with which films do it;
   - caption sizes measured on two of them (about 42–56 px at 1080p, around the `desktop` floor);
-  - one creator's 15 films in a week, with likes from 2,246 to 427,108 (leaving out one posted that day);
+  - one account's 15 films in a week (likes 2,246–427,108, not counting one posted that day);
   - two films on the same topic (the 37% rule).
   The case is linked from `cases/README.md`, type 02 and the CLAUDE.md route table.
 - `video-types/02-knowledge-short.md` adds a "Douyin landscape mid-length" variant:
