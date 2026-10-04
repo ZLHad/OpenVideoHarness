@@ -8,6 +8,7 @@
 - Output: {W}x{H}, {fps} fps, exactly {N}s ({frames} frames)
 - Watch on: {watch}  <!-- 主要在哪看，定字号下限和可读性检查缩到多宽（playbook/03 §4）：phone 手机竖屏；feed 横屏片放在手机信息流里，竖着拿、不转屏；desktop 电脑，或手机转成横屏全屏。bin/vh new 按画幅填了默认值，人说了发在哪就照着改 -->
 - Resolution: {res}  <!-- 默认 1080p。4k：照常按 1080p 写合成和字号，出片时渲成 4K（HyperFrames `render --resolution 4k`，竖屏 `portrait-4k`，方形 `square-4k`，4:5 没有 4K 预设；Manim `-qk --fps 30`；Remotion `--scale=2`）；canvas、Three.js 要按像素密度开大，否则会糊（engines/README.md"出 4K"）；手绘引擎暂不支持 4K；draft 用 1080p，4K 成片裁一两帧看锐不锐 -->
+- Review language: zh  <!-- zh | en：审阅页和审阅台的界面语言，按用户第一句话的语言定（bin/vh new --lang）；字幕和项目文档照旧用项目自己的语言 -->
 - Engine: {HyperFrames | Remotion | Manim CE | ClaudeAnimationBase (p5.brush) | other}
 - Platform / audience: {where it plays, who watches, sound-on or muted}
 - Language: {zh-CN | en}, narration: {TTS voice | user recording | song | none}
@@ -20,6 +21,13 @@
 - Recurring motif: {one object/visual that evolves and pays off}
 - What the viewer should know/feel at the end: {…}
 - Source material: {paper path / product URL / data.csv / song path / script}
+
+## Outline
+<!-- 关卡 ① 的 3–7 段大纲（playbook/09-narrative.md 第 3 节）。段名按内容或阶段起，看名字就知道这段讲什么，例如"按下发送 / 信道编码与调制 / 基站接住"；起承转合、幕这类结构标签最多写进"标签"列，可以不写。
+     审阅台按这张表画时间条（列名的约定见 tools/desk/README.md）；时间写"0–10 s"，有配乐时也可以加"小节"列。 -->
+| # | 段落 | 标签 | 时间 | 观众看完知道 / 感到 | 关键画面 |
+|---|---|---|---|---|---|
+| 1 | {按内容起的段名} | {可不写：起 / 承 / 转 / 合} | {0–10 s} | {…} | {…} |
 
 ## Style
 - Style refs (repo presets): {none}  <!-- styles/ 里拿来参考的预设，bin/vh new --style a,b 或 bin/vh style apply 会填；参考，不是规定：借了什么记进 DECISIONS.md，和它们不一样不用解释 -->
