@@ -3,7 +3,7 @@
 ## Unreleased
 
 **Docs: a Douyin case study, a landscape variant for knowledge films, and two ideation prompts**
-- Why: the maintainer sent ten Douyin "Vibe知识大赏" films (2026-09-25 to 10-03) and asked what is worth learning from them. The four most-liked of those ten (148k–667k likes) are all 16:9 and 2.5–5 min long. Type 02 had described 30–90 s vertical films as the main case; Douyin landscape films appeared only in `cases/oneshot-five.md`.
+- Why: of ten Douyin "Vibe知识大赏" AI knowledge films from late September 2026, the four most-liked (148k–667k likes) are all 16:9 and 2.5–5 min long. Type 02 had described 30–90 s vertical films as the main case; Douyin landscape films appeared only in `cases/oneshot-five.md`.
 - `cases/douyin-vibe-knowledge.md` covers the ten films: post date, likes (a 10-04 snapshot), length, frame and opening. It also records:
   - a few things the top four share, each marked with which films do it;
   - caption sizes measured on two of them (about 42–56 px at 1080p, around the `desktop` floor);
