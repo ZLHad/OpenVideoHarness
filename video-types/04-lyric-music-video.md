@@ -9,7 +9,7 @@
 | 核心 | 画面讲故事，**歌词不上屏**（或者只保留一条卡拉 OK 字带） | 文字本身就是画面，排版是主角 |
 | 引擎 | ClaudeAnimationBase（p5.brush），或者自己写 WebGL 笔触渲染器 | HyperFrames `/music-to-video` |
 | 范例 | PDoom（p5.brush，9 章）、Functional Emotions（自写 WebGL，6 万笔触，8 章） | HyperFrames 风格库里的 Maximalist Type（Paula Scher）、Deconstructed（Neville Brody） |
-| 风险 | 工作量大，一般要多个 subagent 并行 | 容易做成"歌词幻灯片" |
+| 风险 | 工作量大，要分章节做（可以开 1–3 个 subagent 分担；按章节铺开并行留给 `studio` 或人点名时） | 容易做成"歌词幻灯片" |
 
 Functional Emotions 的教训：第一版是精致的排版歌词视频，被否掉了，用户的理由是"还是歌词视频"。所以用户说要"MV"时，默认走 A 路线，除非用户明确要的是歌词视频。
 
@@ -66,7 +66,7 @@ First build beats.json (BPM, downbeats, sections) and word-timed lyrics (Demucs 
 Write a story with one protagonist and a motif; choruses return to the same set and escalate each time; palette arc per section: {arc}.
 Shots 1.4–4s; something happens in every shot; motivated transitions (cut on action, match cut, chomp-to-black, push through an eye…), never a plain crossfade.
 {B only: two text registers: subtitle-size 60–72px for verses; full-bleed hero words 300–600px weight 900 tracking -0.04em for hooks; when text is huge the background goes quiet. Open with a hero-size hook line.}
-Director builds chapter 1 as the reference; then one subagent per chapter, briefed by ANIMATION_GUIDE.md, editing only its own file; review every chapter on contact sheets before accepting.
+Director builds chapter 1 as the reference, then the rest in order, handing a few hard chapters to 1–3 subagents on a cheaper model if needed; one subagent per chapter only at studio (or when asked), briefed by ANIMATION_GUIDE.md, editing only its own file; review every chapter on contact sheets before accepting.
 This is a music video, not a lyric slideshow.
 ```
 
