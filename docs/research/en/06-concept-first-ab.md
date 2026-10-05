@@ -4,7 +4,7 @@
 
 > **Current state (2026-10-02)**: the text-size question left at the end of "Limitations" was later settled by tiering the floor by where the film is watched ([#47](https://github.com/ZLHad/OpenVideoHarness/pull/47)): the BRIEF gained `Watch on`, with different floors for `phone`, `desktop` and `feed`, and the readability check scales to the target screen. This experiment's reviewer looked at the two landscape films as they appear in a phone feed (360 px wide); for `desktop`, the 44 px labels are enough, for `feed` they would need 80 px.
 >
-> 2026-10-05: the quick path card moved from CLAUDE.md to `playbook/quick.md`, unchanged; "CLAUDE.md's quick path card" below is that file.
+> 2026-10-05: the quick path card moved from CLAUDE.md to `playbook/quick.md` with small wording changes; "CLAUDE.md's quick path card" below is that file.
 
 ## Question
 

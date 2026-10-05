@@ -55,4 +55,4 @@ Every frame is a pure function of t (CLAUDE.md hard rule 1).
 - [ ] {e.g. 45s ±0.5s, 1080x1920, loudness -14 LUFS}
 
 ## TYPE
-- Type doc: {type doc}  <!-- 这类片子的默认做法在类型文档的"Prompt 增量块"里，没有贴进这份 BRIEF，立意定了再读：画幅、结构、字幕、平台安全区这类类型参数照用，抄进上面各节；语域、配色、节拍顺序是默认口味，和立意冲突时以立意为准（playbook/12-ideation.md 第 6 节）。 -->
+- Type doc: {type doc}  <!-- 这类片子的默认做法在类型文档的"Prompt 增量块"里，立意定了再读：画幅、字幕规格、平台安全区这类类型参数照用，抄进上面各节；语域、配色、节拍顺序是默认口味，和立意冲突时以立意为准（playbook/12-ideation.md 第 6 节）。 -->

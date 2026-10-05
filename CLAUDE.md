@@ -7,7 +7,7 @@
 ## 接到"做视频"的请求时
 
 0. **定档位和导演模式**：这支片子做多认真（`quick` / `standard` / `studio`），人要亲自拍板哪些事，规则见下面两节；后面每一步做多少、在哪里停，都按这两样来。`quick` 照 `playbook/quick.md` 做。
-1. **判断类型**：用路由表找到类型文档，先读"工作流"和"禁止"两节；"Prompt 增量块"是这类片子的默认做法，想完立意再读。横跨两类（例如论文讲解做成竖屏短视频）就两份都读，以主类型为准。一句话需求是常态：先想立意（第 4 步），其余用类型文档的默认值补，关卡 ① 最多问 3 个真正影响制作的问题。规格（画幅、分辨率、帧率、时长、在哪看）按 `playbook/01-pipeline.md` 的"规格"补；只有需求没说发在哪、而它又会改变画幅或字号下限时，才当成一个问题问。
+1. **判断类型**：用路由表找到类型文档，整篇读；其中"Prompt 增量块"那一节是这类片子的默认做法，想完立意再读（`quick` 只读"工作流"和"禁止"两节，见 `playbook/quick.md`）。横跨两类（例如论文讲解做成竖屏短视频）就两份都读，以主类型为准。一句话需求是常态：先想立意（第 4 步），其余用类型文档的默认值补，关卡 ① 最多问 3 个真正影响制作的问题。规格（画幅、分辨率、帧率、时长、在哪看）按 `playbook/01-pipeline.md` 的"规格"补；只有需求没说发在哪、而它又会改变画幅或字号下限时，才当成一个问题问。
 2. **读流程和自查**：`playbook/01-pipeline.md`、`playbook/02-verification.md`；有配音或音乐时再读 `playbook/04-audio.md`。
 3. **建项目**：`bin/vh new <type> <slug>` 建好 `projects/<日期>-<slug>/`，复制模板（选项见 `bin/vh new -h`）；手绘类还会复制引擎、装好依赖。其他引擎的初始化见 `engines/README.md`。
 4. **先想立意，再看参考**：先把材料里只属于它的数字、原话、物件列进 NOTES.md 的素材清单，自己想 5–8 个点子；这时先不看 Prompt 增量块、`styles/`、`recipes/` 和案例，免得点子往看过的东西上靠。然后再用参考补强，收敛成 2–3 张立意卡（`playbook/12-ideation.md`）。人已经给了立意，就记进 BRIEF，不再出卡，最多附一个备选。参考：类型文档"可参考的案例"和"社区 skill 参考"两节；`showcase/` 是本仓库自己做的片子，各带 BRIEF、STORYBOARD、NOTES 和源码；`references/repos/` 是只读的源码。分镜时，镜头怎么动、全片节奏怎么排，先查 `recipes/`（`bin/vh recipes list` 按意图和能量筛），选中的配方 id 写进 STORYBOARD，写代码前读配方全文。
@@ -32,10 +32,10 @@
 - 全屏闪白每秒不超过 3 次；
 - 字号不低于 BRIEF"在哪看"那一档的下限（`playbook/03-motion-design.md` §4）；
 - 素材许可要记清；
-- `TASTE_CHECKLIST.md` 里标【底线】的条目；
+- `TASTE_CHECKLIST.md` 里标【底线】的条目：安全框、读时（够快读一遍；从容多少跟 BRIEF 的 `Pace` 走，是口味）、字号、字不被光烧白、reads 不被盖掉、循环接缝、分镜里声明的卡点、没有占位和编造；
 - 出片前跑一次 `bin/vh check`。
 
-`quick` 省掉的是轮数和审阅，不是这些。**底线之外都是默认口味**：清单里没标【底线】的条目、运动的默认值、类型文档的语域和节拍、镜头配方，都是没有立意时的稳妥做法；风格预设只是参考。立意需要时可以反着来，规矩只写在一处：`playbook/12-ideation.md` 第 6 节。规则是用来防止犯错的，不是用来规定口味的。
+`quick` 省掉的是轮数和审阅，不是这些。**底线之外都是默认口味**：清单里没标【底线】的条目、运动的默认值、类型文档的语域和节拍、镜头配方，都是没有立意时的稳妥做法；风格预设只是参考。立意需要时可以反着来，完整的规矩在 `playbook/12-ideation.md` 第 6 节，别处只是摘要。规则是用来防止犯错的，不是用来规定口味的。
 
 ## 导演模式：谁来拍板
 
@@ -64,14 +64,22 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 | 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`；要路径追踪的光影、物理模拟或真实景深时读 `engines/blender.md`（部分验证；渲染时间先渲 3–5 帧校准）。样板是 `showcase/04-intro-film/` | HyperFrames + Three.js 层；重光影的镜头用 Blender |
 | "这个视频是怎么做的"，想学某支参考视频 | `playbook/07-reverse-engineer.md` | —（产出一份 cases/ 拆解） |
 
-案例列在各类型文档的"可参考的案例"一节。跨类型的主题按需读：配音、字幕、配乐、音效、混音读 `playbook/04-audio.md`，有篇章、有主题的配乐再读 `11-composition.md`；特效、转场、声画联动读 `08`；3 分钟以上或靠故事推进的片子读 `09-narrative.md`；要发平台的钩子、标题、封面读 `10-hooks-and-packaging.md`；想要新点子读 `12-ideation.md`；想要某种风格读 `styles/README.md`；镜头怎么动、全片的节奏读 `recipes/README.md`；社区 skill 和画风库读 `references/community-skills.md`；同类型的社区作品和提示词读 `cases/opus55-gallery.md`（想完立意再看）。以上都不贴切时，读 `playbook/00-paradigm.md` 的引擎选型表自己判断，并在 `DECISIONS.md` 里写明理由。
+案例列在各类型文档的"可参考的案例"一节，总索引是 `cases/README.md`。跨类型的主题按需读：
+- 配音、字幕、配乐、音效、混音：`playbook/04-audio.md`；有篇章、有主题的配乐（MV、发布片、45 s 以上靠音乐撑的片子、`studio`，或者人要亲自定主题），再读 `playbook/11-composition.md`；
+- 特效、转场、粒子、着色器、声画联动：`playbook/08-vfx-and-motion-sources.md`；
+- 3 分钟以上、或靠故事推进的片子：`playbook/09-narrative.md`；
+- 要发平台的钩子、标题、封面：`playbook/10-hooks-and-packaging.md`；
+- 新点子：`playbook/12-ideation.md`；某种风格：`styles/README.md`；镜头怎么动、全片的节奏：`recipes/README.md`；
+- 社区 skill 和画风库：`references/community-skills.md`；同类型的社区作品和提示词：`cases/opus55-gallery.md`（想完立意再看；3D 长片深读在它的第 6 节）。
+
+以上都不贴切时，读 `playbook/00-paradigm.md` 的引擎选型表自己判断，并在 `DECISIONS.md` 里写明理由。
 
 ## 硬规则
 
 1. **每一帧都是 t 的纯函数。** 不用 `Math.random()`、`Date.now()`、CSS transition 或 `@keyframes`，不保存跨帧状态；需要随机时用带种子的 `hash(i)`。乱序渲染同一帧，结果必须一致。检验方法：从中间抽几帧单独渲染，和整片里的同一帧比对，要逐像素相同；如果 GPU 光栅化带来细微差异，PSNR 至少 45 dB，而且肉眼看不出。比的是无损 PNG 帧，不是编码后的 mp4（x264 会放大差异）。
 2. **有声音时，音频决定时长。** 先生成配音或拿到歌曲，转成词级时间戳和节拍表，再用实测时长回写分镜，让画面去对齐音频。静音视频的时长由分镜里的 reads 决定，画面必须在静音下读得懂。
 3. **先分镜后代码。** 分镜里给每个镜头写出观众必须依次看懂的 reads，并标起止时间；重要的 reads 不能重叠。
-4. **每个场景都要自查。** 至少包括：一张联系表，关键动作一条逐帧 strip，承载剧情的脸或细节一个 crop；对照 `TASTE_CHECKLIST.md`，发现问题就修。整片 draft 还要过清单里的打分层：换一个全新上下文的严苛 reviewer，按 8 个维度（含立意）打分；做几轮、怎样算过线按档位（`playbook/01-pipeline.md` 的"努力程度"），轮数有上限。自查成本很低，不要省。
+4. **每个场景都要自查。** 至少包括：一张联系表，关键动作一条逐帧 strip，承载剧情的脸或细节一个 crop；对照 `TASTE_CHECKLIST.md`，发现问题就修。整片 draft 还要过清单里的打分层：换一个全新上下文的严苛 reviewer，按 8 个维度（含立意）打分；做几轮、怎样算过线按档位（`playbook/01-pipeline.md` 的"努力程度"：`standard` 1 轮，修最差的 3 处；`studio` 8 项都 ≥ 8 才出片），轮数有上限。自查成本很低，不要省。
 5. **事实有纪律。** 论文元数据、数字、引文一律照抄原文；拿不准的写进 `NOTES.md`，不编进视频。
 6. **只在 `projects/` 里改东西。** `engines/` 是模板，`references/repos/` 是只读参考；需要时复制到自己的项目里再改。
 7. **不在文件里写 API key。** 一律从环境变量读取；缺 key 时告诉用户需要哪个。

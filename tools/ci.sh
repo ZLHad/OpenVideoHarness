@@ -143,6 +143,10 @@ smoke_checks() {
   HOME="$t" vh install-skill no-such-target >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "install-skill rejects unknown targets" || bad "install-skill bad target exited $rc"
   rm -rf "$t"
   vh types >/dev/null && vh effort quick >/dev/null && vh style list >/dev/null && ok "types · effort · style list" || bad "types / effort / style list"
+  # effort: the table comes from playbook/01, the caps and the floors from CLAUDE.md (a renamed heading must not drop them)
+  a=$(vh effort studio 2>&1)
+  case "$a" in *"独立评审"*"评审有上限"*"任何档位都不降"*"bin/vh check"*) ok "effort studio prints its column, the review caps and the floors" ;;
+    *) bad "effort studio: table, caps or floors missing" ;; esac
   # -h prints a usage and exits 0 without running the command (setup -h used to install everything, sync-agents -h rewrote
   # AGENTS.md, and others took -h as a video, project or preset name). Every dispatched command without a help of its own
   # is tried, on a copy of bin/vh whose ROOT has only tools/ and with uv and npm stubbed out: if the check ever broke, setup
@@ -178,6 +182,9 @@ PY
     grep -q '^- Effort: quick' "$dir/BRIEF.md" && grep -q 'Effort: quick' "$dir/REVIEW.md" && [ -f "$dir/style-refs/dark-math/STYLE.md" ] \
       && grep -q '^- Style refs (repo presets): `styles/dark-math`' "$dir/BRIEF.md" && ! grep -q '^## Style preset' "$dir/BRIEF.md" \
       && ok "bin/vh new --effort quick --style" || bad "bin/vh new: effort or style not written into the project"
+    # the type doc is named, not pasted, and the marker tools/vhdraw.py reads for the type is there
+    grep -q '^- Type doc: `video-types/01-math-science-explainer.md`' "$dir/BRIEF.md" && grep -q '^<!-- from 01-math-science-explainer.md -->$' "$dir/BRIEF.md" \
+      && ! grep -q '^+ TYPE:' "$dir/BRIEF.md" && ok "bin/vh new names the type doc and keeps the type marker" || bad "bin/vh new: Type doc line or type marker missing"
     rm -rf "$dir"
   else bad "bin/vh new math"; fi
   # tts picks the uv dependencies from --provider too (a fake uv prints the command instead of running it)

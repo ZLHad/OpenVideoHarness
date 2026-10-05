@@ -2,7 +2,7 @@
 
 ## 总表
 
-下表是 `standard` 档位的做法。`quick` 会省掉人工关卡、独立评审和大部分逐场景自查；`studio` 会加上 look-dev、animatic 和多轮打分。各档位具体做多少，见下面的"努力程度"（`bin/vh effort <档位>` 打印同一张表）。
+下表是 `standard` 档位的做法。`quick` 会省掉人工关卡、独立评审和大部分逐场景自查；`studio` 会加上 look-dev、animatic 和多轮打分。各档位具体做多少，见下面的"努力程度"（`bin/vh effort <档位>` 打印那一档的一列，外加底线）。
 
 | 阶段 | 产物 | 工具 | 通过条件 |
 |---|---|---|---|
@@ -14,7 +14,7 @@
 | 5 搭引擎 | 渲染脚本、公共库（hash、ease、keyframe、camera、pulse），先做一个样板场景 | `engines/README.md` | 乱序跳到同一帧，结果一致 |
 | 6 写场景 | 每个场景一个文件；长片按 chapter 分给多个 subagent | Claude Code subagents | 每个场景都过 lint、sheet、strip、crop |
 | 7 Review | `out/check/*.jpg` 和 `NOTES.md` 里的评分记录 | 全新上下文的 reviewer subagent，对照 `TASTE_CHECKLIST.md` | 20 条全 PASS；整片 draft 过 1 轮打分层，修最差的 3 处（`studio` 至少 3 轮、最多 10 轮，八个维度都 ≥ 8）；小修只做局部复查 |
-| 8 渲染 | 先出 draft，给人审阅后再出 final | 并行 worker；ffmpeg 合成，加 `loudnorm` | `ffprobe`、`blackdetect`、`freezedetect` 都通过；**人工关卡 ③**（draft） |
+| 8 渲染 | 先出 draft，给人审阅后再出 final | 并行 worker；ffmpeg 合成，加 `loudnorm` | `ffprobe` 通过，`blackdetect`、`freezedetect` 的命中逐条看过；**人工关卡 ③**（draft） |
 | 9 交付 | mp4、源码、渲染命令、素材台账、`LESSONS.md` | — | 用户完整看一遍、听一遍 |
 
 ## 努力程度：三档各做多少
@@ -39,7 +39,7 @@
 | 大致耗时（30 s 左右的片子） | 10–30 分钟 | 1–2 小时 | 3 小时以上 |
 | 推理强度建议 | 中 | 高 | 最高档 |
 
-最后一行是给能调推理强度的 agent 的建议（例如 Claude Code 选模型时的 effort 档位），不能调就忽略。`quick` 的做法写成了一张卡：`playbook/quick.md`。
+最后一行是给能调推理强度的 agent 的建议（例如 Claude Code 选模型时的 effort 档位），不能调就忽略。`quick` 的做法见 `playbook/quick.md`。
 
 ## 项目目录约定
 
