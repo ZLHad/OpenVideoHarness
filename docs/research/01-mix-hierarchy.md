@@ -4,7 +4,7 @@
 
 > **现状（2026-10-01）**
 >
-> - **落地**：[#21](https://github.com/ZLHad/OpenVideoHarness/pull/21) 把原型合并进了仓库。混音器是 [`tools/audio/mix.py`](../../tools/audio/mix.py)（`bin/vh mix … profile=explainer|short|promo|cartoon|mv|swatch`），混音报告是 [`tools/audio/qa.py`](../../tools/audio/qa.py) 的 `qa mix`，用法和各 profile 的数字写在 [`playbook/04-audio.md`](../../playbook/04-audio.md) 的"混音"一节。
+> - **落地**：[#21](https://github.com/ZLHad/OpenVideoHarness/pull/21) 把原型合并进了仓库。混音器是 [`tools/audio/mix.py`](../../tools/audio/mix.py)（`bin/vh mix … profile=explainer|short|promo|cartoon|mv|swatch`），混音报告是 [`tools/audio/qa.py`](../../tools/audio/qa.py) 的 `qa mix`，用法写在 [`playbook/04-audio.md`](../../playbook/04-audio.md) 的"混音"一节，各 profile 的数字在 [`tools/audio/README.md`](../../tools/audio/README.md) 的"混音"。
 > - **复算**：用入库的实现重算，下面 C 行的 VMR 和风险词数没有变：03 的 VMR 中位数 / 最差句 13.1 / 13.0 LU，02 是 11.5 / 11.2 LU，风险词 3/46 和 1/26。
 > - **样板片**：[#32](https://github.com/ZLHad/OpenVideoHarness/pull/32) 把这些 profile 用在了样板片 00–03 上（00 `promo`、01 `cartoon`、02 `short`、03 `explainer`）。02 和 03 的 VMR（中位数 / 最差句）和这里的 C 行相同，11.5 / 11.2 LU 和 13.1 / 13.0 LU；A 行（7.9 / 1.3、8.3 / 4.9）就是 #32 说的第一个候选。
 > - **母带**：默认仍是 `tp=-1.65`，比 −1.5 dBTP 低 0.15 dB，但 AAC 对真峰值的影响取决于内容和码率（#21 在四个样片、128k 下测到 +0.16…+0.86 dB，[#31](https://github.com/ZLHad/OpenVideoHarness/pull/31) 在 28 份新配乐上是 −1.9…+1.4 dB），0.15 dB 不总是够。所以 `styles/_swatch/render.sh` 要量编码后的 mp4，超过 −1.5 dBTP 就降低 `tp` 重混，最多 3 次。
@@ -82,7 +82,7 @@ uv run --with numpy --with scipy python mix_report.py --stems OUT --profile expl
 
 这也绕开了 ffmpeg `sidechaincompress` 在文件尾丢一段的毛病（见[笔记 03](03-render-determinism.md)）。
 
-来源：混音实验的设计说明，以及原型 `mix_layers.py` 的文件头和 `PROFILES`；入库后是 [`tools/audio/mix.py`](../../tools/audio/mix.py) 的文件头和 `PROFILES`，各 profile 的数字在 [`playbook/04-audio.md`](../../playbook/04-audio.md) 的"混音"一节。
+来源：混音实验的设计说明，以及原型 `mix_layers.py` 的文件头和 `PROFILES`；入库后是 [`tools/audio/mix.py`](../../tools/audio/mix.py) 的文件头和 `PROFILES`，各 profile 的数字在 [`tools/audio/README.md`](../../tools/audio/README.md) 的"混音"。
 
 ### 进了仓库的
 
@@ -102,4 +102,4 @@ uv run --with numpy --with scipy python mix_report.py --stems OUT --profile expl
 - **±9 dB 的上限会留下尾巴**：monumental-scifi 的 detail 音效被拉到 −13.1 LU，仍低于 −11…−4 的范围。
 - `bin/vh qa` 的抽吸阈值（4 dB / 60 ms）偏敏感，01 在 8.45 s 有一处误报；不同平台上 FFT 最低位是否一致没验证；loudnorm 和 ebur128 在 03 的 mp4 上差 0.2 LU（−14.0 与 −13.8），所以母带以 BS.1770 表为准。
 
-来源：混音实验的风险清单和 A/B/C 报告里的警告部分，以及实验时读文献的笔记（DPP 与 Torcoli 的引用只记了摘要）；这些没有入库。同类的警告现在由 `qa mix` 报出，已知的局限写在 [`playbook/04-audio.md`](../../playbook/04-audio.md) "混音"一节末尾的"局限"里。
+来源：混音实验的风险清单和 A/B/C 报告里的警告部分，以及实验时读文献的笔记（DPP 与 Torcoli 的引用只记了摘要）；这些没有入库。同类的警告现在由 `qa mix` 报出，已知的局限写在 [`tools/audio/README.md`](../../tools/audio/README.md) "混音"一节末尾的"局限"里。

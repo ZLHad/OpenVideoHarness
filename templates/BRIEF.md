@@ -1,6 +1,6 @@
 # BRIEF
 
-<!-- 由 agent 根据用户需求填写。standard / studio 在关卡 ① 给人看；quick 不停，人点名要定的事除外（CLAUDE.md"导演模式"）。花括号里的都要替换。类型文档里的 "Prompt 增量块" 贴在文末 TYPE 一节。 -->
+<!-- 由 agent 根据用户需求填写。standard / studio 在关卡 ① 给人看；quick 不停，人点名要定的事除外（CLAUDE.md"导演模式"）。花括号里的都要替换。 -->
 
 ## Spec
 - Effort: standard  <!-- quick | standard | studio：做多认真，规则见 CLAUDE.md "努力程度"。用户在对话里说的优先 -->
@@ -33,26 +33,21 @@
 ## Style
 - Style refs (repo presets): {none}  <!-- styles/ 里拿来参考的预设，bin/vh new --style a,b 或 bin/vh style apply 会填；参考，不是规定：借了什么记进 DECISIONS.md，和它们不一样不用解释 -->
 - Refs (2–3 named works): {…}
-- Explicitly NOT: {anti-refs, e.g. purple-cyan gradients, Pixar-like 3D, bullet-point slides}
-- Palette: bg {hex}, fg {hex}, ONE accent {hex}; no pure #000/#fff unless chosen or required by the type doc (e.g. 3b1b-style black)
-- Type: {display} + {mono | serif}; hierarchy by weight/size only
-
-## Motion defaults (taste defaults, not floors: the concept may override any of them, one line each in DECISIONS.md; override per type doc; cartoon / hand-drawn projects follow ANIMATION_GUIDE.md instead — overshoot, takes and beat-locked idle motion are required there)
-Entrances easeOutExpo cubic-bezier(0.16,1,0.3,1) / power3.out; exits ease-in at ~75% of entry; entries <=0.8s; total stagger <=0.5s. No bounce/elastic, no idle breathing loops, no crossfades between scenes; transitions grow out of content; 0.3–0.75s stillness before each climax.
+- Explicitly NOT: {what this film won't look like, and why, from the concept}
+- Palette: bg {hex}, fg {hex}, accent {hex}  <!-- 默认一个饱和强调色；立意要几个颜色时，在 STYLE.md 写明每个颜色的意思 -->
+- Type: {display} + {mono | serif}
+- Motion: {从立意推出：缓动的语域、快慢、2–3 种转场、主方向；没想法时从 playbook/03 §1、§2、§6 的默认值起步。卡通、手绘照 ANIMATION_GUIDE.md}
 
 ## Text rules
-<= {8} words (or {16} CJK chars per line) on screen; every must-read block stays at least one brisk read (max(1.5s, CJK/7 + other/20 + 0.8s): the floor) and by default reaches the Pace target (bin/vh readcheck; no fixed seconds); min sizes {..}px; everything inside safe box {x0–x1, y0–y1}.
+- On screen at once: <= {8} words or {16} CJK chars per line; min sizes and the safe box follow Watch on (playbook/03 §4, §5): {numbers for this film}
+- Reading time: the floor and the Pace target are TASTE_CHECKLIST #5 (`bin/vh readcheck`); exceptions in this film: {none}
 
 ## Determinism
-Every frame is a pure function of t. No Math.random / Date.now / CSS transitions; seed all noise; no state carried between frames.
+Every frame is a pure function of t (CLAUDE.md hard rule 1).
 
 ## Process
-0. Concept first: list the material's specifics in NOTES.md (素材清单), write 5–8 one-line ideas before opening styles/, recipes/, cases or the TYPE block below, then 2–3 concept cards, each with its look, hook and taste overrides (playbook/12-ideation.md). Gate ① picks one card, which settles concept, style direction and hook. quick: three one-line ideas, pick one, no cards. If the user already gave a concept, write it here and skip the cards.
-1. STORYBOARD.md: per shot = time range, VO/lyric, visual, focal element, the reads (each with start–end), transition out. Then stop where Effort and Director say (CLAUDE.md "导演模式"): gate ② for standard and studio, plus a stop for each decision the human owns; quick stops only for those.
-2. Audio first: build audio/timeline.json; rewrite shot timings from measured durations.
-3. Build scene by scene; after each scene render first/mid/last stills + a contact sheet + strips for key motions; critique against TASTE_CHECKLIST.md and log in NOTES.md; fix before moving on.
-4. Uncertain facts go in NOTES.md, never invented into the video; creative decisions and their reasons go in DECISIONS.md, including every taste default the concept overrides.
-5. Deliver: MP4 path, contact sheet of the whole piece, NOTES.md, the 2–3 spots you're least happy with.
+<!-- 流程见 CLAUDE.md 和 playbook/01-pipeline.md，这里不重抄；只记本片和默认流程不一样的地方，例如跳过的关卡（用户原话在 REVIEW.md）、多加的检查点。 -->
+{none}
 
 ## Acceptance
 - [ ] {e.g. hook readable within 1s with sound off}
@@ -60,5 +55,4 @@ Every frame is a pure function of t. No Math.random / Date.now / CSS transitions
 - [ ] {e.g. 45s ±0.5s, 1080x1920, loudness -14 LUFS}
 
 ## TYPE
-<!-- 类型的默认做法：语域、配色、节拍顺序是默认值，立意定了以后再取舍，和立意冲突时以立意为准，在 DECISIONS.md 记一行（playbook/12-ideation.md 第 6 节）。尺寸、事实纪律、平台安全区照旧。 -->
-<!-- 在这里贴 video-types/*.md 的 "Prompt 增量块" -->
+- Type doc: {type doc}  <!-- 这类片子的默认做法在类型文档的"Prompt 增量块"里，立意定了再读：画幅、字幕规格、平台安全区这类类型参数照用，抄进上面各节；语域、配色、节拍顺序是默认口味，和立意冲突时以立意为准（playbook/12-ideation.md 第 6 节）。 -->

@@ -7,7 +7,7 @@
 #   sync-agents                 regenerate AGENTS.md from CLAUDE.md (keep both agents' entry points identical)
 #  make
 #   types                       list video types and their docs
-#   effort [quick|standard|studio]  how much iteration, review and polish each level means (CLAUDE.md "努力程度")
+#   effort [quick|standard|studio]  how much iteration, review and polish each level means (CLAUDE.md and playbook/01 "努力程度")
 #   new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--dir <folder>]
 #                               create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);
 #                               --aspect: short/promo/data/meme only (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only); --lang: the review pages' language (default zh; set it from the user's first request);
@@ -358,17 +358,18 @@ cmd_new() {
   else mkdir -p "$dir"; fi
   mkdir -p "$dir/audio" "$dir/assets" "$dir/out/check"
   for f in BRIEF STYLE STORYBOARD REVIEW DECISIONS NOTES LESSONS TASTE_CHECKLIST; do cp "$ROOT/templates/$f.md" "$dir/$f.md"; done
-  python3 - "$ROOT/video-types/$doc.md" "$dir/BRIEF.md" <<'PY'
-import re, sys
-doc, brief = open(sys.argv[1]).read(), sys.argv[2]
-m = re.search(r"## Prompt 增量块\s*```text\n(.*?)```", doc, re.S)
-b = open(brief).read().replace("<!-- 在这里贴 video-types/*.md 的 \"Prompt 增量块\" -->", (m.group(1).strip() if m else "") + f"\n\n<!-- from {sys.argv[1].split('/')[-1]} -->")
-open(brief, "w").write(b)
+  # the type doc is named, not pasted: its Prompt 增量块 is read after the concept (CLAUDE.md step 4); the marker is
+  # what tools/vhdraw.py reads to find the type
+  python3 - "$doc.md" "$dir/BRIEF.md" <<'PY'
+import sys
+name, brief = sys.argv[1], sys.argv[2]
+b = open(brief).read().replace("- Type doc: {type doc}", f"- Type doc: `video-types/{name}`", 1)
+open(brief, "w").write(b.rstrip("\n") + f"\n<!-- from {name} -->\n")
 PY
   [ -n "$wh" ] && sedi "s/^- Output: {W}x{H},/- Output: $wh,/" "$dir/BRIEF.md"
   sedi "s/^- Watch on: {watch}/- Watch on: $watch/; s/^- Resolution: {res}/- Resolution: ${res4k:-1080p}/; s/^- Review language: zh /- Review language: ${lang:-zh} /" "$dir/BRIEF.md"
   case "$type:$res:$frameh" in short:portrait:|promo:landscape:|data:landscape:|meme:landscape:|*::) ;;   # the type's own frame: nothing to say
-    *) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：上面 TYPE 块写的画幅，以及按它算的尺寸（安全框、每行字数、字号），以这一行为准按新画幅重算。\n' "$aspect" "$wh" >> "$dir/BRIEF.md" ;;
+    *) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：类型文档 Prompt 增量块写的画幅，以及按它算的尺寸（安全框、每行字数、字号），以这一行为准按新画幅重算。\n' "$aspect" "$wh" >> "$dir/BRIEF.md" ;;
   esac
   case "$type" in
     short|promo|data|meme) if [ -n "$frameh" ]; then cmd_hf_init "$dir" "$aspect" || true; else cmd_hf_init "$dir" "$res" || true; fi ;;
@@ -379,7 +380,7 @@ PY
     python3 - "$dir/BRIEF.md" <<'PY'
 import sys
 p = sys.argv[1]; s = open(p).read()
-note = ("> **本项目用 ClaudeAnimationBase：`ANIMATION_GUIDE.md` 的规则优先于本模板的 Motion defaults 和 TASTE_CHECKLIST #12。**\n"
+note = ("> **本项目用 ClaudeAnimationBase：`ANIMATION_GUIDE.md` 的规则优先于 playbook/03 的运动默认值和 TASTE_CHECKLIST #12。**\n"
         "> 卡通语域下，预备动作、挤压拉伸、overshoot、表情 take 和踩拍的 idle 动作都是必需的；不写字的影片可以删掉 Type、Text rules 两节。\n"
         "> 成片输出为 `node render.mjs --clip --out=out/final.mp4`（长片用 `--frames` 再 `--encode --out=out/final.mp4`）。\n\n")
 open(p, "w").write(s.replace("# BRIEF\n", "# BRIEF\n\n" + note, 1))
@@ -411,25 +412,29 @@ PY
   esac
 }
 
-cmd_effort() { # print the effort hub from CLAUDE.md; with a level, only that column of the table
-  local lvl=${1:-}
+cmd_effort() { # the effort levels: the rules from CLAUDE.md's 努力程度, the table from playbook/01's; with a level, only that column
+  local lvl=${1:-} sect='/^## 努力程度/{on=1} on && /^## / && !/努力程度/{exit} on'
   case "$lvl" in ""|quick|standard|studio) ;; *) echo "usage: bin/vh effort [quick|standard|studio]"; exit 1 ;; esac
-  awk '/^## 努力程度/{on=1} on && /^## / && !/努力程度/{exit} on' "$ROOT/CLAUDE.md" | python3 -c '
+  { awk "$sect" "$ROOT/CLAUDE.md"; echo "@@table@@"; awk "$sect" "$ROOT/playbook/01-pipeline.md"; } | python3 -c '
 import sys
-lvl = sys.argv[1]; lines = sys.stdin.read().splitlines()
-if not lvl: print("\n".join(lines)); sys.exit()
+lvl = sys.argv[1]; rules, table = sys.stdin.read().split("@@table@@\n", 1)
+if not lvl: print(rules.rstrip() + "\n\n" + table.rstrip()); sys.exit()
 col = {"quick": 2, "standard": 3, "studio": 4}[lvl]
-for l in lines:
-    if l.startswith("| ") and not l.startswith("|---") and not l.startswith("| 旋钮"):
-        c = [x.strip() for x in l.strip("|").split("|")]
-        v = c[col-1]
-        if v.startswith("同左"):   # "same as standard" + extras → spell it out when one level is shown alone
-            rest = v[2:].lstrip("，,；; ")
-            v = c[2] + ((" " if rest.startswith("+") else "；") + rest if rest else "")
-        print(f"  {c[0]:<10} {v}")
-    elif l.startswith("**评审有上限") and lvl != "quick": print("\n" + l)   # quick has no review rounds
-    elif l.startswith("**任何档位都不降"): print("\n" + l)
-    elif l.startswith("- ") and "硬规则" in l or l.startswith("- 片中") or l.startswith("- 全屏") or l.startswith("- 字号") or l.startswith("- 素材") or l.startswith("- `TASTE_CHECKLIST") or l.startswith("- 出片前"): print("  " + l)
+rows = [l for l in table.splitlines() if l.startswith("| ") and not l.startswith("|---") and not l.startswith("| 旋钮")]
+if not rows: sys.exit("bin/vh effort: no table under ## 努力程度 in playbook/01-pipeline.md")
+for l in rows:
+    c = [x.strip() for x in l.strip("|").split("|")]
+    v = c[col-1]
+    if v.startswith("同左"):   # "same as standard" + extras → spell it out when one level is shown alone
+        rest = v[2:].lstrip("，,；; ")
+        v = c[2] + ((" " if rest.startswith("+") else "；") + rest if rest else "")
+    print(f"  {c[0]:<10} {v}")
+floors = False
+for l in rules.splitlines():
+    if l.startswith("- **评审有上限") and lvl != "quick": print("\n" + l[2:])   # quick has no review rounds
+    elif l.startswith("**任何档位都不降"): print("\n" + l); floors = True
+    elif floors and l.startswith("- "): print("  " + l)
+    elif floors and not l.strip(): floors = False
 ' "$lvl"
 }
 

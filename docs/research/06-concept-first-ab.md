@@ -3,6 +3,8 @@
 *记录于 2026-10-02 · 状态：立意先行的流程已合并（[#44](https://github.com/ZLHad/OpenVideoHarness/pull/44)、[#45](https://github.com/ZLHad/OpenVideoHarness/pull/45)），这篇笔记带来的几处修改在本笔记的 PR 里；四支片子、两个项目和评审记录是作者本地的文件，没有入库 · [English](en/06-concept-first-ab.md)*
 
 > **现状（2026-10-02）**：笔记"局限"最后留下的字号问题，后来按"在哪看"分了档（[#47](https://github.com/ZLHad/OpenVideoHarness/pull/47)）：BRIEF 多了 `Watch on`，`phone`、`desktop`、`feed` 三档下限不同，可读性检查也按目标屏缩。本实验的评审是按手机信息流（360 px 宽）看两支横屏片的；按 `desktop` 档，44 px 的标签是够的，按 `feed` 档要 80 px。
+>
+> 2026-10-05：quick 路径卡从 CLAUDE.md 搬进了 `playbook/quick.md`，只改了几处措辞；下文说的"CLAUDE.md 的 quick 路径卡"就是它。
 
 ## 问题
 

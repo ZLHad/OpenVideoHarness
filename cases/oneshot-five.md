@@ -228,7 +228,7 @@
 
 | 片子 | 做法 | 会撞到的规则 |
 |---|---|---|
-| 我眼中的你 | 段落之间从黑场慢慢淡入；一个画面常停 6–15 s | #14（不用 crossfade；从黑场淡入严格说不是 crossfade，算擦边）、#18（讲解类 8 s 无事发生）、BRIEF Motion defaults 的 no crossfades between scenes |
+| 我眼中的你 | 段落之间从黑场慢慢淡入；一个画面常停 6–15 s | #14（不用 crossfade；从黑场淡入严格说不是 crossfade，算擦边）、#18（讲解类 8 s 无事发生）、`playbook/03` §6 "不用没有承载物的 crossfade"（当时还写在 BRIEF 模板的 Motion defaults 里） |
 | FunTech | 霓虹、铬面、多个饱和色；终场前约 1 s 真静音 | #9（强调色不止一个）、#10（霓虹）、#18 和底线"片中不出现数字静音" |
 | Mirage | 半透明玻璃感 UI 卡片；紫、蓝、橙三个强调色 | #9、#10（玻璃拟态） |
 | 云野FLOW | 四角等宽小读数 | #20（通用 AI 装饰） |

@@ -45,7 +45,7 @@ const P = PRESETS[window.__hyperframes?.getVariables?.()?.fx] ?? PRESETS.B;
 npx hyperframes render --variables '{"fx":"A"}' --output out/lookdev/A.mp4
 ```
 
-介绍片的三档（数值来自项目的 `js/fx.js`，用户看完 look-dev 选了 B）：
+介绍片的三档（数值来自项目的 `js/fx.js`；look-dev 之后选了 B，NOTES 里记的是"协调方转达"，不是用户本人的原话）：
 
 | 效果组 | A 克制电影感 | B 大片 | C 赛博 | 因为这支片子有 X，所以用 Y |
 |---|---|---|---|---|
@@ -122,7 +122,7 @@ const hit = beats.hits.find(h => Math.abs(h.t - t) < 1/30); // 冲击点所在�
 const cap = captions.find(c => c.start <= t && t < c.end);  // 当前字幕
 ```
 
-**细到每一个音。** 角色走在琴键上、每一步都是一个音的片子，要的不只是拍点，而是每个音的起止和音高。给那个声部写 `"note_map": true`，`bin/vh music` 就把它的每个音写进节拍表的 `notes`（字段见 `04-audio.md`）：
+**细到每一个音。** 角色走在琴键上、每一步都是一个音的片子，要的不只是拍点，而是每个音的起止和音高。给那个声部写 `"note_map": true`，`bin/vh music` 就把它的每个音写进节拍表的 `notes`（字段见 `tools/audio/README.md` 的"score.json"）：
 
 ```js
 // notes: [{t, end, midi, vel, part}]，按 t 排好；part 是声部的 id（没写 id 时是 "piano#0" 这样的乐器名加序号）
