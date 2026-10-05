@@ -17,9 +17,11 @@
 1. **先有素材清单，再做动画**：产品截图或录屏、logo、真实文案、品牌色和字体、网址、架构图和流程图。**不要用占位 UI，也不要凭印象重画界面。** viggo 的 Applore 宣传片之所以可信，就是因为用了自家库里 17,550 个真实 app 图标。
    - 网页和 Web App 用 Playwright（或浏览器工具）按成片分辨率截图，例如 `npx playwright screenshot --viewport-size=1920,1080 <url> assets/ui/home.png`；终端、编辑器等本地界面用录屏或系统截图。
    - 全部存进项目的 `assets/`，逐条记进 NOTES.md 的素材台账（文件、来源、许可）。开始写场景代码前，把清单过一遍：片子里要出现的每块界面都要在清单里有对应的文件，清单里没有的就先去截，而不是自己造。
-2. **选语域**：先从立意推（`playbook/12-ideation.md`）。立意没给出更好的答案时，从下面两种里选一种，写进 STYLE.md：
+2. **选语域**：先从立意推（`playbook/12-ideation.md`）。立意没给出更好的答案时，可以从下面两种常见做法起步，写进 STYLE.md；立意推出别的语域，就用别的。
    - **Apple 系**：黑底或白底，单镜只说一句主张，大面积留白，对真实 UI 做微距裁切，每次揭示 1–2 秒，慢。
    - **Linear / Vercel / Stripe 系**：近黑底 `#0A0A0B`，1px 细线，低透明度的蓝图网格，Geist 或 Geist Mono 字体，用真实 UI。
+
+   这两种也是发布片最常见的长相，Linear 系尤其是社区里最常见的外观【综合】，和"AI 味"只差在克制和真实 UI（见下文"警惕"一条）。
    
    **同一个产品的每支片子共用一条品牌管线**：第二支片子从上一支的 STYLE.md 起步，沿用色板、字体、强调色、转场和音色，审阅意见也回写进去。本仓库的介绍片就沿用了 showcase 00 的近黑底、发丝线和唯一的琥珀强调色。product-film-skill 用 `videos/BRAND.md` 做同一件事（见文末）。
 3. **look-dev**：brief 里只说"炫酷""高级""大片感"，却没有说具体是什么样时，先做一轮 look-dev 再定：出 3 张 style frame，或者 2–3 段 10–20 s 的短变体，放在关卡 ② 之前或并进关卡 ②，让人挑。
@@ -104,7 +106,7 @@ Show the product itself: {architecture | workflow | features | case studies} as 
 - `showcase/04-intro-film/`：本仓库的介绍片（Blender 星河开场 + 一镜到底 3D + 代码作曲），每轮评审的分数和改法记在 NOTES。
 - `cases/promo-applore.md`：一句话 prompt 做出的 15 秒宣传片拆解。
 - `cases/promo-hyperframes-launches.md`：HeyGen 20 支发布片的源码，以及其中值得看的几支。
-- `recipes/sequences/product-film-60s.md`、`launch-15s.md`：发布片的全片骨架（能量弧、先划 hold、按能量落差选接缝、限额）；镜头配方在 `recipes/`，分镜时按意图和能量挑（`bin/vh recipes list --type promo …`）。它们改写自 video-shotcraft，拆解见 `cases/promo-video-shotcraft.md`。
+- `recipes/sequences/product-film-60s.md`、`launch-15s.md`：发布片的全片骨架（能量弧、先划 hold、按能量落差选接缝、限额）；镜头配方在 `recipes/`，拿不准怎么动时按意图和能量挑（`bin/vh recipes list --type promo …`）。它们改写自 video-shotcraft，拆解见 `cases/promo-video-shotcraft.md`。
 - `references/repos/hyperframes/skills/product-launch-video/`：`SKILL.md`，以及 `references/` 下的 `story-design.md`、`visual-design.md`、`motion-language.md`、`cut-catalog.md`。
 - `references/repos/hyperframes/_upstream_claude/skills/`：
   - `motion-doctrine/`：运动总纲，涉及动画时先读；

@@ -7,6 +7,7 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 **License scope.** The MIT license in [LICENSE](LICENSE) covers this repository's original content. Third-party components keep their own licenses:
 - `engines/ClaudeAnimationBase` is (c) John Heibel, MIT License (see `engines/ClaudeAnimationBase/LICENSE`).
 - `recipes/` holds 24 files modified from Apache-2.0 material: 21 from video-shotcraft (Copyright 2026 Wei Yihao) and 3 from HyperFrames (Copyright 2026 HeyGen, Inc.). The upstream parts stay under Apache-2.0 and our changes are MIT. Both upstream licences are in `recipes/LICENSES/`, each of these files says it was modified and names the upstream files and commit, and `recipes/NOTICE.md` lists them all (Apache-2.0 §4).
+- `playbook/12-ideation.md` §3 has a Chinese rewrite of parts of HyperFrames' `skills/hyperframes/references/pitch-round.md` (commit `a46095f`; Apache-2.0, Copyright 2026 HeyGen, Inc.). That part stays under Apache-2.0; the licence copy is `recipes/LICENSES/Apache-2.0-hyperframes.txt`.
 - Repositories fetched by `references/fetch.sh` into `references/repos/` are NOT part of this distribution; each is governed by its own license (listed below).
 
 ## Vendored (shipped in this repository)
@@ -30,7 +31,7 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 
 | Repository | Author | License | Used for |
 |---|---|---|---|
-| [HyperFrames](https://github.com/heygen-com/hyperframes) (skills only) | HeyGen | Apache-2.0 | Primary HTML/GSAP engine; motion-doctrine, caption aesthetics, style presets and CLI verification. Many numbers in `playbook/03-motion-design.md` come from these docs. The recipes `cut-the-curve`, `zoom-through` and `oversized-cursor` in `recipes/` are modified from its `cut-the-curve` and `oversized-cursor` skills (commit `a46095f`), rewritten in our own words; see `recipes/NOTICE.md` |
+| [HyperFrames](https://github.com/heygen-com/hyperframes) (skills only) | HeyGen | Apache-2.0 | Primary HTML/GSAP engine; motion-doctrine, caption aesthetics, style presets and CLI verification. Many numbers in `playbook/03-motion-design.md` come from these docs. The recipes `cut-the-curve`, `zoom-through` and `oversized-cursor` in `recipes/` are modified from its `cut-the-curve` and `oversized-cursor` skills (commit `a46095f`), rewritten in our own words; see `recipes/NOTICE.md`. The divergence step in `playbook/12-ideation.md` §3 (four questions, a rough probability per idea, the silhouette check) is translated and rewritten from its pitch round (`skills/hyperframes/references/pitch-round.md`, same commit) |
 | [remotion-dev/skills](https://github.com/remotion-dev/skills) | Remotion | no LICENSE file in the repo; Remotion itself is under the Remotion License | Remotion route, captions, determinism rules |
 | [Code2Video](https://github.com/showlab/Code2Video) (prompts, src) | Show Lab, NUS | MIT | Anchor-grid critic, ScopeRefine, parallel sections: the "code2video" idea this project generalises |
 | [3brown1blue](https://github.com/AmitSubhash/3brown1blue) (skill) | Amit Subhash | MIT | 3b1b-style and paper-explainer rules, Manim gotchas |
@@ -84,6 +85,7 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 - Jiang et al., **ManimAgent: Self-Evolving Multimodal Agents for Visual Education**. [arXiv:2606.30296](https://arxiv.org/abs/2606.30296)
 - Lopez et al., **SGA: Plug&Play Geometric Verification for Educational Video Synthesis**. [arXiv:2607.18116](https://arxiv.org/abs/2607.18116)
 - Huang et al., **Agentic Visual Generation: From Generative Models to Agentic Control** (survey). [arXiv:2609.06758](https://arxiv.org/abs/2609.06758)
+- Zhang et al., **Verbalized Sampling: How to Mitigate Mode Collapse and Unlock LLM Diversity**, ICML 2026. [arXiv:2510.01171](https://arxiv.org/abs/2510.01171) (the probability per idea in `playbook/12-ideation.md` §3)
 - Heer & Robertson, **Animated Transitions in Statistical Data Graphics**, InfoVis 2007.
 - Karplus & Strong, **Digital Synthesis of Plucked-String and Drum Timbres**, Computer Music Journal 7(2): 43–55, 1983. [doi:10.2307/3680062](https://doi.org/10.2307/3680062)
 - Jaffe & Smith, **Extensions of the Karplus-Strong Plucked-String Algorithm**, Computer Music Journal 7(2): 56–69, 1983. [doi:10.2307/3680063](https://doi.org/10.2307/3680063)
