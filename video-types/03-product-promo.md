@@ -100,7 +100,7 @@ Show the product itself: {architecture | workflow | features | case studies} as 
 
 ## 可参考的案例与源码
 
-- `showcase/00-promo-launch-film/`：本仓库的发布片样板（README 首屏那支）。
+- `showcase/00-promo-launch-film/`：本仓库 20 s 的发布短片样板：没有旁白，画面先做完，代码写的配乐和拟音是后配的。
 - `showcase/04-intro-film/`：本仓库的介绍片（Blender 星河开场 + 一镜到底 3D + 代码作曲），每轮评审的分数和改法记在 NOTES。
 - `cases/promo-applore.md`：一句话 prompt 做出的 15 秒宣传片拆解。
 - `cases/promo-hyperframes-launches.md`：HeyGen 20 支发布片的源码，以及其中值得看的几支。
