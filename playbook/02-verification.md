@@ -93,6 +93,8 @@ ffmpeg -i out.mp4 -vf "blackdetect=d=0.3,freezedetect=d=1.5" -af silencedetect=d
 ffprobe -v error -show_entries format=duration:stream=codec_name,width,height,r_frame_rate -of compact out.mp4
 ```
 
+冻结和静音的命中只是列出来看：这条命令按 1.5 s 列，`bin/vh check` 按 3 s 列，都只是提醒。算不算"什么都没发生"，按 TASTE_CHECKLIST #18 的秒数判（短视频 3 s、讲解 8 s）；暗底、立意要的停留、无声片都会命中，不算问题。
+
 ## 手机测试与循环接缝
 
 **手机测试**（按目标屏缩）：缩到多宽看 BRIEF 的 `Watch on`。`phone`（竖屏）和 `feed`（横屏片放进手机信息流、不转屏）都按 360 px：常见手机在 360–430 个 CSS 像素之间，取下限。`desktop`（电脑，或手机转成横屏全屏）按 640 px：手机比 16:9 长，转成横屏全屏时画面按屏幕高度放，约 640–760 px 宽；电脑播放器默认约 850–1000，取下限。把每格缩到这个宽度，按原尺寸看：必读字读不出、主体认不出，就对应 TASTE_CHECKLIST 的 #5、#6，也是打分层"目标屏可读"一项的证据。
@@ -225,7 +227,7 @@ agent 听不见声音，声音也只能靠数字查。介绍片 v2 的画面自�
 | 抽吸（pumping） | 音乐总线 | 50 ms RMS 对 600 ms 滑动中位数 | 凹下超过 4 dB、持续 ≥ 60 ms，而且不在设计好的打点附近（打点前 0.05 s 到后 0.4 s） |
 | 爆音（click） | 成片混音 | 采样级的二阶差分，和前后 5 ms 的局部 RMS 比（不含该采样前后 ±1 ms，否则孤立的 click 永远超不过门槛） | **只报警告，不算失败**：机器分不清设计好的尖锐起音和真故障。超过局部 RMS 的 15 倍且高于 −40 dBFS、又不在设计好的起音附近（节拍表的 `hits`、`beats` 和音效事件落点的前后 40 ms，`--click-grace` 可调）的，按倍数排序列出最严重的 10 处，请人耳复听 |
 | cue check | 成片混音（WAV 是门禁；mp4 再查一遍，容差加 12 ms，单个 cue 只作警告） | onset 检测（hop 128 采样，48 kHz 下约 2.7 ms），和节拍表、音效事件表逐条比；每条打印 margin（超出检测门槛多少）；近乎纯音的音效 onset 没找到时，用它自己的声音做互相关确认；第 0 帧的 cue 先垫一帧静音 | 任何一个 cue 离最近的 onset 超过 1 帧；margin 低于 0.02 的标 `OK~`，只作警告；mp4 上整个编码偏了（8 个以上 cue 时超过 20% 对不上，或中位误差超过 15 ms，是封装错位） |
-| 层次（`qa mix`） | 混音 profile 写出的各总线（`--stems`） | 逐句 VMR（人声减音乐）、每个词的 1–4 kHz SNR、每个音效相对锚点的响度和类、纵深、限幅器，见 `04-audio.md` 的"混音" | 有一句低于 profile 的 VMR 下限；说话时 hero 盖过人声；危险的词超过比例；某类音效的中位数离范围超过 3 LU；timeline 有句子，人声 stem 却全是静音；一个 cue 只以“弱”对上，报告又判它 `BURIED` |
+| 层次（`qa mix`） | 混音 profile 写出的各总线（`--stems`） | 逐句 VMR（人声减音乐）、每个词的 1–4 kHz SNR、每个音效相对锚点的响度和类、纵深、限幅器，见 `tools/audio/README.md` 的"混音" | 有一句低于 profile 的 VMR 下限；说话时 hero 盖过人声；危险的词超过比例；某类音效的中位数离范围超过 3 LU；timeline 有句子，人声 stem 却全是静音；一个 cue 只以“弱”对上，报告又判它 `BURIED` |
 
 ```bash
 # 掉音扫描的原料：每 0.1 s 一个 RMS（48 kHz 下是 4800 采样，44.1 kHz 改成 4410），再按段落求中位数比较

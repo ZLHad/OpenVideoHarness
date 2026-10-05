@@ -80,7 +80,7 @@
 
 案例里的 10 支抖音 AI 动画（9 支发于 2026 年 9 月底，多数挂 #vibe知识大赏 话题），赞数最高的四支（15 万到 67 万赞）都是 16:9 横屏、2.5–5 分钟（`cases/douyin-vibe-knowledge.md`）。要讲一个有名的概念，又需要一点故事和推导时，可以不压进 90 秒的竖屏，直接做横屏中视频。
 
-- **建项目**：`bin/vh new short <slug> --aspect 16:9`。画幅 1920×1080，`Watch on` 默认是 `desktop`（电脑，或手机转成横屏全屏）。BRIEF 末尾会多一行提示：TYPE 块里按竖屏算的尺寸（安全框、每行字数、字号）都按横屏重算；TYPE 块里这几行可以换成下面的横屏版（TYPE、Captions、Safe box、Cover 各一行，Hook text 并进 Captions）：
+- **建项目**：`bin/vh new short <slug> --aspect 16:9`。画幅 1920×1080，`Watch on` 默认是 `desktop`（电脑，或手机转成横屏全屏）。BRIEF 末尾会多一行提示：Prompt 增量块里按竖屏算的尺寸（安全框、每行字数、字号）都按横屏重算；取用 Prompt 增量块时，这几行换成下面的横屏版（TYPE、Captions、Safe box、Cover 各一行，Hook text 并进 Captions）：
 
   ```text
   + TYPE: landscape knowledge film for 抖音. 1920x1080 30fps {120–300}s, zh-CN narration + burned-in captions. Watch on: desktop.
@@ -175,6 +175,8 @@ Cover: 1080x1440 (3:4) master with all key elements inside the central 1080x1080
 
 ## 可参考的案例与源码
 
+- `showcase/02-short-leo-doppler/`：本仓库的竖屏样板，BRIEF、STORYBOARD、NOTES、源码和旁白 + 字幕 + 混音的 `tools/build_audio.sh` 都在。
+- `cases/explainer-interstellar-blackhole.md`：一个着色器贯穿全片的长讲解，拉片拆解。
 - `cases/community-prompts.md`：@AxtonLiu 的口播图解做法、@dotey 的中文讲解 prompt。
 - `cases/douyin-vibe-knowledge.md`：10 支抖音 AI 动画（9 支发于 2026-09 底）。赞数最高的四支都是横屏，长 2.5–5 分钟；案例记了它们的几处相似、实测的字幕大小、一个号连发 15 支的赞数分布，以及同一个题目（37% 法则）的两种做法。
 - `references/repos/hyperframes/skills/faceless-explainer/`：

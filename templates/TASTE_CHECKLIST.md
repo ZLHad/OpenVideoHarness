@@ -4,27 +4,11 @@
 
 20 条分两层：
 - **【底线】**：标了它的条目，或条目里标了它的那半句。任何立意、任何档位都要 PASS，管的是看得清、读得完、事实对、不出事故。
-- **默认口味**：其余的。它们是没有立意时最常见的毛病，默认照查、照判 FAIL。立意需要反着来时（书信体经黑场的慢淡入淡出和长停顿，showreel 的霓虹、铬面和多个饱和色，承载信息的常驻读数），在写用到它的场景之前写在立意卡或 STYLE.md 上，记进 `DECISIONS.md`：改了哪条、立意为什么需要、翻案要花多少。
-  - 人批过的立意卡上写了的覆盖，算人的决定，reviewer 只查有没有做到；
-  - 之后才加的覆盖，由 reviewer 判断理由站不站得住：站得住记 PASS（覆盖），站不住照常 FAIL；
-  - 判了 FAIL 之后才补的覆盖不算；理由要从立意出发，"这样好看"不算；
-  - `quick` 没有 reviewer，交付时把覆盖的几行一并列给人看。
-  见 `playbook/12-ideation.md` 第 6 节。
+- **默认口味**：其余的。它们是没有立意时最常见的毛病，默认照查、照判 FAIL。立意需要反着来时，在写用到它的场景之前写在立意卡或 STYLE.md 上、记进 `DECISIONS.md`（书信体经黑场的慢淡入淡出、showreel 的霓虹和多个饱和色、承载信息的常驻读数，都是站得住的例子）。reviewer 怎么判：人批过的立意卡上写了的，只查有没有做到；之后加的，看理由站不站得住，站得住记 PASS（覆盖）；判了 FAIL 之后才补的不算。规矩见 `playbook/12-ideation.md` 第 6 节。
 
 ## 怎么取图
 
-各引擎的取帧命令见 `playbook/02-verification.md`。优先用引擎自带的 sheet、strip、crop；只有成片 mp4 时，用 ffmpeg：
-
-```bash
-# 整片总览：每秒 1 帧，拼成 6×5
-ffmpeg -i out.mp4 -vf "fps=1,scale=480:-1,tile=6x5" -frames:v 1 check/sheet.png
-# 某个切点前后 0.3s，按 0.1s 步进
-ffmpeg -ss {cut-0.3} -i out.mp4 -t 0.6 -vf "fps=10,scale=320:-1,tile=6x1" -frames:v 1 check/seam_N.png
-# 不看图的检查：黑场、冻结、静音
-ffmpeg -i out.mp4 -vf "blackdetect=d=0.3,freezedetect=d=1.5" -af silencedetect=d=1.5 -f null - 2>&1 | grep -E "black_|freeze_|silence_"
-```
-
-另外对每个镜头取首、中、末三帧。
+优先用引擎自带的 sheet、strip、crop；只有成片 mp4 时用 `bin/vh sheet`。各引擎的取帧命令、切点 strip 和按目标屏缩的联系表，命令都在 `playbook/02-verification.md`；黑场、冻结、静音和孤立帧，`bin/vh check` 一并扫。另外对每个镜头取首、中、末三帧。
 
 ## 检查项
 
@@ -38,7 +22,7 @@ ffmpeg -i out.mp4 -vf "blackdetect=d=0.3,freezedetect=d=1.5" -af silencedetect=d
 5. 【底线】需要观众读完的文字：同屏超过 8 个英文词，或中文每行超过 16 字（竖屏 72px 时 11 字）？停得不够快读一遍？从字完整显示、动画停下那一刻算起，要读的画面文字至少停 max(1.5s, 汉字数 ÷ 7 + 其他非空白字符数 ÷ 20 + 0.8s)，中英双语取慢的那个（1.5s 防一闪而过）；跟着配音走的字幕条每条 ≥ 1.8s，中文不超过 9 字/秒、英文不超过 20 字符/秒。读的那段时间里，字还在 decode 乱码，或被运动模糊抹花？（真实 UI 截图里的文字、背景纹理文字只要求"看得出是什么"，不要求读完）
    - 底线只管读一遍，不是舒服的时长。停多久舒服是默认口味，跟着片子的节奏走：BRIEF 的 `Pace`（relaxed / normal / brisk，默认 normal）定目标，各档读速见 `playbook/03-motion-design.md` §2。观众已经知道的字（字幕说的正是画面刚演过的、术语卡第二次出现）和镜头在走时只起提示作用的短标签（标 `data-read="label"`）按 brisk；卡在音乐上的字落在小节线上，不为凑秒数拖长；为读时拉长停留，音乐不能跟着停。
    - 有时间表就跑 `bin/vh readcheck`：低于底线是 FAIL，要修；只低于 Pace 的目标是 WARN，看一眼是不是有意为之，不算这一条 FAIL。
-6. 【底线】字号低于 BRIEF `Watch on` 那一档的下限（`playbook/03-motion-design.md` §4，1080p 合成里的 px：phone 主标题 84 / 辅助 44 / 字幕 65，desktop 84 / 44 / 48，feed 150 / 80 / 115；出 4K 照常按 1080p 写，渲染时放大；在 4K 帧上量要先除以 2，或者在 1080p 版上量）？按最终成片里的实际大小量：镜头推近后以推近后为准，而且推近后字不能发虚（被放大的元素挂着 CSS `will-change` 时，浏览器会把小尺寸的位图直接放大）；Manim 等不以 px 定义字号的引擎，从 1080p 成片的 crop 上量像素。GIF 预览不在考核范围内。
+6. 【底线】字号低于 BRIEF `Watch on` 那一档的下限（`playbook/03-motion-design.md` §4，1080p 合成里的 px：phone 主标题 84 / 辅助 44 / 字幕 65，desktop 84 / 44 / 48，feed 150 / 80 / 115；出 4K 照常按 1080p 写，渲染时放大；在 4K 帧上量要先除以 2，或者在 1080p 版上量）？按最终成片里的实际大小量：镜头推近后以推近后为准，而且推近后字不能发虚（被放大的元素挂着 CSS `will-change` 时，浏览器会把小尺寸的位图直接放大）；Manim 等不以 px 定义字号的引擎，从 1080p 成片的 crop 上量像素。GIF 预览不在考核范围内。纹理级的字（只要求看得出是什么，同 #5 括号里的那类）不算，哪些算纹理写在 STYLE.md 里（`playbook/03-motion-design.md` §4）。
 7. 用了不止一个无衬线族？用斜体做强调？每个词都在强调？
 8. 有写着剧情的牌子、标签、说明文字，而本可以用画面演出来？
 

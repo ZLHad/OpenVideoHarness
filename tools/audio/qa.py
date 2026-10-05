@@ -47,7 +47,7 @@ cues: onsets of the mix (librosa, hop 128 at 48 kHz) vs every transient music hi
   is a warning: the encode smears onsets, so the gate is the lossless mix (run qa on the WAV) and the mp4 confirms the
   mux. The encode as a whole fails when, with 8 or more cues, more than 20 % are off or their median error is over
   15 ms (a mux offset; the detector's own lag is +3…+8 ms).
-mix (the level hierarchy, per bin/vh mix's profile table; see playbook/04-audio.md "混音"):
+mix (the level hierarchy, per bin/vh mix's profile table; see tools/audio/README.md "混音"):
   [1] loudness: the stems' sum and each bus. [2] speech: per narration line (the timeline, else voiced runs) voice,
   music and bed loudness, VMR = voice − music (LU), its 10th percentile over 400 ms, VBR = voice − (music + SFX), the
   1–4 kHz SNR. [3] masking: each word (--words, else the timeline's words, else 0.4 s chunks) by its 1–4 kHz SNR.

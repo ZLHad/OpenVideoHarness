@@ -45,7 +45,7 @@ const P = PRESETS[window.__hyperframes?.getVariables?.()?.fx] ?? PRESETS.B;
 npx hyperframes render --variables '{"fx":"A"}' --output out/lookdev/A.mp4
 ```
 
-介绍片的三档（数值来自项目的 `js/fx.js`，用户看完 look-dev 选了 B）：
+介绍片的三档（数值来自项目的 `js/fx.js`；look-dev 之后选了 B，NOTES 里记的是"协调方转达"，不是用户本人的原话）：
 
 | 效果组 | A 克制电影感 | B 大片 | C 赛博 | 因为这支片子有 X，所以用 Y |
 |---|---|---|---|---|
