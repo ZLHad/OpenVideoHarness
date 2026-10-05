@@ -27,7 +27,7 @@ rect{stroke-width:0.8}
 <line class="ar" x1="225.0" y1="320" x2="225.0" y2="350" marker-end="url(#a)"/>
 <g class="pu"><rect x="60" y="352" width="330" height="52" rx="5"/><text class="t" x="225.0" y="374" text-anchor="middle">Sound first, then picture</text><text class="s" x="225.0" y="392" text-anchor="middle">every frame a pure function of t</text></g>
 <line class="ar" x1="225.0" y1="404" x2="225.0" y2="434" marker-end="url(#a)"/>
-<g class="pu"><rect x="60" y="436" width="330" height="52" rx="5"/><text class="t" x="225.0" y="458" text-anchor="middle">Self-review loop</text><text class="s" x="225.0" y="476" text-anchor="middle">contact sheets, audio QA, 8 scores ≥ 8</text></g>
+<g class="pu"><rect x="60" y="436" width="330" height="52" rx="5"/><text class="t" x="225.0" y="458" text-anchor="middle">Self-review loop</text><text class="s" x="225.0" y="476" text-anchor="middle">contact sheets, audio QA, 8 scores</text></g>
 <line class="ar" x1="225.0" y1="488" x2="225.0" y2="518" marker-end="url(#a)"/>
 <g class="co"><rect x="60" y="520" width="330" height="52" rx="5"/><text class="t" x="225.0" y="542" text-anchor="middle">Gate ③: first draft</text><text class="s" x="225.0" y="560" text-anchor="middle">with its 2–3 weakest spots named</text></g>
 <line class="ar" x1="225.0" y1="572" x2="225.0" y2="602" marker-end="url(#a)"/>

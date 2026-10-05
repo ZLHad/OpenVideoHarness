@@ -119,7 +119,7 @@
 
 ## 审美要点
 
-- **"Kurzgesagt meets Fireship"** 是现成可用的一句风格描述：扁平矢量图形、一个强调色、冷幽默、100 秒讲清一件事（按 what / why / how / when 组织）。
+- **"Kurzgesagt meets Fireship"**（扁平矢量图形、一个强调色、冷幽默、100 秒讲清一件事，按 what / why / how / when 组织）是这一类最常见的做法。没有立意时可以从它起步；想立意时，它就是"同题的视频都长什么样"的答案之一（`playbook/12-ideation.md` 第 3 节），至少两个点子不该是它。
 - **中文圈可点名的参考**：
   - 回形针 PaperClip：高信息密度的可视化；
   - 小 Lin 说：口播加图解；

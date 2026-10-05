@@ -27,7 +27,7 @@ rect{stroke-width:0.8}
 <line class="ar" x1="225.0" y1="320" x2="225.0" y2="350" marker-end="url(#a)"/>
 <g class="pu"><rect x="60" y="352" width="330" height="52" rx="5"/><text class="t" x="225.0" y="374" text-anchor="middle">声音先行，再写画面</text><text class="s" x="225.0" y="392" text-anchor="middle">配音配乐定时长，每帧是 t 的纯函数</text></g>
 <line class="ar" x1="225.0" y1="404" x2="225.0" y2="434" marker-end="url(#a)"/>
-<g class="pu"><rect x="60" y="436" width="330" height="52" rx="5"/><text class="t" x="225.0" y="458" text-anchor="middle">自查闭环</text><text class="s" x="225.0" y="476" text-anchor="middle">联系表、音频 QA、8 项打分都到 8</text></g>
+<g class="pu"><rect x="60" y="436" width="330" height="52" rx="5"/><text class="t" x="225.0" y="458" text-anchor="middle">自查闭环</text><text class="s" x="225.0" y="476" text-anchor="middle">联系表、音频 QA、独立打分（8 项）</text></g>
 <line class="ar" x1="225.0" y1="488" x2="225.0" y2="518" marker-end="url(#a)"/>
 <g class="co"><rect x="60" y="520" width="330" height="52" rx="5"/><text class="t" x="225.0" y="542" text-anchor="middle">关卡③：初版</text><text class="s" x="225.0" y="560" text-anchor="middle">附上它自己最不满意的 2–3 处</text></g>
 <line class="ar" x1="225.0" y1="572" x2="225.0" y2="602" marker-end="url(#a)"/>
