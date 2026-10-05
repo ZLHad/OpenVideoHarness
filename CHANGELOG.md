@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**Effort levels set how much iteration and review, not the quality of the film**
+- Why: the maintainer, after liking a quick-style draft: "effort其实只是决定了迭代次数 比如用多少子代理审核 是否多轮反复 不是说质量差". The docs described `quick` as a quality tier (CLAUDE.md "试方向、草稿"; the effort table's "draft 画质即可" and "声音：可以没有"; the quick card delivered the `--quality draft` render).
+- CLAUDE.md: the three levels differ in iteration and review (gates, review rounds), and all three deliver a full-quality film under the same floors.
+- playbook/01's effort table: quick is for "一句话直接出片，中途不想看" (and trying a direction); its sound is what the film needs (music or voice, key SFX, the mix profile, `bin/vh qa`, as standard, without repeated listening rounds); it delivers a full-quality mp4 and a contact sheet, the draft being for self-checks. The quick card ends with a `--quality delivery` render.
+
 **Lighter by default: "直接出" without an effort level is quick, and subagents cost what the effort level says**
 - Why: a one-line request for a 3-minute film, followed by "直接出成品 中间我不看", ran as standard in unattended mode: a production agent, five parallel chapter agents (standard's "长片按章节并行") and an independent reviewer, all on the most expensive model. The maintainer: "为什么打开了这么多running tasks 太消耗token了，我好像一开始只是要求一句话生成 …… 这个以后除非是高级effort否则不用这么多……或者你也可调用sonnet". The rules were followed; their defaults were too heavy, and "skip the gates" meant "keep the effort, add a reviewer", the opposite of what a user means by "I won't look".
 - CLAUDE.md: "不用审、直接出" or "中间我不看" with no effort level is `quick` (no gates, no review round); with standard or studio named it is the unattended mode as before. A new line says subagents and reviewers are the expensive part: open a few when they help, 1–3 for the whole film (a hard section, the score, the one review round) rather than one per chapter, on a cheaper model (`model: sonnet` in Claude Code); one subagent per chapter, several review rounds and the strongest reviewer belong to studio, or to an explicit request.
