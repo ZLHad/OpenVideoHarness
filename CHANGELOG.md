@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**Background HyperFrames renders set `HYPERFRAMES_RENDER_DETACHED=1`**
+- Why: an agent started `npx hyperframes render` in the background from a Bash call and the render cancelled itself when that shell exited (`render_cancelled_parent_exited`). HyperFrames 0.8.82 records the processes above it when a render starts and cancels when any of them exits; `nohup … & disown` does not help, since it checks whether those processes are alive rather than waiting for a signal. Only the env var turns the watch off; `render --help` does not list it (it is read in `createRenderCancellationScope` in the CLI's `dist/cli.js`).
+- `engines/README.md` (HyperFrames) gives the background command (`HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i … > out/draft.log 2>&1 &`, the variable on that line only so foreground renders still stop with their parent), why it is needed, why it only fails sometimes (a shell that exits before the render starts is no longer in the chain), and what it costs (the render no longer stops with its parent; stop it with `pkill -f "[h]yperframes render.*<output>"`). CLAUDE.md's quick path and playbook/02 point to it; the playbook/02 watchdog keeps its shell alive, so it does not need the variable.
+
 **4:5 and 3:4 frames, a stricter `hf-init`, and per-engine notes on frame size**
 - Why: the spec audit after the 4K bug found 4:5 (1080×1350) recommended in three docs but impossible to set up (`--aspect` took 16:9, 9:16, 1:1), `bin/vh hf-init` scaffolding a native 3840-wide composition when given a `*-4k` preset (so the 1080p size floors stop holding) and failing on anything else with "offline?", `layout()` treating every vertical frame as a 9:16 full-screen player, and dead ends for Manim and the hand-drawn engine.
 - `bin/vh new … --aspect 4:5` (1080×1350) and `--aspect 3:4` (1080×1440) for short, promo, data and meme: the portrait scaffold with its viewport, CSS height and `data-height` set (rendered and checked at 1080×1350); Output, Watch on (`phone`) and the BRIEF's frame note follow. Both are 1080p only (`--res 4k` is refused: HyperFrames has no 4K preset for them).
