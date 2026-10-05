@@ -16,14 +16,15 @@
    - ② **分镜**：按大纲的段落拆页，每页 3–6 镜的关键帧，没把握的镜头标出来，逐镜默认通过；长片再附一版全长灰盒 animatic；
    - ③ **初版**：draft 成片加联系表、reviewer 的分数，并写出你自己最不满意的 2–3 处。
 
-   每次停默认做一页审阅页（`bin/vh review`）；`studio` 默认在审阅台停（`bin/vh desk`，后台挂上 `bin/vh desk wait`，人一提交就接着做）；界面语言按用户第一句话的语言定（BRIEF 的 `Review language`）。做法见 `playbook/01-pipeline.md`。然后**停下来等人回复**，不要自己往下做。人的原话逐字记进 `REVIEW.md`。只有用户在对话里亲口说"不用审、直接出"才能跳过：原话和日期抄进 REVIEW.md，由独立 reviewer 代审（`playbook/01-pipeline.md` 的"授权的无人值守模式"）。
+   每次停默认做一页审阅页（`bin/vh review`）；`studio` 默认在审阅台停（`bin/vh desk`，后台挂上 `bin/vh desk wait`，人一提交就接着做）；界面语言按用户第一句话的语言定（BRIEF 的 `Review language`）。做法见 `playbook/01-pipeline.md`。然后**停下来等人回复**，不要自己往下做。人的原话逐字记进 `REVIEW.md`。只有用户在对话里亲口说"不用审、直接出"才能跳过，原话和日期抄进 REVIEW.md：没提档位就按 `quick` 做；说了要 `standard` 或 `studio` 的，由独立 reviewer 代审（`playbook/01-pipeline.md` 的"授权的无人值守模式"）。
 
 ## 努力程度（effort）
 
 三档：`quick` 快出（试方向、草稿，不设人工关卡）、`standard` 标准（大多数正式视频，**默认**）、`studio` 精品（发布片、旗舰内容）。每档做多少轮、查多细、审几次、在哪审，全表在 `playbook/01-pipeline.md` 的"努力程度"（`bin/vh effort <档位>` 打印）。
 
-- **怎么定**（优先级从高到低）：用户在对话里说的（"快速出一版""随便做个草稿"是 `quick`，"精品""发布用""认真打磨"是 `studio`）> BRIEF 的 `Effort:` 行 > `LOCAL.md` 的默认 > `standard`。档位不清楚、又会明显影响工作量时（例如一句话要做"发布片"），在关卡 ① 顺带问一句。
+- **怎么定**（优先级从高到低）：用户在对话里说的（"快速出一版""随便做个草稿"是 `quick`；只说"不用审、直接出""中间我不看"、没提档位的，也按 `quick`；"精品""发布用""认真打磨"是 `studio`）> BRIEF 的 `Effort:` 行 > `LOCAL.md` 的默认 > `standard`。档位不清楚、又会明显影响工作量时（例如一句话要做"发布片"），在关卡 ① 顺带问一句。
 - **降档只能由用户决定**：`quick` 跳过人工关卡，所以必须来自用户本人（对话里说的，或用户自己写在 LOCAL.md、BRIEF 里的）。agent 不能为了省时间自己降档；时间紧也不是把 `studio` 做成 `standard` 的理由，做不完就说明情况，让用户决定。
+- **子代理和 reviewer 最费 token**：`quick` 一个都不开，一个 agent 做完；`standard` 也不并行，那一轮独立评审用便宜一档的模型（Claude Code 里 `model: sonnet`）；并行制作、多轮评审、最强档的 reviewer 只在 `studio`，或者人点名要。
 - **评审有上限**：整片评审（全新上下文的 reviewer 看完整片、打满 8 项分）一支片子最多 10 轮；同一类问题最多改 5 次，改不动就写进 NOTES 的"已知局限"交给人；小修只查改过的那一段。细则见 `TASTE_CHECKLIST.md` 的打分层。
 
 **任何档位都不降的底线**：
