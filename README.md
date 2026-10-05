@@ -200,11 +200,11 @@ More in [playbook/04-audio.md](playbook/04-audio.md) (in Chinese).
 
 ## Effort, and who decides
 
-Not every film deserves the full process. Say "quick draft" or "studio quality" in the request, or pass `--effort` when you create a project:
+The level sets how often it stops for you and how many review rounds it runs, not how good the film is: all three deliver a full-quality film. Say "quick", "just make it, I won't look" or "studio quality" in the request, or pass `--effort` when you create a project:
 
 | | `quick` | `standard` (default) | `studio` |
 |---|---|---|---|
-| For | trying a direction, drafts | most real videos | launches, flagship pieces |
+| For | one line in, a finished film out, no stops | real videos where you want to decide at the gates | launches and flagship pieces, polished over several rounds |
 | Stops for you | none | three | three, plus a short sample of each direction and a full-length animatic |
 | Second-agent review | none | one round, the worst three fixed | three to ten; the five craft scores at 7 or above, the lowest of the other three goes to you; a small fix is rechecked on its own span, not with a new round |
 | A 30-second film takes about | 10–30 min | 1–2 h | 3 h or more |
