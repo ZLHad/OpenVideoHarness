@@ -206,7 +206,7 @@ Not every film deserves the full process. Say "quick draft" or "studio quality" 
 |---|---|---|---|
 | For | trying a direction, drafts | most real videos | launches, flagship pieces |
 | Stops for you | none | three | three, plus a short sample of each direction and a full-length animatic |
-| Second-agent review | none | one round, the worst three fixed | three to ten; the five craft scores at 7 or above, the other three shown to you; a small fix is rechecked on its own span, not with a new round |
+| Second-agent review | none | one round, the worst three fixed | three to ten; the five craft scores at 7 or above, the lowest of the other three goes to you; a small fix is rechecked on its own span, not with a new round |
 | A 30-second film takes about | 10–30 min | 1–2 h | 3 h or more |
 
 At every level: no invented facts, no sudden silence in a film with sound, no rapid flashing, and type no smaller than the floor for the target screen.

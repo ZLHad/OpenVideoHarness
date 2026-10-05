@@ -7,6 +7,7 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 **License scope.** The MIT license in [LICENSE](LICENSE) covers this repository's original content. Third-party components keep their own licenses:
 - `engines/ClaudeAnimationBase` is (c) John Heibel, MIT License (see `engines/ClaudeAnimationBase/LICENSE`).
 - `recipes/` holds 24 files modified from Apache-2.0 material: 21 from video-shotcraft (Copyright 2026 Wei Yihao) and 3 from HyperFrames (Copyright 2026 HeyGen, Inc.). The upstream parts stay under Apache-2.0 and our changes are MIT. Both upstream licences are in `recipes/LICENSES/`, each of these files says it was modified and names the upstream files and commit, and `recipes/NOTICE.md` lists them all (Apache-2.0 §4).
+- `playbook/12-ideation.md` §3 has a Chinese rewrite of parts of HyperFrames' `skills/hyperframes/references/pitch-round.md` (commit `a46095f`; Apache-2.0, Copyright 2026 HeyGen, Inc.). That part stays under Apache-2.0; the licence copy is `recipes/LICENSES/Apache-2.0-hyperframes.txt`.
 - Repositories fetched by `references/fetch.sh` into `references/repos/` are NOT part of this distribution; each is governed by its own license (listed below).
 
 ## Vendored (shipped in this repository)
