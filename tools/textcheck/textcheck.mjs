@@ -275,7 +275,8 @@ try {
   console.error("textcheck: " + ((e && e.message) || e) + (e instanceof Stop || e instanceof BrowserGone ? "" : "\n" + (e && e.stack || "")));
   process.exitCode = 2;
 } finally {
+  // cleaning up never changes the verdict: the exit code is already set
   clearTimeout(watchdog);
-  if (browser) await browser.close();
-  if (server) await server.close();
+  try { if (browser) await browser.close(); } catch (e) { console.error("textcheck: closing the browser: " + ((e && e.message) || e)); }
+  try { if (server) await server.close(); } catch { /* the process is exiting anyway */ }
 }

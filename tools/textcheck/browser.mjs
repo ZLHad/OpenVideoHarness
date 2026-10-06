@@ -61,16 +61,19 @@ export async function launch(exe, flags = []) {
     let timer;
     return Promise.race([p, new Promise((res, rej) => { timer = setTimeout(() => (onTimeout ? rej(onTimeout()) : res()), ms); })]).finally(() => clearTimeout(timer));
   };
+  // the profile folder: Chrome's helper processes can still be writing to it just after the main one exits (Linux),
+  // so retry, and never let a leftover temp folder turn into an error
+  const removeProfile = () => { try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch { /* left in the temp folder */ } };
   const close = async () => {
     if (!dead) try { await within(send("Browser.close"), 3000); } catch { /* already gone */ }
     proc.kill(); await exited;
-    fs.rmSync(profile, { recursive: true, force: true });
+    removeProfile();
   };
   let version;
   try {
     version = await within(send("Browser.getVersion"), 30000, () => new Error("the browser did not answer within 30 s"));
     started = true;
-  } catch (e) { proc.kill(); await within(exited, 3000); fs.rmSync(profile, { recursive: true, force: true }); throw e; }
+  } catch (e) { proc.kill(); await within(exited, 3000); removeProfile(); throw e; }
   return { send, once, on, close, version: version.product };
 }
 

@@ -776,12 +776,12 @@ print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
   then ok "textcheck: covered, faint, out-of-frame and captioned-over reads fail (exit 1); outlined, kinetic and split reads pass; a late read, a faint line outside the registry and a caption over a bright band warn"
-  else bad "textcheck on its fixture (exit $rc): $(printf '%s' "$a" | head -c 800)"; fi
+  else bad "textcheck on its fixture (exit $rc): $(printf '%s' "$a" | tail -c 1200)"; fi
   # without the contract: nothing can be drawn on demand, so exit 2 and say what to add
   sed 's/window.__vh = { draw, texts: TEXTS };//' tools/textcheck/fixture/index.html > "$t/index.html"
   a=$(vh textcheck "$t" --out "$t/out2" 2>&1); rc=$?
   case "$rc:$a" in 2:*"window.__vh = { draw"*) ok "textcheck without window.__vh.draw exits 2 and names the line to add" ;;
-    *) bad "textcheck without the contract: exit $rc: $(printf '%s' "$a" | head -c 300)" ;; esac
+    *) bad "textcheck without the contract: exit $rc: $(printf '%s' "$a" | tail -c 800)" ;; esac
   rm -rf "$t"
 }
 
