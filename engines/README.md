@@ -56,9 +56,10 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 
 | 自己就对，不用改代码 | 要写代码 |
 |---|---|
-| DOM 文字、CSS 的线和边框、SVG | 2D `<canvas>`：宽高乘 `devicePixelRatio`，CSS 尺寸仍是合成尺寸，再 `ctx.scale(dpr, dpr)`，之后坐标照旧按 1080p 写（只开大画布、不 scale，画面会挤在左上角四分之一） |
+| DOM 文字、CSS 的线和边框、SVG | 2D `<canvas>`：宽高乘 `devicePixelRatio`，CSS 尺寸仍是合成尺寸，再 `ctx.scale(dpr, dpr)`，之后坐标照旧按 1080p 写（只开大画布、不 scale，画面会挤在左上角四分之一）。每帧开头重置变换也要带上 dpr：`ctx.setTransform(dpr, 0, 0, dpr, 0, 0)`；写成 `setTransform(1, 0, 0, 1, 0, 0)` 或 `resetTransform()` 会清掉这个 2 倍，1080p 下看不出来，4K 下又挤回左上角 |
 | `ctx.scale` 之后画的 canvas 内容，包括 `lineWidth`、`measureText` | 拿 `canvas.width`、`image.width`、`getImageData` 去算布局的地方：这些是物理像素，要除以 dpr |
 | 4K 的 `<video>` 源（HyperFrames 按源分辨率取帧） | Three.js：`renderer.setPixelRatio(dpr)`，后期链 `composer.setPixelRatio(dpr)` |
+| | 先画好、再 `drawImage` 进 2D canvas 的 WebGL 离屏层：它的 canvas 和 `viewport` 也乘 dpr，`drawImage` 的目标尺寸照旧按合成尺寸写；按 1080 开的话，这一层在 4K 下被放大发糊。着色器里的位置按 CSS 像素算（由 `uv` 和这块矩形的 CSS 尺寸换算），不用 `gl_FragCoord`，图案就不随 dpr 变 |
 | | 着色器里的 `gl_PointSize` 按设备像素算，要乘 dpr，上限的 `min()` 也要乘 |
 | | 1 px 的 WebGL 线永远是 1 个设备像素，4K 下变细；要粗细一致，用 `Line2` 或面片 |
 | | `shadowBlur`、`ctx.filter` 的 blur、`UnrealBloomPass` 的核按设备像素算，4K 下光晕变紧；用 `gl_FragCoord` 算的图案频率加倍 |
@@ -72,6 +73,17 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 3. `hyperframes snapshot` 永远按 dpr 1 渲，`--zoom-scale 2` 也是页面建好以后才放大，不能当 4K 预览。
 
 成本（介绍片 103 s，M3 Max）：HyperFrames high 画质 1080p 约 4 分钟、509 MB，4K 约 9–13 分钟、1.5 GB（约 125 Mbps，2 个 worker）。发布前用 x264 CRF 18–19、`-preset slow` 重编码：1080p 297 MB，4K 1.04 GB。GitHub release 每个文件不能超过 2 GiB，按 high 画质的码率，超过约 135 s 的 4K 要先重编码。Blender 原生 4K 每帧约是 1080p 的 4 倍（`engines/blender.md`）。
+
+**长片出 4K 先看磁盘。** 4K 一律走截屏（drawElement 和 Linux 的 BeginFrame 截帧都不支持 2 倍密度），而 0.8.82 的多 worker 截屏默认先把每一帧存成 JPEG，最后再编码；只有 `--workers 1` 默认是流式的。临时空间按每帧约 4 MB 估：一支 457 s 的片子（13710 帧）要约 57 GB。开渲前它按这个估算检查，估算超过空余空间的 90% 就直接拒绝（那次空余 53 GB），报错开头是 `Disk capture may need ~… MB of temporary frame storage`。两个办法：
+
+- 设 `HF_CAPTURE_PARALLEL_STREAM=true`：多个 worker 截下的帧直接流进编码器，不落盘。那支片子 4 个 worker 在 M3 Max 上渲了约 11 分钟，high 画质 1.4 GB；
+- 或者 `--workers 1`：单个 worker 本来就是流式的，只是慢。
+
+```bash
+HF_CAPTURE_PARALLEL_STREAM=true NODE_OPTIONS=--max-old-space-size=8192 npx hyperframes render --resolution 4k --quality delivery --fps 30 --workers 4 --output out/final-4k.mp4
+```
+
+`NODE_OPTIONS` 把 Node 的堆开到 8 GB，这是 HyperFrames 自己的建议：它自动选的 worker 数可能撑爆默认的堆时，日志里会打出 `capture workers may exceed this process's V8 heap`。那次渲染带着它，没试过去掉。放到后台跑时，照上文在这一行加 `HYPERFRAMES_RENDER_DETACHED=1`。
 
 ### 最小写法（0.8.82）
 
