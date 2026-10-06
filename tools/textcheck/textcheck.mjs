@@ -48,6 +48,8 @@ import path from "node:path";
 import { BrowserGone, launch, serve } from "./browser.mjs";
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });   // a reader that stops early (| head) does not leave Chrome behind
+// Node exits 1 on an unhandled rejection, which here means "a read failed"; a stray one is a failure to check (2)
+process.on("unhandledRejection", (e) => { console.error("textcheck: " + ((e && e.message) || e)); process.exitCode = 2; });
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");
 const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP); process.exit(argv.length ? 0 : 2); }
@@ -129,6 +131,7 @@ try {
   };
   const call = (fn, ...args) => ev(`window.__vhTC.${fn}(${args.map((a) => JSON.stringify(a)).join(", ")})`);
   const loaded = browser.once("Page.loadEventFired", s);
+  loaded.catch(() => { /* a browser that dies first fails it; the race below reports that */ });
   await browser.send("Page.navigate", { url: server.url + encodeURIComponent(path.basename(html)) }, s);
   let loadTimer;
   await Promise.race([loaded, new Promise((_, rej) => { loadTimer = setTimeout(() => rej(new Error("the page did not load within 60 s")), 60000); })]).catch((e) => stop(e.message)).finally(() => clearTimeout(loadTimer));
