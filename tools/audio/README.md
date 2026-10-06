@@ -288,7 +288,7 @@
 
 ## 音效（`sfx`）的细节
 
-- **`t` 是落点，不是起点。** 内置音效按各自的落点对齐到 `t`：riser、swish_rev、tape 在 `t` 结束；whoosh、whip、swoosh_tonal、air、paper 把最响的一段放在 `t`；shimmer 和小动作、命中从 `t` 开始。所以 riser 写在它要冲到的那一刻（drop、揭示、切镜），声音从 `t − dur`（默认 2 s）开始；写成铺垫开始的时刻，它就晚了一整个 `dur`。落点和能量峰之间的细差见下文"已知局限"。
+- **`t` 是落点，不是起点。** 内置音效按各自的落点对齐到 `t`：riser、swish_rev、tape 在 `t` 结束；whoosh、whip、swoosh_tonal、air、paper 把最响的一段放在 `t`；shimmer 和小动作、命中从 `t` 开始。所以 riser 写在它要冲到的那一刻（drop、揭示、切镜），声音从 `t − dur`（默认 2 s）开始；写成铺垫开始的时刻，整段声音就早了一个 `dur`，峰值落在铺垫刚开始的地方。落点和能量峰之间的细差见下文"已知局限"。
 - **`pan`**（−1 最左，0 居中，1 最右）用等功率声像律，并且按"居中 = 原电平"归一。不写 pan 的事件和以前的单声道摆放逐采样相同。pan = ±1 时，那一侧 +3 dB，总功率不变，所以大声的音效打到最边上时注意削波（工具会提示削波的采样数）。
 - **`dist`**（≥ 1，单位是参考距离，1 = 原样）：电平乘 1/dist，距离每翻一倍 −6 dB；再加一个平缓的一阶低通，截止频率 16 kHz / dist，最低 1 kHz。低通带来的延迟不到 0.2 ms，落点不受影响。声速延迟没有加，因为 `t` 本来就是"该听到的时刻"；要做"先见闪光、后闻炮声"，自己把 `距离米数 / 343` 加到 `t` 上。
 - **pan 从画面上算，不要凭感觉写。** 取发声物体在那一刻的屏幕 x：`pan = 2·x / 画面宽度 − 1`，再乘 0.7–0.8 收一点，全左全右在耳机里很刺。3D 场景用相机坐标：`pan = v·right / |v|`，其中 v 是声源到相机的向量；距离也从同一个 v 来。镜头在动时，同一个声源在不同时刻的左右位置也不同。Austerlitz 那支片子的音效就是这样从场景事件里算出声像和距离的，见 `cases/opus55-gallery.md` 第 6 节。
@@ -339,7 +339,7 @@ VMR 这一列有三个数：
 - `stems=DIR` 按最终增益写出各总线和 `meta.json`，`bin/vh qa` 的 `--stems` 读它；
 - 不写 `profile`（或写 `profile=none`）就是原来的 ffmpeg 链（`duck=voice` 侧链压缩，响度按 loudnorm 定），输出和以前逐字节相同。
 
-**报错退出时什么都不写。** 事件写错（比如给提示音写了 `pitch`）、缺文件、参数不对，`bin/vh mix` 都报错退出，`mix.wav`、stems 和 `meta.json` 留着上一次的。`bin/vh qa` 照样能在旧混音上跑完，所以它先看混音是不是新的：事件表、节拍表、`--events`、`--voice`、`--timeline`、`--words` 或 `meta.json` 记下的输入比混音新 2 s 以上（`qa mix` 拿它们和 `meta.json` 比），有音效事件落在混音结尾之后，或者旁白比混音长，就在报告开头写出 `STALE?` 和原因，最后一行也带上。这只是警告，不算失败：刚 checkout 或拷过来的文件也会显得比混音新。看到它就重跑 `bin/vh mix`，确认退出码是 0，再跑 qa。
+**报错退出时什么都不写。** 事件写错（比如给提示音写了 `pitch`）、缺文件、参数不对，`bin/vh mix` 都报错退出，`mix.wav`、stems 和 `meta.json` 留着上一次的。`bin/vh qa` 照样能在旧混音上跑完，所以它先看混音是不是新的：事件表、节拍表、`--events`、`--voice`、`--timeline`、`--words` 或 `meta.json` 记下的输入比混音新 2 s 以上，有音效事件落在混音结尾之后，或者旁白比混音长，就在报告开头写出 `STALE?` 和原因，最后一行也带上。`qa mix` 只查第一项，拿这些输入和 `meta.json` 比。这只是警告，不算失败：刚 checkout 或拷过来的文件也会显得比混音新。看到它就重跑 `bin/vh mix`，确认退出码是 0，再跑 qa。
 
 **什么时候写 `role`**：
 - 类先看事件的 `"role"`；没写时，`"layer": "sonification"` 是 signal；再没有就按名字里的整词判断（复数也算）：
@@ -464,7 +464,7 @@ ffmpeg -framerate 30 -i out/frames/f%05d.jpg -c:v libx264 -crf 17 -pix_fmt yuv42
 bin/vh mux out/final.mp4 audio/mix.wav out/final-av.mp4
 ```
 
-**给旁白垫静音，别用 `anullsrc` 加 `concat` 滤镜。** `-f lavfi -i anullsrc` 这一路输入解码出来是 8 bit 的 `pcm_u8`，`concat` 要求每一路输入格式相同，就把旁白也转成 u8 再拼：整条人声只剩 1/128 一级的精度。输出写成 `pcm_s24le` 救不回来，在 `concat` 后面加 `aformat` 也不行（ffmpeg 8.0.1 实测，16 bit、24 bit 和浮点的源都一样）。现象是 `bin/vh qa` 报出几千处 click（一支 457 s 的旁白片报了 2000 多处），停顿里的样本在 0 和 −1/128 之间跳；查法是取安静处的样本乘以 128，全是整数就是中了。旁白要晚一点进来，最省事的是合成时加 `--lead`（`playbook/04-audio.md` 的"配音"）；合成以后再垫，用 `adelay` 和 `apad`，或者在 numpy、soundfile 里直接拼数组：
+**给旁白垫静音，别用 `anullsrc` 加 `concat` 滤镜。** `-f lavfi -i anullsrc` 这一路输入解码出来是 8 bit 的 `pcm_u8`，`concat` 又要把每一路转成同一种格式：静音排在第一路、长度用 `anullsrc=…:d=` 或滤镜里的 `atrim` 定时，旁白就被转成 u8 再拼，整条人声只剩 1/128 一级的精度（ffmpeg 8.0.1 实测，16 bit、24 bit 和浮点的源都一样）。输出写成 `pcm_s24le` 救不回来，在 `concat` 后面加 `aformat` 也不行。静音排在后面、或者用输入的 `-t` 定长度时这次没中，但格式怎么协商由 ffmpeg 决定，别靠它。现象是 `bin/vh qa` 报出大量 click（一支 457 s 的旁白片报了 2000 多处），停顿里的样本在 0 和 −1/128 之间跳；查法是取一段安静但不全是零的样本（句间的底噪、尾音），乘以 128 全是整数就是中了。旁白要晚一点进来，最省事的是合成时加 `--lead`（`playbook/04-audio.md` 的"配音"）；合成以后再垫，用 `adelay` 和 `apad`，或者在 numpy、soundfile 里直接拼数组：
 
 ```bash
 ffmpeg -i vo.wav -af "adelay=600:all=1,apad=whole_dur=457" -c:a pcm_s24le vo_film.wav   # 前面垫 0.6 s，后面补到 457 s，人声逐采样不变

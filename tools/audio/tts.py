@@ -2,7 +2,7 @@
 
 usage (via bin/vh tts): python tools/audio/tts.py <project_dir> [--provider qwen] [--voice V] [--lang zh|en]
                                                  [--gap 0.25] [--instruct "calm, warm"]
-                                                 [--beats music.beats.json [--snap beat|half|downbeat] [--lead 0.0]]
+                                                 [--beats music.beats.json [--snap beat|half|downbeat]] [--lead 0.0]
                                                  [--align gemini [--min-sim 0.85] [--vocab "术语,Term"]]
                                                  [--join none|block|all] [--resume]
        (via bin/vh voices): python tools/audio/tts.py voices list [lang] | design "<description>" | delete <voice_id>
@@ -14,7 +14,8 @@ Input  <project>/audio/script.txt — one spoken line per row (a line = one capt
                                       @hook [惊讶地抛出问题，语速快，"一句话"重读] 一句话，做出一支片子。 || …
        It is added to --instruct for that line only, and never reaches the captions.
        --beats: start every line on the next grid point of a beat map (bin/vh music / bin/vh beats output) instead of a
-       fixed --gap, so narration rides the music; --snap picks the grid, --lead the earliest start of line 1.
+       fixed --gap, so narration rides the music; --snap picks the grid. --lead: the earliest start of line 1, with or
+       without --beats (without, line 1 starts there after digital silence: a narration that comes in late).
        A single line can pick its own grid with @id:downbeat (or :beat, :half), e.g. the answer that lands on the drop.
        A map without the chosen grid is an error; when the narration outlives the grid, the lines past its end follow
        --gap, and that is said once.

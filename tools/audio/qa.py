@@ -67,9 +67,10 @@ mix (the level hierarchy, per bin/vh mix's profile table; see tools/audio/README
 stale (every mode; a WARNING at the top and on the last line, never a failure): bin/vh mix writes nothing when it stops on
   an error (a signal sound given a pitch, a missing file), so the previous mix.wav and stems stay, and qa would report on
   them without a word. Warned when an input is more than 2 s newer than the mix (for qa mix: than the stems' meta.json):
-  events.json, the beat map, --events, --voice, --timeline, --words and the inputs meta.json names; when an SFX event lands
-  after the end of the mix; when the narration (--timeline, else the timeline meta.json names, else the one it holds)
-  ends after it. A fresh checkout or copy makes inputs look newer too, hence a warning.
+  events.json, the beat map, --events, --voice, --timeline, --words and the inputs meta.json names. In a full, scan or
+  cues run also when an SFX event lands after the end of the mix, or the narration (--timeline, else the timeline
+  meta.json names, else the one it holds) ends after it. A fresh checkout or copy makes inputs look newer too, hence a
+  warning.
 repetition (with events, in every mode; a WARNING, never a failure): a sound that comes back the same 3 or more times in a
   row within its family (a built-in's name; a file's name without its _a / _2 take mark), each event rendered alone before
   gain, pan and distance: byte for byte, or a waveform correlation over 0.98 within ±5 ms above 150 Hz. A whoosh pinned to

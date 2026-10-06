@@ -665,7 +665,7 @@ cmd_check() {
   [ "$rc" != 1 ] && [ "$fail" = 0 ]   # exit 1 on isolated frames, a spec mismatch or a scale FAIL; the other findings are for review
 }
 cmd_tts() {
-  local proj=${1:?usage: bin/vh tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json --snap beat|half|downbeat --lead s] [--align gemini] [--join block|all] [--resume]} pos=() deps=""
+  local proj=${1:?usage: bin/vh tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json --snap beat|half|downbeat] [--lead s] [--align gemini] [--join block|all] [--resume]} pos=() deps=""
   shift
   while [ $# -gt 0 ] && [ ${#pos[@]} -lt 4 ] && [[ "$1" != --* ]]; do pos+=("$1"); shift; done   # positionals stop at the first --flag
   local prov=${pos[0]:-qwen} voice=${pos[1]:-} lang=${pos[2]:-} instruct=${pos[3]:-} a prev=""
