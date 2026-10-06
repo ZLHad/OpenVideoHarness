@@ -45,7 +45,7 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 
 - **为什么**：0.8.82 的 render 开始时记下启动它的那串父进程，之后其中任何一个退出，它就自己取消，日志末尾是 `Render cancelled: render_cancelled_parent_exited`。agent 的一条 Bash 命令返回，那个 shell 就退出了。`nohup … & disown` 挡不住，因为渲染查的是父进程还在不在，不是收没收到信号。设了这个变量，它就不再记父进程（`render --help` 里没写，见 hyperframes 包里 `dist/cli.js` 的 `createRenderCancellationScope`）。
 - **时有时无**：shell 在渲染起来之前就退了的话，父进程链里已经没有它，能渲完；同一条命令里还在 `sleep` 或 `tail` 日志，就会被取消。所以跑通过一次，不说明可以不加。
-- **别把长渲染交给 agent 自己的后台任务**：Claude Code 的后台命令有时长上限（默认 30 分钟，最长 2 小时），到点连同渲染一起被停。照上面那行把渲染脱离出去，命令立刻返回，再看日志等它结束。
+- **别把长渲染交给 agent 自己的后台任务**：agent 的后台命令往往有时长上限（2026-10 的 Claude Code 默认 30 分钟），到点连同渲染一起被停。照上面那行把渲染脱离出去，命令立刻返回，再看日志等它结束。
 - **代价**：加了变量，父进程退出，渲染也不会停，要停得自己杀，按输出路径匹配：`pkill -f "[h]yperframes render.*out/draft.mp4"`（`[h]` 让执行 pkill 的 shell 不匹配到自己）。变量只写在后台那一行，不 export，前台渲染照旧跟着父进程停。`caffeinate -i` 防止 Mac 睡眠，只有 macOS 有，Linux 上去掉。
 
 ### 出 4K
