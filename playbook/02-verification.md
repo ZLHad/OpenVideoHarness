@@ -155,6 +155,7 @@ ffmpeg -i out/det/w1/frame_%06d.png -i out/det/w3/frame_%06d.png -lavfi psnr=sta
 有几种故障不报错、不崩溃，渲染照样显示"成功"，只有逐帧统计才抓得到：
 
 - **renderAt 抛异常，画面停在上一帧。** 介绍片第 17 版 draft 里，一个 `const` 在声明之前就被读取（TDZ），36–48 s 共 12 秒的每一帧都停在 t=0 的画面，渲染日志里没有任何错误。画面上有 HUD 时间码的话，抽帧读 HUD 最快；通用做法是把每帧和第 0 帧比 PSNR，找异常高的连续段。`freezedetect` 不一定抓得到：只要颗粒或别的图层还在逐帧变化，画面就不算"冻结"。
+- **逐帧干跑一遍，抓只在某几秒抛的异常。** canvas 或 Three.js 的片子，场景代码里一个未定义的变量只会让那一段画面不见，snapshot 和 render 都不报错。出片前可以在浏览器里打开合成，按成片帧率的步长从 0 到片长调一遍画帧函数（`renderAt(t)`、`draw(t)` 或合成暴露的同类入口），try/catch 收下每个抛异常的时刻和堆栈：一支 155 s 的片子 4 s 扫完，抓到一个只在一个镜头里抛的 ReferenceError（那几秒字卡不见）。纯 2D canvas 也可以在 node 里干跑：拿一个 Proxy 当 `ctx`，吞掉所有调用，`measureText` 返回假宽度，600 个时刻几秒跑完，直接报出出错的时刻和行号。
 - **空帧。** 异步 build 还没完成，worker 的第一帧就被截了图。介绍片里是每个 worker chunk 开头的 1–2 帧，YAVG 24，前后都是 62。逐帧读 `signalstats` 的 YAVG，找突降。修法：在一段经典内联脚本里同步注册一个就绪 promise，由模块脚本在 build 完成、第一帧画完之后 resolve，渲染器等它再截图。
 - **build 的 promise 失败没人接，整段黑场。** 介绍片 v5 里正文的组装抛了一个“先用后定义”的错，`build().then(...)` 没有失败分支：页面不报错，快照和渲染都是只剩暗角的黑底。异步组装的 promise 一律接上失败分支，`console.error` 打出堆栈再抛出去，让渲染器和快照都能看见。
 - **渲染永远挂住。** importmap 指向 CDN 时，断网会让渲染卡在页面加载处：日志 0 字节，不报错，进程也不退出。依赖一律装进项目（`npm i -D --save-exact`，importmap 指向 `./node_modules/`），渲染外面再包一层看门狗：超时就杀掉，检查退出码，核对帧数，抽几个时间点查 YAVG，确认主画面层确实画出来了。

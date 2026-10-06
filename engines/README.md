@@ -45,6 +45,7 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 
 - **为什么**：0.8.82 的 render 开始时记下启动它的那串父进程，之后其中任何一个退出，它就自己取消，日志末尾是 `Render cancelled: render_cancelled_parent_exited`。agent 的一条 Bash 命令返回，那个 shell 就退出了。`nohup … & disown` 挡不住，因为渲染查的是父进程还在不在，不是收没收到信号。设了这个变量，它就不再记父进程（`render --help` 里没写，见 hyperframes 包里 `dist/cli.js` 的 `createRenderCancellationScope`）。
 - **时有时无**：shell 在渲染起来之前就退了的话，父进程链里已经没有它，能渲完；同一条命令里还在 `sleep` 或 `tail` 日志，就会被取消。所以跑通过一次，不说明可以不加。
+- **别把长渲染交给 agent 自己的后台任务**：agent 的后台命令往往有时长上限（2026-10 的 Claude Code 默认 30 分钟），到点连同渲染一起被停。照上面那行把渲染脱离出去，命令立刻返回，再看日志等它结束。
 - **代价**：加了变量，父进程退出，渲染也不会停，要停得自己杀，按输出路径匹配：`pkill -f "[h]yperframes render.*out/draft.mp4"`（`[h]` 让执行 pkill 的 shell 不匹配到自己）。变量只写在后台那一行，不 export，前台渲染照旧跟着父进程停。`caffeinate -i` 防止 Mac 睡眠，只有 macOS 有，Linux 上去掉。
 
 ### 出 4K
@@ -113,6 +114,7 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
   - 两条 lint 规则互相矛盾：`gsap_repeated_fromto_without_baseline` 建议加 `tl.set(…,0)`，加了又会触发 `gsap_timeline_set_initial_hide`。解法是在时间线外用 `gsap.set()` 设初始状态，同时给 tween 加 `immediateRender:false`。
   - 某次渲染后，本机被切换到较慢的截帧路径，之后每次渲染的耗时约为原来的 3 倍。这是本机设置，不跟着项目走；用 `HF_DE_PARALLEL_ROUTER=true` 可以恢复。
   - **浏览器 GPU 开着时，长片偶尔出单帧坏帧。** drawElement 截帧自检失败、退回多 worker 截屏以后（日志：`drawElement self-verification failed; re-rendering via screenshot`），一支 160 s 的 canvas 片子渲 4 次有 1 次出了坏帧：6 处各一帧、一处连着 3 帧，闪进别的场景，或者字被画成乱码。同一时刻的 snapshot 是干净的，抽 snapshot 查不出；`bin/vh check` 的孤立帧扫描会列出其中的单帧坏帧（连着几帧的看不到）。修法（还在验证，之后 7 次渲染都干净）：`npx hyperframes render … --no-browser-gpu --experimental-fast-capture=false`，软件渲染。扫描的做法和它漏掉的情况见 `playbook/02-verification.md` 的"静默失败"。
+- **外部 `<script src>` 的两个坑**：一支 canvas 片子把场景代码放在 `assets/js/*.js` 里用 `<script src>` 引入，渲出来整片空白，把这些文件依次内联进 `index.html` 以后正常（原因没细查）；另一支的外部脚本执行时 `<canvas>` 元素还不存在，脚本顶层的 `getElementById` 拿到 null，snapshot 全黑。稳妥做法：场景代码内联进 `index.html`（文件多就写个小 build 脚本拼起来），DOM 引用放到第一次画的时候再取。另外，lint 只认内联脚本里的 `window.__timelines` 登记（否则报 `missing_timeline_registry`），登记那几行写在内联 `<script>` 里。
 - 空格会被吞：sub-composition 模板里的连续空格和词间空格、JS 设置的文本前导空格，都可能被 HTML 合并掉。需要保留时用 `&nbsp;` 或 `white-space: pre`。
 - **等宽字体的坑**：`ui-monospace, monospace` 能通过字体 lint，快照里看起来也是等宽，但 `hyperframes render` 渲染出来却是比例字体（showcase 00 在第一版全片都中了招）。要用 `@font-face` 显式声明，例如 `@font-face{font-family:"LF Mono";src:local("SF Mono"),local("Menlo")}`。**判断字体要看 mp4 渲染出的帧，不要看快照。**`check --snapshots` 只保存对比度检查用的 PNG，不能替代 `snapshot --at`。
 - `snapshot` 在 tween 刚开始的那一刻，可能和最终渲染出的帧不一致。关键帧以渲染出的 mp4 为准，逐帧 strip 的做法见 `playbook/02-verification.md`。
@@ -123,6 +125,9 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
   - `__hf.buildReady` 要在普通 `<script>`（不是 module）里**同步注册**，否则每个并行 worker 的开头都会出现空帧。
   - 项目根目录只能有一个 composition。局部测试文件放在 `out/`，要跑时临时拷回来。
   - `snapshot` 看不到视频纹理（屏幕是暗的），检查必须看渲染出的 mp4 帧。
+  - **把 3D 点投影到屏幕前先 `camera.updateMatrixWorld()`**：同一帧里刚 `lookAt` 过，矩阵还没更新，钉在 3D 点上的标注会错位。
+  - **`EdgesGeometry(geo, 阈值角)` 只画相邻面夹角大于阈值的边**：20 段的圆柱相邻面差 18°，阈值设 20° 就一条侧边线都画不出来。线框画法的圆柱少分几段（12 段是 30°），或者把阈值调低。
+  - **物体的位置在建的时候就设好**：只在每帧的动画函数里设 `position` 的话，不参与动画的零件永远停在原点（盒子以中心为原点，会半截埋进地面）。
   - **渲染时不要依赖在线 CDN。** importmap 指向 CDN 时，只要页面加载那一刻断网，渲染就会静默挂住：日志 0 字节，也不报错。介绍片的第一次 final 渲染就卡在这里。把 three.js 装进项目，importmap 指向 `node_modules`，snapshot 和 render 都能读到这些文件：
 
     ```bash

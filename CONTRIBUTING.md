@@ -20,6 +20,7 @@
 4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。视频不进 git（风格样片 `swatch.mp4` 除外）：成片、样片集锦这类文件放在 GitHub Release `media`，`tools/media.txt` 登记它们在仓库里的路径、文件名和 sha256，`tools/fetch_media.sh` 按它下载。往这个 Release 里放文件是维护者的事，agent 只在维护者要求时做。换一个文件时用新文件名上传（例如 `intro-film-1080p-v2.mp4`），在同一个 PR 里改 `tools/media.txt` 和引用它的链接，合并以后再删旧文件；不要覆盖 main 还在引用的文件，否则在合并之前，按 main 的校验和下载会失败。README 里要直接播放的短片段走 GitHub 的附件链接（每个不到 10 MB）。`tools/ci.sh` 会拦住视频和超过 8 MB 的文件。
 5. 用户能感知到的改动，在 `CHANGELOG.md` 的 Unreleased 里记一笔。改了 `CLAUDE.md`，跑 `bin/vh sync-agents` 重新生成 `AGENTS.md`。
 6. 提交信息写清改了什么、为什么。末尾可以带 `Co-Authored-By:` 署名行。
+7. PR 说明里写"其余都没问题"之前，把涉及的每个子命令真跑一遍。只改措辞的 PR 也要逐句查行为变没变（#62 的评审就查出过一条底线和类型文档的阅读范围被顺手改了）。
 
 ## 推送前自查：`tools/ci.sh`
 
@@ -29,6 +30,12 @@
 tools/ci.sh                        # 全部检查；没装 shellcheck、pyflakes、ffmpeg 时，相应几项会跳过
 tools/ci.sh --committed            # 只检查已提交的内容（HEAD），和 CI 看到的一样；推送前用这个
 VH_BASH=/bin/bash tools/ci.sh      # macOS：用系统自带的 bash 3.2 跑，Mac 用户默认用的就是它
+```
+
+本地没装 shellcheck 和 pyflakes 时，这两项会跳过，CI 的 Linux 机器却会查，推上去才红。有 `uv` 的话不用装（shellcheck-py 的版本可能和 CI 的不同，以 CI 为准）：
+
+```bash
+d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$@"\n' > "$d/shellcheck" && chmod +x "$d/shellcheck" && PATH="$d:$PATH" uv run --no-project --with pyflakes -- bash tools/ci.sh --committed
 ```
 
 每组检查都对应 v0.2.1 复查时发现的一类问题：
