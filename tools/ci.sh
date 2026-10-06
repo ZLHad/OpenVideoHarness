@@ -752,12 +752,45 @@ PY
   rm -rf "$t"
 }
 
+# bin/vh textcheck on its fixture (tools/textcheck/fixture/index.html: one read per case), with whatever headless Chrome
+# the machine has (GitHub's runners come with Chrome); skipped without one
+textcheck_checks() {
+  local t a rc
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  a=$(vh textcheck tools/textcheck/fixture --out "$t/out" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "textcheck" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  if [ $rc = 1 ] && python3 - "$t/out/textcheck.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+got = {r["text"]: (r["status"], sorted(f for f in ((r.get("worst") or {}).get("flags") or []) if f != "unstable")) for r in d["reads"]}
+want = {"CLEAR": ("ok", []), "COVERED": ("fail", ["covered"]), "FAINT": ("fail", ["contrast"]), "OUTLINED": ("ok", []), "KINETIC": ("ok", []),
+        "TWO · PARTS": ("ok", []), "GONE": ("fail", ["outside"]), "HIDDEN": ("fail", ["caption"]), "LATE": ("ok", []), "NOWHERE": ("not drawn", [])}
+bad = [f"{k}: got {got.get(k)}, want {v}" for k, v in want.items() if got.get(k) != v]
+late = [r for r in d["reads"] if r["text"] == "LATE"]
+if not late or late[0].get("missingAt") != [0.4]: bad.append(f"LATE: missing at {late[0].get('missingAt') if late else None}, want [0.4]")
+flagged = [e["text"] for e in d["extra"] if e["flagged"]]
+if flagged != ["ghost"]: bad.append(f"outside the registry: flagged {flagged}, want ['ghost']")
+bright = [c["text"] for c in d["captions"] if c["worst"]["close"] > 0.12]
+if bright != ["a caption over a bright band"]: bad.append(f"captions over a bright picture: {bright}")
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "textcheck: covered, faint, out-of-frame and captioned-over reads fail (exit 1); outlined, kinetic and split reads pass; a late read, a faint line outside the registry and a caption over a bright band warn"
+  else bad "textcheck on its fixture (exit $rc): $(printf '%s' "$a" | head -c 800)"; fi
+  # without the contract: nothing can be drawn on demand, so exit 2 and say what to add
+  sed 's/window.__vh = { draw, texts: TEXTS };//' tools/textcheck/fixture/index.html > "$t/index.html"
+  a=$(vh textcheck "$t" --out "$t/out2" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"window.__vh = { draw"*) ok "textcheck without window.__vh.draw exits 2 and names the line to add" ;;
+    *) bad "textcheck without the contract: exit $rc: $(printf '%s' "$a" | head -c 300)" ;; esac
+  rm -rf "$t"
+}
+
 case "${1:-all}" in
-  --smoke) smoke_checks; decision_checks; desk_checks ;;
+  --smoke) smoke_checks; decision_checks; desk_checks; textcheck_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; smoke_checks; decision_checks; desk_checks ;;
+  all) static_checks; doc_checks; smoke_checks; decision_checks; desk_checks; textcheck_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ $fails = 0 ] && ok "all checks passed" || printf '\033[31m%s check(s) failed\033[0m\n' "$fails"

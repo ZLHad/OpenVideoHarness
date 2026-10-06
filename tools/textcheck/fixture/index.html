@@ -1,0 +1,63 @@
+<!doctype html>
+<!-- The test composition for bin/vh textcheck (tools/ci.sh). Each read below is a case; the comment says what the check
+     must say about it. Not a film: no GSAP, no HyperFrames, only the window.__vh contract. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>textcheck fixture</title>
+    <style>
+      html, body { margin: 0; width: 640px; height: 360px; overflow: hidden; background: #000; }
+      #root { position: relative; width: 640px; height: 360px; }
+      #cv { position: absolute; left: 0; top: 0; width: 640px; height: 360px; }
+      #cap { position: absolute; left: 0; width: 640px; top: 318px; text-align: center; color: #fff; font: 700 22px sans-serif; white-space: nowrap; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="4" data-width="640" data-height="360">
+      <canvas id="cv" width="640" height="360"></canvas>
+      <div id="cap" data-read="subtitle"></div>
+    </div>
+    <script>
+      const X = document.getElementById("cv").getContext("2d");
+      const TEXTS = [
+        { text: "CLEAR", start: 0, end: 4 },                 // white on dark: passes
+        { text: "COVERED", start: 0, end: 4 },               // a panel drawn over it: covered
+        { text: "FAINT", start: 0, end: 4 },                 // grey on grey: contrast
+        { text: "OUTLINED", start: 0, end: 4 },              // white on white with a black outline: passes (the edge counts)
+        { text: "KINETIC", start: 0, end: 4 },               // one character a call: found, passes
+        { text: "TWO · PARTS", start: 0, end: 4 },           // the dot is a shape, the words two calls: found, passes
+        { text: "GONE", start: 0, end: 4 },                  // above the frame: outside
+        { text: "HIDDEN", start: 0, end: 4 },                // under the DOM caption: caption
+        { text: "LATE", start: 0, end: 4 },                  // only drawn after 2 s: missing from a sample
+        { text: "NOWHERE", start: 0, end: 4 },               // never drawn: not drawn
+      ];
+      function text(s, x, y, o = {}) {
+        X.save(); X.font = `700 ${o.size || 30}px sans-serif`; X.textAlign = o.align || "left"; X.textBaseline = "alphabetic";
+        if (o.stroke) { X.lineJoin = "round"; X.lineWidth = o.stroke; X.strokeStyle = "#000"; X.strokeText(s, x, y); }
+        X.fillStyle = o.color || "#fff"; X.fillText(s, x, y); X.restore();
+      }
+      function draw(t) {
+        X.setTransform(1, 0, 0, 1, 0, 0);
+        X.fillStyle = "#14181d"; X.fillRect(0, 0, 640, 360);
+        X.fillStyle = "#f2f2f2"; X.fillRect(320, 0, 320, 120);          // a bright panel, top right
+        X.fillStyle = "#444"; X.fillRect(0, 120, 320, 70);              // a grey panel, left
+        X.fillStyle = "#eeeeee"; X.fillRect(0, 300, 640, 60);           // a bright band under the caption
+        text("CLEAR", 20, 50);
+        text("COVERED", 20, 100);
+        X.fillStyle = "#2a6"; X.fillRect(14, 70, 150, 40);              // drawn after COVERED, over most of it
+        text("FAINT", 20, 165, { color: "#555" });
+        text("OUTLINED", 340, 70, { stroke: 8 });
+        let x = 340; for (const ch of "KINETIC") { text(ch, x, 165); x += X.measureText(ch).width + 22; }
+        text("TWO", 20, 245); X.fillStyle = "#fff"; X.beginPath(); X.arc(100, 235, 4, 0, 7); X.fill(); text("PARTS", 112, 245);
+        text("GONE", 400, -30);
+        text("HIDDEN", 250, 345, { size: 26, color: "#111" });
+        if (t >= 2) text("LATE", 400, 245);
+        text("ghost", 520, 290, { size: 22, color: "#26292d" });       // outside the registry, too dark: a warning
+        const cap = document.getElementById("cap");
+        cap.textContent = "a caption over a bright band";
+      }
+      window.__vh = { draw, texts: TEXTS };
+      draw(0);
+    </script>
+  </body>
+</html>

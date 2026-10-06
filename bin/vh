@@ -57,6 +57,10 @@
 #                               FAIL under one brisk read (CJK/7 + other/20 + 0.8 s, at least 1.5 s; exit 1), WARN under the target of the BRIEF's
 #                               Pace (exit 0); subtitles within reading speed. data-read="subtitle"|"label" and data-pace="…" mark clips
 #                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [--out f]: the composition's timed text
+#   textcheck <project|index.html> [--texts f.json] [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--out dir] [--soft-gl]
+#                               text drawn into a canvas, which npx hyperframes check cannot see: a read covered by the picture (under 70% of it
+#                               shows), under 3:1, outside or cut by the frame, or under a DOM caption (exit 1); canvas text outside the registry
+#                               and captions over a bright picture warn. The composition opts in with window.__vh = { draw(t), texts? } (engines/README.md)
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
 #   check <video> [--allow t,t…] [--against <ref.mp4>]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) +
 #                               black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any not declared
@@ -439,6 +443,21 @@ for l in rules.splitlines():
 }
 
 cmd_readcheck() { python3 "$ROOT/tools/readcheck.py" "$@"; }
+hf_shell() { # the chrome-headless-shell binary itself (hf_chrome prints its version folder)
+  local p; p=$(hf_chrome) || return 1
+  [ -f "$p" ] && [ -x "$p" ] && { echo "$p"; return 0; }
+  p=$(find "$p" -maxdepth 3 -type f \( -name chrome-headless-shell -o -name chrome-headless-shell.exe \) 2>/dev/null | head -1)
+  [ -n "$p" ] && echo "$p"
+}
+cmd_textcheck() { # canvas text covered or too faint (tools/textcheck/textcheck.mjs). The browser: CHROME_PATH, HyperFrames'
+  # chrome-headless-shell (what renders the film), then Chrome or Chromium; no npm package needed
+  [ $# -gt 0 ] || { cmd_usage textcheck; exit 1; }
+  local b=${CHROME_PATH:-}
+  if [ -z "$b" ] || [ ! -x "$b" ]; then
+    b=$(hf_shell) || b=$(chrome_path) || { echo "$c_no bin/vh textcheck needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; exit 2; }
+  fi
+  exec node "$ROOT/tools/textcheck/textcheck.mjs" --browser "$b" "$@"
+}
 cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 1; }
   uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" "$@"; }
 cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--segment NAME | --from s --to s] [--max s] [--out file.png]"; exit 1; }
@@ -758,7 +777,7 @@ case "${1:-help}" in
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
-  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;;
+  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
   help|-h|--help) cmd_help ;;
   *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;

@@ -100,6 +100,24 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 
 - **写一段，查一段**：`npx hyperframes lint` 到 0 error 再往下；`snapshot --at <秒> --describe false` 看几个关键时刻的单帧；`render --quality draft --fps 30 --output out/draft.mp4` 出草稿，字体和接缝以渲出来的 mp4 为准；最后 `--quality delivery` 出成片。完整写法见上面那一块命令。
 
+### 画面文字检查（canvas 片子）
+
+`npx hyperframes check` 只量 DOM 文字，脚本画进 `<canvas>` 的字在它眼里只是像素。canvas 片子用 `bin/vh textcheck <项目>` 查：哪条字被后画的东西盖住、和画面对比不够、出了画面或被边缘裁掉、被 DOM 字幕压住。合成的内联脚本里加一行就能用：
+
+```js
+window.__vh = {
+  draw: (t) => drawFrame(t),   // 必填：画出第 t 秒，连同它自己管的 DOM（比如字幕），和渲染出的那一帧一样；可以返回 Promise
+  texts: TEXTS,                // 可选：reads 登记表，格式同 readcheck 的 texts.json：[{text, start, end, read?}]
+};
+```
+
+- **画字的函数不用改。** 检查在合成的脚本运行之前挂上 canvas 的 `fillText` / `strokeText`，记下每条字画在哪、用什么字体，能单独去掉一条字重画这一帧。所以字要用 2D canvas 的 `fillText` / `strokeText` 画：做成图片的、画进 WebGL 的、画在离屏 canvas 里再贴上来的字，它看不到，登记了会报"没画成 canvas 字"。逐字出现的动画字、拆成几次画的一行字、中间的"·"和箭头画成图形的，都按字母对得上。
+- **登记表**：命令行给了 `--texts <文件>` 就用它，否则用 `window.__vh.texts`，再没有就读 `out/texts.json`（readcheck 读的同一份）。每条在它的时间窗里取 3 个时刻（开始后 0.4 s 到结束前 0.3 s），所以 start 要是字完整显示的那一刻，这也是 readcheck 的约定；登记早了会报"有的时刻没画全"。没有登记表也能跑，只做下面那遍扫描。
+- **没登记的字**每秒扫一遍全片，每行字在它最完整的那一刻量一次，有问题只警告：观众该读的，就登记进去。
+- `draw(t)` 要是 t 的纯函数（硬规则 1）：同一个 t 会画好几遍，两遍画面不一样会报出来，那一刻的数字不可信。
+- **浏览器**：`CHROME_PATH`，否则用 HyperFrames 渲染用的 chrome-headless-shell（缓存为空时先 `npx hyperframes browser ensure`），再否则用系统的 Chrome 或 Chromium，不用装 npm 包。合成从项目目录起一个只在本机 127.0.0.1 的服务来打开，尺寸按根元素的 `data-width` × `data-height`，设备像素比 1；先等 `window.__hf.buildReady`、`window.__vh.ready`（可选）和字体加载完。
+- **结果**：有登记的 read 被盖住（露出不到 70%）、低于 3:1、出画或被裁、压在字幕下，或画帧函数抛错，退出码 1；没登记的字、字幕底下的画面太亮只警告；没法检查（没有 `window.__vh.draw`、页面没加载起来、找不到浏览器）是 2，不算通过。每处问题存一张裁图到 `out/check/textcheck/`，全部数字在同一目录的 `textcheck.json`；阈值都能调，见 `bin/vh textcheck -h`。一支 457 s、107 条登记文字的片子在 M3 Max 上约 30 s 跑完。
+
 ### 注意事项和已知问题（0.8.82 实测）
 
 - **`snapshot` 一律带 `--describe false`。** 环境里有 `GEMINI_API_KEY`（或 `GOOGLE_API_KEY`）时，`snapshot` 默认把每一帧发给 Gemini 做画面描述，结果写进 `snapshots/descriptions.md`：画面离开本机，还要按 Gemini 计费。本仓库的 `bin/vh tts … --align gemini` 也要这个 key，所以 key 多半是设了的。`--describe false` 和 `--describe=false` 都能关掉；没设 key 时它只打一行 "skipping"。`check` 不受影响。
