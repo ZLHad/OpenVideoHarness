@@ -64,6 +64,13 @@ mix (the level hierarchy, per bin/vh mix's profile table; see tools/audio/README
   the range counts at its floor, as for a single event: the mixer never raises one); timeline lines in the mix with
   the voice stem silent under all of them. In a full run with --stems, also a cue that passes the cue check only as
   faint while the report calls it BURIED: on sync, but not heard. On an encoded file the report is not repeated.
+stale (every mode; a WARNING at the top and on the last line, never a failure): bin/vh mix writes nothing when it stops on
+  an error (a signal sound given a pitch, a missing file), so the previous mix.wav and stems stay, and qa would report on
+  them without a word. Warned when an input is more than 2 s newer than the mix (for qa mix: than the stems' meta.json):
+  events.json, the beat map, --events, --voice, --timeline, --words and the inputs meta.json names. In a full, scan or
+  cues run also when an SFX event lands after the end of the mix, or the narration (--timeline, else the timeline
+  meta.json names, else the one it holds) ends after it. A fresh checkout or copy makes inputs look newer too, hence a
+  warning.
 repetition (with events, in every mode; a WARNING, never a failure): a sound that comes back the same 3 or more times in a
   row within its family (a built-in's name; a file's name without its _a / _2 take mark), each event rendered alone before
   gain, pan and distance: byte for byte, or a waveform correlation over 0.98 within ±5 ms above 150 Hz. A whoosh pinned to
@@ -91,6 +98,7 @@ ENC_OFF, ENC_SHIFT, ENC_MIN = 0.2, 0.015, 8   # an encode with ≥ ENC_MIN cues 
                                               # median error exceeds ENC_SHIFT s (the detector's own lag is +3…+8 ms)
 EDGE = 0.004           # s: a match this close to the edge of its search window is a tone that sits beyond it, not a confirmation
 MARGINAL = 0.02        # onset strength over the detector's threshold under which a cue is marginal
+STALE_SLACK = 2.0      # s: an input written more than this after the mix makes the mix look stale (a warning)
 
 def load(path, sr=None):  # → float32 (n, ch), sr — via ffmpeg, so containers and codecs all work
     st = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=sample_rate,channels",
@@ -138,6 +146,36 @@ def in_stems(stems, p):  # a path from meta.json: relative to the stems folder (
 def stem(stems, name):  # a stem of `bin/vh mix … stems=DIR`, or None
     p = os.path.join(stems, f"{name}.wav") if stems else None
     return p if p and os.path.exists(p) else None
+
+def seconds(path):  # the first audio stream's length from the container (no decode), else None
+    try:
+        j = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=duration:format=duration",
+                                       "-of", "json", path], capture_output=True, text=True, check=True).stdout)
+        return float((j.get("streams") or [{}])[0].get("duration") or j["format"]["duration"])
+    except (subprocess.CalledProcessError, KeyError, ValueError, TypeError): return None
+
+def stale(path, inputs, ev=(), tl=None):
+    """warnings that `path` (the mix; for qa mix the stems' meta.json) may not be what its inputs make now: an input
+    written after it (more than STALE_SLACK s: music.py writes the beat map just after its WAV), an SFX event landing
+    after its end, a narration line ending after its end. bin/vh mix writes nothing when it stops on an error (a signal
+    with a pitch, a missing file), so the previous mix stays and every check would read it without a word. Warnings
+    only: a fresh checkout or copy makes an input look newer too."""
+    if not os.path.exists(path): return []   # the scan or the cue check says so
+    out, seen, m = [], {os.path.realpath(path)}, os.path.getmtime(path)
+    for p in inputs:
+        if not p or not os.path.isfile(p) or os.path.realpath(p) in seen: continue
+        seen.add(os.path.realpath(p)); d = os.path.getmtime(p) - m
+        if d > STALE_SLACK: out.append(f"STALE?  {os.path.normpath(p)} was written {f'{d:.0f} s' if d < 120 else f'{d / 60:.0f} min'} after {path}")
+    n = seconds(path) if ev or tl else None
+    if n:
+        late = [float(e["t"]) for e in ev if isinstance(e.get("t"), (int, float)) and e["t"] > n + 1e-3]
+        if late: out.append(f"STALE?  {len(late)} SFX event(s) land after the end of {path} ({n:.2f} s), the last at {max(late):.2f} s")
+        segs = (tl.get("segments") if isinstance(tl, dict) else tl) or []
+        end = max([s["end"] for s in segs if isinstance(s, dict) and isinstance(s.get("end"), (int, float))], default=0)
+        if end > n + 0.05: out.append(f"STALE?  the narration runs to {end:.2f} s, past the end of {path} ({n:.2f} s)")
+    if out: out.append("        bin/vh mix writes nothing when it stops on an error, so this may be an earlier mix: run bin/vh mix again, "
+                       "check that it exits 0, then run qa (a warning, not a failure)")
+    return out
 
 def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None):
     X, sr = load(path); x = X.astype(np.float64).mean(1); dur = len(x) / sr
@@ -744,6 +782,8 @@ def main():
         meta = json.load(open(mp)) if mp and os.path.exists(mp) else {}
         rev = json.load(open(opt("--events"))) if opt("--events") else meta.get("events", [])
         if rev: txt += "\n" + "\n".join(repeats(rev, opt("--lib", in_stems(st, meta.get("lib"))), opt("--root", in_stems(st, meta.get("root"))))[0])
+        old = stale(mp, [opt("--events"), opt("--timeline"), opt("--words")] + [in_stems(st, p) for p in (meta.get("inputs") or {}).values()]) if meta else []
+        if old: txt = "\n".join(old) + "\n" + txt + "\nSTALE?  these stems may be from an earlier mix (see the top)"
         if "--out" in a: open(opt("--out"), "w").write(txt + "\n")
         print(txt); sys.exit(1 if R["fails"] else 0)
     if not pos: sys.exit(__doc__)
@@ -754,6 +794,12 @@ def main():
     lib, root = opt("--lib", in_stems(stems, meta.get("lib"))), opt("--root", in_stems(stems, meta.get("root")))
     out, fails, warns, faint = [], 0, 0, []
     sev = json.load(open(opt("--events"))) if "--events" in a else ev
+    ins = meta.get("inputs") or {}; tlp = opt("--timeline") or in_stems(stems, ins.get("timeline")); tl = meta.get("timeline")
+    if tlp and os.path.isfile(tlp):
+        try: tl = json.load(open(tlp))
+        except (OSError, ValueError): pass
+    old = stale(mix_path, [pos[2] if len(pos) > 2 else None, opt("--events"), pos[1] if len(pos) > 1 and pos[1] != "-" else None,
+                           opt("--voice"), tlp, opt("--words")] + [in_stems(stems, p) for p in ins.values()], ev or sev, tl); out += old
     if mode in ("scan", "all"):
         o, f = scan(mix_path, bm, float(opt("--from", 1.0)), float(opt("--to")) if "--to" in a else None, opt("--voice") or stem(stems, "voice"), sev,
                     float(opt("--click-grace", 0.04)), stem(stems, "music")); out += o; fails += f
@@ -777,6 +823,7 @@ def main():
     print("\n".join(r for r in out if "  OK  " not in r))   # cue rows that pass cleanly are only written to --out
     print(("✓ audio QA passed" if not fails else f"✗ {fails} problem(s)") + (" (click warnings above: 请人耳复听)" if any(r.startswith("[4]") and "请人耳复听" in r for r in out) else "")
           + (f" ({warns} cue warning(s) above)" if warns else "") + (f" ({nrep} repeated SFX above)" if nrep else "")
+          + (" · STALE? this may be an earlier mix (see the top)" if old else "")
           + (f" · full report {opt('--out')}" if "--out" in a else ""))
     sys.exit(1 if fails else 0)
 

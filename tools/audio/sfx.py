@@ -31,7 +31,8 @@ events.json: [{"t": 3.20, "sfx": "click", "gain_db": -6}, {"t": 7.95, "sfx": "wh
        (hero). `place` checks it and writes it into the sidecar.
 SHAPING A BUILT-IN TO ITS MOVE (optional; the transitions take all of these, typing dur and pitch, riser dur, pitch and
   bright, the other gestures and hits pitch, the signals none: SPEC below; `sfx audition` to hear them). Every tool that
-  renders an event (sfx place, bin/vh mix … events=, qa, audition) checks these and stops on a wrong one.
+  renders an event (sfx place, bin/vh mix … events=, audition; qa only when one of its checks renders it) checks these
+  and stops on a wrong one.
   dur     length in s: follow the transition (a 0.3 s slide gets a 0.3 s whoosh). Without pitch or center, a longer
           sound is also lower (−4 semitones per doubling): small, fast moves come out higher and airier, big, slow ones
           lower and fuller.

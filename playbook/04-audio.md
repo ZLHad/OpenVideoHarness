@@ -47,6 +47,8 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 按句合成，所以每句的起止时间都是**实测**的（`--join` 整段合成时除外，见 `tools/audio/README.md` 的"整段合成"）。
 
+**旁白晚一点进来**（片头先有几秒画面）：合成时加 `--lead <秒>`，不对拍也能用，第一句从那里开始，前面是真静音，timeline 也按片子的时间写；片尾在 profile 混音里用 `dur=` 补齐或截到片长。合成以后再自己垫静音的，别用 `anullsrc` 加 `concat` 滤镜（会把整条人声悄悄量化成 8 bit），做法见 `tools/audio/README.md` 的"手动的响度和合成命令"。
+
 **同一份稿，中文和英文旁白长度不同**（实测一段 3 句的稿子：中文 9.3s，英文 10.8s）。所以双语成片要各自按 `timeline.<lang>.json` 排时间：
 - 画面可以共用，但节奏按语言重排；
 - 或者只出一种语言的旁白，配中英双语字幕。
@@ -105,7 +107,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 ### 音效（`sfx`）
 
 - **音效是独立的事件层**，和音乐分开：`audio/events.json` 写成 `[{t, sfx, gain_db, pan, dist}]`，后两项可选；内置音效还可以带 `variant` 和塑形参数（见下）。`sfx place` 输出 48 kHz 立体声。
-- **`t` 是"落点"**：内置音效各自带落点偏移（例如 whoosh 的峰值、riser 的顶点），摆放时会自动对齐，保证声音峰值和动作在同一帧。
+- **`t` 是"落点"**：内置音效各自带落点偏移（例如 whoosh 的峰值、riser 的顶点），摆放时会自动对齐，保证声音峰值和动作在同一帧。riser 因此写在它要冲到的那一刻，声音从 `t − dur` 开始；写成铺垫开始的时刻，整段声音就早了一个 `dur`，峰值落在铺垫刚开始的地方。
 - **声像和距离**：事件可以带 `pan`（−1 最左，1 最右）和 `dist`（≥ 1，越远越轻、越闷）。pan 从画面上算，不要凭感觉写：取发声物体在那一刻的屏幕 x，`pan = 2·x / 画面宽度 − 1`，再乘 0.7–0.8 收一点；3D 场景用相机坐标。公式和细节见 `tools/audio/README.md`。
 - **来源顺序**：先用有授权的录音素材（在 NOTES 的素材台账里记下来源和许可）；缺的类别再用内置库补。自己的立体声素材会先折成单声道，当作一个点声源来摆。内置库有 21 个代码合成音效，都是 MIT 原创，用 numpy 合成，可以复现：
   - 转场：whoosh、swish_rev、whip、swoosh_tonal、air、paper、tape、shimmer；
@@ -156,7 +158,7 @@ bin/vh qa mix $A/stems --beats $A/music.beats.json   # 只看混音报告（词�
 
 片尾的 `fade` 从 dur − fade 开始压所有总线，最后一帧上的音效也会被压下去：showcase 01 用 0.1 s 时，11.955 s 光圈合拢的那一声被压低了 7–12 dB，改成 0.04 s 才保住它的起音。片尾有动作时，`fade` 要短于它离片尾的距离。
 
-**混音报告**：`bin/vh qa mix <stems>`（或 `bin/vh qa … --stems` 输出的最后一段）逐句列出人声高出音乐多少、每个词有没有被盖住、每个音效相对锚点的响度。硬失败（退出码 1）是：有一句低于 profile 的硬下限；说话时 hero 音效超过它的上限；被盖住的词超过 profile 允许的比例；同一类音效的中位数偏出范围 3 LU 以上；timeline 有句子，人声 stem 却全是静音；一个 cue 对上了却听不见（只以"弱"通过，又被判 `BURIED`）。怎么读、怎么改见 `tools/audio/README.md`。
+**混音报告**：`bin/vh qa mix <stems>`（或 `bin/vh qa … --stems` 输出的最后一段）逐句列出人声高出音乐多少、每个词有没有被盖住、每个音效相对锚点的响度。硬失败（退出码 1）是：有一句低于 profile 的硬下限；说话时 hero 音效超过它的上限；被盖住的词超过 profile 允许的比例；同一类音效的中位数偏出范围 3 LU 以上；timeline 有句子，人声 stem 却全是静音；一个 cue 对上了却听不见（只以"弱"通过，又被判 `BURIED`）。怎么读、怎么改见 `tools/audio/README.md`。`bin/vh mix` 报错退出时什么都不写，上一次的 `mix.wav` 还在，所以先看它的退出码；`bin/vh qa` 看到混音比事件表这些输入旧，会在报告开头和最后一行写 `STALE?`，只是警告，退出码不变。
 
 **AAC 编码会抬高真峰值**：每个成片都要量编码后的文件（`ffmpeg -i final.mp4 -af ebur128=peak=true -f null -`），高于 −1.5 dBTP 就用更低的 `tp=` 重混。门禁是 WAV（`bin/vh qa mix.wav …`）；成片 mp4 再跑一次，cue 的问题只作警告（`tools/audio/README.md` 的"AAC 编码和 cue check"）。
 
