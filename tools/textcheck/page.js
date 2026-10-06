@@ -23,7 +23,7 @@
       const st = {};
       for (const k of KEYS) st[k] = this[k];
       if (op === "stroke") for (const k of SKEYS) st[k] = this[k];
-      H.calls.push({ i, op, s: String(s), x: +x, y: +y, mw: arguments.length > 3 ? +maxWidth : undefined, m: this.getTransform(), st,
+      H.calls.push({ i, op, s: String(s), x: +x, y: +y, mw: maxWidth === undefined ? undefined : +maxWidth, m: this.getTransform(), st,
         a: this.globalAlpha * alphaOf(op === "fill" ? this.fillStyle : this.strokeStyle), col: op === "fill" ? this.fillStyle : this.strokeStyle, cv: this.canvas });
     }
     if (H.skip && H.skip.has(i)) return;
@@ -85,7 +85,7 @@
     for (const k in c.st) try { scratch[k] = c.st[k]; } catch (e) { /* a state the browser rejects */ }
     const m = scratch.measureText(c.s);
     let l = -m.actualBoundingBoxLeft, r = m.actualBoundingBoxRight;
-    if (c.mw !== undefined && m.width > c.mw && m.width > 0) { l *= c.mw / m.width; r *= c.mw / m.width; }   // maxWidth squeezes the line
+    if (Number.isFinite(c.mw) && m.width > c.mw && m.width > 0) { l *= c.mw / m.width; r *= c.mw / m.width; }   // maxWidth squeezes the line
     const pad = c.op === "stroke" ? (c.st.lineWidth || 1) / 2 : 0;
     const pts = [[l - pad, -m.actualBoundingBoxAscent - pad], [r + pad, -m.actualBoundingBoxAscent - pad], [l - pad, m.actualBoundingBoxDescent + pad], [r + pad, m.actualBoundingBoxDescent + pad]]
       .map(([dx, dy]) => c.m.transformPoint(new DOMPoint(c.x + dx, c.y + dy)));
@@ -101,26 +101,59 @@
     for (const r of runs) {
       const box = r.map(boxOf).reduce(union);
       const g = groups.find((g) => g.cv === r[0].cv && overlap(g.box, box));
-      if (g) { g.calls.push(...r); g.box = union(g.box, box); } else groups.push({ cv: r[0].cv, calls: [...r], box });
+      if (g) { g.calls.push(...r); g.runs.push(r); g.box = union(g.box, box); } else groups.push({ cv: r[0].cv, calls: [...r], runs: [r], box });
     }
     for (const g of groups) {
-      const fills = g.calls.filter((c) => c.op === "fill");
+      const fills = g.calls.filter((c) => c.op === "fill"), op = fills.length ? "fill" : "stroke";
       g.ink = fills.length ? fills : g.calls;
-      g.alpha = Math.min(...g.ink.map((c) => c.a));
+      // a glow pass under a crisp one is one read: as opaque as its most opaque pass (each pass as opaque as its faintest
+      // character, so kinetic type still counts as fading until every character is in)
+      g.alpha = Math.max(...g.runs.filter((r) => r[0].op === op).map((r) => Math.min(...r.map((c) => c.a))));
       g.skip = new Set(g.calls.map((c) => c.i));
     }
     return groups;
   }
 
-  // pixels of a canvas, copied into a canvas of our own first: after a few getImageData calls Chrome moves a canvas off
-  // the GPU, and the film would then draw every later frame on the CPU, many times slower
+  // The picture in a page rectangle, w x h: the page background, then every canvas, video and image over it in paint
+  // order (z-index, then document order), at its opacity. So text on a transparent layer is measured against what is
+  // behind it (a WebGL canvas, a video), and a layer above it counts as covering it. Other DOM (CSS backgrounds, SVG,
+  // text) is not in it. Drawn into a canvas of our own: after a few getImageData calls Chrome moves a canvas off the GPU,
+  // and the film would then draw every later frame on the CPU, many times slower.
   let copy = null;
-  function pixels(cv, x, y, w, h) {
+  const sizeOf = (el) => (el.tagName === "CANVAS" ? [el.width, el.height] : el.tagName === "VIDEO" ? [el.videoWidth, el.videoHeight] : [el.naturalWidth, el.naturalHeight]);
+  function layers(P) {
+    const out = [];
+    for (const el of document.querySelectorAll("canvas, video, img")) {
+      const [iw, ih] = sizeOf(el), r = el.getBoundingClientRect();
+      if (!iw || !ih || r.width <= 0 || r.height <= 0 || !overlap([r.left, r.top, r.right, r.bottom], P)) continue;
+      let o = 1, hidden = getComputedStyle(el).visibility !== "visible";
+      for (let e = el; e && e.nodeType === 1 && !hidden; e = e.parentElement) { const cs = getComputedStyle(e); if (cs.display === "none") hidden = true; o *= +cs.opacity; }
+      if (!hidden && o > 0.002) out.push({ el, r, iw, ih, o, z: parseInt(getComputedStyle(el).zIndex, 10) || 0 });
+    }
+    return out.map((l, i) => [l, i]).sort((a, b) => a[0].z - b[0].z || a[1] - b[1]).map((x) => x[0]);
+  }
+  function background() {
+    for (const el of [document.querySelector("[data-composition-id]"), document.body, document.documentElement]) {
+      if (!el) continue;
+      const c = getComputedStyle(el).backgroundColor, v = (c.match(/[\d.]+/g) || []).map(Number);
+      if (v.length >= 3 && !(v.length >= 4 && v[3] === 0)) return c;
+    }
+    return "#fff";   // the browser's own page colour
+  }
+  function compose(P, w, h, L = layers(P)) {
     if (!copy) copy = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
     copy.canvas.width = w; copy.canvas.height = h;
-    copy.drawImage(cv, x, y, w, h, 0, 0, w, h);
+    copy.fillStyle = background(); copy.fillRect(0, 0, w, h);
+    const pw = P[2] - P[0], ph = P[3] - P[1];
+    for (const l of L) {
+      const sx = l.iw / l.r.width, sy = l.ih / l.r.height;
+      copy.globalAlpha = Math.min(1, l.o);
+      copy.drawImage(l.el, (P[0] - l.r.left) * sx, (P[1] - l.r.top) * sy, pw * sx, ph * sy, 0, 0, w, h);
+    }
+    copy.globalAlpha = 1;
     return copy.getImageData(0, 0, w, h).data;
   }
+  const pixels = (cv, x, y, w, h) => compose(toPage(cv, [x, y, x + w, y + h]), w, h);
   const rgba = (c) => {   // a CSS colour string as [r, g, b] (its alpha is in the call's own alpha), else null
     if (typeof c !== "string") return null;
     let m = c.match(/^#([0-9a-f]{6})$/i);
@@ -139,7 +172,7 @@
       for (const k in c.st) try { g[k] = c.st[k]; } catch (e) { /* as above */ }
       g.globalAlpha = 1; g.globalCompositeOperation = "source-over"; g.shadowBlur = 0; g.shadowColor = "transparent"; g.filter = "none";
       g.fillStyle = g.strokeStyle = "#fff";
-      const args = c.mw === undefined ? [c.s, c.x, c.y] : [c.s, c.x, c.y, c.mw];
+      const args = Number.isFinite(c.mw) ? [c.s, c.x, c.y, c.mw] : [c.s, c.x, c.y];
       if (c.op === "fill") g.fillText(...args); else g.strokeText(...args);
     }
     return g.getImageData(0, 0, w, h).data;
@@ -197,7 +230,6 @@
     return out;
   }
   const toPage = (cv, b) => { const r = cv.getBoundingClientRect(), sx = r.width / cv.width, sy = r.height / cv.height; return [r.left + b[0] * sx, r.top + b[1] * sy, r.left + b[2] * sx, r.top + b[3] * sy]; };
-  const toCanvas = (cv, b) => { const r = cv.getBoundingClientRect(), sx = cv.width / r.width, sy = cv.height / r.height; return [(b[0] - r.left) * sx, (b[1] - r.top) * sy, (b[2] - r.left) * sx, (b[3] - r.top) * sy]; };
   const colour = (s) => { const v = (String(s).match(/[\d.]+/g) || []).map(Number); return v.length >= 3 ? v.slice(0, 3).map((x) => (x <= 1 && /^color\(/.test(s) ? x * 255 : x)) : [255, 255, 255]; };
 
   // one read at time t: every copy measured, the most legible one returned
@@ -299,7 +331,7 @@
       }
       return [...seen.values()];
     },
-    // the picture under each DOM caption's lines: the share of its pixels within 3:1 of the caption's colour
+    // the picture under each DOM caption's lines (canvases, videos and images): the share of it within 3:1 of the caption's colour
     async captions(times) {
       const out = [];
       for (const t of times) {
@@ -308,11 +340,9 @@
           const col = colour(getComputedStyle(c.el).color), Lc = 0.2126 * LIN[Math.round(col[0])] + 0.7152 * LIN[Math.round(col[1])] + 0.0722 * LIN[Math.round(col[2])];
           let n = 0, close = 0, box = null;
           for (const r of c.rects) {
-            const cv = document.elementsFromPoint((r[0] + r[2]) / 2, (r[1] + r[3]) / 2).find((e) => e.tagName === "CANVAS");
-            if (!cv) continue;
-            const q = toCanvas(cv, r), x = Math.max(0, Math.floor(q[0])), y = Math.max(0, Math.floor(q[1])), w = Math.min(cv.width, Math.ceil(q[2])) - x, h = Math.min(cv.height, Math.ceil(q[3])) - y;
-            if (w <= 0 || h <= 0) continue;
-            const d = pixels(cv, x, y, w, h);
+            const L = layers(r), w = Math.round(r[2] - r[0]), h = Math.round(r[3] - r[1]);
+            if (!L.length || w <= 0 || h <= 0) continue;   // no canvas, video or image under it: a DOM picture, not measured here
+            const d = compose(r, w, h, L);
             for (let p = 0; p < d.length; p += 8) { n++; if (ratio(lum(d, p), Lc) < 3) close++; }
             box = box ? union(box, r) : r;
           }

@@ -57,7 +57,7 @@
 #                               FAIL under one brisk read (CJK/7 + other/20 + 0.8 s, at least 1.5 s; exit 1), WARN under the target of the BRIEF's
 #                               Pace (exit 0); subtitles within reading speed. data-read="subtitle"|"label" and data-pace="…" mark clips
 #                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [--out f]: the composition's timed text
-#   textcheck <project|index.html> [--texts f.json] [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--out dir] [--soft-gl]
+#   textcheck <project|index.html> [--texts f.json] [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12] [--out dir] [--soft-gl] [--timeout 900]
 #                               text drawn into a canvas, which npx hyperframes check cannot see: a read covered by the picture (under 70% of it
 #                               shows), under 3:1, outside or cut by the frame, or under a DOM caption (exit 1); canvas text outside the registry
 #                               and captions over a bright picture warn. The composition opts in with window.__vh = { draw(t), texts? } (engines/README.md)

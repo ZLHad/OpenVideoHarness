@@ -7,6 +7,8 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 
+export class BrowserGone extends Error {}
+
 // launch(exe, flags) → { send(method, params, sessionId), once(event, sessionId), close(), version }
 export async function launch(exe, flags = []) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), "vh-textcheck-"));
@@ -15,10 +17,24 @@ export async function launch(exe, flags = []) {
   const proc = spawn(exe, args, { stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"] });
   let stderr = "";
   proc.stderr.on("data", (d) => { stderr = (stderr + d).slice(-4000); });
-  const exited = new Promise((res) => { proc.on("exit", res); proc.on("error", (e) => { stderr += String(e); res(); }); });
   const out = proc.stdio[3], inp = proc.stdio[4];
   const pending = new Map(), waiters = [], listeners = [];
-  let buf = Buffer.alloc(0), id = 0;
+  let buf = Buffer.alloc(0), id = 0, dead = null, started = false;
+  // a browser that exits or crashes fails every call still waiting, so nothing hangs until the watchdog
+  const gone = (why) => {
+    if (dead) return;
+    // its last log lines say why it would not start; once running, they are mostly noise
+    dead = new BrowserGone(`the browser is gone (${why})${!started && stderr.trim() ? ": " + stderr.trim().split("\n").slice(-3).join(" | ") : ""}`);
+    for (const p of pending.values()) p.reject(dead);
+    pending.clear();
+    for (const w of waiters.splice(0)) w.reject(dead);
+  };
+  const exited = new Promise((res) => {
+    proc.on("exit", (code, sig) => { gone(sig || `exit ${code}`); res(); });
+    proc.on("error", (e) => { stderr += String(e); gone(e.code || "error"); res(); });
+  });
+  out.on("error", (e) => gone(e.code || "pipe error"));
+  inp.on("error", (e) => gone(e.code || "pipe error"));
   inp.on("data", (d) => {
     buf = Buffer.concat([buf, d]);
     for (let i; (i = buf.indexOf(0)) >= 0;) {
@@ -34,21 +50,27 @@ export async function launch(exe, flags = []) {
     }
   });
   const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
+    if (dead) return reject(dead);
     const i = ++id; pending.set(i, { resolve, reject, method });
     out.write(JSON.stringify({ id: i, method, params, ...(sessionId ? { sessionId } : {}) }) + "\0");
   });
-  const once = (method, session) => new Promise((resolve) => waiters.push({ method, session, resolve }));
+  const once = (method, session) => new Promise((resolve, reject) => (dead ? reject(dead) : waiters.push({ method, session, resolve, reject })));
   const on = (method, fn) => listeners.push({ method, fn });
+  // a race against a timer that is always cleared, so a pending timer never keeps node alive
+  const within = (p, ms, onTimeout) => {
+    let timer;
+    return Promise.race([p, new Promise((res, rej) => { timer = setTimeout(() => (onTimeout ? rej(onTimeout()) : res()), ms); })]).finally(() => clearTimeout(timer));
+  };
   const close = async () => {
-    try { await Promise.race([send("Browser.close"), new Promise((r) => setTimeout(r, 3000))]); } catch { /* already gone */ }
+    if (!dead) try { await within(send("Browser.close"), 3000); } catch { /* already gone */ }
     proc.kill(); await exited;
     fs.rmSync(profile, { recursive: true, force: true });
   };
   let version;
   try {
-    version = await Promise.race([send("Browser.getVersion"), exited.then(() => { throw new Error("the browser exited at start: " + stderr.trim().split("\n").slice(-3).join(" | ")); }),
-      new Promise((_, rej) => setTimeout(() => rej(new Error("the browser did not answer within 30 s")), 30000))]);
-  } catch (e) { proc.kill(); fs.rmSync(profile, { recursive: true, force: true }); throw e; }
+    version = await within(send("Browser.getVersion"), 30000, () => new Error("the browser did not answer within 30 s"));
+    started = true;
+  } catch (e) { proc.kill(); await within(exited, 3000); fs.rmSync(profile, { recursive: true, force: true }); throw e; }
   return { send, once, on, close, version: version.product };
 }
 

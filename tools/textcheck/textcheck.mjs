@@ -30,6 +30,9 @@
 // Each read is sampled --samples (3) times across its window, from 0.4 s after its start to 0.3 s before its end;
 // samples where it is still fading (alpha under 0.95) are not judged when an opaque one exists.
 //
+// The picture is what the viewer sees there: every canvas, video and image of the page over its background, so text on
+// a transparent layer is measured against the layer behind it; other DOM (CSS backgrounds, SVG) is not part of it.
+//
 // Also, never failing the run: canvas text outside the registry (every --scan-step seconds, each distinct line judged
 // once, at the middle of its longest opaque stretch; a line never seen at half opacity or more is left out); registered reads not drawn as canvas text at some or all of their
 // samples (an image, DOM text, or a window that is off); and DOM captions (data-read="subtitle", readcheck's mark) over
@@ -39,10 +42,10 @@
 // Writes <out>/textcheck.json (every number) and a crop per finding (<out>/<t>s-<kind>.png); out defaults to
 // <project>/out/check/textcheck. Exit: 0 no read failed (warnings allowed) · 1 a registered read is covered, under the
 // contrast, outside or cut by the frame, or under a caption, or the frame function threw · 2 could not check (no
-// window.__vh.draw, the page did not load, no browser): not a pass.
+// window.__vh.draw, the page did not load, no browser, or no canvas text measured at all): not a pass.
 import fs from "node:fs";
 import path from "node:path";
-import { launch, serve } from "./browser.mjs";
+import { BrowserGone, launch, serve } from "./browser.mjs";
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });   // a reader that stops early (| head) does not leave Chrome behind
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");
@@ -169,7 +172,8 @@ try {
       const fails = judged.filter((q) => q.flags.some((f) => FAIL.includes(f)));
       const score = (q) => (q.contrast || 0) * (q.share || 0);
       r.worst = fails.length ? fails.sort((a, b) => b.flags.length - a.flags.length || score(a) - score(b))[0] : judged.slice().sort((a, b) => score(a) - score(b))[0];
-      r.status = fails.length ? "fail" : "ok";
+      // drawn, but nothing judged could be measured (a glyph too small or squeezed to nothing): not a pass
+      r.status = fails.length ? "fail" : judged.some((q) => q.share !== undefined) ? "ok" : "unmeasured";
       r.missingAt = smp.filter((q) => !q.found).map((q) => q.t);
       r.faded = !opaque.length;
       r.unstable = found.some((q) => q.flags.includes("unstable"));
@@ -208,6 +212,7 @@ try {
   // report
   const failed = reads.filter((r) => r.status === "fail"), ok = reads.filter((r) => r.status === "ok");
   const notDrawn = reads.filter((r) => r.status === "not drawn"), part = reads.filter((r) => r.status === "ok" || r.status === "fail").filter((r) => r.missingAt.length);
+  const unmeasured = reads.filter((r) => r.status === "unmeasured");
   const dom = reads.filter((r) => r.status.startsWith("dom")), badWin = reads.filter((r) => r.status === "bad window");
   const unstable = reads.filter((r) => r.unstable), extraBad = extra.filter((e) => e.flagged);
   fs.mkdirSync(outDir, { recursive: true });
@@ -230,6 +235,7 @@ try {
     if (ok.length) console.log(`${G} ${ok.length} read(s) in the frame, at least ${pct(opt.minVisible)} visible and ${opt.minContrast}:1`);
     if (failed.length) console.log(`${R} ${failed.length} read(s) covered, under ${opt.minContrast}:1, outside or cut by the frame, or under a caption:`);
     for (const r of failed) { const w = r.worst; w.crop = await crop(w.t, w.box, w.flags.find((f) => FAIL.includes(f))); console.log(`   ${fmt(w.t)}  ${words(w)}  ${short(r.text)}`); }
+    if (unmeasured.length) console.log(`${Y} ${unmeasured.length} read(s) drawn, but too small to measure at every sample: ${unmeasured.map((r) => short(r.text)).join(" · ")}`);
     if (notDrawn.length) console.log(`${Y} ${notDrawn.length} read(s) not drawn as canvas text at any sample (an image? a window that is off?): ${notDrawn.map((r) => short(r.text)).join(" · ")}`);
     if (part.length) console.log(`${Y} ${part.length} read(s) missing from some samples inside their window (on screen for less than registered?):`);
     for (const r of part.slice(0, 12)) console.log(`   not at ${r.missingAt.map((t) => t.toFixed(2)).join(", ")} s (window ${r.start}–${r.end} s)  ${short(r.text)}`);
@@ -254,14 +260,16 @@ try {
   if (unstable.length) console.log(`${Y} ${unstable.length} read(s) at a time where the frame drawn twice is not the same (hard rule 1); their numbers are unreliable: ${unstable.map((r) => short(r.text)).join(" · ")}`);
   const errs = [...new Map(errors.map((e) => [e.msg.split("\n")[0], e])).values()];
   if (errs.length) { console.log(`${R} the frame function threw or logged an error at ${errs.length} point(s):`); for (const e of errs.slice(0, 8)) console.log(`   ${fmt(e.t)}  ${e.msg.split("\n")[0]}`); }
-  if (!reg.length && !extra.length) console.log(`${Y} no canvas text found at all: is the text drawn some other way (DOM, WebGL, images)?`);
+  // nothing measured is not a pass: no registered read was found and measured as canvas text, and no other line was seen
+  const nothing = !extra.length && !reads.some((r) => r.status === "ok" || r.status === "fail");
+  if (nothing) console.log(`${R} nothing measured: no canvas text found${reg.length ? " for any registered read" : ""}. Is the text drawn some other way (DOM, WebGL, images, an offscreen canvas)?`);
   fs.writeFileSync(path.join(outDir, "textcheck.json"), JSON.stringify({ composition: html, size: [W, H], duration: dur, registry: regFrom || null, options: opt, reads, extra, captions: caps, errors }, null, 1));
   const rel = (p) => { const r = path.relative(process.cwd(), p); return r && !r.startsWith("..") ? r : p; };
   console.log(`  ${crops.size ? `crops: ${rel(outDir)}/*.png · ` : ""}every number: ${rel(path.join(outDir, "textcheck.json"))}`);
-  if (!reg.length && !extra.length) process.exitCode = 2;
+  if (nothing) process.exitCode = 2;
   else process.exitCode = failed.length || errs.length ? 1 : 0;
 } catch (e) {
-  console.error("textcheck: " + ((e && e.message) || e) + (e instanceof Stop ? "" : "\n" + (e && e.stack || "")));
+  console.error("textcheck: " + ((e && e.message) || e) + (e instanceof Stop || e instanceof BrowserGone ? "" : "\n" + (e && e.stack || "")));
   process.exitCode = 2;
 } finally {
   clearTimeout(watchdog);
