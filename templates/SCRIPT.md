@@ -4,7 +4,7 @@
      做法：把每句写进 audio/script.txt（# 列就是那里的 @id），用选定的配音跑一遍 `bin/vh tts`，再把 audio/timeline.json 里每句的实测时长抄进下表。
      还没选定时先用草稿音色：macOS 上 `bin/vh tts <project> say`，其他系统用 `bin/vh tts <project> edge`（要联网）；换了音色语速会变，选定后重测一遍。
      关键词标 {cue}（说到这个词时画面要出现），写进 script.txt 时去掉花括号。
-     结构和 90 s / 3 min 的节拍表见 playbook/09-narrative.md；开头那一句见 playbook/10-hooks-and-packaging.md。 -->
+     结构和 90 s / 3 min 的节拍表见 playbook/09-narrative.md；句子怎么写得像人写的，见同一篇第 10 节；开头那一句见 playbook/10-hooks-and-packaging.md。 -->
 
 目标 {90} s · 实测合计 {..} s · 差 {+..} s · 音色 {say 草稿 / qwen Serena} · 平均 {..} 字/秒
 

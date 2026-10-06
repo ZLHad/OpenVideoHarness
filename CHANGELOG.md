@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+**Lessons from four films go into the docs**
+- Why: the maintainer asked that the general lessons kept in an agent's notes and in project LESSONS.md files move into the docs, leaving out what is personal to one channel. They come from 《发送之后》, the FZ1073 film, the 3-minute tech-history film and the review rounds of 2026-10-04/05.
+- playbook/09 §10 (new): how narration, title cards and labels read as written by a person. Let the fact carry the heaviest beat; vary sentence length; the sentence shapes models reach for (parallelism, triplets, "不是……而是……"); spoken words; explanations go into labels; the ending lifts one level in plain words; the card table goes to the human before scenes are built. A default, overridden by a concept that wants another voice. `templates/SCRIPT.md` points there; playbook/12 §7 suggests writing on the concept card where the ending lands (a 3-minute film changed its ending three times at gate ③).
+- playbook/03 §2: text over a dense picture should not run faster than the same lines read as narration (the tech-history film, about 3.6 CJK chars/s: "读速不慢了 已经很快了"); `readcheck` results count only on a `texts.json` exported after every scene is in.
+- playbook/02, silent failures: sweep the frame function over every frame in the browser (or a 2D canvas in node with a Proxy context) to catch an exception thrown only in one shot.
+- engines/README: an agent's own background tasks have a time limit (Claude Code: 30 minutes by default), so detach long renders; two `<script src>` pitfalls (a blank film until the scripts were inlined; a script that ran before the `<canvas>` existed) and the inline `window.__timelines` registration lint wants; three Three.js pitfalls (`updateMatrixWorld()` before projecting, `EdgesGeometry`'s threshold angle against cylinder segments, positions set at build time).
+- tools/audio/README: Gemini transcription quota (10 a minute and 100 a day on Tier 1, per project; `--resume` after the daily one); cue check cannot see a sound with no attack (continuous textures, a section `stop`): add a contact sound, or use `dyn` and leave it out of the cues.
+- CONTRIBUTING: run every subcommand before writing "the rest are fine", and check a rewording for changed behaviour; how to run shellcheck and pyflakes locally through `uv` without installing them. cases/README: new cases from forwarded videos record the content, not the account names or how the videos arrived.
+
 **Effort levels set how much iteration and review, not the quality of the film**
 - Why: the maintainer, after liking a quick-style draft: "effort其实只是决定了迭代次数 比如用多少子代理审核 是否多轮反复 不是说质量差". The docs described `quick` as a quality tier (CLAUDE.md "试方向、草稿"; the effort table's "draft 画质即可" and "声音：可以没有"; the quick card delivered the `--quality draft` render).
 - CLAUDE.md: the three levels differ in iteration and review (gates, review rounds), and all three deliver a full-quality film under the same floors.
