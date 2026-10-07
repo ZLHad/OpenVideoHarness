@@ -70,7 +70,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 `--align gemini` 对任何 provider 都能用：每句合成完交给 Gemini 转写，拿回带时间戳的词，再和稿子逐字对齐。结果写进 timeline：`words` 是逐词时间（文字用稿子的写法），字幕和画面逐词同步用它；`asr` 是和稿子的相似度，跑偏、或者句首句尾多出 1 s 以上声音的句子标上 `flag`，命令最后逐句列出来。转写失败也不丢配音：修好原因后，同一条命令加 `--resume` 接着跑。时间步长、费用、限额和实测见 `tools/audio/README.md` 的同名一节。
 
-**转写用不了时**（当天额度用完，或者接口一直报错）：额度用完后，`--align gemini` 可能在 429 上等了又试（每次调用最多重试 5 次），看着像卡住。合成好的音频已经在盘上（逐句合成时是 `voiceover.<lang>.wav`，`--join` 时是 `vo/<lang>/_blockNN.wav`），停掉不会丢；可以等额度恢复后加 `--resume` 接着转写，也可以改用本地 whisper 拿词级时间（还没封装；Apple Silicon 上用 mlx-whisper 的 `whisper-large-v3-turbo`，`initial_prompt` 里写上人名和术语；别的做法见下文"选型"的词级时间戳一行），再交给 `tools/audio/tts.py` 的 `align_lines` 和稿子对齐（`--align gemini` 用的也是它）。whisper 常把年份写成阿拉伯数字，和稿子里为念法写的"一九五三"对不上：相似度会掉，自己写的逐字对齐还可能把那句的起点算偏（一支 2026-10 的片子算晚了，剪掉了第一个字）。对齐前先把这些数字换回稿子的写法。
+**转写用不了时**（当天额度用完，或者接口一直报错）：额度用完后，`--align gemini` 直接报错退出，报错里写出是哪一项日配额（429 没写明配额、又只要求等几十秒时，仍会等了再试，每次调用最多 5 次）。合成好的音频已经在盘上（逐句合成时是 `voiceover.<lang>.wav`，`--join` 时是 `vo/<lang>/_blockNN.wav`），停掉不会丢；可以等额度恢复后加 `--resume` 接着转写，也可以改用本地 whisper 拿词级时间（还没封装；Apple Silicon 上用 mlx-whisper 的 `whisper-large-v3-turbo`，`initial_prompt` 里写上人名和术语；别的做法见下文"选型"的词级时间戳一行），再交给 `tools/audio/tts.py` 的 `align_lines` 和稿子对齐（`--align gemini` 用的也是它）。whisper 常把年份写成阿拉伯数字，和稿子里为念法写的"一九五三"对不上：相似度会掉，自己写的逐字对齐还可能把那句的起点算偏（一支 2026-10 的片子算晚了，剪掉了第一个字）。对齐前先把这些数字换回稿子的写法。
 
 有词级时间时，`bin/vh captions` 会给每条字幕加上 `words`，念得太快的短字幕会往后延到 1.8 s（`tools/audio/README.md` 的"字幕"）。
 

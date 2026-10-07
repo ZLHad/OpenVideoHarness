@@ -138,8 +138,8 @@ def to_wav(src: Path, dst: Path):
 def duration(p: Path) -> float:
     return float(run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)]).stdout)
 
-RATE_WAIT_MAX, RATE_TRIES = 90.0, 5   # a 429 asking for more than 90 s is a daily quota: waiting will not help
-BODY_PARSE, BODY_SHOW = 8192, 500     # bytes of an error body read for the retry delay / repeated in the message
+RATE_WAIT_MAX, RATE_TRIES = 90.0, 5   # a 429 asking for more than 90 s is taken for a daily quota: waiting will not help
+BODY_PARSE, BODY_SHOW = 8192, 500     # bytes of an error body read for the retry delay and the quota / repeated in the message
 
 class GeminiError(RuntimeError):
     """A Gemini call that failed for good (after its retries). tts keeps what it has and reports it; voices exits."""
@@ -153,13 +153,21 @@ def retry_after(e, msg):
     except ValueError:   # Retry-After as an HTTP date
         return 61.0
 
+def daily_quota(body):
+    """The per-day quota a 429 body names, else None: the quotaId or quotaMetric of a google.rpc.QuotaFailure violation
+    with "PerDay" in it (GenerateRequestsPerDayPerProjectPerModel). One 429 can list the per-minute and the per-day
+    quotas together, and a spent daily quota can ask for a retryDelay under a minute, so the delay cannot tell them apart."""
+    m = re.search(r'"(?:quotaId|quotaMetric)":\s*"([^"]*PerDay[^"]*)"', body)
+    return m and m.group(1)
+
 def gemini_call(path, body=None, method=None, query=None, timeout=180, tries=3):
     """One Gemini REST call. The key travels in a header only, never in the URL or an error message.
     5xx and network errors are retried twice: the TTS docs note rare 500s when the model returns text instead of audio.
     A 429 waits as long as the API asks and is retried up to 5 times: Tier 1 allows 10 transcribe calls a minute, so
-    --align on 11 or more lines hits it. A 429 asking for more than 90 s (a daily quota) fails at once.
-    The delay is read from the first 8 KB of the body: a long quota message puts "retry in Ns" past the first 500 bytes,
-    which are all that the error message repeats. A call that fails for good raises GeminiError."""
+    --align on 11 or more lines hits it. A 429 that names a per-day quota fails at once, whatever delay it asks for, and
+    so does one asking for more than 90 s. The delay and the quota are read from the first 8 KB of the body: a long quota
+    message puts "retry in Ns" past the first 500 bytes, which are all that the error message repeats. A call that fails
+    for good raises GeminiError."""
     key = os.environ.get("GEMINI_API_KEY") or sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)")
     url = f"{GEMINI_API}/{path}" + (f"?{urllib.parse.urlencode(query, doseq=True)}" if query else "")
     data = None if body is None else json.dumps(body).encode()
@@ -173,6 +181,10 @@ def gemini_call(path, body=None, method=None, query=None, timeout=180, tries=3):
             return json.loads(raw) if raw.strip() else {}
         except urllib.error.HTTPError as e:
             body = e.read()[:BODY_PARSE].decode(errors="replace")
+            quota = daily_quota(body) if e.code == 429 else None
+            if quota:
+                raise GeminiError(f"gemini {path.split('/')[0]}: the daily quota is spent ({quota}); retrying will not help"
+                                  f" until it resets (bin/vh tts: then --resume continues the run)")
             wait = retry_after(e, body) if e.code == 429 else None
             if wait is not None and wait <= RATE_WAIT_MAX and limited < RATE_TRIES:
                 limited += 1
