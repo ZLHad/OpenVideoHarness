@@ -95,7 +95,7 @@
 
 - **费用**（Standard 档，每百万 token）：Flash TTS 输入 $0.50、输出音频 $9（约 $0.00225 / 10 s）；Flash-Lite TTS 输入 $0.50、输出 $6（约 $0.0015 / 10 s）。这是 2026-12-31 之前的价格，**2027-01-01 起全部翻倍**（Flash $1 / $18，Lite $1 / $12）。Batch 和 Flex 档是一半。免费档不收费，但内容可能被用来改进 Google 的产品，有保密要求的稿子用付费档；
 - 单个请求最多 8,192 个输入 token；
-- **转写的配额**（`--align gemini`，2026-10-01 在 Tier 1 上）：`gemini-3.5-transcribe` 每分钟 10 次、每天 100 次，官方文档说按项目算，不按 key。每分钟的 429 会自动等；每天的用完了会直接失败，报错里写出是哪一项日配额。日配额的 429 也可能只要求等几十秒，所以不看等多久，看 429 里列出的配额：`google.rpc.QuotaFailure` 的 `quotaId` 带 `PerDay`（例如 `GenerateRequestsPerDayPerProjectPerModel`）就是日配额。没写明配额的 429，要求等 90 s 以上才当成日配额，不到 90 s 的照样等了再试，每次调用最多 5 次。转写用不了时怎么办，见 `playbook/04-audio.md` 的"转写用不了时"。额度恢复后用 `--resume` 接着跑，已经转写成功的句子（`vo/<lang>/*.asr.json`）不会重做。每天几点恢复没有定论：文档写太平洋时间零点，429 提示里的倒计时指向 UTC 零点。AI Studio 的用量页显示的是 28 天的峰值，不是今天还剩多少；
+- **转写的配额**（`--align gemini`，2026-10-01 在 Tier 1 上）：`gemini-3.5-transcribe` 每分钟 10 次、每天 100 次，官方文档说按项目算，不按 key。每分钟的 429 会自动等；每天的用完了会直接失败，报错里写出是哪一项日配额。日配额的 429 也可能只要求等几十秒，所以不看等多久，看 429 里列出的配额：`google.rpc.QuotaFailure` 的 `quotaId` 带 `PerDay`（例如 `GenerateRequestsPerDayPerProjectPerModel`）就是日配额。没写明配额的 429，要求等 90 s 以上才当成日配额，不到 90 s（或没写，按 60 s 算）的照样等了再试，每次调用最多 5 次。转写用不了时怎么办，见 `playbook/04-audio.md` 的"转写用不了时"。额度恢复后用 `--resume` 接着跑，已经转写成功的句子（`vo/<lang>/*.asr.json`）不会重做。每天几点恢复没有定论：文档写太平洋时间零点，429 提示里的倒计时指向 UTC 零点。AI Studio 的用量页显示的是 28 天的峰值，不是今天还剩多少；
 - **语气写短**：`--instruct` 和 `[指示]` 最后都进 `speech_metadata.style`。官方建议只写这一句的情境语气（"压低声音，卖个关子"）；年龄、性别、口音这类身份特征不要写进 style，要换音色，或者用 `voices design` 做一个。长篇的"角色设定""导演笔记"是音色漂移最常见的原因；
 - **每段 Gemini 音频都带 SynthID 水印**（听不出来，但能检测到）。用了 Gemini 旁白的片子，在项目 `NOTES.md` 里写明"旁白为 AI 合成（Gemini TTS，含 SynthID 水印）"，发布时按平台要求标注。
 
