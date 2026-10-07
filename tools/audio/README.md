@@ -18,6 +18,7 @@
 | `dashscope` | 阿里云百炼 Qwen3-TTS（`qwen3-tts-flash`），云端 | `DASHSCOPE_API_KEY` | 句级 | 接口已留，待实测 |
 | `elevenlabs` | 高质量多语种配音 | `ELEVENLABS_API_KEY`、voice_id | **词级**（接口给字符级，`bin/vh tts` 拼成词） | 接口已留，待实测 |
 | `gemini` / `gemini-lite` | Google Gemini 3.8 Flash TTS（2026-09-23 发布）/ Flash-Lite TTS，云端。表演力强，适合讲解旁白和双人对话。Flash 支持 130 种语言，Lite 支持 101 种，都含中文，语言按文本自动识别。`--voice` 用 30 个 studio 音色之一（默认 Kore，每个都能说所有支持的语言）、音色库 id 或自己设计的 `voice_…`（见下文"音色"）；`bin/vh tts` 的第 5 个参数（`--instruct`）用一句话描述语气，例如"平静、笃定的纪录片旁白"；稿子里可以直接写 `<short pause>`、`<breath>`、`<laugh>` 这类标签，只有 gemini 会演出来，其他 provider 和字幕都会自动去掉 | `GEMINI_API_KEY`（Google AI Studio）。有免费档，但免费档的内容可能被 Google 用来改进产品；付费价格见下文"费用" | 句级；加 `--align gemini` 后为词级 | ✅ `gemini`：2026-09-30 实测中英（Kore / Charon），一次通过，逗号处有自然停顿；双人对话、整段合成、设计音色同日实测。`gemini-lite` 走同一条代码路径（只换模型 id），没有单独实测 |
+| `minimax` | MiniMax T2A v2（`speech-2.8-hd`），国际站 `api.minimax.io`，云端。中文系统音色是 `Chinese (Mandarin)_*`（默认 `Chinese (Mandarin)_Reliable_Executive`），英文默认 `English_expressive_narrator`。句子里可以写停顿标记 `<#0.4#>`，稿子里可以写发音词典 `@pronounce`；`--join all` 整份稿一个请求，音色不漂。见下文"MiniMax" | `MINIMAX_TOKEN_PLAN_KEY`（Token Plan，优先）或 `MINIMAX_API_KEY`（按量付费） | **词级**（请求自带逐字时间，不用转写） | ✅ 2026-10-07 实测中英：逐句、`--join block`、`--join all`、`--resume` |
 
 **已知问题**：默认的本地 Qwen3-TTS 0.6B 模型念英文短句时偶尔停不下来。实测 "One sentence in, a film out." 念完后又多出约 10 秒低电平的含糊声音，整句 12.6 s。所以每条配音都要查一遍：加 `--align gemini` 让机器查（见下一节），或者至少看一眼 `timeline.<lang>.json` 里的时长。被标出来的那句重跑，或者换 1.7B 模型、换 `gemini`。同一稿 Gemini 的四条都正常。
 
@@ -70,7 +71,7 @@
 ### 整段合成（`--join block|all`）
 
 
-`--join block` 把空行之间的连续几句放进一个请求，`--join all` 把整份稿放进一个请求（gemini 单个请求最多 8,192 个输入 token）。句与句之间的语气是连着的，比一句一句拼起来自然。行边界从词级时间反推，所以会自动打开 `--align gemini`，`vo/<lang>/NN.wav` 是从整段音频里切出来的。其他 provider 也能用，只是把几句拼成一段文字去念。
+`--join block` 把空行之间的连续几句放进一个请求，`--join all` 把整份稿放进一个请求（gemini 单个请求最多 8,192 个输入 token）。句与句之间的语气是连着的，比一句一句拼起来自然。行边界从词级时间反推，所以会自动打开 `--align gemini`，`vo/<lang>/NN.wav` 是从整段音频里切出来的。其他 provider 也能用，只是把几句拼成一段文字去念。`minimax` 例外：句间插 `--gap` 秒的停顿标记，行边界用它自己返回的逐字时间，不用转写（见下文"MiniMax"）。
 
 代价是没法逐句控制：
 - 某一句念得不好，只能整段重跑；
@@ -98,8 +99,37 @@
 - **语气写短**：`--instruct` 和 `[指示]` 最后都进 `speech_metadata.style`。官方建议只写这一句的情境语气（"压低声音，卖个关子"）；年龄、性别、口音这类身份特征不要写进 style，要换音色，或者用 `voices design` 做一个。长篇的"角色设定""导演笔记"是音色漂移最常见的原因；
 - **每段 Gemini 音频都带 SynthID 水印**（听不出来，但能检测到）。用了 Gemini 旁白的片子，在项目 `NOTES.md` 里写明"旁白为 AI 合成（Gemini TTS，含 SynthID 水印）"，发布时按平台要求标注。
 
+### MiniMax（`minimax`）
+
+```bash
+bin/vh tts projects/<p> minimax "Chinese (Mandarin)_Reliable_Executive" zh --join all   # 整份稿一个请求
+MINIMAX_TTS_SPEED=1.25 bin/vh tts projects/<p> minimax - zh --join all --gap 0.3          # 默认音色，语速 1.25，句间停 0.3 s
+```
+
+- **key 和接口**：请求发到国际站 `https://api.minimax.io/v1/t2a_v2`。key 只从环境变量读，先找 `MINIMAX_TOKEN_PLAN_KEY`（Token Plan 的 Subscription Key，花的是买的 Credits），没有再用 `MINIMAX_API_KEY`（按量付费，账户没有余额时报 `1008 insufficient balance`）。买了 Credits 却只设了按量付费的 key，也是 1008。国际站的 key 发到国内站 `api.minimaxi.com` 会报 `2049 invalid api key`，所以默认走国际站；用国内站（platform.minimaxi.com）的 key 时，设 `MINIMAX_BASE_URL=https://api.minimaxi.com`。报错只写 key 来自哪个变量，不写 key 本身；
+- **音色**：`--voice` 写系统音色的 id。中文音色都以 `Chinese (Mandarin)_` 开头，例如 `Chinese (Mandarin)_Reliable_Executive`（沉稳的中年男声，默认）、`_News_Anchor`（女声新闻主播）、`_Male_Announcer`、`_Radio_Host`；英文默认 `English_expressive_narrator`。全部系统音色（2026-10-07 有 332 个）用 `POST /v1/get_voice`、body `{"voice_type": "system"}` 列出，`bin/vh voices` 只管 Gemini：
+
+  ```bash
+  curl -s https://api.minimax.io/v1/get_voice -H "Authorization: Bearer $MINIMAX_TOKEN_PLAN_KEY" -H "Content-Type: application/json" -d '{"voice_type":"system"}' | python3 -c 'import json,sys; [print(v["voice_id"], "|", v.get("voice_name", "")) for v in json.load(sys.stdin)["system_voice"]]'
+  ```
+
+  id 里有空格，命令行里要加引号；也因为有空格，写不进 `@speakers`，双人对话暂时用别家；
+- **参数**：`MINIMAX_TTS_MODEL`（默认 `speech-2.8-hd`）、`MINIMAX_TTS_SPEED`（语速 0.5–2，默认 1）、`MINIMAX_TTS_VOL`（音量 0–10，默认 1）、`MINIMAX_TTS_PITCH`（音调 −12–12，默认 0）。超出范围在合成前就报错。这几个值记在 `vo/<lang>/_run.json` 里，`--resume` 时和那次不一样就拒绝。`language_boost` 按 `--lang` 给 `Chinese` 或 `English`，`text_normalization` 打开（数字、符号按念法读，见下面的"年份"）；
+- **语气**：MiniMax 不听一句话的导演指示，只认一个情绪词：`happy`、`sad`、`angry`、`fearful`、`disgusted`、`surprised`、`calm`、`fluent`、`whisper`。`--instruct` 和 `[ ]` 里写这些词才有用（两处都写了情绪词时取 `[ ]` 的），别的文字会被忽略，命令提示一次。整段合成时只用 `--instruct`，逐句的 `[ ]` 不进请求；
+- **词级时间不用转写**：请求时打开字幕（`subtitle_type: word`），MiniMax 返回每个字的起止（毫秒）。`bin/vh tts` 把它们拼回稿子的写法：中文一字一个 word，英文一词一个，"1953" 这样的数字是一个 word，覆盖它念出来的全部音节，`@pronounce` 里的词也一样。所以 timeline 里直接有 `words`，`bin/vh captions` 可以逐字出字幕；`--join` 也不会因此打开转写，不要 `GEMINI_API_KEY`。想要 ASR 对稿时照样可以加 `--align gemini`：整段合成时每段转写一次，相似度按句算，句子的起止仍用 MiniMax 的时间；
+- **整份稿一个请求，音色不漂**：逐句或逐段分开合成时，段与段之间能听出像换了个人。`--join all` 把整份稿放进一个请求（不超过 10,000 字符，中文旁白约半小时），从头到尾是同一口气，讲解、纪录片这类旁白推荐这样做。句与句之间插一个 `--gap` 秒的停顿标记（默认 0.25 s），再按 MiniMax 的逐字时间把每句切回 `vo/<lang>/NN.wav`。代价和"整段合成"一节一样：不能单独重念一句，也不能逐句卡拍。`--resume` 时，整段音频和它的逐字时间（`_blockNN.words.json`）都在，才算这一段做完；
+- **停顿标记**：句子里写 `<#0.4#>`（秒，0.01–99.99），MiniMax 在那里停 0.4 s；字幕和其他 provider 都会去掉它。写在一句末尾的标记，整段合成时加到这一句和下一句之间的停顿上，比如一段讲完想多停一会儿，就在这段最后一句末尾写 `<#0.5#>`。MiniMax 要求标记夹在两段要念的文字之间，所以一个请求开头和结尾的标记（逐句合成时就是句首和句尾）会被丢掉；连着写的几个标记合成一个；
+- **发音词典**：人名、多音字念错时，在 `script.txt` 里加一行 `@pronounce 硖合/(xia2)(he2)`（拼音加声调数字，一个字一组括号；英文词可以写 `omg/oh my god`），可以写多行，不带空格的几条也可以写在同一行。它们进请求的 `pronunciation_dict.tone`，只对 `minimax` 生效（gemini 没有发音词典，要改写成同音字）。改了词典，`--resume` 会拒绝，要重新合成；
+- **年份会被念成数**：开着 `text_normalization`，"1953 年"念成"一千九百五十三年"。送去合成的文字里，年份写成"一九五三年"。2001、2003 念成"两千零一""两千零三"，可以接受。`script.txt` 的文字同时是字幕，字幕要显示"1953 年"时，按 `playbook/04-audio.md`"写念法"的办法单独处理那一句；
+- **计费**：按字符算（响应里的 `usage_characters`）。实测一个汉字算 2 个，字母、数字、标点、空格和停顿标记各算 1 个；
+- **实测**（2026-10-07，`speech-2.8-hd`）：
+  - 三句中文 `--join all`：一个请求，整条命令约 9 s，出 10.3 s 音频，三句的起止和逐字时间都来自字幕；句中 `<#0.4#>` 处实际停了约 0.8 s（加上逗号自己的停顿）；
+  - 逐句合成时，每句前后各有约 0.3 s 空白，会被自动裁掉；
+  - 一支片子里 `Chinese (Mandarin)_Reliable_Executive` 在语速 1.25 下约 5.35 字/秒（说话时）。
+
 ### 旁白里的标签
 
+- **停顿标记**：`<#0.4#>` 是 MiniMax 的停顿（秒），只有 `minimax` 会停，其他 provider 和字幕都会去掉它，见上一节。
 - **标签**：`<short pause>`、`<long pause>`、`<breath>`、`<laugh>`、`<sigh>` 可以直接写进句子里。只有 `gemini` 会演出来；其他 provider 和字幕都会自动去掉。去掉的规则：这 5 个和 `<cough>` 一律去掉；别的 `<词>` 只要不是两边都紧贴字母或数字，也当标签去掉，所以 `x<y and y>z` 这类式子会原样保留。中文稿里也写英文标签，官方说这样效果最好。标签只管某一刻的动作（停顿、呼吸、笑），持续的语气写在 `[ ]` 里。
 
 ## 外来音乐的节拍（`beats`）

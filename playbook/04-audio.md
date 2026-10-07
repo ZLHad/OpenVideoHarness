@@ -13,6 +13,7 @@
 bin/vh tts projects/<p> qwen Serena zh            # 本地开源 Qwen3-TTS（默认；首次下载约 2GB）
 bin/vh tts projects/<p> qwen Aiden en             # 同一份稿子，英文旁白
 bin/vh tts projects/<p> gemini Kore zh --align gemini   # 云端 Gemini；--align：逐句词级时间 + ASR 对稿，跑偏的句子会被标出来
+bin/vh tts projects/<p> minimax "Chinese (Mandarin)_Reliable_Executive" zh --join all   # 云端 MiniMax：整份稿一个请求，音色不漂，自带逐字时间
 bin/vh captions projects/<p> zh                    # → captions.zh/en/bi.srt + captions.json（给引擎画进画面）
 bin/vh voices list en-GB --gender female           # Gemini 音色库；bin/vh voices design "<描述>" 设计一个音色 → voice_… id
 # 配乐：代码作曲，段落对齐镜头，节拍精确
@@ -39,7 +40,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 - 双语写成 `中文 || English`，`--lang` 决定念哪一边，两边都会进时间表；
 - 只写一边的句子照原样念。进字幕时，含中日韩字符的算中文，不含的算英文，所以纯英文稿出的是 `captions.en.srt`。想让一句纯英文（比如品牌名）留在中文一侧，写成 `Claude Code ||`；只有标点的一句（`……`）跟着前面的单边句走；
 - 可以加 `@id` 前缀，比如 `@hook 一句话，做出一支片子。 || One sentence in, one film out.`。
-- **写念法，不写字面**：单位、缩写和符号，TTS 常照字母或字面念。showcase 02 的"2 GHz"被念成了 G、H、Z 三个字母，维护者听出来才重录。送去合成的文字要写真实的念法（"2 G赫兹""50 千赫兹"），数字、公式、英文缩写也一样。
+- **写念法，不写字面**：单位、缩写和符号，TTS 常照字母或字面念。showcase 02 的"2 GHz"被念成了 G、H、Z 三个字母，维护者听出来才重录。送去合成的文字要写真实的念法（"2 G赫兹""50 千赫兹"），数字、公式、英文缩写也一样。年份也是：MiniMax 把"1953 年"念成"一千九百五十三年"，要写成"一九五三年"。
   - `script.txt` 一句只有一份文本，合成和字幕都用它。念法和字幕必须不同（比如画面烧着"2 GHz"）时，就用念法单独合成那一句，timeline 里的字幕文字留原文，再在 `script.txt` 的注释里记下念法（02 就是这样做的）。
   - 合成后，单位和数字要人耳听一遍：Gemini 转写的第一遍对这类词也不可靠（02 的新 take 第一遍只有 0.10），不能只看相似度。
 - 每句合成后，provider 自带的句首句尾静音会被裁掉，所以句间距离就是 `--gap`，按拍落点时人声也落在拍上（裁法和阈值见 `tools/audio/README.md`；想保留原样，加 `--keep-edges`）；
@@ -59,6 +60,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 |---|---|
 | `qwen`（默认） | 本地开源 Qwen3-TTS，免费、离线，首次下载约 2 GB；0.6B 模型念英文短句偶尔停不下来，每条都要查 |
 | `gemini` | 云端，表演力最好，能用一句话导演语气，适合讲解旁白和双人对话；要 `GEMINI_API_KEY` |
+| `minimax` | 云端 MiniMax（`speech-2.8-hd`），中文音色多（`Chinese (Mandarin)_*`）。`--join all` 整份稿一个请求，从头到尾一个声音；自带逐字时间，不用转写；支持停顿标记 `<#0.4#>` 和发音词典 `@pronounce`。语气只认一个情绪词。要 `MINIMAX_TOKEN_PLAN_KEY` 或 `MINIMAX_API_KEY`，细节见 `tools/audio/README.md` 的"MiniMax" |
 | `say` / `edge` | 打草稿；只能念，不能演 |
 | `elevenlabs` / `dashscope` | 接口已留，还没实测 |
 
@@ -184,10 +186,11 @@ bin/vh qa mix $A/stems --beats $A/music.beats.json   # 只看混音报告（词�
   - 写情绪、语速、重音、句尾走向、停顿，例如"像在跟朋友分享一个惊人的发现，语速偏快，'一句话'重读，尾音上扬成问句"；
   - 用"像在……"打比方，比"专业""自然"这种抽象词好用得多；
   - 同一段里相邻两句的语气要有落差：问句接答句，铺垫接爆点，快接慢。
-- **标签**：`<short pause>`、`<long pause>`、`<breath>`、`<laugh>`、`<sigh>` 可以直接写进句子里。只有 `gemini` 会演出来，其他 provider 和字幕都会自动去掉（规则见 `tools/audio/README.md`）。中文稿里也写英文标签，官方说这样效果最好。标签只管某一刻的动作（停顿、呼吸、笑），持续的语气写在 `[ ]` 里。
+- **标签**：`<short pause>`、`<long pause>`、`<breath>`、`<laugh>`、`<sigh>` 可以直接写进句子里。只有 `gemini` 会演出来，其他 provider 和字幕都会自动去掉（规则见 `tools/audio/README.md`）。`minimax` 用的是停顿标记 `<#0.4#>`（秒），同样只有它会停。中文稿里也写英文标签，官方说这样效果最好。标签只管某一刻的动作（停顿、呼吸、笑），持续的语气写在 `[ ]` 里。
 - **给 gemini 的指示要短**：一句话讲清情绪和节奏就够了。年龄、性别、口音属于音色，不要写进指示；长段的人设和导演笔记容易让音色漂移。
 - **谁能演**：
   - `gemini` 表演力最好，整体和逐句指示都听；
+  - `minimax` 只认一个情绪词（`calm`、`happy`、`whisper` 等），写别的会被忽略；
   - 本地 `qwen` 的 0.6B 模型不接受指示，要换 1.7B 的 instruct 模型；
   - `say` 和 `edge` 只能念。
 - **写法示例**（逐句导演，后两句用了下文的对拍写法）：
@@ -272,7 +275,7 @@ bin/vh qa mix $A/stems --beats $A/music.beats.json   # 只看混音报告（词�
 | 需求 | 方案 |
 |---|---|
 | 中文配音，本地 | `mlx-audio` 在 Apple Silicon 上跑 Qwen3-TTS（Apache-2.0，支持方言和声音设计）。要克隆声音用 CosyVoice 或 GPT-SoVITS。 |
-| 配音，云端，追求稳定 | ElevenLabs 的 `/v1/text-to-speech/{voice_id}/with-timestamps` 直接返回字符级时间（`bin/vh tts` 拼成词级）；讲解旁白要表演力、或者要双人对话时，用 Gemini 3.8 Flash TTS（`bin/vh tts … gemini`，能用一句话导演语气，有免费档）；国内可选火山豆包、阿里百炼、MiniMax。 |
+| 配音，云端，追求稳定 | ElevenLabs 的 `/v1/text-to-speech/{voice_id}/with-timestamps` 直接返回字符级时间（`bin/vh tts` 拼成词级）；讲解旁白要表演力、或者要双人对话时，用 Gemini 3.8 Flash TTS（`bin/vh tts … gemini`，能用一句话导演语气，有免费档）；MiniMax 已封装（`bin/vh tts … minimax`，自带逐字时间，整份稿一个请求音色不漂）；国内还可选火山豆包、阿里百炼。 |
 | 免费、先凑合用 | `edge-tts`（微软中文音色，非官方接口，随时可能失效） |
 | 词级时间戳 | 已封装：`bin/vh tts … --align gemini`（Gemini 3.5 Transcribe，词级，0.1 s 步长，顺带对稿）。离线的话，中文用 FunASR（字级，带标点）；通用用 whisper.cpp（Mac 上有 Metal 加速）；已有讲稿或歌词、只需对齐时用 ctc-forced-aligner |
 | 节拍 | librosa 或 beat_this（后者 downbeat 更准）。音乐平缓时，检测出来的 BPM 只是一个强加的节拍器，不能拿来硬切。 |
@@ -301,7 +304,7 @@ bin/vh qa mix $A/stems --beats $A/music.beats.json   # 只看混音报告（词�
 ```
 
 - `cues` 对应 `SCRIPT.md` 里的 `{cue}` 标记，用来在某个词出现的那一刻触发画面。
-- `words` 由 `bin/vh tts … --align gemini`（或 elevenlabs）写入；对稿结果 `asr` 和对话里的 `speaker` 也在每个 segment 里。
+- `words` 由 `bin/vh tts … --align gemini`（或 elevenlabs、minimax）写入；对稿结果 `asr` 和对话里的 `speaker` 也在每个 segment 里。
 - ClaudeAnimationBase 用 `src/config.js` 的 `bpm` 和 `offset`，`pulse()` 和 `beatN()` 会自动对齐节拍。
 - Remotion 的做法是在 `calculateMetadata` 里读取音频时长来设置帧数；HyperFrames 的做法是 `sync-durations` 用实测时长覆盖估计值。
 

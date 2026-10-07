@@ -32,7 +32,7 @@
 #                               (中文 || English; [direction] per line; lines snap to beats; @speakers A=Kore B=Puck + "A: …" lines = a dialogue;
 #                               --align gemini: word timestamps + ASR-vs-script check per line; --join: several lines per request;
 #                               --resume: continue the last run after a failed synthesis or transcription, same script and command)
-#                               providers: qwen (default, local open-source Qwen3-TTS) | say | edge | dashscope | elevenlabs | gemini | gemini-lite
+#                               providers: qwen (default, local open-source Qwen3-TTS) | say | edge | dashscope | elevenlabs | gemini | gemini-lite | minimax
 #   voices list [lang] | design "<description>" [--out f.wav] | delete <voice_id>   Gemini voice library / voice design
 #   captions <project> [zh|en] [zh-max] [--media-end S]  SRT (zh / en / bilingual) + captions.json from the TTS timeline; a caption under 1.8 s is
 #                               lengthened into the gap after it, up to the picture's end (--media-end, else index.html's data-duration, media/final.mp4, the timeline)
@@ -181,7 +181,7 @@ doctor_downloads() { # what the first runs download on their own and how big it 
   hub=${HF_HUB_CACHE:-${HF_HOME:-$HOME/.cache/huggingface}/hub}
   snap=$(ls -d "$hub/models--${model//\//--}/snapshots/"*/ 2>/dev/null | head -1 || true)
   if [ "$(uname)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
-    echo "- Qwen3-TTS (bin/vh tts's default voice) runs on Apple Silicon only (mlx-audio): use edge, gemini, dashscope or elevenlabs here"
+    echo "- Qwen3-TTS (bin/vh tts's default voice) runs on Apple Silicon only (mlx-audio): use edge, gemini, minimax, dashscope or elevenlabs here"
   else
     command -v uv >/dev/null 2>&1 && ! uv run -q --no-project --offline --with mlx-audio python -c "" >/dev/null 2>&1 && voice_pkgs=1
     if [ -n "$snap" ] && [ -e "$(set -- "$snap"*.safetensors; echo "$1")" ]; then echo "$c_ok Qwen3-TTS model  $model · $(size_of "$snap")"

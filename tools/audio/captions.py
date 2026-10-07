@@ -8,7 +8,7 @@ Reads audio/timeline.<lang>.json (or audio/timeline.json) written by bin/vh tts.
   (HyperFrames / p5 / Manim read it; every caption stays a pure function of t).
 Soft subtitle tracks for players/platforms: bin/vh mux <video> <audio> <out> audio/captions.zh.srt audio/captions.en.srt
 Vertical video: pass --zh-max 11 (72 px in the 810 px safe box).
-Word timing (timeline from bin/vh tts … --align gemini, or elevenlabs): each captions.json item also gets
+Word timing (timeline from bin/vh tts … --align gemini, elevenlabs or minimax): each captions.json item also gets
   "words": [{"w","start","end"}] (narrated side, absolute seconds) for karaoke / pop-in captions, and
   captions.<lang>.lines.srt splits every caption into one cue per wrapped line, each starting when its first word is
   spoken, so a long line no longer sits on screen as a two-line block for its whole duration.
