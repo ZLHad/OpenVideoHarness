@@ -891,7 +891,7 @@ words = [w for s in tl["segments"] for w in s.get("words", [])]
 if len(ons) != 42 or len(words) != 42: bad.append(f"{len(ons)} syllables in the paced take, {len(words)} words (42 each)")
 else:
     err = np.abs(ons - [w["start"] for w in words])
-    if err.max() > 0.06: bad.append(f"a mapped word {err.max():.3f} s from its syllable ({words[int(err.argmax())]['w']})")
+    if err.max() > 0.035: bad.append(f"a mapped word {err.max():.3f} s from its syllable ({words[int(err.argmax())]['w']})")
 L = {l["id"]: l for l in P["lines"]}
 paced = [l for l in P["lines"] if l.get("note") not in ("short", "no words")]
 sd = lambda k: float(np.std([l[k] for l in paced]))
@@ -958,7 +958,91 @@ print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
   ); then ok "pace: ASR starts 0.2 s late and ends 0.3 s early, a line break inside a syllable, a line with no audio: every syllable kept, none moved"
   else bad "pace with an ASR further off:$a"; fi
+  # more cases, each on its own copy: b1 with no audio (u), b1 and b2 spans swapped (o), word times only in the cache (c, and c2
+  # without it), no script.txt (n), and a take of its own (t): a quiet breath before one line, three short loud syllables
+  # opening the next
+  for v in u o c c2 n; do mkdir "$t/$v" && cp -R "$t/orig" "$t/$v/audio"; done
+  python3 - "$t" <<'PY'
+import hashlib, json, math, struct, sys, wave
+from pathlib import Path
+t = sys.argv[1]; F = "audio/timeline.zh.json"
+tl = json.load(open(f"{t}/orig/timeline.zh.json", encoding="utf-8")); S = {s["id"]: s for s in tl["segments"]}
+b1 = S["b1"]                                          # b1's syllables zeroed (its timeline end sits 0.02 s before its voice ends)
+with wave.open(f"{t}/orig/voiceover.zh.wav") as r:
+    sr, pcm = r.getframerate(), bytearray(r.readframes(r.getnframes()))
+z0, z1 = int((b1["words"][0]["start"] - 0.005) * sr), int((b1["words"][-1]["end"] + 0.025) * sr)
+pcm[2 * z0: 2 * z1] = bytes(2 * (z1 - z0))
+with wave.open(f"{t}/u/audio/voiceover.zh.wav", "wb") as w:
+    w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr); w.writeframes(bytes(pcm))
+o = json.loads(json.dumps(tl)); a, b = o["segments"][2], o["segments"][3]
+a["start"], a["end"], b["start"], b["end"] = b["start"], b["end"], a["start"], a["end"]
+json.dump(o, open(f"{t}/o/{F}", "w", encoding="utf-8"), ensure_ascii=False)
+for v in ("c", "c2"):                                 # word times removed; for c they are in the cache under the take's sha256
+    c = json.loads(json.dumps(tl))
+    for s in c["segments"]:
+        s.pop("words", None)
+    Path(f"{t}/{v}/{F}").write_text(json.dumps(c, ensure_ascii=False), encoding="utf-8")
+sha = hashlib.sha256(open(f"{t}/orig/voiceover.zh.wav", "rb").read()).hexdigest()
+Path(f"{t}/c/audio/pace.zh.asr.json").write_text(json.dumps({"sha256": sha, "engine": "whisper", "segments": [
+    {"start": s["start"], "end": s["end"], **({"words": s["words"]} if s.get("words") else {})} for s in tl["segments"]]}), encoding="utf-8")
+Path(f"{t}/n/audio/script.txt").unlink()
+SR, x, segs, A = 22050, [0.0] * int(0.4 * 22050), [], Path(f"{t}/t/audio")
+A.mkdir(parents=True)
+def burst(dur, amp, f0):
+    n = int(dur * SR); return [amp * math.sin(math.pi * i / n) ** 0.5 * (math.sin(2 * math.pi * f0 * i / SR) + 0.5 * math.sin(4 * math.pi * f0 * i / SR)) for i in range(n)]
+for sid, text, plan in (("t1", "甲乙丙丁戊己庚辛。", [("breath",)] + [(0.15, 0.05)] * 8), ("t2", "子丑寅卯辰巳午未申酉戌亥。", [(0.09, 0.09)] * 3 + [(0.15, 0.05)] * 9),
+                        ("t3", "东南西北中发白甲。", [(0.15, 0.05)] * 8)):
+    words, chars = [], iter(text[:-1])
+    for k, step in enumerate(plan):
+        if step == ("breath",):
+            x += burst(0.08, 0.0095, 300) + [0.0] * int(0.12 * SR); continue
+        t0 = len(x) / SR; x += burst(step[0], 0.25, 150 + 10 * (k % 4))
+        words.append({"w": next(chars), "start": round(t0, 3), "end": round(len(x) / SR, 3)}); x += [0.0] * int(step[1] * SR)
+    words[-1]["w"] += "。"; segs.append({"id": sid, "zh": text, "en": "", "text": text, "start": words[0]["start"], "end": words[-1]["end"], "words": words})
+    x += [0.0] * int(0.45 * SR)
+with wave.open(str(A / "voiceover.zh.wav"), "wb") as w:
+    w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes(struct.pack(f"<{len(x)}h", *(int(round(v * 32767)) for v in x)))
+(A / "timeline.zh.json").write_text(json.dumps({"provider": "say", "lang": "zh", "segments": segs}, ensure_ascii=False), encoding="utf-8")
+(A / "script.txt").write_text("".join(f"@{s['id']} {s['text']}\n" for s in segs), encoding="utf-8")
+PY
+  cp -R "$t/c/audio" "$t/c.before"
+  a=""; rc=0
+  vh pace "$t/u" >"$t/u.out" 2>&1 || a="$a u: $(tail -c 300 "$t/u.out")"
+  vh pace "$t/t" >"$t/t.out" 2>&1 || a="$a t: $(tail -c 300 "$t/t.out")"
+  b=$(vh pace "$t/c" --dry-run 2>&1) && diff -r "$t/c/audio" "$t/c.before" >/dev/null || a="$a c --dry-run wrote or failed: $b"
+  case "$b" in *"transcribed before"*) ;; *) a="$a c --dry-run did not use the cache: $b" ;; esac
+  vh pace "$t/c" >/dev/null 2>&1 && cmp -s "$t/c/audio/timeline.zh.raw.json" "$t/c.before/timeline.zh.json" || a="$a c: the .raw timeline is not the original"
+  b=$(vh pace "$t/c2" 2>&1); [ $? = 1 ] && case "$b" in *"no word times"*) ;; *) false ;; esac || a="$a c2 (no words, no cache): $b"
+  b=$(vh pace "$t/o" 2>&1); [ $? = 1 ] && case "$b" in *"out of order"*) ;; *) false ;; esac || a="$a o (spans swapped): $b"
+  b=$(vh pace "$t/n" --dry-run 2>&1); case "$b" in *"no audio/script.txt"*) ;; *) a="$a n (no script.txt): $b" ;; esac
+  b=$(PYTHONPATH="$t" uv run -q --no-project --with numpy python - "$t" 2>&1 <<'PY'
+import json, sys
+from onsets import onsets
+t = sys.argv[1]; bad = []
+raw = {s["id"]: s for s in json.load(open(f"{t}/orig/timeline.zh.json", encoding="utf-8"))["segments"]}
+tl = json.load(open(f"{t}/u/audio/timeline.zh.json", encoding="utf-8")); S = {s["id"]: s for s in tl["segments"]}
+L = {l["id"]: l for l in tl["pace"]["lines"]}
+ons, _, _ = onsets(f"{t}/u/audio/voiceover.zh.wav")
+g0 = raw["b1"]["end"] + 0.02 + 0.4 - raw["a2"]["end"]  # a2's voice to b2's, in the take (b2's timeline start is the shared one)
+g1 = S["b2"]["start"] - S["a2"]["end"]
+if len(ons) != 32 or L["b1"].get("note") != "nothing heard" or abs(g1 - g0) > 0.05 or S["b1"]["end"] - S["b1"]["start"] < 0.1 - 1e-9 \
+   or S["b1"]["start"] < S["a2"]["end"]:
+    bad.append(f"u: {len(ons)} syllables (32), b1 {L['b1']} at {S['b1']['start']}–{S['b1']['end']}, a2→b2 {g1:.2f} s (the take's {g0:.2f})")
+P = {l["id"]: l for l in json.load(open(f"{t}/t/audio/timeline.zh.json", encoding="utf-8"))["pace"]["lines"]}
+true = {"t1": 8 / 1.55, "t2": 12 / 2.29}            # syllables over first onset → last end; the breath is not speech
+for k, v in true.items():
+    if abs(P[k]["pace"] / v - 1) > 0.06: bad.append(f"t: {k} measured {P[k]['pace']:.2f}, true {v:.2f}")
+c = json.load(open(f"{t}/c/audio/timeline.zh.json", encoding="utf-8"))
+if sum(len(s.get("words", [])) for s in c["segments"]) != 42: bad.append("c: the cached word times did not reach the paced timeline")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ) || a="$a $b"
+  if [ -z "$a" ]; then ok "pace: a line with no audio keeps its stretch of the take, a quiet breath is not speech and short loud syllables are, cached word times are used and the .raw stays the original, swapped spans and a missing script.txt are said"
+  else bad "pace on the other cases:$a"; fi
   mkdir "$t/k" && cp -R "$t/orig" "$t/k/audio"
+  a=$(vh pace "$t/k" --dry-run --target 6 --extra b2=0.3 zh 2>&1); rc=$?
+  case "$rc:$a" in 0:*"(--target 6)"*) printf '%s\n' "$a" | grep -q '^  b2 .*→ 0\.59 s' && ok "pace --target, --extra and the language after the flags" || bad "pace --extra b2=0.3: $a" ;;
+    *) bad "pace --target 6 … zh: exit $rc: $a" ;; esac
   a=$(env -u GEMINI_API_KEY "$VH_BASH" "$ROOT/bin/vh" pace "$t/k" --align gemini 2>&1); rc=$?
   [ $rc = 1 ] && diff -r "$t/k/audio" "$t/orig" >/dev/null && ok "pace --align gemini without a key stops before writing" || bad "pace --align gemini without a key: exit $rc, $a"
   a=$(vh pace "$t/k" --ref b3x --dry-run 2>&1); rc=$?

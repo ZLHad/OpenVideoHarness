@@ -18,7 +18,9 @@ Per line:
      least 0.12 s long when there is one: shorter dips are between syllables). A line's voice is everything voiced
      (within 32 dB of the take's speech level) between the silences on either side, so an ASR start placed late by a
      misheard first syllable, an end placed early, or a boundary inside a syllable cannot cut anything off. A blip under
-     0.12 s at a line's edge, set off by 0.06 s of quiet, is a breath: kept in the audio, not counted as speech;
+     0.12 s at a line's edge, set off by 0.06 s of quiet and 15 dB under the line's speech, is a breath (one per side):
+     kept in the audio, not counted as speech. A line nothing was heard for is named and left alone: its stretch of the
+     take is copied as it is. Spans that go back in time (a hand-edited timeline) are refused;
   2. silences inside the line longer than --pause (0.26 s) are shortened to it, 6 ms fades on both sides of each cut.
      A line whose script has <short pause>, <long pause> or a <#s#> mark keeps its pauses (they were asked for);
   3. pace = spoken units / voiced seconds after step 2: CJK characters (digits read out: 75 = 七十五, 3; 1953年 = 5), or
@@ -32,7 +34,7 @@ Per line:
      kept as it is. The silence before the first line (--lead) and after the last is kept.
      Lines are joined in numpy, never with anullsrc + concat (playbook/04-audio.md, "旁白晚一点进来").
 Output voiceover.<lang>.wav and timeline.<lang>.json written back (timeline.json / voiceover.wav too when they are
-       copies of this language), the originals kept as voiceover.<lang>.raw.wav / timeline.<lang>.raw.json, then
+       copies of this language; mono, like bin/vh tts), the originals kept as voiceover.<lang>.raw.wav / .raw.json, then
        bin/vh captions <project> <lang>. A second run starts again from the .raw take, so settings never compound;
        after a new bin/vh tts run the new take is the original (the timeline's "pace" block records a sha256 of the
        paced file to tell them apart). --restore puts the original back and removes the .raw files, only when the take
@@ -66,7 +68,9 @@ EDGE_FADE, CUT_FADE = 0.010, 0.006
 MIN_UNITS, MIN_VOICED = 4, 0.5    # shorter lines keep their pace: too few units to measure one
 SPLIT_NEAR = 0.2                  # look this far around the ASR boundary between two lines for the silence between them
 GAP_MIN = 0.12                    # … a silence at least this long when there is one (shorter dips are between syllables)
-BREATH, BREATH_GAP = 0.12, 0.06   # a voiced blip this short at a line's edge, set off by this much quiet: a breath, not speech
+BREATH, BREATH_GAP, BREATH_DB = 0.12, 0.06, 15.0   # a voiced blip this short at a line's edge, set off by this much quiet and
+                                                   # this many dB under the line's speech: a breath, not speech (one per side)
+MIN_SPAN = 0.1                    # a line nothing was heard for still gets this much (no zero-width cue; tts.align_lines does the same)
 GAPS = {"comma": (0.12, 0.40), "stop": (0.25, 0.70), "block": (0.45, 1.20)}   # voice-to-voice silence after a line (s)
 ASR_PIECE = 540.0                 # longest piece per gemini transcription (16 kHz inline audio: ≈ 10 min fits 20 MB)
 STOPS = tuple("。！？!?….")
@@ -140,7 +144,7 @@ def write_wav(x, sr, codec, dst):
                    input=np.clip(x, -1, 1).astype("<f4").tobytes(), check=True, capture_output=True)
 
 def atempo(x, sr, f):
-    if abs(f - 1) < 1e-4 or len(x) < 0.05 * sr:          # nothing to stretch, or too little for atempo's windows
+    if abs(f - 1) < 1e-4:
         return x.copy()
     raw = subprocess.run(["ffmpeg", "-v", "error", "-f", "f32le", "-ar", str(sr), "-ac", "1", "-i", "pipe:0", "-af", f"atempo={f:.5f}",
                           "-f", "f32le", "pipe:1"], input=x.astype("<f4").tobytes(), check=True, capture_output=True).stdout
@@ -156,20 +160,22 @@ def warp(kept, y, sr, band=0.15):
     n, m = len(A), len(B)
     if n < 2 or m < 2:
         return np.arange(n) * (m / max(n, 1))
-    w = max(2, int(band / 0.01)); INF = float("inf")
-    D = np.full((n, m), INF)
+    w = max(2, int(band / 0.01)); W = 2 * w + 1; INF = float("inf")
+    D, los = np.full((n, W), INF), np.zeros(n, int)       # row i holds columns los[i] … los[i] + W - 1 (the band only)
+    at = lambda i, j: D[i, j - los[i]] if 0 <= j - los[i] < W else INF
     for i in range(n):
-        c = int(round(i * (m - 1) / (n - 1))); lo, hi = max(0, c - w), min(m, c + w + 1)
+        c = int(round(i * (m - 1) / (n - 1))); lo, hi = max(0, c - w), min(m, c + w + 1); los[i] = lo
         cost = np.abs(A[i] - B[lo:hi])
         for j in range(lo, hi):
-            best = 0.0 if i == 0 and j == 0 else min(D[i - 1, j] if i else INF, D[i, j - 1] if j else INF, D[i - 1, j - 1] if i and j else INF)
-            D[i, j] = cost[j - lo] + best
+            best = 0.0 if i == 0 and j == 0 else min(at(i - 1, j) if i else INF, D[i, j - lo - 1] if j > lo else INF,
+                                                     at(i - 1, j - 1) if i and j else INF)
+            D[i, j - lo] = cost[j - lo] + best
     i, j, path = n - 1, m - 1, {}
     while i > 0 or j > 0:
         path.setdefault(i, []).append(j)
-        steps = [(D[i - 1, j - 1], i - 1, j - 1)] if i and j else []
-        steps += [(D[i - 1, j], i - 1, j)] if i else []
-        steps += [(D[i, j - 1], i, j - 1)] if j else []
+        steps = [(at(i - 1, j - 1), i - 1, j - 1)] if i and j else []
+        steps += [(at(i - 1, j), i - 1, j)] if i else []
+        steps += [(at(i, j - 1), i, j - 1)] if j else []
         _, i, j = min(steps)
     path.setdefault(0, []).append(0)
     out = np.array([np.mean(path[k]) for k in range(n)], dtype=float)
@@ -221,8 +227,8 @@ def align_take(segs, wav, engine, lang, tmp, dur):
 # ---------- the edit ----------
 
 def gap_kind(seg, nxt, block):
-    if nxt is not None and block.get(nxt["id"]) != block.get(seg["id"]):
-        return "block"
+    if nxt is not None and seg["id"] in block and nxt["id"] in block and block[nxt["id"]] != block[seg["id"]]:
+        return "block"                                    # a line the script does not have: no block break claimed
     return "stop" if seg["text"].rstrip(CLOSERS).endswith(STOPS) else "comma"
 
 def plan(x, sr, segs, lang, block, asked, a):
@@ -264,7 +270,12 @@ def plan(x, sr, segs, lang, block, asked, a):
                 return min(c, key=near)
         return (min(max(m, 0.0), dur),) * 2
 
+    back = [j for i, j in zip(spoken, spoken[1:]) if segs[j]["start"] < segs[i]["start"] - 0.05]
     sp = [split(segs[i], segs[j]) for i, j in zip(spoken, spoken[1:])]
+    back += [spoken[k + 1] for k in range(1, len(sp)) if sp[k][0] < sp[k - 1][0] - 1e-6]
+    if back:                                              # spans out of order: cutting at their silences would repeat audio
+        sys.exit(f"the timeline's lines are out of order at @{segs[back[0]]['id']} (its ASR span starts before the line before it):"
+                 f" re-align the take (bin/vh tts … --align gemini --resume) instead of editing the timeline by hand")
     lines = []
     for k, i in enumerate(spoken):
         s, u = segs[i], U[i]
@@ -275,9 +286,11 @@ def plan(x, sr, segs, lang, block, asked, a):
             v0, v1 = (f0 + idx[0]) * H, min((f0 + idx[-1] + 1) * H, dur)
             c0, c1 = max(mlo, v0 - HEAD, 0.0), min(mhi, v1 + TAIL, dur)
             vr = np.split(idx, np.flatnonzero(np.diff(idx) > 1) + 1)   # voiced runs; the speech is between the breaths at its edges
-            while len(vr) > 1 and len(vr[0]) * H < BREATH and (vr[1][0] - vr[0][-1] - 1) * H >= BREATH_GAP:
+            level = float(np.percentile(db[f0 + idx], 90))   # the line's speech level
+            breath = lambda r, gap: len(r) * H < BREATH and gap * H >= BREATH_GAP and db[f0 + r].max() < level - BREATH_DB
+            if len(vr) > 1 and breath(vr[0], vr[1][0] - vr[0][-1] - 1):
                 vr = vr[1:]
-            while len(vr) > 1 and len(vr[-1]) * H < BREATH and (vr[-1][0] - vr[-2][-1] - 1) * H >= BREATH_GAP:
+            if len(vr) > 1 and breath(vr[-1], vr[-1][0] - vr[-2][-1] - 1):
                 vr = vr[:-1]
             s0, s1 = (f0 + vr[0][0]) * H, min((f0 + vr[-1][-1] + 1) * H, dur)
         else:                                             # nothing heard for this line: a point, untouched
@@ -327,9 +340,12 @@ def plan(x, sr, segs, lang, block, asked, a):
         elif ref:
             why = "close enough"
         L["f"], L["why"] = f, why
-    for k, L in enumerate(lines[:-1]):                    # voice-to-voice silence after the line, in the take and in the new one
-        nxt = lines[k + 1]
-        between = [segs[i]["id"] for i in range(L["i"] + 1, nxt["i"])]   # "……" lines: the pause they stand for is kept
+    chain = [L for L in lines if L["heard"]]             # a line nothing was heard for stays inside the pause around it
+    if not chain:
+        sys.exit("nothing was heard for any line with words: is audio/voiceover.<lang>.wav the take this timeline describes?")
+    for k, L in enumerate(chain[:-1]):                    # voice-to-voice silence after the line, in the take and in the new one
+        nxt = chain[k + 1]
+        between = [segs[i]["id"] for i in range(L["i"] + 1, nxt["i"])]   # "……" lines, unheard lines: that stretch is kept as it is
         g = nxt["s0"] - L["s1"]                           # speech to speech: a breath before a line is part of the pause
         kind = "kept" if between else gap_kind(L["seg"], nxt["seg"], block)
         lo_k, hi_k = GAPS.get(kind, (g, g))
@@ -349,6 +365,7 @@ def ref_ids(spec, segs):
 
 def render(x, sr, lines):
     """→ (new audio, a function: time in the take → time in the new audio); sets each line's real tempo and new span."""
+    lines = [L for L in lines if L["heard"]]
     out = [x[: lines[0]["sa"]]]
     t = len(out[0]) / sr
     for k, L in enumerate(lines):
@@ -371,7 +388,15 @@ def render(x, sr, lines):
         if k + 1 < len(lines):                            # the pause: voice-to-voice gap minus the margins already in both chunks
             nxt = lines[k + 1]
             margins = (L["c1"] - L["s1"]) / L["f_real"] + (nxt["s0"] - nxt["c0"]) / nxt["f"]
-            pad = np.zeros(int(round(max(0.0, L["gap"] - margins) * sr)))
+            n = int(round(max(0.0, L["gap"] - margins) * sr))
+            if L["kind"] == "kept":                       # the take's own audio there (a "……" line, a line too soft to be
+                pad = x[L["sb"]:nxt["sa"]].copy()         # heard), fitted at its end, which is silence before the next line
+                fz = min(int(CUT_FADE * sr), n // 2)
+                pad = np.concatenate([pad, np.zeros(max(0, n - len(pad)))])[:n]
+                if fz and n < nxt["sa"] - L["sb"]:
+                    pad[n - fz:] *= np.linspace(1, 0, fz)
+            else:
+                pad = np.zeros(n)
             out.append(pad); t += len(pad) / sr
     out.append(x[lines[-1]["sb"]:])                       # the take's own tail
 
@@ -401,7 +426,7 @@ def paced_segments(segs, lines, remap):
     out = []
     for i, s0 in enumerate(segs):
         s, L = {k: v for k, v in s0.items() if k != "file"}, by.get(i)   # vo/<lang>/NN.wav are cuts of the original take
-        if L and s.get("words"):
+        if L and L["heard"] and s.get("words"):
             lo, hi = L["n0"], max(L["n1"], L["n0"])
             at = lambda r: round(min(max(remap(r), lo), hi), 3)
             s["words"] = [dict(w, start=at(w["start"]), end=max(at(w["end"]), at(w["start"]))) for w in s["words"]]
@@ -409,8 +434,13 @@ def paced_segments(segs, lines, remap):
                 w0, w1 = s["words"][0], s["words"][-1]
                 w0["start"] = min(at(L["s0"]), w0["end"]); w1["end"] = max(at(L["s1"]), w1["start"])
             s["start"], s["end"] = s["words"][0]["start"], s["words"][-1]["end"]
-        else:                                             # no words: where its span went
+        else:                                             # no words, or nothing heard: where its span went
             s["start"] = round(remap(s0["start"]), 3); s["end"] = round(max(remap(s0["end"]), s["start"]), 3)
+            if s.get("words"):                            # nothing heard: after the line before, MIN_SPAN at least, its words
+                s["start"] = max(s["start"], out[-1]["end"] if out else 0.0)   # spread across it
+                s["end"] = round(max(s["end"], s["start"] + MIN_SPAN), 3); n, d = len(s["words"]), s["end"] - s["start"]
+                s["words"] = [dict(w, start=round(s["start"] + d * k / n, 3), end=round(s["start"] + d * (k + 1) / n, 3))
+                              for k, w in enumerate(s["words"])]
         out.append(s)
     return out
 
@@ -539,7 +569,10 @@ def main():
                 got = old["segments"]; print(f"  word times of the take from {rel(cache)} ({old.get('engine')}, transcribed before)")
             else:
                 print(f"  {len(missing)} line(s) without word times: transcribing the take ({a.align}) …", flush=True)
-                got = align_take(segs, src_wav, a.align, a.lang, tmp, dur)
+                try:
+                    got = align_take(segs, src_wav, a.align, a.lang, tmp, dur)
+                except Exception as e:                    # quota, network: nothing is written yet
+                    sys.exit(f"transcribing the take ({a.align}) failed: {e}. Nothing was written")
                 if not a.dry_run:
                     cache.write_text(json.dumps({"sha256": src_sha, "engine": a.align, "segments": got}, ensure_ascii=False), encoding="utf-8")
             for s, r in zip(segs, got):
@@ -548,6 +581,10 @@ def main():
         lines, ref, how = plan(x, sr, segs, a.lang, block, asked, a)
         unit = "chars/s" if a.lang == "zh" else "syll/s"
         y, remap = render(x, sr, lines)
+        unheard = [L["seg"]["id"] for L in lines if not L["heard"]]
+        if unheard:
+            print(f"  note: nothing heard for {', '.join(unheard)} (missing from the audio, or under the voice threshold): that stretch"
+                  f" of the take is kept as it is, unpaced; listen to it", flush=True)
         new = paced_segments(segs, lines, remap)
         print(f"{'line':<8} {'units':>5}  {'pace':>5}   tempo   after   pause after (take → now)")
         by = {L["i"]: L for L in lines}
