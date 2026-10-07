@@ -193,6 +193,42 @@ PY
   case "$a" in *"--with edge-tts "*"--provider edge"*"--with dashscope "*) ok "tts --provider picks the provider's dependencies" ;;
     *) bad "tts --provider: uv got '$a'" ;; esac
   rm -rf "$t"
+  # tts: a Gemini 429 that names a per-day quota fails at once, though it asks for 30 s; a per-minute one is still waited
+  # out and retried; one naming no daily quota fails at once only past 90 s (a stub on 127.0.0.1; waits recorded, not slept)
+  if a=$(GEMINI_API_KEY=ci-stub python3 - 2>&1 <<'PY'
+import importlib.util, json, os, threading
+os.environ["no_proxy"] = "127.0.0.1"   # urlopen would send the stub's requests through an http_proxy
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+spec = importlib.util.spec_from_file_location("tts", "tools/audio/tts.py"); tts = importlib.util.module_from_spec(spec); spec.loader.exec_module(tts)
+def body(*ids, delay="30s"):
+    return json.dumps({"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "details": [
+        {"@type": "type.googleapis.com/google.rpc.QuotaFailure", "violations": [{"quotaMetric": "generativelanguage.googleapis.com/x", "quotaId": i} for i in ids]},
+        {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": delay}]}}).encode()
+answers = []
+class Stub(BaseHTTPRequestHandler):
+    def do_POST(self):
+        self.rfile.read(int(self.headers["Content-Length"])); code, b = answers.pop(0)
+        self.send_response(code); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+    def log_message(self, *a): pass
+srv = ThreadingHTTPServer(("127.0.0.1", 0), Stub); threading.Thread(target=srv.serve_forever, daemon=True).start()
+tts.GEMINI_API = f"http://127.0.0.1:{srv.server_address[1]}"
+waits = []; tts.time.sleep = waits.append
+minute, day = "GenerateRequestsPerMinutePerProjectPerModel", "GenerateRequestsPerDayPerProjectPerModel"
+answers[:] = [(429, body(minute, day)), (200, b"{}")]
+try:
+    tts.gemini_call("interactions", {}); raise SystemExit(f"a per-day 429 was retried (waits {waits})")
+except tts.GeminiError as e:
+    assert not waits and len(answers) == 1 and day in str(e) and "--resume" in str(e), (waits, str(e))
+answers[:] = [(429, body(minute)), (429, body(minute)), (200, b'{"ok": 1}')]
+assert tts.gemini_call("interactions", {}) == {"ok": 1} and waits == [31.0, 31.0], waits
+answers[:] = [(429, body(minute, delay="120s")), (200, b"{}")]; waits.clear()
+try:
+    tts.gemini_call("interactions", {}); raise SystemExit("a 429 asking for 120 s was retried")
+except tts.GeminiError:
+    assert not waits and len(answers) == 1, waits
+PY
+); then ok "tts: a Gemini 429 naming a per-day quota fails at once; a per-minute one is retried; past 90 s fails at once"
+  else bad "tts: Gemini 429 handling: $a"; fi
   # recipes: every recipe's frontmatter validates, list filters agree with the files, bad values are errors
   vh recipes check >/dev/null && ok "recipes check (frontmatter, README index, sketches)" || bad "bin/vh recipes check"
   a=$(vh recipes list --intent carry,enter --energy 5 --engine three --ids)
