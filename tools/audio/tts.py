@@ -107,15 +107,16 @@ Providers (API keys come from environment variables only, never from files):
               MINIMAX_BASE_URL=https://api.minimaxi.com.
               --voice: a system voice id (default zh "Chinese (Mandarin)_Reliable_Executive", en "English_expressive_narrator";
               the Chinese ones are "Chinese (Mandarin)_*", from POST /v1/get_voice {"voice_type": "system"}).
-              MINIMAX_TTS_MODEL (default speech-2.8-hd), MINIMAX_TTS_SPEED (0.5–2, default 1), MINIMAX_TTS_VOL (0–10,
+              MINIMAX_TTS_MODEL (default speech-2.8-hd), MINIMAX_TTS_SPEED (0.5–2, default 1), MINIMAX_TTS_VOL (0.01–10,
               default 1), MINIMAX_TTS_PITCH (−12–12, default 0). --instruct / [direction]: used only when it is one of
               MiniMax's emotions (happy sad angry fearful disgusted surprised calm fluent whisper).
               Word timing comes from the request's own subtitles (per character, ms), no ASR needed: --join block|all
               places the lines of a joined request by them, and --align gemini is off unless asked for.
-              Pause marks <#0.4#> (seconds) inside a line are voiced; captions and the other providers drop them. In a
-              joined request the lines are linked by a <#--gap#> mark, plus any mark written at a line's edge; a mark
-              at the edge of a request is dropped (MiniMax wants one between two spoken words). --join all sends the
-              whole script in one request (under 10,000 characters), so the voice cannot drift between blocks.
+              Pause marks <#0.4#> (seconds) inside a line are voiced; captions and the other providers drop them. A mark
+              at a line's edge adds to the pause between it and the line next to it (inside a joined request: the
+              <#--gap#> mark that links them; between requests: the silence); one before the first line or after the
+              last is dropped. --join all sends the whole script in one request (under 10,000 characters), so the
+              voice cannot drift between blocks; --gap is then part of the text, so --resume keeps it.
               "@pronounce 硖合/(xia2)(he2)" lines in script.txt (one entry each, or several without spaces) become
               pronunciation_dict.tone. text_normalization is on: "1953 年" is read 一千九百五十三年, so write years
               as 一九五三年 in the spoken text.
@@ -447,7 +448,7 @@ def p_minimax(text, voice, out: Path, tmp: Path, lang, instruct=None):
     voice = voice or ("Chinese (Mandarin)_Reliable_Executive" if lang.startswith("zh") else "English_expressive_narrator")
     audio, subs = minimax_tts(text, voice, lang, minimax_emotion(instruct))
     raw = tmp / "mm.wav"; raw.write_bytes(audio); to_wav(raw, out)
-    words = minimax_words(subs, strip_tags(text))
+    words = minimax_words(subs, strip_tags(text, reactions=False))   # prepare() already dropped backchannels
     if words is None:
         raise MinimaxError(f"minimax: the subtitle file does not match the text sent ({json.dumps(subs, ensure_ascii=False)[:300]})")
     return words
@@ -468,10 +469,14 @@ def _tag(m):
     glued = a > 0 and s[a - 1].isascii() and s[a - 1].isalnum() and b < len(s) and s[b].isascii() and s[b].isalnum()
     return m.group() if glued and m.group(1).lower() not in TAGS else " "
 
-def _pause(m):
-    """A dropped pause mark leaves a space where the text had one around it, or between two letters/digits."""
+def _spaced(m):
+    """A run of pause marks stands for a space where the text had one around it, or between two ASCII letters/digits."""
     s, a, b = m.string, m.start(), m.end()
-    return " " if m.group() != m.group().strip() or (a > 0 and b < len(s) and s[a - 1].isalnum() and s[b].isalnum()) else ""
+    word = lambda c: c.isascii() and c.isalnum()
+    return m.group() != m.group().strip() or (a > 0 and b < len(s) and word(s[a - 1]) and word(s[b]))
+
+def _pause(m):
+    return " " if _spaced(m) else ""
 
 def pause_secs(run):
     return sum(float(x) for x in re.findall(r"\d+(?:\.\d+)?", run))
@@ -491,7 +496,7 @@ def split_pauses(text):
     m = re.search(PAUSES.pattern + "$", text)
     if m:
         trail, text = pause_secs(m.group()), text[:m.start()]
-    return lead, PAUSES.sub(lambda r: pause_mark(pause_secs(r.group()), r.group() != r.group().strip()), text), trail
+    return lead, PAUSES.sub(lambda r: pause_mark(pause_secs(r.group()), _spaced(r)), text), trail
 
 def strip_tags(text: str, reactions=True, pauses=True) -> str:
     """Remove inline performance tags, MiniMax pause marks and (in a dialogue script) |reaction| markers: only gemini
@@ -521,13 +526,10 @@ def parse_script(path: Path):
         if head:
             speakers.update(p.split("=", 1) for p in head.group(1).split())
             continue
-        head = re.fullmatch(r"@pronounce\s+(.+)", line)                  # @pronounce 硖合/(xia2)(he2) — minimax only
-        if head:                                                         # several on a line when none has a space
-            items = head.group(1).split()
-            for x in (items if all("/" in x for x in items) else [head.group(1).strip()]):
-                if "/" not in x:
-                    sys.exit(f"{path.name}: @pronounce {x!r}: write text/reading, e.g. 硖合/(xia2)(he2)")
-                pronounce.append(x)
+        head = re.fullmatch(r"@pronounce\s+(.+/.+)", line)              # @pronounce 硖合/(xia2)(he2) — minimax only; without
+        if head:                                                         # a "/" it is a line with the id "pronounce", as before
+            items = head.group(1).split()                                # several on a line when none has a space
+            pronounce += items if all("/" in x for x in items) else [head.group(1).strip()]
             continue
         sid = style = spk = None
         if line.startswith("@") and " " in line:
@@ -972,10 +974,30 @@ def main():
         print("  --join recovers line boundaries from word timestamps → --align gemini is on")
     if (gemini or align) and not os.environ.get("GEMINI_API_KEY"):     # before anything is synthesized or deleted
         sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)" + ("" if gemini else ": --align gemini / --join transcribe with Gemini"))
+    if man and a.provider == "minimax" and join != "none" and man.get("gap") != a.gap:
+        sys.exit(f"--resume: --gap was {man.get('gap')} for the run, now {a.gap}; in a joined minimax request it is part of the"
+                 f" text: pass --gap {man.get('gap')}, or drop --resume to start over")
+    spoken = lambda s: (s["zh"] if a.lang == "zh" else s["en"]) or s["zh"] or s["en"]
+    def linked(texts):    # one minimax request: the lines linked by a pause mark of --gap s, plus any mark at their edges
+        text, carry = "", 0.0
+        for k, x in enumerate(texts):
+            lead, core, trail = split_pauses(x)
+            text += (pause_mark(carry + a.gap + lead, a.lang == "en") if k else "") + core; carry = trail
+        return text
+    blocks = []
+    for s in segs:
+        if blocks and join != "none" and (join == "all" or blocks[-1][-1]["_block"] == s["_block"]):
+            blocks[-1].append(s)
+        else:
+            blocks.append([s])
     if a.provider == "minimax":
         minimax_settings()                                           # a value out of range exits here, not mid-run
         if not minimax_key()[0]:
             sys.exit("set MINIMAX_TOKEN_PLAN_KEY (Token Plan) or MINIMAX_API_KEY (pay-as-you-go), from platform.minimax.io")
+        size, first = max(((len(linked([strip_tags(spoken(s), reactions, pauses=False) for s in blk])), blk[0]["id"]) for blk in blocks), default=(0, ""))
+        if size > MINIMAX_MAX_CHARS:                                 # before the last take is deleted
+            sys.exit(f"minimax: the request from @{first} would be {size} characters, over the limit of {MINIMAX_MAX_CHARS}: "
+                     + {"all": "use --join block (blank lines in script.txt split it)", "block": "split that block with a blank line"}.get(join, "split the line"))
     if not a.resume:
         shutil.rmtree(vo, ignore_errors=True); vo.mkdir(parents=True)
     grids = {}
@@ -994,21 +1016,22 @@ def main():
         have = ", ".join(k for k in ("beats", "downbeats") if bm.get(k)) or "neither beats nor downbeats"
         sys.exit(f"--beats {a.beats}: no '{a.snap}' grid in it (it has {have}); pass --snap downbeat, or a map written by bin/vh music or bin/vh beats")
     said = set()
-    def next_start(first, t, which=None):
+    def next_start(first, t, which=None, extra=0.0):
         """First point of the line's grid at or after its earliest start (--lead, else t + --min-gap). Past the end of
-        the grid (the narration outlives the music) the line follows --gap instead, and that is said once per grid."""
-        name = which if which in grids else a.snap; g = grids.get(name, grid); earliest = a.lead if first else t + a.min_gap
+        the grid (the narration outlives the music) the line follows --gap instead, and that is said once per grid.
+        extra: minimax pause marks at the edges of the two lines, added to the pause between them."""
+        name = which if which in grids else a.snap; g = grids.get(name, grid); earliest = a.lead if first else t + a.min_gap + extra
         x = next((x for x in g if x >= earliest - 1e-6), None)
         if x is None and a.beats and name not in said:
             said.add(name)
             print(f"  warning: the {name} grid " + (f"ends at {g[-1]:.2f} s" if g else f"is empty in {a.beats}") + f"; from here lines follow --gap {a.gap}", flush=True)
-        return x if x is not None else (a.lead if first else t + a.gap)
+        return x if x is not None else (a.lead if first else t + a.gap + extra)
     def silence(sec, k):
         f = vo / f"_gap{k:02d}.wav"
         run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"anullsrc=r={SR}:cl=mono", "-t", f"{max(sec, 0.001):.4f}", str(f)])
         return f
     def prepare(s, conv=False):  # → text for the provider; the segment keeps caption-clean sides
-        raw = (s["zh"] if a.lang == "zh" else s["en"]) or s["zh"] or s["en"]
+        raw = spoken(s)
         s["text"] = strip_tags(raw, reactions)                       # what captions show
         if conv and REACTION.search(raw):
             s["_alt"] = with_reactions(raw)                          # what the ASR hears in that turn
@@ -1021,12 +1044,6 @@ def main():
     err = lambda e: str(e) if isinstance(e, (GeminiError, MinimaxError)) else f"{type(e).__name__}: {e}"
     # every line is prepared first, so the run can be recorded (vo/<lang>/_run.json) before the first provider call:
     # --resume checks the script against it and continues from whatever files that run left
-    blocks = []
-    for s in segs:
-        if blocks and join != "none" and (join == "all" or blocks[-1][-1]["_block"] == s["_block"]):
-            blocks[-1].append(s)
-        else:
-            blocks.append([s])
     convs = [conversational and any(s.get("speaker") for s in blk) for blk in blocks]   # a block without labels stays narration
     for bi, (blk, conv) in enumerate(zip(blocks, convs)):
         if conv and not all(s.get("speaker") for s in blk):
@@ -1047,7 +1064,8 @@ def main():
     else:
         (vo / "_run.json").write_text(json.dumps({"provider": a.provider, "voice": a.voice, "speakers": speakers, "lang": a.lang, "join": join,
                                                   "keep_edges": a.keep_edges, "instruct": a.instruct, "style_env": os.environ.get("GEMINI_TTS_STYLE"),
-                                                  **({"env": penv, "pronounce": PRONOUNCE} if a.provider == "minimax" else {}),
+                                                  **({"env": penv, "pronounce": PRONOUNCE, **({"gap": a.gap} if join != "none" else {})}
+                                                     if a.provider == "minimax" else {}),
                                                   "lines": lines}, ensure_ascii=False, indent=1), encoding="utf-8")
     t, parts, asr_s, asr_n, trimmed = 0.0, [], 0.0, 0, 0.0
     joined = audio / f"voiceover.{a.lang}.wav"
@@ -1089,12 +1107,9 @@ def main():
             return txt
         def shifted(words, h):  # word times after trim_edges cut h s from the head
             return [dict(w, start=max(0.0, w["start"] - h), end=max(0.0, w["end"] - h)) for w in words] if words and h else words
-        def linked(blk):        # one minimax request for a block: the lines linked by a pause mark of --gap s, plus any
-            text, carry = "", 0.0   # mark written at their edges
-            for k, s in enumerate(blk):
-                lead, core, trail = split_pauses(s["_ptext"])
-                text += (pause_mark(carry + a.gap + lead, a.lang == "en") if k else "") + core; carry = trail
-            return text
+        def edge(s):            # seconds of minimax pause marks before and after a line (other providers drop them)
+            lead, _, trail = split_pauses(s["_ptext"]) if a.provider == "minimax" else (0.0, "", 0.0)
+            return lead, trail
         if join == "none":
             for i, s in enumerate(segs):
                 out = vo / f"{i+1:02d}.wav"; words = None; wfile = out.with_suffix(".words.json")
@@ -1113,7 +1128,7 @@ def main():
                 elif timed:
                     words = json.loads(wfile.read_text(encoding="utf-8"))
                 d = duration(out); s["_cutlen"] = d
-                start = next_start(i == 0, t, s.get("snap"))
+                start = next_start(i == 0, t, s.get("snap"), edge(segs[i - 1])[1] + edge(s)[0] if i else 0.0)
                 if start > t:
                     parts.append(silence(start - t, i))
                 t = start
@@ -1152,7 +1167,7 @@ def main():
                             turns = [{"text": s["_ptext"], "style": style_of(s) or env_style, "speaker": s.get("speaker") if conv else None} for s in blk]
                             gemini_tts(turns, bout, tmp, gemini_model(a.provider), dict(speakers) if conv else a.voice)
                         elif timed:
-                            pw = PROVIDERS[a.provider](linked(blk), a.voice, bout, tmp, a.lang, a.instruct)
+                            pw = PROVIDERS[a.provider](linked([s["_ptext"] for s in blk]), a.voice, bout, tmp, a.lang, a.instruct)
                         else:
                             PROVIDERS[a.provider](("" if a.lang == "zh" else " ").join(s["_ptext"] for s in blk), a.voice, bout, tmp, a.lang, a.instruct)
                         if not a.keep_edges:                           # only the block's own edges: pauses inside stay
@@ -1173,7 +1188,7 @@ def main():
                     except Exception as e:                             # without the provider's timing the block stays whole and
                         fail = err(e)                                  # its lines share its span; flagged either way
                     asr_s += time.time() - t0
-                start = next_start(bi == 0, t, blk[0].get("snap"))
+                start = next_start(bi == 0, t, blk[0].get("snap"), edge(blocks[bi - 1][-1])[1] + edge(blk[0])[0] if bi else 0.0)
                 if start > t:
                     parts.append(silence(start - t, bi))
                 t = start
