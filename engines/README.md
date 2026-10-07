@@ -152,7 +152,7 @@ window.__vh = {
 - **等宽字体的坑**：`ui-monospace, monospace` 能通过字体 lint，快照里看起来也是等宽，但 `hyperframes render` 渲染出来却是比例字体（showcase 00 在第一版全片都中了招）。要用 `@font-face` 显式声明，例如 `@font-face{font-family:"LF Mono";src:local("SF Mono"),local("Menlo")}`。**判断字体要看 mp4 渲染出的帧，不要看快照。**`check --snapshots` 只保存对比度检查用的 PNG，不能替代 `snapshot --at`。
 - `snapshot` 在 tween 刚开始的那一刻，可能和最终渲染出的帧不一致。关键帧以渲染出的 mp4 为准，逐帧 strip 的做法见 `playbook/02-verification.md`。
 - 完整样板：`showcase/02-short-leo-doppler/`（竖屏科普，单个 `index.html`）。
-- **HyperFrames 加 Three.js（3D 世界、一镜到底）的坑**，来自介绍片的制作：
+- **HyperFrames 加 Three.js（3D 世界、一镜到底）的坑**，多数来自介绍片的制作：
   - 每一帧都用 `renderAt(t)` 从 t 算出摄像机和所有物体的状态。摄像机路线用按 t 参数化的样条，不用 Three.js 的动画时钟。关卡处可以用 stop 关键帧停站，但要叠一层低幅的手持漂移，镜头不要完全停死（原因见 `playbook/08-vfx-and-motion-sources.md` 的"一镜到底"一节）。
   - `VideoTexture` 必须**每帧**设置 `texture.needsUpdate = true`，否则渲染出的屏幕是全黑的。视频按 t 去 seek，而且要等 seek 完成。
   - `__hf.buildReady` 要在普通 `<script>`（不是 module）里**同步注册**，否则每个并行 worker 的开头都会出现空帧。
@@ -161,7 +161,7 @@ window.__vh = {
   - **把 3D 点投影到屏幕前先 `camera.updateMatrixWorld()`**：同一帧里刚 `lookAt` 过，矩阵还没更新，钉在 3D 点上的标注会错位。
   - **`EdgesGeometry(geo, 阈值角)` 只画相邻面夹角大于阈值的边**：20 段的圆柱相邻面差 18°，阈值设 20° 就一条侧边线都画不出来。线框画法的圆柱少分几段（12 段是 30°），或者把阈值调低。
   - **物体的位置在建的时候就设好**：只在每帧的动画函数里设 `position` 的话，不参与动画的零件永远停在原点（盒子以中心为原点，会半截埋进地面）。
-  - **玻璃器皿上一道从上到下的亮条**：用 `RoomEnvironment` 做环境贴图时，它的反射会在每个玻璃件上留下一道亮竖条，一排烧瓶就是一排亮条；`LatheGeometry` 转满一圈的接缝默认也正对 +z 方向的镜头，一起转到背面（`phiStart` 设 `Math.PI`）。玻璃所在的场景不设 `scene.environment`，玻璃感改由一层菲涅尔边光壳来给：同一个几何体放大约 1.004 倍，`ShaderMaterial` 加法混合、不写深度，亮度取 `pow(1 − |N·V|, 2.6)`，只有边缘微微发亮。
+  - **玻璃器皿上一道从上到下的亮条**：用 `RoomEnvironment` 做环境贴图时，它的反射会在每个玻璃件上留下一道亮竖条，一排玻璃件就是一排亮条；`LatheGeometry` 转满一圈的接缝默认也正对 +z 方向的镜头，一起转到背面（`phiStart` 设 `Math.PI`）。玻璃所在的场景不设 `scene.environment`（同一场景里别的材质也跟着没了环境反射，用灯光补），玻璃感改由一层菲涅尔边光壳来给：同一个几何体放大约 1.004 倍，`ShaderMaterial` 加法混合、不写深度，亮度取 `pow(1 − |N·V|, 2.6)`，只有边缘微微发亮。
   - **渲染时不要依赖在线 CDN。** importmap 指向 CDN 时，只要页面加载那一刻断网，渲染就会静默挂住：日志 0 字节，也不报错。介绍片的第一次 final 渲染就卡在这里。把 three.js 装进项目，importmap 指向 `node_modules`，snapshot 和 render 都能读到这些文件：
 
     ```bash
