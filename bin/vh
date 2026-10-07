@@ -33,6 +33,9 @@
 #                               --align gemini: word timestamps + ASR-vs-script check per line; --join: several lines per request;
 #                               --resume: continue the last run after a failed synthesis or transcription, same script and command)
 #                               providers: qwen (default, local open-source Qwen3-TTS) | say | edge | dashscope | elevenlabs | gemini | gemini-lite | minimax
+#   pace <project> [zh|en] [--ref <id>[-<id>] | --target N] [--strength 0.8] [--clamp 0.92,1.18] [--tolerance 0.05] [--pause 0.26] [--extra id=s,…] [--align map|gemini|whisper] [--dry-run] [--restore]
+#                               optional: bring the pace of the lines in one take closer (part of the way, natural variation kept), no new synthesis;
+#                               --dry-run only measures. The original stays as voiceover.<lang>.raw.wav; captions are redone
 #   voices list [lang] | design "<description>" [--out f.wav] | delete <voice_id>   Gemini voice library / voice design
 #   captions <project> [zh|en] [zh-max] [--media-end S]  SRT (zh / en / bilingual) + captions.json from the TTS timeline; a caption under 1.8 s is
 #                               lengthened into the gap after it, up to the picture's end (--media-end, else index.html's data-duration, media/final.mp4, the timeline)
@@ -680,6 +683,11 @@ cmd_tts() {
   uv run -q --no-project $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${lang:+--lang "$lang"} ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"} "$@"
 }
 cmd_voices() { [ $# -gt 0 ] || set -- list; python3 "$ROOT/tools/audio/tts.py" voices "$@"; }
+cmd_pace() { # numpy for the waveform; mlx-whisper only with --align whisper (Apple Silicon)
+  local a prev="" deps="--with numpy"
+  for a in "$@"; do case "$prev:$a" in --align:whisper|*:--align=whisper) deps="$deps --with mlx-whisper" ;; esac; prev=$a; done
+  uv run -q --no-project $deps python "$ROOT/tools/audio/pace.py" "$@"
+}
 cmd_captions() { # --media-end S: where a caption too short for the 1.8 s floor may be lengthened to (default: the picture's length)
   local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--media-end S]"
   local proj=${1:?$u}; shift
@@ -767,12 +775,13 @@ cmd_usage() { # one command's lines from the header above, with their continuati
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
   case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
+    pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 
 case "${1:-help}" in
   doctor) cmd_doctor ;; setup) cmd_setup ;; types) cmd_types ;;
-  tts) shift; cmd_tts "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
+  tts) shift; cmd_tts "$@" ;; pace) shift; cmd_pace "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
   review) shift; cmd_review "$@" ;;
