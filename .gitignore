@@ -34,3 +34,5 @@ showcase/*/media/final.mp4
 showcase/04-intro-film/v3/final.mp4
 styles/gallery.mp4
 *.part
+# docs/talk: a presenter's own films for the demo page stay local
+docs/talk/media/
