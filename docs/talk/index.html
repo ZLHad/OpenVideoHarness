@@ -540,7 +540,16 @@ a.plat:hover { border-color: var(--cyan); transform: translateY(-2px); }
 .efforts div { border-radius: 12px; padding: 9px 12px; font-size: 14px; }
 .efforts b { font-family: var(--mono); font-weight: 500; display: block; color: var(--cyan); }
 .efforts span { color: var(--muted); }
+.flowcard { border-radius: 18px; padding: 18px; display: grid; gap: 12px; background: var(--glass); border: 1px solid var(--line); box-shadow: var(--glass-hi), 0 30px 60px -36px rgba(0,0,0,.8); -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); }
+.flowcard h4 { font-family: var(--mono); font-size: 12.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); }
+.flowcard .efforts { margin-top: 0; }
+.gates { list-style: none; display: grid; gap: 6px; }
+.gates li { display: grid; gap: 2px; padding: 9px 12px; border-radius: 10px; background: linear-gradient(135deg, rgba(255,122,217,.16), rgba(157,140,255,.12)); border: 1px solid rgba(255,122,217,.3); }
+.gates li.last { background: rgba(255,255,255,.04); border-color: var(--line); }
+.gates b { font-size: 15px; font-weight: 600; }
+.gates span { font-size: 14px; color: var(--text-2); }
 .contact { display: grid; gap: 10px; }
+.contact-wide { max-width: 760px; width: 100%; margin: 0 auto; }
 .qrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .qrs.one { grid-template-columns: minmax(0, 1fr); max-width: 300px; margin: 0 auto; width: 100%; }
 .qr { position: relative; border-radius: 18px; padding: 16px; display: grid; gap: 10px; justify-items: center; text-align: center; overflow: hidden; }
@@ -651,7 +660,8 @@ body.notes-on .notes { display: block; }
   .next { margin-top: 10px; }
   .qr { padding: 12px; gap: 8px; }
   .qr .plate { max-width: 170px; padding: 8px; }
-  .start-note { display: none; }
+  .gates li { padding: 6px 10px; }
+  .flowcard { padding: 14px; gap: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; }
@@ -666,6 +676,7 @@ body.notes-on .notes { display: block; }
 <header class="topbar">
   <a class="brand" href="#top">OpenVideo<span>Harness</span></a>
   <nav class="nav" aria-label="Sections">
+    <a href="#start">Get started</a>
     <a href="#why">Why</a>
     <a href="#features">Features</a>
     <a href="#architecture">Architecture</a>
@@ -674,7 +685,7 @@ body.notes-on .notes { display: block; }
     <a href="#styles">Styles</a>
     <a href="#claude">Built by Claude</a>
     <a href="#wild">In the wild</a>
-    <a href="#start">Get started</a>
+    <a href="#contact">Contact</a>
   </nav>
   <a class="gh" href="https://github.com/ZLHad/OpenVideoHarness" target="_blank" rel="noopener">
     <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -704,11 +715,45 @@ body.notes-on .notes { display: block; }
   <div class="scroll-cue" aria-hidden="true"><i></i>next</div>
 </section>
 
-<!-- 2 · why -->
+<!-- 2 · get started -->
+<section class="slide" id="start" data-label="Get started">
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow" data-r><b>01</b> Get started</p><h2 class="split">One line to install. <em>One sentence to ask.</em></h2></div>
+    </div>
+    <div class="start-grid">
+      <div>
+        <ol class="steps">
+          <li data-r><div><h3>Install (macOS or Linux)</h3><div class="cmd"><span class="p">$ </span><span class="type" data-text="curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash">curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash</span><button class="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash">Copy</button></div></div></li>
+          <li data-r><div><h3>Open Claude Code in it</h3><div class="cmd"><span class="p">$ </span><span class="type" data-text="cd ~/OpenVideoHarness && claude">cd ~/OpenVideoHarness &amp;&amp; claude</span><button class="copy" data-copy="cd ~/OpenVideoHarness && claude">Copy</button></div></div></li>
+          <li data-r><div><h3>Ask for a film</h3><div class="cmd say"><span class="type" data-text="“Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.”">“Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.”</span></div></div></li>
+        </ol>
+        <p class="fine start-note" style="margin-top:10px" data-r>Needs macOS or Linux, Node.js 22+, Chrome, FFmpeg, Python 3 with uv, and Claude Code or Codex.</p>
+      </div>
+      <div class="flowcard" data-r>
+        <h4>What happens next</h4>
+        <ol class="gates">
+          <li><b>① Directions and outline</b><span>Two or three ideas, each with one frame. You pick one.</span></li>
+          <li><b>② Storyboard</b><span>A keyframe for every shot.</span></li>
+          <li><b>③ First draft</b><span>With the two or three things it likes least about it.</span></li>
+          <li class="last"><b>Final render</b><span>Only after you say yes.</span></li>
+        </ol>
+        <div class="efforts">
+          <div><b>quick</b><span>no stops · 10–30 min</span></div>
+          <div><b>standard</b><span>three stops · 1–2 h</span></div>
+          <div><b>studio</b><span>polished over rounds · 3 h+</span></div>
+        </div>
+        <p class="fine">Times are for a 30-second film. Say "quick" and it runs straight through.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 · why -->
 <section class="slide" id="why" data-label="Why">
   <div class="wrap why-grid">
     <div class="why-copy">
-      <p class="eyebrow" data-r><b>01</b> Why we built it</p>
+      <p class="eyebrow" data-r><b>02</b> Why we built it</p>
       <h2 class="split">It started with <em>Opus 5.5</em>.</h2>
       <p data-r>Claude Opus 5.5 writes video as code, and it has <strong>taste</strong>: in motion, in type, in pacing. The community has shared hundreds of these films; one collection alone holds 389, with their prompts.</p>
       <p data-r>Great engines already exist, like <strong>HyperFrames</strong> and <strong>Remotion</strong>. But an engine only turns code into frames. It doesn't give you the idea, the storyboard, the script or the style, and it can't tell you whether the film is any good.</p>
@@ -730,11 +775,11 @@ body.notes-on .notes { display: block; }
   </div>
 </section>
 
-<!-- 3 · features -->
+<!-- 4 · features -->
 <section class="slide" id="features" data-label="Features">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>02</b> What it adds</p><h2 class="split">An engine renders. <em>This decides.</em></h2></div>
+      <div><p class="eyebrow" data-r><b>03</b> What it adds</p><h2 class="split">An engine renders. <em>This decides.</em></h2></div>
     </div>
     <div class="features" id="cards">
       <article class="card" data-r><div class="ill ill-idea" aria-hidden="true"><i></i><i></i><i></i></div><span class="n">01</span><h3>Idea first</h3><p>Two or three concept cards, each with one frame and a hook, before a line of code. It names what every other video on the topic looks like, and steers away.</p><span class="where">playbook/12-ideation.md</span></article>
@@ -766,11 +811,11 @@ body.notes-on .notes { display: block; }
   </div>
 </section>
 
-<!-- 4 · architecture -->
+<!-- 5 · architecture -->
 <section class="slide" id="architecture" data-label="Architecture">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>03</b> Architecture</p><h2 class="split">A router, a library of know-how, <em>one CLI.</em></h2></div>
+      <div><p class="eyebrow" data-r><b>04</b> Architecture</p><h2 class="split">A router, a library of know-how, <em>one CLI.</em></h2></div>
     </div>
     <div class="arch">
       <div class="arch-top">
@@ -818,11 +863,11 @@ body.notes-on .notes { display: block; }
   </div>
 </section>
 
-<!-- 5 · the intro film -->
+<!-- 6 · the intro film -->
 <section class="slide dark" id="film" data-label="Intro film">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>04</b> The intro film · 103 s · with sound</p><h2 class="split">Made by Claude, <em>with the harness itself.</em></h2></div>
+      <div><p class="eyebrow" data-r><b>05</b> The intro film · 103 s · with sound</p><h2 class="split">Made by Claude, <em>with the harness itself.</em></h2></div>
     </div>
     <div class="screen-wrap" data-r>
       <canvas class="ambient" id="ambient" width="64" height="36" aria-hidden="true"></canvas>
@@ -849,11 +894,11 @@ body.notes-on .notes { display: block; }
   </div>
 </section>
 
-<!-- 6 · works -->
+<!-- 7 · works -->
 <section class="slide" id="works" data-label="Works">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>05</b> Films it made · hover to preview, click for sound</p><h2 class="split">Each from <em>one sentence.</em></h2></div>
+      <div><p class="eyebrow" data-r><b>06</b> Films it made · hover to preview, click for sound</p><h2 class="split">Each from <em>one sentence.</em></h2></div>
       <div style="display:grid; gap:8px; justify-items:end" data-r>
         <button class="toggle" id="sees" aria-pressed="false"><i></i>What Claude sees</button>
         <p class="sees-note" id="seesNote" hidden>Claude can't watch video. It reviews contact sheets: frames tiled with their timecodes.</p>
@@ -910,22 +955,22 @@ body.notes-on .notes { display: block; }
   </div>
 </section>
 
-<!-- 7 · styles -->
+<!-- 8 · styles -->
 <section class="slide" id="styles" data-label="Styles">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>06</b> Style library · click one to hear it</p><h2 class="split">31 styles. <em>Not one default look.</em></h2></div>
+      <div><p class="eyebrow" data-r><b>07</b> Style library · click one to hear it</p><h2 class="split">31 styles. <em>Not one default look.</em></h2></div>
       <p class="lede" style="max-width:26em" data-r>Left alone, AI video drifts to one look: dark background, glow, glass cards. Each style here is a real 5-second render of the same content.</p>
     </div>
     <div class="wall-stage"><div class="wall" id="wall"></div></div>
   </div>
 </section>
 
-<!-- 8 · built by claude -->
+<!-- 9 · built by claude -->
 <section class="slide" id="claude" data-label="Built by Claude">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>07</b> Who wrote it</p><h2 class="split">Written by <em>Claude.</em></h2></div>
+      <div><p class="eyebrow" data-r><b>08</b> Who wrote it</p><h2 class="split">Written by <em>Claude.</em></h2></div>
     </div>
     <div class="claude-grid">
       <div>
@@ -964,11 +1009,11 @@ body.notes-on .notes { display: block; }
   </div>
 </section>
 
-<!-- 9 · in the wild -->
+<!-- 10 · in the wild -->
 <section class="slide" id="wild" data-label="In the wild">
   <div class="wrap wild">
     <div>
-      <p class="eyebrow" data-r><b>08</b> In the wild</p>
+      <p class="eyebrow" data-r><b>09</b> In the wild</p>
       <h2 class="split">I make films <em>with it, too.</em></h2>
       <p class="lede" style="margin-top:16px" data-r>I post films made with OpenVideoHarness on Douyin (TikTok in China) and Bilibili.</p>
       <div class="plats" data-r>
@@ -989,30 +1034,14 @@ body.notes-on .notes { display: block; }
   </div>
 </section>
 
-<!-- 10 · get started -->
-<section class="slide" id="start" data-label="Get started">
+<!-- 11 · contact -->
+<section class="slide" id="contact" data-label="Contact">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>09</b> Get started</p><h2 class="split">One line to install. <em>One sentence to ask.</em></h2></div>
+      <div><p class="eyebrow" data-r><b>10</b> Contact</p><h2 class="split">Questions or ideas? <em>Get in touch.</em></h2></div>
+      <p class="lede" style="max-width:24em" data-r>Star the repo, add me on WeChat, or send me a film you made with it.</p>
     </div>
-    <div class="start-grid">
-      <div>
-        <ol class="steps">
-          <li data-r><div><h3>Install (macOS or Linux)</h3><div class="cmd"><span class="p">$ </span><span class="type" data-text="curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash">curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash</span><button class="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash">Copy</button></div></div></li>
-          <li data-r><div><h3>Open Claude Code in it</h3><div class="cmd"><span class="p">$ </span><span class="type" data-text="cd ~/OpenVideoHarness && claude">cd ~/OpenVideoHarness &amp;&amp; claude</span><button class="copy" data-copy="cd ~/OpenVideoHarness && claude">Copy</button></div></div></li>
-          <li data-r><div><h3>Ask for a film</h3><div class="cmd say"><span class="type" data-text="“Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.”">“Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.”</span></div></div></li>
-        </ol>
-        <div class="next" aria-label="What happens next" data-r>
-          <span class="g">① directions + outline</span><i>→</i><span class="g">② storyboard</span><i>→</i><span class="g">③ first draft</span><i>→</i><span>final render</span>
-        </div>
-        <div class="efforts" data-r>
-          <div><b>quick</b><span>no stops · 10–30 min</span></div>
-          <div><b>standard</b><span>three stops · 1–2 h</span></div>
-          <div><b>studio</b><span>polished over rounds · 3 h+</span></div>
-        </div>
-        <p class="fine start-note" style="margin-top:6px" data-r>Times are for a 30-second film. Needs Node.js 22+, Chrome, FFmpeg, Python 3 with uv, and Claude Code or Codex.</p>
-      </div>
-      <div class="contact">
+      <div class="contact contact-wide">
         <div class="qrs" id="qrs">
           <div class="qr" data-r>
             <h4>Star it on GitHub</h4>
@@ -1030,7 +1059,7 @@ body.notes-on .notes { display: block; }
         <a class="mail liuli" href="mailto:zhangczssx@gmail.com" data-r>zhangczssx@gmail.com <span>questions, ideas, films</span></a>
         <p class="wx-missing" id="wxMissing">WeChat QR not found: save it as docs/talk/img/wechat.jpg</p>
       </div>
-    </div>
+
     <footer class="end" data-r>
       <span class="motto">Not more tools. <em class="iri">Know-how.</em></span>
       <span class="fine">This page was written by Claude, too. An independent project, not affiliated with Anthropic.</span>
@@ -1041,7 +1070,7 @@ body.notes-on .notes { display: block; }
 </main>
 
 <nav class="rail" id="rail" aria-label="Jump to section"></nav>
-<div class="hud" id="hud"><span id="hudSec">1 / 10</span><span id="hudTime">0:00 / 5:00</span></div>
+<div class="hud" id="hud"><span id="hudSec">1 / 11</span><span id="hudTime">0:00 / 5:00</span></div>
 <aside class="notes" id="notes" aria-label="Speaker notes"></aside>
 <div class="hint" id="hint">→ next · N notes · T timer · ? keys</div>
 <div class="help" id="help" role="dialog" aria-label="Keys">
@@ -1051,7 +1080,8 @@ body.notes-on .notes { display: block; }
       <dt><kbd>→</kbd> <kbd>PgDn</kbd></dt><dd>next section (a clicker works)</dd>
       <dt><kbd>←</kbd> <kbd>PgUp</kbd></dt><dd>previous section</dd>
       <dt><kbd>Space</kbd></dt><dd>play or pause the film; elsewhere, next</dd>
-      <dt><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd></dt><dd>jump to a section</dd>
+      <dt><kbd>1</kbd>–<kbd>9</kbd> <kbd>0</kbd></dt><dd>jump to section 1–10</dd>
+      <dt><kbd>Home</kbd> <kbd>End</kbd></dt><dd>first / last section</dd>
       <dt><kbd>N</kbd></dt><dd>speaker notes and the film's source</dd>
       <dt><kbd>T</kbd> / <kbd>R</kbd></dt><dd>start or pause the timer / reset it</dd>
       <dt><kbd>F</kbd></dt><dd>full screen</dd>
@@ -1108,15 +1138,16 @@ const PER_DAY = [['Sep 29', 1, 0], ['Sep 30', 26, 3], ['Oct 1', 16, 0], ['Oct 2'
 // What to say on each section (the same script as README.md), and when to be done with it.
 const NOTES = {
   top: { by: '0:15', say: ['Hi everyone. This is OpenVideoHarness: a video workbench for Claude Code.', 'Our motto: not more tools. Know-how.'], cue: '→ next' },
-  why: { by: '0:50', say: ['It started with Opus 5.5. Its video code has real taste: motion, type, pacing.', 'We already have great engines, like HyperFrames and Remotion. But an engine just renders frames. It doesn\'t give you the idea, the storyboard, the script, or the style.', 'So I talked it through with Claude, and we built that missing layer: the whole workflow, from idea to final cut.'], cue: '→ next' },
-  features: { by: '1:15', say: ['What does it add? It starts with ideas, not code. It has nine workflows, one for each kind of video. You sign off three times: direction, storyboard, draft.', 'And since Claude can\'t watch video, it checks its own frames and audio, and a second Claude scores the draft.'], cue: 'optional: drag the f(t) slider while you talk · → next' },
-  architecture: { by: '1:35', say: ['The architecture is simple. Claude Code reads CLAUDE.md, our router. It picks a video type, pulls in the playbook, styles and templates, and drives the engines through one CLI.', 'And every project writes its lessons back into the docs.'], cue: '→ next' },
-  film: { by: '3:25', say: ['Here\'s our intro film. Claude made it with the harness itself.'], cue: 'Space to play (1:43). The page dims while it plays. → when it ends.' },
-  works: { by: '3:45', say: ['A few more films, each from one sentence: a science short, a 3Blue1Brown-style explainer, and Clawd, hand-drawn.', 'And this is what Claude sees when it reviews them: not video. Contact sheets.'], cue: 'click "What Claude sees" on the second sentence · → next' },
-  styles: { by: '3:55', say: ['Plus thirty-one styles to borrow from, so not every film looks the same.'], cue: 'short on time? skip this line · → next' },
-  claude: { by: '4:15', say: ['And the code? In nine days the repo got seventy-three pull requests. Seventy came from Claude.', 'I bring the taste and the decisions. Claude writes the rest.'], cue: '→ next' },
-  wild: { by: '4:35', say: ['I use it myself, too. I post films made with it on Douyin and Bilibili.', 'When this year\'s Nobel Prize in Physics was announced, I had an explainer out about three hours later.'], cue: '→ next' },
-  start: { by: '4:50', say: ['It\'s open source. One line to install, then just ask Claude Code for a video.', 'Thank you!'], cue: 'leave the QR code up for questions' },
+  start: { by: '0:30', say: ['First, how you use it: one line to install, then open Claude Code and ask for a video in one sentence.', 'It stops three times for your sign-off: the direction, the storyboard, the first draft.'], cue: '→ next' },
+  why: { by: '1:05', say: ['It started with Opus 5.5. Its video code has real taste: motion, type, pacing.', 'We already have great engines, like HyperFrames and Remotion. But an engine just renders frames. It doesn\'t give you the idea, the storyboard, the script, or the style.', 'So I talked it through with Claude, and we built that missing layer: the whole workflow, from idea to final cut.'], cue: '→ next' },
+  features: { by: '1:30', say: ['What does it add? It starts with ideas, not code. It has nine workflows, one for each kind of video.', 'And since Claude can\'t watch video, it checks its own frames and audio, and a second Claude scores the draft.'], cue: 'optional: drag the f(t) slider while you talk · → next' },
+  architecture: { by: '1:50', say: ['The architecture is simple. Claude Code reads CLAUDE.md, our router. It picks a video type, pulls in the playbook, styles and templates, and drives the engines through one CLI.', 'And every project writes its lessons back into the docs.'], cue: '→ next' },
+  film: { by: '3:40', say: ['Here\'s our intro film. Claude made it with the harness itself.'], cue: 'Space to play (1:43). The page dims while it plays. → when it ends.' },
+  works: { by: '4:00', say: ['A few more films, each from one sentence: a science short, a 3Blue1Brown-style explainer, and Clawd, hand-drawn.', 'And this is what Claude sees when it reviews them: not video. Contact sheets.'], cue: 'click "What Claude sees" on the second sentence · → next' },
+  styles: { by: '4:08', say: ['Plus thirty-one styles to borrow from, so not every film looks the same.'], cue: 'short on time? skip this line · → next' },
+  claude: { by: '4:25', say: ['And the code? In nine days the repo got seventy-three pull requests. Seventy came from Claude.', 'I bring the taste and the decisions. Claude writes the rest.'], cue: '→ next' },
+  wild: { by: '4:42', say: ['I use it myself, too. I post films made with it on Douyin and Bilibili.', 'When this year\'s Nobel Prize in Physics was announced, I had an explainer out about three hours later.'], cue: '→ next' },
+  contact: { by: '4:55', say: ['It\'s open source. Scan the code to star it, or add me on WeChat.', 'Thank you!'], cue: 'leave the QR codes up for questions' },
 };
 
 /* ---------- split headings into words that rise in ---------- */
