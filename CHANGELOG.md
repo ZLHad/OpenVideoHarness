@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**docs/talk: Get started comes first, Contact last**
+- Why: the maintainer is using the page as the project's homepage (the repo's About link) and asked for a homepage order: how to start right after the title, contact details at the end.
+- `docs/talk/index.html`: "Get started" is section 01, right after the title (the commands, and what happens next with the three sign-offs and the effort levels); a new last section, "Contact", holds the GitHub and WeChat QR codes, the email and the footer. The other sections move down one number. The speaker notes, the nav, the key list (`Home` / `End`) and `docs/talk/README.md`'s script follow the new order; the talk still runs about 4.5 minutes.
+
 **docs/talk: a one-page site and script for a five-minute demo**
 - Why: the maintainer is presenting the project at a small Claude meetup and asked for a page that carries the intro film, the project's story and its films, in English, saying that Claude wrote it, plus the words to say.
 - `docs/talk/index.html`: ten full-screen sections (why, what it adds, architecture, the intro film, the films, the style library, who wrote it, how the author uses it, getting started) that move with a clicker or the arrow keys, with speaker notes (`N`), a five-minute timer (`T`) and a key list (`?`). The films play from `tools/fetch_media.sh`'s local copies when they are there and stream from the `media` release otherwise. A live f(t) panel draws a Fourier square wave as a pure function of time and checks it: the same frame drawn again after another one, compared pixel by pixel. The PR numbers (73 in nine days, 70 from `claude/` branches) come from the repo's pull request list on 2026-10-09.
