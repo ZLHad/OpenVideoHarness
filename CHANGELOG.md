@@ -5,6 +5,7 @@
 **docs/talk: a one-page site and script for a five-minute demo**
 - Why: the maintainer is presenting the project at a small Claude meetup and asked for a page that carries the intro film, the project's story and its films, in English, saying that Claude wrote it, plus the words to say.
 - `docs/talk/index.html`: ten full-screen sections (why, what it adds, architecture, the intro film, the films, the style library, who wrote it, how the author uses it, getting started) that move with a clicker or the arrow keys, with speaker notes (`N`), a five-minute timer (`T`) and a key list (`?`). The films play from `tools/fetch_media.sh`'s local copies when they are there and stream from the `media` release otherwise. A live f(t) panel draws a Fourier square wave as a pure function of time and checks it: the same frame drawn again after another one, compared pixel by pixel. The PR numbers (73 in nine days, 70 from `claude/` branches) come from the repo's pull request list on 2026-10-09.
+- `.nojekyll` at the repo root, so GitHub Pages (once enabled on `main`) serves the page and its files as they are, at `zlhad.github.io/OpenVideoHarness/docs/talk/`.
 - `docs/talk/README.md`: the setup, the keys, the English script (about 300 words, 4.5 minutes with the film) and where every number comes from. A WeChat QR (`img/wechat.jpg`) and a local film (`media/nobel.mp4`, ignored by git) show up only when their files are there.
 
 **`bin/vh pace`: fixes from the review of #72**

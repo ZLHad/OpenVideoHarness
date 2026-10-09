@@ -2,6 +2,13 @@
 
 `index.html` is a one-page site for presenting the project in about five minutes: why it exists, what it adds, the architecture, the intro film, the films it made, the style library, who wrote it, how the author uses it, and how to start. Claude wrote the page and the script below.
 
+## Viewing it
+
+GitHub's file view shows the HTML source, not the page. To see the page:
+
+- **On GitHub Pages** (a public link that stays): after this is on `main`, open Settings → Pages, set Source to "Deploy from a branch", pick `main` and `/ (root)`, and save. A minute later the page is at <https://zlhad.github.io/OpenVideoHarness/docs/talk/>. The empty `.nojekyll` at the repo root makes Pages serve the files as they are, without a Jekyll build. Online, the films stream from the `media` release.
+- **On your own machine** (best for the talk itself): from a clone, `git checkout` this branch (or `main` once merged), fetch the films as below, and open `docs/talk/index.html` in Chrome.
+
 ## Before the talk
 
 1. Open the page from a clone of the repo: it reads the style samples and contact sheets from `../../styles` and `../../showcase`. Chrome works best; `F` goes full screen.
