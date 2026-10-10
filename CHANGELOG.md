@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**docs/site: the homepage is about the project, not about who wrote it**
+- Why: the maintainer asked to drop the lines saying Claude wrote the repo ("和 Claude 一起做的", "这个仓库，是 Claude 写的。"), so the homepage only introduces the project.
+- `docs/site/index.html`: the "Built with Claude" section is gone, with its pull request counts, per-day chart, branch ticker and hard-rules card. "In practice", FAQ and Contact move up to 08–10. Also removed: the hero's "Written by Claude" badge (the MIT chip takes its place), the footer's "This page was written by Claude, too", and the FAQ line counting Claude's pull requests. The intro film's heading now reads "Its own intro film, made with the harness." / "这支介绍片，也是用它做的。"
+- `docs/site/README.md` follows.
+
 **docs/site: the project homepage, in English and Chinese**
 - Why: the maintainer asked to drop the demo framing and make the page the project's homepage, written as a product introduction, keeping its look, with a switch between English and Chinese.
 - The page moved from `docs/talk/` to `docs/site/`. `docs/talk/index.html` now redirects there, so the old link keeps working, and a new `index.html` at the repo root redirects too, so the site also opens at `zlhad.github.io/OpenVideoHarness/` once GitHub Pages is on.

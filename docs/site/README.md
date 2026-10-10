@@ -7,10 +7,10 @@
 - what it adds and how it works;
 - the intro film and four showcase films;
 - the 31-style library;
-- who wrote it (Claude) and how the author uses it;
+- how the author uses it;
 - an FAQ, and contact details.
 
-It is one HTML file with no build step, and Claude wrote it.
+It is one HTML file with no build step.
 
 ## Viewing it
 
@@ -37,7 +37,7 @@ To edit the text:
 - **Text on the page** is written twice, side by side: `<span lang="en">…</span><span lang="zh">…</span>`. CSS shows the one that matches `<html data-lang>`; without JavaScript the page is English. Change both, and keep the same markup (`<em>`, `<strong>`, `<code>`) in each.
 - **Section names** in the side rail come from each section's `data-en` / `data-zh`.
 - **Labels that are attributes** (`aria-label`) come from `data-aria-en` / `data-aria-zh`.
-- **Strings the script writes** are in `T` at the top of the script: the f(t) readout and check, the copy buttons, chart dates, captions. The style names are in `STYLES`, as `[folder, English, Chinese]`.
+- **Strings the script writes** are in `T` at the top of the script: the f(t) readout and check, the copy buttons, captions. The style names are in `STYLES`, as `[folder, English, Chinese]`.
 
 ## Optional material
 
@@ -49,7 +49,6 @@ All of it is optional. The page works without any of it.
 
 ## Where the numbers come from
 
-- **Pull requests**: 75 in the first 11 days, opened 2026-09-29 to 2026-10-09 (UTC). 72 came from `claude/` branches and 3 from Dependabot. Source: the repo's pull request list, read on 2026-10-10. The per-day chart (`PER_DAY`) and the ticker (`PRS`) come from the same list; update all three together.
 - **Counts of things in the repo**: 9 video types, 13 playbook docs, 11 templates, 31 styles, 24 shot recipes. Source: `video-types/`, `playbook/`, `templates/`, `styles/`, `bin/vh recipes list`.
 - **The films**:
   - the intro film: 103 s; a Blender opening of 1.18 million stars over 475 frames; 124 sound effects;
