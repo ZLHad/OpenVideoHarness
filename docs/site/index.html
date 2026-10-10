@@ -91,10 +91,10 @@ body.cinema .bg { opacity: .25; transition: opacity 1s; }
 .bg { transition: opacity 1s; }
 
 /* ---------- glass ---------- */
-.card, .layer, .node, .panel, .arch-flow, .mdcard, .clock, .qr, .film.info, .cmd, .efforts div, .toggle, .plat, .teammate span, .tile, .cli, .sw.info {
+.card, .layer, .node, .panel, .arch-flow, .clock, .qr, .film.info, .cmd, .efforts div, .toggle, .plat, .tile, .cli, .sw.info {
   background: var(--glass); border: 1px solid var(--line); box-shadow: var(--glass-hi), 0 30px 60px -36px rgba(0,0,0,.8);
 }
-.card, .layer, .panel, .arch-flow, .mdcard, .clock, .qr, .film.info, .node { -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); }
+.card, .layer, .panel, .arch-flow, .clock, .qr, .film.info, .node { -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); }
 .liuli { position: relative; }
 .liuli::before {
   content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
@@ -458,55 +458,6 @@ body.cinema #film .head, body.cinema .chapters, body.cinema .film-notes { opacit
 .sw.info b { font-family: var(--display); font-weight: 600; font-size: clamp(18px, 1.6vw, 26px); line-height: 1; letter-spacing: -.02em; }
 .sw.info small { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 
-/* ---------- 8 · built by claude ---------- */
-.claude-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 48px); align-items: start; }
-.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-.stat { border-top: 1px solid var(--line-2); padding-top: 10px; position: relative; }
-.stat::before { content: ""; position: absolute; left: 0; top: -1px; width: 40%; height: 1px; background: var(--iri); }
-.stat b { display: block; font-family: var(--display); font-weight: 600; font-size: clamp(46px, min(4.8vw, 8.6vh), 84px); line-height: .95; letter-spacing: -.04em; font-variant-numeric: tabular-nums; color: #F3F6FF; }
-.stat.c b { background: var(--iri); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sheen 9s linear infinite; }
-.stat span { font-size: 14.5px; color: var(--text-2); }
-.chart { margin-top: clamp(12px, 2vh, 22px); }
-.chart-cap { display: flex; justify-content: space-between; gap: 10px; font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-.chart-cap i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; background: var(--iri-v); margin: 0 5px 0 10px; vertical-align: -1px; }
-.chart-cap i.b { background: rgba(255,255,255,.28); }
-.bars { display: grid; grid-template-columns: repeat(var(--n, 11), minmax(0, 1fr)); gap: 6px; height: clamp(110px, 17vh, 170px); padding-top: 20px; align-items: end; border-bottom: 1px solid var(--line-2); }
-.bar { position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; }
-.bar .fill { display: flex; flex-direction: column; justify-content: flex-end; height: var(--h); transform-origin: bottom; transform: scaleY(0); transition: transform 1.1s var(--ease); transition-delay: var(--d, 0s); }
-.in .bar .fill { transform: none; }
-.bar .fill i { display: block; background: linear-gradient(180deg, #7CF7FF, #9D8CFF); border-radius: 4px 4px 0 0; flex: var(--c) 0 0; box-shadow: 0 0 18px -4px rgba(107,230,255,.6); }
-.bar .fill i.b { background: rgba(255,255,255,.28); border-radius: 0; flex: var(--b) 0 0; box-shadow: none; }
-.bar .v { position: absolute; left: 0; right: 0; bottom: calc(var(--h) + 4px); text-align: center; font-family: var(--mono); font-size: 12px; color: var(--text-2); opacity: 0; transition: opacity .5s; transition-delay: calc(var(--d, 0s) + .6s); }
-.in .bar .v { opacity: 1; }
-.days { display: grid; grid-template-columns: repeat(var(--n, 11), minmax(0, 1fr)); gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: center; margin-top: 4px; }
-.pull { margin-top: 14px; font-family: var(--display); font-weight: 500; font-size: clamp(20px, 1.8vw, 30px); line-height: 1.2; letter-spacing: -.02em; max-width: 24em; color: var(--text); }
-.mdcard { border-radius: 14px; padding: 16px 18px; font-family: var(--mono); font-size: 13.5px; line-height: 1.55; background: linear-gradient(160deg, rgba(14,18,32,.85), rgba(10,12,22,.75)); }
-.mdcard .path { color: var(--muted); font-size: 12.5px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 10px; }
-.mdcard .path > span:first-child::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #FF7AD9; box-shadow: 14px 0 0 #FFC9A6, 28px 0 0 #7CF5C8; margin-right: 40px; vertical-align: 0; }
-.mdcard h5 { font-size: 14px; font-weight: 500; color: var(--cyan); margin-bottom: 6px; }
-.mdcard ol { padding-left: 1.6em; color: var(--text); }
-.mdcard li { padding: 1px 0; }
-.mdcard li::marker { color: var(--violet); }
-.js .mdcard li { opacity: 0; transform: translateX(-6px); transition: opacity .5s, transform .5s var(--ease); transition-delay: var(--d, 0s); }
-.js .in .mdcard li { opacity: 1; transform: none; }
-.mdcard li:last-child::after { content: ""; display: inline-block; width: 8px; height: 1.05em; background: var(--cyan); vertical-align: -2px; margin-left: 6px; animation: blink 1s steps(1) infinite; box-shadow: 0 0 8px var(--cyan); }
-@keyframes blink { 50% { opacity: 0; } }
-.teammate { margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13.5px; }
-.teammate span { padding: 5px 10px; border-radius: 8px; box-shadow: var(--glass-hi); }
-.teammate i { font-style: normal; color: var(--cyan); }
-.ticker { margin: clamp(14px, 2.4vh, 26px) calc(-1 * var(--pad-x)) 0; display: grid; gap: 6px; overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
-.tick-row { display: flex; gap: 6px; width: max-content; animation: drift 90s linear infinite; }
-.tick-row:nth-child(2) { animation-direction: reverse; animation-duration: 110s; }
-.tick-row:nth-child(3) { animation-duration: 100s; }
-.slide:not(.active) .tick-row { animation-play-state: paused; }
-@keyframes drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-.pr { font-family: var(--mono); font-size: 12px; line-height: 1.5; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.04); border: 1px solid var(--line); color: var(--text-2); white-space: nowrap; }
-.pr b { font-weight: 500; color: var(--muted); margin-right: 4px; }
-.pr s { text-decoration: none; color: var(--muted); }
-.pr em { font-style: normal; color: var(--cyan); }
-.pr.bot { opacity: .5; }
-
 /* ---------- 9 · in the wild ---------- */
 .wild { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: clamp(20px, 3vw, 48px); align-items: center; }
 .clock { position: relative; overflow: hidden; border-radius: 20px; padding: clamp(20px, 3vw, 40px); display: grid; gap: 16px; }
@@ -629,7 +580,7 @@ html[data-lang="zh"] body { line-height: 1.6; }
 html[data-lang="zh"] h2 { letter-spacing: 0; line-height: 1.16; max-width: 20em; }
 .ph { white-space: nowrap; } /* a Chinese phrase in a heading wraps as one piece */
 html[data-lang="zh"] .why-grid h2 { max-width: 9.5em; }
-html[data-lang="zh"] .tag, html[data-lang="zh"] .card h3, html[data-lang="zh"] .pull, html[data-lang="zh"] .end .motto, html[data-lang="zh"] .qr h4, html[data-lang="zh"] .film.info b, html[data-lang="zh"] .film figcaption q { letter-spacing: .01em; }
+html[data-lang="zh"] .tag, html[data-lang="zh"] .card h3, html[data-lang="zh"] .end .motto, html[data-lang="zh"] .qr h4, html[data-lang="zh"] .film.info b, html[data-lang="zh"] .film figcaption q { letter-spacing: .01em; }
 html[data-lang="zh"] .eyebrow { letter-spacing: .1em; }
 html[data-lang="zh"] .lede, html[data-lang="zh"] .why-copy p, html[data-lang="zh"] .faq .a { line-height: 1.7; }
 html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
@@ -645,7 +596,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
 @media (max-width: 980px) {
   .nav { display: none; }
   .langbtn { margin-left: auto; }
-  .why-grid, .claude-grid, .wild, .start-grid, .arch-mid { grid-template-columns: minmax(0, 1fr); }
+  .why-grid, .wild, .start-grid, .arch-mid { grid-template-columns: minmax(0, 1fr); }
   .arch-top { grid-template-columns: minmax(0, 1fr); }
   .arch-top .arr { transform: rotate(90deg); justify-self: center; animation: none; }
   .films { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); max-width: none; }
@@ -669,8 +620,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   .films { grid-template-columns: minmax(0, 1fr); }
   .film.tall { grid-column: auto; }
   .wall { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .stats, .efforts, .qrs, .faq { grid-template-columns: minmax(0, 1fr); }
-  .days { font-size: 9px; }
+  .efforts, .qrs, .faq { grid-template-columns: minmax(0, 1fr); }
   .gh .t { display: none; }
   .brand { font-size: 17px; }
 }
@@ -685,9 +635,6 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   .tile, .cli { padding: 6px 10px; }
   .track li { padding: 6px 8px; font-size: 13px; }
   .arch { gap: 10px; }
-  .pull { display: none; }
-  .mdcard { padding: 12px 16px; font-size: 12.5px; line-height: 1.45; }
-  .pr { font-size: 11px; padding: 2px 8px; }
   .steps { gap: 8px; }
   .cmd { padding-top: 9px; padding-bottom: 9px; min-height: 0; }
   .end { margin-top: 12px; padding-top: 8px; }
@@ -703,7 +650,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; }
-  .js [data-r], .js .split .w > span, .js .hero h1, .js .wall, .js .sw, .js .mdcard li, .bar .fill { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
+  .js [data-r], .js .split .w > span, .js .hero h1, .js .wall, .js .sw { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
 }
 </style>
 </head>
@@ -747,8 +694,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
       <a class="btn ghost" href="https://github.com/ZLHad/OpenVideoHarness" target="_blank" rel="noopener"><svg class="star" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 .8l2.2 4.5 5 .7-3.6 3.5.9 5L8 12.1 3.5 14.5l.9-5L.8 6l5-.7z"/></svg><span lang="en">Star on GitHub</span><span lang="zh">GitHub 点 Star</span></a>
     </div>
     <ul class="trust" data-r>
-      <li class="badge"><span lang="en">Written by Claude</span><span lang="zh">由 Claude 编写</span></li>
-      <li>MIT · <span lang="en">open source</span><span lang="zh">开源</span></li>
+      <li class="badge">MIT · <span lang="en">open source</span><span lang="zh">开源</span></li>
       <li><span lang="en">9 video types</span><span lang="zh">9 类视频</span></li>
       <li><span lang="en">31 styles</span><span lang="zh">31 种风格</span></li>
       <li><span lang="en">5 engines</span><span lang="zh">5 个引擎</span></li>
@@ -913,7 +859,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
 <section class="slide" id="film" data-en="Intro film" data-zh="介绍片">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>05</b><span lang="en">The intro film · 103 s · with sound</span><span lang="zh">介绍片 · 103 秒 · 有声</span></p><h2 class="split"><span lang="en">Made by Claude, <em>with the harness itself.</em></span><span lang="zh">Claude 用这套工作台，<em>做了它自己的介绍片。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>05</b><span lang="en">The intro film · 103 s · with sound</span><span lang="zh">介绍片 · 103 秒 · 有声</span></p><h2 class="split"><span lang="en">Its own intro film, <em>made with the harness.</em></span><span lang="zh">这支介绍片，<em>也是用它做的。</em></span></h2></div>
     </div>
     <div class="screen-wrap" data-r>
       <canvas class="ambient" id="ambient" width="64" height="36" aria-hidden="true"></canvas>
@@ -1011,57 +957,11 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 08 · built with claude -->
-<section class="slide" id="claude" data-en="Built with Claude" data-zh="Claude 写的">
-  <div class="wrap">
-    <div class="head">
-      <div><p class="eyebrow" data-r><b>08</b><span lang="en">Built with Claude</span><span lang="zh">和 Claude 一起做的</span></p><h2 class="split"><span lang="en">Written by <em>Claude.</em></span><span lang="zh">这个仓库，<em>是 Claude 写的。</em></span></h2></div>
-    </div>
-    <div class="claude-grid">
-      <div>
-        <div class="stats">
-          <div class="stat" data-r><b data-count="75">75</b><span><span lang="en">pull requests in the first 11 days</span><span lang="zh">头 11 天的 PR</span></span></div>
-          <div class="stat c" data-r><b data-count="72">72</b><span><span lang="en">from <code>claude/</code> branches, opened by Claude Code</span><span lang="zh">来自 <code>claude/</code> 分支，由 Claude Code 提交</span></span></div>
-          <div class="stat" data-r><b data-count="3">3</b><span><span lang="en">from Dependabot</span><span lang="zh">来自 Dependabot</span></span></div>
-        </div>
-        <div class="chart" data-r>
-          <div class="chart-cap"><span><span lang="en">Pull requests opened per day (UTC)</span><span lang="zh">每天新开的 PR（UTC）</span></span><span><i></i>Claude<i class="b"></i>Dependabot</span></div>
-          <div class="bars" id="bars"></div>
-          <div class="days" id="days"></div>
-        </div>
-        <p class="pull" data-r><span lang="en">We bring the taste and the decisions. Claude writes the rest.</span><span lang="zh">我们出审美、做决定，其余交给 Claude。</span></p>
-      </div>
-      <div>
-        <div class="mdcard liuli" data-aria-en="The hard rules in CLAUDE.md" data-aria-zh="CLAUDE.md 里的硬规则" data-r>
-          <div class="path"><span>CLAUDE.md</span><span><span lang="en">hard rules</span><span lang="zh">硬规则</span></span></div>
-          <h5><span lang="en">## Hard rules</span><span lang="zh">## 硬规则</span></h5>
-          <ol>
-            <li><span lang="en">Every frame is a pure function of t.</span><span lang="zh">每一帧都是 t 的纯函数。</span></li>
-            <li><span lang="en">With sound, the audio sets the length.</span><span lang="zh">有声音时，音频决定时长。</span></li>
-            <li><span lang="en">Storyboard before code.</span><span lang="zh">先分镜，后代码。</span></li>
-            <li><span lang="en">Check every scene: sheets, strips, crops.</span><span lang="zh">每个场景都要自查：联系表、逐帧条、特写。</span></li>
-            <li><span lang="en">Facts are copied from the source, never invented.</span><span lang="zh">事实照抄原文，绝不编造。</span></li>
-            <li><span lang="en">Only change things in <code>projects/</code>.</span><span lang="zh">只在 <code>projects/</code> 里改东西。</span></li>
-            <li><span lang="en">No API keys in files.</span><span lang="zh">不在文件里写 API key。</span></li>
-          </ol>
-        </div>
-        <div class="teammate" lang="en" aria-label="How Claude contributes" data-r>
-          <span>its own branch</span><i>→</i><span><code>tools/ci.sh</code> before each push</span><i>→</i><span>a draft PR</span><i>→</i><span>the maintainer merges</span>
-        </div>
-        <div class="teammate" lang="zh" aria-label="Claude 怎么提交代码" data-r>
-          <span>自己的分支</span><i>→</i><span>推送前跑 <code>tools/ci.sh</code></span><i>→</i><span>草稿 PR</span><i>→</i><span>维护者合并</span>
-        </div>
-      </div>
-    </div>
-    <div class="ticker" id="ticker" data-aria-en="Every pull request, #1 to #75, with the branch it came from" data-aria-zh="从 #1 到 #75 的每个 PR，以及它们来自的分支" data-r></div>
-  </div>
-</section>
-
-<!-- 09 · in practice -->
+<!-- 08 · in practice -->
 <section class="slide" id="practice" data-en="In practice" data-zh="真实使用">
   <div class="wrap wild">
     <div>
-      <p class="eyebrow" data-r><b>09</b><span lang="en">In practice</span><span lang="zh">真实使用</span></p>
+      <p class="eyebrow" data-r><b>08</b><span lang="en">In practice</span><span lang="zh">真实使用</span></p>
       <h2 class="split"><span lang="en">Used for real, <em>on the news cycle.</em></span><span lang="zh">真的在用，<em>还赶得上热点。</em></span></h2>
       <p class="lede" data-r><span lang="en">The author publishes films made with OpenVideoHarness on Douyin (TikTok in China) and Bilibili.</span><span lang="zh">作者把用 OpenVideoHarness 做的片子发在抖音和 B 站。</span></p>
       <div class="plats" data-r>
@@ -1082,11 +982,11 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 10 · faq -->
+<!-- 09 · faq -->
 <section class="slide faq-slide" id="faq" data-en="FAQ" data-zh="常见问题">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>10</b><span lang="en">FAQ</span><span lang="zh">常见问题</span></p><h2 class="split"><span lang="en">Good questions, <em>straight answers.</em></span><span lang="zh">常见问题，<em>一次说清。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>09</b><span lang="en">FAQ</span><span lang="zh">常见问题</span></p><h2 class="split"><span lang="en">Good questions, <em>straight answers.</em></span><span lang="zh">常见问题，<em>一次说清。</em></span></h2></div>
       <a class="btn ghost" href="https://github.com/ZLHad/OpenVideoHarness/wiki" target="_blank" rel="noopener" data-r><span lang="en">More in the wiki</span><span lang="zh">更多见 Wiki</span> <span class="arrow">↗</span></a>
     </div>
     <div class="faq">
@@ -1127,7 +1027,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">Is it an Anthropic project?</span><span lang="zh">是 Anthropic 官方项目吗？</span></summary>
-          <div class="a"><span lang="en">No. It's an independent open-source project under the MIT license, not affiliated with Anthropic, HeyGen or Remotion. Claude wrote most of it: 72 of the first 75 pull requests came from Claude Code.</span><span lang="zh">不是。这是独立的开源项目，MIT 许可，和 Anthropic、HeyGen、Remotion 都没有隶属关系。大部分代码由 Claude 写：头 75 个 PR 里有 72 个来自 Claude Code。</span></div>
+          <div class="a"><span lang="en">No. It's an independent open-source project under the MIT license, not affiliated with Anthropic, HeyGen or Remotion.</span><span lang="zh">不是。这是独立的开源项目，MIT 许可，和 Anthropic、HeyGen、Remotion 都没有隶属关系。</span></div>
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">How can I contribute?</span><span lang="zh">怎么参与？</span></summary>
@@ -1138,11 +1038,11 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 11 · contact -->
+<!-- 10 · contact -->
 <section class="slide" id="contact" data-en="Contact" data-zh="联系">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>11</b><span lang="en">Contact</span><span lang="zh">联系</span></p><h2 class="split"><span lang="en">Questions or ideas? <em>Get in touch.</em></span><span lang="zh">有问题或想法？<em>来聊聊。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>10</b><span lang="en">Contact</span><span lang="zh">联系</span></p><h2 class="split"><span lang="en">Questions or ideas? <em>Get in touch.</em></span><span lang="zh">有问题或想法？<em>来聊聊。</em></span></h2></div>
       <p class="lede contact-lede" data-r><span lang="en">Star the repo, add the author on WeChat, or send a film you made with it.</span><span lang="zh">给仓库点个 Star，加作者微信，或者把你用它做的片子发过来。</span></p>
     </div>
     <div class="contact contact-wide">
@@ -1174,7 +1074,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         <a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener"><span lang="en">Contributing</span><span lang="zh">参与贡献</span></a>
         <a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>
       </nav>
-      <span class="fine"><span lang="en">This page was written by Claude, too. An independent project, not affiliated with Anthropic.</span><span lang="zh">这个页面也是 Claude 写的。独立项目，与 Anthropic 没有隶属关系。</span></span>
+      <span class="fine"><span lang="en">An independent open-source project, not affiliated with Anthropic.</span><span lang="zh">独立的开源项目，与 Anthropic 没有隶属关系。</span></span>
     </footer>
   </div>
 </section>
@@ -1200,7 +1100,6 @@ const root = document.documentElement;
 let lang = root.dataset.lang === 'zh' ? 'zh' : 'en';
 
 /* ---------- the words the script writes, in both languages ---------- */
-const MON = { 9: 'Sep', 10: 'Oct' };
 const T = {
   en: {
     title: 'OpenVideoHarness · A video harness for Claude Code and Codex',
@@ -1212,8 +1111,6 @@ const T = {
     copy: 'Copy', copied: 'Copied', select: 'Select it',
     sheet: name => `${name}: the contact sheet Claude reviews`,
     tile: name => `${name}: play with sound`,
-    day: (m, d) => `${MON[m]} ${d}`,
-    prs: n => `${n} pull request${n === 1 ? '' : 's'}`,
     yours: '<b>+ yours</b><small>borrow the grammar, not the shots</small>',
   },
   zh: {
@@ -1226,8 +1123,6 @@ const T = {
     copy: '复制', copied: '已复制', select: '请手动选中',
     sheet: name => `${name}：Claude 审片时看的联系表`,
     tile: name => `${name}：带声音播放`,
-    day: (m, d) => `${m}/${d}`,
-    prs: n => `${n} 个 PR`,
     yours: '<b>+ 你的</b><small>借语法，不抄镜头</small>',
   },
 };
@@ -1249,21 +1144,6 @@ const STYLES = [
   ['y2k-chrome', 'Y2K Chrome', 'Y2K 铬面'],
 ];
 const stylePath = (slug, f) => `../../styles/${slug}/media/${f}`;
-
-// Pull requests #1–#75 in order, by head branch (GitHub, 2026-10-10). "D:" marks Dependabot's.
-const PRS = ('modest-maxwell-06xfo4 mix-lang-defaults tts-trim-edges gemini-rate-limit repo-auto-merge elevenlabs-word-timing ' +
-  'elevenlabs-word-timing community-files D:setup-python-7 D:setup-node-7 D:checkout-7 readme-overview music-engine ' +
-  'tts-review-fixes tools-review-fixes music-engine-fixes swatch-determinism design-notes-v03 director-mode plucked-models ' +
-  'mix-profiles onboarding-docs knowledge-narrative-music music-motifs decision-tools hybrid-docs shot-recipes handdrawn-bt709 ' +
-  'blender-guide type-09-editing swatch-soundtracks-final showcase-soundtracks research-notes readme-samples hf-init-local-font ' +
-  'showcase-alignment check-colour-tags caption-reading sfx-variation sound-refresh music-note-export tabletop-miniature ' +
-  'cases-oneshot-five concept-first concept-sequences research-concept-ab spec-watch-target style-as-reference styles-pastel-ui-y2k ' +
-  'subcommand-help intro-v5 shallow-install intro-103-media review-desk isolated-frame-scan douyin-landscape-knowledge ' +
-  'review-caps-text-pace history-cleanup-hashes spec-checks aspect-engines hf-render-detached slim-read-path divergence-scoring ' +
-  'light-by-default effort-is-iteration lessons-from-films icecube-lessons textcheck minimax-tts lessons-one-take-voice-labels ' +
-  'gemini-daily-quota narration-pace pace-review-fixes tender-sagan-y34s41 tender-sagan-y34s41').split(' ');
-// Opened per day (UTC), from the same list: [month, day, by Claude, by Dependabot].
-const PER_DAY = [[9, 29, 1, 0], [9, 30, 26, 3], [10, 1, 16, 0], [10, 2, 5, 0], [10, 3, 3, 0], [10, 4, 7, 0], [10, 5, 4, 0], [10, 6, 3, 0], [10, 7, 5, 0], [10, 8, 0, 0], [10, 9, 2, 0]];
 
 /* ---------- split headings into words (Chinese: characters) that rise in ---------- */
 const CJK = /[㐀-鿿豈-﫿]/;
@@ -1665,25 +1545,6 @@ function stopWall() { clearInterval(wallTimer); wallTimer = null; tiles.forEach(
 onEnter.styles = () => setTimeout(() => { if (sections[current].id === 'styles') startWall(); }, 1200);
 onLeave.styles = stopWall;
 
-/* ---------- built with claude: counts, the per-day chart, the ticker ---------- */
-const maxDay = Math.max(...PER_DAY.map(d => d[2] + d[3]));
-const bars = $('#bars'), days = $('#days');
-bars.style.setProperty('--n', PER_DAY.length); days.style.setProperty('--n', PER_DAY.length);
-bars.innerHTML = PER_DAY.map(([, , c, b], i) =>
-  `<div class="bar" style="--h:${((c + b) / maxDay * 100).toFixed(1)}%;--d:${(0.5 + i * 0.08).toFixed(2)}s">` +
-  `<span class="v">${c + b}</span><div class="fill">${c ? `<i style="--c:${c}"></i>` : ''}${b ? `<i class="b" style="--b:${b}"></i>` : ''}</div></div>`).join('');
-function chartLabels() {
-  days.innerHTML = PER_DAY.map(([m, d]) => `<span>${tr().day(m, d)}</span>`).join('');
-  $$('.bar', bars).forEach((el, i) => { el.title = tr().prs(PER_DAY[i][2] + PER_DAY[i][3]); });
-}
-const chip = (name, i) => name.startsWith('D:')
-  ? `<span class="pr bot"><b>#${i + 1}</b>dependabot/…/${name.slice(2)}</span>`
-  : `<span class="pr"><b>#${i + 1}</b><s>claude/</s><em>${name}</em></span>`;
-const thirds = [0, 1, 2].map(k => PRS.map((n, i) => [n, i]).filter((_, i) => i % 3 === k));
-$('#ticker').innerHTML = thirds.map(list => { const html = list.map(([n, i]) => chip(n, i)).join(''); return `<div class="tick-row">${html}${html}</div>`; }).join('');
-onEnter.claude = () => $$('#claude [data-count]').forEach(el => countUp(el));
-$$('.mdcard li').forEach((li, i) => li.style.setProperty('--d', `${0.6 + i * 0.12}s`));
-
 /* ---------- in practice ---------- */
 $$('.plat').forEach(a => { if (!a.getAttribute('href')) a.removeAttribute('href'); else { a.target = '_blank'; a.rel = 'noopener'; } });
 const mine = $('#mine'), mineV = $('video', mine);
@@ -1764,7 +1625,7 @@ function applyLang(l) {
   lang = l;
   root.dataset.lang = l; root.lang = l === 'zh' ? 'zh-CN' : 'en';
   document.title = tr().title;
-  railLabels(); chartLabels();
+  railLabels();
   $$('[data-aria-en]').forEach(el => el.setAttribute('aria-label', el.dataset[l === 'zh' ? 'ariaZh' : 'ariaEn']));
   $$('.copy').forEach(b => { b.textContent = tr().copy; });
   tiles.forEach(t => t.b.setAttribute('aria-label', tr().tile(l === 'zh' ? t.zh : t.en)));
