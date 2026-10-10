@@ -1,0 +1,1657 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenVideoHarness · A video harness for Claude Code and Codex</title>
+<meta name="description" content="A video workbench for Claude Code and Codex: the agent writes the code that renders the film, checks its own work, and you sign off at three checkpoints. 给 Claude Code 和 Codex 用的视频工作台：AI 写代码出片，你在三个节点拍板。">
+<meta name="theme-color" content="#04050A">
+<link rel="canonical" href="https://zlhad.github.io/OpenVideoHarness/docs/site/">
+<link rel="alternate" hreflang="en" href="https://zlhad.github.io/OpenVideoHarness/docs/site/?lang=en">
+<link rel="alternate" hreflang="zh" href="https://zlhad.github.io/OpenVideoHarness/docs/site/?lang=zh">
+<meta property="og:type" content="website">
+<meta property="og:title" content="OpenVideoHarness">
+<meta property="og:description" content="A video workbench for Claude Code and Codex: the agent writes the code that renders the film, and you sign off at three checkpoints.">
+<meta property="og:url" content="https://zlhad.github.io/OpenVideoHarness/docs/site/">
+<meta property="og:image" content="https://zlhad.github.io/OpenVideoHarness/docs/site/img/04-intro.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237CF7FF'/%3E%3Cstop offset='.5' stop-color='%239D8CFF'/%3E%3Cstop offset='1' stop-color='%23F07CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='8' y='8' width='16' height='16' rx='4' transform='rotate(45 16 16)' fill='url(%23g)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!--
+  The project's homepage: one file, no build step, in English and Chinese (EN / 中 in the top bar, or ?lang=en / ?lang=zh).
+  Every visible text is written twice, <span lang="en">…</span><span lang="zh">…</span>; the strings the script writes are in T.
+  It reads the style samples and contact sheets from ../../styles and ../../showcase, so open it from a clone of the repo
+  or on GitHub Pages. README.md next to this file has the details.
+-->
+<script>(function(){var d=document.documentElement,l=null;try{var q=new URLSearchParams(location.search).get('lang');if(q==='zh'||q==='en')l=q;else l=localStorage.getItem('ovh-lang');}catch(e){}if(l!=='zh'&&l!=='en')l=/^zh\b/i.test(navigator.language||'')?'zh':'en';d.setAttribute('data-lang',l);d.lang=l==='zh'?'zh-CN':'en';d.classList.add('js');})();</script>
+<style>
+:root {
+  --bg: #04050A;
+  --bg-2: #0A0E1A;
+  --text: #EAF0FF;
+  --text-2: #B7C1DA;
+  --muted: #7D88A8;
+  --line: rgba(255,255,255,.10);
+  --line-2: rgba(255,255,255,.18);
+  --cyan: #6BE6FF;
+  --violet: #9D8CFF;
+  --pink: #FF7AD9;
+  --mint: #7CF5C8;
+  --peach: #FFC9A6;
+  --iri: linear-gradient(100deg, #7CF7FF 0%, #9D8CFF 36%, #F07CFF 66%, #FFC9A6 100%);
+  --iri-v: linear-gradient(180deg, #7CF7FF, #9D8CFF 50%, #F07CFF);
+  --glass: linear-gradient(155deg, rgba(255,255,255,.085), rgba(255,255,255,.022) 45%, rgba(255,255,255,.045));
+  --glass-hi: inset 0 1px 0 rgba(255,255,255,.16), inset 0 -1px 0 rgba(255,255,255,.03);
+  --display: "Inter Tight", "Inter", system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", monospace;
+  --ease: cubic-bezier(.2, .7, .1, 1);
+  --pad-x: clamp(16px, 5vw, 88px);
+  --bar: 58px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { background: var(--bg); scroll-snap-type: y proximity; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--sans);
+  font-size: clamp(16px, 1.1vw, 19px); line-height: 1.5; overflow-x: hidden;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+a { color: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+code, kbd { font-family: var(--mono); font-size: .88em; }
+img, video, canvas, svg { display: block; max-width: 100%; }
+::selection { background: rgba(157,140,255,.4); }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 4px; }
+
+/* ---------- the room: aurora light, a faint grid, stars ---------- */
+.bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.aurora { position: absolute; inset: -15%; opacity: .5; }
+.aurora i { position: absolute; border-radius: 50%; will-change: transform; animation: float 28s ease-in-out infinite alternate; }
+.aurora i:nth-child(1) { width: 52vw; height: 52vw; left: 2%; top: 4%; background: radial-gradient(circle, rgba(43,107,255,.55), transparent 62%); }
+.aurora i:nth-child(2) { width: 44vw; height: 44vw; right: 0; top: 14%; background: radial-gradient(circle, rgba(138,77,255,.55), transparent 62%); animation-duration: 34s; animation-delay: -8s; }
+.aurora i:nth-child(3) { width: 42vw; height: 42vw; left: 28%; bottom: -4%; background: radial-gradient(circle, rgba(0,200,232,.42), transparent 62%); animation-duration: 40s; animation-delay: -16s; }
+.aurora i:nth-child(4) { width: 30vw; height: 30vw; right: 16%; bottom: 6%; background: radial-gradient(circle, rgba(255,79,184,.32), transparent 62%); animation-duration: 31s; animation-delay: -4s; }
+@keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(7vw, -6vh) scale(1.18); } }
+.gridlines { position: absolute; inset: 0; opacity: .9;
+  background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 72px 72px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 10%, transparent 80%); mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 10%, transparent 80%); }
+.stars { position: absolute; inset: 0; opacity: .55;
+  background-image: radial-gradient(1px 1px at 12% 18%, #fff, transparent), radial-gradient(1px 1px at 72% 32%, #cfe, transparent), radial-gradient(1px 1px at 38% 74%, #fff, transparent), radial-gradient(1.5px 1.5px at 88% 82%, #dff, transparent), radial-gradient(1px 1px at 55% 12%, #fff, transparent), radial-gradient(1px 1px at 22% 58%, #eef, transparent);
+  background-size: 420px 380px; }
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 38; pointer-events: none; opacity: .05; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+main { position: relative; z-index: 1; }
+body.cinema .bg { opacity: .25; transition: opacity 1s; }
+.bg { transition: opacity 1s; }
+
+/* ---------- glass ---------- */
+.card, .layer, .node, .panel, .arch-flow, .clock, .qr, .film.info, .cmd, .efforts div, .toggle, .plat, .tile, .cli, .sw.info {
+  background: var(--glass); border: 1px solid var(--line); box-shadow: var(--glass-hi), 0 30px 60px -36px rgba(0,0,0,.8);
+}
+.card, .layer, .panel, .arch-flow, .clock, .qr, .film.info, .node { -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); }
+.liuli { position: relative; }
+.liuli::before {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: var(--iri); background-size: 200% 100%; animation: sheen 9s linear infinite;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+}
+@keyframes sheen { to { background-position: 200% 0; } }
+.iri { background: var(--iri); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sheen 9s linear infinite; }
+
+/* ---------- layout ---------- */
+.slide {
+  position: relative; min-height: 100vh; min-height: 100svh; scroll-snap-align: start;
+  display: flex; flex-direction: column; justify-content: center;
+  padding: calc(var(--bar) + clamp(20px, 4vh, 48px)) var(--pad-x) clamp(28px, 5vh, 64px);
+}
+.wrap { width: 100%; max-width: 1360px; margin: 0 auto; position: relative; }
+.eyebrow {
+  font-family: var(--mono); font-size: 12.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--muted); display: flex; align-items: center; gap: 12px;
+}
+.eyebrow b { font-weight: 500; color: var(--cyan); display: inline-flex; align-items: center; gap: 10px; }
+.eyebrow b::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+.eyebrow b::after { content: ""; display: inline-block; width: 28px; height: 1px; background: linear-gradient(90deg, var(--cyan), transparent); transform-origin: left; transition: transform 1s var(--ease) .2s; }
+h1, h2, h3 { font-weight: 600; }
+h2 {
+  font-family: var(--display); font-size: clamp(32px, min(4.3vw, 6.9vh), 74px); line-height: 1.02;
+  letter-spacing: -.035em; margin-top: 12px; max-width: 18ch; text-wrap: balance; color: #F3F6FF;
+}
+h2 em, .tag em { font-style: normal; }
+h2 em, .tag em, .split em .w > span { background: var(--iri); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sheen 9s linear infinite; }
+.head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: clamp(18px, 3.2vh, 40px); flex-wrap: wrap; }
+.lede { font-size: clamp(18px, 1.4vw, 23px); color: var(--text-2); max-width: 36em; line-height: 1.5; text-wrap: pretty; }
+.fine { font-size: 14px; color: var(--muted); }
+
+/* ---------- reveal on enter (only when the script runs) ---------- */
+.js [data-r] { opacity: 0; transform: translateY(22px); filter: blur(6px); transition: opacity .9s var(--ease), transform 1.1s var(--ease), filter .9s var(--ease); transition-delay: var(--d, 0s); }
+.js .in [data-r] { opacity: 1; transform: none; filter: none; }
+.js .eyebrow b::after { transform: scaleX(0); }
+.js .in .eyebrow b::after { transform: scaleX(1); }
+.w { display: inline-block; overflow: hidden; vertical-align: top; padding: 0 .06em .14em 0; margin: 0 -.06em -.14em 0; }
+.w > span { display: inline-block; }
+.js .split .w > span { transform: translateY(108%); transition: transform 1.15s var(--ease); transition-delay: var(--d, 0s); }
+.js .in .split .w > span { transform: none; }
+
+/* ---------- top bar, progress, rail ---------- */
+.topbar {
+  position: fixed; inset: 0 0 auto 0; height: var(--bar); z-index: 40;
+  display: flex; align-items: center; gap: 24px; padding: 0 var(--pad-x);
+  background: rgba(6,8,16,.5); border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  transition: opacity .5s, transform .5s var(--ease);
+}
+.brand { font-family: var(--display); font-weight: 600; font-size: 19px; text-decoration: none; letter-spacing: -.02em; white-space: nowrap; display: inline-flex; align-items: center; }
+.brand::before { content: ""; margin-right: 12px; width: 18px; height: 18px; border-radius: 5px; background: var(--iri); box-shadow: 0 0 16px rgba(157,140,255,.6); transform: rotate(45deg) scale(.8); }
+.brand span { color: var(--text-2); font-weight: 500; }
+.nav { display: flex; gap: 2px; margin-left: auto; position: relative; }
+.nav a { position: relative; text-decoration: none; font-size: 14px; padding: 6px 10px; color: var(--muted); white-space: nowrap; transition: color .3s; }
+.nav a::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: -2px; height: 2px; border-radius: 2px; background: var(--iri); transform: scaleX(0); transition: transform .45s var(--ease); }
+.nav a:hover, .nav a.on { color: var(--text); }
+.nav a.on::after { transform: scaleX(1); }
+.gh {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 14px; text-decoration: none; white-space: nowrap;
+  padding: 7px 14px; border-radius: 999px; color: var(--text); background: rgba(255,255,255,.06); border: 1px solid var(--line-2);
+  transition: transform .3s var(--ease), background .3s;
+}
+.gh:hover { background: rgba(255,255,255,.12); }
+.gh svg { width: 16px; height: 16px; }
+.progress { position: absolute; left: 0; bottom: -1px; height: 2px; width: 100%; background: var(--iri); transform-origin: left; transform: scaleX(0); box-shadow: 0 0 12px rgba(157,140,255,.7); }
+body.cinema .topbar, body.cinema .rail { opacity: 0; pointer-events: none; }
+body.cinema .topbar { transform: translateY(-100%); }
+.js body:not(.loaded) .topbar { opacity: 0; transform: translateY(-100%); }
+
+.rail { position: fixed; right: 14px; top: 50%; transform: translateY(-50%); z-index: 30; display: flex; flex-direction: column; gap: 10px; transition: opacity .4s; }
+.rail button { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.18); position: relative; transition: transform .3s var(--ease), background .3s, box-shadow .3s; }
+.rail button.on { background: var(--cyan); box-shadow: 0 0 12px var(--cyan); transform: scale(1.5); }
+.rail button span {
+  position: absolute; right: 16px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 12px;
+  font-family: var(--mono); padding: 3px 9px; border-radius: 6px; background: rgba(10,14,26,.9); border: 1px solid var(--line); color: var(--text);
+  opacity: 0; pointer-events: none; transition: opacity .15s;
+}
+.rail button:hover span, .rail button:focus-visible span { opacity: 1; }
+
+/* ---------- buttons, chips ---------- */
+.btn {
+  position: relative; display: inline-flex; align-items: center; gap: 8px; padding: 13px 24px; border-radius: 999px; text-decoration: none;
+  background: var(--iri); background-size: 160% 100%; color: #070910; font-weight: 600; font-size: 16px; white-space: nowrap;
+  box-shadow: 0 12px 40px -12px rgba(157,140,255,.75); transition: transform .35s var(--ease), box-shadow .35s, background-position .8s var(--ease);
+}
+.btn:hover { background-position: 100% 0; box-shadow: 0 16px 50px -12px rgba(107,230,255,.75); }
+.btn.ghost { background: rgba(255,255,255,.05); color: var(--text); box-shadow: inset 0 0 0 1px var(--line-2); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.btn.ghost:hover { background: rgba(255,255,255,.1); }
+.btn .arrow { transition: transform .35s var(--ease); }
+.btn:hover .arrow { transform: translateX(4px); }
+.badge {
+  display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 13px; letter-spacing: .04em;
+  padding: 7px 13px; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid var(--line-2); color: var(--text); white-space: nowrap;
+}
+.badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--iri); animation: pulse 2.4s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(157,140,255,.6); } 50% { box-shadow: 0 0 0 7px rgba(157,140,255,0); } }
+.toggle { display: inline-flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 999px; font-size: 15px; font-weight: 500; white-space: nowrap; transition: background .3s, border-color .3s; }
+.toggle i { width: 34px; height: 20px; border-radius: 999px; background: rgba(255,255,255,.15); position: relative; transition: background .3s; }
+.toggle i::after { content: ""; position: absolute; left: 3px; top: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .35s var(--ease); }
+.toggle[aria-pressed="true"] { border-color: rgba(107,230,255,.5); }
+.toggle[aria-pressed="true"] i { background: var(--iri); }
+.toggle[aria-pressed="true"] i::after { transform: translateX(14px); }
+
+/* ---------- 1 · hero: a galaxy of films ---------- */
+.hero { overflow: hidden; isolation: isolate; }
+.galaxy { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -2; }
+.hero-scrim { position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, rgba(4,5,10,.9) 0%, rgba(4,5,10,.6) 34%, rgba(4,5,10,0) 62%), linear-gradient(0deg, rgba(4,5,10,.85), rgba(4,5,10,0) 30%); }
+.hero h1 {
+  font-family: var(--display); font-weight: 600; font-size: clamp(52px, min(8.4vw, 13.5vh), 150px); line-height: .9; letter-spacing: -.05em;
+  margin: 18px 0 14px; overflow-wrap: anywhere; filter: drop-shadow(0 6px 30px rgba(4,5,10,.85));
+  background: linear-gradient(180deg, #FFFFFF 35%, #AFC0EE); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.js .hero h1 { letter-spacing: .04em; opacity: 0; filter: blur(16px); transition: letter-spacing 2.2s var(--ease) .25s, opacity 1.6s var(--ease) .25s, filter 1.6s var(--ease) .25s; }
+.js .hero.in h1 { letter-spacing: -.05em; opacity: 1; filter: drop-shadow(0 6px 30px rgba(4,5,10,.85)); }
+.tag { font-family: var(--display); font-weight: 600; font-size: clamp(26px, 3vw, 50px); line-height: 1.1; letter-spacing: -.03em; margin-bottom: clamp(14px, 2.4vh, 28px); color: #E4EAFB; }
+.hero .lede { max-width: 30em; }
+.cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: clamp(18px, 3.2vh, 34px); }
+.galaxy-cap { position: absolute; right: var(--pad-x); bottom: clamp(18px, 3.5vh, 36px); font-family: var(--mono); font-size: 12.5px; color: var(--text-2); letter-spacing: .04em; padding: 6px 13px; border-radius: 999px; background: rgba(6,8,16,.6); border: 1px solid var(--line); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.scroll-cue { position: absolute; left: var(--pad-x); bottom: clamp(18px, 3.5vh, 36px); display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: .14em; text-transform: uppercase; }
+.scroll-cue i { width: 1px; height: 34px; background: linear-gradient(var(--cyan), transparent); position: relative; overflow: hidden; }
+.scroll-cue i::after { content: ""; position: absolute; left: 0; top: -40%; width: 1px; height: 40%; background: #fff; animation: drop 2s var(--ease) infinite; }
+@keyframes drop { to { top: 110%; } }
+
+/* ---------- 2 · why ---------- */
+.why-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: clamp(28px, 5vw, 84px); align-items: center; }
+.why-grid h2 { max-width: 14ch; }
+.why-copy p { margin-top: 18px; max-width: 34em; color: var(--text-2); font-size: clamp(17px, 1.3vw, 21px); }
+.why-copy p strong { color: var(--text); font-weight: 600; }
+.stack { display: grid; gap: 10px; }
+.layer { border-radius: 16px; padding: 16px 18px; }
+.layer-name { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-weight: 600; font-size: 17px; }
+.layer-name small { font-weight: 400; font-size: 14px; color: var(--muted); }
+.layer.you { background: transparent; border-style: dashed; border-color: var(--line-2); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.layer.harness { padding: 20px 20px 18px; background: linear-gradient(155deg, rgba(157,140,255,.16), rgba(107,230,255,.06) 50%, rgba(240,124,255,.1)); box-shadow: var(--glass-hi), 0 30px 70px -30px rgba(157,140,255,.55); }
+.js .layer.harness[data-r] { transform: translateY(22px) scale(.97); }
+.js .in .layer.harness[data-r] { transform: none; }
+.layer.harness .layer-name small { color: var(--text-2); }
+.layer.harness::after {
+  content: "the missing layer"; position: absolute; right: 16px; top: -11px; font-family: var(--mono); font-size: 12px; font-weight: 500;
+  background: var(--iri); color: #070910; padding: 2px 10px; border-radius: 999px;
+}
+.flow { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.flow li { font-size: 14.5px; padding: 5px 11px; border-radius: 999px; background: rgba(255,255,255,.07); border: 1px solid var(--line); color: var(--text); display: flex; align-items: center; transition: background .35s, color .35s, transform .35s var(--ease), box-shadow .35s; }
+.flow li + li::before { content: "→"; margin-right: 8px; color: var(--cyan); transition: color .35s; }
+.flow li.lit { background: var(--iri); color: #070910; transform: translateY(-2px); box-shadow: 0 8px 24px -8px rgba(157,140,255,.8); border-color: transparent; }
+.flow li.lit::before { color: #070910; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.pills span { font-family: var(--mono); font-size: 13px; padding: 4px 10px; border-radius: 6px; background: rgba(255,255,255,.06); border: 1px solid var(--line); color: var(--text-2); }
+.drives { font-family: var(--mono); font-size: 12px; color: var(--muted); text-align: center; letter-spacing: .1em; }
+.drives i { display: inline-block; font-style: normal; color: var(--cyan); animation: bob 1.6s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(3px); } }
+
+/* ---------- 3 · features ---------- */
+#features h2, #showcase h2, #start h2, #faq h2 { max-width: none; }
+.features { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.card {
+  position: relative; border-radius: 16px; padding: clamp(14px, 1.4vw, 22px);
+  display: flex; flex-direction: column; gap: 8px; overflow: hidden;
+  transition: transform .5s var(--ease), box-shadow .5s var(--ease), border-color .3s, opacity .9s var(--ease), filter .9s var(--ease);
+}
+.card::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .4s;
+  background: radial-gradient(380px circle at var(--mx, 50%) var(--my, 50%), rgba(107,230,255,.14), rgba(157,140,255,.06) 40%, transparent 65%);
+}
+.card:hover { transform: translateY(-4px); border-color: rgba(107,230,255,.35); box-shadow: var(--glass-hi), 0 30px 60px -30px rgba(107,230,255,.35); }
+.card:hover::before { opacity: 1; }
+.card .n { font-family: var(--mono); font-size: 12px; color: var(--cyan); }
+.card:has(.ill) .n { min-height: 34px; }
+.card h3 { font-family: var(--display); font-weight: 600; font-size: clamp(21px, 1.7vw, 29px); line-height: 1.08; letter-spacing: -.025em; }
+.card p { font-size: clamp(14.5px, 1vw, 16.5px); color: var(--text-2); line-height: 1.5; }
+.card .where { margin-top: auto; padding-top: 6px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.card.wide { grid-column: span 2; display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 16px; align-items: stretch; }
+.card.wide .txt { display: flex; flex-direction: column; gap: 8px; }
+.card h3 em { font-style: normal; }
+
+/* small looping illustrations, one per card */
+.ill { position: absolute; top: clamp(14px, 1.4vw, 22px); right: clamp(14px, 1.4vw, 22px); width: 66px; height: 40px; }
+.slide:not(.active) .ill, .slide:not(.active) .ill * { animation-play-state: paused !important; }
+.ill-idea i { position: absolute; top: 6px; left: 20px; width: 26px; height: 30px; border-radius: 5px; border: 1.5px solid rgba(255,255,255,.5); background: rgba(255,255,255,.06); transform-origin: 50% 100%; }
+.ill-idea i:nth-child(1) { transform: rotate(-16deg) translateX(-10px); }
+.ill-idea i:nth-child(3) { transform: rotate(16deg) translateX(10px); }
+.ill-idea i:nth-child(2) { animation: pick 3.2s var(--ease) infinite; z-index: 1; }
+@keyframes pick { 0%, 25% { transform: none; } 45%, 80% { transform: translateY(-7px); border-color: var(--cyan); background: rgba(107,230,255,.25); box-shadow: 0 0 14px rgba(107,230,255,.6); } 100% { transform: none; } }
+.ill-nine { display: grid; grid-template-columns: repeat(3, 10px); gap: 4px; justify-content: end; }
+.ill-nine i { width: 10px; height: 10px; border-radius: 3px; background: rgba(255,255,255,.1); animation: lightup 2.7s infinite; animation-delay: calc(var(--i) * .3s); }
+@keyframes lightup { 0%, 8% { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); } 22%, 100% { background: rgba(255,255,255,.1); box-shadow: none; } }
+.ill-gates { display: flex; gap: 6px; justify-content: end; align-items: center; }
+.ill-gates i { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.45); display: grid; place-items: center; font-style: normal; font-family: var(--mono); font-size: 10px; animation: gate 3.6s infinite; animation-delay: calc(var(--i) * .6s); }
+@keyframes gate { 0%, 10% { background: transparent; } 20%, 70% { background: var(--pink); border-color: var(--pink); color: #070910; box-shadow: 0 0 12px rgba(255,122,217,.7); } 85%, 100% { background: transparent; } }
+.ill-sheet { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; overflow: hidden; border-radius: 3px; }
+.ill-sheet i { height: 17px; background: rgba(255,255,255,.1); border-radius: 2px; }
+.ill-sheet i:nth-child(6) { animation: fail 3s infinite; }
+.ill-sheet::after { content: ""; position: absolute; top: -2px; bottom: -2px; left: 0; width: 2px; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); animation: scanx 3s linear infinite; }
+@keyframes scanx { from { left: -4px; } to { left: 100%; } }
+@keyframes fail { 0%, 30% { background: rgba(255,255,255,.1); } 34%, 60% { background: var(--pink); } 64%, 100% { background: var(--mint); } }
+.ill-eq { display: flex; align-items: center; justify-content: end; gap: 3px; }
+.ill-eq i { width: 3px; height: 34px; border-radius: 2px; background: var(--iri-v); transform-origin: 50% 50%; animation: eq 1.1s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -.13s); }
+@keyframes eq { from { transform: scaleY(.15); } to { transform: scaleY(1); } }
+.ill-orbit { animation: spin 9s linear infinite; width: 40px; right: clamp(20px, 1.8vw, 30px); }
+.ill-orbit i { position: absolute; left: 50%; top: 50%; width: 11px; height: 11px; margin: -5.5px; border-radius: 50%; transform: rotate(calc(var(--i) * 60deg)) translateX(16px); box-shadow: 0 0 8px currentColor; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.ft { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ft canvas { width: 100%; aspect-ratio: 2 / 1; border-radius: 10px; border: 1px solid var(--line); background: #0A0E1B; }
+.ft-ctl { display: flex; align-items: center; gap: 10px; }
+.ft-ctl button { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--iri); color: #070910; display: grid; place-items: center; font-size: 13px; }
+.ft-ctl input[type=range] { flex: 1; accent-color: var(--violet); min-width: 0; }
+.ft-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.ft-read { font-family: var(--mono); font-size: 12.5px; color: var(--text-2); display: flex; gap: 6px 14px; flex-wrap: wrap; }
+.ft-check { flex: none; font-family: var(--mono); font-size: 12.5px; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line-2); background: rgba(255,255,255,.04); transition: background .2s, border-color .2s; }
+.ft-check:hover { background: rgba(107,230,255,.12); border-color: var(--cyan); }
+.ft-out { font-family: var(--mono); font-size: 12.5px; color: var(--pink); min-height: 1.4em; }
+.ft-out.ok { color: var(--mint); }
+
+/* ---------- 4 · architecture ---------- */
+.arch { display: grid; gap: 14px; }
+.arch-top { display: grid; grid-template-columns: minmax(0, .8fr) auto minmax(0, .8fr) auto minmax(0, 1.6fr); align-items: stretch; gap: 10px; }
+.node, .panel, .arch-flow, .track li { transition: box-shadow .45s var(--ease), transform .45s var(--ease), background .45s, color .45s, border-color .45s, opacity .9s var(--ease), filter .9s var(--ease); }
+.node { border-radius: 12px; padding: 12px 16px; display: flex; flex-direction: column; justify-content: center; }
+.node b { font-weight: 600; font-size: 17px; }
+.node > span { font-size: 14px; color: var(--muted); }
+.node.you { border-style: dashed; border-color: var(--line-2); background: transparent; box-shadow: none; }
+.node.router { background: linear-gradient(155deg, rgba(157,140,255,.18), rgba(107,230,255,.06) 55%, rgba(240,124,255,.1)); }
+.node.router b { font-family: var(--mono); font-weight: 500; }
+.node.router > span { color: var(--text-2); }
+.arr { align-self: center; font-style: normal; color: var(--cyan); font-size: 22px; text-shadow: 0 0 12px var(--cyan); animation: nudge 1.8s ease-in-out infinite; }
+@keyframes nudge { 50% { transform: translateX(4px); } }
+.arch-mid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 14px; }
+.panel { border-radius: 14px; padding: 14px 16px 16px; }
+.panel h4 { font-size: 12.5px; font-family: var(--mono); font-weight: 500; text-transform: uppercase; letter-spacing: .14em; margin-bottom: 10px; display: flex; gap: 10px; align-items: baseline; color: var(--cyan); }
+.panel h4 .sub { text-transform: none; letter-spacing: 0; color: var(--muted); font-family: var(--sans); font-size: 14px; }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tile { border-radius: 10px; padding: 9px 12px; display: flex; flex-direction: column; box-shadow: var(--glass-hi); }
+.tile code { font-size: 14px; font-weight: 500; color: var(--text); }
+.tile span { font-size: 14px; color: var(--muted); }
+.cli { border-radius: 10px; padding: 9px 12px; box-shadow: var(--glass-hi); }
+.cli code { font-size: 15px; font-weight: 500; }
+.cli span { display: block; font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.down { text-align: center; color: var(--cyan); line-height: 1.6; }
+.engines-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.engines-row span { text-align: center; font-size: 14px; font-weight: 500; padding: 9px 4px; border-radius: 10px; background: rgba(107,230,255,.08); border: 1px solid rgba(107,230,255,.25); color: var(--text); overflow-wrap: anywhere; }
+.arch-flow { border-radius: 14px; padding: 12px 14px 14px; }
+.arch-flow .flow-label { font-size: 13px; color: var(--muted); margin-bottom: 10px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: space-between; }
+.arch-flow .flow-label code { color: var(--text); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; background: rgba(107,230,255,.5); }
+.legend i.c { background: linear-gradient(135deg, var(--pink), var(--violet)); }
+.legend i.a { background: #fff; border-radius: 50%; box-shadow: 0 0 8px var(--cyan); }
+.track { list-style: none; display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; }
+.track li {
+  position: relative; border-radius: 10px; padding: 8px 9px; background: rgba(255,255,255,.05); border: 1px solid var(--line); font-size: 14px; font-weight: 600;
+  display: flex; flex-direction: column; justify-content: center; line-height: 1.25;
+}
+.track li small { font-weight: 400; font-size: 12px; color: var(--muted); margin-top: 3px; }
+.track li.gate { background: linear-gradient(135deg, rgba(255,122,217,.85), rgba(157,140,255,.85)); border-color: transparent; color: #0A0612; }
+.track li.gate small { color: rgba(10,6,18,.75); }
+.track li.gate::after { content: ""; position: absolute; inset: -1px; border-radius: 11px; animation: ring 2.6s ease-out infinite; }
+.slide:not(.active) .track li.gate::after, .slide:not(.active) .arr { animation-play-state: paused; }
+@keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(255,122,217,.55); } 70%, 100% { box-shadow: 0 0 0 10px rgba(255,122,217,0); } }
+.track li.loop { background: rgba(107,230,255,.12); border-color: rgba(107,230,255,.4); }
+.track li.back { background: transparent; border: 1px dashed var(--line-2); }
+/* the request moving through the system */
+.lit { border-color: rgba(255,255,255,.9) !important; box-shadow: 0 0 0 1px rgba(255,255,255,.7), 0 0 26px 2px rgba(107,230,255,.55), inset 0 0 18px rgba(107,230,255,.18) !important; transform: translateY(-3px) !important; }
+
+/* ---------- 5 · film ---------- */
+#film .head { margin-bottom: 16px; transition: opacity .5s; }
+#film h2 { max-width: none; font-size: clamp(28px, min(3.4vw, 5.8vh), 58px); }
+.screen-wrap { position: relative; width: 100%; max-width: calc((100svh - var(--bar) - 300px) * 16 / 9); margin: 0 auto; }
+.ambient { position: absolute; inset: -8% -6%; width: 112%; height: 116%; filter: blur(70px) saturate(1.5); opacity: .55; z-index: 0; transition: opacity 1s; pointer-events: none; }
+body.cinema .ambient { opacity: .8; }
+.screen { position: relative; z-index: 1; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 14px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.14), 0 40px 90px -30px rgba(0,0,0,.9); }
+.screen-wrap::after { content: ""; position: absolute; inset: -1px; z-index: 2; border-radius: 15px; padding: 1px; pointer-events: none; background: var(--iri); background-size: 200% 100%; animation: sheen 9s linear infinite; opacity: .6;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+body.cinema .screen-wrap::after { opacity: 0; }
+.js #film .screen-wrap[data-r] { transform: translateY(30px) scale(.94); transition-duration: 1.4s; }
+.js #film.in .screen-wrap[data-r] { transform: none; }
+.screen video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+.bigplay { position: absolute; inset: 0; display: grid; place-items: end start; padding: clamp(14px, 2.4vw, 28px); background: linear-gradient(0deg, rgba(0,0,0,.55), rgba(0,0,0,0) 40%); transition: opacity .4s; }
+.bigplay > span {
+  display: inline-flex; align-items: center; gap: 12px; padding: 14px 24px 14px 18px; border-radius: 999px;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.3); color: #fff; font-weight: 600; font-size: 18px;
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); transition: transform .35s var(--ease), background .3s;
+}
+.bigplay:hover > span { transform: scale(1.04); background: rgba(255,255,255,.2); }
+.bigplay > span::before { content: ""; border-left: 16px solid var(--cyan); border-top: 10px solid transparent; border-bottom: 10px solid transparent; margin-left: 4px; filter: drop-shadow(0 0 6px var(--cyan)); }
+.screen.playing .bigplay, .screen.started .bigplay { opacity: 0; pointer-events: none; }
+.chapters { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 16px auto 0; transition: opacity .5s; }
+.chapters button { font-size: 13px; padding: 5px 11px; border-radius: 999px; color: var(--muted); background: rgba(255,255,255,.04); border: 1px solid var(--line); transition: background .3s, color .3s; }
+.chapters button:hover { color: var(--text); }
+.chapters button b { font-family: var(--mono); font-weight: 500; color: var(--text); margin-right: 6px; }
+.chapters button.on { color: #070910; background: var(--iri); border-color: transparent; }
+.chapters button.on b { color: #070910; }
+.film-notes { text-align: center; margin-top: 12px; transition: opacity .5s; }
+body.cinema #film .head, body.cinema .chapters, body.cinema .film-notes { opacity: .1; }
+
+/* ---------- 6 · works ---------- */
+.films {
+  display: grid; grid-template-columns: minmax(0, .63fr) minmax(0, 1fr) minmax(0, 1fr); gap: 12px;
+  max-width: calc((100svh - var(--bar) - 230px) / 1.13 * 2.66); margin: 0 auto; perspective: 1400px;
+}
+.film {
+  position: relative; border-radius: 14px; overflow: hidden; background: #07090F; aspect-ratio: 16 / 9; cursor: pointer; color: #fff;
+  box-shadow: 0 0 0 1px var(--line);
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .5s var(--ease), box-shadow .5s, opacity .9s var(--ease), filter .9s var(--ease);
+}
+.film:hover { box-shadow: 0 0 0 1px rgba(107,230,255,.5), 0 30px 60px -28px rgba(107,230,255,.45); }
+.js .film[data-r] { transform: translateY(26px) scale(.97); }
+.js .in .film[data-r] { transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
+.film.tall { grid-row: span 2; aspect-ratio: auto; }
+.film video, .film .sheet { position: absolute; inset: 0; width: 100%; height: 100%; }
+.film video { object-fit: cover; transition: transform 1.2s var(--ease); }
+.film:hover video { transform: scale(1.03); }
+.film.full video { transform: none; }
+.film .sheet { object-fit: contain; background: #07090F; clip-path: inset(0 100% 0 0); transition: clip-path 1s var(--ease); transition-delay: var(--sd, 0s); pointer-events: none; }
+.films.sees .film .sheet { clip-path: inset(0 0 0 0); }
+.film .scan { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: var(--cyan); box-shadow: 0 0 16px 3px rgba(107,230,255,.85); opacity: 0; pointer-events: none; z-index: 2; }
+.films.sees .film .scan { animation: wipe 1s var(--ease) forwards; animation-delay: var(--sd, 0s); }
+@keyframes wipe { 0% { left: 0; opacity: 1; } 90% { opacity: 1; } 100% { left: 100%; opacity: 0; } }
+.film figcaption { position: absolute; inset: auto 0 0 0; padding: 40px 14px 12px; background: linear-gradient(0deg, rgba(4,5,10,.9), rgba(4,5,10,0)); transition: opacity .3s; pointer-events: none; z-index: 1; }
+.film figcaption b { display: block; font-size: clamp(15px, 1.15vw, 18px); font-weight: 600; }
+.film figcaption q { display: block; font-family: var(--display); font-weight: 500; font-size: clamp(15px, 1.2vw, 19px); line-height: 1.25; color: var(--text-2); margin-top: 2px; letter-spacing: -.01em; }
+.film figcaption small { display: block; font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; }
+.film .pbtn {
+  position: absolute; top: 12px; right: 12px; width: 38px; height: 38px; border-radius: 50%; z-index: 1;
+  background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.35); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  display: grid; place-items: center; transition: opacity .3s, transform .35s var(--ease);
+}
+.film:hover .pbtn { transform: scale(1.12); }
+.film .pbtn::before { content: ""; border-left: 12px solid #fff; border-top: 7px solid transparent; border-bottom: 7px solid transparent; margin-left: 3px; }
+.film.full figcaption, .film.full .pbtn { opacity: 0; }
+.film .sheet-tag { position: absolute; top: 12px; left: 12px; font-family: var(--mono); font-size: 12px; font-weight: 500; padding: 3px 9px; border-radius: 6px; z-index: 2; background: var(--iri); color: #070910; opacity: 0; transition: opacity .35s; transition-delay: var(--sd, 0s); }
+.films.sees .film .sheet-tag { opacity: 1; }
+.films.sees .film figcaption q { display: none; }
+.film.info { padding: clamp(14px, 1.6vw, 24px); display: flex; flex-direction: column; gap: 8px; text-decoration: none; }
+.film.info b { font-family: var(--display); font-weight: 600; font-size: clamp(20px, 1.7vw, 28px); line-height: 1.1; letter-spacing: -.02em; }
+.film.info ul { list-style: none; font-family: var(--mono); font-size: clamp(11.5px, .9vw, 13.5px); color: var(--muted); display: grid; gap: 3px; }
+.film.info ul em { font-style: normal; color: var(--text); }
+.film.info > span { margin-top: auto; font-family: var(--mono); font-size: 13px; color: var(--cyan); }
+.sees-note { font-size: 14px; color: var(--muted); max-width: 30em; text-align: right; }
+
+/* ---------- 7 · styles ---------- */
+.wall-stage { perspective: 1600px; }
+.wall { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; max-width: calc((100svh - var(--bar) - 250px) / .29); margin: 0 auto; transform-origin: 50% 0; transition: transform 1.8s var(--ease); }
+.js .wall { transform: rotateX(52deg) translateY(40px) scale(.92); }
+.js .in .wall { transform: none; }
+.sw { position: relative; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; background: #0A0E1A; box-shadow: 0 0 0 1px var(--line); transition: transform .4s var(--ease), box-shadow .4s, opacity .8s var(--ease); }
+.js .sw { opacity: 0; transition-delay: var(--d, 0s); }
+.js .in .sw { opacity: 1; }
+.sw:hover { transform: scale(1.08); z-index: 2; box-shadow: 0 0 0 1px rgba(107,230,255,.6), 0 20px 40px -14px rgba(107,230,255,.45); transition-delay: 0s; }
+.sw img, .sw video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sw video { opacity: 0; transition: opacity .5s; }
+.sw.on video { opacity: 1; }
+.sw > span { position: absolute; inset: auto 0 0 0; padding: 14px 8px 5px; font-size: 12px; font-weight: 500; color: #fff; text-align: left; background: linear-gradient(0deg, rgba(0,0,0,.8), rgba(0,0,0,0)); opacity: 0; transition: opacity .2s; }
+.sw:hover > span, .sw:focus-visible > span { opacity: 1; }
+.sw.info { display: flex; flex-direction: column; justify-content: center; padding: 8px 10px; gap: 2px; cursor: default; }
+.sw.info b { font-family: var(--display); font-weight: 600; font-size: clamp(18px, 1.6vw, 26px); line-height: 1; letter-spacing: -.02em; }
+.sw.info small { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+/* ---------- 9 · in the wild ---------- */
+.wild { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: clamp(20px, 3vw, 48px); align-items: center; }
+.clock { position: relative; overflow: hidden; border-radius: 20px; padding: clamp(20px, 3vw, 40px); display: grid; gap: 16px; }
+.clock::after { content: ""; position: absolute; width: 70%; aspect-ratio: 1; right: -22%; top: -45%; border-radius: 50%; background: radial-gradient(circle, rgba(157,140,255,.35), rgba(107,230,255,.12) 40%, transparent 68%); pointer-events: none; }
+.clock .big { position: relative; font-family: var(--display); font-weight: 600; font-size: clamp(84px, min(10.5vw, 19vh), 180px); line-height: .88; letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+.clock .big > span { background: var(--iri); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sheen 9s linear infinite; }
+.clock .big small { font-size: .32em; color: var(--text-2); margin-left: 10px; letter-spacing: -.01em; font-weight: 500; }
+.tl { position: relative; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; font-family: var(--mono); font-size: 13px; color: var(--text-2); }
+.tl .track-line { position: relative; height: 2px; background: repeating-linear-gradient(90deg, rgba(255,255,255,.2) 0 8px, transparent 8px 14px); }
+.tl .track-line::before { content: ""; position: absolute; inset: 0; background: var(--iri); transform-origin: left; transform: scaleX(0); transition: transform 2.2s var(--ease) .3s; box-shadow: 0 0 10px rgba(157,140,255,.7); }
+.tl .track-line::after { content: ""; position: absolute; top: 50%; left: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 5px rgba(107,230,255,.2), 0 0 16px var(--cyan); transition: left 2.2s var(--ease) .3s; }
+.in .tl .track-line::before { transform: scaleX(1); }
+.in .tl .track-line::after { left: 100%; }
+.clock p { font-size: clamp(17px, 1.3vw, 21px); color: var(--text-2); position: relative; }
+.plats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.plat { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px; text-decoration: none; font-weight: 600; transition: transform .35s var(--ease), border-color .3s; }
+.plat small { font-weight: 400; color: var(--muted); font-size: 13px; }
+a.plat:hover { border-color: var(--cyan); transform: translateY(-2px); }
+.mine { margin-top: 18px; position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #07090F; display: none; box-shadow: 0 0 0 1px var(--line); }
+.mine.has { display: block; }
+.mine video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+
+/* ---------- 10 · get started ---------- */
+.start-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 48px); align-items: start; }
+.steps { list-style: none; display: grid; gap: 12px; counter-reset: st; }
+.steps li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; }
+.steps li::before { counter-increment: st; content: counter(st); width: 34px; height: 34px; border-radius: 50%; background: var(--iri); color: #070910; display: grid; place-items: center; font-family: var(--mono); font-size: 14px; font-weight: 500; }
+.steps h3 { font-size: 17px; font-weight: 600; margin: 4px 0 6px; }
+.cmd { position: relative; border-radius: 12px; color: var(--text); font-family: var(--mono); font-size: clamp(13px, 1vw, 15.5px); padding: 12px 84px 12px 14px; white-space: pre-wrap; overflow-wrap: anywhere; min-height: 2.9em; background: rgba(8,10,20,.7); }
+.cmd .p { color: var(--cyan); user-select: none; }
+.cmd .caret { display: inline-block; width: .55em; height: 1.1em; background: var(--cyan); vertical-align: -3px; margin-left: 2px; animation: blink 1s steps(1) infinite; box-shadow: 0 0 8px var(--cyan); }
+.cmd.say { white-space: normal; font-family: var(--display); font-weight: 500; font-size: clamp(17px, 1.35vw, 22px); line-height: 1.35; letter-spacing: -.01em; padding-right: 14px; background: var(--glass); }
+.copy { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-family: var(--sans); font-size: 12.5px; padding: 5px 10px; border-radius: 8px; background: rgba(255,255,255,.08); border: 1px solid var(--line); color: var(--text); transition: background .2s; }
+.copy:hover { background: rgba(107,230,255,.2); }
+.next { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 14.5px; }
+.next span { padding: 5px 11px; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid var(--line); }
+.next span.g { background: linear-gradient(135deg, rgba(255,122,217,.85), rgba(157,140,255,.85)); color: #0A0612; border-color: transparent; font-weight: 500; }
+.next i { font-style: normal; color: var(--cyan); }
+.efforts { margin-top: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.efforts div { border-radius: 12px; padding: 9px 12px; font-size: 14px; }
+.efforts b { font-family: var(--mono); font-weight: 500; display: block; color: var(--cyan); }
+.efforts span { color: var(--muted); }
+.flowcard { border-radius: 18px; padding: 18px; display: grid; gap: 12px; background: var(--glass); border: 1px solid var(--line); box-shadow: var(--glass-hi), 0 30px 60px -36px rgba(0,0,0,.8); -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); }
+.flowcard h4 { font-family: var(--mono); font-size: 12.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); }
+.flowcard .efforts { margin-top: 0; }
+.gates { list-style: none; display: grid; gap: 6px; }
+.gates li { display: grid; gap: 2px; padding: 9px 12px; border-radius: 10px; background: linear-gradient(135deg, rgba(255,122,217,.16), rgba(157,140,255,.12)); border: 1px solid rgba(255,122,217,.3); }
+.gates li.last { background: rgba(255,255,255,.04); border-color: var(--line); }
+.gates b { font-size: 15px; font-weight: 600; }
+.gates li > span { font-size: 14px; color: var(--text-2); }
+.contact { display: grid; gap: 10px; }
+.contact-wide { max-width: 760px; width: 100%; margin: 0 auto; }
+.qrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.qrs.one { grid-template-columns: minmax(0, 1fr); max-width: 300px; margin: 0 auto; width: 100%; }
+.qr { position: relative; border-radius: 18px; padding: 16px; display: grid; gap: 10px; justify-items: center; text-align: center; overflow: hidden; }
+.qr .plate { background: #fff; border-radius: 12px; padding: 10px; width: 100%; max-width: 230px; box-shadow: 0 0 0 1px rgba(255,255,255,.5), 0 18px 40px -18px rgba(107,230,255,.6); }
+.qr svg, .qr img { width: 100%; height: auto; color: #0A0C14; aspect-ratio: 1; object-fit: contain; border-radius: 4px; }
+.qr h4 { font-family: var(--display); font-weight: 600; font-size: clamp(19px, 1.5vw, 25px); line-height: 1; letter-spacing: -.02em; }
+.qr::after { content: ""; position: absolute; left: 0; right: 0; height: 50px; top: -50px; background: linear-gradient(rgba(107,230,255,0), rgba(107,230,255,.3), rgba(107,230,255,0)); animation: qrscan 3.8s var(--ease) infinite 1.2s; pointer-events: none; }
+.slide:not(.active) .qr::after { animation-play-state: paused; }
+@keyframes qrscan { 0% { top: -50px; } 60%, 100% { top: 100%; } }
+.qr a { font-family: var(--mono); font-size: 12px; text-decoration: none; overflow-wrap: anywhere; color: var(--text); }
+.qr small { color: var(--muted); font-size: 13px; }
+.mail { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 13px 16px; border-radius: 14px; text-decoration: none; font-family: var(--mono); font-size: clamp(14px, 1.05vw, 17px); color: var(--text); background: rgba(255,255,255,.05); transition: transform .35s var(--ease), background .3s; }
+.mail:hover { transform: translateY(-2px); background: rgba(255,255,255,.09); }
+.mail span { font-family: var(--sans); font-size: 13px; color: var(--muted); }
+.end { margin-top: clamp(18px, 3.5vh, 40px); padding-top: 14px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px 24px; align-items: baseline; }
+.end .motto { font-family: var(--display); font-weight: 600; font-size: clamp(24px, 2.2vw, 38px); letter-spacing: -.03em; }
+.end .motto em { font-style: normal; }
+
+/* ---------- lightbox ---------- */
+.lightbox { position: fixed; inset: 0; z-index: 60; display: none; place-items: center; background: rgba(4,5,10,.78); padding: 16px; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.lightbox.show { display: grid; animation: fadein .35s var(--ease); }
+@keyframes fadein { from { opacity: 0; } }
+.lb-card { width: min(1200px, 100%); animation: rise .5s var(--ease); }
+@keyframes rise { from { transform: translateY(20px) scale(.98); } }
+.lb-card video, .lb-card img { width: 100%; max-height: 78vh; object-fit: contain; background: #000; border-radius: 12px; margin: 0 auto; box-shadow: 0 0 0 1px var(--line-2); }
+.lb-cap { color: var(--text); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 10px; font-size: 15px; }
+.lb-cap code { color: var(--cyan); }
+.lb-x { position: absolute; top: 14px; right: 18px; color: #fff; font-size: 28px; line-height: 1; width: 40px; height: 40px; }
+
+/* ---------- hero extras, small layout bits ---------- */
+.trust { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin-top: clamp(14px, 2.4vh, 24px); }
+.trust li:not(.badge) { font-family: var(--mono); font-size: 12.5px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.035); border: 1px solid var(--line); color: var(--text-2); white-space: nowrap; }
+.btn .star { width: 16px; height: 16px; color: #FFD27A; flex: none; }
+.start-note { margin-top: 10px; }
+.sees-box { display: grid; gap: 8px; justify-items: end; }
+.styles-lede { max-width: 26em; }
+.contact-lede { max-width: 24em; }
+.wild .lede { margin-top: 16px; }
+
+/* ---------- faq ---------- */
+.faq { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; align-items: start; }
+.faq-col { display: grid; gap: 10px; }
+.faq details { border-radius: 14px; background: var(--glass); border: 1px solid var(--line); box-shadow: var(--glass-hi); transition: border-color .3s, background .3s, opacity .9s var(--ease), transform 1.1s var(--ease), filter .9s var(--ease); }
+.faq details:hover { border-color: var(--line-2); }
+.faq details[open] { border-color: rgba(107,230,255,.35); background: linear-gradient(155deg, rgba(107,230,255,.08), rgba(157,140,255,.05) 50%, rgba(255,255,255,.03)); }
+.faq summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 14px 18px; font-weight: 600; font-size: clamp(15.5px, 1.1vw, 18px); line-height: 1.35; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; flex: none; font-family: var(--mono); font-weight: 400; font-size: 20px; line-height: 1; color: var(--cyan); transition: transform .35s var(--ease); }
+.faq details[open] summary::after { transform: rotate(45deg); }
+.faq .a { padding: 0 18px 16px; color: var(--text-2); font-size: clamp(14.5px, 1vw, 16px); line-height: 1.6; }
+.faq details[open] .a { animation: fadein .5s var(--ease); }
+.faq .a a { color: var(--cyan); text-decoration: none; white-space: nowrap; }
+.faq .a a:hover { text-decoration: underline; }
+.links { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; }
+.links a { color: var(--text-2); text-decoration: none; transition: color .2s; }
+.links a:hover { color: var(--cyan); }
+.end .fine { flex-basis: 100%; }
+
+/* ---------- languages ---------- */
+html:not([data-lang]) [lang="zh"], html[data-lang="en"] [lang="zh"], html[data-lang="zh"] [lang="en"] { display: none !important; }
+.langbtn { display: inline-flex; align-items: center; flex: none; padding: 3px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid var(--line-2); font-family: var(--mono); font-size: 12.5px; line-height: 1; }
+.langbtn span { padding: 5px 10px; border-radius: 999px; color: var(--muted); transition: background .35s var(--ease), color .35s; }
+.langbtn:hover span { color: var(--text); }
+html[data-lang="en"] .langbtn [data-v="en"], html[data-lang="zh"] .langbtn [data-v="zh"] { background: var(--iri); color: #070910; }
+main { transition: opacity .18s ease; }
+body.switching main { opacity: 0; }
+html[data-lang="zh"] body { line-height: 1.6; }
+html[data-lang="zh"] h2 { letter-spacing: 0; line-height: 1.16; max-width: 20em; }
+.ph { white-space: nowrap; } /* a Chinese phrase in a heading wraps as one piece */
+html[data-lang="zh"] .why-grid h2 { max-width: 9.5em; }
+html[data-lang="zh"] .tag, html[data-lang="zh"] .card h3, html[data-lang="zh"] .end .motto, html[data-lang="zh"] .qr h4, html[data-lang="zh"] .film.info b, html[data-lang="zh"] .film figcaption q { letter-spacing: .01em; }
+html[data-lang="zh"] .eyebrow { letter-spacing: .1em; }
+html[data-lang="zh"] .lede, html[data-lang="zh"] .why-copy p, html[data-lang="zh"] .faq .a { line-height: 1.7; }
+html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1180px) {
+  .nav a { padding: 6px 7px; font-size: 13px; }
+  .nav a::after { left: 7px; right: 7px; }
+  .features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .track { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .wall { grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: none; }
+}
+@media (max-width: 980px) {
+  .nav { display: none; }
+  .langbtn { margin-left: auto; }
+  .why-grid, .wild, .start-grid, .arch-mid { grid-template-columns: minmax(0, 1fr); }
+  .arch-top { grid-template-columns: minmax(0, 1fr); }
+  .arch-top .arr { transform: rotate(90deg); justify-self: center; animation: none; }
+  .films { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); max-width: none; }
+  .film.tall { grid-row: auto; grid-column: span 2; aspect-ratio: 9 / 12; }
+  .screen-wrap, .chapters { max-width: none; }
+  .hero-scrim { background: linear-gradient(0deg, rgba(4,5,10,.95) 25%, rgba(4,5,10,.8) 58%, rgba(4,5,10,.45) 85%, rgba(4,5,10,.3)); }
+  .galaxy-cap { display: none; }
+}
+@media (max-width: 760px), (max-height: 560px) {
+  html { scroll-snap-type: none; }
+  .slide { min-height: 0; padding-top: calc(var(--bar) + 28px); padding-bottom: 44px; }
+  .hero { min-height: 100svh; }
+  .rail, .scroll-cue { display: none; }
+}
+@media (max-width: 640px) {
+  .features { grid-template-columns: minmax(0, 1fr); }
+  .card.wide { grid-column: auto; grid-template-columns: minmax(0, 1fr); }
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .engines-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .track { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .films { grid-template-columns: minmax(0, 1fr); }
+  .film.tall { grid-column: auto; }
+  .wall { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .efforts, .qrs, .faq { grid-template-columns: minmax(0, 1fr); }
+  .gh .t { display: none; }
+  .brand { font-size: 17px; }
+}
+@media (min-width: 761px) and (max-height: 820px) {
+  .slide { padding-top: calc(var(--bar) + 14px); padding-bottom: 16px; }
+  .head { margin-bottom: 12px; }
+  .card { padding: 12px 14px; gap: 5px; }
+  .card h3 { font-size: clamp(19px, 1.6vw, 26px); }
+  .card p { font-size: 14px; }
+  .card .where { display: none; }
+  .node, .panel, .arch-flow { padding-top: 9px; padding-bottom: 10px; }
+  .tile, .cli { padding: 6px 10px; }
+  .track li { padding: 6px 8px; font-size: 13px; }
+  .arch { gap: 10px; }
+  .steps { gap: 8px; }
+  .cmd { padding-top: 9px; padding-bottom: 9px; min-height: 0; }
+  .end { margin-top: 12px; padding-top: 8px; }
+  .efforts { margin-top: 8px; }
+  .efforts div { padding: 6px 10px; }
+  .next { margin-top: 10px; }
+  .qr { padding: 12px; gap: 8px; }
+  .qr .plate { max-width: 170px; padding: 8px; }
+  .gates li { padding: 6px 10px; }
+  .flowcard { padding: 14px; gap: 8px; }
+  .faq summary { padding: 11px 16px; }
+  .faq .a { padding-bottom: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; }
+  .js [data-r], .js .split .w > span, .js .hero h1, .js .wall, .js .sw { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="aurora"><i></i><i></i><i></i><i></i></div><div class="gridlines"></div><div class="stars"></div></div>
+
+<header class="topbar">
+  <a class="brand" href="#top">OpenVideo<span>Harness</span></a>
+  <nav class="nav" aria-label="Sections">
+    <a href="#start"><span lang="en">Get started</span><span lang="zh">快速开始</span></a>
+    <a href="#features"><span lang="en">Features</span><span lang="zh">特性</span></a>
+    <a href="#how"><span lang="en">How it works</span><span lang="zh">工作原理</span></a>
+    <a href="#film"><span lang="en">Film</span><span lang="zh">介绍片</span></a>
+    <a href="#showcase"><span lang="en">Showcase</span><span lang="zh">作品</span></a>
+    <a href="#styles"><span lang="en">Styles</span><span lang="zh">风格</span></a>
+    <a href="#faq"><span lang="en">FAQ</span><span lang="zh">常见问题</span></a>
+    <a href="#contact"><span lang="en">Contact</span><span lang="zh">联系</span></a>
+  </nav>
+  <button class="langbtn" id="langbtn" type="button" aria-label="中文 / English"><span data-v="en">EN</span><span data-v="zh">中</span></button>
+  <a class="gh" href="https://github.com/ZLHad/OpenVideoHarness" target="_blank" rel="noopener">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    <span class="t">GitHub</span>
+  </a>
+  <i class="progress" id="progress" aria-hidden="true"></i>
+</header>
+
+<main>
+
+<!-- hero -->
+<section class="slide hero" id="top" data-en="Home" data-zh="首页">
+  <canvas class="galaxy" id="galaxy" aria-hidden="true"></canvas>
+  <div class="hero-scrim" aria-hidden="true"></div>
+  <div class="wrap">
+    <p class="eyebrow" data-r><span lang="en">A video harness for Claude Code and Codex</span><span lang="zh">给 Claude Code 和 Codex 用的视频工作台</span></p>
+    <h1>OpenVideo<br>Harness</h1>
+    <p class="tag split"><span lang="en">Not more tools. <em>Know-how.</em></span><span lang="zh">不缺工具，<em>缺门道。</em></span></p>
+    <p class="lede" data-r><span lang="en">Ask for a film in one sentence. The agent writes the code that renders it, from the idea, storyboard, script and style to the sound and the final cut. It checks its own work, and stops three times for your sign-off.</span><span lang="zh">一句话提需求，agent 写代码渲染成片：立意、分镜、脚本、风格、声音，一直到成片。它自己检查自己，并在三个节点停下来，等你拍板。</span></p>
+    <div class="cta" data-r>
+      <a class="btn" href="#start"><span lang="en">Get started</span><span lang="zh">开始使用</span> <span class="arrow">→</span></a>
+      <a class="btn ghost" href="#film"><span lang="en">Watch the film</span><span lang="zh">看介绍片</span></a>
+      <a class="btn ghost" href="https://github.com/ZLHad/OpenVideoHarness" target="_blank" rel="noopener"><svg class="star" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 .8l2.2 4.5 5 .7-3.6 3.5.9 5L8 12.1 3.5 14.5l.9-5L.8 6l5-.7z"/></svg><span lang="en">Star on GitHub</span><span lang="zh">GitHub 点 Star</span></a>
+    </div>
+    <ul class="trust" data-r>
+      <li class="badge">MIT · <span lang="en">open source</span><span lang="zh">开源</span></li>
+      <li><span lang="en">9 video types</span><span lang="zh">9 类视频</span></li>
+      <li><span lang="en">31 styles</span><span lang="zh">31 种风格</span></li>
+      <li><span lang="en">5 engines</span><span lang="zh">5 个引擎</span></li>
+    </ul>
+  </div>
+  <p class="galaxy-cap" data-r><span lang="en">Every star is a film: the 31 style samples, in orbit</span><span lang="zh">每颗星都是一支片子：31 种风格的样片</span></p>
+  <div class="scroll-cue" aria-hidden="true"><i></i><span lang="en">scroll</span><span lang="zh">向下</span></div>
+</section>
+
+<!-- 01 · get started -->
+<section class="slide" id="start" data-en="Get started" data-zh="快速开始">
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow" data-r><b>01</b><span lang="en">Get started</span><span lang="zh">快速开始</span></p><h2 class="split"><span lang="en">One line to install. <em>One sentence to ask.</em></span><span lang="zh">一行命令安装，<em>一句话提需求。</em></span></h2></div>
+    </div>
+    <div class="start-grid">
+      <div>
+        <ol class="steps">
+          <li data-r><div><h3><span lang="en">Install (macOS or Linux)</span><span lang="zh">安装（macOS 或 Linux）</span></h3><div class="cmd"><span class="p">$ </span><span class="type" data-text="curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash">curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash</span><button class="copy" data-copy="curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash">Copy</button></div></div></li>
+          <li data-r><div><h3><span lang="en">Open Claude Code in it</span><span lang="zh">进入目录，打开 Claude Code</span></h3><div class="cmd"><span class="p">$ </span><span class="type" data-text="cd ~/OpenVideoHarness && claude">cd ~/OpenVideoHarness &amp;&amp; claude</span><button class="copy" data-copy="cd ~/OpenVideoHarness && claude">Copy</button></div></div></li>
+          <li data-r><div><h3><span lang="en">Ask for a film</span><span lang="zh">一句话提需求</span></h3>
+            <div class="cmd say" lang="en"><span class="type" data-text="“Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.”">“Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.”</span></div>
+            <div class="cmd say" lang="zh"><span class="type" data-text="“做一个 30 秒的竖屏科普：为什么低轨卫星的信号会‘变调’。中文配音，中英双语字幕。”">“做一个 30 秒的竖屏科普：为什么低轨卫星的信号会‘变调’。中文配音，中英双语字幕。”</span></div>
+          </div></li>
+        </ol>
+        <p class="fine start-note" data-r><span lang="en">Needs macOS or Linux, Node.js 22+, Chrome, FFmpeg, Python 3 with uv, and Claude Code or Codex. About 590 MB on disk, with 30 read-only reference repos.</span><span lang="zh">需要 macOS 或 Linux、Node.js ≥ 22、Chrome、FFmpeg、Python 3 和 uv，以及 Claude Code 或 Codex。连同 30 个只读的参考仓库，约占 590 MB。</span></p>
+      </div>
+      <div class="flowcard" data-r>
+        <h4><span lang="en">What happens next</span><span lang="zh">接下来</span></h4>
+        <ol class="gates">
+          <li><b><span lang="en">① Directions and outline</span><span lang="zh">① 创意方向和大纲</span></b><span><span lang="en">Two or three ideas, each with one frame. You pick one.</span><span lang="zh">两三个创意方向，各配一帧画面，你选一个。</span></span></li>
+          <li><b><span lang="en">② Storyboard</span><span lang="zh">② 分镜</span></b><span><span lang="en">A keyframe for every shot.</span><span lang="zh">每个镜头一张关键帧。</span></span></li>
+          <li><b><span lang="en">③ First draft</span><span lang="zh">③ 初版</span></b><span><span lang="en">With the two or three things it likes least about it.</span><span lang="zh">附上它自己最不满意的两三处。</span></span></li>
+          <li class="last"><b><span lang="en">Final render</span><span lang="zh">出成片</span></b><span><span lang="en">Only after you say yes.</span><span lang="zh">你点了头才出。</span></span></li>
+        </ol>
+        <div class="efforts">
+          <div><b>quick</b><span lang="en">no stops · 10–30 min</span><span lang="zh">不停 · 10–30 分钟</span></div>
+          <div><b>standard</b><span lang="en">three stops · 1–2 h</span><span lang="zh">停三次 · 1–2 小时</span></div>
+          <div><b>studio</b><span lang="en">polished over rounds · 3 h+</span><span lang="zh">多轮打磨 · 3 小时以上</span></div>
+        </div>
+        <p class="fine"><span lang="en">Times are for a 30-second film. Say "quick" and it runs straight through.</span><span lang="zh">时间按 30 秒的片子算。说"快速出一版"，它就一口气做完。</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 · why -->
+<section class="slide" id="why" data-en="Why" data-zh="为什么">
+  <div class="wrap why-grid">
+    <div class="why-copy">
+      <p class="eyebrow" data-r><b>02</b><span lang="en">Why it exists</span><span lang="zh">为什么做它</span></p>
+      <h2 class="split"><span lang="en">One great film is easy. <em>Every time is hard.</em></span><span lang="zh">做出一支好片不难，<em>每次都好才难。</em></span></h2>
+      <p data-r><span lang="en">Claude Opus 5.5 writes video as code, and it has <strong>taste</strong>: in motion, in type, in pacing. The community has shared hundreds of these films; one collection alone holds 389, with their prompts.</span><span lang="zh">Claude Opus 5.5 能用代码写视频，而且有<strong>审美</strong>：运动、字体、节奏都在线。社区里已经有几百支这样的片子，光一个合集就收了 389 支，连同提示词。</span></p>
+      <p data-r><span lang="en">But the same model can be brilliant once, then lose the pacing, glow everything and invent numbers the next time. Engines like <strong>HyperFrames</strong> and <strong>Remotion</strong> turn code into frames. They don't choose the idea, the storyboard, the script or the style, and can't tell whether the film is any good.</span><span lang="zh">可同一个模型，这次惊艳，下次就节奏乱、满屏发光、数字乱编。<strong>HyperFrames</strong>、<strong>Remotion</strong> 这些引擎负责把代码变成画面；立意、分镜、脚本、风格它们不管，片子好不好也判断不了。</span></p>
+      <p data-r><span lang="en">OpenVideoHarness is the missing layer: <strong>the process and the checks, from idea to final cut</strong>, written as docs an agent follows. It stays light on purpose: a few hard floors, and defaults that a good idea can overrule.</span><span lang="zh">OpenVideoHarness 补的就是这一层：<strong>从立意到成片的流程和检查</strong>，写成 agent 能照着做的文档。它故意写得很轻：几条底线不让步，其余都是默认，好点子可以反着来。</span></p>
+    </div>
+    <div class="stack" data-aria-en="Where OpenVideoHarness sits" data-aria-zh="OpenVideoHarness 在哪一层">
+      <div class="layer you" data-r><div class="layer-name"><span lang="en">You</span><span lang="zh">你</span><small><span lang="en">one sentence · three sign-offs</span><span lang="zh">一句话 · 拍板三次</span></small></div></div>
+      <div class="layer" data-r><div class="layer-name">Claude Code<small><span lang="en">or Codex · writes the code, with taste</span><span lang="zh">或 Codex · 写代码，有审美</span></small></div></div>
+      <div class="layer harness liuli" data-r>
+        <div class="layer-name">OpenVideoHarness<small><span lang="en">the know-how</span><span lang="zh">门道</span></small></div>
+        <ol class="flow" id="flow"><li><span lang="en">Idea</span><span lang="zh">立意</span></li><li><span lang="en">Storyboard</span><span lang="zh">分镜</span></li><li><span lang="en">Script</span><span lang="zh">脚本</span></li><li><span lang="en">Style</span><span lang="zh">风格</span></li><li><span lang="en">Sound</span><span lang="zh">声音</span></li><li><span lang="en">Checks</span><span lang="zh">自查</span></li><li><span lang="en">Final cut</span><span lang="zh">成片</span></li></ol>
+      </div>
+      <p class="drives" data-r><span lang="en">drives</span><span lang="zh">驱动</span> <i>↓</i></p>
+      <div class="layer" data-r>
+        <div class="layer-name"><span lang="en">Engines</span><span lang="zh">引擎</span><small><span lang="en">turn code into frames</span><span lang="zh">把代码变成画面</span></small></div>
+        <div class="pills"><span>HyperFrames</span><span>Remotion</span><span>Manim</span><span>p5.brush</span><span>Blender</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 · features -->
+<section class="slide" id="features" data-en="Features" data-zh="特性">
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow" data-r><b>03</b><span lang="en">What it adds</span><span lang="zh">它补上了什么</span></p><h2 class="split"><span lang="en">An engine renders. <em>This decides.</em></span><span lang="zh">引擎只管渲染，<em>这里拿主意。</em></span></h2></div>
+    </div>
+    <div class="features" id="cards">
+      <article class="card" data-r><div class="ill ill-idea" aria-hidden="true"><i></i><i></i><i></i></div><span class="n">01</span><h3><span lang="en">Idea first</span><span lang="zh">先想立意</span></h3><p><span lang="en">Two or three concept cards, each with one frame and a hook, before a line of code. It names what every other video on the topic looks like, and steers away.</span><span lang="zh">写代码之前，先出两三张立意卡，每张配一帧画面和一个钩子。它会先说出同题视频都长什么样，然后避开。</span></p><span class="where">playbook/12-ideation.md</span></article>
+      <article class="card" data-r><div class="ill ill-nine" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:5"></i><i style="--i:4"></i><i style="--i:3"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i></div><span class="n">02</span><h3><span lang="en">Nine workflows</span><span lang="zh">九类工作流</span></h3><p><span lang="en">Science shorts, 3Blue1Brown-style explainers, launch films, music videos, data stories, paper talks, hand-drawn shorts, meme edits, and edits of your own footage.</span><span lang="zh">科普短视频、3Blue1Brown 风格讲解、产品发布片、MV、数据故事、论文讲解、手绘短片、梗图快剪，还有剪你自己录的素材。</span></p><span class="where">video-types/</span></article>
+      <article class="card" data-r><div class="ill ill-gates" aria-hidden="true"><i style="--i:0">1</i><i style="--i:1">2</i><i style="--i:2">3</i></div><span class="n">03</span><h3><span lang="en">You decide, three times</span><span lang="zh">三次由你拍板</span></h3><p><span lang="en">Direction, storyboard, first draft. Name anything else you want to own: the hook, the style, the voice, the cover. Or say "quick" and it runs straight through.</span><span lang="zh">创意方向、分镜、初版。还想亲自定别的，点名就行：钩子、风格、配音、封面。说"快速出一版"，它就一口气做完。</span></p><span class="where">CLAUDE.md · director mode</span></article>
+      <article class="card" data-r><div class="ill ill-sheet" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="n">04</span><h3><span lang="en">It checks its own work</span><span lang="zh">自己检查自己</span></h3><p><span lang="en">Claude can't watch video. So it reads contact sheets against a 20-point checklist, measures the audio, and a second Claude with a fresh context scores the draft on 8 points.</span><span lang="zh">Claude 看不了视频，所以它看联系表、对照 20 条清单改，用数据查声音；再由一个全新上下文的 Claude 按 8 项给初版打分。</span></p><span class="where">templates/TASTE_CHECKLIST.md</span></article>
+      <article class="card" data-r><div class="ill ill-eq" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i><i style="--i:10"></i></div><span class="n">05</span><h3><span lang="en">Sound, as code</span><span lang="zh">声音也是代码</span></h3><p><span lang="en">Chinese and English voiceover, two-language subtitles, a score and 21 sound effects written as code, every cue on its frame, mixed to −14 LUFS.</span><span lang="zh">中英配音、双语字幕，配乐和 21 个音效都用代码写，每个卡点落在它那一帧，混音到 −14 LUFS。</span></p><span class="where">bin/vh tts · music · sfx · mix · qa</span></article>
+      <article class="card wide" data-r>
+        <div class="txt">
+          <span class="n">06</span><h3><span lang="en">Every frame is <em class="iri">f(t)</em></span><span lang="zh">每一帧都是 <em class="iri">f(t)</em></span></h3>
+          <p><span lang="en">No randomness, no clock, no state carried between frames. Same <em>t</em>, same pixels, so any frame renders alone, in parallel, in any order, and can be checked. Drag the slider, then render the frame again.</span><span lang="zh">不用随机数、不读时钟、帧与帧之间不留状态。同一个 <em>t</em> 永远是同一帧，所以任何一帧都能单独渲染、并行渲染、乱序渲染，也能抽查。拖动滑块，再把这一帧重渲一遍试试。</span></p>
+          <span class="where">CLAUDE.md · hard rule 1</span>
+        </div>
+        <div class="ft">
+          <canvas id="ft" data-aria-en="A square wave built from sine waves, drawn as a function of time" data-aria-zh="用正弦波叠出方波，画面只由时间决定"></canvas>
+          <div class="ft-ctl">
+            <button id="ftPlay" aria-label="Pause">❚❚</button>
+            <input id="ftT" type="range" min="0" max="10" step="0.0333333" value="0" data-aria-en="Time in seconds" data-aria-zh="时间（秒）">
+          </div>
+          <div class="ft-row">
+            <div class="ft-read"><span id="ftRead">t = 0.00 s · frame 0</span><span id="ftTerms">1 sine wave</span></div>
+            <button class="ft-check" id="ftCheck"><span lang="en">Render it again, out of order</span><span lang="zh">乱序重渲这一帧</span></button>
+          </div>
+          <div class="ft-out" id="ftOut" aria-live="polite"></div>
+        </div>
+      </article>
+      <article class="card" data-r><div class="ill ill-orbit" aria-hidden="true"><i style="--i:0;background:#7CF7FF;color:#7CF7FF"></i><i style="--i:1;background:#9D8CFF;color:#9D8CFF"></i><i style="--i:2;background:#F07CFF;color:#F07CFF"></i><i style="--i:3;background:#FFC9A6;color:#FFC9A6"></i><i style="--i:4;background:#7CF5C8;color:#7CF5C8"></i><i style="--i:5;background:#6B8CFF;color:#6B8CFF"></i></div><span class="n">07</span><h3><span lang="en">31 styles, and Blender</span><span lang="zh">31 种风格，外加 Blender</span></h3><p><span lang="en">A style library to borrow from, each with a rendered sample. And when a shot needs real glass or a million stars, Claude drives Blender from Python.</span><span lang="zh">风格库可以借来用，每种都带实际渲染的样片。要真玻璃、上百万颗星时，Claude 写 Python 驱动 Blender。</span></p><span class="where">styles/ · engines/blender.md</span></article>
+    </div>
+  </div>
+</section>
+
+<!-- 04 · how it works -->
+<section class="slide" id="how" data-en="How it works" data-zh="工作原理">
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow" data-r><b>04</b><span lang="en">How it works</span><span lang="zh">工作原理</span></p><h2 class="split"><span lang="en">A router, a library of know-how, <em>one CLI.</em></span><span lang="zh">一个路由，一套门道，<em>一个命令行。</em></span></h2></div>
+    </div>
+    <div class="arch">
+      <div class="arch-top">
+        <div class="node you" data-r data-step><b><span lang="en">You</span><span lang="zh">你</span></b><span><span lang="en">one sentence, in English or Chinese</span><span lang="zh">一句话，中文英文都行</span></span></div>
+        <i class="arr" aria-hidden="true" data-r>→</i>
+        <div class="node" data-r data-step><b>Claude Code</b><span><span lang="en">or Codex</span><span lang="zh">或 Codex</span></span></div>
+        <i class="arr" aria-hidden="true" data-r>→</i>
+        <div class="node router liuli" data-r data-step><b>CLAUDE.md</b><span><span lang="en">the router: picks the video type, sets the hard rules, the effort level and who decides what</span><span lang="zh">路由：判断视频类型，定下硬规则、档位，以及哪些事由谁拍板</span></span></div>
+      </div>
+      <div class="arch-mid">
+        <div class="panel" data-r data-step>
+          <h4><span lang="en">Reads</span><span lang="zh">读</span> <span class="sub"><span lang="en">know-how, written as markdown</span><span lang="zh">写成 markdown 的门道</span></span></h4>
+          <div class="tiles">
+            <div class="tile"><code>video-types/</code><span lang="en">9 workflows</span><span lang="zh">9 类工作流</span></div>
+            <div class="tile"><code>playbook/</code><span lang="en">13 know-how docs</span><span lang="zh">13 篇通用知识</span></div>
+            <div class="tile"><code>styles/</code><span lang="en">31 styles</span><span lang="zh">31 种风格</span></div>
+            <div class="tile"><code>recipes/</code><span lang="en">24 shot recipes</span><span lang="zh">24 个镜头配方</span></div>
+            <div class="tile"><code>templates/</code><span lang="en">11 project files</span><span lang="zh">11 个项目模板</span></div>
+            <div class="tile"><code>cases/ showcase/</code><span lang="en">case studies, films</span><span lang="zh">案例拆解、样片</span></div>
+          </div>
+        </div>
+        <div class="panel" data-r data-step>
+          <h4><span lang="en">Runs</span><span lang="zh">跑</span> <span class="sub"><span lang="en">one CLI, five engines</span><span lang="zh">一个命令行，五个引擎</span></span></h4>
+          <div class="cli"><code>bin/vh</code><span>new · tts · music · sfx · mix · qa · check · review · desk</span></div>
+          <div class="down" aria-hidden="true">↓</div>
+          <div class="engines-row"><span>HyperFrames</span><span>Manim</span><span>Remotion</span><span>p5.brush</span><span>Blender</span></div>
+        </div>
+      </div>
+      <div class="arch-flow" data-r>
+        <div class="flow-label"><span><span lang="en">Each film is a project folder:</span><span lang="zh">每支片子是一个项目目录：</span> <code>projects/&lt;date&gt;-&lt;slug&gt;/</code></span><span class="legend"><span><i class="c"></i><span lang="en">you decide</span><span lang="zh">你拍板</span></span><span><i></i><span lang="en">Claude checks itself</span><span lang="zh">Claude 自查</span></span><span><i class="a"></i><span lang="en">a request, moving through</span><span lang="zh">一条需求走过的路</span></span></span></div>
+        <ol class="track">
+          <li data-step><span lang="en">Idea</span><span lang="zh">立意</span><small><span lang="en">2–3 concept cards</span><span lang="zh">2–3 张立意卡</span></small></li>
+          <li class="gate" data-step><span lang="en">① You</span><span lang="zh">① 你</span><small><span lang="en">pick one</span><span lang="zh">选一张</span></small></li>
+          <li data-step><span lang="en">Storyboard</span><span lang="zh">分镜</span><small><span lang="en">what to read, when</span><span lang="zh">看懂什么、何时</span></small></li>
+          <li class="gate" data-step><span lang="en">② You</span><span lang="zh">② 你</span><small><span lang="en">keyframes</span><span lang="zh">关键帧</span></small></li>
+          <li data-step><span lang="en">Sound first</span><span lang="zh">声音先行</span><small><span lang="en">sets the timing</span><span lang="zh">定下时长</span></small></li>
+          <li data-step><span lang="en">Code → frames</span><span lang="zh">代码 → 画面</span><small>f(t)</small></li>
+          <li class="loop" data-step><span lang="en">Self-check ↺</span><span lang="zh">自查 ↺</span><small><span lang="en">sheets · audio · reviewer</span><span lang="zh">联系表 · 声音 · 评审</span></small></li>
+          <li class="gate" data-step><span lang="en">③ You</span><span lang="zh">③ 你</span><small><span lang="en">first draft</span><span lang="zh">初版</span></small></li>
+          <li data-step><span lang="en">Final cut</span><span lang="zh">成片</span></li>
+          <li class="back" data-step>LESSONS.md ↩<small><span lang="en">back into the docs</span><span lang="zh">写回文档</span></small></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 · the intro film -->
+<section class="slide" id="film" data-en="Intro film" data-zh="介绍片">
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow" data-r><b>05</b><span lang="en">The intro film · 103 s · with sound</span><span lang="zh">介绍片 · 103 秒 · 有声</span></p><h2 class="split"><span lang="en">Its own intro film, <em>made with the harness.</em></span><span lang="zh">这支介绍片，<em>也是用它做的。</em></span></h2></div>
+    </div>
+    <div class="screen-wrap" data-r>
+      <canvas class="ambient" id="ambient" width="64" height="36" aria-hidden="true"></canvas>
+      <div class="screen" id="screen">
+        <video id="intro" playsinline preload="metadata" poster="img/04-intro.jpg" title="OpenVideoHarness intro film">
+          <source src="../../showcase/04-intro-film/media/final.mp4" type="video/mp4">
+          <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4" type="video/mp4">
+        </video>
+        <button class="bigplay" id="bigplay" data-aria-en="Play the intro film" data-aria-zh="播放介绍片"><span><span lang="en">Play the film</span><span lang="zh">播放介绍片</span></span></button>
+      </div>
+    </div>
+    <div class="chapters" id="chapters" data-r>
+      <button data-t="0"><b>0:00</b><span lang="en">Galaxy &amp; the request</span><span lang="zh">星系与需求</span></button>
+      <button data-t="25"><b>0:25</b><span lang="en">Router, nine types</span><span lang="zh">路由与九类</span></button>
+      <button data-t="41.5"><b>0:41</b><span lang="en">Gates &amp; self-review</span><span lang="zh">关卡与自查</span></button>
+      <button data-t="62.05"><b>1:02</b><span lang="en">Styles, sound</span><span lang="zh">风格与声音</span></button>
+      <button data-t="75.25"><b>1:15</b><span lang="en">Four real films</span><span lang="zh">四支样片</span></button>
+      <button data-t="90.5"><b>1:30</b><span lang="en">This film, too</span><span lang="zh">还有这一支</span></button>
+    </div>
+    <div class="film-notes" data-r>
+      <p class="fine"><span lang="en">The opening is path-traced in Blender, driven by Python: 1.18 million stars, 475 frames. HyperFrames and Three.js take over from 15 s. The score and 124 sound effects are code too.</span><span lang="zh">开场由 Python 驱动 Blender 路径追踪：118 万颗星，475 帧。15 秒起交给 HyperFrames 和 Three.js。配乐和 124 个音效也是代码写的。</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- 06 · showcase -->
+<section class="slide" id="showcase" data-en="Showcase" data-zh="作品">
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow" data-r><b>06</b><span lang="en">Showcase · hover to preview, click for sound</span><span lang="zh">作品 · 悬停预览，点击带声音播放</span></p><h2 class="split"><span lang="en">Each from <em>one sentence.</em></span><span lang="zh">每一支，<em>都从一句话开始。</em></span></h2></div>
+      <div class="sees-box" data-r>
+        <button class="toggle" id="sees" aria-pressed="false"><i></i><span lang="en">What Claude sees</span><span lang="zh">Claude 看到的</span></button>
+        <p class="sees-note" id="seesNote" hidden><span lang="en">Claude can't watch video. It reviews contact sheets: frames tiled with their timecodes.</span><span lang="zh">Claude 看不了视频，它审的是联系表：按时间码平铺的一帧帧画面。</span></p>
+      </div>
+    </div>
+    <div class="films" id="films">
+      <figure class="film tall" data-title-en="Vertical science short" data-title-zh="竖屏科普" data-r style="--sd:0s">
+        <video playsinline muted preload="none" poster="img/02-doppler.jpg">
+          <source src="../../showcase/02-short-leo-doppler/media/final.mp4" type="video/mp4">
+          <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/02-vertical-science-short.mp4" type="video/mp4">
+        </video>
+        <img class="sheet" loading="lazy" src="../../showcase/02-short-leo-doppler/media/sheet.png" alt="Contact sheet of the science short">
+        <i class="scan"></i><span class="sheet-tag"><span lang="en">contact sheet</span><span lang="zh">联系表</span></span><span class="pbtn" aria-hidden="true"></span>
+        <figcaption><b><span lang="en">Vertical science short</span><span lang="zh">竖屏科普</span></b><q><span lang="en">Why does a low-orbit satellite's signal change pitch?</span><span lang="zh">为什么低轨卫星的信号会"变调"？</span></q><small><span lang="en">HyperFrames · 24.8 s · 1080×1920 · Chinese voice, two-language subtitles</span><span lang="zh">HyperFrames · 24.8 秒 · 1080×1920 · 中文配音，双语字幕</span></small></figcaption>
+      </figure>
+      <figure class="film" data-title-en="Math explainer" data-title-zh="数学讲解" data-r style="--sd:.12s">
+        <video playsinline muted preload="none" poster="img/03-fourier.jpg">
+          <source src="../../showcase/03-math-fourier/media/final.mp4" type="video/mp4">
+          <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/03-math-explainer.mp4" type="video/mp4">
+        </video>
+        <img class="sheet" loading="lazy" src="../../showcase/03-math-fourier/media/sheet.png" alt="Contact sheet of the math explainer">
+        <i class="scan"></i><span class="sheet-tag"><span lang="en">contact sheet</span><span lang="zh">联系表</span></span><span class="pbtn" aria-hidden="true"></span>
+        <figcaption><b><span lang="en">Math explainer, 3Blue1Brown style</span><span lang="zh">数学讲解，3Blue1Brown 风格</span></b><q><span lang="en">Building a square wave from sine waves</span><span lang="zh">用正弦波搭出方波</span></q><small><span lang="en">Manim · 25 s · English narration</span><span lang="zh">Manim · 25 秒 · 英文旁白</span></small></figcaption>
+      </figure>
+      <figure class="film" data-title-en="Hand-drawn short" data-title-zh="手绘短片" data-r style="--sd:.24s">
+        <video playsinline muted preload="none" poster="img/01-clawd.jpg">
+          <source src="../../showcase/01-handdrawn-clawd-leaf/media/final.mp4" type="video/mp4">
+          <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/01-handdrawn-short.mp4" type="video/mp4">
+        </video>
+        <img class="sheet" loading="lazy" src="../../showcase/01-handdrawn-clawd-leaf/media/sheet.png" alt="Contact sheet of the hand-drawn short">
+        <i class="scan"></i><span class="sheet-tag"><span lang="en">contact sheet</span><span lang="zh">联系表</span></span><span class="pbtn" aria-hidden="true"></span>
+        <figcaption><b><span lang="en">Hand-drawn short</span><span lang="zh">手绘短片</span></b><q><span lang="en">Clawd tries to film a falling autumn leaf</span><span lang="zh">Clawd 想拍下一片飘落的秋叶</span></q><small><span lang="en">p5.brush · 12 s · no words, score and foley</span><span lang="zh">p5.brush · 12 秒 · 无台词，配乐和拟音</span></small></figcaption>
+      </figure>
+      <figure class="film" data-title-en="Launch short" data-title-zh="发布短片" data-r style="--sd:.36s">
+        <video playsinline muted preload="none" poster="img/00-launch.jpg">
+          <source src="../../showcase/00-promo-launch-film/media/final.mp4" type="video/mp4">
+          <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/00-launch-short.mp4" type="video/mp4">
+        </video>
+        <img class="sheet" loading="lazy" src="../../showcase/00-promo-launch-film/media/sheet.png" alt="Contact sheet of the launch short">
+        <i class="scan"></i><span class="sheet-tag"><span lang="en">contact sheet</span><span lang="zh">联系表</span></span><span class="pbtn" aria-hidden="true"></span>
+        <figcaption><b><span lang="en">Launch short</span><span lang="zh">发布短片</span></b><q><span lang="en">A short launch film for OpenVideoHarness itself</span><span lang="zh">给 OpenVideoHarness 自己做的发布短片</span></q><small><span lang="en">HyperFrames · 20 s · a sound for every move</span><span lang="zh">HyperFrames · 20 秒 · 每个动作都有声音</span></small></figcaption>
+      </figure>
+      <a class="film info" href="https://github.com/ZLHad/OpenVideoHarness/tree/main/showcase" target="_blank" rel="noopener" data-r>
+        <b><span lang="en">Every film ships with its paper trail</span><span lang="zh">每支片子都附带完整的制作记录</span></b>
+        <ul>
+          <li><em>README</em> · <span lang="en">the request, word for word</span><span lang="zh">原始需求，一字不改</span></li>
+          <li><em>BRIEF.md</em> · <em>STORYBOARD.md</em></li>
+          <li><em>NOTES.md</em> · <em>LESSONS.md</em></li>
+          <li><span lang="en">all the source, to start a similar film</span><span lang="zh">全部源码，可以照着做一支</span></li>
+        </ul>
+        <span>showcase/ ↗</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- 07 · styles -->
+<section class="slide" id="styles" data-en="Styles" data-zh="风格">
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow" data-r><b>07</b><span lang="en">Style library · click one to hear it</span><span lang="zh">风格库 · 点开能听声音</span></p><h2 class="split"><span lang="en">31 styles. <em>Not one default look.</em></span><span lang="zh">31 种风格，<em>不再千篇一律。</em></span></h2></div>
+      <p class="lede styles-lede" data-r><span lang="en">Left alone, AI video drifts to one look: dark background, glow, glass cards. Each style here is a real 5-second render of the same content.</span><span lang="zh">放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。这里每种风格都是同一段内容的 5 秒实渲样片。</span></p>
+    </div>
+    <div class="wall-stage"><div class="wall" id="wall"></div></div>
+  </div>
+</section>
+
+<!-- 08 · in practice -->
+<section class="slide" id="practice" data-en="In practice" data-zh="真实使用">
+  <div class="wrap wild">
+    <div>
+      <p class="eyebrow" data-r><b>08</b><span lang="en">In practice</span><span lang="zh">真实使用</span></p>
+      <h2 class="split"><span lang="en">Used for real, <em>on the news cycle.</em></span><span lang="zh">真的在用，<em>还赶得上热点。</em></span></h2>
+      <p class="lede" data-r><span lang="en">The author publishes films made with OpenVideoHarness on Douyin (TikTok in China) and Bilibili.</span><span lang="zh">作者把用 OpenVideoHarness 做的片子发在抖音和 B 站。</span></p>
+      <div class="plats" data-r>
+        <!-- Paste the channel links into href="" (left empty, the name shows without a link). -->
+        <a class="plat" href=""><span lang="en">Douyin</span><span lang="zh">抖音</span> <small lang="en">TikTok in China</small></a>
+        <a class="plat" href=""><span lang="en">Bilibili</span><span lang="zh">哔哩哔哩</span></a>
+      </div>
+      <!-- A local copy of the Nobel explainer at docs/site/media/nobel.mp4 (git ignores that folder) shows up here. -->
+      <div class="mine" id="mine">
+        <video controls playsinline preload="metadata" src="media/nobel.mp4" title="Nobel Prize in Physics explainer"></video>
+      </div>
+    </div>
+    <div class="clock liuli" data-r>
+      <div class="tl"><span><span lang="en">Nobel Prize in Physics announced</span><span lang="zh">诺贝尔物理学奖公布</span></span><i class="track-line"></i><span><span lang="en">explainer out</span><span lang="zh">科普片发出</span></span></div>
+      <div class="big"><span data-count="3">≈3</span><small><span lang="en">hours</span><span lang="zh">小时</span></small></div>
+      <p><span lang="en">From the announcement of the 2026 Nobel Prize in Physics to a published science explainer, made with the harness.</span><span lang="zh">从 2026 年诺贝尔物理学奖公布，到一支用这套工作台做的科普片发出来。</span></p>
+    </div>
+  </div>
+</section>
+
+<!-- 09 · faq -->
+<section class="slide faq-slide" id="faq" data-en="FAQ" data-zh="常见问题">
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow" data-r><b>09</b><span lang="en">FAQ</span><span lang="zh">常见问题</span></p><h2 class="split"><span lang="en">Good questions, <em>straight answers.</em></span><span lang="zh">常见问题，<em>一次说清。</em></span></h2></div>
+      <a class="btn ghost" href="https://github.com/ZLHad/OpenVideoHarness/wiki" target="_blank" rel="noopener" data-r><span lang="en">More in the wiki</span><span lang="zh">更多见 Wiki</span> <span class="arrow">↗</span></a>
+    </div>
+    <div class="faq">
+      <div class="faq-col">
+        <details name="faq" open data-r>
+          <summary><span lang="en">How is this different from just asking an agent?</span><span lang="zh">和直接让 AI 做有什么不同？</span></summary>
+          <div class="a"><span lang="en">An agent alone has taste but no process: nothing tells it to settle the idea before code, to check its frames, or to stop for you. We ran one small blind comparison: the workflow's films had the fresher ideas, while the floors-only films were judged better made, and what the reviewer flagged went into the checks. The process aims to save rework; that saving hasn't been measured yet. <a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/docs/research/en/06-concept-first-ab.md" target="_blank" rel="noopener">The comparison ↗</a></span><span lang="zh">单靠 agent，有审美，但没有流程：没人让它先定立意再写代码、检查自己的帧、停下来等你。我们做过一次小的盲评：按流程做的点子更新，只守底线做的被评为做工更好；评审指出的问题后来都补进了检查。流程想省的是返工，这一点还没有量过。<a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/docs/research/06-concept-first-ab.md" target="_blank" rel="noopener">实验记录 ↗</a></span></div>
+        </details>
+        <details name="faq" data-r>
+          <summary><span lang="en">What does it cost?</span><span lang="zh">要花多少钱？</span></summary>
+          <div class="a"><span lang="en">Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice or generated video you choose, billed by that provider. Keys are always read from environment variables.</span><span lang="zh">渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量）；接云端配音或生成式视频时，按各家收费。key 一律从环境变量读。</span></div>
+        </details>
+        <details name="faq" data-r>
+          <summary><span lang="en">How long does a film take?</span><span lang="zh">做一支要多久？</span></summary>
+          <div class="a"><span lang="en">For a 30-second film: about 10–30 minutes at quick, 1–2 hours at standard, 3 hours or more at studio. Most of the time goes into checking and fixing. All three levels deliver a full-quality film; the level sets how often it stops and how many review rounds it runs.</span><span lang="zh">30 秒的片子：快出档 10–30 分钟，标准档 1–2 小时，精品档 3 小时以上，大部分时间花在自查和返工上。三档出的都是正式画质的成片，档位管的是中途停几次、审几轮。</span></div>
+        </details>
+        <details name="faq" data-r>
+          <summary><span lang="en">What do I need?</span><span lang="zh">需要什么环境？</span></summary>
+          <div class="a"><span lang="en">macOS or Linux, Node.js 22+, Google Chrome, FFmpeg, Python 3 with uv, and Claude Code or Codex. The local voice needs Apple Silicon (a cloud voice doesn't), formulas need LaTeX, and only 3D shots need Blender 5.2. Windows is untested.</span><span lang="zh">macOS 或 Linux、Node.js ≥ 22、Google Chrome、FFmpeg、Python 3 和 uv，以及 Claude Code 或 Codex。本地配音要 Apple Silicon（换云端配音就不用），公式要 LaTeX，只有 3D 镜头才要 Blender 5.2。Windows 没有测过。</span></div>
+        </details>
+        <details name="faq" data-r>
+          <summary><span lang="en">Does it work with Codex?</span><span lang="zh">能用 Codex 吗？</span></summary>
+          <div class="a"><span lang="en">Yes. <code>AGENTS.md</code> carries the same instructions as <code>CLAUDE.md</code>, and the installer registers the <code>open-video-harness</code> skill for both Claude Code and Codex, so asking for a video from any folder finds the workbench.</span><span lang="zh">能。<code>AGENTS.md</code> 和 <code>CLAUDE.md</code> 内容相同；安装时 <code>open-video-harness</code> skill 会同时注册给 Claude Code 和 Codex，之后在任何目录说"做个视频"，都能找到这里。</span></div>
+        </details>
+      </div>
+      <div class="faq-col">
+        <details name="faq" data-r>
+          <summary><span lang="en">Which languages does it speak?</span><span lang="zh">支持哪些语言？</span></summary>
+          <div class="a"><span lang="en">Chinese and English. Voiceover runs on the local, open-source Qwen3-TTS by default, with cloud voices as options, and subtitles come in either language or both. Ask in either language; the review pages follow yours.</span><span lang="zh">中文和英文。配音默认用本地开源的 Qwen3-TTS，也能接云端配音；字幕可以出中文、英文或双语。需求用哪种语言都行，审阅页跟着你的语言走。</span></div>
+        </details>
+        <details name="faq" data-r>
+          <summary><span lang="en">Can it make films with real people?</span><span lang="zh">能做真人、实拍感的片子吗？</span></summary>
+          <div class="a"><span lang="en">Realistic people and a live-action look need generated video; the playbook shows how to combine generated clips with code-drawn overlays. Editing footage you shot yourself (talking heads, interviews, vlogs) is type 09, still experimental.</span><span lang="zh">写实人物、实拍感要靠生成式视频，playbook 里有一套"生成式视频 + 代码叠加"的做法。剪你自己录的素材（口播、访谈、Vlog）是第 09 类，还在试验。</span></div>
+        </details>
+        <details name="faq" data-r>
+          <summary><span lang="en">What can't it do yet?</span><span lang="zh">现在还做不到什么？</span></summary>
+          <div class="a"><span lang="en">The agent can't watch or listen. It reads rendered frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon), and type 09 hasn't been tried on real footage yet.</span><span lang="zh">agent 看不了视频、听不了声音，只能看渲染出的帧、读声音的数据，所以最后一关还是要你看、你听。目前只在 macOS（Apple Silicon）上完整跑过，第 09 类剪辑还没用真实素材试过。</span></div>
+        </details>
+        <details name="faq" data-r>
+          <summary><span lang="en">Is it an Anthropic project?</span><span lang="zh">是 Anthropic 官方项目吗？</span></summary>
+          <div class="a"><span lang="en">No. It's an independent open-source project under the MIT license, not affiliated with Anthropic, HeyGen or Remotion.</span><span lang="zh">不是。这是独立的开源项目，MIT 许可，和 Anthropic、HeyGen、Remotion 都没有隶属关系。</span></div>
+        </details>
+        <details name="faq" data-r>
+          <summary><span lang="en">How can I contribute?</span><span lang="zh">怎么参与？</span></summary>
+          <div class="a"><span lang="en">Pull requests are welcome: new video types, styles with their samples, case studies, lessons from your projects, and films you made with it, with everything that went into them. <a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md ↗</a></span><span lang="zh">欢迎提 PR：新的视频类型、带样片的风格、案例拆解、项目里踩过的坑，以及你用它做的片子和全部制作过程。<a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md ↗</a></span></div>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 · contact -->
+<section class="slide" id="contact" data-en="Contact" data-zh="联系">
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow" data-r><b>10</b><span lang="en">Contact</span><span lang="zh">联系</span></p><h2 class="split"><span lang="en">Questions or ideas? <em>Get in touch.</em></span><span lang="zh">有问题或想法？<em>来聊聊。</em></span></h2></div>
+      <p class="lede contact-lede" data-r><span lang="en">Star the repo, add the author on WeChat, or send a film you made with it.</span><span lang="zh">给仓库点个 Star，加作者微信，或者把你用它做的片子发过来。</span></p>
+    </div>
+    <div class="contact contact-wide">
+      <div class="qrs" id="qrs">
+        <div class="qr" data-r>
+          <h4><span lang="en">Star it on GitHub</span><span lang="zh">在 GitHub 上点 Star</span></h4>
+          <div class="plate"><svg role="img" aria-label="QR code: github.com/ZLHad/OpenVideoHarness" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" shape-rendering="crispEdges"><path fill="currentColor" d="M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM9 0h1v1h-1zM12 0h1v1h-1zM15 0h1v1h-1zM18 0h1v1h-1zM19 0h1v1h-1zM22 0h1v1h-1zM23 0h1v1h-1zM24 0h1v1h-1zM25 0h1v1h-1zM26 0h1v1h-1zM27 0h1v1h-1zM28 0h1v1h-1zM0 1h1v1h-1zM6 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM12 1h1v1h-1zM13 1h1v1h-1zM15 1h1v1h-1zM17 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM12 2h1v1h-1zM16 2h1v1h-1zM17 2h1v1h-1zM22 2h1v1h-1zM24 2h1v1h-1zM25 2h1v1h-1zM26 2h1v1h-1zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM9 3h1v1h-1zM11 3h1v1h-1zM14 3h1v1h-1zM15 3h1v1h-1zM18 3h1v1h-1zM22 3h1v1h-1zM24 3h1v1h-1zM25 3h1v1h-1zM26 3h1v1h-1zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM9 4h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM14 4h1v1h-1zM15 4h1v1h-1zM16 4h1v1h-1zM18 4h1v1h-1zM19 4h1v1h-1zM22 4h1v1h-1zM24 4h1v1h-1zM25 4h1v1h-1zM26 4h1v1h-1zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM15 5h1v1h-1zM18 5h1v1h-1zM19 5h1v1h-1zM20 5h1v1h-1zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM23 6h1v1h-1zM24 6h1v1h-1zM25 6h1v1h-1zM26 6h1v1h-1zM27 6h1v1h-1zM28 6h1v1h-1zM12 7h1v1h-1zM15 7h1v1h-1zM16 7h1v1h-1zM17 7h1v1h-1zM20 7h1v1h-1zM0 8h1v1h-1zM3 8h1v1h-1zM5 8h1v1h-1zM6 8h1v1h-1zM8 8h1v1h-1zM11 8h1v1h-1zM13 8h1v1h-1zM14 8h1v1h-1zM15 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM19 8h1v1h-1zM21 8h1v1h-1zM23 8h1v1h-1zM0 9h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM9 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM16 9h1v1h-1zM19 9h1v1h-1zM20 9h1v1h-1zM22 9h1v1h-1zM25 9h1v1h-1zM28 9h1v1h-1zM0 10h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM11 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM16 10h1v1h-1zM17 10h1v1h-1zM19 10h1v1h-1zM20 10h1v1h-1zM21 10h1v1h-1zM24 10h1v1h-1zM25 10h1v1h-1zM26 10h1v1h-1zM27 10h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM10 11h1v1h-1zM11 11h1v1h-1zM13 11h1v1h-1zM16 11h1v1h-1zM18 11h1v1h-1zM20 11h1v1h-1zM24 11h1v1h-1zM26 11h1v1h-1zM27 11h1v1h-1zM1 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM8 12h1v1h-1zM9 12h1v1h-1zM11 12h1v1h-1zM12 12h1v1h-1zM13 12h1v1h-1zM15 12h1v1h-1zM16 12h1v1h-1zM19 12h1v1h-1zM21 12h1v1h-1zM22 12h1v1h-1zM25 12h1v1h-1zM27 12h1v1h-1zM28 12h1v1h-1zM1 13h1v1h-1zM2 13h1v1h-1zM4 13h1v1h-1zM5 13h1v1h-1zM10 13h1v1h-1zM11 13h1v1h-1zM12 13h1v1h-1zM14 13h1v1h-1zM20 13h1v1h-1zM21 13h1v1h-1zM0 14h1v1h-1zM1 14h1v1h-1zM4 14h1v1h-1zM6 14h1v1h-1zM10 14h1v1h-1zM11 14h1v1h-1zM12 14h1v1h-1zM13 14h1v1h-1zM20 14h1v1h-1zM22 14h1v1h-1zM23 14h1v1h-1zM24 14h1v1h-1zM25 14h1v1h-1zM26 14h1v1h-1zM27 14h1v1h-1zM28 14h1v1h-1zM3 15h1v1h-1zM4 15h1v1h-1zM5 15h1v1h-1zM7 15h1v1h-1zM9 15h1v1h-1zM11 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM14 15h1v1h-1zM15 15h1v1h-1zM16 15h1v1h-1zM17 15h1v1h-1zM18 15h1v1h-1zM20 15h1v1h-1zM21 15h1v1h-1zM22 15h1v1h-1zM25 15h1v1h-1zM27 15h1v1h-1zM0 16h1v1h-1zM6 16h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM11 16h1v1h-1zM12 16h1v1h-1zM17 16h1v1h-1zM20 16h1v1h-1zM23 16h1v1h-1zM27 16h1v1h-1zM1 17h1v1h-1zM3 17h1v1h-1zM4 17h1v1h-1zM7 17h1v1h-1zM8 17h1v1h-1zM9 17h1v1h-1zM10 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM13 17h1v1h-1zM16 17h1v1h-1zM18 17h1v1h-1zM20 17h1v1h-1zM21 17h1v1h-1zM22 17h1v1h-1zM23 17h1v1h-1zM25 17h1v1h-1zM28 17h1v1h-1zM0 18h1v1h-1zM2 18h1v1h-1zM3 18h1v1h-1zM6 18h1v1h-1zM13 18h1v1h-1zM14 18h1v1h-1zM16 18h1v1h-1zM18 18h1v1h-1zM21 18h1v1h-1zM23 18h1v1h-1zM24 18h1v1h-1zM27 18h1v1h-1zM28 18h1v1h-1zM3 19h1v1h-1zM5 19h1v1h-1zM7 19h1v1h-1zM8 19h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM14 19h1v1h-1zM15 19h1v1h-1zM17 19h1v1h-1zM20 19h1v1h-1zM21 19h1v1h-1zM23 19h1v1h-1zM24 19h1v1h-1zM27 19h1v1h-1zM28 19h1v1h-1zM0 20h1v1h-1zM2 20h1v1h-1zM4 20h1v1h-1zM6 20h1v1h-1zM9 20h1v1h-1zM10 20h1v1h-1zM16 20h1v1h-1zM19 20h1v1h-1zM20 20h1v1h-1zM21 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM26 20h1v1h-1zM8 21h1v1h-1zM9 21h1v1h-1zM10 21h1v1h-1zM11 21h1v1h-1zM16 21h1v1h-1zM17 21h1v1h-1zM19 21h1v1h-1zM20 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM27 21h1v1h-1zM28 21h1v1h-1zM0 22h1v1h-1zM1 22h1v1h-1zM2 22h1v1h-1zM3 22h1v1h-1zM4 22h1v1h-1zM5 22h1v1h-1zM6 22h1v1h-1zM10 22h1v1h-1zM11 22h1v1h-1zM12 22h1v1h-1zM16 22h1v1h-1zM20 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM27 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM8 23h1v1h-1zM9 23h1v1h-1zM11 23h1v1h-1zM12 23h1v1h-1zM14 23h1v1h-1zM15 23h1v1h-1zM18 23h1v1h-1zM20 23h1v1h-1zM24 23h1v1h-1zM25 23h1v1h-1zM26 23h1v1h-1zM0 24h1v1h-1zM2 24h1v1h-1zM3 24h1v1h-1zM4 24h1v1h-1zM6 24h1v1h-1zM10 24h1v1h-1zM11 24h1v1h-1zM12 24h1v1h-1zM15 24h1v1h-1zM16 24h1v1h-1zM17 24h1v1h-1zM20 24h1v1h-1zM21 24h1v1h-1zM22 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1zM0 25h1v1h-1zM2 25h1v1h-1zM3 25h1v1h-1zM4 25h1v1h-1zM6 25h1v1h-1zM8 25h1v1h-1zM12 25h1v1h-1zM13 25h1v1h-1zM19 25h1v1h-1zM20 25h1v1h-1zM22 25h1v1h-1zM23 25h1v1h-1zM24 25h1v1h-1zM25 25h1v1h-1zM26 25h1v1h-1zM27 25h1v1h-1zM0 26h1v1h-1zM2 26h1v1h-1zM3 26h1v1h-1zM4 26h1v1h-1zM6 26h1v1h-1zM11 26h1v1h-1zM14 26h1v1h-1zM16 26h1v1h-1zM19 26h1v1h-1zM20 26h1v1h-1zM24 26h1v1h-1zM25 26h1v1h-1zM26 26h1v1h-1zM28 26h1v1h-1zM0 27h1v1h-1zM6 27h1v1h-1zM9 27h1v1h-1zM10 27h1v1h-1zM11 27h1v1h-1zM13 27h1v1h-1zM16 27h1v1h-1zM17 27h1v1h-1zM19 27h1v1h-1zM20 27h1v1h-1zM21 27h1v1h-1zM24 27h1v1h-1zM27 27h1v1h-1zM0 28h1v1h-1zM1 28h1v1h-1zM2 28h1v1h-1zM3 28h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM8 28h1v1h-1zM9 28h1v1h-1zM13 28h1v1h-1zM14 28h1v1h-1zM16 28h1v1h-1zM20 28h1v1h-1zM21 28h1v1h-1zM22 28h1v1h-1zM23 28h1v1h-1zM24 28h1v1h-1zM25 28h1v1h-1zM27 28h1v1h-1z"/></svg></div>
+          <a href="https://github.com/ZLHad/OpenVideoHarness" target="_blank" rel="noopener">ZLHad/OpenVideoHarness</a>
+          <small><span lang="en">Open source · MIT</span><span lang="zh">开源 · MIT</span></small>
+        </div>
+        <!-- The author's WeChat QR: save the image as docs/site/img/wechat.jpg. Without it this card hides itself. -->
+        <div class="qr" id="wx" data-r>
+          <h4><span lang="en">Say hi on WeChat</span><span lang="zh">微信聊聊</span></h4>
+          <div class="plate"><img src="img/wechat.jpg" alt="WeChat QR code" id="wxImg"></div>
+          <small><span lang="en">Scan to add the author</span><span lang="zh">扫码加作者</span></small>
+        </div>
+      </div>
+      <a class="mail liuli" href="mailto:zhangczssx@gmail.com" data-r>zhangczssx@gmail.com <span><span lang="en">questions, ideas, films</span><span lang="zh">问题、想法、片子</span></span></a>
+    </div>
+
+    <footer class="end" data-r>
+      <span class="motto"><span lang="en">Not more tools. <em class="iri">Know-how.</em></span><span lang="zh">不缺工具，<em class="iri">缺门道。</em></span></span>
+      <nav class="links" data-aria-en="Project links" data-aria-zh="项目链接">
+        <a href="https://github.com/ZLHad/OpenVideoHarness" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/README.md" target="_blank" rel="noopener">README</a>
+        <a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/README.zh-CN.md" target="_blank" rel="noopener">中文 README</a>
+        <a href="https://github.com/ZLHad/OpenVideoHarness/wiki" target="_blank" rel="noopener">Wiki</a>
+        <a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog</a>
+        <a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener"><span lang="en">Contributing</span><span lang="zh">参与贡献</span></a>
+        <a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>
+      </nav>
+      <span class="fine"><span lang="en">An independent open-source project, not affiliated with Anthropic.</span><span lang="zh">独立的开源项目，与 Anthropic 没有隶属关系。</span></span>
+    </footer>
+  </div>
+</section>
+
+</main>
+
+<nav class="rail" id="rail" aria-label="Sections"></nav>
+<div class="lightbox" id="lightbox" role="dialog" aria-label="Preview">
+  <button class="lb-x" id="lbX" aria-label="Close">×</button>
+  <div class="lb-card"><div id="lbMedia"></div><div class="lb-cap" id="lbCap"></div></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fine = matchMedia('(pointer: fine)').matches;
+const hash = i => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }; // seeded, no Math.random()
+const ease = x => 1 - Math.pow(1 - Math.min(Math.max(x, 0), 1), 3);
+const root = document.documentElement;
+let lang = root.dataset.lang === 'zh' ? 'zh' : 'en';
+
+/* ---------- the words the script writes, in both languages ---------- */
+const T = {
+  en: {
+    title: 'OpenVideoHarness · A video harness for Claude Code and Codex',
+    frame: (t, f) => `t = ${t} s · frame ${f}`,
+    terms: n => `${n} sine wave${n === 1 ? '' : 's'}`,
+    gibbs: 'overshoot ≈ 9% of the jump, for any N',
+    check: (f, o, d, n) => `Frame ${f}, rendered again right after frame ${o}: ${d.toLocaleString('en')} of ${n.toLocaleString('en')} pixels differ.` + (d ? '' : ' Identical.'),
+    play: 'Play', pause: 'Pause',
+    copy: 'Copy', copied: 'Copied', select: 'Select it',
+    sheet: name => `${name}: the contact sheet Claude reviews`,
+    tile: name => `${name}: play with sound`,
+    yours: '<b>+ yours</b><small>borrow the grammar, not the shots</small>',
+  },
+  zh: {
+    title: 'OpenVideoHarness · 给 Claude Code 和 Codex 用的视频工作台',
+    frame: (t, f) => `t = ${t} 秒 · 第 ${f} 帧`,
+    terms: n => `${n} 个正弦波`,
+    gibbs: '过冲约为跳变的 9%，N 再大也不消失',
+    check: (f, o, d, n) => `第 ${f} 帧，紧接在第 ${o} 帧之后重渲：${n.toLocaleString('zh')} 个像素里有 ${d.toLocaleString('zh')} 个不同。` + (d ? '' : '完全一致。'),
+    play: '播放', pause: '暂停',
+    copy: '复制', copied: '已复制', select: '请手动选中',
+    sheet: name => `${name}：Claude 审片时看的联系表`,
+    tile: name => `${name}：带声音播放`,
+    yours: '<b>+ 你的</b><small>借语法，不抄镜头</small>',
+  },
+};
+const tr = () => T[lang];
+
+/* ---------- data ---------- */
+// [folder, English name, Chinese name] — the names in styles/README.md
+const STYLES = [
+  ['archival-pan-zoom', 'Archival Pan & Zoom', '档案推拉'], ['blueprint', 'Blueprint', '工程蓝图'], ['bouncy-flat-2d', 'Bouncy Flat 2D', '弹性扁平 2D'],
+  ['brutalist-meme', 'Brutalist Meme', '野兽派梗'], ['bubble-chart-story', 'Bubble Chart Story', '气泡图现场讲'], ['clockwork-map', 'Clockwork Map', '机械钟表地图'],
+  ['crt-terminal', 'CRT Terminal', 'CRT 终端'], ['cutout-jazz', 'Cut-paper Jazz Titles', '剪纸爵士片头'], ['dark-math', 'Dark Math', '暗底数学'],
+  ['dunhuang-mural', 'Dunhuang Mural', '敦煌'], ['editorial-data', 'Editorial Data', '编辑部数据叙事'], ['fui-hud', 'Film FUI / HUD', '电影界面 HUD'],
+  ['guochao-festive', 'Guochao Festive', '国潮'], ['halftone-comic', 'Halftone Comic', '半调漫画'], ['ink-wash', 'Ink Wash', '水墨'],
+  ['isotype', 'Isotype', '图形统计'], ['monumental-scifi', 'Monumental Sci-fi', '纪念碑科幻'], ['neon-step-print', 'Neon Step-print', '霓虹抽帧'],
+  ['pastel-ui', 'Pastel UI', '浅色界面讲解'], ['pixel-16bit', '16-bit Pixel', '16 位像素'], ['product-keynote', 'Product Keynote', '产品发布片'],
+  ['risograph', 'Risograph', '孔版印刷'], ['scratched-type', 'Scratched Type', '刮擦字片头'], ['shadow-puppet', 'Shadow Puppetry', '皮影'],
+  ['silhouette-papercut', 'Silhouette Papercut', '剪影剪纸'], ['swiss-grid-type', 'Swiss Grid Type', '瑞士网格动态字'], ['symmetry-pastel', 'Symmetry Pastel', '对称粉彩绘本'],
+  ['synthwave-outrun', 'Synthwave Outrun', '合成器浪潮'], ['tabletop-miniature', 'Tabletop Miniature', '桌面微缩剧场'], ['watercolor-pastoral', 'Watercolor Pastoral', '水彩田园'],
+  ['y2k-chrome', 'Y2K Chrome', 'Y2K 铬面'],
+];
+const stylePath = (slug, f) => `../../styles/${slug}/media/${f}`;
+
+/* ---------- split headings into words (Chinese: characters) that rise in ---------- */
+const CJK = /[㐀-鿿豈-﫿]/;
+const CJK_TOKENS = /\s+|[㐀-鿿豈-﫿][，。、：；！？）」』”’]*|[^\s㐀-鿿豈-﫿]+/g;
+function splitWords(el) {
+  let n = 0;
+  const walk = node => {
+    Array.from(node.childNodes).forEach(c => {
+      if (c.nodeType === 3) {
+        const cjk = CJK.test(c.textContent);
+        const parts = cjk ? (c.textContent.match(CJK_TOKENS) || []) : c.textContent.split(/(\s+)/);
+        const frag = document.createDocumentFragment();
+        let ph = null; // Chinese: characters rise one by one, but a phrase (up to its punctuation) never breaks across lines
+        const close = () => { if (ph) { frag.appendChild(ph); ph = null; } };
+        parts.forEach(part => {
+          if (!part) return;
+          if (/^\s+$/.test(part)) { close(); frag.appendChild(document.createTextNode(part)); return; }
+          const w = document.createElement('span'); w.className = 'w';
+          const inner = document.createElement('span'); inner.textContent = part;
+          inner.style.setProperty('--d', `${0.08 + n++ * (cjk ? 0.035 : 0.07)}s`);
+          w.appendChild(inner);
+          if (!cjk) { frag.appendChild(w); return; }
+          if (!ph) { ph = document.createElement('span'); ph.className = 'ph'; }
+          ph.appendChild(w);
+          if (/[，。、：；！？]$/.test(part)) close();
+        });
+        close();
+        node.replaceChild(frag, c);
+      } else if (c.nodeType === 1) walk(c);
+    });
+  };
+  walk(el);
+}
+$$('.split').forEach(el => { const parts = $$('[lang]', el); (parts.length ? parts : [el]).forEach(splitWords); });
+
+/* ---------- reveal delays: everything marked data-r, in order within its section ---------- */
+const sections = $$('main > section');
+sections.forEach(s => {
+  const base = s.querySelector('.split') ? 0.25 : 0;
+  $$('[data-r]', s).forEach((el, i) => el.style.setProperty('--d', `${Math.min(base + i * 0.07, 1.3)}s`));
+});
+
+/* ---------- sections, navigation ---------- */
+const rail = $('#rail');
+sections.forEach((s, i) => {
+  const b = document.createElement('button');
+  b.appendChild(document.createElement('span'));
+  b.addEventListener('click', () => go(i));
+  rail.appendChild(b);
+});
+function railLabels() {
+  $$('button', rail).forEach((b, i) => { const name = sections[i].dataset[lang]; b.firstChild.textContent = `${i + 1} · ${name}`; b.setAttribute('aria-label', name); });
+}
+let current = -1;
+const navLinks = $$('.nav a');
+function go(i) {
+  i = Math.max(0, Math.min(sections.length - 1, i));
+  sections[i].scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+}
+const onEnter = {}, onLeave = {};
+function setActive(i) {
+  if (i === current) return;
+  const prev = sections[current];
+  if (prev) { prev.classList.remove('active'); if (onLeave[prev.id]) onLeave[prev.id](); }
+  current = i;
+  const s = sections[i];
+  s.classList.add('active', 'in');
+  $$('button', rail).forEach((b, j) => b.classList.toggle('on', j === i));
+  navLinks.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + s.id));
+  if (onEnter[s.id]) onEnter[s.id]();
+}
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) setActive(sections.indexOf(e.target)); });
+}, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
+sections.forEach(s => io.observe(s));
+// reveal a section a little before it is the active one, so a fast scroll never shows it empty
+const pre = new IntersectionObserver(entries => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('in'); }), { threshold: 0.3 });
+sections.forEach(s => pre.observe(s));
+
+const progress = $('#progress');
+let progTick = false;
+addEventListener('scroll', () => {
+  if (progTick) return; progTick = true;
+  requestAnimationFrame(() => {
+    const max = document.documentElement.scrollHeight - innerHeight;
+    progress.style.transform = `scaleX(${max > 0 ? scrollY / max : 0})`; progTick = false;
+  });
+}, { passive: true });
+
+/* ---------- count-ups ---------- */
+function countUp(el, dur = 1400) {
+  if (el.dataset.done) return; el.dataset.done = '1';
+  const to = +el.dataset.count, prefix = el.textContent.startsWith('≈') ? '≈' : '';
+  if (reduced) return;
+  const t0 = performance.now();
+  const step = now => { const k = ease((now - t0) / dur); el.textContent = prefix + Math.round(to * k); if (k < 1) requestAnimationFrame(step); };
+  el.textContent = prefix + '0'; requestAnimationFrame(step);
+}
+
+/* ---------- hero: the galaxy of films ---------- */
+const gal = { cv: $('#galaxy'), ctx: null, w: 0, h: 0, dpr: 1, thumbs: [], films: [], dust: [], mx: 0, my: 0, tx: 0, ty: 0, t0: 0, raf: 0, visible: true };
+gal.ctx = gal.cv.getContext('2d');
+STYLES.forEach(([slug], i) => {
+  const img = new Image();
+  img.onload = () => { const c = document.createElement('canvas'); c.width = 160; c.height = 90; c.getContext('2d').drawImage(img, 0, 0, 160, 90); gal.thumbs[i] = c; };
+  img.src = stylePath(slug, 'poster.jpg');
+});
+for (let i = 0; i < 380; i++) {
+  const arm = i % 3, r = 0.1 + 0.9 * Math.pow(hash(i * 3 + 1), 0.8);
+  gal.films.push({ r, a: arm * 2.0944 + r * 4.4 + (hash(i * 3 + 2) - 0.5) * 0.6, y: (hash(i * 5 + 7) - 0.5) * 0.09 * (1.1 - r), s: 0.55 + hash(i * 7 + 3) * 0.85, img: i % STYLES.length });
+}
+for (let i = 0; i < 1400; i++) {
+  const arm = i % 3, r = Math.pow(hash(i * 11 + 5), 0.7);
+  gal.dust.push({ r, a: arm * 2.0944 + r * 4.4 + (hash(i * 13 + 1) - 0.5) * 1.1, y: (hash(i * 17 + 3) - 0.5) * 0.12 * (1.1 - r), b: 0.25 + hash(i * 19 + 2) * 0.75 });
+}
+function galSize() {
+  const r = gal.cv.getBoundingClientRect();
+  gal.dpr = Math.min(devicePixelRatio || 1, 1.5);
+  gal.w = r.width; gal.h = r.height;
+  gal.cv.width = Math.round(r.width * gal.dpr); gal.cv.height = Math.round(r.height * gal.dpr);
+}
+function galDraw(now) {
+  const { ctx, w, h } = gal, t = (now - gal.t0) / 1000;
+  ctx.setTransform(gal.dpr, 0, 0, gal.dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  gal.mx += (gal.tx - gal.mx) * 0.05; gal.my += (gal.ty - gal.my) * 0.05;
+  const narrow = w < 980;
+  const cx = w * (narrow ? 0.5 : 0.68) + gal.mx * 18, cy = h * (narrow ? 0.36 : 0.5) + gal.my * 12;
+  const R = Math.min(w * (narrow ? 0.62 : 0.46), h * 0.8);
+  const side = px => narrow ? 1 : Math.min(1, Math.max(0.05, (px - w * 0.34) / (w * 0.2))); // keep the title side quiet
+  const pitch = 1.05 + gal.my * 0.08, cp = Math.cos(pitch), sp = Math.sin(pitch), D = 2.4;
+  const rot = t * 0.04 + gal.mx * 0.25;
+  const intro = reduced ? 1 : t;
+  const proj = (r, a, y) => {
+    const x = r * Math.cos(a), z = r * Math.sin(a);
+    const y2 = y * cp - z * sp, z2 = y * sp + z * cp, k = D / (D + z2);
+    return [cx + x * R * k, cy + y2 * R * k, k, z2];
+  };
+  // core
+  const core = ease(intro / 1.6);
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.55);
+  g.addColorStop(0, `rgba(235,245,255,${0.5 * core})`); g.addColorStop(0.18, `rgba(130,200,255,${0.22 * core})`); g.addColorStop(0.5, `rgba(140,110,255,${0.1 * core})`); g.addColorStop(1, 'rgba(140,110,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  // dust
+  for (const d of gal.dust) {
+    const e = ease((intro - d.r * 0.6) / 1.8);
+    if (e <= 0) continue;
+    const [px, py, k] = proj(d.r * e, d.a + rot - (1 - e) * 2, d.y);
+    ctx.fillStyle = `rgba(214,230,255,${d.b * e * Math.min(1, k * 0.9) * (0.35 + 0.65 * side(px))})`;
+    const sz = 1.1 * k; ctx.fillRect(px, py, sz, sz);
+  }
+  // films: billboards, far to near
+  const list = [];
+  for (const f of gal.films) {
+    const e = ease((intro - 0.2 - f.r * 0.7) / 1.9);
+    if (e <= 0) continue;
+    const [px, py, k, z] = proj(f.r * e, f.a + rot - (1 - e) * 2.2, f.y);
+    list.push([z, px, py, k, f, e]);
+  }
+  list.sort((a, b) => b[0] - a[0]);
+  for (const [z, px, py, k, f, e] of list) {
+    const fw = (narrow ? 22 : 30) * f.s * k * k, fh = fw * 0.5625;
+    const alpha = e * Math.min(1, Math.max(0.12, 0.35 + (1 - z) * 0.55)) * side(px);
+    ctx.globalAlpha = alpha;
+    const th = gal.thumbs[f.img];
+    if (th) ctx.drawImage(th, px - fw / 2, py - fh / 2, fw, fh);
+    else { ctx.fillStyle = '#1A2238'; ctx.fillRect(px - fw / 2, py - fh / 2, fw, fh); }
+    if (fw > 18) { ctx.strokeStyle = 'rgba(190,225,255,.45)'; ctx.lineWidth = 0.6; ctx.strokeRect(px - fw / 2, py - fh / 2, fw, fh); }
+  }
+  ctx.globalAlpha = 1;
+}
+function galLoop(now) { gal.raf = 0; if (!gal.visible) return; galDraw(now); if (!reduced) gal.raf = requestAnimationFrame(galLoop); }
+function galKick() { if (!gal.raf && gal.visible) gal.raf = requestAnimationFrame(galLoop); }
+galSize(); addEventListener('resize', () => { galSize(); galKick(); });
+new IntersectionObserver(([e]) => { gal.visible = e.isIntersecting; galKick(); }).observe(gal.cv);
+$('#top').addEventListener('pointermove', e => { gal.tx = e.clientX / innerWidth * 2 - 1; gal.ty = e.clientY / innerHeight * 2 - 1; });
+
+/* ---------- why: the workflow lights up step by step ---------- */
+const flowLis = $$('#flow li');
+let flowTimer = null, flowI = 0;
+onEnter.why = () => { if (reduced || flowTimer) return; flowTimer = setInterval(() => { flowLis.forEach((l, j) => l.classList.toggle('lit', j === flowI % (flowLis.length + 2))); flowI++; }, 650); };
+onLeave.why = () => { clearInterval(flowTimer); flowTimer = null; };
+
+/* ---------- features: spotlight on the card under the cursor ---------- */
+$$('.card').forEach(c => c.addEventListener('pointermove', e => {
+  const r = c.getBoundingClientRect();
+  c.style.setProperty('--mx', `${e.clientX - r.left}px`); c.style.setProperty('--my', `${e.clientY - r.top}px`);
+}));
+
+/* f(t): a square wave from sine waves, as a pure function of t */
+const FT_END = 10, FPS = 30;
+function drawFourier(ctx, w, h, t) {
+  ctx.fillStyle = '#0A0E1B'; ctx.fillRect(0, 0, w, h);
+  const L = w * 0.04, R = w * 0.96, mid = h * 0.53, A = h * 0.31, span = 4 * Math.PI;
+  const X = x => L + (x / span) * (R - L), Y = y => mid - y * A;
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath(); ctx.moveTo(L, mid); ctx.lineTo(R, mid); ctx.stroke();
+  ctx.setLineDash([3, 5]);
+  ctx.beginPath(); ctx.moveTo(L, Y(1)); ctx.lineTo(R, Y(1)); ctx.moveTo(L, Y(-1)); ctx.lineTo(R, Y(-1)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(190,205,240,0.45)'; ctx.lineWidth = 1.5; ctx.beginPath();
+  ctx.moveTo(X(0), Y(-1));
+  for (let k = 0; k < 4; k++) { const y = Y(k % 2 ? -1 : 1); ctx.lineTo(X(k * Math.PI), y); ctx.lineTo(X((k + 1) * Math.PI), y); }
+  ctx.stroke();
+  const s = Math.min(Math.max(t / FT_END, 0), 1);
+  const terms = 1 + 39 * Math.pow(s, 2.2), n = Math.floor(terms), frac = terms - n;
+  const f = x => {
+    let y = 0;
+    for (let j = 0; j < n; j++) { const k = 2 * j + 1; y += Math.sin(k * x) / k; }
+    const k = 2 * n + 1; y += frac * Math.sin(k * x) / k;
+    return y * 4 / Math.PI;
+  };
+  const steps = Math.ceil((R - L) * 1.5);
+  if (n < 6) {
+    const k = 2 * n + 1, a = frac * 4 / (Math.PI * k);
+    ctx.strokeStyle = 'rgba(255,122,217,0.9)'; ctx.lineWidth = 1.5; ctx.beginPath();
+    for (let i = 0; i <= steps; i++) { const x = span * i / steps, px = X(x), py = Y(a * Math.sin(k * x)); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.stroke();
+  }
+  const sg = ctx.createLinearGradient(L, 0, R, 0); sg.addColorStop(0, '#7CF7FF'); sg.addColorStop(0.5, '#9D8CFF'); sg.addColorStop(1, '#F07CFF');
+  ctx.strokeStyle = sg; ctx.lineWidth = 2.6; ctx.lineJoin = 'round'; ctx.beginPath();
+  for (let i = 0; i <= steps; i++) { const x = span * i / steps, px = X(x), py = Y(f(x)); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+  ctx.stroke();
+  if (terms > 14) {
+    const alpha = Math.min(1, (terms - 14) / 6);
+    let bx = 0, by = -9;
+    for (let i = 1; i < 600; i++) { const x = (Math.PI / 2) * i / 600, y = f(x); if (y > by) { by = y; bx = x; } }
+    ctx.globalAlpha = alpha; ctx.strokeStyle = '#EAF0FF'; ctx.fillStyle = '#EAF0FF'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(X(bx), Y(by), 4, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(bx) + 5, Y(by) + 3); ctx.lineTo(X(bx) + 24, Y(by) + 16); ctx.stroke();
+    ctx.font = `500 ${Math.max(11, Math.round(h * 0.055))}px ui-monospace, Menlo, Consolas, "PingFang SC", "Microsoft YaHei", monospace`;
+    ctx.fillText(tr().gibbs, X(bx) + 28, Y(by) + 22);
+    ctx.globalAlpha = 1;
+  }
+  return n;
+}
+const cv = $('#ft'), cctx = cv.getContext('2d', { willReadFrequently: true });
+const ft = { t: 0, playing: !reduced, visible: false, last: 0, w: 0, h: 0, dpr: 1, raf: 0, check: null };
+function ftSize() {
+  const r = cv.getBoundingClientRect();
+  ft.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  ft.w = Math.max(1, Math.round(r.width)); ft.h = Math.max(1, Math.round(r.height));
+  cv.width = Math.round(ft.w * ft.dpr); cv.height = Math.round(ft.h * ft.dpr);
+  ftDraw();
+}
+function ftDraw() {
+  cctx.setTransform(ft.dpr, 0, 0, ft.dpr, 0, 0);
+  const tt = Math.min(ft.t, FT_END);
+  const n = drawFourier(cctx, ft.w, ft.h, tt);
+  $('#ftRead').textContent = tr().frame(tt.toFixed(2), Math.round(tt * FPS));
+  $('#ftTerms').textContent = tr().terms(n);
+  $('#ftT').value = tt;
+}
+function ftLoop(now) {
+  ft.raf = 0;
+  if (!ft.playing || !ft.visible) return;
+  const dt = ft.last ? (now - ft.last) / 1000 : 0; ft.last = now;
+  ft.t += dt; if (ft.t > FT_END + 1.5) ft.t = 0;
+  ftDraw(); ft.raf = requestAnimationFrame(ftLoop);
+}
+function ftKick() { if (!ft.raf && ft.playing && ft.visible) { ft.last = 0; ft.raf = requestAnimationFrame(ftLoop); } }
+function ftSetPlaying(p) { ft.playing = p; $('#ftPlay').textContent = p ? '❚❚' : '▶'; $('#ftPlay').setAttribute('aria-label', p ? tr().pause : tr().play); ftKick(); }
+function ftShowCheck() {
+  const out = $('#ftOut'), c = ft.check;
+  out.className = 'ft-out' + (c && !c[2] ? ' ok' : '');
+  out.textContent = c ? tr().check(...c) : '';
+}
+$('#ftPlay').addEventListener('click', () => ftSetPlaying(!ft.playing));
+$('#ftT').addEventListener('input', e => { ftSetPlaying(false); ft.t = +e.target.value; ftDraw(); ft.check = null; ftShowCheck(); });
+$('#ftCheck').addEventListener('click', () => {
+  ftSetPlaying(false);
+  ft.t = Math.min(ft.t, FT_END); ftDraw();
+  const onScreen = cctx.getImageData(0, 0, cv.width, cv.height).data;
+  const frame = Math.round(ft.t * FPS);
+  const other = (frame * 7 + 113) % (FT_END * FPS);
+  const c = document.createElement('canvas'); c.width = cv.width; c.height = cv.height;
+  const x = c.getContext('2d', { willReadFrequently: true }); x.setTransform(ft.dpr, 0, 0, ft.dpr, 0, 0);
+  drawFourier(x, ft.w, ft.h, other / FPS);
+  drawFourier(x, ft.w, ft.h, ft.t);
+  const again = x.getImageData(0, 0, c.width, c.height).data;
+  let diff = 0;
+  for (let i = 0; i < again.length; i += 4) if (again[i] !== onScreen[i] || again[i + 1] !== onScreen[i + 1] || again[i + 2] !== onScreen[i + 2]) diff++;
+  ft.check = [frame, other, diff, again.length / 4];
+  ftShowCheck();
+});
+new IntersectionObserver(([e]) => { ft.visible = e.isIntersecting; ftKick(); }).observe(cv);
+new ResizeObserver(ftSize).observe(cv);
+
+/* ---------- how it works: a request moving through the system ---------- */
+const steps = $$('#how [data-step]');
+let archTimer = null, archI = 0;
+function archTick() {
+  steps.forEach((el, j) => el.classList.toggle('lit', j === archI));
+  archI = (archI + 1) % (steps.length + 3); // three empty beats before it starts over
+}
+onEnter.how = () => { if (reduced || archTimer) return; archI = 0; setTimeout(() => { if (sections[current].id === 'how' && !archTimer) archTimer = setInterval(archTick, 520); }, 900); };
+onLeave.how = () => { clearInterval(archTimer); archTimer = null; steps.forEach(el => el.classList.remove('lit')); };
+
+/* ---------- media helpers ---------- */
+function pauseAll(except) { $$('video').forEach(v => { if (v !== except && !v.paused) v.pause(); }); }
+
+/* ---------- the intro film, with light that spills from the picture ---------- */
+const intro = $('#intro'), screen = $('#screen'), chapters = $$('#chapters button');
+const amb = $('#ambient'), actx = amb.getContext('2d');
+const poster = new Image(); poster.onload = () => actx.drawImage(poster, 0, 0, 64, 36); poster.src = 'img/04-intro.jpg';
+let ambTimer = null;
+function ambStart() { if (ambTimer) return; ambTimer = setInterval(() => { try { actx.drawImage(intro, 0, 0, 64, 36); } catch (e) { /* not ready */ } }, 120); }
+function ambStop() { clearInterval(ambTimer); ambTimer = null; }
+function playIntro() { pauseAll(intro); intro.controls = true; const p = intro.play(); if (p) p.catch(() => {}); }
+$('#bigplay').addEventListener('click', playIntro);
+intro.addEventListener('play', () => { screen.classList.add('playing', 'started'); document.body.classList.add('cinema'); ambStart(); });
+intro.addEventListener('pause', () => { screen.classList.remove('playing'); document.body.classList.remove('cinema'); ambStop(); });
+intro.addEventListener('ended', () => { document.body.classList.remove('cinema'); intro.blur(); ambStop(); });
+intro.addEventListener('timeupdate', () => {
+  const t = intro.currentTime; let k = 0;
+  chapters.forEach((b, i) => { if (t >= +b.dataset.t - 0.01) k = i; });
+  chapters.forEach((b, i) => b.classList.toggle('on', screen.classList.contains('started') && i === k));
+});
+chapters.forEach(b => b.addEventListener('click', () => { intro.currentTime = +b.dataset.t; playIntro(); b.blur(); }));
+onLeave.film = () => intro.pause();
+
+/* ---------- showcase: hover previews, tilt, a click for sound ---------- */
+const films = $('#films');
+const filmTitle = fig => fig.dataset[lang === 'zh' ? 'titleZh' : 'titleEn'];
+$$('.film:not(.info)', films).forEach(fig => {
+  const v = $('video', fig);
+  const full = () => fig.classList.contains('full');
+  fig.addEventListener('pointermove', e => {
+    if (!fine || full()) return;
+    const r = fig.getBoundingClientRect(), px = (e.clientX - r.left) / r.width - 0.5, py = (e.clientY - r.top) / r.height - 0.5;
+    fig.style.setProperty('--ry', `${px * 7}deg`); fig.style.setProperty('--rx', `${-py * 7}deg`);
+  });
+  fig.addEventListener('pointerenter', () => {
+    if (!fine || full() || films.classList.contains('sees')) return;
+    v.muted = true; const p = v.play(); if (p) p.catch(() => {});
+  });
+  fig.addEventListener('pointerleave', () => {
+    fig.style.setProperty('--rx', '0deg'); fig.style.setProperty('--ry', '0deg');
+    if (!full()) v.pause();
+  });
+  fig.addEventListener('click', e => {
+    if (films.classList.contains('sees')) { openLightbox({ img: $('.sheet', fig).src, cap: tr().sheet(filmTitle(fig)) }); return; }
+    if (e.target === v && v.controls) return;
+    if (!full()) {
+      pauseAll(v); fig.classList.add('full'); fig.style.setProperty('--rx', '0deg'); fig.style.setProperty('--ry', '0deg');
+      v.muted = false; v.currentTime = 0; v.controls = true; const p = v.play(); if (p) p.catch(() => {});
+    } else if (v.paused) { const p = v.play(); if (p) p.catch(() => {}); } else v.pause();
+  });
+  v.addEventListener('ended', () => { fig.classList.remove('full'); v.controls = false; v.muted = true; v.blur(); });
+});
+function resetFilms() { $$('.film:not(.info)', films).forEach(fig => { const v = $('video', fig); v.pause(); fig.classList.remove('full'); v.controls = false; v.muted = true; }); }
+const seesBtn = $('#sees');
+seesBtn.addEventListener('click', () => {
+  const on = seesBtn.getAttribute('aria-pressed') !== 'true';
+  seesBtn.setAttribute('aria-pressed', on); films.classList.toggle('sees', on); $('#seesNote').hidden = !on;
+  if (on) resetFilms();
+  seesBtn.blur();
+});
+onLeave.showcase = resetFilms;
+
+/* ---------- styles: the wall ---------- */
+const wall = $('#wall');
+const tiles = STYLES.map(([slug, en, zh], i) => {
+  const b = document.createElement('button'); b.className = 'sw';
+  const col = i % 8, row = Math.floor(i / 8);
+  b.style.setProperty('--d', `${0.35 + (col + row) * 0.06}s`);
+  const img = new Image(); img.src = stylePath(slug, 'poster.jpg'); img.alt = ''; img.loading = 'lazy';
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'none';
+  const label = document.createElement('span');
+  const le = document.createElement('span'); le.lang = 'en'; le.textContent = en;
+  const lz = document.createElement('span'); lz.lang = 'zh'; lz.textContent = zh;
+  label.append(le, lz);
+  b.append(img, v, label); wall.appendChild(b);
+  const t = { b, v, slug, en, zh };
+  v.addEventListener('ended', () => b.classList.remove('on'));
+  b.addEventListener('mouseenter', () => playTile(t));
+  b.addEventListener('click', () => { stopWall(); openLightbox({ video: stylePath(slug, 'swatch.mp4'), cap: lang === 'zh' ? zh : en, code: `bin/vh new promo my-film --style ${slug}` }); });
+  return t;
+});
+const yours = document.createElement('div'); yours.className = 'sw info';
+yours.style.setProperty('--d', `${0.35 + 10 * 0.06}s`);
+wall.appendChild(yours);
+function playTile(t) {
+  if (!t.v.src) t.v.src = stylePath(t.slug, 'swatch.mp4');
+  t.v.currentTime = 0;
+  const p = t.v.play(); if (p) p.then(() => t.b.classList.add('on')).catch(() => {});
+}
+const order = tiles.map((_, i) => i).sort((a, b) => ((a * 37 + 11) % 31) - ((b * 37 + 11) % 31));
+let wallTimer = null, wallPtr = 0;
+function startWall() {
+  if (wallTimer || reduced) return;
+  wallTimer = setInterval(() => {
+    if ($$('.sw.on', wall).length >= 8) return;
+    const t = tiles[order[wallPtr++ % order.length]];
+    if (!t.b.classList.contains('on')) playTile(t);
+  }, 600);
+}
+function stopWall() { clearInterval(wallTimer); wallTimer = null; tiles.forEach(t => { t.v.pause(); t.b.classList.remove('on'); }); }
+onEnter.styles = () => setTimeout(() => { if (sections[current].id === 'styles') startWall(); }, 1200);
+onLeave.styles = stopWall;
+
+/* ---------- in practice ---------- */
+$$('.plat').forEach(a => { if (!a.getAttribute('href')) a.removeAttribute('href'); else { a.target = '_blank'; a.rel = 'noopener'; } });
+const mine = $('#mine'), mineV = $('video', mine);
+mineV.addEventListener('loadedmetadata', () => mine.classList.add('has'));
+mineV.addEventListener('error', () => mine.remove());
+onEnter.practice = () => $$('#practice [data-count]').forEach(el => countUp(el, 2400));
+onLeave.practice = () => { if (mine.isConnected) mineV.pause(); };
+
+/* ---------- get started: the commands type themselves ---------- */
+const caret = document.createElement('span'); caret.className = 'caret';
+let typing = 'no'; // no → on → done
+function finishTyping() {
+  if (typing !== 'on') return;
+  typing = 'done';
+  $$('#start .type').forEach(el => { el.textContent = el.dataset.text; });
+  caret.remove();
+}
+onEnter.start = () => {
+  if (typing !== 'no' || reduced) return; typing = 'on';
+  const els = $$('#start .type').filter(el => el.offsetParent !== null);
+  els.forEach(el => { el.textContent = ''; });
+  let k = 0;
+  const next = () => {
+    if (typing !== 'on' || k >= els.length) { typing = 'done'; return; }
+    const el = els[k], text = el.dataset.text, speed = k === 2 ? (CJK.test(text) ? 36 : 14) : 22;
+    let i = 0;
+    el.after(caret);
+    const tick = () => {
+      if (typing !== 'on') return;
+      i = Math.min(text.length, i + (k === 0 ? 2 : 1));
+      el.textContent = text.slice(0, i);
+      if (i < text.length) setTimeout(tick, speed);
+      else { k++; setTimeout(next, 260); }
+    };
+    tick();
+  };
+  setTimeout(next, 700);
+};
+
+/* ---------- contact: the WeChat card shows only when its image is there ---------- */
+const wxImg = $('#wxImg');
+function wxMissing() { $('#wx').remove(); $('#qrs').classList.add('one'); }
+if (wxImg.complete && !wxImg.naturalWidth) wxMissing(); else wxImg.addEventListener('error', wxMissing);
+
+/* ---------- lightbox ---------- */
+const lb = $('#lightbox'), lbMedia = $('#lbMedia'), lbCap = $('#lbCap');
+function openLightbox({ video, img, cap, code }) {
+  pauseAll();
+  lbMedia.innerHTML = '';
+  if (video) { const v = document.createElement('video'); v.src = video; v.controls = true; v.autoplay = true; v.playsInline = true; lbMedia.appendChild(v); }
+  if (img) { const i = new Image(); i.src = img; i.alt = cap; lbMedia.appendChild(i); }
+  lbCap.innerHTML = '';
+  const c = document.createElement('span'); c.textContent = cap; lbCap.appendChild(c);
+  if (code) { const k = document.createElement('code'); k.textContent = code; lbCap.appendChild(k); }
+  lb.classList.add('show');
+}
+function closeLightbox() { lb.classList.remove('show'); lbMedia.innerHTML = ''; if (sections[current].id === 'styles') startWall(); }
+$('#lbX').addEventListener('click', closeLightbox);
+lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && lb.classList.contains('show')) closeLightbox(); });
+
+/* ---------- copy buttons ---------- */
+$$('.copy').forEach(b => b.addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = tr().copied; }
+  catch { b.textContent = tr().select; }
+  setTimeout(() => { b.textContent = tr().copy; }, 1600);
+}));
+
+/* ---------- buttons lean toward the cursor ---------- */
+if (fine && !reduced) $$('.btn, .gh').forEach(b => {
+  b.addEventListener('pointermove', e => { const r = b.getBoundingClientRect(); b.style.transform = `translate(${(e.clientX - r.left - r.width / 2) * 0.15}px, ${(e.clientY - r.top - r.height / 2) * 0.25}px)`; });
+  b.addEventListener('pointerleave', () => { b.style.transform = ''; });
+});
+
+/* ---------- language: English or Chinese ---------- */
+// The head script picks it before the first paint: ?lang=zh|en, then the last choice, then the browser's language.
+function applyLang(l) {
+  lang = l;
+  root.dataset.lang = l; root.lang = l === 'zh' ? 'zh-CN' : 'en';
+  document.title = tr().title;
+  railLabels();
+  $$('[data-aria-en]').forEach(el => el.setAttribute('aria-label', el.dataset[l === 'zh' ? 'ariaZh' : 'ariaEn']));
+  $$('.copy').forEach(b => { b.textContent = tr().copy; });
+  tiles.forEach(t => t.b.setAttribute('aria-label', tr().tile(l === 'zh' ? t.zh : t.en)));
+  yours.innerHTML = tr().yours;
+  ftSetPlaying(ft.playing); ftDraw(); ftShowCheck();
+}
+$('#langbtn').addEventListener('click', () => {
+  const l = lang === 'zh' ? 'en' : 'zh';
+  finishTyping();
+  const swap = () => {
+    applyLang(l);
+    try { localStorage.setItem('ovh-lang', l); } catch (e) { /* private mode */ }
+    try { const u = new URL(location.href); u.searchParams.set('lang', l); history.replaceState(null, '', u); } catch (e) { /* file:// */ }
+  };
+  if (reduced) { swap(); return; }
+  document.body.classList.add('switching');
+  setTimeout(() => { swap(); requestAnimationFrame(() => document.body.classList.remove('switching')); }, 180);
+});
+
+/* ---------- start ---------- */
+applyLang(lang);
+gal.t0 = performance.now();
+setActive(0);
+galKick();
+requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => document.body.classList.add('loaded'), 900)));
+})();
+</script>
+</body>
+</html>
