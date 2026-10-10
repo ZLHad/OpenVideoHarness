@@ -108,5 +108,9 @@ textonly gnipbao/story-to-handdrawn-video       story-to-handdrawn-video   # 中
 textonly AllenAI2014/remotion-guofeng-starter   remotion-guofeng-starter   # 国风纸片动画：诗/成语 → Remotion（代码 MIT；public/ 演示素材不授权商用）
 full     sharon-laicc/viral-video-decomposer    viral-video-decomposer     # 拆解爆款视频：镜头级拉片 → 生产蓝图（MIT）
 
+# 客户端与格式（见 docs/proposals/01-client-and-workflow.md）
+textonly openfilm/openfilm                      openfilm                   # 视频即网页：film.html 格式、look 检查、Studio 剪辑器和桌面版（MIT；名称和 Logo 是商标，见其 TRADEMARK.md）
+textonly openfilm/examples                      openfilm-examples          # OpenFilm 官方示例：歌词 MV、带中文旁白的介绍片和它的 make/ 制作脚本（代码和自制媒体 MIT，字体 OFL，见各 CREDITS.md）
+
 [ -z "$SKIPPED" ] || echo "skipped (re-run later, e.g. bash references/fetch.sh <dir>):$SKIPPED"
 exit 0
