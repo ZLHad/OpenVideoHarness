@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+**docs/site: the project homepage, in English and Chinese**
+- Why: the maintainer asked to drop the demo framing and make the page the project's homepage, written as a product introduction, keeping its look, with a switch between English and Chinese.
+- The page moved from `docs/talk/` to `docs/site/`. `docs/talk/index.html` now redirects there, so the old link keeps working, and a new `index.html` at the repo root redirects too, so the site also opens at `zlhad.github.io/OpenVideoHarness/` once GitHub Pages is on.
+- Language: an EN / 中 switch in the top bar. Every text on the page exists in both languages, including the style names, the chart dates, the f(t) readout and its check. The first visit follows the browser's language; the choice is remembered, and `?lang=en` or `?lang=zh` picks one in a link. Chinese headings rise in character by character, and a phrase never breaks across lines.
+- Content, written for someone who has never heard of the project:
+  - The hero: what it is, one line on what happens, three buttons (start, watch the film, star on GitHub) and a row of facts (MIT, 9 types, 31 styles, 5 engines).
+  - "Why it exists": the problem first. One great film is easy; every time is hard.
+  - "Built with Claude" and "In practice" are in the project's voice, not the presenter's.
+  - A new FAQ with ten questions, open one at a time: how it differs from just asking an agent (with the honest result of the A/B in `docs/research/06`), cost, time, requirements, Codex, languages, real people, current limits, the relation to Anthropic, and contributing. The answers follow the README.
+  - A footer with links to the README in both languages, the wiki, the changelog, the contributing guide and the license.
+- The presenter tools are gone: speaker notes, the timer, the key list and the arrow-key paging. Scroll snapping is now `proximity`, so it no longer takes over the scroll wheel.
+- Numbers: 75 pull requests in the first 11 days (2026-09-29 to 10-09, UTC), 72 of them from `claude/` branches. The chart and the ticker include #74 and #75.
+- `docs/site/README.md` now describes the site: viewing it, the language switch, how to edit both languages, and the optional WeChat QR, channel links and local film.
+
 **docs/talk: Get started comes first, Contact last**
 - Why: the maintainer is using the page as the project's homepage (the repo's About link) and asked for a homepage order: how to start right after the title, contact details at the end.
 - `docs/talk/index.html`: "Get started" is section 01, right after the title (the commands, and what happens next with the three sign-offs and the effort levels); a new last section, "Contact", holds the GitHub and WeChat QR codes, the email and the footer. The other sections move down one number. The speaker notes, the nav, the key list (`Home` / `End`) and `docs/talk/README.md`'s script follow the new order; the talk still runs about 4.5 minutes.
