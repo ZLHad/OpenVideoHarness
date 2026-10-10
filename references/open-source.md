@@ -39,6 +39,7 @@ ClaudeAnimationBase 在 `engines/` 下，依赖已装好。清单里的其他项
 | [WyattBlue/auto-editor](https://github.com/WyattBlue/auto-editor) | 自动剪掉静音段，可导出 Premiere/Resolve 时间线 | 5.4k / 2026-09 | Unlicense | A | 口播粗剪 |
 | [charmbracelet/vhs](https://github.com/charmbracelet/vhs) | 用脚本录终端 GIF/MP4 | 21.0k / 2026-09 | MIT | A | CLI 工具演示 |
 | [OpenCut-app/OpenCut](https://github.com/OpenCut-app/OpenCut) | 开源 CapCut 替代，GUI 剪辑器 | 90.8k / 2026-09 | MIT | C | 手动精修 |
+| [openfilm/openfilm](https://github.com/openfilm/openfilm) | 视频即网页：`film.html` 把页面（`window.film.frame(t)`）、素材和声音按轨道剪在一起；`look` 检查、`render` 出片；本地剪辑器 Studio 和带聊天的桌面版。能直接打开我们的片子，见 `docs/proposals/01-client-and-workflow.md` | 未查 / 2026-10 | MIT（名称和 Logo 是商标） | A | 人工精修、给片子加剪辑器 |
 
 已被取代：editly、ffmpeg-python、theatre.js、timecut、FFCreator（均 [停更]）。
 

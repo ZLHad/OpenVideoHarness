@@ -1,6 +1,6 @@
 # 社区 skill 参考（2026-09-28）
 
-这份清单从 183 个社区视频 skill 里，按 OpenVideoHarness 当时的 8 个类型（01–08）挑出值得读的，并对已拉取到 `references/repos/` 的 16 个仓库逐个读了 README、LICENSE 和主 SKILL.md。它只回答"遇到某类视频时去哪个仓库找什么"，不替代 `open-source.md`（框架与引擎）和 `cases/`（案例拆解）。2026-09-29 又补了 Opus 5.5 发布周出现的 6 个仓库，它们不在那 183 个里面，见第 6 节。
+这份清单从 183 个社区视频 skill 里，按 OpenVideoHarness 当时的 8 个类型（01–08）挑出值得读的，并对已拉取到 `references/repos/` 的 16 个仓库逐个读了 README、LICENSE 和主 SKILL.md。它只回答"遇到某类视频时去哪个仓库找什么"，不替代 `open-source.md`（框架与引擎）和 `cases/`（案例拆解）。2026-09-29 又补了 Opus 5.5 发布周出现的 6 个仓库，它们不在那 183 个里面，见第 6 节；2026-10-10 补了 OpenFilm 的两个仓库，见第 7 节。
 
 - 下文"本地路径"都相对 `references/repos/`；写"未拉取"的只看过清单里的一句话描述，借用点标【推测】。
 - ⭐ 与许可证字段来自 `skills.json`（2026-09-28 生成）；标"本地核对"的以仓库里的 LICENSE / README 为准。标"清单外"的条目，⭐ 是 2026-09-29 在 GitHub 页面上读到的数，许可证读的是仓库里的 LICENSE。
@@ -323,6 +323,8 @@ lemomo-ai/lemo-opuscar（605⭐，2026-09-30）是作者 Lemomo（X 上是 @lemo
 | opus55-guide-athemeroy | CC BY 4.0（原创文字、注释、表格、图表；整个仓库一份 LICENSE） | `scripts/` 也在 CC BY 4.0 下，复用须署名 | 帧缩略图、链接的帖子和视频、创作者 prompt 不在 CC BY 范围内，见 `THIRD_PARTY.md` | 可改写复用（署名） |
 | opus55-catalog-zhuyansen | 没有 LICENSE；README 声明收录不授予许可 | — | 作品和 prompt 归各自作者；prompt 原文不在仓库里 | 只读 |
 | Battle-of-Austerlitz-Film | 没有 LICENSE，README 也没提 | — | 成片、混音和字体未拉取 | 只读 |
+| openfilm | MIT（v0.1.4，`6dee7cd`）；名称和 Logo 是商标（`TRADEMARK.md`） | 可复用，保留声明 | Studio 打包的 Inter（OFL）、React（MIT）、Lucide（ISC）见 `THIRD_PARTY_NOTICES.md` | 可复用；改过的版本发布出去不能叫 OpenFilm |
+| openfilm-examples | MIT（`82ce375`） | 可复用，保留声明 | 自制的歌曲、旁白、画面同为 MIT；字体 OFL；`one-prompt/src/px/` 改编自 mexicat/pdoom-video（MIT）；逐项见各例子的 `CREDITS.md` | 可复用（保留声明） |
 
 ---
 
@@ -363,3 +365,24 @@ athemeroy/awesome-opus-5-5-videos 是一份带来源的研究型目录：从 X �
 4. **配色模式研究**（`docs/color-modes.md`）：1,119 支预览里，13 种画风有 11 种分成两到三个配色模式，例如动效 / UI 类分成暗中性 198 支和亮中性 152 支。它的结论只到"颜色重要时，在 brief 里写明背景明度、主色和强调色，并逐镜检查色彩一致性"，并说明这不是实验证明的最佳配色，点赞差异也不说明因果。
 
 许可：原创文字、注释、表格和图表是 CC BY 4.0，改写引用要署名 athemeroy 并注明许可；帧缩略图、链接的帖子和视频、创作者的 prompt 都不在 CC BY 范围内。
+
+---
+
+## 7. OpenFilm（2026-10-10）
+
+维护者让我们学习 [openfilm.dev](https://openfilm.dev/zh/)。它不是 skill 清单里的条目，是一套完整的"视频即网页"工具：格式、命令、剪辑器和桌面版。两个仓库都已加进 `fetch.sh`（textonly，不拉媒体）。
+
+| 仓库 | 本地路径 | 许可 | 写在哪 |
+|---|---|---|---|
+| [openfilm/openfilm](https://github.com/openfilm/openfilm) | `openfilm/`（textonly） | MIT；名称和 Logo 是商标 | `docs/proposals/01-client-and-workflow.md` |
+| [openfilm/examples](https://github.com/openfilm/examples) | `openfilm-examples/`（textonly） | MIT（媒体见各 `CREDITS.md`） | 同上 |
+
+最值得读的几处（路径相对 `references/repos/`）：
+
+- `openfilm/packages/openfilm/MANUAL.md`：给 agent 的全部说明，1,170 个词；
+- `openfilm/packages/openfilm/SPEC.md`：`film.html` 和页面的格式规范，以及"同一个 t 画同一帧"这条规则落到实践里怎么写（GSAP 用 `fromTo`、自带时钟的库改成按 t 驱动、WebGL 要 `preserveDrawingBuffer`）；
+- `openfilm/packages/openfilm/src/look.mjs`：一条命令的检查清单；
+- `openfilm/packages/openfilm/src/host.mjs`：`FILM_CLOCK`，把页面的各种时钟钉在 t 上；
+- `openfilm-examples/openfilm-intro/make/README.md`：一支 1:42 的片子，Blender、录屏、配音、音效各自怎么做出来，和 `film.html` 分开放。
+
+能借什么、和我们怎么分工、一次兼容实验（我们的两支 showcase 加几行包装就能在它的 Studio 里打开和修改），都写在提案里。一句话：它刻意不写风格和方法，只做格式、检查和剪辑器；我们正好是方法、口味和审阅那一层。
