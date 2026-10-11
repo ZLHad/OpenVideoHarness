@@ -958,10 +958,12 @@ tl["duration"] = round(tl["duration"] + 0.4, 3)
 json.dump(tl, open(p, "w", encoding="utf-8"), ensure_ascii=False)
 PY
   b=$(vh cues "$t/cfq" 2>&1); rc2=$?
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -s "$t/cfq/out/cues.json" ] && printf '%s' "$a" | grep -q 'S02.o.one *@a2:第一张' \
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && grep -q '"timeline_sha256": "[0-9a-f]\{64\}"' "$t/cfq/out/cues.json" && printf '%s' "$a" | grep -q 'S02.o.one *@a2:第一张' \
     && printf '%s' "$b" | grep -q 'another take of the narration): 7 moved, 0 new, 0 gone' && printf '%s' "$b" | grep -q 'S03.at .*(+0.400)'
   then ok "cues: the template's cues in order, saved with the timeline's sha256; a new take says which moved and by how much"
   else bad "cues on the canvas-film template: exit $rc / $rc2: $(printf '%s' "$a$b" | tail -c 800)"; fi
+  a=$(vh cues "$ROOT/tools/film/fixture/index.html" 2>&1); rc=$?
+  [ $rc = 2 ] && printf '%s' "$a" | grep -q 'gives no window.film.cues' && ok "cues: a page without window.film.cues exits 2 and says so" || bad "cues on a page without cues: exit $rc: $a"
   mkdir "$t/cfr" && cp -R "$c/." "$t/cfr/"
   a=$(vh readcheck "$t/cfr" 2>&1); rc=$?
   if [ $rc = 0 ] && [ -s "$t/cfr/out/texts.json" ] && printf '%s' "$a" | grep -q 'subtitle'; then ok "canvas-film: readcheck <project> judges the page's reads and captions (window.film.texts, written to out/texts.json)"

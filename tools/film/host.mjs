@@ -153,6 +153,9 @@ export async function openFilm(target, o = {}) {
       return { duration: +((f ? f.duration : v.duration) || (root && root.dataset.duration) || 0), width: f && +f.width || 0, height: f && +f.height || 0 }; })()`, "reading window.film");
     if (got.width > 0 && got.height > 0 && (got.width !== width || got.height !== height)) { width = got.width; height = got.height; await metrics(width, height); }
     const loadProblems = problems.splice(0);
+    // one of the page's own fields as JSON (a function is called first), null when it gives none or nothing JSON can hold
+    const field = (name) => ev(`((name) => { const f = window.film && window.film.frame ? window.film : window.__vh || {};
+      let x = f[name]; if (typeof x === "function") x = x.call(f); const s = JSON.stringify(x); return s === undefined ? null : JSON.parse(s); })(${JSON.stringify(name)})`, `reading window.film.${name}`);
     return {
       page, root, kind, width, height, duration: got.duration, version: browser.version, loadProblems,
       // draw t, let the compositor paint it, capture it (a lossless PNG, or { format: "jpeg", quality } for a render);
@@ -169,11 +172,9 @@ export async function openFilm(target, o = {}) {
         return { png: Buffer.from(shot.data, "base64"), touched };
       },
       problems: () => problems.splice(0),
-      // one of the page's own fields (texts, events, chapters, cues, timeline: engines/CONTRACT.md) as JSON, null when
-      // it gives none; list(name) only takes an array
-      field: (name) => ev(`((name) => { const f = window.film && window.film.frame ? window.film : window.__vh || {};
-        let x = f[name]; if (typeof x === "function") x = x.call(f); return x === undefined ? null : JSON.parse(JSON.stringify(x)); })(${JSON.stringify(name)})`, `reading window.film.${name}`),
-      async list(name) { const x = await this.field(name); return Array.isArray(x) ? x : null; },
+      // the page's own fields (texts, events, chapters, cues, timeline: engines/CONTRACT.md); list(name) only takes an array
+      field,
+      list: async (name) => { const x = await field(name); return Array.isArray(x) ? x : null; },
       // what arrives after the last frame (an error from a timer a frame set): two paints and 100 ms, then collect
       async lateProblems() {
         try { await ev("new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(ok, 100))))", "after the last frame"); } catch { /* gone */ }

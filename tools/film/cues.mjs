@@ -1,7 +1,8 @@
 // cues: where a page's cues landed (window.film.cues, engines/CONTRACT.md): every time it hangs on the narration's words
 // ("@b2:跟着走", "@a2>"), resolved in seconds, in order. With --save it keeps them in out/cues.json together with the
-// sha256 of the timeline they were resolved on (window.film.timeline); when that file is there and the narration has
-// changed since (a new take, pauses put in, a line rewritten), it says which cues moved and by how much.
+// sha256 of the timeline they were resolved on (window.film.timeline); when that file is there, a later run says which
+// cues moved and by how much, which are new and which are gone: after a new take of the narration (pauses put in, a line
+// rewritten), or after the page's own cues changed on the same take.
 //
 // usage: node tools/film/cues.mjs <project | page.html> --browser <chrome> [--save] [--out out/cues.json]
 //
@@ -32,46 +33,59 @@ if (!browser) die("no browser: pass --browser <chrome>, or run it as bin/vh cues
 
 let film;
 try { film = await openFilm(target, { browser, runtime: "auto" }); } catch (e) { die(e.message); }
-const cues = await film.list("cues").catch((e) => die(e.message));
-const tlRel = await film.field("timeline").catch(() => null);
+let cues, tlRel;
+try { cues = await film.list("cues"); tlRel = await film.field("timeline").catch(() => null); }
+catch (e) { await film.close(); die(e.message); }
 const loadProblems = film.loadProblems;
 await film.close();
 if (!cues) die(`${film.page} gives no window.film.cues (engines/CONTRACT.md)`);
 
 const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };
+const sec = (t) => (Number.isFinite(t) ? t.toFixed(3) : "—");
 const tlFile = typeof tlRel === "string" && tlRel ? path.resolve(film.root, tlRel) : null;
 const sha = tlFile && fs.existsSync(tlFile) ? createHash("sha256").update(fs.readFileSync(tlFile)).digest("hex") : null;
-const sorted = [...cues].sort((p, q) => p.t - q.t || String(p.id).localeCompare(String(q.id)));
-console.log(`cues: ${rel(film.page)} · ${cues.length} cue${cues.length === 1 ? "" : "s"}` +
-  (tlFile ? ` on ${rel(tlFile)}${sha ? ` (sha256 ${sha.slice(0, 12)})` : " (not found)"}` : " (no timeline: a silent film)"));
+const ok = (c) => c && typeof c === "object";
+const sorted = cues.filter(ok).sort((p, q) => (+p.t || 0) - (+q.t || 0) || String(p.id).localeCompare(String(q.id)));
+console.log(`cues: ${rel(film.page)} · ${sorted.length} cue${sorted.length === 1 ? "" : "s"}` +
+  (tlFile ? ` on ${rel(tlFile)}${sha ? ` (sha256 ${sha.slice(0, 12)})` : " (not found)"}` : " (the page names no timeline)"));
 for (const p of loadProblems) console.log(`  while loading: ${p}`);
 const w = Math.max(4, ...sorted.map((c) => String(c.id).length));
 console.log(`  ${"t".padStart(8)}  ${"id".padEnd(w)}  cue`);
-for (const c of sorted) console.log(`  ${(+c.t).toFixed(3).padStart(8)}  ${String(c.id).padEnd(w)}  ${c.ref}`);
+for (const c of sorted) console.log(`  ${sec(+c.t).padStart(8)}  ${String(c.id).padEnd(w)}  ${c.ref}`);
 
-// against the cues saved last time
+// against the cues saved last time: what moved, what is new, what is gone. The timeline's sha256 says why (another take
+// of the narration), but the page's own cues can change on the same take too (a word changed, FILM.lead)
 const file = path.resolve(out || path.join(film.root, "out", "cues.json"));
 let before = null;
-try { before = JSON.parse(fs.readFileSync(file, "utf8")); } catch { /* none yet, or unreadable: nothing to compare */ }
-if (before && Array.isArray(before.cues)) {
-  if (before.timeline_sha256 && sha && before.timeline_sha256 === sha) console.log(`  ${rel(file)}: saved on this same timeline`);
+if (fs.existsSync(file)) {
+  try { before = JSON.parse(fs.readFileSync(file, "utf8")); if (!before || !Array.isArray(before.cues)) throw new Error("no cues list"); }
+  catch { before = null; console.log(`  ${rel(file)}: not readable as saved cues, so not compared`); }
+}
+if (before) {
+  const was = before.cues.filter(ok), old = new Map(was.map((c) => [c.id, c])), now = new Map(sorted.map((c) => [c.id, c]));
+  const moved = sorted.filter((c) => old.has(c.id) && !(Math.abs(old.get(c.id).t - c.t) < 0.0005)).map((c) => [c, c.t - old.get(c.id).t]);
+  const added = sorted.filter((c) => !old.has(c.id)), gone = was.filter((c) => !now.has(c.id));
+  const take = before.timeline_sha256 && sha ? (before.timeline_sha256 === sha ? "same timeline" : "another take") : null;
+  if (!moved.length && !added.length && !gone.length) console.log(`  since ${rel(file)}: nothing moved${take === "same timeline" ? " (saved on this same timeline)" : ""}`);
   else {
-    const old = new Map(before.cues.map((c) => [c.id, c])), now = new Map(cues.map((c) => [c.id, c]));
-    const moved = cues.filter((c) => old.has(c.id) && Math.abs(old.get(c.id).t - c.t) >= 0.0005).map((c) => [c, c.t - old.get(c.id).t]);
-    const added = cues.filter((c) => !old.has(c.id)), gone = before.cues.filter((c) => !now.has(c.id));
-    console.log(`  since ${rel(file)}${before.timeline_sha256 && sha ? " (saved on another take of the narration)" : ""}: ` +
+    console.log(`  since ${rel(file)}${take === "another take" ? " (saved on another take of the narration)" : take ? " (same timeline: the page's cues changed)" : ""}: ` +
       `${moved.length} moved, ${added.length} new, ${gone.length} gone`);
-    for (const [c, d] of moved.sort((p, q) => Math.abs(q[1]) - Math.abs(p[1])).slice(0, 20))
-      console.log(`    ${String(c.id).padEnd(w)}  ${(+old.get(c.id).t).toFixed(3)} → ${(+c.t).toFixed(3)} s  (${d >= 0 ? "+" : ""}${d.toFixed(3)})`);
-    if (moved.length > 20) console.log(`    … and ${moved.length - 20} more`);
+    const more = (n, k) => { if (n > k) console.log(`    … and ${n - k} more`); };
+    for (const [c, d] of moved.sort((p, q) => (Math.abs(q[1]) || 0) - (Math.abs(p[1]) || 0)).slice(0, 20))
+      console.log(`    ${String(c.id).padEnd(w)}  ${sec(+old.get(c.id).t)} → ${sec(+c.t)} s  (${Number.isFinite(d) ? `${d >= 0 ? "+" : ""}${d.toFixed(3)}` : "—"})`);
+    more(moved.length, 20);
     for (const c of added.slice(0, 10)) console.log(`    new   ${c.id}  ${c.ref}`);
+    more(added.length, 10);
     for (const c of gone.slice(0, 10)) console.log(`    gone  ${c.id}  ${c.ref}`);
+    more(gone.length, 10);
   }
 }
 if (save) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify({ note: "bin/vh cues --save: where the cues landed, and the timeline they were resolved on",
-    page: path.relative(path.dirname(file), film.page), timeline: tlFile ? path.relative(path.dirname(file), tlFile) : null,
-    timeline_sha256: sha, cues: sorted }, null, 1) + "\n");
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({ note: "bin/vh cues --save: where the cues landed, and the timeline they were resolved on",
+      page: path.relative(path.dirname(file), film.page), timeline: tlFile ? path.relative(path.dirname(file), tlFile) : null,
+      timeline_sha256: sha, cues: sorted }, null, 1) + "\n");
+  } catch (e) { die(`cannot write ${rel(file)}: ${e.message}`); }
   console.log(`  saved: ${rel(file)}`);
 }
