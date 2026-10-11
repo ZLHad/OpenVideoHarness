@@ -112,6 +112,9 @@ export async function launch(exe, flags = []) {
   };
   // the profile folder: Chrome's helper processes can still be writing to it just after the main one exits (Linux),
   // so retry, and never let a leftover temp folder turn into an error
+  // the last browser gone: the signal listeners go too. A Ctrl-C queued at the very instant Chrome's exit is handled is
+  // dropped with them (nothing is left behind, a second one ends the process); deferring this would bring back the
+  // Ctrl-C that synchronous work after the close could not stop
   const removeProfile = () => { LIVE.delete(live); if (!LIVE.size) disarm(); removeSync(profile); };
   const close = async () => {
     if (!dead) try { await within(send("Browser.close"), 3000); } catch { /* already gone */ }
