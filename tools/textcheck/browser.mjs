@@ -35,9 +35,8 @@ export async function launch(exe, flags = []) {
   });
   out.on("error", (e) => gone(e.code || "pipe error"));
   inp.on("error", (e) => gone(e.code || "pipe error"));
-  // a message ends at a NUL and can arrive in hundreds of 64 KB chunks (a 4K PNG screenshot is 10 MB of base64): the
-  // chunks of the one still arriving wait in a list and only each new chunk is searched, so a message is copied once,
-  // not once per chunk
+  // a message ends at a NUL and can span 150+ chunks of 64 KB (a 4K PNG screenshot is 10 MB of base64): the chunks of
+  // the one still arriving wait in a list and only each new chunk is searched, so a message is copied once, not per chunk
   inp.on("data", (d) => {
     let from = 0;
     for (let i; (i = d.indexOf(0, from)) >= 0; from = i + 1) {
