@@ -13,8 +13,8 @@
 //   draw(t, s)  paints the shot at film time t: s = { id, t0, t1, lt, u, o, … } (src/90-main.js, drawShot)
 
 Object.assign(FILM, {
-  lang: "zh",                          // audio/timeline.zh.json
-  lead: 0.5, tail: 2.5,                // the narration starts 0.5 s in; the film ends 2.5 s after it
+  lang: "zh",                          // audio/timeline.zh.json (its first line starts 0.5 s in, as bin/vh tts --lead 0.5 writes it)
+  tail: 2.5,                           // the film ends 2.5 s after the narration
   images: { bulb: "assets/bulb.svg" },
 });
 

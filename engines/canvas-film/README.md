@@ -34,7 +34,7 @@ bin/vh frames projects/<date>-<slug> --at 1,5,9    # 模板自带一支 22 秒�
 
 ## 时间：挂在旁白的字上
 
-`bin/vh tts` 写出的 `audio/timeline.<lang>.json` 里，每句有 id、起止时间，对齐过的还有每个字的时间（`--align gemini`）。引擎把它整体后移 `FILM.lead` 秒（旁白在片子里开口的时刻；混音时配音也放在这里），片长是 `lead + 时间轴长度 + FILM.tail`。
+`bin/vh tts` 写出的 `audio/timeline.<lang>.json` 里，每句有 id、起止时间，对齐过的还有每个字的时间（`--align gemini`）。时间轴上的秒数就是片子里的秒数。旁白要晚一点开口，就在配音时加 `bin/vh tts … --lead <秒>`：人声和时间轴一起推后，画面不用另外挪。只有手上的时间轴从 0 开始、又想让画面先走一会儿，才设 `FILM.lead`：引擎把时间轴整体后移这么多秒，混音前人声也要垫上同样长的静音（`tools/audio/README.md` 的"手动的响度和合成命令"）。片长是 `FILM.lead + 时间轴长度 + FILM.tail`。
 
 时间写成 cue：
 
@@ -126,9 +126,10 @@ bin/vh frames <项目> --at 4.9,11.8           # 单帧，无损 PNG，在 <项�
 bin/vh frames <项目> --strip 11.2:12.4 --fps 10   # 一段的每一帧拼成一张，看转场和动作
 bin/vh frames <项目> --at 4.9 --dpr 2        # 4K 的帧
 bin/vh textcheck <项目>                       # reads 和字幕有没有被盖住、对比够不够、出没出画
+bin/vh determinism <项目>                     # 同几个时刻换顺序画、换进程画，看是不是 t 的纯函数
+bin/vh render <项目> [--dpr 2]                # 成片画面：<项目>/out/film.mp4（--dpr 2 是 4K），没有声音
+bin/vh mux <项目>/out/film.mp4 <混音.wav> <成片.mp4>   # 套上混音
 ```
-
-成片（逐帧渲染、编码、套上混音）在另一个 PR 里做成 bin/vh 的 render 命令；在那之前，这个引擎还出不了成片。
 
 ## 守硬规则 1
 
@@ -140,7 +141,7 @@ bin/vh textcheck <项目>                       # reads 和字幕有没有被盖
 ## 局限
 
 - 只有 16:9。别的画幅要同时改 `FILM.width`、`FILM.height` 和 `film.html` 里的尺寸，`bin/vh textcheck` 也还是按 1920 × 1080 打开页面。
-- 没有出片命令（见上）；SRT、镜头表（`shots.json`）、封面也还没有导出。封面的取帧时间以后也写成 cue；现在可以先从 `window.film.cues` 里按镜头 id 查到时刻再取帧，不要把秒数写死。
+- SRT、镜头表（`shots.json`）、封面还没有导出。封面的取帧时间以后也写成 cue；现在可以先从 `window.film.cues` 里按镜头 id 查到时刻再取帧，不要把秒数写死。
 - 没有 Three.js 底层。
 - 字幕不按词切（见"字幕"）。
 - 录制器只看得到每镜 5 个时刻画到的东西：一个只在两个时刻之间才调用的 `cue()` 或 `read()` 会漏掉。把它们写在 `if` 外面，先登记，再判断这一帧要不要画。

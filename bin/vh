@@ -409,7 +409,7 @@ import sys
 p = sys.argv[1]; s = open(p).read()
 note = ("> **本项目用 canvas-film 引擎**（`ENGINE_README.md`，和 `engines/canvas-film/README.md` 是同一份）：镜头、字幕、章节的时间写成挂在旁白字上的 cue，"
         "`src/50-shots.js` 是这支片子，其余 `src/` 是引擎。现在的 `src/50-shots.js` 和 `audio/timeline.zh.json` 是一支示例片，开工时一起换掉。\n"
-        "> 取帧 `bin/vh frames <项目> --at …`，查字 `bin/vh textcheck <项目>`。\n\n")
+        "> 取帧 `bin/vh frames <项目> --at …`，查字 `bin/vh textcheck <项目>`，成片画面 `bin/vh render <项目>`。\n\n")
 open(p, "w").write(s.replace("# BRIEF\n", "# BRIEF\n\n" + note, 1))
 PY
     echo "   engine   : canvas-film (ENGINE_README.md) · the example film draws as it is: bin/vh frames $(rel "$dir") --at 1,5,9"

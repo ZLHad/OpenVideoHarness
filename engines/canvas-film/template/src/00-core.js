@@ -10,7 +10,9 @@ const FILM = {
   lang: "zh",                  // the narration: audio/timeline.<lang>.json, as bin/vh tts writes it
   timeline: null,              // another file; false for a silent film (then set duration, and every time is in seconds)
   duration: 0,                 // a silent film's length in seconds
-  lead: 0.5,                   // the narration starts this far into the film (the mix puts the voiceover there too)
+  lead: 0,                     // seconds added to the timeline's times. 0 when they are film times already: bin/vh tts --lead
+                               // starts the voice and its timeline late together. Set it only for a timeline that starts at
+                               // 0, and then pad the voice by as much before the mix
   tail: 2.5,                   // the film runs on this long after the narration's timeline ends
   minText: 44,                 // the text-size floor in px (playbook/03 §4: desktop 44, feed 80); txt() never goes under it
   caption: { size: 52, max: 16, y: 1012, hold: 0.8, min: 1.8 },   // one line ≤ max CJK characters wide (Latin counts 0.55),
