@@ -393,14 +393,18 @@ def render(score, stems=None, info=None, length=None, note_log=None):
     out = np.zeros(int((sum(meters.get(k, dflt) for k in range(1, total_bars + 1)) * beat + 3.0) * SR))
     sidechain = np.ones_like(out); zh, send = np.zeros_like(out), np.zeros_like(out); cache = {}
     beats, downbeats, secs, hits, bars, note_map = [], [], [], [], [], []   # note_map: the beat map's "notes"
-    K = kick(); t0 = 0.0
+    # The layers' one-shots stop while they still sound (the kick at 0.45 s holds ~6 % of its peak, impact ~9 % at 2.2 s,
+    # the big taiko ~9 % at 1.3 s): each ends in a short cosine, as the edm_kick part already does, else bin/vh qa hears a
+    # click in a quiet passage. The parts that reuse these voices (edm_*, saw_pluck, taiko) are unchanged.
+    fade_end = lambda x, r: ins.fade(x, 0, r)
+    K = fade_end(kick(), 0.03); t0 = 0.0
     def put(layer, x, at): add(zh, x, at); add(send, x * ZH[layer], at)
     for s in score["sections"]:
         e = float(s.get("energy", 0.7)); L = set(s.get("layers", [])); chords = s.get("chords", ["i"])
         nbs = [meters.get(len(bars) + b + 1, dflt) for b in range(s["bars"])]; sec = sum(nbs) * beat
         secs.append({"name": s["name"], "start": round(t0, 3), "end": round(t0 + sec, 3), "bars": s["bars"]})
         if s.get("impact"):
-            add(out, impact(rng) * (0.6 + 0.4 * e), t0); hits.append({"t": round(t0, 3), "what": f"impact:{s['name']}"})
+            add(out, fade_end(impact(rng), 0.05) * (0.6 + 0.4 * e), t0); hits.append({"t": round(t0, 3), "what": f"impact:{s['name']}"})
         for b in range(s["bars"]):
             nb = nbs[b]; tb = t0 + sum(nbs[:b]) * beat; notes = chord_notes(root, mode, chords[b % len(chords)])
             downbeats.append(round(tb, 3)); bars.append([len(bars) + 1, round(tb, 3), nb])
@@ -412,10 +416,10 @@ def render(score, stems=None, info=None, length=None, note_log=None):
                     add(out, K * (0.7 + 0.3 * e), tq)
                     i = int(tq * SR); m = min(len(out), i + int(0.22 * SR))
                     sidechain[i:m] = np.minimum(sidechain[i:m], 0.35 + 0.65 * np.linspace(0, 1, m - i) ** 0.7)
-                if "clap" in L and q % 2 == 1: add(out, clap(rng) * e, tq)
+                if "clap" in L and q % 2 == 1: add(out, fade_end(clap(rng), 0.02) * e, tq)
                 if "hats" in L:
-                    add(out, hat(rng) * e, tq + beat / 2)
-                    if e > 0.8: add(out, hat(rng) * 0.5 * e, tq + beat / 4); add(out, hat(rng) * 0.5 * e, tq + 3 * beat / 4)
+                    add(out, fade_end(hat(rng), 0.01) * e, tq + beat / 2)
+                    if e > 0.8: add(out, fade_end(hat(rng), 0.01) * 0.5 * e, tq + beat / 4); add(out, fade_end(hat(rng), 0.01) * 0.5 * e, tq + 3 * beat / 4)
                 if "bass" in L:
                     for h in (0, 0.5):
                         add(out, bass(mtof(notes[0] - 24), beat / 2 * 0.9) * (0.6 + 0.4 * e), tq + h * beat)
@@ -427,12 +431,12 @@ def render(score, stems=None, info=None, length=None, note_log=None):
                                ([(0.5, False, 0.55)] if (e >= 0.75 and q == nb - 1) or (e >= 0.9 and q == 1) else [])
                     for h, big, g in taps:
                         v = len(beats) % 3; key = ("taiko", big, v)
-                        if key not in cache: cache[key] = taiko(sub(4, int(big), v), big)
+                        if key not in cache: cache[key] = fade_end(taiko(sub(4, int(big), v), big), 0.05)
                         put("taiko", cache[key] * g * (0.6 + 0.4 * e), tq + h * beat)
             if "arp" in L:
                 seq = notes + [notes[0] + 12]
                 for k16 in range(4 * nb):
-                    add(out, pluck(mtof(seq[k16 % 4] + 12), beat / 2, e) * (0.5 + 0.5 * e), tb + k16 * beat / 4)
+                    add(out, fade_end(pluck(mtof(seq[k16 % 4] + 12), beat / 2, e), 0.01) * (0.5 + 0.5 * e), tb + k16 * beat / 4)
             if "lead" in L and b % 2 == 0:
                 phrase = [notes[2] + 12, notes[1] + 12, notes[0] + 12, notes[1] + 12]
                 for k, m in enumerate(phrase): add(out, lead(mtof(m), beat * 0.95, e), tb + k * beat * 2)
