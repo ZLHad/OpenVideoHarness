@@ -7,7 +7,8 @@ usage: python3 tools/readcheck.py <texts.json | project_dir | composition.html> 
 
 Input: a JSON list of {text, start, end} in seconds (`t0`/`t1` also accepted; `text` may be a list of lines),
 or a dict holding that list under "captions" / "texts" / "items" / "cues". Items without `text` but with `zh` / `en`
-(the captions.json that `bin/vh captions` writes) are checked once per language; --lang picks one.
+(the captions.json that `bin/vh captions` writes) are checked once per language, by the subtitle rule unless --mode
+names another; --lang picks one.
 A directory means <dir>/audio/captions.json. `start` must be the moment the text is fully shown and readable
 (typing, decode and fly-in finished), `end` the moment it starts to leave.
 
@@ -133,9 +134,10 @@ def settings(pace=DEFAULT_PACE, cjk_cps=None, latin_cps=None, pad=None, min=None
     """The run settings verdict() and budget() read: the film's pace and the overrides of its target (None: the pace's)."""
     return argparse.Namespace(pace=pace, cjk_cps=cjk_cps, latin_cps=latin_cps, pad=pad, min=min, mode=None, lang=None)
 
-def pieces(items, lang):
+def pieces(items, lang, caption_mode=None):
     """Yield (label, start, end, text, mode, pace) for every text to check; mode is the item's own rule ("subtitle" /
-    "onscreen" / "label" from its "read" key) and pace its own pace ("pace" key), None for the run's."""
+    "onscreen" / "label" from its "read" key) and pace its own pace ("pace" key), None for the run's. caption_mode is
+    the rule of an unmarked caption item (zh / en and no text: what bin/vh captions writes, the narration's own words)."""
     for i, it in enumerate(items):
         t0, t1 = it.get("start", it.get("t0")), it.get("end", it.get("t1"))
         if t0 is None or t1 is None:
@@ -144,6 +146,8 @@ def pieces(items, lang):
         mode = read_mode(it.get("read"))
         if it.get("read") not in (None, "") and mode is None:
             raise ValueError(f"item {label}: \"read\" is {it['read']!r}; use \"subtitle\", \"onscreen\" or \"label\"")
+        if mode is None and caption_mode and "text" not in it and any(k in it for k in ("zh", "en")):
+            mode = caption_mode
         pace = pace_name(it.get("pace"))
         if it.get("pace") not in (None, "") and pace is None:
             raise ValueError(f"item {label}: \"pace\" is {it['pace']!r}; use \"relaxed\", \"normal\" or \"brisk\"")
@@ -548,11 +552,12 @@ def main():
         if badread_note(stats): print(f"  note: {badread_note(stats)}")
         print("  a text that fades in is readable later than its clip starts: move its start to that moment, then bin/vh readcheck " + str(out))
         sys.exit(0)
+    explicit = a.mode is not None   # --mode given: it is the rule of every unmarked text, captions too
     a.mode = a.mode or "onscreen"
     src = pace_source(a)
     try:
         path, items = load_items(a.path)
-        todo = list(pieces(items, a.lang))
+        todo = list(pieces(items, a.lang, None if explicit else "subtitle"))
     except (OSError, ValueError) as e:
         print(f"readcheck: NOT CHECKED — {e}", file=sys.stderr); sys.exit(2)
     is_html = path.suffix.lower() in (".html", ".htm")
@@ -560,6 +565,8 @@ def main():
     if not todo:
         print(f"readcheck: NOT CHECKED — no text found in {path}{' (left out: ' + note + ')' if note else ''}. This is not a pass.", file=sys.stderr); sys.exit(2)
 
+    if not explicit and all(t[4] == "subtitle" for t in todo):
+        a.mode = "subtitle"   # captions only (a project's audio/captions.json): the subtitle rule is the run's
     count, lw = Counter(), min(14, max(8, max(len(t[0]) for t in todo)))
     own = Counter(t[4] for t in todo if t[4] and t[4] != a.mode)   # texts whose own mark differs from the run's rule
     paced = False   # did any text go by a pace (not a subtitle)?

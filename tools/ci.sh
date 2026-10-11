@@ -428,8 +428,20 @@ decision_checks() {
       case "$rc:$b" in 0:*"OK   b"*"pace brisk, --pace"*) ok "readcheck takes the pace from the BRIEF, and --pace overrides it" ;; *) bad "readcheck --pace brisk (rc $rc): $b" ;; esac ;;
     *) bad "readcheck with a BRIEF Pace: $a" ;; esac
   printf '%s' '[{"id":"x","text":"t","start":0,"end":2,"pace":"fast"}]' > "$tl/badpace.json"
-  vh readcheck "$tl/badpace.json" >/dev/null 2>&1; rc=$?; rm -rf "$tl"
+  vh readcheck "$tl/badpace.json" >/dev/null 2>&1; rc=$?
   [ $rc = 2 ] && ok "readcheck refuses a pace that is not relaxed, normal or brisk" || bad "readcheck with a pace of \"fast\" exited $rc"
+  # a project's audio/captions.json (what bin/vh captions writes) is the narration: the subtitle rule, unless --mode says otherwise
+  mkdir -p "$tl/cap/audio"
+  printf '%s' '[{"id":"a","start":0,"end":2.4,"zh":["慢慢地说一句话"]},{"id":"b","start":2.4,"end":3.1,"zh":["这一句太短"]}]' > "$tl/cap/audio/captions.json"
+  a=$(vh readcheck "$tl/cap"); rc=$?; b=$(vh readcheck "$tl/cap" --mode onscreen)
+  case "$rc:$a" in 1:*"OK   a·zh"*"need   1.80s"*"FAIL b·zh"*"readcheck (subtitle)"*)
+      case "$b" in *"readcheck (onscreen"*) ok "readcheck <project> judges its captions by the subtitle rule; --mode still decides" ;; *) bad "readcheck <project> --mode onscreen: $b" ;; esac ;;
+    *) bad "readcheck on a project's captions (rc $rc): $a" ;; esac
+  # an exported CDPATH must not move bin/vh's own cd (run as bin/vh, its folder is relative)
+  mkdir -p "$tl/cdpath/bin"
+  a=$(cd "$ROOT" && CDPATH="$tl/cdpath" "$VH_BASH" bin/vh effort standard 2>&1); rc=$?
+  [ $rc = 0 ] && printf '%s' "$a" | grep -q '人工关卡' && ok "bin/vh ignores an exported CDPATH" || bad "bin/vh under a CDPATH (exit $rc): $(printf '%s' "$a" | head -3)"
+  rm -rf "$tl"
   printf '%s\n' '<html><body><div id="root" data-composition-id="m" data-start="0" data-duration="10">' \
     '<section id="s" class="clip" data-start="0" data-duration="10"><h1 id="t">script-driven</h1></section>' \
     '<div id="c1" class="clip" data-start="1" data-duration="4"><span>四个汉字</span></div>' \
@@ -926,7 +938,7 @@ PY
   # the canvas-film engine's template (engines/canvas-film): two frames draw, each the same PNG drawn first and drawn after
   # the other (12.8 s is inside a page turn); a cue whose word is gone stops it in ready at once, naming the shot and the
   # cue; its reads and captions pass textcheck
-  local c="$ROOT/engines/canvas-film/template" s0
+  local c="$ROOT/engines/canvas-film/template" s0 pid left
   a=$(vh frames "$c" --at 4.9,12.8 --out "$t/cf1" 2>&1); rc=$?
   # a machine without the template's CJK faces (the Linux runner) draws in a fallback and says so, which is exit 1; that
   # alone is fine here, as the frames are still compared
@@ -968,6 +980,14 @@ PY
   a=$(vh readcheck "$t/cfr" 2>&1); rc=$?
   if [ $rc = 0 ] && [ -s "$t/cfr/out/texts.json" ] && printf '%s' "$a" | grep -q 'subtitle'; then ok "canvas-film: readcheck <project> judges the page's reads and captions (window.film.texts, written to out/texts.json)"
   else bad "readcheck on a canvas-film project (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
+  # Ctrl-C while a page is loading: the browser's profile folder goes too (Node would otherwise die without cleaning up)
+  printf '%s\n' '<!doctype html><title>hang</title><script>window.film = { duration: 2, ready: new Promise(() => {}), frame() {} };</script>' > "$t/hang.html"
+  mkdir -p "$t/tmpd"
+  TMPDIR="$t/tmpd" "$VH_BASH" "$ROOT/bin/vh" frames "$t/hang.html" --at 1 --out "$t/hang-out" >/dev/null 2>&1 & pid=$!
+  for _ in $(seq 1 60); do ls -d "$t/tmpd"/vh-textcheck-* >/dev/null 2>&1 && break; sleep 0.25; done
+  sleep 1; kill -INT "$pid" 2>/dev/null; wait "$pid"; rc=$?
+  left=$(ls -d "$t/tmpd"/vh-textcheck-* 2>/dev/null | wc -l | tr -d ' ')
+  [ "$rc" = 130 ] && [ "$left" = 0 ] && ok "frames stopped with Ctrl-C ends (exit 130) and leaves no browser profile behind" || bad "frames after Ctrl-C: exit $rc, $left profile folder(s) left"
   rm -rf "$t"
 }
 

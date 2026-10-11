@@ -95,6 +95,7 @@
 #                               (exit 1 when the picture differs: a layout that breaks at device scale 2)
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
 set -euo pipefail
+unset CDPATH   # an exported CDPATH would send a relative cd (this one: bin/vh run as bin/vh) to another folder, and print it
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 c_ok=$'\033[32m✓\033[0m'; c_no=$'\033[31m✗\033[0m'; c_wa=$'\033[33m!\033[0m'
 
