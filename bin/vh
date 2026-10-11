@@ -151,15 +151,33 @@ cmd_doctor() {
 size_of() { # disk size of a folder, symlinks followed (a Hugging Face snapshot is all links): "202 MB", "2.0 GB"
   du -skL "$1" 2>/dev/null | awk '{m = $1 * 1024 / 1e6; if (m >= 1000) printf "%.1f GB", m / 1000; else printf "%.0f MB", m}'
 }
-hf_chrome() { # the chrome-headless-shell HyperFrames renders with: HYPERFRAMES_BROWSER_PATH, else its caches (renderSetupWorker.js);
-  # a version folder counts only with the browser in it (an interrupted download leaves an empty one)
-  local p=${HYPERFRAMES_BROWSER_PATH:-${PRODUCER_HEADLESS_SHELL_PATH:-}} d v
+hf_chrome() { # hf_chrome [dir]: the chrome-headless-shell `hyperframes render` uses (its ensureRenderBrowser asks for the managed one, so
+  # unlike snapshot and check it never looks in ~/.cache/puppeteer): HYPERFRAMES_BROWSER_PATH (or PRODUCER_HEADLESS_SHELL_PATH), else
+  # HyperFrames' own cache at the version the HyperFrames installed for dir pins (render downloads it when it is missing), else the newest there
+  local p=${HYPERFRAMES_BROWSER_PATH:-${PRODUCER_HEADLESS_SHELL_PATH:-}} pin
   [ -n "$p" ] && [ -x "$p" ] && { echo "$p"; return 0; }
-  for d in "$HOME/.cache/puppeteer/chrome-headless-shell" "$HOME/.cache/hyperframes/chrome/chrome-headless-shell"; do
-    [ -d "$d" ] || continue
-    for v in $(ls "$d" 2>/dev/null | sort -r); do
-      [ -n "$(find "$d/$v" -maxdepth 3 -type f \( -name chrome-headless-shell -o -name chrome-headless-shell.exe \) 2>/dev/null | head -1)" ] && { echo "$d/$v"; return 0; }
-    done
+  pin=$(hf_pin "${1:-}") || pin=""
+  shell_folder "$HOME/.cache/hyperframes/chrome/chrome-headless-shell" "$pin"
+}
+hf_pin() { # hf_pin <dir>: the Chrome version pinned by the HyperFrames in the nearest node_modules at or above dir, read from its dist
+  # (managedChromeVersion: CHROME_VERSION, on macOS 12 MACOS_12_CHROME_VERSION); fails when there is none or it cannot be read
+  local d k=CHROME_VERSION
+  [ -n "${1:-}" ] && d=$(cd "$1" 2>/dev/null && pwd) || return 1
+  old_mac && k=MACOS_12_CHROME_VERSION
+  while [ ! -d "$d/node_modules/hyperframes" ]; do [ "$d" = / ] && return 1; d=$(dirname "$d"); done
+  awk -F'"' -v k="var $k = " '$1 == k && $2 ~ /^[0-9][0-9.]*$/ { print $2; f = 1; exit } END { exit !f }' \
+    "$d/node_modules/hyperframes/dist/renderSetupWorker.js" 2>/dev/null
+}
+old_mac() { [ "$(uname)" = Darwin ] && [ "$(uname -r | cut -d. -f1)" -lt 22 ]; }   # macOS 12 or older: HyperFrames stops Chrome at 150
+shell_folder() { # shell_folder <cache dir> [version]: the folder of that chrome-headless-shell version, else (no version given) the newest;
+  # only a folder with the browser in it counts (an interrupted download leaves an empty one). Folders are <platform>-<version>
+  # (mac_arm-152.0.7977.30); versions compare as numbers, and on macOS 12 majors above 150 are skipped, as in HyperFrames
+  local d=$1 cap=0 v
+  [ -d "$d" ] || return 1
+  old_mac && cap=150
+  for v in $(ls "$d" 2>/dev/null | awk -v want="${2:-}" -v cap="$cap" '{ n = $0; sub(/^[^-]*-/, "", n); split(n, s, ".") }
+      (want == "" || n == want) && !(cap && s[1] + 0 > cap) { printf "%09d%09d%09d%09d %s\n", s[1], s[2], s[3], s[4], $0 }' | sort -r | cut -d" " -f2); do
+    [ -n "$(find "$d/$v" -maxdepth 3 -type f \( -name chrome-headless-shell -o -name chrome-headless-shell.exe \) 2>/dev/null | head -1)" ] && { echo "$d/$v"; return 0; }
   done
   return 1
 }
@@ -170,7 +188,7 @@ doctor_downloads() { # what the first runs download on their own and how big it 
   if p=$(hf_chrome); then echo "$c_ok HyperFrames Chrome  $(basename "$p") · $(size_of "$p") · $(rel "$(dirname "$p")")"
   else
     [ -x "$ROOT/styles/_swatch/node_modules/.bin/hyperframes" ] && swatch="(cd styles/_swatch && npx hyperframes browser ensure)"
-    echo "$c_wa HyperFrames Chrome not downloaded: the first HyperFrames render or snapshot fetches chrome-headless-shell (about 200 MB on disk) into ~/.cache/hyperframes${swatch:+; now: $swatch}"
+    echo "$c_wa HyperFrames Chrome not downloaded: the first HyperFrames render fetches the chrome-headless-shell it pins (about 200 MB on disk) into ~/.cache/hyperframes, whatever other Chrome is installed${swatch:+; now: $swatch}"
     pend="$pend Chrome 0.2 GB,"
   fi
   if command -v uv >/dev/null 2>&1; then
@@ -447,18 +465,23 @@ for l in rules.splitlines():
 }
 
 cmd_readcheck() { python3 "$ROOT/tools/readcheck.py" "$@"; }
-hf_shell() { # the chrome-headless-shell binary itself (hf_chrome prints its version folder)
-  local p; p=$(hf_chrome) || return 1
+hf_shell() { # hf_shell <folder or binary>: the chrome-headless-shell binary itself (hf_chrome and shell_folder print a version folder)
+  local p=${1:-}; [ -n "$p" ] || return 1
   [ -f "$p" ] && [ -x "$p" ] && { echo "$p"; return 0; }
   p=$(find "$p" -maxdepth 3 -type f \( -name chrome-headless-shell -o -name chrome-headless-shell.exe \) 2>/dev/null | head -1)
   [ -n "$p" ] && echo "$p"
 }
-cmd_textcheck() { # canvas text covered or too faint (tools/textcheck/textcheck.mjs). The browser: CHROME_PATH, HyperFrames'
-  # chrome-headless-shell (what renders the film), then Chrome or Chromium; no npm package needed
+cmd_textcheck() { # canvas text covered or too faint (tools/textcheck/textcheck.mjs). The browser: CHROME_PATH, else the chrome-headless-shell
+  # `hyperframes render` uses for this project (what renders the film), else the newest one in ~/.cache/puppeteer (what snapshot and check
+  # take first), then Chrome or Chromium, with a line saying it is not the film's; no npm package needed
   [ $# -gt 0 ] || { cmd_usage textcheck; exit 1; }
-  local b=${CHROME_PATH:-}
+  local b=${CHROME_PATH:-} d=$1
   if [ -z "$b" ] || [ ! -x "$b" ]; then
-    b=$(hf_shell) || b=$(chrome_path) || { echo "$c_no bin/vh textcheck needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; exit 2; }
+    [ -d "$d" ] || case $d in */*) d=${d%/*} ;; *) d=. ;; esac   # a composition file: its folder
+    if ! b=$(hf_shell "$(hf_chrome "$d")"); then
+      b=$(hf_shell "$(shell_folder "$HOME/.cache/puppeteer/chrome-headless-shell")") || b=$(chrome_path) || { echo "$c_no bin/vh textcheck needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; exit 2; }
+      echo "$c_wa not the chrome-headless-shell hyperframes render uses for this project, so text can lay out a little differently in the film (npx hyperframes browser ensure there fetches it)" >&2
+    fi
   fi
   exec node "$ROOT/tools/textcheck/textcheck.mjs" --browser "$b" "$@"
 }

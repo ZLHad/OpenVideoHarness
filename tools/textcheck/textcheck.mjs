@@ -4,7 +4,8 @@
 // usage: node tools/textcheck/textcheck.mjs <project | composition.html> --browser <chrome> [--texts f.json]
 //          [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12]
 //          [--out dir] [--soft-gl] [--timeout s]
-//        (bin/vh textcheck finds the browser: CHROME_PATH, HyperFrames' chrome-headless-shell, then Chrome or Chromium)
+//        (bin/vh textcheck finds the browser: CHROME_PATH, the chrome-headless-shell `hyperframes render` uses for the
+//         project, the newest one in ~/.cache/puppeteer, then Chrome or Chromium)
 //
 // The composition opts in with one line (engines/README.md, "画面文字检查"):
 //     window.__vh = { draw: (t) => drawFrame(t), texts: TEXTS };
