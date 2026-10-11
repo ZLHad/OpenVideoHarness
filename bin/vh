@@ -195,7 +195,7 @@ hf_pin() { # hf_pin <dir>: the Chrome version pinned by the HyperFrames in the n
 old_mac() { [ "$(uname)" = Darwin ] && [ "$(uname -r | cut -d. -f1)" -lt 22 ]; }   # macOS 12 or older: HyperFrames stops Chrome at 150
 shell_folder() { # shell_folder <cache dir> [version]: the folder of that chrome-headless-shell version, else (no version given) the newest;
   # only a folder with the browser in it counts (an interrupted download leaves an empty one). Folders are <platform>-<version>
-  # (mac_arm-152.0.7977.30); versions compare as numbers, and on macOS 12 majors above 150 are skipped, as in HyperFrames
+  # (mac_arm-152.0.7977.30); versions compare as numbers, and on macOS 12 majors above 150 are skipped (HyperFrames does so in the puppeteer cache)
   local d=$1 cap=0 v
   [ -d "$d" ] || return 1
   old_mac && cap=150
@@ -208,8 +208,9 @@ shell_folder() { # shell_folder <cache dir> [version]: the folder of that chrome
 doctor_downloads() { # what the first runs download on their own and how big it is on disk. The sizes are the ones in the wiki's
   # "What gets downloaded" table (Getting Started; measured on macOS arm64, 2026-10-01): keep the two in step when either changes
   echo "first-run downloads (wiki: Getting Started; mirrors behind a slow or blocked network: wiki China-Network / 国内网络):"
-  local p pend="" hub model snap swatch="" voice_pkgs=""
-  if p=$(hf_chrome); then echo "$c_ok HyperFrames Chrome  $(basename "$p") · $(size_of "$p") · $(rel "$(dirname "$p")")"
+  local p pend="" hub model snap swatch="" voice_pkgs="" sw=""
+  [ -d "$ROOT/styles/_swatch/node_modules/hyperframes" ] && sw="$ROOT/styles/_swatch"   # the HyperFrames the repo installs: the version it pins
+  if p=$(hf_chrome "$sw"); then echo "$c_ok HyperFrames Chrome  $(basename "$p") · $(size_of "$p") · $(rel "$(dirname "$p")")"
   else
     [ -x "$ROOT/styles/_swatch/node_modules/.bin/hyperframes" ] && swatch="(cd styles/_swatch && npx hyperframes browser ensure)"
     echo "$c_wa HyperFrames Chrome not downloaded: the first HyperFrames render fetches the chrome-headless-shell it pins (about 200 MB on disk) into ~/.cache/hyperframes, whatever other Chrome is installed${swatch:+; now: $swatch}"
@@ -521,7 +522,7 @@ cmd_readcheck() { # a canvas-film project (film.html, or the folder): its texts 
   for a in "$@"; do
     if [ -z "${proj:-}" ] && { { [ -d "$a" ] && [ -f "$a/film.html" ]; } || [ "$(basename -- "$a")" = film.html ]; }; then
       proj=$a; [ -d "$a" ] || proj=$(dirname -- "$a")
-      b=$(film_browser readcheck) || exit 2
+      b=$(film_browser readcheck "$proj") || exit 2
       node "$ROOT/tools/film/texts.mjs" --browser "$b" "$proj" --out "$proj/out/texts.json" || exit $?
       a="$proj/out/texts.json"
     fi
@@ -541,26 +542,40 @@ cmd_textcheck() { # canvas text covered or too faint (tools/textcheck/textcheck.
   # `hyperframes render` uses for this project (what renders the film), else the newest one in ~/.cache/puppeteer (what snapshot and check
   # take first), then Chrome or Chromium, with a line saying it is not the film's; no npm package needed
   [ $# -gt 0 ] || { cmd_usage textcheck; exit 1; }
-  local b=${CHROME_PATH:-} d=$1
+  local b=${CHROME_PATH:-} d
   if [ -z "$b" ] || [ ! -x "$b" ]; then
-    [ -d "$d" ] || case $d in */*) d=${d%/*} ;; *) d=. ;; esac   # a composition file: its folder
+    d=$(arg_dir "$@")
     b=$(hf_shell "$d") || b=$(chrome_path) || { echo "$c_no bin/vh textcheck needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; exit 2; }
     hf_chrome "$d" >/dev/null || echo "$c_wa not the chrome-headless-shell hyperframes render uses for this project, so text can lay out a little differently in the film (npx hyperframes browser ensure there fetches it)" >&2
   fi
   exec node "$ROOT/tools/textcheck/textcheck.mjs" --browser "$b" "$@"
 }
 cmd_frames() { cmd_film_tool frames "$@"; }   # frames drawn from a page through the page contract (tools/film/frames.mjs)
-film_browser() { # the browser the page-contract tools draw with, as for textcheck; $1 names the command in the message
+arg_dir() { # the folder of the project or page among a tool's arguments: the first that is neither an option nor an option's
+  # value (the options listed take none), a file's folder; "." when there is none, so --out o <project> finds the project too
+  local a skip=0
+  for a in "$@"; do
+    if [ $skip = 1 ]; then skip=0; continue; fi
+    case $a in
+      --soft-gl|--real-clock|--png|--force|--save|--*=*) ;;
+      -*) skip=1 ;;
+      *) if [ -d "$a" ]; then echo "$a"; else case $a in */*) echo "${a%/*}" ;; *) echo . ;; esac; fi; return 0 ;;
+    esac
+  done
+  echo .
+}
+film_browser() { # film_browser <command> [dir]: the browser the page-contract tools draw with, as for textcheck (the one hyperframes
+  # render uses for dir, else the newest in ~/.cache/puppeteer, else Chrome or Chromium); the command is for the message
   local b=${CHROME_PATH:-}
   if [ -z "$b" ] || [ ! -x "$b" ]; then
-    b=$(hf_shell) || b=$(chrome_path) || { echo "$c_no bin/vh $1 needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; return 1; }
+    b=$(hf_shell "${2:-}") || b=$(chrome_path) || { echo "$c_no bin/vh $1 needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; return 1; }
   fi
   echo "$b"
 }
 cmd_film_tool() { # $1: frames | render | determinism | cues (tools/film/<it>.mjs)
   local tool=$1 b; shift
   [ $# -gt 0 ] || { cmd_usage "$tool"; exit 1; }
-  b=$(film_browser "$tool") || exit 2
+  b=$(film_browser "$tool" "$(arg_dir "$@")") || exit 2
   exec node "$ROOT/tools/film/$tool.mjs" --browser "$b" "$@"
 }
 cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 1; }
