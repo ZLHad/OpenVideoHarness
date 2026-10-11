@@ -34,7 +34,7 @@ import { openFilm } from "./host.mjs";
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");
 const argv = process.argv.slice(2);
-if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP); process.exit(argv.length ? 0 : 2); }
+if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
 let film = null;
 // every way out closes the browser (and its profile folder) first
 const finish = async (code, msg) => {
