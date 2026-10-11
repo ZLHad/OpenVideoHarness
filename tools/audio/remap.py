@@ -17,7 +17,8 @@ which run in another order there (their pairs are left out, so times on them fol
 falls on such a line is listed, to check by ear. A time that would move before 0 s becomes 0 s, and is listed too.
 
 Writes --out, else the file itself with the original kept as <file>.bak (it refuses when a .bak is already there: an
-earlier remap's original). The file keeps its indentation (none, or the spaces of its first nested line). Both
+earlier remap's original). The file is written with its indent width (none, or the spaces of its first nested line),
+one value a line: a hand-aligned layout comes back as plain JSON. Both
 timelines must pass bin/vh timeline (--skip-lint to go on anyway). Exit: 0 written · 1 a timeline fails its checks, or
 no pair to map through · 2 a file is missing, not JSON or not a timeline, or the .bak is taken.
 """
@@ -59,8 +60,9 @@ def anchors(old, new):
         out.append((a, b)); kept[sid] = True
     for sid in {sid for _, _, sid in pairs} - set(kept):   # every pair of it left out: it moved past its neighbours
         how[sid] = "order"
-    fresh = [s.get("id") for s in new["segments"] if isinstance(s, dict) and s.get("id") and s.get("id") not in how]
-    return out, how, fresh
+    known = {s.get("id") for s in old["segments"] if isinstance(s, dict)}
+    fresh = [s.get("id") for s in new["segments"] if isinstance(s, dict) and s.get("id") and s.get("id") not in known]
+    return out, how, fresh, len(pairs) - len(out)
 
 def mapper(pairs):
     xs = [a for a, _ in pairs]
@@ -112,7 +114,7 @@ def main():
     for name, tl in (("--from", old), ("--to", new)):
         if (lint := timeline_lint.lint(tl, tl.get("lang"))) and not a.skip_lint:
             fail(f"the {name} timeline has {len(lint)} problem(s):\n{timeline_lint.report(lint)}\n(--skip-lint to go on anyway)", 1)
-    pairs, how, fresh = anchors(old, new)
+    pairs, how, fresh, dropped = anchors(old, new)
     if len(pairs) < 2:
         fail("the two timelines share no line (by id): nothing to map through" if not any(v != "gone" for v in how.values())
              else "the lines the two timelines share give fewer than two times to map through", 1)
@@ -131,6 +133,8 @@ def main():
     for kind, what in said.items():
         if ids := [i for i, v in how.items() if v == kind]:
             print(f"  lines {what}: {', '.join(ids[:12])}{f' … ({len(ids)})' if len(ids) > 12 else ''}")
+    if dropped:
+        print(f"  {dropped} of the paired times ran backwards in the new take and were left out (times near them follow the pairs around them)")
     if fresh:
         print(f"  lines new in the new take (nothing typed can point at them yet): {', '.join(fresh[:12])}{f' … ({len(fresh)})' if len(fresh) > 12 else ''}")
     spans = [(s["start"], s["end"], s["id"]) for s in old["segments"] if isinstance(s, dict) and s.get("id") and timed(s) and how.get(s["id"]) in said]

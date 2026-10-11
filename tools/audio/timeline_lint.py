@@ -6,11 +6,12 @@ A timeline is what bin/vh tts writes and bin/vh pace rewrites: audio/timeline.<l
 and, after alignment, words [{w, start, end}]. Captions, pace, the picture's cues and the sound's cues all read times
 off it, so a slip here moves everything after it. Checked, per line:
   order      a line starts no earlier than the one before it ends (50 ms of overlap allowed) and ends after it starts.
-             Lines bin/vh tts heard nothing of get 0.1 s each where their neighbours meet, so a run of k of them may
-             overlap their neighbours by k × 0.1 s more; three or more lines with one and the same span are a block the
-             take was not split into, said once
+             Lines bin/vh tts heard nothing of get 0.1 s each, centred where their neighbours meet, so next to a run of k
+             of them (k up to 4) the overlap may be k × 0.05 s; three or more lines with one and the same span are a
+             block the take was not split into, said once
   words      word times run forward (start ≤ end; a word may start up to 0.15 s before the one before it, as aligners
-             jitter on short words, but no more), inside the line (50 ms either side)
+             jitter on short words, but no more than that behind the latest start so far), inside the line (50 ms
+             either side)
   spelling   the words put together read as the line's text (spaces, punctuation and symbols left out; NFKC): an
              aligner that spelled "Bingo" as 宾果, or dropped or doubled a word, shows here
 A line without words is checked for its order only. Exit: 0 sound · 1 a problem (each printed with the line's id, the
@@ -23,6 +24,7 @@ from pathlib import Path
 SLACK = 0.05       # seconds a word or line may stray: aligners round to tens of milliseconds
 WORD_BACK = 0.15   # a word may start this much before the word before it (a real take had a 90 ms slip on a 0 s word)
 PLACED = 0.1       # the span bin/vh tts gives a line it heard nothing of (tts.MIN_SPAN), centred where its neighbours meet
+RUN = 4            # the longest run of such lines that is allowed for: more in a row is a take to redo anyway
 EPS = 1e-6         # times are written to the millisecond: a limit met to within float rounding is met
 SHOWN = 12         # report(): this many problems, then a count of the rest
 
@@ -73,7 +75,8 @@ def lint(tl, lang=None):
         if b < a - EPS:
             out.append((sid, f"ends at {b:.3f} s, before it starts at {a:.3f} s"))
         inside = i and block[i] and block[i - 1] and span[i] == span[i - 1]   # said once for the block
-        if prev is not None and not inside and a < prev[1] - SLACK - PLACED * max(run(i), run(i - 1)) - EPS:
+        allow = max(SLACK, PLACED / 2 * min(RUN, max(run(i), run(i - 1))))
+        if prev is not None and not inside and a < prev[1] - allow - EPS:
             out.append((sid, f"starts at {a:.3f} s, before {prev[0]} ends at {prev[1]:.3f} s: lines out of order"))
         prev = (sid, b)
         words = [w if isinstance(w, dict) else {} for w in s.get("words") or []]
@@ -87,10 +90,10 @@ def lint(tl, lang=None):
             if we < ws - EPS:
                 out.append((sid, f"word {k + 1} ({w.get('w', '?')!r}) ends at {we:.3f} s, before it starts at {ws:.3f} s"))
             if last is not None and ws < last - WORD_BACK - EPS:
-                out.append((sid, f"word {k + 1} ({w.get('w', '?')!r}) starts at {ws:.3f} s, {last - ws:.2f} s before the word before it ({last:.3f} s): times out of order"))
+                out.append((sid, f"word {k + 1} ({w.get('w', '?')!r}) starts at {ws:.3f} s, {last - ws:.2f} s before a word that comes earlier in the line ({last:.3f} s): times out of order"))
             if ws < a - SLACK - EPS or we > b + SLACK + EPS:
                 out.append((sid, f"word {k + 1} ({w.get('w', '?')!r}) at {ws:.3f}–{we:.3f} s is outside the line ({a:.3f}–{b:.3f} s)"))
-            last = ws
+            last = ws if last is None else max(last, ws)   # behind the latest start, so jitter cannot add up
         said, written = _plain("".join(str(w.get("w", "")) for w in words)), _plain(_text(s, lang))
         if written and said != written:
             k = next((j for j in range(min(len(said), len(written))) if said[j] != written[j]), min(len(said), len(written)))
