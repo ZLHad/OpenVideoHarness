@@ -945,6 +945,23 @@ PY
   esac
   a=$(vh textcheck "$c" --out "$t/cftc" 2>&1); rc=$?
   [ $rc = 0 ] && ok "canvas-film: textcheck passes the template's reads and captions" || bad "textcheck on the canvas-film template (exit $rc): $(printf '%s' "$a" | tail -c 800)"
+  mkdir "$t/cfq" && cp -R "$c/." "$t/cfq/"
+  a=$(vh cues "$t/cfq" --save 2>&1); rc=$?
+  python3 - "$t/cfq/audio/timeline.zh.json" <<'PY'
+import json, sys
+p = sys.argv[1]; tl = json.load(open(p, encoding="utf-8"))
+for s in tl["segments"]:
+    if s["id"] in ("b1", "b2"):   # a new take: the last two lines 0.4 s later
+        s["start"] = round(s["start"] + 0.4, 3); s["end"] = round(s["end"] + 0.4, 3)
+        for w in s.get("words", []): w["start"] = round(w["start"] + 0.4, 3); w["end"] = round(w["end"] + 0.4, 3)
+tl["duration"] = round(tl["duration"] + 0.4, 3)
+json.dump(tl, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+PY
+  b=$(vh cues "$t/cfq" 2>&1); rc2=$?
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -s "$t/cfq/out/cues.json" ] && printf '%s' "$a" | grep -q 'S02.o.one *@a2:第一张' \
+    && printf '%s' "$b" | grep -q 'another take of the narration): 7 moved, 0 new, 0 gone' && printf '%s' "$b" | grep -q 'S03.at .*(+0.400)'
+  then ok "cues: the template's cues in order, saved with the timeline's sha256; a new take says which moved and by how much"
+  else bad "cues on the canvas-film template: exit $rc / $rc2: $(printf '%s' "$a$b" | tail -c 800)"; fi
   mkdir "$t/cfr" && cp -R "$c/." "$t/cfr/"
   a=$(vh readcheck "$t/cfr" 2>&1); rc=$?
   if [ $rc = 0 ] && [ -s "$t/cfr/out/texts.json" ] && printf '%s' "$a" | grep -q 'subtitle'; then ok "canvas-film: readcheck <project> judges the page's reads and captions (window.film.texts, written to out/texts.json)"

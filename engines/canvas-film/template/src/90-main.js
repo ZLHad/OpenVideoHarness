@@ -75,7 +75,7 @@ function build(T) {
 // every shot drawn at a few times with the recorder on: the events and reads its helpers report, and any text set in a
 // font under the size floor without texture (a helper that set X.font itself; the font's size, not a scale an
 // animation is passing through). Then the transitions, as events too.
-let EVENTS = [], TEXTS = [];
+let EVENTS = [], TEXTS = [], TIMELINE = null;
 function record() {
   REC = { events: [], reads: [], at: 0 };   // at: the time being sampled
   const small = new Map(), fails = new Map(), P = Object.getPrototypeOf(X);
@@ -116,6 +116,7 @@ async function boot() {
   cv.width = Math.round(W * PRX); cv.height = Math.round(H * PRX); cv.style.width = W + "px"; cv.style.height = H + "px";
   X = cv.getContext("2d");
   const [missing, , T] = await Promise.all([loadFonts(), loadImages(), loadTimeline()]);
+  TIMELINE = T ? T.file : null;
   build(T);
   record();
   if (missing.length) console.error(`canvas-film: fonts this machine does not have, drawn in a fallback: ${missing.join(", ")} (film.html's @font-face)`);
@@ -132,4 +133,5 @@ window.film = {
   get events() { return EVENTS; },                                                // [{ t, kind, shot, x?, dur? }], transitions too
   get chapters() { return CHAPTER_T.map((c) => ({ t: r3(c.t), title: c.title })); },
   get cues() { return CUES; },                                                    // [{ id, ref, t }]
+  get timeline() { return TIMELINE; },                                            // the timeline file the cues hang on, beside film.html
 };

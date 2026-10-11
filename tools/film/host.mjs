@@ -169,9 +169,11 @@ export async function openFilm(target, o = {}) {
         return { png: Buffer.from(shot.data, "base64"), touched };
       },
       problems: () => problems.splice(0),
-      // one of the page's lists (texts, events, chapters, cues: engines/CONTRACT.md), null when it gives none
-      list: (name) => ev(`((name) => { const f = window.film && window.film.frame ? window.film : window.__vh || {};
-        let x = f[name]; if (typeof x === "function") x = x.call(f); return Array.isArray(x) ? x : null; })(${JSON.stringify(name)})`, `reading window.film.${name}`),
+      // one of the page's own fields (texts, events, chapters, cues, timeline: engines/CONTRACT.md) as JSON, null when
+      // it gives none; list(name) only takes an array
+      field: (name) => ev(`((name) => { const f = window.film && window.film.frame ? window.film : window.__vh || {};
+        let x = f[name]; if (typeof x === "function") x = x.call(f); return x === undefined ? null : JSON.parse(JSON.stringify(x)); })(${JSON.stringify(name)})`, `reading window.film.${name}`),
+      async list(name) { const x = await this.field(name); return Array.isArray(x) ? x : null; },
       // what arrives after the last frame (an error from a timer a frame set): two paints and 100 ms, then collect
       async lateProblems() {
         try { await ev("new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(ok, 100))))", "after the last frame"); } catch { /* gone */ }
