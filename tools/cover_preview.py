@@ -20,8 +20,8 @@ text's contrast against the pixels around it (WCAG ratio: 4.5 good, 3 the floor 
 a line, and whether an overlay sits on one. It cannot read the words: a picture with lots of fine lines may show a
 box that is not text; --text-px replaces the guess.
 
-Output: --out (a .png file, or a folder: an existing one, a path ending in /, or a name without an extension gets
-cover-preview-<name>.png inside it), else <project>/out/check/cover-preview-<name>.png for a cover inside a project, else
+Output: --out (a .png file, or a folder: an existing one, or a new path that ends in / or has no extension, gets
+cover-preview-<name>.png inside it, <name> being the first image's), else <project>/out/check/cover-preview-<name>.png for a cover inside a project, else
 ./out/check/cover-preview-<name>.png under the current folder. Tiles are 1× CSS size: view the PNG at 100 % to see the
 real size. A transparent cover is flattened onto white (a light feed page) and the output says so. Deterministic.
 """
@@ -268,9 +268,9 @@ def main():
                           + (f"; lowest contrast {info['contrast']:.1f}:1" if info["contrast"] else ""))
         else:
             report.append(f"{p.name}: no text line found; pass --text-px to check sizes")
-    if a.out:   # a folder (it exists, ends in /, or has no extension) gets the default file name inside it
+    if a.out:   # a folder (an existing one, or a new path that ends in / or has no extension) gets the default name inside it
         out = Path(a.out)
-        if out.is_dir() or a.out.endswith(("/", os.sep)) or not out.suffix:
+        if out.is_dir() or (not out.exists() and (a.out.endswith(("/", os.sep)) or not out.suffix)):
             out = out / f"cover-preview-{paths[0].stem}.png"
     else:   # into the cover's project, else ./out/check/ here: never next to the image (it may sit in the repo's styles/)
         first = paths[0].resolve(); proj = next((q for q in first.parents if (q / "BRIEF.md").exists()), None)

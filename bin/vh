@@ -466,7 +466,7 @@ cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [-
   uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" "$@"; }
 cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--segment NAME | --from s --to s] [--max s] [--out file.png]"; exit 1; }
   uv run -q --no-project --with pillow python "$ROOT/tools/rhythm.py" "$@"; }
-cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image> [more…] [--text-px N] [--out file.png]"; exit 1; }
+cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image> [more…] [--text-px N] [--out file.png|folder]"; exit 1; }
   uv run -q --no-project --with pillow --with numpy --with scipy python "$ROOT/tools/cover_preview.py" "$@"; }
 cmd_review() { python3 "$ROOT/tools/review.py" "$@"; }
 cmd_desk() { [ $# -gt 0 ] || { cmd_usage desk; exit 1; }   # stdlib only: no uv, works offline; exec, so stopping
