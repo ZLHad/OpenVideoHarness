@@ -465,8 +465,10 @@ for l in rules.splitlines():
 }
 
 cmd_readcheck() { python3 "$ROOT/tools/readcheck.py" "$@"; }
-hf_shell() { # hf_shell <folder or binary>: the chrome-headless-shell binary itself (hf_chrome and shell_folder print a version folder)
-  local p=${1:-}; [ -n "$p" ] || return 1
+hf_shell() { # hf_shell [dir]: a chrome-headless-shell binary: the one `hyperframes render` uses for dir (hf_chrome), else the newest one
+  # in ~/.cache/puppeteer (what snapshot and check take first); hf_chrome and shell_folder print a version folder, this the binary in it
+  local p
+  p=$(hf_chrome "${1:-}") || p=$(shell_folder "$HOME/.cache/puppeteer/chrome-headless-shell") || return 1
   [ -f "$p" ] && [ -x "$p" ] && { echo "$p"; return 0; }
   p=$(find "$p" -maxdepth 3 -type f \( -name chrome-headless-shell -o -name chrome-headless-shell.exe \) 2>/dev/null | head -1)
   [ -n "$p" ] && echo "$p"
@@ -478,10 +480,8 @@ cmd_textcheck() { # canvas text covered or too faint (tools/textcheck/textcheck.
   local b=${CHROME_PATH:-} d=$1
   if [ -z "$b" ] || [ ! -x "$b" ]; then
     [ -d "$d" ] || case $d in */*) d=${d%/*} ;; *) d=. ;; esac   # a composition file: its folder
-    if ! b=$(hf_shell "$(hf_chrome "$d")"); then
-      b=$(hf_shell "$(shell_folder "$HOME/.cache/puppeteer/chrome-headless-shell")") || b=$(chrome_path) || { echo "$c_no bin/vh textcheck needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; exit 2; }
-      echo "$c_wa not the chrome-headless-shell hyperframes render uses for this project, so text can lay out a little differently in the film (npx hyperframes browser ensure there fetches it)" >&2
-    fi
+    b=$(hf_shell "$d") || b=$(chrome_path) || { echo "$c_no bin/vh textcheck needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; exit 2; }
+    hf_chrome "$d" >/dev/null || echo "$c_wa not the chrome-headless-shell hyperframes render uses for this project, so text can lay out a little differently in the film (npx hyperframes browser ensure there fetches it)" >&2
   fi
   exec node "$ROOT/tools/textcheck/textcheck.mjs" --browser "$b" "$@"
 }
