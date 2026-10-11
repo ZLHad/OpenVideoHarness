@@ -2,7 +2,7 @@
 
 新项目一律建在 `projects/<date>-<slug>/` 下。本目录里的东西是模板，不要直接在里面改。
 
-最快的方式是 `bin/vh new <type> <slug>`：它会建好目录、复制模板；手绘和 MV 类还会复制 ClaudeAnimationBase 并装好依赖，short、promo、data、meme 类会自动运行 `bin/vh hf-init` 装好 HyperFrames（离线失败时会提示稍后重跑）。只有 Remotion、Manim 要在建好目录后，按下面对应的一节手动初始化；MV 或论文类改用 HyperFrames 时，以及 edit 类（实验性，首选 HyperFrames，做法见 [`editing.md`](editing.md)），对项目目录单独运行一次 `bin/vh hf-init`。
+最快的方式是 `bin/vh new <type> <slug>`：它会建好目录、复制模板；手绘和 MV 类还会复制 ClaudeAnimationBase 并装好依赖，short、promo、data、meme 类会自动运行 `bin/vh hf-init` 装好 HyperFrames（离线失败时会提示稍后重跑）。加 `--engine canvas-film` 时，不管哪一类，都改成复制旁白驱动的 canvas 引擎（下面"canvas-film"一节）。只有 Remotion、Manim 要在建好目录后，按下面对应的一节手动初始化；MV 或论文类改用 HyperFrames 时，以及 edit 类（实验性，首选 HyperFrames，做法见 [`editing.md`](editing.md)），对项目目录单独运行一次 `bin/vh hf-init`。
 
 ## ClaudeAnimationBase（p5.js + p5.brush），已装好
 
@@ -13,12 +13,27 @@ node render.mjs --sheet=0.5,2,4 --cols=3 --w=480 --out=out/check/sheet.jpg   # �
 ```
 
 - 使用前完整读一遍 `ANIMATION_GUIDE.md`。
+- 它按页面合约（`engines/CONTRACT.md`）写了 `window.film`，所以 `bin/vh frames <项目>` 和其他宿主能直接从 `studio.html` 取帧。用和 `render.mjs` 同一个浏览器时（`CHROME_PATH`），取出的帧和 `--stills` 逐像素相同。
 - 在 `src/scenes/` 下新建自己的场景文件，然后把 `studio.html` 里 `demo.js` 的 script 标签换成它。
 - 在 `src/config.js` 里设置 `duration`、`bpm`、`offset`，需要时再设 `fps`（默认 24，`--fps=` 可以临时覆盖）；有音乐时在配置里设 `PROJECT.audio`（路径相对项目根目录），或者加 `--audio=audio/song.mp3`。`--clip` 和 `--encode` 都会混入音频，并截到或补到画面的精确长度：音频比画面短时补静音并打出警告（硬规则 2：让 `duration` 跟着音频走），不会像 `-shortest` 那样把画面截掉。
 - 长片用 `--frames --workers=4` 渲 JPEG 帧（可并行、可续渲），再 `--encode`。`--encode` 不开浏览器，自己读 `src/config.js` 里的 PROJECT，按 `out/frames/frames.json` 记下的 fps 编码；只编 `duration × fps` 帧，从磁盘上的第一帧开始。时长改短后多出来的旧帧会被排除并提示。开头或结尾缺帧（只渲了一段 `--range`）只给警告；两段已渲染的帧中间有缺口时直接报错并列出缺的帧，因为编出来的视频会停在缺口处。`--loop=<name>` 的帧单独放在 `out/frames_loop_<name>`，编成 `out/loop_<name>.mp4`，不会和正片混在一起。
 - 没有 GPU 时加 `--soft-gl`，用 SwiftShader 软件渲染 WebGL。它同时关掉 2D canvas 的 GPU 加速：开着加速时，同一帧每次启动渲出来都不一样（PSNR 约 39 dB，过不了硬规则 1 的 45 dB）；关掉后，跨进程、乱序渲染都逐像素一致，demo 单帧也从约 40 s 降到约 12 s（无 GPU 的 Linux 实测）。另外，所有路径都关掉了 Chrome 的 CanvasNoise：它给 GPU 加速的 2D canvas 读回加每次启动都不同的噪声（反指纹功能），是上面那种差异的主因。有 GPU 的机器上 2D canvas 默认也走 GPU 加速，同样受 CanvasNoise 影响；关掉以后，2026-09-30 在 macOS 的 Metal GPU 上实测：同一帧跨启动、乱序渲染都逐像素一致（见 CHANGELOG 里的 “Verified on macOS with a GPU”）。
 - 本机实测：1080p 约 0.13 秒/帧（Metal），11 秒的 demo 渲染 37 秒。
 - 来源：[JohnHeibel/ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase)，MIT。复制过来时没有带 `.git`。
+
+## canvas-film（canvas 2D，旁白驱动），已装好
+
+完整说明：[`canvas-film/README.md`](canvas-film/README.md)。
+
+```bash
+bin/vh new <type> <slug> --engine canvas-film     # 复制 engines/canvas-film/template，不用装依赖；画幅 16:9
+bin/vh frames projects/<date>-<slug> --at 1,5,9   # 模板带一支 23 秒的示例片，建好就能取帧
+```
+
+- 适合旁白撑着的横屏长片：镜头、字幕、章节进度条的时间都写成挂在旁白字上的 cue（`"@b2:跟着走-0.3"`），重配、改词、插停顿以后自己跟着走。一个 cue 找不到它的句子或词，`ready` 立刻失败，写明镜头、cue 原文和这句现在的文字，不会等到超时。
+- 一页 `film.html` 加 `src/*.js`，不用构建。它按页面合约写了 `window.film`，`bin/vh frames` 取帧、`bin/vh textcheck` 查字直接能用；reads 和字幕（`texts`）、画面事件（`events`）、章节和 cue 表都在 `ready` 里算好。
+- 字号下限在画字的最底层兜住，故意要小的字写 `texture: true`；绕过它写下的小字，`ready` 时会被报出来。
+- 成片画面用 `bin/vh render <项目>`（4K 加 `--dpr 2`），再用 `bin/vh mux` 套上混音。现在只有 2D canvas，没有 Three.js 底层。
 
 ## HyperFrames（HTML + GSAP）
 
@@ -117,21 +132,24 @@ HF_CAPTURE_PARALLEL_STREAM=true NODE_OPTIONS=--max-old-space-size=8192 npx hyper
 
 ### 画面文字检查（canvas 片子）
 
-`npx hyperframes check` 只量 DOM 文字，脚本画进 `<canvas>` 的字在它眼里只是像素。canvas 片子用 `bin/vh textcheck <项目>` 查：哪条字被后画的东西盖住、和画面对比不够、出了画面或被边缘裁掉、被 DOM 字幕压住。合成的内联脚本里加一行就能用：
+`npx hyperframes check` 只量 DOM 文字，脚本画进 `<canvas>` 的字在它眼里只是像素。canvas 片子用 `bin/vh textcheck <项目>` 查：哪条字被后画的东西盖住、和画面对比不够、出了画面或被边缘裁掉、被 DOM 字幕压住。合成的内联脚本里按页面合约（`engines/CONTRACT.md`）加一行就能用：
 
 ```js
-window.__vh = {
-  draw: (t) => drawFrame(t),   // 必填：画出第 t 秒，连同它自己管的 DOM（比如字幕），和渲染出的那一帧一样；可以返回 Promise
-  texts: TEXTS,                // 可选：reads 登记表，格式同 readcheck 的 texts.json：[{text, start, end, read?}]
+window.film = {
+  frame: (t) => drawFrame(t),   // 必填：画出第 t 秒，连同它自己管的 DOM（比如字幕），和渲染出的那一帧一样；可以返回 Promise
+  duration: 24.8,               // 片长（秒）
+  texts: TEXTS,                 // 可选：reads 登记表，格式同 readcheck 的 texts.json：[{text, start, end, read?}]
 };
 ```
 
+原来的写法 `window.__vh = { draw, texts }` 仍然认，`draw` 就是 `frame`。
+
 - **画字的函数不用改。** 检查在合成的脚本运行之前挂上 canvas 的 `fillText` / `strokeText`，记下每条字画在哪、用什么字体，能单独去掉一条字重画这一帧。所以字要用 2D canvas 的 `fillText` / `strokeText` 画：做成图片的、画进 WebGL 的、画在离屏 canvas 里再贴上来的字，它看不到，登记了会报"没画成 canvas 字"。字底下的"画面"是页面上所有 canvas、video、img 按层叠顺序合成的结果，字画在透明的一层上也按它后面那层量；CSS 背景、SVG 这类 DOM 不算在内。逐字出现的动画字、拆成几次画的一行字、中间的"·"和箭头画成图形的，都按字母对得上。
-- **登记表**：命令行给了 `--texts <文件>` 就用它，否则用 `window.__vh.texts`，再没有就读 `out/texts.json`（readcheck 读的同一份）。每条在它的时间窗里取 3 个时刻（开始后 0.4 s 到结束前 0.3 s），所以 start 要是字完整显示的那一刻，这也是 readcheck 的约定；登记早了会报"有的时刻没画全"。没有登记表也能跑，只做下面那遍扫描。
+- **登记表**：命令行给了 `--texts <文件>` 就用它，否则用页面的 `texts`（`window.film.texts` 或 `window.__vh.texts`），再没有就读 `out/texts.json`（readcheck 读的同一份）。每条在它的时间窗里取 3 个时刻（开始后 0.4 s 到结束前 0.3 s），所以 start 要是字完整显示的那一刻，这也是 readcheck 的约定；登记早了会报"有的时刻没画全"。没有登记表也能跑，只做下面那遍扫描。
 - **没登记的字**每秒扫一遍全片，每行字在它最完整的那一刻量一次，有问题只警告：观众该读的，就登记进去。
 - `draw(t)` 要是 t 的纯函数（硬规则 1）：同一个 t 会画好几遍，两遍画面不一样会报出来，那一刻的数字不可信。
-- **浏览器**：`CHROME_PATH`，否则用 HyperFrames 渲染用的 chrome-headless-shell（缓存为空时先 `npx hyperframes browser ensure`），再否则用系统的 Chrome 或 Chromium，不用装 npm 包。合成从项目目录起一个只在本机 127.0.0.1 的服务来打开，尺寸按根元素的 `data-width` × `data-height`，设备像素比 1；先等 `window.__hf.buildReady`、`window.__vh.ready`（可选）和字体加载完。
-- **结果**：有登记的 read 被盖住（露出不到 70%）、低于 3:1、出画或被裁、压在字幕下，或画帧函数抛错，退出码 1；没登记的字、字幕底下的画面太亮只警告；没法检查（没有 `window.__vh.draw`、页面没加载起来、找不到浏览器、一条 canvas 字都没量到）是 2，不算通过。每处问题存一张裁图到 `out/check/textcheck/`，全部数字在同一目录的 `textcheck.json`；阈值都能调，见 `bin/vh textcheck -h`。一支 457 s、107 条登记文字的片子在 M3 Max 上约 13 s 跑完。
+- **浏览器**：`CHROME_PATH`，否则用 HyperFrames 渲染用的 chrome-headless-shell（缓存为空时先 `npx hyperframes browser ensure`），再否则用系统的 Chrome 或 Chromium，不用装 npm 包。合成从项目目录起一个只在本机 127.0.0.1 的服务来打开，尺寸按根元素的 `data-width` × `data-height`，设备像素比 1；先等 `window.__hf.buildReady`、合约的 `ready`（可选）和字体加载完。
+- **结果**：有登记的 read 被盖住（露出不到 70%）、低于 3:1、出画或被裁、压在字幕下，或画帧函数抛错，退出码 1；没登记的字、字幕底下的画面太亮只警告；没法检查（没有 `window.film.frame` 也没有 `window.__vh.draw`、页面没加载起来、找不到浏览器、一条 canvas 字都没量到）是 2，不算通过。每处问题存一张裁图到 `out/check/textcheck/`，全部数字在同一目录的 `textcheck.json`；阈值都能调，见 `bin/vh textcheck -h`。一支 457 s、107 条登记文字的片子在 M3 Max 上约 13 s 跑完。
 
 ### 注意事项和已知问题（0.8.82 实测）
 

@@ -318,6 +318,9 @@ bin/vh qa mix $A/stems --beats $A/music.beats.json   # 只看混音报告（词�
 - `words` 由 `bin/vh tts … --align gemini`（或 elevenlabs、minimax）写入；对稿结果 `asr` 和对话里的 `speaker` 也在每个 segment 里。
 - ClaudeAnimationBase 用 `src/config.js` 的 `bpm` 和 `offset`，`pulse()` 和 `beatN()` 会自动对齐节拍。
 - Remotion 的做法是在 `calculateMetadata` 里读取音频时长来设置帧数；HyperFrames 的做法是 `sync-durations` 用实测时长覆盖估计值。
+- **时间轴要先过检查**：`bin/vh timeline <项目>` 查行的顺序、字时间是否往前走、落没落在本行里、词表拼起来是不是原文。`tts` 写完会报，`captions` 和 `pace` 遇到不合格的会拒绝（`--skip-lint` 可以跳过）。时间轴错一处，后面的字幕、镜头、声音全跟着错。
+- **改了旁白以后**：画面和声音的时间最好挂在字词上（cue），重配之后自动跟着走。声音脚本、事件表里手写的秒数，用 `bin/vh remap <文件> --from 旧时间轴 --to 新时间轴` 按两份时间轴共有的字词换算过去；按"第几个哪类事件"写的修正就不用换算。
+- **生成下一步要读的产物时，那一步不写 `|| true`**：失败被吞掉，下一步会悄悄拿上一版的产物接着做（一支片子就这样用旧的镜头表混了一整遍音）。
 
 ## 同步的五种模式
 

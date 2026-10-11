@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="480" viewBox="0 0 360 480">
+  <!-- The canvas-film template's example picture: a light bulb in a few strokes, drawn for this template. -->
+  <g fill="none" stroke="#22252B" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M120 300 C 60 250 40 190 60 130 C 85 60 140 30 180 30 C 220 30 275 60 300 130 C 320 190 300 250 240 300 L 240 340 L 120 340 Z" fill="#FFFDF7"/>
+    <path d="M150 300 L 150 232 L 165 202 L 180 232 L 195 202 L 210 232 L 210 300"/>
+    <rect x="125" y="350" width="110" height="26" rx="8"/>
+    <rect x="132" y="384" width="96" height="26" rx="8"/>
+    <path d="M150 420 L 210 420 L 196 446 L 164 446 Z"/>
+  </g>
+</svg>

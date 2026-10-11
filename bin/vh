@@ -8,8 +8,9 @@
 #  make
 #   types                       list video types and their docs
 #   effort [quick|standard|studio]  how much iteration, review and polish each level means (CLAUDE.md and playbook/01 "努力程度")
-#   new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--dir <folder>]
+#   new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film] [--dir <folder>]
 #                               create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);
+#                               --engine canvas-film: the narration-driven canvas engine instead, any type, 16:9 (engines/canvas-film/README.md);
 #                               --aspect: short/promo/data/meme only (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only); --lang: the review pages' language (default zh; set it from the user's first request);
 #                               --dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness
 #   style list | <preset> [--draft] | gallery [--mp4] | check <preset>   style library: list presets, render a 5 s swatch, build styles/gallery.jpg
@@ -33,12 +34,20 @@
 #                               --align gemini: word timestamps + ASR-vs-script check per line; --join: several lines per request;
 #                               --resume: continue the last run after a failed synthesis or transcription, same script and command)
 #                               providers: qwen (default, local open-source Qwen3-TTS) | say | edge | dashscope | elevenlabs | gemini | gemini-lite | minimax
-#   pace <project> [zh|en] [--ref <id>[-<id>] | --target N] [--strength 0.8] [--clamp 0.92,1.18] [--tolerance 0.05] [--pause 0.26] [--extra id=s,…] [--align map|gemini|whisper] [--dry-run] [--restore]
+#   pace <project> [zh|en] [--ref <id>[-<id>] | --target N] [--strength 0.8] [--clamp 0.92,1.18] [--tolerance 0.05] [--pause 0.26] [--extra id=s,…] [--align map|gemini|whisper] [--dry-run] [--restore] [--skip-lint]
 #                               optional: bring the pace of the lines in one take closer (part of the way, natural variation kept), no new synthesis;
-#                               --dry-run only measures. The original stays as voiceover.<lang>.raw.wav; captions are redone
+#                               --dry-run only measures. The original stays as voiceover.<lang>.raw.wav; captions are redone;
+#                               a timeline that fails bin/vh timeline is refused (--skip-lint to go on; --restore never stops on one)
 #   voices list [lang] | design "<description>" [--out f.wav] | delete <voice_id>   Gemini voice library / voice design
-#   captions <project> [zh|en] [zh-max] [--media-end S]  SRT (zh / en / bilingual) + captions.json from the TTS timeline; a caption under 1.8 s is
-#                               lengthened into the gap after it, up to the picture's end (--media-end, else index.html's data-duration, media/final.mp4, the timeline)
+#   captions <project> [zh|en] [zh-max] [--media-end S] [--skip-lint]  SRT (zh / en / bilingual) + captions.json from the TTS timeline; a caption under 1.8 s is
+#                               lengthened into the gap after it, up to the picture's end (--media-end, else index.html's data-duration, media/final.mp4, the timeline);
+#                               a timeline that fails bin/vh timeline is refused (--skip-lint to go on)
+#   timeline <project|timeline.json> [zh|en]  the narration timeline's checks: lines in order, word times forward and inside their line, the words
+#                               spelling the line's text (exit 1 on a problem); tts prints them, captions and pace refuse a timeline that fails
+#   remap <file.json> --from old.timeline.json --to new.timeline.json [--keys t,start,end,at,time] [--out f] [--skip-lint]   seconds typed into a
+#                               sound script or an events list, moved to a new take of the narration through the words both timelines share;
+#                               without --out the file is rewritten and the original kept as <file>.bak (refused when a .bak is there);
+#                               lines rewritten, gone or reordered are listed with the times that fall on them
 #   beats <audio> [out.json]    beat grid (bpm, offset, beats, downbeats) + hits, kick/snare accents (librosa)
 #   music <score.json> <out.wav> [--length s|auto] [--roll] | music --example [name|list] | music --instruments   code-composed soundtrack + exact beat/section map
 #                               --length: end exactly there with a musical fade (auto: where the last bar ends); --roll: piano roll + energy curve per part (PNG)
@@ -60,10 +69,25 @@
 #                               FAIL under one brisk read (CJK/7 + other/20 + 0.8 s, at least 1.5 s; exit 1), WARN under the target of the BRIEF's
 #                               Pace (exit 0); subtitles within reading speed. data-read="subtitle"|"label" and data-pace="…" mark clips
 #                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [--out f]: the composition's timed text
-#   textcheck <project|index.html> [--texts f.json] [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12] [--out dir] [--soft-gl] [--timeout 900]
+#                               a canvas-film project (film.html): its reads and captions from the page (window.film.texts), written to out/texts.json first
+#   textcheck <project|page.html> [--texts f.json] [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12] [--out dir] [--soft-gl] [--timeout 900]
 #                               text drawn into a canvas, which npx hyperframes check cannot see: a read covered by the picture (under 70% of it
 #                               shows), under 3:1, outside or cut by the frame, or under a DOM caption (exit 1); canvas text outside the registry
-#                               and captions over a bright picture warn. The composition opts in with window.__vh = { draw(t), texts? } (engines/README.md)
+#                               and captions over a bright picture warn. The composition opts in with window.film = { frame(t), duration, texts? }
+#                               (engines/CONTRACT.md; the older window.__vh = { draw(t), texts? } still works)
+#   frames <project|page.html> (--at t,t… | --range a:b[:step] | --strip a:b) [--fps 30] [--out dir] [--size WxH] [--dpr 2] [--real-clock]
+#                               frames drawn from the source through the page contract (window.film, engines/CONTRACT.md), for any web-page
+#                               engine: ClaudeAnimationBase, a page that writes window.film, HyperFrames (a composition without it gets its own
+#                               runtime); lossless PNGs in <project>/out/frames; --strip: every frame of a span and one picture of them all
+#   render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png]
+#                               an MP4 drawn through the page contract (the canvas engine, ClaudeAnimationBase, any page that writes
+#                               window.film): parallel chunks into x264, BT.709 tv range, a keyframe every --gop frames, <out>.render.json
+#                               records how; video only (sound: mux). HyperFrames: npx hyperframes render (--force to render it here anyway)
+#   determinism <project|page.html> [--at t,t…] [--samples 6] [--min-psnr 45]   is each frame a function of t? draws the same t
+#                               in one browser in two orders and in a second browser, compares them, and again with the real clock
+#   cues <project|page.html> [--save] [--out f]   where the page's cues landed (window.film.cues: times hung on the narration's
+#                               words), in order; --save keeps them in out/cues.json with the timeline's sha256, and a later run says
+#                               which cues a new take moved and by how much
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
 #   check <video> [--allow t,t…] [--against <ref.mp4>]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) +
 #                               black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any not declared
@@ -311,8 +335,8 @@ PY
 }
 
 cmd_new() {
-  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--dir <folder>]"; cmd_types; exit 1; }
-  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh=""; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 1; }
+  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film] [--dir <folder>]"; cmd_types; exit 1; }
+  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine=""; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 1; }
   shift 2
   while [ $# -gt 0 ]; do case "$1" in
     --style)  style=${2:?--style needs a preset or a comma list (bin/vh style list)}; shift 2 ;;
@@ -322,15 +346,20 @@ cmd_new() {
     --watch)  watch=${2:?--watch needs phone, feed or desktop}; shift 2 ;;
     --res)    outres=${2:?--res needs 1080p or 4k}; shift 2 ;;
     --lang)   lang=${2:?--lang needs zh or en}; shift 2 ;;
+    --engine) engine=${2:?--engine needs canvas-film (engines/canvas-film/README.md)}; shift 2 ;;
     *) echo "unknown option: $1"; exit 1 ;;
   esac; done
   case "$lang" in ""|zh|en) ;; *) echo "unknown --lang: $lang (zh | en: the language of the review pages, from the user's first request)"; exit 1 ;; esac
+  case "$engine" in ""|canvas-film) ;; *) echo "unknown --engine: $engine (canvas-film; leave it out for the type's own engine)"; exit 1 ;; esac
   local s styles=""; if [ -n "$style" ]; then styles=$(parse_styles "$style") || { cmd_style list; exit 1; }; fi
   case "${effort:-standard}" in quick|standard|studio) ;; *) echo "unknown effort: $effort (quick | standard | studio)"; exit 1 ;; esac
   case "$watch" in ""|phone|feed|desktop) ;; *) echo "unknown --watch: $watch (phone: a vertical phone · feed: landscape in a phone feed, not rotated · desktop: a computer, or a phone turned sideways)"; exit 1 ;; esac
   case "$outres" in ""|1080p) ;; 4k|4K|2160p) outres=4k ;; *) echo "unknown --res: $outres (1080p | 4k)"; exit 1 ;; esac
-  if [ "$outres" = 4k ]; then case "$type" in handdrawn|mv) echo "--res 4k: the hand-drawn engine (ClaudeAnimationBase) has no 4K output yet; use 1080p, or another engine (engines/README.md)"; exit 1 ;; esac; fi
-  if [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of these; the other engines set their size themselves
+  if [ "$outres" = 4k ] && [ -z "$engine" ]; then case "$type" in handdrawn|mv) echo "--res 4k: the hand-drawn engine (ClaudeAnimationBase) has no 4K output yet; use 1080p, or another engine (engines/README.md)"; exit 1 ;; esac; fi
+  if [ "$engine" = canvas-film ]; then   # the canvas engine draws 16:9 whatever the type
+    case "$aspect" in ""|16:9|landscape) res=landscape ;;
+      *) echo "--aspect: the canvas-film engine draws 16:9 (1920x1080); another frame means editing its template (engines/canvas-film/README.md, 局限)"; exit 1 ;; esac
+  elif [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of these; the other engines set their size themselves
     case "$aspect" in 16:9|landscape) res=landscape; aspect=16:9 ;; 9:16|portrait) res=portrait; aspect=9:16 ;; 1:1|square) res=square; aspect=1:1 ;;
       4:5) res=portrait; frameh=1350 ;; 3:4) res=portrait; frameh=1440 ;;   # feed posts (Instagram, 小红书): the portrait scaffold, shorter
       *) echo "unknown aspect: $aspect (16:9 | 9:16 | 1:1 | 4:5 | 3:4)"; exit 1 ;; esac
@@ -358,7 +387,11 @@ cmd_new() {
   [ -e "$dir" ] && { echo "$dir already exists"; exit 1; }
   # a step that fails from here on must not leave a half-built dir behind (a retry would say "already exists")
   NEW_DIR=$dir; trap 'rm -rf "$NEW_DIR"; echo "$c_no removed the unfinished $(rel "$NEW_DIR")" >&2' EXIT
-  if [ "$type" = handdrawn ] || [ "$type" = mv ]; then
+  if [ "$engine" = canvas-film ]; then   # a static page and its scripts: nothing to install (one command a line, so a failed copy stops here)
+    mkdir -p "$dir"
+    rsync -a --exclude out "$ROOT/engines/canvas-film/template/" "$dir/"
+    cp "$ROOT/engines/canvas-film/README.md" "$dir/ENGINE_README.md"
+  elif [ "$type" = handdrawn ] || [ "$type" = mv ]; then
     rsync -a --exclude node_modules --exclude out "$ROOT/engines/ClaudeAnimationBase/" "$dir/"
     mv "$dir/README.md" "$dir/ENGINE_README.md"   # the engine's own readme; project docs are BRIEF/STORYBOARD/…
     (cd "$dir" && npm install --silent)
@@ -375,15 +408,33 @@ open(brief, "w").write(b.rstrip("\n") + f"\n<!-- from {name} -->\n")
 PY
   [ -n "$wh" ] && sedi "s/^- Output: {W}x{H},/- Output: $wh,/" "$dir/BRIEF.md"
   sedi "s/^- Watch on: {watch}/- Watch on: $watch/; s/^- Resolution: {res}/- Resolution: ${res4k:-1080p}/; s/^- Review language: zh /- Review language: ${lang:-zh} /" "$dir/BRIEF.md"
-  case "$type:$res:$frameh" in short:portrait:|promo:landscape:|data:landscape:|meme:landscape:|*::) ;;   # the type's own frame: nothing to say
-    *) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：类型文档 Prompt 增量块写的画幅，以及按它算的尺寸（安全框、每行字数、字号），以这一行为准按新画幅重算。\n' "$aspect" "$wh" >> "$dir/BRIEF.md" ;;
-  esac
-  case "$type" in
-    short|promo|data|meme) if [ -n "$frameh" ]; then cmd_hf_init "$dir" "$aspect" || true; else cmd_hf_init "$dir" "$res" || true; fi ;;
-    math|paper) echo "   engine   : Manim → cd $(rel "$dir") && uv init --bare --python 3.12 && uv add manim   (see engines/README.md)" ;;
-    edit) echo "   engine   : HyperFrames → bin/vh hf-init $(rel "$dir") portrait   (or landscape; see video-types/09-editing-talking-head.md)" ;;
-  esac
-  if [ "$type" = handdrawn ] || [ "$type" = mv ]; then
+  local nframe='类型文档 Prompt 增量块写的画幅，以及按它算的尺寸（安全框、每行字数、字号），以这一行为准按新画幅重算。'
+  if [ "$engine" = canvas-film ]; then   # 16:9 is these types' own frame except short and edit
+    case "$type" in short|edit) printf '\n> **画幅 16:9（%s，canvas-film 引擎）**：%s\n' "$wh" "$nframe" >> "$dir/BRIEF.md" ;; esac
+  else
+    case "$type:$res:$frameh" in short:portrait:|promo:landscape:|data:landscape:|meme:landscape:|*::) ;;   # the type's own frame: nothing to say
+      *) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：%s\n' "$aspect" "$wh" "$nframe" >> "$dir/BRIEF.md" ;;
+    esac
+  fi
+  if [ "$engine" = canvas-film ]; then
+    sedi 's|^- Engine: {[^}]*}|- Engine: canvas-film (ENGINE_README.md)|' "$dir/BRIEF.md"
+    python3 - "$dir/BRIEF.md" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+note = ("> **本项目用 canvas-film 引擎**（`ENGINE_README.md`，和 `engines/canvas-film/README.md` 是同一份）：镜头、字幕、章节的时间写成挂在旁白字上的 cue，"
+        "`src/50-shots.js` 是这支片子，其余 `src/` 是引擎。现在的 `src/50-shots.js` 和 `audio/timeline.zh.json` 是一支示例片，开工时一起换掉。\n"
+        "> 取帧 `bin/vh frames <项目> --at …`，查字 `bin/vh textcheck <项目>`，成片画面 `bin/vh render <项目>`。\n\n")
+open(p, "w").write(s.replace("# BRIEF\n", "# BRIEF\n\n" + note, 1))
+PY
+    echo "   engine   : canvas-film (ENGINE_README.md) · the example film draws as it is: bin/vh frames $(rel "$dir") --at 1,5,9"
+  else
+    case "$type" in
+      short|promo|data|meme) if [ -n "$frameh" ]; then cmd_hf_init "$dir" "$aspect" || true; else cmd_hf_init "$dir" "$res" || true; fi ;;
+      math|paper) echo "   engine   : Manim → cd $(rel "$dir") && uv init --bare --python 3.12 && uv add manim   (see engines/README.md)" ;;
+      edit) echo "   engine   : HyperFrames → bin/vh hf-init $(rel "$dir") portrait   (or landscape; see video-types/09-editing-talking-head.md)" ;;
+    esac
+  fi
+  if [ -z "$engine" ] && { [ "$type" = handdrawn ] || [ "$type" = mv ]; }; then
     python3 - "$dir/BRIEF.md" <<'PY'
 import sys
 p = sys.argv[1]; s = open(p).read()
@@ -446,7 +497,20 @@ for l in rules.splitlines():
 ' "$lvl"
 }
 
-cmd_readcheck() { python3 "$ROOT/tools/readcheck.py" "$@"; }
+cmd_readcheck() { # a canvas-film project (film.html, or the folder): its texts exist once the page runs, so they are written
+  # first (tools/film/texts.mjs) and readcheck reads that file in its place
+  local a args=() proj b
+  for a in "$@"; do
+    if [ -z "${proj:-}" ] && { { [ -d "$a" ] && [ -f "$a/film.html" ]; } || [ "$(basename -- "$a")" = film.html ]; }; then
+      proj=$a; [ -d "$a" ] || proj=$(dirname -- "$a")
+      b=$(film_browser readcheck) || exit 2
+      node "$ROOT/tools/film/texts.mjs" --browser "$b" "$proj" --out "$proj/out/texts.json" || exit $?
+      a="$proj/out/texts.json"
+    fi
+    args+=("$a")
+  done
+  python3 "$ROOT/tools/readcheck.py" ${args[@]+"${args[@]}"}
+}
 hf_shell() { # the chrome-headless-shell binary itself (hf_chrome prints its version folder)
   local p; p=$(hf_chrome) || return 1
   [ -f "$p" ] && [ -x "$p" ] && { echo "$p"; return 0; }
@@ -461,6 +525,20 @@ cmd_textcheck() { # canvas text covered or too faint (tools/textcheck/textcheck.
     b=$(hf_shell) || b=$(chrome_path) || { echo "$c_no bin/vh textcheck needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; exit 2; }
   fi
   exec node "$ROOT/tools/textcheck/textcheck.mjs" --browser "$b" "$@"
+}
+cmd_frames() { cmd_film_tool frames "$@"; }   # frames drawn from a page through the page contract (tools/film/frames.mjs)
+film_browser() { # the browser the page-contract tools draw with, as for textcheck; $1 names the command in the message
+  local b=${CHROME_PATH:-}
+  if [ -z "$b" ] || [ ! -x "$b" ]; then
+    b=$(hf_shell) || b=$(chrome_path) || { echo "$c_no bin/vh $1 needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; return 1; }
+  fi
+  echo "$b"
+}
+cmd_film_tool() { # $1: frames | render | determinism | cues (tools/film/<it>.mjs)
+  local tool=$1 b; shift
+  [ $# -gt 0 ] || { cmd_usage "$tool"; exit 1; }
+  b=$(film_browser "$tool") || exit 2
+  exec node "$ROOT/tools/film/$tool.mjs" --browser "$b" "$@"
 }
 cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 1; }
   uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" "$@"; }
@@ -690,12 +768,13 @@ cmd_pace() { # numpy for the waveform; mlx-whisper only with --align whisper (Ap
   uv run -q --no-project $deps python "$ROOT/tools/audio/pace.py" "$@"
 }
 cmd_captions() { # --media-end S: where a caption too short for the 1.8 s floor may be lengthened to (default: the picture's length)
-  local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--media-end S]"
+  local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--media-end S] [--skip-lint]"
   local proj=${1:?$u}; shift
   local pos=() end=()
   while [ $# -gt 0 ]; do
     case "$1" in
-      --media-end) end=(--media-end "${2:?$u}"); shift 2 ;;
+      --media-end) end+=(--media-end "${2:?$u}"); shift 2 ;;
+      --skip-lint) end+=(--skip-lint); shift ;;
       -*) echo "bin/vh captions: unknown option $1 ($u)" >&2; return 1 ;;
       *) pos+=("$1"); shift ;;
     esac
@@ -704,6 +783,8 @@ cmd_captions() { # --media-end S: where a caption too short for the 1.8 s floor 
   python3 "$ROOT/tools/audio/captions.py" "$proj" ${1:+--lang "$1"} ${2:+--zh-max "$2"} ${end[@]+"${end[@]}"}
 }
 cmd_beats() { uv run -q --no-project --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
+cmd_timeline() { [ $# -gt 0 ] || { cmd_usage timeline; exit 1; }; python3 "$ROOT/tools/audio/timeline_lint.py" "$@"; }
+cmd_remap() { [ $# -gt 0 ] || { cmd_usage remap; exit 1; }; python3 "$ROOT/tools/audio/remap.py" "$@"; }
 cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then
   local a pil=""; for a in "$@"; do [ "$a" = --roll ] && pil="--with pillow"; done
   uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/music.py" "$@"; }
@@ -777,17 +858,18 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
   case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
+    frames|render|determinism|cues) cmd_usage "$1"; echo; exec node "$ROOT/tools/film/$1.mjs" -h ;;   # + every flag
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 
 case "${1:-help}" in
   doctor) cmd_doctor ;; setup) cmd_setup ;; types) cmd_types ;;
-  tts) shift; cmd_tts "$@" ;; pace) shift; cmd_pace "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
+  tts) shift; cmd_tts "$@" ;; pace) shift; cmd_pace "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; timeline) shift; cmd_timeline "$@" ;; remap) shift; cmd_remap "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
-  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;;
+  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
   help|-h|--help) cmd_help ;;
   *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;
