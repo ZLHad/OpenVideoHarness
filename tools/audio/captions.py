@@ -1,6 +1,7 @@
 """Captions from a TTS timeline → SRT (zh / en / bilingual) + captions.json for engines.
 
 usage (via bin/vh captions): python tools/audio/captions.py <project_dir> [--lang zh|en] [--zh-max 16] [--en-max 42] [--media-end S]
+                                                            [--skip-lint]
 
 Reads audio/timeline.<lang>.json (or audio/timeline.json) written by bin/vh tts. Writes into <project>/audio/:
   captions.zh.srt, captions.en.srt (when that side exists), captions.bi.srt (zh line + en line) and
@@ -20,6 +21,8 @@ Minimum duration: a caption shorter than the subtitle floor (readcheck.SUB_FLOOR
   Every file above carries the extended end (the .lines.srt too: its last line ends with the caption), and captions.json
   keeps the spoken end as "speech_end" on the items it moved. A caption the gap cannot lengthen to 1.8 s is listed on
   stdout (bin/vh readcheck <project> --mode subtitle fails it too). The timeline itself is not touched.
+A timeline that fails bin/vh timeline (tools/audio/timeline_lint.py: lines out of order, word times out of place, words
+  that do not spell the line) is refused, exit 1, since the captions take their times from it: --skip-lint goes on.
 """
 import argparse, json, math, re, subprocess, sys
 from pathlib import Path

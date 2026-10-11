@@ -2,7 +2,11 @@
 
 usage (via bin/vh pace): python tools/audio/pace.py <project> [zh|en] [--ref ID[-ID] | --target N] [--strength 0.8]
                                                  [--clamp 0.92,1.18] [--tolerance 0.05] [--pause 0.26] [--extra id=s,…]
-                                                 [--align map|gemini|whisper] [--dry-run] [--restore]
+                                                 [--align map|gemini|whisper] [--dry-run] [--restore] [--skip-lint]
+
+A timeline that fails bin/vh timeline (tools/audio/timeline_lint.py) is refused, since each line's pace is measured
+between its word times: --skip-lint goes on, and passes it to the captions it redoes. --restore never stops on one:
+it puts the original take back, warns, and redoes the captions anyway.
 
 Optional and gentle: lines in a take are meant to differ in pace, and nothing needs doing when the take sounds fine.
 When it audibly runs fast and slow (a one-request take, --join all, often does), this moves each line part of the way
@@ -488,9 +492,10 @@ def main():
     copies = latest.exists() and json.loads(latest.read_text(encoding="utf-8")).get("lang") == a.lang   # tts's copies of this run
     rel = lambda p: p.relative_to(proj)
 
-    def captions(old):
+    def captions(old, skip_lint=False):
         sys.stdout.flush()
-        r = subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "captions.py"), str(proj), "--lang", a.lang])
+        r = subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "captions.py"), str(proj), "--lang", a.lang]
+                           + (["--skip-lint"] if skip_lint or a.skip_lint else []))
         narrow = [c for c in old if len(c.get("zh") or []) > 1 and sum(0.5 if ord(ch) < 128 else 1 for ch in "".join(c["zh"])) <= 16]
         if narrow:                                        # two lines that fit one at the default width: wrapped narrower before
             w = max(sum(0.5 if ord(ch) < 128 else 1 for ch in line) for c in old for line in c.get("zh") or [])
@@ -510,7 +515,11 @@ def main():
         if copies:
             shutil.copyfile(tlp, latest); shutil.copyfile(wav, audio / "voiceover.wav")
         print(f"restored the original take: {rel(wav)}, {rel(tlp)}")
-        sys.exit(captions(old_caps))
+        import timeline_lint   # undoing must not stop on a lint: the original take comes back as it was, captions too
+        if lint := timeline_lint.lint(json.loads(tlp.read_text(encoding="utf-8")), a.lang):
+            print(f"  warning: the restored timeline has {len(lint)} problem(s) (bin/vh timeline); the captions are timed anyway:\n"
+                  + timeline_lint.report(lint, "    "))
+        sys.exit(captions(old_caps, skip_lint=True))
     if not (wav.exists() and tlp.exists()):
         sys.exit(f"no {rel(wav)} / {rel(tlp)}: make the narration with bin/vh tts first")
     tl = json.loads(tlp.read_text(encoding="utf-8"))

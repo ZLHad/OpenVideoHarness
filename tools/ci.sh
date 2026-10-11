@@ -846,8 +846,9 @@ PY
     *) bad "timeline on a broken timeline: exit $rc: $a" ;; esac
   a=$(vh captions "$t/p" zh 2>&1); rc=$?
   b=$(vh captions "$t/p" zh --skip-lint 2>&1); rc2=$?
-  if [ $rc = 1 ] && printf '%s' "$a" | grep -q "timed wrong" && [ $rc2 = 0 ] && [ -s "$t/p/audio/captions.json" ]; then ok "captions: refuses a timeline that fails its checks, and goes on with --skip-lint"
-  else bad "captions on a broken timeline: exit $rc ($a) / with --skip-lint exit $rc2 ($b)"; fi
+  c=$(vh captions "$t/p" zh --skip-lint --media-end 30 2>&1); rc3=$?
+  if [ $rc = 1 ] && printf '%s' "$a" | grep -q "timed wrong" && [ $rc2 = 0 ] && [ $rc3 = 0 ] && [ -s "$t/p/audio/captions.json" ]; then ok "captions: refuses a timeline that fails its checks, and goes on with --skip-lint (before or after --media-end)"
+  else bad "captions on a broken timeline: exit $rc ($a) / with --skip-lint exit $rc2 ($b) / --skip-lint --media-end exit $rc3 ($c)"; fi
   python3 - "$t" <<'PY'
 import json, sys
 d = sys.argv[1]
@@ -862,6 +863,20 @@ PY
   if [ $rc = 0 ] && python3 -c "import json, sys; e = json.load(open(sys.argv[1])); sys.exit(0 if (e[0]['t'], e[1]['t'], e[1]['gain_db'], e[2]['start'], e[2]['end']) == (0.2, 3.6, -6, 2.4, 5.5) else 1)" "$t/events.json" && [ -s "$t/events.json.bak" ]
   then ok "remap: seconds inside a line move with its words, in a gap in proportion, after the end with the last word; other numbers stay; the original kept as .bak"
   else bad "remap: exit $rc: $a $(cat "$t/events.json" 2>/dev/null)"; fi
+  a=$(vh remap "$t/events.json" --from "$t/old.json" --to "$t/new.json" 2>&1); rc=$?
+  [ $rc = 2 ] && printf '%s' "$a" | grep -q "is there already" && ok "remap: refuses to overwrite an earlier remap's .bak" || bad "remap with a .bak there: exit $rc: $a"
+  python3 - "$t" <<'PY'
+import json, sys
+d = sys.argv[1]   # two lines that meet at 1.0 s; the new take puts 0.8 s between them
+L = lambda i, a, b, t: {"id": i, "text": t, "start": a, "end": b}
+json.dump({"segments": [L("a", 0, 1, "风"), L("b", 1, 2, "纸")]}, open(f"{d}/old2.json", "w"))
+json.dump({"segments": [L("a", 0, 1, "风"), L("b", 1.8, 2.8, "纸")]}, open(f"{d}/new2.json", "w"))
+json.dump([{"t": 0.9}, {"t": 1.1}, {"t": 1.6}], open(f"{d}/ev2.json", "w"))
+PY
+  a=$(vh remap "$t/ev2.json" --from "$t/old2.json" --to "$t/new2.json" --out "$t/ev2o.json" 2>&1); rc=$?
+  if [ $rc = 0 ] && python3 -c "import json, sys; sys.exit(0 if [e['t'] for e in json.load(open(sys.argv[1]))] == [0.9, 1.9, 2.4] else 1)" "$t/ev2o.json"
+  then ok "remap: where two lines met and a pause came between them, a time on the later line moves with it"
+  else bad "remap across a new pause: exit $rc: $a $(cat "$t/ev2o.json" 2>/dev/null)"; fi
   rm -rf "$t"
 }
 
@@ -1057,7 +1072,8 @@ PY
   case "$b" in *"transcribed before"*) ;; *) a="$a c --dry-run did not use the cache: $b" ;; esac
   vh pace "$t/c" >/dev/null 2>&1 && cmp -s "$t/c/audio/timeline.zh.raw.json" "$t/c.before/timeline.zh.json" || a="$a c: the .raw timeline is not the original"
   b=$(vh pace "$t/c2" 2>&1); [ $? = 1 ] && case "$b" in *"no word times"*) ;; *) false ;; esac || a="$a c2 (no words, no cache): $b"
-  b=$(vh pace "$t/o" 2>&1); [ $? = 1 ] && case "$b" in *"out of order"*) ;; *) false ;; esac || a="$a o (spans swapped): $b"
+  b=$(vh pace "$t/o" 2>&1); [ $? = 1 ] && case "$b" in *"the timeline has"*"out of order"*) ;; *) false ;; esac || a="$a o (spans swapped, the lint): $b"
+  b=$(vh pace "$t/o" --skip-lint 2>&1); [ $? = 1 ] && case "$b" in *"re-align the take"*) ;; *) false ;; esac || a="$a o (spans swapped, pace's own guard): $b"
   b=$(vh pace "$t/n" --dry-run 2>&1); case "$b" in *"no audio/script.txt"*) ;; *) a="$a n (no script.txt): $b" ;; esac
   b=$(PYTHONPATH="$t" uv run -q --no-project --with numpy python - "$t" 2>&1 <<'PY'
 import json, sys
