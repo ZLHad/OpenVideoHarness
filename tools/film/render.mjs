@@ -20,7 +20,9 @@
 // The colour: Chrome's frames are full-range RGB; the encode converts them to limited-range BT.709 with all four colour
 // tags (what bin/vh check expects). Beside the video, <out>.render.json records how it was made (size, fps, frames,
 // span, encoder settings, chunks, browser), for a later patch or re-render to match. Exit: 0 rendered and checked ·
-// 1 a frame failed, the encoder failed, or the result has the wrong frame count · 2 could not start.
+// 1 a frame failed, the encoder stopped, or the result has the wrong frame count or colour tags; also when the page
+// reported an error while drawing (the video is written then, and the errors are listed) · 2 could not start.
+// Ctrl-C (or SIGTERM) stops the encoders, deletes the chunks so far and the lock, and exits 130 (143).
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -29,14 +31,14 @@ import { openFilm } from "./host.mjs";
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");
 const argv = process.argv.slice(2);
-if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP); process.exit(argv.length ? 0 : 2); }
+if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
 const die = (msg) => { console.error("render: " + msg); process.exit(2); };
 const o = { fps: 30, dpr: 1, workers: 4, crf: 16, preset: "medium", quality: 95, frameTimeout: 120 };
 let target = null, out = null, range = null, gop = null, png = false, force = false;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], [k, inline] = a.startsWith("--") && a.includes("=") ? [a.slice(0, a.indexOf("=")), a.slice(a.indexOf("=") + 1)] : [a, undefined];
   const val = () => { const v = inline !== undefined ? inline : argv[++i]; if (v === undefined) die(`${k} needs a value`); return v; };
-  const num = (v, what, min) => { const x = Number(v); if (!Number.isFinite(x) || x < min) die(`${what}: ${v} is not a number ≥ ${min}`); return x; };
+  const num = (v, what, min) => { const x = Number(v); if (v === "" || !Number.isFinite(x) || x < min) die(`${what}: ${JSON.stringify(v)} is not a number ≥ ${min}`); return x; };
   if (k === "--out") out = val();
   else if (k === "--range") { range = val().split(":").map((v) => num(v, "--range", 0)); if (range.length !== 2 || range[1] <= range[0]) die("--range a:b, b > a"); }
   else if (k === "--fps") o.fps = num(val(), k, 1);
@@ -57,6 +59,8 @@ for (let i = 0; i < argv.length; i++) {
   else target = a;
 }
 if (!target) die("which project or page? (-h for the usage)");
+if (out && fs.existsSync(out) && fs.statSync(out).isDirectory()) die(`--out ${out} is a folder: name the video file (…/film.mp4)`);
+if (out && !/\.(mp4|mov)$/i.test(out)) die(`--out ${out}: the video file, .mp4 (or .mov)`);
 if (!o.browser) die("no browser: pass --browser <chrome>, or run it as bin/vh render");
 for (const tool of ["ffmpeg", "ffprobe"]) if (spawnSync(tool, ["-version"]).status !== 0) die(`${tool} is not installed`);
 
@@ -69,36 +73,56 @@ if (first.kind === "hyperframes" && !force) {
 }
 if (!(first.duration > 0)) { await first.close(); die("the page gives no duration"); }
 const fps = o.fps, k0 = range ? Math.round(range[0] * fps) : 0;
-const k1 = range ? Math.round(Math.min(range[1], first.duration) * fps) : Math.ceil(first.duration * fps - 1e-6);
+const k1 = !range || range[1] >= first.duration ? Math.ceil(first.duration * fps - 1e-6) : Math.round(range[1] * fps);   // to the end: its last frame
 const n = k1 - k0;
 if (n <= 0) { await first.close(); die(`no frames in ${range ? range.join("–") + " s" : "the film"} (it is ${first.duration} s)`); }
 gop = gop || Math.round(2 * fps);
 const stem = path.basename(first.page, path.extname(first.page));
 const outFile = path.resolve(out || path.join(first.root, "out", `${stem}.mp4`));
-fs.mkdirSync(path.dirname(outFile), { recursive: true });
+try { fs.mkdirSync(path.dirname(outFile), { recursive: true }); } catch (e) { await first.close(); die(`cannot make ${rel(path.dirname(outFile))}: ${e.message}`); }
 
-// one render per output file: a second one would interleave its chunks with ours
+// one render per output file: a second one would interleave its chunks with ours. A lock whose render is gone (its pid
+// no longer runs) is deleted and taken afresh; an empty one is a render that has not written its pid yet, unless it is old
 const lock = outFile + ".lock";
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; } };
-try { fs.writeFileSync(lock, String(process.pid), { flag: "wx" }); } catch {
-  const pid = +fs.readFileSync(lock, "utf8");
-  if (pid && alive(pid)) { await first.close(); die(`another render (pid ${pid}) is writing ${rel(outFile)}; wait for it, or delete ${rel(lock)} if it is gone`); }
-  fs.writeFileSync(lock, String(process.pid));
+function takeLock() {
+  for (let tries = 0; tries < 5; tries++) {
+    try { fs.writeFileSync(lock, String(process.pid), { flag: "wx" }); return null; } catch (e) {
+      if (e.code !== "EEXIST") return `cannot write ${rel(lock)}: ${e.message}`;
+      let pid = 0, age = 0;
+      try { pid = +fs.readFileSync(lock, "utf8"); age = Date.now() - fs.statSync(lock).mtimeMs; } catch { continue; }   // gone meanwhile
+      if (pid ? alive(pid) : age < 10000) return `another render${pid ? ` (pid ${pid})` : ""} is writing ${rel(outFile)}; wait for it, or delete ${rel(lock)} if it is gone`;
+      try { fs.unlinkSync(lock); } catch { /* another render took it over first: try again */ }
+    }
+  }
+  return `could not take ${rel(lock)}`;
 }
+const busy = takeLock();
+if (busy) { await first.close(); die(busy); }
 const unlock = () => { try { if (+fs.readFileSync(lock, "utf8") === process.pid) fs.unlinkSync(lock); } catch { /* already gone */ } };
 process.on("exit", unlock);
 
 const parts = path.join(path.dirname(outFile), `.${path.basename(outFile)}.parts`);
 fs.rmSync(parts, { recursive: true, force: true }); fs.mkdirSync(parts, { recursive: true });
+const encoders = new Set();
+for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig, () => {   // the lock goes on exit; a browser closes with its pipe
+  console.error(`render: stopped (${sig}); the chunks so far are deleted`);
+  for (const ff of encoders) ff.kill("SIGKILL");
+  fs.rmSync(parts, { recursive: true, force: true });
+  process.exit(code);
+});
 // chunks are whole GOPs, so every keyframe of the joined video falls on the grid k0 + m·gop (a patch can cut there)
 const chunk = Math.ceil(Math.ceil(n / Math.max(1, Math.min(o.workers, n))) / gop) * gop, K = Math.ceil(n / chunk);
 const chunks = Array.from({ length: K }, (_, w) => [k0 + w * chunk, Math.min(k1, k0 + (w + 1) * chunk)]).filter(([a, b]) => b > a);
 const COLOR = "colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv";
-const vf = png ? `scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=${COLOR}`
-  : `scale=in_color_matrix=bt601:in_range=pc:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=${COLOR}`;
+// x264's yuv420p needs an even width and height: an odd one (1366 x 768 at --dpr 1.5 is 2049 x 1152) loses its last column or row
+const EVEN = "crop=trunc(iw/2)*2:trunc(ih/2)*2", px = [Math.round(first.width * o.dpr), Math.round(first.height * o.dpr)];
+const vf = png ? `${EVEN},scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=${COLOR}`
+  : `${EVEN},scale=in_color_matrix=bt601:in_range=pc:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=${COLOR}`;
 console.log(`render: ${rel(first.page)} · ${first.kind === "film" ? "window.film" : first.kind} · ${first.width}x${first.height}${o.dpr !== 1 ? ` @${o.dpr}x` : ""} · ` +
   `${n} frames at ${fps} fps (${(k0 / fps).toFixed(3)}–${(k1 / fps).toFixed(3)} s) · ${chunks.length} worker${chunks.length > 1 ? "s" : ""} · ${png ? "PNG" : `JPEG q${o.quality}`} → x264 crf ${o.crf} ${o.preset}, keyframe every ${gop} · ${first.version}`);
 for (const p of first.loadProblems) console.log(`  while loading: ${p}`);
+if (px[0] % 2 || px[1] % 2) console.log(`  note: ${px[0]}x${px[1]} pixels; x264 needs even sizes, so the video is ${px[0] - px[0] % 2}x${px[1] - px[1] % 2}`);
 
 let failed = null, done = 0;
 const T0 = Date.now(), problems = [];
@@ -112,25 +136,31 @@ async function worker(w, [a, b]) {
   const ff = spawn("ffmpeg", ["-v", "error", "-y", "-f", "image2pipe", "-framerate", String(fps), "-c:v", png ? "png" : "mjpeg", "-i", "-",
     "-vf", vf, "-c:v", "libx264", "-preset", o.preset, "-crf", String(o.crf), "-g", String(gop), "-keyint_min", String(gop), "-sc_threshold", "0",
     "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-r", String(fps), file], { stdio: ["pipe", "ignore", "pipe"] });
+  encoders.add(ff);
   let ffErr = ""; ff.stderr.on("data", (d) => { ffErr = (ffErr + d).slice(-2000); });
-  const closed = new Promise((ok) => ff.on("close", ok));
-  ff.stdin.on("error", () => { /* the encoder died: closed reports it */ });
+  const closed = new Promise((ok) => ff.on("close", (code, sig) => ok(code ?? sig)));
+  // an encoder that stops early (a full disk, a frame it refuses) ends the render: nothing waits on a pipe no one reads
+  let gone = false;
+  const exited = new Promise((ok) => ff.once("exit", () => { gone = true; encoders.delete(ff); ok(); }));
+  ff.stdin.on("error", () => { /* the encoder is gone: exited says so */ });
+  let wrote = 0;
   try {
     if (!film) film = await openFilm(target, { ...o, runtime: "auto" });
     const capture = png ? { format: "png" } : { format: "jpeg", quality: o.quality };
-    for (let k = a; k < b && !failed; k++) {
+    for (let k = a; k < b && !failed && !gone; k++) {
       const t = k / fps;
       const { png: img } = await within(film.frame(t, capture), o.frameTimeout, `t=${t.toFixed(3)} s`);
       const later = film.problems();
       if (later.length) problems.push(`t=${t.toFixed(3)} s: ${later.join(" | ")}`);
-      if (!ff.stdin.write(img)) await new Promise((ok) => ff.stdin.once("drain", ok));
-      done++;
+      if (!ff.stdin.write(img)) await Promise.race([new Promise((ok) => ff.stdin.once("drain", ok)), exited]);
+      if (gone) break;
+      wrote++; done++;
     }
   } catch (e) { failed = failed || e.message; }
   ff.stdin.end();
   const code = await closed;
   if (film) await film.close();
-  if (code !== 0 && !failed) failed = `the encoder for frames ${a}–${b - 1} failed: ${ffErr.trim()}`;
+  if (!failed && (code !== 0 || wrote < b - a)) failed = `the encoder for frames ${a}–${b - 1} ${wrote < b - a ? `stopped after ${wrote} of them` : "failed"} (exit ${code}): ${ffErr.trim() || "no message"}`;
   return file;
 }
 
@@ -138,8 +168,11 @@ const files = await Promise.all(chunks.map((c, w) => worker(w, c)));
 clearInterval(progress);
 if (failed) { fs.rmSync(parts, { recursive: true, force: true }); console.error(`render: ${failed}`); process.exit(1); }
 fs.writeFileSync(path.join(parts, "list.txt"), files.map((f) => `file '${path.basename(f)}'`).join("\n") + "\n");
-const join = spawnSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", path.join(parts, "list.txt"), "-c", "copy", "-movflags", "+faststart", outFile], { encoding: "utf8" });
-if (join.status !== 0) { console.error(`render: joining the chunks failed: ${join.stderr.trim()}`); process.exit(1); }
+// joined inside the parts folder and moved onto <out> whole: a join cut short (Ctrl-C) never replaces an earlier video
+const joined = path.join(parts, `joined${path.extname(outFile)}`);
+const join = spawnSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", path.join(parts, "list.txt"), "-c", "copy", "-movflags", "+faststart", joined], { encoding: "utf8" });
+if (join.status !== 0) { fs.rmSync(parts, { recursive: true, force: true }); console.error(`render: joining the chunks failed: ${(join.stderr || join.signal || "").toString().trim()}`); process.exit(1); }
+fs.renameSync(joined, outFile);
 // the frame count the MP4 records (counting by decoding would take minutes on a long 4K film)
 const probe = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",
   "stream=nb_frames,width,height,pix_fmt,color_range,color_space,color_primaries,color_transfer", "-of", "json", outFile], { encoding: "utf8" });
@@ -148,11 +181,15 @@ fs.rmSync(parts, { recursive: true, force: true });
 const secs = (Date.now() - T0) / 1000;
 const sidecar = {
   note: "how this video was made (bin/vh render); a patch or re-render should match these",
-  page: (() => { const r = path.relative(path.dirname(outFile), first.page); return r.startsWith("..") ? first.page : r; })(),
+  // from the video's folder when the video is in the project (it moves with it), else where the page is
+  page: (() => {   // first.root is a real path (host.mjs), so the video's folder is compared as one too (macOS /tmp is /private/tmp)
+    const dir = fs.realpathSync(path.dirname(outFile)), page = path.join(first.root, path.basename(first.page));
+    return (dir + path.sep).startsWith(first.root + path.sep) ? path.relative(dir, page) : first.page;
+  })(),
   kind: first.kind, width: first.width, height: first.height, dpr: o.dpr, pixels: [st.width, st.height], fps, frames: n,
   span: [+(k0 / fps).toFixed(6), +(k1 / fps).toFixed(6)], first_frame: k0, capture: png ? "png" : `jpeg q${o.quality}`,
   encoder: { codec: "libx264", crf: o.crf, preset: o.preset, gop, keyint_min: gop, sc_threshold: 0, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] },
-  chunks: chunks.map(([a, b]) => [a, b]), browser: first.version, real_clock: !!o.realClock, seconds: +secs.toFixed(1),
+  chunks: chunks.map(([a, b]) => [a, b]), browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl, seconds: +secs.toFixed(1),
 };
 fs.writeFileSync(outFile + ".render.json", JSON.stringify(sidecar, null, 1) + "\n");
 const okCount = +st.nb_frames === n, okColor = st.pix_fmt === "yuv420p" && st.color_range === "tv" && st.color_space === "bt709";

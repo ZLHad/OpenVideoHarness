@@ -13,7 +13,7 @@
 //
 // Without --at, --samples moments spread over the film. The PNGs go to <out> (default <project>/out/check/determinism).
 // Exit: 0 A, B and C agree (identical, or above --min-psnr) · 1 they do not, or a frame failed · 2 could not draw.
-// D only warns: it tells whether the page leans on the host's clock.
+// D only warns, its errors too: it tells whether the page leans on the host's clock.
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -22,7 +22,7 @@ import { openFilm } from "./host.mjs";
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");
 const argv = process.argv.slice(2);
-if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP); process.exit(argv.length ? 0 : 2); }
+if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
 const bail = (msg) => { console.error("determinism: " + msg); process.exit(2); };
 const o = { samples: 6, minPsnr: 45, dpr: 1, runtime: "auto" };
 let target = null, at = null, out = null, size = null;
@@ -60,9 +60,11 @@ const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.s
 console.log(`determinism: ${rel(A.page)} · ${A.kind === "film" ? "window.film" : A.kind === "__vh" ? "window.__vh" : "HyperFrames runtime"} · ${A.width}x${A.height}` +
   `${o.dpr !== 1 ? ` @${o.dpr}x` : ""} · ${times.length} moment${times.length > 1 ? "s" : ""} · ${A.version}`);
 
-let failed = 0;
+let failed = 0, dErrors = 0;
 const ms = [], touched = new Set();
-// draw the times in this order, write <way>-t<seconds>.png, return { t: file }
+// draw the times in this order, write <way>-t<seconds>.png, return { t: file }. A frame that fails, or a page error,
+// fails the check in A, B and C; in D (no host clock) it is a sign of the same thing D looks for, and only warns
+const flag = (way, t, msg) => { if (way === "D") dErrors++; else failed++; console.log(`  ${way} t=${t} s: ${msg}${way === "D" ? " (warning: without the host's clock)" : ""}`); };
 async function pass(film, way, order, warm) {
   const files = {};
   if (warm !== undefined) await film.frame(warm).catch(() => {});   // a frame elsewhere first, so carried state shows
@@ -73,8 +75,8 @@ async function pass(film, way, order, warm) {
       if (way === "A") { ms.push(Date.now() - t0); tc.forEach((c) => touched.add(c)); }
       const f = path.join(outDir, `${way}-t${t.toFixed(3).padStart(8, "0")}.png`);
       fs.writeFileSync(f, png); files[t] = f;
-      const p = film.problems(); if (p.length) { failed++; console.log(`  ${way} t=${t} s: ${p.join(" | ")}`); }
-    } catch (e) { failed++; console.log(`  ${way} t=${t} s: ${e.message}`); }
+      const p = film.problems(); if (p.length) flag(way, t, p.join(" | "));
+    } catch (e) { flag(way, t, e.message); }
   }
   return files;
 }
@@ -105,8 +107,9 @@ for (const t of times) {
 }
 ms.sort((p, q) => p - q);
 if (ms.length) console.log(`  a frame takes ${ms[Math.floor(ms.length / 2)]} ms (median: draw and capture)`);
+if (dErrors) clockOnly = true;
 if (clockOnly && !failed) {   // only when A–C agree: otherwise D differs for the same reason they do
-  console.log(`  warning: without the host's clock the frames differ${touched.has("Math.random") ? " (the page reads Math.random)" : ""}: the page leans on the ` +
+  console.log(`  warning: without the host's clock the frames differ${dErrors ? " or fail" : ""}${touched.has("Math.random") ? " (the page reads Math.random)" : ""}: the page leans on the ` +
     `host holding its clocks at t. Hard rule 1: take time from t and randomness from a seeded hash, or a renderer that does not hold them will draw other frames.`);
 }
 console.log(`determinism: ${failed ? `does not hold (${failed} difference${failed > 1 ? "s" : ""} under ${o.minPsnr} dB or failed frames)` :
