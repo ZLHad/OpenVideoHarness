@@ -1246,6 +1246,10 @@ def main():
     if trimmed > 0.05:
         print(f"  trimmed {trimmed:.2f} s of provider silence at line edges (--keep-edges to keep it)")
     print(f"→ {joined.relative_to(proj)} ({tl['duration']}s) · audio/timeline.{a.lang}.json · captions: bin/vh captions {a.project}")
+    import timeline_lint   # the checks captions and pace rely on: say now what they would refuse later
+    if (lint := timeline_lint.lint(tl, a.lang)):
+        print(f"  the timeline has {len(lint)} problem(s); bin/vh captions and bin/vh pace refuse it until they are fixed (or --skip-lint):\n"
+              + timeline_lint.report(lint, "    "))
     if failed or rechecks:
         ids = lambda xs: ", ".join(s["id"] for s in xs)
         what = (f"{len(failed)} line(s) not transcribed ({ids(failed)}): {failed[0]['asr']['error']}" if failed

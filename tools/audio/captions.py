@@ -158,6 +158,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("project"); ap.add_argument("--lang"); ap.add_argument("--zh-max", type=int, default=16)
     ap.add_argument("--en-max", type=int, default=42)
+    ap.add_argument("--skip-lint", action="store_true", help="go on even when the timeline fails its checks (tools/audio/timeline_lint.py)")
     ap.add_argument("--media-end", type=float, metavar="S", help="the length of the picture in seconds, the limit for lengthening a caption "
                     "(default: index.html's data-duration, else media/final.mp4, else the timeline's duration)")
     a = ap.parse_args()
@@ -166,6 +167,10 @@ def main():
     audio = Path(a.project).resolve() / "audio"
     tl_path = audio / f"timeline.{a.lang}.json" if a.lang else audio / "timeline.json"
     tl = json.loads(tl_path.read_text(encoding="utf-8"))
+    sys.path.insert(0, str(Path(__file__).resolve().parent)); import timeline_lint
+    if (lint := timeline_lint.lint(tl, a.lang or tl.get("lang"))) and not a.skip_lint:   # captions take their times from the words
+        sys.exit(f"captions: {tl_path.name} has {len(lint)} problem(s), so the captions would be timed wrong:\n" + timeline_lint.report(lint)
+                 + "\nfix the timeline (bin/vh tts again, or by hand), or pass --skip-lint to time the captions anyway")
     items = [{"id": s["id"], "start": s["start"], "end": s["end"],
               "zh": wrap_zh(s.get("zh", ""), a.zh_max), "en": wrap_en(s.get("en", ""), a.en_max),
               **({"words": s["words"]} if s.get("words") else {})} for s in tl["segments"]]

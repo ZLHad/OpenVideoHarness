@@ -460,6 +460,7 @@ def main():
     ap.add_argument("--align", default="map", choices=["map", "gemini", "whisper"], help="word times of the new take")
     ap.add_argument("--dry-run", action="store_true", help="measure and print, write nothing")
     ap.add_argument("--restore", action="store_true", help="put the original take and timeline back, remove the .raw files")
+    ap.add_argument("--skip-lint", action="store_true", help="go on even when the timeline fails its checks (tools/audio/timeline_lint.py)")
     a = ap.parse_intermixed_args()                       # the language may come after the flags too
     if a.restore and a.dry_run:
         ap.error("--restore puts files back; --dry-run only measures: use one of them")
@@ -524,6 +525,10 @@ def main():
         src_wav = wav                                     # a new take (or the first run): it becomes the original
         if raw_wav.exists() and not a.dry_run:
             print(f"  {rel(wav)} is a new take: it replaces the old {rel(raw_wav)}")
+    import timeline_lint   # pace measures each line between its word times: a slip there is a wrong tempo
+    if (lint := timeline_lint.lint(tl, a.lang)) and not a.skip_lint:
+        sys.exit(f"pace: the timeline has {len(lint)} problem(s), so the pace of those lines would be measured wrong:\n" + timeline_lint.report(lint)
+                 + "\nfix the timeline (bin/vh tts again, or by hand), or pass --skip-lint to go on anyway")
     if tl.get("grid"):
         sys.exit("the lines sit on a beat grid (bin/vh tts --beats): re-pacing would move them off it; change the pace when synthesizing")
     if tl.get("speakers") or any(s.get("speaker") for s in tl["segments"]):
