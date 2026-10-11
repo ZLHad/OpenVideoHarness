@@ -105,7 +105,7 @@ process.on("exit", unlock);
 const parts = path.join(path.dirname(outFile), `.${path.basename(outFile)}.parts`);
 fs.rmSync(parts, { recursive: true, force: true }); fs.mkdirSync(parts, { recursive: true });
 const encoders = new Set();
-for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig, () => {   // the lock goes on exit; a browser closes with its pipe
+for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig, () => {   // the lock goes on exit; the browsers and their profiles too (tools/textcheck/browser.mjs)
   console.error(`render: stopped (${sig}); the chunks so far are deleted`);
   for (const ff of encoders) ff.kill("SIGKILL");
   fs.rmSync(parts, { recursive: true, force: true });

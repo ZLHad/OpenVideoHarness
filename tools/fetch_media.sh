@@ -5,6 +5,7 @@
 # usage: tools/fetch_media.sh [--force] [word…]      (run from anywhere; words filter the paths, e.g. "04-intro" or "styles")
 # Exit status: 0 when every matching file is in place, 1 when a download or a checksum failed or nothing matched.
 set -uo pipefail
+unset CDPATH   # an exported one could send this relative cd elsewhere (as in bin/vh)
 cd "$(dirname "$0")/.." || exit 1
 BASE=${VH_MEDIA_URL:-https://github.com/ZLHad/OpenVideoHarness/releases/download/media}
 force=0; if [ "${1:-}" = "--force" ]; then force=1; shift; fi

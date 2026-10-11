@@ -11,6 +11,7 @@
 #       bash references/fetch.sh <dir>         只处理一个（dir 是下表第二列，例如 lemo-opuscar）
 #       bash references/fetch.sh --neutralize  不联网，只对已拉取的仓库重新做一遍中和
 set -euo pipefail
+unset CDPATH   # an exported one could send these relative cds elsewhere (as in bin/vh)
 cd "$(dirname "$0")" && mkdir -p repos && cd repos
 ARG=${1:-}
 

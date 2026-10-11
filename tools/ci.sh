@@ -10,6 +10,7 @@
 # doc/CLI mismatch, and a CLI that exited 0 on typos. These checks keep those from coming back.
 # Exit status: the number of failed checks (0 = all passed).
 set -uo pipefail
+unset CDPATH   # an exported one could send this relative cd elsewhere (as in bin/vh)
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 2
 ROOT=$(pwd)
 VH_BASH=${VH_BASH:-bash}
@@ -938,7 +939,7 @@ PY
   # the canvas-film engine's template (engines/canvas-film): two frames draw, each the same PNG drawn first and drawn after
   # the other (12.8 s is inside a page turn); a cue whose word is gone stops it in ready at once, naming the shot and the
   # cue; its reads and captions pass textcheck
-  local c="$ROOT/engines/canvas-film/template" s0 pid left
+  local c="$ROOT/engines/canvas-film/template" s0 pid left seen alive
   a=$(vh frames "$c" --at 4.9,12.8 --out "$t/cf1" 2>&1); rc=$?
   # a machine without the template's CJK faces (the Linux runner) draws in a fallback and says so, which is exit 1; that
   # alone is fine here, as the frames are still compared
@@ -984,10 +985,22 @@ PY
   printf '%s\n' '<!doctype html><title>hang</title><script>window.film = { duration: 2, ready: new Promise(() => {}), frame() {} };</script>' > "$t/hang.html"
   mkdir -p "$t/tmpd"
   TMPDIR="$t/tmpd" "$VH_BASH" "$ROOT/bin/vh" frames "$t/hang.html" --at 1 --out "$t/hang-out" >/dev/null 2>&1 & pid=$!
-  for _ in $(seq 1 60); do ls -d "$t/tmpd"/vh-textcheck-* >/dev/null 2>&1 && break; sleep 0.25; done
-  sleep 1; kill -INT "$pid" 2>/dev/null; wait "$pid"; rc=$?
-  left=$(ls -d "$t/tmpd"/vh-textcheck-* 2>/dev/null | wc -l | tr -d ' ')
-  [ "$rc" = 130 ] && [ "$left" = 0 ] && ok "frames stopped with Ctrl-C ends (exit 130) and leaves no browser profile behind" || bad "frames after Ctrl-C: exit $rc, $left profile folder(s) left"
+  for _ in $(seq 1 120); do ls -d "$t/tmpd"/vh-textcheck-* >/dev/null 2>&1 && break; sleep 0.25; done
+  seen=$(ls -d "$t/tmpd"/vh-textcheck-* 2>/dev/null | wc -l | tr -d ' ')   # a browser was up: otherwise this tests nothing
+  sleep 1; kill -INT "$pid" 2>/dev/null; wait "$pid"; rc=$?; sleep 1
+  left=$(ls -d "$t/tmpd"/vh-textcheck-* 2>/dev/null | wc -l | tr -d ' '); alive=$(pgrep -f "$t/tmpd" | wc -l | tr -d ' ')
+  [ "$seen" -ge 1 ] && [ "$rc" = 130 ] && [ "$left" = 0 ] && [ "$alive" = 0 ] && ok "frames stopped with Ctrl-C ends (exit 130), leaving no browser profile and no Chrome behind" \
+    || bad "frames after Ctrl-C: a browser seen $seen, exit $rc, $left profile folder(s) and $alive Chrome process(es) left"
+  pkill -KILL -f "$t/tmpd" 2>/dev/null
+  # Ctrl-C after the last browser closed (determinism comparing its frames, synchronous work): the process ends at once,
+  # not after the comparisons (a signal listener left in place would hold the signal until the event loop turned again)
+  printf '%s\n' '<!doctype html><canvas id="c" width="64" height="36"></canvas><script>const x = document.getElementById("c").getContext("2d");' \
+    'window.film = { duration: 2, frame(t) { x.fillStyle = `rgb(${Math.floor(Math.random() * 255)},90,${Math.floor(t * 100)})`; x.fillRect(0, 0, 64, 36); } };</script>' > "$t/rnd.html"
+  "$VH_BASH" "$ROOT/bin/vh" determinism "$t/rnd.html" --at "$(seq -s, 0.02 0.02 1.9 | sed 's/,$//')" --out "$t/rnd-out" >/dev/null 2>&1 & pid=$!
+  seen=0; for _ in $(seq 1 600); do if pgrep -P "$pid" -f psnr >/dev/null 2>&1; then seen=1; break; fi; kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  if [ $seen = 1 ]; then kill -INT "$pid" 2>/dev/null; wait "$pid"; rc=$?
+    [ "$rc" = 130 ] && ok "determinism stopped with Ctrl-C while comparing ends at once (exit 130)" || bad "determinism after Ctrl-C while comparing: exit $rc (it went on)"
+  else wait "$pid" 2>/dev/null; skip "Ctrl-C while determinism compares" "the comparisons were not caught running"; fi
   rm -rf "$t"
 }
 

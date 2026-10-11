@@ -507,7 +507,7 @@ def main():
                                  epilog="data-read and data-pace marks, compositions and --budget: the top of tools/readcheck.py.")
     ap.add_argument("path", type=Path, nargs="?", help="a texts.json, a project folder (its audio/captions.json) or a composition .html")
     ap.add_argument("--pace", choices=tuple(PACES), help="the film's reading pace (default: the BRIEF's Pace line, else normal)")
-    ap.add_argument("--mode", choices=("onscreen", "label", "subtitle"), help="the rule for texts without a data-read mark (default onscreen)")
+    ap.add_argument("--mode", choices=("onscreen", "label", "subtitle"), help="the rule for texts without a data-read mark (default onscreen; caption items from bin/vh captions: subtitle)")
     ap.add_argument("--budget", type=float, metavar="SECONDS", help="how many characters fit in a span of this length")
     ap.add_argument("--export", action="store_true", help="write the composition's timed text as JSON (to --out, default "
                     "<project>/texts.json) instead of checking it")
@@ -565,7 +565,8 @@ def main():
     if not todo:
         print(f"readcheck: NOT CHECKED — no text found in {path}{' (left out: ' + note + ')' if note else ''}. This is not a pass.", file=sys.stderr); sys.exit(2)
 
-    if not explicit and all(t[4] == "subtitle" for t in todo):
+    caption = lambda it: "text" not in it and any(k in it for k in ("zh", "en")) and it.get("read") in (None, "")
+    if not explicit and all(caption(it) for it in items):
         a.mode = "subtitle"   # captions only (a project's audio/captions.json): the subtitle rule is the run's
     count, lw = Counter(), min(14, max(8, max(len(t[0]) for t in todo)))
     own = Counter(t[4] for t in todo if t[4] and t[4] != a.mode)   # texts whose own mark differs from the run's rule
