@@ -11,7 +11,9 @@
 //   --at 1.2,3.4        the frames at these seconds (to the millisecond)
 //   --range 2:4[:0.5]   every 0.5 s (default 1 s) from 2 s to 4 s, the end left out when it is the film's end
 //   --strip 2:2.5       every frame (--fps, default 30) from 2 s up to 2.5 s, and one picture of them all
-//                       (--cols per row, each --cell px wide), left to right, top to bottom
+//                       (--cols per row, each --cell px wide), left to right, top to bottom. When a falls on a frame,
+//                       each is drawn at k / fps exactly, the t bin/vh render draws (an engine that floors t would
+//                       draw another picture at a t rounded to the millisecond)
 //   --size 1080x1920    the viewport; without it, HyperFrames' data-width and data-height, else the page's meta viewport,
 //                       else 1920x1080. A page's window.film.width and height win over all of these
 //   --dpr 2             the device pixel ratio: twice the pixels for a page that sizes its canvas by devicePixelRatio, as
@@ -75,7 +77,10 @@ if (strip && (strip.length !== 2 || strip[1] <= strip[0])) bail("--strip a:b, b 
 
 let times = at ? [...new Set(at)] : null;
 if (range) { const step = range[2] || 1; times = []; for (let k = 0; range[0] + k * step <= range[1] + 1e-9; k++) times.push(r3(range[0] + k * step)); }
-if (strip) { const n = Math.max(1, Math.round((strip[1] - strip[0]) * o.fps)); times = Array.from({ length: n }, (_, k) => r3(strip[0] + k / o.fps)); }
+if (strip) {   // on render's frame grid when the strip starts on it: t = k / fps, not rounded
+  const n = Math.max(1, Math.round((strip[1] - strip[0]) * o.fps)), f0 = strip[0] * o.fps, on = Math.abs(f0 - Math.round(f0)) < 1e-6;
+  times = Array.from({ length: n }, (_, k) => (on ? (Math.round(f0) + k) / o.fps : strip[0] + k / o.fps));
+}
 if (times.length > 2000) bail(`${times.length} frames is a render, not a check: use a shorter span`);
 
 const watchdog = setTimeout(() => finish(2, `stopped after ${o.timeout} s (--timeout); a frame function that never returns?`), o.timeout * 1000);
@@ -96,6 +101,7 @@ if (bad.length) await die(`${bad.join(", ")} s: outside the film (0 up to ${film
 
 const readers = new Map(), written = [];
 const name = (t) => `${stem}-t${t.toFixed(3).padStart(8, "0")}.png`;
+const at3 = (t) => +t.toFixed(3);   // a strip's t is k / fps exactly; messages show it to the millisecond
 const stripDir = strip ? path.join(outDir, `${stem}-strip-${strip[0]}-${strip[1]}`) : null;
 if (stripDir) { fs.rmSync(stripDir, { recursive: true, force: true }); fs.mkdirSync(stripDir); }
 for (const t of times) {
@@ -108,9 +114,9 @@ for (const t of times) {
     // Math.random only: libraries read the other clocks themselves (HyperFrames' runtime reads Date while it seeks)
     if (touched.includes("Math.random")) readers.set("Math.random", [...(readers.get("Math.random") || []), t]);
     const later = film.problems();
-    if (later.length) { failed++; console.log(`  t=${t} s: ${later.join(" | ")}`); }
+    if (later.length) { failed++; console.log(`  t=${at3(t)} s: ${later.join(" | ")}`); }
     if (!stripDir) console.log(`  ${rel(f)}  (${Date.now() - t0} ms)`);
-  } catch (e) { failed++; console.log(`  t=${t} s: ${e.message}`); }
+  } catch (e) { failed++; console.log(`  t=${at3(t)} s: ${e.message}`); }
 }
 const late = await film.lateProblems();
 if (late.length) { failed++; console.log(`  just after the last frame (an error a frame left behind, charged to no frame): ${late.join(" | ")}`); }
@@ -122,7 +128,7 @@ if (stripDir && written.length) {
   else console.log(`  ${rel(pic)}: ${written.length} frames at ${o.fps} fps, ${strip[0]}–${strip[1]} s, ${cols} a row (the frames are in ${rel(stripDir)}/)`);
 }
 for (const [c, ts] of readers) {
-  console.log(`  warning: the page read ${c} while drawing (${ts.length} frame${ts.length > 1 ? "s" : ""}, first at ${ts[0]} s). Hard rule 1: take ` +
+  console.log(`  warning: the page read ${c} while drawing (${ts.length} frame${ts.length > 1 ? "s" : ""}, first at ${at3(ts[0])} s). Hard rule 1: take ` +
     `randomness from a seeded hash; here the host held it at t, so the frames still agree, but a renderer that does not will not.`);
 }
 console.log(`frames: ${written.length} of ${times.length} drawn${failed ? `, ${failed} problem${failed > 1 ? "s" : ""}` : ""}`);
