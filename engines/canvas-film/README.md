@@ -30,6 +30,8 @@ bin/vh frames projects/<date>-<slug> --at 1,5,9    # 模板自带一支 22 秒�
 
 示例片的 `src/50-shots.js` 和 `audio/timeline.zh.json` 是成对的，开工时两样一起换掉：写 `audio/script.txt`（每行 `@id 一句旁白`），跑 `bin/vh tts`，再照着新的 id 写镜头。
 
+设定都在 `src/00-core.js` 开头的 `FILM` 里，每项一行注释（语言、旁白前后留多久、字号下限、字幕、颗粒、片头片尾的淡入淡出、界面颜色、图片）；这支片子要改的，在 `src/50-shots.js` 里用 `Object.assign(FILM, {…})` 改。
+
 ## 时间：挂在旁白的字上
 
 `bin/vh tts` 写出的 `audio/timeline.<lang>.json` 里，每句有 id、起止时间，对齐过的还有每个字的时间（`--align gemini`）。引擎把它整体后移 `FILM.lead` 秒（旁白在片子里开口的时刻；混音时配音也放在这里），片长是 `lead + 时间轴长度 + FILM.tail`。
