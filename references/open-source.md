@@ -40,7 +40,7 @@ ClaudeAnimationBase 在 `engines/` 下，依赖已装好。清单里的其他项
 | [charmbracelet/vhs](https://github.com/charmbracelet/vhs) | 用脚本录终端 GIF/MP4 | 21.0k / 2026-09 | MIT | A | CLI 工具演示 |
 | [OpenCut-app/OpenCut](https://github.com/OpenCut-app/OpenCut) | 开源 CapCut 替代，GUI 剪辑器 | 90.8k / 2026-09 | MIT | C | 手动精修 |
 | [openfilm/openfilm](https://github.com/openfilm/openfilm) | 视频即网页：`film.html` 把页面（`window.film.frame(t)`）、素材和声音按轨道剪在一起；`look` 检查、`render` 出片；本地剪辑器 Studio 和带聊天的桌面版。加一小段包装就能打开我们的片子，见 `docs/proposals/01-client-and-workflow.md` | 未查 / 2026-10 | MIT（名称和 Logo 是商标） | A，跨进程的确定性未量（见提案 2.4） | 人工精修、给片子加剪辑器 |
-| [alchaincyf/huashu-art-motion](https://github.com/alchaincyf/huashu-art-motion) | 艺术动画 skill：Canvas 引擎（每帧是 t 的函数，随机带种子），每种风格是一个可运行的场景文件加一张配方卡，共用一套渲染器库；另有 9 种解说语法、qa（确定性、运动、静止帧对、跳变、每帧耗时）和 breakdown（拆参考片）脚本。见 `references/community-skills.md` 第 8 节 | 3.3k / 2026-10 | MIT（作者的卡通形象和角色帧、Clawd 形象除外） | A | 艺术史、名画、绘画质感；解说语法 |
+| [alchaincyf/huashu-art-motion](https://github.com/alchaincyf/huashu-art-motion) | 艺术动画 skill：Canvas 引擎（按作者的文档，每帧是 t 的函数、随机带种子），每种风格是一个可运行的场景文件加一张配方卡，共用一套渲染器库；另有 9 种解说语法、qa（确定性、运动、静止帧对、跳变、每帧耗时）和 breakdown（拆参考片）脚本。见 `references/community-skills.md` 第 8 节 | 3.3k / 2026-10 | MIT（作者的卡通形象和角色帧、Clawd 形象除外） | A，按作者的文档；qa.py 的确定性检查没自己跑过 | 艺术史、名画、绘画质感；解说语法 |
 
 已被取代：editly、ffmpeg-python、theatre.js、timecut、FFCreator（均 [停更]）。
 

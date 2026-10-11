@@ -48,7 +48,7 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 | 文档和命令行一致 | `CLAUDE.md` 的命令列表和 `bin/vh` 实际的命令对不上；文档里写了不存在的 `bin/vh` 子命令；`AGENTS.md` 没有同步 |
 | `bin/vh` 冒烟测试 | 打错命令也返回 0；`--effort`、`--style` 没写进项目；字幕语言被文件夹名带偏（`/home/zhang/…` 下的英文字幕被标成中文）；音频比画面短时被截断；gif 输出名算错 |
 
-另外，`tools/ci.sh` 会打印一张读量表（`tools/readpath.py`）：按 CLAUDE.md 的路由，估算每一档、每一类片子开工前要读多少字符。它只打印、不判失败，用来看文档有没有越写越长；上限以后再定。
+另外，`tools/ci.sh` 会打印一张读量表（`tools/readpath.py`）：按 CLAUDE.md 的路由和 quick 卡，估算每一档、每一类片子开工前要读多少字符，用来看文档有没有越写越长，上限以后再定。数字本身不判失败；它要数的文件或章节不见了，CI 会报错，免得这张表悄悄变小。
 
 ## 在 GitHub 上启用规则集
 

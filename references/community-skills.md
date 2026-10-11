@@ -325,7 +325,7 @@ lemomo-ai/lemo-opuscar（605⭐，2026-09-30）是作者 Lemomo（X 上是 @lemo
 | Battle-of-Austerlitz-Film | 没有 LICENSE，README 也没提 | — | 成片、混音和字体未拉取 | 只读 |
 | openfilm | MIT（v0.1.4，`6dee7cd`）；名称和 Logo 是商标（`TRADEMARK.md`） | 可复用，保留声明 | Studio 打包的 Inter（OFL）、React（MIT）、Lucide（ISC）见 `THIRD_PARTY_NOTICES.md` | 可复用；改过的版本发布出去不能叫 OpenFilm |
 | openfilm-examples | MIT（`82ce375`） | 可复用，保留声明 | 自制的歌曲、旁白、画面同为 MIT；字体 OFL；`one-prompt/src/px/` 改编自 mexicat/pdoom-video（MIT）；逐项见各例子的 `CREDITS.md` | 可复用（保留声明） |
-| huashu-art-motion | MIT（核对到 `9ff5933`，2026-10-10）。README"许可证"一节列了例外：笔顺数据 `scripts/engine/reference_films/spacex/spacex_wb/assets/strokes.js` 是 Arphic Public License（README 里写的是相对 `scripts/engine/` 的路径），`scripts/engine/lib/fonts/` 的字体是 OFL | 可复用，保留声明 | 作者的卡通形象和角色帧（`scripts/engine/demos/_shared/hero/`、`scripts/engine/demos/long_scroll/frames/`、`assets/角色/`），以及总览图、示范视频里的同一形象，只用于它自己的示范，不在 MIT 内；Clawd 是 Anthropic 的吉祥物，同人示范的 GIF 和成片同样不在 MIT 内；片中画作来自大都会艺术博物馆开放获取（CC0） | 代码和文字可复用（保留声明）；角色形象、Clawd 和示范视频不用 |
+| huashu-art-motion | MIT（核对到 `9ff5933`，2026-10-10）。README"许可证"一节列了例外：笔顺数据 `scripts/engine/reference_films/spacex/spacex_wb/assets/strokes.js` 是 Arphic Public License（README 里写的是相对 `scripts/engine/` 的路径），`scripts/engine/lib/fonts/` 的字体是 OFL | 可复用，保留声明 | 作者的卡通形象和角色帧（`scripts/engine/demos/_shared/hero/`、`scripts/engine/demos/long_scroll/frames/`、`assets/角色/`），以及总览图、示范视频里的同一形象，只用于它自己的示范，不在 MIT 内；Clawd 是 Anthropic 的吉祥物，同人示范的 GIF 和成片同样不在 MIT 内；片中画作来自大都会艺术博物馆开放获取（CC0） | 代码和文字可复用（保留声明）；笔顺数据和字体按各自的许可用，保留许可文本；角色形象、Clawd 和示范视频不用 |
 | huashu-design | MIT（2026-05-14 起；更早的版本是"个人免费、企业商用要授权"；核对到 `0830494`，2026-09-22） | 可复用，保留声明 | `assets/` 里的背景音乐和 `demos/` 的媒体没逐个核对 | 可复用（保留声明）；媒体用之前单独核对 |
 
 ---
@@ -403,11 +403,11 @@ athemeroy/awesome-opus-5-5-videos 是一份带来源的研究型目录：从 X �
 最值得读的几处（路径相对 `references/repos/`；标【未细读】的只看过文件名或别处的一句介绍）：
 
 - `huashu-art-motion/references/08-风格作者规范.md`：一个风格段等于 `scenes/<id>.js` 加一张配方卡，接口是 `draw(c, lt, t)`；硬要求八条（构图、角色也过风格的材料处理、画要活、不闪不卡、确定性、每帧不超过 150 ms、字形先验证、做旧不上身），自检四问，交付两样；有参考片和没有参考片时各怎么起步。派 agent 并行做风格时，给的就是这一页；
-- `huashu-art-motion/references/风格配方/`：每种风格一张卡（管线、关键参数和色值、母题动画、签名转场、性能、坑、仍可改进）；
+- `huashu-art-motion/references/风格配方/`：每种风格一张卡。08 号文档要求卡里写管线、关键参数和色值、母题动画、签名转场、性能、坑、仍可改进，实际各张卡的栏目不尽相同（大多有管线、母题、坑）。`风格配方/INDEX.md` 给 35 种风格各标了"质量"（★ 到 ★★★）和"当前短板"；
 - `huashu-art-motion/references/动画语法/`：9 种解说语法：`t1_3b1b`、`t2_keynote_ui`、`t3_finance_chart`、`y1_kurzgesagt`、`y2_vox`、`y3_whiteboard`、`y4_storytime`、`y5_kinetic_type`、`y6_presenter_explainer`【未细读】；
 - `huashu-art-motion/references/04-纯代码绘制.md`：管线、渲染器速查和坑（08 号文档要求先读它）【未细读】；
 - `huashu-art-motion/scripts/qa.py`：按 08 号文档的说法，量运动、静止帧对、跳变、每帧耗时和确定性；`scripts/analyze/breakdown.py`：把参考片拆成参考帧、运动热图和转场接触表【都未细读】；
 - `huashu-design/references/brand-asset-protocol.md`：品牌资产协议（先把真实的 logo、界面、产品图取齐，再动手设计）【未细读】；
 - `huashu-design/references/animation-pitfalls.md`、`verification.md`、`ai-video-review.md`：动画的坑、出片前自查、用视频模型看片【都未细读】。
 
-能借什么：art-motion 的作者规范和"仍可改进"一栏（承认每种风格现在做到哪），以及 qa 的运动指标；huashu-design 的"先取齐真实素材再设计"。读到的东西要用进本仓库时，照本仓库的规矩改写，注明来源；代码不直接搬，作者的角色形象不碰。
+能借什么：art-motion 的作者规范，INDEX.md 里每种风格的"质量"和"当前短板"两栏（承认每种风格现在做到哪），以及 qa 的运动指标；huashu-design 的"先取齐真实素材再设计"。读到的东西要用进本仓库时，照本仓库的规矩改写，注明来源；代码不直接搬，作者的角色形象不碰。
