@@ -279,7 +279,7 @@ async function setup() {
   outC = document.getElementById('out'); outX = outC.getContext('2d');
   await document.fonts.load('100px "Permanent Marker"');
   window.ready = true;
-  if (!location.search.includes('render')) devUI();
+  if (!location.search.includes('render') && !window.filmHost) devUI();
 }
 function draw() {
   if (!window.ready) return;
@@ -299,6 +299,19 @@ function composite(t) {
   c.globalCompositeOperation = 'source-over';
 }
 window.renderAt = async (t, type = 'image/png', q = .92) => { T = t; await redraw(); composite(t); return outC.toDataURL(type, q); };
+// The page contract (engines/CONTRACT.md): bin/vh frames, textcheck and other hosts draw any t through window.film. A host
+// sets window.filmHost before the page runs; then the page shows only the picture, at its size, and no dev UI.
+window.film = {
+  get duration() { return window.LOOP ? window.LOOP.len : DUR; }, width: W, height: H,
+  ready: () => new Promise(ok => { const wait = () => (window.ready ? ok() : setTimeout(wait, 20)); wait(); }),
+  async frame(t) { T = t; await redraw(); composite(t); },
+};
+if (window.filmHost) {
+  const st = document.createElement('style');
+  st.textContent = 'html,body{margin:0!important;overflow:hidden!important} main{padding:0!important;display:block!important} .bar{display:none!important}' +
+    ` #out{position:fixed!important;left:0;top:0;width:${W}px!important;height:${H}px!important;aspect-ratio:auto!important}`;
+  document.head.appendChild(st);
+}
 // Contact sheet of several times, for visual checks: returns { url, ms[] }. crop = [x, y, w, h] fills each cell with just
 // that region of the frame, at full resolution (for checking faces, hands and contacts up close). at = [x, y, w, h]
 // instead crops w × h around the WORLD point (x, y), wherever each frame's camera put it (a foot, a splash, a prop on

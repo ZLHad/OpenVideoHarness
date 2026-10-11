@@ -2,7 +2,11 @@
 
 usage (via bin/vh pace): python tools/audio/pace.py <project> [zh|en] [--ref ID[-ID] | --target N] [--strength 0.8]
                                                  [--clamp 0.92,1.18] [--tolerance 0.05] [--pause 0.26] [--extra id=s,…]
-                                                 [--align map|gemini|whisper] [--dry-run] [--restore]
+                                                 [--align map|gemini|whisper] [--dry-run] [--restore] [--skip-lint]
+
+A timeline that fails bin/vh timeline (tools/audio/timeline_lint.py) is refused, since each line's pace is measured
+between its word times: --skip-lint goes on, and passes it to the captions it redoes. --restore never stops on one:
+it puts the original take back, warns, and redoes the captions anyway.
 
 Optional and gentle: lines in a take are meant to differ in pace, and nothing needs doing when the take sounds fine.
 When it audibly runs fast and slow (a one-request take, --join all, often does), this moves each line part of the way
@@ -460,6 +464,7 @@ def main():
     ap.add_argument("--align", default="map", choices=["map", "gemini", "whisper"], help="word times of the new take")
     ap.add_argument("--dry-run", action="store_true", help="measure and print, write nothing")
     ap.add_argument("--restore", action="store_true", help="put the original take and timeline back, remove the .raw files")
+    ap.add_argument("--skip-lint", action="store_true", help="go on even when the timeline fails its checks (tools/audio/timeline_lint.py)")
     a = ap.parse_intermixed_args()                       # the language may come after the flags too
     if a.restore and a.dry_run:
         ap.error("--restore puts files back; --dry-run only measures: use one of them")
@@ -487,9 +492,10 @@ def main():
     copies = latest.exists() and json.loads(latest.read_text(encoding="utf-8")).get("lang") == a.lang   # tts's copies of this run
     rel = lambda p: p.relative_to(proj)
 
-    def captions(old):
+    def captions(old, skip_lint=False):
         sys.stdout.flush()
-        r = subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "captions.py"), str(proj), "--lang", a.lang])
+        r = subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "captions.py"), str(proj), "--lang", a.lang]
+                           + (["--skip-lint"] if skip_lint or a.skip_lint else []))
         narrow = [c for c in old if len(c.get("zh") or []) > 1 and sum(0.5 if ord(ch) < 128 else 1 for ch in "".join(c["zh"])) <= 16]
         if narrow:                                        # two lines that fit one at the default width: wrapped narrower before
             w = max(sum(0.5 if ord(ch) < 128 else 1 for ch in line) for c in old for line in c.get("zh") or [])
@@ -509,7 +515,11 @@ def main():
         if copies:
             shutil.copyfile(tlp, latest); shutil.copyfile(wav, audio / "voiceover.wav")
         print(f"restored the original take: {rel(wav)}, {rel(tlp)}")
-        sys.exit(captions(old_caps))
+        import timeline_lint   # undoing must not stop on a lint: the original take comes back as it was, captions too
+        if lint := timeline_lint.lint(json.loads(tlp.read_text(encoding="utf-8")), a.lang):
+            print(f"  warning: the restored timeline has {len(lint)} problem(s) (bin/vh timeline); the captions are timed anyway:\n"
+                  + timeline_lint.report(lint, "    "))
+        sys.exit(captions(old_caps, skip_lint=True))
     if not (wav.exists() and tlp.exists()):
         sys.exit(f"no {rel(wav)} / {rel(tlp)}: make the narration with bin/vh tts first")
     tl = json.loads(tlp.read_text(encoding="utf-8"))
@@ -524,6 +534,10 @@ def main():
         src_wav = wav                                     # a new take (or the first run): it becomes the original
         if raw_wav.exists() and not a.dry_run:
             print(f"  {rel(wav)} is a new take: it replaces the old {rel(raw_wav)}")
+    import timeline_lint   # pace measures each line between its word times: a slip there is a wrong tempo
+    if (lint := timeline_lint.lint(tl, a.lang)) and not a.skip_lint:
+        sys.exit(f"pace: the timeline has {len(lint)} problem(s), so the pace of those lines would be measured wrong:\n" + timeline_lint.report(lint)
+                 + "\nfix the timeline (bin/vh tts again, or by hand), or pass --skip-lint to go on anyway")
     if tl.get("grid"):
         sys.exit("the lines sit on a beat grid (bin/vh tts --beats): re-pacing would move them off it; change the pace when synthesizing")
     if tl.get("speakers") or any(s.get("speaker") for s in tl["segments"]):

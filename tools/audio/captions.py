@@ -1,6 +1,7 @@
 """Captions from a TTS timeline → SRT (zh / en / bilingual) + captions.json for engines.
 
 usage (via bin/vh captions): python tools/audio/captions.py <project_dir> [--lang zh|en] [--zh-max 16] [--en-max 42] [--media-end S]
+                                                            [--skip-lint]
 
 Reads audio/timeline.<lang>.json (or audio/timeline.json) written by bin/vh tts. Writes into <project>/audio/:
   captions.zh.srt, captions.en.srt (when that side exists), captions.bi.srt (zh line + en line) and
@@ -20,6 +21,8 @@ Minimum duration: a caption shorter than the subtitle floor (readcheck.SUB_FLOOR
   Every file above carries the extended end (the .lines.srt too: its last line ends with the caption), and captions.json
   keeps the spoken end as "speech_end" on the items it moved. A caption the gap cannot lengthen to 1.8 s is listed on
   stdout (bin/vh readcheck <project> --mode subtitle fails it too). The timeline itself is not touched.
+A timeline that fails bin/vh timeline (tools/audio/timeline_lint.py: lines out of order, word times out of place, words
+  that do not spell the line) is refused, exit 1, since the captions take their times from it: --skip-lint goes on.
 """
 import argparse, json, math, re, subprocess, sys
 from pathlib import Path
@@ -158,6 +161,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("project"); ap.add_argument("--lang"); ap.add_argument("--zh-max", type=int, default=16)
     ap.add_argument("--en-max", type=int, default=42)
+    ap.add_argument("--skip-lint", action="store_true", help="go on even when the timeline fails its checks (tools/audio/timeline_lint.py)")
     ap.add_argument("--media-end", type=float, metavar="S", help="the length of the picture in seconds, the limit for lengthening a caption "
                     "(default: index.html's data-duration, else media/final.mp4, else the timeline's duration)")
     a = ap.parse_args()
@@ -166,6 +170,10 @@ def main():
     audio = Path(a.project).resolve() / "audio"
     tl_path = audio / f"timeline.{a.lang}.json" if a.lang else audio / "timeline.json"
     tl = json.loads(tl_path.read_text(encoding="utf-8"))
+    sys.path.insert(0, str(Path(__file__).resolve().parent)); import timeline_lint
+    if (lint := timeline_lint.lint(tl, a.lang or tl.get("lang"))) and not a.skip_lint:   # captions take their times from the words
+        sys.exit(f"captions: {tl_path.name} has {len(lint)} problem(s), so the captions would be timed wrong:\n" + timeline_lint.report(lint)
+                 + "\nfix the timeline (bin/vh tts again, or by hand), or pass --skip-lint to time the captions anyway")
     items = [{"id": s["id"], "start": s["start"], "end": s["end"],
               "zh": wrap_zh(s.get("zh", ""), a.zh_max), "en": wrap_en(s.get("en", ""), a.en_max),
               **({"words": s["words"]} if s.get("words") else {})} for s in tl["segments"]]

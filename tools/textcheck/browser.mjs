@@ -19,7 +19,7 @@ export async function launch(exe, flags = []) {
   proc.stderr.on("data", (d) => { stderr = (stderr + d).slice(-4000); });
   const out = proc.stdio[3], inp = proc.stdio[4];
   const pending = new Map(), waiters = [], listeners = [];
-  let buf = Buffer.alloc(0), id = 0, dead = null, started = false;
+  let chunks = [], id = 0, dead = null, started = false;
   // a browser that exits or crashes fails every call still waiting, so nothing hangs until the watchdog
   const gone = (why) => {
     if (dead) return;
@@ -35,11 +35,14 @@ export async function launch(exe, flags = []) {
   });
   out.on("error", (e) => gone(e.code || "pipe error"));
   inp.on("error", (e) => gone(e.code || "pipe error"));
+  // a message ends at a NUL and can span 150+ chunks of 64 KB (a 4K PNG screenshot is 10 MB of base64): the chunks of
+  // the one still arriving wait in a list and only each new chunk is searched, so a message is copied once, not per chunk
   inp.on("data", (d) => {
-    buf = Buffer.concat([buf, d]);
-    for (let i; (i = buf.indexOf(0)) >= 0;) {
-      const m = JSON.parse(buf.subarray(0, i).toString("utf8"));
-      buf = buf.subarray(i + 1);
+    let from = 0;
+    for (let i; (i = d.indexOf(0, from)) >= 0; from = i + 1) {
+      chunks.push(d.subarray(from, i));
+      const m = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      chunks = [];
       if (m.id !== undefined && pending.has(m.id)) {
         const p = pending.get(m.id); pending.delete(m.id);
         if (m.error) p.reject(new Error(`${p.method}: ${m.error.message}${m.error.data ? " (" + m.error.data + ")" : ""}`)); else p.resolve(m.result);
@@ -48,6 +51,7 @@ export async function launch(exe, flags = []) {
         for (const l of listeners) if (l.method === m.method) l.fn(m.params);
       }
     }
+    if (from < d.length) chunks.push(d.subarray(from));
   });
   const send = (method, params = {}, sessionId) => new Promise((resolve, reject) => {
     if (dead) return reject(dead);

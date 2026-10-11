@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=320, height=180">
+<style>html, body { margin: 0; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="320" height="180"></canvas>
+<script>
+  // bin/vh frames' fixture (tools/ci.sh): a page that writes the contract (engines/CONTRACT.md) and breaks hard rule 1
+  // on purpose: a speck at a Math.random() place. The host's clock holds Math.random at t, so the same t still draws the
+  // same frame whatever came before, and the host says the page read it.
+  const c = document.getElementById("c"), x = c.getContext("2d");
+  window.film = {
+    duration: 3,
+    // a method that needs `this`, as OpenFilm's spec allows: the host must call it as film.ready()
+    ready() { return this.load(); },
+    load() { return document.fonts.ready; },
+    frame(t) {
+      x.fillStyle = `hsl(${Math.round(t * 120)}, 60%, 30%)`; x.fillRect(0, 0, 320, 180);
+      x.fillStyle = "#fff"; x.fillRect(Math.floor(Math.random() * 300), 20, 8, 8);
+      x.fillStyle = "#fc0"; x.fillRect(20 + t * 80, 90, 40, 40);
+    },
+  };
+</script>
+</body>
+</html>
