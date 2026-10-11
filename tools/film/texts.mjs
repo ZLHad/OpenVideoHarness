@@ -28,7 +28,8 @@ if (!browser) die("no browser: pass --browser <chrome>, or run it as bin/vh read
 
 let film;
 try { film = await openFilm(target, { browser, runtime: "auto" }); } catch (e) { die(e.message); }
-const texts = await film.list("texts").catch((e) => die(e.message));
+let texts;
+try { texts = await film.list("texts"); } catch (e) { await film.close(); die(e.message); }
 const late = film.loadProblems;
 await film.close();
 if (!texts) die(`${film.page} gives no window.film.texts`, 1);

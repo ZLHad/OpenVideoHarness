@@ -53,6 +53,7 @@ const isNum = (x) => typeof x === "number" && Number.isFinite(x);
 function initTimeline(tl, problems) {   // a line without an id or times is a problem (bin/vh timeline checks the rest)
   (Array.isArray(tl.segments) ? tl.segments : []).forEach((s, i) => {
     if (!s || !s.id || !isNum(s.start) || !isNum(s.end)) return problems.push(`timeline line ${i + 1}${s && s.id ? ` (${s.id})` : ""}: no id, start or end`);
+    if (LINES[s.id]) return problems.push(`timeline line ${i + 1}: the id ${s.id} is used twice (a cue on it would mean one of them)`);
     const words = (s.words || []).filter((w) => w && isNum(w.start));
     if (words.length < (s.words || []).length) problems.push(`timeline line ${s.id}: ${(s.words || []).length - words.length} word(s) without a start`);
     LINES[s.id] = { id: s.id, a: s.start + FILM.lead, b: s.end + FILM.lead, text: s.text ?? s.zh ?? s.en ?? "",
@@ -194,15 +195,15 @@ let CAPS = [];   // [{ id, text, start, end, joinPrev?, joinNext? }]
 const STOPS = "。？！?!….", PAUSES = "，、：；,;:", CLOSERS = "”’」』）》)\"'";
 const capWidth = (s) => [...s.replace(/\s/g, "")].reduce((n, c) => n + (/[\x21-\x7e]/.test(c) ? 0.55 : 1), 0);
 // what a caption shows: CJK commas become a space, the punctuation at its end goes (？ and ！ stay)
-const capText = (s) => s.replace(/[，、：；。,;:.]+\s*$/, "").replace(/[，、：；]/g, " ").replace(/\s+/g, " ").trim();
+const capText = (s) => s.replace(/[，、：；。,;:]+\s*$/, "").replace(/(?<!\.)\.\s*$/, "").replace(/[，、：；]/g, " ").replace(/\s+/g, " ").trim();   // "..." stays, as "……" does
 // s cut after each mark of `set`; marks in a row ("……") and the closing quotes after them stay with what they end. A
-// Latin mark ends something only before a space or the end of the text, so 3.5, 1,000 and 12:30 stay whole
+// Latin mark followed by a letter or digit ends nothing, so 3.5, 1,000, 12:30 and Node.js stay whole
 function splitAfter(s, set) {
   const cs = [...s], r = []; let cur = "", end = false;
   cs.forEach((ch, i) => {
     if (end && !set.includes(ch) && !CLOSERS.includes(ch)) { r.push(cur); cur = ""; end = false; }
     cur += ch;
-    if (set.includes(ch) && (!/[.,:;!?]/.test(ch) || i + 1 === cs.length || /\s/.test(cs[i + 1]) || CLOSERS.includes(cs[i + 1]) || set.includes(cs[i + 1]))) end = true;
+    if (set.includes(ch) && !(/[.,:;!?]/.test(ch) && /[A-Za-z0-9]/.test(cs[i + 1] || ""))) end = true;
   });
   if (cur.trim()) r.push(cur);
   return r;

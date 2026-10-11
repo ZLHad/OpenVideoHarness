@@ -486,14 +486,19 @@ for l in rules.splitlines():
 ' "$lvl"
 }
 
-cmd_readcheck() { # a canvas-film project (film.html): its texts exist once the page runs, so they are written first (tools/film/texts.mjs)
-  if [ $# -gt 0 ] && [ -d "$1" ] && [ -f "$1/film.html" ]; then
-    local proj=$1 b; shift
-    b=$(film_browser readcheck) || exit 2
-    node "$ROOT/tools/film/texts.mjs" --browser "$b" "$proj" --out "$proj/out/texts.json" || exit $?
-    set -- "$proj/out/texts.json" "$@"
-  fi
-  python3 "$ROOT/tools/readcheck.py" "$@"
+cmd_readcheck() { # a canvas-film project (film.html, or the folder): its texts exist once the page runs, so they are written
+  # first (tools/film/texts.mjs) and readcheck reads that file in its place
+  local a args=() proj b
+  for a in "$@"; do
+    if [ -z "${proj:-}" ] && { { [ -d "$a" ] && [ -f "$a/film.html" ]; } || [ "$(basename -- "$a")" = film.html ]; }; then
+      proj=$a; [ -d "$a" ] || proj=$(dirname -- "$a")
+      b=$(film_browser readcheck) || exit 2
+      node "$ROOT/tools/film/texts.mjs" --browser "$b" "$proj" --out "$proj/out/texts.json" || exit $?
+      a="$proj/out/texts.json"
+    fi
+    args+=("$a")
+  done
+  python3 "$ROOT/tools/readcheck.py" ${args[@]+"${args[@]}"}
 }
 hf_shell() { # the chrome-headless-shell binary itself (hf_chrome prints its version folder)
   local p; p=$(hf_chrome) || return 1
