@@ -193,6 +193,19 @@ PY
       && ! grep -q '^+ TYPE:' "$dir/BRIEF.md" && ok "bin/vh new names the type doc and keeps the type marker" || bad "bin/vh new: Type doc line or type marker missing"
     rm -rf "$dir"
   else bad "bin/vh new math"; fi
+  # --engine canvas-film: the canvas engine's template instead of the type's engine (nothing to install), 16:9 for any type
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  if vh new short cf --engine canvas-film --dir "$t" >/dev/null; then
+    dir=$(ls -d "$t"/*-cf)
+    [ -f "$dir/film.html" ] && [ -f "$dir/src/50-shots.js" ] && [ -f "$dir/audio/timeline.zh.json" ] && [ -f "$dir/ENGINE_README.md" ] && [ ! -e "$dir/index.html" ] \
+      && grep -q '^- Output: 1920x1080,' "$dir/BRIEF.md" && grep -q '^- Engine: canvas-film' "$dir/BRIEF.md" \
+      && ok "bin/vh new --engine canvas-film copies the engine's template at 1920x1080" || bad "bin/vh new --engine canvas-film: the template or the BRIEF's Output and Engine lines are missing"
+  else bad "bin/vh new short --engine canvas-film"; fi
+  vh new short cf2 --engine canvas-film --aspect 9:16 --dir "$t" >/dev/null 2>&1; rc=$?
+  vh new short cf3 --engine no-such --dir "$t" >/dev/null 2>&1; a=$?
+  [ $rc = 1 ] && [ $a = 1 ] && [ -z "$(ls -d "$t"/*-cf2 "$t"/*-cf3 2>/dev/null)" ] && ok "bin/vh new refuses a vertical canvas-film and an unknown --engine" \
+    || bad "bin/vh new --engine: --aspect 9:16 exited $rc, an unknown engine $a"
+  rm -rf "$t"
   # tts picks the uv dependencies from --provider too (a fake uv prints the command instead of running it)
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); printf '#!/bin/sh\necho "$*"\n' > "$t/uv"; chmod +x "$t/uv"
   a=$(PATH="$t:$PATH" vh tts "$t" --provider edge --lang en; PATH="$t:$PATH" vh tts "$t" --provider=dashscope)
@@ -822,8 +835,139 @@ PY
   # without the contract: nothing can be drawn on demand, so exit 2 and say what to add
   sed 's/window.__vh = { draw, texts: TEXTS };//' tools/textcheck/fixture/index.html > "$t/index.html"
   a=$(vh textcheck "$t" --out "$t/out2" 2>&1); rc=$?
-  case "$rc:$a" in 2:*"window.__vh = { draw"*) ok "textcheck without window.__vh.draw exits 2 and names the line to add" ;;
+  case "$rc:$a" in 2:*"window.film = { frame"*) ok "textcheck without the page contract exits 2 and names the line to add" ;;
     *) bad "textcheck without the contract: exit $rc: $(printf '%s' "$a" | tail -c 800)" ;; esac
+  # the same fixture written with the page contract (window.film) instead of window.__vh: the same verdicts
+  sed 's/window.__vh = { draw, texts: TEXTS };/window.film = { frame: draw, duration: 4, texts: TEXTS };/' tools/textcheck/fixture/index.html > "$t/index.html"
+  a=$(vh textcheck "$t" --out "$t/out3" 2>&1); rc=$?
+  if [ $rc = 1 ] && python3 -c "import json, sys; d = json.load(open(sys.argv[1], encoding='utf-8')); s = {r['text']: r['status'] for r in d['reads']}; sys.exit(0 if (s.get('CLEAR'), s.get('COVERED'), s.get('NOWHERE')) == ('ok', 'fail', 'not drawn') else 1)" "$t/out3/textcheck.json"
+  then ok "textcheck reads window.film as it reads window.__vh"; else bad "textcheck with window.film (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
+  rm -rf "$t"
+}
+
+# bin/vh frames (tools/film): frames drawn through the page contract (engines/CONTRACT.md) on its fixtures, with
+# whatever headless Chrome the machine has; the HyperFrames adapter only where its runtime is installed
+film_checks() {
+  local t a rc
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  a=$(vh frames tools/film/fixture --at 0.5,2.5 --out "$t/a" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "frames" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  vh frames tools/film/fixture --at 2.5 --out "$t/b" >/dev/null 2>&1
+  if [ $rc = 0 ] && cmp -s "$t/a/index-t0002.500.png" "$t/b/index-t0002.500.png" && printf '%s' "$a" | grep -q "read Math.random" \
+     && python3 -c "import struct, sys; d = open(sys.argv[1], 'rb').read(); sys.exit(0 if struct.unpack('>II', d[16:24]) == (320, 180) else 1)" "$t/b/index-t0002.500.png"
+  then ok "frames: a page's frame at t is the same after another frame or alone (the clock holds Math.random at t, and says so), at its meta viewport size; ready is called as a method"
+  else bad "frames on its fixture (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
+  a=$(vh frames tools/film/fixture/throws.html --at 1,2.5 --out "$t/c" 2>&1); rc=$?
+  case "$rc:$a" in 1:*"t=2.5 s"*"no picture after 2 s"*) ok "frames: a frame that throws exits 1 and names its t" ;; *) bad "frames on a throwing page: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
+  a=$(vh frames tools/film/fixture/late.html --at 1,2.5 --out "$t/c2" 2>&1); rc=$?
+  case "$rc:$a" in 1:*"a late error"*) ok "frames: an error a frame leaves behind (a timer) still fails the run" ;; *) bad "frames on a late error: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
+  a=$(vh frames tools/film/fixture/loaderr.html --at 1 --out "$t/c3" 2>&1); rc=$?
+  case "$rc:$a" in 1:*"while loading: failed to load missing.png"*) ok "frames: a request that fails while loading fails the run" ;; *) bad "frames on a failed load: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
+  a=$(vh frames tools/film/fixture/nofilm.html --at 1 --out "$t/d" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"no window.film"*) ok "frames: a page without window.film exits 2" ;; *) bad "frames on a page without the contract: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
+  a=$(vh frames tools/film/fixture --at 5 --out "$t/e" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"outside the film"*) ok "frames: a time outside the film exits 2" ;; *) bad "frames outside the film: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
+  if command -v ffmpeg >/dev/null; then
+    a=$(vh frames tools/film/fixture --strip 1:1.5 --fps 10 --out "$t/f" 2>&1); rc=$?
+    if [ $rc = 0 ] && [ -s "$t/f/index-strip-1-1.5.jpg" ] && [ "$(ls "$t/f/index-strip-1-1.5" | wc -l | tr -d ' ')" = 5 ]; then ok "frames --strip: every frame of a span and one picture of them"
+    else bad "frames --strip (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  fi
+  a=$(vh determinism tools/film/fixture --samples 2 --out "$t/g" 2>&1); rc=$?
+  case "$rc:$a" in 0:*"without the host's clock the frames differ"*"holds, every frame identical"*) ok "determinism: a page that reads Math.random holds under the host's clock, and is told it leans on it" ;;
+    *) bad "determinism on its fixture: exit $rc: $(printf '%s' "$a" | tail -c 700)" ;; esac
+  a=$(vh determinism tools/film/fixture/stateful.html --samples 2 --out "$t/h" 2>&1); rc=$?
+  case "$rc:$a" in 1:*"does not hold"*) ok "determinism: a frame that depends on the frames before it does not hold (exit 1)" ;;
+    *) bad "determinism on a stateful page: exit $rc: $(printf '%s' "$a" | tail -c 700)" ;; esac
+  if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
+    a=$(vh render tools/film/fixture --workers 2 --gop 30 --out "$t/r/film.mp4" 2>&1); rc=$?
+    if [ $rc = 0 ] && python3 - "$t/r/film.mp4" <<'PY'
+import json, subprocess, sys
+f = sys.argv[1]
+st = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=nb_frames,width,height,pix_fmt,color_range,color_space",
+                                "-of", "json", f], capture_output=True, text=True).stdout)["streams"][0]
+keys = [l.split(",")[0] for l in subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time,flags", "-of", "csv=p=0", f],
+                                                capture_output=True, text=True).stdout.split() if "K" in l.split(",")[1]]
+side = json.load(open(f + ".render.json"))
+ok = (st["nb_frames"], st["width"], st["height"], st["pix_fmt"], st["color_range"], st["color_space"]) == ("90", 320, 180, "yuv420p", "tv", "bt709")
+ok = ok and [round(float(k), 3) for k in keys] == [0.0, 1.0, 2.0] and side["frames"] == 90 and side["encoder"]["gop"] == 30
+sys.exit(0 if ok else 1)
+PY
+    then ok "render: every frame, BT.709 tv range, a keyframe exactly every --gop frames across the chunks, and how it was made beside it"
+    else bad "render on its fixture (exit $rc): $(printf '%s' "$a" | tail -c 700)"; fi
+    a=$(vh render tools/film/fixture --out "$t/r/film.mp4" 2>&1); rc=$?
+    [ $rc = 0 ] && ok "render: a second render of the same file after the first one ended is not locked out" || bad "render again (exit $rc): $(printf '%s' "$a" | tail -c 400)"
+  fi
+  if node -e 'import("./tools/film/host.mjs").then((m) => process.exit(m.findRuntime(process.cwd()) ? 0 : 1))' 2>/dev/null; then
+    mkdir -p "$t/hf"
+    cat > "$t/hf/index.html" <<'HTML'
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}.clip{position:absolute;inset:0}</style></head>
+<body><div id="root" data-composition-id="main" data-start="0" data-duration="2" data-width="320" data-height="180">
+<div class="clip" data-start="0" data-duration="1" data-track-index="1" style="background:#c33"></div>
+<div class="clip" data-start="1" data-duration="1" data-track-index="1" style="background:#3c3"></div>
+</div></body></html>
+HTML
+    a=$(vh frames "$t/hf" --at 0.5,1.5 --out "$t/hf/out" 2>&1); rc=$?
+    if [ $rc = 0 ] && printf '%s' "$a" | grep -q "HyperFrames runtime" && python3 - "$t/hf/out" <<'PY'
+import sys, zlib, struct
+def first_pixel(f):   # the PNG's first pixel, enough to tell the two clips apart
+    d = open(f, "rb").read(); i = 8; idat = b""
+    while i < len(d):
+        n, kind = struct.unpack(">I4s", d[i:i + 8]); body = d[i + 8:i + 8 + n]; i += 12 + n
+        if kind == b"IHDR": bpp = {2: 3, 6: 4}[body[9]]
+        if kind == b"IDAT": idat += body
+    row = zlib.decompress(idat)
+    return tuple(row[1:1 + bpp][:3])
+a, b = first_pixel(sys.argv[1] + "/index-t0000.500.png"), first_pixel(sys.argv[1] + "/index-t0001.500.png")
+sys.exit(0 if a[0] > 150 and a[1] < 100 and b[1] > 150 and b[0] < 100 else 1)
+PY
+    then ok "frames: a HyperFrames composition without window.film is drawn by its own runtime (clips shown by their data-start)"
+    else bad "frames with the HyperFrames runtime (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  else skip "frames on a HyperFrames composition" "no HyperFrames runtime installed (styles/_swatch: npm ci)"; fi
+  # the canvas-film engine's template (engines/canvas-film): two frames draw, each the same PNG drawn first and drawn after
+  # the other (12.8 s is inside a page turn); a cue whose word is gone stops it in ready at once, naming the shot and the
+  # cue; its reads and captions pass textcheck
+  local c="$ROOT/engines/canvas-film/template" s0
+  a=$(vh frames "$c" --at 4.9,12.8 --out "$t/cf1" 2>&1); rc=$?
+  # a machine without the template's CJK faces (the Linux runner) draws in a fallback and says so, which is exit 1; that
+  # alone is fine here, as the frames are still compared
+  if [ $rc = 1 ] && printf '%s' "$a" | grep -q 'fonts this machine does not have' \
+    && ! printf '%s\n' "$a" | grep -E 'while loading:|^  t=[0-9.]+ s:|just after the last frame' | grep -qv 'fonts this machine does not have'; then rc=0; fi
+  vh frames "$c" --at 12.8,4.9 --out "$t/cf2" >/dev/null 2>&1
+  if [ $rc = 0 ] && cmp -s "$t/cf1/film-t0004.900.png" "$t/cf2/film-t0004.900.png" && cmp -s "$t/cf1/film-t0012.800.png" "$t/cf2/film-t0012.800.png"
+  then ok "canvas-film: the template draws, and a frame is the same PNG drawn first or after another (one inside a transition too)"
+  else bad "canvas-film template frames (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
+  mkdir "$t/cfb" && cp -R "$c/." "$t/cfb/" && sed 's/"@a2:第二张"/"@a2:第三张"/' "$c/src/50-shots.js" > "$t/cfb/src/50-shots.js"
+  s0=$SECONDS; a=$(vh frames "$t/cfb" --at 1 --out "$t/cfb/out" 2>&1); rc=$?
+  case "$rc:$a" in
+    2:*'shot S02 (o.two), cue "@a2:第三张"'*'it now reads'*) if [ $((SECONDS - s0)) -lt 60 ]; then ok "canvas-film: a cue whose word is gone stops it in ready ($((SECONDS - s0)) s), naming the shot, the cue and the line as it reads now"
+      else bad "canvas-film: the broken cue was reported after $((SECONDS - s0)) s, not at once"; fi ;;
+    *) bad "canvas-film with a broken cue: exit $rc: $(printf '%s' "$a" | tail -c 800)" ;;
+  esac
+  a=$(vh textcheck "$c" --out "$t/cftc" 2>&1); rc=$?
+  [ $rc = 0 ] && ok "canvas-film: textcheck passes the template's reads and captions" || bad "textcheck on the canvas-film template (exit $rc): $(printf '%s' "$a" | tail -c 800)"
+  mkdir "$t/cfq" && cp -R "$c/." "$t/cfq/"
+  a=$(vh cues "$t/cfq" --save 2>&1); rc=$?
+  python3 - "$t/cfq/audio/timeline.zh.json" <<'PY'
+import json, sys
+p = sys.argv[1]; tl = json.load(open(p, encoding="utf-8"))
+for s in tl["segments"]:
+    if s["id"] in ("b1", "b2"):   # a new take: the last two lines 0.4 s later
+        s["start"] = round(s["start"] + 0.4, 3); s["end"] = round(s["end"] + 0.4, 3)
+        for w in s.get("words", []): w["start"] = round(w["start"] + 0.4, 3); w["end"] = round(w["end"] + 0.4, 3)
+tl["duration"] = round(tl["duration"] + 0.4, 3)
+json.dump(tl, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+PY
+  b=$(vh cues "$t/cfq" 2>&1); rc2=$?
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && grep -q '"timeline_sha256": "[0-9a-f]\{64\}"' "$t/cfq/out/cues.json" && printf '%s' "$a" | grep -q 'S02.o.one *@a2:第一张' \
+    && printf '%s' "$b" | grep -q 'another take of the narration): 7 moved, 0 new, 0 gone' && printf '%s' "$b" | grep -q 'S03.at .*(+0.400)'
+  then ok "cues: the template's cues in order, saved with the timeline's sha256; a new take says which moved and by how much"
+  else bad "cues on the canvas-film template: exit $rc / $rc2: $(printf '%s' "$a$b" | tail -c 800)"; fi
+  a=$(vh cues "$ROOT/tools/film/fixture/index.html" 2>&1); rc=$?
+  [ $rc = 2 ] && printf '%s' "$a" | grep -q 'gives no window.film.cues' && ok "cues: a page without window.film.cues exits 2 and says so" || bad "cues on a page without cues: exit $rc: $a"
+  mkdir "$t/cfr" && cp -R "$c/." "$t/cfr/"
+  a=$(vh readcheck "$t/cfr" 2>&1); rc=$?
+  if [ $rc = 0 ] && [ -s "$t/cfr/out/texts.json" ] && printf '%s' "$a" | grep -q 'subtitle'; then ok "canvas-film: readcheck <project> judges the page's reads and captions (window.film.texts, written to out/texts.json)"
+  else bad "readcheck on a canvas-film project (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
   rm -rf "$t"
 }
 
@@ -1114,11 +1258,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; desk_checks; textcheck_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; desk_checks; textcheck_checks; film_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; desk_checks; textcheck_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; desk_checks; textcheck_checks; film_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ $fails = 0 ] && ok "all checks passed" || printf '\033[31m%s check(s) failed\033[0m\n' "$fails"
