@@ -1,6 +1,6 @@
 """A cover as it shows in real feeds, and whether its words survive that size.
 
-usage: bin/vh cover-preview <image> [more …] [--text-px N[,M]] [--only bili,douyin,youtube,xhs] [--out PNG]
+usage: bin/vh cover-preview <image> [more …] [--text-px N[,M]] [--only bili,douyin,youtube,xhs] [--out PNG|DIR]
 
 One row per cover. The cover is drawn at the real size of each feed slot, in CSS pixels (points on a phone), cropped
 the way the slot crops it, with the platform's own overlay where it covers the picture (Bilibili's stats bar,
@@ -20,7 +20,8 @@ text's contrast against the pixels around it (WCAG ratio: 4.5 good, 3 the floor 
 a line, and whether an overlay sits on one. It cannot read the words: a picture with lots of fine lines may show a
 box that is not text; --text-px replaces the guess.
 
-Output: --out, else <project>/out/check/cover-preview-<name>.png for a cover inside a project, else
+Output: --out (a .png file, or a folder: an existing one, or a new path that ends in / or has no extension, gets
+cover-preview-<name>.png inside it, <name> being the first image's), else <project>/out/check/cover-preview-<name>.png for a cover inside a project, else
 ./out/check/cover-preview-<name>.png under the current folder. Tiles are 1× CSS size: view the PNG at 100 % to see the
 real size. A transparent cover is flattened onto white (a light feed page) and the output says so. Deterministic.
 """
@@ -157,7 +158,7 @@ def main():
     ap.add_argument("--text-px", default="", help="glyph heights in the cover's pixels, e.g. 96,28 (default: measured)")
     ap.add_argument("--only", default="", help="platforms to show: bili,douyin,youtube,xhs (default all)")
     ap.add_argument("--lang", choices=("zh", "en"), help="labels (default zh)")
-    ap.add_argument("--out")
+    ap.add_argument("--out", help="a .png file, or a folder for cover-preview-<name>.png")
     a = ap.parse_args()
     try:
         text_px = [float(x) for x in a.text_px.split(",") if x.strip()]
@@ -267,8 +268,10 @@ def main():
                           + (f"; lowest contrast {info['contrast']:.1f}:1" if info["contrast"] else ""))
         else:
             report.append(f"{p.name}: no text line found; pass --text-px to check sizes")
-    if a.out:
+    if a.out:   # a folder (an existing one, or a new path that ends in / or has no extension) gets the default name inside it
         out = Path(a.out)
+        if out.is_dir() or (not out.exists() and (a.out.endswith(("/", os.sep)) or not out.suffix)):
+            out = out / f"cover-preview-{paths[0].stem}.png"
     else:   # into the cover's project, else ./out/check/ here: never next to the image (it may sit in the repo's styles/)
         first = paths[0].resolve(); proj = next((q for q in first.parents if (q / "BRIEF.md").exists()), None)
         out = (proj or Path.cwd()) / "out" / "check" / f"cover-preview-{first.stem}.png"

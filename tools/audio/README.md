@@ -201,7 +201,7 @@ MINIMAX_TTS_SPEED=1.25 bin/vh tts projects/<p> minimax - zh --join all --gap 0.3
 
 旋律类音色都走调式的五声音阶：`minor` 用羽调（1 ♭3 4 5 ♭7），`major` 用宫调（1 2 3 5 6）。其他调式（dorian、mixolydian 等）里，layers 和 parts 用同一套和弦根音；调式里有小三度就用羽调，否则用宫调。四种音色共用一个单独的混响（RT60 约 2.8 s），不跟 kick 一起抽吸。每个音符用独立的种子流，所以加减一种音色不会改变其他层的声音。`bin/vh music --example zh` 是一份 D 羽调、84 BPM、约 60 s 的起步谱，两次渲染的 md5 相同，峰值 −1.0 dBFS。
 
-**乐器声部（`parts`）**：`layers` 只有一套合成音色，所以不同风格的配乐听起来都差不多。要真的换一种声音，就在 score 里加 `parts`：每个声部是一件乐器，按一个节奏型演奏，和 `layers` 一起渲染。只写 `layers` 的旧谱子和以前逐字节相同。`bin/vh music --instruments` 列出全部乐器和伴奏型，每个一行，带默认参数；`--example list` 列出起步谱：jazz、waltz、chip、lofi、guqin、trap。
+**乐器声部（`parts`）**：`layers` 只有一套合成音色，所以不同风格的配乐听起来都差不多。要真的换一种声音，就在 score 里加 `parts`：每个声部是一件乐器，按一个节奏型演奏，和 `layers` 一起渲染。加 `parts` 不会改变只写 `layers` 的旧谱子；不过 2026-10-11 起，`layers` 里 kick、clap、hats、arp、taiko、impact 这几个单次音色的结尾各加了 10–50 ms 的淡出（原来还在响就被截断，安静的段落里会有咔嗒），用到它们的旧谱子会有细微差别。`bin/vh music --instruments` 列出全部乐器和伴奏型，每个一行，带默认参数；`--example list` 列出起步谱：jazz、waltz、chip、lofi、guqin、trap。
 
 - **乐器**（纯代码合成，不用采样，详见 `tools/audio/instruments.py`）：
   - 键盘：`piano`（`tone: felt` 是柔和的毡锤钢琴，`pedal` 延音）、`epiano`（Rhodes）、`harpsichord`、`celesta`、`musicbox`、`glockenspiel`、`toypiano`、`organ`（拉杆风琴，`tone: pipe` 是管风琴）；

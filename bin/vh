@@ -388,7 +388,7 @@ PY
 import sys
 p = sys.argv[1]; s = open(p).read()
 note = ("> **本项目用 ClaudeAnimationBase：`ANIMATION_GUIDE.md` 的规则优先于 playbook/03 的运动默认值和 TASTE_CHECKLIST #12。**\n"
-        "> 卡通语域下，预备动作、挤压拉伸、overshoot、表情 take 和踩拍的 idle 动作都是必需的；不写字的影片可以删掉 Type、Text rules 两节。\n"
+        "> 卡通语域下，预备动作、挤压拉伸、overshoot、表情 take 和踩拍的 idle 动作都是必需的；不写字的影片可以删掉 Style 里的 Type 一行和 Text rules 一节。\n"
         "> 成片输出为 `node render.mjs --clip --out=out/final.mp4`（长片用 `--frames` 再 `--encode --out=out/final.mp4`）。\n\n")
 open(p, "w").write(s.replace("# BRIEF\n", "# BRIEF\n\n" + note, 1))
 PY
@@ -405,7 +405,8 @@ PY
   trap - EXIT
   echo "$c_ok created $(rel "$dir")"
   echo "   type doc : video-types/$doc.md"
-  [ -n "$wh" ] && echo "   frame    : $wh (${frameh:+$aspect, }$res)"
+  local fdesc="${frameh:+$aspect, }$res"   # empty for the types whose engine is not scaffolded here (math, paper, handdrawn, mv, edit)
+  [ -n "$wh" ] && echo "   frame    : $wh${fdesc:+ ($fdesc)}"
   echo "   watch on : $watch · ${outres:-1080p}  (text-size floor and readability check: playbook/03 §4)"
   [ -n "$styles" ] && echo "   style ref: $(printf '%s\n' $styles | sed 's|^|styles/|' | paste -sd, - | sed 's/,/, /g') (copies in style-refs/; references, not rules: note in DECISIONS.md what each lends)"
   echo "   effort   : ${effort:-standard}  (bin/vh effort ${effort:-standard} shows what that means)"
@@ -465,7 +466,7 @@ cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [-
   uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" "$@"; }
 cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--segment NAME | --from s --to s] [--max s] [--out file.png]"; exit 1; }
   uv run -q --no-project --with pillow python "$ROOT/tools/rhythm.py" "$@"; }
-cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image> [more…] [--text-px N] [--out file.png]"; exit 1; }
+cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image> [more…] [--text-px N] [--out file.png|folder]"; exit 1; }
   uv run -q --no-project --with pillow --with numpy --with scipy python "$ROOT/tools/cover_preview.py" "$@"; }
 cmd_review() { python3 "$ROOT/tools/review.py" "$@"; }
 cmd_desk() { [ $# -gt 0 ] || { cmd_usage desk; exit 1; }   # stdlib only: no uv, works offline; exec, so stopping
