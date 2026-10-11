@@ -193,6 +193,19 @@ PY
       && ! grep -q '^+ TYPE:' "$dir/BRIEF.md" && ok "bin/vh new names the type doc and keeps the type marker" || bad "bin/vh new: Type doc line or type marker missing"
     rm -rf "$dir"
   else bad "bin/vh new math"; fi
+  # --engine canvas-film: the canvas engine's template instead of the type's engine (nothing to install), 16:9 for any type
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  if vh new short cf --engine canvas-film --dir "$t" >/dev/null; then
+    dir=$(ls -d "$t"/*-cf)
+    [ -f "$dir/film.html" ] && [ -f "$dir/src/50-shots.js" ] && [ -f "$dir/audio/timeline.zh.json" ] && [ -f "$dir/ENGINE_README.md" ] && [ ! -e "$dir/index.html" ] \
+      && grep -q '^- Output: 1920x1080,' "$dir/BRIEF.md" && grep -q '^- Engine: canvas-film' "$dir/BRIEF.md" \
+      && ok "bin/vh new --engine canvas-film copies the engine's template at 1920x1080" || bad "bin/vh new --engine canvas-film: the template or the BRIEF's Output and Engine lines are missing"
+  else bad "bin/vh new short --engine canvas-film"; fi
+  vh new short cf2 --engine canvas-film --aspect 9:16 --dir "$t" >/dev/null 2>&1; rc=$?
+  vh new short cf3 --engine no-such --dir "$t" >/dev/null 2>&1; a=$?
+  [ $rc = 1 ] && [ $a = 1 ] && [ -z "$(ls -d "$t"/*-cf2 "$t"/*-cf3 2>/dev/null)" ] && ok "bin/vh new refuses a vertical canvas-film and an unknown --engine" \
+    || bad "bin/vh new --engine: --aspect 9:16 exited $rc, an unknown engine $a"
+  rm -rf "$t"
   # tts picks the uv dependencies from --provider too (a fake uv prints the command instead of running it)
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); printf '#!/bin/sh\necho "$*"\n' > "$t/uv"; chmod +x "$t/uv"
   a=$(PATH="$t:$PATH" vh tts "$t" --provider edge --lang en; PATH="$t:$PATH" vh tts "$t" --provider=dashscope)
@@ -910,6 +923,24 @@ PY
     then ok "frames: a HyperFrames composition without window.film is drawn by its own runtime (clips shown by their data-start)"
     else bad "frames with the HyperFrames runtime (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   else skip "frames on a HyperFrames composition" "no HyperFrames runtime installed (styles/_swatch: npm ci)"; fi
+  # the canvas-film engine's template (engines/canvas-film): two frames draw, each the same PNG drawn first and drawn after
+  # the other (11.8 s is inside a page turn); a cue whose word is gone stops it in ready at once, naming the shot and the
+  # cue; its reads and captions pass textcheck
+  local c="$ROOT/engines/canvas-film/template" s0
+  a=$(vh frames "$c" --at 4.9,11.8 --out "$t/cf1" 2>&1); rc=$?
+  vh frames "$c" --at 11.8,4.9 --out "$t/cf2" >/dev/null 2>&1
+  if [ $rc = 0 ] && cmp -s "$t/cf1/film-t0004.900.png" "$t/cf2/film-t0004.900.png" && cmp -s "$t/cf1/film-t0011.800.png" "$t/cf2/film-t0011.800.png"
+  then ok "canvas-film: the template draws, and a frame is the same PNG drawn first or after another (one inside a transition too)"
+  else bad "canvas-film template frames (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
+  mkdir "$t/cfb" && cp -R "$c/." "$t/cfb/" && sed 's/"@a2:第二张"/"@a2:第三张"/' "$c/src/50-shots.js" > "$t/cfb/src/50-shots.js"
+  s0=$SECONDS; a=$(vh frames "$t/cfb" --at 1 --out "$t/cfb/out" 2>&1); rc=$?
+  case "$rc:$a" in
+    2:*'shot S02 (o.two), cue "@a2:第三张"'*'it now reads'*) if [ $((SECONDS - s0)) -lt 60 ]; then ok "canvas-film: a cue whose word is gone stops it in ready ($((SECONDS - s0)) s), naming the shot, the cue and the line as it reads now"
+      else bad "canvas-film: the broken cue was reported after $((SECONDS - s0)) s, not at once"; fi ;;
+    *) bad "canvas-film with a broken cue: exit $rc: $(printf '%s' "$a" | tail -c 800)" ;;
+  esac
+  a=$(vh textcheck "$c" --out "$t/cftc" 2>&1); rc=$?
+  [ $rc = 0 ] && ok "canvas-film: textcheck passes the template's reads and captions" || bad "textcheck on the canvas-film template (exit $rc): $(printf '%s' "$a" | tail -c 800)"
   rm -rf "$t"
 }
 

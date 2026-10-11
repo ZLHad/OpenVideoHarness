@@ -77,7 +77,8 @@ if (!browserPath) die("no browser: pass --browser <chrome>, or run it as bin/vh 
 if (opt.samples < 1) opt.samples = 1;
 
 let html = path.resolve(target);
-if (fs.existsSync(html) && fs.statSync(html).isDirectory()) html = path.join(html, "index.html");
+// a project folder: its film.html (the canvas-film engine's page), else its index.html, as bin/vh frames looks
+if (fs.existsSync(html) && fs.statSync(html).isDirectory()) html = ["film.html", "index.html"].map((n) => path.join(html, n)).find((f) => fs.existsSync(f)) || path.join(html, "index.html");
 if (!fs.existsSync(html)) die(`no composition at ${html}`);
 const dir = path.dirname(html), project = dir;
 outDir = path.resolve(outDir || path.join(project, "out", "check", "textcheck"));

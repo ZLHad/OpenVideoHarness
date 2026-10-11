@@ -2,7 +2,7 @@
 
 新项目一律建在 `projects/<date>-<slug>/` 下。本目录里的东西是模板，不要直接在里面改。
 
-最快的方式是 `bin/vh new <type> <slug>`：它会建好目录、复制模板；手绘和 MV 类还会复制 ClaudeAnimationBase 并装好依赖，short、promo、data、meme 类会自动运行 `bin/vh hf-init` 装好 HyperFrames（离线失败时会提示稍后重跑）。只有 Remotion、Manim 要在建好目录后，按下面对应的一节手动初始化；MV 或论文类改用 HyperFrames 时，以及 edit 类（实验性，首选 HyperFrames，做法见 [`editing.md`](editing.md)），对项目目录单独运行一次 `bin/vh hf-init`。
+最快的方式是 `bin/vh new <type> <slug>`：它会建好目录、复制模板；手绘和 MV 类还会复制 ClaudeAnimationBase 并装好依赖，short、promo、data、meme 类会自动运行 `bin/vh hf-init` 装好 HyperFrames（离线失败时会提示稍后重跑）。加 `--engine canvas-film` 时，不管哪一类，都改成复制旁白驱动的 canvas 引擎（下面"canvas-film"一节）。只有 Remotion、Manim 要在建好目录后，按下面对应的一节手动初始化；MV 或论文类改用 HyperFrames 时，以及 edit 类（实验性，首选 HyperFrames，做法见 [`editing.md`](editing.md)），对项目目录单独运行一次 `bin/vh hf-init`。
 
 ## ClaudeAnimationBase（p5.js + p5.brush），已装好
 
@@ -20,6 +20,20 @@ node render.mjs --sheet=0.5,2,4 --cols=3 --w=480 --out=out/check/sheet.jpg   # �
 - 没有 GPU 时加 `--soft-gl`，用 SwiftShader 软件渲染 WebGL。它同时关掉 2D canvas 的 GPU 加速：开着加速时，同一帧每次启动渲出来都不一样（PSNR 约 39 dB，过不了硬规则 1 的 45 dB）；关掉后，跨进程、乱序渲染都逐像素一致，demo 单帧也从约 40 s 降到约 12 s（无 GPU 的 Linux 实测）。另外，所有路径都关掉了 Chrome 的 CanvasNoise：它给 GPU 加速的 2D canvas 读回加每次启动都不同的噪声（反指纹功能），是上面那种差异的主因。有 GPU 的机器上 2D canvas 默认也走 GPU 加速，同样受 CanvasNoise 影响；关掉以后，2026-09-30 在 macOS 的 Metal GPU 上实测：同一帧跨启动、乱序渲染都逐像素一致（见 CHANGELOG 里的 “Verified on macOS with a GPU”）。
 - 本机实测：1080p 约 0.13 秒/帧（Metal），11 秒的 demo 渲染 37 秒。
 - 来源：[JohnHeibel/ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase)，MIT。复制过来时没有带 `.git`。
+
+## canvas-film（canvas 2D，旁白驱动），已装好
+
+完整说明：[`canvas-film/README.md`](canvas-film/README.md)。
+
+```bash
+bin/vh new <type> <slug> --engine canvas-film     # 复制 engines/canvas-film/template，不用装依赖；画幅 16:9
+bin/vh frames projects/<date>-<slug> --at 1,5,9   # 模板带一支 22 秒的示例片，建好就能取帧
+```
+
+- 适合旁白撑着的横屏长片：镜头、字幕、章节进度条的时间都写成挂在旁白字上的 cue（`"@b2:跟着走-0.3"`），重配、改词、插停顿以后自己跟着走。一个 cue 找不到它的句子或词，`ready` 立刻失败，写明镜头、cue 原文和这句现在的文字，不会等到超时。
+- 一页 `film.html` 加 `src/*.js`，不用构建。它按页面合约写了 `window.film`，`bin/vh frames` 取帧、`bin/vh textcheck` 查字直接能用；reads 和字幕（`texts`）、画面事件（`events`）、章节和 cue 表都在 `ready` 里算好。
+- 字号下限在画字的最底层兜住，故意要小的字写 `texture: true`；绕过它写下的小字，`ready` 时会被报出来。
+- 现在只有 2D canvas，没有 Three.js 底层，也还没有出片命令（逐帧渲染、编码）。4K 的帧用 `bin/vh frames … --dpr 2` 看。
 
 ## HyperFrames（HTML + GSAP）
 
