@@ -1,6 +1,6 @@
 # 社区 skill 参考（2026-09-28）
 
-这份清单从 183 个社区视频 skill 里，按 OpenVideoHarness 当时的 8 个类型（01–08）挑出值得读的，并对已拉取到 `references/repos/` 的 16 个仓库逐个读了 README、LICENSE 和主 SKILL.md。它只回答"遇到某类视频时去哪个仓库找什么"，不替代 `open-source.md`（框架与引擎）和 `cases/`（案例拆解）。2026-09-29 又补了 Opus 5.5 发布周出现的 6 个仓库，它们不在那 183 个里面，见第 6 节；2026-10-10 补了 OpenFilm 的两个仓库，见第 7 节。
+这份清单从 183 个社区视频 skill 里，按 OpenVideoHarness 当时的 8 个类型（01–08）挑出值得读的，并对已拉取到 `references/repos/` 的 16 个仓库逐个读了 README、LICENSE 和主 SKILL.md。它只回答"遇到某类视频时去哪个仓库找什么"，不替代 `open-source.md`（框架与引擎）和 `cases/`（案例拆解）。2026-09-29 又补了 Opus 5.5 发布周出现的 6 个仓库，它们不在那 183 个里面，见第 6 节；2026-10-10 补了 OpenFilm 的两个仓库，见第 7 节；2026-10-11 补了花叔（alchaincyf）的两个仓库，见第 8 节。
 
 - 下文"本地路径"都相对 `references/repos/`；写"未拉取"的只看过清单里的一句话描述，借用点标【推测】。
 - ⭐ 与许可证字段来自 `skills.json`（2026-09-28 生成）；标"本地核对"的以仓库里的 LICENSE / README 为准。标"清单外"的条目，⭐ 是 2026-09-29 在 GitHub 页面上读到的数，许可证读的是仓库里的 LICENSE。
@@ -325,6 +325,8 @@ lemomo-ai/lemo-opuscar（605⭐，2026-09-30）是作者 Lemomo（X 上是 @lemo
 | Battle-of-Austerlitz-Film | 没有 LICENSE，README 也没提 | — | 成片、混音和字体未拉取 | 只读 |
 | openfilm | MIT（v0.1.4，`6dee7cd`）；名称和 Logo 是商标（`TRADEMARK.md`） | 可复用，保留声明 | Studio 打包的 Inter（OFL）、React（MIT）、Lucide（ISC）见 `THIRD_PARTY_NOTICES.md` | 可复用；改过的版本发布出去不能叫 OpenFilm |
 | openfilm-examples | MIT（`82ce375`） | 可复用，保留声明 | 自制的歌曲、旁白、画面同为 MIT；字体 OFL；`one-prompt/src/px/` 改编自 mexicat/pdoom-video（MIT）；逐项见各例子的 `CREDITS.md` | 可复用（保留声明） |
+| huashu-art-motion | MIT（核对到 `9ff5933`，2026-10-10）。README"许可证"一节列了例外：笔顺数据 `scripts/engine/reference_films/spacex/spacex_wb/assets/strokes.js` 是 Arphic Public License（README 里写的是相对 `scripts/engine/` 的路径），`scripts/engine/lib/fonts/` 的字体是 OFL | 可复用，保留声明 | 作者的卡通形象和角色帧（`scripts/engine/demos/_shared/hero/`、`scripts/engine/demos/long_scroll/frames/`、`assets/角色/`），以及总览图、示范视频里的同一形象，只用于它自己的示范，不在 MIT 内；Clawd 是 Anthropic 的吉祥物，同人示范的 GIF 和成片同样不在 MIT 内；片中画作来自大都会艺术博物馆开放获取（CC0） | 代码和文字可复用（保留声明）；角色形象、Clawd 和示范视频不用 |
+| huashu-design | MIT（2026-05-14 起；更早的版本是"个人免费、企业商用要授权"；核对到 `0830494`，2026-09-22） | 可复用，保留声明 | `assets/` 里的背景音乐和 `demos/` 的媒体没逐个核对 | 可复用（保留声明）；媒体用之前单独核对 |
 
 ---
 
@@ -386,3 +388,26 @@ athemeroy/awesome-opus-5-5-videos 是一份带来源的研究型目录：从 X �
 - `openfilm-examples/openfilm-intro/make/README.md`：一支 1:42 的片子，Blender、录屏、配音、音效各自怎么做出来，和 `film.html` 分开放。
 
 能借什么、和我们怎么分工、一次兼容实验（我们的两支 showcase 加几行包装就能在它的 Studio 里打开和修改），都写在提案里。一句话：它刻意不写风格和方法，只做格式、检查和剪辑器；我们正好是方法、口味和审阅那一层。
+
+---
+
+## 8. 花叔的两个仓库（2026-10-11）
+
+对照下来，两边按题材互补，重叠的只有水墨、敦煌、皮影、8-bit 这类少数几种：art-motion 覆盖艺术史和绘画质感，加上 Kurzgesagt、Vox、白板、3b1b 这类解说语法；本仓库覆盖片头、品牌、数据、中国美学、复古科技，加上声音和流程。两个仓库都已加进 `fetch.sh`（textonly）。⭐ 是 2026-10-11 在 GitHub API 上读到的数。
+
+| 仓库 | 本地路径 | ⭐（2026-10-11） | 许可 | 是什么 |
+|---|---|---|---|---|
+| [alchaincyf/huashu-art-motion](https://github.com/alchaincyf/huashu-art-motion) | `huashu-art-motion/`（textonly） | 3,279 | MIT，例外见第 5 节 | 艺术动画 skill：2026-10-06 建，有 `v1.0.0` 标签。Canvas 引擎，一种风格是一个场景文件加一张配方卡，共用一套渲染器库 |
+| [alchaincyf/huashu-design](https://github.com/alchaincyf/huashu-design) | `huashu-design/`（textonly） | 24,803 | MIT | 设计 skill：HTML 原型、幻灯片、动效，带品牌资产协议、设计方向顾问和反 AI slop 规则 |
+
+最值得读的几处（路径相对 `references/repos/`；标【未细读】的只看过文件名或别处的一句介绍）：
+
+- `huashu-art-motion/references/08-风格作者规范.md`：一个风格段等于 `scenes/<id>.js` 加一张配方卡，接口是 `draw(c, lt, t)`；硬要求八条（构图、角色也过风格的材料处理、画要活、不闪不卡、确定性、每帧不超过 150 ms、字形先验证、做旧不上身），自检四问，交付两样；有参考片和没有参考片时各怎么起步。派 agent 并行做风格时，给的就是这一页；
+- `huashu-art-motion/references/风格配方/`：每种风格一张卡（管线、关键参数和色值、母题动画、签名转场、性能、坑、仍可改进）；
+- `huashu-art-motion/references/动画语法/`：9 种解说语法：`t1_3b1b`、`t2_keynote_ui`、`t3_finance_chart`、`y1_kurzgesagt`、`y2_vox`、`y3_whiteboard`、`y4_storytime`、`y5_kinetic_type`、`y6_presenter_explainer`【未细读】；
+- `huashu-art-motion/references/04-纯代码绘制.md`：管线、渲染器速查和坑（08 号文档要求先读它）【未细读】；
+- `huashu-art-motion/scripts/qa.py`：按 08 号文档的说法，量运动、静止帧对、跳变、每帧耗时和确定性；`scripts/analyze/breakdown.py`：把参考片拆成参考帧、运动热图和转场接触表【都未细读】；
+- `huashu-design/references/brand-asset-protocol.md`：品牌资产协议（先把真实的 logo、界面、产品图取齐，再动手设计）【未细读】；
+- `huashu-design/references/animation-pitfalls.md`、`verification.md`、`ai-video-review.md`：动画的坑、出片前自查、用视频模型看片【都未细读】。
+
+能借什么：art-motion 的作者规范和"仍可改进"一栏（承认每种风格现在做到哪），以及 qa 的运动指标；huashu-design 的"先取齐真实素材再设计"。读到的东西要用进本仓库时，照本仓库的规矩改写，注明来源；代码不直接搬，作者的角色形象不碰。

@@ -48,6 +48,8 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 | 文档和命令行一致 | `CLAUDE.md` 的命令列表和 `bin/vh` 实际的命令对不上；文档里写了不存在的 `bin/vh` 子命令；`AGENTS.md` 没有同步 |
 | `bin/vh` 冒烟测试 | 打错命令也返回 0；`--effort`、`--style` 没写进项目；字幕语言被文件夹名带偏（`/home/zhang/…` 下的英文字幕被标成中文）；音频比画面短时被截断；gif 输出名算错 |
 
+另外，`tools/ci.sh` 会打印一张读量表（`tools/readpath.py`）：按 CLAUDE.md 的路由，估算每一档、每一类片子开工前要读多少字符。它只打印、不判失败，用来看文档有没有越写越长；上限以后再定。
+
 ## 在 GitHub 上启用规则集
 
 规则集的配置在 [`.github/rulesets/main.json`](.github/rulesets/main.json)。本仓库已经在 2026-09-30 按这个文件启用了规则集 `main-via-pr`，同一天打开了 Allow auto-merge（见下面第 3 步）。改了文件以后，把线上配置同步过去：`gh api --method PUT repos/ZLHad/OpenVideoHarness/rulesets/<id> --input .github/rulesets/main.json`，`<id>` 用 `gh api repos/ZLHad/OpenVideoHarness/rulesets` 查。

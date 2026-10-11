@@ -112,5 +112,9 @@ full     sharon-laicc/viral-video-decomposer    viral-video-decomposer     # 拆
 textonly openfilm/openfilm                      openfilm                   # 视频即网页：film.html 格式、look 检查、Studio 剪辑器和桌面版（MIT；名称和 Logo 是商标，见其 TRADEMARK.md）
 textonly openfilm/examples                      openfilm-examples          # OpenFilm 官方示例：歌词 MV、带中文旁白的介绍片和它的 make/ 制作脚本（代码和自制媒体 MIT，字体 OFL，见各 CREDITS.md）
 
+# 风格库、解说语法和设计流程（见 references/community-skills.md 第 8 节）
+textonly alchaincyf/huashu-art-motion           huashu-art-motion          # 艺术动画：风格配方卡加可运行的 Canvas 场景、9 种解说语法、qa / breakdown 脚本、风格作者规范（MIT；作者的卡通形象和角色帧、Clawd 形象不在 MIT 内，见其 README）
+textonly alchaincyf/huashu-design               huashu-design              # 设计 skill：品牌资产协议、设计方向顾问（三套逻辑）、反 AI slop 规则、HTML 出视频（MIT）
+
 [ -z "$SKIPPED" ] || echo "skipped (re-run later, e.g. bash references/fetch.sh <dir>):$SKIPPED"
 exit 0

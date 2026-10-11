@@ -134,6 +134,12 @@ PY
   then ok "docs name only real bin/vh commands"; else bad "docs vs bin/vh commands"; fi
 }
 
+readpath_report() {   # how much an agent reads before it starts, per effort level and type: printed as a baseline, no limit yet
+  local out
+  if out=$(python3 tools/readpath.py 2>&1); then printf '%s\n' "$out" | sed 's/^/  /'; ok "read path printed above (a baseline; no limit yet)"
+  else echo "$out"; bad "tools/readpath.py"; fi
+}
+
 vh() { "$VH_BASH" "$ROOT/bin/vh" "$@"; }
 smoke_checks() {
   local slug="ci-smoke-$$" dir t rc langs a h o
@@ -1058,7 +1064,7 @@ case "${1:-all}" in
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; smoke_checks; pace_checks; decision_checks; desk_checks; textcheck_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; decision_checks; desk_checks; textcheck_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ $fails = 0 ] && ok "all checks passed" || printf '\033[31m%s check(s) failed\033[0m\n' "$fails"
