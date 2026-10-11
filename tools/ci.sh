@@ -859,6 +859,31 @@ film_checks() {
     if [ $rc = 0 ] && [ -s "$t/f/index-strip-1-1.5.jpg" ] && [ "$(ls "$t/f/index-strip-1-1.5" | wc -l | tr -d ' ')" = 5 ]; then ok "frames --strip: every frame of a span and one picture of them"
     else bad "frames --strip (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   fi
+  a=$(vh determinism tools/film/fixture --samples 2 --out "$t/g" 2>&1); rc=$?
+  case "$rc:$a" in 0:*"without the host's clock the frames differ"*"holds, every frame identical"*) ok "determinism: a page that reads Math.random holds under the host's clock, and is told it leans on it" ;;
+    *) bad "determinism on its fixture: exit $rc: $(printf '%s' "$a" | tail -c 700)" ;; esac
+  a=$(vh determinism tools/film/fixture/stateful.html --samples 2 --out "$t/h" 2>&1); rc=$?
+  case "$rc:$a" in 1:*"does not hold"*) ok "determinism: a frame that depends on the frames before it does not hold (exit 1)" ;;
+    *) bad "determinism on a stateful page: exit $rc: $(printf '%s' "$a" | tail -c 700)" ;; esac
+  if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
+    a=$(vh render tools/film/fixture --workers 2 --gop 30 --out "$t/r/film.mp4" 2>&1); rc=$?
+    if [ $rc = 0 ] && python3 - "$t/r/film.mp4" <<'PY'
+import json, subprocess, sys
+f = sys.argv[1]
+st = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=nb_frames,width,height,pix_fmt,color_range,color_space",
+                                "-of", "json", f], capture_output=True, text=True).stdout)["streams"][0]
+keys = [l.split(",")[0] for l in subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time,flags", "-of", "csv=p=0", f],
+                                                capture_output=True, text=True).stdout.split() if "K" in l.split(",")[1]]
+side = json.load(open(f + ".render.json"))
+ok = (st["nb_frames"], st["width"], st["height"], st["pix_fmt"], st["color_range"], st["color_space"]) == ("90", 320, 180, "yuv420p", "tv", "bt709")
+ok = ok and [round(float(k), 3) for k in keys] == [0.0, 1.0, 2.0] and side["frames"] == 90 and side["encoder"]["gop"] == 30
+sys.exit(0 if ok else 1)
+PY
+    then ok "render: every frame, BT.709 tv range, a keyframe exactly every --gop frames across the chunks, and how it was made beside it"
+    else bad "render on its fixture (exit $rc): $(printf '%s' "$a" | tail -c 700)"; fi
+    a=$(vh render tools/film/fixture --out "$t/r/film.mp4" 2>&1); rc=$?
+    [ $rc = 0 ] && ok "render: a second render of the same file after the first one ended is not locked out" || bad "render again (exit $rc): $(printf '%s' "$a" | tail -c 400)"
+  fi
   if node -e 'import("./tools/film/host.mjs").then((m) => process.exit(m.findRuntime(process.cwd()) ? 0 : 1))' 2>/dev/null; then
     mkdir -p "$t/hf"
     cat > "$t/hf/index.html" <<'HTML'

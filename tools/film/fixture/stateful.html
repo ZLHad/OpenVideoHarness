@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=160, height=90"></head>
+<body>
+<canvas id="c" width="160" height="90"></canvas>
+<script>
+  // bin/vh determinism's fixture: a frame that depends on how many frames came before (state carried between frames,
+  // against hard rule 1): the same t drawn in another order differs (exit 1)
+  const x = document.getElementById("c").getContext("2d");
+  let drawn = 0;
+  window.film = { duration: 3, frame(t) { drawn++; x.fillStyle = "#222"; x.fillRect(0, 0, 160, 90); x.fillStyle = "#fc0"; x.fillRect(10 + drawn * 12, 30, 20, 20); } };
+</script>
+</body>
+</html>

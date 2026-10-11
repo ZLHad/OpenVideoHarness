@@ -43,7 +43,7 @@ window.film = {
 
 ## 宿主做什么
 
-本仓库的宿主是 `tools/film/host.mjs`（`bin/vh frames` 用它）：
+本仓库的宿主是 `tools/film/host.mjs`，`bin/vh frames`（取帧）、`bin/vh render`（出片）、`bin/vh determinism`（查硬规则 1）都用它：
 
 1. 从页面所在的文件夹起一个只在本机 `127.0.0.1` 的服务来打开页面（不用 `file://`），所以页面能 `fetch` 这个文件夹里的文件；项目根目录的页面，就是整个项目。时区固定为 UTC，所以显示本地时间的页面在哪台机器上都画得一样。
 2. 页面的脚本运行之前，先设好 `window.filmHost = { version: '0.1', name: 'ovh' }`。看到它，页面就不能自己往前走：不开自转的动画循环，不自动播放，不开开发界面。

@@ -155,8 +155,9 @@ export async function openFilm(target, o = {}) {
     const loadProblems = problems.splice(0);
     return {
       page, root, kind, width, height, duration: got.duration, version: browser.version, loadProblems,
-      // draw t, let the compositor paint it, capture it; touched: the clocks the frame read (tools/film/clock.js)
-      async frame(t) {
+      // draw t, let the compositor paint it, capture it (a lossless PNG, or { format: "jpeg", quality } for a render);
+      // touched: the clocks the frame read (tools/film/clock.js)
+      async frame(t, capture = { format: "png" }) {
         const touched = await ev(`(async (t) => {
           const H = window.filmHost, f = window.film && window.film.frame ? window.film : null;
           if (H && H.time) H.time(t);
@@ -164,7 +165,7 @@ export async function openFilm(target, o = {}) {
           await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
           return H && H.touched ? H.touched() : [];
         })(${JSON.stringify(t)})`, `drawing t=${t}`);
-        const shot = await browser.send("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false }, s);
+        const shot = await browser.send("Page.captureScreenshot", { ...capture, fromSurface: true, captureBeyondViewport: false }, s);
         return { png: Buffer.from(shot.data, "base64"), touched };
       },
       problems: () => problems.splice(0),
