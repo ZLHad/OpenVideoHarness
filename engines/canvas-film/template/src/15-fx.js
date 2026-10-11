@@ -14,7 +14,7 @@ function grainTile() {   // 256 x 256 grey noise, the same every time
 function grain(t, a = 0.04) {
   if (a <= 0) return;
   const f = Math.floor(t * FILM.fps + 1e-6), ox = Math.floor(hash(f * 3.1 + 1) * 256), oy = Math.floor(hash(f * 7.7 + 2) * 256), tile = grainTile();
-  X.save(); X.globalAlpha = a; X.globalCompositeOperation = "overlay";
+  X.save(); X.globalAlpha = a; X.globalCompositeOperation = "overlay"; X.imageSmoothingEnabled = false;   // 4K: the same grain, not blurred
   for (let x = -ox; x < W; x += 256) for (let y = -oy; y < H; y += 256) X.drawImage(tile, x, y);
   X.restore();
 }

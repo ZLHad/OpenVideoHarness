@@ -57,10 +57,11 @@ async function loadTimeline() {
 }
 // the film on its timeline: every cue resolved, or one error that names each that is not
 function build(T) {
-  if (T) initTimeline(T.tl);
-  DUR = T ? FILM.lead + (T.tl.duration ?? Math.max(0, ...(T.tl.segments || []).map((s) => s.end))) + FILM.tail : FILM.duration;
-  if (!(DUR > 0)) throw new Error("canvas-film: the film has no length (a timeline with a duration, or FILM.duration for a silent film)");
   const problems = [], nocap = new Set();
+  if (T) initTimeline(T.tl, problems);
+  DUR = T ? FILM.lead + (isNum(T.tl.duration) ? T.tl.duration : Math.max(0, ...Object.values(LINES).map((L) => L.b - FILM.lead))) + FILM.tail : FILM.duration;
+  if (!(DUR > 0)) throw new Error("canvas-film: the film has no length (a timeline with a duration, or FILM.duration for a silent film)" +
+    (problems.length ? `:\n  ${problems.slice(0, 12).join("\n  ")}` : ""));
   buildShots(problems);
   for (const S of SHOT_T) for (const id of S.shot.nocap || []) { if (LINES[id]) nocap.add(id); else problems.push(`shot ${S.id} (nocap): no narration line "${id}"`); }
   buildChapters(problems);
@@ -76,7 +77,7 @@ function build(T) {
 // animation is passing through). Then the transitions, as events too.
 let EVENTS = [], TEXTS = [];
 function record() {
-  REC = { events: [], reads: [] };
+  REC = { events: [], reads: [], at: 0 };   // at: the time being sampled
   const small = new Map(), fails = new Map(), P = Object.getPrototypeOf(X);
   const check = function (s) {
     if (TEXTURE > 0 || !SHOT) return;
@@ -88,15 +89,20 @@ function record() {
   try {
     for (const S of SHOT_T) for (const f of [0.02, 0.25, 0.5, 0.75, 0.98]) {
       const t = S.a + (S.b - S.a) * f;
-      X.reset(); X.setTransform(PRX, 0, 0, PRX, 0, 0);
+      X.reset(); X.setTransform(PRX, 0, 0, PRX, 0, 0); REC.at = t;
       try { drawShot(S.i, t); } catch (e) { if (!fails.has(S.id)) fails.set(S.id, `${t.toFixed(2)} s: ${e.message}`); }
     }
   } finally { delete X.fillText; delete X.strokeText; }
+  // one event per call: the same shot, kind, time and own x (not its screen x, which a camera move changes from sample to
+  // sample), with the screen x of the sample nearest the event
+  const one = new Map();
+  for (const e of REC.events) {
+    const k = `${e.shot}|${e.kind}|${Math.round(e.t * 20)}|${e.own === undefined ? "" : Math.round(e.own)}`;
+    if (!one.has(k) || e.near < one.get(k).near) one.set(k, e);
+  }
+  EVENTS = [...[...one.values()].map(({ own, near, ...e }) => e), ...SHOT_T.slice(1).map((S) => ({ t: r3(S.a), kind: S.tin, shot: S.id, x: Math.round(W / 2), dur: S.din }))]
+    .sort((p, q) => p.t - q.t);
   const seen = new Set();
-  EVENTS = [...REC.events, ...SHOT_T.slice(1).map((S) => ({ t: r3(S.a), kind: S.tin, shot: S.id, x: Math.round(W / 2), dur: S.din }))]
-    .sort((p, q) => p.t - q.t)
-    .filter((e) => { const k = `${e.kind}|${Math.round(e.t * 20)}|${Math.round((e.x ?? 0) / 60)}`; return !seen.has(k) && seen.add(k); });
-  seen.clear();
   TEXTS = [...REC.reads.filter((r) => { const k = `${r.text}|${r.start}|${r.end}`; return !seen.has(k) && seen.add(k); }).sort((p, q) => p.start - q.start),
     ...CAPS.map((c) => ({ text: c.text, start: c.start, end: c.end, read: "subtitle" }))];
   REC = null;

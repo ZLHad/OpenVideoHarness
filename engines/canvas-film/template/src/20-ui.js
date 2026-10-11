@@ -29,7 +29,9 @@ function stamp(t, at, cx, cy, s, o = {}) {
   read(s, at + 0.15, Infinity);
   const u = seg(t, at, at + 0.12);
   if (u <= 0) return;
-  const size = o.size || 56, f = { size, weight: 900, family: o.family || "sans" }, col = o.color || FILM.ui.accent, k = lerp(1.25, 1, eOut(u));
+  // the weights film.html declares: sans 400 and 600, serif 700 and 900
+  const family = o.family || "sans", size = o.size || 56, f = { size, weight: o.weight ?? (family === "serif" ? 900 : 600), family };
+  const col = o.color || FILM.ui.accent, k = lerp(1.25, 1, eOut(u));
   const w = measure(s, f) + 56, h = size * 1.5;
   X.save(); X.translate(cx, cy); X.rotate(o.rot ?? -0.07); X.scale(k, k);
   rect(-w / 2, -h / 2, w, h, { stroke: col, w: 5, r: 6 });

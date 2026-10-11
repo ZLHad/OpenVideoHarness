@@ -57,7 +57,7 @@ window.film = {
 
 | 引擎 | 怎么满足 | 备注 |
 |---|---|---|
-| canvas-film（`engines/canvas-film/`，`bin/vh new … --engine canvas-film`） | `src/90-main.js` 写 `window.film`。`ready` 载入字体、图片和旁白时间轴，把全部 cue 换成秒（有解析不了的就让 `ready` 失败，一次列出每一处），排好字幕，再把每个镜头抽 5 个时刻画一遍，收集 `texts`、`events`；`chapters`、`cues` 也在这时算好。`frame(t)` 每次先 `reset()` 画布再画 | 成片走 `bin/vh render`（4K 加 `--dpr 2`），见 `engines/canvas-film/README.md` |
+| canvas-film（`engines/canvas-film/`，`bin/vh new … --engine canvas-film`） | `src/90-main.js` 写 `window.film`。`ready` 载入字体、图片和旁白时间轴，把全部 cue 换成秒（有解析不了的就让 `ready` 失败，一次列出前 12 处），排好字幕，再把每个镜头抽 5 个时刻画一遍，收集 `texts`、`events`；`chapters`、`cues` 也在这时算好。`frame(t)` 每次先 `reset()` 画布再画 | 成片走 `bin/vh render`（4K 加 `--dpr 2`），见 `engines/canvas-film/README.md` |
 | ClaudeAnimationBase（手绘） | `src/core.js` 自己写 `window.film`：`frame(t)` 就是 `T = t; await redraw(); composite(t)`，就绪看 `window.ready`；有 `filmHost` 时 `studio.html` 只露出画面那块 canvas，不开开发界面 | 成片照旧走 `node render.mjs`。画布固定 1920 × 1080，设备像素比设成 2 也只是放大 |
 | HyperFrames | 合成不用改。宿主照 HyperFrames 自己的做法，在 `</head>` 前插入项目里的运行时（`node_modules/hyperframes/dist/hyperframe.runtime.iife.js`，项目里没有就用 `styles/_swatch` 装的那份），再把运行时的 `window.__player.renderSeek(t)` 包成 `window.film` | 成片照旧走 `npx hyperframes render`。HyperFrames 渲染时还做了别的事（虚拟时间、GSAP 缓冲，把 Google 字体换成它本地缓存的一份），所以宿主取的帧和它渲染的帧只保证接近，不保证逐字节相同（见下面的实测）。它的 seek 看上去会把 t 对齐到合成自己的帧率（默认 30），两帧之间的时刻画的是较近的那一帧 |
 | 页面自己写了 `window.film` 或 `window.__vh` 的合成 | 用页面自己的 | canvas 合成大多已经写了 `window.__vh` |

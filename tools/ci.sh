@@ -924,12 +924,16 @@ PY
     else bad "frames with the HyperFrames runtime (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   else skip "frames on a HyperFrames composition" "no HyperFrames runtime installed (styles/_swatch: npm ci)"; fi
   # the canvas-film engine's template (engines/canvas-film): two frames draw, each the same PNG drawn first and drawn after
-  # the other (11.8 s is inside a page turn); a cue whose word is gone stops it in ready at once, naming the shot and the
+  # the other (12.8 s is inside a page turn); a cue whose word is gone stops it in ready at once, naming the shot and the
   # cue; its reads and captions pass textcheck
   local c="$ROOT/engines/canvas-film/template" s0
-  a=$(vh frames "$c" --at 4.9,11.8 --out "$t/cf1" 2>&1); rc=$?
-  vh frames "$c" --at 11.8,4.9 --out "$t/cf2" >/dev/null 2>&1
-  if [ $rc = 0 ] && cmp -s "$t/cf1/film-t0004.900.png" "$t/cf2/film-t0004.900.png" && cmp -s "$t/cf1/film-t0011.800.png" "$t/cf2/film-t0011.800.png"
+  a=$(vh frames "$c" --at 4.9,12.8 --out "$t/cf1" 2>&1); rc=$?
+  # a machine without the template's CJK faces (the Linux runner) draws in a fallback and says so, which is exit 1; that
+  # alone is fine here, as the frames are still compared
+  if [ $rc = 1 ] && printf '%s' "$a" | grep -q 'fonts this machine does not have' \
+    && ! printf '%s\n' "$a" | grep -E 'while loading:|^  t=[0-9.]+ s:|just after the last frame' | grep -qv 'fonts this machine does not have'; then rc=0; fi
+  vh frames "$c" --at 12.8,4.9 --out "$t/cf2" >/dev/null 2>&1
+  if [ $rc = 0 ] && cmp -s "$t/cf1/film-t0004.900.png" "$t/cf2/film-t0004.900.png" && cmp -s "$t/cf1/film-t0012.800.png" "$t/cf2/film-t0012.800.png"
   then ok "canvas-film: the template draws, and a frame is the same PNG drawn first or after another (one inside a transition too)"
   else bad "canvas-film template frames (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
   mkdir "$t/cfb" && cp -R "$c/." "$t/cfb/" && sed 's/"@a2:第二张"/"@a2:第三张"/' "$c/src/50-shots.js" > "$t/cfb/src/50-shots.js"
@@ -941,6 +945,10 @@ PY
   esac
   a=$(vh textcheck "$c" --out "$t/cftc" 2>&1); rc=$?
   [ $rc = 0 ] && ok "canvas-film: textcheck passes the template's reads and captions" || bad "textcheck on the canvas-film template (exit $rc): $(printf '%s' "$a" | tail -c 800)"
+  mkdir "$t/cfr" && cp -R "$c/." "$t/cfr/"
+  a=$(vh readcheck "$t/cfr" 2>&1); rc=$?
+  if [ $rc = 0 ] && [ -s "$t/cfr/out/texts.json" ] && printf '%s' "$a" | grep -q 'subtitle'; then ok "canvas-film: readcheck <project> judges the page's reads and captions (window.film.texts, written to out/texts.json)"
+  else bad "readcheck on a canvas-film project (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
   rm -rf "$t"
 }
 

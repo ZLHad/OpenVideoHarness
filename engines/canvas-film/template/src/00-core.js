@@ -49,12 +49,17 @@ const LINES = {}, LINE_IDS = [];   // id → { id, a, b, text, words: [{ w, a, b
 const letters = (s) => String(s).normalize("NFKC").replace(/[\s\p{P}\p{S}]/gu, "").toLowerCase();
 class CueError extends Error {}
 
-function initTimeline(tl) {
-  for (const s of tl.segments || []) {
+const isNum = (x) => typeof x === "number" && Number.isFinite(x);
+function initTimeline(tl, problems) {   // a line without an id or times is a problem (bin/vh timeline checks the rest)
+  (Array.isArray(tl.segments) ? tl.segments : []).forEach((s, i) => {
+    if (!s || !s.id || !isNum(s.start) || !isNum(s.end)) return problems.push(`timeline line ${i + 1}${s && s.id ? ` (${s.id})` : ""}: no id, start or end`);
+    const words = (s.words || []).filter((w) => w && isNum(w.start));
+    if (words.length < (s.words || []).length) problems.push(`timeline line ${s.id}: ${(s.words || []).length - words.length} word(s) without a start`);
     LINES[s.id] = { id: s.id, a: s.start + FILM.lead, b: s.end + FILM.lead, text: s.text ?? s.zh ?? s.en ?? "",
-      words: (s.words || []).map((w) => ({ w: w.w, a: w.start + FILM.lead, b: (w.end ?? w.start) + FILM.lead })) };
+      words: words.map((w) => ({ w: String(w.w ?? ""), a: w.start + FILM.lead, b: (isNum(w.end) ? w.end : w.start) + FILM.lead })) };
     LINE_IDS.push(s.id);
-  }
+  });
+  if (!LINE_IDS.length && !problems.length) problems.push("the timeline has no lines (segments)");
 }
 // when each letter of a line is spoken: its letters matched to the aligned words (longest common subsequence, so a word
 // the aligner heard differently is skipped and its letters are placed between the matched neighbours); a line without
@@ -85,8 +90,12 @@ function cueT(c) {
   if (typeof c === "number" && Number.isFinite(c)) return c;
   if (typeof c !== "string" || c[0] !== "@") throw new CueError(`not a time: ${JSON.stringify(c)} (seconds, or a cue: "@id", "@id:词", "@id>")`);
   const m = CUE.exec(c.trim());
-  if (!m) throw new CueError(`not a cue: write "@id" (the line starts), "@id:词" (that word is spoken) or "@id>" (the line ends), with an optional +0.3 or -0.2`);
+  if (!m) throw new CueError(`not a cue: write "@id" (the line starts), "@id:词" (that word is spoken) or "@id>" (the line ends), with an optional +0.3 or -0.2; ids are letters, digits and _`);
   const L = lineOf(m[1]);
+  if (m[3] !== undefined && m[4] && letters(L.text).includes(letters(m[3] + m[4]))) {   // "@g1:GPT-4": the word, or 4 s before "GPT"?
+    const dec = m[4] + (m[4].includes(".") ? "0" : ".0");
+    throw new CueError(`"${c.trim()}" reads two ways, as line ${m[1]} says "${m[3]}${m[4]}": write "@${m[1]}:${m[3]}${m[4]}+0" for that word, or "@${m[1]}:${m[3]}${dec}" for ${m[4].slice(1)} s ${m[4][0] === "-" ? "before" : "after"} "${m[3]}"`);
+  }
   return (m[2] ? L.b : m[3] !== undefined ? wordT(L, m[3]) : L.a) + (m[4] ? +m[4] : 0);
 }
 function lineOf(id) {
@@ -155,10 +164,12 @@ function buildShots(problems) {
     if (!sh.id) problems.push(`shot #${i + 1}: no id`); else if (seen.has(sh.id)) problems.push(`shot ${sh.id}: the id is used twice`);
     seen.add(sh.id);
     if (typeof sh.draw !== "function") problems.push(`shot ${id}: no draw(t, s)`);
-    const a = i === 0 ? 0 : R.time(sh.at, "at");   // the first shot starts the film, whatever its at
-    const [tin, d] = Array.isArray(sh.tin) ? sh.tin : [sh.tin || "cut"];
-    if (!TRANSITIONS[tin]) problems.push(`shot ${id}: no transition "${tin}" (${Object.keys(TRANSITIONS).join(", ")})`);
-    const din = i === 0 || !TRANSITIONS[tin] ? 0 : d ?? TRANSITIONS[tin].d;
+    if (i === 0 && sh.at !== undefined && sh.at !== 0) R.time(sh.at, "at");   // checked, but the first shot starts the film
+    const a = i === 0 ? 0 : R.time(sh.at, "at");
+    const [tin, d] = Array.isArray(sh.tin) ? sh.tin : [sh.tin || "cut"], T = TRANSITIONS[tin];
+    if (!T) problems.push(`shot ${id}: no transition "${tin}" (${Object.keys(TRANSITIONS).join(", ")})`);
+    else if (d !== undefined && (!T.draw ? d !== 0 : !(isNum(d) && d >= 0))) problems.push(`shot ${id}: ${JSON.stringify(sh.tin)}: ${T.draw ? "the length is seconds, 0 or more" : `${tin} has no length`}`);
+    const din = i === 0 || !T || !T.draw ? 0 : isNum(d) && d >= 0 ? d : T.d;
     return { shot: sh, i, id, a, b: DUR, o: R(sh.o || {}, "o"), tin: i === 0 ? "cut" : tin, din, dout: 0 };
   });
   for (let i = 0; i < SHOT_T.length; i++) {
@@ -180,18 +191,19 @@ function buildChapters(problems) {
 
 // ---- captions: one line each, cut at sentence ends (two sentences never share one), then at commas; timed by the words ----
 let CAPS = [];   // [{ id, text, start, end, joinPrev?, joinNext? }]
-const STOPS = "。？！?!…", PAUSES = "，、：；,;:", CLOSERS = "”’」』）》)\"'";
+const STOPS = "。？！?!….", PAUSES = "，、：；,;:", CLOSERS = "”’」』）》)\"'";
 const capWidth = (s) => [...s.replace(/\s/g, "")].reduce((n, c) => n + (/[\x21-\x7e]/.test(c) ? 0.55 : 1), 0);
 // what a caption shows: CJK commas become a space, the punctuation at its end goes (？ and ！ stay)
-const capText = (s) => s.replace(/[，、：；。,;:]+\s*$/, "").replace(/[，、：；]/g, " ").replace(/\s+/g, " ").trim();
-// s cut after each mark of `set`; marks in a row ("……") and the closing quotes after them stay with what they end
+const capText = (s) => s.replace(/[，、：；。,;:.]+\s*$/, "").replace(/[，、：；]/g, " ").replace(/\s+/g, " ").trim();
+// s cut after each mark of `set`; marks in a row ("……") and the closing quotes after them stay with what they end. A
+// Latin mark ends something only before a space or the end of the text, so 3.5, 1,000 and 12:30 stay whole
 function splitAfter(s, set) {
-  const r = []; let cur = "", end = false;
-  for (const ch of s) {
+  const cs = [...s], r = []; let cur = "", end = false;
+  cs.forEach((ch, i) => {
     if (end && !set.includes(ch) && !CLOSERS.includes(ch)) { r.push(cur); cur = ""; end = false; }
     cur += ch;
-    if (set.includes(ch)) end = true;
-  }
+    if (set.includes(ch) && (!/[.,:;!?]/.test(ch) || i + 1 === cs.length || /\s/.test(cs[i + 1]) || CLOSERS.includes(cs[i + 1]) || set.includes(cs[i + 1]))) end = true;
+  });
   if (cur.trim()) r.push(cur);
   return r;
 }
@@ -202,7 +214,8 @@ function captionPieces(text, max) {
     if (n <= 1) return [p];
     const may = [];   // [after character i, the width so far]
     let acc = 0;
-    cs.forEach((ch, i) => { acc += capWidth(ch); if (i + 1 < cs.length && !(/[A-Za-z0-9]/.test(ch) && /[A-Za-z0-9]/.test(cs[i + 1]))) may.push([i + 1, acc]); });
+    const word = (k) => /[A-Za-z0-9]/.test(cs[k] || "") || (/[.,:]/.test(cs[k] || "") && /\d/.test(cs[k - 1] || "") && /\d/.test(cs[k + 1] || ""));   // 3.5, 1,000, 12:30 hold together
+    cs.forEach((ch, i) => { acc += capWidth(ch); if (i + 1 < cs.length && !(word(i) && word(i + 1))) may.push([i + 1, acc]); });
     const parts = [];
     let from = 0;
     for (let k = 1; k < n; k++) {
@@ -248,12 +261,13 @@ function captionAt(t) { for (const c of CAPS) if (t >= c.start && t < c.end) ret
 // ---- the recorder: what the shots show, gathered in ready (src/90-main.js draws every shot a few times with it on) ----
 let REC = null;   // { events, reads } while recording, else null
 let SHOT = null;  // the shot being drawn: { i, id, t0, t1, lt, u, o, din, dout } (src/90-main.js sets it for every draw)
-// an event on screen at t0 (a card lands, a stamp is pressed): kind names it (the sound comes later, bin/vh sfx); o.x is
-// read through the current transform, so it is the screen x (for panning). Helpers call it on every frame; it records
-// only while recording, and only events that happen while their shot is on screen.
+// an event on screen at t0 (a card lands, a stamp is pressed): kind names it (the sound comes later, bin/vh sfx); o.x, a
+// place that does not move with t, is read through the transform, so the event's x is a screen x (for panning). Helpers
+// call it on every frame; it records only while recording, and only events that happen while their shot is on screen.
+// Each of a shot's samples records it again: src/90-main.js keeps one per call, with x from the sample nearest t0.
 function cue(kind, t0, o = {}) {
   if (!REC || !SHOT || !Number.isFinite(t0) || t0 < SHOT.t0 - 0.05 || t0 >= SHOT.t1 + SHOT.dout) return;
-  const e = { t: r3(t0), kind, shot: SHOT.id };
+  const e = { t: r3(t0), kind, shot: SHOT.id, own: o.x, near: Math.abs(REC.at - t0) };
   if (o.x !== undefined) { const m = X.getTransform(); e.x = Math.round((m.a * o.x + m.c * (o.y ?? H / 2) + m.e) / PRX); }
   if (o.dur !== undefined) e.dur = o.dur;
   REC.events.push(e);

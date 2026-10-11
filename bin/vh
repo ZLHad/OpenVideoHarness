@@ -61,7 +61,8 @@
 #                               FAIL under one brisk read (CJK/7 + other/20 + 0.8 s, at least 1.5 s; exit 1), WARN under the target of the BRIEF's
 #                               Pace (exit 0); subtitles within reading speed. data-read="subtitle"|"label" and data-pace="…" mark clips
 #                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [--out f]: the composition's timed text
-#   textcheck <project|index.html> [--texts f.json] [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12] [--out dir] [--soft-gl] [--timeout 900]
+#                               a canvas-film project (film.html): its reads and captions from the page (window.film.texts), written to out/texts.json first
+#   textcheck <project|page.html> [--texts f.json] [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12] [--out dir] [--soft-gl] [--timeout 900]
 #                               text drawn into a canvas, which npx hyperframes check cannot see: a read covered by the picture (under 70% of it
 #                               shows), under 3:1, outside or cut by the frame, or under a DOM caption (exit 1); canvas text outside the registry
 #                               and captions over a bright picture warn. The composition opts in with window.film = { frame(t), duration, texts? }
@@ -375,8 +376,10 @@ cmd_new() {
   [ -e "$dir" ] && { echo "$dir already exists"; exit 1; }
   # a step that fails from here on must not leave a half-built dir behind (a retry would say "already exists")
   NEW_DIR=$dir; trap 'rm -rf "$NEW_DIR"; echo "$c_no removed the unfinished $(rel "$NEW_DIR")" >&2' EXIT
-  if [ "$engine" = canvas-film ]; then   # a static page and its scripts: nothing to install
-    mkdir -p "$dir" && cp -R "$ROOT/engines/canvas-film/template/." "$dir/" && cp "$ROOT/engines/canvas-film/README.md" "$dir/ENGINE_README.md"
+  if [ "$engine" = canvas-film ]; then   # a static page and its scripts: nothing to install (one command a line, so a failed copy stops here)
+    mkdir -p "$dir"
+    rsync -a --exclude out "$ROOT/engines/canvas-film/template/" "$dir/"
+    cp "$ROOT/engines/canvas-film/README.md" "$dir/ENGINE_README.md"
   elif [ "$type" = handdrawn ] || [ "$type" = mv ]; then
     rsync -a --exclude node_modules --exclude out "$ROOT/engines/ClaudeAnimationBase/" "$dir/"
     mv "$dir/README.md" "$dir/ENGINE_README.md"   # the engine's own readme; project docs are BRIEF/STORYBOARD/…
@@ -483,7 +486,15 @@ for l in rules.splitlines():
 ' "$lvl"
 }
 
-cmd_readcheck() { python3 "$ROOT/tools/readcheck.py" "$@"; }
+cmd_readcheck() { # a canvas-film project (film.html): its texts exist once the page runs, so they are written first (tools/film/texts.mjs)
+  if [ $# -gt 0 ] && [ -d "$1" ] && [ -f "$1/film.html" ]; then
+    local proj=$1 b; shift
+    b=$(film_browser readcheck) || exit 2
+    node "$ROOT/tools/film/texts.mjs" --browser "$b" "$proj" --out "$proj/out/texts.json" || exit $?
+    set -- "$proj/out/texts.json" "$@"
+  fi
+  python3 "$ROOT/tools/readcheck.py" "$@"
+}
 hf_shell() { # the chrome-headless-shell binary itself (hf_chrome prints its version folder)
   local p; p=$(hf_chrome) || return 1
   [ -f "$p" ] && [ -x "$p" ] && { echo "$p"; return 0; }
@@ -500,13 +511,17 @@ cmd_textcheck() { # canvas text covered or too faint (tools/textcheck/textcheck.
   exec node "$ROOT/tools/textcheck/textcheck.mjs" --browser "$b" "$@"
 }
 cmd_frames() { cmd_film_tool frames "$@"; }   # frames drawn from a page through the page contract (tools/film/frames.mjs)
-cmd_film_tool() { # $1: frames | render | determinism (tools/film/<it>.mjs); the browser as for textcheck
-  local tool=$1; shift
-  [ $# -gt 0 ] || { cmd_usage "$tool"; exit 1; }
+film_browser() { # the browser the page-contract tools draw with, as for textcheck; $1 names the command in the message
   local b=${CHROME_PATH:-}
   if [ -z "$b" ] || [ ! -x "$b" ]; then
-    b=$(hf_shell) || b=$(chrome_path) || { echo "$c_no bin/vh $tool needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; exit 2; }
+    b=$(hf_shell) || b=$(chrome_path) || { echo "$c_no bin/vh $1 needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; return 1; }
   fi
+  echo "$b"
+}
+cmd_film_tool() { # $1: frames | render | determinism (tools/film/<it>.mjs)
+  local tool=$1 b; shift
+  [ $# -gt 0 ] || { cmd_usage "$tool"; exit 1; }
+  b=$(film_browser "$tool") || exit 2
   exec node "$ROOT/tools/film/$tool.mjs" --browser "$b" "$@"
 }
 cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 1; }
