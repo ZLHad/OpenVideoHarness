@@ -63,7 +63,12 @@
 #   textcheck <project|index.html> [--texts f.json] [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12] [--out dir] [--soft-gl] [--timeout 900]
 #                               text drawn into a canvas, which npx hyperframes check cannot see: a read covered by the picture (under 70% of it
 #                               shows), under 3:1, outside or cut by the frame, or under a DOM caption (exit 1); canvas text outside the registry
-#                               and captions over a bright picture warn. The composition opts in with window.__vh = { draw(t), texts? } (engines/README.md)
+#                               and captions over a bright picture warn. The composition opts in with window.film = { frame(t), duration, texts? }
+#                               (engines/CONTRACT.md; the older window.__vh = { draw(t), texts? } still works)
+#   frames <project|page.html> (--at t,t… | --range a:b[:step] | --strip a:b) [--fps 30] [--out dir] [--size WxH] [--dpr 2] [--real-clock]
+#                               frames drawn from the source through the page contract (window.film, engines/CONTRACT.md), for any web-page
+#                               engine: ClaudeAnimationBase, a page that writes window.film, HyperFrames (a composition without it gets its own
+#                               runtime); lossless PNGs in <project>/out/frames; --strip: every frame of a span and one picture of them all
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
 #   check <video> [--allow t,t…] [--against <ref.mp4>]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) +
 #                               black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any not declared
@@ -462,6 +467,14 @@ cmd_textcheck() { # canvas text covered or too faint (tools/textcheck/textcheck.
   fi
   exec node "$ROOT/tools/textcheck/textcheck.mjs" --browser "$b" "$@"
 }
+cmd_frames() { # frames drawn from a page through the page contract (tools/film/frames.mjs); the browser as for textcheck
+  [ $# -gt 0 ] || { cmd_usage frames; exit 1; }
+  local b=${CHROME_PATH:-}
+  if [ -z "$b" ] || [ ! -x "$b" ]; then
+    b=$(hf_shell) || b=$(chrome_path) || { echo "$c_no bin/vh frames needs a headless Chrome: npx hyperframes browser ensure (in a HyperFrames project), install Chrome or Chromium, or set CHROME_PATH" >&2; exit 2; }
+  fi
+  exec node "$ROOT/tools/film/frames.mjs" --browser "$b" "$@"
+}
 cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 1; }
   uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" "$@"; }
 cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--segment NAME | --from s --to s] [--max s] [--out file.png]"; exit 1; }
@@ -787,7 +800,7 @@ case "${1:-help}" in
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
-  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;;
+  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
   help|-h|--help) cmd_help ;;
   *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;

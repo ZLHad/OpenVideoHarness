@@ -1,0 +1,70 @@
+# 页面合约：`window.film`
+
+本仓库里凡是"用网页画画面"的引擎，都按这一页对外交代自己：给出画第 t 秒的函数、片长和就绪信号。`bin/vh` 里取帧、查字、以后的出片和导出，只认这个合约，不认引擎。新引擎进来，写清楚它怎么满足这一页就行。
+
+合约的核心字段和 [OpenFilm](https://github.com/openfilm/openfilm) 协议 0.1 的页面同名同义（它的 `packages/openfilm/SPEC.md` 第 2–4 节），所以按这一页写的片子，也能在 OpenFilm 的 Studio 里打开（试验，见 `docs/proposals/01-client-and-workflow.md`）。下面"扩展"一节的字段是本仓库加的，别的宿主会忽略它们。
+
+Manim、Blender 和生成式视频直接出视频文件，不是页面，不在这一页管的范围里；放进时间线时，它们就是视频片段。
+
+## 页面给出什么
+
+```js
+window.film = {
+  frame(t) { /* 画出第 t 秒的完整画面 */ },   // 必填；可以返回 Promise，resolve 时画面才算画完
+  duration: 24.8,                             // 片长（秒）
+  ready: loadEverything(),                    // Promise，或返回 Promise 的函数：字体、图片、数据都载好了
+  width: 1920, height: 1080,                  // 可选：画面尺寸（CSS 像素）
+};
+```
+
+| 字段 | 必填 | 意思 |
+|---|---|---|
+| `frame(t)` | 是 | 画出 t 秒（`0 ≤ t < duration`）的完整画面，连同它自己管的 DOM（比如字幕）。硬规则 1：同一个 t 永远画出同一帧，不管之前画过什么、按什么顺序要帧。 |
+| `duration` | 是 | 片长，秒。OpenFilm 允许不写（当作静帧）；本仓库的片子都有长度，所以必填。 |
+| `ready` | 否 | 宿主等它 resolve 之后才调 `frame`。网页字体要逐个 `document.fonts.load('900 60px X')`，不能只等 `document.fonts.ready`。 |
+| `width`、`height` | 否 | 不写时，宿主按页面的 `<meta name="viewport" content="width=…, height=…">`，或者 HyperFrames 根元素的 `data-width` × `data-height`，再不然 1920 × 1080。出 4K 不改这两个数，而是把设备像素比设成 2。 |
+
+页面应当在 `load` 事件之前设好 `window.film`；宿主在 `load` 之后最多等 10 秒。
+
+### 扩展（本仓库的工具读，可选）
+
+| 字段 | 格式 | 谁读 |
+|---|---|---|
+| `texts` | 数组，或 `ready` 之后调用、返回数组的函数：`[{text, start, end, read?}]`，同 readcheck 的 `texts.json` | `bin/vh textcheck`、`bin/vh readcheck` |
+| `events` | 画面事件：`[{t, kind, x?}]`，时刻、事件的种类（贴纸落下、盖章、翻页这类）、在画面上的横坐标（给声像用）。配什么声是另一步：`bin/vh sfx place` 读的 `events.json` 里写的是声音的名字 | 配音效、`bin/vh qa` 的 cue check（以后） |
+| `chapters` | `[{t, title}]` | 进度条、发布文案的章节表（以后） |
+| `cues` | 时间挂在旁白字词上时，每个挂点的解析结果：`[{id, ref, t}]` | 列出和查错（以后） |
+
+这几项都是数据，在 `ready` 里算好：OpenFilm 的说法是"跟着声音走的时间是数据，不是接口"。
+
+### 以前的 `window.__vh`
+
+`bin/vh textcheck` 原来认的是 `window.__vh = { draw, texts, ready }`，现在仍然认。新写的页面写 `window.film`，`frame` 就是原来的 `draw`。两个都写了，以 `window.film` 为准。
+
+## 宿主做什么
+
+本仓库的宿主是 `tools/film/host.mjs`（`bin/vh frames` 用它）：
+
+1. 从项目目录起一个只在本机 `127.0.0.1` 的服务来打开页面（不用 `file://`），所以页面能 `fetch` 项目里的文件。
+2. 页面的脚本运行之前，先设好 `window.filmHost = { version: '0.1', name: 'ovh' }`。看到它，页面就不能自己往前走：不开自转的动画循环，不自动播放，不开开发界面。
+3. **时钟兜底**：从画第一帧起，`performance.now()`、`requestAnimationFrame` 的时间戳、`Date`、页面留着在跑的 CSS 和 Web Animations 都钉在 t 上，`Math.random` 每帧按 t 重新播种。硬规则 1 照旧是"不许用这些"；兜底的作用是写错了也不出错，宿主还会报出这一帧碰了 `Math.random` 或 `Date`。加载阶段（`ready` 之前）照常走真实时间。思路和 OpenFilm 的 `FILM_CLOCK` 一样，代码是本仓库自己写的（`tools/film/clock.js`）。
+4. 等 `ready`，再调 `frame(t)`，等它 resolve，然后截取视口（无损 PNG）。
+5. 页面抛错、加载失败，都报出来，不当作成功。
+
+## 各引擎怎么满足
+
+| 引擎 | 怎么满足 | 备注 |
+|---|---|---|
+| 自建 canvas 引擎（以后收进 `engines/`） | 页面自己写 `window.film` | 收进来时按这一页写 |
+| ClaudeAnimationBase（手绘） | `src/core.js` 自己写 `window.film`：`frame(t)` 就是 `T = t; await redraw(); composite(t)`，就绪看 `window.ready`；有 `filmHost` 时 `studio.html` 只露出画面那块 canvas，不开开发界面 | 成片照旧走 `node render.mjs` |
+| HyperFrames | 合成不用改。宿主照 HyperFrames 自己的做法，在 `</head>` 前插入项目里的运行时（`node_modules/hyperframes/dist/hyperframe.runtime.iife.js`，项目里没有就用 `styles/_swatch` 装的那份），再把运行时的 `window.__player.renderSeek(t)` 包成 `window.film` | 成片照旧走 `npx hyperframes render`。HyperFrames 渲染时还做了别的事（虚拟时间、GSAP 缓冲，把 Google 字体换成它本地缓存的一份），所以宿主取的帧和它渲染的帧只保证接近，不保证逐字节相同（见下面的实测） |
+| 页面自己写了 `window.film` 或 `window.__vh` 的合成 | 用页面自己的 | canvas 合成大多已经写了 `window.__vh` |
+
+## 实测（2026-10-11，M3 Max）
+
+| 片子 | 和谁比 | 结果 |
+|---|---|---|
+| showcase 00（HyperFrames，嵌套合成） | `npx hyperframes snapshot` 同样的时刻 | 1、5、10 s 逐像素相同；14 s 有 0.01% 的像素差 1 级（87.5 dB） |
+| showcase 02（HyperFrames，DOM 和 GSAP） | 同上 | 图形逐像素相同；文字边缘不同（31–33 dB），因为 HyperFrames 把 Google 字体换成了它本地缓存的一份 |
+| showcase 01（手绘引擎） | `node render.mjs --stills` 同样的时刻 | 用同一个浏览器（系统 Chrome 154）时逐像素相同；用 HyperFrames 带的 chrome-headless-shell 150 时 51–54 dB，差别来自浏览器版本 |
+| 本仓库的测试页（`tools/film/fixture/`） | 自己：先画别的帧再画，和单独画 | 逐字节相同，`Math.random` 被钉在 t 上并报了出来；关掉时钟兜底（`--real-clock`）就不同 |

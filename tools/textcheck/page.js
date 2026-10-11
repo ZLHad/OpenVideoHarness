@@ -1,7 +1,7 @@
 // textcheck's side of the page: injected before the composition's own scripts (Page.addScriptToEvaluateOnNewDocument).
 // It records every fillText / strokeText on a canvas in the document (the string, the transform, the font state and the
 // alpha) and can skip chosen calls, so a frame can be drawn again without one read; it replays a read alone as a mask;
-// and it measures. The composition only provides window.__vh.draw(t) (engines/README.md, "画面文字检查").
+// and it measures. The composition only provides window.film.frame(t) (engines/CONTRACT.md) or the older window.__vh.draw(t).
 (() => {
   if (window.__vhTC) return;
   window.__timelines = window.__timelines || {};   // HyperFrames' runtime makes this; compositions register into it
@@ -55,7 +55,7 @@
   async function draw(t, skip) {
     H.n = 0; H.skip = skip || null; H.rec = !skip; H.t = t;
     if (!skip) H.calls = [];
-    try { await window.__vh.draw(t); } catch (e) { H.errors.push({ t, msg: String((e && e.stack) || e) }); }
+    try { const f = contract(); await f.draw(t); } catch (e) { H.errors.push({ t, msg: String((e && e.stack) || e) }); }
     H.rec = false; H.skip = null; H.t = null;
     return H.n;
   }
@@ -290,11 +290,18 @@
     return lines;
   }
 
+  // the page contract: window.film (engines/CONTRACT.md), else the older window.__vh; one shape for the rest of this file
+  function contract() {
+    const f = window.film;
+    if (f && typeof f.frame === "function") return { draw: (t) => f.frame(t), texts: f.texts, duration: f.duration, ready: f.ready };
+    return window.__vh || {};
+  }
+
   window.__vhTC = {
     keyOf,
     // what the page offers: the frame function, an in-page registry, the length
     info() {
-      const v = window.__vh, root = document.querySelector("[data-composition-id]");
+      const v = contract(), root = document.querySelector("[data-composition-id]");
       let texts = null;
       if (v && v.texts) try { texts = JSON.parse(JSON.stringify(typeof v.texts === "function" ? v.texts() : v.texts)); } catch (e) { texts = { error: String(e) }; }
       return { draw: !!(v && typeof v.draw === "function"), texts, duration: +((v && v.duration) || (root && root.dataset.duration) || 0),

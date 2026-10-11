@@ -6,13 +6,14 @@
 //          [--out dir] [--soft-gl] [--timeout s]
 //        (bin/vh textcheck finds the browser: CHROME_PATH, HyperFrames' chrome-headless-shell, then Chrome or Chromium)
 //
-// The composition opts in with one line (engines/README.md, "画面文字检查"):
-//     window.__vh = { draw: (t) => drawFrame(t), texts: TEXTS };
-// draw(t) draws the frame at t seconds (and the DOM it controls, such as a caption), the same picture the render shows at
-// t; it may return a promise. texts (optional) is the registry of reads, the format of readcheck's texts.json:
+// The composition opts in with the page contract (engines/CONTRACT.md; engines/README.md, "画面文字检查"):
+//     window.film = { frame: (t) => drawFrame(t), duration: 24.8, texts: TEXTS };
+// (the older window.__vh = { draw, texts } still works). frame(t) draws the frame at t seconds (and the DOM it controls,
+// such as a caption), the same picture the render shows at t; it may return a promise. texts (optional) is the registry of
+// reads, the format of readcheck's texts.json:
 // [{text, start, end, read?}]. Without it the registry is --texts, else <project>/out/texts.json, else none.
 // The page is served from its folder on 127.0.0.1, at the composition's data-width x data-height, device scale 1; the
-// check waits for window.__hf.buildReady (HyperFrames' own convention), window.__vh.ready and the fonts.
+// check waits for window.__hf.buildReady (HyperFrames' own convention), the contract's ready and the fonts.
 //
 // Nothing else in the film changes: before its scripts run, the check hooks the canvas's fillText and strokeText, so it
 // knows every text drawn, with its transform and font, and can draw a frame again without one of them. For each read:
@@ -42,7 +43,7 @@
 // Writes <out>/textcheck.json (every number) and a crop per finding (<out>/<t>s-<kind>.png); out defaults to
 // <project>/out/check/textcheck. Exit: 0 no read failed (warnings allowed) · 1 a registered read is covered, under the
 // contrast, outside or cut by the frame, or under a caption, or the frame function threw · 2 could not check (no
-// window.__vh.draw, the page did not load, no browser, or no canvas text measured at all): not a pass.
+// window.film.frame nor window.__vh.draw, the page did not load, no browser, or no canvas text measured at all): not a pass.
 import fs from "node:fs";
 import path from "node:path";
 import { BrowserGone, launch, serve } from "./browser.mjs";
@@ -84,7 +85,7 @@ const src = fs.readFileSync(html, "utf8"), rootTag = (src.match(/<[^>]*\bdata-co
 const attr = (n) => { const m = rootTag.match(new RegExp(`\\b${n}="([\\d.]+)"`)); return m ? +m[1] : 0; };
 const W = attr("data-width") || 1920, H = attr("data-height") || 1080;
 
-// the registry of reads: --texts, else the page's window.__vh.texts, else out/texts.json (the same file readcheck reads)
+// the registry of reads: --texts, else the page's texts (window.film.texts or window.__vh.texts), else out/texts.json (the same file readcheck reads)
 function items(j) {
   const list = Array.isArray(j) ? j : j && (j.texts || j.items || j.captions || j.cues);
   if (!Array.isArray(list)) return null;
@@ -137,27 +138,29 @@ try {
   await Promise.race([loaded, new Promise((_, rej) => { loadTimer = setTimeout(() => rej(new Error("the page did not load within 60 s")), 60000); })]).catch((e) => stop(e.message)).finally(() => clearTimeout(loadTimer));
   const ready = await ev(`(async () => {
     const wait = (p) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("not ready after 120 s")), 120000))]);
-    try { await wait(Promise.all(Object.values((window.__hf && window.__hf.buildReady) || {}))); if (window.__vh && window.__vh.ready) await wait(window.__vh.ready); await wait(document.fonts.ready); }
+    try { await wait(Promise.all(Object.values((window.__hf && window.__hf.buildReady) || {})));
+      let r = window.film && typeof window.film.frame === "function" ? window.film.ready : window.__vh && window.__vh.ready;
+      if (typeof r === "function") r = r(); if (r) await wait(r); await wait(document.fonts.ready); }
     catch (e) { return String(e && e.message || e); }
     return "";
   })()`);
-  if (ready) stop(`${ready} (window.__hf.buildReady, window.__vh.ready or the fonts)`);
+  if (ready) stop(`${ready} (window.__hf.buildReady, window.film.ready, window.__vh.ready or the fonts)`);
   const T0 = Date.now(), phase = (name) => { if (process.env.TEXTCHECK_TIMING) console.error(`  [${((Date.now() - T0) / 1000).toFixed(1)} s] ${name}`); };
   const info = await call("info");
   if (!info.draw) {
-    stop(`${path.relative(process.cwd(), html) || html} has no window.__vh.draw(t), so nothing can be drawn on demand. Add one line to the composition's inline script:\n` +
-      `    window.__vh = { draw: (t) => drawFrame(t) };   // your function that draws frame t; texts: [...] optional\n` +
-      `(engines/README.md, "画面文字检查")` + (loadErrors.length ? `\npage errors while loading:\n  ${[...new Set(loadErrors)].slice(0, 5).join("\n  ")}` : ""));
+    stop(`${path.relative(process.cwd(), html) || html} has no window.film.frame(t) (nor the older window.__vh.draw), so nothing can be drawn on demand. Add one line to the composition's inline script:\n` +
+      `    window.film = { frame: (t) => drawFrame(t), duration: 24.8 };   // your function that draws frame t, and the length; texts: [...] optional\n` +
+      `(engines/CONTRACT.md; engines/README.md, "画面文字检查")` + (loadErrors.length ? `\npage errors while loading:\n  ${[...new Set(loadErrors)].slice(0, 5).join("\n  ")}` : ""));
   }
   let reg = null, regFrom = "";
   if (textsFile) { try { reg = items(JSON.parse(fs.readFileSync(textsFile, "utf8"))); } catch (e) { stop(`--texts ${textsFile}: ${e.message}`); } if (!reg) stop(`--texts ${textsFile}: not a list of {text, start, end}`); regFrom = path.relative(process.cwd(), textsFile) || textsFile; }
-  else if (info.texts) { reg = items(info.texts); if (!reg) stop("window.__vh.texts is not a list of {text, start, end}"); regFrom = "window.__vh.texts"; }
+  else if (info.texts) { reg = items(info.texts); if (!reg) stop("the page's texts (window.film.texts or window.__vh.texts) is not a list of {text, start, end}"); regFrom = "the page's texts"; }
   else if (fs.existsSync(path.join(project, "out", "texts.json"))) { reg = items(JSON.parse(fs.readFileSync(path.join(project, "out", "texts.json"), "utf8"))) || []; regFrom = "out/texts.json"; }
   reg = reg || [];
   const dur = info.duration || Math.max(0, ...reg.map((x) => x.end));
-  if (!(dur > 0)) stop("no length: give the composition root a data-duration, or window.__vh a duration");
+  if (!(dur > 0)) stop("no length: give window.film a duration (or window.__vh, or the composition root a data-duration)");
   console.log(`textcheck: ${path.basename(html)} · ${W}x${H} · ${dur} s · ${browser.version}`);
-  console.log(`  reads: ${reg.length ? `${reg.length} from ${regFrom}, ${opt.samples} sample(s) each` : "no registry (window.__vh.texts, --texts or out/texts.json): only the scan below"}` +
+  console.log(`  reads: ${reg.length ? `${reg.length} from ${regFrom}, ${opt.samples} sample(s) each` : "no registry (the page's texts, --texts or out/texts.json): only the scan below"}` +
     ` · canvas text outside it: ${opt.scanStep > 0 ? `every ${opt.scanStep} s` : "off"} · captions: ${opt.captionStep > 0 ? `every ${opt.captionStep} s` : "off"}`);
 
   // 1 the registered reads
