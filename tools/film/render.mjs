@@ -38,7 +38,7 @@ let target = null, out = null, range = null, gop = null, png = false, force = fa
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], [k, inline] = a.startsWith("--") && a.includes("=") ? [a.slice(0, a.indexOf("=")), a.slice(a.indexOf("=") + 1)] : [a, undefined];
   const val = () => { const v = inline !== undefined ? inline : argv[++i]; if (v === undefined) die(`${k} needs a value`); return v; };
-  const num = (v, what, min) => { const x = Number(v); if (v === "" || !Number.isFinite(x) || x < min) die(`${what}: ${v} is not a number ≥ ${min}`); return x; };
+  const num = (v, what, min) => { const x = Number(v); if (v === "" || !Number.isFinite(x) || x < min) die(`${what}: ${JSON.stringify(v)} is not a number ≥ ${min}`); return x; };
   if (k === "--out") out = val();
   else if (k === "--range") { range = val().split(":").map((v) => num(v, "--range", 0)); if (range.length !== 2 || range[1] <= range[0]) die("--range a:b, b > a"); }
   else if (k === "--fps") o.fps = num(val(), k, 1);
@@ -168,8 +168,11 @@ const files = await Promise.all(chunks.map((c, w) => worker(w, c)));
 clearInterval(progress);
 if (failed) { fs.rmSync(parts, { recursive: true, force: true }); console.error(`render: ${failed}`); process.exit(1); }
 fs.writeFileSync(path.join(parts, "list.txt"), files.map((f) => `file '${path.basename(f)}'`).join("\n") + "\n");
-const join = spawnSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", path.join(parts, "list.txt"), "-c", "copy", "-movflags", "+faststart", outFile], { encoding: "utf8" });
-if (join.status !== 0) { fs.rmSync(parts, { recursive: true, force: true }); console.error(`render: joining the chunks failed: ${join.stderr.trim()}`); process.exit(1); }
+// joined inside the parts folder and moved onto <out> whole: a join cut short (Ctrl-C) never replaces an earlier video
+const joined = path.join(parts, `joined${path.extname(outFile)}`);
+const join = spawnSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", path.join(parts, "list.txt"), "-c", "copy", "-movflags", "+faststart", joined], { encoding: "utf8" });
+if (join.status !== 0) { fs.rmSync(parts, { recursive: true, force: true }); console.error(`render: joining the chunks failed: ${(join.stderr || join.signal || "").toString().trim()}`); process.exit(1); }
+fs.renameSync(joined, outFile);
 // the frame count the MP4 records (counting by decoding would take minutes on a long 4K film)
 const probe = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",
   "stream=nb_frames,width,height,pix_fmt,color_range,color_space,color_primaries,color_transfer", "-of", "json", outFile], { encoding: "utf8" });
@@ -179,7 +182,10 @@ const secs = (Date.now() - T0) / 1000;
 const sidecar = {
   note: "how this video was made (bin/vh render); a patch or re-render should match these",
   // from the video's folder when the video is in the project (it moves with it), else where the page is
-  page: outFile.startsWith(first.root + path.sep) ? path.relative(path.dirname(outFile), first.page) : first.page,
+  page: (() => {   // first.root is a real path (host.mjs), so the video's folder is compared as one too (macOS /tmp is /private/tmp)
+    const dir = fs.realpathSync(path.dirname(outFile)), page = path.join(first.root, path.basename(first.page));
+    return (dir + path.sep).startsWith(first.root + path.sep) ? path.relative(dir, page) : first.page;
+  })(),
   kind: first.kind, width: first.width, height: first.height, dpr: o.dpr, pixels: [st.width, st.height], fps, frames: n,
   span: [+(k0 / fps).toFixed(6), +(k1 / fps).toFixed(6)], first_frame: k0, capture: png ? "png" : `jpeg q${o.quality}`,
   encoder: { codec: "libx264", crf: o.crf, preset: o.preset, gop, keyint_min: gop, sc_threshold: 0, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] },
