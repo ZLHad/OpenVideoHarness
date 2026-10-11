@@ -7,7 +7,7 @@
 // usage: node tools/film/cues.mjs <project | page.html> --browser <chrome> [--save] [--out out/cues.json]
 //
 // A cue that no longer resolves stops the page in ready, so the host's message names it and this exits 2.
-// Exit: 0 listed · 2 could not open the page, or it gives no window.film.cues.
+// Exit: 0 listed · 2 could not open the page, it gives no window.film.cues, or --save cannot write the file.
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -45,13 +45,14 @@ const sec = (t) => (Number.isFinite(t) ? t.toFixed(3) : "—");
 const tlFile = typeof tlRel === "string" && tlRel ? path.resolve(film.root, tlRel) : null;
 const sha = tlFile && fs.existsSync(tlFile) ? createHash("sha256").update(fs.readFileSync(tlFile)).digest("hex") : null;
 const ok = (c) => c && typeof c === "object";
-const sorted = cues.filter(ok).sort((p, q) => (+p.t || 0) - (+q.t || 0) || String(p.id).localeCompare(String(q.id)));
+const tv = (c) => (typeof c.t === "number" ? c.t : NaN);   // NaN arrives as null through JSON: not 0 s
+const sorted = cues.filter(ok).sort((p, q) => (Number.isFinite(tv(p)) ? tv(p) : Infinity) - (Number.isFinite(tv(q)) ? tv(q) : Infinity) || String(p.id).localeCompare(String(q.id)));
 console.log(`cues: ${rel(film.page)} · ${sorted.length} cue${sorted.length === 1 ? "" : "s"}` +
   (tlFile ? ` on ${rel(tlFile)}${sha ? ` (sha256 ${sha.slice(0, 12)})` : " (not found)"}` : " (the page names no timeline)"));
 for (const p of loadProblems) console.log(`  while loading: ${p}`);
 const w = Math.max(4, ...sorted.map((c) => String(c.id).length));
 console.log(`  ${"t".padStart(8)}  ${"id".padEnd(w)}  cue`);
-for (const c of sorted) console.log(`  ${sec(+c.t).padStart(8)}  ${String(c.id).padEnd(w)}  ${c.ref}`);
+for (const c of sorted) console.log(`  ${sec(tv(c)).padStart(8)}  ${String(c.id).padEnd(w)}  ${c.ref}`);
 
 // against the cues saved last time: what moved, what is new, what is gone. The timeline's sha256 says why (another take
 // of the narration), but the page's own cues can change on the same take too (a word changed, FILM.lead)
@@ -63,7 +64,7 @@ if (fs.existsSync(file)) {
 }
 if (before) {
   const was = before.cues.filter(ok), old = new Map(was.map((c) => [c.id, c])), now = new Map(sorted.map((c) => [c.id, c]));
-  const moved = sorted.filter((c) => old.has(c.id) && !(Math.abs(old.get(c.id).t - c.t) < 0.0005)).map((c) => [c, c.t - old.get(c.id).t]);
+  const moved = sorted.filter((c) => old.has(c.id) && !(Math.abs(tv(old.get(c.id)) - tv(c)) < 0.0005)).map((c) => [c, tv(c) - tv(old.get(c.id))]);
   const added = sorted.filter((c) => !old.has(c.id)), gone = was.filter((c) => !now.has(c.id));
   const take = before.timeline_sha256 && sha ? (before.timeline_sha256 === sha ? "same timeline" : "another take") : null;
   if (!moved.length && !added.length && !gone.length) console.log(`  since ${rel(file)}: nothing moved${take === "same timeline" ? " (saved on this same timeline)" : ""}`);
@@ -72,7 +73,7 @@ if (before) {
       `${moved.length} moved, ${added.length} new, ${gone.length} gone`);
     const more = (n, k) => { if (n > k) console.log(`    … and ${n - k} more`); };
     for (const [c, d] of moved.sort((p, q) => (Math.abs(q[1]) || 0) - (Math.abs(p[1]) || 0)).slice(0, 20))
-      console.log(`    ${String(c.id).padEnd(w)}  ${sec(+old.get(c.id).t)} → ${sec(+c.t)} s  (${Number.isFinite(d) ? `${d >= 0 ? "+" : ""}${d.toFixed(3)}` : "—"})`);
+      console.log(`    ${String(c.id).padEnd(w)}  ${sec(tv(old.get(c.id)))} → ${sec(tv(c))} s  (${Number.isFinite(d) ? `${d >= 0 ? "+" : ""}${d.toFixed(3)}` : "—"})`);
     more(moved.length, 20);
     for (const c of added.slice(0, 10)) console.log(`    new   ${c.id}  ${c.ref}`);
     more(added.length, 10);
