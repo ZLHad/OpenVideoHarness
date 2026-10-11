@@ -302,7 +302,7 @@ window.renderAt = async (t, type = 'image/png', q = .92) => { T = t; await redra
 // The page contract (engines/CONTRACT.md): bin/vh frames, textcheck and other hosts draw any t through window.film. A host
 // sets window.filmHost before the page runs; then the page shows only the picture, at its size, and no dev UI.
 window.film = {
-  duration: DUR, width: W, height: H,
+  get duration() { return window.LOOP ? window.LOOP.len : DUR; }, width: W, height: H,
   ready: () => new Promise(ok => { const wait = () => (window.ready ? ok() : setTimeout(wait, 20)); wait(); }),
   async frame(t) { T = t; await redraw(); composite(t); },
 };

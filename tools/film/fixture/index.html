@@ -14,6 +14,9 @@
   const c = document.getElementById("c"), x = c.getContext("2d");
   window.film = {
     duration: 3,
+    // a method that needs `this`, as OpenFilm's spec allows: the host must call it as film.ready()
+    ready() { return this.load(); },
+    load() { return document.fonts.ready; },
     frame(t) {
       x.fillStyle = `hsl(${Math.round(t * 120)}, 60%, 30%)`; x.fillRect(0, 0, 320, 180);
       x.fillStyle = "#fff"; x.fillRect(Math.floor(Math.random() * 300), 20, 8, 8);

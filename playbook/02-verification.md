@@ -47,7 +47,7 @@
 
 ## 各引擎的取帧命令
 
-**所有页面引擎通用**：HyperFrames、手绘引擎和写了 `window.film` 的页面，都能用 `bin/vh frames <项目> --at 1.5,4.2`（静帧）、`--range 2:8:0.5` 或 `--strip 2:2.5`（一段里的每一帧，外加一张拼图）从源码取无损 PNG，不用先渲视频。它走的是页面合约（`engines/CONTRACT.md`）。要和某条渲染路径逐像素对比时，用同一个浏览器（`CHROME_PATH`）。下面各引擎自己的命令照样能用。
+**所有页面引擎通用**：HyperFrames、手绘引擎和写了 `window.film` 的页面，都能用 `bin/vh frames <项目> --at 1.5,4.2`（静帧）、`--range 2:8:0.5`（隔一段取一帧）或 `--strip 2:2.5`（一段里的每一帧，外加一张拼图）从源码取无损 PNG，不用先渲视频。它走的是页面合约（`engines/CONTRACT.md`）。要和某条渲染路径逐像素对比时，用同一个浏览器（`CHROME_PATH`）。下面各引擎自己的命令照样能用。
 
 **ClaudeAnimationBase / p5（在你的项目目录下运行，项目由 `bin/vh new handdrawn|mv <slug>` 从 `engines/ClaudeAnimationBase/` 复制而来）**
 

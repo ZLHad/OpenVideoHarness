@@ -842,10 +842,14 @@ film_checks() {
   vh frames tools/film/fixture --at 2.5 --out "$t/b" >/dev/null 2>&1
   if [ $rc = 0 ] && cmp -s "$t/a/index-t0002.500.png" "$t/b/index-t0002.500.png" && printf '%s' "$a" | grep -q "read Math.random" \
      && python3 -c "import struct, sys; d = open(sys.argv[1], 'rb').read(); sys.exit(0 if struct.unpack('>II', d[16:24]) == (320, 180) else 1)" "$t/b/index-t0002.500.png"
-  then ok "frames: a page's frame at t is the same after another frame or alone (the clock holds Math.random at t, and says so), at its meta viewport size"
+  then ok "frames: a page's frame at t is the same after another frame or alone (the clock holds Math.random at t, and says so), at its meta viewport size; ready is called as a method"
   else bad "frames on its fixture (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
   a=$(vh frames tools/film/fixture/throws.html --at 1,2.5 --out "$t/c" 2>&1); rc=$?
   case "$rc:$a" in 1:*"t=2.5 s"*"no picture after 2 s"*) ok "frames: a frame that throws exits 1 and names its t" ;; *) bad "frames on a throwing page: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
+  a=$(vh frames tools/film/fixture/late.html --at 1,2.5 --out "$t/c2" 2>&1); rc=$?
+  case "$rc:$a" in 1:*"a late error"*) ok "frames: an error a frame leaves behind (a timer) still fails the run" ;; *) bad "frames on a late error: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
+  a=$(vh frames tools/film/fixture/loaderr.html --at 1 --out "$t/c3" 2>&1); rc=$?
+  case "$rc:$a" in 1:*"while loading: failed to load missing.png"*) ok "frames: a request that fails while loading fails the run" ;; *) bad "frames on a failed load: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
   a=$(vh frames tools/film/fixture/nofilm.html --at 1 --out "$t/d" 2>&1); rc=$?
   case "$rc:$a" in 2:*"no window.film"*) ok "frames: a page without window.film exits 2" ;; *) bad "frames on a page without the contract: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
   a=$(vh frames tools/film/fixture --at 5 --out "$t/e" 2>&1); rc=$?

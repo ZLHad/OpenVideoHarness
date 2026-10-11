@@ -293,7 +293,7 @@
   // the page contract: window.film (engines/CONTRACT.md), else the older window.__vh; one shape for the rest of this file
   function contract() {
     const f = window.film;
-    if (f && typeof f.frame === "function") return { draw: (t) => f.frame(t), texts: f.texts, duration: f.duration, ready: f.ready };
+    if (f && typeof f.frame === "function") return { draw: (t) => f.frame(t), texts: typeof f.texts === "function" ? () => f.texts() : f.texts, duration: f.duration };
     return window.__vh || {};
   }
 

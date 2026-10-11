@@ -60,7 +60,7 @@ function serve(root, pageRel, inject, extra) {
   const server = http.createServer((req, res) => {
     let rel;
     try { rel = decodeURIComponent(new URL(req.url, "http://x").pathname); } catch { res.writeHead(400); return res.end(); }
-    if (rel.startsWith("/__vh/") && extra[rel.slice(6)]) {
+    if (rel.startsWith("/__vh/") && Object.hasOwn(extra, rel.slice(6))) {
       res.writeHead(200, { "content-type": "text/javascript", "cache-control": "no-store" });
       return fs.createReadStream(extra[rel.slice(6)]).pipe(res);
     }
@@ -115,6 +115,7 @@ export async function openFilm(target, o = {}) {
     for (const d of ["Page", "Runtime", "Network"]) await browser.send(`${d}.enable`, {}, s);
     const metrics = (w, h) => browser.send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: o.dpr || 1, mobile: false }, s);
     await metrics(width, height);
+    await browser.send("Emulation.setTimezoneOverride", { timezoneId: "UTC" }, s);   // local time reads the same on every machine
     const prelude = o.realClock ? 'window.filmHost = { version: "0.1", name: "ovh" };' : fs.readFileSync(path.join(HERE, "clock.js"), "utf8");
     await browser.send("Page.addScriptToEvaluateOnNewDocument", { source: prelude }, s);
     const ev = async (expression, what) => {
@@ -139,8 +140,9 @@ export async function openFilm(target, o = {}) {
     const ready = await ev(`(async () => {
       const wait = (p) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("not ready after 120 s")), 120000))]);
       try {
-        let r = window.film && window.film.frame ? window.film.ready : window.__vh.ready;
-        if (typeof r === "function") r = r();
+        const src = window.film && window.film.frame ? window.film : window.__vh;
+        let r = src.ready;
+        if (typeof r === "function") r = r.call(src);   // a method: film.ready(), as OpenFilm's hosts call it
         await wait(Promise.resolve(r)); await wait(document.fonts.ready);
       } catch (e) { return String((e && e.message) || e); }
       return "";
@@ -166,6 +168,11 @@ export async function openFilm(target, o = {}) {
         return { png: Buffer.from(shot.data, "base64"), touched };
       },
       problems: () => problems.splice(0),
+      // what arrives after the last frame (an error from a timer a frame set): two paints and 100 ms, then collect
+      async lateProblems() {
+        try { await ev("new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(ok, 100))))", "after the last frame"); } catch { /* gone */ }
+        return problems.splice(0);
+      },
       close: closeAll,
     };
   } catch (e) { await closeAll(); throw e instanceof HostError ? e : new HostError(e.message); }

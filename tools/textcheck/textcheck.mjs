@@ -139,8 +139,9 @@ try {
   const ready = await ev(`(async () => {
     const wait = (p) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("not ready after 120 s")), 120000))]);
     try { await wait(Promise.all(Object.values((window.__hf && window.__hf.buildReady) || {})));
-      let r = window.film && typeof window.film.frame === "function" ? window.film.ready : window.__vh && window.__vh.ready;
-      if (typeof r === "function") r = r(); if (r) await wait(r); await wait(document.fonts.ready); }
+      const src = window.film && typeof window.film.frame === "function" ? window.film : window.__vh || {};
+      let r = src.ready; if (typeof r === "function") r = r.call(src);   // a method, as OpenFilm's hosts call it
+      if (r) await wait(r); await wait(document.fonts.ready); }
     catch (e) { return String(e && e.message || e); }
     return "";
   })()`);
