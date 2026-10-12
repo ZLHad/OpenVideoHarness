@@ -39,8 +39,11 @@
 #                               --dry-run only measures. The original stays as voiceover.<lang>.raw.wav; captions are redone;
 #                               a timeline that fails bin/vh timeline is refused (--skip-lint to go on; --restore never stops on one)
 #   voices list [lang] | design "<description>" [--out f.wav] | delete <voice_id>   Gemini voice library / voice design
-#   captions <project> [zh|en] [zh-max] [--media-end S] [--skip-lint]  SRT (zh / en / bilingual) + captions.json from the TTS timeline; a caption under 1.8 s is
-#                               lengthened into the gap after it, up to the picture's end (--media-end, else index.html's data-duration, media/final.mp4, the timeline);
+#   captions <project> [zh|en] [zh-max] [--cards] [--cps 9] [--media-end S] [--skip-lint]  SRT (zh / en / bilingual) + captions.json from the TTS timeline,
+#                               broken at word boundaries (jieba through uv) and audio/capbreaks.json; --cards: one line a caption, cut there and
+#                               timed by the words, never across a sentence end; a caption under its minimum (1.8 s, or its characters at --cps a
+#                               second) is lengthened into the gap after it, up to the picture's end (--media-end, else index.html's data-duration,
+#                               media/final.mp4, the timeline); two less than 0.25 s apart touch;
 #                               a timeline that fails bin/vh timeline is refused (--skip-lint to go on)
 #   timeline <project|timeline.json> [zh|en]  the narration timeline's checks: lines in order, word times forward and inside their line, the words
 #                               spelling the line's text (exit 1 on a problem); tts prints them, captions and pace refuse a timeline that fails
@@ -103,6 +106,7 @@
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
 #   check <video> [--allow t,t…] [--against <ref.mp4>]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) + the
 #                               publishing copy in PACKAGING.md against the platforms' length limits (a warning) +
+#                               subtitles (its tracks and the .srt beside it) shorter than it takes to read them (a warning) +
 #                               black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any not declared
 #                               with --allow <seconds of designed flashes>) + colour tags; --against: a 4K render vs the approved 1080p cut
 #                               (exit 1 when the picture differs: a layout that breaks at device scale 2)
@@ -781,6 +785,14 @@ cmd_check() {
       *) rc=2; echo "$c_wa isolated-frame scan failed (error above)" ;;
     esac
   fi
+  # subtitles: the film's subtitle tracks and the .srt beside it, each entry long enough to read (a warning)
+  local sub src2=0
+  sub=$(python3 "$ROOT/tools/subcheck.py" "$v" 2>&1) || src2=$?
+  case "$src2" in
+    0) [ -n "$sub" ] && case "$sub" in "subtitles: none"*) ;; *) printf '%s\n' "$sub" | sed "s/^subtitles/$c_ok subtitles/" ;; esac ;;
+    1) printf '%s\n' "$sub" | sed -e "s/^subtitles\(.*\)shorter than/$c_wa subtitles\1shorter than/" -e "s/^subtitles · \(.*\)long enough/$c_ok subtitles · \1long enough/" ;;
+    *) echo "$c_wa subtitle check failed: $sub" ;;
+  esac
   # colour: browsers read untagged or BT.601-tagged HD video with the wrong matrix (playbook/02-verification.md, 色彩标签)
   local col; col=$(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt,color_range,color_space,color_transfer,color_primaries -of csv=p=0 "$v" 2>/dev/null)
   if [ -z "$col" ]; then :
@@ -838,20 +850,24 @@ cmd_pace() { # numpy for the waveform; mlx-whisper only with --align whisper (Ap
   for a in "$@"; do case "$prev:$a" in --align:whisper|*:--align=whisper) deps="$deps --with mlx-whisper" ;; esac; prev=$a; done
   uv run -q --no-project $deps python "$ROOT/tools/audio/pace.py" "$@"
 }
-cmd_captions() { # --media-end S: where a caption too short for the 1.8 s floor may be lengthened to (default: the picture's length)
-  local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--media-end S] [--skip-lint]"
+cmd_captions() { # --media-end S: where a caption too short for its minimum may be lengthened to (default: the picture's length)
+  local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--cards] [--cps 9] [--media-end S] [--skip-lint]"
   local proj=${1:?$u}; shift
   local pos=() end=()
   while [ $# -gt 0 ]; do
     case "$1" in
       --media-end) end+=(--media-end "${2:?$u}"); shift 2 ;;
-      --skip-lint) end+=(--skip-lint); shift ;;
+      --skip-lint|--cards) end+=("$1"); shift ;;
+      --cps) end+=(--cps "${2:?$u}"); shift 2 ;;
       -*) echo "bin/vh captions: unknown option $1 ($u)" >&2; return 1 ;;
       *) pos+=("$1"); shift ;;
     esac
   done
   set -- ${pos[@]+"${pos[@]}"}
-  python3 "$ROOT/tools/audio/captions.py" "$proj" ${1:+--lang "$1"} ${2:+--zh-max "$2"} ${end[@]+"${end[@]}"}
+  # word boundaries come from jieba: through uv when it can bring it (once cached, offline too), else plain python3 and the fallback
+  local py=(python3)
+  if command -v uv >/dev/null 2>&1 && uv run -q --no-project --with jieba python -c "import jieba" >/dev/null 2>&1; then py=(uv run -q --no-project --with jieba python); fi
+  PYTHONWARNINGS=ignore "${py[@]}" "$ROOT/tools/audio/captions.py" "$proj" ${1:+--lang "$1"} ${2:+--zh-max "$2"} ${end[@]+"${end[@]}"}
 }
 cmd_beats() { uv run -q --no-project --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
 cmd_timeline() { [ $# -gt 0 ] || { cmd_usage timeline; exit 1; }; python3 "$ROOT/tools/audio/timeline_lint.py" "$@"; }

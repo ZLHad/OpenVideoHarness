@@ -74,6 +74,16 @@ async function loadTimeline() {
   if (!r.ok) throw new Error(`canvas-film: no ${file} (HTTP ${r.status}): write audio/script.txt and run bin/vh tts <project>, or set FILM.timeline (engines/canvas-film/README.md)`);
   return { file, tl: await r.json() };
 }
+async function loadCaptions() {   // FILM.caption.from: the cards bin/vh captions --cards wrote
+  const f = FILM.caption.from;
+  if (!f) return;
+  let r;
+  try { r = await fetch(f, { cache: "no-store" }); } catch (e) { throw new Error(`canvas-film: ${f} (FILM.caption.from) could not be fetched (${e.message})`); }
+  if (!r.ok) throw new Error(`canvas-film: no ${f} (FILM.caption.from, HTTP ${r.status}): run bin/vh captions <project> --cards, or leave FILM.caption.from out`);
+  const j = await r.json();
+  if (!Array.isArray(j)) throw new Error(`canvas-film: ${f} (FILM.caption.from) is not a list of captions`);
+  CAP_FILE = j;
+}
 // the film on its timeline: every cue resolved, or one error that names each that is not
 function build(T) {
   const problems = [], nocap = new Set();
@@ -135,7 +145,7 @@ async function boot() {
   const cv = document.getElementById("film");
   cv.width = Math.round(W * PRX); cv.height = Math.round(H * PRX); cv.style.width = W + "px"; cv.style.height = H + "px";
   X = cv.getContext("2d");
-  const [missing, , T] = await Promise.all([loadFonts(), loadImages(), loadTimeline()]);
+  const [missing, , T] = await Promise.all([loadFonts(), loadImages(), loadTimeline(), loadCaptions()]);
   TIMELINE = T ? T.file : null;
   build(T);
   record();

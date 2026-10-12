@@ -15,7 +15,7 @@ const FILM = {
                                // 0, and then pad the voice by as much before the mix
   tail: 2.5,                   // the film runs on this long after the narration's timeline ends
   minText: 44,                 // the text-size floor in px (playbook/03 §4: desktop 44, feed 80); txt() never goes under it
-  caption: { size: 52, max: 16, y: 1012, hold: 0.8, min: 1.8 },   // one line ≤ max CJK characters wide (Latin counts 0.55),
+  caption: { size: 52, max: 16, y: 1012, hold: 0.8, min: 1.8, from: null },   // one line ≤ max CJK characters wide (Latin counts 0.55),
                                // baseline y; the last caption of a line may stay hold s into the pause; min s on screen
   bar: null,                   // the chapter bar's span { from, to } (cues or seconds); default: the first chapter to the end
   grain: 0.04,                 // film grain over the picture (0: none)
@@ -262,10 +262,17 @@ function captionPieces(text, max) {
   }
   return out.map((raw) => ({ raw, text: capText(raw) })).filter((c) => letters(c.raw));   // a "……" alone is a pause, not a caption
 }
+// from: "audio/captions.json" takes the cards bin/vh captions --cards wrote (cut at word boundaries with jieba and the
+// manual break table) instead of cutting here; their times are the timeline's, so FILM.lead is added
+let CAP_FILE = null;   // the cards loaded from FILM.caption.from in ready: [{ id, start, end, zh: [line], en: [line] }]
 function buildCaptions(nocap) {
   const C = FILM.caption;
   CAPS = [];
-  for (const id of LINE_IDS) {
+  if (CAP_FILE) for (const c of CAP_FILE) {
+    const text = [].concat(c[FILM.lang] || c.zh || c.en || []).join(" ").trim();
+    if (text && !nocap.has(c.id) && isNum(c.start) && isNum(c.end)) CAPS.push({ id: c.id, text, start: c.start + FILM.lead, end: c.end + FILM.lead });
+  }
+  else for (const id of LINE_IDS) {
     if (nocap.has(id)) continue;
     const L = LINES[id], times = letterTimes(L);
     let k = 0;

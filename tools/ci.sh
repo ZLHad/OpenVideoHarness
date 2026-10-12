@@ -1106,6 +1106,46 @@ PY
   c=$(vh captions "$t/p" zh --skip-lint --media-end 30 2>&1); rc3=$?
   if [ $rc = 1 ] && printf '%s' "$a" | grep -q "timed wrong" && [ $rc2 = 0 ] && [ $rc3 = 0 ] && [ -s "$t/p/audio/captions.json" ]; then ok "captions: refuses a timeline that fails its checks, and goes on with --skip-lint (before or after --media-end)"
   else bad "captions on a broken timeline: exit $rc ($a) / with --skip-lint exit $rc2 ($b) / --skip-lint --media-end exit $rc3 ($c)"; fi
+  # captions at word boundaries (jieba through uv): a long line without a comma is cut between words, one-line cards never
+  # cross a sentence end, and the break table starts a card at its phrase
+  if command -v uv >/dev/null && uv run -q --no-project --with jieba python -c "import jieba" >/dev/null 2>&1; then
+    mkdir -p "$t/cw/audio" && printf '# BRIEF\n' > "$t/cw/BRIEF.md"
+    python3 - "$t/cw/audio/timeline.zh.json" <<'PY'
+import json, sys
+def line(i, t0, text):
+    cs = [c for c in text if c not in "，。"]; ws, t = [], t0
+    for c in cs: ws.append({"w": c, "start": round(t, 3), "end": round(t + 0.2, 3)}); t += 0.2
+    return {"id": i, "zh": text, "start": t0, "end": round(t, 3), "words": ws}
+segs = [line("c1", 0.0, "具体能承受多大的力量怎么测量写在行业标准里面"), line("c2", 6.0, "说到第一张，卡片落下。说到第二张，第二张跟上。")]
+json.dump({"lang": "zh", "duration": 12.0, "segments": segs}, open(sys.argv[1], "w", encoding="utf-8"), ensure_ascii=False)
+PY
+    printf '["卡片落下"]\n' > "$t/cw/audio/capbreaks.json"
+    a=$(vh captions "$t/cw" zh --cards 2>&1); rc=$?
+    if [ $rc = 0 ] && printf '%s' "$a" | grep -q 'word boundaries by jieba' && PYTHONWARNINGS=ignore uv run -q --no-project --with jieba python - "$t/cw/audio/captions.json" <<'PY'
+import json, logging, sys, jieba
+jieba.setLogLevel(logging.ERROR)
+cards = json.load(open(sys.argv[1], encoding="utf-8"))
+c1 = [c["zh"][0] for c in cards if c["id"] == "c1"]; c2 = [c["zh"][0] for c in cards if c["id"] == "c2"]
+text = "具体能承受多大的力量怎么测量写在行业标准里面"
+bounds, pos = set(), 0
+for w in jieba.lcut(text): pos += len(w); bounds.add(pos)
+cuts, pos = [], 0
+for c in c1[:-1]: pos += len(c); cuts.append(pos)
+ok = len(c1) >= 2 and "".join(c1) == text and all(x in bounds for x in cuts)
+ok = ok and not any("落下" in c and "第二张" in c for c in c2) and any(c.startswith("卡片落下") for c in c2)
+sys.exit(0 if ok else 1)
+PY
+    then ok "captions --cards: cut between words (jieba), never across a sentence end, a card starting at the break table's phrase"
+    else bad "captions --cards (exit $rc): $(printf '%s' "$a" | tail -c 500) $(cat "$t/cw/audio/captions.zh.srt" 2>/dev/null | tr '\n' '|' | tail -c 400)"; fi
+  else skip "captions at word boundaries" "no uv to bring jieba"; fi
+  # check: an SRT beside the video with an entry too short to read is listed (a warning, not a failure)
+  if command -v ffmpeg >/dev/null; then
+    mkdir -p "$t/sc" && ffmpeg -nostdin -v error -f lavfi -i color=c=0x303030:s=320x180:r=30:d=3 -pix_fmt yuv420p "$t/sc/film.mp4"
+    printf '1\n00:00:00,500 --> 00:00:01,300\n这一句只亮了零点八秒\n\n2\n00:00:01,300 --> 00:00:03,000\n这句够长\n' > "$t/sc/film.zh.srt"
+    a=$(vh check "$t/sc/film.mp4" 2>&1); rc=$?
+    case "$a" in *"subtitles · film.zh.srt: 1 of 2 entries are shorter than it takes to read them"*"0.80 s, needs 1.80 s"*) ok "check lists subtitle entries too short to read, from the SRT beside the film" ;;
+      *) bad "check on a short subtitle (rc $rc): $(printf '%s' "$a" | tail -c 500)" ;; esac
+  fi
   python3 - "$t" <<'PY'
 import json, sys
 d = sys.argv[1]
