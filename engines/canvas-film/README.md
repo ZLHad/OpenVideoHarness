@@ -94,6 +94,7 @@ const CHAPTERS = [{ at: 0, title: "挂在字上" }, { at: "@b1", title: "翻一�
 - `ready` 时每个镜头抽 5 个时刻各画一遍，绕过 `txt()` 自己设 `X.font` 写下的小字也会被抓到，打成一行 `console.error`（`bin/vh frames` 在开头"while loading"下面列出来），写明镜头和那段字。判的是代码要的字号，不是动画缩放途中的大小。
 - `label(t, at, s, x, y, o)`：一行字在 `at` 升起，停到镜头结束（或 `o.until` 前淡出）；完全出来以后登记成 read，`bin/vh textcheck` 按它查遮挡和对比。`stamp()` 盖下以后也算 read。自己画的字要登记，就在 `draw` 里调 `read(text, start, end)`。
 - 三个字体族 `"Film Sans"`、`"Film Serif"`、`"Film Mono"` 在 `film.html` 里声明，`o.family` 写 `sans`、`serif`、`mono`。换字体改 `@font-face` 的 `local()`，族名不动；`ready` 逐个载入，本机没有的会报出名字，画的时候落到后备字体。
+- 字体在，某个字它没有，也会悄悄换字体画（`"Film Mono"` 的 Menlo 没有中文，宋体的 Black 没有"–"）。`bin/vh fonts check <项目>` 一个字一个字查，`bin/vh render` 出片时也会说。`local()` 写什么名字，`bin/vh fonts list --cjk` 列出本机有的；要让片子不靠本机字体，`bin/vh fonts subset <项目>` 把用到的字抽成 woff2 放进 `assets/fonts/`，按它打出的那行写进 `src` 的最前面（系统字体的子集是一份拷贝，只留在项目里，不发出去）。
 
 ## 字幕
 

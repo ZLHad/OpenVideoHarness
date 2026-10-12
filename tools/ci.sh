@@ -1004,6 +1004,27 @@ PY
   else bad "cues on the canvas-film template: exit $rc / $rc2: $(printf '%s' "$a$b" | tail -c 800)"; fi
   a=$(vh cues "$ROOT/tools/film/fixture/index.html" 2>&1); rc=$?
   [ $rc = 2 ] && printf '%s' "$a" | grep -q 'gives no window.film.cues' && ok "cues: a page without window.film.cues exits 2 and says so" || bad "cues on a page without cues: exit $rc: $a"
+  # bin/vh fonts check on a font with only "A" and "B" (tools/film/fixture/fonts/ab.ttf): from 1 s the canvas draws a "C" and
+  # U+10FFFD, the DOM a "D"; before that everything is in the font. render says the same, without failing
+  a=$(vh fonts check "$ROOT/tools/film/fixture/glyphs.html" --out "$t/fo" 2>&1); rc=$?
+  b=$(vh fonts check "$ROOT/tools/film/fixture/glyphs.html" --at 0.5 --out "$t/fo" 2>&1); rc2=$?
+  if [ $rc = 1 ] && printf '%s' "$a" | grep -q 'not in "Fix AB", drawn in .*: C D' && printf '%s' "$a" | grep -q 'no font on this machine has 1 character.*U+10FFFD' \
+    && [ $rc2 = 0 ] && printf '%s' "$b" | grep -q 'all in "Fix AB"'
+  then ok "fonts check: characters a font lacks are named, on a canvas and in the DOM (another font draws them, or none: exit 1); none, exit 0"
+  else bad "fonts check on its fixture: exit $rc / $rc2: $(printf '%s' "$a$b" | tail -c 900)"; fi
+  if command -v ffmpeg >/dev/null; then
+    a=$(vh render "$ROOT/tools/film/fixture/glyphs.html" --workers 2 --gop 30 --out "$t/fo/g.mp4" 2>&1); rc=$?
+    [ $rc = 0 ] && printf '%s' "$a" | grep -q '2 workers' && printf '%s' "$a" | grep -q 'glyphs: characters not drawn in the font' && printf '%s' "$a" | grep -q 'C D' \
+      && ok "render: says which characters were drawn in another font, or in none (two workers' findings as one), and still renders" \
+      || bad "render on the glyph fixture: exit $rc: $(printf '%s' "$a" | tail -c 700)"
+  fi
+  if command -v uv >/dev/null; then
+    a=$(vh fonts subset "$ROOT/tools/film/fixture/glyphs.html" --font "$ROOT/tools/film/fixture/fonts/ab.ttf" --family "Fix AB" --out "$t/fs" 2>&1); rc=$?
+    [ $rc = 0 ] && [ -s "$t/fs/OVHFixtureAB-Regular.subset.woff2" ] && printf '%s' "$a" | grep -q 'src: url(".*OVHFixtureAB-Regular.subset.woff2") format("woff2")' \
+      && ok "fonts subset: a font cut to the project's characters as woff2, with its src line" || bad "fonts subset: exit $rc: $(printf '%s' "$a" | tail -c 600)"
+    a=$(vh fonts list --all 2>&1); rc=$?
+    [ $rc = 0 ] && printf '%s' "$a" | tail -1 | grep -q '^fonts: [0-9]* face(s)' && ok "fonts list: the faces on this machine by their local() names" || bad "fonts list: exit $rc: $(printf '%s' "$a" | tail -c 400)"
+  else skip "fonts subset and list" "no uv"; fi
   mkdir "$t/cfr" && cp -R "$c/." "$t/cfr/"
   a=$(vh readcheck "$t/cfr" 2>&1); rc=$?
   if [ $rc = 0 ] && [ -s "$t/cfr/out/texts.json" ] && printf '%s' "$a" | grep -q 'subtitle'; then ok "canvas-film: readcheck <project> judges the page's reads and captions (window.film.texts, written to out/texts.json)"
