@@ -5,8 +5,10 @@ usage (via bin/vh deliver): python tools/deliver.py <master.mp4> [--for bilibili
 
 A master render is made to be cut and patched (bin/vh render: CRF 16, sometimes 14), not uploaded: a 14-minute 4K master
 was 10.4 GB, over Bilibili's web upload limit, and the platform re-encodes whatever it gets. This makes the copy to upload:
-  - x264 at --crf (18), --preset (medium); with --for or --max-gb, a bit-rate ceiling worked out from the smallest file
-    limit asked for (95 % of it, the sound's bit rate taken off), so the file cannot pass it (x264's VBV, one pass)
+  - with --for or --max-gb, a ceiling worked out from the smallest file limit asked for (95 % of it, the sound's bit rate
+    taken off). A master whose own bit rate is under it is encoded at --crf (16) with the ceiling as x264's VBV cap; one
+    over it, in two passes at the ceiling's average bit rate, so the whole budget goes into the picture
+  - without a limit, x264 at --crf (16): the master's quality in a file with fixed keyframes, tags and the moov first
   - a keyframe every 2 s exactly, yuv420p, limited range, BT.709 with all four tags, moov first; the sound and subtitle
     tracks copied as they are (sound that is not AAC becomes AAC 320 kb/s)
   - then it prints the size against each platform's limit and the PSNR against the master: --psnr sample (default) over
@@ -69,7 +71,7 @@ def main():
     ap.add_argument("master")
     ap.add_argument("--for", dest="plat", default="", help="platforms whose limits the copy must fit: " + ", ".join(PLATFORMS) + " (comma-separated)")
     ap.add_argument("--max-gb", type=float, help="a file-size limit of your own, in GB (10^9 bytes)")
-    ap.add_argument("--crf", type=float, default=18)
+    ap.add_argument("--crf", type=float, default=16, help="the quality when the master fits the ceiling (default 16, bin/vh render's)")
     ap.add_argument("--preset", default="medium")
     ap.add_argument("--out")
     ap.add_argument("--psnr", choices=["sample", "full", "off"], default="sample")
@@ -122,14 +124,31 @@ def main():
                 f"{'pc' if v.get('color_range') == 'pc' or str(v.get('pix_fmt', '')).startswith('yuvj') else 'tv'}:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,")
     vf = ["-vf", conv + tags]
     acodec = [] if not audio else (["-c:a", "copy"] if all(s.get("codec_name") == "aac" for s in audio) else ["-c:a", "aac", "-b:a", "320k"])
-    cmd = ["ffmpeg", "-v", "error", "-stats", "-nostdin", "-y", "-i", str(master), "-map", "0:v:0", "-map", "0:a?", "-map", "0:s?",
-           "-c:v", "libx264", "-preset", a.preset, "-crf", f"{a.crf:g}", "-g", str(gop), "-keyint_min", str(gop), "-sc_threshold", "0",
-           *(["-maxrate", str(maxrate), "-bufsize", str(2 * maxrate)] if maxrate else []), *vf, "-pix_fmt", "yuv420p",
-           "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
-           *acodec, "-c:s", "copy", "-map_metadata", "0", "-movflags", "+faststart", str(out) + ".part.mp4"]
+    # rate: the master's own bit rate fits under the ceiling (or there is none): CRF, with the ceiling as a VBV cap. It does
+    # not: two passes at the ceiling's average, which spends the whole budget where the pictures need it (one pass under a
+    # VBV cap leaves part of it unused: 64 of 72 Mb/s on a 4K test, 1 dB lower)
+    vbps = int(v.get("bit_rate") or 0) or int(master.stat().st_size * 8 / dur - abps)
+    two = bool(maxrate) and vbps > maxrate
+    head = ["ffmpeg", "-v", "error", "-stats", "-nostdin", "-y", "-i", str(master)]
+    venc = ["-c:v", "libx264", "-preset", a.preset, "-g", str(gop), "-keyint_min", str(gop), "-sc_threshold", "0", *vf, "-pix_fmt", "yuv420p",
+            "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709"]
+    rate = (["-b:v", str(maxrate), "-maxrate", str(int(maxrate * 1.5)), "-bufsize", str(3 * maxrate)] if two
+            else ["-crf", f"{a.crf:g}", *(["-maxrate", str(maxrate), "-bufsize", str(2 * maxrate)] if maxrate else [])])
+    log = str(out.with_name(f".{out.name}.x264"))
+    final = [*head, "-map", "0:v:0", "-map", "0:a?", "-map", "0:s?", *venc, *rate, *(["-pass", "2", "-passlogfile", log] if two else []),
+             *acodec, "-c:s", "copy", "-map_metadata", "0", "-movflags", "+faststart", str(out) + ".part.mp4"]
+    how = (f"two passes at {maxrate / 1e6:.1f} Mb/s for the picture (the master's {vbps / 1e6:.1f} does not fit {cap_gb:g} GB)" if two else
+           f"crf {a.crf:g}" + (f", at most {maxrate / 1e6:.1f} Mb/s for the picture (to fit {cap_gb:g} GB)" if maxrate else ", no size ceiling"))
     print(f"deliver: {master.name} · {v['width']}x{v['height']} · {fps:g} fps · {dur / 60:.1f} min · {master.stat().st_size / 1e9:.2f} GB"
-          f" → x264 crf {a.crf:g} {a.preset}, keyframe every {gop}" + (f", at most {maxrate / 1e6:.1f} Mb/s for the picture (to fit {cap_gb:g} GB)" if maxrate else ", no size ceiling"))
-    r = subprocess.run(cmd)
+          f" → x264 {a.preset}, {how}, keyframe every {gop}")
+    try:
+        if two:
+            r = subprocess.run([*head, "-map", "0:v:0", *venc, *rate, "-pass", "1", "-passlogfile", log, "-an", "-f", "null", "-"])
+            if r.returncode:
+                die(f"ffmpeg's first pass failed (exit {r.returncode})", 1)
+        r = subprocess.run(final)
+    finally:
+        for f in out.parent.glob(f".{out.name}.x264*"): f.unlink(missing_ok=True)
     if r.returncode:
         Path(str(out) + ".part.mp4").unlink(missing_ok=True)
         die(f"ffmpeg failed (exit {r.returncode})", 1)
@@ -165,8 +184,8 @@ def main():
             vals = [x for _, x in got]
             worst = min(got, key=lambda x: x[1])
             what = "every frame" if a.psnr == "full" or len(spans) == 1 else f"{len(spans)} stretches of 2 s"
-            print(f"  PSNR against the master ({what}): {sum(v for v in vals if v != math.inf) / max(1, sum(1 for v in vals if v != math.inf)):.1f} dB on average, "
-                  f"the lowest {worst[1]:.1f} dB" + (f" (at {worst[0]:.0f} s)" if len(got) > 1 else ""))
+            avg = sum(v for v in vals if v != math.inf) / max(1, sum(1 for v in vals if v != math.inf))
+            print(f"  PSNR against the master ({what}): {avg:.1f} dB on average" + (f", the lowest stretch {worst[1]:.1f} dB (at {worst[0]:.0f} s)" if len(got) > 1 else ""))
     if over:
         print("deliver: over a limit asked for: lower --crf's quality (a higher number) or allow more, and check the upload page")
     sys.exit(1 if over or bad_psnr else 0)
