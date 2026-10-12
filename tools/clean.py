@@ -5,7 +5,7 @@ usage (via bin/vh clean): python tools/clean.py <project> [--yes] [--delete] [--
 
 Without --yes it only lists (a dry run; --dry-run says so, and wins over --yes). What goes, by kind:
   rebuilt   out/frames, render chunks (.<film>.parts) and patch work folders (.<film>.patch), node_modules (npm ci brings it
-            back), snapshots/, __pycache__, .venv and venv folders
+            back), __pycache__, .venv and venv folders
   renders   video files under out/ that are not the film: drafts, video-only renders, segments, patches (*.mp4 *.mov *.webm
             *.mkv *.m4v *.avi), with their .render.json and .lock beside them. Only once a film is found (below)
   sound     sound files directly in audio/ that are not the narration in use (voiceover.wav, voiceover.<lang>.wav and its
@@ -33,7 +33,7 @@ from pathlib import Path
 
 VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi"}
 SOUND = {".wav", ".mp3", ".m4a", ".aac", ".flac", ".aiff", ".aif", ".ogg", ".opus", ".m4s"}
-REBUILT_DIRS = {"node_modules", "snapshots", "__pycache__", ".venv", "venv"}
+REBUILT_DIRS = {"node_modules", "__pycache__", ".venv", "venv"}   # not snapshots/: a cover can live there
 TEXT = {".json", ".md", ".txt", ".html", ".htm", ".js", ".mjs", ".css", ".py", ".sh", ".srt", ".csv", ".yaml", ".yml", ".toml"}
 VOICE = re.compile(r"voiceover(\.[a-z]{2,3}(-[a-z0-9]{2,4})?)?(\.raw)?\.(wav|mp3|m4a|flac|aac)")   # the narration in use
 COVERS = {"covers", "cover", "封面"}
