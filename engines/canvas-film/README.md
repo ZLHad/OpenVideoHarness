@@ -118,7 +118,7 @@ const COVERS = [
 - `title: { text: [行…], size: [每行字号] 或一个数, x, y（第一行的基线）, align, color, band }`：用 `"Film Heavy"` 画，这一档是各系统最粗的中文黑体，带深色描边和一条压暗的底；`band: false` 不要底。章节条和字幕默认不上封面，要的话写 `bar: true`、`caption: true`。
 - `bin/vh frames <项目> --covers` 把每张封面画进 `out/covers/<id>.png`（`--covers=A,B` 只画这几张，`--dpr 2` 出 3840 × 2160），再用 `bin/vh cover-preview out/covers/*.png` 看在信息流里的大小。
 
-`"Film Heavy"` 在 `film.html` 里按这个顺序找（`bin/vh fonts list --cjk heavy` 看本机有哪个，`ready` 报出本机一个都没有的情况）：
+`"Film Heavy"` 在 `film.html` 里按这个顺序找（`bin/vh fonts list --cjk` 列出本机的中文字体，对一下表里的名字；`ready` 报出本机一个都没有的情况；标题里的字这一档字体有没有，`bin/vh fonts check` 也查，它会把封面画一遍）：
 
 | 系统 | 字体（`local()` 的名字） | 备注 |
 |---|---|---|

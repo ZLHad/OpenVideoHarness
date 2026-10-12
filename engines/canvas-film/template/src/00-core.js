@@ -203,6 +203,12 @@ function buildCovers(problems) {
     const cam = c.cam || {}, z = cam.z || 1;   // a move further than the zoom leaves room for shows the frame's edge
     if (Math.abs(cam.x || 0) > (z - 1) * FILM.width / 2 + 0.5 || Math.abs(cam.y || 0) > (z - 1) * FILM.height / 2 + 0.5)
       problems.push(`cover ${id}: cam ${JSON.stringify(cam)} shows the frame's edge: at zoom ${z} it can move ${((z - 1) * FILM.width / 2).toFixed(0)} px across and ${((z - 1) * FILM.height / 2).toFixed(0)} px up or down`);
+    const ti = c.title;   // every title line inside the frame (a long line at a big size runs off both sides)
+    if (ti && X) [].concat(ti.text || []).forEach((line, k) => {
+      const size = [].concat(ti.size ?? 200)[k] ?? [].concat(ti.size ?? 200).slice(-1)[0], w = measure(line, { size, weight: 900, family: "heavy" });
+      const x = ti.x ?? 120, a = ti.align === "center" ? x - w / 2 : ti.align === "right" ? x - w : x;
+      if (a < 0 || a + w > FILM.width) problems.push(`cover ${id}: title line "${line}" is ${Math.round(w)} px wide at ${size} px and runs off the frame (${Math.round(a)}–${Math.round(a + w)} px): a smaller size or a shorter line`);
+    });
     return { ...c, id, t };
   });
 }

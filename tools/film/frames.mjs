@@ -57,7 +57,7 @@ for (let i = 0; i < argv.length; i++) {
   if (k === "--at") { at = val().split(",").map((v) => r3(num(v.trim(), "--at"))); }
   else if (k === "--range") range = val().split(":").map((v) => num(v, "--range"));
   else if (k === "--strip") strip = val().split(":").map((v) => num(v, "--strip"));
-  else if (k === "--covers") covers = inline !== undefined ? inline.split(",").map((x) => x.trim()).filter(Boolean) : [];
+  else if (k === "--covers") covers = inline !== undefined ? [...new Set(inline.split(",").map((x) => x.trim()).filter(Boolean))] : [];
   else if (["--fps", "--cols", "--cell", "--timeout"].includes(k)) o[k.slice(2)] = num(val(), k, 1);
   else if (k === "--dpr") o.dpr = num(val(), k, 0.25);
   else if (k === "--out") out = val();

@@ -7,7 +7,8 @@
 // usage: node tools/film/cues.mjs <project | page.html> --browser <chrome> [--save] [--out out/cues.json] [--chapters]
 //
 // --chapters: the film's chapters (window.film.chapters, the engine's own table) as the lines a video description takes,
-// "0:00 title", each half a second before its chapter starts (whole seconds, rounded down; the first at 0:00), also
+// "0:00 title", each at least half a second before its chapter starts (whole seconds, rounded down: 0.5 to 1.5 s
+// early; the first at 0:00), also
 // written to out/chapters.txt; it says what YouTube needs before it shows them (at least three, the first at 0:00,
 // each at least 10 s). After a new take of the narration, run it again.
 //
@@ -47,10 +48,11 @@ await film.close();
 const rel0 = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };
 if (chapters) {   // the description's chapter list, from the engine's own chapter table
   if (!chs || !chs.length) die(`${film.page} gives no window.film.chapters (canvas-film: CHAPTERS in src/50-shots.js)`);
-  const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  const two = (x) => String(Math.floor(x)).padStart(2, "0");
+  const mmss = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}:${two((s % 3600) / 60)}:${two(s % 60)}` : `${Math.floor(s / 60)}:${two(s % 60)}`);
   const at = chs.map((c, i) => (i === 0 ? 0 : Math.max(0, Math.floor(c.t - 0.5))));
   const lines = chs.map((c, i) => `${mmss(at[i])} ${c.title}`);
-  console.log(`chapters: ${rel0(film.page)} · ${chs.length}, each half a second before it starts (the first at 0:00)`);
+  console.log(`chapters: ${rel0(film.page)} · ${chs.length}, each 0.5 to 1.5 s before it starts (whole seconds; the first at 0:00)`);
   for (const l of lines) console.log("  " + l);
   const short = at.map((s, i) => [chs[i].title, (i + 1 < at.length ? at[i + 1] : duration) - s]).filter(([, d]) => d < 10);
   if (chs.length < 3) console.log("  YouTube shows chapters only when there are at least three");
@@ -58,7 +60,7 @@ if (chapters) {   // the description's chapter list, from the engine's own chapt
   const file = path.join(film.root, "out", "chapters.txt");
   try { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, lines.join("\n") + "\n"); console.log(`  written: ${rel0(file)}`); }
   catch (e) { die(`cannot write ${rel0(file)}: ${e.message}`); }
-  if (!cues) process.exit(0);
+  process.exit(0);   // the chapter list alone: bin/vh cues without --chapters lists the cues
 }
 if (!cues) die(`${film.page} gives no window.film.cues (engines/CONTRACT.md)`);
 

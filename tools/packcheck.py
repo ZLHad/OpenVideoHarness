@@ -3,7 +3,8 @@
 usage: python3 tools/packcheck.py <PACKAGING.md | project>      (bin/vh check runs it for the project of the video)
 
 Reads the "## 发布文案" section of PACKAGING.md (templates/PACKAGING.md shows it): one "### <platform>" heading per
-platform (B站, 抖音, YouTube, 小红书, 视频号, or any other name), and under it
+platform (B站, 抖音, YouTube, 小红书, 视频号, or any other name; a heading that names several is held to the smallest
+limit of each), and under it
     标题：<one line>
     标签：<tags, separated by commas, 、 or spaces>
     简介：<the first line, and every line after it up to the next 标题/标签/简介 or heading>
@@ -28,12 +29,19 @@ FIELDS = {"标题": "title", "title": "title", "简介": "desc", "description": 
 NAMES = {"title": "标题 title", "desc": "简介 description", "tags": "标签 tags"}
 
 
-def platform_of(name):
+def platforms_of(name):
+    """Every platform a heading names ("B站 / YouTube 双发" names two)."""
     n = name.strip().lower()
-    for key, (names, _) in LIMITS.items():
-        if any(x in n for x in names):
-            return key
-    return None
+    return [key for key, (names, _) in LIMITS.items() if any(x in n for x in names)]
+
+
+def limits_of(keys):
+    """The smallest limit of each field over the platforms named, with whose it is."""
+    out = {}
+    for k in keys:
+        for f, (cap, sure) in LIMITS[k][1].items():
+            if f not in out or cap < out[f][0]: out[f] = (cap, f"{sure}, {k}" if len(keys) > 1 else sure)
+    return out
 
 
 def parse(text):
@@ -84,8 +92,7 @@ def main():
     for head, fields in got.items():
         if not fields:
             continue
-        key = platform_of(head)
-        lim = LIMITS[key][1] if key else {}
+        lim = limits_of(platforms_of(head))
         parts = []
         for f in ("title", "desc", "tags"):
             if f not in fields:

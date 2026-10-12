@@ -83,6 +83,9 @@ for (const t of times) {
   catch (e) { problems++; if (problems <= 5) console.log(`  t=${t} s: ${e.message}`); }
 }
 await collectDom(film, true);   // a HyperFrames composition: every clip's text, shown or not
+for (const c of (await film.list("covers").catch(() => null)) || []) {   // covers draw titles of their own
+  try { await film.cover(c.id, c.t); } catch (e) { problems++; console.log(`  cover ${c.id}: ${e.message}`); }
+}
 let res;
 try { res = await check(film, { allow, strict }); } catch (e) { await finish(2, e.message); }
 console.log(`fonts: ${rel(film.page)} · ${times.length} frame${times.length === 1 ? "" : "s"}${at ? "" : ` (every ${o.step} s, and each timed text)`} · ` +
