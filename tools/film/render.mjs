@@ -23,6 +23,8 @@
 // 1 a frame failed, the encoder stopped, or the result has the wrong frame count or colour tags; also when the page
 // reported an error while drawing (the video is written then, and the errors are listed) · 2 could not start.
 // Ctrl-C (or SIGTERM) stops the encoders, deletes the chunks so far and the lock, and exits 130 (143).
+// Before drawing it estimates the disk the render needs at its peak (the chunks and the joined copy): it stops (exit 2)
+// when even a flat film would not fit, and says so when a heavy one might not.
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -97,6 +99,13 @@ function takeLock() {
   }
   return `could not take ${rel(lock)}`;
 }
+// the disk: the chunks and the joined copy are on it together before the chunks go, so about twice the video at the peak.
+// x264 at these CRFs has made 0.06 bits a pixel (flat 2D at 1080p) to 0.4 (4K 3D with grain): refuse when even the low
+// figure does not fit, say so when the high one does not (OVH_FREE_BYTES pretends that much is free: for tests)
+const free = process.env.OVH_FREE_BYTES ? +process.env.OVH_FREE_BYTES : (() => { try { const s = fs.statfsSync(path.dirname(outFile)); return s.bavail * s.bsize; } catch { return Infinity; } })();
+const pxs = Math.round(first.width * o.dpr) * Math.round(first.height * o.dpr) * n, gb = (b) => (b / 1e9).toFixed(1);
+if (2 * pxs * 0.06 / 8 > free) { await first.close(); die(`about ${gb(2 * pxs * 0.06 / 8)}–${gb(2 * pxs * 0.4 / 8)} GB needed at the peak for ${n} frames at ${Math.round(first.width * o.dpr)}x${Math.round(first.height * o.dpr)}, ${gb(free)} GB free on that disk`); }
+if (2 * pxs * 0.4 / 8 > free) console.log(`  disk: about ${gb(2 * pxs * 0.06 / 8)}–${gb(2 * pxs * 0.4 / 8)} GB needed at the peak (more for grain, 3D, photos), ${gb(free)} GB free: it may not fit`);
 const busy = takeLock();
 if (busy) { await first.close(); die(busy); }
 const unlock = () => { try { if (+fs.readFileSync(lock, "utf8") === process.pid) fs.unlinkSync(lock); } catch { /* already gone */ } };
