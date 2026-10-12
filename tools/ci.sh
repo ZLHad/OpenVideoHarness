@@ -1116,7 +1116,7 @@ def line(i, t0, text):
     cs = [c for c in text if c not in "，。"]; ws, t = [], t0
     for c in cs: ws.append({"w": c, "start": round(t, 3), "end": round(t + 0.2, 3)}); t += 0.2
     return {"id": i, "zh": text, "start": t0, "end": round(t, 3), "words": ws}
-segs = [line("c1", 0.0, "具体能承受多大的力量怎么测量写在行业标准里面"), line("c2", 6.0, "说到第一张，卡片落下。说到第二张，第二张跟上。")]
+segs = [line("c1", 0.0, "今天我们一起来看看这台机器到底是怎么工作的"), line("c2", 6.0, "说到第一张，卡片落下。说到第二张，第二张跟上。")]
 json.dump({"lang": "zh", "duration": 12.0, "segments": segs}, open(sys.argv[1], "w", encoding="utf-8"), ensure_ascii=False)
 PY
     printf '["卡片落下"]\n' > "$t/cw/audio/capbreaks.json"
@@ -1126,7 +1126,7 @@ import json, logging, sys, jieba
 jieba.setLogLevel(logging.ERROR)
 cards = json.load(open(sys.argv[1], encoding="utf-8"))
 c1 = [c["zh"][0] for c in cards if c["id"] == "c1"]; c2 = [c["zh"][0] for c in cards if c["id"] == "c2"]
-text = "具体能承受多大的力量怎么测量写在行业标准里面"
+text = "今天我们一起来看看这台机器到底是怎么工作的"
 bounds, pos = set(), 0
 for w in jieba.lcut(text): pos += len(w); bounds.add(pos)
 cuts, pos = [], 0

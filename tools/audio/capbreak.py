@@ -7,8 +7,8 @@ characters, as before. Each piece costs 150 and each break what it is worth belo
   - pieces of even width (the sentence's width split evenly);
   - a break right after a comma, a pause or a colon is cheap; one that leaves a piece ending on 把 被 将 对 向 从 在 和 与 跟 及
     或 是 让 给 比 为 由, or the next starting on 了 的 地 得 着 过 吗 呢 吧 啊 么 们 (as one-character words) costs more;
-  - a piece whose last pause leaves only a word or two after it ("怎么测，写"), or that starts with one character and a
-    pause ("纸，折了"), costs more;
+  - a piece whose last pause leaves only a word or two after it ("先拆开看，再"), or that starts with one character and a
+    pause ("灯，亮了"), costs more;
   - a closing mark never starts a piece and an opening mark never ends one; a colon before a quote is a good break;
   - in wrapped lines, the punctuation at a line's end hangs past the limit (it is not counted), as it always did.
 A sentence ends at 。？！… and at a Latin . ? ! that no ASCII letter or digit follows (3.5, Node.js and 12:30 stay whole), as
@@ -144,10 +144,10 @@ def best_breaks(toks, limit, cards, forced=()):
             if len(nxt) == 1 and nxt in START_BAD:
                 c += 60
             elif len(nxt.rstrip(PAUSES + STOPS + CLOSERS)) == 1 and nxt[-1:] in PAUSES + STOPS:
-                c += 200   # "一张 / 纸，折了": one character stranded before a pause at the next piece's start (worth one more piece)
+                c += 200   # "一盏 / 灯，亮了": one character stranded before a pause at the next piece's start (worth one more piece)
         inner = [m.end() for m in re.finditer(f"[{re.escape(PAUSES)}]", text.rstrip(PAUSES + CLOSERS + STOPS + " "))]
         if inner and width(text[inner[-1]:].strip(PAUSES + STOPS + CLOSERS + " ")) <= 2:
-            c += 80   # "怎么测，写": a word or two left after the last pause
+            c += 80   # "先拆开看，再": a word or two left after the last pause
         return c
 
     dp = [(0, 0.0)] + [(INF, INF)] * n
