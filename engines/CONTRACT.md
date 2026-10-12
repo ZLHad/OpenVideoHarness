@@ -49,8 +49,10 @@ window.film = {
 1. 从页面所在的文件夹起一个只在本机 `127.0.0.1` 的服务来打开页面（不用 `file://`），所以页面能 `fetch` 这个文件夹里的文件；项目根目录的页面，就是整个项目。时区固定为 UTC，所以显示本地时间的页面在哪台机器上都画得一样。
 2. 页面的脚本运行之前，先设好 `window.filmHost = { version: '0.1', name: 'ovh' }`。看到它，页面就不能自己往前走：不开自转的动画循环，不自动播放，不开开发界面。
 3. **时钟兜底**：从画第一帧起，`performance.now()`、`requestAnimationFrame` 的时间戳、`Date`、页面留着在跑的 CSS 和 Web Animations 都钉在 t 上，`Math.random` 每帧按 t 重新播种。硬规则 1 照旧是"不许用这些"；兜底的作用是写错了也不出错，宿主还会报出哪些帧调了 `Math.random`（`Date` 和 `performance.now` 常被库自己读，比如 HyperFrames 的运行时，所以不报）。加载阶段（`ready` 之前）照常走真实时间。思路和 OpenFilm 的 `FILM_CLOCK` 一样，代码是本仓库自己写的（`tools/film/clock.js`）。
-4. 等 `ready`，再调 `frame(t)`，等它 resolve，然后截取视口（无损 PNG）。
+4. 等 `ready`，再调 `frame(t)`，等它 resolve，然后截取视口（无损 PNG）。`ready` 包括字体：字体文件都载好了。字形不归页面自己查（页面问不出一个字是哪个字体画的），由宿主查，见第 6 条。
 5. 页面抛错、请求失败，都报出来，不当作成功：加载时的、画某一帧时的、最后一帧之后才冒出来的（比如一帧留下的定时器抛的错）都算。
+
+6. **字形**：页面要的字体里缺某个字时，浏览器不报错，换一个字体画它，哪个字体都没有就画成空的"缺字"字形。`bin/vh fonts check` 在页面脚本之前挂上 canvas 的 `fillText` / `strokeText`，按时间抽帧（再加上 `texts` 里每段字的中间），记下画了哪些字、用的什么字体，DOM 里的字按算出的样式记；然后问浏览器每个字实际由哪个平台字体画（DevTools 的 `CSS.getPlatformFontsForNode`），不是字体栈里第一个字体（`@font-face` 的 `local()` 或 `url()`，或者装在本机的那个字体族）画的算换了字体；画出来和一个哪个字体都没有的字（U+10FFFD）一模一样的，算缺字。有一个就退出码 1。`bin/vh render` 每个 worker 出完自己那段也查一遍画过的字，有问题打出来，不判失败。工具在 `tools/film/glyphs.mjs`、`fonts.mjs`。
 
 还没做的：页面用 `<video>` 取画面时，OpenFilm 的宿主会把 seek 落到那一帧里面、等新的一帧上屏再截图，这个宿主还没有；它的服务也不答 HTTP Range 请求。
 
@@ -58,7 +60,7 @@ window.film = {
 
 | 引擎 | 怎么满足 | 备注 |
 |---|---|---|
-| canvas-film（`engines/canvas-film/`，`bin/vh new … --engine canvas-film`） | `src/90-main.js` 写 `window.film`。`ready` 载入字体、图片和旁白时间轴，把全部 cue 换成秒（有解析不了的就让 `ready` 失败，一次列出前 12 处），排好字幕，再把每个镜头抽 5 个时刻画一遍，收集 `texts`、`events`；`chapters`、`cues` 也在这时算好。`frame(t)` 每次先 `reset()` 画布再画 | 成片走 `bin/vh render`（4K 加 `--dpr 2`），见 `engines/canvas-film/README.md` |
+| canvas-film（`engines/canvas-film/`，`bin/vh new … --engine canvas-film`） | `src/90-main.js` 写 `window.film`。`ready` 载入字体（本机缺的字体直接报名字；缺字形由 `bin/vh fonts check` 查）、图片和旁白时间轴，把全部 cue 换成秒（有解析不了的就让 `ready` 失败，一次列出前 12 处），排好字幕，再把每个镜头抽 5 个时刻画一遍，收集 `texts`、`events`；`chapters`、`cues` 也在这时算好。`frame(t)` 每次先 `reset()` 画布再画 | 成片走 `bin/vh render`（4K 加 `--dpr 2`），见 `engines/canvas-film/README.md` |
 | ClaudeAnimationBase（手绘） | `src/core.js` 自己写 `window.film`：`frame(t)` 就是 `T = t; await redraw(); composite(t)`，就绪看 `window.ready`；有 `filmHost` 时 `studio.html` 只露出画面那块 canvas，不开开发界面 | 成片照旧走 `node render.mjs`。画布固定 1920 × 1080，设备像素比设成 2 也只是放大 |
 | HyperFrames | 合成不用改。宿主照 HyperFrames 自己的做法，在 `</head>` 前插入项目里的运行时（`node_modules/hyperframes/dist/hyperframe.runtime.iife.js`，项目里没有就用 `styles/_swatch` 装的那份），再把运行时的 `window.__player.renderSeek(t)` 包成 `window.film` | 成片照旧走 `npx hyperframes render`。HyperFrames 渲染时还做了别的事（虚拟时间、GSAP 缓冲，把 Google 字体换成它本地缓存的一份），所以宿主取的帧和它渲染的帧只保证接近，不保证逐字节相同（见下面的实测）。它的 seek 看上去会把 t 对齐到合成自己的帧率（默认 30），两帧之间的时刻画的是较近的那一帧 |
 | 页面自己写了 `window.film` 或 `window.__vh` 的合成 | 用页面自己的 | canvas 合成大多已经写了 `window.__vh` |

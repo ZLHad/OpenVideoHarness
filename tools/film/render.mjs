@@ -27,6 +27,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { openFilm } from "./host.mjs";
+import { HOOK, check as checkGlyphs, merge as mergeGlyphs, report as glyphReport } from "./glyphs.mjs";
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");
@@ -66,7 +67,7 @@ for (const tool of ["ffmpeg", "ffprobe"]) if (spawnSync(tool, ["-version"]).stat
 
 const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };
 let first;
-try { first = await openFilm(target, { ...o, runtime: "auto" }); } catch (e) { die(e.message); }
+try { first = await openFilm(target, { ...o, runtime: "auto", prelude: [HOOK] }); } catch (e) { die(e.message); }
 if (first.kind === "hyperframes" && !force) {
   await first.close();
   die("this is a HyperFrames composition: render it with npx hyperframes render (its renderer is the path this repo measured); --force renders it through the page contract anyway");
@@ -125,6 +126,7 @@ for (const p of first.loadProblems) console.log(`  while loading: ${p}`);
 if (px[0] % 2 || px[1] % 2) console.log(`  note: ${px[0]}x${px[1]} pixels; x264 needs even sizes, so the video is ${px[0] - px[0] % 2}x${px[1] - px[1] % 2}`);
 
 let failed = null, done = 0;
+const glyphs = [];
 const T0 = Date.now(), problems = [];
 const within = (p, s, what) => { let timer; return Promise.race([p, new Promise((_, no) => { timer = setTimeout(() => no(new Error(`${what}: no picture after ${s} s (--frame-timeout)`)), s * 1000); })]).finally(() => clearTimeout(timer)); };
 const progress = setInterval(() => { if (done) console.log(`  ${done} / ${n} frames · ${((Date.now() - T0) / 1000).toFixed(0)} s · about ${(((Date.now() - T0) / done) * (n - done) / 1000).toFixed(0)} s to go`); }, 15000);
@@ -145,7 +147,7 @@ async function worker(w, [a, b]) {
   ff.stdin.on("error", () => { /* the encoder is gone: exited says so */ });
   let wrote = 0;
   try {
-    if (!film) film = await openFilm(target, { ...o, runtime: "auto" });
+    if (!film) film = await openFilm(target, { ...o, runtime: "auto", prelude: [HOOK] });
     const capture = png ? { format: "png" } : { format: "jpeg", quality: o.quality };
     for (let k = a; k < b && !failed && !gone; k++) {
       const t = k / fps;
@@ -158,6 +160,8 @@ async function worker(w, [a, b]) {
     }
   } catch (e) { failed = failed || e.message; }
   ff.stdin.end();
+  // the characters this worker drew, each in the font it asked for? (tools/film/glyphs.mjs; a finding is reported, not fatal)
+  if (film && !failed && !gone) { try { glyphs.push(await checkGlyphs(film)); } catch (e) { glyphs.push({ error: e.message }); } }
   const code = await closed;
   if (film) await film.close();
   if (!failed && (code !== 0 || wrote < b - a)) failed = `the encoder for frames ${a}–${b - 1} ${wrote < b - a ? `stopped after ${wrote} of them` : "failed"} (exit ${code}): ${ffErr.trim() || "no message"}`;
@@ -196,6 +200,10 @@ const okCount = +st.nb_frames === n, okColor = st.pix_fmt === "yuv420p" && st.co
 console.log(`  ${rel(outFile)}: ${st.nb_frames} frames, ${st.width}x${st.height}, ${st.pix_fmt} ${st.color_range}/${st.color_space}, in ${secs.toFixed(0)} s` +
   ` (${(secs * 1000 / n).toFixed(0)} ms a frame); how it was made: ${rel(outFile + ".render.json")}`);
 for (const p of problems) console.log(`  ${p}`);
+if (glyphs.length && glyphs.every((g) => !g.error)) {   // a character in another font than it asks for, or in none: said, not fatal
+  const [lines, wrong] = glyphReport(mergeGlyphs(glyphs));
+  if (wrong) { console.log("  glyphs: characters not drawn in the font they ask for (bin/vh fonts check lists them all):"); for (const l of lines.filter((x) => !x.startsWith("✓"))) console.log("    " + l); }
+} else if (glyphs.some((g) => g.error)) console.log(`  glyphs: not checked (${glyphs.find((g) => g.error).error})`);
 if (!okCount) console.log(`  the video has ${st.nb_frames} frames, not ${n}`);
 if (!okColor) console.log(`  the colour tags are not yuv420p tv/bt709`);
 if (problems.length || !okCount || !okColor) process.exit(1);

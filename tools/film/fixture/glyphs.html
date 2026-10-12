@@ -1,0 +1,23 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=320, height=180">
+<!-- bin/vh fonts check's fixture: text in a font that has only "A" and "B" (fonts/ab.ttf, made by fonts/make_ab.py).
+     Up to 1 s everything drawn is in it; from 1 s the canvas also draws "C" (another font draws it) and U+10FFFD (no font
+     has it), and the DOM line gains a "D". -->
+<style>
+  @font-face { font-family: "Fix AB"; src: url("fonts/ab.ttf") format("truetype"); }
+  html, body { margin: 0; background: #fff; }
+  #dom { position: absolute; left: 10px; top: 120px; font: 30px "Fix AB", sans-serif; }
+</style></head>
+<body><canvas id="c" width="320" height="180"></canvas><div id="dom">AB</div>
+<script>
+  const x = document.getElementById("c").getContext("2d"), dom = document.getElementById("dom");
+  window.film = {
+    duration: 2,
+    ready: () => document.fonts.load('40px "Fix AB"'),
+    frame(t) {
+      x.clearRect(0, 0, 320, 180); x.font = '40px "Fix AB", sans-serif'; x.fillStyle = "#000";
+      x.fillText(t < 1 ? "ABBA" : "ABC\u{10FFFD}", 10, 80);
+      dom.textContent = t < 1 ? "AB" : "ABD";
+    },
+  };
+</script></body></html>

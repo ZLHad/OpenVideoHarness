@@ -80,9 +80,10 @@ function serve(root, pageRel, inject, extra) {
   return new Promise((ok) => server.listen(0, "127.0.0.1", () => ok({ url: `http://127.0.0.1:${server.address().port}/`, close: () => new Promise((r) => server.close(r)) })));
 }
 
-// openFilm(target, { browser, dpr, width, height, realClock, softGl, runtime }) → a film to draw: { page, kind, width,
-// height, duration, frame(t) → { png, touched }, problems(), close() }. runtime: "auto" (HyperFrames' runtime for a
-// composition that writes no contract of its own), "on" or "off".
+// openFilm(target, { browser, dpr, width, height, realClock, softGl, runtime, prelude }) → a film to draw: { page, kind,
+// width, height, duration, frame(t) → { png, touched }, draw(t), problems(), close(), ev, send }. runtime: "auto"
+// (HyperFrames' runtime for a composition that writes no contract of its own), "on" or "off". prelude: more scripts to
+// run before the page's own, after the clock (tools/film/glyphs.mjs records the text a page draws this way).
 export async function openFilm(target, o = {}) {
   const page = findPage(target), root = fs.realpathSync(path.dirname(page)), pageRel = path.basename(page);
   const info = readPage(page);
@@ -118,6 +119,7 @@ export async function openFilm(target, o = {}) {
     await browser.send("Emulation.setTimezoneOverride", { timezoneId: "UTC" }, s);   // local time reads the same on every machine
     const prelude = o.realClock ? 'window.filmHost = { version: "0.1", name: "ovh" };' : fs.readFileSync(path.join(HERE, "clock.js"), "utf8");
     await browser.send("Page.addScriptToEvaluateOnNewDocument", { source: prelude }, s);
+    for (const source of o.prelude || []) await browser.send("Page.addScriptToEvaluateOnNewDocument", { source }, s);
     const ev = async (expression, what) => {
       const r = await browser.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, s);
       if (r.exceptionDetails) throw new Error(`${what}: ${(r.exceptionDetails.exception && r.exceptionDetails.exception.description) || r.exceptionDetails.text}`);
@@ -153,6 +155,14 @@ export async function openFilm(target, o = {}) {
       return { duration: +((f ? f.duration : v.duration) || (root && root.dataset.duration) || 0), width: f && +f.width || 0, height: f && +f.height || 0 }; })()`, "reading window.film");
     if (got.width > 0 && got.height > 0 && (got.width !== width || got.height !== height)) { width = got.width; height = got.height; await metrics(width, height); }
     const loadProblems = problems.splice(0);
+    // draw t and let the compositor paint it; → the clocks the frame read (tools/film/clock.js)
+    const draw = (t) => ev(`(async (t) => {
+          const H = window.filmHost, f = window.film && window.film.frame ? window.film : null;
+          if (H && H.time) H.time(t);
+          try { if (f) await f.frame(t); else await window.__vh.draw(t); } finally { if (H && H.settle) H.settle(t); }
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          return H && H.touched ? H.touched() : [];
+        })(${JSON.stringify(t)})`, `drawing t=${t}`);
     // one of the page's own fields as JSON (a function is called first), null when it gives none or nothing JSON can hold
     const field = (name) => ev(`((name) => { const f = window.film && window.film.frame ? window.film : window.__vh || {};
       let x = f[name]; if (typeof x === "function") x = x.call(f); const s = JSON.stringify(x); return s === undefined ? null : JSON.parse(s); })(${JSON.stringify(name)})`, `reading window.film.${name}`);
@@ -161,16 +171,11 @@ export async function openFilm(target, o = {}) {
       // draw t, let the compositor paint it, capture it (a lossless PNG, or { format: "jpeg", quality } for a render);
       // touched: the clocks the frame read (tools/film/clock.js)
       async frame(t, capture = { format: "png" }) {
-        const touched = await ev(`(async (t) => {
-          const H = window.filmHost, f = window.film && window.film.frame ? window.film : null;
-          if (H && H.time) H.time(t);
-          try { if (f) await f.frame(t); else await window.__vh.draw(t); } finally { if (H && H.settle) H.settle(t); }
-          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-          return H && H.touched ? H.touched() : [];
-        })(${JSON.stringify(t)})`, `drawing t=${t}`);
+        const touched = await draw(t);
         const shot = await browser.send("Page.captureScreenshot", { ...capture, fromSurface: true, captureBeyondViewport: false }, s);
         return { png: Buffer.from(shot.data, "base64"), touched };
       },
+      draw,   // draw t without capturing it (a check that reads the page, not its pixels)
       problems: () => problems.splice(0),
       // the page's own fields (texts, events, chapters, cues, timeline: engines/CONTRACT.md); list(name) only takes an array
       field,
@@ -181,6 +186,8 @@ export async function openFilm(target, o = {}) {
         return problems.splice(0);
       },
       close: closeAll,
+      ev,                                                    // an expression in the page, awaited, its value as JSON
+      send: (method, params = {}) => browser.send(method, params, s),   // a DevTools command to this page
     };
   } catch (e) { await closeAll(); throw e instanceof HostError ? e : new HostError(e.message); }
 }

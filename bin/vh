@@ -85,6 +85,12 @@
 #                               records how; video only (sound: mux). HyperFrames: npx hyperframes render (--force to render it here anyway)
 #   determinism <project|page.html> [--at t,t…] [--samples 6] [--min-psnr 45]   is each frame a function of t? draws the same t
 #                               in one browser in two orders and in a second browser, compares them, and again with the real clock
+#   fonts check <project|page.html> [--step 0.5] [--at t,…] [--allow-fallback "Apple Color Emoji"] [--out dir]   is every character drawn
+#                               in the font it asks for? A font without a character falls back to another font, or to none (an empty glyph),
+#                               silently: this draws the film at sampled times, notes the canvas and DOM text and asks the browser which
+#                               font draws each character (exit 1 on any; out/check/fonts.json). bin/vh render says so too
+#   fonts list [words…] [--cjk] | fonts subset <project|page.html> [--family F] [--font file|name] [--out dir]   the faces on this
+#                               machine by the names local() takes; the page's local() fonts cut to the characters the project uses (woff2)
 #   cues <project|page.html> [--save] [--out f]   where the page's cues landed (window.film.cues: times hung on the narration's
 #                               words), in order; --save keeps them in out/cues.json with the timeline's sha256, and a later run says
 #                               which cues a new take moved and by how much
@@ -551,7 +557,15 @@ cmd_textcheck() { # canvas text covered or too faint (tools/textcheck/textcheck.
   fi
   exec node "$ROOT/tools/textcheck/textcheck.mjs" --browser "$b" "$@"
 }
-cmd_frames() { cmd_film_tool frames "$@"; }   # frames drawn from a page through the page contract (tools/film/frames.mjs)
+cmd_frames() { cmd_film_tool frames "$@"; }
+cmd_fonts() { # check: through the page contract (tools/film/fonts.mjs); list and subset read font files (tools/fonts.py, fontTools)
+  case "${1:-}" in
+    check) shift; cmd_film_tool fonts "$@" ;;
+    list|subset) command -v uv >/dev/null 2>&1 || { echo "$c_no bin/vh fonts $1 needs uv (it brings fontTools): bin/vh doctor says how to install it" >&2; exit 2; }
+      uv run -q --no-project --with fonttools --with brotli python "$ROOT/tools/fonts.py" "$@" ;;
+    *) cmd_usage fonts; exit 1 ;;
+  esac
+}   # frames drawn from a page through the page contract (tools/film/frames.mjs)
 arg_dir() { # the folder of the project or page among a tool's arguments: the first that is neither an option nor an option's
   # value (the options listed take none), a file's folder; "." when there is none, so --out o <project> finds the project too
   local a skip=0
@@ -573,7 +587,7 @@ film_browser() { # film_browser <command> [dir]: the browser the page-contract t
   fi
   echo "$b"
 }
-cmd_film_tool() { # $1: frames | render | determinism | cues (tools/film/<it>.mjs)
+cmd_film_tool() { # $1: frames | render | determinism | cues | fonts (tools/film/<it>.mjs)
   local tool=$1 b; shift
   [ $# -gt 0 ] || { cmd_usage "$tool"; exit 1; }
   b=$(film_browser "$tool" "$(arg_dir "$@")") || exit 2
@@ -908,7 +922,7 @@ case "${1:-help}" in
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
-  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;;
+  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
   help|-h|--help) cmd_help ;;
   *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;
