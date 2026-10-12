@@ -4,7 +4,12 @@
 // cues moved and by how much, which are new and which are gone: after a new take of the narration (pauses put in, a line
 // rewritten), or after the page's own cues changed on the same take.
 //
-// usage: node tools/film/cues.mjs <project | page.html> --browser <chrome> [--save] [--out out/cues.json]
+// usage: node tools/film/cues.mjs <project | page.html> --browser <chrome> [--save] [--out out/cues.json] [--chapters]
+//
+// --chapters: the film's chapters (window.film.chapters, the engine's own table) as the lines a video description takes,
+// "0:00 title", each half a second before its chapter starts (whole seconds, rounded down; the first at 0:00), also
+// written to out/chapters.txt; it says what YouTube needs before it shows them (at least three, the first at 0:00,
+// each at least 10 s). After a new take of the narration, run it again.
 //
 // A cue that no longer resolves stops the page in ready, so the host's message names it and this exits 2.
 // Exit: 0 listed · 2 could not open the page, it gives no window.film.cues, or --save cannot write the file.
@@ -18,11 +23,12 @@ const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport "
 const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
 const die = (msg) => { console.error("cues: " + msg); process.exit(2); };
-let target = null, out = null, browser = null, save = false;
+let target = null, out = null, browser = null, save = false, chapters = false;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], next = () => { const v = argv[++i]; if (v === undefined) die(`${a} needs a value`); return v; };
   if (a === "--out") out = next();
   else if (a === "--save") save = true;
+  else if (a === "--chapters") chapters = true;
   else if (a === "--browser") browser = next();
   else if (a.startsWith("-")) die(`unknown option ${a} (-h for the options)`);
   else if (target) die(`one project or page, got ${target} and ${a}`);
@@ -33,11 +39,27 @@ if (!browser) die("no browser: pass --browser <chrome>, or run it as bin/vh cues
 
 let film;
 try { film = await openFilm(target, { browser, runtime: "auto" }); } catch (e) { die(e.message); }
-let cues, tlRel;
-try { cues = await film.list("cues"); tlRel = await film.field("timeline").catch(() => null); }
+let cues, tlRel, chs = null;
+try { cues = await film.list("cues"); tlRel = await film.field("timeline").catch(() => null); if (chapters) chs = await film.list("chapters"); }
 catch (e) { await film.close(); die(e.message); }
-const loadProblems = film.loadProblems;
+const loadProblems = film.loadProblems, duration = film.duration;
 await film.close();
+const rel0 = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };
+if (chapters) {   // the description's chapter list, from the engine's own chapter table
+  if (!chs || !chs.length) die(`${film.page} gives no window.film.chapters (canvas-film: CHAPTERS in src/50-shots.js)`);
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  const at = chs.map((c, i) => (i === 0 ? 0 : Math.max(0, Math.floor(c.t - 0.5))));
+  const lines = chs.map((c, i) => `${mmss(at[i])} ${c.title}`);
+  console.log(`chapters: ${rel0(film.page)} · ${chs.length}, each half a second before it starts (the first at 0:00)`);
+  for (const l of lines) console.log("  " + l);
+  const short = at.map((s, i) => [chs[i].title, (i + 1 < at.length ? at[i + 1] : duration) - s]).filter(([, d]) => d < 10);
+  if (chs.length < 3) console.log("  YouTube shows chapters only when there are at least three");
+  for (const [t, d] of short) console.log(`  YouTube shows chapters only when each lasts 10 s or more: "${t}" lasts ${d.toFixed(0)} s`);
+  const file = path.join(film.root, "out", "chapters.txt");
+  try { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, lines.join("\n") + "\n"); console.log(`  written: ${rel0(file)}`); }
+  catch (e) { die(`cannot write ${rel0(file)}: ${e.message}`); }
+  if (!cues) process.exit(0);
+}
 if (!cues) die(`${film.page} gives no window.film.cues (engines/CONTRACT.md)`);
 
 const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };

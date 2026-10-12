@@ -190,6 +190,23 @@ function buildChapters(problems) {
   CHAPTER_T.forEach((c, i) => { c.b = i + 1 < CHAPTER_T.length ? CHAPTER_T[i + 1].t : BAR_SPAN[1]; });
 }
 
+// ---- covers: frames of the film picked by cue (they move with the narration), each with its own camera nudge ----
+let COVER_T = [];   // [{ id, t, cam, title, bar, caption }]
+function buildCovers(problems) {
+  const list = typeof COVERS === "undefined" ? [] : COVERS, seen = new Set();
+  COVER_T = list.map((c, i) => {
+    const id = String(c.id || `cover${i + 1}`), R = resolver(`cover ${id}`, `cover.${id}`, problems);
+    if (seen.has(id)) problems.push(`cover ${id}: the id is used twice`);
+    seen.add(id);
+    const t = R.time(c.at ?? 0, "at");
+    if (Number.isFinite(t) && !(t >= 0 && t < DUR)) problems.push(`cover ${id}: ${t.toFixed(2)} s is outside the film (0–${DUR.toFixed(2)} s)`);
+    const cam = c.cam || {}, z = cam.z || 1;   // a move further than the zoom leaves room for shows the frame's edge
+    if (Math.abs(cam.x || 0) > (z - 1) * FILM.width / 2 + 0.5 || Math.abs(cam.y || 0) > (z - 1) * FILM.height / 2 + 0.5)
+      problems.push(`cover ${id}: cam ${JSON.stringify(cam)} shows the frame's edge: at zoom ${z} it can move ${((z - 1) * FILM.width / 2).toFixed(0)} px across and ${((z - 1) * FILM.height / 2).toFixed(0)} px up or down`);
+    return { ...c, id, t };
+  });
+}
+
 // ---- captions: one line each, cut at sentence ends (two sentences never share one), then at commas; timed by the words ----
 let CAPS = [];   // [{ id, text, start, end, joinPrev?, joinNext? }]
 const STOPS = "。？！?!….", PAUSES = "，、：；,;:", CLOSERS = "”’」』）》)\"'";
