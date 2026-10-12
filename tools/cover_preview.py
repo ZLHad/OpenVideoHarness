@@ -17,8 +17,10 @@ e.g. --text-px 96,28 for a 96 px title and a 28 px label). For each slot it give
 height as shown, against a rule of thumb taken from the smallest text size Apple's Human Interface Guidelines allow
 (11 pt): 11 px and up reads, 8–11 px only when you know what it says, under 8 px does not read. It also gives the
 text's contrast against the pixels around it (WCAG ratio: 4.5 good, 3 the floor for large text), whether a crop cuts
-a line, and whether an overlay sits on one. It cannot read the words: a picture with lots of fine lines may show a
-box that is not text; --text-px replaces the guess.
+a line, and whether an overlay sits on one. It also measures the title's stroke width (the tallest
+line: the distance across its strokes) and gives it at each slot's size: a stroke under 1 px there cannot reach its full
+contrast and greys out, which is why a heavy face reads where a light one at the same size does not. It cannot read the
+words: a picture with lots of fine lines may show a box that is not text; --text-px replaces the guess.
 
 Output: --out (a .png file, or a folder: an existing one, or a new path that ends in / or has no extension, gets
 cover-preview-<name>.png inside it, <name> being the first image's), else <project>/out/check/cover-preview-<name>.png for a cover inside a project, else
@@ -97,15 +99,42 @@ def text_lines(im):
     return [(x0 / f, y0 / f, x1 / f, y1 / f) for x0, y0, x1, y1 in keep]
 
 def contrast(im, box):
-    """WCAG contrast of a text line: the lighter and darker pixel groups inside its box."""
+    """WCAG contrast of a text line: the core of its glyphs against the core of the ground in its box. The two are the
+    box's brightness groups split halfway between its 10th and 90th percentile, the ground being the group that touches
+    the box's border more (a heavy title fills more of its box than the ground does, so a split at the median would put
+    both cores inside the glyphs and read 1:1)."""
     x0, y0, x1, y1 = (int(round(v)) for v in box)
     a = np.asarray(im.crop((x0, y0, max(x0 + 1, x1), max(y0 + 1, y1))), dtype=np.float64)
-    Y = rel_lum(a).ravel()
+    Y = rel_lum(a)
     if Y.size < 4: return None
-    t = np.median(Y); lo, hi = Y[Y <= t], Y[Y > t]
-    if not len(hi): return 1.0
-    a_, b_ = np.percentile(lo, 30), np.percentile(hi, 70)   # the cores of the two groups, not the anti-aliased rims
+    t = (np.percentile(Y, 10) + np.percentile(Y, 90)) / 2
+    hi = Y > t
+    if hi.all() or not hi.any(): return 1.0
+    border = lambda m: np.concatenate([m[0], m[-1], m[:, 0], m[:, -1]]).mean()
+    text, ground = (Y[hi], Y[~hi]) if border(hi) < border(~hi) else (Y[~hi], Y[hi])
+    # the cores of the two groups, not the anti-aliased rims
+    a_ = np.percentile(text, 70) if text.mean() > ground.mean() else np.percentile(text, 30)
+    b_ = np.percentile(ground, 30) if text.mean() > ground.mean() else np.percentile(ground, 70)
     return (max(a_, b_) + 0.05) / (min(a_, b_) + 0.05)
+
+def stroke(im, box):
+    """The stroke width of a text line in the cover's pixels: the text's pixels (of the line box's two brightness groups,
+    the one that touches the box's border less; the other is the ground) and twice the median of their distance to the
+    ground along the middle of the strokes. None when it cannot tell."""
+    x0, y0, x1, y1 = (int(round(v)) for v in box)
+    a = np.asarray(im.crop((x0, y0, max(x0 + 2, x1), max(y0 + 2, y1))), dtype=np.float64)
+    Y = rel_lum(a)
+    if Y.size < 16: return None
+    t = (np.percentile(Y, 10) + np.percentile(Y, 90)) / 2
+    best = None
+    for m in (Y > t, Y <= t):
+        if m.all() or not m.any(): continue
+        edge = np.concatenate([m[0], m[-1], m[:, 0], m[:, -1]]).mean()
+        if best is None or edge < best[0]: best = (edge, m)
+    if best is None: return None
+    D = ndi.distance_transform_edt(best[1])
+    ridge = (D >= ndi.maximum_filter(D, size=3)) & (D >= 1)
+    return float(2 * np.median(D[ridge])) if ridge.any() else None
 
 # ---------- slots ----------
 def crop_for(W, H, rule):
@@ -149,8 +178,9 @@ def analyse(im, text_px):
     lines = text_lines(im)
     heights = sorted(set(text_px)) if text_px else sorted(b[3] - b[1] for b in lines)
     cons = [c for c in (contrast(im, b) for b in lines) if c is not None]
+    title = max(lines, key=lambda b: b[3] - b[1]) if lines else None
     return {"lines": lines, "heights": heights, "contrast": min(cons) if cons else None,
-            "title_contrast": contrast(im, max(lines, key=lambda b: b[3] - b[1])) if lines else None, "size": (W, H)}
+            "title_contrast": contrast(im, title) if title else None, "stroke": stroke(im, title) if title else None, "size": (W, H)}
 
 def main():
     ap = argparse.ArgumentParser(prog="bin/vh cover-preview", description=__doc__.split("\n\n")[0])
@@ -249,6 +279,10 @@ def main():
                 mark = {"ok": "○", "small": "△", "no": "×"}[v]   # marks every CJK font has
                 notes.append((f"{mark} " + ("字高 " if zh else "") + f"{lo:.1f}" + (f"–{hi:.0f}" if hi - lo >= 1 else "") + " px", col))
                 worst.append((lo, f"{PLATFORM[plat][1]} {where_en} ({sw}×{sh})"))
+            if info["stroke"]:   # under a pixel at this size, a stroke cannot reach its full contrast: it blurs into the ground
+                st = info["stroke"] * s
+                notes.append(((f"标题笔画 {st:.1f} px" if zh else f"title stroke {st:.1f} px") + ((" · 细，发灰" if zh else " · thin, greys out") if st < 1 else ""),
+                              V.AMBER if st < 1 else V.INK))
             if cropped:
                 cut = [b for b in info["lines"] if b[0] < box[0] - 1 or b[2] > box[2] + 1 or b[1] < box[1] - 1 or b[3] > box[3] + 1]
                 notes.append(((f"裁成 {rule if rule != 'xhs' else ('3:4' if ar < 1 else '4:3' if ar > 1 else '1:1')}" if zh else "cropped")
@@ -264,8 +298,11 @@ def main():
             x += sw + gap
         if worst:
             lo, where = min(worst)
+            sm = min(s[4] / (crop_for(*im.size, s[6])[0][2] - crop_for(*im.size, s[6])[0][0]) for s in slots)
             report.append(f"{p.name}: smallest text {hs[0]:.0f} px → {lo:.1f} px on {where} ({verdict(lo)})"
-                          + (f"; lowest contrast {info['contrast']:.1f}:1" if info["contrast"] else ""))
+                          + (f"; lowest contrast {info['contrast']:.1f}:1" if info["contrast"] else "")
+                          + (f"; title stroke {info['stroke']:.0f} px → {info['stroke'] * sm:.1f} px at the smallest slot"
+                             + (" (under 1 px: it greys out)" if info["stroke"] * sm < 1 else "") if info["stroke"] else ""))
         else:
             report.append(f"{p.name}: no text line found; pass --text-px to check sizes")
     if a.out:   # a folder (an existing one, or a new path that ends in / or has no extension) gets the default name inside it

@@ -84,7 +84,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 2. **有声音时，音频决定时长。** 先生成配音或拿到歌曲，转成词级时间戳和节拍表，再用实测时长回写分镜，让画面去对齐音频。静音视频的时长由分镜里的 reads 决定，画面必须在静音下读得懂。
 3. **先分镜后代码。** 分镜里给每个镜头写出观众必须依次看懂的 reads，并标起止时间；重要的 reads 不能重叠。
 4. **每个场景都要自查。** 至少包括：一张联系表，关键动作一条逐帧 strip，承载剧情的脸或细节一个 crop；对照 `TASTE_CHECKLIST.md`，发现问题就修。整片 draft 还要过清单里的打分层：换一个全新上下文的严苛 reviewer，按 8 个维度（含立意）打分；做几轮、怎样算过线按档位（`playbook/01-pipeline.md` 的"努力程度"：`standard` 1 轮，修最差的 3 处，不设分数线；`studio` 做工五项都 ≥ 7 才出片），轮数有上限。自查成本很低，不要省。
-5. **事实有纪律。** 论文元数据、数字、引文一律照抄原文；拿不准的写进 `NOTES.md`，不编进视频。
+5. **事实有纪律。** 论文元数据、数字、引文一律照抄原文；拿不准的写进 `NOTES.md`，不编进视频。发布文案（标题、简介、章节）也算，交付前同样逐条对过。
 6. **只在 `projects/` 里改东西。** `engines/` 是模板，`references/repos/` 是只读参考；需要时复制到自己的项目里再改。
 7. **不在文件里写 API key。** 一律从环境变量读取；缺 key 时告诉用户需要哪个。
 
@@ -108,7 +108,7 @@ OpenVideoHarness/
 ├── CLAUDE.md / AGENTS.md     入口（本文件；AGENTS.md 由 bin/vh sync-agents 生成，内容相同）
 ├── README.md / README.zh-CN.md  给人看的说明；CONTRIBUTING.md 是改本仓库时的规则；install.sh 一键安装
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
-├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · pace · voices · captions · timeline · remap · beats · music · sfx · mix · mux · qa · readcheck · textcheck · frames · render · determinism · cues · fonts · storyboard · rhythm · cover-preview · sheet · check · gif · review · desk
+├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · pace · voices · captions · timeline · remap · beats · music · sfx · mix · mux · qa · readcheck · textcheck · frames · render · patch · determinism · cues · fonts · storyboard · rhythm · cover-preview · sheet · check · gif · deliver · clean · review · desk
 ├── tools/                    bin/vh 背后的脚本；audio/README.md 是声音命令的参数手册，desk/README.md 是审阅台的读取约定；ci.sh 是仓库自检
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              9 类视频（09 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例

@@ -11,6 +11,10 @@
   @font-face { font-family: "Film Sans"; src: local("PingFangSC-Semibold"), local("PingFang SC Semibold"), local("NotoSansCJKsc-Bold"), local("Noto Sans CJK SC Bold"), local("SourceHanSansSC-Bold"), local("Microsoft YaHei Bold"); font-weight: 600; }
   @font-face { font-family: "Film Serif"; src: local("STSongti-SC-Bold"), local("Songti SC Bold"), local("NotoSerifCJKsc-Bold"), local("Noto Serif CJK SC Bold"), local("SourceHanSerifSC-Bold"); font-weight: 700; }
   @font-face { font-family: "Film Serif"; src: local("STSongti-SC-Black"), local("Songti SC Black"), local("NotoSerifCJKsc-Black"), local("Noto Serif CJK SC Black"), local("SourceHanSerifSC-Heavy"); font-weight: 900; }
+  /* the heaviest Chinese sans of each system, for cover titles (src/20-ui.js coverTitle): Lantinghei SC Heavy (macOS, a font
+     macOS downloads when first asked for), Hiragino Sans GB W6 (macOS), Noto Sans CJK SC Black or Source Han Sans SC Heavy
+     (Linux: fonts-noto-cjk-extra), Microsoft YaHei Bold (Windows), PingFang SC Semibold (every Mac) last */
+  @font-face { font-family: "Film Heavy"; src: local("FZLTTHK--GBK1-0"), local("Lantinghei SC Heavy"), local("HiraginoSansGB-W6"), local("Hiragino Sans GB W6"), local("NotoSansCJKsc-Black"), local("Noto Sans CJK SC Black"), local("SourceHanSansSC-Heavy"), local("Source Han Sans SC Heavy"), local("Microsoft YaHei Bold"), local("PingFangSC-Semibold"); font-weight: 900; }
   @font-face { font-family: "Film Mono"; src: local("Menlo-Regular"), local("Menlo"), local("DejaVuSansMono"), local("DejaVu Sans Mono"), local("Consolas"); font-weight: 400; }
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
   #film { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }

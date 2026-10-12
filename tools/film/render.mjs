@@ -5,12 +5,13 @@
 // re-encoding. Video only: put the sound on with bin/vh mux.
 //
 // usage: node tools/film/render.mjs <project | page.html> --browser <chrome> [--out out/film.mp4] [--fps 30]
-//          [--range a:b] [--dpr 1] [--workers 4] [--crf 16] [--preset medium] [--gop 60] [--png] [--quality 95]
+//          [--range a:b | --frames k0:k1] [--dpr 1] [--workers 4] [--crf 16] [--preset medium] [--gop 60] [--png] [--quality 95]
 //          [--frame-timeout 120] [--force] [--real-clock] [--soft-gl]
 //        (bin/vh render finds the browser: CHROME_PATH, HyperFrames' chrome-headless-shell, then Chrome or Chromium)
 //
 //   --out          default <project>/out/<page>.mp4; a lock file beside it stops a second render of the same file
 //   --range a:b    only that span (frames a·fps up to b·fps); default the whole film
+//   --frames k0:k1 only frames k0 up to k1 (k1 left out), frame k drawn at k / fps: exact, for bin/vh patch
 //   --dpr 2        twice the pixels (4K for a 1920x1080 page)
 //   --gop 60       a keyframe every 60 frames exactly, from the span's first frame (default 2 s of frames); the chunks
 //                  are whole GOPs, so a later patch can cut the video on keyframes
@@ -23,6 +24,8 @@
 // 1 a frame failed, the encoder stopped, or the result has the wrong frame count or colour tags; also when the page
 // reported an error while drawing (the video is written then, and the errors are listed) · 2 could not start.
 // Ctrl-C (or SIGTERM) stops the encoders, deletes the chunks so far and the lock, and exits 130 (143).
+// Before drawing it estimates the disk the render needs at its peak (the chunks and the joined copy): it stops (exit 2)
+// when even a flat film would not fit, and says so when a heavy one might not.
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -35,13 +38,14 @@ const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
 const die = (msg) => { console.error("render: " + msg); process.exit(2); };
 const o = { fps: 30, dpr: 1, workers: 4, crf: 16, preset: "medium", quality: 95, frameTimeout: 120 };
-let target = null, out = null, range = null, gop = null, png = false, force = false;
+let target = null, out = null, range = null, frames = null, gop = null, png = false, force = false;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], [k, inline] = a.startsWith("--") && a.includes("=") ? [a.slice(0, a.indexOf("=")), a.slice(a.indexOf("=") + 1)] : [a, undefined];
   const val = () => { const v = inline !== undefined ? inline : argv[++i]; if (v === undefined) die(`${k} needs a value`); return v; };
   const num = (v, what, min) => { const x = Number(v); if (v === "" || !Number.isFinite(x) || x < min) die(`${what}: ${JSON.stringify(v)} is not a number ≥ ${min}`); return x; };
   if (k === "--out") out = val();
   else if (k === "--range") { range = val().split(":").map((v) => num(v, "--range", 0)); if (range.length !== 2 || range[1] <= range[0]) die("--range a:b, b > a"); }
+  else if (k === "--frames") { frames = val().split(":").map((v) => num(v, "--frames", 0)); if (frames.length !== 2 || !frames.every(Number.isInteger) || frames[1] <= frames[0]) die("--frames k0:k1, whole frame numbers, k1 > k0"); }
   else if (k === "--fps") o.fps = num(val(), k, 1);
   else if (k === "--dpr") o.dpr = num(val(), k, 0.25);
   else if (k === "--workers") o.workers = Math.floor(num(val(), k, 1));
@@ -60,6 +64,7 @@ for (let i = 0; i < argv.length; i++) {
   else target = a;
 }
 if (!target) die("which project or page? (-h for the usage)");
+if (range && frames) die("--range or --frames, not both");
 if (out && fs.existsSync(out) && fs.statSync(out).isDirectory()) die(`--out ${out} is a folder: name the video file (…/film.mp4)`);
 if (out && !/\.(mp4|mov)$/i.test(out)) die(`--out ${out}: the video file, .mp4 (or .mov)`);
 if (!o.browser) die("no browser: pass --browser <chrome>, or run it as bin/vh render");
@@ -73,10 +78,11 @@ if (first.kind === "hyperframes" && !force) {
   die("this is a HyperFrames composition: render it with npx hyperframes render (its renderer is the path this repo measured); --force renders it through the page contract anyway");
 }
 if (!(first.duration > 0)) { await first.close(); die("the page gives no duration"); }
-const fps = o.fps, k0 = range ? Math.round(range[0] * fps) : 0;
-const k1 = !range || range[1] >= first.duration ? Math.ceil(first.duration * fps - 1e-6) : Math.round(range[1] * fps);   // to the end: its last frame
+const fps = o.fps, last = Math.ceil(first.duration * fps - 1e-6);   // the film's frame count: its last frame is last - 1
+const k0 = frames ? frames[0] : range ? Math.round(range[0] * fps) : 0;
+const k1 = frames ? Math.min(frames[1], last) : !range || range[1] >= first.duration ? last : Math.round(range[1] * fps);
 const n = k1 - k0;
-if (n <= 0) { await first.close(); die(`no frames in ${range ? range.join("–") + " s" : "the film"} (it is ${first.duration} s)`); }
+if (n <= 0) { await first.close(); die(`no frames in ${frames ? `frames ${frames.join("–")}` : range ? range.join("–") + " s" : "the film"} (it is ${first.duration} s, ${last} frames)`); }
 gop = gop || Math.round(2 * fps);
 const stem = path.basename(first.page, path.extname(first.page));
 const outFile = path.resolve(out || path.join(first.root, "out", `${stem}.mp4`));
@@ -98,6 +104,13 @@ function takeLock() {
   }
   return `could not take ${rel(lock)}`;
 }
+// the disk: the chunks and the joined copy are on it together before the chunks go, so about twice the video at the peak.
+// x264 at these CRFs has made 0.04 bits a pixel (a flat test page) to 0.4 (4K 3D with grain): refuse only when even 0.01
+// does not fit, say so when 0.06–0.4 might not (OVH_FREE_BYTES pretends that much is free: for tests)
+const free = process.env.OVH_FREE_BYTES ? +process.env.OVH_FREE_BYTES : (() => { try { const s = fs.statfsSync(path.dirname(outFile)); return s.bavail * s.bsize; } catch { return Infinity; } })();
+const pxs = Math.round(first.width * o.dpr) * Math.round(first.height * o.dpr) * n, gb = (b) => (b / 1e9).toFixed(b < 1e8 ? 3 : 1);
+if (2 * pxs * 0.01 / 8 > free) { await first.close(); die(`at least ${gb(2 * pxs * 0.01 / 8)} GB needed at the peak for ${n} frames at ${Math.round(first.width * o.dpr)}x${Math.round(first.height * o.dpr)} (likely ${gb(2 * pxs * 0.06 / 8)}–${gb(2 * pxs * 0.4 / 8)}), ${gb(free)} GB free on that disk`); }
+if (2 * pxs * 0.4 / 8 > free) console.log(`  disk: about ${gb(2 * pxs * 0.06 / 8)}–${gb(2 * pxs * 0.4 / 8)} GB needed at the peak (more for grain, 3D, photos), ${gb(free)} GB free: it may not fit`);
 const busy = takeLock();
 if (busy) { await first.close(); die(busy); }
 const unlock = () => { try { if (+fs.readFileSync(lock, "utf8") === process.pid) fs.unlinkSync(lock); } catch { /* already gone */ } };

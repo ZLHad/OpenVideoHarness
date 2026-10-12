@@ -103,6 +103,31 @@ const CHAPTERS = [{ at: 0, title: "挂在字上" }, { at: "@b1", title: "翻一�
 - 按词切（jieba）、手工断点表是以后的事：现在太长的一段没有逗号时，按宽度从中间切，可能切在词中间（不会切在拉丁字母的词和数字中间），看到了就在旁白稿里加个逗号。
 - 一句里紧跟着又一句、前一句又很短时（"他说："走吧。""），那一条可能只亮半秒：`bin/vh readcheck <项目>` 按字幕的下限查得出来。
 
+## 封面
+
+`src/50-shots.js` 里写 `COVERS`，每张一项：
+
+```js
+const COVERS = [
+  { id: "A", at: "@a2:第二张+0.6", cam: { z: 1.12, x: 0, y: -60 }, title: { text: ["改一个字，镜头跟着走"], size: 150, x: 960, y: 1010, align: "center" } },
+];
+```
+
+- `at` 和镜头的一样写成 cue：改了开场、重配一句，封面跟着取到同一个画面，不会过期。`bin/vh cues` 把它列成 `cover.A.at`。
+- `cam: { z, x, y }`：只在这张封面上生效的机位微调，绕画面中心放大 z 倍，再挪 x、y 像素，给标题让出地方。挪动不能超过放大留出的余量（横向 (z − 1) × 960，纵向 (z − 1) × 540），超了 `ready` 会报出来，免得露出画面的边。
+- `title: { text: [行…], size: [每行字号] 或一个数, x, y（第一行的基线）, align, color, band }`：用 `"Film Heavy"` 画，这一档是各系统最粗的中文黑体，带深色描边和一条压暗的底；`band: false` 不要底。章节条和字幕默认不上封面，要的话写 `bar: true`、`caption: true`。
+- `bin/vh frames <项目> --covers` 把每张封面画进 `out/covers/<id>.png`（`--covers=A,B` 只画这几张，`--dpr 2` 出 3840 × 2160），再用 `bin/vh cover-preview out/covers/*.png` 看在信息流里的大小。
+
+`"Film Heavy"` 在 `film.html` 里按这个顺序找（`bin/vh fonts list --cjk` 列出本机的中文字体，对一下表里的名字；`ready` 报出本机一个都没有的情况；标题里的字这一档字体有没有，`bin/vh fonts check` 也查，它会把封面画一遍）：
+
+| 系统 | 字体（`local()` 的名字） | 备注 |
+|---|---|---|
+| macOS | 兰亭黑 Heavy（`FZLTTHK--GBK1-0`、`Lantinghei SC Heavy`） | 系统按需下载的字体：第一次用时才装，没装就落到下一个 |
+| macOS | 冬青黑体简体 W6（`HiraginoSansGB-W6`） | 系统自带 |
+| Linux | 思源黑体 / Noto Sans CJK SC Black 或 Heavy（`NotoSansCJKsc-Black`、`SourceHanSansSC-Heavy`） | `fonts-noto-cjk-extra` 这类包里才有 Black |
+| Windows | 微软雅黑 Bold（`Microsoft YaHei Bold`） | 没有更粗的一档 |
+| 最后 | 苹方 Semibold（`PingFangSC-Semibold`） | 每台 Mac 都有；苹方最粗只到 Semibold |
+
 ## 事件和 reads：录制器
 
 画东西的小函数开头调一次 `cue(kind, t0, { x })`（`drop`、`stamp` 已经调了），平时什么都不做；`ready` 时每个镜头抽 5 个时刻各画一遍，录下镜头在画面上时发生的事件（落下、盖章、亮起……）和 reads，去掉重复。`x` 写这件事在镜头里的位置（不随 t 变），按变换换算成屏幕横坐标，配音效时给声像用；推镜时取离事件最近的那次抽样的变换（推镜很慢，差不了多少）。同一个调用在几次抽样里各录一次，只留一条。每个镜头边界的转场也记成事件（`kind` 就是转场名，`cut` 也在内），评审前拿它和 STYLE 写的转场对一遍。
@@ -118,7 +143,8 @@ const CHAPTERS = [{ at: 0, title: "挂在字上" }, { at: "@b1", title: "翻一�
 | `texts` | reads 和字幕：`[{text, start, end, read}]`，字幕的 `read` 是 `subtitle` |
 | `events` | `[{t, kind, shot, x?, dur?}]` |
 | `chapters` | `[{t, title}]` |
-| `cues` | 每个 cue 的解析结果：`[{id, ref, t}]`，`id` 像 `S02.o.one`、`chapter2.at` |
+| `cues` | 每个 cue 的解析结果：`[{id, ref, t}]`，`id` 像 `S02.o.one`、`chapter2.at`、`cover.A.at` |
+| `covers`、`cover(id)` | 封面：`[{id, t, title}]`，`cover(id)` 按它的机位和标题画这一张 |
 | `timeline` | 载入的旁白时间轴，相对 `film.html` 的路径；无声片是 `null` |
 
 页面从不自己往前走，只在 `frame(t)` 被调用时画；直接用浏览器打开 `film.html`（`file://`）读不到时间轴，什么也不画。
@@ -130,10 +156,13 @@ bin/vh frames <项目> --at 4.9,12.8           # 单帧，无损 PNG，在 <项�
 bin/vh frames <项目> --strip 12.2:13.4 --fps 10   # 一段的每一帧拼成一张，看转场和动作
 bin/vh frames <项目> --at 4.9 --dpr 2        # 4K 的帧
 bin/vh textcheck <项目>                       # reads 和字幕有没有被盖住、对比够不够、出没出画
+bin/vh frames <项目> --covers                 # 封面：out/covers/<id>.png（COVERS，取帧时间挂在字上）
+bin/vh cues <项目> --chapters                 # 章节表，写进简介用：0:00 章名……，也写进 out/chapters.txt
 bin/vh cues <项目> --save                     # 每个 cue 落在第几秒，存进 out/cues.json；换了配音再跑，列出哪些镜头挪了、挪了多少
 bin/vh readcheck <项目>                       # reads 和字幕够不够时间读（读时底线）：先把 window.film.texts 写成 out/texts.json
 bin/vh determinism <项目>                     # 同几个时刻换顺序画、换进程画，看是不是 t 的纯函数
 bin/vh render <项目> [--dpr 2]                # 成片画面：<项目>/out/film.mp4（--dpr 2 是 4K），没有声音
+bin/vh patch <项目>/out/film.mp4 --seconds 142.2-159.2   # 只重画改过的一镜，接回成片（片子要是 bin/vh render 出的，旁边有 .render.json）
 bin/vh mux <项目>/out/film.mp4 <混音.wav> <成片.mp4>   # 套上混音
 ```
 
@@ -147,7 +176,7 @@ bin/vh mux <项目>/out/film.mp4 <混音.wav> <成片.mp4>   # 套上混音
 ## 局限
 
 - 只有 16:9。别的画幅要同时改 `FILM.width`、`FILM.height` 和 `film.html` 里的尺寸，`bin/vh textcheck` 也还是按 1920 × 1080 打开页面。
-- SRT、镜头表（`shots.json`）、封面还没有导出。封面的取帧时间以后也写成 cue；现在可以先用 `bin/vh cues <项目>` 按镜头 id 查到时刻再取帧，不要把秒数写死。
+- SRT、镜头表（`shots.json`）还没有导出。
 - 没有 Three.js 底层。
 - 字幕不按词切（见"字幕"）。
 - 录制器只看得到每镜 5 个时刻画到的东西：一个只在两个时刻之间才调用的 `cue()` 或 `read()` 会漏掉。把它们写在 `if` 外面，先登记，再判断这一帧要不要画。

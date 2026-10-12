@@ -76,6 +76,26 @@ function chapterBar(t) {
   X.restore();
 }
 
+// ---- a cover's title: lines in the heaviest Chinese sans this machine has ("Film Heavy" in film.html), with a dark
+// outline and a darker band behind them, so they read at the size of a feed tile. title: { text: [lines], size: [px per
+// line] or px, x, y (the first line's baseline), align, color, band: true | false, gap } ----
+function coverTitle(o) {
+  const lines = [].concat(o.text || []), sizes = lines.map((_, i) => [].concat(o.size ?? 200)[i] ?? [].concat(o.size ?? 200).slice(-1)[0]);
+  if (!lines.length) return;
+  const x = o.x ?? 120, y0 = o.y ?? 700, gap = o.gap ?? 0.18, align = o.align || "left";
+  const ys = []; let y = y0;
+  sizes.forEach((s, i) => { if (i) y += s * (1 + gap); ys.push(y); });
+  if (o.band !== false) {   // darker behind the block, fading out away from it
+    const top = y0 - sizes[0] * 1.2, bottom = ys[ys.length - 1] + sizes[sizes.length - 1] * 0.5;
+    const g = X.createLinearGradient(0, top - 120, 0, bottom + 120);
+    g.addColorStop(0, `rgba(${FILM.ui.dark},0)`); g.addColorStop(0.25, `rgba(${FILM.ui.dark},0.55)`);
+    g.addColorStop(0.75, `rgba(${FILM.ui.dark},0.55)`); g.addColorStop(1, `rgba(${FILM.ui.dark},0)`);
+    X.fillStyle = g; X.fillRect(0, top - 120, W, bottom - top + 240);
+  }
+  lines.forEach((s, i) => txt(s, x, ys[i], { size: sizes[i], weight: 900, family: "heavy", align, color: o.color || FILM.ui.text,
+    stroke: Math.max(8, sizes[i] * 0.06), strokeColor: `rgba(${FILM.ui.dark},0.85)`, shadow: `rgba(${FILM.ui.dark},0.6)`, blur: 18, dy: 4 }));
+}
+
 // ---- the caption (bottom): one line on a soft dark band; on a plate where the shot says light: true (a pale picture) ----
 function captionBand(t) {
   const c = captionAt(t);

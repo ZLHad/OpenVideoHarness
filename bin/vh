@@ -75,14 +75,20 @@
 #                               shows), under 3:1, outside or cut by the frame, or under a DOM caption (exit 1); canvas text outside the registry
 #                               and captions over a bright picture warn. The composition opts in with window.film = { frame(t), duration, texts? }
 #                               (engines/CONTRACT.md; the older window.__vh = { draw(t), texts? } still works)
-#   frames <project|page.html> (--at t,t… | --range a:b[:step] | --strip a:b) [--fps 30] [--out dir] [--size WxH] [--dpr 2] [--real-clock]
+#   frames <project|page.html> (--at t,t… | --range a:b[:step] | --strip a:b | --covers[=A,B]) [--fps 30] [--out dir] [--size WxH] [--dpr 2] [--real-clock]
 #                               frames drawn from the source through the page contract (window.film, engines/CONTRACT.md), for any web-page
 #                               engine: ClaudeAnimationBase, a page that writes window.film, HyperFrames (a composition without it gets its own
-#                               runtime); lossless PNGs in <project>/out/frames; --strip: every frame of a span and one picture of them all
-#   render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png]
+#                               runtime); lossless PNGs in <project>/out/frames; --strip: every frame of a span and one picture of them all;
+#                               --covers: the page's covers (window.film.covers; canvas-film COVERS, picked by cue) in <project>/out/covers
+#   render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b | --frames k0:k1] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png]
 #                               an MP4 drawn through the page contract (the canvas engine, ClaudeAnimationBase, any page that writes
 #                               window.film): parallel chunks into x264, BT.709 tv range, a keyframe every --gop frames, <out>.render.json
 #                               records how; video only (sound: mux). HyperFrames: npx hyperframes render (--force to render it here anyway)
+#   patch <film.mp4> (--frames a-b | --seconds s-e) [--sidecar f.render.json] [--out f | --in-place] [--workers 4] [--verify seams|full]
+#                               draw frames a–b of a bin/vh render film again and put them back, the rest untouched: cut on its keyframes
+#                               (its .render.json says how it was made), joined, sound and subtitles kept; checks the frame count, that every
+#                               packet and pixel outside is the film's, decoding, and that the frames drawn again outside a–b came back the same
+#                               (exit 1: the new film is kept as <film>.failed.mp4, the film untouched); without --out: <film>.patched.mp4
 #   determinism <project|page.html> [--at t,t…] [--samples 6] [--min-psnr 45]   is each frame a function of t? draws the same t
 #                               in one browser in two orders and in a second browser, compares them, and again with the real clock
 #   fonts check <project|page.html> [--step 0.5] [--at t,…] [--allow-fallback "Apple Color Emoji"] [--strict] [--out dir]   is every character drawn
@@ -91,16 +97,25 @@
 #                               font draws each character (exit 1 on any; out/check/fonts.json). bin/vh render says so too
 #   fonts list [words…] [--cjk] | fonts subset <project|page.html> [--family F] [--font file|name] [--out dir]   the faces on this
 #                               machine by the names local() takes; the page's local() fonts cut to the characters the project uses (woff2)
-#   cues <project|page.html> [--save] [--out f]   where the page's cues landed (window.film.cues: times hung on the narration's
+#   cues <project|page.html> [--save] [--out f] [--chapters]   where the page's cues landed (window.film.cues: times hung on the narration's
 #                               words), in order; --save keeps them in out/cues.json with the timeline's sha256, and a later run says
-#                               which cues a new take moved and by how much
+#                               which cues a new take moved and by how much; --chapters: the chapter list for a description (out/chapters.txt)
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
-#   check <video> [--allow t,t…] [--against <ref.mp4>]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) +
+#   check <video> [--allow t,t…] [--against <ref.mp4>]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) + the
+#                               publishing copy in PACKAGING.md against the platforms' length limits (a warning) +
 #                               black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any not declared
 #                               with --allow <seconds or spans a-b of designed flashes>; evenly spaced ones are periodic motion, said, not
 #                               failed) + motion (hard cuts from dark to bright, still stretches of 3 s or more: warnings) + colour tags; --against: a 4K render vs the approved 1080p cut
 #                               (exit 1 when the picture differs: a layout that breaks at device scale 2)
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
+#  deliver and tidy
+#   deliver <master.mp4> [--for bilibili,douyin,youtube] [--max-gb N] [--crf 16] [--out f] [--psnr sample|full|off]   the copy to upload:
+#                               the bit rate a platform's file limit leaves for the picture (playbook/10, 交付编码): CRF 16 under it, or two
+#                               passes at it when the master's own rate is over it;
+#                               a keyframe every 2 s, BT.709, sound and subtitles copied; the size against each limit, the PSNR against the master
+#   clean <project> [--yes] [--delete] [--keep path …] [--final f]   a finished project's intermediates (frames, render chunks, drafts,
+#                               old takes, stems, node_modules) to the Trash; the film, covers, captions, review pages, sources, docs and the
+#                               narration in use stay. Without --yes it only lists them; --delete deletes what the tools can make again
 set -euo pipefail
 unset CDPATH   # an exported CDPATH would send a relative cd (this one: bin/vh run as bin/vh) to another folder, and print it
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -573,7 +588,7 @@ arg_dir() { # the folder of the project or page among a tool's arguments: the fi
   for a in "$@"; do
     if [ $skip = 1 ]; then skip=0; continue; fi
     case $a in
-      --soft-gl|--real-clock|--png|--force|--save|--strict|--*=*) ;;
+      --soft-gl|--real-clock|--png|--force|--save|--strict|--in-place|--keep|--*=*) ;;
       -*) skip=1 ;;
       *) if [ -d "$a" ]; then echo "$a"; else case $a in */*) echo "${a%/*}" ;; *) echo . ;; esac; fi; return 0 ;;
     esac
@@ -588,7 +603,7 @@ film_browser() { # film_browser <command> [dir]: the browser the page-contract t
   fi
   echo "$b"
 }
-cmd_film_tool() { # $1: frames | render | determinism | cues | fonts (tools/film/<it>.mjs)
+cmd_film_tool() { # $1: frames | render | determinism | cues | fonts | patch (tools/film/<it>.mjs)
   local tool=$1 b; shift
   [ $# -gt 0 ] || { cmd_usage "$tool"; exit 1; }
   b=$(film_browser "$tool" "$(arg_dir "$@")") || exit 2
@@ -781,6 +796,17 @@ cmd_check() {
   if [ -z "$col" ]; then :
   elif [ "$col" = "yuv420p,tv,bt709,bt709,bt709" ]; then echo "$c_ok colour: yuv420p, limited range, BT.709 with all four tags"
   else echo "$c_wa colour: $col (pix_fmt,range,matrix,transfer,primaries); deliver yuv420p, tv, bt709 ×3 — re-encode with the command in playbook/02-verification.md (色彩标签)"; fi
+  # the publishing copy (PACKAGING.md, 发布文案) against the platforms' length limits: said, not a failure of the film
+  local proj pk prc=0; proj=$(project_of "$v")
+  if [ -n "$proj" ] && [ -f "$proj/PACKAGING.md" ]; then
+    pk=$(python3 "$ROOT/tools/packcheck.py" "$proj/PACKAGING.md" 2>&1) || prc=$?
+    case "$prc:$pk" in
+      0:*"no 发布文案"*) ;;
+      0:*) printf '%s\n' "$pk" | sed "s/^packaging/$c_ok packaging/" ;;
+      1:*) echo "$c_wa the publishing copy in PACKAGING.md is over a platform's limit (playbook/10, 发布文案的长度):"; printf '%s\n' "$pk" | sed 's/^/   /' ;;
+      *) echo "$c_wa packaging check failed: $pk" ;;
+    esac
+  fi
   # scale: a 4K render against the approved 1080p cut, so a layout that only breaks at device scale 2 shows up
   # (engines/README.md, 出 4K). Needs numpy, like the frame scan.
   if [ -n "$against" ]; then
@@ -895,6 +921,8 @@ PY
   fi
   echo "$c_ok $out${1:+ (+$s subtitle track(s)${off:+, off by default})}"
 }
+cmd_deliver() { [ $# -gt 0 ] || { cmd_usage deliver; exit 1; }; python3 "$ROOT/tools/deliver.py" "$@"; }   # ffmpeg only
+cmd_clean() { [ $# -gt 0 ] || { cmd_usage clean; exit 1; }; python3 "$ROOT/tools/clean.py" "$@"; }         # stdlib only
 cmd_gif() {
   local v=${1:?usage: bin/vh gif <video> [width] [fps]} w=${2:-640} fps=${3:-15} b out; b=${v##*/}; out="${v%"$b"}${b%.*}.gif"   # extension off the file name, not a dotted folder
   ffmpeg -v error -y -i "$v" -vf "fps=$fps,scale=$w:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" "$out" && ls -lh "$out" | awk '{print $5, $9}'
@@ -913,7 +941,7 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
   case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
-    frames|render|determinism|cues) cmd_usage "$1"; echo; exec node "$ROOT/tools/film/$1.mjs" -h ;;   # + every flag
+    frames|render|determinism|cues|patch) cmd_usage "$1"; echo; exec node "$ROOT/tools/film/$1.mjs" -h ;;   # + every flag
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 
@@ -924,8 +952,8 @@ case "${1:-help}" in
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
-  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;;
-  storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
+  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
+  storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;;
   help|-h|--help) cmd_help ;;
   *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;
 esac
