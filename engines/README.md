@@ -89,9 +89,9 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 
 成本（介绍片 103 s，M3 Max）：HyperFrames high 画质 1080p 约 4 分钟、509 MB，4K 约 9–13 分钟、1.5 GB（约 125 Mbps，2 个 worker）。发布前用 x264 CRF 18–19、`-preset slow` 重编码：1080p 297 MB，4K 1.04 GB。GitHub release 每个文件不能超过 2 GiB，按 high 画质的码率，超过约 135 s 的 4K 要先重编码。Blender 原生 4K 每帧约是 1080p 的 4 倍（`engines/blender.md`）。
 
-**长片出 4K 先看磁盘。** 4K 一律走截屏（drawElement 和 Linux 的 BeginFrame 截帧都不支持 2 倍密度），而 0.8.82 的多 worker 截屏默认先把每一帧存成 JPEG，最后再编码；只有 `--workers 1` 默认是流式的。临时帧写在 `--output` 旁边的 `work-…` 文件夹里（Windows 上是系统临时目录），按每帧约 4 MB 估：一支 7–8 分钟的片子（约 14000 帧）要五六十 GB。开渲前它按这个估算查那块盘，超过空余空间的 90% 就直接拒绝（那次空余 53 GB），截完前 10 帧再按实测大小查一次；报错开头是 `Disk capture may need ~… MB of temporary frame storage`。三个办法：
+**长片出 4K 先看磁盘。** 4K 一律走截屏（drawElement 和 Linux 的 BeginFrame 截帧都不支持 2 倍密度），而 0.8.82 的多 worker 截屏默认先把每一帧存成 JPEG，最后再编码；只有 `--workers 1` 默认是流式的。临时帧写在 `--output` 旁边的 `work-…` 文件夹里（Windows 上是系统临时目录），按每帧约 4 MB 估：一支 7–8 分钟的片子（约 14000 帧）要五六十 GB。开渲前它按这个估算查那块盘，超过空余空间的 90% 就直接拒绝，截完前 10 帧再按实测大小查一次；报错开头是 `Disk capture may need ~… MB of temporary frame storage`。三个办法：
 
-- 设 `HF_CAPTURE_PARALLEL_STREAM=true`：多个 worker 截下的帧直接流进编码器，不落盘。那支片子 4 个 worker 在 M3 Max 上渲了约 11 分钟，high 画质 1.4 GB；
+- 设 `HF_CAPTURE_PARALLEL_STREAM=true`：多个 worker 截下的帧直接流进编码器，不落盘。那支片子 4 个 worker 在 M3 Max 上渲了十来分钟；
 - `--workers 1`：单个 worker 本来就是流式的，只是慢；
 - 把 `--output` 指到空间够的盘上。
 
