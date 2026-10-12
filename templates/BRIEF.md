@@ -41,6 +41,7 @@
 ## Text rules
 - On screen at once: <= {8} words or {16} CJK chars per line; min sizes and the safe box follow Watch on (playbook/03 §4, §5): {numbers for this film}
 - Reading time: the floor and the Pace target are TASTE_CHECKLIST #5 (`bin/vh readcheck`); exceptions in this film: {none}
+- Navigation and pause pages: {none}  <!-- 章节进度条里不是当前一章的块、片尾的参考页：不按限时阅读算；字号低于下限要人本人同意，在提出它的那一站就问（playbook/03 §4"导航和暂停页"），同意了写成"进度条 6 块，当前块 44 px，其余 32 px；片尾参考页 32 px，停 4 s（REVIEW.md 关卡 ②）" -->
 
 ## Determinism
 Every frame is a pure function of t (CLAUDE.md hard rule 1).

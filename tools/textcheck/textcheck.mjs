@@ -3,7 +3,7 @@
 //
 // usage: node tools/textcheck/textcheck.mjs <project | composition.html> --browser <chrome> [--texts f.json]
 //          [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12]
-//          [--out dir] [--soft-gl] [--timeout s]
+//          [--ui-step 1] [--ui-share 0.002] [--out dir] [--soft-gl] [--timeout s]
 //        (bin/vh textcheck finds the browser: CHROME_PATH, the chrome-headless-shell `hyperframes render` uses for the
 //         project, the newest one in ~/.cache/puppeteer, then Chrome or Chromium)
 //
@@ -41,6 +41,14 @@
 // a bright picture: every --caption-step seconds, the share of the canvas pixels under the caption's own lines that are
 // within 3:1 of its colour, over --caption-close (0.12). CSS text-shadow and strokes usually carry such a caption: look.
 //
+// And the interface over the scene, never failing the run either: a page that says where its interface (a chapter bar,
+// a caption, a credit) puts its ink, window.film.ui(t) → [{name, box: [x0, y0, x1, y1]}], and draws the frame without it
+// on frame(t, { layer: "scene" }) (engines/CONTRACT.md), is drawn both ways every --ui-step seconds: where the scene alone
+// has detail inside a box (a line, an edge, a letter: a pixel 60 or more over r + g + b off the mean of the 33 x 33 px
+// around it; a plain or shaded background and the grain are not), on over --ui-share (0.002) of the box's pixels and at
+// least 30 of them, the scene runs under the interface. Each run of samples is listed once, with the largest share: a
+// small one is a line or a shape crossing the bar or the caption (move one of them), a large one a busy picture under it.
+//
 // Writes <out>/textcheck.json (every number) and a crop per finding (<out>/<t>s-<kind>.png); out defaults to
 // <project>/out/check/textcheck. Exit: 0 no read failed (warnings allowed) · 1 a registered read is covered, under the
 // contrast, outside or cut by the frame, or under a caption, or the frame function threw · 2 could not check (no
@@ -55,8 +63,10 @@ process.on("unhandledRejection", (e) => { console.error("textcheck: " + ((e && e
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");
 const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP); process.exit(argv.length ? 0 : 2); }
-const opt = { minVisible: 0.7, minContrast: 3, samples: 3, scanStep: 1, captionStep: 0.5, captionClose: 0.12, timeout: 900 };
-const NUM = { "--min-visible": "minVisible", "--min-contrast": "minContrast", "--samples": "samples", "--scan-step": "scanStep", "--caption-step": "captionStep", "--caption-close": "captionClose", "--timeout": "timeout" };
+const opt = { minVisible: 0.7, minContrast: 3, samples: 3, scanStep: 1, captionStep: 0.5, captionClose: 0.12, uiStep: 1, uiShare: 0.002, timeout: 900 };
+const NUM = { "--min-visible": "minVisible", "--min-contrast": "minContrast", "--samples": "samples", "--scan-step": "scanStep", "--caption-step": "captionStep",
+  "--caption-close": "captionClose", "--ui-step": "uiStep", "--ui-share": "uiShare", "--timeout": "timeout" };
+const BUSY = 0.15;   // a share of detail from which the scene under a box is a busy picture rather than a piece crossing it
 let target = null, browserPath = null, textsFile = null, outDir = null, softGl = false;
 const die = (msg) => { console.error("textcheck: " + msg); process.exit(2); };   // before the browser starts
 class Stop extends Error {}
@@ -164,7 +174,8 @@ try {
   if (!(dur > 0)) stop("no length: give window.film a duration (or window.__vh, or the composition root a data-duration)");
   console.log(`textcheck: ${path.basename(html)} · ${W}x${H} · ${dur} s · ${browser.version}`);
   console.log(`  reads: ${reg.length ? `${reg.length} from ${regFrom}, ${opt.samples} sample(s) each` : "no registry (the page's texts, --texts or out/texts.json): only the scan below"}` +
-    ` · canvas text outside it: ${opt.scanStep > 0 ? `every ${opt.scanStep} s` : "off"} · captions: ${opt.captionStep > 0 ? `every ${opt.captionStep} s` : "off"}`);
+    ` · canvas text outside it: ${opt.scanStep > 0 ? `every ${opt.scanStep} s` : "off"} · captions: ${opt.captionStep > 0 ? `every ${opt.captionStep} s` : "off"}` +
+    ` · interface over the scene: ${!info.ui ? "no window.film.ui" : opt.uiStep > 0 ? `every ${opt.uiStep} s` : "off"}`);
 
   // 1 the registered reads
   const reads = [];
@@ -216,6 +227,25 @@ try {
   }
   const caps = [...capByText.values()], capBad = caps.filter((c) => c.worst.close > opt.captionClose);
   phase("captions");
+  // 4 the interface over the scene: runs of samples where the scene has detail under one of the interface's boxes
+  const ui = { checked: 0, spans: [], ignored: null };
+  if (info.ui && opt.uiStep > 0) {
+    const uts = steps(opt.uiStep, dur), got = await call("ui", uts, W, H);
+    if (got.ignored) ui.ignored = got;
+    else {
+      const hit = (q) => q.px >= 30 && q.share > opt.uiShare;
+      ui.checked = got.samples.length;
+      const open = new Map();   // name → the span still growing
+      for (const q of got.samples) {
+        const k = q.name, sp = open.get(k), i = uts.indexOf(q.t);
+        if (!hit(q)) continue;
+        if (sp && sp.last === i - 1) { sp.last = i; sp.to = q.t; if (q.share > sp.worst.share) sp.worst = q; }
+        else { const n = { name: k, from: q.t, to: q.t, last: i, worst: q }; open.set(k, n); ui.spans.push(n); }
+      }
+      for (const sp of ui.spans) { delete sp.last; sp.busy = sp.worst.share >= BUSY; }
+    }
+  }
+  phase("interface");
   const errors = await call("errors");
 
   // report
@@ -266,13 +296,26 @@ try {
     for (const c of capBad.sort((a, b) => b.worst.close - a.worst.close).slice(0, 15)) { c.worst.crop = await crop(c.worst.t, c.worst.box, "caption"); console.log(`   ${fmt(c.worst.t)}  ${pct(c.worst.close)} within 3:1  ${short(c.text)}`); }
     if (capBad.length > 15) console.log(`   … ${capBad.length - 15} more in textcheck.json`);
   }
+  if (ui.ignored) console.log(`${Y} the page gives window.film.ui, but frame(t, { layer: "scene" }) drew the ${ui.ignored.name} too (at ${ui.ignored.t} s): the interface over the scene was not checked (engines/CONTRACT.md)`);
+  else if (info.ui && opt.uiStep > 0) {
+    const cross = ui.spans.filter((sp) => !sp.busy), busy = ui.spans.filter((sp) => sp.busy);
+    const say = (sp) => `   ${fmt(sp.from)}${sp.to > sp.from ? ` – ${sp.to.toFixed(2)} s` : "     "}  ${sp.name}: ${(100 * sp.worst.share).toFixed(1)}% of its box over the scene's detail` +
+      ` (x ${sp.worst.at[0]}–${sp.worst.at[2]}, y ${sp.worst.at[1]}–${sp.worst.at[3]})`;
+    if (!ui.spans.length) console.log(`${G} the interface over the scene: at ${ui.checked} sample(s) the scene keeps out of the interface's boxes`);
+    if (cross.length) console.log(`${Y} ${cross.length} time(s) the scene draws a line, an edge or a letter under the interface (move the scene's piece, or the interface; look at the crop):`);
+    for (const sp of cross.slice(0, 15)) { sp.worst.crop = await crop(sp.worst.t, sp.worst.box, "ui"); console.log(say(sp)); }
+    if (cross.length > 15) console.log(`   … ${cross.length - 15} more in textcheck.json`);
+    if (busy.length) console.log(`${Y} ${busy.length} time(s) the interface sits over a busy picture (over ${pct(BUSY)} of a box is detail: a plate or a darker band should carry it; look):`);
+    for (const sp of busy.slice(0, 8)) { sp.worst.crop = await crop(sp.worst.t, sp.worst.box, "ui-busy"); console.log(say(sp)); }
+    if (busy.length > 8) console.log(`   … ${busy.length - 8} more in textcheck.json`);
+  }
   if (unstable.length) console.log(`${Y} ${unstable.length} read(s) at a time where the frame drawn twice is not the same (hard rule 1); their numbers are unreliable: ${unstable.map((r) => short(r.text)).join(" · ")}`);
   const errs = [...new Map(errors.map((e) => [e.msg.split("\n")[0], e])).values()];
   if (errs.length) { console.log(`${R} the frame function threw or logged an error at ${errs.length} point(s):`); for (const e of errs.slice(0, 8)) console.log(`   ${fmt(e.t)}  ${e.msg.split("\n")[0]}`); }
   // nothing measured is not a pass: no registered read was found and measured as canvas text, and no other line was seen
   const nothing = !extra.length && !reads.some((r) => r.status === "ok" || r.status === "fail");
   if (nothing) console.log(`${R} nothing measured: no canvas text found${reg.length ? " for any registered read" : ""}. Is the text drawn some other way (DOM, WebGL, images, an offscreen canvas)?`);
-  fs.writeFileSync(path.join(outDir, "textcheck.json"), JSON.stringify({ composition: html, size: [W, H], duration: dur, registry: regFrom || null, options: opt, reads, extra, captions: caps, errors }, null, 1));
+  fs.writeFileSync(path.join(outDir, "textcheck.json"), JSON.stringify({ composition: html, size: [W, H], duration: dur, registry: regFrom || null, options: opt, reads, extra, captions: caps, ui, errors }, null, 1));
   const rel = (p) => { const r = path.relative(process.cwd(), p); return r && !r.startsWith("..") ? r : p; };
   console.log(`  ${crops.size ? `crops: ${rel(outDir)}/*.png · ` : ""}every number: ${rel(path.join(outDir, "textcheck.json"))}`);
   if (nothing) process.exitCode = 2;

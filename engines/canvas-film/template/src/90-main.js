@@ -1,6 +1,6 @@
 // canvas-film · main: draws the frame at t (the shot, or two shots in a transition; then grain, the chapter bar, the
 // caption and the fades) and gives the page contract (engines/CONTRACT.md): window.film = { frame, duration, ready,
-// width, height, texts, events, chapters, cues, covers, cover }. The page never moves on its own: it draws when frame(t) is called.
+// width, height, texts, events, chapters, cues, covers, cover, ui }. The page never moves on its own: it draws when frame(t) is called.
 
 function shotAt(t) { let i = 0; while (i + 1 < SHOT_T.length && t >= SHOT_T[i + 1].a) i++; return i; }
 
@@ -24,18 +24,26 @@ function picture(t) {   // the shot (or the two of a transition) and the grain: 
   else drawShot(i, t);
   grain(t, FILM.grain);
 }
-function draw(t) {
+function draw(t, scene) {   // scene: the picture without the interface over it (the chapter bar and the caption)
   picture(t);
-  chapterBar(t);
-  captionBand(t);
+  if (!scene) { chapterBar(t); captionBand(t); }
   shade(Math.max(FILM.fadeIn > 0 ? 1 - seg(t, 0, FILM.fadeIn) : 0, FILM.fadeOut > 0 ? seg(t, DUR - FILM.fadeOut, DUR) : 0));
 }
 
-// the frame at t, from a cleared canvas: reset() also drops any state a thrown frame left behind
-function frame(t) {
+// the frame at t, from a cleared canvas: reset() also drops any state a thrown frame left behind. o.layer "scene": the
+// frame without the interface, for bin/vh textcheck to see what the shot draws under it
+function frame(t, o) {
   t = clamp(Number(t) || 0, 0, Math.max(0, DUR - 1e-6));
   X.reset(); X.setTransform(PRX, 0, 0, PRX, 0, 0);
-  draw(t);
+  draw(t, !!(o && o.layer === "scene"));
+}
+// where the interface puts its ink at t: [{ name, box: [x0, y0, x1, y1] }] in the frame's px (engines/CONTRACT.md)
+function ui(t) {
+  t = clamp(Number(t) || 0, 0, Math.max(0, DUR - 1e-6));
+  const out = [], bar = barBox(t), cap = captionBox(t);
+  if (bar) out.push({ name: "chapter bar", box: bar.map(r3) });
+  if (cap) out.push({ name: "caption", box: cap.map(r3) });
+  return out;
 }
 
 // a cover: the frame at its cue with the camera nudged (cam: { z, x, y }: zoom about the middle of the frame, then move by
@@ -155,5 +163,6 @@ window.film = {
   get cues() { return CUES; },                                                    // [{ id, ref, t }]
   get covers() { return COVER_T.map((c) => ({ id: c.id, t: r3(c.t), title: c.title ? [].concat(c.title.text || []).join(" / ") : "" })); },
   cover(id) { cover(id); },                                                       // draw a cover (bin/vh frames --covers)
+  ui,                                                                             // the interface's boxes at t (bin/vh textcheck)
   get timeline() { return TIMELINE; },                                            // the timeline file the cues hang on, beside film.html
 };

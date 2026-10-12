@@ -136,7 +136,7 @@ const COVERS = [
 
 | 字段 | 内容 |
 |---|---|
-| `frame(t)` | 清掉画布，画出第 t 秒：镜头（或转场里的两个镜头）、颗粒、章节条、字幕、片头片尾的淡入淡出 |
+| `frame(t)` | 清掉画布，画出第 t 秒：镜头（或转场里的两个镜头）、颗粒、章节条、字幕、片头片尾的淡入淡出。`frame(t, { layer: "scene" })` 不画章节条和字幕 |
 | `duration` | 片长（秒） |
 | `ready` | 字体、图片、时间轴载入，全部 cue 解析，字幕排好，录制器跑完 |
 | `width`、`height` | 1920 × 1080；画布按 `devicePixelRatio` 开大，`--dpr 2` 就是 4K |
@@ -146,6 +146,7 @@ const COVERS = [
 | `cues` | 每个 cue 的解析结果：`[{id, ref, t}]`，`id` 像 `S02.o.one`、`chapter2.at`、`cover.A.at` |
 | `covers`、`cover(id)` | 封面：`[{id, t, title}]`，`cover(id)` 按它的机位和标题画这一张 |
 | `timeline` | 载入的旁白时间轴，相对 `film.html` 的路径；无声片是 `null` |
+| `ui(t)` | 章节条和字幕在 t 秒时的框：`[{name: "chapter bar" \| "caption", box}]`（章节条从进度线上的圆点到章名下沿；字幕只框字，不框暗带） |
 
 页面从不自己往前走，只在 `frame(t)` 被调用时画；直接用浏览器打开 `film.html`（`file://`）读不到时间轴，什么也不画。
 
@@ -155,7 +156,7 @@ const COVERS = [
 bin/vh frames <项目> --at 4.9,12.8           # 单帧，无损 PNG，在 <项目>/out/frames/
 bin/vh frames <项目> --strip 12.2:13.4 --fps 10   # 一段的每一帧拼成一张，看转场和动作
 bin/vh frames <项目> --at 4.9 --dpr 2        # 4K 的帧
-bin/vh textcheck <项目>                       # reads 和字幕有没有被盖住、对比够不够、出没出画
+bin/vh textcheck <项目>                       # reads 和字幕有没有被盖住、对比够不够、出没出画；镜头有没有画到章节条、字幕底下
 bin/vh frames <项目> --covers                 # 封面：out/covers/<id>.png（COVERS，取帧时间挂在字上）
 bin/vh cues <项目> --chapters                 # 章节表，写进简介用：0:00 章名……，也写进 out/chapters.txt
 bin/vh cues <项目> --save                     # 每个 cue 落在第几秒，存进 out/cues.json；换了配音再跑，列出哪些镜头挪了、挪了多少

@@ -36,8 +36,9 @@ window.film = {
 | `cues` | 时间挂在旁白字词上时，每个挂点的解析结果：`[{id, ref, t}]` | `bin/vh cues`：列出来；`--save` 存下，换了配音以后再跑，说出哪些挪了 |
 | `covers` | 封面：`[{id, t, title?}]`，取哪一帧（`t`，挂在字上的片子由 cue 算出）。页面另有方法 `cover(id)` 时，宿主调它画这张封面（自己的机位微调、标题），没有就画 `frame(t)` | `bin/vh frames --covers`：每张一个 PNG，在 `out/covers/` |
 | `timeline` | 这些 cue 挂在哪份旁白时间轴上：相对页面的路径（`audio/timeline.zh.json`），没有旁白时是 `null` | `bin/vh cues` 记下它的 sha256，认出换过的配音 |
+| `ui(t)` | 方法：t 秒时常驻界面（进度条、署名、字幕）的字和线在哪：`[{name, box: [x0, y0, x1, y1]}]`，画面的 CSS px；只框界面自己的字和线，垫在下面的底板、渐变不算。写了它，`frame(t, { layer: "scene" })` 就要画出不带界面的这一帧（不认这个参数的页面照常画整帧，宿主会看出来、说一声） | `bin/vh textcheck`：两种画法各画一遍，场景自己在这些框里画了线、边、字的，报出来（警告） |
 
-这几项都是数据，在 `ready` 里算好：OpenFilm 的说法是"跟着声音走的时间是数据，不是接口"。
+这几项都是数据，在 `ready` 里算好：OpenFilm 的说法是"跟着声音走的时间是数据，不是接口"。`cover(id)` 和 `ui(t)` 是方法，同样是 t 的纯函数。
 
 ### 以前的 `window.__vh`
 
@@ -61,7 +62,7 @@ window.film = {
 
 | 引擎 | 怎么满足 | 备注 |
 |---|---|---|
-| canvas-film（`engines/canvas-film/`，`bin/vh new … --engine canvas-film`） | `src/90-main.js` 写 `window.film`。`ready` 载入字体（本机缺的字体直接报名字；缺字形由 `bin/vh fonts check` 查）、图片和旁白时间轴，把全部 cue 换成秒（有解析不了的就让 `ready` 失败，一次列出前 12 处），排好字幕，再把每个镜头抽 5 个时刻画一遍，收集 `texts`、`events`；`chapters`、`cues` 也在这时算好。`frame(t)` 每次先 `reset()` 画布再画；`covers` 和 `cover(id)` 来自 `src/50-shots.js` 的 `COVERS` | 成片走 `bin/vh render`（4K 加 `--dpr 2`），见 `engines/canvas-film/README.md` |
+| canvas-film（`engines/canvas-film/`，`bin/vh new … --engine canvas-film`） | `src/90-main.js` 写 `window.film`。`ready` 载入字体（本机缺的字体直接报名字；缺字形由 `bin/vh fonts check` 查）、图片和旁白时间轴，把全部 cue 换成秒（有解析不了的就让 `ready` 失败，一次列出前 12 处），排好字幕，再把每个镜头抽 5 个时刻画一遍，收集 `texts`、`events`；`chapters`、`cues` 也在这时算好。`frame(t)` 每次先 `reset()` 画布再画；`covers` 和 `cover(id)` 来自 `src/50-shots.js` 的 `COVERS`；`ui(t)` 给出章节条和字幕的框，`frame(t, { layer: "scene" })` 不画这两样 | 成片走 `bin/vh render`（4K 加 `--dpr 2`），见 `engines/canvas-film/README.md` |
 | ClaudeAnimationBase（手绘） | `src/core.js` 自己写 `window.film`：`frame(t)` 就是 `T = t; await redraw(); composite(t)`，就绪看 `window.ready`；有 `filmHost` 时 `studio.html` 只露出画面那块 canvas，不开开发界面 | 成片照旧走 `node render.mjs`。画布固定 1920 × 1080，设备像素比设成 2 也只是放大 |
 | HyperFrames | 合成不用改。宿主照 HyperFrames 自己的做法，在 `</head>` 前插入项目里的运行时（`node_modules/hyperframes/dist/hyperframe.runtime.iife.js`，项目里没有就用 `styles/_swatch` 装的那份），再把运行时的 `window.__player.renderSeek(t)` 包成 `window.film` | 成片照旧走 `npx hyperframes render`。HyperFrames 渲染时还做了别的事（虚拟时间、GSAP 缓冲，把 Google 字体换成它本地缓存的一份），所以宿主取的帧和它渲染的帧只保证接近，不保证逐字节相同（见下面的实测）。它的 seek 看上去会把 t 对齐到合成自己的帧率（默认 30），两帧之间的时刻画的是较近的那一帧 |
 | 页面自己写了 `window.film` 或 `window.__vh` 的合成 | 用页面自己的 | canvas 合成大多已经写了 `window.__vh` |

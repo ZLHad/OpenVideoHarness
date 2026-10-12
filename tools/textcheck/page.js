@@ -52,10 +52,10 @@
   const keyOf = (s) => strict(s) || loose(s);
   const EMPTY = new Set();
 
-  async function draw(t, skip) {
+  async function draw(t, skip, layer) {   // layer "scene": the frame without the interface (window.film.ui's pages)
     H.n = 0; H.skip = skip || null; H.rec = !skip; H.t = t;
     if (!skip) H.calls = [];
-    try { const f = contract(); await f.draw(t); } catch (e) { H.errors.push({ t, msg: String((e && e.stack) || e) }); }
+    try { const f = contract(); await (layer ? f.draw(t, { layer }) : f.draw(t)); } catch (e) { H.errors.push({ t, msg: String((e && e.stack) || e) }); }
     H.rec = false; H.skip = null; H.t = null;
     return H.n;
   }
@@ -293,9 +293,54 @@
   // the page contract: window.film (engines/CONTRACT.md), else the older window.__vh; one shape for the rest of this file
   function contract() {
     const f = window.film;
-    if (f && typeof f.frame === "function") return { draw: (t) => f.frame(t), texts: typeof f.texts === "function" ? () => f.texts() : f.texts, duration: f.duration };
+    if (f && typeof f.frame === "function") {
+      return { draw: (t, o) => (o ? f.frame(t, o) : f.frame(t)), texts: typeof f.texts === "function" ? () => f.texts() : f.texts, duration: f.duration,
+        ui: typeof f.ui === "function" ? (t) => f.ui(t) : null };
+    }
     return window.__vh || {};
   }
+
+  // the interface over the scene (window.film.ui): what the scene alone draws under each of the interface's boxes. A
+  // pixel is detail when it stands out from the scene's background there by 60 or more over r + g + b: a line, an edge,
+  // a letter. The background is the median colour of each 32 x 32 px tile, blended between tile centres, so a plain or
+  // smoothly shaded ground (paper, a gradient, a vignette) and the grain are not detail, and a thin line is detail only
+  // where it is, not around it. Returns per box the share of its pixels that are detail, and where they are.
+  const T = 32, DETAIL = 60;
+  function detail(P, fw, fh) {
+    const x0 = Math.max(0, Math.floor(P[0]) - T), y0 = Math.max(0, Math.floor(P[1]) - T);
+    const x1 = Math.min(fw, Math.ceil(P[2]) + T), y1 = Math.min(fh, Math.ceil(P[3]) + T), w = x1 - x0, h = y1 - y0;
+    if (w <= 0 || h <= 0) return null;
+    const d = compose([x0, y0, x1, y1], w, h), nx = Math.ceil(w / T), ny = Math.ceil(h / T), med = new Float32Array(nx * ny * 3);
+    const buf = [new Uint8Array(T * T), new Uint8Array(T * T), new Uint8Array(T * T)];
+    for (let ty = 0; ty < ny; ty++) for (let tx = 0; tx < nx; tx++) {   // each tile's median colour
+      let n = 0;
+      for (let y = ty * T; y < Math.min(h, ty * T + T); y++) for (let x = tx * T; x < Math.min(w, tx * T + T); x++, n++) {
+        const p = (y * w + x) * 4; buf[0][n] = d[p]; buf[1][n] = d[p + 1]; buf[2][n] = d[p + 2];
+      }
+      for (let c = 0; c < 3; c++) med[(ty * nx + tx) * 3 + c] = buf[c].subarray(0, n).sort()[n >> 1];
+    }
+    const bg = (x, y, c) => {   // the tile medians blended between tile centres
+      const fx = Math.min(nx - 1, Math.max(0, (x + 0.5) / T - 0.5)), fy = Math.min(ny - 1, Math.max(0, (y + 0.5) / T - 0.5));
+      const ix = Math.min(nx - 2, Math.floor(fx)), iy = Math.min(ny - 2, Math.floor(fy)), ax = nx > 1 ? fx - ix : 0, ay = ny > 1 ? fy - iy : 0;
+      const m = (i, j) => med[((Math.max(0, j)) * nx + Math.max(0, i)) * 3 + c];
+      const a0 = nx > 1 ? m(ix, iy) * (1 - ax) + m(ix + 1, iy) * ax : m(0, Math.max(0, iy));
+      const a1 = ny > 1 ? (nx > 1 ? m(ix, iy + 1) * (1 - ax) + m(ix + 1, iy + 1) * ax : m(0, iy + 1)) : a0;
+      return a0 * (1 - ay) + a1 * ay;
+    };
+    const bx0 = Math.max(0, Math.round(P[0]) - x0), by0 = Math.max(0, Math.round(P[1]) - y0), bx1 = Math.min(w, Math.round(P[2]) - x0), by1 = Math.min(h, Math.round(P[3]) - y0);
+    let n = 0, hit = 0, bb = null;
+    for (let y = by0; y < by1; y++) for (let x = bx0; x < bx1; x++) {
+      const p = (y * w + x) * 4;
+      n++;
+      if (Math.abs(d[p] - bg(x, y, 0)) + Math.abs(d[p + 1] - bg(x, y, 1)) + Math.abs(d[p + 2] - bg(x, y, 2)) >= DETAIL) {
+        hit++; const X0 = x + x0, Y0 = y + y0;
+        bb = bb ? [Math.min(bb[0], X0), Math.min(bb[1], Y0), Math.max(bb[2], X0 + 1), Math.max(bb[3], Y0 + 1)] : [X0, Y0, X0 + 1, Y0 + 1];
+      }
+    }
+    return n ? { px: hit, share: hit / n, at: bb } : null;
+  }
+  const same = (a, b) => { let k = 0; for (let p = 0; p < a.length; p += 4) if (Math.abs(a[p] - b[p]) + Math.abs(a[p + 1] - b[p + 1]) + Math.abs(a[p + 2] - b[p + 2]) > 24) k++; return k <= (a.length / 4) * 0.001; };
+  const boxOk = (b) => Array.isArray(b) && b.length === 4 && b.every(Number.isFinite) && b[2] > b[0] && b[3] > b[1];
 
   window.__vhTC = {
     keyOf,
@@ -305,7 +350,34 @@
       let texts = null;
       if (v && v.texts) try { texts = JSON.parse(JSON.stringify(typeof v.texts === "function" ? v.texts() : v.texts)); } catch (e) { texts = { error: String(e) }; }
       return { draw: !!(v && typeof v.draw === "function"), texts, duration: +((v && v.duration) || (root && root.dataset.duration) || 0),
-        canvases: document.querySelectorAll("canvas").length, subtitles: document.querySelectorAll('[data-read="subtitle"]').length };
+        canvases: document.querySelectorAll("canvas").length, subtitles: document.querySelectorAll('[data-read="subtitle"]').length, ui: !!(v && v.ui) };
+    },
+    // the scene under the interface's boxes at these times (window.film.ui and frame(t, { layer: "scene" })); fw x fh is
+    // the frame. ignored: the scene layer drew the interface too (a page that does not take the option)
+    async ui(times, fw, fh) {
+      const v = contract(), out = [];
+      let checked = false;
+      for (const t of times) {
+        let items;
+        try { items = await v.ui(t); } catch (e) { H.errors.push({ t, msg: "window.film.ui: " + String((e && e.stack) || e) }); continue; }
+        items = (Array.isArray(items) ? items : []).filter((u) => u && boxOk(u.box) && u.box[2] > 0 && u.box[0] < fw && u.box[3] > 0 && u.box[1] < fh);
+        if (!items.length) continue;
+        if (!checked) {   // the first box: the frame with the interface and the scene alone must differ there
+          const b = items[0].box.map(Math.round), P = [Math.max(0, b[0]), Math.max(0, b[1]), Math.min(fw, b[2]), Math.min(fh, b[3])], w = P[2] - P[0], h = P[3] - P[1];
+          if (w > 0 && h > 0) {
+            await draw(t, EMPTY); const full = compose(P, w, h).slice();
+            await draw(t, EMPTY, "scene");
+            if (same(full, compose(P, w, h))) return { ignored: true, t, name: String(items[0].name || "interface") };
+            checked = true;
+          }
+        }
+        await draw(t, EMPTY, "scene");
+        for (const u of items) {
+          const m = detail(u.box, fw, fh);
+          if (m) out.push({ t, name: String(u.name || "interface"), box: u.box.map((x) => Math.round(x)), ...m });
+        }
+      }
+      return { samples: out };
     },
     async read(text, times, o, near) {
       const out = [];

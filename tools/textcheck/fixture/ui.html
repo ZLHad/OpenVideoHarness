@@ -1,0 +1,57 @@
+<!doctype html>
+<!-- The test page for bin/vh textcheck's interface pass (tools/ci.sh): a chapter bar across the top and a caption at the
+     bottom (the interface, window.film.ui), over a scene drawn alone on frame(t, { layer: "scene" }).
+       0–2 s  pale paper, shaded towards the corners, with grain: the scene keeps out of the interface
+       2–4 s  a dashed line at y 32 runs across the bar: a line crossing it
+       4–6 s  a field of blocks under the caption: a busy picture under it -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>textcheck interface fixture</title>
+    <style>
+      html, body { margin: 0; width: 640px; height: 360px; overflow: hidden; background: #000; }
+      #cv { position: absolute; left: 0; top: 0; width: 640px; height: 360px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-duration="6" data-width="640" data-height="360">
+      <canvas id="cv" width="640" height="360"></canvas>
+    </div>
+    <script>
+      const X = document.getElementById("cv").getContext("2d");
+      const hash = (i) => { const s = Math.sin(i * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+      const BAR = [40, 18, 600, 40], CAP = [200, 304, 440, 334];
+      function scene(t) {
+        X.fillStyle = "#ece6d8"; X.fillRect(0, 0, 640, 360);
+        const g = X.createRadialGradient(320, 180, 120, 320, 180, 380);   // darker towards the corners
+        g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,0.35)");
+        X.fillStyle = g; X.fillRect(0, 0, 640, 360);
+        const f = Math.floor(t * 30);
+        for (let i = 0; i < 4000; i++) {   // grain: a few levels up or down, new each frame
+          const k = f * 4000 + i, v = hash(k) < 0.5 ? 0 : 255;
+          X.fillStyle = `rgba(${v},${v},${v},0.03)`; X.fillRect(Math.floor(hash(k + 0.3) * 640), Math.floor(hash(k + 0.7) * 360), 2, 2);
+        }
+        X.fillStyle = "#3a3f47"; X.font = "700 28px sans-serif"; X.fillText("the picture", 220, 190);
+        if (t >= 2 && t < 4) { X.fillStyle = "#2b2f36"; for (let x = -10; x < 640; x += 30) X.fillRect(x, 30, 17, 4); }   // the road's dashes
+        if (t >= 4) for (let i = 0; i < 160; i++) {   // a busy picture along the bottom
+          X.fillStyle = `hsl(${Math.floor(hash(i) * 360)},45%,${30 + Math.floor(hash(i + 0.5) * 40)}%)`;
+          X.fillRect(Math.floor(hash(i + 0.2) * 640), 270 + Math.floor(hash(i + 0.9) * 90), 14, 14);
+        }
+      }
+      function ui(t) {
+        X.fillStyle = "rgba(6,8,11,0.6)"; X.beginPath(); X.roundRect(BAR[0], BAR[1], BAR[2] - BAR[0], BAR[3] - BAR[1], 11); X.fill();
+        X.fillStyle = "#fff"; X.font = "700 16px sans-serif"; X.textAlign = "center"; X.fillText("ONE · TWO · THREE", 320, 35); X.textAlign = "left";
+        if (t >= 1) {
+          X.fillStyle = "rgba(6,8,11,0.7)"; X.fillRect(CAP[0] - 8, CAP[1] - 4, CAP[2] - CAP[0] + 16, CAP[3] - CAP[1] + 8);
+          X.fillStyle = "#fff"; X.font = "700 22px sans-serif"; X.textAlign = "center"; X.fillText("a caption here", 320, 326); X.textAlign = "left";
+        }
+      }
+      window.film = {
+        duration: 6,
+        frame(t, o) { X.setTransform(1, 0, 0, 1, 0, 0); scene(t); if (!(o && o.layer === "scene")) ui(t); },
+        ui: (t) => [{ name: "chapter bar", box: BAR }, ...(t >= 1 ? [{ name: "caption", box: CAP }] : [])],
+        texts: [],
+      };
+    </script>
+  </body>
+</html>

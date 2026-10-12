@@ -70,10 +70,11 @@
 #                               Pace (exit 0); subtitles within reading speed. data-read="subtitle"|"label" and data-pace="…" mark clips
 #                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [--out f]: the composition's timed text
 #                               a canvas-film project (film.html): its reads and captions from the page (window.film.texts), written to out/texts.json first
-#   textcheck <project|page.html> [--texts f.json] [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12] [--out dir] [--soft-gl] [--timeout 900]
+#   textcheck <project|page.html> [--texts f.json] [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12] [--ui-step 1] [--ui-share 0.002] [--out dir] [--soft-gl] [--timeout 900]
 #                               text drawn into a canvas, which npx hyperframes check cannot see: a read covered by the picture (under 70% of it
 #                               shows), under 3:1, outside or cut by the frame, or under a DOM caption (exit 1); canvas text outside the registry
-#                               and captions over a bright picture warn. The composition opts in with window.film = { frame(t), duration, texts? }
+#                               and captions over a bright picture warn, and so does a scene drawing under the interface (a page with window.film.ui(t)
+#                               and frame(t, { layer: "scene" })). The composition opts in with window.film = { frame(t), duration, texts? }
 #                               (engines/CONTRACT.md; the older window.__vh = { draw(t), texts? } still works)
 #   frames <project|page.html> (--at t,t… | --range a:b[:step] | --strip a:b | --covers[=A,B]) [--fps 30] [--out dir] [--size WxH] [--dpr 2] [--real-clock]
 #                               frames drawn from the source through the page contract (window.film, engines/CONTRACT.md), for any web-page
@@ -83,7 +84,8 @@
 #   render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b | --frames k0:k1] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png]
 #                               an MP4 drawn through the page contract (the canvas engine, ClaudeAnimationBase, any page that writes
 #                               window.film): parallel chunks into x264, BT.709 tv range, a keyframe every --gop frames, <out>.render.json
-#                               records how; video only (sound: mux). HyperFrames: npx hyperframes render (--force to render it here anyway)
+#                               records how; video only (sound: mux). HyperFrames: npx hyperframes render (--force to render it here anyway).
+#                               A whole standard or studio film waits for gate ① on record (tools/gatecheck.py); --range and --frames do not
 #   patch <film.mp4> (--frames a-b | --seconds s-e) [--sidecar f.render.json] [--out f | --in-place] [--workers 4] [--verify seams|full]
 #                               draw frames a–b of a bin/vh render film again and put them back, the rest untouched: cut on its keyframes
 #                               (its .render.json says how it was made), joined, sound and subtitles kept; checks the frame count, that every
@@ -101,7 +103,8 @@
 #                               words), in order; --save keeps them in out/cues.json with the timeline's sha256, and a later run says
 #                               which cues a new take moved and by how much; --chapters: the chapter list for a description (out/chapters.txt)
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
-#   check <video> [--allow t,t…] [--against <ref.mp4>]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) + the
+#   check <video> [--allow t,t…] [--against <ref.mp4>]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) + gate ①
+#                               on record in a standard or studio project (REVIEW.md, DECISIONS.md; exit 1 without it) + the
 #                               publishing copy in PACKAGING.md against the platforms' length limits (a warning) +
 #                               black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any not declared
 #                               with --allow <seconds of designed flashes>) + colour tags; --against: a 4K render vs the approved 1080p cut
@@ -597,6 +600,14 @@ film_browser() { # film_browser <command> [dir]: the browser the page-contract t
 cmd_film_tool() { # $1: frames | render | determinism | cues | fonts | patch (tools/film/<it>.mjs)
   local tool=$1 b; shift
   [ $# -gt 0 ] || { cmd_usage "$tool"; exit 1; }
+  # a whole standard or studio film is made after gate ①: its decision on record (CLAUDE.md 关卡); a part (look-dev, a
+  # test, the frames bin/vh patch draws again) is not held up
+  if [ "$tool" = render ]; then
+    case " $* " in *" --range"*|*" --frames"*|*" -h "*|*" --help "*) ;;
+      *) local g grc=0; g=$(python3 "$ROOT/tools/gatecheck.py" "$(arg_dir "$@")" --for render) || grc=$?
+         if [ "$grc" = 1 ]; then printf '%s\n' "$g" | sed "1s/^/$c_no /" >&2; echo "   (a part of the film renders before that: --range a:b)" >&2; exit 1; fi ;;
+    esac
+  fi
   b=$(film_browser "$tool" "$(arg_dir "$@")") || exit 2
   exec node "$ROOT/tools/film/$tool.mjs" --browser "$b" "$@"
 }
@@ -756,6 +767,17 @@ cmd_check() {
       *) echo "$c_wa spec check failed (error above)" ;;
     esac
   fi
+  # gate ① on record: a standard or studio film is checked for release only once the person has decided its concept
+  local gp gr grc=0; gp=$(project_of "$v")
+  if [ -n "$gp" ]; then
+    gr=$(python3 "$ROOT/tools/gatecheck.py" "$gp" --for check 2>&1) || grc=$?
+    case "$grc:$gr" in
+      0:*"no gates"*|0:*"not checked"*) ;;
+      0:*) echo "$c_ok $gr" ;;
+      1:"gate record"*) fail=1; printf '%s\n' "$gr" | sed "1s/^/$c_no /" ;;
+      *) echo "$c_wa gate record check failed: $gr" ;;
+    esac
+  fi
   local hits; hits=$(ffmpeg -i "$v" -vf "blackdetect=d=0.3,freezedetect=d=3" -af silencedetect=d=3 -f null - 2>&1 | grep -E "black_|freeze_|silence_" | sed 's/.*\] //' || true)
   if [ -z "$hits" ]; then echo "$c_ok no black/freeze/silence segments over threshold"
   else echo "$hits"; echo "$c_wa review each hit: dark backgrounds (e.g. 3b1b black), intentional holds and silent videos trigger these by design"; fi
@@ -815,7 +837,7 @@ cmd_check() {
       esac
     fi
   fi
-  [ "$rc" != 1 ] && [ "$fail" = 0 ]   # exit 1 on isolated frames, a spec mismatch or a scale FAIL; the other findings are for review
+  [ "$rc" != 1 ] && [ "$fail" = 0 ]   # exit 1 on isolated frames, a spec mismatch, no gate ① on record or a scale FAIL; the other findings are for review
 }
 cmd_tts() {
   local proj=${1:?usage: bin/vh tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json --snap beat|half|downbeat] [--lead s] [--align gemini] [--join block|all] [--resume]} pos=() deps=""

@@ -355,6 +355,57 @@ PY
 }
 
 # scaffolding and the decision pictures (bin/vh storyboard, rhythm, style compare/apply, cover-preview, music --roll/--length)
+# the gate ① record (tools/gatecheck.py): a standard project made from the templates is refused by bin/vh render (before
+# any browser) and failed by bin/vh check until REVIEW.md has the decision and DECISIONS.md the concept; the user's
+# waiver counts unless it sits under gate ② or ③; quick is not checked
+gate_checks() {
+  local t p a rc rc2 rc3
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  vh new math ci-gate --dir "$t" >/dev/null 2>&1; p=$(ls -d "$t"/*-ci-gate 2>/dev/null)
+  if [ -z "$p" ] || [ ! -f "$p/REVIEW.md" ]; then bad "gate checks: bin/vh new made no project"; rm -rf "$t"; return; fi
+  mkdir -p "$p/out" && ffmpeg -nostdin -v error -f lavfi -i color=c=0x303030:s=320x180:r=30:d=2 -pix_fmt yuv420p "$p/out/film.mp4"
+  a=$(vh render "$p" 2>&1); rc=$?
+  b=$(vh check "$p/out/film.mp4" 2>&1); rc2=$?
+  c=$(vh render "$p" --range 0:1 2>&1)
+  case "$rc:$a|$rc2" in 1:*"no record of gate ①"*'REVIEW.md: under "## 关卡 ① 立意和大纲"'*"DECISIONS.md: the concept 立意 row"*"--range a:b"*"|1")
+    case "$b|$c" in *"✗"*"no record of gate ①"*"|"*) case "$c" in *"no record of gate"*) bad "render --range was held by the gate: $c" ;; *) ok "gate record: a standard project from the templates is refused by render (a part still renders) and failed by check, naming the two lines" ;; esac ;;
+      *) bad "check without the gate record (exit $rc2): $(printf '%s' "$b" | head -c 400)" ;; esac ;;
+    *) bad "render without the gate record (exit $rc): $(printf '%s' "$a" | head -c 600)" ;; esac
+  python3 - "$p" <<'PY'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+r = (p / "REVIEW.md").read_text(encoding="utf-8")
+(p / "REVIEW.md").write_text(r.replace("## 关卡 ③ 初版\n", "## 关卡 ③ 初版\n- 用户授权跳过（2026-10-12）。原话：“初版不用给我看”\n", 1), encoding="utf-8")
+PY
+  python3 tools/gatecheck.py "$p" >/dev/null; rc=$?
+  python3 - "$p" <<'PY'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+r = (p / "REVIEW.md").read_text(encoding="utf-8").replace("- 定了：{…}　改了：{…}", "- 定了：立意卡 B　改了：结尾短一点", 1)
+(p / "REVIEW.md").write_text(r, encoding="utf-8")
+d = (p / "DECISIONS.md").read_text(encoding="utf-8").replace("| concept 立意 | {own / review / delegate} | {待定 / 已定（关卡 ①）} |", "| concept 立意 | own | 已定（关卡 ①）：B |", 1)
+(p / "DECISIONS.md").write_text(d, encoding="utf-8")
+PY
+  a=$(python3 tools/gatecheck.py "$p"); rc2=$?
+  cp "$ROOT/templates/REVIEW.md" "$ROOT/templates/DECISIONS.md" "$p/" && python3 - "$p" <<'PY'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+r = (p / "REVIEW.md").read_text(encoding="utf-8")
+(p / "REVIEW.md").write_text(r.replace("## 关卡 ① 立意和大纲\n", "## 关卡 ① 立意和大纲\n- 用户授权跳过（2026-10-12）。原话：“你直接做，中间不用我看”\n", 1), encoding="utf-8")
+PY
+  b=$(python3 tools/gatecheck.py "$p"); rc3=$?
+  if [ $rc = 1 ] && [ $rc2 = 0 ] && [ $rc3 = 0 ] && printf '%s' "$a" | grep -q "gate ① decided" && printf '%s' "$b" | grep -q "waived in the user's own words (2026-10-12"
+  then ok "gate record: the decision and the concept row pass; the user's waiver passes under gate ①, not under gate ③ alone"
+  else bad "gate record with the lines filled in ($rc/$rc2/$rc3): $a | $b"; fi
+  sed -i.bak 's/^- Effort: standard/- Effort: quick/' "$p/BRIEF.md" && cp "$ROOT/templates/REVIEW.md" "$p/"
+  a=$(python3 tools/gatecheck.py "$p"); rc=$?
+  [ $rc = 0 ] && printf '%s' "$a" | grep -q "Effort quick" && ok "gate record: a quick project is not checked" || bad "gate record on quick (exit $rc): $a"
+  rm -rf "$t"
+}
+
 decision_checks() {
   local t p a rc out
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
@@ -861,6 +912,17 @@ PY
   a=$(vh textcheck "$t" --out "$t/out3" 2>&1); rc=$?
   if [ $rc = 1 ] && python3 -c "import json, sys; d = json.load(open(sys.argv[1], encoding='utf-8')); s = {r['text']: r['status'] for r in d['reads']}; sys.exit(0 if (s.get('CLEAR'), s.get('COVERED'), s.get('NOWHERE')) == ('ok', 'fail', 'not drawn') else 1)" "$t/out3/textcheck.json"
   then ok "textcheck reads window.film as it reads window.__vh"; else bad "textcheck with window.film (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
+  # the interface over the scene (window.film.ui and frame(t, { layer: "scene" })): a dashed line across the bar and a
+  # busy picture under the caption are said, each once, the shaded and grainy paper is not; a warning, exit 0. A page whose
+  # scene layer draws the interface too is said so, not checked
+  a=$(vh textcheck tools/textcheck/fixture/ui.html --out "$t/out4" 2>&1); rc=$?
+  if [ $rc = 0 ] && python3 -c "import json, sys; d = json.load(open(sys.argv[1])); g = [(s['name'], s['from'], s['to'], s['busy']) for s in d['ui']['spans']]; sys.exit(0 if g == [('chapter bar', 2.5, 3.5, False), ('caption', 4.5, 5.5, True)] else 1)" "$t/out4/textcheck.json"
+  then ok "textcheck: a line crossing the chapter bar and a busy picture under the caption are said (scene drawn alone, shading and grain left out), exit 0"
+  else bad "textcheck on the interface fixture (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
+  mkdir -p "$t/ig" && sed 's/if (!(o \&\& o.layer === "scene")) ui(t);/ui(t);/' tools/textcheck/fixture/ui.html > "$t/ig/index.html"
+  a=$(vh textcheck "$t/ig" --out "$t/out5" 2>&1); rc=$?
+  case "$rc:$a" in 0:*'frame(t, { layer: "scene" }) drew the chapter bar too'*) ok "textcheck: a page whose scene layer draws its interface too is said so, and that pass skipped" ;;
+    *) bad "textcheck on a page that ignores the scene layer (exit $rc): $(printf '%s' "$a" | tail -c 600)" ;; esac
   rm -rf "$t"
 }
 
@@ -1371,11 +1433,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; desk_checks; textcheck_checks; film_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; textcheck_checks; film_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; desk_checks; textcheck_checks; film_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; textcheck_checks; film_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ $fails = 0 ] && ok "all checks passed" || printf '\033[31m%s check(s) failed\033[0m\n' "$fails"

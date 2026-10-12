@@ -5,6 +5,7 @@
      检查点（E0–E5）和同一站的第二页照同样格式，按时间顺序插进去。agent 自己定的事和理由记在 DECISIONS.md。 -->
 
 ## 关卡 ① 立意和大纲
+<!-- "定了"这一行，standard 和 studio 的 bin/vh render（整片）和 bin/vh check 会查：没有就拒绝（tools/gatecheck.py） -->
 - 页面：`out/review/gate-1.html`（{日期}）
 - 原话："……"
 - 定了：{…}　改了：{…}
