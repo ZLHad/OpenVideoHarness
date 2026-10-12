@@ -89,7 +89,7 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 
 成本（介绍片 103 s，M3 Max）：HyperFrames high 画质 1080p 约 4 分钟、509 MB，4K 约 9–13 分钟、1.5 GB（约 125 Mbps，2 个 worker）。发布前用 x264 CRF 18–19、`-preset slow` 重编码：1080p 297 MB，4K 1.04 GB。GitHub release 每个文件不能超过 2 GiB，按 high 画质的码率，超过约 135 s 的 4K 要先重编码。Blender 原生 4K 每帧约是 1080p 的 4 倍（`engines/blender.md`）。
 
-**长片出 4K 先看磁盘。** 4K 一律走截屏（drawElement 和 Linux 的 BeginFrame 截帧都不支持 2 倍密度），而 0.8.82 的多 worker 截屏默认先把每一帧存成 JPEG，最后再编码；只有 `--workers 1` 默认是流式的。临时帧写在 `--output` 旁边的 `work-…` 文件夹里（Windows 上是系统临时目录），按每帧约 4 MB 估：一支 457 s 的片子（13710 帧）要约 57 GB。开渲前它按这个估算查那块盘，超过空余空间的 90% 就直接拒绝（那次空余 53 GB），截完前 10 帧再按实测大小查一次；报错开头是 `Disk capture may need ~… MB of temporary frame storage`。三个办法：
+**长片出 4K 先看磁盘。** 4K 一律走截屏（drawElement 和 Linux 的 BeginFrame 截帧都不支持 2 倍密度），而 0.8.82 的多 worker 截屏默认先把每一帧存成 JPEG，最后再编码；只有 `--workers 1` 默认是流式的。临时帧写在 `--output` 旁边的 `work-…` 文件夹里（Windows 上是系统临时目录），按每帧约 4 MB 估：一支 7–8 分钟的片子（约 14000 帧）要五六十 GB。开渲前它按这个估算查那块盘，超过空余空间的 90% 就直接拒绝（那次空余 53 GB），截完前 10 帧再按实测大小查一次；报错开头是 `Disk capture may need ~… MB of temporary frame storage`。三个办法：
 
 - 设 `HF_CAPTURE_PARALLEL_STREAM=true`：多个 worker 截下的帧直接流进编码器，不落盘。那支片子 4 个 worker 在 M3 Max 上渲了约 11 分钟，high 画质 1.4 GB；
 - `--workers 1`：单个 worker 本来就是流式的，只是慢；
@@ -150,7 +150,7 @@ window.film = {
 - `draw(t)` 要是 t 的纯函数（硬规则 1）：同一个 t 会画好几遍，两遍画面不一样会报出来，那一刻的数字不可信。
 - **界面压在场景上**：页面给了 `ui(t)`（常驻界面的字和线在哪）、`frame(t, { layer: "scene" })` 能只画场景时（`engines/CONTRACT.md`；canvas-film 引擎自带），每秒把场景单独画一遍，看它在界面的框里画了什么：和那一块的底色（每 32 px 一格取中位色，格间渐变）差 60 级以上（r + g + b）的像素算场景的东西，纸面、渐变、暗角和颗粒都不算。超过框的 0.2%（至少 30 个像素），或者在很长的框里有 150 个像素以上，或者有一块从框的这边穿到那边（一条线竖着穿过细细的进度条），就报，同一段只报一次、附裁图，只警告（`ui(t)` 抛错和画帧函数抛错一样算页面出错）：占得少是一条线、一个边穿过了进度条或字幕（挪开一个），占得多（15% 以上）是界面压在一张很花的画面上（该有底板或压暗的一条）。界面挪了位置（比如进度条挪进安全框）以后，最容易出这种事。
 - **浏览器**：`CHROME_PATH`，否则用这个项目 `render` 时用的 chrome-headless-shell（`HYPERFRAMES_BROWSER_PATH`，或项目里装的 HyperFrames 固定的那个版本；还没下载就先 `npx hyperframes browser ensure`），再否则用 `~/.cache/puppeteer` 里最新的 chrome-headless-shell，最后是系统的 Chrome 或 Chromium，不用装 npm 包。用的不是 `render` 那个时会提示一行：版本不同，字的排布可能和成片有细微差别。合成从项目目录起一个只在本机 127.0.0.1 的服务来打开，尺寸按根元素的 `data-width` × `data-height`，设备像素比 1；先等 `window.__hf.buildReady`、`window.__vh.ready`（可选）和字体加载完。
-- **结果**：有登记的 read 被盖住（露出不到 70%）、低于 3:1、出画或被裁、压在字幕下，或画帧函数抛错，退出码 1；没登记的字、字幕底下的画面太亮、场景画到界面底下只警告；没法检查（没有 `window.film.frame` 也没有 `window.__vh.draw`、页面没加载起来、找不到浏览器、一条 canvas 字都没量到）是 2，不算通过。每处问题存一张裁图到 `out/check/textcheck/`，全部数字在同一目录的 `textcheck.json`；阈值都能调，见 `bin/vh textcheck -h`。一支 457 s、107 条登记文字的片子在 M3 Max 上约 13 s 跑完。
+- **结果**：有登记的 read 被盖住（露出不到 70%）、低于 3:1、出画或被裁、压在字幕下，或画帧函数抛错，退出码 1；没登记的字、字幕底下的画面太亮、场景画到界面底下只警告；没法检查（没有 `window.film.frame` 也没有 `window.__vh.draw`、页面没加载起来、找不到浏览器、一条 canvas 字都没量到）是 2，不算通过。每处问题存一张裁图到 `out/check/textcheck/`，全部数字在同一目录的 `textcheck.json`；阈值都能调，见 `bin/vh textcheck -h`。一支七八分钟、一百来条登记文字的片子，在 M3 Max 上十几秒跑完。
 
 ### 注意事项和已知问题（0.8.82 实测）
 

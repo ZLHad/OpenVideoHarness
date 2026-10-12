@@ -17,7 +17,8 @@ VH_BASH=${VH_BASH:-bash}
 fails=0
 ok() { printf '\033[32m✓\033[0m %s\n' "$*"; }
 bad() { printf '\033[31m✗\033[0m %s\n' "$*"; fails=$((fails + 1)); }
-skip() { printf '\033[33m-\033[0m %s (skipped: %s)\n' "$1" "$2"; }
+skipped=""
+skip() { printf '\033[33m-\033[0m %s (skipped: %s)\n' "$1" "$2"; skipped="$skipped${skipped:+, }$1"; }
 files() { git ls-files "$@" | grep -v -E '^references/|(^|/)node_modules/|\.min\.js$'; }
 
 static_checks() {
@@ -27,7 +28,7 @@ static_checks() {
   [ $n = 0 ] && ok "shell syntax ($("$VH_BASH" -c 'echo $BASH_VERSION'))"
   if command -v shellcheck >/dev/null; then
     if out=$(files bin/vh '*.sh' | xargs shellcheck -S warning 2>&1); then ok "shellcheck -S warning"; else echo "$out"; bad "shellcheck"; fi
-  else skip "shellcheck" "not installed"; fi
+  else skip "shellcheck" "not installed; CONTRIBUTING.md shows how to run it through uv"; fi
   # BSD-only or GNU-only flags, matched where a command starts: a statement start, a pipe, after if / while / until / do /
   # then / else, after `{`, `(`, `!` or a case arm, and behind a wrapper (xargs, sudo, exec, env, time, nohup, nice, command)
   # with its flags, VAR=value tokens or arguments. A small quote-aware scanner blanks comments, single-quoted strings,
@@ -68,7 +69,7 @@ AWK
   [ $n = 0 ] && ok "python syntax"
   if python3 -m pyflakes --version >/dev/null 2>&1; then
     if out=$(files 'tools/*.py' 'styles/_swatch/*.py' 'styles/*/swatch.py' | xargs python3 -m pyflakes 2>&1); then ok "pyflakes"; else echo "$out"; bad "pyflakes"; fi
-  else skip "pyflakes" "pip install pyflakes"; fi
+  else skip "pyflakes" "not installed; CONTRIBUTING.md shows how to run it through uv"; fi
   # Blender style scenes: the static check render.sh runs before Blender (no os, subprocess, open, random, handlers …),
   # and the GPL header every file that imports bpy carries (engines/blender.md, "许可证")
   n=0; while IFS= read -r f; do
@@ -1590,5 +1591,6 @@ case "${1:-all}" in
   all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; textcheck_checks; film_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
+[ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these
 [ $fails = 0 ] && ok "all checks passed" || printf '\033[31m%s check(s) failed\033[0m\n' "$fails"
 exit $fails

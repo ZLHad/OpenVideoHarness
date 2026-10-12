@@ -500,12 +500,12 @@ def main():
         if shutil.which("uv") and subprocess.run(["uv", "run", "-q", "--no-project", "--offline", "--with", "jieba", "python", "-c", "import jieba"],
                                                  capture_output=True).returncode == 0:
             py = ["uv", "run", "-q", "--no-project", "--offline", "--with", "jieba", "python"]
-        try:   # the mode, widths and --cps captions.py was last run with
+        try:   # the mode, widths, --cps and --media-end captions.py was last run with
             made = json.loads((audio / "captions.args.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             made = {}
         cards = made.get("cards", bool(old) and all(isinstance(c, dict) and "part" in c for c in old))
-        again = (["--cards"] if cards else []) + [x for k, f in (("zh_max", "--zh-max"), ("en_max", "--en-max"), ("cps", "--cps"))
+        again = (["--cards"] if cards else []) + [x for k, f in (("zh_max", "--zh-max"), ("en_max", "--en-max"), ("cps", "--cps"), ("media_end", "--media-end"))
                                                    if isinstance(made.get(k), (int, float)) and not isinstance(made.get(k), bool) for x in (f, str(made[k]))]
         r = subprocess.run(py + [str(Path(__file__).resolve().parent / "captions.py"), str(proj), "--lang", a.lang]
                            + again + (["--skip-lint"] if skip_lint or a.skip_lint else []),
