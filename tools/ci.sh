@@ -321,11 +321,11 @@ PY
   for f in BRIEF.md film.html src/50-shots.js out/frames/a.png out/.film.mp4.parts/part000.mp4 out/draft1.mp4 out/film.mp4 out/film.mp4.render.json \
     out/final/film-4k.mp4 out/final/covers/a.png out/review/gate-1.html out/cues.json audio/voiceover.zh.wav audio/voiceover.zh.raw.wav \
     audio/voiceover.zh.v1.wav audio/music.wav audio/takes/b.wav audio/timeline.zh.json node_modules/x/i.js; do printf x > "$c/$f"; done
-  a=$(vh clean "$c" 2>&1); rc=$?
+  a=$(vh clean "$c" 2>&1); rc=$?; [ -f "$c/out/draft1.mp4" ] && a="$a (draft still there)"
   b=$(HOME="$t/home" XDG_DATA_HOME="$t/home/.local/share" vh clean "$c" --yes --delete 2>&1); rc2=$?
   left=$(cd "$c" && find . -type f | sed 's|^\./||' | sort | tr '\n' ' ')
   want="BRIEF.md audio/timeline.zh.json audio/voiceover.zh.raw.wav audio/voiceover.zh.wav film.html out/cues.json out/final/covers/a.png out/final/film-4k.mp4 out/review/gate-1.html src/50-shots.js "
-  if [ $rc = 0 ] && printf '%s' "$a" | grep -q '9 item(s)' && [ -f "$c/out/draft1.mp4" ] && [ $rc2 = 0 ] && [ "$left" = "$want" ] \
+  if [ $rc = 0 ] && printf '%s' "$a" | grep -q '9 item(s)' && printf '%s' "$a" | grep -q '(draft still there)' && [ $rc2 = 0 ] && [ "$left" = "$want" ] \
     && [ "$(find "$t/home" -name '*.wav' | wc -l | tr -d ' ')" = 3 ]
   then ok "clean: lists first; then the film, covers, review pages, the narration in use and the sources stay, the rest goes (old takes to the Trash)"
   else bad "clean: exit $rc / $rc2, left: $left | $(printf '%s' "$a$b" | tail -c 700)"; fi

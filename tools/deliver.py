@@ -14,7 +14,7 @@ was 10.4 GB, over Bilibili's web upload limit, and the platform re-encodes whate
 The limits (PLATFORMS below; playbook/10-hooks-and-packaging.md, 交付编码, has the sources and the date they were checked)
 change: the upload page has the last word. Without --for or --max-gb there is no ceiling, only the table.
 Writes <master stem>.upload.mp4 beside the master (--out another). Exit: 0 written and within every limit asked for ·
-1 written but over a limit asked for, or the PSNR could not be measured · 2 could not start (no ffmpeg, not a video,
+1 written but over a limit asked for, without the four colour tags, or the PSNR could not be measured · 2 could not start (no ffmpeg, not a video,
 not enough disk).
 """
 import argparse, json, math, os, re, shutil, subprocess, sys
@@ -113,10 +113,14 @@ def main():
     if need > free:
         die(f"about {need / 1e9:.1f} GB needed for {out.name}, {free / 1e9:.1f} GB free on that disk")
     col = (v.get("pix_fmt"), v.get("color_range"), v.get("color_space"))
-    vf = []
-    if col != ("yuv420p", "tv", "bt709"):   # a master that is not limited-range BT.709 yuv420p (a JPEG pipe's yuvj420p): convert it
-        vf = ["-vf", f"scale=in_color_matrix={'bt601' if v.get('color_space') in ('bt470bg', 'smpte170m') else 'bt709'}:in_range="
-              f"{'pc' if v.get('color_range') == 'pc' or str(v.get('pix_fmt', '')).startswith('yuvj') else 'tv'}:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p"]
+    # the four tags are set on the frames (setparams), as bin/vh render does: the encoder's own options lose to what the
+    # decoded frames carry. A master that is not limited-range BT.709 yuv420p (a JPEG pipe's yuvj420p) is converted first
+    tags = "setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv"
+    conv = ""
+    if col != ("yuv420p", "tv", "bt709"):
+        conv = (f"scale=in_color_matrix={'bt601' if v.get('color_space') in ('bt470bg', 'smpte170m') else 'bt709'}:in_range="
+                f"{'pc' if v.get('color_range') == 'pc' or str(v.get('pix_fmt', '')).startswith('yuvj') else 'tv'}:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,")
+    vf = ["-vf", conv + tags]
     acodec = [] if not audio else (["-c:a", "copy"] if all(s.get("codec_name") == "aac" for s in audio) else ["-c:a", "aac", "-b:a", "320k"])
     cmd = ["ffmpeg", "-v", "error", "-stats", "-nostdin", "-y", "-i", str(master), "-map", "0:v:0", "-map", "0:a?", "-map", "0:s?",
            "-c:v", "libx264", "-preset", a.preset, "-crf", f"{a.crf:g}", "-g", str(gop), "-keyint_min", str(gop), "-sc_threshold", "0",
@@ -132,7 +136,10 @@ def main():
     os.replace(str(out) + ".part.mp4", out)
     size = out.stat().st_size
     print(f"  {out.name}: {size / 1e9:.2f} GB, {size * 8 / dur / 1e6:.1f} Mb/s on average (the master: {master.stat().st_size * 8 / dur / 1e6:.1f})")
-    over = False
+    u = next((s for s in probe(out)["streams"] if s["codec_type"] == "video"), {})
+    tags = tuple(u.get(k) for k in ("pix_fmt", "color_range", "color_space", "color_transfer", "color_primaries"))
+    over = tags != ("yuv420p", "tv", "bt709", "bt709", "bt709")
+    print(f"  {'✗' if over else '✓'} colour: {', '.join(str(x) for x in tags)}")
     for p, (label, gb, secs, src) in PLATFORMS.items():
         fits = size <= gb * 1e9 and (secs is None or dur <= secs)
         asked = p in plats
