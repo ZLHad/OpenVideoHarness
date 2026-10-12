@@ -313,6 +313,9 @@ sys.exit(0 if ok else 1)
 PY
   then ok "deliver: the upload copy fits the size asked for, keeps BT.709 and the sound and subtitle tracks, and says its PSNR"
   else bad "deliver (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  a=$(vh deliver "$t/master.mp4" --for bilibili,youtube --out "$t/master.platform.mp4" --psnr off 2>&1); rc=$?
+  case "$rc:$a" in 0:*"fits 8 GB with room"*"✓ Bilibili web"*"✓ YouTube"*) ok "deliver --for: a short master far under the limits is encoded at CRF alone, no VBV numbers past x264's range" ;;
+    *) bad "deliver --for on a short master: exit $rc: $(printf '%s' "$a" | tail -c 500)" ;; esac
   a=$(vh deliver "$t/master.mp4" --max-gb 0.00001 2>&1); rc=$?
   case "$rc:$a" in 2:*"too little"*) ok "deliver: a limit that leaves no room for the picture is refused (exit 2)" ;; *) bad "deliver with a tiny limit: exit $rc: $a" ;; esac
   # bin/vh clean: a finished project's frames, render chunks, drafts and old takes go (to a stand-in Trash here, OVH_TRASH_DIR);

@@ -19,7 +19,7 @@ Writes <master stem>.upload.mp4 beside the master (--out another). Exit: 0 writt
 1 written but over a limit asked for, without the four colour tags, or the PSNR could not be measured · 2 could not start (no ffmpeg, not a video,
 not enough disk).
 """
-import argparse, glob, json, math, os, re, shutil, subprocess, sys
+import argparse, glob, json, math, os, re, shutil, signal, subprocess, sys
 from pathlib import Path
 
 # name: (label, file limit in GB (10^9 bytes), length limit in s or None, source tag). playbook/10 §交付编码 cites them.
@@ -143,6 +143,10 @@ def main():
     # VBV cap leaves part of it unused: 64 of 72 Mb/s on a 4K test, 1 dB lower)
     vbps = int(v.get("bit_rate") or 0) or int(master.stat().st_size * 8 / dur - abps)
     two = bool(maxrate) and vbps > maxrate
+    if maxrate and not two and maxrate > 2 * vbps:
+        maxrate = None   # the master's rate is far under the ceiling: CRF alone fits (and x264 takes no VBV over 2^31 b/s)
+    elif maxrate:
+        maxrate = min(maxrate, 600_000_000)   # VBV numbers stay inside x264's int range (bufsize up to 3x this)
     head = ["ffmpeg", "-v", "error", "-stats", "-nostdin", "-y", "-i", str(master)]
     venc = ["-c:v", "libx264", "-preset", a.preset, "-g", str(gop), "-keyint_min", str(gop), "-sc_threshold", "0", *vf, "-pix_fmt", "yuv420p",
             "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709"]
@@ -153,10 +157,14 @@ def main():
     final = [*head, "-map", "0:v:0", "-map", "0:a?", "-map", "0:s?", *venc, *rate, *(["-pass", "2", "-passlogfile", log] if two else []),
              *acodec, *scodec, "-map_metadata", "0", "-movflags", "+faststart", str(part)]
     how = (f"two passes at {maxrate / 1e6:.1f} Mb/s for the picture (the master's {vbps / 1e6:.1f} does not fit {cap_gb:g} GB)" if two else
-           f"crf {a.crf:g}" + (f", at most {maxrate / 1e6:.1f} Mb/s for the picture (to fit {cap_gb:g} GB)" if maxrate else ", no size ceiling"))
+           f"crf {a.crf:g}" + (f", at most {maxrate / 1e6:.1f} Mb/s for the picture (to fit {cap_gb:g} GB)" if maxrate
+                                else f" (the master's {vbps / 1e6:.1f} Mb/s fits {cap_gb:g} GB with room)" if cap_gb else ", no size ceiling"))
     print(f"deliver: {master.name} · {v['width']}x{v['height']} · {fps:g} fps · {dur / 60:.1f} min · {master.stat().st_size / 1e9:.2f} GB"
           f" → x264 {a.preset}, {how}, keyframe every {gop}")
     r = None
+    def stop(sig, _frame):   # SIGTERM (a timeout) as Ctrl-C: subprocess.run then stops ffmpeg, and the files below go
+        raise KeyboardInterrupt
+    signal.signal(signal.SIGTERM, stop)
     try:
         if two:
             r = subprocess.run([*head, "-map", "0:v:0", *venc, *rate, "-pass", "1", "-passlogfile", log, "-an", "-f", "null", "-"])

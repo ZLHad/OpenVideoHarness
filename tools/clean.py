@@ -11,7 +11,8 @@ Without --yes it only lists (a dry run; --dry-run says so, and wins over --yes).
   sound     sound files directly in audio/ that are not the narration in use (voiceover.wav, voiceover.<lang>.wav and its
             .raw.wav original, any of wav, mp3, m4a, flac, aac; <lang> like zh, en or zh-CN), not a mix (mix*, *_mix*) and not
             named in any of the project's text files (a page's <audio src>, a timeline, the notes); audio/takes/; and stem
-            folders directly in audio/ (*stems*). Sound in other folders under audio/ (samples, a song's source) stays.
+            folders directly in audio/ (*stems*). Sound in other folders under audio/ (samples, a song's source) stays;
+            a lyric video's audio/song.mp3 stays when its page names it, as it does when it plays it.
             Only once a film is found
 The film: video files in out/final/ (not in a covers or 封面 folder inside it), else out/final*.<video> directly in out/,
 media/*.<video>, or what --final names (an existing video file, relative to the project or to here). Covers and
@@ -85,7 +86,7 @@ def mentioned(root):
     names = set()
     pat = re.compile(r"[\w.\-]+\.(?:wav|mp3|m4a|aac|flac|aiff?|ogg|opus|m4s)\b", re.I)
     for d, reld, dirs, files in walk(root):
-        if reld.parts and low(reld)[0] in ("node_modules", "out"):
+        if reld.parts and (low(reld)[0] == "out" or set(low(reld)) & REBUILT_DIRS):
             dirs[:] = []; continue
         for f in files:
             p = d / f
@@ -104,7 +105,7 @@ def find_film(root, finals):
     fdir = next((q for q in out.iterdir() if q.is_dir() and q.name.casefold() == "final"), None) if out.is_dir() else None
     if fdir:
         for d, reld, dirs, files in walk(fdir):
-            dirs[:] = [x for x in dirs if x.casefold() not in COVERS]
+            dirs[:] = [x for x in dirs if x.casefold() not in COVERS and not x.endswith((".parts", ".patch"))]
             found += [(d / f).relative_to(root) for f in files if Path(f).suffix.lower() in VIDEO and not f.casefold().startswith("cover")]
     if out.is_dir() and not any(low(x)[:2] == ("out", "final") and len(x.parts) > 2 for x in found):
         found += [p.relative_to(root) for p in out.iterdir() if p.is_file() and p.suffix.lower() in VIDEO and p.name.casefold().startswith("final")]
@@ -117,8 +118,9 @@ def candidates(root, film, keeps):
     """[(kind, path)] of what can go; a folder stands for everything in it, unless something to keep is inside it."""
     out = []
     film_set = {low(f) for f in film}
-    def kept(rel): return any(rel == k or k in rel.parents for k in keeps) or low(rel) in film_set
-    def holds(rel): return any(rel in k.parents for k in keeps) or any(f[:len(rel.parts)] == low(rel) for f in film_set)
+    keep_set = {low(k) for k in keeps} | film_set   # compared case-blind, as the disk does
+    def kept(rel): return any(low(rel)[:len(k)] == k for k in keep_set)
+    def holds(rel): return any(len(k) > len(rel.parts) and k[:len(rel.parts)] == low(rel) for k in keep_set)
     said = mentioned(root) if film else set()
     inside = {}   # a folder that would go but holds something to keep: its files go one by one, as this kind
     for d, reld, dirs, files in walk(root):
@@ -181,7 +183,10 @@ def live_locks(root):
 
 
 def to_trash(p):
-    """Into the Trash. OVH_TRASH_DIR (tests) is a folder to move into; macOS uses /usr/bin/trash where it exists."""
+    """Into the Trash. OVH_TRASH_DIR (tests) is a folder to move into; macOS uses /usr/bin/trash where it exists. A link
+    holds no data and its target may be outside the project: it is only unlinked."""
+    if p.is_symlink():
+        p.unlink(); return
     test = os.environ.get("OVH_TRASH_DIR")
     if not test and sys.platform == "darwin" and Path("/usr/bin/trash").exists():
         r = subprocess.run(["/usr/bin/trash", str(p)], capture_output=True, text=True)
