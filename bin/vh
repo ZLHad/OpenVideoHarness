@@ -730,7 +730,7 @@ cmd_check() {
   local v=${1:?$u} allow="" against="" fail=0
   shift
   while [ $# -gt 0 ]; do case "$1" in
-    --allow) [ $# -ge 2 ] || { echo "bin/vh check: --allow needs the seconds of designed flashes, comma-separated (e.g. 1.0,3.2 or 432-435)" >&2; return 1; }
+    --allow) [ $# -ge 2 ] || { echo "bin/vh check: --allow needs the seconds of designed flashes, comma-separated (e.g. 1.0,3.2 or 12-15)" >&2; return 1; }
       allow=$2; shift 2 ;;
     --allow=*) allow=${1#--allow=}; shift ;;
     --against) [ $# -ge 2 ] || { echo "bin/vh check: --against needs the reference video (the approved 1080p cut)" >&2; return 1; }
