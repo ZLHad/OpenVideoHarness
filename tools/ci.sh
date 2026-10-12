@@ -294,6 +294,52 @@ PY
   vh mux "$t/zhang/en.v1.2/final" "$t/a.wav" "$t/out-nosubs.mp4" >/dev/null && [ -s "$t/out-nosubs.mp4" ] \
     && ok "mux without subtitle files" || bad "bin/vh mux without subtitle files"
   vh gif "$t/zhang/en.v1.2/final" 64 5 >/dev/null && [ -f "$t/zhang/en.v1.2/final.gif" ] && ok "gif names the output after the file, not a dotted folder" || bad "bin/vh gif output name"
+  # bin/vh deliver: a 2 s master with sound and a subtitle track, cut to fit 0.5 MB (a ceiling worked out from the size),
+  # a keyframe every 2 s, BT.709 tags, the tracks copied, the PSNR measured; a limit too small to hold a picture is refused
+  ffmpeg -nostdin -v error -f lavfi -i "testsrc2=s=320x180:r=30:d=2" -f lavfi -i "sine=d=2" -c:v libx264 -crf 10 -pix_fmt yuv420p \
+    -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 -c:a aac -shortest "$t/m0.mp4" \
+    && vh mux "$t/m0.mp4" "$t/a.wav" "$t/master.mp4" "$t/zhang/captions.zh.srt" >/dev/null
+  a=$(vh deliver "$t/master.mp4" --max-gb 0.0005 --samples 2 2>&1); rc=$?
+  if [ $rc = 0 ] && [ -s "$t/master.upload.mp4" ] && printf '%s' "$a" | grep -q 'PSNR against the master' && python3 - "$t/master.upload.mp4" <<'PY'
+import json, os, subprocess, sys
+f = sys.argv[1]
+st = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_streams", "-of", "json", f], capture_output=True, text=True).stdout)["streams"]
+v = next(s for s in st if s["codec_type"] == "video")
+keys = [l.split(",")[0] for l in subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time,flags", "-of", "csv=p=0", f],
+                                                capture_output=True, text=True).stdout.split() if "K" in l.split(",")[1]]
+ok = os.path.getsize(f) <= 500_000 and (v["pix_fmt"], v["color_range"], v["color_space"], v["color_transfer"], v["color_primaries"]) == ("yuv420p", "tv", "bt709", "bt709", "bt709")
+ok = ok and [s["codec_type"] for s in st] == ["video", "audio", "subtitle"] and [round(float(k), 3) for k in keys] == [0.0]
+sys.exit(0 if ok else 1)
+PY
+  then ok "deliver: the upload copy fits the size asked for, keeps BT.709 and the sound and subtitle tracks, and says its PSNR"
+  else bad "deliver (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  a=$(vh deliver "$t/master.mp4" --for bilibili,youtube --out "$t/master.platform.mp4" --psnr off 2>&1); rc=$?
+  case "$rc:$a" in 0:*"fits 8 GB with room"*"✓ Bilibili web"*"✓ YouTube"*) ok "deliver --for: a short master far under the limits is encoded at CRF alone, no VBV numbers past x264's range" ;;
+    *) bad "deliver --for on a short master: exit $rc: $(printf '%s' "$a" | tail -c 500)" ;; esac
+  a=$(vh deliver "$t/master.mp4" --max-gb 0.00001 2>&1); rc=$?
+  case "$rc:$a" in 2:*"too little"*) ok "deliver: a limit that leaves no room for the picture is refused (exit 2)" ;; *) bad "deliver with a tiny limit: exit $rc: $a" ;; esac
+  # bin/vh clean: a finished project's frames, render chunks, drafts and old takes go (to a stand-in Trash here, OVH_TRASH_DIR);
+  # the film in out/final/, its covers, the review pages, the narration in use and its original, sources and docs stay
+  c="$t/cl"; mkdir -p "$c/out/frames" "$c/out/.film.mp4.parts" "$c/out/final/covers" "$c/out/review" "$c/audio/takes" "$c/src" "$c/node_modules/x" "$t/home"
+  for f in BRIEF.md film.html src/50-shots.js out/frames/a.png out/.film.mp4.parts/part000.mp4 out/draft1.mp4 out/film.mp4 out/film.mp4.render.json \
+    out/final/film-4k.mp4 out/final/covers/a.png out/review/gate-1.html out/cues.json audio/voiceover.zh.wav audio/voiceover.zh.raw.wav \
+    audio/voiceover.zh.v1.wav audio/music.wav audio/takes/b.wav audio/timeline.zh.json node_modules/x/i.js; do printf x > "$c/$f"; done
+  a=$(vh clean "$c" 2>&1); rc=$?; [ -f "$c/out/draft1.mp4" ] && a="$a (draft still there)"
+  b=$(OVH_TRASH_DIR="$t/home/trash" vh clean "$c" --yes --delete 2>&1); rc2=$?
+  left=$(cd "$c" && find . -type f | sed 's|^\./||' | LC_ALL=C sort | tr '\n' ' ')   # byte order: the runner's locale sorts otherwise
+  want="BRIEF.md audio/timeline.zh.json audio/voiceover.zh.raw.wav audio/voiceover.zh.wav film.html out/cues.json out/final/covers/a.png out/final/film-4k.mp4 out/review/gate-1.html src/50-shots.js "
+  if [ $rc = 0 ] && printf '%s' "$a" | grep -q '9 item(s)' && printf '%s' "$a" | grep -q '(draft still there)' && [ $rc2 = 0 ] && [ "$left" = "$want" ] \
+    && [ "$(find "$t/home" -name '*.wav' | wc -l | tr -d ' ')" = 3 ] && [ "$(find "$t/home" -name '*.mp4' | wc -l | tr -d ' ')" = 2 ]
+  then ok "clean: lists first; then the film, covers, review pages, the narration in use and the sources stay, the rest goes (old takes and renders to the Trash)"
+  else bad "clean: exit $rc / $rc2, left: $left | $(printf '%s' "$a$b" | tail -c 700)"; fi
+  # a cover video inside out/final/ is not the film, so out/final.mp4 is; a path kept inside a folder that goes stays
+  c="$t/cl2"; mkdir -p "$c/out/final/covers" "$c/out/frames"
+  for f in BRIEF.md out/final/covers/loop.mp4 out/final.mp4 out/draft.mp4 out/frames/a.png out/frames/keep.png; do printf x > "$c/$f"; done
+  a=$(vh clean "$c" --keep out/frames/keep.png 2>&1); rc=$?
+  if [ $rc = 0 ] && printf '%s' "$a" | grep -q 'the film: out/final.mp4' && printf '%s' "$a" | grep -q 'out/draft.mp4' && printf '%s' "$a" | grep -q 'out/frames/a.png' \
+    && ! printf '%s' "$a" | grep -Eq 'keep\.png|  out/final\.mp4|loop\.mp4'
+  then ok "clean: a cover video does not make the film a render; a path kept inside a folder that goes stays"
+  else bad "clean on covers and a kept path (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   # spec: the file against the BRIEF's Output and Resolution lines (python3 only)
   mkdir -p "$t/sp/out"
   sp() { ffmpeg -nostdin -v error -f lavfi -i "color=c=0x202020:s=${1}:r=${2}:d=${5:-1},${3}" -pix_fmt yuv420p "$t/sp/out/$4.mp4"; }
@@ -977,6 +1023,9 @@ PY
     else bad "render on its fixture (exit $rc): $(printf '%s' "$a" | tail -c 700)"; fi
     a=$(vh render tools/film/fixture --out "$t/r/film.mp4" 2>&1); rc=$?
     [ $rc = 0 ] && ok "render: a second render of the same file after the first one ended is not locked out" || bad "render again (exit $rc): $(printf '%s' "$a" | tail -c 400)"
+    a=$(OVH_FREE_BYTES=1000 vh render tools/film/fixture --out "$t/r/full.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 2:*"needed at the peak"*"GB free on that disk"*) ok "render: a disk too full for even a flat film stops it before a frame is drawn (exit 2)" ;;
+      *) bad "render on a full disk: exit $rc: $(printf '%s' "$a" | tail -c 400)" ;; esac
     # bin/vh patch: the fixture rendered from 0.5 s with a keyframe every 20 frames (not a whole number of milliseconds) in
     # a folder whose name a filter graph would choke on; then its square turned blue from 1.4 s up to 1.7 s (the film's
     # frames 27–35) and those frames put back: 20–39 drawn again, the rest the film's own bytes and times. Naming only 27–29
