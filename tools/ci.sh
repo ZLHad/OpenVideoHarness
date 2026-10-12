@@ -987,7 +987,8 @@ PY
   else bad "fonts check on its fixture: exit $rc / $rc2: $(printf '%s' "$a$b" | tail -c 900)"; fi
   if command -v ffmpeg >/dev/null; then
     a=$(vh render "$ROOT/tools/film/fixture/glyphs.html" --workers 2 --gop 30 --out "$t/fo/g.mp4" 2>&1); rc=$?
-    [ $rc = 0 ] && printf '%s' "$a" | grep -q 'glyphs: characters not drawn in the font' && printf '%s' "$a" | grep -q 'C D' && ok "render: says which characters were drawn in another font, or in none, and still renders" \
+    [ $rc = 0 ] && printf '%s' "$a" | grep -q '2 workers' && printf '%s' "$a" | grep -q 'glyphs: characters not drawn in the font' && printf '%s' "$a" | grep -q 'C D' \
+      && ok "render: says which characters were drawn in another font, or in none (two workers' findings as one), and still renders" \
       || bad "render on the glyph fixture: exit $rc: $(printf '%s' "$a" | tail -c 700)"
   fi
   if command -v uv >/dev/null; then

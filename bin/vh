@@ -557,7 +557,7 @@ cmd_textcheck() { # canvas text covered or too faint (tools/textcheck/textcheck.
   fi
   exec node "$ROOT/tools/textcheck/textcheck.mjs" --browser "$b" "$@"
 }
-cmd_frames() { cmd_film_tool frames "$@"; }
+cmd_frames() { cmd_film_tool frames "$@"; }   # frames drawn from a page through the page contract (tools/film/frames.mjs)
 cmd_fonts() { # check: through the page contract (tools/film/fonts.mjs); list and subset read font files (tools/fonts.py, fontTools)
   case "${1:-}" in
     check) shift; cmd_film_tool fonts "$@" ;;
@@ -565,7 +565,7 @@ cmd_fonts() { # check: through the page contract (tools/film/fonts.mjs); list an
       uv run -q --no-project --with fonttools --with brotli python "$ROOT/tools/fonts.py" "$@" ;;
     *) cmd_usage fonts; exit 1 ;;
   esac
-}   # frames drawn from a page through the page contract (tools/film/frames.mjs)
+}
 arg_dir() { # the folder of the project or page among a tool's arguments: the first that is neither an option nor an option's
   # value (the options listed take none), a file's folder; "." when there is none, so --out o <project> finds the project too
   local a skip=0

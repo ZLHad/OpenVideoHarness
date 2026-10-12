@@ -4,20 +4,22 @@
 // the DOM's text with their fonts, and asks the browser which font draws each character (tools/film/glyphs.mjs).
 //
 // usage: node tools/film/fonts.mjs <project | page.html> --browser <chrome> [--step 0.5] [--at t,…]
-//          [--allow-fallback "Apple Color Emoji,…"] [--out dir] [--soft-gl] [--timeout 900]
+//          [--allow-fallback "Apple Color Emoji,…"] [--strict] [--out dir] [--soft-gl] [--timeout 900]
 //        (bin/vh fonts check finds the browser as bin/vh frames does)
 //
 //   --step 0.5       draw a frame every 0.5 s (and the middle of every timed text the page lists, window.film.texts);
 //                    text on screen for less than the step between those can be missed
 //   --at t,…         only these times
 //   --allow-fallback platform families a character may fall back to without failing (an emoji font, say)
+//   --strict         a character the first family lacks fails even when a family named later in the same stack draws it
+//                    ("Helvetica Neue", "PingFang SC": by default the Chinese drawn in PingFang is said, as the stack meant)
 //   --out dir        where fonts.json goes (every character by font, with what draws it): default <project>/out/check
 //
 // What it sees: text a canvas draws with fillText or strokeText (the canvas-film engine, HyperFrames canvases, the
 // hand-drawn engine's labels), and the DOM's text (HyperFrames compositions: every clip's text, shown or not; other pages:
 // what is laid out at the sampled times). Not text in images or SVG <text>, nor text a WebGL scene draws from a font
 // file of its own (p5 in WEBGL mode, three.js text): those carry their glyphs in the file, and no browser fallback is
-// involved.
+// involved. Combining marks (accents, Indic vowel signs) are not checked on their own.
 // Exit: 0 every character in its font · 1 characters drawn in another font, or by no font, or a face missing ·
 // 2 could not check (no page, no window.film, not ready, no browser).
 import fs from "node:fs";
@@ -38,7 +40,7 @@ const finish = async (code, msg) => {
 process.on("unhandledRejection", (e) => finish(2, (e && e.message) || String(e)));
 const bail = (msg) => { console.error("fonts: " + msg); process.exit(2); };
 const o = { step: 0.5, timeout: 900, runtime: "auto" };
-let target = null, at = null, out = null, allow = [];
+let target = null, at = null, out = null, allow = [], strict = false;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], [k, inline] = a.startsWith("--") && a.includes("=") ? [a.slice(0, a.indexOf("=")), a.slice(a.indexOf("=") + 1)] : [a, undefined];
   const val = () => { const v = inline !== undefined ? inline : argv[++i]; if (v === undefined) bail(`${k} needs a value`); return v; };
@@ -48,6 +50,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (k === "--timeout") o.timeout = num(val(), k);
   else if (k === "--allow-fallback") allow = val().split(",").map((s) => s.trim()).filter(Boolean);
   else if (k === "--out") out = val();
+  else if (k === "--strict") strict = true;
   else if (k === "--browser") o.browser = val();
   else if (k === "--soft-gl") o.softGl = true;
   else if (k.startsWith("-")) bail(`unknown option ${k} (-h for the options)`);
@@ -81,7 +84,7 @@ for (const t of times) {
 }
 await collectDom(film, true);   // a HyperFrames composition: every clip's text, shown or not
 let res;
-try { res = await check(film, { allow }); } catch (e) { await finish(2, e.message); }
+try { res = await check(film, { allow, strict }); } catch (e) { await finish(2, e.message); }
 console.log(`fonts: ${rel(film.page)} · ${times.length} frame${times.length === 1 ? "" : "s"}${at ? "" : ` (every ${o.step} s, and each timed text)`} · ` +
   `${res.chars} distinct character${res.chars === 1 ? "" : "s"} in ${res.fonts.length} font${res.fonts.length === 1 ? "" : "s"} · ${film.version} · ${((Date.now() - T0) / 1000).toFixed(0)} s`);
 const [lines, wrong] = report(res);

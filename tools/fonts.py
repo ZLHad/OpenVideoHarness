@@ -15,12 +15,14 @@ subset   a copy of each font the page declares with @font-face local(), cut down
          audio/timeline*.json), the ones bin/vh fonts check last saw drawn in that family (out/check/fonts.json), and printable
          ASCII with the common CJK punctuation. --family: only that family's faces · --font: subset this one font instead
          (a file, or a local() name), its family named by --family · --chars-from: more characters, from a file.
-         Characters the font does not have are listed: the browser would draw those in another font (bin/vh fonts check).
+         After a bin/vh fonts check, the characters it saw drawn in that family that the font does not have are listed
+         (the browser draws those in another font).
 
 Licences: most fonts that come with an operating system (PingFang, Songti, Hiragino, Microsoft YaHei) may be used on this
 machine but not handed on. A subset is a copy: keep it inside the project (projects/ is not committed), and do not publish
-it or put it in the repo. Fonts under the SIL Open Font License (Noto CJK, Source Han) may be subset and shared, with the
-licence beside them.
+it or put it in the repo. Fonts under the SIL Open Font License (Noto CJK, Source Han) may be subset, but a modified copy
+handed on must not use the font's Reserved Font Name (Source Han's "Source", for one) and goes with the licence: rename
+it before sharing.
 
 Where fonts are looked for: fc-list's list when fontconfig is installed, and these folders (read with fontTools, cached in
 ~/.cache/ovh/fonts.json): macOS /System/Library/Fonts (+ Supplemental), /Library/Fonts, ~/Library/Fonts and the fonts
@@ -113,11 +115,11 @@ norm = lambda s: re.sub(r"[\s_-]", "", str(s or "")).lower()
 
 
 def find(name, faces):
-    """The face local(name) means: PostScript name or full name, as Chrome matches it."""
-    n = norm(name)
+    """The face local(name) means: its PostScript name or full name, spelled the same (case aside), as Chrome matches it."""
+    n = str(name).strip().lower()
     for key in ("ps", "full"):
         for f in faces:
-            if norm(f[key]) == n: return f
+            if f[key] and f[key].lower() == n: return f
     return None
 
 
@@ -139,10 +141,11 @@ def cmd_list(a):
                 continue
             if cm and all(ord(c) in cm for c in "中文字"): keep.append(f)
         pick = keep
-    if not a.all:   # one line per PostScript name: the same face is often in several places
+    if not a.all:   # one line per PostScript name: the same face is often in several places (one without a name: its file)
         seen, one = set(), []
         for f in pick:
-            if f["ps"] not in seen: seen.add(f["ps"]); one.append(f)
+            k = f["ps"] or f"{f['file']}#{f['index']}"
+            if k not in seen: seen.add(k); one.append(f)
         pick = one
     pick.sort(key=lambda f: (f["family"].lower(), f["style"].lower(), f["ps"]))
     home = str(Path.home())
@@ -206,7 +209,7 @@ def project_chars(root):
 def cmd_subset(a):
     from fontTools import subset as ft_subset
     page = page_of(a.target); root = page.parent
-    faces = index()
+    faces = [] if a.font and Path(a.font).is_file() else index()   # a font file needs no look through the machine's
     jobs = []   # (family, weight, style, face)
     missing = []
     if a.font:
@@ -269,11 +272,12 @@ def cmd_subset(a):
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="bin/vh fonts", usage=__doc__.split("\n\n")[1].split("\n", 1)[1])
+    ap = argparse.ArgumentParser(prog="bin/vh fonts", usage="\n  bin/vh fonts list [words…] [--cjk] [--all]\n  bin/vh fonts subset <project | page.html> [--family F] [--font file|name] [--out dir] [--chars-from f] [--keep-hinting]",
+                                 description="Fonts on this machine by their local() names, and subsets of them for a project (tools/fonts.py).")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    l = sub.add_parser("list"); l.add_argument("words", nargs="*"); l.add_argument("--cjk", action="store_true"); l.add_argument("--all", action="store_true")
+    l = sub.add_parser("list", usage="bin/vh fonts list [words…] [--cjk] [--all] [--refresh]"); l.add_argument("words", nargs="*"); l.add_argument("--cjk", action="store_true"); l.add_argument("--all", action="store_true")
     l.add_argument("--refresh", action="store_true", help="read every font file again instead of the cache")
-    s = sub.add_parser("subset"); s.add_argument("target"); s.add_argument("--family"); s.add_argument("--font"); s.add_argument("--out")
+    s = sub.add_parser("subset", usage="bin/vh fonts subset <project | page.html> [--family F] [--font file|name] [--out dir] [--chars-from f] [--keep-hinting]"); s.add_argument("target"); s.add_argument("--family"); s.add_argument("--font"); s.add_argument("--out")
     s.add_argument("--chars-from"); s.add_argument("--keep-hinting", action="store_true")
     a = ap.parse_args()
     {"list": cmd_list, "subset": cmd_subset}[a.cmd](a)

@@ -52,7 +52,7 @@ window.film = {
 4. 等 `ready`，再调 `frame(t)`，等它 resolve，然后截取视口（无损 PNG）。`ready` 包括字体：字体文件都载好了。字形不归页面自己查（页面问不出一个字是哪个字体画的），由宿主查，见第 6 条。
 5. 页面抛错、请求失败，都报出来，不当作成功：加载时的、画某一帧时的、最后一帧之后才冒出来的（比如一帧留下的定时器抛的错）都算。
 
-6. **字形**：页面要的字体里缺某个字时，浏览器不报错，换一个字体画它，哪个字体都没有就画成空的"缺字"字形。`bin/vh fonts check` 在页面脚本之前挂上 canvas 的 `fillText` / `strokeText`，按时间抽帧（再加上 `texts` 里每段字的中间），记下画了哪些字、用的什么字体，DOM 里的字按算出的样式记；然后问浏览器每个字实际由哪个平台字体画（DevTools 的 `CSS.getPlatformFontsForNode`），不是字体栈里第一个字体（`@font-face` 的 `local()` 或 `url()`，或者装在本机的那个字体族）画的算换了字体；画出来和一个哪个字体都没有的字（U+10FFFD）一模一样的，算缺字。有一个就退出码 1。`bin/vh render` 每个 worker 出完自己那段也查一遍画过的字，有问题打出来，不判失败。工具在 `tools/film/glyphs.mjs`、`fonts.mjs`。
+6. **字形**：页面要的字体里缺某个字时，浏览器不报错，换一个字体画它，哪个字体都没有就画成空的"缺字"字形。`bin/vh fonts check` 在页面脚本之前挂上 canvas 的 `fillText` / `strokeText`，按时间抽帧（再加上 `texts` 里每段字的中间），记下画了哪些字、用的什么字体，DOM 里的字按算出的样式记；然后问浏览器每个字实际由哪个平台字体画（DevTools 的 `CSS.getPlatformFontsForNode`），不是字体栈里第一个字体（`@font-face` 的 `local()`；`url()` 或 FontFace API 加的字体，按这个字体族单独画出来是哪个字体认；或者装在本机的那个字体族）画的算换了字体；画出来和一个哪个字体都没有的字（U+10FFFD）一模一样的，算缺字。有一个就退出码 1。落到同一个栈里后面写明的字体的（`"Helvetica Neue", "PingFang SC"` 里的中文），是栈本来的意思，只说一声，`--strict` 才算失败。`bin/vh render` 每个 worker 出完自己那段也查一遍画过的字，有问题打出来，不判失败。工具在 `tools/film/glyphs.mjs`、`fonts.mjs`。
 
 还没做的：页面用 `<video>` 取画面时，OpenFilm 的宿主会把 seek 落到那一帧里面、等新的一帧上屏再截图，这个宿主还没有；它的服务也不答 HTTP Range 请求。
 
