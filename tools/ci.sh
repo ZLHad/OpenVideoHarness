@@ -405,18 +405,23 @@ PY
 # any browser) and failed by bin/vh check until REVIEW.md has the decision and DECISIONS.md the concept; the user's
 # waiver counts unless it sits under gate ② or ③; quick is not checked
 gate_checks() {
-  local t p a rc rc2 rc3
+  local t p a b c d rc rc2 rc3
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   vh new math ci-gate --dir "$t" >/dev/null 2>&1; p=$(ls -d "$t"/*-ci-gate 2>/dev/null)
   if [ -z "$p" ] || [ ! -f "$p/REVIEW.md" ]; then bad "gate checks: bin/vh new made no project"; rm -rf "$t"; return; fi
-  mkdir -p "$p/out" && ffmpeg -nostdin -v error -f lavfi -i color=c=0x303030:s=320x180:r=30:d=2 -pix_fmt yuv420p "$p/out/film.mp4"
   a=$(vh render "$p" 2>&1); rc=$?
-  b=$(vh check "$p/out/film.mp4" 2>&1); rc2=$?
   c=$(vh render "$p" --range 0:1 2>&1)
-  case "$rc:$a|$rc2" in 1:*"no record of gate ①"*'REVIEW.md: under "## 关卡 ① 立意和大纲"'*"DECISIONS.md: the concept 立意 row"*"--range a:b"*"|1")
-    case "$b|$c" in *"✗"*"no record of gate ①"*"|"*) case "$c" in *"no record of gate"*) bad "render --range was held by the gate: $c" ;; *) ok "gate record: a standard project from the templates is refused by render (a part still renders) and failed by check, naming the two lines" ;; esac ;;
-      *) bad "check without the gate record (exit $rc2): $(printf '%s' "$b" | head -c 400)" ;; esac ;;
+  mkdir -p "$p/out/review/sketch" && printf '<!doctype html><title>a concept sketch</title>\n' > "$p/out/review/sketch/index.html"
+  d=$(vh render "$p/out/review/sketch/index.html" 2>&1)
+  case "$rc:$a" in 1:*"no record of gate ①"*"the person's words"*"the decision"*"DECISIONS.md: the concept 立意 row"*"--range a:b"*)
+    case "$c|$d" in *"no record of gate"*) bad "render of a part or of a sketch page was held by the gate: $c | $d" ;;
+      *) ok "gate record: render refuses a whole standard film made from the templates, naming the lines to write; a part (--range) and a sketch page under out/ still render" ;; esac ;;
     *) bad "render without the gate record (exit $rc): $(printf '%s' "$a" | head -c 600)" ;; esac
+  if command -v ffmpeg >/dev/null; then
+    mkdir -p "$p/out" && ffmpeg -nostdin -v error -f lavfi -i color=c=0x303030:s=320x180:r=30:d=2 -pix_fmt yuv420p "$p/out/film.mp4"
+    b=$(vh check "$p/out/film.mp4" 2>&1); rc2=$?
+    case "$rc2:$b" in 1:*"✗"*"no record of gate ①"*) ok "gate record: check fails a standard film without it" ;; *) bad "check without the gate record (exit $rc2): $(printf '%s' "$b" | head -c 400)" ;; esac
+  else skip "check without the gate record" "no ffmpeg"; fi
   python3 - "$p" <<'PY'
 import sys
 from pathlib import Path
@@ -429,7 +434,7 @@ PY
 import sys
 from pathlib import Path
 p = Path(sys.argv[1])
-r = (p / "REVIEW.md").read_text(encoding="utf-8").replace("- 定了：{…}　改了：{…}", "- 定了：立意卡 B　改了：结尾短一点", 1)
+r = (p / "REVIEW.md").read_text(encoding="utf-8").replace("- 定了：{…}　改了：{…}", "- 定了：立意卡 B　改了：结尾短一点", 1).replace('- 原话："……"', '- 原话："选 B，结尾再短一点"', 1)
 (p / "REVIEW.md").write_text(r, encoding="utf-8")
 d = (p / "DECISIONS.md").read_text(encoding="utf-8").replace("| concept 立意 | {own / review / delegate} | {待定 / 已定（关卡 ①）} |", "| concept 立意 | own | 已定（关卡 ①）：B |", 1)
 (p / "DECISIONS.md").write_text(d, encoding="utf-8")

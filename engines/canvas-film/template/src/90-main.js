@@ -38,10 +38,9 @@ function frame(t, o) {
   draw(t, !!(o && o.layer === "scene"));
 }
 // where the interface puts its ink at t: [{ name, box: [x0, y0, x1, y1] }] in the frame's px (engines/CONTRACT.md)
-function ui(t) {
+function uiBoxes(t) {
   t = clamp(Number(t) || 0, 0, Math.max(0, DUR - 1e-6));
-  const out = [], bar = barBox(t), cap = captionBox(t);
-  if (bar) out.push({ name: "chapter bar", box: bar.map(r3) });
+  const out = barBoxes(t).map((b) => ({ name: b.name, box: b.box.map(r3) })), cap = captionBox(t);
   if (cap) out.push({ name: "caption", box: cap.map(r3) });
   return out;
 }
@@ -163,6 +162,6 @@ window.film = {
   get cues() { return CUES; },                                                    // [{ id, ref, t }]
   get covers() { return COVER_T.map((c) => ({ id: c.id, t: r3(c.t), title: c.title ? [].concat(c.title.text || []).join(" / ") : "" })); },
   cover(id) { cover(id); },                                                       // draw a cover (bin/vh frames --covers)
-  ui,                                                                             // the interface's boxes at t (bin/vh textcheck)
+  ui: uiBoxes,                                                                     // the interface's boxes at t (bin/vh textcheck)
   get timeline() { return TIMELINE; },                                            // the timeline file the cues hang on, beside film.html
 };

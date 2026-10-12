@@ -146,7 +146,7 @@ const COVERS = [
 | `cues` | 每个 cue 的解析结果：`[{id, ref, t}]`，`id` 像 `S02.o.one`、`chapter2.at`、`cover.A.at` |
 | `covers`、`cover(id)` | 封面：`[{id, t, title}]`，`cover(id)` 按它的机位和标题画这一张 |
 | `timeline` | 载入的旁白时间轴，相对 `film.html` 的路径；无声片是 `null` |
-| `ui(t)` | 章节条和字幕在 t 秒时的框：`[{name: "chapter bar" \| "caption", box}]`（章节条从进度线上的圆点到章名下沿；字幕只框字，不框暗带） |
+| `ui(t)` | 章节条和字幕在 t 秒时的框：`[{name, box}]`。全部章名都亮着时，章节条一个框，从进度线上的圆点到章名下沿；只亮当前一章时，进度线一个框（`chapter bar`），当前章名一个框（`chapter title`）；字幕只框字，不框暗带（`caption`） |
 
 页面从不自己往前走，只在 `frame(t)` 被调用时画；直接用浏览器打开 `film.html`（`file://`）读不到时间轴，什么也不画。
 

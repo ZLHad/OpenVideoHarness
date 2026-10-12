@@ -44,10 +44,12 @@
 // And the interface over the scene, never failing the run either: a page that says where its interface (a chapter bar,
 // a caption, a credit) puts its ink, window.film.ui(t) → [{name, box: [x0, y0, x1, y1]}], and draws the frame without it
 // on frame(t, { layer: "scene" }) (engines/CONTRACT.md), is drawn both ways every --ui-step seconds: where the scene alone
-// has detail inside a box (a line, an edge, a letter: a pixel 60 or more over r + g + b off the mean of the 33 x 33 px
-// around it; a plain or shaded background and the grain are not), on over --ui-share (0.002) of the box's pixels and at
-// least 30 of them, the scene runs under the interface. Each run of samples is listed once, with the largest share: a
-// small one is a line or a shape crossing the bar or the caption (move one of them), a large one a busy picture under it.
+// has detail inside a box (a line, an edge, a letter: a pixel 60 or more over r + g + b off the scene's ground there,
+// each 32 x 32 px tile's median colour blended between tile centres; a plain or shaded background and the grain are
+// not), on over --ui-share (0.002) of the box's pixels and at least 30 of them, or on 150 pixels or more in a long box,
+// the scene runs under the interface. Each run of samples is listed once, with the largest share: a small one is a line
+// or a shape crossing the bar or the caption (move one of them), a large one a busy picture under it. A ui(t) that
+// throws is a page error, like a frame that throws.
 //
 // Writes <out>/textcheck.json (every number) and a crop per finding (<out>/<t>s-<kind>.png); out defaults to
 // <project>/out/check/textcheck. Exit: 0 no read failed (warnings allowed) · 1 a registered read is covered, under the
@@ -233,7 +235,7 @@ try {
     const uts = steps(opt.uiStep, dur), got = await call("ui", uts, W, H);
     if (got.ignored) ui.ignored = got;
     else {
-      const hit = (q) => q.px >= 30 && q.share > opt.uiShare;
+      const hit = (q) => q.px >= 30 && (q.share > opt.uiShare || q.px >= 150);   // 150 px: a short line across a long bar
       ui.checked = got.samples.length;
       const open = new Map();   // name → the span still growing
       for (const q of got.samples) {
@@ -301,7 +303,8 @@ try {
     const cross = ui.spans.filter((sp) => !sp.busy), busy = ui.spans.filter((sp) => sp.busy);
     const say = (sp) => `   ${fmt(sp.from)}${sp.to > sp.from ? ` – ${sp.to.toFixed(2)} s` : "     "}  ${sp.name}: ${(100 * sp.worst.share).toFixed(1)}% of its box over the scene's detail` +
       ` (x ${sp.worst.at[0]}–${sp.worst.at[2]}, y ${sp.worst.at[1]}–${sp.worst.at[3]})`;
-    if (!ui.spans.length) console.log(`${G} the interface over the scene: at ${ui.checked} sample(s) the scene keeps out of the interface's boxes`);
+    if (!ui.checked) console.log(`  the interface over the scene: window.film.ui gave no box at any sample, nothing to check`);
+    else if (!ui.spans.length) console.log(`${G} the interface over the scene: at ${ui.checked} box sample(s) the scene keeps out of the interface's boxes`);
     if (cross.length) console.log(`${Y} ${cross.length} time(s) the scene draws a line, an edge or a letter under the interface (move the scene's piece, or the interface; look at the crop):`);
     for (const sp of cross.slice(0, 15)) { sp.worst.crop = await crop(sp.worst.t, sp.worst.box, "ui"); console.log(say(sp)); }
     if (cross.length > 15) console.log(`   … ${cross.length - 15} more in textcheck.json`);

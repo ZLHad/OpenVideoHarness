@@ -60,14 +60,16 @@ function barState(t) {   // how much the bar shows (vis), the current chapter (c
   if (BAR_ALL) for (const c of CHAPTER_T) all = Math.max(all, win(t, c.t - 0.2, c.t + BAR.all, c.t > 0 ? 0.4 : 0, 0.6));
   return { vis, ci, all };
 }
-// where the bar puts its ink at t (window.film.ui): the row of cells and the titles under it, from the dot's top to
-// below the titles, as wide as the cells or the current title; null when it is not up
-function barBox(t) {
-  const { vis, ci } = barState(t);
-  if (vis < 0.05) return null;
+// where the bar puts its ink at t (window.film.ui): the row of cells from the dot's top to below the titles while every
+// title shows; else the row of cells, and the current title on its own
+function barBoxes(t) {
+  const { vis, ci, all } = barState(t);
+  if (vis < 0.05) return [];
   const first = BAR_CELLS[0], last = BAR_CELLS[BAR_CELLS.length - 1], cur = BAR_CELLS[ci];
-  const tw = measure(CHAPTER_T[ci].title, { size: BAR.size }) / 2 + 6, cx = cur.x + cur.w / 2;
-  return [Math.min(first.x - 8, cx - tw), BAR.y - 9, Math.max(last.x + last.w + 8, cx + tw), BAR.y + 58 + BAR.size * 0.3];
+  const tw = measure(CHAPTER_T[ci].title, { size: BAR.size }) / 2 + 6, cx = cur.x + cur.w / 2, bottom = BAR.y + 58 + BAR.size * 0.3;
+  if (all > 0.01) return [{ name: "chapter bar", box: [Math.min(first.x - 8, cx - tw), BAR.y - 9, Math.max(last.x + last.w + 8, cx + tw), bottom] }];
+  return [{ name: "chapter bar", box: [first.x - 8, BAR.y - 9, last.x + last.w + 8, BAR.y + 12] },
+    { name: "chapter title", box: [cx - tw, BAR.y + 58 - BAR.size * 0.95, cx + tw, bottom] }];
 }
 function chapterBar(t) {
   if (!BAR_CELLS.length) return;
