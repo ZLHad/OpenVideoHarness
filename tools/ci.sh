@@ -332,7 +332,7 @@ PY
     # the publishing copy in PACKAGING.md: a Bilibili description of 2100 characters is over its 2000 (said, not a failure)
     { printf '%s\n' '# PACKAGING' '## 发布文案' '### B站' '标题：一个够短的标题' '标签：科普, 刹车' '简介：'; python3 -c "print('字' * 2100)"; printf '%s\n' '### YouTube' 'Title: short'; } > "$t/sp/PACKAGING.md"
     a=$(vh check "$t/sp/out/ref.mp4" 2>&1); rc=$?
-    case "$rc:$a" in 0:*"over a platform's limit"*"✗ 简介 description 2100 characters (limit 2000"*"✓ 标题 title 7 characters"*"YouTube: ✓ 标题 title 5 characters"*) ok "check measures the publishing copy against the platforms' limits and says what is over" ;;
+    case "$rc:$a" in 0:*"over a platform's limit"*"B站: ✓ 标题 title 7 characters"*"✗ 简介 description 2100 characters (limit 2000"*"YouTube: ✓ 标题 title 5 characters"*) ok "check measures the publishing copy against the platforms' limits and says what is over" ;;
       *) bad "check on the publishing copy (rc $rc): $(printf '%s' "$a" | tail -c 600)" ;; esac
     rm -f "$t/sp/PACKAGING.md"
     a=$(vh check "$t/odd.mp4" --allow 1s 2>&1); rc=$?
