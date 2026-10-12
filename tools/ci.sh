@@ -1192,8 +1192,9 @@ import sys
 sys.path.insert(0, sys.argv[1])
 import capbreak, captions
 bad = []
-for text, w, keep in (("价格从1,000,000元涨到2,500,000元", 8, ("1,000,000", "2,500,000")), ("会议定在12:30开始，别迟到", 6, ("12:30",)),
-                      ("网址是https://example.com/a/b，记下来。", 8, ("https://example.com/a/b",))):
+for text, w, keep in (("价格从1,000,000元涨到2,500,000元", 8, ("1,000,000", "2,500,000")), ("价格从1,000,000元涨到", 6, ("1,000,000",)),
+                      ("会议定在12:30开始，别迟到", 6, ("12:30",)), ("在12:30:45开始", 6, ("12:30:45",)),
+                      ("网址是https://example.com/a/b，记下来。", 8, ("https://example.com/a/b",)), ("网址是https://a.example.com:8080/x/y，记下", 6, ("https://a.example.com:8080/x/y",))):
     for got in ([r for _, r in capbreak.pieces(text, w, True)], captions.wrap_zh(text, w)):
         if not all(any(k in g for g in got) for k in keep): bad.append(f"{text} at {w}: {got}")
 print("\n".join(bad)); sys.exit(1 if bad else 0)

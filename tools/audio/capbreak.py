@@ -28,6 +28,7 @@ END_BAD = set("把被将对向从在和与跟及或是让给比为由")
 START_BAD = set("了的地得着过吗呢吧啊么们")
 PIECE = 150   # the cost of one more piece (line or card), against the costs of bad breaks below
 LATIN = re.compile(r"[A-Za-z0-9.+\-_/%#&@']+")
+JOINED = re.compile(r"[A-Za-z0-9.+\-_/%#&@',:]+")   # a Latin run that has taken a , or : already ("1,000" takes ",000" too)
 
 try:
     import logging
@@ -67,7 +68,7 @@ def tokens(text, forced=()):
     k = 0
     while k + 2 < len(merged):
         a, sep, b = merged[k], merged[k + 1], merged[k + 2]
-        if (sep[1] in (",", ":") and LATIN.fullmatch(a[1]) and LATIN.fullmatch(b[1]) and a[1][-1:].isalnum()
+        if (sep[1] in (",", ":") and JOINED.fullmatch(a[1]) and LATIN.fullmatch(b[1]) and a[1][-1:].isalnum()
                 and (b[1][:1].isalnum() or (sep[1] == ":" and b[1].startswith("//")))
                 and a[0] + len(a[1]) == sep[0] and sep[0] + 1 == b[0]):
             merged[k:k + 3] = [[a[0], a[1] + sep[1] + b[1]]]
