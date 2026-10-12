@@ -356,19 +356,21 @@
     // the frame. ignored: the scene layer drew the interface too (a page that does not take the option)
     async ui(times, fw, fh) {
       const v = contract(), out = [];
-      let checked = false;
+      let checked = false, alike = 0, first = null;
       for (const t of times) {
         let items;
         try { items = await v.ui(t); } catch (e) { H.errors.push({ t, msg: "window.film.ui: " + String((e && e.stack) || e) }); continue; }
         items = (Array.isArray(items) ? items : []).filter((u) => u && boxOk(u.box) && u.box[2] > 0 && u.box[0] < fw && u.box[3] > 0 && u.box[1] < fh);
         if (!items.length) continue;
-        if (!checked) {   // the first box: the frame with the interface and the scene alone must differ there
+        if (!checked) {   // the frame with the interface and the scene alone must differ in the first box (three samples
+          // alike in a row, not one: an interface fading in can be too faint to tell at the first)
           const b = items[0].box.map(Math.round), P = [Math.max(0, b[0]), Math.max(0, b[1]), Math.min(fw, b[2]), Math.min(fh, b[3])], w = P[2] - P[0], h = P[3] - P[1];
           if (w > 0 && h > 0) {
             await draw(t, EMPTY); const full = compose(P, w, h).slice();
             await draw(t, EMPTY, "scene");
-            if (same(full, compose(P, w, h))) return { ignored: true, t, name: String(items[0].name || "interface") };
-            checked = true;
+            if (!same(full, compose(P, w, h))) checked = true;
+            else if (!alike++) first = { ignored: true, t, name: String(items[0].name || "interface") };
+            if (alike >= 3) return first;
           }
         }
         await draw(t, EMPTY, "scene");
@@ -377,7 +379,7 @@
           if (m) out.push({ t, name: String(u.name || "interface"), box: u.box.map((x) => Math.round(x)), ...m });
         }
       }
-      return { samples: out };
+      return !checked && first ? first : { samples: out };
     },
     async read(text, times, o, near) {
       const out = [];
