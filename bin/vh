@@ -79,10 +79,15 @@
 #                               frames drawn from the source through the page contract (window.film, engines/CONTRACT.md), for any web-page
 #                               engine: ClaudeAnimationBase, a page that writes window.film, HyperFrames (a composition without it gets its own
 #                               runtime); lossless PNGs in <project>/out/frames; --strip: every frame of a span and one picture of them all
-#   render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png]
+#   render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b | --frames k0:k1] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png]
 #                               an MP4 drawn through the page contract (the canvas engine, ClaudeAnimationBase, any page that writes
 #                               window.film): parallel chunks into x264, BT.709 tv range, a keyframe every --gop frames, <out>.render.json
 #                               records how; video only (sound: mux). HyperFrames: npx hyperframes render (--force to render it here anyway)
+#   patch <film.mp4> (--frames a-b | --seconds s-e) [--sidecar f.render.json] [--out f | --in-place] [--workers 4] [--verify seams|full]
+#                               draw frames a–b of a bin/vh render film again and put them back, the rest untouched: cut on its keyframes
+#                               (its .render.json says how it was made), joined, sound and subtitles kept; checks the frame count, that every
+#                               packet and pixel outside is the film's, decoding, and that the frames drawn again outside a–b came back the same
+#                               (exit 1: the new film is kept as <film>.failed.mp4, the film untouched); without --out: <film>.patched.mp4
 #   determinism <project|page.html> [--at t,t…] [--samples 6] [--min-psnr 45]   is each frame a function of t? draws the same t
 #                               in one browser in two orders and in a second browser, compares them, and again with the real clock
 #   fonts check <project|page.html> [--step 0.5] [--at t,…] [--allow-fallback "Apple Color Emoji"] [--strict] [--out dir]   is every character drawn
@@ -579,7 +584,7 @@ arg_dir() { # the folder of the project or page among a tool's arguments: the fi
   for a in "$@"; do
     if [ $skip = 1 ]; then skip=0; continue; fi
     case $a in
-      --soft-gl|--real-clock|--png|--force|--save|--strict|--*=*) ;;
+      --soft-gl|--real-clock|--png|--force|--save|--strict|--in-place|--keep|--*=*) ;;
       -*) skip=1 ;;
       *) if [ -d "$a" ]; then echo "$a"; else case $a in */*) echo "${a%/*}" ;; *) echo . ;; esac; fi; return 0 ;;
     esac
@@ -594,7 +599,7 @@ film_browser() { # film_browser <command> [dir]: the browser the page-contract t
   fi
   echo "$b"
 }
-cmd_film_tool() { # $1: frames | render | determinism | cues | fonts (tools/film/<it>.mjs)
+cmd_film_tool() { # $1: frames | render | determinism | cues | fonts | patch (tools/film/<it>.mjs)
   local tool=$1 b; shift
   [ $# -gt 0 ] || { cmd_usage "$tool"; exit 1; }
   b=$(film_browser "$tool" "$(arg_dir "$@")") || exit 2
@@ -920,7 +925,7 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
   case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
-    frames|render|determinism|cues) cmd_usage "$1"; echo; exec node "$ROOT/tools/film/$1.mjs" -h ;;   # + every flag
+    frames|render|determinism|cues|patch) cmd_usage "$1"; echo; exec node "$ROOT/tools/film/$1.mjs" -h ;;   # + every flag
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 
@@ -931,7 +936,7 @@ case "${1:-help}" in
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
-  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;;
+  new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;;
   help|-h|--help) cmd_help ;;
   *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;
