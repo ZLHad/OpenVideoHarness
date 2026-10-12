@@ -400,7 +400,7 @@ PY
   if [ $rc = 1 ] && [ $rc2 = 0 ] && [ $rc3 = 0 ] && printf '%s' "$a" | grep -q "gate ① decided" && printf '%s' "$b" | grep -q "waived in the user's own words (2026-10-12"
   then ok "gate record: the decision and the concept row pass; the user's waiver passes under gate ①, not under gate ③ alone"
   else bad "gate record with the lines filled in ($rc/$rc2/$rc3): $a | $b"; fi
-  sed -i.bak 's/^- Effort: standard/- Effort: quick/' "$p/BRIEF.md" && cp "$ROOT/templates/REVIEW.md" "$p/"
+  python3 -c "import sys, re; f = sys.argv[1]; s = open(f, encoding='utf-8').read(); open(f, 'w', encoding='utf-8').write(re.sub(r'(?m)^- Effort: standard', '- Effort: quick', s))" "$p/BRIEF.md" && cp "$ROOT/templates/REVIEW.md" "$p/"
   a=$(python3 tools/gatecheck.py "$p"); rc=$?
   [ $rc = 0 ] && printf '%s' "$a" | grep -q "Effort quick" && ok "gate record: a quick project is not checked" || bad "gate record on quick (exit $rc): $a"
   rm -rf "$t"
