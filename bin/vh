@@ -39,10 +39,10 @@
 #                               --dry-run only measures. The original stays as voiceover.<lang>.raw.wav; captions are redone;
 #                               a timeline that fails bin/vh timeline is refused (--skip-lint to go on; --restore never stops on one)
 #   voices list [lang] | design "<description>" [--out f.wav] | delete <voice_id>   Gemini voice library / voice design
-#   captions <project> [zh|en] [zh-max] [--cards] [--cps 9] [--media-end S] [--skip-lint]  SRT (zh / en / bilingual) + captions.json from the TTS timeline,
-#                               broken at word boundaries (jieba through uv) and audio/capbreaks.json; --cards: one line a caption, cut there and
-#                               timed by the words, never across a sentence end; a caption under its minimum (1.8 s, or its characters at --cps a
-#                               second) is lengthened into the gap after it, up to the picture's end (--media-end, else index.html's data-duration,
+#   captions <project> [zh|en] [zh-max] [--en-max 42] [--cards] [--cps 9] [--media-end S] [--skip-lint]  SRT (zh / en / bilingual) + captions.json
+#                               from the TTS timeline, broken at word boundaries (jieba through uv) and audio/capbreaks.json; --cards: one line a
+#                               caption, cut there and timed by the words, never across a sentence end; a caption under its minimum (1.8 s, or its
+#                               Chinese at --cps a second, other text at 20) is lengthened into the gap after it, up to the picture's end (--media-end, else index.html's data-duration,
 #                               media/final.mp4, the timeline); two less than 0.25 s apart touch;
 #                               a timeline that fails bin/vh timeline is refused (--skip-lint to go on)
 #   timeline <project|timeline.json> [zh|en]  the narration timeline's checks: lines in order, word times forward and inside their line, the words
@@ -788,9 +788,9 @@ cmd_check() {
   # subtitles: the film's subtitle tracks and the .srt beside it, each entry long enough to read (a warning)
   local sub src2=0
   sub=$(python3 "$ROOT/tools/subcheck.py" "$v" 2>&1) || src2=$?
-  case "$src2" in
-    0) [ -n "$sub" ] && case "$sub" in "subtitles: none"*) ;; *) printf '%s\n' "$sub" | sed "s/^subtitles/$c_ok subtitles/" ;; esac ;;
-    1) printf '%s\n' "$sub" | sed -e "s/^subtitles\(.*\)shorter than/$c_wa subtitles\1shorter than/" -e "s/^subtitles · \(.*\)long enough/$c_ok subtitles · \1long enough/" ;;
+  case "$src2:$sub" in
+    0:*) [ -n "$sub" ] && case "$sub" in "subtitles: none"*) ;; *) printf '%s\n' "$sub" | sed "s/^subtitles/$c_ok subtitles/" ;; esac ;;
+    1:subtitles*) printf '%s\n' "$sub" | sed -e "s/^subtitles\(.*\)shorter than/$c_wa subtitles\1shorter than/" -e "s/^subtitles · \(.*\)long enough/$c_ok subtitles · \1long enough/" ;;
     *) echo "$c_wa subtitle check failed: $sub" ;;
   esac
   # colour: browsers read untagged or BT.601-tagged HD video with the wrong matrix (playbook/02-verification.md, 色彩标签)
@@ -851,22 +851,26 @@ cmd_pace() { # numpy for the waveform; mlx-whisper only with --align whisper (Ap
   uv run -q --no-project $deps python "$ROOT/tools/audio/pace.py" "$@"
 }
 cmd_captions() { # --media-end S: where a caption too short for its minimum may be lengthened to (default: the picture's length)
-  local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--cards] [--cps 9] [--media-end S] [--skip-lint]"
+  local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--en-max 42] [--cards] [--cps 9] [--media-end S] [--skip-lint]"
   local proj=${1:?$u}; shift
   local pos=() end=()
   while [ $# -gt 0 ]; do
     case "$1" in
       --media-end) end+=(--media-end "${2:?$u}"); shift 2 ;;
       --skip-lint|--cards) end+=("$1"); shift ;;
-      --cps) end+=(--cps "${2:?$u}"); shift 2 ;;
+      --cps|--en-max) end+=("$1" "${2:?$u}"); shift 2 ;;
       -*) echo "bin/vh captions: unknown option $1 ($u)" >&2; return 1 ;;
       *) pos+=("$1"); shift ;;
     esac
   done
   set -- ${pos[@]+"${pos[@]}"}
-  # word boundaries come from jieba: through uv when it can bring it (once cached, offline too), else plain python3 and the fallback
+  # word boundaries come from jieba: through uv when it has it cached (offline, at once), else one short try to fetch it
+  # (a network that hangs costs seconds, not a minute), else plain python3 and the fallback
   local py=(python3)
-  if command -v uv >/dev/null 2>&1 && uv run -q --no-project --with jieba python -c "import jieba" >/dev/null 2>&1; then py=(uv run -q --no-project --with jieba python); fi
+  if command -v uv >/dev/null 2>&1; then
+    if uv run -q --no-project --offline --with jieba python -c "import jieba" >/dev/null 2>&1; then py=(uv run -q --no-project --offline --with jieba python)
+    elif UV_HTTP_TIMEOUT=8 UV_HTTP_RETRIES=0 uv run -q --no-project --with jieba python -c "import jieba" >/dev/null 2>&1; then py=(uv run -q --no-project --offline --with jieba python); fi
+  fi
   PYTHONWARNINGS=ignore "${py[@]}" "$ROOT/tools/audio/captions.py" "$proj" ${1:+--lang "$1"} ${2:+--zh-max "$2"} ${end[@]+"${end[@]}"}
 }
 cmd_beats() { uv run -q --no-project --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }

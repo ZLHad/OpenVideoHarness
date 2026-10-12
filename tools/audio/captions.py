@@ -2,6 +2,7 @@
 
 usage (via bin/vh captions): python tools/audio/captions.py <project_dir> [--lang zh|en] [--zh-max 16] [--en-max 42] [--media-end S]
                                                             [--cards] [--cps 9] [--skip-lint]
+(--zh-max counts full-width characters, a half-width one as half; --en-max counts characters, spaces included)
 
 Reads audio/timeline.<lang>.json (or audio/timeline.json) written by bin/vh tts. Writes into <project>/audio/:
   captions.zh.srt, captions.en.srt (when that side exists), captions.bi.srt (zh line + en line) and
@@ -25,22 +26,26 @@ Breaks (tools/audio/capbreak.py): at word boundaries (jieba, which bin/vh captio
   it Latin words and numbers stay whole and a break may fall between any two Chinese characters), chosen by dynamic
   programming: the fewest lines, then even widths, breaks after a comma or a pause, none that leaves 把/是… at a line's end
   or 了/的… at its start, no word or two stranded after a pause. audio/capbreaks.json (a list of phrases, or {line id:
-  [phrases]}) starts a new piece at each phrase.
+  [phrases]}) starts a new piece at each phrase (in wrapped captions, only where a caption needs more than one line).
 --cards: one line per caption instead of a block of wrapped lines: each narration line is cut into cards at the same
-  breaks, never across a sentence end (。？！), each card timed from its first word (0.1 s early), the last one held 0.8 s
-  into the pause; pauses show as a space and the closing punctuation goes (？！… stay). A card shorter than its minimum is
-  joined to the next card of the same sentence when the two fit on one line, else it borrows the pause after it. The
-  narrated language only (captions.<lang>.srt and captions.json; no bilingual file).
-Minimum, in both modes: the subtitle floor (1.8 s) or the time to read it at --cps characters a second (9: readcheck's
-  subtitle rule; half-width characters count half), whichever is longer. Two captions less than 0.25 s apart touch
-  (the first runs on to the second), so the caption band does not blink for a frame.
+  breaks, never across a sentence end (。？！…, and a Latin . ? ! that no ASCII letter or digit follows), each card timed
+  from its first word (0.1 s early), the last one held 0.8 s into the pause; pauses show as a space and the closing
+  punctuation goes (？！… stay). A card shorter than its minimum is joined to the next card of the same sentence when the
+  two fit on one line, else to the one before it, else it borrows the pause after it. A card that would start after the
+  media end is left out and listed. The narrated language only (captions.<lang>.srt and captions.json, each item with
+  its "part"; the files only the other mode writes, captions.*.lines.srt, captions.bi.srt and the other language's
+  .srt, are removed, so an old one is not muxed by mistake).
+Minimum, in both modes: readcheck's subtitle rule with --cps in place of its 9 a second for Chinese: the floor (1.8 s),
+  or Chinese at --cps characters a second (half-width ones count half), or any other text at 20 a second, whichever is
+  longer. Two captions less than 0.25 s apart touch (the first runs on to the second), so the caption band does not
+  blink for a frame.
 A timeline that fails bin/vh timeline (tools/audio/timeline_lint.py: lines out of order, word times out of place, words
   that do not spell the line) is refused, exit 1, since the captions take their times from it: --skip-lint goes on.
 """
 import argparse, json, math, re, subprocess, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from readcheck import SUB_CPS_CJK, SUB_FLOOR, composition_duration   # SUB_FLOOR: the one number readcheck's subtitle rule and this tool share
+from readcheck import SUB_CPS_CJK, SUB_CPS_LATIN, SUB_FLOOR, composition_duration, is_cjk   # readcheck's subtitle rule, shared
 
 CUE_GAP = 0.1   # seconds left between an extended caption and the next one
 TOUCH = 0.25    # captions closer than this touch: no one-frame blink between them
@@ -108,9 +113,14 @@ def find_media_end(project, timeline_duration, explicit=None):
     return (d, "timeline duration") if d else (None, "")
 
 def need_of(lines, cps):
-    """The time a caption must show: the floor, or its characters at cps a second (half-width count half)."""
-    n = sum(capbreak.width(x) for x in lines)
-    return max(SUB_FLOOR, n / cps) if cps else SUB_FLOOR
+    """The time a caption must show, readcheck's subtitle rule (readcheck.subtitle_check) with cps for Chinese: the floor,
+    or Chinese at cps characters a second (half-width ones count half), or other text at 20 a second."""
+    text = "".join(lines) if any(is_cjk(c) for x in lines for c in x) else " ".join(lines)
+    if any(is_cjk(c) for c in text):
+        n, rate = capbreak.width(text.strip()), cps or SUB_CPS_CJK
+    else:
+        n, rate = float(len(text.strip())), SUB_CPS_LATIN
+    return max(SUB_FLOOR, n / rate)
 
 def touch(items):
     """Captions less than TOUCH apart: the first runs on to the next, so the band never blinks off for a frame."""
@@ -122,7 +132,8 @@ def touch(items):
     return n
 
 def cards(segments, lang, limit, cps, table, media_end):
-    """One-line cards for the narrated side: [{id, part, start, end, zh|en: [line], words?}] and the ones still short."""
+    """One-line cards for the narrated side: ([{id, part, start, end, zh|en: [line], words?}], [cards left out because
+    they start after the media end]). limit is in capbreak.width's units (ASCII counts half)."""
     other = "en" if lang == "zh" else "zh"
     out = []
     for si, s in enumerate(segments):
@@ -137,25 +148,41 @@ def cards(segments, lang, limit, cps, table, media_end):
             at = T[li] if li < len(T) and T[li] is not None else float(s["start"])
             out.append({"id": s["id"], "part": k + 1, "seg": si, "sent": raw, "forced": ci in forced, "start": max(0.0, float(s["start"]) - LEAD, at - LEAD),
                         lang: [capbreak.display(raw, True)], other: [], "_last": k + 1 == len(ps), "_end": float(s["end"])})
+    gone = []
+    if media_end:   # a card that starts once the picture has ended never shows
+        gone = [c for c in out if c["start"] >= media_end - 0.05]
+        out = [c for c in out if c["start"] < media_end - 0.05]
     for k, c in enumerate(out):   # a card runs to the next card of its line; the last one into the pause
         nxt = out[k + 1]["start"] if k + 1 < len(out) else (media_end if media_end else c["_end"] + HOLD)
-        c["end"] = min(c["_end"] + HOLD, nxt) if c["_last"] else nxt
-    # short cards: joined to the next card of the same line and sentence when the two fit on one line
+        c["end"] = max(min(c["_end"] + HOLD, nxt) if c["_last"] else nxt, c["start"] + 0.001)
+    # short cards: joined to the next card of the same line and sentence when the two fit on one line, else to the one
+    # before it (a short last card of a sentence); a card the break table starts is never joined to the one before
+    ends = lambda c: re.search(r"[。？！?!….．]\W*$", c["sent"].strip())   # noqa: E731
     k = 0
-    while k + 1 < len(out):
-        a, b = out[k], out[k + 1]
-        same = a["seg"] == b["seg"] and not b["forced"] and not re.search(r"[。？！?!…]\W*$", a["sent"].strip())
-        joined = capbreak.display(a["sent"] + b["sent"], True)
-        if a["end"] - a["start"] < need_of(a[lang], cps) - 1e-6 and same and capbreak.width(joined) <= limit:
-            a["sent"] += b["sent"]; a[lang] = [joined]; a["end"] = b["end"]; a["_last"] = b["_last"]
-            del out[k + 1]
-            continue
+    while k < len(out):
+        a = out[k]
+        if a["end"] - a["start"] >= need_of(a[lang], cps) - 1e-6:
+            k += 1; continue
+        if k + 1 < len(out):
+            b = out[k + 1]
+            joined = capbreak.display(a["sent"] + b["sent"], True)
+            if a["seg"] == b["seg"] and not b["forced"] and not ends(a) and capbreak.width(joined) <= limit:
+                a["sent"] += b["sent"]; a[lang] = [joined]; a["end"] = b["end"]; a["_last"] = b["_last"]
+                del out[k + 1]
+                continue
+        if k > 0:
+            z = out[k - 1]
+            joined = capbreak.display(z["sent"] + a["sent"], True)
+            if z["seg"] == a["seg"] and not a["forced"] and not ends(z) and capbreak.width(joined) <= limit:
+                z["sent"] += a["sent"]; z[lang] = [joined]; z["end"] = a["end"]; z["_last"] = a["_last"]
+                del out[k]
+                continue
         k += 1
     items = [{"id": c["id"], "part": c["part"], "start": round(c["start"], 3), "end": round(c["end"], 3), "zh": c["zh"], "en": c["en"]} for c in out]
     for c, seg in zip(items, out):   # the words inside each card, for engines that pop words in
         ws = [w for w in (segments[seg["seg"]].get("words") or []) if c["start"] - 1e-6 <= float(w.get("start", -1)) < c["end"]]
         if ws: c["words"] = ws
-    return items
+    return items, [{"id": c["id"], "start": round(c["start"], 3), "text": c[lang][0]} for c in gone]
 
 def extend_short(items, media_end=None, floor=SUB_FLOOR, gap=CUE_GAP, cps=None):
     """Give every caption shorter than `floor` seconds the missing time after its end, never before its start:
@@ -231,8 +258,9 @@ def main():
     narr = tl.get("lang") if tl.get("lang") in ("zh", "en") else (a.lang if a.lang in ("zh", "en") else "zh")
     if not any((s.get(narr) or "").strip() for s in tl["segments"]):   # a one-language script under the other --lang
         narr = "en" if narr == "zh" else "zh"
-    if a.cards:
-        items = cards(tl["segments"], narr, a.zh_max if narr == "zh" else a.en_max, a.cps, table, end_s)
+    left_out = []
+    if a.cards:   # the limit in capbreak.width's units: --en-max counts characters, and width counts ASCII as half
+        items, left_out = cards(tl["segments"], narr, a.zh_max if narr == "zh" else a.en_max / 2, a.cps, table, end_s)
     else:
         items = [{"id": s["id"], "start": s["start"], "end": s["end"],
                   "zh": wrap_zh(s.get("zh", ""), a.zh_max, s.get("id"), table), "en": wrap_en(s.get("en", ""), a.en_max),
@@ -243,6 +271,12 @@ def main():
     n_short = sum(1 for c in items if (c["zh"] or c["en"]) and c["end"] - c["start"] < need_of(c["zh"] or c["en"], a.cps) - 1e-6)
     still = extend_short(items, end_s, cps=a.cps)
     touched = touch(items)
+    still = [(c, why) for c, why in still if c["end"] - c["start"] < need_of(c["zh"] or c["en"], a.cps) - 1e-6]   # touching may have mended one
+    old = audio / "captions.json"
+    try:
+        was_cards = bool(old_items := json.loads(old.read_text(encoding="utf-8"))) and all("part" in c for c in old_items)
+    except (OSError, ValueError, TypeError, AttributeError):
+        was_cards = False
     moved = [c for c in items if "speech_end" in c]
     items = [{k: c[k] for k in ("id", "part", "start", "end", "speech_end", "zh", "en", "words") if k in c} for c in items]   # speech_end beside end
     (audio / "captions.json").write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -257,9 +291,24 @@ def main():
         (audio / "captions.en.srt").write_text(srt(items, lambda c: c["en"]), encoding="utf-8"); wrote.append("captions.en.srt")
     if not a.cards and any(c["zh"] for c in items) and any(c["en"] for c in items):
         (audio / "captions.bi.srt").write_text(srt(items, lambda c: c["zh"] + c["en"]), encoding="utf-8"); wrote.append("captions.bi.srt")
-    how = (f"{len(items)} one-line cards" if a.cards else f"{len(items)} captions") + (", word boundaries by jieba" if capbreak.HAVE_JIEBA else ", no jieba: a break may fall inside a Chinese word")
+    removed = []
+    if a.cards:   # what only the other mode writes: an old one would be muxed by mistake
+        other = "en" if narr == "zh" else "zh"
+        for name in ("captions.zh.lines.srt", "captions.en.lines.srt", "captions.bi.srt", f"captions.{other}.srt"):
+            if (audio / name).is_file():
+                (audio / name).unlink(); removed.append(name)
+    zh_text = any(is_cjk(ch) for c in items for x in c["zh"] for ch in x)
+    how = (f"{len(items)} one-line cards" if a.cards else f"{len(items)} captions") + (
+        "" if not zh_text else ", word boundaries by jieba" if capbreak.HAVE_JIEBA else ", no jieba: a break may fall inside a Chinese word")
     print(f"timing from {tl_path.name} ({tl.get('lang', '?')} narration) → audio/" + ", ".join(wrote) + f" · {how}" + (f" · break table: {sum(len(v) for v in table.values())} phrase(s)" if table else ""))
-    rule = f"the {SUB_FLOOR:g} s floor or {a.cps:g} characters a second"
+    if removed:
+        print(f"  removed {', '.join(removed)}: the wrapped mode's files, older than these cards (run without --cards to make them again)")
+    if was_cards and not a.cards:
+        print("  note: captions.json held one-line cards (--cards) and now holds wrapped captions; a canvas-film page that reads it"
+              " (FILM.caption.from) refuses these: run bin/vh captions again with --cards")
+    for c in left_out:
+        print(f"  left out, starts after the media end ({end_s:g} s, {end_from}): {c['id']} at {c['start']:g} s \"{c['text']}\"")
+    rule = f"the {SUB_FLOOR:g} s floor, or {a.cps:g} Chinese or {SUB_CPS_LATIN:g} other characters a second"
     if n_short:
         print(f"  {n_short} caption(s) under their minimum ({rule})" + (f": {len(moved)} extended into the gap after them ("
               + ", ".join(f"{c['id']}{'.' + str(c['part']) if 'part' in c else ''} +{c['end'] - c['speech_end']:.2f} s" for c in moved[:12]) + (" …" if len(moved) > 12 else "") + ")" if moved else "")

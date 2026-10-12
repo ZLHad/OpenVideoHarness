@@ -95,6 +95,7 @@ function build(T) {
   for (const S of SHOT_T) for (const id of S.shot.nocap || []) { if (LINES[id]) nocap.add(id); else problems.push(`shot ${S.id} (nocap): no narration line "${id}"`); }
   buildChapters(problems);
   buildCovers(problems);
+  checkCaptionFile(problems);
   if (problems.length) {
     throw new Error(`canvas-film: ${problems.length} problem${problems.length > 1 ? "s" : ""} on ${T ? T.file : "a silent film"} (src/50-shots.js):\n  ` +
       problems.slice(0, 12).join("\n  ") + (problems.length > 12 ? `\n  … ${problems.length - 12} more` : ""));

@@ -1138,6 +1138,35 @@ PY
     then ok "captions --cards: cut between words (jieba), never across a sentence end, a card starting at the break table's phrase"
     else bad "captions --cards (exit $rc): $(printf '%s' "$a" | tail -c 500) $(cat "$t/cw/audio/captions.zh.srt" 2>/dev/null | tr '\n' '|' | tail -c 400)"; fi
   else skip "captions at word boundaries" "no uv to bring jieba"; fi
+  # cards in English stay within --en-max characters and end at . ! ?; half-width ? ! end a Chinese sentence; a card that
+  # would start after the media end is left out, and no card ends before it starts
+  mkdir -p "$t/ce/audio" "$t/ch/audio" && printf '# BRIEF\n' > "$t/ce/BRIEF.md" && cp "$t/ce/BRIEF.md" "$t/ch/BRIEF.md"
+  python3 - "$t" <<'PY'
+import json, re, sys
+d = sys.argv[1]
+def seg(i, lang, text, t0, dt):
+    ws, t = [], t0
+    for w in (re.findall(r"[A-Za-z0-9']+", text) if lang == "en" else [c for c in text if c.strip() and c not in "?!，。"]):
+        ws.append({"w": w, "start": round(t, 3), "end": round(t + dt, 3)}); t += dt
+    return {"id": i, lang: text, "start": t0, "end": round(t, 3), "words": ws}
+en = "The quick brown fox jumps over the lazy dog and keeps on running. Version 3.5 is out! Is it fast? It is"
+json.dump({"lang": "en", "duration": 30.0, "segments": [seg("e1", "en", en, 0.0, 0.3)]}, open(f"{d}/ce/audio/timeline.en.json", "w"))
+json.dump({"lang": "zh", "duration": 25.0, "segments": [seg("h1", "zh", "真的吗?我不信!你再说一遍", 0.0, 0.25), seg("h2", "zh", "这一句在画面结束以后才开始", 20.0, 0.25)]},
+          open(f"{d}/ch/audio/timeline.zh.json", "w"), ensure_ascii=False)
+PY
+  a=$(vh captions "$t/ce" en --cards 2>&1); rc=$?
+  b=$(vh captions "$t/ch" zh --cards --media-end 19 2>&1); rc2=$?
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && printf '%s' "$b" | grep -q "left out, starts after the media end" && python3 - "$t" <<'PY'
+import json, sys
+d = sys.argv[1]
+en = [c["en"][0] for c in json.load(open(f"{d}/ce/audio/captions.json"))]
+zh = json.load(open(f"{d}/ch/audio/captions.json", encoding="utf-8"))
+ok = all(len(c) <= 42 for c in en) and not any(". " in c or "! " in c or "? " in c for c in en) and "Version 3.5 is out!" in en
+ok = ok and [c["zh"][0] for c in zh][:2] == ["真的吗?", "我不信!"] and all(c["id"] == "h1" and c["end"] > c["start"] for c in zh)
+sys.exit(0 if ok else 1)
+PY
+  then ok "captions --cards: English within --en-max and cut at . ! ? (3.5 whole), half-width ? ! end a Chinese sentence, a card after the media end left out"
+  else bad "captions --cards in English / half-width / media end (exit $rc, $rc2): $(printf '%s' "$a $b" | tail -c 400) $(head -c 600 "$t/ce/audio/captions.json" 2>/dev/null)"; fi
   # check: an SRT beside the video with an entry too short to read is listed (a warning, not a failure)
   if command -v ffmpeg >/dev/null; then
     mkdir -p "$t/sc" && ffmpeg -nostdin -v error -f lavfi -i color=c=0x303030:s=320x180:r=30:d=3 -pix_fmt yuv420p "$t/sc/film.mp4"

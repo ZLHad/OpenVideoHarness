@@ -493,9 +493,17 @@ def main():
     rel = lambda p: p.relative_to(proj)
 
     def captions(old, skip_lint=False):
+        """captions.py again on the new timeline, in the mode the old captions were made in (one-line cards when every item
+        has a part), with jieba when uv has it cached (bin/vh pace itself runs without it)."""
         sys.stdout.flush()
-        r = subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "captions.py"), str(proj), "--lang", a.lang]
-                           + (["--skip-lint"] if skip_lint or a.skip_lint else []))
+        py = [sys.executable]
+        if shutil.which("uv") and subprocess.run(["uv", "run", "-q", "--no-project", "--offline", "--with", "jieba", "python", "-c", "import jieba"],
+                                                 capture_output=True).returncode == 0:
+            py = ["uv", "run", "-q", "--no-project", "--offline", "--with", "jieba", "python"]
+        cards = bool(old) and all(isinstance(c, dict) and "part" in c for c in old)
+        r = subprocess.run(py + [str(Path(__file__).resolve().parent / "captions.py"), str(proj), "--lang", a.lang]
+                           + (["--cards"] if cards else []) + (["--skip-lint"] if skip_lint or a.skip_lint else []),
+                           env={**os.environ, "PYTHONWARNINGS": "ignore"})
         narrow = [c for c in old if len(c.get("zh") or []) > 1 and sum(0.5 if ord(ch) < 128 else 1 for ch in "".join(c["zh"])) <= 16]
         if narrow:                                        # two lines that fit one at the default width: wrapped narrower before
             w = max(sum(0.5 if ord(ch) < 128 else 1 for ch in line) for c in old for line in c.get("zh") or [])

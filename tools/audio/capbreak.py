@@ -9,13 +9,18 @@ characters, as before. Each piece costs 150 and each break what it is worth belo
     或 是 让 给 比 为 由, or the next starting on 了 的 地 得 着 过 吗 呢 吧 啊 么 们 (as one-character words) costs more;
   - a piece whose last pause leaves only a word or two after it ("怎么测，写"), or that starts with one character and a
     pause ("纸，折了"), costs more;
-  - a closing mark never starts a piece and an opening mark never ends one; a colon before a quote is a good break.
-A manual break table (audio/capbreaks.json: a list of phrases, or {line id: [phrases]}) starts a new piece at each phrase.
+  - a closing mark never starts a piece and an opening mark never ends one; a colon before a quote is a good break;
+  - in wrapped lines, the punctuation at a line's end hangs past the limit (it is not counted), as it always did.
+A sentence ends at 。？！… and at a Latin . ? ! that no ASCII letter or digit follows (3.5, Node.js and 12:30 stay whole), as
+the canvas-film engine cuts its own captions.
+A manual break table (audio/capbreaks.json: a list of phrases, or {line id: [phrases]}) starts a new piece at each phrase
+(an empty phrase, or one that starts inside a Latin word, is left out). In wrapped lines it is used only where a caption
+needs more than one line.
 """
 import difflib, json, math, re, unicodedata
 from pathlib import Path
 
-STOPS = "。？！?!…"
+STOPS = "。？！?!….．"
 PAUSES = "，、：；,;:"
 CLOSERS = "”’」』）》)\"'】〉"
 OPENERS = "“‘「『（《(【〈"
@@ -85,15 +90,22 @@ def display(s, cards):
     return re.sub(r"\s+", " ", re.sub(r"[，、：；]", " ", s)).strip()
 
 
+ASCII_ALNUM = re.compile(r"[A-Za-z0-9]")
+
+
 def sentences(toks):
-    """Token lists, cut after a sentence end (a Latin . ! ? only when no letter or digit follows)."""
+    """Token lists, cut after a sentence end: 。？！… always; a Latin . ! ? only when the character right after it in the
+    text (a space, a closing mark, a Chinese character) is not an ASCII letter or digit."""
     out, cur = [], []
     for k, (p, t) in enumerate(toks):
         cur.append((p, t))
-        core = t.rstrip(CLOSERS + " ")
-        nxt = toks[k + 1][1] if k + 1 < len(toks) else ""
-        if core and core[-1] in STOPS and not (core[-1] in ".!?" and nxt[:1].isalnum()):
-            out.append(cur); cur = []
+        core = t.rstrip(CLOSERS + " \t")
+        if not core or core[-1] not in STOPS:
+            continue
+        after = t[len(core):] + (toks[k + 1][1] if k + 1 < len(toks) else "")
+        if core[-1] in ".!?" and ASCII_ALNUM.match(after[:1] or " "):
+            continue   # 3.5, Node.js, "e.g.x": the text goes on
+        out.append(cur); cur = []
     if cur:
         out.append(cur)
     return out
@@ -113,7 +125,8 @@ def best_breaks(toks, limit, cards, forced=()):
 
     def cost(i, j):
         text = "".join(t for _, t in toks[i:j])
-        w = width(display(text, cards))
+        # a wrapped line's closing punctuation hangs past the limit; a card shows its ？！… and counts them
+        w = width(display(text, cards) if cards else text.strip().rstrip(STOPS + PAUSES + CLOSERS + " "))
         if w > limit and j - i > 1:
             return INF
         if any(starts[k] in forced for k in range(i + 1, j)):
@@ -169,10 +182,16 @@ def load_breaks(audio_dir):
 
 
 def forced_starts(text, line_id, table):
+    """Where the break table starts a piece: each phrase's every place in the text, but not at its start, not for an
+    empty phrase, and not inside a Latin word or number ("Node.js" stays whole)."""
     out = []
     for ph in table.get("*", []) + table.get(str(line_id), []):
+        if not ph.strip():
+            continue
         for m in re.finditer(re.escape(ph), text):
-            if m.start() > 0: out.append(m.start())
+            i = m.start()
+            if i > 0 and not (LATIN.fullmatch(text[i - 1]) and LATIN.fullmatch(text[i])):
+                out.append(i)
     return out
 
 

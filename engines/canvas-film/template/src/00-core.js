@@ -264,7 +264,23 @@ function captionPieces(text, max) {
 }
 // from: "audio/captions.json" takes the cards bin/vh captions --cards wrote (cut at word boundaries with jieba and the
 // manual break table) instead of cutting here; their times are the timeline's, so FILM.lead is added
-let CAP_FILE = null;   // the cards loaded from FILM.caption.from in ready: [{ id, start, end, zh: [line], en: [line] }]
+let CAP_FILE = null;   // the cards loaded from FILM.caption.from in ready: [{ id, part, start, end, zh: [line], en: [line] }]
+// the cards must be cards (each with its part: a plain bin/vh captions run, or bin/vh pace, writes wrapped blocks), one
+// line no wider than FILM.caption.max (a character of slack: Latin counts 0.55 here, 0.5 there), for this timeline's lines
+function checkCaptionFile(problems) {
+  if (!CAP_FILE) return;
+  const f = FILM.caption.from, blocks = CAP_FILE.filter((c) => !c || c.part === undefined), wide = [], stale = new Set();
+  if (blocks.length) problems.push(`${f}: ${blocks.length} of ${CAP_FILE.length} item(s) are wrapped captions, not one-line cards: run bin/vh captions <project> --cards (a plain run or bin/vh pace wrote them)`);
+  for (const c of CAP_FILE) {
+    if (!c || c.part === undefined) continue;
+    const text = [].concat(c[FILM.lang] || c.zh || c.en || []).join(" ").trim();
+    if (capWidth(text) > FILM.caption.max + 1) wide.push(`"${text}"`);
+    if (Object.keys(LINES).length && !LINES[c.id]) stale.add(c.id);
+  }
+  const redo = FILM.lang === "en" ? `bin/vh captions <project> en --en-max ${Math.floor(FILM.caption.max / 0.55)} --cards` : `bin/vh captions <project> zh ${FILM.caption.max} --cards`;
+  if (wide.length) problems.push(`${f}: ${wide.length} card(s) wider than FILM.caption.max (${FILM.caption.max}): ${wide.slice(0, 3).join(", ")}${wide.length > 3 ? " …" : ""} (${redo})`);
+  if (stale.size) problems.push(`${f}: cards for narration lines this timeline does not have: ${[...stale].slice(0, 8).join(", ")} (made for another script or take? run bin/vh captions <project> --cards again)`);
+}
 function buildCaptions(nocap) {
   const C = FILM.caption;
   CAPS = [];

@@ -5,9 +5,11 @@ usage: python3 tools/subcheck.py <video> [more.srt …]      (bin/vh check runs 
 Each subtitle must show for at least readcheck's subtitle rule: 1.8 s, or its characters at 9 a second for Chinese
 (half-width characters count half) and 20 a second otherwise, whichever is longer (tools/readcheck.py, subtitle_check).
 Where the subtitles come from: the video's own subtitle tracks (an MP4's mov_text, read with ffmpeg), and the .srt files
-in the video's folder (all of them when there are five or fewer, else those whose name starts with the video's), plus
-any given. Captions burned into the picture are not here: bin/vh readcheck <project> judges those.
-Prints one line per source, and the short entries (the 12 shortest). Exit: 0 none short · 1 some short · 2 no video.
+in the video's folder whose name starts with the video's (film.zh.srt beside film.mp4), plus any given; an .srt with the
+same entries as a track is that track, listed once. Times as SRT writes them (00:01:02,500) or without the hours
+(01:02.500). Captions burned into the picture are not here: bin/vh readcheck <project> judges those.
+Prints one line per source, and the short entries (the 12 shortest). Exit: 0 none short · 1 some short · 2 no video ·
+3 could not read them (the error).
 """
 import re, subprocess, sys
 from pathlib import Path
@@ -15,13 +17,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from readcheck import subtitle_check
 
 def ts(x):
-    h, m, r = x.strip().replace(".", ",").split(":"); s, ms = r.split(",")
-    return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000
+    parts = x.strip().replace(",", ".").split(":")
+    return sum(float(p) * 60 ** k for k, p in enumerate(reversed(parts)))
+
+TIME = r"((?:\d+:)?\d+:\d+[,.]\d+)"
 
 def parse(srt):
     out = []
-    for b in re.split(r"\r?\n\s*\r?\n", srt.strip()):
-        m = re.search(r"(\d+:\d+:\d+[,.]\d+)\s*-->\s*(\d+:\d+:\d+[,.]\d+)", b)
+    for b in re.split(r"\r?\n\s*\r?\n", srt.lstrip("\ufeff").strip()):
+        m = re.search(TIME + r"\s*-->\s*" + TIME, b)
         if not m: continue
         text = " ".join(l.strip() for l in b[m.end():].strip().splitlines() if l.strip())
         text = re.sub(r"<[^>]+>|\{\\[^}]*\}", "", text)
@@ -45,12 +49,14 @@ def main():
     if not video.is_file():
         print(f"subcheck: no such file {video}", file=sys.stderr); sys.exit(2)
     sources = tracks(video)
-    srts = sorted(video.parent.glob("*.srt"))
-    if len(srts) > 5: srts = [p for p in srts if p.name.startswith(video.stem)]
-    srts += [Path(p) for p in sys.argv[2:]]
+    srts = [p for p in sorted(video.parent.glob("*.srt")) if p.name.startswith(video.stem)] + [Path(p) for p in sys.argv[2:]]
     for p in dict.fromkeys(srts):
-        try: sources.append((p.name, parse(p.read_text(encoding="utf-8", errors="replace"))))
-        except OSError: pass
+        try: items = parse(p.read_text(encoding="utf-8", errors="replace"))
+        except OSError: continue
+        key = [(round(a, 2), round(b, 2), t) for a, b, t in items]
+        if any(key == [(round(a, 2), round(b, 2), t) for a, b, t in its] for _, its in sources):
+            continue   # the same entries as a track: it is that track
+        sources.append((p.name, items))
     if not sources:
         print("subtitles: none in the video or beside it (captions burned into the picture: bin/vh readcheck <project>)"); sys.exit(0)
     bad = 0
@@ -71,4 +77,7 @@ def main():
     sys.exit(1 if bad else 0)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:   # not "some are short": bin/vh check says the check failed
+        print(f"subcheck: {type(e).__name__}: {e}", file=sys.stderr); sys.exit(3)
