@@ -111,6 +111,14 @@
 #                               with --allow <seconds of designed flashes>) + colour tags; --against: a 4K render vs the approved 1080p cut
 #                               (exit 1 when the picture differs: a layout that breaks at device scale 2)
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
+#  deliver and tidy
+#   deliver <master.mp4> [--for bilibili,douyin,youtube] [--max-gb N] [--crf 16] [--out f] [--psnr sample|full|off]   the copy to upload:
+#                               the bit rate a platform's file limit leaves for the picture (playbook/10, 交付编码): CRF 16 under it, or two
+#                               passes at it when the master's own rate is over it;
+#                               a keyframe every 2 s, BT.709, sound and subtitles copied; the size against each limit, the PSNR against the master
+#   clean <project> [--yes] [--delete] [--keep path …] [--final f]   a finished project's intermediates (frames, render chunks, drafts,
+#                               old takes, stems, node_modules) to the Trash; the film, covers, captions, review pages, sources, docs and the
+#                               narration in use stay. Without --yes it only lists them; --delete deletes what the tools can make again
 set -euo pipefail
 unset CDPATH   # an exported CDPATH would send a relative cd (this one: bin/vh run as bin/vh) to another folder, and print it
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -931,6 +939,8 @@ PY
   fi
   echo "$c_ok $out${1:+ (+$s subtitle track(s)${off:+, off by default})}"
 }
+cmd_deliver() { [ $# -gt 0 ] || { cmd_usage deliver; exit 1; }; python3 "$ROOT/tools/deliver.py" "$@"; }   # ffmpeg only
+cmd_clean() { [ $# -gt 0 ] || { cmd_usage clean; exit 1; }; python3 "$ROOT/tools/clean.py" "$@"; }         # stdlib only
 cmd_gif() {
   local v=${1:?usage: bin/vh gif <video> [width] [fps]} w=${2:-640} fps=${3:-15} b out; b=${v##*/}; out="${v%"$b"}${b%.*}.gif"   # extension off the file name, not a dotted folder
   ffmpeg -v error -y -i "$v" -vf "fps=$fps,scale=$w:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" "$out" && ls -lh "$out" | awk '{print $5, $9}'
@@ -961,7 +971,7 @@ case "${1:-help}" in
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
-  storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;;
+  storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;;
   help|-h|--help) cmd_help ;;
   *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;
 esac
