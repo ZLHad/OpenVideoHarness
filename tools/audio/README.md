@@ -527,10 +527,10 @@ ffmpeg -framerate 30 -i out/frames/f%05d.jpg -c:v libx264 -crf 17 -pix_fmt yuv42
 bin/vh mux out/final.mp4 audio/mix.wav out/final-av.mp4
 ```
 
-**给旁白垫静音，别用 `anullsrc` 加 `concat` 滤镜。** `-f lavfi -i anullsrc` 这一路输入解码出来是 8 bit 的 `pcm_u8`，`concat` 又要把每一路转成同一种格式：静音排在第一路、长度用 `anullsrc=…:d=` 或滤镜里的 `atrim` 定时，旁白就被转成 u8 再拼，整条人声只剩 1/128 一级的精度（ffmpeg 8.0.1 实测，16 bit、24 bit 和浮点的源都一样）。输出写成 `pcm_s24le` 救不回来，在 `concat` 后面加 `aformat` 也不行。静音排在后面、或者用输入的 `-t` 定长度时这次没中，但格式怎么协商由 ffmpeg 决定，别靠它。现象是 `bin/vh qa` 报出大量 click（一支 457 s 的旁白片报了 2000 多处），停顿里的样本在 0 和 −1/128 之间跳；查法是取一段安静但不全是零的样本（句间的底噪、尾音），乘以 128 全是整数就是中了。旁白要晚一点进来，最省事的是合成时加 `--lead`（`playbook/04-audio.md` 的"配音"）；合成以后再垫，用 `adelay` 和 `apad`，或者在 numpy、soundfile 里直接拼数组：
+**给旁白垫静音，别用 `anullsrc` 加 `concat` 滤镜。** `-f lavfi -i anullsrc` 这一路输入解码出来是 8 bit 的 `pcm_u8`，`concat` 又要把每一路转成同一种格式：静音排在第一路、长度用 `anullsrc=…:d=` 或滤镜里的 `atrim` 定时，旁白就被转成 u8 再拼，整条人声只剩 1/128 一级的精度（ffmpeg 8.0.1 实测，16 bit、24 bit 和浮点的源都一样）。输出写成 `pcm_s24le` 救不回来，在 `concat` 后面加 `aformat` 也不行。静音排在后面、或者用输入的 `-t` 定长度时这次没中，但格式怎么协商由 ffmpeg 决定，别靠它。现象是 `bin/vh qa` 报出大量 click（一支七八分钟的旁白片报了 2000 多处），停顿里的样本在 0 和 −1/128 之间跳；查法是取一段安静但不全是零的样本（句间的底噪、尾音），乘以 128 全是整数就是中了。旁白要晚一点进来，最省事的是合成时加 `--lead`（`playbook/04-audio.md` 的"配音"）；合成以后再垫，用 `adelay` 和 `apad`，或者在 numpy、soundfile 里直接拼数组：
 
 ```bash
-ffmpeg -i vo.wav -af "adelay=600:all=1,apad=whole_dur=457" -c:a pcm_s24le vo_film.wav   # 前面垫 0.6 s，后面补到 457 s，人声逐采样不变
+ffmpeg -i vo.wav -af "adelay=600:all=1,apad=whole_dur=480" -c:a pcm_s24le vo_film.wav   # 前面垫 0.6 s，后面补到 480 s（片长），人声逐采样不变
 ```
 
 非要用 `concat`，就在它的每一路输入上都加 `aformat=sample_fmts=s32`。`bin/vh tts` 的句间静音是先写成 16 bit 的 WAV 文件、再用 concat demuxer 拼的，不受影响（实测逐采样一致）。
