@@ -1,6 +1,6 @@
 // canvas-film · main: draws the frame at t (the shot, or two shots in a transition; then grain, the chapter bar, the
 // caption and the fades) and gives the page contract (engines/CONTRACT.md): window.film = { frame, duration, ready,
-// width, height, texts, events, chapters, cues }. The page never moves on its own: it draws when frame(t) is called.
+// width, height, texts, events, chapters, cues, covers, cover }. The page never moves on its own: it draws when frame(t) is called.
 
 function shotAt(t) { let i = 0; while (i + 1 < SHOT_T.length && t >= SHOT_T[i + 1].a) i++; return i; }
 
@@ -18,11 +18,14 @@ function drawShot(i, t) {
   } finally { X.restore(); SHOT = prev; }
 }
 
-function draw(t) {
+function picture(t) {   // the shot (or the two of a transition) and the grain: the frame without what sits over it
   const i = shotAt(t), S = SHOT_T[i];
   if (S.din > 0 && t - S.a < S.din) TRANSITIONS[S.tin].draw(i - 1, i, t, (t - S.a) / S.din);
   else drawShot(i, t);
   grain(t, FILM.grain);
+}
+function draw(t) {
+  picture(t);
   chapterBar(t);
   captionBand(t);
   shade(Math.max(FILM.fadeIn > 0 ? 1 - seg(t, 0, FILM.fadeIn) : 0, FILM.fadeOut > 0 ? seg(t, DUR - FILM.fadeOut, DUR) : 0));
@@ -33,6 +36,22 @@ function frame(t) {
   t = clamp(Number(t) || 0, 0, Math.max(0, DUR - 1e-6));
   X.reset(); X.setTransform(PRX, 0, 0, PRX, 0, 0);
   draw(t);
+}
+
+// a cover: the frame at its cue with the camera nudged (cam: { z, x, y }: zoom about the middle of the frame, then move by
+// x, y px), without the chapter bar and the caption unless it asks for them (bar: true, caption: true), and its title on top
+function cover(id) {
+  const c = COVER_T.find((x) => x.id === String(id));
+  if (!c) throw new Error(`canvas-film: no cover "${id}" (COVERS in src/50-shots.js: ${COVER_T.map((x) => x.id).join(", ") || "none"})`);
+  const t = clamp(c.t, 0, Math.max(0, DUR - 1e-6)), cam = c.cam || {};
+  X.reset(); X.setTransform(PRX, 0, 0, PRX, 0, 0);
+  X.save();
+  X.translate(W / 2 + (cam.x || 0), H / 2 + (cam.y || 0)); X.scale(cam.z || 1, cam.z || 1); X.translate(-W / 2, -H / 2);
+  picture(t);
+  X.restore();
+  if (c.bar) chapterBar(t);
+  if (c.caption) captionBand(t);
+  if (c.title) coverTitle(c.title);
 }
 
 // ---- ready ----
@@ -65,6 +84,7 @@ function build(T) {
   buildShots(problems);
   for (const S of SHOT_T) for (const id of S.shot.nocap || []) { if (LINES[id]) nocap.add(id); else problems.push(`shot ${S.id} (nocap): no narration line "${id}"`); }
   buildChapters(problems);
+  buildCovers(problems);
   if (problems.length) {
     throw new Error(`canvas-film: ${problems.length} problem${problems.length > 1 ? "s" : ""} on ${T ? T.file : "a silent film"} (src/50-shots.js):\n  ` +
       problems.slice(0, 12).join("\n  ") + (problems.length > 12 ? `\n  … ${problems.length - 12} more` : ""));
@@ -133,5 +153,7 @@ window.film = {
   get events() { return EVENTS; },                                                // [{ t, kind, shot, x?, dur? }], transitions too
   get chapters() { return CHAPTER_T.map((c) => ({ t: r3(c.t), title: c.title })); },
   get cues() { return CUES; },                                                    // [{ id, ref, t }]
+  get covers() { return COVER_T.map((c) => ({ id: c.id, t: r3(c.t), title: c.title ? [].concat(c.title.text || []).join(" / ") : "" })); },
+  cover(id) { cover(id); },                                                       // draw a cover (bin/vh frames --covers)
   get timeline() { return TIMELINE; },                                            // the timeline file the cues hang on, beside film.html
 };

@@ -75,10 +75,11 @@
 #                               shows), under 3:1, outside or cut by the frame, or under a DOM caption (exit 1); canvas text outside the registry
 #                               and captions over a bright picture warn. The composition opts in with window.film = { frame(t), duration, texts? }
 #                               (engines/CONTRACT.md; the older window.__vh = { draw(t), texts? } still works)
-#   frames <project|page.html> (--at t,t… | --range a:b[:step] | --strip a:b) [--fps 30] [--out dir] [--size WxH] [--dpr 2] [--real-clock]
+#   frames <project|page.html> (--at t,t… | --range a:b[:step] | --strip a:b | --covers[=A,B]) [--fps 30] [--out dir] [--size WxH] [--dpr 2] [--real-clock]
 #                               frames drawn from the source through the page contract (window.film, engines/CONTRACT.md), for any web-page
 #                               engine: ClaudeAnimationBase, a page that writes window.film, HyperFrames (a composition without it gets its own
-#                               runtime); lossless PNGs in <project>/out/frames; --strip: every frame of a span and one picture of them all
+#                               runtime); lossless PNGs in <project>/out/frames; --strip: every frame of a span and one picture of them all;
+#                               --covers: the page's covers (window.film.covers; canvas-film COVERS, picked by cue) in <project>/out/covers
 #   render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b | --frames k0:k1] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png]
 #                               an MP4 drawn through the page contract (the canvas engine, ClaudeAnimationBase, any page that writes
 #                               window.film): parallel chunks into x264, BT.709 tv range, a keyframe every --gop frames, <out>.render.json
@@ -96,11 +97,12 @@
 #                               font draws each character (exit 1 on any; out/check/fonts.json). bin/vh render says so too
 #   fonts list [words…] [--cjk] | fonts subset <project|page.html> [--family F] [--font file|name] [--out dir]   the faces on this
 #                               machine by the names local() takes; the page's local() fonts cut to the characters the project uses (woff2)
-#   cues <project|page.html> [--save] [--out f]   where the page's cues landed (window.film.cues: times hung on the narration's
+#   cues <project|page.html> [--save] [--out f] [--chapters]   where the page's cues landed (window.film.cues: times hung on the narration's
 #                               words), in order; --save keeps them in out/cues.json with the timeline's sha256, and a later run says
-#                               which cues a new take moved and by how much
+#                               which cues a new take moved and by how much; --chapters: the chapter list for a description (out/chapters.txt)
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
-#   check <video> [--allow t,t…] [--against <ref.mp4>]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) +
+#   check <video> [--allow t,t…] [--against <ref.mp4>]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) + the
+#                               publishing copy in PACKAGING.md against the platforms' length limits (a warning) +
 #                               black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any not declared
 #                               with --allow <seconds of designed flashes>) + colour tags; --against: a 4K render vs the approved 1080p cut
 #                               (exit 1 when the picture differs: a layout that breaks at device scale 2)
@@ -792,6 +794,17 @@ cmd_check() {
   if [ -z "$col" ]; then :
   elif [ "$col" = "yuv420p,tv,bt709,bt709,bt709" ]; then echo "$c_ok colour: yuv420p, limited range, BT.709 with all four tags"
   else echo "$c_wa colour: $col (pix_fmt,range,matrix,transfer,primaries); deliver yuv420p, tv, bt709 ×3 — re-encode with the command in playbook/02-verification.md (色彩标签)"; fi
+  # the publishing copy (PACKAGING.md, 发布文案) against the platforms' length limits: said, not a failure of the film
+  local proj pk prc=0; proj=$(project_of "$v")
+  if [ -n "$proj" ] && [ -f "$proj/PACKAGING.md" ]; then
+    pk=$(python3 "$ROOT/tools/packcheck.py" "$proj/PACKAGING.md" 2>&1) || prc=$?
+    case "$prc:$pk" in
+      0:*"no 发布文案"*) ;;
+      0:*) printf '%s\n' "$pk" | sed "s/^packaging/$c_ok packaging/" ;;
+      1:*) echo "$c_wa the publishing copy in PACKAGING.md is over a platform's limit (playbook/10, 发布文案的长度):"; printf '%s\n' "$pk" | sed 's/^/   /' ;;
+      *) echo "$c_wa packaging check failed: $pk" ;;
+    esac
+  fi
   # scale: a 4K render against the approved 1080p cut, so a layout that only breaks at device scale 2 shows up
   # (engines/README.md, 出 4K). Needs numpy, like the frame scan.
   if [ -n "$against" ]; then

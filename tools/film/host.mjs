@@ -176,6 +176,19 @@ export async function openFilm(target, o = {}) {
         return { png: Buffer.from(shot.data, "base64"), touched };
       },
       draw,   // draw t without capturing it (a check that reads the page, not its pixels)
+      // a cover (window.film.covers): the page's cover(id) when it has one (its own camera and title), else frame(t)
+      async cover(id, t, capture = { format: "png" }) {
+        const touched = await ev(`(async (id, t) => {
+          const H = window.filmHost, f = window.film && window.film.frame ? window.film : null;
+          if (H && H.time) H.time(t);
+          try { if (f && typeof f.cover === "function") await f.cover(id); else if (f) await f.frame(t); else await window.__vh.draw(t); }
+          finally { if (H && H.settle) H.settle(t); }
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          return H && H.touched ? H.touched() : [];
+        })(${JSON.stringify(id)}, ${JSON.stringify(t)})`, `drawing cover ${id}`);
+        const shot = await browser.send("Page.captureScreenshot", { ...capture, fromSurface: true, captureBeyondViewport: false }, s);
+        return { png: Buffer.from(shot.data, "base64"), touched };
+      },
       problems: () => problems.splice(0),
       // the page's own fields (texts, events, chapters, cues, timeline: engines/CONTRACT.md); list(name) only takes an array
       field,

@@ -49,6 +49,16 @@ function card(t, at, cx, cy, n, word) {
   });
 }
 
+// covers: a frame picked by cue (it follows the narration when the opening changes), the camera nudged for room, a title
+//   at     a cue or seconds, as a shot's · cam { z, x, y }: zoom about the middle, then move by x, y px (within
+//          (z - 1) x 960 and (z - 1) x 540, or the frame's edge shows)
+//   title  { text: [lines], size: [px per line], x, y (first baseline), align, color, band } in "Film Heavy"
+//   bar, caption: true to keep the chapter bar or the caption (off by default)
+// bin/vh frames <project> --covers draws them into out/covers/<id>.png (--dpr 2 for 3840 x 2160)
+const COVERS = [
+  { id: "A", at: "@a2:第二张+0.6", cam: { z: 1.12, x: 0, y: -60 }, title: { text: ["改一个字，镜头跟着走"], size: 150, x: 960, y: 1010, align: "center" } },
+];
+
 const SHOTS = [
   { id: "S01", at: 0,
     see: "片名“镜头挂在字上”；一条时间轴上，旁白说到“镜头”“时间”“字”，这三个词依次弹出来；说到“字”，一枚图钉落在它上面",

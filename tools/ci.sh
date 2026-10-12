@@ -375,6 +375,12 @@ PY
     case "$rc:$a" in 1:*"1 isolated frame(s) in 60: 1.000 s"*"--no-browser-gpu"*) ok "check fails on one odd frame and names its time" ;; *) bad "check on one odd frame (rc $rc): $a" ;; esac
     a=$(vh check "$t/odd.mp4" --allow 0.4,1.0 2>&1); rc=$?
     case "$rc:$a" in 0:*"no isolated frames in 60"*"declared (--allow): 1.000 s"*) ok "check --allow: a declared flash is listed and passes" ;; *) bad "check --allow (rc $rc): $a" ;; esac
+    # the publishing copy in PACKAGING.md: a Bilibili description of 2100 characters is over its 2000 (said, not a failure)
+    { printf '%s\n' '# PACKAGING' '## 发布文案' '### B站' '标题：一个够短的标题' '标签：科普, 物理' '简介：'; python3 -c "print('字' * 2100)"; printf '%s\n' '### YouTube' 'Title: short'; } > "$t/sp/PACKAGING.md"
+    a=$(vh check "$t/sp/out/ref.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 0:*"over a platform's limit"*"B站: ✓ 标题 title 7 characters"*"✗ 简介 description 2100 characters (limit 2000"*"YouTube: ✓ 标题 title 5 characters"*) ok "check measures the publishing copy against the platforms' limits and says what is over" ;;
+      *) bad "check on the publishing copy (rc $rc): $(printf '%s' "$a" | tail -c 600)" ;; esac
+    rm -f "$t/sp/PACKAGING.md"
     a=$(vh check "$t/odd.mp4" --allow 1s 2>&1); rc=$?
     [ $rc = 1 ] && ok "check --allow with a typo fails instead of skipping the scan" || bad "check --allow 1s exited $rc: $a"
     a=$(vh check "$t/a.wav" 2>&1); rc=$?
@@ -590,7 +596,7 @@ SH
     && ok "style compare: posters and swatch frames" || bad "bin/vh style compare"
   vh style compare blueprint,no-such >/dev/null 2>&1; rc=$?; [ $rc != 0 ] && ok "style compare rejects an unknown preset" || bad "style compare accepted an unknown preset"
   out=$(vh cover-preview "$ROOT/styles/blueprint/media/poster.jpg" --out "$t/cover.png")
-  case "$out" in *"smallest text"*|*"no text line found"*) [ -s "$t/cover.png" ] && ok "cover-preview draws the feed sizes and a legibility line" || bad "cover-preview wrote nothing" ;; *) bad "cover-preview said: $out" ;; esac
+  case "$out" in *"smallest text"*"title stroke "*" px at the smallest slot"*|*"no text line found"*) [ -s "$t/cover.png" ] && ok "cover-preview draws the feed sizes and a legibility line (with the title's stroke width at the smallest slot)" || bad "cover-preview wrote nothing" ;; *) bad "cover-preview said: $out" ;; esac
   rm -rf "$t"
 }
 
@@ -1053,6 +1059,32 @@ PY
   else bad "cues on the canvas-film template: exit $rc / $rc2: $(printf '%s' "$a$b" | tail -c 800)"; fi
   a=$(vh cues "$ROOT/tools/film/fixture/index.html" 2>&1); rc=$?
   [ $rc = 2 ] && printf '%s' "$a" | grep -q 'gives no window.film.cues' && ok "cues: a page without window.film.cues exits 2 and says so" || bad "cues on a page without cues: exit $rc: $a"
+  # covers picked by cue: the template's cover A is drawn into out/covers; a longer opening (every line 0.4 s later) moves
+  # its time with the narration, and the picture it takes stays the same (only the grain, a function of t, differs)
+  mkdir "$t/cov" && cp -R "$c/." "$t/cov/"
+  a=$(vh frames "$t/cov" --covers --out "$t/cov/c1" 2>&1); rc=$?
+  python3 - "$t/cov/audio/timeline.zh.json" <<'PY'
+import json, sys
+p = sys.argv[1]; tl = json.load(open(p, encoding="utf-8"))
+for s in tl["segments"]:
+    s["start"] = round(s["start"] + 0.4, 3); s["end"] = round(s["end"] + 0.4, 3)
+    for w in s.get("words", []): w["start"] = round(w["start"] + 0.4, 3); w["end"] = round(w["end"] + 0.4, 3)
+tl["duration"] = round(tl["duration"] + 0.4, 3)
+json.dump(tl, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+PY
+  b=$(vh frames "$t/cov" --covers --out "$t/cov/c2" 2>&1)
+  t1=$(printf '%s' "$a" | sed -n 's/.*(cover A at \([0-9.]*\) s.*/\1/p'); t2=$(printf '%s' "$b" | sed -n 's/.*(cover A at \([0-9.]*\) s.*/\1/p')
+  same=1; if command -v ffmpeg >/dev/null; then
+    p=$(ffmpeg -v info -nostdin -i "$t/cov/c1/A.png" -i "$t/cov/c2/A.png" -lavfi psnr -f null - 2>&1 | sed -n 's/.*average:\([0-9.inf]*\).*/\1/p')
+    python3 -c "import sys; v = sys.argv[1]; sys.exit(0 if v == 'inf' or float(v or 0) >= 30 else 1)" "$p" || same=0
+  fi
+  if [ -s "$t/cov/c1/A.png" ] && [ -n "$t1" ] && python3 -c "import sys; sys.exit(0 if abs(float(sys.argv[2]) - float(sys.argv[1]) - 0.4) < 0.002 else 1)" "$t1" "$t2" && [ $same = 1 ]
+  then ok "covers: drawn into out/covers by cue; a longer opening moves the cover with the narration (+0.4 s) to the same picture"
+  else bad "covers on the canvas-film template (exit $rc; $t1 → $t2, psnr ${p:-}): $(printf '%s' "$a$b" | tail -c 600)"; fi
+  mkdir "$t/chp" && cp -R "$c/." "$t/chp/"
+  a=$(vh cues "$t/chp" --chapters 2>&1); rc=$?
+  if [ $rc = 0 ] && printf '%s' "$a" | grep -q '^  0:00 挂在字上' && printf '%s' "$a" | grep -q '^  0:11 翻一页' && printf '%s' "$a" | grep -q 'at least three'; then ok "cues --chapters: the engine's chapters as a description's list, half a second early, with YouTube's conditions"
+  else bad "cues --chapters: exit $rc: $(printf '%s' "$a" | tail -c 500)"; fi
   # bin/vh fonts check on a font with only "A" and "B" (tools/film/fixture/fonts/ab.ttf): from 1 s the canvas draws a "C" and
   # U+10FFFD, the DOM a "D"; before that everything is in the font. render says the same, without failing
   a=$(vh fonts check "$ROOT/tools/film/fixture/glyphs.html" --out "$t/fo" 2>&1); rc=$?

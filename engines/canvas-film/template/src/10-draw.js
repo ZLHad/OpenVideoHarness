@@ -6,7 +6,7 @@
 // ---- text: every string goes through txt(), which keeps the size floor ----
 // the families film.html declares with @font-face (local() faces, nothing downloaded); o.family takes one of these keys
 // or a CSS family list of its own
-const FAMILIES = { sans: '"Film Sans", sans-serif', serif: '"Film Serif", serif', mono: '"Film Mono", monospace' };
+const FAMILIES = { sans: '"Film Sans", sans-serif', serif: '"Film Serif", serif', mono: '"Film Mono", monospace', heavy: '"Film Heavy", "Film Sans", sans-serif' };
 let TEXTURE = 0;   // > 0 while a texture text is drawn: the floor guard (src/90-main.js) leaves it alone
 // the CSS font for a size: never under FILM.minText (playbook/03 §4), unless o.texture says the text is deliberately faint
 // or small (a page of source text behind the one line that matters). Texture text is never a read.

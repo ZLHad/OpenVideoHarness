@@ -4,7 +4,7 @@
 // captured as a lossless PNG.
 //
 // usage: node tools/film/frames.mjs <project | page.html> --browser <chrome>
-//          (--at t[,t…] | --range a:b[:step] | --strip a:b) [--fps 30] [--cols 6] [--cell 320]
+//          (--at t[,t…] | --range a:b[:step] | --strip a:b | --covers[=id,…]) [--fps 30] [--cols 6] [--cell 320]
 //          [--out dir] [--size WxH] [--dpr 1] [--real-clock] [--soft-gl] [--runtime auto|on|off] [--timeout 600]
 //        (bin/vh frames finds the browser: CHROME_PATH, HyperFrames' chrome-headless-shell, then Chrome or Chromium)
 //
@@ -14,6 +14,9 @@
 //                       (--cols per row, each --cell px wide), left to right, top to bottom. When a falls on a frame,
 //                       each is drawn at k / fps exactly, the t bin/vh render draws (an engine that floors t would
 //                       draw another picture at a t rounded to the millisecond)
+//   --covers[=A,B]      the page's covers (window.film.covers: [{ id, t }], picked by cue in canvas-film), each drawn by
+//                       the page's cover(id) when it has one (its own camera nudge and title), else as the frame at its t;
+//                       written to <out>/<id>.png, out defaulting to <project>/out/covers
 //   --size 1080x1920    the viewport; without it, HyperFrames' data-width and data-height, else the page's meta viewport,
 //                       else 1920x1080. A page's window.film.width and height win over all of these
 //   --dpr 2             the device pixel ratio: twice the pixels for a page that sizes its canvas by devicePixelRatio, as
@@ -45,7 +48,7 @@ const finish = async (code, msg) => {
 const die = (msg) => finish(2, msg);
 process.on("unhandledRejection", (e) => finish(2, (e && e.message) || String(e)));
 const o = { fps: 30, cols: 6, cell: 320, dpr: 1, timeout: 600, runtime: "auto" };
-let target = null, at = null, range = null, strip = null, out = null, size = null;
+let target = null, at = null, range = null, strip = null, covers = null, out = null, size = null;
 const r3 = (t) => Math.round(t * 1000) / 1000;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], [k, inline] = a.startsWith("--") && a.includes("=") ? [a.slice(0, a.indexOf("=")), a.slice(a.indexOf("=") + 1)] : [a, undefined];
@@ -54,6 +57,7 @@ for (let i = 0; i < argv.length; i++) {
   if (k === "--at") { at = val().split(",").map((v) => r3(num(v.trim(), "--at"))); }
   else if (k === "--range") range = val().split(":").map((v) => num(v, "--range"));
   else if (k === "--strip") strip = val().split(":").map((v) => num(v, "--strip"));
+  else if (k === "--covers") covers = inline !== undefined ? [...new Set(inline.split(",").map((x) => x.trim()).filter(Boolean))] : [];
   else if (["--fps", "--cols", "--cell", "--timeout"].includes(k)) o[k.slice(2)] = num(val(), k, 1);
   else if (k === "--dpr") o.dpr = num(val(), k, 0.25);
   else if (k === "--out") out = val();
@@ -70,12 +74,12 @@ for (let i = 0; i < argv.length; i++) {
 function bail(msg) { console.error("frames: " + msg); process.exit(2); }
 if (!target) bail("which project or page? (-h for the usage)");
 if (!o.browser) bail("no browser: pass --browser <chrome>, or run it as bin/vh frames");
-if ([at, range, strip].filter(Boolean).length !== 1) bail("say which frames: one of --at, --range or --strip");
+if ([at, range, strip, covers].filter(Boolean).length !== 1) bail("say which frames: one of --at, --range, --strip or --covers");
 if (at && !at.length) bail("--at needs at least one time");
 if (range && (range.length < 2 || range.length > 3 || range[1] < range[0] || (range.length === 3 && !(range[2] > 0)))) bail("--range a:b[:step], b ≥ a, step > 0");
 if (strip && (strip.length !== 2 || strip[1] <= strip[0])) bail("--strip a:b, b > a");
 
-let times = at ? [...new Set(at)] : null;
+let times = at ? [...new Set(at)] : covers ? [] : null;
 if (range) { const step = range[2] || 1; times = []; for (let k = 0; range[0] + k * step <= range[1] + 1e-9; k++) times.push(r3(range[0] + k * step)); }
 if (strip) {   // on render's frame grid when the strip starts on it: t = k / fps, not rounded
   const n = Math.max(1, Math.round((strip[1] - strip[0]) * o.fps)), f0 = strip[0] * o.fps, on = Math.abs(f0 - Math.round(f0)) < 1e-6;
@@ -87,7 +91,7 @@ const watchdog = setTimeout(() => finish(2, `stopped after ${o.timeout} s (--tim
 watchdog.unref();
 try { film = await openFilm(target, { ...o, width: size && size[0], height: size && size[1] }); } catch (e) { await die(e.message); }
 const stem = path.basename(film.page, path.extname(film.page));
-const outDir = path.resolve(out || path.join(film.root, "out", "frames"));
+const outDir = path.resolve(out || path.join(film.root, "out", covers ? "covers" : "frames"));
 try { fs.mkdirSync(outDir, { recursive: true }); } catch (e) { await die(`cannot write ${outDir}: ${e.message}`); }
 const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };
 console.log(`frames: ${rel(film.page)} · ${film.kind === "film" ? "window.film" : film.kind === "__vh" ? "window.__vh" : "HyperFrames runtime"} · ` +
@@ -118,6 +122,23 @@ for (const t of times) {
     if (!stripDir) console.log(`  ${rel(f)}  (${Date.now() - t0} ms)`);
   } catch (e) { failed++; console.log(`  t=${at3(t)} s: ${e.message}`); }
 }
+if (covers) {   // the page's covers: [{ id, t }]
+  const all = (await film.list("covers").catch(() => null)) || [];
+  if (!all.length) await die(`${rel(film.page)} lists no covers (window.film.covers; canvas-film: COVERS in src/50-shots.js)`);
+  const want = covers.length ? covers.map((id) => all.find((c) => String(c.id) === id) || id) : all;
+  const unknown = want.filter((c) => typeof c === "string");
+  if (unknown.length) await die(`no cover ${unknown.join(", ")} (the page has ${all.map((c) => c.id).join(", ")})`);
+  for (const c of want) {
+    try {
+      const { png } = await film.cover(c.id, c.t);
+      const f = path.join(outDir, `${String(c.id).replace(/[^\w.-]+/g, "-")}.png`);
+      fs.writeFileSync(f, png); written.push(f);
+      const later = film.problems();
+      if (later.length) { failed++; console.log(`  cover ${c.id}: ${later.join(" | ")}`); }
+      console.log(`  ${rel(f)}  (cover ${c.id} at ${(+c.t).toFixed(3)} s${c.title ? `: ${c.title}` : ""})`);
+    } catch (e) { failed++; console.log(`  cover ${c.id}: ${e.message}`); }
+  }
+}
 const late = await film.lateProblems();
 if (late.length) { failed++; console.log(`  just after the last frame (an error a frame left behind, charged to no frame): ${late.join(" | ")}`); }
 if (stripDir && written.length) {
@@ -131,5 +152,5 @@ for (const [c, ts] of readers) {
   console.log(`  warning: the page read ${c} while drawing (${ts.length} frame${ts.length > 1 ? "s" : ""}, first at ${at3(ts[0])} s). Hard rule 1: take ` +
     `randomness from a seeded hash; here the host held it at t, so the frames still agree, but a renderer that does not will not.`);
 }
-console.log(`frames: ${written.length} of ${times.length} drawn${failed ? `, ${failed} problem${failed > 1 ? "s" : ""}` : ""}`);
+console.log(`frames: ${written.length} of ${covers ? written.length + failed : times.length} drawn${failed ? `, ${failed} problem${failed > 1 ? "s" : ""}` : ""}`);
 await finish(failed ? 1 : written.length ? 0 : 2);
