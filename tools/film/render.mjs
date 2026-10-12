@@ -165,7 +165,7 @@ async function worker(w, [a, b]) {
   // (never in the way of the render: a minute at most, then it is said to be unchecked)
   if (film && !failed && !gone) {
     try { glyphs.push(await within((async () => { await collectDom(film); return checkGlyphs(film); })(), 60, "the glyph check")); }
-    catch (e) { glyphs.push({ error: e.message.replace(/ \(--frame-timeout\)$/, "") }); }
+    catch (e) { glyphs.push({ error: /no picture after/.test(e.message) ? "it did not finish within 60 s" : e.message }); }
   }
   const code = await closed;
   if (film) await film.close();

@@ -85,7 +85,7 @@
 #                               records how; video only (sound: mux). HyperFrames: npx hyperframes render (--force to render it here anyway)
 #   determinism <project|page.html> [--at t,t…] [--samples 6] [--min-psnr 45]   is each frame a function of t? draws the same t
 #                               in one browser in two orders and in a second browser, compares them, and again with the real clock
-#   fonts check <project|page.html> [--step 0.5] [--at t,…] [--allow-fallback "Apple Color Emoji"] [--out dir]   is every character drawn
+#   fonts check <project|page.html> [--step 0.5] [--at t,…] [--allow-fallback "Apple Color Emoji"] [--strict] [--out dir]   is every character drawn
 #                               in the font it asks for? A font without a character falls back to another font, or to none (an empty glyph),
 #                               silently: this draws the film at sampled times, notes the canvas and DOM text and asks the browser which
 #                               font draws each character (exit 1 on any; out/check/fonts.json). bin/vh render says so too
@@ -572,7 +572,7 @@ arg_dir() { # the folder of the project or page among a tool's arguments: the fi
   for a in "$@"; do
     if [ $skip = 1 ]; then skip=0; continue; fi
     case $a in
-      --soft-gl|--real-clock|--png|--force|--save|--*=*) ;;
+      --soft-gl|--real-clock|--png|--force|--save|--strict|--*=*) ;;
       -*) skip=1 ;;
       *) if [ -d "$a" ]; then echo "$a"; else case $a in */*) echo "${a%/*}" ;; *) echo . ;; esac; fi; return 0 ;;
     esac
