@@ -131,10 +131,11 @@ def cards(segments, lang, limit, cps, table, media_end):
             continue
         T = capbreak.letter_times(text, s.get("words"), float(s["start"]), float(s["end"]))
         ps = capbreak.pieces(text, limit, True, s.get("id"), table)
+        forced = set(capbreak.forced_starts(text, s.get("id"), table))   # a card the break table starts is never joined back
         for k, (ci, raw) in enumerate(ps):
             li = capbreak.letter_index(text, ci)
             at = T[li] if li < len(T) and T[li] is not None else float(s["start"])
-            out.append({"id": s["id"], "part": k + 1, "seg": si, "sent": raw, "start": max(0.0, float(s["start"]) - LEAD, at - LEAD),
+            out.append({"id": s["id"], "part": k + 1, "seg": si, "sent": raw, "forced": ci in forced, "start": max(0.0, float(s["start"]) - LEAD, at - LEAD),
                         lang: [capbreak.display(raw, True)], other: [], "_last": k + 1 == len(ps), "_end": float(s["end"])})
     for k, c in enumerate(out):   # a card runs to the next card of its line; the last one into the pause
         nxt = out[k + 1]["start"] if k + 1 < len(out) else (media_end if media_end else c["_end"] + HOLD)
@@ -143,7 +144,7 @@ def cards(segments, lang, limit, cps, table, media_end):
     k = 0
     while k + 1 < len(out):
         a, b = out[k], out[k + 1]
-        same = a["seg"] == b["seg"] and not re.search(r"[。？！?!…]\W*$", a["sent"].strip())
+        same = a["seg"] == b["seg"] and not b["forced"] and not re.search(r"[。？！?!…]\W*$", a["sent"].strip())
         joined = capbreak.display(a["sent"] + b["sent"], True)
         if a["end"] - a["start"] < need_of(a[lang], cps) - 1e-6 and same and capbreak.width(joined) <= limit:
             a["sent"] += b["sent"]; a[lang] = [joined]; a["end"] = b["end"]; a["_last"] = b["_last"]

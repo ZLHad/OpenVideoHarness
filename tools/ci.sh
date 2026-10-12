@@ -1141,7 +1141,7 @@ PY
   # check: an SRT beside the video with an entry too short to read is listed (a warning, not a failure)
   if command -v ffmpeg >/dev/null; then
     mkdir -p "$t/sc" && ffmpeg -nostdin -v error -f lavfi -i color=c=0x303030:s=320x180:r=30:d=3 -pix_fmt yuv420p "$t/sc/film.mp4"
-    printf '1\n00:00:00,500 --> 00:00:01,300\n这一句只亮了零点八秒\n\n2\n00:00:01,300 --> 00:00:03,000\n这句够长\n' > "$t/sc/film.zh.srt"
+    printf '1\n00:00:00,500 --> 00:00:01,300\n这一句只亮了零点八秒\n\n2\n00:00:01,300 --> 00:00:03,200\n这句够长\n' > "$t/sc/film.zh.srt"
     a=$(vh check "$t/sc/film.mp4" 2>&1); rc=$?
     case "$a" in *"subtitles · film.zh.srt: 1 of 2 entries are shorter than it takes to read them"*"0.80 s, needs 1.80 s"*) ok "check lists subtitle entries too short to read, from the SRT beside the film" ;;
       *) bad "check on a short subtitle (rc $rc): $(printf '%s' "$a" | tail -c 500)" ;; esac
