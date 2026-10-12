@@ -126,8 +126,13 @@ const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { 
 const held = (f) => { try { const pid = +fs.readFileSync(f, "utf8"); return pid > 0 && alive(pid) ? pid : 0; } catch { return 0; } };
 if (held(film + ".lock")) die(`bin/vh render (pid ${held(film + ".lock")}) is writing ${rel(film)}: wait for it`);
 const lock = outFile + ".patch.lock";
-if (held(lock)) die(`another patch (pid ${held(lock)}) is writing ${rel(outFile)}: wait for it, or delete ${rel(lock)} if it is gone`);
-fs.writeFileSync(lock, String(process.pid));
+for (let tries = 0; ; tries++) {   // taken by whoever writes it first (wx); one whose pid is gone is stale and taken over
+  try { fs.writeFileSync(lock, String(process.pid), { flag: "wx" }); break; } catch (e) { if (e.code !== "EEXIST") die(`cannot write ${rel(lock)}: ${e.message}`); }
+  let pid = 0, age = 0;
+  try { pid = +fs.readFileSync(lock, "utf8"); age = Date.now() - fs.statSync(lock).mtimeMs; } catch { continue; }   // gone meanwhile: try again
+  if ((pid ? alive(pid) : age < 10000) || tries >= 4) die(`another patch${pid ? ` (pid ${pid})` : ""} is writing ${rel(outFile)}: wait for it, or delete ${rel(lock)} if it is gone`);
+  try { fs.unlinkSync(lock); } catch { /* another took it over first: try again */ }
+}
 const unlock = () => { try { if (+fs.readFileSync(lock, "utf8") === process.pid) fs.unlinkSync(lock); } catch { /* gone */ } };
 process.on("exit", unlock);
 // the film's packets are written about twice over before the parts go (cut, joined, tracks put back): room for that
@@ -270,11 +275,17 @@ if (pixDiff) failures.push(`${pixDiff} frame(s) next to the joins decode to othe
 // (run in the work folder, so the stats file's name needs no escaping in the filter graph whatever the folders are called)
 const ps2 = spawnSync("ffmpeg", ["-v", "error", "-nostdin", "-ss", (A / fps).toFixed(6), "-i", film, "-ss", (A / fps).toFixed(6), "-i", joined,
   "-frames:v", String(B - A), "-lavfi", "[0:v][1:v]psnr=stats_file=psnr.log", "-f", "null", "-"], { encoding: "utf8", cwd: work });
-const psnr = ps2.status === 0 && fs.existsSync(path.join(work, "psnr.log"))
-  ? fs.readFileSync(path.join(work, "psnr.log"), "utf8").split("\n").filter(Boolean).map((l) => { const m = l.match(/psnr_avg:(\S+)/); return m ? (m[1] === "inf" ? Infinity : +m[1]) : NaN; })
-  : [];
+// the filter graph can run a frame past -frames:v, so the stats file may have one line more: lines are taken by their
+// frame number n (from 1), the first B - A of them, each once
+const psnr = new Array(B - A).fill(NaN);
+if (ps2.status === 0 && fs.existsSync(path.join(work, "psnr.log")))
+  for (const l of fs.readFileSync(path.join(work, "psnr.log"), "utf8").split("\n")) {
+    const n = +(l.match(/(?:^|\s)n:(\d+)/) || [])[1], m = l.match(/psnr_avg:(\S+)/);
+    if (n >= 1 && n <= B - A && m) psnr[n - 1] = m[1] === "inf" ? Infinity : +m[1];
+  }
 // the one check that sees an edit reaching past a–b: no PSNR is a failure, not a pass
-if (psnr.length !== B - A || psnr.some(Number.isNaN)) failures.push(`the PSNR of frames ${A}–${B - 1} against the film could not be measured (ffmpeg: ${(ps2.stderr || `exit ${ps2.status}`).toString().trim().split("\n")[0] || `${psnr.length} of ${B - A} frames`})`);
+if (psnr.some(Number.isNaN)) failures.push(`the PSNR of frames ${A}–${B - 1} against the film could not be measured (ffmpeg: ${ps2.signal ? `stopped by ${ps2.signal}` :
+  (ps2.stderr || "").toString().trim().split("\n")[0] || `exit ${ps2.status}, ${psnr.filter((x) => !Number.isNaN(x)).length} of ${B - A} frames`})`);
 const span = (lo, hi) => psnr.slice(lo - A, hi - A + 1).filter((x) => !Number.isNaN(x));
 const kept = [...span(A, a - 1), ...span(b + 1, B - 1)], asked = span(a, b);
 const fmt = (x) => (x === Infinity ? "∞" : x.toFixed(1));
@@ -294,7 +305,7 @@ if (o.verify === "full") {
 const secs = (Date.now() - T0) / 1000;
 console.log(`  frames: ${after.length} (the film: ${N})${after.length === N ? " ✓" : " ✗"}`);
 console.log(`  packets outside ${A}–${B - 1}: ${same} the film's own${moved ? `, ${moved} not ✗` : " ✓"}; decoded ${w0}–${w1 - 1} around the joins: ${pixDiff ? `${pixDiff} frames differ ✗` : "the same pixels outside the new frames (PSNR ∞) ✓"}${db.err ? " · decode errors ✗" : ", no decode errors ✓"}`);
-if (psnr.length) console.log(`  against the film: frames ${a}–${b} ${asked.length ? `${fmt(Math.min(...asked))}–${fmt(Math.max(...asked))} dB` : "—"} (what changed)` +
+if (!psnr.some(Number.isNaN)) console.log(`  against the film: frames ${a}–${b} ${asked.length ? `${fmt(Math.min(...asked))}–${fmt(Math.max(...asked))} dB` : "—"} (what changed)` +
   (kept.length ? `; frames drawn again only to reach the keyframes at least ${fmt(minKept)} dB${minKept >= o.minPsnr ? " ✓" : " ✗"}` : ""));
 if (o.verify === "full") console.log(`  the whole new film decodes${failures.some((f) => f.startsWith("decoding the whole")) ? " with errors ✗" : " without an error ✓"}`);
 for (const n of notes) console.log(`  note: ${n}`);
