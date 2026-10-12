@@ -23,25 +23,28 @@ glitches under 1 % of the picture (a few garbled characters), and any frame whos
 of the picture or more (particles, camera moves, line boil): those frames are counted (leaving out the one or two a cut
 makes) and their stretches of half a second or more listed, so strip-check them.
 
-Periodic motion: an oscillation can land on its still point once a cycle (an 8 Hz bounce at 30 fps does every 15 frames),
-and that frame looks isolated. Three or more hits evenly spaced (within a frame) are reported as periodic motion, not as
-glitches, and do not fail; keep a periodic motion under a quarter of the frame rate, as a smooth cosine (playbook/03).
+Periodic motion: an oscillation can land on its still point once a cycle, and that frame looks isolated. Four or more
+hits evenly spaced (within a frame; one every 4 frames to 2 s), each small (at most 25 % of the picture) and alike in
+size, are reported as periodic motion and do not fail; looked for only when there are 50 hits or fewer, since a render
+with more is broken. Keep a periodic motion under a quarter of the frame rate, as a smooth cosine (playbook/03).
 
 MOTION (--motion). Same 192x108 grey frames. The thresholds are first guesses checked on a few films, not rules
 (docs/research/07-motion-checks.md has the numbers): every line is a warning to look at, never a failure.
   cuts     a frame where over 30 % of the pixels change by more than 12 levels, the mean change is over 18 and over 3 times
-           the median of the 10 frames around it: a hard cut. A cut whose mean brightness rises by more than
-           90 of 255 (3 frames each side) is listed: dark to bright in one frame reads as a flash.
+           the median of the 10 frames around it: a hard cut. A cut after which the brightest of the next 3 frames is at
+           least 170 of 255 and over 90 above the mean of the 3 before is listed: dark to bright in one frame reads as a
+           flash (a one-frame white flash between two dark shots too).
   static   runs where no frame differs from the one before it on more than 0.2 % of its pixels (by more than 6 levels;
            film grain stays under that at this size): nothing the eye reads as moving. The share of the film in runs of
            2 s or more goes on the summary line; runs of 3 s or more are listed, each said to be frozen (not even frames a
-           second apart differ) or a slow drift. Black runs are left to blackdetect.
+           second apart differ) or a slow drift. Black runs (under 2 % of the pixels above 25 of 255) are left to blackdetect; a
+           held formula on a black background is not black.
   summary  the share of frame pairs where over 0.5 % of the picture changes, the hard cuts, the still share, and the
            largest jump inside a shot: leaving out 0.35 s after each cut and changes as large as a cut, a frame-to-frame
            change over 8 times the shot's median (and over 6 levels) in a shot that moves at all. On the showcase films
            those were designed pops and fast pushes, so it is only a number on the summary line, not a warning.
 """
-import argparse, json, subprocess, sys
+import argparse, json, re, subprocess, sys
 from collections import deque
 from fractions import Fraction
 from pathlib import Path
@@ -50,7 +53,9 @@ import numpy as np
 STEP, CHANGED = 12, 0.01      # a pixel differs from a neighbour by more than STEP grey levels; frame differs: share > CHANGED
 STEP_PN, MAX_PN = 6, 0.25     # the neighbours agree: their share over STEP_PN is under MAX_PN x the smaller of the two above
 CUT_SHARE, CUT_MEAN = 0.30, 18.0    # --motion: a hard cut (share over 12 levels; mean absolute change)
-FLASH = 90.0                        # a cut's mean brightness rising more than this (of 255) reads as a flash
+FLASH, BRIGHT = 90.0, 170.0         # a cut whose brightness rises by more than FLASH to at least BRIGHT (of 255) reads as a flash
+LIT = 25                            # a pixel over this (of 255) is not black (blackdetect's 0.10); a run under 2 % lit is black
+PERIODIC_MAX, PERIODIC_SIZE = 50, 0.25   # periodic motion: only among at most this many hits, each changing at most this share
 STILL_STEP, STILL_SHARE = 6, 0.002   # a frame pair is still when under STILL_SHARE of the picture changes by over STILL_STEP
 STILL_SUM, STILL_LIST = 2.0, 3.0     # still runs of STILL_SUM s count towards the share; runs of STILL_LIST s are listed
 JUMP_RATIO, JUMP_MIN, JUMP_MOVING, AFTER_CUT = 8.0, 6.0, 0.3, 0.35
@@ -107,11 +112,11 @@ def scan(video, motion=False):
     w, h = (108, 192) if vh > vw else (192, 108)
     sec = max(1, round(float(Fraction(rate)))) if rate else 30
     hits, blind, n, prev, cur, d_prev = [], [], 0, None, None, 0.0
-    st = {"area": [0.0], "area6": [0.0], "energy": [0.0], "luma": [], "still": [None]} if motion else None
+    st = {"area": [0.0], "area6": [0.0], "energy": [0.0], "luma": [], "lit": [], "still": [None]} if motion else None
     ring = deque(maxlen=sec + 1)
     for nxt in frames(video, w, h, rate):
         if motion:
-            st["luma"].append(float(nxt.mean()))
+            st["luma"].append(float(nxt.mean())); st["lit"].append(float((nxt > LIT).mean()))
             ring.append(nxt)
             if n:
                 st["area"].append(changed(cur, nxt, STEP)); st["area6"].append(changed(cur, nxt, STILL_STEP)); st["energy"].append(float(np.abs(nxt - cur).mean()))
@@ -130,28 +135,34 @@ def scan(video, motion=False):
         die(f"no frames decoded from {video}")
     return n, rate, hits, blind, st
 
-def periodic(idx):
-    """Chains of three or more frame numbers evenly spaced (each gap within one frame of the first, gaps of 3 frames or
-    more): [(frames, gap)], longest first, each frame in one chain at most."""
-    left, out = sorted(idx), []
-    while len(left) >= 3:
-        best = []
-        for i, a in enumerate(left):
-            for b in left[i + 1:]:
-                g = b - a
-                if g < 3: continue
-                chain, last = [a, b], b
-                for c in left:
-                    if c > last and abs(c - last - g) <= 1: chain.append(c); last = c
-                if len(chain) > len(best): best = chain
-        if len(best) < 3: break
+def periodic(hits, fps):
+    """Isolated frames that are a periodic motion rather than glitches: chains of 4 or more evenly spaced hits (each gap
+    within one frame of the first, the gap from 4 frames to 2 s), each hit small (changing at most PERIODIC_SIZE of the
+    picture) and the hits of a chain alike (the largest at most 3x the smallest). Looked for only among PERIODIC_MAX hits
+    or fewer: a render with more is broken, not bouncing. → [(frames, gap)], longest first, each frame in one chain."""
+    if not fps or len(hits) > PERIODIC_MAX:
+        return []
+    size = {i: max(d1, d2) for i, d1, d2, _ in hits}
+    left = sorted(i for i in size if size[i] <= PERIODIC_SIZE)
+    out = []
+    while len(left) >= 4:
+        have, best = set(left), []
+        for a in left:
+            for g in range(4, int(round(2 * fps)) + 1):
+                chain, last = [a], a
+                while True:
+                    nxt = next((last + g + d for d in (0, -1, 1) if last + g + d in have), None)
+                    if nxt is None: break
+                    chain.append(nxt); last = nxt
+                if len(chain) > len(best) and max(size[c] for c in chain) <= 3 * min(size[c] for c in chain): best = chain
+        if len(best) < 4: break
         out.append((best, round((best[-1] - best[0]) / (len(best) - 1), 2)))
         left = [x for x in left if x not in best]
     return out
 
 def motion_report(st, n, fps, hits_near):
     """The --motion findings: (lines, numbers)."""
-    area, area6, energy, luma, still = st["area"], st["area6"], st["energy"], st["luma"], st["still"]
+    area, area6, energy, luma, lit, still = st["area"], st["area6"], st["energy"], st["luma"], st["lit"], st["still"]
     # hard cuts: one frame of large change, well above the frames around it (a camera that keeps moving after a cut too)
     cuts = []
     for i in range(1, n):
@@ -159,9 +170,9 @@ def motion_report(st, n, fps, hits_near):
             around = [energy[k] for k in range(max(1, i - 5), min(n, i + 6)) if k != i]
             if not around or energy[i] > 3 * float(np.median(around)): cuts.append(i)
     flashes = []
-    for i in cuts:
-        before, after = np.mean(luma[max(0, i - 3):i]), np.mean(luma[i:i + 3])
-        if after - before > FLASH: flashes.append((i, float(before), float(after)))
+    for i in cuts:   # the brightest of the 3 frames after the cut: a one-frame white flash between two dark shots counts too
+        before, after = np.mean(luma[max(0, i - 3):i]), max(luma[i:i + 3])
+        if after - before > FLASH and after >= BRIGHT: flashes.append((i, float(before), float(after)))
     # static: frame pairs where almost nothing changes (over STILL_STEP on under STILL_SHARE of the picture: grain stays
     # under the step at this size), in runs of STILL_MIN s; "frozen" when not even a second apart shows a change, else a
     # slow drift that the eye reads as still. Black runs are blackdetect's
@@ -170,7 +181,7 @@ def motion_report(st, n, fps, hits_near):
         if area6[i] < STILL_SHARE:
             j = i
             while j + 1 < n and area6[j + 1] < STILL_SHARE: j += 1
-            if (j - i + 2) / fps >= STILL_SUM and np.mean(luma[i - 1:j + 1]) > 10:
+            if (j - i + 2) / fps >= STILL_SUM and np.mean(lit[i - 1:j + 1]) >= 0.02:   # black (under 2 % lit) is blackdetect's
                 inside = [still[k] for k in range(i + int(round(fps)), j + 1) if still[k] is not None]   # a second apart, both in the run
                 frozen = bool(inside) and all(x < STILL_SHARE for x in inside)
                 stretches.append((i - 1, j, frozen))
@@ -213,15 +224,12 @@ def main():
     ap.add_argument("--motion", action="store_true", help="also how the film moves: cuts, flashes, static stretches, jumps")
     ap.add_argument("--json", help="every number into this file")
     a = ap.parse_args()
-    allow = []
-    try:
-        for x in (x.strip() for x in a.allow.split(",") if x.strip()):
-            lo, sep, hi = x.partition("-")
-            allow.append((float(lo), float(hi)) if sep and lo else (float(x), float(x)))
-    except ValueError:
-        print(f"isoframes: --allow takes seconds or spans a-b separated by commas, not {a.allow!r}", file=sys.stderr); sys.exit(3)
-    if any(hi < lo for lo, hi in allow):
-        print(f"isoframes: --allow {a.allow!r}: a span a-b needs b ≥ a", file=sys.stderr); sys.exit(3)
+    allow, num = [], r"(\d+(?:\.\d*)?|\.\d+)"
+    for x in (x.strip() for x in a.allow.split(",") if x.strip()):
+        m = re.fullmatch(rf"{num}(?:\s*-\s*{num})?", x)
+        if not m or (m.group(2) is not None and float(m.group(2)) < float(m.group(1))):
+            print(f"isoframes: --allow takes seconds or spans a-b (b ≥ a) separated by commas, not {x!r}", file=sys.stderr); sys.exit(3)
+        allow.append((float(m.group(1)), float(m.group(2) if m.group(2) is not None else m.group(1))))
     try:
         n, rate, hits, blind, st = scan(a.video, a.motion)
     except OSError as e:   # ffprobe or ffmpeg missing: not a finding
@@ -236,7 +244,7 @@ def main():
     # a declared time matches a hit within one frame either way; +1 ms because printed times are floored to the ms
     declared = [x for x in hits if fps and any(lo - 1 / fps - 0.001 <= x[0] / fps <= hi + 1 / fps + 0.001 for lo, hi in allow)]
     rest = [x for x in hits if x not in declared]
-    chains = periodic([i for i, *_ in rest]) if fps else []
+    chains = periodic(rest, fps)
     regular = {i for c, _ in chains for i in c}
     found = [x for x in rest if x[0] not in regular]
     if found:
@@ -248,10 +256,15 @@ def main():
     else:
         print(f"no isolated frames in {n} frames")
     for c, g in chains:
-        print(f"  periodic: {len(c)} frames every {g:g} frames ({fps / g:.1f} Hz) at {t(c[0]).removesuffix(' s')}–{t(c[-1])}: an oscillation landing on "
-              f"its still point once a cycle, not a glitch; keep periodic motion under {fps / 4:.1f} Hz, a smooth cosine (playbook/03)")
+        print(f"  periodic: {len(c)} small frames, one every {g:g} frames ({g / fps:.2f} s), at {t(c[0]).removesuffix(' s')}–{t(c[-1])}: a periodic motion "
+              f"landing on its still point once a cycle, so not failed; a bounce that flickers is aliasing: keep periodic motion under "
+              f"{fps / 4:.1f} Hz, a smooth cosine (playbook/03)")
     if declared:
         print("  declared (--allow): " + ", ".join(span(r) for r in runs([i for i, *_ in declared], 2)))
+        wide = [f"{lo:g}-{hi:g}" for lo, hi in allow if hi - lo > 5]
+        if wide or len(declared) > 10:
+            print(f"  note: --allow {', '.join(wide) or a.allow} declares {len(declared)} frame(s)" + (" over spans longer than 5 s" if wide else "")
+                  + ": make sure every one is a flash you designed")
     if allow and not fps:
         print("  --allow ignored: the video has no usable frame rate, so times cannot be matched")
     near = {j for i, *_ in hits for j in (i - 1, i + 1)}   # a flagged frame's neighbours see it, not motion
