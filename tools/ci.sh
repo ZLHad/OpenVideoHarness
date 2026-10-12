@@ -315,20 +315,28 @@ PY
   else bad "deliver (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   a=$(vh deliver "$t/master.mp4" --max-gb 0.00001 2>&1); rc=$?
   case "$rc:$a" in 2:*"too little"*) ok "deliver: a limit that leaves no room for the picture is refused (exit 2)" ;; *) bad "deliver with a tiny limit: exit $rc: $a" ;; esac
-  # bin/vh clean: a finished project's frames, render chunks, drafts and old takes go (to a Trash under a stand-in home here);
+  # bin/vh clean: a finished project's frames, render chunks, drafts and old takes go (to a stand-in Trash here, OVH_TRASH_DIR);
   # the film in out/final/, its covers, the review pages, the narration in use and its original, sources and docs stay
   c="$t/cl"; mkdir -p "$c/out/frames" "$c/out/.film.mp4.parts" "$c/out/final/covers" "$c/out/review" "$c/audio/takes" "$c/src" "$c/node_modules/x" "$t/home"
   for f in BRIEF.md film.html src/50-shots.js out/frames/a.png out/.film.mp4.parts/part000.mp4 out/draft1.mp4 out/film.mp4 out/film.mp4.render.json \
     out/final/film-4k.mp4 out/final/covers/a.png out/review/gate-1.html out/cues.json audio/voiceover.zh.wav audio/voiceover.zh.raw.wav \
     audio/voiceover.zh.v1.wav audio/music.wav audio/takes/b.wav audio/timeline.zh.json node_modules/x/i.js; do printf x > "$c/$f"; done
   a=$(vh clean "$c" 2>&1); rc=$?; [ -f "$c/out/draft1.mp4" ] && a="$a (draft still there)"
-  b=$(HOME="$t/home" XDG_DATA_HOME="$t/home/.local/share" vh clean "$c" --yes --delete 2>&1); rc2=$?
+  b=$(OVH_TRASH_DIR="$t/home/trash" vh clean "$c" --yes --delete 2>&1); rc2=$?
   left=$(cd "$c" && find . -type f | sed 's|^\./||' | sort | tr '\n' ' ')
   want="BRIEF.md audio/timeline.zh.json audio/voiceover.zh.raw.wav audio/voiceover.zh.wav film.html out/cues.json out/final/covers/a.png out/final/film-4k.mp4 out/review/gate-1.html src/50-shots.js "
   if [ $rc = 0 ] && printf '%s' "$a" | grep -q '9 item(s)' && printf '%s' "$a" | grep -q '(draft still there)' && [ $rc2 = 0 ] && [ "$left" = "$want" ] \
-    && [ "$(find "$t/home" -name '*.wav' | wc -l | tr -d ' ')" = 3 ]
-  then ok "clean: lists first; then the film, covers, review pages, the narration in use and the sources stay, the rest goes (old takes to the Trash)"
+    && [ "$(find "$t/home" -name '*.wav' | wc -l | tr -d ' ')" = 3 ] && [ "$(find "$t/home" -name '*.mp4' | wc -l | tr -d ' ')" = 2 ]
+  then ok "clean: lists first; then the film, covers, review pages, the narration in use and the sources stay, the rest goes (old takes and renders to the Trash)"
   else bad "clean: exit $rc / $rc2, left: $left | $(printf '%s' "$a$b" | tail -c 700)"; fi
+  # a cover video inside out/final/ is not the film, so out/final.mp4 is; a path kept inside a folder that goes stays
+  c="$t/cl2"; mkdir -p "$c/out/final/covers" "$c/out/frames"
+  for f in BRIEF.md out/final/covers/loop.mp4 out/final.mp4 out/draft.mp4 out/frames/a.png out/frames/keep.png; do printf x > "$c/$f"; done
+  a=$(vh clean "$c" --keep out/frames/keep.png 2>&1); rc=$?
+  if [ $rc = 0 ] && printf '%s' "$a" | grep -q 'the film: out/final.mp4' && printf '%s' "$a" | grep -q 'out/draft.mp4' && printf '%s' "$a" | grep -q 'out/frames/a.png' \
+    && ! printf '%s' "$a" | grep -Eq 'keep\.png|  out/final\.mp4|loop\.mp4'
+  then ok "clean: a cover video does not make the film a render; a path kept inside a folder that goes stays"
+  else bad "clean on covers and a kept path (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   # spec: the file against the BRIEF's Output and Resolution lines (python3 only)
   mkdir -p "$t/sp/out"
   sp() { ffmpeg -nostdin -v error -f lavfi -i "color=c=0x202020:s=${1}:r=${2}:d=${5:-1},${3}" -pix_fmt yuv420p "$t/sp/out/$4.mp4"; }

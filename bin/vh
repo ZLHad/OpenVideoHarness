@@ -106,8 +106,9 @@
 #                               (exit 1 when the picture differs: a layout that breaks at device scale 2)
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
 #  deliver and tidy
-#   deliver <master.mp4> [--for bilibili,douyin,youtube] [--max-gb N] [--crf 18] [--out f] [--psnr sample|full|off]   the copy to upload:
-#                               x264 CRF 18 under a bit-rate ceiling worked out from the platforms' file limits (playbook/10, 交付编码),
+#   deliver <master.mp4> [--for bilibili,douyin,youtube] [--max-gb N] [--crf 16] [--out f] [--psnr sample|full|off]   the copy to upload:
+#                               the bit rate a platform's file limit leaves for the picture (playbook/10, 交付编码): CRF 16 under it, or two
+#                               passes at it when the master's own rate is over it;
 #                               a keyframe every 2 s, BT.709, sound and subtitles copied; the size against each limit, the PSNR against the master
 #   clean <project> [--yes] [--delete] [--keep path …] [--final f]   a finished project's intermediates (frames, render chunks, drafts,
 #                               old takes, stems, node_modules) to the Trash; the film, covers, captions, review pages, sources, docs and the

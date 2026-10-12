@@ -1,6 +1,6 @@
 """The upload copy of a finished film: re-encoded to fit a platform's file-size limit, compared with the master.
 
-usage (via bin/vh deliver): python tools/deliver.py <master.mp4> [--for bilibili,douyin,youtube] [--max-gb N] [--crf 18]
+usage (via bin/vh deliver): python tools/deliver.py <master.mp4> [--for bilibili,douyin,youtube] [--max-gb N] [--crf 16]
                                   [--preset medium] [--out f.mp4] [--psnr sample|full|off] [--samples 8]
 
 A master render is made to be cut and patched (bin/vh render: CRF 16, sometimes 14), not uploaded: a 14-minute 4K master
@@ -19,7 +19,7 @@ Writes <master stem>.upload.mp4 beside the master (--out another). Exit: 0 writt
 1 written but over a limit asked for, without the four colour tags, or the PSNR could not be measured · 2 could not start (no ffmpeg, not a video,
 not enough disk).
 """
-import argparse, json, math, os, re, shutil, subprocess, sys
+import argparse, glob, json, math, os, re, shutil, subprocess, sys
 from pathlib import Path
 
 # name: (label, file limit in GB (10^9 bytes), length limit in s or None, source tag). playbook/10 §交付编码 cites them.
@@ -50,14 +50,16 @@ def fps_of(v):
     return 30.0
 
 
-def psnr(master, upload, spans):
-    """[(start, avg dB)] over 2-second stretches (spans: [(start, seconds)]), or one for the whole film."""
+def psnr(master, upload, spans, conv=""):
+    """[(start, avg dB)] over 2-second stretches (spans: [(start, seconds)]), or one for the whole film. conv: the master
+    goes through the same conversion as the copy first (a full-range master against a limited-range copy otherwise
+    measures the range, not the encode)."""
     out = []
     for t0, d in spans:
         cmd = ["ffmpeg", "-hide_banner", "-nostats", "-v", "info", "-nostdin"]   # the psnr summary is an info line
         cmd += (["-ss", f"{t0:.3f}", "-t", f"{d:.3f}"] if d else []) + ["-i", str(master)]
         cmd += (["-ss", f"{t0:.3f}", "-t", f"{d:.3f}"] if d else []) + ["-i", str(upload)]
-        cmd += ["-lavfi", "[0:v][1:v]psnr", "-f", "null", "-"]
+        cmd += ["-lavfi", f"[0:v]{conv.rstrip(',') or 'null'}[m];[m][1:v]psnr", "-f", "null", "-"]
         r = subprocess.run(cmd, capture_output=True, text=True)
         m = re.search(r"PSNR .*average:(\S+)", r.stderr)
         if r.returncode or not m:
@@ -98,7 +100,12 @@ def main():
         die(f"{master.name}: no duration")
     fps, gop = fps_of(v), max(1, round(2 * fps_of(v)))
     audio = [s for s in info["streams"] if s["codec_type"] == "audio"]
-    abps = sum(int(s.get("bit_rate") or 0) or (192000 if s.get("codec_name") == "aac" else 320000) for s in audio)
+    # the sound's share of the budget: an AAC track as it is, anything else as the AAC 320 kb/s it becomes
+    abps = sum((int(s.get("bit_rate") or 0) or 192000) if s.get("codec_name") == "aac" else 320000 for s in audio)
+    for p in plats:   # a length limit cannot be met by encoding: say it before the encode
+        secs = PLATFORMS[p][2]
+        if secs and dur > secs:
+            print(f"deliver: {dur / 60:.1f} min is over {PLATFORMS[p][0]}'s {secs // 60:g} min ({PLATFORMS[p][3]}): the copy will not upload there", file=sys.stderr)
     limits = [(p, PLATFORMS[p][1]) for p in plats] + ([("--max-gb", a.max_gb)] if a.max_gb else [])
     cap_gb = min((g for _, g in limits), default=None)
     maxrate = None
@@ -109,6 +116,8 @@ def main():
     out = Path(a.out).resolve() if a.out else master.with_name(master.stem + ".upload.mp4")
     if out == master:
         die("--out is the master itself")
+    if not out.parent.is_dir():
+        die(f"no folder {out.parent} for --out")
     # the disk: the copy is at most the ceiling, else about the master's size
     need = min(master.stat().st_size, cap_gb * 1e9 if cap_gb else math.inf) * 1.1
     free = shutil.disk_usage(out.parent).free
@@ -120,9 +129,14 @@ def main():
     tags = "setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv"
     conv = ""
     if col != ("yuv420p", "tv", "bt709"):
-        conv = (f"scale=in_color_matrix={'bt601' if v.get('color_space') in ('bt470bg', 'smpte170m') else 'bt709'}:in_range="
+        # the matrix as tagged; untagged full-range video (yuvj420p from a JPEG pipe) is BT.601, as JPEG is
+        jpeg = v.get("color_range") == "pc" or str(v.get("pix_fmt", "")).startswith("yuvj")
+        bt601 = v.get("color_space") in ("bt470bg", "smpte170m") or (jpeg and v.get("color_space") in (None, "", "unknown"))
+        conv = (f"scale=in_color_matrix={'bt601' if bt601 else 'bt709'}:in_range="
                 f"{'pc' if v.get('color_range') == 'pc' or str(v.get('pix_fmt', '')).startswith('yuvj') else 'tv'}:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,")
     vf = ["-vf", conv + tags]
+    subs = [s for s in info["streams"] if s["codec_type"] == "subtitle"]
+    scodec = ["-c:s", "copy"] if all(s.get("codec_name") == "mov_text" for s in subs) else ["-c:s", "mov_text"]   # SRT/ASS from an MKV: as MP4 text
     acodec = [] if not audio else (["-c:a", "copy"] if all(s.get("codec_name") == "aac" for s in audio) else ["-c:a", "aac", "-b:a", "320k"])
     # rate: the master's own bit rate fits under the ceiling (or there is none): CRF, with the ceiling as a VBV cap. It does
     # not: two passes at the ceiling's average, which spends the whole budget where the pictures need it (one pass under a
@@ -134,25 +148,30 @@ def main():
             "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709"]
     rate = (["-b:v", str(maxrate), "-maxrate", str(int(maxrate * 1.5)), "-bufsize", str(3 * maxrate)] if two
             else ["-crf", f"{a.crf:g}", *(["-maxrate", str(maxrate), "-bufsize", str(2 * maxrate)] if maxrate else [])])
-    log = str(out.with_name(f".{out.name}.x264"))
+    part = out.with_name(f".{out.name}.{os.getpid()}.part.mp4")   # this run's own: two delivers never share a file
+    log = str(out.with_name(f".{out.name}.{os.getpid()}.x264"))
     final = [*head, "-map", "0:v:0", "-map", "0:a?", "-map", "0:s?", *venc, *rate, *(["-pass", "2", "-passlogfile", log] if two else []),
-             *acodec, "-c:s", "copy", "-map_metadata", "0", "-movflags", "+faststart", str(out) + ".part.mp4"]
+             *acodec, *scodec, "-map_metadata", "0", "-movflags", "+faststart", str(part)]
     how = (f"two passes at {maxrate / 1e6:.1f} Mb/s for the picture (the master's {vbps / 1e6:.1f} does not fit {cap_gb:g} GB)" if two else
            f"crf {a.crf:g}" + (f", at most {maxrate / 1e6:.1f} Mb/s for the picture (to fit {cap_gb:g} GB)" if maxrate else ", no size ceiling"))
     print(f"deliver: {master.name} · {v['width']}x{v['height']} · {fps:g} fps · {dur / 60:.1f} min · {master.stat().st_size / 1e9:.2f} GB"
           f" → x264 {a.preset}, {how}, keyframe every {gop}")
+    r = None
     try:
         if two:
             r = subprocess.run([*head, "-map", "0:v:0", *venc, *rate, "-pass", "1", "-passlogfile", log, "-an", "-f", "null", "-"])
-            if r.returncode:
-                die(f"ffmpeg's first pass failed (exit {r.returncode})", 1)
-        r = subprocess.run(final)
-    finally:
-        for f in out.parent.glob(f".{out.name}.x264*"): f.unlink(missing_ok=True)
+        if not (r and r.returncode):
+            r = subprocess.run(final)
+    except KeyboardInterrupt:
+        r = None
+    finally:   # this run's pass logs and part file, whatever happened (Ctrl-C too)
+        for f in out.parent.glob(glob.escape(f".{out.name}.{os.getpid()}.") + "*"):
+            if f != part or r is None or r.returncode: f.unlink(missing_ok=True)
+    if r is None:
+        die("stopped; the part file is deleted", 130)
     if r.returncode:
-        Path(str(out) + ".part.mp4").unlink(missing_ok=True)
         die(f"ffmpeg failed (exit {r.returncode})", 1)
-    os.replace(str(out) + ".part.mp4", out)
+    os.replace(part, out)
     size = out.stat().st_size
     print(f"  {out.name}: {size / 1e9:.2f} GB, {size * 8 / dur / 1e6:.1f} Mb/s on average (the master: {master.stat().st_size * 8 / dur / 1e6:.1f})")
     u = next((s for s in probe(out)["streams"] if s["codec_type"] == "video"), {})
@@ -176,7 +195,7 @@ def main():
         else:
             n = max(1, a.samples)
             spans = [((dur - 2) * (k + 0.5) / n, 2.0) for k in range(n)] if dur > 4 else [(0.0, 0)]
-        got = psnr(master, out, spans)
+        got = psnr(master, out, spans, conv)
         if got is None:
             bad_psnr = True
             print("  PSNR against the master: could not be measured (ffmpeg's psnr filter failed)")
@@ -184,8 +203,11 @@ def main():
             vals = [x for _, x in got]
             worst = min(got, key=lambda x: x[1])
             what = "every frame" if a.psnr == "full" or len(spans) == 1 else f"{len(spans)} stretches of 2 s"
-            avg = sum(v for v in vals if v != math.inf) / max(1, sum(1 for v in vals if v != math.inf))
-            print(f"  PSNR against the master ({what}): {avg:.1f} dB on average" + (f", the lowest stretch {worst[1]:.1f} dB (at {worst[0]:.0f} s)" if len(got) > 1 else ""))
+            fin = [x for x in vals if x != math.inf]
+            if not fin:
+                print(f"  PSNR against the master ({what}): the same pictures (infinite)")
+            else:
+                print(f"  PSNR against the master ({what}): {sum(fin) / len(fin):.1f} dB on average" + (f", the lowest stretch {worst[1]:.1f} dB (at {worst[0]:.0f} s)" if len(got) > 1 else ""))
     if over:
         print("deliver: over a limit asked for: lower --crf's quality (a higher number) or allow more, and check the upload page")
     sys.exit(1 if over or bad_psnr else 0)
