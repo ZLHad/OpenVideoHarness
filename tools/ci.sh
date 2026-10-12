@@ -909,31 +909,32 @@ PY
     else bad "render on its fixture (exit $rc): $(printf '%s' "$a" | tail -c 700)"; fi
     a=$(vh render tools/film/fixture --out "$t/r/film.mp4" 2>&1); rc=$?
     [ $rc = 0 ] && ok "render: a second render of the same file after the first one ended is not locked out" || bad "render again (exit $rc): $(printf '%s' "$a" | tail -c 400)"
-    # bin/vh patch: the fixture rendered (keyframes at 0, 30, 60), then its square turned blue from 1.4 s up to 1.7 s (frames
-    # 42–50) and those frames put back: frames 30–59 drawn again, the rest the film's own bytes. Naming only 42–44 leaves
-    # 45–50 changed outside the span: refused, the film untouched. A film without its sidecar is refused at once
-    mkdir -p "$t/p" && cp tools/film/fixture/index.html "$t/p/index.html"
-    vh render "$t/p" --gop 30 --workers 2 --out "$t/p/out/film.mp4" >/dev/null 2>&1
-    sed 's/x.fillStyle = "#fc0";/x.fillStyle = t >= 1.4 \&\& t < 1.7 ? "#0cf" : "#fc0";/' tools/film/fixture/index.html > "$t/p/index.html"
-    s0=$(cksum < "$t/p/out/film.mp4")
-    a=$(vh patch "$t/p/out/film.mp4" --frames 42-44 2>&1); rc=$?
-    b=$(vh patch "$t/p/out/film.mp4" --frames 42-50 --verify full 2>&1); rc2=$?
-    if [ $rc = 1 ] && printf '%s' "$a" | grep -q 'frames 45–50 are outside 42–44' && [ -s "$t/p/out/film.failed.mp4" ] && [ "$(cksum < "$t/p/out/film.mp4")" = "$s0" ] \
-      && [ $rc2 = 0 ] && printf '%s' "$b" | grep -q '30–59 drawn again' && printf '%s' "$b" | grep -q 'frames: 90 (the film: 90) ✓' \
-      && printf '%s' "$b" | grep -q "packets outside 30–59: 60 the film's own ✓" && python3 - "$t/p/out/film.patched.mp4" <<'PY'
+    # bin/vh patch: the fixture rendered from 0.5 s with a keyframe every 20 frames (not a whole number of milliseconds) in
+    # a folder whose name a filter graph would choke on; then its square turned blue from 1.4 s up to 1.7 s (the film's
+    # frames 27–35) and those frames put back: 20–39 drawn again, the rest the film's own bytes and times. Naming only 27–29
+    # leaves 30–35 changed outside the span: refused, the film untouched. A film without its sidecar is refused at once
+    mkdir -p "$t/p, x" && cp tools/film/fixture/index.html "$t/p, x/index.html"
+    vh render "$t/p, x" --range 0.5:2.5 --gop 20 --workers 2 --out "$t/p, x/out/film.mp4" >/dev/null 2>&1
+    sed 's/x.fillStyle = "#fc0";/x.fillStyle = t >= 1.4 \&\& t < 1.7 ? "#0cf" : "#fc0";/' tools/film/fixture/index.html > "$t/p, x/index.html"
+    s0=$(cksum < "$t/p, x/out/film.mp4")
+    a=$(vh patch "$t/p, x/out/film.mp4" --frames 27-29 2>&1); rc=$?
+    b=$(vh patch "$t/p, x/out/film.mp4" --frames 27-35 --verify full 2>&1); rc2=$?
+    if [ $rc = 1 ] && printf '%s' "$a" | grep -q 'frames 30–35 are outside 27–29' && [ -s "$t/p, x/out/film.failed.mp4" ] && [ "$(cksum < "$t/p, x/out/film.mp4")" = "$s0" ] \
+      && [ $rc2 = 0 ] && printf '%s' "$b" | grep -q '20–39 drawn again' && printf '%s' "$b" | grep -q 'frames: 60 (the film: 60) ✓' \
+      && printf '%s' "$b" | grep -q "packets outside 20–39: 40 the film's own ✓" && python3 - "$t/p, x/out/film.patched.mp4" <<'PY'
 import json, subprocess, sys
 f = sys.argv[1]
-def px(t):   # the square's colour: blue inside 1.4–1.7 s, yellow outside
-    r = subprocess.run(["ffmpeg", "-v", "error", "-ss", str(t), "-i", f, "-frames:v", "1", "-vf", f"crop=8:8:{int(36 + 80 * t)}:106,scale=1:1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True)
+def px(t):   # the square's colour at the film's t (the page's t + 0.5): blue inside the page's 1.4–1.7 s, yellow outside
+    r = subprocess.run(["ffmpeg", "-v", "error", "-ss", str(t), "-i", f, "-frames:v", "1", "-vf", f"crop=8:8:{int(36 + 80 * (t + 0.5))}:106,scale=1:1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True)
     return tuple(r.stdout[:3])
 side = json.load(open(f + ".render.json"))
-blue, yellow = px(1.5), px(1.2)
-sys.exit(0 if blue[2] > blue[0] + 80 and yellow[0] > yellow[2] + 80 and side["patches"][0]["frames"] == [42, 50] else 1)
+blue, yellow = px(1.0), px(0.7)
+sys.exit(0 if blue[2] > blue[0] + 80 and yellow[0] > yellow[2] + 80 and side["patches"][0]["frames"] == [27, 35] and side["page"] == "../index.html" else 1)
 PY
     then ok "patch: frames put back between keyframes, every packet outside them the film's own; an edit reaching past the frames named is refused, the film untouched"
     else bad "patch on the fixture: exit $rc / $rc2: $(printf '%s' "$a$b" | tail -c 900)"; fi
-    cp "$t/p/out/film.mp4" "$t/p/out/bare.mp4"
-    a=$(vh patch "$t/p/out/bare.mp4" --frames 1-2 2>&1); rc=$?
+    cp "$t/p, x/out/film.mp4" "$t/p, x/out/bare.mp4"
+    a=$(vh patch "$t/p, x/out/bare.mp4" --frames 1-2 2>&1); rc=$?
     case "$rc:$a" in 2:*"no "*"bare.mp4.render.json"*) ok "patch: a film without its sidecar is refused at once (exit 2)" ;; *) bad "patch without a sidecar: exit $rc: $(printf '%s' "$a" | tail -c 400)" ;; esac
   fi
   if node -e 'import("./tools/film/host.mjs").then((m) => process.exit(m.findRuntime(process.cwd()) ? 0 : 1))' 2>/dev/null; then

@@ -22,6 +22,8 @@
 //                    another browser), and the joins at the keyframes would show
 //   --keep           keep the work folder (.<out>.patch/) to look at
 //
+// Room: about twice the film's size free beside the output (the film is cut, joined and its tracks put back before the
+// parts go). One patch of an output at a time (<out>.patch.lock), and none while bin/vh render is writing the film.
 // Checks, every run: the new film has as many frames as the old one; every packet outside the frames rendered again is
 // the same bytes (and decoded, the frames next to the joins are the same pixels: PSNR infinite); the joined part decodes
 // without an error; the new frames' encoder setup (SPS/PPS) is the film's. Exit: 0 patched and checked · 1 a check failed
@@ -109,7 +111,8 @@ let [a, b] = frames || [Math.ceil(seconds[0] * fps - 1e-6), Math.min(N, Math.cei
 if (a < 0 || b >= N || b < a) die(`frames ${a}–${b}: the film has frames 0–${N - 1}`);
 const A = keys.filter((k) => k <= a).pop(), B = keys.find((k) => k > b) ?? N;
 const gop = enc.gop;
-const page = path.resolve(pageArg || (path.isAbsolute(side.page) ? side.page : path.join(path.dirname(film), side.page)));
+// the sidecar's page is relative to the sidecar's own folder (the render's video was beside it)
+const page = path.resolve(pageArg || (path.isAbsolute(side.page) ? side.page : path.join(path.dirname(sidecarFile), side.page)));
 if (!fs.existsSync(page)) die(`no page at ${rel(page)} (the sidecar's; --page names another)`);
 const outFile = inPlace ? film : path.resolve(out || path.join(path.dirname(film), `${path.basename(film, path.extname(film))}.patched${path.extname(film)}`));
 if (!inPlace && outFile === film) die("--out is the film itself: use --in-place");
@@ -117,6 +120,20 @@ const k0 = side.first_frame + A, k1 = side.first_frame + B;
 console.log(`patch: ${rel(film)} · ${N} frames at ${fps} fps · frames ${a}–${b} (${(a / fps).toFixed(3)}–${((b + 1) / fps).toFixed(3)} s) asked; ` +
   `${A}–${B - 1} drawn again (keyframe to keyframe, ${B - A} frames) from ${rel(page)}`);
 if (side.patches && side.patches.length) console.log(`  patched before: ${side.patches.map((p) => `${p.frames[0]}–${p.frames[1]}`).join(", ")}`);
+
+// ---- one patch at a time, never while a render writes the film, and room for the work ----
+const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; } };
+const held = (f) => { try { const pid = +fs.readFileSync(f, "utf8"); return pid > 0 && alive(pid) ? pid : 0; } catch { return 0; } };
+if (held(film + ".lock")) die(`bin/vh render (pid ${held(film + ".lock")}) is writing ${rel(film)}: wait for it`);
+const lock = outFile + ".patch.lock";
+if (held(lock)) die(`another patch (pid ${held(lock)}) is writing ${rel(outFile)}: wait for it, or delete ${rel(lock)} if it is gone`);
+fs.writeFileSync(lock, String(process.pid));
+const unlock = () => { try { if (+fs.readFileSync(lock, "utf8") === process.pid) fs.unlinkSync(lock); } catch { /* gone */ } };
+process.on("exit", unlock);
+// the film's packets are written about twice over before the parts go (cut, joined, tracks put back): room for that
+const filmBytes = fs.statSync(film).size;
+const free = process.env.OVH_FREE_BYTES ? +process.env.OVH_FREE_BYTES : (() => { try { const st = fs.statfsSync(path.dirname(outFile)); return st.bavail * st.bsize; } catch { return Infinity; } })();
+if (2.2 * filmBytes > free) die(`about ${(2.2 * filmBytes / 1e9).toFixed(1)} GB free is needed beside ${rel(outFile)} to cut and join a ${(filmBytes / 1e9).toFixed(1)} GB film; ${(free / 1e9).toFixed(1)} GB is`);
 
 // ---- render the span again, exactly as before ----
 work = path.join(path.dirname(outFile), `.${path.basename(outFile)}.patch`);
@@ -131,7 +148,7 @@ const piece = path.join(work, "piece.mp4");
 const capture = String(side.capture || "jpeg q95"), q = capture.match(/jpeg q(\d+)/);
 const rargs = [path.join(HERE, "render.mjs"), page, "--browser", browser, "--frames", `${k0}:${k1}`, "--fps", String(fps), "--dpr", String(side.dpr || 1),
   "--crf", String(enc.crf), "--preset", String(enc.preset), "--gop", String(gop), "--workers", String(o.workers), "--out", piece,
-  ...(capture === "png" ? ["--png"] : ["--quality", q ? q[1] : "95"]), ...(side.real_clock ? ["--real-clock"] : []), ...(side.soft_gl ? ["--soft-gl"] : [])];
+  ...(capture === "png" ? ["--png"] : ["--quality", q ? q[1] : "95"]), ...(side.real_clock ? ["--real-clock"] : []), ...(side.soft_gl ? ["--soft-gl"] : []), ...(side.kind === "hyperframes" ? ["--force"] : [])];
 const T0 = Date.now();
 const code = await new Promise((ok) => {
   child = spawn(process.execPath, rargs, { stdio: ["ignore", "pipe", "pipe"] });
@@ -142,6 +159,7 @@ const code = await new Promise((ok) => {
 child = null;
 if (code !== 0) die(`rendering frames ${A}–${B - 1} failed (render exit ${code}); the film is as it was`, code === 2 ? 2 : 1);
 const pside = JSON.parse(fs.readFileSync(piece + ".render.json", "utf8"));
+if (pside.frames !== B - A) die(`the page drew ${pside.frames} frames for ${A}–${B - 1}, not ${B - A}: it is shorter now than the film (${rel(page)}). Render the film again`, 1);
 const notes = [];
 if (side.browser && pside.browser !== side.browser) notes.push(`the film was rendered in ${side.browser}, these frames in ${pside.browser}: text and edges can differ a little (the PSNR below shows how much)`);
 
@@ -170,10 +188,14 @@ if (cuts.length) {
   parts.push(piece);
   if (after) parts.push(after);
 } else parts.push(piece);
-fs.writeFileSync(path.join(work, "list.txt"), parts.map((f) => `file '${path.basename(f)}'`).join("\n") + "\n");
+// each part's length in frames: an MP4's own duration is rounded to its movie timescale (1/1000 s), which would move the
+// part after it by a few ticks when a GOP is not a whole number of milliseconds (--gop 20 at 30 fps)
+const frameCount = new Map(parts.map((f) => [f, f === piece ? B - A : A > 0 && f === parts[0] ? A : N - B]));
+fs.writeFileSync(path.join(work, "list.txt"), parts.map((f) => `file '${path.basename(f)}'\nduration ${(frameCount.get(f) / fps).toFixed(9)}`).join("\n") + "\n");
 const video = path.join(work, "video.mp4");
-ff(["-f", "concat", "-safe", "0", "-i", path.join(work, "list.txt"), "-map", "0:v", "-c", "copy", "-movflags", "+faststart", video], "joining");
 const others = filmStreams.filter((s) => s.codec_type !== "video");
+ff(["-f", "concat", "-safe", "0", "-i", path.join(work, "list.txt"), "-map", "0:v", "-c", "copy", ...(others.length ? [] : ["-movflags", "+faststart"]), video], "joining");
+for (const f of fs.readdirSync(work)) if (/^seg\d+\.mp4$/.test(f)) fs.rmSync(path.join(work, f));   // the cut film: its packets are in video.mp4 now
 const joined = path.join(work, `joined${path.extname(outFile) || ".mp4"}`);
 if (others.length) {
   // the film's own sound and subtitle tracks, as they were (their language and default flags too)
@@ -182,30 +204,42 @@ if (others.length) {
   // the MP4 muxer switches the first subtitle track on when none is on: a film made with bin/vh mux --subs-off had them
   // all off, so clear the enabled bit of its subtitle tracks again, as bin/vh mux does
   const subs = others.filter((s) => s.codec_type === "subtitle");
-  if (subs.length && subs.every((s) => !(s.disposition || {}).default)) subtitlesOff(joined);
+  if (subs.length && subs.every((s) => !(s.disposition || {}).default)) { try { subtitlesOff(joined); } catch (e) { die(`switching the subtitle tracks off again: ${e.message}`, 1); } }
+  fs.rmSync(video);
 } else fs.renameSync(video, joined);
 
-function subtitlesOff(file) {   // every subtitle trak's tkhd: flags byte 3, bit 0 (enabled) cleared, in place
-  const b = fs.readFileSync(file);
-  const boxes = function* (a, e) {
-    while (a + 8 <= e) {
-      let n = b.readUInt32BE(a), h = 8; const t = b.toString("latin1", a + 4, a + 8);
-      if (n === 1) { n = Number(b.readBigUInt64BE(a + 8)); h = 16; } else if (n === 0) n = e - a;
+function subtitlesOff(file) {   // every subtitle trak's tkhd: flags byte 3, bit 0 (enabled) cleared, in place; only moov is read
+  const fd = fs.openSync(file, "r+");
+  try {
+    const total = fs.fstatSync(fd).size, head = Buffer.alloc(16);
+    let at = 0, moov = null;
+    while (at + 8 <= total) {   // the top-level boxes, by their headers alone (a film can be far over 2 GB)
+      fs.readSync(fd, head, 0, 16, at);
+      let n = head.readUInt32BE(0), h = 8; const t = head.toString("latin1", 4, 8);
+      if (n === 1) { n = Number(head.readBigUInt64BE(8)); h = 16; } else if (n === 0) n = total - at;
       if (n < h) break;
-      yield [t, a + h, a + n]; a += n;
+      if (t === "moov") { moov = [at, n]; break; }
+      at += n;
     }
-  };
-  for (const [t, c, e] of boxes(0, b.length)) {
-    if (t !== "moov") continue;
+    if (!moov) throw new Error("no moov box");
+    const b = Buffer.alloc(moov[1]); fs.readSync(fd, b, 0, moov[1], moov[0]);
+    const boxes = function* (a, e) {
+      while (a + 8 <= e) {
+        let n = b.readUInt32BE(a), h = 8; const t = b.toString("latin1", a + 4, a + 8);
+        if (n === 1) { n = Number(b.readBigUInt64BE(a + 8)); h = 16; } else if (n === 0) n = e - a;
+        if (n < h) break;
+        yield [t, a + h, a + n]; a += n;
+      }
+    };
+    const [, c, e] = [...boxes(0, b.length)][0];
     for (const [tt, tc, te] of boxes(c, e)) {
       if (tt !== "trak") continue;
       const kids = Object.fromEntries([...boxes(tc, te)].map(([k, kc, ke]) => [k, [kc, ke]]));
       const hdlr = kids.mdia ? [...boxes(...kids.mdia)].find(([k]) => k === "hdlr") : null;
       const kind = hdlr ? b.toString("latin1", hdlr[1] + 8, hdlr[1] + 12) : "";
-      if (kids.tkhd && ["sbtl", "subt", "text"].includes(kind)) b[kids.tkhd[0] + 3] &= 0xfe;
+      if (kids.tkhd && ["sbtl", "subt", "text"].includes(kind)) { const i = kids.tkhd[0] + 3; b[i] &= 0xfe; fs.writeSync(fd, b, i, 1, moov[0] + i); }
     }
-  }
-  fs.writeFileSync(file, b);
+  } finally { fs.closeSync(fd); }
 }
 
 // ---- checks ----
@@ -233,11 +267,14 @@ let pixDiff = 0;
 for (let i = 0; i < Math.min(da.md5.length, db.md5.length); i++) { const f = w0 + i; if ((f < A || f >= B) && da.md5[i] !== db.md5[i]) pixDiff++; }
 if (pixDiff) failures.push(`${pixDiff} frame(s) next to the joins decode to other pixels than the film's`);
 // PSNR per frame over the new span, against the film: the frames outside a–b must come back as they were
+// (run in the work folder, so the stats file's name needs no escaping in the filter graph whatever the folders are called)
 const ps2 = spawnSync("ffmpeg", ["-v", "error", "-nostdin", "-ss", (A / fps).toFixed(6), "-i", film, "-ss", (A / fps).toFixed(6), "-i", joined,
-  "-frames:v", String(B - A), "-lavfi", `[0:v][1:v]psnr=stats_file=${path.join(work, "psnr.log").replace(/([\\:'])/g, "\\$1")}`, "-f", "null", "-"], { encoding: "utf8" });
+  "-frames:v", String(B - A), "-lavfi", "[0:v][1:v]psnr=stats_file=psnr.log", "-f", "null", "-"], { encoding: "utf8", cwd: work });
 const psnr = ps2.status === 0 && fs.existsSync(path.join(work, "psnr.log"))
   ? fs.readFileSync(path.join(work, "psnr.log"), "utf8").split("\n").filter(Boolean).map((l) => { const m = l.match(/psnr_avg:(\S+)/); return m ? (m[1] === "inf" ? Infinity : +m[1]) : NaN; })
   : [];
+// the one check that sees an edit reaching past a–b: no PSNR is a failure, not a pass
+if (psnr.length !== B - A || psnr.some(Number.isNaN)) failures.push(`the PSNR of frames ${A}–${B - 1} against the film could not be measured (ffmpeg: ${(ps2.stderr || `exit ${ps2.status}`).toString().trim().split("\n")[0] || `${psnr.length} of ${B - A} frames`})`);
 const span = (lo, hi) => psnr.slice(lo - A, hi - A + 1).filter((x) => !Number.isNaN(x));
 const kept = [...span(A, a - 1), ...span(b + 1, B - 1)], asked = span(a, b);
 const fmt = (x) => (x === Infinity ? "∞" : x.toFixed(1));
@@ -261,8 +298,12 @@ if (psnr.length) console.log(`  against the film: frames ${a}–${b} ${asked.len
   (kept.length ? `; frames drawn again only to reach the keyframes at least ${fmt(minKept)} dB${minKept >= o.minPsnr ? " ✓" : " ✗"}` : ""));
 if (o.verify === "full") console.log(`  the whole new film decodes${failures.some((f) => f.startsWith("decoding the whole")) ? " with errors ✗" : " without an error ✓"}`);
 for (const n of notes) console.log(`  note: ${n}`);
+await new Promise((r) => setImmediate(r));   // a Ctrl-C that came during the checks ends it here, the film as it was
 const record = { frames: [a, b], drawn: [A, B - 1], at: new Date().toISOString().slice(0, 19) + "Z", browser: pside.browser, seconds: +secs.toFixed(1), min_psnr_kept: minKept === Infinity ? "inf" : minKept };
-const newSide = { ...side, patches: [...(side.patches || []), record] };
+const sideFor = (videoFile) => {   // as bin/vh render writes it: the page relative to the video's folder when that is inside the page's
+  const dir = fs.realpathSync(path.dirname(videoFile)), real = fs.realpathSync(page), root = path.dirname(real);
+  return { ...side, page: (dir + path.sep).startsWith(root + path.sep) ? path.relative(dir, real) : real, patches: [...(side.patches || []), record] };
+};
 if (failures.length) {
   const kept2 = path.join(path.dirname(outFile), `${path.basename(film, path.extname(film))}.failed${path.extname(film)}`);
   fs.renameSync(joined, kept2);
@@ -275,11 +316,11 @@ if (inPlace) {
   // the film's own sidecar: the one it had, or a new one beside it when --sidecar named a render it was made from (whose
   // video is not the one patched)
   const own = film + ".render.json";
-  fs.writeFileSync(own, JSON.stringify(newSide, null, 1) + "\n");
+  fs.writeFileSync(own, JSON.stringify(sideFor(film), null, 1) + "\n");
   console.log(`patch: done in ${secs.toFixed(0)} s · ${rel(film)} now has the new frames ${a}–${b}; ${rel(own)} lists the patch`);
 } else {
   fs.renameSync(joined, outFile);
-  fs.writeFileSync(outFile + ".render.json", JSON.stringify(newSide, null, 1) + "\n");
+  fs.writeFileSync(outFile + ".render.json", JSON.stringify(sideFor(outFile), null, 1) + "\n");
   console.log(`patch: done in ${secs.toFixed(0)} s · ${rel(outFile)} (+ .render.json); the film is as it was`);
 }
 cleanUp();
