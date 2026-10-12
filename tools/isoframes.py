@@ -150,11 +150,15 @@ def periodic(hits, fps):
         for a in left:
             for g in range(4, int(round(2 * fps)) + 1):
                 chain, last = [a], a
+                slack = (0, -1, 1) if g >= 8 else (0,)   # short gaps must be exact: a few frames of jitter there is noise
                 while True:
-                    nxt = next((last + g + d for d in (0, -1, 1) if last + g + d in have), None)
+                    nxt = next((last + g + d for d in slack if last + g + d in have), None)
                     if nxt is None: break
                     chain.append(nxt); last = nxt
-                if len(chain) > len(best) and max(size[c] for c in chain) <= 3 * min(size[c] for c in chain): best = chain
+                # one steady rhythm: every hit within a frame of the line through the first and the last (no drift)
+                step = (chain[-1] - chain[0]) / max(1, len(chain) - 1)
+                steady = all(abs(c - (chain[0] + k * step)) <= 1 for k, c in enumerate(chain))
+                if steady and len(chain) > len(best) and max(size[c] for c in chain) <= 3 * min(size[c] for c in chain): best = chain
         if len(best) < 4: break
         out.append((best, round((best[-1] - best[0]) / (len(best) - 1), 2)))
         left = [x for x in left if x not in best]

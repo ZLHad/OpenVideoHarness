@@ -763,7 +763,7 @@ cmd_check() {
   elif [ ${#py[@]} = 0 ]; then echo "$c_wa isolated-frame scan skipped: it needs numpy (install uv)"
   else
     iso=$("${py[@]}" "$ROOT/tools/isoframes.py" "${ia[@]}") || rc=$?
-    iso=$(printf '%s\n' "$iso" | sed -e "s/^  static:/$c_wa static:/" -e "s/^  cuts:/$c_wa cuts:/" -e "s/^  periodic:/$c_wa periodic:/")
+    iso=$(printf '%s\n' "$iso" | sed -e "s/^  static:/$c_wa static:/" -e "s/^  cuts:/$c_wa cuts:/" -e "s/^  periodic:/$c_wa periodic:/" -e "s/^  note:/$c_wa note:/")
     case "$rc:$iso" in   # uv also exits 1 when it cannot install numpy, so the words decide, not the status alone
       0:*) echo "$c_ok $iso" ;;
       1:[0-9]*" isolated frame"*) echo "$c_no $iso"
