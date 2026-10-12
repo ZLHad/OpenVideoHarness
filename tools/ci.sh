@@ -375,6 +375,18 @@ PY
     case "$rc:$a" in 1:*"1 isolated frame(s) in 60: 1.000 s"*"--no-browser-gpu"*) ok "check fails on one odd frame and names its time" ;; *) bad "check on one odd frame (rc $rc): $a" ;; esac
     a=$(vh check "$t/odd.mp4" --allow 0.4,1.0 2>&1); rc=$?
     case "$rc:$a" in 0:*"no isolated frames in 60"*"declared (--allow): 1.000 s"*) ok "check --allow: a declared flash is listed and passes" ;; *) bad "check --allow (rc $rc): $a" ;; esac
+    a=$(vh check "$t/odd.mp4" --allow 0.9-1.1 2>&1); rc=$?
+    case "$rc:$a" in 0:*"declared (--allow): 1.000 s"*) ok "check --allow takes a span a-b" ;; *) bad "check --allow span (rc $rc): $a" ;; esac
+    # an odd frame every 15 frames (a bounce landing on its still point once a cycle) is periodic motion, not a glitch
+    ffmpeg -nostdin -v error -f lavfi -i color=c=0x404040:s=320x180:r=30:d=3 -vf "drawbox=x=100:y=60:w=60:h=60:c=white:t=fill:enable='eq(mod(n\,15)\,7)'" -pix_fmt yuv420p "$t/periodic.mp4"
+    a=$(vh check "$t/periodic.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 0:*"no isolated frames in 90"*"periodic: 6 small frames, one every 15 frames (0.50 s)"*) ok "check: evenly spaced odd frames are periodic motion, said and not failed" ;; *) bad "check on periodic odd frames (rc $rc): $a" ;; esac
+    # motion: 2 s of a moving pattern, then a hard cut to a pale still picture for 4 s: a cut that flashes and a still stretch
+    ffmpeg -nostdin -v error -f lavfi -i testsrc2=s=320x180:r=30:d=2 -f lavfi -i color=c=0xE0E0E0:s=320x180:r=30:d=4 \
+      -filter_complex "[0:v]lutyuv=y=val*0.4,format=yuv420p[a];[1:v]format=yuv420p[b];[a][b]concat=n=2:v=1[v]" -map "[v]" -pix_fmt yuv420p "$t/still.mp4"
+    a=$(vh check "$t/still.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 0:*"motion: "*"1 hard cut(s)"*"static: 1 stretch(es) of 3 s or more"*"2.00–6.00 s (frozen)"*"cuts: 1 hard cut(s) from dark to bright"*"2.00 s"*) ok "check --motion: a still stretch and a cut from dark to bright are warnings, the exit status untouched" ;;
+      *) bad "check on a still stretch and a bright cut (rc $rc): $a" ;; esac
     # the publishing copy in PACKAGING.md: a Bilibili description of 2100 characters is over its 2000 (said, not a failure)
     { printf '%s\n' '# PACKAGING' '## 发布文案' '### B站' '标题：一个够短的标题' '标签：科普, 物理' '简介：'; python3 -c "print('字' * 2100)"; printf '%s\n' '### YouTube' 'Title: short'; } > "$t/sp/PACKAGING.md"
     a=$(vh check "$t/sp/out/ref.mp4" 2>&1); rc=$?
@@ -1222,6 +1234,90 @@ PY
   c=$(vh captions "$t/p" zh --skip-lint --media-end 30 2>&1); rc3=$?
   if [ $rc = 1 ] && printf '%s' "$a" | grep -q "timed wrong" && [ $rc2 = 0 ] && [ $rc3 = 0 ] && [ -s "$t/p/audio/captions.json" ]; then ok "captions: refuses a timeline that fails its checks, and goes on with --skip-lint (before or after --media-end)"
   else bad "captions on a broken timeline: exit $rc ($a) / with --skip-lint exit $rc2 ($b) / --skip-lint --media-end exit $rc3 ($c)"; fi
+  # captions at word boundaries (jieba through uv): a long line without a comma is cut between words, one-line cards never
+  # cross a sentence end, and the break table starts a card at its phrase
+  if command -v uv >/dev/null && uv run -q --no-project --with jieba python -c "import jieba" >/dev/null 2>&1; then
+    mkdir -p "$t/cw/audio" && printf '# BRIEF\n' > "$t/cw/BRIEF.md"
+    python3 - "$t/cw/audio/timeline.zh.json" <<'PY'
+import json, sys
+def line(i, t0, text):
+    cs = [c for c in text if c not in "，。"]; ws, t = [], t0
+    for c in cs: ws.append({"w": c, "start": round(t, 3), "end": round(t + 0.2, 3)}); t += 0.2
+    return {"id": i, "zh": text, "start": t0, "end": round(t, 3), "words": ws}
+segs = [line("c1", 0.0, "今天我们一起来看看这台机器到底是怎么工作的"), line("c2", 6.0, "说到第一张，卡片落下。说到第二张，第二张跟上。")]
+json.dump({"lang": "zh", "duration": 12.0, "segments": segs}, open(sys.argv[1], "w", encoding="utf-8"), ensure_ascii=False)
+PY
+    printf '["卡片落下"]\n' > "$t/cw/audio/capbreaks.json"
+    a=$(vh captions "$t/cw" zh --cards 2>&1); rc=$?
+    if [ $rc = 0 ] && printf '%s' "$a" | grep -q 'word boundaries by jieba' && PYTHONWARNINGS=ignore uv run -q --no-project --with jieba python - "$t/cw/audio/captions.json" <<'PY'
+import json, logging, sys, jieba
+jieba.setLogLevel(logging.ERROR)
+cards = json.load(open(sys.argv[1], encoding="utf-8"))
+c1 = [c["zh"][0] for c in cards if c["id"] == "c1"]; c2 = [c["zh"][0] for c in cards if c["id"] == "c2"]
+text = "今天我们一起来看看这台机器到底是怎么工作的"
+bounds, pos = set(), 0
+for w in jieba.lcut(text): pos += len(w); bounds.add(pos)
+cuts, pos = [], 0
+for c in c1[:-1]: pos += len(c); cuts.append(pos)
+ok = len(c1) >= 2 and "".join(c1) == text and all(x in bounds for x in cuts)
+ok = ok and not any("落下" in c and "第二张" in c for c in c2) and any(c.startswith("卡片落下") for c in c2)
+sys.exit(0 if ok else 1)
+PY
+    then ok "captions --cards: cut between words (jieba), never across a sentence end, a card starting at the break table's phrase"
+    else bad "captions --cards (exit $rc): $(printf '%s' "$a" | tail -c 500) $(cat "$t/cw/audio/captions.zh.srt" 2>/dev/null | tr '\n' '|' | tail -c 400)"; fi
+    # numbers, times and links stay whole at a narrow width (jieba cuts them at their , and :)
+    if a=$(PYTHONWARNINGS=ignore uv run -q --no-project --with jieba python - "$ROOT/tools/audio" 2>&1 <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+import capbreak, captions
+bad = []
+for text, w, keep in (("价格从1,000,000元涨到2,500,000元", 8, ("1,000,000", "2,500,000")), ("价格从1,000,000元涨到", 6, ("1,000,000",)),
+                      ("会议定在12:30开始，别迟到", 6, ("12:30",)), ("在12:30:45开始", 6, ("12:30:45",)),
+                      ("网址是https://example.com/a/b，记下来。", 8, ("https://example.com/a/b",)), ("网址是https://a.example.com:8080/x/y，记下", 6, ("https://a.example.com:8080/x/y",))):
+    for got in ([r for _, r in capbreak.pieces(text, w, True)], captions.wrap_zh(text, w)):
+        if not all(any(k in g for g in got) for k in keep): bad.append(f"{text} at {w}: {got}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+    ); then ok "captions: 2,500,000, 12:30 and a link stay whole at a narrow width, in cards and wrapped lines"
+    else bad "captions split a number, a time or a link: $a"; fi
+  else skip "captions at word boundaries" "no uv to bring jieba"; fi
+  # cards in English stay within --en-max characters and end at . ! ?; half-width ? ! end a Chinese sentence; a card that
+  # would start after the media end is left out, and no card ends before it starts
+  mkdir -p "$t/ce/audio" "$t/ch/audio" && printf '# BRIEF\n' > "$t/ce/BRIEF.md" && cp "$t/ce/BRIEF.md" "$t/ch/BRIEF.md"
+  python3 - "$t" <<'PY'
+import json, re, sys
+d = sys.argv[1]
+def seg(i, lang, text, t0, dt):
+    ws, t = [], t0
+    for w in (re.findall(r"[A-Za-z0-9']+", text) if lang == "en" else [c for c in text if c.strip() and c not in "?!，。"]):
+        ws.append({"w": w, "start": round(t, 3), "end": round(t + dt, 3)}); t += dt
+    return {"id": i, lang: text, "start": t0, "end": round(t, 3), "words": ws}
+en = "The quick brown fox jumps over the lazy dog and keeps on running. Version 3.5 is out! Is it fast? It is"
+json.dump({"lang": "en", "duration": 30.0, "segments": [seg("e1", "en", en, 0.0, 0.3)]}, open(f"{d}/ce/audio/timeline.en.json", "w"))
+json.dump({"lang": "zh", "duration": 25.0, "segments": [seg("h1", "zh", "真的吗?我不信!你再说一遍", 0.0, 0.25), seg("h2", "zh", "这一句在画面结束以后才开始", 20.0, 0.25)]},
+          open(f"{d}/ch/audio/timeline.zh.json", "w"), ensure_ascii=False)
+PY
+  a=$(vh captions "$t/ce" en --cards 2>&1); rc=$?
+  b=$(vh captions "$t/ch" zh --cards --media-end 19 2>&1); rc2=$?
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && printf '%s' "$b" | grep -q "left out, starts after the media end" && python3 - "$t" <<'PY'
+import json, sys
+d = sys.argv[1]
+en = [c["en"][0] for c in json.load(open(f"{d}/ce/audio/captions.json"))]
+zh = json.load(open(f"{d}/ch/audio/captions.json", encoding="utf-8"))
+ok = all(len(c) <= 42 for c in en) and not any(". " in c or "! " in c or "? " in c for c in en) and "Version 3.5 is out!" in en
+ok = ok and [c["zh"][0] for c in zh][:2] == ["真的吗?", "我不信!"] and all(c["id"] == "h1" and c["end"] > c["start"] for c in zh)
+sys.exit(0 if ok else 1)
+PY
+  then ok "captions --cards: English within --en-max and cut at . ! ? (3.5 whole), half-width ? ! end a Chinese sentence, a card after the media end left out"
+  else bad "captions --cards in English / half-width / media end (exit $rc, $rc2): $(printf '%s' "$a $b" | tail -c 400) $(head -c 600 "$t/ce/audio/captions.json" 2>/dev/null)"; fi
+  # check: an SRT beside the video with an entry too short to read is listed (a warning, not a failure)
+  if command -v ffmpeg >/dev/null; then
+    mkdir -p "$t/sc" && ffmpeg -nostdin -v error -f lavfi -i color=c=0x303030:s=320x180:r=30:d=3 -pix_fmt yuv420p "$t/sc/film.mp4"
+    printf '1\n00:00:00,500 --> 00:00:01,300\n这一句只亮了零点八秒\n\n2\n00:00:01,300 --> 00:00:03,200\n这句够长\n' > "$t/sc/film.zh.srt"
+    a=$(vh check "$t/sc/film.mp4" 2>&1); rc=$?
+    case "$a" in *"subtitles · film.zh.srt: 1 of 2 entries are shorter than it takes to read them"*"0.80 s, needs 1.80 s"*) ok "check lists subtitle entries too short to read, from the SRT beside the film" ;;
+      *) bad "check on a short subtitle (rc $rc): $(printf '%s' "$a" | tail -c 500)" ;; esac
+  fi
   python3 - "$t" <<'PY'
 import json, sys
 d = sys.argv[1]

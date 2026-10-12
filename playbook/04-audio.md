@@ -14,7 +14,7 @@ bin/vh tts projects/<p> qwen Serena zh            # 本地开源 Qwen3-TTS（默
 bin/vh tts projects/<p> qwen Aiden en             # 同一份稿子，英文旁白
 bin/vh tts projects/<p> gemini Kore zh --align gemini   # 云端 Gemini；--align：逐句词级时间 + ASR 对稿，跑偏的句子会被标出来
 bin/vh tts projects/<p> minimax "Chinese (Mandarin)_Reliable_Executive" zh --join all   # 云端 MiniMax：整份稿一个请求，音色不漂，自带逐字时间
-bin/vh captions projects/<p> zh                    # → captions.zh/en/bi.srt + captions.json（给引擎画进画面）
+bin/vh captions projects/<p> zh                    # → captions.zh/en/bi.srt + captions.json（给引擎画进画面）；按词断行，--cards 一行一条
 bin/vh voices list en-GB --gender female           # Gemini 音色库；bin/vh voices design "<描述>" 设计一个音色 → voice_… id
 # 配乐：代码作曲，段落对齐镜头，节拍精确
 bin/vh music --example > projects/<p>/audio/score.json        # --example zh：编钟、古筝、笛子、太鼓的中国风起步谱；--example list：全部起步谱
