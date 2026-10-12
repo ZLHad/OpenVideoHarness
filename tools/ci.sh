@@ -329,6 +329,18 @@ PY
     case "$rc:$a" in 1:*"1 isolated frame(s) in 60: 1.000 s"*"--no-browser-gpu"*) ok "check fails on one odd frame and names its time" ;; *) bad "check on one odd frame (rc $rc): $a" ;; esac
     a=$(vh check "$t/odd.mp4" --allow 0.4,1.0 2>&1); rc=$?
     case "$rc:$a" in 0:*"no isolated frames in 60"*"declared (--allow): 1.000 s"*) ok "check --allow: a declared flash is listed and passes" ;; *) bad "check --allow (rc $rc): $a" ;; esac
+    a=$(vh check "$t/odd.mp4" --allow 0.9-1.1 2>&1); rc=$?
+    case "$rc:$a" in 0:*"declared (--allow): 1.000 s"*) ok "check --allow takes a span a-b" ;; *) bad "check --allow span (rc $rc): $a" ;; esac
+    # an odd frame every 15 frames (a bounce landing on its still point once a cycle) is periodic motion, not a glitch
+    ffmpeg -nostdin -v error -f lavfi -i color=c=0x404040:s=320x180:r=30:d=3 -vf "drawbox=x=100:y=60:w=60:h=60:c=white:t=fill:enable='eq(mod(n\,15)\,7)'" -pix_fmt yuv420p "$t/periodic.mp4"
+    a=$(vh check "$t/periodic.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 0:*"no isolated frames in 90"*"periodic: 6 frames every 15 frames (2.0 Hz)"*) ok "check: evenly spaced odd frames are periodic motion, said and not failed" ;; *) bad "check on periodic odd frames (rc $rc): $a" ;; esac
+    # motion: 2 s of a moving pattern, then a hard cut to a pale still picture for 4 s: a cut that flashes and a still stretch
+    ffmpeg -nostdin -v error -f lavfi -i testsrc2=s=320x180:r=30:d=2 -f lavfi -i color=c=0xE0E0E0:s=320x180:r=30:d=4 \
+      -filter_complex "[0:v]eq=brightness=-0.3,format=yuv420p[a];[1:v]format=yuv420p[b];[a][b]concat=n=2:v=1[v]" -map "[v]" -pix_fmt yuv420p "$t/still.mp4"
+    a=$(vh check "$t/still.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 0:*"motion: "*"1 hard cut(s)"*"static: 1 stretch(es) of 3 s or more"*"2.00–6.00 s (frozen)"*"cuts: 1 hard cut(s) from dark to bright"*"2.00 s"*) ok "check --motion: a still stretch and a cut from dark to bright are warnings, the exit status untouched" ;;
+      *) bad "check on a still stretch and a bright cut (rc $rc): $a" ;; esac
     a=$(vh check "$t/odd.mp4" --allow 1s 2>&1); rc=$?
     [ $rc = 1 ] && ok "check --allow with a typo fails instead of skipping the scan" || bad "check --allow 1s exited $rc: $a"
     a=$(vh check "$t/a.wav" 2>&1); rc=$?
