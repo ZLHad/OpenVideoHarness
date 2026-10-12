@@ -5,7 +5,7 @@ brings it through uv), else from a fallback that keeps Latin words and numbers w
 characters, as before. Each piece costs 150 and each break what it is worth below; the lowest total wins:
   - a piece wider than the limit is not allowed (one token wider than the limit stands alone);
   - pieces of even width (the sentence's width split evenly);
-  - a break right after a comma, a pause or a colon is cheap; one that leaves a piece ending on 把 被 将 对 向 从 在 和 与 跟 及
+  - a break right after a comma, a pause, a colon or (in wrapped lines) a sentence end is cheap; one that leaves a piece ending on 把 被 将 对 向 从 在 和 与 跟 及
     或 是 让 给 比 为 由, or the next starting on 了 的 地 得 着 过 吗 呢 吧 啊 么 们 (as one-character words) costs more;
   - a piece whose last pause leaves only a word or two after it ("先拆开看，再"), or that starts with one character and a
     pause ("灯，亮了"), costs more;
@@ -46,22 +46,33 @@ def width(s):
 def raw_tokens(text):
     if HAVE_JIEBA:
         return [t for t in jieba.lcut(text, HMM=True) if t]
-    return re.findall(r"[A-Za-z0-9_./<>:@#%&+=\-]+|\s+|.", text)
+    return re.findall(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?|[A-Za-z0-9_./<>:@#%&+=\-]+|\s+|.", text)
 
 
 def tokens(text, forced=()):
-    """The text as break units, every character in one: Latin words and numbers whole ("Node.js", "GPT-4", "3.5"),
+    """The text as break units, every character in one: Latin words, numbers and links whole ("Node.js", "GPT-4", "3.5",
+    "1,000,000", "12:30", "https://…"),
     punctuation and spaces kept with the word before (an opening mark with the word after), split at each forced index."""
     toks, pos = [], 0
     for t in raw_tokens(text):
         toks.append([pos, t]); pos += len(t)
-    # Latin runs without a space between them are one word (jieba cuts "Node.js" into three)
+    # Latin runs without a space between them are one word (jieba cuts "Node.js" into three); so are a number with its
+    # separators and a link ("1,000,000", "12:30", "https://…"): a , or : between two of them, with no space, joins them
     merged = []
     for p, t in toks:
         if merged and LATIN.fullmatch(t) and LATIN.fullmatch(merged[-1][1]) and merged[-1][0] + len(merged[-1][1]) == p:
             merged[-1][1] += t
         else:
             merged.append([p, t])
+    k = 0
+    while k + 2 < len(merged):
+        a, sep, b = merged[k], merged[k + 1], merged[k + 2]
+        if (sep[1] in (",", ":") and LATIN.fullmatch(a[1]) and LATIN.fullmatch(b[1]) and a[1][-1:].isalnum()
+                and (b[1][:1].isalnum() or (sep[1] == ":" and b[1].startswith("//")))
+                and a[0] + len(a[1]) == sep[0] and sep[0] + 1 == b[0]):
+            merged[k:k + 3] = [[a[0], a[1] + sep[1] + b[1]]]
+            continue
+        k += 1
     # punctuation and spaces go with the word before; an opening mark with the word after
     out = []
     for p, t in merged:
@@ -135,8 +146,8 @@ def best_breaks(toks, limit, cards, forced=()):
         last = toks[j - 1][1].strip()
         if j < n:   # the break after this piece
             core = last.rstrip(CLOSERS)
-            if core[-1:] and core[-1] in PAUSES:
-                c -= 30
+            if core[-1:] and core[-1] in PAUSES + STOPS:
+                c -= 30   # after a pause, or (in wrapped lines) a sentence end
                 if core[-1] in "：:" and toks[j][1][:1] in OPENERS: c -= 50   # a colon before a quote: break there
             elif len(core) == 1 and core in END_BAD:
                 c += 60

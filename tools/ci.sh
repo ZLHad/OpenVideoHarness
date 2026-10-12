@@ -1137,6 +1137,20 @@ sys.exit(0 if ok else 1)
 PY
     then ok "captions --cards: cut between words (jieba), never across a sentence end, a card starting at the break table's phrase"
     else bad "captions --cards (exit $rc): $(printf '%s' "$a" | tail -c 500) $(cat "$t/cw/audio/captions.zh.srt" 2>/dev/null | tr '\n' '|' | tail -c 400)"; fi
+    # numbers, times and links stay whole at a narrow width (jieba cuts them at their , and :)
+    if a=$(PYTHONWARNINGS=ignore uv run -q --no-project --with jieba python - "$ROOT/tools/audio" 2>&1 <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+import capbreak, captions
+bad = []
+for text, w, keep in (("价格从1,000,000元涨到2,500,000元", 8, ("1,000,000", "2,500,000")), ("会议定在12:30开始，别迟到", 6, ("12:30",)),
+                      ("网址是https://example.com/a/b，记下来。", 8, ("https://example.com/a/b",))):
+    for got in ([r for _, r in capbreak.pieces(text, w, True)], captions.wrap_zh(text, w)):
+        if not all(any(k in g for g in got) for k in keep): bad.append(f"{text} at {w}: {got}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+    ); then ok "captions: 2,500,000, 12:30 and a link stay whole at a narrow width, in cards and wrapped lines"
+    else bad "captions split a number, a time or a link: $a"; fi
   else skip "captions at word boundaries" "no uv to bring jieba"; fi
   # cards in English stay within --en-max characters and end at . ! ?; half-width ? ! end a Chinese sentence; a card that
   # would start after the media end is left out, and no card ends before it starts

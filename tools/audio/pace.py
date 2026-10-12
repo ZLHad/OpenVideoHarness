@@ -500,9 +500,15 @@ def main():
         if shutil.which("uv") and subprocess.run(["uv", "run", "-q", "--no-project", "--offline", "--with", "jieba", "python", "-c", "import jieba"],
                                                  capture_output=True).returncode == 0:
             py = ["uv", "run", "-q", "--no-project", "--offline", "--with", "jieba", "python"]
-        cards = bool(old) and all(isinstance(c, dict) and "part" in c for c in old)
+        try:   # the mode, widths and --cps captions.py was last run with
+            made = json.loads((audio / "captions.args.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            made = {}
+        cards = made.get("cards", bool(old) and all(isinstance(c, dict) and "part" in c for c in old))
+        again = (["--cards"] if cards else []) + [x for k, f in (("zh_max", "--zh-max"), ("en_max", "--en-max"), ("cps", "--cps"))
+                                                   if isinstance(made.get(k), (int, float)) and not isinstance(made.get(k), bool) for x in (f, str(made[k]))]
         r = subprocess.run(py + [str(Path(__file__).resolve().parent / "captions.py"), str(proj), "--lang", a.lang]
-                           + (["--cards"] if cards else []) + (["--skip-lint"] if skip_lint or a.skip_lint else []),
+                           + again + (["--skip-lint"] if skip_lint or a.skip_lint else []),
                            env={**os.environ, "PYTHONWARNINGS": "ignore"})
         narrow = [c for c in old if len(c.get("zh") or []) > 1 and sum(0.5 if ord(ch) < 128 else 1 for ch in "".join(c["zh"])) <= 16]
         if narrow:                                        # two lines that fit one at the default width: wrapped narrower before

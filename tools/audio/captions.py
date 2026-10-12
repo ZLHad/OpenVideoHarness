@@ -22,6 +22,7 @@ Minimum duration: a caption shorter than the subtitle floor (readcheck.SUB_FLOOR
   Every file above carries the extended end (the .lines.srt too: its last line ends with the caption), and captions.json
   keeps the spoken end as "speech_end" on the items it moved. A caption the gap cannot lengthen to 1.8 s is listed on
   stdout (bin/vh readcheck <project> --mode subtitle fails it too). The timeline itself is not touched.
+  audio/captions.args.json keeps the mode, widths and --cps of the run, and bin/vh pace makes the captions again with them.
 Breaks (tools/audio/capbreak.py): at word boundaries (jieba, which bin/vh captions brings through uv when it can; without
   it Latin words and numbers stay whole and a break may fall between any two Chinese characters), chosen by dynamic
   programming: the fewest lines, then even widths, breaks after a comma or a pause, none that leaves 把/是… at a line's end
@@ -280,6 +281,8 @@ def main():
     moved = [c for c in items if "speech_end" in c]
     items = [{k: c[k] for k in ("id", "part", "start", "end", "speech_end", "zh", "en", "words") if k in c} for c in items]   # speech_end beside end
     (audio / "captions.json").write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+    # how they were made, so bin/vh pace makes them again the same way after it changes the take
+    (audio / "captions.args.json").write_text(json.dumps({"cards": a.cards, "zh_max": a.zh_max, "en_max": a.en_max, "cps": a.cps}) + "\n", encoding="utf-8")
     wrote = ["captions.json"]
     if not a.cards and any(c.get("words") for c in items) and any(c[narr] for c in items):   # word timing → one cue per wrapped line
         cues = [{"start": t0, "end": t1, "l": ls} for c in items if c[narr]
