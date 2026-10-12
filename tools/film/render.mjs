@@ -27,7 +27,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { openFilm } from "./host.mjs";
-import { HOOK, check as checkGlyphs, merge as mergeGlyphs, report as glyphReport } from "./glyphs.mjs";
+import { HOOK, check as checkGlyphs, collectDom, merge as mergeGlyphs, report as glyphReport } from "./glyphs.mjs";
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");
@@ -161,7 +161,8 @@ async function worker(w, [a, b]) {
   } catch (e) { failed = failed || e.message; }
   ff.stdin.end();
   // the characters this worker drew, each in the font it asked for? (tools/film/glyphs.mjs; a finding is reported, not fatal)
-  if (film && !failed && !gone) { try { glyphs.push(await checkGlyphs(film)); } catch (e) { glyphs.push({ error: e.message }); } }
+  // (canvas text is noted as it is drawn; the DOM's text as it stands after this worker's last frame)
+  if (film && !failed && !gone) { try { await collectDom(film); glyphs.push(await checkGlyphs(film)); } catch (e) { glyphs.push({ error: e.message }); } }
   const code = await closed;
   if (film) await film.close();
   if (!failed && (code !== 0 || wrote < b - a)) failed = `the encoder for frames ${a}–${b - 1} ${wrote < b - a ? `stopped after ${wrote} of them` : "failed"} (exit ${code}): ${ffErr.trim() || "no message"}`;
