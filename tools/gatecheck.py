@@ -41,8 +41,9 @@ QUOTE = re.compile(r"[\"“「『]([^\"”」』]{2,})[\"”」』]")
 WAIVER = re.compile(r"(?:用户授权跳过|Waived by the user)\s*[（(]\s*(\d{4}-\d{2}-\d{2})\s*[）)][^\n]*?(?:原话|Verbatim)\s*[：:]\s*[\"“「『](.+?)[\"”」』]", re.I)
 SCOPE = re.compile(r"^\s*(?:[-*]\s+)?(?:范围|Scope)\s*[：:](.*)$", re.I)
 NOT_YET = re.compile(r"^\s*(待|等|未|pending|tbd|undecided|not\b|to be decided|[?？])", re.I)
-YES = re.compile(r"已定|定了|选定|改了|通过|decided|chosen|settled|approved", re.I)
-PENDING_LINE = re.compile(r"待定|待确认|待人|等人|等用户|未定|未拍板|推荐|propos|pending|tbd|not decided|[?？]\s*$", re.I)
+YES = re.compile(r"^\s*(?:(?:own|review|delegate|agent)\S*\s*[：:，,]?\s*)?(?:已定|定了|选定|改了|通过|decided|chosen|settled|approved)", re.I)
+PENDING_LINE = re.compile(r"待定|待确认|待人|等人|等用户|未定|未拍板|(?<![按照纳])推荐|propos|pending|tbd|not decided|[?？]\s*$", re.I)
+LABEL = re.compile(rf"^\s*(?:{LIST}\s+)?(?:\*\*)?(?:页面|Page|我的理解|理解|agent|下一步|Next|改了|Changed)", re.I)   # lines that are not the person's words
 
 
 def strip_comments(text):
@@ -114,7 +115,7 @@ def gate1(review):
                         if ncode or nxt.lstrip().startswith(">"):
                             said = said or says(nxt.lstrip(" >"))
                         break
-            elif not DECIDED.match(line) and any(says(q) for q in QUOTE.findall(line)):
+            elif not DECIDED.match(line) and not LABEL.match(line) and any(says(q) for q in QUOTE.findall(line)):
                 said = True   # the person's words quoted in the section ("- 10-08（看完第一版）：“…”"), not in a decision line
             if BOXES.match(line):
                 decided = True; continue
@@ -145,7 +146,7 @@ def waiver(review):
             if not m or not says(m.group(2)):
                 continue
             scope = next((SCOPE.match(x).group(1) for x in plain[i + 1:i + 5] if SCOPE.match(x)), "")
-            if scope and re.search(r"[②③]|关卡\s*[23]|gate\s*[23]", scope, re.I) and not re.search(r"①|关卡\s*1|gate\s*1|全部|所有|all", scope, re.I):
+            if scope and re.search(r"[②③]|关卡\s*[23]|gate\s*[23]", scope, re.I) and not re.search(r"①|关卡\s*1|gate\s*1|全部|所有|\ball\b", scope, re.I):
                 continue   # a waiver of the later gates only
             return m.group(1)
     return None
@@ -169,7 +170,8 @@ def concept_decided(dec):
                 if st is None or st >= len(c) or "~~" in c[0] or not re.search(r"concept|立意", c[0], re.I):
                     continue
                 status = PLACEHOLDER.sub("", re.sub(r"~~.*?~~", "", c[st])).strip()
-                if YES.search(status) and not NOT_YET.match(status):
+                status = re.sub(r"^(?:[（(][^）)]*[）)]\s*)+", "", status.replace("**", "").strip("`* "))   # a leading note, "（作废）已定：B"
+                if YES.match(status) and not NOT_YET.match(status):
                     return True
         for line, code in lines:   # agent 定的事: - 2026-10-06 concept · …, not struck, not pending
             m = re.match(r"^\s*-\s+(\d{4}-\d{2}-\d{2})\s+(?:concept|立意)\b[^·\n]*·(.*)$", line, re.I)

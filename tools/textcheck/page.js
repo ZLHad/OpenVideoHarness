@@ -329,15 +329,18 @@
     };
     const bx0 = Math.max(0, Math.round(P[0]) - x0), by0 = Math.max(0, Math.round(P[1]) - y0), bx1 = Math.min(w, Math.round(P[2]) - x0), by1 = Math.min(h, Math.round(P[3]) - y0);
     let n = 0, hit = 0, bb = null;
+    const cols = new Uint16Array(Math.max(0, bx1 - bx0)), rows = new Uint16Array(Math.max(0, by1 - by0));
     for (let y = by0; y < by1; y++) for (let x = bx0; x < bx1; x++) {
       const p = (y * w + x) * 4;
       n++;
       if (Math.abs(d[p] - bg(x, y, 0)) + Math.abs(d[p + 1] - bg(x, y, 1)) + Math.abs(d[p + 2] - bg(x, y, 2)) >= DETAIL) {
-        hit++; const X0 = x + x0, Y0 = y + y0;
+        hit++; cols[x - bx0]++; rows[y - by0]++; const X0 = x + x0, Y0 = y + y0;
         bb = bb ? [Math.min(bb[0], X0), Math.min(bb[1], Y0), Math.max(bb[2], X0 + 1), Math.max(bb[3], Y0 + 1)] : [X0, Y0, X0 + 1, Y0 + 1];
       }
     }
-    return n ? { px: hit, share: hit / n, at: bb } : null;
+    // a piece that runs right across the box's short side (a line through a thin bar) whatever its share of a long box
+    const bw = bx1 - bx0, bh = by1 - by0, across = bw >= bh ? Math.max(0, ...cols) >= 0.8 * bh : Math.max(0, ...rows) >= 0.8 * bw;
+    return n ? { px: hit, share: hit / n, at: bb, across: across && Math.min(bw, bh) >= 6 } : null;
   }
   const same = (a, b) => { let k = 0; for (let p = 0; p < a.length; p += 4) if (Math.abs(a[p] - b[p]) + Math.abs(a[p + 1] - b[p + 1]) + Math.abs(a[p + 2] - b[p + 2]) > 24) k++; return k <= (a.length / 4) * 0.001; };
   const boxOk = (b) => Array.isArray(b) && b.length === 4 && b.every(Number.isFinite) && b[2] > b[0] && b[3] > b[1];

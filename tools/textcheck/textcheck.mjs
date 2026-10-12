@@ -47,7 +47,7 @@
 // has detail inside a box (a line, an edge, a letter: a pixel 60 or more over r + g + b off the scene's ground there,
 // each 32 x 32 px tile's median colour blended between tile centres; a plain or shaded background and the grain are
 // not), on over --ui-share (0.002) of the box's pixels and at least 30 of them, or on 150 pixels or more in a long box,
-// the scene runs under the interface. Each run of samples is listed once, with the largest share: a small one is a line
+// or in a piece that runs right across the box's short side, the scene runs under the interface. Each run of samples is listed once, with the largest share: a small one is a line
 // or a shape crossing the bar or the caption (move one of them), a large one a busy picture under it. A ui(t) that
 // throws is a page error, like a frame that throws.
 //
@@ -235,7 +235,7 @@ try {
     const uts = steps(opt.uiStep, dur), got = await call("ui", uts, W, H);
     if (got.ignored) ui.ignored = got;
     else {
-      const hit = (q) => q.px >= 30 && (q.share > opt.uiShare || q.px >= 150);   // 150 px: a short line across a long bar
+      const hit = (q) => q.px >= 30 && (q.share > opt.uiShare || q.px >= 150 || q.across);   // a short line across a long bar
       ui.checked = got.samples.length;
       const open = new Map();   // name → the span still growing
       for (const q of got.samples) {
