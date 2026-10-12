@@ -33,7 +33,7 @@ bin/vh frames projects/<date>-<slug> --at 1,5,9   # 模板带一支 23 秒的示
 - 适合旁白撑着的横屏长片：镜头、字幕、章节进度条的时间都写成挂在旁白字上的 cue（`"@b2:跟着走-0.3"`），重配、改词、插停顿以后自己跟着走。一个 cue 找不到它的句子或词，`ready` 立刻失败，写明镜头、cue 原文和这句现在的文字，不会等到超时。
 - 一页 `film.html` 加 `src/*.js`，不用构建。它按页面合约写了 `window.film`，`bin/vh frames` 取帧、`bin/vh textcheck` 查字直接能用；reads 和字幕（`texts`）、画面事件（`events`）、章节和 cue 表都在 `ready` 里算好。
 - 字号下限在画字的最底层兜住，故意要小的字写 `texture: true`；绕过它写下的小字，`ready` 时会被报出来。
-- 成片画面用 `bin/vh render <项目>`（4K 加 `--dpr 2`），再用 `bin/vh mux` 套上混音。现在只有 2D canvas，没有 Three.js 底层。
+- 成片画面用 `bin/vh render <项目>`（4K 加 `--dpr 2`），再用 `bin/vh mux` 套上混音。出片后只改了一镜，用 `bin/vh patch <成片> --seconds <起>-<止>` 只重画那一段、在关键帧处接回去（套过混音的成片加 `--sidecar out/film.mp4.render.json`）。现在只有 2D canvas，没有 Three.js 底层。
 
 ## HyperFrames（HTML + GSAP）
 
