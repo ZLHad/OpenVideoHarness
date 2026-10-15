@@ -164,7 +164,7 @@ bin/vh readcheck <项目>                       # reads 和字幕够不够时间
 bin/vh determinism <项目>                     # 同几个时刻换顺序画、换进程画，看是不是 t 的纯函数
 bin/vh render <项目> [--dpr 2]                # 成片画面：<项目>/out/film.mp4（--dpr 2 是 4K），没有声音
 bin/vh patch <项目>/out/film.mp4 --seconds 142.2-159.2   # 只重画改过的一镜，接回成片（片子要是 bin/vh render 出的，旁边有 .render.json）
-bin/vh mux <项目>/out/film.mp4 <混音.wav> <成片.mp4>   # 套上混音
+bin/vh mux <项目>/out/film.mp4 <混音.wav> <成片.mp4>   # 套上混音（混音要和画面一样长：mix 带 dur=，否则差 0.1 s 以上会被拒绝）
 ```
 
 ## 守硬规则 1

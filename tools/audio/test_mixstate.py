@@ -137,7 +137,7 @@ class MixBuildTests(unittest.TestCase):
             with self.assertRaises(InvalidMix):
                 with Build(self.mix, []):
                     pass
-            self.assertIn("another mix or mux", self.mux().stderr)
+            self.assertIn("a mix is writing this audio", self.mux().stderr)
         state = json.loads(record_path(self.mix).read_text())
         state["status"] = "building"  # the durable marker left by a killed producer
         record_path(self.mix).write_text(json.dumps(state))
@@ -176,6 +176,19 @@ class MixBuildTests(unittest.TestCase):
         with self.assertRaises(InvalidMix):
             with verified(self.mix):
                 pass
+
+    def test_muxes_share_the_audio_and_outputs_follow_the_umask(self):
+        self.build()
+        old = os.umask(0o022)
+        self.addCleanup(os.umask, old)
+        with verified(self.mix):   # a mux in progress: another mux may read the mix, a mix may not write it
+            self.assertEqual(self.mux().returncode, 0)
+            with self.assertRaises(InvalidMix):
+                with Build(self.mix, ["voice=x"]):
+                    pass
+        self.assertEqual(json.loads(record_path(self.mix).read_text())["status"], "complete")
+        for f in (self.out, self.mix, record_path(self.mix)):
+            self.assertEqual(f.stat().st_mode & 0o777, 0o644, f)
 
 
 if __name__ == "__main__":

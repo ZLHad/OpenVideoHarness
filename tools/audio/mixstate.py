@@ -37,9 +37,17 @@ def record_path(out):
     return Path(str(Path(out).resolve()) + ".mix.json")
 
 
+def as_created(path):
+    # mkstemp makes 0600 files and os.replace keeps the mode: give the file the mode ffmpeg would have (the umask's)
+    mask = os.umask(0)
+    os.umask(mask)
+    os.chmod(path, 0o666 & ~mask)
+
+
 def write_record(path, value):
     fd, name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
     try:
+        as_created(name)
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(json.dumps(value, ensure_ascii=False, indent=2) + "\n")
             f.flush()
@@ -51,14 +59,16 @@ def write_record(path, value):
 
 
 @contextlib.contextmanager
-def locked(out):
+def locked(out, shared=False):
     # Do not unlink lock files: another process could still hold the old inode.
+    # mix holds it alone; any number of muxes share it (one mix onto a 4K and a 1080p picture at once).
     p = Path(str(Path(out).resolve()) + ".mix.lock")
     with p.open("a+b") as f:
         try:
-            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(f, (fcntl.LOCK_SH if shared else fcntl.LOCK_EX) | fcntl.LOCK_NB)
         except BlockingIOError as e:
-            raise InvalidMix(f"{out}: another mix or mux is using this audio; wait for it to finish") from e
+            raise InvalidMix(f"{out}: " + ("a mix is writing this audio" if shared else "another mix or mux is using this audio")
+                             + "; wait for it to finish") from e
         try:
             yield
         finally:
@@ -69,6 +79,8 @@ def dependencies(kv, directory):
     paths = {Path(os.path.abspath(kv[k])) for k in ("voice", "music", "sfx", "events", "timeline", "roles") if kv.get(k)}
     event_hash = None
     if kv.get("events"):
+        if not Path(kv["events"]).is_file():
+            raise InvalidMix(f"events={kv['events']}: no such file")
         raw = Path(kv["events"]).read_bytes()
         event_hash = hashlib.sha256(raw).hexdigest()
         events = json.loads(raw)
@@ -85,7 +97,7 @@ def dependencies(kv, directory):
         if kv.get("lib"):
             paths.add(Path(os.path.abspath(Path(kv["lib"]) / "sfx-lib.json")))
     return [{"path": os.path.relpath(p, directory),
-             "sha256": event_hash if event_hash and p == Path(os.path.abspath(kv["events"])) else digest(p) if p.exists() else None}
+             "sha256": event_hash if event_hash and p == Path(os.path.abspath(kv["events"])) else digest(p) if p.is_file() else None}
             for p in sorted(paths)]
 
 
@@ -93,7 +105,7 @@ def changed(inputs, directory):
     for item in inputs:
         p = directory / item["path"]
         try:
-            current = digest(p) if p.exists() else None
+            current = digest(p) if p.is_file() else None
         except OSError:
             current = "unreadable"
         if current != item["sha256"]:
@@ -107,14 +119,17 @@ class Build:
         self.record = record_path(self.out)
         self.state = {"version": 1, "status": "building", "args": list(args), "args_sha256": json_hash(list(args))}
         self.temp = None
+        self.discard = False
 
     def __enter__(self):
         self.lock = locked(self.out)
         self.lock.__enter__()
         try:
+            self.had_record = self.record.exists()
             write_record(self.record, self.state)
             fd, name = tempfile.mkstemp(prefix=f".{self.out.stem}.mix-", suffix=self.out.suffix, dir=self.out.parent)
             os.close(fd)
+            as_created(name)
             self.temp = name
         except BaseException:
             self.lock.__exit__(None, None, None)
@@ -124,6 +139,7 @@ class Build:
     def snapshot(self, kv):
         self.state["inputs"] = dependencies(kv, self.out.parent)
         if any((self.out.parent / i["path"]).resolve() == self.out for i in self.state["inputs"]):
+            self.discard = not self.had_record   # an input is not a mix: leave no record that would make mux refuse it
             raise InvalidMix("the mix output is also an input; choose a different output")
         self.state["inputs_sha256"] = json_hash(self.state["inputs"])
         write_record(self.record, self.state)
@@ -141,7 +157,9 @@ class Build:
 
     def __exit__(self, kind, exc, tb):
         try:
-            if kind is not None or self.state["status"] != "complete":
+            if self.discard:
+                self.record.unlink(missing_ok=True)
+            elif kind is not None or self.state["status"] != "complete":
                 self.state["status"] = "failed"
                 self.state["error"] = str(exc) if exc is not None else "mix did not complete"
                 write_record(self.record, self.state)
@@ -167,7 +185,8 @@ def validate(out, record):
         if old:
             raise InvalidMix(f"{out}: input changed or is missing: {old}; rebuild the mix before mux")
         if digest(out) != state["output_sha256"]:
-            raise InvalidMix(f"{out}: audio changed since the successful mix; rebuild it before mux")
+            raise InvalidMix(f"{out}: audio changed since the successful mix; rebuild it before mux "
+                             "(an edit made on purpose: save it under another name and mux that file, which has no mix record)")
         return state
     except (OSError, KeyError, TypeError, json.JSONDecodeError) as e:
         raise InvalidMix(f"{record}: cannot verify this mix ({e}); rebuild it before mux") from e
@@ -182,7 +201,7 @@ def verified(out):
         if record.exists():
             raise InvalidMix(f"{out}: a mix build started during mux; run mux again")
         return
-    with locked(out):
+    with locked(out, shared=True):
         state = validate(out, record)
         yield True
         # Sources can be edited by tools that do not use the mix lock. Check again

@@ -26,7 +26,8 @@ bin/vh sfx place projects/<p>/audio/events.json projects/<p>/audio/sfx.wav 45 --
 bin/vh sfx audition whoosh 8 --png                 # 先听：一个音效的 8 个 variant，每个一行参数和测量（--png：频谱图）
 # 混音、成片 QA 与合成：按视频类型选 profile（见下文"混音"），层次从一个锚点量起
 bin/vh mix projects/<p>/audio/mix.wav profile=short voice=…/voiceover.zh.wav music=…/music.wav \
-           events=…/events.json lib=…/sfx timeline=…/timeline.zh.json stems=projects/<p>/audio/stems
+           events=…/events.json lib=…/sfx timeline=…/timeline.zh.json stems=projects/<p>/audio/stems dur=<画面秒数> fade=0.5
+           # dur= 让混音和画面一样长（配乐默认多 2.5 s 尾音）：差 0.1 s 以上 mux 会拒绝，除非加 --allow-short / --allow-long
 bin/vh qa projects/<p>/audio/mix.wav projects/<p>/audio/music.beats.json projects/<p>/audio/events.json \
           --stems projects/<p>/audio/stems   # 静音、掉音、抽吸、click + cue check + 混音报告（qa mix）
 bin/vh mux projects/<p>/out/final.mp4 projects/<p>/audio/mix.wav projects/<p>/out/final-av.mp4 \

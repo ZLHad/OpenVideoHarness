@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 
-from mixstate import InvalidMix, verified
+from mixstate import InvalidMix, as_created, verified
 
 
 def duration(path, kind):
@@ -71,10 +71,14 @@ def main():
         with verified(a.audio) as tracked:
             vd, ad = duration(a.video, "v"), duration(a.audio, "a")
             delta = ad - vd
+            # a profile mix takes dur=: the music's tail (2.5 s by default) or a narration that ends early is fitted inside the mix
+            fit = f"rebuild it at the picture's length (a profile mix: dur={vd:.3f} fade=0.5)"
             if delta < -0.1 - 1e-6 and not a.allow_short:
-                ap.error(f"audio is {-delta:.3f} s shorter ({ad:.3f} vs {vd:.3f} s); rebuild it, or declare intentional padding with --allow-short")
+                ap.error(f"audio is {-delta:.3f} s shorter than the picture ({ad:.3f} vs {vd:.3f} s): {fit}, "
+                         "or pass --allow-short to end on silence (a film with sound must not)")
             if delta > 0.1 + 1e-6 and not a.allow_long:
-                ap.error(f"audio is {delta:.3f} s longer ({ad:.3f} vs {vd:.3f} s); rebuild it, or declare intentional trimming with --allow-long")
+                ap.error(f"audio is {delta:.3f} s longer than the picture ({ad:.3f} vs {vd:.3f} s): {fit}, "
+                         "or pass --allow-long to cut it at the picture's end with a 40 ms fade")
             print("mux: " + ("mix inputs and audio match the successful build" if tracked else "external/legacy audio: no mix record; duration checked, source freshness not verified"), flush=True)
             fade = f",afade=t=out:st={max(0, vd - 0.04):.9f}:d=0.04" if ad > vd + 0.001 else ""
             ins, maps, meta = ["-i", str(a.video), "-i", str(a.audio)], ["-map", "0:v", "-map", "[a]"], []
@@ -86,6 +90,7 @@ def main():
             fd, name = tempfile.mkstemp(prefix=f".{a.out.stem}.mux-", suffix=a.out.suffix, dir=a.out.parent)
             os.close(fd)
             temp = Path(name)
+            as_created(temp)
             subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-y", *ins, "-filter_complex", f"[1:a]apad,atrim=0:{vd:.9f}{fade}[a]",
                             *maps, "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", *(["-c:s", "mov_text"] if a.subtitles else []),
                             *meta, *(["-disposition:s", "0"] if a.subs_off else []), "-movflags", "+faststart", str(temp)], check=True)
@@ -95,11 +100,14 @@ def main():
     finally:
         if temp is not None and temp.exists():
             temp.unlink()
-    print(f"✓ {a.out}")
+    n = len(a.subtitles)
+    print(f"✓ {a.out}" + (f" (+{n} subtitle track(s){', off by default' if a.subs_off else ''})" if n else ""))
 
 
 if __name__ == "__main__":
     try:
         main()
-    except (InvalidMix, OSError, ValueError, subprocess.CalledProcessError) as e:
+    except subprocess.CalledProcessError as e:   # ffmpeg has said why on stderr
+        sys.exit(f"mux: {Path(e.cmd[0]).name} failed (exit {e.returncode})")
+    except (InvalidMix, OSError, ValueError) as e:
         sys.exit(f"mux: {e}")
