@@ -357,7 +357,7 @@ MINIMAX_TTS_SPEED=1.25 bin/vh tts projects/<p> minimax - zh --join all --gap 0.3
 - **pan 从画面上算，不要凭感觉写。** 取发声物体在那一刻的屏幕 x：`pan = 2·x / 画面宽度 − 1`，再乘 0.7–0.8 收一点，全左全右在耳机里很刺。3D 场景用相机坐标：`pan = v·right / |v|`，其中 v 是声源到相机的向量；距离也从同一个 v 来。镜头在动时，同一个声源在不同时刻的左右位置也不同。Austerlitz 那支片子的音效就是这样从场景事件里算出声像和距离的，见 `cases/opus55-gallery.md` 第 6 节。
 - **内置音效的种子和清单**：每个内置音效用自己的随机种子（按名字和 variant），同一个事件不管前面先渲染了什么，都得到同样的采样。`sfx lib` 写的是每个音效的 plain 版（variant 0），同时写一份 `sfx-lib.json`，记下每个 WAV 是哪个内置音效和它的 sha256。`--lib` 目录里列在清单上、哈希没变的 WAV 就是内置音效本身，照样按事件变化；其他 WAV（哪怕和内置音效同名）原样使用，不接受 variant 和塑形参数；清单上的 WAV 被改过，工具会点名提示。没有清单的旧目录按字节和今天的 plain 版比对，并提示一次重新跑 `sfx lib`。impact 和 boom 在命中点有一层 1–4 kHz 的起音（crack），身体晚 2 ms 进来：没有这一层时，它们 98–100% 的能量在 150 Hz 以下，手机和笔记本几乎放不出来。impact、boom、ding、success、glitch 的结尾有 50 ms 的升余弦淡出，riser 4 ms，tape 10 ms：以前尾巴是硬切的，qa 报过 1593 倍的 click。
 - **每个事件默认是自己的 variant，一支片子里连成一条路。** 除了四个提示音，内置音效的每个事件都有一个 variant：同一支片子里同一个音效按时间顺序走一条有界的路，从一个起点（由音效名和这支片子用了哪些音效、各几次算出来，和时间无关）出发，每出现一次走一步。相邻两下一定不同，又不会差得太远，整支片子里像同一只手的动作在慢慢变化；不同片子的起点不同。同一份 events.json 每次渲染逐字节相同。variant 写成 起点·1000 + 第几步，例如 4821003。它只动事件没写的参数，幅度保持在"同一家族、换一个手势"：转场的长度 ±25 %、音高 ±3 个半音、峰值的位置、扫频跨度、明暗、音色、电平 ±1.5 dB；click、tick、pop 这类小动作只动一点音高、长度和电平；impact、boom 动起音（crack 的频段、衰减、电平，身体晚进来的时间）、衰减和电平，不动身体的音高（40 Hz 的身体一动音高就和配乐的低音拍出"抽吸"）。提示音不变，观众会记住它们的意思。只挪动事件的时间不会重抽（除非同一个音效的两个事件换了先后）；增删事件会重抽这支片子里没钉住的事件。想留住某一下，就写 `"variant": n`：`sfx place` 的 sidecar 和 `bin/vh mix … stems=DIR` 的 `meta.json` 里都记着每个事件拿到的号，`bin/vh qa --stems` 用它把同一个声音重新渲染出来；`"variant": 0` 是 plain 的那一个。
-- **按动作给转场塑形。** 转场类内置音效都接受这几个可选字段：`dur`（跟着转场的长度走；不写 `pitch`、`center` 时，越长越低，长度每翻一倍低 4 个半音）、`pitch`（半音）或 `center`（Hz）、`dir`（`"up"` 上扫，`"down"` 下扫）、`bright`（−1…1，暗…亮）、`tone`（0 纯气流…1 带音高的共鸣）。任何音效都可以写 `pan_from`、`pan_to`，让声音跟着画面从一边划到另一边。小而快的动作短、高、亮，大而慢的动作长、低、厚。比如一张卡片从左往右快速划过：`{"t": 2.0, "sfx": "whoosh", "dur": 0.35, "pan_from": -0.6, "pan_to": 0.6}`；镜头慢慢退到大场景：`{"t": 6.0, "sfx": "whoosh", "dur": 1.2, "dir": "down", "tone": 0.4}`。其余内置音效只接受其中几项：typing 是 `dur`、`pitch`，riser 是 `dur`、`pitch`、`bright`，click、tick、pop、shutter、glitch、impact、boom 只有 `pitch`；四个提示音（ding、success、error、toggle）一项都不接受，`variant` 也不行，观众要靠同一个声音认出它的意思。写了不收的字段，`sfx place`、`bin/vh mix … events=` 和 `sfx audition` 都报错退出；`bin/vh mix` 这样退出时什么都不写，`mix.wav` 和 stems 还是上一次的，而 `bin/vh qa` 不一定会去渲染这个事件，照样能在旧混音上跑完（见下文"混音"里的"报错退出时"）。
+- **按动作给转场塑形。** 转场类内置音效都接受这几个可选字段：`dur`（跟着转场的长度走；不写 `pitch`、`center` 时，越长越低，长度每翻一倍低 4 个半音）、`pitch`（半音）或 `center`（Hz）、`dir`（`"up"` 上扫，`"down"` 下扫）、`bright`（−1…1，暗…亮）、`tone`（0 纯气流…1 带音高的共鸣）。任何音效都可以写 `pan_from`、`pan_to`，让声音跟着画面从一边划到另一边。小而快的动作短、高、亮，大而慢的动作长、低、厚。比如一张卡片从左往右快速划过：`{"t": 2.0, "sfx": "whoosh", "dur": 0.35, "pan_from": -0.6, "pan_to": 0.6}`；镜头慢慢退到大场景：`{"t": 6.0, "sfx": "whoosh", "dur": 1.2, "dir": "down", "tone": 0.4}`。其余内置音效只接受其中几项：typing 是 `dur`、`pitch`，riser 是 `dur`、`pitch`、`bright`，click、tick、pop、shutter、glitch、impact、boom 只有 `pitch`；四个提示音（ding、success、error、toggle）一项都不接受，`variant` 也不行，观众要靠同一个声音认出它的意思。写了不收的字段，`sfx place`、`bin/vh mix … events=` 和 `sfx audition` 都报错退出；`bin/vh mix` 这样退出时会保留旧音频并记录失败，`mux` 不接受它；`qa` 仍可能在旧混音上跑完，不能代替构建检查（见下文“混音构建记录”）。
 - **重复会被提醒。** `bin/vh qa` 拿到事件表时会查：同一类声音（内置音效按名字；文件按去掉 `_a`、`_2` 这类编号后的名字）按时间连着 3 次以上听起来一样（逐字节相同，或者 150 Hz 以上的波形相关 > 0.98），就警告，不算失败，并提示去掉 variant 的钉、给每一下塑形，录音素材就轮换几条（A B C A B C 这样轮换不算重复）。判断靠测出来的相似度，不看 variant 号。提示音、`role: "signal"` 和 sonification 层本来就该每次一样，不查；渲染不出来的事件会列出来。
 - **`role`**（可选：`hero`、`detail`、`ambience`、`signal`）：这个事件在混音 profile 里属于哪一类，什么时候要写见下文"混音"。`sfx place` 会检查它，并在输出旁边写一个 `<out>.events.json`：每个事件的类和原因、起点，以及它自己摆好后的电平（fast：最响 100 ms 的 K 加权响度；m400；tp：真峰值；len：持续时间；lf：150 Hz 以下能量占比），混音前就能读。
 
@@ -402,7 +402,13 @@ VMR 这一列有三个数：
 - `stems=DIR` 按最终增益写出各总线和 `meta.json`，`bin/vh qa` 的 `--stems` 读它；
 - 不写 `profile`（或写 `profile=none`）就是原来的 ffmpeg 链（`duck=voice` 侧链压缩，响度按 loudnorm 定），输出和以前逐字节相同。
 
-**报错退出时什么都不写。** 事件写错（比如给提示音写了 `pitch`）、缺文件、参数不对，`bin/vh mix` 都报错退出，`mix.wav`、stems 和 `meta.json` 留着上一次的。`bin/vh qa` 照样能在旧混音上跑完，所以它先看混音是不是新的：事件表、节拍表、`--events`、`--voice`、`--timeline`、`--words` 或 `meta.json` 记下的输入比混音新 2 s 以上，有音效事件落在混音结尾之后，或者旁白比混音长，就在报告开头写出 `STALE?` 和原因，最后一行也带上。`qa mix` 只查第一项，拿这些输入和 `meta.json` 比。这只是警告，不算失败：刚 checkout 或拷过来的文件也会显得比混音新。看到它就重跑 `bin/vh mix`，确认退出码是 0，再跑 qa。
+**混音构建记录。** `bin/vh mix` 在音频旁写 `<out>.mix.json`，记录最近一次尝试的状态、参数、直接输入和成功音频的 SHA-256。直接输入包括 voice、music、sfx、events、timeline、roles，以及事件会查找的录音和音效库清单；不追溯音乐文件背后的谱子等上游产物。开始就标 `building`，全部写完并确认输入未变才标 `complete`；报错标 `failed`，中途被杀则留下 `building`。音频先写临时文件，成功后替换，所以失败前已有的音频可供回退，但不能当成本次成功。stems 只有整个 mix 成功后才应使用。旁边的 `.mix.lock` 协调 mix / mux，留在原处即可。
+
+`bin/vh mux` 在封装前后核对记录：最近一次失败、没完成、输入内容变化（包括等长替换）、文件缺失或音频被改写都退出非零，保留原来的成片。修好输入后重新成功运行 mix；`--allow-short` / `--allow-long` 不跳过这项检查。复制混音给另一个项目时，连同记录和输入保持相对位置；没有记录的外部音轨和旧混音仍可封装，但会明确提示“来源是否最新未验证”。
+
+**时长差要显式声明。** 音轨与画面相差不超过 0.1 s 时沿用精确补齐 / 裁剪（容纳编码和帧取整）；超过时默认拒绝。确实要补静音用 `--allow-short`，确实要裁掉长音轨用 `--allow-long`。先核对原因，再用对应选项；它只允许这次长度调整，不代表声音质检通过。
+
+`bin/vh qa` 原有的 `STALE?` 仍是提示：输入时间比混音新、有事件落在混音结尾之后、旁白比混音长等会被列出，但时间戳可能因 checkout 或拷贝变化，所以不算失败。它检查声音质量，构建有效性由 mix 记录和 mux 核对。
 
 **什么时候写 `role`**：
 - 类先看事件的 `"role"`；没写时，`"layer": "sonification"` 是 signal；再没有就按名字里的整词判断（复数也算）：
@@ -522,7 +528,7 @@ ffmpeg -i mix.wav -af loudnorm=I=-14:TP=-1.5:LRA=20:print_format=json -f null - 
 ffmpeg -i mix.wav -af volume=<G>dB mix_norm.wav                                   # 第 2 遍：G = −14 − input_i；input_tp + G ≤ −1.5 时到此为止
 ffmpeg -i mix.wav -af "volume=<G>dB,aresample=192000,alimiter=limit=0.84:level=false:latency=true,aresample=48000" mix_norm.wav   # 否则加真峰值限幅（0.84 ≈ −1.5 dBFS）
 # 再用第 1 遍的命令测 mix_norm.wav：限幅会吃掉一点响度（把 G 补回去），回到 48 kHz 会让真峰值高出约 0.2 dB（把 limit 再降一点）
-# 视频与音轨合成：先出无声成片，再用 bin/vh mux 把音轨补齐或截到视频的精确长度（-shortest 按 AAC 帧截断，会吃掉最后 2 帧）
+# 视频与音轨合成：核对混音记录和时长，再对齐视频精确长度；差超过 0.1 s 时须显式 --allow-short / --allow-long
 ffmpeg -framerate 30 -i out/frames/f%05d.jpg -c:v libx264 -crf 17 -pix_fmt yuv420p out/final.mp4
 bin/vh mux out/final.mp4 audio/mix.wav out/final-av.mp4
 ```

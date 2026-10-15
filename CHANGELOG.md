@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Refuse failed or stale mixes at mux time**
+- `bin/vh mix` records the latest build attempt, arguments, direct input hashes and output hash beside the audio. It writes to a temporary file and replaces the audio only after a successful build with unchanged inputs; a failed or interrupted attempt cannot silently reuse the previous mix.
+- `bin/vh mux` checks tracked inputs and audio before and after encoding, coordinates with an active mix, and publishes its output only after these checks pass. External/legacy audio remains supported with an explicit message that its source freshness is unverified.
+- Audio more than 0.1 s shorter or longer than the picture is refused unless deliberate padding or trimming is requested with `--allow-short` or `--allow-long`. These flags do not bypass build validity. Soft subtitles and exact picture length are preserved.
+- Regression coverage uses real media: failed retries (including unsupported `ding` pitch), equal-duration source edits, corrupted records, concurrent/interrupted builds, changed recordings, symlink retargets and deliberate duration changes.
+
 **Small fixes after line 1: a pace re-run keeps `--media-end`, CI says what it skipped, a citation, film figures out of the docs**
 - `bin/vh captions` keeps `--media-end` in `audio/captions.args.json` with the mode, widths and `--cps`, and `bin/vh pace` makes the captions again with it (before, a re-run lengthened short captions to the picture end it found itself).
 - `tools/ci.sh` repeats at the end which checks it skipped (shellcheck, pyflakes, or any other), so "all checks passed" without them is not taken for a full pass; the skip lines point to CONTRIBUTING.md's uv recipe.

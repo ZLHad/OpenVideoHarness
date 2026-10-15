@@ -66,6 +66,7 @@ Deterministic (seeded room IRs, no threads, no ffmpeg filters in the signal path
 non-WAV out, encodes): the same inputs give the same bytes. About 3–4 s for a 25 s film on an M3 Max.
 """
 import json, os, re, subprocess, sys, time
+from mixstate import Build, InvalidMix
 
 try:   # the profile path only: the default chain needs nothing but ffmpeg
     import numpy as np
@@ -89,9 +90,21 @@ KEYS = ("voice", "music", "sfx", "music_db", "sfx_db", "voice_db", "duck", "duck
 def main():
     if sys.argv[1:2] in (["-h"], ["--help"]): print(USAGE); sys.exit(0)
     if len(sys.argv) < 2: sys.exit(USAGE)
+    out = sys.argv[1]
+    with Build(out, sys.argv[2:]) as build:
+        kv = arguments()
+        build.snapshot(kv)
+        if kv.get("profile", "none") == "none":
+            report = default_chain(build.temp, kv, out)
+        else:
+            report = layered(build.temp, kv, out)
+        build.commit()
+    print(report)
+
+def arguments():
     bad = [a for a in sys.argv[2:] if "=" not in a or a.split("=", 1)[0] not in KEYS]   # a bare path or a typo, not a traceback
     if bad: sys.exit(f"{USAGE}\nnot key=value, or not a known key: {' '.join(bad)}")
-    out = sys.argv[1]; kv = dict(a.split("=", 1) for a in sys.argv[2:])
+    kv = dict(a.split("=", 1) for a in sys.argv[2:])
     for k in ("music_db", "sfx_db", "voice_db", "duck_ratio", "lufs", "tp", "dur", "fade"):
         if k in kv:
             try: v = float(kv[k])
@@ -100,10 +113,9 @@ def main():
     if kv.get("profile", "none") == "none":
         extra = [k for k in PROFILE_KEYS[1:] if k in kv]
         if extra: sys.exit(f"{' '.join(k + '=' for k in extra)}: only with a mix profile (profile={'|'.join(PROFILES)})")
-        return default_chain(out, kv)
-    return layered(out, kv)
+    return kv
 
-def default_chain(out, kv):   # ffmpeg only; byte-identical to the chain before mix profiles existed
+def default_chain(out, kv, final_out=None):   # ffmpeg only; the audio is unchanged by the build record
     if kv.get("duck", "voice") not in ("voice", "on", "off"): sys.exit(f"duck={kv['duck']}: use duck=voice, duck=on or duck=off")
     buses = [(k, kv[k]) for k in ("voice", "music", "sfx") if kv.get(k)]
     if not buses: sys.exit("give at least one of voice= music= sfx=")
@@ -161,7 +173,7 @@ def default_chain(out, kv):   # ffmpeg only; byte-identical to the chain before 
         slope = min(1, max(.2, (i - last[1]) / (gain - last[0]))) if last and gain != last[0] else 1   # limiting eats part of each dB
         last, gain = (gain, i), gain + (lufs - i) / slope
     how = f"static gain {gain:+.2f} dB" + (f" + true-peak limiter ({n} peak{'s' * (n > 1)}, up to {max(peaks) + gain - ceil:.1f} dB of reduction)" if n else "")
-    print(f"{out}  (stereo · {' + '.join(k for k, _ in buses)}{f', ducked by {chr(43).join(keys)}' if ducked else ''} · {how} · "
+    return (f"{final_out or out}  (stereo · {' + '.join(k for k, _ in buses)}{f', ducked by {chr(43).join(keys)}' if ducked else ''} · {how} · "
           f"measured {o['input_i']} LUFS, true peak {o['input_tp']} dBTP, LRA {o['input_lra']} LU · input {m['input_i']} LUFS, LRA {m['input_lra']} LU)")
 
 # ═════════════════════════════════════════════ mix profiles ═════════════════════════════════════════════
@@ -779,7 +791,7 @@ def master(X, target, tp):
         if abs(I2 - target) > 0.1: g *= 10 ** ((target - I2) / 20); Y = X * g
     return Z, g, I2, TP, lim, npk
 
-def layered(out, kv):
+def layered(out, kv, final_out=None):
     if np is None: sys.exit("profile= needs numpy and scipy: run it as bin/vh mix … profile=… (uv provides them)")
     name = kv["profile"]
     if name not in PROFILES: sys.exit(f"profile={name}: use one of {', '.join(PROFILES)}, or none for the default chain")
@@ -833,12 +845,15 @@ def layered(out, kv):
             p = os.path.join(d, f"{k}.wav")
             if stems[k].any(): save(p, stems[k] * g)
             elif os.path.exists(p): os.remove(p)
-        meta["mix"] = os.path.relpath(os.path.abspath(out), os.path.abspath(d))
+        meta["mix"] = os.path.relpath(os.path.abspath(final_out or out), os.path.abspath(d))
         with open(os.path.join(d, "meta.json"), "w") as fh:
             json.dump(meta, fh, ensure_ascii=False, indent=1, default=lambda o: o.tolist() if hasattr(o, "tolist") else str(o))
     what = " + ".join([k for k in ("voice", "music") if k in kv] + ([f"{len(meta['events'])} SFX events"] if events else ["sfx"] if "sfx" in kv else []))
-    print(f"{out}  (stereo · profile {name} · {what} · {meta['how']} · measured {meta['lufs']:.2f} LUFS (BS.1770), "
+    return (f"{final_out or out}  (stereo · profile {name} · {what} · {meta['how']} · measured {meta['lufs']:.2f} LUFS (BS.1770), "
           f"true peak {meta['tp']:.2f} dBTP · {time.time() - t0:.1f} s)" + (f" · stems {kv['stems']}" if "stems" in kv else ""))
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (InvalidMix, OSError, subprocess.CalledProcessError) as e:
+        sys.exit(f"mix: {e}")
