@@ -75,7 +75,7 @@ def main():
             fit = f"rebuild it at the picture's length (a profile mix: dur={vd:.3f} fade=0.5)"
             if delta < -0.1 - 1e-6 and not a.allow_short:
                 ap.error(f"audio is {-delta:.3f} s shorter than the picture ({ad:.3f} vs {vd:.3f} s): {fit}, "
-                         "or pass --allow-short to end on silence (a film with sound must not)")
+                         "or pass --allow-short to pad it, which leaves a silent tail")
             if delta > 0.1 + 1e-6 and not a.allow_long:
                 ap.error(f"audio is {delta:.3f} s longer than the picture ({ad:.3f} vs {vd:.3f} s): {fit}, "
                          "or pass --allow-long to cut it at the picture's end with a 40 ms fade")
