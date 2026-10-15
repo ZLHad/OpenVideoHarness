@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**Canvas-film readcheck exports and output isolation**
+- `bin/vh readcheck <project> --export` now exports the live text registry successfully, without trying to export the resulting JSON again. `--out` selects the saved snapshot (and, without `--export`, checks it); an existing file needs `--force`. Ordinary canvas-film checks use private temporary snapshots, preserving hand-edited `out/texts.json` and avoiding collisions between runs. HyperFrames composition exports keep their existing behavior.
+- Regression coverage: export versus check exit codes, default and custom output paths, overwrite protection, concurrent outputs, and the project's reading pace.
+
 **Small fixes after line 1: a pace re-run keeps `--media-end`, CI says what it skipped, a citation, film figures out of the docs**
 - `bin/vh captions` keeps `--media-end` in `audio/captions.args.json` with the mode, widths and `--cps`, and `bin/vh pace` makes the captions again with it (before, a re-run lengthened short captions to the picture end it found itself).
 - `tools/ci.sh` repeats at the end which checks it skipped (shellcheck, pyflakes, or any other), so "all checks passed" without them is not taken for a full pass; the skip lines point to CONTRIBUTING.md's uv recipe.
