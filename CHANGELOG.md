@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Read resolved film shots in storyboard and rhythm**
+- Canvas-film exposes `window.film.shots` with the actual start/end times, complete ids (including suffixes), chapter/segment, reads, label, unsure flags and transition metadata. A narration edit now moves the review tools with the engine's cuts.
+- Both tools choose explicit `--shots` JSON/page, then hand-written `shots.json`, then live `film.html`. JSON paths remain browser-independent; live reads wait for ready and fail on invalid data or page errors. Sources are named in output, storyboard's index and rhythm's footer. No hand-written registry is overwritten.
+- Storyboard captures real page frames when there is no video, or with `--snapshot`; manual frame and video paths remain supported. An unsure shot without a configured payoff interval no longer crashes its final summary.
+- Real-browser regressions cover changed timelines, suffixed ids, metadata, frame output, source precedence, concurrent outputs and malformed/failed pages.
+
 **Refuse failed or stale mixes at mux time**
 - `bin/vh mix` records the latest build attempt, arguments, direct input hashes and output hash beside the audio. It writes to a temporary file and replaces the audio only after a successful build with unchanged inputs; a failed or interrupted attempt cannot silently reuse the previous mix.
 - `bin/vh mux` checks tracked inputs and audio before and after encoding, coordinates with an active mix, and publishes its output only after these checks pass. External/legacy audio remains supported with an explicit message that its source freshness is unverified.

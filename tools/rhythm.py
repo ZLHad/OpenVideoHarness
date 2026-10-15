@@ -3,7 +3,8 @@
 usage: bin/vh rhythm <project> [--max S] [--segment NAME | --from S --to S] [--lang zh|en] [--beats map.json] [--out PNG]
 
 Lanes, all aligned to the same seconds:
-  shots       one bar per shot from shots.json (bin/vh storyboard -h has the schema); taller = longer. Red when it runs
+  shots       one bar per shot from --shots JSON/page, else shots.json, else film.html's window.film.shots;
+              bin/vh storyboard -h has the schema. Taller = longer. Red when it runs
               longer than the type's "new payoff every N s" (dashed line): BRIEF.md's "payoff every A–B s", else the
               type the project was made from (01: 15 s, 02: 5 s, 04: 4 s, 08: 1.5 s), else --max.
   narration   the lines of audio/timeline.json (or timeline.<lang>.json) from bin/vh tts
@@ -26,6 +27,7 @@ from PIL import Image, ImageDraw
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import vhdraw as V
 import readcheck as RC
+import shot_source as SS
 
 ONSCREEN_SKIPPED = []   # what reading index.html left out, said once on stdout
 NICE = (0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600)
@@ -127,21 +129,24 @@ def main():
     ap = argparse.ArgumentParser(prog="bin/vh rhythm", description=__doc__.split("\n\n")[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("project")
+    ap.add_argument("--shots", help="JSON or page; default: shots.json, else film.html's window.film.shots")
+    ap.add_argument("--browser", help=argparse.SUPPRESS)
     ap.add_argument("--max", type=float, help="shots longer than this are red (default: the type's payoff interval)")
-    ap.add_argument("--segment", help="zoom to one segment of shots.json")
+    ap.add_argument("--segment", help="zoom to one segment of the shots")
     ap.add_argument("--from", dest="t_from", type=float); ap.add_argument("--to", dest="t_to", type=float)
     ap.add_argument("--lang", choices=("zh", "en"), help="caption / narration language and labels")
     ap.add_argument("--beats", help="beat map (default audio/music.beats.json)")
     ap.add_argument("--out", help="output PNG (default <project>/out/check/rhythm.png)")
     a = ap.parse_args()
     project = V.project_dir(a.project)
-    shots, _ = V.load_shots(project / "shots.json") if (project / "shots.json").exists() else ([], {})
+    shots, _, sp, live = SS.load(project, a.shots, a.browser, required=False)
+    shot_source = SS.label(sp, live, project) if sp else None
     narr, narr_src = V.narration(project, a.lang)
     caps, cap_src = captions(project, a.lang)
     ons, on_src = onscreen(project)
     bm, bm_src = beatmap(project, a.beats)
     if not (shots or narr or caps or ons or bm):
-        raise SystemExit("rhythm: nothing to draw: no shots.json, audio/timeline*.json, audio/captions.json, texts.json or audio/*.beats.json")
+        raise SystemExit("rhythm: nothing to draw: no shots.json/window.film.shots, audio/timeline*.json, audio/captions.json, texts.json or audio/*.beats.json")
     limit, limit_src = V.payoff_limit(project, a.max)
     texts = [s["segment"] for s in shots] + [s for sh in shots for s in sh["reads"]] + [n["text"] for n in narr] + [c["text"] for c in caps]
     lang = V.lang_for(texts, a.lang); L = V.LABELS[lang]; zh = lang == "zh"
@@ -158,7 +163,7 @@ def main():
     runs = V.segments_of(shots)
     if a.segment:
         run = next((ss for n, ss in runs if n == a.segment), None)
-        if not run: raise SystemExit(f"rhythm: no segment {a.segment!r} in shots.json ({', '.join(n for n, _ in runs)})")
+        if not run: raise SystemExit(f"rhythm: no segment {a.segment!r} in {shot_source} ({', '.join(n for n, _ in runs)})")
         T0, T1 = run[0]["start"], run[-1]["end"]
     if a.t_from is not None: T0 = a.t_from
     if a.t_to is not None: T1 = a.t_to
@@ -297,7 +302,7 @@ def main():
                        f_tiny, V.RED, "rs")
         y += h + 22
     # footer: where each lane came from
-    src = [f"{L['shots']}: shots.json" if shots else None,
+    src = [f"{L['shots']}: {shot_source}" if shots else None,
            f"{L['narration']}: {V.shown(narr_src, project)}" if narr_src else None,
            f"{L['captions']}: {V.shown(cap_src, project)}" if cap_src else None,
            f"{L['onscreen']}: {V.shown(on_src, project)}" if on_src else None,
@@ -311,7 +316,7 @@ def main():
         out = project / "out" / "check" / f"rhythm{tag}.png"
     V.save(img, out)
     print(f"rhythm: {V.shown(out)}  ({T0:.1f}–{T1:.1f} s; lanes: {', '.join(n for n, _ in lanes if n != 'issues')})")
-    print("  from: " + ", ".join(V.relpath(x, project) for x in ([project / "shots.json"] if shots else []) + [narr_src, cap_src, on_src, bm_src] if x))
+    print("  from: " + ", ".join(([shot_source] if shots else []) + [V.relpath(x, project) for x in [narr_src, cap_src, on_src, bm_src] if x]))
     if limit is None and shots:
         print(f"  note: {limit_src}")
     for note in ONSCREEN_SKIPPED:

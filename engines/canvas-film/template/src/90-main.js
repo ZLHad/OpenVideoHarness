@@ -1,6 +1,6 @@
 // canvas-film · main: draws the frame at t (the shot, or two shots in a transition; then grain, the chapter bar, the
 // caption and the fades) and gives the page contract (engines/CONTRACT.md): window.film = { frame, duration, ready,
-// width, height, texts, events, chapters, cues, covers, cover, ui }. The page never moves on its own: it draws when frame(t) is called.
+// width, height, shots, texts, events, chapters, cues, covers, cover, ui }. The page never moves on its own: it draws when frame(t) is called.
 
 function shotAt(t) { let i = 0; while (i + 1 < SHOT_T.length && t >= SHOT_T[i + 1].a) i++; return i; }
 
@@ -167,6 +167,14 @@ window.film = {
   ready: READY,
   frame,
   get duration() { return DUR; },
+  get shots() {                                                                 // actual cut boundaries, resolved by ready
+    return SHOT_T.map((S) => {
+      const s = S.shot, chapter = CHAPTER_T.filter((c) => c.t <= S.a).at(-1);
+      return { id: S.id, start: S.a, end: S.b, segment: s.segment ?? (chapter ? chapter.title : ""),
+        reads: s.reads ?? s.see ?? [], label: s.label ?? "", unsure: s.unsure ?? false,
+        transition: { type: S.tin, duration: S.din } };
+    });
+  },
   get texts() { return TEXTS; },                                                  // reads and captions: [{ text, start, end, read }]
   get events() { return EVENTS; },                                                // [{ t, kind, shot, x?, dur? }], transitions too
   get chapters() { return CHAPTER_T.map((c) => ({ t: r3(c.t), title: c.title })); },

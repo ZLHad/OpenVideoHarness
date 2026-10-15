@@ -8,6 +8,8 @@
 //   cam    [z0, z1, cx, cy]: a slow camera drift over the shot · light: a pale picture (the caption goes on a plate)
 //   nocap  narration lines whose captions the film leaves out (the picture already shows those words large)
 //   see    what the viewer must get from it, for the storyboard and the review
+//   segment / reads / label / unsure: optional storyboard metadata. segment defaults to the chapter at the cut;
+//          reads defaults to see. window.film.shots exports these with the resolved start/end (not the cue strings).
 //   o      the shot's own times and values: every cue in it, at any depth, becomes seconds before the first frame, and
 //          one that no longer resolves stops the film in ready, naming the shot and the cue
 //   draw(t, s)  paints the shot at film time t: s = { id, t0, t1, lt, u, o, … } (src/90-main.js, drawShot)

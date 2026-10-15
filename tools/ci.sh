@@ -1251,6 +1251,9 @@ print("canvas-film readcheck: export/check, custom outputs, original Pace, --for
 PYREAD
   ); rc=$?
   if [ $rc = 0 ]; then ok "$a"; else bad "readcheck export/output regression: $a"; fi
+  if command -v uv >/dev/null; then
+    if python3 "$ROOT/tools/test_film_shots.py"; then ok "film shots: resolved times, real frames, source precedence and errors"; else bad "film shots"; fi
+  else skip "film shots" "needs uv (Pillow for storyboard/rhythm)"; fi
   # Ctrl-C while a page is loading: the browser's profile folder goes too (Node would otherwise die without cleaning up)
   printf '%s\n' '<!doctype html><title>hang</title><script>window.film = { duration: 2, ready: new Promise(() => {}), frame() {} };</script>' > "$t/hang.html"
   mkdir -p "$t/tmpd"

@@ -19,8 +19,8 @@
 #   hf-init <dir> [frame]       scaffold HyperFrames into a project safely (no global skill install); frame: landscape|portrait|square|4:5|3:4
 #                               (the composition size; 4K is a render flag, render --resolution 4k, not a frame)
 #  decide: pictures and pages for the human
-#   storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04]   labelled storyboard pages from shots.json: one per segment + an overview (+ review.json)
-#   rhythm <project> [--segment NAME | --from s --to s] [--max s]   rhythm map: shots, narration and captions, music; too-long shots and failed reads in red
+#   storyboard <project> [--shots JSON|page.html] [--video v.mp4 | --snapshot] [--unsure S02,S04]   labelled pages from shots.json or film.html: one per segment + overview (+ review.json)
+#   rhythm <project> [--shots JSON|page.html] [--segment NAME | --from s --to s] [--max s]   rhythm map: shots, narration and captions, music; too-long shots and failed reads in red
 #   style compare a,b,c [--frame t] | style apply <preset[,preset]> <project>   presets side by side (posters, or swatch frames at t) / attach presets to a project as references
 #   cover-preview <image> [more…] [--text-px N]   a cover at real feed sizes (Bilibili, Douyin, YouTube, Xiaohongshu) + a small-size legibility check
 #   review <project> [gate]     decision-first review page: out/review/gate-<gate>.json → gate-<gate>.html (+ index.html); prints the chat message (playbook/01-pipeline.md, 审阅页)
@@ -587,7 +587,7 @@ arg_dir() { # the folder of the project or page among a tool's arguments: the fi
   for a in "$@"; do
     if [ $skip = 1 ]; then skip=0; continue; fi
     case $a in
-      --soft-gl|--real-clock|--png|--force|--save|--export|--strict|--in-place|--keep|--*=*) ;;
+      --soft-gl|--real-clock|--png|--force|--save|--export|--strict|--in-place|--keep|--snapshot|--*=*) ;;
       -*) skip=1 ;;
       *) if [ -d "$a" ]; then echo "$a"; else case $a in */*) echo "${a%/*}" ;; *) echo . ;; esac; fi; return 0 ;;
     esac
@@ -617,9 +617,13 @@ cmd_film_tool() { # $1: frames | render | determinism | cues | fonts | patch (to
   exec node "$ROOT/tools/film/$tool.mjs" --browser "$b" "$@"
 }
 cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 1; }
-  uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" "$@"; }
+  local b=""
+  b=$(film_browser storyboard "$(arg_dir "$@")" 2>/dev/null) || true
+  uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" --browser "$b" "$@"; }
 cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--segment NAME | --from s --to s] [--max s] [--out file.png]"; exit 1; }
-  uv run -q --no-project --with pillow python "$ROOT/tools/rhythm.py" "$@"; }
+  local b=""
+  b=$(film_browser rhythm "$(arg_dir "$@")" 2>/dev/null) || true
+  uv run -q --no-project --with pillow python "$ROOT/tools/rhythm.py" --browser "$b" "$@"; }
 cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image> [more…] [--text-px N] [--out file.png|folder]"; exit 1; }
   uv run -q --no-project --with pillow --with numpy --with scipy python "$ROOT/tools/cover_preview.py" "$@"; }
 cmd_review() { python3 "$ROOT/tools/review.py" "$@"; }

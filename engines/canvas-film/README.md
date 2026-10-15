@@ -87,6 +87,23 @@ const CHAPTERS = [{ at: 0, title: "挂在字上" }, { at: "@b1", title: "翻一�
 
 - 章节进度条（顶上）：每章一格，宽度按章名；当前一章随进度填满，章名一直显示；每章开头约 3 s 显示全部章名（章名太多、一行放不下时，只显示当前一章）。显示的时段由 `FILM.bar = { from, to }` 定，默认从第一章到片尾。
 
+### 用同一份镜头表生成分镜和节奏图
+
+`ready` 后，`window.film.shots` 给出每个实际镜头的 `id/start/end`，首镜从 0 开始、末镜到片尾，时间包含旁白的 lead/tail。它直接读引擎解析的镜头边界，保留 `S04a` 等完整 id，不再需要从源码里用正则抄一份时间表。
+
+`SHOTS` 可加 `segment`（默认取镜头开始时所在章的标题）、`reads`（默认用 `see`）、`label`、`unsure`。`reads` 是观众要看懂的内容，不是 `window.film.texts` 的实测字卡。转场另附 `transition: {type, duration}`，起止按切入点算，不把叠化重叠算成镜头加长。
+
+```bash
+bin/vh storyboard <项目>             # 无 shots.json 时直接读 film.html；没有成片时直接取页面帧
+bin/vh storyboard <项目> --snapshot  # 即使已有成片，也取当前代码的帧
+bin/vh rhythm <项目> --segment 章名
+bin/vh rhythm <项目> --shots film.html # 有手写 shots.json 时，明确改用页面
+```
+
+两个命令的优先级都是：显式 `--shots JSON或页面` > 项目 `shots.json` > `film.html` 的 `window.film.shots`。JSON 仍可离线使用；live 读取需要 Node 和 `bin/vh` 选用的 Chrome。每次运行都等 `ready` 后重读，来源打印在输出中，并写入分镜 `index.json`、节奏图页脚，不会写回或覆盖手工镜头表。分镜仍优先用每镜的 `frame`，再用指定或已有成片；没成片才自动取页面帧，`--snapshot` 可优先取页面。页面加载、ready 或取帧错误会让命令失败；rhythm 只在可选 `shots` 字段缺失时省略该轨，格式错误不会跳过。
+
+旧项目复制过引擎的，把新版 `src/90-main.js` 的 `get shots()` 合入自己的 `window.film`；项目的 `src/50-shots.js` 保留。迁移前继续用手写 `shots.json`。其他引擎也可实现该字段，再用 `--shots page.html` 明确读取。
+
 ## 字
 
 - 画字一律用 `txt(s, x, y, o)`。字号在最底层兜住：`font()` 不会给出小于 `FILM.minText`（默认 44 px，按 BRIEF 的"在哪看"改，见 `playbook/03` §4）的字号，`measure()` 用的是同一个字号，排版不会和画出来的对不上。字幕的字号另有一档，`minText` 管不到：`FILM.caption.size`（默认 52；`playbook/03` §4 的字幕下限 desktop 48、feed 115），改"在哪看"时两样一起改。
@@ -181,7 +198,7 @@ bin/vh mux <项目>/out/film.mp4 <混音.wav> <成片.mp4>   # 套上混音（�
 ## 局限
 
 - 只有 16:9。别的画幅要同时改 `FILM.width`、`FILM.height` 和 `film.html` 里的尺寸，`bin/vh textcheck` 也还是按 1920 × 1080 打开页面。
-- SRT、镜头表（`shots.json`）还没有导出。
+- SRT 还没有导出；镜头表通过 `window.film.shots` 给 storyboard/rhythm，不自动保存为 `shots.json`。
 - 没有 Three.js 底层。
 - 引擎自己切字幕时不按词切；按词切要先跑 `bin/vh captions --cards`，见"字幕"。
 - 录制器只看得到每镜 5 个时刻画到的东西：一个只在两个时刻之间才调用的 `cue()` 或 `read()` 会漏掉。把它们写在 `if` 外面，先登记，再判断这一帧要不要画。

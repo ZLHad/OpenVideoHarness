@@ -3,12 +3,13 @@
 usage: bin/vh storyboard <project> [--shots shots.json] [--video out/animatic.mp4 | --snapshot] [--unsure S02,S04]
                                    [--per 6] [--at 0.6] [--max S] [--lang zh|en] [--out DIR]
 
-Reads <project>/shots.json (schema below) and takes one frame per shot:
+Reads --shots JSON/page, else <project>/shots.json, else film.html's window.film.shots after ready, and takes one frame per shot:
   1. the shot's "frame" image, if it has one;
   2. else a frame of a rendered video at the shot's "at" time (default: start + 60 % of the shot, --at changes the 60 %):
      --video, else the "video" named in shots.json, else the first of out/animatic.mp4, out/draft.mp4, out/final.mp4,
      media/final.mp4, then the newest out/*.mp4;
-  3. --snapshot: capture those times straight from the HyperFrames composition (npx hyperframes snapshot, no render;
+  3. no video and a film.html (or explicit --shots page): capture through window.film.frame. --snapshot prefers this
+     live page even when a video exists. For HyperFrames, --snapshot captures from the composition (no render;
      --describe false, so no frame is sent to Gemini); needs the project's own hyperframes and its Chrome;
   4. nothing found: a grey tile that says so. The pages are still useful to read the plan.
 Shots marked "unsure" (or listed in --unsure) get a red frame and their reason under the tile. A duration longer
@@ -24,6 +25,7 @@ from PIL import Image, ImageDraw
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import vhdraw as V
 import readcheck as RC
+import shot_source as SS
 
 VIDEO_CANDIDATES = ["out/animatic.mp4", "out/draft.mp4", "out/final.mp4", "media/final.mp4"]
 
@@ -295,9 +297,10 @@ def main():
     ap = argparse.ArgumentParser(prog="bin/vh storyboard", description=__doc__.split("\n\n")[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter, epilog=V.SHOTS_SCHEMA)
     ap.add_argument("project")
-    ap.add_argument("--shots", help="shots file (default: <project>/shots.json)")
+    ap.add_argument("--shots", help="JSON or page; default: shots.json, else film.html's window.film.shots")
     ap.add_argument("--video", help="take the frames from this video")
-    ap.add_argument("--snapshot", action="store_true", help="capture the frames from the HyperFrames composition instead")
+    ap.add_argument("--snapshot", action="store_true", help="capture live frames from film.html or the HyperFrames composition")
+    ap.add_argument("--browser", help=argparse.SUPPRESS)
     ap.add_argument("--unsure", default="", help="comma-separated shot ids to mark as least sure (added to shots.json's)")
     ap.add_argument("--per", type=int, default=6, help="shots per page, 3–6 (default 6)")
     ap.add_argument("--at", type=float, default=0.6, dest="at_frac", help="where in each shot to take its frame, 0–1 (default 0.6)")
@@ -308,10 +311,9 @@ def main():
     if not 3 <= a.per <= 6: ap.error("--per must be 3–6")
     if not 0 <= a.at_frac <= 1: ap.error("--at must be 0–1")
     project = V.project_dir(a.project)
-    sp = Path(a.shots) if a.shots else project / "shots.json"
-    if not sp.exists():
-        raise SystemExit(f"storyboard: no {V.shown(sp)}. Write one from STORYBOARD.md's shot table:\n{V.SHOTS_SCHEMA}")
-    shots, meta = V.load_shots(sp)
+    shots, meta, sp, live = SS.load(project, a.shots, a.browser)
+    shot_source = SS.label(sp, live, project)
+    page = live or ((project / "film.html") if (project / "film.html").is_file() else None)
     extra = {x.strip() for x in a.unsure.split(",") if x.strip()}
     unknown = extra - {s["id"] for s in shots}
     if unknown: raise SystemExit(f"storyboard: --unsure names unknown shots: {', '.join(sorted(unknown))}")
@@ -338,7 +340,7 @@ def main():
     source, used_video = [], None
     aspect = None
     past = lambda where, dur, ids: V.warn_once(f"{V.plural(len(ids), 'shot')} past the end of {where} ({dur:.1f} s), left grey: {', '.join(ids)}")
-    if need and a.snapshot:
+    if need and a.snapshot and not page:
         comp_dur = RC.composition_duration(project / "index.html") if (project / "index.html").is_file() else None
         late = [s["id"] for s, t in need if comp_dur is not None and t > comp_dur + 1e-6]
         got = snapshot(project, [(s["id"], names[s["id"]], t) for s, t in need if s["id"] not in late], fdir)
@@ -349,8 +351,11 @@ def main():
             if late: past("index.html", comp_dur, late)
             need = []
     if need:
-        video = pick_video(project, meta, a.video)
-        if video:
+        video = None if a.snapshot and page else pick_video(project, meta, a.video)
+        if page and not video:
+            got, aspect = SS.capture(page, a.browser, [(s["id"], names[s["id"]], t) for s, t in need], fdir)
+            frames.update(got); source.append(f"{V.relpath(page, project)} (window.film.frame)")
+        elif video:
             w, h, dur, last = probe(video)
             if w and h: aspect = w / h
             tw = 640 if (aspect or 1.78) >= 1.2 else (440 if (aspect or 1) >= 0.8 else 320)
@@ -371,7 +376,7 @@ def main():
             V.warn_once("no video found (out/animatic.mp4, out/draft.mp4, out/final.mp4 …): tiles without a frame stay grey; "
                         "render one, pass --video, or use --snapshot")
     if any(s["frame"] and s["id"] in frames and Path(frames[s["id"]]).parent != fdir for s in shots):
-        source.append("shots.json frame")
+        source.append(f"{V.relpath(sp, project)} frame")
     if aspect is None:
         for s in shots:
             if s["id"] in frames and s["id"] not in notes:
@@ -395,7 +400,8 @@ def main():
         chunks = pages_of(ss, a.per)
         for j, ch in enumerate(chunks):
             pages.append((name, ch, f" ({j + 1}/{len(chunks)})" if len(chunks) > 1 else ""))
-    index = {"project": project.name, "shots": V.relpath(sp, project), "limit_s": limit, "overview": "overview.png", "pages": []}
+    index = {"project": project.name, "shots": V.relpath(sp, project), "shot_source": shot_source,
+             "limit_s": limit, "overview": "overview.png", "pages": []}
     written, segs = [], []
     for k, (name, ch, part) in enumerate(pages, 1):
         img = sheet.page(name, ch, k, len(pages), colors, part)
@@ -412,14 +418,16 @@ def main():
     nun = sum(s["unsure"] is not None for s in shots)
     print(f"storyboard: {V.plural(len(shots), 'shot')} · {V.plural(len(runs), 'segment')} · {V.plural(len(pages), 'page')} · "
           f"frames from {', '.join(source) or 'nowhere (grey tiles)'}")
+    print(f"  shots from: {shot_source}")
     print(f"  {V.shown(ov)}   (+ index.json, and review.json for bin/vh review: \"include\": \"{V.relpath(out / 'review.json', project)}\")")
     for p, (name, ch, part) in zip(written, pages):
         flags = [s["id"] + ("?" if s["unsure"] is not None else "") + ("!" if sheet.long(s) else "") for s in ch if s["unsure"] is not None or sheet.long(s)]
-        print(f"  {V.shown(p)}  {V.plural(len(ch), 'shot')}" + (f"  (? unsure, ! over {limit:g} s: {' '.join(flags)})" if flags else ""))
+        legend = "? unsure" + (f", ! over {limit:g} s" if limit is not None else "")
+        print(f"  {V.shown(p)}  {V.plural(len(ch), 'shot')}" + (f"  ({legend}: {' '.join(flags)})" if flags else ""))
     if limit is None:
         print(f"  note: {limit_src}")
     if nun == 0:
-        print("  note: no shot is marked unsure; add \"unsure\": \"why\" to the least sure ones in shots.json (or --unsure S02,S04)")
+        print("  note: no shot is marked unsure; add \"unsure\": \"why\" to the least sure shot definitions (or --unsure S02,S04)")
 
 def lang_hint(shots):
     return V.lang_for([s["segment"] for s in shots] + [r for s in shots for r in s["reads"]])

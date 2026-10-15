@@ -274,6 +274,10 @@ def load_shots(path):
         data = load_json(path)
     except ValueError as e:
         raise SystemExit(f"{shown(path)}: not valid JSON ({e})")
+    return parse_shots(data, path)
+
+def parse_shots(data, path):
+    """Normalize an in-memory registry with the same validation as a JSON file."""
     meta = data if isinstance(data, dict) else {}
     raw = data.get("shots") if isinstance(data, dict) else data
     if not isinstance(raw, list):
