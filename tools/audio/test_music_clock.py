@@ -3,6 +3,7 @@ import copy
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -80,6 +81,9 @@ class FilmClockTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.p = Path(self.tmp.name) / 'film'
         shutil.copytree(ROOT / 'engines/canvas-film/template', self.p)
+        html = self.p / 'film.html'
+        # Timing tests use system fallback text; font availability has its own CI fixtures.
+        html.write_text(re.sub(r'@font-face\s*\{[^}]*\}', '', html.read_text()))
         (self.p / 'src/50-shots.js').write_text('''Object.assign(FILM, {timeline:false, music:'audio/music.beats.json',
 width:320,height:180,tail:99,lead:9,fadeOut:0,grain:0,images:{}});
 const CHAPTERS=[{at:0,title:'A'},{at:musicAt(3),title:'B'}];
