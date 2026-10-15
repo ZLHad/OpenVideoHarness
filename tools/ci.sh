@@ -574,6 +574,12 @@ decision_checks() {
   case "$rc:$a" in 1:*"OK   c1"*"FAIL c2"*"pace relaxed, Pace in"*"NOT checked: 1 text block"*) ok "readcheck reads a composition's clips and the new project's Pace (a math project: relaxed; and says what it left out)" ;; *) bad "readcheck index.html (rc $rc): $a" ;; esac
   vh readcheck --export "$p" >/dev/null && grep -q '"id": "c2"' "$p/texts.json" && { vh readcheck "$p" --export >/dev/null 2>&1; [ $? = 2 ]; } \
     && ok "readcheck --export writes texts.json and will not overwrite it" || bad "readcheck --export"
+  mkdir "$t/hf-exports"
+  a=$(vh readcheck --out "$t/hf-exports" --export "$p/index.html" 2>&1); rc=$?
+  if [ $rc = 0 ] && grep -q '"id": "c2"' "$t/hf-exports/texts.json" \
+    && vh readcheck "$p/index.html" --export --out "$t/hf-exports" --force >/dev/null
+  then ok "readcheck: HyperFrames --export keeps custom folders, argument order and --force"
+  else bad "readcheck HyperFrames custom export (exit $rc): $a"; fi
   # HyperFrames timing the way HyperFrames resolves it: "id", "id+n", a sub-composition's <template>, a typo'd reference
   mkdir -p "$t/rel/sub"
   printf '%s\n' '<html><body><div id="root" data-composition-id="m" data-start="0" data-duration="12">' \
@@ -1190,8 +1196,61 @@ PY
   else skip "fonts subset and list" "no uv"; fi
   mkdir "$t/cfr" && cp -R "$c/." "$t/cfr/"
   a=$(vh readcheck "$t/cfr" 2>&1); rc=$?
-  if [ $rc = 0 ] && [ -s "$t/cfr/out/texts.json" ] && printf '%s' "$a" | grep -q 'subtitle'; then ok "canvas-film: readcheck <project> judges the page's reads and captions (window.film.texts, written to out/texts.json)"
+  if [ $rc = 0 ] && [ ! -e "$t/cfr/out/texts.json" ] && printf '%s' "$a" | grep -q 'subtitle'; then ok "canvas-film: readcheck judges the page's reads and captions using a private temporary snapshot"
   else bad "readcheck on a canvas-film project (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
+  # A too-short read still exports successfully; checking it fails. Outputs are independent, including concurrent runs,
+  # and an existing manual snapshot is never replaced without --force. The output folder must not change the BRIEF's pace.
+  a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PYREAD'
+import json, pathlib, subprocess, sys
+bash, root, tmp = sys.argv[1:]
+p = pathlib.Path(tmp) / "readcheck args"; p.mkdir()
+(p / "film.html").write_text('<!doctype html><head><meta name="viewport" content="width=320,height=180"></head><script>'
+    'window.film={duration:4,frame(){},texts:[{id:"label",text:"CLAUDE.md router",start:0,end:1.6},'
+    '{id:"short",text:"Too short",start:2,end:2.3}]};</script>', encoding="utf-8")
+(p / "BRIEF.md").write_text("# BRIEF\n- Pace: relaxed\n", encoding="utf-8")
+(p / "out").mkdir(); default = p / "out" / "texts.json"
+manual = '[{"text":"hand edited","start":0,"end":3}]'; default.write_text(manual, encoding="utf-8")
+cmd = [bash, str(pathlib.Path(root) / "bin" / "vh"), "readcheck"]
+def run(args, code):
+    r = subprocess.run(cmd + list(map(str, args)), capture_output=True, text=True)
+    assert r.returncode == code, (args, r.returncode, r.stdout, r.stderr)
+    return r.stdout + r.stderr
+def exported(file):
+    assert [i["id"] for i in json.loads(file.read_text(encoding="utf-8"))] == ["label", "short"], file
+out = run([p], 1)
+assert "WARN label" in out and "FAIL short" in out and "Pace in" in out, out
+assert default.read_text(encoding="utf-8") == manual
+run([p, "--export"], 2)
+assert default.read_text(encoding="utf-8") == manual
+out = run(["--export", p, "--force"], 0); exported(default)
+assert "exported; check it with" in out and "FAIL short" not in out, out
+saved = default.read_bytes()
+custom = pathlib.Path(tmp) / "outside project.json"
+out = run(["--out", custom, p], 1); exported(custom)
+assert "Pace in" in out and "WARN label" in out, out
+out = run([p, "--out", custom], 2)
+assert "exists" in out and "--force" in out, out
+run([p / "film.html", "--out", custom, "--force", "--pace", "brisk"], 1)
+folder = pathlib.Path(tmp) / "export folder"; folder.mkdir()
+run(["--out=" + str(folder), "--export", p], 0); exported(folder / "texts.json")
+invalid = p / "invalid.json"
+run([p, "--export", "--out", invalid, "--pace", "fast"], 2)
+assert not invalid.exists()
+# Two distinct outputs stay distinct; two writers to the same output have one success and one refusal (exclusive create).
+for names, codes in ((["one.json", "two.json"], [0, 0]), (["shared.json", "shared.json"], [0, 2])):
+    procs = [(p / name, subprocess.Popen(cmd + [str(p), "--export", "--out", str(p / name)],
+             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)) for name in names]
+    got = []
+    for f, proc in procs:
+        stdout, stderr = proc.communicate(); got.append(proc.returncode)
+        assert proc.returncode in codes, (stdout, stderr)
+        exported(f)
+    assert sorted(got) == codes, got
+assert default.read_bytes() == saved
+print("canvas-film readcheck: export/check, custom outputs, original Pace, --force and concurrent writers")
+PYREAD
+  ); rc=$?
+  if [ $rc = 0 ]; then ok "$a"; else bad "readcheck export/output regression: $a"; fi
   # Ctrl-C while a page is loading: the browser's profile folder goes too (Node would otherwise die without cleaning up)
   printf '%s\n' '<!doctype html><title>hang</title><script>window.film = { duration: 2, ready: new Promise(() => {}), frame() {} };</script>' > "$t/hang.html"
   mkdir -p "$t/tmpd"

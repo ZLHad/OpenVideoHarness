@@ -72,8 +72,8 @@
 #   readcheck <texts.json|project|index.html> [--pace relaxed|normal|brisk] [--mode onscreen|label|subtitle] [--lang zh|en]  reading time, no fixed seconds:
 #                               FAIL under one brisk read (CJK/7 + other/20 + 0.8 s, at least 1.5 s; exit 1), WARN under the target of the BRIEF's
 #                               Pace (exit 0); subtitles within reading speed. data-read="subtitle"|"label" and data-pace="…" mark clips
-#                               readcheck --budget <s>: how many characters fit in a span · readcheck <index.html|project> --export [--out f]: the composition's timed text
-#                               a canvas-film project (film.html): its reads and captions from the page (window.film.texts), written to out/texts.json first
+#                               readcheck --budget <s>: how many characters fit in a span · readcheck <page.html|project> --export [--out f] [--force]: export timed text without checking; canvas-film --out f saves and checks
+#                               a canvas-film project (film.html): reads and captions from window.film.texts; normal checks use a temporary snapshot
 #   textcheck <project|page.html> [--texts f.json] [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12] [--ui-step 1] [--ui-share 0.002] [--out dir] [--soft-gl] [--timeout 900]
 #                               text drawn into a canvas, which npx hyperframes check cannot see: a read covered by the picture (under 70% of it
 #                               shows), under 3:1, outside or cut by the frame, or under a DOM caption (exit 1); canvas text outside the registry
@@ -547,19 +547,10 @@ for l in rules.splitlines():
 ' "$lvl"
 }
 
-cmd_readcheck() { # a canvas-film project (film.html, or the folder): its texts exist once the page runs, so they are written
-  # first (tools/film/texts.mjs) and readcheck reads that file in its place
-  local a args=() proj b
-  for a in "$@"; do
-    if [ -z "${proj:-}" ] && { { [ -d "$a" ] && [ -f "$a/film.html" ]; } || [ "$(basename -- "$a")" = film.html ]; }; then
-      proj=$a; [ -d "$a" ] || proj=$(dirname -- "$a")
-      b=$(film_browser readcheck "$proj") || exit 2
-      node "$ROOT/tools/film/texts.mjs" --browser "$b" "$proj" --out "$proj/out/texts.json" || exit $?
-      a="$proj/out/texts.json"
-    fi
-    args+=("$a")
-  done
-  python3 "$ROOT/tools/readcheck.py" ${args[@]+"${args[@]}"}
+cmd_readcheck() { # argparse owns the path and export/check options; only a canvas-film input uses this browser
+  local b=""
+  b=$(film_browser readcheck "$(arg_dir "$@")" 2>/dev/null) || true
+  python3 "$ROOT/tools/readcheck.py" --browser "$b" "$@"
 }
 hf_shell() { # hf_shell [dir]: a chrome-headless-shell binary: the one `hyperframes render` uses for dir (hf_chrome), else the newest one
   # in ~/.cache/puppeteer (what snapshot and check take first); hf_chrome and shell_folder print a version folder, this the binary in it
@@ -596,7 +587,7 @@ arg_dir() { # the folder of the project or page among a tool's arguments: the fi
   for a in "$@"; do
     if [ $skip = 1 ]; then skip=0; continue; fi
     case $a in
-      --soft-gl|--real-clock|--png|--force|--save|--strict|--in-place|--keep|--*=*) ;;
+      --soft-gl|--real-clock|--png|--force|--save|--export|--strict|--in-place|--keep|--*=*) ;;
       -*) skip=1 ;;
       *) if [ -d "$a" ]; then echo "$a"; else case $a in */*) echo "${a%/*}" ;; *) echo . ;; esac; fi; return 0 ;;
     esac

@@ -160,12 +160,16 @@ bin/vh textcheck <项目>                       # reads 和字幕有没有被盖
 bin/vh frames <项目> --covers                 # 封面：out/covers/<id>.png（COVERS，取帧时间挂在字上）
 bin/vh cues <项目> --chapters                 # 章节表，写进简介用：0:00 章名……，也写进 out/chapters.txt
 bin/vh cues <项目> --save                     # 每个 cue 落在第几秒，存进 out/cues.json；换了配音再跑，列出哪些镜头挪了、挪了多少
-bin/vh readcheck <项目>                       # reads 和字幕够不够时间读（读时底线）：先把 window.film.texts 写成 out/texts.json
+bin/vh readcheck <项目>                       # reads 和字幕够不够时间读：用独立临时快照，不覆盖已有 out/texts.json
+bin/vh readcheck <项目> --export              # 只导出 window.film.texts 到 out/texts.json，不检查读时
+bin/vh readcheck <项目> --out /tmp/reads.json  # 保存到指定文件，再检查；加 --export 就只导出
 bin/vh determinism <项目>                     # 同几个时刻换顺序画、换进程画，看是不是 t 的纯函数
 bin/vh render <项目> [--dpr 2]                # 成片画面：<项目>/out/film.mp4（--dpr 2 是 4K），没有声音
 bin/vh patch <项目>/out/film.mp4 --seconds 142.2-159.2   # 只重画改过的一镜，接回成片（片子要是 bin/vh render 出的，旁边有 .render.json）
 bin/vh mux <项目>/out/film.mp4 <混音.wav> <成片.mp4>   # 套上混音（混音要和画面一样长：mix 带 dur=，否则差 0.1 s 以上会被拒绝）
 ```
+
+`readcheck` 的 `--out` 可以是文件或现存目录（目录里写 `texts.json`），相对路径按当前工作目录解析。持久输出已存在时会退出 2，只有显式加 `--force` 才覆盖。并行检查各用不同的 `--out`；不写 `--out` 的普通检查会各用自己的临时快照。HyperFrames 的 `--export` 仍默认写项目根的 `texts.json`。
 
 ## 守硬规则 1
 

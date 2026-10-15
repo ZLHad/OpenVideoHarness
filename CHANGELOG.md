@@ -9,6 +9,15 @@
 - Any number of muxes can read one mix at once (a 4K and a 1080p picture); a mix and a mux of the same audio still exclude each other. The audio, its record and the muxed film get the usual file mode (the umask's), not owner-only. A refused length names the picture's exact length and the `dur=` to rebuild a profile mix with; playbook/04, quick.md and canvas-film's README add `dur=` to the mix they show. Records and locks are git-ignored.
 - Regression coverage uses real media: failed retries (including unsupported `ding` pitch), equal-duration source edits, corrupted records, concurrent/interrupted builds, changed recordings, symlink retargets and deliberate duration changes.
 
+**Canvas-film readcheck exports and output isolation**
+- `bin/vh readcheck <project> --export` now exports the live text registry successfully, without trying to export the resulting JSON again. `--out` selects the saved snapshot (and, without `--export`, checks it); an existing file needs `--force`. Ordinary canvas-film checks use private temporary snapshots, preserving hand-edited `out/texts.json` and avoiding collisions between runs. HyperFrames composition exports keep their existing behavior.
+- Regression coverage: export versus check exit codes, default and custom output paths, overwrite protection, concurrent outputs, and the project's reading pace.
+
+**Check what the film communicates within the existing storyboard and review**
+- The storyboard names what the audience already knows, what each segment adds, and what it lets them answer. For a film without narration, read its existing cards in sequence as well as checking their times.
+- Use the hardest 20–40 seconds of the storyboard or animatic to check the explanation before polishing it, within gate ② or the existing unattended checks. Quick uses its short table and existing contact sheet; no extra sample, gate or review round.
+- The same independent review first receives actual frames, timed cards and narration transcripts to describe the meaning, then receives the storyboard's intent and constraints to score it. This checks the rendered evidence; it is not a claim that a model watched the video or that an audience understood it. The taste checklist points to this input order instead of repeating it.
+
 **Small fixes after line 1: a pace re-run keeps `--media-end`, CI says what it skipped, a citation, film figures out of the docs**
 - `bin/vh captions` keeps `--media-end` in `audio/captions.args.json` with the mode, widths and `--cps`, and `bin/vh pace` makes the captions again with it (before, a re-run lengthened short captions to the picture end it found itself).
 - `tools/ci.sh` repeats at the end which checks it skipped (shellcheck, pyflakes, or any other), so "all checks passed" without them is not taken for a full pass; the skip lines point to CONTRIBUTING.md's uv recipe.

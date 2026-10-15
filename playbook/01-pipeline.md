@@ -9,7 +9,7 @@
 | 0 选路径 | — | `00-paradigm.md` 的选型表和 `video-types/` | 能说清验收标准 |
 | 1 素材、立意、Brief、大纲 | `NOTES.md` 的素材清单；2–3 张立意卡；`BRIEF.md`（立意、受众、平台、时长、画幅、fps、分辨率、在哪看、有无声音、验收项）+ 3–7 段大纲 | `12-ideation.md`、`templates/BRIEF.md` | 立意一句话说得出、换个题材就不成立；**人工关卡 ①** |
 | 2 风格 | `STYLE.md`：从立意推出的调色板、字体、缓动、安全区或锚点网格、禁止项；参考了预设，就在 `DECISIONS.md` 记借了什么 | `templates/STYLE.md` + 类型文档，可参考 `styles/` | 一页纸能讲清，看得出是从立意来的 |
-| 3 脚本与分镜 | `SCRIPT.md`（有旁白时写，关键词标 `{cue}`）、`STORYBOARD.md`（每镜的时间、reads、转场）、每镜一张关键帧（`shots.json` → `bin/vh storyboard`，出在 `out/check/storyboard/`）；节奏要紧的片子再加一版 animatic `out/animatic.mp4` | `templates/SCRIPT.md`、`templates/STORYBOARD.md` | 每镜都有事件，reads 不重叠；**人工关卡 ②** |
+| 3 脚本与分镜 | `SCRIPT.md`（有旁白时写，关键词标 `{cue}`）、`STORYBOARD.md`（每段的理解目标，每镜的时间、reads、转场）、每镜一张关键帧（`shots.json` → `bin/vh storyboard`，出在 `out/check/storyboard/`）；节奏要紧的片子再加一版 animatic `out/animatic.mp4` | `templates/SCRIPT.md`、`templates/STORYBOARD.md` | 每镜都有事件，reads 不重叠；**人工关卡 ②** |
 | 4 音频先行 | `audio/*`、`timeline.json`（词级时间）、`beats.json` | 见 `04-audio.md` | 用实测时长回写分镜 |
 | 5 搭引擎 | 渲染脚本、公共库（hash、ease、keyframe、camera、pulse），先做一个样板场景 | `engines/README.md` | 乱序跳到同一帧，结果一致 |
 | 6 写场景 | 每个场景一个文件；长片按 chapter 分给多个 subagent | Claude Code subagents | 每个场景都过 lint、sheet、strip、crop |
@@ -194,8 +194,8 @@ projects/2026-10-01-leo-doppler/
 animatic 是整片长度的灰盒预演，属于阶段 3，放进关卡 ② 的审阅页，不是一个新阶段。
 
 - **怎么做**：draft 画质即可。HyperFrames 只能按 composition 的尺寸或它的整数倍渲染，不能缩小，所以直接用 `--quality draft` 出原尺寸；要小文件，渲完再用 ffmpeg 缩。几何块代替真素材，字用最终文案、按最终比例的字号，镜头运动和切点按分镜走。配上真实音频，没有就用占位音频（节拍器、临时配乐、TTS 草稿）。
-- **看什么**：只看节奏，不评审美。每条 read 来不来得及读完？哪里拖？哪里挤？对照 `STORYBOARD.md` 的 reads 表逐镜读一遍。
-- **为什么值得**：reads 的时长只有放到真实速度下才看得准，而在灰盒阶段改节奏只是改时间表；等到画面打磨完再改，就要改代码、重渲。
+- **看什么**：查节奏和含义，不评审美。每条 read 来不来得及读完？段落之间能接上吗？对照 `STORYBOARD.md` 的段落理解和 reads 表逐镜查。
+- **核心段先查**：需要解释或叙事的片子，先从分镜 / animatic 挑最难讲清的 20–40 s（段落更短就用整段），用灰盒关键帧、实际字卡和起止时间查信息怎样接上；无旁白片先串读已有字卡。放进现有关卡 ②；授权无人值守时并入已有自查或代审，不加关卡或评审轮次。`quick` 复用简表和已有联系表，不另做样片。
 - **之后**：通过后，animatic 的时间线就是阶段 5–6 的骨架。阶段 4 用实测的配音和配乐回写一次时间，E3 锁定以后，场景代码往里填，时间点不再手改。
 
 ### look-dev：意见说不清时，先给变体

@@ -64,10 +64,15 @@ and clips whose data-start resolves to nothing (HyperFrames silently puts those 
 and at the floor, as a subtitle, plus the spoken estimate for Chinese narration from playbook/04-audio.md (4.5–5.5 字/s
 for a knowledge short, 3.5–4.5 for an explainer or a paper, within a sentence; x 0.85 for the pauses).
 
+A canvas-film project (film.html) is read through its window.film.texts using the browser bin/vh chooses. A normal
+check uses an isolated temporary snapshot, leaving any hand-edited out/texts.json alone. --export saves the snapshot
+without checking it (default <project>/out/texts.json); --out FILE without --export saves it and then checks it. An
+existing file needs --force. Relative --out paths are relative to the working directory, as for composition exports.
+
 Exit: 0 nothing under the floor (WARNs allowed) · 1 some text under the floor / subtitles too fast · 2 nothing to
-check (bad input). Writes nothing, except --export.
+check (bad input). Writes nothing, except --export or canvas-film --out.
 """
-import argparse, json, math, os, re, subprocess, sys
+import argparse, json, math, os, re, subprocess, sys, tempfile
 from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
@@ -500,6 +505,17 @@ def pace_source(a):
         return f"default; {shown} says Pace: {raw!r}, which is not relaxed, normal or brisk"
     return f"default; no Pace line in {shown}" if brief else "default"
 
+def canvas_texts(html, out, browser, force=False):
+    """Export the live registry; texts.mjs owns exclusive creation so two writers cannot silently replace each other."""
+    if not browser:
+        raise ValueError("canvas-film needs a headless Chrome: run bin/vh readcheck, or pass --browser <chrome>")
+    cmd = ["node", str(Path(__file__).resolve().parent / "film" / "texts.mjs"), str(html), "--browser", browser,
+           "--out", str(out)] + (["--force"] if force else [])
+    r = subprocess.run(cmd)
+    if r.returncode:
+        sys.exit(r.returncode)
+
+
 def main():
     parts = __doc__.split("\n\n")   # -h: the usage, the two rules, the kinds of text and the exit codes
     ap = argparse.ArgumentParser(prog="bin/vh readcheck", formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -510,14 +526,15 @@ def main():
     ap.add_argument("--mode", choices=("onscreen", "label", "subtitle"), help="the rule for texts without a data-read mark (default onscreen; caption items from bin/vh captions: subtitle)")
     ap.add_argument("--budget", type=float, metavar="SECONDS", help="how many characters fit in a span of this length")
     ap.add_argument("--export", action="store_true", help="write the composition's timed text as JSON (to --out, default "
-                    "<project>/texts.json) instead of checking it")
-    ap.add_argument("--out", type=Path, help="where --export writes (a file, or a folder for texts.json in it)")
-    ap.add_argument("--force", action="store_true", help="--export may overwrite an existing file")
+                    "<project>/texts.json, or <project>/out/texts.json for canvas-film) instead of checking it")
+    ap.add_argument("--out", type=Path, help="where --export writes (file or folder); canvas-film also saves and checks with --out alone")
+    ap.add_argument("--force", action="store_true", help="--export or canvas-film --out may overwrite an existing file")
     ap.add_argument("--lang", choices=("zh", "en"), help="check one language of a bilingual captions.json")
     ap.add_argument("--cjk-cps", type=float, help="retune the target: CJK characters a second (the floor does not move)")
     ap.add_argument("--latin-cps", type=float, help="retune the target: other non-space characters a second")
     ap.add_argument("--pad", type=float, help="retune the target: seconds added to every text")
     ap.add_argument("--min", type=float, help="retune the target: a minimum in seconds")
+    ap.add_argument("--browser", help=argparse.SUPPRESS)   # bin/vh supplies its project-aware browser choice
     a = ap.parse_args()
     if any(v is not None and not (v > 0 and math.isfinite(v)) for v in (a.cjk_cps, a.latin_cps)):
         ap.error("--cjk-cps and --latin-cps must be > 0")
@@ -531,7 +548,27 @@ def main():
         sys.exit(0)
     if a.path is None:
         ap.error("give a texts.json, a project folder or a composition .html (or --budget SECONDS)")
-    if a.export:
+    canvas = a.path / "film.html" if a.path.is_dir() else a.path if a.path.name == "film.html" else None
+    if canvas is not None and not canvas.is_file(): canvas = None
+    if canvas:
+        try:
+            if a.export or a.out:
+                out = a.out or canvas.parent / "out" / "texts.json"
+                if out.is_dir(): out = out / "texts.json"
+                canvas_texts(canvas, out, a.browser, a.force)
+                if a.export:
+                    print(f"readcheck: exported; check it with bin/vh readcheck {out}")
+                    return
+                path, items = load_items(out)
+            else:
+                with tempfile.TemporaryDirectory(prefix="vh-readcheck-") as tmp:
+                    out = Path(tmp) / "texts.json"
+                    canvas_texts(canvas, out, a.browser)
+                    _, items = load_items(out)
+                path = canvas   # report the source; the private snapshot has already been removed
+        except (OSError, ValueError) as e:
+            print(f"readcheck: NOT {'EXPORTED' if a.export else 'CHECKED'} — {e}", file=sys.stderr); sys.exit(2)
+    elif a.export:
         html = a.path / "index.html" if a.path.is_dir() else a.path
         if html.suffix.lower() not in (".html", ".htm") or not html.is_file():
             print(f"readcheck: NOT EXPORTED — {html} is not a composition .html", file=sys.stderr); sys.exit(2)
@@ -556,11 +593,11 @@ def main():
     a.mode = a.mode or "onscreen"
     src = pace_source(a)
     try:
-        path, items = load_items(a.path)
+        if not canvas: path, items = load_items(a.path)
         todo = list(pieces(items, a.lang, None if explicit else "subtitle"))
     except (OSError, ValueError) as e:
         print(f"readcheck: NOT CHECKED — {e}", file=sys.stderr); sys.exit(2)
-    is_html = path.suffix.lower() in (".html", ".htm")
+    is_html = not canvas and path.suffix.lower() in (".html", ".htm")
     note = skipped_note(LAST_STATS) if is_html else ""
     if not todo:
         print(f"readcheck: NOT CHECKED — no text found in {path}{' (left out: ' + note + ')' if note else ''}. This is not a pass.", file=sys.stderr); sys.exit(2)
