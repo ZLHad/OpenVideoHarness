@@ -17,7 +17,8 @@ try {
     throw new Error("use shots.mjs <page> --browser <chrome> [--capture]");
   film = await openFilm(target, { browser, runtime: "auto" });
   if (film.loadProblems.length) throw new Error(film.loadProblems.join(" | "));
-  const shots = await film.field("shots");
+  // Capture may be requested by a hand-written JSON table; do not read an unselected registry.
+  const shots = mode === "--capture" ? null : await film.field("shots");
   if (shots !== null && !Array.isArray(shots)) throw new Error("window.film.shots must be an array");
   const result = { shots, page: film.page, duration: film.duration, width: film.width, height: film.height };
   if (mode === "--capture") {

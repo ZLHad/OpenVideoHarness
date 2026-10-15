@@ -107,6 +107,14 @@ frame(){const x=document.getElementById('c').getContext('2d');x.fillStyle='green
         self.assertEqual((self.p / "out/run0/frames/explicit.png").read_bytes(), (self.p / "out/run1/frames/explicit.png").read_bytes())
         self.assertIn("other.html", self.vh("rhythm", self.p, "--shots", "other.html", "--lang", "en"))
 
+    def test_manual_shots_can_capture_without_reading_unused_live_registry(self):
+        (self.p / "shots.json").write_text('[{"id":"manual","start":0,"end":2}]')
+        (self.p / "film.html").write_text('''<canvas id="c" width="320" height="180"></canvas><script>
+window.film={width:320,height:180,duration:2,get shots(){throw new Error('unused registry')},
+frame(){document.getElementById('c').getContext('2d').fillRect(0,0,320,180)}};</script>''')
+        self.assertIn("window.film.frame", self.vh("storyboard", self.p, "--snapshot", "--lang", "en"))
+        self.assertEqual(self.review_shots(self.p / "out/check/storyboard")[0]["id"], "manual")
+
     def test_invalid_or_failed_live_registry_is_not_silently_skipped(self):
         page = self.p / "film.html"
         for body, message in [
