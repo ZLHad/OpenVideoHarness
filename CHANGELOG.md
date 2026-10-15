@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**One music clock for film declarations and project scripts**
+- `bin/vh music` always writes its bars table, including implicit 4/4. Canvas-film can load it with `FILM.music`; deferred `musicAt()` references resolve during ready, while `musicT()` and note queries drive drawing from the same map. Bar and beat are 1-based, with explicit errors for invalid or trimmed-away positions.
+- Films without narration can take their duration from the rendered music; narrated films retain their timeline/lead/tail behavior. Cue snapshots record the hash of the music map actually loaded. Python project scripts can use the standard-library `MusicClock` reader instead of maintaining another meter table.
+- Tests compare JS/Python conversion across pickup and mixed-meter bars, fractional beats and clipped endings, then use a real page to check moving cues, reads, chapters, duration and deterministic frames. Existing project engine copies need an explicit migration; this does not add warp or rebuild event files automatically.
+
 **Refuse failed or stale mixes at mux time**
 - `bin/vh mix` records the latest build attempt, arguments, direct input hashes and output hash beside the audio. It writes to a temporary file and replaces the audio only after a successful build with unchanged inputs; a failed or interrupted attempt cannot silently reuse the previous mix.
 - `bin/vh mux` checks tracked inputs and audio before and after encoding, coordinates with an active mix, and publishes its output only after these checks pass. External/legacy audio remains supported with an explicit message that its source freshness is unverified.

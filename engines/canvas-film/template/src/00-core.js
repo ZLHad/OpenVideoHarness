@@ -9,6 +9,7 @@ const FILM = {
   fps: 30,                     // the grain changes once a frame
   lang: "zh",                  // the narration: audio/timeline.<lang>.json, as bin/vh tts writes it
   timeline: null,              // another file; false for a silent film (then set duration, and every time is in seconds)
+  music: null,                 // bin/vh music's *.beats.json; musicAt() declarations and musicT() in draw use its bars
   duration: 0,                 // a silent film's length in seconds
   lead: 0,                     // seconds added to the timeline's times. 0 when they are film times already: bin/vh tts --lead
                                // starts the voice and its timeline late together. Set it only for a timeline that starts at
@@ -136,6 +137,13 @@ function nearest(T, k) {
 const CUES = [];   // [{ id, ref, t }]: window.film.cues
 function resolver(who, key, problems) {
   const walk = (v, path) => {
+    if (isMusicAt(v)) {
+      try {
+        const t = resolveMusicAt(v);
+        CUES.push({ id: `${key}.${path}`, ref: `music(${v.$music.join(",")})${v.offset ? `${v.offset > 0 ? "+" : ""}${v.offset}` : ""}`, t: r3(t) });
+        return t;
+      } catch (e) { problems.push(`${who} (${path}): ${e.message}`); return NaN; }
+    }
     if (typeof v === "string" && v[0] === "@") {
       if (v.startsWith("@@")) return v.slice(1);
       try { const t = cueT(v); CUES.push({ id: `${key}.${path}`, ref: v, t: r3(t) }); return t; }
@@ -147,6 +155,7 @@ function resolver(who, key, problems) {
   };
   walk.time = (v, path) => {   // a value that must be a time: seconds or a cue
     if (typeof v === "number" && Number.isFinite(v)) return v;
+    if (isMusicAt(v)) return walk(v, path);
     if (typeof v === "string" && v[0] === "@" && !v.startsWith("@@")) return walk(v, path);
     problems.push(`${who} (${path}): not a time: ${JSON.stringify(v)} (seconds, or a cue: "@id", "@id:词", "@id>")`);
     return NaN;

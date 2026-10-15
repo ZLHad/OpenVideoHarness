@@ -19,7 +19,7 @@ Score fields
     locrian harmonic melodic), seed, master_db (peak, default -1)
   beats_per_bar (optional): beats per bar for the whole score (3 = waltz time); default 4.
   meters (optional): {"11": 6} makes bar 11 (1-based, counted over the whole score) a 6/4 bar; default 4/4.
-    With meters (or beats_per_bar) the beat map also carries "bars": [[bar, start_s, beats_in_bar], …] so visuals use one bar(k).
+    The beat map always carries "bars": [[bar, start_s, beats_in_bar], …], including default 4/4, so visuals use one clock.
   sections: [{ "name", "bars", "chords": ["i","VI","III","VII"] (roman, cycled per bar),
                "layers": subset of kick clap hats bass pad arp lead  +  bell zheng dizi taiko (Chinese colour:
                  bianzhong-like bell, Karplus–Strong guzheng, breathy dizi, taiko; melodic ones use the key's
@@ -504,7 +504,7 @@ def render(score, stems=None, info=None, length=None, note_log=None):
                "duration": round(len(mix) / SR, 3)}
     if any(p.get("note_map") for p in score.get("parts") or []):   # only when a part asks: every other beat map stays as it was
         beatmap["notes"] = sorted(note_map, key=lambda n: (n["t"], n["part"], -1 if n["midi"] is None else n["midi"]))
-    if "meters" in score or "beats_per_bar" in score: beatmap.update(bars=bars, bars_note="[bar number (1-based, whole score), start (s), beats in bar]")
+    beatmap.update(bars=bars, bars_note="[bar number (1-based, whole score), start (s), beats in bar]")
     if end_at is not None:   # the map describes the file: nothing after its end
         beatmap["beats"] = [b for b in beats if b < end_at - 1e-6]; beatmap["downbeats"] = [b for b in downbeats if b < end_at - 1e-6]
         beatmap["hits"] = [h for h in hits if h["t"] < end_at - 1e-6]
