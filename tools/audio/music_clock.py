@@ -37,6 +37,12 @@ class MusicClock:
                     fail(f"bar {ident}: start disagrees with the preceding bar and bpm")
             bars.append(tuple(row))
         self.bars = tuple(bars)
+        # a script that moved the map to film time must move bars with downbeats (the clock reads bars only)
+        downbeats = data.get("downbeats")
+        if isinstance(downbeats, list):
+            for i, (row, d) in enumerate(zip(self.bars, downbeats)):
+                if not number(d) or abs(row[1] - d) > 0.002:
+                    fail(f"bar {i + 1} starts at {row[1]} s but its downbeat is at {d} s; shift bars with the other times, or regenerate the map")
         self._notes = None
         if "notes" in data:
             if not isinstance(data["notes"], list):

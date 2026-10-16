@@ -23,6 +23,10 @@ class MusicClock {
       return Object.freeze([...row]);
     });
     Object.freeze(this.bars);
+    // a script that moved the map to film time must move bars with downbeats (the clock reads bars only)
+    if (Array.isArray(map.downbeats)) for (let i = 0; i < Math.min(this.bars.length, map.downbeats.length); i++)
+      if (!(Math.abs(this.bars[i][1] - map.downbeats[i]) <= 0.002))
+        fail(`bar ${i + 1} starts at ${this.bars[i][1]} s but its downbeat is at ${map.downbeats[i]} s; shift bars with the other times, or regenerate the map`);
     if (map.notes !== undefined && !Array.isArray(map.notes)) fail("notes must be a list");
     this.noteMap = map.notes === undefined ? null : map.notes.map((n, i) => {
       if (!n || !num(n.t) || !num(n.end) || n.end < n.t || typeof n.part !== "string" || !n.part)

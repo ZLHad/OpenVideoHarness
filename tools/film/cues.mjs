@@ -91,14 +91,17 @@ if (fs.existsSync(file)) {
   catch { before = null; console.log(`  ${rel(file)}: not readable as saved cues, so not compared`); }
 }
 if (before) {
-  if (music && before.music && music.sha256 !== before.music.sha256) console.log("  music map changed since the saved cues");
+  const musicMoved = !!(music && before.music && music.sha256 !== before.music.sha256);
+  if (musicMoved) console.log("  music map changed since the saved cues");
   const was = before.cues.filter(ok), old = new Map(was.map((c) => [c.id, c])), now = new Map(sorted.map((c) => [c.id, c]));
   const moved = sorted.filter((c) => old.has(c.id) && !(Math.abs(tv(old.get(c.id)) - tv(c)) < 0.0005)).map((c) => [c, tv(c) - tv(old.get(c.id))]);
   const added = sorted.filter((c) => !old.has(c.id)), gone = was.filter((c) => !now.has(c.id));
   const take = before.timeline_sha256 && sha ? (before.timeline_sha256 === sha ? "same timeline" : "another take") : null;
   if (!moved.length && !added.length && !gone.length) console.log(`  since ${rel(file)}: nothing moved${take === "same timeline" ? " (saved on this same timeline)" : ""}`);
   else {
-    console.log(`  since ${rel(file)}${take === "another take" ? " (saved on another take of the narration)" : take ? " (same timeline: the page's cues changed)" : ""}: ` +
+    const why = take === "another take" ? " (saved on another take of the narration)"
+      : musicMoved ? (take ? " (same timeline: the music map changed)" : " (the music map changed)") : take ? " (same timeline: the page's cues changed)" : "";
+    console.log(`  since ${rel(file)}${why}: ` +
       `${moved.length} moved, ${added.length} new, ${gone.length} gone`);
     const more = (n, k) => { if (n > k) console.log(`    … and ${n - k} more`); };
     for (const [c, d] of moved.sort((p, q) => (Math.abs(q[1]) || 0) - (Math.abs(p[1]) || 0)).slice(0, 20))
