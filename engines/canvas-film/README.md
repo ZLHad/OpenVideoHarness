@@ -1,6 +1,6 @@
-# canvas-film：旁白驱动的 canvas 引擎
+# canvas-film：跟随旁白或配乐时间的 canvas 引擎
 
-一页 `film.html` 加几份 `src/*.js`，在一块 2D canvas 上画出每一帧。镜头、字幕、章节条的时间都挂在旁白的字上：重配一句、改一个词、整片插进停顿，画面跟着走，不用手改秒数。它按页面合约（仓库里的 `engines/CONTRACT.md`）写了 `window.film`，`bin/vh frames` 取帧、`bin/vh textcheck` 查字都直接能用。这份说明在项目里有一份副本，叫 `ENGINE_README.md`。
+一页 `film.html` 加几份 `src/*.js`，在一块 2D canvas 上画出每一帧。旁白片的镜头、字幕、章节条时间挂在旁白的字上：重配一句、改一个词、整片插进停顿，画面跟着走，不用手改秒数。它按页面合约（仓库里的 `engines/CONTRACT.md`）写了 `window.film`，`bin/vh frames` 取帧、`bin/vh textcheck` 查字都直接能用。这份说明在项目里有一份副本，叫 `ENGINE_README.md`。
 
 ## 什么时候用
 
@@ -19,6 +19,7 @@ bin/vh frames projects/<date>-<slug> --at 1,5,9    # 模板自带一支 23 秒�
 |---|---|
 | `film.html` | 页面：`@font-face`（只用 `local()` 本机字体，不下载）、一块 canvas、按顺序载入 `src/` 的脚本。不用构建 |
 | `src/00-core.js` | 设定 `FILM` 的默认值、时间（旁白时间轴、cue、镜头、章节、字幕）、录制器 |
+| `src/05-music-clock.js` | 配乐小节、拍与音符时间；从 `music.beats.json` 读取 |
 | `src/10-draw.js` | 画字（字号下限在这一层）、量字、折行、形状、图片、缓存的纹理 |
 | `src/15-fx.js` | 颗粒、暗角、整幅压暗 |
 | `src/20-ui.js` | `label`、`drop`、`stamp`，章节进度条，字幕 |
@@ -31,6 +32,33 @@ bin/vh frames projects/<date>-<slug> --at 1,5,9    # 模板自带一支 23 秒�
 示例片的 `src/50-shots.js` 和 `audio/timeline.zh.json` 是成对的，开工时两样一起换掉：写 `audio/script.txt`（每行 `@id 一句旁白`），跑 `bin/vh tts`，再照着新的 id 写镜头。
 
 设定都在 `src/00-core.js` 开头的 `FILM` 里，每项一行注释（语言、旁白前后留多久、字号下限、字幕、颗粒、片头片尾的淡入淡出、界面颜色、图片）；这支片子要改的，在 `src/50-shots.js` 里用 `Object.assign(FILM, {…})` 改。
+
+## 配乐主导片：只维护一份小节表
+
+`bin/vh music` 生成的 `audio/music.beats.json` 是时间来源，默认 4/4 也会带 `bars`。需要音符驱动画面时，在谱子的相应声部设 `"note_map": true`。旧 beats 文件没有 `bars` 时重新生成，不从 BPM 猜一份小节表；`bin/vh beats` 分析外部音频得到的拍点也不等于乐谱小节。
+
+```js
+Object.assign(FILM, { timeline: false, music: "audio/music.beats.json" });
+// 没有旁白且 duration 为 0 时，片长直接取 music.beats.json 的 duration（已含配乐尾音）。
+const CHAPTERS = [{ at: musicAt(1), title: "开场" }, { at: musicAt(3), title: "变化" }];
+const SHOTS = [
+  { id: "intro", at: 0, draw(t, s) { /* 画开场 */ } },
+  { id: "S04a", at: musicAt(3), o: { hit: musicAt(3, 2, -0.1) },
+    draw(t, s) {
+      const at = musicT(3, 2);  // ready 后查询秒数；第 3 小节、第 2 拍
+      const hits = musicNotesT("piano"); // 声部 id；音符实际起音秒数，含 humanize
+      // 用 at、hits 或 s.o.hit 驱动画面；musicNotes("piano") 还能取 end/midi/vel
+    } },
+];
+```
+
+小节和拍都从 **1** 开始，拍可以是小数；`musicAt(3, 2, -0.1)` 表示该拍前 0.1 秒。声明先于异步数据加载，须用 `musicAt()` 留下引用；在 `draw()` 内才用 `musicT()` 查询秒数。镜头的 `at`、`o` 内的时间、章节、封面和 `FILM.bar` 都支持这种引用。超出已有小节、拍数或已渲音乐时长会报错，不静默夹到结尾。每小节的“拍数 + 1”可表示它的结束边界。音符查询返回该声部的数组；没有匹配音符时为空，整份表没生成 `notes` 时提示重新生成。
+
+有旁白时仍按原先的 timeline + lead + tail 定片长，音乐只提供附加挂点。音乐的秒数已经位于文件里的时间位置，不再叠加 beats 文件的 `offset` 或旁白的 `FILM.lead`。无旁白时显式 `FILM.duration` 可覆盖音乐片长；不写就跟随音乐。改谱后先重跑 music，再取帧；`bin/vh cues --save` 同时保存实际加载的音乐表路径、SHA-256 和解析结果，下一次会提示音乐表变化。
+
+项目里的 Python 音效生成脚本可复用同一份数据：把仓库根目录加入 `PYTHONPATH`，然后 `from tools.audio.music_clock import MusicClock`，用 `clock = MusicClock.load("audio/music.beats.json")`、`clock.at(3, 2, -0.1)` 和 `clock.notes("piano")`。它只依赖 Python 标准库，编号和边界规则与画面相同。这个入口不自动改写已有 events.json；生成脚本需改用它并重跑。
+
+旧项目按需迁移：添加 `src/05-music-clock.js` 及其 script 标签，并更新 `00-core.js`、`90-main.js` 中的音乐接线；项目已修改过的引擎文件要按差异合入。原来的旁白 cue 和绝对秒数仍可用。
 
 ## 时间：挂在旁白的字上
 

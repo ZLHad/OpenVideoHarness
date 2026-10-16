@@ -95,8 +95,9 @@ async function loadCaptions() {   // FILM.caption.from: the cards bin/vh caption
 function build(T) {
   const problems = [], nocap = new Set();
   if (T) initTimeline(T.tl, problems);
-  DUR = T ? FILM.lead + (isNum(T.tl.duration) ? T.tl.duration : Math.max(0, ...Object.values(LINES).map((L) => L.b - FILM.lead))) + FILM.tail : FILM.duration;
-  if (!(DUR > 0)) throw new Error("canvas-film: the film has no length (a timeline with a duration, or FILM.duration for a silent film)" +
+  DUR = T ? FILM.lead + (isNum(T.tl.duration) ? T.tl.duration : Math.max(0, ...Object.values(LINES).map((L) => L.b - FILM.lead))) + FILM.tail
+    : FILM.duration || (MUSIC ? MUSIC.duration : 0);
+  if (!(DUR > 0)) throw new Error("canvas-film: the film has no length (a timeline, FILM.music, or FILM.duration for a silent film)" +
     (problems.length ? `:\n  ${problems.slice(0, 12).join("\n  ")}` : ""));
   buildShots(problems);
   for (const S of SHOT_T) for (const id of S.shot.nocap || []) { if (LINES[id]) nocap.add(id); else problems.push(`shot ${S.id} (nocap): no narration line "${id}"`); }
@@ -153,7 +154,7 @@ async function boot() {
   const cv = document.getElementById("film");
   cv.width = Math.round(W * PRX); cv.height = Math.round(H * PRX); cv.style.width = W + "px"; cv.style.height = H + "px";
   X = cv.getContext("2d");
-  const [missing, , T] = await Promise.all([loadFonts(), loadImages(), loadTimeline(), loadCaptions()]);
+  const [missing, , T] = await Promise.all([loadFonts(), loadImages(), loadTimeline(), loadCaptions(), loadMusic()]);
   TIMELINE = T ? T.file : null;
   build(T);
   record();
@@ -183,4 +184,5 @@ window.film = {
   cover(id) { cover(id); },                                                       // draw a cover (bin/vh frames --covers)
   ui: uiBoxes,                                                                     // the interface's boxes at t (bin/vh textcheck)
   get timeline() { return TIMELINE; },                                            // the timeline file the cues hang on, beside film.html
+  get music() { return MUSIC_SOURCE; },                                           // { path, sha256 } of the beat map actually loaded
 };

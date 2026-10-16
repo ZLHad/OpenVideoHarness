@@ -91,6 +91,7 @@ for f in sys.stdin.read().splitlines():
   # js: node --check detects ES modules by syntax (node ≥ 22)
   n=0; while IFS= read -r f; do node --check "$f" 2>/dev/null || { node --check "$f"; bad "node --check $f"; n=$((n + 1)); }; done < <(files '*.js' '*.mjs')
   [ $n = 0 ] && ok "js syntax"
+  if python3 tools/audio/test_music_clock.py; then ok "music clock: JS/Python agree on bar time and invalid maps"; else bad "music clock"; fi
   # media: videos live in the GitHub release "media" (tools/media.txt, tools/fetch_media.sh), so a clone stays small;
   # the style swatches (about 1 MB each, read by the tools) are the one exception. No file over 8 MB either.
   out=$(files | while IFS= read -r f; do
@@ -616,7 +617,7 @@ SH
     '{"name": "b", "bars": 3, "chords": ["vi", "IV", "V"], "layers": ["pad"]}], "parts": [{"inst": "piano", "pattern": [[0, 1, "c0"], [1, 1, "c2"], [2, 2, "c1"]]}]}' > "$p/audio/score.json"
   if vh music "$p/audio/score.json" "$p/audio/music.wav" --length auto --roll >/dev/null; then
     a=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$p/audio/music.wav")
-    python3 -c "import json, sys; b = json.load(open(sys.argv[1])); sys.exit(0 if abs(float(sys.argv[2]) - 10) < 0.01 and b['fade']['end'] == 10.0 and max(b['beats']) < 10 else 1)" "$p/audio/music.beats.json" "$a" \
+    python3 -c "import json, sys; b = json.load(open(sys.argv[1])); sys.exit(0 if abs(float(sys.argv[2]) - 10) < 0.01 and b['fade']['end'] == 10.0 and max(b['beats']) < 10 and b['bars'] == [[k + 1, k * 2, 4] for k in range(5)] else 1)" "$p/audio/music.beats.json" "$a" \
       && ok "music --length auto ends where the last bar ends, with a fade" || bad "music --length auto: $a s, beat map $(head -c 200 "$p/audio/music.beats.json")"
     [ -s "$p/audio/music.roll/overview.png" ] && [ -s "$p/audio/music.roll/01-piano-0.png" ] && ok "music --roll draws an overview and a page per part" || bad "music --roll pictures missing"
     vh music "$p/audio/score.json" "$t/m7.wav" --length 7 >/dev/null && a=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$t/m7.wav") \
@@ -1109,6 +1110,7 @@ PY
   # the canvas-film engine's template (engines/canvas-film): two frames draw, each the same PNG drawn first and drawn after
   # the other (12.8 s is inside a page turn); a cue whose word is gone stops it in ready at once, naming the shot and the
   # cue; its reads and captions pass textcheck
+  if python3 tools/audio/test_music_clock.py --film; then ok "music clock: live cues, reads, chapters and deterministic frames"; else bad "music clock page"; fi
   local c="$ROOT/engines/canvas-film/template" s0 pid left seen alive
   a=$(vh frames "$c" --at 4.9,12.8 --out "$t/cf1" 2>&1); rc=$?
   # a machine without the template's CJK faces (the Linux runner) draws in a fallback and says so, which is exit 1; that
