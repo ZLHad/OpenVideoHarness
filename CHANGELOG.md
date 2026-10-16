@@ -7,6 +7,7 @@
 - Both tools choose explicit `--shots` JSON/page, then hand-written `shots.json`, then live `film.html`. JSON paths remain browser-independent; live reads wait for ready and fail on invalid data or page errors. Sources are named in output, storyboard's index and rhythm's footer. No hand-written registry is overwritten.
 - Storyboard captures real page frames when there is no video, or with `--snapshot`; manual frame and video paths remain supported. An unsure shot without a configured payoff interval no longer crashes its final summary.
 - Real-browser regressions cover changed timelines, suffixed ids, metadata, frame output, source precedence, concurrent outputs and malformed/failed pages.
+- A planned shot past the page's end leaves its tile grey, as against a short video; with no Chrome, storyboard greys the tiles and rhythm leaves out the shots lane it would read from the page (a page error still stops both). Ctrl-C closes Chrome and removes its profile; the page reader's watchdog is 120 s to ready, then 60 s a frame; frames are drawn at the millisecond, as `bin/vh frames --at`.
 
 **Refuse failed or stale mixes at mux time**
 - `bin/vh mix` records the latest build attempt, arguments, direct input hashes and output hash beside the audio. It writes to a temporary file and replaces the audio only after a successful build with unchanged inputs; a failed or interrupted attempt cannot silently reuse the previous mix.

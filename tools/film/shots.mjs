@@ -4,13 +4,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { openFilm } from "./host.mjs";
 
-let film;
-const timer = setTimeout(async () => {
-  console.error("shots: stopped after 120 s waiting for the page");
-  if (film) await film.close();
-  process.exit(2);
-}, 120000);
-timer.unref();
+let film, timer;
+// a watchdog per step, not one budget for the whole run: 120 s for the page to be ready, then 60 s for each frame
+const arm = (s, what) => {
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    console.error(`shots: stopped after ${s} s ${what}`);
+    if (film) await film.close();
+    process.exit(2);
+  }, s * 1000);
+  timer.unref();
+};
+arm(120, "waiting for the page");
 try {
   const [target, flag, browser, mode] = process.argv.slice(2);
   if (!target || flag !== "--browser" || !browser || (mode && mode !== "--capture"))
@@ -26,11 +31,17 @@ try {
     if (!Array.isArray(request.frames) || typeof request.out !== "string") throw new Error("invalid frame request");
     for (const { name, t } of request.frames) {
       if (typeof name !== "string" || path.basename(name) !== name || !name.endsWith(".png")) throw new Error("invalid frame filename");
-      if (!Number.isFinite(t) || t < 0 || !(film.duration > 0) || t > film.duration) throw new Error(`${t} s is outside the film (0 up to ${film.duration} s)`);
+      if (!Number.isFinite(t) || t < 0) throw new Error(`${t} s is not a time in the film`);
     }
+    if (!(film.duration > 0)) throw new Error("the page gives no duration");
+    // a planned shot past the page's end is not an error at gate ②: storyboard leaves its tile grey, as for a short video
+    result.late = request.frames.filter(({ t }) => t > film.duration + 1e-6).map(({ name }) => name);
     fs.mkdirSync(request.out, { recursive: true });
     for (const { name, t } of request.frames) {
-      const { png, touched } = await film.frame(Math.min(t, film.duration - 1e-6)); // --at 1: just inside the final frame
+      if (result.late.includes(name)) continue;
+      arm(60, `drawing the frame at ${t} s`);
+      // to the millisecond, as bin/vh frames --at, so a tile can be drawn again; --at 1: just inside the final frame
+      const { png, touched } = await film.frame(Math.min(Math.round(t * 1000) / 1000, film.duration - 1e-6));
       if (touched.includes("Math.random")) console.error(`shots: warning: frame at ${t} s reads Math.random; use a seeded hash`);
       const problems = film.problems();
       if (problems.length) throw new Error(`at ${t} s: ${problems.join(" | ")}`);

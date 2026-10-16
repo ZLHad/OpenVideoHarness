@@ -616,11 +616,11 @@ cmd_film_tool() { # $1: frames | render | determinism | cues | fonts | patch (to
   b=$(film_browser "$tool" "$(arg_dir "$@")") || exit 2
   exec node "$ROOT/tools/film/$tool.mjs" --browser "$b" "$@"
 }
-cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 1; }
+cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--shots shots.json|film.html] [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 1; }
   local b=""
   b=$(film_browser storyboard "$(arg_dir "$@")" 2>/dev/null) || true
   uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" --browser "$b" "$@"; }
-cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--segment NAME | --from s --to s] [--max s] [--out file.png]"; exit 1; }
+cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--shots shots.json|film.html] [--segment NAME | --from s --to s] [--max s] [--out file.png]"; exit 1; }
   local b=""
   b=$(film_browser rhythm "$(arg_dir "$@")" 2>/dev/null) || true
   uv run -q --no-project --with pillow python "$ROOT/tools/rhythm.py" --browser "$b" "$@"; }

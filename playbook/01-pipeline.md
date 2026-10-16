@@ -132,7 +132,7 @@ projects/2026-10-01-leo-doppler/
 每次停，默认做一页：写 `out/review/gate-<n>.json`，运行 `bin/vh review <project> <n>`，得到 `out/review/gate-<n>.html`（最新一页另存为 `index.html`），图、GIF、mp4 和音频在浏览器里直接看、直接听。聊天里只发命令打印的那几行。`<n>` 是关卡 `1` `2` `3` 或检查点 `E0`–`E5`，同一站的第二页加 `b`（`2b`）；页属于哪一站，看文件名。只有一两个纯文字的选择时，直接在聊天里问也行。
 
 图不用手拼，`bin/vh` 有现成的：
-- **关卡 ②**：把 STORYBOARD 的镜头表写成 `shots.json`（格式见 `bin/vh storyboard -h`；最没把握的镜头写 `"unsure": "为什么"`），运行 `bin/vh storyboard <project>` 出每段一页的分镜和总览，同时写好 `out/check/storyboard/review.json`；再运行 `bin/vh rhythm <project>` 出节奏图，超过类型回报间隔的镜头、读不完的字幕标红。gate JSON 里写 `"include": "out/check/storyboard/review.json"`，分段、关键帧、每镜的旁白、没把握的镜头和 animatic 就都带进来了；gate JSON 只写 `summary`、`decisions`，节奏图作为 asset 挂在节奏那个决定下，最后 `bin/vh review <project> 2`。
+- **关卡 ②**：把 STORYBOARD 的镜头表写成 `shots.json`（格式见 `bin/vh storyboard -h`；最没把握的镜头写 `"unsure": "为什么"`；canvas-film 可以不写，没有它时从 `film.html` 读实际的镜头），运行 `bin/vh storyboard <project>` 出每段一页的分镜和总览，同时写好 `out/check/storyboard/review.json`；再运行 `bin/vh rhythm <project>` 出节奏图，超过类型回报间隔的镜头、读不完的字幕标红。gate JSON 里写 `"include": "out/check/storyboard/review.json"`，分段、关键帧、每镜的旁白、没把握的镜头和 animatic 就都带进来了；gate JSON 只写 `summary`、`decisions`，节奏图作为 asset 挂在节奏那个决定下，最后 `bin/vh review <project> 2`。
 - **风格**：`bin/vh style compare a,b,c` 出并排对照（`--frame t` 取各 swatch 的同一时刻）。**封面**：`bin/vh cover-preview <封面>` 出各平台信息流的实际大小和小尺寸可读性。**主旋律**：`bin/vh music … --roll` 出每个声部的谱面和响度曲线，给听不见的一方一张能看的图。
 
 页面从上往下：

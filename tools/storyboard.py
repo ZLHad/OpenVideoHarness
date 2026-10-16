@@ -352,9 +352,17 @@ def main():
             need = []
     if need:
         video = None if a.snapshot and page else pick_video(project, meta, a.video)
-        if page and not video:
-            got, aspect = SS.capture(page, a.browser, [(s["id"], names[s["id"]], t) for s, t in need], fdir)
-            frames.update(got); source.append(f"{V.relpath(page, project)} (window.film.frame)")
+        implicit = not (live or a.snapshot)   # the shots came from JSON; the page only stands in for a missing video
+        if page and not video and implicit and not a.browser:
+            V.warn_once(f"no headless Chrome to draw {V.relpath(page, project)}: tiles without a frame stay grey; "
+                        "set CHROME_PATH, or render a video")
+        elif page and not video:
+            got, aspect, late, pdur = SS.capture(page, a.browser, [(s["id"], names[s["id"]], t) for s, t in need], fdir)
+            frames.update(got)
+            if got: source.append(f"{V.relpath(page, project)} (window.film.frame)")
+            for sid in late: notes[sid] = (f"在 {page.name} 的结尾（{pdur:.1f} s）之后" if lang_hint(shots) == "zh"
+                                           else f"past the end of {page.name} ({pdur:.1f} s)")
+            if late: past(page.name, pdur, late)
         elif video:
             w, h, dur, last = probe(video)
             if w and h: aspect = w / h
