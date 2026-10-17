@@ -99,7 +99,7 @@ const src = fs.readFileSync(html, "utf8"), rootTag = (src.match(/<[^>]*\bdata-co
 const attr = (n) => { const m = rootTag.match(new RegExp(`\\b${n}="([\\d.]+)"`)); return m ? +m[1] : 0; };
 const W = attr("data-width") || 1920, H = attr("data-height") || 1080;
 
-// the registry of reads: --texts, else the page's texts (window.film.texts or window.__vh.texts), else out/texts.json (the same file readcheck reads)
+// the registry of reads: --texts, else the page's texts (window.film.texts or window.__vh.texts), else out/texts.json (what bin/vh readcheck --export saves)
 function items(j) {
   const list = Array.isArray(j) ? j : j && (j.texts || j.items || j.captions || j.cues);
   if (!Array.isArray(list)) return null;
