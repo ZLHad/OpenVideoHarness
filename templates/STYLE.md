@@ -1,6 +1,6 @@
 # STYLE
 
-<!-- 一页纸的设计系统，从立意推出来（playbook/12-ideation.md）。subagent 并行时，这份文件和 STORYBOARD 一起作为契约。没想法的地方从 playbook/03-motion-design.md 的默认值起步；改了哪条口味默认、为什么，记进 DECISIONS.md（12 第 6 节）。 -->
+<!-- 一页纸的设计系统，从立意推出来（playbook/12-ideation.md）。subagent 并行时，这份文件和 STORYBOARD 一起作为契约。没想法的地方从 playbook/03-motion-design.md 的默认值起步；和默认做法不同、有协作价值的决定记进 DECISIONS.md（12 第 6 节）。 -->
 
 ## Canvas
 - Size {W}x{H}, fps {fps}; safe box x {..–..}, y {..–..}; caption band y {..–..} (keep faces/key action above it)

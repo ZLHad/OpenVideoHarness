@@ -10,7 +10,7 @@
 | 1 素材、立意、Brief、大纲 | `NOTES.md` 的素材清单；2–3 张立意卡；`BRIEF.md`（立意、受众、平台、时长、画幅、fps、分辨率、在哪看、有无声音、验收项）+ 3–7 段大纲 | `12-ideation.md`、`templates/BRIEF.md` | 立意一句话说得出、换个题材就不成立；**人工关卡 ①** |
 | 2 风格 | `STYLE.md`：从立意推出的调色板、字体、缓动、安全区或锚点网格、禁止项；参考了预设，就在 `DECISIONS.md` 记借了什么 | `templates/STYLE.md` + 类型文档，可参考 `styles/` | 一页纸能讲清，看得出是从立意来的 |
 | 3 脚本与分镜 | `SCRIPT.md`（有旁白时写，关键词标 `{cue}`）、`STORYBOARD.md`（每段的理解目标，每镜的时间、reads、转场；也可以写在镜头元数据里）、每镜一张关键帧（`shots.json` → `bin/vh storyboard`，出在 `out/check/storyboard/`）；节奏要紧的片子再加一版 animatic `out/animatic.mp4` | `templates/SCRIPT.md`、`templates/STORYBOARD.md` | 每镜都有事件，reads 不重叠；**人工关卡 ②** |
-| 4 音频先行 | `audio/*`、`timeline.json`（词级时间）、`beats.json` | 见 `04-audio.md` | 用实测时长回写分镜 |
+| 4 时间依据 | `audio/*`、`timeline.json`（词级时间）、`beats.json`，或事件表 | 见 `04-audio.md` | 用实测或定下的时间回写分镜 |
 | 5 搭引擎 | 渲染脚本、公共库（hash、ease、keyframe、camera、pulse），先做一个样板场景 | `engines/README.md` | 乱序跳到同一帧，结果一致 |
 | 6 写场景 | 每个场景一个文件；长片按 chapter 分给多个 subagent | Claude Code subagents | 新做和改过的场景过 lint，按问题看 sheet、strip、crop |
 | 7 Review | `out/check/*.jpg` 和 `NOTES.md` 里的评分记录 | 全新上下文的 reviewer subagent，对照 `TASTE_CHECKLIST.md` | 底线条目全 PASS；整片 draft 过 1 轮打分层，修最重要的至多 3 处（`studio` 至少 3 轮、最多 10 轮，做工五项都 ≥ 7）；小修只做局部复查 |
