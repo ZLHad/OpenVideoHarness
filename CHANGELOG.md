@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**Two style presets rewritten as guidance (a pilot): editorial-data and guochao-festive, the style template and the data-story type doc**
+- Why: the two Prompt blocks bound a whole look together (editorial-data: paper colour, one accent, a locked camera, exactly three transitions, linear time, the instruments and BPM; guochao-festive: a red-gold ratio, a strict centre axis, exactly one asymmetric element per frame, characters slammed on every beat, fixed instruments), so every data story or festive film came out the same.
+- Each now opens with **怎么借** (the character worth borrowing), keeps the swatch's settings as the swatch's (to try or to depart from), and turns 禁止项 into **常见误用及原因**: each item says why; the ones about facts, licences, cultural sources and character forms are marked 【底线】. The Prompt blocks name the grammar first (editorial-data: hierarchy, direct labels, supported observations, the data's question before the form; guochao-festive: which kind of joy, objects and motifs from the material that take part in the story), then the swatch's settings. Swatches, tokens and media are unchanged.
+- `styles/_TEMPLATE.md`: write in three layers (borrowable grammar, the swatch's settings, misuses and why); no 必须/只用/禁止 outside the floors; "something new every few seconds" and "only these 2–3 transitions" became questions about the swatch and about where transitions come from.
+- `video-types/05-data-story.md`: the Prompt block no longer fixes the frame rate, length, SVG, a single accent or linear time; a change of form keeps a cue for identity; a slowed passage slows picture, sound and text together; 禁止 splits the data-meaning floors (sources, 示意, bar axes from 0) from misuses with their reasons. Its read path is 320 characters longer (quick) and 388 (standard).
+- The other presets and type docs are unchanged until this pilot shows whether looser guidance still gives distinct, concrete help.
+
 **Read resolved film shots in storyboard and rhythm**
 - Canvas-film exposes `window.film.shots` with the actual start/end times, complete ids (including suffixes), chapter/segment, reads, label, unsure flags and transition metadata. A narration edit now moves the review tools with the engine's cuts.
 - Both tools choose explicit `--shots` JSON/page, then hand-written `shots.json`, then live `film.html`. JSON paths remain browser-independent; live reads wait for ready and fail on invalid data or page errors. Sources are named in output, storyboard's index and rhythm's footer. No hand-written registry is overwritten.

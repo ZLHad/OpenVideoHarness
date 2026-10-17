@@ -26,7 +26,7 @@ https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
 ## 31 个风格
 
 每个目录里有：
-- `STYLE.md`：学习对象、视觉语法、运动语法、声音语法、适合与不适合、禁止项、prompt 块、引擎做法、自查重点；
+- `STYLE.md`：学习对象、视觉语法、运动语法、声音语法、适合与不适合、禁止项（新写的叫"常见误用及原因"，见 `_TEMPLATE.md`）、prompt 块、引擎做法、自查重点；
 - `tokens.json`：机器可读的数值；
 - `swatch.js`（Blender 场景是 `swatch.py`）、`score.json`：样片的画面和配乐源码；
 - `media/`：样片和封面。

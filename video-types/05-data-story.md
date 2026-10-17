@@ -9,7 +9,8 @@
 
 - **首选**：HyperFrames，用 SVG 配合 GSAP 手写图表。需要现成组件时，可以用 `npx hyperframes add data-chart` 加入动画图表组件。
 - **备选**：Remotion + D3 的比例尺；图表之间需要形变过渡时，可以看 vizzu-lib。
-- **不要**直接用图表库的默认输出。
+- **不要**直接用图表库的默认输出：它的动画不是 t 的纯函数，样子也千篇一律。
+- 数据放进三维空间、地图或实物里时，canvas-film（含 Three 层）也合适。
 
 ## 工作流
 
@@ -17,16 +18,16 @@
 2. **数据处理**：用 Python（pandas 或 duckdb）算好数据，导出 `data/*.json`，前端只负责画。每个上屏的数字，都在 `NOTES.md` 里记下出处和计算方式。
 3. **图表语法**：
    - 直接在线上或柱子上标注，不用图例；
-   - 只高亮 1 条系列，其他都是灰色、40% 透明；
+   - 通常只高亮结论说的那一条，其他退成灰色；几条都要比时，各给认得出的颜色；
    - 数字用 `tabular-nums`，并带单位；
    - 数据来源常驻在左下角，60% 透明。
 4. **转场**：
    - 同一个概念的连续数据留在同一个视觉空间里，只变数值；
    - 转场分阶段进行：先变坐标轴，再变数值，约 1 秒（Heer & Robertson 2007）；
-   - 同一个图形标记始终代表同一个实体。
+   - 同一个图形标记始终代表同一个实体；换形式（图表到地图、二维到三维）时，留一个认得出的线索（同色、同标签或一条接过去的线）。
 5. **节奏**：
    - 数字计数不超过 1.5 秒，最终状态至少停 2 秒；
-   - 时间序列的曲线线性地画出来，因为横轴就是时间；
+   - 时间序列的曲线默认线性地画出来，因为横轴就是时间；在事件附近放慢时，画面、声音和字一起慢（同一份时间映射）；
    - 先出基线，再出"我们的"。
 
 ## 审美要点
@@ -37,24 +38,24 @@
 
 ## 禁止
 
-- 没有叙事的 bar chart race；
-- 3D 饼图，或者任何饼图；
-- 双轴；
-- 满屏网格线；
-- 彩虹分类色；
-- 条形图的 y 轴不从 0 开始；
-- 6 格仪表盘；
-- 数字没有出处。
+管数据含义的是底线：
+- 数字没有出处，示意数据没标"示意"；
+- 条形图的 y 轴不从 0 开始；对数轴、截断轴没在轴上写明。
+
+常见误用（参考）：
+- 没有叙事的 bar chart race：一直在动，不说该看什么；
+- 饼图、3D 饼图：角度和面积比长度难比；
+- 双轴：不相干的两条线看着像有关系；
+- 满屏网格线、彩虹分类色、6 格仪表盘：观众在解码，不在读结论。
 
 ## Prompt 增量块
 
 ```text
-+ TYPE: data story. {1920x1080 | 1080x1920} 30fps {45–90}s from {data.csv / data/*.json}; build charts with SVG + GSAP, not a chart library.
-Each chart = one takeaway, written as its title sentence. Label lines directly; no legends, gridlines, dual axes, or pies.
-Highlight series in accent {hex}; others #8A8F98 at 40%. Numbers use tabular-nums, with units; source line bottom-left at 60% opacity.
-Transitions ~1s and staged: rescale axes first, then move values; the same mark always = the same entity; continuous data for one concept stays in one visual space.
-Count-ups <=1.5s, then hold the final state >=2s. Time-series lines draw linearly. Baseline first, then ours.
-Every on-screen number traced to its source row/calculation in NOTES.md.
++ TYPE: data story from {data.csv / data/*.json}; {aspect}, {fps}, about {length}, as the brief says.
+Start from the question the data answers for this audience; tell it as a comparison, a turning point through time, or a move between the whole and one part. Each state makes one point; its title can say it as a sentence.
+Make objects, units and time easy to recognise: direct labels, numbers with units in tabular figures, the source on screen; highlight what the point is about (often one accent series, the rest grey). When the form changes (chart to map, 2D to 3D), carry the identity across with the same colour, label or a bridging line.
+Pace follows the data: staged changes (axes, then values), holds long enough to read and see the change, slower around the events that matter.
+Every on-screen number traced to its source in NOTES.md; the treatment never changes what the data means.
 ```
 
 ## 自查重点
