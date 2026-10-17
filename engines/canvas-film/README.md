@@ -156,14 +156,32 @@ bin/vh rhythm <项目> --shots film.html # 有手写 shots.json 时，明确改�
 
 ```js
 const COVERS = [
-  { id: "A", at: "@a2:第二张+0.6", cam: { z: 1.12, x: 0, y: -60 }, title: { text: ["改一个字，镜头跟着走"], size: 150, x: 960, y: 1010, align: "center" } },
+  { id: "A", at: "@a2:第二张+0.6", cam: { z: 1.12, x: 0, y: -60 }, title: { text: ["改一个字，镜头跟着走"], size: 150, x: 960, y: 1010, align: "center" },
+    ratios: { "9:16": { focus: [1260, 540], title: { text: ["改一个字", [{ text: "镜头", color: PAL.amber }, "跟着走"]], size: 190, x: 540, y: 1420, align: "center" } } } },
 ];
 ```
 
 - `at` 和镜头的一样写成 cue：改了开场、重配一句，封面跟着取到同一个画面，不会过期。`bin/vh cues` 把它列成 `cover.A.at`。
 - `cam: { z, x, y }`：只在这张封面上生效的机位微调，绕画面中心放大 z 倍，再挪 x、y 像素，给标题让出地方。挪动不能超过放大留出的余量（横向 (z − 1) × 960，纵向 (z − 1) × 540），超了 `ready` 会报出来，免得露出画面的边。
-- `title: { text: [行…], size: [每行字号] 或一个数, x, y（第一行的基线）, align, color, band }`：用 `"Film Heavy"` 画，这一档是各系统最粗的中文黑体，带深色描边和一条压暗的底；`band: false` 不要底。章节条和字幕默认不上封面，要的话写 `bar: true`、`caption: true`。
+- `title: { text: [行…], size: [每行字号] 或一个数, x, y（第一行的基线）, align, color, band, gap, family, weight }`：默认用 `"Film Heavy"` 画（`family: "heavy"`、`weight: 900`），这一档是各系统最粗的中文黑体，带深色描边和一条压暗的底；`band: false` 不要底。`family` 也可以写 `sans`、`serif` 或一串 CSS 字体名（字体要在 `film.html` 里声明）。章节条和字幕默认不上封面，要的话写 `bar: true`、`caption: true`。
+- 多种颜色：`color` 可以写一个，也可以每行一个（`color: ["#F4F1EA", PAL.amber]`）；一行里要分段配色，这一行写成一串 run：`["改一个字，", { text: "镜头", color: PAL.amber }, "跟着走"]`，没写颜色的 run 用这一行的颜色。先描完整行的边、再填字，前一段的描边不会压到后一段的字上。只写字符串的旧写法照旧，画出来和以前一样。
+- 封面换个机位：画封面时，每个镜头 `draw(t, s)` 的 `s.cover` 是这张封面的 `id`，片子本身的帧里是 `null`。镜头可以按它换一个更有冲击力的取景、藏掉一个只在片中需要的标注，片子一帧不变。别在 `cover()` 外面设全局变量：那样既容易留到下一帧，也看不出是哪张封面。
 - `bin/vh frames <项目> --covers` 把每张封面画进 `out/covers/<id>.png`（`--covers=A,B` 只画这几张，`--dpr 2` 出 3840 × 2160），再用 `bin/vh cover-preview out/covers/*.png` 看在信息流里的大小。
+- `--no-title`：不画标题，出一张干净的底图 `out/covers/<id>-clean.png`，给要在别处排字的项目用，不用为此改 `COVERS`。片子本身的帧本来就没有封面标题，不受影响。
+
+### 其他比例（9:16、3:4、4:3）
+
+`bin/vh frames <项目> --covers --ratios 9:16,3:4,4:3`（可以加 `16:9`、`1:1`，`--no-title`、`--dpr 2` 照用）每张封面每个比例出一张 `out/covers/<id>-9x16.png`。它做的是**裁切**，不是重画：画面还是这张封面 16:9 的那一帧，取其中这个比例最大的一块（整数像素、正好是这个比例：1920 × 1080 的片子里 9:16 是 603 × 1072，3:4 是 810 × 1080），画框外的东西不会出现。输出的短边是 1080 × `--dpr`（9:16 出 1080 × 1920）；页面按裁切需要的像素比来画（9:16 约 1.8 × `--dpr`），画面不会被放大。每张输出都写明裁了哪一块、标题是谁排的。
+
+每个比例在 `ratios` 里自己决定：
+
+- `focus: [x, y]`：裁切围着哪一点（封面画面里的 px，`cam` 已经算进去），默认画面中心；裁不出画框，靠边时自动收回来。
+- `cam: { z, x, y }`：这个比例用自己的机位，代替封面的 `cam`。要更紧的取景就在这里放大：画面按这个机位重画，比把裁好的图放大清楚。
+- `title`：这个比例自己的标题，写法同上，坐标按这个比例的像素算（9:16 是 1080 × 1920，3:4 是 1080 × 1440，4:3 是 1440 × 1080），暗带只铺这个比例的宽度；`title: false` 这个比例不要标题。不写时，把封面的标题挪过来当起点：同样的行和颜色，居中，整体缩到不超过宽度的 88 %（不放大），最后一行的基线在 80 % 高度。这只是默认排法，不是版式，先用 `bin/vh cover-preview` 看过，再按画面写自己的 `title`。
+
+章节条和字幕只出现在片子本身的比例上。标题里每一行宽不宽得下，`ready` 按各自的比例检查，超出就报出来；`bin/vh fonts check` 也把每个比例的标题画一遍，查字体缺字。比例出齐以后，`bin/vh cover-preview out/covers/A-*.png` 一次看各平台信息流里的样子（命令最后会打出这一行）。
+
+**复制过引擎的旧项目**：这些都在引擎里，旧拷贝要合进来才能用。把新版 `src/00-core.js` 的 `coverBox()`、`buildCovers()` 和 `COVER_NOW`，`src/20-ui.js` 的封面标题一段（`pickAt` 到 `ratioTitle()`），`src/90-main.js` 的 `drawShot()`（多了 `cover: COVER_NOW`）、`cover()` 和 `window.film` 里的 `covers`、`cover(id, o)` 合进自己的拷贝；项目改过这几个函数就按差异合。以前在 `cover()` 里设全局变量换机位的，改成在镜头里读 `s.cover`；以前为出底图临时去掉 `COVERS` 标题的，改用 `--no-title`。没合的旧拷贝：`--no-title` 会报"页面没说它去掉了标题"而不出图，`--ratios` 会报"页面没给出裁切"，不会悄悄出一张错的。
 
 `"Film Heavy"` 在 `film.html` 里按这个顺序找（`bin/vh fonts list --cjk` 列出本机的中文字体，对一下表里的名字；`ready` 报出本机一个都没有的情况；标题里的字这一档字体有没有，`bin/vh fonts check` 也查，它会把封面画一遍）：
 
@@ -191,7 +209,7 @@ const COVERS = [
 | `events` | `[{t, kind, shot, x?, dur?}]` |
 | `chapters` | `[{t, title}]` |
 | `cues` | 每个 cue 的解析结果：`[{id, ref, t}]`，`id` 像 `S02.o.one`、`chapter2.at`、`cover.A.at` |
-| `covers`、`cover(id)` | 封面：`[{id, t, title}]`，`cover(id)` 按它的机位和标题画这一张 |
+| `covers`、`cover(id, o)` | 封面：`[{id, t, title, ratios}]`，`cover(id)` 按它的机位和标题画这一张；`o.title: false` 不画标题，`o.ratio: "9:16"` 画这个比例的标题并返回裁切 `{crop, size}` |
 | `timeline` | 载入的旁白时间轴，相对 `film.html` 的路径；无声片是 `null` |
 | `ui(t)` | 章节条和字幕在 t 秒时的框：`[{name, box}]`。全部章名都亮着时，章节条一个框，从进度线上的圆点到章名下沿；只亮当前一章时，进度线一个框（`chapter bar`），当前章名一个框（`chapter title`）；字幕只框字，不框暗带（`caption`） |
 
@@ -205,6 +223,8 @@ bin/vh frames <项目> --strip 12.2:13.4 --fps 10   # 一段的每一帧拼成�
 bin/vh frames <项目> --at 4.9 --dpr 2        # 4K 的帧
 bin/vh textcheck <项目>                       # reads 和字幕有没有被盖住、对比够不够、出没出画；镜头有没有画到章节条、字幕底下
 bin/vh frames <项目> --covers                 # 封面：out/covers/<id>.png（COVERS，取帧时间挂在字上）
+bin/vh frames <项目> --covers --no-title      # 不带标题的底图：out/covers/<id>-clean.png
+bin/vh frames <项目> --covers --ratios 9:16,3:4,4:3   # 其他比例（裁切）：out/covers/<id>-9x16.png …
 bin/vh cues <项目> --chapters                 # 章节表，写进简介用：0:00 章名……，也写进 out/chapters.txt
 bin/vh cues <项目> --save                     # 每个 cue 落在第几秒，存进 out/cues.json；换了配音再跑，列出哪些镜头挪了、挪了多少
 bin/vh readcheck <项目>                       # reads 和字幕够不够时间读：用独立临时快照，不覆盖已有 out/texts.json

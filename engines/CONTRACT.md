@@ -35,7 +35,7 @@ window.film = {
 | `events` | 画面事件：`[{t, kind, x?}]`，时刻、事件的种类（贴纸落下、盖章、翻页这类）、在画面上的横坐标（给声像用）。配什么声是另一步：`bin/vh sfx place` 读的 `events.json` 里写的是声音的名字 | 配音效、`bin/vh qa` 的 cue check（以后） |
 | `chapters` | `[{t, title}]` | 进度条、发布文案的章节表（以后） |
 | `cues` | 时间挂在旁白字词上时，每个挂点的解析结果：`[{id, ref, t}]` | `bin/vh cues`：列出来；`--save` 存下，换了配音以后再跑，说出哪些挪了 |
-| `covers` | 封面：`[{id, t, title?}]`，取哪一帧（`t`，挂在字上的片子由 cue 算出）。页面另有方法 `cover(id)` 时，宿主调它画这张封面（自己的机位微调、标题），没有就画 `frame(t)` | `bin/vh frames --covers`：每张一个 PNG，在 `out/covers/` |
+| `covers` | 封面：`[{id, t, title?, ratios?}]`，取哪一帧（`t`，挂在字上的片子由 cue 算出）。页面另有方法 `cover(id, o)` 时，宿主调它画这张封面（自己的机位微调、标题），没有就画 `frame(t)`。`o.title: false`：不画标题，页面返回 `{title: false}` 表示照办了（不返回的，宿主当它不认这个参数，不出图）。`o.ratio: "9:16"`：画好这个比例要的样子（标题按这个比例排在裁切框里），返回 `{crop: [x, y, w, h], size: [w, h]}`：`crop` 是画面里要截的那块（整数 CSS px，正好是这个比例），`size` 是这个比例的输出尺寸（乘 `--dpr`）；宿主只截这一块，不重画更宽或更高的画面。`ratios` 列出页面为哪些比例另排了标题 | `bin/vh frames --covers [--no-title] [--ratios 9:16,…]`：每张一个 PNG，在 `out/covers/`；`bin/vh fonts check` 也画一遍 |
 | `timeline` | 这些 cue 挂在哪份旁白时间轴上：相对页面的路径（`audio/timeline.zh.json`），没有旁白时是 `null` | `bin/vh cues` 记下它的 sha256，认出换过的配音 |
 | `music` | `{path, sha256}`，相对页面的配乐 beats 文件路径，以及页面实际加载字节的 SHA-256；无配乐时为 `null` | `bin/vh cues --save` 保存来源，重跑时提示配乐表变化 |
 | `ui(t)` | 方法：t 秒时常驻界面（进度条、署名、字幕）的字和线在哪：`[{name, box: [x0, y0, x1, y1]}]`，画面的 CSS px；只框界面自己的字和线，垫在下面的底板、渐变不算。写了它，`frame(t, { layer: "scene" })` 就要画出不带界面的这一帧（不认这个参数的页面照常画整帧，宿主会看出来、说一声） | `bin/vh textcheck`：两种画法各画一遍，场景自己在这些框里画了线、边、字的，报出来（警告） |
