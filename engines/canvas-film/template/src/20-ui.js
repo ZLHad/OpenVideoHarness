@@ -93,9 +93,17 @@ function chapterBar(t) {
 
 // ---- a cover's title: lines in the heaviest Chinese sans this machine has ("Film Heavy" in film.html), with a dark
 // outline and a darker band behind them, so they read at the size of a feed tile. title: { text: [lines], size: [px per
-// line] or px, x, y (the first line's baseline), align, color, band: true | false, gap } ----
-function coverTitle(o) {
-  const lines = [].concat(o.text || []), sizes = lines.map((_, i) => [].concat(o.size ?? 200)[i] ?? [].concat(o.size ?? 200).slice(-1)[0]);
+// line] or px, x, y (the first line's baseline), align, color, band: true | false, gap, family, weight }. A line is a
+// string, or a list of runs in one line, each a string or { text, color } (a run without a colour takes the line's);
+// color is one colour or one per line; family a key of FAMILIES or a CSS family list ("heavy", weight 900, by default).
+// bw: the width the band spans (the frame's; a ratio cover's own, src/90-main.js) ----
+const pickAt = (v, i, d) => { const a = [].concat(v ?? d); return a[i] ?? a[a.length - 1]; };   // a value per line, the last for the rest
+const titleRuns = (line) => (Array.isArray(line) ? line : [line]).map((r) => (r && typeof r === "object" ? { text: String(r.text ?? ""), color: r.color } : { text: String(r ?? "") }));
+const titleText = (line) => titleRuns(line).map((r) => r.text).join("");
+const titleFont = (o, size) => ({ size, weight: o.weight ?? 900, family: o.family || "heavy" });
+const coverLineWidth = (line, size, o) => titleRuns(line).reduce((w, r) => w + measure(r.text, titleFont(o, size)), 0);
+function coverTitle(o, bw = W) {
+  const lines = [].concat(o.text || []), sizes = lines.map((_, i) => pickAt(o.size, i, 200));
   if (!lines.length) return;
   const x = o.x ?? 120, y0 = o.y ?? 700, gap = o.gap ?? 0.18, align = o.align || "left";
   const ys = []; let y = y0;
@@ -105,10 +113,29 @@ function coverTitle(o) {
     const g = X.createLinearGradient(0, top - 120, 0, bottom + 120);
     g.addColorStop(0, `rgba(${FILM.ui.dark},0)`); g.addColorStop(0.25, `rgba(${FILM.ui.dark},0.55)`);
     g.addColorStop(0.75, `rgba(${FILM.ui.dark},0.55)`); g.addColorStop(1, `rgba(${FILM.ui.dark},0)`);
-    X.fillStyle = g; X.fillRect(0, top - 120, W, bottom - top + 240);
+    X.fillStyle = g; X.fillRect(0, top - 120, bw, bottom - top + 240);
   }
-  lines.forEach((s, i) => txt(s, x, ys[i], { size: sizes[i], weight: 900, family: "heavy", align, color: o.color || FILM.ui.text,
-    stroke: Math.max(8, sizes[i] * 0.06), strokeColor: `rgba(${FILM.ui.dark},0.85)`, shadow: `rgba(${FILM.ui.dark},0.6)`, blur: 18, dy: 4 }));
+  lines.forEach((line, i) => {
+    const f = titleFont(o, sizes[i]), color = pickAt(o.color, i, FILM.ui.text);
+    const look = { ...f, stroke: Math.max(8, sizes[i] * 0.06), strokeColor: `rgba(${FILM.ui.dark},0.85)`, shadow: `rgba(${FILM.ui.dark},0.6)`, blur: 18, dy: 4 };
+    if (typeof line !== "object" || line === null) return txt(line, x, ys[i], { ...look, align, color });
+    // runs: laid end to end from the line's start; every run's outline first, then the letters, so an outline never
+    // lies over the next run's letters
+    const runs = titleRuns(line), ws = runs.map((r) => measure(r.text, f)), xs = [];
+    let at = x - (align === "center" ? 0.5 : align === "right" ? 1 : 0) * ws.reduce((a, w) => a + w, 0);
+    for (const w of ws) { xs.push(at); at += w; }
+    runs.forEach((r, k) => txt(r.text, xs[k], ys[i], { ...look, color: "rgba(0,0,0,0)", shadow: null }));
+    runs.forEach((r, k) => txt(r.text, xs[k], ys[i], { ...look, stroke: 0, color: r.color || color }));
+  });
+}
+// a title for a ratio whose cover gives none: the cover's own lines and colours, centred, scaled down together to fit 88 %
+// of the width (never up), the last baseline at 80 % of the height. A starting point to look at (bin/vh cover-preview),
+// not a layout: ratios[r].title places it
+function ratioTitle(o, nw, nh) {
+  const lines = [].concat(o.text || []), gap = o.gap ?? 0.18, sizes = lines.map((_, i) => pickAt(o.size, i, 200));
+  const k = Math.min(1, ...lines.map((l, i) => (0.88 * nw) / Math.max(1, coverLineWidth(l, sizes[i], o))));
+  const s = sizes.map((v) => Math.round(v * k)), span = s.slice(1).reduce((a, v) => a + v * (1 + gap), 0);
+  return { ...o, size: s, x: nw / 2, y: Math.round(nh * 0.8 - span), align: "center" };
 }
 
 // ---- the caption (bottom): one line on a soft dark band; on a plate where the shot says light: true (a pale picture) ----

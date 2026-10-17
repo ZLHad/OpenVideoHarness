@@ -1199,6 +1199,64 @@ PY
   if [ -s "$t/cov/c1/A.png" ] && [ -n "$t1" ] && python3 -c "import sys; sys.exit(0 if abs(float(sys.argv[2]) - float(sys.argv[1]) - 0.4) < 0.002 else 1)" "$t1" "$t2" && [ $same = 1 ]
   then ok "covers: drawn into out/covers by cue; a longer opening moves the cover with the narration (+0.4 s) to the same picture"
   else bad "covers on the canvas-film template (exit $rc; $t1 → $t2, psnr ${p:-}): $(printf '%s' "$a$b" | tail -c 600)"; fi
+  # --no-title: the same cover without its title (a clean background): the rows above the title's band are the same bytes,
+  # the title's rows differ. --ratios: each ratio a crop at its own size (short side 1080 at --dpr 1), and a ratio that is
+  # not one stops before any browser. A page whose cover(id) takes no options (an engine copied before) is not passed off
+  # as clean. s.cover: a shot that paints a mark when s.cover is set leaves the film's frames byte for byte the template's
+  # (at the cover's own t too), and the mark is in the cover, titled or clean
+  a=$(vh frames "$c" --covers --out "$t/cnt" 2>&1); b=$(vh frames "$c" --covers --no-title --out "$t/cnt" 2>&1); rc=$?
+  if [ -s "$t/cnt/A.png" ] && [ -s "$t/cnt/A-clean.png" ] && printf '%s' "$b" | grep -q '(cover A at [0-9.]* s, no title)' && python3 - "$t/cnt/A.png" "$t/cnt/A-clean.png" <<'PY'
+import struct, sys, zlib
+def rows(p):   # a PNG's filtered scanlines: an encoder that filters each row by itself and the one above gives the same bytes for the same rows
+    d = open(p, "rb").read(); w, h, bit, ct = struct.unpack(">IIBB", d[16:26]); i, z = 8, b""
+    while i < len(d):
+        n, k = struct.unpack(">I4s", d[i:i + 8])
+        if k == b"IDAT": z += d[i + 8:i + 8 + n]
+        i += 12 + n
+    raw, n = zlib.decompress(z), 1 + w * {2: 3, 6: 4}[ct] * bit // 8
+    return [raw[j * n:(j + 1) * n] for j in range(h)]
+a, b = rows(sys.argv[1]), rows(sys.argv[2])
+sys.exit(0 if len(a) == len(b) == 1080 and a[:700] == b[:700] and a[880:1000] != b[880:1000] else 1)
+PY
+  then ok "covers --no-title: the cover without its title, the same bytes above the title's band, <id>-clean.png"
+  else bad "covers --no-title (exit $rc): $(printf '%s' "$a$b" | tail -c 600)"; fi
+  a=$(vh frames "$c" --covers --ratios 9:16,3:4,4:3 --out "$t/crat" 2>&1); rc=$?
+  [ $rc = 1 ] && printf '%s' "$a" | grep -q 'fonts this machine does not have' && ! printf '%s\n' "$a" | grep -q '^  cover A' && rc=0
+  b=$(vh frames "$c" --covers --ratios 9-16 2>&1); rc2=$?
+  if [ $rc = 0 ] && [ $rc2 = 2 ] && printf '%s' "$b" | grep -q 'write them as 9:16' && printf '%s' "$a" | grep -q '9:16 1080x1920: a crop of the 1920x1080 picture' \
+    && python3 - "$t/crat" <<'PY'
+import struct, sys
+size = lambda f: struct.unpack(">II", open(f"{sys.argv[1]}/{f}", "rb").read()[16:24])
+sys.exit(0 if (size("A-9x16.png"), size("A-3x4.png"), size("A-4x3.png")) == ((1080, 1920), (1080, 1440), (1440, 1080)) else 1)
+PY
+  then ok "covers --ratios: each ratio a crop of the cover at its own size (9:16 1080x1920, 3:4, 4:3), said to be a crop; a malformed ratio exits 2"
+  else bad "covers --ratios (exit $rc / $rc2): $(printf '%s' "$a$b" | tail -c 600)"; fi
+  mkdir "$t/cold" && cp -R "$c/." "$t/cold/" && sed 's/cover(id, o) { return cover(id, o || {}); }/cover(id) { cover(id); }/' "$c/src/90-main.js" > "$t/cold/src/90-main.js"
+  a=$(vh frames "$t/cold" --covers --no-title --out "$t/cold/o" 2>&1); rc=$?
+  case "$rc:$a" in 1:*"cover A: the page drew its cover without saying it left the title out"*) [ ! -e "$t/cold/o/A-clean.png" ] && ok "covers --no-title: a cover(id) that takes no options is named, not passed off as clean" || bad "covers --no-title on an old cover(id) still wrote a clean cover" ;;
+    *) bad "covers --no-title on an old cover(id) (exit $rc): $(printf '%s' "$a" | tail -c 500)" ;; esac
+  mkdir "$t/cid" && cp -R "$c/." "$t/cid/" && cat >> "$t/cid/src/50-shots.js" <<'JS'
+for (const S of SHOTS) { const d = S.draw; S.draw = (t, s) => { d(t, s); if (s.cover === "A") rect(-200, -200, 400, 400, { fill: "#FF00FF" }); }; }
+JS
+  ct=$(vh frames "$c" --covers --out "$t/cid/x" 2>&1 | sed -n 's/.*(cover A at \([0-9.]*\) s.*/\1/p' | head -1)
+  vh frames "$c" --at "4.9,${ct:-10}" --out "$t/cid/f0" >/dev/null 2>&1; vh frames "$t/cid" --at "4.9,${ct:-10}" --out "$t/cid/f1" >/dev/null 2>&1
+  vh frames "$t/cid" --covers --out "$t/cid/c" >/dev/null 2>&1; vh frames "$t/cid" --covers --no-title --out "$t/cid/c" >/dev/null 2>&1
+  n0=$(find "$t/cid/f0" -name '*.png' 2>/dev/null | wc -l | tr -d ' '); same=1
+  for f in "$t/cid/f0"/*.png; do cmp -s "$f" "$t/cid/f1/${f##*/}" || same=0; done
+  if [ "$n0" = 2 ] && [ $same = 1 ] && python3 - "$t/cid/c/A.png" "$t/cid/c/A-clean.png" "$t/cid/f1" <<'PY'
+import glob, struct, sys, zlib
+def first_pixel(p):   # the top-left pixel: row 0's first pixel is stored as it is under every PNG filter
+    d = open(p, "rb").read(); i, z = 8, b""
+    while i < len(d):
+        n, k = struct.unpack(">I4s", d[i:i + 8])
+        if k == b"IDAT": z += d[i + 8:i + 8 + n]
+        i += 12 + n
+    return tuple(zlib.decompress(z)[1:4])
+m = lambda p: first_pixel(p) == (255, 0, 255)
+sys.exit(0 if m(sys.argv[1]) and m(sys.argv[2]) and not any(m(f) for f in glob.glob(sys.argv[3] + "/*.png")) else 1)
+PY
+  then ok "s.cover: a shot sees the cover's id only while a cover is drawn; the film's frames stay the template's, byte for byte (at the cover's t too)"
+  else bad "s.cover on the canvas-film template (frames $n0, same $same, cover at ${ct:-?} s)"; fi
   mkdir "$t/chp" && cp -R "$c/." "$t/chp/"
   a=$(vh cues "$t/chp" --chapters 2>&1); rc=$?
   if [ $rc = 0 ] && printf '%s' "$a" | grep -q '^  0:00 挂在字上' && printf '%s' "$a" | grep -q '^  0:11 翻一页' && printf '%s' "$a" | grep -q 'at least three'; then ok "cues --chapters: the engine's chapters as a description's list, half a second early, with YouTube's conditions"

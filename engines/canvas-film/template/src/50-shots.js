@@ -12,7 +12,8 @@
 //          reads defaults to see. window.film.shots exports these with the resolved start/end (not the cue strings).
 //   o      the shot's own times and values: every cue in it, at any depth, becomes seconds before the first frame, and
 //          one that no longer resolves stops the film in ready, naming the shot and the cue
-//   draw(t, s)  paints the shot at film time t: s = { id, t0, t1, lt, u, o, … } (src/90-main.js, drawShot)
+//   draw(t, s)  paints the shot at film time t: s = { id, t0, t1, lt, u, o, cover, … } (src/90-main.js, drawShot); s.cover is
+//          the cover's id while a cover is drawn (null in the film), for a shot that frames a cover its own way
 
 Object.assign(FILM, {
   lang: "zh",                          // audio/timeline.zh.json (its first line starts 0.5 s in, as bin/vh tts --lead 0.5 writes it)
@@ -54,11 +55,16 @@ function card(t, at, cx, cy, n, word) {
 // covers: a frame picked by cue (it follows the narration when the opening changes), the camera nudged for room, a title
 //   at     a cue or seconds, as a shot's · cam { z, x, y }: zoom about the middle, then move by x, y px (within
 //          (z - 1) x 960 and (z - 1) x 540, or the frame's edge shows)
-//   title  { text: [lines], size: [px per line], x, y (first baseline), align, color, band } in "Film Heavy"
+//   title  { text: [lines], size: [px per line], x, y (first baseline), align, color, band, family } in "Film Heavy";
+//          a line is a string or runs [string | { text, color }]; color one colour or one per line (src/20-ui.js)
 //   bar, caption: true to keep the chapter bar or the caption (off by default)
-// bin/vh frames <project> --covers draws them into out/covers/<id>.png (--dpr 2 for 3840 x 2160)
+//   ratios { "9:16": { focus: [x, y], cam, title } }: that ratio as a crop of the cover around focus (frame px), its own
+//          cam if given, its title in the ratio's px (1080 x 1920 for 9:16); without a title, the cover's is re-set for it
+// bin/vh frames <project> --covers draws them into out/covers/<id>.png (--dpr 2 for 3840 x 2160); --no-title without the
+// title; --ratios 9:16,3:4,4:3 the crops, <id>-9x16.png and so on
 const COVERS = [
-  { id: "A", at: "@a2:第二张+0.6", cam: { z: 1.12, x: 0, y: -60 }, title: { text: ["改一个字，镜头跟着走"], size: 150, x: 960, y: 1010, align: "center" } },
+  { id: "A", at: "@a2:第二张+0.6", cam: { z: 1.12, x: 0, y: -60 }, title: { text: ["改一个字，镜头跟着走"], size: 150, x: 960, y: 1010, align: "center" },
+    ratios: { "9:16": { focus: [1260, 540], title: { text: ["改一个字", [{ text: "镜头", color: PAL.amber }, "跟着走"]], size: 190, x: 540, y: 1420, align: "center" } } } },
 ];
 
 const SHOTS = [

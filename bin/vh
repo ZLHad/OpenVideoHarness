@@ -80,11 +80,12 @@
 #                               and captions over a bright picture warn, and so does a scene drawing under the interface (a page with window.film.ui(t)
 #                               and frame(t, { layer: "scene" })). The composition opts in with window.film = { frame(t), duration, texts? }
 #                               (engines/CONTRACT.md; the older window.__vh = { draw(t), texts? } still works)
-#   frames <project|page.html> (--at t,t… | --range a:b[:step] | --strip a:b | --covers[=A,B]) [--fps 30] [--out dir] [--size WxH] [--dpr 2] [--real-clock]
+#   frames <project|page.html> (--at t,t… | --range a:b[:step] | --strip a:b | --covers[=A,B] [--no-title] [--ratios 9:16,3:4]) [--fps 30] [--out dir] [--size WxH] [--dpr 2] [--real-clock]
 #                               frames drawn from the source through the page contract (window.film, engines/CONTRACT.md), for any web-page
 #                               engine: ClaudeAnimationBase, a page that writes window.film, HyperFrames (a composition without it gets its own
 #                               runtime); lossless PNGs in <project>/out/frames; --strip: every frame of a span and one picture of them all;
 #                               --covers: the page's covers (window.film.covers; canvas-film COVERS, picked by cue) in <project>/out/covers
+#                               (--no-title: without their titles, <id>-clean.png; --ratios: each ratio a crop of the cover with its own title, <id>-9x16.png)
 #   render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b | --frames k0:k1] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png]
 #                               an MP4 drawn through the page contract (the canvas engine, ClaudeAnimationBase, any page that writes
 #                               window.film): parallel chunks into x264, BT.709 tv range, a keyframe every --gop frames, <out>.render.json
