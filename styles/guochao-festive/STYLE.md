@@ -58,7 +58,7 @@
 
 ## 声音语法
 
-- **配乐**（样片的做法，热闹的那种喜悦）：唢呐领奏，下面是现代 trap / EDM 律动加锣鼓，响、亮、喜庆。庄重、俏皮、怀旧的喜悦，配器跟着换，锣鼓和唢呐都不是必需的。`bin/vh music`，`bpm: 128`（trap 的 half-time 感觉），`key: "D"`，`mode: "major"`，旋律用 D 宫五声（`"scale": "gong"`：D E F♯ A B）。写成 `parts`：`suona` 走主旋律，长音前用 `slide` 从下面滑上来，高潮落在高音 D6；`sub808` 走根音、带滑音，`edm_kick` 和 `trap_snare` 打 half-time，军鼓落在画面里砸字、盖印这类动作上；`trap_hat` 十六分音符，句尾加 `r` / `R` 滚奏；`luogu` 打锣鼓经（段首 `仓`，其余拍子上 `才`、`台`），`taiko` 当大鼓；`pipa` 在高潮段弹十六分音符的反复音型。`space: hall`，RT60 2 s 以内。
+- **配乐**（热闹的那种喜悦的一种做法；5 s 样片的实际做法见下面的"样片小样"）：唢呐领奏，下面是现代 trap / EDM 律动加锣鼓，响、亮、喜庆。庄重、俏皮、怀旧的喜悦，配器跟着换，锣鼓和唢呐都不是必需的。`bin/vh music`，`bpm: 128`（trap 的 half-time 感觉），`key: "D"`，`mode: "major"`，旋律用 D 宫五声（`"scale": "gong"`：D E F♯ A B）。写成 `parts`：`suona` 走主旋律，长音前用 `slide` 从下面滑上来，高潮落在高音 D6；`sub808` 走根音、带滑音，`edm_kick` 和 `trap_snare` 打 half-time，军鼓落在画面里砸字、盖印这类动作上；`trap_hat` 十六分音符，句尾加 `r` / `R` 滚奏；`luogu` 打锣鼓经（段首 `仓`，其余拍子上 `才`、`台`），`taiko` 当大鼓；`pipa` 在高潮段弹十六分音符的反复音型。`space: hall`，RT60 2 s 以内。
 - **音效**：砸字 `impact`，印章 `click`；鞭炮用 20–60 ms 间隔、逐渐加密的 `tick` + `pop` 串；纸片 `whoosh`；金色纹样闭合时一声 `ding`。
 - **声画关系**：卡点密，但每个卡点只对应一个视觉动作。副歌前留一拍空白：鼓、808、锣鼓全部停下，只留琵琶轮指从弱到强垫着，比前面低 10 dB 左右；空白后的第一拍（`仓` + 大鼓 + 808 + 唢呐高音）是全片最响的一下，配全片最大的字。
 - **样片小样**：样片的 5 s 声音小样（`score.json`）：样片按 150 BPM 走（不是正文的 128），让 0.8 / 2.0 / 4.0 s 都落在拍上，四个小节是 2、3、5、3 拍。0.0 s 红纸砸下：`仓` + 大鼓 + 808 + 底鼓，唢呐从 E5 滑上 A5 长音；0.1–0.7 s 回纹边框一格一格印出来，踩镲按十六分音符跟着印；0.8 s 标题进来，唢呐 D6–B5–A5、F♯5–E5，1.2 s 第一个字砸下时军鼓和 `才` 一起落；2.0 s 团花弹出，和弦 Bm → G，`仓` + 大鼓，琵琶弹十六分音符的反复音型，唢呐 A5–B5–A5–F♯5–E5，2.8 s 盖印时军鼓 + `才`，3.2 s 唢呐上到 D6，3.2 / 3.4 s 两下 `台`；3.6–4.0 s 鼓、808、锣鼓全部抽掉，只剩琵琶在 A4 上轮指渐强，比前面低约 10 dB；4.0 s 开门：`仓` + 大鼓 + 808 + 底鼓，唢呐从 A5 一口气滑上 D6。拟音（`events.json`）：0.1 s 红纸落定、1.2 s 第一个字砸下各一声 `impact`，2.0 / 2.2 / 2.4 s 团花弹出各一声 `pop`，2.8 s 印章 `click`，3.2 / 3.6 s 角花各一声轻 `pop`，4.0 s 开门前一声 `whoosh`。
@@ -75,17 +75,19 @@
 - 红金之外再加紫、荧光粉、荧光绿，或把桃红用成大色块：套色年画只有有限的几版色，荧光色一出来就像促销页；
 - 龙、灯笼、熊猫、功夫、筷子、旗袍的"中国元素套餐"同框：符号堆在一起，说不出这一支片子在讲什么；从材料里挑一两样有意义的物件更好；
 - 用笔画模仿汉字的英文花体字（chop suey 字体）：海外观众读作刻板印象；
-- 【底线】纹样出处乱配：商周饕餮纹、明清海水江崖、敦煌飞天放在一起当"古风"；卍字纹海外观众容易误读，不用；
-- 【底线】真实品牌的字标、吉祥物、配色组合；
-- 【底线】繁简混排、字形写错（尤其是"福""囍"这类常被做成图形的字）。
+- 纹样跨时代混用：有意的设计引用可以，但别把商周饕餮纹、明清海水江崖、敦煌飞天放在一起当成同一种"古风"；
+- 卍字纹：海外观众容易误读，面向海外时慎用，用就给出语境；
+- 繁简：引用繁体原文、配简体解说可以；同一段文字里繁简混排，读起来就是错字；
+- 【底线】字形写错（尤其是"福""囍"这类常被做成图形的字），或者把纹样、文字说成不是它的出处；
+- 【底线】没有使用权的真实品牌字标、吉祥物、配色组合（用户自己的品牌、拿到授权的不在此列）。
 
 ## Prompt 块
 
 ```text
 Modern Chinese festive graphics, borrowing from woodblock New Year prints: flat colour printed one block per colour (with the slight misregistration that comes with it), paired and mirrored compositions, festive motifs.
 First decide what kind of joy the content needs: lively, solemn, playful, or warm and remembering. Choose a few objects, patterns and words from the material that mean something here, and let them take part in the action and the story rather than decorate the frame.
-Explore density and space, symmetry and offset, flat colour and texture, neat and handmade; not every trait at once. Motion can borrow printing, stamping, folding, opening and closing, or grow new moves. Colour and sound follow the emotion, and the arrangement develops as the film moves through its parts. Keep cultural sources and character forms accurate; no real brands, no cliché set of dragon, lantern and panda.
-The swatch's settings, to try or to depart from: China red #C21F1F with deep red #7A0E12, flat gold #D8A33A for linework, ivory #F6E7C1 type, ink #1D1414, about 65:10:20; an ultra-black Song serif for a few huge characters; a centre axis with one element (a seal) breaking the symmetry; characters slamming in on eighth notes; centre-split doors; suona over trap drums and luogu at 128 BPM in pentatonic, one empty beat before the biggest word.
+Explore density and space, symmetry and offset, flat colour and texture, neat and handmade; not every trait at once. Motion can borrow printing, stamping, folding, opening and closing, or grow new moves. Colour and sound follow the emotion, and the arrangement develops as the film moves through its parts. Keep character forms and any stated cultural source accurate; use brand marks only with the rights to them; avoid the cliché set of dragon, lantern and panda.
+The swatch's settings, to try or to depart from: China red #C21F1F with deep red #7A0E12, flat gold #D8A33A for linework, ivory #F6E7C1 type, ink #1D1414, about 65:10:20; an ultra-black Song serif for a few huge characters; a centre axis with one element (a seal) breaking the symmetry; characters slamming in on eighth notes; centre-split doors; suona over trap drums and luogu in pentatonic (150 BPM in the 5 s swatch, 128 suggested for a longer film), one empty beat before the biggest word.
 ```
 
 ## 引擎做法
@@ -105,7 +107,7 @@ The swatch's settings, to try or to depart from: China red #C21F1F with deep red
 - 打破对称的那个元素是不是重音（样片一个画面一个）；
 - 每个字、每个纹样模块是否落在拍子上（对照 `music.beats.json`，误差 ±1 帧）；
 - 列出片中每种纹样和它的出处，检查有没有跨时代乱配；
-- 有没有任何能被认出的真实品牌字标或吉祥物；字形逐字核对。
+- 有没有没有使用权的真实品牌字标或吉祥物；字形逐字核对。
 
 ## 相关资源
 
