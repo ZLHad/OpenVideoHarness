@@ -344,6 +344,24 @@ PY
     && ! printf '%s' "$a" | grep -Eq 'keep\.png|  out/final\.mp4|loop\.mp4'
   then ok "clean: a cover video does not make the film a render; a path kept inside a folder that goes stays"
   else bad "clean on covers and a kept path (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  # deliver's copy is the film to clean: its record (<copy>.deliver.json) keeps the copy, its master and itself, so a project
+  # with no out/final/ clears its draft; out/check/ is check frames (rebuilt), but a video in it stays; a copy replaced
+  # since its record is said and kept
+  c="$t/cl3"; mkdir -p "$c/out/check/storyboard/frames"; cp "$t/master.mp4" "$c/out/film-4k.mp4"
+  for f in BRIEF.md out/draft.mp4 out/check/sheet.png out/check/storyboard/frames/S01.png; do printf x > "$c/$f"; done
+  vh deliver "$c/out/film-4k.mp4" --out "$c/out/film-4k.bili.mp4" --psnr off >/dev/null 2>&1; rc=$?
+  a=$(vh clean "$c" 2>&1); rc2=$?
+  printf x > "$c/out/check/clip.mp4"; printf x >> "$c/out/film-4k.bili.mp4"
+  b=$(OVH_TRASH_DIR="$t/home/trash3" vh clean "$c" --yes --delete 2>&1); rc3=$?
+  left=$(cd "$c" && find . -type f | sed 's|^\./||' | LC_ALL=C sort | tr '\n' ' ')
+  want="BRIEF.md out/check/clip.mp4 out/film-4k.bili.mp4 out/film-4k.bili.mp4.deliver.json out/film-4k.mp4 "
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ $rc3 = 0 ] && [ "$left" = "$want" ] && [ -f "$t/home/trash3/draft.mp4" ] \
+    && printf '%s' "$a" | grep -q "record out/film-4k.bili.mp4.deliver.json stays, and what it names): out/film-4k.bili.mp4, out/film-4k.mp4" \
+    && printf '%s' "$a" | grep -Eq '^ +[0-9.]+ [KMG]?B  out/check/$' && printf '%s' "$a" | grep -Eq '^ +[0-9.]+ [KMG]?B  out/draft.mp4$' \
+    && ! printf '%s' "$a" | grep -Eq '^ +[0-9.]+ [KMG]?B  out/film-4k' \
+    && printf '%s' "$b" | grep -q 'the copy out/film-4k.bili.mp4 is not the file recorded' && printf '%s' "$b" | grep -q 'stays in out/check (a video, not a check frame): out/check/clip.mp4'
+  then ok "clean: deliver's record keeps the copy and its master as the film (a replaced copy is said); out/check goes as rebuilt, a video in it stays"
+  else bad "clean after deliver: exit $rc / $rc2 / $rc3, left: $left | $(printf '%s' "$a$b" | tail -c 900)"; fi
   # spec: the file against the BRIEF's Output and Resolution lines (python3 only)
   mkdir -p "$t/sp/out"
   sp() { ffmpeg -nostdin -v error -f lavfi -i "color=c=0x202020:s=${1}:r=${2}:d=${5:-1},${3}" -pix_fmt yuv420p "$t/sp/out/$4.mp4"; }
@@ -1200,6 +1218,26 @@ PY
   a=$(vh readcheck "$t/cfr" 2>&1); rc=$?
   if [ $rc = 0 ] && [ ! -e "$t/cfr/out/texts.json" ] && printf '%s' "$a" | grep -q 'subtitle'; then ok "canvas-film: readcheck judges the page's reads and captions using a private temporary snapshot"
   else bad "readcheck on a canvas-film project (exit $rc): $(printf '%s' "$a" | tail -c 800)"; fi
+  # a HUD card over the cut S01 -> S02 (a settle), drawn by both shots with overlay: true, is one read over its whole time on
+  # screen (4.4-8.6 s), not two pieces cut at the shots (the second 1.46 s, a false FAIL); an ordinary read still keeps to its
+  # shot (S02's title: from the end of the settle in, 7.138 s, to the next cut, 12.283 s); textcheck samples the card on
+  # both sides of the cut and finds it at each
+  mkdir "$t/cfh" && cp -R "$c/." "$t/cfh/" && cat >> "$t/cfh/src/50-shots.js" <<'JS'
+for (const S of SHOTS.slice(0, 2)) { const d = S.draw; S.draw = (t, s) => { d(t, s); label(t, 4.0, "跨镜头的字卡", 1300, 250, { size: 48, until: 9.0, overlay: true }); }; }
+JS
+  a=$(vh readcheck "$t/cfh" --out "$t/cfh-texts.json" 2>&1); rc=$?
+  b=$(vh textcheck "$t/cfh" --out "$t/cfh-tc" 2>&1); rc2=$?
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && python3 - "$t/cfh-texts.json" "$t/cfh-tc/textcheck.json" <<'PY'
+import json, sys
+texts = json.load(open(sys.argv[1], encoding="utf-8"))
+span = lambda s: [(x["start"], x["end"]) for x in texts if x["text"] == s]
+r = next(r for r in json.load(open(sys.argv[2], encoding="utf-8"))["reads"] if r["text"] == "跨镜头的字卡")
+ts = [q["t"] for q in r["samples"] if q["found"]]
+sys.exit(0 if span("跨镜头的字卡") == [(4.4, 8.6)] and span("说到哪张，哪张落下") == [(7.138, 12.283)]
+         and len(ts) == len(r["samples"]) and min(ts) < 6.638 < max(ts) else 1)
+PY
+  then ok "canvas-film: an overlay read spans the cut it is drawn across (readcheck), ordinary reads keep to their shot, and textcheck samples it on both sides"
+  else bad "canvas-film overlay read (exit $rc / $rc2): $(printf '%s' "$a$b" | tail -c 800)"; fi
   # A too-short read still exports successfully; checking it fails. Outputs are independent, including concurrent runs,
   # and an existing manual snapshot is never replaced without --force. The output folder must not change the BRIEF's pace.
   a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PYREAD'

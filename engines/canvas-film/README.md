@@ -138,6 +138,8 @@ bin/vh rhythm <项目> --shots film.html # 有手写 shots.json 时，明确改�
 - 故意要小、要淡的字（一页原文当底纹、时间轴的刻度）写 `texture: true`：它可以小于下限，也不算 read。
 - `ready` 时每个镜头抽 5 个时刻各画一遍，绕过 `txt()` 自己设 `X.font` 写下的小字也会被抓到，打成一行 `console.error`（`bin/vh frames` 在开头"while loading"下面列出来），写明镜头和那段字。判的是代码要的字号，不是动画缩放途中的大小。
 - `label(t, at, s, x, y, o)`：一行字在 `at` 升起，停到镜头结束（或 `o.until` 前淡出）；完全出来以后登记成 read，`bin/vh textcheck` 按它查遮挡和对比。`stamp()` 盖下以后也算 read。自己画的字要登记，就在 `draw` 里调 `read(text, start, end)`。
+- 跨过切点或转场一直在屏上的字（HUD、角标、跨段的字卡）：`read()` 默认只记本镜头直接画进画面的那一段（转场进来以后到镜头结束），跨切点的一张卡会被记成两段短的，`bin/vh readcheck` 报出假的 FAIL。写 `read(text, start, end, { overlay: true })`（`label()` 写 `overlay: true`），按 start 到 end 记成一条，只受片头片尾的淡入淡出和片长约束。卡要由它跨过的每个镜头画（或者画在镜头之上的一层里）；录制器只画镜头，所以登记写在镜头的 `draw` 里，哪个镜头都行，几处一样的调用只留一条。第 4 个参数照旧可以只写种类（`"label"`），也可以写进对象：`{ kind: "label", overlay: true }`。区间是你声明的：`bin/vh textcheck` 照样在区间里抽样（跨过切点的那几次也抽），哪个时刻没画出来，列成 "missing from some samples"。
+- 旧项目复制过引擎的：把新版 `src/00-core.js` 的 `read()` 和 `src/20-ui.js` 的 `label()` 合入（项目改过这两个文件就按差异合）；以前为了过 readcheck 直接往 `REC.reads` 里塞的跨镜头字卡，改成 `overlay: true` 的 `read()`，再跑一次 `bin/vh readcheck` 和 `bin/vh textcheck`。不迁移的项目照旧能用，只是跨切点的字仍按镜头裁。
 - 三个字体族 `"Film Sans"`、`"Film Serif"`、`"Film Mono"` 在 `film.html` 里声明，`o.family` 写 `sans`、`serif`、`mono`。换字体改 `@font-face` 的 `local()`，族名不动；`ready` 逐个载入，本机没有的会报出名字，画的时候落到后备字体。
 - 字体在，某个字它没有，也会悄悄换字体画（`"Film Mono"` 的 Menlo 没有中文，宋体的 Black 没有"–"）。`bin/vh fonts check <项目>` 一个字一个字查，`bin/vh render` 出片时也会说。`local()` 写什么名字，`bin/vh fonts list --cjk` 列出本机有的；要让片子不靠本机字体，`bin/vh fonts subset <项目>` 把用到的字抽成 woff2 放进 `assets/fonts/`，按它打出的那行写进 `src` 的最前面（系统字体的子集是一份拷贝，只留在项目里，不发出去）。
 

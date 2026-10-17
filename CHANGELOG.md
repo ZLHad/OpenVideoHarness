@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Record HUD reads across cuts; keep delivered copies through clean**
+- Canvas-film's `read(text, start, end, { overlay: true })` (and `label(…, { overlay: true })`) records text that stays on screen across a cut or a transition as one read over its whole time, bounded only by the film's fades and length. Before, each shot cut the read to its own span, so a card over a cut became two short reads and `bin/vh readcheck` gave false FAILs; a project had to push into `REC.reads` directly. The fourth argument still takes a kind string; ordinary reads are clamped to their shot as before, and `bin/vh textcheck` samples an overlay read across the cut. Drawing is unchanged (the template's frames are byte-identical). Projects that copied the engine earlier merge the new `read()` and `label()` (canvas-film README).
+- `bin/vh deliver` writes `<copy>.deliver.json` beside each copy: the copy and its master (relative paths), their sizes and times, the arguments and when. `bin/vh clean` keeps every file a record names, and the record, as the film and says so in its listing; a file whose size or time no longer matches is named (a replaced copy, or a master changed after delivery). Before, a copy outside `out/final/` was listed with the renders to clear.
+- `bin/vh clean` lists `out/check/` (check frames, contact sheets, storyboard tiles, textcheck crops) with what the tools make again; a video inside it stays.
+- Regression coverage: a template fixture with a HUD card across a settle cut (one read over 4.4–8.6 s instead of a 1.46 s FAIL, the ordinary title still kept to its shot, textcheck found on both sides of the cut); deliver then clean on a project without `out/final/` (copy, master and record stay, the draft goes to the Trash, `out/check/` is deleted under `--delete` except a video in it, a replaced copy is named).
+
 **Read resolved film shots in storyboard and rhythm**
 - Canvas-film exposes `window.film.shots` with the actual start/end times, complete ids (including suffixes), chapter/segment, reads, label, unsure flags and transition metadata. A narration edit now moves the review tools with the engine's cuts.
 - Both tools choose explicit `--shots` JSON/page, then hand-written `shots.json`, then live `film.html`. JSON paths remain browser-independent; live reads wait for ready and fail on invalid data or page errors. Sources are named in output, storyboard's index and rhythm's footer. No hand-written registry is overwritten.

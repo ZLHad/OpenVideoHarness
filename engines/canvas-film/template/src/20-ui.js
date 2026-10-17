@@ -3,10 +3,11 @@
 
 // a line of text that comes in at `at` (rising 12 px over o.fade s) and stays to the end of its shot, or fades out by
 // o.until. From the moment it is fully in it is a read (window.film.texts, judged by bin/vh textcheck), unless
-// o.texture. The other o go to txt().
+// o.texture; o.overlay: a card that stays across a cut (each shot it spans draws it), one read over all of it (read()).
+// The other o go to txt().
 function label(t, at, s, x, y, o = {}) {
   const fi = o.fade ?? 0.4, until = o.until ?? Infinity;
-  if (!o.texture) read(s, at + fi, until - fi);
+  if (!o.texture) read(s, at + fi, until - fi, { overlay: !!o.overlay });
   const k = show(t, at, fi), a = Math.min(k, until === Infinity ? 1 : 1 - eIn(seg(t, until - fi, until)));
   if (a <= 0) return;
   txt(s, x, y + 12 * (1 - k), { ...o, alpha: a * (o.alpha ?? 1) });

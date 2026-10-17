@@ -4,8 +4,9 @@ narration in use; put the rest in the Trash (or delete what the tools can make a
 usage (via bin/vh clean): python tools/clean.py <project> [--yes] [--delete] [--keep path …] [--final path …] [--dry-run]
 
 Without --yes it only lists (a dry run; --dry-run says so, and wins over --yes). What goes, by kind:
-  rebuilt   out/frames, render chunks (.<film>.parts) and patch work folders (.<film>.patch), node_modules (npm ci brings it
-            back), __pycache__, .venv and venv folders
+  rebuilt   out/frames, out/check (check frames, contact sheets, storyboard tiles, textcheck crops: the check tools make
+            them again; a video in it stays), render chunks (.<film>.parts) and patch work folders (.<film>.patch),
+            node_modules (npm ci brings it back), __pycache__, .venv and venv folders
   renders   video files under out/ that are not the film: drafts, video-only renders, segments, patches (*.mp4 *.mov *.webm
             *.mkv *.m4v *.avi), with their .render.json and .lock beside them. Only once a film is found (below)
   sound     sound files directly in audio/ that are not the narration in use (voiceover.wav, voiceover.<lang>.wav and its
@@ -15,11 +16,13 @@ Without --yes it only lists (a dry run; --dry-run says so, and wins over --yes).
             a lyric video's audio/song.mp3 stays when its page names it, as it does when it plays it.
             Only once a film is found
 The film: video files in out/final/ (not in a covers or 封面 folder inside it), else out/final*.<video> directly in out/,
-media/*.<video>, or what --final names (an existing video file, relative to the project or to here). Covers and
+media/*.<video>, what --final names (an existing video file, relative to the project or to here), and every copy bin/vh
+deliver wrote with the master it came from (named by its record, <copy>.deliver.json, which stays too; a file that is no
+longer the size or time recorded is said, and kept all the same). Covers and
 out/publish/ stay, but do not count as the film. A project with no film found keeps its videos and its sound: name the
 film with --final. --keep protects a path, also inside a folder that would otherwise go (the folder is then cleared item
 by item around it).
-What stays besides: out/review/, out/check/, every other file in out/ that is not a video, timelines, scripts, src/,
+What stays besides: out/review/, every other file in out/ that is not a video, timelines, scripts, src/,
 assets/, lookdev/, tools/, the markdown, and any folder below the project that is a project of its own (has a BRIEF.md).
 Everything goes to the Trash (macOS: /usr/bin/trash where there is one, which also handles other disks and Put Back, else
 ~/.Trash; Linux: the freedesktop Trash, refused for an item on another disk); --delete deletes the "rebuilt" kind outright
@@ -29,7 +32,7 @@ lock. Nothing outside the project is touched; a symbolic link is removed as a li
 Machine's local snapshots can hold deleted data for a while: `df` may not grow at once.
 Exit: 0 listed or cleared · 1 something could not be moved or deleted · 2 not a project, or refused.
 """
-import argparse, os, re, shutil, subprocess, sys, time
+import argparse, json, os, re, shutil, subprocess, sys, time
 from pathlib import Path
 
 VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v", ".avi"}
@@ -64,7 +67,7 @@ def dir_kind(rel):
     p = low(rel)
     if p[-1] in REBUILT_DIRS and p[0] not in ("src", "assets"):
         return "rebuilt"
-    if p[0] == "out" and (p == ("out", "frames") or p[-1].endswith(".parts") or p[-1].endswith(".patch")):
+    if p[0] == "out" and (p in (("out", "frames"), ("out", "check")) or p[-1].endswith(".parts") or p[-1].endswith(".patch")):
         return "rebuilt"
     if p[0] == "audio" and len(p) == 2 and "stems" in p[1]:
         return "sound"
@@ -112,6 +115,40 @@ def find_film(root, finals):
     if (root / "media").is_dir():
         found += [p.relative_to(root) for p in (root / "media").iterdir() if p.is_file() and p.suffix.lower() in VIDEO]
     return found
+
+
+def deliveries(root):
+    """bin/vh deliver's records (<copy>.deliver.json): [(record, [files], [notes])], the files (the copy, the master it
+    came from) relative to the project, those that are in it; a note for one missing or not what the record says."""
+    got = []
+    for d, reld, dirs, files in walk(root):
+        dirs[:] = [x for x in dirs if x.casefold() not in REBUILT_DIRS]
+        for f in sorted(files):
+            if not f.endswith(".deliver.json"):
+                continue
+            rec, keep, notes = reld / f, [], []
+            try:
+                j = json.loads((d / f).read_text(encoding="utf-8"))
+                pairs = [("the copy", j.get("output") or f[:-len(".deliver.json")], j.get("size"), j.get("mtime")),
+                         ("its master", j.get("master"), j.get("master_size"), j.get("master_mtime"))]
+            except (OSError, ValueError, AttributeError):
+                got.append((rec, [], ["not a record bin/vh deliver can read"])); continue
+            for what, name, n, mt in pairs:
+                if not isinstance(name, str) or not name:
+                    continue
+                rel = Path(os.path.relpath(os.path.normpath(d / name), root))   # not resolved: a link stays a link
+                if str(rel).startswith(".."):
+                    continue   # a master outside the project: not this project's to keep or clear
+                q = root / rel
+                if not q.is_file():
+                    notes.append(f"{what} {rel} is gone"); continue
+                keep.append(rel)
+                st = q.stat()
+                if st.st_size != n or not isinstance(mt, (int, float)) or abs(st.st_mtime - mt) > 1:
+                    notes.append(f"{what} {rel} is not the file recorded (its size or time changed since)" +
+                                 (": the copy may be from an older master; deliver again if it should follow" if what == "its master" else ": kept all the same"))
+            got.append((rec, keep, notes))
+    return got
 
 
 def candidates(root, film, keeps):
@@ -226,7 +263,7 @@ def main():
     ap.add_argument("project")
     ap.add_argument("--yes", action="store_true", help="clear them; without it, only list (a dry run)")
     ap.add_argument("--dry-run", action="store_true", help="only list, even with --yes")
-    ap.add_argument("--delete", action="store_true", help="delete what the tools make again (frames, chunks, node_modules) instead of the Trash")
+    ap.add_argument("--delete", action="store_true", help="delete what the tools make again (frames, check frames, chunks, node_modules) instead of the Trash")
     ap.add_argument("--keep", action="append", default=[], help="a path in the project to keep (repeatable)")
     ap.add_argument("--final", action="append", default=[], help="the film's file, when it is not in out/final/, out/final*.*, or media/")
     a = ap.parse_args()
@@ -252,17 +289,30 @@ def main():
     if locks:
         print("clean: something is writing in the project: " + ", ".join(f"{p} (pid {pid})" for p, pid in locks) + "; wait for it", file=sys.stderr)
         sys.exit(2)
-    film = find_film(root, finals)
-    items = candidates(root, film, keeps + film)
+    found = find_film(root, finals)
+    sent = deliveries(root)
+    seen = set()   # the film: what was found, and every delivered copy and its master, each once (case-blind, as the disk)
+    film = [f for f in found + [f for _, fs, _ in sent for f in fs] if not (low(f) in seen or seen.add(low(f)))]
+    # out/check goes as rebuilt (check frames), a video in it does not: the check tools write none, so it is someone's
+    out = root / "out"
+    chk = next((q for q in out.iterdir() if q.name.casefold() == "check" and q.is_dir() and not q.is_symlink()), None) if out.is_dir() else None
+    keep_vid = [(d / f).relative_to(root) for d, _, _, fs in walk(chk) for f in fs if Path(f).suffix.lower() in VIDEO] if chk else []
+    items = candidates(root, film, keeps + film + [r for r, _, _ in sent] + keep_vid)
     sizes = {p: size(p) for _, p in items}
     total = sum(sizes.values())
     doing = a.yes and not a.dry_run
     say = {"rebuilt": "made again by the tools", "renders": "renders that are not the film", "sound": "sound not in use"}
     print(f"clean: {root.name} · {human(size(root))} now · {len(items)} item(s), {human(total)} " + ("to clear" if doing else "would go (a dry run: --yes clears them)"))
-    if film:
-        print("  the film: " + ", ".join(str(f) for f in film[:6]) + (" …" if len(film) > 6 else ""))
-    else:
-        print("  no film found (out/final/, out/final*.<video>, media/): its videos and sound stay; name the film with --final <file> to clear them")
+    if found:
+        print("  the film: " + ", ".join(str(f) for f in found[:6]) + (" …" if len(found) > 6 else ""))
+    for r, fs, notes in sent:   # each delivery stays as the film, with why
+        print(f"  delivered (bin/vh deliver's record {r} stays, and what it names): " + (", ".join(str(f) for f in fs) or "nothing left in the project"))
+        for n in notes:
+            print(f"    ! {n}")
+    if keep_vid:
+        print("  stays in out/check (a video, not a check frame): " + ", ".join(str(f) for f in keep_vid[:6]) + (" …" if len(keep_vid) > 6 else ""))
+    if not film:
+        print("  no film found (out/final/, out/final*.<video>, media/, bin/vh deliver's records): its videos and sound stay; name the film with --final <file> to clear them")
     for kind in ("rebuilt", "renders", "sound"):
         xs = [p for k, p in items if k == kind]
         if not xs:

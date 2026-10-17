@@ -15,11 +15,13 @@ was 10.4 GB, over Bilibili's web upload limit, and the platform re-encodes whate
     --samples 2-second stretches spread over the film, full over every frame (a full decode of both; minutes for 4K), off
 The limits (PLATFORMS below; playbook/10-hooks-and-packaging.md, 交付编码, has the sources and the date they were checked)
 change: the upload page has the last word. Without --for or --max-gb there is no ceiling, only the table.
-Writes <master stem>.upload.mp4 beside the master (--out another). Exit: 0 written and within every limit asked for ·
+Writes <master stem>.upload.mp4 beside the master (--out another), and its record beside it, <copy>.deliver.json: the
+copy and the master (paths relative to the record), their sizes and times, the arguments and when (bin/vh clean keeps
+the copy and its master as the film, and says when a file is no longer the one recorded). Exit: 0 written and within every limit asked for ·
 1 written but over a limit asked for, without the four colour tags, or the PSNR could not be measured · 2 could not start (no ffmpeg, not a video,
 not enough disk).
 """
-import argparse, glob, json, math, os, re, shutil, signal, subprocess, sys
+import argparse, glob, json, math, os, re, shutil, signal, subprocess, sys, time
 from pathlib import Path
 
 # name: (label, file limit in GB (10^9 bytes), length limit in s or None, source tag). playbook/10 §交付编码 cites them.
@@ -66,6 +68,21 @@ def psnr(master, upload, spans, conv=""):
             return None
         out.append((t0, math.inf if m.group(1) == "inf" else float(m.group(1))))
     return out
+
+
+def record(out, master):
+    """<copy>.deliver.json beside the copy: what bin/vh clean keeps as the film. Sizes and times, not hashes: enough to see
+    that a file was replaced, without reading gigabytes on every clean."""
+    st, ms = out.stat(), master.stat()
+    rec = {"tool": "bin/vh deliver", "output": out.name, "size": st.st_size, "mtime": round(st.st_mtime, 3),
+           "master": os.path.relpath(master, out.parent), "master_size": ms.st_size, "master_mtime": round(ms.st_mtime, 3),
+           "args": sys.argv[1:], "time": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+    f = out.with_name(out.name + ".deliver.json"); tmp = f.with_name(f".{f.name}.{os.getpid()}")
+    try:
+        tmp.write_text(json.dumps(rec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"); os.replace(tmp, f)
+    except OSError as e:
+        tmp.unlink(missing_ok=True)
+        print(f"deliver: could not write {f.name} ({e.strerror or e}): bin/vh clean will not know the copy is the film (--final it)", file=sys.stderr)
 
 
 def main():
@@ -181,6 +198,7 @@ def main():
         die(f"ffmpeg failed (exit {r.returncode})", 1)
     os.replace(part, out)
     size = out.stat().st_size
+    record(out, master)
     print(f"  {out.name}: {size / 1e9:.2f} GB, {size * 8 / dur / 1e6:.1f} Mb/s on average (the master: {master.stat().st_size * 8 / dur / 1e6:.1f})")
     u = next((s for s in probe(out)["streams"] if s["codec_type"] == "video"), {})
     tags = tuple(u.get(k) for k in ("pix_fmt", "color_range", "color_space", "color_transfer", "color_primaries"))
