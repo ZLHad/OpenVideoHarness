@@ -352,16 +352,26 @@ PY
   vh deliver "$c/out/film-4k.mp4" --out "$c/out/film-4k.bili.mp4" --psnr off >/dev/null 2>&1; rc=$?
   a=$(vh clean "$c" 2>&1); rc2=$?
   printf x > "$c/out/check/clip.mp4"; printf x >> "$c/out/film-4k.bili.mp4"
+  mkdir -p "$c/out/check/repro"; for f in BRIEF.md source.js cut.mp4; do printf x > "$c/out/check/repro/$f"; done   # a project of its own
   b=$(OVH_TRASH_DIR="$t/home/trash3" vh clean "$c" --yes --delete 2>&1); rc3=$?
   left=$(cd "$c" && find . -type f | sed 's|^\./||' | LC_ALL=C sort | tr '\n' ' ')
-  want="BRIEF.md out/check/clip.mp4 out/film-4k.bili.mp4 out/film-4k.bili.mp4.deliver.json out/film-4k.mp4 "
+  want="BRIEF.md out/check/clip.mp4 out/check/repro/BRIEF.md out/check/repro/cut.mp4 out/check/repro/source.js out/film-4k.bili.mp4 out/film-4k.bili.mp4.deliver.json out/film-4k.mp4 "
   if [ $rc = 0 ] && [ $rc2 = 0 ] && [ $rc3 = 0 ] && [ "$left" = "$want" ] && [ -f "$t/home/trash3/draft.mp4" ] \
     && printf '%s' "$a" | grep -q "record out/film-4k.bili.mp4.deliver.json stays, and what it names): out/film-4k.bili.mp4, out/film-4k.mp4" \
     && printf '%s' "$a" | grep -Eq '^ +[0-9.]+ [KMG]?B  out/check/$' && printf '%s' "$a" | grep -Eq '^ +[0-9.]+ [KMG]?B  out/draft.mp4$' \
     && ! printf '%s' "$a" | grep -Eq '^ +[0-9.]+ [KMG]?B  out/film-4k' \
-    && printf '%s' "$b" | grep -q 'the copy out/film-4k.bili.mp4 is not the file recorded' && printf '%s' "$b" | grep -q 'stays in out/check (a video, not a check frame): out/check/clip.mp4'
-  then ok "clean: deliver's record keeps the copy and its master as the film (a replaced copy is said); out/check goes as rebuilt, a video in it stays"
+    && printf '%s' "$b" | grep -q 'the copy out/film-4k.bili.mp4 is not the file recorded' && printf '%s' "$b" | grep -q 'stays in out/check (a video, not a check frame): out/check/clip.mp4' \
+    && printf '%s' "$b" | grep -q 'projects of their own inside, kept whole: out/check/repro'
+  then ok "clean: deliver's record keeps the copy and its master as the film (a replaced copy is said); out/check goes as rebuilt, a video and a project of its own in it stay"
   else bad "clean after deliver: exit $rc / $rc2 / $rc3, left: $left | $(printf '%s' "$a$b" | tail -c 900)"; fi
+  # a record cut short (unreadable): the copy its file name names still stays, never listed as a render to clear
+  c="$t/cl4"; mkdir -p "$c/out"; printf x > "$c/BRIEF.md"; cp "$t/master.mp4" "$c/out/final.mp4"
+  vh deliver "$c/out/final.mp4" --out "$c/out/upload.mp4" --psnr off >/dev/null 2>&1 && printf '{' > "$c/out/upload.mp4.deliver.json"
+  a=$(vh clean "$c" 2>&1); rc=$?
+  if [ $rc = 0 ] && printf '%s' "$a" | grep -q 'not a record bin/vh deliver can read; the copy its name names stays' \
+    && printf '%s' "$a" | grep -q 'deliver.json stays, and what it names): out/upload.mp4' && ! printf '%s' "$a" | grep -Eq '^ +[0-9.]+ [KMG]?B  out/upload.mp4$'
+  then ok "clean: an unreadable delivery record still keeps the copy its name names"
+  else bad "clean with a broken delivery record (rc $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   # spec: the file against the BRIEF's Output and Resolution lines (python3 only)
   mkdir -p "$t/sp/out"
   sp() { ffmpeg -nostdin -v error -f lavfi -i "color=c=0x202020:s=${1}:r=${2}:d=${5:-1},${3}" -pix_fmt yuv420p "$t/sp/out/$4.mp4"; }

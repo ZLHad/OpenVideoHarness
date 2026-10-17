@@ -84,6 +84,20 @@ def walk(root):
         yield d, reld, dirs, files
 
 
+def subprojects(root):
+    """Folders below the project that are projects of their own (a BRIEF.md): kept whole, so a folder that would go and
+    holds one (out/check/<a project>) is cleared item by item around it."""
+    found = []
+    for dirpath, dirs, files in os.walk(root):
+        d = Path(dirpath)
+        for name in list(dirs):
+            if name == ".git" or (d / name).is_symlink():
+                dirs.remove(name)
+            elif (d / name / "BRIEF.md").exists():
+                found.append((d / name).relative_to(root)); dirs.remove(name)
+    return found
+
+
 def mentioned(root):
     """Every sound file name a text file of the project names (an <audio src>, a timeline, a mix command in the notes)."""
     names = set()
@@ -131,8 +145,11 @@ def deliveries(root):
                 j = json.loads((d / f).read_text(encoding="utf-8"))
                 pairs = [("the copy", j.get("output") or f[:-len(".deliver.json")], j.get("size"), j.get("mtime")),
                          ("its master", j.get("master"), j.get("master_size"), j.get("master_mtime"))]
-            except (OSError, ValueError, AttributeError):
-                got.append((rec, [], ["not a record bin/vh deliver can read"])); continue
+            except (OSError, ValueError, AttributeError):   # unreadable: keep the copy its file name names, to be safe
+                guess = reld / f[:-len(".deliver.json")]
+                kept = [guess] if (root / guess).is_file() else []
+                got.append((rec, kept, ["not a record bin/vh deliver can read; " + ("the copy its name names stays" if kept else "no file of its name is here")
+                                        + ", and its master is not known: deliver again to write it anew"])); continue
             for what, name, n, mt in pairs:
                 if not isinstance(name, str) or not name:
                     continue
@@ -297,7 +314,8 @@ def main():
     out = root / "out"
     chk = next((q for q in out.iterdir() if q.name.casefold() == "check" and q.is_dir() and not q.is_symlink()), None) if out.is_dir() else None
     keep_vid = [(d / f).relative_to(root) for d, _, _, fs in walk(chk) for f in fs if Path(f).suffix.lower() in VIDEO] if chk else []
-    items = candidates(root, film, keeps + film + [r for r, _, _ in sent] + keep_vid)
+    own = subprojects(root)
+    items = candidates(root, film, keeps + film + [r for r, _, _ in sent] + keep_vid + own)
     sizes = {p: size(p) for _, p in items}
     total = sum(sizes.values())
     doing = a.yes and not a.dry_run
@@ -309,6 +327,8 @@ def main():
         print(f"  delivered (bin/vh deliver's record {r} stays, and what it names): " + (", ".join(str(f) for f in fs) or "nothing left in the project"))
         for n in notes:
             print(f"    ! {n}")
+    if own:
+        print("  projects of their own inside, kept whole: " + ", ".join(str(f) for f in own[:6]) + (" …" if len(own) > 6 else ""))
     if keep_vid:
         print("  stays in out/check (a video, not a check frame): " + ", ".join(str(f) for f in keep_vid[:6]) + (" …" if len(keep_vid) > 6 else ""))
     if not film:
