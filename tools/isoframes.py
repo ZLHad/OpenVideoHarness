@@ -1,10 +1,17 @@
 """Isolated-frame scan: a frame unlike both of its neighbours while the neighbours agree with each other.
 
-usage: uv run --with numpy python tools/isoframes.py <video> [--allow t,t,a-b,…] [--motion] [--json f]
-exit status: 0 none found (or only declared or periodic ones), 1 isolated frames found (times floored to the ms), 2 the
-             video could not be read, 3 a bad --allow (bin/vh check fails on it, so a typo cannot switch the scan off)
+usage: uv run --with numpy python tools/isoframes.py <video> [--allow t,t,a-b,…] [--confirmed f] [--motion] [--json f]
+exit status: 0 none found (or only declared, confirmed or periodic ones), 1 isolated frames found (times floored to the
+             ms), 2 the video could not be read, 3 a bad --allow or an unreadable --confirmed file (bin/vh check fails on
+             it, so a typo cannot switch the scan off)
   --allow  times in seconds of flashes you designed, or spans a-b: a hit within one frame of one is listed as declared and
-           does not fail
+           does not fail. For this run only: nothing is kept
+  --confirmed  the project's confirmed.json (tools/confirm.py; bin/vh check passes it): a run of isolated frames confirmed
+           there (check.iso, within one frame of its time) is listed as confirmed and does not fail while the picture
+           there is the same: the key is two 8 x 6 thumbnails at 64 grey levels, of the frame before the run and of its
+           most different frame, the same when no cell moves by more than PIC_MAX levels and the cells by PIC_MEAN on
+           average (a re-encode or a 4K copy keeps it; a redrawn or retimed frame does not). A missing file is no entries
+           yet; each unconfirmed run gets a `confirm?` line to paste there, with why and evidence
   --motion also, from the same decode, how the film moves (never a failure; bin/vh check passes it): see MOTION below
   --json   every number, per frame and per finding, into a file
 
@@ -49,6 +56,7 @@ from collections import deque
 from fractions import Fraction
 from pathlib import Path
 import numpy as np
+import confirm   # tools/confirm.py
 
 STEP, CHANGED = 12, 0.01      # a pixel differs from a neighbour by more than STEP grey levels; frame differs: share > CHANGED
 STEP_PN, MAX_PN = 6, 0.25     # the neighbours agree: their share over STEP_PN is under MAX_PN x the smaller of the two above
@@ -60,6 +68,7 @@ STILL_STEP, STILL_SHARE = 6, 0.002   # a frame pair is still when under STILL_SH
 STILL_SUM, STILL_LIST = 2.0, 3.0     # still runs of STILL_SUM s count towards the share; runs of STILL_LIST s are listed
 JUMP_RATIO, JUMP_MIN, JUMP_MOVING, AFTER_CUT = 8.0, 6.0, 0.3, 0.35
 MOVING = 0.005
+PIC_COLS, PIC_ROWS, PIC_MAX, PIC_MEAN = 8, 6, 1, 0.25   # --confirmed: the key's thumbnails, and how far they may move
 
 def die(msg):
     print(f"isoframes: {msg}", file=sys.stderr); sys.exit(2)
@@ -90,6 +99,22 @@ def frames(video, w, h, rate):
     if p.wait():
         die(f"ffmpeg could not decode {video} (exit {p.returncode})")
 
+def thumb(g):
+    """The key's thumbnail of a 192 x 108 grey frame: PIC_COLS x PIC_ROWS cell means (rows and columns swap for a
+    portrait frame), at 64 levels (4 grey levels each), one character a cell."""
+    h, w = g.shape
+    c, r = (PIC_COLS, PIC_ROWS) if w > h else (PIC_ROWS, PIC_COLS)
+    return confirm.code(np.clip(g.reshape(r, h // r, c, w // c).mean((1, 3)) // 4, 0, 63).ravel())
+
+def same_pic(k1, k2):
+    """Two keys ("pic:<thumbnail>.<thumbnail>") of the same picture: no cell more than PIC_MAX levels apart, and on
+    average no more than PIC_MEAN."""
+    a, b = (confirm.uncode(k.removeprefix("pic:").replace(".", "")) for k in (k1, k2))
+    if not a or not b or len(a) != len(b):
+        return False
+    d = [abs(x - y) for x, y in zip(a, b)]
+    return max(d) <= PIC_MAX and sum(d) / len(d) <= PIC_MEAN
+
 def changed(a, b, step):
     return float((np.abs(a - b) > step).mean())
 
@@ -105,13 +130,13 @@ def runs(idx, gap):
 
 def scan(video, motion=False):
     """→ (frames decoded, rate, hits [(frame, d_prev, d_next, d_pn)], blind [frames whose neighbours differ too much to
-    judge], per-frame motion stats or None). The stats, per frame n from 1: area (share over STEP against frame n-1),
-    energy (mean absolute change), luma (mean of frame n; luma[0] for frame 0 too), still (share over STILL_STEP against
-    the frame a second before, None for the first second)."""
+    judge], per-frame motion stats or None, {hit: (thumbnail of the frame before, of the hit)}). The stats, per frame n
+    from 1: area (share over STEP against frame n-1), energy (mean absolute change), luma (mean of frame n; luma[0] for
+    frame 0 too), still (share over STILL_STEP against the frame a second before, None for the first second)."""
     vw, vh, rate = probe(video)
     w, h = (108, 192) if vh > vw else (192, 108)
     sec = max(1, round(float(Fraction(rate)))) if rate else 30
-    hits, blind, n, prev, cur, d_prev = [], [], 0, None, None, 0.0
+    hits, blind, n, prev, cur, d_prev, pics = [], [], 0, None, None, 0.0, {}
     st = {"area": [0.0], "area6": [0.0], "energy": [0.0], "luma": [], "lit": [], "still": [None]} if motion else None
     ring = deque(maxlen=sec + 1)
     for nxt in frames(video, w, h, rate):
@@ -128,12 +153,12 @@ def scan(video, motion=False):
                 if d_pn >= MAX_PN:   # no glitch, however large, can pass the third test here
                     blind.append(n - 1)
                 elif d_prev > CHANGED and d_next > CHANGED and d_pn < MAX_PN * min(d_prev, d_next):
-                    hits.append((n - 1, d_prev, d_next, d_pn))
+                    hits.append((n - 1, d_prev, d_next, d_pn)); pics[n - 1] = (thumb(prev), thumb(cur))
             d_prev = d_next
         prev, cur, n = cur, nxt, n + 1
     if n == 0:
         die(f"no frames decoded from {video}")
-    return n, rate, hits, blind, st
+    return n, rate, hits, blind, st, pics
 
 def periodic(hits, fps):
     """Isolated frames that are a periodic motion rather than glitches: chains of 4 or more evenly spaced hits (each gap
@@ -225,6 +250,7 @@ def main():
     ap = argparse.ArgumentParser(prog="isoframes.py", usage=__doc__.split("\n\n")[1].split("\n")[0][7:])
     ap.add_argument("video")
     ap.add_argument("--allow", default="", help="times (s) or spans (a-b) of flashes you designed, comma-separated")
+    ap.add_argument("--confirmed", help="the project's confirmed.json (a missing file: no entries yet)")
     ap.add_argument("--motion", action="store_true", help="also how the film moves: cuts, flashes, static stretches, jumps")
     ap.add_argument("--json", help="every number into this file")
     a = ap.parse_args()
@@ -234,8 +260,14 @@ def main():
         if not m or (m.group(2) is not None and float(m.group(2)) < float(m.group(1))):
             print(f"isoframes: --allow takes seconds or spans a-b (b ≥ a) separated by commas, not {x!r}", file=sys.stderr); sys.exit(3)
         allow.append((float(m.group(1)), float(m.group(2) if m.group(2) is not None else m.group(1))))
+    taken, refused = [], []
+    if a.confirmed and Path(a.confirmed).exists():
+        try:
+            taken, refused = confirm.load(a.confirmed, "check.")
+        except confirm.Bad as e:
+            print(f"isoframes: {e}", file=sys.stderr); sys.exit(3)
     try:
-        n, rate, hits, blind, st = scan(a.video, a.motion)
+        n, rate, hits, blind, st, pics = scan(a.video, a.motion)
     except OSError as e:   # ffprobe or ffmpeg missing: not a finding
         die(f"cannot run {e.filename or 'ffmpeg'}: {e.strerror}")
     fps = float(Fraction(rate)) if rate else None
@@ -251,12 +283,24 @@ def main():
     chains = periodic(rest, fps)
     regular = {i for c, _ in chains for i in c}
     found = [x for x in rest if x[0] not in regular]
+    # confirmed.json: one finding per run of isolated frames, keyed by the frame before it and its most different frame
+    rs, size = runs([i for i, *_ in found], 2), {i: max(d1, d2) for i, d1, d2, _ in found}
+    sec = lambda i: i * 1000 // Fraction(rate) / 1000 if rate else 0.0   # noqa: E731 (t() without the unit)
+    finds = [{"a": float(sec(r[0])), "b": float(sec(r[1])),
+              "key": f"pic:{pics[r[0]][0]}.{pics[max((i for i in size if r[0] <= i <= r[1]), key=size.get)][1]}"} for r in rs]
+    state, notes = ([("open", None)] * len(rs), [])
+    if fps and taken:   # within a frame of the run's first and last frame, as --allow
+        state, notes = confirm.judge(taken, "check.iso", finds, 1 / fps + 0.001, same_pic)
+    shut = {i for r, (s_, _) in zip(rs, state) if s_ == "confirmed" for i in range(r[0], r[1] + 1)}
+    open_ = [x for x in found if x[0] not in shut]
     if found:
-        print(f"{len(found)} isolated frame(s) in {n}: " + ", ".join(span(r) for r in runs([i for i, *_ in found], 2)))
-        for i, d1, d2, d3 in found[:10]:
+        k = len(rs) - sum(s_ != "confirmed" for s_, _ in state)
+        print(f"{len(found)} isolated frame(s) in {n}: " + ", ".join(span(r) for r in rs)
+              + ("" if not k else f" · all confirmed ({confirm.NAME})" if not open_ else f" · {k} of {len(rs)} confirmed ({confirm.NAME})"))
+        for i, d1, d2, d3 in open_[:10]:
             print(f"  frame {i:>6}  {t(i):>11}   differs from prev {d1:6.1%}, next {d2:6.1%}; prev vs next {d3:5.1%}")
-        if len(found) > 10:
-            print(f"  … {len(found) - 10} more")
+        if len(open_) > 10:
+            print(f"  … {len(open_) - 10} more")
     else:
         print(f"no isolated frames in {n} frames")
     for c, g in chains:
@@ -264,13 +308,24 @@ def main():
               f"landing on its still point once a cycle, so not failed; a bounce that flickers is aliasing: keep periodic motion under "
               f"{fps / 4:.1f} Hz, a smooth cosine (playbook/03)")
     if declared:
-        print("  declared (--allow): " + ", ".join(span(r) for r in runs([i for i, *_ in declared], 2)))
+        print("  declared (--allow, this run only): " + ", ".join(span(r) for r in runs([i for i, *_ in declared], 2))
+              + (f"; to keep a declaration, confirm it in {a.confirmed}" if a.confirmed else ""))
         wide = [f"{lo:g}-{hi:g}" for lo, hi in allow if hi - lo > 5]
         if wide or len(declared) > 10:
             print(f"  note: --allow {', '.join(wide) or a.allow} declares {len(declared)} frame(s)" + (" over spans longer than 5 s" if wide else "")
                   + ": make sure every one is a flash you designed")
     if allow and not fps:
         print("  --allow ignored: the video has no usable frame rate, so times cannot be matched")
+    if taken and not fps:
+        print(f"  {a.confirmed} ignored: the video has no usable frame rate, so times cannot be matched")
+    for line in confirm.lines(notes, refused):
+        print(line)
+    offers = [(f, r) for f, r, (s_, _) in zip(finds, rs, state) if s_ != "confirmed"]
+    if a.confirmed and offers and fps:
+        print(f"  a flash you designed: paste its line into {a.confirmed}, with why (the shot) and evidence (a file that shows it);"
+              " a capture glitch is fixed, not confirmed:")
+        for f, r in offers[:10]:
+            print(confirm.offer("check.iso", f["a"], f["b"], f["key"]))
     near = {j for i, *_ in hits for j in (i - 1, i + 1)}   # a flagged frame's neighbours see it, not motion
     free = [i for i in blind if i not in near]
     k = sum(r[1] - r[0] + 1 for r in runs(free, 1) if r[1] - r[0] + 1 >= 3)   # a cut makes one or two such frames
@@ -285,10 +340,10 @@ def main():
         for line in lines: print(line)
     if a.json:
         out = {"frames": n, "fps": fps, "isolated": [i for i, *_ in found], "periodic": [[c, g] for c, g in chains],
-               "declared": [i for i, *_ in declared], **nums}
+               "declared": [i for i, *_ in declared], "confirmed": sorted(shut), "open": [i for i, *_ in open_], **nums}
         if st is not None: out["per_frame"] = {k2: st[k2] for k2 in ("area", "area6", "energy", "luma", "still")}
         Path(a.json).write_text(json.dumps(out))
-    sys.exit(1 if found else 0)
+    sys.exit(1 if open_ else 0)
 
 if __name__ == "__main__":
     main()

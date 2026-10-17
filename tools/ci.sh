@@ -406,9 +406,9 @@ PY
     a=$(vh check "$t/odd.mp4" 2>&1); rc=$?
     case "$rc:$a" in 1:*"1 isolated frame(s) in 60: 1.000 s"*"--no-browser-gpu"*) ok "check fails on one odd frame and names its time" ;; *) bad "check on one odd frame (rc $rc): $a" ;; esac
     a=$(vh check "$t/odd.mp4" --allow 0.4,1.0 2>&1); rc=$?
-    case "$rc:$a" in 0:*"no isolated frames in 60"*"declared (--allow): 1.000 s"*) ok "check --allow: a declared flash is listed and passes" ;; *) bad "check --allow (rc $rc): $a" ;; esac
+    case "$rc:$a" in 0:*"no isolated frames in 60"*"declared (--allow, this run only): 1.000 s"*) ok "check --allow: a declared flash is listed and passes" ;; *) bad "check --allow (rc $rc): $a" ;; esac
     a=$(vh check "$t/odd.mp4" --allow 0.9-1.1 2>&1); rc=$?
-    case "$rc:$a" in 0:*"declared (--allow): 1.000 s"*) ok "check --allow takes a span a-b" ;; *) bad "check --allow span (rc $rc): $a" ;; esac
+    case "$rc:$a" in 0:*"declared (--allow, this run only): 1.000 s"*) ok "check --allow takes a span a-b" ;; *) bad "check --allow span (rc $rc): $a" ;; esac
     # an odd frame every 15 frames (a bounce landing on its still point once a cycle) is periodic motion, not a glitch
     ffmpeg -nostdin -v error -f lavfi -i color=c=0x404040:s=320x180:r=30:d=3 -vf "drawbox=x=100:y=60:w=60:h=60:c=white:t=fill:enable='eq(mod(n\,15)\,7)'" -pix_fmt yuv420p "$t/periodic.mp4"
     a=$(vh check "$t/periodic.mp4" 2>&1); rc=$?
@@ -427,6 +427,62 @@ PY
     rm -f "$t/sp/PACKAGING.md"
     a=$(vh check "$t/odd.mp4" --allow 1s 2>&1); rc=$?
     [ $rc = 1 ] && ok "check --allow with a typo fails instead of skipping the scan" || bad "check --allow 1s exited $rc: $a"
+    # confirmed.json: a designed flash confirmed in the project (why, evidence, the key the scan printed) passes while the
+    # picture there is the same: a re-encode keeps it, another flash at that time lapses it, a moved flash leaves it unused
+    mkdir -p "$t/cf/audio" && printf '%s\n' '# BRIEF' '- Effort: quick' > "$t/cf/BRIEF.md" && printf '%s\n' '# STORYBOARD' 'S01 a red flash' > "$t/cf/STORYBOARD.md"
+    cp "$t/odd.mp4" "$t/cf/odd.mp4"
+    ffmpeg -nostdin -v error -i "$t/odd.mp4" -c:v libx264 -crf 28 -pix_fmt yuv420p "$t/cf/odd-crf28.mp4"
+    for a in "blue:blue:30" "late:red:45"; do IFS=: read -r f c n <<< "$a"
+      ffmpeg -nostdin -v error -f lavfi -i testsrc=s=320x180:r=30:d=2 -vf "drawbox=c=$c:t=fill:enable='eq(n,$n)'" -pix_fmt yuv420p "$t/cf/odd-$f.mp4"; done
+    fill() { python3 -c 'import json, sys; json.dump({"items": [dict(json.loads(l.split("confirm? ", 1)[1]), why="the red flash", evidence=sys.argv[1]) for l in sys.stdin if "confirm? {" in l]}, open(sys.argv[2], "w"))' "$@"; }
+    a=$(vh check "$t/cf/odd.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 1:*"1 isolated frame(s) in 60: 1.000 s"*'confirm? {"tool": "check.iso", "at": "1.000", "key": "pic:'*) ok "check in a project offers a confirm? line for an isolated frame" ;; *) bad "check offers no confirm? line (rc $rc): $a" ;; esac
+    printf '%s\n' "$a" | fill STORYBOARD.md#S01 "$t/cf/confirmed.json"
+    a=$(vh check "$t/cf/odd.mp4" 2>&1); rc=$?; b=$(vh check "$t/cf/odd-crf28.mp4" 2>&1); rb=$?
+    case "$rc:$a|$rb:$b" in 0:*"1 isolated frame(s) in 60: 1.000 s · all confirmed (confirmed.json)"*"confirmed (已确认, confirmed.json): isolated frame at 1 s · the red flash"*"|0:"*"all confirmed"*)
+        ok "check: a confirmed flash keeps its raw line, says confirmed and passes; a CRF 28 copy keeps the confirmation" ;; *) bad "check with a confirmation ($rc/$rb): $a | $b" ;; esac
+    a=$(vh check "$t/cf/odd-blue.mp4" 2>&1); rc=$?; b=$(vh check "$t/cf/odd-late.mp4" 2>&1); rb=$?
+    case "$rc:$a|$rb:$b" in 1:*"LAPSED (已失效"*"isolated frame at 1 s: the picture there changed"*"|1:"*"1.500 s"*"unused (confirmed.json): isolated frame at 1 s"*'"at": "1.500"'*)
+        ok "check: another flash at the confirmed time lapses it, a moved one leaves it unused and fails" ;; *) bad "check on a changed or moved flash ($rc/$rb): $a | $b" ;; esac
+    printf '%s\n' "$a" | fill NOTES-missing.md "$t/cf/c2.json"; printf '%s\n' "$a" | fill STORYBOARD.md "$t/cf/c3.json"
+    python3 - "$t/cf" <<'PY'
+import json, sys
+d = sys.argv[1]; good = json.load(open(d + "/c3.json"))["items"][0]
+json.dump({"items": [json.load(open(d + "/c2.json"))["items"][0], dict(good, why=" "), dict(good, tool="check.static")]}, open(d + "/confirmed.json", "w"))
+PY
+    a=$(vh check "$t/cf/odd-blue.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 1:*"item 1"*"evidence names a file that is not in the project: NOTES-missing.md"*"item 2"*"no why"*"item 3"*"the motion lines are advice"*) ok "check refuses an entry without evidence on file, without why, or for a motion warning" ;;
+      *) bad "check took a bad entry (rc $rc): $a" ;; esac
+    printf '{"items": [' > "$t/cf/confirmed.json"; a=$(vh check "$t/cf/odd.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 1:*"bad --allow or confirmed.json"*) ok "check fails on an unreadable confirmed.json instead of skipping the scan" ;; *) bad "check on a broken confirmed.json (rc $rc): $a" ;; esac
+    rm -f "$t/cf/confirmed.json"
+    a=$(vh check "$t/cf/odd.mp4" --allow 1.0 2>&1); rc=$?
+    case "$rc:$a" in 0:*"declared (--allow, this run only): 1.000 s; to keep a declaration, confirm it in "*"/cf/confirmed.json"*) ok "check --allow says it is for this run only and where to confirm for good" ;; *) bad "check --allow in a project (rc $rc): $a" ;; esac
+    if command -v uv >/dev/null; then   # qa scan: a sparse passage (a dropout), a burst of clicks; the stems' own dip; confirmed.json
+      qs() { uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/qa.py" scan "$@"; }
+      gen() { ffmpeg -nostdin -v error -f lavfi -i "aevalsrc='0.5*sin(2*PI*220*t)*(1-$1*min(1,max(0,min((t-3)/0.02,(5-t)/0.02))))$2':s=48000:d=10" -ac 2 -c:a pcm_s16le "$3"; }
+      k3='+0.4*(eq(n,288000)+eq(n,302400)+eq(n,316800))'
+      gen 0.9 "$k3" "$t/cf/audio/mix.wav"; gen 0.97 "$k3" "$t/cf/audio/deeper.wav"; gen 0.9 "${k3%)}+eq(n,309600))" "$t/cf/audio/clicks4.wav"
+      ffmpeg -nostdin -v error -i "$t/cf/audio/mix.wav" -af volume=-3dB -c:a aac -b:a 128k "$t/cf/audio/mix.m4a"
+      mkdir -p "$t/cf/st1" "$t/cf/st2"; cp "$t/cf/audio/mix.wav" "$t/cf/st1/music.wav"; gen 0 '' "$t/cf/st2/music.wav"
+      a=$(qs "$t/cf/audio/mix.wav" --stems "$t/cf/st1" 2>&1); rc=$?; b=$(qs "$t/cf/audio/mix.wav" --stems "$t/cf/st2" 2>&1); rb=$?
+      case "$rc:$a|$rb:$b" in 0:*"dropouts (0.1 s RMS < section median − 12 dB): 0 (1 more that the music stem has too: the score's own dynamics)"*"|1:"*"dropouts (0.1 s RMS < section median − 12 dB): 1"*)
+          ok "qa scan: a dropout the music stem has too is the score's own; one the music does not have still fails" ;; *) bad "qa dropouts against the music stem ($rc/$rb): $a | $b" ;; esac
+      a=$(qs "$t/cf/audio/mix.wav" 2>&1); rc=$?
+      case "$rc:$a" in 1:*'confirm? {"tool": "qa.dropout", "at": "3.100-4.900"'*'confirm? {"tool": "qa.click", "at": "5.950-6.650", "n": 3'*) ok "qa scan in a project offers confirm? lines for a dropout and a click burst" ;; *) bad "qa scan offers (rc $rc): $a" ;; esac
+      printf '%s\n' "$a" | fill STORYBOARD.md#S01 "$t/cf/confirmed.json"
+      python3 - "$t/cf/confirmed.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1])); d["items"].append({"tool": "qa.silence", "at": "7-7.1", "key": "env:V", "why": "a stop", "evidence": "STORYBOARD.md"}); json.dump(d, open(sys.argv[1], "w"))
+PY
+      a=$(qs "$t/cf/audio/mix.wav" 2>&1); rc=$?; b=$(qs "$t/cf/audio/mix.m4a" 2>&1); rb=$?
+      case "$rc:$a|$rb:$b" in 0:*"4.90 s  0s: -32.0 dBFS vs median -12.0  confirmed (已确认)"*"3 in confirmed spans"*"not taken (confirmed.json, item 3"*"digital silence is a floor"*"✓ audio QA passed · 4 confirmed"*"|0:"*"confirmed (已确认, confirmed.json): dropout at 3.1-4.9 s"*"✓ audio QA passed"*)
+          ok "qa scan: a confirmed dropout and click burst pass and keep their lines; an AAC copy 3 dB down keeps them; silence is not taken" ;; *) bad "qa scan with confirmations ($rc/$rb): $a | $b" ;; esac
+      a=$(qs "$t/cf/audio/deeper.wav" 2>&1); rc=$?; b=$(qs "$t/cf/audio/clicks4.wav" 2>&1); rb=$?
+      case "$rc:$a|$rb:$b" in 1:*"LAPSED (已失效, confirmed.json"*"dropout at 3.1-4.9 s: the sound there changed"*"|0:"*"LAPSED (已失效, confirmed.json"*"click span at 5.95-6.65 s: 4 there now, 3 when confirmed"*)
+          ok "qa scan: a deeper dip lapses its confirmation and fails; a fourth click lapses the span (a warning)" ;; *) bad "qa scan on changed sound ($rc/$rb): $a | $b" ;; esac
+      rm -f "$t/cf/confirmed.json"
+    fi
     a=$(vh check "$t/a.wav" 2>&1); rc=$?
     case "$rc:$a" in 0:*"isolated"*) bad "check on audio only mentions the frame scan: $a" ;; 0:*) ok "check on an audio file skips the frame scan quietly" ;; *) bad "check on audio only (rc $rc): $a" ;; esac
     # scale: a 2x render against its 1x reference (clips made by the spec tests below)
