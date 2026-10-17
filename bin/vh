@@ -63,7 +63,8 @@
 #   mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]   3-bus mix, music ducks under the voice (duck=on: + SFX), −14 LUFS
 #   mix <out.wav> profile=explainer|short|promo|cartoon|mv|swatch [voice=…] [music=…] [events=… lib=…] [timeline=…] [stems=DIR]
 #                               a level hierarchy from one anchor (the narration, else the music): VMR per line, SFX classes, depth
-#   qa <mix> [beats.json] [events.json] [--stems DIR]  final-mix QA: silence, dropouts, pumping, clicks + cue check (+ qa mix) (exit 1 on fail)
+#   qa <mix> [beats.json] [events.json] [--stems DIR]  final-mix QA: silence, dropouts, pumping, clicks + cue check (+ qa mix) (exit 1 on fail);
+#                               a dropout, dip or click burst the score asks for: confirm it in the project's confirmed.json (the confirm? line)
 #   qa mix <stems dir>          the mix report of a profile mix: VMR per line, words at risk, SFX classes, depth (exit 1 on a hard miss)
 #   mux <video> <audio> <out> [--subs-off] [--allow-short|--allow-long] [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video, moov first
 #                               verifies tracked mix inputs/output; >0.1 s padding/trimming needs --allow-short/--allow-long
@@ -111,9 +112,10 @@
 #                               on record in a standard or studio project (REVIEW.md, DECISIONS.md; exit 1 without it) + the
 #                               publishing copy in PACKAGING.md against the platforms' length limits (a warning) +
 #                               subtitles (its tracks and the .srt beside it) shorter than it takes to read them (a warning) +
-#                               black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any not declared
-#                               with --allow <seconds or spans a-b of designed flashes>; evenly spaced ones are periodic motion, said, not
-#                               failed) + motion (hard cuts from dark to bright, still stretches of 3 s or more: warnings) + colour tags; --against: a 4K render vs the approved 1080p cut
+#                               black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any not
+#                               confirmed in the project's confirmed.json (a designed flash: why, evidence, and the key the scan prints,
+#                               which lapses when the picture there changes) nor declared for this run with --allow <seconds or spans a-b>;
+#                               evenly spaced ones are periodic motion, said, not failed) + motion (hard cuts from dark to bright, still stretches of 3 s or more: warnings) + colour tags; --against: a 4K render vs the approved 1080p cut
 #                               (exit 1 when the picture differs: a layout that breaks at device scale 2)
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
 #  deliver and tidy
@@ -796,6 +798,7 @@ cmd_check() {
   # glitch too short for freezedetect, and a snapshot of that time is clean (playbook/02-verification.md, 静默失败)
   local iso rc=0 py=() ia=("$v" --motion)   # --motion: cuts that flash, still stretches, the film's motion (warnings, from the same decode)
   [ -z "$allow" ] || ia+=(--allow "$allow")
+  [ -z "$gp" ] || ia+=(--confirmed "$gp/confirmed.json")   # designed flashes confirmed for good (tools/confirm.py)
   if command -v uv >/dev/null 2>&1; then py=(uv run -q --no-project --with numpy python)
   elif python3 -c "import numpy" 2>/dev/null; then py=(python3); fi
   if [ -z "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 "$v" 2>/dev/null)" ]; then :   # audio only
@@ -806,12 +809,13 @@ cmd_check() {
     case "$rc:$iso" in   # uv also exits 1 when it cannot install numpy, so the words decide, not the status alone
       0:*) echo "$c_ok $iso" ;;
       1:[0-9]*" isolated frame"*) echo "$c_no $iso"
-        echo "   a flash you designed (a flash frame, a flicker) is listed too: declare its time with --allow <s,s>. Otherwise snapshot"
+        echo "   a flash you designed (a flash frame, a flicker) is listed too: confirm it in the project's confirmed.json (the confirm? line"
+        echo "   above, with why and evidence), or declare it for this run only with --allow <s,s>. Otherwise snapshot"
         echo "   that time (HyperFrames: npx hyperframes snapshot --at <s> --describe false) and compare it with the mp4's frame"
         echo "   (ffmpeg -ss <s> -i <video> -frames:v 1 f.png)."
         echo "   A bad snapshot: the scene itself jumps there. A clean one: the render's capture glitched; for HyperFrames, re-render"
         echo "   with --no-browser-gpu --experimental-fast-capture=false and scan again (playbook/02-verification.md, 静默失败)" ;;
-      3:*) rc=1; echo "$c_no isolated-frame scan: bad --allow (error above); nothing was declared" ;;   # a typo must not switch the gate off
+      3:*) rc=1; echo "$c_no isolated-frame scan: bad --allow or confirmed.json (error above); nothing was declared or confirmed" ;;   # a typo must not switch the gate off
       *) rc=2; echo "$c_wa isolated-frame scan failed (error above)" ;;
     esac
   fi

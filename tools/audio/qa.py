@@ -4,7 +4,7 @@ and the mix report: the level hierarchy of a profile mix (bin/vh mix … profile
 usage (via bin/vh qa):
   python tools/audio/qa.py <mix> [beats.json] [events.json] [--fps 30] [--from 1.0] [--to S] [--voice vo.wav]
                           [--stems DIR] [--lib DIR] [--root DIR] [--click-grace 0.04] [--out report.txt]     all three
-  python tools/audio/qa.py scan <mix> [beats.json] [--events events.json] [--stems DIR] [...]                scan only
+  python tools/audio/qa.py scan <mix> [beats.json] [--events events.json] [--stems DIR] [--confirmed f] [...]  scan only
   python tools/audio/qa.py cues <mix> <beats.json|-> [events.json] [--lib DIR] [--root DIR] [...]             cues only
   python tools/audio/qa.py mix <DIR> [--profile P] [--words w.json] [--beats b.json] [--timeline t.json]
                           [--out report.txt] [--json report.json]                                            mix report only
@@ -18,7 +18,8 @@ cues and single cue problems in an AAC encode are only warnings.
 scan (checked span: --from, default 1.0 s, to --to, default the beat map's fade start, else the last 2.8 s)
   silence   digital-silence runs: every channel below −60 dBFS, sample by sample, for ≥ 20 ms (exact start–end).
             Inside the span they FAIL: a dramatic "stop" must keep a bed.
-  dropouts  0.1 s RMS windows < their section's median − 12 dB (sections from beats.json, else 8 s blocks).
+  dropouts  0.1 s RMS windows < their section's median − 12 dB (sections from beats.json, else 8 s blocks). With --stems,
+            not a dip the music stem has too (as deep under its own section median, less 1 dB): the score's own.
   pumping   50 ms RMS vs a 600 ms rolling median: a dip > 4 dB for ≥ 60 ms that does not start within −0.05…+0.40 s
             of a transient music hit. A music ducker keyed on every SFX shows up here. Not counted: a gradual sag that
             ends in an attack (a sparse bell/pluck decaying before the next strike), with --voice (or the voice stem)
@@ -29,6 +30,11 @@ scan (checked span: --from, default 1.0 s, to --to, default the beat map's fade 
             out, so an isolated click can stand out) and > −40 dBFS, outside ±--click-grace (0.04 s) of a designed onset
             (beat map hits and beats, SFX event times). Lists the total and the 10 worst (time, bar:beat, ratio) to
             listen to by ear.
+confirmed (scan): a dropout, a pumping dip or a burst of clicks the score or the storyboard asks for can be confirmed in
+  the project's confirmed.json (tools/confirm.py; the project of the mix, or --confirmed f): qa.dropout, qa.pump, and
+  qa.click over a span with "n", how many. It is still listed, marked confirmed, and does not fail; the key (env_key) is
+  the loudness from 0.5 s before to 0.5 s after, a gain change of the whole mix keeps it, a change of the sound there
+  lapses it (it fails again). Each open one gets a `confirm?` line. Digital silence is a floor and is never taken.
 cues: onsets of the mix (librosa, hop 128 at 48 kHz) vs every transient music hit (riser/swell peaks and kind ≠ transient
   skipped) and every SFX event louder than −18 dB (gain_db − 20·log10(dist); the swells and transitions whose landmark is
   a peak or an end, not an onset, are skipped: whoosh, swish_rev, riser, whip, swoosh_tonal, air, paper, tape).
@@ -87,6 +93,8 @@ Known limits: pumping misses long shallow dips (≈ 300 ms at −8 dB fills half
 import json, os, subprocess, sys
 import numpy as np
 from scipy.ndimage import median_filter, maximum_filter1d
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import confirm   # noqa: E402  (tools/confirm.py: the project's confirmed.json)
 
 REPEAT_CORR, REPEAT_MIN = 0.98, 3   # this alike (waveform correlation over 150 Hz), this many times in a row: a repetition
 LOSSLESS = ("flac", "alac", "wavpack", "tta", "ape", "mlp", "truehd", "shorten")
@@ -99,6 +107,7 @@ ENC_OFF, ENC_SHIFT, ENC_MIN = 0.2, 0.015, 8   # an encode with ≥ ENC_MIN cues 
 EDGE = 0.004           # s: a match this close to the edge of its search window is a tone that sits beyond it, not a confirmation
 MARGINAL = 0.02        # onset strength over the detector's threshold under which a cue is marginal
 STALE_SLACK = 2.0      # s: an input written more than this after the mix makes the mix look stale (a warning)
+ENV_PAD, ENV_STEP, ENV_MAX, ENV_SHARE, ENV_TOL = 0.5, 1.5, 64, 0.9, 0.15   # confirmed.json: a sound's key (env_key) and its match
 
 def load(path, sr=None):  # → float32 (n, ch), sr — via ffmpeg, so containers and codecs all work
     st = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=sample_rate,channels",
@@ -177,26 +186,62 @@ def stale(path, inputs, ev=(), tl=None):
                        "check that it exits 0, then run qa (a warning, not a failure)")
     return out
 
-def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None):
+def env_key(e, te, a, b):
+    """A sound's key for confirmed.json: its 0.1 s loudness (e at times te) from ENV_PAD s before a to ENV_PAD s after
+    b, less the median there, in ENV_STEP dB steps (±30, 'V' the median), one character a point, at most ENV_MAX points.
+    Taken against its own median, so a gain change of the whole mix (the limiter, a loudness target) keeps it."""
+    v = e[(te >= a - ENV_PAD - 1e-6) & (te <= b + ENV_PAD + 1e-6)]   # spans come back from confirmed.json at the ms
+    if len(v) > ENV_MAX: v = np.interp(np.linspace(0, len(v) - 1, ENV_MAX), np.arange(len(v)), v)
+    return "env:" + confirm.code(31 + np.clip(np.round((v - np.median(v)) / ENV_STEP), -30, 30)) if len(v) else "env:"
+
+def same_env(k1, k2):  # the same sound: as many points, ENV_SHARE of them at most one step apart
+    a, b = (confirm.uncode(k.removeprefix("env:")) for k in (k1, k2))
+    return bool(a and b) and len(a) == len(b) and sum(abs(x - y) <= 1 for x, y in zip(a, b)) >= ENV_SHARE * len(a)
+
+def clusters(ts, gap=2.0):  # sorted times → [(first, last, count)], joining neighbours up to gap s apart
+    out = []
+    for t in sorted(ts):
+        if out and t - out[-1][1] <= gap: out[-1] = (out[-1][0], t, out[-1][2] + 1)
+        else: out.append((t, t, 1))
+    return out
+
+def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None, conf=None):
+    """→ (lines, failures, confirmed). conf: (entries, refused, file) from confirmed.json, or None outside a project."""
     X, sr = load(path); x = X.astype(np.float64).mean(1); dur = len(x) / sr
     F = bm.get("fade"); end = t_to if t_to is not None else (F.get("start", F.get("from")) if isinstance(F, dict) else F[0] if isinstance(F, list)
                                                             else F if F else dur - 2.8)
     secs = bm.get("sections") or [{"name": f"{a:.0f}s", "start": a, "end": a + 8} for a in np.arange(0, dur, 8.0)]
     out, fails = [f"audio QA scan · {path} · {dur:.3f} s · {X.shape[1]} ch · checked {t_from:.2f}–{end:.2f} s"], 0
+    taken, refused, cfile = conf or ([], [], None)
+    e10, t10 = rms_db(x, sr, .1, .1); key = lambda a, b: env_key(e10, t10, a, b)   # noqa: E731
+    notes, offers, nconf = [], [], 0
+    def judged(kind, finds, cover=False):   # → state per finding, and what to offer for the open ones
+        nonlocal nconf
+        st, nt = confirm.judge(taken, kind, finds, ENV_TOL, same_env, key, cover, "the sound"); notes.extend(nt)
+        nconf += sum(s == "confirmed" for s, _ in st)
+        if not cover: offers.extend(confirm.offer(kind, round(f["a"], 3), round(f["b"], 3), key(round(f["a"], 3), round(f["b"], 3)))
+                                    for f, (s, _) in zip(finds, st) if s != "confirmed")
+        return st
+    tag = lambda s: "" if s == "open" else "  confirmed (已确认)" if s == "confirmed" else "  LAPSED (已失效: counts again)"   # noqa: E731
     q = np.diff(np.concatenate([[0], (np.abs(X).max(1) < 1e-3).astype(np.int8), [0]]))    # every channel < −60 dBFS
     sil = [(i / sr, j / sr) for i, j in zip(np.nonzero(q == 1)[0], np.nonzero(q == -1)[0]) if j - i >= .02 * sr]   # exact runs
     inside = [r for r in sil if r[1] >= t_from and r[0] <= end]; fails += len(inside)
     out.append(f"[1] digital silence (< −60 dBFS, ≥ 20 ms): {len(inside)} inside the span" +
                ("; all runs: " + ", ".join(f"{a:.3f}-{b:.3f}" for a, b in sil) if sil else ""))
-    db, tt = rms_db(x, sr, .1, .05); viol = []
+    db, tt = rms_db(x, sr, .1, .05); viol, own = [], 0
+    Ms = load(music_stem, sr)[0].astype(np.float64).mean(1) if music_stem else None   # the music bus as heard
+    if Ms is not None: sm, st_ = rms_db(Ms, sr, .1, .05); sdb = np.interp(tt, st_, sm, right=-120.0)
     for s in secs:
         m = (tt >= s["start"]) & (tt < s["end"])
         if m.any():
             med = np.median(db[m]); bad = m & (db < med - 12) & (tt >= t_from) & (tt <= end)
-            viol += [(a, b, s["name"], float(db[i:j].min()), med) for a, b, i, j in runs(bad, tt, .05, 0)]
-    fails += len(viol)
-    out.append(f"[2] dropouts (0.1 s RMS < section median − 12 dB): {len(viol)}")
-    out += [f"    {a:7.2f}-{b:7.2f} s  {n}: {d:.1f} dBFS vs median {m:.1f}" for a, b, n, d, m in viol[:40]]
+            smed = np.median(sdb[m]) if Ms is not None else None
+            for a, b, i, j in runs(bad, tt, .05, 0):   # with the stems: a dip the music has too (as deep, less 1 dB) is the score's own
+                if smed is not None and smed - sdb[max(0, i - 1):j + 1].min() >= med - db[i:j].min() - 1.0: own += 1; continue
+                viol.append((a, b, s["name"], float(db[i:j].min()), med))
+    st = judged("qa.dropout", [{"a": a, "b": b} for a, b, *_ in viol]); fails += sum(x != "confirmed" for x, _ in st)
+    out.append(f"[2] dropouts (0.1 s RMS < section median − 12 dB): {len(viol)}" + (f" ({own} more that the music stem has too: the score's own dynamics)" if own else ""))
+    out += [f"    {a:7.2f}-{b:7.2f} s  {n}: {d:.1f} dBFS vs median {m:.1f}{tag(x)}" for (a, b, n, d, m), (x, _) in list(zip(viol, st))[:40]]
     e, te = rms_db(x, sr, .05, .01); base = median_filter(e, size=61, mode="nearest"); dip = base - e; hits = transient_hits(bm)
     sag = lambda i, j: e[max(0, i - 6):i + 2].max() - e[i:i + 2].min() < 3 and e[j:j + 7].max() - e[j - 1] >= 3   # slow in, hard out
     talk = np.zeros(len(te), bool)
@@ -204,17 +249,17 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None)
         V, vsr = load(voice); ve, vt = rms_db(V.astype(np.float64).mean(1), vsr, .05, .01)
         talk = maximum_filter1d((np.interp(te, vt, ve, right=-120) > -45).astype(np.uint8), 41) > 0   # speaking, ±0.2 s
     mdip = None
-    if music_stem:   # the music bus as heard: its own dips, on the same 10 ms grid
-        Ms, msr = load(music_stem, sr); me, mt = rms_db(Ms.astype(np.float64).mean(1), msr, .05, .01)
+    if Ms is not None:   # the music bus as heard: its own dips, on the same 10 ms grid
+        me, mt = rms_db(Ms, sr, .05, .01)
         mdip = np.interp(te, mt, median_filter(me, size=61, mode="nearest") - me)
     in_music = lambda i, j: mdip is not None and mdip[max(0, i - 2):j + 2].max() >= dip[i:j].max() - 1.0
     cand = [(a, b, i, j, float(dip[i:j].max())) for a, b, i, j in runs(dip > 4, te, .01, .06)
             if t_from <= a <= end and not any(-.05 <= a - h <= .40 for h, _ in hits) and not sag(i, j) and not talk[i]]
     pumps = [(a, b, d) for a, b, i, j, d in cand if not in_music(i, j)]; score = len(cand) - len(pumps)
-    fails += len(pumps)
+    st = judged("qa.pump", [{"a": a, "b": b} for a, b, _ in pumps]); fails += sum(x != "confirmed" for x, _ in st)
     out.append(f"[3] pumping (dip > 4 dB for ≥ 60 ms, not at a transient music hit): {len(pumps)}" +
                (f" ({score} more that the music stem has too: the score's own dynamics)" if score else ""))
-    out += [f"    {a:7.2f}-{b:7.2f} s  depth {d:.1f} dB" for a, b, d in pumps[:40]]
+    out += [f"    {a:7.2f}-{b:7.2f} s  depth {d:.1f} dB{tag(x)}" for (a, b, d), (x, _) in list(zip(pumps, st))[:40]]
     cand, k, g = {}, int(.005 * sr) // 2, int(.001 * sr)
     for c in range(X.shape[1]):
         d2 = np.abs(np.diff(X[:, c].astype(np.float64), 2)); q = np.concatenate([[0], np.cumsum(d2 ** 2)]); i = np.arange(len(d2))
@@ -228,10 +273,20 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None)
     designed = np.array(sorted([h["t"] for h in bm.get("hits", [])] + list(bm.get("beats", [])) + [e["t"] for e in ev]))
     near = lambda t: len(designed) and np.min(np.abs(designed - t)) <= grace
     clicks = sorted(((r, c / sr) for _, _, (r, c) in groups if not near(c / sr)), reverse=True)
+    st = judged("qa.click", [{"a": t, "b": t} for _, t in clicks], cover=True)   # confirmed by span, with how many
+    heard = [c for c, (x, _) in zip(clicks, st) if x != "confirmed"]; done = len(clicks) - len(heard)
     out.append(f"[4] clicks — WARNING, not a failure: {len(clicks)} sharp discontinuities outside ±{grace * 1000:.0f} ms of designed onsets"
-               f" ({len(groups) - len(clicks)} more at designed onsets)." + (" 请人耳复听这几处（最严重的前 10 处）：" if clicks else ""))
-    out += [f"    {t:8.3f} s  {barpos(bm, t):>9s}  {r:6.0f}× local level" for r, t in clicks[:10]]
-    return out, fails
+               f" ({len(groups) - len(clicks)} more at designed onsets)" + (f"; {done} in confirmed spans" if done else "") + "."
+               + (" 请人耳复听这几处（最严重的前 10 处）：" if heard else ""))
+    out += [f"    {t:8.3f} s  {barpos(bm, t):>9s}  {r:6.0f}× local level" for r, t in heard[:10]]
+    for a, b, n in clusters([t for _, t in heard])[:10]:   # one span per burst of clicks, its count as "n"
+        a, b = max(0.0, round(a - 0.05, 3)), round(b + 0.05, 3); offers.append(confirm.offer("qa.click", a, b, key(a, b), n))
+    out += confirm.lines(notes, refused)
+    if cfile and offers:
+        out.append(f"  a dropout, dip or click burst the score or storyboard asks for: paste its line into {cfile}, with why and evidence"
+                   " (the score, the storyboard, the stems' numbers; nobody here can hear it); a fault is fixed, not confirmed:")
+        out += offers[:20]
+    return out, fails, nconf
 
 def flatness(x, sr):
     """spectral flatness of a sound's first 300 ms in 250 Hz–9 kHz: ~0.5 for noise, ≪ 0.05 for a (decaying) sine"""
@@ -792,7 +847,10 @@ def main():
     ev = sfx.numbered(json.load(open(pos[2]))) if len(pos) > 2 else []
     stems = opt("--stems"); meta = json.load(open(os.path.join(stems, "meta.json"))) if stems and os.path.exists(os.path.join(stems or "", "meta.json")) else {}
     lib, root = opt("--lib", in_stems(stems, meta.get("lib"))), opt("--root", in_stems(stems, meta.get("root")))
-    out, fails, warns, faint = [], 0, 0, []
+    out, fails, warns, faint, nconf = [], 0, 0, [], 0
+    home = confirm.project_of(mix_path); cfile = opt("--confirmed") or (str(home / confirm.NAME) if home else None)
+    try: conf = (*confirm.load(cfile, "qa."), cfile) if cfile and os.path.exists(cfile) else ([], [], cfile)
+    except confirm.Bad as e: sys.exit(f"qa: {e}")   # a typo must not pass every dropout unconfirmed and silently
     sev = json.load(open(opt("--events"))) if "--events" in a else ev
     ins = meta.get("inputs") or {}; tlp = opt("--timeline") or in_stems(stems, ins.get("timeline")); tl = meta.get("timeline")
     if tlp and os.path.isfile(tlp):
@@ -801,8 +859,8 @@ def main():
     old = stale(mix_path, [pos[2] if len(pos) > 2 else None, opt("--events"), pos[1] if len(pos) > 1 and pos[1] != "-" else None,
                            opt("--voice"), tlp, opt("--words")] + [in_stems(stems, p) for p in ins.values()], ev or sev, tl); out += old
     if mode in ("scan", "all"):
-        o, f = scan(mix_path, bm, float(opt("--from", 1.0)), float(opt("--to")) if "--to" in a else None, opt("--voice") or stem(stems, "voice"), sev,
-                    float(opt("--click-grace", 0.04)), stem(stems, "music")); out += o; fails += f
+        o, *f = scan(mix_path, bm, float(opt("--from", 1.0)), float(opt("--to")) if "--to" in a else None, opt("--voice") or stem(stems, "voice"), sev,
+                    float(opt("--click-grace", 0.04)), stem(stems, "music"), conf); out += o; fails += f[0]; nconf = f[1]
     if mode in ("cues", "all") and (bm.get("hits") or ev):
         o, f, w, faint = cues(mix_path, bm, ev, float(opt("--fps", 30)), lib, root); out += o; fails += f; warns += w
     rev, nrep = ev or sev or meta.get("events") or [], 0   # the same sound again and again: a warning
@@ -821,7 +879,8 @@ def main():
     txt = "\n".join(out)
     if "--out" in a: open(opt("--out"), "w").write(txt + "\n")
     print("\n".join(r for r in out if "  OK  " not in r))   # cue rows that pass cleanly are only written to --out
-    print(("✓ audio QA passed" if not fails else f"✗ {fails} problem(s)") + (" (click warnings above: 请人耳复听)" if any(r.startswith("[4]") and "请人耳复听" in r for r in out) else "")
+    print(("✓ audio QA passed" if not fails else f"✗ {fails} problem(s)") + (f" · {nconf} confirmed ({confirm.NAME})" if nconf else "")
+          + (" (click warnings above: 请人耳复听)" if any(r.startswith("[4]") and "请人耳复听" in r for r in out) else "")
           + (f" ({warns} cue warning(s) above)" if warns else "") + (f" ({nrep} repeated SFX above)" if nrep else "")
           + (" · STALE? this may be an earlier mix (see the top)" if old else "")
           + (f" · full report {opt('--out')}" if "--out" in a else ""))
