@@ -17,7 +17,7 @@ The file: {"version": 1, "axis": {"kind": "number" | "date" | "seconds", "origin
 "text"?, "data"?}], and optionally "sources": [{"path", "sha256"}] (the narration take or beat map it was made on, paths
 beside the map), "spec", "rebuild" (the command that remakes it) and "note".
 
-usage: python3 tools/audio/time_map.py check <map.json> [--save] [--out FILE]
+usage: bin/vh timemap check <map.json> [--save] [--out FILE]
   Checks the map, lists its events, says whether a recorded source changed since the map was made, and, against the
   events saved last time (--out, default <map>.checked.json beside it), which events moved, which are new and which are
   gone. --save keeps this map's events there. Exit: 0 fine · 1 a source changed · 2 not a map, or a file is missing.
@@ -224,7 +224,7 @@ class TimeMap:
 
 def check(argv):
     import argparse
-    ap = argparse.ArgumentParser(prog="python3 tools/audio/time_map.py check", description="check a time map and list its events")
+    ap = argparse.ArgumentParser(prog="bin/vh timemap check", description="check a time map and list its events")
     ap.add_argument("map"); ap.add_argument("--save", action="store_true"); ap.add_argument("--out")
     a = ap.parse_args(argv)
     try:

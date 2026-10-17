@@ -94,7 +94,7 @@ const SHOTS = [
 
 - 引用：`"@#e1"` 是事件的时刻，`"@#e1>"` 是它的 `end`，都可以加 `+0.3`、`-0.2`；`mapAt(u, offset)` 是轴第一次走到 u 的时刻（日期轴写 `"YYYY-MM-DD"`）。镜头的 `at`、`o`、章节、封面和 `FILM.bar` 都认，和旁白 cue、`musicAt()` 一样在 `ready` 时一次换成秒。
 - `draw()` 里查：`mapU(t)`、`mapT(u)`、`eventT(id, "end")`，或者直接用 `TIMEMAP`（`.u`、`.t`、`.at`、`.dur(u0, u1)`、`.rate(t)`、`.day(iso)`、`.events`）。Three.js 层的模块按名字读同一个 `TIMEMAP`。映射在 `ready` 时载入后冻结，每帧只是查表，仍是 t 的纯函数。
-- `bin/vh cues --save` 同时记下实际载入的映射路径和 SHA-256，下一次说出哪些挂点挪了，并提示"time map changed"。不进页面的检查：`python3 tools/audio/time_map.py check data/time.map.json`（列出事件，查记下的 sources 还对不对，和上次 `--save` 的比谁挪了）。
+- `bin/vh cues --save` 同时记下实际载入的映射路径和 SHA-256，下一次说出哪些挂点挪了，并提示"time map changed"。不进页面的检查：`bin/vh timemap check data/time.map.json`（列出事件，查记下的 sources 还对不对，和上次 `--save` 的比谁挪了）。
 - 音效、混音用同一份映射：events.json 加表头以后，`t` 可以写 `"@#e1"`（`tools/audio/README.md` 的"音效"）。Python 脚本：`from tools.audio.time_map import TimeMap`，用法和 JS 相同。
 
 旧项目要用时间映射：复制 `src/06-time-map.js` 并在 `film.html` 里 `05-music-clock.js` 之后加它的 script 标签；`00-core.js` 合入 `FILM.timemap`、`cueT` 里的 `@#` 分支和 `resolver` 里的 `$map`；`90-main.js` 合入 `boot()` 里的 `loadTimeMap()`、`checkTimeMapSources()` 和 `window.film.timemap`。不设 `FILM.timemap` 时什么都不变。
