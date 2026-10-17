@@ -10,6 +10,7 @@ const FILM = {
   lang: "zh",                  // the narration: audio/timeline.<lang>.json, as bin/vh tts writes it
   timeline: null,              // another file; false for a silent film (then set duration, and every time is in seconds)
   music: null,                 // bin/vh music's *.beats.json; musicAt() declarations and musicT() in draw use its bars
+  timemap: null,               // a time map file (src/06-time-map.js): "@#id" and mapAt() in declarations, mapU(t) in draw
   duration: 0,                 // a silent film's length in seconds
   lead: 0,                     // seconds added to the timeline's times. 0 when they are film times already: bin/vh tts --lead
                                // starts the voice and its timeline late together. Set it only for a timeline that starts at
@@ -86,11 +87,13 @@ function letterTimes(L) {
 // ---- cues: a time written as a place in the narration ----
 //   "@id"   line id starts          "@id:词"  the first "词" in line id is spoken          "@id>"  line id ends
 //   any of them + or - seconds: "@b2:跟着走-0.3". Ids are letters, digits and _ (bin/vh tts's @id). A number is seconds.
+//   "@#id" and "@#id>": an event of the time map (FILM.timemap) and its end, with the same + or - seconds.
 // Rewrite a line and the shots on it move with it; a cue that no longer finds its line or word stops the film in ready.
 const CUE = /^@(\w+)(?:(>)|:(.+?))?([+-](?:\d+\.?\d*|\.\d+))?$/;
 function cueT(c) {
   if (typeof c === "number" && Number.isFinite(c)) return c;
   if (typeof c !== "string" || c[0] !== "@") throw new CueError(`not a time: ${JSON.stringify(c)} (seconds, or a cue: "@id", "@id:词", "@id>")`);
+  if (c.trim().startsWith("@#")) return mapCueT(c.trim());
   const m = CUE.exec(c.trim());
   if (!m) throw new CueError(`not a cue: write "@id" (the line starts), "@id:词" (that word is spoken) or "@id>" (the line ends), with an optional +0.3 or -0.2; ids are letters, digits and _`);
   const L = lineOf(m[1]);
@@ -144,6 +147,13 @@ function resolver(who, key, problems) {
         return t;
       } catch (e) { problems.push(`${who} (${path}): ${e.message}`); return NaN; }
     }
+    if (isMapAt(v)) {
+      try {
+        const t = resolveMapAt(v);
+        CUES.push({ id: `${key}.${path}`, ref: `map(${v.$map})${v.offset ? `${v.offset > 0 ? "+" : ""}${v.offset}` : ""}`, t: r3(t) });
+        return t;
+      } catch (e) { problems.push(`${who} (${path}): ${e.message.replace(/^time map: /, "")}`); return NaN; }
+    }
     if (typeof v === "string" && v[0] === "@") {
       if (v.startsWith("@@")) return v.slice(1);
       try { const t = cueT(v); CUES.push({ id: `${key}.${path}`, ref: v, t: r3(t) }); return t; }
@@ -155,7 +165,7 @@ function resolver(who, key, problems) {
   };
   walk.time = (v, path) => {   // a value that must be a time: seconds or a cue
     if (typeof v === "number" && Number.isFinite(v)) return v;
-    if (isMusicAt(v)) return walk(v, path);
+    if (isMusicAt(v) || isMapAt(v)) return walk(v, path);
     if (typeof v === "string" && v[0] === "@" && !v.startsWith("@@")) return walk(v, path);
     problems.push(`${who} (${path}): not a time: ${JSON.stringify(v)} (seconds, or a cue: "@id", "@id:词", "@id>")`);
     return NaN;

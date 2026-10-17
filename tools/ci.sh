@@ -92,6 +92,7 @@ for f in sys.stdin.read().splitlines():
   n=0; while IFS= read -r f; do node --check "$f" 2>/dev/null || { node --check "$f"; bad "node --check $f"; n=$((n + 1)); }; done < <(files '*.js' '*.mjs')
   [ $n = 0 ] && ok "js syntax"
   if python3 tools/audio/test_music_clock.py; then ok "music clock: JS/Python agree on bar time and invalid maps"; else bad "music clock"; fi
+  if python3 tools/audio/test_time_map.py; then ok "time map: JS/Python agree on maps and every kind of time reference; events.json headers; time_map.py check"; else bad "time map"; fi
   # media: videos live in the GitHub release "media" (tools/media.txt, tools/fetch_media.sh), so a clone stays small;
   # the style swatches (about 1 MB each, read by the tools) are the one exception. No file over 8 MB either.
   out=$(files | while IFS= read -r f; do
@@ -1139,6 +1140,7 @@ PY
   # the other (12.8 s is inside a page turn); a cue whose word is gone stops it in ready at once, naming the shot and the
   # cue; its reads and captions pass textcheck
   if python3 tools/audio/test_music_clock.py --film; then ok "music clock: live cues, reads, chapters and deterministic frames"; else bad "music clock page"; fi
+  if python3 tools/audio/test_time_map.py --film; then ok "time map: live event cues move with the map, a map made on other music stops ready, deterministic frames"; else bad "time map page"; fi
   local c="$ROOT/engines/canvas-film/template" s0 pid left seen alive
   a=$(vh frames "$c" --at 4.9,12.8 --out "$t/cf1" 2>&1); rc=$?
   # a machine without the template's CJK faces (the Linux runner) draws in a fallback and says so, which is exit 1; that

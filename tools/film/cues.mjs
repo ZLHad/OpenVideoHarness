@@ -3,7 +3,8 @@
 // sha256 of the timeline they were resolved on (window.film.timeline); when that file is there, a later run says which
 // cues moved and by how much, which are new and which are gone: after a new take of the narration (pauses put in, a line
 // rewritten), or after the page's own cues changed on the same take. Music references also record the
-// loaded beat-map source and hash (window.film.music), so a changed score map is named on the next run.
+// loaded beat-map source and hash (window.film.music), so a changed score map is named on the next run; a time map's
+// events ("@#id", mapAt) record the time map's (window.film.timemap) the same way.
 //
 // usage: node tools/film/cues.mjs <project | page.html> --browser <chrome> [--save] [--out out/cues.json] [--chapters]
 //
@@ -41,9 +42,9 @@ if (!browser) die("no browser: pass --browser <chrome>, or run it as bin/vh cues
 
 let film;
 try { film = await openFilm(target, { browser, runtime: "auto" }); } catch (e) { die(e.message); }
-let cues, tlRel, musicSource, chs = null;
+let cues, tlRel, musicSource, mapSource, chs = null;
 try { cues = await film.list("cues"); tlRel = await film.field("timeline").catch(() => null);
-  musicSource = await film.field("music"); if (chapters) chs = await film.list("chapters"); }
+  musicSource = await film.field("music"); mapSource = await film.field("timemap").catch(() => null); if (chapters) chs = await film.list("chapters"); }
 catch (e) { await film.close(); die(e.message); }
 const loadProblems = film.loadProblems, duration = film.duration;
 await film.close();
@@ -77,6 +78,8 @@ console.log(`cues: ${rel(film.page)} · ${sorted.length} cue${sorted.length === 
   (tlFile ? ` on ${rel(tlFile)}${sha ? ` (sha256 ${sha.slice(0, 12)})` : " (not found)"}` : " (the page names no timeline)"));
 const music = musicSource && typeof musicSource.path === "string" && typeof musicSource.sha256 === "string" ? musicSource : null;
 if (music) console.log(`  music: ${music.path} (loaded sha256 ${music.sha256.slice(0, 12)})`);
+const timemap = mapSource && typeof mapSource.path === "string" && typeof mapSource.sha256 === "string" ? { path: mapSource.path, sha256: mapSource.sha256 } : null;
+if (timemap) console.log(`  time map: ${timemap.path} (loaded sha256 ${timemap.sha256.slice(0, 12)})`);
 for (const p of loadProblems) console.log(`  while loading: ${p}`);
 const w = Math.max(4, ...sorted.map((c) => String(c.id).length));
 console.log(`  ${"t".padStart(8)}  ${"id".padEnd(w)}  cue`);
@@ -93,6 +96,8 @@ if (fs.existsSync(file)) {
 if (before) {
   const musicMoved = !!(music && before.music && music.sha256 !== before.music.sha256);
   if (musicMoved) console.log("  music map changed since the saved cues");
+  const mapMoved = !!(timemap && before.timemap && timemap.sha256 !== before.timemap.sha256);
+  if (mapMoved) console.log("  time map changed since the saved cues");
   const was = before.cues.filter(ok), old = new Map(was.map((c) => [c.id, c])), now = new Map(sorted.map((c) => [c.id, c]));
   const moved = sorted.filter((c) => old.has(c.id) && !(Math.abs(tv(old.get(c.id)) - tv(c)) < 0.0005)).map((c) => [c, tv(c) - tv(old.get(c.id))]);
   const added = sorted.filter((c) => !old.has(c.id)), gone = was.filter((c) => !now.has(c.id));
@@ -100,7 +105,8 @@ if (before) {
   if (!moved.length && !added.length && !gone.length) console.log(`  since ${rel(file)}: nothing moved${take === "same timeline" ? " (saved on this same timeline)" : ""}`);
   else {
     const why = take === "another take" ? " (saved on another take of the narration)"
-      : musicMoved ? (take ? " (same timeline: the music map changed)" : " (the music map changed)") : take ? " (same timeline: the page's cues changed)" : "";
+      : musicMoved ? (take ? " (same timeline: the music map changed)" : " (the music map changed)")
+      : mapMoved ? (take ? " (same timeline: the time map changed)" : " (the time map changed)") : take ? " (same timeline: the page's cues changed)" : "";
     console.log(`  since ${rel(file)}${why}: ` +
       `${moved.length} moved, ${added.length} new, ${gone.length} gone`);
     const more = (n, k) => { if (n > k) console.log(`    … and ${n - k} more`); };
@@ -118,7 +124,7 @@ if (save) {
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, JSON.stringify({ note: "bin/vh cues --save: where the cues landed, and the timeline they were resolved on",
       page: path.relative(path.dirname(file), film.page), timeline: tlFile ? path.relative(path.dirname(file), tlFile) : null,
-      timeline_sha256: sha, ...(music ? { music } : {}), cues: sorted }, null, 1) + "\n");
+      timeline_sha256: sha, ...(music ? { music } : {}), ...(timemap ? { timemap } : {}), cues: sorted }, null, 1) + "\n");
   } catch (e) { die(`cannot write ${rel(file)}: ${e.message}`); }
   console.log(`  saved: ${rel(file)}`);
 }

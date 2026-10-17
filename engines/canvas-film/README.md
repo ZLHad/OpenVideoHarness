@@ -20,6 +20,7 @@ bin/vh frames projects/<date>-<slug> --at 1,5,9    # 模板自带一支 23 秒�
 | `film.html` | 页面：`@font-face`（只用 `local()` 本机字体，不下载）、一块 canvas、按顺序载入 `src/` 的脚本。不用构建 |
 | `src/00-core.js` | 设定 `FILM` 的默认值、时间（旁白时间轴、cue、镜头、章节、字幕）、录制器 |
 | `src/05-music-clock.js` | 配乐小节、拍与音符时间；从 `music.beats.json` 读取 |
+| `src/06-time-map.js` | 时间映射：片子时间对另一条轴（数据的日期、步数、旧版的秒数）的折点，和轴上带 id 的事件；从 `FILM.timemap` 读取 |
 | `src/10-draw.js` | 画字（字号下限在这一层）、量字、折行、形状、图片、缓存的纹理 |
 | `src/15-fx.js` | 颗粒、暗角、整幅压暗 |
 | `src/20-ui.js` | `label`、`drop`、`stamp`，章节进度条，字幕 |
@@ -59,6 +60,44 @@ const SHOTS = [
 项目里的 Python 音效生成脚本可复用同一份数据：把仓库根目录加入 `PYTHONPATH`，然后 `from tools.audio.music_clock import MusicClock`，用 `clock = MusicClock.load("audio/music.beats.json")`、`clock.at(3, 2, -0.1)` 和 `clock.notes("piano")`。它只依赖 Python 标准库，编号和边界规则与画面相同。这个入口不自动改写已有 events.json；生成脚本需改用它并重跑。
 
 旧项目按需迁移：添加 `src/05-music-clock.js` 及其 script 标签，并更新 `00-core.js`、`90-main.js` 中的音乐接线；项目已修改过的引擎文件要按差异合入。原来的旁白 cue 和绝对秒数仍可用。
+
+## 时间映射：数据的轴和事件也只维护一份
+
+数据片的时间常常不是旁白也不是小节，而是数据自己的轴：日期一天天往前走，事件处放慢，读完字卡再走。这条曲线由项目自己的脚本解一次，写成一份时间映射文件；画面、字卡、封面和音效都从它取时刻，不各自手写秒数，也不在 2D 和 3D 层各写一份换算。
+
+```json
+{ "version": 1, "axis": { "kind": "number", "unit": "step" }, "rebuild": "python3 data/make_map.py",
+  "knots": [[2, 0], [4, 10], [6, 10], [10, 30]],
+  "events": [ { "id": "e1", "u": 10, "t": 4, "lane": "top", "text": "第一件事" },
+              { "id": "e2", "u": 20, "t": 8, "end": 9, "data": { "side": "left" } } ] }
+```
+
+- `knots` 是 `[t, u]`：t 是片子秒数，一个比一个大；u 是轴上的位置，不往回走，相邻两点 u 相同就是**停留**（轴停住、片子照走）。两点之间是直线，曲线要多平滑由写文件的脚本把点采多密。
+- 轴：`"kind": "number"`（默认）、`"seconds"`（例如旧版片子的秒数，用来整片放慢、局部加快），或 `"date"` 加 `"origin": "YYYY-MM-DD"`，u 是距 origin 的天数。
+- 事件：`id` 用字母、数字和 `_`，不重复；`t` 要落在折点给的位置上（停留里任何一刻都行）；`end`、`lane`、`text`、`data` 可选，原样给画面用。id 最好用改稿时不会变的内容拼，不用序号或标题。
+- 可选：`"sources": [{ "path", "sha256" }]` 记下它是按哪份旁白时间轴或 beats 解的（路径相对映射文件），`"rebuild"` 写重建它的命令。页面载入的时间轴或 beats 和记下的不一样时，`ready` 失败，报错里带上这条命令。
+
+```js
+Object.assign(FILM, { timeline: false, duration: 12, timemap: "data/time.map.json" });
+const CHAPTERS = [{ at: 0, title: "开场" }, { at: mapAt(20), title: "后半" }];   // 轴第一次走到 20 的时刻
+const COVERS = [{ id: "main", at: "@#e2" }];
+const SHOTS = [
+  { id: "S01", at: 0, draw(t, s) { /* … */ } },
+  { id: "S02", at: "@#e1-0.5", o: { hit: "@#e2" },
+    draw(t, s) {
+      const u = mapU(t);                   // 此刻轴走到哪：数据画到这里
+      for (const e of TIMEMAP.events) if (e.lane === "top") { /* 字卡从 e.t 起，读时用 read() 登记 */ }
+      const speed = TIMEMAP.rate(t);       // 每片子秒走多少轴单位，例如"天/秒"
+    } },
+];
+```
+
+- 引用：`"@#e1"` 是事件的时刻，`"@#e1>"` 是它的 `end`，都可以加 `+0.3`、`-0.2`；`mapAt(u, offset)` 是轴第一次走到 u 的时刻（日期轴写 `"YYYY-MM-DD"`）。镜头的 `at`、`o`、章节、封面和 `FILM.bar` 都认，和旁白 cue、`musicAt()` 一样在 `ready` 时一次换成秒。
+- `draw()` 里查：`mapU(t)`、`mapT(u)`、`eventT(id, "end")`，或者直接用 `TIMEMAP`（`.u`、`.t`、`.at`、`.dur(u0, u1)`、`.rate(t)`、`.day(iso)`、`.events`）。Three.js 层的模块按名字读同一个 `TIMEMAP`。映射在 `ready` 时载入后冻结，每帧只是查表，仍是 t 的纯函数。
+- `bin/vh cues --save` 同时记下实际载入的映射路径和 SHA-256，下一次说出哪些挂点挪了，并提示"time map changed"。不进页面的检查：`python3 tools/audio/time_map.py check data/time.map.json`（列出事件，查记下的 sources 还对不对，和上次 `--save` 的比谁挪了）。
+- 音效、混音用同一份映射：events.json 加表头以后，`t` 可以写 `"@#e1"`（`tools/audio/README.md` 的"音效"）。Python 脚本：`from tools.audio.time_map import TimeMap`，用法和 JS 相同。
+
+旧项目要用时间映射：复制 `src/06-time-map.js` 并在 `film.html` 里 `05-music-clock.js` 之后加它的 script 标签；`00-core.js` 合入 `FILM.timemap`、`cueT` 里的 `@#` 分支和 `resolver` 里的 `$map`；`90-main.js` 合入 `boot()` 里的 `loadTimeMap()`、`checkTimeMapSources()` 和 `window.film.timemap`。不设 `FILM.timemap` 时什么都不变。
 
 ## 时间：挂在旁白的字上
 
