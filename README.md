@@ -206,7 +206,7 @@ The level sets how often it stops for you and how many review rounds it runs, no
 |---|---|---|---|
 | For | one line in, a finished film out, no stops | real videos where you want to decide at the gates | launches and flagship pieces, polished over several rounds |
 | Stops for you | none | three | three, plus a short sample of each direction and a full-length animatic |
-| Second-agent review | none | one round, the worst three fixed | three to ten; the five craft scores at 7 or above, the lowest of the other three goes to you; a small fix is rechecked on its own span, not with a new round |
+| Second-agent review | none | one round, up to the three most important problems fixed | three to ten; the five craft scores at 7 or above, the lowest of the other three goes to you; a small fix is rechecked on its own span, not with a new round |
 | A 30-second film takes about | 10–30 min | 1–2 h | 3 h or more |
 
 At every level: no invented facts, no sudden silence in a film with sound, no rapid flashing, and type no smaller than the floor for the target screen.
