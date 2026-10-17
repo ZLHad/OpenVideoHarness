@@ -335,9 +335,13 @@ function cue(kind, t0, o = {}) {
 }
 // a read: text the viewer must take in, fully shown from start to end (the format of readcheck's texts.json, which
 // bin/vh textcheck judges). Kept to the part of the shot drawn straight into the frame (after its transition in) and
-// clear of the fades at the film's ends.
-function read(text, start, end, kind = "onscreen") {
+// clear of the fades at the film's ends. o: the kind ("onscreen", "label", "subtitle"), or { kind, overlay }. overlay:
+// true is text that stays on screen across a cut or a transition (a HUD card each shot it spans draws, or a layer over
+// the shots): kept to start..end, clear of the fades, not to this shot, so one read covers its whole time on screen
+// (registered from any shot's draw; the same call from several is kept once). textcheck still samples it there.
+function read(text, start, end, o = "onscreen") {
   if (!REC || !SHOT) return;
-  const a = Math.max(start, SHOT.t0 + SHOT.din, FILM.fadeIn), b = Math.min(end, SHOT.t1, DUR - FILM.fadeOut);
+  const { kind = "onscreen", overlay = false } = typeof o === "string" ? { kind: o } : o || {};
+  const a = Math.max(start, overlay ? 0 : SHOT.t0 + SHOT.din, FILM.fadeIn), b = Math.min(end, overlay ? DUR : SHOT.t1, DUR - FILM.fadeOut);
   if (b - a >= 0.3) REC.reads.push({ text: String(text), start: r3(a), end: r3(b), read: kind });
 }

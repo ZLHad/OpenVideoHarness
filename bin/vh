@@ -120,10 +120,12 @@
 #   deliver <master.mp4> [--for bilibili,douyin,youtube] [--max-gb N] [--crf 16] [--out f] [--psnr sample|full|off]   the copy to upload:
 #                               the bit rate a platform's file limit leaves for the picture (playbook/10, 交付编码): CRF 16 under it, or two
 #                               passes at it when the master's own rate is over it;
-#                               a keyframe every 2 s, BT.709, sound and subtitles copied; the size against each limit, the PSNR against the master
-#   clean <project> [--yes] [--delete] [--keep path …] [--final f]   a finished project's intermediates (frames, render chunks, drafts,
-#                               old takes, stems, node_modules) to the Trash; the film, covers, captions, review pages, sources, docs and the
-#                               narration in use stay. Without --yes it only lists them; --delete deletes what the tools can make again
+#                               a keyframe every 2 s, BT.709, sound and subtitles copied; the size against each limit, the PSNR against the master;
+#                               a record beside the copy (<copy>.deliver.json) that bin/vh clean reads: the copy and its master stay as the film
+#   clean <project> [--yes] [--delete] [--keep path …] [--final f]   a finished project's intermediates (frames, check frames, render
+#                               chunks, drafts, old takes, stems, node_modules) to the Trash; the film (and what bin/vh deliver made from it),
+#                               covers, captions, review pages, sources, docs and the narration in use stay. Without --yes it only lists them;
+#                               --delete deletes what the tools can make again
 set -euo pipefail
 unset CDPATH   # an exported CDPATH would send a relative cd (this one: bin/vh run as bin/vh) to another folder, and print it
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

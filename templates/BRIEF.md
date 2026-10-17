@@ -16,7 +16,7 @@
 - Deliverables: {final.mp4 (+ 9:16 / 3:4 cuts?), cover image?, SRT?}
 
 ## Content
-- Concept (one line): {the device that makes the form tell the content, e.g. "the 3 seconds after Enter, slowed to 2 minutes, a clock always on screen". Chosen at gate ① from 2–3 concept cards (playbook/12-ideation.md); everything below follows from it}
+- Concept (one line): {how this film tells it: a device that makes the form tell the content (e.g. "the 3 seconds after Enter, slowed to 2 minutes, a clock always on screen"), a point of view, a way of ordering the material, or telling it directly. Chosen at gate ① from 2–3 concept cards (playbook/12-ideation.md); everything below follows from it}
 - Specifics: {the 3–5 items from NOTES.md 素材清单 the film is built on: numbers, verbatim quotes, artifacts, each with its source}
 - Spine (one line): {the story in one sentence: X wants/asks ___, but ___, so ___}
 - Recurring motif: {one object/visual that evolves and pays off}
