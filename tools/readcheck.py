@@ -72,7 +72,7 @@ existing file needs --force. Relative --out paths are relative to the working di
 Exit: 0 nothing under the floor (WARNs allowed) · 1 some text under the floor / subtitles too fast · 2 nothing to
 check (bad input). Writes nothing, except --export or canvas-film --out.
 """
-import argparse, json, math, os, re, subprocess, sys, tempfile
+import argparse, json, math, os, re, shlex, signal, subprocess, sys, tempfile
 from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
@@ -505,15 +505,24 @@ def pace_source(a):
         return f"default; {shown} says Pace: {raw!r}, which is not relaxed, normal or brisk"
     return f"default; no Pace line in {shown}" if brief else "default"
 
+def check_hint(a, out):
+    """The command that checks an exported file at this run's pace: --pace when the file's own place would give another
+    (a file outside the project has no BRIEF above it; --pace was given)."""
+    pace_source(a)
+    there = find_pace(out)[0] or DEFAULT_PACE
+    return f"bin/vh readcheck {shlex.quote(str(out))}" + (f" --pace {a.pace}" if there != a.pace else "")
+
 def canvas_texts(html, out, browser, force=False):
     """Export the live registry; texts.mjs owns exclusive creation so two writers cannot silently replace each other."""
-    if not browser:
-        raise ValueError("canvas-film needs a headless Chrome: run bin/vh readcheck, or pass --browser <chrome>")
+    if not browser:   # "": bin/vh looked and found none; None: run without bin/vh
+        raise ValueError("canvas-film needs a headless Chrome: " + ("npx hyperframes browser ensure (in a HyperFrames project), "
+                         "install Chrome or Chromium, or set CHROME_PATH" if browser == "" else "run it as bin/vh readcheck, or pass --browser <chrome>"))
     cmd = ["node", str(Path(__file__).resolve().parent / "film" / "texts.mjs"), str(html), "--browser", browser,
            "--out", str(out)] + (["--force"] if force else [])
     r = subprocess.run(cmd)
-    if r.returncode:
-        sys.exit(r.returncode)
+    if r.returncode:   # texts.mjs has said why; its 1 (no texts) is not this tool's 1 (a text under the floor), a signal is < 0
+        why = f"exit {r.returncode}" if r.returncode > 0 else next((x.name for x in signal.Signals if x == -r.returncode), f"signal {-r.returncode}")
+        raise ValueError(f"the page's texts could not be read (tools/film/texts.mjs: {why})")
 
 
 def main():
@@ -557,7 +566,7 @@ def main():
                 if out.is_dir(): out = out / "texts.json"
                 canvas_texts(canvas, out, a.browser, a.force)
                 if a.export:
-                    print(f"readcheck: exported; check it with bin/vh readcheck {out}")
+                    print(f"readcheck: exported; check it with {check_hint(a, out)}")
                     return
                 path, items = load_items(out)
             else:
@@ -587,7 +596,7 @@ def main():
         if note: print(f"  not exported: {note}; add those by hand")
         if zeroed_note(stats): print(f"  note: {zeroed_note(stats)}")
         if badread_note(stats): print(f"  note: {badread_note(stats)}")
-        print("  a text that fades in is readable later than its clip starts: move its start to that moment, then bin/vh readcheck " + str(out))
+        print("  a text that fades in is readable later than its clip starts: move its start to that moment, then " + check_hint(a, out))
         sys.exit(0)
     explicit = a.mode is not None   # --mode given: it is the rule of every unmarked text, captions too
     a.mode = a.mode or "onscreen"
