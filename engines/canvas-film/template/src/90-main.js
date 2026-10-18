@@ -5,11 +5,12 @@
 function shotAt(t) { let i = 0; while (i + 1 < SHOT_T.length && t >= SHOT_T[i + 1].a) i++; return i; }
 
 // shot i at film time t, into X. Its draw(t, s) gets s = { i, id, t0, t1, lt (s into the shot), u (0..1 through it), o
-// (its o, cues as seconds), din, dout (the transitions in and out, s) }. A shot's cam = [z0, z1, cx, cy] drifts the
+// (its o, cues as seconds), din, dout (the transitions in and out, s), cover (the id of the cover being drawn, null in the
+// film's own frames: a shot can frame a cover its own way and leave the film as it is) }. A shot's cam = [z0, z1, cx, cy] drifts the
 // camera from zoom z0 to z1 about (cx, cy) over the shot, so a held picture never freezes.
 function drawShot(i, t) {
   const S = SHOT_T[i], prev = SHOT;
-  SHOT = { i, id: S.id, t0: S.a, t1: S.b, lt: t - S.a, u: seg(t, S.a, S.b), o: S.o, din: S.din, dout: S.dout };
+  SHOT = { i, id: S.id, t0: S.a, t1: S.b, lt: t - S.a, u: seg(t, S.a, S.b), o: S.o, din: S.din, dout: S.dout, cover: COVER_NOW };
   X.save();
   try {
     const cam = S.shot.cam;
@@ -46,19 +47,39 @@ function uiBoxes(t) {
 }
 
 // a cover: the frame at its cue with the camera nudged (cam: { z, x, y }: zoom about the middle of the frame, then move by
-// x, y px), without the chapter bar and the caption unless it asks for them (bar: true, caption: true), and its title on top
-function cover(id) {
+// x, y px), without the chapter bar and the caption unless it asks for them (bar: true, caption: true), and its title on
+// top. While it draws, every shot's s.cover is its id. o.title false: no title (a clean background). o.ratio "9:16":
+// that aspect ratio, a crop of the picture (not a wider or taller drawing) around ratios[r].focus, with ratios[r].cam in
+// place of cam when given, and ratios[r].title laid out in the ratio's own px (coverBox: 1080 x 1920 for 9:16), or the
+// cover's title re-set for it (ratioTitle); the host captures the crop. The bar and the caption only at the film's own
+// ratio. Returns what it drew: { id, t, title (drawn or not), lines (the title's), and for a ratio: ratio, crop [x, y, w, h],
+// size, layout }
+function cover(id, o = {}) {
   const c = COVER_T.find((x) => x.id === String(id));
   if (!c) throw new Error(`canvas-film: no cover "${id}" (COVERS in src/50-shots.js: ${COVER_T.map((x) => x.id).join(", ") || "none"})`);
-  const t = clamp(c.t, 0, Math.max(0, DUR - 1e-6)), cam = c.cam || {};
+  const spec = (o.ratio && (c.ratios || {})[o.ratio]) || {}, box = o.ratio ? coverBox(o.ratio, spec) : null;
+  if (o.ratio && !box) throw new Error(`canvas-film: cover ${c.id}: "${o.ratio}" is not an aspect ratio (write it as 9:16)`);
+  const t = clamp(c.t, 0, Math.max(0, DUR - 1e-6)), cam = spec.cam || c.cam || {}, full = !box || box.full;
   X.reset(); X.setTransform(PRX, 0, 0, PRX, 0, 0);
-  X.save();
-  X.translate(W / 2 + (cam.x || 0), H / 2 + (cam.y || 0)); X.scale(cam.z || 1, cam.z || 1); X.translate(-W / 2, -H / 2);
-  picture(t);
-  X.restore();
-  if (c.bar) chapterBar(t);
-  if (c.caption) captionBand(t);
-  if (c.title) coverTitle(c.title);
+  X.save(); COVER_NOW = c.id;
+  try {
+    X.translate(W / 2 + (cam.x || 0), H / 2 + (cam.y || 0)); X.scale(cam.z || 1, cam.z || 1); X.translate(-W / 2, -H / 2);
+    picture(t);
+  } finally { COVER_NOW = null; X.restore(); }
+  if (full && c.bar) chapterBar(t);
+  if (full && c.caption) captionBand(t);
+  const own = spec.title !== undefined, layout = own ? "own" : full ? "cover" : "default";
+  let ti = own ? spec.title : c.title;
+  if (!own && !full && c.title && o.title !== false) {
+    try { ti = ratioTitle(c.title, ...box.size); } catch (e) { throw new Error(`canvas-film: cover ${c.id} (${o.ratio}): ${e.message.replace('["…"]', `["${o.ratio}"]`)}`); }
+  }
+  const drawn = o.title !== false && !!ti && [].concat(ti.text || []).length > 0;
+  if (drawn && box) {   // in the ratio's own px: scaled into the crop, the shadows' blur with it
+    const k = box.crop[2] / box.size[0], keep = PRX;
+    X.save(); X.translate(box.crop[0], box.crop[1]); X.scale(k, k); PRX *= k;
+    try { coverTitle(ti, box.size[0]); } finally { PRX = keep; X.restore(); }
+  } else if (drawn) coverTitle(ti);
+  return { id: c.id, t: r3(t), title: drawn, ...(drawn ? { lines: [].concat(ti.text).length } : {}), ...(box ? { ratio: o.ratio, crop: box.crop.map(r3), size: box.size, layout } : {}) };
 }
 
 // ---- ready ----
@@ -182,8 +203,10 @@ window.film = {
   get events() { return EVENTS; },                                                // [{ t, kind, shot, x?, dur? }], transitions too
   get chapters() { return CHAPTER_T.map((c) => ({ t: r3(c.t), title: c.title })); },
   get cues() { return CUES; },                                                    // [{ id, ref, t }]
-  get covers() { return COVER_T.map((c) => ({ id: c.id, t: r3(c.t), title: c.title ? [].concat(c.title.text || []).join(" / ") : "" })); },
-  cover(id) { cover(id); },                                                       // draw a cover (bin/vh frames --covers)
+  get covers() {                                                                // [{ id, t, title, ratios: ["9:16", …] }]
+    return COVER_T.map((c) => ({ id: c.id, t: r3(c.t), title: c.title ? [].concat(c.title.text || []).map(titleText).join(" / ") : "", ratios: Object.keys(c.ratios || {}) }));
+  },
+  cover(id, o) { return cover(id, o || {}); },                                    // draw a cover (bin/vh frames --covers [--no-title] [--ratios])
   ui: uiBoxes,                                                                     // the interface's boxes at t (bin/vh textcheck)
   get timeline() { return TIMELINE; },                                            // the timeline file the cues hang on, beside film.html
   get music() { return MUSIC_SOURCE; },                                           // { path, sha256 } of the beat map actually loaded

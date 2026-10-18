@@ -176,18 +176,50 @@ export async function openFilm(target, o = {}) {
         return { png: Buffer.from(shot.data, "base64"), touched };
       },
       draw,   // draw t without capturing it (a check that reads the page, not its pixels)
-      // a cover (window.film.covers): the page's cover(id) when it has one (its own camera and title), else frame(t)
-      async cover(id, t, capture = { format: "png" }) {
-        const touched = await ev(`(async (id, t) => {
-          const H = window.filmHost, f = window.film && window.film.frame ? window.film : null;
+      // a cover (window.film.covers): the page's cover(id, opts) when it has one (its own camera and title), else frame(t).
+      // o.title false: no title (a page with cover() must say it left it out: it returns { title: false }). o.ratio "9:16":
+      // the page draws the cover with a title laid out for that ratio and returns the crop of its frame ({ crop: [x, y, w,
+      // h], size: [w, h] }, engines/CONTRACT.md), captured at size x o.dpr px. o.capture: the screenshot's format, or
+      // false to draw only. → { png, touched, reply (what cover() returned), width, height }
+      async cover(id, t, c = {}) {
+        const opts = {};
+        if (c.title === false) opts.title = false;
+        if (c.ratio) opts.ratio = c.ratio;
+        const got = await ev(`(async (id, t, opts) => {
+          const H = window.filmHost, f = window.film && window.film.frame ? window.film : null, own = !!(f && typeof f.cover === "function");
+          let reply = null;
           if (H && H.time) H.time(t);
-          try { if (f && typeof f.cover === "function") await f.cover(id); else if (f) await f.frame(t); else await window.__vh.draw(t); }
+          try { if (own) reply = await f.cover(id, opts); else if (f) await f.frame(t); else await window.__vh.draw(t); }
           finally { if (H && H.settle) H.settle(t); }
           await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-          return H && H.touched ? H.touched() : [];
-        })(${JSON.stringify(id)}, ${JSON.stringify(t)})`, `drawing cover ${id}`);
-        const shot = await browser.send("Page.captureScreenshot", { ...capture, fromSurface: true, captureBeyondViewport: false }, s);
-        return { png: Buffer.from(shot.data, "base64"), touched };
+          return { touched: H && H.touched ? H.touched() : [], own, reply: reply && typeof reply === "object" ? JSON.parse(JSON.stringify(reply)) : null };
+        })(${JSON.stringify(id)}, ${JSON.stringify(t)}, ${JSON.stringify(opts)})`, `drawing cover ${id}`);
+        const { touched, own, reply } = got;
+        if (c.title === false && own && !(reply && reply.title === false))
+          throw new Error("the page drew its cover without saying it left the title out (its cover(id) takes no options: an engine copied before covers took them, engines/canvas-film/README.md)");
+        let clip, want;
+        if (c.ratio) {
+          if (!own || !reply || !Array.isArray(reply.crop) || reply.crop.length !== 4 || !Array.isArray(reply.size))
+            throw new Error(`the page drew no ${c.ratio} crop: ${own ? "its cover(id) returned none" : "it has no cover(id)"} (engines/CONTRACT.md: cover(id, { ratio }) returns { crop, size })`);
+          // Chrome captures a clip of whole CSS px, scaled by clip.scale x the device pixel ratio: the crop (whole px, the
+          // shape of the ratio) scaled to size x c.dpr
+          const [x, y, cw, ch] = reply.crop.map(Math.round), w = Math.round(reply.size[0] * (c.dpr || 1)), h = Math.round(reply.size[1] * (c.dpr || 1));
+          clip = { x, y, width: cw, height: ch, scale: (w + 1e-6) / (cw * (o.dpr || 1)) };
+          want = [w, h];
+        }
+        if (c.capture === false) return { png: null, touched, reply, width: 0, height: 0 };
+        // the output's size rounds w + 1e-6 (to w); a Chrome that rounds it up gets w - 1e-6 instead, and one that gives
+        // another size fails
+        let png, pw = 0, ph = 0, isPng = false;
+        for (let n = 0; ; n++) {
+          const shot = await browser.send("Page.captureScreenshot", { ...(c.capture || { format: "png" }), fromSurface: true, captureBeyondViewport: false, ...(clip ? { clip } : {}) }, s);
+          png = Buffer.from(shot.data, "base64"); isPng = png.length > 24 && png.toString("latin1", 1, 4) === "PNG";
+          pw = isPng ? png.readUInt32BE(16) : 0; ph = isPng ? png.readUInt32BE(20) : 0;
+          if (!want || !isPng || (pw === want[0] && ph === want[1])) break;
+          if (n === 1) throw new Error(`the ${c.ratio} capture came out ${pw}x${ph}, not ${want[0]}x${want[1]}`);
+          clip = { ...clip, scale: (want[0] - 1e-6) / (clip.width * (o.dpr || 1)) };
+        }
+        return { png, touched, reply, width: pw, height: ph };
       },
       problems: () => problems.splice(0),
       // the page's own fields (texts, events, chapters, cues, timeline: engines/CONTRACT.md); list(name) only takes an array

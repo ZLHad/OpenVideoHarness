@@ -209,8 +209,25 @@ function buildChapters(problems) {
   CHAPTER_T.forEach((c, i) => { c.b = i + 1 < CHAPTER_T.length ? CHAPTER_T[i + 1].t : BAR_SPAN[1]; });
 }
 
-// ---- covers: frames of the film picked by cue (they move with the narration), each with its own camera nudge ----
-let COVER_T = [];   // [{ id, t, cam, title, bar, caption }]
+// ---- covers: frames of the film picked by cue (they move with the narration), each with its own camera nudge; another
+// aspect ratio is a crop of that picture around a focus, with a title laid out for it (src/90-main.js, cover) ----
+let COVER_T = [];   // [{ id, t, cam, title, bar, caption, ratios }]
+const RATIO = /^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/;
+// an aspect ratio "w:h" as a crop of the cover: the largest box of exactly that shape in whole px inside the frame
+// (Chrome captures whole CSS px: 603 x 1072 for 9:16 in a 1920 x 1080 film), centred on spec.focus ([x, y] in the frame's
+// px, the middle by default) and kept inside it. size: the ratio's own px, its short side the frame's (1080 x 1920 for
+// 9:16), which its title is laid out in. null for what is not a ratio
+function coverBox(ratio, spec = {}) {
+  const m = String(ratio).match(RATIO);
+  if (!m) return null;
+  const f = 10 ** Math.max((m[1].split(".")[1] || "").length, (m[2].split(".")[1] || "").length), gcd = (p, q) => (q ? gcd(q, p % q) : p);
+  const p = Math.round(+m[1] * f), q = Math.round(+m[2] * f), g = gcd(p, q) || 1, a = p / g, b = q / g;
+  const w = FILM.width, h = FILM.height, S = Math.min(w, h), n = a > 0 && b > 0 ? Math.floor(Math.min(w / a, h / b) + 1e-9) : 0;
+  if (n < 1) return null;
+  const cw = a * n, ch = b * n, [fx, fy] = Array.isArray(spec.focus) ? spec.focus : [w / 2, h / 2];
+  return { crop: [Math.round(clamp(fx - cw / 2, 0, w - cw)), Math.round(clamp(fy - ch / 2, 0, h - ch)), cw, ch],
+    size: a >= b ? [Math.round((S * a) / b), S] : [S, Math.round((S * b) / a)], full: cw === w && ch === h };
+}
 function buildCovers(problems) {
   const list = typeof COVERS === "undefined" ? [] : COVERS, seen = new Set();
   COVER_T = list.map((c, i) => {
@@ -219,15 +236,31 @@ function buildCovers(problems) {
     seen.add(id);
     const t = R.time(c.at ?? 0, "at");
     if (Number.isFinite(t) && !(t >= 0 && t < DUR)) problems.push(`cover ${id}: ${t.toFixed(2)} s is outside the film (0–${DUR.toFixed(2)} s)`);
-    const cam = c.cam || {}, z = cam.z || 1;   // a move further than the zoom leaves room for shows the frame's edge
-    if (Math.abs(cam.x || 0) > (z - 1) * FILM.width / 2 + 0.5 || Math.abs(cam.y || 0) > (z - 1) * FILM.height / 2 + 0.5)
-      problems.push(`cover ${id}: cam ${JSON.stringify(cam)} shows the frame's edge: at zoom ${z} it can move ${((z - 1) * FILM.width / 2).toFixed(0)} px across and ${((z - 1) * FILM.height / 2).toFixed(0)} px up or down`);
-    const ti = c.title;   // every title line inside the frame (a long line at a big size runs off both sides)
-    if (ti && X) [].concat(ti.text || []).forEach((line, k) => {
-      const size = [].concat(ti.size ?? 200)[k] ?? [].concat(ti.size ?? 200).slice(-1)[0], w = measure(line, { size, weight: 900, family: "heavy" });
-      const x = ti.x ?? 120, a = ti.align === "center" ? x - w / 2 : ti.align === "right" ? x - w : x;
-      if (a < 0 || a + w > FILM.width) problems.push(`cover ${id}: title line "${line}" is ${Math.round(w)} px wide at ${size} px and runs off the frame (${Math.round(a)}–${Math.round(a + w)} px): a smaller size or a shorter line`);
-    });
+    const camCheck = (cam, where) => {   // a move further than the zoom leaves room for shows the frame's edge
+      const z = cam.z || 1;
+      if (Math.abs(cam.x || 0) > (z - 1) * FILM.width / 2 + 0.5 || Math.abs(cam.y || 0) > (z - 1) * FILM.height / 2 + 0.5)
+        problems.push(`cover ${id}${where}: cam ${JSON.stringify(cam)} shows the frame's edge: at zoom ${z} it can move ${((z - 1) * FILM.width / 2).toFixed(0)} px across and ${((z - 1) * FILM.height / 2).toFixed(0)} px up or down`);
+    };
+    const titleCheck = (ti, w, where) => {   // every title line inside its frame (a long line at a big size runs off both sides)
+      if (ti && X) [].concat(ti.text || []).forEach((line, k) => {
+        const size = pickAt(ti.size, k, 200), lw = coverLineWidth(line, size, ti);
+        const x = ti.x ?? 120, a = ti.align === "center" ? x - lw / 2 : ti.align === "right" ? x - lw : x;
+        if (a < 0 || a + lw > w) problems.push(`cover ${id}${where}: title line "${titleText(line)}" is ${Math.round(lw)} px wide at ${Math.max(FILM.minText, size)} px and runs off the frame (${Math.round(a)}–${Math.round(a + lw)} px of ${w}): a smaller size or a shorter line`);
+      });
+    };
+    camCheck(c.cam || {}, "");
+    titleCheck(c.title, FILM.width, "");
+    for (const [r, spec] of Object.entries(c.ratios || {})) {
+      const box = coverBox(r, spec || {});
+      if (!box) { problems.push(`cover ${id}: ratios["${r}"] is not an aspect ratio (write it as "9:16")`); continue; }
+      if (spec && spec.cam) camCheck(spec.cam, ` (${r})`);
+      if (spec && spec.focus !== undefined && !(Array.isArray(spec.focus) && spec.focus.length === 2 && spec.focus.every(isNum)))
+        problems.push(`cover ${id} (${r}): focus is [x, y] in the frame's px`);
+      if (spec && spec.title) titleCheck(spec.title, box.size[0], ` (${r}, ${box.size.join(" x ")})`);
+      else if (spec && spec.title === undefined && c.title && !box.full && X) {   // the default layout: does the cover's title fit this ratio?
+        try { ratioTitle(c.title, ...box.size); } catch (e) { problems.push(`cover ${id} (${r}): ${e.message.replace('["…"]', `["${r}"]`)}`); }
+      }
+    }
     return { ...c, id, t };
   });
 }
@@ -331,7 +364,8 @@ function captionAt(t) { for (const c of CAPS) if (t >= c.start && t < c.end) ret
 
 // ---- the recorder: what the shots show, gathered in ready (src/90-main.js draws every shot a few times with it on) ----
 let REC = null;   // { events, reads } while recording, else null
-let SHOT = null;  // the shot being drawn: { i, id, t0, t1, lt, u, o, din, dout } (src/90-main.js sets it for every draw)
+let SHOT = null;  // the shot being drawn: { i, id, t0, t1, lt, u, o, din, dout, cover } (src/90-main.js sets it for every draw)
+let COVER_NOW = null;   // the id of the cover being drawn (src/90-main.js, cover), null in the film's own frames: a shot's s.cover
 // an event on screen at t0 (a card lands, a stamp is pressed): kind names it (the sound comes later, bin/vh sfx); o.x, a
 // place that does not move with t, is read through the transform, so the event's x is a screen x (for panning). Helpers
 // call it on every frame; it records only while recording, and only events that happen while their shot is on screen.
