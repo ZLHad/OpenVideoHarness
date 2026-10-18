@@ -19,8 +19,12 @@ const LIVE = new Set();   // { proc, profile } of every browser not closed yet
 const removeSync = (dir) => { try { fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }); } catch { /* left in the temp folder */ } };
 // Chrome runs in a process group of its own, so its helpers (GPU, renderers) go with it: left alive, they write to the
 // profile again after it was removed. A short pause lets them go before the folder does
+// Signal 0 only asks: is any process of Chrome's group still there? While one is, the group id is still Chrome's
+const groupGone = (pid) => { try { process.kill(-pid, 0); return false; } catch (e) { return e.code === "ESRCH"; } };
 const killGroup = (proc) => {
-  if (proc.exitCode !== null || proc.signalCode !== null) return;   // gone already: its group id may belong to another now
+  // the main process gone and its group empty: nothing to kill, and the id may belong to another group later. On Linux
+  // the helpers can outlive the main process by a moment, so an exited main process with a live group still gets it
+  if ((proc.exitCode !== null || proc.signalCode !== null) && groupGone(proc.pid)) return;
   try { process.kill(-proc.pid, "SIGKILL"); } catch { try { proc.kill("SIGKILL"); } catch { /* gone */ } }
 };
 const cleanUp = () => {
@@ -121,6 +125,11 @@ export async function launch(exe, flags = []) {
   const close = async () => {
     if (!dead) try { await within(send("Browser.close"), 3000); } catch { /* already gone */ }
     proc.kill(); await exited;
+    // Linux: the GPU and renderer helpers can still write into the profile just after the main process exits, and a
+    // folder removed under them comes back. Wait for the whole group (up to 2 s), then kill what is left; the profile
+    // stays registered meanwhile, so a Ctrl-C now still removes it
+    for (let i = 0; i < 40 && !groupGone(proc.pid); i++) await new Promise((res) => setTimeout(res, 50));
+    killGroup(proc);
     removeProfile();
     if (!LIVE.size) await new Promise((res) => setImmediate(() => setImmediate(res)));   // the second turn's poll reads a signal
     if (!LIVE.size) disarm();

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+**The browser's profile goes only after Chrome's whole process group has (Linux)**
+- On Linux Chrome's GPU and renderer helpers can outlive its main process by a moment and write into the profile again, so a folder removed right after the main process exited came back (a CI case for a Ctrl-C during the removal left one behind on GitHub's Linux runner now and then). `close()` now waits for the whole group to be gone (signal 0, up to 2 s), then kills what is left, then removes the profile, which stays registered meanwhile so a Ctrl-C still removes it. An exited main process whose group is still alive now has its group killed on a Ctrl-C too.
+
 **Canvas-film readcheck messages and exit codes; Ctrl-C while a browser profile is removed**
 - With no Chrome, `bin/vh readcheck` on a canvas-film project names the remedies (`npx hyperframes browser ensure`, install Chrome or Chromium, or set `CHROME_PATH`), as the other page tools do; before, it told the user to run `bin/vh readcheck`, which they were running.
 - The hint after `--export` (canvas-film and HyperFrames) quotes the path and carries `--pace` when the file's place would give another pace: a file outside the project has no BRIEF above it, so the check it named ran at `normal, default` instead of the project's Pace.
