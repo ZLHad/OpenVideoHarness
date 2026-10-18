@@ -202,7 +202,11 @@ Beat map (<out>.beats.json): {"bpm","offset":0,"beats":[…],"downbeats":[…],
   open hat, 锣鼓经 syllables …), and a float when "detune" moves it; a tremolo note is listed as its strikes and a strum
   as its strings; vel is the strike's velocity (the part's "vel", vel_ramp and humanize included, not gain_db or
   cresc/dim; above 1 when those push it). --length drops the notes that start after the end and cuts the rest there.
-  qa does not read "notes": set "hit": true on the part too when its onsets should be cue-checked.
+  "unmapped" beside it lists what the note map leaves out: the parts that play notes without "note_map" and "layers"
+  when the layers sound (textures play no notes and are not listed); [] when every note of the score is in it.
+  qa's scan reads "notes": a click on a note's onset is the note's attack, and a dropout where no note starts and the
+  next one brings the sound back is the score's (only with "unmapped": []); the cue check does not: set "hit": true
+  on the part too when its onsets should be cue-checked.
 Layers are simple subtractive/percussive synthesis (numpy + scipy); ~1–3 s to render a minute on Apple Silicon. Parts
 cost more (each note is rendered once and cached per pitch, length and velocity step): a 5 s score with 9 parts takes
 ~1.5 s on an M3 Max; the heaviest voices are gong, luogu, braam, cs80 and cimbalom (~0.05–0.3 s per new note). The
@@ -504,6 +508,12 @@ def render(score, stems=None, info=None, length=None, note_log=None):
                "duration": round(len(mix) / SR, 3)}
     if any(p.get("note_map") for p in score.get("parts") or []):   # only when a part asks: every other beat map stays as it was
         beatmap["notes"] = sorted(note_map, key=lambda n: (n["t"], n["part"], -1 if n["midi"] is None else n["midi"]))
+        # what the note map leaves out (the parts playing notes without it, the layers), so a reader can tell when a rest
+        # in it is a rest of the whole score (bin/vh qa); textures play no notes and are not listed
+        ps = score["parts"]
+        beatmap["unmapped"] = [p.get("id") or f"{p['inst']}#{sum(1 for q in ps[:i] if q.get('inst') == p['inst'] and 'id' not in q)}"
+                               for i, p in enumerate(ps) if not p.get("note_map") and ins.INSTR[p["inst"]].kind != "texture"] + \
+                              (["layers"] if any(s.get("layers") or s.get("impact") or s.get("riser") for s in score["sections"]) else [])
     beatmap.update(bars=bars, bars_note="[bar number (1-based, whole score), start (s), beats in bar]")
     if end_at is not None:   # the map describes the file: nothing after its end
         beatmap["beats"] = [b for b in beats if b < end_at - 1e-6]; beatmap["downbeats"] = [b for b in downbeats if b < end_at - 1e-6]
