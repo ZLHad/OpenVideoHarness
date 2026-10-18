@@ -129,13 +129,38 @@ function coverTitle(o, bw = W) {
   });
 }
 // a title for a ratio whose cover gives none: the cover's own lines and colours, centred, scaled down together to fit 88 %
-// of the width (never up), the last baseline at 80 % of the height. A starting point to look at (bin/vh cover-preview),
-// not a layout: ratios[r].title places it
+// of the width (never up, never under FILM.minText: the size txt() really draws), a line still too wide broken into more
+// (as wrap() breaks, colours kept), the last baseline at 80 % of the height. Throws when even that does not fit (a word
+// wider than the cover, or more lines than its height takes). A starting point to look at (bin/vh cover-preview), not a
+// layout: ratios[r].title places it
 function ratioTitle(o, nw, nh) {
-  const lines = [].concat(o.text || []), gap = o.gap ?? 0.18, sizes = lines.map((_, i) => pickAt(o.size, i, 200));
-  const k = Math.min(1, ...lines.map((l, i) => (0.88 * nw) / Math.max(1, coverLineWidth(l, sizes[i], o))));
-  const s = sizes.map((v) => Math.round(v * k)), span = s.slice(1).reduce((a, v) => a + v * (1 + gap), 0);
-  return { ...o, size: s, x: nw / 2, y: Math.round(nh * 0.8 - span), align: "center" };
+  const src = [].concat(o.text || []), gap = o.gap ?? 0.18, room = 0.88 * nw, sizes = src.map((_, i) => pickAt(o.size, i, 200));
+  const k = Math.min(1, ...src.map((l, i) => room / Math.max(1, coverLineWidth(l, sizes[i], o))));
+  const lines = [], size = [], CLOSE = "，。、；：！？）」』”’》,.;:!?)";
+  src.forEach((line, i) => {
+    const px = Math.max(FILM.minText, Math.round(sizes[i] * k)), f = titleFont(o, px), color = pickAt(o.color, i, FILM.ui.text);
+    if (coverLineWidth(line, px, o) <= room) { lines.push(line); size.push(px); return; }
+    // too wide at the size drawn: tokens as wrap() makes them, each with its run's colour, packed into lines
+    const toks = titleRuns(line).flatMap((r) => (r.text.match(/[A-Za-z0-9'’.,:;!?%-]+\s*|\s+|./gu) || []).map((text) => ({ text, color: r.color || color })));
+    let cur = [], w = 0;
+    const flush = () => {
+      while (cur.length && !cur[cur.length - 1].text.trim()) cur.pop();
+      if (cur.length) { lines.push(cur.reduce((rs, t) => { const l = rs[rs.length - 1]; if (l && l.color === t.color) l.text += t.text; else rs.push({ ...t }); return rs; }, [])); size.push(px); }
+      cur = []; w = 0;
+    };
+    for (const tk of toks) {
+      const tw = measure(tk.text, f);
+      if (cur.length && w + tw > room && !CLOSE.includes(tk.text[0])) { flush(); if (!tk.text.trim()) continue; }
+      cur.push(tk); w += tw;
+    }
+    flush();
+  });
+  const wide = lines.findIndex((l, i) => coverLineWidth(l, size[i], o) > room), span = size.slice(1).reduce((a, v) => a + v * (1 + gap), 0);
+  const y = Math.round(nh * 0.8 - span);
+  if (wide >= 0 || y - size[0] < 0.05 * nh)
+    throw new Error(`the cover's title does not fit ${nw} x ${nh} at ${FILM.minText} px or more (FILM.minText), even on ${lines.length} lines` +
+      `${wide >= 0 ? ` ("${titleText(lines[wide])}" alone is too wide)` : ""}: give it ratios["…"].title`);
+  return { ...o, text: lines, size, x: nw / 2, y, align: "center" };
 }
 
 // ---- the caption (bottom): one line on a soft dark band; on a plate where the shot says light: true (a pale picture) ----

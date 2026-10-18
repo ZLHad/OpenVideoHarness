@@ -52,7 +52,8 @@ function uiBoxes(t) {
 // that aspect ratio, a crop of the picture (not a wider or taller drawing) around ratios[r].focus, with ratios[r].cam in
 // place of cam when given, and ratios[r].title laid out in the ratio's own px (coverBox: 1080 x 1920 for 9:16), or the
 // cover's title re-set for it (ratioTitle); the host captures the crop. The bar and the caption only at the film's own
-// ratio. Returns what it drew: { id, t, title (drawn or not), and for a ratio: ratio, crop [x, y, w, h], size, layout }
+// ratio. Returns what it drew: { id, t, title (drawn or not), lines (the title's), and for a ratio: ratio, crop [x, y, w, h],
+// size, layout }
 function cover(id, o = {}) {
   const c = COVER_T.find((x) => x.id === String(id));
   if (!c) throw new Error(`canvas-film: no cover "${id}" (COVERS in src/50-shots.js: ${COVER_T.map((x) => x.id).join(", ") || "none"})`);
@@ -68,14 +69,17 @@ function cover(id, o = {}) {
   if (full && c.bar) chapterBar(t);
   if (full && c.caption) captionBand(t);
   const own = spec.title !== undefined, layout = own ? "own" : full ? "cover" : "default";
-  const ti = own ? spec.title : full || !c.title ? c.title : ratioTitle(c.title, ...box.size);
+  let ti = own ? spec.title : c.title;
+  if (!own && !full && c.title && o.title !== false) {
+    try { ti = ratioTitle(c.title, ...box.size); } catch (e) { throw new Error(`canvas-film: cover ${c.id} (${o.ratio}): ${e.message.replace('["…"]', `["${o.ratio}"]`)}`); }
+  }
   const drawn = o.title !== false && !!ti && [].concat(ti.text || []).length > 0;
   if (drawn && box) {   // in the ratio's own px: scaled into the crop, the shadows' blur with it
     const k = box.crop[2] / box.size[0], keep = PRX;
     X.save(); X.translate(box.crop[0], box.crop[1]); X.scale(k, k); PRX *= k;
     try { coverTitle(ti, box.size[0]); } finally { PRX = keep; X.restore(); }
   } else if (drawn) coverTitle(ti);
-  return { id: c.id, t: r3(t), title: drawn, ...(box ? { ratio: o.ratio, crop: box.crop.map(r3), size: box.size, layout } : {}) };
+  return { id: c.id, t: r3(t), title: drawn, ...(drawn ? { lines: [].concat(ti.text).length } : {}), ...(box ? { ratio: o.ratio, crop: box.crop.map(r3), size: box.size, layout } : {}) };
 }
 
 // ---- ready ----

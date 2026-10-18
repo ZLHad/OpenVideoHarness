@@ -235,7 +235,7 @@ function buildCovers(problems) {
       if (ti && X) [].concat(ti.text || []).forEach((line, k) => {
         const size = pickAt(ti.size, k, 200), lw = coverLineWidth(line, size, ti);
         const x = ti.x ?? 120, a = ti.align === "center" ? x - lw / 2 : ti.align === "right" ? x - lw : x;
-        if (a < 0 || a + lw > w) problems.push(`cover ${id}${where}: title line "${titleText(line)}" is ${Math.round(lw)} px wide at ${size} px and runs off the frame (${Math.round(a)}–${Math.round(a + lw)} px of ${w}): a smaller size or a shorter line`);
+        if (a < 0 || a + lw > w) problems.push(`cover ${id}${where}: title line "${titleText(line)}" is ${Math.round(lw)} px wide at ${Math.max(FILM.minText, size)} px and runs off the frame (${Math.round(a)}–${Math.round(a + lw)} px of ${w}): a smaller size or a shorter line`);
       });
     };
     camCheck(c.cam || {}, "");
@@ -247,6 +247,9 @@ function buildCovers(problems) {
       if (spec && spec.focus !== undefined && !(Array.isArray(spec.focus) && spec.focus.length === 2 && spec.focus.every(isNum)))
         problems.push(`cover ${id} (${r}): focus is [x, y] in the frame's px`);
       if (spec && spec.title) titleCheck(spec.title, box.size[0], ` (${r}, ${box.size.join(" x ")})`);
+      else if (spec && spec.title === undefined && c.title && !box.full && X) {   // the default layout: does the cover's title fit this ratio?
+        try { ratioTitle(c.title, ...box.size); } catch (e) { problems.push(`cover ${id} (${r}): ${e.message.replace('["…"]', `["${r}"]`)}`); }
+      }
     }
     return { ...c, id, t };
   });

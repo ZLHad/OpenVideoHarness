@@ -1205,15 +1205,17 @@ PY
   # as clean. s.cover: a shot that paints a mark when s.cover is set leaves the film's frames byte for byte the template's
   # (at the cover's own t too), and the mark is in the cover, titled or clean
   a=$(vh frames "$c" --covers --out "$t/cnt" 2>&1); b=$(vh frames "$c" --covers --no-title --out "$t/cnt" 2>&1); rc=$?
-  if [ -s "$t/cnt/A.png" ] && [ -s "$t/cnt/A-clean.png" ] && printf '%s' "$b" | grep -q '(cover A at [0-9.]* s, no title)' && python3 - "$t/cnt/A.png" "$t/cnt/A-clean.png" <<'PY'
+  if ! command -v ffmpeg >/dev/null; then skip "covers --no-title compared with the titled cover" "no ffmpeg"
+  elif [ -s "$t/cnt/A.png" ] && [ -s "$t/cnt/A-clean.png" ] && printf '%s' "$b" | grep -q '(cover A at [0-9.]* s, no title)' && python3 - "$t/cnt/A.png" "$t/cnt/A-clean.png" <<'PY'
 import re, struct, subprocess, sys
 def psnr(y, h):   # the two covers on rows y..y+h (two pages, so the same picture to within rasterising, not always byte for byte)
     f = f"[0:v]crop=iw:{h}:0:{y}[a];[1:v]crop=iw:{h}:0:{y}[b];[a][b]psnr"
-    e = subprocess.run(["ffmpeg", "-nostdin", "-i", sys.argv[1], "-i", sys.argv[2], "-filter_complex", f, "-f", "null", "-"], capture_output=True, text=True).stderr
-    m = re.search(r"average:(inf|[0-9.]+)", e)
-    return float("inf") if m and m.group(1) == "inf" else float(m.group(1)) if m else 0.0
+    r = subprocess.run(["ffmpeg", "-nostdin", "-i", sys.argv[1], "-i", sys.argv[2], "-filter_complex", f, "-f", "null", "-"], capture_output=True, text=True)
+    m = re.search(r"average:(inf|[0-9.]+)", r.stderr)
+    return None if r.returncode or not m else float(m.group(1))   # a failed or unread comparison is no comparison
 hs = [struct.unpack(">I", open(p, "rb").read()[20:24])[0] for p in sys.argv[1:3]]
-sys.exit(0 if hs == [1080, 1080] and psnr(0, 700) >= 40 and psnr(880, 120) < 30 else 1)
+top, band = psnr(0, 700), psnr(880, 120)
+sys.exit(0 if hs == [1080, 1080] and top is not None and band is not None and top >= 40 and band < 30 else 1)
 PY
   then ok "covers --no-title: the cover without its title, the same picture above the title's band, <id>-clean.png"
   else bad "covers --no-title (exit $rc): $(printf '%s' "$a$b" | tail -c 600)"; fi
@@ -1254,6 +1256,35 @@ sys.exit(0 if m(sys.argv[1]) and m(sys.argv[2]) and not any(m(f) for f in glob.g
 PY
   then ok "s.cover: a shot sees the cover's id only while a cover is drawn; the film's frames stay the template's, byte for byte (at the cover's t too)"
   else bad "s.cover on the canvas-film template (frames $n0, same $same, cover at ${ct:-?} s)"; fi
+  # the default title for a ratio is laid out at the size txt() draws (never under FILM.minText): with an 80 px floor, a
+  # 20-character title that would need 48 px in 9:16 is broken onto two lines at 80 px instead of running off both sides;
+  # one that cannot fit even so (a word wider than the cover) stops ready, naming the cover and the ratio
+  mkdir "$t/cmt" && cp -R "$c/." "$t/cmt/" && cat >> "$t/cmt/src/50-shots.js" <<'JS'
+FILM.minText = 80;
+COVERS.length = 0;
+COVERS.push({ id: "L", at: "@a2:第二张+0.6", title: { text: ["二十个字的标题二十个字的标题二十个字的"], size: 80, x: 960, y: 1000, align: "center" }, ratios: { "3:4": {} } });
+JS
+  a=$(vh frames "$t/cmt" --covers --ratios 9:16,3:4 --out "$t/cmt/o" 2>&1); rc=$?
+  [ $rc = 1 ] && printf '%s' "$a" | grep -q 'fonts this machine does not have' && ! printf '%s\n' "$a" | grep -q '^  cover L' && rc=0
+  mkdir "$t/cmt2" && cp -R "$t/cmt/." "$t/cmt2/" && echo 'COVERS[0].title.text = ["Supercalifragilisticexpialidocious-and-more"]; COVERS[0].title.size = 60;' >> "$t/cmt2/src/50-shots.js"
+  b=$(vh frames "$t/cmt2" --at 1 --out "$t/cmt2/o" 2>&1); rc2=$?
+  if [ $rc = 0 ] && [ "$(printf '%s\n' "$a" | grep -c 're-set for it on 2 lines')" = 2 ] && [ $rc2 = 2 ] \
+    && printf '%s' "$b" | grep -q 'cover L (3:4): the cover.s title does not fit 1080 x 1440 at 80 px or more (FILM.minText).*give it ratios\["3:4"\].title'
+  then ok "covers --ratios: the default title is laid out at the size drawn (FILM.minText), broken onto more lines when too wide; one that cannot fit stops ready"
+  else bad "covers --ratios default title under the text floor (exit $rc / $rc2): $(printf '%s' "$a$b" | tail -c 700)"; fi
+  # a page whose size is only in window.film (1080x1920, its HTML says nothing): the drawing ratio comes from that size, so
+  # its 4:3 crop (1080x810) is drawn at 1.333x and not scaled up from 1x
+  mkdir "$t/ctall" && cat > "$t/ctall/film.html" <<'HTML'
+<!doctype html><html><head><style>html, body { margin: 0; background: #224; }</style></head><body><script>
+window.film = { width: 1080, height: 1920, duration: 2, frame() {}, covers: [{ id: "A", t: 0 }],
+  cover(id, o) { return o && o.ratio === "4:3" ? { id, t: 0, title: false, crop: [0, 555, 1080, 810], size: [1440, 1080] } : { id, t: 0, title: false }; } };
+</script></body></html>
+HTML
+  a=$(vh frames "$t/ctall" --covers --ratios 4:3 --out "$t/ctall/o" 2>&1); rc=$?
+  if [ $rc = 0 ] && printf '%s' "$a" | grep -q '1080x1920 (drawn @1.333x for the crops)' && ! printf '%s' "$a" | grep -q 'scaled up' \
+    && python3 -c "import struct, sys; sys.exit(0 if struct.unpack('>II', open(sys.argv[1], 'rb').read()[16:24]) == (1440, 1080) else 1)" "$t/ctall/o/A-4x3.png"
+  then ok "covers --ratios: the drawing ratio follows the page's own size (window.film.width and height), not its HTML's"
+  else bad "covers --ratios on a page sized by window.film (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   mkdir "$t/chp" && cp -R "$c/." "$t/chp/"
   a=$(vh cues "$t/chp" --chapters 2>&1); rc=$?
   if [ $rc = 0 ] && printf '%s' "$a" | grep -q '^  0:00 挂在字上' && printf '%s' "$a" | grep -q '^  0:11 翻一页' && printf '%s' "$a" | grep -q 'at least three'; then ok "cues --chapters: the engine's chapters as a description's list, half a second early, with YouTube's conditions"

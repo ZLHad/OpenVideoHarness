@@ -101,20 +101,30 @@ if (times.length > 2000) bail(`${times.length} frames is a render, not a check: 
 const watchdog = setTimeout(() => finish(2, `stopped after ${o.timeout} s (--timeout); a frame function that never returns?`), o.timeout * 1000);
 watchdog.unref();
 // a ratio cover is a crop: the page draws at the device pixel ratio that gives the crop its full size (a 9:16 crop of a
-// 1920x1080 frame is about 600 px wide, 1080 px x --dpr in the output: about 1.8 x --dpr), so the picture is not scaled up
-let pageDpr = o.dpr;
-if (ratios) {
-  let fw = size ? size[0] : 1920, fh = size ? size[1] : 1080;
-  try { if (!size) ({ width: fw, height: fh } = readPage(findPage(target))); } catch { /* openFilm says what is wrong */ }
-  // the crop as the engine makes it (canvas-film coverBox): a x n by b x n px, a:b the ratio in whole numbers
-  const S = Math.min(fw, fh), gcd = (p, q) => (q ? gcd(q, p % q) : p), need = ratios.map((r) => {
+// 1920x1080 frame is about 600 px wide, 1080 px x --dpr in the output: about 1.8 x --dpr), so the picture is not scaled up.
+// The crop as the engine makes it (canvas-film coverBox): a x n by b x n px, a:b the ratio in whole numbers
+const gcd = (p, q) => (q ? gcd(q, p % q) : p);
+const dprFor = (fw, fh) => {
+  if (!ratios) return o.dpr;
+  const S = Math.min(fw, fh), need = ratios.map((r) => {
     const [u, v] = r.split(":"), f = 10 ** Math.max((u.split(".")[1] || "").length, (v.split(".")[1] || "").length);
     const p = Math.round(+u * f), q = Math.round(+v * f), a = p / gcd(p, q), b = q / gcd(p, q), n = Math.max(1, Math.floor(Math.min(fw / a, fh / b) + 1e-9));
     return (a >= b ? (S * a) / b : S) / (a * n);
   });
-  pageDpr = o.dpr * Math.max(1, ...need);
-}
+  return o.dpr * Math.max(1, ...need);
+};
+let fw = size ? size[0] : 1920, fh = size ? size[1] : 1080;
+try { if (ratios && !size) ({ width: fw, height: fh } = readPage(findPage(target))); } catch { /* openFilm says what is wrong */ }
+let pageDpr = dprFor(fw, fh);
 try { film = await openFilm(target, { ...o, dpr: pageDpr, width: size && size[0], height: size && size[1] }); } catch (e) { await die(e.message); }
+// the page's own size (window.film.width and height) wins over what its HTML says: a crop of another size needs another
+// pixel ratio, and a canvas is sized once, when the page starts, so the page is opened again at the right one
+if (ratios && Math.abs(dprFor(film.width, film.height) - pageDpr) > 1e-9) {
+  const w = film.width, h = film.height, f = film; film = null;
+  try { await f.close(); } catch { /* gone */ }
+  pageDpr = dprFor(w, h);
+  try { film = await openFilm(target, { ...o, dpr: pageDpr, width: w, height: h }); } catch (e) { await die(e.message); }
+}
 const stem = path.basename(film.page, path.extname(film.page));
 const outDir = path.resolve(out || path.join(film.root, "out", covers ? "covers" : "frames"));
 try { fs.mkdirSync(outDir, { recursive: true }); } catch (e) { await die(`cannot write ${outDir}: ${e.message}`); }
@@ -154,7 +164,7 @@ if (covers) {   // the page's covers: [{ id, t }]
   const unknown = want.filter((c) => typeof c === "string");
   if (unknown.length) await die(`no cover ${unknown.join(", ")} (the page has ${all.map((c) => c.id).join(", ")})`);
   const file = (id, r) => path.join(outDir, `${String(id).replace(/[^\w.-]+/g, "-")}${r ? "-" + r.replace(":", "x") : ""}${noTitle ? "-clean" : ""}.png`);
-  const said = { own: "its own title for it", cover: "its own title", default: "its title re-set for it (a default: ratios[r].title places it)" };
+  const said = { own: "its own title for it", cover: "its own title", default: "its title re-set for it" };
   for (const c of want) {
     for (const r of ratios || [null]) {
       try {
@@ -167,7 +177,7 @@ if (covers) {   // the page's covers: [{ id, t }]
         if (r) {
           const [x, y, w, h] = reply.crop, whole = reply.layout === "cover" || (w >= film.width - 0.5 && h >= film.height - 0.5);
           what = `, ${r} ${pw}x${ph}: ${whole ? "the whole frame" : `a crop of the ${film.width}x${film.height} picture, x ${Math.round(x)}–${Math.round(x + w)}, y ${Math.round(y)}–${Math.round(y + h)}`}` +
-            `${!reply.title ? ", no title" : `, ${said[reply.layout] || "a title"}`}`;
+            `${!reply.title ? ", no title" : `, ${said[reply.layout] || "a title"}${reply.layout === "default" ? `${reply.lines ? ` on ${reply.lines} line${reply.lines > 1 ? "s" : ""}` : ""} (a default: ratios[r].title places it)` : ""}`}${pw / w > pageDpr * 1.001 ? `, scaled up ${(pw / w / pageDpr).toFixed(2)}x from the page's pixels` : ""}`;
         }
         console.log(`  ${rel(f)}  (cover ${c.id} at ${(+c.t).toFixed(3)} s${what})`);
       } catch (e) { failed++; console.log(`  cover ${c.id}${r ? ` ${r}` : ""}: ${e.message}`); }
