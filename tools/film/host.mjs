@@ -55,19 +55,22 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".htm": "text/html; charset
   ".m4a": "audio/mp4", ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".wasm": "application/wasm", ".glsl": "text/plain", ".txt": "text/plain",
   ".glb": "model/gltf-binary", ".gltf": "model/gltf+json" };
 
-// the page's folder on 127.0.0.1; the page itself with `inject` before </head>; /__vh/<name> from `extra`; no path out of the folder
-function serve(root, pageRel, inject, extra) {
+// the page's folder on 127.0.0.1; the page itself with `inject` before </head>; /__vh/<name> from `extra`; no path out of the folder.
+// `served` collects the path of every file sent (bin/vh render resumes only while they are unchanged)
+function serve(root, pageRel, inject, extra, served) {
   const server = http.createServer((req, res) => {
     let rel;
     try { rel = decodeURIComponent(new URL(req.url, "http://x").pathname); } catch { res.writeHead(400); return res.end(); }
     if (rel.startsWith("/__vh/") && Object.hasOwn(extra, rel.slice(6))) {
       res.writeHead(200, { "content-type": "text/javascript", "cache-control": "no-store" });
+      served.add(extra[rel.slice(6)]);
       return fs.createReadStream(extra[rel.slice(6)]).pipe(res);
     }
     if (rel === "/" + pageRel && inject) {
       const html = fs.readFileSync(path.join(root, pageRel), "utf8");
       const i = html.search(/<\/head>/i);
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      served.add(path.join(root, pageRel));
       return res.end(i >= 0 ? html.slice(0, i) + inject + html.slice(i) : inject + html);
     }
     const f = path.join(root, rel);
@@ -75,13 +78,14 @@ function serve(root, pageRel, inject, extra) {
     try { ok = f.startsWith(root + path.sep) && fs.statSync(f).isFile(); } catch { /* missing */ }
     if (!ok) { res.writeHead(404); return res.end(); }
     res.writeHead(200, { "content-type": TYPES[path.extname(f).toLowerCase()] || "application/octet-stream", "cache-control": "no-store" });
+    served.add(f);
     fs.createReadStream(f).pipe(res);
   });
   return new Promise((ok) => server.listen(0, "127.0.0.1", () => ok({ url: `http://127.0.0.1:${server.address().port}/`, close: () => new Promise((r) => server.close(r)) })));
 }
 
 // openFilm(target, { browser, dpr, width, height, realClock, softGl, runtime, prelude }) → a film to draw: { page, kind,
-// width, height, duration, frame(t) → { png, touched }, draw(t), problems(), close(), ev, send }. runtime: "auto"
+// width, height, duration, frame(t) → { png, touched }, draw(t), problems(), served(), close(), ev, send }. runtime: "auto"
 // (HyperFrames' runtime for a composition that writes no contract of its own), "on" or "off". prelude: more scripts to
 // run before the page's own, after the clock (tools/film/glyphs.mjs records the text a page draws this way).
 export async function openFilm(target, o = {}) {
@@ -96,7 +100,8 @@ export async function openFilm(target, o = {}) {
     extra["hf-runtime.js"] = rt; extra["hf-adapter.js"] = path.join(HERE, "hf-adapter.js");
     scripts.push('<script data-hyperframes-preview-runtime="1" src="/__vh/hf-runtime.js"></script>', '<script src="/__vh/hf-adapter.js"></script>');
   }
-  const server = await serve(root, pageRel, scripts.join("\n"), extra);
+  const served = new Set();
+  const server = await serve(root, pageRel, scripts.join("\n"), extra, served);
   const flags = o.softGl ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
     : process.platform === "darwin" ? ["--use-angle=metal", "--ignore-gpu-blocklist"] : ["--ignore-gpu-blocklist"];
   if (process.platform === "linux") flags.push("--no-sandbox", "--disable-dev-shm-usage");
@@ -222,6 +227,7 @@ export async function openFilm(target, o = {}) {
         return { png, touched, reply, width: pw, height: ph };
       },
       problems: () => problems.splice(0),
+      served: () => [...served],                             // the files sent to the page so far (absolute paths)
       // the page's own fields (texts, events, chapters, cues, timeline: engines/CONTRACT.md); list(name) only takes an array
       field,
       list: async (name) => { const x = await field(name); return Array.isArray(x) ? x : null; },

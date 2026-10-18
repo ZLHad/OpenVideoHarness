@@ -39,6 +39,7 @@ window.film = {
 | `timeline` | 这些 cue 挂在哪份旁白时间轴上：相对页面的路径（`audio/timeline.zh.json`），没有旁白时是 `null` | `bin/vh cues` 记下它的 sha256，认出换过的配音 |
 | `music` | `{path, sha256}`，相对页面的配乐 beats 文件路径，以及页面实际加载字节的 SHA-256；无配乐时为 `null` | `bin/vh cues --save` 保存来源，重跑时提示配乐表变化 |
 | `timemap` | 可选。`{path, sha256}`，相对页面的时间映射文件（数据轴的折点和事件，`tools/audio/time_map.py` 说明格式），以及页面实际加载字节的 SHA-256；没有时为 `null` 或不提供 | `bin/vh cues --save` 保存来源，重跑时提示映射变化 |
+| `fps` | 可选。页面是按哪个帧率做的（数字）：每帧变一次的东西（颗粒、抖动）按它变 | `bin/vh render`：`--fps` 和它不同时提醒一句，两个数都写出来 |
 | `ui(t)` | 方法：t 秒时常驻界面（进度条、署名、字幕）的字和线在哪：`[{name, box: [x0, y0, x1, y1]}]`，画面的 CSS px；只框界面自己的字和线，垫在下面的底板、渐变不算。写了它，`frame(t, { layer: "scene" })` 就要画出不带界面的这一帧（不认这个参数的页面照常画整帧，宿主会看出来、说一声） | `bin/vh textcheck`：两种画法各画一遍，场景自己在这些框里画了线、边、字的，报出来（警告） |
 
 这几项都是数据，在 `ready` 里算好：OpenFilm 的说法是"跟着声音走的时间是数据，不是接口"。`cover(id)` 和 `ui(t)` 是方法，同样是 t 的纯函数。

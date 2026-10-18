@@ -92,9 +92,15 @@
 #                               --covers: the page's covers (window.film.covers; canvas-film COVERS, picked by cue) in <project>/out/covers
 #                               (--no-title: without their titles, <id>-clean.png; --ratios: each ratio a crop of the cover with its own title, <id>-9x16.png)
 #   render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b | --frames k0:k1] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png]
+#          [--estimate | --no-estimate]
 #                               an MP4 drawn through the page contract (the canvas engine, ClaudeAnimationBase, any page that writes
-#                               window.film): parallel chunks into x264, BT.709 tv range, a keyframe every --gop frames, <out>.render.json
-#                               records how; video only (sound: mux). HyperFrames: npx hyperframes render (--force to render it here anyway).
+#                               window.film): one-GOP chunks that the --workers browsers take in turn, each into its own x264, BT.709 tv
+#                               range, a keyframe every --gop frames, <out>.render.json records how; video only (sound: mux). Stopped or
+#                               failed, the finished chunks stay: the same command resumes while the page, its files and the options are
+#                               unchanged. Over 600 frames it first draws a few and prints the time, size and disk the render needs
+#                               (refused when the disk cannot hold it; --no-estimate skips). Says when --fps is not the page's own
+#                               (window.film.fps). A relative --out is from the current folder. HyperFrames: npx hyperframes render
+#                               (--force to render it here anyway).
 #                               A whole standard or studio film waits for gate ① on record (tools/gatecheck.py); --range and --frames do not
 #   patch <film.mp4> (--frames a-b | --seconds s-e) [--sidecar f.render.json] [--out f | --in-place] [--workers 4] [--verify seams|full]
 #                               draw frames a–b of a bin/vh render film again and put them back, the rest untouched: cut on its keyframes
@@ -598,7 +604,7 @@ arg_dir() { # the folder of the project or page among a tool's arguments: the fi
   for a in "$@"; do
     if [ $skip = 1 ]; then skip=0; continue; fi
     case $a in
-      --soft-gl|--real-clock|--png|--force|--save|--export|--strict|--in-place|--keep|--snapshot|--*=*) ;;
+      --soft-gl|--real-clock|--png|--force|--save|--export|--strict|--in-place|--keep|--snapshot|--estimate|--no-estimate|--*=*) ;;
       -*) skip=1 ;;
       *) if [ -d "$a" ]; then echo "$a"; else case $a in */*) echo "${a%/*}" ;; *) echo . ;; esac; fi; return 0 ;;
     esac

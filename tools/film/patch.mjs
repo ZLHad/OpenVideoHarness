@@ -152,7 +152,7 @@ for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig,
 const piece = path.join(work, "piece.mp4");
 const capture = String(side.capture || "jpeg q95"), q = capture.match(/jpeg q(\d+)/);
 const rargs = [path.join(HERE, "render.mjs"), page, "--browser", browser, "--frames", `${k0}:${k1}`, "--fps", String(fps), "--dpr", String(side.dpr || 1),
-  "--crf", String(enc.crf), "--preset", String(enc.preset), "--gop", String(gop), "--workers", String(o.workers), "--out", piece,
+  "--crf", String(enc.crf), "--preset", String(enc.preset), "--gop", String(gop), "--workers", String(o.workers), "--out", piece, "--no-estimate",
   ...(capture === "png" ? ["--png"] : ["--quality", q ? q[1] : "95"]), ...(side.real_clock ? ["--real-clock"] : []), ...(side.soft_gl ? ["--soft-gl"] : []), ...(side.kind === "hyperframes" ? ["--force"] : [])];
 const T0 = Date.now();
 const code = await new Promise((ok) => {
