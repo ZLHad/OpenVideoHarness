@@ -181,6 +181,9 @@ B站偏爱的词，第三方总结有"干货、保姆级、实测、一口气、
 | B站 | 80 字 | 2000 字 | 【二手·未核】标题是流传的说法（见上文"标题"一节）；简介是维护者上传时页面的提示 |
 | 抖音 | 30 字 | 没找到 | 【二手·未核】第三方发布工具的说明 |
 | 小红书 | 20 字 | 没找到 | 【二手·未核】流传的说法（见上文"标题"一节） |
+| X | 没有标题 | 280，按加权长度：中文、全角标点和 emoji 算 2，链接不论多长算 23 | 官 / 读：X 开发者文档 "Counting characters"，权重取自 twitter-text 的 `config/v3.json`（2026-10-19 读）[S26] |
+
+字数按各平台自己的算法数（`tools/packcheck.py` 的 `COUNTS`）：X 按上面的加权长度，其余平台一个字符算一个。
 
 为什么中国平台陆续公开推荐原理：《互联网信息服务算法推荐管理规定》第十六条要求算法推荐服务提供者以适当方式公示基本原理、目的意图和主要运行机制，2022-03-01 起施行 [S14a]；抖音、视频号 2025 年的公示是否与此直接相关，没找到说明【推测】。
 
@@ -252,3 +255,4 @@ HOOK CARD
 | S23 | 第三方的规格和安全区数字：TikTok 广告安全区（houseofmarketers.com、admanage.ai、recharm.com 等）；9:16 通用安全区 250/160/460/72 与抖音封面 3:4 展示（色彩韵、稿定设计、cardcrafter 等）；B站封面 1146×717、视频号 6:7、小红书封面三选一（稿定设计、Canva 可画、secaiyun 等） | 搜（都按第三方标注，没有官方佐证） |
 | S24 | 中文短视频"黄金 3 秒"的二手总结，如 https://www.woshipm.com/operate/6181785.html 、https://www.ixunke.com/article/562 | 搜 |
 | S25 | 本仓库 2026-10-01 在浏览器里未登录实测，读缩略图元素的尺寸和位置：bilibili.com 首页（1440 宽窗口 248×139.5，1920 宽 312×175.5，底部 38 px 的数据条，时长在右）、m.bilibili.com（375 pt 宽 172.5×97）、B站播放页相关推荐（141×80）、YouTube 搜索和播放页、m.youtube.com、抖音网页精选、小红书发现页。数字写在 `tools/cover_preview.py` 里，`bin/vh cover-preview` 按它们出图 | 测（网页；App 没测） |
+| S26 | X Developer Platform, "Counting characters" https://docs.x.com/fundamentals/counting-characters ；twitter-text 的权重表 https://github.com/twitter/twitter-text/blob/master/config/v3.json | 官 / 读（2026-10-19） |

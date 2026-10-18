@@ -50,6 +50,7 @@ T = {
                nothing="这一页没有要你定的事：看一眼，回“通过”，或写要改的。",
                rec="推荐", reply="回", take_all="照推荐回复", copy="复制", copied="已复制",
                rest="其余默认通过；要改哪一镜，写“{shot} 改：……”。", rest_plain="其余默认通过，只写要改的。",
+               unanswered="没回的决定按推荐走；",
                least="我最没把握的", decided="已经定了", delegated="我替你定了", not_reviewed="这页不审",
                decision="决定 {i}", options="选项", pro="好处", con="代价", other="其他材料",
                seg="分镜 {i}/{n}", shots="{n} 镜", avg="平均 {s} s/镜", unsure="没把握", n_unsure="{n} 镜没把握",
@@ -58,7 +59,7 @@ T = {
                appendix="附录：不影响拍板的细节", others="其他审阅页", src="由 bin/vh review 从 {src} 生成",
                theme="切换深色 / 浅色", nav_decide="决定", nav_other="材料", nav_appendix="附录",
                page="页面", chat_head="{title} · 要你定 {n} 件事", chat_none="{title} · 没有要你定的事，看一眼，回“通过”或写要改的。",
-               chat_item="{i}. {q} 回 {reply}\n   推荐 {r}{why}", chat_all="照推荐就回：{all}。其余默认通过。",
+               chat_item="{i}. {q} 回 {reply}\n   推荐 {r}{why}", chat_all="照推荐就回：{all}。没回的决定按推荐走，其余默认通过。",
                chat_least="我最没把握的{red}：", chat_red="（镜头在页面里标红）",
                why="：{w}", sep="；", colon="：", quoted="「{x}」"),
     "en": dict(html_lang="en", decide="{n} thing(s) for you to decide", look="Just for a look",
@@ -66,6 +67,7 @@ T = {
                rec="Recommended", reply="Reply", take_all="Take every recommendation", copy="Copy", copied="Copied",
                rest="Everything else passes by default; to change a shot, write “{shot} change: …”.",
                rest_plain="Everything else passes by default; only write what to change.",
+               unanswered="A decision you leave unanswered goes by its recommendation. ",
                least="Least sure about", decided="Already decided", delegated="Decided for you", not_reviewed="Not reviewed here",
                decision="Decision {i}", options="Options", pro="Pro", con="Cost", other="Other material",
                seg="Storyboard {i}/{n}", shots="{n} shots", avg="{s} s per shot", unsure="unsure", n_unsure="{n} unsure",
@@ -78,7 +80,7 @@ T = {
                page="Page", chat_head="{title} · {n} thing(s) for you to decide",
                chat_none="{title} · nothing to decide; take a look and reply “ok” or say what to change.",
                chat_item="{i}. {q} Reply {reply}\n   Recommended: {r}{why}",
-               chat_all="To take every recommendation, reply: {all}. Everything else passes by default.",
+               chat_all="To take every recommendation, reply: {all}. A decision left unanswered goes by its recommendation; everything else passes by default.",
                chat_least="Least sure about{red}:", chat_red=" (shots are red on the page)",
                why=" — {w}", sep="; ", colon=": ", quoted=" “{x}”"),
 }
@@ -533,7 +535,7 @@ class Page:
             allr = self.take_all()
             foot = (f'<div class="takeall"><span>{t["take_all"]}</span><code>{esc(allr)}</code>'
                     f'<button id="copy" data-text="{esc(allr)}" data-done="{t["copied"]}">{t["copy"]}</button>'
-                    f'<span class="rest">{rest}</span></div>')
+                    f'<span class="rest">{t["unanswered"]}{rest}</span></div>')
         else:
             foot = f'<div class="rest">{t["nothing"]}</div>'
         head = t["decide"].format(n=len(decs)) if decs else t["look"]

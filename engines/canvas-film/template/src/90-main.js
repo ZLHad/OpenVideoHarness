@@ -191,6 +191,7 @@ window.film = {
   ready: READY,
   frame,
   get duration() { return DUR; },
+  get fps() { return FILM.fps; },                                                // the rate it is made for (bin/vh render says when --fps differs)
   get shots() {                                                                 // actual cut boundaries, resolved by ready
     return SHOT_T.map((S) => {
       const s = S.shot, chapter = CHAPTER_T.filter((c) => c.t <= S.a).at(-1);

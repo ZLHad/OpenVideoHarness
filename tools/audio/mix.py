@@ -863,7 +863,7 @@ def layered(out, kv, final_out=None):
             json.dump(meta, fh, ensure_ascii=False, indent=1, default=lambda o: o.tolist() if hasattr(o, "tolist") else str(o))
     what = " + ".join([k for k in ("voice", "music") if k in kv] + ([f"{len(meta['events'])} SFX events"] if events else ["sfx"] if "sfx" in kv else []))
     return (f"{final_out or out}  (stereo · profile {name} · {what} · {meta['how']} · measured {meta['lufs']:.2f} LUFS (BS.1770), "
-          f"true peak {meta['tp']:.2f} dBTP · {time.time() - t0:.1f} s)" + (f" · stems {kv['stems']}" if "stems" in kv else ""))
+          f"true peak {meta['tp']:.2f} dBTP · mixed in {time.time() - t0:.1f} s)" + (f" · stems {kv['stems']}" if "stems" in kv else ""))
 
 if __name__ == "__main__":
     try:

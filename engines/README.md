@@ -28,12 +28,19 @@ node render.mjs --sheet=0.5,2,4 --cols=3 --w=480 --out=out/check/sheet.jpg   # �
 ```bash
 bin/vh new <type> <slug> --engine canvas-film     # 复制 engines/canvas-film/template，不用装依赖；画幅 16:9
 bin/vh frames projects/<date>-<slug> --at 1,5,9   # 模板带一支 23 秒的示例片，建好就能取帧
+bin/vh doctor projects/<date>-<slug>              # 项目里的引擎副本和现在的引擎逐个文件比：改过、缺的模块、多出来的（只读）
 ```
 
 - 适合旁白撑着的横屏长片：镜头、字幕、章节进度条的时间都写成挂在旁白字上的 cue（`"@b2:跟着走-0.3"`），重配、改词、插停顿以后自己跟着走。一个 cue 找不到它的句子或词，`ready` 立刻失败，写明镜头、cue 原文和这句现在的文字，不会等到超时。
 - 一页 `film.html` 加 `src/*.js`，不用构建。它按页面合约写了 `window.film`，`bin/vh frames` 取帧、`bin/vh textcheck` 查字直接能用；reads 和字幕（`texts`）、画面事件（`events`）、章节和 cue 表都在 `ready` 里算好。
 - 字号下限在画字的最底层兜住，故意要小的字写 `texture: true`；绕过它写下的小字，`ready` 时会被报出来。
 - 成片画面用 `bin/vh render <项目>`（4K 加 `--dpr 2`），再用 `bin/vh mux` 套上混音。出片后只改了一镜，用 `bin/vh patch <成片> --seconds <起>-<止>` 只重画那一段、在关键帧处接回去（套过混音的成片加 `--sidecar out/film.mp4.render.json`）。现在只有 2D canvas，没有 Three.js 底层。
+- 长片的 `bin/vh render`（也适用于别的写了 `window.film` 的页面）：
+  - 片子按 GOP 切段，一个 GOP 一段；`--workers` 个浏览器谁画完谁取下一段，重的一章不会让别的 worker 干等。每段单独进一个 x264，所以成片和 `--workers` 是几无关，sidecar 照旧，`bin/vh patch` 照旧能用。
+  - 停下（Ctrl-C）或失败（比如一帧超过 `--frame-timeout`）时，画完的段留在视频旁边的 `.<视频名>.parts/` 里，原样再跑同一条命令只画剩下的。页面和它载入的每个文件、决定成片的参数（`--workers`、`--frame-timeout` 和估算之外的都算）、浏览器和渲染工具本身都没变，才接着用；变了会说哪里变了，从头渲。所以不用再分几段 `--range` 渲完手拼：手拼的成片没有一份完整的 sidecar，`bin/vh patch` 用不上。
+  - 要画的帧超过 600 帧时，先在片中均匀取几帧画出来、按成片的设置编码，打印每帧耗时、预计用时、视频大概多大、渲染时磁盘最多要多少（各段加合并出的那份，约两倍），磁盘放不下就停（exit 2）。几秒钟；`--no-estimate` 跳过，`--estimate` 让短片也估。用时是按一个浏览器的速度除以 worker 数算的，几个浏览器共用一块 GPU 或机器忙时会更久。
+  - 页面给出 `window.film.fps` 时（模板给的是 `FILM.fps`，颗粒每帧换一次），`--fps` 和它不一样会提醒，两个数都写出来；改帧率时两处一起改。之前复制的项目没有这个字段，`render` 直接读 `FILM.fps`，不用改。
+  - `--out` 的相对路径和别的 `bin/vh` 命令一样，从当前目录算起。在仓库根目录跑 `--out out/x.mp4`，视频会在仓库的 `out/` 里，不在项目里，这时会把完整路径打出来；要放进项目，写项目里的路径，或者不写 `--out`（默认 `<项目>/out/<页面名>.mp4`）。
 
 ## HyperFrames（HTML + GSAP）
 

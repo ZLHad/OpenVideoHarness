@@ -471,4 +471,7 @@ def review_pack(project, out, shots, segs, frames, notes, sheet, lang, video, li
     return pack
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:   # Ctrl-C: the page reader has closed its Chrome (shot_source.live_page); no traceback
+        sys.exit(130)

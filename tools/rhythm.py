@@ -331,4 +331,7 @@ def main():
         print("  no issues in this span")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:   # Ctrl-C: the page reader has closed its Chrome (shot_source.live_page); no traceback
+        sys.exit(130)

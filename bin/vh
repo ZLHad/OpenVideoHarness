@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # vh — OpenVideoHarness helper. Run from anywhere: bin/vh <command>
 #  set up
-#   doctor                      check the toolchain (node, ffmpeg, chrome + a headless WebGL probe, python/uv, latex) and what the first runs still download
+#   doctor [project]            check the toolchain (node, ffmpeg, chrome + a headless WebGL probe, python/uv, latex) and what the first runs still download;
+#                               with a canvas-film or hand-drawn project: its copy of the engine against the engine now, changed, missing and extra
+#                               files and the command to see a file's diff (read-only; exit 1 when it differs)
 #   setup                       install ClaudeAnimationBase deps + fetch reference repos
 #   install-skill [claude|codex|all]  register the open-video-harness skill (~/.claude/skills, ~/.agents/skills)
 #   sync-agents                 regenerate AGENTS.md from CLAUDE.md (keep both agents' entry points identical)
@@ -90,9 +92,15 @@
 #                               --covers: the page's covers (window.film.covers; canvas-film COVERS, picked by cue) in <project>/out/covers
 #                               (--no-title: without their titles, <id>-clean.png; --ratios: each ratio a crop of the cover with its own title, <id>-9x16.png)
 #   render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b | --frames k0:k1] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png]
+#          [--estimate | --no-estimate]
 #                               an MP4 drawn through the page contract (the canvas engine, ClaudeAnimationBase, any page that writes
-#                               window.film): parallel chunks into x264, BT.709 tv range, a keyframe every --gop frames, <out>.render.json
-#                               records how; video only (sound: mux). HyperFrames: npx hyperframes render (--force to render it here anyway).
+#                               window.film): one-GOP chunks that the --workers browsers take in turn, each into its own x264, BT.709 tv
+#                               range, a keyframe every --gop frames, <out>.render.json records how; video only (sound: mux). Stopped or
+#                               failed, the finished chunks stay: the same command resumes while the page, its files and the options are
+#                               unchanged. Over 600 frames it first draws a few and prints the time, size and disk the render needs
+#                               (refused when the disk cannot hold it; --no-estimate skips). Says when --fps is not the page's own
+#                               (window.film.fps). A relative --out is from the current folder. HyperFrames: npx hyperframes render
+#                               (--force to render it here anyway).
 #                               A whole standard or studio film waits for gate ① on record (tools/gatecheck.py); --range and --frames do not
 #   patch <film.mp4> (--frames a-b | --seconds s-e) [--sidecar f.render.json] [--out f | --in-place] [--workers 4] [--verify seams|full]
 #                               draw frames a–b of a bin/vh render film again and put them back, the rest untouched: cut on its keyframes
@@ -173,6 +181,8 @@ const r = await (await b.newPage()).evaluate(() => { const gl = document.createE
 await b.close(); if (!r) process.exit(1); console.log(r);')
 }
 cmd_doctor() {
+  # doctor <project>: the project's copy of its engine against the engine now (tools/engine_copy.py; read-only)
+  if [ $# -gt 0 ]; then python3 "$ROOT/tools/engine_copy.py" "$@"; return; fi
   local mac="" chrome r gl sb=--no-sandbox; [ "$(uname)" = Darwin ] && { mac=1; sb=""; }
   hint() { if [ -n "$mac" ]; then printf '%s\n' "$1"; else printf '%s\n' "$2"; fi; }   # $1 on macOS, $2 elsewhere
   chk() { if command -v "$1" >/dev/null 2>&1; then echo "$c_ok $1  $($2 2>&1 | head -1)"; else echo "${4:-$c_no} $1  ($3)"; fi; }   # $4: the mark when missing
@@ -594,7 +604,7 @@ arg_dir() { # the folder of the project or page among a tool's arguments: the fi
   for a in "$@"; do
     if [ $skip = 1 ]; then skip=0; continue; fi
     case $a in
-      --soft-gl|--real-clock|--png|--force|--save|--export|--strict|--in-place|--keep|--snapshot|--*=*) ;;
+      --soft-gl|--real-clock|--png|--force|--save|--export|--strict|--in-place|--keep|--snapshot|--estimate|--no-estimate|--*=*) ;;
       -*) skip=1 ;;
       *) if [ -d "$a" ]; then echo "$a"; else case $a in */*) echo "${a%/*}" ;; *) echo . ;; esac; fi; return 0 ;;
     esac
@@ -623,14 +633,23 @@ cmd_film_tool() { # $1: frames | render | determinism | cues | fonts | patch (to
   b=$(film_browser "$tool" "$(arg_dir "$@")") || exit 2
   exec node "$ROOT/tools/film/$tool.mjs" --browser "$b" "$@"
 }
+on_ctrl_c() { # on_ctrl_c <command…>: run it; a Ctrl-C while it runs ends bin/vh with 130 whatever the command exits with (uv run
+  # itself exits 2, "Failed to get PID of child process", when the Ctrl-C reaches it just as its Python has exited)
+  local int=0 rc=0
+  trap 'int=1' INT
+  "$@" || rc=$?
+  trap - INT
+  [ "$int" = 0 ] || exit 130
+  return "$rc"
+}
 cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--shots shots.json|film.html] [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 1; }
   local b=""
   b=$(film_browser storyboard "$(arg_dir "$@")" 2>/dev/null) || true
-  uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" --browser "$b" "$@"; }
+  on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" --browser "$b" "$@"; }
 cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--shots shots.json|film.html] [--segment NAME | --from s --to s] [--max s] [--out file.png]"; exit 1; }
   local b=""
   b=$(film_browser rhythm "$(arg_dir "$@")" 2>/dev/null) || true
-  uv run -q --no-project --with pillow python "$ROOT/tools/rhythm.py" --browser "$b" "$@"; }
+  on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/rhythm.py" --browser "$b" "$@"; }
 cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image> [more…] [--text-px N] [--out file.png|folder]"; exit 1; }
   uv run -q --no-project --with pillow --with numpy --with scipy python "$ROOT/tools/cover_preview.py" "$@"; }
 cmd_review() { python3 "$ROOT/tools/review.py" "$@"; }
@@ -953,7 +972,7 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
 esac
 
 case "${1:-help}" in
-  doctor) cmd_doctor ;; setup) cmd_setup ;; types) cmd_types ;;
+  doctor) shift; cmd_doctor "$@" ;; setup) cmd_setup ;; types) cmd_types ;;
   tts) shift; cmd_tts "$@" ;; pace) shift; cmd_pace "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; timeline) shift; cmd_timeline "$@" ;; remap) shift; cmd_remap "$@" ;; timemap) shift; cmd_timemap "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
