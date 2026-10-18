@@ -9,7 +9,8 @@
 <canvas id="c" width="320" height="180"></canvas>
 <script>
   // bin/vh render's fixture (tools/ci.sh): frames that cost unevenly, as a heavy chapter does. From 2 s on each frame
-  // takes 30 ms of real time, and frame 75 (2.5 s at 30 fps) 1.5 s, past a --frame-timeout of 1. The picture is still a
+  // takes 30 ms of real time, and frame 75 (2.5 s at 30 fps) 5 s, past a --frame-timeout of 3 (an ordinary frame on a busy
+  // CI runner can take over 1 s, so the margin is wide). The picture is still a
   // function of t alone. It gives the frame rate it is made for (window.film.fps).
   const c = document.getElementById("c"), x = c.getContext("2d");
   window.film = {
@@ -17,7 +18,7 @@
     frame(t) {
       x.fillStyle = `hsl(${Math.round(t * 120)}, 60%, 30%)`; x.fillRect(0, 0, 320, 180);
       x.fillStyle = "#fc0"; x.fillRect(20 + t * 80, 90, 40, 40);
-      if (t >= 2) return new Promise((ok) => setTimeout(ok, Math.round(t * 30) === 75 ? 1500 : 30));
+      if (t >= 2) return new Promise((ok) => setTimeout(ok, Math.round(t * 30) === 75 ? 5000 : 30));
     },
   };
 </script>

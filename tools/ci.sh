@@ -1211,15 +1211,15 @@ PY
     case "$rc:$a" in 2:*"needed at the peak"*"GB free on that disk"*) ok "render: a disk too full for even a flat film stops it before a frame is drawn (exit 2)" ;;
       *) bad "render on a full disk: exit $rc: $(printf '%s' "$a" | tail -c 400)" ;; esac
     # the queue and the resume, on a page whose frames cost unevenly (tools/film/fixture/uneven.html: from 2 s on 30 ms
-    # each, frame 75 1.5 s): chunks of one GOP, so 3 workers make the video 1 makes (PSNR: separate browsers). A render
-    # whose frame 75 passes --frame-timeout 1 keeps the 5 chunks it finished; with the page edited they are not used;
+    # each, frame 75 5 s): chunks of one GOP, so 3 workers make the video 1 makes (PSNR: separate browsers). A render
+    # whose frame 75 passes --frame-timeout 3 keeps the 5 chunks it finished; with the page edited they are not used;
     # the same command then draws only the last chunk, and the video is the one a whole render makes
     mkdir -p "$t/q" && cp tools/film/fixture/uneven.html "$t/q/u.html"
     vh render "$t/q/u.html" --workers 1 --gop 15 --out "$t/q/one.mp4" >/dev/null 2>&1
     a=$(vh render "$t/q/u.html" --workers 3 --gop 15 --out "$t/q/three.mp4" 2>&1); rc=$?
-    b=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 1 --out "$t/q/r.mp4" 2>&1); rc2=$?
+    b=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 3 --out "$t/q/r.mp4" 2>&1); rc2=$?
     printf '<!-- edited -->\n' >> "$t/q/u.html"
-    c=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 1 --out "$t/q/r.mp4" 2>&1); rc3=$?
+    c=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 3 --out "$t/q/r.mp4" 2>&1); rc3=$?
     d=$(vh render "$t/q/u.html" --workers 2 --gop 15 --out "$t/q/r.mp4" 2>&1); rc4=$?
     if [ "$rc:$rc2:$rc3:$rc4" = 0:1:1:0 ] && printf '%s' "$b" | grep -q '5 of 6 chunks are kept' && printf '%s' "$c" | grep -q 'not used (changed: .*u\.html)' \
       && printf '%s' "$d" | grep -q 'resuming: 5 of 6 chunks kept' && [ ! -e "$t/q/.r.mp4.parts" ] && python3 - "$t/q" <<'PY'
