@@ -205,6 +205,21 @@ PY
       && grep -q '^- Output: 1920x1080,' "$dir/BRIEF.md" && grep -q '^- Engine: canvas-film' "$dir/BRIEF.md" \
       && ok "bin/vh new --engine canvas-film copies the engine's template at 1920x1080" || bad "bin/vh new --engine canvas-film: the template or the BRIEF's Output and Engine lines are missing"
   else bad "bin/vh new short --engine canvas-film"; fi
+  # doctor <project>: the copied engine against the engine now; an older copy (a module missing, a file edited, one of
+  # its own) is listed with a diff command, and nothing in the project changes
+  if [ -n "${dir:-}" ] && [ -d "$dir" ]; then
+    a=$(vh doctor "$dir" 2>&1); rc=$?
+    rm "$dir/src/06-time-map.js" && grep -v '06-time-map' "$dir/film.html" > "$t/f.html" && mv "$t/f.html" "$dir/film.html"
+    printf '// a tweak\n' >> "$dir/src/00-core.js"; printf '// its own\n' > "$dir/src/40-own.js"; printf '// the film\n' >> "$dir/src/50-shots.js"
+    snap() { find "$dir" -type f -exec cksum {} + | LC_ALL=C sort; }
+    before=$(snap); b=$(vh doctor "$dir" 2>&1); rc2=$?; after=$(snap)
+    case "$rc:$a" in 0:*"the copy is the engine as it is now"*)
+      case "$rc2:$b" in 1:*"changed (2): film.html +1 −0, src/00-core.js +0 −1"*"missing (1): src/06-time-map.js (film.html does not load it either)"*"extra (1): src/40-own.js"*"diff -u "*)
+          [ "$before" = "$after" ] && ok "doctor <project>: a fresh copy is the engine; an older one lists changed, missing and extra files and a diff command, read-only" \
+            || bad "doctor <project> changed the project" ;;
+        *) bad "doctor on an older copy (exit $rc2): $b" ;; esac ;;
+      *) bad "doctor on a fresh canvas-film project (exit $rc): $a" ;; esac
+  fi
   vh new short cf2 --engine canvas-film --aspect 9:16 --dir "$t" >/dev/null 2>&1; rc=$?
   vh new short cf3 --engine no-such --dir "$t" >/dev/null 2>&1; a=$?
   [ $rc = 1 ] && [ $a = 1 ] && [ -z "$(ls -d "$t"/*-cf2 "$t"/*-cf3 2>/dev/null)" ] && ok "bin/vh new refuses a vertical canvas-film and an unknown --engine" \
@@ -280,6 +295,13 @@ PY
     && ok "recipes check refuses frontmatter that YAML would read differently" || bad "recipes check on {peak:4} exited $rc"
   vh recipes check --json >/dev/null 2>&1; rc=$?
   [ $rc = 2 ] && ok "recipes check treats an option as bad usage" || bad "recipes check --json exited $rc"
+  # packcheck counts X's way (a Chinese character 2, a link 23); "X" names X only standing alone, not inside "xhs"
+  { printf '%s\n' '# PACKAGING' '## 发布文案' '### X / 推特'; python3 -c "print('简介：' + '字' * 127 + ' https://example.com/' + 'a' * 40 + '.')"
+    printf '%s\n' '### B站 + X' '简介：两个平台'; python3 -c "print('字' * 139)"; printf '%s\n' '### 小红书 xhs' "简介：$(python3 -c "print('字' * 300)")"; } > "$t/PACKAGING.md"
+  a=$(python3 "$ROOT/tools/packcheck.py" "$t/PACKAGING.md"); rc=$?
+  case "$rc:$a" in 1:*"X / 推特: ✓ 简介 description 279 weighted"*"B站 + X: ✗ 简介 description 287 weighted"*"official, x)"*"小红书 xhs: · 简介 description 300 characters"*)
+      ok "packcheck: X's limit in its weighted length (Chinese 2, a link 23), the tightest platform of a heading, a one-letter name standing alone" ;;
+    *) bad "packcheck on X copy (rc $rc): $a" ;; esac
   rm -rf "$t"
   if ! command -v ffmpeg >/dev/null; then skip "mux / gif smoke" "ffmpeg not installed"; return; fi
   if python3 tools/audio/test_mixstate.py; then ok "mix/mux: failed and stale builds refused, previous audio preserved, deliberate duration changes"
@@ -1043,6 +1065,10 @@ PY
     && grep -q '<html lang="zh-CN">' "$t/rz/out/review/gate-1.html" && grep -q '<html lang="en">' "$t/re/out/review/gate-1.html" \
     && grep -q '<html lang="en">' "$t/rz/out/review/gate-1b.html"
   then ok "review: the gate JSON's lang, else the BRIEF's Review language (the desk's rule), and the desk's extra keys pass"; else bad "review language rule"; fi
+  a=$(vh review "$t/rz" 1 2>&1)
+  if grep -q '没回的决定按推荐走' "$t/rz/out/review/gate-1.html" && grep -q 'unanswered goes by its recommendation' "$t/re/out/review/gate-1.html" \
+    && case "$a" in *"没回的决定按推荐走"*) true ;; *) false ;; esac
+  then ok "review: the page and the chat message say a decision left unanswered goes by its recommendation"; else bad "review: unanswered decisions not explained: $a"; fi
   rm -rf "$t"
 }
 
@@ -1485,6 +1511,28 @@ PYREAD
   [ "$seen" -ge 1 ] && [ "$rc" = 130 ] && [ "$left" = 0 ] && [ "$alive" = 0 ] && ok "frames stopped with Ctrl-C ends (exit 130), leaving no browser profile and no Chrome behind" \
     || bad "frames after Ctrl-C: a browser seen $seen, exit $rc, $left profile folder(s) and $alive Chrome process(es) left"
   pkill -KILL -f "$t/tmpd" 2>/dev/null
+  # the same Ctrl-C sent to the whole process group, as a terminal sends it, while readcheck or rhythm waits for the page:
+  # exit 130, no traceback, no profile and no Chrome left (Python killed node 0.25 s in; uv run could exit 2 instead)
+  mkdir -p "$t/hangp" "$t/tmpc" && cp "$t/hang.html" "$t/hangp/film.html"
+  for c in readcheck rhythm; do
+    if [ $c = rhythm ] && ! command -v uv >/dev/null; then skip "rhythm stopped with Ctrl-C" "needs uv"; continue; fi
+    a=$(python3 - "$t/tmpc" "$VH_BASH" "$ROOT/bin/vh" $c "$t/hangp" <<'PY'
+import glob, os, signal, subprocess, sys, time
+tmp, cmd = sys.argv[1], sys.argv[2:]
+p = subprocess.Popen(cmd, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, env=dict(os.environ, TMPDIR=tmp))
+for _ in range(120):
+    if glob.glob(f"{tmp}/vh-textcheck-*") or p.poll() is not None: break
+    time.sleep(0.25)
+seen = len(glob.glob(f"{tmp}/vh-textcheck-*")); time.sleep(1)
+os.killpg(p.pid, signal.SIGINT); err = p.communicate(timeout=30)[1]; time.sleep(0.5)
+print(seen, p.returncode, len(glob.glob(f"{tmp}/vh-textcheck-*")), "Traceback" in err, repr(err.strip()[-200:]))
+PY
+)
+    alive=$(pgrep -f "$t/tmpc" | wc -l | tr -d ' ')
+    case "$alive $a" in "0 1 130 0 False "*) ok "$c stopped with Ctrl-C (to the process group) ends with 130 and no traceback, leaving no browser profile and no Chrome" ;;
+      *) bad "$c after Ctrl-C (Chrome left, browsers seen, exit, profiles left, traceback): $alive $a" ;; esac
+    pkill -KILL -f "$t/tmpc" 2>/dev/null
+  done
   # Ctrl-C while the profile folder is being removed (a preload sends SIGINT as the removal starts): the folder still goes
   # whole, and the Ctrl-C still ends the process (before, the listeners were gone by then and node died half way through)
   printf '%s\n' 'import fs from "node:fs"; const rm = fs.rmSync; let sent = false;' \
@@ -1643,6 +1691,12 @@ PY
   if [ $rc = 0 ] && python3 -c "import json, sys; sys.exit(0 if [e['t'] for e in json.load(open(sys.argv[1]))] == [0.9, 1.9, 2.4] else 1)" "$t/ev2o.json"
   then ok "remap: where two lines met and a pause came between them, a time on the later line moves with it"
   else bad "remap across a new pause: exit $rc: $a $(cat "$t/ev2o.json" 2>/dev/null)"; fi
+  if command -v uv >/dev/null; then   # an empty event list: no length to take from it
+    printf '[]\n' > "$t/none.json"
+    a=$(vh sfx place "$t/none.json" "$t/none.wav" 2>&1); rc=$?; b=$(vh sfx place "$t/none.json" "$t/none.wav" 2 2>&1)
+    case "$rc:$a:$b" in 1:*"has no events"*"<duration_s>"*:*"0 events"*"2.00s"*) ok "sfx place: an empty event list asks for a duration, and with one writes a silent track" ;;
+      *) bad "sfx place on an empty event list (exit $rc): $a / $b" ;; esac
+  fi
   rm -rf "$t"
 }
 

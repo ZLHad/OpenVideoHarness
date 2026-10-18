@@ -519,9 +519,24 @@ def canvas_texts(html, out, browser, force=False):
                          "install Chrome or Chromium, or set CHROME_PATH" if browser == "" else "run it as bin/vh readcheck, or pass --browser <chrome>"))
     cmd = ["node", str(Path(__file__).resolve().parent / "film" / "texts.mjs"), str(html), "--browser", browser,
            "--out", str(out)] + (["--force"] if force else [])
-    r = subprocess.run(cmd)
-    if r.returncode:   # texts.mjs has said why; its 1 (no texts) is not this tool's 1 (a text under the floor), a signal is < 0
-        why = f"exit {r.returncode}" if r.returncode > 0 else next((x.name for x in signal.Signals if x == -r.returncode), f"signal {-r.returncode}")
+    proc = subprocess.Popen(cmd)
+    try:
+        rc = proc.wait()
+    except KeyboardInterrupt:
+        # Ctrl-C reached node too: let it close Chrome and remove its profile (subprocess.run would kill it after 0.25 s
+        # and leave the profile behind); one that did not get the signal is sent SIGTERM, and killed if that is not enough
+        signal.signal(signal.SIGINT, signal.SIG_IGN)   # a second Ctrl-C does not cut the wait short; node has it too
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill(); proc.wait()
+        sys.exit(130)
+    if rc:   # texts.mjs has said why; its 1 (no texts) is not this tool's 1 (a text under the floor), a signal is < 0
+        why = f"exit {rc}" if rc > 0 else next((x.name for x in signal.Signals if x == -rc), f"signal {-rc}")
         raise ValueError(f"the page's texts could not be read (tools/film/texts.mjs: {why})")
 
 

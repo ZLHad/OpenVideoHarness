@@ -28,6 +28,7 @@ node render.mjs --sheet=0.5,2,4 --cols=3 --w=480 --out=out/check/sheet.jpg   # �
 ```bash
 bin/vh new <type> <slug> --engine canvas-film     # 复制 engines/canvas-film/template，不用装依赖；画幅 16:9
 bin/vh frames projects/<date>-<slug> --at 1,5,9   # 模板带一支 23 秒的示例片，建好就能取帧
+bin/vh doctor projects/<date>-<slug>              # 项目里的引擎副本和现在的引擎逐个文件比：改过、缺的模块、多出来的（只读）
 ```
 
 - 适合旁白撑着的横屏长片：镜头、字幕、章节进度条的时间都写成挂在旁白字上的 cue（`"@b2:跟着走-0.3"`），重配、改词、插停顿以后自己跟着走。一个 cue 找不到它的句子或词，`ready` 立刻失败，写明镜头、cue 原文和这句现在的文字，不会等到超时。

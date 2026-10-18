@@ -737,7 +737,11 @@ def main():
         out = sys.argv[3]
         if Path(side_path(out)).resolve() == Path(sys.argv[2]).resolve():
             sys.exit(f"sfx: the levels sidecar {side_path(out)} would overwrite the event list {sys.argv[2]}: name the output something else")
-        dur = float(sys.argv[4]) if len(sys.argv) > 4 and not sys.argv[4].startswith("--") else max(e["t"] for e in events) + 3
+        given = len(sys.argv) > 4 and not sys.argv[4].startswith("--")
+        if not given and not events:
+            sys.exit(f"sfx: {sys.argv[2]} has no events, so the track has no length: give one "
+                     f"(sfx place {sys.argv[2]} {out} <duration_s>) for a silent track that long")
+        dur = float(sys.argv[4]) if given else max(e["t"] for e in events) + 3
         lib_dir = Path(sys.argv[sys.argv.index("--lib") + 1]) if "--lib" in sys.argv else None
         for k, e in enumerate(events):
             if e.get("role") is not None and e["role"] not in CLASSES:
