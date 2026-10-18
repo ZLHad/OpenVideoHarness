@@ -253,6 +253,26 @@ const SHOTS=[{id:'S01',at:0,draw:paint},{id:'S02',at:'@#e2-0.5',o:{hit:mapAt(15,
         self.map.write_text(json.dumps(made))
         self.vh('cues', self.p)
 
+    def test_the_check_hashes_the_timeline_the_film_was_built_from(self):
+        # the page's fetch gives the timeline on disk the first time and another take after that: a check that fetched the
+        # file again would compare the map with the other take, while the cues hang on the first
+        take = lambda start: json.dumps({'duration': 4, 'segments': [{'id': 'a1', 'start': start, 'end': start + 1, 'text': '你好',
+                                         'words': [{'w': '你好', 'start': start, 'end': start + 1}]}]})
+        disk, other = take(1), take(2)
+        (self.p / 'audio/timeline.zh.json').write_text(disk)
+        (self.p / 'src/50-shots.js').write_text("""const REAL_FETCH = window.fetch; let TIMELINE_FETCHES = 0;
+window.fetch = (u, o) => String(u).endsWith("timeline.zh.json") && TIMELINE_FETCHES++ > 0
+  ? Promise.resolve(new Response(%s)) : REAL_FETCH(u, o);
+Object.assign(FILM, { timeline: "audio/timeline.zh.json", timemap: "data/time.map.json", width: 320, height: 180, tail: 1, fadeOut: 0, grain: 0, images: {} });
+const SHOTS = [{ id: "S01", at: 0, draw(t) { rect(0, 0, W, H, { fill: "#111" }); } }, { id: "S02", at: "@a1", draw(t) { rect(0, 0, W, H, { fill: "#222" }); } }];
+""" % json.dumps(other))
+        sha = lambda text: hashlib.sha256(text.encode()).hexdigest()
+        for recorded, ok in ((sha(other), False), (sha(disk), True)):
+            self.map.write_text(json.dumps({**MAP, 'sources': [{'path': '../audio/timeline.zh.json', 'sha256': recorded}], 'rebuild': 'python3 data/make_map.py'}))
+            out = self.vh('cues', self.p, code=0 if ok else 2)
+            if ok: self.assertRegex(out, r'1\.000\s+S02\.at')
+            else: self.assertIn('was made on another version of ../audio/timeline.zh.json', out)
+
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(FilmMapTests) if '--film' in sys.argv else unittest.TestSuite(

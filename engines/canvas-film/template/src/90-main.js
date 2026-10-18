@@ -79,7 +79,8 @@ async function loadTimeline() {
   let r;
   try { r = await fetch(file, { cache: "no-store" }); } catch (e) { throw new Error(`canvas-film: ${file} could not be fetched (${e.message}); open the page through bin/vh frames, which serves the project folder`); }
   if (!r.ok) throw new Error(`canvas-film: no ${file} (HTTP ${r.status}): write audio/script.txt and run bin/vh tts <project>, or set FILM.timeline (engines/canvas-film/README.md)`);
-  return { file, tl: await r.json() };
+  const bytes = await r.arrayBuffer();   // kept: a time map's check hashes the bytes the film was built from
+  return { file, tl: JSON.parse(new TextDecoder().decode(bytes)), bytes };
 }
 async function loadCaptions() {   // FILM.caption.from: the cards bin/vh captions --cards wrote
   const f = FILM.caption.from;
@@ -156,7 +157,7 @@ async function boot() {
   X = cv.getContext("2d");
   const [missing, , T] = await Promise.all([loadFonts(), loadImages(), loadTimeline(), loadCaptions(), loadMusic(), loadTimeMap()]);
   TIMELINE = T ? T.file : null;
-  await checkTimeMapSources(TIMELINE);
+  await checkTimeMapSources(T);
   build(T);
   record();
   if (missing.length) console.error(`canvas-film: fonts this machine does not have, drawn in a fallback: ${missing.join(", ")} (film.html's @font-face)`);

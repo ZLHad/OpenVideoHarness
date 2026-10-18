@@ -152,12 +152,14 @@ async function loadTimeMap() {
 // A map made on a narration take or a beat map records their sha256 ("sources", paths beside the map). When the page
 // loaded another version of one of them, the map's times belong to the old one: stop in ready, naming the command that
 // rebuilds the map ("rebuild" in the file). Sources the page does not load are left to tools/audio/time_map.py check.
-async function checkTimeMapSources(timeline) {
+// T: the timeline as loadTimeline() read it; its bytes are hashed, not fetched again (a file rewritten in between would
+// pass the check while the film is built from the old take). The beat map's hash is of the bytes loadMusic() parsed.
+async function checkTimeMapSources(T) {
   if (!TIMEMAP_SOURCE) return;
   const { sources, rebuild } = TIMEMAP_MADE_ON, base = new URL(FILM.timemap, location.href), href = (p) => new URL(p, location.href).href;
   const loaded = new Map();
   if (MUSIC_SOURCE) loaded.set(href(MUSIC_SOURCE.path), async () => MUSIC_SOURCE.sha256);
-  if (timeline) loaded.set(href(timeline), async () => sha256hex(await (await fetch(timeline, { cache: "no-store" })).arrayBuffer()));
+  if (T) loaded.set(href(T.file), async () => sha256hex(T.bytes));
   const stale = [];
   for (const s of sources) {
     if (!s || typeof s.path !== "string" || typeof s.sha256 !== "string") continue;
