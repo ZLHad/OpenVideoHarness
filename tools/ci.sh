@@ -1251,9 +1251,11 @@ PY
   then ok "canvas-film: an overlay read spans the cut it is drawn across (readcheck), ordinary reads keep to their shot, and textcheck samples it on both sides"
   else bad "canvas-film overlay read (exit $rc / $rc2): $(printf '%s' "$a$b" | tail -c 800)"; fi
   # A too-short read still exports successfully; checking it fails. Outputs are independent, including concurrent runs,
-  # and an existing manual snapshot is never replaced without --force. The output folder must not change the BRIEF's pace.
+  # and an existing manual snapshot is never replaced without --force. The output folder must not change the BRIEF's pace,
+  # nor the check the export hint names (a file outside the project: --pace and a quoted path). A page with no texts is
+  # nothing to check (2, not the 1 of a text under the floor); no browser names the remedies, not bin/vh readcheck itself.
   a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PYREAD'
-import json, pathlib, subprocess, sys
+import json, pathlib, shlex, subprocess, sys
 bash, root, tmp = sys.argv[1:]
 p = pathlib.Path(tmp) / "readcheck args"; p.mkdir()
 (p / "film.html").write_text('<!doctype html><head><meta name="viewport" content="width=320,height=180"></head><script>'
@@ -1275,7 +1277,20 @@ assert default.read_text(encoding="utf-8") == manual
 run([p, "--export"], 2)
 assert default.read_text(encoding="utf-8") == manual
 out = run(["--export", p, "--force"], 0); exported(default)
-assert "exported; check it with" in out and "FAIL short" not in out, out
+assert "exported; check it with" in out and "FAIL short" not in out and "--pace" not in out, out
+outside = pathlib.Path(tmp) / "outside export.json"
+out = run([p, "--export", "--out", outside], 0); exported(outside)
+hint = out.split("check it with ")[1].strip()
+assert hint == "bin/vh readcheck " + shlex.quote(str(outside)) + " --pace relaxed", out
+out = run(shlex.split(hint)[2:], 1)
+assert "pace relaxed, --pace" in out and "WARN label" in out, out
+r = subprocess.run([sys.executable, str(pathlib.Path(root) / "tools" / "readcheck.py"), "--browser", "", str(p)], capture_output=True, text=True)
+assert r.returncode == 2 and "CHROME_PATH" in r.stderr and "run it as bin/vh" not in r.stderr, (r.returncode, r.stderr)
+bare = pathlib.Path(tmp) / "readcheck no texts"; bare.mkdir()
+(bare / "film.html").write_text('<!doctype html><head><meta name="viewport" content="width=320,height=180"></head><script>'
+    'window.film={duration:2,frame(){}};</script>', encoding="utf-8")
+out = run([bare], 2)
+assert "gives no window.film.texts" in out and "NOT CHECKED" in out, out
 saved = default.read_bytes()
 custom = pathlib.Path(tmp) / "outside project.json"
 out = run(["--out", custom, p], 1); exported(custom)
@@ -1299,7 +1314,7 @@ for names, codes in ((["one.json", "two.json"], [0, 0]), (["shared.json", "share
         exported(f)
     assert sorted(got) == codes, got
 assert default.read_bytes() == saved
-print("canvas-film readcheck: export/check, custom outputs, original Pace, --force and concurrent writers")
+print("canvas-film readcheck: export/check, custom outputs, original Pace (in the export hint too), --force, concurrent writers, a page with no texts, no browser")
 PYREAD
   ); rc=$?
   if [ $rc = 0 ]; then ok "$a"; else bad "readcheck export/output regression: $a"; fi
@@ -1317,6 +1332,18 @@ PYREAD
   [ "$seen" -ge 1 ] && [ "$rc" = 130 ] && [ "$left" = 0 ] && [ "$alive" = 0 ] && ok "frames stopped with Ctrl-C ends (exit 130), leaving no browser profile and no Chrome behind" \
     || bad "frames after Ctrl-C: a browser seen $seen, exit $rc, $left profile folder(s) and $alive Chrome process(es) left"
   pkill -KILL -f "$t/tmpd" 2>/dev/null
+  # Ctrl-C while the profile folder is being removed (a preload sends SIGINT as the removal starts): the folder still goes
+  # whole, and the Ctrl-C still ends the process (before, the listeners were gone by then and node died half way through)
+  printf '%s\n' 'import fs from "node:fs"; const rm = fs.rmSync; let sent = false;' \
+    'fs.rmSync = function (p, ...r) { if (!sent && /vh-textcheck-/.test(String(p))) { sent = true; process.kill(process.pid, "SIGINT"); } return rm.call(this, p, ...r); };' > "$t/rmsig.mjs"
+  printf '%s\n' '<!doctype html><canvas id="c" width="64" height="36"></canvas><script>const x = document.getElementById("c").getContext("2d");' \
+    'window.film = { duration: 2, frame() { x.fillStyle = "#345"; x.fillRect(0, 0, 64, 36); } };</script>' > "$t/one.html"
+  mkdir -p "$t/tmpr"
+  TMPDIR="$t/tmpr" NODE_OPTIONS="--import=$t/rmsig.mjs" "$VH_BASH" "$ROOT/bin/vh" frames "$t/one.html" --at 0.5 --out "$t/one-out" >/dev/null 2>&1; rc=$?; sleep 0.5
+  left=$(ls -d "$t/tmpr"/vh-textcheck-* 2>/dev/null | wc -l | tr -d ' '); alive=$(pgrep -f "$t/tmpr" | wc -l | tr -d ' ')
+  [ "$rc" = 130 ] && [ "$left" = 0 ] && [ "$alive" = 0 ] && ok "Ctrl-C while the browser profile is being removed: the folder goes whole, then the process ends (exit 130)" \
+    || bad "Ctrl-C during the profile's removal: exit $rc, $left profile folder(s) and $alive Chrome process(es) left"
+  pkill -KILL -f "$t/tmpr" 2>/dev/null
   # Ctrl-C after the last browser closed (determinism comparing its frames, synchronous work): the process ends at once,
   # not after the comparisons (a signal listener left in place would hold the signal until the event loop turned again)
   printf '%s\n' '<!doctype html><canvas id="c" width="64" height="36"></canvas><script>const x = document.getElementById("c").getContext("2d");' \
