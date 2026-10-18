@@ -1,6 +1,6 @@
 // canvas-film · main: draws the frame at t (the shot, or two shots in a transition; then grain, the chapter bar, the
 // caption and the fades) and gives the page contract (engines/CONTRACT.md): window.film = { frame, duration, ready,
-// width, height, shots, texts, events, chapters, cues, covers, cover, ui }. The page never moves on its own: it draws when frame(t) is called.
+// width, height, shots, texts, events, chapters, cues, covers, cover, ui, timeline, music, timemap }. The page never moves on its own: it draws when frame(t) is called.
 
 function shotAt(t) { let i = 0; while (i + 1 < SHOT_T.length && t >= SHOT_T[i + 1].a) i++; return i; }
 
@@ -100,7 +100,8 @@ async function loadTimeline() {
   let r;
   try { r = await fetch(file, { cache: "no-store" }); } catch (e) { throw new Error(`canvas-film: ${file} could not be fetched (${e.message}); open the page through bin/vh frames, which serves the project folder`); }
   if (!r.ok) throw new Error(`canvas-film: no ${file} (HTTP ${r.status}): write audio/script.txt and run bin/vh tts <project>, or set FILM.timeline (engines/canvas-film/README.md)`);
-  return { file, tl: await r.json() };
+  const bytes = await r.arrayBuffer();   // kept: a time map's check hashes the bytes the film was built from
+  return { file, tl: JSON.parse(new TextDecoder().decode(bytes)), bytes };
 }
 async function loadCaptions() {   // FILM.caption.from: the cards bin/vh captions --cards wrote
   const f = FILM.caption.from;
@@ -175,8 +176,9 @@ async function boot() {
   const cv = document.getElementById("film");
   cv.width = Math.round(W * PRX); cv.height = Math.round(H * PRX); cv.style.width = W + "px"; cv.style.height = H + "px";
   X = cv.getContext("2d");
-  const [missing, , T] = await Promise.all([loadFonts(), loadImages(), loadTimeline(), loadCaptions(), loadMusic()]);
+  const [missing, , T] = await Promise.all([loadFonts(), loadImages(), loadTimeline(), loadCaptions(), loadMusic(), loadTimeMap()]);
   TIMELINE = T ? T.file : null;
+  await checkTimeMapSources(T);
   build(T);
   record();
   if (missing.length) console.error(`canvas-film: fonts this machine does not have, drawn in a fallback: ${missing.join(", ")} (film.html's @font-face)`);
@@ -208,4 +210,5 @@ window.film = {
   ui: uiBoxes,                                                                     // the interface's boxes at t (bin/vh textcheck)
   get timeline() { return TIMELINE; },                                            // the timeline file the cues hang on, beside film.html
   get music() { return MUSIC_SOURCE; },                                           // { path, sha256 } of the beat map actually loaded
+  get timemap() { return TIMEMAP_SOURCE; },                                       // { path, sha256 } of the time map actually loaded
 };

@@ -51,6 +51,8 @@
 #                               sound script or an events list, moved to a new take of the narration through the words both timelines share;
 #                               without --out the file is rewritten and the original kept as <file>.bak (refused when a .bak is there);
 #                               lines rewritten, gone or reordered are listed with the times that fall on them
+#   timemap check <map.json> [--save] [--out f]   a time map (film time against a data axis, events with ids): its knots and
+#                               events checked, its recorded sources compared, what moved since --save (exit 1: a source changed; 2: a bad map)
 #   beats <audio> [out.json]    beat grid (bpm, offset, beats, downbeats) + hits, kick/snare accents (librosa)
 #   music <score.json> <out.wav> [--length s|auto] [--roll] | music --example [name|list] | music --instruments   code-composed soundtrack + exact beat/section map
 #                               --length: end exactly there with a musical fade (auto: where the last bar ends); --roll: piano roll + energy curve per part (PNG)
@@ -907,6 +909,7 @@ cmd_captions() { # --media-end S: where a caption too short for its minimum may 
 cmd_beats() { uv run -q --no-project --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
 cmd_timeline() { [ $# -gt 0 ] || { cmd_usage timeline; exit 1; }; python3 "$ROOT/tools/audio/timeline_lint.py" "$@"; }
 cmd_remap() { [ $# -gt 0 ] || { cmd_usage remap; exit 1; }; python3 "$ROOT/tools/audio/remap.py" "$@"; }
+cmd_timemap() { [ $# -gt 0 ] || { cmd_usage timemap; exit 1; }; python3 "$ROOT/tools/audio/time_map.py" "$@"; }   # stdlib only
 cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then
   local a pil=""; for a in "$@"; do [ "$a" = --roll ] && pil="--with pillow"; done
   uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/music.py" "$@"; }
@@ -947,7 +950,7 @@ esac
 
 case "${1:-help}" in
   doctor) cmd_doctor ;; setup) cmd_setup ;; types) cmd_types ;;
-  tts) shift; cmd_tts "$@" ;; pace) shift; cmd_pace "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; timeline) shift; cmd_timeline "$@" ;; remap) shift; cmd_remap "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
+  tts) shift; cmd_tts "$@" ;; pace) shift; cmd_pace "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; timeline) shift; cmd_timeline "$@" ;; remap) shift; cmd_remap "$@" ;; timemap) shift; cmd_timemap "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
   review) shift; cmd_review "$@" ;;
