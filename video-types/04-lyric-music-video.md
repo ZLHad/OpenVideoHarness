@@ -49,22 +49,24 @@ Functional Emotions 的教训：第一版是精致的排版歌词视频，被否
 
 ## 禁止
 
-- 每个词都用同一种入场动画；
-- 对 `letter-spacing` 做动画；
-- 整首歌都用打字机效果；
-- 落点偏离节拍超过 2 帧；
+底线：
+- 分镜里声明的卡点对不准节拍（TASTE_CHECKLIST #18）。
+
+常见误用（参考）：
+- 每个词同一种入场动画、整首歌打字机效果：单调；
+- 对 `letter-spacing` 做动画：字在抖；
 - 每个词一种颜色；
 - 画面静止超过一拍而没有意图；
-- 场景之间彼此无关，没有东西串起来。
+- 场景之间毫无联系：换场景可以，留一个串起来的主角、物件或母题。
 
 ## Prompt 增量块
 
 ```text
 + TYPE: music video. 1920x1080 30fps (or 24), exact song length {N}s. Inputs: {song.mp3}, lyrics {lyrics.txt}.
 Route: {A painted MV: visuals carry the story, lyrics only as a karaoke band y 975–1070 (or none) | B kinetic typography: text is the main visual}.
-First build beats.json (BPM, downbeats, sections) and word-timed lyrics (Demucs → Whisper → align known lyrics); every cut and every hero hit lands on a beat (±1 frame); big changes on bar lines.
+First build beats.json (BPM, downbeats, sections) and word-timed lyrics (Demucs → Whisper → align known lyrics); declared hits land on the beat (±1 frame); cuts usually on beats, big changes on bar lines.
 Write a story with one protagonist and a motif; choruses return to the same set and escalate each time; palette arc per section: {arc}.
-Shots 1.4–4s; something happens in every shot; motivated transitions (cut on action, match cut, chomp-to-black, push through an eye…), never a plain crossfade.
+Shots 1.4–4s; something happens in every shot; motivated transitions (cut on action, match cut, chomp-to-black, push through an eye…); a plain crossfade reads as a slideshow.
 {B only: two text registers: subtitle-size 60–72px for verses; full-bleed hero words 300–600px weight 900 tracking -0.04em for hooks; when text is huge the background goes quiet. Open with a hero-size hook line.}
 Director builds chapter 1 as the reference, then the rest in order, handing a few hard chapters to 1–3 subagents on a cheaper model if needed; one subagent per chapter only at studio (or when asked), briefed by ANIMATION_GUIDE.md, editing only its own file; review every chapter on contact sheets before accepting.
 This is a music video, not a lyric slideshow.
