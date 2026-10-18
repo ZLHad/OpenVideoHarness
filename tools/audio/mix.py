@@ -59,7 +59,8 @@ break). The order is voice anchor → music VMR → SFX classes → depth → ma
           films, −1.9…+1.4 dB at 128k on the swatches (up to +2.4 on a heavily limited remix), +1.2…+1.5 on a bare synthetic SFX bus. So measure the mp4 and mix again
           with a lower tp= when it is over −1.5 (styles/_swatch/render.sh does).
   music_db / sfx_db / voice_db   the build's starting balance: SFX are judged from it (default −6 / 0 / 0; swatch 0 / −3)
-  keep=   cue times whose passage keeps its designed SFX level (a synced onset the class moves made undetectable)
+  keep=   cue times whose passage keeps its designed SFX level (a synced onset the class moves made undetectable):
+          seconds, an event's "id", or with an events.json header (tools/audio/time_refs.py) a reference such as @a4>
   stems=  a folder for the buses as heard at the final gain (voice, music, sfx, sfx_<class>.wav) and meta.json with
           every decision and each event's level: `bin/vh qa mix --stems DIR` reads it.
 Deterministic (seeded room IRs, no threads, no ffmpeg filters in the signal path; ffmpeg only decodes and, for a
@@ -67,6 +68,7 @@ non-WAV out, encodes): the same inputs give the same bytes. About 3–4 s for a 
 """
 import json, os, re, subprocess, sys, time
 from mixstate import Build, InvalidMix
+import time_refs
 
 try:   # the profile path only: the default chain needs nothing but ffmpeg
     import numpy as np
@@ -555,7 +557,8 @@ def mixdown(P, voice=None, music=None, events=(), lib=None, root=None, sfx_bus=N
     rolemap = roles or {}; placed = []
     for e in evs:
         if e["t"] >= n / SR: continue
-        if str(e["_i"]) in rolemap: e["role"] = rolemap[str(e["_i"])]
+        if e.get("id") in rolemap: e["role"] = rolemap[e["id"]]
+        elif str(e["_i"]) in rolemap: e["role"] = rolemap[str(e["_i"])]
         elif e["sfx"] in rolemap: e["role"] = rolemap[e["sfx"]]
         c, why = sfx_class(e)
         i, y, info = place_info(e, lib, root, cache); j = min(n, i + len(y)); y = y[:j - i] * 10 ** (sfx_db / 20)   # the build's SFX gain
@@ -804,20 +807,30 @@ def layered(out, kv, final_out=None):
         if k in kv and not os.path.isfile(kv[k]): sys.exit(f"{k}={kv[k]}: no such file")
     for k in ("lib", "root"):
         if k in kv and not os.path.isdir(kv[k]): sys.exit(f"{k}={kv[k]}: no such folder")
-    try: keep = [float(x) for x in kv.get("keep", "").split(",") if x.strip()]
-    except ValueError: sys.exit(f"keep={kv['keep']}: comma-separated cue times in seconds")
     dur = float(kv["dur"]) if "dur" in kv else None; fade = float(kv.get("fade", 0))
     if dur is not None and dur <= 0: sys.exit(f"dur={kv['dur']}: must be > 0")
     if fade < 0 or (dur is not None and fade >= dur): sys.exit(f"fade={kv['fade']}: must be ≥ 0 and shorter than dur")
-    events = json.load(open(kv["events"])) if "events" in kv else []
-    if not isinstance(events, list) or not all(isinstance(e, dict) and "t" in e and "sfx" in e for e in events):
+    try: events, _, refs = time_refs.load_events(kv["events"]) if "events" in kv else ([], [], None)
+    except time_refs.RefError as e: sys.exit(f"events={kv['events']}: {e}")
+    if not all(isinstance(e, dict) and "t" in e and "sfx" in e for e in events):
         sys.exit(f"events={kv['events']}: a JSON list of {{\"t\", \"sfx\", …}} events")
+    keep = []
+    for x in (x.strip() for x in kv.get("keep", "").split(",")):   # seconds, an event id, or a reference
+        if not x: continue
+        try: keep.append(float(x)); continue
+        except ValueError: pass
+        hit = [e["t"] for e in events if e.get("id") == x]
+        if hit: keep.append(hit[0]); continue
+        if refs is not None and x.startswith("@"):
+            try: keep.append(refs.t(x)); continue
+            except time_refs.RefError as e: sys.exit(f"keep={kv['keep']}: {x}: {e}")
+        sys.exit(f"keep={kv['keep']}: {x!r} is not a time in seconds, an event id, or (with an events.json header) a reference such as @a4>")
     roles = json.load(open(kv["roles"])) if "roles" in kv else None
-    if roles is not None and not isinstance(roles, dict): sys.exit(f"roles={kv['roles']}: a JSON object {{\"<event index or sfx name>\": \"hero\", …}}")
+    if roles is not None and not isinstance(roles, dict): sys.exit(f"roles={kv['roles']}: a JSON object {{\"<event id, index or sfx name>\": \"hero\", …}}")
     for where, r in [(f"event {k} ({e['sfx']})", e.get("role")) for k, e in enumerate(events)] + [(f"roles {k}", v) for k, v in (roles or {}).items()]:
         if r is not None and r not in CLASSES: sys.exit(f"{where}: role {r!r} is not one of {', '.join(CLASSES)}")
-    stray = [k for k in (roles or {}) if not (k.isdigit() and int(k) < len(events)) and k not in {e["sfx"] for e in events}]
-    if stray: print(f"  roles: no event has the index or sfx name {', '.join(map(repr, stray))} (a typo?)")
+    stray = [k for k in (roles or {}) if not (k.isdigit() and int(k) < len(events)) and k not in {e["sfx"] for e in events} | {e.get("id") for e in events}]
+    if stray: print(f"  roles: no event has the id, index or sfx name {', '.join(map(repr, stray))} (a typo?)")
     timeline = json.load(open(kv["timeline"])) if "timeline" in kv else None
     segs = (timeline.get("segments") if isinstance(timeline, dict) else timeline) if timeline is not None else []
     if not isinstance(segs, list) or not all(isinstance(x, dict) and isinstance(x.get("start"), (int, float)) and isinstance(x.get("end"), (int, float)) for x in segs):

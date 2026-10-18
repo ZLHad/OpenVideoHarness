@@ -12,6 +12,8 @@ usage (via bin/vh sfx):
        centroid, sweep in octaves per second), FILE.json (the event list it placed, for bin/vh qa) and, with --png,
        FILE.png: a spectrogram with each sound labelled, for anyone who has to judge it without listening.
 events.json: [{"t": 3.20, "sfx": "click", "gain_db": -6}, {"t": 7.95, "sfx": "whoosh", "pan": -0.6, "dist": 3}, …]
+  t in seconds; or the list under a header {"refs": {…}, "events": [ … ]} with t written as a reference ("@a4>",
+  "@#e2", {"$music": [12, 3]}: tools/audio/time_refs.py), so the sounds move with the narration, music or time map
   "sfx" is a library name or a path to your own sound (recorded / licensed: log its source in NOTES.md; any format,
   bit depth or sample rate ffmpeg decodes; stereo files are folded to mono and treated as a point source).
   t is when the sound should LAND; each built-in sound's landmark (its perceptual hit) is aligned to t,
@@ -79,7 +81,7 @@ samples whatever else was rendered first. A shaped or varied sound is levelled t
 (± the variant's level) and goes through the same soft knee over 0.9 as the plain one. impact, boom, ding, success and
 glitch end in a 50 ms raised-cosine fade, riser in 4 ms, tape in 10 ms (their tails used to stop dead and click).
 """
-import json, subprocess, sys, wave, zlib
+import json, os, subprocess, sys, wave, zlib
 from pathlib import Path
 import numpy as np
 from scipy.signal import butter, lfilter, sosfilt
@@ -729,7 +731,10 @@ def main():
         print(f"{len(LIB)} SFX → {d}/ ({', '.join(LIB)}) + {MANIFEST}"); return
     if cmd == "audition": audition(sys.argv[2:]); return
     if cmd == "place":
-        events = json.load(open(sys.argv[2])); out = sys.argv[3]
+        import time_refs   # a header form's references, resolved to seconds against the files it names
+        try: events, sources, _ = time_refs.load_events(sys.argv[2])
+        except (OSError, time_refs.RefError) as e: sys.exit(f"sfx: {e}")
+        out = sys.argv[3]
         if Path(side_path(out)).resolve() == Path(sys.argv[2]).resolve():
             sys.exit(f"sfx: the levels sidecar {side_path(out)} would overwrite the event list {sys.argv[2]}: name the output something else")
         dur = float(sys.argv[4]) if len(sys.argv) > 4 and not sys.argv[4].startswith("--") else max(e["t"] for e in events) + 3
@@ -743,19 +748,20 @@ def main():
             i, x, info = put(e, None, lib_dir, None, cache)
             j = min(len(track), i + len(x)); track[i:j] += x[: max(0, j - i)]; placed.append((e, i, x[: max(0, j - i)], info))
         clip = int((np.abs(track) > 1).sum()); write(out, track)
-        side = sidecar(out, placed)
+        side = sidecar(out, placed, sources)
         print(f"{len(events)} events → {out} ({dur:.2f}s, stereo) · levels → {side}" + (f"  ! {clip} samples clipped: lower gain_db" if clip else "")); return
     print(__doc__)
 
 def side_path(out): return str(Path(out).with_suffix("")) + ".events.json"
 
-def sidecar(out, placed):
-    """<out>.events.json: each event's class, variant and shape, and its own level as placed (see the module docstring)"""
+def sidecar(out, placed, sources=()):
+    """<out>.events.json: each event's class, variant and shape, and its own level as placed (see the module docstring);
+    for a header form, what each t was written as ("ref") and the files the references were read from (sha256)"""
     import mix   # the meter and the class hints live with the mix profiles (tools/audio/mix.py)
     rows = []
     for k, (e, i, x, info) in enumerate(placed):
         c, why = mix.sfx_class(e)
-        row = {"i": k, "t": e["t"], "sfx": e["sfx"], "class": c, "why": why, "start": round(i / SR, 4)}
+        row = {"i": k, "t": e["t"], **({"ref": e["ref"]} if "ref" in e else {}), "sfx": e["sfx"], "class": c, "why": why, "start": round(i / SR, 4)}
         if info["variant"] is not None: row.update(variant=info["variant"], shape=info["shape"])
         if len(x):
             lv = mix.event_levels(x); lv["at"] += i / SR
@@ -763,7 +769,8 @@ def sidecar(out, placed):
         else: row["outside"] = True   # starts after the end of the track
         rows.append(row)
     path = side_path(out)
-    with open(path, "w") as fh: json.dump({"track": Path(out).name, "sr": SR, "events": rows}, fh, ensure_ascii=False, indent=1)
+    head = {"sources": [dict(s, path=os.path.relpath(s["path"], os.path.dirname(os.path.realpath(path)))) for s in sources]} if sources else {}
+    with open(path, "w") as fh: json.dump({"track": Path(out).name, "sr": SR, **head, "events": rows}, fh, ensure_ascii=False, indent=1)
     return path
 
 if __name__ == "__main__":

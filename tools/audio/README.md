@@ -361,6 +361,14 @@ MINIMAX_TTS_SPEED=1.25 bin/vh tts projects/<p> minimax - zh --join all --gap 0.3
 - **每个事件默认是自己的 variant，一支片子里连成一条路。** 除了四个提示音，内置音效的每个事件都有一个 variant：同一支片子里同一个音效按时间顺序走一条有界的路，从一个起点（由音效名和这支片子用了哪些音效、各几次算出来，和时间无关）出发，每出现一次走一步。相邻两下一定不同，又不会差得太远，整支片子里像同一只手的动作在慢慢变化；不同片子的起点不同。同一份 events.json 每次渲染逐字节相同。variant 写成 起点·1000 + 第几步，例如 4821003。它只动事件没写的参数，幅度保持在"同一家族、换一个手势"：转场的长度 ±25 %、音高 ±3 个半音、峰值的位置、扫频跨度、明暗、音色、电平 ±1.5 dB；click、tick、pop 这类小动作只动一点音高、长度和电平；impact、boom 动起音（crack 的频段、衰减、电平，身体晚进来的时间）、衰减和电平，不动身体的音高（40 Hz 的身体一动音高就和配乐的低音拍出"抽吸"）。提示音不变，观众会记住它们的意思。只挪动事件的时间不会重抽（除非同一个音效的两个事件换了先后）；增删事件会重抽这支片子里没钉住的事件。想留住某一下，就写 `"variant": n`：`sfx place` 的 sidecar 和 `bin/vh mix … stems=DIR` 的 `meta.json` 里都记着每个事件拿到的号，`bin/vh qa --stems` 用它把同一个声音重新渲染出来；`"variant": 0` 是 plain 的那一个。
 - **按动作给转场塑形。** 转场类内置音效都接受这几个可选字段：`dur`（跟着转场的长度走；不写 `pitch`、`center` 时，越长越低，长度每翻一倍低 4 个半音）、`pitch`（半音）或 `center`（Hz）、`dir`（`"up"` 上扫，`"down"` 下扫）、`bright`（−1…1，暗…亮）、`tone`（0 纯气流…1 带音高的共鸣）。任何音效都可以写 `pan_from`、`pan_to`，让声音跟着画面从一边划到另一边。小而快的动作短、高、亮，大而慢的动作长、低、厚。比如一张卡片从左往右快速划过：`{"t": 2.0, "sfx": "whoosh", "dur": 0.35, "pan_from": -0.6, "pan_to": 0.6}`；镜头慢慢退到大场景：`{"t": 6.0, "sfx": "whoosh", "dur": 1.2, "dir": "down", "tone": 0.4}`。其余内置音效只接受其中几项：typing 是 `dur`、`pitch`，riser 是 `dur`、`pitch`、`bright`，click、tick、pop、shutter、glitch、impact、boom 只有 `pitch`；四个提示音（ding、success、error、toggle）一项都不接受，`variant` 也不行，观众要靠同一个声音认出它的意思。写了不收的字段，`sfx place`、`bin/vh mix … events=` 和 `sfx audition` 都报错退出；`bin/vh mix` 这样退出时会保留旧音频并记录失败，`mux` 不接受它；`qa` 仍可能在旧混音上跑完，不能代替构建检查（见下文“混音构建记录”）。
 - **重复会被提醒。** `bin/vh qa` 拿到事件表时会查：同一类声音（内置音效按名字；文件按去掉 `_a`、`_2` 这类编号后的名字）按时间连着 3 次以上听起来一样（逐字节相同，或者 150 Hz 以上的波形相关 > 0.98），就警告，不算失败，并提示去掉 variant 的钉、给每一下塑形，录音素材就轮换几条（A B C A B C 这样轮换不算重复）。判断靠测出来的相似度，不看 variant 号。提示音、`role: "signal"` 和 sonification 层本来就该每次一样，不查；渲染不出来的事件会列出来。
+- **`t` 写成引用**（`tools/audio/time_refs.py`）：纯列表里的 `t` 只认秒数。要让声音跟着旁白、配乐或时间映射走，把列表放进一个表头，写明引用从哪些文件读（路径相对 events.json）：
+
+  ```json
+  {"refs": {"timeline": "timeline.zh.json", "lead": 0, "music": "music.beats.json", "timemap": "../data/time.map.json"},
+   "events": [{"id": "hit1", "t": "@#e2", "sfx": "impact"}, {"t": "@a4>", "sfx": "whoosh", "pan": -0.4}, {"t": 12.5, "sfx": "click"}]}
+  ```
+
+  `t` 可以是秒数、旁白 cue（`"@a4"`、`"@a4:风"`、`"@a4>"`，可加 ±秒；时间轴的秒数加上 `lead`，和画面的 `FILM.lead` 一致）、`{"$music": [小节, 拍], "offset": 秒}`、时间映射的 `"@#id"`、`"@#id>"` 或 `{"$map": u}`，解析规则和 canvas-film 的画面完全相同（`tools/audio/test_time_map.py` 两边对拍）。`sfx place`、`bin/vh mix … events=`、`bin/vh qa` 都认这种写法；解不了的一次列出来再退出。`sfx place` 的 sidecar 每个事件多记一项 `ref`（原来写的是什么），文件头记下读过的文件和 SHA-256；`bin/vh mix` 把这些文件也算作混音的输入，换了配音、谱子或映射，`bin/vh mux` 会认出混音过期。事件可以带 `"id"`（字母、数字、`_`），`keep=` 和 roles 可以用它点名，不用秒数和序号。时间映射记下的 sources 和表头给的时间轴或 beats 对不上时也会停下，提示重建映射。
 - **`role`**（可选：`hero`、`detail`、`ambience`、`signal`）：这个事件在混音 profile 里属于哪一类，什么时候要写见下文"混音"。`sfx place` 会检查它，并在输出旁边写一个 `<out>.events.json`：每个事件的类和原因、起点，以及它自己摆好后的电平（fast：最响 100 ms 的 K 加权响度；m400；tp：真峰值；len：持续时间；lf：150 Hz 以下能量占比），混音前就能读。
 
 ## 混音（`mix`）和混音报告（`qa mix`）的细节
@@ -422,7 +430,7 @@ VMR 这一列有三个数：
   - 01 的风（`gust_1`、`gust_2`）是这个包袱的动作本身，是 detail，不是 ambience；
   - 00 的最后一个 thock（`thock_lo`）是整个 hook 落地的那一下，是 hero；
   - 落在关键帧上的一记拨弦（ink-wash 墨滴落下时的古筝）也是 hero。
-- 不想改 events.json 时，用 `roles=roles.json`：`{"<事件序号>": "hero", "<sfx 名>": "detail"}`，它覆盖事件自己的 role。对不上任何事件的键会被列出来。样片在 swatch.js 的 `FOLEY` 里写 `role`，`foley.mjs` 会带进 events.json。
+- 不想改 events.json 时，用 `roles=roles.json`：`{"<事件 id 或序号>": "hero", "<sfx 名>": "detail"}`，它覆盖事件自己的 role。对不上任何事件的键会被列出来。样片在 swatch.js 的 `FOLEY` 里写 `role`，`foley.mjs` 会带进 events.json。
 - 报告 `[5]` 的 why 列写着每个事件的类是怎么来的，先看它。
 
 **怎么读混音报告**（`bin/vh qa mix <stems>`，或 `bin/vh qa <mix.wav> … --stems` 输出的最后一段）：
@@ -493,7 +501,7 @@ VMR 这一列有三个数：
 
   互相关只能确认一个 cue，不会判错一个 cue。
 - **第 0 帧的 cue**：前面先垫一帧静音再检测，否则 onset 没有起点。
-- **同步点被压没了**：profile 把某段音效压低以后，一个同步点检测不到了，就用 `keep=<这个 cue 的时间>` 重混，那一段保持设计电平；或者提高那个事件的 `gain_db`、改它的 role。
+- **同步点被压没了**：profile 把某段音效压低以后，一个同步点检测不到了，就用 `keep=<这个 cue 的时间>` 重混（也可以写事件的 id，或在有表头时写引用，如 `keep=hit1,@a4>`），那一段保持设计电平；或者提高那个事件的 `gain_db`、改它的 role。
 - **抽吸**：给了 `--stems` 时，抽吸检查逐帧（10 ms）比，不算音乐 stem 在那几帧里本来就有、而且一样深的凹陷（配乐自己的动态），只报混音造成的；一段凹陷只被解释了一部分，剩下的 60 ms 以上照样报。
 - **掉音**：同一条规则，逐个 0.1 s 窗口比：给了 `--stems` 时，音乐 stem 在那个窗口按它自己的段中位数也一样深（差不超过 1 dB）的部分不算掉音，列成“the score's own dynamics”；没被解释的窗口照样是掉音，一段可能被拆成几段。谱子里写好的留白多半就这样排除了；混音把音乐压没了照样报。
 - **确认**：剩下的、分镜或谱子要的掉音、抽吸和成串的 click，写进项目的 `confirmed.json`（`playbook/02-verification.md` 的“确认告警”）。扫描在每处印一行 `confirm? {…}`；key 是那段前后各 0.5 s 每 0.1 s 的响度相对中位数，1.5 dB 一档。31 个样片的混音上，AAC 128k 降 3 dB、AAC 96k 的拷贝全部认得；区间里 0.5 s 降 6 dB 一个都不认，同一段挪 0.3 s 认 6%（挪了位置本来就对不上）。数字静音不收。
