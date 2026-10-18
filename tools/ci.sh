@@ -1149,6 +1149,42 @@ PY
     a=$(OVH_FREE_BYTES=1000 vh render tools/film/fixture --out "$t/r/full.mp4" 2>&1); rc=$?
     case "$rc:$a" in 2:*"needed at the peak"*"GB free on that disk"*) ok "render: a disk too full for even a flat film stops it before a frame is drawn (exit 2)" ;;
       *) bad "render on a full disk: exit $rc: $(printf '%s' "$a" | tail -c 400)" ;; esac
+    # the queue and the resume, on a page whose frames cost unevenly (tools/film/fixture/uneven.html: from 2 s on 30 ms
+    # each, frame 75 1.5 s): chunks of one GOP, so 3 workers make the video 1 makes (PSNR: separate browsers). A render
+    # whose frame 75 passes --frame-timeout 1 keeps the 5 chunks it finished; with the page edited they are not used;
+    # the same command then draws only the last chunk, and the video is the one a whole render makes
+    mkdir -p "$t/q" && cp tools/film/fixture/uneven.html "$t/q/u.html"
+    vh render "$t/q/u.html" --workers 1 --gop 15 --out "$t/q/one.mp4" >/dev/null 2>&1
+    a=$(vh render "$t/q/u.html" --workers 3 --gop 15 --out "$t/q/three.mp4" 2>&1); rc=$?
+    b=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 1 --out "$t/q/r.mp4" 2>&1); rc2=$?
+    printf '<!-- edited -->\n' >> "$t/q/u.html"
+    c=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 1 --out "$t/q/r.mp4" 2>&1); rc3=$?
+    d=$(vh render "$t/q/u.html" --workers 2 --gop 15 --out "$t/q/r.mp4" 2>&1); rc4=$?
+    if [ "$rc:$rc2:$rc3:$rc4" = 0:1:1:0 ] && printf '%s' "$b" | grep -q '5 of 6 chunks are kept' && printf '%s' "$c" | grep -q 'not used (changed: .*u\.html)' \
+      && printf '%s' "$d" | grep -q 'resuming: 5 of 6 chunks kept' && [ ! -e "$t/q/.r.mp4.parts" ] && python3 - "$t/q" <<'PY'
+import json, re, subprocess, sys
+d = sys.argv[1]
+def psnr(a, b):
+    r = subprocess.run(["ffmpeg", "-v", "info", "-i", a, "-i", b, "-lavfi", "psnr", "-f", "null", "-"], capture_output=True, text=True).stderr
+    m = re.findall(r"average:(inf|[\d.]+)", r)
+    return float(m[-1]) if m else 0
+side = json.load(open(d + "/r.mp4.render.json"))
+ok = side["chunks"] == [[k, k + 15] for k in range(0, 90, 15)] and side["reused_chunks"] == 5 and side["frames"] == 90
+sys.exit(0 if ok and psnr(d + "/one.mp4", d + "/three.mp4") >= 45 and psnr(d + "/one.mp4", d + "/r.mp4") >= 45 else 1)
+PY
+    then ok "render: one-GOP chunks taken in turn (3 workers make what 1 makes); a timed-out frame keeps the finished chunks, an edited page starts over, the same command resumes"
+    else bad "render queue and resume: exit $rc:$rc2:$rc3:$rc4: $(printf '%s' "$b$c$d" | tail -c 900)"; fi
+    # the estimate, the page's own fps and a relative --out, from another folder: the canvas-film template (made for 30 fps)
+    # at --fps 60 is over 600 frames, so it is estimated; the disk has room for a flat film (7.2 MB at the peak) but not
+    # for what was measured (about 12 MB)
+    mkdir -p "$t/e"
+    a=$(cd "$t/e" && OVH_FREE_BYTES=8000000 "$VH_BASH" "$ROOT/bin/vh" render "$ROOT/engines/canvas-film/template" --fps 60 --out rel/f.mp4 2>&1); rc=$?
+    case "$rc:$a" in
+      2:*"--out rel/f.mp4 is from the current folder: "*"/e/rel/f.mp4, outside the project"*"drawn at 60 fps (--fps), the page says 30"*"estimate ("*" frames in about"*"is needed at the peak and 8 MB is free"*)
+        [ ! -e "$t/e/rel/.f.mp4.parts" ] && ok "render: a long span is estimated first and refused on a disk that cannot hold it; --fps unlike the page's and an --out outside the project are said" \
+          || bad "render: the refused estimate left $t/e/rel/.f.mp4.parts behind" ;;
+      *) bad "render estimate, fps and --out (exit $rc): $(printf '%s' "$a" | tail -c 900)" ;;
+    esac
     # bin/vh patch: the fixture rendered from 0.5 s with a keyframe every 20 frames (not a whole number of milliseconds) in
     # a folder whose name a filter graph would choke on; then its square turned blue from 1.4 s up to 1.7 s (the film's
     # frames 27–35) and those frames put back: 20–39 drawn again, the rest the film's own bytes and times. Naming only 27–29
