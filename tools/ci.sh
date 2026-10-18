@@ -448,10 +448,13 @@ PY
     python3 - "$t/cf" <<'PY'
 import json, sys
 d = sys.argv[1]; good = json.load(open(d + "/c3.json"))["items"][0]
-json.dump({"items": [json.load(open(d + "/c2.json"))["items"][0], dict(good, why=" "), dict(good, tool="check.static")]}, open(d + "/confirmed.json", "w"))
+json.dump({"items": [json.load(open(d + "/c2.json"))["items"][0], dict(good, why=" "), dict(good, tool="check.static"),
+                     dict(good, evidence="audio/"), dict(good, evidence="../outside.md"), dict(good, evidence="link.md S01")]}, open(d + "/confirmed.json", "w"))
 PY
+    echo outside > "$t/outside.md"; ln -s "$t/outside.md" "$t/cf/link.md"
     a=$(vh check "$t/cf/odd-blue.mp4" 2>&1); rc=$?
-    case "$rc:$a" in 1:*"item 1"*"evidence names a file that is not in the project: NOTES-missing.md"*"item 2"*"no why"*"item 3"*"the motion lines are advice"*) ok "check refuses an entry without evidence on file, without why, or for a motion warning" ;;
+    case "$rc:$a" in 1:*"item 1"*"evidence: NOTES-missing.md is not in the project"*"item 2"*"no why"*"item 3"*"the motion lines are advice"*"item 4"*"evidence: audio/ is a folder, not a file"*"item 5"*"evidence: ../outside.md is outside the project"*"item 6"*"evidence: link.md is outside the project"*)
+        ok "check refuses an entry without evidence on file, without why, for a motion warning, or with evidence that is a folder, outside the project or a link out of it" ;;
       *) bad "check took a bad entry (rc $rc): $a" ;; esac
     printf '{"items": [' > "$t/cf/confirmed.json"; a=$(vh check "$t/cf/odd.mp4" 2>&1); rc=$?
     case "$rc:$a" in 1:*"bad --allow or confirmed.json"*) ok "check fails on an unreadable confirmed.json instead of skipping the scan" ;; *) bad "check on a broken confirmed.json (rc $rc): $a" ;; esac
@@ -468,6 +471,14 @@ PY
       a=$(qs "$t/cf/audio/mix.wav" --stems "$t/cf/st1" 2>&1); rc=$?; b=$(qs "$t/cf/audio/mix.wav" --stems "$t/cf/st2" 2>&1); rb=$?
       case "$rc:$a|$rb:$b" in 0:*"dropouts (0.1 s RMS < section median − 12 dB): 0 (1 more that the music stem has too: the score's own dynamics)"*"|1:"*"dropouts (0.1 s RMS < section median − 12 dB): 1"*)
           ok "qa scan: a dropout the music stem has too is the score's own; one the music does not have still fails" ;; *) bad "qa dropouts against the music stem ($rc/$rb): $a | $b" ;; esac
+      # the music's own dip excuses only the windows it covers: a 3 s dropout over a 0.3 s dip of the stem stays one from 3.35 s;
+      # the same for pumping, frame by frame (a 0.25 s dip of the mix over a 60 ms dip of the stem)
+      ff() { ffmpeg -nostdin -v error -f lavfi -i "aevalsrc='0.5*sin(2*PI*220*t)*(1-$1)':s=48000:d=10" -ac 2 -c:a pcm_s16le "$2"; }
+      mkdir -p "$t/cf/st3" "$t/cf/st4"; ff '0.95*between(t,3,6)' "$t/cf/audio/drop.wav"; ff '0.95*between(t,3,3.3)' "$t/cf/st3/music.wav"
+      ff '0.684*between(t,3,3.25)' "$t/cf/audio/pump.wav"; ff '0.684*between(t,3,3.06)' "$t/cf/st4/music.wav"
+      a=$(qs "$t/cf/audio/drop.wav" --stems "$t/cf/st3" 2>&1); rc=$?; b=$(qs "$t/cf/audio/pump.wav" --stems "$t/cf/st4" 2>&1); rb=$?
+      case "$rc:$a|$rb:$b" in 1:*"dropouts (0.1 s RMS < section median − 12 dB): 1 (1 more that the music stem has too"*"3.35-   5.95 s"*"|1:"*"pumping (dip > 4 dB for ≥ 60 ms, not at a transient music hit): 1"*"3.06-   3.23 s  depth 10.0 dB"*)
+          ok "qa scan: a short dip of the music stem excuses only the windows it covers, for dropouts and pumping" ;; *) bad "qa: a short stem dip excused a longer one ($rc/$rb): $a | $b" ;; esac
       a=$(qs "$t/cf/audio/mix.wav" 2>&1); rc=$?
       case "$rc:$a" in 1:*'confirm? {"tool": "qa.dropout", "at": "3.100-4.900"'*'confirm? {"tool": "qa.click", "at": "5.950-6.650", "n": 3'*) ok "qa scan in a project offers confirm? lines for a dropout and a click burst" ;; *) bad "qa scan offers (rc $rc): $a" ;; esac
       printf '%s\n' "$a" | fill STORYBOARD.md#S01 "$t/cf/confirmed.json"

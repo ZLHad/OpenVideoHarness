@@ -10,8 +10,10 @@ exit status: 0 none found (or only declared, confirmed or periodic ones), 1 isol
            there (check.iso, within one frame of its time) is listed as confirmed and does not fail while the picture
            there is the same: the key is two 8 x 6 thumbnails at 64 grey levels, of the frame before the run and of its
            most different frame, the same when no cell moves by more than PIC_MAX levels and the cells by PIC_MEAN on
-           average (a re-encode or a 4K copy keeps it; a redrawn or retimed frame does not). A missing file is no entries
-           yet; each unconfirmed run gets a `confirm?` line to paste there, with why and evidence
+           average (a re-encode or a 4K copy keeps it; a redrawn or retimed frame does not). The key is coarse: a small
+           change inside the frame (one wrong character, a thin line) may keep it, so look again after such an edit. A
+           missing file is no entries yet; each unconfirmed run gets a `confirm?` line to paste there, with why and
+           evidence
   --motion also, from the same decode, how the film moves (never a failure; bin/vh check passes it): see MOTION below
   --json   every number, per frame and per finding, into a file
 

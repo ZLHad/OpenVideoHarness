@@ -19,12 +19,14 @@ scan (checked span: --from, default 1.0 s, to --to, default the beat map's fade 
   silence   digital-silence runs: every channel below −60 dBFS, sample by sample, for ≥ 20 ms (exact start–end).
             Inside the span they FAIL: a dramatic "stop" must keep a bed.
   dropouts  0.1 s RMS windows < their section's median − 12 dB (sections from beats.json, else 8 s blocks). With --stems,
-            not a dip the music stem has too (as deep under its own section median, less 1 dB): the score's own.
+            not the windows where the music stem dips as deep under its own section median (less 1 dB, within a
+            window): the score's own. The rest of a dropout stays one, so a span can be split.
   pumping   50 ms RMS vs a 600 ms rolling median: a dip > 4 dB for ≥ 60 ms that does not start within −0.05…+0.40 s
             of a transient music hit. A music ducker keyed on every SFX shows up here. Not counted: a gradual sag that
             ends in an attack (a sparse bell/pluck decaying before the next strike), with --voice (or the voice stem)
-            dips that start while the voiceover is speaking (the designed duck under narration), and with --stems a dip
-            the music stem has too (at least as deep, less 1 dB): the score's own dynamics, not the mix's.
+            dips that start while the voiceover is speaking (the designed duck under narration), and with --stems the
+            frames where the music stem dips as deep (less 1 dB, within 2 frames): the score's own dynamics, not the
+            mix's; what is left of a dip stays pumping when it lasts 60 ms or more.
   clicks    WARNING only (a machine can't tell a designed sharp attack — a saw note head, a hard-gated glitch — from a
             fault): per channel, |2nd difference| > 15 × its local RMS (5 ms window, the ±1 ms around the sample left
             out, so an isolated click can stand out) and > −40 dBFS, outside ±--click-grace (0.04 s) of a designed onset
@@ -235,10 +237,10 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
         m = (tt >= s["start"]) & (tt < s["end"])
         if m.any():
             med = np.median(db[m]); bad = m & (db < med - 12) & (tt >= t_from) & (tt <= end)
-            smed = np.median(sdb[m]) if Ms is not None else None
-            for a, b, i, j in runs(bad, tt, .05, 0):   # with the stems: a dip the music has too (as deep, less 1 dB) is the score's own
-                if smed is not None and smed - sdb[max(0, i - 1):j + 1].min() >= med - db[i:j].min() - 1.0: own += 1; continue
-                viol.append((a, b, s["name"], float(db[i:j].min()), med))
+            ex = np.zeros(len(tt), bool)   # with the stems, window by window: the music stem as deep under its own median there
+            if Ms is not None: ex = maximum_filter1d(np.median(sdb[m]) - sdb, 3) >= med - db - 1.0   # (less 1 dB, ±1 window)
+            own += len(runs(bad & ex, tt, .05, 0))   # the score's own; the rest of a dropout stays one (a span is split)
+            viol += [(a, b, s["name"], float(db[i:j].min()), med) for a, b, i, j in runs(bad & ~ex, tt, .05, 0)]
     st = judged("qa.dropout", [{"a": a, "b": b} for a, b, *_ in viol]); fails += sum(x != "confirmed" for x, _ in st)
     out.append(f"[2] dropouts (0.1 s RMS < section median − 12 dB): {len(viol)}" + (f" ({own} more that the music stem has too: the score's own dynamics)" if own else ""))
     out += [f"    {a:7.2f}-{b:7.2f} s  {n}: {d:.1f} dBFS vs median {m:.1f}{tag(x)}" for (a, b, n, d, m), (x, _) in list(zip(viol, st))[:40]]
@@ -252,10 +254,13 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
     if Ms is not None:   # the music bus as heard: its own dips, on the same 10 ms grid
         me, mt = rms_db(Ms, sr, .05, .01)
         mdip = np.interp(te, mt, median_filter(me, size=61, mode="nearest") - me)
-    in_music = lambda i, j: mdip is not None and mdip[max(0, i - 2):j + 2].max() >= dip[i:j].max() - 1.0
+    ex = maximum_filter1d(mdip, 5) >= dip - 1.0 if mdip is not None else np.zeros(len(te), bool)   # frame by frame, ±2 frames
     cand = [(a, b, i, j, float(dip[i:j].max())) for a, b, i, j in runs(dip > 4, te, .01, .06)
             if t_from <= a <= end and not any(-.05 <= a - h <= .40 for h, _ in hits) and not sag(i, j) and not talk[i]]
-    pumps = [(a, b, d) for a, b, i, j, d in cand if not in_music(i, j)]; score = len(cand) - len(pumps)
+    pumps, score = [], 0
+    for a, b, i, j, d in cand:   # the frames the music's own dip does not explain stay pumping, in runs of 60 ms or more
+        pumps += [(a2, b2, float(dip[i + i2:i + j2].max())) for a2, b2, i2, j2 in runs(~ex[i:j], te[i:j], .01, .06)]
+        score += len(runs(ex[i:j], te[i:j], .01, .06))
     st = judged("qa.pump", [{"a": a, "b": b} for a, b, _ in pumps]); fails += sum(x != "confirmed" for x, _ in st)
     out.append(f"[3] pumping (dip > 4 dB for ≥ 60 ms, not at a transient music hit): {len(pumps)}" +
                (f" ({score} more that the music stem has too: the score's own dynamics)" if score else ""))

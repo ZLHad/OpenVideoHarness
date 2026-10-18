@@ -15,8 +15,10 @@ are fixed, or relaxed by the user's own words in REVIEW.md (CLAUDE.md, 规则冲
   at        seconds or a span a-b, as the tool's `confirm?` line has it (a click span may be widened by hand)
   key       copied from that line; never written by hand
   why       what was intended (a shot id helps)
-  evidence  a file in the project that shows it (a #part after it is fine; several separated by ";"): the storyboard,
-            the score, a strip or a crop. A sound cannot be heard by an agent: point at the score or the stems' numbers.
+  evidence  a file in the project that shows it, then where in it if that helps: "STORYBOARD.md S12",
+            "STORYBOARD.md#S12", "out/check/strip.png#t=8.5"; several separated by ";". Each must be a regular file inside
+            the project once symlinks are resolved (not a folder, not ../ outside it). The storyboard, the score, a strip or
+            a crop; a sound cannot be heard by an agent, so point at the score or the stems' numbers.
 Used by tools/isoframes.py and tools/audio/qa.py; standard library only.
 """
 import datetime, json, re
@@ -76,14 +78,25 @@ def span(at):
 
 
 def evidence_problem(ev, home):
-    """None when at least one part of `ev` names a file under `home` and none names a missing one; else why not."""
-    found, missing = [], []
+    """None when every part of `ev` that names a path names a regular file inside `home` (symlinks resolved), and at
+    least one does; else why not. A part is a path, then optionally a locator: "file.md S12", "file.md#S12"."""
+    found, bad = [], []
+    root = Path(home).resolve()
     for part in (x.strip() for x in ev.split(";") if x.strip()):
         word = part.split()[0].split("#")[0]
-        if "/" in word or re.search(r"\.[A-Za-z0-9]{1,5}$", word):   # a path, not a word of prose
-            (found if (home / word).exists() else missing).append(word)
-    if missing:
-        return "evidence names a file that is not in the project: " + ", ".join(missing)
+        if not ("/" in word or re.search(r"\.[A-Za-z0-9]{1,5}$", word)):
+            continue   # a word of prose, not a path
+        f = (root / word).resolve()
+        if not f.is_relative_to(root):
+            bad.append(f"{word} is outside the project")
+        elif not f.exists():
+            bad.append(f"{word} is not in the project")
+        elif not f.is_file():
+            bad.append(f"{word} is a folder, not a file")
+        else:
+            found.append(word)
+    if bad:
+        return "evidence: " + "; ".join(bad)
     return None if found else "evidence names no file in the project (the storyboard, the score, a strip or a crop)"
 
 
