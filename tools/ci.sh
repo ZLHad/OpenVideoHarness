@@ -516,6 +516,41 @@ PY
       case "$rc:$a|$rb:$b" in 1:*"LAPSED (已失效, confirmed.json"*"dropout at 3.1-4.9 s: the sound there changed"*"|0:"*"LAPSED (已失效, confirmed.json"*"click span at 5.95-6.65 s: 4 there now, 3 when confirmed"*)
           ok "qa scan: a deeper dip lapses its confirmation and fails; a fourth click lapses the span (a warning)" ;; *) bad "qa scan on changed sound ($rc/$rb): $a | $b" ;; esac
       rm -f "$t/cf/confirmed.json"
+      # the score (a beat map's note map): a click on a note's onset is its attack, a rest of the whole score is not a dropout;
+      # with a part left out of the map, or none, the dropout counts; every open finding carries its evidence; silence stays
+      mkdir -p "$t/qs/st"; gen 0.9 "$k3" "$t/qs/mix.wav"; gen 0 '' "$t/qs/st/music.wav"
+      ffmpeg -nostdin -v error -f lavfi -i "aevalsrc='0.5*sin(2*PI*220*t)*(1-between(t,7,7.1))':s=48000:d=10" -ac 2 -c:a pcm_s16le "$t/qs/sil.wav"
+      python3 - "$t/qs" <<'PY'
+import json, sys
+d = sys.argv[1]; n = lambda t, e: {"t": t, "end": e, "midi": 62, "vel": 0.8, "part": "guqin#0"}
+base = {"bpm": 60, "offset": 0, "beats": [], "downbeats": [], "sections": [{"name": "a", "start": 0, "end": 10, "bars": 3}], "hits": [],
+        "duration": 10, "bars": [[1, 0, 4], [2, 4, 4], [3, 8, 4]], "bars_note": "[bar, start, beats]"}
+notes = [n(1.0, 3.0), n(5.0, 5.9), n(6.0, 6.2), n(6.3, 6.5), n(6.6, 6.9), n(7.2, 9.5)]
+json.dump({**base, "notes": notes, "unmapped": []}, open(d + "/score.json", "w"))
+json.dump({**base, "notes": notes, "unmapped": ["pad#0"]}, open(d + "/partial.json", "w"))
+json.dump({**base, "bpm": 480, "bars": [[k + 1, k * 0.5, 4] for k in range(20)], "unmapped": [],
+           "notes": [n(k * 0.5 + o, k * 0.5 + o + 0.1) for k in range(20) for o in (0, 0.125)]}, open(d + "/rhythm.json", "w"))
+PY
+      a=$(qs "$t/qs/mix.wav" "$t/qs/score.json" 2>&1); rc=$?; b=$(qs "$t/qs/mix.wav" 2>&1); rb=$?
+      case "$rc:$a" in 0:*"dropouts (0.1 s RMS < section median − 12 dB): 0 (1 more where the score itself is quiet"*"3.10-   4.90 s  a: -32.0 dBFS vs median -12.0 · the score rests here (no note held after 3.00 s; next 5.00 s guqin#0)"*"0 sharp discontinuities outside ±40 ms of designed onsets (0 more at designed onsets, 3 where the score starts a note"*"6.000 s"*"6.00 s guqin#0"*"✓ audio QA passed")
+          case "$rb:$b" in *"the score"*) bad "qa scan without a score mentions one: $b" ;;
+            1:*"dropouts (0.1 s RMS < section median − 12 dB): 1"*"3.10-   4.90 s"*"3 sharp discontinuities outside ±40 ms of designed onsets (0 more at designed onsets)."*)
+              ok "qa scan with a note map: onset clicks are the notes' attacks, a scored rest is not a dropout; without a score both count as before" ;;
+            *) bad "qa scan without a score changed (rc $rb): $b" ;; esac ;;
+        *) bad "qa scan with a note map (rc $rc): $a" ;; esac
+      a=$(qs "$t/qs/mix.wav" "$t/qs/partial.json" --stems "$t/qs/st" --clips "$t/qs/clips" 2>&1); rc=$?
+      case "$rc:$a" in 1:*"dropouts (0.1 s RMS < section median − 12 dB): 1"*"8.0 dB under the threshold (-24.0 dBFS: the section median − 12 dB) · bar 1:4.10 · the score rests here"*"parts not in the note map: pad#0"*"stems, the span vs the 0.5 s before: music +0.0 dB"*"3 where the score starts a note"*"clips: 1 excerpt(s)"*)
+          if [ -s "$t/qs/clips/0003.100s-dropout.wav" ]; then ok "qa scan: a rest of a partial note map still counts, with its evidence (threshold, bar, score, stems) and a clip named by time"
+          else bad "qa scan --clips wrote no 0003.100s-dropout.wav: $(ls "$t/qs/clips" 2>&1)"; fi ;;
+        *) bad "qa scan with a partial note map, stems and clips (rc $rc): $a" ;; esac
+      a=$(qs "$t/qs/sil.wav" "$t/qs/score.json" 2>&1); rc=$?; b=$(qs "$t/qs/st/music.wav" "$t/qs/rhythm.json" 2>&1); rb=$?
+      case "$rc:$a|$rb:$b" in 1:*"digital silence (< −60 dBFS, ≥ 20 ms): 1 inside the span"*"the score rests here (no note held after 6.90 s; next 7.20 s guqin#0) · a failure whatever the score does"*"|0:"*"advice  the score's rhythm (the note map's parts together) is the same 20 bars in a row: bars 1–20"*"✓ audio QA passed (advice above)"*)
+          ok "qa scan: digital silence fails where the score rests; 20 identical bars of the note map are advice, not a failure" ;; *) bad "qa scan on silence in a rest, or a repeated rhythm ($rc/$rb): $a | $b" ;; esac
+      printf '%s\n' '{"bpm": 120, "sections": [{"name": "a", "bars": 1, "chords": ["i"]}], "parts": [{"inst": "guqin", "note_map": true, "pattern": [[0, 1, "s0"]]},' \
+        '{"inst": "piano", "pattern": [[0, 4, "c0"]]}, {"inst": "wind", "gain_db": -20, "quiet": true}]}' > "$t/qs/np.json"
+      uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/music.py" "$t/qs/np.json" "$t/qs/np.wav" >/dev/null 2>&1
+      a=$(python3 -c 'import json, sys; b = json.load(open(sys.argv[1])); print(b.get("unmapped"), len(b.get("notes", [])))' "$t/qs/np.beats.json" 2>&1)
+      case "$a" in "['piano#0'] 1") ok "music: the note map says which parts it leaves out (unmapped; a texture plays no notes)" ;; *) bad "music: unmapped in the beat map: $a" ;; esac
     fi
     a=$(vh check "$t/a.wav" 2>&1); rc=$?
     case "$rc:$a" in 0:*"isolated"*) bad "check on audio only mentions the frame scan: $a" ;; 0:*) ok "check on an audio file skips the frame scan quietly" ;; *) bad "check on audio only (rc $rc): $a" ;; esac
@@ -1188,15 +1223,15 @@ PY
     case "$rc:$a" in 2:*"needed at the peak"*"GB free on that disk"*) ok "render: a disk too full for even a flat film stops it before a frame is drawn (exit 2)" ;;
       *) bad "render on a full disk: exit $rc: $(printf '%s' "$a" | tail -c 400)" ;; esac
     # the queue and the resume, on a page whose frames cost unevenly (tools/film/fixture/uneven.html: from 2 s on 30 ms
-    # each, frame 75 1.5 s): chunks of one GOP, so 3 workers make the video 1 makes (PSNR: separate browsers). A render
-    # whose frame 75 passes --frame-timeout 1 keeps the 5 chunks it finished; with the page edited they are not used;
+    # each, frame 75 5 s): chunks of one GOP, so 3 workers make the video 1 makes (PSNR: separate browsers). A render
+    # whose frame 75 passes --frame-timeout 3 keeps the 5 chunks it finished; with the page edited they are not used;
     # the same command then draws only the last chunk, and the video is the one a whole render makes
     mkdir -p "$t/q" && cp tools/film/fixture/uneven.html "$t/q/u.html"
     vh render "$t/q/u.html" --workers 1 --gop 15 --out "$t/q/one.mp4" >/dev/null 2>&1
     a=$(vh render "$t/q/u.html" --workers 3 --gop 15 --out "$t/q/three.mp4" 2>&1); rc=$?
-    b=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 1 --out "$t/q/r.mp4" 2>&1); rc2=$?
+    b=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 3 --out "$t/q/r.mp4" 2>&1); rc2=$?
     printf '<!-- edited -->\n' >> "$t/q/u.html"
-    c=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 1 --out "$t/q/r.mp4" 2>&1); rc3=$?
+    c=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 3 --out "$t/q/r.mp4" 2>&1); rc3=$?
     d=$(vh render "$t/q/u.html" --workers 2 --gop 15 --out "$t/q/r.mp4" 2>&1); rc4=$?
     if [ "$rc:$rc2:$rc3:$rc4" = 0:1:1:0 ] && printf '%s' "$b" | grep -q '5 of 6 chunks are kept' && printf '%s' "$c" | grep -q 'not used (changed: .*u\.html)' \
       && printf '%s' "$d" | grep -q 'resuming: 5 of 6 chunks kept' && [ ! -e "$t/q/.r.mp4.parts" ] && python3 - "$t/q" <<'PY'

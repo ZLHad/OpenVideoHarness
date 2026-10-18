@@ -5,11 +5,12 @@ usage (via bin/vh qa):
   python tools/audio/qa.py <mix> [beats.json] [events.json] [--fps 30] [--from 1.0] [--to S] [--voice vo.wav]
                           [--stems DIR] [--lib DIR] [--root DIR] [--click-grace 0.04] [--out report.txt]     all three
   python tools/audio/qa.py scan <mix> [beats.json] [--events events.json] [--stems DIR] [--confirmed f] [...]  scan only
+                          (both: --clips DIR for excerpts of the scan's findings, below)
   python tools/audio/qa.py cues <mix> <beats.json|-> [events.json] [--lib DIR] [--root DIR] [...]             cues only
   python tools/audio/qa.py mix <DIR> [--profile P] [--words w.json] [--beats b.json] [--timeline t.json]
                           [--out report.txt] [--json report.json]                                            mix report only
-<mix>: anything ffmpeg decodes (wav, m4a, the muxed mp4). beats.json: music.beats.json (sections, hits, fade) or the
-output of beats.py; events.json: the SFX event list. --stems DIR: the folder `bin/vh mix … stems=DIR` wrote (the buses
+<mix>: anything ffmpeg decodes (wav, m4a, the muxed mp4). beats.json: music.beats.json (sections, hits, fade, and the
+note map "notes" / "unmapped" when the score's parts set "note_map": true) or the output of beats.py; events.json: the SFX event list. --stems DIR: the folder `bin/vh mix … stems=DIR` wrote (the buses
 as heard + meta.json); with it the scan knows the music's own dips, the cue check finds the events' sounds, and the
 mix report runs too. Exit status 1 if silence, dropouts, pumping, the cue check (on a lossless file; on an AAC encode
 only when the encode as a whole is off) or a hard target of the mix report fail (usable as a gate); clicks, marginal
@@ -20,7 +21,11 @@ scan (checked span: --from, default 1.0 s, to --to, default the beat map's fade 
             Inside the span they FAIL: a dramatic "stop" must keep a bed.
   dropouts  0.1 s RMS windows < their section's median − 12 dB (sections from beats.json, else 8 s blocks). With --stems,
             not the windows where the music stem dips as deep under its own section median (less 1 dB, within a
-            window): the score's own. The rest of a dropout stays one, so a span can be split.
+            window): the score's own. The rest of a dropout stays one, so a span can be split. With a note map that is
+            the whole score ("unmapped": []), not a run where no note starts (from its first quiet window to 0.15 s
+            before its last), the next note starts 0.15 s before … 0.30 s after its last quiet window (the score brings
+            the sound back) or the checked span ends first, and no note written before the last onset still sounds:
+            the score's rest or the room between its notes, listed under "the score itself is quiet here", not counted.
   pumping   50 ms RMS vs a 600 ms rolling median: a dip > 4 dB for ≥ 60 ms that does not start within −0.05…+0.40 s
             of a transient music hit. A music ducker keyed on every SFX shows up here. Not counted: a gradual sag that
             ends in an attack (a sparse bell/pluck decaying before the next strike), with --voice (or the voice stem)
@@ -31,7 +36,17 @@ scan (checked span: --from, default 1.0 s, to --to, default the beat map's fade 
             fault): per channel, |2nd difference| > 15 × its local RMS (5 ms window, the ±1 ms around the sample left
             out, so an isolated click can stand out) and > −40 dBFS, outside ±--click-grace (0.04 s) of a designed onset
             (beat map hits and beats, SFX event times). Lists the total and the 10 worst (time, bar:beat, ratio) to
-            listen to by ear.
+            listen to by ear. One within ±--click-grace of a note of the note map (any part in it) is that note's
+            attack: listed under "the score has a note here" (the 5 worst), not counted.
+evidence (scan): each open finding gets a line or a tail: the value against its threshold, bar:beat, what the note map
+  does there (rests, between notes, a note held through it, notes that start in it and are not heard; for a click the
+  nearest note and a note that ends there), and with --stems which stem carries it (a span: each stem's level over it
+  against the 0.5 s before, so the stem that left shows; a click: the stems with as big a jump there, else "in no
+  stem: made in the mix"). Digital silence stays a failure whatever the score does. --clips DIR writes the mix from 2 s
+  before to 2 s after each open finding (silence, dropout, pumping, the listed clicks; at most 40) as 16-bit WAVs named
+  by time, 0012.340s-dropout.wav, for a person to listen to. A beat map from bin/vh music without a note map gets a
+  line saying how to add one. advice (never a failure): bars in a row, 16 or more, whose onsets (the note map's parts
+  together, on a 1/12-beat grid) are exactly the same.
 confirmed (scan): a dropout, a pumping dip or a burst of clicks the score or the storyboard asks for can be confirmed in
   the project's confirmed.json (tools/confirm.py; the project of the mix, or --confirmed f): qa.dropout, qa.pump, and
   qa.click over a span with "n", how many. It is still listed, marked confirmed, and does not fail; the key (env_key) is
@@ -61,7 +76,8 @@ mix (the level hierarchy, per bin/vh mix's profile table; see tools/audio/README
   1–4 kHz SNR. [3] masking: each word (--words, else the timeline's words, else 0.4 s chunks) by its 1–4 kHz SNR.
   [4] gaps: the music in each pause, re the anchor and re the lines around it (a big rise is breathing). [5] SFX: each
   event's class, its own loudness re the anchor (the class range is judged on this), re the local bed and re a
-  speaking voice. [6] depth: width, correlation, a blind decay time and the dry/wet ratio per bus. [7] limiter: where
+  speaking voice; advice (never a failure) when one class spreads 15 dB or more re the local bed: one gain over a bed
+  that moves (loud where the music is quiet, lost where it is loud). [6] depth: width, correlation, a blind decay time and the dry/wet ratio per bus. [7] limiter: where
   the mix sits under the stems' sum.
   Timeline lines past the end of the mix are left out (as the mixer does); a line with no speech in the voice stem
   (≤ −70 LUFS, or 20 LU under the others) is flagged NO VOICE and one with no music under it "no music", and neither
@@ -90,7 +106,9 @@ Known limits: pumping misses long shallow dips (≈ 300 ms at −8 dB fills half
   check catches it); the onset detector normalises to the loudest onset in the file, so one huge onset elsewhere can
   make a weak cue marginal or OFF (the margin column shows it); clicks are judged against local HF content, so a click
   deep inside noise can still pass, and designed attacks off the grace windows (16th-note ostinato heads, a typing
-  burst, glitch gating) are listed too.
+  burst, glitch gating) are listed too unless the note map has them; the score's quiet can only be told from the note
+  map's onsets and written lengths (a pluck's natural decay under a long written note is "held through": reported), and
+  a texture (wind, rain) plays no notes, so its own dip between two notes reads as the score's.
 """
 import json, os, subprocess, sys
 import numpy as np
@@ -110,6 +128,10 @@ EDGE = 0.004           # s: a match this close to the edge of its search window 
 MARGINAL = 0.02        # onset strength over the detector's threshold under which a cue is marginal
 STALE_SLACK = 2.0      # s: an input written more than this after the mix makes the mix look stale (a warning)
 ENV_PAD, ENV_STEP, ENV_MAX, ENV_SHARE, ENV_TOL = 0.5, 1.5, 64, 0.9, 0.15   # confirmed.json: a sound's key (env_key) and its match
+REST_EARLY, REST_LATE = 0.15, 0.30   # s: the score's next note starts this close before … after a dropout's last quiet window: it brings the sound back
+REPEAT_BARS = 16       # bars of one rhythm in a row (the note map's parts together) after which the scan gives advice
+BED_SPREAD = 15.0      # dB: one SFX class spread this far re the local bed gets the mix report's advice
+CLIP_PAD, CLIP_MAX = 2.0, 40   # --clips: seconds of the mix either side of a finding, and at most this many excerpts
 
 def load(path, sr=None):  # → float32 (n, ch), sr — via ffmpeg, so containers and codecs all work
     st = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=sample_rate,channels",
@@ -200,6 +222,91 @@ def same_env(k1, k2):  # the same sound: as many points, ENV_SHARE of them at mo
     a, b = (confirm.uncode(k.removeprefix("env:")) for k in (k1, k2))
     return bool(a and b) and len(a) == len(b) and sum(abs(x - y) <= 1 for x, y in zip(a, b)) >= ENV_SHARE * len(a)
 
+def score_notes(bm):
+    """the beat map's note map (music.py "notes") → (notes sorted by t, whole): whole when "unmapped" says every part that
+    plays notes is in it, so a rest in the map is a rest of the score; ([], False) without one"""
+    N = sorted((n for n in bm.get("notes") or [] if isinstance(n, dict) and isinstance(n.get("t"), (int, float))), key=lambda n: n["t"])
+    return N, isinstance(bm.get("notes"), list) and bm.get("unmapped") == []
+
+def nl(n): return f"{n['t']:.2f} s {n.get('part', '?')}"   # a note, for the report
+
+def score_span(bm, N, whole, a, b, end):
+    """what the score does over a quiet span (0.1 s window centres a…b) → (why, text). why is set when the score itself
+    leaves it quiet: no note of the note map starts in it, the next one starts at its end (REST_EARLY before … REST_LATE
+    after its last quiet window: the score brings the sound back) or the checked span ends first, no note written before
+    the last onset still sounds through it, and the map is the whole score. text says what the score does there."""
+    if "notes" not in bm: return None, ""
+    if not N: return None, "the note map has no notes"
+    lo, hi = a - 0.05, b + 0.05   # the windows' own extent
+    inside = [n for n in N if lo <= n["t"] < b - REST_EARLY]
+    prev = [n for n in N if n["t"] < lo]; nxt = next((n for n in N if n["t"] >= b - REST_EARLY), None)
+    held = [n for n in prev if n["end"] > hi]; old = [n for n in held if n["t"] < prev[-1]["t"] - 1e-3]
+    back = nxt is not None and nxt["t"] <= b + REST_LATE; to_end = b >= end - 0.06 and (nxt is None or nxt["t"] > end - REST_EARLY)
+    nx = f"; next {nl(nxt)}" if nxt else "; no note after it"
+    if inside: text = f"the score starts {len(inside)} note(s) in it ({', '.join(nl(n) for n in inside[:3])})"
+    elif old: text = f"the score holds a note through it ({nl(old[0])}, written to {old[0]['end']:.2f} s)"
+    elif not prev: text = "before the score's first note" + nx
+    elif not held: text = f"the score rests here (no note held after {max(n['end'] for n in prev):.2f} s{nx})"
+    else: text = f"between notes of the score (the last {nl(prev[-1])}{nx})"
+    if not (inside or old) and not back and not to_end:
+        text += f", {nxt['t'] - b:.2f} s after it: the sound comes back without the score"
+    if not whole and not (inside or old):
+        text += ("; parts not in the note map: " + ", ".join(bm["unmapped"]) + " (with them, a rest of the map is not the score's)"
+                 if isinstance(bm.get("unmapped"), list) else "; the beat map does not say which parts its note map leaves out: render it again (bin/vh music)")
+    why = "the score rests here" if text.startswith("the score rests") else "between notes of the score" if text.startswith(("between", "before")) else None
+    return (why if why and whole and (back or to_end) else None), text
+
+def score_rhythm(bm, N):
+    """runs of REPEAT_BARS or more bars whose onsets (every part of the note map together, on a 1/12-beat grid) are the
+    same → [(first bar, last bar, start s, end s)]: the score's own rhythm, exactly; humanize and swing stay in the grid"""
+    bars, bpm = bm.get("bars"), bm.get("bpm")
+    if not N or not bars or not bpm: return []
+    g = 60 / float(bpm) / 12; ts = np.array([n["t"] for n in N]); sig = []
+    for k, (num, t0, nb) in enumerate(bars):
+        t1 = bars[k + 1][1] if k + 1 < len(bars) else t0 + nb * 12 * g
+        on = ts[(ts >= t0 - g / 2) & (ts < t1 - g / 2)]
+        sig.append((nb, tuple(sorted({int(round((t - t0) / g)) for t in on}))))
+    out, i = [], 0
+    while i < len(sig):
+        j = i
+        while j + 1 < len(sig) and sig[j + 1] == sig[i] and sig[i][1]: j += 1
+        if j - i + 1 >= REPEAT_BARS: out.append((bars[i][0], bars[j][0], bars[i][1], bars[j][1] + bars[j][2] * 12 * g))
+        i = j + 1
+    return out
+
+def write_clip(X, sr, a, b, path):   # the mix from CLIP_PAD before a to CLIP_PAD after b, 16-bit WAV
+    import wave
+    y = X[max(0, int((a - CLIP_PAD) * sr)):min(len(X), int((b + CLIP_PAD) * sr))]
+    with wave.open(path, "wb") as w:
+        w.setnchannels(X.shape[1]); w.setsampwidth(2); w.setframerate(sr)
+        w.writeframes((np.clip(y, -1, 1) * 32767).astype("<i2").tobytes())
+
+def stem_evidence(stems, sr, x, spans, clicks):
+    """which stem carries what at each finding → ({span: text}, {click sample: text}). A span: each stem's level over it
+    against the 0.5 s before (what left); a click: the stems whose own jump there (|2nd difference|, ±1 ms) is at least
+    half the mix's (where it was made)."""
+    sp, ck, d2m = {}, {}, {}
+    for c in clicks:
+        s0, s1 = max(0, c - int(.001 * sr)), min(len(x), c + int(.001 * sr) + 1)
+        d2m[c] = float(np.abs(np.diff(x[s0:s1], 2)).max()) if s1 - s0 > 2 else 0.0
+    for name in ("music", "voice", "sfx"):
+        p = stem(stems, name)
+        if not p: continue
+        y = load(p, sr)[0].astype(np.float64).mean(1)
+        pw = lambda a, b, y=y: float(np.mean(y[max(0, int(a * sr)):max(int(a * sr) + 1, int(b * sr))] ** 2)) if a < len(y) / sr else 0.0  # noqa: E731
+        for a, b in spans:
+            here, before = pw(a - 0.05, b + 0.05), pw(a - 0.55, a - 0.05)
+            sp.setdefault((a, b), []).append(f"{name} silent" if max(here, before) < 1e-8 else
+                                             f"{name} {round(10 * np.log10((here + 1e-12) / (before + 1e-12)), 1) + 0.0:+.1f} dB")
+        for c in clicks:
+            s0, s1 = max(0, c - int(.001 * sr)), min(len(y), c + int(.001 * sr) + 1)
+            j = float(np.abs(np.diff(y[s0:s1], 2)).max()) if s1 - s0 > 2 else 0.0
+            if d2m[c] > 0 and j >= 0.5 * d2m[c]: ck.setdefault(c, []).append(name)
+        del y
+    return ({k: "stems, the span vs the 0.5 s before: " + ", ".join(v) for k, v in sp.items()},
+            {c: ("in the " + " and ".join(ck[c]) + " stem" + ("s" if len(ck[c]) > 1 else "")) if c in ck else "in no stem: made in the mix (an edit, the limiter?)"
+             for c in clicks})
+
 def clusters(ts, gap=2.0):  # sorted times → [(first, last, count)], joining neighbours up to gap s apart
     out = []
     for t in sorted(ts):
@@ -207,9 +314,11 @@ def clusters(ts, gap=2.0):  # sorted times → [(first, last, count)], joining n
         else: out.append((t, t, 1))
     return out
 
-def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None, conf=None):
-    """→ (lines, failures, confirmed). conf: (entries, refused, file) from confirmed.json, or None outside a project."""
+def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None, conf=None, stems=None, clips=None):
+    """→ (lines, failures, confirmed). conf: (entries, refused, file) from confirmed.json, or None outside a project.
+    stems: the stems folder (evidence: which stem carries what); clips: a folder for ±CLIP_PAD s excerpts of the findings."""
     X, sr = load(path); x = X.astype(np.float64).mean(1); dur = len(x) / sr
+    N, whole = score_notes(bm); slots = []   # slots: (line index, kind, a, b, click sample or None) for the evidence filled in at the end
     F = bm.get("fade"); end = t_to if t_to is not None else (F.get("start", F.get("from")) if isinstance(F, dict) else F[0] if isinstance(F, list)
                                                             else F if F else dur - 2.8)
     secs = bm.get("sections") or [{"name": f"{a:.0f}s", "start": a, "end": a + 8} for a in np.arange(0, dur, 8.0)]
@@ -230,7 +339,12 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
     inside = [r for r in sil if r[1] >= t_from and r[0] <= end]; fails += len(inside)
     out.append(f"[1] digital silence (< −60 dBFS, ≥ 20 ms): {len(inside)} inside the span" +
                ("; all runs: " + ", ".join(f"{a:.3f}-{b:.3f}" for a, b in sil) if sil else ""))
-    db, tt = rms_db(x, sr, .1, .05); viol, own = [], 0
+    pos = lambda t: f" · bar {barpos(bm, t)}" if barpos(bm, t) else ""   # noqa: E731
+    for a, b in inside[:20]:   # a floor whatever the score does there: what it does is evidence, not an excuse
+        slots.append((len(out), "silence", a, b, None)); txt = score_span(bm, N, whole, a, b, end)[1]
+        out.append(f"    {a:8.3f}-{b:.3f} s  every channel under −60 dBFS for {(b - a) * 1000:.0f} ms (the floor: 20 ms){pos(a)}"
+                   + (f" · {txt}" if txt else "") + " · a failure whatever the score does: keep a bed under a stop")
+    db, tt = rms_db(x, sr, .1, .05); viol, own, rest = [], 0, []
     Ms = load(music_stem, sr)[0].astype(np.float64).mean(1) if music_stem else None   # the music bus as heard
     if Ms is not None: sm, st_ = rms_db(Ms, sr, .1, .05); sdb = np.interp(tt, st_, sm, right=-120.0)
     for s in secs:
@@ -240,10 +354,20 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
             ex = np.zeros(len(tt), bool)   # with the stems, window by window: the music stem as deep under its own median there
             if Ms is not None: ex = maximum_filter1d(np.median(sdb[m]) - sdb, 3) >= med - db - 1.0   # (less 1 dB, ±1 window)
             own += len(runs(bad & ex, tt, .05, 0))   # the score's own; the rest of a dropout stays one (a span is split)
-            viol += [(a, b, s["name"], float(db[i:j].min()), med) for a, b, i, j in runs(bad & ~ex, tt, .05, 0)]
+            for a, b, i, j in runs(bad & ~ex, tt, .05, 0):   # with a note map: the score's rests and the room between its notes
+                why, txt = score_span(bm, N, whole, a, b, end)
+                (rest if why else viol).append((a, b, s["name"], float(db[i:j].min()), med, txt))
     st = judged("qa.dropout", [{"a": a, "b": b} for a, b, *_ in viol]); fails += sum(x != "confirmed" for x, _ in st)
-    out.append(f"[2] dropouts (0.1 s RMS < section median − 12 dB): {len(viol)}" + (f" ({own} more that the music stem has too: the score's own dynamics)" if own else ""))
-    out += [f"    {a:7.2f}-{b:7.2f} s  {n}: {d:.1f} dBFS vs median {m:.1f}{tag(x)}" for (a, b, n, d, m), (x, _) in list(zip(viol, st))[:40]]
+    out.append(f"[2] dropouts (0.1 s RMS < section median − 12 dB): {len(viol)}" + (f" ({own} more that the music stem has too: the score's own dynamics)" if own else "")
+               + (f" ({len(rest)} more where the score itself is quiet, listed below, not counted)" if rest else ""))
+    for (a, b, n, d, m, txt), (state, _) in list(zip(viol, st))[:40]:
+        out.append(f"    {a:7.2f}-{b:7.2f} s  {n}: {d:.1f} dBFS vs median {m:.1f}{tag(state)}")
+        if state != "confirmed":
+            slots.append((len(out), "dropout", a, b, None))
+            out.append(f"      {m - 12 - d:.1f} dB under the threshold ({m - 12:.1f} dBFS: the section median − 12 dB){pos(a)}" + (f" · {txt}" if txt else ""))
+    if rest:
+        out.append("    the score itself is quiet here (its note map; not counted):")
+        out += [f"      {a:7.2f}-{b:7.2f} s  {n}: {d:.1f} dBFS vs median {m:.1f} · {txt}" for a, b, n, d, m, txt in rest[:20]]
     e, te = rms_db(x, sr, .05, .01); base = median_filter(e, size=61, mode="nearest"); dip = base - e; hits = transient_hits(bm)
     sag = lambda i, j: e[max(0, i - 6):i + 2].max() - e[i:i + 2].min() < 3 and e[j:j + 7].max() - e[j - 1] >= 3   # slow in, hard out
     talk = np.zeros(len(te), bool)
@@ -264,7 +388,12 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
     st = judged("qa.pump", [{"a": a, "b": b} for a, b, _ in pumps]); fails += sum(x != "confirmed" for x, _ in st)
     out.append(f"[3] pumping (dip > 4 dB for ≥ 60 ms, not at a transient music hit): {len(pumps)}" +
                (f" ({score} more that the music stem has too: the score's own dynamics)" if score else ""))
-    out += [f"    {a:7.2f}-{b:7.2f} s  depth {d:.1f} dB{tag(x)}" for (a, b, d), (x, _) in list(zip(pumps, st))[:40]]
+    for (a, b, d), (state, _) in list(zip(pumps, st))[:40]:
+        out.append(f"    {a:7.2f}-{b:7.2f} s  depth {d:.1f} dB{tag(state)}")
+        if state != "confirmed":
+            slots.append((len(out), "pump", a, b, None)); txt = score_span(bm, N, whole, a, b, end)[1]
+            out.append(f"      {d - 4:.1f} dB deeper than the threshold (4 dB under the 600 ms median), for {(b - a) * 1000 + 10:.0f} ms (60 ms or more counts){pos(a)}"
+                       + (f" · {txt}" if txt else ""))
     cand, k, g = {}, int(.005 * sr) // 2, int(.001 * sr)
     for c in range(X.shape[1]):
         d2 = np.abs(np.diff(X[:, c].astype(np.float64), 2)); q = np.concatenate([[0], np.cumsum(d2 ** 2)]); i = np.arange(len(d2))
@@ -277,13 +406,43 @@ def scan(path, bm, t_from, t_to, voice=None, ev=(), grace=0.04, music_stem=None,
         else: groups.append([c, c, (cand[c], c)])                                             # [first, last, (worst ratio, at)]
     designed = np.array(sorted([h["t"] for h in bm.get("hits", [])] + list(bm.get("beats", [])) + [e["t"] for e in ev]))
     near = lambda t: len(designed) and np.min(np.abs(designed - t)) <= grace
-    clicks = sorted(((r, c / sr) for _, _, (r, c) in groups if not near(c / sr)), reverse=True)
+    on = np.array([n["t"] for n in N]); at_note = lambda t: len(on) and np.min(np.abs(on - t)) <= grace   # the note map's onsets
+    off = [(r, c / sr) for _, _, (r, c) in groups if not near(c / sr)]
+    onset = sorted(((r, t) for r, t in off if at_note(t)), reverse=True)
+    clicks = sorted(((r, t) for r, t in off if not at_note(t)), reverse=True)
     st = judged("qa.click", [{"a": t, "b": t} for _, t in clicks], cover=True)   # confirmed by span, with how many
     heard = [c for c, (x, _) in zip(clicks, st) if x != "confirmed"]; done = len(clicks) - len(heard)
     out.append(f"[4] clicks — WARNING, not a failure: {len(clicks)} sharp discontinuities outside ±{grace * 1000:.0f} ms of designed onsets"
-               f" ({len(groups) - len(clicks)} more at designed onsets)" + (f"; {done} in confirmed spans" if done else "") + "."
-               + (" 请人耳复听这几处（最严重的前 10 处）：" if heard else ""))
-    out += [f"    {t:8.3f} s  {barpos(bm, t):>9s}  {r:6.0f}× local level" for r, t in heard[:10]]
+               f" ({len(groups) - len(off)} more at designed onsets" + (f", {len(onset)} where the score starts a note: its attacks, listed below" if onset else "")
+               + ")" + (f"; {done} in confirmed spans" if done else "") + "." + (" 请人耳复听这几处（最严重的前 10 处）：" if heard else ""))
+    closest = lambda t: min(N, key=lambda n: abs(n["t"] - t))   # noqa: E731
+    for r, t in heard[:10]:
+        slots.append((len(out), "click", t, t, int(round(t * sr))))
+        ends = [n for n in N if abs(n["end"] - t) <= grace and n["end"] > n["t"]]   # a note-off there: a voice's release
+        out.append(f"    {t:8.3f} s  {barpos(bm, t):>9s}  {r:6.0f}× local level (threshold 15×)"
+                   + (f" · no note of the score starts here (nearest {nl(closest(t))}, {(closest(t)['t'] - t) * 1000:+.0f} ms)" if N else "")
+                   + (f" · a note ends here ({nl(ends[0])}, written to {ends[0]['end']:.2f} s)" if ends else ""))
+    if onset:
+        out.append(f"    the score has a note here (within ±{grace * 1000:.0f} ms: the note's attack, not counted):")
+        out += [f"      {t:8.3f} s  {barpos(bm, t):>9s}  {r:6.0f}× local level · {nl(closest(t))}" for r, t in onset[:5]] + \
+               ([f"      … {len(onset) - 5} more"] if len(onset) > 5 else [])
+    if "notes" not in bm and "bars_note" in bm and (viol or clicks):
+        out.append('    this beat map has no note map: with "note_map": true on the score\'s parts (bin/vh music), the scan tells their '
+                   "onsets and rests from clicks and dropouts")
+    for b0, b1, a, b in score_rhythm(bm, N)[:5]:
+        out.append(f"advice  the score's rhythm (the note map's parts together) is the same {b1 - b0 + 1} bars in a row: bars {b0}–{b1}, "
+                   f"{a:.2f}–{b:.2f} s; an exact repeat in the score: listen whether it should vary (not a check)"
+                   + (f"; parts not in the note map: {', '.join(bm['unmapped'])}" if bm.get("unmapped") else ""))
+    if stems and slots:   # which stem carries what at each finding
+        se, ce = stem_evidence(stems, sr, x, sorted({(a, b) for _, _, a, b, c in slots if c is None}), [c for *_, c in slots if c is not None])
+        for i, _, a, b, c in slots:
+            ev_ = ce.get(c) if c is not None else se.get((a, b))
+            if ev_: out[i] += f" · {ev_}"
+    if clips:   # ±CLIP_PAD s of the mix around each finding, for a person to listen to
+        os.makedirs(clips, exist_ok=True)
+        for _, k_, a, b, _ in slots[:CLIP_MAX]: write_clip(X, sr, a, b, os.path.join(clips, f"{a:08.3f}s-{k_}.wav"))
+        out.append(f"clips: {min(len(slots), CLIP_MAX)} excerpt(s) of the findings above (±{CLIP_PAD:.0f} s, named by time) in {clips}"
+                   + (f"; {len(slots) - CLIP_MAX} more not written" if len(slots) > CLIP_MAX else "") if slots else f"clips: no finding to excerpt ({clips})")
     for a, b, n in clusters([t for _, t in heard])[:10]:   # one span per burst of clicks, its count as "n"
         a, b = max(0.0, round(a - 0.05, 3)), round(b + 0.05, 3); offers.append(confirm.offer("qa.click", a, b, key(a, b), n))
     out += confirm.lines(notes, refused)
@@ -786,9 +945,25 @@ def fmt(R):
         lm = R["limiter"]
         o.append(f"[7] limiter: max {lm['max_reduction_dB']:.1f} dB, {len(lm['spans'])} span(s) ≥ 0.5 dB" +
                  (": " + ", ".join(f"{a:.2f}s −{r:.1f}" for a, b, r in lm["spans"][:10]) if lm["spans"] else ""))
+    o += [f"advice  {x}" for x in bed_advice(R)]
     o += [f"FAIL  {x}" for x in R["fails"]] + [f"warn  {x}" for x in R["warns"][:40]]
     o.append("✓ hierarchy targets met" + (f" ({len(R['warns'])} warnings)" if R["warns"] else "") if not R["fails"] else f"✗ {len(R['fails'])} hard target(s) missed")
     return "\n".join(o)
+
+def bed_advice(R):
+    """SFX against the local music bed ([5]'s re-bed), per class: a class spread BED_SPREAD dB or more is one gain over a
+    bed that moves, loud where the bed is quiet and lost where it is loud. Advice, never a failure: the class ranges and
+    the BURIED flag above judge the mix."""
+    by, out = {}, []
+    for e in R["events"]:
+        if e["re_bed"] is not None: by.setdefault(e["class"], []).append(e)
+    for c, es in by.items():
+        lo, hi = min(es, key=lambda e: e["re_bed"]), max(es, key=lambda e: e["re_bed"])
+        if hi["re_bed"] - lo["re_bed"] >= BED_SPREAD:
+            out.append(f"{c} SFX sit from {lo['re_bed']:+.1f} dB re the local bed ({lo['t']:.2f} s {lo['sfx']}) to {hi['re_bed']:+.1f} "
+                       f"({hi['t']:.2f} s {hi['sfx']}), {hi['re_bed'] - lo['re_bed']:.0f} dB apart over {len(es)} events: a gain set in dB is loud "
+                       "where the music is quiet and lost where it is loud; set each against the bed there (re-bed in [5])")
+    return out
 
 def jsonable(R):
     def conv(v):
@@ -871,7 +1046,7 @@ def main():
                            opt("--voice"), tlp, opt("--words")] + [in_stems(stems, p) for p in ins.values()], ev or sev, tl); out += old
     if mode in ("scan", "all"):
         o, *f = scan(mix_path, bm, float(opt("--from", 1.0)), float(opt("--to")) if "--to" in a else None, opt("--voice") or stem(stems, "voice"), sev,
-                    float(opt("--click-grace", 0.04)), stem(stems, "music"), conf); out += o; fails += f[0]; nconf = f[1]
+                    float(opt("--click-grace", 0.04)), stem(stems, "music"), conf, stems, opt("--clips")); out += o; fails += f[0]; nconf = f[1]
     if mode in ("cues", "all") and (bm.get("hits") or ev):
         o, f, w, faint = cues(mix_path, bm, ev, float(opt("--fps", 30)), lib, root); out += o; fails += f; warns += w
     rev, nrep = ev or sev or meta.get("events") or [], 0   # the same sound again and again: a warning
@@ -893,6 +1068,7 @@ def main():
     print(("✓ audio QA passed" if not fails else f"✗ {fails} problem(s)") + (f" · {nconf} confirmed ({confirm.NAME})" if nconf else "")
           + (" (click warnings above: 请人耳复听)" if any(r.startswith("[4]") and "请人耳复听" in r for r in out) else "")
           + (f" ({warns} cue warning(s) above)" if warns else "") + (f" ({nrep} repeated SFX above)" if nrep else "")
+          + (" (advice above)" if any(r.startswith("advice") for r in out) else "")
           + (" · STALE? this may be an earlier mix (see the top)" if old else "")
           + (f" · full report {opt('--out')}" if "--out" in a else ""))
     sys.exit(1 if fails else 0)

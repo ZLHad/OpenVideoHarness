@@ -30,6 +30,7 @@ bin/vh mix projects/<p>/audio/mix.wav profile=short voice=…/voiceover.zh.wav m
            # dur= 让混音和画面一样长（配乐默认多 2.5 s 尾音）：差 0.1 s 以上 mux 会拒绝，除非加 --allow-short / --allow-long
 bin/vh qa projects/<p>/audio/mix.wav projects/<p>/audio/music.beats.json projects/<p>/audio/events.json \
           --stems projects/<p>/audio/stems   # 静音、掉音、抽吸、click + cue check + 混音报告（qa mix）
+          # 谱子的声部都写 "note_map": true 时，qa 认得音头和休止，不再报成 click、掉音；--clips DIR 剪出每处前后 2 s 给人听
 bin/vh mux projects/<p>/out/final.mp4 projects/<p>/audio/mix.wav projects/<p>/out/final-av.mp4 \
            projects/<p>/audio/captions.zh.srt projects/<p>/audio/captions.en.srt   # 软字幕轨（可开关）
 bin/vh beats <任意音乐文件>                          # 外来音乐的节拍 + hits、kick、snare 重音（librosa）
