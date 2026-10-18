@@ -1524,7 +1524,9 @@ for _ in range(120):
     if glob.glob(f"{tmp}/vh-textcheck-*") or p.poll() is not None: break
     time.sleep(0.25)
 seen = len(glob.glob(f"{tmp}/vh-textcheck-*")); time.sleep(1)
-os.killpg(p.pid, signal.SIGINT); err = p.communicate(timeout=30)[1]; time.sleep(0.5)
+try: os.killpg(p.pid, signal.SIGINT)
+except OSError: pass   # it ended before the Ctrl-C: the exit code below says how
+err = p.communicate(timeout=30)[1]; time.sleep(0.5)
 print(seen, p.returncode, len(glob.glob(f"{tmp}/vh-textcheck-*")), "Traceback" in err, repr(err.strip()[-200:]))
 PY
 )
