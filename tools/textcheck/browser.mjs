@@ -112,21 +112,25 @@ export async function launch(exe, flags = []) {
   };
   // the profile folder: Chrome's helper processes can still be writing to it just after the main one exits (Linux),
   // so retry, and never let a leftover temp folder turn into an error
-  // the last browser gone: the signal listeners go too. A Ctrl-C queued at the very instant Chrome's exit is handled is
-  // dropped with them (nothing is left behind, a second one ends the process); deferring this would bring back the
-  // Ctrl-C that synchronous work after the close could not stop
-  const removeProfile = () => { LIVE.delete(live); if (!LIVE.size) disarm(); removeSync(profile); };
+  // the profile goes while the signal listeners are still in place: with them gone, a Ctrl-C during the removal would
+  // end node half way through it and leave part of the folder behind. The last browser gone, the listeners go too,
+  // before close() returns: first a turn of the event loop (a Ctrl-C that came during the removal reaches onSignal
+  // then, which ends the process), then disarm, so synchronous work after the close can still be stopped at once. A
+  // Ctrl-C in the instant between that turn and the disarm is dropped (nothing is left behind, a second one ends it)
+  const removeProfile = () => { LIVE.delete(live); removeSync(profile); };
   const close = async () => {
     if (!dead) try { await within(send("Browser.close"), 3000); } catch { /* already gone */ }
     proc.kill(); await exited;
     removeProfile();
+    if (!LIVE.size) await new Promise((res) => setImmediate(() => setImmediate(res)));   // the second turn's poll reads a signal
+    if (!LIVE.size) disarm();
   };
   let version;
   try {
     // 60 s: a cold start on a busy CI runner has taken over 30 (a rerun of the same code passed)
     version = await within(send("Browser.getVersion"), 60000, () => new Error("the browser did not answer within 60 s"));
     started = true;
-  } catch (e) { killGroup(proc); await within(exited, 3000); removeProfile(); throw e; }   // a Chrome that never answered may ignore SIGTERM
+  } catch (e) { killGroup(proc); await within(exited, 3000); removeProfile(); if (!LIVE.size) disarm(); throw e; }   // a Chrome that never answered may ignore SIGTERM
   return { send, once, on, close, version: version.product };
 }
 
