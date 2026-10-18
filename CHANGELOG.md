@@ -10,6 +10,14 @@
 - `bin/vh qa` scan, dropouts: with `--stems`, the 0.1 s windows where the music stem dips as deep under its own section median (less 1 dB) are the score's own and no longer a dropout; the rest of a dropout is still reported, split where needed. A sparse passage in the score was reported as dropouts before. Pumping's stem rule now works the same way, frame by frame: before, a short dip of the stem anywhere in a longer dip of the mix excused the whole of it.
 - `playbook/02-verification.md` has a short 确认告警 section (the standard read path is 456 characters longer, quick unchanged); `tools/audio/README.md` and the help say the same.
 
+**Canvas-film readcheck messages and exit codes; Ctrl-C while a browser profile is removed**
+- With no Chrome, `bin/vh readcheck` on a canvas-film project names the remedies (`npx hyperframes browser ensure`, install Chrome or Chromium, or set `CHROME_PATH`), as the other page tools do; before, it told the user to run `bin/vh readcheck`, which they were running.
+- The hint after `--export` (canvas-film and HyperFrames) quotes the path and carries `--pace` when the file's place would give another pace: a file outside the project has no BRIEF above it, so the check it named ran at `normal, default` instead of the project's Pace.
+- A page reader that fails (a page with no `window.film.texts`, a reader stopped by a signal) is "nothing to check", exit 2, with its message; before, its exit 1 passed through as readcheck's 1 (a text under the floor), and a signal as a negative code.
+- A Ctrl-C landing while a page tool removed Chrome's profile folder (the end of a run, as Chrome closes) ended node half way through the removal and left part of the folder in `$TMPDIR` (4 of 48 Ctrl-Cs near the end of `bin/vh rhythm`): the signal listeners were already gone. The folder now goes while they are in place, then a Ctrl-C from that moment ends the process (exit 130); after the close, a Ctrl-C still ends synchronous work at once.
+- playbook/03, `engines/README.md` and a textcheck comment no longer say a canvas-film readcheck reads `out/texts.json`: it reads the live page through a temporary snapshot; `--export` and `--out` save one (17 characters more on the read path of the five types that read that section).
+- Regression coverage: the export hint outside the project and its check at the project's Pace, a page with no texts (exit 2), the no-browser message, and a Ctrl-C sent as the profile's removal starts (the folder goes whole, exit 130).
+
 **Two style presets rewritten as guidance (a pilot): editorial-data and guochao-festive, the style template and the data-story type doc**
 - Why: the two Prompt blocks bound a whole look together (editorial-data: paper colour, one accent, a locked camera, exactly three transitions, linear time, the instruments and BPM; guochao-festive: a red-gold ratio, a strict centre axis, exactly one asymmetric element per frame, characters slammed on every beat, fixed instruments), so every data story or festive film came out the same.
 - Each now opens with **怎么借** (the character worth borrowing), keeps the swatch's settings as the swatch's (to try or to depart from), and turns 禁止项 into **常见误用及原因**: each item says why; only real faults are marked 【底线】 (a wrong character form, a false source, a brand mark used without the rights); mixing eras, a motif some audiences misread, and traditional characters quoted beside simplified ones are reminders with conditions. The Prompt blocks name the grammar first (editorial-data: hierarchy, direct labels, supported observations, the data's question before the form; guochao-festive: which kind of joy, objects and motifs from the material that take part in the story), then the swatch's settings. Swatches, tokens and media are unchanged.
@@ -837,7 +845,6 @@
 
   `playbook/02-verification.md`, the swatch README, video type 03, the effort table in `CLAUDE.md`, the README tool tables (both languages), `bin/vh` help and `bin/vh doctor` point at the profiles.
 
-
 **Music parts: fixes from the swatch re-scores**
 - Figures and grids no longer drop notes when their step doesn't divide the bar. Half notes in a 5-beat bar played 2 of 3 notes, and none in a 1-beat bar (banker's rounding); a step that starts inside the bar now plays, cut at the bar line. A step that used to ring past the bar line and overlap the next bar's note now stops there.
 - A section's `params` (`by_section`) now reach the mono voices (sub808, violin, cello, winds …); before, they were silently ignored. A change of params starts a new phrase.
@@ -1042,7 +1049,6 @@
   - type sizes raised.
 - Foley: `styles/<slug>/events.json` is mixed under the score. `styles/_swatch/foley.mjs` generates it from a `FOLEY` export in `swatch.js`, so picture and sound share one timing table. The foley track fades out with the score.
 - The review's systemic findings became rules in the swatch content spec (`styles/_swatch/README.md`).
-
 
 **Style library `styles/`: 26 tastes instead of one**
 - 26 presets in 6 families (film titles, brand, data, illustration and print, Chinese aesthetics, retro). Each is distilled from famous works: Saul Bass titles, *Se7en*, *Blade Runner 2049*, Wes Anderson symmetry, Wong Kar-wai step-printing, Ken Burns, Müller-Brockmann, film FUI, 3Blue1Brown, NYT / The Pudding, Gapminder, *Spider-Verse*, risograph, CRT terminals, 水墨, 敦煌, 皮影, 国潮, Reiniger's silhouettes, watercolor backgrounds, synthwave, and more.
