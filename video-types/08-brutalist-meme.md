@@ -42,11 +42,13 @@
 
 ## 禁止
 
-- 披着野兽派外衣的圆角玻璃卡片；
-- 没有笑点的随机混乱；
-- 满屏 glitch；
-- 有版权的梗图原图、真实品牌 logo；
-- 超过 1 秒才能看懂的笑点。
+底线：
+- 有版权的梗图原图、真实品牌 logo。
+
+常见误用（参考）：
+- 披着野兽派外衣的圆角玻璃卡片：只换了皮；
+- 没有笑点的随机混乱、满屏 glitch：看不清笑点；
+- 超过 1 秒才能看懂的笑点：梗片的节奏等不了。
 
 ## Prompt 增量块
 
@@ -54,7 +56,7 @@
 + TYPE: tech-Twitter / internet-brutalist cut. {1080x1350 | 1920x1080}, 30fps, {15–40}s, sound-on.
 Start from HyperFrames' "Deconstructed" (Neville Brody) preset. Visual system: raw screenshots at native resolution with UI chrome, caps monospace labels (Space Mono), one heavy grotesk (Space Grotesk), #F0F0F0 on #111 + one alarm accent #D4501E, 0px corners, a visible grid the edit deliberately breaks.
 Motion: hard cuts every 0.5–1.5s on beats; 2-frame punch-ins (100→115%); steps(4–8) for text; freeze-frame + label on punchlines; glitch only at 1–2 section breaks. Smooth easing only for one slow push at the climax.
-Comedy timing: setup 1–2s → 0.4s silence → hit + SFX; every joke must read in under 1s. Punchlines: {list}.
+Comedy timing: setup 1–2s → 0.4s silence → hit + SFX; a joke should read in about a second. Punchlines: {list}.
 Recreate meme formats originally; no copyrighted images or real brand logos.
 ```
 

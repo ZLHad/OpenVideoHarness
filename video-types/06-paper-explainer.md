@@ -44,11 +44,14 @@
 
 ## 禁止
 
-- 截 PDF 页面；
-- 念摘要；
-- 整张结果表上屏；
+底线：
+- 作者、年份、数字写错或靠猜（硬规则 5）。
+
+常见误用（参考）：
+- 截 PDF 页面：字太小，要用原图就裁一块放大；
+- 念摘要：观众自己会读；
+- 整张结果表上屏：找不到要看的数；
 - 公式没有逐项讲解；
-- 作者、年份、数字写错或靠猜；
 - 用要点清单收尾。
 
 ## Prompt 增量块
@@ -57,9 +60,9 @@
 + TYPE: paper explainer. {30s teaser | 3–5 min explainer | 10+ min talk}, 1920x1080 30fps, TTS {voice} in {zh-CN | en}. Source: {paper.tex path / arXiv id}.
 Gate 1: NARRATION.md (spoken script + estimated timestamps). Gate 2: curriculum in STORYBOARD.md (per scene: time range, the ONE insight, visual pattern). Gate 3: STYLE.md (palette, fonts, sizes, semantic colors). Stop after each gate for my review. Only then code.
 Copy title, authors, venue, year, and every on-screen number verbatim from the source, recording where each came from in NOTES.md; put anything uncertain in NOTES.md instead of guessing.
-Redraw figures as vectors; never screenshot the PDF. Pipelines reveal box by box left-to-right; draw each arrow only after both ends exist. Input=green, processing=blue, output=yellow; ours = accent {hex}; baselines gray.
+Redraw figures as vectors rather than screenshotting the PDF (too small to read). Pipelines reveal box by box left-to-right; draw each arrow only after both ends exist. Input=green, processing=blue, output=yellow; ours = accent {hex}; baselines gray.
 Equations: show whole 2s → dim to 30% → explain term by term, coloring each when done.
-Results: at most 1–2 comparisons that carry the claim, as charts, not tables.
+Results: the 1–2 comparisons that carry the claim, usually as charts rather than tables.
 Animation starts ~0.5s before the narration mentions it; ~1s hold after each narrated sentence.
 Engines: Manim CE for mechanisms/equations, HyperFrames for title/structure/results; concat with ffmpeg.
 ```
