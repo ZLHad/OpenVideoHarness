@@ -83,6 +83,35 @@ class MixBuildTests(unittest.TestCase):
         self.assertEqual(self.mix.read_bytes(), old)
         self.assertIn("latest mix is failed", self.mux().stderr)
 
+    @unittest.skipUnless(shutil.which("uv"), "sfx place and a profile mix need uv (numpy/scipy)")
+    def test_events_written_as_references_place_like_seconds_and_follow_their_time_map(self):
+        vh = lambda *a: self.run_ok(os.environ.get("VH_BASH", "bash"), str(ROOT / "bin/vh"), *map(str, a))
+        tmap = self.p / "time.map.json"   # a made-up axis 0..10 over the first two seconds
+        tmap.write_text(json.dumps({"version": 1, "knots": [[0, 0], [2, 10]], "events": [{"id": "e1", "u": 2.5, "t": 0.5}, {"id": "e2", "u": 6, "t": 1.2}]}))
+        head, plain, roles, stems = self.p / "events.json", self.p / "plain.json", self.p / "roles.json", self.p / "stems"
+        head.write_text(json.dumps({"refs": {"timemap": "time.map.json"}, "events": [
+            {"id": "hit", "t": "@#e1", "sfx": "click"}, {"t": "@#e2+0.25", "sfx": "whoosh"}, {"t": 1.6, "sfx": "pop"}]}))
+        plain.write_text(json.dumps([{"t": 0.5, "sfx": "click"}, {"t": 1.45, "sfx": "whoosh"}, {"t": 1.6, "sfx": "pop"}]))
+        vh("sfx", "place", head, self.p / "a.wav", 2); vh("sfx", "place", plain, self.p / "b.wav", 2)
+        self.assertEqual((self.p / "a.wav").read_bytes(), (self.p / "b.wav").read_bytes())
+        side = json.loads((self.p / "a.events.json").read_text())
+        self.assertEqual([s["path"] for s in side["sources"]], ["time.map.json"])
+        self.assertEqual([(e["t"], e.get("ref")) for e in side["events"]], [(0.5, "@#e1"), (1.45, "@#e2+0.25"), (1.6, None)])
+        roles.write_text('{"hit": "hero"}')
+        vh("mix", self.mix, "profile=promo", f"music={self.voice}", f"events={head}", f"roles={roles}", f"stems={stems}", "dur=2", "keep=hit,@#e2+0.25,1.6")
+        meta = json.loads((stems / "meta.json").read_text())
+        self.assertEqual(meta["keep"], [0.5, 1.45, 1.6])
+        self.assertEqual(next(g["class"] for g in meta["event_gains"] if g["sfx"] == "click"), "hero")
+        self.assertEqual(self.mux().returncode, 0)
+        tmap.write_text(json.dumps({"version": 1, "knots": [[0, 0], [2.5, 10]], "events": [{"id": "e1", "u": 2.5, "t": 0.625}, {"id": "e2", "u": 6, "t": 1.5}]}))
+        r = self.mux()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("time.map.json", r.stderr)
+        bad = subprocess.run([os.environ.get("VH_BASH", "bash"), str(ROOT / "bin/vh"), "mix", str(self.mix), "profile=promo", f"music={self.voice}",
+                              f"events={head}", "dur=2", "keep=nothing"], capture_output=True, text=True)
+        self.assertNotEqual(bad.returncode, 0)
+        self.assertIn("not a time in seconds, an event id", bad.stderr)
+
     def test_output_change_and_corrupt_record_are_refused(self):
         self.build()
         self.tone(self.mix, 2, 880)

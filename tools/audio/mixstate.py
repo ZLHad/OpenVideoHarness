@@ -12,6 +12,8 @@ import os
 from pathlib import Path
 import tempfile
 
+import time_refs
+
 
 class InvalidMix(ValueError):
     pass
@@ -83,9 +85,11 @@ def dependencies(kv, directory):
             raise InvalidMix(f"events={kv['events']}: no such file")
         raw = Path(kv["events"]).read_bytes()
         event_hash = hashlib.sha256(raw).hexdigest()
-        events = json.loads(raw)
-        if not isinstance(events, list):
-            raise InvalidMix("events: expected a list of sound events")
+        try:   # a header form's references: the narration, beat map or time map they read are inputs too
+            events, sources, _ = time_refs.load_events(kv["events"])
+        except time_refs.RefError as e:
+            raise InvalidMix(str(e)) from None
+        paths |= {Path(s["path"]) for s in sources}
         for e in events:
             if not isinstance(e, dict) or not isinstance(e.get("sfx"), str):
                 raise InvalidMix("events: each event needs an sfx name")

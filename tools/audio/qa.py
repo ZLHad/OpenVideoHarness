@@ -451,6 +451,12 @@ def centroid(x):
         b = min(n, a + 256); s += (np.abs(np.fft.rfft(pad[np.arange(nfft)[None, :] + hop * np.arange(a, b)[:, None]] * win, axis=1)) ** 2).sum(0)
     return float((f * s).sum() / max(s.sum(), 1e-15))
 
+def events_file(path):
+    """an events.json: a plain list, or the header form with its references resolved to seconds (tools/audio/time_refs.py)"""
+    import time_refs
+    try: return time_refs.load_events(path)[0]
+    except time_refs.RefError as e: sys.exit(f"qa: {e}")
+
 def events_from_lib(events, bus, lib, root, n):
     """render each event alone, fit one gain to the SFX bus (median of 50 ms RMS ratios: fades and the final gain are in
     the bus) → [(event, levels)] with levels in the bus's scale"""
@@ -747,7 +753,7 @@ def report(a, stems=None):
     V, M, S = (mix.load(p) if p else None for p in (path("voice"), path("music"), path("sfx")))
     mp = opt("--mix") or (os.path.join(st, meta["mix"]) if st and meta.get("mix") else None)
     mixed = mix.load(mp) if mp and os.path.exists(mp) else None
-    ev = json.load(open(opt("--events"))) if opt("--events") else meta.get("events", [])
+    ev = events_file(opt("--events")) if opt("--events") else meta.get("events", [])
     tl = json.load(open(opt("--timeline"))) if opt("--timeline") else meta.get("timeline")
     wd = json.load(open(opt("--words"))) if opt("--words") else None
     if wd is None and tl:   # bin/vh tts --align gemini writes each line's words into the timeline
@@ -780,7 +786,7 @@ def main():
         txt, R = report(a, pos[0] if pos else None)
         st = pos[0] if pos else opt("--stems"); mp = os.path.join(st, "meta.json") if st else None
         meta = json.load(open(mp)) if mp and os.path.exists(mp) else {}
-        rev = json.load(open(opt("--events"))) if opt("--events") else meta.get("events", [])
+        rev = events_file(opt("--events")) if opt("--events") else meta.get("events", [])
         if rev: txt += "\n" + "\n".join(repeats(rev, opt("--lib", in_stems(st, meta.get("lib"))), opt("--root", in_stems(st, meta.get("root"))))[0])
         old = stale(mp, [opt("--events"), opt("--timeline"), opt("--words")] + [in_stems(st, p) for p in (meta.get("inputs") or {}).values()]) if meta else []
         if old: txt = "\n".join(old) + "\n" + txt + "\nSTALE?  these stems may be from an earlier mix (see the top)"
@@ -789,11 +795,11 @@ def main():
     if not pos: sys.exit(__doc__)
     import sfx   # numbered: an event re-rendered alone (the cue check's own-sound match) gets the variant it got in the list
     mix_path = pos[0]; bm = json.load(open(pos[1])) if len(pos) > 1 and pos[1] != "-" else {}
-    ev = sfx.numbered(json.load(open(pos[2]))) if len(pos) > 2 else []
+    ev = sfx.numbered(events_file(pos[2])) if len(pos) > 2 else []
     stems = opt("--stems"); meta = json.load(open(os.path.join(stems, "meta.json"))) if stems and os.path.exists(os.path.join(stems or "", "meta.json")) else {}
     lib, root = opt("--lib", in_stems(stems, meta.get("lib"))), opt("--root", in_stems(stems, meta.get("root")))
     out, fails, warns, faint = [], 0, 0, []
-    sev = json.load(open(opt("--events"))) if "--events" in a else ev
+    sev = events_file(opt("--events")) if "--events" in a else ev
     ins = meta.get("inputs") or {}; tlp = opt("--timeline") or in_stems(stems, ins.get("timeline")); tl = meta.get("timeline")
     if tlp and os.path.isfile(tlp):
         try: tl = json.load(open(tlp))
