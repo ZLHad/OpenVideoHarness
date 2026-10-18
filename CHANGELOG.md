@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+**Gate ① is not passed by the template's unfilled "定了：{…}"**
+- The gate record check looked under a "定了：" line for decisions listed below it, so the template's "- 定了：{…}" left unfilled passed as soon as any record line followed it ("- 改了：…"). A 定了 line that still holds the template's placeholder is now not a decision, and the decisions listed under it stop at the next field of the record (改了, 原话, 页面, 理解, 下一步). CI case.
+
 **Small fixes: Ctrl-C ends readcheck, storyboard and rhythm quietly; X's weighted length; a project's engine copy against the engine now**
 - `bin/vh doctor <project>`: for a canvas-film or hand-drawn project, its copy of the engine against the engine as it is now, file by file: changed (with lines added and removed), missing (a module the copy lacks, e.g. `src/06-time-map.js`, and whether `film.html` loads it), extra (the project's own files in `src/`), and the command to see a file's diff. The film's own files are left out; nothing in the project is changed; exit 1 when the copy differs. `bin/vh doctor` alone checks the toolchain as before.
 - Ctrl-C during `bin/vh readcheck` on a canvas-film page: Python waits up to 5 s for the page reader to close Chrome and remove its profile (it used to kill node 0.25 s in), sends SIGTERM to one that did not get the signal, and exits 130 with no traceback. `bin/vh storyboard` and `rhythm` exit 130 with no traceback too; a Ctrl-C that lands just as their Python exits used to make `uv run` itself fail with exit 2 ("Failed to get PID of child process"; 1 in 80 runs in a probe, 0 in 150 after).

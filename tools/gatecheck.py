@@ -124,12 +124,14 @@ def gate1(review):
                 continue
             if says(m.group(1)):
                 decided = True; continue
+            if PLACEHOLDER.search(m.group(1)):
+                continue   # the template's "定了：{…}" left as it is: nothing listed under it counts either
             for nxt, ncode in lines[i + 1:]:   # "定了：" with the decisions listed under it
                 if not nxt.strip():
                     continue
                 lm = re.match(rf"^\s*{LIST}\s+(.*)$", nxt)
-                if ncode or not lm:
-                    break
+                if ncode or not lm or LABEL.match(nxt) or SAID.match(nxt) or DECIDED.match(nxt):
+                    break   # another field of the record ("- 改了：…", "- 原话：…"), not a decision under 定了
                 if says(lm.group(1)):
                     decided = True
                     break

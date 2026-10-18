@@ -539,7 +539,7 @@ PY
 # any browser) and failed by bin/vh check until REVIEW.md has the decision and DECISIONS.md the concept; the user's
 # waiver counts unless it sits under gate ② or ③; quick is not checked
 gate_checks() {
-  local t p a b c d rc rc2 rc3
+  local t p a b c d rc rc2 rc3 rc4
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   vh new math ci-gate --dir "$t" >/dev/null 2>&1; p=$(ls -d "$t"/*-ci-gate 2>/dev/null)
   if [ -z "$p" ] || [ ! -f "$p/REVIEW.md" ]; then bad "gate checks: bin/vh new made no project"; rm -rf "$t"; return; fi
@@ -564,6 +564,18 @@ r = (p / "REVIEW.md").read_text(encoding="utf-8")
 (p / "REVIEW.md").write_text(r.replace("## 关卡 ③ 初版\n", "## 关卡 ③ 初版\n- 用户授权跳过（2026-10-12）。原话：“初版不用给我看”\n", 1), encoding="utf-8")
 PY
   python3 tools/gatecheck.py "$p" >/dev/null; rc=$?
+  # the template's "定了：{…}" left unfilled is not a decision, whatever record line follows it ("- 改了：…")
+  python3 - "$p" <<'PY'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+r = (p / "REVIEW.md").read_text(encoding="utf-8").replace('- 原话："……"', '- 原话："选 B"', 1).replace("- 定了：{…}　改了：{…}", "- 定了：{…}　改了：{…}\n- 改了：结尾短一点", 1)
+(p / "REVIEW.md").write_text(r, encoding="utf-8")
+d = (p / "DECISIONS.md").read_text(encoding="utf-8").replace("| concept 立意 | {own / review / delegate} | {待定 / 已定（关卡 ①）} |", "| concept 立意 | own | 已定（关卡 ①）：B |", 1)
+(p / "DECISIONS.md").write_text(d, encoding="utf-8")
+PY
+  python3 tools/gatecheck.py "$p" >/dev/null; rc4=$?
+  cp "$ROOT/templates/REVIEW.md" "$p/"
   python3 - "$p" <<'PY'
 import sys
 from pathlib import Path
@@ -582,9 +594,9 @@ r = (p / "REVIEW.md").read_text(encoding="utf-8")
 (p / "REVIEW.md").write_text(r.replace("## 关卡 ① 立意和大纲\n", "## 关卡 ① 立意和大纲\n- 用户授权跳过（2026-10-12）。原话：“你直接做，中间不用我看”\n", 1), encoding="utf-8")
 PY
   b=$(python3 tools/gatecheck.py "$p"); rc3=$?
-  if [ $rc = 1 ] && [ $rc2 = 0 ] && [ $rc3 = 0 ] && printf '%s' "$a" | grep -q "gate ① decided" && printf '%s' "$b" | grep -q "waived in the user's own words (2026-10-12"
-  then ok "gate record: the decision and the concept row pass; the user's waiver passes under gate ①, not under gate ③ alone"
-  else bad "gate record with the lines filled in ($rc/$rc2/$rc3): $a | $b"; fi
+  if [ $rc = 1 ] && [ "$rc4" = 1 ] && [ $rc2 = 0 ] && [ $rc3 = 0 ] && printf '%s' "$a" | grep -q "gate ① decided" && printf '%s' "$b" | grep -q "waived in the user's own words (2026-10-12"
+  then ok "gate record: the decision and the concept row pass; an unfilled 定了：{…} with a line after it does not; the user's waiver passes under gate ①, not under gate ③ alone"
+  else bad "gate record with the lines filled in ($rc/$rc4/$rc2/$rc3): $a | $b"; fi
   python3 -c "import sys, re; f = sys.argv[1]; s = open(f, encoding='utf-8').read(); open(f, 'w', encoding='utf-8').write(re.sub(r'(?m)^- Effort: standard', '- Effort: quick', s))" "$p/BRIEF.md" && cp "$ROOT/templates/REVIEW.md" "$p/"
   a=$(python3 tools/gatecheck.py "$p"); rc=$?
   [ $rc = 0 ] && printf '%s' "$a" | grep -q "Effort quick" && ok "gate record: a quick project is not checked" || bad "gate record on quick (exit $rc): $a"
