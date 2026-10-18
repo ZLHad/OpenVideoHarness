@@ -66,20 +66,21 @@
 
 ## 禁止
 
-- 紫到青的渐变、玻璃拟态、霓虹；
-- 六张等大卡片；
-- 渐变文字；
-- 每个元素都弹；
-- lorem ipsum 或假数据；
-- ✨ 式的 AI 图标；
-- 使用未经授权的第三方品牌 logo。
+底线：
+- lorem ipsum、假数据；
+- 未经授权的第三方品牌 logo。
+
+常见误用（参考）：
+- 紫到青的渐变、玻璃拟态、霓虹、✨ 式的 AI 图标：同类发布片最常见的样子，说不出这个产品；
+- 六张等大卡片、每个元素都弹：没有重点；
+- 渐变文字：小字读不清。
 
 ## Prompt 增量块
 
 ```text
 + TYPE: product launch film. 1920x1080 (+1080x1350 and 1080x1920 re-framed cuts) 30fps {15–30}s, music-driven, SFX on key hits.
 Register: {follows from the concept (playbook/12-ideation.md) | Apple: black/white, one claim per shot, macro crops of the real UI | Linear/Vercel: near-black #0A0A0B, 1px hairlines, blueprint grid at 6% opacity}. Font {Geist/Geist Mono | SF-like grotesk} (default). No gradient text, glassmorphism, or purple-cyan gradients (defaults; a concept may override any of them, one line each in DECISIONS.md).
-One continuous virtual camera; camera moves 1.5–3s easeInOutCubic, about half your default speed; motion blur on fast moves; light grain.
+Default camera: one continuous virtual camera, moves 1.5–3s easeInOutCubic, about half your default speed; motion blur on fast moves; light grain.
 Default beats (a concept with its own structure replaces them, e.g. the product's own workflow as the story): hook promise (0–3s) → problem (1 beat) → 3 feature beats, each = the real UI doing the thing, triggered by an oversized cursor click → proof count-up → 0.5s stillness → logo lockup.
 Use real copy/assets from {URL / assets/}; recreate the UI accurately; no placeholder text or invented numbers.
 Show the product itself: {architecture | workflow | features | case studies} as motion infographics built from its real diagrams and docs, labels copied verbatim.

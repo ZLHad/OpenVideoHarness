@@ -135,22 +135,22 @@
 
 ## 禁止
 
-- 每个字都上色、描边、放大的"全程 Hormozi 体"；
-- 字幕落进平台 UI 遮挡区；
-- 蓝紫科技渐变配粒子背景；
-- 图库图标；
-- 不留停顿的 TTS；
-- 超过 3 秒画面没有任何变化；
-- 钩子里承诺的东西，片子里没有；
-- 标题或封面与内容严重不符（`playbook/10-hooks-and-packaging.md` 的红线）；
-- 为了能循环砍掉结论；
-- 封面上的关键文字落在中心 1:1 方块之外。
+底线：
+- 字幕落进平台 UI 遮挡区；封面的关键文字落在中心 1:1 方块之外：会被盖住或裁掉；
+- 钩子里承诺的东西片子里没有，标题或封面与内容严重不符（`playbook/10-hooks-and-packaging.md` 的红线）。
+
+常见误用（参考）：
+- 每个字都上色、描边、放大的"全程 Hormozi 体"：处处强调等于没有强调；
+- 蓝紫科技渐变配粒子背景、图库图标：同题视频最常见的样子，和这份材料无关；
+- 不留停顿的 TTS：观众来不及消化；
+- 超过 3 秒画面没有变化：信息流里容易被划走（有意的停留不算）；
+- 为了能循环砍掉结论：观众拿不到答案。
 
 ## Prompt 增量块
 
 ```text
 + TYPE: vertical knowledge short. 1080x1920 30fps {30–60}s, {zh-CN narration + burned-in captions | SILENT: captions and visuals carry everything, timing from storyboard reads}. Platform: {抖音 | 小红书 | 视频号 | B站 | Shorts}.
-Style: {follows from the concept (playbook/12-ideation.md) | default: "Kurzgesagt meets Fireship": flat vector shapes, one accent, dry humor}. NOT (defaults; a concept may override any of them, one line each in DECISIONS.md): blue-purple tech gradients, particle backgrounds, stock icons.
+Style: {follows from the concept (playbook/12-ideation.md) | default: "Kurzgesagt meets Fireship": flat vector shapes, one accent, dry humor}. NOT, by default (a concept may override any of them): blue-purple tech gradients, particle backgrounds, stock icons.
 0–1s: the counterintuitive claim/number as a full-bleed visual (no logo, no greeting). By 3s: what the viewer will learn; by 6s: a first payoff that proves it.
 Hook (gate 1): each concept card carries one hook, typed from {question | counterintuitive | result-first | conflict | curiosity-gap}, optionally with a pattern interrupt: its first frame, first caption (<=11 CJK chars/line), the promise, the payoff time (first micro-payoff <=6s), and the fact source in NOTES.md. Three hook cards of different types only when hook=own, after the concept is picked.
 A new visual payoff every 3–5s; one idea per shot; cut on narration phrase boundaries.
