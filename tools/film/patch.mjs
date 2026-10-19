@@ -5,7 +5,7 @@
 // and after are copied as they are, the three are joined, and the film's other tracks (sound, subtitles) go back on.
 //
 // usage: node tools/film/patch.mjs <film.mp4> --browser <chrome> (--frames a-b | --seconds s-e) [--sidecar f.render.json]
-//          [--page film.html] [--out f.mp4] [--in-place] [--workers 4] [--verify seams|full] [--min-psnr 40] [--keep]
+//          [--page film.html] [--out f.mp4] [--in-place] [--workers 4] [--frame-timeout 120] [--verify seams|full] [--min-psnr 40] [--keep]
 //        (bin/vh patch finds the browser as bin/vh render does)
 //
 //   --frames a-b     the film's frames a to b, both in (numbered from 0, as bin/vh check and ffmpeg count them)
@@ -20,6 +20,7 @@
 //   --min-psnr 40    the frames rendered again but outside a–b (to the keyframes) must come back like the film's, at least
 //                    this many dB: less means the page now draws them differently (an edit that reaches further than a–b,
 //                    another browser), and the joins at the keyframes would show
+//   --frame-timeout  seconds a frame may take to draw (default render's 120): a page whose frames are slower needs more
 //   --keep           keep the work folder (.<out>.patch/) to look at
 //
 // Room: about twice the film's size free beside the output (the film is cut, joined and its tracks put back before the
@@ -62,6 +63,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (k === "--in-place") inPlace = true;
   else if (k === "--keep") keep = true;
   else if (k === "--workers") { o.workers = Math.floor(Number(val())); if (!(o.workers >= 1)) die("--workers: a whole number ≥ 1"); }
+  else if (k === "--frame-timeout") { const v = val(); o.frameTimeout = Number(v); if (v === "" || !(o.frameTimeout >= 1)) die(`--frame-timeout: ${JSON.stringify(v)} is not a number of seconds ≥ 1`); }
   else if (k === "--verify") { o.verify = val(); if (!["seams", "full"].includes(o.verify)) die("--verify seams or full"); }
   else if (k === "--min-psnr") { o.minPsnr = Number(val()); if (!Number.isFinite(o.minPsnr)) die("--min-psnr: a number of dB"); }
   else if (k === "--browser") browser = val();
@@ -154,6 +156,7 @@ const piece = path.join(work, "piece.mp4");
 const capture = String(side.capture || "jpeg q95"), q = capture.match(/jpeg q(\d+)/);
 const rargs = [path.join(HERE, "render.mjs"), page, "--browser", browser, "--frames", `${k0}:${k1}`, "--fps", String(fps), "--dpr", String(side.dpr || 1),
   "--crf", String(enc.crf), "--preset", String(enc.preset), "--gop", String(gop), "--workers", String(o.workers), "--out", piece, "--no-estimate",
+  ...(o.frameTimeout ? ["--frame-timeout", String(o.frameTimeout)] : []),
   ...(capture === "png" ? ["--png"] : ["--quality", q ? q[1] : "95"]), ...(side.real_clock ? ["--real-clock"] : []), ...(side.soft_gl ? ["--soft-gl"] : []), ...(side.kind === "hyperframes" ? ["--force"] : [])];
 const T0 = Date.now();
 const code = await new Promise((ok) => {

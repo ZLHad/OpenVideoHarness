@@ -25,6 +25,9 @@
 //                  drawn and encoded first: the time a frame takes, the video's size and the disk it needs are printed,
 //                  and a disk that cannot hold it stops the render (exit 2). A few seconds; --no-estimate skips it
 //   --force        render a HyperFrames composition this way too (by default: use npx hyperframes render, the measured path)
+//   --frame-timeout 120  a frame not drawn in this many seconds fails the render (the finished chunks are kept). Each
+//                  browser's page may take as long to set window.film and to be ready (at least 30 s and 120 s a wait;
+//                  OVH_PAGE_TIMEOUT=S sets those alone, tools/film/host.mjs)
 //
 // The colour: Chrome's frames are full-range RGB; the encode converts them to limited-range BT.709 with all four colour
 // tags (what bin/vh check expects). Beside the video, <out>.render.json records how it was made (size, fps, frames,

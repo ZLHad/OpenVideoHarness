@@ -121,7 +121,7 @@
 #                               (window.film.fps). A relative --out is from the current folder. HyperFrames: npx hyperframes render
 #                               (--force to render it here anyway).
 #                               A whole standard or studio film waits for gate ① on record (tools/gatecheck.py); --range and --frames do not
-#   patch <film.mp4> (--frames a-b | --seconds s-e) [--sidecar f.render.json] [--out f | --in-place] [--workers 4] [--verify seams|full]
+#   patch <film.mp4> (--frames a-b | --seconds s-e) [--sidecar f.render.json] [--out f | --in-place] [--workers 4] [--frame-timeout 120] [--verify seams|full]
 #                               draw frames a–b of a bin/vh render film again and put them back, the rest untouched: cut on its keyframes
 #                               (its .render.json says how it was made), joined, sound and subtitles kept; checks the frame count, that every
 #                               packet and pixel outside is the film's, decoding, and that the frames drawn again outside a–b came back the same

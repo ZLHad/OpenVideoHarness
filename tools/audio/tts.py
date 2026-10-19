@@ -61,7 +61,9 @@ Alignment check (--align gemini, any provider): every line is transcribed by gem
        keeps its measured timing and gets asr {"error"}, the command exits 1, and --resume continues that run: it
        synthesizes only the files the run did not get to (after a synthesis failure too), reuses the ASR of the lines
        that succeeded (vo/<lang>/*.asr.json) and redoes the rest; a file synthesized again gets a fresh transcription,
-       and so does one changed by hand (each .asr.json records the sha256 of the file it heard).
+       and so does one changed by hand (each .asr.json records the sha256 of the file it heard; minimax's .words.json
+       the take its word times are of: another --candidates take copied in brings its own, any other take is cut by the
+       transcript's word times, or with no --align gemini the run stops and says so).
        The run's script, provider, voice, --instruct / GEMINI_TTS_STYLE and join mode are recorded in vo/<lang>/_run.json;
        --resume refuses a mismatch and names it (the timing flags may change). A plain run (no --align, no --join) that
        failed midway continues the same way, and a finished plain run gets --align gemini without synthesizing again.
@@ -155,6 +157,13 @@ def sha256(p: Path) -> str:   # the take a cached transcription was made from (v
     with open(p, "rb") as fh:
         for b in iter(lambda: fh.read(1 << 20), b""): h.update(b)
     return h.hexdigest()
+
+def save_words(wav: Path, wfile: Path, words):   # a word-timed provider's word times, with the sha256 of the take they are of
+    wfile.write_text(json.dumps({"sha256": sha256(wav), "words": words}, ensure_ascii=False), encoding="utf-8")
+
+def load_words(wfile: Path):   # → (sha256 or None, words): an older run wrote the list alone
+    d = json.loads(wfile.read_text(encoding="utf-8"))
+    return (d.get("sha256"), d.get("words")) if isinstance(d, dict) else (None, d)
 
 RATE_WAIT_MAX, RATE_TRIES = 90.0, 5   # a 429 asking for more than 90 s is taken for a daily quota: waiting will not help
 BODY_PARSE, BODY_SHOW = 8192, 500     # bytes of an error body read for the retry delay and the quota / repeated in the message
@@ -1242,13 +1251,31 @@ def main():
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
         made = []             # the transcribe calls actually made (a --resume that reuses every .asr.json makes none)
+        takes_of = lambda wav: sorted(wav.parent.glob(f"{wav.stem}.c*.wav")) if wav.name.startswith("_block") else []   # --candidates takes
+        other_takes = lambda wav: bool(takes_of(wav)) or (wav.name.startswith("_block") and (wav.parent / "_pick.json").exists())
+        def own_words(wav, wfile):
+            """a word-timed provider's word times of the take in wav, or None when its words file is of another take (one copied
+            in by hand): another --candidates take of the block brings its own words file (copied beside it); a file written
+            before the key is taken while the take is not newer and no other take could be the one copied in"""
+            key = sha256(wav)
+            try: k, ws = load_words(wfile)
+            except (OSError, ValueError, AttributeError): k, ws = "", None
+            if k == key: return ws
+            for cp in takes_of(wav):
+                cw = cp.with_suffix(".words.json")
+                if cw.exists() and sha256(cp) == key:
+                    ws = load_words(cw)[1]; save_words(wav, wfile, ws); return ws
+            if k is None and not other_takes(wav) and wav.stat().st_mtime <= wfile.stat().st_mtime: return ws
+            return None
         def cached(wav):      # (key, record) of a file's .asr.json: the record only when it was made from this very file, else {}
             side, key = wav.with_suffix(".asr.json"), sha256(wav)
             try: c = json.loads(side.read_text(encoding="utf-8")) if side.exists() else {}
             except ValueError: c = {}
             if not isinstance(c, dict): c = {}
             if "sha256" in c: return key, (c if c["sha256"] == key else {})   # a take swapped by hand is heard again
-            return key, (c if c and wav.stat().st_mtime <= side.stat().st_mtime else {})   # one written before the key: while the file is not newer
+            # one written before the key: while the file is not newer, unless other takes of the block are beside it (a copy
+            # that keeps the date, Finder's, cp -p's, rsync -a's, would pass for the old take)
+            return key, (c if c and not other_takes(wav) and wav.stat().st_mtime <= side.stat().st_mtime else {})
         def asr_words(wav):   # (text, words) of a file: from its .asr.json on --resume, else transcribed and saved for a later --resume
             key, c = cached(wav)
             if a.resume and "words" in c: return c["text"], c["words"]
@@ -1280,11 +1307,14 @@ def main():
                             h, tail = trim_edges(out, tmp); trimmed += h + tail
                             words = shifted(words, h)
                         if timed:                                      # kept for --resume
-                            wfile.write_text(json.dumps(words, ensure_ascii=False), encoding="utf-8")
+                            save_words(out, wfile, words)
                     except Exception as e:
                         synth_failed(f"line {i+1} (@{s['id']})", e, out, f"{i} line(s)", f"{len(segs)}")
                 elif timed:
-                    words = json.loads(wfile.read_text(encoding="utf-8"))
+                    words = own_words(out, wfile)
+                    if words is None:
+                        print(f"  {s['id']}: {out.name} is not the take its word times ({wfile.name}) are of (copied in by hand?): "
+                              + ("its words come from the transcript" if align else "it has no word times (--align gemini gives them)"), flush=True)
                 d = duration(out); s["_cutlen"] = d
                 start = next_start(i == 0, t, s.get("snap"), edge(segs[i - 1])[1] + edge(s)[0] if i else 0.0)
                 if start > t:
@@ -1326,7 +1356,7 @@ def main():
                     h, tail = trim_edges(bout, tmp); cut_s = h + tail
                     pw = shifted(pw, h)
                 if timed:                                              # kept for --resume
-                    bout.with_suffix(".words.json").write_text(json.dumps(pw, ensure_ascii=False), encoding="utf-8")
+                    save_words(bout, bout.with_suffix(".words.json"), pw)
                 return pw, cut_s
             picked = set()
             if a.candidates > 1:                                       # N takes a block, the one nearest the median voice kept
@@ -1379,7 +1409,14 @@ def main():
                     except Exception as e:
                         synth_failed(f"block {bi+1} ({', '.join(s['id'] for s in blk)})", e, bout, f"{bi} block(s)", f"{len(blocks)}")
                 elif timed:
-                    pw = json.loads(bwords.read_text(encoding="utf-8"))
+                    pw = own_words(bout, bwords)
+                    if pw is None and not align:
+                        sys.exit(f"block {bi+1}: {bout.relative_to(proj)} is not the take its word times ({bwords.name}) are of, and no "
+                                 f"{bout.stem}.cK.wav of --candidates is that take: put the take back, copy that take's .words.json to "
+                                 f"{bwords.name}, or re-run with --align gemini to cut this block by the transcript's word times")
+                    if pw is None:
+                        print(f"  block {bi+1}: {bout.name} is not the take its word times are of (copied in by hand?): its lines are cut "
+                              "by the transcript's word times", flush=True)
                 bd = duration(bout)
                 fail = ws = None
                 if align:
@@ -1396,7 +1433,7 @@ def main():
                 print(f"  block {bi+1}: {len(blk)} line(s), {bd:.2f} s in one request" + (f" — not transcribed: {fail}" if fail else ""), flush=True)
                 texts = [s["text"] for s in blk]
                 heard = None if fail or not align else align_lines(texts, ws, bd, {i: s["_alt"] for i, s in enumerate(blk) if s.get("_alt")})
-                res = align_lines(texts, pw, bd) if timed else heard or [None] * len(blk)   # line boundaries: the provider's
+                res = align_lines(texts, pw, bd) if timed and pw is not None else heard or [None] * len(blk)   # line boundaries: the provider's
                 for i, (s, r) in enumerate(zip(blk, res)):                                    # word times, else the ASR's
                     n += 1
                     if r is None:

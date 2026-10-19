@@ -30,7 +30,10 @@
 //   --real-clock        no clock pinning (tools/film/clock.js), only window.filmHost: to see what a page does without it
 //   --runtime           HyperFrames' runtime for a composition: auto (when it writes no window.film or window.__vh), on, off
 //   --frame-timeout 120 a frame or a cover not back after this many seconds stops the run at once (exit 2), naming it: the
-//                       page's frame never returned, or the browser stopped painting; --timeout bounds the whole run
+//                       page's frame never returned, or the browser stopped painting; --timeout bounds the whole run, and
+//                       given without --frame-timeout it is a frame's cap too (a page whose frames are that slow)
+//   OVH_PAGE_TIMEOUT=S  how long the page may take to set window.film and to be ready (tools/film/host.mjs): by default
+//                       --frame-timeout's seconds, at least 30 s for window.film and 120 s for each of ready and the fonts
 //
 // A project folder means its film.html, else index.html, else studio.html; the page is served from its own folder.
 // Writes <out>/<page>-t<seconds>.png (out defaults to <project>/out/frames) and, for --strip, <out>/<page>-strip-<a>-<b>.jpg
@@ -58,6 +61,7 @@ const die = (msg) => finish(2, msg);
 process.on("unhandledRejection", (e) => finish(2, (e && e.message) || String(e)));
 const o = { fps: 30, cols: 6, cell: 320, dpr: 1, timeout: 600, frameTimeout: 120, runtime: "auto" };
 let target = null, at = null, range = null, strip = null, covers = null, out = null, size = null, ratios = null, noTitle = false;
+let frameCap = null, timeoutGiven = false;   // where a frame's cap came from: --frame-timeout, --timeout, else the default
 const r3 = (t) => Math.round(t * 1000) / 1000;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], [k, inline] = a.startsWith("--") && a.includes("=") ? [a.slice(0, a.indexOf("=")), a.slice(a.indexOf("=") + 1)] : [a, undefined];
@@ -69,8 +73,8 @@ for (let i = 0; i < argv.length; i++) {
   else if (k === "--covers") covers = inline !== undefined ? [...new Set(inline.split(",").map((x) => x.trim()).filter(Boolean))] : [];
   else if (k === "--no-title") noTitle = true;
   else if (k === "--ratios") ratios = [...new Set(val().split(",").map((x) => x.trim()).filter(Boolean))];
-  else if (["--fps", "--cols", "--cell", "--timeout"].includes(k)) o[k.slice(2)] = num(val(), k, 1);
-  else if (k === "--frame-timeout") o.frameTimeout = num(val(), k, 1);
+  else if (["--fps", "--cols", "--cell", "--timeout"].includes(k)) { o[k.slice(2)] = num(val(), k, 1); if (k === "--timeout") timeoutGiven = true; }
+  else if (k === "--frame-timeout") { o.frameTimeout = num(val(), k, 1); frameCap = "--frame-timeout"; }
   else if (k === "--dpr") o.dpr = num(val(), k, 0.25);
   else if (k === "--out") out = val();
   else if (k === "--size") { const m = val().match(/^(\d+)x(\d+)$/); if (!m || !+m[1] || !+m[2]) bail("--size: write it as 1920x1080"); size = [+m[1], +m[2]]; }
@@ -82,6 +86,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (target) bail(`one project or page, got ${target} and ${a}`);
   else target = a;
 }
+if (!frameCap && timeoutGiven) { o.frameTimeout = o.timeout; frameCap = "--timeout"; }   // a raised --timeout raises a frame's cap with it
 // argument errors come before any browser: exit at once
 function bail(msg) { console.error("frames: " + msg); process.exit(2); }
 if (!target) bail("which project or page? (-h for the usage)");
@@ -110,7 +115,7 @@ const timely = (p, what) => {
   let timer;
   p.catch(() => { /* given up on: what it says once the browser closes is not news */ });
   return Promise.race([p, new Promise((_, no) => { timer = setTimeout(() => no(Object.assign(new Error(`${what}: no picture after ${o.frameTimeout} s ` +
-    "(--frame-timeout): the page's frame never returned, or the browser stopped painting"), { stuck: true })), o.frameTimeout * 1000); })]).finally(() => clearTimeout(timer));
+    `(${frameCap || "--frame-timeout"}): the page's frame never returned, or the browser stopped painting`), { stuck: true })), o.frameTimeout * 1000); })]).finally(() => clearTimeout(timer));
 };
 // a ratio cover is a crop: the page draws at the device pixel ratio that gives the crop its full size (a 9:16 crop of a
 // 1920x1080 frame is about 600 px wide, 1080 px x --dpr in the output: about 1.8 x --dpr), so the picture is not scaled up.
@@ -142,7 +147,8 @@ const outDir = path.resolve(out || path.join(film.root, "out", covers ? "covers"
 try { fs.mkdirSync(outDir, { recursive: true }); } catch (e) { await die(`cannot write ${outDir}: ${e.message}`); }
 const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };
 console.log(`frames: ${rel(film.page)} · ${film.kind === "film" ? "window.film" : film.kind === "__vh" ? "window.__vh" : "HyperFrames runtime"} · ` +
-  `${film.width}x${film.height}${o.dpr !== 1 ? ` @${o.dpr}x` : ""}${pageDpr !== o.dpr ? ` (drawn @${+pageDpr.toFixed(3)}x for the crops)` : ""} · ${film.duration ? film.duration + " s" : "no duration"} · ${film.version}`);
+  `${film.width}x${film.height}${o.dpr !== 1 ? ` @${o.dpr}x` : ""}${pageDpr !== o.dpr ? ` (drawn @${+pageDpr.toFixed(3)}x for the crops)` : ""} · ${film.duration ? film.duration + " s" : "no duration"} · ${film.version}` +
+  (frameCap ? ` · a frame may take ${o.frameTimeout} s (${frameCap})` : ""));
 let failed = 0;
 for (const p of film.loadProblems) { console.log(`  while loading: ${p}`); failed++; }
 // the film's own end is not a frame (0 ≤ t < duration): a --range that reaches it leaves it out

@@ -653,7 +653,8 @@ def measure(x):
 
 def audition(args):
     """bin/vh sfx audition <name|all> [n] [key=value …] [--walk] [--out FILE.wav] [--png]"""
-    if not args or args[0] in ("-h", "--help"): sys.exit(__doc__)
+    if {"-h", "--help"} & set(args): print(__doc__); return   # help: on stdout, exit 0, as sfx -h
+    if not args: sys.exit("sfx audition <name|all> [n] [key=value …] [--walk] [--out FILE.wav] [--png]: which sound? (sfx -h for all of it)")
     what = args[0]; rest = [a for a in args[1:]]
     png, walk = "--png" in rest, "--walk" in rest; rest = [a for a in rest if a not in ("--png", "--walk")]
     out = None

@@ -41,7 +41,9 @@ NAMES = {"title": "标题 title", "desc": "简介 description", "tags": "标签 
 # punctuation and spaces) whose TLD no letter, digit, @, + or - follows, then an optional :port, /path (ending in a
 # letter, a digit, + - = _ # / or a closing parenthesis) and ?query. Written without http(s)://, it is a link only when the TLD is one X knows and
 # the domain is not preceded by - _ . or /; only its ASCII part is the link (Chinese written straight before it stays
-# text), with the path, but not a query or port that has no path before it. So `example.com/a`, `x.com` and
+# text), with the path, but not a query or port that has no path before it. A domain with a label over 63 characters in
+# punycode, or a URL over 4096, is no link at all (isValidUrl): Chinese written straight before a domain is part of its
+# first label (a full-width comma too), so a long run of it leaves the domain unlinked, as on X. So `example.com/a`, `x.com` and
 # `packcheck.py` (Paraguay) are links, `foo_bar.com`, `Node.js` and `tools/x.py` are not. Two simplifications, both
 # toward counting more: with http(s):// any ASCII TLD of two letters or more is taken; without it, the TLDs are every
 # ASCII ccTLD of twitter-text's list and the gTLDs below, about 200 of its 1,400, so a bare domain under a rare gTLD
@@ -77,21 +79,49 @@ URL = re.compile(rf"(?P<pre>[^A-Za-z0-9@＠$#＃￾﻿￿]|[{_DIR}]|^)(?P<url>(?
                  rf"(?(proto)[a-z]{{2,63}}|(?:{_KNOWN})){_END})"
                  rf"(?::[0-9]+)?(?P<path>/{_PATH}*)?(?:\?[a-z0-9!?*'@();:&=+$/%#\[\]\-_.,~|]*[a-z0-9\-_&=#/])?)", re.I)
 ASCII_DOMAIN = re.compile(rf"(?:[\-a-z0-9{_LAT}]+\.)+(?:{_KNOWN}){_END}", re.I)
+# where a domain can lie (domain characters, dots, - and _), and a known TLD ending one there: a stretch with no such TLD
+# holds no link but one written with http(s):// right before it, so the URL pattern, whose domain would scan the whole
+# stretch from each place it starts (quadratic on a long run of dotted words), never looks at it
+RUN = re.compile(rf"(?:{_DC}|[._-])+")
+HIT = re.compile(rf"\.(?:{_KNOWN}){_END}", re.I)
+PROTO = re.compile(r"https?://\Z", re.I)
 EMOJI = re.compile("[\U0001F1E6-\U0001F1FF]{2}|[☀-➿\U0001F000-\U0001FAFF][️\U0001F3FB-\U0001F3FF]*"
                    "(?:‍[☀-➿\U0001F000-\U0001FAFF][️\U0001F3FB-\U0001F3FF]*)*")
 ONE = ((0x0000, 0x10FF), (0x2000, 0x200D), (0x2010, 0x201F), (0x2032, 0x2037))
 
 
+def x_valid(m):
+    """twitter-text's isValidUrl: every label of the domain 1–63 characters in punycode (a longer one is no link at all,
+    nor any part of it), an xn-- domain ASCII, the URL within 4096 characters with https:// in front"""
+    d = m["domain"]
+    if d[:4].lower() == "xn--" and not ASCII_DOMAIN.fullmatch(d): return False
+    puny = [x if x.isascii() else "xn--" + x.encode("punycode").decode("ascii") for x in d.split(".")]
+    if any(not 1 <= len(x) <= 63 for x in puny): return False
+    return len(m["proto"] or "https://") + len(m["url"]) - len(d) + len(".".join(puny)) <= 4096
+
+
 def x_links(s):
-    """The spans X counts as links, 23 each: [(start, end)] in order."""
-    out = []
+    """The spans X counts as links, 23 each: [(start, end)] in order. The URL pattern, run where a link can be: from just
+    before each stretch a domain can lie in that has a known TLD in it or http(s):// in front, to the next space."""
+    out, pos = [], 0
     if "." not in s: return out   # (twitter-text's own shortcut: no domain without a dot)
-    for m in URL.finditer(s):
-        if m["proto"]: out.append(m.span("url")); continue
-        if re.search(r"[-_./]$", m["pre"]): continue
-        at = m.start("domain"); found = [[at + d.start(), at + d.end()] for d in ASCII_DOMAIN.finditer(m["domain"])]
-        if found and m["path"]: found[-1][1] = m.end("url")
-        out += [tuple(f) for f in found]
+    for r in RUN.finditer(s):
+        a, b = r.span()
+        if b <= pos: continue                                   # inside the link before
+        p = PROTO.search(s, max(0, a - 8), a)
+        if not p and not HIT.search(s, a, b): continue
+        at, sp = max(pos, (p.start() if p else a) - 1, 0), re.compile(r"\s").search(s, b)
+        end = sp.start() if sp else len(s)
+        while at < b:
+            m = URL.search(s, at, end)
+            if not m or m.start("url") >= b: break
+            at = pos = max(m.end(), at + 1)
+            if not x_valid(m): continue
+            if m["proto"]: out.append(m.span("url")); continue
+            if re.search(r"[-_./]$", m["pre"]): continue
+            d0 = m.start("domain"); found = [[d0 + d.start(), d0 + d.end()] for d in ASCII_DOMAIN.finditer(m["domain"])]
+            if found and m["path"]: found[-1][1] = m.end("url")
+            out += [tuple(f) for f in found]
     return out
 
 

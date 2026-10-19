@@ -1045,7 +1045,9 @@ def main():
                     ("--confirmed", "confirmed.json"), ("--stems", "the stems bin/vh mix wrote")):
         if k in a: need(a[a.index(k) + 1] if a.index(k) + 1 < len(a) else no(f"{k} needs {what}"), what, folder=k == "--stems")
     if mode != "mix" and pos and "--beats" in a:   # the beat map: the second argument, or --beats as qa mix spells it
-        if len(pos) > 1 and pos[1] not in ("-", opt("--beats")): no(f"two beat maps: {pos[1]} and --beats {opt('--beats')}")
+        if len(pos) > 1 and pos[1] not in ("-", opt("--beats")):
+            no(f"two beat maps: {pos[1]} and --beats {opt('--beats')} (the second argument is the beat map; when {pos[1]} is the event "
+               f"list, write - in its place: qa {mode + ' ' if mode != 'all' else ''}{pos[0]} - {' '.join(pos[1:])} --beats {opt('--beats')})")
         pos[1:2] = [opt("--beats")]
     if mode != "mix" and pos:
         need(pos[0], "the mix")

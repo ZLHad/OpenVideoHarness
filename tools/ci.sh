@@ -397,20 +397,60 @@ with tempfile.TemporaryDirectory() as d:
         if want not in out: bad.append(f"no '{want}' in: {out[-900:]}")
     if "warning: @a2" in out or "warning: @b1" in out: bad.append(f"a false warning: {out[-900:]}")
     # --resume reuses a block's transcription only while it is of the same file: nothing changed, none; a cache from before
-    # the key (no sha256) while the WAV is not newer, none; another candidate copied over _block01.wav by hand, that block
+    # the key (no sha256) beside other takes of its block, each block once (a copy that kept the date would pass for the
+    # old take), then none; another candidate copied over _block01.wav by hand, that block
     vo, again = p / "audio/vo/zh", [str(p), "--provider", "gemini", "--voice", "Kore", "--join", "block", "--candidates", "3", "--resume"]
     calls = lambda out: int((re.search(r"align: (\d+) transcribe call", out) or [0, -1])[1])   # noqa: E731
     rc, out = run(again)
     if rc != 0 or calls(out) != 0: bad.append(f"--resume with nothing changed: exit {rc}, {calls(out)} transcribe call(s): {out[-300:]}")
     for f in vo.glob("_block0?.asr.json"):
         c = json.loads(f.read_text(encoding="utf-8")); c.pop("sha256", None); f.write_text(json.dumps(c, ensure_ascii=False), encoding="utf-8")
-    rc, out = run(again); kept = (vo / "_block02.asr.json").stat().st_mtime_ns
-    if rc != 0 or calls(out) != 0: bad.append(f"--resume on caches without a key: exit {rc}, {calls(out)} transcribe call(s): {out[-300:]}")
+    rc, out = run(again); rc2, out2 = run(again); kept = (vo / "_block02.asr.json").stat().st_mtime_ns
+    if rc != 0 or calls(out) != 2 or calls(out2) != 0: bad.append(f"--resume on caches without a key beside other takes: exit {rc}, {calls(out)} then {calls(out2)} transcribe call(s): {out[-300:]}")
     shutil.copyfile(vo / "_block01.c2.wav", vo / "_block01.wav")
     rc, out = run(again); side = json.loads((vo / "_block01.asr.json").read_text(encoding="utf-8"))
     if rc != 0 or calls(out) < 1 or side.get("sha256") != hashlib.sha256((vo / "_block01.wav").read_bytes()).hexdigest() \
             or (vo / "_block02.asr.json").stat().st_mtime_ns != kept:
         bad.append(f"--resume after _block01.wav was swapped by hand: exit {rc}, {calls(out)} call(s), cache key {side.get('sha256')}: {out[-300:]}")
+    # minimax gives its own word times (a stand-in for its API: a burst per character, 0.15 s, or 0.24 s every other take, and
+    # its subtitles): with --candidates, the other take copied over _block01.wav is cut by that take's own words file, and
+    # a take that is no candidate of the block stops the run (no --align gemini to cut it by), saying so
+    os.environ["MINIMAX_API_KEY"] = "ci-stub"; mm = {"n": 0}
+    def fake_mm(text, voice, lang, emotion):
+        b = 0.24 if mm["n"] % 2 else 0.15; mm["n"] += 1
+        x, subs, t = [np.zeros(int(0.05 * SR))], [], 0.05
+        for part in re.split(r"(<#[\d.]+#>)", text):
+            m = re.fullmatch(r"<#([\d.]+)#>", part)
+            if m:
+                x.append(np.zeros(int(float(m[1]) * SR))); t += float(m[1]); continue
+            for c in part.strip():
+                if not re.match(r"[一-鿿]", c):
+                    subs.append({"text": c, "time_begin": round(t * 1000), "time_end": round(t * 1000)}); continue
+                n = int(b * SR); x.append(0.3 * np.sin(2 * np.pi * 180 * np.arange(n) / SR) * np.sin(np.pi * np.arange(n) / n))
+                subs.append({"text": c, "time_begin": round(t * 1000), "time_end": round((t + b) * 1000)}); t += b
+                x.append(np.zeros(int(0.05 * SR))); t += 0.05
+        x.append(np.zeros(int(0.1 * SR))); y = np.concatenate(x); buf = io.BytesIO()
+        with wave.open(buf, "wb") as w:
+            w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((np.clip(y, -1, 1) * 32767).astype("<i2").tobytes())
+        return buf.getvalue(), subs
+    tts.minimax_tts = fake_mm
+    q = Path(d) / "m"; (q / "audio").mkdir(parents=True); mvo = q / "audio/vo/zh"
+    (q / "audio/script.txt").write_text("@m1 我们今天讲声音。\n@m2 先从琴弦说起。\n\n@n1 空气把它传走。\n", encoding="utf-8")
+    mcmd = [str(q), "--provider", "minimax", "--voice", "x", "--join", "block", "--candidates", "2"]
+    spans = lambda: [round(s["end"] - s["start"], 2) for s in json.loads((q / "audio/timeline.zh.json").read_text(encoding="utf-8"))["segments"]][:2]   # noqa: E731
+    rc, out = run(mcmd)
+    if rc != 0: bad.append(f"minimax --candidates exited {rc}: {out[-500:]}")
+    else:
+        other = 3 - json.loads((mvo / "_pick.json").read_text(encoding="utf-8"))["blocks"]["1"]["chosen"]; before = spans()
+        shutil.copyfile(mvo / f"_block01.c{other}.wav", mvo / "_block01.wav")
+        rc, out = run(mcmd + ["--resume"]); after = spans()
+        own = tts.load_words(mvo / f"_block01.c{other}.words.json")[1]
+        if rc != 0 or tts.load_words(mvo / "_block01.words.json")[1] != own or not all(abs(q2 / p2 - (0.29 if other == 2 else 0.2) / (0.2 if other == 2 else 0.29)) < 0.1 for p2, q2 in zip(before, after)):
+            bad.append(f"minimax: the other take copied in by hand (exit {rc}): line spans {before} → {after}: {out[-300:]}")
+        shutil.copyfile(mvo / "_block02.wav", mvo / "_block01.wav")
+        rc, out = run(mcmd + ["--resume"])
+        if rc == 0 or "is not the take its word times (_block01.words.json) are of" not in out:
+            bad.append(f"minimax: a take that is no candidate of the block, copied in (exit {rc}): {out[-300:]}")
     (Path(d) / "t.txt").write_text("我们那儿的声音从一根琴弦说起。\n", encoding="utf-8")
     rc, out = run(["voices", "audition", "--provider", "gemini", "--voices", "Kore,Puck,Charon", "--text", f"{d}/t.txt", "--out", f"{d}/au", "--align", "gemini"])
     au = json.loads(Path(f"{d}/au/audition.json").read_text(encoding="utf-8")) if Path(f"{d}/au/audition.json").exists() else {"voices": []}
@@ -473,7 +513,8 @@ cases = {"example.com/path": 23, "看这里：example.com，很好": 37, "x.com"
          "b23.tv/BV1x": 23, "example.co.uk": 23, "bit.ly/abc?x=1": 23, "example.com?x=1": 27, "example.com:8080/x": 23,
          "两个 https://a.io 和 b.io": 55, "https://example.com，后面": 29, "https://ex.com/a_(b).": 24, "ex.com/a.": 24,
          "foo_bar.com": 11, "Node.js": 7, "tools/x.py": 10, "-x.com": 6, "a@example.com": 13, "$example.com": 12, "ex.comm": 7,
-         "https://localhost:3000/x": 24, "v1.2.3": 6}
+         "https://localhost:3000/x": 24, "v1.2.3": 6, "a" * 63 + ".com": 23, "x" * 70 + ".com": 74, "看" * 70 + "example.com": 151,
+         "a." * 3000 + " example.com": 6024}   # a label over 63 characters (in punycode) is no link, as on X; a long dotted run
 bad = [f"{k!r}: {P.x_length(k)} (want {v})" for k, v in cases.items() if P.x_length(k) != v]
 print("; ".join(bad)); sys.exit(1 if bad else 0)
 PY
@@ -772,11 +813,13 @@ PY
       a=$(python3 -c 'import json, sys; b = json.load(open(sys.argv[1])); print(b.get("unmapped"), len(b.get("notes", [])))' "$t/qs/np.beats.json" 2>&1)
       case "$a" in "['piano#0'] 1") ok "music: the note map says which parts it leaves out (unmapped; a texture plays no notes)" ;; *) bad "music: unmapped in the beat map: $a" ;; esac
       # what qa and beats are given by mistake (a missing beat map, as --beats too, a missing mix, a list where the beat
-      # map goes, a file that is not audio, a missing track, no track): one line that names it and exit 2, no traceback
-      printf '[1]' > "$t/qs/list.json"; printf '{}' > "$t/qs/x.wav"; a=""
+      # map goes, a file that is not audio, a missing track, no track): one line that names it and exit 2, no traceback; the
+      # event list where the beat map goes, beside --beats, gets the command with - in its place
+      printf '[1]' > "$t/qs/list.json"; printf '{}' > "$t/qs/x.wav"; printf '[]' > "$t/qs/ev.json"; printf '{}' > "$t/qs/b.json"; a=""
       for c in "qa.py|nope.json (the beat map)|$t/qs/mix.wav|--beats|$t/qs/nope.json" "qa.py|nope.json (the beat map)|$t/qs/mix.wav|$t/qs/nope.json" \
                "qa.py|nope.wav (the mix)|$t/qs/nope.wav" "qa.py|list.json is not a beat map|$t/qs/mix.wav|$t/qs/list.json" \
-               "qa.py|x.wav: no audio ffmpeg can read|$t/qs/x.wav" "beats.py|beats: no such file: $t/qs/nope.wav|$t/qs/nope.wav" "beats.py|beats: which track?|--no-drums"; do
+               "qa.py|x.wav: no audio ffmpeg can read|$t/qs/x.wav" "beats.py|beats: no such file: $t/qs/nope.wav|$t/qs/nope.wav" "beats.py|beats: which track?|--no-drums" \
+               "qa.py|write - in its place: qa $t/qs/mix.wav - $t/qs/ev.json --beats $t/qs/b.json|$t/qs/mix.wav|$t/qs/ev.json|--beats|$t/qs/b.json"; do
         IFS='|' read -r -a cargs <<< "$c"
         b=$(uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/${cargs[0]}" "${cargs[@]:2}" 2>&1); rc=$?
         case "$rc:$b" in *Traceback*) a="$a | ${cargs[0]}: $b" ;; "2:"*"${cargs[1]}"*) [ "$(printf '%s\n' "$b" | wc -l | tr -d ' ')" = 1 ] || a="$a | ${cargs[0]}, more than a line: $b" ;;
@@ -1892,6 +1935,10 @@ film_checks() {
       && ok "frames: a frame that never returns stops the run at --frame-timeout (exit 2), naming its t, the frames before it kept" \
       || bad "frames on a frame that never returns: $((SECONDS - s0)) s, $(ls "$t/hang/o" 2>&1)" ;;
     *) bad "frames on a frame that never returns: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
+  # a raised --timeout raises a frame's cap with it (a page whose frames are that slow), unless --frame-timeout says otherwise
+  a=$(vh frames tools/film/fixture --at 0.5 --timeout 300 --out "$t/ft" 2>&1); b=$(vh frames tools/film/fixture --at 0.5 --timeout 300 --frame-timeout 7 --out "$t/ft" 2>&1)
+  case "$a|$b" in *"a frame may take 300 s (--timeout)"*"|"*"a frame may take 7 s (--frame-timeout)"*) ok "frames: --timeout alone is a frame's cap too; --frame-timeout wins" ;;
+    *) bad "frames: a frame's cap from --timeout: $(printf '%s' "$a" | head -1) | $(printf '%s' "$b" | head -1)" ;; esac
   # a browser stuck on its way out (it answers, then ignores Browser.close and SIGTERM: a stand-in on the DevTools pipe)
   # is killed: close() returns within seconds, so no tool waits on it until its watchdog
   printf '%s\n' 'import json, os, signal, time' 'signal.signal(signal.SIGTERM, signal.SIG_IGN); buf = b""' \
@@ -1972,6 +2019,11 @@ sys.exit(0 if ok and psnr(d + "/one.mp4", d + "/three.mp4") >= 45 and psnr(d + "
 PY
     then ok "render: one-GOP chunks taken in turn (3 workers make what 1 makes); a timed-out frame keeps the finished chunks, an edited page starts over, the same command resumes"
     else bad "render queue and resume: exit $rc:$rc2:$rc3:$rc4: $(printf '%s' "$b$c$d" | tail -c 900)"; fi
+    # bin/vh patch passes --frame-timeout to the render of its frames: frames 74-76 of the film above take the GOP from 60,
+    # and frame 75 (5 s) is past 2 s
+    a=$(vh patch "$t/q/one.mp4" --frames 74-76 --frame-timeout 2 --out "$t/q/p.mp4" 2>&1); rc=$?
+    case "$rc:$a" in 1:*"no picture after 2 s (--frame-timeout)"*"rendering frames"*"failed"*) ok "patch: --frame-timeout goes to the render of its frames" ;;
+      *) bad "patch --frame-timeout (exit $rc): $(printf '%s' "$a" | tail -c 500)" ;; esac
     # the estimate, the page's own fps and a relative --out, from another folder: the canvas-film template (made for 30 fps)
     # at --fps 60 is over 600 frames, so it is estimated; the disk has room for a flat film (7.2 MB at the peak) but not
     # for what was measured (about 12 MB)
@@ -2539,13 +2591,15 @@ PY
     # usage errors exit 2 (no command, a typo, place without its files, a missing event list, lib without a folder, an
     # audition value out of range), an event list that cannot become a track exits 1 (an unknown sound, a field out of range)
     printf '[{"t": 0.5, "sfx": "nosuch"}]' > "$t/unk.json"; printf '[{"t": 0.5, "sfx": "whoosh", "dur": 99}]' > "$t/far.json"; a=""
-    for c in "2|" "2|plcae" "2|place" "2|place|$t/unk.json" "2|place|$t/nope.json|$t/o.wav" "2|lib" "2|audition|whoosh|dur=99|--out|$t/au.wav" \
+    b=$(vh sfx audition -h 2>/dev/null); rc=$?   # help is not an error: stdout, exit 0, as sfx -h; a bare audition is a one-line one
+    case "$rc:$b" in 0:*"audition <name|all>"*) ;; *) a=" | sfx audition -h (exit $rc): $(printf '%s' "$b" | head -c 200)" ;; esac
+    for c in "2|" "2|plcae" "2|place" "2|place|$t/unk.json" "2|place|$t/nope.json|$t/o.wav" "2|lib" "2|audition" "2|audition|whoosh|dur=99|--out|$t/au.wav" \
              "1|place|$t/unk.json|$t/o.wav" "1|place|$t/far.json|$t/o.wav"; do
       IFS='|' read -r -a cargs <<< "$c"
       b=$(vh sfx "${cargs[@]:1}" 2>&1); rc=$?
       case "$rc:$b" in *Traceback*) a="$a | sfx ${cargs[*]:1}: $b" ;; "${cargs[0]}:sfx"*) ;; *) a="$a | sfx ${cargs[*]:1} (exit $rc, want ${cargs[0]}): $(printf '%s' "$b" | tail -c 200)" ;; esac
     done
-    [ -z "$a" ] && ok "sfx: usage errors exit 2, an event list that cannot become a track exits 1, each in a line and none a traceback" || bad "sfx exit codes:$a"
+    [ -z "$a" ] && ok "sfx: help exits 0, usage errors exit 2, an event list that cannot become a track exits 1, each in a line and none a traceback" || bad "sfx exit codes:$a"
   fi
   rm -rf "$t"
 }
