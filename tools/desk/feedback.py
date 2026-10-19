@@ -15,8 +15,8 @@ MAX_BODY = 256 * 1024
 MAX_ITEMS, MAX_DECISIONS = 400, 20
 LIMIT = {"text": 4000, "suggest": 2000, "orig": 2000, "label": 300, "general": 8000}
 STATUS = ("ok", "change", "ask")
-TARGET = re.compile(r"^(dec|least|deleg|concept|seg|cap|shot|fact|time|atime|led|doc|asset|range|chapter|card):[^\x00-\x1f]{1,180}$")
-RANGE = re.compile(r"^range:(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$")   # range:<a>-<b>, seconds of the film, a < b
+TARGET = re.compile(r"(dec|least|deleg|concept|seg|cap|shot|fact|time|atime|led|doc|asset|range|chapter|card):[^\x00-\x1f\x7f]{1,180}")   # fullmatch
+RANGE = re.compile(r"range:([0-9]+(?:\.[0-9]+)?)-([0-9]+(?:\.[0-9]+)?)")   # fullmatch: range:<a>-<b>, seconds of the film, a < b
 ROUND = re.compile(r"^[A-Za-z0-9_-]{1,24}$")
 NO_ROUND = "notes"           # comments sent while no gate page is out
 REFERENCE = re.compile(r"^## (授权跳过怎么记|给人看的提示|How to record a waived gate|Notes for the reviewer)", re.M)
@@ -99,16 +99,17 @@ def validate(project, fb):
         if not isinstance(it, dict):
             raise ValueError(f"{w}: expected an object")
         tgt, st = it.get("target"), it.get("status")
-        if not isinstance(tgt, str) or not TARGET.match(tgt):
+        if not isinstance(tgt, str) or not TARGET.fullmatch(tgt):   # (fullmatch: "$" would let a final newline through)
             raise ValueError(f"{w}.target: like cap:c04, shot:S03, time:12.4, range:12.4-15, doc:BRIEF.md#Spec")
         kind, _, rest = tgt.partition(":")
         span = None
-        if kind == "range":
-            m = RANGE.match(tgt)
-            if not m or not float(m.group(1)) < float(m.group(2)) < 1e6:
+        if kind == "range":   # ASCII digits only, and a < b as kept (to the hundredth)
+            m = RANGE.fullmatch(tgt)
+            span = (round(float(m.group(1)), 2), round(float(m.group(2)), 2)) if m else None
+            if not span or not span[0] < span[1] < 1e6:
                 raise ValueError(f"{w}.target: range:<a>-<b>, seconds of the film with a < b (range:12.4-15)")
-            span = round(float(m.group(1)), 2), round(float(m.group(2)), 2)
-        elif kind == "asset" and (rest.startswith(("/", "~", "\\")) or ".." in re.split(r"[/\\]", rest) or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", rest)):
+        elif kind == "asset" and (rest != rest.strip() or rest.startswith(("/", "~", "\\")) or re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", rest)
+                                  or ".." in [s.strip() for s in re.split(r"[/\\]", rest)]):
             raise ValueError(f"{w}.target: asset:<a path inside the project> (asset:assets/photo.jpg), not {rest[:60]!r}")
         if st not in STATUS:
             raise ValueError(f"{w}.status: ok, change or ask")
@@ -138,7 +139,8 @@ def _words(fb):
 
 
 def clock(x):
-    """12.4 → 0:12.4, 75 → 1:15.0 (as the desk shows times)"""
+    """12.4 → 0:12.4, 75 → 1:15.0 (as the desk shows times; 59.96 → 1:00.0, not 0:60.0)"""
+    x = round(x, 1)
     m = int(x // 60)
     return f"{m}:{x - 60 * m:04.1f}"
 

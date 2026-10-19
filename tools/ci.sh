@@ -1204,12 +1204,15 @@ sub = lambda *its, lang="zh": {"round": "1", "lang": lang, "items": [dict({"stat
 v = feedback.validate(d, sub({"target": "range:1.5-3", "t": 9}, {"target": "chapter:c2"}, {"target": "asset:assets/a b.png"}, {"target": "card:B"}))
 want([(i["target"], i.get("t"), i.get("t1")) for i in v["items"]] == [("range:1.5-3", 1.5, 3.0), ("chapter:c2", None, None), ("asset:assets/a b.png", None, None), ("card:B", None, None)],
      f"new targets: {v['items']}")
-for bad_t in ("range:3-1", "range:2-2", "range:-1-2", "range:a-b", "range:1", "asset:/etc/passwd", "asset:../x", "asset:a/../../x", "asset:https://x.test/a.png", "card:", "chapter:"):
+for bad_t in ("range:3-1", "range:2-2", "range:-1-2", "range:a-b", "range:1", "asset:/etc/passwd", "asset:../x", "asset:a/../../x", "asset:https://x.test/a.png", "card:", "chapter:",
+              "range:1.001-1.004", "range:1-2\n", "cap:c1\n", "asset:..\n", "asset: /etc/passwd", "asset:a/ ../x", "asset:a/.. /x", "asset:x ",
+              "range:\u0661-\u0662", "range:1-\uff12", "asset:C:\\x", "seg:a\x7f"):   # rounding to equal, a final newline, spaces, other digits
     try:
         feedback.validate(d, sub({"target": bad_t}))
-        bad.append(f"{bad_t} was taken")
+        bad.append(f"{bad_t!r} was taken")
     except ValueError:
         pass
+want(feedback.clock(59.96) == "1:00.0" and feedback.clock(12.44) == "0:12.4", f"clock: {feedback.clock(59.96)}, {feedback.clock(12.44)}")
 md = feedback.to_markdown(dict(feedback.validate(d, sub({"target": "range:1.5-3"}, {"target": "card:B"}, {"target": "asset:assets/a.png"}, {"target": "chapter:c2"})), submitted_at="t"))
 want("- 片段 0:01.5–0:03.0 [range:1.5-3] · 要改：x" in md and "- 立意卡 B [card:B]" in md and "- 素材 assets/a.png [asset:assets/a.png]" in md and "- 章节 c2 [chapter:c2]" in md, f"zh labels: {md}")
 md = feedback.to_markdown(dict(feedback.validate(d, sub({"target": "range:75-80", "label": "the bridge"}, lang="en")), submitted_at="t"))
