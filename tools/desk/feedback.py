@@ -15,7 +15,8 @@ MAX_BODY = 256 * 1024
 MAX_ITEMS, MAX_DECISIONS = 400, 20
 LIMIT = {"text": 4000, "suggest": 2000, "orig": 2000, "label": 300, "general": 8000}
 STATUS = ("ok", "change", "ask")
-TARGET = re.compile(r"^(dec|least|deleg|concept|seg|cap|shot|fact|time|atime|led|doc|asset):[^\x00-\x1f]{1,180}$")
+TARGET = re.compile(r"^(dec|least|deleg|concept|seg|cap|shot|fact|time|atime|led|doc|asset|range|chapter|card):[^\x00-\x1f]{1,180}$")
+RANGE = re.compile(r"^range:(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$")   # range:<a>-<b>, seconds of the film, a < b
 ROUND = re.compile(r"^[A-Za-z0-9_-]{1,24}$")
 NO_ROUND = "notes"           # comments sent while no gate page is out
 REFERENCE = re.compile(r"^## (授权跳过怎么记|给人看的提示|How to record a waived gate|Notes for the reviewer)", re.M)
@@ -99,7 +100,16 @@ def validate(project, fb):
             raise ValueError(f"{w}: expected an object")
         tgt, st = it.get("target"), it.get("status")
         if not isinstance(tgt, str) or not TARGET.match(tgt):
-            raise ValueError(f"{w}.target: like cap:c04, shot:S03, time:12.4, doc:BRIEF.md#Spec")
+            raise ValueError(f"{w}.target: like cap:c04, shot:S03, time:12.4, range:12.4-15, doc:BRIEF.md#Spec")
+        kind, _, rest = tgt.partition(":")
+        span = None
+        if kind == "range":
+            m = RANGE.match(tgt)
+            if not m or not float(m.group(1)) < float(m.group(2)) < 1e6:
+                raise ValueError(f"{w}.target: range:<a>-<b>, seconds of the film with a < b (range:12.4-15)")
+            span = round(float(m.group(1)), 2), round(float(m.group(2)), 2)
+        elif kind == "asset" and (rest.startswith(("/", "~", "\\")) or ".." in re.split(r"[/\\]", rest) or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", rest)):
+            raise ValueError(f"{w}.target: asset:<a path inside the project> (asset:assets/photo.jpg), not {rest[:60]!r}")
         if st not in STATUS:
             raise ValueError(f"{w}.status: ok, change or ask")
         c = {"target": tgt, "status": st, "label": _text(it.get("label"), "label", w + ".label") or tgt,
@@ -112,6 +122,8 @@ def validate(project, fb):
             if not isinstance(t, (int, float)) or isinstance(t, bool) or not 0 <= t < 1e6:
                 raise ValueError(f"{w}.t: seconds")
             c["t"] = round(float(t), 2)
+        if span:   # the span is the target's: t and t1 follow it whatever the page sent
+            c["t"], c["t1"] = span
         clean.append(c)
     lang = fb.get("lang") or "zh"
     if not isinstance(lang, str) or lang not in WORDS:
@@ -125,6 +137,28 @@ def _words(fb):
     return WORDS[lang if isinstance(lang, str) and lang in WORDS else "zh"]
 
 
+def clock(x):
+    """12.4 → 0:12.4, 75 → 1:15.0 (as the desk shows times)"""
+    m = int(x // 60)
+    return f"{m}:{x - 60 * m:04.1f}"
+
+
+NAMES = {"zh": {"range": "片段 {x}", "chapter": "章节 {x}", "asset": "素材 {x}", "card": "立意卡 {x}", "time": "小样 {x}", "atime": "声音 {x}"},
+         "en": {"range": "Span {x}", "chapter": "Chapter {x}", "asset": "Asset {x}", "card": "Concept card {x}", "time": "Film {x}", "atime": "Sound {x}"}}
+
+
+def readable(it, lang):
+    """An item's label as REVIEW.md shows it: the one the page sent, else one made from the target; a span always says
+    its times (片段 0:12.4–0:15.0)."""
+    kind, _, rest = it["target"].partition(":")
+    span = f"{clock(it['t'])}–{clock(it['t1'])}" if kind == "range" and "t1" in it else None
+    names = NAMES.get(lang, NAMES["zh"])
+    if it["label"] == it["target"] and kind in names:
+        x = span or (clock(it["t"]) if kind in ("time", "atime") and "t" in it else rest)
+        return names[kind].format(x=x)
+    return it["label"] + (f"（{span}）" if lang == "zh" else f" ({span})") if span and span not in it["label"] else it["label"]
+
+
 def to_markdown(fb):
     """The .md copy: what the reviewer marked and wrote, one line each, their words untouched."""
     w = _words(fb)
@@ -132,7 +166,7 @@ def to_markdown(fb):
     for k, v in fb["decisions"].items():
         lines.append("- " + w["decision"].format(id=k, v=v) + (w["default"] if k in fb.get("defaulted", []) else ""))
     for it in fb["items"]:
-        line = f"- {it['label']} [{it['target']}] · {w['st'][it['status']]}"
+        line = f"- {readable(it, fb.get('lang'))} [{it['target']}] · {w['st'][it['status']]}"
         if it.get("orig") and it["target"].startswith("cap:"):
             line += w["orig"].format(x=it["orig"])
         if it.get("text"):

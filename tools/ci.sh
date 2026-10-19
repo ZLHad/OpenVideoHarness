@@ -1199,6 +1199,21 @@ errs = [(p.wait(), p.stderr.read()) for p in procs]
 parts = [n for n in os.listdir(fd2) if n.endswith(".part")]
 want(all(rc == 0 for rc, _ in errs) and len([n for n in feedback.consumed(c) if n.startswith("w")]) == 320 and not parts,
      f"8 concurrent writers: exits {[rc for rc, _ in errs]}, {len(feedback.consumed(c))} names, leftovers {parts}, {[e[-200:] for _, e in errs if e][:1]}")
+# the targets a client points at: a span, a chapter, an asset, a concept card; a span's t / t1 come from its target
+sub = lambda *its, lang="zh": {"round": "1", "lang": lang, "items": [dict({"status": "change", "text": "x"}, **i) for i in its]}   # noqa: E731
+v = feedback.validate(d, sub({"target": "range:1.5-3", "t": 9}, {"target": "chapter:c2"}, {"target": "asset:assets/a b.png"}, {"target": "card:B"}))
+want([(i["target"], i.get("t"), i.get("t1")) for i in v["items"]] == [("range:1.5-3", 1.5, 3.0), ("chapter:c2", None, None), ("asset:assets/a b.png", None, None), ("card:B", None, None)],
+     f"new targets: {v['items']}")
+for bad_t in ("range:3-1", "range:2-2", "range:-1-2", "range:a-b", "range:1", "asset:/etc/passwd", "asset:../x", "asset:a/../../x", "asset:https://x.test/a.png", "card:", "chapter:"):
+    try:
+        feedback.validate(d, sub({"target": bad_t}))
+        bad.append(f"{bad_t} was taken")
+    except ValueError:
+        pass
+md = feedback.to_markdown(dict(feedback.validate(d, sub({"target": "range:1.5-3"}, {"target": "card:B"}, {"target": "asset:assets/a.png"}, {"target": "chapter:c2"})), submitted_at="t"))
+want("- 片段 0:01.5–0:03.0 [range:1.5-3] · 要改：x" in md and "- 立意卡 B [card:B]" in md and "- 素材 assets/a.png [asset:assets/a.png]" in md and "- 章节 c2 [chapter:c2]" in md, f"zh labels: {md}")
+md = feedback.to_markdown(dict(feedback.validate(d, sub({"target": "range:75-80", "label": "the bridge"}, lang="en")), submitted_at="t"))
+want("- the bridge (1:15.0–1:20.0) [range:75-80] · change: x" in md, f"en label with its span: {md}")
 if bad:
     print("; ".join(bad))
 sys.exit(1 if bad else 0)
@@ -1266,12 +1281,19 @@ if what == "serve":
     want(req("POST", "/api/feedback", fb(round="9"), H)[0] == 400, "a round with no gate page")
     want(req("POST", "/api/feedback", fb(decisions={"look": "L9"}), H)[0] == 400, "an option the gate page doesn't have")
     want(req("POST", "/api/feedback", fb(items=[{"target": "x", "status": "ok"}]), H)[0] == 400, "a bad target")
+    want(req("POST", "/api/feedback", fb(items=[{"target": "range:5-2", "status": "change"}]), H)[0] == 400, "a backward range")
+    want(req("POST", "/api/feedback", fb(items=[{"target": "asset:../../etc/passwd", "status": "change"}]), H)[0] == 400, "an asset outside the project")
     want(json.loads(req("GET", "/api/status")[2])["listening"] is False, "listening before the watcher")
 elif what == "status":
     print(json.loads(req("GET", "/api/status")[2])["listening"])
 elif what == "post":   # no watcher: argv[4] is the comment
     s, _, d = req("POST", "/api/feedback", fb(items=[{"target": "seg:2", "status": "change", "label": "大纲 第 2 段", "text": sys.argv[4]}]), H)
     want(s == 200, f"post: {s} {d[:200]}")
+elif what == "targets":   # a span, a chapter, an asset and a concept card, as a client sends them
+    s, _, d = req("POST", "/api/feedback", fb(items=[{"target": "range:12.4-15", "status": "change", "text": "这一段太慢"},
+        {"target": "chapter:c2", "status": "ask", "text": "这一章要不要"}, {"target": "asset:assets/photo.jpg", "status": "change", "text": "换一张"},
+        {"target": "card:B", "status": "ok"}]), H)
+    want(s == 200, f"targets: {s} {d[:200]}")
 else:
     want(json.loads(req("GET", "/api/status")[2])["listening"] is True, "the page doesn't see the watcher")
     s, _, d = req("POST", "/api/feedback", fb(), H)
@@ -1308,6 +1330,17 @@ PY
   a=$(python3 "$t/client.py" "$url" "$t/p" post "第三条" && vh desk feedback "$t/p")
   vh desk wait "$t/p" --timeout 1 >/dev/null 2>&1; rc=$?
   case "$rc:$a" in 3:*"第三条"*) ok "desk feedback counts what it printed as handed over" ;; *) bad "desk feedback then wait: rc $rc: $(printf '%s' "$a" | head -c 300)" ;; esac
+  # the new targets through the server: kept with the span's seconds, printed and written into REVIEW.md readably
+  a=$(python3 "$t/client.py" "$url" "$t/p" targets && vh desk feedback "$t/p" --json) && b=$(vh desk feedback "$t/p")
+  if python3 - "$a" "$t/p/REVIEW.md" "$b" <<'PY'
+import json, sys
+d, rv, txt = json.loads(sys.argv[1]), open(sys.argv[2], encoding="utf-8").read(), sys.argv[3]
+it = {i["target"]: i for i in d["items"]}
+want = ["- 片段 0:12.4–0:15.0 [range:12.4-15] · 要改：这一段太慢", "- 章节 c2 [chapter:c2] · 疑问：这一章要不要", "- 素材 assets/photo.jpg [asset:assets/photo.jpg] · 要改：换一张", "- 立意卡 B [card:B] · 可以"]
+sys.exit(0 if (it["range:12.4-15"]["t"], it["range:12.4-15"]["t1"]) == (12.4, 15.0) and all(w in rv and w in txt for w in want) else 1)
+PY
+  then ok "desk: range, chapter, asset and card targets are taken, keep the span's seconds, and read plainly in desk feedback and REVIEW.md; a backward span or a path out of the project is refused"
+  else bad "desk new targets: $(printf '%s' "$a$b" | tail -c 600)"; fi
   # a copy of the project carries the running server's .desk.json and a .listening that names another folder: neither counts
   cp -R "$t/p" "$t/p2" && printf '{"pid": %s, "since": 0, "until": 99999999999, "project": "%s"}\n' "$$" "$t/p" > "$t/p2/out/review/feedback/.listening"
   if desk_start "$t/p2" "$t/srv2.log"; then

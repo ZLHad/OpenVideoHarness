@@ -42,8 +42,9 @@ const STR = {
     facts_sub: "上屏的说法，和它背后的原话、出处。请重点看“上屏说法”有没有简化到错。", todo: "还没核实的", th_id: "#", th_claim: "素材（原文）",
     th_kind: "类别", th_screen: "上屏说法", th_src: "出处", th_you: "你看", dropped: "（已不用）", l_fact: "事实 {x}",
     no_facts: "NOTES.md 里没有素材清单表格，下面是原文。", no_notes: "还没有 NOTES.md。",
-    film_sub: "播到哪里有话说，按 C 或点按钮，就在那一秒留一条。", film_list: "点评按时间排在下面",
+    film_sub: "播到哪里有话说，按 C 或点按钮，就在那一秒留一条；要说一段，按 I 设入点、O 设出点。", film_list: "点评按时间排在下面",
     film_none: "还没有逐秒点评。", no_film: "这一轮没有视频。", film_label: "小样 {t}", del: "删",
+    range_in: "入点 (I)", range_out: "出点 (O)", range_from: "从 {t} 起", range_label: "小样 {a}–{b}",
     ledger_sub: "每件事谁拍板、现在是什么状态；我替你定的事都在下面，随时可以翻案。", th_what: "事", th_who: "谁拍板", th_status: "现在",
     agent_n: "我替你定的（{n}）", superseded: "已经作废的（{n}）", why: "理由", undo: "翻案要花", l_led: "决定 {x}",
     no_ledger: "DECISIONS.md 里没有决定表和“agent 定的事”，下面是原文。", no_dec: "还没有 DECISIONS.md。",
@@ -95,8 +96,9 @@ const STR = {
     facts_sub: "What goes on screen, and the source behind it. Check that the on-screen wording isn't simplified into something wrong.", todo: "Not verified yet",
     th_id: "#", th_claim: "Item (source wording)", th_kind: "Kind", th_screen: "On screen", th_src: "Source", th_you: "You", dropped: "(dropped)", l_fact: "Fact {x}",
     no_facts: "NOTES.md has no material table. Here it is as written.", no_notes: "No NOTES.md yet.",
-    film_sub: "Wherever you have something to say, press C or the button to leave a note at that second.",
+    film_sub: "Wherever you have something to say, press C or the button to leave a note at that second; for a span, I sets its start and O its end.",
     film_list: "notes are listed below in time order", film_none: "No timecoded notes yet.", no_film: "No video this round.", film_label: "Film {t}", del: "Delete",
+    range_in: "In (I)", range_out: "Out (O)", range_from: "from {t}", range_label: "Film {a}–{b}",
     ledger_sub: "Who decides each thing and where it stands; what I decided for you is below, and you can overturn any of it.", th_what: "Decision", th_who: "Who decides", th_status: "Now",
     agent_n: "Decided for you ({n})", superseded: "Superseded ({n})", why: "Why", undo: "Cost to undo", l_led: "Decision {x}",
     no_ledger: "DECISIONS.md has no ledger table and no agent decisions. Here it is as written.", no_dec: "No DECISIONS.md yet.",
@@ -113,7 +115,7 @@ const STR = {
 };
 
 let D = null, ROUND = null, FB = null, KEY = "", VIEW = "round", DOC = "", LANG = "zh", L = STR.zh;
-let capFilter = "all", filmT = 0;
+let capFilter = "all", filmT = 0, filmIn = null;
 const TOKEN = (document.querySelector('meta[name="desk-token"]') || {}).content || "";
 const $ = (s, el = document) => el.querySelector(s), $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -134,7 +136,7 @@ function partColor(part) { let h = 0; for (const ch of String(part)) h = (h * 31
 try { const th = localStorage.getItem("desk:theme"); if (th) document.documentElement.dataset.theme = th; } catch (e) { /* no storage */ }
 
 const VIEWS = ["round", "concept", "script", "board", "sound", "facts", "film", "ledger", "history", "docs"];
-const KIND = { dec: "round", least: "round", deleg: "round", concept: "concept", seg: "concept", cap: "script", shot: "board", atime: "sound", fact: "facts", time: "film", led: "ledger", doc: "docs" };
+const KIND = { dec: "round", least: "round", deleg: "round", concept: "concept", seg: "concept", cap: "script", shot: "board", atime: "sound", fact: "facts", time: "film", range: "film", led: "ledger", doc: "docs" };
 
 // ---------- load ----------
 async function load() {
@@ -194,7 +196,7 @@ window.addEventListener("hashchange", route);
 function fbCtl(target, label, opt = {}) {
   const v = FB.items[target] || {}, st = v.status || "";
   const lab = opt.labels || [t("fb_ok"), t("fb_change"), t("fb_ask")];
-  return `<div class="fb" data-target="${esc(target)}" data-label="${esc(label)}"${opt.suggest != null ? ` data-orig="${esc(opt.suggest)}"` : ""}${opt.t != null ? ` data-t="${opt.t}"` : ""}${opt.labels ? ` data-labels="${esc(JSON.stringify(opt.labels))}"` : ""}${opt.def ? ` data-def="${esc(opt.def)}"` : ""}>
+  return `<div class="fb" data-target="${esc(target)}" data-label="${esc(label)}"${opt.suggest != null ? ` data-orig="${esc(opt.suggest)}"` : ""}${opt.t != null ? ` data-t="${opt.t}"` : ""}${opt.t1 != null ? ` data-t1="${opt.t1}"` : ""}${opt.labels ? ` data-labels="${esc(JSON.stringify(opt.labels))}"` : ""}${opt.def ? ` data-def="${esc(opt.def)}"` : ""}>
     <span class="seg3"><button type="button" data-st="ok" class="${st === "ok" ? "on" : ""}">${esc(lab[0])}</button><button type="button" data-st="change" class="${st === "change" ? "on" : ""}">${esc(lab[1])}</button><button type="button" data-st="ask" class="${st === "ask" ? "on" : ""}">${esc(lab[2])}</button></span>
     ${st ? "" : `<span class="def">${esc(opt.def || t("fb_def"))}</span>`}
     <div class="fb-more" ${st === "change" || st === "ask" ? "" : "hidden"}>
@@ -207,7 +209,7 @@ document.addEventListener("click", (e) => {
   const box = b.closest(".fb"), tgt = box.dataset.target, cur = FB.items[tgt] || {};
   const st = cur.status === b.dataset.st ? "" : b.dataset.st;
   if (!st) delete FB.items[tgt];
-  else FB.items[tgt] = Object.assign({}, cur, { status: st, label: box.dataset.label }, box.dataset.t ? { t: +box.dataset.t } : {}, box.dataset.orig != null ? { orig: box.dataset.orig } : {});
+  else FB.items[tgt] = Object.assign({}, cur, { status: st, label: box.dataset.label }, box.dataset.t ? { t: +box.dataset.t } : {}, box.dataset.t1 ? { t1: +box.dataset.t1 } : {}, box.dataset.orig != null ? { orig: box.dataset.orig } : {});
   save(); refreshFb(box);
 });
 document.addEventListener("input", (e) => {
@@ -217,7 +219,7 @@ document.addEventListener("input", (e) => {
 function refreshFb(box) {
   const wrap = document.createElement("div");
   wrap.innerHTML = fbCtl(box.dataset.target, box.dataset.label, { suggest: box.dataset.orig != null ? box.dataset.orig : null, t: box.dataset.t != null ? box.dataset.t : null,
-    labels: box.dataset.labels ? JSON.parse(box.dataset.labels) : null, def: box.dataset.def || null });
+    t1: box.dataset.t1 != null ? box.dataset.t1 : null, labels: box.dataset.labels ? JSON.parse(box.dataset.labels) : null, def: box.dataset.def || null });
   const nb = wrap.firstElementChild; box.replaceWith(nb);
   const host = nb.closest("[data-mark]"); if (host) markHost(host);
   const ta = nb.querySelector("textarea"); if (ta && !nb.querySelector(".fb-more").hidden) ta.focus();
@@ -418,24 +420,47 @@ function vFacts() {
 function vFilm() {
   const v = filmAsset();
   if (!v) return `<h1>${esc(t("v_film"))}</h1><div class="empty">${esc(t("no_film"))}</div>`;
-  const tcs = Object.entries(FB.items).filter(([k]) => k.startsWith("time:")).sort((a, b) => a[1].t - b[1].t);
+  const tcs = Object.entries(FB.items).filter(([k]) => k.startsWith("time:") || k.startsWith("range:")).sort((a, b) => a[1].t - b[1].t);
+  const col = (x) => (x.status === "ask" ? "var(--ask)" : x.status === "ok" ? "var(--ok)" : "var(--chg)");
+  const when = (x) => (x.t1 != null ? `${fmt(x.t)}–${fmt(x.t1)}` : fmt(x.t));
   return `<h1>${esc(t("v_film"))}</h1><p class="sub">${v.caption ? esc(v.caption) + " · " : ""}${esc(t("film_sub"))}</p>
     <div class="player"><video id="fv" src="${esc(src(v.path))}"${v.poster ? ` poster="${esc(src(v.poster))}"` : ""} controls preload="metadata"></video>
-      <div class="scrub" id="scrub"><div class="fill" id="sfill"></div>${tcs.map(([, x]) => `<div class="mk" data-mt="${x.t}" style="background:${x.status === "ask" ? "var(--ask)" : x.status === "ok" ? "var(--ok)" : "var(--chg)"}" title="${fmt(x.t)}"></div>`).join("")}</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><button class="btn" type="button" id="tcadd">${atTime("tnow")} (C)</button><span class="tiny muted">${esc(t("film_list"))}</span></div></div>
-    <div>${tcs.map(([k, x]) => `<div class="tc" data-mark="${esc(k)}"><span class="t" data-seek="${x.t}">${fmt(x.t)}</span><div>${fbCtl(k, t("film_label", { t: fmt(x.t) }), { t: x.t })}</div><button class="btn ghost" type="button" data-del="${esc(k)}">${esc(t("del"))}</button></div>`).join("") || `<div class="muted small" style="margin-top:12px">${esc(t("film_none"))}</div>`}</div>`;
+      <div class="scrub" id="scrub"><div class="fill" id="sfill"></div>${tcs.map(([, x]) => x.t1 != null ? `<div class="rg" data-mt="${x.t}" data-mt1="${x.t1}" style="background:${col(x)}" title="${when(x)}"></div>` : `<div class="mk" data-mt="${x.t}" style="background:${col(x)}" title="${fmt(x.t)}"></div>`).join("")}<div class="rg pending" id="rgin" hidden></div></div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap"><button class="btn" type="button" id="tcadd">${atTime("tnow")} (C)</button><button class="btn ghost" type="button" id="rgi">${esc(t("range_in"))}</button><button class="btn ghost" type="button" id="rgo" disabled>${esc(t("range_out"))}</button><span class="tiny muted" id="rgnote"></span><span class="tiny muted">${esc(t("film_list"))}</span></div></div>
+    <div>${tcs.map(([k, x]) => `<div class="tc" data-mark="${esc(k)}"><span class="t" data-seek="${x.t}">${when(x)}</span><div>${fbCtl(k, x.t1 != null ? t("range_label", { a: fmt(x.t), b: fmt(x.t1) }) : t("film_label", { t: fmt(x.t) }), { t: x.t, t1: x.t1 })}</div><button class="btn ghost" type="button" data-del="${esc(k)}">${esc(t("del"))}</button></div>`).join("") || `<div class="muted small" style="margin-top:12px">${esc(t("film_none"))}</div>`}</div>`;
 }
 function wireFilm() {
   const v = $("#fv"); if (!v) return;
-  const place = () => { const d = v.duration || 0; $$("#scrub .mk").forEach((m) => { m.style.left = d ? Math.min(100, (+m.dataset.mt / d) * 100) + "%" : "0"; m.style.display = d ? "" : "none"; }); };
+  const pct = (x) => (v.duration ? Math.min(100, (x / v.duration) * 100) : 0);
+  const place = () => {
+    const d = v.duration || 0;
+    $$("#scrub .mk").forEach((m) => { m.style.left = pct(+m.dataset.mt) + "%"; m.style.display = d ? "" : "none"; });
+    $$("#scrub .rg[data-mt]").forEach((m) => { m.style.left = pct(+m.dataset.mt) + "%"; m.style.width = (pct(+m.dataset.mt1) - pct(+m.dataset.mt)) + "%"; m.style.display = d ? "" : "none"; });
+    const pin = $("#rgin"), on = filmIn != null && d;
+    pin.hidden = !on; if (on) { pin.style.left = pct(filmIn) + "%"; pin.style.width = Math.max(0, pct(v.currentTime) - pct(filmIn)) + "%"; }
+    $("#rgo").disabled = filmIn == null; $("#rgnote").textContent = filmIn != null ? t("range_from", { t: fmt(filmIn) }) : "";
+  };
   v.addEventListener("loadedmetadata", () => { if (filmT) v.currentTime = Math.min(filmT, v.duration || filmT); place(); }, { once: true });
-  v.addEventListener("timeupdate", () => { filmT = v.currentTime; $("#tnow").textContent = fmt(v.currentTime); $("#sfill").style.width = (v.duration ? (v.currentTime / v.duration) * 100 : 0) + "%"; });
+  v.addEventListener("timeupdate", () => { filmT = v.currentTime; $("#tnow").textContent = fmt(v.currentTime); $("#sfill").style.width = (v.duration ? (v.currentTime / v.duration) * 100 : 0) + "%"; if (filmIn != null) place(); });
   $("#scrub").addEventListener("click", (e) => { if (!v.duration) return; const r = e.currentTarget.getBoundingClientRect(); v.currentTime = ((e.clientX - r.left) / r.width) * v.duration; });
-  const add = () => { const x = +v.currentTime.toFixed(1); v.pause(); FB.items["time:" + x] = { status: "change", label: t("film_label", { t: fmt(x) }), t: x, text: "" }; save(); render(); const ta = $(`[data-target="time:${x}"] textarea`); if (ta) ta.focus(); };
-  $("#tcadd").addEventListener("click", add);
+  const open = (k) => { save(); render(); const ta = $(`[data-target="${CSS.escape(k)}"] textarea`); if (ta) ta.focus(); };
+  const add = () => { const x = +v.currentTime.toFixed(1); v.pause(); FB.items["time:" + x] = { status: "change", label: t("film_label", { t: fmt(x) }), t: x, text: "" }; open("time:" + x); };
+  const mark = () => { filmIn = +v.currentTime.toFixed(1); place(); };
+  const close = () => {   // a span from the in point to here (either order), as range:<a>-<b>
+    if (filmIn == null) return;
+    const x = +v.currentTime.toFixed(1), a = Math.min(filmIn, x), b = Math.max(filmIn, x);
+    if (b - a < 0.1) return;
+    const k = `range:${a}-${b}`; v.pause(); filmIn = null;
+    FB.items[k] = { status: "change", label: t("range_label", { a: fmt(a), b: fmt(b) }), t: a, t1: b, text: "" }; open(k);
+  };
+  $("#tcadd").addEventListener("click", add); $("#rgi").addEventListener("click", mark); $("#rgo").addEventListener("click", close);
   $$("[data-seek]").forEach((b) => b.addEventListener("click", () => { v.currentTime = +b.dataset.seek; v.play(); }));
   $$("[data-del]").forEach((b) => b.addEventListener("click", () => { delete FB.items[b.dataset.del]; save(); render(); }));
-  document.onkeydown = (e) => { if (VIEW !== "film" || /TEXTAREA|INPUT/.test(document.activeElement.tagName)) return; if (e.key === "c" || e.key === "C") { e.preventDefault(); add(); } };
+  document.onkeydown = (e) => {
+    if (VIEW !== "film" || /TEXTAREA|INPUT/.test(document.activeElement.tagName) || e.metaKey || e.ctrlKey || e.altKey) return;
+    const key = e.key.toLowerCase();
+    if (key === "c") { e.preventDefault(); add(); } else if (key === "i") { e.preventDefault(); mark(); } else if (key === "o") { e.preventDefault(); close(); }
+  };
   place();
 }
 
@@ -476,7 +501,7 @@ function payload() {
     if (v && (d.options || []).some((o) => o.id === v)) { decisions[d.id] = v; if (!FB.decisions[d.id]) defaulted.push(d.id); }
   });
   const items = Object.entries(FB.items).filter(([, v]) => v.status).map(([k, v]) => Object.assign({ target: k, status: v.status, label: v.label || k, text: v.text || "" },
-    v.suggest && v.suggest !== v.orig ? { suggest: v.suggest } : {}, v.orig && k.startsWith("cap:") ? { orig: v.orig } : {}, v.t != null ? { t: v.t } : {}));
+    v.suggest && v.suggest !== v.orig ? { suggest: v.suggest } : {}, v.orig && k.startsWith("cap:") ? { orig: v.orig } : {}, v.t != null ? { t: v.t } : {}, v.t1 != null ? { t1: v.t1 } : {}));
   return { round: ROUND.id, lang: LANG, decisions, defaulted, items, general: ($("#general").value || "").trim() };
 }
 function summaryText(p) {

@@ -113,7 +113,8 @@ JSON 的格式：
   "items": [
     {"target": "seg:9", "status": "change", "label": "大纲 第 9 段 这一次", "text": "这个压根没有升华主题……"},
     {"target": "cap:c11", "status": "change", "label": "字幕 c11", "text": "", "orig": "信号好，一次装 8 个；信号差，只装 2 个。", "suggest": "……"},
-    {"target": "time:12.4", "status": "ask", "label": "小样 0:12.4", "text": "这里看不清", "t": 12.4}
+    {"target": "time:12.4", "status": "ask", "label": "小样 0:12.4", "text": "这里看不清", "t": 12.4},
+    {"target": "range:20-24.5", "status": "change", "label": "小样 0:20.0–0:24.5", "text": "这一段太慢", "t": 20, "t1": 24.5}
   ],
   "general": "大体可以"
 }
@@ -121,7 +122,8 @@ JSON 的格式：
 
 - `decisions`：这一页每个决定选了哪个选项；`defaulted` 列出人没动、按推荐算的。
 - `items[].status`：`ok` 可以、`change` 要改、`ask` 疑问。没标的条目都算通过。
-- `items[].target` 的前缀说明点评的是什么：`dec:` 决定、`least:` 没把握的、`deleg:` 替人定的（gate JSON `delegated` 的序号）、`concept:line` 立意、`seg:` 大纲段、`cap:` 字幕或旁白条、`shot:` 镜头、`fact:` 素材、`time:` 小样的某一秒、`atime:` 音轨的某一秒、`led:` DECISIONS 里 agent 定的事（序号）、`doc:<文件>#<小节>` 文档的某一节。
+- `items[].target` 的前缀说明点评的是什么：`dec:` 决定、`least:` 没把握的、`deleg:` 替人定的（gate JSON `delegated` 的序号）、`concept:line` 立意、`seg:` 大纲段、`cap:` 字幕或旁白条、`shot:` 镜头、`fact:` 素材、`time:` 小样的某一秒、`range:<a>-<b>` 小样的一段（秒，a < b；小样页按 I、O 选）、`atime:` 音轨的某一秒、`chapter:<id>` 一章、`asset:<路径>` 项目里的一件素材（相对项目的路径，不出项目）、`card:<id>` 一张立意卡、`led:` DECISIONS 里 agent 定的事（序号）、`doc:<文件>#<小节>` 文档的某一节。
+- `t` 是秒；`range:` 的条目另有 `t1`，两个都按 target 里的数存，页面发来的不算。没写 `label` 的，`desk feedback` 和 REVIEW.md 按 target 起一个（"片段 0:12.4–0:15.0""章节 c2""素材 assets/a.jpg""立意卡 B"）；一段的 `label` 后面总带着它的起止。
 - `suggest` 是人直接写的"改成"，`orig` 是原句。
 
 服务会检查：轮次对得上一份 `gate-<轮>.json`（还没有审阅页时用 `notes`），决定和选项都在那一页里，每个字段的类型、状态和 target 合法，单条文字不超过 4000 字、整份不超过 256 KiB，正文和 Content-Length 对得上；不合的回 400，不会断开连接。

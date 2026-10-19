@@ -144,8 +144,10 @@ blockquote{margin:8px 0;padding:8px 14px;border-left:3px solid var(--acc);backgr
 .scrub{position:relative;height:36px;margin-top:10px;background:var(--soft);border-radius:8px;cursor:pointer}
 .scrub .fill{position:absolute;left:0;top:0;bottom:0;background:var(--acc-soft);border-radius:8px}
 .scrub .mk{position:absolute;top:4px;width:12px;height:12px;margin-left:-6px;border-radius:50%;border:2px solid var(--panel)}
-.tc{display:grid;grid-template-columns:76px 1fr auto;gap:10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line)}
-.tc .t{font:13px ui-monospace,Menlo,monospace;color:var(--acc);cursor:pointer}
+.scrub .rg{position:absolute;top:22px;height:8px;min-width:4px;border-radius:4px;opacity:.85}
+.scrub .rg.pending{background:var(--acc);opacity:.45}
+.tc{display:grid;grid-template-columns:minmax(76px,auto) 1fr auto;gap:10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line)}
+.tc .t{font:13px ui-monospace,Menlo,monospace;color:var(--acc);cursor:pointer;white-space:nowrap}
 /* sound */
 .secbar{display:flex;height:34px;border-radius:8px;overflow:hidden;position:relative;margin-top:10px}
 .secbar div{display:flex;align-items:center;justify-content:center;font-size:12px;color:#1d1f23;cursor:pointer;border-right:2px solid var(--panel);overflow:hidden;white-space:nowrap}
