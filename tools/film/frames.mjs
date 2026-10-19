@@ -5,7 +5,7 @@
 //
 // usage: node tools/film/frames.mjs <project | page.html> --browser <chrome>
 //          (--at t[,t…] | --range a:b[:step] | --strip a:b | --covers[=id,…] [--no-title] [--ratios 9:16,…]) [--fps 30] [--cols 6] [--cell 320]
-//          [--out dir] [--size WxH] [--dpr 1] [--real-clock] [--soft-gl] [--runtime auto|on|off] [--timeout 600]
+//          [--out dir] [--size WxH] [--dpr 1] [--real-clock] [--soft-gl] [--runtime auto|on|off] [--frame-timeout 120] [--timeout 600]
 //        (bin/vh frames finds the browser: CHROME_PATH, HyperFrames' chrome-headless-shell, then Chrome or Chromium)
 //
 //   --at 1.2,3.4        the frames at these seconds (to the millisecond)
@@ -29,6 +29,8 @@
 //                       the contract asks (4K for a 1920x1080 page); a fixed-size canvas is only scaled up
 //   --real-clock        no clock pinning (tools/film/clock.js), only window.filmHost: to see what a page does without it
 //   --runtime           HyperFrames' runtime for a composition: auto (when it writes no window.film or window.__vh), on, off
+//   --frame-timeout 120 a frame or a cover not back after this many seconds stops the run at once (exit 2), naming it: the
+//                       page's frame never returned, or the browser stopped painting; --timeout bounds the whole run
 //
 // A project folder means its film.html, else index.html, else studio.html; the page is served from its own folder.
 // Writes <out>/<page>-t<seconds>.png (out defaults to <project>/out/frames) and, for --strip, <out>/<page>-strip-<a>-<b>.jpg
@@ -54,7 +56,7 @@ const finish = async (code, msg) => {
 };
 const die = (msg) => finish(2, msg);
 process.on("unhandledRejection", (e) => finish(2, (e && e.message) || String(e)));
-const o = { fps: 30, cols: 6, cell: 320, dpr: 1, timeout: 600, runtime: "auto" };
+const o = { fps: 30, cols: 6, cell: 320, dpr: 1, timeout: 600, frameTimeout: 120, runtime: "auto" };
 let target = null, at = null, range = null, strip = null, covers = null, out = null, size = null, ratios = null, noTitle = false;
 const r3 = (t) => Math.round(t * 1000) / 1000;
 for (let i = 0; i < argv.length; i++) {
@@ -68,6 +70,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (k === "--no-title") noTitle = true;
   else if (k === "--ratios") ratios = [...new Set(val().split(",").map((x) => x.trim()).filter(Boolean))];
   else if (["--fps", "--cols", "--cell", "--timeout"].includes(k)) o[k.slice(2)] = num(val(), k, 1);
+  else if (k === "--frame-timeout") o.frameTimeout = num(val(), k, 1);
   else if (k === "--dpr") o.dpr = num(val(), k, 0.25);
   else if (k === "--out") out = val();
   else if (k === "--size") { const m = val().match(/^(\d+)x(\d+)$/); if (!m || !+m[1] || !+m[2]) bail("--size: write it as 1920x1080"); size = [+m[1], +m[2]]; }
@@ -101,6 +104,14 @@ if (times.length > 2000) bail(`${times.length} frames is a render, not a check: 
 
 const watchdog = setTimeout(() => finish(2, `stopped after ${o.timeout} s (--timeout); a frame function that never returns?`), o.timeout * 1000);
 watchdog.unref();
+// one frame or cover: back within --frame-timeout, or the run stops there and says which (a page or a browser that
+// stopped painting does not come back, and what is queued behind it would not either)
+const timely = (p, what) => {
+  let timer;
+  p.catch(() => { /* given up on: what it says once the browser closes is not news */ });
+  return Promise.race([p, new Promise((_, no) => { timer = setTimeout(() => no(Object.assign(new Error(`${what}: no picture after ${o.frameTimeout} s ` +
+    "(--frame-timeout): the page's frame never returned, or the browser stopped painting"), { stuck: true })), o.frameTimeout * 1000); })]).finally(() => clearTimeout(timer));
+};
 // a ratio cover is a crop: the page draws at the device pixel ratio that gives the crop its full size (a 9:16 crop of a
 // 1920x1080 frame is about 600 px wide, 1080 px x --dpr in the output: about 1.8 x --dpr), so the picture is not scaled up.
 // The crop as the engine makes it (canvas-film coverBox): a x n by b x n px, a:b the ratio in whole numbers
@@ -147,7 +158,7 @@ if (stripDir) { fs.rmSync(stripDir, { recursive: true, force: true }); fs.mkdirS
 for (const t of times) {
   const t0 = Date.now();
   try {
-    const { png, touched } = await film.frame(t);
+    const { png, touched } = await timely(film.frame(t), `t=${at3(t)} s`);
     // strip frames are numbered by the frames written, so a failed one leaves no gap for the picture to stop at
     const f = stripDir ? path.join(stripDir, `${String(written.length + 1).padStart(4, "0")}.png`) : path.join(outDir, name(t));
     fs.writeFileSync(f, png); written.push(f);
@@ -156,7 +167,7 @@ for (const t of times) {
     const later = film.problems();
     if (later.length) { failed++; console.log(`  t=${at3(t)} s: ${later.join(" | ")}`); }
     if (!stripDir) console.log(`  ${rel(f)}  (${Date.now() - t0} ms)`);
-  } catch (e) { failed++; console.log(`  t=${at3(t)} s: ${e.message}`); }
+  } catch (e) { if (e.stuck) await finish(2, e.message); failed++; console.log(`  t=${at3(t)} s: ${e.message}`); }
 }
 if (covers) {   // the page's covers: [{ id, t }]
   const all = (await film.list("covers").catch(() => null)) || [];
@@ -169,7 +180,7 @@ if (covers) {   // the page's covers: [{ id, t }]
   for (const c of want) {
     for (const r of ratios || [null]) {
       try {
-        const { png, reply, width: pw, height: ph } = await film.cover(c.id, c.t, { title: noTitle ? false : undefined, ratio: r || undefined, dpr: o.dpr });
+        const { png, reply, width: pw, height: ph } = await timely(film.cover(c.id, c.t, { title: noTitle ? false : undefined, ratio: r || undefined, dpr: o.dpr }), `cover ${c.id}${r ? ` ${r}` : ""}`);
         const f = file(c.id, r);
         fs.writeFileSync(f, png); written.push(f);
         const later = film.problems();
@@ -181,12 +192,12 @@ if (covers) {   // the page's covers: [{ id, t }]
             `${!reply.title ? ", no title" : `, ${said[reply.layout] || "a title"}${reply.layout === "default" ? `${reply.lines ? ` on ${reply.lines} line${reply.lines > 1 ? "s" : ""}` : ""} (a default: ratios[r].title places it)` : ""}`}${pw / w > pageDpr * 1.001 ? `, scaled up ${(pw / w / pageDpr).toFixed(2)}x from the page's pixels` : ""}`;
         }
         console.log(`  ${rel(f)}  (cover ${c.id} at ${(+c.t).toFixed(3)} s${what})`);
-      } catch (e) { failed++; console.log(`  cover ${c.id}${r ? ` ${r}` : ""}: ${e.message}`); }
+      } catch (e) { if (e.stuck) await finish(2, e.message); failed++; console.log(`  cover ${c.id}${r ? ` ${r}` : ""}: ${e.message}`); }
     }
   }
   if (ratios && written.length) console.log(`  in the feeds: bin/vh cover-preview ${written.map((f) => rel(f)).join(" ")}`);
 }
-const late = await film.lateProblems();
+const late = await timely(film.lateProblems(), "after the last frame").catch((e) => finish(2, e.message));
 if (late.length) { failed++; console.log(`  just after the last frame (an error a frame left behind, charged to no frame): ${late.join(" | ")}`); }
 if (stripDir && written.length) {
   const cols = Math.min(o.cols, written.length), rows = Math.ceil(written.length / cols), pic = path.join(outDir, `${stem}-strip-${strip[0]}-${strip[1]}.jpg`);

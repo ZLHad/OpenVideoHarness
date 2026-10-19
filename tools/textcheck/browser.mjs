@@ -124,12 +124,14 @@ export async function launch(exe, flags = []) {
   const removeProfile = () => { LIVE.delete(live); removeSync(profile); };
   const close = async () => {
     if (!dead) try { await within(send("Browser.close"), 3000); } catch { /* already gone */ }
-    proc.kill(); await exited;
+    // a Chrome stuck on its way out (a GPU process that stopped answering) can ignore SIGTERM: 3 s, then the group gets
+    // SIGKILL below, so a tool never waits on it until its own watchdog
+    proc.kill(); await within(exited, 3000);
     // Linux: the GPU and renderer helpers can still write into the profile just after the main process exits, and a
     // folder removed under them comes back. Wait for the whole group (up to 2 s), then kill what is left; the profile
     // stays registered meanwhile, so a Ctrl-C now still removes it
     for (let i = 0; i < 40 && !groupGone(proc.pid); i++) await new Promise((res) => setTimeout(res, 50));
-    killGroup(proc);
+    killGroup(proc); await within(exited, 2000);
     removeProfile();
     if (!LIVE.size) await new Promise((res) => setImmediate(() => setImmediate(res)));   // the second turn's poll reads a signal
     if (!LIVE.size) disarm();

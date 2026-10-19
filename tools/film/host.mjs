@@ -136,15 +136,19 @@ export async function openFilm(target, o = {}) {
     let timer;
     await Promise.race([loaded, new Promise((_, no) => { timer = setTimeout(() => no(new HostError("the page did not load within 60 s")), 60000); })]).finally(() => clearTimeout(timer));
     // the contract: window.film, else window.__vh; a page has 10 s after load to set it
-    const kind = await ev(`new Promise((ok) => { const t0 = Date.now(); const look = () => {
+    // the waits below time themselves out in the page; a page whose script is stuck (a loop that never ends) never gets to
+    // its timer, so the host bounds them too
+    const bounded = (p, sec, msg) => { let tm; p.catch(() => { /* what it says after the bound is not news */ }); return Promise.race([p, new Promise((_, no) => { tm = setTimeout(() => no(new HostError(msg)), sec * 1000); })]).finally(() => clearTimeout(tm)); };
+    const kind = await bounded(ev(`new Promise((ok) => { const t0 = Date.now(); const look = () => {
         if (window.film && typeof window.film.frame === "function") return ok(window.film.__adapter || "film");
         if (window.__vh && typeof window.__vh.draw === "function") return ok("__vh");
-        if (Date.now() - t0 > 10000) return ok(""); setTimeout(look, 50); }; look(); })`, "looking for window.film");
+        if (Date.now() - t0 > 10000) return ok(""); setTimeout(look, 50); }; look(); })`, "looking for window.film"),
+      30, `${pageRel}: no answer from the page within 30 s of loading (its script never yields: a loop that does not end?)`);
     if (!kind) {
       throw new HostError(`${pageRel} sets no window.film (nor window.__vh) within 10 s of loading: see engines/CONTRACT.md` +
         (problems.length ? `\npage errors while loading:\n  ${[...new Set(problems)].slice(0, 5).join("\n  ")}` : ""));
     }
-    const ready = await ev(`(async () => {
+    const ready = await bounded(ev(`(async () => {
       const wait = (p) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("not ready after 120 s")), 120000))]);
       try {
         const src = window.film && window.film.frame ? window.film : window.__vh;
@@ -153,7 +157,7 @@ export async function openFilm(target, o = {}) {
         await wait(Promise.resolve(r)); await wait(document.fonts.ready);
       } catch (e) { return String((e && e.message) || e); }
       return "";
-    })()`, "waiting for ready");
+    })()`, "waiting for ready"), 250, `${pageRel}: not ready after 250 s, and the page does not answer (its script is stuck, or the browser stopped)`);
     if (ready) throw new HostError(`${pageRel}: ${ready} (window.film.ready or the fonts)`);
     const got = await ev(`(() => { const f = window.film && window.film.frame ? window.film : null, v = window.__vh || {};
       const root = document.querySelector("[data-composition-id]");

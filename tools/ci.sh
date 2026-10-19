@@ -1884,6 +1884,26 @@ film_checks() {
   case "$rc:$a" in 1:*"while loading: failed to load missing.png"*) ok "frames: a request that fails while loading fails the run" ;; *) bad "frames on a failed load: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
   a=$(vh frames tools/film/fixture/nofilm.html --at 1 --out "$t/d" 2>&1); rc=$?
   case "$rc:$a" in 2:*"no window.film"*) ok "frames: a page without window.film exits 2" ;; *) bad "frames on a page without the contract: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
+  # a frame that never comes back (from 1 s on its promise never settles) stops the run at --frame-timeout, naming its t,
+  # with the frames before it written: not at the whole run's --timeout (600 s)
+  mkdir -p "$t/hang" && sed 's|if (t >= 2) throw new Error("no picture after 2 s");|if (t >= 1) return new Promise(() => {});|' tools/film/fixture/throws.html > "$t/hang/index.html"
+  s0=$SECONDS; a=$(vh frames "$t/hang" --at 0.5,1.5 --frame-timeout 5 --out "$t/hang/o" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"t=1.5 s: no picture after 5 s (--frame-timeout)"*) [ -s "$t/hang/o/index-t0000.500.png" ] && [ $((SECONDS - s0)) -lt 120 ] \
+      && ok "frames: a frame that never returns stops the run at --frame-timeout (exit 2), naming its t, the frames before it kept" \
+      || bad "frames on a frame that never returns: $((SECONDS - s0)) s, $(ls "$t/hang/o" 2>&1)" ;;
+    *) bad "frames on a frame that never returns: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
+  # a browser stuck on its way out (it answers, then ignores Browser.close and SIGTERM: a stand-in on the DevTools pipe)
+  # is killed: close() returns within seconds, so no tool waits on it until its watchdog
+  printf '%s\n' 'import json, os, signal, time' 'signal.signal(signal.SIGTERM, signal.SIG_IGN); buf = b""' \
+    'while b"Browser.getVersion" not in buf: buf += os.read(3, 65536)' \
+    'm = json.loads(buf.split(b"\0")[0]); os.write(4, json.dumps({"id": m["id"], "result": {"product": "Stub/1"}}).encode() + b"\0")' \
+    'while True: time.sleep(1)' > "$t/stuck.py"
+  printf '#!/bin/sh\nexec python3 "%s"\n' "$t/stuck.py" > "$t/stuck"; chmod +x "$t/stuck"
+  a=$(node --input-type=module -e 'import { launch } from "./tools/textcheck/browser.mjs";
+const b = await launch(process.argv[1]); const t0 = Date.now();
+const r = await Promise.race([b.close().then(() => "closed"), new Promise((ok) => setTimeout(() => ok("hung"), 30000))]);
+console.log(r, Math.round((Date.now() - t0) / 1000)); process.exit(0);' "$t/stuck" 2>&1)
+  case "$a" in "closed "[0-9]|"closed 1"[0-9]) ok "browser: one that ignores Browser.close and SIGTERM is killed, and close() returns ($a s)" ;; *) bad "browser close on a stuck browser: $a" ;; esac
   a=$(vh frames tools/film/fixture --at 5 --out "$t/e" 2>&1); rc=$?
   case "$rc:$a" in 2:*"outside the film"*) ok "frames: a time outside the film exits 2" ;; *) bad "frames outside the film: exit $rc: $(printf '%s' "$a" | tail -c 600)" ;; esac
   if command -v ffmpeg >/dev/null; then
@@ -2170,14 +2190,17 @@ FILM.minText = 80;
 COVERS.length = 0;
 COVERS.push({ id: "L", at: "@a2:第二张+0.6", title: { text: ["二十个字的标题二十个字的标题二十个字的"], size: 80, x: 960, y: 1000, align: "center" }, ratios: { "3:4": {} } });
 JS
-  a=$(vh frames "$t/cmt" --covers --ratios 9:16,3:4 --out "$t/cmt/o" 2>&1); rc=$?
+  # (a browser that stops painting is a stall of the machine, not of the page: frames says so at --frame-timeout and the run
+  # is tried once more, said in the line; each run is reported on its own)
+  a=$(vh frames "$t/cmt" --covers --ratios 9:16,3:4 --frame-timeout 60 --out "$t/cmt/o" 2>&1); rc=$?; again=""
+  case "$rc:$a" in 2:*"(--frame-timeout)"*|2:*"the page does not answer"*) again=" (tried again: $(printf '%s\n' "$a" | tail -1))"; a=$(vh frames "$t/cmt" --covers --ratios 9:16,3:4 --frame-timeout 60 --out "$t/cmt/o" 2>&1); rc=$? ;; esac
   [ $rc = 1 ] && printf '%s' "$a" | grep -q 'fonts this machine does not have' && ! printf '%s\n' "$a" | grep -q '^  cover L' && rc=0
   mkdir "$t/cmt2" && cp -R "$t/cmt/." "$t/cmt2/" && echo 'COVERS[0].title.text = ["Supercalifragilisticexpialidocious-and-more"]; COVERS[0].title.size = 60;' >> "$t/cmt2/src/50-shots.js"
   b=$(vh frames "$t/cmt2" --at 1 --out "$t/cmt2/o" 2>&1); rc2=$?
   if [ $rc = 0 ] && [ "$(printf '%s\n' "$a" | grep -c 're-set for it on 2 lines')" = 2 ] && [ $rc2 = 2 ] \
     && printf '%s' "$b" | grep -q 'cover L (3:4): the cover.s title does not fit 1080 x 1440 at 80 px or more (FILM.minText).*give it ratios\["3:4"\].title'
-  then ok "covers --ratios: the default title is laid out at the size drawn (FILM.minText), broken onto more lines when too wide; one that cannot fit stops ready"
-  else bad "covers --ratios default title under the text floor (exit $rc / $rc2): $(printf '%s' "$a$b" | tail -c 700)"; fi
+  then ok "covers --ratios: the default title is laid out at the size drawn (FILM.minText), broken onto more lines when too wide; one that cannot fit stops ready$again"
+  else bad "covers --ratios default title under the text floor: the covers (exit $rc$again): $(printf '%s' "$a" | tail -c 500) | the title that cannot fit (exit $rc2): $(printf '%s' "$b" | tail -c 400)"; fi
   # a page whose size is only in window.film (1080x1920, its HTML says nothing): the drawing ratio comes from that size, so
   # its 4:3 crop (1080x810) is drawn at 1.333x and not scaled up from 1x
   mkdir "$t/ctall" && cat > "$t/ctall/film.html" <<'HTML'
