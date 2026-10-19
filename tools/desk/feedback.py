@@ -257,7 +257,11 @@ def listening(project):
         pass
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return {"listening": False}
-    if float(info.get("until") or 0) < time.time():
+    try:
+        until = float(info.get("until") or 0)
+    except (ValueError, TypeError):   # an "until" that is not a number of seconds: a flag this tool did not write
+        return {"listening": False}
+    if not until >= time.time():      # past, or NaN
         return {"listening": False}
     return {"listening": True, "since": info.get("since"), "until": info.get("until")}
 
@@ -353,6 +357,22 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
     timeout) and that no agent has been handed yet is printed at once. Otherwise it waits for a new one, keeping
     feedback/.listening ({pid, since, until, project}) so the desk can say an agent is waiting."""
     fdir = Path(project) / "out" / "review" / "feedback"
+    flag = fdir / ".listening"
+
+    def done(code):
+        try:
+            if json.loads(flag.read_text()).get("pid") == os.getpid():
+                flag.unlink()
+        except (OSError, ValueError, AttributeError):
+            pass
+        return code
+
+    def stop(signum, _frame):
+        raise SystemExit(done(128 + signum))
+    # the handlers before the flag: a signal from the moment the flag is there (a client sees it) ends the wait with its
+    # status in the activity log and takes the flag away
+    for s in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        signal.signal(s, stop)
     fdir.mkdir(parents=True, exist_ok=True)
     seen = {p.name for p in fdir.glob("*.json")}   # first: a submission landing after this is either pending or new
     early = pending(project)
@@ -364,21 +384,8 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
         out.flush()
         _handed(early)
         return 0
-    flag, start = fdir / ".listening", time.time()
+    start = time.time()
     _write(flag, json.dumps({"pid": os.getpid(), "since": start, "until": start + timeout, "project": os.path.realpath(str(project))}))
-
-    def done(code):
-        try:
-            if json.loads(flag.read_text()).get("pid") == os.getpid():
-                flag.unlink()
-        except (OSError, ValueError):
-            pass
-        return code
-
-    def stop(signum, _frame):
-        raise SystemExit(done(128 + signum))
-    for s in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
-        signal.signal(s, stop)
     while time.time() - start < timeout:
         new = sorted(((f, j) for f, j in _records(project) if f.name not in seen), key=lambda x: _order(*x))
         if new:

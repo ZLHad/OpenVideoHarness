@@ -1422,6 +1422,36 @@ PY
     [ "$a" = False ] && ok "desk: a copied project starts its own server, and a .listening from another folder doesn't count" || bad "desk on a copy: listening said '$a'"
     kill "$desk_pid"; wait "$desk_pid" 2>/dev/null
   fi
+  # a .listening of this folder and a live pid whose until is not a number of seconds is not listening, and raises nothing
+  a=$(python3 - "$t/p2" <<'PY' 2>&1
+import json, os, sys, time
+sys.path.insert(0, "tools/desk"); import feedback
+p = sys.argv[1]; flag = os.path.join(p, "out/review/feedback/.listening")
+def said(until):
+    with open(flag, "w") as f: json.dump({"pid": os.getpid(), "since": 0, "until": until, "project": os.path.realpath(p)}, f)
+    return feedback.listening(p)["listening"]
+print(" ".join(str(said(u)) for u in ("soon", [1], "nan", time.time() + 60)))
+PY
+  )
+  [ "$a" = "False False False True" ] && ok "desk: a .listening whose until is not seconds (a word, a list, NaN) is not listening, and is no error" || bad "desk listening on a bad until: $a"
+  # desk wait has its signal handlers before it writes .listening: a TERM right after the write (sent from inside the
+  # write, so no timing is involved) ends it with 143 and takes the flag away, as one later does
+  rm -f "$t/p2/out/review/feedback/.listening"
+  a=$(python3 - "$t/p2" <<'PY' 2>&1
+import os, subprocess, sys
+child = """import os, signal, sys
+sys.path.insert(0, "tools/desk"); import feedback
+w = feedback._write
+def write(p, text):
+    w(p, text)
+    if p.name == ".listening": os.kill(os.getpid(), signal.SIGTERM)
+feedback._write = write
+sys.exit(feedback.wait(sys.argv[1], 30, poll=0.05))"""
+rc = subprocess.run([sys.executable, "-c", child, sys.argv[1]], capture_output=True).returncode   # -15: killed by it
+print(rc, "flag left" if os.path.exists(os.path.join(sys.argv[1], "out/review/feedback/.listening")) else "no flag")
+PY
+  )
+  [ "$a" = "143 no flag" ] && ok "desk wait: a TERM the moment .listening is written ends it with 143 and no flag left" || bad "desk wait TERMed right after its flag: $a"
   a=$(vh desk "$t/p" --port 0 2>&1); case "$a" in *"already serving p"*) ok "desk: a second start points to the running server" ;; *) bad "desk second start: $a" ;; esac
   kill "$pid"; wait "$pid" 2>/dev/null
   [ ! -e "$t/p/out/review/.desk.json" ] && ok "desk: stopping the server removes out/review/.desk.json" || bad "desk left .desk.json behind"
@@ -1700,7 +1730,7 @@ def stub():
     return subprocess.run(["pgrep", "-f", f"{t}/stub/uv"], capture_output=True).returncode == 0
 out = []
 pr = start("desk", "wait", p, "--timeout", "30", until=f"{p}/out/review/feedback/.listening")
-time.sleep(0.3); pr.send_signal(signal.SIGTERM); out.append(f"wait {pr.wait(10)}")   # (its handlers come just after the flag)
+pr.send_signal(signal.SIGTERM); out.append(f"wait {pr.wait(10)}")   # at once: its handlers are in place before the flag
 pr = start("desk", p, "--port", "0", until=f"{p}/out/review/.desk.json")
 time.sleep(0.5); pr.send_signal(signal.SIGTERM); out.append(f"desk {pr.wait(10)}")
 pr = start("qa", f"{p}/audio/mix.wav", until=mark)
