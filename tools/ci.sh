@@ -777,10 +777,10 @@ PY
       for c in "qa.py|nope.json (the beat map)|$t/qs/mix.wav|--beats|$t/qs/nope.json" "qa.py|nope.json (the beat map)|$t/qs/mix.wav|$t/qs/nope.json" \
                "qa.py|nope.wav (the mix)|$t/qs/nope.wav" "qa.py|list.json is not a beat map|$t/qs/mix.wav|$t/qs/list.json" \
                "qa.py|x.wav: no audio ffmpeg can read|$t/qs/x.wav" "beats.py|beats: no such file: $t/qs/nope.wav|$t/qs/nope.wav" "beats.py|beats: which track?|--no-drums"; do
-        IFS='|' read -r -a w <<< "$c"
-        b=$(uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/${w[0]}" "${w[@]:2}" 2>&1); rc=$?
-        case "$rc:$b" in *Traceback*) a="$a | ${w[0]}: $b" ;; "2:"*"${w[1]}"*) [ "$(printf '%s\n' "$b" | wc -l | tr -d ' ')" = 1 ] || a="$a | ${w[0]}, more than a line: $b" ;;
-          *) a="$a | ${w[0]} ${w[*]:2} (rc $rc): $b" ;; esac
+        IFS='|' read -r -a cargs <<< "$c"
+        b=$(uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/${cargs[0]}" "${cargs[@]:2}" 2>&1); rc=$?
+        case "$rc:$b" in *Traceback*) a="$a | ${cargs[0]}: $b" ;; "2:"*"${cargs[1]}"*) [ "$(printf '%s\n' "$b" | wc -l | tr -d ' ')" = 1 ] || a="$a | ${cargs[0]}, more than a line: $b" ;;
+          *) a="$a | ${cargs[0]} ${cargs[*]:2} (rc $rc): $b" ;; esac
       done
       [ -z "$a" ] && ok "qa and beats: a missing or wrong input (beat map, --beats, mix, track) is one line and exit 2, not a traceback" || bad "qa / beats on a wrong input:$a"
     fi
@@ -1709,6 +1709,29 @@ PY
   for i in $(seq 16); do vh timeline "$p" "${la[@]}" >/dev/null 2>&1 & done; wait
   c=$(python3 -c 'import json, sys; ls = open(sys.argv[1], "rb").read().splitlines(); r = [json.loads(l) for l in ls]; print(len(ls), max(map(len, ls)) < 1024, r[0]["args"][-1])' "$p/.ovh/activity.jsonl" 2>&1)
   [ "$a" = 32 ] && [ "$c" = "32 True …" ] && ok "activity: 16 commands at once leave 32 whole lines, also with long arguments (cut to stay under 1 KiB)" || bad "activity: 16 concurrent commands left: $a / $c"
+  # arguments that are not UTF-8 (a Latin-1 name, a surrogate's bytes, a cut character), and a tool's output path that is
+  # not either, are written as \xNN: every line is UTF-8 JSON, a Chinese argument stays as it is; a line an older bin/vh
+  # wrote with the raw byte still reads, with the byte as \xNN
+  rm -f "$p/.ovh/activity.jsonl"
+  vh timeline "$p" $'caf\xe9.wav' "片子" $'\xed\xa0\x80' $'a\xe7\x89' >/dev/null 2>&1
+  OVH_ACTIVITY_LOG="$p/.ovh/activity.jsonl" OVH_ACTIVITY_RUN=ci-1 OVH_ACTIVITY_CMD=qa python3 -c 'import os, sys; sys.path.insert(0, "tools"); import activity
+activity.note("made", [os.fsdecode(os.fsencode(sys.argv[1]) + b"/out/x\xff.wav")])' "$p"
+  printf '{"v":1,"event":"note","run":"old-1","t":1,"cmd":"qa","summary":"raw \351 byte"}\n' >> "$p/.ovh/activity.jsonl"
+  a=$(python3 - "$p/.ovh/activity.jsonl" <<'PY' 2>&1
+import json, sys
+ls = open(sys.argv[1], "rb").read().splitlines(); bad = []
+for n, l in enumerate(ls[:-1], 1):   # the last: the older bin/vh's own line
+    try: json.loads(l.decode("utf-8"))
+    except ValueError as e: bad.append(f"line {n} is not UTF-8 JSON: {e}")
+r = [json.loads(l.decode("utf-8")) for l in ls[:3]] if not bad else []
+if r and (r[0]["args"][1:] != ["caf\\xe9.wav", "片子", "\\xed\\xa0\\x80", "a\\xe7\\x89"] or r[2]["outputs"] != ["out/x\\xff.wav"]): bad.append(f"written as {r[0]['args'][1:]} {r[2]['outputs']}")
+print("; ".join(bad))
+PY
+  )
+  b=$(vh activity "$p" 2>&1); rb=$?
+  case "$a|$rb:$b" in "|0:"*'caf\xe9.wav 片子 \xed\xa0\x80 a\xe7\x89'*'out/x\xff.wav'*'raw \xe9 byte'*)
+      ok "activity: arguments and paths that are not UTF-8 are written as \\xNN (every line UTF-8 JSON); an older raw line still reads" ;;
+    *) bad "activity with bytes that are not UTF-8: $a | exit $rb: $(printf '%s' "$b" | tail -c 400)" ;; esac
   # signals: a tool bin/vh exec'd into writes its own end, 128 + the signal (desk wait, the desk itself); a command bash
   # waits on (a stand-in uv that never ends): TERM ends bin/vh at once, with no end line (the run reads as gone), and a
   # Ctrl-C (SIGINT to the process group) writes the end with 130 and then ends bin/vh by SIGINT (the caller sees -2)
@@ -1908,7 +1931,7 @@ PY
     kb=$(python3 -c 'import os, sys; d = sys.argv[1]; print(sum(os.path.getsize(os.path.join(d, f)) for f in os.listdir(d) if f.startswith("part")))' "$t/q/.r.mp4.parts" 2>/dev/null || echo 0)
     e=$(OVH_FREE_BYTES=$((kb + 1000)) vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 3 --out "$t/q/r.mp4" 2>&1); rc5=$?
     case "$rc5:$e" in 2:*"needed at the peak for the 15 frames left to draw and the joined copy (5 chunks kept"*)
-        [ "$(ls "$t/q/.r.mp4.parts" | grep -c '^part')" = 5 ] && ok "render: a resume's disk floor is the chunk left and the joined copy with the kept chunks' bytes; refused, it keeps them" \
+        kn=0; for kf in "$t/q/.r.mp4.parts"/part*.mp4; do [ ! -e "$kf" ] || kn=$((kn + 1)); done; [ $kn = 5 ] && ok "render: a resume's disk floor is the chunk left and the joined copy with the kept chunks' bytes; refused, it keeps them" \
           || bad "render: a resume refused for the disk did not keep its chunks: $(ls "$t/q/.r.mp4.parts" 2>&1)" ;;
       *) bad "render resume on a disk with room for the kept chunks only (exit $rc5, $kb bytes kept): $(printf '%s' "$e" | tail -c 500)" ;; esac
     printf '<!-- edited -->\n' >> "$t/q/u.html"
@@ -2495,9 +2518,9 @@ PY
     printf '[{"t": 0.5, "sfx": "nosuch"}]' > "$t/unk.json"; printf '[{"t": 0.5, "sfx": "whoosh", "dur": 99}]' > "$t/far.json"; a=""
     for c in "2|" "2|plcae" "2|place" "2|place|$t/unk.json" "2|place|$t/nope.json|$t/o.wav" "2|lib" "2|audition|whoosh|dur=99|--out|$t/au.wav" \
              "1|place|$t/unk.json|$t/o.wav" "1|place|$t/far.json|$t/o.wav"; do
-      IFS='|' read -r -a w <<< "$c"
-      b=$(vh sfx "${w[@]:1}" 2>&1); rc=$?
-      case "$rc:$b" in *Traceback*) a="$a | sfx ${w[*]:1}: $b" ;; "${w[0]}:sfx"*) ;; *) a="$a | sfx ${w[*]:1} (exit $rc, want ${w[0]}): $(printf '%s' "$b" | tail -c 200)" ;; esac
+      IFS='|' read -r -a cargs <<< "$c"
+      b=$(vh sfx "${cargs[@]:1}" 2>&1); rc=$?
+      case "$rc:$b" in *Traceback*) a="$a | sfx ${cargs[*]:1}: $b" ;; "${cargs[0]}:sfx"*) ;; *) a="$a | sfx ${cargs[*]:1} (exit $rc, want ${cargs[0]}): $(printf '%s' "$b" | tail -c 200)" ;; esac
     done
     [ -z "$a" ] && ok "sfx: usage errors exit 2, an event list that cannot become a track exits 1, each in a line and none a traceback" || bad "sfx exit codes:$a"
   fi

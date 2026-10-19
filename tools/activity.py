@@ -29,7 +29,9 @@ itself, since no shell is left to do it. Every bin/vh command that works on a pr
 views (status, activity, desk data, doctor). Never written: environment variables, keys, file contents.
 Safety: a line is one write(2) with O_APPEND, so the lines of commands running at once never interleave: under 1 KiB from
 bin/vh (bash's printf writes a longer line in 1024-byte pieces), under 4 KiB from Python and Node; a line that cannot be
-written is dropped without a word: a command never fails, and never waits, because of its log.
+written is dropped without a word: a command never fails, and never waits, because of its log. Every line is UTF-8: a
+byte that is no part of a UTF-8 character (in an argument, a folder's or a file's name) is written as the text \xNN, and
+the reader shows a raw one in a line an older bin/vh wrote the same way.
 A run without an end line is running while its process lives (and started within 7 days), else gone (it was killed, or
 the machine restarted). The reader reads the last 4 MB of the log.
 """
@@ -62,10 +64,25 @@ def _rel(log, p):
         return str(p)
 
 
+def _text(x):
+    """A value as the log holds it: in a str, a byte that was no part of a UTF-8 character (os.fsdecode and sys.argv keep it as
+    a surrogate, U+DC80–DCFF) is the text \\xNN, as bin/vh writes it, and any other lone surrogate is U+FFFD, so a line is
+    always UTF-8 and prints anywhere; a list or a dict value by value"""
+    if isinstance(x, str):
+        if not any("\ud800" <= c <= "\udfff" for c in x):
+            return x
+        return "".join(f"\\x{ord(c) - 0xdc00:02x}" if "\udc80" <= c <= "\udcff" else "�" if "\ud800" <= c <= "\udfff" else c for c in x)
+    if isinstance(x, list):
+        return [_text(v) for v in x]
+    if isinstance(x, dict):
+        return {_text(k): _text(v) for k, v in x.items()}
+    return x
+
+
 def _write(log, rec):
     """Append one record as one line; never raises. A summary or an output list too long for one line is cut."""
     try:
-        rec = dict({"v": 1}, **rec)
+        rec = _text(dict({"v": 1}, **rec))
         data = (json.dumps(rec, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
         if len(data) > MAX_LINE:
             for k in ("outputs", "args"):
@@ -177,6 +194,7 @@ def record(r):
     must not stop bin/vh activity, bin/vh status or a client."""
     if not (isinstance(r, dict) and _number(r.get("v"), True) and r["v"] == 1 and isinstance(r.get("event"), str) and _number(r.get("t"))):
         return None
+    r = _text(r)   # a line written before every writer escaped its bytes: they come in as surrogates, out as \xNN
     out = dict(r)
     for k, v in r.items():
         if k in ("args", "outputs"):
@@ -207,7 +225,7 @@ def read(project, tail=TAIL):
         if not raw.strip():
             continue
         try:
-            r = record(json.loads(raw.decode("utf-8", "replace")))
+            r = record(json.loads(raw.decode("utf-8", "surrogateescape")))   # an old line's raw byte: \xNN (_text)
         except ValueError:
             continue
         if r:
@@ -362,7 +380,7 @@ def follow(project, as_json, limit, poll=0.5):
             *lines, buf = buf.split(b"\n")
             for raw in lines:
                 try:
-                    r = record(json.loads(raw.decode("utf-8", "replace")))
+                    r = record(json.loads(raw.decode("utf-8", "surrogateescape")))   # an old line's raw byte: \xNN (_text)
                 except ValueError:
                     continue
                 if r:
