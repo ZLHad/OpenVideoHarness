@@ -2424,11 +2424,21 @@ PY
   if command -v uv >/dev/null; then   # an empty event list: no length to take from it
     printf '[]\n' > "$t/none.json"
     a=$(vh sfx place "$t/none.json" "$t/none.wav" 2>&1); rc=$?; b=$(vh sfx place "$t/none.json" "$t/none.wav" 2 2>&1)
-    case "$rc:$a:$b" in 1:*"has no events"*"<duration_s>"*:*"0 events"*"2.00s"*) ok "sfx place: an empty event list asks for a duration, and with one writes a silent track" ;;
+    case "$rc:$a:$b" in 2:*"has no events"*"<duration_s>"*:*"0 events"*"2.00s"*) ok "sfx place: an empty event list asks for a duration, and with one writes a silent track" ;;
       *) bad "sfx place on an empty event list (exit $rc): $a / $b" ;; esac
     a=$(vh sfx place "$t/none.json" "$t/none.wav" 2s 2>&1); rc=$?
     case "$rc:$a" in 2:*"duration '2s' is not a number of seconds"*) case "$a" in *Traceback*) bad "sfx place with a duration 2s: a traceback: $a" ;; *) ok "sfx place: a duration that is not a number is said plainly (exit 2)" ;; esac ;;
       *) bad "sfx place with a duration 2s (exit $rc): $a" ;; esac
+    # usage errors exit 2 (no command, a typo, place without its files, a missing event list, lib without a folder, an
+    # audition value out of range), an event list that cannot become a track exits 1 (an unknown sound, a field out of range)
+    printf '[{"t": 0.5, "sfx": "nosuch"}]' > "$t/unk.json"; printf '[{"t": 0.5, "sfx": "whoosh", "dur": 99}]' > "$t/far.json"; a=""
+    for c in "2|" "2|plcae" "2|place" "2|place|$t/unk.json" "2|place|$t/nope.json|$t/o.wav" "2|lib" "2|audition|whoosh|dur=99|--out|$t/au.wav" \
+             "1|place|$t/unk.json|$t/o.wav" "1|place|$t/far.json|$t/o.wav"; do
+      IFS='|' read -r -a w <<< "$c"
+      b=$(vh sfx "${w[@]:1}" 2>&1); rc=$?
+      case "$rc:$b" in *Traceback*) a="$a | sfx ${w[*]:1}: $b" ;; "${w[0]}:sfx"*) ;; *) a="$a | sfx ${w[*]:1} (exit $rc, want ${w[0]}): $(printf '%s' "$b" | tail -c 200)" ;; esac
+    done
+    [ -z "$a" ] && ok "sfx: usage errors exit 2, an event list that cannot become a track exits 1, each in a line and none a traceback" || bad "sfx exit codes:$a"
   fi
   rm -rf "$t"
 }

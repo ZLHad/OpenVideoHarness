@@ -11,6 +11,9 @@ usage (via bin/vh sfx):
        ./sfx-audition-<name>.wav), FILE.txt (one line per sound: its parameters, and what it measures: length, spectral
        centroid, sweep in octaves per second), FILE.json (the event list it placed, for bin/vh qa) and, with --png,
        FILE.png: a spectrogram with each sound labelled, for anyone who has to judge it without listening.
+  Exit status 2: the command line is wrong (a missing, unknown or malformed argument, a file it names that is not there,
+  an output that would overwrite the event list; everything audition refuses); 1: the event list cannot be made into a
+  track (an event's field, a sound that is not found or not decoded, a reference that does not resolve).
 events.json: [{"t": 3.20, "sfx": "click", "gain_db": -6}, {"t": 7.95, "sfx": "whoosh", "pan": -0.6, "dist": 3}, …]
   t in seconds; or the list under a header {"refs": {…}, "events": [ … ]} with t written as a reference ("@a4>",
   "@#e2", {"$music": [12, 3]}: tools/audio/time_refs.py), so the sounds move with the narration, music or time map
@@ -721,35 +724,54 @@ def draw(x, rows, path, what):
         d.text((cx + 3, 44), f"{m['centroid'] / 1000:.1f}k {m['sweep']:+.0f}", font=V.font(11), fill=V.MUTED)
     im.save(path, optimize=False); return path
 
+PLACE = "sfx place <events.json> <out.wav> [duration_s] [--lib DIR]"
+
+def usage(msg):   # the command line is wrong: one line, exit 2 (exit 1: the events could not be made into a track)
+    print(msg if msg.startswith("sfx") else f"sfx: {msg}", file=sys.stderr); sys.exit(2)
+
 def main():
-    cmd = sys.argv[1] if len(sys.argv) > 1 else "help"
+    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+    if cmd in ("-h", "--help", "help"): print(__doc__); return
+    if cmd not in ("lib", "place", "audition"):
+        usage(f"{'unknown command ' + repr(cmd) if cmd else 'which command?'}: lib <out_dir>, place <events.json> <out.wav> …, "
+              "or audition <name|all> … (bin/vh sfx -h for all of it)")
     if cmd == "lib":
+        if len(sys.argv) < 3 or sys.argv[2].startswith("-"): usage("sfx lib <out_dir>: which folder?")
         d = Path(sys.argv[2]); d.mkdir(parents=True, exist_ok=True)
         for name in LIB: write(d / f"{name}.wav", builtin(name))
         man = {"written_by": "bin/vh sfx lib", "sr": SR, "sounds": {n: {"file": f"{n}.wav", "sha256": sha256(d / f"{n}.wav")} for n in LIB}}
         (d / MANIFEST).write_text(json.dumps(man, indent=1) + "\n")
         print(f"{len(LIB)} SFX → {d}/ ({', '.join(LIB)}) + {MANIFEST}"); return
-    if cmd == "audition": audition(sys.argv[2:]); return
+    if cmd == "audition":   # every value comes from the command line: whatever it refuses is a usage error
+        try: audition(sys.argv[2:])
+        except SystemExit as e:
+            if isinstance(e.code, str): usage(e.code.strip())
+            raise
+        return
     if cmd == "place":
         import time_refs   # a header form's references, resolved to seconds against the files it names
-        try: events, sources, _ = time_refs.load_events(sys.argv[2])
-        except (OSError, time_refs.RefError) as e: sys.exit(f"sfx: {e}")
-        out = sys.argv[3]
-        if Path(side_path(out)).resolve() == Path(sys.argv[2]).resolve():
-            sys.exit(f"sfx: the levels sidecar {side_path(out)} would overwrite the event list {sys.argv[2]}: name the output something else")
-        given = len(sys.argv) > 4 and not sys.argv[4].startswith("--")
+        pos = [a for i, a in enumerate(sys.argv[2:], 2) if not a.startswith("--") and sys.argv[i - 1] != "--lib"]
+        if len(pos) < 2: usage(f"{PLACE}: {'which event list and output?' if not pos else 'which output WAV?'}")
+        if "--lib" in sys.argv and (sys.argv.index("--lib") + 1 >= len(sys.argv) or sys.argv[sys.argv.index("--lib") + 1].startswith("--")):
+            usage(f"--lib needs a folder ({PLACE})")
+        if [a for a in sys.argv[2:] if a.startswith("--") and a != "--lib"]: usage(f"unknown option {[a for a in sys.argv[2:] if a.startswith('--') and a != '--lib'][0]} ({PLACE})")
+        if len(pos) > 3: usage(f"one duration, not {' '.join(pos[2:])} ({PLACE})")
+        src, out = pos[0], pos[1]
+        if not Path(src).is_file(): usage(f"no such file: {src} (the event list)")
+        try: events, sources, _ = time_refs.load_events(src)
+        except OSError as e: usage(f"{src}: {e.strerror or e}")
+        except time_refs.RefError as e: sys.exit(f"sfx: {e}")
+        if Path(side_path(out)).resolve() == Path(src).resolve():
+            usage(f"the levels sidecar {side_path(out)} would overwrite the event list {src}: name the output something else")
+        given = len(pos) > 2
         if not given and not events:
-            sys.exit(f"sfx: {sys.argv[2]} has no events, so the track has no length: give one "
-                     f"(sfx place {sys.argv[2]} {out} <duration_s>) for a silent track that long")
+            usage(f"{src} has no events, so the track has no length: give one (sfx place {src} {out} <duration_s>) for a silent track that long")
         if given:
-            try: dur = float(sys.argv[4])
+            try: dur = float(pos[2])
             except ValueError: dur = None
             if dur is None or not 0 < dur < float("inf"):   # nan fails this too
-                print(f"sfx: the duration {sys.argv[4]!r} is not a number of seconds above 0 "
-                      f"(sfx place <events.json> <out.wav> [duration_s] [--lib DIR])", file=sys.stderr); sys.exit(2)
+                usage(f"the duration {pos[2]!r} is not a number of seconds above 0 ({PLACE})")
         else: dur = max(e["t"] for e in events) + 3
-        if "--lib" in sys.argv and (sys.argv.index("--lib") + 1 >= len(sys.argv) or sys.argv[sys.argv.index("--lib") + 1].startswith("--")):
-            print("sfx: --lib needs a folder (sfx place <events.json> <out.wav> [duration_s] [--lib DIR])", file=sys.stderr); sys.exit(2)
         lib_dir = Path(sys.argv[sys.argv.index("--lib") + 1]) if "--lib" in sys.argv else None
         for k, e in enumerate(events):
             if e.get("role") is not None and e["role"] not in CLASSES:
