@@ -2,6 +2,7 @@
 // Length and rhythm come from PROJECT in config.js.
 const W = 1920, H = 1080;
 const BPM = PROJECT.bpm, BEAT = 60 / BPM, OFF = PROJECT.offset || 0, BOIL = 12, DUR = PROJECT.duration;
+const FPS = +PROJECT.fps || 24;   // the frame rate render.mjs draws at (its --fps= aside): window.film.fps tells other hosts
 const TAU = Math.PI * 2;
 const PAL = {
   paper: '#F3EBDC', ink: '#2B2233', clay: '#D97757', clayDk: '#A84D33', clayLt: '#F2A283',
@@ -302,7 +303,7 @@ window.renderAt = async (t, type = 'image/png', q = .92) => { T = t; await redra
 // The page contract (engines/CONTRACT.md): bin/vh frames, textcheck and other hosts draw any t through window.film. A host
 // sets window.filmHost before the page runs; then the page shows only the picture, at its size, and no dev UI.
 window.film = {
-  get duration() { return window.LOOP ? window.LOOP.len : DUR; }, width: W, height: H,
+  get duration() { return window.LOOP ? window.LOOP.len : DUR; }, width: W, height: H, fps: FPS,
   ready: () => new Promise(ok => { const wait = () => (window.ready ? ok() : setTimeout(wait, 20)); wait(); }),
   async frame(t) { T = t; await redraw(); composite(t); },
 };
