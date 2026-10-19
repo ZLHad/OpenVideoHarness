@@ -1427,7 +1427,7 @@ PY
 # adds its checkpoint; quick skips the gates; the user's waiver skips what it names; a pause waits for the person; a delivery
 # record or a final film with a passing check record is delivered; a command running shows; the human view stays short
 status_checks() {
-  local t p q a b c d rc
+  local t p q a b c d e rc rc2
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   OVH_PROJECTS="$t" vh new math st >/dev/null 2>&1; p=$(ls -d "$t"/*-st)
   cat > "$t/st.py" <<'PY'
@@ -1462,11 +1462,16 @@ PY
   vh desk feedback "$p" >/dev/null
   c=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" 'd["stations"][0]["feedback"]["handed"] == 1' 'len(d["open"]["review_items"]) == 1')
   python3 -c 'import sys; f = sys.argv[1] + "/REVIEW.md"; s = open(f, encoding="utf-8").read(); i = s.index("## 审阅台反馈"); open(f, "w", encoding="utf-8").write(s[:i] + s[i:].replace("- 定了：　改了：", "- 定了：L2，开头放慢　改了：0:03–0:04.5", 1))' "$p"   # under the desk's section
+  d=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" '"DECISIONS.md" in d["stations"][0]["note"] and d["stations"][0]["record"]["from"] == "gate1"')
+  python3 tools/gatecheck.py "$p" >/dev/null 2>&1; rc=$?   # gate ① as render and check read it: the concept is still missing
+  python3 -c 'import sys; f = sys.argv[1] + "/DECISIONS.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("{待定 / 已定（关卡 ①）}", "已定（关卡 ①）：L2", 1))' "$p"
   q=$(st "$p" "1:done 2:in_progress 3:not_started deliver:not_started | agent" 'd["open"]["review_items"] == []')
+  python3 tools/gatecheck.py "$p" >/dev/null 2>&1; rc2=$?
   if [ "$a" = "1:waiting_person 2:not_started 3:not_started deliver:not_started | person" ] && [ "$b" = "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" ] \
-    && [ "$c" = "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" ] && [ "$q" = "1:done 2:in_progress 3:not_started deliver:not_started | agent" ]
-  then ok "status: a page out waits for the person; a submission waits for the agent (pending, then handed over) with its open items, until REVIEW.md has its decision; then gate ② is in progress"
-  else bad "status through gate ①: $a || $b || $c || $q"; fi
+    && [ "$c" = "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" ] && [ "$d" = "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" ] \
+    && [ $rc = 1 ] && [ "$q" = "1:done 2:in_progress 3:not_started deliver:not_started | agent" ] && [ $rc2 = 0 ]
+  then ok "status: a page out waits for the person; a submission waits for the agent (pending, then handed over) with its open items; gate ① is done when gatecheck says so (the decision, the words, DECISIONS.md's concept), then gate ② is in progress"
+  else bad "status through gate ① (gatecheck $rc/$rc2): $a || $b || $c || $d || $q"; fi
   # a Director stop, a running command, a delivery record
   python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Director: default", "- Director: hook=own, stop=E3", 1))' "$p"
   printf '{"v":1,"event":"start","run":"9-1","t":%s,"cmd":"render","args":["%s"],"pid":%s}\n' "$(date +%s)" "$p" "$$" >> "$p/.ovh/activity.jsonl"
@@ -1474,12 +1479,14 @@ PY
   b=$(vh status "$p")
   mkdir -p "$p/out" && : > "$p/out/final.mp4" && : > "$p/out/final.upload.mp4"
   printf '{"tool": "bin/vh deliver", "output": "final.upload.mp4", "master": "final.mp4", "time": "2026-10-19T12:00:00"}\n' > "$p/out/final.upload.mp4.deliver.json"
-  c=$(st "$p" "1:done 2:in_progress E3:not_started 3:not_started deliver:done | agent" 'd["deliveries"][0]["output"] == "out/final.upload.mp4"' \
-    'sorted(r["path"] for r in d["renders"]) == ["out/final.mp4", "out/final.upload.mp4"]')
+  c=$(st "$p" "1:done 2:in_progress E3:not_started 3:not_started deliver:not_started | agent" 'd["deliveries"][0]["output"] == "out/final.upload.mp4"' \
+    'sorted(r["path"] for r in d["renders"]) == ["out/final.mp4", "out/final.upload.mp4"]' '"gate ③ is not decided" in d["stations"][-1]["note"]')
+  python3 -c 'import sys; f = sys.argv[1] + "/REVIEW.md"; s = open(f, encoding="utf-8").read(); i = s.index("## 关卡 ③"); open(f, "w", encoding="utf-8").write(s[:i] + s[i:].replace("- 原话：\n", "- 原话：“可以发了”\n", 1).replace("- 定了：　改了：", "- 定了：发布　改了：无", 1))' "$p"
+  d=$(st "$p" "1:done 2:not_started E3:not_started 3:done deliver:done | agent" 'd["stations"][-1]["note"] == "bin/vh deliver: out/final.upload.mp4"')
   if [ "$a" = "1:done 2:in_progress E3:not_started 3:not_started deliver:not_started | agent" ] && case "$b" in *"running: render"*) true ;; *) false ;; esac \
-    && [ "$c" = "1:done 2:in_progress E3:not_started 3:not_started deliver:done | agent" ]
-  then ok "status: the Director's stop=E3 adds its checkpoint; a running command shows; bin/vh deliver's record is a delivery"
-  else bad "status with a checkpoint, a run, a delivery: $a | $b | $c"; fi
+    && [ "$c" = "1:done 2:in_progress E3:not_started 3:not_started deliver:not_started | agent" ] && [ "$d" = "1:done 2:not_started E3:not_started 3:done deliver:done | agent" ]
+  then ok "status: the Director's stop=E3 adds its checkpoint; a running command shows; bin/vh deliver's record is a delivery once gate ③ is done (before, its note says so)"
+  else bad "status with a checkpoint, a run, a delivery: $a | $b | $c | $d"; fi
   # quick skips the gates; a waiver skips what it names; a pause waits for the person; a final film checked and passing
   OVH_PROJECTS="$t" vh new math qk --effort quick >/dev/null 2>&1; q=$(ls -d "$t"/*-qk)
   a=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:in_progress | agent")
@@ -1495,7 +1502,56 @@ PY
     && [ "$c" = "1:in_progress 2:skipped 3:skipped deliver:not_started | agent" ] && [ "$d" = "1:in_progress 2:skipped 3:skipped deliver:not_started | person" ]
   then ok "status: quick skips the gates; a final film with a passing check record is delivered; a waiver skips the gates it names; a pause waits for the person"
   else bad "status: quick, waiver, pause: $a | $b | $c | $d"; fi
+  # gate ②: read from the section that names its page (the template's), whatever the dates; a section without the 页面
+  # line is read by date, and the note says so (older than the page: not counted)
+  OVH_PROJECTS="$t" vh new math s2 >/dev/null 2>&1; q=$(ls -d "$t"/*-s2)
+  python3 - "$q" <<'PY'
+import os, sys, time
+p = sys.argv[1]
+f = p + "/REVIEW.md"; s = open(f, encoding="utf-8").read()
+s = s.replace('- 原话："……"', '- 原话："选 B"', 1).replace("- 定了：{…}　改了：{…}", "- 定了：B　改了：无", 1)
+i = s.index("## 关卡 ② 分镜")
+open(f, "w", encoding="utf-8").write(s[:i] + s[i:].replace("- 原话：\n", '- 原话："分镜可以"\n', 1).replace("- 定了：　改了：", "- 定了：通过　改了：无", 1))
+d = p + "/DECISIONS.md"; s = open(d, encoding="utf-8").read(); open(d, "w", encoding="utf-8").write(s.replace("{待定 / 已定（关卡 ①）}", "已定（关卡 ①）：B", 1))
+os.makedirs(p + "/out/review", exist_ok=True)
+for n in ("gate-2.json", "gate-2.html"): open(p + "/out/review/" + n, "w").write("{}")
+os.utime(f, (time.time() - 100,) * 2)   # REVIEW.md older than the page
+PY
+  a=$(st "$q" "1:done 2:done 3:in_progress deliver:not_started | agent" 'd["stations"][1]["record"]["from"] == "page" and d["stations"][1]["note"] is None')
+  python3 -c 'import os, sys, time; f = sys.argv[1] + "/REVIEW.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- 页面：`out/review/gate-2.html`（{日期}）\n", "", 1)); os.utime(f, (time.time() - 100,) * 2)' "$q"
+  b=$(st "$q" "1:done 2:waiting_person 3:not_started deliver:not_started | person" 'd["stations"][1]["record"]["from"] == "stop_older" and "not counted" in d["stations"][1]["note"]')
+  python3 -c 'import os, sys, time; os.utime(sys.argv[1] + "/REVIEW.md", (time.time() + 100,) * 2)' "$q"
+  c=$(st "$q" "1:done 2:done 3:in_progress deliver:not_started | agent" 'd["stations"][1]["record"]["from"] == "stop_by_date" and "by date" in d["stations"][1]["note"]')
+  if [ "$a" = "1:done 2:done 3:in_progress deliver:not_started | agent" ] && [ "$b" = "1:done 2:waiting_person 3:not_started deliver:not_started | person" ] \
+    && [ "$c" = "1:done 2:done 3:in_progress deliver:not_started | agent" ]
+  then ok "status: gate ② read from the template's section, which names its page, whatever the dates; without that line, by date, and the note says so"
+  else bad "status of gate ② by page and by date: $a | $b | $c"; fi
+  # no REVIEW.md (a project from before the templates had one): no record, not "in progress"; machine-written records of
+  # the wrong shape (a check record, a render's and a delivery's sidecar, a submission, activity lines) break nothing
+  OVH_PROJECTS="$t" vh new math nr >/dev/null 2>&1; q=$(ls -d "$t"/*-nr); rm "$q/REVIEW.md"
+  a=$(st "$q" "1:no_record 2:no_record 3:no_record deliver:no_record | unknown")
+  mkdir -p "$q/out/check" "$q/out/review/feedback" "$q/.ovh" && : > "$q/out/x.mp4"
+  printf '%s\n' '{"version": 1, "video": 5, "t": "x", "findings": "x", "counts": [1], "verdict": 3}' > "$q/out/check/bad.check.json"
+  printf '%s\n' '{"version": 1, "video": "out/x.mp4", "t": 1, "findings": [1, {"severity": "fail", "message": 2}], "counts": {"fail": "x"}, "exit": true}' > "$q/out/check/x.check.json"
+  printf '%s\n' '{"pixels": 5, "patches": 5, "frames": "x", "span": "y"}' > "$q/out/x.mp4.render.json"
+  printf '%s\n' '{"output": 5, "master": [1]}' > "$q/out/x.mp4.deliver.json"
+  printf '%s\n' '{"round": 5, "items": 5, "lang": 3}' > "$q/out/review/feedback/1-20261019-120000.json"
+  printf '%s\n' '{"round": "1", "items": [{"target": 5}, {"target": "range:1-2", "status": "change", "text": 7, "label": 8, "t": "a", "t1": 2}]}' > "$q/out/review/feedback/1-20261019-120001.json"
+  printf '%s\n' '{"v":1,"event":"note","run":"1-1","t":1,"outputs":5,"summary":5}' '{"v":1,"event":"end","run":"1-1","t":2,"duration":"x","exit":"y","cmd":4}' \
+    '{"v":1,"event":"start","run":"2-2","t":3,"args":5,"cwd":5,"pid":"z"}' '{"v":true,"event":"x","t":1}' '{"v":1,"event":"progress","run":"2-2","t":true,"done":"x"}' \
+    '{"v":1,"event":"feedback","t":4,"items":[1],"round":2}' > "$q/.ovh/activity.jsonl"
+  b=""
+  for c in status activity; do for d in "" --json; do
+    e=$(vh "$c" "$q" ${d:+"$d"} 2>&1) || b="$b $c $d: exit $?"
+    case "$e" in *Traceback*) b="$b $c $d: a traceback" ;; esac
+  done; done
+  [ "$a" = "1:no_record 2:no_record 3:no_record deliver:no_record | unknown" ] && [ -z "$b" ] \
+    && ok "status: no REVIEW.md is no record (waiting on: unknown); records of the wrong shape break neither status nor activity" \
+    || bad "status without REVIEW.md, or with bad records: $a |$b"
   vh status "$t/no-such" >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "status: no project exits 2" || bad "status of nothing exited $rc"
+  python3 -c 'import sys; sys.path.insert(0, "tools"); import status as S; d = S.director_stops
+sys.exit(0 if d("hook=own, stop=E1, stop=E3") == d("stop=E1,E3") == d("stop = e1，E3") == {"E1", "E3"} and not d("stop=E12") and not d("nostop=E3") else 1)' \
+    && ok "status: every stop= on the Director line counts (stop=E1, stop=E3), E12 and nostop= do not" || bad "status: the Director line's stop= items"
   rm -rf "$t"
 }
 

@@ -5,7 +5,7 @@ usage: bin/vh activity <project> [--json] [--follow] [--limit N]
              and the exit status; … while it runs), how long it took, its summary and what it wrote
   --json     {"version": 1, "project", "log", "runs": [...], "events": [...]}: the last N runs (default 100) and the events
              outside a run (tools/desk/README.md, 给客户端的数据, has every field)
-  --follow   the events as they are appended, until Ctrl-C; with --json the raw lines
+  --follow   the events as they are appended, until Ctrl-C; with --json each line as JSON (bad fields dropped)
 <project> is a folder (or a file inside it), or a name under $OVH_PROJECTS / projects/ (the date prefix optional).
 
 The lines (each has "v": 1, "event", and "t": seconds since the epoch; "run" ties it to one command):
@@ -162,8 +162,36 @@ def event(project, kind, **fields):
 
 # ---------- reading ----------
 
+_STR = ("run", "cmd", "cwd", "summary", "unit", "parent", "file", "round")
+_INT = ("pid", "exit", "decisions")
+_NUM = ("duration", "done", "total")
+
+
+def _number(x, whole=False):
+    return isinstance(x, int if whole else (int, float)) and not isinstance(x, bool)
+
+
+def record(r):
+    """A raw line's object → the record the reader trusts, or None: a v 1 object with an event and a time, each known
+    field of the wrong type dropped (args and outputs keep their strings only). A bad line (a tool's bug, a hand edit)
+    must not stop bin/vh activity, bin/vh status or a client."""
+    if not (isinstance(r, dict) and _number(r.get("v"), True) and r["v"] == 1 and isinstance(r.get("event"), str) and _number(r.get("t"))):
+        return None
+    out = dict(r)
+    for k, v in r.items():
+        if k in ("args", "outputs"):
+            if isinstance(v, list):
+                out[k] = [x for x in v if isinstance(x, str)]
+            else:
+                del out[k]
+        elif (k in _STR and not isinstance(v, str)) or (k in _INT and not _number(v, True)) or (k in _NUM and not _number(v)) \
+                or (k == "items" and not isinstance(v, dict)):
+            del out[k]
+    return out
+
+
 def read(project, tail=TAIL):
-    """The log's records, oldest first (the last `tail` bytes of it); unreadable lines are skipped."""
+    """The log's records, oldest first (the last `tail` bytes of it); unreadable lines are skipped, bad fields dropped."""
     p = log_path(project)
     try:
         with open(p, "rb") as f:
@@ -179,10 +207,10 @@ def read(project, tail=TAIL):
         if not raw.strip():
             continue
         try:
-            r = json.loads(raw.decode("utf-8", "replace"))
+            r = record(json.loads(raw.decode("utf-8", "replace")))
         except ValueError:
             continue
-        if isinstance(r, dict) and r.get("v") == 1 and isinstance(r.get("event"), str) and isinstance(r.get("t"), (int, float)):
+        if r:
             out.append(r)
     return out
 
@@ -334,10 +362,10 @@ def follow(project, as_json, limit, poll=0.5):
             *lines, buf = buf.split(b"\n")
             for raw in lines:
                 try:
-                    r = json.loads(raw.decode("utf-8", "replace"))
+                    r = record(json.loads(raw.decode("utf-8", "replace")))
                 except ValueError:
                     continue
-                if isinstance(r, dict) and r.get("v") == 1 and isinstance(r.get("event"), str) and isinstance(r.get("t"), (int, float)):
+                if r:
                     print(json.dumps(r, ensure_ascii=False) if as_json else show_line(r), flush=True)
     except KeyboardInterrupt:
         return 130
@@ -349,7 +377,7 @@ def main(argv):
     ap = argparse.ArgumentParser(prog="bin/vh activity", description=__doc__.split("\n\n")[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("project", help="project folder (or a file inside it), or its name under projects/")
-    ap.add_argument("--json", action="store_true", help="the runs and events as JSON (with --follow: the raw lines)")
+    ap.add_argument("--json", action="store_true", help="the runs and events as JSON (with --follow: each line)")
     ap.add_argument("--follow", action="store_true", help="print events as they are appended, until Ctrl-C")
     ap.add_argument("--limit", type=int, help="this many runs (default 20; 100 with --json)")
     a = ap.parse_args(argv)

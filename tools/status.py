@@ -8,20 +8,26 @@ BRIEF's Director line asks for it (stop=E3); a review page with another name ("f
 Each has a state:
   done            a decision for it is on record in REVIEW.md: "定了：…" (the template's {…} does not count), in the last
                   section about its latest page (the desk's section for a submission, or one that names
-                  out/review/gate-<n>.html: REVIEW.md grows downwards, so a second review of the page comes after the
-                  first); with no such section, in the stop's section when REVIEW.md was written after that page. Gate ①
-                  also says whether DECISIONS.md has the concept, which bin/vh render and check wait for (gatecheck.py)
+                  out/review/gate-<n>.html, as the template's sections do: REVIEW.md grows downwards, so a second
+                  review of the page comes after the first); with no such section, in the stop's section when REVIEW.md
+                  was written after that page (said in the stop's note). Gate ① goes by gatecheck.py's own rule, as
+                  bin/vh render and check do: a decision and the person's words in a gate ① section, and the concept
+                  on record in DECISIONS.md
   skipped         Effort quick (and no page of its own), or waived in the user's own words in REVIEW.md
   waiting_person  its page is this round (out/review/.current) and nothing has come back for it yet
   waiting_agent   the person submitted on the desk and no agent has it yet, or an agent has it and REVIEW.md has no
-                  decision for it yet; or the project moved on past its page with no decision on record
+                  decision for it yet; or the project moved on past its page with no decision on record; gate ①
+                  decided, but its record lacks the person's words or DECISIONS.md's concept (render and check refuse)
   in_progress     the first stop with nothing yet after the last one that has something, when all before it are done or
                   skipped: what the agent works towards
   not_started     later stops; a stop passed over without a record stays not_started
+  no_record       every stop of a standard or studio project with no REVIEW.md (made before the templates had one):
+                  nothing to read its review from (gatecheck.py does not check those either)
 Delivery is done once bin/vh deliver has written a record, or the final film (out/final*, out/final/, media/) has a passing
-bin/vh check record newer than it; in progress once every stop is done or skipped.
+bin/vh check record newer than it, and gate ③ is done or skipped (a delivery before it is said in the note); in progress
+once every stop is done or skipped.
 waiting_on: person (a stop waits for them, or REVIEW.md says the project is paused), agent (one waits for the agent,
-the agent works towards one, or a command is running), or nobody (delivered).
+the agent works towards one, or a command is running), nobody (delivered), or unknown (no REVIEW.md).
 Also: the latest renders with what their sidecars say (.render.json, .deliver.json, the check record), the review items
 still open (a desk submission's change and ask items whose REVIEW.md section has no 定了 / 改了 yet), the facts NOTES.md
 still lists to verify, the last check, and the commands running now and the last ones (the activity log).
@@ -39,9 +45,10 @@ import feedback as F, reader   # noqa: E402,E401
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
 VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
 SKIP_DIRS = {"frames", "node_modules", "__pycache__", ".venv", "venv"}
-STATE_MARK = {"done": "✓", "skipped": "–", "waiting_person": "●", "waiting_agent": "◆", "in_progress": "…", "not_started": "·"}
+STATE_MARK = {"done": "✓", "skipped": "–", "waiting_person": "●", "waiting_agent": "◆", "in_progress": "…", "not_started": "·",
+              "no_record": "○"}
 STATE_WORDS = {"done": "done", "skipped": "skipped", "waiting_person": "waiting for you", "waiting_agent": "waiting for the agent",
-               "in_progress": "in progress", "not_started": "not started"}
+               "in_progress": "in progress", "not_started": "not started", "no_record": "no record"}
 LISTENING = ("desk", "gate")   # a running desk or gate --wait is someone waiting, not work being done
 
 
@@ -69,9 +76,9 @@ def basics(project):
 
 
 def director_stops(director_line):
-    """The checkpoints a Director line asks for: stop=E3, stop=E1,E3 (also stop=E1 stop=E3)."""
-    return {s.upper() for grp in re.findall(r"stop\s*=\s*([A-Za-z0-9, ]+)", director_line or "", re.I)
-            for s in re.split(r"[,\s]+", grp) if re.fullmatch(r"E\d", s, re.I)}
+    """The checkpoints a Director line asks for: stop=E3, stop=E1,E3, and every stop= on the line (stop=E1, stop=E3)."""
+    return {s.upper() for grp in re.findall(r"\bstop\s*=\s*(E[0-9](?![0-9])(?:\s*[,，]?\s*E[0-9](?![0-9]))*)", director_line or "", re.I)
+            for s in re.findall(r"E[0-9]", grp, re.I)}
 
 
 def feedback_records(project):
@@ -85,8 +92,9 @@ def review_section_for(review, fb_path):
     return next(((t, ls) for t, ls in G.sections(review)[1:] if any(name in x for x, c in ls if not c)), None)
 
 
-def stops(project, review_text, review_mtime, effort, asked, lang):
-    """The stops and their states (but in_progress / not_started, which need the order): ([dict], this round)."""
+def stops(project, review_text, review_mtime, effort, asked, lang, no_review=False):
+    """The stops and their states (but in_progress / not_started, which need the order): ([dict], this round).
+    no_review: a standard or studio project without REVIEW.md, every stop no_record."""
     pages = R.gate_pages(project)                       # in review order, this round last
     cur = R.current_page(project) or (pages[-1].stem[5:] if pages else None)
     by_stop, extra = {}, []
@@ -109,23 +117,38 @@ def stops(project, review_text, review_mtime, effort, asked, lang):
         if latest is not None:
             html = latest.with_suffix(".html")
             st["page"] = rel(project, html if html.exists() else latest)
-        # the record: the latest section about the latest page itself (REVIEW.md grows downwards: a second review of the
-        # same page, the desk's section, comes after the first); with none, the stop's own section written after the page
+        # the record. Gate ①: gatecheck's own rule over every gate ① section, as bin/vh render and check read it. Another
+        # stop: the latest section about its latest page (REVIEW.md grows downwards: a second review of the same page,
+        # the desk's section, comes after the first); with none, the stop's own section, if REVIEW.md was written after
+        # the page (by date, then: said in the note, as the template's 页面 line would settle it)
         page_secs = G.page_sections(review_text, pid) if pid else []
         stop_secs = G.stop_sections(review_text, key) if is_stop else []
         decided = said = False
-        if page_secs:
+        how = None
+        if key == "1":
+            decided, said = G.gate1(review_text)
+            how = "gate1"
+        elif page_secs:
             decided = G.record(page_secs[-1][1])[0]
             said = any(G.record(ls)[1] for _, ls in page_secs)
-        elif stop_secs and (latest is None or review_mtime >= latest.stat().st_mtime):
+            how = "page"
+        elif stop_secs:
+            d = s = False
             for _, ls in stop_secs:
-                d, s = G.record(ls)
-                decided, said = decided or d, said or s
+                a, b = G.record(ls)
+                d, s = d or a, s or b
+            if latest is None or review_mtime >= latest.stat().st_mtime:
+                decided, said, how = d, s, "stop" if latest is None else "stop_by_date"
+            elif d:
+                how = "stop_older"   # a decision in the stop's section, written before its page: not counted
         waived = G.waived_stop(review_text, key) if is_stop else None
-        st["record"] = {"decided": decided, "said": said, "waived": waived}
+        st["record"] = {"decided": decided, "said": said, "waived": waived, "from": how}
+        missing = []
         if key == "1":
             dec = project / "DECISIONS.md"
-            st["record"]["concept_on_record"] = dec.is_file() and G.concept_decided(G.read(dec))
+            st["record"]["concept_on_record"] = concept = dec.is_file() and G.concept_decided(G.read(dec))
+            if decided and effort != "quick":   # what gatecheck would still ask for
+                missing = ([] if said else ["the person's words (原话) in REVIEW.md"]) + ([] if concept else ["the concept row in DECISIONS.md"])
         # the desk's submissions for this stop's latest page, after it was written
         mine = [(f, j) for f, j in subs if pid and j.get("round") == pid and f.stat().st_mtime >= latest.stat().st_mtime]
         pend = [f for f, _ in mine if f.name not in consumed]
@@ -133,15 +156,20 @@ def stops(project, review_text, review_mtime, effort, asked, lang):
         if mine:
             st["feedback"] = {"submitted": len(mine), "handed": len(handed), "pending": len(pend),
                               "last": rel(project, mine[-1][0])}
-        if waived or (effort == "quick" and not plist):
+        stub = f"out/review/gate-{pid or key}.html"
+        if no_review and effort != "quick":
+            st["state"] = "no_record"
+        elif waived or (effort == "quick" and not plist):
             st["state"] = "skipped"
             st["note"] = f"waived in the user's words ({waived})" if waived else "Effort quick: no gates"
+        elif decided and missing:   # gatecheck's verdict: not on record yet
+            st["state"], st["note"] = "waiting_agent", f"decided, but without {' and '.join(missing)}: bin/vh render and check refuse the whole film"
         elif decided:
             st["state"] = "done"
             if not said:
                 st["note"] = "decided, but the person's words are not in REVIEW.md"
-            if key == "1" and not st["record"]["concept_on_record"] and effort != "quick":
-                st["note"] = "DECISIONS.md has no concept row on record: bin/vh render and check will refuse the whole film"
+            elif how == "stop_by_date":
+                st["note"] = f"decided in its REVIEW.md section, read by date: the section names no page (its 页面 line: {stub})"
         elif latest is not None and pid == cur:
             if pend:
                 st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) not handed to the agent yet (bin/vh desk feedback)"
@@ -151,6 +179,9 @@ def stops(project, review_text, review_mtime, effort, asked, lang):
                 st["state"] = "waiting_person"
         elif latest is not None:
             st["state"], st["note"] = "waiting_agent", f"this round moved on to {cur}; REVIEW.md has no decision for {pid}"
+        if how == "stop_older" and st["state"] not in ("done", "skipped", "no_record"):
+            st["note"] = ((st["note"] + "; ") if st["note"] else "") + \
+                f"its REVIEW.md section has a decision, but names no page and is older than the page: not counted (its 页面 line: {stub})"
         out.append(st)
     return out, cur
 
@@ -183,22 +214,48 @@ def load(p):
         return None
 
 
+def num(x):
+    """A number from a machine-written record, else None (a string, a bool, a list: the record is not trusted)."""
+    return x if isinstance(x, (int, float)) and not isinstance(x, bool) else None
+
+
+def text(x):
+    return x if isinstance(x, str) else None
+
+
 def check_records(project):
-    """bin/vh check's records (out/check/*.check.json), newest first."""
+    """bin/vh check's records (out/check/*.check.json), newest first; each one's fields of the wrong type dropped."""
     d = project / "out" / "check"
     recs = [(load(p), p) for p in d.glob("*.check.json")] if d.is_dir() else []
-    return sorted(((r, p) for r, p in recs if r and r.get("version") == 1), key=lambda x: -(x[0].get("t") or 0))
+    out = []
+    for r, p in recs:
+        if not r or r.get("version") != 1:
+            continue
+        fs = r.get("findings") if isinstance(r.get("findings"), list) else []
+        counts = r.get("counts") if isinstance(r.get("counts"), dict) else {}
+        out.append((dict(r, video=text(r.get("video")), t=num(r.get("t")), at=text(r.get("at")), verdict=text(r.get("verdict")),
+                         exit=r.get("exit") if isinstance(r.get("exit"), int) and not isinstance(r.get("exit"), bool) else None,
+                         findings=[f for f in fs if isinstance(f, dict)], counts={k: v for k, v in counts.items() if num(v) is not None}), p))
+    return sorted(out, key=lambda x: -(x[0]["t"] or 0))
 
 
 def check_summary(project, r, p):
-    v = project / r["video"] if r.get("video") and not os.path.isabs(r["video"]) else Path(r.get("video") or "")
+    v = (project / r["video"] if not os.path.isabs(r["video"]) else Path(r["video"])) if r["video"] else None
     try:
-        stale = v.stat().st_mtime > (r.get("t") or 0)
-    except OSError:
+        stale = v.stat().st_mtime > (r["t"] or 0) if v else None
+    except (OSError, ValueError):
         stale = None
-    fails = [f["message"] for f in r.get("findings") or [] if f.get("severity") == "fail"]
-    return {"record": rel(project, p), "video": r.get("video"), "at": r.get("at"), "t": r.get("t"), "verdict": r.get("verdict"),
-            "exit": r.get("exit"), "counts": r.get("counts"), "fails": fails[:3], "stale": stale}
+    fails = [f["message"] for f in r["findings"] if f.get("severity") == "fail" and isinstance(f.get("message"), str)]
+    return {"record": rel(project, p), "video": r["video"], "at": r["at"], "t": r["t"], "verdict": r["verdict"],
+            "exit": r["exit"], "counts": r["counts"], "fails": fails[:3], "stale": stale}
+
+
+def render_info(side):
+    """What a .render.json says, each field of the wrong type dropped: frames, fps, pixels [w, h], span [a, b], seconds."""
+    def pair(x):
+        return x if isinstance(x, list) and len(x) == 2 and all(num(y) is not None for y in x) else None
+    return {"frames": num(side.get("frames")), "fps": num(side.get("fps")), "pixels": pair(side.get("pixels")),
+            "span": pair(side.get("span")), "seconds": num(side.get("seconds"))}
 
 
 def main(argv):
@@ -221,8 +278,9 @@ def main(argv):
     rv = project / "REVIEW.md"
     review_text = G.strip_comments(G.read(rv)) if rv.is_file() else ""
     review_mtime = rv.stat().st_mtime if rv.is_file() else 0
+    no_record = not rv.is_file() and proj["effort"] != "quick"   # made before the templates had one: nothing to read
     paused = reader._history(review_text)[1] if review_text else False
-    st, cur = stops(project, review_text, review_mtime, proj["effort"], director_stops(proj["director"]), proj["lang"])
+    st, cur = stops(project, review_text, review_mtime, proj["effort"], director_stops(proj["director"]), proj["lang"], no_record)
     # in_progress: the first stop with nothing yet after the last one that has something (a skipped stop has nothing of
     # its own), once every stop before it is done or skipped; the ones passed over, and those after a stop that still
     # waits, stay not_started
@@ -238,23 +296,29 @@ def main(argv):
         base = project / top
         for rec in (base.rglob("*.deliver.json") if base.is_dir() else []):
             j = load(rec)
-            if j:
-                deliveries.append({"record": rel(project, rec), "output": rel(project, rec.parent / str(j.get("output", ""))),
-                                   "master": rel(project, (rec.parent / str(j.get("master", ""))).resolve()) if j.get("master") else None,
-                                   "time": j.get("time")})
+            if j and text(j.get("output")):
+                deliveries.append({"record": rel(project, rec), "output": rel(project, rec.parent / j["output"]),
+                                   "master": rel(project, (rec.parent / j["master"]).resolve()) if text(j.get("master")) else None,
+                                   "time": text(j.get("time"))})
     vids = renders(project)
     checks = check_records(project)
     by_video = {}
     for r, p in checks:
-        by_video.setdefault(r.get("video"), (r, p))
+        if r["video"]:
+            by_video.setdefault(r["video"], (r, p))
     finals = [(v, s) for v, s in vids if v.name.lower().startswith("final") or "final" in v.relative_to(project).parts[:-1] or v.parent.name == "media"]
-    final_ok = any((c := by_video.get(rel(project, v))) and c[0].get("verdict") == "pass" and (c[0].get("t") or 0) >= s.st_mtime for v, s in finals)
+    final_ok = any((c := by_video.get(rel(project, v))) and c[0]["verdict"] == "pass" and (c[0]["t"] or 0) >= s.st_mtime for v, s in finals)
     gates_through = all(s["state"] in ("done", "skipped") for s in st)
+    g3 = next((s for s in st if s["id"] == "3"), None)
+    g3_through = g3 is not None and g3["state"] in ("done", "skipped")   # delivered: the person has seen the draft (or waived it)
+    shipped = bool(deliveries or final_ok)
     deliver = {"id": "deliver", "name": "交付" if proj["lang"] == "zh" else "Delivery", "kind": "deliver", "pages": [], "page": None,
                "current": False, "record": None, "feedback": None, "note": None,
-               "state": "done" if deliveries or final_ok else "in_progress" if gates_through else "not_started"}
-    if deliver["state"] == "done":
-        deliver["note"] = f"bin/vh deliver: {deliveries[-1]['output']}" if deliveries else "the final film passed bin/vh check"
+               "state": "no_record" if no_record else "done" if shipped and g3_through else "in_progress" if gates_through else "not_started"}
+    if shipped:
+        what = f"bin/vh deliver: {deliveries[-1]['output']}" if deliveries else "the final film passed bin/vh check"
+        deliver["note"] = what if deliver["state"] == "done" else f"{what} (no REVIEW.md says whether gate ③ was passed)" if no_record \
+            else f"{what}, but gate ③ is not decided yet: the delivery counts once it is"
     st.append(deliver)
     # the activity log: what runs now (and who is only waiting), and the last runs
     runs, _ = activity.runs(activity.read(project), now)
@@ -278,21 +342,24 @@ def main(argv):
         sec = review_section_for(review_text, f)
         if sec and G.record(sec[1])[0]:
             continue
-        for it in j.get("items") or []:
+        for it in j.get("items") if isinstance(j.get("items"), list) else []:
             if isinstance(it, dict) and it.get("status") in ("change", "ask") and isinstance(it.get("target"), str):
                 try:   # the label as REVIEW.md shows it (a span with its times)
                     label = F.readable(dict(it, label=it.get("label") or it["target"]), j.get("lang"))
                 except (KeyError, TypeError, ValueError):
-                    label = it.get("label") or it["target"]
-                open_items.append({"round": j.get("round"), "file": rel(project, f), "target": it["target"], "status": it["status"],
-                                   "label": label, "text": (it.get("text") or "")[:200]})
+                    label = text(it.get("label")) or it["target"]
+                open_items.append({"round": text(j.get("round")), "file": rel(project, f), "target": it["target"], "status": it["status"],
+                                   "label": str(label), "text": (text(it.get("text")) or "")[:200]})
     warnings = []
     _, todo = reader._facts(reader.strip_comments(reader._read(project / "NOTES.md", warnings)), warnings)
     facts = [x["text"] for x in todo if not x["done"] and not x["text"].startswith("{")]   # not the template's {claim} line
     # who is waited on, and the next step in one line
     waiting = [s for s in st if s["state"] == "waiting_person"]
     agent = [s for s in st if s["state"] in ("waiting_agent", "in_progress")]
-    if paused:
+    if no_record:
+        waiting_on, nxt = ("agent", f"the agent: {working[0]['cmd']} is running") if working else \
+            ("unknown", "no REVIEW.md: this project keeps no review record (made before the templates had one)")
+    elif paused:
         waiting_on, nxt = "person", "paused (REVIEW.md): the person resumes it"
     elif waiting:
         s = waiting[0]
@@ -310,9 +377,9 @@ def main(argv):
         dl = load(str(v) + ".deliver.json")
         c = by_video.get(rel(project, v))
         return {"path": rel(project, v), "size": s.st_size, "mtime": iso(s.st_mtime), "t": round(s.st_mtime, 3),
-                "render": {k: side.get(k) for k in ("frames", "fps", "pixels", "span", "seconds")} if side else None,
-                "patches": len(side.get("patches") or []) if side else 0,
-                "delivery": {"master": dl.get("master"), "time": dl.get("time")} if dl else None,
+                "render": render_info(side) if side else None,
+                "patches": len(side["patches"]) if side and isinstance(side.get("patches"), list) else 0,
+                "delivery": {"master": text(dl.get("master")), "time": text(dl.get("time"))} if dl else None,
                 "check": check_summary(project, *c) if c else None}
     out = {"version": 1, "project": proj, "paused": paused, "waiting_on": waiting_on, "next": nxt, "stations": st,
            "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": desk},
@@ -354,10 +421,11 @@ def show(o, now):
     if o["renders"]:
         r = o["renders"][0]
         rd = r["render"]
-        bits.append(f"last render {r['path']} ({r['mtime'][5:16].replace('T', ' ')}"
-                    + (f", {rd['frames']} frames {rd['pixels'][0]}x{rd['pixels'][1]}" if rd and rd.get("pixels") else "") + ")")
+        d = ([f"{rd['frames']} frames"] if rd and rd.get("frames") is not None else []) \
+            + ([f"{rd['pixels'][0]}x{rd['pixels'][1]}"] if rd and rd.get("pixels") else [])
+        bits.append(f"last render {r['path']} ({r['mtime'][5:16].replace('T', ' ')}" + (", " + " ".join(d) if d else "") + ")")
     c = o["check"]
-    if c:
+    if c and c.get("verdict"):
         n = c.get("counts") or {}
         bits.append(f"last check {c['verdict']} on {c['video']} ({n.get('fail', 0)} fail, {n.get('warn', 0)} warn"
                     + (", the video changed since" if c.get("stale") else "") + ")")

@@ -142,9 +142,9 @@ JSON 的格式：
 只读，只看已有的文件，不开浏览器、不跑 ffprobe（`tools/status.py`，零点一秒左右）。默认几行字；`--json` 的字段：
 
 - `project`：`path`、`slug`、`title`（BRIEF 第一行）、`type`（类型文档，如 `02-knowledge-short`）、`effort` 和 `effort_from`（BRIEF、LOCAL.md 或默认）、`director`（BRIEF 的 Director 一行）、`lang`（审阅语言）、`spec`（BRIEF 的 Spec 各行，原样的键）。
-- `stations`：按流程顺序的各站。关卡 ①②③ 总在；检查点 E0–E5 有页面、REVIEW.md 有它的一节或 Director 写了 `stop=E3` 时才在；别的名字的审阅页（`final`）自成一站；最后是交付。每站：`id`、`name`、`kind`（gate、checkpoint、page、deliver）、`state`、`pages`（这一站的页名）、`page`（最新一页的路径）、`current`（是不是这一轮）、`record`（`decided`、`said`、`waived`；关卡 ① 另有 `concept_on_record`）、`feedback`（这一页之后的提交：`submitted`、`handed`、`pending`、`last`）、`note`（一句为什么）。
-- `state` 六种：`done`（REVIEW.md 里有它的"定了"：先看关于最新那一页的最后一节，审阅台为提交写的那节、或写了 `gate-<n>.html` 的那节；没有这种节，就看这一站自己的节，而且 REVIEW.md 要晚于这一页）、`skipped`（quick 档、或用户原话授权跳过）、`waiting_person`（这一页是这一轮，还没有回音）、`waiting_agent`（人提交了还没交给 agent，或者交了但 REVIEW.md 还没写定了；或者这一轮已经往后走、这一页没有记录）、`in_progress`（前面都过了，agent 正朝这一站做）、`not_started`。交付：`bin/vh deliver` 写过记录，或成片（`out/final*`、`out/final/`、`media/`）有一份更晚的通过的检查记录，就是 `done`；各站都过了是 `in_progress`。
-- `waiting_on`：`person`、`agent` 或 `nobody`（交付了）；REVIEW.md 写了暂停（`paused: true`）也是 `person`。`next`：一句话，谁下一步做什么。
+- `stations`：按流程顺序的各站。关卡 ①②③ 总在；检查点 E0–E5 有页面、REVIEW.md 有它的一节或 Director 写了 `stop=E3` 时才在；别的名字的审阅页（`final`）自成一站；最后是交付。每站：`id`、`name`、`kind`（gate、checkpoint、page、deliver）、`state`、`pages`（这一站的页名）、`page`（最新一页的路径）、`current`（是不是这一轮）、`record`（`decided`、`said`、`waived`、`from`：从哪读出来的，`gate1`（关卡 ① 按 gatecheck 的规则）、`page`（写了这一页的节）、`stop`（这一站的节，还没有页）、`stop_by_date`（这一站的节没写页面，按日期算它是关于这一页的）、`stop_older`（这一站的节有定了，但没写页面、又早于这一页，不算）；关卡 ① 另有 `concept_on_record`）、`feedback`（这一页之后的提交：`submitted`、`handed`、`pending`、`last`）、`note`（一句为什么）。
+- `state` 七种：`done`（REVIEW.md 里有它的"定了"：先看关于最新那一页的最后一节，审阅台为提交写的那节、或写了 `gate-<n>.html` 的那节，模板的三节都预先写了；没有这种节，就看这一站自己的节，而且 REVIEW.md 要晚于这一页，`note` 里会说是按日期算的。关卡 ① 和 `bin/vh render`、`check` 用同一条规则（`tools/gatecheck.py`）：关卡 ① 的节里有定了和人的原话，DECISIONS.md 里立意定了）、`skipped`（quick 档、或用户原话授权跳过）、`waiting_person`（这一页是这一轮，还没有回音）、`waiting_agent`（人提交了还没交给 agent，或者交了但 REVIEW.md 还没写定了；或者这一轮已经往后走、这一页没有记录；或者关卡 ① 定了，但缺人的原话或 DECISIONS.md 的立意，render 和 check 会拒绝）、`in_progress`（前面都过了，agent 正朝这一站做）、`not_started`、`no_record`（standard、studio 的项目没有 REVIEW.md，模板有它之前做的：无从读起，gatecheck 也不查）。交付：`bin/vh deliver` 写过记录，或成片（`out/final*`、`out/final/`、`media/`）有一份更晚的通过的检查记录，而且关卡 ③ 过了（`done` 或 `skipped`），就是 `done`；关卡 ③ 还没过时 `note` 会说；各站都过了是 `in_progress`；没有 REVIEW.md 是 `no_record`。
+- `waiting_on`：`person`、`agent`、`nobody`（交付了）或 `unknown`（没有 REVIEW.md，又没有命令在跑）；REVIEW.md 写了暂停（`paused: true`）也是 `person`。机器写的记录（检查记录、`.render.json`、`.deliver.json`、审阅台的提交）里类型不对的字段当作没有。`next`：一句话，谁下一步做什么。
 - `review`：`current`（这一轮的页名）、`page`、`desk`（在跑时：`url`、`listening`）。
 - `open`：`review_items`（审阅台提交里标了要改、疑问，而 REVIEW.md 那一节还没写定了 / 改了的条目：`round`、`file`、`target`、`status`、`label`、`text`）、`facts_to_verify`（NOTES.md 待核实里没打勾的）。
 - `renders`：`out/`（往下三层）、`renders/`、`media/` 里的视频，新的在前，最多 10 个：`path`、`size`、`mtime`、`render`（`.render.json` 的帧数、帧率、像素、时间段）、`patches`、`delivery`（它是 `bin/vh deliver` 出的上传版时）、`check`（它最近的检查记录）。`deliveries`：`bin/vh deliver` 的记录。
@@ -165,7 +165,7 @@ JSON 的格式：
 
 `bin/vh` 把这条命令交给它起的进程：环境变量 `OVH_ACTIVITY_LOG`、`_RUN`、`_PID`、`_T0`、`_CMD`。不写进去的：环境变量、key、文件内容。每行一次 O_APPEND 的 write，几条命令同时写也不会把行写乱：`bin/vh` 写的不超过 1 KiB（bash 的 printf 会把更长的一行拆成 1024 字节一段段写），Python、Node 写的不超过 4 KiB；写不进去（磁盘满、项目只读）就丢掉这一行，命令照常跑完、不多说一句。
 
-`--json` 是 `{"version", "project", "log", "runs", "events"}`。`runs` 里每条命令一项：`run`、`cmd`、`args`、`cwd`、`pid`、`parent`、`start`、`end`、`exit`、`duration`、`summary`、`outputs`、`progress`、`state`。`state` 是 `running`（没有结束行，进程还在，开始不到 7 天）、`ok`（退出码 0）、`failed`、`gone`（没有结束行，进程也没了：被杀掉，或者机器重启过）。`events` 是不属于命令的行（`feedback`）。`--follow` 先打印最近的，再一行一行跟着打印新的；加 `--json` 就是原样的 JSON 行。只读日志最后 4 MB。
+`--json` 是 `{"version", "project", "log", "runs", "events"}`。`runs` 里每条命令一项：`run`、`cmd`、`args`、`cwd`、`pid`、`parent`、`start`、`end`、`exit`、`duration`、`summary`、`outputs`、`progress`、`state`。`state` 是 `running`（没有结束行，进程还在，开始不到 7 天）、`ok`（退出码 0）、`failed`、`gone`（没有结束行，进程也没了：被杀掉，或者机器重启过）。`events` 是不属于命令的行（`feedback`）。`--follow` 先打印最近的，再一行一行跟着打印新的；加 `--json` 是一行一个 JSON。读的时候，读不了的行跳过，类型不对的字段丢掉（`outputs` 不是列表、`summary` 不是字符串……），一行坏了不会让 `activity`、`status` 或客户端停下来。只读日志最后 4 MB。
 
 ### 检查记录：`bin/vh check <视频> --json`
 
