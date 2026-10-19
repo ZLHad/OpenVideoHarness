@@ -374,6 +374,7 @@ project_dir() { # a project folder, or a name under the projects folder (the dat
 # what it runs through OVH_ACTIVITY_* (a tool bin/vh exec's into writes the end itself). It never fails or slows a command:
 # no fork but `date` on a bash without EPOCHREALTIME, every failure dropped, and nothing at all for a command without a project
 ACT_LOG="" ACT_RUN="" ACT_T0="" ACT_SUMMARY="" ACT_PROJ="" ACT_S="" ACT_NOW="" ACT_MS=0 ACT_RC=0 ACT_DONE="" NEW_DIR="" CHECK_TMP=""
+ACT_A="" ACT_B=0 ACT_HIDE="" ACT_PNAME=""
 ACT_C0=$'\001\002\003\004\005\006\007\010\013\014\016\017\020\021\022\023\024\025\026\027\030\031\032\033\034\035\036\037'
 act_now() { local r=${EPOCHREALTIME:-}   # s.mmm, or s (its digits only: after a failed write, text can come ahead of them)
   if [ -n "$r" ]; then r=${r/,/.}; ACT_NOW=${r%???}; else ACT_NOW=$(date +%s 2>/dev/null) || true; ACT_NOW=${ACT_NOW##*[!0-9]}; ACT_NOW=${ACT_NOW:-0}; fi; }
@@ -384,10 +385,80 @@ act_str() { # act_str <text>: the text as a JSON string into ACT_S; control char
   case $s in *[$ACT_C0]*) for ((i = 0; i < ${#ACT_C0}; i++)); do c=${ACT_C0:i:1}; s=${s//"$c"/}; done ;; esac
   ACT_S="\"$s\""
 }
-act_line() { # one line onto the run's log: one printf into an O_APPEND redirect, under 4 KiB; a failure is dropped
+act_line() { # one line onto the run's log: one printf into an O_APPEND redirect, under 1 KiB (bash's printf writes a longer
+  # line in 1024-byte pieces, and the lines of commands running at once could come between them); a failure is dropped
   local LC_ALL=C   # ${#…} in bytes
-  [ -n "$ACT_LOG" ] && [ ${#1} -lt 3800 ] || return 0
+  [ -n "$ACT_LOG" ] && [ ${#1} -lt 1000 ] || return 0
   { printf '%s\n' "$1" >> "$ACT_LOG"; } 2>/dev/null || true
+}
+act_bytes() { local LC_ALL=C; ACT_B=${#1}; }   # act_bytes <text>: its length in bytes, into ACT_B
+# What a start line shows of the arguments: as typed, but never a secret. A name (an option's, a variable's: the part
+# before "=") that says key, token, secret, pass, auth, cred, cookie, header or bearer hides its value (--key=…, KEY=…, and
+# --key's next argument), so does an upper-case NAME=value (a variable), and a one-letter option hides the next argument
+# (no bin/vh command takes one). A URL's user:password@, its query values and fragment, a Bearer token, a header whose name
+# says secret and whatever looks like a key are written as …; option names, paths (whatever exists) and the project's own
+# name stay. When in doubt it is …
+act_secret() {
+  case $1 in *[Kk][Ee][Yy]*|*[Tt][Oo][Kk][Ee][Nn]*|*[Ss][Ee][Cc][Rr][Ee][Tt]*|*[Pp][Aa][Ss][Ss]*|*[Aa][Uu][Tt][Hh]*|*[Cc][Rr][Ee][Dd]*|*[Cc][Oo][Oo][Kk][Ii][Ee]*|*[Hh][Ee][Aa][Dd][Ee][Rr]*|*[Bb][Ee][Aa][Rr][Ee][Rr]*) return 0 ;; esac
+  return 1
+}
+act_keyish() { # a vendor's key prefix; 32 or more letters, digits and _; or key characters (also . + = -) with a digit among
+  # them: 32 or more, 16 or more in both cases, or 20 or more hex digits. Not a file name (name.mp4), a word, a slug, a date
+  local v=$1
+  [ ${#v} -ge 12 ] || return 1
+  case $v in sk-*|sk_*|AIza*|AQ.*|ghp_*|gho_*|ghu_*|ghs_*|github_pat_*|glpat-*|xox[abposr]-*|eyJ*|hf_*|AKIA*|ya29.*) return 0 ;; esac
+  case $v in *[!A-Za-z0-9_.+=-]*) return 1 ;; esac
+  case $v in *[!A-Za-z0-9_]*) ;; *) [ ${#v} -lt 32 ] || return 0 ;; esac
+  case $v in *[0-9]*) ;; *) return 1 ;; esac
+  case $v in *.[a-z]|*.[a-z][a-z0-9]|*.[a-z][a-z0-9][a-z0-9]|*.[a-z][a-z0-9][a-z0-9][a-z0-9]) return 1 ;; esac
+  [ ${#v} -lt 32 ] || return 0
+  case $v in *[A-Z]*) case $v in *[a-z]*) [ ${#v} -lt 16 ] || return 0 ;; esac ;; esac
+  case $v in *[!0-9a-fA-F-]*) return 1 ;; esac
+  [ ${#v} -ge 20 ]
+}
+act_value() { # act_value <text>: into ACT_A, a value as the log shows it
+  local v=$1 pre post au q k out="" n frag=""
+  case $v in *://*)   # user:password@host, and the fragment
+    pre=${v%%://*}; post=${v#*://}; au=${post%%[/?#]*}
+    case $au in *@*) post="…@${au##*@}${post#"$au"}" ;; esac
+    case $post in *'#'*) post=${post%%#*}; frag="#…" ;; esac
+    v="$pre://$post" ;;
+  esac
+  case $v in *://*'?'*|*'?'*=*)   # every query value
+    q=${v#*\?}; v=${v%%\?*}
+    while [ -n "$q" ]; do
+      k=${q%%&*}
+      case $k in *=*) k="${k%%=*}=…" ;; *) ! act_keyish "$k" || k="…" ;; esac
+      out="$out${out:+&}$k"
+      case $q in *'&'*) q=${q#*&} ;; *) q="" ;; esac
+    done
+    v="$v?$out" ;;
+  esac
+  v=$v$frag
+  case $v in *[Bb][Ee][Aa][Rr][Ee][Rr]' '*) v="${v%%[Bb][Ee][Aa][Rr][Ee][Rr] *}Bearer …" ;; esac
+  case $v in [A-Za-z]*': '*) n=${v%%:*}; case $n in *[!A-Za-z0-9_-]*) ;; *) ! act_secret "$n" || v="$n: …" ;; esac ;; esac
+  if [ "$v" = "$1" ] && [ ! -e "$v" ]; then case $ACT_PNAME in "$v"|*-"$v") ;; *) ! act_keyish "$v" || v="…" ;; esac; fi
+  ACT_A=$v
+}
+act_shown() { # act_shown <argument>: into ACT_A, the argument as the log shows it; ACT_HIDE=1 when the next one is its value
+  local a=$1 n=""
+  ACT_HIDE=""
+  case $a in
+    --?*=*) n=${a%%=*} ;;
+    [A-Za-z_]*=*) n=${a%%=*}; case $n in *[!A-Za-z0-9_.-]*) n="" ;; esac ;;
+  esac
+  if [ -n "$n" ]; then
+    if act_secret "$n"; then a="$n=…"
+    else case $n in *[!A-Z0-9_]*) act_value "${a#*=}"; a="$n=$ACT_A" ;; *) a="$n=…" ;; esac   # NAME=value: a variable's
+    fi
+  else case $a in
+    --?*) ! act_secret "${a#--}" || ACT_HIDE=1 ;;
+    -h) ;;
+    -[A-Za-z]) ACT_HIDE=1 ;;
+    -[A-Za-z]?*) a="${a:0:2}…" ;;
+    *) act_value "$a"; a=$ACT_A ;;
+  esac; fi
+  ACT_A=$a
 }
 act_project() { # act_project <command> <args…>: into ACT_PROJ, the project the command works on: the nearest folder holding
   # BRIEF.md at or above the first argument that is a folder or a file (also --opt=f and key=f, or a file to be made in an
@@ -423,37 +494,38 @@ act_start() { act_project "$@"; [ -z "$ACT_PROJ" ] || act_begin "$ACT_PROJ" "$@"
 act_begin() { # act_begin <project> <command> <args…>: the start line; the run handed to what the command runs (OVH_ACTIVITY_*);
   # the EXIT trap writes its end (vh_trap), and a Ctrl-C ends it through ctrl_c_exit (the end line says 130). TERM and HUP
   # kill bin/vh as they would without a log, at once: no end line, and the reader shows the run as gone
-  local proj=$1 cmd=$2 a args="" n=0 len=0 hide="" c parent=""
+  local proj=$1 cmd=$2 a args="" n=0 len=0 hide="" c parent="" line
   shift 2
   [ -d "$proj/.ovh" ] || mkdir "$proj/.ovh" 2>/dev/null; [ -d "$proj/.ovh" ] || return 0   # (another bin/vh may make it first)
   [ -n "$ACT_T0" ] || { act_now; ACT_T0=$ACT_NOW; }
-  ACT_LOG="$proj/.ovh/activity.jsonl" ACT_RUN="${ACT_T0%.*}-$$"
-  for a in "$@"; do   # as typed, but never the value of a key-like option, nor anything that looks like a key
-    if [ -n "$hide" ]; then a="…"; hide=""
-    else case $a in
-      -*[Kk][Ee][Yy]*=*|-*[Tt][Oo][Kk][Ee][Nn]*=*|-*[Ss][Ee][Cc][Rr][Ee][Tt]*=*|-*[Pp][Aa][Ss][Ss]*=*) a="${a%%=*}=…" ;;
-      -*[Kk][Ee][Yy]*|-*[Tt][Oo][Kk][Ee][Nn]*|-*[Ss][Ee][Cc][Rr][Ee][Tt]*|-*[Pp][Aa][Ss][Ss]*) hide=1 ;;
-      *[Kk][Ee][Yy]*=*|*[Tt][Oo][Kk][Ee][Nn]*=*|*[Ss][Ee][Cc][Rr][Ee][Tt]*=*|*[Pp][Aa][Ss][Ss]*=*) a="${a%%=*}=…" ;;
-      sk-*|AIza*|AQ.*|ghp_*|github_pat_*|xox?-*|eyJ*) a="…" ;;
-      *) if [ ${#a} -ge 32 ]; then case $a in *[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_]*) ;; *) a="…" ;; esac; fi ;;
-    esac; fi
-    [ ${#a} -le 240 ] || a="${a:0:240}…"
-    n=$((n + 1)); len=$((len + ${#a}))
-    if [ $n -gt 40 ] || [ $len -gt 800 ]; then args="$args${args:+,}\"…\""; break; fi   # (the line stays under 4 KiB)
-    act_str "$a"; args="$args${args:+,}$ACT_S"
+  ACT_LOG="$proj/.ovh/activity.jsonl" ACT_RUN="${ACT_T0%.*}-$$" ACT_PNAME=${proj##*/}
+  for a in "$@"; do   # as typed, but never a secret (act_shown)
+    if [ -n "$hide" ]; then hide=""   # the value of a secret's option (a path to one stays; an option is one of its own)
+      case $a in -?*) act_shown "$a"; a=$ACT_A; hide=$ACT_HIDE ;; *) [ -e "$a" ] || a="…" ;; esac
+    else act_shown "$a"; a=$ACT_A; hide=$ACT_HIDE; fi
+    [ ${#a} -le 120 ] || a="${a:0:120}…"
+    act_str "$a"; act_bytes "$ACT_S"; n=$((n + 1)); len=$((len + ACT_B + 1))
+    if [ $n -gt 24 ] || [ $len -gt 480 ]; then args="$args${args:+,}\"…\""; break; fi   # (the line stays under 1 KiB)
+    args="$args${args:+,}$ACT_S"
   done
   case ${OVH_ACTIVITY_RUN:-} in ""|*[!0-9.-]*) ;; *) parent=",\"parent\":\"$OVH_ACTIVITY_RUN\"" ;; esac   # a bin/vh started by another
-  act_str "$cmd"; c=$ACT_S; a=$PWD; [ ${#a} -le 240 ] || a="…${a: -240}"; act_str "$a"
-  act_line "{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent}"
+  act_str "$cmd"; c=$ACT_S
+  a=$PWD; [ ${#a} -le 120 ] || a="…${a: -120}"; act_str "$a"; act_bytes "$ACT_S"
+  [ "$ACT_B" -le 240 ] || { a="…${a: -40}"; act_str "$a"; }   # (a path in another script: up to 3 bytes a character)
+  line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent}"
+  act_bytes "$line"
+  [ "$ACT_B" -lt 1000 ] || line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[\"…\"],\"cwd\":$ACT_S,\"pid\":$$$parent}"
+  act_line "$line"
   export OVH_ACTIVITY_LOG="$ACT_LOG" OVH_ACTIVITY_RUN="$ACT_RUN" OVH_ACTIVITY_PID=$$ OVH_ACTIVITY_T0="$ACT_T0" OVH_ACTIVITY_CMD="$cmd"
   trap ctrl_c_exit INT; vh_trap
 }
 act_end() { # act_end <status>: the run's end line (from the EXIT trap; a tool bin/vh exec'd into writes its own)
   [ -n "$ACT_RUN" ] || return 0
-  local d s="" ms
+  local d s="" ms sm=$ACT_SUMMARY
   act_now; act_ms "$ACT_NOW"; d=$ACT_MS; act_ms "$ACT_T0"; d=$((d - ACT_MS)); [ $d -ge 0 ] || d=0
   printf -v ms '%03d' $((d % 1000))
-  [ -z "$ACT_SUMMARY" ] || { act_str "$ACT_SUMMARY"; s=",\"summary\":$ACT_S"; }
+  [ ${#sm} -le 200 ] || sm="${sm:0:200}…"
+  [ -z "$sm" ] || { act_str "$sm"; s=",\"summary\":$ACT_S"; }
   act_str "${OVH_ACTIVITY_CMD:-}"
   act_line "{\"v\":1,\"event\":\"end\",\"run\":\"$ACT_RUN\",\"t\":$ACT_NOW,\"cmd\":$ACT_S,\"exit\":$1,\"duration\":$((d / 1000)).$ms$s}"
 }

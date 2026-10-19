@@ -1506,13 +1506,15 @@ PY
 # nothing in what the command does or says; bin/vh activity reads it back (and --follow as it grows). The page tools' lines
 # (render's progress, patch) are checked in film_checks
 activity_checks() {
-  local t p a b rc rc2 i pid want
+  local t p a b c rc rc2 i pid want la
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/p q"   # a space in the path
   cp -R tools/desk/fixtures/zh "$p"
   vh review "$p" 1 >/dev/null 2>&1; rc=$?
   vh review "$p" 9 >/dev/null 2>&1; rc2=$?
   (cd "$p" && vh effort quick >/dev/null && vh desk data . >/dev/null && vh activity . >/dev/null)
   OVH_CI_SECRET=topsecret-env vh timeline "$p" --token abc123 API_KEY=sk-123456 --api-key=xyz AIzaFAKEFAKE "$(printf 'a%.0s' $(seq 40))" >/dev/null 2>&1
+  vh timeline "$p" "https://user:hunter2pw@example.com/x?sig=s3cr3tsig&v=1#frag=fragval1" -k shortflagval "Authorization: Bearer bearertok1" \
+    --auth=authval1 MY_VAR=envval1 cred=credval1 Ab3dEf6.hIj9kLm2n-opQ 0123456789abcdef0123 --out=keynote.wav keepme.wav >/dev/null 2>&1
   a=$(python3 - "$p/.ovh/activity.jsonl" <<'PY'
 import json, sys
 recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
@@ -1521,24 +1523,31 @@ runs = {}
 for r in recs:
     runs.setdefault(r.get("run"), []).append(r)
 seq = [[r["event"] for r in rs] for rs in runs.values()]
-want = [["start", "note", "end"], ["start", "end"], ["start", "end"]]
+want = [["start", "note", "end"], ["start", "end"], ["start", "end"], ["start", "end"]]
 review = list(runs.values())[0]
 bad = []
 if seq != want: bad.append(f"events {seq}")
 if review[0]["cmd"] != "review" or review[0]["args"][-1] != "1" or review[2]["exit"] != 0 or not review[1]["outputs"] == ["out/review/gate-1.html"]: bad.append(f"review run {review}")
 if list(runs.values())[1][-1]["exit"] != 2: bad.append("review 9 should end with exit 2")
-for s in ("abc123", "sk-123456", "xyz", "AIzaFAKE", "a" * 40, "topsecret", "OVH_CI_SECRET"):
+for s in ("abc123", "sk-123456", "xyz", "AIzaFAKE", "a" * 40, "topsecret", "OVH_CI_SECRET", "hunter2pw", "s3cr3tsig", "fragval1", "shortflagval",
+          "bearertok1", "authval1", "envval1", "credval1", "Ab3dEf6", "0123456789abcdef0123"):
     if s in text: bad.append(f"{s} is in the log")
+shown = list(runs.values())[3][0]["args"][1:]
+if shown != ["https://…@example.com/x?sig=…&v=…#…", "-k", "…", "Authorization: …", "--auth=…", "MY_VAR=…", "cred=…", "…", "…", "--out=keynote.wav", "keepme.wav"]:
+    bad.append(f"shown as {shown}")
 print("; ".join(bad)); sys.exit(1 if bad else 0)
 PY
   )
-  if [ $rc = 0 ] && [ $rc2 = 2 ] && [ -z "$a" ]; then ok "activity: a command on a project logs its start, its tool's note and its end with the exit status; effort, desk data and activity log nothing; keys and the environment never reach the log"
+  if [ $rc = 0 ] && [ $rc2 = 2 ] && [ -z "$a" ]; then ok "activity: a command on a project logs its start, its tool's note and its end with the exit status; effort, desk data and activity log nothing; keys, passwords, URL secrets, tokens and the environment never reach the log, option names and file names stay"
   else bad "activity: review exit $rc/$rc2: $a"; fi
-  # 16 at once: every line whole (one write each)
+  # 16 at once: every line whole (one write each), also when the arguments would fill 2 KiB (3 bytes a character)
   rm -f "$p/.ovh/activity.jsonl"
   for i in $(seq 16); do vh timeline "$p" >/dev/null 2>&1 & done; wait
   a=$(python3 -c 'import json, sys; ls = open(sys.argv[1], encoding="utf-8").read().splitlines(); [json.loads(l) for l in ls]; print(len(ls))' "$p/.ovh/activity.jsonl" 2>&1)
-  [ "$a" = 32 ] && ok "activity: 16 commands at once leave 32 whole lines" || bad "activity: 16 concurrent commands left: $a"
+  rm -f "$p/.ovh/activity.jsonl"; la=(); for i in $(seq 30); do la+=("$(printf '片%.0s' $(seq 100))"); done
+  for i in $(seq 16); do vh timeline "$p" "${la[@]}" >/dev/null 2>&1 & done; wait
+  c=$(python3 -c 'import json, sys; ls = open(sys.argv[1], "rb").read().splitlines(); r = [json.loads(l) for l in ls]; print(len(ls), max(map(len, ls)) < 1024, r[0]["args"][-1])' "$p/.ovh/activity.jsonl" 2>&1)
+  [ "$a" = 32 ] && [ "$c" = "32 True …" ] && ok "activity: 16 commands at once leave 32 whole lines, also with long arguments (cut to stay under 1 KiB)" || bad "activity: 16 concurrent commands left: $a / $c"
   # signals: a tool bin/vh exec'd into writes its own end, 128 + the signal (desk wait, the desk itself); a command bash
   # waits on (a stand-in uv that never ends): TERM ends bin/vh at once, with no end line (the run reads as gone), and a
   # Ctrl-C (SIGINT to the process group) writes the end with 130 and then ends bin/vh by SIGINT (the caller sees -2)

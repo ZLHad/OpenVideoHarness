@@ -9,9 +9,11 @@ usage: bin/vh activity <project> [--json] [--follow] [--limit N]
 <project> is a folder (or a file inside it), or a name under $OVH_PROJECTS / projects/ (the date prefix optional).
 
 The lines (each has "v": 1, "event", and "t": seconds since the epoch; "run" ties it to one command):
-  start     a command began: run, cmd, args (as typed; the value of an option or key=value whose name says key, token,
-            secret or pass, and anything that looks like a key, is written as "…"), cwd, pid, parent (the run of the bin/vh
-            that started this one)
+  start     a command began: run, cmd, args (as typed, but never a secret: the value of an option or name=value whose
+            name says key, token, secret, pass, auth, cred, cookie, header or bearer, of an upper-case NAME=value and
+            of a one-letter option, a URL's user:password@, query values and fragment, a Bearer token, and whatever
+            looks like a key are written as "…"; at most 24 of them), cwd, pid, parent (the run of the bin/vh that
+            started this one)
   progress  a long command's progress: run, done, total, unit (render: frames)
   note      what a command made, written by the tool itself: run, summary (one line), outputs (paths, relative to the
             project when inside it)
@@ -25,8 +27,9 @@ it starts through the environment (OVH_ACTIVITY_LOG, _RUN, _PID, _T0, _CMD). A t
 that bin/vh exec'd into (it has the run's pid: render, patch, frames and the other page tools, desk, gate) writes the end
 itself, since no shell is left to do it. Every bin/vh command that works on a project is logged, except the read-only
 views (status, activity, desk data, doctor). Never written: environment variables, keys, file contents.
-Safety: a line is one write(2) with O_APPEND, under 4 KiB, so the lines of commands running at once never interleave; a
-line that cannot be written is dropped without a word: a command never fails, and never waits, because of its log.
+Safety: a line is one write(2) with O_APPEND, so the lines of commands running at once never interleave: under 1 KiB from
+bin/vh (bash's printf writes a longer line in 1024-byte pieces), under 4 KiB from Python and Node; a line that cannot be
+written is dropped without a word: a command never fails, and never waits, because of its log.
 A run without an end line is running while its process lives (and started within 7 days), else gone (it was killed, or
 the machine restarted). The reader reads the last 4 MB of the log.
 """
