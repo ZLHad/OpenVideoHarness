@@ -20,7 +20,7 @@ downbeats assume 4/4 and start on the first detected beat — check them against
 On calm music the detected BPM is an imposed metronome; don't hard-cut to it (see playbook/04-audio.md).
 For higher-accuracy downbeats use beat_this (CPJKU) instead.
 """
-import json, sys
+import json, sys, warnings
 from pathlib import Path
 import numpy as np
 from scipy.signal import butter, sosfiltfilt
@@ -111,9 +111,18 @@ def main():
             except (IndexError, ValueError):
                 sys.exit(f"--lift-{k} wants a number (default {LIFT[k]:g})")
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    def no(msg): print(f"beats: {msg}", file=sys.stderr); sys.exit(2)   # one line, not a traceback
+    if not args: no("which track? usage: bin/vh beats <audio> [out.json] [--no-drums] [--lift-window 2.0] [--lift-dip 6]")
     src = args[0]
     out = Path(args[1]) if len(args) > 1 else Path(src).with_suffix(".beats.json")
-    y, sr = librosa.load(src, sr=22050, mono=True)
+    if not Path(src).is_file(): no(f"no such file: {src}")
+    if not out.parent.is_dir(): no(f"no such folder for the beat map: {out.parent}")
+    try:
+        with warnings.catch_warnings():   # librosa's "PySoundFile failed. Trying audioread instead" on an mp3 or a bad file
+            warnings.simplefilter("ignore"); y, sr = librosa.load(src, sr=22050, mono=True)
+    except Exception as e:   # soundfile, audioread and ffmpeg each raise their own kind for a file they cannot decode
+        why = str(e).strip().splitlines()[-1] if str(e).strip() else ""
+        no(f"{src}: not audio librosa can read ({type(e).__name__}{': ' + why if why else ''})")
     tempo, frames = librosa.beat.beat_track(y=y, sr=sr, units="frames")
     beats = [round(float(t), 3) for t in librosa.frames_to_time(frames, sr=sr)]
     bpm = round(float(tempo[0] if hasattr(tempo, "__len__") else tempo), 2)

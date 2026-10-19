@@ -10,7 +10,9 @@ usage (via bin/vh qa):
   python tools/audio/qa.py mix <DIR> [--profile P] [--words w.json] [--beats b.json] [--timeline t.json]
                           [--out report.txt] [--json report.json]                                            mix report only
 <mix>: anything ffmpeg decodes (wav, m4a, the muxed mp4). beats.json: music.beats.json (sections, hits, fade, and the
-note map "notes" / "unmapped" when the score's parts set "note_map": true) or the output of beats.py; events.json: the SFX event list. --stems DIR: the folder `bin/vh mix … stems=DIR` wrote (the buses
+note map "notes" / "unmapped" when the score's parts set "note_map": true) or the output of beats.py, also given as --beats
+beats.json (as qa mix takes it); events.json: the SFX event list. A named file that is not there, or a beat map that is
+not a JSON object, stops at once (exit 2). --stems DIR: the folder `bin/vh mix … stems=DIR` wrote (the buses
 as heard + meta.json); with it the scan knows the music's own dips, the cue check finds the events' sounds, and the
 mix report runs too. Exit status 1 if silence, dropouts, pumping, the cue check (on a lossless file; on an AAC encode
 only when the encode as a whole is off) or a hard target of the mix report fail (usable as a gate); clicks, marginal
@@ -133,9 +135,31 @@ REPEAT_BARS = 16       # bars of one rhythm in a row (the note map's parts toget
 BED_SPREAD = 15.0      # dB: one SFX class spread this far re the local bed gets the mix report's advice
 CLIP_PAD, CLIP_MAX = 2.0, 40   # --clips: seconds of the mix either side of a finding, and at most this many excerpts
 
+def no(msg):  # a mistake in what the command was given (a missing file, a file of another kind): one line, exit 2
+    print(f"qa: {msg}", file=sys.stderr); sys.exit(2)
+
+def need(path, what, folder=False):  # a file (or folder) the command line names must be there
+    if path and not (os.path.isdir if folder else os.path.isfile)(path): no(f"no such {'folder' if folder else 'file'}: {path} ({what})")
+    return path
+
+def read_json(path, what):
+    need(path, what)
+    try:
+        with open(path, encoding="utf-8") as fh: return json.load(fh)
+    except ValueError as e: no(f"{path} is not JSON ({what}): {e}")
+
+def beat_map(path):  # music.beats.json (bin/vh music) or beats.py's output: an object
+    bm = read_json(path, "the beat map")
+    if not isinstance(bm, dict): no(f"{path} is not a beat map: a JSON object with bpm, beats, hits … (bin/vh music or bin/vh beats writes one)")
+    return bm
+
 def load(path, sr=None):  # → float32 (n, ch), sr — via ffmpeg, so containers and codecs all work
-    st = json.loads(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=sample_rate,channels",
-                                    "-of", "json", path], capture_output=True, text=True, check=True).stdout)["streams"][0]
+    need(path, "audio")
+    p = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=sample_rate,channels", "-of", "json", path],
+                       capture_output=True, text=True)
+    st = (json.loads(p.stdout or "{}").get("streams") or [None])[0] if p.returncode == 0 else None
+    why = p.stderr.strip().splitlines()[-1].removeprefix(f"{path}: ") if p.stderr.strip() else ""
+    if not st: no(f"{path}: no audio ffmpeg can read" + (f" ({why})" if why else ""))
     sr = sr or int(st["sample_rate"])
     raw = subprocess.run(["ffmpeg", "-v", "error", "-i", path, "-map", "0:a:0", "-ar", str(sr), "-f", "f32le", "-acodec", "pcm_f32le", "-"],
                          capture_output=True, check=True).stdout
@@ -982,15 +1006,15 @@ def report(a, stems=None):
     opt = lambda k, d=None: a[a.index(k) + 1] if k in a else d
     st = stems or opt("--stems"); meta = {}
     if st:
-        if not os.path.isdir(st): sys.exit(f"qa mix: no such folder: {st}")
-        mp = os.path.join(st, "meta.json"); meta = json.load(open(mp)) if os.path.exists(mp) else {}
+        need(st, "the stems bin/vh mix wrote", folder=True)
+        mp = os.path.join(st, "meta.json"); meta = read_json(mp, "the stems' meta.json") if os.path.exists(mp) else {}
     path = lambda k: opt(f"--{k}") or stem(st, k)
     V, M, S = (mix.load(p) if p else None for p in (path("voice"), path("music"), path("sfx")))
     mp = opt("--mix") or (os.path.join(st, meta["mix"]) if st and meta.get("mix") else None)
     mixed = mix.load(mp) if mp and os.path.exists(mp) else None
     ev = events_file(opt("--events")) if opt("--events") else meta.get("events", [])
-    tl = json.load(open(opt("--timeline"))) if opt("--timeline") else meta.get("timeline")
-    wd = json.load(open(opt("--words"))) if opt("--words") else None
+    tl = read_json(opt("--timeline"), "the narration timeline") if opt("--timeline") else meta.get("timeline")
+    wd = read_json(opt("--words"), "the word times") if opt("--words") else None
     if wd is None and tl:   # bin/vh tts --align gemini writes each line's words into the timeline
         segs = tl.get("segments") if isinstance(tl, dict) else tl
         wd = [w for s in segs for w in (s.get("words") or []) if {"w", "start", "end"} <= set(w)] or None
@@ -1001,7 +1025,7 @@ def report(a, stems=None):
         lvl = events_from_lib(ev, mix.fitn(mix.as_stereo(S), n), opt("--lib"), opt("--root"), n)
     beats = None
     if opt("--beats"):
-        bm = json.load(open(opt("--beats")))
+        bm = beat_map(opt("--beats"))
         beats = [(s["start"], f"section {s.get('name', '')}") for s in bm.get("sections", [])] + [(h["t"], f"hit {h.get('what', '')}") for h in bm.get("hits", [])]
     prof = opt("--profile", meta.get("profile"))
     if not prof: sys.exit("qa mix: which profile? --profile explainer|short|promo|cartoon|mv|swatch (the stems' meta.json names it)")
@@ -1016,11 +1040,22 @@ def main():
     if {"-h", "--help"} & set(a): print(__doc__); return   # also `qa mix -h`: no file is called -h
     pos = [v for i, v in enumerate(a) if not v.startswith("--") and (i == 0 or not a[i - 1].startswith("--"))]
     mode = pos.pop(0) if pos and pos[0] in ("scan", "cues", "mix") else "all"
+    for k, what in (("--beats", "the beat map"), ("--events", "the SFX event list"), ("--voice", "the voice"), ("--music", "the music"),
+                    ("--sfx", "the SFX bus"), ("--mix", "the mix"), ("--timeline", "the narration timeline"), ("--words", "the word times"),
+                    ("--confirmed", "confirmed.json"), ("--stems", "the stems bin/vh mix wrote")):
+        if k in a: need(a[a.index(k) + 1] if a.index(k) + 1 < len(a) else no(f"{k} needs {what}"), what, folder=k == "--stems")
+    if mode != "mix" and pos and "--beats" in a:   # the beat map: the second argument, or --beats as qa mix spells it
+        if len(pos) > 1 and pos[1] not in ("-", opt("--beats")): no(f"two beat maps: {pos[1]} and --beats {opt('--beats')}")
+        pos[1:2] = [opt("--beats")]
+    if mode != "mix" and pos:
+        need(pos[0], "the mix")
+        if len(pos) > 1 and pos[1] != "-": need(pos[1], "the beat map")
+        if len(pos) > 2: need(pos[2], "the SFX event list")
     if mode == "mix":
         if not pos and "--stems" not in a and "--music" not in a and "--voice" not in a: sys.exit(__doc__)
         txt, R = report(a, pos[0] if pos else None)
         st = pos[0] if pos else opt("--stems"); mp = os.path.join(st, "meta.json") if st else None
-        meta = json.load(open(mp)) if mp and os.path.exists(mp) else {}
+        meta = read_json(mp, "the stems' meta.json") if mp and os.path.exists(mp) else {}
         rev = events_file(opt("--events")) if opt("--events") else meta.get("events", [])
         if rev: txt += "\n" + "\n".join(repeats(rev, opt("--lib", in_stems(st, meta.get("lib"))), opt("--root", in_stems(st, meta.get("root"))))[0])
         old = stale(mp, [opt("--events"), opt("--timeline"), opt("--words")] + [in_stems(st, p) for p in (meta.get("inputs") or {}).values()]) if meta else []
@@ -1032,9 +1067,9 @@ def main():
         sys.exit(1 if R["fails"] else 0)
     if not pos: sys.exit(__doc__)
     import sfx   # numbered: an event re-rendered alone (the cue check's own-sound match) gets the variant it got in the list
-    mix_path = pos[0]; bm = json.load(open(pos[1])) if len(pos) > 1 and pos[1] != "-" else {}
+    mix_path = pos[0]; bm = beat_map(pos[1]) if len(pos) > 1 and pos[1] != "-" else {}
     ev = sfx.numbered(events_file(pos[2])) if len(pos) > 2 else []
-    stems = opt("--stems"); meta = json.load(open(os.path.join(stems, "meta.json"))) if stems and os.path.exists(os.path.join(stems or "", "meta.json")) else {}
+    stems = opt("--stems"); meta = read_json(os.path.join(stems, "meta.json"), "the stems' meta.json") if stems and os.path.exists(os.path.join(stems or "", "meta.json")) else {}
     lib, root = opt("--lib", in_stems(stems, meta.get("lib"))), opt("--root", in_stems(stems, meta.get("root")))
     out, fails, warns, faint, nconf = [], 0, 0, [], 0
     home = confirm.project_of(mix_path); cfile = opt("--confirmed") or (str(home / confirm.NAME) if home else None)

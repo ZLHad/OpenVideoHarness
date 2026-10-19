@@ -742,6 +742,18 @@ PY
       uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/music.py" "$t/qs/np.json" "$t/qs/np.wav" >/dev/null 2>&1
       a=$(python3 -c 'import json, sys; b = json.load(open(sys.argv[1])); print(b.get("unmapped"), len(b.get("notes", [])))' "$t/qs/np.beats.json" 2>&1)
       case "$a" in "['piano#0'] 1") ok "music: the note map says which parts it leaves out (unmapped; a texture plays no notes)" ;; *) bad "music: unmapped in the beat map: $a" ;; esac
+      # what qa and beats are given by mistake (a missing beat map, as --beats too, a missing mix, a list where the beat
+      # map goes, a file that is not audio, a missing track, no track): one line that names it and exit 2, no traceback
+      printf '[1]' > "$t/qs/list.json"; printf '{}' > "$t/qs/x.wav"; a=""
+      for c in "qa.py|nope.json (the beat map)|$t/qs/mix.wav|--beats|$t/qs/nope.json" "qa.py|nope.json (the beat map)|$t/qs/mix.wav|$t/qs/nope.json" \
+               "qa.py|nope.wav (the mix)|$t/qs/nope.wav" "qa.py|list.json is not a beat map|$t/qs/mix.wav|$t/qs/list.json" \
+               "qa.py|x.wav: no audio ffmpeg can read|$t/qs/x.wav" "beats.py|beats: no such file: $t/qs/nope.wav|$t/qs/nope.wav" "beats.py|beats: which track?|--no-drums"; do
+        IFS='|' read -r -a w <<< "$c"
+        b=$(uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/${w[0]}" "${w[@]:2}" 2>&1); rc=$?
+        case "$rc:$b" in *Traceback*) a="$a | ${w[0]}: $b" ;; "2:"*"${w[1]}"*) [ "$(printf '%s\n' "$b" | wc -l | tr -d ' ')" = 1 ] || a="$a | ${w[0]}, more than a line: $b" ;;
+          *) a="$a | ${w[0]} ${w[*]:2} (rc $rc): $b" ;; esac
+      done
+      [ -z "$a" ] && ok "qa and beats: a missing or wrong input (beat map, --beats, mix, track) is one line and exit 2, not a traceback" || bad "qa / beats on a wrong input:$a"
     fi
     a=$(vh check "$t/a.wav" 2>&1); rc=$?
     case "$rc:$a" in 0:*"isolated"*) bad "check on audio only mentions the frame scan: $a" ;; 0:*) ok "check on an audio file skips the frame scan quietly" ;; *) bad "check on audio only (rc $rc): $a" ;; esac
