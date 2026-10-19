@@ -169,10 +169,10 @@ def renders(project):
                 if Path(f).suffix.lower() in VIDEO and not f.startswith("."):
                     p = Path(d) / f
                     try:
-                        found.append((p.stat().st_mtime, p))
-                    except OSError:
+                        found.append((p, p.stat()))
+                    except OSError:   # gone since the listing
                         pass
-    return [p for _, p in sorted(found, key=lambda x: -x[0])]
+    return sorted(found, key=lambda x: -x[1].st_mtime)
 
 
 def load(p):
@@ -247,8 +247,8 @@ def main(argv):
     by_video = {}
     for r, p in checks:
         by_video.setdefault(r.get("video"), (r, p))
-    finals = [v for v in vids if v.name.lower().startswith("final") or "final" in v.relative_to(project).parts[:-1] or v.parent.name == "media"]
-    final_ok = any((c := by_video.get(rel(project, v))) and c[0].get("verdict") == "pass" and (c[0].get("t") or 0) >= v.stat().st_mtime for v in finals)
+    finals = [(v, s) for v, s in vids if v.name.lower().startswith("final") or "final" in v.relative_to(project).parts[:-1] or v.parent.name == "media"]
+    final_ok = any((c := by_video.get(rel(project, v))) and c[0].get("verdict") == "pass" and (c[0].get("t") or 0) >= s.st_mtime for v, s in finals)
     gates_through = all(s["state"] in ("done", "skipped") for s in st)
     deliver = {"id": "deliver", "name": "交付" if proj["lang"] == "zh" else "Delivery", "kind": "deliver", "pages": [], "page": None,
                "current": False, "record": None, "feedback": None, "note": None,
@@ -305,11 +305,11 @@ def main(argv):
         waiting_on, nxt = "nobody", "delivered"
     else:
         waiting_on, nxt = "agent", "the agent: carry on"
-    def vinfo(v):
+    def vinfo(v, s):
         side = load(str(v) + ".render.json")
         dl = load(str(v) + ".deliver.json")
         c = by_video.get(rel(project, v))
-        return {"path": rel(project, v), "size": v.stat().st_size, "mtime": iso(v.stat().st_mtime), "t": round(v.stat().st_mtime, 3),
+        return {"path": rel(project, v), "size": s.st_size, "mtime": iso(s.st_mtime), "t": round(s.st_mtime, 3),
                 "render": {k: side.get(k) for k in ("frames", "fps", "pixels", "span", "seconds")} if side else None,
                 "patches": len(side.get("patches") or []) if side else 0,
                 "delivery": {"master": dl.get("master"), "time": dl.get("time")} if dl else None,
@@ -317,7 +317,7 @@ def main(argv):
     out = {"version": 1, "project": proj, "paused": paused, "waiting_on": waiting_on, "next": nxt, "stations": st,
            "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": desk},
            "open": {"review_items": open_items, "facts_to_verify": facts},
-           "renders": [vinfo(v) for v in vids[:10]], "deliveries": deliveries,
+           "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries,
            "check": check_summary(project, *checks[0]) if checks else None,
            "activity": {"running": working, "listening": listening, "recent": recent}}
     if a.json:
@@ -330,9 +330,10 @@ def main(argv):
 def show(o, now):
     p = o["project"]
     spec = p["spec"]
-    size = (spec.get("Output") or "").split(",")[0] if spec.get("Output") and "{" not in spec.get("Output", "") else ""
+    m = re.search(r"\d{3,4}\s*[x×]\s*\d{3,4}", spec.get("Output") or "")   # the frame size, however the line is written
+    watch = (spec.get("Watch on") or "").split()
     head = " · ".join(x for x in (p["title"], p["type"], p["effort"], f"director {p['director']}" if p["director"] != "default" else "",
-                                   size, spec.get("Watch on", "").split()[0] if spec.get("Watch on") and "{" not in spec.get("Watch on") else "") if x)
+                                   m.group(0) if m else "", watch[0] if watch and "{" not in watch[0] else "") if x)
     print(head)
     w = max(len(s["name"]) for s in o["stations"])
     for s in o["stations"]:
