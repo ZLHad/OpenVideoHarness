@@ -717,8 +717,32 @@ def _check_notes(pv, w_):
         if len(ev) > 4 and isinstance(ev[4], dict) and ev[4].get("_scale", "penta") not in ("penta", *SCALES):   # a motif call's mode
             sys.exit(f"music: {w_}: mode {ev[4]['_scale']!r}: use {', '.join(['penta', *SCALES])}")
 
+SHAPE = 'bin/vh music reads {"bpm": 90, "sections": [{"name": "a", "bars": 4, "chords": ["i", "VI"], …}, …], …} (bin/vh music --example prints one)'
+
+def shape(score, path=""):
+    """The score this engine reads, or exit 2 with one line: a file written for another engine (a project's own
+    score_engine.py, whose sections give bars as [first, last]) is not a crash in validate."""
+    at = f"{path}: " if path else ""
+    if not isinstance(score, dict):
+        print(f"music: {at}not a score bin/vh music reads (a JSON {type(score).__name__}). {SHAPE}", file=sys.stderr); sys.exit(2)
+    S, why = score.get("sections"), None
+    if not isinstance(score.get("bpm"), (int, float)) or isinstance(score.get("bpm"), bool) or not score["bpm"] > 0: why = '"bpm" is not a number above 0'
+    elif not isinstance(S, list) or not S: why = 'no "sections" list'
+    else:
+        for k, s in enumerate(S):
+            if not isinstance(s, dict): why = f"section {k + 1} is not an object"; break
+            b = s.get("bars")
+            if not isinstance(b, int) or isinstance(b, bool) or b < 1:
+                why = f"section {s.get('name', k + 1)!r} has bars {json.dumps(b)}, not a whole number"; break
+            if "name" not in s: why = f"section {k + 1} has no name"; break
+    if why:
+        eng = score.get("engine")
+        other = f' Its "engine" is {eng}: render it with that.' if isinstance(eng, str) and eng.strip() else ""
+        print(f"music: {at}not a score bin/vh music reads: {why}.{other} {SHAPE}", file=sys.stderr); sys.exit(2)
+
 def validate(score):
     """One pass over the parts-related fields before anything renders, naming the part (or field) that is wrong."""
+    shape(score)
     parts = score.get("parts")
     if parts is None: parts = []
     if not isinstance(parts, list): sys.exit('music: "parts" must be a list: [{"inst": …}, …]')
@@ -1621,8 +1645,10 @@ def main():
         elif a.startswith("--"): sys.exit(f"music: unknown option {a}\n{usage}")
         else: args.append(a)
     if len(args) != 2: sys.exit(usage)
-    try: score = json.load(open(args[0], encoding="utf-8"))
-    except (OSError, ValueError) as e: sys.exit(f"music: can't read the score {args[0]}: {e}")
+    try:
+        with open(args[0], encoding="utf-8") as fh: score = json.load(fh)
+    except (OSError, ValueError) as e: print(f"music: can't read the score {args[0]}: {e}", file=sys.stderr); sys.exit(2)
+    shape(score, args[0])
     out = args[1]
     if os.path.dirname(out): os.makedirs(os.path.dirname(out), exist_ok=True)   # a fresh project has no audio/ yet
     stems = notes = info = None

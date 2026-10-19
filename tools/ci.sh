@@ -1004,6 +1004,16 @@ SH
   if vh music "$t/stop.json" "$t/stop.wav" --roll --length 8 >/dev/null && [ -s "$t/stop.roll/overview.png" ] && [ -s "$t/stop.roll/03-celesta-0.png" ] \
     && python3 -c "import json, sys; b = json.load(open(sys.argv[1])); f = b['fade']; sys.exit(0 if f['end'] == 8.0 and any(abs(f['start'] - x) < 1e-6 for x in b['beats']) and [h['t'] for h in b['hits'] if h['what'] == 'stop:a'] == [3.6] else 1)" "$t/stop.beats.json"
   then ok "music --roll and --length with a section stop, a cresc and a pickup"; else bad "music with a stop: $(head -c 300 "$t/stop.beats.json" 2>/dev/null)"; fi
+  # a score written for another engine (showcase 04's own score_engine.py: bars as [first, last]) or a list: one line, exit 2
+  printf '[]' > "$t/list.json"; a=""
+  for f in showcase/04-intro-film/audio/score.json showcase/04-intro-film/audio/score.base.json "$t/list.json"; do
+    b=$(vh music "$f" "$t/foreign.wav" 2>&1); rc=$?
+    case "$rc:$b" in *Traceback*|*Error*) a="$a | $f: $b" ;; "2:music: $f: not a score bin/vh music reads"*'"sections": [{"name"'*)
+        case "$f:$b" in *score*.json:*'"engine" is audio/score_engine.py'*|*list.json:*"(a JSON list)"*) ;; *) a="$a | $f does not say why: $b" ;; esac ;;
+      *) a="$a | $f (rc $rc): $b" ;; esac
+  done
+  [ -z "$a" ] && [ ! -e "$t/foreign.wav" ] && ok "music: another engine's score (bars as [first, last]) or a list says it is not one it reads, and what it reads" \
+    || bad "music on a foreign score:$a"
   # the part voices that used to stop on a non-zero sample (taiko, saw_pluck, edm_clap, edm_hat) end on zero, every voice does
   if a=$(uv run -q --no-project --with numpy --with scipy python - 2>&1 <<'PY'
 import sys
