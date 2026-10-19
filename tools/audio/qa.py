@@ -1026,7 +1026,10 @@ def main():
         old = stale(mp, [opt("--events"), opt("--timeline"), opt("--words")] + [in_stems(st, p) for p in (meta.get("inputs") or {}).values()]) if meta else []
         if old: txt = "\n".join(old) + "\n" + txt + "\nSTALE?  these stems may be from an earlier mix (see the top)"
         if "--out" in a: open(opt("--out"), "w").write(txt + "\n")
-        print(txt); sys.exit(1 if R["fails"] else 0)
+        print(txt)
+        import activity   # tools/activity.py: the verdict in the project's log, when bin/vh ran us
+        activity.note(f"qa mix {st}: " + (f"✗ {len(R['fails'])} hard miss(es)" if R["fails"] else "no hard miss"), [opt("--out")] if "--out" in a else [])
+        sys.exit(1 if R["fails"] else 0)
     if not pos: sys.exit(__doc__)
     import sfx   # numbered: an event re-rendered alone (the cue check's own-sound match) gets the variant it got in the list
     mix_path = pos[0]; bm = json.load(open(pos[1])) if len(pos) > 1 and pos[1] != "-" else {}
@@ -1065,12 +1068,15 @@ def main():
     txt = "\n".join(out)
     if "--out" in a: open(opt("--out"), "w").write(txt + "\n")
     print("\n".join(r for r in out if "  OK  " not in r))   # cue rows that pass cleanly are only written to --out
-    print(("✓ audio QA passed" if not fails else f"✗ {fails} problem(s)") + (f" · {nconf} confirmed ({confirm.NAME})" if nconf else "")
-          + (" (click warnings above: 请人耳复听)" if any(r.startswith("[4]") and "请人耳复听" in r for r in out) else "")
-          + (f" ({warns} cue warning(s) above)" if warns else "") + (f" ({nrep} repeated SFX above)" if nrep else "")
-          + (" (advice above)" if any(r.startswith("advice") for r in out) else "")
-          + (" · STALE? this may be an earlier mix (see the top)" if old else "")
-          + (f" · full report {opt('--out')}" if "--out" in a else ""))
+    verdict = (("✓ audio QA passed" if not fails else f"✗ {fails} problem(s)") + (f" · {nconf} confirmed ({confirm.NAME})" if nconf else "")
+               + (" (click warnings above: 请人耳复听)" if any(r.startswith("[4]") and "请人耳复听" in r for r in out) else "")
+               + (f" ({warns} cue warning(s) above)" if warns else "") + (f" ({nrep} repeated SFX above)" if nrep else "")
+               + (" (advice above)" if any(r.startswith("advice") for r in out) else "")
+               + (" · STALE? this may be an earlier mix (see the top)" if old else "")
+               + (f" · full report {opt('--out')}" if "--out" in a else ""))
+    print(verdict)
+    import activity   # tools/activity.py: the verdict in the project's log, when bin/vh ran us
+    activity.note(f"{os.path.basename(mix_path)}: {verdict}", [opt("--out")] if "--out" in a else [])
     sys.exit(1 if fails else 0)
 
 if __name__ == "__main__":

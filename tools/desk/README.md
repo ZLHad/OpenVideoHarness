@@ -126,6 +126,26 @@ JSON 的格式：
 
 服务会检查：轮次对得上一份 `gate-<轮>.json`（还没有审阅页时用 `notes`），决定和选项都在那一页里，每个字段的类型、状态和 target 合法，单条文字不超过 4000 字、整份不超过 256 KiB，正文和 Content-Length 对得上；不合的回 400，不会断开连接。
 
+## 给客户端的数据
+
+客户端（审阅台，以后的 Studio）只是项目文件和 `bin/vh` 外面的一层壳：它要的数据都由命令给出，终端里的 agent 拿到的是同一份。下面的 JSON 都带 `"version": 1`；以后只加字段，改了含义就升版本号。
+
+### 活动记录：`bin/vh activity <项目> [--json] [--follow] [--limit N]`
+
+每条作用在项目上的 `bin/vh` 命令往 `<项目>/.ovh/activity.jsonl` 追加 JSON 行；只读的 `status`、`activity`、`desk data`、`doctor` 不记，找不到项目的命令也不记。项目从参数里找：第一个是文件夹或文件（含 `--out=f`、`voice=f` 这种）的参数，往上最近的带 BRIEF.md 的文件夹；`review`、`gate`、`desk` 这些也认 projects/ 下的项目名。每行都有 `v`（1）、`event`、`t`（epoch 秒），属于某条命令的还有 `run`：
+
+| event | 字段 | 谁写 |
+|---|---|---|
+| `start` | `cmd`、`args`（照打的写，名字里带 key、token、secret、pass 的选项和 `k=v` 的值、像 key 的参数都写成 `…`）、`cwd`、`pid`、`parent`（由另一条 `bin/vh` 起的） | `bin/vh` |
+| `progress` | `done`、`total`、`unit`（`render`：frames，开头、每 15 s、结尾各一行） | 工具 |
+| `note` | `summary`（一行）、`outputs`（写了哪些文件，项目里的写相对路径） | 工具：render、patch、review、mix、qa、tts、`desk wait` |
+| `end` | `exit`（退出码；被信号 n 停掉是 128 + n）、`duration`（秒；没有 `EPOCHREALTIME` 的 bash，比如 macOS 自带的 3.2，只到整秒） | `bin/vh` 的 EXIT trap；`bin/vh` exec 进去的工具（render、patch、frames 这些页面工具，desk）自己写 |
+| `feedback` | `round`、`file`、`items`（按状态计数）、`decisions` | 审阅台存下一份提交时；不属于哪条命令 |
+
+`bin/vh` 把这条命令交给它起的进程：环境变量 `OVH_ACTIVITY_LOG`、`_RUN`、`_PID`、`_T0`、`_CMD`。不写进去的：环境变量、key、文件内容。每行一次 O_APPEND 的 write，不超过 4 KiB，几条命令同时写也不会把行写乱；写不进去（磁盘满、项目只读）就丢掉这一行，命令照常跑完、不多说一句。
+
+`--json` 是 `{"version", "project", "log", "runs", "events"}`。`runs` 里每条命令一项：`run`、`cmd`、`args`、`cwd`、`pid`、`parent`、`start`、`end`、`exit`、`duration`、`summary`、`outputs`、`progress`、`state`。`state` 是 `running`（没有结束行，进程还在，开始不到 7 天）、`ok`（退出码 0）、`failed`、`gone`（没有结束行，进程也没了：被杀掉，或者机器重启过）。`events` 是不属于命令的行（`feedback`）。`--follow` 先打印最近的，再一行一行跟着打印新的；加 `--json` 就是原样的 JSON 行。只读日志最后 4 MB。
+
 ## 安全
 
 - 只绑定 127.0.0.1，只回答 Host 是自己的请求（挡住 DNS rebinding）。

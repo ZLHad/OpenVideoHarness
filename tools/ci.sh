@@ -502,7 +502,7 @@ PY
   a=$(vh clean "$c" 2>&1); rc=$?; [ -f "$c/out/draft1.mp4" ] && a="$a (draft still there)"
   b=$(OVH_TRASH_DIR="$t/home/trash" vh clean "$c" --yes --delete 2>&1); rc2=$?
   left=$(cd "$c" && find . -type f | sed 's|^\./||' | LC_ALL=C sort | tr '\n' ' ')   # byte order: the runner's locale sorts otherwise
-  want="BRIEF.md audio/timeline.zh.json audio/voiceover.zh.raw.wav audio/voiceover.zh.wav film.html out/cues.json out/final/covers/a.png out/final/film-4k.mp4 out/review/gate-1.html src/50-shots.js "
+  want=".ovh/activity.jsonl BRIEF.md audio/timeline.zh.json audio/voiceover.zh.raw.wav audio/voiceover.zh.wav film.html out/cues.json out/final/covers/a.png out/final/film-4k.mp4 out/review/gate-1.html src/50-shots.js "   # (the activity log stays)
   if [ $rc = 0 ] && printf '%s' "$a" | grep -q '9 item(s)' && printf '%s' "$a" | grep -q '(draft still there)' && [ $rc2 = 0 ] && [ "$left" = "$want" ] \
     && [ "$(find "$t/home" -name '*.wav' | wc -l | tr -d ' ')" = 3 ] && [ "$(find "$t/home" -name '*.mp4' | wc -l | tr -d ' ')" = 2 ]
   then ok "clean: lists first; then the film, covers, review pages, the narration in use and the sources stay, the rest goes (old takes and renders to the Trash)"
@@ -526,7 +526,7 @@ PY
   mkdir -p "$c/out/check/repro"; for f in BRIEF.md source.js cut.mp4; do printf x > "$c/out/check/repro/$f"; done   # a project of its own
   b=$(OVH_TRASH_DIR="$t/home/trash3" vh clean "$c" --yes --delete 2>&1); rc3=$?
   left=$(cd "$c" && find . -type f | sed 's|^\./||' | LC_ALL=C sort | tr '\n' ' ')
-  want="BRIEF.md out/check/clip.mp4 out/check/repro/BRIEF.md out/check/repro/cut.mp4 out/check/repro/source.js out/film-4k.bili.mp4 out/film-4k.bili.mp4.deliver.json out/film-4k.mp4 "
+  want=".ovh/activity.jsonl BRIEF.md out/check/clip.mp4 out/check/repro/BRIEF.md out/check/repro/cut.mp4 out/check/repro/source.js out/film-4k.bili.mp4 out/film-4k.bili.mp4.deliver.json out/film-4k.mp4 "
   if [ $rc = 0 ] && [ $rc2 = 0 ] && [ $rc3 = 0 ] && [ "$left" = "$want" ] && [ -f "$t/home/trash3/draft.mp4" ] \
     && printf '%s' "$a" | grep -q "record out/film-4k.bili.mp4.deliver.json stays, and what it names): out/film-4k.bili.mp4, out/film-4k.mp4" \
     && printf '%s' "$a" | grep -Eq '^ +[0-9.]+ [KMG]?B  out/check/$' && printf '%s' "$a" | grep -Eq '^ +[0-9.]+ [KMG]?B  out/draft.mp4$' \
@@ -1306,6 +1306,85 @@ PY
   rm -rf "$t"
 }
 
+# the activity log (<project>/.ovh/activity.jsonl, tools/activity.py): a command on a project adds a start, its tool's note
+# and an end with the exit status; commands without a project, and the read-only views, add nothing; keys and the
+# environment never reach it; 16 commands at once leave 32 whole lines; a signal's end says 128 + n, also from a tool bin/vh
+# exec'd into; a project that cannot be written to changes nothing in what the command does or says; bin/vh activity
+# reads it back (and --follow as it grows). The page tools' lines (render's progress, patch) are checked in film_checks
+activity_checks() {
+  local t p a b rc rc2 i pid
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/p q"   # a space in the path
+  cp -R tools/desk/fixtures/zh "$p"
+  vh review "$p" 1 >/dev/null 2>&1; rc=$?
+  vh review "$p" 9 >/dev/null 2>&1; rc2=$?
+  (cd "$p" && vh effort quick >/dev/null && vh desk data . >/dev/null && vh activity . >/dev/null)
+  OVH_CI_SECRET=topsecret-env vh timeline "$p" --token abc123 API_KEY=sk-123456 --api-key=xyz AIzaFAKEFAKE "$(printf 'a%.0s' $(seq 40))" >/dev/null 2>&1
+  a=$(python3 - "$p/.ovh/activity.jsonl" <<'PY'
+import json, sys
+recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
+text = open(sys.argv[1], encoding="utf-8").read()
+runs = {}
+for r in recs:
+    runs.setdefault(r.get("run"), []).append(r)
+seq = [[r["event"] for r in rs] for rs in runs.values()]
+want = [["start", "note", "end"], ["start", "end"], ["start", "end"]]
+review = list(runs.values())[0]
+bad = []
+if seq != want: bad.append(f"events {seq}")
+if review[0]["cmd"] != "review" or review[0]["args"][-1] != "1" or review[2]["exit"] != 0 or not review[1]["outputs"] == ["out/review/gate-1.html"]: bad.append(f"review run {review}")
+if list(runs.values())[1][-1]["exit"] != 2: bad.append("review 9 should end with exit 2")
+for s in ("abc123", "sk-123456", "xyz", "AIzaFAKE", "a" * 40, "topsecret", "OVH_CI_SECRET"):
+    if s in text: bad.append(f"{s} is in the log")
+print("; ".join(bad)); sys.exit(1 if bad else 0)
+PY
+  )
+  if [ $rc = 0 ] && [ $rc2 = 2 ] && [ -z "$a" ]; then ok "activity: a command on a project logs its start, its tool's note and its end with the exit status; effort, desk data and activity log nothing; keys and the environment never reach the log"
+  else bad "activity: review exit $rc/$rc2: $a"; fi
+  # 16 at once: every line whole (one write each)
+  rm -f "$p/.ovh/activity.jsonl"
+  for i in $(seq 16); do vh timeline "$p" >/dev/null 2>&1 & done; wait
+  a=$(python3 -c 'import json, sys; ls = open(sys.argv[1], encoding="utf-8").read().splitlines(); [json.loads(l) for l in ls]; print(len(ls))' "$p/.ovh/activity.jsonl" 2>&1)
+  [ "$a" = 32 ] && ok "activity: 16 commands at once leave 32 whole lines" || bad "activity: 16 concurrent commands left: $a"
+  # signals: a watcher bin/vh exec'd into (its own end line) and a command bash waits on (a stand-in uv that never ends)
+  rm -f "$p/.ovh/activity.jsonl"; mkdir -p "$t/stub"
+  printf '#!/bin/sh\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
+  "$VH_BASH" "$ROOT/bin/vh" desk wait "$p" --timeout 30 >/dev/null 2>&1 & pid=$!
+  for i in $(seq 50); do [ -f "$p/out/review/feedback/.listening" ] && break; sleep 0.1; done
+  kill -TERM $pid; wait $pid; rc=$?
+  : > "$p/audio/mix.wav"
+  UVMARK="$t/started" PATH="$t/stub:$PATH" "$VH_BASH" "$ROOT/bin/vh" qa "$p/audio/mix.wav" >/dev/null 2>&1 & pid=$!
+  for i in $(seq 100); do [ -f "$t/started" ] && break; sleep 0.05; done
+  kill -TERM $pid; sleep 0.3; pkill -f "$t/stub/uv" 2>/dev/null; wait $pid; rc2=$?
+  a=$(python3 -c 'import json, sys; print(" ".join("%s:%s" % (r["cmd"], r["exit"]) for r in map(json.loads, open(sys.argv[1], encoding="utf-8")) if r["event"] == "end"))' "$p/.ovh/activity.jsonl" 2>&1)
+  [ $rc = 143 ] && [ $rc2 = 143 ] && [ "$a" = "desk:143 qa:143" ] && ok "activity: a SIGTERM ends the run with 143, written by bash or by the tool it exec'd into" \
+    || bad "activity on SIGTERM: exits $rc/$rc2, end lines '$a'"
+  # a project that cannot be written to: the same exit and the same words
+  a=$(vh timeline "$p" 2>&1); rc=$?
+  rm -rf "$p/.ovh"; chmod 555 "$p"
+  b=$(vh timeline "$p" 2>&1); rc2=$?
+  chmod 755 "$p"
+  [ $rc = $rc2 ] && [ "$a" = "$b" ] && ok "activity: a project that cannot be written to changes nothing in what the command does or says" || bad "activity on a read-only project: exit $rc/$rc2, '$a' / '$b'"
+  # the reader: the human lines, --json, and --follow as the log grows; bin/vh new logs into the project it made
+  vh review "$p" 1 >/dev/null 2>&1; vh review "$p" 9 >/dev/null 2>&1
+  a=$(vh activity "$p"); b=$(vh activity "$p" --json)
+  "$VH_BASH" "$ROOT/bin/vh" activity "$p" --follow --json > "$t/follow.out" 2>&1 & pid=$!
+  sleep 1; vh review "$p" 1 >/dev/null 2>&1; sleep 1.2; kill $pid 2>/dev/null; wait $pid 2>/dev/null
+  if case "$a" in *"review . 1"*"✓"*"gate-1.html"*"review . 9"*"✗ exit 2"*) true ;; *) false ;; esac && python3 - "$b" "$t/follow.out" <<'PY'
+import json, sys
+d = json.loads(sys.argv[1]); f = [json.loads(l) for l in open(sys.argv[2], encoding="utf-8") if l.strip()]
+st = [r["state"] for r in d["runs"]]
+sys.exit(0 if d["version"] == 1 and st[-2:] == ["ok", "failed"] and d["runs"][-2]["outputs"] == ["out/review/gate-1.html"]
+         and [r["event"] for r in f][-3:] == ["start", "note", "end"] else 1)
+PY
+  then ok "activity: bin/vh activity lists the runs (paths relative to the project), --json gives each run's state and outputs, --follow prints the lines as they come"
+  else bad "bin/vh activity: $(printf '%s' "$a" | tail -c 400) | $(tail -c 300 "$t/follow.out")"; fi
+  OVH_PROJECTS="$t/new" vh new math ci-act >/dev/null 2>&1
+  a=$(cat "$t"/new/*-ci-act/.ovh/activity.jsonl 2>&1)
+  case "$a" in *'"event":"start"'*'"cmd":"new"'*'"event":"end"'*'"exit":0'*'"summary":"created '*'-ci-act · math · standard"'*) ok "activity: bin/vh new logs itself into the project it made" ;;
+    *) bad "activity of bin/vh new: $a" ;; esac
+  rm -rf "$t"
+}
+
 # bin/vh textcheck on its fixture (tools/textcheck/fixture/index.html: one read per case), with whatever headless Chrome
 # the machine has (GitHub's runners come with Chrome); skipped without one
 textcheck_checks() {
@@ -1449,7 +1528,7 @@ PY
     # a folder whose name a filter graph would choke on; then its square turned blue from 1.4 s up to 1.7 s (the film's
     # frames 27–35) and those frames put back: 20–39 drawn again, the rest the film's own bytes and times. Naming only 27–29
     # leaves 30–35 changed outside the span: refused, the film untouched. A film without its sidecar is refused at once
-    mkdir -p "$t/p, x" && cp tools/film/fixture/index.html "$t/p, x/index.html"
+    mkdir -p "$t/p, x" && cp tools/film/fixture/index.html "$t/p, x/index.html" && printf '# BRIEF\n' > "$t/p, x/BRIEF.md"   # a project: its activity log below
     vh render "$t/p, x" --range 0.5:2.5 --gop 20 --workers 2 --out "$t/p, x/out/film.mp4" >/dev/null 2>&1
     sed 's/x.fillStyle = "#fc0";/x.fillStyle = t >= 1.4 \&\& t < 1.7 ? "#0cf" : "#fc0";/' tools/film/fixture/index.html > "$t/p, x/index.html"
     s0=$(cksum < "$t/p, x/out/film.mp4")
@@ -1472,6 +1551,20 @@ PY
     cp "$t/p, x/out/film.mp4" "$t/p, x/out/bare.mp4"
     a=$(vh patch "$t/p, x/out/bare.mp4" --frames 1-2 2>&1); rc=$?
     case "$rc:$a" in 2:*"no "*"bare.mp4.render.json"*) ok "patch: a film without its sidecar is refused at once (exit 2)" ;; *) bad "patch without a sidecar: exit $rc: $(printf '%s' "$a" | tail -c 400)" ;; esac
+    # the activity log of that project: render's progress and note, and the ends node wrote itself (bin/vh exec'd into it)
+    cat > "$t/act.py" <<'PY'
+import json, sys
+runs = {}
+for r in map(json.loads, open(sys.argv[1], encoding="utf-8")):
+    runs.setdefault(r["run"], []).append(r)
+print(" | ".join(" ".join(r["event"] + (":%s" % r["exit"] if r["event"] == "end" else "") for r in rs) for rs in runs.values()))
+render = next(rs for rs in runs.values() if rs[0]["cmd"] == "render")
+note = next(r for r in render if r["event"] == "note")
+sys.exit(0 if note["outputs"] == ["out/film.mp4", "out/film.mp4.render.json"] and [r["done"] for r in render if r["event"] == "progress"][-1] == 60 else 1)
+PY
+    a=$(python3 "$t/act.py" "$t/p, x/.ovh/activity.jsonl" 2>&1); rc=$?
+    case "$rc:$a" in "0:start progress progress note end:0 | start note end:1 | start note end:0 | start end:2") ok "activity: render logs its progress and what it wrote, patch its outcome; node writes the end line of a run bin/vh exec'd into" ;;
+      *) bad "activity of render and patch (rc $rc): $a" ;; esac
   fi
   if node -e 'import("./tools/film/host.mjs").then((m) => process.exit(m.findRuntime(process.cwd()) ? 0 : 1))' 2>/dev/null; then
     mkdir -p "$t/hf"
@@ -2292,11 +2385,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; textcheck_checks; film_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; textcheck_checks; film_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; textcheck_checks; film_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; textcheck_checks; film_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

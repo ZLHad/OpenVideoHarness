@@ -32,6 +32,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { note as activityNote } from "./activity.mjs";   // the project's activity log (bin/vh activity)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -156,7 +157,8 @@ const rargs = [path.join(HERE, "render.mjs"), page, "--browser", browser, "--fra
   ...(capture === "png" ? ["--png"] : ["--quality", q ? q[1] : "95"]), ...(side.real_clock ? ["--real-clock"] : []), ...(side.soft_gl ? ["--soft-gl"] : []), ...(side.kind === "hyperframes" ? ["--force"] : [])];
 const T0 = Date.now();
 const code = await new Promise((ok) => {
-  child = spawn(process.execPath, rargs, { stdio: ["ignore", "pipe", "pipe"] });
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("OVH_ACTIVITY_")));   // the patch's run has its own note
+  child = spawn(process.execPath, rargs, { stdio: ["ignore", "pipe", "pipe"], env });
   const show = (d) => { for (const l of String(d).split("\n").filter(Boolean)) console.log("  " + l); };
   child.stdout.on("data", show); child.stderr.on("data", show);
   child.on("close", (c, s) => ok(c ?? s));
@@ -320,6 +322,7 @@ if (failures.length) {
   fs.renameSync(joined, kept2);
   for (const f of failures) console.log(`  ✗ ${f}`);
   console.log(`patch: a check failed; the film is as it was, and the new one is in ${rel(kept2)} to look at`);
+  activityNote(`frames ${a}–${b} drawn again; a check failed, the film is as it was`, [kept2]);
   cleanUp(); process.exit(1);
 }
 if (inPlace) {
@@ -329,9 +332,11 @@ if (inPlace) {
   const own = film + ".render.json";
   fs.writeFileSync(own, JSON.stringify(sideFor(film), null, 1) + "\n");
   console.log(`patch: done in ${secs.toFixed(0)} s · ${rel(film)} now has the new frames ${a}–${b}; ${rel(own)} lists the patch`);
+  activityNote(`frames ${a}–${b} drawn again in place, in ${secs.toFixed(0)} s`, [film, own]);
 } else {
   fs.renameSync(joined, outFile);
   fs.writeFileSync(outFile + ".render.json", JSON.stringify(sideFor(outFile), null, 1) + "\n");
   console.log(`patch: done in ${secs.toFixed(0)} s · ${rel(outFile)} (+ .render.json); the film is as it was`);
+  activityNote(`frames ${a}–${b} drawn again, in ${secs.toFixed(0)} s`, [outFile, outFile + ".render.json"]);
 }
 cleanUp();

@@ -58,6 +58,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { BrowserGone, launch, serve } from "./browser.mjs";
+import "../film/activity.mjs";   // bin/vh exec's into this: the run's end line in the project's activity log
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });   // a reader that stops early (| head) does not leave Chrome behind
 // Node exits 1 on an unhandled rejection, which here means "a read failed"; a stray one is a failure to check (2)

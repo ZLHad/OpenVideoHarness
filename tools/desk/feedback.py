@@ -8,6 +8,8 @@ import datetime, fcntl, json, os, re, signal, sys, tempfile, threading, time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))   # reader.py, for the current gate page
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+import activity   # noqa: E402  (tools/activity.py: a submission is an event in the project's activity log)
 
 MAX_BODY = 256 * 1024
 MAX_ITEMS, MAX_DECISIONS = 400, 20
@@ -199,6 +201,10 @@ def save(project, fb, now=None):
         rel = f"out/review/feedback/{stem}.json"
         append_review(project, fb, md, rel)
         _write(out / f"{stem}.json", json.dumps(fb, ensure_ascii=False, indent=1) + "\n")
+    counts = {}
+    for it in fb["items"]:
+        counts[it["status"]] = counts.get(it["status"], 0) + 1
+    activity.event(project, "feedback", round=fb["round"], file=rel, items=counts, decisions=len(fb["decisions"]))
     return out / f"{stem}.json"
 
 
@@ -292,6 +298,19 @@ HANDED = ("The reviewer's words are also in REVIEW.md (a dated section): add wha
           "Items not marked pass by default.\n")
 
 
+def _handed(subs):
+    """The activity log's note for submissions handed to the agent: how many, which rounds, what was marked."""
+    n = {}
+    for _, j in subs:
+        for it in j.get("items") or []:
+            if isinstance(it, dict) and it.get("status") in STATUS:
+                n[it["status"]] = n.get(it["status"], 0) + 1
+    rounds = ", ".join(dict.fromkeys(str(j.get("round", "?")) for _, j in subs))
+    marks = ", ".join(f"{v} {k}" for k, v in n.items()) or "nothing marked"
+    activity.note(f"handed over {len(subs)} submission(s) (round {rounds}: {marks})",
+                  [f for f, _ in subs])
+
+
 def wait(project, timeout, poll=1.0, out=sys.stdout):
     """Hand the agent the reviewer's submission: print it, mark it consumed, return 0; 3 on timeout.
     A submission for the current page that arrived before the watcher was armed (say, while it was re-armed after a
@@ -307,6 +326,7 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
         mark_consumed(project, [f for f, _ in early])
         out.write(HANDED)
         out.flush()
+        _handed(early)
         return 0
     flag, start = fdir / ".listening", time.time()
     _write(flag, json.dumps({"pid": os.getpid(), "since": start, "until": start + timeout, "project": os.path.realpath(str(project))}))
@@ -331,6 +351,7 @@ def wait(project, timeout, poll=1.0, out=sys.stdout):
             mark_consumed(project, [f for f, _ in new])
             out.write(HANDED)
             out.flush()
+            _handed(new)
             return done(0)
         time.sleep(poll)
     out.write(f"no feedback within {timeout:.0f} s; arm it again: bin/vh desk wait {project}\n")

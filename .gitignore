@@ -13,6 +13,8 @@ projects/*
 !projects/README.md
 __pycache__/
 *.pyc
+# bin/vh's activity log in a project (tools/activity.py): the showcases and the desk fixtures are projects too
+.ovh/
 # bin/vh mix: the build record and the lock beside a mix (tools/audio/mixstate.py)
 *.mix.json
 *.mix.lock

@@ -39,6 +39,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { openFilm, findPage, readPage } from "./host.mjs";
+import "./activity.mjs";   // bin/vh exec's into this: the run's end line in the project's activity log
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");

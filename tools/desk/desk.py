@@ -71,4 +71,5 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    import activity   # tools/activity.py: bin/vh exec's into this, so this process writes the run's end
+    sys.exit(activity.exiting(lambda: main(sys.argv[1:])))

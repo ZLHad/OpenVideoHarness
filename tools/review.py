@@ -910,6 +910,8 @@ def main():
         return 1
     print(f"✓ {page_path}, also index.html  ({what})", file=sys.stderr)
     print(page.chat(page_path))
+    import activity   # tools/activity.py: this run's line in the project's log, when bin/vh ran us
+    activity.note(f"{gate_title(gate, 'en')}: {len(data['decisions'])} decision(s), {len(segs)} segment(s)", [page_path])
     return 0
 
 

@@ -102,6 +102,9 @@ def main():
             report = layered(build.temp, kv, out)
         build.commit()
     print(report)
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import activity   # tools/activity.py: the run's summary in the project's log, when bin/vh ran us
+    activity.note(report, [out])
 
 def arguments():
     bad = [a for a in sys.argv[2:] if "=" not in a or a.split("=", 1)[0] not in KEYS]   # a bare path or a typo, not a traceback

@@ -43,6 +43,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { openFilm } from "./host.mjs";
 import { HOOK, check as checkGlyphs, collectDom, merge as mergeGlyphs, report as glyphReport } from "./glyphs.mjs";
+import { note as activityNote, progress as activityProgress } from "./activity.mjs";   // the project's activity log (bin/vh activity)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -267,7 +268,11 @@ if (todo.length && (o.estimate === "on" || (o.estimate === "auto" && nTodo > 600
 
 const glyphs = [], fileOf = plan.map((_, i) => (reuse.has(i) ? kept(i) : null));
 const T0 = Date.now(), problems = [];
-const progress = setInterval(() => { if (done) console.log(`  ${done} / ${nTodo} frames · ${((Date.now() - T0) / 1000).toFixed(0)} s · about ${(((Date.now() - T0) / done) * (nTodo - done) / 1000).toFixed(0)} s to go`); }, 15000);
+activityProgress(0, nTodo, "frames");
+const progress = setInterval(() => {
+  if (done) console.log(`  ${done} / ${nTodo} frames · ${((Date.now() - T0) / 1000).toFixed(0)} s · about ${(((Date.now() - T0) / done) * (nTodo - done) / 1000).toFixed(0)} s to go`);
+  activityProgress(done, nTodo, "frames");
+}, 15000);
 progress.unref();
 
 // one chunk into its own encoder; → { encoded: a promise that settles once the encoder is done with it } (the browser goes
@@ -351,6 +356,9 @@ const sidecar = {
 };
 fs.writeFileSync(outFile + ".render.json", JSON.stringify(sidecar, null, 1) + "\n");
 const okCount = +st.nb_frames === n, okColor = st.pix_fmt === "yuv420p" && st.color_range === "tv" && st.color_space === "bt709";
+activityProgress(nTodo, nTodo, "frames");
+activityNote(`${st.nb_frames} frames, ${st.width}x${st.height}, ${fps} fps, ${(k0 / fps).toFixed(2)}–${(k1 / fps).toFixed(2)} s, in ${secs.toFixed(0)} s` +
+  (reuse.size ? ` (${reuse.size} chunk(s) kept from a stopped run)` : "") + (problems.length ? ` · ${problems.length} problem(s) reported` : ""), [outFile, outFile + ".render.json"]);
 console.log(`  ${shown}: ${st.nb_frames} frames, ${st.width}x${st.height}, ${st.pix_fmt} ${st.color_range}/${st.color_space}, in ${secs.toFixed(0)} s` +
   (nTodo ? ` (${(secs * 1000 / nTodo).toFixed(0)} ms a frame${reuse.size ? `, ${nTodo} of them drawn` : ""})` : " (every chunk kept)") + `; how it was made: ${outside ? outFile + ".render.json" : rel(outFile + ".render.json")}`);
 for (const p of problems) console.log(`  ${p}`);
