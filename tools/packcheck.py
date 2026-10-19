@@ -35,17 +35,70 @@ NAMES = {"title": "标题 title", "desc": "简介 description", "tags": "标签 
 # X's weighted length (docs.x.com/fundamentals/counting-characters; the weights are twitter-text's config/v3.json): after
 # NFC, a link is 23 whatever its length, an emoji 2 (with its modifiers and joined parts), a code point in U+0000–10FF,
 # U+2000–200D, U+2010–201F or U+2032–2037 is 1 and any other 2, so a Chinese character, a full-width comma or 。 is 2.
-# Only links written with http(s):// are taken as links (X counts a bare example.com as 23 too); a keycap emoji counts more
-# than X's 2: never under X's count but for those bare links
-URL = re.compile(r"https?://[\x21-\x7e]*[A-Za-z0-9/#=_-]")
-EMOJI = re.compile("[\U0001F1E6-\U0001F1FF]{2}|[\u2600-\u27BF\U0001F000-\U0001FAFF][\uFE0F\U0001F3FB-\U0001F3FF]*"
-                   "(?:\u200D[\u2600-\u27BF\U0001F000-\U0001FAFF][\uFE0F\U0001F3FB-\U0001F3FF]*)*")
+# A keycap emoji counts more than X's 2.
+# A link is what twitter-text's extractUrlsWithIndices takes for one (its regexp/ files, Apache-2.0, ported): after a
+# character other than a letter, a digit, @, $ or # (or the full-width ＠ ＃), a domain (labels of anything but ASCII
+# punctuation and spaces) whose TLD no letter, digit, @, + or - follows, then an optional :port, /path (ending in a
+# letter, a digit, + - = _ # / or a closing parenthesis) and ?query. Written without http(s)://, it is a link only when the TLD is one X knows and
+# the domain is not preceded by - _ . or /; only its ASCII part is the link (Chinese written straight before it stays
+# text), with the path, but not a query or port that has no path before it. So `example.com/a`, `x.com` and
+# `packcheck.py` (Paraguay) are links, `foo_bar.com`, `Node.js` and `tools/x.py` are not. Two simplifications, both
+# toward counting more: with http(s):// any ASCII TLD of two letters or more is taken; without it, the TLDs are every
+# ASCII ccTLD of twitter-text's list and the gTLDs below, about 200 of its 1,400, so a bare domain under a rare gTLD
+# (or an IDN one such as 中国) is counted as its characters: the one case where this can come under X's count.
+CCTLD = ("ac ad ae af ag ai al am an ao aq ar as at au aw ax az ba bb bd be bf bg bh bi bj bl bm bn bo bq br bs bt bv bw by bz "
+         "ca cc cd cf cg ch ci ck cl cm cn co cr cu cv cw cx cy cz de dj dk dm do dz ec ee eg eh er es et eu fi fj fk fm fo fr ga "
+         "gb gd ge gf gg gh gi gl gm gn gp gq gr gs gt gu gw gy hk hm hn hr ht hu id ie il im in io iq ir is it je jm jo jp ke kg "
+         "kh ki km kn kp kr kw ky kz la lb lc li lk lr ls lt lu lv ly ma mc md me mf mg mh mk ml mm mn mo mp mq mr ms mt mu mv mw "
+         "mx my mz na nc ne nf ng ni nl no np nr nu nz om pa pe pf pg ph pk pl pm pn pr ps pt pw py qa re ro rs ru rw sa sb sc sd "
+         "se sg sh si sj sk sl sm sn so sr ss st su sv sx sy sz tc td tf tg th tj tk tl tm tn to tp tr tt tv tw tz ua ug uk um us "
+         "uy uz va vc ve vg vi vn vu wf ws ye yt za zm zw").split()
+GTLD = ("com net org edu gov mil int arpa info biz name pro mobi aero asia cat coop jobs museum post tel travel xxx xyz app dev "
+        "page blog shop store online site website tech top club live news link art design studio video media cloud space fun "
+        "life today world email network wiki one ink icu vip work works global digital agency academy company group social chat "
+        "zone games game movie film photo photos pics show tube ninja guru tips tools xin ltd plus run red blue pink gold cool "
+        "best team center new wtf lol love land city london nyc tokyo berlin paris mov zip docs here google youtube apple baidu "
+        "moe men fit wang ren kim bar bio eco foo how ooo pub soy tax uno vote win zero codes software systems solutions services "
+        "support rocks host press click help events community foundation institute university school education science finance "
+        "money capital ventures partners consulting marketing report review reviews guide download stream watch audio radio "
+        "band gallery graphics photography camera computer technology hosting engineering energy health care coffee cafe house "
+        "garden fashion style beauty fitness moda eus gal quebec cymru scot africa earth mba phd law legal lawyer doctor bank").split()
+_KNOWN = "|".join(sorted(GTLD + CCTLD, key=len, reverse=True)) + r"|xn--[\-0-9a-z]+"
+_END = r"(?=[^0-9a-zA-Z@+-]|$)"   # nothing a TLD could go on with
+_LAT = ("À-ÖØ-öø-ÿĀ-ɏɓɔɖɗəɛɣɨɯɲ"
+        "ʉʋʻ̀-ͯḀ-ỿ")   # twitter-text's latinAccentChars
+_DIR = "‪-‮؜‎‏⁦-⁩"   # directional marks
+_DC = rf"[^!'#%&()*+,\\\-./:;<=>?@\[\]^_{{|}}~$\s￾﻿￿{_DIR}]"   # a domain character
+_PC = rf"[a-zЀ-ӿ0-9!*';:=+,.$/%#\[\]\-–_~@|&{_LAT}]"     # a path character
+_PAREN = rf"\((?:{_PC}+|{_PC}*\({_PC}+\){_PC}*)\)"
+_PATH = rf"(?:{_PC}*(?:{_PAREN}{_PC}*)*(?:[+\-a-zЀ-ӿ0-9=_#/{_LAT}]|{_PAREN})|@{_PC}+/)"
+URL = re.compile(rf"(?P<pre>[^A-Za-z0-9@＠$#＃￾﻿￿]|[{_DIR}]|^)(?P<url>(?P<proto>https?://)?"
+                 rf"(?P<domain>(?:(?:{_DC}(?:[_-]|{_DC})*)?{_DC}\.)*(?:(?:{_DC}(?:-|{_DC})*)?{_DC}\.)"
+                 rf"(?(proto)[a-z]{{2,63}}|(?:{_KNOWN})){_END})"
+                 rf"(?::[0-9]+)?(?P<path>/{_PATH}*)?(?:\?[a-z0-9!?*'@();:&=+$/%#\[\]\-_.,~|]*[a-z0-9\-_&=#/])?)", re.I)
+ASCII_DOMAIN = re.compile(rf"(?:[\-a-z0-9{_LAT}]+\.)+(?:{_KNOWN}){_END}", re.I)
+EMOJI = re.compile("[\U0001F1E6-\U0001F1FF]{2}|[☀-➿\U0001F000-\U0001FAFF][️\U0001F3FB-\U0001F3FF]*"
+                   "(?:‍[☀-➿\U0001F000-\U0001FAFF][️\U0001F3FB-\U0001F3FF]*)*")
 ONE = ((0x0000, 0x10FF), (0x2000, 0x200D), (0x2010, 0x201F), (0x2032, 0x2037))
+
+
+def x_links(s):
+    """The spans X counts as links, 23 each: [(start, end)] in order."""
+    out = []
+    if "." not in s: return out   # (twitter-text's own shortcut: no domain without a dot)
+    for m in URL.finditer(s):
+        if m["proto"]: out.append(m.span("url")); continue
+        if re.search(r"[-_./]$", m["pre"]): continue
+        at = m.start("domain"); found = [[at + d.start(), at + d.end()] for d in ASCII_DOMAIN.finditer(m["domain"])]
+        if found and m["path"]: found[-1][1] = m.end("url")
+        out += [tuple(f) for f in found]
+    return out
 
 
 def x_length(s):
     s = unicodedata.normalize("NFC", s)
-    n = 23 * len(URL.findall(s)); s = URL.sub("", s)
+    spans = x_links(s); n = 23 * len(spans)
+    for a, b in reversed(spans): s = s[:a] + s[b:]
     n += 2 * len(EMOJI.findall(s)); s = EMOJI.sub("", s)
     return n + sum(1 if any(a <= ord(c) <= b for a, b in ONE) else 2 for c in s)
 

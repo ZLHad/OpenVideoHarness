@@ -465,6 +465,20 @@ PY
   case "$rc:$a" in 1:*"X / 推特: ✓ 简介 description 279 weighted"*"B站 + X: ✗ 简介 description 287 weighted"*"official, x)"*"小红书 xhs: · 简介 description 300 characters"*)
       ok "packcheck: X's limit in its weighted length (Chinese 2, a link 23), the tightest platform of a heading, a one-letter name standing alone" ;;
     *) bad "packcheck on X copy (rc $rc): $a" ;; esac
+  # what X takes for a link (twitter-text's rules): a bare domain with a TLD it knows, with its path, Chinese straight
+  # before it staying text; not after - _ . / @ $, not a file name with a TLD it does not know, not a host with no TLD
+  if a=$(python3 - <<'PY'
+import sys; sys.path.insert(0, "tools"); import packcheck as P
+cases = {"example.com/path": 23, "看这里：example.com，很好": 37, "x.com": 23, "packcheck.py": 23, "www.github.com/a/b": 23,
+         "b23.tv/BV1x": 23, "example.co.uk": 23, "bit.ly/abc?x=1": 23, "example.com?x=1": 27, "example.com:8080/x": 23,
+         "两个 https://a.io 和 b.io": 55, "https://example.com，后面": 29, "https://ex.com/a_(b).": 24, "ex.com/a.": 24,
+         "foo_bar.com": 11, "Node.js": 7, "tools/x.py": 10, "-x.com": 6, "a@example.com": 13, "$example.com": 12, "ex.comm": 7,
+         "https://localhost:3000/x": 24, "v1.2.3": 6}
+bad = [f"{k!r}: {P.x_length(k)} (want {v})" for k, v in cases.items() if P.x_length(k) != v]
+print("; ".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "packcheck: X's links as twitter-text finds them, bare domains (example.com/path) included, not foo_bar.com, Node.js or tools/x.py"
+  else bad "packcheck, X's links: $a"; fi
   rm -rf "$t"
   if ! command -v ffmpeg >/dev/null; then skip "mux / gif smoke" "ffmpeg not installed"; return; fi
   if python3 tools/audio/test_mixstate.py; then ok "mix/mux: failed and stale builds refused, previous audio preserved, deliberate duration changes"
