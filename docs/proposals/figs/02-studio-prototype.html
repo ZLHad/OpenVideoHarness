@@ -1,0 +1,1131 @@
+<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>[hidden]{display:none!important}body{margin:0}</style></head><body><title>OpenVideoHarness Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Sora:wght@500;600&display=swap">
+<style>
+/* Layout: an app shell over a deep-space backdrop: module rail | module workspace | agent column, pipeline HUD on top; notes below.
+   One dark world by choice. Glass for chrome and floating layers, HUD readouts in mono, neutral grey around the picture.
+   Colour says who: cyan = what you pick and mark, violet = what the agent did, red = live (playhead, rendering), amber = needs you. */
+:root{
+  --void:#04060b;--deep:#070b13;--s1:#0b101a;--s2:#0f1522;--s3:#151c2b;--s4:#1c2539;
+  --ln:rgba(150,178,230,.10);--ln2:rgba(150,178,230,.19);--ln3:rgba(150,178,230,.32);
+  --tx:#e6ecf6;--tx2:#9aa6bb;--tx3:#637089;
+  --cy:#5ce1ff;--cy-bg:rgba(92,225,255,.11);--cy-ln:rgba(92,225,255,.5);--on-cy:#03161c;
+  --ag:#a990ff;--ag-bg:rgba(169,144,255,.13);--ag-ln:rgba(169,144,255,.5);--ag-tx:#d3c7ff;
+  --live:#ff4f72;--warn:#ffb547;--warn-bg:rgba(255,181,71,.12);--ok:#46e3a3;--ok-bg:rgba(70,227,163,.11);
+  --view:#0a0c10;--ov:rgba(4,6,10,.62);
+  --f-ui:"IBM Plex Sans","PingFang SC","Hiragino Sans GB","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;
+  --f-hd:"Sora","IBM Plex Sans","PingFang SC","Noto Sans SC",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--void)}
+body{color:var(--tx);font:13px/1.5 var(--f-ui);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 72px;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0;text-align:inherit}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--cy);outline-offset:1px}
+input[type=text],textarea{font:inherit;font-size:13px;color:var(--tx);background:rgba(4,7,12,.6);border:1px solid var(--ln2);border-radius:8px;padding:8px 10px;min-width:0}
+textarea{resize:none}
+select{font:inherit;font-size:12px;color:var(--tx);background:var(--s3);border:1px solid var(--ln2);border-radius:7px;padding:5px 8px}
+.wrap{max-width:1480px;margin:0 auto}
+.pagehead{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:14px}
+.pagehead h1{font:600 20px/1.3 var(--f-hd);margin:0}
+.pagehead p{margin:3px 0 0;color:var(--tx2);font-size:14px}
+
+/* components */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ln2);border-radius:8px;padding:6px 12px;background:rgba(255,255,255,.025);font-size:12.5px;white-space:nowrap;line-height:1.4;transition:background .15s,border-color .15s}
+.btn:hover{background:rgba(255,255,255,.06);border-color:var(--ln3)}
+.btn.pri{background:var(--cy);border-color:var(--cy);color:var(--on-cy);font-weight:600;box-shadow:0 0 18px rgba(92,225,255,.22)}
+.btn.pri:hover{background:#86eaff}
+.btn.ag{background:var(--ag-bg);border-color:var(--ag-ln);color:var(--ag-tx)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--tx2)}
+.btn.ghost:hover{color:var(--tx);background:rgba(255,255,255,.04)}
+.btn.big{padding:10px 18px;font-size:14px;border-radius:10px}
+.btn[disabled]{opacity:.45;cursor:default}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:2px 8px;border-radius:6px;white-space:nowrap;line-height:1.55;max-width:100%;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.chip.cy{background:var(--cy-bg);color:var(--cy);box-shadow:inset 0 0 0 1px rgba(92,225,255,.22)}
+.chip.ag{background:var(--ag-bg);color:var(--ag-tx);box-shadow:inset 0 0 0 1px rgba(169,144,255,.25)}
+.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}
+.chip.mute{background:rgba(255,255,255,.04);color:var(--tx2);box-shadow:inset 0 0 0 1px var(--ln)}
+button.chip:hover{filter:brightness(1.18)}
+.eyebrow{font:500 11px var(--f-mono);letter-spacing:.16em;text-transform:uppercase;color:var(--cy)}
+.eyebrow b{color:var(--tx3);font-weight:500}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.xs{font-size:11.5px;color:var(--tx3)}
+.panel{background:rgba(11,16,26,.82);border:1px solid var(--ln);border-radius:12px}
+.glass{background:rgba(16,23,38,.55);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);border:1px solid var(--ln2);border-radius:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.hud{position:relative}
+.hud::before,.hud::after{content:"";position:absolute;width:12px;height:12px;border:1.5px solid var(--cy);opacity:.75;pointer-events:none}
+.hud::before{top:-1px;left:-1px;border-right:0;border-bottom:0;border-top-left-radius:6px}
+.hud::after{bottom:-1px;right:-1px;border-left:0;border-top:0;border-bottom-right-radius:6px}
+.ph{padding:14px 16px}
+.ph h3{margin:0 0 10px;font:600 13.5px var(--f-hd);display:flex;align-items:center;gap:8px}
+.ph h3 .xs{font-family:var(--f-ui);font-weight:400}
+.seg{display:inline-flex;border:1px solid var(--ln2);border-radius:8px;padding:2px;gap:2px;background:rgba(4,7,12,.4);flex-wrap:wrap}
+.seg button{padding:4px 10px;border-radius:6px;font-size:12px;color:var(--tx2);white-space:nowrap}
+.seg button:hover{color:var(--tx)}
+.seg button[aria-pressed="true"]{background:var(--cy-bg);color:var(--cy);box-shadow:inset 0 0 0 1px rgba(92,225,255,.3)}
+.seg.ag button[aria-pressed="true"]{background:var(--ag-bg);color:var(--ag-tx);box-shadow:inset 0 0 0 1px rgba(169,144,255,.35)}
+.kv{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px 14px;align-items:center}
+.kv>span{color:var(--tx3);font-size:12px}
+.kv>div{min-width:0}
+.pick{cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.pick:hover{border-color:var(--ln3)}
+.pick.on{border-color:var(--cy-ln);box-shadow:0 0 0 1px var(--cy-ln),0 0 22px rgba(92,225,255,.12)}
+.fresh{animation:fresh 1.6s ease-out 1}
+@keyframes fresh{0%{box-shadow:0 0 0 2px var(--ag),0 0 30px rgba(169,144,255,.5)}100%{box-shadow:0 0 0 0 transparent}}
+.badge{font:500 11px var(--f-mono);padding:1px 6px;border-radius:5px;letter-spacing:.04em}
+.co{position:absolute;z-index:40;width:20px;height:20px;border-radius:50%;background:var(--tx);color:var(--void);font:600 11px var(--f-mono);display:grid;place-items:center;pointer-events:none;box-shadow:0 0 0 3px var(--deep)}
+.app.notes-off .co{display:none}
+
+/* shell */
+.app{position:relative;height:940px;display:grid;grid-template-columns:76px minmax(0,1fr) 360px;grid-template-rows:56px minmax(0,1fr);border-radius:16px;overflow:hidden;border:1px solid var(--ln2);background:var(--deep);isolation:isolate}
+.app::before{content:"";position:absolute;inset:0;z-index:-2;background:radial-gradient(55% 45% at 0% 0%,rgba(78,64,210,.30),transparent 62%),radial-gradient(45% 40% at 100% 100%,rgba(18,150,176,.24),transparent 60%),radial-gradient(35% 28% at 78% 0%,rgba(170,70,210,.15),transparent 60%),var(--deep)}
+.app::after{content:"";position:absolute;inset:0;z-index:-1;background-image:linear-gradient(var(--ln) 1px,transparent 1px),linear-gradient(90deg,var(--ln) 1px,transparent 1px);background-size:36px 36px;-webkit-mask-image:radial-gradient(70% 60% at 50% 40%,#000 0,transparent 75%);mask-image:radial-gradient(70% 60% at 50% 40%,#000 0,transparent 75%);opacity:.35}
+.top{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:16px;padding:0 14px;border-bottom:1px solid var(--ln);background:rgba(6,9,16,.6);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);position:relative}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.mark{width:32px;height:32px;flex:none;border-radius:9px;display:grid;place-items:center;font:600 11px var(--f-mono);color:var(--cy);border:1px solid var(--cy-ln);background:var(--cy-bg);box-shadow:0 0 16px rgba(92,225,255,.2)}
+.crumb{font-size:13px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crumb b{color:var(--tx);font-weight:500}
+.pipe{display:flex;align-items:center;position:relative}
+.stn{display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:9px;color:var(--tx3);font-size:12.5px;white-space:nowrap}
+.stn:hover{color:var(--tx);background:rgba(255,255,255,.04)}
+.stn i{width:7px;height:7px;border-radius:50%;background:var(--tx3);flex:none}
+.stn small{font:11px var(--f-mono);color:var(--tx3)}
+.stn.done{color:var(--tx2)}
+.stn.done i{background:var(--ok);box-shadow:0 0 7px var(--ok)}
+.stn.wait{color:var(--tx)}
+.stn.wait i{background:var(--warn);box-shadow:0 0 9px var(--warn)}
+.stn.wait small{color:var(--warn)}
+.stn.busy i{background:var(--ag);box-shadow:0 0 9px var(--ag)}
+.stn[aria-current="true"]{background:var(--cy-bg);color:var(--cy);box-shadow:inset 0 0 0 1px rgba(92,225,255,.25)}
+.pipe .ln{width:14px;height:1px;background:var(--ln2);flex:none}
+.tools{display:flex;justify-content:flex-end;align-items:center;gap:8px;position:relative}
+.kbd{font:11px var(--f-mono);color:var(--tx3);border:1px solid var(--ln2);border-radius:4px;padding:0 5px}
+.astat{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--tx2);padding:5px 10px;border:1px solid var(--ln);border-radius:8px;white-space:nowrap}
+.astat i{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.astat.busy i{background:var(--ag);box-shadow:0 0 8px var(--ag)}
+.rail{grid-row:2;grid-column:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 0;border-right:1px solid var(--ln);background:rgba(6,9,16,.5);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);position:relative;overflow-y:auto}
+.rail button{width:60px;padding:8px 0 6px;border-radius:11px;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--tx3);font-size:11px;position:relative;flex:none}
+.rail button:hover{color:var(--tx);background:rgba(255,255,255,.04)}
+.rail button[aria-current="true"]{color:var(--cy);background:var(--cy-bg)}
+.rail button[aria-current="true"]::before{content:"";position:absolute;left:-8px;top:12px;bottom:12px;width:2px;border-radius:2px;background:var(--cy);box-shadow:0 0 10px var(--cy)}
+.rail .dot{position:absolute;top:6px;right:12px;width:6px;height:6px;border-radius:50%}
+.rail hr{width:34px;border:0;border-top:1px solid var(--ln);margin:8px 0;flex:none}
+.rail .grow{flex:1}
+.main{grid-row:2;grid-column:2;min-width:0;min-height:0;overflow:auto;position:relative}
+.mod{padding:20px 22px 28px;min-height:100%}
+.mhead{display:flex;align-items:flex-end;justify-content:space-between;gap:14px 20px;margin-bottom:18px;flex-wrap:wrap}
+.mhead h2{margin:6px 0 0;font:600 21px/1.3 var(--f-hd);text-wrap:balance}
+.mhead p{margin:5px 0 0;color:var(--tx2);font-size:13px;max-width:64ch}
+.gatebar{position:sticky;bottom:0;margin:18px -22px -28px;padding:12px 22px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--ln2);background:rgba(8,11,19,.78);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.gatebar .t{font-size:13px}
+.gatebar .t b{font-weight:500}
+.gatebar .sp{flex:1}
+
+/* agent column */
+.agent{grid-row:2;grid-column:3;display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--ln2);background:rgba(9,13,23,.66);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);position:relative}
+.ahead{padding:12px 14px;border-bottom:1px solid var(--ln);display:flex;align-items:center;gap:11px}
+.orb{width:30px;height:30px;flex:none;border-radius:50%;background:radial-gradient(circle at 34% 30%,#efe9ff 0,var(--ag) 42%,#33247e 100%);box-shadow:0 0 18px rgba(169,144,255,.5)}
+.orb.busy{animation:orb 1.4s ease-in-out infinite}
+@keyframes orb{50%{box-shadow:0 0 30px rgba(169,144,255,.85)}}
+.ahead b{font-weight:500;font-size:13px;display:block}
+.ahead small{display:block;color:var(--tx3);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ahead select{margin-left:auto}
+.athread{flex:1;min-height:0;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+.sys{align-self:center;font:11px var(--f-mono);color:var(--tx3);padding:2px 10px;border:1px solid var(--ln);border-radius:20px;text-align:center;letter-spacing:.02em}
+.me{align-self:flex-end;max-width:90%;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.me p{margin:0;background:rgba(92,225,255,.07);border:1px solid rgba(92,225,255,.18);padding:7px 11px;border-radius:12px 12px 3px 12px;font-size:12.5px}
+.me.note p{background:rgba(255,181,71,.07);border-color:rgba(255,181,71,.22)}
+.who{font-size:11px;color:var(--ag-tx);margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.who i{width:6px;height:6px;border-radius:50%;background:var(--ag);box-shadow:0 0 6px var(--ag)}
+.say{font-size:12.5px;line-height:1.7}
+.say .chip{margin:1px 0}
+.card{border:1px solid var(--ln2);border-radius:11px;background:rgba(14,20,33,.75);padding:10px 11px;font-size:12.5px}
+.card.decide{border-color:rgba(255,181,71,.45);box-shadow:0 0 18px rgba(255,181,71,.07)}
+.card.res{border-color:var(--ag-ln)}
+.card h4{margin:0 0 7px;font-size:12px;font-weight:500;display:flex;align-items:center;gap:7px}
+.card ul{margin:0 0 8px;padding-left:16px;color:var(--tx2)}
+.card li{margin:2px 0}
+.acts{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.est{font:11px var(--f-mono);color:var(--tx3);margin-left:auto;white-space:nowrap}
+.bar{height:3px;border-radius:2px;background:rgba(255,255,255,.06);overflow:hidden;margin:7px 0}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--ag),var(--cy));box-shadow:0 0 10px var(--ag)}
+.opts{display:flex;gap:6px;flex-wrap:wrap}
+.opt{display:flex;flex-direction:column;gap:1px;padding:7px 9px;border:1px solid var(--ln2);border-radius:8px;flex:1 1 120px}
+.opt:hover{border-color:var(--ln3)}
+.opt small{color:var(--tx3);font-size:11px}
+.opt em{font-style:normal;font-size:11px;color:var(--warn)}
+.opt[aria-pressed="true"]{border-color:var(--cy-ln);background:var(--cy-bg)}
+.round{display:flex;align-items:center;gap:8px;padding:9px 14px;border-top:1px solid var(--ln);background:linear-gradient(90deg,rgba(255,181,71,.09),transparent 70%);font-size:12px}
+.round b{font-weight:500}
+.round .btn{margin-left:auto}
+.acomp{border-top:1px solid var(--ln);padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;background:rgba(5,8,14,.5)}
+.crow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.crow .k{font-size:11px;color:var(--tx3)}
+.acomp textarea{height:62px;width:100%}
+.qk{display:flex;gap:4px;flex-wrap:wrap}
+.qk button{font-size:11.5px;color:var(--tx2);border:1px solid var(--ln);border-radius:6px;padding:2px 8px}
+.qk button:hover{color:var(--tx);border-color:var(--ln3)}
+.err{color:var(--warn);font-size:12px}
+.err:empty{display:none}
+.toast{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);background:rgba(18,25,40,.92);border:1px solid var(--cy-ln);color:var(--tx);padding:10px 16px;border-radius:10px;font-size:12.5px;z-index:60;max-width:min(560px,90%);box-shadow:0 10px 40px rgba(0,0,0,.5),0 0 24px rgba(92,225,255,.15);backdrop-filter:blur(12px)}
+</style>
+<style>
+/* modules */
+.hero{padding:22px 24px 18px;margin-bottom:22px}
+.hero h2{margin:8px 0 14px;font:600 26px/1.25 var(--f-hd);text-wrap:balance}
+.hero textarea{width:100%;height:64px;font-size:16px;padding:12px 14px;border-radius:12px;background:rgba(3,6,11,.65);border-color:var(--cy-ln);box-shadow:0 0 0 4px rgba(92,225,255,.06)}
+.hero-row{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+.hero-row .sp{flex:1}
+.ex{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;align-items:center}
+.ex button{font-size:12px;color:var(--tx2);border:1px solid var(--ln);border-radius:20px;padding:3px 11px}
+.ex button:hover{color:var(--tx);border-color:var(--cy-ln)}
+.sec{display:flex;align-items:baseline;gap:10px;margin:22px 0 10px}
+.sec h3{margin:0;font:600 14px var(--f-hd)}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.space{padding:13px 14px;display:grid;gap:7px}
+.space b{font:600 14px var(--f-hd)}
+.space .xs{line-height:1.6}
+.space .tags{display:flex;gap:4px;flex-wrap:wrap}
+.proj{overflow:hidden;display:flex;flex-direction:column}
+.proj canvas,.thumb{width:100%;aspect-ratio:16/9;display:block;background:var(--view)}
+.proj .b{padding:10px 12px 12px;display:grid;gap:5px}
+.proj .b b{font-weight:500;font-size:13.5px}
+.proj .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.idea-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--ln)}
+.idea-row:first-child{border-top:0}
+.idea-row span{flex:1}
+.cols{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px;align-items:start}
+.stack{display:grid;gap:14px}
+.dm{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px 12px;align-items:center}
+.dm>span{font-size:12.5px}
+.q{padding:10px 0;border-top:1px solid var(--ln);display:grid;gap:7px}
+.q:first-of-type{border-top:0;padding-top:0}
+.cmd{font:12px/1.6 var(--f-mono);color:var(--cy);background:rgba(3,6,11,.7);border:1px solid var(--ln);border-radius:8px;padding:8px 10px;overflow-x:auto;white-space:nowrap}
+.idea-l{display:grid;grid-template-columns:250px minmax(0,1fr);gap:14px;align-items:start}
+.inv h4{margin:12px 0 6px;font:500 11px var(--f-mono);letter-spacing:.12em;color:var(--tx3);text-transform:uppercase}
+.inv h4:first-child{margin-top:0}
+.inv .it{display:block;width:100%;padding:6px 8px;border-radius:7px;font-size:12.5px;border:1px solid transparent}
+.inv .it:hover{background:rgba(255,255,255,.04)}
+.inv .it.on{border-color:var(--cy-ln);background:var(--cy-bg)}
+.inv .it small{display:block;color:var(--tx3);font-size:11px}
+.avoid{font-size:12px;color:var(--tx2);line-height:1.65;padding:9px 10px;border:1px dashed rgba(255,181,71,.35);border-radius:8px;background:rgba(255,181,71,.04)}
+.ccards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.cc{overflow:hidden;display:flex;flex-direction:column}
+.cc .b{padding:11px 13px 13px;display:grid;gap:7px;flex:1;align-content:start}
+.cc .ttl{display:flex;align-items:center;gap:8px}
+.cc .ttl b{font:600 15px var(--f-hd)}
+.cc .lt{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font:600 12px var(--f-mono);background:var(--cy-bg);color:var(--cy);border:1px solid var(--cy-ln)}
+.cc dl{margin:0;display:grid;grid-template-columns:44px minmax(0,1fr);gap:4px 8px;font-size:12.5px}
+.cc dt{color:var(--tx3)}
+.cc dd{margin:0}
+.cc .acts{margin-top:4px}
+.own{margin-top:14px;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.own input{flex:1 1 300px}
+.brief .kv{grid-template-columns:72px minmax(0,1fr)}
+.brief .kv>div{font-size:12.5px}
+.strip{display:flex;height:34px;border-radius:9px;overflow:hidden;border:1px solid var(--ln2);margin-bottom:12px}
+.strip button{display:flex;align-items:center;justify-content:center;font-size:11.5px;color:var(--tx2);border-right:1px solid var(--ln2);overflow:hidden;white-space:nowrap;padding:0 4px;background:rgba(255,255,255,.02)}
+.strip button:last-child{border-right:0}
+.strip button.on{background:var(--cy-bg);color:var(--cy)}
+.segc{padding:11px 13px;display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:4px 14px;align-items:start;margin-bottom:8px}
+.segc .n{font:500 11px var(--f-mono);color:var(--tx3);padding-top:2px}
+.segc b{font-weight:500;font-size:13.5px}
+.segc p{margin:2px 0 0;font-size:12.5px;color:var(--tx2)}
+.segc .r{grid-row:1/3;grid-column:3;display:flex;gap:6px;align-items:flex-start}
+.dz{padding:16px;border:1px dashed var(--cy-ln);border-radius:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(92,225,255,.03);margin-bottom:14px}
+.dz .sp{flex:1}
+.asset{overflow:hidden}
+.asset canvas{width:100%;aspect-ratio:4/3;display:block;background:var(--view)}
+.asset .b{padding:9px 11px 11px;display:grid;gap:4px}
+.asset .b b{font-weight:500;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.asset .row{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.lic{margin-top:14px;padding:12px 14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:12.5px}
+.anim{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:14px;margin-bottom:14px}
+.anim .vv{position:relative;background:var(--view);border-radius:12px;overflow:hidden;border:1px solid var(--ln)}
+.anim canvas{width:100%;aspect-ratio:16/9;display:block}
+.anim .ctl{position:absolute;left:10px;right:10px;bottom:10px;display:flex;align-items:center;gap:10px;padding:5px 10px;border-radius:10px;background:var(--ov);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--ln2)}
+.anim .ctl input{flex:1;accent-color:var(--cy)}
+.shotc{overflow:hidden}
+.shotc canvas{width:100%;aspect-ratio:16/9;display:block;background:var(--view)}
+.shotc .b{padding:9px 11px 11px;display:grid;gap:5px}
+.shotc .row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.shotc ol{margin:0;padding-left:16px;font-size:12px;color:var(--tx2)}
+.sgrid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px;align-items:start}
+.voice{padding:11px 12px;display:grid;gap:7px}
+.voice .top2{display:flex;align-items:center;gap:8px}
+.voice b{font:600 13.5px var(--f-hd)}
+.voice svg{width:100%;height:34px;display:block;color:var(--cy)}
+.meas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.meas div{background:rgba(255,255,255,.03);border-radius:7px;padding:5px 7px}
+.meas small{display:block;font-size:11px;color:var(--tx3)}
+.meas span{font:500 12.5px var(--f-mono)}
+table.t{width:100%;border-collapse:collapse;font-size:12.5px}
+table.t th{text-align:left;font:500 11px var(--f-mono);letter-spacing:.06em;color:var(--tx3);padding:6px 8px;border-bottom:1px solid var(--ln2)}
+table.t td{padding:7px 8px;border-bottom:1px solid var(--ln);vertical-align:top}
+table.t tr.on td{background:var(--cy-bg)}
+table.t tr.pick{cursor:pointer}
+.tw{overflow-x:auto}
+.meters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.meter{padding:11px 12px}
+.meter small{display:block;font:500 11px var(--f-mono);letter-spacing:.1em;color:var(--tx3);text-transform:uppercase}
+.meter span{display:block;font:600 22px var(--f-mono);margin-top:2px;color:var(--tx)}
+.meter span.ok{color:var(--ok)}
+.meter em{font-style:normal;font-size:11.5px;color:var(--tx3)}
+.musicsvg{width:100%;height:120px;display:block}
+.cvs{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.cvs canvas{display:block;border-radius:10px;border:1px solid var(--ln2);background:var(--view)}
+.cvs .lab{font-size:11.5px;color:var(--tx3);margin-top:5px}
+.copy dl{margin:0;display:grid;grid-template-columns:44px minmax(0,1fr);gap:6px 10px;font-size:12.5px}
+.copy dt{color:var(--tx3)}
+.copy dd{margin:0}
+.li{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--ln);font-size:12.5px}
+.li:first-of-type{border-top:0}
+.li .r{margin-left:auto}
+.dot2{width:7px;height:7px;border-radius:50%;flex:none}
+.quote{border-left:2px solid var(--cy);padding:2px 0 2px 10px;margin:8px 0;font-size:13px;border-radius:0}
+.quote small{display:block;color:var(--tx3);font-size:11.5px}
+
+/* cut module */
+.mod.cut{padding:0;height:100%;display:grid;grid-template-columns:232px minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+.mod.cut.theater{grid-template-columns:0 minmax(0,1fr)}
+.mod.cut.theater .clist{display:none}
+.clist{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--ln);background:rgba(8,12,20,.7);position:relative}
+.ltabs{display:flex;gap:2px;padding:8px;border-bottom:1px solid var(--ln);flex:none}
+.ltabs button{padding:4px 9px;border-radius:7px;color:var(--tx2);font-size:12px;white-space:nowrap}
+.ltabs button:hover{color:var(--tx)}
+.ltabs button[aria-selected="true"]{background:rgba(255,255,255,.06);color:var(--tx)}
+.ltabs .n{font:500 11px var(--f-mono);color:var(--tx3);margin-left:4px}
+.ltabs .n.hot{color:var(--warn)}
+.lbody{overflow:auto;flex:1;min-height:0}
+.chap{padding:12px 12px 4px;font:500 11px var(--f-mono);letter-spacing:.1em;color:var(--tx3)}
+.srow{display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 10px;width:100%;border-left:2px solid transparent}
+.srow:hover{background:rgba(255,255,255,.035)}
+.srow.on{background:var(--cy-bg);border-left-color:var(--cy)}
+.srow img{width:56px;height:31px;border-radius:4px;display:block;background:var(--view)}
+.srow b{font-weight:500;font-size:12.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow small{color:var(--tx3);font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st{font-size:11px;padding:1px 6px;border-radius:5px;white-space:nowrap}
+.st.ok{background:var(--ok-bg);color:var(--ok)}
+.st.open{background:rgba(255,255,255,.05);color:var(--tx3)}
+.st.note{background:var(--warn-bg);color:var(--warn)}
+.st.ag{background:var(--ag-bg);color:var(--ag-tx)}
+.line{display:block;width:100%;padding:8px 12px;font-size:13px;line-height:1.6;border-left:2px solid transparent}
+.line:hover{background:rgba(255,255,255,.035)}
+.line span{font:11px var(--f-mono);color:var(--tx3);display:block}
+.line.on{background:var(--cy-bg);border-left-color:var(--cy)}
+.line.now span{color:var(--live)}
+.nitem{padding:10px 12px;border-bottom:1px solid var(--ln);display:grid;gap:6px}
+.nitem .tp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.nitem p{margin:0;font-size:12.5px}
+.hint{padding:9px 12px;font-size:11.5px;color:var(--tx3);border-bottom:1px solid var(--ln);line-height:1.55}
+.stage{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--view);position:relative}
+.hudrow{display:flex;align-items:center;gap:14px;padding:8px 16px;font:11px var(--f-mono);color:var(--tx3);letter-spacing:.04em;flex:none;flex-wrap:wrap}
+.hudrow b{color:var(--tx2);font-weight:500}
+.hudrow .rd{color:var(--cy)}
+.hudrow .sp{flex:1}
+.vbox{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 16px;position:relative}
+.viewer{position:relative;background:#000;border-radius:3px;overflow:hidden;touch-action:none}
+.viewer canvas{width:100%;height:100%;display:block}
+.viewer.cmp{cursor:ew-resize}
+.safe{position:absolute;inset:5%;border:1px dashed rgba(255,255,255,.28);pointer-events:none}
+.wl,.wr{position:absolute;bottom:8px;font:11px var(--f-mono);color:#eef2f8;background:var(--ov);padding:2px 7px;border-radius:5px;pointer-events:none}
+.wl{left:8px}.wr{right:8px}
+.trans{display:flex;align-items:center;gap:6px;margin:10px auto 12px;padding:5px 8px;border-radius:12px;background:rgba(14,19,30,.85);border:1px solid var(--ln2);flex:none;flex-wrap:wrap;justify-content:center}
+.ib{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:var(--tx)}
+.ib:hover{background:rgba(255,255,255,.07)}
+.tc{font:500 13px var(--f-mono);font-variant-numeric:tabular-nums;margin:0 8px}
+.tc small{color:var(--tx3);font-weight:400}
+.vsep{width:1px;height:18px;background:var(--ln2);margin:0 4px}
+.tog{font-size:12px;color:var(--tx2);padding:4px 9px;border-radius:7px;border:1px solid var(--ln);white-space:nowrap}
+.tog:hover{color:var(--tx)}
+.tog[aria-pressed="true"]{color:var(--cy);border-color:var(--cy-ln);background:var(--cy-bg)}
+.tl{grid-column:1/-1;border-top:1px solid var(--ln2);background:rgba(7,10,17,.88);position:relative}
+.tlbar{display:flex;align-items:center;gap:8px 10px;padding:7px 12px;border-bottom:1px solid var(--ln);flex-wrap:wrap}
+.tlbar .lbl{font-size:11.5px;color:var(--tx3)}
+.tlbar .sp{flex:1}
+.tlbody{display:grid;grid-template-columns:108px minmax(0,1fr)}
+.heads{border-right:1px solid var(--ln)}
+.heads>div{display:flex;align-items:center;padding:0 10px;font-size:11.5px;color:var(--tx2);border-bottom:1px solid var(--ln);white-space:nowrap}
+.heads>.g{font:500 11px var(--f-mono);letter-spacing:.12em;color:var(--tx3);cursor:pointer;gap:6px}
+.heads>.g:hover{color:var(--tx)}
+.tscroll{overflow-x:auto;overflow-y:hidden}
+.inner{position:relative;min-width:100%;touch-action:none;user-select:none;-webkit-user-select:none;cursor:crosshair}
+.ruler{height:24px;position:relative;border-bottom:1px solid var(--ln);cursor:ew-resize}
+.tick{position:absolute;top:0;bottom:0;border-left:1px solid var(--ln2)}
+.tick.minor{top:17px}
+.tick span{position:absolute;top:3px;left:4px;font:11px var(--f-mono);color:var(--tx3);white-space:nowrap}
+.rmk{position:absolute;top:14px;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;pointer-events:none}
+.lane{position:relative;border-bottom:1px solid var(--ln)}
+.lane.g{background:rgba(255,255,255,.015)}
+.blk{position:absolute;top:4px;bottom:4px;border-radius:5px;overflow:hidden;white-space:nowrap;font-size:11.5px;display:flex;align-items:center;gap:6px;padding:0 6px;border:1px solid var(--ln2);background:rgba(255,255,255,.035);color:var(--tx2)}
+.blk.shot{padding:0 6px 0 0;color:var(--tx);cursor:pointer;background:rgba(20,28,44,.9)}
+.blk.shot img{height:100%;aspect-ratio:16/9;display:block;border-right:1px solid var(--ln2);flex:none}
+.blk.shot.on,.blk.chap.on{border-color:var(--cy);box-shadow:inset 0 0 0 1px var(--cy),0 0 14px rgba(92,225,255,.25)}
+.blk.chap{cursor:pointer}
+.blk.chap.on{color:var(--cy)}
+.blk .sd{width:6px;height:6px;border-radius:50%;flex:none}
+.blk.narr{background:transparent;border-color:var(--ln);padding:0 5px;cursor:pointer;color:var(--tx2)}
+.blk.narr svg{position:absolute;inset:0;width:100%;height:100%;color:var(--cy)}
+.blk.narr span{position:relative}
+.blk.mus{background:transparent;border-style:dashed}
+.bartick{position:absolute;top:32%;bottom:32%;border-left:1px solid var(--ln2);pointer-events:none}
+.bartick.down{top:18%;bottom:18%}
+.sfx{position:absolute;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;transform:rotate(45deg);background:var(--tx2);border-radius:1px}
+.sfxl{position:absolute;top:50%;transform:translateY(-50%);margin-left:9px;font-size:11px;color:var(--tx3);white-space:nowrap}
+.mk{position:absolute;top:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font:600 11px var(--f-mono);cursor:pointer;z-index:2}
+.mk.note{background:var(--warn);color:#241500;box-shadow:0 0 10px rgba(255,181,71,.4)}
+.mk.note.done{background:var(--s4);color:var(--tx3);box-shadow:inset 0 0 0 1px var(--ln2)}
+.mk.check{background:var(--live);color:#fff;border-radius:4px;box-shadow:0 0 10px rgba(255,79,114,.45)}
+.mkspan{position:absolute;top:40%;bottom:40%;background:rgba(255,181,71,.16);border-left:2px solid var(--warn);border-right:2px solid var(--warn);pointer-events:none}
+.diff{position:absolute;top:5px;bottom:5px;border-radius:5px;background:var(--ag-bg);border:1px solid var(--ag-ln);color:var(--ag-tx);font-size:11px;padding:0 6px;display:flex;align-items:center;white-space:nowrap;overflow:hidden;pointer-events:none}
+.diff.run{background:repeating-linear-gradient(135deg,rgba(169,144,255,.22) 0 6px,transparent 6px 12px);box-shadow:0 0 14px rgba(169,144,255,.3)}
+.selov{position:absolute;top:24px;bottom:0;background:rgba(92,225,255,.08);border-left:1px solid var(--cy);border-right:1px solid var(--cy);pointer-events:none;z-index:1}
+.selov span{position:absolute;top:-1px;left:-1px;font:500 11px var(--f-mono);color:var(--on-cy);background:var(--cy);padding:0 6px;border-radius:0 0 5px 0;white-space:nowrap}
+.selpt{position:absolute;top:24px;bottom:0;border-left:1px dashed var(--cy);pointer-events:none;z-index:1}
+.phd{position:absolute;top:0;bottom:0;width:0;border-left:2px solid var(--live);pointer-events:none;z-index:5;margin-left:-1px;box-shadow:0 0 8px var(--live)}
+.phd::before{content:"";position:absolute;top:0;left:-7px;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--live)}
+
+.pick.sel{outline:1.5px dashed var(--cy-ln);outline-offset:3px}
+/* notes below the app */
+.notes{max-width:1040px;margin:44px auto 0;font-size:15px;line-height:1.7}
+.notes h2{font:600 18px/1.35 var(--f-hd);margin:34px 0 12px;text-wrap:balance}
+.notes h2:first-child{margin-top:0}
+.notes p{margin:0 0 10px;color:var(--tx2);max-width:70ch}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.flow div{padding:11px 12px;border-radius:10px;border:1px solid var(--ln2);background:rgba(16,23,38,.5)}
+.flow b{display:block;font:600 14px var(--f-hd)}
+.flow small{display:block;font:11px var(--f-mono);color:var(--cy);letter-spacing:.08em}
+.flow span{display:block;font-size:13px;color:var(--tx2);line-height:1.55;margin-top:3px}
+.rules{list-style:none;padding:0;margin:0}
+.rules li{display:grid;grid-template-columns:30px minmax(0,1fr);gap:12px;padding:12px 0;border-top:1px solid var(--ln)}
+.rules .num{width:22px;height:22px;border-radius:50%;background:var(--tx);color:var(--void);display:grid;place-items:center;font:600 12px var(--f-mono);margin-top:3px}
+.rules h3{margin:0 0 3px;font:600 15px var(--f-hd)}
+.rules p{margin:0;font-size:14px}
+.fine{font-size:13px;color:var(--tx3)}
+
+@media (max-width:1180px){
+  .app{display:flex;flex-direction:column;height:auto}
+  .top{display:flex;flex-wrap:wrap;padding:10px 12px;gap:10px}
+  .pipe{overflow-x:auto;max-width:100%;order:3;width:100%}
+  .tools{flex-wrap:wrap;justify-content:flex-start}
+  .rail{flex-direction:row;overflow-x:auto;justify-content:flex-start;padding:6px 8px;border-right:0;border-bottom:1px solid var(--ln)}
+  .rail button[aria-current="true"]::before{display:none}
+  .rail hr,.rail .grow{display:none}
+  .main{overflow:visible}
+  .agent{height:620px;border-left:0;border-top:1px solid var(--ln2)}
+  .mod.cut{display:flex;flex-direction:column;height:auto}
+  .clist{max-height:300px;order:3;border-right:0;border-top:1px solid var(--ln)}
+  .stage{min-height:340px}
+  .vbox{min-height:220px}
+  .inner{min-width:880px}
+  .cols,.sgrid,.idea-l,.anim{grid-template-columns:minmax(0,1fr)}
+  .meters{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:560px){.tlbody{grid-template-columns:84px minmax(0,1fr)}.mod{padding:16px 14px 24px}.gatebar{margin:16px -14px -24px;padding:12px 14px}.segc{grid-template-columns:minmax(0,1fr)}.segc .r{grid-row:auto;grid-column:auto}}
+@media (prefers-reduced-motion: reduce){.fresh,.orb.busy{animation:none}}
+</style>
+<div class="wrap">
+  <header class="pagehead">
+    <div>
+      <h1>OpenVideoHarness Studio</h1>
+      <p>原型 v2。从一句话开到交付，每一站一个模块；agent 一直在右边。</p>
+    </div>
+  </header>
+
+  <div class="app" id="app">
+    <div class="top">
+      <div class="brand">
+        <span class="mark">OVH</span>
+        <div class="crumb" id="crumb"></div>
+      </div>
+      <nav class="pipe" id="pipe" aria-label="流程"></nav>
+      <div class="tools">
+        <button class="btn ghost" id="cmdk">搜索或下指令 <span class="kbd">⌘K</span></button>
+        <span class="astat" id="astat"><i></i><span id="astatT">Claude Code · 空闲</span></span>
+      </div>
+    </div>
+    <nav class="rail" id="rail" aria-label="模块"></nav>
+    <main class="main" id="main"></main>
+    <aside class="agent" id="agent" aria-label="agent">
+      
+      <div class="ahead">
+        <div class="orb" id="orb"></div>
+        <div style="min-width:0"><b id="aname">Claude Code</b><small id="asub">本机 · 已登录 · 读写这个项目文件夹</small></div>
+        <select id="agentSel" aria-label="用哪个 agent"><option>Claude Code</option><option>Codex</option><option>Gemini CLI</option><option>OpenCode · DeepSeek</option></select>
+      </div>
+      <div class="athread" id="thread"></div>
+      <div class="round" id="round" hidden></div>
+      <div class="acomp">
+        
+        <div class="crow"><span class="k">对着</span><span class="chip cy" id="cscope"></span><button class="xs" id="toAll">换成整个模块</button></div>
+        <div class="crow"><div class="seg ag" id="amode"><button data-m="say" aria-pressed="true">说给 agent</button><button data-m="note" aria-pressed="false">记成点评</button></div><span class="xs" id="amodeHint">它会先给你一张计划卡</span></div>
+        <textarea id="ta" placeholder="对选中的部分说你的想法"></textarea>
+        <span class="err" id="taErr"></span>
+        <div class="crow"><div class="qk" id="qk"></div><button class="btn pri" id="sendBtn" style="margin-left:auto">发送</button></div>
+      </div>
+    </aside>
+    <div class="toast" id="toast" hidden></div>
+  </div>
+
+  <section class="notes">
+    <h2>一支片子在客户端里怎么走</h2>
+    <div class="flow">
+      <div><small>SPACE</small><b>空间</b><span>一个频道或品牌一个空间：共用的风格、音色、封面模板、选题库都放这里，新片子直接继承。</span></div>
+      <div><small>STEP 0</small><b>一句话</b><span>说想做什么；agent 填好类型、规格、档位、谁来拍板，最多问你三件事。</span></div>
+      <div><small>STATION 1</small><b>立意 → 大纲</b><span>先列素材里只属于它的东西，再给 2–3 张立意卡；选一张，再审大纲和 BRIEF。关卡 ①。</span></div>
+      <div><small>STATION 2</small><b>素材 → 分镜</b><span>素材带许可进库；分镜按段落分页，灰盒 animatic 先看节奏。关卡 ②。</span></div>
+      <div><small>STATION E</small><b>声音</b><span>试听几个音色、挑 take、拉近语速、配乐和混音，读数一直在。</span></div>
+      <div><small>STATION 3</small><b>成片 → 交付</b><span>时间轴上选中就说，agent 只重渲改过的段落；最后出母版、封面、各平台文案。关卡 ③。</span></div>
+    </div>
+
+    <h2>A + B 的规矩</h2>
+    <ol class="rules">
+      <li><span class="num">1</span><div><h3>模块栏和流程条</h3><p>左边的模块栏像 VS Code、Linear 的侧栏，按站排；顶上的流程条像 DaVinci Resolve 的页面条，亮灯说明每一站的状态：绿是过了，琥珀是在等你，紫是 agent 正在做。</p></div></li>
+      <li><span class="num">2</span><div><h3>玻璃只给外壳和浮层</h3><p>顶栏、模块栏、agent 栏、浮在画面下的播放条是磨砂玻璃，背后是深空色晕和细网格；时间轴、清单、表格是实底，小字才读得清。</p></div></li>
+      <li><span class="num">3</span><div><h3>画面四周是中性灰</h3><p>成片和分镜的画面周围不放色晕和玻璃，和调色软件一样，免得界面颜色影响人对画面颜色的判断。</p></div></li>
+      <li><span class="num">4</span><div><h3>读数用等宽字</h3><p>时间码、帧率、响度、语速、音高都是 HUD 式的等宽读数；关键面板的两个对角有青色括角，只用在画面和要你定的卡上。</p></div></li>
+      <li><span class="num">5</span><div><h3>颜色只说"是谁"</h3><p>青色是你选中和标记的，紫色是 agent 做的，红色是正在发生的（播放头、出错），琥珀是在等你的。其余全是灰。</p></div></li>
+    </ol>
+    <p class="fine">原型里所有模块用同一支编出来的 60 s 示例片；数字、点评、检查结果和 agent 的回复都是示例，按钮的效果是模拟的。</p>
+  </section>
+</div>
+<script>
+const DUR=60,FPS=30;
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const fmt=x=>{x=Math.max(0,x);const m=Math.floor(x/60),s=x-m*60;return m+":"+(s<10?"0":"")+s.toFixed(1)};
+const tcode=x=>{const f=Math.round(clamp(x,0,DUR)*FPS),m=Math.floor(f/(60*FPS)),s=Math.floor(f/FPS)%60,ff=f%FPS;return "00:"+[m,s,ff].map(n=>String(n).padStart(2,"0")).join(":")};
+const hash=i=>{const x=Math.sin(i*127.1+311.7)*43758.5453;return x-Math.floor(x)};
+const CN=["一","二","三"];
+const FONT='"PingFang SC","Hiragino Sans GB","Noto Sans SC","Microsoft YaHei",sans-serif';
+
+const I={
+ home:'<path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/>',
+ plus:'<path d="M12 5v14M5 12h14"/>',
+ spark:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/>',
+ list:'<path d="M9 6h12M9 12h12M9 18h12"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>',
+ frames:'<rect x="3" y="4" width="8" height="7" rx="1.5"/><rect x="13" y="4" width="8" height="7" rx="1.5"/><rect x="3" y="13" width="8" height="7" rx="1.5"/><rect x="13" y="13" width="8" height="7" rx="1.5"/>',
+ wave:'<path d="M3 12h1M7 8v8M11 4v16M15 7v10M19 10v4M21 12h0"/>',
+ film:'<rect x="3" y="3" width="18" height="18" rx="2.5"/><path d="M7.5 3v18M16.5 3v18M3 8h4.5M3 16h4.5M16.5 8H21M16.5 16H21"/>',
+ box:'<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
+ folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+ book:'<path d="M5 4h9a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4z"/><path d="M9 9h5M9 13h5"/>',
+ pin:'<circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="7.5"/>'};
+const icon=(n,s=20)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]}</svg>`;
+const FI={
+ play:'<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>',
+ pause:'<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" fill="currentColor"/></svg>',
+ back:'<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M12 3 6 8l6 5z" fill="currentColor"/><path d="M3.5 3h1.6v10H3.5z" fill="currentColor"/></svg>',
+ fwd:'<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 3l6 5-6 5z" fill="currentColor"/><path d="M10.9 3h1.6v10h-1.6z" fill="currentColor"/></svg>'};
+
+/* ---------- the sample film ---------- */
+const chapters=[{name:"为什么满出来",s:0,e:27},{name:"一层看不见的膜",s:27,e:60}];
+const shots=[
+ {id:"S01",name:"一杯水",s:0,e:7,reads:["一杯满到边的水"],st:"ok",tr:"淡入"},
+ {id:"S02",name:"贴近杯口",s:7,e:16,reads:["镜头推近杯口","水面高出杯口"],st:"ok",tr:"推近"},
+ {id:"S03",name:"手拉着手",s:16,e:27,reads:["水分子彼此拉住","表面那层被往里拉"],st:"open",tr:"叠化"},
+ {id:"S04",name:"硬币",s:27,e:38,reads:["一枚硬币浮在水上","水面被压出一个窝"],st:"open",tr:"硬切在「啵」上",unsure:"硬币落水的速度拿不准"},
+ {id:"S05",name:"再加一滴",s:38,e:50,reads:["一滴水落下","水漫出杯口"],st:"open",tr:"硬切"},
+ {id:"S06",name:"收尾",s:50,e:60,reads:["这就是表面张力"],st:"open",tr:"淡出"}];
+const narr=[[0.6,6.2,"倒满一杯水，再小心一点"],[7.4,15.4,"水面其实能高出杯口一点点"],[16.5,26.2,"因为水分子彼此拉着手"],[27.4,37.2,"所以一枚硬币也能浮在上面"],[38.6,49.0,"直到再加一滴"],[50.5,58.0,"这就是表面张力"]];
+const music=[{s:0,e:27,name:"A 段 · 钢琴"},{s:27,e:50,name:"B 段 · 加弦乐"},{s:50,e:60,name:"尾声"}];
+const sfx=[[7.0,"嗖"],[16.2,"叮"],[27.3,"啵"],[44.0,"滴"],[45.2,"哗"]];
+const checks=[
+ {t:14.2,lv:"warn",x:"字幕「水面其实能高出杯口一点点」只停 1.1 s，至少要 1.6 s"},
+ {t:33.0,lv:"warn",x:"白字压在亮水面上，对比度 2.1 : 1"},
+ {t:null,lv:"ok",x:"响度 −14.1 LUFS，真峰值 −1.2 dBTP"},
+ {t:null,lv:"ok",x:"安全框、字号、闪白、数字静音：都过"}];
+let notes=[
+ {id:1,sel:{k:"moment",t:9.4},x:"字幕出得太早，等推近停了再出",st:"done",ver:3},
+ {id:2,sel:{k:"shot",i:3},x:"这层膜太抽象了，换成一枚硬币浮在水上",st:"done",ver:3},
+ {id:3,sel:{k:"shot",i:5},x:"结尾停太久，3 秒就够",st:"open"},
+ {id:4,sel:{k:"range",a:16.5,b:26.2},x:"这段音乐有点抢旁白",st:"open"}];
+const versions=[{v:1,note:"初版"},{v:2,note:"S03 换了动作",changed:[[16,27]]},{v:3,note:"S02 字幕延后，S04 换成硬币",changed:[[7,16],[27,38]]}];
+const jobs=[];
+
+const PAL={bg:"#0d1721",ink:"#f4f0e6",glass:"#d3e4f3",water:"rgba(72,148,212,.55)",edge:"#93c8f0",coin:"#d8b15b",coinE:"#8f6d22",mol:"#9ccdf3",link:"rgba(156,205,243,.45)",arrow:"#f2c53d"};
+const GREY={bg:"#1c1e22",ink:"#d8dade",glass:"#8b9099",water:"rgba(150,156,166,.28)",edge:"#a7adb6",coin:"#b4b8bf",coinE:"#71757c",mol:"#a7adb6",link:"rgba(167,173,182,.4)",arrow:"#c9ccd1"};
+const ease=x=>{x=clamp(x,0,1);return x*x*(3-2*x)};
+function shotIdx(x){for(let i=0;i<shots.length;i++)if(x<shots[i].e)return i;return shots.length-1}
+function capStart(n,ver){return (n===1&&ver>=3)?9.2:narr[n][0]}
+function drawFrame(c,w,h,x,ver,grey,noCap){
+  const P=grey?GREY:PAL,u=h/180,i=shotIdx(x);
+  c.save();c.fillStyle=P.bg;c.fillRect(0,0,w,h);
+  if(i===0||i===1||i===4)glass(c,w,h,u,x,i,P);
+  else if(i===2)molecules(c,w,h,u,x,P);
+  else if(i===3){if(ver>=3)coin(c,w,h,u,x,P);else membrane(c,w,h,u,x,P)}
+  else title(c,w,h,u,x,P);
+  if(!noCap)caption(c,w,h,u,x,ver,P);
+  c.restore();
+}
+function glass(c,w,h,u,x,i,P){
+  let k=1,ry=h*.3;
+  if(i===1){const z=ease((x-7)/2.2);k=1+1.4*z;ry=h*(.3+.22*z)}
+  c.save();c.translate(w/2,ry);c.scale(k,k);
+  const H=100*u,half=y=>34*u-6*u*y/H;
+  const L=i===0?2*u+78*u*(1-ease((x-.6)/5.2)):0;
+  const bul=i===0?5*u*ease((x-5.2)/1.6):(i===4&&x>44?7*u:5*u);
+  const top=()=>{if(L>2.5*u){c.moveTo(-half(L),L);c.lineTo(half(L),L)}else{c.moveTo(-half(0),0);c.quadraticCurveTo(0,-2*bul,half(0),0)}};
+  c.beginPath();top();c.lineTo(half(H),H);c.lineTo(-half(H),H);c.closePath();c.fillStyle=P.water;c.fill();
+  c.beginPath();top();c.strokeStyle=P.edge;c.lineWidth=1.4*u/k;c.stroke();
+  c.beginPath();c.moveTo(-34*u,-2*u);c.lineTo(-28*u,H);c.lineTo(28*u,H);c.lineTo(34*u,-2*u);
+  c.strokeStyle=P.glass;c.lineWidth=1.8*u/k;c.lineJoin="round";c.stroke();
+  c.beginPath();c.moveTo(-28*u,H+1.5*u);c.lineTo(28*u,H+1.5*u);c.lineWidth=3*u/k;c.stroke();
+  if(i===4){
+    if(x>42.6&&x<44){const y=-70*u+70*u*ease((x-42.6)/1.4)-bul;c.beginPath();c.arc(0,y,2.6*u,0,Math.PI*2);c.fillStyle=P.edge;c.fill()}
+    if(x>=44&&x<46){const r=(x-44)*22*u;c.save();c.globalAlpha=Math.max(0,1-(x-44)/2);c.beginPath();c.ellipse(0,-bul*.6,r,r*.18,0,0,Math.PI*2);c.strokeStyle=P.edge;c.lineWidth=u;c.stroke();c.restore()}
+    if(x>44.6){const s=Math.min(H,(x-44.6)*36*u);c.strokeStyle=P.edge;c.lineWidth=2.2*u;c.lineCap="round";
+      for(const sg of [-1,1]){c.beginPath();c.moveTo(sg*34*u,-u);c.quadraticCurveTo(sg*38*u,s*.3,sg*(31*u+s*.04),s);c.stroke()}
+      if(s>=H){c.beginPath();c.ellipse(0,H+3*u,46*u,3*u,0,0,Math.PI*2);c.fillStyle=P.water;c.fill()}}
+  }
+  c.restore();
+}
+function molecules(c,w,h,u,x,P){
+  const cols=9,rows=4,gx=w*.08,gy=16*u,ox=w/2-(cols-1)*gx/2,oy=h*.32;
+  c.save();c.setLineDash([4*u,3*u]);c.strokeStyle=P.edge;c.globalAlpha=.6;c.lineWidth=u;c.beginPath();c.moveTo(w*.08,oy-9*u);c.lineTo(w*.92,oy-9*u);c.stroke();c.restore();
+  const pts=[];
+  for(let r=0;r<rows;r++)for(let q=0;q<cols;q++){const ph=q*1.3+r*2.1;pts.push([ox+q*gx+Math.sin(x*1.6+ph)*1.6*u,oy+r*gy+Math.cos(x*1.3+ph)*1.4*u])}
+  c.strokeStyle=P.link;c.lineWidth=1.2*u;
+  for(let r=0;r<rows;r++)for(let q=0;q<cols;q++){const a=pts[r*cols+q];
+    if(q<cols-1){const b=pts[r*cols+q+1];c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.stroke()}
+    if(r<rows-1){const b=pts[(r+1)*cols+q];c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.stroke()}}
+  for(const p of pts){c.beginPath();c.arc(p[0],p[1],4.2*u,0,Math.PI*2);c.fillStyle=P.mol;c.fill()}
+  const a=ease((x-19)/1.5);
+  if(a>0){c.save();c.globalAlpha=a;c.strokeStyle=P.arrow;c.fillStyle=P.arrow;c.lineWidth=1.6*u;
+    for(let q=1;q<cols;q+=2){const p=pts[q],y1=p[1]+13*u;c.beginPath();c.moveTo(p[0],p[1]+5.5*u);c.lineTo(p[0],y1);c.stroke();
+      c.beginPath();c.moveTo(p[0]-2.6*u,y1-3*u);c.lineTo(p[0]+2.6*u,y1-3*u);c.lineTo(p[0],y1+u);c.closePath();c.fill()}
+    c.restore()}
+}
+function surfaceY(xp,w,u,base,dip){const d=(xp-w/2)/(46*u);return base+dip*Math.exp(-d*d)}
+function coin(c,w,h,u,x,P){
+  const base=h*.5,dip=7*u*ease((x-28)/1.2),st=w/80;
+  c.beginPath();c.moveTo(0,h);for(let xp=0;xp<=w+.5;xp+=st)c.lineTo(xp,surfaceY(xp,w,u,base,dip));c.lineTo(w,h);c.closePath();c.fillStyle=P.water;c.fill();
+  c.beginPath();for(let xp=0;xp<=w+.5;xp+=st){const y=surfaceY(xp,w,u,base,dip);if(xp===0)c.moveTo(xp,y);else c.lineTo(xp,y)}c.strokeStyle=P.edge;c.lineWidth=1.6*u;c.stroke();
+  const cy=-20*u+(base+dip-3*u+20*u)*ease((x-27)/1.2);
+  c.beginPath();c.ellipse(w/2,cy+2.2*u,30*u,6*u,0,0,Math.PI*2);c.fillStyle=P.coinE;c.fill();
+  c.beginPath();c.ellipse(w/2,cy,30*u,6*u,0,0,Math.PI*2);c.fillStyle=P.coin;c.fill();
+}
+function membrane(c,w,h,u,x,P){
+  const base=h*.5,sw=ease((x-27.5)/2);
+  c.fillStyle=P.water;c.fillRect(0,base,w,h-base);c.strokeStyle=P.edge;c.lineWidth=u;
+  for(let k=0;k<6;k++){c.save();c.globalAlpha=.25+.12*k;c.beginPath();
+    for(let xp=0;xp<=w+.5;xp+=w/60){const y=base-k*3*u*sw+Math.sin(xp/(18*u)+x*1.2+k)*1.2*u;if(xp===0)c.moveTo(xp,y);else c.lineTo(xp,y)}
+    c.stroke();c.restore()}
+}
+function title(c,w,h,u,x,P){
+  const a=ease((x-50.4)/1.2);c.save();c.globalAlpha=a;c.textAlign="center";c.textBaseline="middle";
+  c.fillStyle=P.ink;c.font=`600 ${28*u}px ${FONT}`;c.fillText("表面张力",w/2,h*.44);
+  c.fillStyle=P.edge;c.font=`400 ${9*u}px ${FONT}`;c.fillText("日常里的物理",w/2,h*.44+25*u);c.restore();
+}
+function caption(c,w,h,u,x,ver,P){
+  if(shotIdx(x)===5)return;
+  for(let n=0;n<narr.length;n++)if(x>=capStart(n,ver)&&x<narr[n][1]+.4){
+    c.font=`500 ${10*u}px ${FONT}`;c.textAlign="center";c.textBaseline="alphabetic";c.fillStyle=P.ink;c.fillText(narr[n][2],w/2,h-14*u);return}
+}
+
+/* ---------- other pictures: project thumbs, assets, covers ---------- */
+function strider(c,w,h){const u=h/180;c.fillStyle="#0c1a22";c.fillRect(0,0,w,h);const g=c.createLinearGradient(0,h*.45,0,h);g.addColorStop(0,"#1d4f66");g.addColorStop(1,"#0b2230");c.fillStyle=g;c.fillRect(0,h*.45,w,h);
+  c.strokeStyle="#cfe9f5";c.lineWidth=1.6*u;c.lineCap="round";const cx=w/2,cy=h*.5;c.beginPath();c.ellipse(cx,cy-3*u,12*u,3.5*u,0,0,Math.PI*2);c.fillStyle="#2c2a24";c.fill();
+  for(const [dx,dy] of [[-1,-1],[1,-1],[-1,1],[1,1],[-1.3,0],[1.3,0]]){c.beginPath();c.moveTo(cx+dx*8*u,cy-3*u);c.quadraticCurveTo(cx+dx*30*u,cy-12*u*Math.abs(dy||.6),cx+dx*52*u,cy+dy*10*u);c.stroke();
+    c.save();c.globalAlpha=.5;c.beginPath();c.ellipse(cx+dx*52*u,cy+dy*10*u+1*u,7*u,1.6*u,0,0,Math.PI*2);c.stroke();c.restore()}}
+function satellite(c,w,h){const u=h/180;c.fillStyle="#05070f";c.fillRect(0,0,w,h);for(let i=0;i<60;i++){c.fillStyle=`rgba(255,255,255,${.25+.6*hash(i)})`;c.fillRect(hash(i+7)*w,hash(i+31)*h*.7,1.2,1.2)}
+  const g=c.createRadialGradient(w*.5,h*1.9,h*.2,w*.5,h*1.9,h*1.35);g.addColorStop(0,"#2c79c9");g.addColorStop(.92,"#173c6e");g.addColorStop(1,"rgba(80,170,255,.0)");c.fillStyle=g;c.beginPath();c.arc(w*.5,h*1.9,h*1.3,0,Math.PI*2);c.fill();
+  c.strokeStyle="rgba(140,200,255,.5)";c.setLineDash([4*u,4*u]);c.lineWidth=u;c.beginPath();c.ellipse(w*.5,h*.95,w*.42,h*.38,0,Math.PI,Math.PI*2);c.stroke();c.setLineDash([]);
+  c.fillStyle="#e8eef8";c.fillRect(w*.72-5*u,h*.62-3*u,10*u,6*u);c.fillStyle="#3a6fb8";c.fillRect(w*.72-19*u,h*.62-2*u,12*u,4*u);c.fillRect(w*.72+7*u,h*.62-2*u,12*u,4*u)}
+function sky(c,w,h){const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,"#1f5fae");g.addColorStop(.62,"#7fb2e0");g.addColorStop(1,"#f0b27a");c.fillStyle=g;c.fillRect(0,0,w,h);
+  c.fillStyle="rgba(255,240,210,.95)";c.beginPath();c.arc(w*.7,h*.72,h*.09,0,Math.PI*2);c.fill();c.fillStyle="#1a2433";c.fillRect(0,h*.84,w,h*.16)}
+function ice(c,w,h){const u=h/180;c.fillStyle="#0b1520";c.fillRect(0,0,w,h);c.fillStyle="rgba(72,148,212,.55)";c.fillRect(0,h*.5,w,h*.5);
+  c.save();c.translate(w/2,h*.5);c.rotate(-.12);c.fillStyle="rgba(220,240,255,.85)";c.fillRect(-28*u,-18*u,56*u,40*u);c.fillStyle="rgba(150,200,240,.5)";c.fillRect(-28*u,6*u,56*u,16*u);c.restore();
+  c.strokeStyle="#93c8f0";c.lineWidth=1.4*u;c.beginPath();c.moveTo(0,h*.5);c.lineTo(w,h*.5);c.stroke()}
+function waveArt(c,w,h,seed,col){c.fillStyle="#0a0f18";c.fillRect(0,0,w,h);c.fillStyle=col||"#5ce1ff";const n=46;for(let i=0;i<n;i++){const a=.15+.85*hash(seed*13+i)*(.5+.5*Math.sin(i/4));const bh=a*h*.6;c.globalAlpha=.85;c.fillRect(i*(w/n)+1,h/2-bh/2,w/n-2,bh)}c.globalAlpha=1}
+function fontArt(c,w,h){c.fillStyle="#0e1320";c.fillRect(0,0,w,h);c.fillStyle="#e6ecf6";c.textAlign="center";c.textBaseline="middle";c.font=`600 ${h*.26}px ${FONT}`;c.fillText("表面张力",w/2,h*.46);c.fillStyle="#637089";c.font=`400 ${h*.08}px ${FONT}`;c.fillText("思源黑体 Heavy · SIL OFL",w/2,h*.74)}
+function splash(c,w,h){c.fillStyle="#08121b";c.fillRect(0,0,w,h);c.strokeStyle="#93c8f0";for(let k=1;k<6;k++){c.globalAlpha=1-k*.16;c.lineWidth=1.5;c.beginPath();c.ellipse(w/2,h*.62,k*w*.08,k*h*.035,0,0,Math.PI*2);c.stroke()}c.globalAlpha=1;c.fillStyle="#cfe9f5";c.beginPath();c.arc(w/2,h*.35,h*.04,0,Math.PI*2);c.fill()}
+function refArt(c,w,h){c.fillStyle="#f2f0ea";c.fillRect(0,0,w,h);c.fillStyle="#d8d4ca";c.fillRect(w*.08,h*.1,w*.5,h*.8);c.fillStyle="#2b2b2b";c.font=`500 ${h*.07}px ${FONT}`;c.fillText("球棍模型 + 白大褂",w*.62,h*.3);c.strokeStyle="#c0392b";c.lineWidth=3;c.beginPath();c.moveTo(w*.06,h*.08);c.lineTo(w*.94,h*.92);c.moveTo(w*.94,h*.08);c.lineTo(w*.06,h*.92);c.stroke()}
+function cover(c,w,h,tall){drawFrame(c,w,h,32.5,3,false,true);const g=c.createLinearGradient(0,0,0,h);g.addColorStop(0,"rgba(4,8,14,.0)");g.addColorStop(tall?.45:.2,"rgba(4,8,14,.0)");g.addColorStop(1,"rgba(4,8,14,.88)");c.fillStyle=g;c.fillRect(0,0,w,h);
+  c.fillStyle="#fff7e0";c.textAlign="left";c.textBaseline="alphabetic";const fs=tall?w*.15:h*.15;c.font=`800 ${fs}px ${FONT}`;const x0=w*.07;
+  if(tall){c.fillText("满满一杯水",x0,h*.74);c.fillText("还能再加",x0,h*.74+fs*1.1);c.fillStyle="#5ce1ff";c.fillText("几滴？",x0,h*.74+fs*2.2)}
+  else{c.fillText("满满一杯水",x0,h*.66);c.fillStyle="#5ce1ff";c.fillText("还能再加几滴？",x0,h*.66+fs*1.12)}}
+const PAINT={water:(c,w,h)=>drawFrame(c,w,h,45.6,3,false,true),coinf:(c,w,h)=>drawFrame(c,w,h,32.5,3,false,true),mol:(c,w,h)=>drawFrame(c,w,h,22,3,false,true),glass:(c,w,h)=>drawFrame(c,w,h,3.6,3,false,true),
+ sat:satellite,sky,ice,strider,font:fontArt,splash,ref:refArt,wave1:(c,w,h)=>waveArt(c,w,h,3),wave2:(c,w,h)=>waveArt(c,w,h,9,"#a990ff")};
+function paintAll(root){(root||document).querySelectorAll("canvas[data-paint]").forEach(cv=>{const r=cv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1);const W=Math.max(2,Math.round((r.width||160)*d)),H=Math.max(2,Math.round((r.height||90)*d));cv.width=W;cv.height=H;const k=cv.dataset.paint;const c=cv.getContext("2d");
+  if(k.startsWith("frame:")){const [,t,g]=k.split(":");drawFrame(c,W,H,+t,3,g==="g",true)}else if(k==="cover916")cover(c,W,H,true);else if(k==="cover43")cover(c,W,H,false);else if(PAINT[k])PAINT[k](c,W,H)})}
+
+/* ---------- app state ---------- */
+const MODS=[
+ {id:"home",n:"空间",ic:"home",g:0},{id:"new",n:"新建",ic:"plus",g:0},
+ {id:"idea",n:"立意",ic:"spark",g:1},{id:"outline",n:"大纲",ic:"list",g:1},{id:"board",n:"分镜",ic:"frames",g:1},
+ {id:"sound",n:"声音",ic:"wave",g:1},{id:"cut",n:"成片",ic:"film",g:1},{id:"ship",n:"交付",ic:"box",g:1},
+ {id:"assets",n:"素材",ic:"folder",g:2},{id:"ledger",n:"账本",ic:"book",g:2}];
+const PIPE=[["idea","立意","①"],["outline","大纲","①"],["board","分镜","②"],["sound","声音","E"],["cut","成片","③"],["ship","交付",""]];
+const S={mod:"cut",agent:"Claude Code",amode:"say",ctx:{},busy:false,
+ st:{idea:"done",outline:"done",board:"done",sound:"done",cut:"wait",ship:"todo"},
+ vals:{eff:"standard",watch:"desktop",len:"60",af:"all",page:"0","dm-concept":"own","dm-outline":"review","dm-board":"review","dm-style":"delegate","dm-hook":"delegate","dm-voice":"delegate","dm-pack":"delegate",voice:"Charon",plat:"bili"},
+ sentence:"做一支一分钟的科普，讲一杯水为什么能高出杯口还不洒",ideaPick:"A",ideaLoading:false,extraCards:[],fresh:null,pending:{cut:0,board:0,outline:0}};
+const EFF={quick:"一口气做完：不设关卡，自查一遍就交",standard:"三道关卡，加一轮独立评审（默认）",studio:"多轮打磨和评审，每一站都在审阅台停"};
+const DM=[["concept","立意"],["outline","大纲"],["board","分镜"],["style","风格"],["hook","钩子"],["voice","配音"],["pack","标题和封面"]];
+const seg=(key,opts)=>`<div class="seg" data-seg="${key}">${opts.map(([v,n])=>`<button data-v="${v}" aria-pressed="${S.vals[key]===v}">${n}</button>`).join("")}</div>`;
+const pk=(grp,cid,label)=>`data-grp="${grp}" data-cid="${cid}" data-ctx="${esc(label)}"${S.ctx[S.mod]&&S.ctx[S.mod].grp===grp&&S.ctx[S.mod].cid===String(cid)?' data-on="1"':""}`;
+
+/* ---------- home ---------- */
+function vHome(){
+ const spaces=[["科普频道","16:9 · B站和 YouTube",["深色实验室风格","沉稳男声","封面模板 2 套","选题库 12 条"],4,true],["产品发布","16:9 和 9:16 · 官网和社媒",["品牌色和字体","明快女声","片尾模板"],2],["个人实验","不限",["没有共用设置"],3]];
+ const pj=[["coinf","一杯水为什么不满出来","成片 · 等你看","var(--warn)","1:00 · standard","刚刚","cut"],["sat","卫星为什么不掉下来","分镜 · agent 在画","var(--ag)","2:30 · studio","12 分钟前","board"],["sky","天空为什么是蓝的","已交付","var(--ok)","1:45 · standard","10 月 12 日","ship"],["ice","冰为什么浮在水上","立意 · 等你选卡","var(--warn)","0:45 · quick","昨天","idea"]];
+ const ideas=[["肥皂泡为什么是彩色的","上周存的"],["猫为什么总能脚着地","评论区有人问"],["手机为什么会发烫","选题库"]];
+ return `<section class="mod">
+ <div class="hero glass hud"><div class="eyebrow">New <b>·</b> 从一句话开始</div><h2>你想做一支什么样的片子？</h2>
+  <textarea id="oneLine" aria-label="一句话">${esc(S.sentence)}</textarea>
+  <div class="hero-row"><span class="chip mute">放进 · 科普频道</span><button class="btn ghost">附上材料</button><span class="xs">也可以把文件拖进来、贴链接</span><span class="sp"></span><button class="btn pri big" data-act="goNew">开始</button></div>
+  <div class="ex"><span class="xs">试试</span><button data-fill="把这篇论文做成 3 分钟的讲解，发 B 站">把一篇论文做成 3 分钟讲解</button><button data-fill="给新功能做一支 30 秒的发布片，横竖两版">给新功能做 30 秒发布片</button><button data-fill="把我这段 10 分钟的口播剪成 1 分钟竖屏">把口播剪成竖屏</button></div>
+ </div>
+ <div class="sec"><h3>空间</h3><span class="xs">一个频道或品牌一个空间，风格、音色、封面模板和选题库共用</span></div>
+ <div class="grid3">${spaces.map(s=>`<div class="panel space pick${s[4]?" on":""}"><div style="display:flex;align-items:center;gap:8px"><b>${s[0]}</b><span class="xs" style="margin-left:auto">${s[3]} 支片子</span></div><span class="xs">${s[1]}</span><div class="tags">${s[2].map(x=>`<span class="chip mute">${x}</span>`).join("")}</div></div>`).join("")}</div>
+ <div class="sec"><h3>科普频道 · 4 支片子</h3><span class="xs">琥珀色是在等你，紫色是 agent 正在做</span></div>
+ <div class="grid4">${pj.map(p=>`<button class="panel proj pick" data-nav="${p[6]}"><canvas data-paint="${p[0]}"></canvas><div class="b"><b>${p[1]}</b><div class="row"><span class="dot2" style="background:${p[3]};box-shadow:0 0 8px ${p[3]}"></span><span class="xs" style="color:var(--tx2)">${p[2]}</span></div><div class="row"><span class="chip mute">${p[4]}</span><span class="xs">${p[5]}</span></div></div></button>`).join("")}</div>
+ <div class="sec"><h3>选题库</h3><span class="xs">存着的点子，点一下就拿它开一支</span></div>
+ <div class="panel">${ideas.map(i=>`<div class="idea-row"><span>${i[0]}</span><span class="xs">${i[1]}</span><button class="btn" data-fill="做一支一分钟的科普，讲${i[0]}">用它开一支</button></div>`).join("")}</div>
+ </section>`;
+}
+
+/* ---------- new: one sentence → a plan ---------- */
+function vNew(){
+ return `<section class="mod">
+ <div class="mhead"><div><div class="eyebrow">Step 0 <b>·</b> 方案</div><h2>一句话变成一份方案</h2><p>agent 照你的话先填好了。哪项不对就改；改完点"建项目"，它开始想立意。</p></div></div>
+ <div class="cols"><div class="stack">
+  <div class="panel ph"><h3>你说的</h3><textarea id="sent" style="width:100%;height:58px" aria-label="一句话">${esc(S.sentence)}</textarea></div>
+  <div class="panel ph"><h3>方案 <span class="xs">都能改</span></h3><div class="kv">
+   <span>类型</span><div><select aria-label="类型"><option>知识科普短视频</option><option>数学、物理的原理讲解</option><option>论文讲解</option><option>数据故事</option><option>手绘短片</option></select> <span class="xs">照 video-types/02 做</span></div>
+   <span>在哪看</span><div>${seg("watch",[["desktop","B站 · 电脑横屏"],["phone","抖音 · 手机竖屏"],["feed","信息流"]])}</div>
+   <span>规格</span><div class="mono" style="font-size:12.5px">${S.vals.watch==="phone"?"9:16 · 1080×1920":"16:9 · 1920×1080"} · 30 fps · 字号下限 ${S.vals.watch==="phone"?"42":"36"} px</div>
+   <span>时长</span><div>${seg("len",[["30","0:30"],["60","1:00"],["120","2:00"],["180","3:00"]])}</div>
+   <span>档位</span><div>${seg("eff",[["quick","quick"],["standard","standard"],["studio","studio"]])}<div class="xs" style="margin-top:5px">${EFF[S.vals.eff]}</div></div>
+  </div></div>
+  <div class="panel ph"><h3>谁来拍板</h3><p class="xs" style="margin:-4px 0 12px">你定：停下来等你选。给你看：放进下一页，你不说话就算过。交给 agent：它定，记进账本，你随时能翻案。</p>
+   <div class="dm">${DM.map(([k,n])=>`<span>${n}</span><div>${seg("dm-"+k,[["own","你定"],["review","给你看"],["delegate","交给 agent"]])}</div>`).join("")}</div></div>
+ </div><div class="stack">
+  <div class="panel ph hud"><h3>开工前想问你的 <span class="xs">最多三件</span></h3>
+   <div class="q"><span>1. 要不要实拍的镜头？</span><div class="opts"><button class="opt" data-act="q" aria-pressed="true"><span>全用代码画</span><small>最快，风格统一</small><em>推荐</em></button><button class="opt" data-act="q" aria-pressed="false"><span>加两三个实拍</span><small>你自己拍，或者用 CC0 的</small></button></div></div>
+   <div class="q"><span>2. 结尾要不要引到下一期？</span><div class="opts"><button class="opt" data-act="q" aria-pressed="false"><span>不要</span><small>讲完就停</small></button><button class="opt" data-act="q" aria-pressed="false"><span>要</span><small>下一期讲肥皂泡</small></button></div></div>
+  </div>
+  <div class="panel ph"><h3>估计</h3><div class="kv"><span>引擎</span><div>canvas-film，旁白驱动的画布引擎</div><span>配音</span><div>Gemini，一条整稿；用空间的默认音色</div><span>花多久</span><div class="mono">agent 约 40 分钟 · 你看 3 次</div></div></div>
+  <div class="panel ph"><h3>对应的命令</h3><p class="xs" style="margin:-4px 0 8px">客户端做的每一步都是一条 CLI 命令；不开客户端，agent 照样能做完</p><div class="cmd">bin/vh new short water-meniscus --engine canvas-film --effort ${S.vals.eff} --watch ${S.vals.watch} --lang zh</div></div>
+  <button class="btn pri big" data-act="create" style="justify-content:center">建项目，开始想立意</button>
+ </div></div></section>`;
+}
+
+/* ---------- idea ---------- */
+const CARDS=[
+ {lt:"A",t:"一杯水还能再加几滴",idea:"从倒满开始一路往上加，直到溢出；硬币是中间的悬念。",vis:"同一只杯子贯穿全片，镜头越贴越近",hook:"一杯已经满了的水，还能再加几滴？",style:["深色实验室","冷蓝水色"],rec:true,paint:"water"},
+ {lt:"B",t:"硬币为什么不沉",idea:"开场就是浮着的硬币，倒过来讲为什么。",vis:"从微距特写拉开，最后才露出整杯水",hook:"这枚硬币为什么沉不下去？",style:["微距","暖光"],paint:"coinf"},
+ {lt:"C",t:"水上的虫子",idea:"从水黾在水面上走讲起，最后落回一杯水。",vis:"实拍的水黾，接代码画的分子",hook:"它凭什么能在水上走？",style:["自然纪录","实拍混画"],paint:"strider"}];
+function card(c){const on=S.ideaPick===c.lt;
+ return `<div class="panel cc pick${on?" on":""}${S.fresh===c.lt?" fresh":""}" ${pk("cc",c.lt,"立意卡 "+c.lt+" · "+c.t)}><canvas data-paint="${c.paint}"></canvas><div class="b">
+  <div class="ttl"><span class="lt">${c.lt}</span><b>${esc(c.t)}</b>${c.rec?'<span class="chip warn">推荐</span>':""}${on?'<span class="chip ok">你选的</span>':""}</div>
+  <dl><dt>立意</dt><dd>${esc(c.idea)}</dd><dt>画面</dt><dd>${esc(c.vis)}</dd><dt>钩子</dt><dd>${esc(c.hook)}</dd><dt>风格</dt><dd>${c.style.map(s=>`<span class="chip mute">${s}</span>`).join(" ")}</dd></dl>
+  <div class="acts"><button class="btn${on?"":" pri"}" data-act="pickCard" data-v="${c.lt}">${on?"已选":"选这张"}</button><button class="btn ghost" data-act="likeCard" data-v="${c.lt}">再想一张像它的</button></div></div></div>`}
+function vIdea(){
+ const inv=[["只属于它的数字",[["约 72 mN/m","25 °C 时水的表面张力"],["一角铝硬币","能浮在水面上"]]],["物件",[["一杯水",""],["一枚硬币",""],["一枚回形针","也能浮"],["水黾","在水面上走的虫子"]]],["常说的话",[["“再加一滴就溢出来了”",""]]]];
+ const body=S.ideaLoading?`<div class="ccards">${[0,1,2].map(i=>`<div class="panel cc" style="min-height:300px;display:grid;place-items:center"><span class="xs">agent 在想第 ${i+1} 张…</span></div>`).join("")}</div>`:`<div class="ccards">${CARDS.concat(S.extraCards).map(card).join("")}</div>`;
+ return `<section class="mod">
+ <div class="mhead"><div><div class="eyebrow">Station 1 <b>·</b> 立意</div><h2>三张立意卡，选一张</h2><p>选一张卡，立意、风格方向和钩子就一起定了。左边是这个题目才有的东西，和同题的视频常见的样子。</p></div><span class="chip warn">关卡 ① · 等你选</span></div>
+ <div class="idea-l"><div class="panel ph inv">${inv.map(([h,its])=>`<h4>${h}</h4>${its.map((it,j)=>`<button class="it pick" ${pk("inv",h+j,"素材清单 · "+it[0])}>${esc(it[0])}${it[1]?`<small>${esc(it[1])}</small>`:""}</button>`).join("")}`).join("")}
+   <h4>同题的视频常见的样子</h4><div class="avoid">白大褂站在桌前讲，配分子的球棍模型，最后一句"这就是表面张力"。这是要避开的样子。</div></div>
+  <div>${body}<div class="panel own"><span class="xs">我已经有想法了</span><input type="text" id="ownIdea" placeholder="写一句你的立意，agent 照它写大纲，最多再附一个备选"><button class="btn" data-act="ownIdea">用我的</button></div></div></div>
+ <div class="gatebar"><span class="t"><b>关卡 ①</b> · 选了 ${S.ideaPick} 之后，agent 按它写 BRIEF 和大纲</span><span class="sp"></span><button class="btn" data-nav="outline">看大纲</button></div></section>`;
+}
+
+/* ---------- outline ---------- */
+const SEGS=[{n:"倒满一杯水",a:0,b:7,reads:"一杯满到边的水",vis:"空杯慢慢倒满，水面贴着杯口",snd:"钢琴进"},{n:"水面高出杯口",a:7,b:16,reads:"水面比杯口还高一点",vis:"镜头推近杯口侧面",snd:"「嗖」"},{n:"分子手拉着手",a:16,b:27,reads:"水分子彼此拉住",vis:"分子网格，表面那层被往里拉",snd:"「叮」"},{n:"硬币浮起来",a:27,b:38,reads:"硬币压出一个窝却不沉",vis:"硬币落在水面上",snd:"B 段加弦乐，「啵」"},{n:"再加一滴",a:38,b:50,reads:"最后一滴让水漫出来",vis:"水滴落下，水沿杯壁流下",snd:"「滴」「哗」"},{n:"这就是表面张力",a:50,b:60,reads:"给这个现象一个名字",vis:"标题",snd:"尾声"}];
+function vOutline(){
+ return `<section class="mod">
+ <div class="mhead"><div><div class="eyebrow">Station 1 <b>·</b> 大纲</div><h2>按立意 A 写的 BRIEF 和 6 段大纲</h2><p>点一段就能单独跟 agent 说。段名按内容起，看名字就知道这段讲什么。</p></div><span class="chip ok">关卡 ① · 10 月 15 日通过</span></div>
+ <div class="cols" style="grid-template-columns:minmax(0,1fr) minmax(0,340px)">
+  <div><div class="strip">${SEGS.map((s,i)=>`<button class="pick" style="flex:${s.b-s.a}" ${pk("seg",i,"大纲第 "+(i+1)+" 段 · "+s.n)}>${s.n}</button>`).join("")}</div>
+   ${SEGS.map((s,i)=>`<div class="panel segc pick" ${pk("seg",i,"大纲第 "+(i+1)+" 段 · "+s.n)}><span class="n">${fmt(s.a)}<br>${Math.round(s.b-s.a)} s</span><div><b>${i+1}. ${s.n}</b><p>要看懂：${s.reads}</p><p>画面：${s.vis} · 声音：${s.snd}</p></div><div class="r">${i===3?'<span class="chip warn">1 处拿不准</span>':""}</div></div>`).join("")}</div>
+  <div class="stack"><div class="panel ph brief hud"><h3>BRIEF</h3><div class="kv">
+   <span>立意</span><div>一杯水还能再加几滴：从倒满开始，一路加到溢出</div>
+   <span>钩子</span><div>一杯已经满了的水，还能再加几滴？</div>
+   <span>观众</span><div>对日常物理好奇的人，不需要公式</div>
+   <span>在哪看</span><div>B站横屏，电脑上看</div>
+   <span>时长</span><div class="mono">1:00</div><span>节奏</span><div>从容，读得完再走</div>
+   <span>档位</span><div>standard</div><span>谁拍板</span><div>立意你定；大纲、分镜给你看；其余交给 agent</div></div></div>
+   <div class="panel ph"><h3>引擎和花费</h3><div class="kv"><span>引擎</span><div>canvas-film</div><span>配音</span><div>Gemini · Charon</div><span>估计</span><div class="mono">约 40 分钟 · 关卡 3 次</div></div></div></div></div>
+ <div class="gatebar"><span class="t"><b>关卡 ①</b> · 已通过；改这里，分镜要跟着重做</span><span class="sp"></span><button class="btn" data-nav="board">去分镜</button></div></section>`;
+}
+
+/* ---------- assets ---------- */
+const ASSETS=[
+ {n:"水黾 · 水面上",k:"img",paint:"strider",lic:["CC0","ok"],use:"S03 备选",src:"Wikimedia Commons"},
+ {n:"硬币落水 · 慢动作参考",k:"vid",paint:"splash",lic:["来源没写许可","warn"],use:"只当参考",src:"网页"},
+ {n:"一杯水 · 关键帧",k:"img",paint:"glass",lic:["自己画的","ok"],use:"S01",src:"film.html"},
+ {n:"同题视频的截图",k:"ref",paint:"ref",lic:["只做参考","mute"],use:"要避开的样子",src:"拉片"},
+ {n:"思源黑体 Heavy",k:"font",paint:"font",lic:["SIL OFL","ok"],use:"标题和封面",src:"开源字体"},
+ {n:"旁白 · Charon 整稿",k:"aud",paint:"wave1",lic:["自己生成","ok"],use:"全片",src:"bin/vh tts"},
+ {n:"配乐 · A、B 段",k:"aud",paint:"wave2",lic:["代码作曲","ok"],use:"全片",src:"bin/vh music"},
+ {n:"水滴声",k:"aud",paint:"wave1",lic:["CC0","ok"],use:"S05 · 0:44.0",src:"freesound"}];
+const AK={img:"图片",vid:"视频",aud:"声音",font:"字体",ref:"参考"};
+function vAssets(){
+ const list=ASSETS.filter(a=>S.vals.af==="all"||a.k===S.vals.af);
+ return `<section class="mod">
+ <div class="mhead"><div><div class="eyebrow">Library <b>·</b> 素材</div><h2>素材库</h2><p>每一件都记着从哪来、什么许可、用在哪一镜。许可没写清的，出片前会拦下来。</p></div>${seg("af",[["all","全部"],["img","图片"],["vid","视频"],["aud","声音"],["font","字体"],["ref","参考"]])}</div>
+ <div class="dz"><span>把文件拖进来，或者贴一个链接</span><span class="xs">也可以让 agent 去找，它只拿许可写清楚的</span><span class="sp"></span><button class="btn ag" data-act="findAsset">让 agent 去找</button></div>
+ <div class="grid4">${list.map((a,i)=>`<div class="panel asset pick" ${pk("as",a.n,"素材 · "+a.n)}><canvas data-paint="${a.paint}"></canvas><div class="b"><b>${esc(a.n)}</b><div class="row"><span class="chip ${a.lic[1]}">${a.lic[0]}</span><span class="xs">${AK[a.k]}</span></div><span class="xs">用在 ${esc(a.use)} · 来自 ${esc(a.src)}</span></div></div>`).join("")}</div>
+ <div class="panel lic"><span class="dot2" style="background:var(--ok)"></span>7 件许可记清了<span class="dot2" style="background:var(--warn);margin-left:8px"></span>1 件待确认：硬币落水的参考视频，只能看，不能放进片子<span style="margin-left:auto" class="xs">记在 NOTES.md 的素材许可</span></div>
+ </section>`;
+}
+
+/* ---------- storyboard ---------- */
+const PAGES=[{n:"第 1 页 · 为什么满出来",ids:[0,1,2]},{n:"第 2 页 · 一层看不见的膜",ids:[3,4,5]}];
+const REP=[3.6,12,22,32.5,45.4,55];
+let animT=0,animPlaying=false;
+function vBoard(){
+ const pg=PAGES[+S.vals.page];
+ return `<section class="mod">
+ <div class="mhead"><div><div class="eyebrow">Station 2 <b>·</b> 分镜</div><h2>${pg.n}</h2><p>每镜写着观众要依次看懂什么。没把握的镜头标出来了，其余默认通过；先看灰盒 animatic 的节奏。</p></div>${seg("page",PAGES.map((p,i)=>[String(i),p.n.split(" · ")[0]]))}</div>
+ <div class="anim"><div class="vv hud"><canvas id="animCv"></canvas><div class="ctl"><button class="ib" data-act="animPlay" aria-label="播放">${FI.play}</button><input type="range" id="animR" min="0" max="60" step="0.1" value="${animT}" aria-label="animatic 进度"><span class="mono xs" id="animTc">${fmt(animT)}</span></div></div>
+  <div class="panel ph"><h3>这一页</h3><div class="kv"><span>镜头</span><div>${pg.ids.length} 镜</div><span>拿不准</span><div>${pg.ids.filter(i=>shots[i].unsure).length?'<span class="chip warn">S04 硬币落水的速度</span>':'<span class="xs">没有</span>'}</div><span>时长</span><div class="mono">${fmt(shots[pg.ids[0]].s)}–${fmt(shots[pg.ids[pg.ids.length-1]].e)}</div><span>灰盒</span><div class="xs">只看节奏和构图，颜色到成片才上</div></div></div></div>
+ <div class="grid3">${pg.ids.map(i=>{const s=shots[i];return `<div class="panel shotc pick" ${pk("sh",i,s.id+" "+s.name+" · 分镜")}><canvas data-paint="frame:${REP[i]}:g"></canvas><div class="b"><div class="row"><b style="font-weight:500">${s.id} ${s.name}</b><span class="xs mono">${fmt(s.s)}–${fmt(s.e)}</span>${s.unsure?'<span class="chip warn" style="margin-left:auto">没把握</span>':'<span class="chip ok" style="margin-left:auto">默认通过</span>'}</div><ol>${s.reads.map(r=>`<li>${esc(r)}</li>`).join("")}</ol><span class="xs">转场：${esc(s.tr)}${s.unsure?" · "+esc(s.unsure):""}</span></div></div>`}).join("")}</div>
+ <div class="gatebar"><span class="t"><b>关卡 ②</b> · 分镜 10 月 16 日通过；你当时说"S04 拿不准的话先按硬币画"</span><span class="sp"></span><button class="btn" data-nav="sound">去声音</button></div></section>`;
+}
+function drawAnim(){const cv=$("#animCv");if(!cv)return;const r=cv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1);const W=Math.round(r.width*d),H=Math.round(r.height*d);if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}drawFrame(cv.getContext("2d"),W,H,animT,3,true);const tc=$("#animTc");if(tc)tc.textContent=fmt(animT);const rg=$("#animR");if(rg)rg.value=animT}
+let animLast=0;function animLoop(ts){if(!animPlaying||S.mod!=="board")return;const dt=animLast?(ts-animLast)/1000:0;animLast=ts;animT+=dt;if(animT>=DUR){animT=DUR;animPlaying=false}drawAnim();requestAnimationFrame(animLoop)}
+
+/* ---------- sound ---------- */
+const VOICES=[{v:"Charon",d:"沉稳男声",pitch:"118 Hz",rate:"5.7",mis:"没有误读",ok:true},{v:"Kore",d:"清亮女声",pitch:"212 Hz",rate:"5.9",mis:"「杯口」听成「杯后」"},{v:"Puck",d:"轻快男声",pitch:"141 Hz",rate:"6.4",mis:"没有误读"}];
+const LINES=[["L1","倒满一杯水，再小心一点","5.6","0.42",""],["L2","水面其实能高出杯口一点点","5.8","0.55",""],["L3","因为水分子彼此拉着手","4.1","0.61","比整条的中位数慢 ×1.4"],["L4","所以一枚硬币也能浮在上面","5.9","0.48",""],["L5","直到再加一滴","5.2","0.70",""],["L6","这就是表面张力","5.5","—",""]];
+function wav(seed){let r="";const N=60;for(let i=0;i<N;i++){const a=.15+.85*hash(seed*31+i)*(.55+.45*Math.sin(i/5+seed));r+=`<rect x="${(i/N*100).toFixed(2)}%" y="${(50-a*45).toFixed(1)}%" width="1%" height="${(a*90).toFixed(1)}%" rx="1" fill="currentColor" opacity=".7"/>`}return`<svg viewBox="0 0 100 34" preserveAspectRatio="none" aria-hidden="true">${r}</svg>`}
+function vSound(){
+ const energy=[.25,.3,.32,.4,.45,.5,.48,.55,.7,.75,.8,.78,.85,.9,.6,.95,.9,.5,.35,.25];
+ const pts=energy.map((e,i)=>`${(i/(energy.length-1)*100).toFixed(1)},${(100-e*90).toFixed(1)}`).join(" ");
+ return `<section class="mod">
+ <div class="mhead"><div><div class="eyebrow">Station E <b>·</b> 声音</div><h2>音色、旁白、配乐和混音</h2><p>音色和 take 已经选好，一般用不着你动；想换的话，三个音色读的是同一段话，读数一样，可以直接比。</p></div><span class="chip ok">配音配乐已过 · 交给 agent</span></div>
+ <div class="meters">${[["Loudness","−14.1","LUFS · 目标 −14",1],["True peak","−1.2","dBTP · 上限 −1",1],["Speech","5.6","字/秒 · 不算停顿",0],["Silence","0","处数字静音",1]].map(m=>`<div class="panel meter hud"><small>${m[0]}</small><span class="${m[3]?"ok":""}">${m[1]}</span><em>${m[2]}</em></div>`).join("")}</div>
+ <div class="sec"><h3>试听音色</h3><span class="xs">bin/vh voices audition · 同一段话，三个音色各念一遍</span></div>
+ <div class="grid3">${VOICES.map((v,i)=>`<div class="panel voice pick${S.vals.voice===v.v?" on":""}" ${pk("vo",v.v,"音色 · "+v.v)}><div class="top2"><b>${v.v}</b><span class="xs">${v.d}</span>${S.vals.voice===v.v?'<span class="chip ok" style="margin-left:auto">在用</span>':`<button class="btn ghost" style="margin-left:auto" data-act="useVoice" data-v="${v.v}">换成它</button>`}</div>${wav(i+2)}<div class="meas"><div><small>音高中位</small><span>${v.pitch}</span></div><div><small>语速</small><span>${v.rate}</span></div><div><small>误读</small><span style="font-family:var(--f-ui);font-size:12px;color:${v.ok||v.mis==="没有误读"?"var(--tx2)":"var(--warn)"}">${v.mis}</span></div></div></div>`).join("")}</div>
+ <div class="sgrid" style="margin-top:14px">
+  <div class="panel ph"><h3>旁白逐句 <span class="xs">bin/vh pace --dry-run</span></h3><div class="tw"><table class="t"><thead><tr><th>句</th><th>文字</th><th>字/秒</th><th>句后停顿</th><th></th></tr></thead><tbody>${LINES.map(l=>`<tr class="pick" ${pk("ln",l[0],"旁白 "+l[0]+" · "+l[1])}><td class="mono">${l[0]}</td><td>${l[1]}</td><td class="mono">${l[2]}</td><td class="mono">${l[3]}</td><td>${l[4]?`<span class="chip warn">${l[4]}</span>`:""}</td></tr>`).join("")}</tbody></table></div>
+   <p class="xs" style="margin:10px 0 0">整条分 2 段合成，每段出了 3 条 take，各留了和全片最接近的一条（--candidates 3）。</p></div>
+  <div class="panel ph"><h3>配乐 <span class="xs">bin/vh music · 能量和候选落点</span></h3>
+   <svg class="musicsvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="eg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#5ce1ff" stop-opacity=".35"/><stop offset="1" stop-color="#5ce1ff" stop-opacity="0"/></linearGradient></defs>
+    <rect x="0" y="0" width="45" height="100" fill="rgba(255,255,255,.02)"/><rect x="83.3" y="0" width="16.7" height="100" fill="rgba(255,255,255,.02)"/>
+    <polygon points="0,100 ${pts} 100,100" fill="url(#eg)"/><polyline points="${pts}" fill="none" stroke="#5ce1ff" stroke-width="1.2" vector-effect="non-scaling-stroke"/>
+    <line x1="73.3" x2="73.3" y1="0" y2="100" stroke="#ffb547" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/></svg>
+   <div class="row" style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--tx3)"><span>A 段 · 钢琴</span><span>B 段 · 加弦乐</span><span>尾声</span></div>
+   <div class="li" style="margin-top:8px"><span class="dot2" style="background:var(--warn)"></span>0:44.0 换气之后的重拍<span class="r xs">bin/vh beats 的 lifts 候选，「滴」放在这里</span></div>
+   <div class="li"><span class="dot2" style="background:var(--ok)"></span>qa：0 处咔哒，0 处断音<span class="r xs">读谱判断</span></div></div></div>
+ </section>`;
+}
+
+/* ---------- ship ---------- */
+const COPY={bili:{t:"满满一杯水，为什么还能再加几滴？",d:"倒满一杯水，水面能比杯口还高一点；一枚硬币放上去也不沉。一分钟讲清表面张力。",ch:"0:00 倒满一杯水 · 0:16 分子手拉着手 · 0:27 硬币浮起来 · 0:50 表面张力",tg:"科普 · 物理 · 表面张力 · 日常"},
+ douyin:{t:"一杯满满的水，还能再加几滴？",d:"答案和一枚硬币有关。",ch:"—",tg:"#科普 #物理 #冷知识"},
+ yt:{t:"一杯水为什么不满出来｜表面张力",d:"一分钟讲清水面为什么能高出杯口。",ch:"0:00 倒满 · 0:16 分子 · 0:27 硬币 · 0:50 表面张力",tg:"physics, surface tension"}};
+function vShip(){
+ const c=COPY[S.vals.plat];
+ return `<section class="mod">
+ <div class="mhead"><div><div class="eyebrow">Deliver <b>·</b> 交付</div><h2>母版、封面和各平台文案</h2><p>成片那一站通过后才出片。下面都是 agent 先备好的，你点哪张封面、哪条文案，都能单独跟它说。</p></div><span class="chip mute">成片通过后才能出片</span></div>
+ <div class="cols">
+  <div class="stack"><div class="panel ph"><h3>封面 <span class="xs">竖 9:16、横 4:3，标题要大</span></h3><div class="cvs"><div class="pick" ${pk("cv","916","封面 · 竖 9:16")}><canvas data-paint="cover916" style="width:150px;height:267px"></canvas><div class="lab">竖 9:16 · 抖音</div></div><div class="pick" ${pk("cv","43","封面 · 横 4:3")}><canvas data-paint="cover43" style="width:268px;height:201px"></canvas><div class="lab">横 4:3 · B站</div></div></div></div>
+   <div class="panel ph copy"><h3>文案 ${seg("plat",[["bili","B站"],["douyin","抖音"],["yt","YouTube"]])}</h3><dl><dt>标题</dt><dd>${esc(c.t)}</dd><dt>简介</dt><dd>${esc(c.d)}</dd><dt>章节</dt><dd class="mono" style="font-size:12px">${esc(c.ch)}</dd><dt>标签</dt><dd>${esc(c.tg)}</dd></dl><div class="li" style="margin-top:10px"><span class="dot2" style="background:var(--ok)"></span>文案里的数字和说法，和片子里逐条对过<span class="r xs">硬规则 5</span></div></div></div>
+  <div class="stack"><div class="panel ph"><h3>会出什么</h3>${["4K 母版（上传用）","1080p","字幕 SRT","封面两张","各平台文案"].map(x=>`<div class="li"><span class="st open">待出</span>${x}</div>`).join("")}</div>
+   <div class="panel ph"><h3>出片前检查 <span class="xs">bin/vh check</span></h3>${[["安全框、字号、读时","有 1 处要修","warn"],["字不被光烧白","有 1 处要修","warn"],["响度和真峰值","过了","ok"],["数字静音、闪白","过了","ok"],["素材许可","1 件只能参考","warn"]].map(x=>`<div class="li">${x[0]}<span class="r chip ${x[2]}">${x[1]}</span></div>`).join("")}<div style="margin-top:12px"><button class="btn" disabled>出片</button></div></div></div></div>
+ </section>`;
+}
+
+/* ---------- ledger ---------- */
+const DECS=[["立意","选 A：一杯水还能再加几滴","你定","10-15 14:20","你说：A 挺好，钩子再直接一点"],["风格","深色实验室，冷蓝水色","agent 定","10-15 14:31","照空间的共用风格"],["配音","Charon，一条整稿","agent 定","10-16 10:05","试听 3 个音色，误读最少、语速最接近"],["分镜 S04","膜换成硬币","你定","10-19 14:02","你说：这层膜太抽象了"],["S05 进场","还没选","等你","—","两种做法在 agent 栏里"]];
+function vLedger(){
+ return `<section class="mod">
+ <div class="mhead"><div><div class="eyebrow">Ledger <b>·</b> 账本</div><h2>谁定的、为什么、什么时候</h2><p>DECISIONS.md 和 REVIEW.md 在这里一起看。agent 定的每一条你都能翻案；翻之前它会告诉你要重做哪几站。</p></div></div>
+ <div class="panel ph"><h3>决定</h3><div class="tw"><table class="t"><thead><tr><th>什么事</th><th>定成什么</th><th>谁定的</th><th>时间</th><th>理由</th><th></th></tr></thead><tbody>${DECS.map((d,i)=>`<tr><td>${d[0]}</td><td>${d[1]}</td><td><span class="chip ${d[2]==="你定"?"cy":d[2]==="等你"?"warn":"ag"}">${d[2]}</span></td><td class="mono">${d[3]}</td><td class="xs" style="color:var(--tx2)">${d[4]}</td><td>${d[2]==="agent 定"?`<button class="btn ghost" data-act="overturn" data-v="${i}">翻案</button>`:""}</td></tr>`).join("")}</tbody></table></div></div>
+ <div class="cols" style="margin-top:14px"><div class="panel ph"><h3>你的原话 <span class="xs">逐字记进 REVIEW.md</span></h3>
+  <div class="quote">"A 挺好，钩子再直接一点。"<small>关卡 ① · 10 月 15 日</small></div><div class="quote">"S04 拿不准的话先按硬币画。"<small>关卡 ② · 10 月 16 日</small></div><div class="quote">"这层膜太抽象了，换成一枚硬币浮在水上。"<small>关卡 ③ 第 3 轮 · 10 月 19 日</small></div></div>
+  <div class="panel ph"><h3>版本</h3>${versions.slice().reverse().map(v=>`<div class="li"><span class="chip ag">第 ${v.v} 版</span>${esc(v.note)}<span class="r xs">${v.changed?"改了 "+v.changed.length+" 段":"整片"}</span></div>`).join("")}</div></div>
+ </section>`;
+}
+
+/* ---------- cut: the timeline studio ---------- */
+const C={t:31,playing:false,sel:{k:"shot",i:3},zoom:1,cur:3,cmp:2,compare:false,wipe:.5,safe:true,snap:true,ltab:"shots",layout:"edit",grp:{pic:true,snd:true,rev:true},inPt:null,nf:"open"};
+function selSpan(sel=C.sel){if(sel.k==="film")return[0,DUR];if(sel.k==="chapter")return[chapters[sel.i].s,chapters[sel.i].e];if(sel.k==="shot")return[shots[sel.i].s,shots[sel.i].e];if(sel.k==="range")return[sel.a,sel.b];return null}
+function shotsIn(a,b){return shots.filter(x=>x.e>a+1e-6&&x.s<b-1e-6)}
+function selLabel(sel=C.sel){
+ if(sel.k==="film")return"全片 · 0:00–1:00";
+ if(sel.k==="chapter"){const c=chapters[sel.i];return`第${CN[sel.i]}章 ${c.name} · ${fmt(c.s)}–${fmt(c.e)}`}
+ if(sel.k==="shot"){const x=shots[sel.i];return`${x.id} ${x.name} · ${fmt(x.s)}–${fmt(x.e)}`}
+ if(sel.k==="range"){const ss=shotsIn(sel.a,sel.b);return`${fmt(sel.a)}–${fmt(sel.b)} · ${ss.length>1?ss[0].id+"–"+ss[ss.length-1].id:(ss[0]?ss[0].id:"")}`}
+ const x=shots[shotIdx(sel.t)];return`${fmt(sel.t)} · ${x.id} ${x.name}`}
+function noteSpan(n){return selSpan(n.sel)||[n.sel.t,n.sel.t]}
+function shotNotes(i){return notes.filter(n=>{if(n.st!=="open")return false;const sp=noteSpan(n);return shotsIn(sp[0],Math.max(sp[1],sp[0]+.01)).includes(shots[i])}).length}
+function verLabel(v){const e=versions.find(x=>x.v===v);return"第 "+v+" 版"+(e&&e.tag?"（"+e.tag+"）":"")}
+const thumbCache={};
+function thumbs(){const key=String(C.cur);if(thumbCache[key])return thumbCache[key];const c=document.createElement("canvas");c.width=160;c.height=90;const x=c.getContext("2d");return thumbCache[key]=REP.map(rt=>{drawFrame(x,160,90,rt,C.cur,false,true);return c.toDataURL("image/jpeg",.82)})}
+
+function vCut(){
+ return `<section class="mod cut${C.layout==="theater"?" theater":""}" id="cutMod">
+ <aside class="clist" aria-label="清单">
+  <div class="ltabs" role="tablist">${[["shots","镜头"],["script","旁白稿"],["notes","点评"],["checks","检查"]].map(([k,n])=>`<button role="tab" data-lt="${k}" aria-selected="${C.ltab===k}">${n}${k==="notes"?`<span class="n">${notes.filter(x=>x.st==="open").length}</span>`:k==="checks"?`<span class="n hot">${checks.filter(x=>x.lv==="warn").length}</span>`:""}</button>`).join("")}</div>
+  <div class="lbody" id="lbody"></div></aside>
+ <div class="stage">
+  <div class="hudrow"><b id="hShot"></b><span id="hReads"></span><span class="sp"></span><span>1920×1080</span><span>30 FPS</span><span class="rd" id="hVer"></span></div>
+  <div class="vbox" id="vbox"><div class="viewer" id="viewer"><canvas id="cv" aria-label="当前画面"></canvas><div class="safe" id="safe"></div><div class="wl" id="wl" hidden></div><div class="wr" id="wr" hidden></div></div></div>
+  <div class="trans glass" style="border-radius:12px">
+   <button class="ib" data-act="back" aria-label="上一帧">${FI.back}</button><button class="ib" data-act="play" id="bPlay" aria-label="播放">${FI.play}</button><button class="ib" data-act="fwd" aria-label="下一帧">${FI.fwd}</button>
+   <span class="tc" id="tcode"></span><span class="vsep"></span>
+   <button class="tog" data-act="safe" aria-pressed="${C.safe}">安全框</button><button class="tog" data-act="cmp" aria-pressed="${C.compare}">和上一版对比</button><span class="vsep"></span>
+   <div class="seg" data-seg="layout">${[["theater","审片"],["edit","精修"],["sound","听声音"]].map(([v,n])=>`<button data-v="${v}" aria-pressed="${C.layout===v}">${n}</button>`).join("")}</div>
+  </div></div>
+ <div class="tl" id="tl">
+  <div class="tlbar"><span class="lbl">点一下选这一秒，拖一段选区间，点镜头或章节选中它 · I / O 入点出点 · 空格播放 · ← → 逐帧 · N 下一处</span><span class="sp"></span><button class="tog" data-act="next">下一处要看的</button><button class="tog" data-act="snap" aria-pressed="${C.snap}">吸附到词和拍</button><button class="tog" data-act="zout" aria-label="缩小">−</button><button class="tog" data-act="zin" aria-label="放大">＋</button></div>
+  <div class="tlbody"><div class="heads" id="heads"></div><div class="tscroll"><div class="inner" id="inner"></div></div></div></div>
+ </section>`;
+}
+function renderList(){
+ const el=$("#lbody");if(!el)return;const th=thumbs();let h="";
+ if(C.ltab==="shots"){chapters.forEach((ch,ci)=>{h+=`<div class="chap">第${CN[ci]}章 · ${esc(ch.name)}</div>`;shots.forEach((s,i)=>{if(s.s<ch.s||s.s>=ch.e)return;const nn=shotNotes(i),on=C.sel.k==="shot"&&C.sel.i===i;
+   const st=s.st==="ok"?`<span class="st ok">通过</span>`:nn?`<span class="st note">${nn} 条点评</span>`:`<span class="st open">待看</span>`;
+   h+=`<button class="srow${on?" on":""}" data-shot="${i}"><img src="${th[i]}" alt=""><span style="min-width:0"><b>${s.id} ${esc(s.name)}</b><small>${fmt(s.s)}–${fmt(s.e)} · ${esc(s.reads[0])}</small></span>${st}</button>`})})}
+ else if(C.ltab==="script"){narr.forEach((n,i)=>{const on=C.sel.k==="range"&&Math.abs(C.sel.a-n[0])<.01&&Math.abs(C.sel.b-n[1])<.01;h+=`<button class="line${on?" on":""}" data-line="${i}"><span>${fmt(n[0])} · ${shots[shotIdx(n[0])].id}</span>${esc(n[2])}</button>`})}
+ else if(C.ltab==="notes"){h+=`<div class="hint">点评攒着，右下角"提交这一轮"一起交；原话逐字进 REVIEW.md。</div>`;
+   notes.filter(n=>C.nf==="all"||n.st==="open").forEach(n=>{h+=`<div class="nitem"><div class="tp"><span class="mk note${n.st==="open"?"":" done"}" style="position:static;transform:none">${n.id}</span>${chip({cut:n.sel},selLabel(n.sel),"cy")}${n.st==="open"?'<span class="st note">待处理</span>':`<span class="st ok">已改 · 第 ${n.ver} 版</span>`}</div><p>${esc(n.x)}</p>${n.st==="open"?`<div class="acts"><button class="btn ag" data-act="noteAgent" data-v="${n.id}">现在就交给 agent</button></div>`:""}</div>`});
+   h+=`<div style="padding:10px 12px"><button class="xs" data-act="nf">${C.nf==="open"?"也看已处理的":"只看待处理的"}</button></div>`}
+ else{h+=`<div class="hint">bin/vh check 对第 ${C.cur} 版的结果</div>`;checks.forEach((c,i)=>{h+=`<div class="nitem"><div class="tp">${c.lv==="warn"?'<span class="st note">要修</span>':'<span class="st ok">过了</span>'}${c.t!=null?chip({cut:{k:"moment",t:c.t}},fmt(c.t)+" · "+shots[shotIdx(c.t)].id,"warn"):'<span class="chip mute">全片</span>'}</div><p>${esc(c.x)}</p>${c.lv==="warn"?`<div class="acts"><button class="btn ag" data-act="fix" data-v="${i}">交给 agent 修</button></div>`:""}</div>`})}
+ el.innerHTML=h;
+}
+function fitViewer(){const vb=$("#vbox"),vw=$("#viewer");if(!vb||!vw)return;const r=vb.getBoundingClientRect();const cw=Math.max(80,r.width-32),ch=Math.max(60,r.height-4);let w=Math.min(cw,ch*16/9);w=Math.floor(w);vw.style.width=w+"px";vw.style.height=Math.floor(w*9/16)+"px"}
+function renderViewer(){
+ const cv=$("#cv");if(!cv)return;fitViewer();const r=cv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1);const W=Math.max(2,Math.round(r.width*d)),H=Math.max(2,Math.round(r.height*d));if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}
+ const ctx=cv.getContext("2d");drawFrame(ctx,W,H,C.t,C.cur,false);
+ if(C.compare){ctx.save();ctx.beginPath();ctx.rect(0,0,W*C.wipe,H);ctx.clip();drawFrame(ctx,W,H,C.t,C.cmp,false);ctx.restore();ctx.fillStyle="#5ce1ff";ctx.fillRect(Math.round(W*C.wipe)-1,0,2,H)}
+ $("#tcode").innerHTML=`${tcode(C.t)} <small>/ ${tcode(DUR)}</small>`;
+ const s=shots[shotIdx(C.t)];$("#hShot").textContent=s.id+" "+s.name;$("#hReads").textContent="要看懂："+s.reads.join(" → ");$("#hVer").textContent=C.compare?"对比 第 "+C.cmp+" / "+C.cur+" 版":"第 "+C.cur+" 版";
+ $("#safe").hidden=!C.safe;$("#wl").hidden=$("#wr").hidden=!C.compare;if(C.compare){$("#wl").textContent="第 "+C.cmp+" 版";$("#wr").textContent="第 "+C.cur+" 版"}
+ $("#viewer").classList.toggle("cmp",C.compare);
+}
+const P=x=>(x/DUR*100)+"%";
+function wave(n){let r="";const N=48;for(let i=0;i<N;i++){const a=.25+.75*hash(n*97+i);r+=`<rect x="${(i/N*100).toFixed(2)}%" y="${(50-a*38).toFixed(1)}%" width="1.2%" height="${(a*76).toFixed(1)}%" rx="1" fill="currentColor" opacity=".3"/>`}return`<svg aria-hidden="true">${r}</svg>`}
+function lanes(){const snd=C.layout==="sound",th=C.layout==="theater";
+ if(th)return[{k:"shot",n:"镜头",h:46},{k:"mark",n:"点评 · 检查",h:30}];
+ const L=[{g:"pic",n:"画面"}];if(C.grp.pic)L.push({k:"chap",n:"章节",h:28},{k:"shot",n:"镜头",h:46});
+ L.push({g:"snd",n:"声音"});if(C.grp.snd)L.push({k:"narr",n:"旁白",h:snd?48:30},{k:"music",n:"音乐",h:snd?40:28},{k:"sfx",n:"音效",h:snd?36:28});
+ L.push({g:"rev",n:"审阅"});if(C.grp.rev)L.push({k:"mark",n:"点评 · 检查",h:30},{k:"diff",n:"这一版改了",h:28});return L}
+function renderTL(){
+ const inner=$("#inner");if(!inner)return;const th=thumbs(),L=lanes(),ver=versions.find(v=>v.v===C.cur);
+ $("#heads").innerHTML=`<div style="height:24px"></div>`+L.map(l=>l.g?`<div class="g" data-lg="${l.g}" style="height:20px">${C.grp[l.g]?"▾":"▸"} ${l.n}</div>`:`<div style="height:${l.h}px">${l.n}</div>`).join("");
+ let h=`<div class="ruler" id="ruler">`;const stp=C.zoom>=3?1:C.zoom>=2?2:5;
+ for(let x=0;x<=DUR;x+=1){const maj=x%stp===0;h+=`<div class="tick${maj?"":" minor"}" style="left:${P(x)}">${maj&&x<DUR?`<span>${fmt(x).replace(".0","")}</span>`:""}</div>`}
+ notes.forEach(n=>{if(n.st==="open")h+=`<span class="rmk" style="left:${P(noteSpan(n)[0])};background:var(--warn)"></span>`});checks.forEach(c=>{if(c.t!=null&&c.lv==="warn")h+=`<span class="rmk" style="left:${P(c.t)};background:var(--live)"></span>`});
+ h+=`</div>`;
+ for(const l of L){if(l.g){h+=`<div class="lane g" style="height:20px"></div>`;continue}let c="";
+  if(l.k==="chap")c=chapters.map((ch,i)=>`<div class="blk chap${C.sel.k==="chapter"&&C.sel.i===i?" on":""}" data-hit="chap:${i}" style="left:${P(ch.s)};width:calc(${P(ch.e-ch.s)} - 2px)">第${CN[i]}章 · ${esc(ch.name)}</div>`).join("");
+  if(l.k==="shot")c=shots.map((s,i)=>{const nn=shotNotes(i),col=s.st==="ok"?"var(--ok)":nn?"var(--warn)":"var(--tx3)";return`<div class="blk shot${C.sel.k==="shot"&&C.sel.i===i?" on":""}" data-hit="shot:${i}" style="left:${P(s.s)};width:calc(${P(s.e-s.s)} - 2px)"><img src="${th[i]}" alt=""><span class="sd" style="background:${col}"></span>${s.id} ${esc(s.name)}</div>`}).join("");
+  if(l.k==="narr")c=narr.map((n,i)=>`<div class="blk narr" data-hit="line:${i}" style="left:${P(n[0])};width:${P(n[1]-n[0])}">${C.layout==="sound"?wave(i):""}<span>${esc(n[2])}</span></div>`).join("");
+  if(l.k==="music"){c=music.map(m=>`<div class="blk mus" style="left:${P(m.s)};width:calc(${P(m.e-m.s)} - 2px)">${esc(m.name)}</div>`).join("");for(let b=0;b<24;b++)c+=`<div class="bartick${b%4===0?" down":""}" style="left:${P(b*2.5)}"></div>`}
+  if(l.k==="sfx")c=sfx.map(f=>`<div class="sfx" style="left:${P(f[0])}" title="${esc(f[1])}"></div><span class="sfxl" style="left:${P(f[0])}">${esc(f[1])}</span>`).join("");
+  if(l.k==="mark"){notes.forEach(n=>{const sp=noteSpan(n);if(n.sel.k!=="moment")c+=`<div class="mkspan" style="left:${P(sp[0])};width:${P(sp[1]-sp[0])}"></div>`;c+=`<div class="mk note${n.st==="open"?"":" done"}" data-hit="note:${n.id}" style="left:${P(n.sel.k==="moment"?sp[0]:sp[0]+.6)}" title="${esc(n.x)}">${n.id}</div>`});
+   checks.forEach((k,i)=>{if(k.t!=null)c+=`<div class="mk check" data-hit="check:${i}" style="left:${P(k.t)}" title="${esc(k.x)}">!</div>`})}
+  if(l.k==="diff"){(ver&&ver.changed||[]).forEach(r=>{c+=`<div class="diff" style="left:${P(r[0])};width:calc(${P(r[1]-r[0])} - 2px)">${verLabel(C.cur)}改了这里</div>`});
+   jobs.forEach(j=>{c+=`<div class="diff run" style="left:${P(j.a)};width:calc(${P(j.b-j.a)} - 2px)">重渲中 ${Math.round(j.prog*100)}%</div>`});
+   if(!(ver&&ver.changed)&&!jobs.length)c+=`<span class="sfxl" style="left:0">第 1 版，没有上一版可比</span>`}
+  h+=`<div class="lane" style="height:${l.h}px">${c}</div>`}
+ const sp=selSpan();
+ if(sp&&C.sel.k!=="film")h+=`<div class="selov" style="left:${P(sp[0])};width:${P(sp[1]-sp[0])}"><span>${esc(selLabel().split(" · ")[C.sel.k==="range"?1:0])} · ${(sp[1]-sp[0]).toFixed(1)} s</span></div>`;
+ if(C.sel.k==="moment")h+=`<div class="selpt" style="left:${P(C.sel.t)}"></div>`;
+ h+=`<div class="phd" id="phd" style="left:${P(C.t)}"></div>`;
+ inner.style.width=(C.zoom*100)+"%";inner.innerHTML=h;
+}
+function movePH(){const ph=$("#phd");if(ph)ph.style.left=P(C.t);const tc=$("#tcode");if(tc)tc.innerHTML=`${tcode(C.t)} <small>/ ${tcode(DUR)}</small>`}
+function snapT(x){if(!C.snap)return x;const pts=[0,DUR];shots.forEach(s=>pts.push(s.s,s.e));narr.forEach(n=>pts.push(n[0],n[1]));for(let b=0;b<=24;b++)pts.push(b*2.5);let best=x,bd=.35/C.zoom;for(const p of pts){const d=Math.abs(p-x);if(d<bd){bd=d;best=p}}return best}
+function tAt(cx){const r=$("#inner").getBoundingClientRect();return clamp((cx-r.left)/r.width*DUR,0,DUR)}
+function renderCut(){renderTL();renderViewer();renderList()}
+function setSel(sel,jump){C.sel=sel;if(jump){const sp=selSpan(sel);C.t=sp?sp[0]+(sel.k==="film"?0:.05):sel.t}renderCut();renderScope()}
+let tsLast=0;
+function loop(ts){if(!C.playing||S.mod!=="cut")return;const dt=tsLast?(ts-tsLast)/1000:0;tsLast=ts;C.t+=dt;if(C.t>=DUR){C.t=DUR;C.playing=false;updPlay()}renderViewer();movePH();requestAnimationFrame(loop)}
+function togglePlay(){C.playing=!C.playing;if(C.playing){if(C.t>=DUR-.01)C.t=0;tsLast=0;requestAnimationFrame(loop)}updPlay()}
+function updPlay(){const b=$("#bPlay");if(b){b.innerHTML=C.playing?FI.pause:FI.play;b.setAttribute("aria-label",C.playing?"暂停":"播放")}}
+function step(d){C.t=clamp(C.t+d,0,DUR);if(C.sel.k==="moment")C.sel={k:"moment",t:C.t};renderCut();renderScope()}
+function setVer(v,cmp){C.cur=v;const e=versions.find(x=>x.v===v);C.cmp=cmp!=null?cmp:(e&&e.base!=null?e.base:Math.max(1,v-1));if(C.cur===1&&cmp==null)C.compare=false}
+const QUEUE=[{k:"moment",t:33},{k:"shot",i:5},{k:"moment",t:14.2},{k:"range",a:16.5,b:26.2}];let qi=0;
+function bindCut(){
+ const inner=$("#inner");let drag=null;
+ inner.addEventListener("pointerdown",e=>{if(e.button!==0)return;const t0=tAt(e.clientX);
+  if(e.target.closest("#ruler")){drag={scrub:true};C.t=t0;if(C.sel.k==="moment")C.sel={k:"moment",t:t0};inner.setPointerCapture(e.pointerId);movePH();renderViewer();return}
+  const hit=e.target.closest("[data-hit]");drag={a:t0,hit:hit?hit.dataset.hit:null,moved:false};inner.setPointerCapture(e.pointerId)});
+ inner.addEventListener("pointermove",e=>{if(!drag)return;const t1=tAt(e.clientX);
+  if(drag.scrub){C.t=t1;if(C.sel.k==="moment")C.sel={k:"moment",t:t1};movePH();renderViewer();return}
+  if(Math.abs(t1-drag.a)>.4/C.zoom){drag.moved=true;const a=snapT(Math.min(drag.a,t1)),b=snapT(Math.max(drag.a,t1));if(b-a>.2){C.sel={k:"range",a,b};C.t=t1;renderTL();renderViewer();renderScope()}}});
+ inner.addEventListener("pointerup",()=>{if(!drag)return;const d=drag;drag=null;
+  if(d.scrub||d.moved){renderCut();renderScope();return}
+  if(d.hit){const [k,v]=d.hit.split(":");
+   if(k==="shot")setSel({k:"shot",i:+v},false);else if(k==="chap")setSel({k:"chapter",i:+v},false);
+   else if(k==="line"){const n=narr[+v];setSel({k:"range",a:n[0],b:n[1]},false)}
+   else if(k==="note"){const n=notes.find(x=>x.id===+v);C.ltab="notes";C.nf="all";setSel(JSON.parse(JSON.stringify(n.sel)),true);return}
+   else if(k==="check"){const c=checks[+v];C.ltab="checks";setSel({k:"moment",t:c.t},true);return}
+   C.t=d.a;renderCut();return}
+  C.t=d.a;setSel({k:"moment",t:d.a},false)});
+ inner.addEventListener("pointercancel",()=>{drag=null});
+ const vw=$("#viewer");let wiping=false;
+ vw.addEventListener("pointerdown",e=>{if(!C.compare)return;wiping=true;vw.setPointerCapture(e.pointerId);const r=vw.getBoundingClientRect();C.wipe=clamp((e.clientX-r.left)/r.width,.02,.98);renderViewer()});
+ vw.addEventListener("pointermove",e=>{if(!wiping)return;const r=vw.getBoundingClientRect();C.wipe=clamp((e.clientX-r.left)/r.width,.02,.98);renderViewer()});
+ vw.addEventListener("pointerup",()=>{wiping=false});
+}
+
+/* ---------- agent column ---------- */
+let REG=[];
+function chip(target,label,cls){REG.push(target);return`<button class="chip ${cls||"cy"}" data-reg="${REG.length-1}">${icon("pin",11)}${esc(label)}</button>`}
+const T={
+ home:[{ty:"say",x:"挑一支片子接着做，或者在上面用一句话开一支新的。科普频道里有两支在等你。"}],
+ new:[{ty:"say",x:"我照你这句话先填了一份方案：类型、规格、档位和谁来拍板。有两件事得问你，在右边那张卡上。"}],
+ idea:[{ty:"sys",x:"关卡 ① · 立意"},{ty:"say",x:"三张卡差在从哪儿切进去：A 从「一杯水还能再加几滴」开始，悬念最强；B 开场就是浮着的硬币；C 从水黾讲起，画面最好看，但离题最远。我推荐 A。"}],
+ outline:[{ty:"say",x:"大纲按 A 写了 6 段。第 4 段硬币落水要多快我拿不准，分镜里标出来了。"}],
+ board:[{ty:"say",html:()=>`分镜 6 镜，按段落分成两页。没把握的只有 ${chip({mod:"board",page:"1",grp:"sh",cid:"3",label:"S04 硬币 · 分镜"},"S04 硬币","warn")}：硬币落水要多快，我先画了中等速度。`}],
+ sound:[{ty:"say",x:"三个音色读了同一段话。Charon 没有误读，语速最接近目标，我用了它。L3 比整条慢一些，是句子本身长，没动它。"}],
+ cut:[{ty:"sys",x:"关卡 ③ · 第 3 轮 · 10-19 14:02"},
+  {ty:"me",ref:{cut:{k:"shot",i:3}},x:"这层膜太抽象了，换成一枚硬币浮在水上"},
+  {ty:"me",ref:{cut:{k:"moment",t:9.4}},x:"字幕出得太早，等推近停了再出"},
+  {ty:"plan",agent:"Claude Code",steps:["S04：把「膜」换成硬币落水，水面压出一个窝","S02：字幕等推近停稳再出（9.2 s）","只重渲 0:07–0:16 和 0:27–0:38，别处不动"],est:"约 1 分 10 秒",st:"done",prog:1,mod:"cut"},
+  {ty:"result",v:3,base:2,changes:[[{cut:{k:"shot",i:1}},"S02 字幕延后"],[{cut:{k:"shot",i:3}},"S04 换成硬币"]],st:"kept"},
+  {ty:"say",html:()=>`我自己最不满意两处：${chip({cut:{k:"moment",t:33}},"0:33 白字压在亮水面上","warn")} 和 ${chip({cut:{k:"shot",i:5}},"S06 结尾停太久")}。按 N 可以一处一处看。`},
+  {ty:"decide",q:"S05 进场有两种做法：",opts:[["硬切在「滴」上","干脆，和音效对齐",true],["顺着水面推进","更柔，多 1.5 s",false]],pick:null}],
+ ship:[{ty:"say",x:"封面两张、三个平台的文案都备好了，文案里的数字和片子逐条对过。成片通过以后我就出母版。"}],
+ assets:[{ty:"say",html:()=>`S03 想要一张水黾的实拍，我找了一张 CC0 的。${chip({mod:"assets",grp:"as",cid:"硬币落水 · 慢动作参考",label:"素材 · 硬币落水 · 慢动作参考"},"硬币落水的参考","warn")} 来源没写许可，只能当参考看，不会放进片子。`}],
+ ledger:[{ty:"say",x:"账本里我定的每一条都能翻案。你翻一条，我先说清要重做哪几站、大概多久。"}]};
+const QK={home:["做一支一分钟的科普","帮我挑个选题"],new:["时长改成 2 分钟","改成竖屏"],idea:["再想一张更大胆的","把 A 和 B 合起来"],outline:["这段太长，砍一半","换个开头"],board:["这镜换个角度","给我两个版本挑"],sound:["整体慢一点","这句重念"],cut:["按这条点评改","给我两个版本挑","这里为什么这样做？"],ship:["标题再直接一点","封面字再大"],assets:["找一个水滴的音效","找一张水黾的实拍"],ledger:["为什么用 Charon？"]};
+const DEF={home:"所有空间",new:"新项目的方案",idea:"立意 · 三张卡",outline:"大纲 · 6 段",board:"分镜 · 这一页",sound:"声音 · 全片",ship:"交付",assets:"素材库",ledger:"账本"};
+function scopeLabel(){return S.mod==="cut"?selLabel(C.sel):(S.ctx[S.mod]?S.ctx[S.mod].label:DEF[S.mod])}
+function scopeRef(){return S.mod==="cut"?{cut:JSON.parse(JSON.stringify(C.sel))}:(S.ctx[S.mod]?Object.assign({mod:S.mod},S.ctx[S.mod]):{mod:S.mod,label:DEF[S.mod]})}
+function renderScope(){$("#cscope").innerHTML=icon("pin",11)+esc(scopeLabel());$("#ta").placeholder="对「"+scopeLabel()+"」"+(S.amode==="say"?"说你的想法":"留一条点评")}
+function renderThread(){
+ REG=[];const th=T[S.mod];let h="";
+ th.forEach((m,mi)=>{
+  if(m.ty==="sys")h+=`<div class="sys">${esc(m.x)}</div>`;
+  else if(m.ty==="me")h+=`<div class="me${m.note?" note":""}">${m.ref?chip(m.ref,m.ref.cut?selLabel(m.ref.cut):m.ref.label||DEF[S.mod]):""}${m.note?'<span class="xs">记成点评，这一轮一起交</span>':""}<p>${esc(m.x)}</p></div>`;
+  else if(m.ty==="say")h+=`<div><div class="who"><i></i>${esc(m.agent||S.agent)}</div><div class="say">${m.html?m.html():esc(m.x)}</div></div>`;
+  else if(m.ty==="plan"){const tag=m.st==="wait"?'<span class="chip warn">等你点开始</span>':m.st==="run"?'<span class="chip ag">在做</span>':m.st==="cancel"?'<span class="chip mute">没动</span>':'<span class="chip ok">做完了</span>';
+   h+=`<div class="card"><h4>计划 · ${esc(m.agent)} ${tag}</h4><ul>${m.steps.map(s=>`<li>${esc(s)}</li>`).join("")}</ul>${m.st==="run"?`<div class="bar"><i style="width:${Math.round(m.prog*100)}%"></i></div>`:""}<div class="acts">${m.st==="wait"?`<button class="btn pri" data-act="start" data-m="${mi}">开始</button><button class="btn" data-act="cancel" data-m="${mi}">先别动</button>`:""}<span class="est">${m.st==="run"?"进行中 "+Math.round(m.prog*100)+"%":esc(m.est)}</span></div></div>`}
+  else if(m.ty==="result"){h+=`<div class="card res"><h4>${m.two?"两个版本好了":verLabel(m.v)+"好了"} ${m.st==="reverted"?'<span class="chip mute">已退回</span>':""}</h4><div class="acts" style="margin-bottom:8px">${m.changes.map(c=>chip(c[0],c[1],"ag")).join("")}</div><div class="acts">`;
+   if(m.two)h+=`<button class="btn" data-act="see" data-v="${m.v}">看甲</button><button class="btn" data-act="see" data-v="${m.v+1}">看乙</button><button class="btn" data-act="ab2" data-m="${mi}">甲乙对比</button>`;
+   else h+=`<button class="btn" data-act="see" data-v="${m.v}">看这一版</button><button class="btn" data-act="cmpv" data-m="${mi}">和${verLabel(m.base)}对比</button>${m.st==="reverted"?"":`<button class="btn ghost" data-act="revert" data-m="${mi}">退回</button>`}`;
+   h+=`</div></div>`}
+  else if(m.ty==="decide")h+=`<div class="card decide hud"><h4>要你定 ${m.pick==null?'<span class="chip warn">没选</span>':'<span class="chip ok">已选</span>'}</h4><div style="margin-bottom:7px">${esc(m.q)}</div><div class="opts">${m.opts.map((o,i)=>`<button class="opt" data-act="pick" data-m="${mi}" data-o="${i}" aria-pressed="${m.pick===i}"><span>${esc(o[0])}</span><small>${esc(o[1])}</small>${o[2]?"<em>推荐</em>":""}</button>`).join("")}</div></div>`;
+ });
+ $("#thread").innerHTML=h;
+}
+function renderRound(){const el=$("#round");let h="";
+ if(S.mod==="cut"){const n=notes.filter(x=>x.st==="open").length,d=T.cut.filter(m=>m.ty==="decide"&&m.pick!=null).length;h=`<span>这一轮 · <b>${n}</b> 条点评 · <b>${d}</b> 个决定</span><button class="btn pri" data-act="submit">提交这一轮</button>`}
+ else if(S.mod==="idea"&&S.st.idea!=="done2")h=`<span>关卡 ① · 选了 <b>${S.ideaPick}</b></span><button class="btn pri" data-act="submit">提交</button>`;
+ el.hidden=!h;el.innerHTML=h}
+function renderAgent(){renderThread();renderRound();renderScope();$("#qk").innerHTML=(QK[S.mod]||[]).map(q=>`<button data-q="${esc(q)}">${esc(q)}</button>`).join("");
+ $("#amodeHint").textContent=S.amode==="say"?"它会先给你一张计划卡":"攒着，按轮一起交给 agent";
+ $("#ta").placeholder=S.amode==="say"?"对「"+scopeLabel()+"」说你的想法":"对「"+scopeLabel()+"」留一条点评";const p=$("#thread");p.scrollTop=p.scrollHeight}
+function setBusy(b,what){S.busy=b;$("#orb").classList.toggle("busy",b);$("#astat").classList.toggle("busy",b);$("#astatT").textContent=S.agent+(b?" · "+what:" · 空闲");$("#asub").textContent=b?"正在"+what:"本机 · 已登录 · 读写这个项目文件夹"}
+
+const STEPS={home:t=>[`照这句话起一份方案：${t}`,"填好类型、规格、档位和谁来拍板，最多问你三件事"],new:t=>[`改方案：${t}`,"重算估计和对应的命令"],idea:t=>[`照你的话想一张新卡：${t}`,"配一帧画面，写清推出的画面和钩子"],
+ outline:(t,s)=>[`改「${s}」：${t}`,"重排每段时长，总长保持 1:00"],board:(t,s)=>[`改「${s}」：${t}`,"重画这一镜的灰盒关键帧，前后两镜的接缝一起看"],sound:(t,s)=>[`「${s}」：${t}`,"只重做受影响的句子，其余不动；混音重新过一遍 qa"],
+ ship:(t,s)=>[`「${s}」：${t}`,"重出封面或文案，里面的数字再和片子对一遍"],assets:t=>[`去找：${t}`,"只拿许可写清楚的，记进 NOTES.md 的素材许可"],ledger:t=>[t,"先说清会牵动哪几站"]};
+function send(text){
+ const mod=S.mod,th=T[mod];
+ if(S.amode==="note"){th.push({ty:"me",note:true,ref:scopeRef(),x:text});if(mod==="cut"){notes.push({id:Math.max(0,...notes.map(n=>n.id))+1,sel:JSON.parse(JSON.stringify(C.sel)),x:text,st:"open"});renderCut()}renderAgent();return}
+ th.push({ty:"me",ref:scopeRef(),x:text});
+ if(/为什么|解释/.test(text)){th.push({ty:"say",x:mod==="cut"?`${shots[shotIdx(C.t)].id} 要让人依次看懂「${shots[shotIdx(C.t)].reads.join("」「")}」。这样排是因为上一镜先给了结果，这一镜讲原因。要改的话，告诉我你想让人先看到什么。`:mod==="ledger"?"Charon 是试听的三个音色里唯一没有误读的，语速 5.7 字/秒，最接近空间设的目标。":"这样做是照 BRIEF 里的立意和节奏来的；你想换个方向的话，直接说想要什么效果。"});renderAgent();return}
+ if(mod==="cut"){const sp=selSpan(C.sel)||[shots[shotIdx(C.sel.t)].s,shots[shotIdx(C.sel.t)].e];const ids=shotsIn(sp[0],sp[1]).map(s=>s.id).join("、"),two=/两个版本/.test(text);
+  th.push({ty:"plan",agent:S.agent,mod,steps:[C.sel.k==="film"?"读全片、这一轮的点评和检查，先列一份修改清单，不动代码":`${ids}：${text}`,`只重渲 ${fmt(sp[0])}–${fmt(sp[1])}，别处不动`,two?"出甲、乙两个版本，放在一起给你挑":"改完自查这一段：联系表、读时、前后两镜的接缝"],est:"约 "+Math.round((sp[1]-sp[0])*(two?7:3.6))+" 秒",st:"wait",span:sp,sel:JSON.parse(JSON.stringify(C.sel)),two,film:C.sel.k==="film",text})}
+ else th.push({ty:"plan",agent:S.agent,mod,steps:STEPS[mod](text,scopeLabel()),est:mod==="sound"?"约 2 分钟":"约 30 秒",st:"wait",text,ctx:S.ctx[mod]?Object.assign({},S.ctx[mod]):null});
+ renderAgent();
+}
+function startPlan(m){m.st="run";m.prog=0;const job={a:m.span?m.span[0]:0,b:m.span?m.span[1]:DUR,prog:0};if(m.mod==="cut"&&!m.film)jobs.push(job);
+ const prev=S.st[m.mod];if(S.st[m.mod]!==undefined)S.st[m.mod]="busy";setBusy(true,m.mod==="cut"?"重渲 "+fmt(job.a)+"–"+fmt(job.b):"改"+(MODS.find(x=>x.id===m.mod)||{n:""}).n);renderPipe();renderRail();renderAgent();if(S.mod==="cut")renderTL();
+ const iv=setInterval(()=>{m.prog=Math.min(1,m.prog+.08);job.prog=m.prog;
+  if(m.prog>=1){clearInterval(iv);const ji=jobs.indexOf(job);if(ji>=0)jobs.splice(ji,1);m.st="done";if(S.st[m.mod]!==undefined)S.st[m.mod]=prev;setBusy(false);finishPlan(m);renderPipe();renderRail()}
+  if(S.mod===m.mod){renderThread();if(m.mod==="cut")renderTL()}},140)}
+function finishPlan(m){const th=T[m.mod];
+ if(m.mod==="cut"&&m.film)th.push({ty:"say",html:()=>`全片看下来，这一轮我建议改三处：<br>1. ${chip({cut:{k:"range",a:16.5,b:26.2}},"0:16–0:26 音乐压低 3 dB","ag")}，让开旁白<br>2. ${chip({cut:{k:"moment",t:33}},"0:33 字幕加一层深色底","ag")}<br>3. ${chip({cut:{k:"shot",i:5}},"S06 收尾缩到 3 秒","ag")}<br>你点头我就一起改，只重渲这三段。`});
+ else if(m.mod==="cut"){const base=C.cur,v=versions.length+1,sp=m.span;
+  if(m.two)versions.push({v,base,tag:"甲",note:"甲："+m.text,changed:[sp]},{v:v+1,base,tag:"乙",note:"乙："+m.text,changed:[sp]});else versions.push({v,base,note:m.text,changed:[sp]});
+  th.push({ty:"result",v,base,two:m.two,changes:[[{cut:m.sel},shotsIn(sp[0],sp[1]).map(s=>s.id).join("、")+" 改好了"]],st:"kept"});setVer(v);C.t=sp[0]+.05}
+ else if(m.mod==="idea"){const lt=String.fromCharCode(65+CARDS.length+S.extraCards.length);S.extraCards.push({lt,t:"回形针也能浮",idea:"用一枚回形针代替硬币，更出乎意料：铁也能浮。",vis:"桌面微距，回形针被轻轻放上水面",hook:"一枚铁做的回形针，凭什么浮在水上？",style:["微距","冷光"],paint:"coinf"});S.fresh=lt;th.push({ty:"say",html:()=>`新想了一张 ${chip({mod:"idea",grp:"cc",cid:lt,label:"立意卡 "+lt+" · 回形针也能浮"},"卡 "+lt)}：照你的话，把硬币换成了更出乎意料的回形针。`})}
+ else if(m.mod==="sound"&&m.voice){S.vals.voice=m.voice;th.push({ty:"say",x:`换成 ${m.voice} 了：整条重新合成，语速拉近、字幕重做，镜头跟着新的时间走。成片要重渲一次，在成片那里会多出一版。`})}
+ else{S.fresh=m.ctx?m.ctx.cid:null;th.push({ty:"say",x:"改好了："+m.text+"。改动记进了账本，不满意可以退回。"})}
+ if(S.mod===m.mod)renderMod();renderAgent()}
+
+/* ---------- shell ---------- */
+function renderRail(){const r=$("#rail");let h="",g=0;MODS.forEach(m=>{if(m.g!==g){h+=m.g===2?'<div class="grow"></div><hr>':"<hr>";g=m.g}const st=S.st[m.id];const dot=st==="wait"?"var(--warn)":st==="busy"?"var(--ag)":"";
+  h+=`<button data-nav="${m.id}" aria-current="${S.mod===m.id}" title="${m.n}">${icon(m.ic)}${m.n}${dot?`<span class="dot" style="background:${dot};box-shadow:0 0 8px ${dot}"></span>`:""}</button>`});r.innerHTML=h}
+function renderPipe(){$("#pipe").style.visibility=(S.mod==="home"||S.mod==="new")?"hidden":"visible";$("#pipe").innerHTML=PIPE.map(([id,n,g],i)=>`${i?'<span class="ln"></span>':""}<button class="stn ${S.st[id]}" data-nav="${id}" aria-current="${S.mod===id}"><i></i>${n}${g?`<small>${g}</small>`:""}${S.st[id]==="wait"?"<small>等你</small>":""}</button>`).join("")}
+function renderCrumb(){$("#crumb").innerHTML=S.mod==="home"?"<b>空间</b>":S.mod==="new"?"科普频道 / <b>新的一支</b>":"科普频道 / <b>一杯水为什么不满出来</b>"}
+const VIEWS={home:vHome,new:vNew,idea:vIdea,outline:vOutline,board:vBoard,sound:vSound,cut:vCut,ship:vShip,assets:vAssets,ledger:vLedger};
+function markPicked(){const c=S.ctx[S.mod];$$("#main .pick.sel").forEach(e=>e.classList.remove("sel"));if(!c)return;$$(`#main [data-grp="${c.grp}"]`).forEach(e=>{if(e.dataset.cid===String(c.cid))e.classList.add("sel")})}
+function renderMod(){const main=$("#main");main.innerHTML=VIEWS[S.mod]();paintAll(main);markPicked();
+ if(S.mod==="cut"){bindCut();renderCut();updPlay()}if(S.mod==="board")drawAnim();S.fresh=null}
+function nav(mod){if(!VIEWS[mod])return;C.playing=false;animPlaying=false;S.mod=mod;renderMod();$("#main").scrollTop=0;renderRail();renderPipe();renderCrumb();renderAgent()}
+let tt;function toast(x){const el=$("#toast");el.textContent=x;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,3800)}
+
+/* ---------- events ---------- */
+document.addEventListener("click",e=>{
+ const reg=e.target.closest("[data-reg]");if(reg){const r=REG[+reg.dataset.reg];if(!r)return;
+  if(r.cut){if(S.mod!=="cut")nav("cut");setSel(JSON.parse(JSON.stringify(r.cut)),true)}
+  else{if(r.page!=null)S.vals.page=r.page;if(r.grp)S.ctx[r.mod]={grp:r.grp,cid:String(r.cid),label:r.label};nav(r.mod)}return}
+ const a=e.target.closest("[data-act]");if(a){act(a.dataset.act,a,e);return}
+ const nv=e.target.closest("[data-nav]");if(nv){nav(nv.dataset.nav);return}
+ const sg=e.target.closest("[data-seg] button");if(sg){const key=sg.parentElement.dataset.seg,v=sg.dataset.v;if(key==="layout"){C.layout=v;renderMod();return}S.vals[key]=v;if(key==="voice")return;renderMod();return}
+ const lg=e.target.closest("[data-lg]");if(lg){C.grp[lg.dataset.lg]=!C.grp[lg.dataset.lg];renderTL();return}
+ const lt=e.target.closest("[data-lt]");if(lt){C.ltab=lt.dataset.lt;$$("[data-lt]").forEach(b=>b.setAttribute("aria-selected",b===lt));renderList();return}
+ const sh=e.target.closest("[data-shot]");if(sh){setSel({k:"shot",i:+sh.dataset.shot},true);return}
+ const ln=e.target.closest("[data-line]");if(ln){const n=narr[+ln.dataset.line];setSel({k:"range",a:n[0],b:n[1]},true);return}
+ const fl=e.target.closest("[data-fill]");if(fl){S.sentence=fl.dataset.fill;if(S.mod!=="home")nav("home");else{$("#oneLine").value=S.sentence;$("#main").scrollTop=0}return}
+ const q=e.target.closest("[data-q]");if(q){$("#ta").value=q.dataset.q;$("#taErr").textContent="";$("#ta").focus();return}
+ const md=e.target.closest("#amode button");if(md){S.amode=md.dataset.m;$$("#amode button").forEach(b=>b.setAttribute("aria-pressed",b===md));renderAgent();return}
+ const pc=e.target.closest("#main [data-ctx]");if(pc){S.ctx[S.mod]={grp:pc.dataset.grp,cid:pc.dataset.cid,label:pc.dataset.ctx};markPicked();renderScope();$("#ta").placeholder=(S.amode==="say"?"对「":"对「")+scopeLabel()+"」说你的想法"}
+});
+function act(k,el){const m=el.dataset.m!=null?T[S.mod][+el.dataset.m]:null;
+ switch(k){
+  case"start":startPlan(m);break;
+  case"cancel":m.st="cancel";renderThread();break;
+  case"see":C.compare=false;setVer(+el.dataset.v);{const e2=versions.find(x=>x.v===+el.dataset.v);if(e2&&e2.changed)C.t=e2.changed[0][0]+.05}if(S.mod!=="cut")nav("cut");else renderCut();break;
+  case"cmpv":C.compare=true;setVer(m.v,m.base);{const e2=versions.find(x=>x.v===m.v);const r=e2.changed[e2.changed.length-1];C.t=(r[0]+r[1])/2}renderMod();break;
+  case"ab2":C.compare=true;setVer(m.v+1,m.v);renderMod();break;
+  case"revert":m.st="reverted";C.compare=false;setVer(m.base);renderMod();renderThread();toast("退回到"+verLabel(m.base)+"。"+verLabel(m.v)+"还留着，随时能换回来。");break;
+  case"pick":m.pick=+el.dataset.o;renderAgent();toast("记下了：S05 "+m.opts[m.pick][0]+"。和这一轮一起交给 agent。");break;
+  case"submit":if(S.mod==="cut"){const n=notes.filter(x=>x.st==="open").length,d=T.cut.filter(x=>x.ty==="decide"&&x.pick!=null).length;T.cut.push({ty:"sys",x:`第 3 轮已提交 · ${n} 条点评 · ${d} 个决定`});toast(`已提交：${n} 条点评、${d} 个决定。原话逐字记进 REVIEW.md，${S.agent} 接到了。`)}else{T.idea.push({ty:"sys",x:"关卡 ① 已提交 · 选了 "+S.ideaPick});toast("关卡 ①：选了 "+S.ideaPick+"，记进 REVIEW.md；agent 开始写大纲。")}renderAgent();break;
+  case"goNew":S.sentence=$("#oneLine").value.trim()||S.sentence;nav("new");break;
+  case"create":S.sentence=$("#sent").value.trim()||S.sentence;toast("建好了：projects/2026-10-19-water-meniscus。agent 开始想立意。");S.ideaLoading=true;nav("idea");setBusy(true,"想立意");setTimeout(()=>{S.ideaLoading=false;setBusy(false);if(S.mod==="idea")renderMod();T.idea.push({ty:"say",x:"三张卡想好了，各配了一帧画面。"});if(S.mod==="idea")renderAgent()},1600);break;
+  case"q":el.parentElement.querySelectorAll(".opt").forEach(b=>b.setAttribute("aria-pressed",b===el));break;
+  case"pickCard":S.ideaPick=el.dataset.v;renderMod();renderRound();break;
+  case"likeCard":S.ctx.idea={grp:"cc",cid:el.dataset.v,label:"立意卡 "+el.dataset.v};S.amode="say";send("再想一张像 "+el.dataset.v+" 的，换个开场");break;
+  case"ownIdea":{const v=$("#ownIdea").value.trim();if(!v){toast("先写一句你的立意");break}T.idea.push({ty:"me",x:v},{ty:"say",x:"好，就用你的立意写 BRIEF 和大纲，另外附一个备选给你比。"});renderAgent();break}
+  case"findAsset":$("#ta").value="找一张水黾的实拍，要 CC0";$("#ta").focus();break;
+  case"useVoice":T.sound.push({ty:"plan",agent:S.agent,mod:"sound",steps:[`整条旁白换成 ${el.dataset.v} 重新合成（bin/vh tts）`,"拉近语速、重做字幕（bin/vh pace、captions）","镜头跟着新的时间走，cue 不用手改；成片重渲一次"],est:"约 3 分钟",st:"wait",voice:el.dataset.v});renderAgent();break;
+  case"overturn":{const d=DECS[+el.dataset.v];T.ledger.push({ty:"say",x:`翻「${d[0]}」的话：${d[0]==="配音"?"声音要重做，成片重渲一次，大约 5 分钟":"分镜和成片要重画，声音不动，大约 25 分钟"}。要翻就在下面说一声你想换成什么。`});renderAgent();break}
+  case"animPlay":animPlaying=!animPlaying;el.innerHTML=animPlaying?FI.pause:FI.play;if(animPlaying){if(animT>=DUR-.01)animT=0;animLast=0;requestAnimationFrame(animLoop)}break;
+  case"back":step(-1/FPS);break;case"fwd":step(1/FPS);break;case"play":togglePlay();break;
+  case"safe":C.safe=!C.safe;el.setAttribute("aria-pressed",C.safe);renderViewer();break;
+  case"cmp":if(C.cur===1){toast("第 1 版之前没有可比的版本");break}C.compare=!C.compare;el.setAttribute("aria-pressed",C.compare);renderViewer();break;
+  case"snap":C.snap=!C.snap;el.setAttribute("aria-pressed",C.snap);break;
+  case"zin":C.zoom=Math.min(4,C.zoom*1.5);renderTL();break;case"zout":C.zoom=Math.max(1,C.zoom/1.5);renderTL();break;
+  case"next":{const s=QUEUE[qi%QUEUE.length];qi++;setSel(JSON.parse(JSON.stringify(s)),true);toast("第 "+(((qi-1)%QUEUE.length)+1)+" / "+QUEUE.length+" 处："+selLabel());break}
+  case"noteAgent":{const n=notes.find(x=>x.id===+el.dataset.v);C.sel=JSON.parse(JSON.stringify(n.sel));renderCut();S.amode="say";$$("#amode button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m==="say"));send(n.x);break}
+  case"fix":{const c=checks[+el.dataset.v];setSel({k:"moment",t:c.t},true);$("#ta").value="修这条检查："+c.x;$("#ta").focus();break}
+  case"nf":C.nf=C.nf==="open"?"all":"open";renderList();break;
+ }}
+$("#agentSel").onchange=e=>{S.agent=e.target.value;$("#aname").textContent=S.agent;setBusy(S.busy,"")};
+$("#toAll").onclick=()=>{if(S.mod==="cut")setSel({k:"film"},false);else{delete S.ctx[S.mod];markPicked();renderScope()}};
+$("#ta").oninput=()=>$("#taErr").textContent="";
+function doSend(){const v=$("#ta").value.trim();if(!v){$("#taErr").textContent="先写一句再发送";return}$("#ta").value="";send(v)}
+$("#sendBtn").onclick=doSend;$("#ta").onkeydown=e=>{if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)){e.preventDefault();doSend()}};
+$("#cmdk").onclick=()=>{$("#ta").focus();toast("原型里先用右边的输入框；成品里 ⌘K 会弹出命令面板")};
+document.addEventListener("keydown",e=>{
+ if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("#ta").focus();return}
+ if(e.target.closest&&e.target.closest("input,textarea,select"))return;if(S.mod!=="cut")return;
+ if(e.key===" "){e.preventDefault();togglePlay()}
+ else if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();step((e.shiftKey?1:1/FPS)*(e.key==="ArrowRight"?1:-1))}
+ else if(e.key==="i"||e.key==="I"){C.inPt=C.t;toast("入点 "+fmt(C.t)+"。走到出点按 O。")}
+ else if(e.key==="o"||e.key==="O"){if(C.inPt!=null&&C.t>C.inPt+.2)setSel({k:"range",a:C.inPt,b:C.t},false);else toast("先在入点按 I")}
+ else if(e.key==="n"||e.key==="N")act("next",document.body);
+ else if(e.key==="Escape")setSel({k:"film"},false)});
+document.addEventListener("input",e=>{if(e.target.id==="animR"){animT=+e.target.value;drawAnim()}});
+window.addEventListener("resize",()=>{if(S.mod==="cut")renderViewer();if(S.mod==="board")drawAnim()});
+S.mod="home";renderRail();renderPipe();renderCrumb();renderMod();renderAgent();
+</script>
+</body></html>
