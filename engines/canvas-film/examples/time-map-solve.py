@@ -11,7 +11,7 @@ The spec (time-map-spec.json beside this file is a synthetic one):
   segments  [{"id", "from", "to", "t": [s, s]}] end to end along the axis; each end's film time is fixed
   events    [{"id", "at", "lane"?, "text"?, "need"?, "slow"?: {"s", "sigma"}, "pin"?: s, "data"?}]
   windows   [{"from", "to", "weight", "edge"}]: the axis runs 1 + weight times slower inside, edges soft over ~edge
-  holds     [{"at", "s"}]: the axis stands still there for s seconds while the film runs on
+  holds     [{"at", "s"}]: the axis stands still there for s seconds (after a fixed time; one at the axis end, before it)
   lanes     {"top": {"rows": 1, "gap": 0.5}}: a card must be read (need + gap) before the card `rows` later in its lane
   sigma     a slow-down's default width (axis units) · step: the knots' spacing (axis units)
 
@@ -88,7 +88,7 @@ def solve(spec):
     knots, at, slowed, short = [], {}, {}, []
     for k, ((ua, ta), (ub, tb)) in enumerate(zip(pts, pts[1:])):
         mine = [e for e in ev if ua <= e["u"] <= ub]
-        hold = {u: s for u, s in holds.items() if ua < u <= ub or (k == 0 and u == ua)}
+        hold = {u: s for u, s in holds.items() if ua <= u < ub or (k == len(pts) - 2 and u == ub)}   # after arriving there
         inside = [(a, b) for a, b in pairs if a in mine and b in mine]
         sol, s0 = span(ua, ta, ub, tb, mine, hold), {e["id"]: e["s"] for e in mine}
         if sol is None:
