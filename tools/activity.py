@@ -17,10 +17,10 @@ The lines (each has "v": 1, "event", and "t": seconds since the epoch; "run" tie
   progress  a long command's progress: run, done, total, unit (render: frames)
   note      what a command made, written by the tool itself: run, summary (one line), outputs (paths, relative to the
             project when inside it)
-  end       a command ended: run, exit (its exit status: 130 after a Ctrl-C, which bin/vh then ends with by SIGINT; 128 + n
-            when a tool that handles signal n stopped on it: desk, desk wait, gate --wait; a command killed by TERM or HUP
-            ends at once and has no end line), duration (seconds; whole seconds under a bash without EPOCHREALTIME, such
-            as macOS's 3.2)
+  end       a command ended: run, exit (its exit status: 130 after a Ctrl-C, after which bin/vh ends by SIGINT itself;
+            128 + n when a tool that handles signal n stopped on it: desk, desk wait, gate --wait; a command killed by
+            TERM or HUP ends at once and has no end line), duration (seconds; whole seconds under a bash without
+            EPOCHREALTIME, such as macOS's 3.2)
   feedback  the review desk saved a submission (not part of a run): round, file, items by status
 Who writes them: bin/vh writes a run's start before the command and its end from its EXIT trap, and hands the run to what
 it starts through the environment (OVH_ACTIVITY_LOG, _RUN, _PID, _T0, _CMD). A tool adds note and progress lines; a tool

@@ -1404,12 +1404,13 @@ gate_stop_checks() {
   # a page that breaks a rule: written, but no message and no desk; a standard project with LOCAL.md's placeholder: the page
   sed 's/"recommend": "L1", //' "$g/out/review/gate-1.json" > "$g/out/review/gate-1b.json"
   a=$(vh gate "$g" 1b --desk --port 0 2>/dev/null); rc=$?
+  vh review "$g" 1b >/dev/null 2>&1; rc3=$?
   cp -R "$g" "$t/gs" && sed 's/^- Effort: studio/- Effort: standard/' "$g/BRIEF.md" > "$t/gs/BRIEF.md"
   b=$(OVH_LOCAL_MD="$t/LOCAL-tpl.md" vh gate "$t/gs" 1 2>&1); rc2=$?
-  if [ $rc = 1 ] && [ -z "$a" ] && [ -f "$g/out/review/gate-1b.html" ] && [ ! -e "$g/out/review/.desk.json" ] && [ $rc2 = 0 ] \
-    && case "$b" in *"reviewed on the page (effort standard (BRIEF))"*) true ;; *) false ;; esac && [ ! -e "$t/gs/out/review/.desk.json" ]
-  then ok "gate: a page that breaks a rule is written but sends nothing and starts no desk; LOCAL.md's unfilled line falls back to the effort (standard: the page)"
-  else bad "gate with a broken page or a placeholder (rc $rc/$rc2): $a | $b"; fi
+  if [ $rc = 1 ] && [ $rc3 = 1 ] && [ -z "$a" ] && [ -f "$g/out/review/gate-1b.html" ] && [ "$(cat "$g/out/review/.current")" = 1 ] && [ ! -e "$g/out/review/.desk.json" ] \
+    && [ $rc2 = 0 ] && case "$b" in *"reviewed on the page (effort standard (BRIEF))"*) true ;; *) false ;; esac && [ ! -e "$t/gs/out/review/.desk.json" ]
+  then ok "gate and review: a page that breaks a rule is written but sends nothing, starts no desk and does not become this round; LOCAL.md's unfilled line falls back to the effort (standard: the page)"
+  else bad "gate with a broken page or a placeholder (rc $rc/$rc3/$rc2, this round $(cat "$g/out/review/.current")): $a | $b"; fi
   # the desk channel (studio): started once in the background, its address in the message; --wait hands over a submission
   a=$(vh gate "$g" 1 --port 0 2>/dev/null); rc=$?
   b=$(vh gate "$g" 1 --port 0 2>&1); rc2=$?

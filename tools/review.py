@@ -858,9 +858,10 @@ def main():
 
 
 def publish(project, gate_arg=None, shown=None):
-    """Build out/review/gate-<n>.html (and index.html) from gate-<n>.json and make it this round (.current); what is
-    wrong goes to stderr. → (exit status as main's, the Page, the page's path); no Page when nothing was written.
-    bin/vh review prints the page's chat message after it, bin/vh gate (tools/gate.py) does the rest of a stop."""
+    """Build out/review/gate-<n>.html (and index.html) from gate-<n>.json and, when it breaks no rule (it can be sent),
+    make it this round (.current); what is wrong goes to stderr. → (exit status as main's, the Page, the page's path);
+    no Page when nothing was written. bin/vh review prints the page's chat message after it, bin/vh gate
+    (tools/gate.py) does the rest of a stop."""
     rdir = project / "out" / "review"
     pages = _pages_on_disk(project)
     if gate_arg:
@@ -904,9 +905,6 @@ def publish(project, gate_arg=None, shown=None):
     try:
         for p in (page_path, rdir / "index.html"):
             p.write_text(doc, encoding="utf-8")
-        # the page just made is "this round" for the review desk and its watcher, whatever its name or the order of
-        # the stops (a concept page 1b after gate 2, a voice page E3b after gate 3, a page called "final")
-        (rdir / ".current").write_text(gate + "\n", encoding="utf-8")
     except OSError as e:
         print(f"can't write {rdir}: {e.strerror or e}", file=sys.stderr)
         return 2, None, None
@@ -917,10 +915,16 @@ def publish(project, gate_arg=None, shown=None):
     segs = data["segments"]
     what = (f"{page.title()} · {len(data['decisions'])} decision(s) · {len(segs)} segment(s) · "
             f"{sum(len(s['shots']) for s in segs)} shot(s)")
-    if page.errors:
+    if page.errors:   # not sent, so not this round either: the desk and its watcher stay on the page that is out
         print(f"✗ {page_path} written with {len(page.errors)} problem(s) above ({what}); fix them before sending, "
               "so no chat message this time", file=sys.stderr)
         return 1, page, page_path
+    try:   # the page just made is "this round" for the review desk and its watcher, whatever its name or the order of
+        # the stops (a concept page 1b after gate 2, a voice page E3b after gate 3, a page called "final")
+        (rdir / ".current").write_text(gate + "\n", encoding="utf-8")
+    except OSError as e:
+        print(f"can't write {rdir / '.current'}: {e.strerror or e}", file=sys.stderr)
+        return 2, None, None
     print(f"✓ {page_path}, also index.html  ({what})", file=sys.stderr)
     return 0, page, page_path
 
