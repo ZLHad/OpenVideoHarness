@@ -856,6 +856,8 @@ def line_checks(segs, lang, align, hi=1.45, lo=0.7):
     """Warnings only: a line whose seconds per spoken unit are far from the take's median, and repeated stretches."""
     rows = []
     for s in segs:
+        if "error" in (s.get("asr") or {}):                       # not transcribed: it may share a whole block's span
+            continue
         u = _units(s.get("text", ""), lang); ws = s.get("words") or []
         span = (ws[-1]["end"] - ws[0]["start"]) if ws else (s.get("end", 0) - s.get("start", 0))
         if u >= 4 and span > 0:
@@ -864,7 +866,7 @@ def line_checks(segs, lang, align, hi=1.45, lo=0.7):
         med = sorted(r for _, r in rows)[len(rows) // 2]
         odd = [(i, r) for i, r in rows if r > hi * med or r < lo * med]
         for i, r in odd:
-            print(f"  warning: @{i} takes {r:.2f} s a character, the take's median is {med:.2f} (× {r / med:.2f}): a skipped or"
+            print(f"  warning: @{i} takes {r:.2f} s a {'character' if lang == 'zh' else 'syllable'}, the take's median is {med:.2f} (× {r / med:.2f}): a skipped or"
                   f" repeated phrase, a long pause inside, or a rushed line? listen to it")
     if not align:
         print("  repeat check: no transcript (--align gemini gives one), skipped")
