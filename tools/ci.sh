@@ -1422,6 +1422,83 @@ PY
   else kill $pid 2>/dev/null; bad "desk --idle 1: $(cat "$t/idle.out")"; fi
 }
 
+# bin/vh status: a new standard project works towards gate ①; a page out waits for the person; a desk submission waits for
+# the agent until it is handed over and REVIEW.md has its decision, and then the next gate is in progress; a Director stop
+# adds its checkpoint; quick skips the gates; the user's waiver skips what it names; a pause waits for the person; a delivery
+# record or a final film with a passing check record is delivered; a command running shows; the human view stays short
+status_checks() {
+  local t p q a b c d rc
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  OVH_PROJECTS="$t" vh new math st >/dev/null 2>&1; p=$(ls -d "$t"/*-st)
+  cat > "$t/st.py" <<'PY'
+import json, subprocess, sys
+vh, p, want = sys.argv[1:4]
+d = json.loads(subprocess.run([*vh.split("|"), "status", p, "--json"], capture_output=True, text=True).stdout)
+got = " ".join(f"{s['id']}:{s['state']}" for s in d["stations"]) + f" | {d['waiting_on']}"
+print(got if got == want else f"{got}  (want {want})")
+for k in sys.argv[4:]:   # extra checks: a python expression over d
+    if not eval(k, {"d": d}):
+        print(f"not: {k}")
+PY
+  st() { python3 "$t/st.py" "$VH_BASH|$ROOT/bin/vh" "$@"; }
+  a=$(st "$p" "1:in_progress 2:not_started 3:not_started deliver:not_started | agent" 'd["version"] == 1 and d["project"]["effort"] == "standard" and d["project"]["type"] == "01-math-science-explainer"' \
+    'd["review"]["current"] is None and d["renders"] == [] and d["check"] is None and d["open"] == {"review_items": [], "facts_to_verify": []}')
+  b=$(vh status "$p"); rc=$?
+  [ "$a" = "1:in_progress 2:not_started 3:not_started deliver:not_started | agent" ] && [ $rc = 0 ] && [ "$(printf '%s\n' "$b" | wc -l | tr -d ' ')" -le 8 ] \
+    && ok "status: a new standard project works towards gate ①, the rest not started (--json version 1; a short human view)" || bad "status of a new project (rc $rc): $a | $b"
+  # a page out (the page channel): waiting for the person; a desk submission: waiting for the agent, until handed over and recorded
+  mkdir -p "$p/out/review" && cp tools/desk/fixtures/zh/out/review/gate-1.json "$p/out/review/" && vh gate "$p" 1 --page >/dev/null 2>&1
+  a=$(st "$p" "1:waiting_person 2:not_started 3:not_started deliver:not_started | person" 'd["stations"][0]["page"] == "out/review/gate-1.html" and d["review"]["current"] == "1"')
+  python3 - "$p" <<'PY'
+import sys
+sys.path.insert(0, "tools/desk")
+import feedback
+p = sys.argv[1]
+feedback.save(p, feedback.validate(p, {"round": "1", "lang": "zh", "decisions": {"look": "L2"},
+                                       "items": [{"target": "range:3-4.5", "status": "change", "text": "这里太快"}, {"target": "card:B", "status": "ok"}]}))
+PY
+  b=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" 'd["stations"][0]["feedback"]["pending"] == 1' \
+    '[(i["target"], i["label"]) for i in d["open"]["review_items"]] == [("range:3-4.5", "片段 0:03.0–0:04.5")]')
+  vh desk feedback "$p" >/dev/null
+  c=$(st "$p" "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" 'd["stations"][0]["feedback"]["handed"] == 1' 'len(d["open"]["review_items"]) == 1')
+  python3 -c 'import sys; f = sys.argv[1] + "/REVIEW.md"; s = open(f, encoding="utf-8").read(); i = s.index("## 审阅台反馈"); open(f, "w", encoding="utf-8").write(s[:i] + s[i:].replace("- 定了：　改了：", "- 定了：L2，开头放慢　改了：0:03–0:04.5", 1))' "$p"   # under the desk's section
+  q=$(st "$p" "1:done 2:in_progress 3:not_started deliver:not_started | agent" 'd["open"]["review_items"] == []')
+  if [ "$a" = "1:waiting_person 2:not_started 3:not_started deliver:not_started | person" ] && [ "$b" = "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" ] \
+    && [ "$c" = "1:waiting_agent 2:not_started 3:not_started deliver:not_started | agent" ] && [ "$q" = "1:done 2:in_progress 3:not_started deliver:not_started | agent" ]
+  then ok "status: a page out waits for the person; a submission waits for the agent (pending, then handed over) with its open items, until REVIEW.md has its decision; then gate ② is in progress"
+  else bad "status through gate ①: $a || $b || $c || $q"; fi
+  # a Director stop, a running command, a delivery record
+  python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Director: default", "- Director: hook=own, stop=E3", 1))' "$p"
+  printf '{"v":1,"event":"start","run":"9-1","t":%s,"cmd":"render","args":["%s"],"pid":%s}\n' "$(date +%s)" "$p" "$$" >> "$p/.ovh/activity.jsonl"
+  a=$(st "$p" "1:done 2:in_progress E3:not_started 3:not_started deliver:not_started | agent" '[r["cmd"] for r in d["activity"]["running"]] == ["render"]')
+  b=$(vh status "$p")
+  mkdir -p "$p/out" && : > "$p/out/final.mp4" && : > "$p/out/final.upload.mp4"
+  printf '{"tool": "bin/vh deliver", "output": "final.upload.mp4", "master": "final.mp4", "time": "2026-10-19T12:00:00"}\n' > "$p/out/final.upload.mp4.deliver.json"
+  c=$(st "$p" "1:done 2:in_progress E3:not_started 3:not_started deliver:done | agent" 'd["deliveries"][0]["output"] == "out/final.upload.mp4"' \
+    'sorted(r["path"] for r in d["renders"]) == ["out/final.mp4", "out/final.upload.mp4"]')
+  if [ "$a" = "1:done 2:in_progress E3:not_started 3:not_started deliver:not_started | agent" ] && case "$b" in *"running: render"*) true ;; *) false ;; esac \
+    && [ "$c" = "1:done 2:in_progress E3:not_started 3:not_started deliver:done | agent" ]
+  then ok "status: the Director's stop=E3 adds its checkpoint; a running command shows; bin/vh deliver's record is a delivery"
+  else bad "status with a checkpoint, a run, a delivery: $a | $b | $c"; fi
+  # quick skips the gates; a waiver skips what it names; a pause waits for the person; a final film checked and passing
+  OVH_PROJECTS="$t" vh new math qk --effort quick >/dev/null 2>&1; q=$(ls -d "$t"/*-qk)
+  a=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:in_progress | agent")
+  mkdir -p "$q/out/check" && : > "$q/out/final.mp4"
+  printf '{"version": 1, "video": "out/final.mp4", "t": %s, "verdict": "pass", "exit": 0, "counts": {"fail": 0, "warn": 1, "info": 0}, "findings": []}\n' "$(($(date +%s) + 5))" > "$q/out/check/final.check.json"
+  b=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:done | nobody" 'd["check"]["verdict"] == "pass" and d["check"]["record"] == "out/check/final.check.json"')
+  OVH_PROJECTS="$t" vh new math wv >/dev/null 2>&1; q=$(ls -d "$t"/*-wv)
+  python3 -c 'import sys; f = sys.argv[1] + "/REVIEW.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("## 关卡 ① 立意和大纲\n", "## 关卡 ① 立意和大纲\n- 用户授权跳过（2026-10-19）。原话：“直接做完给我看”\n- 范围：跳过关卡 ②③\n", 1))' "$q"
+  c=$(st "$q" "1:in_progress 2:skipped 3:skipped deliver:not_started | agent")
+  printf '\n## 暂停 · 2026-10-19\n- 原话："先停一下"\n' >> "$q/REVIEW.md"
+  d=$(st "$q" "1:in_progress 2:skipped 3:skipped deliver:not_started | person" 'd["paused"] is True')
+  if [ "$a" = "1:skipped 2:skipped 3:skipped deliver:in_progress | agent" ] && [ "$b" = "1:skipped 2:skipped 3:skipped deliver:done | nobody" ] \
+    && [ "$c" = "1:in_progress 2:skipped 3:skipped deliver:not_started | agent" ] && [ "$d" = "1:in_progress 2:skipped 3:skipped deliver:not_started | person" ]
+  then ok "status: quick skips the gates; a final film with a passing check record is delivered; a waiver skips the gates it names; a pause waits for the person"
+  else bad "status: quick, waiver, pause: $a | $b | $c | $d"; fi
+  vh status "$t/no-such" >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "status: no project exits 2" || bad "status of nothing exited $rc"
+  rm -rf "$t"
+}
+
 # the activity log (<project>/.ovh/activity.jsonl, tools/activity.py): a command on a project adds a start, its tool's note
 # and an end with the exit status; commands without a project, and the read-only views, add nothing; keys and the
 # environment never reach it; 16 commands at once leave 32 whole lines; a signal's end says 128 + n, also from a tool bin/vh
@@ -2501,11 +2578,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; textcheck_checks; film_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; textcheck_checks; film_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; textcheck_checks; film_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; textcheck_checks; film_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

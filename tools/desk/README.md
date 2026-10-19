@@ -137,6 +137,20 @@ JSON 的格式：
 
 客户端（审阅台，以后的 Studio）只是项目文件和 `bin/vh` 外面的一层壳：它要的数据都由命令给出，终端里的 agent 拿到的是同一份。下面的 JSON 都带 `"version": 1`；以后只加字段，改了含义就升版本号。
 
+### 一个项目到哪了：`bin/vh status <项目> [--json]`
+
+只读，只看已有的文件，不开浏览器、不跑 ffprobe（`tools/status.py`，零点一秒左右）。默认几行字；`--json` 的字段：
+
+- `project`：`path`、`slug`、`title`（BRIEF 第一行）、`type`（类型文档，如 `02-knowledge-short`）、`effort` 和 `effort_from`（BRIEF、LOCAL.md 或默认）、`director`（BRIEF 的 Director 一行）、`lang`（审阅语言）、`spec`（BRIEF 的 Spec 各行，原样的键）。
+- `stations`：按流程顺序的各站。关卡 ①②③ 总在；检查点 E0–E5 有页面、REVIEW.md 有它的一节或 Director 写了 `stop=E3` 时才在；别的名字的审阅页（`final`）自成一站；最后是交付。每站：`id`、`name`、`kind`（gate、checkpoint、page、deliver）、`state`、`pages`（这一站的页名）、`page`（最新一页的路径）、`current`（是不是这一轮）、`record`（`decided`、`said`、`waived`；关卡 ① 另有 `concept_on_record`）、`feedback`（这一页之后的提交：`submitted`、`handed`、`pending`、`last`）、`note`（一句为什么）。
+- `state` 六种：`done`（REVIEW.md 里有它的"定了"：先看关于最新那一页的最后一节，审阅台为提交写的那节、或写了 `gate-<n>.html` 的那节；没有这种节，就看这一站自己的节，而且 REVIEW.md 要晚于这一页）、`skipped`（quick 档、或用户原话授权跳过）、`waiting_person`（这一页是这一轮，还没有回音）、`waiting_agent`（人提交了还没交给 agent，或者交了但 REVIEW.md 还没写定了；或者这一轮已经往后走、这一页没有记录）、`in_progress`（前面都过了，agent 正朝这一站做）、`not_started`。交付：`bin/vh deliver` 写过记录，或成片（`out/final*`、`out/final/`、`media/`）有一份更晚的通过的检查记录，就是 `done`；各站都过了是 `in_progress`。
+- `waiting_on`：`person`、`agent` 或 `nobody`（交付了）；REVIEW.md 写了暂停（`paused: true`）也是 `person`。`next`：一句话，谁下一步做什么。
+- `review`：`current`（这一轮的页名）、`page`、`desk`（在跑时：`url`、`listening`）。
+- `open`：`review_items`（审阅台提交里标了要改、疑问，而 REVIEW.md 那一节还没写定了 / 改了的条目：`round`、`file`、`target`、`status`、`label`、`text`）、`facts_to_verify`（NOTES.md 待核实里没打勾的）。
+- `renders`：`out/`（往下三层）、`renders/`、`media/` 里的视频，新的在前，最多 10 个：`path`、`size`、`mtime`、`render`（`.render.json` 的帧数、帧率、像素、时间段）、`patches`、`delivery`（它是 `bin/vh deliver` 出的上传版时）、`check`（它最近的检查记录）。`deliveries`：`bin/vh deliver` 的记录。
+- `check`：最近一次 `bin/vh check` 的记录摘要：`record`、`video`、`at`、`verdict`、`exit`、`counts`、`fails`（前三条）、`stale`（视频在检查之后改过）。
+- `activity`：`running`（正在跑的命令）、`listening`（在跑的审阅台、`gate --wait`：是在等人，不是在干活）、`recent`（最近结束的五条），每条是下面活动记录里的一个 run。
+
 ### 活动记录：`bin/vh activity <项目> [--json] [--follow] [--limit N]`
 
 每条作用在项目上的 `bin/vh` 命令往 `<项目>/.ovh/activity.jsonl` 追加 JSON 行；只读的 `status`、`activity`、`desk data`、`doctor` 不记，找不到项目的命令也不记。项目从参数里找：第一个是文件夹或文件（含 `--out=f`、`voice=f` 这种）的参数，往上最近的带 BRIEF.md 的文件夹；`review`、`gate`、`desk` 这些也认 projects/ 下的项目名。每行都有 `v`（1）、`event`、`t`（epoch 秒），属于某条命令的还有 `run`：
