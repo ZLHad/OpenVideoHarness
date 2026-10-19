@@ -319,7 +319,7 @@ PY
   # measures each voice's pitch and speech rate and names the misread word; without a key, nothing is synthesized
   if ! command -v uv >/dev/null || ! command -v ffmpeg >/dev/null; then skip "tts --candidates · voices audition" "needs uv and ffmpeg"
   elif a=$(uv run -q --no-project --with numpy python - 2>&1 <<'PY'
-import base64, contextlib, importlib.util, io, json, os, re, sys, tempfile, threading, wave
+import base64, contextlib, hashlib, importlib.util, io, json, os, re, shutil, sys, tempfile, threading, wave
 import numpy as np
 os.environ["no_proxy"] = "127.0.0.1"; os.environ["GEMINI_API_KEY"] = "ci-stub"
 from pathlib import Path
@@ -396,6 +396,21 @@ with tempfile.TemporaryDirectory() as d:
     for want in ("warning: @b2 takes", "“讲一讲” twice"):
         if want not in out: bad.append(f"no '{want}' in: {out[-900:]}")
     if "warning: @a2" in out or "warning: @b1" in out: bad.append(f"a false warning: {out[-900:]}")
+    # --resume reuses a block's transcription only while it is of the same file: nothing changed, none; a cache from before
+    # the key (no sha256) while the WAV is not newer, none; another candidate copied over _block01.wav by hand, that block
+    vo, again = p / "audio/vo/zh", [str(p), "--provider", "gemini", "--voice", "Kore", "--join", "block", "--candidates", "3", "--resume"]
+    calls = lambda out: int((re.search(r"align: (\d+) transcribe call", out) or [0, -1])[1])   # noqa: E731
+    rc, out = run(again)
+    if rc != 0 or calls(out) != 0: bad.append(f"--resume with nothing changed: exit {rc}, {calls(out)} transcribe call(s): {out[-300:]}")
+    for f in vo.glob("_block0?.asr.json"):
+        c = json.loads(f.read_text(encoding="utf-8")); c.pop("sha256", None); f.write_text(json.dumps(c, ensure_ascii=False), encoding="utf-8")
+    rc, out = run(again); kept = (vo / "_block02.asr.json").stat().st_mtime_ns
+    if rc != 0 or calls(out) != 0: bad.append(f"--resume on caches without a key: exit {rc}, {calls(out)} transcribe call(s): {out[-300:]}")
+    shutil.copyfile(vo / "_block01.c2.wav", vo / "_block01.wav")
+    rc, out = run(again); side = json.loads((vo / "_block01.asr.json").read_text(encoding="utf-8"))
+    if rc != 0 or calls(out) < 1 or side.get("sha256") != hashlib.sha256((vo / "_block01.wav").read_bytes()).hexdigest() \
+            or (vo / "_block02.asr.json").stat().st_mtime_ns != kept:
+        bad.append(f"--resume after _block01.wav was swapped by hand: exit {rc}, {calls(out)} call(s), cache key {side.get('sha256')}: {out[-300:]}")
     (Path(d) / "t.txt").write_text("我们那儿的声音从一根琴弦说起。\n", encoding="utf-8")
     rc, out = run(["voices", "audition", "--provider", "gemini", "--voices", "Kore,Puck,Charon", "--text", f"{d}/t.txt", "--out", f"{d}/au", "--align", "gemini"])
     au = json.loads(Path(f"{d}/au/audition.json").read_text(encoding="utf-8")) if Path(f"{d}/au/audition.json").exists() else {"voices": []}
@@ -408,7 +423,7 @@ with tempfile.TemporaryDirectory() as d:
         if R["Kore"]["misread"] != [] or not any("那" in m for m in R["Charon"]["misread"]): bad.append(f"misread {[(v, R[v]['misread']) for v in R]}")
 print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
-); then ok "tts --candidates keeps the take nearest the median voice per block; a slow line and a repeated phrase are warned of; voices audition measures pitch, speech rate and misreads"
+); then ok "tts --candidates keeps the take nearest the median voice per block; a slow line and a repeated phrase are warned of; --resume hears a block swapped by hand again, the rest not; voices audition measures pitch, speech rate and misreads"
   else bad "tts --candidates / voices audition on the Gemini stub: $a"; fi
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); printf '%s\n' '一句试音。' > "$t/t.txt"
   a=$(env -u GEMINI_API_KEY "$VH_BASH" "$ROOT/bin/vh" voices audition --provider gemini --voices Kore,Puck --text "$t/t.txt" 2>&1); rc=$?

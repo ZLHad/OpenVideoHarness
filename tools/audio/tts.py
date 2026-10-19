@@ -60,7 +60,8 @@ Alignment check (--align gemini, any provider): every line is transcribed by gem
        so a transcribe call that fails for good (a daily quota, the network, a bad file) cannot lose the take: the line
        keeps its measured timing and gets asr {"error"}, the command exits 1, and --resume continues that run: it
        synthesizes only the files the run did not get to (after a synthesis failure too), reuses the ASR of the lines
-       that succeeded (vo/<lang>/*.asr.json) and redoes the rest; a file synthesized again gets a fresh transcription.
+       that succeeded (vo/<lang>/*.asr.json) and redoes the rest; a file synthesized again gets a fresh transcription,
+       and so does one changed by hand (each .asr.json records the sha256 of the file it heard).
        The run's script, provider, voice, --instruct / GEMINI_TTS_STYLE and join mode are recorded in vo/<lang>/_run.json;
        --resume refuses a mismatch and names it (the timing flags may change). A plain run (no --align, no --join) that
        failed midway continues the same way, and a finished plain run gets --align gemini without synthesizing again.
@@ -132,7 +133,7 @@ Providers (API keys come from environment variables only, never from files):
               pronunciation_dict.tone. text_normalization is on: "1953 年" is read 一千九百五十三年, so write years
               as 一九五三年 in the spoken text.
 """
-import argparse, base64, difflib, json, os, re, shutil, subprocess, sys, tempfile, time, unicodedata
+import argparse, base64, difflib, hashlib, json, os, re, shutil, subprocess, sys, tempfile, time, unicodedata
 import urllib.error, urllib.parse, urllib.request, wave
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -148,6 +149,12 @@ def to_wav(src: Path, dst: Path):
 
 def duration(p: Path) -> float:
     return float(run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)]).stdout)
+
+def sha256(p: Path) -> str:   # the take a cached transcription was made from (vo/<lang>/*.asr.json)
+    h = hashlib.sha256()
+    with open(p, "rb") as fh:
+        for b in iter(lambda: fh.read(1 << 20), b""): h.update(b)
+    return h.hexdigest()
 
 RATE_WAIT_MAX, RATE_TRIES = 90.0, 5   # a 429 asking for more than 90 s is taken for a daily quota: waiting will not help
 BODY_PARSE, BODY_SHOW = 8192, 500     # bytes of an error body read for the retry delay and the quota / repeated in the message
@@ -1235,19 +1242,26 @@ def main():
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
         made = []             # the transcribe calls actually made (a --resume that reuses every .asr.json makes none)
+        def cached(wav):      # (key, record) of a file's .asr.json: the record only when it was made from this very file, else {}
+            side, key = wav.with_suffix(".asr.json"), sha256(wav)
+            try: c = json.loads(side.read_text(encoding="utf-8")) if side.exists() else {}
+            except ValueError: c = {}
+            if not isinstance(c, dict): c = {}
+            if "sha256" in c: return key, (c if c["sha256"] == key else {})   # a take swapped by hand is heard again
+            return key, (c if c and wav.stat().st_mtime <= side.stat().st_mtime else {})   # one written before the key: while the file is not newer
         def asr_words(wav):   # (text, words) of a file: from its .asr.json on --resume, else transcribed and saved for a later --resume
-            side = wav.with_suffix(".asr.json")
-            if a.resume and side.exists():
-                c = json.loads(side.read_text(encoding="utf-8")); return c["text"], c["words"]
+            key, c = cached(wav)
+            if a.resume and "words" in c: return c["text"], c["words"]
             txt, ws = transcribe(wav, a.lang, tmp); made.append(wav.name)
-            side.write_text(json.dumps({"text": txt, "words": ws}, ensure_ascii=False), encoding="utf-8")
+            wav.with_suffix(".asr.json").write_text(json.dumps({"sha256": key, "text": txt, "words": ws}, ensure_ascii=False), encoding="utf-8")
             return txt, ws
         def asr_recheck(wav, vocab):   # the text-only re-check, cached the same way (same vocabulary → same answer)
-            side = wav.with_suffix(".asr.json"); c = json.loads(side.read_text(encoding="utf-8")) if side.exists() else {}
+            key, c = cached(wav)
             if a.resume and c.get("recheck", {}).get("vocab") == vocab:
                 return c["recheck"]["text"]
             txt, _ = transcribe(wav, a.lang, tmp, vocab=vocab); made.append(wav.name)
-            c["recheck"] = {"vocab": vocab, "text": txt}; side.write_text(json.dumps(c, ensure_ascii=False), encoding="utf-8")
+            c.update(sha256=key, recheck={"vocab": vocab, "text": txt})
+            wav.with_suffix(".asr.json").write_text(json.dumps(c, ensure_ascii=False), encoding="utf-8")
             return txt
         def shifted(words, h):  # word times after trim_edges cut h s from the head
             return [dict(w, start=max(0.0, w["start"] - h), end=max(0.0, w["end"] - h)) for w in words] if words and h else words
