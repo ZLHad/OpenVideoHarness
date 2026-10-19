@@ -95,7 +95,7 @@ def gate_findings(g):
 
 def detect_findings(txt):
     """ffmpeg's blackdetect / freezedetect / silencedetect lines → one finding per span."""
-    out, open_ = [], {}
+    out, open_, dur = [], {}, {}
     for line in txt.splitlines():
         for kind in ("black", "freeze", "silence"):
             ms = dict(re.findall(rf"{kind}_(start|end|duration)\s*:\s*(-?[\d.]+)", line))
@@ -105,13 +105,14 @@ def detect_findings(txt):
                 out.append((kind, float(ms["start"]), float(ms["end"]), float(ms.get("duration") or 0)))
             elif "start" in ms:
                 open_[kind] = float(ms["start"])
-            elif "end" in ms:
+                dur.pop(kind, None)
+            elif "end" in ms:   # silencedetect has its duration on the end line; freezedetect on the line before
                 a = open_.pop(kind, None)
-                out.append((kind, a, float(ms["end"]), float(ms.get("duration") or 0)))
-            elif "duration" in ms and out and out[-1][0] == kind and not out[-1][3]:
-                out[-1] = out[-1][:3] + (float(ms["duration"]),)
+                out.append((kind, a, float(ms["end"]), float(ms.get("duration") or dur.pop(kind, 0) or 0)))
+            elif "duration" in ms:   # the open span's own (it used to be put on the span before it)
+                dur[kind] = float(ms["duration"])
     for kind, a in open_.items():   # started and never ended: it runs to the end of the file
-        out.append((kind, a, None, None))
+        out.append((kind, a, None, dur.get(kind)))
     what = {"black": "a black picture", "freeze": "a frozen picture", "silence": "silence"}
     res = []
     for kind, a, b, d in out:

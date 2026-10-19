@@ -663,6 +663,18 @@ PY
         *) bad "clean does not keep check records: $(printf '%s' "$e" | tail -c 300)" ;; esac
     else bad "check --json (rc $rc/$rc2/$rc3/$rc4/$rc5): $(tail -c 300 "$t/cf/j1.txt") | $(printf '%s' "$b$c" | head -c 600)"; fi
     rm -f "$t/cf/confirmed.json"
+    # no scratch folder (mktemp -d fails): the same checks, lines and exit, one warning, no record; and freezedetect's
+    # duration line (before its end line) goes to its own span, not to the span before
+    a=$(vh check "$t/cf/odd.mp4" 2>/dev/null); rc=$?; rm -f "$t/cf/out/check/odd.check.json"
+    b=$(TMPDIR="$t/no-such-folder" vh check "$t/cf/odd.mp4" 2>"$t/cf/notmp.err"); rc2=$?
+    c=$(TMPDIR="$t/no-such-folder" vh check "$t/cf/odd.mp4" --json 2>/dev/null); rc3=$?
+    d=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import checkrec as C
+f = C.detect_findings("\n".join("lavfi.freezedetect.freeze_%s: %s" % x for x in [("start", 1), ("duration", 4), ("end", 5), ("start", 10), ("duration", 3.5), ("end", 13.5)]))
+print([x["evidence"]["duration"] for x in f])')
+    if [ $rc = 1 ] && [ $rc2 = 1 ] && [ "$a" = "$b" ] && [ "$(grep -c 'no scratch folder' "$t/cf/notmp.err")" = 1 ] && [ ! -e "$t/cf/out/check/odd.check.json" ] \
+      && [ $rc3 = 1 ] && case "$c" in *'"verdict": "fail", "error": "no scratch folder'*) true ;; *) false ;; esac && [ "$d" = "[4.0, 3.5]" ]
+    then ok "check with no scratch folder: the same lines and exit status, one warning, no record; each frozen span keeps its own duration"
+    else bad "check without mktemp (rc $rc/$rc2/$rc3): $(tail -c 300 "$t/cf/notmp.err") | $c | freeze durations $d"; fi
     if command -v uv >/dev/null; then   # qa scan: a sparse passage (a dropout), a burst of clicks; the stems' own dip; confirmed.json
       qs() { uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/qa.py" scan "$@"; }
       gen() { ffmpeg -nostdin -v error -f lavfi -i "aevalsrc='0.5*sin(2*PI*220*t)*(1-$1*min(1,max(0,min((t-3)/0.02,(5-t)/0.02))))$2':s=48000:d=10" -ac 2 -c:a pcm_s16le "$3"; }

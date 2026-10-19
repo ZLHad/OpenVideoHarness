@@ -171,7 +171,7 @@ JSON 的格式：
 
 `bin/vh check` 每跑一次，都把结果存成视频所在项目的 `out/check/<名字>.check.json`（名字是文件名去掉扩展名，前面加上 `out/` 之后的文件夹：`out/review/sketch.mp4` 是 `review-sketch`；项目外的视频不存），`bin/vh clean` 留着它。`--json` 把同一份打到标准输出，给人看的那些行改去标准错误；检查本身、退出码和不加 `--json` 时一样（`tools/checkrec.py`）。
 
-顶层：`version`、`tool`、`video`（项目里的写相对路径）、`project`、`record`、`t`、`at`、`args`（`allow`、`against`）、`exit`、`verdict`（`pass` / `fail`，和退出码一致）、`counts`（`fail`、`warn`、`info` 各几条）、`probe`（时长、大小、各条流）、`motion`（动着的帧对占比、静止占比、硬切数）、`findings`、`skipped`（没跑成的检查和原因）。读不了视频时只有 `error`。
+顶层：`version`、`tool`、`video`（项目里的写相对路径）、`project`、`record`、`t`、`at`、`args`（`allow`、`against`）、`exit`、`verdict`（`pass` / `fail`，和退出码一致）、`counts`（`fail`、`warn`、`info` 各几条）、`probe`（时长、大小、各条流）、`motion`（动着的帧对占比、静止占比、硬切数）、`findings`、`skipped`（没跑成的检查和原因）。读不了视频时只有 `error`。建不了临时文件夹（`mktemp -d` 失败，比如 `TMPDIR` 指向不存在的地方）时，检查照跑，输出和退出码不变，多一行提示，不存记录；`--json` 只打 `verdict`、`exit` 和 `error`。
 
 每条 finding：`kind`、`severity`（`fail` 让退出码是 1，`warn` 要看一眼，`info` 只是说一声）、`message`、`t` 和 `t1`（秒，有时间或时间段的才有）、`frame` 和 `frames`（`[第一帧, 最后一帧]`）、`evidence`（判断依据：量到的数、BRIEF 那一行、画面的 key、确认它的那一条……）、`confirmed`（confirmed.json 盖住了是 true，能确认但没确认是 false，这一类从来不在那里确认就是 null）。没确认的孤立帧还带 `confirm`：填上 why 和 evidence 就能贴进 confirmed.json 的那一条。`kind` 用 confirmed.json 的名字：`check.spec`、`check.gate`、`check.black`、`check.freeze`、`check.silence`、`check.iso`（孤立帧；`declared: true` 是这次 `--allow` 声明的，`lapsed: true` 是确认失效了）、`check.periodic`、`check.static`、`check.cut`（从暗到亮的硬切）、`check.blind`（动得太多、扫描判断不了的一段）、`check.subtitles`、`check.colour`、`check.packaging`、`check.scale`、`check.confirmed`（confirmed.json 里没用上、失效或没收下的条目）。
 
