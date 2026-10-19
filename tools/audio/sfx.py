@@ -748,6 +748,8 @@ def main():
                 print(f"sfx: the duration {sys.argv[4]!r} is not a number of seconds above 0 "
                       f"(sfx place <events.json> <out.wav> [duration_s] [--lib DIR])", file=sys.stderr); sys.exit(2)
         else: dur = max(e["t"] for e in events) + 3
+        if "--lib" in sys.argv and (sys.argv.index("--lib") + 1 >= len(sys.argv) or sys.argv[sys.argv.index("--lib") + 1].startswith("--")):
+            print("sfx: --lib needs a folder (sfx place <events.json> <out.wav> [duration_s] [--lib DIR])", file=sys.stderr); sys.exit(2)
         lib_dir = Path(sys.argv[sys.argv.index("--lib") + 1]) if "--lib" in sys.argv else None
         for k, e in enumerate(events):
             if e.get("role") is not None and e["role"] not in CLASSES:
