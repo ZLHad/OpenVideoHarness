@@ -35,8 +35,9 @@
 // the video: the same command again draws only the rest, while the page and every file it loaded, the options that shape
 // the video (all but --workers, --frame-timeout and the estimate), the browser and these tools are unchanged; anything
 // else changed, it says what and starts over. A chunk in which the page reported an error is never kept.
-// Before drawing it checks the disk the render needs at its peak (the chunks and the joined copy): it stops (exit 2)
-// when even a flat film would not fit; the estimate above measures it.
+// Before drawing it checks the disk the render needs at its peak (the chunks it draws and the joined copy; on a resume,
+// the chunks left and the joined copy, kept chunks included): it stops (exit 2) when even a flat film would not fit; the
+// estimate above measures it. Its glyph check covers the frames it draws: on a resume it says the kept ones were not.
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -128,12 +129,10 @@ function takeLock() {
   }
   return `could not take ${rel(lock)}`;
 }
-// the disk: the chunks and the joined copy are on it together before the chunks go, so about twice the video at the peak.
-// x264 at these CRFs has made 0.04 bits a pixel (a flat test page) to 0.4 (4K 3D with grain): refuse only when even 0.01
-// does not fit, say so when 0.06–0.4 might not and nothing measured it (OVH_FREE_BYTES pretends that much is free: for tests)
-const free = process.env.OVH_FREE_BYTES ? +process.env.OVH_FREE_BYTES : (() => { try { const s = fs.statfsSync(path.dirname(outFile)); return s.bavail * s.bsize; } catch { return Infinity; } })();
-const pxs = Math.round(first.width * o.dpr) * Math.round(first.height * o.dpr) * n, gb = (b) => (b / 1e9).toFixed(b < 1e8 ? 3 : 1);
-if (2 * pxs * 0.01 / 8 > free) { await first.close(); die(`at least ${gb(2 * pxs * 0.01 / 8)} GB needed at the peak for ${n} frames at ${Math.round(first.width * o.dpr)}x${Math.round(first.height * o.dpr)} (likely ${gb(2 * pxs * 0.06 / 8)}–${gb(2 * pxs * 0.4 / 8)}), ${gb(free)} GB free on that disk`); }
+// the disk (measured once the chunks an earlier render left are kept or cleared, below): OVH_FREE_BYTES pretends that much
+// is free (for tests)
+const freeOnDisk = () => process.env.OVH_FREE_BYTES ? +process.env.OVH_FREE_BYTES : (() => { try { const s = fs.statfsSync(path.dirname(outFile)); return s.bavail * s.bsize; } catch { return Infinity; } })();
+const gb = (b) => (b / 1e9).toFixed(b < 1e8 ? 3 : 1);
 const busy = takeLock();
 if (busy) { await first.close(); die(busy); }
 const unlock = () => { try { if (+fs.readFileSync(lock, "utf8") === process.pid) fs.unlinkSync(lock); } catch { /* already gone */ } };
@@ -209,6 +208,17 @@ let reuse = new Set(), why = null;
   writePlan(first);
 }
 const todo = plan.map((_, i) => i).filter((i) => !reuse.has(i)), nTodo = todo.reduce((s, i) => s + plan[i][1] - plan[i][0], 0);
+// the disk at the peak is what this run writes on top of what is there: the chunks it draws, then the joined copy, which
+// is the kept chunks' bytes (known) and those chunks again. x264 at these CRFs has made 0.04 bits a pixel (a flat test
+// page) to 0.4 (4K 3D with grain): refuse only when even 0.01 does not fit, say so when 0.06–0.4 might not and nothing
+// measured it (the estimate below measures it)
+const keptBytes = [...reuse].reduce((s, i) => s + fs.statSync(kept(i)).size, 0), free = freeOnDisk();
+const peak = (bpp) => keptBytes + 2 * px[0] * px[1] * nTodo * bpp / 8;
+const peakOf = reuse.size ? `the ${nTodo} frames left to draw and the joined copy (${reuse.size} chunks kept, ${gb(keptBytes)} GB)` : `${n} frames`;
+if (peak(0.01) > free) {
+  await first.close(); keepFinished();
+  die(`at least ${gb(peak(0.01))} GB needed at the peak for ${peakOf} at ${px[0]}x${px[1]} (likely ${gb(peak(0.06))}–${gb(peak(0.4))}), ${gb(free)} GB free on that disk`);
+}
 const W = Math.min(o.workers, todo.length);
 console.log(`render: ${rel(first.page)} · ${first.kind === "film" ? "window.film" : first.kind} · ${first.width}x${first.height}${o.dpr !== 1 ? ` @${o.dpr}x` : ""} · ` +
   `${n} frames at ${fps} fps (${(k0 / fps).toFixed(3)}–${(k1 / fps).toFixed(3)} s) · ${plan.length} chunk${plan.length > 1 ? "s" : ""}, ${W} worker${W === 1 ? "" : "s"} · ${png ? "PNG" : `JPEG q${o.quality}`} → x264 crf ${o.crf} ${o.preset}, keyframe every ${gop} · ${first.version}`);
@@ -258,13 +268,13 @@ if (todo.length && (o.estimate === "on" || (o.estimate === "auto" && nTodo > 600
   const mean = ms.reduce((s, x) => s + x, 0) / ms.length, got = sizes.filter((x) => x !== null);
   const film = got.length ? n * got.reduce((s, x) => s + x, 0) / got.length : null;
   // a few places can miss the busiest stretches (measured: a film up to twice what its samples said), so it is a range
-  const keptBytes = [...reuse].reduce((s, i) => s + fs.statSync(kept(i)).size, 0), more = film === null ? null : Math.max(0, 2 * film - keptBytes);
+  const more = film === null ? null : Math.max(0, 2 * film - keptBytes);
   console.log(`  estimate (${ms.length} frames drawn in one browser, ${Math.min(...ms).toFixed(0)}–${Math.max(...ms).toFixed(0)} ms each): ${nTodo} frames in about ` +
     `${ftime(nTodo * mean / 1000 / W)} with ${W} worker${W === 1 ? "" : "s"} (more when they share a GPU or the machine is busy)` +
     (film === null ? "; the size could not be measured" : `; the video ${size(film)}–${size(2 * film)} (x264 crf ${o.crf} ${o.preset} on those frames), ` +
       `${size(more)}–${size(more + 2 * film)} more on that disk at the peak (the chunks, then the joined copy), ${size(free)} free${more + 2 * film > free ? ": it may not fit" : ""}`));
   if (more !== null && more > free) { await first.close(); keepFinished(); die(`about ${size(more)} is needed at the peak and ${size(free)} is free on that disk: free some, or a higher --crf; --no-estimate renders without measuring`); }
-} else if (2 * pxs * 0.4 / 8 > free) console.log(`  disk: about ${gb(2 * pxs * 0.06 / 8)}–${gb(2 * pxs * 0.4 / 8)} GB needed at the peak (more for grain, 3D, photos), ${gb(free)} GB free: it may not fit`);
+} else if (peak(0.4) > free) console.log(`  disk: about ${gb(peak(0.06))}–${gb(peak(0.4))} GB needed at the peak for ${peakOf} (more for grain, 3D, photos), ${gb(free)} GB free: it may not fit`);
 
 const glyphs = [], fileOf = plan.map((_, i) => (reuse.has(i) ? kept(i) : null));
 const T0 = Date.now(), problems = [];
@@ -367,6 +377,9 @@ for (const p of problems) console.log(`  ${p}`);
   const [lines, wrong] = okG.length ? glyphReport(mergeGlyphs(okG)) : [[], false];
   if (wrong) { console.log("  glyphs: characters not drawn in the font they ask for (bin/vh fonts check lists them all):"); for (const l of lines.filter((x) => /^[✗!]/.test(x))) console.log("    " + l); }
   if (errG.length) console.log(`  glyphs: ${errG.length} of ${glyphs.length} worker(s) could not check theirs (${errG[0].error}); bin/vh fonts check does it on its own`);
+  // a resume draws only the chunks left; the kept ones come from a render that stopped before its own check
+  if (reuse.size && (!W || okG.some((g) => g.chars))) console.log(`  glyphs: ${W ? `checked in the ${nTodo} frames drawn now; the` : "not checked: every chunk was kept, so no frame was drawn; the"} ` +
+    `${n - nTodo} frames of the ${reuse.size} kept chunk(s) were drawn by the render that stopped, before its check (bin/vh fonts check covers the whole film)`);
 }
 if (!okCount) console.log(`  the video has ${st.nb_frames} frames, not ${n}`);
 if (!okColor) console.log(`  the colour tags are not yuv420p tv/bt709`);

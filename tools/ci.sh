@@ -1868,16 +1868,25 @@ PY
     # the queue and the resume, on a page whose frames cost unevenly (tools/film/fixture/uneven.html: from 2 s on 30 ms
     # each, frame 75 5 s): chunks of one GOP, so 3 workers make the video 1 makes (PSNR: separate browsers). A render
     # whose frame 75 passes --frame-timeout 3 keeps the 5 chunks it finished; with the page edited they are not used;
-    # the same command then draws only the last chunk, and the video is the one a whole render makes
-    mkdir -p "$t/q" && cp tools/film/fixture/uneven.html "$t/q/u.html"
+    # the same command then draws only the last chunk, and the video is the one a whole render makes. The disk floor of a
+    # resume is what it writes: the chunk left and the joined copy, the kept chunks' bytes in it (a disk 1000 bytes over
+    # those refuses it, the chunks kept); its glyph check (the page writes a word) says the kept chunks' frames were not checked
+    mkdir -p "$t/q" && sed 's|x.fillStyle = "#fc0";|x.font = "16px sans-serif"; x.fillStyle = "#fff"; x.fillText("chunk", 8, 24); x.fillStyle = "#fc0";|' tools/film/fixture/uneven.html > "$t/q/u.html"
     vh render "$t/q/u.html" --workers 1 --gop 15 --out "$t/q/one.mp4" >/dev/null 2>&1
     a=$(vh render "$t/q/u.html" --workers 3 --gop 15 --out "$t/q/three.mp4" 2>&1); rc=$?
     b=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 3 --out "$t/q/r.mp4" 2>&1); rc2=$?
+    kb=$(python3 -c 'import os, sys; d = sys.argv[1]; print(sum(os.path.getsize(os.path.join(d, f)) for f in os.listdir(d) if f.startswith("part")))' "$t/q/.r.mp4.parts" 2>/dev/null || echo 0)
+    e=$(OVH_FREE_BYTES=$((kb + 1000)) vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 3 --out "$t/q/r.mp4" 2>&1); rc5=$?
+    case "$rc5:$e" in 2:*"needed at the peak for the 15 frames left to draw and the joined copy (5 chunks kept"*)
+        [ "$(ls "$t/q/.r.mp4.parts" | grep -c '^part')" = 5 ] && ok "render: a resume's disk floor is the chunk left and the joined copy with the kept chunks' bytes; refused, it keeps them" \
+          || bad "render: a resume refused for the disk did not keep its chunks: $(ls "$t/q/.r.mp4.parts" 2>&1)" ;;
+      *) bad "render resume on a disk with room for the kept chunks only (exit $rc5, $kb bytes kept): $(printf '%s' "$e" | tail -c 500)" ;; esac
     printf '<!-- edited -->\n' >> "$t/q/u.html"
     c=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 3 --out "$t/q/r.mp4" 2>&1); rc3=$?
     d=$(vh render "$t/q/u.html" --workers 2 --gop 15 --out "$t/q/r.mp4" 2>&1); rc4=$?
     if [ "$rc:$rc2:$rc3:$rc4" = 0:1:1:0 ] && printf '%s' "$b" | grep -q '5 of 6 chunks are kept' && printf '%s' "$c" | grep -q 'not used (changed: .*u\.html)' \
-      && printf '%s' "$d" | grep -q 'resuming: 5 of 6 chunks kept' && [ ! -e "$t/q/.r.mp4.parts" ] && python3 - "$t/q" <<'PY'
+      && printf '%s' "$d" | grep -q 'resuming: 5 of 6 chunks kept' && printf '%s' "$d" | grep -q 'glyphs: checked in the 15 frames drawn now; the 75 frames of the 5 kept' \
+      && [ ! -e "$t/q/.r.mp4.parts" ] && python3 - "$t/q" <<'PY'
 import json, re, subprocess, sys
 d = sys.argv[1]
 def psnr(a, b):
