@@ -265,7 +265,7 @@ doctor_downloads() { # what the first runs download on their own and how big it 
     pend="$pend Chrome 0.2 GB,"
   fi
   if command -v uv >/dev/null 2>&1; then
-    if uv run -q --no-project --offline --with numpy --with scipy --with librosa --with pillow python -c "" >/dev/null 2>&1; then
+    if on_ctrl_c uv run -q --no-project --offline --with numpy --with scipy --with librosa --with pillow python -c "" >/dev/null 2>&1; then
       echo "$c_ok Python packages of bin/vh (numpy, scipy, librosa, pillow) are in the uv cache"
     else echo "$c_wa Python packages not cached yet: the first bin/vh beats, qa, music, sheet or storyboard run fetches numpy, scipy, librosa and pillow (about 700 MB) into the uv cache"
       pend="$pend Python packages 0.7 GB,"
@@ -277,7 +277,7 @@ doctor_downloads() { # what the first runs download on their own and how big it 
   if [ "$(uname)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
     echo "- Qwen3-TTS (bin/vh tts's default voice) runs on Apple Silicon only (mlx-audio): use edge, gemini, minimax, dashscope or elevenlabs here"
   else
-    command -v uv >/dev/null 2>&1 && ! uv run -q --no-project --offline --with mlx-audio python -c "" >/dev/null 2>&1 && voice_pkgs=1
+    command -v uv >/dev/null 2>&1 && ! on_ctrl_c uv run -q --no-project --offline --with mlx-audio python -c "" >/dev/null 2>&1 && voice_pkgs=1
     if [ -n "$snap" ] && [ -e "$(set -- "$snap"*.safetensors; echo "$1")" ]; then echo "$c_ok Qwen3-TTS model  $model · $(size_of "$snap")"
     else
       echo "$c_wa Qwen3-TTS model not downloaded: the first bin/vh tts with the default provider fetches $model (about 2 GB) from Hugging Face into $(rel "$hub")"
@@ -594,7 +594,7 @@ cmd_fonts() { # check: through the page contract (tools/film/fonts.mjs); list an
   case "${1:-}" in
     check) shift; cmd_film_tool fonts "$@" ;;
     list|subset) command -v uv >/dev/null 2>&1 || { echo "$c_no bin/vh fonts $1 needs uv (it brings fontTools): bin/vh doctor says how to install it" >&2; exit 2; }
-      uv run -q --no-project --with fonttools --with brotli python "$ROOT/tools/fonts.py" "$@" ;;
+      on_ctrl_c uv run -q --no-project --with fonttools --with brotli python "$ROOT/tools/fonts.py" "$@" ;;
     *) cmd_usage fonts; exit 1 ;;
   esac
 }
@@ -634,7 +634,8 @@ cmd_film_tool() { # $1: frames | render | determinism | cues | fonts | patch (to
   exec node "$ROOT/tools/film/$tool.mjs" --browser "$b" "$@"
 }
 on_ctrl_c() { # on_ctrl_c <command…>: run it; a Ctrl-C while it runs ends bin/vh with 130 whatever the command exits with (uv run
-  # itself exits 2, "Failed to get PID of child process", when the Ctrl-C reaches it just as its Python has exited)
+  # itself exits 2, "Failed to get PID of child process", when the Ctrl-C reaches it just as its Python has exited, and bash
+  # goes on after a child that exits). Every uv run goes through it. Inside $( ) it ends that subshell: the caller exits on 130
   local int=0 rc=0
   trap 'int=1' INT
   "$@" || rc=$?
@@ -651,7 +652,7 @@ cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--shots s
   b=$(film_browser rhythm "$(arg_dir "$@")" 2>/dev/null) || true
   on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/rhythm.py" --browser "$b" "$@"; }
 cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image> [more…] [--text-px N] [--out file.png|folder]"; exit 1; }
-  uv run -q --no-project --with pillow --with numpy --with scipy python "$ROOT/tools/cover_preview.py" "$@"; }
+  on_ctrl_c uv run -q --no-project --with pillow --with numpy --with scipy python "$ROOT/tools/cover_preview.py" "$@"; }
 cmd_review() { python3 "$ROOT/tools/review.py" "$@"; }
 cmd_desk() { [ $# -gt 0 ] || { cmd_usage desk; exit 1; }   # stdlib only: no uv, works offline; exec, so stopping
   exec python3 "$ROOT/tools/desk/desk.py" "$@"; }            # a backgrounded bin/vh desk stops the server itself
@@ -675,11 +676,11 @@ for d in sorted(pathlib.Path(sys.argv[1]).iterdir()):
     print(f"  {d.name:22} {j.get('family',''):13} {j.get('name',{}).get('zh',''):14} {has}")
 PY
       ;;
-    gallery) shift; uv run -q --no-project --with pillow python "$sw/gallery.py" "$@" ;;
+    gallery) shift; on_ctrl_c uv run -q --no-project --with pillow python "$sw/gallery.py" "$@" ;;
     check) shift; case "${1:-}" in -h|--help) echo "usage: bin/vh style check <preset> [workers_b=3]   frames from 1 and N render workers must match (styles/_swatch/determinism.sh)"; return ;; esac
       swatch_deps "${1:-}"; "$sw/determinism.sh" "$@" ;;
     compare) shift; [ $# -gt 0 ] || { echo "usage: bin/vh style compare a,b,c [--frame t] [--out file.png]"; exit 1; }
-      uv run -q --no-project --with pillow python "$ROOT/tools/style_compare.py" "$@" ;;
+      on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/style_compare.py" "$@" ;;
     apply) shift; [ $# -eq 2 ] || { echo "usage: bin/vh style apply <preset[,preset]> <project>   (bin/vh style list shows the presets)"; exit 1; }
       local s styles; styles=$(parse_styles "$1") || { cmd_style list; exit 1; }
       local dir; dir=$(project_dir "$2") || exit 1
@@ -769,7 +770,7 @@ cmd_sheet() {
   base=$(project_of "$v"); [ -n "$base" ] || base="$(cd "$(dirname "$v")" && pwd)"
   local out=${4:-"$base/out/check/${name}-sheet-$(date +%H%M%S).png"}; mkdir -p "$(dirname "$out")"
   if command -v uv >/dev/null 2>&1; then   # timestamped tiles (ffmpeg builds often lack drawtext)
-    uv run -q --no-project --with pillow python "$ROOT/tools/sheet.py" "$v" "$out" "$cols" "$fps" && return
+    on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/sheet.py" "$v" "$out" "$cols" "$fps" && return
     why="tools/sheet.py failed, error above"
   fi
   local dur rows; dur=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$v"); rows=$(python3 -c "import math;print(max(1,math.ceil($dur*$fps/$cols)))")
@@ -826,9 +827,10 @@ cmd_check() {
   if [ -z "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 "$v" 2>/dev/null)" ]; then :   # audio only
   elif [ ${#py[@]} = 0 ]; then echo "$c_wa isolated-frame scan skipped: it needs numpy (install uv)"
   else
-    iso=$("${py[@]}" "$ROOT/tools/isoframes.py" "${ia[@]}") || rc=$?
+    iso=$(on_ctrl_c "${py[@]}" "$ROOT/tools/isoframes.py" "${ia[@]}") || rc=$?
     iso=$(printf '%s\n' "$iso" | sed -e "s/^  static:/$c_wa static:/" -e "s/^  cuts:/$c_wa cuts:/" -e "s/^  periodic:/$c_wa periodic:/" -e "s/^  note:/$c_wa note:/")
     case "$rc:$iso" in   # uv also exits 1 when it cannot install numpy, so the words decide, not the status alone
+      130:*) exit 130 ;;   # Ctrl-C: on_ctrl_c ended the scan's subshell
       0:*) echo "$c_ok $iso" ;;
       1:[0-9]*" isolated frame"*) echo "$c_no $iso"
         echo "   a flash you designed (a flash frame, a flicker) is listed too: confirm it in the project's confirmed.json (the confirm? line"
@@ -871,8 +873,9 @@ cmd_check() {
     local sc arc=0
     if [ ${#py[@]} = 0 ]; then fail=1; echo "$c_no --against needs numpy (install uv)"
     else
-      sc=$("${py[@]}" "$ROOT/tools/scalecheck.py" "$v" "$against" --sheet "$(dirname "$v")/check") || arc=$?
+      sc=$(on_ctrl_c "${py[@]}" "$ROOT/tools/scalecheck.py" "$v" "$against" --sheet "$(dirname "$v")/check") || arc=$?
       case "$arc:$sc" in
+        130:*) exit 130 ;;
         0:*"WARN "*) echo "$c_wa $sc" ;;
         0:*) echo "$c_ok $sc" ;;
         1:*"the picture differs"*) fail=1; echo "$c_no $sc"
@@ -898,13 +901,13 @@ cmd_tts() {
   # everything from the first --flag on goes straight to tts.py (--beats, --snap, --lead, --gap, --min-gap, --align, --join, --min-sim, --vocab, --resume)
   [ "$voice" = "-" ] && voice=""; [ "$lang" = "-" ] && lang=""; [ "$instruct" = "-" ] && instruct=""   # no lang: tts.py picks zh, or en for an English-only script
   case "$prov" in qwen) deps="--with mlx-audio" ;; edge) deps="--with edge-tts" ;; dashscope) deps="--with dashscope" ;; esac
-  uv run -q --no-project $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${lang:+--lang "$lang"} ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"} "$@"
+  on_ctrl_c uv run -q --no-project $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${lang:+--lang "$lang"} ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"} "$@"
 }
 cmd_voices() { [ $# -gt 0 ] || set -- list; python3 "$ROOT/tools/audio/tts.py" voices "$@"; }
 cmd_pace() { # numpy for the waveform; mlx-whisper only with --align whisper (Apple Silicon)
   local a prev="" deps="--with numpy"
   for a in "$@"; do case "$prev:$a" in --align:whisper|*:--align=whisper) deps="$deps --with mlx-whisper" ;; esac; prev=$a; done
-  uv run -q --no-project $deps python "$ROOT/tools/audio/pace.py" "$@"
+  on_ctrl_c uv run -q --no-project $deps python "$ROOT/tools/audio/pace.py" "$@"
 }
 cmd_captions() { # --media-end S: where a caption too short for its minimum may be lengthened to (default: the picture's length)
   local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--en-max 42] [--cards] [--cps 9] [--media-end S] [--skip-lint]"
@@ -924,27 +927,27 @@ cmd_captions() { # --media-end S: where a caption too short for its minimum may 
   # (a network that hangs costs seconds, not a minute), else plain python3 and the fallback
   local py=(python3)
   if command -v uv >/dev/null 2>&1; then
-    if uv run -q --no-project --offline --with jieba python -c "import jieba" >/dev/null 2>&1; then py=(uv run -q --no-project --offline --with jieba python)
-    elif UV_HTTP_TIMEOUT=8 UV_HTTP_RETRIES=0 uv run -q --no-project --with jieba python -c "import jieba" >/dev/null 2>&1; then py=(uv run -q --no-project --offline --with jieba python); fi
+    if on_ctrl_c uv run -q --no-project --offline --with jieba python -c "import jieba" >/dev/null 2>&1; then py=(uv run -q --no-project --offline --with jieba python)
+    elif on_ctrl_c env UV_HTTP_TIMEOUT=8 UV_HTTP_RETRIES=0 uv run -q --no-project --with jieba python -c "import jieba" >/dev/null 2>&1; then py=(uv run -q --no-project --offline --with jieba python); fi
   fi
-  PYTHONWARNINGS=ignore "${py[@]}" "$ROOT/tools/audio/captions.py" "$proj" ${1:+--lang "$1"} ${2:+--zh-max "$2"} ${end[@]+"${end[@]}"}
+  on_ctrl_c env PYTHONWARNINGS=ignore "${py[@]}" "$ROOT/tools/audio/captions.py" "$proj" ${1:+--lang "$1"} ${2:+--zh-max "$2"} ${end[@]+"${end[@]}"}
 }
-cmd_beats() { uv run -q --no-project --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
+cmd_beats() { on_ctrl_c uv run -q --no-project --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
 cmd_timeline() { [ $# -gt 0 ] || { cmd_usage timeline; exit 1; }; python3 "$ROOT/tools/audio/timeline_lint.py" "$@"; }
 cmd_remap() { [ $# -gt 0 ] || { cmd_usage remap; exit 1; }; python3 "$ROOT/tools/audio/remap.py" "$@"; }
 cmd_timemap() { [ $# -gt 0 ] || { cmd_usage timemap; exit 1; }; python3 "$ROOT/tools/audio/time_map.py" "$@"; }   # stdlib only
 cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then
   local a pil=""; for a in "$@"; do [ "$a" = --roll ] && pil="--with pillow"; done
-  uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/music.py" "$@"; }
+  on_ctrl_c uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/music.py" "$@"; }
 cmd_sfx() { # audition --png draws a spectrogram: pillow joins numpy and scipy only then
   local a pil=""; for a in "$@"; do [ "$a" = --png ] && pil="--with pillow"; done
-  uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/sfx.py" "$@"; }
+  on_ctrl_c uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/sfx.py" "$@"; }
 cmd_mix() { # a mix profile computes in numpy/scipy (through uv); the default chain is ffmpeg only and runs on plain python3
   local a
-  for a in "$@"; do case "$a" in profile=none) ;; profile=*) uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/mix.py" "$@"; return ;; esac; done
+  for a in "$@"; do case "$a" in profile=none) ;; profile=*) on_ctrl_c uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/mix.py" "$@"; return ;; esac; done
   python3 "$ROOT/tools/audio/mix.py" "$@"
 }
-cmd_qa() { uv run -q --no-project --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
+cmd_qa() { on_ctrl_c uv run -q --no-project --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
 cmd_mux() { python3 "$ROOT/tools/audio/mux.py" "$@"; }   # verifies a tracked mix; deliberate duration changes need a flag
 
 cmd_deliver() { [ $# -gt 0 ] || { cmd_usage deliver; exit 1; }; python3 "$ROOT/tools/deliver.py" "$@"; }   # ffmpeg only

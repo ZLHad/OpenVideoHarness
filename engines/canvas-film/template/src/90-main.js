@@ -85,7 +85,9 @@ function cover(id, o = {}) {
 // ---- ready ----
 async function loadFonts() {   // every @font-face in film.html, one by one; a face this machine lacks falls back, and is named
   const faces = [...document.fonts], got = await Promise.allSettled(faces.map((f) => f.load()));
-  return faces.filter((f, i) => got[i].status === "rejected").map((f) => `${f.family.replace(/"/g, "")} ${f.weight}`);
+  const range = (r) => { const p = r.split(/,\s*/); return p.length > 2 ? `${p[0]} … ${p.at(-1)}` : p.join(", "); };
+  const name = (f) => `${f.family.replace(/"/g, "")} ${f.weight}` + (f.unicodeRange && f.unicodeRange !== "U+0-10FFFF" ? ` for ${range(f.unicodeRange)}` : "");
+  return [...new Set(faces.filter((f, i) => got[i].status === "rejected").map(name))];   // a face for a few characters says which
 }
 async function loadImages() {
   await Promise.all(Object.entries(FILM.images || {}).map(async ([key, src]) => {
@@ -181,7 +183,7 @@ async function boot() {
   await checkTimeMapSources(T);
   build(T);
   record();
-  if (missing.length) console.error(`canvas-film: fonts this machine does not have, drawn in a fallback: ${missing.join(", ")} (film.html's @font-face)`);
+  if (missing.length) console.error(`canvas-film: fonts this machine does not have, drawn in a fallback: ${missing.join(" · ")} (film.html's @font-face)`);
 }
 
 const READY = boot();

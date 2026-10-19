@@ -741,7 +741,13 @@ def main():
         if not given and not events:
             sys.exit(f"sfx: {sys.argv[2]} has no events, so the track has no length: give one "
                      f"(sfx place {sys.argv[2]} {out} <duration_s>) for a silent track that long")
-        dur = float(sys.argv[4]) if given else max(e["t"] for e in events) + 3
+        if given:
+            try: dur = float(sys.argv[4])
+            except ValueError: dur = None
+            if dur is None or not 0 < dur < float("inf"):   # nan fails this too
+                print(f"sfx: the duration {sys.argv[4]!r} is not a number of seconds above 0 "
+                      f"(sfx place <events.json> <out.wav> [duration_s] [--lib DIR])", file=sys.stderr); sys.exit(2)
+        else: dur = max(e["t"] for e in events) + 3
         lib_dir = Path(sys.argv[sys.argv.index("--lib") + 1]) if "--lib" in sys.argv else None
         for k, e in enumerate(events):
             if e.get("role") is not None and e["role"] not in CLASSES:

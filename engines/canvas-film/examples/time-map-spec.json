@@ -1,0 +1,25 @@
+{
+ "note": "synthetic: a made-up year of a made-up series, for time-map-solve.py (no real data, dates or titles)",
+ "axis": { "kind": "date", "origin": "2031-01-01", "unit": "day" },
+ "segments": [
+  { "id": "first_half", "from": "2031-01-01", "to": "2031-07-01", "t": [2, 32] },
+  { "id": "second_half", "from": "2031-07-01", "to": "2032-01-01", "t": [32, 64] }
+ ],
+ "events": [
+  { "id": "d0120", "at": "2031-01-20", "lane": "top", "text": "冬天的低点" },
+  { "id": "d0301", "at": "2031-03-01", "lane": "top", "text": "三月开始回升", "slow": { "s": 2 } },
+  { "id": "d0412", "at": "2031-04-12", "lane": "top", "text": "回到年初的水平", "pin": 15.0 },
+  { "id": "d0505", "at": "2031-05-05", "lane": "top", "text": "五月的高点" },
+  { "id": "d0520", "at": "2031-05-20", "lane": "top", "text": "随后回落" },
+  { "id": "d0610", "at": "2031-06-10", "lane": "low", "text": "示意：下层的一条旁注", "data": { "side": "low" } },
+  { "id": "d0815", "at": "2031-08-15", "lane": "top", "text": "全年走得最快的一个月", "slow": { "s": 3, "sigma": 6 } },
+  { "id": "d0920", "at": "2031-09-20", "lane": "top", "text": "九月底起放慢看" },
+  { "id": "d1010", "at": "2031-10-10", "lane": "top", "text": "拐点", "pin": 48.0 },
+  { "id": "d1130", "at": "2031-11-30", "lane": "top", "text": "年底趋平" }
+ ],
+ "windows": [ { "from": "2031-09-15", "to": "2031-10-25", "weight": 1.5, "edge": 4 } ],
+ "holds": [ { "at": "2032-01-01", "s": 3 } ],
+ "lanes": { "top": { "rows": 1, "gap": 0.5 }, "low": { "rows": 1, "gap": 0.5 } },
+ "sigma": 4,
+ "step": 1
+}

@@ -70,6 +70,7 @@ Every on-screen number traced to its source in NOTES.md; the treatment never cha
 - `references/repos/hyperframes/skills/hyperframes-creative/references/data-in-motion.md`（**必读**）。
 - `references/repos/3brown1blue/src/three_b1b/skill/rules/graphs-plots.md`：用 Manim 画图表的做法。
 - `playbook/03-motion-design.md`：计数和 stagger 的数值参数。
+- `recipes/sequences/data-along-time.md`：沿时间轴讲的数据片的全片骨架：一份时间映射管画面和声音、定位环和引线、字卡的读时、换视图时把线带过去。
 
 ## 社区 skill 参考
 

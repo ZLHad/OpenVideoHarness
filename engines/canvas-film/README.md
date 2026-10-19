@@ -285,6 +285,7 @@ const SHOTS = [
 - `draw()` 里查：`mapU(t)`、`mapT(u)`、`eventT(id, "end")`，或者直接用 `TIMEMAP`（`.u`、`.t`、`.at`、`.dur(u0, u1)`、`.rate(t)`、`.day(iso)`、`.events`）。Three.js 层的模块按名字读同一个 `TIMEMAP`。映射在 `ready` 时载入后冻结，每帧只是查表，仍是 t 的纯函数。
 - `bin/vh cues --save` 同时记下实际载入的映射路径和 SHA-256，下一次说出哪些挂点挪了，并提示"time map changed"。不进页面的检查：`bin/vh timemap check data/time.map.json`（列出事件，查记下的 sources 还对不对，和上次 `--save` 的比谁挪了）。
 - 折点怎么解由项目定，可以自己写脚本。改一处（一条事件的标题变长、删一条事件）又不想挪已定的落点时，把已定的事件当定点，只在相邻两个定点之间重新分配时间，定点外的折点原样保留；改完 `bin/vh timemap check` 和 `--save` 时的那份比，看谁挪了。
+- 仓库里的 `engines/canvas-film/examples/time-map-solve.py` 是一个解法的例子（只用标准库，旁边是一份合成的规格 `time-map-spec.json`），复制到项目里照着改：事件处的高斯减速在跨度边上截断、慢窗、停留、字卡读时按车道查，以及上面说的定点。它不是 `bin/vh` 的命令，策略和参数都归项目。
 - 音效、混音用同一份映射：events.json 加表头以后，`t` 可以写 `"@#e1"`（`tools/audio/README.md` 的"音效"）。Python 脚本：`from tools.audio.time_map import TimeMap`，用法和 JS 相同。
 
 旧项目要用时间映射：复制 `src/06-time-map.js` 并在 `film.html` 里 `05-music-clock.js` 之后加它的 script 标签；`00-core.js` 合入 `FILM.timemap`、`cueT` 里的 `@#` 分支和 `resolver` 里的 `$map`；`90-main.js` 合入 `boot()` 里的 `loadTimeMap()`、`checkTimeMapSources()` 和 `window.film.timemap`。不设 `FILM.timemap` 时什么都不变。

@@ -93,6 +93,25 @@ for f in sys.stdin.read().splitlines():
   [ $n = 0 ] && ok "js syntax"
   if python3 tools/audio/test_music_clock.py; then ok "music clock: JS/Python agree on bar time and invalid maps"; else bad "music clock"; fi
   if python3 tools/audio/test_time_map.py; then ok "time map: JS/Python agree on maps and every kind of time reference; events.json headers; time_map.py check"; else bad "time map"; fi
+  # the example time-map solver (engines/canvas-film/examples): its synthetic spec solves to a map timemap check takes, and
+  # a card's text made longer between two fixed points (a pin at 15 s, a segment end at 32 s) moves knots in that span alone
+  local ex="$ROOT/engines/canvas-film/examples" d; d=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  if python3 "$ex/time-map-solve.py" "$ex/time-map-spec.json" "$d/a.map.json" >/dev/null && vh timemap check "$d/a.map.json" >/dev/null \
+    && python3 - "$ex/time-map-solve.py" "$ex/time-map-spec.json" "$d" <<'PY'
+import json, subprocess, sys
+solve, spec, d = sys.argv[1:]
+s = json.load(open(spec, encoding="utf-8"))
+e = next(e for e in s["events"] if e["id"] == "d0505"); e["text"] += "，比去年同期高出一截"
+json.dump(s, open(f"{d}/b.json", "w", encoding="utf-8"), ensure_ascii=False)
+subprocess.run([sys.executable, solve, f"{d}/b.json", f"{d}/b.map.json"], check=True, stdout=subprocess.DEVNULL)
+A, B = (json.load(open(f"{d}/{n}.map.json", encoding="utf-8")) for n in "ab")
+out = lambda m: [k for k in m["knots"] if not 15 < k[0] < 32]
+pins = lambda m: [(e["id"], e["t"]) for e in m["events"] if e["id"] in ("d0412", "d1010")]
+sys.exit(0 if out(A) == out(B) and A["knots"] != B["knots"] and pins(A) == pins(B) == [("d0412", 15), ("d1010", 48)] else 1)
+PY
+  then ok "time-map solver example: its spec solves to a map timemap check takes; an edit between two pins moves that span's knots alone"
+  else bad "time-map solver example (engines/canvas-film/examples/time-map-solve.py)"; fi
+  rm -rf "$d"
   # media: videos live in the GitHub release "media" (tools/media.txt, tools/fetch_media.sh), so a clone stays small;
   # the style swatches (about 1 MB each, read by the tools) are the one exception. No file over 8 MB either.
   out=$(files | while IFS= read -r f; do
@@ -230,6 +249,32 @@ PY
   a=$(PATH="$t:$PATH" vh tts "$t" --provider edge --lang en; PATH="$t:$PATH" vh tts "$t" --provider=dashscope)
   case "$a" in *"--with edge-tts "*"--provider edge"*"--with dashscope "*) ok "tts --provider picks the provider's dependencies" ;;
     *) bad "tts --provider: uv got '$a'" ;; esac
+  # Ctrl-C (to the process group, as a terminal sends it) while a command runs through uv run ends bin/vh with 130, even
+  # when uv itself exits 2 ("Failed to get PID of child process", the race when its Python has just exited): a fake uv
+  # that does exactly that, under each command that goes through uv
+  printf '#!/bin/sh\ntrap '"'"'echo "error: Failed to get PID of child process" >&2; exit 2'"'"' INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/uv"
+  if a=$(python3 - "$t" "$VH_BASH" "$ROOT/bin/vh" <<'PY'
+import os, signal, subprocess, sys, time
+t, sh, vh = sys.argv[1:]
+mark, env = f"{t}/started", dict(os.environ, PATH=f"{t}:{os.environ['PATH']}", UVMARK=f"{t}/started")
+runs = [["music", "x"], ["sfx", "x"], ["beats", "x"], ["qa", "x"], ["mix", "profile=x"], ["tts", t], ["pace", "x"],
+        ["cover-preview", "x"], ["style", "compare", "a,b"], ["sheet", f"{t}/x.mp4"], ["fonts", "list", "x"], ["captions", t]]
+bad = []
+for r in runs:
+    if os.path.exists(mark): os.remove(mark)
+    p = subprocess.Popen([sh, vh, *r], start_new_session=True, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(500):
+        if os.path.exists(mark) or p.poll() is not None: break
+        time.sleep(0.02)
+    try: os.killpg(p.pid, signal.SIGINT)
+    except OSError: pass
+    try: rc = p.wait(timeout=20)
+    except subprocess.TimeoutExpired: os.killpg(p.pid, signal.SIGKILL); rc = "hung"
+    if rc != 130: bad.append(f"{' '.join(r[:2])} {rc}")
+print(", ".join(bad)); sys.exit(1 if bad else 0)
+PY
+); then ok "Ctrl-C ends every command that runs through uv run with 130, also when uv exits 2 as its Python exits"
+  else bad "Ctrl-C under uv run (command, exit; want 130): $a"; fi
   rm -rf "$t"
   # tts: a Gemini 429 that names a per-day quota fails at once, though it asks for 30 s; a per-minute one is still waited
   # out and retried; one naming no daily quota fails at once only past 90 s (a stub on 127.0.0.1; waits recorded, not slept)
@@ -1334,6 +1379,15 @@ PY
       else bad "canvas-film: the broken cue was reported after $((SECONDS - s0)) s, not at once"; fi ;;
     *) bad "canvas-film with a broken cue: exit $rc: $(printf '%s' "$a" | tail -c 800)" ;;
   esac
+  # no face of film.html on this machine: each missing face is named once, the 900 serif and its face for two dashes apart
+  mkdir "$t/cfn" && cp -R "$c/." "$t/cfn/" && sed 's/local("[^"]*")/local("No Such Face CI")/g' "$c/film.html" > "$t/cfn/film.html"
+  a=$(vh frames "$t/cfn" --at 1 --out "$t/cfn/out" 2>&1 | grep 'fonts this machine does not have')
+  if printf '%s' "$a" | python3 -c '
+import re, sys
+m = re.search(r"drawn in a fallback: (.*) \(film\.html", sys.stdin.read()); L = m.group(1).split(" · ") if m else []
+sys.exit(0 if len(L) == len(set(L)) == 8 and {"Film Serif 900", "Film Serif 900 for U+2013, U+2212"} <= set(L) else 1)'
+  then ok "canvas-film: a machine without the faces names each missing face once (a face for a few characters says which)"
+  else bad "canvas-film missing faces: $a"; fi
   a=$(vh textcheck "$c" --out "$t/cftc" 2>&1); rc=$?
   [ $rc = 0 ] && ok "canvas-film: textcheck passes the template's reads and captions" || bad "textcheck on the canvas-film template (exit $rc): $(printf '%s' "$a" | tail -c 800)"
   mkdir "$t/cfq" && cp -R "$c/." "$t/cfq/"
@@ -1781,6 +1835,9 @@ PY
     a=$(vh sfx place "$t/none.json" "$t/none.wav" 2>&1); rc=$?; b=$(vh sfx place "$t/none.json" "$t/none.wav" 2 2>&1)
     case "$rc:$a:$b" in 1:*"has no events"*"<duration_s>"*:*"0 events"*"2.00s"*) ok "sfx place: an empty event list asks for a duration, and with one writes a silent track" ;;
       *) bad "sfx place on an empty event list (exit $rc): $a / $b" ;; esac
+    a=$(vh sfx place "$t/none.json" "$t/none.wav" 2s 2>&1); rc=$?
+    case "$rc:$a" in 2:*"duration '2s' is not a number of seconds"*) case "$a" in *Traceback*) bad "sfx place with a duration 2s: a traceback: $a" ;; *) ok "sfx place: a duration that is not a number is said plainly (exit 2)" ;; esac ;;
+      *) bad "sfx place with a duration 2s (exit $rc): $a" ;; esac
   fi
   rm -rf "$t"
 }
