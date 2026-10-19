@@ -1,7 +1,8 @@
 """Bring the pace of the lines in one narration take closer together, without synthesizing again.
 
-usage (via bin/vh pace): python tools/audio/pace.py <project> [zh|en] [--ref ID[-ID] | --target N] [--strength 0.8]
-                                                 [--clamp 0.92,1.18] [--tolerance 0.05] [--pause 0.26] [--extra id=s,…]
+usage (via bin/vh pace): python tools/audio/pace.py <project> [zh|en] [--ref ID[-ID] | --target N | --relative ±P%]
+                                                 [--strength 0.8] [--clamp 0.92,1.18] [--tolerance 0.05] [--pause 0.26]
+                                                 [--comma 0.12] [--stop 0.25] [--extra id=s,…]
                                                  [--align map|gemini|whisper] [--dry-run] [--restore] [--skip-lint]
 
 A timeline that fails bin/vh timeline (tools/audio/timeline_lint.py) is refused, since each line's pace is measured
@@ -25,15 +26,22 @@ Per line:
      0.12 s at a line's edge, set off by 0.06 s of quiet and 15 dB under the line's speech, is a breath (one per side):
      kept in the audio, not counted as speech. A line nothing was heard for is named and left alone: its stretch of the
      take is copied as it is. Spans that go back in time (a hand-edited timeline) are refused;
-  2. silences inside the line longer than --pause (0.26 s) are shortened to it, 6 ms fades on both sides of each cut.
-     A line whose script has <short pause>, <long pause> or a <#s#> mark keeps its pauses (they were asked for);
-  3. pace = spoken units / voiced seconds after step 2: CJK characters (digits read out: 75 = 七十五, 3; 1953年 = 5), or
-     syllables in English. Reference: the median of the lines (default), --ref the pooled pace of lines a person
-     approved (--ref hook, --ref s1-s3), or --target N. Each line moves by tempo (ffmpeg atempo, pitch kept)
-     x = (reference / pace) ^ --strength, within --clamp; lines within --tolerance of it, and lines under 4 units or
-     0.5 s, are left as they are;
+  2. pace = the speech rate: spoken units / seconds of voice, every silence of 0.12 s or more inside the line left out:
+     CJK characters (digits read out: 75 = 七十五, 3; 1953年 = 5), or syllables in English. Reference: the median of the
+     lines (default), --ref the pooled rate of lines a person approved (--ref hook, --ref s1-s3), or --target N. Each line
+     moves by tempo (ffmpeg atempo, pitch kept) x = (reference / pace) ^ --strength, within --clamp; lines within
+     --tolerance of it, and lines under 4 units or 0.5 s, are left as they are. --relative +10% instead takes the current
+     take (the paced one when there is one) 10 % faster: every heard line's tempo is its current one × 1.10, within
+     --clamp, and the settings not given (--clamp, --pause, --comma, --stop, --extra) are the last run's;
+  3. silences inside the line longer than --pause (0.26 s) are shortened to it, 6 ms fades on both sides of each cut.
+     The silence at a comma or a full stop inside the line (the word before it ends in ，、；： or 。？！) is kept at least
+     --comma (0.12 s) / --stop (0.25 s) long after the tempo change: a shorter one gets silence inserted at its quietest
+     10 ms (faded either side), a longer one is cut to no less than the floor. Only silences already there: where the
+     voice runs through the mark, nothing is inserted, and the voice itself is never cut or moved apart. A line whose
+     script has <short pause>, <long pause> or a <#s#> mark keeps its pauses (they were asked for);
   4. pauses between lines are the take's own, measured voice to voice, kept inside a range by the line's end:
-     comma (or no punctuation) 0.12–0.40 s, full stop 0.25–0.70 s, end of a block 0.45–1.20 s; --extra id=s adds
+     comma (or no punctuation) 0.12–0.40 s, full stop 0.25–0.70 s, end of a block 0.45–1.20 s (the low ends are --comma,
+     --stop and the larger of 0.45 and --stop; a high end below its floor rises to it); --extra id=s adds
      (or, negative, takes away) after a line. A pause with a "……" line (no words) in it is the pause that line asks for:
      kept as it is. The silence before the first line (--lead) and after the last is kept.
      Lines are joined in numpy, never with anullsrc + concat (playbook/04-audio.md, "旁白晚一点进来").
@@ -52,7 +60,9 @@ Output voiceover.<lang>.wav and timeline.<lang>.json written back (timeline.json
        through tts.py's align_lines like bin/vh tts --align, refresh asr {similarity, flag} and print how far the
        mapped times were (a failed transcription keeps the mapped times, exit 1). A whisper "1953" against a script's
        一九五三 is spread over the heard word.
-       The timeline's "pace" block: reference, settings, and per line its pace before, the tempo, and after.
+       The timeline's "pace" block: reference, settings, the take's speech rate and its rate with pauses (first word to
+       last) before and after, the pauses lengthened, and per line its speech rate before, the tempo, and after.
+       --dry-run prints the same: per line, then the take's two rates.
 """
 import argparse, hashlib, importlib.util, json, math, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
@@ -74,10 +84,14 @@ SPLIT_NEAR = 0.2                  # look this far around the ASR boundary betwee
 GAP_MIN = 0.12                    # … a silence at least this long when there is one (shorter dips are between syllables)
 BREATH, BREATH_GAP, BREATH_DB = 0.12, 0.06, 15.0   # a voiced blip this short at a line's edge, set off by this much quiet and
                                                    # this many dB under the line's speech: a breath, not speech (one per side)
+H_MIN = 0.01                      # the shortest span a rate is taken over (s)
 MIN_SPAN = 0.1                    # a line nothing was heard for still gets this much (no zero-width cue; tts.align_lines does the same)
 GAPS = {"comma": (0.12, 0.40), "stop": (0.25, 0.70), "block": (0.45, 1.20)}   # voice-to-voice silence after a line (s)
 ASR_PIECE = 540.0                 # longest piece per gemini transcription (16 kHz inline audio: ≈ 10 min fits 20 MB)
 STOPS = tuple("。！？!?….")
+COMMAS = tuple("，,、；;：:—")                    # a comma-like pause inside a line (the floor --comma)
+PUNCT_NEAR = 0.08                 # a silence this close to the gap between the words around a punctuation mark is its
+                                  # pause (a syllable is further than this; a silence one syllable away is not the mark's)
 CLOSERS = " ”’」』）)》\"'"
 DIG = "零一二三四五六七八九"
 CJK = re.compile(rf"[{tts._CJK}]")
@@ -300,7 +314,7 @@ def plan(x, sr, segs, lang, block, asked, a):
         else:                                             # nothing heard for this line: a point, untouched
             v0 = v1 = c0 = c1 = s0 = s1 = min(max(s["start"], wlo), max(whi, wlo), dur)
         sa, sb = int(round(c0 * sr)), min(len(x), int(round(c1 * sr)))
-        keep, runs = np.ones(max(sb - sa, 0), bool), []
+        quiet = []
         q = voiced[fr(s0):fr(s1)] if len(idx) else voiced[:0]   # the speech, first to last voiced frame
         j = 0
         while j < len(q):                                 # quiet runs inside the line (q starts and ends voiced)
@@ -309,41 +323,71 @@ def plan(x, sr, segs, lang, block, asked, a):
             e = j
             while e < len(q) and not q[e]:
                 e += 1
-            if (e - j) * H > a.pause > 0:
-                runs.append((s0 + j * H, s0 + e * H))
+            quiet.append([s0 + j * H, s0 + e * H, None])
             j = e
-        excess = sum(e - b - a.pause for b, e in runs)
-        if runs and not asked.get(s["id"]):               # cut the middle of the long ones (kept when the script asks for them)
-            for b, e in runs:
-                keep[max(0, int(round((b + a.pause / 2) * sr)) - sa): max(0, int(round((e - a.pause / 2) * sr)) - sa)] = False
-        voiced_s = max(s1 - s0 - excess, H)
-        lines.append({"i": i, "seg": s, "u": u, "c0": c0, "c1": c1, "v0": v0, "v1": v1, "s0": s0, "s1": s1, "sa": sa, "sb": sb, "keep": keep,
-                      "runs": runs, "heard": bool(len(idx)), "rate": u / voiced_s if len(idx) else None, "voiced": voiced_s,
-                      "kept_pauses": bool(runs and asked.get(s["id"]))})
+        ws = s.get("words") or []
+        for w, nw in zip(ws, ws[1:]):                     # the silence at a punctuation mark inside the line: its kind
+            d = w["w"].rstrip(CLOSERS)
+            kind = "stop" if d.endswith(STOPS) else "comma" if d.endswith(COMMAS) else None
+            lo, hi = min(w["end"], nw["start"]), max(w["end"], nw["start"])
+            near = [r for r in quiet if max(r[0] - hi, lo - r[1], 0.0) <= PUNCT_NEAR]
+            if kind and near:
+                r = min(near, key=lambda r: max(r[0] - hi, lo - r[1], 0.0))
+                r[2] = "stop" if "stop" in (r[2], kind) else kind
+        speech = max(s1 - s0 - sum(e - b for b, e, _ in quiet if e - b >= GAP_MIN - 1e-9), H)   # pauses excluded
+        lines.append({"i": i, "seg": s, "u": u, "c0": c0, "c1": c1, "v0": v0, "v1": v1, "s0": s0, "s1": s1, "sa": sa, "sb": sb,
+                      "quiet": quiet, "heard": bool(len(idx)), "rate": u / speech if len(idx) else None, "speech": speech,
+                      "span": s1 - s0})
     for L in lines:
-        L["ok"] = L["heard"] and L["u"] >= MIN_UNITS and L["voiced"] >= MIN_VOICED
+        L["ok"] = L["heard"] and L["u"] >= MIN_UNITS and L["speech"] >= MIN_VOICED
     measurable = [L for L in lines if L["ok"]]
-    if a.target:
+    last = {}                                             # --relative: each line's tempo in the current take
+    if a.relative is not None:
+        last = {l["id"]: float(l.get("tempo", 1.0)) for l in (a.current or {}).get("lines", [])}
+        pool = measurable or [L for L in lines if L["heard"]]
+        cur = ((a.current or {}).get("rates", {}).get("speech") or [None, None])[1] \
+            or sum(L["u"] for L in pool) / sum(L["speech"] / last.get(L["seg"]["id"], 1.0) for L in pool)   # as measured, else estimated
+        ref, how = cur * (1 + a.relative), f"--relative {a.relative:+.0%} of the current take's {cur:.2f}"
+    elif a.target:
         ref, how = a.target, f"--target {a.target:g}"
     elif a.ref:
         ids = ref_ids(a.ref, segs)
         pool = [L for L in lines if L["seg"]["id"] in ids and L["heard"]]
         if not pool:
             sys.exit(f"--ref {a.ref}: no line there has words that were heard; pick lines with speech")
-        ref, how = sum(L["u"] for L in pool) / sum(L["voiced"] for L in pool), f"--ref {a.ref} ({len(pool)} line(s))"
+        ref, how = sum(L["u"] for L in pool) / sum(L["speech"] for L in pool), f"--ref {a.ref} ({len(pool)} line(s))"
     elif measurable:
         ref, how = float(np.median([L["rate"] for L in measurable])), f"median of {len(measurable)} line(s)"
     else:
         ref, how = None, "no line long enough to measure"
     for L in lines:
         f, why = 1.0, ""
-        if not L["ok"]:
-            why = "short" if L["heard"] else "nothing heard"
+        if not L["heard"]:
+            why = "nothing heard"
+        elif a.relative is not None:                      # the current take, every line by the same factor
+            f = min(a.clamp[1], max(a.clamp[0], last.get(L["seg"]["id"], 1.0) * (1 + a.relative)))
+            why = "at the clamp" if f in a.clamp and abs(f - last.get(L["seg"]["id"], 1.0) * (1 + a.relative)) > 1e-9 else ""
+        elif not L["ok"]:
+            why = "short"
         elif ref and abs(math.log(ref / L["rate"])) > math.log(1 + a.tolerance):
             f = min(a.clamp[1], max(a.clamp[0], (ref / L["rate"]) ** a.strength))
         elif ref:
             why = "close enough"
         L["f"], L["why"] = f, why
+    for L in lines:                                       # inner pauses: the long ones cut, the short ones at punctuation lengthened
+        keep, runs, ins = np.ones(max(L["sb"] - L["sa"], 0), bool), [], []
+        kept = asked.get(L["seg"]["id"])                  # a line whose script asks for its pauses keeps them as they are
+        for b, e, kind in L["quiet"]:
+            floor = {"stop": a.stop, "comma": a.comma}.get(kind, 0.0) * L["f"]   # before the tempo change, so it lands on the floor
+            cap = max(a.pause, floor)
+            if e - b > cap and a.pause > 0:
+                runs.append((b, e))
+                if not kept:                              # cut the middle, keep cap
+                    keep[max(0, int(round((b + cap / 2) * sr)) - L["sa"]): max(0, int(round((e - cap / 2) * sr)) - L["sa"])] = False
+            elif kind and e - b < floor - 1e-9 and not kept:   # silence inserted at the quietest 10 ms of the pause
+                k0 = fr(b); k = k0 + int(np.argmin(db[k0:max(fr(e), k0 + 1)]))
+                ins.append((min(max(int(round((k + 0.5) * H * sr)) - L["sa"], 0), len(keep)), int(round((floor - (e - b)) * sr))))
+        L["keep"], L["runs"], L["ins"], L["kept_pauses"] = keep, runs, sorted(ins), bool(runs and kept)
     chain = [L for L in lines if L["heard"]]             # a line nothing was heard for stays inside the pause around it
     if not chain:
         sys.exit("nothing was heard for any line with words: is audio/voiceover.<lang>.wav the take this timeline describes?")
@@ -352,10 +396,17 @@ def plan(x, sr, segs, lang, block, asked, a):
         between = [segs[i]["id"] for i in range(L["i"] + 1, nxt["i"])]   # "……" lines, unheard lines: that stretch is kept as it is
         g = nxt["s0"] - L["s1"]                           # speech to speech: a breath before a line is part of the pause
         kind = "kept" if between else gap_kind(L["seg"], nxt["seg"], block)
-        lo_k, hi_k = GAPS.get(kind, (g, g))
+        lo_k, hi_k = gap_range(kind, a) if kind != "kept" else (g, g)
         extra = sum(a.extra.get(x_, 0.0) for x_ in [L["seg"]["id"]] + between)
         L["gap"], L["kind"], L["gap0"] = max(0.04, min(max(g, lo_k), hi_k) + extra), kind, g
     return lines, ref, how
+
+def gap_range(kind, a):
+    """The range a pause between two lines is kept in: GAPS, its low end raised (or lowered) to the floor --comma / --stop
+    (a block's end: the larger of its own and --stop)."""
+    lo, hi = GAPS[kind]
+    lo = {"comma": a.comma, "stop": a.stop, "block": max(lo, a.stop)}[kind]
+    return lo, max(hi, lo)
 
 def ref_ids(spec, segs):
     ids = [s["id"] for s in segs]
@@ -380,12 +431,18 @@ def render(x, sr, lines):
                 lo = max(0, e + 1 - fz); chunk[lo:e + 1] *= np.linspace(1, 0, e + 1 - lo)
             else:
                 hi = min(len(chunk), e + 1 + fz); chunk[e + 1:hi] *= np.linspace(0, 1, hi - e - 1)
-        kept = chunk[keep]
+        kept, ck = chunk[keep], np.concatenate([[0], np.cumsum(keep)])
+        for p, n in reversed(L["ins"]):                   # a short pause lengthened: silence at its quietest point, faded either side
+            q = int(ck[p]); lo, hi = max(0, q - fz), min(len(kept), q + fz)
+            kept[lo:q] *= np.linspace(1, 0, q - lo); kept[q:hi] *= np.linspace(0, 1, hi - q)
+            kept = np.concatenate([kept[:q], np.zeros(n), kept[q:]])
+        for p, n in L["ins"]:
+            ck[p:] += n
         y = atempo(kept, sr, L["f"])
         fe = min(int(EDGE_FADE * sr), len(y) // 2)
         if fe:
             y[:fe] *= np.linspace(0, 1, fe); y[-fe:] *= np.linspace(1, 0, fe)
-        L["ck"], L["scale"] = np.concatenate([[0], np.cumsum(keep)]), len(y) / len(kept) if len(kept) else 1.0
+        L["ck"], L["scale"] = ck, len(y) / len(kept) if len(kept) else 1.0
         L["warp"] = warp(kept, y, sr) if len(y) != len(kept) else None
         L["f_real"] = 1 / L["scale"] if L["scale"] else 1.0   # atempo's length is off by up to ~1% (silence stretches unevenly)
         L["n0"] = t; out.append(y); t += len(y) / sr; L["n1"] = t
@@ -455,26 +512,45 @@ def main():
     ap.add_argument("project"); ap.add_argument("lang", nargs="?", choices=["zh", "en"], help="default: the latest bin/vh tts run's")
     g = ap.add_mutually_exclusive_group()
     g.add_argument("--ref", help="line id, or first-last: their pooled pace is the reference (default: the median of the lines)")
-    g.add_argument("--target", type=float, help="reference pace in units per second (CJK characters, or English syllables)")
+    g.add_argument("--target", type=float, help="reference speech rate: units per second of voice, pauses excluded (CJK characters, or English syllables)")
+    g.add_argument("--relative", help="+10%% / -5%%: the current take (the paced one, else the original) that much faster or slower,"
+                                      " every line by the same factor (--strength and --tolerance do not apply)")
     ap.add_argument("--strength", type=float, default=0.8, help="part of the way: tempo = (reference / pace) ^ strength (0–1)")
-    ap.add_argument("--clamp", default="0.92,1.18", help="slowest,fastest tempo of a line")
+    ap.add_argument("--clamp", help="slowest,fastest tempo of a line (default 0.92,1.18; with --relative: the last run's)")
     ap.add_argument("--tolerance", type=float, default=0.05, help="lines within this fraction of the reference are left as they are")
-    ap.add_argument("--pause", type=float, default=0.26, help="longest silence kept inside a line (s); 0 keeps them all")
-    ap.add_argument("--extra", default="", help="id=s,… seconds added after a line (negative: taken away)")
+    ap.add_argument("--pause", type=float, help="longest silence kept inside a line (s; default 0.26); 0 keeps them all")
+    ap.add_argument("--comma", type=float, help="floor of a pause at a comma (，、；：), inside a line and between lines (s; default 0.12)")
+    ap.add_argument("--stop", type=float, help="floor of a pause at a full stop (。？！), inside a line and between lines (s; default 0.25)."
+                                               " A shorter silence there is lengthened with silence at its quietest point; the voice is not touched")
+    ap.add_argument("--extra", help="id=s,… seconds added after a line (negative: taken away)")
     ap.add_argument("--align", default="map", choices=["map", "gemini", "whisper"], help="word times of the new take")
     ap.add_argument("--dry-run", action="store_true", help="measure and print, write nothing")
     ap.add_argument("--restore", action="store_true", help="put the original take and timeline back, remove the .raw files")
     ap.add_argument("--skip-lint", action="store_true", help="go on even when the timeline fails its checks (tools/audio/timeline_lint.py)")
-    a = ap.parse_intermixed_args()                       # the language may come after the flags too
+    argv = sys.argv[1:]                                  # "--relative -5%": argparse would take -5% for an option
+    for k in range(len(argv) - 1):
+        if argv[k] == "--relative":
+            argv[k:k + 2] = [f"--relative={argv[k + 1]}", ""]
+    a = ap.parse_intermixed_args([v for v in argv if v != ""])   # the language may come after the flags too
     if a.restore and a.dry_run:
         ap.error("--restore puts files back; --dry-run only measures: use one of them")
+    if a.relative is not None:
+        m = re.fullmatch(r"\s*([+-]?\d+(?:\.\d+)?)\s*%\s*", a.relative)
+        if not m or not -50 < float(m.group(1)) < 100:
+            ap.error("--relative wants a percentage, e.g. +10% (faster) or -5% (slower), between -50% and +100%")
+        a.relative = float(m.group(1)) / 100
+    given = {k for k in ("clamp", "pause", "comma", "stop", "extra") if getattr(a, k) is not None}
+    for k, v in (("clamp", "0.92,1.18"), ("pause", 0.26), ("comma", GAPS["comma"][0]), ("stop", GAPS["stop"][0]), ("extra", "")):
+        if getattr(a, k) is None:
+            setattr(a, k, v)
     try:
         a.clamp = tuple(float(v) for v in a.clamp.split(","))
         assert len(a.clamp) == 2 and 0.5 <= a.clamp[0] <= 1 <= a.clamp[1] <= 2
     except (ValueError, AssertionError):
         ap.error("--clamp wants slowest,fastest with 0.5 ≤ slowest ≤ 1 ≤ fastest ≤ 2 (e.g. 0.92,1.18)")
-    if not 0 <= a.strength <= 1 or not 0 <= a.tolerance < 1 or a.pause < 0 or (a.target is not None and a.target <= 0):
-        ap.error("--strength 0–1, --tolerance 0–1, --pause ≥ 0, --target > 0")
+    if not 0 <= a.strength <= 1 or not 0 <= a.tolerance < 1 or a.pause < 0 or (a.target is not None and a.target <= 0) \
+            or not 0 <= a.comma <= 3 or not 0 <= a.stop <= 3:
+        ap.error("--strength 0–1, --tolerance 0–1, --pause ≥ 0, --target > 0, --comma and --stop 0–3 s")
     try:
         a.extra = {k.strip(): float(v) for k, v in (p.split("=", 1) for p in a.extra.split(",") if p.strip())}
     except ValueError:
@@ -537,6 +613,11 @@ def main():
     if not (wav.exists() and tlp.exists()):
         sys.exit(f"no {rel(wav)} / {rel(tlp)}: make the narration with bin/vh tts first")
     tl = json.loads(tlp.read_text(encoding="utf-8"))
+    a.current = tl.get("pace")                            # --relative: the take as it is now, and the settings it was made with
+    if a.relative is not None and a.current:
+        for k in ("clamp", "pause", "comma", "stop", "extra"):
+            if k not in given and k in a.current:
+                setattr(a, k, tuple(a.current[k]) if k == "clamp" else dict(a.current[k]) if k == "extra" else float(a.current[k]))
     if tl.get("pace"):                                    # the paced take from an earlier run: start again from the original
         if sha256(wav) != tl["pace"].get("sha256"):
             sys.exit(f"{rel(wav)} changed after bin/vh pace wrote it, but {rel(tlp)} is still the paced one: run bin/vh tts"
@@ -624,12 +705,22 @@ def main():
             print(f"  {L['seg']['id']:<6} {L['u']:5d}  " + (f"{r:5.2f} → ×{L['f']:.3f} → {r * L['f_real']:5.2f}" if r else f"{'':5}   {'':6}   {'':5}")
                   + (f"   {L['kind']:<5} {L['gap0']:.2f} → {L['gap']:.2f} s" if "gap" in L else "")
                   + (f"   ({L['why']})" if L["why"] else "") + ("   pauses kept (asked for in the script)" if L["kept_pauses"] else "")
-                  + (f"   {len(L['runs'])} pause(s) cut to {a.pause:g} s" if L["runs"] and not L["kept_pauses"] else ""))
+                  + (f"   {len(L['runs'])} pause(s) cut" if L["runs"] and not L["kept_pauses"] else "")
+                  + (f"   {len(L['ins'])} pause(s) lengthened to the floor" if L["ins"] else ""))
         m = [L for L in lines if L["ok"]]
+        heard = [L for L in lines if L["heard"]]
+        rates = {"speech": [sum(L["u"] for L in heard) / sum(L["speech"] for L in heard),   # take-wide, before → after
+                            sum(L["u"] for L in heard) / sum(L["speech"] / L["f_real"] for L in heard)],
+                 "with_pauses": [sum(L["u"] for L in heard) / max(heard[-1]["s1"] - heard[0]["s0"], H_MIN),
+                                 sum(L["u"] for L in heard) / max(remap(heard[-1]["s1"]) - remap(heard[0]["s0"]), H_MIN)]}
+        nins = sum(len(L["ins"]) for L in lines); tins = sum(n for L in lines for _, n in L["ins"]) / sr
         if m:
             before = np.array([L["rate"] for L in m]); after = np.array([L["rate"] * L["f_real"] for L in m])
-            print(f"{len(segs)} line(s) · pace {before.min():.2f}–{before.max():.2f} {unit} (sd {before.std():.2f}) → {after.min():.2f}–{after.max():.2f}"
+            print(f"{len(segs)} line(s) · speech rate per line {before.min():.2f}–{before.max():.2f} {unit} (sd {before.std():.2f}) → {after.min():.2f}–{after.max():.2f}"
                   f" (sd {after.std():.2f}) · reference {ref:.2f} ({how}) · {dur:.2f} s → {len(y) / sr:.2f} s")
+        print(f"take: speech rate {rates['speech'][0]:.2f} → {rates['speech'][1]:.2f} {unit} (voice only, pauses excluded) · with pauses"
+              f" {rates['with_pauses'][0]:.2f} → {rates['with_pauses'][1]:.2f} (first word to last, every pause in)"
+              + (f" · {nins} pause(s) lengthened to the floor (+{tins:.2f} s; --comma {a.comma:g}, --stop {a.stop:g})" if nins else ""))
         if a.dry_run:
             print("dry run: nothing written. The numbers are a reference; listen before keeping it.")
             return
@@ -640,8 +731,10 @@ def main():
         out = {k: v for k, v in tl.items() if k not in ("segments", "duration")}
         out.update(duration=round(probe_len(part), 3), segments=new)
         out["pace"] = {"from": str(rel(raw_wav)), "reference": round(ref, 3) if ref else None, "how": how, "unit": unit,
-                       "strength": a.strength, "clamp": list(a.clamp), "tolerance": a.tolerance, "pause": a.pause, "extra": a.extra,
-                       "gaps": GAPS, "align": "map", "sha256": sha256(part),   # the engine once its transcription is in
+                       "measure": "speech", "strength": a.strength, "clamp": list(a.clamp), "tolerance": a.tolerance, "pause": a.pause,
+                       "comma": a.comma, "stop": a.stop, "relative": a.relative, "extra": a.extra,
+                       "gaps": {k: list(gap_range(k, a)) for k in GAPS}, "lengthened": [nins, round(tins, 3)],
+                       "rates": {k: [round(v, 3) for v in r] for k, r in rates.items()}, "align": "map", "sha256": sha256(part),
                        "lines": [{"id": L["seg"]["id"], "units": L["u"], "pace": round(L["rate"], 3) if L["rate"] else None,
                                   "tempo": round(L["f"], 4), "after": round(L["rate"] * L["f_real"], 3) if L["rate"] else None,
                                   **({"note": L["why"]} if L["why"] else {})} if L else {"id": s["id"], "units": 0, "note": "no words"}

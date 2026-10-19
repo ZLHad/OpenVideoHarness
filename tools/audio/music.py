@@ -398,8 +398,8 @@ def render(score, stems=None, info=None, length=None, note_log=None):
     sidechain = np.ones_like(out); zh, send = np.zeros_like(out), np.zeros_like(out); cache = {}
     beats, downbeats, secs, hits, bars, note_map = [], [], [], [], [], []   # note_map: the beat map's "notes"
     # The layers' one-shots stop while they still sound (the kick at 0.45 s holds ~6 % of its peak, impact ~9 % at 2.2 s,
-    # the big taiko ~9 % at 1.3 s): each ends in a short cosine, as the edm_kick part already does, else bin/vh qa hears a
-    # click in a quiet passage. The parts that reuse these voices (edm_*, saw_pluck, taiko) are unchanged.
+    # the big taiko ~9 % at 1.3 s): each ends in a short cosine, else bin/vh qa hears a click in a quiet passage. The parts
+    # that reuse these voices (edm_*, saw_pluck, taiko, below) end the same way.
     fade_end = lambda x, r: ins.fade(x, 0, r)
     K = fade_end(kick(), 0.03); t0 = 0.0
     def put(layer, x, at): add(zh, x, at); add(send, x * ZH[layer], at)
@@ -1495,15 +1495,15 @@ def parts_bus(score, legacy, hits, stems=None, info_gain=None, note_log=None, no
 ins.INSTR.update({
     "saw_pad": ins.Inst("note", lambda m, d, v, rng, P: pad([m], d + 0.4, v), 4, 1.0),
     "saw_lead": ins.Inst("note", lambda m, d, v, rng, P: lead(mtof(m), d, v), 5, 1.0),
-    "saw_pluck": ins.Inst("note", lambda m, d, v, rng, P: pluck(mtof(m), d, v), 5, 1.0),
+    "saw_pluck": ins.Inst("note", lambda m, d, v, rng, P: ins.fade(pluck(mtof(m), d + 0.03, v), 0, 0.03), 5, 1.0),   # 30 ms release past the note
     "synth_bass": ins.Inst("note", lambda m, d, v, rng, P: bass(mtof(m), d), 2, 1.0),
     "bell": ins.Inst("note", lambda m, d, v, rng, P: bell(mtof(m), rng), 5, 1.0),
     "zheng": ins.Inst("note", lambda m, d, v, rng, P: zheng(mtof(m), max(d, 1.8), v, rng), 4, 1.0),
     "dizi": ins.Inst("note", lambda m, d, v, rng, P: dizi(mtof(m), d, v, rng), 5, 1.0),
-    "taiko": ins.Inst("drum", lambda v, a, d, rng, P, f=None: taiko(rng, a != "o"), 2, 1.0),
+    "taiko": ins.Inst("drum", lambda v, a, d, rng, P, f=None: ins.fade(taiko(rng, a != "o"), 0, 0.05), 2, 1.0),
     "edm_kick": ins.Inst("drum", lambda v, a, d, rng, P, f=None: ins.fade(kick(), 0, 0.03), 2, 1.0),   # the layer's kick stops at 0.45 s
-    "edm_clap": ins.Inst("drum", lambda v, a, d, rng, P, f=None: clap(rng), 4, 1.0),
-    "edm_hat": ins.Inst("drum", lambda v, a, d, rng, P, f=None: hat(rng, a == "o"), 4, 1.0),
+    "edm_clap": ins.Inst("drum", lambda v, a, d, rng, P, f=None: ins.fade(clap(rng), 0, 0.02), 4, 1.0),
+    "edm_hat": ins.Inst("drum", lambda v, a, d, rng, P, f=None: ins.fade(hat(rng, a == "o"), 0, 0.01), 4, 1.0),
 })
 for _k, _v in {"saw_pad": 0.687, "saw_lead": 2.366, "saw_pluck": 2.25, "synth_bass": 1.712, "bell": 0.941, "zheng": 0.589,
                "dizi": 0.997, "taiko": 0.618, "edm_kick": 0.532, "edm_clap": 0.675, "edm_hat": 1.176}.items():

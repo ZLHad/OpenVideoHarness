@@ -97,7 +97,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 **剪外来音乐时**，切点放在拍上，大的段落跳转放在小节线上（用 `bin/vh beats` 的 `beats`、`downbeats` 找点），接缝处做几毫秒的交叉淡化，例如 ffmpeg 的 `acrossfade=d=0.008`。在两个波形中间硬切，会留下一个 click。
 
-外来音乐跑 `bin/vh beats` 得到 `bpm`、`beats`、`downbeats`，以及 `hits`、`kick`、`snare` 三组带强度的重音，精度在 1 帧以内；切分节奏的曲子 BPM 可能报成一半，硬切之前先对照一下拍子（`tools/audio/README.md` 的"外来音乐的节拍"）。
+外来音乐跑 `bin/vh beats` 得到 `bpm`、`beats`、`downbeats`，以及 `hits`、`kick`、`snare` 三组带强度的重音，精度在 1 帧以内，另有"换气后重拍"的候选点 `lifts`；切分节奏的曲子 BPM 可能报成一半，硬切之前先对照一下拍子（`tools/audio/README.md` 的"外来音乐的节拍"）。
 
 **代码作曲**：从 `bin/vh music --example` 起步（`--example list` 看全部起步谱，`--instruments` 看全部乐器和伴奏型）。`score.json` 的 `sections` 按镜头边界排段落（小节数、和弦、能量、冲击点），`parts` 写真正的乐器声部（钢琴、弦乐、古琴、合成器、鼓……，按节奏型或音符表演奏），`motifs` 写一次、到处调用的动机。输出的 `music.beats.json` 有段落、节拍和冲击点，引擎直接读它切镜和打点；声部加上 `"note_map": true`，还会列出它的每个音，画面可以逐音驱动（`08-vfx-and-motion-sources.md` 的"声画联动的接法"）。全部写法、电平的起点、渲染前的校验、确定性和做不到的事，见 `tools/audio/README.md` 的"score.json"；要篇章和主题，读 `11-composition.md`。
 
@@ -227,7 +227,7 @@ bin/vh qa mix $A/stems --beats $A/music.beats.json   # 只看混音报告（词�
 3. 每句用 `atempo`（不变调）往同一个语速拉近一些，不必拉齐。参照默认取各句的中位数；人听过、认可了某一段（比如开头），用 `--ref` 指定它。只校正一部分：倍数取（参照 ÷ 这句的语速）的 0.8 次方，限在 0.92–1.18，差得不多的句子不动，自然的起伏留着；
 4. 句间停顿用 take 自己的，只把太短、太长的按句尾标点和段落收进一个范围，个别地方用 `--extra` 加减；拼接别用 `anullsrc` 加 `concat`（见上文"旁白晚一点进来"）。写回 `voiceover.<lang>.wav` 和 `timeline.<lang>.json`，逐字时间跟着换算过去，原件留成 `.raw`，字幕跟着重做。
 
-一支 2026-10 的片子，一条 Gemini 整稿各句原来 4.7–6.7 字/秒（第 1、2 步之后量），手工这样处理后在 5.6–6.1 之间，听起来还是同一条 take；`bin/vh pace` 的默认值拉得比这轻。数字只是参考，以人听着顺为准。参数、实测和 `--restore` 见 `tools/audio/README.md` 的"逐句拉近语速"。
+一支 2026-10 的片子，一条 Gemini 整稿各句原来 4.7–6.7 字/秒（第 1、2 步之后量），手工这样处理后在 5.6–6.1 之间，听起来还是同一条 take；`bin/vh pace` 的默认值拉得比这轻。数字只是参考，以人听着顺为准。`--dry-run` 同时给说话语速（不算停顿）和含停顿的语速；标点处的停顿太短用 `--stop`、`--comma` 补到下限，人声不动；听完觉得整体快了，用 `--relative -5%`。长旁白分段合成、段与段听着不像同一个人时，`bin/vh tts … --join block --candidates 3` 每段挑和全片最接近的一条；选音色可以先用 `bin/vh voices audition` 把同一段话让几个音色各念一遍。参数、实测和 `--restore` 见 `tools/audio/README.md` 的"逐句拉近语速"。
 
 **要做 A/B**：`studio` 档位下，同一段旁白至少试两种导演方向，把两版都给人听。实测对比见本节开头：同样三句话，只给一个"纪录片旁白"的整体语气时听起来平；逐句导演、再卡上拍之后，才有起伏和节奏。
 

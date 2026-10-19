@@ -31,16 +31,22 @@
 #                               ticks, comments and submits; wait: block until they submit, print it, exit 0 (an agent runs it in the background);
 #                               feedback: the latest submission; data: what the desk reads from the project, as JSON
 #  sound
-#   tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json] [--align gemini] [--join block|all] [--resume]  voiceover from audio/script.txt
+#   tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json] [--align gemini] [--join block|all [--candidates N]] [--resume]  voiceover from audio/script.txt
 #                               (中文 || English; [direction] per line; lines snap to beats; @speakers A=Kore B=Puck + "A: …" lines = a dialogue;
 #                               --align gemini: word timestamps + ASR-vs-script check per line; --join: several lines per request;
+#                               --candidates N: N takes a block, the one nearest the narration's median voice kept (N × the synthesis);
+#                               warns of a line far off the take's seconds per character, and (with --align) of a phrase heard twice;
 #                               --resume: continue the last run after a failed synthesis or transcription, same script and command)
 #                               providers: qwen (default, local open-source Qwen3-TTS) | say | edge | dashscope | elevenlabs | gemini | gemini-lite | minimax
-#   pace <project> [zh|en] [--ref <id>[-<id>] | --target N] [--strength 0.8] [--clamp 0.92,1.18] [--tolerance 0.05] [--pause 0.26] [--extra id=s,…] [--align map|gemini|whisper] [--dry-run] [--restore] [--skip-lint]
+#   pace <project> [zh|en] [--ref <id>[-<id>] | --target N | --relative ±P%] [--strength 0.8] [--clamp 0.92,1.18] [--tolerance 0.05] [--pause 0.26] [--comma 0.12] [--stop 0.25] [--extra id=s,…] [--align map|gemini|whisper] [--dry-run] [--restore] [--skip-lint]
 #                               optional: bring the pace of the lines in one take closer (part of the way, natural variation kept), no new synthesis;
-#                               --dry-run only measures. The original stays as voiceover.<lang>.raw.wav; captions are redone;
+#                               pace = the speech rate (pauses left out); --comma/--stop: pause floors, a shorter silence at the mark is lengthened
+#                               (the voice untouched); --relative: the current take that much faster or slower;
+#                               --dry-run only measures (the speech rate and the rate with pauses). The original stays as voiceover.<lang>.raw.wav; captions are redone;
 #                               a timeline that fails bin/vh timeline is refused (--skip-lint to go on; --restore never stops on one)
 #   voices list [lang] | design "<description>" [--out f.wav] | delete <voice_id>   Gemini voice library / voice design
+#   voices audition --provider <p> --voices a,b,c --text f.txt [--lang zh|en] [--align gemini] [--out dir]   the same text in each voice:
+#                               a WAV each + audition.json (pitch median, speech rate, misread words with --align gemini) for a review page
 #   captions <project> [zh|en] [zh-max] [--en-max 42] [--cards] [--cps 9] [--media-end S] [--skip-lint]  SRT (zh / en / bilingual) + captions.json
 #                               from the TTS timeline, broken at word boundaries (jieba through uv) and audio/capbreaks.json; --cards: one line a
 #                               caption, cut there and timed by the words, never across a sentence end; a caption under its minimum (1.8 s, or its
@@ -55,7 +61,8 @@
 #                               lines rewritten, gone or reordered are listed with the times that fall on them
 #   timemap check <map.json> [--save] [--out f]   a time map (film time against a data axis, events with ids): its knots and
 #                               events checked, its recorded sources compared, what moved since --save (exit 1: a source changed; 2: a bad map)
-#   beats <audio> [out.json]    beat grid (bpm, offset, beats, downbeats) + hits, kick/snare accents (librosa)
+#   beats <audio> [out.json] [--lift-window 2] [--lift-dip 6]   beat grid (bpm, offset, beats, downbeats) + hits, kick/snare accents (librosa),
+#                               + lifts: candidate "breath, then the hit" points (a dip in the level, then a downbeat or a strong hit)
 #   music <score.json> <out.wav> [--length s|auto] [--roll] | music --example [name|list] | music --instruments   code-composed soundtrack + exact beat/section map
 #                               --length: end exactly there with a musical fade (auto: where the last bar ends); --roll: piano roll + energy curve per part (PNG)
 #   sfx lib <dir> | sfx place <events.json> <out.wav> [dur]   built-in SFX library / place SFX on action times (stereo, pan/dist)
@@ -892,18 +899,26 @@ cmd_tts() {
   local proj=${1:?usage: bin/vh tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json --snap beat|half|downbeat] [--lead s] [--align gemini] [--join block|all] [--resume]} pos=() deps=""
   shift
   while [ $# -gt 0 ] && [ ${#pos[@]} -lt 4 ] && [[ "$1" != --* ]]; do pos+=("$1"); shift; done   # positionals stop at the first --flag
-  local prov=${pos[0]:-qwen} voice=${pos[1]:-} lang=${pos[2]:-} instruct=${pos[3]:-} a prev=""
+  local prov=${pos[0]:-qwen} voice=${pos[1]:-} lang=${pos[2]:-} instruct=${pos[3]:-} a prev="" np=""
   for a in "$@"; do   # tts.py's own --provider X / --provider=X picks the dependencies too; the last one wins, as in argparse
     [ "$prev" = --provider ] && prov=$a
-    case "$a" in --provider=*) prov=${a#--provider=} ;; esac
+    case "$a" in --provider=*) prov=${a#--provider=} ;; --candidates|--candidates=*) np="--with numpy" ;; esac   # the takes are measured with numpy
     prev=$a
   done
-  # everything from the first --flag on goes straight to tts.py (--beats, --snap, --lead, --gap, --min-gap, --align, --join, --min-sim, --vocab, --resume)
+  # everything from the first --flag on goes straight to tts.py (--beats, --snap, --lead, --gap, --min-gap, --align, --join, --candidates, --min-sim, --vocab, --resume)
   [ "$voice" = "-" ] && voice=""; [ "$lang" = "-" ] && lang=""; [ "$instruct" = "-" ] && instruct=""   # no lang: tts.py picks zh, or en for an English-only script
   case "$prov" in qwen) deps="--with mlx-audio" ;; edge) deps="--with edge-tts" ;; dashscope) deps="--with dashscope" ;; esac
+  deps="$deps${np:+ $np}"
   on_ctrl_c uv run -q --no-project $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${lang:+--lang "$lang"} ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"} "$@"
 }
-cmd_voices() { [ $# -gt 0 ] || set -- list; python3 "$ROOT/tools/audio/tts.py" voices "$@"; }
+cmd_voices() { # audition measures the takes (numpy) and synthesizes with the provider's own packages, through uv
+  [ $# -gt 0 ] || set -- list
+  [ "$1" = audition ] || { python3 "$ROOT/tools/audio/tts.py" voices "$@"; return; }
+  local a prev="" prov=gemini deps="--with numpy"
+  for a in "$@"; do [ "$prev" = --provider ] && prov=$a; case "$a" in --provider=*) prov=${a#--provider=} ;; esac; prev=$a; done
+  case "$prov" in qwen) deps="$deps --with mlx-audio" ;; edge) deps="$deps --with edge-tts" ;; dashscope) deps="$deps --with dashscope" ;; esac
+  on_ctrl_c uv run -q --no-project $deps python "$ROOT/tools/audio/tts.py" voices "$@"
+}
 cmd_pace() { # numpy for the waveform; mlx-whisper only with --align whisper (Apple Silicon)
   local a prev="" deps="--with numpy"
   for a in "$@"; do case "$prev:$a" in --align:whisper|*:--align=whisper) deps="$deps --with mlx-whisper" ;; esac; prev=$a; done

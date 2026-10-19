@@ -4,8 +4,9 @@ usage (via bin/vh tts): python tools/audio/tts.py <project_dir> [--provider qwen
                                                  [--gap 0.25] [--instruct "calm, warm"]
                                                  [--beats music.beats.json [--snap beat|half|downbeat]] [--lead 0.0]
                                                  [--align gemini [--min-sim 0.85] [--vocab "术语,Term"]]
-                                                 [--join none|block|all] [--resume]
+                                                 [--join none|block|all [--candidates N]] [--resume]
        (via bin/vh voices): python tools/audio/tts.py voices list [lang] | design "<description>" | delete <voice_id>
+                            | audition --provider P --voices a,b,c --text f.txt [--lang zh|en] [--align gemini] [--out dir]
 
 Input  <project>/audio/script.txt — one spoken line per row (a line = one caption / cue unit).
        Blank lines and '#' comments are ignored. Optional id prefix "@hook ".
@@ -72,6 +73,16 @@ Joined synthesis (--join block|all): consecutive lines go into one request — `
        designed voice_… ids or a third speaker fall back to one request per turn. When the transcription of a block
        fails, the block is kept whole (vo/<lang>/_blockNN.wav; its lines share the block's span in the timeline, with
        asr {"error"}) and --resume re-transcribes and cuts it without synthesizing again.
+       --candidates N (with --join block|all): N takes of every block (N times the synthesis cost; only the chosen one
+       is transcribed), and per block the one closest to the median voice of all the takes is kept (pitch median,
+       spectral centroid, MFCC: tools/audio/voicefeat.py); the takes stay in vo/<lang>/_blockNN.cK.wav, the scores in
+       vo/<lang>/_pick.json. Blocks meet at a blank line of the script, so the joins are at sentence boundaries.
+After synthesis, two warnings (nothing is changed): a line whose seconds per character are far from the take's median
+       (× 1.45 or more, × 0.7 or less: a skipped or repeated phrase, a long pause inside, a rushed line), and, with
+       --align gemini, a stretch the transcript has twice where the script has it once (a repeated half-sentence). Without
+       a transcript the second check is skipped, and that is said.
+Auditions (bin/vh voices audition): the same text in each voice → <out>/<voice>.wav and <out>/audition.json (pitch
+       median, speech rate, and with --align gemini what the transcript disagrees with), for a review page.
 
 Providers (API keys come from environment variables only, never from files):
   qwen        DEFAULT. Local open-source Qwen3-TTS (Apache-2.0) on Apple Silicon via mlx-audio, offline and free.
@@ -818,6 +829,53 @@ def trim_edges(wav: Path, tmp: Path):
     cut(wav, t0, t1, tmp / "trim.wav"); shutil.move(str(tmp / "trim.wav"), str(wav))
     return t0, dur - t1
 
+# ---------- after synthesis: warnings about single lines ----------
+
+def _units(text, lang):
+    here = str(Path(__file__).resolve().parent)
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import pace   # its spoken units: digits read out, English syllables
+    return pace.units(text, lang)
+
+def repeats(script, heard, least=3):
+    """Stretches the transcript has once more than the script: an inserted run of units that repeats the units just
+    before it in the script, or the ones right after it (a false start). → their text. least: CJK units (Latin words:
+    least − 1)."""
+    su, hu = script_units(script), script_units(heard)
+    sn, hn, out = [u["n"] for u in su], [u["n"] for u in hu], []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, sn, hn, autojunk=False).get_opcodes():
+        k = j2 - j1; ins = hn[j1:j2]
+        if tag != "insert" or k < (least if any(u["cjk"] for u in hu[j1:j2]) else max(2, least - 1)):
+            continue
+        if ins == sn[max(0, i1 - k):i1] or ins == sn[i1:i1 + k] or ins == hn[max(0, j1 - k):j1]:
+            out.append(("" if all(u["cjk"] for u in hu[j1:j2]) else " ").join(u["u"] for u in hu[j1:j2]))
+    return out
+
+def line_checks(segs, lang, align, hi=1.45, lo=0.7):
+    """Warnings only: a line whose seconds per spoken unit are far from the take's median, and repeated stretches."""
+    rows = []
+    for s in segs:
+        u = _units(s.get("text", ""), lang); ws = s.get("words") or []
+        span = (ws[-1]["end"] - ws[0]["start"]) if ws else (s.get("end", 0) - s.get("start", 0))
+        if u >= 4 and span > 0:
+            rows.append((s["id"], span / u))
+    if len(rows) >= 4:
+        med = sorted(r for _, r in rows)[len(rows) // 2]
+        odd = [(i, r) for i, r in rows if r > hi * med or r < lo * med]
+        for i, r in odd:
+            print(f"  warning: @{i} takes {r:.2f} s a character, the take's median is {med:.2f} (× {r / med:.2f}): a skipped or"
+                  f" repeated phrase, a long pause inside, or a rushed line? listen to it")
+    if not align:
+        print("  repeat check: no transcript (--align gemini gives one), skipped")
+        return
+    for s in segs:
+        heard = (s.get("asr") or {}).get("text")
+        if heard:
+            for r in repeats(s["text"], heard):
+                print(f"  warning: @{s['id']}: the transcript has “{r}” twice where the script has it once (a repeated"
+                      f" half-sentence?): listen to it; heard “{heard}”")
+
 # ---------- voices: the Gemini voice library and voice design ----------
 
 STUDIO = ("Zephyr Puck Charon Kore Fenrir Leda Orus Aoede Callirrhoe Autonoe Enceladus Iapetus Umbriel Algieba Despina "
@@ -838,7 +896,16 @@ def voices_main(argv):
     de.add_argument("--model", help="default GEMINI_TTS_MODEL or gemini-3.8-flash-tts")
     rm = sub.add_parser("delete", help="delete a stored voice (designed voices count toward 200 per project)")
     rm.add_argument("id")
+    au = sub.add_parser("audition", help="the same text in several voices: a WAV each and audition.json (pitch, speech rate, misreads)")
+    au.add_argument("--provider", choices=PROVIDERS, default="gemini"); au.add_argument("--voices", required=True, help="a,b,c")
+    au.add_argument("--text", required=True, help="a text file: what every voice reads (tags as in script.txt)")
+    au.add_argument("--lang", choices=["zh", "en"], help="default: zh when the text has Chinese, else en")
+    au.add_argument("--instruct", help="one delivery direction for every voice (gemini, qwen 1.7B)")
+    au.add_argument("--align", default="none", choices=["none", "gemini"], help="transcribe each take: what it disagrees with in the text")
+    au.add_argument("--out", help="folder (default: audition-<text file name> next to the text file)")
     a = ap.parse_args(argv)
+    if a.cmd == "audition":
+        return audition(a)
     if a.cmd == "list":
         q = {"page_size": 1000, **{k: v for k, v in (("search", a.search), ("gender", a.gender), ("type", a.type)) if v}}
         vs, tok = [], None
@@ -901,10 +968,63 @@ def voices_main(argv):
         gemini_call(f"voices/{a.id}", method="DELETE", timeout=60, tries=1)
         print(f"deleted {a.id}")
 
+def audition(a):
+    """bin/vh voices audition: one take of the text per voice, measured; no take is judged, the table is for listening."""
+    src = Path(a.text)
+    if not src.exists():
+        sys.exit(f"voices audition: no text file {src}")
+    raw = "\n".join(l for l in src.read_text(encoding="utf-8").splitlines() if l.strip() and not l.lstrip().startswith("#")).strip()
+    voices = [v.strip() for v in a.voices.split(",") if v.strip()]
+    if not raw or not voices:
+        sys.exit("voices audition: an empty text, or no voices (--voices a,b,c)")
+    lang = a.lang or ("zh" if CJK_TEXT.search(raw) else "en")
+    gemini = a.provider.startswith("gemini")
+    if (gemini or a.align == "gemini") and not os.environ.get("GEMINI_API_KEY"):
+        sys.exit("voices audition: set GEMINI_API_KEY (Google AI Studio → Get API key)"
+                 + (f" for --provider {a.provider}" if gemini else " for --align gemini") + "; nothing was synthesized")
+    if a.provider == "minimax" and not minimax_key()[0]:
+        sys.exit("voices audition: set MINIMAX_TOKEN_PLAN_KEY or MINIMAX_API_KEY for --provider minimax; nothing was synthesized")
+    try:
+        import voicefeat
+    except ImportError:
+        sys.exit("voices audition measures the takes with numpy: run it as bin/vh voices audition")
+    plain = strip_tags(raw)                                          # what is counted and compared
+    spoken = PAUSES.sub(_pause, raw) if gemini else strip_tags(raw, pauses=False) if a.provider == "minimax" else plain
+    units, unit = _units(plain, lang), ("chars/s" if lang == "zh" else "syll/s")
+    out = Path(a.out) if a.out else src.with_name(f"audition-{src.stem}"); out.mkdir(parents=True, exist_ok=True)
+    rows, bad = [], 0
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        for v in voices:
+            f = out / (re.sub(r"[^\w.-]+", "_", v).strip("_") + ".wav")
+            try:
+                PROVIDERS[a.provider](spoken, v, f, tmp, lang, a.instruct)
+                trim_edges(f, tmp)
+            except Exception as e:
+                bad += 1; rows.append({"voice": v, "error": str(e) if isinstance(e, (GeminiError, MinimaxError)) else f"{type(e).__name__}: {e}"})
+                print(f"  {v}: synthesis failed: {rows[-1]['error']}", flush=True); f.unlink(missing_ok=True); continue
+            ft = voicefeat.features(voicefeat.read(f))
+            row = {"voice": v, "file": f.name, "duration": round(duration(f), 2), "pitch_hz": ft["pitch_hz"], "centroid_hz": ft["centroid_hz"],
+                   "speech_s": ft["speech_s"], "speech_rate": round(units / ft["speech_s"], 2) if ft["speech_s"] else None, "misread": None}
+            if a.align == "gemini":
+                try:
+                    heard, _ = transcribe(f, lang, tmp)
+                    row.update(heard=heard, similarity=similarity(plain, heard), misread=disputed(plain, heard))
+                except Exception as e:
+                    row["asr_error"] = str(e); bad += 1
+            rows.append(row)
+            print(f"  {v:<16} {row['duration']:6.2f} s · pitch {row['pitch_hz'] or 0:5.0f} Hz · {row['speech_rate'] or 0:.2f} {unit}"
+                  + (f" · misread: {', '.join(row['misread']) or 'none'} (similarity {row['similarity']:.2f})" if row.get("misread") is not None else ""), flush=True)
+    rep = {"provider": a.provider, "lang": lang, "unit": unit, "units": units, "text": plain, "instruct": a.instruct, "align": a.align, "voices": rows}
+    (out / "audition.json").write_text(json.dumps(rep, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"→ {out}/audition.json and {sum('file' in r for r in rows)} WAV(s)"
+          + ("" if a.align == "gemini" else " · misread words: --align gemini transcribes each take (GEMINI_API_KEY)"))
+    sys.exit(1 if bad else 0)
+
 # ---------- main ----------
 
 def main():
-    if sys.argv[1:2] == ["voices"] and (len(sys.argv) == 2 or sys.argv[2] in ("list", "design", "delete", "-h", "--help")):
+    if sys.argv[1:2] == ["voices"] and (len(sys.argv) == 2 or sys.argv[2] in ("list", "design", "delete", "audition", "-h", "--help")):
         return voices_main(sys.argv[2:])
     ap = argparse.ArgumentParser()
     ap.add_argument("project"); ap.add_argument("--provider", choices=PROVIDERS, help="default qwen (with --resume: the run's provider)")
@@ -920,6 +1040,8 @@ def main():
     ap.add_argument("--vocab", default="", help="with --align: extra terms (comma-separated) for the re-check of flagged lines")
     ap.add_argument("--join", default="auto", choices=["auto", "none", "block", "all"],
                     help="synthesize consecutive lines in one request (block = lines between blank lines)")
+    ap.add_argument("--candidates", type=int, default=1, help="with --join block|all: N takes per block, the one closest to the"
+                    " narration's median voice kept (N × the synthesis cost)")
     ap.add_argument("--resume", action="store_true",
                     help="continue the last run in vo/<lang> instead of starting over: synthesize only the missing files, reuse the "
                          "ASR of the lines that succeeded, redo the rest (a plain run that failed midway continues; a finished one can "
@@ -981,6 +1103,14 @@ def main():
         join, conversational = "none", False
     if man and join != man["join"]:
         sys.exit(f"--resume: the run used --join {man['join']}, now {join}: re-run the same command with --resume, or drop --resume to start over")
+    if not 1 <= a.candidates <= 8:
+        sys.exit("--candidates wants 1–8 takes per block")
+    if a.candidates > 1 and join == "none":
+        sys.exit("--candidates picks one take per block: use it with --join block (blank lines in script.txt make the blocks) or --join all")
+    if a.candidates > 1:
+        import importlib.util   # the takes are measured with numpy: bin/vh tts adds it with --candidates
+        if importlib.util.find_spec("numpy") is None:
+            sys.exit("--candidates measures the takes with numpy: run it as bin/vh tts (it adds numpy)")
     align = a.align == "gemini" or (join != "none" and not timed)
     if join != "none" and a.align != "gemini" and not timed:
         print("  --join recovers line boundaries from word timestamps → --align gemini is on")
@@ -1166,27 +1296,70 @@ def main():
                         s["words"] = [{"w": w["w"], "start": round(s["start"] + w["start"], 3),
                                        "end": round(s["start"] + w["end"], 3)} for w in r["words"]]
         else:
+            def synth_block(blk, conv, bout):   # one request for the block → bout (edges trimmed); → (word times or None, s trimmed)
+                pw, cut_s = None, 0.0
+                if gemini:
+                    env_style = os.environ.get("GEMINI_TTS_STYLE")
+                    turns = [{"text": s["_ptext"], "style": style_of(s) or env_style, "speaker": s.get("speaker") if conv else None} for s in blk]
+                    gemini_tts(turns, bout, tmp, gemini_model(a.provider), dict(speakers) if conv else a.voice)
+                elif timed:
+                    pw = PROVIDERS[a.provider](linked([s["_ptext"] for s in blk]), a.voice, bout, tmp, a.lang, a.instruct)
+                else:
+                    PROVIDERS[a.provider](("" if a.lang == "zh" else " ").join(s["_ptext"] for s in blk), a.voice, bout, tmp, a.lang, a.instruct)
+                if not a.keep_edges:                                   # only the block's own edges: pauses inside stay
+                    h, tail = trim_edges(bout, tmp); cut_s = h + tail
+                    pw = shifted(pw, h)
+                if timed:                                              # kept for --resume
+                    bout.with_suffix(".words.json").write_text(json.dumps(pw, ensure_ascii=False), encoding="utf-8")
+                return pw, cut_s
+            picked = set()
+            if a.candidates > 1:                                       # N takes a block, the one nearest the median voice kept
+                import voicefeat
+                todo = [bi for bi in range(len(blocks)) if not (a.resume and (vo / f"_block{bi+1:02d}.wav").exists())]
+                if todo:
+                    print(f"  --candidates {a.candidates}: {a.candidates} takes of each of {len(todo)} block(s), {a.candidates * len(todo)} request(s);"
+                          f" only the chosen take is transcribed", flush=True)
+                takes, cut_of = {}, {}
+                for bi in todo:
+                    blk, conv = blocks[bi], convs[bi]; takes[bi] = []
+                    for c in range(a.candidates):
+                        cp = vo / f"_block{bi+1:02d}.c{c+1}.wav"
+                        if not (a.resume and cp.exists() and (cp.with_suffix(".words.json").exists() or not timed)):
+                            try:
+                                cut_of[cp] = synth_block(blk, conv, cp)[1]
+                            except Exception as e:
+                                synth_failed(f"block {bi+1}, take {c+1} ({', '.join(s['id'] for s in blk)})", e, cp, f"{bi} block(s)", f"{len(blocks)}")
+                        takes[bi].append(cp)
+                if takes:
+                    feats = {bi: [voicefeat.features(voicefeat.read(cp)) for cp in cps] for bi, cps in takes.items()}
+                    choice, med, dist = voicefeat.pick(feats)
+                    pick_log = {"median": med, "blocks": {}}
+                    if (vo / "_pick.json").exists():
+                        pick_log["blocks"] = json.loads((vo / "_pick.json").read_text(encoding="utf-8")).get("blocks", {})
+                    if med:
+                        print(f"  median voice of the {sum(len(v) for v in feats.values())} takes: pitch {med['pitch_hz']:.0f} Hz, centroid {med['centroid_hz']:.0f} Hz")
+                    for bi, cps in takes.items():
+                        k = choice[bi]; bout = vo / f"_block{bi+1:02d}.wav"
+                        shutil.copyfile(cps[k], bout); trimmed += cut_of.get(cps[k], 0.0)
+                        if timed:
+                            shutil.copyfile(cps[k].with_suffix(".words.json"), bout.with_suffix(".words.json"))
+                        picked.add(bi)
+                        rows = [{"take": c + 1, "pitch_hz": f["pitch_hz"], "centroid_hz": f["centroid_hz"],
+                                 "distance": None if d is None or d == float("inf") else round(d, 3)} for c, (f, d) in enumerate(zip(feats[bi], dist[bi]))]
+                        pick_log["blocks"][str(bi + 1)] = {"chosen": k + 1, "takes": rows}
+                        print(f"  block {bi+1}: take {k+1} of {len(cps)} · " + " · ".join(
+                            f"{'*' if c == k else ''}{r['take']}: {r['pitch_hz'] or 0:.0f} Hz, {r['centroid_hz'] or 0:.0f} Hz, d {r['distance'] if r['distance'] is not None else '—'}"
+                            for c, r in enumerate(rows)), flush=True)
+                    (vo / "_pick.json").write_text(json.dumps(pick_log, ensure_ascii=False, indent=1), encoding="utf-8")
             n = 0
             for bi, (blk, conv) in enumerate(zip(blocks, convs)):
                 bout = vo / f"_block{bi+1:02d}.wav"; bwords = bout.with_suffix(".words.json"); pw = None
-                if not (a.resume and bout.exists() and (bwords.exists() or not timed)):   # --resume: only the blocks the run did not get to
+                if not ((a.resume or bi in picked) and bout.exists() and (bwords.exists() or not timed)):   # --resume: only the blocks the run did not get to
                     bout.with_suffix(".asr.json").unlink(missing_ok=True)   # a new take gets a new transcription, and new cuts
                     for k in range(len(blk)):                                 # their own re-checks
                         (vo / f"{n + k + 1:02d}.asr.json").unlink(missing_ok=True)
                     try:
-                        if gemini:
-                            env_style = os.environ.get("GEMINI_TTS_STYLE")
-                            turns = [{"text": s["_ptext"], "style": style_of(s) or env_style, "speaker": s.get("speaker") if conv else None} for s in blk]
-                            gemini_tts(turns, bout, tmp, gemini_model(a.provider), dict(speakers) if conv else a.voice)
-                        elif timed:
-                            pw = PROVIDERS[a.provider](linked([s["_ptext"] for s in blk]), a.voice, bout, tmp, a.lang, a.instruct)
-                        else:
-                            PROVIDERS[a.provider](("" if a.lang == "zh" else " ").join(s["_ptext"] for s in blk), a.voice, bout, tmp, a.lang, a.instruct)
-                        if not a.keep_edges:                           # only the block's own edges: pauses inside stay
-                            h, tail = trim_edges(bout, tmp); trimmed += h + tail
-                            pw = shifted(pw, h)
-                        if timed:                                      # kept for --resume
-                            bwords.write_text(json.dumps(pw, ensure_ascii=False), encoding="utf-8")
+                        pw, cut_s = synth_block(blk, conv, bout); trimmed += cut_s
                     except Exception as e:
                         synth_failed(f"block {bi+1} ({', '.join(s['id'] for s in blk)})", e, bout, f"{bi} block(s)", f"{len(blocks)}")
                 elif timed:
@@ -1235,6 +1408,7 @@ def main():
                 s["asr"]["recheck"] = {"text": txt, "similarity": max(similarity(x, txt) for x in (s["text"], s.get("_alt", ""))), "vocab": vocab}
                 set_flag(s["asr"], a.min_sim)
     tl = write_outputs(); asr_n = len(made)
+    line_checks(segs, a.lang, align)
     failed = [s for s in segs if "error" in s["asr"]] if align else []
     rechecks = [s for s in segs if "error" in s["asr"].get("recheck", {})] if align else []
     if align:

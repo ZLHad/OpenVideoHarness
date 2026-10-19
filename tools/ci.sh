@@ -258,7 +258,8 @@ import os, signal, subprocess, sys, time
 t, sh, vh = sys.argv[1:]
 mark, env = f"{t}/started", dict(os.environ, PATH=f"{t}:{os.environ['PATH']}", UVMARK=f"{t}/started")
 runs = [["music", "x"], ["sfx", "x"], ["beats", "x"], ["qa", "x"], ["mix", "profile=x"], ["tts", t], ["pace", "x"],
-        ["cover-preview", "x"], ["style", "compare", "a,b"], ["sheet", f"{t}/x.mp4"], ["fonts", "list", "x"], ["captions", t]]
+        ["cover-preview", "x"], ["style", "compare", "a,b"], ["sheet", f"{t}/x.mp4"], ["fonts", "list", "x"], ["captions", t],
+        ["voices", "audition", "--voices", "x", "--text", "x"]]
 bad = []
 for r in runs:
     if os.path.exists(mark): os.remove(mark)
@@ -312,6 +313,108 @@ except tts.GeminiError:
 PY
 ); then ok "tts: a Gemini 429 naming a per-day quota fails at once; a per-minute one is retried; past 90 s fails at once"
   else bad "tts: Gemini 429 handling: $a"; fi
+  # tts --join block --candidates 3 and voices audition against a Gemini stub on 127.0.0.1 that speaks a tone burst per
+  # character (pitch by voice; the 2nd take of each block 25 % higher) and transcribes what it spoke (讲一讲 twice; 那 heard as
+  # 哪 for one voice): the take nearest the median voice is kept, a slow line and the repeat are warned of, the audition
+  # measures each voice's pitch and speech rate and names the misread word; without a key, nothing is synthesized
+  if ! command -v uv >/dev/null || ! command -v ffmpeg >/dev/null; then skip "tts --candidates · voices audition" "needs uv and ffmpeg"
+  elif a=$(uv run -q --no-project --with numpy python - 2>&1 <<'PY'
+import base64, contextlib, importlib.util, io, json, os, re, sys, tempfile, threading, wave
+import numpy as np
+os.environ["no_proxy"] = "127.0.0.1"; os.environ["GEMINI_API_KEY"] = "ci-stub"
+from pathlib import Path
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+sys.path.insert(0, "tools/audio")
+spec = importlib.util.spec_from_file_location("tts", "tools/audio/tts.py"); tts = importlib.util.module_from_spec(spec); spec.loader.exec_module(tts)
+SR, PITCH = 24000, {"Kore": 200.0, "Puck": 130.0, "Charon": 110.0}
+st = {"n": 0, "vary": False, "takes": []}                  # takes: (duration, [(unit, start, end)]) of every synthesis
+def speak(items, f0):                                      # a burst per CJK character, 0.35 s between the items
+    x, words, t = [np.zeros(int(0.05 * SR))], [], 0.05
+    for k, text in enumerate(items):
+        if k:
+            x.append(np.zeros(int(0.35 * SR))); t += 0.35
+        for c in re.findall(r"[一-鿿]", text):
+            b = 0.4 if c == "慢" else 0.15; m = int(b * SR); tt = np.arange(m) / SR
+            x.append(0.3 * np.sin(np.pi * np.arange(m) / m) ** 0.5 * sum(np.sin(2 * np.pi * f0 * h * tt) / h for h in (1, 2, 3)))
+            words.append((c, t, t + b)); t += b
+            x.append(np.zeros(int(0.05 * SR))); t += 0.05
+    x.append(np.zeros(int(0.1 * SR))); y = np.concatenate(x)
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((np.clip(y, -1, 1) * 32767).astype("<i2").tobytes())
+    return buf.getvalue(), len(y) / SR, words
+def heard(words, voice):                                   # the transcript: the words, 讲一讲 said twice, 那 heard as 哪 for Charon
+    out, k = [], 0
+    while k < len(words):
+        c, a, b = words[k]; out.append((("哪" if c == "那" and voice == "Charon" else c), a, b))
+        if "".join(w[0] for w in words[k - 2:k + 1]) == "讲一讲":
+            out += [(w[0], b + 0.01 * j, b + 0.01 * (j + 1)) for j, w in enumerate(words[k - 2:k + 1])]
+        k += 1
+    return out
+class Stub(BaseHTTPRequestHandler):
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if "response_format" in body:                      # synthesis
+            voice = body["generation_config"]["speech_config"][0]["voice"]
+            f0 = PITCH.get(voice, 160.0) * ((1.0, 1.25, 0.98)[st["n"] % 3] if st["vary"] else 1.0); st["n"] += 1
+            data, dur, words = speak([c["text"] for c in body["input"][0]["content"]], f0); st["takes"].append((dur, words, voice))
+            r = {"steps": [{"type": "model_output", "content": [{"type": "audio", "data": base64.b64encode(data).decode()}]}]}
+        else:                                              # transcription: the take whose length matches (trimmed by ~0.04 s)
+            with wave.open(io.BytesIO(base64.b64decode(body["input"][0]["data"]))) as w:
+                dur = w.getnframes() / w.getframerate()
+            _, words, voice = min(reversed(st["takes"]), key=lambda tk: abs(tk[0] - 0.04 - dur))   # the latest of equal ones
+            ws = heard(words, voice)
+            r = {"steps": [{"content": [{"type": "text", "text": "".join(w[0] for w in ws), "annotations": [
+                {"type": "word_info", "text": w[0], "start_offset": f"{max(0, w[1] - 0.02):.2f}s", "end_offset": f"{max(0, w[2] - 0.02):.2f}s"} for w in ws]}]}]}
+        b = json.dumps(r).encode(); self.send_response(200); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+    def log_message(self, *a): pass
+srv = ThreadingHTTPServer(("127.0.0.1", 0), Stub); threading.Thread(target=srv.serve_forever, daemon=True).start()
+tts.GEMINI_API = f"http://127.0.0.1:{srv.server_address[1]}"
+def run(argv):
+    out = io.StringIO(); rc = 0
+    with contextlib.redirect_stdout(out):
+        sys.argv = ["tts.py", *argv]
+        try:
+            tts.main()
+        except SystemExit as e:
+            rc = e.code if isinstance(e.code, int) else (1 if e.code else 0); print(e.code if not isinstance(e.code, int) else "")
+    return rc, out.getvalue()
+bad = []
+with tempfile.TemporaryDirectory() as d:
+    p = Path(d) / "p"; (p / "audio").mkdir(parents=True)
+    (p / "audio/script.txt").write_text("@a1 我们今天讲一讲声音的来历。\n@a2 先从一根琴弦说起吧。\n@a3 它振动时推着空气走。\n\n"
+                                        "@b1 空气把推挤传到耳朵里。\n@b2 慢慢慢慢慢慢慢慢。\n@b3 耳朵把它变成声音。\n", encoding="utf-8")
+    st["vary"] = True
+    rc, out = run([str(p), "--provider", "gemini", "--voice", "Kore", "--join", "block", "--candidates", "3"])
+    st["vary"] = False
+    pick = json.loads((p / "audio/vo/zh/_pick.json").read_text(encoding="utf-8")) if (p / "audio/vo/zh/_pick.json").exists() else {}
+    tl = json.loads((p / "audio/timeline.zh.json").read_text(encoding="utf-8")) if rc == 0 else {}
+    if rc != 0: bad.append(f"tts --candidates exited {rc}: {out[-600:]}")
+    elif [pick["blocks"][b]["chosen"] for b in ("1", "2")] != [1, 1] or len(list((p / "audio/vo/zh").glob("_block0?.c?.wav"))) != 6:
+        bad.append(f"picked {pick}")
+    elif sum(1 for s in tl["segments"] if s.get("words")) != 6: bad.append("not every line has words")
+    for want in ("warning: @b2 takes", "“讲一讲” twice"):
+        if want not in out: bad.append(f"no '{want}' in: {out[-900:]}")
+    if "warning: @a2" in out or "warning: @b1" in out: bad.append(f"a false warning: {out[-900:]}")
+    (Path(d) / "t.txt").write_text("我们那儿的声音从一根琴弦说起。\n", encoding="utf-8")
+    rc, out = run(["voices", "audition", "--provider", "gemini", "--voices", "Kore,Puck,Charon", "--text", f"{d}/t.txt", "--out", f"{d}/au", "--align", "gemini"])
+    au = json.loads(Path(f"{d}/au/audition.json").read_text(encoding="utf-8")) if Path(f"{d}/au/audition.json").exists() else {"voices": []}
+    R = {r["voice"]: r for r in au["voices"]}
+    true = 14 / (14 * 0.2 - 0.05)                          # characters over the voice, no pause in it
+    if rc != 0 or sorted(R) != ["Charon", "Kore", "Puck"] or not all((Path(d) / "au" / R[v]["file"]).exists() for v in R): bad.append(f"audition exited {rc}: {out[-500:]}")
+    else:
+        if not all(abs(R[v]["pitch_hz"] / PITCH[v] - 1) < 0.03 for v in R): bad.append(f"pitch {[(v, R[v]['pitch_hz']) for v in R]}")
+        if not all(abs(R[v]["speech_rate"] / true - 1) < 0.08 for v in R): bad.append(f"speech rate {[(v, R[v]['speech_rate']) for v in R]} (true {true:.2f})")
+        if R["Kore"]["misread"] != [] or not any("那" in m for m in R["Charon"]["misread"]): bad.append(f"misread {[(v, R[v]['misread']) for v in R]}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+); then ok "tts --candidates keeps the take nearest the median voice per block; a slow line and a repeated phrase are warned of; voices audition measures pitch, speech rate and misreads"
+  else bad "tts --candidates / voices audition on the Gemini stub: $a"; fi
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); printf '%s\n' '一句试音。' > "$t/t.txt"
+  a=$(env -u GEMINI_API_KEY "$VH_BASH" "$ROOT/bin/vh" voices audition --provider gemini --voices Kore,Puck --text "$t/t.txt" 2>&1); rc=$?
+  case "$rc:$a" in 1:*"set GEMINI_API_KEY"*"nothing was synthesized"*) [ ! -e "$t/audition-t" ] && ok "voices audition without a key says so and writes nothing" || bad "voices audition without a key wrote files" ;;
+    *) bad "voices audition without a key: exit $rc: $a" ;; esac
+  rm -rf "$t"
   # recipes: every recipe's frontmatter validates, list filters agree with the files, bad values are errors
   vh recipes check >/dev/null && ok "recipes check (frontmatter, README index, sketches)" || bad "bin/vh recipes check"
   a=$(vh recipes list --intent carry,enter --energy 5 --engine three --ids)
@@ -846,6 +949,45 @@ SH
   if vh music "$t/stop.json" "$t/stop.wav" --roll --length 8 >/dev/null && [ -s "$t/stop.roll/overview.png" ] && [ -s "$t/stop.roll/03-celesta-0.png" ] \
     && python3 -c "import json, sys; b = json.load(open(sys.argv[1])); f = b['fade']; sys.exit(0 if f['end'] == 8.0 and any(abs(f['start'] - x) < 1e-6 for x in b['beats']) and [h['t'] for h in b['hits'] if h['what'] == 'stop:a'] == [3.6] else 1)" "$t/stop.beats.json"
   then ok "music --roll and --length with a section stop, a cresc and a pickup"; else bad "music with a stop: $(head -c 300 "$t/stop.beats.json" 2>/dev/null)"; fi
+  # the part voices that used to stop on a non-zero sample (taiko, saw_pluck, edm_clap, edm_hat) end on zero, every voice does
+  if a=$(uv run -q --no-project --with numpy --with scipy python - 2>&1 <<'PY'
+import sys
+import numpy as np
+sys.path.insert(0, "tools/audio"); import music, instruments as ins
+R = lambda *k: np.random.default_rng([7, *k]); bad = []
+for name, sp in sorted(ins.INSTR.items()):
+    for d in (0.12, 0.5):
+        for art in ("", "o"):
+            if sp.kind == "note": x = sp.fn(60, d, 0.8, R(1), dict(sp.defaults))
+            elif sp.kind == "drum": x = sp.fn(0.8, art, d, R(1), dict(sp.defaults), None)
+            else: continue
+            x = np.asarray(x)
+            if np.abs(x[..., -1]).max() > 1e-3 * np.abs(x).max(): bad.append(f"{name} ({d} s{', ' + art if art else ''})")
+print(", ".join(sorted(set(bad)))); sys.exit(1 if bad else 0)
+PY
+  ); then ok "music: every note and drum voice ends on (near) zero, so a note-off is not a click"; else bad "music voices that end abruptly: $a"; fi
+  # beats lifts: a breath (0.8 s, 22 dB down, no hits) and the hit after it is the one candidate, ±2 frames; a fade at the end is not one
+  if a=$(uv run -q --no-project --with numpy --with scipy python - 2>&1 <<'PY'
+import sys
+import numpy as np
+sys.path.insert(0, "tools/audio"); import beats
+SR = 22050; rng = np.random.default_rng(1); n = int(12 * SR); t = np.arange(n) / SR
+gain = np.ones(n); gain[(t >= 6.2) & (t < 7.0)] = 0.08; gain[t >= 11.0] = np.linspace(1, 0.05, int((t >= 11.0).sum()))
+y = (0.1 * np.sin(2 * np.pi * 110 * t) + 0.03 * rng.standard_normal(n)) * gain; ev = []
+for k in range(24):                                   # a hit every 0.5 s, none in the breath or the fade
+    b = k * 0.5
+    if 6.2 <= b < 7.0 or b >= 11.0: continue
+    i, m = int(b * SR), int(0.08 * SR)
+    y[i:i + m] += (0.9 if b == 7.0 else 0.4) * np.exp(-np.arange(m) / (0.015 * SR)) * rng.standard_normal(m)
+    ev.append({"t": b, "strength": 1.0 if b == 7.0 else 0.6, "on": ["hits"]})
+L = beats.lifts(y, SR, ev)
+ok = len(L) == 1 and abs(L[0]["t"] - 7.0) <= 2 / 30 and 6.2 <= L[0]["dip"] < 7.0 and L[0]["strength"] > 0.5
+merged = beats.accents({"downbeats": [7.01], "hits": [{"t": 7.0, "strength": 0.9}, {"t": 3.0, "strength": 0.2}]})
+ok = ok and merged == [{"t": 7.0, "strength": 0.9, "on": ["downbeat", "hits"]}]
+print(L, merged); sys.exit(0 if ok else 1)
+PY
+  ); then ok "beats lifts: the hit after a breath is the one candidate (±2 frames), a fade-out is not; a downbeat and a hit 10 ms apart are one accent"
+  else bad "beats lifts: $a"; fi
   # storyboard: a page per segment + an overview; the unsure and the long shot are flagged; the same input, the same bytes
   # review.json is tools/review.py's shape: a gate JSON that includes it builds the page
   if vh storyboard "$p" >/dev/null && mkdir -p "$p/out/review" \
@@ -2072,6 +2214,80 @@ PY
   python3 -c "import json, sys; t = json.load(open(sys.argv[1])); t['grid'] = {'beats': 'm.json'}; json.dump(t, open(sys.argv[1], 'w'))" "$t/k/audio/timeline.zh.json"
   a=$(vh pace "$t/k" 2>&1); rc=$?
   case "$rc:$a" in 1:*"beat grid"*) ok "pace refuses a timeline on a beat grid" ;; *) bad "pace on a beat grid: exit $rc: $a" ;; esac
+  # v2: the speech rate leaves pauses out (q2: a 0.5 s pause, no mark); pause floors lengthen only a silence already at a
+  # comma or a full stop (q1's 0.04 s comma; q3 runs through its comma: nothing there) and never touch the voice;
+  # --relative moves every line of the current take by one factor
+  python3 - "$t/q/audio" <<'PY'
+import json, math, struct, sys, wave
+from pathlib import Path
+a = Path(sys.argv[1]); a.mkdir(parents=True); SR = 22050
+# id, text, syllable period (s), {after unit k: silence s}, gap after the line: p1 has a 0.04 s comma, p2 a 0.5 s pause
+# (no mark), p3 runs straight through its comma (no silence there at all), then a full stop with 0.1 s to the next line
+lines = [("q1", "一二三，四五六七八。", 0.2, {3: 0.04}, 0.5), ("q2", "甲乙丙丁戊己庚辛。", 0.16, {4: 0.5}, 0.1),
+         ("q3", "东南西，北中发白。", 0.18, {}, 0.6)]
+x, segs = [0.0] * int(0.4 * SR), []
+for k, (sid, text, per, pauses, gap) in enumerate(lines):
+    chars = [c for c in text if c not in "，。"]; words = []; burst = per * 0.8
+    for j, c in enumerate(chars):
+        t0, n, f0 = len(x) / SR, int(burst * SR), 150 + 12 * ((j * 5 + k) % 4)
+        x += [0.25 * math.sin(math.pi * i / n) ** 0.5 * (math.sin(2 * math.pi * f0 * i / SR) + 0.5 * math.sin(4 * math.pi * f0 * i / SR)) for i in range(n)]
+        mark = "，" if j + 1 == 3 and "，" in text else ""
+        words.append({"w": c + mark + ("。" if j == len(chars) - 1 else ""), "start": round(t0, 3), "end": round(len(x) / SR, 3)})
+        if j + 1 < len(chars):
+            if sid == "q3" and j + 1 == 3:
+                x += [0.0] * 0  # straight on into the next syllable
+            else:
+                x += [0.0] * int((per - burst) * SR)
+            x += [0.0] * int(pauses.get(j + 1, 0) * SR)
+    segs.append({"id": sid, "zh": text, "en": "", "text": text, "start": words[0]["start"], "end": words[-1]["end"], "words": words})
+    x += [0.0] * int(gap * SR)
+x += [0.0] * int(0.5 * SR)
+with wave.open(str(a / "voiceover.zh.wav"), "wb") as w:
+    w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes(struct.pack(f"<{len(x)}h", *(int(round(v * 32767)) for v in x)))
+(a / "timeline.zh.json").write_text(json.dumps({"provider": "say", "lang": "zh", "duration": round(len(x) / SR, 3), "segments": segs}, ensure_ascii=False), encoding="utf-8")
+(a / "script.txt").write_text("".join(f"@{s['id']} {s['text']}\n" for s in segs), encoding="utf-8")
+PY
+  cp -R "$t/q/audio" "$t/q.orig"
+  a=$(vh pace "$t/q" --dry-run 2>&1); rc=$?
+  b=$(vh pace "$t/q" --strength 0 --comma 0.3 --stop 0.5 2>&1) || a="$a floors: $b"
+  if [ $rc = 0 ] && b=$(PYTHONPATH="$t" uv run -q --no-project --with numpy python - "$t" "$a" 2>&1 <<'PY'
+import json, re, sys
+from onsets import onsets
+t, dry = sys.argv[1], sys.argv[2]; bad = []
+m = re.search(r"^  q2 +8 +([0-9.]+)", dry, re.M)
+true = 8 / (8 * 0.16 - 0.032 - 0.032)                 # syllables over the voice, the 0.5 s pause and the gap in front of it left out
+if not m or abs(float(m.group(1)) / true - 1) > 0.06: bad.append(f"q2's speech rate {m and m.group(1)}, true {true:.2f}")
+if "with pauses" not in dry or "speech rate" not in dry: bad.append("the dry run does not print both rates")
+tl = json.load(open(f"{t}/q/audio/timeline.zh.json", encoding="utf-8")); S = {s["id"]: s for s in tl["segments"]}
+ons0, _, on0 = onsets(f"{t}/q.orig/voiceover.zh.wav"); ons1, quiet, on1 = onsets(f"{t}/q/audio/voiceover.zh.wav")
+runs = lambda on: [len(r) for r in "".join("x" if v else " " for v in on).split()]   # each syllable's voiced frames
+if len(ons1) != len(ons0) or max(abs(p - q) for p, q in zip(runs(on0), runs(on1))) > 1: bad.append(f"voice changed: {len(ons0)} → {len(ons1)} syllables, {runs(on0)} → {runs(on1)} frames")
+else:
+    if quiet[3] < 0.28: bad.append(f"q1's comma: {quiet[3]:.2f} s of quiet (floor 0.3)")
+    O = {s["id"]: s for s in json.load(open(f"{t}/q.orig/timeline.zh.json", encoding="utf-8"))["segments"]}
+    if abs((S["q3"]["end"] - S["q3"]["start"]) - (O["q3"]["end"] - O["q3"]["start"])) > 0.02:   # its comma has no silence: nothing to lengthen
+        bad.append(f"q3, whose voice runs through its comma, changed length: {O['q3']['end'] - O['q3']['start']:.2f} → {S['q3']['end'] - S['q3']['start']:.2f} s")
+    if quiet[16] < 0.48: bad.append(f"q2 → q3 after a full stop: {quiet[16]:.2f} s (floor 0.5)")
+if tl["pace"]["lengthened"][0] != 1: bad.append(f"pauses lengthened: {tl['pace']['lengthened']}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "pace v2: the speech rate leaves pauses out, the dry run prints it and the rate with pauses; pause floors lengthen a silence at a mark, not where the voice runs on, and the voice is untouched"
+  else bad "pace v2 (speech rate, floors): exit $rc: $a $b"; fi
+  rm -rf "$t/q" && mkdir "$t/q" && cp -R "$t/q.orig" "$t/q/audio"
+  a=""
+  vh pace "$t/q" --relative -5% >/dev/null 2>&1 || a="$a raw -5% failed"
+  t1=$(python3 -c "import json,sys; print(' '.join(str(l['tempo']) for l in json.load(open(sys.argv[1]))['pace']['lines']))" "$t/q/audio/timeline.zh.json")
+  [ "$t1" = "0.95 0.95 0.95" ] || a="$a on the original take: tempos $t1 (0.95 each)"
+  vh pace "$t/q" >/dev/null 2>&1 || a="$a default run failed"
+  last=$(python3 -c "import json,sys; print(' '.join(str(l['tempo']) for l in json.load(open(sys.argv[1]))['pace']['lines']))" "$t/q/audio/timeline.zh.json")
+  vh pace "$t/q" --relative +10% >/dev/null 2>&1 || a="$a paced +10% failed"
+  python3 - "$t/q/audio/timeline.zh.json" "$last" <<'PY' || a="$a on a paced take: not its tempos × 1.10 within the clamp"
+import json, sys
+now = [l["tempo"] for l in json.load(open(sys.argv[1]))["pace"]["lines"]]; last = [float(v) for v in sys.argv[2].split()]
+sys.exit(0 if all(abs(n - min(1.18, l * 1.1)) < 1e-3 for n, l in zip(now, last)) else 1)
+PY
+  if [ -z "$a" ]; then ok "pace --relative: every line of the original take × 0.95; on a paced take, its own tempos × 1.10 within the clamp"
+  else bad "pace --relative:$a"; fi
   rm -rf "$t"
 }
 
