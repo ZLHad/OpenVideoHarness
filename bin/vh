@@ -130,7 +130,7 @@
 #                               words), in order; --save keeps them in out/cues.json with the timeline's sha256, and a later run says
 #                               which cues a new take moved and by how much; --chapters: the chapter list for a description (out/chapters.txt)
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
-#   check <video> [--allow t,t…] [--against <ref.mp4>]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) + gate ①
+#   check <video> [--allow t,t…] [--against <ref.mp4>] [--json]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) + gate ①
 #                               on record in a standard or studio project (REVIEW.md, DECISIONS.md; exit 1 without it) + the
 #                               publishing copy in PACKAGING.md against the platforms' length limits (a warning) +
 #                               subtitles (its tracks and the .srt beside it) shorter than it takes to read them (a warning) +
@@ -138,7 +138,10 @@
 #                               confirmed in the project's confirmed.json (a designed flash: why, evidence, and the key the scan prints,
 #                               which lapses when the picture there changes) nor declared for this run with --allow <seconds or spans a-b>;
 #                               evenly spaced ones are periodic motion, said, not failed) + motion (hard cuts from dark to bright, still stretches of 3 s or more: warnings) + colour tags; --against: a 4K render vs the approved 1080p cut
-#                               (exit 1 when the picture differs: a layout that breaks at device scale 2)
+#                               (exit 1 when the picture differs: a layout that breaks at device scale 2). The result is kept in the
+#                               video's project as out/check/<name>.check.json (bin/vh status reads the last); --json prints it instead
+#                               of the lines above (those go to stderr): each finding's kind, severity, time and frame, message,
+#                               evidence and whether confirmed.json covers it (tools/checkrec.py); the exit status is the same
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
 #  deliver and tidy
 #   deliver <master.mp4> [--for bilibili,douyin,youtube] [--max-gb N] [--crf 16] [--out f] [--psnr sample|full|off]   the copy to upload:
@@ -148,7 +151,7 @@
 #                               a record beside the copy (<copy>.deliver.json) that bin/vh clean reads: the copy and its master stay as the film
 #   clean <project> [--yes] [--delete] [--keep path …] [--final f]   a finished project's intermediates (frames, check frames, render
 #                               chunks, drafts, old takes, stems, node_modules) to the Trash; the film (and what bin/vh deliver made from it),
-#                               covers, captions, review pages, sources, docs and the narration in use stay. Without --yes it only lists them;
+#                               covers, captions, review pages, check records, sources, docs and the narration in use stay. Without --yes it only lists them;
 #                               --delete deletes what the tools can make again
 set -euo pipefail
 unset CDPATH   # an exported CDPATH would send a relative cd (this one: bin/vh run as bin/vh) to another folder, and print it
@@ -891,8 +894,8 @@ cmd_sheet() {
   echo "$out (no timestamps: $why)"
 }
 cmd_check() {
-  local u="usage: bin/vh check <video> [--allow t,t…] [--against <reference.mp4>]"
-  local v=${1:?$u} allow="" against="" fail=0
+  local u="usage: bin/vh check <video> [--allow t,t…] [--against <reference.mp4>] [--json]"
+  local v=${1:?$u} allow="" against="" fail=0 json=""
   shift
   while [ $# -gt 0 ]; do case "$1" in
     --allow) [ $# -ge 2 ] || { echo "bin/vh check: --allow needs the seconds of designed flashes, comma-separated (e.g. 1.0,3.2 or 12-15)" >&2; return 1; }
@@ -901,43 +904,55 @@ cmd_check() {
     --against) [ $# -ge 2 ] || { echo "bin/vh check: --against needs the reference video (the approved 1080p cut)" >&2; return 1; }
       against=$2; shift 2 ;;
     --against=*) against=${1#--against=}; shift ;;
+    --json) json=1; shift ;;
     *) echo "bin/vh check: unknown option $1 ($u)" >&2; return 1 ;;
   esac; done
   [ -z "$against" ] || [ -f "$against" ] || { echo "bin/vh check: no reference video at $against" >&2; return 1; }
+  # each check also leaves its result in CHECK_TMP (gone on exit, vh_exit); tools/checkrec.py makes the record of them at
+  # the end, out/check/<name>.check.json. --json: that record on stdout, the lines a person reads on stderr
+  CHECK_TMP=$(mktemp -d "${TMPDIR:-/tmp}/vh-check.XXXXXX")
+  local J=$CHECK_TMP
+  if [ -n "$json" ]; then
+    exec 3>&1 1>&2
+    if ! ffprobe -v error -show_entries format=duration -of csv=p=0 "$v" >/dev/null 2>&1; then
+      act_str "$v"; printf '{"version": 1, "tool": "bin/vh check", "video": %s, "exit": 1, "verdict": "fail", "error": "ffprobe cannot read it"}\n' "$ACT_S" >&3
+    fi
+  fi
   ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,r_frame_rate -of compact "$v"
   # spec: the frame size, rate and length against the project's BRIEF (Output, Resolution); playbook/01-pipeline.md, 规格
   local spec src=0
   if [ -n "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 "$v" 2>/dev/null)" ]; then
-    spec=$(python3 "$ROOT/tools/speccheck.py" "$v") || src=$?
+    spec=$(python3 "$ROOT/tools/speccheck.py" "$v" --json "$J/spec.json") || src=$?
     case "$src" in
       0) case "$spec" in *$'\nWARN '*) echo "$c_wa $spec" ;; *) echo "$c_ok $spec" ;; esac ;;
       1) fail=1; echo "$c_no $spec"; echo "   the render does not match the BRIEF: fix the render. Change the BRIEF's Output or Resolution line only when the spec itself changed" ;;
-      *) echo "$c_wa spec check failed (error above)" ;;
+      *) echo "$c_wa spec check failed (error above)"; printf 'spec\tthe spec check failed\n' >> "$J/skipped.txt" ;;
     esac
   fi
   # gate ① on record: a standard or studio film is checked for release only once the person has decided its concept
   local gp gr grc=0; gp=$(project_of "$v")
   if [ -n "$gp" ]; then
-    gr=$(python3 "$ROOT/tools/gatecheck.py" "$gp" --for check 2>&1) || grc=$?
+    gr=$(python3 "$ROOT/tools/gatecheck.py" "$gp" --for check --json "$J/gate.json" 2>&1) || grc=$?
     case "$grc:$gr" in
       0:*"no gates"*|0:*"not checked"*) ;;
       0:*) echo "$c_ok $gr" ;;
       1:"gate record"*) fail=1; printf '%s\n' "$gr" | sed "1s/^/$c_no /" ;;
-      *) echo "$c_wa gate record check failed: $gr" ;;
+      *) echo "$c_wa gate record check failed: $gr"; printf 'gate\tthe gate record check failed\n' >> "$J/skipped.txt" ;;
     esac
   fi
   local hits; hits=$(ffmpeg -i "$v" -vf "blackdetect=d=0.3,freezedetect=d=3" -af silencedetect=d=3 -f null - 2>&1 | grep -E "black_|freeze_|silence_" | sed 's/.*\] //' || true)
+  printf '%s\n' "$hits" > "$J/detect.txt"
   if [ -z "$hits" ]; then echo "$c_ok no black/freeze/silence segments over threshold"
   else echo "$hits"; echo "$c_wa review each hit: dark backgrounds (e.g. 3b1b black), intentional holds and silent videos trigger these by design"; fi
   # isolated frames: one frame unlike both neighbours while they agree (another scene flashed in, garbled text): a capture
   # glitch too short for freezedetect, and a snapshot of that time is clean (playbook/02-verification.md, 静默失败)
-  local iso rc=0 py=() ia=("$v" --motion)   # --motion: cuts that flash, still stretches, the film's motion (warnings, from the same decode)
+  local iso rc=0 py=() ia=("$v" --motion --json "$J/iso.json")   # --motion: cuts that flash, still stretches, the film's motion (warnings, from the same decode)
   [ -z "$allow" ] || ia+=(--allow "$allow")
   [ -z "$gp" ] || ia+=(--confirmed "$gp/confirmed.json")   # designed flashes confirmed for good (tools/confirm.py)
   if command -v uv >/dev/null 2>&1; then py=(uv run -q --no-project --with numpy python)
   elif python3 -c "import numpy" 2>/dev/null; then py=(python3); fi
   if [ -z "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 "$v" 2>/dev/null)" ]; then :   # audio only
-  elif [ ${#py[@]} = 0 ]; then echo "$c_wa isolated-frame scan skipped: it needs numpy (install uv)"
+  elif [ ${#py[@]} = 0 ]; then echo "$c_wa isolated-frame scan skipped: it needs numpy (install uv)"; printf 'iso\tit needs numpy (install uv)\n' >> "$J/skipped.txt"
   else
     iso=$(on_ctrl_c "${py[@]}" "$ROOT/tools/isoframes.py" "${ia[@]}") || rc=$?
     iso=$(printf '%s\n' "$iso" | sed -e "s/^  static:/$c_wa static:/" -e "s/^  cuts:/$c_wa cuts:/" -e "s/^  periodic:/$c_wa periodic:/" -e "s/^  note:/$c_wa note:/")
@@ -951,41 +966,43 @@ cmd_check() {
         echo "   (ffmpeg -ss <s> -i <video> -frames:v 1 f.png)."
         echo "   A bad snapshot: the scene itself jumps there. A clean one: the render's capture glitched; for HyperFrames, re-render"
         echo "   with --no-browser-gpu --experimental-fast-capture=false and scan again (playbook/02-verification.md, 静默失败)" ;;
-      3:*) rc=1; echo "$c_no isolated-frame scan: bad --allow or confirmed.json (error above); nothing was declared or confirmed" ;;   # a typo must not switch the gate off
-      *) rc=2; echo "$c_wa isolated-frame scan failed (error above)" ;;
+      3:*) rc=1; echo "$c_no isolated-frame scan: bad --allow or confirmed.json (error above); nothing was declared or confirmed"   # a typo must not switch the gate off
+        printf 'check.iso\tfail\tthe isolated-frame scan did not run: a bad --allow or confirmed.json, so nothing was declared or confirmed\n' >> "$J/errors.txt" ;;
+      *) rc=2; echo "$c_wa isolated-frame scan failed (error above)"; printf 'iso\tthe scan failed\n' >> "$J/skipped.txt" ;;
     esac
   fi
   # subtitles: the film's subtitle tracks and the .srt beside it, each entry long enough to read (a warning)
   local sub src2=0
-  sub=$(python3 "$ROOT/tools/subcheck.py" "$v" 2>&1) || src2=$?
+  sub=$(python3 "$ROOT/tools/subcheck.py" "$v" --json "$J/subs.json" 2>&1) || src2=$?
   case "$src2:$sub" in
     0:*) [ -n "$sub" ] && case "$sub" in "subtitles: none"*) ;; *) printf '%s\n' "$sub" | sed "s/^subtitles/$c_ok subtitles/" ;; esac ;;
     1:subtitles*) printf '%s\n' "$sub" | sed -e "s/^subtitles\(.*\)shorter than/$c_wa subtitles\1shorter than/" -e "s/^subtitles · \(.*\)long enough/$c_ok subtitles · \1long enough/" ;;
-    *) echo "$c_wa subtitle check failed: $sub" ;;
+    *) echo "$c_wa subtitle check failed: $sub"; printf 'subtitles\tthe subtitle check failed\n' >> "$J/skipped.txt" ;;
   esac
   # colour: browsers read untagged or BT.601-tagged HD video with the wrong matrix (playbook/02-verification.md, 色彩标签)
   local col; col=$(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt,color_range,color_space,color_transfer,color_primaries -of csv=p=0 "$v" 2>/dev/null)
+  printf '%s\n' "$col" > "$J/colour.txt"
   if [ -z "$col" ]; then :
   elif [ "$col" = "yuv420p,tv,bt709,bt709,bt709" ]; then echo "$c_ok colour: yuv420p, limited range, BT.709 with all four tags"
   else echo "$c_wa colour: $col (pix_fmt,range,matrix,transfer,primaries); deliver yuv420p, tv, bt709 ×3 — re-encode with the command in playbook/02-verification.md (色彩标签)"; fi
   # the publishing copy (PACKAGING.md, 发布文案) against the platforms' length limits: said, not a failure of the film
   local proj pk prc=0; proj=$(project_of "$v")
   if [ -n "$proj" ] && [ -f "$proj/PACKAGING.md" ]; then
-    pk=$(python3 "$ROOT/tools/packcheck.py" "$proj/PACKAGING.md" 2>&1) || prc=$?
+    pk=$(python3 "$ROOT/tools/packcheck.py" "$proj/PACKAGING.md" --json "$J/pack.json" 2>&1) || prc=$?
     case "$prc:$pk" in
       0:*"no 发布文案"*) ;;
       0:*) printf '%s\n' "$pk" | sed "s/^packaging/$c_ok packaging/" ;;
       1:*) echo "$c_wa the publishing copy in PACKAGING.md is over a platform's limit (playbook/10, 发布文案的长度):"; printf '%s\n' "$pk" | sed 's/^/   /' ;;
-      *) echo "$c_wa packaging check failed: $pk" ;;
+      *) echo "$c_wa packaging check failed: $pk"; printf 'packaging\tthe packaging check failed\n' >> "$J/skipped.txt" ;;
     esac
   fi
   # scale: a 4K render against the approved 1080p cut, so a layout that only breaks at device scale 2 shows up
   # (engines/README.md, 出 4K). Needs numpy, like the frame scan.
   if [ -n "$against" ]; then
     local sc arc=0
-    if [ ${#py[@]} = 0 ]; then fail=1; echo "$c_no --against needs numpy (install uv)"
+    if [ ${#py[@]} = 0 ]; then fail=1; echo "$c_no --against needs numpy (install uv)"; printf 'check.scale\tfail\t--against needs numpy (install uv)\n' >> "$J/errors.txt"
     else
-      sc=$(on_ctrl_c "${py[@]}" "$ROOT/tools/scalecheck.py" "$v" "$against" --sheet "$(dirname "$v")/check") || arc=$?
+      sc=$(on_ctrl_c "${py[@]}" "$ROOT/tools/scalecheck.py" "$v" "$against" --sheet "$(dirname "$v")/check" --json "$J/scale.json") || arc=$?
       case "$arc:$sc" in
         130:*) exit 130 ;;
         0:*"WARN "*) echo "$c_wa $sc" ;;
@@ -994,11 +1011,20 @@ cmd_check() {
           echo "   the two renders differ for half a second or more: look at the comparison images above. A label or panel at twice the"
           echo "   size or shifted is code reading canvas or image pixel sizes at devicePixelRatio 2 (engines/README.md, 出 4K)" ;;
         1:*"FAIL "*) fail=1; echo "$c_no $sc" ;;
-        *) fail=1; echo "$c_no scale check failed (error above)" ;;
+        *) fail=1; echo "$c_no scale check failed (error above)"; printf 'check.scale\tfail\tthe scale check failed\n' >> "$J/errors.txt" ;;
       esac
     fi
   fi
-  [ "$rc" != 1 ] && [ "$fail" = 0 ]   # exit 1 on isolated frames, a spec mismatch, no gate ① on record or a scale FAIL; the other findings are for review
+  local status=0
+  [ "$rc" != 1 ] && [ "$fail" = 0 ] || status=1   # exit 1 on isolated frames, a spec mismatch, no gate ① on record or a scale FAIL; the other findings are for review
+  # the record: out/check/<name>.check.json in the video's project (bin/vh status reads the last); with --json, on stdout too
+  local ra=("$v" --dir "$J" --exit "$status")
+  [ -z "$allow" ] || ra+=(--allow "$allow"); [ -z "$against" ] || ra+=(--against "$against")
+  if [ -n "$json" ]; then
+    python3 "$ROOT/tools/checkrec.py" "${ra[@]}" --print >&3 \
+      || printf '{"version": 1, "tool": "bin/vh check", "exit": %s, "verdict": "%s", "error": "the record could not be made"}\n' "$status" "$([ $status = 0 ] && echo pass || echo fail)" >&3
+  else python3 "$ROOT/tools/checkrec.py" "${ra[@]}" >/dev/null || true; fi
+  return $status
 }
 cmd_tts() {
   local proj=${1:?usage: bin/vh tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json --snap beat|half|downbeat] [--lead s] [--align gemini] [--join block|all] [--resume]} pos=() deps=""

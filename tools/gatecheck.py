@@ -2,8 +2,9 @@
 concept (CLAUDE.md, 关卡; playbook/01-pipeline.md). A guard rail for the agent, not a lock: a part of a film renders
 without it (bin/vh render --range), and so does any page that is not the project's own film page.
 
-usage: python3 tools/gatecheck.py <project | a file or folder inside it> [--for render|check]
-       (bin/vh render runs it with --for render before a whole film, bin/vh check before the rest of its checks)
+usage: python3 tools/gatecheck.py <project | a file or folder inside it> [--for render|check] [--json f]
+       (bin/vh render runs it with --for render before a whole film, bin/vh check before the rest of its checks;
+       --json f: the result in a file, {state, message, effort, missing, waived}, for bin/vh check's record)
 
 The project is the nearest folder, from the one given upwards, that holds BRIEF.md. With --for render, only the
 project's own page is checked: the project folder itself, or a page directly in it (film.html, index.html); a page in a
@@ -24,7 +25,7 @@ sections, and without a "范围：" / "Scope:" line right under it that names on
 Exit: 0 on record, or not checked (the line printed says which) · 1 a record is missing: each missing line is named,
 with what to write · 2 not inside a project.
 """
-import re, sys
+import json, re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -191,31 +192,41 @@ def project_of(p):
 
 
 def main():
-    args, it, mode = [], iter(sys.argv[1:]), "check"
+    args, it, mode, jpath = [], iter(sys.argv[1:]), "check", None
     for a in it:
         if a == "--for": mode = next(it, "check")
         elif a.startswith("--for="): mode = a.split("=", 1)[1]
+        elif a == "--json": jpath = next(it, None)   # the result as JSON in a file, for bin/vh check's record
         else: args.append(a)
     if len(args) != 1:
-        print("usage: python3 tools/gatecheck.py <project | a file inside it> [--for render|check]", file=sys.stderr); sys.exit(2)
+        print("usage: python3 tools/gatecheck.py <project | a file inside it> [--for render|check] [--json f]", file=sys.stderr); sys.exit(2)
+
+    def done(code, state, line, **extra):
+        if jpath:
+            try:
+                Path(jpath).write_text(json.dumps(dict(state=state, message=line.split("\n")[0], **extra), ensure_ascii=False), encoding="utf-8")
+            except OSError as e:
+                print(f"gatecheck: could not write {jpath} ({e.strerror or e})", file=sys.stderr)
+        print(line)
+        sys.exit(code)
     given = Path(args[0])
     proj = project_of(given)
     if not proj:
-        print(f"gate record: {args[0]} is not inside a project (no BRIEF.md above it): not checked"); sys.exit(2)
+        done(2, "not checked", f"gate record: {args[0]} is not inside a project (no BRIEF.md above it): not checked")
     if mode == "render":   # only the project's own film page: a sketch or a look-dev page in a folder under it renders freely
         where = given.resolve() if given.is_dir() else given.resolve().parent
         if where != proj:
-            print(f"gate record: {args[0]} is not the project's own page (a sketch or look-dev page): not checked"); sys.exit(0)
+            done(0, "not checked", f"gate record: {args[0]} is not the project's own page (a sketch or look-dev page): not checked")
     effort, src = effort_of(proj)
     review_f, dec_f = proj / "REVIEW.md", proj / "DECISIONS.md"
     if effort == "quick":
-        print(f"gate record: Effort quick ({src}): no gates to record"); sys.exit(0)
+        done(0, "no gates", f"gate record: Effort quick ({src}): no gates to record", effort=effort)
     if not review_f.is_file():
-        print("gate record: no REVIEW.md (a project from before the templates had one): not checked"); sys.exit(0)
+        done(0, "not checked", "gate record: no REVIEW.md (a project from before the templates had one): not checked", effort=effort)
     review = strip_comments(read(review_f))
     w = waiver(review)
     if w:
-        print(f"gate record: {effort} ({src}), the gates waived in the user's own words ({w}, REVIEW.md)"); sys.exit(0)
+        done(0, "waived", f"gate record: {effort} ({src}), the gates waived in the user's own words ({w}, REVIEW.md)", effort=effort, waived=w)
     missing = []
     decided, said = gate1(review)
     if not said:
@@ -227,12 +238,11 @@ def main():
     elif not concept_decided(read(dec_f)):
         missing.append('DECISIONS.md: the concept 立意 row\'s status, "已定（关卡 ①）：<the concept>" (it is still 待定, the template\'s {…}, or struck through)')
     if not missing:
-        print(f"gate record: {effort} ({src}), gate ① decided in the person's words (REVIEW.md) and the concept on record (DECISIONS.md)"); sys.exit(0)
-    print(f"gate record: a {effort} project ({src}) with no record of gate ① — the person decides the concept before the film is made whole:")
-    for m in missing:
-        print(f"    {m}")
-    print('    or, if the user said in chat to skip the reviews, their words: "- 用户授权跳过（YYYY-MM-DD）。原话：“…”" (templates/REVIEW.md)')
-    sys.exit(1)
+        done(0, "on record", f"gate record: {effort} ({src}), gate ① decided in the person's words (REVIEW.md) and the concept on record (DECISIONS.md)", effort=effort)
+    done(1, "missing", "\n".join([f"gate record: a {effort} project ({src}) with no record of gate ① — the person decides the concept before the film is made whole:"]
+                                  + [f"    {m}" for m in missing]
+                                  + ['    or, if the user said in chat to skip the reviews, their words: "- 用户授权跳过（YYYY-MM-DD）。原话：“…”" (templates/REVIEW.md)']),
+         effort=effort, missing=missing)
 
 
 if __name__ == "__main__":

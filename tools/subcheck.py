@@ -1,6 +1,7 @@
 """Subtitles shorter than it takes to read them: the film's subtitle tracks and the SRT files beside it.
 
-usage: python3 tools/subcheck.py <video> [more.srt …]      (bin/vh check runs it on the video it checks)
+usage: python3 tools/subcheck.py <video> [more.srt …] [--json f]      (bin/vh check runs it on the video it checks;
+       --json f: the sources and their short entries in a file, for its record)
 
 Each subtitle must show for at least readcheck's subtitle rule: 1.8 s, or its characters at 9 a second for Chinese
 (half-width characters count half) and 20 a second otherwise, whichever is longer (tools/readcheck.py, subtitle_check).
@@ -11,7 +12,7 @@ same entries as a track is that track, listed once. Times as SRT writes them (00
 Prints one line per source, and the short entries (the 12 shortest). Exit: 0 none short · 1 some short · 2 no video ·
 3 could not read them (the error).
 """
-import re, subprocess, sys
+import json, re, subprocess, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from readcheck import subtitle_check
@@ -43,13 +44,16 @@ def tracks(video):
     return out
 
 def main():
-    if len(sys.argv) < 2:
-        sys.exit("usage: python3 tools/subcheck.py <video> [more.srt …]")
-    video = Path(sys.argv[1])
+    args, jpath = list(sys.argv[1:]), None
+    if "--json" in args:
+        i = args.index("--json"); jpath = args[i + 1] if i + 1 < len(args) else None; del args[i:i + 2]
+    if not args:
+        sys.exit("usage: python3 tools/subcheck.py <video> [more.srt …] [--json f]")
+    video = Path(args[0])
     if not video.is_file():
         print(f"subcheck: no such file {video}", file=sys.stderr); sys.exit(2)
     sources = tracks(video)
-    srts = [p for p in sorted(video.parent.glob("*.srt")) if p.name.startswith(video.stem)] + [Path(p) for p in sys.argv[2:]]
+    srts = [p for p in sorted(video.parent.glob("*.srt")) if p.name.startswith(video.stem)] + [Path(p) for p in args[1:]]
     for p in dict.fromkeys(srts):
         try: items = parse(p.read_text(encoding="utf-8", errors="replace"))
         except OSError: continue
@@ -57,7 +61,9 @@ def main():
         if any(key == [(round(a, 2), round(b, 2), t) for a, b, t in its] for _, its in sources):
             continue   # the same entries as a track: it is that track
         sources.append((p.name, items))
+    rec = []
     if not sources:
+        save(jpath, rec)
         print("subtitles: none in the video or beside it (captions burned into the picture: bin/vh readcheck <project>)"); sys.exit(0)
     bad = 0
     for name, items in sources:
@@ -66,6 +72,8 @@ def main():
             need, rate, limit = subtitle_check(text, b - a)
             if b - a < need - 1e-3: short.append((b - a, need, a, text))
         bad += bool(short)
+        rec.append({"name": name, "entries": len(items), "short": [{"t": round(a, 3), "t1": round(a + d, 3), "need": round(need, 3), "text": text[:80]}
+                                                                    for d, need, a, text in sorted(short, key=lambda x: x[2])]})
         if not short:
             print(f"subtitles · {name}: {len(items)} entries, each on screen long enough to read (1.8 s, or 9 Chinese / 20 other characters a second)")
             continue
@@ -74,7 +82,13 @@ def main():
             m, s = divmod(a, 60)
             print(f"    {int(m)}:{s:06.3f}  {d:.2f} s, needs {need:.2f} s  {text[:40]}")
         if len(short) > 12: print(f"    … {len(short) - 12} more")
+    save(jpath, rec)
     sys.exit(1 if bad else 0)
+
+def save(path, sources):
+    if path:
+        try: Path(path).write_text(json.dumps({"sources": sources}, ensure_ascii=False), encoding="utf-8")
+        except OSError as e: print(f"subcheck: could not write {path} ({e.strerror or e})", file=sys.stderr)
 
 if __name__ == "__main__":
     try:

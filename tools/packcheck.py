@@ -1,6 +1,7 @@
 """The publishing copy against each platform's length limits: titles, descriptions and tags in PACKAGING.md.
 
-usage: python3 tools/packcheck.py <PACKAGING.md | project>      (bin/vh check runs it for the project of the video)
+usage: python3 tools/packcheck.py <PACKAGING.md | project> [--json f]      (bin/vh check runs it for the project of the video;
+       --json f: every field measured, in a file, for its record)
 
 Reads the "## 发布文案" section of PACKAGING.md (templates/PACKAGING.md shows it): one "### <platform>" heading per
 platform (B站, 抖音, YouTube, 小红书, 视频号, or any other name; a heading that names several is held to the smallest
@@ -15,7 +16,7 @@ X weighs a Chinese character as 2). The limits (LIMITS below) are in playbook/10
 were checked; where a platform's limit is not known, only the counts are printed.
 Exit: 0 every field within its limit (or nothing to check) · 1 a field over its limit · 2 no such file.
 """
-import re, sys, unicodedata
+import json, re, sys, unicodedata
 from pathlib import Path
 
 # platform: (names it goes by, {field: (limit, how sure)}); playbook/10-hooks-and-packaging.md, 发布文案的长度
@@ -106,9 +107,12 @@ def tags_of(s):
 
 
 def main():
-    if len(sys.argv) != 2:
-        sys.exit("usage: python3 tools/packcheck.py <PACKAGING.md | project>")
-    p = Path(sys.argv[1])
+    args, jpath = list(sys.argv[1:]), None
+    if "--json" in args:   # the fields measured, in a file: for bin/vh check's record
+        i = args.index("--json"); jpath = args[i + 1] if i + 1 < len(args) else None; del args[i:i + 2]
+    if len(args) != 1:
+        sys.exit("usage: python3 tools/packcheck.py <PACKAGING.md | project> [--json f]")
+    p = Path(args[0])
     if p.is_dir():
         p = p / "PACKAGING.md"
     if not p.is_file():
@@ -117,7 +121,7 @@ def main():
     if not any(got.values()):
         print(f"packaging: {p.name} has no 发布文案 to measure (## 发布文案, a ### heading per platform: templates/PACKAGING.md)")
         sys.exit(0)
-    over = 0
+    over, rec = 0, []
     for head, fields in got.items():
         if not fields:
             continue
@@ -134,11 +138,16 @@ def main():
                 bad = n > cap
                 over += bad
                 parts.append(f"{'✗' if bad else '✓'} {NAMES[f]} {n} {unit} (limit {cap}, {sure})")
+                rec.append({"heading": head, "field": f, "count": n, "unit": unit, "limit": cap, "sure": sure, "over": bad})
             else:
                 parts.append(f"· {NAMES[f]} {n} {unit}")
+                rec.append({"heading": head, "field": f, "count": n, "unit": unit, "limit": None, "over": False})
         print(f"packaging · {head}: " + " · ".join(parts))
     if over:
         print("  over a limit: shorten it there, or move the long part (credits, sources) to a pinned comment; the upload page has the last word")
+    if jpath:
+        try: Path(jpath).write_text(json.dumps({"file": str(p), "fields": rec}, ensure_ascii=False), encoding="utf-8")
+        except OSError as e: print(f"packcheck: could not write {jpath} ({e.strerror or e})", file=sys.stderr)
     sys.exit(1 if over else 0)
 
 

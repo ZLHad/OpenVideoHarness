@@ -5,7 +5,8 @@ usage (via bin/vh clean): python tools/clean.py <project> [--yes] [--delete] [--
 
 Without --yes it only lists (a dry run; --dry-run says so, and wins over --yes). What goes, by kind:
   rebuilt   out/frames, out/check (check frames, contact sheets, storyboard tiles, textcheck crops: the check tools make
-            them again; a video in it stays), render chunks (.<film>.parts) and patch work folders (.<film>.patch),
+            them again; a video in it stays, and so do bin/vh check's records, *.check.json), render chunks (.<film>.parts)
+            and patch work folders (.<film>.patch),
             node_modules (npm ci brings it back), __pycache__, .venv and venv folders
   renders   video files under out/ that are not the film: drafts, video-only renders, segments, patches (*.mp4 *.mov *.webm
             *.mkv *.m4v *.avi), with their .render.json and .lock beside them. Only once a film is found (below)
@@ -314,8 +315,9 @@ def main():
     out = root / "out"
     chk = next((q for q in out.iterdir() if q.name.casefold() == "check" and q.is_dir() and not q.is_symlink()), None) if out.is_dir() else None
     keep_vid = [(d / f).relative_to(root) for d, _, _, fs in walk(chk) for f in fs if Path(f).suffix.lower() in VIDEO] if chk else []
+    keep_rec = sorted((d / f).relative_to(root) for d, _, _, fs in walk(chk) for f in fs if f.endswith(".check.json")) if chk else []   # what the film was checked for
     own = subprojects(root)
-    items = candidates(root, film, keeps + film + [r for r, _, _ in sent] + keep_vid + own)
+    items = candidates(root, film, keeps + film + [r for r, _, _ in sent] + keep_vid + keep_rec + own)
     sizes = {p: size(p) for _, p in items}
     total = sum(sizes.values())
     doing = a.yes and not a.dry_run
@@ -331,6 +333,8 @@ def main():
         print("  projects of their own inside, kept whole: " + ", ".join(str(f) for f in own[:6]) + (" …" if len(own) > 6 else ""))
     if keep_vid:
         print("  stays in out/check (a video, not a check frame): " + ", ".join(str(f) for f in keep_vid[:6]) + (" …" if len(keep_vid) > 6 else ""))
+    if keep_rec:
+        print("  stays in out/check (bin/vh check's records): " + ", ".join(str(f) for f in keep_rec[:6]) + (" …" if len(keep_rec) > 6 else ""))
     if not film:
         print("  no film found (out/final/, out/final*.<video>, media/, bin/vh deliver's records): its videos and sound stay; name the film with --final <file> to clear them")
     for kind in ("rebuilt", "renders", "sound"):

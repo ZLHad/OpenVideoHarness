@@ -1,7 +1,8 @@
 """Spec check: is a delivered video what the project's BRIEF says it is?
 
-usage: python3 tools/speccheck.py <video> [--brief BRIEF.md]
+usage: python3 tools/speccheck.py <video> [--brief BRIEF.md] [--json f]
 exit status: 0 matches (WARNs allowed), 1 a FAIL, 2 the video could not be read; no BRIEF.md: says so, exit 0
+--json f: the same as JSON in a file, for bin/vh check's record: {brief, output, resolution, measured, fails, warns}
 
 The BRIEF is the nearest BRIEF.md at or above the video (a project's out/ is inside the project), or --brief.
 It reads two lines of its Spec section (templates/BRIEF.md):
@@ -40,9 +41,17 @@ APPROX = re.compile(r"[~≈]|约(?!束)|左右|\babout\b|\baround\b|\bapprox|\bt
 NUM = r"(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)"   # 1,200 reads as 1200
 num = lambda x: float(x.replace(",", ""))
 
+def save_json(path, rec):
+    """--json: the result for bin/vh check's record; a file that cannot be written is said, never a failure of the check."""
+    if path:
+        try:
+            Path(path).write_text(json.dumps(rec, ensure_ascii=False), encoding="utf-8")
+        except OSError as e:
+            print(f"speccheck: could not write {path} ({e.strerror or e})", file=sys.stderr)
+
 def main():
-    ap = argparse.ArgumentParser(prog="speccheck.py", usage="python3 tools/speccheck.py <video> [--brief BRIEF.md]")
-    ap.add_argument("video"); ap.add_argument("--brief")
+    ap = argparse.ArgumentParser(prog="speccheck.py", usage="python3 tools/speccheck.py <video> [--brief BRIEF.md] [--json f]")
+    ap.add_argument("video"); ap.add_argument("--brief"); ap.add_argument("--json")
     a = ap.parse_args()
     try:
         out = subprocess.run(["ffprobe", "-v", "error", "-count_packets", "-select_streams", "v:0", "-show_entries",
@@ -63,7 +72,9 @@ def main():
             print(f"speccheck: no BRIEF at {a.brief}", file=sys.stderr); sys.exit(2)
     else:
         brief = find_brief(a.video)
+    measured = {"width": W, "height": H, "fps": round(fps, 6), "frames": n, "duration": round(dur, 3)}
     if not brief:
+        save_json(a.json, {"brief": None, "measured": measured, "fails": [], "warns": []})
         print(f"spec: {W}x{H}, {fps:g} fps, {n} frames, {dur:.2f} s; no BRIEF.md above the video, nothing to compare"); return
     text = brief.read_text(encoding="utf-8", errors="replace")
     o, r = spec_line(text, "Output"), spec_line(text, "Resolution")
@@ -128,6 +139,7 @@ def main():
         elif mr and not num(mr.group(1)) <= dur <= num(mr.group(2)):
             warns.append(f"{dur:.1f} s, outside the BRIEF's {mr.group(1)}–{mr.group(2)} s")
     rel = f"{brief.resolve().parent.name}/{brief.name}"
+    save_json(a.json, {"brief": str(brief.resolve()), "output": o, "resolution": r, "measured": measured, "fails": fails, "warns": warns})
     print(f"spec: {W}x{H}, {fps:g} fps, {n} frames, {dur:.2f} s against {rel} (Output: {(o or '—')[:60]}; Resolution: {r or '— (1080p)'})")
     for f in fails: print(f"FAIL {f}")
     for w in warns: print(f"WARN {w}")

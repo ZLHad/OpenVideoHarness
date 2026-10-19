@@ -61,9 +61,16 @@ def spans(score, below, least):
             out.append([int(i), int(i)])
     return [r for r in out if r[1] - r[0] + 1 >= least]
 
+def save(path, rec):
+    """--json: the result in a file, for bin/vh check's record"""
+    if path:
+        try: Path(path).write_text(json.dumps(rec), encoding="utf-8")
+        except OSError as e: print(f"scalecheck: could not write {path} ({e.strerror or e})", file=sys.stderr)
+
 def main():
-    ap = argparse.ArgumentParser(prog="scalecheck.py", usage="uv run --with numpy python tools/scalecheck.py <video> <reference> [--sheet DIR]")
+    ap = argparse.ArgumentParser(prog="scalecheck.py", usage="uv run --with numpy python tools/scalecheck.py <video> <reference> [--sheet DIR] [--json f]")
     ap.add_argument("video"); ap.add_argument("reference"); ap.add_argument("--sheet", help="write a comparison image per flagged stretch here")
+    ap.add_argument("--json", help="the result in a file (bin/vh check's record)")
     a = ap.parse_args()
     try:
         vw, vh, vfps, vn = probe(a.video); rw, rh, rfps, rn = probe(a.reference)
@@ -79,6 +86,7 @@ def main():
         bad.append(f"different frame counts ({vn} vs {rn})")
     if bad:
         for b in bad: print(f"FAIL {b}: not the same cut, nothing compared")
+        save(a.json, {"verdict": "not the same cut", "problems": bad, "stretches": []})
         sys.exit(1)
     w = min(W, rw // 2 * 2); h = round(w * rh / rw / 2) * 2   # never upscale the reference
     th, tw = h // GY, w // GX
@@ -95,6 +103,7 @@ def main():
         die("no frames decoded")
     if nv != nr:   # a truncated or broken decode must not pass on the frames it did read
         print(f"FAIL the video decodes to {nv} frames, the reference to {nr}: a file is broken or cut short")
+        save(a.json, {"verdict": "not the same cut", "problems": [f"the video decodes to {nv} frames, the reference to {nr}"], "stretches": []})
         sys.exit(1)
     fps = float(rfps); least = max(3, round(fps / 2))
     fail, warn = spans(score, FAIL_DB, least), spans(score, WARN_DB, least)
@@ -107,17 +116,24 @@ def main():
             print(f"{name} {t(r[0])}–{t(r[1] + 1)} s: the picture differs (lowest {score[r[0]:r[1] + 1].min():.1f} dB, "
                   f"under {FAIL_DB if name == 'FAIL' else WARN_DB:g} for {r[1] - r[0] + 1} frames)")
         if len(rs) > 10: print(f"{name} … {len(rs) - 10} more")
+    images = {}
     if a.sheet and (fail or warn):
         out = Path(a.sheet); out.mkdir(parents=True, exist_ok=True)
         for name, r in [("fail", r) for r in fail[:8]] + [("warn", r) for r in warn[:8]]:
             i = r[0] + int(score[r[0]:r[1] + 1].argmin())
             ts = f"{i * 1000 // rfps / 1000:.3f}"   # floored to the ms, so -ss lands on frame i and not the next
             f = out / f"scale-{name}-{ts}s.png"
+            images[(name, r[0])] = str(f)
             subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", ts, "-i", a.reference, "-ss", ts, "-i", a.video, "-frames:v", "1", "-filter_complex",
                             "[0:v]scale=640:-2,format=rgb24,split[a][a2];[1:v]scale=640:-2:flags=area,format=rgb24,split[b][b2];"
                             "[a2]format=gray[ag];[b2]format=gray[bg];[ag][bg]blend=all_mode=difference,lutyuv=y='min(255,val*6)',format=rgb24[d];"
                             "[a][b][d]hstack=3", str(f)], check=False)
             print(f"  {f}  (reference | video scaled down | difference)")
+    save(a.json, {"verdict": "differs" if fail else "warn" if warn else "same", "median_db": round(float(np.median(score)), 2),
+                  "lowest_db": round(float(score.min()), 2), "fps": fps,
+                  "stretches": [{"severity": name, "a": round(r[0] / fps, 3), "b": round((r[1] + 1) / fps, 3), "frames": [r[0], r[1]],
+                                 "lowest_db": round(float(score[r[0]:r[1] + 1].min()), 2), "under_db": FAIL_DB if name == "fail" else WARN_DB,
+                                 "image": images.get((name, r[0]))} for name, rs in (("fail", fail), ("warn", warn)) for r in rs]})
     if not fail and not warn:
         print("ok: the same picture throughout")
     elif not fail:

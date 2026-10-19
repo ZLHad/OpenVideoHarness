@@ -15,7 +15,8 @@ exit status: 0 none found (or only declared, confirmed or periodic ones), 1 isol
            missing file is no entries yet; each unconfirmed run gets a `confirm?` line to paste there, with why and
            evidence
   --motion also, from the same decode, how the film moves (never a failure; bin/vh check passes it): see MOTION below
-  --json   every number, per frame and per finding, into a file
+  --json   every number, per frame and per finding (with its confirmation, and the entry that would confirm it), into a
+           file; bin/vh check's record (tools/checkrec.py) is built from it
 
 That is what a capture glitch looks like: a single frame that flashes another scene, or text drawn as garbage, between two
 frames that are fine. The black/freeze/silence scan of `bin/vh check` cannot see it (it lasts one frame), and a snapshot
@@ -295,6 +296,17 @@ def main():
         state, notes = confirm.judge(taken, "check.iso", finds, 1 / fps + 0.001, same_pic)
     shut = {i for r, (s_, _) in zip(rs, state) if s_ == "confirmed" for i in range(r[0], r[1] + 1)}
     open_ = [x for x in found if x[0] not in shut]
+    diff = {i: (d1, d2, d3) for i, d1, d2, d3 in found}
+    iso_findings = []   # --json: one per run of isolated frames, with its numbers, its confirmation and the line to confirm it
+    for f, r, (s_, e) in zip(finds, rs, state):
+        k = max((i for i in size if r[0] <= i <= r[1]), key=size.get)   # the run's most different frame
+        item = {"a": f["a"], "b": f["b"], "frames": [r[0], r[1]], "state": s_, "key": f["key"],
+                "diff_prev": round(diff[k][0], 4), "diff_next": round(diff[k][1], 4), "prev_vs_next": round(diff[k][2], 4)}
+        if e:
+            item["entry"] = {x: e.get(x) for x in ("at", "why", "evidence", "date")}
+        if s_ != "confirmed" and fps:
+            item["confirm"] = json.loads(confirm.offer("check.iso", f["a"], f["b"], f["key"]).split("confirm? ", 1)[1])
+        iso_findings.append(item)
     if found:
         k = len(rs) - sum(s_ != "confirmed" for s_, _ in state)
         print(f"{len(found)} isolated frame(s) in {n}: " + ", ".join(span(r) for r in rs)
@@ -331,8 +343,9 @@ def main():
     near = {j for i, *_ in hits for j in (i - 1, i + 1)}   # a flagged frame's neighbours see it, not motion
     free = [i for i in blind if i not in near]
     k = sum(r[1] - r[0] + 1 for r in runs(free, 1) if r[1] - r[0] + 1 >= 3)   # a cut makes one or two such frames
+    blind_runs = []
     if k:
-        rs = [r for r in runs(free, 3) if r[1] - r[0] + 1 >= max(3, round((fps or 30) / 2))]
+        rs = blind_runs = [r for r in runs(free, 3) if r[1] - r[0] + 1 >= max(3, round((fps or 30) / 2))]
         more = f" (+{len(rs) - 6} more)" if len(rs) > 6 else ""
         where = (": " + ", ".join(span(r, False) for r in rs[:6]) + more) if rs else " (all in stretches under half a second)"
         print(f"  {k} of {n} frames ({k / n:.0%}) move too much to judge, strip-check them{where}")
@@ -343,6 +356,13 @@ def main():
     if a.json:
         out = {"frames": n, "fps": fps, "isolated": [i for i, *_ in found], "periodic": [[c, g] for c, g in chains],
                "declared": [i for i, *_ in declared], "confirmed": sorted(shut), "open": [i for i, *_ in open_], **nums}
+        s = lambda i: float(sec(i))   # noqa: E731
+        out.update(findings=iso_findings, declared_runs=[[s(r[0]), s(r[1])] for r in runs([i for i, *_ in declared], 2)],
+                   periodic_runs=[{"frames": c, "gap": g, "a": s(c[0]), "b": s(c[-1])} for c, g in chains],
+                   confirmed_notes=[{"state": st_, "tool": e["tool"], "at": e.get("at"), "why": str(e.get("why") or "").strip(), "reason": why}
+                                    for e, st_, why in notes],
+                   refused=[{"item": n_, "at": at_, "why": why} for n_, at_, why in refused],
+                   blind_frames=k, blind_runs=[[s(r[0]), s(r[1] + 1)] for r in blind_runs])
         if st is not None: out["per_frame"] = {k2: st[k2] for k2 in ("area", "area6", "energy", "luma", "still")}
         Path(a.json).write_text(json.dumps(out))
     sys.exit(1 if open_ else 0)

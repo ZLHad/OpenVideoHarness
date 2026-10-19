@@ -138,13 +138,21 @@ JSON 的格式：
 |---|---|---|
 | `start` | `cmd`、`args`（照打的写，名字里带 key、token、secret、pass 的选项和 `k=v` 的值、像 key 的参数都写成 `…`）、`cwd`、`pid`、`parent`（由另一条 `bin/vh` 起的） | `bin/vh` |
 | `progress` | `done`、`total`、`unit`（`render`：frames，开头、每 15 s、结尾各一行） | 工具 |
-| `note` | `summary`（一行）、`outputs`（写了哪些文件，项目里的写相对路径） | 工具：render、patch、review、mix、qa、tts、`desk wait` |
+| `note` | `summary`（一行）、`outputs`（写了哪些文件，项目里的写相对路径） | 工具：render、patch、review、mix、qa、tts、check、`desk wait` |
 | `end` | `exit`（退出码；被信号 n 停掉是 128 + n）、`duration`（秒；没有 `EPOCHREALTIME` 的 bash，比如 macOS 自带的 3.2，只到整秒） | `bin/vh` 的 EXIT trap；`bin/vh` exec 进去的工具（render、patch、frames 这些页面工具，desk）自己写 |
 | `feedback` | `round`、`file`、`items`（按状态计数）、`decisions` | 审阅台存下一份提交时；不属于哪条命令 |
 
 `bin/vh` 把这条命令交给它起的进程：环境变量 `OVH_ACTIVITY_LOG`、`_RUN`、`_PID`、`_T0`、`_CMD`。不写进去的：环境变量、key、文件内容。每行一次 O_APPEND 的 write，不超过 4 KiB，几条命令同时写也不会把行写乱；写不进去（磁盘满、项目只读）就丢掉这一行，命令照常跑完、不多说一句。
 
 `--json` 是 `{"version", "project", "log", "runs", "events"}`。`runs` 里每条命令一项：`run`、`cmd`、`args`、`cwd`、`pid`、`parent`、`start`、`end`、`exit`、`duration`、`summary`、`outputs`、`progress`、`state`。`state` 是 `running`（没有结束行，进程还在，开始不到 7 天）、`ok`（退出码 0）、`failed`、`gone`（没有结束行，进程也没了：被杀掉，或者机器重启过）。`events` 是不属于命令的行（`feedback`）。`--follow` 先打印最近的，再一行一行跟着打印新的；加 `--json` 就是原样的 JSON 行。只读日志最后 4 MB。
+
+### 检查记录：`bin/vh check <视频> --json`
+
+`bin/vh check` 每跑一次，都把结果存成视频所在项目的 `out/check/<名字>.check.json`（名字是文件名去掉扩展名，前面加上 `out/` 之后的文件夹：`out/review/sketch.mp4` 是 `review-sketch`；项目外的视频不存），`bin/vh clean` 留着它。`--json` 把同一份打到标准输出，给人看的那些行改去标准错误；检查本身、退出码和不加 `--json` 时一样（`tools/checkrec.py`）。
+
+顶层：`version`、`tool`、`video`（项目里的写相对路径）、`project`、`record`、`t`、`at`、`args`（`allow`、`against`）、`exit`、`verdict`（`pass` / `fail`，和退出码一致）、`counts`（`fail`、`warn`、`info` 各几条）、`probe`（时长、大小、各条流）、`motion`（动着的帧对占比、静止占比、硬切数）、`findings`、`skipped`（没跑成的检查和原因）。读不了视频时只有 `error`。
+
+每条 finding：`kind`、`severity`（`fail` 让退出码是 1，`warn` 要看一眼，`info` 只是说一声）、`message`、`t` 和 `t1`（秒，有时间或时间段的才有）、`frame` 和 `frames`（`[第一帧, 最后一帧]`）、`evidence`（判断依据：量到的数、BRIEF 那一行、画面的 key、确认它的那一条……）、`confirmed`（confirmed.json 盖住了是 true，能确认但没确认是 false，这一类从来不在那里确认就是 null）。没确认的孤立帧还带 `confirm`：填上 why 和 evidence 就能贴进 confirmed.json 的那一条。`kind` 用 confirmed.json 的名字：`check.spec`、`check.gate`、`check.black`、`check.freeze`、`check.silence`、`check.iso`（孤立帧；`declared: true` 是这次 `--allow` 声明的，`lapsed: true` 是确认失效了）、`check.periodic`、`check.static`、`check.cut`（从暗到亮的硬切）、`check.blind`（动得太多、扫描判断不了的一段）、`check.subtitles`、`check.colour`、`check.packaging`、`check.scale`、`check.confirmed`（confirmed.json 里没用上、失效或没收下的条目）。
 
 ## 安全
 

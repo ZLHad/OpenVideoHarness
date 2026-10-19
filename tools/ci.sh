@@ -632,6 +632,37 @@ PY
     rm -f "$t/cf/confirmed.json"
     a=$(vh check "$t/cf/odd.mp4" --allow 1.0 2>&1); rc=$?
     case "$rc:$a" in 0:*"declared (--allow, this run only): 1.000 s; to keep a declaration, confirm it in "*"/cf/confirmed.json"*) ok "check --allow says it is for this run only and where to confirm for good" ;; *) bad "check --allow in a project (rc $rc): $a" ;; esac
+    # --json: the same checks as findings (kind, severity, time, frame, evidence, confirmed), on stdout and kept as
+    # out/check/<name>.check.json; the exit status as without it; a confirmation from the record's own entry passes it
+    a=$(vh check "$t/cf/odd.mp4" --json 2>/dev/null); rc=$?
+    python3 - "$t/cf" "$a" <<'PY' > "$t/cf/j1.txt" 2>&1; rc2=$?
+import json, sys
+d, out = sys.argv[1], sys.argv[2]
+j = json.loads(out); rec = json.load(open(d + "/out/check/odd.check.json", encoding="utf-8"))
+iso = [f for f in j["findings"] if f["kind"] == "check.iso"]
+ok = j == rec and j["version"] == 1 and j["exit"] == 1 and j["verdict"] == "fail" and j["video"] == "odd.mp4" and j["record"] == "out/check/odd.check.json"
+ok = ok and len(iso) == 1 and iso[0]["severity"] == "fail" and iso[0]["t"] == 1.0 and iso[0]["frame"] == 30 and iso[0]["confirmed"] is False
+ok = ok and iso[0]["confirm"]["tool"] == "check.iso" and iso[0]["evidence"]["key"].startswith("pic:") and j["counts"]["fail"] == 1
+json.dump({"items": [dict(iso[0]["confirm"], why="the red flash", evidence="STORYBOARD.md S01")]}, open(d + "/confirmed.json", "w"))
+print(out[:300]); sys.exit(0 if ok else 1)
+PY
+    b=$(vh check "$t/cf/odd.mp4" --json 2>/dev/null); rc3=$?
+    c=$(vh check "$t/sp/out/fps25.mp4" --json 2>/dev/null); rc4=$?
+    d=$(vh check "$t/clean.mp4" --json 2>/dev/null); rc5=$?
+    e=$(vh clean "$t/cf" 2>&1)
+    if [ $rc = 1 ] && [ $rc2 = 0 ] && [ $rc3 = 0 ] && [ $rc4 = 1 ] && [ $rc5 = 0 ] && [ ! -e "$t/check" ] && python3 - "$b" "$c" "$d" <<'PY'
+import json, sys
+b, c, d = (json.loads(x) for x in sys.argv[1:4])
+iso = [f for f in b["findings"] if f["kind"] == "check.iso"]
+spec = [f for f in c["findings"] if f["kind"] == "check.spec"]
+sys.exit(0 if iso and iso[0]["confirmed"] is True and iso[0]["severity"] == "info" and iso[0]["evidence"]["entry"]["why"] == "the red flash"
+         and b["verdict"] == "pass" and spec and spec[0]["severity"] == "fail" and "25.000 fps" in spec[0]["message"]
+         and spec[0]["evidence"]["measured"]["fps"] == 25 and d["record"] is None and d["verdict"] == "pass" else 1)
+PY
+    then case "$e" in *"stays in out/check (bin/vh check's records): "*"out/check/odd.check.json"*) ok "check --json: findings with kind, severity, time, frame, evidence and confirmation, the same exit status, kept as out/check/<name>.check.json (clean keeps it); none kept outside a project" ;;
+        *) bad "clean does not keep check records: $(printf '%s' "$e" | tail -c 300)" ;; esac
+    else bad "check --json (rc $rc/$rc2/$rc3/$rc4/$rc5): $(tail -c 300 "$t/cf/j1.txt") | $(printf '%s' "$b$c" | head -c 600)"; fi
+    rm -f "$t/cf/confirmed.json"
     if command -v uv >/dev/null; then   # qa scan: a sparse passage (a dropout), a burst of clicks; the stems' own dip; confirmed.json
       qs() { uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/qa.py" scan "$@"; }
       gen() { ffmpeg -nostdin -v error -f lavfi -i "aevalsrc='0.5*sin(2*PI*220*t)*(1-$1*min(1,max(0,min((t-3)/0.02,(5-t)/0.02))))$2':s=48000:d=10" -ac 2 -c:a pcm_s16le "$3"; }
