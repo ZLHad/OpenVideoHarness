@@ -25,7 +25,7 @@ sections, and without a "范围：" / "Scope:" line right under it that names on
 Exit: 0 on record, or not checked (the line printed says which) · 1 a record is missing: each missing line is named,
 with what to write · 2 not inside a project.
 """
-import json, re, sys
+import json, os, re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -84,9 +84,14 @@ def says(s):
     return bool(re.sub(r"[\s　*`…。，、；：:;,.\-—?？!！]+", "", s))
 
 
+def local_md():
+    """The harness's LOCAL.md (this machine's defaults), or the file OVH_LOCAL_MD names (tests use one of their own)."""
+    return Path(os.environ.get("OVH_LOCAL_MD") or ROOT / "LOCAL.md")
+
+
 def effort_of(project):
     for f, pat in ((project / "BRIEF.md", r"^\s*[-*]\s*(?:\*\*)?Effort(?:\*\*)?\s*[:：]\s*\**\s*(quick|standard|studio)\b"),
-                   (ROOT / "LOCAL.md", r"^\s*[-*]?\s*(?:\*\*)?(?:default\s+effort|effort|默认努力程度|努力程度|默认档位|档位)(?:\*\*)?\s*[:：]\s*\**\s*(quick|standard|studio)\b")):
+                   (local_md(), r"^\s*[-*]?\s*(?:\*\*)?(?:default\s+effort|effort|默认努力程度|努力程度|默认档位|档位)(?:\*\*)?\s*[:：]\s*\**\s*(quick|standard|studio)\b")):
         try:
             m = re.search(pat, strip_comments(read(f)), re.I | re.M)
         except OSError:

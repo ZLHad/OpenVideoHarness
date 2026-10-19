@@ -16,7 +16,7 @@
    - ② **分镜**：按大纲的段落拆页，每页 3–6 镜的关键帧，没把握的镜头标出来，逐镜默认通过；长片再附一版全长灰盒 animatic；
    - ③ **初版**：draft 成片加联系表、reviewer 的分数，并写出你自己最不满意的 2–3 处。
 
-   每次停按 `LOCAL.md` 的审阅方式给人看（对话、审阅页或审阅台）；没写时 `standard` 做一页审阅页（`bin/vh review`），`studio` 在审阅台停（`bin/vh desk`，后台挂上 `bin/vh desk wait`，人一提交就接着做）；界面语言按用户第一句话的语言定（BRIEF 的 `Review language`）。做法见 `playbook/01-pipeline.md`。然后**停下来等人回复**，不要自己往下做。人的原话逐字记进 `REVIEW.md`。只有用户在对话里亲口说"不用审、直接出"才能跳过，原话和日期抄进 REVIEW.md：没提档位就按 `quick` 做；说了要 `standard` 或 `studio` 的，由独立 reviewer 代审（`playbook/01-pipeline.md` 的"授权的无人值守模式"）。
+   每次停写好 gate JSON，运行 `bin/vh gate <项目> <n>`：按 `LOCAL.md` 的审阅方式出页（没写时 `standard` 审阅页，`studio` 审阅台，后台加 `--wait`，人一提交就接着做）；界面语言按用户第一句话的语言定（BRIEF 的 `Review language`）。做法见 `playbook/01-pipeline.md`。然后**停下来等人回复**，不要自己往下做。人的原话逐字记进 `REVIEW.md`。只有用户在对话里亲口说"不用审、直接出"才能跳过，原话和日期抄进 REVIEW.md：没提档位就按 `quick` 做；说了要 `standard` 或 `studio` 的，由独立 reviewer 代审（`playbook/01-pipeline.md` 的"授权的无人值守模式"）。
 
 ## 努力程度（effort）
 
@@ -105,7 +105,7 @@ OpenVideoHarness/
 ├── CLAUDE.md / AGENTS.md     入口（本文件；AGENTS.md 由 bin/vh sync-agents 生成，内容相同）
 ├── README.md / README.zh-CN.md  给人看的说明；CONTRIBUTING.md 是改本仓库时的规则；install.sh 一键安装
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
-├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · mix · mux · qa · readcheck · textcheck · frames · render · patch · determinism · cues · fonts · storyboard · rhythm · cover-preview · sheet · check · gif · deliver · clean · review · desk · activity
+├── bin/vh                    命令行：doctor · setup · types · effort · new · style · recipes · hf-init · install-skill · sync-agents · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · mix · mux · qa · readcheck · textcheck · frames · render · patch · determinism · cues · fonts · storyboard · rhythm · cover-preview · sheet · check · gif · deliver · clean · review · gate · desk · activity
 ├── tools/                    bin/vh 背后的脚本；audio/README.md 是声音命令的参数手册，desk/README.md 是审阅台的读取约定；ci.sh 是仓库自检
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              9 类视频（09 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例

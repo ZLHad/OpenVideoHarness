@@ -1,7 +1,8 @@
 """bin/vh desk: the review desk, a local page where the reviewer ticks, comments and submits each stop.
 
-  bin/vh desk <project> [--port N]              serve the desk (127.0.0.1; default: the first free port of 8780–8799;
+  bin/vh desk <project> [--port N] [--idle s]   serve the desk (127.0.0.1; default: the first free port of 8780–8799;
                                                 --port 0: any free port). Already serving this project: print its URL.
+                                                --idle s: stop after s seconds without a request (bin/vh gate: 12 h)
   bin/vh desk wait <project> [--timeout s]      block until the reviewer submits, print the feedback, exit 0 (3 on
                                                 timeout; default 7100 s). An agent runs it in the background after each
                                                 stop: its exit is the wake-up call. A submission for the current page that
@@ -39,6 +40,8 @@ def main(argv):
     ap.add_argument("project", help="project folder, or its name under projects/")
     if sub == "serve":
         ap.add_argument("--port", type=int, help="port on 127.0.0.1 (default: the first free of 8780–8799; 0: any free)")
+        ap.add_argument("--idle", type=float, help="stop after this many seconds without a request (an open desk page asks every "
+                                                   "few seconds); default: never. bin/vh gate starts it with 43200 (12 h)")
     elif sub == "wait":
         ap.add_argument("--timeout", type=float, default=7100, help="seconds to wait (default 7100, under Claude Code's 2 h)")
     elif sub == "feedback":
@@ -50,7 +53,7 @@ def main(argv):
         return 2
     if sub == "serve":
         import server
-        return server.serve(project, a.port)
+        return server.serve(project, a.port, a.idle if a.idle and a.idle > 0 else None)
     import feedback as F
     if sub == "wait":
         return F.wait(project, a.timeout)

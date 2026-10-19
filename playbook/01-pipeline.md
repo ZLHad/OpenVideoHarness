@@ -25,7 +25,7 @@
 |---|---|---|---|
 | 适合 | 一句话直接出片，中途不想看；也适合试方向 | 想在关卡上亲自拍板的正式视频 | 要多轮打磨的发布片、旗舰内容、会被反复看的片子 |
 | 人工关卡 | 0 道，直接出片。选 quick 就等于授权跳过关卡，把这一点记进 REVIEW.md；需求有歧义时最多问 1 个问题；人点名要拍板的事照样停（导演模式） | 3 道 | 3 道；关卡 ① 每张立意卡附一段 10–20 s 草图，关卡 ② 附全长 animatic |
-| 在哪审 | 不设关卡；导演模式要停的在聊天里问，或用静态审阅页 | 静态审阅页（`bin/vh review`）；人想逐条勾选、点评时开审阅台（`bin/vh desk`） | 审阅台（`bin/vh desk`）：人在页面里勾选、点评、提交；每次停后在后台挂上 `bin/vh desk wait`，提交就接着做；没有后台唤醒的 agent 退回"人回聊天说一声" |
+| 在哪审 | 不设关卡；导演模式要停的在聊天里问，或用静态审阅页 | 静态审阅页；人想逐条勾选、点评时开审阅台（`bin/vh gate … --desk`） | 审阅台：人在页面里勾选、点评、提交；`bin/vh gate … --wait` 在后台等着，提交就接着做；没有后台唤醒的 agent 退回"人回聊天说一声" |
 | 立意 | 想两三个一句话点子（12 第 3 节的四个问题可以帮忙），挑 1 个；写一行理由，再写一行同题视频最常见的做法 | 关卡 ① 给 2–3 张立意卡，每张配一帧画面 | 同左，每张配一段 10–20 s 的草图（look-dev） |
 | 风格 | 从立意推出来，可以参考 `styles/` 的预设，写明借了什么 | 写在每张立意卡的"画面"一行（专属，或借一个预设）；选卡就一起定了，人可以在回复里换 | 同左；每张卡的草图就是那种风格的小样，借来的预设人想看时在 E0 补小样 |
 | 分镜 | 简表：镜头、时长、reads | 完整 STORYBOARD + 分镜预览图 | 同左 + animatic |
@@ -51,7 +51,7 @@ projects/2026-10-01-leo-doppler/
 ├── assets/           图片、字体、图标（记录来源和许可）
 ├── src/ 或 compositions/ 或 scenes/   场景代码（结构按引擎惯例）
 ├── out/check/        联系表、strip、crop
-├── out/review/       审阅页：gate-<n>.json → gate-<n>.html，最新一页也是 index.html（bin/vh review）；feedback/ 是审阅台收到的提交（bin/vh desk）
+├── out/review/       审阅页：gate-<n>.json → gate-<n>.html，最新一页也是 index.html（bin/vh gate）；feedback/ 是审阅台收到的提交
 └── out/final.mp4
 ```
 
@@ -129,10 +129,10 @@ projects/2026-10-01-leo-doppler/
 
 ### 审阅页
 
-审阅方式见 `LOCAL.md`（对话、审阅页、审阅台），没写时按上表"在哪审"一行。做审阅页时：写 `out/review/gate-<n>.json`，运行 `bin/vh review <project> <n>`，得到 `out/review/gate-<n>.html`（最新一页另存为 `index.html`），图、GIF、mp4 和音频在浏览器里直接看、直接听。聊天里只发命令打印的那几行。`<n>` 是关卡 `1` `2` `3` 或检查点 `E0`–`E5`，同一站的第二页加 `b`（`2b`）；页属于哪一站，看文件名。只有一两个纯文字的选择时，直接在聊天里问也行。
+每次停：写 `out/review/gate-<n>.json`，运行 `bin/vh gate <project> <n>`。它检查 JSON，出 `out/review/gate-<n>.html`（也存成 `index.html`，图、GIF、mp4 和音频在浏览器里直接看、直接听）并记成这一轮；审阅方式（`LOCAL.md`，没写按上表"在哪审"；人点名的用 `--desk` / `--page` / `--chat`）是审阅台时再起审阅台。聊天里只发它打印的那几行。`<n>` 是关卡 `1` `2` `3` 或检查点 `E0`–`E5`，同一站的第二页加 `b`（`2b`）；页属于哪一站，看文件名。只有一两个纯文字的选择时，直接在聊天里问也行。
 
 图不用手拼，`bin/vh` 有现成的：
-- **关卡 ②**：把 STORYBOARD 的镜头表写成 `shots.json`（格式见 `bin/vh storyboard -h`；最没把握的镜头写 `"unsure": "为什么"`；canvas-film 可以不写，没有它时从 `film.html` 读实际的镜头），运行 `bin/vh storyboard <project>` 出每段一页的分镜和总览，同时写好 `out/check/storyboard/review.json`；再运行 `bin/vh rhythm <project>` 出节奏图，超过类型回报间隔的镜头、读不完的字幕标红。gate JSON 里写 `"include": "out/check/storyboard/review.json"`，分段、关键帧、每镜的旁白、没把握的镜头和 animatic 就都带进来了；gate JSON 只写 `summary`、`decisions`，节奏图作为 asset 挂在节奏那个决定下，最后 `bin/vh review <project> 2`。
+- **关卡 ②**：把 STORYBOARD 的镜头表写成 `shots.json`（格式见 `bin/vh storyboard -h`；最没把握的镜头写 `"unsure": "为什么"`；canvas-film 可以不写，没有它时从 `film.html` 读实际的镜头），运行 `bin/vh storyboard <project>` 出每段一页的分镜和总览，同时写好 `out/check/storyboard/review.json`；再运行 `bin/vh rhythm <project>` 出节奏图，超过类型回报间隔的镜头、读不完的字幕标红。gate JSON 里写 `"include": "out/check/storyboard/review.json"`，分段、关键帧、每镜的旁白、没把握的镜头和 animatic 就都带进来了；gate JSON 只写 `summary`、`decisions`，节奏图作为 asset 挂在节奏那个决定下，最后 `bin/vh gate <project> 2`。
 - **风格**：`bin/vh style compare a,b,c` 出并排对照（`--frame t` 取各 swatch 的同一时刻）。**封面**：`bin/vh cover-preview <封面>` 出各平台信息流的实际大小和小尺寸可读性。**主旋律**：`bin/vh music … --roll` 出每个声部的谱面和响度曲线，给听不见的一方一张能看的图。
 
 页面从上往下：
@@ -180,12 +180,7 @@ projects/2026-10-01-leo-doppler/
 
 - **什么时候用**：`LOCAL.md` 没写审阅方式时，`studio` 默认用它，`standard` 默认还是静态审阅页，人想逐条点评时也可以开审阅台；`quick` 不设关卡，导演模式要停的那几处在聊天里问或用静态页。
 - **语言**：界面语言取 BRIEF 的 `Review language`（`zh` / `en`），按用户第一句话的语言定，建项目时用 `bin/vh new … --lang en`；这一轮的 gate JSON 写了 `lang` 时以它为准（和静态审阅页同一条规则）；页面右上角也能切换。字幕和项目文档照旧用项目自己的语言。
-- **每次停，agent 这样做**：
-  1. 写 `out/review/gate-<n>.json`，运行 `bin/vh review <project> <n>`：检查 JSON、生成静态页当备份、打印聊天消息，并把这一页记成审阅台的"这一轮"（`out/review/.current`）；
-  2. 在后台运行 `bin/vh desk <project>` 起服务（只听 127.0.0.1；已经在跑就只打印地址）；
-  3. 在后台运行 `bin/vh desk wait <project>`，人一提交它就打印反馈、退出，agent 随之被唤醒；`wait` 超时以后人才提交的，下一次 `wait` 一启动就交出来。Claude Code 用后台命令，超时给到上限（`timeout` 7200000 ms，`wait` 默认等 7100 s）；服务也一样，超时被停掉了，下一次停时再起一遍；
-  4. 聊天里发 `bin/vh review` 打印的几行，加上审阅台的地址，然后停下；
-  5. 被唤醒后，读它打印的反馈（`bin/vh desk feedback <project>` 随时可以再看）。人的原话审阅台已经原样抄进了 `REVIEW.md` 的一节，agent 在那一节下补"定了 / 改了"；替人定的事照常记进 `DECISIONS.md`。没标的条目都算通过。
+- **每次停**：在后台运行 `bin/vh gate <project> <n> --wait`（Claude Code 的后台命令，`timeout` 给到上限 7200000 ms；它默认等 7100 s）。它出页、起审阅台（只听 127.0.0.1；已经在跑就用它），先打印聊天消息和审阅台地址：发出去，停下。人一提交它就打印反馈、退出，agent 随之被唤醒；超时以后才提交的，下一次 `bin/vh desk wait <project>` 一启动就交出来。人的原话审阅台已经抄进 `REVIEW.md` 的一节，agent 在下面补"定了 / 改了"（`bin/vh desk feedback <project>` 随时再看）；替人定的事照常记进 `DECISIONS.md`。没标的条目都算通过。
 - **没有后台唤醒的 agent**（或者 `wait` 超时了）：人提交后回聊天说一声"看审阅台"，agent 用 `bin/vh desk feedback <project>` 读。页面顶上会写 agent 这会儿有没有在等。服务没起来时，页面把回复复制到剪贴板，人直接贴进聊天。
 - **页面读什么**：项目文件本身，每次刷新重读，不另存状态。表格怎么写才排得出来（BRIEF 的 Outline 表、SCRIPT 的字幕或旁白表、NOTES 素材清单、DECISIONS 的划线约定、REVIEW、`shots.json`）、gate JSON 给审阅台加的 `listen`（请你听这几处）、`music`（音轨、节拍表、乐段的名字）、`film`（逐秒点评放哪支视频），以及提交的 JSON 格式，都在 `tools/desk/README.md`。读不出结构的文档不会消失：照原文排版显示在对应的页面和"文档"页里。
 

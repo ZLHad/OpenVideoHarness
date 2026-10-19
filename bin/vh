@@ -26,7 +26,11 @@
 #   style compare a,b,c [--frame t] | style apply <preset[,preset]> <project>   presets side by side (posters, or swatch frames at t) / attach presets to a project as references
 #   cover-preview <image> [more…] [--text-px N]   a cover at real feed sizes (Bilibili, Douyin, YouTube, Xiaohongshu) + a small-size legibility check
 #   review <project> [gate]     decision-first review page: out/review/gate-<gate>.json → gate-<gate>.html (+ index.html); prints the chat message (playbook/01-pipeline.md, 审阅页)
-#   desk <project> [--port N] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project>
+#   gate <project> [n] [--desk|--page|--chat] [--wait] [--timeout s]   a stop in one command: checks out/review/gate-<n>.json, builds
+#                               the review page and makes it this round, opens the review desk when the stop is reviewed there
+#                               (LOCAL.md's 审阅方式; else studio: desk, standard and quick: page), prints the chat message;
+#                               --wait (desk): then waits for the submission like desk wait (tools/gate.py)
+#   desk <project> [--port N] [--idle s] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project>
 #                               the review desk (studio's review surface, tools/desk/README.md): a local page on 127.0.0.1 where the reviewer
 #                               ticks, comments and submits; wait: block until they submit, print it, exit 0 (an agent runs it in the background);
 #                               feedback: the latest submission; data: what the desk reads from the project, as JSON
@@ -769,6 +773,8 @@ cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image
   on_ctrl_c uv run -q --no-project --with pillow --with numpy --with scipy python "$ROOT/tools/cover_preview.py" "$@"; }
 cmd_review() { python3 "$ROOT/tools/review.py" "$@"; }
 cmd_activity() { [ $# -gt 0 ] || { cmd_usage activity; exit 1; }; exec python3 "$ROOT/tools/activity.py" "$@"; }   # read-only, not logged
+cmd_gate() { [ $# -gt 0 ] || { cmd_usage gate; exit 1; }   # exec: stopping a backgrounded gate --wait stops its watcher;
+  export OVH_BASH=$BASH; exec python3 "$ROOT/tools/gate.py" "$@"; }   # the desk it starts runs under this same bash
 cmd_desk() { [ $# -gt 0 ] || { cmd_usage desk; exit 1; }   # stdlib only: no uv, works offline; exec, so stopping
   exec python3 "$ROOT/tools/desk/desk.py" "$@"; }            # a backgrounded bin/vh desk stops the server itself
 
@@ -1133,6 +1139,7 @@ case "${1:-help}" in
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
+  gate) shift; cmd_gate "$@" ;;
   activity) shift; cmd_activity "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;;

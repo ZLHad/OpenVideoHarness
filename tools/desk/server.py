@@ -12,7 +12,7 @@ Only requests whose Host is this server's own address are answered (no DNS rebin
 printed into the page, a JSON body and, when the browser sends one, a same-origin Origin. So another web page open
 in the same browser can neither read the project nor submit feedback in the reviewer's name.
 """
-import datetime, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys
+import datetime, http.server, json, mimetypes, os, re, secrets, signal, socket, socketserver, sys, threading, time
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -42,6 +42,7 @@ class Desk(http.server.ThreadingHTTPServer):
         self.token = secrets.token_urlsafe(24)
         self.port = self.server_address[1]
         self.hosts = {f"{h}:{self.port}" for h in ("127.0.0.1", "localhost")}
+        self.last = time.time()   # the last request: --idle stops a server nobody has asked anything for that long
 
     def server_bind(self):
         # HTTPServer.server_bind asks socket.getfqdn("127.0.0.1"), a reverse DNS lookup that can stall for many seconds
@@ -87,6 +88,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _host_ok(self):
         if self.headers.get("Host", "") in self.server.hosts:
+            self.server.last = time.time()   # an open desk page asks every few seconds: it keeps the server up
             return True
         self._error(403, "this desk only answers on its own address")
         return False
@@ -226,8 +228,9 @@ def running(project):
     return info.get("url")
 
 
-def serve(project, port=None):
-    """Serve until stopped. port None: the first free of 8780–8799; 0: any free port. → exit code."""
+def serve(project, port=None, idle=None):
+    """Serve until stopped, or (idle: seconds) until nobody has asked anything for that long. port None: the first free
+    of 8780–8799; 0: any free port. → exit code."""
     project = Path(project).resolve()
     url = running(project)
     if url:
@@ -252,7 +255,17 @@ def serve(project, port=None):
         raise SystemExit(0)
     for s in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(s, stop)
-    print(f"desk: {srv.url}  ·  {project.name}  (Ctrl-C stops it)", flush=True)
+    if idle:   # bin/vh gate starts the desk detached: it goes by itself once nobody uses it
+
+        def watch():
+            while True:
+                time.sleep(max(0.2, min(60.0, idle / 10)))
+                if time.time() - srv.last > idle:
+                    print(f"desk: no request for {idle:g} s, stopped", flush=True)
+                    srv.shutdown()
+                    return
+        threading.Thread(target=watch, daemon=True).start()
+    print(f"desk: {srv.url}  ·  {project.name}  (Ctrl-C stops it" + (f"; it stops by itself after {idle:g} s without a request)" if idle else ")"), flush=True)
     try:
         srv.serve_forever(poll_interval=0.25)
     except KeyboardInterrupt:

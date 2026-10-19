@@ -7,13 +7,18 @@
 ## 命令
 
 ```bash
-bin/vh desk <项目> [--port N]                  # 起服务，只听 127.0.0.1；默认 8780–8799 里第一个空闲端口；这个项目已经有一个在跑，就只打印它的地址
+bin/vh gate <项目> <n> [--desk|--page|--chat] [--wait]   # 一次停一条命令：查 gate-<n>.json，出静态页并记成这一轮，审阅方式是审阅台时在后台起服务（12 小时没人访问自己停），打印聊天消息；--wait 再像 desk wait 一样等
+bin/vh desk <项目> [--port N] [--idle 秒]       # 起服务，只听 127.0.0.1；默认 8780–8799 里第一个空闲端口；这个项目已经有一个在跑，就只打印它的地址；--idle：这么久没人访问就自己停
 bin/vh desk wait <项目> [--timeout 秒]          # 等人提交：打印反馈，退出码 0；超时退出码 3（默认 7100 s）
 bin/vh desk feedback <项目> [--round 1b] [--json]   # 打印最近一次提交，并记为"已交给 agent"
 bin/vh desk data <项目>                        # 审阅台从项目里读出了什么（JSON），排查"为什么这一页是空的"时用
 ```
 
 只用 Python 标准库，不联网，页面不从 CDN 拉任何东西，浅色和深色都有，界面有中文和英文。
+
+`bin/vh gate`（`tools/gate.py`）把一次停要做的事做完：审阅方式取 `--desk` / `--page` / `--chat`，没有就取 `LOCAL.md` 的"审阅方式"一行，再没有就按档位（`studio` 审阅台，`standard`、`quick` 静态页）。每种方式都出静态页、打印聊天消息；审阅台方式再起服务，把地址加进消息。退出码：0 发出去了（`--wait` 时是收到了提交）；1 页面写了但不合规矩，不发消息也不起服务；2 没东西可发（没有 gate JSON、服务起不来、不是审阅台却要 `--wait`）；3 `--wait` 超时。
+
+**一站的数据就是 `out/review/gate-<n>.json` 这一个文件。** 静态页（`bin/vh review`）、审阅台和以后的客户端都只渲染它（审阅台另外读下面这些项目文件），各自不另存一份。
 
 ## 读什么
 
@@ -77,7 +82,7 @@ bin/vh desk data <项目>                        # 审阅台从项目里读出�
 
 ### out/review/gate-<n>.json
 
-和 `bin/vh review` 是同一份文件，字段见 `playbook/01-pipeline.md` 的"审阅页"（`include` 照样生效）。"这一轮"是 `bin/vh review <项目> <n>` 最后做的那一页：它每次把页名写进 `out/review/.current`，审阅台和 `bin/vh desk wait` 都先读它。所以关卡 ② 之后回头出一页立意 `1b`、关卡 ③ 之后重定配音出 `E3b`、自己起名的 `final`，都会是"这一轮"。`.current` 没有，或者它指的那一页已经删了，才按流程顺序取最后一页：先按站（1、E0、E1、2、E2、E3、E4、3、E5），同一站再按页（1、1b、1c……，不分大小写）；不合这个写法的页名排在最前，彼此之间看修改时间。复制项目、碰一下旧文件，都不会改变哪一页是"这一轮"。`bin/vh review <项目>` 不写页名时，渲染的也是这一轮；要出新的一页，写上它的名字。页名是 1–24 个字母、数字、`-` 或 `_`，按磁盘上文件本来的写法算（APFS 不分大小写：写 `1D` 找到的是 `gate-1d.json`，这一页就叫 `1d`）；链接到项目外面的 gate 文件不读。审阅台另外认几个可选字段，`bin/vh review` 不管它们：
+和 `bin/vh review` 是同一份文件，字段见 `playbook/01-pipeline.md` 的"审阅页"（`include` 照样生效）。"这一轮"是 `bin/vh review <项目> <n>`（`bin/vh gate` 也一样）最后做的那一页：它每次把页名写进 `out/review/.current`，审阅台和 `bin/vh desk wait` 都先读它。所以关卡 ② 之后回头出一页立意 `1b`、关卡 ③ 之后重定配音出 `E3b`、自己起名的 `final`，都会是"这一轮"。`.current` 没有，或者它指的那一页已经删了，才按流程顺序取最后一页：先按站（1、E0、E1、2、E2、E3、E4、3、E5），同一站再按页（1、1b、1c……，不分大小写）；不合这个写法的页名排在最前，彼此之间看修改时间。复制项目、碰一下旧文件，都不会改变哪一页是"这一轮"。`bin/vh review <项目>` 不写页名时，渲染的也是这一轮；要出新的一页，写上它的名字。页名是 1–24 个字母、数字、`-` 或 `_`，按磁盘上文件本来的写法算（APFS 不分大小写：写 `1D` 找到的是 `gate-1d.json`，这一页就叫 `1d`）；链接到项目外面的 gate 文件不读。审阅台另外认几个可选字段，`bin/vh review` 不管它们：
 
 ```json
 {
@@ -140,8 +145,8 @@ JSON 的格式：
 |---|---|---|
 | `start` | `cmd`、`args`（照打的写，名字里带 key、token、secret、pass 的选项和 `k=v` 的值、像 key 的参数都写成 `…`）、`cwd`、`pid`、`parent`（由另一条 `bin/vh` 起的） | `bin/vh` |
 | `progress` | `done`、`total`、`unit`（`render`：frames，开头、每 15 s、结尾各一行） | 工具 |
-| `note` | `summary`（一行）、`outputs`（写了哪些文件，项目里的写相对路径） | 工具：render、patch、review、mix、qa、tts、check、`desk wait` |
-| `end` | `exit`（退出码；被信号 n 停掉是 128 + n）、`duration`（秒；没有 `EPOCHREALTIME` 的 bash，比如 macOS 自带的 3.2，只到整秒） | `bin/vh` 的 EXIT trap；`bin/vh` exec 进去的工具（render、patch、frames 这些页面工具，desk）自己写 |
+| `note` | `summary`（一行）、`outputs`（写了哪些文件，项目里的写相对路径） | 工具：render、patch、review、gate、mix、qa、tts、check、`desk wait` |
+| `end` | `exit`（退出码；被信号 n 停掉是 128 + n）、`duration`（秒；没有 `EPOCHREALTIME` 的 bash，比如 macOS 自带的 3.2，只到整秒） | `bin/vh` 的 EXIT trap；`bin/vh` exec 进去的工具（render、patch、frames 这些页面工具，desk、gate）自己写 |
 | `feedback` | `round`、`file`、`items`（按状态计数）、`decisions` | 审阅台存下一份提交时；不属于哪条命令 |
 
 `bin/vh` 把这条命令交给它起的进程：环境变量 `OVH_ACTIVITY_LOG`、`_RUN`、`_PID`、`_T0`、`_CMD`。不写进去的：环境变量、key、文件内容。每行一次 O_APPEND 的 write，不超过 4 KiB，几条命令同时写也不会把行写乱；写不进去（磁盘满、项目只读）就丢掉这一行，命令照常跑完、不多说一句。

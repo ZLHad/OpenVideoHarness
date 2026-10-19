@@ -1367,7 +1367,59 @@ PY
   if grep -q '没回的决定按推荐走' "$t/rz/out/review/gate-1.html" && grep -q 'unanswered goes by its recommendation' "$t/re/out/review/gate-1.html" \
     && case "$a" in *"没回的决定按推荐走"*) true ;; *) false ;; esac
   then ok "review: the page and the chat message say a decision left unanswered goes by its recommendation"; else bad "review: unanswered decisions not explained: $a"; fi
+  gate_stop_checks "$t"
   rm -rf "$t"
+}
+# bin/vh gate: one stop in one command. The page channel (a flag, LOCAL.md's 审阅方式, the effort's default) prints the
+# chat message and starts nothing; --wait there is refused; a page that breaks a rule sends nothing and starts no desk; the
+# desk channel starts the desk in the background (once), adds its address, and with --wait hands over the submission;
+# desk --idle stops a desk nobody asks anything
+gate_stop_checks() {
+  local t=$1 g a b rc rc2 rc3 i pid url
+  g="$t/g"; cp -R tools/desk/fixtures/zh "$g"; rm -rf "$g/out/review/feedback" "$g/out/review/.current"
+  printf '%s\n' '# LOCAL' '- 审阅方式：{对话 | 审阅页 | 审阅台}（不填按档位）' > "$t/LOCAL-tpl.md"; printf '%s\n' '# LOCAL' '- 审阅方式：对话' > "$t/LOCAL-chat.md"
+  a=$(vh gate "$g" 1 --page 2>"$t/g1.err"); rc=$?
+  vh gate "$g" 1 --page --wait >/dev/null 2>"$t/g2.err"; rc2=$?
+  b=$(OVH_LOCAL_MD="$t/LOCAL-chat.md" vh gate "$g" 1 2>&1)
+  if [ $rc = 0 ] && [ $rc2 = 2 ] && case "$a" in *"要你定 1 件事"*"页面："*"/out/review/gate-1.html") true ;; *) false ;; esac \
+    && [ "$(cat "$g/out/review/.current")" = 1 ] && [ ! -e "$g/out/review/.desk.json" ] && grep -q 'waits for the review desk' "$t/g2.err" \
+    && case "$b" in *"reviewed on the chat (LOCAL.md)"*) true ;; *) false ;; esac && [ ! -e "$g/out/review/.desk.json" ]
+  then ok "gate: --page and LOCAL.md's 审阅方式 print the chat message, make the page this round and start no desk; --wait without the desk is refused"
+  else bad "gate on the page (rc $rc/$rc2): $a | $(cat "$t/g1.err" "$t/g2.err") | $b"; fi
+  # a page that breaks a rule: written, but no message and no desk; a standard project with LOCAL.md's placeholder: the page
+  sed 's/"recommend": "L1", //' "$g/out/review/gate-1.json" > "$g/out/review/gate-1b.json"
+  a=$(vh gate "$g" 1b --desk --port 0 2>/dev/null); rc=$?
+  cp -R "$g" "$t/gs" && sed 's/^- Effort: studio/- Effort: standard/' "$g/BRIEF.md" > "$t/gs/BRIEF.md"
+  b=$(OVH_LOCAL_MD="$t/LOCAL-tpl.md" vh gate "$t/gs" 1 2>&1); rc2=$?
+  if [ $rc = 1 ] && [ -z "$a" ] && [ -f "$g/out/review/gate-1b.html" ] && [ ! -e "$g/out/review/.desk.json" ] && [ $rc2 = 0 ] \
+    && case "$b" in *"reviewed on the page (effort standard (BRIEF))"*) true ;; *) false ;; esac && [ ! -e "$t/gs/out/review/.desk.json" ]
+  then ok "gate: a page that breaks a rule is written but sends nothing and starts no desk; LOCAL.md's unfilled line falls back to the effort (standard: the page)"
+  else bad "gate with a broken page or a placeholder (rc $rc/$rc2): $a | $b"; fi
+  # the desk channel (studio): started once in the background, its address in the message; --wait hands over a submission
+  a=$(vh gate "$g" 1 --port 0 2>/dev/null); rc=$?
+  b=$(vh gate "$g" 1 --port 0 2>&1); rc2=$?
+  pid=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pid"])' "$g/out/review/.desk.json" 2>/dev/null)
+  url=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["url"])' "$g/out/review/.desk.json" 2>/dev/null)
+  "$VH_BASH" "$ROOT/bin/vh" gate "$g" 1 --wait --timeout 30 > "$t/gw.out" 2>&1 & i=$!
+  for rc3 in $(seq 50); do [ -f "$g/out/review/feedback/.listening" ] && break; sleep 0.2; done
+  python3 "$t/client.py" "$url" "$g" submit >/dev/null; wait $i; rc3=$?
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && case "$a" in *"审阅台：http://127.0.0.1:"*"然后回到这里说一声"*) true ;; *) false ;; esac \
+    && case "$b" in *"already serving this project"*) true ;; *) false ;; esac && [ $rc3 = 0 ] && grep -q '我在后台等着' "$t/gw.out" && grep -q '第 0 帧就要有水声' "$t/gw.out" \
+    && python3 - "$g/.ovh/activity.jsonl" <<'PY'
+import json, sys
+recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
+gates = {r["run"] for r in recs if r["event"] == "start" and r["cmd"] == "gate"}
+desk = [r for r in recs if r["event"] == "start" and r["cmd"] == "desk"]
+sys.exit(0 if len(desk) == 1 and desk[0].get("parent") in gates and any(r["event"] == "feedback" for r in recs) else 1)
+PY
+  then ok "gate: the desk channel starts the desk once in the background (its run's parent is the gate), puts its address in the message; --wait hands over the submission"
+  else bad "gate on the desk (rc $rc/$rc2/$rc3): $a | $b | $(tail -c 400 "$t/gw.out")"; fi
+  [ -z "$pid" ] || { kill "$pid" 2>/dev/null; for i in $(seq 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done; }
+  # desk --idle: a desk nobody asks anything stops by itself, and takes its .desk.json with it
+  "$VH_BASH" "$ROOT/bin/vh" desk "$t/gs" --port 0 --idle 1 > "$t/idle.out" 2>&1 & pid=$!
+  for i in $(seq 100); do kill -0 $pid 2>/dev/null || break; sleep 0.1; done
+  if ! kill -0 $pid 2>/dev/null && grep -q 'no request for 1 s, stopped' "$t/idle.out" && [ ! -e "$t/gs/out/review/.desk.json" ]; then ok "desk --idle: a desk nobody asks anything stops by itself"
+  else kill $pid 2>/dev/null; bad "desk --idle 1: $(cat "$t/idle.out")"; fi
 }
 
 # the activity log (<project>/.ovh/activity.jsonl, tools/activity.py): a command on a project adds a start, its tool's note
