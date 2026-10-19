@@ -249,9 +249,9 @@ PY
   a=$(PATH="$t:$PATH" vh tts "$t" --provider edge --lang en; PATH="$t:$PATH" vh tts "$t" --provider=dashscope)
   case "$a" in *"--with edge-tts "*"--provider edge"*"--with dashscope "*) ok "tts --provider picks the provider's dependencies" ;;
     *) bad "tts --provider: uv got '$a'" ;; esac
-  # Ctrl-C (to the process group, as a terminal sends it) while a command runs through uv run ends bin/vh with 130, even
-  # when uv itself exits 2 ("Failed to get PID of child process", the race when its Python has just exited): a fake uv
-  # that does exactly that, under each command that goes through uv
+  # Ctrl-C (to the process group, as a terminal sends it) while a command runs through uv run ends bin/vh by SIGINT (130
+  # to a shell; the caller sees the Ctrl-C), even when uv itself exits 2 ("Failed to get PID of child process", the race
+  # when its Python has just exited): a fake uv that does exactly that, under each command that goes through uv
   printf '#!/bin/sh\ntrap '"'"'echo "error: Failed to get PID of child process" >&2; exit 2'"'"' INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/uv"
   if a=$(python3 - "$t" "$VH_BASH" "$ROOT/bin/vh" <<'PY'
 import os, signal, subprocess, sys, time
@@ -271,11 +271,11 @@ for r in runs:
     except OSError: pass
     try: rc = p.wait(timeout=20)
     except subprocess.TimeoutExpired: os.killpg(p.pid, signal.SIGKILL); rc = "hung"
-    if rc != 130: bad.append(f"{' '.join(r[:2])} {rc}")
+    if rc != -signal.SIGINT: bad.append(f"{' '.join(r[:2])} {rc}")
 print(", ".join(bad)); sys.exit(1 if bad else 0)
 PY
-); then ok "Ctrl-C ends every command that runs through uv run with 130, also when uv exits 2 as its Python exits"
-  else bad "Ctrl-C under uv run (command, exit; want 130): $a"; fi
+); then ok "Ctrl-C ends every command that runs through uv run by SIGINT, also when uv exits 2 as its Python exits"
+  else bad "Ctrl-C under uv run (command, exit; want -2, death by SIGINT): $a"; fi
   rm -rf "$t"
   # tts: a Gemini 429 that names a per-day quota fails at once, though it asks for 30 s; a per-minute one is still waited
   # out and retried; one naming no daily quota fails at once only past 90 s (a stub on 127.0.0.1; waits recorded, not slept)
@@ -1501,11 +1501,12 @@ PY
 
 # the activity log (<project>/.ovh/activity.jsonl, tools/activity.py): a command on a project adds a start, its tool's note
 # and an end with the exit status; commands without a project, and the read-only views, add nothing; keys and the
-# environment never reach it; 16 commands at once leave 32 whole lines; a signal's end says 128 + n, also from a tool bin/vh
-# exec'd into; a project that cannot be written to changes nothing in what the command does or says; bin/vh activity
-# reads it back (and --follow as it grows). The page tools' lines (render's progress, patch) are checked in film_checks
+# environment never reach it; 16 commands at once leave 32 whole lines; TERM ends a command at once (no end line), a tool
+# that handles it logs 128 + n, a Ctrl-C logs 130 and ends bin/vh by SIGINT; a project that cannot be written to changes
+# nothing in what the command does or says; bin/vh activity reads it back (and --follow as it grows). The page tools' lines
+# (render's progress, patch) are checked in film_checks
 activity_checks() {
-  local t p a b rc rc2 i pid
+  local t p a b rc rc2 i pid want
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/p q"   # a space in the path
   cp -R tools/desk/fixtures/zh "$p"
   vh review "$p" 1 >/dev/null 2>&1; rc=$?
@@ -1538,19 +1539,62 @@ PY
   for i in $(seq 16); do vh timeline "$p" >/dev/null 2>&1 & done; wait
   a=$(python3 -c 'import json, sys; ls = open(sys.argv[1], encoding="utf-8").read().splitlines(); [json.loads(l) for l in ls]; print(len(ls))' "$p/.ovh/activity.jsonl" 2>&1)
   [ "$a" = 32 ] && ok "activity: 16 commands at once leave 32 whole lines" || bad "activity: 16 concurrent commands left: $a"
-  # signals: a watcher bin/vh exec'd into (its own end line) and a command bash waits on (a stand-in uv that never ends)
+  # signals: a tool bin/vh exec'd into writes its own end, 128 + the signal (desk wait, the desk itself); a command bash
+  # waits on (a stand-in uv that never ends): TERM ends bin/vh at once, with no end line (the run reads as gone), and a
+  # Ctrl-C (SIGINT to the process group) writes the end with 130 and then ends bin/vh by SIGINT (the caller sees -2)
   rm -f "$p/.ovh/activity.jsonl"; mkdir -p "$t/stub"
   printf '#!/bin/sh\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
-  "$VH_BASH" "$ROOT/bin/vh" desk wait "$p" --timeout 30 >/dev/null 2>&1 & pid=$!
-  for i in $(seq 50); do [ -f "$p/out/review/feedback/.listening" ] && break; sleep 0.1; done
-  kill -TERM $pid; wait $pid; rc=$?
   : > "$p/audio/mix.wav"
-  UVMARK="$t/started" PATH="$t/stub:$PATH" "$VH_BASH" "$ROOT/bin/vh" qa "$p/audio/mix.wav" >/dev/null 2>&1 & pid=$!
-  for i in $(seq 100); do [ -f "$t/started" ] && break; sleep 0.05; done
-  kill -TERM $pid; sleep 0.3; pkill -f "$t/stub/uv" 2>/dev/null; wait $pid; rc2=$?
-  a=$(python3 -c 'import json, sys; print(" ".join("%s:%s" % (r["cmd"], r["exit"]) for r in map(json.loads, open(sys.argv[1], encoding="utf-8")) if r["event"] == "end"))' "$p/.ovh/activity.jsonl" 2>&1)
-  [ $rc = 143 ] && [ $rc2 = 143 ] && [ "$a" = "desk:143 qa:143" ] && ok "activity: a SIGTERM ends the run with 143, written by bash or by the tool it exec'd into" \
-    || bad "activity on SIGTERM: exits $rc/$rc2, end lines '$a'"
+  a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY'
+import json, os, signal, subprocess, sys, time
+sh, root, p, t = sys.argv[1:]
+env, mark = dict(os.environ, PATH=f"{t}/stub:{os.environ['PATH']}", UVMARK=f"{t}/started"), f"{t}/started"
+def start(*args, until):
+    if os.path.exists(mark): os.remove(mark)
+    pr = subprocess.Popen([sh, f"{root}/bin/vh", *args], start_new_session=True, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(300):
+        if os.path.exists(until) or pr.poll() is not None: break
+        time.sleep(0.05)
+    return pr
+def stub():
+    return subprocess.run(["pgrep", "-f", f"{t}/stub/uv"], capture_output=True).returncode == 0
+out = []
+pr = start("desk", "wait", p, "--timeout", "30", until=f"{p}/out/review/feedback/.listening")
+time.sleep(0.3); pr.send_signal(signal.SIGTERM); out.append(f"wait {pr.wait(10)}")   # (its handlers come just after the flag)
+pr = start("desk", p, "--port", "0", until=f"{p}/out/review/.desk.json")
+time.sleep(0.5); pr.send_signal(signal.SIGTERM); out.append(f"desk {pr.wait(10)}")
+pr = start("qa", f"{p}/audio/mix.wav", until=mark)
+t0 = time.time(); pr.send_signal(signal.SIGTERM)   # to bin/vh alone, as kill <pid> does: it must not wait for the stand-in
+try: rc = pr.wait(5)
+except subprocess.TimeoutExpired: rc = "waited"
+out.append(f"qa {rc} " + ("at once" if time.time() - t0 < 2 and stub() else "late"))
+subprocess.run(["pkill", "-f", f"{t}/stub/uv"])
+pr = start("qa", f"{p}/audio/mix.wav", until=mark)
+os.killpg(pr.pid, signal.SIGINT); out.append(f"qa {pr.wait(10)}")
+subprocess.run(["pkill", "-f", f"{t}/stub/uv"])
+recs = [json.loads(x) for x in open(f"{p}/.ovh/activity.jsonl", encoding="utf-8")]
+out.append(" ".join(f"{r['cmd']}:{r['exit']}" for r in recs if r["event"] == "end"))
+j = json.loads(subprocess.run([sys.executable, f"{root}/tools/activity.py", p, "--json"], capture_output=True, text=True).stdout)
+out.append(" ".join(f"{r['cmd']}:{r['state']}" for r in j["runs"]))
+print(" · ".join(out))
+PY
+)
+  want="wait 143 · desk 143 · qa -15 at once · qa -2 · desk:143 desk:143 qa:130 · desk:failed desk:failed qa:gone qa:failed"
+  [ "$a" = "$want" ] && ok "activity: TERM ends a command at once (no end line: gone), a tool that handles it logs 128 + n; Ctrl-C logs 130 and ends bin/vh by SIGINT" \
+    || bad "activity on signals: '$a' (want '$want')"
+  # a closed pipe (bin/vh check … | head): check's scratch folder still goes, nothing stale lands in the log, and the EXIT
+  # trap says nothing of its own (bash 5 runs it on SIGPIPE; bash 3.2 wrote the failed output into the next redirect, and
+  # into $(date))
+  if command -v ffmpeg >/dev/null; then
+    mkdir -p "$t/pipetmp" "$p/out"; rm -f "$p/.ovh/activity.jsonl"
+    ffmpeg -nostdin -v error -f lavfi -i testsrc=s=160x90:r=10:d=1 -pix_fmt yuv420p "$p/out/pipe.mp4"
+    TMPDIR="$t/pipetmp" "$VH_BASH" "$ROOT/bin/vh" check "$p/out/pipe.mp4" 2>"$t/pipe.err" | head -1 >/dev/null
+    a=$(python3 -c 'import json, sys; [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]; print("ok")' "$p/.ovh/activity.jsonl" 2>&1)
+    if [ "$a" = ok ] && [ -z "$(ls -A "$t/pipetmp")" ] && ! grep -q "arithmetic\|syntax error\|Traceback" "$t/pipe.err"
+    then ok "activity: under a closed pipe (check | head) the scratch folder goes, the log stays whole JSON, the trap says nothing"
+    else bad "check | head: log $a, left in TMPDIR: $(ls -A "$t/pipetmp"), stderr: $(tail -c 300 "$t/pipe.err")"; fi
+    rm -f "$p/out/pipe.mp4" "$p/out/check/pipe.check.json"
+  else skip "check under a closed pipe" "needs ffmpeg"; fi
   # a project that cannot be written to: the same exit and the same words
   a=$(vh timeline "$p" 2>&1); rc=$?
   rm -rf "$p/.ovh"; chmod 555 "$p"
@@ -2096,7 +2140,8 @@ print(seen, p.returncode, len(glob.glob(f"{tmp}/vh-textcheck-*")), "Traceback" i
 PY
 )
     alive=$(pgrep -f "$t/tmpc" | wc -l | tr -d ' ')
-    case "$alive $a" in "0 1 130 0 False "*) ok "$c stopped with Ctrl-C (to the process group) ends with 130 and no traceback, leaving no browser profile and no Chrome" ;;
+    want=130; [ $c = readcheck ] || want=-2   # rhythm runs through uv (on_ctrl_c): bin/vh ends by SIGINT itself
+    case "$alive $a" in "0 1 $want 0 False "*) ok "$c stopped with Ctrl-C (to the process group) ends with $want and no traceback, leaving no browser profile and no Chrome" ;;
       *) bad "$c after Ctrl-C (Chrome left, browsers seen, exit, profiles left, traceback): $alive $a" ;; esac
     pkill -KILL -f "$t/tmpc" 2>/dev/null
   done

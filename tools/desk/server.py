@@ -251,8 +251,8 @@ def serve(project, port=None, idle=None):
     info_p.write_text(json.dumps({"pid": os.getpid(), "port": srv.port, "url": srv.url, "project": os.path.realpath(str(project)),
                                   "started": datetime.datetime.now().isoformat(timespec="seconds")}))
 
-    def stop(signum, _frame):
-        raise SystemExit(0)
+    def stop(signum, _frame):   # the info file goes (finally, below); the exit status says what stopped it: 128 + the signal
+        raise SystemExit(128 + signum)
     for s in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(s, stop)
     if idle:   # bin/vh gate starts the desk detached: it goes by itself once nobody uses it
@@ -266,10 +266,11 @@ def serve(project, port=None, idle=None):
                     return
         threading.Thread(target=watch, daemon=True).start()
     print(f"desk: {srv.url}  ·  {project.name}  (Ctrl-C stops it" + (f"; it stops by itself after {idle:g} s without a request)" if idle else ")"), flush=True)
+    code = 0
     try:
         srv.serve_forever(poll_interval=0.25)
     except KeyboardInterrupt:
-        pass
+        code = 130
     finally:
         srv.server_close()
         try:
@@ -277,7 +278,7 @@ def serve(project, port=None, idle=None):
                 info_p.unlink()
         except (OSError, ValueError):
             pass
-    return 0
+    return code
 
 
 if __name__ == "__main__":

@@ -373,9 +373,10 @@ project_dir() { # a project folder, or a name under the projects folder (the dat
 # activity). A command that works on a project gets its start line here and its end line from the EXIT trap; the run goes to
 # what it runs through OVH_ACTIVITY_* (a tool bin/vh exec's into writes the end itself). It never fails or slows a command:
 # no fork but `date` on a bash without EPOCHREALTIME, every failure dropped, and nothing at all for a command without a project
-ACT_LOG="" ACT_RUN="" ACT_T0="" ACT_SUMMARY="" ACT_PROJ="" ACT_S="" ACT_NOW="" ACT_MS=0 NEW_DIR="" CHECK_TMP=""
+ACT_LOG="" ACT_RUN="" ACT_T0="" ACT_SUMMARY="" ACT_PROJ="" ACT_S="" ACT_NOW="" ACT_MS=0 ACT_RC=0 ACT_DONE="" NEW_DIR="" CHECK_TMP=""
 ACT_C0=$'\001\002\003\004\005\006\007\010\013\014\016\017\020\021\022\023\024\025\026\027\030\031\032\033\034\035\036\037'
-act_now() { local r=${EPOCHREALTIME:-}; if [ -n "$r" ]; then r=${r/,/.}; ACT_NOW=${r%???}; else ACT_NOW=$(date +%s); fi; }   # s.mmm, or s
+act_now() { local r=${EPOCHREALTIME:-}   # s.mmm, or s (its digits only: after a failed write, text can come ahead of them)
+  if [ -n "$r" ]; then r=${r/,/.}; ACT_NOW=${r%???}; else ACT_NOW=$(date +%s 2>/dev/null) || true; ACT_NOW=${ACT_NOW##*[!0-9]}; ACT_NOW=${ACT_NOW:-0}; fi; }
 act_ms() { case $1 in *.*) local m="${1#*.}000"; ACT_MS=$(( ${1%.*} * 1000 + 10#${m:0:3} )) ;; *) ACT_MS=$(( $1 * 1000 )) ;; esac; }
 act_str() { # act_str <text>: the text as a JSON string into ACT_S; control characters other than \n \r \t are dropped
   local s=$1 i c
@@ -420,8 +421,8 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
 }
 act_start() { act_project "$@"; [ -z "$ACT_PROJ" ] || act_begin "$ACT_PROJ" "$@"; }   # act_start <command> <args…>
 act_begin() { # act_begin <project> <command> <args…>: the start line; the run handed to what the command runs (OVH_ACTIVITY_*);
-  # and INT, TERM and HUP end bin/vh with 128 + the signal, so the end line says how it stopped (the shell still waits for
-  # the command it runs, as it does without them)
+  # the EXIT trap writes its end (vh_trap), and a Ctrl-C ends it through ctrl_c_exit (the end line says 130). TERM and HUP
+  # kill bin/vh as they would without a log, at once: no end line, and the reader shows the run as gone
   local proj=$1 cmd=$2 a args="" n=0 len=0 hide="" c parent=""
   shift 2
   [ -d "$proj/.ovh" ] || mkdir "$proj/.ovh" 2>/dev/null; [ -d "$proj/.ovh" ] || return 0   # (another bin/vh may make it first)
@@ -445,9 +446,8 @@ act_begin() { # act_begin <project> <command> <args…>: the start line; the run
   act_str "$cmd"; c=$ACT_S; a=$PWD; [ ${#a} -le 240 ] || a="…${a: -240}"; act_str "$a"
   act_line "{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent}"
   export OVH_ACTIVITY_LOG="$ACT_LOG" OVH_ACTIVITY_RUN="$ACT_RUN" OVH_ACTIVITY_PID=$$ OVH_ACTIVITY_T0="$ACT_T0" OVH_ACTIVITY_CMD="$cmd"
-  trap 'act_signal 2' INT; trap 'act_signal 15' TERM; trap 'act_signal 1' HUP
+  trap ctrl_c_exit INT; vh_trap
 }
-act_signal() { exit $((128 + $1)); }
 act_end() { # act_end <status>: the run's end line (from the EXIT trap; a tool bin/vh exec'd into writes its own)
   [ -n "$ACT_RUN" ] || return 0
   local d s="" ms
@@ -457,12 +457,23 @@ act_end() { # act_end <status>: the run's end line (from the EXIT trap; a tool b
   act_str "${OVH_ACTIVITY_CMD:-}"
   act_line "{\"v\":1,\"event\":\"end\",\"run\":\"$ACT_RUN\",\"t\":$ACT_NOW,\"cmd\":$ACT_S,\"exit\":$1,\"duration\":$((d / 1000)).$ms$s}"
 }
-vh_exit() { # the EXIT trap: an unfinished bin/vh new takes its folder away, check's scratch folder goes, the run's end line
-  local rc=$?
+vh_trap() { # the EXIT trap, set by what needs it (a run, new's folder, check's scratch folder; a command without any has
+  # none, as before the log). Under a pipe whose reader has gone (bin/vh … | head) bash runs it on SIGPIPE: SIGPIPE ignored
+  # first and the output that failed thrown away, or bash dies at its next write and the stale output lands in the log
+  trap 'ACT_RC=$?; trap "" PIPE; set +e; { echo -n; } >/dev/null 2>&1; vh_exit' EXIT
+}
+vh_exit() { # the EXIT trap's work: an unfinished bin/vh new takes its folder away, check's scratch folder goes, and the run
+  # gets its end line when bin/vh came to its end or exits with a status (from a TERM or a HUP, bash runs it with the status
+  # of the command before: it writes none, and the run reads as gone)
   set +e
-  if [ -n "$NEW_DIR" ]; then rm -rf "$NEW_DIR"; echo "$c_no removed the unfinished $(rel "$NEW_DIR")" >&2; fi
-  [ -z "$CHECK_TMP" ] || rm -rf "$CHECK_TMP"
-  act_end "$rc"
+  if [ -n "$NEW_DIR" ]; then rm -rf "$NEW_DIR"; echo "$c_no removed the unfinished $(rel "$NEW_DIR")" >&2; NEW_DIR=""; fi
+  [ -z "$CHECK_TMP" ] || { rm -rf "$CHECK_TMP"; CHECK_TMP=""; }
+  [ -n "$ACT_DONE" ] || [ "$ACT_RC" != 0 ] || return 0
+  act_end "$ACT_RC"; ACT_RUN=""
+}
+ctrl_c_exit() { # Ctrl-C: vh_exit's work (the run's end says 130), then bin/vh ends by SIGINT itself, so the shell that runs
+  # it sees a Ctrl-C (a loop stops; an exit 130 would read as a command that handled it). $? is 130 there all the same
+  ACT_RC=130; vh_exit; trap - INT EXIT; kill -INT $$; exit 130
 }
 parse_styles() { # parse_styles "<a,b>": the preset names, one per line (spaces and empty items dropped). Fails with a message
   # on a name that is not a lower-case slug of a preset in styles/ (no paths, no _swatch, no glob), or when the list is empty.
@@ -572,7 +583,7 @@ cmd_new() {
   base=$(cd "$base" && pwd); dir="$base/$(date +%F)-$slug"
   [ -e "$dir" ] && { echo "$dir already exists"; exit 1; }
   # a step that fails from here on must not leave a half-built dir behind (a retry would say "already exists"): vh_exit removes it
-  NEW_DIR=$dir
+  NEW_DIR=$dir; vh_trap
   if [ "$engine" = canvas-film ]; then   # a static page and its scripts: nothing to install (one command a line, so a failed copy stops here)
     mkdir -p "$dir"
     rsync -a --exclude out "$ROOT/engines/canvas-film/template/" "$dir/"
@@ -754,15 +765,15 @@ cmd_film_tool() { # $1: frames | render | determinism | cues | fonts | patch (to
   b=$(film_browser "$tool" "$(arg_dir "$@")") || exit 2
   exec node "$ROOT/tools/film/$tool.mjs" --browser "$b" "$@"
 }
-on_ctrl_c() { # on_ctrl_c <command…>: run it; a Ctrl-C while it runs ends bin/vh with 130 whatever the command exits with (uv run
-  # itself exits 2, "Failed to get PID of child process", when the Ctrl-C reaches it just as its Python has exited, and bash
-  # goes on after a child that exits). Every uv run goes through it. Inside $( ) it ends that subshell: the caller exits on 130
+on_ctrl_c() { # on_ctrl_c <command…>: run it; a Ctrl-C while it runs ends bin/vh (ctrl_c_exit) whatever the command exits with
+  # (uv run itself exits 2, "Failed to get PID of child process", when the Ctrl-C reaches it just as its Python has exited,
+  # and bash goes on after a child that exits). Every uv run goes through it. Inside $( ) it ends that subshell with 130, and
+  # the caller calls ctrl_c_exit on 130
   local int=0 rc=0
   trap 'int=1' INT
   "$@" || rc=$?
-  trap - INT
-  [ -z "$ACT_RUN" ] || trap 'act_signal 2' INT   # a run's own INT trap (act_begin) back in place
-  [ "$int" = 0 ] || exit 130
+  if [ -n "$ACT_RUN" ] && [ "${BASH_SUBSHELL:-0}" = 0 ]; then trap ctrl_c_exit INT; else trap - INT; fi   # a run's own INT trap back
+  if [ "$int" != 0 ]; then [ "${BASH_SUBSHELL:-0}" = 0 ] || exit 130; ctrl_c_exit; fi
   return "$rc"
 }
 cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--shots shots.json|film.html] [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 1; }
@@ -921,7 +932,7 @@ cmd_check() {
   [ -z "$against" ] || [ -f "$against" ] || { echo "bin/vh check: no reference video at $against" >&2; return 1; }
   # each check also leaves its result in CHECK_TMP (gone on exit, vh_exit); tools/checkrec.py makes the record of them at
   # the end, out/check/<name>.check.json. --json: that record on stdout, the lines a person reads on stderr
-  CHECK_TMP=$(mktemp -d "${TMPDIR:-/tmp}/vh-check.XXXXXX")
+  CHECK_TMP=$(mktemp -d "${TMPDIR:-/tmp}/vh-check.XXXXXX"); vh_trap
   local J=$CHECK_TMP
   if [ -n "$json" ]; then
     exec 3>&1 1>&2
@@ -968,7 +979,7 @@ cmd_check() {
     iso=$(on_ctrl_c "${py[@]}" "$ROOT/tools/isoframes.py" "${ia[@]}") || rc=$?
     iso=$(printf '%s\n' "$iso" | sed -e "s/^  static:/$c_wa static:/" -e "s/^  cuts:/$c_wa cuts:/" -e "s/^  periodic:/$c_wa periodic:/" -e "s/^  note:/$c_wa note:/")
     case "$rc:$iso" in   # uv also exits 1 when it cannot install numpy, so the words decide, not the status alone
-      130:*) exit 130 ;;   # Ctrl-C: on_ctrl_c ended the scan's subshell
+      130:*) ctrl_c_exit ;;   # Ctrl-C: on_ctrl_c ended the scan's subshell
       0:*) echo "$c_ok $iso" ;;
       1:[0-9]*" isolated frame"*) echo "$c_no $iso"
         echo "   a flash you designed (a flash frame, a flicker) is listed too: confirm it in the project's confirmed.json (the confirm? line"
@@ -1015,7 +1026,7 @@ cmd_check() {
     else
       sc=$(on_ctrl_c "${py[@]}" "$ROOT/tools/scalecheck.py" "$v" "$against" --sheet "$(dirname "$v")/check" --json "$J/scale.json") || arc=$?
       case "$arc:$sc" in
-        130:*) exit 130 ;;
+        130:*) ctrl_c_exit ;;
         0:*"WARN "*) echo "$c_wa $sc" ;;
         0:*) echo "$c_ok $sc" ;;
         1:*"the picture differs"*) fail=1; echo "$c_no $sc"
@@ -1123,7 +1134,6 @@ cmd_usage() { # one command's lines from the header above, with their continuati
     END {exit !found}' "$0"
 }
 
-trap vh_exit EXIT
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
   case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
@@ -1151,3 +1161,4 @@ case "${1:-help}" in
   help|-h|--help) cmd_help ;;
   *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;
 esac
+ACT_DONE=1   # came to its end: the EXIT trap writes the run's end line (killed, it does not)
