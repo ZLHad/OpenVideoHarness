@@ -30,7 +30,7 @@ views (status, activity, desk data, doctor). Never written: environment variable
 Safety: a line is one write(2) with O_APPEND, so the lines of commands running at once never interleave: under 1 KiB from
 bin/vh (bash's printf writes a longer line in 1024-byte pieces), under 4 KiB from Python and Node; a line that cannot be
 written is dropped without a word: a command never fails, and never waits, because of its log. Every line is UTF-8: a
-byte that is no part of a UTF-8 character (in an argument, a folder's or a file's name) is written as the text \xNN, and
+byte that is no part of a UTF-8 character (in an argument, a folder's or a file's name) is written as the text \\xNN, and
 the reader shows a raw one in a line an older bin/vh wrote the same way.
 A run without an end line is running while its process lives (and started within 7 days), else gone (it was killed, or
 the machine restarted). The reader reads the last 4 MB of the log.

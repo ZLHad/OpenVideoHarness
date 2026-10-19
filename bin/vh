@@ -383,7 +383,7 @@ act_ms() { case $1 in *.*) local m="${1#*.}000"; ACT_MS=$(( ${1%.*} * 1000 + 10#
 # a lead byte with its continuation bytes, overlong forms and surrogates left out (what a JSON reader takes)
 ACT_UTF8=$'^([^\x80-\xff]|[\xc2-\xdf][\x80-\xbf]|\xe0[\xa0-\xbf][\x80-\xbf]|[\xe1-\xec\xee\xef][\x80-\xbf][\x80-\xbf]|\xed[\x80-\x9f][\x80-\xbf]|\xf0[\x90-\xbf][\x80-\xbf][\x80-\xbf]|[\xf1-\xf3][\x80-\xbf][\x80-\xbf][\x80-\xbf]|\xf4[\x80-\x8f][\x80-\xbf][\x80-\xbf])*$'
 ACT_U="" ACT_BYTE=0
-act_byte() { local LC_ALL=C; printf -v ACT_BYTE '%d' "'$1"; [ "$ACT_BYTE" -ge 0 ] || ACT_BYTE=$((ACT_BYTE + 256)); }   # (3.2: signed)
+act_byte() { printf -v ACT_BYTE '%d' "'$1"; [ "$ACT_BYTE" -ge 0 ] || ACT_BYTE=$((ACT_BYTE + 256)); }   # a byte's value, in act_utf8's C locale (3.2: signed)
 act_utf8() { # act_utf8 <text>: into ACT_U, the text with each byte that is no part of a UTF-8 character written as \xNN, so
   # a log line is UTF-8 whatever an argument or a folder name holds (or a cut at 120 bytes under a C locale). One regex test
   # for text that is UTF-8 already; byte by byte only for text that is not
