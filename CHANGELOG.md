@@ -4,7 +4,7 @@
 
 **The style reel with 32 styles, and a README copy built by the tool**
 - The reel in the `media` release is now `styles-gallery-v2.mp4` (32 styles, 48 s, 7.91 MB): uploaded under a new name as CONTRIBUTING's rule 4 asks, `tools/media.txt` and the three download links point to it, `SHA256SUMS.txt` in the release gains its line. The old `styles-gallery.mp4` stays until this is merged.
-- `bin/vh style gallery --readme` (`styles/_swatch/gallery.py`) also writes `styles/gallery-readme.mp4`, the copy the READMEs play: the repo's name small in the bottom-right corner, as on the other README players, encoded from the same CRF 12 parts at the lowest CRF that keeps it under GitHub's 10 MB (CRF 21, 9.74 MB here). Before, that copy was made by hand. The README players (both READMEs, `styles/README.md`) now show the 32-style reel.
+- `bin/vh style gallery --readme` (`styles/_swatch/gallery.py`) also writes `styles/gallery-readme.mp4`, the copy the READMEs play: the repo's name small in the bottom-right corner, as on the other README players, encoded from the same CRF 12 parts at the lowest CRF that keeps it under GitHub's 10 MB (CRF 21, 9.74 MB here). Before, that copy was made by hand. The README players (both READMEs, `styles/README.md`) now show the 32-style reel, uploaded as an attachment.
 - `styles/README.md`'s step "更新总览" says the whole round: style counts in both READMEs and the site, a new release name, `tools/media.txt` and three links, the README copy uploaded as an attachment. The READMEs' style paragraph names the new isometric anatomy style.
 
 **A new style, iso-anatomy: the idea built as a machine that explains itself, then taken apart**

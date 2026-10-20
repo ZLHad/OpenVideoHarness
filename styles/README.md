@@ -4,7 +4,7 @@
 
 这里的每个风格都从名作里提炼出一套语法：色板、字体、构图、运动、转场、声音。每个风格都**用本仓库的工具真渲了一段 5 秒样片**。32 段样片的内容完全一样，都是标题"每一帧，都是代码。"加上"大纲 → 分镜 → 初版"三元素，差别只来自风格。
 
-https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
+https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 
 ![32 种风格的样片封面](gallery.jpg)
 

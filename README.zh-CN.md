@@ -89,7 +89,7 @@ https://github.com/user-attachments/assets/dfa4a89e-ab81-4d2a-abab-5ba3eec57fbe
 <tr>
 <td width="40%" valign="top">
 
-https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
+https://github.com/user-attachments/assets/38e4c027-4a8d-4295-945b-a4f4e2b0195f
 
 <sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/styles-gallery-v2.mp4">下载原片</a></sub>
 </td>
