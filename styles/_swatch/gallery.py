@@ -12,6 +12,7 @@ The reel keeps each swatch's own sound for its clip, joined with 30 ms equal-pow
 and fades in and out over 30 ms at its two ends, which cut into the middle of a sound; a swatch without an audio track
 gets room-level noise for its clip rather than digital silence, and a warning.
 """
+from __future__ import annotations
 import argparse, json, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
@@ -141,6 +142,7 @@ def build_mp4(dirs, out: Path, start: float, length: float, readme: Path | None 
                    "-movflags", "+faststart", str(readme))
                 if readme.stat().st_size <= README_LIMIT: break
             else:
+                readme.unlink(missing_ok=True)   # an oversized copy left on disk would be easy to upload by mistake
                 sys.exit(f"{readme}: still over {README_LIMIT / 1e6:g} MB at CRF {crf}")
             print(f"✓ {readme.relative_to(ROOT) if readme.is_relative_to(ROOT) else readme}  {readme.stat().st_size/1e6:.2f} MB (crf {crf}, {REPO_MARK} in the corner; upload it as a GitHub attachment)")
     finally:

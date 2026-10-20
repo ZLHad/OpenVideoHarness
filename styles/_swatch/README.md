@@ -15,7 +15,7 @@ styles/_swatch/render.sh demo --draft            # 冒烟：内置 demo → styl
 styles/_swatch/render.sh <slug>                  # 正式：styles/<slug>/ → styles/<slug>/media/
 styles/_swatch/render.sh <slug> --draft --hud    # 自查用：角上烧 t / 帧号（不要交付）
 styles/_swatch/determinism.sh <slug>             # 确定性检验（1 个 worker 对 3 个 worker，逐帧比对）
-uv run --with pillow python styles/_swatch/gallery.py --mp4   # styles/gallery.jpg + gallery.mp4
+uv run --with pillow python styles/_swatch/gallery.py --mp4   # styles/gallery.jpg + gallery.mp4（--readme 再加 gallery-readme.mp4）
 ```
 
 本机实测（M3 Max；渲染走 CPU 软件光栅，原因见下面"确定性"）：正式渲染（`--quality delivery`、2 个 worker）单个 swatch 的 HyperFrames 部分约 15–45 s，整条流程（含音乐、音效、QA）约 20–50 s（走 GPU 时约 13–19 s，见下面"确定性"）；`determinism.sh` 要渲两遍无损 PNG，halftone-comic 约 40 s，fui-hud 约 50 s，有大面积颗粒的场景更久（PNG 编码变慢）。demo 的正式产物：swatch.mp4 0.91 MB（CRF 18），poster.jpg 111 KB。
@@ -36,7 +36,7 @@ styles/_swatch/
 ├── determinism.sh     确定性检验
 ├── blender_render.py  Blender 场景的渲染器（在 Blender 里运行；GPL-3.0-or-later，见"Blender 场景"）
 ├── blender_prep.py    Blender 场景渲染前的两步：静态检查 swatch.py、把它的 FONTS 解析成字体文件
-├── gallery.py         styles/gallery.jpg（+ 带声音的 gallery.mp4）
+├── gallery.py         styles/gallery.jpg（+ 带声音的 gallery.mp4，+ README 用的 gallery-readme.mp4）
 ├── demo/              中性示例场景：按统一内容规格走一遍 API，复制它起步
 ├── catalog/           lib.js 测试卡：每个纹理、滤镜、转场、WebGL 各一格（改 lib.js 后渲它看）
 ├── fontprobe/         字体探针：在渲染用的 Chrome 里逐个加载 fonts.css 的字体，红色 = 打不开
@@ -238,7 +238,7 @@ def apply(t, env): …       # 按 t（= k/30）直接设好每个会动的属�
 
 ## 画廊
 
-`gallery.py` 扫描 `styles/*/media/poster.jpg`（跳过 `_` 开头的文件夹），拼成 5 列的 `styles/gallery.jpg`（≤ 2 MB），每张下面写风格名。风格名取 STYLE.md 第一行 `# <风格名> · <slug>`，没有就取 tokens.json 的 `name`，再没有就用 slug。加 `--mp4` 时还会生成 `styles/gallery.mp4`：每个样片取 1.9–3.4 s，叠上名字，按顺序硬切，1280×720，≤ 12 MB。声音就是每个样片自己那一段，接缝处做 30 ms 的等功率交叉淡化（不爆音，也不凹下去），整条的开头和结尾各淡入淡出 30 ms；没有音轨的样片那一段垫房间底噪，不留数字静音，并打印一条警告。音频是 AAC 160k。实测 31 条（2026-10-02）：jpg 1.13 MB，mp4 7.65 MB（46.5 s，CRF 23）。
+`gallery.py` 扫描 `styles/*/media/poster.jpg`（跳过 `_` 开头的文件夹），拼成 5 列的 `styles/gallery.jpg`（≤ 2 MB），每张下面写风格名。风格名取 STYLE.md 第一行 `# <风格名> · <slug>`，没有就取 tokens.json 的 `name`，再没有就用 slug。加 `--mp4` 时还会生成 `styles/gallery.mp4`：每个样片取 1.9–3.4 s，叠上名字，按顺序硬切，1280×720，≤ 12 MB。声音就是每个样片自己那一段，接缝处做 30 ms 的等功率交叉淡化（不爆音，也不凹下去），整条的开头和结尾各淡入淡出 30 ms；没有音轨的样片那一段垫房间底噪，不留数字静音，并打印一条警告。音频是 AAC 160k。加 `--readme`（它包含 `--mp4`）时再写一份 `styles/gallery-readme.mp4`，给两份 README 里的播放器用：同样的片段，右下角加一行 `ZLHad/OpenVideoHarness` 小字（白字带淡阴影，深浅样片上都看得到），从同一批 CRF 12 的中间片段编码、不经过第二代压缩，取能压到 10 MB 以内的最小 CRF（GitHub 附件的上限；压不下去就删掉它并报错）。实测 31 条（2026-10-02）：jpg 1.13 MB，mp4 7.65 MB（46.5 s，CRF 23）；32 条（2026-10-21）：mp4 7.91 MB（48 s，CRF 23），README 那份 9.74 MB（CRF 21）。
 
 ## 给预设作者的坑
 
