@@ -15,7 +15,7 @@
 #                               --engine canvas-film: the narration-driven canvas engine instead, any type, 16:9 (engines/canvas-film/README.md);
 #                               --aspect: short/promo/data/meme only (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only); --lang: the review pages' language (default zh; set it from the user's first request);
 #                               --dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness
-#   style list | <preset> [--draft] | gallery [--mp4] | check <preset>   style library: list presets, render a 5 s swatch, build styles/gallery.jpg
+#   style list | <preset> [--draft] | gallery [--mp4] [--readme] | check <preset>   style library: list presets, render a 5 s swatch, build styles/gallery.jpg
 #                               (the swatch render's other options: styles/_swatch/render.sh -h)
 #   recipes list [--intent X --energy N --engine E …] | check [file…]   shot recipes (recipes/): filter by frontmatter, validate it
 #   hf-init <dir> [frame]       scaffold HyperFrames into a project safely (no global skill install); frame: landscape|portrait|square|4:5|3:4

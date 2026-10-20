@@ -91,7 +91,7 @@ https://github.com/user-attachments/assets/dfa4a89e-ab81-4d2a-abab-5ba3eec57fbe
 
 https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
 
-<sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/styles-gallery.mp4">下载原片</a></sub>
+<sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/styles-gallery-v2.mp4">下载原片</a></sub>
 </td>
 <td valign="top"><b><a href="styles/">32 种风格，连播</a></b>（每种约 1.5 秒）<br>同一段内容，换 32 种风格，每种配自己的音乐。<br><code>bin/vh style list</code> 看全部，<code>bin/vh new promo launch-film --style cutout-jazz</code> 挂一种当参考。</td>
 </tr>
@@ -172,7 +172,7 @@ cd ~/OpenVideoHarness && claude
 
 要写实人物或真实物理时，接生成式视频再用代码叠加（[playbook/05](playbook/05-hybrid-genvideo.md)）；讲有起伏的故事或 3 分钟以上的长片看 [playbook/09](playbook/09-narrative.md)；开头钩子、标题和封面看 [playbook/10](playbook/10-hooks-and-packaging.md)。
 
-**风格。** AI 做的视频很容易长成一个样子：暗底、发光、玻璃卡片。所以 [`styles/`](styles/) 收了 32 种从名作里提炼的风格：Saul Bass 的片头、瑞士网格、3Blue1Brown、《纽约时报》的数据图、《蜘蛛侠：平行宇宙》的网点、韦斯·安德森的对称构图、水墨、敦煌、皮影、国潮等。每种都写清颜色、字体、构图、运动、转场和声音，并用同一段内容实际渲染了一段 5 秒样片，差别只在风格：
+**风格。** AI 做的视频很容易长成一个样子：暗底、发光、玻璃卡片。所以 [`styles/`](styles/) 收了 32 种从名作里提炼的风格：Saul Bass 的片头、瑞士网格、3Blue1Brown、《纽约时报》的数据图、《蜘蛛侠：平行宇宙》的网点、韦斯·安德森的对称构图、水墨、敦煌、皮影、国潮，还有把概念做成一台小机器、再自己拆开讲清结构的等轴解剖图等。每种都写清颜色、字体、构图、运动、转场和声音，并用同一段内容实际渲染了一段 5 秒样片，差别只在风格：
 
 <a href="styles/"><img src="styles/gallery.jpg" width="820" alt="32 种风格的样片，内容完全相同"></a>
 

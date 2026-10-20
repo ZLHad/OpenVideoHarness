@@ -91,7 +91,7 @@ https://github.com/user-attachments/assets/dfa4a89e-ab81-4d2a-abab-5ba3eec57fbe
 
 https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
 
-<sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/styles-gallery.mp4">Download</a></sub>
+<sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/styles-gallery-v2.mp4">Download</a></sub>
 </td>
 <td valign="top"><b><a href="styles/">The 32 styles in one reel</a></b> (about 1.5 s each)<br>The same content in 32 styles, each with its own music.<br><code>bin/vh style list</code> lists them; <code>bin/vh new promo launch-film --style cutout-jazz</code> attaches one as a reference.</td>
 </tr>
@@ -172,7 +172,7 @@ A few rules never relax ([CLAUDE.md](CLAUDE.md) has them all): every frame depen
 
 For realistic people or physics, combine generated video with code on top ([playbook/05](playbook/05-hybrid-genvideo.md)); for a story with an arc or anything over three minutes, [playbook/09](playbook/09-narrative.md); for opening hooks, titles and covers, [playbook/10](playbook/10-hooks-and-packaging.md).
 
-**Styles.** Left alone, AI video drifts toward one look: dark background, glow, glass cards. [`styles/`](styles/) holds 32 styles distilled from well-known work, among them Saul Bass title sequences, the Swiss grid, 3Blue1Brown, New York Times graphics, the halftone of *Spider-Verse*, Wes Anderson's symmetry, ink wash, Dunhuang murals, shadow puppetry and guochao. Each describes its colors, type, composition, motion, transitions and sound, and each was rendered as a 5-second sample of the same content:
+**Styles.** Left alone, AI video drifts toward one look: dark background, glow, glass cards. [`styles/`](styles/) holds 32 styles distilled from well-known work, among them Saul Bass title sequences, the Swiss grid, 3Blue1Brown, New York Times graphics, the halftone of *Spider-Verse*, Wes Anderson's symmetry, ink wash, Dunhuang murals, shadow puppetry, guochao, and isometric anatomy figures of a machine that takes itself apart to explain an idea. Each describes its colors, type, composition, motion, transitions and sound, and each was rendered as a 5-second sample of the same content:
 
 <a href="styles/"><img src="styles/gallery.jpg" width="820" alt="The 32 style samples, all with the same content"></a>
 

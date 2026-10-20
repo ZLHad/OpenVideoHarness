@@ -38,6 +38,7 @@ showcase/04-intro-film/opening/node_modules
 showcase/*/media/final.mp4
 showcase/04-intro-film/v3/final.mp4
 styles/gallery.mp4
+styles/gallery-readme.mp4
 *.part
 # docs/site: the author's own films for the homepage stay local
 docs/site/media/

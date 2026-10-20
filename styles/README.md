@@ -8,7 +8,7 @@ https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
 
 ![32 种风格的样片封面](gallery.jpg)
 
-连播版：[`styles-gallery.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/styles-gallery.mp4)（每种风格约 1.5 秒，带各自的声音；在 GitHub Release 里，`tools/fetch_media.sh styles` 会把它放到 `styles/gallery.mp4`）。
+连播版：[`styles-gallery-v2.mp4`](https://github.com/ZLHad/OpenVideoHarness/releases/download/media/styles-gallery-v2.mp4)（32 种，每种约 1.5 秒，带各自的声音；在 GitHub Release 里，`tools/fetch_media.sh styles` 会把它放到 `styles/gallery.mp4`）。
 
 ## 怎么用
 
@@ -161,7 +161,9 @@ https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
 3. **写样片**：从 `_swatch/demo/` 复制 `swatch.js`，按 `_swatch/README.md` 的内容规格写；想要声音就加 `score.json`。风格要路径追踪的光和真实景深时，写成 Blender 场景 `swatch.py`（见 `_swatch/README.md` 的"Blender 场景"，`tabletop-miniature` 是样板）。
 4. **渲染迭代**：用 `bin/vh style <slug> --draft --hud` 反复改，满意后跑 `bin/vh style <slug>` 出正式样片，渲染器会自动检查帧数、错误卡片、冻帧和音频。
 5. **检查确定性**：`bin/vh style check <slug>`，比较无损帧。
-6. **更新总览**：`bin/vh style gallery --mp4` 重建 `gallery.jpg` 和 `gallery.mp4`，再在上面的表里加一行。`gallery.mp4` 不进 git：上传到 Release `media` 替换 `styles-gallery.mp4`，并更新 `tools/media.txt` 里的校验和。
+6. **更新总览**：`bin/vh style gallery --mp4` 重建 `gallery.jpg` 和 `gallery.mp4`，再在上面的表里加一行，并改这份文件、两份 README 和官网（`docs/site/index.html` 的 `STYLES`）里的风格数。两个视频都不进 git，往 Release 里放文件是维护者的事（`CONTRIBUTING.md` 第 4 条）：
+   - `gallery.mp4` 用一个新文件名上传到 Release `media`（例如 `styles-gallery-v3.mp4`），不覆盖 main 还在引用的旧文件；同一个 PR 里改 `tools/media.txt`（路径、文件名、sha256）和三处下载链接（本文件、`README.md`、`README.zh-CN.md`），合并以后再删旧文件。
+   - README 里嵌的播放片段是另一份：`bin/vh style gallery --readme` 写出 `styles/gallery-readme.mp4`，右下角加了仓库名，压到 10 MB 以内（GitHub 附件的上限）。把它拖进任意一个 PR 的评论框，拿到 `https://github.com/user-attachments/assets/…` 链接后清空评论框、不发出去，再用这个链接替换本文件和两份 README 里的旧链接。
 
 ## 和其他风格库的关系
 

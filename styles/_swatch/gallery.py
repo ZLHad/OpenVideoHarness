@@ -2,6 +2,8 @@
 
     uv run --with pillow python styles/_swatch/gallery.py            # → styles/gallery.jpg (≤ 2 MB)
     uv run --with pillow python styles/_swatch/gallery.py --mp4      # + styles/gallery.mp4 (~1.5 s per style, ≤ 12 MB, with sound)
+    uv run --with pillow python styles/_swatch/gallery.py --readme   # + styles/gallery-readme.mp4: the same reel with the repo's
+                                                                     #   name in the corner, under GitHub's 10 MB for README players
     options: --cols N (default 5) · --out-dir DIR · --clip-start 1.9 --clip-len 1.5 · [style folders …]
 
 Scans styles/*/media/poster.jpg (folders starting with "_" are skipped) unless folders are given. The label under
@@ -16,7 +18,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[2]
 STYLES = ROOT / "styles"
-JPG_LIMIT, MP4_LIMIT = 2_000_000, 12_000_000
+JPG_LIMIT, MP4_LIMIT, README_LIMIT = 2_000_000, 12_000_000, 10_000_000
+REPO_MARK = "ZLHad/OpenVideoHarness"   # bottom right of the README copy, as on the other README players
 XF = 0.03   # audio crossfade at each seam (s)
 BG, FG, MUTED = (20, 20, 23), (236, 234, 228), (138, 135, 127)
 
@@ -73,7 +76,20 @@ def build_jpg(dirs, out: Path, cols: int):
         if out.stat().st_size <= JPG_LIMIT: break
     print(f"✓ {out.relative_to(ROOT) if out.is_relative_to(ROOT) else out}  {img.width}×{img.height}  {out.stat().st_size/1e6:.2f} MB (q {q})")
 
-def build_mp4(dirs, out: Path, start: float, length: float):
+def corner_mark(path: Path):
+    """The repo's name, small, bottom right: white with a soft shadow, so it reads on light and dark swatches."""
+    from PIL import ImageFilter
+    f, track = font(14, mono=True), 1.0
+    widths = [f.getlength(c) for c in REPO_MARK]
+    x0, base = 1280 - 25 - (sum(widths) + track * (len(REPO_MARK) - 1)), 720 - 26
+    def draw(img, fill, dx=0):
+        d, x = ImageDraw.Draw(img), x0 + dx
+        for c, w in zip(REPO_MARK, widths): d.text((x, base + dx), c, font=f, fill=fill, anchor="ls"); x += w + track
+    shadow = Image.new("RGBA", (1280, 720), (0, 0, 0, 0)); draw(shadow, (0, 0, 0, 150), 1)
+    mark = Image.new("RGBA", (1280, 720), (0, 0, 0, 0)); draw(mark, (255, 255, 255, 215))
+    Image.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(1.6)), mark).save(path)
+
+def build_mp4(dirs, out: Path, start: float, length: float, readme: Path | None = None):
     ff = lambda *a: subprocess.run(["ffmpeg", "-v", "error", "-y", *a], check=True)
     tmp = Path(tempfile.mkdtemp(prefix="swatch-gallery-"))
     try:
@@ -116,13 +132,25 @@ def build_mp4(dirs, out: Path, start: float, length: float):
                "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", str(out))
             if out.stat().st_size <= MP4_LIMIT: break
         print(f"✓ {out.relative_to(ROOT) if out.is_relative_to(ROOT) else out}  {len(dirs)} × {length}s  {out.stat().st_size/1e6:.2f} MB (crf {crf}, with sound)")
+        if readme:   # from the same CRF 12 parts, not from the reel above, so the mark costs no second generation
+            corner_mark(tmp / "mark.png")
+            for crf in (19, 20, 21, 23, 26, 29):
+                ff("-f", "concat", "-safe", "0", "-i", str(tmp / "list.txt"), "-i", str(tmp / "reel.wav"), "-i", str(tmp / "mark.png"),
+                   "-filter_complex", "[0:v][2:v]overlay=0:0,format=yuv420p[v]", "-map", "[v]", "-map", "1:a",
+                   "-c:v", "libx264", "-preset", "slow", "-crf", str(crf), "-c:a", "aac", "-b:a", "160k", "-shortest",
+                   "-movflags", "+faststart", str(readme))
+                if readme.stat().st_size <= README_LIMIT: break
+            else:
+                sys.exit(f"{readme}: still over {README_LIMIT / 1e6:g} MB at CRF {crf}")
+            print(f"✓ {readme.relative_to(ROOT) if readme.is_relative_to(ROOT) else readme}  {readme.stat().st_size/1e6:.2f} MB (crf {crf}, {REPO_MARK} in the corner; upload it as a GitHub attachment)")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dirs", nargs="*", type=Path)
-    ap.add_argument("--mp4", action="store_true"); ap.add_argument("--cols", type=int, default=5)
+    ap.add_argument("--mp4", action="store_true"); ap.add_argument("--readme", action="store_true", help="also the README copy (implies --mp4)")
+    ap.add_argument("--cols", type=int, default=5)
     ap.add_argument("--out-dir", type=Path, default=STYLES)
     ap.add_argument("--clip-start", type=float, default=1.9); ap.add_argument("--clip-len", type=float, default=1.5)
     a = ap.parse_args()
@@ -132,9 +160,9 @@ def main():
         if d not in have: print(f"! skip {d.name}: no media/poster.jpg (run styles/_swatch/render.sh {d.name})")
     if not have: sys.exit("no swatches rendered yet")
     build_jpg(have, a.out_dir / "gallery.jpg", a.cols)
-    if a.mp4:
+    if a.mp4 or a.readme:
         vids = [d for d in have if (d / "media" / "swatch.mp4").exists()]
-        build_mp4(vids, a.out_dir / "gallery.mp4", a.clip_start, a.clip_len)
+        build_mp4(vids, a.out_dir / "gallery.mp4", a.clip_start, a.clip_len, a.out_dir / "gallery-readme.mp4" if a.readme else None)
 
 if __name__ == "__main__":
     main()
