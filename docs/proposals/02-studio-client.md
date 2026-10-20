@@ -1,6 +1,6 @@
 # 提案 02 · Studio：从一句话到交付的客户端，剪辑交给本机的 agent
 
-*2026-10-19 · 状态：方向认可，细节待定（2026-10-19）。维护者看过可以点的原型后说"有点意思了"，UI 样式要更与众不同，细节到正式开发时再打磨。这个 PR 只加了这份文档和原型，工具和流程都没改。*
+*2026-10-19 · 状态：方向认可，细节待定（2026-10-19）。维护者看过可以点的原型后说"有点意思了"，UI 样式要更与众不同，细节到正式开发时再打磨。这个 PR 只加了这份文档和原型，工具和流程都没改。2026-10-20 补了第 1.1 节 HyperFrames Studio：维护者说，客户端的重点是 agent 交互这层 harness，别的产品有、对我们有用的照样学，开源的部分可以直接拿来改，不只是做它们没有的。*
 
 **起因。** 维护者提了四件事：
 
@@ -20,6 +20,7 @@
 3. **项目文件和 CLI 是真相，客户端只是一层壳。** 客户端做的每一步都对应一条 `bin/vh` 命令或一个项目文件；不开客户端，用 CLI 加 agent 照样能做完一支片子。客户端里能用的功能，先做进 CLI。
 4. **agent 接本机已经登录的那个。** 客户端不自带模型、不存 key；用 ACP 这类协议或 agent 自己的无头模式，接 Claude Code、Codex 等。接通之前，现有的 `bin/vh desk wait` 文件通道就能用。
 5. **我们的特色是"片子懂自己的结构"。** 别家的时间轴上是素材片段；我们的泳道是片子自己的数据：镜头和它要观众看懂的 reads、旁白、音乐小节、音效、检查告警、这一版改了哪儿。画面由页面合约的 `frame(t)` 实时画出，任意两版的同一帧可以逐像素比；agent 改完只重渲改过的那几段（`bin/vh patch`）。
+6. **力气花在 agent 交互的 harness 上，界面能借就借。** HyperFrames Studio 已经做出一个驱动本机 Claude Code、Codex 的视频编辑器，交互和这份提案想的很像（第 1.1 节）。它和别的产品有、对我们有用的，照着学；开源的部分（HyperFrames 的 `packages/studio` 是 Apache-2.0，OpenFilm 是 MIT）能直接拿来改的就改，不从零写。我们自己做的是 harness 这一层：站和关卡、谁来拍板、计划卡和结果卡、按片子结构排的泳道、检查告警、多引擎、事实和许可的底线。
 
 原型：[`figs/02-studio-prototype.html`](figs/02-studio-prototype.html)，用浏览器直接打开就能点；里面的片子、数字和 agent 的回复都是编的示例。
 
@@ -43,8 +44,32 @@
 | OpenChatCut | 本地优先，接 Codex、Claude Code 和 MCP agent | AGPL 许可，只借思路，不碰代码 |
 | AutoClip | 桌面端是 Tauri 套本地 FastAPI 和 React，CLI、MCP 和桌面端共用一条流水线；候选加备选；出错按阶段报；按平台出发布包（MIT 许可） | 和"CLI 是真相、客户端是壳"一致；它有填 API key 的设置页，我们不做 |
 | OpenFilm | 桌面端用 ACP 驱动本机 agent；对话里的提问卡；Studio 里的改动写回项目 | 提案 01 已经记下，这次接着用 |
+| HyperFrames Studio | 驱动本机 Claude Code、Codex 的桌面编辑器：在画面上选中、圈画、评论，在时间轴上划一段说话，改动攒着一次发，每次运行可以单独撤销 | 交互照着学，开源的编辑器组件可以直接改来用；见第 1.1 节 |
 
 链接：[Frame.io V4 功能对照](https://help.frame.io/en/articles/9084073-frame-io-v4-legacy-feature-comparison)、[Adobe 2026-09 的 Premiere 更新](https://blog.adobe.com/en/publish/2026/09/08/generate-create-directly-in-your-timeline-with-new-ai-powered-innovations-in-premiere-after-effects)、[ChatCut 文档](https://chatcut.io/docs/quickstart)、[OpenChatCut](https://github.com/0xsline/OpenChatCut)、[AutoClip](https://github.com/zhouxiaoka/autoclip)。这几个仓库没有拉进 `references/`。
+
+### 1.1 HyperFrames Studio
+
+HeyGen 的桌面应用（Mac、Linux），见 [hyperframes.dev/studio](https://hyperframes.dev/studio) 和仓库里的[应用文档](https://github.com/heygen-com/hyperframes/tree/main/docs/studio-app)。它和这份提案想做的最接近：
+
+- **agent**：用本机的 Claude Code 或 Codex。Claude Code 可以替人装好、登录；用量算在人自己的 agent 账号上，也可以改用 API key。agent 的状态分"就绪 / 没登录 / 没装 / 装了起不来"，每种配一个修复按钮；用量到上限时提示换另一个。
+- **三种"指"**：选中画面里的元素再描述（V），在画面上圈画（D），在某处某一秒钉一条评论（C）；在时间轴上划一段，说"这段收紧"。右键元素有快捷操作。
+- **攒着一起发**：选中、圈画、评论不马上执行，先进"待发送的修改"（最多 10 条），检查、加一句总的说明，再一次发出。agent 在跑时再发，默认排队，也可以改成打断重来。每次运行有自己的撤销。
+- **也能手动**：分割、删除、拖动裁剪，调速度、音量、淡入淡出；右键一段空隙，可以关掉，也可以问 agent 这里该放什么。
+- **起步**：一个"第一支片子"的卡片，从 Hook、Proof、Turn、CTA 四段里各挑一个真实片段，加上网址或想法就生成；还有一个真实片段的灵感库，可以加进消息当参考；一个小向导（Framey）指出下一步。
+- **导出**：1080p 或 4K，MP4、WebM、MOV，24、30、60 帧。
+
+哪些开源：仓库是 Apache-2.0，编辑器 `packages/studio`（React：时间轴、代码编辑、实时预览、检查器，还有给 agent 调用的工具接口 `src/webmcp`）和 `packages/studio-server` 在里面；桌面应用的外壳不在仓库里，仓库只有"在桌面版打开"的按钮和启动它的代码。
+
+**我们拿什么**：
+
+- 交互照着学：待发送修改的列表和一次发出（和我们"攒成一轮"是一件事），排队或打断，每次运行单独撤销，在画面上圈画，右键快捷操作，agent 状态和修复按钮，导出面板。
+- 起步和灵感：它的灵感库和四段式起步卡，我们有现成的料可以对上：`recipes/`、`cases/`、`styles/` 和 `recipes/sequences/` 的全片骨架。
+- 组件能用就用：时间轴、播放器、检查器先看 `packages/studio` 能不能接上我们的页面合约；能改来用就改，按 Apache-2.0 保留 NOTICE、在改过的文件里写明改动。它的 agent 工具接口（WebMCP）也值得看，我们的模块可以照样把"选中、跳转、出计划"暴露给 agent。
+
+**我们的侧重**：它是"会写视频的 agent 加一个编辑器"，我们是"一套做片的工作流，人和 agent 在里面配合"。所以多出来的是：站和关卡、谁来拍板、计划卡（先说动哪几镜、只重渲哪几段）、按片子结构排的泳道（reads、cue、时间映射、检查告警）、多引擎（canvas-film、手绘、Manim，不只 HyperFrames）、事实和许可的底线。几处不跟：它要厂商账号，默认给 agent 完全访问（能装东西、上网、跑任何命令），带使用数据记录；我们的客户端不要账号，权限跟 agent 自己的设置走，不收集使用数据。
+
+**顺带的兼容**：用 HyperFrames 引擎的项目守它的时间轴约定（字幕一条轨、一条轨一类东西、每个场景是子合成），就能直接在 HyperFrames Studio 里打开；里面的 Claude Code 在项目文件夹里跑，照样读我们的 `CLAUDE.md`、调 `bin/vh`。这是附带的好处，不是我们客户端的替代。
 
 ## 2. 外壳
 
@@ -141,6 +166,7 @@ agent 怎么接活，每个模块都一样：
   - 第二步用 ACP 或 agent 自己的无头模式，把对话接进 agent 栏。各家 agent 的接入方式变得快，开工前要核实；
   - DeepSeek 这类模型，走能换模型的 agent（比如 OpenCode）。
 - **key**：客户端不存。硬规则 7 不改。
+- **界面组件**：时间轴、播放器、检查器先评估 HyperFrames 的 `packages/studio`（Apache-2.0）和 OpenFilm 的 Studio（MIT）；能接上页面合约的就直接用或 fork 改，保留许可和 NOTICE，写明改动。
 - **桌面外壳**：先做本地网页；用了一阵再用 Tauri（AutoClip 走的就是这条路）或 Electron 打包。
 
 ## 8. 不做什么
@@ -153,7 +179,7 @@ agent 怎么接活，每个模块都一样：
 
 每一期单独能用：
 
-1. **成片和关卡**：本地客户端的外壳加成片模块（画面、语义时间轴、清单、点评、按轮提交），替换现在的静态审阅页和审阅台的 10 个页签；agent 先走文件通道。
+1. **成片和关卡**：本地客户端的外壳加成片模块（画面、语义时间轴、清单、点评、按轮提交），替换现在的静态审阅页和审阅台的 10 个页签；agent 先走文件通道。开工前先评估 `packages/studio` 的时间轴和播放器能不能直接改来用。
 2. **agent 栏接通**：ACP 或无头模式，接 Claude Code 和 Codex；计划卡、进度、结果卡、退回。
 3. **从零开始**：空间、新建、立意、大纲。
 4. **其余模块**：素材、分镜、声音、交付、账本。
@@ -166,6 +192,7 @@ agent 怎么接活，每个模块都一样：
 3. 空间落到文件上的方式（第 6 节）。
 4. agent 接入：先接哪几家；ACP 的现状开工前核实。
 5. 桌面外壳：Tauri 还是 Electron。
+6. 从 HyperFrames Studio 拿多少：直接依赖它的包、fork 一份改，还是只借交互。
 
 ## 附录：原型
 
