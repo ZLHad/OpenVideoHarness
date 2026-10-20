@@ -32,7 +32,7 @@ https://github.com/user-attachments/assets/48923404-eff1-41cd-b303-82c9ede51c1f
 - **三个节点停下来等你**：创意方向和大纲、分镜、初版，各停一次，你点头再往下做。还没写代码时就把方向定下来，返工最便宜。只想试一版时，说"快速出一版"，它就直接出片。
 - **自己检查自己**：AI 看不了视频、听不了声音，所以它看渲染出来的帧、用数据查声音，对着一张 20 条的清单改；整片再交给另一个没参与制作的 agent 打分。
 - **声音一起做**：中英配音、双语字幕、用代码写的配乐和音效、混音和质检。
-- **风格库和 Blender**：31 种从名作里提炼的风格，各带一段实际渲染的样片，可以借来用，不必照搬；要真玻璃、体积光、上百万粒子时，agent 写 Python 驱动 Blender。
+- **风格库和 Blender**：32 种从名作里提炼的风格，各带一段实际渲染的样片，可以借来用，不必照搬；要真玻璃、体积光、上百万粒子时，agent 写 Python 驱动 Blender。
 
 它不是新的渲染引擎，而是架在 HyperFrames、Manim、Remotion、p5.brush、Blender 之上的"怎么做"。
 
@@ -93,7 +93,7 @@ https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
 
 <sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/styles-gallery.mp4">下载原片</a></sub>
 </td>
-<td valign="top"><b><a href="styles/">31 种风格，连播</a></b>（每种约 1.5 秒）<br>同一段内容，换 31 种风格，每种配自己的音乐。<br><code>bin/vh style list</code> 看全部，<code>bin/vh new promo launch-film --style cutout-jazz</code> 挂一种当参考。</td>
+<td valign="top"><b><a href="styles/">32 种风格，连播</a></b>（每种约 1.5 秒）<br>同一段内容，换 32 种风格，每种配自己的音乐。<br><code>bin/vh style list</code> 看全部，<code>bin/vh new promo launch-film --style cutout-jazz</code> 挂一种当参考。</td>
 </tr>
 </table>
 
@@ -172,9 +172,9 @@ cd ~/OpenVideoHarness && claude
 
 要写实人物或真实物理时，接生成式视频再用代码叠加（[playbook/05](playbook/05-hybrid-genvideo.md)）；讲有起伏的故事或 3 分钟以上的长片看 [playbook/09](playbook/09-narrative.md)；开头钩子、标题和封面看 [playbook/10](playbook/10-hooks-and-packaging.md)。
 
-**风格。** AI 做的视频很容易长成一个样子：暗底、发光、玻璃卡片。所以 [`styles/`](styles/) 收了 31 种从名作里提炼的风格：Saul Bass 的片头、瑞士网格、3Blue1Brown、《纽约时报》的数据图、《蜘蛛侠：平行宇宙》的网点、韦斯·安德森的对称构图、水墨、敦煌、皮影、国潮等。每种都写清颜色、字体、构图、运动、转场和声音，并用同一段内容实际渲染了一段 5 秒样片，差别只在风格：
+**风格。** AI 做的视频很容易长成一个样子：暗底、发光、玻璃卡片。所以 [`styles/`](styles/) 收了 32 种从名作里提炼的风格：Saul Bass 的片头、瑞士网格、3Blue1Brown、《纽约时报》的数据图、《蜘蛛侠：平行宇宙》的网点、韦斯·安德森的对称构图、水墨、敦煌、皮影、国潮等。每种都写清颜色、字体、构图、运动、转场和声音，并用同一段内容实际渲染了一段 5 秒样片，差别只在风格：
 
-<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="31 种风格的样片，内容完全相同"></a>
+<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="32 种风格的样片，内容完全相同"></a>
 
 风格是参考，不是模板：可以借一种、借几种，也可以完全不借。学的是这些作品的视觉语法，不用原作的角色、logo 和镜头。详见 [styles/README.md](styles/README.md)。
 

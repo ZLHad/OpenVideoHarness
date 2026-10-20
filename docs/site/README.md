@@ -49,7 +49,7 @@ All of it is optional. The page works without any of it.
 
 ## Where the numbers come from
 
-- **Counts of things in the repo**: 9 video types, 13 playbook docs, 11 templates, 31 styles, 24 shot recipes. Source: `video-types/`, `playbook/`, `templates/`, `styles/`, `bin/vh recipes list`.
+- **Counts of things in the repo**: 9 video types, 13 playbook docs, 11 templates, 32 styles, 24 shot recipes. Source: `video-types/`, `playbook/`, `templates/`, `styles/`, `bin/vh recipes list`.
 - **The films**:
   - the intro film: 103 s; a Blender opening of 1.18 million stars over 475 frames; 124 sound effects;
   - the four other films.
@@ -63,6 +63,6 @@ All of it is optional. The page works without any of it.
 ## How it is built
 
 - **Assets**: one HTML file with inline CSS and JS. Fonts come from Google Fonts; offline, and for Chinese, it uses the system's fonts. `img/` holds five poster frames from the showcase films (`ffmpeg -ss … -frames:v 1`).
-- **The galaxy**: the opening galaxy draws the 31 style posters on a canvas, with no randomness (positions come from a seeded hash).
+- **The galaxy**: the opening galaxy draws the 32 style posters on a canvas, with no randomness (positions come from a seeded hash).
 - **The f(t) panel**: it draws its frame as a pure function of `t`. Its "Render it again" button redraws that frame right after another one and compares every pixel.
 - **Motion**: it stops when a section is off screen, and `prefers-reduced-motion` turns it off.

@@ -1,0 +1,47 @@
+{
+  "bpm": 150, "key": "F", "mode": "major", "seed": 230,
+  "meters": {"1": 4, "2": 1, "3": 3, "4": 2, "5": 3},
+  "stereo": true, "space": {"type": "room", "rt60": 0.35},
+  "sections": [
+    {"name": "assemble", "bars": 1, "chords": ["Imaj7"]},
+    {"name": "title", "bars": 1, "chords": ["IVmaj7"]},
+    {"name": "program", "bars": 1, "chords": ["ii7"]},
+    {"name": "hold", "bars": 1, "chords": ["Vsus4"], "stop": {"at": "1:2", "keep": ["clock", "harm"], "tail": 0.12}},
+    {"name": "apart", "bars": 1, "chords": ["Iadd9"]}
+  ],
+  "parts": [
+    {"inst": "guitar", "id": "mech", "sections": ["assemble", "title", "program", "hold"], "index": "section", "octave": 3,
+     "params": {"mute": true}, "gain_db": -5, "pan": -0.3, "send": 0.08,
+     "pattern": [[0, 0.25, "c0", 0.7], [0.5, 0.25, "c2", 0.5]],
+     "by_section": {
+       "assemble": {"pattern": [[0.25, 0.25, "c0", 0.75], [0.75, 0.25, "c2", 0.45], [1.25, 0.25, "c1'", 0.6], [1.75, 0.25, "c2", 0.45],
+                                [2.25, 0.25, "c0'", 0.65], [2.75, 0.25, "c2", 0.45], [3.25, 0.25, "c1'", 0.6], [3.75, 0.25, "c2", 0.5]]},
+       "program": {"pattern": [[0, 0.25, "c0", 0.75], [0.5, 0.25, "c2", 0.5], [1, 0.25, "c1'", 0.7], [1.5, 0.25, "c2", 0.5],
+                               [2, 0.25, "c0'", 0.75], [2.5, 0.25, "c2", 0.5]]}
+     }},
+    {"inst": "guitar", "id": "bass", "index": "section", "octave": 2, "gain_db": -9, "pan": 0.0, "send": 0.1,
+     "pattern": [[0, 1, "c0", 0.55]],
+     "by_section": {
+       "assemble": {"pattern": [[0.25, 3.5, "c0", 0.6]]},
+       "program": {"pattern": [[0, 3, "c0", 0.6]]},
+       "hold": {"pattern": [[0, 1, "c0", 0.55]]},
+       "apart": {"pattern": [[0, 3, "c0", 0.7]]}
+     }},
+    {"inst": "xylophone", "id": "cams", "sections": ["assemble", "title", "program", "hold", "apart"], "index": "section", "octave": 5,
+     "gain_db": -3, "pan": 0.2, "send": 0.15, "hit": "section",
+     "by_section": {
+       "assemble": {"pattern": [[0.25, 0.5, "c0'", 1.0], [1.25, 0.25, "c0", 0.5], [1.5, 0.25, "c1", 0.55], [1.75, 0.25, "c2", 0.6], [2.0, 0.5, "c0'", 0.7]]},
+       "title": {"pattern": [[0.25, 0.5, "c2", 0.55]]},
+       "program": {"pattern": [[0, 0.5, "c0", 0.85], [1, 0.5, "c1", 0.85], [2, 0.5, "c2", 0.9]]},
+       "hold": {"pattern": [[0, 1, "c1'", 0.55]]},
+       "apart": {"pattern": [[0, 0.25, "c2'", 0.8], [0.25, 0.25, "c1'", 0.7], [0.5, 0.25, "c0'", 0.65], [0.75, 0.25, "c2", 0.6],
+                             [1, 0.25, "c1", 0.55], [1.25, 1.5, "c0", 0.6]]}
+     }},
+    {"inst": "clock", "id": "clock", "sections": ["title", "program", "hold"], "pattern": "xo", "step": 8, "gain_db": -10, "pan": 0.35},
+    {"inst": "guitar", "id": "harm", "sections": ["hold", "apart"], "index": "section", "octave": 4, "gain_db": -6, "pan": -0.15, "send": 0.25,
+     "by_section": {
+       "hold": {"pattern": [[0, 2, "c0'", 0.7, {"harm": true}]]},
+       "apart": {"pattern": [[0, 3, "c0'", 0.75, {"harm": true}], [0.5, 2.5, "c2'", 0.6, {"harm": true}]]}
+     }}
+  ]
+}

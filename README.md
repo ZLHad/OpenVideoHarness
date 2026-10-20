@@ -32,7 +32,7 @@ This repo is that process and those checks, written as docs an agent can follow 
 - **Three stops for your sign-off.** Direction and outline, storyboard, first draft. Direction gets settled before any code is written, when changing it costs least. For a quick try, say so and it renders straight away.
 - **It checks its own work.** An agent can't watch video or hear sound, so it reads rendered frames and audio measurements against a 20-point checklist, and a second agent that didn't make the film scores it.
 - **Sound included.** Chinese and English voiceover, bilingual subtitles, a score and sound effects written as code, mixing and an audio check.
-- **A style library, and Blender.** 31 styles distilled from well-known films and design, each with a rendered sample, to borrow from rather than copy; and when a shot needs real glass, volumetric light or a million particles, the agent drives Blender with Python.
+- **A style library, and Blender.** 32 styles distilled from well-known films and design, each with a rendered sample, to borrow from rather than copy; and when a shot needs real glass, volumetric light or a million particles, the agent drives Blender with Python.
 
 It isn't a new rendering engine. It sits on top of HyperFrames, Manim, Remotion, p5.brush and Blender and tells the agent how to use them well.
 
@@ -93,7 +93,7 @@ https://github.com/user-attachments/assets/7fee4f5a-f081-4b7e-82a6-9be8be9f5b7e
 
 <sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/styles-gallery.mp4">Download</a></sub>
 </td>
-<td valign="top"><b><a href="styles/">The 31 styles in one reel</a></b> (about 1.5 s each)<br>The same content in 31 styles, each with its own music.<br><code>bin/vh style list</code> lists them; <code>bin/vh new promo launch-film --style cutout-jazz</code> attaches one as a reference.</td>
+<td valign="top"><b><a href="styles/">The 32 styles in one reel</a></b> (about 1.5 s each)<br>The same content in 32 styles, each with its own music.<br><code>bin/vh style list</code> lists them; <code>bin/vh new promo launch-film --style cutout-jazz</code> attaches one as a reference.</td>
 </tr>
 </table>
 
@@ -172,9 +172,9 @@ A few rules never relax ([CLAUDE.md](CLAUDE.md) has them all): every frame depen
 
 For realistic people or physics, combine generated video with code on top ([playbook/05](playbook/05-hybrid-genvideo.md)); for a story with an arc or anything over three minutes, [playbook/09](playbook/09-narrative.md); for opening hooks, titles and covers, [playbook/10](playbook/10-hooks-and-packaging.md).
 
-**Styles.** Left alone, AI video drifts toward one look: dark background, glow, glass cards. [`styles/`](styles/) holds 31 styles distilled from well-known work, among them Saul Bass title sequences, the Swiss grid, 3Blue1Brown, New York Times graphics, the halftone of *Spider-Verse*, Wes Anderson's symmetry, ink wash, Dunhuang murals, shadow puppetry and guochao. Each describes its colors, type, composition, motion, transitions and sound, and each was rendered as a 5-second sample of the same content:
+**Styles.** Left alone, AI video drifts toward one look: dark background, glow, glass cards. [`styles/`](styles/) holds 32 styles distilled from well-known work, among them Saul Bass title sequences, the Swiss grid, 3Blue1Brown, New York Times graphics, the halftone of *Spider-Verse*, Wes Anderson's symmetry, ink wash, Dunhuang murals, shadow puppetry and guochao. Each describes its colors, type, composition, motion, transitions and sound, and each was rendered as a 5-second sample of the same content:
 
-<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="The 31 style samples, all with the same content"></a>
+<a href="styles/"><img src="styles/gallery.jpg" width="820" alt="The 32 style samples, all with the same content"></a>
 
 A style is a reference, not a template: borrow one, mix several, or ignore them all. What's borrowed is the visual grammar, never the original's characters, logos or shots. More in [styles/README.md](styles/README.md) (in Chinese).
 

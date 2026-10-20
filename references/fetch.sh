@@ -117,5 +117,9 @@ textonly openfilm/examples                      openfilm-examples          # Ope
 textonly alchaincyf/huashu-art-motion           huashu-art-motion          # 艺术动画：风格配方卡加可运行的 Canvas 场景、9 种解说语法、qa / breakdown 脚本、风格作者规范（MIT；作者的卡通形象和角色帧、Clawd 形象不在 MIT 内，见其 README）
 textonly alchaincyf/huashu-design               huashu-design              # 设计 skill：品牌资产协议、设计方向顾问（三套逻辑）、反 AI slop 规则、HTML 出视频（MIT）
 
+# 等轴解剖图（见 references/community-skills.md 第 9 节；风格 styles/iso-anatomy）
+textonly wheresryan22/anatomy                   anatomy                    # 把概念做成一台能拆开的机器：凸零件、四阶明暗、只点亮一个部件、拆分弹簧、穿模和线端的审计（MIT）
+textonly annnguyentt/anatomy-reveal-skill       anatomy-reveal             # 用 Anatomy 工具包的 3D 模式拍产品揭示片：翻滚、甩镜、拆开、合拢，按位移自适应的运动模糊（MIT；template/kit 来自 Anatomy）
+
 [ -z "$SKIPPED" ] || echo "skipped (re-run later, e.g. bash references/fetch.sh <dir>):$SKIPPED"
 exit 0

@@ -1,6 +1,6 @@
 # 社区 skill 参考（2026-09-28）
 
-这份清单从 183 个社区视频 skill 里，按 OpenVideoHarness 当时的 8 个类型（01–08）挑出值得读的，并对已拉取到 `references/repos/` 的 16 个仓库逐个读了 README、LICENSE 和主 SKILL.md。它只回答"遇到某类视频时去哪个仓库找什么"，不替代 `open-source.md`（框架与引擎）和 `cases/`（案例拆解）。2026-09-29 又补了 Opus 5.5 发布周出现的 6 个仓库，它们不在那 183 个里面，见第 6 节；2026-10-10 补了 OpenFilm 的两个仓库，见第 7 节；2026-10-11 补了花叔（alchaincyf）的两个仓库，见第 8 节。
+这份清单从 183 个社区视频 skill 里，按 OpenVideoHarness 当时的 8 个类型（01–08）挑出值得读的，并对已拉取到 `references/repos/` 的 16 个仓库逐个读了 README、LICENSE 和主 SKILL.md。它只回答"遇到某类视频时去哪个仓库找什么"，不替代 `open-source.md`（框架与引擎）和 `cases/`（案例拆解）。2026-09-29 又补了 Opus 5.5 发布周出现的 6 个仓库，它们不在那 183 个里面，见第 6 节；2026-10-10 补了 OpenFilm 的两个仓库，见第 7 节；2026-10-11 补了花叔（alchaincyf）的两个仓库，见第 8 节。2026-10-21 补了 Anatomy 和 anatomy-reveal 两个等轴解剖图 skill，见第 9 节。
 
 - 下文"本地路径"都相对 `references/repos/`；写"未拉取"的只看过清单里的一句话描述，借用点标【推测】。
 - ⭐ 与许可证字段来自 `skills.json`（2026-09-28 生成）；标"本地核对"的以仓库里的 LICENSE / README 为准。标"清单外"的条目，⭐ 是 2026-09-29 在 GitHub 页面上读到的数，许可证读的是仓库里的 LICENSE。
@@ -327,6 +327,8 @@ lemomo-ai/lemo-opuscar（605⭐，2026-09-30）是作者 Lemomo（X 上是 @lemo
 | openfilm-examples | MIT（`82ce375`） | 可复用，保留声明 | 自制的歌曲、旁白、画面同为 MIT；字体 OFL；`one-prompt/src/px/` 改编自 mexicat/pdoom-video（MIT）；逐项见各例子的 `CREDITS.md` | 可复用（保留声明） |
 | huashu-art-motion | MIT（核对到 `9ff5933`，2026-10-10）。README"许可证"一节列了例外：笔顺数据 `scripts/engine/reference_films/spacex/spacex_wb/assets/strokes.js` 是 Arphic Public License（README 里写的是相对 `scripts/engine/` 的路径），`scripts/engine/lib/fonts/` 的字体是 OFL | 可复用，保留声明 | 作者的卡通形象和角色帧（`scripts/engine/demos/_shared/hero/`、`scripts/engine/demos/long_scroll/frames/`、`assets/角色/`），以及总览图、示范视频里的同一形象，只用于它自己的示范，不在 MIT 内；Clawd 是 Anthropic 的吉祥物，同人示范的 GIF 和成片同样不在 MIT 内；片中画作来自大都会艺术博物馆开放获取（CC0） | 代码和文字可复用（保留声明）；笔顺数据和字体按各自的许可用，保留许可文本；角色形象、Clawd 和示范视频不用 |
 | huashu-design | MIT（2026-05-14 起；更早的版本是"个人免费、企业商用要授权"；核对到 `0830494`，2026-09-22） | 可复用，保留声明 | `assets/` 里的背景音乐和 `demos/` 的媒体没逐个核对 | 可复用（保留声明）；媒体用之前单独核对 |
+| anatomy | MIT（Copyright 2026 Ryan；核对到 `1482e84`，2026-10-18） | 可复用，保留声明 | 示例的截图在 `.github/assets/`；`publish.md` 讲的是把作品发到它的社区画廊，那是对外发布 | 可复用（保留声明）；发布到画廊只在人要求时做 |
+| anatomy-reveal | MIT（Copyright 2026 Ann Nguyen；核对到 `dd01e1c`，2026-10-15）；`template/kit/` 来自 Anatomy（MIT，见其 `THIRD_PARTY_NOTICES.md`） | 可复用，保留两份声明 | 作者在 README 里请求署名（X 上的 @ann_nnng），MIT 本身只要求保留声明；README 说示例里提到的产品名归各自的所有者 | 可复用（保留声明，署名） |
 
 ---
 
@@ -411,3 +413,25 @@ athemeroy/awesome-opus-5-5-videos 是一份带来源的研究型目录：从 X �
 - `huashu-design/references/animation-pitfalls.md`、`verification.md`、`ai-video-review.md`：动画的坑、出片前自查、用视频模型看片【都未细读】。
 
 能借什么：art-motion 的作者规范，INDEX.md 里每种风格的"质量"和"当前短板"两栏（承认每种风格现在做到哪），以及 qa 的运动指标；huashu-design 的"先取齐真实素材再设计"。读到的东西要用进本仓库时，照本仓库的规矩改写，注明来源；代码不直接搬，作者的角色形象不碰。
+
+---
+
+## 9. Anatomy 和 anatomy-reveal（2026-10-21）
+
+两个 skill 讲同一件事：把一个东西画成等轴测的"解剖图"，零件多而真，能拆开，结构自己解释自己。Anatomy 做网页上的交互图（拖着转、悬停拆开、键盘驱动机构），anatomy-reveal 拿 Anatomy 工具包的 3D 模式拍产品揭示片。本仓库据此加了风格 `styles/iso-anatomy/`。两个仓库都已加进 `fetch.sh`（textonly）。⭐ 是 2026-10-21 在 GitHub API 上读到的数。
+
+| 仓库 | 本地路径 | ⭐（2026-10-21） | 许可 | 是什么 |
+|---|---|---|---|---|
+| [wheresryan22/anatomy](https://github.com/wheresryan22/anatomy) | `anatomy/`（textonly） | 17,404 | MIT，见第 5 节 | skill 加工具包：TypeScript / ESM 写 SVG 和 HTML，另有 React 组件、WebGL 着色器层、可选的 3D 模式、A4 打印；`examples/` 下 9 个示例，从千分表到火箭发动机试车台。2026-10-08 建 |
+| [annnguyentt/anatomy-reveal-skill](https://github.com/annnguyentt/anatomy-reveal-skill) | `anatomy-reveal/`（textonly） | 43 | MIT，见第 5 节 | 从一张照片或一个名字出发，按真实毫米建物件，出一张交互拆解页和一支 MP4 揭示片（9:16、4:5、1:1、16:9，30 fps，默认 10 s，3–60 s，无声）。`template/` 是一个完整能跑的项目（示例是 82 个零件的双锅炉咖啡机）。2026-10-15 建 |
+
+最值得读的几处（路径相对 `references/repos/`；标【未细读】的只看过文件名或别处的一句介绍）：
+
+- `anatomy/SKILL.md` 的 "The one idea that matters" 和 "Craft rules"：东西本身就是解释，两种失败（太抽象、太平太空）；零件不少于 40 个；线色分层，只有一个点亮的部件；线都落在实处，纹理沿真实的边结束；放大 4 倍自查；
+- `anatomy/references/motion.md` 的 "Exploded views"：每个装配体一个弹簧（火箭发动机示例用刚度 64、阻尼 14.2，略欠阻尼），错开 35 ms，外面的先走、合拢倒过来；中途反向时只重排要变的那几个；穿在一起的东西共用一个弹簧；按"前缀规则"排顺序，让任何一帧都没有零件穿过别的零件；
+- `anatomy/references/craft.md`（画家顺序、零件词汇）、`verify.md`（自查清单）、`3d.md`（3D 模式）【都未细读】；
+- `anatomy-reveal/references/shots.md`：10 s 揭示片的节拍表（0–1.62 s 翻滚入画，约 0.24 s 的甩镜，0.6–1 s 的停留，一个功能动起来，6.93 s 拆开，合拢，定格），改时长的规则（甩镜保持长度，其余段按同一比例伸缩），换画幅时的取景（`fitZoom`），按位移自适应的运动模糊（每帧 `ceil(速度 / step)` 个子帧，360° 快门；固定的 4:1 混合在甩镜时会看到分开的残影）；
+- `anatomy-reveal/references/object.md`：怎么建一台能转、能拆的物件：真实毫米、右手坐标系、零件都是凸的、只贴合不嵌入、外壳做成"盘子"好让里面的东西出来、沿出口方向前面的零件先走、各类零件走多远（内部 8–30 mm、外壳 30–60 mm、装饰 40–80 mm），用五个方向的 `scan-apart` 证明没有穿模；
+- `anatomy-reveal/references/inputs.md`、`objects.md`：从照片或名字到尺寸、功能和零件清单；曲面、软的、大的东西怎么用凸零件拼【未细读】。
+
+能借什么、和本仓库怎么分工：风格的语法收进了 `styles/iso-anatomy/STYLE.md`（样片的渲染器是另写的，没有复制它们的代码）。正式片要用它们的工具包，按硬规则 6 复制到项目里改，保留两份许可声明；它们自己的渲染（puppeteer 截帧、自己的编码）不经过 `bin/vh` 的混音和检查，出片前照常走 `bin/vh mix`、`bin/vh qa`、`bin/vh check`。Anatomy 能把作品发布到它的社区画廊，这是对外发布，只在人要求时做。
