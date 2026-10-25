@@ -18,9 +18,17 @@
 2. 推送前跑 `tools/ci.sh --committed`，全部通过才推。它在一份干净的检出上检查 HEAD，结果和 CI 一致；工作区里没提交的改动不算数。修 bug 要先复现，再证明修好，前后对比写进 PR。
 3. PR 一律开成草稿。合并由人决定：人在对话里明确让 agent 合并时，agent 先确认 CI 全绿、自己审过 diff，再用 squash 合并。人让 agent"检查通过后合并"时，agent 审过 diff、把草稿转成正式 PR 后，可以打开 auto-merge（squash），不用守着 CI：必需的检查都通过后由 GitHub 合并，有一项失败就不合。规则集允许管理员在 PR 里"绕过规则合并"，这个开关只留给人用，agent 不碰。
 4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。视频不进 git（风格样片 `swatch.mp4` 除外）：成片、样片集锦这类文件放在 GitHub Release `media`，`tools/media.txt` 登记它们在仓库里的路径、文件名和 sha256，`tools/fetch_media.sh` 按它下载。往这个 Release 里放文件是维护者的事，agent 只在维护者要求时做。换一个文件时用新文件名上传（例如 `intro-film-1080p-v2.mp4`），在同一个 PR 里改 `tools/media.txt` 和引用它的链接，合并以后再删旧文件；不要覆盖 main 还在引用的文件，否则在合并之前，按 main 的校验和下载会失败。README 里要直接播放的短片段走 GitHub 的附件链接（每个不到 10 MB）。`tools/ci.sh` 会拦住视频和超过 8 MB 的文件。
-5. 用户能感知到的改动，在 `CHANGELOG.md` 的 Unreleased 里记一笔。改了 `CLAUDE.md`，跑 `bin/vh sync-agents` 重新生成 `AGENTS.md`。
+5. 用户能感知到的改动，在 `CHANGELOG.md` 的 Unreleased 里记一笔。改了 `CLAUDE.md` 或 `tools/commands.json`，跑 `bin/vh sync-agents`：它按命令表写好 `CLAUDE.md` 的命令行，再重新生成 `AGENTS.md`。
 6. 提交信息写清改了什么、为什么。末尾可以带 `Co-Authored-By:` 署名行。
 7. PR 说明里写"其余都没问题"之前，把涉及的每个子命令真跑一遍。只改措辞的 PR 也要逐句查行为变没变（#62 的评审就查出过一条底线和类型文档的阅读范围被顺手改了）。
+
+## 加命令、加状态
+
+`bin/vh` 的命令都登记在 `tools/commands.json`：名字、一句话、什么时候用、读什么写什么、属于 playbook/01 总表的哪个阶段（0–9；不属于某支片子的记 `env`，任何阶段都用的记 `any`）、用法和子命令。`bin/vh -h`、`bin/vh <命令> -h`、`bin/vh commands` 和 `CLAUDE.md` 的"命令行："那一行都从它生成。加一条命令：在 `bin/vh` 末尾的分发里加一个分支，在表里加一项，再跑 `bin/vh sync-agents`；`tools/ci.sh` 查这三处对得上。这张表是 agent 找工具的入口，以后也是 Studio 命令面板的入口，`bin/vh commands --json` 的字段只加不改。
+
+- **新命令按阶段或题目成组，不再往顶层加动词。** 一组相关的事做成一条命令带子命令，像 `assets add|list|check`、`scout`、`sfx` / `bgm` 这样；子命令记进表里的 `subcommands`。
+- **新命令的参数只写在 `-h` 和 `--json` 里。** 说明写进表里的 `usage`（`bin/vh <命令> -h` 打印它）或工具自己的 `-h`；机读的输出给 `--json`，字段名写进 `-h`，以后只加不改。README 里每条命令最多一行，说它干什么，不解释参数。
+- **新的状态写进机器可读的文件，项目根目录不再加 markdown。** 给工具读的放 JSON（追加的记录用 JSONL，像 `.ovh/activity.jsonl`），带 `"version": 1`，`bin/vh status --json` 能汇总；人写的想法和决定仍然写在模板现有的那几份 markdown 里。
 
 ## 推送前自查：`tools/ci.sh`
 
@@ -45,7 +53,7 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 | shell 语法、shellcheck | 语法错误、未加引号、ffmpeg 在 `while read` 循环里吃掉 stdin |
 | 只在一个平台存在的命令 | `sed -i ''`、`stat -f`、`md5 -q` 这类只在 macOS 能用的写法（在 Linux 上会让样片渲染和建项目直接失败），以及只在 Linux 能用的 `stat -c`、`readlink -f`、`grep -P` |
 | Python、JS 语法和 pyflakes | 语法错误、未定义的名字 |
-| 文档和命令行一致 | `CLAUDE.md` 的命令列表和 `bin/vh` 实际的命令对不上；文档里写了不存在的 `bin/vh` 子命令；`AGENTS.md` 没有同步 |
+| 文档和命令行一致 | 命令表 `tools/commands.json`、`CLAUDE.md` 的命令行和 `bin/vh` 实际分发的命令对不上；表里缺一句话、阶段或用法，阶段名和 playbook/01 的总表不一致；文档里写了不存在的 `bin/vh` 子命令；`AGENTS.md` 没有同步 |
 | `bin/vh` 冒烟测试 | 打错命令也返回 0；`--effort`、`--style` 没写进项目；字幕语言被文件夹名带偏（`/home/zhang/…` 下的英文字幕被标成中文）；音频比画面短时被截断；gif 输出名算错 |
 
 另外，`tools/ci.sh` 会打印一张读量表（`tools/readpath.py`）：按 CLAUDE.md 的路由和 quick 卡，估算每一档、每一类片子开工前要读多少字符，用来看文档有没有越写越长，上限以后再定。数字本身不判失败；它要数的文件或章节不见了，CI 会报错，免得这张表悄悄变小。

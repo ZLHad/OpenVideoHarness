@@ -254,7 +254,7 @@ Skill only: `npx skills add https://github.com/ZLHad/OpenVideoHarness --skill op
 | The style library, shot recipes, case studies | [styles/](styles/README.md), [recipes/](recipes/README.md), [cases/](cases/README.md) |
 | The repo's own films, with every step on record | [showcase/](showcase/) |
 | What we measured, and what changed because of it | [docs/research/](docs/research/en/README.md) |
-| The CLI | `bin/vh help`; any subcommand with `-h` |
+| The CLI | `bin/vh commands`: each command by pipeline stage, what it is for and when; `bin/vh help`; any subcommand with `-h` |
 | Tutorials, troubleshooting, FAQ | the [wiki](https://github.com/ZLHad/OpenVideoHarness/wiki) |
 
 Most of the workflow docs are in Chinese; the READMEs, the wiki and the research notes have English versions, and agents read either language.
