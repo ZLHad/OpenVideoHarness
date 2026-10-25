@@ -1,199 +1,9 @@
 #!/usr/bin/env bash
 # vh — OpenVideoHarness helper. Run from anywhere: bin/vh <command>
-#  set up
-#   doctor [project]            check the toolchain (node, ffmpeg, chrome + a headless WebGL probe, python/uv, latex) and what the first runs still download;
-#                               with a canvas-film or hand-drawn project: its copy of the engine against the engine now, changed, missing and extra
-#                               files and the command to see a file's diff (read-only; exit 1 when it differs)
-#   setup                       install ClaudeAnimationBase deps + fetch reference repos
-#   install-skill [claude|codex|all]  register the open-video-harness skill (~/.claude/skills, ~/.agents/skills)
-#   sync-agents                 regenerate AGENTS.md from CLAUDE.md (keep both agents' entry points identical)
-#  make
-#   types                       list video types and their docs
-#   effort [quick|standard|studio]  how much iteration, review and polish each level means (CLAUDE.md and playbook/01 "努力程度")
-#   new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film] [--dir <folder>]
-#                               create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);
-#                               --engine canvas-film: the narration-driven canvas engine instead, any type, 16:9 (engines/canvas-film/README.md);
-#                               --aspect: short/promo/data/meme only (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only); --lang: the review pages' language (default zh; set it from the user's first request);
-#                               --dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness
-#   style list | <preset> [--draft] | gallery [--mp4] [--readme] | check <preset>   style library: list presets, render a 5 s swatch, build styles/gallery.jpg
-#                               (the swatch render's other options: styles/_swatch/render.sh -h)
-#   recipes list [--intent X --energy N --engine E …] | check [file…]   shot recipes (recipes/): filter by frontmatter, validate it
-#   assets [list] <project> [--json] | assets add <project> <file|folder|url> [--license L] [--origin O] [--source-url U] [--author A] [--aigc] [--model M] [--cost "$0.04"] … [--update] [--json]
-#          | assets check <project> [--policy strict|record] [--film <video> | --all-films] [--json] | assets credits <project> [--lang zh|en] [--out f] [--json]
-#          | assets remove <project> <id> [--why text]
-#                               the project's material, one record a file in assets/ledger.json (tools/assets): where it came from, its licence and
-#                               the class it falls in, its sha256, AIGC, model, prompt, seed, cost; add downloads a URL first (resumable, --sha256,
-#                               --rate, --offline); check: each file there and unchanged, its licence one the BRIEF's Assets policy takes (strict:
-#                               NC, ND, BY-SA and unknown fail; record: listed), then both ways against the films (each .render.json lists the files
-#                               its page loaded; the newest film of each page) and the mixes: material a page loaded that the ledger lacks fails,
-#                               a record nothing uses is said;
-#                               credits: the credit lines and the AI-content notice; list ends with the spend against the BRIEF's Budget
-#                               (assets/spend.jsonl; no budget, no paid call)
-#   hf-init <dir> [frame]       scaffold HyperFrames into a project safely (no global skill install); frame: landscape|portrait|square|4:5|3:4
-#                               (the composition size; 4K is a render flag, render --resolution 4k, not a frame)
-#  decide: pictures and pages for the human
-#   storyboard <project> [--shots JSON|page.html] [--video v.mp4 | --snapshot] [--unsure S02,S04]   labelled pages from shots.json or film.html: one per segment + overview (+ review.json)
-#   rhythm <project> [--shots JSON|page.html] [--segment NAME | --from s --to s] [--max s]   rhythm map: shots, narration and captions, music; too-long shots and failed reads in red
-#   style compare a,b,c [--frame t] | style apply <preset[,preset]> <project>   presets side by side (posters, or swatch frames at t) / attach presets to a project as references
-#   cover-preview <image> [more…] [--text-px N]   a cover at real feed sizes (Bilibili, Douyin, YouTube, Xiaohongshu) + a small-size legibility check
-#   review <project> [gate]     decision-first review page: out/review/gate-<gate>.json → gate-<gate>.html (+ index.html); prints the chat message (playbook/01-pipeline.md, 审阅页)
-#   gate <project> [n] [--desk|--page|--chat] [--wait] [--timeout s]   a stop in one command: checks out/review/gate-<n>.json, builds
-#                               the review page and makes it this round, opens the review desk when the stop is reviewed there
-#                               (LOCAL.md's 审阅方式; else studio: desk, standard and quick: page), prints the chat message;
-#                               --wait (desk): then waits for the submission like desk wait (tools/gate.py)
-#   desk <project> [--port N] [--idle s] | desk wait <project> [--timeout s] | desk feedback <project> [--round r] [--json] | desk data <project>
-#                               the review desk (studio's review surface, tools/desk/README.md): a local page on 127.0.0.1 where the reviewer
-#                               ticks, comments and submits; wait: block until they submit, print it, exit 0 (an agent runs it in the background);
-#                               feedback: the latest submission; data: what the desk reads from the project, as JSON
-#  where a project stands
-#   status <project> [--json]   each stop (gates ①②③, the checkpoints in use, delivery) done, skipped, waiting for the person,
-#                               waiting for the agent, in progress or not started, from the files: the gate pages, the desk's
-#                               submissions, REVIEW.md's decisions; who is waited on, the latest renders and the last check, open
-#                               review items, the material on record and the spend (bin/vh assets), what runs now (tools/status.py; --json: the
-#                               fields in tools/desk/README.md)
-#   activity <project> [--json] [--follow] [--limit N]   what bin/vh did there: a line per command (when, how it ended, how long,
-#                               a summary, what it wrote; a render's progress while it runs), from <project>/.ovh/activity.jsonl,
-#                               which every command on a project appends to (tools/activity.py); --follow: as it happens
-#   versions <project> [--json] | versions compare <project> <vA> <vB> --t <s> [--wipe [0.5]] [--out f.png] [--json] | versions use <project> <vN>
-#                               every film render and patch made there, one version each (out/versions/versions.json: when, the
-#                               file, how it was made, what it follows, the spans and shots changed, its check); compare: the
-#                               frame at --t of two versions side by side or as a wipe PNG, with the PSNR (from the encoded films);
-#                               use: an earlier version is the current film again, the one there now kept (tools/versions.py)
-#  sound
-#   tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json] [--align gemini] [--join block|all [--candidates N]] [--resume]  voiceover from audio/script.txt
-#                               (中文 || English; [direction] per line; lines snap to beats; @speakers A=Kore B=Puck + "A: …" lines = a dialogue;
-#                               --align gemini: word timestamps + ASR-vs-script check per line; --join: several lines per request;
-#                               --candidates N: N takes a block, the one nearest the narration's median voice kept (N × the synthesis);
-#                               warns of a line far off the take's seconds per character, and (with --align) of a phrase heard twice;
-#                               --resume: continue the last run after a failed synthesis or transcription, same script and command)
-#                               providers: qwen (default, local open-source Qwen3-TTS) | say | edge | dashscope | elevenlabs | gemini | gemini-lite | minimax
-#   pace <project> [zh|en] [--ref <id>[-<id>] | --target N | --relative ±P%] [--strength 0.8] [--clamp 0.92,1.18] [--tolerance 0.05] [--pause 0.26] [--comma 0.12] [--stop 0.25] [--extra id=s,…] [--align map|gemini|whisper] [--dry-run] [--restore] [--skip-lint]
-#                               optional: bring the pace of the lines in one take closer (part of the way, natural variation kept), no new synthesis;
-#                               pace = the speech rate (pauses left out); --comma/--stop: pause floors, a shorter silence at the mark is lengthened
-#                               (the voice untouched); --relative: the current take that much faster or slower;
-#                               --dry-run only measures (the speech rate and the rate with pauses). The original stays as voiceover.<lang>.raw.wav; captions are redone;
-#                               a timeline that fails bin/vh timeline is refused (--skip-lint to go on; --restore never stops on one)
-#   voices list [lang] | design "<description>" [--out f.wav] | delete <voice_id>   Gemini voice library / voice design
-#   voices audition --provider <p> --voices a,b,c --text f.txt [--lang zh|en] [--align gemini] [--out dir]   the same text in each voice:
-#                               a WAV each + audition.json (pitch median, speech rate, misread words with --align gemini) for a review page
-#   captions <project> [zh|en] [zh-max] [--en-max 42] [--cards] [--cps 9] [--media-end S] [--skip-lint]  SRT (zh / en / bilingual) + captions.json
-#                               from the TTS timeline, broken at word boundaries (jieba through uv) and audio/capbreaks.json; --cards: one line a
-#                               caption, cut there and timed by the words, never across a sentence end; a caption under its minimum (1.8 s, or its
-#                               Chinese at --cps a second, other text at 20) is lengthened into the gap after it, up to the picture's end (--media-end, else index.html's data-duration,
-#                               media/final.mp4, the timeline); two less than 0.25 s apart touch;
-#                               a timeline that fails bin/vh timeline is refused (--skip-lint to go on)
-#   timeline <project|timeline.json> [zh|en]  the narration timeline's checks: lines in order, word times forward and inside their line, the words
-#                               spelling the line's text (exit 1 on a problem); tts prints them, captions and pace refuse a timeline that fails
-#   remap <file.json> --from old.timeline.json --to new.timeline.json [--keys t,start,end,at,time] [--out f] [--skip-lint]   seconds typed into a
-#                               sound script or an events list, moved to a new take of the narration through the words both timelines share;
-#                               without --out the file is rewritten and the original kept as <file>.bak (refused when a .bak is there);
-#                               lines rewritten, gone or reordered are listed with the times that fall on them
-#   timemap check <map.json> [--save] [--out f]   a time map (film time against a data axis, events with ids): its knots and
-#                               events checked, its recorded sources compared, what moved since --save (exit 1: a source changed; 2: a bad map)
-#   beats <audio> [out.json] [--lift-window 2] [--lift-dip 6]   beat grid (bpm, offset, beats, downbeats) + hits, kick/snare accents (librosa),
-#                               + lifts: candidate "breath, then the hit" points (a dip in the level, then a downbeat or a strong hit)
-#   music <score.json> <out.wav> [--length s|auto] [--roll] | music --example [name|list] | music --instruments   code-composed soundtrack + exact beat/section map
-#                               --length: end exactly there with a musical fade (auto: where the last bar ends); --roll: piano roll + energy curve per part (PNG)
-#   sfx lib <dir> | sfx place <events.json> <out.wav> [dur]   built-in SFX library / place SFX on action times (stereo, pan/dist)
-#                               each event of a built-in gets a variant, a step along its film's walk for that sound (pin one:
-#                               "variant": n), and can be shaped to its move: dur, pitch|center, dir up|down, bright, tone,
-#                               pan_from/pan_to (tools/audio/sfx.py has the details); sfx lib also writes sfx-lib.json
-#   sfx audition <name|all> [n=8] [dur=… dir=…] [--walk] [--out f.wav] [--png]   hear a family: n variants 0.6 s apart (--walk: one
-#                               film's n in a row) + a line each (+ spectrogram)
-#   mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]   3-bus mix, music ducks under the voice (duck=on: + SFX), −14 LUFS
-#   mix <out.wav> profile=explainer|short|promo|cartoon|mv|swatch [voice=…] [music=…] [events=… lib=…] [timeline=…] [stems=DIR]
-#                               a level hierarchy from one anchor (the narration, else the music): VMR per line, SFX classes, depth
-#   qa <mix> [beats.json] [events.json] [--stems DIR]  final-mix QA: silence, dropouts, pumping, clicks + cue check (+ qa mix) (exit 1 on fail);
-#                               a dropout, dip or click burst the score asks for: confirm it in the project's confirmed.json (the confirm? line)
-#   qa mix <stems dir>          the mix report of a profile mix: VMR per line, words at risk, SFX classes, depth (exit 1 on a hard miss)
-#   mux <video> <audio> <out> [--subs-off] [--allow-short|--allow-long] [subs.srt…]  audio track (+ soft zh/en subtitle tracks) onto a rendered video, moov first
-#                               verifies tracked mix inputs/output; >0.1 s padding/trimming needs --allow-short/--allow-long
-#                               (--subs-off: no subtitle track starts switched on, for a picture with burned-in captions)
-#  check
-#   readcheck <texts.json|project|index.html> [--pace relaxed|normal|brisk] [--mode onscreen|label|subtitle] [--lang zh|en]  reading time, no fixed seconds:
-#                               FAIL under one brisk read (CJK/7 + other/20 + 0.8 s, at least 1.5 s; exit 1), WARN under the target of the BRIEF's
-#                               Pace (exit 0); subtitles within reading speed. data-read="subtitle"|"label" and data-pace="…" mark clips
-#                               readcheck --budget <s>: how many characters fit in a span · readcheck <page.html|project> --export [--out f] [--force]: export timed text without checking; canvas-film --out f saves and checks
-#                               a canvas-film project (film.html): reads and captions from window.film.texts; normal checks use a temporary snapshot
-#   textcheck <project|page.html> [--texts f.json] [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12] [--ui-step 1] [--ui-share 0.002] [--out dir] [--soft-gl] [--frame-timeout 120] [--timeout 900]
-#                               text drawn into a canvas, which npx hyperframes check cannot see: a read covered by the picture (under 70% of it
-#                               shows), under 3:1, outside or cut by the frame, or under a DOM caption (exit 1); canvas text outside the registry
-#                               and captions over a bright picture warn, and so does a scene drawing under the interface (a page with window.film.ui(t)
-#                               and frame(t, { layer: "scene" })). The composition opts in with window.film = { frame(t), duration, texts? }
-#                               (engines/CONTRACT.md; the older window.__vh = { draw(t), texts? } still works)
-#   frames <project|page.html> (--at t,t… | --range a:b[:step] | --strip a:b | --covers[=A,B] [--no-title] [--ratios 9:16,3:4]) [--fps 30] [--out dir] [--size WxH] [--dpr 2] [--real-clock]
-#                               frames drawn from the source through the page contract (window.film, engines/CONTRACT.md), for any web-page
-#                               engine: ClaudeAnimationBase, a page that writes window.film, HyperFrames (a composition without it gets its own
-#                               runtime); lossless PNGs in <project>/out/frames; --strip: every frame of a span and one picture of them all;
-#                               --covers: the page's covers (window.film.covers; canvas-film COVERS, picked by cue) in <project>/out/covers
-#                               (--no-title: without their titles, <id>-clean.png; --ratios: each ratio a crop of the cover with its own title, <id>-9x16.png)
-#   render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b | --frames k0:k1] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png]
-#          [--estimate | --no-estimate] [--note text]
-#                               an MP4 drawn through the page contract (the canvas engine, ClaudeAnimationBase, any page that writes
-#                               window.film): one-GOP chunks that the --workers browsers take in turn, each into its own x264, BT.709 tv
-#                               range, a keyframe every --gop frames, <out>.render.json records how (and every file the page loaded, for
-#                               bin/vh assets check); video only (sound: mux). Stopped or
-#                               failed, the finished chunks stay: the same command resumes while the page, its files and the options are
-#                               unchanged. Over 600 frames it first draws a few and prints the time, size and disk the render needs
-#                               (refused when the disk cannot hold it; --no-estimate skips). Says when --fps is not the page's own
-#                               (window.film.fps). A relative --out is from the current folder. HyperFrames: npx hyperframes render
-#                               (--force to render it here anyway).
-#                               A whole standard or studio film waits for gate ① on record (tools/gatecheck.py); --range and --frames do not.
-#                               In a project each render is a version (bin/vh versions): the film it replaces is kept in out/versions/
-#   patch <film.mp4> (--frames a-b | --seconds s-e | --shot S04,S05 | --chapter c2)… [--sidecar f.render.json] [--out f | --in-place] [--workers 4] [--frame-timeout 120] [--verify seams|full] [--note text]
-#                               draw frames a–b of a bin/vh render film again and put them back, the rest untouched: cut on its keyframes
-#                               (its .render.json says how it was made), joined, sound and subtitles kept; checks the frame count, that every
-#                               packet and pixel outside is the film's, decoding, and that the frames drawn again outside a–b came back the same
-#                               (exit 1: the new film is kept as <film>.failed.mp4, or .failed-2.mp4 … when that is there, the film untouched);
-#                               without --out: <film>.patched.mp4.
-#                               --shot / --chapter: their frames from shots.json or the page's window.film.shots / chapters (through the
-#                               next cut's transition); lists and mixes are the union. In a project the result is a version (bin/vh versions)
-#   determinism <project|page.html> [--at t,t…] [--samples 6] [--min-psnr 45] [--frame-timeout 120]   is each frame a function of t? draws the same t
-#                               in one browser in two orders and in a second browser, compares them, and again with the real clock
-#   fonts check <project|page.html> [--step 0.5] [--at t,…] [--allow-fallback "Apple Color Emoji"] [--strict] [--out dir] [--frame-timeout 120]   is every character drawn
-#                               in the font it asks for? A font without a character falls back to another font, or to none (an empty glyph),
-#                               silently: this draws the film at sampled times, notes the canvas and DOM text and asks the browser which
-#                               font draws each character (exit 1 on any; out/check/fonts.json). bin/vh render says so too
-#   fonts list [words…] [--cjk] | fonts subset <project|page.html> [--family F] [--font file|name] [--out dir]   the faces on this
-#                               machine by the names local() takes; the page's local() fonts cut to the characters the project uses (woff2)
-#   cues <project|page.html> [--save] [--out f] [--chapters] [--frame-timeout 120]   where the page's cues landed (window.film.cues: times hung on the narration's
-#                               words), in order; --save keeps them in out/cues.json with the timeline's sha256, and a later run says
-#                               which cues a new take moved and by how much; --chapters: the chapter list for a description (out/chapters.txt)
-#   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
-#   proxy <film|project> [--size 360] [--gop N] [--crf 28] [--full] [--out dir] [--json]   a small copy of the film to scrub: --size px
-#                               on its short side, a keyframe every fifth of a second, no B-frames, its sound (out/proxy/<name>.mp4 and
-#                               .mp4.json); run again after patches in place, only the windows around the frames drawn again are encoded
-#   thumbs <film|project> [--every 2] [--width 160] [--shot-width 320] [--full] [--out dir] [--json]   a tile every --every seconds in
-#                               10x10 sheets, a picture a shot (shots.json or window.film.shots), and thumbs.json mapping each to its
-#                               time and place (out/proxy/<name>.thumbs/); from the film's proxy, the film, or the page (tools/proxy.py)
-#   check <video> [--allow t,t…] [--against <ref.mp4>] [--json]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) + gate ①
-#                               on record in a standard or studio project (REVIEW.md, DECISIONS.md; exit 1 without it) + the
-#                               publishing copy in PACKAGING.md against the platforms' length limits (a warning) +
-#                               subtitles (its tracks and the .srt beside it) shorter than it takes to read them (a warning) +
-#                               black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any not
-#                               confirmed in the project's confirmed.json (a designed flash: why, evidence, and the key the scan prints,
-#                               which lapses when the picture there changes) nor declared for this run with --allow <seconds or spans a-b>;
-#                               evenly spaced ones are periodic motion, said, not failed) + motion (hard cuts from dark to bright, still stretches of 3 s or more: warnings) + colour tags; --against: a 4K render vs the approved 1080p cut
-#                               (exit 1 when the picture differs: a layout that breaks at device scale 2). The result is kept in the
-#                               video's project as out/check/<name>.check.json (bin/vh status reads the last; with the video's size and
-#                               mtime_ns as the checks began, so a film put back later with an old modification time, or in its place
-#                               meanwhile, is told from the one checked); --json prints it instead
-#                               of the lines above (those go to stderr): each finding's kind, severity, time and frame, message,
-#                               evidence and whether confirmed.json covers it (tools/checkrec.py); the exit status is the same
-#   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
-#  deliver and tidy
-#   deliver <master.mp4> [--for bilibili,douyin,youtube] [--max-gb N] [--crf 16] [--out f] [--psnr sample|full|off]   the copy to upload:
-#                               the bit rate a platform's file limit leaves for the picture (playbook/10, 交付编码): CRF 16 under it, or two
-#                               passes at it when the master's own rate is over it;
-#                               a keyframe every 2 s, BT.709, sound and subtitles copied; the size against each limit, the PSNR against the master;
-#                               a record beside the copy (<copy>.deliver.json) that bin/vh clean reads: the copy and its master stay as the film
-#                               (in a project with an asset ledger, also bin/vh assets check's verdict, said and never stopping it, and the
-#                               credits and the AI-content notice the upload owes)
-#   clean <project> [--yes] [--delete] [--keep path …] [--final f] [--keep-versions N]   a finished project's intermediates (frames, check frames, render
-#                               chunks, proxies, drafts, old takes, stems, node_modules, the earlier versions in out/versions but the newest
-#                               --keep-versions N of each film) to the Trash; the film (and what bin/vh deliver made from it),
-#                               covers, captions, review pages, check records, sources, docs and the narration in use stay. Without --yes it only lists them;
-#                               --delete deletes what the tools can make again
+# Every command is in tools/commands.json, under the stage of playbook/01's pipeline it is used in, with its usage and
+# what it is for, reads and writes: bin/vh -h prints every usage, bin/vh <command> -h one, bin/vh commands what each is
+# for and when (tools/commands.py). A new command is a case in the dispatch at the end and an entry there; tools/ci.sh
+# holds the two, and CLAUDE.md's 命令行 line (bin/vh sync-agents writes it), to each other (CONTRIBUTING.md, 新命令).
 set -euo pipefail
 unset CDPATH   # an exported CDPATH would send a relative cd (this one: bin/vh run as bin/vh) to another folder, and print it
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -237,46 +47,54 @@ await b.close(); if (!r) process.exit(1); console.log(r);')
 }
 cmd_doctor() {
   # doctor <project>: the project's copy of its engine against the engine now (tools/engine_copy.py; read-only)
-  if [ $# -gt 0 ]; then python3 "$ROOT/tools/engine_copy.py" "$@"; return; fi
-  local mac="" chrome r gl sb=--no-sandbox; [ "$(uname)" = Darwin ] && { mac=1; sb=""; }
-  hint() { if [ -n "$mac" ]; then printf '%s\n' "$1"; else printf '%s\n' "$2"; fi; }   # $1 on macOS, $2 elsewhere
-  chk() { if command -v "$1" >/dev/null 2>&1; then echo "$c_ok $1  $($2 2>&1 | head -1)"; else echo "${4:-$c_no} $1  ($3)"; fi; }   # $4: the mark when missing
-  local nv; nv=$(node -v 2>/dev/null | sed 's/v//;s/\..*//' || echo 0)
-  if [ "${nv:-0}" -ge 22 ] 2>/dev/null; then echo "$c_ok node  $(node -v)"; else echo "$c_no node ≥22 required (found: $(node -v 2>/dev/null || echo none))"; fi
-  chk ffmpeg "ffmpeg -version" "$(hint "brew install ffmpeg" "sudo apt install ffmpeg, or your package manager")"
+  case "${1:-}" in ""|-*) ;; *) python3 "$ROOT/tools/engine_copy.py" "$@"; return ;; esac
+  # this machine: tools/doctor.py reads tools/modules.json and reports; bin/vh hands it what its own finders find (the
+  # browser the page tools take, the chrome-headless-shell HyperFrames pins) and the WebGL probe, which runs only here
+  command -v python3 >/dev/null 2>&1 || { doctor_bare "$@"; return 0; }
+  local a skip="" live="" rec=""
+  for a in "$@"; do   # a usage error is said at once (by doctor.py), before the probe below
+    if [ -n "$skip" ]; then skip=""; continue; fi
+    case "$a" in -h|--help) exec python3 "$ROOT/tools/doctor.py" -h ;; --json) ;; --probe) live=1 ;; --offline=*) rec=1 ;; --offline) rec=1 skip=1 ;;
+      *) exec python3 "$ROOT/tools/doctor.py" "$@" ;; esac
+  done
+  [ -z "$rec" ] || [ -n "$live" ] || exec python3 "$ROOT/tools/doctor.py" "$@"
+  local chrome hfc pin sw="" r gl sb=--no-sandbox gpu=--use-gl=angle
+  [ "$(uname)" = Darwin ] && { sb=""; gpu=--use-angle=metal; }
   chrome=$(chrome_path) || chrome=""
-  [ -n "$chrome" ] && echo "$c_ok chrome  $chrome" || echo "$c_no chrome  ($(hint "install Google Chrome" "sudo apt install chromium, or npx playwright install chromium"), or set CHROME_PATH)"
-  chk python3 "python3 --version" "needed for audio analysis / Manim"
-  chk uv "uv --version" "$(hint "brew install uv" "curl -LsSf https://astral.sh/uv/install.sh | sh"); bin/vh tts, beats, music, sfx, qa, sheet and mix profiles run through it, Manim envs too"
-  chk latex "latex --version" "optional: $(hint "MacTeX: brew install --cask mactex-no-gui" "TeX Live: sudo apt install texlive-latex-extra"), needed for Manim MathTex" "$c_wa"
-  chk git "git --version" "needed by references/fetch.sh"
-  [ -d "$ROOT/engines/ClaudeAnimationBase/node_modules" ] && echo "$c_ok ClaudeAnimationBase deps installed" || echo "$c_wa ClaudeAnimationBase deps missing → bin/vh setup"
+  [ -d "$ROOT/styles/_swatch/node_modules/hyperframes" ] && sw="$ROOT/styles/_swatch"   # the HyperFrames the repo installs: the version it pins
+  hfc=$(hf_chrome "$sw") || hfc=""; pin=$(hf_pin "$sw") || pin=""
   # a real headless WebGL2 context with render.mjs's default flags; Linux without a GPU only gets one in software (--soft-gl)
-  if [ -z "$chrome" ] || [ ! -d "$ROOT/engines/ClaudeAnimationBase/node_modules/puppeteer-core" ]; then echo "$c_wa WebGL probe skipped (needs Chrome and the ClaudeAnimationBase deps)"
-  elif r=$(webgl_probe "$chrome" $sb --ignore-gpu-blocklist "$(hint --use-angle=metal --use-gl=angle)" 2>/dev/null); then
-    case "$r" in *SwiftShader*|*llvmpipe*) gl=software ;; *) gl=GPU ;; esac; echo "$c_ok WebGL ($gl)  $r"
-  else
-    echo "$c_wa no WebGL with the GPU flags → render with node render.mjs --soft-gl"
-    if r=$(webgl_probe "$chrome" $sb --ignore-gpu-blocklist --use-angle=swiftshader --enable-unsafe-swiftshader --disable-accelerated-2d-canvas 2>/dev/null)
-    then echo "$c_ok WebGL with --soft-gl  $r"; else echo "$c_wa no WebGL with --soft-gl either: WebGL scenes will not render on this machine"; fi
-  fi
-  # reference repos: how many of the ones references/fetch.sh lists are here (install.sh --no-refs skips them)
-  local want have=0 d
-  want=$(grep -cE '^(full|sparse|textonly)[[:space:]]' "$ROOT/references/fetch.sh" || true)
-  for d in "$ROOT"/references/repos/*/; do [ -d "$d.git" ] && have=$((have + 1)); done
-  if [ "$have" -ge "$want" ]; then echo "$c_ok references fetched ($have/$want repos, $(size_of "$ROOT/references/repos"))"
-  else echo "$c_wa references: $have/$want repos fetched → bash references/fetch.sh (all $want: about 195 MB; agents read them for the case studies)"; fi
-  if [ ! -f "$ROOT/LOCAL.md" ]; then echo "$c_wa no LOCAL.md → cp LOCAL.example.md LOCAL.md and fill it in"
-  else   # a copied template still has its {…} placeholders
-    local ph; ph=$(grep -c '{[^}]*}' "$ROOT/LOCAL.md" || true)
-    if [ "${ph:-0}" -gt 0 ]; then echo "$c_wa LOCAL.md still has $ph template line(s) with {…} placeholders → fill them in (this output goes on the 已装工具 line)"
-    else echo "$c_ok LOCAL.md filled in"; fi
-  fi
-  if [ "$(agents_body)" = "$(tail -n +4 "$ROOT/AGENTS.md" 2>/dev/null)" ]; then echo "$c_ok AGENTS.md in sync with CLAUDE.md"; else echo "$c_wa AGENTS.md out of sync → bin/vh sync-agents"; fi
-  doctor_downloads
+  if [ -z "$chrome" ] || [ ! -d "$ROOT/engines/ClaudeAnimationBase/node_modules/puppeteer-core" ]; then gl="skipped|"
+  elif r=$(webgl_probe "$chrome" $sb --ignore-gpu-blocklist "$gpu" 2>/dev/null); then
+    case "$r" in *SwiftShader*|*llvmpipe*) gl="software|$r" ;; *) gl="GPU|$r" ;; esac
+  elif r=$(webgl_probe "$chrome" $sb --ignore-gpu-blocklist --use-angle=swiftshader --enable-unsafe-swiftshader --disable-accelerated-2d-canvas 2>/dev/null); then gl="soft-gl|$r"
+  else gl="none|"; fi
+  exec python3 "$ROOT/tools/doctor.py" --chrome "$chrome" --hf-chrome "$hfc" --hf-pin "$pin" --webgl "$gl" "$@"
 }
-size_of() { # disk size of a folder, symlinks followed (a Hugging Face snapshot is all links): "202 MB", "2.0 GB"
-  du -skL "$1" 2>/dev/null | awk '{m = $1 * 1024 / 1e6; if (m >= 1000) printf "%.1f GB", m / 1000; else printf "%.0f MB", m}'
+doctor_bare() { # doctor_bare [--json]: bin/vh doctor without python3, which reads tools/modules.json: the programs bash can
+  # look for itself, said as the doctor before the table said them, then that the rest needs python3. Exit 0, as ever
+  local p v st nv json="" hint="sudo apt install python3"
+  [ "$(uname)" = Darwin ] && hint="brew install python"
+  case " $* " in *" --json "*) json=1 ;; esac
+  if [ -n "$json" ]; then printf '{"version": 1, "tool": "bin/vh doctor", "error": "python3 not found (%s): the other checks need it", "modules": [{"name": "python3", "state": "missing", "note": "not found"}' "$hint"
+  else echo "$c_no python3  not found: bin/vh doctor reads tools/modules.json with it, and most commands need it → $hint"; fi
+  for p in node ffmpeg uv git chrome; do
+    v=""
+    if [ $p = chrome ]; then v=$(chrome_path) || v=""
+    elif command -v "$p" >/dev/null 2>&1; then
+      case $p in node) v=$(node -v 2>&1) || true ;; ffmpeg) v=$(ffmpeg -version 2>&1 | head -1) || true ;; *) v=$("$p" --version 2>&1 | head -1) || true ;; esac
+      [ -n "$v" ] || v="found"
+    fi
+    st=ok; [ -n "$v" ] || st=missing
+    if [ $p = node ] && [ -n "$v" ]; then nv=${v#v}; nv=${nv%%.*}; [ "$nv" -ge 22 ] 2>/dev/null || { st=outdated; v="$v (22 or newer needed)"; }; fi
+    if [ -n "$json" ]; then act_str "${v:-not found}"; printf ', {"name": "%s", "state": "%s", "note": %s}' "$p" "$st" "$ACT_S"
+    elif [ $st = outdated ]; then echo "$c_no $p  $v"
+    elif [ -n "$v" ]; then echo "$c_ok $p  $v"
+    elif [ $p = chrome ]; then echo "$c_no chrome  not found (install Chrome or Chromium, or set CHROME_PATH)"
+    else echo "$c_no $p  not found"; fi
+  done
+  if [ -n "$json" ]; then echo "]}"
+  else echo "   the rest (versions against tools/modules.json, packages, models, keys, WebGL, the repo) needs python3: install it, then bin/vh doctor again"; fi
 }
 hf_chrome() { # hf_chrome [dir]: the chrome-headless-shell `hyperframes render` uses (its ensureRenderBrowser asks for the managed one, so
   # unlike snapshot and check it never looks in ~/.cache/puppeteer): HYPERFRAMES_BROWSER_PATH (or PRODUCER_HEADLESS_SHELL_PATH), else
@@ -308,43 +126,6 @@ shell_folder() { # shell_folder <cache dir> [version]: the folder of that chrome
   done
   return 1
 }
-doctor_downloads() { # what the first runs download on their own and how big it is on disk. The sizes are the ones in the wiki's
-  # "What gets downloaded" table (Getting Started; measured on macOS arm64, 2026-10-01): keep the two in step when either changes
-  echo "first-run downloads (wiki: Getting Started; mirrors behind a slow or blocked network: wiki China-Network / 国内网络):"
-  local p pend="" hub model snap swatch="" voice_pkgs="" sw=""
-  [ -d "$ROOT/styles/_swatch/node_modules/hyperframes" ] && sw="$ROOT/styles/_swatch"   # the HyperFrames the repo installs: the version it pins
-  if p=$(hf_chrome "$sw"); then echo "$c_ok HyperFrames Chrome  $(basename "$p") · $(size_of "$p") · $(rel "$(dirname "$p")")"
-  else
-    [ -x "$ROOT/styles/_swatch/node_modules/.bin/hyperframes" ] && swatch="(cd styles/_swatch && npx hyperframes browser ensure)"
-    echo "$c_wa HyperFrames Chrome not downloaded: the first HyperFrames render fetches the chrome-headless-shell it pins (about 200 MB on disk) into ~/.cache/hyperframes, whatever other Chrome is installed${swatch:+; now: $swatch}"
-    pend="$pend Chrome 0.2 GB,"
-  fi
-  if command -v uv >/dev/null 2>&1; then
-    if on_ctrl_c uv run -q --no-project --offline --with numpy --with scipy --with librosa --with pillow python -c "" >/dev/null 2>&1; then
-      echo "$c_ok Python packages of bin/vh (numpy, scipy, librosa, pillow) are in the uv cache"
-    else echo "$c_wa Python packages not cached yet: the first bin/vh beats, qa, music, sheet or storyboard run fetches numpy, scipy, librosa and pillow (about 700 MB) into the uv cache"
-      pend="$pend Python packages 0.7 GB,"
-    fi
-  fi
-  model=${QWEN_TTS_MODEL:-mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit}
-  hub=${HF_HUB_CACHE:-${HF_HOME:-$HOME/.cache/huggingface}/hub}
-  snap=$(ls -d "$hub/models--${model//\//--}/snapshots/"*/ 2>/dev/null | head -1 || true)
-  if [ "$(uname)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
-    echo "- Qwen3-TTS (bin/vh tts's default voice) runs on Apple Silicon only (mlx-audio): use edge, gemini, minimax, dashscope or elevenlabs here"
-  else
-    command -v uv >/dev/null 2>&1 && ! on_ctrl_c uv run -q --no-project --offline --with mlx-audio python -c "" >/dev/null 2>&1 && voice_pkgs=1
-    if [ -n "$snap" ] && [ -e "$(set -- "$snap"*.safetensors; echo "$1")" ]; then echo "$c_ok Qwen3-TTS model  $model · $(size_of "$snap")"
-    else
-      echo "$c_wa Qwen3-TTS model not downloaded: the first bin/vh tts with the default provider fetches $model (about 2 GB) from Hugging Face into $(rel "$hub")"
-      pend="$pend Qwen3-TTS model 2 GB,"
-    fi
-    if [ -n "$voice_pkgs" ]; then echo "$c_wa mlx-audio and its packages (about 750 MB) are not in the uv cache yet: the first bin/vh tts with the default provider fetches them"
-      pend="$pend mlx-audio 0.75 GB,"; fi
-  fi
-  echo "- every bin/vh new short|promo|data|meme installs its own pinned HyperFrames into the project (about 140 MB of node_modules)"
-  [ -n "$pend" ] && echo "   still to come on first use:${pend%,}"
-  return 0
-}
 agents_body() { cat "$ROOT/CLAUDE.md"; }
 cmd_install_skill() { # writes a thin pointer skill whose harness path is this clone
   local which=${1:-all} dests=() d r
@@ -358,7 +139,9 @@ cmd_install_skill() { # writes a thin pointer skill whose harness path is this c
   done
   echo "   restart Claude Code / Codex so it picks up the skill; then ask for a video from any folder."
 }
-cmd_sync_agents() {
+cmd_sync_agents() { # CLAUDE.md's 命令行 line from tools/commands.json first, then AGENTS.md from CLAUDE.md
+  local m; m=$(python3 "$ROOT/tools/commands.py" claude-line --write "$ROOT/CLAUDE.md") || exit 1
+  echo "$c_ok $m"
   { echo "<!-- AGENTS.md is generated from CLAUDE.md by \`bin/vh sync-agents\`. Edit CLAUDE.md, then re-run. -->"
     echo "<!-- Same instructions for every coding agent (Claude Code reads CLAUDE.md; Codex and others read AGENTS.md). -->"
     echo
@@ -1300,24 +1083,19 @@ cmd_gif() {
   ffmpeg -v error -y -i "$v" -vf "fps=$fps,scale=$w:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" "$out" && ls -lh "$out" | awk '{print $5, $9}'
 }
 
-cmd_help() { awk 'NR>1 && /^#/ {sub(/^# ?/, ""); print; next} NR>1 {exit}' "$0"; }
-cmd_usage() { # one command's lines from the header above, with their continuation lines; exit 1 if it has none
-  c=$1 awk 'NR == 1 {next} !/^#/ {exit}
-    /^#   [^ ]/ {split(substr($0, 5), w, " "); on = (w[1] == ENVIRON["c"]); if (on) {found = 1; print "usage: bin/vh " substr($0, 5)}; next}
-    on && /^#     / {sub(/^# +/, ""); print "              " $0; next}
-    {on = 0}
-    END {exit !found}' "$0"
-}
+cmd_help() { python3 "$ROOT/tools/commands.py" help; }            # every usage, by stage, from tools/commands.json
+cmd_usage() { python3 "$ROOT/tools/commands.py" usage "$1"; }    # one command's usage from there; exit 1 if it has none
 
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
   case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa|assets) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
+    doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
     frames|render|determinism|cues|patch) cmd_usage "$1"; echo; exec node "$ROOT/tools/film/$1.mjs" -h ;;   # + every flag
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 case "${1:-}" in   # the activity log: every command that works on a project (act_start finds it) but the read-only views
-  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|status|activity|new) ;;   # (new: once the project is made)
+  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|new) ;;   # (new: once the project is made)
   desk) [ "${2:-}" = data ] || act_start "$@" || true ;;
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
   assets) case "${2:-}" in add|remove|credits) act_start "$@" || true ;; esac ;;   # list and check only read
@@ -1333,10 +1111,11 @@ case "${1:-help}" in
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
   gate) shift; cmd_gate "$@" ;;
+  commands) shift; exec python3 "$ROOT/tools/commands.py" list "$@" ;;   # read-only, not logged
   status) shift; cmd_status "$@" ;; activity) shift; cmd_activity "$@" ;; versions) shift; cmd_versions "$@" ;; proxy) shift; cmd_proxy "$@" ;; thumbs) shift; cmd_thumbs "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;;
   help|-h|--help) cmd_help ;;
-  *) { echo "unknown command: $1"; echo; cmd_help; } >&2; exit 1 ;;
+  *) python3 "$ROOT/tools/commands.py" unknown "$1" || true; exit 2 ;;   # a usage error: its message and the nearest names, on stderr
 esac
 ACT_DONE=1   # came to its end: the EXIT trap writes the run's end line (killed, it does not)
