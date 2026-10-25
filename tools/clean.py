@@ -427,10 +427,11 @@ def main():
     n = local_snapshots() if deleted or trashed else 0
     if trashed:   # no space is back for it yet: that happens when the Trash is emptied, and the snapshots can hold it after that
         print("  what went to the Trash frees its space when the Trash is emptied (that is yours to do)")
-        if n:
-            print(f"  and Time Machine's {n} local snapshot(s) can still hold it on the disk after that, until macOS drops them (hours; sooner when space runs short)")
+    if n and deleted:   # what was deleted outright is held by the snapshots now; a run that also trashed says the Trash's will be too
+        print(f"  Time Machine holds {n} local snapshot(s): data deleted since the last one stays on the disk until macOS drops them"
+              + (", the Trash's too once it is emptied" if trashed else "") + " (hours; sooner when space runs short)")
     elif n:
-        print(f"  Time Machine holds {n} local snapshot(s): data deleted since the last one stays on the disk until macOS drops them (hours; sooner when space runs short)")
+        print(f"  and Time Machine's {n} local snapshot(s) can still hold it on the disk after that, until macOS drops them (hours; sooner when space runs short)")
     sys.exit(1 if failed else 0)
 
 

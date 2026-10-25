@@ -213,7 +213,9 @@ PY
            "style apply no-such $t" "effort loud" new "new math" "new nope ci-x" "new math ci-x --style" "new math ci-x --effort" \
            "new math ci-x --lang" "new math ci-x --bogus" "new math ci-x --style no-such" versions proxy thumbs \
            textcheck fonts "fonts nope" frames render determinism cues patch activity status gate desk \
-           tts "tts $t/no-such" sheet "sheet $t/no-such.mp4" gif "gif $t/no-such.mp4" hf-init "hf-init $t/no-such" "hf-init $t/empty 4k" "hf-init $t/empty 2:3"; do
+           tts "tts $t/no-such" sheet "sheet $t/no-such.mp4" gif "gif $t/no-such.mp4" hf-init "hf-init $t/no-such" "hf-init $t/empty 4k" "hf-init $t/empty 2:3" \
+           check "check --bogus" "check $t/no-such.mp4 --bogus" "check $t/no-such.mp4 --allow" "check $t/no-such.mp4 --against" "check $t/no-such.mp4 --against $t/no-such-ref.mp4" \
+           captions "captions $t/empty --media-end" "captions $t/empty --cps" "captions $t/empty --en-max" "captions $t/empty --bogus" mix "style check"; do
     # shellcheck disable=SC2086   # several words on purpose
     OVH_PROJECTS="$t" vh $c >"$t/out" 2>"$t/err"; rc=$?
     [ $rc = 2 ] || a="$a | $c exited $rc"
@@ -221,12 +223,16 @@ PY
   done
   OVH_PROJECTS="$t" vh new math ci-twice >/dev/null 2>&1; OVH_PROJECTS="$t" vh new math ci-twice >"$t/out" 2>"$t/err"; rc=$?
   { [ ! -s "$t/out" ] && [ -s "$t/err" ]; } || u="$u | new over a project"
-  for c in deliver new effort tts sheet gif hf-init status clean; do
-    vh "$c" -h >"$t/out" 2>"$t/err"; h=$?
-    { [ $h = 0 ] && [ -s "$t/out" ] && [ ! -s "$t/err" ]; } || u="$u | $c -h"
+  for c in deliver new effort tts sheet gif hf-init status clean "style apply" "style apply dark-math" "new math" "new math ci-h" "new math ci-h --style dark-math"; do
+    for h in -h --help; do
+      # shellcheck disable=SC2086   # several words on purpose
+      OVH_PROJECTS="$t" vh $c $h >"$t/out" 2>"$t/err"; rc2=$?
+      { [ $rc2 = 0 ] && [ -s "$t/out" ] && [ ! -s "$t/err" ]; } || u="$u | $c $h"
+    done
   done
+  [ -z "$(ls -d "$t"/*-ci-h "$t"/*--h "$t"/*---help 2>/dev/null)" ] || u="$u | new -h made a folder"
   [ -z "$a" ] && [ $rc = 1 ] && [ -z "$(ls -d "$t"/*-ci-x 2>/dev/null)" ] && [ ! -e "$t/no-such" ] \
-    && ok "usage errors exit 2 (new, effort, style, deliver, clean, timeline, remap, timemap, storyboard, rhythm, cover-preview, versions, proxy, thumbs, textcheck, fonts, frames, render, determinism, cues, patch, activity, status, gate, desk, tts, sheet, gif, hf-init: no arguments, a project or video that is not there, a frame it does not know); new over a project is 1" \
+    && ok "usage errors exit 2 (new, effort, style, deliver, clean, timeline, remap, timemap, storyboard, rhythm, cover-preview, versions, proxy, thumbs, textcheck, fonts, frames, render, determinism, cues, patch, activity, status, gate, desk, tts, sheet, gif, hf-init, check, captions, mix: no arguments, an option where the video goes or with no value, a project or video that is not there, a frame it does not know); new over a project is 1" \
     || bad "usage errors:$a (new twice exited $rc; a project made: $(ls -d "$t"/no-such 2>/dev/null))"
   [ -z "$u" ] && ok "usage errors and refusals are on stderr with nothing on stdout, the usage that was asked for (-h) on stdout with exit 0" \
     || bad "messages on the wrong stream:$u"
@@ -622,18 +628,23 @@ PY
   then ok "clean: lists first; then the film, covers, review pages, the narration in use and the sources stay, the rest goes (old takes and renders to the Trash)"
   else bad "clean: exit $rc / $rc2, left: $left | $(printf '%s' "$a$b" | tail -c 700)"; fi
   # what went to the Trash gives no space back until it is emptied, and Time Machine's local snapshots can hold it after that
-  # (a stand-in tmutil lists two, so this runs where there is none); what was deleted outright says only the snapshots' part
+  # (a stand-in tmutil lists two, so this runs where there is none); what was deleted outright says only the snapshots' part;
+  # a run that does both says the two, the Trash's after it is emptied
   mkdir -p "$t/stub" && printf '#!/bin/sh\nprintf "com.apple.TimeMachine.2026-10-25-120000.local\\ncom.apple.TimeMachine.2026-10-25-130000.local\\n"\n' > "$t/stub/tmutil" && chmod +x "$t/stub/tmutil"
-  c="$t/cl5"; mkdir -p "$c/out"; c2="$t/cl6"; mkdir -p "$c2/out/frames"
+  c="$t/cl5"; mkdir -p "$c/out"; c2="$t/cl6"; mkdir -p "$c2/out/frames"; c3="$t/cl7"; mkdir -p "$c3/out/frames"
   for f in BRIEF.md out/final.mp4 out/draft.mp4; do printf x > "$c/$f"; done; for f in BRIEF.md out/final.mp4 out/frames/a.png; do printf x > "$c2/$f"; done
+  for f in BRIEF.md out/final.mp4 out/draft.mp4 out/frames/a.png; do printf x > "$c3/$f"; done
   a=$(PATH="$t/stub:$PATH" OVH_TRASH_DIR="$t/home/trash5" vh clean "$c" --yes 2>&1); rc=$?
   b=$(PATH="$t/stub:$PATH" OVH_TRASH_DIR="$t/home/trash5" vh clean "$c2" --yes --delete 2>&1); rc2=$?
-  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ -f "$t/home/trash5/draft.mp4" ] \
+  d=$(PATH="$t/stub:$PATH" OVH_TRASH_DIR="$t/home/trash5" vh clean "$c3" --yes --delete 2>&1); rc3=$?
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ $rc3 = 0 ] && [ -f "$t/home/trash5/draft.mp4" ] \
+    && printf '%s' "$d" | grep -q 'what went to the Trash frees its space when the Trash is emptied' \
+    && printf '%s' "$d" | grep -q "Time Machine holds 2 local snapshot(s): data deleted since the last one stays on the disk until macOS drops them, the Trash's too once it is emptied" \
     && printf '%s' "$a" | grep -q 'what went to the Trash frees its space when the Trash is emptied' \
     && printf '%s' "$a" | grep -q "Time Machine's 2 local snapshot(s) can still hold it on the disk after that" && ! printf '%s' "$a" | grep -q 'data deleted since the last one' \
     && printf '%s' "$b" | grep -q 'Time Machine holds 2 local snapshot(s): data deleted since the last one stays' && ! printf '%s' "$b" | grep -q 'Trash is emptied'
-  then ok "clean: what went to the Trash gives its space back when the Trash is emptied (snapshots can hold it after that); what was deleted says the snapshots' part only"
-  else bad "clean's closing lines (exit $rc / $rc2): $(printf '%s' "$a" | tail -n 3 | tail -c 500) | $(printf '%s' "$b" | tail -n 2 | tail -c 300)"; fi
+  then ok "clean: what went to the Trash gives its space back when the Trash is emptied (snapshots can hold it after that); what was deleted says the snapshots' part; a run of both says both"
+  else bad "clean's closing lines (exit $rc / $rc2 / $rc3): $(printf '%s' "$a" | tail -n 3 | tail -c 500) | $(printf '%s' "$b" | tail -n 2 | tail -c 300) | $(printf '%s' "$d" | tail -n 3 | tail -c 400)"; fi
   # a cover video inside out/final/ is not the film, so out/final.mp4 is; a path kept inside a folder that goes stays
   c="$t/cl2"; mkdir -p "$c/out/final/covers" "$c/out/frames"
   for f in BRIEF.md out/final/covers/loop.mp4 out/final.mp4 out/draft.mp4 out/frames/a.png out/frames/keep.png; do printf x > "$c/$f"; done

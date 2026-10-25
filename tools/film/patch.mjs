@@ -51,7 +51,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { note as activityNote } from "./activity.mjs";   // the project's activity log (bin/vh activity)
-import { besideName, commit } from "./versions.mjs";      // the project's versions (bin/vh versions)
+import { besideName, commit, there } from "./versions.mjs";   // the project's versions (bin/vh versions)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -465,7 +465,7 @@ if (failures.length) {
   fs.renameSync(joined, kept2);
   for (const f of failures) console.log(`  ✗ ${f}`);
   console.log(`patch: a check failed; the film is as it was, and the new one is in ${rel(kept2)} to look at` +
-    (kept2 !== first ? ` (${rel(first)} was there already and is left as it is)` : ""));
+    (kept2 !== first && there(first) ? ` (${rel(first)} was there already and is left as it is)` : ""));   // not when only its .render.json was
   activityNote(`frames ${askedList}${named} drawn again; a check failed, the film is as it was`, [kept2]);
   cleanUp(); process.exit(1);
 }

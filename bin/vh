@@ -653,6 +653,7 @@ PY
 }
 
 cmd_new() {
+  local x; for x in "$@"; do case "$x" in -h|--help) cmd_usage new; return ;; esac; done   # also as the slug or among the options: not a name for a folder
   [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film] [--dir <folder>]" >&2; cmd_types >&2; exit 2; }
   local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine=""; doc=$(type_doc "$type") || { echo "unknown type: $type" >&2; cmd_types >&2; exit 2; }
   local typed=("$@"); act_now; ACT_T0=$ACT_NOW   # the run goes into the new project's activity log once it is made
@@ -943,12 +944,16 @@ for d in sorted(pathlib.Path(sys.argv[1]).iterdir()):
 PY
       ;;
     gallery) shift; on_ctrl_c uv run -q --no-project --with pillow python "$sw/gallery.py" "$@" ;;
-    check) shift; case "${1:-}" in -h|--help) echo "usage: bin/vh style check <preset> [workers_b=3]   frames from 1 and N render workers must match (styles/_swatch/determinism.sh)"; return ;; esac
-      swatch_deps "${1:-}"; "$sw/determinism.sh" "$@" ;;
+    check) shift; local u="usage: bin/vh style check <preset> [workers_b=3]   frames from 1 and N render workers must match (styles/_swatch/determinism.sh)"
+      case "${1:-}" in -h|--help) echo "$u"; return ;; esac
+      [ $# -gt 0 ] || { echo "$u" >&2; exit 2; }
+      swatch_deps "$1"; "$sw/determinism.sh" "$@" ;;
     compare) shift; [ $# -gt 0 ] || { echo "usage: bin/vh style compare a,b,c [--frame t] [--out file.png]" >&2; exit 2; }
       on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/style_compare.py" "$@" ;;
-    apply) shift; [ $# -eq 2 ] || { echo "usage: bin/vh style apply <preset[,preset]> <project>   (bin/vh style list shows the presets)" >&2; exit 2; }
-      local s styles; styles=$(parse_styles "$1") || { cmd_style list >&2; exit 2; }
+    apply) shift; local u="usage: bin/vh style apply <preset[,preset]> <project>   (bin/vh style list shows the presets)" s styles x
+      for x in "$@"; do case "$x" in -h|--help) echo "$u"; return ;; esac; done
+      [ $# -eq 2 ] || { echo "$u" >&2; exit 2; }
+      styles=$(parse_styles "$1") || { cmd_style list >&2; exit 2; }
       local dir; dir=$(project_dir "$2") || exit 2
       [ -f "$dir/BRIEF.md" ] && [ -f "$dir/STYLE.md" ] || { echo "$(rel "$dir") has no BRIEF.md and STYLE.md: not a bin/vh project" >&2; exit 2; }
       for s in $styles; do attach_style "$dir" "$s"
@@ -1050,19 +1055,21 @@ cmd_sheet() {
 ck_note() { [ -z "${J:-}" ] || { printf '%s\n' "$2" >> "$J/$1"; } 2>/dev/null || true; }   # ck_note <file> <line>: a line into check's scratch folder, if it has one
 cmd_check() {
   local u="usage: bin/vh check <video> [--allow t,t…] [--against <reference.mp4>] [--json]"
-  local v=${1:?$u} allow="" against="" fail=0 json=""
+  [ $# -gt 0 ] || { cmd_usage check >&2; exit 2; }
+  case "$1" in -*) echo "bin/vh check: unknown option $1 ($u)" >&2; exit 2 ;; esac   # an option where the video goes
+  local v=$1 allow="" against="" fail=0 json=""
   shift
-  while [ $# -gt 0 ]; do case "$1" in
-    --allow) [ $# -ge 2 ] || { echo "bin/vh check: --allow needs the seconds of designed flashes, comma-separated (e.g. 1.0,3.2 or 12-15)" >&2; return 1; }
+  while [ $# -gt 0 ]; do case "$1" in   # a mistake in the command line is 2; 1 is a check that failed
+    --allow) [ $# -ge 2 ] || { echo "bin/vh check: --allow needs the seconds of designed flashes, comma-separated (e.g. 1.0,3.2 or 12-15)" >&2; return 2; }
       allow=$2; shift 2 ;;
     --allow=*) allow=${1#--allow=}; shift ;;
-    --against) [ $# -ge 2 ] || { echo "bin/vh check: --against needs the reference video (the approved 1080p cut)" >&2; return 1; }
+    --against) [ $# -ge 2 ] || { echo "bin/vh check: --against needs the reference video (the approved 1080p cut)" >&2; return 2; }
       against=$2; shift 2 ;;
     --against=*) against=${1#--against=}; shift ;;
     --json) json=1; shift ;;
-    *) echo "bin/vh check: unknown option $1 ($u)" >&2; return 1 ;;
+    *) echo "bin/vh check: unknown option $1 ($u)" >&2; return 2 ;;
   esac; done
-  [ -z "$against" ] || [ -f "$against" ] || { echo "bin/vh check: no reference video at $against" >&2; return 1; }
+  [ -z "$against" ] || [ -f "$against" ] || { echo "bin/vh check: no reference video at $against" >&2; return 2; }
   # each check also leaves its result in CHECK_TMP (gone on exit, vh_exit); tools/checkrec.py makes the record of them at
   # the end, out/check/<name>.check.json. --json: that record on stdout, the lines a person reads on stderr. With no
   # scratch folder (mktemp cannot make one) the checks run all the same, and no record is made
@@ -1223,14 +1230,15 @@ cmd_pace() { # numpy for the waveform; mlx-whisper only with --align whisper (Ap
 }
 cmd_captions() { # --media-end S: where a caption too short for its minimum may be lengthened to (default: the picture's length)
   local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--en-max 42] [--cards] [--cps 9] [--media-end S] [--skip-lint]"
-  local proj=${1:?$u}; shift
+  [ $# -gt 0 ] || { cmd_usage captions >&2; exit 2; }
+  local proj=$1; shift
   local pos=() end=()
   while [ $# -gt 0 ]; do
     case "$1" in
-      --media-end) end+=(--media-end "${2:?$u}"); shift 2 ;;
+      --media-end|--cps|--en-max) [ $# -ge 2 ] || { echo "bin/vh captions: $1 needs a value ($u)" >&2; return 2; }
+        end+=("$1" "$2"); shift 2 ;;
       --skip-lint|--cards) end+=("$1"); shift ;;
-      --cps|--en-max) end+=("$1" "${2:?$u}"); shift 2 ;;
-      -*) echo "bin/vh captions: unknown option $1 ($u)" >&2; return 1 ;;
+      -*) echo "bin/vh captions: unknown option $1 ($u)" >&2; return 2 ;;
       *) pos+=("$1"); shift ;;
     esac
   done
@@ -1255,6 +1263,7 @@ cmd_sfx() { # audition --png draws a spectrogram: pillow joins numpy and scipy o
   local a pil=""; for a in "$@"; do [ "$a" = --png ] && pil="--with pillow"; done
   on_ctrl_c uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/sfx.py" "$@"; }
 cmd_mix() { # a mix profile computes in numpy/scipy (through uv); the default chain is ffmpeg only and runs on plain python3
+  [ $# -gt 0 ] || { cmd_usage mix >&2; exit 2; }
   local a
   for a in "$@"; do case "$a" in profile=none) ;; profile=*) on_ctrl_c uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/mix.py" "$@"; return ;; esac; done
   python3 "$ROOT/tools/audio/mix.py" "$@"
