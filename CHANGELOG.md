@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+**Proposal 02 records the Studio's three switchable themes and what HyperFrames' `packages/studio` gives it; the Studio is on hold**
+- Why: the proposal asked for a round of style exploration before the build (§5). The same fragment of the cut module was drawn in three directions. The maintainer liked all three and asked for them all, switchable, and for the Studio to be put on hold with this written down.
+- `docs/proposals/02-studio-client.md`:
+  - The status line: on hold since 2026-10-25.
+  - §5, the three themes: glass; hairlines and brackets; type and film. A theme changes the fonts, the surfaces, how selection and marks are drawn, and a few component variants. Four rules hold in all three: neutral grey around the picture, monospace readouts, colour says who, dark only. It is built as semantic tokens from the first phase.
+  - §1.1, the evaluation of HyperFrames' open packages at 495dc95:
+    - no dependency and no fork: about 166k lines of .ts/.tsx without tests, and 642 commits in 60 days;
+    - the agent layer we wanted most is not in the open code;
+    - its timeline is clips on tracks;
+    - the leaf parts to copy: ruler, zoom, snapping, playhead, waveform, beat strip and dock layout;
+    - write receipts and undo by run;
+    - what to check or leave out: GSAP's licence, mediabunny's MPL-2.0 and the PostHog telemetry;
+    - the agent column over ACP, as OpenFilm does it.
+  - §7, §9 and §10 follow: items 2 and 6 are decided, and the default theme is added as an open item. `docs/proposals/README.md` follows too.
+- No tools or workflow changed.
+
 **Small known bugs in the CLI: usage on stderr with exit 2 in every command, patch's last line and its failed films, a check record that outlives its film, clean's hint, valueless flags in front of the project**
 - Why: a short list of small bugs from an earlier review that the last two batches left. Each was checked against the code before it was changed.
 - Usage errors: stderr, exit 2. `new` (the list of types or styles it shows after an unknown one, "already exists" and "cannot create" included), `effort`, `style compare` and `style apply`, `storyboard`, `rhythm`, `cover-preview`, `versions`, `proxy`, `thumbs`, `timeline`, `remap`, `timemap`, `deliver` and `clean` printed their usage and refusals on stdout; `textcheck`, `fonts`, `frames`, `render`, `determinism`, `cues`, `patch`, `activity`, `status`, `gate` and `desk` printed the usage on stdout and exited 1 when called with no argument. All write to stderr now and exit 2 (`new` over a project that is there stays 1); the usage that was asked for, `-h`, is stdout and exit 0 as before, and now also for `style apply` and for `new` wherever `-h` or `--help` stands (`bin/vh new math -h` made a project folder named `<date>--h`).
