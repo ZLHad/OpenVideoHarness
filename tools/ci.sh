@@ -208,14 +208,17 @@ PY
   # value included; a project, video or folder that is not there); new into a folder that is there already is a failure.
   # Every message of a usage error or a refusal is on stderr and stdout stays empty; the usage that was asked for (-h)
   # is on stdout, exit 0. Nothing here reaches uv or a browser; a project that is not there is not made (tts did)
-  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); a=""; u=""; mkdir "$t/empty"
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); a=""; u=""; mkdir "$t/empty"; : > "$t/v.mp4"; : > "$t/a.wav"
   for c in deliver clean timeline remap timemap storyboard rhythm cover-preview "style compare" "style apply" "style apply dark-math" \
            "style apply no-such $t" "effort loud" new "new math" "new nope ci-x" "new math ci-x --style" "new math ci-x --effort" \
            "new math ci-x --lang" "new math ci-x --bogus" "new math ci-x --style no-such" versions proxy thumbs \
            textcheck fonts "fonts nope" frames render determinism cues patch activity status gate desk \
            tts "tts $t/no-such" sheet "sheet $t/no-such.mp4" gif "gif $t/no-such.mp4" hf-init "hf-init $t/no-such" "hf-init $t/empty 4k" "hf-init $t/empty 2:3" \
            check "check --bogus" "check $t/no-such.mp4 --bogus" "check $t/no-such.mp4 --allow" "check $t/no-such.mp4 --against" "check $t/no-such.mp4 --against $t/no-such-ref.mp4" \
-           captions "captions $t/empty --media-end" "captions $t/empty --cps" "captions $t/empty --en-max" "captions $t/empty --bogus" mix "style check"; do
+           "check $t/no-such.mp4" "check $t/no-such.mp4 --json" \
+           captions "captions $t/empty --media-end" "captions $t/empty --cps" "captions $t/empty --en-max" "captions $t/empty --bogus" \
+           "captions $t/no-such" "captions $t/empty" "captions $t/empty zh" mix "style check" \
+           "mux $t/no-such.mp4 $t/no-such.wav $t/o.mp4" "mux $t/v.mp4 $t/a.wav $t/no-dir/o.mp4"; do
     # shellcheck disable=SC2086   # several words on purpose
     OVH_PROJECTS="$t" vh $c >"$t/out" 2>"$t/err"; rc=$?
     [ $rc = 2 ] || a="$a | $c exited $rc"
@@ -232,7 +235,7 @@ PY
   done
   [ -z "$(ls -d "$t"/*-ci-h "$t"/*--h "$t"/*---help 2>/dev/null)" ] || u="$u | new -h made a folder"
   [ -z "$a" ] && [ $rc = 1 ] && [ -z "$(ls -d "$t"/*-ci-x 2>/dev/null)" ] && [ ! -e "$t/no-such" ] \
-    && ok "usage errors exit 2 (new, effort, style, deliver, clean, timeline, remap, timemap, storyboard, rhythm, cover-preview, versions, proxy, thumbs, textcheck, fonts, frames, render, determinism, cues, patch, activity, status, gate, desk, tts, sheet, gif, hf-init, check, captions, mix: no arguments, an option where the video goes or with no value, a project or video that is not there, a frame it does not know); new over a project is 1" \
+    && ok "usage errors exit 2 (new, effort, style, deliver, clean, timeline, remap, timemap, storyboard, rhythm, cover-preview, versions, proxy, thumbs, textcheck, fonts, frames, render, determinism, cues, patch, activity, status, gate, desk, tts, sheet, gif, hf-init, check, captions, mix, mux: no arguments, an option where the video goes or with no value, a project, video, timeline, input or output folder that is not there, a frame it does not know); new over a project is 1" \
     || bad "usage errors:$a (new twice exited $rc; a project made: $(ls -d "$t"/no-such 2>/dev/null))"
   [ -z "$u" ] && ok "usage errors and refusals are on stderr with nothing on stdout, the usage that was asked for (-h) on stdout with exit 0" \
     || bad "messages on the wrong stream:$u"

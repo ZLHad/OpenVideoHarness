@@ -23,6 +23,17 @@ export function besideName(film, tag = "new") {
   }
 }
 
+// moves file to the next free besideName of film and returns it. The name is claimed first (made with "wx", then the file
+// renamed over it), so two runs that pick at the same moment cannot both take one name
+export function moveBeside(file, film, tag = "new") {
+  for (;;) {
+    const f = besideName(film, tag);
+    try { fs.closeSync(fs.openSync(f, "wx")); } catch (e) { if (e.code === "EEXIST") continue; throw e; }
+    try { fs.renameSync(file, f); } catch (e) { fs.rmSync(f, { force: true }); throw e; }
+    return f;
+  }
+}
+
 // job: { film, new, new_sidecar, made_by, source?, expect?, changed?, note?, problems? } → { id, from, lines, placed, error? }
 // placed: where the new film is now (the film's path, or a free name beside it)
 export function commit(job) {
@@ -39,8 +50,7 @@ export function commit(job) {
     if (side && there(side)) fs.renameSync(side, sideOf(job.film));
     return { id: null, from: null, lines: [`the version record could not be written (${why}); the film is in place`], placed: job.film, error: why };
   }
-  const beside = besideName(job.film);
-  fs.renameSync(job.new, beside);
+  const beside = moveBeside(job.new, job.film);
   if (side && there(side)) fs.renameSync(side, sideOf(beside));
   return { id: null, from: null, placed: beside, error: why,
     lines: [`${why}: what is at ${job.film} is left as it is, and the new film is beside it, ${beside}`] };

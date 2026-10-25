@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+**The last small usage bugs: check, captions and mux on inputs that are not there; a free name for a failed film claimed at once**
+- Why: four leftovers from the review of the previous batch.
+- `bin/vh check <video>` on a video that is not there exited 1, with ffprobe's error (with `--json`, a failed record). It is a usage error now: one line on stderr and exit 2, with or without `--json`. A file that ffprobe cannot read stays a failed check (1).
+- `bin/vh captions` on a project that is not there, or on one with no timeline, ended in a Python traceback. The timeline is `audio/timeline.json`, or `timeline.<lang>.json` for a language. Both now give one line naming what is missing, and exit 2. bin/vh says it before uv looks for jieba, and `tools/audio/captions.py` says the same when it is run directly.
+- `bin/vh mux` with an input that is not there said "ffprobe failed" and exited 1. An output in a folder that is not there failed with an OS error, also exit 1. Both are said at once now, with exit 2.
+- When `bin/vh patch` keeps a failed film, it takes the next free name beside the film. So does a render or patch whose version record failed. Both looked for the name first and renamed after, so two runs failing at the same instant into one folder could take one name, and the later rename replaced the earlier film. The name is now claimed first: `moveBeside` in `tools/film/versions.mjs` makes the file with `wx`, then renames the film over it.
+- CI: the usage-error loop gains:
+  - the missing video, with and without `--json`;
+  - the missing project and timeline;
+  - mux's missing input and output folder.
+
 **Small known bugs in the CLI: usage on stderr with exit 2 in every command, patch's last line and its failed films, a check record that outlives its film, clean's hint, valueless flags in front of the project**
 - Why: a short list of small bugs from an earlier review that the last two batches left. Each was checked against the code before it was changed.
 - Usage errors: stderr, exit 2. `new` (the list of types or styles it shows after an unknown one, "already exists" and "cannot create" included), `effort`, `style compare` and `style apply`, `storyboard`, `rhythm`, `cover-preview`, `versions`, `proxy`, `thumbs`, `timeline`, `remap`, `timemap`, `deliver` and `clean` printed their usage and refusals on stdout; `textcheck`, `fonts`, `frames`, `render`, `determinism`, `cues`, `patch`, `activity`, `status`, `gate` and `desk` printed the usage on stdout and exited 1 when called with no argument. All write to stderr now and exit 2 (`new` over a project that is there stays 1); the usage that was asked for, `-h`, is stdout and exit 0 as before, and now also for `style apply` and for `new` wherever `-h` or `--help` stands (`bin/vh new math -h` made a project folder named `<date>--h`).
