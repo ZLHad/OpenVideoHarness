@@ -57,7 +57,7 @@ T = {
                shot="镜头", dur="时长", vo="旁白", see="看到什么", status="状态", ok="通过", plan="默认改",
                pass_all="默认全部通过，只写要改的，例如“{shot} 改：……”。", clip="这一段动起来的样子（{a}–{b} s，播到段尾自动停）",
                appendix="附录：不影响拍板的细节", others="其他审阅页", src="由 bin/vh review 从 {src} 生成",
-               spend="已花 {spent} / 预算 {budget}", no_budget="没有预算", over="超了：{cur}",
+               spend="已花 {spent} / 预算 {budget}", no_budget="没有预算", unlimited="不限", over="超了：{cur}",
                theme="切换深色 / 浅色", nav_decide="决定", nav_other="材料", nav_appendix="附录",
                page="页面", chat_head="{title} · 要你定 {n} 件事", chat_none="{title} · 没有要你定的事，看一眼，回“通过”或写要改的。",
                chat_item="{i}. {q} 回 {reply}\n   推荐 {r}{why}", chat_all="照推荐就回：{all}。没回的决定按推荐走，其余默认通过。",
@@ -77,7 +77,7 @@ T = {
                clip="This segment in motion ({a}–{b} s; stops at the segment end)",
                appendix="Appendix: details that don't change the decisions", others="Other review pages",
                src="Built by bin/vh review from {src}", theme="Toggle dark / light",
-               spend="Spent {spent} of {budget}", no_budget="no budget", over="over: {cur}",
+               spend="Spent {spent} of {budget}", no_budget="no budget", unlimited="no cap", over="over: {cur}",
                nav_decide="Decisions", nav_other="Material", nav_appendix="Appendix",
                page="Page", chat_head="{title} · {n} thing(s) for you to decide",
                chat_none="{title} · nothing to decide; take a look and reply “ok” or say what to change.",
@@ -718,12 +718,12 @@ class Page:
             b = budget.summary(self.project)
         except Exception:
             return ""
-        if not b["budget"] and not b["spent"]:
+        if not b["limit"] and not b["spent"] and not b["held"] and not b["unlimited"]:
             return ""
         t, sep = self.t, "，" if self.lang == "zh" else ", "
-        curs = list(b["budget"]) + [c for c in b["spent"] if c not in b["budget"]]
-        spent = sep.join(budget.money(b["spent"].get(c, 0.0), c) for c in curs)
-        have = sep.join(budget.money(v, c) for c, v in b["budget"].items()) or t["no_budget"]
+        curs = list(dict.fromkeys(list(b["limit"]) + list(b["spent"]) + list(b["held"])))
+        spent = sep.join(budget.money(b["spent"].get(c, 0.0) + b["held"].get(c, 0.0), c) for c in curs) or budget.money(0, "USD")
+        have = t["unlimited"] if b["unlimited"] else sep.join(budget.money(v, c) for c, v in b["limit"].items()) or t["no_budget"]
         over = f' · {t["over"].format(cur=", ".join(b["over"]))}' if b["over"] else ""
         return f'<span class="spend{" over" if b["over"] else ""}">{esc(t["spend"].format(spent=spent, budget=have))}{esc(over)}</span>'
 

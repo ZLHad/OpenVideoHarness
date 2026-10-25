@@ -466,19 +466,17 @@ def show(o, now):
     if bits:
         print(" · ".join(bits))
     a = o.get("assets") or {}
-    if a.get("ledger") or a.get("spent") or a.get("budget") or a.get("error"):
+    bud = a.get("budget") or {}
+    if a.get("ledger") or bud.get("spent") or bud.get("limit") or bud.get("unlimited") or a.get("error"):
         try:
             import budget
-        except ImportError:   # tools/assets could not be read (said in a["error"])
-            budget = None
+            money = budget.line(Path(o["project"]["path"]))
+        except Exception:   # tools/assets could not be read (said in a["error"])
+            money = ""
         bits = [f"{a.get('records', 0)} on record"] + [x for x in (
             f"{a['uncleared']} not cleared" + (f" ({a['not_taken']} not taken under {a['policy']})" if a.get("not_taken") else "") if a.get("uncleared") else "",
             f"{a['unregistered']} loaded but not on record" if a.get("unregistered") else "", f"{a['aigc']} AI-generated" if a.get("aigc") else "") if x]
-        curs = list(a.get("budget") or {}) + [c for c in a.get("spent") or {} if c not in (a.get("budget") or {})]
-        money = ", ".join(f"{budget.money((a.get('spent') or {}).get(c, 0.0), c)} of {budget.money(a['budget'][c], c)}" if c in (a.get("budget") or {})
-                          else f"{budget.money(a['spent'][c], c)} with no {c} budget" for c in curs) if budget else ""
-        print("assets: " + ", ".join(bits) + (f" · spent {money}" if money else "") + (f" · over: {', '.join(a['over'])}" if a.get("over") else "")
-              + (f" · {a['error']}" if a.get("error") else "") + " (bin/vh assets)")
+        print("assets: " + ", ".join(bits) + (f" · {money}" if money else "") + (f" · {a['error']}" if a.get("error") else "") + " (bin/vh assets)")
     vs = o.get("versions") or {}
     if vs.get("list"):
         kept = sum(1 for x in vs["list"] if x["state"] == "kept")

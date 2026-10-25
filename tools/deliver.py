@@ -18,8 +18,9 @@ change: the upload page has the last word. Without --for or --max-gb there is no
 Writes <master stem>.upload.mp4 beside the master (--out another), and its record beside it, <copy>.deliver.json: the
 copy and the master (paths relative to the record), their sizes and times, the arguments and when (bin/vh clean keeps
 the copy and its master as the film, and says when a file is no longer the one recorded). In a project with an asset
-ledger (bin/vh assets) it also says what the upload owes: the credit lines the licences ask for, the AI-content notice,
-the licences not cleared (and keeps their counts in the record, "assets"). Exit: 0 written and within every limit asked for ·
+ledger (bin/vh assets) it also says what the upload owes: bin/vh assets check's verdict (said, never a reason to stop),
+the credit lines the licences ask for, the AI-content notice, the licences not cleared (and keeps their counts in the
+record, "assets"). Exit: 0 written and within every limit asked for ·
 1 written but over a limit asked for, without the four colour tags, or the PSNR could not be measured · 2 could not start (no ffmpeg, not a video,
 not enough disk).
 """
@@ -95,23 +96,25 @@ def assets_notes(master):
     ([], None) outside a project or with nothing on record. Never fails the delivery."""
     sys.path.insert(0, str(Path(__file__).resolve().parent / "assets"))
     try:
-        import assets as A, ledger as L, licenses as LI
+        import assets as A, ledger as L, licenses as LI, uses as U
         proj = L.project_of(master.parent)
         if proj is None:
             return [], None
-        _, ents, _ = L.entries(proj)
+        base, ents, _ = L.entries(proj)
         live = [e["record"] for e in ents if "removed" not in e["record"]]
         if not live:
             return [], None
         c = A.credits(proj)
         policy, _ = L.policy_of(proj)
+        fs = A.findings(base, ents, policy) + U.compare(ents, U.uses(proj), policy)   # bin/vh assets check's, said here, not a gate
     except Exception as e:
         return [f"  ! the asset ledger could not be read ({e}): bin/vh assets check"], None
-    cls = [r["license"].get("class", "unknown") if isinstance(r.get("license"), dict) else "unknown" for r in live]
-    uncleared = sum(1 for k in cls if LI.risks(k))
+    uncleared = sum(1 for r in live if LI.risks(L.class_of(r)))
     where = os.path.relpath(proj)
     where = str(proj) if where.startswith("..") else where
-    lines = []
+    n = {k: sum(1 for x in fs if x["severity"] == k) for k in ("fail", "warn")}
+    lines = [f"  {'✗' if n['fail'] else '!' if n['warn'] else '✓'} assets check: {'fail' if n['fail'] else 'pass'} ({n['fail']} fail, {n['warn']} warn)"
+             + (f": bin/vh assets check {where} (said, not stopping the delivery)" if n["fail"] or n["warn"] else "")]
     if c["required"] or c["courtesy"]:
         lines.append(f"  credits: {len(c['required'])} line(s) the licences ask for" + (f", {len(c['courtesy'])} courtesy" if c["courtesy"] else "")
                      + f": into the description (PACKAGING.md, 署名和 AI 标识): bin/vh assets credits {where} [--out f]")
@@ -122,7 +125,8 @@ def assets_notes(master):
         lines.append(f"  ! {uncleared} asset(s) with a licence not cleared (NC, ND, BY-SA or unknown; Assets: {policy}): bin/vh assets check {where}")
     for m in c["missing"]:
         lines.append(f"  ! {m['id']}: its licence asks for a credit and no {m['what']} is on record")
-    return lines, {"records": len(live), "credits": len(c["required"]), "aigc": c["aigc"]["count"], "uncleared": uncleared}
+    return lines, {"records": len(live), "credits": len(c["required"]), "aigc": c["aigc"]["count"], "uncleared": uncleared,
+                   "check": {"verdict": "fail" if n["fail"] else "pass", **n}}
 
 
 def main():

@@ -455,7 +455,9 @@ const sideFor = (videoFile) => {   // as bin/vh render writes it: the page relat
   const dir = fs.realpathSync(path.dirname(videoFile)), real = fs.realpathSync(page), root = path.dirname(real);
   const s = { ...side, page: (dir + path.sep).startsWith(root + path.sep) ? path.relative(dir, real) : real, patches: [...(side.patches || []), ...records] };
   for (const k of ["shots", "chapters"]) { if (pieceSide && pieceSide[k]) s[k] = pieceSide[k]; }   // the page's as it draws now
-  if (side.files || Object.keys(pieceFiles).length) s.files = { ...(side.files || {}), ...pieceFiles };   // the film's and the new frames' (a file drawn again: its bytes now)
+  // the film's files and the new frames' (a file drawn again: its bytes now); a film rendered before they were recorded
+  // stays without (its few new frames are not the whole film's files: bin/vh assets check counts it as not known)
+  if (side.files && typeof side.files === "object") s.files = { ...side.files, ...pieceFiles };
   return s;
 };
 const changed = { whole: false, frames: asked, seconds: asked.map(([a, b]) => [+(a / fps).toFixed(6), +((b + 1) / fps).toFixed(6)]),

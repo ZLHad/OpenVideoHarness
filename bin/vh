@@ -19,12 +19,14 @@
 #                               (the swatch render's other options: styles/_swatch/render.sh -h)
 #   recipes list [--intent X --energy N --engine E …] | check [file…]   shot recipes (recipes/): filter by frontmatter, validate it
 #   assets [list] <project> [--json] | assets add <project> <file|folder|url> [--license L] [--origin O] [--source-url U] [--author A] [--aigc] [--model M] [--cost "$0.04"] … [--update] [--json]
-#          | assets check <project> [--policy strict|record] [--json] | assets credits <project> [--lang zh|en] [--out f] [--json] | assets remove <project> <id> [--why text]
+#          | assets check <project> [--policy strict|record] [--film <video> | --all-films] [--json] | assets credits <project> [--lang zh|en] [--out f] [--json]
+#          | assets remove <project> <id> [--why text]
 #                               the project's material, one record a file in assets/ledger.json (tools/assets): where it came from, its licence and
 #                               the class it falls in, its sha256, AIGC, model, prompt, seed, cost; add downloads a URL first (resumable, --sha256,
 #                               --rate, --offline); check: each file there and unchanged, its licence one the BRIEF's Assets policy takes (strict:
 #                               NC, ND, BY-SA and unknown fail; record: listed), then both ways against the films (each .render.json lists the files
-#                               its page loaded) and the mixes: material a page loaded that the ledger lacks fails, a record nothing uses is said;
+#                               its page loaded; the newest film of each page) and the mixes: material a page loaded that the ledger lacks fails,
+#                               a record nothing uses is said;
 #                               credits: the credit lines and the AI-content notice; list ends with the spend against the BRIEF's Budget
 #                               (assets/spend.jsonl; no budget, no paid call)
 #   hf-init <dir> [frame]       scaffold HyperFrames into a project safely (no global skill install); frame: landscape|portrait|square|4:5|3:4
@@ -185,7 +187,8 @@
 #                               passes at it when the master's own rate is over it;
 #                               a keyframe every 2 s, BT.709, sound and subtitles copied; the size against each limit, the PSNR against the master;
 #                               a record beside the copy (<copy>.deliver.json) that bin/vh clean reads: the copy and its master stay as the film
-#                               (in a project with an asset ledger, also the credits and the AI-content notice the upload owes: bin/vh assets)
+#                               (in a project with an asset ledger, also bin/vh assets check's verdict, said and never stopping it, and the
+#                               credits and the AI-content notice the upload owes)
 #   clean <project> [--yes] [--delete] [--keep path …] [--final f] [--keep-versions N]   a finished project's intermediates (frames, check frames, render
 #                               chunks, proxies, drafts, old takes, stems, node_modules, the earlier versions in out/versions but the newest
 #                               --keep-versions N of each film) to the Trash; the film (and what bin/vh deliver made from it),

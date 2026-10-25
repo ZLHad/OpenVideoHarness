@@ -1682,7 +1682,7 @@ PY
 assets_checks() {   # the asset ledger (tools/assets): the record and its fixtures, the licence table, the ledger's writes on a
   # copy of the fixture project, the budget, a download from recorded responses (no network), the credits, and end to end
   # with a render (bin/vh render's .render.json against the ledger, status, the review page, deliver, patch)
-  local t p q e a b c d rc rc2 rc3 rc4 rc5 tone
+  local t p q e x a b c d rc rc2 rc3 rc4 rc5 r1 r2 r3 r4 r5 tone
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   # the validator takes every valid record and the fixture ledger, and refuses every invalid one; JSON Schema agrees
   if a=$(python3 - <<'PY'
@@ -2022,8 +2022,10 @@ ok = (sorted(side["files"]) == ["assets/genimg/hero/image.png", "assets/img/grey
       and all(len(h) == 64 for h in side["files"].values())
       and f == {("unregistered", "fail", "assets/img/stray.png"), ("unused", "warn", "frames"), ("unused", "warn", "gc-0001"), ("license", "warn", "loop"), ("mix", "info", None)}
       and mix and mix[0]["paths"] == ["audio/voiceover.zh.wav"] and c["uses"]["films"][0]["files"] == 4 and c["uses"]["mixes"] == ["audio/mix.wav"]
-      and {k: a[k] for k in ("records", "uncleared", "unregistered", "aigc", "films_known", "spent", "budget", "policy")}
-      == {"records": 6, "uncleared": 1, "unregistered": 1, "aigc": 2, "films_known": 1, "spent": {"USD": 0.54}, "budget": {"USD": 1.0}, "policy": "record"})
+      and not any(k.startswith("/") for k in side["files"])
+      and {k: a[k] for k in ("records", "uncleared", "unregistered", "aigc", "films_known", "policy")}
+      == {"records": 6, "uncleared": 1, "unregistered": 1, "aigc": 2, "films_known": 1, "policy": "record"}
+      and a["budget"]["spent"] == {"USD": 0.54} and a["budget"]["limit"] == {"USD": 1.0} and a["budget"]["left"] == {"USD": 0.46})
 if not ok:
     print(sorted(side["files"]), f, mix, c["uses"], a)
 sys.exit(0 if ok else 1)
@@ -2031,19 +2033,22 @@ PY
       then ok "assets end to end: render lists every file the page loaded (.render.json files); check finds the picture the ledger lacks (fail), the records nothing uses (warn) and, in one line, the mix's sound the ledger lacks, while the mix's loop counts as used; status --json gives the counts and the spend"
       else bad "assets end to end, check (exit $rc): $(printf '%s' "$a" | tail -c 500)"; fi
       vh assets add "$e" "$e/assets/img/stray.png" --class own >/dev/null 2>&1
+      vh assets add "$e" assets/genimg/hero/image.png --update --derived-from frames >/dev/null 2>&1   # hero was made from frames: frames is used
       a=$(vh assets check "$e" 2>&1); rc=$?
       printf 'z' >> "$e/assets/img/grey-square.png"; vh assets add "$e" "$e/assets/img/grey-square.png" --update >/dev/null 2>&1
       b=$(vh assets check "$e" 2>&1); rc2=$?
-      case "$rc:$rc2|$a|$b" in "0:0|"*"pass (0 fail, 3 warn)"*"|"*"grey-square"*"out/film.mp4 was made with other bytes of it than the ledger has"*)
-          ok "assets end to end: registered, the check passes; a file changed (and its record updated) after the render says the film was made with other bytes" ;;
+      case "$rc:$rc2|$a|$b" in "0:0|"*"pass (0 fail, 2 warn)"*"|"*"grey-square"*"out/film.mp4 was made with other bytes of it than the ledger has"*)
+          case "$a" in *"frames  assets/frames/: on record"*) bad "assets end to end: frames is unused though hero, made from it, is loaded" ;;
+            *) ok "assets end to end: registered, the check passes; what a used record was made from is used too; a file changed (and its record updated) after the render says the film was made with other bytes" ;; esac ;;
         *) bad "assets end to end after registering (exit $rc, $rc2): $(printf '%s' "$a$b" | tail -c 600)" ;; esac
       mkdir -p "$e/out/review"; printf '{"gate": "3", "summary": "draft", "decisions": []}' > "$e/out/review/gate-3.json"
       vh review "$e" 3 >/dev/null 2>&1
       a=$(vh deliver "$e/out/film.mp4" --psnr off 2>&1); rc=$?
       if [ $rc = 0 ] && grep -q '<span class="spend">已花 $0.54 / 预算 $1.00</span>' "$e/out/review/gate-3.html" \
          && case "$a" in *"credits: 2 line(s) the licences ask for, 1 courtesy"*"AI-generated: 2 asset(s)"*"1 asset(s) with a licence not cleared"*) true ;; *) false ;; esac \
-         && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d["assets"]=={"records": 7, "credits": 2, "aigc": 2, "uncleared": 1} else 1)' "$e/out/film.upload.mp4.deliver.json"
-      then ok "assets end to end: the review page shows spent / budget; deliver says what the upload owes (credits, the AI-content notice, the licences not cleared) and keeps the counts in its record"
+         && case "$a" in *"assets check: pass (0 fail, "*"said, not stopping the delivery"*) true ;; *) false ;; esac \
+         && python3 -c 'import json,sys; d=json.load(open(sys.argv[1]))["assets"]; c=d.pop("check"); sys.exit(0 if d=={"records": 7, "credits": 2, "aigc": 2, "uncleared": 1} and c["verdict"]=="pass" and c["fail"]==0 else 1)' "$e/out/film.upload.mp4.deliver.json"
+      then ok "assets end to end: the review page shows spent / budget; deliver says assets check's verdict without stopping, what the upload owes (credits, the AI-content notice, the licences not cleared), and keeps the counts in its record"
       else bad "assets end to end, review page and deliver (exit $rc): $(printf '%s' "$a" | tail -c 500)"; fi
       a=$(vh patch "$e/out/film.mp4" --frames 3-5 --in-place --workers 1 2>&1); rc=$?
       if [ $rc = 0 ] && python3 - "$e" <<'PY'
@@ -2054,7 +2059,31 @@ now = hashlib.sha256(open(f"{e}/assets/img/grey-square.png", "rb").read()).hexdi
 sys.exit(0 if len(side.get("files", {})) == 4 and side["files"]["assets/img/grey-square.png"] == now and side.get("patches") else 1)
 PY
       then ok "assets end to end: a patch keeps the film's table of files, with the bytes its new frames loaded"
-      else bad "assets end to end, patch (exit $rc): $(printf '%s' "$a" | tail -c 500)"; fi ;;
+      else bad "assets end to end, patch (exit $rc): $(printf '%s' "$a" | tail -c 500)"; fi
+      # a newer film of the same page: an older film's files are history; --film and --all-films compare it; a patch on a
+      # film whose sidecar has no files writes none (a few frames are not the film's files)
+      vh assets remove "$e" stray >/dev/null 2>&1
+      sed 's|, "assets/img/stray.png"||' "$e/index.html" > "$e/index.tmp" && mv "$e/index.tmp" "$e/index.html"
+      vh render "$e" --out "$e/out/new.mp4" --workers 1 >/dev/null 2>&1; rc=$?
+      a=$(vh assets check "$e" --json 2>/dev/null); r1=$?
+      b=$(vh assets check "$e" --all-films 2>&1); r2=$?
+      c=$(vh assets check "$e" --film "$e/out/film.mp4" 2>&1); r3=$?
+      d=$(vh assets check "$e" --film "$e/out/nope.mp4" 2>&1); r4=$?
+      python3 -c 'import json,sys; f=sys.argv[1]; s=json.load(open(f)); s.pop("files"); json.dump(s, open(f, "w"))' "$e/out/new.mp4.render.json"
+      vh patch "$e/out/new.mp4" --frames 2-4 --in-place --workers 1 >/dev/null 2>&1; r5=$?
+      x=$(vh assets check "$e" --json 2>/dev/null)
+      if [ "$rc:$r1:$r2:$r3:$r4:$r5" = "0:0:1:1:2:0" ] && python3 - "$e" "$a" "$x" <<'PY'
+import json, sys
+e, a, x = sys.argv[1], json.loads(sys.argv[2]), json.loads(sys.argv[3])
+side = json.load(open(f"{e}/out/new.mp4.render.json", encoding="utf-8"))
+ok = ([f["film"] for f in a["uses"]["films"]] == ["out/new.mp4"] and a["uses"]["older"] == ["out/film.mp4"]
+      and "files" not in side and side.get("patches") and x["uses"]["unknown"] == ["out/new.mp4"] and [f["film"] for f in x["uses"]["films"]] == ["out/film.mp4"])
+sys.exit(0 if ok else 1)
+PY
+      then case "$b|$c" in *"✗ assets/img/stray.png: loaded by out/film.mp4"*"|"*"✗ assets/img/stray.png: loaded by out/film.mp4"*)
+          ok "assets end to end: of a page's films only the newest is compared (an older one's files are history; --all-films and --film compare it); a patch on a film with no table of files writes none, and the film counts as not known" ;;
+        *) bad "assets end to end, older films: $(printf '%s' "$b$c" | tail -c 500)" ;; esac
+      else bad "assets end to end, older films (exits $rc:$r1:$r2:$r3:$r4:$r5): $(printf '%s' "$a$d" | tail -c 500)"; fi ;;
     *) bad "assets end to end: render (exit $rc): $(printf '%s' "$a" | tail -c 500)" ;;
   esac
   rm -rf "$t"

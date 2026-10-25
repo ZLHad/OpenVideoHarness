@@ -4,16 +4,16 @@
 
 **The asset ledger meets the films: what a page loaded against what is on record, in status, the review page and deliver**
 - Why: batch 0, items 2 and 5. A ledger beside the film cannot tell a file the page loads without a record, or a record no film uses. `bin/vh render` already took every file a page was sent and its sha256 to decide when a render may resume. That table went only into the parts folder, which is cleaned away.
-- `bin/vh render` now writes that table into the film's `.render.json` too, as `files`: paths from the page's folder, with their sha256. `bin/vh patch` adds what its new frames loaded. The page contract is unchanged.
-- `bin/vh assets check` compares both ways, against every film whose sidecar lists its files and every mix record (`.mix.json`):
+- `bin/vh render` now writes that table into the film's `.render.json` too, as `files`: the files in the page's folder, by their path from it, with their sha256. `bin/vh patch` adds what its new frames loaded; a film rendered before the table stays without one. The page contract is unchanged.
+- `bin/vh assets check` compares both ways, against the newest film of each page whose sidecar lists its files (`--film` one film, `--all-films` every one) and every mix record (`.mix.json`):
   - a picture, clip, sound, font, model or table a page loaded with no record fails;
-  - a record no film, mix or `used_by` accounts for is said;
+  - a record no film, mix, `used_by` or record made from it accounts for is said;
   - a film made with other bytes of a file than the ledger has is said;
   - the sound files a mix used without a record get one line (a TTS take is AI-generated).
-- `bin/vh status --json` has `assets`: the records, the licences not cleared, the material loaded but not on record, the AI-generated count, the policy, the budget and the spend per currency. The text output has a line for it too.
+- `bin/vh status --json` has `assets`: the records, the licences not cleared, the material loaded but not on record, the AI-generated count, the policy, and the budget in the same shape as `assets list --json`. The text output has a line for it too.
 - The review page shows 已花 / 预算 (spent / budget) in its header when there is a budget or a spend.
-- `bin/vh deliver`, in a project with a ledger, says what the upload owes: the credit lines, the AI-content notice, the licences not cleared. It keeps the counts in `<copy>.deliver.json`. PACKAGING.md gains a 署名和 AI 标识 section.
-- CI, end to end: the fixture project's page loads two pictures on record and one not. After a render, check fails on the third and passes once it is registered. A file changed after the render is said. Status, the review page, deliver and a patch are checked on the same project.
+- `bin/vh deliver`, in a project with a ledger, says `assets check`'s verdict (it does not stop the delivery) and what the upload owes: the credit lines, the AI-content notice, the licences not cleared. It keeps the counts in `<copy>.deliver.json`. PACKAGING.md gains a 署名和 AI 标识 section.
+- CI, end to end: the fixture project's page loads two pictures on record and one not. After a render, check fails on the third and passes once it is registered. A file changed after the render is said. Status, the review page, deliver and a patch are checked on the same project, then an older film of the same page and a patch of a film without a table.
 
 **One asset record: `bin/vh assets` and `tools/assets/`, a budget for paid calls, and how networked commands are tested**
 - Why: batch 0 of the next round. The coming commands that bring material in (footage, image generation, the sound library, 3D) need one record of where a file came from, its licence and what it cost, instead of four ledgers in four shapes; and the budget decided on 10-26 (no budget, no paid call; over it, refused with the shortfall) needs one place that says it.
