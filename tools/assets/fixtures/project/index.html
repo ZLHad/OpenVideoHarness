@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=320, height=180">
+<style>html, body { margin: 0; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="320" height="180"></canvas>
+<script>
+  // the asset ledger's end-to-end fixture (tools/ci.sh, assets_checks): a page that loads three pictures, two of them on
+  // record in assets/ledger.json and assets/img/stray.png not; bin/vh render lists all three in the film's .render.json
+  const c = document.getElementById("c"), x = c.getContext("2d");
+  const pics = ["assets/img/grey-square.png", "assets/genimg/hero/image.png", "assets/img/stray.png"].map((src) => Object.assign(new Image(), { src }));
+  window.film = {
+    duration: 1, fps: 30,
+    ready: () => Promise.all(pics.map((p) => p.decode())),
+    frame(t) {
+      x.fillStyle = "#000"; x.fillRect(0, 0, 320, 180);
+      pics.forEach((p, k) => x.drawImage(p, 24 + k * 100 + Math.round(t * 30), 58, 64, 64));
+    },
+  };
+</script>
+</body>
+</html>

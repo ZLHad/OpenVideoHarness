@@ -1679,8 +1679,9 @@ PY
 # adds its checkpoint; quick skips the gates; the user's waiver skips what it names; a pause waits for the person; a delivery
 # record or a final film with a passing check record is delivered; a command running shows; the human view stays short
 assets_checks() {   # the asset ledger (tools/assets): the record and its fixtures, the licence table, the ledger's writes on a
-  # copy of the fixture project, the budget, a download from recorded responses (no network), the credits
-  local t p a b rc rc2 tone
+  # copy of the fixture project, the budget, a download from recorded responses (no network), the credits, and end to end
+  # with a render (bin/vh render's .render.json against the ledger, status, the review page, deliver, patch)
+  local t p e a b rc rc2 tone
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   export OVH_LOCAL_MD="$t/LOCAL.md"   # this machine's defaults stay out of it (a test writes its own)
   # the validator takes every valid record and the fixture ledger, and refuses every invalid one; JSON Schema agrees
@@ -1904,6 +1905,71 @@ PY
   if grep -q '"cmd":"assets"' "$p/.ovh/activity.jsonl" 2>/dev/null && grep -q '"summary":"added new' "$p/.ovh/activity.jsonl" \
      && ! grep -q '"args":\["check"' "$p/.ovh/activity.jsonl"; then ok "assets add and remove are in the activity log with what they did; check and list are not logged"
   else bad "assets in the activity log: $(tail -c 400 "$p/.ovh/activity.jsonl" 2>&1)"; fi
+  # end to end: the fixture's page loads two pictures on record and assets/img/stray.png, which is not. bin/vh render puts
+  # every file the page was sent into the film's .render.json; assets check compares it with the ledger both ways (a mix
+  # record counts as a use too); status, the review page and deliver read the ledger; a patch keeps the table
+  e="$t/e"; cp -R tools/assets/fixtures/project "$e"; printf 'fixture clip\n' > "$e/assets/genclips/gc-0001/clip.mp4"
+  a=$(vh render "$e" --out "$e/out/film.mp4" --workers 1 2>&1); rc=$?
+  case "$rc:$a" in
+    *"needs a headless Chrome"*) skip "assets end to end (render, check both ways, status, review, deliver, patch)" "no Chrome, Chromium or chrome-headless-shell" ;;
+    0:*)
+      mkdir -p "$e/audio"; printf 'mix' > "$e/audio/mix.wav"; printf 'voice' > "$e/audio/voiceover.zh.wav"
+      python3 - "$e" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+e = Path(sys.argv[1]); sha = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()   # noqa: E731
+ins = [{"path": "../assets/music/loop.wav", "sha256": sha(e / "assets/music/loop.wav")}, {"path": "voiceover.zh.wav", "sha256": sha(e / "audio/voiceover.zh.wav")},
+       {"path": "../assets/sfx/door.wav", "sha256": None}]   # a lookup that found nothing, as bin/vh mix records one
+(e / "audio/mix.wav.mix.json").write_text(json.dumps({"version": 1, "status": "complete", "inputs": ins}), encoding="utf-8")
+PY
+      a=$(vh assets check "$e" --json 2>/dev/null); rc=$?
+      b=$(vh status "$e" --json 2>/dev/null)
+      if [ $rc = 1 ] && python3 - "$e" "$a" "$b" <<'PY'
+import json, sys
+e, c, st = sys.argv[1], json.loads(sys.argv[2]), json.loads(sys.argv[3])
+side = json.load(open(f"{e}/out/film.mp4.render.json", encoding="utf-8"))
+f = {(x["kind"], x["severity"], x["id"] or x["path"]) for x in c["findings"]}
+mix = [x for x in c["findings"] if x["kind"] == "mix"]
+a = st["assets"]
+ok = (sorted(side["files"]) == ["assets/genimg/hero/image.png", "assets/img/grey-square.png", "assets/img/stray.png", "index.html"]
+      and all(len(h) == 64 for h in side["files"].values())
+      and f == {("unregistered", "fail", "assets/img/stray.png"), ("unused", "warn", "frames"), ("unused", "warn", "gc-0001"), ("license", "warn", "loop"), ("mix", "info", None)}
+      and mix and mix[0]["paths"] == ["audio/voiceover.zh.wav"] and c["uses"]["films"][0]["files"] == 4 and c["uses"]["mixes"] == ["audio/mix.wav"]
+      and {k: a[k] for k in ("records", "uncleared", "unregistered", "aigc", "films_known", "spent", "budget", "policy")}
+      == {"records": 6, "uncleared": 1, "unregistered": 1, "aigc": 2, "films_known": 1, "spent": {"USD": 0.54}, "budget": {"USD": 1.0}, "policy": "record"})
+if not ok:
+    print(sorted(side["files"]), f, mix, c["uses"], a)
+sys.exit(0 if ok else 1)
+PY
+      then ok "assets end to end: render lists every file the page loaded (.render.json files); check finds the picture the ledger lacks (fail), the records nothing uses (warn) and, in one line, the mix's sound the ledger lacks, while the mix's loop counts as used; status --json gives the counts and the spend"
+      else bad "assets end to end, check (exit $rc): $(printf '%s' "$a" | tail -c 500)"; fi
+      vh assets add "$e" "$e/assets/img/stray.png" --class own >/dev/null 2>&1
+      a=$(vh assets check "$e" 2>&1); rc=$?
+      printf 'z' >> "$e/assets/img/grey-square.png"; vh assets add "$e" "$e/assets/img/grey-square.png" --update >/dev/null 2>&1
+      b=$(vh assets check "$e" 2>&1); rc2=$?
+      case "$rc:$rc2|$a|$b" in "0:0|"*"pass (0 fail, 3 warn)"*"|"*"grey-square"*"out/film.mp4 was made with other bytes of it than the ledger has"*)
+          ok "assets end to end: registered, the check passes; a file changed (and its record updated) after the render says the film was made with other bytes" ;;
+        *) bad "assets end to end after registering (exit $rc, $rc2): $(printf '%s' "$a$b" | tail -c 600)" ;; esac
+      mkdir -p "$e/out/review"; printf '{"gate": "3", "summary": "draft", "decisions": []}' > "$e/out/review/gate-3.json"
+      vh review "$e" 3 >/dev/null 2>&1
+      a=$(vh deliver "$e/out/film.mp4" --psnr off 2>&1); rc=$?
+      if [ $rc = 0 ] && grep -q '<span class="spend">已花 $0.54 / 预算 $1.00</span>' "$e/out/review/gate-3.html" \
+         && case "$a" in *"credits: 2 line(s) the licences ask for, 1 courtesy"*"AI-generated: 2 asset(s)"*"1 asset(s) with a licence not cleared"*) true ;; *) false ;; esac \
+         && python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d["assets"]=={"records": 7, "credits": 2, "aigc": 2, "uncleared": 1} else 1)' "$e/out/film.upload.mp4.deliver.json"
+      then ok "assets end to end: the review page shows spent / budget; deliver says what the upload owes (credits, the AI-content notice, the licences not cleared) and keeps the counts in its record"
+      else bad "assets end to end, review page and deliver (exit $rc): $(printf '%s' "$a" | tail -c 500)"; fi
+      a=$(vh patch "$e/out/film.mp4" --frames 3-5 --in-place --workers 1 2>&1); rc=$?
+      if [ $rc = 0 ] && python3 - "$e" <<'PY'
+import hashlib, json, sys
+e = sys.argv[1]
+side = json.load(open(f"{e}/out/film.mp4.render.json", encoding="utf-8"))
+now = hashlib.sha256(open(f"{e}/assets/img/grey-square.png", "rb").read()).hexdigest()
+sys.exit(0 if len(side.get("files", {})) == 4 and side["files"]["assets/img/grey-square.png"] == now and side.get("patches") else 1)
+PY
+      then ok "assets end to end: a patch keeps the film's table of files, with the bytes its new frames loaded"
+      else bad "assets end to end, patch (exit $rc): $(printf '%s' "$a" | tail -c 500)"; fi ;;
+    *) bad "assets end to end: render (exit $rc): $(printf '%s' "$a" | tail -c 500)" ;;
+  esac
   unset OVH_LOCAL_MD
   rm -rf "$t"
 }

@@ -57,6 +57,7 @@ T = {
                shot="镜头", dur="时长", vo="旁白", see="看到什么", status="状态", ok="通过", plan="默认改",
                pass_all="默认全部通过，只写要改的，例如“{shot} 改：……”。", clip="这一段动起来的样子（{a}–{b} s，播到段尾自动停）",
                appendix="附录：不影响拍板的细节", others="其他审阅页", src="由 bin/vh review 从 {src} 生成",
+               spend="已花 {spent} / 预算 {budget}", no_budget="没有预算", over="超了：{cur}",
                theme="切换深色 / 浅色", nav_decide="决定", nav_other="材料", nav_appendix="附录",
                page="页面", chat_head="{title} · 要你定 {n} 件事", chat_none="{title} · 没有要你定的事，看一眼，回“通过”或写要改的。",
                chat_item="{i}. {q} 回 {reply}\n   推荐 {r}{why}", chat_all="照推荐就回：{all}。没回的决定按推荐走，其余默认通过。",
@@ -76,6 +77,7 @@ T = {
                clip="This segment in motion ({a}–{b} s; stops at the segment end)",
                appendix="Appendix: details that don't change the decisions", others="Other review pages",
                src="Built by bin/vh review from {src}", theme="Toggle dark / light",
+               spend="Spent {spent} of {budget}", no_budget="no budget", over="over: {cur}",
                nav_decide="Decisions", nav_other="Material", nav_appendix="Appendix",
                page="Page", chat_head="{title} · {n} thing(s) for you to decide",
                chat_none="{title} · nothing to decide; take a look and reply “ok” or say what to change.",
@@ -102,6 +104,7 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
 code{font:0.9em ui-monospace,"SF Mono",Menlo,monospace;background:var(--code);padding:1px 6px;border-radius:5px}
 header{padding:22px 0 6px}
 .eyebrow{display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--muted);font-size:13.5px}
+.eyebrow .spend{margin-left:auto;white-space:nowrap}.eyebrow .spend.over{color:var(--flag)}
 #theme{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;width:34px;height:34px;cursor:pointer;font-size:15px}
 h1{font-size:25px;line-height:1.35;margin:6px 0 10px;font-weight:650;letter-spacing:.01em}
 nav{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--muted);padding-bottom:14px;border-bottom:1px solid var(--line)}
@@ -707,6 +710,23 @@ class Page:
         links = " · ".join(f'<a href="{quote(p.name)}">{esc(gate_title(p.stem[5:], self.lang))}</a>' for p in pages)
         return f'{self.t["others"]}{self.t["colon"]}{links}<br>'
 
+    def spend(self):
+        """Spent against the budget (tools/assets/budget.py), when there is a budget or a spend; never fails the page."""
+        try:
+            sys.path.insert(0, str(ROOT / "tools" / "assets"))
+            import budget
+            b = budget.summary(self.project)
+        except Exception:
+            return ""
+        if not b["budget"] and not b["spent"]:
+            return ""
+        t, sep = self.t, "，" if self.lang == "zh" else ", "
+        curs = list(b["budget"]) + [c for c in b["spent"] if c not in b["budget"]]
+        spent = sep.join(budget.money(b["spent"].get(c, 0.0), c) for c in curs)
+        have = sep.join(budget.money(v, c) for c, v in b["budget"].items()) or t["no_budget"]
+        over = f' · {t["over"].format(cur=", ".join(b["over"]))}' if b["over"] else ""
+        return f'<span class="spend{" over" if b["over"] else ""}">{esc(t["spend"].format(spent=spent, budget=have))}{esc(over)}</span>'
+
     def render(self):
         self.normalize()
         t, title = self.t, self.title()
@@ -717,7 +737,7 @@ class Page:
                 f'<meta name="viewport" content="width=device-width, initial-scale=1">'
                 f'<title>{esc(title)} · {esc(self.project.name)}</title>'
                 f'<style>{CSS}</style><script>{HEAD_JS}</script></head><body><div class="wrap">'
-                f'<header><div class="eyebrow"><span>{esc(self.project.name)} · {esc(title)}</span>'
+                f'<header><div class="eyebrow"><span>{esc(self.project.name)} · {esc(title)}</span>{self.spend()}'
                 f'<button id="theme" title="{t["theme"]}" aria-label="{t["theme"]}">◐</button></div>'
                 f'<h1>{self.text(self.d["summary"])}</h1>{self.nav()}</header>'
                 f'{body}<footer>{self.others()}{t["src"].format(src=esc(src))}</footer></div>'

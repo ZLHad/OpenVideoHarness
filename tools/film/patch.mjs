@@ -265,6 +265,7 @@ const T0 = Date.now();
 const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("OVH_ACTIVITY_"))), OVH_VERSIONS: "off", OVH_RENDER_PIECE: "1" };
 const notes = [];
 let pieceSide = null;
+const pieceFiles = {};
 for (const [i, w] of wins.entries()) {
   w.piece = path.join(work, `piece${i}.mp4`);
   const rargs = [path.join(HERE, "render.mjs"), page, "--browser", browser, "--frames", `${ff0 + w.A}:${ff0 + w.B}`, "--fps", String(fps), "--dpr", String(side.dpr || 1),
@@ -283,6 +284,7 @@ for (const [i, w] of wins.entries()) {
   if (ps.frames !== w.B - w.A) die(`the page drew ${ps.frames} frames for ${w.A}–${w.B - 1}, not ${w.B - w.A}: it is shorter now than the film (${rel(page)}). Render the film again`, 1);
   if (side.browser && ps.browser !== side.browser && !notes.length) notes.push(`the film was rendered in ${side.browser}, these frames in ${ps.browser}: text and edges can differ a little (the PSNR below shows how much)`);
   pieceSide = pieceSide || ps;
+  Object.assign(pieceFiles, ps.files || {});   // what each piece's page loaded (bin/vh assets check reads the union)
   // the same encoder setup? Joined streams share one SPS/PPS
   const pv = streams(w.piece).find((s) => s.codec_type === "video");
   if (pv.extradata_hash !== v.extradata_hash || pv.width !== v.width || pv.height !== v.height || pv.pix_fmt !== v.pix_fmt || pv.profile !== v.profile || pv.level !== v.level)
@@ -453,6 +455,7 @@ const sideFor = (videoFile) => {   // as bin/vh render writes it: the page relat
   const dir = fs.realpathSync(path.dirname(videoFile)), real = fs.realpathSync(page), root = path.dirname(real);
   const s = { ...side, page: (dir + path.sep).startsWith(root + path.sep) ? path.relative(dir, real) : real, patches: [...(side.patches || []), ...records] };
   for (const k of ["shots", "chapters"]) { if (pieceSide && pieceSide[k]) s[k] = pieceSide[k]; }   // the page's as it draws now
+  if (side.files || Object.keys(pieceFiles).length) s.files = { ...(side.files || {}), ...pieceFiles };   // the film's and the new frames' (a file drawn again: its bytes now)
   return s;
 };
 const changed = { whole: false, frames: asked, seconds: asked.map(([a, b]) => [+(a / fps).toFixed(6), +((b + 1) / fps).toFixed(6)]),

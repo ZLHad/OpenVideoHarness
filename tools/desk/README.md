@@ -151,6 +151,7 @@ JSON 的格式：
 - `versions`：版本记录（下面"版本"）的摘要，还没有记录时是 `null`：`record`、`keep`、`current`、`kept_bytes`、`list`（每版 `id`、`at`、`t`、`film`、`file`、`state`、`made_by`、`from`、`note`、`changed`、`frames`、`pixels`、`check`）；记录读不了时是 `{"error"}`。
 - `check`：最近一次 `bin/vh check` 的记录摘要：`record`、`video`、`at`、`verdict`、`exit`、`counts`、`fails`（前三条）、`stale`（视频不是检查时的那一支了：检查记录里的 `size` 或 `mtime_ns` 和视频现在的不同；没有这两个字段的老记录，看视频的修改时间是不是比记录晚，见"检查记录"）。
 - `activity`：`running`（正在跑的命令）、`listening`（在跑的审阅台、`gate --wait`：是在等人，不是在干活）、`recent`（最近结束的五条），每条是下面活动记录里的一个 run。
+- `assets`：素材台账的摘要（`tools/assets/uses.py` 的 `overview`，下面"素材台账"）：`ledger`（有台账时是 `assets/ledger.json`，否则 `null`）、`records`（没删的记录条数）、`removed`、`uncleared`（许可有风险的：NC、ND、BY-SA、未知）、`not_taken`（其中这一档许可策略不收的）、`aigc`、`unregistered`（成片的页面载了、台账没有的素材个数；还没有一支成片记下载了哪些文件时是 `null`）、`films_known`（记下了的成片数）、`policy`、`policy_from`、`budget`、`budget_from`、`spent`、`left`（都按货币）、`over`（超了预算的货币）、`error`（台账或 Budget 一行读不了时）。不算哈希，很快。
 
 ### 活动记录：`bin/vh activity <项目> [--json] [--follow] [--limit N]`
 
@@ -209,7 +210,8 @@ JSON 的格式：
 - **`ledger.json`**：`{"v": 1, "note", "assets", "events"}`；`events` 每条 `t`、`at`、`event`（`add`、`update`、`remove`）、`id`、`sha256`、`by`、`why`。记录从不删：`remove` 只是标上 `removed`。整份在 `assets/.ledger.lock` 的 flock 下先写临时文件再 `os.replace`，和 `versions.json` 一样。项目里以前每个生成片段一份的 `assets/genclips/<id>/ledger.json`（没有 `v`）照读成记录，台账里有同 id 或同路径的就以台账为准（`references/genvideo-ledger.md` 有字段对照）。
 - **`assets/spend.jsonl`**：花钱的记录，一笔一行，追加写（和活动记录一样一次 O_APPEND）：`v`、`t`、`at`、`amount`、`currency`、`what`、`tool`、`asset`、`estimate`、`run`。预算读 BRIEF 的 `Budget:`，没有就读 LOCAL.md 的"默认预算"；按货币分别累计，不换算（`tools/assets/budget.py`）。
 - **`list --json`**：`{"version": 1, "tool", "project", "ledger", "policy": {"assets", "from"}, "budget", "counts": {"assets", "removed", "uncleared", "aigc", "missing"}, "assets", "said"}`。`assets` 每项：`record`（原样），加上现在看到的 `from`（哪份台账）、`exists`、`class`、`risks`、`accepted`（这一档许可策略收不收）、`attribution`（`required`、`agreement`、`courtesy` 或 `null`）、`removed`、`problems`（对 schema 不合的地方）。`budget`：`budget`、`from`、`raw`、`error`、`spent`、`left`（都按货币）、`over`（超了的货币）。不算哈希，很快。
-- **`check --json`**：`{"version": 1, "tool", "project", "ledger", "policy", "exit", "verdict", "counts": {"fail", "warn", "info"}, "records", "findings", "said"}`；每条 finding：`kind`（`record`、`missing`、`sha256`、`prompt_file`、`license`、`credit`）、`severity`、`id`、`path`、`message`，许可的另有 `class` 和 `risks`，哈希不对的另有 `sha256_now`。要读每个文件算哈希，大项目要几秒。
+- **`check --json`**：`{"version": 1, "tool", "project", "ledger", "policy", "exit", "verdict", "counts": {"fail", "warn", "info"}, "records", "findings", "said", "uses"}`；每条 finding：`kind`、`severity`、`id`、`path`、`message`。台账自己的：`record`（对 schema 不合）、`missing`、`sha256`（另有 `sha256_now`）、`prompt_file`、`license`（另有 `class`、`risks`）、`credit`（要署名却没记作者）。和成片两头比的（`tools/assets/uses.py`）：`unregistered`（页面载了、台账没有的素材，失败）、`stale`（成片载的这个文件和台账的字节不一样）、`unused`（没有成片载、没有混音用、也没写 `used_by` 的记录；至少有一支成片记下了文件时才报）、`mix`（混音用了、台账没有的声音文件，`info`，另有 `paths`）。`uses`：`films`（每支 `film`、`sidecar`、`files` 个数）、`unknown`（记下文件之前渲的成片）、`mixes`。要读每个文件算哈希，大项目要几秒。
+- **成片用了什么**：`bin/vh render` 把浏览器加载过的每个文件和它的 sha256 写进 `<成片>.render.json` 的 `files`（从页面所在的文件夹算的相对路径，文件夹外的写绝对路径），续渲比对的就是这张表；`bin/vh patch` 把新画的帧载的文件并进去。混音用的文件来自 `<混音>.mix.json` 的 `inputs`。不改页面合约（`engines/CONTRACT.md`）。
 - **`credits --json`**：`{"version": 1, "tool", "project", "lang", "required", "courtesy", "aigc": {"count", "kinds", "models", "notice"}, "missing", "text"}`；`required`、`courtesy` 每项 `id`、`line`。
 
 ## 安全

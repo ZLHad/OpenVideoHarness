@@ -17,7 +17,9 @@ The limits (PLATFORMS below; playbook/10-hooks-and-packaging.md, 交付编码, h
 change: the upload page has the last word. Without --for or --max-gb there is no ceiling, only the table.
 Writes <master stem>.upload.mp4 beside the master (--out another), and its record beside it, <copy>.deliver.json: the
 copy and the master (paths relative to the record), their sizes and times, the arguments and when (bin/vh clean keeps
-the copy and its master as the film, and says when a file is no longer the one recorded). Exit: 0 written and within every limit asked for ·
+the copy and its master as the film, and says when a file is no longer the one recorded). In a project with an asset
+ledger (bin/vh assets) it also says what the upload owes: the credit lines the licences ask for, the AI-content notice,
+the licences not cleared (and keeps their counts in the record, "assets"). Exit: 0 written and within every limit asked for ·
 1 written but over a limit asked for, without the four colour tags, or the PSNR could not be measured · 2 could not start (no ffmpeg, not a video,
 not enough disk).
 """
@@ -70,19 +72,57 @@ def psnr(master, upload, spans, conv=""):
     return out
 
 
-def record(out, master):
+def record(out, master, assets=None):
     """<copy>.deliver.json beside the copy: what bin/vh clean keeps as the film. Sizes and times, not hashes: enough to see
-    that a file was replaced, without reading gigabytes on every clean."""
+    that a file was replaced, without reading gigabytes on every clean. assets: what the project's ledger asked of it
+    (records, credits, aigc, uncleared), when it has one."""
     st, ms = out.stat(), master.stat()
     rec = {"tool": "bin/vh deliver", "output": out.name, "size": st.st_size, "mtime": round(st.st_mtime, 3),
            "master": os.path.relpath(master, out.parent), "master_size": ms.st_size, "master_mtime": round(ms.st_mtime, 3),
            "args": sys.argv[1:], "time": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
+    if assets:
+        rec["assets"] = assets
     f = out.with_name(out.name + ".deliver.json"); tmp = f.with_name(f".{f.name}.{os.getpid()}")
     try:
         tmp.write_text(json.dumps(rec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"); os.replace(tmp, f)
     except OSError as e:
         tmp.unlink(missing_ok=True)
         print(f"deliver: could not write {f.name} ({e.strerror or e}): bin/vh clean will not know the copy is the film (--final it)", file=sys.stderr)
+
+
+def assets_notes(master):
+    """What the film's project ledger asks of the upload (bin/vh assets): (lines to print, the record's "assets" field), or
+    ([], None) outside a project or with nothing on record. Never fails the delivery."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent / "assets"))
+    try:
+        import assets as A, ledger as L, licenses as LI
+        proj = L.project_of(master.parent)
+        if proj is None:
+            return [], None
+        _, ents, _ = L.entries(proj)
+        live = [e["record"] for e in ents if "removed" not in e["record"]]
+        if not live:
+            return [], None
+        c = A.credits(proj)
+        policy, _ = L.policy_of(proj)
+    except Exception as e:
+        return [f"  ! the asset ledger could not be read ({e}): bin/vh assets check"], None
+    cls = [r["license"].get("class", "unknown") if isinstance(r.get("license"), dict) else "unknown" for r in live]
+    uncleared = sum(1 for k in cls if LI.risks(k))
+    where = os.path.relpath(proj)
+    where = str(proj) if where.startswith("..") else where
+    lines = []
+    if c["required"] or c["courtesy"]:
+        lines.append(f"  credits: {len(c['required'])} line(s) the licences ask for" + (f", {len(c['courtesy'])} courtesy" if c["courtesy"] else "")
+                     + f": into the description (PACKAGING.md, 署名和 AI 标识): bin/vh assets credits {where} [--out f]")
+    if c["aigc"]["count"]:
+        lines.append(f"  AI-generated: {c['aigc']['count']} asset(s) ({', '.join(f'{n} {k}' for k, n in c['aigc']['kinds'].items())}): turn on the platform's"
+                     " AI-content declaration when you publish (references/genvideo-ledger.md, 披露)")
+    if uncleared:
+        lines.append(f"  ! {uncleared} asset(s) with a licence not cleared (NC, ND, BY-SA or unknown; Assets: {policy}): bin/vh assets check {where}")
+    for m in c["missing"]:
+        lines.append(f"  ! {m['id']}: its licence asks for a credit and no {m['what']} is on record")
+    return lines, {"records": len(live), "credits": len(c["required"]), "aigc": c["aigc"]["count"], "uncleared": uncleared}
 
 
 def main():
@@ -198,7 +238,8 @@ def main():
         die(f"ffmpeg failed (exit {r.returncode})", 1)
     os.replace(part, out)
     size = out.stat().st_size
-    record(out, master)
+    notes, asset_rec = assets_notes(master)
+    record(out, master, asset_rec)
     print(f"  {out.name}: {size / 1e9:.2f} GB, {size * 8 / dur / 1e6:.1f} Mb/s on average (the master: {master.stat().st_size * 8 / dur / 1e6:.1f})")
     u = next((s for s in probe(out)["streams"] if s["codec_type"] == "video"), {})
     tags = tuple(u.get(k) for k in ("pix_fmt", "color_range", "color_space", "color_transfer", "color_primaries"))
@@ -234,6 +275,8 @@ def main():
                 print(f"  PSNR against the master ({what}): the same pictures (infinite)")
             else:
                 print(f"  PSNR against the master ({what}): {sum(fin) / len(fin):.1f} dB on average" + (f", the lowest stretch {worst[1]:.1f} dB (at {worst[0]:.0f} s)" if len(got) > 1 else ""))
+    for line in notes:   # the credits and the AI-content notice the project's ledger asks for (bin/vh assets)
+        print(line)
     if over:
         print("deliver: over a limit asked for: lower --crf's quality (a higher number) or allow more, and check the upload page")
     sys.exit(1 if over or bad_psnr else 0)

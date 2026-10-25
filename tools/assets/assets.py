@@ -28,7 +28,11 @@ usage: bin/vh assets [list] <project|ledger> [--json] [--all]
            unless --id; ids are never reused. --offline DIR: the URL's response from DIR/responses.json, recorded
            before (CONTRIBUTING.md, 联网的命令), no network
   check    each record that is not removed: its file there and its sha256 the same, the record valid, its prompt_file
-           there, its licence one the project's policy takes. Assets: strict (the BRIEF's Assets line, else LOCAL.md's
+           there, its licence one the project's policy takes; then both ways against what the films used (their
+           .render.json lists every file bin/vh render sent the page) and the mixes (.mix.json): material a page loaded
+           that the ledger lacks (fail), a record no film, mix or used_by accounts for (warn), a film made with other
+           bytes of a file than the ledger has (warn), and in one line the mixes' sound files the ledger lacks
+           (tools/assets/uses.py). Assets: strict (the BRIEF's Assets line, else LOCAL.md's
            素材许可, else strict) takes public domain, CC0, CC BY, permissive licences, material used under an agreement,
            own work and generated material, and fails on NC, ND, BY-SA and unknown; record lists those as warnings and
            takes them. --policy: another policy for this run
@@ -47,7 +51,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
-import budget, fetch, ledger, licenses   # noqa: E402,E401
+import budget, fetch, ledger, licenses, uses   # noqa: E402,E401
 
 SUB = ("list", "add", "check", "credits", "remove")
 PROG = "bin/vh assets"
@@ -328,21 +332,31 @@ def cmd_check(a):
     except ledger.LedgerError as e:
         raise Usage(str(e))
     policy, pfrom = (a.policy, "--policy") if a.policy else ledger.policy_of(project)
-    fs = findings(base, ents, policy)
+    used = uses.uses(project)
+    fs = findings(base, ents, policy) + uses.compare(ents, used, policy)
     counts = {k: sum(1 for x in fs if x["severity"] == k) for k in ("fail", "warn", "info")}
     status = 1 if counts["fail"] else 0
     live = [e for e in ents if "removed" not in e["record"]]
     say(f"assets check: {len(live)} record(s) in {ledger.LEDGER.as_posix()}" + (f" and {sum(1 for e in live if e['from'] != ledger.LEDGER.as_posix())} from generated clips' ledgers"
                                                                                if any(e["from"] != ledger.LEDGER.as_posix() for e in live) else "")
         + f" · Assets: {policy} ({pfrom})")
+    nf = sum(len(f["files"]) for f in used["films"])
+    say(f"  against {len(used['films'])} film(s) whose page's files are on record ({nf} files) and {len(used['mixes'])} mix(es)" if used["films"] or used["mixes"]
+        else "  no film records the files its page loaded yet (bin/vh render writes them into <film>.render.json): only the ledger itself is checked")
+    if used["unknown"]:
+        say(f"  · {', '.join(used['unknown'][:3])}{' …' if len(used['unknown']) > 3 else ''}: rendered before the files a page loads were recorded (render again to compare)")
     for x in fs:
-        say(f"  {'✗' if x['severity'] == 'fail' else '!'} {x['id']}  {x['path']}: {x['message']}")
+        mark = "✗" if x["severity"] == "fail" else "!" if x["severity"] == "warn" else "·"
+        who = "  ".join(str(v) for v in (x["id"], x["path"]) if v)
+        say(f"  {mark} {who}: {x['message']}" if who else f"  {mark} {x['message']}")
     for s in said:
         say(f"  ! {s}")
     say(f"assets check: {'pass' if not status else 'fail'} ({counts['fail']} fail, {counts['warn']} warn)")
     if a.json:
         print(json.dumps({"version": 1, "tool": f"{PROG} check", "project": str(project), "ledger": str(f), "policy": {"assets": policy, "from": pfrom},
-                          "exit": status, "verdict": "pass" if not status else "fail", "counts": counts, "records": len(live), "findings": fs, "said": said},
+                          "exit": status, "verdict": "pass" if not status else "fail", "counts": counts, "records": len(live), "findings": fs, "said": said,
+                          "uses": {"films": [{"film": f["film"], "sidecar": f["sidecar"], "files": len(f["files"])} for f in used["films"]],
+                                   "unknown": used["unknown"], "mixes": [m["mix"] for m in used["mixes"]]}},
                          ensure_ascii=False, indent=1))
     return status
 

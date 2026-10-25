@@ -23,8 +23,10 @@
 #                               the project's material, one record a file in assets/ledger.json (tools/assets): where it came from, its licence and
 #                               the class it falls in, its sha256, AIGC, model, prompt, seed, cost; add downloads a URL first (resumable, --sha256,
 #                               --rate, --offline); check: each file there and unchanged, its licence one the BRIEF's Assets policy takes (strict:
-#                               NC, ND, BY-SA and unknown fail; record: listed); credits: the credit lines and the AI-content notice; list ends with
-#                               the spend against the BRIEF's Budget (assets/spend.jsonl; no budget, no paid call)
+#                               NC, ND, BY-SA and unknown fail; record: listed), then both ways against the films (each .render.json lists the files
+#                               its page loaded) and the mixes: material a page loaded that the ledger lacks fails, a record nothing uses is said;
+#                               credits: the credit lines and the AI-content notice; list ends with the spend against the BRIEF's Budget
+#                               (assets/spend.jsonl; no budget, no paid call)
 #   hf-init <dir> [frame]       scaffold HyperFrames into a project safely (no global skill install); frame: landscape|portrait|square|4:5|3:4
 #                               (the composition size; 4K is a render flag, render --resolution 4k, not a frame)
 #  decide: pictures and pages for the human
@@ -45,7 +47,8 @@
 #   status <project> [--json]   each stop (gates ①②③, the checkpoints in use, delivery) done, skipped, waiting for the person,
 #                               waiting for the agent, in progress or not started, from the files: the gate pages, the desk's
 #                               submissions, REVIEW.md's decisions; who is waited on, the latest renders and the last check, open
-#                               review items, what runs now (tools/status.py; --json: the fields in tools/desk/README.md)
+#                               review items, the material on record and the spend (bin/vh assets), what runs now (tools/status.py; --json: the
+#                               fields in tools/desk/README.md)
 #   activity <project> [--json] [--follow] [--limit N]   what bin/vh did there: a line per command (when, how it ended, how long,
 #                               a summary, what it wrote; a render's progress while it runs), from <project>/.ovh/activity.jsonl,
 #                               which every command on a project appends to (tools/activity.py); --follow: as it happens
@@ -126,7 +129,8 @@
 #          [--estimate | --no-estimate] [--note text]
 #                               an MP4 drawn through the page contract (the canvas engine, ClaudeAnimationBase, any page that writes
 #                               window.film): one-GOP chunks that the --workers browsers take in turn, each into its own x264, BT.709 tv
-#                               range, a keyframe every --gop frames, <out>.render.json records how; video only (sound: mux). Stopped or
+#                               range, a keyframe every --gop frames, <out>.render.json records how (and every file the page loaded, for
+#                               bin/vh assets check); video only (sound: mux). Stopped or
 #                               failed, the finished chunks stay: the same command resumes while the page, its files and the options are
 #                               unchanged. Over 600 frames it first draws a few and prints the time, size and disk the render needs
 #                               (refused when the disk cannot hold it; --no-estimate skips). Says when --fps is not the page's own
@@ -181,6 +185,7 @@
 #                               passes at it when the master's own rate is over it;
 #                               a keyframe every 2 s, BT.709, sound and subtitles copied; the size against each limit, the PSNR against the master;
 #                               a record beside the copy (<copy>.deliver.json) that bin/vh clean reads: the copy and its master stay as the film
+#                               (in a project with an asset ledger, also the credits and the AI-content notice the upload owes: bin/vh assets)
 #   clean <project> [--yes] [--delete] [--keep path …] [--final f] [--keep-versions N]   a finished project's intermediates (frames, check frames, render
 #                               chunks, proxies, drafts, old takes, stems, node_modules, the earlier versions in out/versions but the newest
 #                               --keep-versions N of each film) to the Trash; the film (and what bin/vh deliver made from it),
