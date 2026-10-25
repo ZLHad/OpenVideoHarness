@@ -6,7 +6,11 @@
 // loaded beat-map source and hash (window.film.music), so a changed score map is named on the next run; a time map's
 // events ("@#id", mapAt) record the time map's (window.film.timemap) the same way.
 //
-// usage: node tools/film/cues.mjs <project | page.html> --browser <chrome> [--save] [--out out/cues.json] [--chapters]
+// usage: node tools/film/cues.mjs <project | page.html> --browser <chrome> [--save] [--out out/cues.json] [--chapters] [--frame-timeout 120]
+//
+// --frame-timeout 120: a read of the page (its cues, timeline, music, time map, chapters) not back after this many
+// seconds stops it (exit 2), as a frame does in bin/vh frames: a getter that never returns, or a page whose script is
+// stuck. OVH_PAGE_TIMEOUT=S: how long the page may take to set window.film and to be ready (tools/film/host.mjs).
 //
 // --chapters: the film's chapters (window.film.chapters, the engine's own table) as the lines a video description takes,
 // "0:00 title", each at least half a second before its chapter starts (whole seconds, rounded down: 0.5 to 1.5 s
@@ -27,10 +31,11 @@ const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport "
 const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
 const die = (msg) => { console.error("cues: " + msg); process.exit(2); };
-let target = null, out = null, browser = null, save = false, chapters = false;
+let target = null, out = null, browser = null, save = false, chapters = false, frameTimeout = 120;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], next = () => { const v = argv[++i]; if (v === undefined) die(`${a} needs a value`); return v; };
   if (a === "--out") out = next();
+  else if (a === "--frame-timeout") { const v = next(); frameTimeout = Number(v); if (v === "" || !(frameTimeout >= 1)) die(`--frame-timeout: ${JSON.stringify(v)} is not a number of seconds ≥ 1`); }
   else if (a === "--save") save = true;
   else if (a === "--chapters") chapters = true;
   else if (a === "--browser") browser = next();
@@ -42,10 +47,18 @@ if (!target) die("which project or page? (-h for the usage)");
 if (!browser) die("no browser: pass --browser <chrome>, or run it as bin/vh cues");
 
 let film;
-try { film = await openFilm(target, { browser, runtime: "auto" }); } catch (e) { die(e.message); }
+try { film = await openFilm(target, { browser, runtime: "auto", frameTimeout }); } catch (e) { die(e.message); }
+// each read of the page: back within --frame-timeout, or the run stops there and says which
+const timely = (p, what) => {
+  let timer;
+  p.catch(() => { /* given up on */ });
+  return Promise.race([p, new Promise((_, no) => { timer = setTimeout(() => no(Object.assign(new Error(`reading window.film.${what}: no answer after ${frameTimeout} s ` +
+    "(--frame-timeout): a getter that never returns, or the page's script is stuck"), { stuck: true })), frameTimeout * 1000); })]).finally(() => clearTimeout(timer));
+};
 let cues, tlRel, musicSource, mapSource, chs = null;
-try { cues = await film.list("cues"); tlRel = await film.field("timeline").catch(() => null);
-  musicSource = await film.field("music"); mapSource = await film.field("timemap").catch(() => null); if (chapters) chs = await film.list("chapters"); }
+try { cues = await timely(film.list("cues"), "cues"); tlRel = await timely(film.field("timeline"), "timeline").catch((e) => { if (e.stuck) throw e; return null; });
+  musicSource = await timely(film.field("music"), "music"); mapSource = await timely(film.field("timemap"), "timemap").catch((e) => { if (e.stuck) throw e; return null; });
+  if (chapters) chs = await timely(film.list("chapters"), "chapters"); }
 catch (e) { await film.close(); die(e.message); }
 const loadProblems = film.loadProblems, duration = film.duration;
 await film.close();

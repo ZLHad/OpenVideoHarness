@@ -169,7 +169,7 @@ smoke_checks() {
   vh help >/dev/null && vh --help >/dev/null && ok "bin/vh help exits 0" || bad "bin/vh help"
   vh no-such-command >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "unknown command exits 1" || bad "unknown command exited $rc"
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")   # a throwaway HOME: an old bin/vh would install the skill for a bad target
-  HOME="$t" vh install-skill no-such-target >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "install-skill rejects unknown targets" || bad "install-skill bad target exited $rc"
+  HOME="$t" vh install-skill no-such-target >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "install-skill rejects unknown targets" || bad "install-skill bad target exited $rc"
   rm -rf "$t"
   vh types >/dev/null && vh effort quick >/dev/null && vh style list >/dev/null && ok "types · effort · style list" || bad "types / effort / style list"
   # effort: the table comes from playbook/01, the caps and the floors from CLAUDE.md (a renamed heading must not drop them)
@@ -204,6 +204,19 @@ PY
   n=$(printf '%s\n' $cmds | grep -c .)
   if [ $rc = 1 ]; then :; elif [ "$n" -gt 5 ]; then ok "-h and --help print a usage for the $n commands without a help of their own, and style check"
   else bad "only $n commands found in bin/vh's dispatch for the -h check"; fi
+  # usage errors exit 2, failures 1: these commands with no arguments or a wrong one (new with an option that has no
+  # value included); new into a folder that is there already is a failure. Nothing here reaches uv or a browser
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); a=""
+  for c in deliver clean timeline remap timemap storyboard rhythm cover-preview "style compare" "style apply" "style apply dark-math" \
+           "style apply no-such $t" "effort loud" new "new math" "new nope ci-x" "new math ci-x --style" "new math ci-x --effort" \
+           "new math ci-x --lang" "new math ci-x --bogus" versions proxy thumbs; do
+    # shellcheck disable=SC2086   # several words on purpose
+    OVH_PROJECTS="$t" vh $c >/dev/null 2>&1; rc=$?; [ $rc = 2 ] || a="$a | $c exited $rc"
+  done
+  OVH_PROJECTS="$t" vh new math ci-twice >/dev/null 2>&1; OVH_PROJECTS="$t" vh new math ci-twice >/dev/null 2>&1; rc=$?
+  [ -z "$a" ] && [ $rc = 1 ] && [ -z "$(ls -d "$t"/*-ci-x 2>/dev/null)" ] && ok "usage errors exit 2 (deliver, clean, timeline, remap, timemap, storyboard, rhythm, cover-preview, style, effort, new, versions, proxy, thumbs); new over a project is 1" \
+    || bad "usage errors:$a (new twice exited $rc)"
+  rm -rf "$t"
   # a project: effort and style are written in, and the quick gate waiver is recorded
   dir=$(ls -d "$ROOT"/projects/*-"$slug" 2>/dev/null); [ -z "$dir" ] || rm -rf "$dir"
   if vh new math "$slug" --effort quick --style dark-math >/dev/null; then
@@ -241,7 +254,7 @@ PY
   fi
   vh new short cf2 --engine canvas-film --aspect 9:16 --dir "$t" >/dev/null 2>&1; rc=$?
   vh new short cf3 --engine no-such --dir "$t" >/dev/null 2>&1; a=$?
-  [ $rc = 1 ] && [ $a = 1 ] && [ -z "$(ls -d "$t"/*-cf2 "$t"/*-cf3 2>/dev/null)" ] && ok "bin/vh new refuses a vertical canvas-film and an unknown --engine" \
+  [ $rc = 2 ] && [ $a = 2 ] && [ -z "$(ls -d "$t"/*-cf2 "$t"/*-cf3 2>/dev/null)" ] && ok "bin/vh new refuses a vertical canvas-film and an unknown --engine" \
     || bad "bin/vh new --engine: --aspect 9:16 exited $rc, an unknown engine $a"
   rm -rf "$t"
   # tts picks the uv dependencies from --provider too (a fake uv prints the command instead of running it)
@@ -819,13 +832,24 @@ PY
       for c in "qa.py|nope.json (the beat map)|$t/qs/mix.wav|--beats|$t/qs/nope.json" "qa.py|nope.json (the beat map)|$t/qs/mix.wav|$t/qs/nope.json" \
                "qa.py|nope.wav (the mix)|$t/qs/nope.wav" "qa.py|list.json is not a beat map|$t/qs/mix.wav|$t/qs/list.json" \
                "qa.py|x.wav: no audio ffmpeg can read|$t/qs/x.wav" "beats.py|beats: no such file: $t/qs/nope.wav|$t/qs/nope.wav" "beats.py|beats: which track?|--no-drums" \
-               "qa.py|write - in its place: qa $t/qs/mix.wav - $t/qs/ev.json --beats $t/qs/b.json|$t/qs/mix.wav|$t/qs/ev.json|--beats|$t/qs/b.json"; do
+               "qa.py|write - in its place: qa $t/qs/mix.wav - $t/qs/ev.json --beats $t/qs/b.json|$t/qs/mix.wav|$t/qs/ev.json|--beats|$t/qs/b.json" \
+               "qa.py|--out $t/qs/none/r.txt: no folder $t/qs/none to write it in|$t/qs/mix.wav|--out|$t/qs/none/r.txt" \
+               "qa.py|--json $t/qs/none/r.json: no folder $t/qs/none to write it in|mix|$t/qs|--json|$t/qs/none/r.json"; do
         IFS='|' read -r -a cargs <<< "$c"
         b=$(uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/${cargs[0]}" "${cargs[@]:2}" 2>&1); rc=$?
         case "$rc:$b" in *Traceback*) a="$a | ${cargs[0]}: $b" ;; "2:"*"${cargs[1]}"*) [ "$(printf '%s\n' "$b" | wc -l | tr -d ' ')" = 1 ] || a="$a | ${cargs[0]}, more than a line: $b" ;;
           *) a="$a | ${cargs[0]} ${cargs[*]:2} (rc $rc): $b" ;; esac
       done
-      [ -z "$a" ] && ok "qa and beats: a missing or wrong input (beat map, --beats, mix, track) is one line and exit 2, not a traceback" || bad "qa / beats on a wrong input:$a"
+      [ -z "$a" ] && ok "qa and beats: a missing or wrong input (beat map, --beats, mix, track, a folder for --out / --json) is one line and exit 2, before the analysis, not a traceback" || bad "qa / beats on a wrong input:$a"
+      # usage errors of music and qa exit 2 (they were 1): no arguments, one, an unknown option, a bad --length, an unknown example
+      a=""
+      for c in "music.py" "music.py|$t/qs/np.json" "music.py|$t/qs/np.json|$t/qs/o.wav|--bogus" "music.py|$t/qs/np.json|$t/qs/o.wav|--length|-3" \
+               "music.py|--example|nope" "qa.py" "qa.py|mix"; do
+        IFS='|' read -r -a cargs <<< "$c"
+        uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/${cargs[0]}" "${cargs[@]:1}" >/dev/null 2>&1; rc=$?
+        [ $rc = 2 ] || a="$a | ${cargs[*]} exited $rc"
+      done
+      [ -z "$a" ] && ok "music and qa: usage errors exit 2" || bad "music / qa usage errors:$a"
     fi
     a=$(vh check "$t/a.wav" 2>&1); rc=$?
     case "$rc:$a" in 0:*"isolated"*) bad "check on audio only mentions the frame scan: $a" ;; 0:*) ok "check on an audio file skips the frame scan quietly" ;; *) bad "check on audio only (rc $rc): $a" ;; esac
@@ -925,11 +949,11 @@ decision_checks() {
   case "$a" in *"stops for your review"*) bad "new --effort quick still says it stops for review" ;; *"renders straight through"*) ok "new --effort quick does not promise a review stop" ;;
     *) bad "new --effort quick: no next-step line in '$a'" ;; esac
   OVH_PROJECTS="$t/env" vh new math ci-env >/dev/null 2>&1 && [ -f "$(ls -d "$t"/env/*-ci-env 2>/dev/null)/BRIEF.md" ] && ok "OVH_PROJECTS sets where projects go" || bad "OVH_PROJECTS ignored"
-  vh new math ci-x --aspect 16:9 >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "new --aspect is refused for a non-HyperFrames type" || bad "new math --aspect exited $rc"
-  vh new short ci-x --aspect 4:3 >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "new --aspect rejects 4:3" || bad "new --aspect 4:3 exited $rc"
-  a=$(vh new short ci-x --aspect 4:5 --res 4k 2>&1); rc=$?; [ $rc = 1 ] && case "$a" in *"no 4K preset for 4:5"*) true ;; *) false ;; esac \
+  vh new math ci-x --aspect 16:9 >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "new --aspect is refused for a non-HyperFrames type" || bad "new math --aspect exited $rc"
+  vh new short ci-x --aspect 4:3 >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "new --aspect rejects 4:3" || bad "new --aspect 4:3 exited $rc"
+  a=$(vh new short ci-x --aspect 4:5 --res 4k 2>&1); rc=$?; [ $rc = 2 ] && case "$a" in *"no 4K preset for 4:5"*) true ;; *) false ;; esac \
     && ok "new refuses 4K for a 4:5 frame (HyperFrames has no preset)" || bad "new --aspect 4:5 --res 4k (rc $rc): $a"
-  a=$(vh new math ci-x --aspect 9:16 2>&1); rc=$?; case "$rc:$a" in 1:*"manim.cfg"*) ok "new --aspect on a Manim type points to manim.cfg" ;; *) bad "new math --aspect (rc $rc): $a" ;; esac
+  a=$(vh new math ci-x --aspect 9:16 2>&1); rc=$?; case "$rc:$a" in 2:*"manim.cfg"*) ok "new --aspect on a Manim type points to manim.cfg" ;; *) bad "new math --aspect (rc $rc): $a" ;; esac
   mkdir -p "$t/hfi"; a=$(vh hf-init "$t/hfi" landscape-4k 2>&1); rc=$?; b=$(vh hf-init "$t/hfi" 2:3 2>&1); rb=$?
   case "$rc:$a|$rb:$b" in 1:*"4K is a render flag"*"|1:"*"unknown frame 2:3"*) [ -z "$(ls -A "$t/hfi")" ] && ok "hf-init refuses a 4K preset and an unknown frame before scaffolding" || bad "hf-init wrote files after refusing" ;;
     *) bad "hf-init frame check ($rc/$rb): $a | $b" ;; esac
@@ -938,7 +962,7 @@ decision_checks() {
   if [ -n "$d" ] && grep -q '^- Output: 1080x1350,' "$d/BRIEF.md" && grep -q '^- Watch on: phone' "$d/BRIEF.md" && grep -q '画幅 4:5（1080x1350' "$d/BRIEF.md"; then
     case "$a" in *"retry later: bin/vh hf-init"*" 4:5"*) ok "new --aspect 4:5 writes the BRIEF's frame lines, and a failed scaffold's retry hint keeps 4:5" ;; *) bad "new --aspect 4:5 retry hint: $a" ;; esac
   else bad "new --aspect 4:5 BRIEF: $a"; fi
-  a=$(vh new handdrawn ci-x --res 4k 2>&1); rc=$?; [ $rc = 1 ] && case "$a" in *"no 4K output"*) true ;; *) false ;; esac && ok "new --res 4k is refused for the hand-drawn engine" || bad "new handdrawn --res 4k exited $rc: $a"
+  a=$(vh new handdrawn ci-x --res 4k 2>&1); rc=$?; [ $rc = 2 ] && case "$a" in *"no 4K output"*) true ;; *) false ;; esac && ok "new --res 4k is refused for the hand-drawn engine" || bad "new handdrawn --res 4k exited $rc: $a"
   # the hand-drawn engine's window.film gives its frame rate (PROJECT.fps, else render.mjs's 24), as canvas-film's does
   a=$(node -e 'const vm = require("vm"), fs = require("fs"), out = [];
 for (const extra of ["", "PROJECT.fps = 30;"]) {
@@ -947,12 +971,12 @@ for (const extra of ["", "PROJECT.fps = 30;"]) {
   vm.runInContext(fs.readFileSync("engines/ClaudeAnimationBase/src/core.js", "utf8"), g); out.push(vm.runInContext("window.film.fps", g)); }
 console.log(out.join(" "))' 2>&1)
   [ "$a" = "24 30" ] && ok "ClaudeAnimationBase: window.film.fps is PROJECT.fps, 24 without it" || bad "ClaudeAnimationBase window.film.fps (want 24 30): $a"
-  a=$(vh new short ci-x --watch tv 2>&1); rc=$?; [ $rc = 1 ] && case "$a" in *"unknown --watch"*) true ;; *) false ;; esac && ok "new --watch rejects an unknown target" || bad "new --watch tv exited $rc: $a"
-  a=$(vh new short ci-x --watch feed 2>&1); rc=$?; [ $rc = 1 ] && case "$a" in *"already --watch phone"*) true ;; *) false ;; esac && ok "new refuses a feed target for a vertical frame" || bad "new short --watch feed exited $rc: $a"
-  a=$(vh new promo ci-x --watch phone 2>&1); rc=$?; [ $rc = 1 ] && case "$a" in *"--watch feed"*) true ;; *) false ;; esac && ok "new refuses a phone target for a landscape frame" || bad "new promo --watch phone exited $rc: $a"
-  vh new math ci-x --watch phone >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "new refuses a phone target for a Manim (landscape) type" || bad "new math --watch phone exited $rc"
+  a=$(vh new short ci-x --watch tv 2>&1); rc=$?; [ $rc = 2 ] && case "$a" in *"unknown --watch"*) true ;; *) false ;; esac && ok "new --watch rejects an unknown target" || bad "new --watch tv exited $rc: $a"
+  a=$(vh new short ci-x --watch feed 2>&1); rc=$?; [ $rc = 2 ] && case "$a" in *"already --watch phone"*) true ;; *) false ;; esac && ok "new refuses a feed target for a vertical frame" || bad "new short --watch feed exited $rc: $a"
+  a=$(vh new promo ci-x --watch phone 2>&1); rc=$?; [ $rc = 2 ] && case "$a" in *"--watch feed"*) true ;; *) false ;; esac && ok "new refuses a phone target for a landscape frame" || bad "new promo --watch phone exited $rc: $a"
+  vh new math ci-x --watch phone >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "new refuses a phone target for a Manim (landscape) type" || bad "new math --watch phone exited $rc"
   for bad_style in "dark-math,_swatch" "Dark-Math" "../styles/ink-wash" ","; do
-    vh new math ci-x --style "$bad_style" >/dev/null 2>&1; rc=$?; [ $rc = 1 ] || bad "new --style '$bad_style' exited $rc"; done
+    vh new math ci-x --style "$bad_style" >/dev/null 2>&1; rc=$?; [ $rc = 2 ] || bad "new --style '$bad_style' exited $rc"; done
   ok "new --style rejects a bad name anywhere in the list, paths and an empty list"
   [ -z "$(ls -d "$ROOT"/projects/*-ci-x 2>/dev/null)" ] || bad "a refused new left a project behind"
   # new: where it is watched and the output resolution land in the BRIEF (defaults from the frame, flags override)
@@ -981,7 +1005,7 @@ console.log(out.join(" "))' 2>&1)
       ok "style apply a,b: one call attaches both; an old base preset becomes a reference"
     else bad "style apply: comma list or migration of an old project's preset failed"; fi
   else bad "new math ci-m failed"; fi
-  vh style apply no-such-style "$p" >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "style apply rejects an unknown preset" || bad "style apply unknown preset exited $rc"
+  vh style apply no-such-style "$p" >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "style apply rejects an unknown preset" || bad "style apply unknown preset exited $rc"
   # readcheck: a budget, and the timed text of a composition without a browser
   a=$(vh readcheck --budget 3.2)
   case "$a" in *"normal pace"*"up to 14 CJK"*"one brisk read"*"up to 16 CJK"*"up to 28 CJK"*) ok "readcheck --budget: the pace's target, the floor, subtitles" ;; *) bad "readcheck --budget 3.2 said: $a" ;; esac
@@ -1169,7 +1193,7 @@ PY
   case "$a" in *"from: "*"audio/timeline.en.json"*) ok "rhythm --lang en reads timeline.en.json" ;; *) bad "rhythm --lang en: $a" ;; esac
   vh style compare blueprint,ink-wash --out "$t/sc.png" >/dev/null && vh style compare blueprint,ink-wash --frame 2 --out "$t/sc2.png" >/dev/null && [ -s "$t/sc.png" ] && [ -s "$t/sc2.png" ] \
     && ok "style compare: posters and swatch frames" || bad "bin/vh style compare"
-  vh style compare blueprint,no-such >/dev/null 2>&1; rc=$?; [ $rc != 0 ] && ok "style compare rejects an unknown preset" || bad "style compare accepted an unknown preset"
+  vh style compare blueprint,no-such >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "style compare rejects an unknown preset (exit 2)" || bad "style compare on an unknown preset exited $rc"
   out=$(vh cover-preview "$ROOT/styles/blueprint/media/poster.jpg" --out "$t/cover.png")
   case "$out" in *"smallest text"*"title stroke "*" px at the smallest slot"*|*"no text line found"*) [ -s "$t/cover.png" ] && ok "cover-preview draws the feed sizes and a legibility line (with the title's stroke width at the smallest slot)" || bad "cover-preview wrote nothing" ;; *) bad "cover-preview said: $out" ;; esac
   rm -rf "$t"
@@ -1502,7 +1526,7 @@ PY
   # the language: bin/vh new --lang writes the BRIEF line; bin/vh review takes it when the gate JSON has no lang
   if OVH_PROJECTS="$t/new" vh new math ci-lang --lang en >/dev/null 2>&1 && grep -q '^- Review language: en ' "$t"/new/*-ci-lang/BRIEF.md \
     && OVH_PROJECTS="$t/new" vh new math ci-zh >/dev/null 2>&1 && grep -q '^- Review language: zh ' "$t"/new/*-ci-zh/BRIEF.md; then
-    vh new math ci-x --lang fr >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "new --lang writes Review language (default zh) and rejects fr" || bad "new --lang fr exited $rc"
+    vh new math ci-x --lang fr >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "new --lang writes Review language (default zh) and rejects fr" || bad "new --lang fr exited $rc"
   else bad "new --lang: Review language not written"; fi
   cp -R tools/desk/fixtures/zh "$t/rz" && cp -R tools/desk/fixtures/zh "$t/re" && sed 's/^- Review language: zh /- Review language: en /' tools/desk/fixtures/zh/BRIEF.md > "$t/re/BRIEF.md"
   sed 's/^{/{"lang": "en",/' tools/desk/fixtures/zh/out/review/gate-1.json > "$t/rz/out/review/gate-1b.json"
@@ -1939,6 +1963,20 @@ film_checks() {
   a=$(vh frames tools/film/fixture --at 0.5 --timeout 300 --out "$t/ft" 2>&1); b=$(vh frames tools/film/fixture --at 0.5 --timeout 300 --frame-timeout 7 --out "$t/ft" 2>&1)
   case "$a|$b" in *"a frame may take 300 s (--timeout)"*"|"*"a frame may take 7 s (--frame-timeout)"*) ok "frames: --timeout alone is a frame's cap too; --frame-timeout wins" ;;
     *) bad "frames: a frame's cap from --timeout: $(printf '%s' "$a" | head -1) | $(printf '%s' "$b" | head -1)" ;; esac
+  # the other page tools stop at --frame-timeout too (exit 2, naming the t), not at their whole run's --timeout: fonts,
+  # determinism and textcheck on the page above, whose frames never return from 1 s on; cues on a page whose cues getter
+  # never returns (its script stuck in a loop)
+  printf '%s\n' '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=160, height=90"></head><body><script>' \
+    'window.film = { duration: 3, frame() {}, get cues() { for (;;) {} } };</script></body></html>' > "$t/hang/cues.html"
+  s0=$SECONDS
+  a=$(vh fonts check "$t/hang" --frame-timeout 3 --out "$t/hang/f" 2>&1); r1=$?
+  b=$(vh determinism "$t/hang" --at 0.5,1.5 --frame-timeout 3 --out "$t/hang/d" 2>&1); r2=$?
+  c=$(vh textcheck "$t/hang" --frame-timeout 3 --out "$t/hang/tc" 2>&1); r3=$?
+  d=$(vh cues "$t/hang/cues.html" --frame-timeout 3 2>&1); r4=$?
+  case "$r1:$r2:$r3:$r4|$a|$b|$c|$d" in "2:2:2:2|"*"t=1.25 s: no picture after 3 s (--frame-timeout)"*"|"*"A t=1.5 s: no picture after 3 s (--frame-timeout)"*"|"*"t=1.5 s: no picture after 3 s (--frame-timeout)"*"|"*"reading window.film.cues: no answer after 3 s (--frame-timeout)"*)
+      [ $((SECONDS - s0)) -lt 150 ] && ok "fonts, determinism, textcheck and cues stop at --frame-timeout (exit 2), naming the frame or the read" \
+        || bad "frame timeouts of fonts, determinism, textcheck, cues took $((SECONDS - s0)) s" ;;
+    *) bad "frame timeouts (exit $r1:$r2:$r3:$r4): $(printf '%s' "$a" | tail -c 200) | $(printf '%s' "$b" | tail -c 200) | $(printf '%s' "$c" | tail -c 200) | $(printf '%s' "$d" | tail -c 200)" ;; esac
   # a browser stuck on its way out (it answers, then ignores Browser.close and SIGTERM: a stand-in on the DevTools pipe)
   # is killed: close() returns within seconds, so no tool waits on it until its watchdog
   printf '%s\n' 'import json, os, signal, time' 'signal.signal(signal.SIGTERM, signal.SIG_IGN); buf = b""' \
@@ -2076,6 +2114,216 @@ PY
     a=$(python3 "$t/act.py" "$t/p, x/.ovh/activity.jsonl" 2>&1); rc=$?
     case "$rc:$a" in "0:start progress progress note end:0 | start note end:1 | start note end:0 | start end:2") ok "activity: render logs its progress and what it wrote, patch its outcome; node writes the end line of a run bin/vh exec'd into" ;;
       *) bad "activity of render and patch (rc $rc): $a" ;; esac
+    # versions (tools/versions.py): in a project, each render and patch is a version; the film a render or an in-place
+    # patch replaces is kept in out/versions/ (moved, the same bytes), its record says what changed; compare draws a
+    # moment of two and says the PSNR; use makes an earlier one current again with the newer one kept; a disk under the
+    # floor and OVH_KEEP_VERSIONS send the replaced one to the Trash, said and recorded; a film made elsewhere is kept as
+    # found; OVH_VERSIONS=off records nothing; status lists them; clean prunes them to the Trash
+    v="$t/ver"; mkdir -p "$v" && cp tools/film/fixture/index.html "$v/index.html" && printf '# BRIEF\n' > "$v/BRIEF.md"
+    vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" >/dev/null 2>&1
+    s1=$(cksum < "$v/out/film.mp4")
+    a=$(vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" --note "second take" 2>&1); rc=$?
+    sed 's/x.fillStyle = "#fc0";/x.fillStyle = t >= 1.4 \&\& t < 1.7 ? "#0cf" : "#fc0";/' tools/film/fixture/index.html > "$v/index.html"
+    b=$(vh patch "$v/out/film.mp4" --frames 42-50 --in-place --note blue 2>&1); rc2=$?
+    c=$(vh versions compare "$v" v2 v3 --t 1.5 --wipe --json 2>&1); rc3=$?
+    d=$(vh versions use "$v" v2 2>&1); rc4=$?
+    if [ "$rc:$rc2:$rc3:$rc4" = 0:0:0:0 ] && printf '%s' "$a" | grep -q 'version v2: out/film.mp4 (from v1)' && printf '%s' "$a" | grep -q 'v1 kept: out/versions/v1/film.mp4' \
+      && [ "$(cksum < "$v/out/versions/v1/film.mp4")" = "$s1" ] && printf '%s' "$b" | grep -q 'version v3: out/film.mp4 (from v2)' \
+      && printf '%s' "$d" | grep -q 'v2 is the current film at out/film.mp4 again; v3 is kept in out/versions/v3/film.mp4' \
+      && python3 - "$v" "$c" <<'PY'
+import json, os, subprocess, sys
+v, c = sys.argv[1], json.loads(sys.argv[2])
+L = json.loads(subprocess.run([sys.executable, "tools/versions.py", v, "--json"], capture_output=True, text=True).stdout)
+by = {x["id"]: x for x in L["versions"]}
+ch = by["v3"]["changed"]
+side = json.load(open(v + "/out/versions/v3/film.mp4.render.json"))
+ok = [x["state"] for x in L["versions"]] == ["kept", "current", "kept"] and L["current"] == {"out/film.mp4": "v2"} and by["v2"]["note"] == "second take"
+ok = ok and by["v3"]["from"] == "v2" and by["v3"]["made_by"] == "patch" and ch["frames"] == [[42, 50]] and ch["drawn"] == [[30, 59]] and by["v1"]["changed"] == {"whole": True}
+ok = ok and side["page"] == "../../../index.html" and os.path.isfile(os.path.join(v, "out/versions/v3", side["page"]))   # a kept sidecar still finds its page
+ok = ok and c["a"]["frame"] == 45 and c["b"]["frame"] == 45 and isinstance(c["psnr"], float) and c["psnr"] < 30 and os.path.isfile(os.path.join(v, c["image"]))
+sys.exit(0 if ok else 1)
+PY
+    then ok "versions: each render and patch a version, the one it replaces kept as it was; compare a moment of two (PSNR); use brings one back, the newer one kept"
+    else bad "versions: render/patch/compare/use (exit $rc:$rc2:$rc3:$rc4): $(printf '%s' "$a$b$c$d" | tail -c 900)"; fi
+    # a disk under the floor: the replaced film goes to the Trash, named for the project, said and recorded; OVH_KEEP_VERSIONS=1
+    # sends the oldest kept one there too; a film made elsewhere is kept as found; OVH_VERSIONS=off writes nothing
+    a=$(OVH_FREE_BYTES=1000000000 OVH_TRASH_DIR="$t/trash" vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" 2>&1); rc=$?
+    cp "$v/out/versions/v3/film.mp4" "$v/out/film.mp4"; touch "$v/out/film.mp4"   # a film put there by hand
+    b=$(OVH_KEEP_VERSIONS=1 OVH_TRASH_DIR="$t/trash" vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" 2>&1); rc2=$?
+    n0=$(wc -c < "$v/out/versions/versions.json")
+    OVH_VERSIONS=off vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" >/dev/null 2>&1
+    if [ "$rc:$rc2" = 0:0 ] && printf '%s' "$a" | grep -q 'v2 to the Trash: not kept: 1.0 GB free on that disk' && [ -d "$t/trash/ver v2" ] \
+      && printf '%s' "$b" | grep -q 'was not made by bin/vh render or patch' && printf '%s' "$b" | grep -q 'v1 to the Trash: more than 1 earlier version' \
+      && printf '%s' "$b" | grep -q 'v3 to the Trash: more than 1 earlier version' \
+      && [ "$(wc -c < "$v/out/versions/versions.json")" = "$n0" ] && python3 - "$v" <<'PY'
+import json, subprocess, sys
+L = json.loads(subprocess.run([sys.executable, "tools/versions.py", sys.argv[1], "--json"], capture_output=True, text=True).stdout)
+st = {x["id"]: (x["made_by"], x["state"]) for x in L["versions"]}
+S = json.loads(subprocess.run(["bash", "bin/vh", "status", sys.argv[1], "--json"], capture_output=True, text=True).stdout)
+ok = st["v1"][1] == "trashed" and st["v2"][1] == "trashed" and st["v5"] == ("found", "kept") and st["v6"][1] == "changed"   # OVH_VERSIONS=off replaced v6
+ok = ok and S["versions"]["list"][-1]["id"] == "v6" and S["versions"]["current"] == {} and all(not r["path"].startswith("out/versions") for r in S["renders"])
+sys.exit(0 if ok else 1)
+PY
+    then ok "versions: a full disk and OVH_KEEP_VERSIONS send the replaced film to the Trash (said, recorded); a film made by hand is kept as found; OVH_VERSIONS=off records nothing; status lists them"
+    else bad "versions: the Trash, found, off, status (exit $rc:$rc2): $(printf '%s' "$a$b" | tail -c 900)"; fi
+    a=$(vh versions 2>&1); rc=$?; b=$(vh versions compare "$v" v4 --t 1 2>&1); rc2=$?; c=$(vh versions use "$v" v1 2>&1); rc3=$?
+    d=$(vh versions compare "$v" v4 v5 2>&1); rc4=$?; e=$(vh versions compare "$v" v4 v5 --t 1 --wipe=abc 2>&1); rc5=$?
+    case "$rc:$rc2:$rc3:$rc4:$rc5:$c:$d:$e" in 2:2:1:2:2:*"v1 is trashed: its film is not in the project"*"compare needs --t"*"--wipe abc: where the line goes"*)
+        ok "versions: usage errors exit 2 (a --wipe that is no share of the width too), a version in the Trash cannot be used (exit 1)" ;;
+      *) bad "versions usage (exit $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s' "$a$b$c$d$e" | tail -c 500)" ;; esac
+    a=$(vh clean "$v" 2>&1); b=$(OVH_TRASH_DIR="$t/trash" vh clean "$v" --yes --keep-versions 1 2>&1); rc=$?
+    c=$(OVH_TRASH_DIR="$t/trash" vh clean "$v" --yes 2>&1); rc2=$?
+    if [ "$rc:$rc2" = 0:0 ] && printf '%s' "$a" | grep -q 'versions (earlier versions of the films' && printf '%s' "$a" | grep -q 'out/versions/v5/' \
+      && ! printf '%s' "$b" | grep -q 'out/versions/v5/' && [ ! -e "$v/out/versions/v5" ] && [ -d "$t/trash/ver v5" ] && [ -f "$v/out/versions/versions.json" ] \
+      && vh versions "$v" | grep -q 'v5 .*in the Trash'
+    then ok "clean: the earlier versions listed, then to the Trash but the newest --keep-versions N; their record says so"
+    else bad "clean of versions (exit $rc:$rc2): $(printf '%s' "$a$b$c" | tail -c 700)"; fi
+    # patch --shot / --chapter (tools/film/fixture/shots.html: S02 green from 1.4 to 2.2 s, under S03's 0.3 s dissolve to
+    # 2.5 s): S02 turned yellow; --shot S02 draws 42–74 (through the dissolve) and passes, naming S02; the frames of S02's
+    # own span alone are refused (the dissolve shows it); a chapter by its id, an unknown shot and a chapter outside the
+    # film exit 2; shots.json in the project wins over the page
+    s="$t/shots"; mkdir -p "$s" && cp tools/film/fixture/shots.html "$s/film.html" && printf '# BRIEF\n' > "$s/BRIEF.md"
+    vh render "$s" --gop 15 --workers 2 --out "$s/out/film.mp4" >/dev/null 2>&1
+    sed 's/colour: "#3c3"/colour: "#cc3"/' tools/film/fixture/shots.html > "$s/film.html"
+    a=$(vh patch "$s/out/film.mp4" --frames 42-65 --out "$s/out/own.mp4" 2>&1); rc=$?
+    b=$(vh patch "$s/out/film.mp4" --shot S02 --out "$s/out/shot.mp4" 2>&1); rc2=$?
+    c=$(vh patch "$s/out/film.mp4" --chapter ch-two --out "$s/out/ch.mp4" 2>&1); rc3=$?
+    d=$(vh patch "$s/out/film.mp4" --shot S09 2>&1); rc4=$?
+    printf '[{"id": "X1", "start": "0:01.4", "end": 2.5}]\n' > "$s/shots.json"
+    e=$(vh patch "$s/out/film.mp4" --shot X1 --out "$s/out/x.mp4" 2>&1); rc5=$?
+    if [ "$rc:$rc2:$rc3:$rc4:$rc5" = 1:0:0:2:0 ] && printf '%s' "$a" | grep -q 'frames 66–74 are outside 42–65' && printf '%s' "$b" | grep -q 'frames 42–74 (1.400–2.500 s) asked' \
+      && printf '%s' "$b" | grep -q "S02: 1.400–2.500 s (+0.3 s: S03's transition draws it underneath)" && printf '%s' "$c" | grep -q 'frames 42–89' \
+      && printf '%s' "$d" | grep -q 'no shot S09: .*film.html (window.film.shots) has S01, S02, S03' && printf '%s' "$e" | grep -q 'shots from .*shots.json' && python3 - "$s" <<'PY'
+import json, subprocess, sys
+s = sys.argv[1]
+L = json.loads(subprocess.run([sys.executable, "tools/versions.py", s, "--json"], capture_output=True, text=True).stdout)
+by = {x["film"]: x for x in L["versions"]}
+side = json.load(open(s + "/out/film.mp4.render.json"))
+ok = side["shots"][2] == {"id": "S03", "start": 2.2, "end": 3, "transition": 0.3} and side["chapters"][1] == {"t": 1.4, "title": "two", "id": "ch-two"}
+ok = ok and by["out/shot.mp4"]["changed"]["shots"] == ["S02", "S03"] and by["out/shot.mp4"]["changed"]["asked"]["shots"] == ["S02"] and by["out/shot.mp4"]["from"] == by["out/film.mp4"]["id"]
+ok = ok and by["out/x.mp4"]["changed"]["shots"] == ["X1"] and "out/own.mp4" not in by
+sys.exit(0 if ok else 1)
+PY
+    then ok "patch --shot / --chapter: a shot's frames through the next cut's transition, a chapter by its id, the shots named in the version; shots.json wins; unknown ones exit 2"
+    else bad "patch --shot / --chapter (exit $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s' "$a$b$c$d$e" | tail -c 900)"; fi
+    # two spans apart: their windows drawn separately and both joined in, the frames between them the film's own bytes
+    a=$(vh patch "$s/out/film.mp4" --frames 5-6,80-82 --out "$s/out/two.mp4" 2>&1); rc=$?
+    if [ $rc = 0 ] && printf '%s' "$a" | grep -q '0–14, 75–89 drawn again (keyframe to keyframe, 30 frames)' && printf '%s' "$a" | grep -q "packets outside 0–14, 75–89: 60 the film's own ✓"
+    then ok "patch: two spans apart are drawn as two windows, the film's own packets between them"
+    else bad "patch on two spans (exit $rc): $(printf '%s' "$a" | tail -c 700)"; fi
+    # a link in the project to a film outside it: render and patch --in-place replace the link, never write into what it
+    # points to (with versions and with OVH_VERSIONS=off), as before versions
+    l="$t/lk"; mkdir -p "$l/out" "$t/outside" && cp tools/film/fixture/index.html "$l/index.html" && printf '# BRIEF\n' > "$l/BRIEF.md"
+    vh render "$l" --gop 15 --workers 2 --out "$t/outside/target.mp4" >/dev/null 2>&1
+    cp "$t/outside/target.mp4" "$t/outside/t2.mp4"; s1=$(cksum < "$t/outside/target.mp4")
+    sig() { python3 -c 'import os, sys; print(" ".join("%d:%d" % (os.stat(f).st_ino, os.stat(f).st_mtime_ns) for f in sys.argv[1:]))' "$@"; }
+    g1=$(sig "$t/outside/target.mp4" "$t/outside/t2.mp4")   # the same file, untouched: a re-render of the same page has the same bytes
+    ln -s "$t/outside/target.mp4" "$l/out/link.mp4"; ln -s "$t/outside/t2.mp4" "$l/out/off.mp4"; ln -s "$t/outside/target.mp4" "$l/out/p.mp4"
+    cp "$t/outside/target.mp4.render.json" "$l/out/p.mp4.render.json"
+    a=$(vh render "$l" --gop 15 --workers 2 --out "$l/out/link.mp4" 2>&1); rc=$?
+    OVH_VERSIONS=off vh render "$l" --gop 15 --workers 2 --out "$l/out/off.mp4" >/dev/null 2>&1; rc2=$?
+    b=$(vh patch "$l/out/p.mp4" --frames 5-6 --in-place 2>&1); rc3=$?
+    if [ "$rc:$rc2:$rc3" = 0:0:0 ] && [ "$(sig "$t/outside/target.mp4" "$t/outside/t2.mp4")" = "$g1" ] && [ "$(cksum < "$t/outside/t2.mp4")" = "$s1" ] \
+      && [ -f "$l/out/link.mp4" ] && [ ! -L "$l/out/link.mp4" ] && [ ! -L "$l/out/off.mp4" ] && [ ! -L "$l/out/p.mp4" ] \
+      && printf '%s' "$a" | grep -q 'out/link.mp4 was a link to .*target.mp4: the link is replaced by the new film, what it points to is left as it was'
+    then ok "render and patch --in-place on a link replace the link, never what it points to (versions on and off)"
+    else bad "a film path that is a link (exit $rc:$rc2:$rc3; target $( [ "$(cksum < "$t/outside/target.mp4")" = "$s1" ] && echo same || echo changed)): $(printf '%s' "$a$b" | tail -c 600)"; fi
+    # an --out inside out/versions (a kept version's folder) is refused before anything is drawn, the kept film untouched
+    v="$t/in"; mkdir -p "$v" && cp tools/film/fixture/index.html "$v/index.html" && printf '# BRIEF\n' > "$v/BRIEF.md"
+    vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" >/dev/null 2>&1; vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" >/dev/null 2>&1
+    s1=$(cksum < "$v/out/versions/v1/film.mp4")
+    a=$(vh render "$v" --gop 15 --workers 2 --out "$v/out/versions/v1/film.mp4" 2>&1); rc=$?
+    b=$(vh patch "$v/out/film.mp4" --frames 5-6 --out "$v/out/versions/v1/film.mp4" 2>&1); rc2=$?
+    c=$(vh patch "$v/out/versions/v1/film.mp4" --frames 5-6 2>&1); rc3=$?
+    if [ "$rc:$rc2:$rc3" = 2:2:2 ] && [ "$(cksum < "$v/out/versions/v1/film.mp4")" = "$s1" ] && printf '%s' "$a$b$c" | grep -q 'inside out/versions' \
+      && vh versions "$v" | grep -q 'v1 .*kept out/versions/v1/film.mp4'
+    then ok "render and patch refuse an --out inside out/versions (exit 2), the kept film untouched"
+    else bad "an --out inside out/versions (exit $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 600)"; fi
+    # use: the check record at the film's path is the version's own or none. v2 checked (a record made after it), v1 never:
+    # after use v1 there is no record at out/check/film.check.json, v2's went into its folder; use v2 brings it back
+    mkdir -p "$v/out/check"
+    printf '{"version": 1, "tool": "bin/vh check", "video": "out/film.mp4", "t": %s, "at": "now", "exit": 0, "verdict": "pass", "counts": {"fail": 0, "warn": 0, "info": 0}, "findings": []}\n' \
+      "$(python3 -c 'import time; print(time.time() + 2)')" > "$v/out/check/film.check.json"
+    a=$(vh versions use "$v" v1 2>&1); rc=$?
+    b=$(python3 - "$v" <<'PY'
+import json, os, subprocess, sys
+v = sys.argv[1]
+L = json.loads(subprocess.run([sys.executable, "tools/versions.py", v, "--json"], capture_output=True, text=True).stdout)
+S = json.loads(subprocess.run(["bash", "bin/vh", "status", v, "--json"], capture_output=True, text=True).stdout)
+by = {x["id"]: x for x in L["versions"]}
+r = next(x for x in S["renders"] if x["path"] == "out/film.mp4")
+print(os.path.exists(v + "/out/check/film.check.json"), by["v1"]["state"], by["v1"]["check"], by["v2"]["state"], (by["v2"]["check"] or {}).get("verdict"), r["check"])
+PY
+)
+    c=$(vh versions use "$v" v2 2>&1); rc2=$?
+    d=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["verdict"])' "$v/out/check/film.check.json" 2>&1)
+    if [ "$rc:$rc2" = 0:0 ] && [ "$b" = "False current None kept pass None" ] && [ "$d" = pass ]
+    then ok "versions use: the check record at the film's path is the version's own or none; the displaced one's goes with it and comes back with it"
+    else bad "use and the check record (exit $rc:$rc2): $b | $d | $(printf '%s' "$a$c" | tail -c 400)"; fi
+    # a patch in place commits only over the film it cut: versions use refuses while it runs (its lock), and a film rewritten
+    # meanwhile (the same bytes, another file) is left as it is, the patched one beside it (exit 1), the record unchanged
+    sed 's|x.fillStyle = "#fc0"; x.fillRect(20 + t \* 80, 90, 40, 40);|x.fillStyle = "#fc0"; x.fillRect(20 + t * 80, 90, 40, 40); return new Promise((ok) => setTimeout(ok, 400));|' \
+      tools/film/fixture/index.html > "$v/index.html"
+    waitwork() { local n=0; while [ ! -d "$v/out/.film.mp4.patch" ] && [ $n -lt 300 ]; do sleep 0.1; n=$((n + 1)); done; }
+    vh patch "$v/out/film.mp4" --frames 20-21 --in-place --workers 1 > "$t/patch-use.log" 2>&1 & pid=$!
+    waitwork; a=$(vh versions use "$v" v1 2>&1); rc=$?
+    wait $pid; p_use=$?
+    vh patch "$v/out/film.mp4" --frames 20-21 --in-place --workers 1 > "$t/patch-swap.log" 2>&1 & pid=$!
+    waitwork; cp "$v/out/film.mp4" "$t/same.mp4"; mv "$t/same.mp4" "$v/out/film.mp4"
+    nv=$(python3 -c 'import json, sys; print(len(json.load(open(sys.argv[1]))["versions"]))' "$v/out/versions/versions.json")
+    wait $pid; p_swap=$?
+    b=$(cat "$t/patch-swap.log")
+    nv2=$(python3 -c 'import json, sys; print(len(json.load(open(sys.argv[1]))["versions"]))' "$v/out/versions/versions.json")
+    if [ "$rc:$p_use:$p_swap" = 1:0:1 ] && printf '%s' "$a" | grep -q 'is writing out/film.mp4' && printf '%s' "$b" | grep -q 'is not the one the patch cut from' \
+      && [ -f "$v/out/film.new.mp4" ] && [ "$nv" = "$nv2" ]
+    then ok "patch --in-place commits only over the film it cut: use waits for it, a film rewritten meanwhile is left as it is and the patched one goes beside it"
+    else bad "patch and a film changed meanwhile (use exit $rc, patches $p_use/$p_swap, versions $nv/$nv2): $a | $(printf '%s' "$b" | tail -c 500)"; fi
+    # proxy and thumbs (tools/proxy.py): a film with sound (the shots fixture, a tone muxed on) gets a proxy at --size on
+    # its short side with a keyframe every 6 frames, no B-frames and its sound, and thumbs (tiles in a sheet, a picture a
+    # shot from the sidecar's shots, a map); run again, both are up to date; after a patch in place only the proxy's
+    # window around the frames drawn again is encoded (it decodes as a whole remake does, its sound kept) and only the
+    # tiles and shots there are taken; a project with no film: thumbs from the page, no proxy (exit 2)
+    x="$t/px"; mkdir -p "$x" && cp tools/film/fixture/shots.html "$x/film.html" && printf '# BRIEF\n' > "$x/BRIEF.md"
+    vh render "$x" --gop 15 --workers 2 --out "$x/out/film.mp4" >/dev/null 2>&1
+    ffmpeg -v error -nostdin -y -i "$x/out/film.mp4" -f lavfi -i "sine=frequency=440:duration=3" -map 0:v -map 1:a -c:v copy -c:a aac -shortest "$x/out/final.mp4"
+    sed 's/colour: "#3c3"/colour: "#cc3"/' tools/film/fixture/shots.html > "$x/film.html"
+    vh patch "$x/out/final.mp4" --sidecar "$x/out/film.mp4.render.json" --shot S02 --in-place >/dev/null 2>&1
+    a=$(vh proxy "$x/out/final.mp4" --size 90 2>&1); rc=$?
+    b=$(vh proxy "$x/out/final.mp4" --size 90 2>&1); rc2=$?
+    c=$(vh thumbs "$x" --every 0.5 --width 80 2>&1); rc3=$?
+    sed 's/colour: "#c33"/colour: "#c3c"/' "$x/film.html" > "$x/f2.html" && mv "$x/f2.html" "$x/film.html"
+    vh patch "$x/out/final.mp4" --shot S01 --in-place >/dev/null 2>&1
+    d=$(vh proxy "$x/out/final.mp4" --size 90 2>&1); rc4=$?
+    e=$(vh thumbs "$x" --every 0.5 --width 80 --json 2>&1); rc5=$?
+    cp "$x/out/proxy/final.mp4" "$t/refreshed.mp4"
+    vh proxy "$x/out/final.mp4" --size 90 --full >/dev/null 2>&1
+    if [ "$rc:$rc2:$rc3:$rc4:$rc5" = 0:0:0:0:0 ] && printf '%s' "$a" | grep -q '160x90, a keyframe every 6 frames, with sound · made' && printf '%s' "$b" | grep -q 'up to date' \
+      && printf '%s' "$c" | grep -q '6 tiles every 0.5 s (80x46) in 1 sheet(s), 3 shot picture(s)' && printf '%s' "$d" | grep -q 'refreshed: 1 window(s) of frames encoded anew, 48 of 90 frames' \
+      && python3 - "$x" "$t/refreshed.mp4" "$e" <<'PY'
+import json, re, subprocess, sys
+x, refreshed, e = sys.argv[1], sys.argv[2], json.loads(sys.argv[3])
+def run(*a): return subprocess.run(a, capture_output=True, text=True)
+keys = [i for i, l in enumerate(run("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "packet=flags", "-of", "csv=p=0", refreshed).stdout.split()) if "K" in l]
+st = run("ffprobe", "-v", "error", "-show_entries", "stream=codec_type,width,height,nb_frames,has_b_frames", "-of", "json", refreshed).stdout
+st = {s["codec_type"]: s for s in json.loads(st)["streams"]}
+m = re.findall(r"average:(inf|[\d.]+)", run("ffmpeg", "-v", "info", "-i", refreshed, "-i", x + "/out/proxy/final.mp4", "-lavfi", "psnr", "-f", "null", "-").stderr)
+rec = json.load(open(x + "/out/proxy/final.mp4.json"))
+ok = keys == list(range(0, 90, 6)) and st["video"]["nb_frames"] == "90" and (st["video"]["width"], st["video"]["height"]) == (160, 90) and "audio" in st
+ok = ok and m and (m[-1] == "inf" or float(m[-1]) >= 50) and rec["made"] == "full" and rec["source_version"] == "v4"
+ok = ok and e["made"] == "refreshed" and e["taken"] == {"tiles": 3, "shots": 1} and e["from"] == "proxy" and [s["id"] for s in e["shots"]] == ["S01", "S02", "S03"]
+ok = ok and e["tiles"][3] == {"i": 3, "t": 1.5, "frame": 45, "sheet": 0, "x": 240, "y": 0} and e["sheets"][0]["size"] == [480, 46]
+sys.exit(0 if ok else 1)
+PY
+    then ok "proxy and thumbs: a small short-GOP copy with its sound, a tile sheet, a picture a shot and the map; up to date when the film is; after a patch in place only its window is encoded again and its tiles taken"
+    else bad "proxy and thumbs (exit $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s' "$a$b$c$d" | tail -c 900)"; fi
+    mkdir -p "$t/nofilm" && cp tools/film/fixture/shots.html "$t/nofilm/film.html" && printf '# BRIEF\n' > "$t/nofilm/BRIEF.md"
+    a=$(vh thumbs "$t/nofilm" --every 1 2>&1); rc=$?; b=$(vh proxy "$t/nofilm" 2>&1); rc2=$?; c=$(vh proxy "$x" --size x 2>&1); rc3=$?
+    mkdir -p "$x/out/review/proxy" && cp "$x/out/film.mp4" "$x/out/review/proxy/kept.mp4"   # a folder of that name deeper down is the person's own
+    s=$(vh status "$x" --json | python3 -c 'import json, sys; print(" ".join(r["path"] for r in json.load(sys.stdin)["renders"]))')
+    case "$rc:$rc2:$rc3:$a:$b:$s" in 0:2:2:*"3 tiles every 1.0 s"*"3 shot picture(s)"*"from the page"*:*"no film in"*"to make a proxy of"*:*) case " $s " in *" out/proxy"*|*" out/versions"*) bad "status lists the proxy or a kept version as a render: $s" ;;
+        *" out/review/proxy/kept.mp4 "*) ok "thumbs on a project with no film: from the page; proxy needs a film (exit 2); status lists neither out/proxy nor out/versions, but a proxy folder deeper down" ;;
+        *) bad "status left out out/review/proxy/kept.mp4: $s" ;; esac ;;
+      *) bad "thumbs from the page, proxy without a film (exit $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 600)" ;; esac
   fi
   if node -e 'import("./tools/film/host.mjs").then((m) => process.exit(m.findRuntime(process.cwd()) ? 0 : 1))' 2>/dev/null; then
     mkdir -p "$t/hf"

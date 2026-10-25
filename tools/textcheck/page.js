@@ -8,7 +8,8 @@
 
   const KEYS = ["font", "textAlign", "textBaseline", "direction", "letterSpacing", "wordSpacing", "fontKerning", "fontStretch", "fontVariantCaps", "textRendering"];
   const SKEYS = ["lineWidth", "lineJoin", "miterLimit"];
-  const H = { rec: false, calls: [], skip: null, n: 0, t: null, errors: [] };
+  const H = { rec: false, calls: [], skip: null, n: 0, t: null, errors: [], since: 0 };
+  const NOW = performance.now.bind(performance);   // taken before the page's scripts run: what the frame bound measures with
   const alphaOf = (style) => {   // "rgba(r, g, b, a)" → a; gradients, patterns and opaque colours → 1
     if (typeof style !== "string") return 1;
     const m = style.match(/^rgba?\(([^)]*)\)$/);
@@ -52,8 +53,12 @@
   const keyOf = (s) => strict(s) || loose(s);
   const EMPTY = new Set();
 
+  // a task boundary before each frame (a message, not a clamped timer): the check's watchdog can ask busy() between frames,
+  // as the film host's tools draw each frame in a task of its own
+  const yieldTask = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = () => { c.port1.close(); r(); }; c.port2.postMessage(0); });
   async function draw(t, skip, layer) {   // layer "scene": the frame without the interface (window.film.ui's pages)
-    H.n = 0; H.skip = skip || null; H.rec = !skip; H.t = t;
+    await yieldTask();
+    H.n = 0; H.skip = skip || null; H.rec = !skip; H.t = t; H.since = NOW();
     if (!skip) H.calls = [];
     try { const f = contract(); await (layer ? f.draw(t, { layer }) : f.draw(t)); } catch (e) { H.errors.push({ t, msg: String((e && e.stack) || e) }); }
     H.rec = false; H.skip = null; H.t = null;
@@ -437,5 +442,6 @@
     },
     errors() { const e = H.errors; H.errors = []; return e; },
     async show(t) { await draw(t, EMPTY); },
+    busy() { return H.t === null ? null : { t: H.t, ms: NOW() - H.since }; },   // the frame being drawn now, and for how long (--frame-timeout)
   };
 })();

@@ -147,7 +147,8 @@ JSON 的格式：
 - `waiting_on`：`person`、`agent`、`nobody`（交付了）或 `unknown`（没有 REVIEW.md，又没有命令在跑）；REVIEW.md 写了暂停（`paused: true`）也是 `person`。机器写的记录（检查记录、`.render.json`、`.deliver.json`、审阅台的提交）里类型不对的字段当作没有。`next`：一句话，谁下一步做什么。
 - `review`：`current`（这一轮的页名）、`page`、`desk`（在跑时：`url`、`listening`）。
 - `open`：`review_items`（审阅台提交里标了要改、疑问，而 REVIEW.md 那一节还没写定了 / 改了的条目：`round`、`file`、`target`、`status`、`label`、`text`）、`facts_to_verify`（NOTES.md 待核实里没打勾的）。
-- `renders`：`out/`（往下三层）、`renders/`、`media/` 里的视频，新的在前，最多 10 个：`path`、`size`、`mtime`、`render`（`.render.json` 的帧数、帧率、像素、时间段）、`patches`、`delivery`（它是 `bin/vh deliver` 出的上传版时）、`check`（它最近的检查记录）。`deliveries`：`bin/vh deliver` 的记录。
+- `renders`：`out/`（往下三层，不含 `out/versions/` 和 `out/proxy/`）、`renders/`、`media/` 里的视频，新的在前，最多 10 个：`path`、`size`、`mtime`、`render`（`.render.json` 的帧数、帧率、像素、时间段）、`patches`、`delivery`（它是 `bin/vh deliver` 出的上传版时）、`check`（它最近的检查记录）、`version`（它是哪一版的当前文件，见下面"版本"）。`deliveries`：`bin/vh deliver` 的记录。
+- `versions`：版本记录（下面"版本"）的摘要，还没有记录时是 `null`：`record`、`keep`、`current`、`kept_bytes`、`list`（每版 `id`、`at`、`t`、`film`、`file`、`state`、`made_by`、`from`、`note`、`changed`、`frames`、`pixels`、`check`）；记录读不了时是 `{"error"}`。
 - `check`：最近一次 `bin/vh check` 的记录摘要：`record`、`video`、`at`、`verdict`、`exit`、`counts`、`fails`（前三条）、`stale`（视频在检查之后改过）。
 - `activity`：`running`（正在跑的命令）、`listening`（在跑的审阅台、`gate --wait`：是在等人，不是在干活）、`recent`（最近结束的五条），每条是下面活动记录里的一个 run。
 
@@ -159,13 +160,35 @@ JSON 的格式：
 |---|---|---|
 | `start` | `cmd`、`args`（照打的写，但不写秘密：名字（`=` 前那段）里带 key、token、secret、pass、auth、cred、cookie、header、bearer 的选项和 `名字=值` 的值，大写的 `NAME=值`、单字母选项后面的值，URL 里的 `用户:密码@`、查询参数的值和 `#` 后面，Bearer token，名字像秘密的 header，像 key 的参数，都写成 `…`；最多 24 个）、`cwd`、`pid`、`parent`（由另一条 `bin/vh` 起的） | `bin/vh` |
 | `progress` | `done`、`total`、`unit`（`render`：frames，开头、每 15 s、结尾各一行） | 工具 |
-| `note` | `summary`（一行）、`outputs`（写了哪些文件，项目里的写相对路径） | 工具：render、patch、review、gate、mix、qa、tts、check、`desk wait` |
+| `note` | `summary`（一行）、`outputs`（写了哪些文件，项目里的写相对路径） | 工具：render、patch、review、gate、mix、qa、tts、check、`desk wait`、`versions compare`、`versions use` |
 | `end` | `exit`（退出码；Ctrl-C 是 130，写完 `bin/vh` 再用 SIGINT 结束自己，调用它的 shell 才知道是 Ctrl-C；自己处理信号 n 的工具（desk、`desk wait`、`gate --wait`）停下时是 128 + n；被 TERM、HUP 直接杀掉的命令当场结束，没有这一行，读出来是 `gone`）、`duration`（秒；没有 `EPOCHREALTIME` 的 bash，比如 macOS 自带的 3.2，只到整秒） | `bin/vh` 的 EXIT trap；`bin/vh` exec 进去的工具（render、patch、frames 这些页面工具，desk、gate）自己写 |
 | `feedback` | `round`、`file`、`items`（按状态计数）、`decisions` | 审阅台存下一份提交时；不属于哪条命令 |
 
 `bin/vh` 把这条命令交给它起的进程：环境变量 `OVH_ACTIVITY_LOG`、`_RUN`、`_PID`、`_T0`、`_CMD`。不写进去的：环境变量、key、文件内容。每行一次 O_APPEND 的 write，几条命令同时写也不会把行写乱：`bin/vh` 写的不超过 1 KiB（bash 的 printf 会把更长的一行拆成 1024 字节一段段写），Python、Node 写的不超过 4 KiB；写不进去（磁盘满、项目只读）就丢掉这一行，命令照常跑完、不多说一句。
 
 `--json` 是 `{"version", "project", "log", "runs", "events"}`。`runs` 里每条命令一项：`run`、`cmd`、`args`、`cwd`、`pid`、`parent`、`start`、`end`、`exit`、`duration`、`summary`、`outputs`、`progress`、`state`。`state` 是 `running`（没有结束行，进程还在，开始不到 7 天）、`ok`（退出码 0）、`failed`、`gone`（没有结束行，进程也没了：被杀掉，或者机器重启过）。`events` 是不属于命令的行（`feedback`）。`--follow` 先打印最近的，再一行一行跟着打印新的；加 `--json` 是一行一个 JSON。读的时候，读不了的行跳过，类型不对的字段丢掉（`outputs` 不是列表、`summary` 不是字符串……），一行坏了不会让 `activity`、`status` 或客户端停下来。只读日志最后 4 MB。
+
+### 版本：`bin/vh versions <项目> [--json]`
+
+项目里的视频每经 `bin/vh render`、`bin/vh patch` 出一次，就是这支片子的一版（`tools/versions.py`），记在 `<项目>/out/versions/versions.json`。项目外的视频不记；`OVH_VERSIONS=off` 也不记，这时 render 照旧直接盖掉原来的文件。
+
+- **旧的片子怎么留**：render 或 `patch --in-place` 要盖掉的那支片子，先整个挪进 `out/versions/<id>/`（连同 `.render.json` 和它的检查记录；只是改名，不复制，不花时间）。路径上原有的文件不是这两条命令出的（`mux` 出的、手放的、有记录之前渲的），先记成一版 `found` 再留。`out/versions/` 里的东西从不被覆盖（编号也跳过那里已有的文件夹），记录跟着字节走：片子一挪就记它的新位置。路径上是一个链接时，换掉的是链接本身，它指向的文件不动（和有版本之前一样，`OVH_VERSIONS=off` 也是）。输出落在 `out/versions/` 里的 render 和 patch 在画之前就拒绝（退出码 2）。`patch --in-place` 只在路径上还是它切开的那支片子时（大小和修改时间）才放进去；中途被换过就不动它，新片放在旁边，退出码 1。新片放不进去时放在旁边一个没人用的名字（`<stem>.new.mp4`、`.new-2.mp4`……）。
+- **默认按磁盘留**：挪走之后磁盘还剩它两倍大小、并且至少 5 GB，才留在项目里；每支片子最多留 `OVH_KEEP_VERSIONS`（默认 3）个旧版，多出来的最旧那个、或者磁盘留不下的，移到废纸篓（`<项目名> v2` 这样一个文件夹），在命令的输出、活动记录和这份记录里都写明；从不直接删。`bin/vh clean` 按它的规矩修剪旧版（先列出，`--yes` 才移到废纸篓，`--keep-versions N` 每支片子留最新的 N 个）。
+- **`versions.json`**（`"version": 1`）：`next`（下一个编号）、`versions`、`events`（`use` 的记录：`t`、`at`、`event`、`id`、`film`、`displaced`）。每版：`id`（`v1`、`v2`……不复用）、`n`、`t`、`at`、`film`（出片时的路径，`use` 放回这里）、`file`（现在字节在哪：当前就是 `film`，留着的在 `out/versions/<id>/`，进了废纸篓是 `null`）、`sidecar`、`made_by`（`render`、`patch`、`found`）、`from`（render：它替掉的那一版；patch：它从哪一版改来）、`note`（`--note`）、`changed`、`size`、`mtime`、`frames`、`fps`、`pixels`、`span`、`check`（留下时一起存的检查记录）、`problems`（render 报了问题的帧数，有才写）、`gone`（`at`、`why`：为什么不在了）。
+- **`changed`**：render 是 `{"whole": true}`；patch 是 `{"whole": false, "frames": [[a, b]…], "seconds": [[s, e]…], "drawn": [[A, B]…], "shots": [...], "asked": {"shots", "chapters"}}`：点名的帧（含两端）、对应的秒、为了对上关键帧实际重画的帧、这些帧跨过的镜头（项目有 `shots.json` 用它，否则用页面的 `window.film.shots`），`asked` 是 `--shot`、`--chapter` 原样点的名。
+- **`--json`** 输出 `{"version": 1, "project", "record", "keep", "current": {片子路径: id}, "kept_bytes", "versions", "events"}`；每版另算 `state`：`current`（它的路径上就是这些字节）、`kept`（在 `out/versions/` 里）、`trashed`、`gone`（不在记录说的地方了）、`changed`（它的路径上现在是别的字节：在 render 和 patch 之外被换掉了），按文件大小和修改时间判断；`check` 是它的检查记录摘要（当前版取 `out/check/` 里比它新的那份）：`verdict`、`at`、`counts`、`record`。读不了的记录：退出码 2；render 和 patch 遇到它会把它改名成 `versions.json.bad-<时间>` 留着，另起一份，不因此失败。
+
+`bin/vh versions compare <项目> <vA> <vB> --t <秒> [--wipe [0.5]] [--out f.png] [--json]`：两版在 `--t` 秒显示的那一帧（第 floor(t·fps) 帧），并排（vA 在左）或擦除对比（线左 vA、线右 vB，默认在一半处），每边最宽 1920 px；默认写到 `out/check/versions/<vA>-<vB>-t<秒>.png`。PSNR（dB，RGB；尺寸不同时把 vB 缩到 vA 的大小）是从两支编码后的片子解出来的帧算的，两边都带着 x264 的损失，所以它说的是两支片子在那一刻差多远，不是两版页面画得差多远。`--json`：`{"version", "project", "t", "a": {"id", "file", "frame", "fps"}, "b", "psnr"（数，或 `"inf"`）, "layout", "wipe", "image", "from": "the encoded films"}`。
+
+`bin/vh versions use <项目> <vN>`：让 vN 重新成为它路径上的当前片子。路径上现在的那支先挪进 `out/versions/` 留着（这里从不进废纸篓，也不按数量修剪），它在 `out/check/` 的检查记录跟着挪走；vN 的文件、`.render.json` 和它自己的检查记录放回原处。所以换完以后，这个路径的检查记录要么是 vN 自己的，要么没有，不会把别的片子的结论算在 vN 头上。render 或原地 patch 正在写这支片子时（它们的锁）拒绝。什么都不删。退出码：0；1 这一版不在项目里（进了废纸篓或不见了）、ffmpeg 失败；2 用法错、没有这个项目、记录读不了。`compare` 和 `use` 记进活动记录，列表不记。
+
+### 拖动用的代理和缩略图：`bin/vh proxy`、`bin/vh thumbs`
+
+都只用 ffmpeg（`tools/proxy.py`），参数给一支片子或一个项目；项目指它的片子：最新的当前版（`bin/vh versions`），否则 `out/` 里最新的、旁边有 `.render.json` 的视频，否则 `out/` 里最新的视频（不看 `out/check`、`out/review`、`out/proxy`、`out/versions`）。输出在 `<项目>/out/proxy/`（项目外的片子：它旁边的 `proxy/`），文件名照检查记录的起法（`out/review/sketch.mp4` 是 `review-sketch`）。`bin/vh clean` 把 `out/proxy/` 当作工具能重做的东西。退出码：0 做好了或本来就是新的；1 ffmpeg 或页面失败；2 用法错、`proxy` 没有片子、`thumbs` 既没片子也没页面。
+
+`bin/vh proxy <片子|项目> [--size 360] [--gop N] [--crf 28] [--full] [--out 目录] [--json]`：`<名字>.mp4`，短边 `--size` 像素（不放大），H.264，每 `--gop` 帧一个关键帧（默认五分之一秒，30 fps 是 6），没有 B 帧，按快速解码调过，带片子的声音（AAC）：任意一处拖过去，最多解 `--gop` 帧。旁边的 `<名字>.mp4.json`（`"version": 1`）：`source`、`source_ident`（片子的 `size`、`mtime`）、`source_version`、`proxy`、`settings`（`size`、`gop`、`crf`）、`fps`、`frames`、`duration`、`audio`、`made`（`full`、`refreshed`）、`windows`（refreshed 时重编的帧段）、`t`、`at`、`seconds`。再跑一次：片子没变就什么都不做（`up to date`）；片子在那之后只经过原地 patch（版本记录里从代理那一版到现在每一步都是这支片子的 `patch --in-place`），就只把重画的帧所在的代理关键帧段从新片子重编、接进去，其余照拷，声音照旧；别的情况（重新 render、换了参数、`--full`）整支重做。接进去的几段和整支重做的同一段可能差一点点（x264 的码率控制会看段外的帧），在测试片上最差的一帧约 65 dB。`--json` 打印这份记录，另加 `state`。
+
+`bin/vh thumbs <片子|项目> [--every 2] [--width 160] [--shot-width 320] [--full] [--out 目录] [--json]`：`<名字>.thumbs/` 里每 `--every` 秒一格（`--width` 宽），每 10×10 格拼一张 `sheet-01.jpg`……；每个镜头一张 `shots/<id>.jpg`（`--shot-width` 宽），取它的 `at`，没有就取镜头 60% 处，和 `bin/vh storyboard` 一样；`thumbs.json` 是对照表。镜头表：项目的 `shots.json`；没有的话，给的是片子就用它 `.render.json` 里记的（渲的时候页面的 `window.film.shots`；对片子不开浏览器，sidecar 里没有镜头就不出镜头图），还没有片子就读页面的。帧从同一支片子做的代理里取（快），没有就从片子取，没有片子就画页面（`bin/vh frames`，要 Chrome）。片子只经过原地 patch 时，只重取落在重画帧里的格子和镜头。`thumbs.json`（`"version": 1`）：`source`、`from`（`proxy`、`film`、`page`）、`source_ident`、`source_version`、`fps`、`duration`、`frames`、`settings`、`tile`（`[宽, 高]`）、`shot`（镜头图的 `[宽, 高]`）、`sheets`（每张 `file`、`tiles`、`size`）、`tiles`（每格 `i`、`t`、`frame`、`sheet`、`x`、`y`：在那张拼图里的左上角）、`shots`（每镜 `id`、`t`、`frame`、`start`、`end`、`file`）、`shots_from`、`made`（`full`、`refreshed`）、`taken`（这次取了几格、几个镜头）、`t`、`at`、`seconds`。时间都是片子的秒（从 `--range` 渲的片子，镜头时间已经减去它的起点）。
 
 ### 检查记录：`bin/vh check <视频> --json`
 

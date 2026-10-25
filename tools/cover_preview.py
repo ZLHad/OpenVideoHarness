@@ -201,7 +201,7 @@ def main():
     slots = [s for s in SLOTS if not only or s[1] in only]
     paths = [Path(p) for p in a.images]
     for p in paths:
-        if not p.exists(): raise SystemExit(f"cover-preview: no such image: {p}")
+        if not p.exists(): raise V.Usage(f"cover-preview: no such image: {p}")
     lang = a.lang or "zh"; zh = lang == "zh"
     covers, flat = [], []
     for p in paths:
@@ -216,7 +216,7 @@ def main():
                 else:
                     covers.append(im.convert("RGB"))
         except (OSError, ValueError, SyntaxError):
-            raise SystemExit(f"cover-preview: {p} is not an image")
+            raise V.Usage(f"cover-preview: {p} is not an image")
     infos = [analyse(im, text_px) for im in covers]
     pad, gap, first_w = 28, 26, 300
     lab_h, rep_h = 58, 120
@@ -321,4 +321,7 @@ def main():
         print("  " + r)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except V.Usage as e:   # an image that is not there, or not an image: exit 2
+        print(e, file=sys.stderr); sys.exit(2)
