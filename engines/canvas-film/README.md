@@ -207,6 +207,9 @@ bin/vh readcheck <项目> --out /tmp/reads.json  # 保存到指定文件，再�
 bin/vh determinism <项目>                     # 同几个时刻换顺序画、换进程画，看是不是 t 的纯函数
 bin/vh render <项目> [--dpr 2]                # 成片画面：<项目>/out/film.mp4（--dpr 2 是 4K），没有声音
 bin/vh patch <项目>/out/film.mp4 --seconds 142.2-159.2   # 只重画改过的一镜，接回成片（片子要是 bin/vh render 出的，旁边有 .render.json）
+bin/vh patch <项目>/out/film.mp4 --shot S04,S05 --in-place   # 按镜头 id 重画（也可 --chapter 2）；一镜一直算到下一镜的转场结束
+bin/vh versions <项目>                        # 每次 render、patch 都是一版；被盖掉的旧片留在 out/versions/
+bin/vh versions compare <项目> v3 v4 --t 12.4 --wipe   # 两版同一刻的擦除对比和 PSNR；versions use <项目> v3 换回 v3
 bin/vh mux <项目>/out/film.mp4 <混音.wav> <成片.mp4>   # 套上混音（混音要和画面一样长：mix 写 profile=… dur=<画面秒数>，否则差 0.1 s 以上会被拒绝）
 ```
 

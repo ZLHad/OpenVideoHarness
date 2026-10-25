@@ -2076,6 +2076,102 @@ PY
     a=$(python3 "$t/act.py" "$t/p, x/.ovh/activity.jsonl" 2>&1); rc=$?
     case "$rc:$a" in "0:start progress progress note end:0 | start note end:1 | start note end:0 | start end:2") ok "activity: render logs its progress and what it wrote, patch its outcome; node writes the end line of a run bin/vh exec'd into" ;;
       *) bad "activity of render and patch (rc $rc): $a" ;; esac
+    # versions (tools/versions.py): in a project, each render and patch is a version; the film a render or an in-place
+    # patch replaces is kept in out/versions/ (moved, the same bytes), its record says what changed; compare draws a
+    # moment of two and says the PSNR; use makes an earlier one current again with the newer one kept; a disk under the
+    # floor and OVH_KEEP_VERSIONS send the replaced one to the Trash, said and recorded; a film made elsewhere is kept as
+    # found; OVH_VERSIONS=off records nothing; status lists them; clean prunes them to the Trash
+    v="$t/ver"; mkdir -p "$v" && cp tools/film/fixture/index.html "$v/index.html" && printf '# BRIEF\n' > "$v/BRIEF.md"
+    vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" >/dev/null 2>&1
+    s1=$(cksum < "$v/out/film.mp4")
+    a=$(vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" --note "second take" 2>&1); rc=$?
+    sed 's/x.fillStyle = "#fc0";/x.fillStyle = t >= 1.4 \&\& t < 1.7 ? "#0cf" : "#fc0";/' tools/film/fixture/index.html > "$v/index.html"
+    b=$(vh patch "$v/out/film.mp4" --frames 42-50 --in-place --note blue 2>&1); rc2=$?
+    c=$(vh versions compare "$v" v2 v3 --t 1.5 --wipe --json 2>&1); rc3=$?
+    d=$(vh versions use "$v" v2 2>&1); rc4=$?
+    if [ "$rc:$rc2:$rc3:$rc4" = 0:0:0:0 ] && printf '%s' "$a" | grep -q 'version v2: out/film.mp4 (from v1)' && printf '%s' "$a" | grep -q 'v1 kept: out/versions/v1/film.mp4' \
+      && [ "$(cksum < "$v/out/versions/v1/film.mp4")" = "$s1" ] && printf '%s' "$b" | grep -q 'version v3: out/film.mp4 (from v2)' \
+      && printf '%s' "$d" | grep -q 'v2 is the current film at out/film.mp4 again; v3 is kept in out/versions/v3/film.mp4' \
+      && python3 - "$v" "$c" <<'PY'
+import json, os, subprocess, sys
+v, c = sys.argv[1], json.loads(sys.argv[2])
+L = json.loads(subprocess.run([sys.executable, "tools/versions.py", v, "--json"], capture_output=True, text=True).stdout)
+by = {x["id"]: x for x in L["versions"]}
+ch = by["v3"]["changed"]
+side = json.load(open(v + "/out/versions/v3/film.mp4.render.json"))
+ok = [x["state"] for x in L["versions"]] == ["kept", "current", "kept"] and L["current"] == {"out/film.mp4": "v2"} and by["v2"]["note"] == "second take"
+ok = ok and by["v3"]["from"] == "v2" and by["v3"]["made_by"] == "patch" and ch["frames"] == [[42, 50]] and ch["drawn"] == [[30, 59]] and by["v1"]["changed"] == {"whole": True}
+ok = ok and side["page"] == "../../../index.html" and os.path.isfile(os.path.join(v, "out/versions/v3", side["page"]))   # a kept sidecar still finds its page
+ok = ok and c["a"]["frame"] == 45 and c["b"]["frame"] == 45 and isinstance(c["psnr"], float) and c["psnr"] < 30 and os.path.isfile(os.path.join(v, c["image"]))
+sys.exit(0 if ok else 1)
+PY
+    then ok "versions: each render and patch a version, the one it replaces kept as it was; compare a moment of two (PSNR); use brings one back, the newer one kept"
+    else bad "versions: render/patch/compare/use (exit $rc:$rc2:$rc3:$rc4): $(printf '%s' "$a$b$c$d" | tail -c 900)"; fi
+    # a disk under the floor: the replaced film goes to the Trash, named for the project, said and recorded; OVH_KEEP_VERSIONS=1
+    # sends the oldest kept one there too; a film made elsewhere is kept as found; OVH_VERSIONS=off writes nothing
+    a=$(OVH_FREE_BYTES=1000000000 OVH_TRASH_DIR="$t/trash" vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" 2>&1); rc=$?
+    cp "$v/out/versions/v3/film.mp4" "$v/out/film.mp4"; touch "$v/out/film.mp4"   # a film put there by hand
+    b=$(OVH_KEEP_VERSIONS=1 OVH_TRASH_DIR="$t/trash" vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" 2>&1); rc2=$?
+    n0=$(wc -c < "$v/out/versions/versions.json")
+    OVH_VERSIONS=off vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" >/dev/null 2>&1
+    if [ "$rc:$rc2" = 0:0 ] && printf '%s' "$a" | grep -q 'v2 to the Trash: not kept: 1.0 GB free on that disk' && [ -d "$t/trash/ver v2" ] \
+      && printf '%s' "$b" | grep -q 'was not made by bin/vh render or patch' && printf '%s' "$b" | grep -q 'v1 to the Trash: more than 1 earlier version' \
+      && printf '%s' "$b" | grep -q 'v3 to the Trash: more than 1 earlier version' \
+      && [ "$(wc -c < "$v/out/versions/versions.json")" = "$n0" ] && python3 - "$v" <<'PY'
+import json, subprocess, sys
+L = json.loads(subprocess.run([sys.executable, "tools/versions.py", sys.argv[1], "--json"], capture_output=True, text=True).stdout)
+st = {x["id"]: (x["made_by"], x["state"]) for x in L["versions"]}
+S = json.loads(subprocess.run(["bash", "bin/vh", "status", sys.argv[1], "--json"], capture_output=True, text=True).stdout)
+ok = st["v1"][1] == "trashed" and st["v2"][1] == "trashed" and st["v5"] == ("found", "kept") and st["v6"][1] == "changed"   # OVH_VERSIONS=off replaced v6
+ok = ok and S["versions"]["list"][-1]["id"] == "v6" and S["versions"]["current"] == {} and all(not r["path"].startswith("out/versions") for r in S["renders"])
+sys.exit(0 if ok else 1)
+PY
+    then ok "versions: a full disk and OVH_KEEP_VERSIONS send the replaced film to the Trash (said, recorded); a film made by hand is kept as found; OVH_VERSIONS=off records nothing; status lists them"
+    else bad "versions: the Trash, found, off, status (exit $rc:$rc2): $(printf '%s' "$a$b" | tail -c 900)"; fi
+    a=$(vh versions 2>&1); rc=$?; b=$(vh versions compare "$v" v4 --t 1 2>&1); rc2=$?; c=$(vh versions use "$v" v1 2>&1); rc3=$?
+    d=$(vh versions compare "$v" v4 v5 2>&1); rc4=$?
+    case "$rc:$rc2:$rc3:$rc4:$c:$d" in 2:2:1:2:*"v1 is trashed: its film is not in the project"*"compare needs --t"*) ok "versions: usage errors exit 2, a version in the Trash cannot be used (exit 1)" ;;
+      *) bad "versions usage (exit $rc:$rc2:$rc3:$rc4): $(printf '%s' "$a$b$c$d" | tail -c 500)" ;; esac
+    a=$(vh clean "$v" 2>&1); b=$(OVH_TRASH_DIR="$t/trash" vh clean "$v" --yes --keep-versions 1 2>&1); rc=$?
+    c=$(OVH_TRASH_DIR="$t/trash" vh clean "$v" --yes 2>&1); rc2=$?
+    if [ "$rc:$rc2" = 0:0 ] && printf '%s' "$a" | grep -q 'versions (earlier versions of the films' && printf '%s' "$a" | grep -q 'out/versions/v5/' \
+      && ! printf '%s' "$b" | grep -q 'out/versions/v5/' && [ ! -e "$v/out/versions/v5" ] && [ -d "$t/trash/ver v5" ] && [ -f "$v/out/versions/versions.json" ] \
+      && vh versions "$v" | grep -q 'v5 .*in the Trash'
+    then ok "clean: the earlier versions listed, then to the Trash but the newest --keep-versions N; their record says so"
+    else bad "clean of versions (exit $rc:$rc2): $(printf '%s' "$a$b$c" | tail -c 700)"; fi
+    # patch --shot / --chapter (tools/film/fixture/shots.html: S02 green from 1.4 to 2.2 s, under S03's 0.3 s dissolve to
+    # 2.5 s): S02 turned yellow; --shot S02 draws 42–74 (through the dissolve) and passes, naming S02; the frames of S02's
+    # own span alone are refused (the dissolve shows it); a chapter by its id, an unknown shot and a chapter outside the
+    # film exit 2; shots.json in the project wins over the page
+    s="$t/shots"; mkdir -p "$s" && cp tools/film/fixture/shots.html "$s/film.html" && printf '# BRIEF\n' > "$s/BRIEF.md"
+    vh render "$s" --gop 15 --workers 2 --out "$s/out/film.mp4" >/dev/null 2>&1
+    sed 's/colour: "#3c3"/colour: "#cc3"/' tools/film/fixture/shots.html > "$s/film.html"
+    a=$(vh patch "$s/out/film.mp4" --frames 42-65 --out "$s/out/own.mp4" 2>&1); rc=$?
+    b=$(vh patch "$s/out/film.mp4" --shot S02 --out "$s/out/shot.mp4" 2>&1); rc2=$?
+    c=$(vh patch "$s/out/film.mp4" --chapter ch-two --out "$s/out/ch.mp4" 2>&1); rc3=$?
+    d=$(vh patch "$s/out/film.mp4" --shot S09 2>&1); rc4=$?
+    printf '[{"id": "X1", "start": "0:01.4", "end": 2.5}]\n' > "$s/shots.json"
+    e=$(vh patch "$s/out/film.mp4" --shot X1 --out "$s/out/x.mp4" 2>&1); rc5=$?
+    if [ "$rc:$rc2:$rc3:$rc4:$rc5" = 1:0:0:2:0 ] && printf '%s' "$a" | grep -q 'frames 66–74 are outside 42–65' && printf '%s' "$b" | grep -q 'frames 42–74 (1.400–2.500 s) asked' \
+      && printf '%s' "$b" | grep -q "S02: 1.400–2.500 s (+0.3 s: S03's transition draws it underneath)" && printf '%s' "$c" | grep -q 'frames 42–89' \
+      && printf '%s' "$d" | grep -q 'no shot S09: .*film.html (window.film.shots) has S01, S02, S03' && printf '%s' "$e" | grep -q 'shots from .*shots.json' && python3 - "$s" <<'PY'
+import json, subprocess, sys
+s = sys.argv[1]
+L = json.loads(subprocess.run([sys.executable, "tools/versions.py", s, "--json"], capture_output=True, text=True).stdout)
+by = {x["film"]: x for x in L["versions"]}
+side = json.load(open(s + "/out/film.mp4.render.json"))
+ok = side["shots"][2] == {"id": "S03", "start": 2.2, "end": 3, "transition": 0.3} and side["chapters"][1] == {"t": 1.4, "title": "two", "id": "ch-two"}
+ok = ok and by["out/shot.mp4"]["changed"]["shots"] == ["S02", "S03"] and by["out/shot.mp4"]["changed"]["asked"]["shots"] == ["S02"] and by["out/shot.mp4"]["from"] == by["out/film.mp4"]["id"]
+ok = ok and by["out/x.mp4"]["changed"]["shots"] == ["X1"] and "out/own.mp4" not in by
+sys.exit(0 if ok else 1)
+PY
+    then ok "patch --shot / --chapter: a shot's frames through the next cut's transition, a chapter by its id, the shots named in the version; shots.json wins; unknown ones exit 2"
+    else bad "patch --shot / --chapter (exit $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s' "$a$b$c$d$e" | tail -c 900)"; fi
+    # two spans apart: their windows drawn separately and both joined in, the frames between them the film's own bytes
+    a=$(vh patch "$s/out/film.mp4" --frames 5-6,80-82 --out "$s/out/two.mp4" 2>&1); rc=$?
+    if [ $rc = 0 ] && printf '%s' "$a" | grep -q '0–14, 75–89 drawn again (keyframe to keyframe, 30 frames)' && printf '%s' "$a" | grep -q "packets outside 0–14, 75–89: 60 the film's own ✓"
+    then ok "patch: two spans apart are drawn as two windows, the film's own packets between them"
+    else bad "patch on two spans (exit $rc): $(printf '%s' "$a" | tail -c 700)"; fi
   fi
   if node -e 'import("./tools/film/host.mjs").then((m) => process.exit(m.findRuntime(process.cwd()) ? 0 : 1))' 2>/dev/null; then
     mkdir -p "$t/hf"

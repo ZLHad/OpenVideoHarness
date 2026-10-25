@@ -39,12 +39,12 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
-import activity, gatecheck as G, review as R   # noqa: E402,E401
+import activity, gatecheck as G, review as R, versions as V   # noqa: E402,E401
 import feedback as F, reader   # noqa: E402,E401
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
 VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
-SKIP_DIRS = {"frames", "node_modules", "__pycache__", ".venv", "venv"}
+SKIP_DIRS = {"frames", "node_modules", "__pycache__", ".venv", "venv", "versions", "proxy"}   # versions: listed from their record
 STATE_MARK = {"done": "✓", "skipped": "–", "waiting_person": "●", "waiting_agent": "◆", "in_progress": "…", "not_started": "·",
               "no_record": "○"}
 STATE_WORDS = {"done": "done", "skipped": "skipped", "waiting_person": "waiting for you", "waiting_agent": "waiting for the agent",
@@ -372,6 +372,18 @@ def main(argv):
         waiting_on, nxt = "nobody", "delivered"
     else:
         waiting_on, nxt = "agent", "the agent: carry on"
+    # the versions of the project's films (bin/vh versions): null before the first render or patch recorded one
+    vers = None
+    if (V.store(project) / V.RECORD).is_file():
+        try:
+            L = V.listing(project)
+            vers = {"record": L["record"], "keep": L["keep"], "current": L["current"], "kept_bytes": L["kept_bytes"],
+                    "list": [{k: x.get(k) for k in ("id", "at", "t", "film", "file", "state", "made_by", "from", "note", "changed", "frames",
+                                                     "pixels", "check")} for x in L["versions"]]}
+        except (ValueError, OSError) as e:
+            vers = {"error": str(e)}
+    cur_of = {f: i for f, i in (vers or {}).get("current", {}).items()}
+
     def vinfo(v, s):
         side = load(str(v) + ".render.json")
         dl = load(str(v) + ".deliver.json")
@@ -380,11 +392,11 @@ def main(argv):
                 "render": render_info(side) if side else None,
                 "patches": len(side["patches"]) if side and isinstance(side.get("patches"), list) else 0,
                 "delivery": {"master": text(dl.get("master")), "time": text(dl.get("time"))} if dl else None,
-                "check": check_summary(project, *c) if c else None}
+                "check": check_summary(project, *c) if c else None, "version": cur_of.get(rel(project, v))}
     out = {"version": 1, "project": proj, "paused": paused, "waiting_on": waiting_on, "next": nxt, "stations": st,
            "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": desk},
            "open": {"review_items": open_items, "facts_to_verify": facts},
-           "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries,
+           "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
            "check": check_summary(project, *checks[0]) if checks else None,
            "activity": {"running": working, "listening": listening, "recent": recent}}
     if a.json:
@@ -431,6 +443,13 @@ def show(o, now):
                     + (", the video changed since" if c.get("stale") else "") + ")")
     if bits:
         print(" · ".join(bits))
+    vs = o.get("versions") or {}
+    if vs.get("list"):
+        kept = sum(1 for x in vs["list"] if x["state"] == "kept")
+        print("versions: " + (", ".join(f"{i} current at {f}" for f, i in vs["current"].items()) or "none current")
+              + (f" · {kept} kept" if kept else "") + " (bin/vh versions)")
+    elif vs.get("error"):
+        print(f"versions: {vs['error']}")
     for r in o["activity"]["running"]:
         pr = r.get("progress") or {}
         print(f"running: {r['cmd']} {' '.join(str(x) for x in r['args'][1:4])}".rstrip()

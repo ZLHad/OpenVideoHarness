@@ -42,6 +42,11 @@
 #   activity <project> [--json] [--follow] [--limit N]   what bin/vh did there: a line per command (when, how it ended, how long,
 #                               a summary, what it wrote; a render's progress while it runs), from <project>/.ovh/activity.jsonl,
 #                               which every command on a project appends to (tools/activity.py); --follow: as it happens
+#   versions <project> [--json] | versions compare <project> <vA> <vB> --t <s> [--wipe [0.5]] [--out f.png] [--json] | versions use <project> <vN>
+#                               every film render and patch made there, one version each (out/versions/versions.json: when, the
+#                               file, how it was made, what it follows, the spans and shots changed, its check); compare: the
+#                               frame at --t of two versions side by side or as a wipe PNG, with the PSNR (from the encoded films);
+#                               use: an earlier version is the current film again, the one there now kept (tools/versions.py)
 #  sound
 #   tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json] [--align gemini] [--join block|all [--candidates N]] [--resume]  voiceover from audio/script.txt
 #                               (中文 || English; [direction] per line; lines snap to beats; @speakers A=Kore B=Puck + "A: …" lines = a dialogue;
@@ -111,7 +116,7 @@
 #                               --covers: the page's covers (window.film.covers; canvas-film COVERS, picked by cue) in <project>/out/covers
 #                               (--no-title: without their titles, <id>-clean.png; --ratios: each ratio a crop of the cover with its own title, <id>-9x16.png)
 #   render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b | --frames k0:k1] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png]
-#          [--estimate | --no-estimate]
+#          [--estimate | --no-estimate] [--note text]
 #                               an MP4 drawn through the page contract (the canvas engine, ClaudeAnimationBase, any page that writes
 #                               window.film): one-GOP chunks that the --workers browsers take in turn, each into its own x264, BT.709 tv
 #                               range, a keyframe every --gop frames, <out>.render.json records how; video only (sound: mux). Stopped or
@@ -120,12 +125,15 @@
 #                               (refused when the disk cannot hold it; --no-estimate skips). Says when --fps is not the page's own
 #                               (window.film.fps). A relative --out is from the current folder. HyperFrames: npx hyperframes render
 #                               (--force to render it here anyway).
-#                               A whole standard or studio film waits for gate ① on record (tools/gatecheck.py); --range and --frames do not
-#   patch <film.mp4> (--frames a-b | --seconds s-e) [--sidecar f.render.json] [--out f | --in-place] [--workers 4] [--frame-timeout 120] [--verify seams|full]
+#                               A whole standard or studio film waits for gate ① on record (tools/gatecheck.py); --range and --frames do not.
+#                               In a project each render is a version (bin/vh versions): the film it replaces is kept in out/versions/
+#   patch <film.mp4> (--frames a-b | --seconds s-e | --shot S04,S05 | --chapter c2)… [--sidecar f.render.json] [--out f | --in-place] [--workers 4] [--frame-timeout 120] [--verify seams|full] [--note text]
 #                               draw frames a–b of a bin/vh render film again and put them back, the rest untouched: cut on its keyframes
 #                               (its .render.json says how it was made), joined, sound and subtitles kept; checks the frame count, that every
 #                               packet and pixel outside is the film's, decoding, and that the frames drawn again outside a–b came back the same
-#                               (exit 1: the new film is kept as <film>.failed.mp4, the film untouched); without --out: <film>.patched.mp4
+#                               (exit 1: the new film is kept as <film>.failed.mp4, the film untouched); without --out: <film>.patched.mp4.
+#                               --shot / --chapter: their frames from shots.json or the page's window.film.shots / chapters (through the
+#                               next cut's transition); lists and mixes are the union. In a project the result is a version (bin/vh versions)
 #   determinism <project|page.html> [--at t,t…] [--samples 6] [--min-psnr 45]   is each frame a function of t? draws the same t
 #                               in one browser in two orders and in a second browser, compares them, and again with the real clock
 #   fonts check <project|page.html> [--step 0.5] [--at t,…] [--allow-fallback "Apple Color Emoji"] [--strict] [--out dir]   is every character drawn
@@ -513,7 +521,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
       d=${d%/*}
     done
   done
-  case $cmd in review|gate|desk|storyboard|rhythm|clean|style) ;; *) return 0 ;; esac
+  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions) ;; *) return 0 ;; esac
   base=$(projects_base)
   for a in "$@"; do
     case $a in -*|*/*|"") continue ;; esac
@@ -893,6 +901,7 @@ cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image
 cmd_review() { python3 "$ROOT/tools/review.py" "$@"; }
 cmd_activity() { [ $# -gt 0 ] || { cmd_usage activity; exit 1; }; exec python3 "$ROOT/tools/activity.py" "$@"; }   # read-only, not logged
 cmd_status() { [ $# -gt 0 ] || { cmd_usage status; exit 1; }; exec python3 "$ROOT/tools/status.py" "$@"; }         # read-only, not logged
+cmd_versions() { [ $# -gt 0 ] || { cmd_usage versions; exit 2; }; python3 "$ROOT/tools/versions.py" "$@"; }   # the list is not logged; compare and use are
 cmd_gate() { [ $# -gt 0 ] || { cmd_usage gate; exit 1; }   # exec: stopping a backgrounded gate --wait stops its watcher;
   export OVH_BASH=$BASH; exec python3 "$ROOT/tools/gate.py" "$@"; }   # the desk it starts runs under this same bash
 cmd_desk() { [ $# -gt 0 ] || { cmd_usage desk; exit 1; }   # stdlib only: no uv, works offline; exec, so stopping
@@ -1255,6 +1264,7 @@ esac
 case "${1:-}" in   # the activity log: every command that works on a project (act_start finds it) but the read-only views
   ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|status|activity|new) ;;   # (new: once the project is made)
   desk) [ "${2:-}" = data ] || act_start "$@" || true ;;
+  versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
   *) act_start "$@" || true ;;
 esac
 
@@ -1266,7 +1276,7 @@ case "${1:-help}" in
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
   gate) shift; cmd_gate "$@" ;;
-  status) shift; cmd_status "$@" ;; activity) shift; cmd_activity "$@" ;;
+  status) shift; cmd_status "$@" ;; activity) shift; cmd_activity "$@" ;; versions) shift; cmd_versions "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;;
   help|-h|--help) cmd_help ;;

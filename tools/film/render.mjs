@@ -7,7 +7,7 @@
 //
 // usage: node tools/film/render.mjs <project | page.html> --browser <chrome> [--out out/film.mp4] [--fps 30]
 //          [--range a:b | --frames k0:k1] [--dpr 1] [--workers 4] [--crf 16] [--preset medium] [--gop 60] [--png] [--quality 95]
-//          [--frame-timeout 120] [--estimate | --no-estimate] [--force] [--real-clock] [--soft-gl]
+//          [--frame-timeout 120] [--estimate | --no-estimate] [--note text] [--force] [--real-clock] [--soft-gl]
 //        (bin/vh render finds the browser: CHROME_PATH, HyperFrames' chrome-headless-shell, then Chrome or Chromium)
 //
 //   --out          default <project>/out/<page>.mp4. A relative path is from the current folder, as every bin/vh path
@@ -28,6 +28,7 @@
 //   --frame-timeout 120  a frame not drawn in this many seconds fails the render (the finished chunks are kept). Each
 //                  browser's page may take as long to set window.film and to be ready (at least 30 s and 120 s a wait;
 //                  OVH_PAGE_TIMEOUT=S sets those alone, tools/film/host.mjs)
+//   --note text    a line for this version in the project's record (bin/vh versions)
 //
 // The colour: Chrome's frames are full-range RGB; the encode converts them to limited-range BT.709 with all four colour
 // tags (what bin/vh check expects). Beside the video, <out>.render.json records how it was made (size, fps, frames,
@@ -41,6 +42,9 @@
 // Before drawing it checks the disk the render needs at its peak (the chunks it draws and the joined copy; on a resume,
 // the chunks left and the joined copy, kept chunks included): it stops (exit 2) when even a flat film would not fit; the
 // estimate above measures it. Its glyph check covers the frames it draws: on a resume it says the kept ones were not.
+// A video inside a project is a version of its film (tools/versions.py, bin/vh versions): the film it replaces at that
+// path is kept in out/versions/ first (while the disk can hold it; else it goes to the Trash, said), and the record gets
+// the new one. The sidecar also keeps the page's shots and chapters (window.film.shots, chapters) when it gives them.
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -48,6 +52,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { openFilm } from "./host.mjs";
 import { HOOK, check as checkGlyphs, collectDom, merge as mergeGlyphs, report as glyphReport } from "./glyphs.mjs";
 import { note as activityNote, progress as activityProgress } from "./activity.mjs";   // the project's activity log (bin/vh activity)
+import { commit } from "./versions.mjs";                                                 // the project's versions (bin/vh versions)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -56,7 +61,7 @@ const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
 const die = (msg) => { console.error("render: " + msg); process.exit(2); };
 const o = { fps: 30, dpr: 1, workers: 4, crf: 16, preset: "medium", quality: 95, frameTimeout: 120, estimate: "auto" };
-let target = null, out = null, range = null, frames = null, gop = null, png = false, force = false, fpsGiven = false;
+let target = null, out = null, range = null, frames = null, gop = null, png = false, force = false, fpsGiven = false, note = null;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], [k, inline] = a.startsWith("--") && a.includes("=") ? [a.slice(0, a.indexOf("=")), a.slice(a.indexOf("=") + 1)] : [a, undefined];
   const val = () => { const v = inline !== undefined ? inline : argv[++i]; if (v === undefined) die(`${k} needs a value`); return v; };
@@ -74,6 +79,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (k === "--frame-timeout") o.frameTimeout = num(val(), k, 1);
   else if (k === "--estimate" || k === "--no-estimate") { const e = k === "--estimate" ? "on" : "off"; if (o.estimate !== "auto" && o.estimate !== e) die("--estimate or --no-estimate, not both"); o.estimate = e; }
   else if (k === "--png") png = true;
+  else if (k === "--note") note = val();
   else if (k === "--force") force = true;
   else if (k === "--browser") o.browser = val();
   else if (k === "--real-clock") o.realClock = true;
@@ -101,6 +107,13 @@ if (!(first.duration > 0)) { await first.close(); die("the page gives no duratio
 // before the engine gave it
 let pageFps = null;
 try { pageFps = +(await first.field("fps")) || +(await first.ev('typeof FILM === "object" && FILM && Number(FILM.fps) || 0', "reading FILM.fps")) || null; } catch { /* none */ }
+// the page's shots and chapters, for the sidecar: what bin/vh patch names and bin/vh thumbs picks a frame for
+const listOf = async (name) => { try { const x = await first.field(name); return Array.isArray(x) ? x : null; } catch { return null; } };
+const fin = (x) => Number.isFinite(x);
+const pageShots = ((await listOf("shots")) || []).filter((x) => x && fin(+x.start) && fin(+x.end) && +x.end > +x.start).map((x, i) => ({
+  id: String(x.id ?? `S${String(i + 1).padStart(2, "0")}`), start: +x.start, end: +x.end,
+  ...(x.transition && fin(+x.transition.duration) && +x.transition.duration > 0 ? { transition: +x.transition.duration } : {}) }));
+const pageChapters = ((await listOf("chapters")) || []).filter((x) => x && fin(+x.t)).map((x) => ({ t: +x.t, title: String(x.title ?? ""), ...(x.id != null ? { id: String(x.id) } : {}) }));
 const fps = o.fps, last = Math.ceil(first.duration * fps - 1e-6);   // the film's frame count: its last frame is last - 1
 const k0 = frames ? frames[0] : range ? Math.round(range[0] * fps) : 0;
 const k1 = frames ? Math.min(frames[1], last) : !range || range[1] >= first.duration ? last : Math.round(range[1] * fps);
@@ -344,16 +357,15 @@ if (failed) fail(failed);
 // each chunk's length in frames: an MP4's own duration is rounded to its movie timescale (1/1000 s), which would move the
 // chunk after it by a few ticks when a GOP is not a whole number of milliseconds (--gop 20 at 30 fps)
 fs.writeFileSync(path.join(parts, "list.txt"), plan.map(([a, b], i) => `file '${path.basename(fileOf[i])}'\nduration ${((b - a) / fps).toFixed(9)}`).join("\n") + "\n");
-// joined inside the parts folder and moved onto <out> whole: a join cut short (Ctrl-C) never replaces an earlier video
+// joined inside the parts folder and moved onto <out> whole (through the project's versions): a join cut short (Ctrl-C)
+// never replaces an earlier video
 const joined = path.join(parts, `joined${path.extname(outFile)}`);
 const join = spawnSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", path.join(parts, "list.txt"), "-c", "copy", "-movflags", "+faststart", joined], { encoding: "utf8" });
 if (join.status !== 0) fail(`joining the chunks failed: ${(join.stderr || join.signal || "").toString().trim()}`);
-fs.renameSync(joined, outFile);
 // the frame count the MP4 records (counting by decoding would take minutes on a long 4K film)
 const probe = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",
-  "stream=nb_frames,width,height,pix_fmt,color_range,color_space,color_primaries,color_transfer", "-of", "json", outFile], { encoding: "utf8" });
+  "stream=nb_frames,width,height,pix_fmt,color_range,color_space,color_primaries,color_transfer", "-of", "json", joined], { encoding: "utf8" });
 const st = JSON.parse(probe.stdout || "{}").streams?.[0] || {};
-fs.rmSync(parts, { recursive: true, force: true });
 const secs = (Date.now() - T0) / 1000;
 const sidecar = {
   note: "how this video was made (bin/vh render); a patch or re-render should match these",
@@ -366,14 +378,23 @@ const sidecar = {
   span: [+(k0 / fps).toFixed(6), +(k1 / fps).toFixed(6)], first_frame: k0, capture: png ? "png" : `jpeg q${o.quality}`,
   encoder: { codec: "libx264", crf: o.crf, preset: o.preset, gop, keyint_min: gop, sc_threshold: 0, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] },
   chunks: plan.map(([a, b]) => [a, b]), reused_chunks: reuse.size, browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl, seconds: +secs.toFixed(1),
+  ...(pageShots.length ? { shots: pageShots } : {}), ...(pageChapters.length ? { chapters: pageChapters } : {}),
 };
-fs.writeFileSync(outFile + ".render.json", JSON.stringify(sidecar, null, 1) + "\n");
+const sideTmp = joined + ".render.json";
+fs.writeFileSync(sideTmp, JSON.stringify(sidecar, null, 1) + "\n");
 const okCount = +st.nb_frames === n, okColor = st.pix_fmt === "yuv420p" && st.color_range === "tv" && st.color_space === "bt709";
+// the new film in place: the one it replaces kept as an earlier version first (tools/film/versions.mjs)
+const ver = commit({ film: outFile, new: joined, new_sidecar: sideTmp, made_by: "render", note, changed: { whole: true },
+  problems: problems.length + (okCount ? 0 : 1) + (okColor ? 0 : 1) });
+fs.rmSync(parts, { recursive: true, force: true });
+const placed = ver.placed, placedShown = placed === outFile ? shown : rel(placed);
 activityProgress(nTodo, nTodo, "frames");
 activityNote(`${st.nb_frames} frames, ${st.width}x${st.height}, ${fps} fps, ${(k0 / fps).toFixed(2)}–${(k1 / fps).toFixed(2)} s, in ${secs.toFixed(0)} s` +
-  (reuse.size ? ` (${reuse.size} chunk(s) kept from a stopped run)` : "") + (problems.length ? ` · ${problems.length} problem(s) reported` : ""), [outFile, outFile + ".render.json"]);
-console.log(`  ${shown}: ${st.nb_frames} frames, ${st.width}x${st.height}, ${st.pix_fmt} ${st.color_range}/${st.color_space}, in ${secs.toFixed(0)} s` +
-  (nTodo ? ` (${(secs * 1000 / nTodo).toFixed(0)} ms a frame${reuse.size ? `, ${nTodo} of them drawn` : ""})` : " (every chunk kept)") + `; how it was made: ${outside ? outFile + ".render.json" : rel(outFile + ".render.json")}`);
+  (reuse.size ? ` (${reuse.size} chunk(s) kept from a stopped run)` : "") + (problems.length ? ` · ${problems.length} problem(s) reported` : "") +
+  (ver.id ? ` · version ${ver.id}` : "") + (ver.error ? ` · ${ver.lines[0]}` : ""), [placed, placed + ".render.json"]);
+console.log(`  ${placedShown}: ${st.nb_frames} frames, ${st.width}x${st.height}, ${st.pix_fmt} ${st.color_range}/${st.color_space}, in ${secs.toFixed(0)} s` +
+  (nTodo ? ` (${(secs * 1000 / nTodo).toFixed(0)} ms a frame${reuse.size ? `, ${nTodo} of them drawn` : ""})` : " (every chunk kept)") + `; how it was made: ${outside ? placed + ".render.json" : rel(placed + ".render.json")}`);
+for (const l of ver.lines) console.log(`  ${l}`);
 for (const p of problems) console.log(`  ${p}`);
 {   // a character in another font than it asks for, or in none: said, not fatal
   const okG = glyphs.filter((g) => !g.error), errG = glyphs.filter((g) => g.error);
@@ -386,5 +407,5 @@ for (const p of problems) console.log(`  ${p}`);
 }
 if (!okCount) console.log(`  the video has ${st.nb_frames} frames, not ${n}`);
 if (!okColor) console.log(`  the colour tags are not yuv420p tv/bt709`);
-if (problems.length || !okCount || !okColor) process.exit(1);
+if (problems.length || !okCount || !okColor || placed !== outFile) process.exit(1);
 console.log("render: done · the sound goes on with bin/vh mux");

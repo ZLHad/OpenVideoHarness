@@ -1,39 +1,53 @@
-// patch: draw frames a–b of a film again and put them back, without rendering the rest. For a film made by bin/vh
+// patch: draw some frames of a film again and put them back, without rendering the rest. For a film made by bin/vh
 // render: its <film>.render.json says how (the page, fps, device pixel ratio, capture, x264 settings) and its keyframes
-// fall every --gop frames, so the video can be cut on them. The frames from the keyframe at or before a up to the next
-// keyframe after b are rendered again with the same settings (tools/film/render.mjs --frames), the film's packets before
-// and after are copied as they are, the three are joined, and the film's other tracks (sound, subtitles) go back on.
+// fall every --gop frames, so the video can be cut on them. For each span named, the frames from the keyframe at or
+// before it up to the next keyframe after it are rendered again with the same settings (tools/film/render.mjs --frames),
+// the film's packets between those windows are copied as they are, all of it is joined, and the film's other tracks
+// (sound, subtitles) go back on.
 //
-// usage: node tools/film/patch.mjs <film.mp4> --browser <chrome> (--frames a-b | --seconds s-e) [--sidecar f.render.json]
-//          [--page film.html] [--out f.mp4] [--in-place] [--workers 4] [--frame-timeout 120] [--verify seams|full] [--min-psnr 40] [--keep]
+// usage: node tools/film/patch.mjs <film.mp4> --browser <chrome> (--frames a-b | --seconds s-e | --shot S04 | --chapter c2)…
+//          [--sidecar f.render.json] [--page film.html] [--out f.mp4] [--in-place] [--workers 4] [--frame-timeout 120]
+//          [--verify seams|full] [--min-psnr 40] [--note text] [--keep]
 //        (bin/vh patch finds the browser as bin/vh render does)
 //
 //   --frames a-b     the film's frames a to b, both in (numbered from 0, as bin/vh check and ffmpeg count them)
 //   --seconds s-e    the frames shown from s up to e seconds (frame k when s ≤ k / fps < e)
+//   --shot S04,S05   the frames of these shots, from shots.json in the film's project when it has one, else the page's
+//                    window.film.shots (its ids, S04a too); a shot runs from its start to its end, and on through the
+//                    transition into the next shot when it has one (the old shot is drawn under it there)
+//   --chapter c2     the frames of these chapters (window.film.chapters): by the page's id, the title, or the number
+//                    (2 or c2, from 1); from the chapter's time to the next one's, and on through that cut's transition
+//                    Each of these takes a comma list, and they can be mixed: the frames are the union of all named.
+//                    Spans whose keyframe windows meet are drawn as one
 //   --sidecar f      how the film was rendered: default <film>.render.json. A film that bin/vh mux put sound on keeps the
 //                    render's video as it is, so the render's sidecar (out/film.mp4.render.json) describes it too
 //   --page f         the page to draw: default the sidecar's
 //   --out f          default <film>.patched.mp4 beside the film; --in-place replaces the film (and its sidecar) once every
-//                    check has passed
+//                    check has passed. Inside a project the result is a version of its film (bin/vh versions): with
+//                    --in-place the film it replaces is kept in out/versions/ first (while the disk can hold it, else it
+//                    goes to the Trash, said), and the record names the frames, seconds and shots changed
 //   --verify         seams (default): decode one GOP either side of the new frames in both films and compare; full: also
 //                    decode the whole new film for errors (minutes for a long 4K film)
-//   --min-psnr 40    the frames rendered again but outside a–b (to the keyframes) must come back like the film's, at least
-//                    this many dB: less means the page now draws them differently (an edit that reaches further than a–b,
-//                    another browser), and the joins at the keyframes would show
+//   --min-psnr 40    the frames rendered again but outside the spans named (to the keyframes) must come back like the
+//                    film's, at least this many dB: less means the page now draws them differently (an edit that reaches
+//                    further than the spans, another browser), and the joins at the keyframes would show
 //   --frame-timeout  seconds a frame may take to draw (default render's 120): a page whose frames are slower needs more
+//   --note text      a line for this version in the project's record
 //   --keep           keep the work folder (.<out>.patch/) to look at
 //
 // Room: about twice the film's size free beside the output (the film is cut, joined and its tracks put back before the
 // parts go). One patch of an output at a time (<out>.patch.lock), and none while bin/vh render is writing the film.
 // Checks, every run: the new film has as many frames as the old one; every packet outside the frames rendered again is
-// the same bytes (and decoded, the frames next to the joins are the same pixels: PSNR infinite); the joined part decodes
+// the same bytes (and decoded, the frames next to the joins are the same pixels: PSNR infinite); the joined parts decode
 // without an error; the new frames' encoder setup (SPS/PPS) is the film's. Exit: 0 patched and checked · 1 a check failed
 // (the new film is kept for a look, never put in place) · 2 could not start (no sidecar, the film does not match it,
-// frames outside the film, the page does not draw). Ctrl-C stops the render and deletes the work folder.
+// frames outside the film, a shot or chapter the page does not have, the page does not draw). Ctrl-C stops the render
+// and deletes the work folder.
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { note as activityNote } from "./activity.mjs";   // the project's activity log (bin/vh activity)
+import { commit } from "./versions.mjs";                  // the project's versions (bin/vh versions)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -42,7 +56,8 @@ const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
 const die = (msg, code = 2) => { console.error("patch: " + msg); cleanUp(); process.exit(code); };
 const o = { workers: 4, verify: "seams", minPsnr: 40 };
-let film = null, frames = null, seconds = null, sidecarFile = null, pageArg = null, out = null, inPlace = false, keep = false, browser = null;
+let film = null, sidecarFile = null, pageArg = null, out = null, inPlace = false, keep = false, browser = null, note = null;
+const frameLists = [], secondLists = [], shotIds = [], chapterIds = [];
 let work = null;
 function cleanUp() { if (work && !keep) fs.rmSync(work, { recursive: true, force: true }); }
 for (let i = 0; i < argv.length; i++) {
@@ -55,13 +70,17 @@ for (let i = 0; i < argv.length; i++) {
     if (!x.every(Number.isFinite) || (whole && !x.every(Number.isInteger))) die(`${what}: ${v}: ${whole ? "whole frame numbers" : "seconds"}`);
     return x;
   };
-  if (k === "--frames") { frames = pair(val(), k, true); if (frames[1] < frames[0]) die("--frames a-b with b ≥ a (both frames are in)"); }
-  else if (k === "--seconds") { seconds = pair(val(), k, false); if (!(seconds[1] > seconds[0])) die("--seconds s-e with e > s"); }
+  const list = (v) => v.split(",").map((x) => x.trim()).filter(Boolean);
+  if (k === "--frames") for (const v of list(val())) { const f = pair(v, k, true); if (f[1] < f[0]) die("--frames a-b with b ≥ a (both frames are in)"); frameLists.push(f); }
+  else if (k === "--seconds") for (const v of list(val())) { const s = pair(v, k, false); if (!(s[1] > s[0])) die("--seconds s-e with e > s"); secondLists.push(s); }
+  else if (k === "--shot") { const ids = list(val()); if (!ids.length) die(`${k} needs shot ids (S04 or S04,S05)`); shotIds.push(...ids); }
+  else if (k === "--chapter") { const ids = list(val()); if (!ids.length) die(`${k} needs chapters (an id, a title, 2 or c2)`); chapterIds.push(...ids); }
   else if (k === "--sidecar") sidecarFile = val();
   else if (k === "--page") pageArg = val();
   else if (k === "--out") out = val();
   else if (k === "--in-place") inPlace = true;
   else if (k === "--keep") keep = true;
+  else if (k === "--note") note = val();
   else if (k === "--workers") { o.workers = Math.floor(Number(val())); if (!(o.workers >= 1)) die("--workers: a whole number ≥ 1"); }
   else if (k === "--frame-timeout") { const v = val(); o.frameTimeout = Number(v); if (v === "" || !(o.frameTimeout >= 1)) die(`--frame-timeout: ${JSON.stringify(v)} is not a number of seconds ≥ 1`); }
   else if (k === "--verify") { o.verify = val(); if (!["seams", "full"].includes(o.verify)) die("--verify seams or full"); }
@@ -72,13 +91,17 @@ for (let i = 0; i < argv.length; i++) {
   else film = a;
 }
 if (!film) die("which film? (-h for the usage)");
-if (!frames === !seconds) die("say which frames: --frames a-b or --seconds s-e");
+if (!frameLists.length && !secondLists.length && !shotIds.length && !chapterIds.length) die("say which frames: --frames a-b, --seconds s-e, --shot S04 or --chapter c2");
 if (!browser) die("no browser: pass --browser <chrome>, or run it as bin/vh patch");
 if (inPlace && out) die("--out or --in-place, not both");
 for (const tool of ["ffmpeg", "ffprobe"]) if (spawnSync(tool, ["-version"]).status !== 0) die(`${tool} is not installed`);
 film = path.resolve(film);
 if (!fs.existsSync(film) || !fs.statSync(film).isFile()) die(`no such film: ${film}`);
 const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };
+const projectOf = (f) => { for (let d = path.dirname(fs.realpathSync(f)); ; d = path.dirname(d)) { if (fs.existsSync(path.join(d, "BRIEF.md"))) return d; if (path.dirname(d) === d) return null; } };
+const project = projectOf(film);
+if (inPlace && project && (fs.realpathSync(film) + path.sep).startsWith(path.join(project, "out", "versions") + path.sep))
+  die(`${rel(film)} is a kept version: bin/vh versions use makes it the current film first, then patch that`);
 
 // ---- how the film was made, and does the film match it ----
 sidecarFile = path.resolve(sidecarFile || film + ".render.json");
@@ -108,20 +131,90 @@ const order = packets.map((p, i) => [p.pts, i]).sort((x, y) => x[0] - y[0]);
 const display = new Array(N); order.forEach(([, i], d) => { display[i] = d; });
 const keys = packets.map((p, i) => (p.key ? display[i] : -1)).filter((d) => d >= 0).sort((x, y) => x - y);
 if (keys[0] !== 0) die(`${rel(film)} does not start on a keyframe`);
-
-// ---- which frames ----
-let [a, b] = frames || [Math.ceil(seconds[0] * fps - 1e-6), Math.min(N, Math.ceil(seconds[1] * fps - 1e-6)) - 1];   // seconds past the end: to the last frame
-if (a < 0 || b >= N || b < a) die(`frames ${a}–${b}: the film has frames 0–${N - 1}`);
-const A = keys.filter((k) => k <= a).pop(), B = keys.find((k) => k > b) ?? N;
-const gop = enc.gop;
+const gop = enc.gop, ff0 = side.first_frame;
 // the sidecar's page is relative to the sidecar's own folder (the render's video was beside it)
 const page = path.resolve(pageArg || (path.isAbsolute(side.page) ? side.page : path.join(path.dirname(sidecarFile), side.page)));
 if (!fs.existsSync(page)) die(`no page at ${rel(page)} (the sidecar's; --page names another)`);
+
+// ---- the shots and chapters, when the spans name them: shots.json in the project, else the page ----
+const secs = (x) => {
+  if (typeof x === "number") return Number.isFinite(x) ? x : null;
+  const m = String(x ?? "").match(/^\s*(?:(\d+):)?(\d+):(\d+(?:\.\d+)?)\s*$/);
+  const y = m ? +(m[1] || 0) * 3600 + +m[2] * 60 + +m[3] : String(x ?? "").trim() === "" ? NaN : Number(x);
+  return Number.isFinite(y) ? y : null;
+};
+const tidyShots = (raw) => raw.map((s, i) => {   // as bin/vh storyboard reads them: start / t0, end / t1, an id or S01 …
+  const pick = (...ks) => ks.map((kk) => s && s[kk]).find((x) => x !== undefined && x !== null && x !== "");
+  const d = s && s.transition && typeof s.transition === "object" ? +s.transition.duration : typeof (s && s.transition) === "number" ? s.transition : NaN;
+  return { id: String((s && s.id) || `S${String(i + 1).padStart(2, "0")}`), start: secs(pick("start", "t0")), end: secs(pick("end", "t1")), ...(d > 0 ? { transition: d } : {}) };
+}).filter((s) => s.start !== null && s.end !== null && s.end > s.start).sort((p, q) => p.start - q.start);
+const shotsJson = project && fs.existsSync(path.join(project, "shots.json")) ? path.join(project, "shots.json") : null;
+const readShotsJson = () => {
+  let j; try { j = JSON.parse(fs.readFileSync(shotsJson, "utf8")); } catch (e) { die(`${rel(shotsJson)}: ${e.message}`); }
+  const raw = Array.isArray(j) ? j : j && j.shots;
+  if (!Array.isArray(raw)) die(`${rel(shotsJson)}: a list of shots, or {"shots": [...]} (bin/vh storyboard -h)`);
+  return tidyShots(raw);
+};
+let table = null, tableFrom = null, chapters = null;
+if (shotIds.length || chapterIds.length) {
+  if (shotIds.length && shotsJson) { table = readShotsJson(); tableFrom = rel(shotsJson); }
+  if (!table || chapterIds.length) {   // the page, as it draws now
+    const { openFilm } = await import("./host.mjs");
+    let f;
+    try { f = await openFilm(page, { browser, runtime: "auto", frameTimeout: o.frameTimeout }); } catch (e) { die(`reading the page's shots: ${e.message}`); }
+    try {
+      if (!table) { const s = await f.field("shots"); if (Array.isArray(s)) { table = tidyShots(s); tableFrom = `${rel(page)} (window.film.shots)`; } }
+      const c = await f.field("chapters");
+      if (Array.isArray(c)) chapters = c.filter((x) => x && Number.isFinite(+x.t)).map((x, i) => ({ n: i + 1, t: +x.t, title: String(x.title ?? ""), id: x.id != null ? String(x.id) : null })).sort((p, q) => p.t - q.t);
+      if (chapters) chapters.forEach((c2, i) => { c2.n = i + 1; c2.end = i + 1 < chapters.length ? chapters[i + 1].t : f.duration; });
+    } catch (e) { await f.close(); die(`reading the page's shots: ${e.message}`); }
+    await f.close();
+  }
+  if (shotIds.length && !table) die(`no shots to find ${shotIds.join(", ")} in: no shots.json in the project, and ${rel(page)} gives no window.film.shots`);
+  if (chapterIds.length && !chapters) die(`${rel(page)} gives no window.film.chapters: name the frames or the shots instead`);
+}
+// a shot's span runs on through the transition into the next one, which draws it underneath
+const nextAfter = (t) => (table || []).find((s) => Math.abs(s.start - t) < 1e-6);
+const toFrames = (s, e) => [Math.ceil((s * fps) - 1e-6) - ff0, Math.ceil((e * fps) - 1e-6) - 1 - ff0];   // page seconds → film frames
+const spans = [], sources = [];
+for (const f of frameLists) spans.push(f);
+for (const [s, e] of secondLists) spans.push([Math.ceil(s * fps - 1e-6), Math.min(N, Math.ceil(e * fps - 1e-6)) - 1]);   // seconds past the end: to the last frame
+for (const id of shotIds) {
+  const s = table.find((x) => x.id === id);
+  if (!s) die(`no shot ${id}: ${tableFrom} has ${table.map((x) => x.id).slice(0, 30).join(", ")}${table.length > 30 ? " …" : ""}`);
+  const nx = nextAfter(s.end), ext = nx && nx.transition ? nx.transition : 0;
+  const [a, b] = toFrames(s.start, s.end + ext);
+  if (b < 0 || a > N - 1) die(`shot ${id} (${s.start.toFixed(3)}–${s.end.toFixed(3)} s) is outside this film (frames 0–${N - 1} from ${(ff0 / fps).toFixed(3)} s)`);
+  spans.push([Math.max(0, a), Math.min(N - 1, b)]);
+  sources.push(`${id}: ${s.start.toFixed(3)}–${(s.end + ext).toFixed(3)} s${ext ? ` (+${ext} s: ${nx.id}'s transition draws it underneath)` : ""}`);
+}
+for (const id of chapterIds) {
+  const m = id.match(/^c?(\d+)$/i);
+  const c = chapters.find((x) => x.id === id) || chapters.find((x) => x.title === id) || (m ? chapters.find((x) => x.n === +m[1]) : null);
+  if (!c) die(`no chapter ${id} on the page (it has ${chapters.map((x) => `${x.n} ${x.title}`).join(", ")}: an id, a title, 2 or c2)`);
+  const nx = nextAfter(c.end), ext = nx && nx.transition ? nx.transition : 0;
+  const [a, b] = toFrames(c.t, c.end + ext);
+  if (b < 0 || a > N - 1) die(`chapter ${id} (${c.t.toFixed(3)}–${c.end.toFixed(3)} s) is outside this film`);
+  spans.push([Math.max(0, a), Math.min(N - 1, b)]);
+  sources.push(`chapter ${c.n} ${c.title}: ${c.t.toFixed(3)}–${(c.end + ext).toFixed(3)} s${ext ? ` (+${ext} s: ${nx.id}'s transition)` : ""}`);
+}
+for (const [a, b] of spans) if (a < 0 || b >= N || b < a) die(`frames ${a}–${b}: the film has frames 0–${N - 1}`);
+// the union of the spans, then the keyframe windows around them: windows that meet are drawn as one
+const asked = [];
+for (const [a, b] of [...spans].sort((x, y) => x[0] - y[0])) { const l = asked[asked.length - 1]; if (l && a <= l[1] + 1) l[1] = Math.max(l[1], b); else asked.push([a, b]); }
+const wins = [];
+for (const [a, b] of asked) {
+  const A = keys.filter((k) => k <= a).pop(), B = keys.find((k) => k > b) ?? N, l = wins[wins.length - 1];
+  if (l && A <= l.B) { l.B = Math.max(l.B, B); l.asked.push([a, b]); } else wins.push({ A, B, asked: [[a, b]] });
+}
+const span = (x, y) => `${x}–${y}`, list = (xs) => xs.map(([x, y]) => span(x, y)).join(", ");
+const askedList = list(asked), winList = wins.map((w) => span(w.A, w.B - 1)).join(", "), nDrawn = wins.reduce((s, w) => s + w.B - w.A, 0);
 const outFile = inPlace ? film : path.resolve(out || path.join(path.dirname(film), `${path.basename(film, path.extname(film))}.patched${path.extname(film)}`));
 if (!inPlace && outFile === film) die("--out is the film itself: use --in-place");
-const k0 = side.first_frame + A, k1 = side.first_frame + B;
-console.log(`patch: ${rel(film)} · ${N} frames at ${fps} fps · frames ${a}–${b} (${(a / fps).toFixed(3)}–${((b + 1) / fps).toFixed(3)} s) asked; ` +
-  `${A}–${B - 1} drawn again (keyframe to keyframe, ${B - A} frames) from ${rel(page)}`);
+console.log(`patch: ${rel(film)} · ${N} frames at ${fps} fps · frames ${askedList} (${asked.map(([a, b]) => `${(a / fps).toFixed(3)}–${((b + 1) / fps).toFixed(3)}`).join(", ")} s) asked; ` +
+  `${winList} drawn again (keyframe to keyframe, ${nDrawn} frames) from ${rel(page)}`);
+if (shotIds.length) console.log(`  shots from ${tableFrom}`);
+for (const s of sources) console.log(`  ${s}`);
 if (side.patches && side.patches.length) console.log(`  patched before: ${side.patches.map((p) => `${p.frames[0]}–${p.frames[1]}`).join(", ")}`);
 
 // ---- one patch at a time, never while a render writes the film, and room for the work ----
@@ -143,7 +236,7 @@ const filmBytes = fs.statSync(film).size;
 const free = process.env.OVH_FREE_BYTES ? +process.env.OVH_FREE_BYTES : (() => { try { const st = fs.statfsSync(path.dirname(outFile)); return st.bavail * st.bsize; } catch { return Infinity; } })();
 if (2.2 * filmBytes > free) die(`about ${(2.2 * filmBytes / 1e9).toFixed(1)} GB free is needed beside ${rel(outFile)} to cut and join a ${(filmBytes / 1e9).toFixed(1)} GB film; ${(free / 1e9).toFixed(1)} GB is`);
 
-// ---- render the span again, exactly as before ----
+// ---- render the windows again, exactly as before ----
 work = path.join(path.dirname(outFile), `.${path.basename(outFile)}.patch`);
 fs.rmSync(work, { recursive: true, force: true }); fs.mkdirSync(work, { recursive: true });
 let child = null;
@@ -152,56 +245,61 @@ for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig,
   if (child) child.kill(sig);
   keep = false; cleanUp(); process.exit(code);
 });
-const piece = path.join(work, "piece.mp4");
 const capture = String(side.capture || "jpeg q95"), q = capture.match(/jpeg q(\d+)/);
-const rargs = [path.join(HERE, "render.mjs"), page, "--browser", browser, "--frames", `${k0}:${k1}`, "--fps", String(fps), "--dpr", String(side.dpr || 1),
-  "--crf", String(enc.crf), "--preset", String(enc.preset), "--gop", String(gop), "--workers", String(o.workers), "--out", piece, "--no-estimate",
-  ...(o.frameTimeout ? ["--frame-timeout", String(o.frameTimeout)] : []),
-  ...(capture === "png" ? ["--png"] : ["--quality", q ? q[1] : "95"]), ...(side.real_clock ? ["--real-clock"] : []), ...(side.soft_gl ? ["--soft-gl"] : []), ...(side.kind === "hyperframes" ? ["--force"] : [])];
 const T0 = Date.now();
-const code = await new Promise((ok) => {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("OVH_ACTIVITY_")));   // the patch's run has its own note
-  child = spawn(process.execPath, rargs, { stdio: ["ignore", "pipe", "pipe"], env });
-  const show = (d) => { for (const l of String(d).split("\n").filter(Boolean)) console.log("  " + l); };
-  child.stdout.on("data", show); child.stderr.on("data", show);
-  child.on("close", (c, s) => ok(c ?? s));
-});
-child = null;
-if (code !== 0) die(`rendering frames ${A}–${B - 1} failed (render exit ${code}); the film is as it was`, code === 2 ? 2 : 1);
-const pside = JSON.parse(fs.readFileSync(piece + ".render.json", "utf8"));
-if (pside.frames !== B - A) die(`the page drew ${pside.frames} frames for ${A}–${B - 1}, not ${B - A}: it is shorter now than the film (${rel(page)}). Render the film again`, 1);
+// the pieces' renders: no activity lines of their own (the patch's run has its note) and no versions (they are parts)
+const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("OVH_ACTIVITY_"))), OVH_VERSIONS: "off" };
 const notes = [];
-if (side.browser && pside.browser !== side.browser) notes.push(`the film was rendered in ${side.browser}, these frames in ${pside.browser}: text and edges can differ a little (the PSNR below shows how much)`);
-
-// ---- the same encoder setup? Joined streams share one SPS/PPS ----
-const ps = streams(piece).find((s) => s.codec_type === "video");
+let pieceSide = null;
+for (const [i, w] of wins.entries()) {
+  w.piece = path.join(work, `piece${i}.mp4`);
+  const rargs = [path.join(HERE, "render.mjs"), page, "--browser", browser, "--frames", `${ff0 + w.A}:${ff0 + w.B}`, "--fps", String(fps), "--dpr", String(side.dpr || 1),
+    "--crf", String(enc.crf), "--preset", String(enc.preset), "--gop", String(gop), "--workers", String(o.workers), "--out", w.piece, "--no-estimate",
+    ...(o.frameTimeout ? ["--frame-timeout", String(o.frameTimeout)] : []),
+    ...(capture === "png" ? ["--png"] : ["--quality", q ? q[1] : "95"]), ...(side.real_clock ? ["--real-clock"] : []), ...(side.soft_gl ? ["--soft-gl"] : []), ...(side.kind === "hyperframes" ? ["--force"] : [])];
+  const code = await new Promise((ok) => {
+    child = spawn(process.execPath, rargs, { stdio: ["ignore", "pipe", "pipe"], env });
+    const show = (d) => { for (const l of String(d).split("\n").filter(Boolean)) console.log("  " + l); };
+    child.stdout.on("data", show); child.stderr.on("data", show);
+    child.on("close", (c, s) => ok(c ?? s));
+  });
+  child = null;
+  if (code !== 0) die(`rendering frames ${w.A}–${w.B - 1} failed (render exit ${code}); the film is as it was`, code === 2 ? 2 : 1);
+  const ps = JSON.parse(fs.readFileSync(w.piece + ".render.json", "utf8"));
+  if (ps.frames !== w.B - w.A) die(`the page drew ${ps.frames} frames for ${w.A}–${w.B - 1}, not ${w.B - w.A}: it is shorter now than the film (${rel(page)}). Render the film again`, 1);
+  if (side.browser && ps.browser !== side.browser && !notes.length) notes.push(`the film was rendered in ${side.browser}, these frames in ${ps.browser}: text and edges can differ a little (the PSNR below shows how much)`);
+  pieceSide = pieceSide || ps;
+  // the same encoder setup? Joined streams share one SPS/PPS
+  const pv = streams(w.piece).find((s) => s.codec_type === "video");
+  if (pv.extradata_hash !== v.extradata_hash || pv.width !== v.width || pv.height !== v.height || pv.pix_fmt !== v.pix_fmt || pv.profile !== v.profile || pv.level !== v.level)
+    die(`the new frames' encoder setup is not the film's (SPS/PPS ${pv.extradata_hash === v.extradata_hash ? "same" : "differ"}, ${pv.profile}/${pv.level} vs ${v.profile}/${v.level}): ` +
+      "another x264 or other settings; joining them would make a broken film. Render the film again instead", 1);
+}
 const failures = [];
-if (ps.extradata_hash !== v.extradata_hash || ps.width !== v.width || ps.height !== v.height || ps.pix_fmt !== v.pix_fmt || ps.profile !== v.profile || ps.level !== v.level)
-  die(`the new frames' encoder setup is not the film's (SPS/PPS ${ps.extradata_hash === v.extradata_hash ? "same" : "differ"}, ${ps.profile}/${ps.level} vs ${v.profile}/${v.level}): ` +
-    "another x264 or other settings; joining them would make a broken film. Render the film again instead", 1);
 
-// ---- cut the film on its keyframes, join the three, put the other tracks back ----
+// ---- cut the film on its keyframes, join the pieces in, put the other tracks back ----
 const ff = (args, what) => {
   const r = spawnSync("ffmpeg", ["-v", "error", "-nostdin", "-y", ...args], { encoding: "utf8", maxBuffer: 1 << 28 });
   if (r.status !== 0) die(`${what}: ${(r.stderr || r.error || "").toString().trim()}`, 1);
   return r;
 };
-const cuts = [A, B].filter((k) => k > 0 && k < N);
+const cuts = [...new Set(wins.flatMap((w) => [w.A, w.B]))].filter((k) => k > 0 && k < N).sort((x, y) => x - y);
+const bounds = [0, ...cuts, N];   // segment i is frames bounds[i] up to bounds[i + 1]
 const parts = [];
 if (cuts.length) {
   ff(["-i", film, "-map", "0:v:0", "-c", "copy", "-f", "segment", "-segment_frames", cuts.join(","), "-reset_timestamps", "1", path.join(work, "seg%d.mp4")], "cutting the film");
   const segs = fs.readdirSync(work).filter((f) => /^seg\d+\.mp4$/.test(f)).sort((x, y) => parseInt(x.slice(3)) - parseInt(y.slice(3))).map((f) => path.join(work, f));
-  const count = (f) => pk(f).length;
-  const before = A > 0 ? segs[0] : null, after = B < N ? segs[segs.length - 1] : null;
-  if ((before && count(before) !== A) || (after && count(after) !== N - B)) die("the film did not cut on its keyframes as expected", 1);
-  if (before) parts.push(before);
-  parts.push(piece);
-  if (after) parts.push(after);
-} else parts.push(piece);
+  if (segs.length !== bounds.length - 1) die("the film did not cut on its keyframes as expected", 1);
+  for (let i = 0; i + 1 < bounds.length; i++) {
+    const w = wins.find((x) => x.A === bounds[i]);
+    if (w) { parts.push([w.piece, w.B - w.A]); continue; }
+    if (pk(segs[i]).length !== bounds[i + 1] - bounds[i]) die("the film did not cut on its keyframes as expected", 1);
+    parts.push([segs[i], bounds[i + 1] - bounds[i]]);
+  }
+} else parts.push([wins[0].piece, N]);
 // each part's length in frames: an MP4's own duration is rounded to its movie timescale (1/1000 s), which would move the
 // part after it by a few ticks when a GOP is not a whole number of milliseconds (--gop 20 at 30 fps)
-const frameCount = new Map(parts.map((f) => [f, f === piece ? B - A : A > 0 && f === parts[0] ? A : N - B]));
-fs.writeFileSync(path.join(work, "list.txt"), parts.map((f) => `file '${path.basename(f)}'\nduration ${(frameCount.get(f) / fps).toFixed(9)}`).join("\n") + "\n");
+fs.writeFileSync(path.join(work, "list.txt"), parts.map(([f, n]) => `file '${path.basename(f)}'\nduration ${(n / fps).toFixed(9)}`).join("\n") + "\n");
 const video = path.join(work, "video.mp4");
 const others = filmStreams.filter((s) => s.codec_type !== "video");
 ff(["-f", "concat", "-safe", "0", "-i", path.join(work, "list.txt"), "-map", "0:v", "-c", "copy", ...(others.length ? [] : ["-movflags", "+faststart"]), video], "joining");
@@ -253,52 +351,61 @@ function subtitlesOff(file) {   // every subtitle trak's tkhd: flags byte 3, bit
 }
 
 // ---- checks ----
+const inWin = (f) => wins.some((w) => f >= w.A && f < w.B), inAsked = (f) => asked.some(([a, b]) => f >= a && f <= b);
 const after = pk(joined);
 if (after.length !== N) failures.push(`the new film has ${after.length} frames, not ${N}`);
 const pmd5 = (f) => ff(["-i", f, "-map", "0:v:0", "-c", "copy", "-f", "framemd5", "-"], "hashing packets").stdout.split("\n").filter((l) => l && !l.startsWith("#")).map((l) => l.split(",").map((x) => x.trim()));
 const oldP = pmd5(film), newP = pmd5(joined);
-// in decode order, the first A packets are the frames before A and the last N - B those from B on (closed GOPs)
+// in decode order, the packets of each window are those of its GOPs (closed GOPs), the rest the film's
 let same = 0, moved = 0;
 for (let i = 0; i < N && i < newP.length; i++) {
-  if (i >= A && i < B) continue;
+  if (inWin(i)) continue;
   if (oldP[i][5] === newP[i][5] && oldP[i][1] === newP[i][1] && oldP[i][2] === newP[i][2]) same++; else moved++;
 }
-if (moved) failures.push(`${moved} packet(s) outside frames ${A}–${B - 1} are not the film's own (bytes or times)`);
-// decoded, one GOP either side of the new frames: the same pixels outside them, no decode errors, and the PSNR inside
-const w0 = Math.max(0, A - gop), w1 = Math.min(N, B + gop);
-const dec = (f) => {
+if (moved) failures.push(`${moved} packet(s) outside frames ${winList} are not the film's own (bytes or times)`);
+// decoded, one GOP either side of each window: the same pixels outside them, no decode errors
+const around = [];
+for (const w of wins) { const w0 = Math.max(0, w.A - gop), w1 = Math.min(N, w.B + gop), l = around[around.length - 1]; if (l && w0 <= l[1]) l[1] = Math.max(l[1], w1); else around.push([w0, w1]); }
+const dec = (f, w0, w1) => {
   const r = spawnSync("ffmpeg", ["-v", "error", "-nostdin", "-ss", (w0 / fps).toFixed(6), "-i", f, "-map", "0:v:0", "-frames:v", String(w1 - w0), "-f", "framemd5", "-"], { encoding: "utf8", maxBuffer: 1 << 28 });
   return { err: (r.stderr || "").trim(), md5: (r.stdout || "").split("\n").filter((l) => l && !l.startsWith("#")).map((l) => l.split(",").pop().trim()) };
 };
-const da = dec(film), db = dec(joined);
-if (db.err) failures.push(`decoding frames ${w0}–${w1 - 1} of the new film: ${db.err.split("\n")[0]}`);
-if (da.md5.length !== w1 - w0 || db.md5.length !== w1 - w0) failures.push(`decoding frames ${w0}–${w1 - 1}: got ${da.md5.length} and ${db.md5.length} frames`);
-let pixDiff = 0;
-for (let i = 0; i < Math.min(da.md5.length, db.md5.length); i++) { const f = w0 + i; if ((f < A || f >= B) && da.md5[i] !== db.md5[i]) pixDiff++; }
+let pixDiff = 0, decErr = false;
+for (const [w0, w1] of around) {
+  const da = dec(film, w0, w1), db = dec(joined, w0, w1);
+  if (db.err) { failures.push(`decoding frames ${w0}–${w1 - 1} of the new film: ${db.err.split("\n")[0]}`); decErr = true; }
+  if (da.md5.length !== w1 - w0 || db.md5.length !== w1 - w0) failures.push(`decoding frames ${w0}–${w1 - 1}: got ${da.md5.length} and ${db.md5.length} frames`);
+  for (let i = 0; i < Math.min(da.md5.length, db.md5.length); i++) { const f = w0 + i; if (!inWin(f) && da.md5[i] !== db.md5[i]) pixDiff++; }
+}
 if (pixDiff) failures.push(`${pixDiff} frame(s) next to the joins decode to other pixels than the film's`);
-// PSNR per frame over the new span, against the film: the frames outside a–b must come back as they were
+// PSNR per frame over each window, against the film: the frames outside the spans named must come back as they were
 // (run in the work folder, so the stats file's name needs no escaping in the filter graph whatever the folders are called)
-const ps2 = spawnSync("ffmpeg", ["-v", "error", "-nostdin", "-ss", (A / fps).toFixed(6), "-i", film, "-ss", (A / fps).toFixed(6), "-i", joined,
-  "-frames:v", String(B - A), "-lavfi", "[0:v][1:v]psnr=stats_file=psnr.log", "-f", "null", "-"], { encoding: "utf8", cwd: work });
-// the filter graph can run a frame past -frames:v, so the stats file may have one line more: lines are taken by their
-// frame number n (from 1), the first B - A of them, each once
-const psnr = new Array(B - A).fill(NaN);
-if (ps2.status === 0 && fs.existsSync(path.join(work, "psnr.log")))
-  for (const l of fs.readFileSync(path.join(work, "psnr.log"), "utf8").split("\n")) {
-    const n = +(l.match(/(?:^|\s)n:(\d+)/) || [])[1], m = l.match(/psnr_avg:(\S+)/);
-    if (n >= 1 && n <= B - A && m) psnr[n - 1] = m[1] === "inf" ? Infinity : +m[1];
-  }
-// the one check that sees an edit reaching past a–b: no PSNR is a failure, not a pass
-if (psnr.some(Number.isNaN)) failures.push(`the PSNR of frames ${A}–${B - 1} against the film could not be measured (ffmpeg: ${ps2.signal ? `stopped by ${ps2.signal}` :
-  (ps2.stderr || "").toString().trim().split("\n")[0] || `exit ${ps2.status}, ${psnr.filter((x) => !Number.isNaN(x)).length} of ${B - A} frames`})`);
-const span = (lo, hi) => psnr.slice(lo - A, hi - A + 1).filter((x) => !Number.isNaN(x));
-const kept = [...span(A, a - 1), ...span(b + 1, B - 1)], asked = span(a, b);
+const psnr = new Map();   // film frame → dB
+const psnrErr = [];
+for (const w of wins) {
+  const log = path.join(work, "psnr.log");
+  fs.rmSync(log, { force: true });
+  const r = spawnSync("ffmpeg", ["-v", "error", "-nostdin", "-ss", (w.A / fps).toFixed(6), "-i", film, "-ss", (w.A / fps).toFixed(6), "-i", joined,
+    "-frames:v", String(w.B - w.A), "-lavfi", "[0:v][1:v]psnr=stats_file=psnr.log", "-f", "null", "-"], { encoding: "utf8", cwd: work });
+  // the filter graph can run a frame past -frames:v, so the stats file may have one line more: lines are taken by their
+  // frame number n (from 1), the first B - A of them, each once
+  let got = 0;
+  if (r.status === 0 && fs.existsSync(log))
+    for (const l of fs.readFileSync(log, "utf8").split("\n")) {
+      const n = +(l.match(/(?:^|\s)n:(\d+)/) || [])[1], m = l.match(/psnr_avg:(\S+)/);
+      if (n >= 1 && n <= w.B - w.A && m && !psnr.has(w.A + n - 1)) { psnr.set(w.A + n - 1, m[1] === "inf" ? Infinity : +m[1]); got++; }
+    }
+  if (got < w.B - w.A) psnrErr.push(`frames ${w.A}–${w.B - 1} (ffmpeg: ${r.signal ? `stopped by ${r.signal}` : (r.stderr || "").toString().trim().split("\n")[0] || `exit ${r.status}, ${got} of ${w.B - w.A} frames`})`);
+}
+// the one check that sees an edit reaching past the spans: no PSNR is a failure, not a pass
+if (psnrErr.length) failures.push(`the PSNR against the film could not be measured: ${psnrErr.join("; ")}`);
+const kept = [...psnr].filter(([f]) => !inAsked(f)).map(([, x]) => x), askedP = [...psnr].filter(([f]) => inAsked(f)).map(([, x]) => x);
 const fmt = (x) => (x === Infinity ? "∞" : x.toFixed(1));
 const minKept = kept.length ? Math.min(...kept) : null;
 if (minKept !== null && minKept < o.minPsnr) {
-  const off = []; psnr.forEach((x, i) => { const f = A + i; if ((f < a || f > b) && x < o.minPsnr) off.push(f); });
+  const off = [...psnr].filter(([f, x]) => !inAsked(f) && x < o.minPsnr).map(([f]) => f).sort((x, y) => x - y);
   const runs = []; for (const f of off) { const r = runs[runs.length - 1]; if (r && f === r[1] + 1) r[1] = f; else runs.push([f, f]); }
-  failures.push(`frames ${runs.map(([x, y]) => (x === y ? `${x}` : `${x}–${y}`)).join(", ")} are outside ${a}–${b} but come back under ${o.minPsnr} dB (lowest ${fmt(minKept)}): ` +
+  failures.push(`frames ${runs.map(([x, y]) => (x === y ? `${x}` : `${x}–${y}`)).join(", ")} are outside ${askedList} but come back under ${o.minPsnr} dB (lowest ${fmt(minKept)}): ` +
     "the page draws them differently now (the edit reaches beyond the frames named, a transition shows the shot, another browser), and the joins would show. Name the frames the edit really covers");
 }
 if (o.verify === "full") {
@@ -307,39 +414,57 @@ if (o.verify === "full") {
 }
 
 // ---- report, sidecar, and the film in place ----
-const secs = (Date.now() - T0) / 1000;
+const secs2 = (Date.now() - T0) / 1000;
 console.log(`  frames: ${after.length} (the film: ${N})${after.length === N ? " ✓" : " ✗"}`);
-console.log(`  packets outside ${A}–${B - 1}: ${same} the film's own${moved ? `, ${moved} not ✗` : " ✓"}; decoded ${w0}–${w1 - 1} around the joins: ${pixDiff ? `${pixDiff} frames differ ✗` : "the same pixels outside the new frames (PSNR ∞) ✓"}${db.err ? " · decode errors ✗" : ", no decode errors ✓"}`);
-if (!psnr.some(Number.isNaN)) console.log(`  against the film: frames ${a}–${b} ${asked.length ? `${fmt(Math.min(...asked))}–${fmt(Math.max(...asked))} dB` : "—"} (what changed)` +
+console.log(`  packets outside ${winList}: ${same} the film's own${moved ? `, ${moved} not ✗` : " ✓"}; decoded ${around.map(([x, y]) => span(x, y - 1)).join(", ")} around the joins: ${pixDiff ? `${pixDiff} frames differ ✗` : "the same pixels outside the new frames (PSNR ∞) ✓"}${decErr ? " · decode errors ✗" : ", no decode errors ✓"}`);
+if (!psnrErr.length) console.log(`  against the film: frames ${askedList} ${askedP.length ? `${fmt(Math.min(...askedP))}–${fmt(Math.max(...askedP))} dB` : "—"} (what changed)` +
   (kept.length ? `; frames drawn again only to reach the keyframes at least ${fmt(minKept)} dB${minKept >= o.minPsnr ? " ✓" : " ✗"}` : ""));
 if (o.verify === "full") console.log(`  the whole new film decodes${failures.some((f) => f.startsWith("decoding the whole")) ? " with errors ✗" : " without an error ✓"}`);
 for (const n of notes) console.log(`  note: ${n}`);
 await new Promise((r) => setImmediate(r));   // a Ctrl-C that came during the checks ends it here, the film as it was
-const record = { frames: [a, b], drawn: [A, B - 1], at: new Date().toISOString().slice(0, 19) + "Z", browser: pside.browser, seconds: +secs.toFixed(1), min_psnr_kept: minKept === Infinity ? "inf" : minKept };
+// the shots the spans cross: shots.json when the project has one, else the page's as the pieces were drawn, else the film's
+const crossTable = (() => {   // names only: a table that cannot be read names nothing
+  try {
+    if (!shotsJson) return tidyShots((pieceSide && pieceSide.shots) || side.shots || []);
+    if (table && tableFrom === rel(shotsJson)) return table;
+    const j = JSON.parse(fs.readFileSync(shotsJson, "utf8")), raw = Array.isArray(j) ? j : j && j.shots;
+    return Array.isArray(raw) ? tidyShots(raw) : [];
+  } catch { return []; }
+})();
+const crossed = crossTable.filter((s) => asked.some(([a, b]) => s.start < (b + 1 + ff0) / fps - 1e-9 && s.end > (a + ff0) / fps + 1e-9)).map((s) => s.id);
+const at = new Date().toISOString().slice(0, 19) + "Z", browserNow = pieceSide.browser;
+const records = asked.map(([a, b]) => { const w = wins.find((x) => a >= x.A && b < x.B);
+  return { frames: [a, b], drawn: [w.A, w.B - 1], at, browser: browserNow, seconds: +secs2.toFixed(1), min_psnr_kept: minKept === Infinity ? "inf" : minKept }; });
 const sideFor = (videoFile) => {   // as bin/vh render writes it: the page relative to the video's folder when that is inside the page's
   const dir = fs.realpathSync(path.dirname(videoFile)), real = fs.realpathSync(page), root = path.dirname(real);
-  return { ...side, page: (dir + path.sep).startsWith(root + path.sep) ? path.relative(dir, real) : real, patches: [...(side.patches || []), record] };
+  const s = { ...side, page: (dir + path.sep).startsWith(root + path.sep) ? path.relative(dir, real) : real, patches: [...(side.patches || []), ...records] };
+  for (const k of ["shots", "chapters"]) { if (pieceSide && pieceSide[k]) s[k] = pieceSide[k]; }   // the page's as it draws now
+  return s;
 };
+const changed = { whole: false, frames: asked, seconds: asked.map(([a, b]) => [+(a / fps).toFixed(6), +((b + 1) / fps).toFixed(6)]),
+  drawn: wins.map((w) => [w.A, w.B - 1]), shots: crossed, ...(shotIds.length || chapterIds.length ? { asked: { shots: shotIds, chapters: chapterIds } } : {}) };
+const named = crossed.length ? ` (${crossed.slice(0, 6).join(", ")}${crossed.length > 6 ? " …" : ""})` : "";
 if (failures.length) {
   const kept2 = path.join(path.dirname(outFile), `${path.basename(film, path.extname(film))}.failed${path.extname(film)}`);
   fs.renameSync(joined, kept2);
   for (const f of failures) console.log(`  ✗ ${f}`);
   console.log(`patch: a check failed; the film is as it was, and the new one is in ${rel(kept2)} to look at`);
-  activityNote(`frames ${a}–${b} drawn again; a check failed, the film is as it was`, [kept2]);
+  activityNote(`frames ${askedList}${named} drawn again; a check failed, the film is as it was`, [kept2]);
   cleanUp(); process.exit(1);
 }
-if (inPlace) {
-  fs.renameSync(joined, film);   // the same folder: one rename, never a half-written film
-  // the film's own sidecar: the one it had, or a new one beside it when --sidecar named a render it was made from (whose
-  // video is not the one patched)
-  const own = film + ".render.json";
-  fs.writeFileSync(own, JSON.stringify(sideFor(film), null, 1) + "\n");
-  console.log(`patch: done in ${secs.toFixed(0)} s · ${rel(film)} now has the new frames ${a}–${b}; ${rel(own)} lists the patch`);
-  activityNote(`frames ${a}–${b} drawn again in place, in ${secs.toFixed(0)} s`, [film, own]);
+const sideTmp = joined + ".render.json";
+fs.writeFileSync(sideTmp, JSON.stringify(sideFor(outFile), null, 1) + "\n");
+// the new film in place: with --in-place the film it replaces is kept as an earlier version first (tools/film/versions.mjs)
+const ver = commit({ film: outFile, new: joined, new_sidecar: sideTmp, made_by: "patch", source: inPlace ? null : film, note, changed });
+const placed = ver.placed;
+const tail = (ver.id ? ` · version ${ver.id}` : "") + (ver.error ? ` · ${ver.lines[0]}` : "");
+if (inPlace && placed === film) {
+  console.log(`patch: done in ${secs2.toFixed(0)} s · ${rel(film)} now has the new frames ${askedList}${named}; ${rel(film + ".render.json")} lists the patch`);
+  activityNote(`frames ${askedList}${named} drawn again in place, in ${secs2.toFixed(0)} s${tail}`, [film, film + ".render.json"]);
 } else {
-  fs.renameSync(joined, outFile);
-  fs.writeFileSync(outFile + ".render.json", JSON.stringify(sideFor(outFile), null, 1) + "\n");
-  console.log(`patch: done in ${secs.toFixed(0)} s · ${rel(outFile)} (+ .render.json); the film is as it was`);
-  activityNote(`frames ${a}–${b} drawn again, in ${secs.toFixed(0)} s`, [outFile, outFile + ".render.json"]);
+  console.log(`patch: done in ${secs2.toFixed(0)} s · ${rel(placed)} (+ .render.json)${inPlace ? "" : "; the film is as it was"}`);
+  activityNote(`frames ${askedList}${named} drawn again, in ${secs2.toFixed(0)} s${tail}`, [placed, placed + ".render.json"]);
 }
+for (const l of ver.lines) console.log(`  ${l}`);
 cleanUp();
+if (placed !== outFile) process.exit(1);

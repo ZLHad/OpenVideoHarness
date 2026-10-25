@@ -1,13 +1,16 @@
 """Clear a finished project's intermediate files: keep the film, its covers, captions, publishing copy, sources, docs and the
 narration in use; put the rest in the Trash (or delete what the tools can make again, with --delete).
 
-usage (via bin/vh clean): python tools/clean.py <project> [--yes] [--delete] [--keep path …] [--final path …] [--dry-run]
+usage (via bin/vh clean): python tools/clean.py <project> [--yes] [--delete] [--keep path …] [--final path …] [--keep-versions N] [--dry-run]
 
 Without --yes it only lists (a dry run; --dry-run says so, and wins over --yes). What goes, by kind:
   rebuilt   out/frames, out/check (check frames, contact sheets, storyboard tiles, textcheck crops: the check tools make
-            them again; a video in it stays, and so do bin/vh check's records, *.check.json), render chunks (.<film>.parts)
-            and patch work folders (.<film>.patch),
+            them again; a video in it stays, and so do bin/vh check's records, *.check.json), out/proxy (bin/vh proxy and
+            thumbs), render chunks (.<film>.parts) and patch work folders (.<film>.patch),
             node_modules (npm ci brings it back), __pycache__, .venv and venv folders
+  versions  the earlier versions of the films kept in out/versions/<id>/ (bin/vh versions), all but the newest
+            --keep-versions N of each film (default 0), and folders there no version keeps; the record says where they
+            went. The current films are not in there. Whether or not a film is found: the record tells them apart
   renders   video files under out/ that are not the film: drafts, video-only renders, segments, patches (*.mp4 *.mov *.webm
             *.mkv *.m4v *.avi), with their .render.json and .lock beside them. Only once a film is found (below)
   sound     sound files directly in audio/ that are not the narration in use (voiceover.wav, voiceover.<lang>.wav and its
@@ -68,7 +71,7 @@ def dir_kind(rel):
     p = low(rel)
     if p[-1] in REBUILT_DIRS and p[0] not in ("src", "assets"):
         return "rebuilt"
-    if p[0] == "out" and (p in (("out", "frames"), ("out", "check")) or p[-1].endswith(".parts") or p[-1].endswith(".patch")):
+    if p[0] == "out" and (p in (("out", "frames"), ("out", "check"), ("out", "proxy")) or p[-1].endswith(".parts") or p[-1].endswith(".patch")):
         return "rebuilt"
     if p[0] == "audio" and len(p) == 2 and "stems" in p[1]:
         return "sound"
@@ -179,6 +182,8 @@ def candidates(root, film, keeps):
     said = mentioned(root) if film else set()
     inside = {}   # a folder that would go but holds something to keep: its files go one by one, as this kind
     for d, reld, dirs, files in walk(root):
+        if low(reld) == ("out", "versions"):   # the earlier versions: versions_to_go() decides, from their record
+            dirs[:] = []; continue
         kind_here = next((inside[q] for q in [reld, *reld.parents] if q in inside), None)
         for name in sorted(dirs):
             rel = reld / name
@@ -213,6 +218,35 @@ def candidates(root, film, keeps):
             q = p.with_name(p.name + suf)
             if q.exists() and not kept(q.relative_to(root)): out.append(("renders", q))
     return out
+
+
+def versions_to_go(root, keep_n, keeps):
+    """The earlier versions kept in out/versions/<id>/ (bin/vh versions) that can go: every kept one but the newest keep_n
+    of each film, and folders no version of the record keeps (an earlier film all the same). The current films are not in
+    there. → ([folders], note): nothing, with a note, when the record cannot be read."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import versions as V
+    d = V.store(root)
+    if not d.is_dir():
+        return [], None
+    try:
+        L = V.listing(root)
+    except ValueError as e:
+        return [], f"{e}: out/versions stays as it is"
+    kept = [v for v in L["versions"] if v["state"] == "kept"]
+    stay = set()
+    for film in {v["film"] for v in kept}:
+        stay |= {v["id"] for v in [x for x in kept if x["film"] == film][::-1][:keep_n]}
+    keep_set = {low(k) for k in keeps}
+    out = []
+    for q in sorted(d.iterdir()):
+        if not q.is_dir() or q.is_symlink() or not re.fullmatch(r"v\d+", q.name) or q.name in stay:
+            continue
+        rel = q.relative_to(root)
+        if any(low(rel)[:len(k)] == k or k[:len(low(rel))] == low(rel) for k in keep_set):
+            continue
+        out.append(q)
+    return out, None
 
 
 def live_locks(root):
@@ -277,8 +311,9 @@ def remove(p, root):
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="bin/vh clean", usage="bin/vh clean <project> [--yes] [--delete] [--keep path …] [--final path …] [--dry-run]")
+    ap = argparse.ArgumentParser(prog="bin/vh clean", usage="bin/vh clean <project> [--yes] [--delete] [--keep path …] [--final path …] [--keep-versions N] [--dry-run]")
     ap.add_argument("project")
+    ap.add_argument("--keep-versions", type=int, default=0, metavar="N", help="keep the newest N earlier versions of each film in out/versions (default 0)")
     ap.add_argument("--yes", action="store_true", help="clear them; without it, only list (a dry run)")
     ap.add_argument("--dry-run", action="store_true", help="only list, even with --yes")
     ap.add_argument("--delete", action="store_true", help="delete what the tools make again (frames, check frames, chunks, node_modules) instead of the Trash")
@@ -318,10 +353,15 @@ def main():
     keep_rec = sorted((d / f).relative_to(root) for d, _, _, fs in walk(chk) for f in fs if f.endswith(".check.json")) if chk else []   # what the film was checked for
     own = subprojects(root)
     items = candidates(root, film, keeps + film + [r for r, _, _ in sent] + keep_vid + keep_rec + own)
+    if a.keep_versions < 0:
+        print("clean: --keep-versions N: a number ≥ 0", file=sys.stderr); sys.exit(2)
+    vgo, vnote = versions_to_go(root, a.keep_versions, keeps + film + [r for r, _, _ in sent])
+    items += [("versions", q) for q in vgo]
     sizes = {p: size(p) for _, p in items}
     total = sum(sizes.values())
     doing = a.yes and not a.dry_run
-    say = {"rebuilt": "made again by the tools", "renders": "renders that are not the film", "sound": "sound not in use"}
+    say = {"rebuilt": "made again by the tools", "renders": "renders that are not the film", "sound": "sound not in use",
+           "versions": "earlier versions of the films, bin/vh versions" + (f"; the newest {a.keep_versions} of each stay" if a.keep_versions else "; --keep-versions N keeps some")}
     print(f"clean: {root.name} · {human(size(root))} now · {len(items)} item(s), {human(total)} " + ("to clear" if doing else "would go (a dry run: --yes clears them)"))
     if found:
         print("  the film: " + ", ".join(str(f) for f in found[:6]) + (" …" if len(found) > 6 else ""))
@@ -336,8 +376,11 @@ def main():
     if keep_rec:
         print("  stays in out/check (bin/vh check's records): " + ", ".join(str(f) for f in keep_rec[:6]) + (" …" if len(keep_rec) > 6 else ""))
     if not film:
-        print("  no film found (out/final/, out/final*.<video>, media/, bin/vh deliver's records): its videos and sound stay; name the film with --final <file> to clear them")
-    for kind in ("rebuilt", "renders", "sound"):
+        print("  no film found (out/final/, out/final*.<video>, media/, bin/vh deliver's records): its videos and sound stay; name the film with --final <file> to clear them"
+              + (" (the earlier versions below are told apart by their record)" if vgo else ""))
+    if vnote:
+        print(f"  ! {vnote}")
+    for kind in ("rebuilt", "renders", "sound", "versions"):
         xs = [p for k, p in items if k == kind]
         if not xs:
             continue
@@ -349,15 +392,26 @@ def main():
             print(f"    … {len(xs) - 25} more")
     if not doing:
         sys.exit(0)
-    failed, trashed, deleted = 0, 0, 0
+    failed, trashed, deleted, vgone = 0, 0, 0, []
     for kind, p in items:
         try:
             if a.delete and kind == "rebuilt":
                 remove(p, root); deleted += sizes[p]
+            elif kind == "versions":   # named for the project in the Trash ("<project> v2"), its record told
+                named = p.with_name(f"{root.name} {p.name}")
+                os.replace(p, named)
+                try:
+                    to_trash(named)
+                except OSError:
+                    os.replace(named, p); raise
+                trashed += sizes[p]; vgone.append(p)
             else:
                 to_trash(p); trashed += sizes[p]
         except OSError as e:
             failed += 1; print(f"  ✗ {p.relative_to(root)}: {e}")
+    if vgone:
+        import versions as V
+        V.mark_trashed(root, vgone, "bin/vh clean")
     print(f"clean: {human(deleted)} deleted, {human(trashed)} moved to the Trash" + (f", {failed} could not be cleared" if failed else "") +
           f"; {root.name} is {human(size(root))} now")
     if trashed:
