@@ -44,7 +44,10 @@
 // estimate above measures it. Its glyph check covers the frames it draws: on a resume it says the kept ones were not.
 // A video inside a project is a version of its film (tools/versions.py, bin/vh versions): the film it replaces at that
 // path is kept in out/versions/ first (while the disk can hold it; else it goes to the Trash, said), and the record gets
-// the new one. The sidecar also keeps the page's shots and chapters (window.film.shots, chapters) when it gives them.
+// the new one. The sidecar also keeps the page's shots and chapters (window.film.shots, chapters) when it gives them, and
+// `files`: every file in the page's folder a browser of this render was sent and its sha256 (what a resume compares; the
+// host's own scripts, outside the folder, stay in plan.json alone), by its path from that folder, null for one that could
+// not be read; bin/vh assets check compares it with the project's ledger.
 // bin/vh patch draws its frames through this tool with OVH_RENDER_PIECE=1: a piece of a patch is a step, so it ends without
 // the "render: done" line (the patch's own last line says the job is done).
 import crypto from "node:crypto";
@@ -393,6 +396,9 @@ const sidecar = {
   encoder: { codec: "libx264", crf: o.crf, preset: o.preset, gop, keyint_min: gop, sc_threshold: 0, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] },
   chunks: plan.map(([a, b]) => [a, b]), reused_chunks: reuse.size, browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl, seconds: +secs.toFixed(1),
   ...(pageShots.length ? { shots: pageShots } : {}), ...(pageChapters.length ? { chapters: pageChapters } : {}),
+  // the files the page loaded (plan.json's table, which goes with the parts): those in the page's folder, from it, sorted
+  files: Object.fromEntries([...loaded].filter(([f]) => inside(f, first.root)).map(([f, h]) => [path.relative(first.root, f).split(path.sep).join("/"), h])
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))),
 };
 const sideTmp = joined + ".render.json";
 fs.writeFileSync(sideTmp, JSON.stringify(sidecar, null, 1) + "\n");
