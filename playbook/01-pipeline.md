@@ -15,7 +15,7 @@
 | 6 写场景 | 每个场景一个文件；长片按 chapter 分给多个 subagent | Claude Code subagents | 新做和改过的场景过 lint，按问题看 sheet、strip、crop |
 | 7 Review | `out/check/*.jpg` 和 `NOTES.md` 里的评分记录 | 全新上下文的 reviewer subagent，对照 `TASTE_CHECKLIST.md` | 底线条目全 PASS；整片 draft 过 1 轮打分层，修最重要的至多 3 处（`studio` 至少 3 轮、最多 10 轮，做工五项都 ≥ 7）；小修只做局部复查 |
 | 8 渲染 | 先出 draft，给人审阅后再出 final | 并行 worker；ffmpeg 合成，加 `loudnorm` | `ffprobe` 通过，`blackdetect`、`freezedetect` 的命中逐条看过；**人工关卡 ③**（draft） |
-| 9 交付 | mp4、源码、渲染命令、素材台账、`LESSONS.md` | — | 用户完整看一遍、听一遍 |
+| 9 交付 | mp4、源码、渲染命令、素材台账、`LESSONS.md` | `bin/vh assets check`、`credits`（署名和 AI 标识） | 用户完整看一遍、听一遍 |
 
 改流程本身（必读、模板的格子、在哪停、评审的尺子）之前，先读 `CONTRIBUTING.md` 的"四个绑定点"。
 
@@ -50,7 +50,7 @@ projects/2026-10-01-leo-doppler/
 ├── BRIEF.md  STYLE.md  STORYBOARD.md  SCRIPT.md  NOTES.md  LESSONS.md  TASTE_CHECKLIST.md
 ├── REVIEW.md  DECISIONS.md   人的原话 / 谁拍板、定了什么、为什么（导演模式）
 ├── audio/            voiceover.wav、bgm.mp3、timeline.json、beats.json
-├── assets/           图片、字体、图标（记录来源和许可）
+├── assets/           图片、字体、图标、片段，进来就 bin/vh assets add 登记来源和许可（台账 assets/ledger.json）
 ├── src/ 或 compositions/ 或 scenes/   场景代码（结构按引擎惯例）
 ├── out/check/        联系表、strip、crop
 ├── out/review/       审阅页：gate-<n>.json → gate-<n>.html，最新一页也是 index.html（bin/vh gate）；feedback/ 是审阅台收到的提交
@@ -243,9 +243,9 @@ animatic 是整片长度的灰盒预演，属于阶段 3，放进关卡 ② 的�
 
 | 角色 | 常派的活 | 交回什么 |
 |---|---|---|
-| 美术 | 重要镜头、风格小样、封面 | 只改分给它的镜头文件；交这几镜的联系表、关键动作 strip、determinism 的结果 |
-| 声音设计 | 配音；配乐和音效（可以拆成两个） | 配音、`timeline.json`、字幕；分轨、混音、`qa` 的结果；只能靠转写和波形判断的地方写明 |
-| 研究员 | 事实和出处、真实照片和许可；发布包的文案 | 素材清单和素材台账，每条写出处、有几个来源；PACKAGING.md 的标题、简介、章节，带数字的注明核实状态 |
+| 美术 | 重要镜头、风格小样、封面 | 只改分给它的镜头文件；交这几镜的联系表、关键动作 strip、determinism 的结果；生图用 `bin/vh assets add` 登记 |
+| 声音设计 | 配音；配乐和音效（可以拆成两个） | 配音、`timeline.json`、字幕；分轨、混音、`qa` 的结果；只能靠转写和波形判断的地方写明；TTS 的音（加 `--aigc`）和下载的音效、音乐用 `bin/vh assets add` 登记 |
+| 研究员 | 事实和出处、真实照片和许可；发布包的文案 | 素材清单，每条写出处、有几个来源；照片用 `bin/vh assets add` 登记；PACKAGING.md 的标题、简介、章节，带数字的注明核实状态，署名用 `bin/vh assets credits` |
 
 - **时间依据先交**：旁白片先要配音和它的 `timeline.json`，音乐片先要曲子和节拍表；镜头、配乐和音效都按它对时（硬规则 2）。
 - **给研究员一个检索预算**（例如 30–40 次调用），不然常常一跑一个多小时；只在一个来源或聚合站里出现的数字不进标题。
