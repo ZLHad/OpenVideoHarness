@@ -52,13 +52,13 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 
 ## 联网的命令怎么测
 
-下载素材、调生成服务、查平台数据的命令（`bin/vh assets add <url>`，批 1 的 footage、image、声音库）要联网，有的还花钱；CI 不联网、不花钱。所以每条这样的命令都守三条：
+下载素材、调生成服务、查平台数据的命令（`bin/vh assets add <url>`，批 1 的 footage、image、声音库）要联网，有的还调付费接口；CI 里被测的命令不联网、不花钱（CI 自己会用 uv 装测试用的包）。所以每条这样的命令都守三条：
 
 - **配一份录好的响应。** 请求都走 `tools/assets/fetch.py`：`download` 管断点续传、限速和 sha256，`get_json` 管接口。设 `OVH_RECORD=<文件夹>` 在线跑一次，每个响应存进那个文件夹的 `responses.json`；挑出要用的，放进这条命令自己的 `fixtures/`。录下来的不含请求头（key 在请求头里），也不含 cookie；正文超过 256 kB 只留前 256 kB。进仓库的正文用合成的字节或很小的 JSON，不放别人的整份作品。
 - **有 `--offline <文件夹>`。** 命令照常跑，只是响应从录音里取（`fetch.Replay`；Range 照样回答，续传也能离线测）。找不到对应的 URL 就失败，不会偷偷联网。
 - **CI 只测解析、台账写入和许可分类。** 用录好的响应跑命令，查三样：解析出的字段；写进 `assets/ledger.json` 的记录，对着 `tools/assets/asset.schema.json` 查；许可落进哪一类（`tools/assets/licenses.py`，对照表是 `tools/assets/fixtures/licenses.tsv`）。活的接口不进 CI，由 `bin/vh doctor` 探（外接模块登记好以后接上）。
 
-花钱的命令还要守预算。调用前拿估价问一次 `tools/assets/budget.py` 的 `require()`：没有预算，或者超了，就拒绝，并说差多少。每次调用都用 `spend()` 记一笔，失败的也记。key 只从环境变量读，放在请求头里，不进 URL、录音和日志。
+调付费接口的命令还要守预算：每次调用都包在 `tools/assets/budget.py` 的 `with budget.hold(项目, 估价, 币种, 做什么) as h:` 里。它在锁里检查并预占这笔估价，没有预算或者超了就拒绝，并说差多少；几个进程同时调用也不会一起越过预算。调用完用 `h.settle(实际花费)` 结算，没计费就记 0；出了异常没结算，按估价算。登记产物时把花费交给 `ledger.add(…, cost=…)`，花费记录里已有的不会重记。key 只从环境变量读，放在请求头里，不进 URL、录音和日志；记录和报错里的 URL 都去掉 query 的值（`fetch.redact`），带 key、token、签名的 URL 不录。
 
 ## 在 GitHub 上启用规则集
 

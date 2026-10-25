@@ -41,13 +41,13 @@
 
 **数据**：[Make Me a Hanzi](https://github.com/skishore/makemeahanzi)（skishore）提供 9,000 多个常用简繁汉字的笔顺矢量数据。`graphics.txt` 每行是一个 JSON：`character` 是字；`strokes` 是按正确笔顺排好的每一笔轮廓（SVG path）；`medians` 是每一笔的中线点列。坐标系是 1024×1024、y 轴朝上，左上角在 (0, 900)，显示时要翻转，README 给的变换是 `scale(1, -1) translate(0, -900)`。字形来自文鼎的两款 PL 楷体字库，写出来是楷书的样子。
 
-**许可和存放**：两份数据的许可不同。`graphics.txt`（连同它的动画 SVG）由文鼎字体派生，按 Arphic Public License 发布；`dictionary.txt` 由 Unihan 和 CJKlib 派生，按 LGPL 3.0 或更高版本发布。两者都不是 MIT，`graphics.txt` 又有约 30 MB，所以**不放进本仓库，也不加进 `fetch.sh`**。每个项目自己下载，只留用到的字，并在 `NOTES.md` 的素材台账里记一行：文件、来源（仓库地址和提交号）、许可（APL）。
+**许可和存放**：两份数据的许可不同。`graphics.txt`（连同它的动画 SVG）由文鼎字体派生，按 Arphic Public License 发布；`dictionary.txt` 由 Unihan 和 CJKlib 派生，按 LGPL 3.0 或更高版本发布。两者都不是 MIT，`graphics.txt` 又有约 30 MB，所以**不放进本仓库，也不加进 `fetch.sh`**。每个项目自己下载，只留用到的字，并用 `bin/vh assets add` 各登记一条：来源（仓库地址和提交号）、许可（`graphics.txt` 写 Arphic Public License；`dictionary.txt` 的 LGPL 分类器判成 unknown，读过条款再用 `--class` 定）。
 
 ```bash
 # 在项目目录里执行：只取用到的字，记下数据版本
 curl -sL https://raw.githubusercontent.com/skishore/makemeahanzi/master/graphics.txt \
   | grep -E '"character":"(商|周|秦)"' > assets/hanzi-strokes.jsonl
-git ls-remote https://github.com/skishore/makemeahanzi.git HEAD   # 提交号写进素材台账
+git ls-remote https://github.com/skishore/makemeahanzi.git HEAD   # 提交号写进台账记录（--source-url 或 --note）
 ```
 
 只发布渲染出来的视频，一般不涉及再分发数据；如果连源码和数据一起公开（例如发布可播放的 HTML），要随附 APL 全文（一般理解，非法律意见）。

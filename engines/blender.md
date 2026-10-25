@@ -48,7 +48,7 @@ Blender 的增量只在路径追踪的光传输、物理模拟、真实运动模
 ```
 projects/<date>-<slug>/blender/
 ├── timeline.json        # 唯一事实来源，单位秒
-├── assets/              # glb/usd/blend/HDRI；每件在 NOTES.md 素材台账有来源、许可、sha256
+├── assets/              # glb/usd/blend/HDRI；每件用 bin/vh assets add 登记（来源、许可、sha256）
 ├── build/scene.blend    # build 的产物，可删可重建
 ├── caches/              # 烘焙缓存（关键帧 JSON、点缓存/Alembic/VDB），带 sha256
 ├── out/draft/ out/plate/ out/alpha/    # PNG 序列
@@ -82,7 +82,7 @@ projects/<date>-<slug>/blender/
 - `frame_start = 0`，帧 n 对应 t = n / fps；每帧采样关键帧，不写 fcurve，不注册 handler（见"每帧是 t 的纯函数"）。
 - Cycles：`seed` 取自 timeline，`use_animated_seed = True`，`time_limit = 0`；不写 `METAL+CPU`（见"确定性"）。
 - 视图变换和显示设备来自 `look`。枚举值以当前版本 `view_settings.bl_rna.properties['view_transform'].enum_items` 为准，不凭记忆写字符串（Filmic 已弃用，新增 ACES）[7][4]；引擎 id 用 `bpy.app.version` 门控。
-- 导入资产之后立刻写素材台账（来源、许可、sha256）；烘焙和缓存的产物写进 `caches/` 并登记哈希。
+- 导入资产之后立刻用 `bin/vh assets add` 登记（来源、许可，sha256 由它算）；烘焙和缓存的产物写进 `caches/` 并登记哈希。
 - `lib/` 里放一层 API shim 和一条 5 帧冒烟测试，升级版本时先跑冒烟。
 
 这里不放可运行的 bpy 脚本（许可问题见"许可证"，维护者待定），循环的做法是：
@@ -251,7 +251,7 @@ sandbox-exec -f vh_blender.sb env -i PATH="$PATH" HOME="$PWD/blender/out/.home" 
 | **调用 bpy 的 Python 脚本** | FAQ：分享或发布的、用了 Blender Python API 的脚本，必须以 GNU GPL 提供；许可页的措辞是"符合 GPL 的协议" [17] | **只在分享或发布时触发**，纯自用不触发；MIT 是 GPL 兼容协议，但 FAQ 字面写的是按 GPL |
 | 完全在 Blender 之外、不调 API 的工具 | 可以闭源、可以卖 [17] | 不 import bpy 的封装属于此类 |
 | 官方 MCP、`bpy` PyPI 包 | 元数据都标 GPL-3.0 [16][18] | 只读参考 |
-| 素材 | 各自许可：Poly Haven 等为 CC0，Poly Pizza 多为 CC-BY，Sketchfab 逐件不同 [16] | 一律记素材台账 |
+| 素材 | 各自许可：Poly Haven 等为 CC0，Poly Pizza 多为 CC-BY，Sketchfab 逐件不同 [16] | 一律 `bin/vh assets add` 登记 |
 
 本仓库是 MIT。调用 bpy 的脚本放进仓库时，许可怎么写，原有三个选项：(1) 仓库里不放 `import bpy` 的文件，`build.py` 由 agent 在项目目录里生成（`projects/` 不入库），仓库只放不 import bpy 的封装和模板 JSON；(2) `import bpy` 的文件标 `SPDX-License-Identifier: GPL-3.0-or-later`，这部分文件按 GPL 分发；(3) 保持 MIT，承担 FAQ 字面要求和 MIT 之间的差距。**维护者 2026-10-01 选了 (2)**：现在仓库里 import bpy 的文件是 `styles/_swatch/blender_render.py` 和 `styles/tabletop-miniature/swatch.py`，文件头都有 SPDX 标注，`README.md` 的 License 一节写明了；不 import bpy 的封装（`blender_prep.py`、`render.sh`）仍是 MIT。以后加 import bpy 的文件，照样标。项目里 agent 生成的 `build.py` 在 `projects/` 下，不入库，不受影响。Blender 的名称和 logo 受单独的商标政策约束，片子里出现 Blender 界面截图前先看一眼 [17]。
 

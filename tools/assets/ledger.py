@@ -22,7 +22,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import licenses   # noqa: E402
+import fetch, licenses   # noqa: E402,E401
 
 LEDGER = Path("assets") / "ledger.json"
 LOCK = Path("assets") / ".ledger.lock"
@@ -49,6 +49,13 @@ class LedgerError(ValueError):
 
 class Refused(ValueError):
     """An add or a remove the ledger does not make (an id or a path on record already, an id it does not have)."""
+
+
+class CostNotRecorded(Exception):
+    """The record is in the ledger, but its cost could not go into assets/spend.jsonl (e.record has it, str(e) why)."""
+    def __init__(self, msg, record):
+        super().__init__(msg)
+        self.record = record
 
 
 def iso(t=None):
@@ -91,7 +98,9 @@ def local_md():
 
 
 def spec_lines(project, brief_pat, local_pat):
-    """[(value, "BRIEF" or "LOCAL.md")]: the line BRIEF.md has (comments left out), then LOCAL.md's; a file without one, none."""
+    """[(value, "BRIEF" or "LOCAL.md")]: the line BRIEF.md has (comments left out), then LOCAL.md's; a file without one, none.
+    The patterns match within one line (spaces and tabs, never a newline): an empty "- Budget:" is empty, not the line
+    below it."""
     out = []
     for f, pat, where in ((Path(project) / "BRIEF.md", brief_pat, "BRIEF"), (local_md(), local_pat, "LOCAL.md")):
         try:
@@ -103,8 +112,8 @@ def spec_lines(project, brief_pat, local_pat):
     return out
 
 
-POLICY_BRIEF = r"^\s*[-*]\s*(?:\*\*)?Assets(?:\*\*)?\s*[:：]\s*(.*?)\s*$"
-POLICY_LOCAL = r"^\s*[-*]?\s*(?:\*\*)?(?:素材许可|许可策略|assets(?:\s+policy)?)(?:\*\*)?\s*[:：]\s*(.*?)\s*$"
+POLICY_BRIEF = r"^[ \t]*[-*][ \t]*(?:\*\*)?Assets(?:\*\*)?[ \t]*[:：][ \t]*(.*?)[ \t]*$"
+POLICY_LOCAL = r"^[ \t]*[-*]?[ \t]*(?:\*\*)?(?:素材许可|许可策略|assets(?:[ \t]+policy)?)(?:\*\*)?[ \t]*[:：][ \t]*(.*?)[ \t]*$"
 
 
 def policy_of(project):
@@ -260,6 +269,13 @@ def from_genclip(o, where):
     return r
 
 
+def class_of(r):
+    """A record's licence class as the tools read it: its license.class when it is one of the classes, else unknown."""
+    lic = r.get("license") if isinstance(r, dict) else None
+    c = lic.get("class") if isinstance(lic, dict) else None
+    return c if isinstance(c, str) and c in licenses.CLASSES else "unknown"
+
+
 # ---- collections ----
 
 def empty():
@@ -354,14 +370,20 @@ def entries(target, said=None):
     the ledger does not supersede) or a collection file (a ledger.json or a .jsonl). Raises LedgerError."""
     said = [] if said is None else said
     t = Path(target)
+    def objects(d, where):
+        for i, r in enumerate(d["assets"]):
+            if isinstance(r, dict):
+                yield r
+            else:
+                said.append(f"{where}: assets[{i}] is not a record ({type(r).__name__}), left out")
     if t.is_file() and t.suffix == ".jsonl":
         return t.parent, [{"record": r, "from": t.name, "problems": validate(r)} for r in read_jsonl(t, said)], t
     if t.is_file():
         d = read_ledger(t)
-        return t.parent, [{"record": r, "from": t.name, "problems": validate(r)} for r in d["assets"]], t
+        return t.parent, [{"record": r, "from": t.name, "problems": validate(r)} for r in objects(d, t.name)], t
     base, f = t, t / LEDGER
     d = read_ledger(f)
-    out = [{"record": r, "from": LEDGER.as_posix(), "problems": validate(r)} for r in d["assets"]]
+    out = [{"record": r, "from": LEDGER.as_posix(), "problems": validate(r)} for r in objects(d, LEDGER.as_posix())]
     ids = {r.get("id") for r in d["assets"] if isinstance(r, dict)}
     paths = {r.get("path") for r in d["assets"] if isinstance(r, dict)}
     for clip in sorted(base.glob(GENCLIPS)):
@@ -401,18 +423,30 @@ def _event(d, event, rec, by, why=None):
     d["events"].append(e)
 
 
+def find_file(project, file):
+    """A path as the commands take it: from the current folder, else from the project ("assets/x.png" works from anywhere).
+    None when it is in neither."""
+    for p in (Path(file), Path(project) / file):
+        if p.exists():
+            return p
+    return None
+
+
 def add(project, file, *, id=None, kind=None, license=None, license_url=None, license_class=None, source=None,
         attribution=None, aigc=None, model=None, prompt=None, prompt_file=None, seed=None, cost=None, used_by=None,
         tags=None, derived_from=None, note=None, extra=None, update=False, by="bin/vh assets add"):
-    """Register a file or a folder (a relative path is from the current folder) in the project's ledger: its sha256 and
-    size, its licence classified (license_class, when given, wins), and the fields given. → (record, the previous record
-    or None). update=True replaces the fields of the record with this id or this path (the ones not given are kept, and
-    so is added_at); else an id or a path already on record is refused (Refused). FileNotFoundError: no such file;
-    ValueError: the record would not be valid (said why)."""
+    """Register a file or a folder (a relative path: from the current folder, else from the project) in the project's
+    ledger: its sha256 and size, its licence classified (license_class, when given, wins), and the fields given; the
+    source's URLs without their query values or user:password (fetch.redact). update=True replaces the fields of the
+    record with this id or this path (the ones not given are kept, and so is added_at); else an id or a path already on
+    record is refused (Refused). cost: what the asset cost; the spend log gets what it does not have for this id yet
+    (budget.record_cost: a paid command's settled holds count). → (record, the previous record or None, the payment
+    written or None). FileNotFoundError: no such file; ValueError: the record would not be valid (said why);
+    CostNotRecorded: the record is in, its cost could not be written."""
     project = Path(project).resolve()
-    f = Path(file)
-    if not f.exists():
-        raise FileNotFoundError(f"no such file or folder: {file}")
+    f = find_file(project, file)
+    if f is None:
+        raise FileNotFoundError(f"no such file or folder: {file} (from here, nor in the project)")
     path = rel(project, f)
     if path in (LEDGER.as_posix(), LOCK.as_posix(), "assets/spend.jsonl") or path.startswith((".ovh/", "out/versions/")):
         raise ValueError(f"{path} is a record of the tools, not material")
@@ -466,6 +500,9 @@ def add(project, file, *, id=None, kind=None, license=None, license_url=None, li
             lic["class"], lic["by"] = license_class, "given"
         src = dict(rec.get("source") or {})
         src.update({k: v for k, v in (source or {}).items() if v is not None})
+        for k in ("url", "file_url"):
+            if isinstance(src.get(k), str):
+                src[k] = fetch.redact(src[k])
         if not src.get("origin"):
             src["origin"] = ("download" if src.get("url") or src.get("file_url") else "generated" if (aigc or model)
                              else "self" if lic.get("class") == "own" else None)
@@ -480,7 +517,10 @@ def add(project, file, *, id=None, kind=None, license=None, license_url=None, li
             if v is not None:
                 rec[k] = v
         if prompt_file is not None:
-            rec["prompt_file"] = rel(project, prompt_file)
+            pf = find_file(project, prompt_file)
+            if pf is None:
+                raise FileNotFoundError(f"no such prompt file: {prompt_file}")
+            rec["prompt_file"] = rel(project, pf)
         rec.update(extra or {})
         now = iso()
         rec["added_at"] = (old or {}).get("added_at") or now
@@ -489,13 +529,20 @@ def add(project, file, *, id=None, kind=None, license=None, license_url=None, li
         bad = validate(rec)
         if bad:
             raise ValueError("; ".join(bad))
-        if old and any(r is not None and r.get("id") == rec["id"] for r in recs):
-            d["assets"] = [rec if r.get("id") == rec["id"] else r for r in d["assets"]]
+        if old and any(r.get("id") == rec["id"] for r in recs):
+            d["assets"] = [rec if isinstance(r, dict) and r.get("id") == rec["id"] else r for r in d["assets"]]
         else:
             d["assets"].append(rec)
         _event(d, "update" if old else "add", rec, by)
         write_ledger(project / LEDGER, d)
-    return rec, old
+        pay = None
+        if cost is not None:
+            import budget
+            try:
+                pay = budget.record_cost(project, rec["id"], cost, f"{rec['id']} ({rec['path']})", tool=by)
+            except OSError as e:
+                raise CostNotRecorded(f"{rec['id']} is on record, but its cost could not go into {budget.SPEND} ({e}): add the payment by hand", rec)
+    return rec, old, pay
 
 
 def remove(project, id, why=None, by="bin/vh assets remove"):

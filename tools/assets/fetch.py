@@ -17,10 +17,12 @@ responses recorded in dir/responses.json, matched by URL; a Range is honoured by
 is tested offline too; a recorded "ranges": false answers 200 to a Range, as a server that ignores them), or Record(dir)
 (live, each response saved into dir). opener_from(offline): Replay(offline) when a folder is given (the command's
 --offline), else Record(OVH_RECORD) when that variable names one, else Live. A recording keeps no request headers (a key
-travels in them) and no cookies, and a body over 256 kB is cut to its first 256 kB with its length noted: a fixture
-stays small and holds no one's whole file.
+travels in them) and no cookies, refuses a URL that carries a credential in its query or a user:password, and cuts a
+body over 256 kB to its first 256 kB with its length noted: a fixture stays small and holds no one's whole file. Every
+message names a URL as redact() writes it (no user:password, no query values), and so do the records bin/vh assets
+writes.
 """
-import hashlib, http.client, json, os, re, time, urllib.error, urllib.request
+import hashlib, http.client, json, os, re, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 UA = "OpenVideoHarness (+https://github.com/ZLHad/OpenVideoHarness)"
@@ -29,7 +31,25 @@ CHUNK = 64 * 1024
 
 
 class FetchError(Exception):
-    """A download or a request that did not succeed (said why)."""
+    """A download or a request that did not succeed (said why; its URL as redact() writes it)."""
+
+
+SECRET = re.compile(r"key|token|sig|auth|credential|pass(?:word|wd)?|secret|session|x-amz-|x-goog-", re.I)
+
+
+def redact(url):
+    """A URL as it may be written down or printed: no user:password@, each query value and the fragment as … (the keys
+    kept), as the activity log writes one. A signed download link (?token=…, X-Amz-Signature=…) keeps no secret."""
+    try:
+        p = urllib.parse.urlsplit(url)
+        host = p.hostname or ""
+        port = p.port
+    except ValueError:
+        return "…"
+    if ":" in host:
+        host = f"[{host}]"
+    q = "&".join(f"{k}=…" for k, _ in urllib.parse.parse_qsl(p.query, keep_blank_values=True)) or ("…" if p.query else "")
+    return urllib.parse.urlunsplit((p.scheme, host + (f":{port}" if port else ""), p.path, q, "…" if p.fragment else ""))
 
 
 def rate_of(s):
@@ -55,9 +75,9 @@ class Live:
         except urllib.error.HTTPError as e:
             if e.code == 416:
                 return Response(416, dict(e.headers or {}), lambda n=-1: b"", e.close)
-            raise FetchError(f"{url}: HTTP {e.code} {e.reason}")
+            raise FetchError(f"{redact(url)}: HTTP {e.code} {e.reason}")
         except (urllib.error.URLError, OSError) as e:
-            raise ConnectionError(f"{url}: {getattr(e, 'reason', e)}")
+            raise ConnectionError(f"{redact(url)}: {getattr(e, 'reason', e)}")
         return Response(r.status, dict(r.headers), r.read, r.close)
 
 
@@ -75,9 +95,9 @@ class Replay:
         self.seen.append(url)
         rec = next((r for r in self.recs if r.get("url") == url), None)
         if rec is None:
-            raise FetchError(f"{url}: no recorded response in {self.dir} (record one: OVH_RECORD=<folder> and the same command online)")
+            raise FetchError(f"{redact(url)}: no recorded response in {self.dir} (record one: OVH_RECORD=<folder> and the same command online)")
         if rec.get("status", 200) >= 400:
-            raise FetchError(f"{url}: HTTP {rec['status']} (recorded)")
+            raise FetchError(f"{redact(url)}: HTTP {rec['status']} (recorded)")
         body = (self.dir / rec["body"]).read_bytes() if rec.get("body") else b""
         h = dict(rec.get("headers") or {})
         status = rec.get("status", 200)
@@ -104,6 +124,10 @@ class Record(Live):
         self.dir.mkdir(parents=True, exist_ok=True)
 
     def open(self, url, headers=None, timeout=60):
+        keys = [k for k, _ in urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query, keep_blank_values=True) if SECRET.search(k)]
+        if keys or urllib.parse.urlsplit(url).password is not None:
+            raise FetchError(f"{redact(url)}: not recorded: the URL carries a credential ({', '.join(keys) or 'user:password'}); "
+                             "a key belongs in a header, and a signed link in no fixture")
         r = super().open(url, headers, timeout)
         body = r.read()
         r.close()
@@ -145,7 +169,7 @@ def get_json(url, opener=None, headers=None, timeout=60):
     try:
         return json.loads(data.decode("utf-8"))
     except (UnicodeDecodeError, ValueError) as e:
-        raise FetchError(f"{url}: not JSON ({e})")
+        raise FetchError(f"{redact(url)}: not JSON ({e})")
 
 
 def _hasher(part):
@@ -199,7 +223,7 @@ def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries
                 mode, total = "wb", int(r.headers["content-length"]) if r.headers.get("content-length", "").isdigit() else None
                 h, hashed = hashlib.sha256(), 0
             else:
-                raise FetchError(f"{url}: HTTP {r.status}")
+                raise FetchError(f"{redact(url)}: HTTP {r.status}")
             with open(part, mode) as f:
                 while True:
                     b = r.read(CHUNK)
@@ -215,24 +239,24 @@ def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries
                             time.sleep(ahead)
         except (ConnectionError, TimeoutError, http.client.HTTPException, OSError) as e:
             if isinstance(e, (FileNotFoundError, PermissionError)) or attempt == retries:
-                raise FetchError(f"{url}: {e} (the part so far is kept in {part.name})")
+                raise FetchError(f"{redact(url)}: {e} (the part so far is kept in {part.name})")
             time.sleep(2 ** attempt)
             continue
         finally:
             r.close()
         if total is not None and hashed < total:
             if attempt == retries:
-                raise FetchError(f"{url}: {hashed} of {total} bytes after {retries + 1} tries (the part is kept in {part.name})")
+                raise FetchError(f"{redact(url)}: {hashed} of {total} bytes after {retries + 1} tries (the part is kept in {part.name})")
             continue
         break
     if not part.exists():
-        raise FetchError(f"{url}: nothing was downloaded")
+        raise FetchError(f"{redact(url)}: nothing was downloaded")
     if hashed != part.stat().st_size:
         h, hashed = _hasher(part)
     digest = h.hexdigest()
     if sha256 and digest != sha256.lower():
         part.unlink(missing_ok=True)
-        raise FetchError(f"{url}: sha256 {digest[:12]}… is not the {sha256[:12]}… expected; the download is deleted")
+        raise FetchError(f"{redact(url)}: sha256 {digest[:12]}… is not the {sha256[:12]}… expected; the download is deleted")
     os.replace(part, dest)
-    return {"path": str(dest), "url": url, "sha256": digest, "bytes": dest.stat().st_size, "resumed": resumed, "status": status,
+    return {"path": str(dest), "url": redact(url), "sha256": digest, "bytes": dest.stat().st_size, "resumed": resumed, "status": status,
             "content_type": ctype}

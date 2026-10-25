@@ -14,6 +14,7 @@ unset CDPATH   # an exported one could send this relative cd elsewhere (as in bi
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 2
 ROOT=$(pwd)
 VH_BASH=${VH_BASH:-bash}
+export OVH_LOCAL_MD=/dev/null/LOCAL.md   # this machine's LOCAL.md stays out of every check (one that needs it writes its own)
 fails=0
 ok() { printf '\033[32m✓\033[0m %s\n' "$*"; }
 bad() { printf '\033[31m✗\033[0m %s\n' "$*"; fails=$((fails + 1)); }
@@ -1680,9 +1681,8 @@ PY
 # record or a final film with a passing check record is delivered; a command running shows; the human view stays short
 assets_checks() {   # the asset ledger (tools/assets): the record and its fixtures, the licence table, the ledger's writes on a
   # copy of the fixture project, the budget, a download from recorded responses (no network), the credits
-  local t p a b rc rc2 tone
+  local t p q a b c d e rc rc2 rc3 rc4 rc5 tone
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
-  export OVH_LOCAL_MD="$t/LOCAL.md"   # this machine's defaults stay out of it (a test writes its own)
   # the validator takes every valid record and the fixture ledger, and refuses every invalid one; JSON Schema agrees
   if a=$(python3 - <<'PY'
 import json, sys
@@ -1779,18 +1779,66 @@ sys.exit(0 if ok else 1)
 PY
   then ok "assets add and remove: where it came from is required, a path or an id on record is refused (ids never reused), --update keeps the rest, a cost goes into spend.jsonl, a removed record stays (a clip's from before v1 moved in); check fails a changed file and a changed folder"
   else bad "assets add/remove (exits $r1:$r2:$r3:$r4:$r5:$r6:$r7:$rc): $(cat "$t/e1" "$t/e3" "$t/e7" "$t/o2" "$t/o4" | tail -c 600)"; fi
-  # the budget: the BRIEF's line, else LOCAL.md's 默认预算; amounts with their currency, never guessed; spent per currency
-  # (spend.jsonl and a clip's cost_usd from before v1); a call over it, in a currency it lacks, or with no budget is refused
-  cp -R tools/assets/fixtures/project "$t/b"
-  if a=$(python3 - "$t/b" "$t/LOCAL.md" <<'PY'
-import sys
+  # the ledger's edges: a class that is no string and an entry that is no object are findings, not tracebacks; a file
+  # made from another keeps its licence; a path is found from here or in the project; a URL keeps no secret; a cost that
+  # cannot be written is exit 1
+  q="$t/q"; cp -R tools/assets/fixtures/project "$q"; printf 'fixture clip\n' > "$q/assets/genclips/gc-0001/clip.mp4"
+  cp "$q/assets/music/loop.wav" "$q/assets/music/loop-cut.wav"
+  python3 - "$q" <<'PY'
+import json, sys
+q = sys.argv[1]
+f = f"{q}/assets/ledger.json"
+d = json.load(open(f, encoding="utf-8"))
+d["assets"][0]["license"]["class"] = 5                                  # grey-square: a class that is not a string
+d["assets"].append("not a record")
+d["assets"].append(dict(d["assets"][4], id="loop-cut", path="assets/music/loop-cut.wav", license={"class": "own", "by": "given"}, derived_from="loop"))
+d["assets"][2]["derived_from"] = "nothing-by-this-id"                    # hero: made from a record that is not there
+json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
+PY
+  a=$(vh assets check "$q" 2>&1); rc=$?
+  b=$(vh assets list "$q" 2>&1; vh assets credits "$q" 2>&1); rc2=$?
+  printf 'x' > "$q/assets/img/far.png"
+  c=$(cd "$t" && "$VH_BASH" "$ROOT/bin/vh" assets add "$q" assets/img/far.png --class own --source-url 'https://u:p@example.org/page?sig=secret#x' 2>&1); rc3=$?
+  d=$(vh assets add "$q" 'https://example.org/files/tone.wav?token=secret' --license CC0 --offline tools/assets/fixtures/responses 2>&1); rc4=$?
+  rm -f "$q/assets/spend.jsonl"; mkdir "$q/assets/spend.jsonl"; printf 'y' > "$q/assets/img/paid.png"
+  e=$(vh assets add "$q" "$q/assets/img/paid.png" --class managed --origin purchased --cost '$2' 2>&1); rc5=$?
+  if [ "$rc:$rc2:$rc3:$rc4:$rc5" = "1:0:0:1:1" ] && ! printf '%s' "$a$b$c$d$e" | grep -q 'Traceback\|secret\|u:p@' \
+     && case "$a" in *"grey-square"*"license.class is not one of"*) true ;; *) false ;; esac \
+     && case "$a" in *"assets[5] is not a record"*) true ;; *) false ;; esac \
+     && case "$a" in *"hero"*"derived_from names nothing-by-this-id"*) true ;; *) false ;; esac \
+     && case "$a" in *"loop-cut"*"made from loop (cc-by-nc) but on record as own"*) true ;; *) false ;; esac \
+     && grep -q '"url": "https://example.org/page?sig=…#…"' "$q/assets/ledger.json" \
+     && case "$e" in *"paid is on record, but its cost could not go into assets/spend.jsonl"*) true ;; *) false ;; esac
+  then ok "assets: a class that is no string and an entry that is no object are findings (no traceback); a file made from another keeps its licence; a path is found in the project too; URLs keep no secret; a cost that cannot be written is exit 1"
+  else bad "assets edges (exits $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s | %s | %s | %s | %s' "$a" "$b" "$c" "$d" "$e" | tail -c 900)"; fi
+  if a=$(python3 - <<'PY'
+import os, sys, tempfile
 sys.path.insert(0, "tools/assets")
-import budget
+import fetch
+d = tempfile.mkdtemp()
+try:
+    fetch.Record(d).open("https://example.org/f.wav?X-Amz-Signature=abc")
+    print("a signed URL was recorded")
+except fetch.FetchError as e:
+    print("" if "not recorded" in str(e) and "abc" not in str(e) and not os.listdir(d) else f"Record: {e} {os.listdir(d)}")
+except OSError as e:
+    print(f"Record went to the network: {e}")
+PY
+  ) && [ -z "$a" ]; then ok "assets: Record refuses a URL that carries a credential, before it opens anything"
+  else bad "assets Record: $a"; fi
+  # the budget: the BRIEF's line, else LOCAL.md's 默认预算 (one line each: an empty Budget is not the line below it);
+  # amounts with their currency, one a currency, never guessed; spent per currency (spend.jsonl, a clip's cost_usd from
+  # before v1); a hold over it, in a currency it lacks, or with no budget is refused, and two at once cannot both pass
+  cp -R tools/assets/fixtures/project "$t/b"
+  if a=$(OVH_LOCAL_MD="$t/LOCAL.md" python3 - "$t/b" "$t/LOCAL.md" <<'PY'
+import subprocess, sys, textwrap, time
+sys.path.insert(0, "tools/assets")
+import budget, ledger
 b, local = sys.argv[1:]
 P = budget.parse
 bad = []
 cases = {"$5": {"USD": 5.0}, "每支片子 20 美元": {"USD": 20.0}, "$5, ¥30": {"USD": 5.0, "CNY": 30.0}, "30 元": {"CNY": 30.0}, "0": {}, "none": {}, "无": {},
-         "500 tripo-credits": {"TRIPO-CREDITS": 500.0}, "5 USD (drafts)": {"USD": 5.0}, "€2.5": {"EUR": 2.5}}
+         "500 tripo-credits": {"TRIPO-CREDITS": 500.0}, "5 USD (drafts)": {"USD": 5.0}, "€2.5": {"EUR": 2.5}, "$1,000": {"USD": 1000.0}, "$1,000.50, ¥30": {"USD": 1000.5, "CNY": 30.0}}
 for v, want in cases.items():
     got = P(v)
     if not got or got["error"] or got["amounts"] != want:
@@ -1798,43 +1846,82 @@ for v, want in cases.items():
 for v in ("default", "{例如每支片子 20 美元}", ""):
     if P(v) is not None:
         bad.append(f"parse {v!r} should say nothing")
-for v in ("5", "20 for drafts"):
+for v in ("5", "20 for drafts", "$5 per film, $20 total"):
     if not (P(v) or {}).get("error"):
         bad.append(f"parse {v!r} should be an error")
+if not (P("不限") or {}).get("unlimited") or not (P("unlimited") or {}).get("unlimited"):
+    bad.append("不限 / unlimited is no cap")
 s = budget.spent(b)
 if s != {"USD": 0.54}:
     bad.append(f"spent {s}")
+for amount, cur, want in ((0.5, "USD", "$0.04 short"), (3, "CNY", "has no CNY")):
+    try:
+        with budget.hold(b, amount, cur, "image gen"):
+            bad.append(f"{amount} {cur} was held")
+    except budget.Refused as e:
+        if want not in str(e) or not str(e).startswith("image gen: paid call refused"):
+            bad.append(f"refusal: {e}")
+if budget.check(b, 0.5, "USD")["short"] != 0.04 or not budget.check(b, 0.46, "USD")["ok"]:
+    bad.append("check: $0.04 short for 0.50, 0.46 fits")
+with budget.hold(b, 0.2, "USD", "a call", asset="img1") as h:   # settled below its estimate, then registered at that cost
+    if budget.tally(b)[1] != {"USD": 0.2}:
+        bad.append(f"held while in flight: {budget.tally(b)}")
+    h.settle(0.1)
 try:
-    budget.require(b, 0.5, "USD", "image gen")
-    bad.append("0.50 over a $1 budget with $0.54 spent was allowed")
-except budget.Refused as e:
-    if "$0.04 short" not in str(e) or "at least $1.04" not in str(e) or e.check["short"] != 0.04:
-        bad.append(f"refusal: {e}")
-if not budget.require(b, 0.46, "USD")["ok"]:
-    bad.append("0.46 should fit")
-try:
-    budget.require(b, 3, "CNY"); bad.append("CNY with a USD budget was allowed")
-except budget.Refused as e:
-    if "has no CNY" not in str(e):
-        bad.append(f"CNY refusal: {e}")
+    with budget.hold(b, 0.1, "USD", "a call that fails"):
+        raise RuntimeError("the vendor is down")
+except RuntimeError:
+    pass
+with budget.hold(b, 0.05, "USD", "a call not billed") as h:
+    h.settle(0)
+if budget.spent(b) != {"USD": 0.74} or budget.tally(b)[1]:   # 0.54 + 0.1 + 0.1 (an exception: its estimate) + 0
+    bad.append(f"after the holds: {budget.tally(b)}")
+open(f"{b}/assets/img/img1.png", "wb").write(b"x")
+_, _, pay = ledger.add(b, f"{b}/assets/img/img1.png", id="img1", license_class="own", cost={"amount": 0.1, "currency": "USD"})
+_, _, pay2 = ledger.add(b, f"{b}/assets/img/img1.png", update=True, cost={"amount": 0.15, "currency": "USD"})
+if pay is not None or not pay2 or pay2["amount"] != 0.05 or budget.spent(b) != {"USD": 0.79}:
+    bad.append(f"ledger.add's cost: what the log lacks for the id ({pay}, {pay2}, {budget.spent(b)})")
+# two processes hold at once: $1 left, each wants 0.6: one is refused
+open(f"{b}/BRIEF.md", "w").write("# BRIEF\n\n## Spec\n- Budget: $1.79\n")
+racer = textwrap.dedent("""
+    import sys, time; sys.path.insert(0, "tools/assets"); import budget
+    time.sleep(max(0, float(sys.argv[2]) - time.time()))
+    try:
+        with budget.hold(sys.argv[1], 0.6, "USD", "racing") as h:
+            time.sleep(0.4); h.settle(0.6)
+        print("held")
+    except budget.Refused:
+        print("refused")""")
+go = time.time() + 0.5
+ps = [subprocess.Popen([sys.executable, "-c", racer, b, str(go)], stdout=subprocess.PIPE, text=True) for _ in range(2)]
+got = sorted(p.communicate()[0].strip() for p in ps)
+if got != ["held", "refused"] or budget.spent(b) != {"USD": 1.39}:
+    bad.append(f"two holds at once: {got}, spent {budget.spent(b)}")
+# one line each: an empty Budget or Assets line does not read the next one
+open(f"{b}/BRIEF.md", "w").write("# BRIEF\n\n## Spec\n- Budget:\n- Output: 1080p, $5 test\n- Assets:\n- Pace: record\n")
+if budget.budget_of(b)["from"] is not None or ledger.policy_of(b) != ("strict", "the default"):
+    bad.append(f"an empty line read the next one: {budget.budget_of(b)} {ledger.policy_of(b)}")
 open(f"{b}/BRIEF.md", "w").write("# BRIEF\n\n## Spec\n- Budget: default\n")
 try:
-    budget.require(b, 0.1, "USD"); bad.append("no budget allowed a call")
+    with budget.hold(b, 0.1, "USD", "x"):
+        bad.append("no budget allowed a call")
 except budget.Refused as e:
     if "no budget" not in str(e) or "Budget: $0.10" not in str(e):
         bad.append(f"no-budget refusal: {e}")
 open(local, "w").write("- 默认预算：每支片子 20 美元\n")
-if not budget.require(b, 0.1, "USD")["ok"] or budget.budget_of(b)["from"] != "LOCAL.md":
+if not budget.check(b, 0.1, "USD")["ok"] or budget.budget_of(b)["from"] != "LOCAL.md":
     bad.append("LOCAL.md's 默认预算 not read")
-budget.spend(b, 19.5, "USD", "a test")
+budget.spend(b, 18.65, "USD", "a test")
 sm = budget.summary(b)
-if sm["left"] != {"USD": -0.04} or sm["over"] != ["USD"] or "over: USD" not in budget.line(b):
+if sm["limit"] != {"USD": 20.0} or sm["left"] != {"USD": -0.04} or sm["over"] != ["USD"] or "over: USD" not in budget.line(b):
     bad.append(f"summary {sm} / {budget.line(b)}")
+open(local, "w").write("- 默认预算：不限\n")
+if not budget.check(b, 1000, "USD")["ok"] or not budget.summary(b)["unlimited"]:
+    bad.append("不限: no cap")
 print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
-  ); then ok "assets budget: the BRIEF's Budget, else LOCAL.md's 默认预算; amounts need a currency; spent per currency; a call over it says how much is short, and none goes without a budget"
+  ); then ok "assets budget: the BRIEF's Budget, else LOCAL.md's 默认预算, one line each; amounts need a currency, one a currency, \$1,000 is a thousand, 不限 no cap; a hold over it says how much is short, two at once cannot both pass, an exception counts its estimate; ledger.add records only what the log lacks"
   else bad "assets budget: $a"; fi
-  rm -f "$t/LOCAL.md"
   # a download from recorded responses (fetch.Replay, no network): whole, resumed from a .part, a server that ignores
   # ranges, a 404, a sha256 that does not match, a rate cap; and add <url> --offline registers what it got
   tone=5fce37f3129150ce7ec3939b54016d9c1fd01364e27b0a788dc634064aec76b1
@@ -1904,7 +1991,6 @@ PY
   if grep -q '"cmd":"assets"' "$p/.ovh/activity.jsonl" 2>/dev/null && grep -q '"summary":"added new' "$p/.ovh/activity.jsonl" \
      && ! grep -q '"args":\["check"' "$p/.ovh/activity.jsonl"; then ok "assets add and remove are in the activity log with what they did; check and list are not logged"
   else bad "assets in the activity log: $(tail -c 400 "$p/.ovh/activity.jsonl" 2>&1)"; fi
-  unset OVH_LOCAL_MD
   rm -rf "$t"
 }
 

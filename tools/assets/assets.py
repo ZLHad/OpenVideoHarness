@@ -21,14 +21,16 @@ usage: bin/vh assets [list] <project|ledger> [--json] [--all]
            the bytes it must have, --rate a cap (2M = 2 MB a second); a .part left by a stopped download is resumed.
            The licence is classified from --license and --license-url (--class gives it outright). Where it came from
            is --origin, else said by --source-url (download), --model or --aigc (generated) or --class own (self), else
-           refused. --cost: what it cost, added to assets/spend.jsonl (the budget's record, tools/assets/budget.py).
+           refused. --cost: what it cost; assets/spend.jsonl (the budget's record, tools/assets/budget.py) gets what it
+           does not have for this id yet (a paid command's settled holds count).
            --extra: a JSON object of more fields, kept in the record as they are (a vendor's terms, provenance marks,
            the inputs). --update: change the record of this path or --id (the fields not given are kept; the sha256 and
            size are taken again), e.g. after the file was changed on purpose. An id is the file's name made a slug
            unless --id; ids are never reused. --offline DIR: the URL's response from DIR/responses.json, recorded
            before (CONTRIBUTING.md, 联网的命令), no network
   check    each record that is not removed: its file there and its sha256 the same, the record valid, its prompt_file
-           there, its licence one the project's policy takes. Assets: strict (the BRIEF's Assets line, else LOCAL.md's
+           there, its licence one the project's policy takes, a file made from another (derived_from) on record with
+           its source's licence at least. Assets: strict (the BRIEF's Assets line, else LOCAL.md's
            素材许可, else strict) takes public domain, CC0, CC BY, permissive licences, material used under an agreement,
            own work and generated material, and fails on NC, ND, BY-SA and unknown; record lists those as warnings and
            takes them. --policy: another policy for this run
@@ -92,7 +94,7 @@ def shown(base, p):
 def state(base, e, policy, hashes=False):
     """What the tools see of an entry now: exists, risks, accepted; with hashes, sha256_now (None when not there)."""
     r = e["record"]
-    cls = (r.get("license") or {}).get("class", "unknown") if isinstance(r.get("license"), dict) else "unknown"
+    cls = ledger.class_of(r)
     p = ledger.absolute(base, r["path"]) if isinstance(r.get("path"), str) and r.get("path") else None
     s = {"from": e["from"], "exists": bool(p and p.exists()), "class": cls, "risks": licenses.risks(cls),
          "accepted": licenses.accepted(cls, policy), "attribution": licenses.attribution(cls), "removed": "removed" in r,
@@ -204,8 +206,8 @@ def cmd_add(a):
                         if isinstance(extra, dict) else "--extra: a JSON object")
     if a.prompt and a.prompt_file:
         raise Usage("--prompt or --prompt-file, not both")
-    if a.prompt_file and not Path(a.prompt_file).is_file():
-        raise Usage(f"--prompt-file: no such file: {a.prompt_file}")
+    if a.prompt_file and ledger.find_file(project, a.prompt_file) is None:
+        raise Usage(f"--prompt-file: no such file: {a.prompt_file} (from here, nor in the project)")
     try:
         rate = fetch.rate_of(a.rate)
     except ValueError as e:
@@ -228,34 +230,31 @@ def cmd_add(a):
         if not src.get("origin"):
             src["origin"] = "download"
         file = str(dest)
-        say(f"downloaded {a.file} → {ledger.rel(project, dest)} ({dl['bytes']:,} bytes{', resumed' if dl['resumed'] else ''})")
+        say(f"downloaded {fetch.redact(a.file)} → {ledger.rel(project, dest)} ({dl['bytes']:,} bytes{', resumed' if dl['resumed'] else ''})")
     elif a.to or a.sha256 or a.offline or a.rate:
         raise Usage("--to, --sha256, --rate and --offline are for a URL")
-    if not Path(file).exists():
-        raise Usage(f"no such file or folder: {file}")
+    if ledger.find_file(project, file) is None:
+        raise Usage(f"no such file or folder: {file} (from here, nor in the project)")
     aigc = None if a.aigc is None else a.aigc == "yes"
     seed = (int(a.seed) if re.fullmatch(r"-?\d+", a.seed) else a.seed) if a.seed is not None else None
     split = (lambda s: [x.strip() for x in s.split(",") if x.strip()])   # noqa: E731
     try:
-        rec, old = ledger.add(project, file, id=a.id, kind=a.kind, license=a.license, license_url=a.license_url, license_class=a.license_class,
+        rec, old, pay = ledger.add(project, file, id=a.id, kind=a.kind, license=a.license, license_url=a.license_url, license_class=a.license_class,
                               source=src, attribution=a.attribution, aigc=aigc, model=a.model, prompt=a.prompt, prompt_file=a.prompt_file,
                               seed=seed, cost=cost, used_by=split(a.used_by) if a.used_by is not None else None,
                               tags=split(a.tags) if a.tags is not None else None, derived_from=a.derived_from, note=a.note, extra=extra, update=a.update)
+    except ledger.CostNotRecorded as e:
+        print(f"{PROG} add: {e}", file=sys.stderr)
+        return 1
     except (ledger.Refused, FileNotFoundError, ValueError, ledger.LedgerError) as e:
         if dl:
             print(f"{PROG} add: the download is kept at {ledger.rel(project, file)}", file=sys.stderr)
         raise Usage(str(e))
-    pay = None
-    if cost:   # the spend: once a record; an update records the difference, when it is more
-        prev = (old or {}).get("cost") if isinstance((old or {}).get("cost"), dict) else None
-        delta = cost["amount"] - (prev["amount"] if prev and prev.get("currency") == cost["currency"] else 0)
-        if delta > budget.EPS:
-            pay = budget.spend(project, round(delta, 6), cost["currency"], f"{rec['id']} ({rec['path']})", tool=f"{PROG} add", asset=rec["id"])
     cls = rec["license"]["class"]
     policy, _ = ledger.policy_of(project)
     say(f"{'updated' if old else 'added'} {rec['id']}: {rec['kind']} {rec['path']} · {cls}"
         + (f" ({rec['license'].get('name')})" if rec["license"].get("name") else "") + f" · sha256 {rec['sha256'][:12]}…"
-        + (" · AIGC" if rec.get("aigc") else "") + (f" · {money_of(cost)} spent" if pay else ""))
+        + (" · AIGC" if rec.get("aigc") else "") + (f" · {budget.money(pay['amount'], pay['currency'])} spent" if pay else ""))
     if os.path.isabs(rec["path"]):
         say("  ! it is outside the project: a page cannot load it (copy it under assets/ and register the copy)")
     if licenses.risks(cls):
@@ -281,6 +280,7 @@ def cmd_add(a):
 def findings(base, ents, policy):
     """[{"kind", "severity", "id", "path", "message"}] for the records not removed."""
     out = []
+    by_id = {e["record"].get("id"): e["record"] for e in ents}
     def put(kind, sev, r, msg, **extra):
         out.append({"kind": kind, "severity": sev, "id": r.get("id"), "path": r.get("path"), "message": msg, **extra})
     for e in ents:
@@ -305,7 +305,7 @@ def findings(base, ents, policy):
         if isinstance(r.get("prompt_file"), str) and not ledger.absolute(base, r["prompt_file"]).is_file():
             put("prompt_file", "warn", r, f"its prompt_file {r['prompt_file']} is not there")
         lic = r.get("license") if isinstance(r.get("license"), dict) else {}
-        cls = lic.get("class", "unknown")
+        cls = ledger.class_of(r)
         rk = licenses.risks(cls)
         if rk:
             name = f"{lic.get('name')} ({cls})" if lic.get("name") else cls
@@ -317,6 +317,12 @@ def findings(base, ents, policy):
                     "material used under an agreement, own and generated work (Assets: record lists the rest instead)", **{"class": cls, "risks": rk})
         if licenses.attribution(cls) == "required" and not (r.get("attribution") or (r.get("source") or {}).get("author")):
             put("credit", "warn", r, "its licence asks for a credit and no author or attribution is on record")
+        src = by_id.get(r.get("derived_from")) if isinstance(r.get("derived_from"), str) else None
+        if isinstance(r.get("derived_from"), str) and src is None:
+            put("derived", "warn", r, f"derived_from names {r['derived_from']}, which is not on record")
+        elif src is not None and not set(licenses.risks(ledger.class_of(src))) <= set(rk):
+            put("derived", "warn", r, f"made from {src.get('id')} ({ledger.class_of(src)}) but on record as {cls}: a file made from another "
+                "keeps its source's licence (bin/vh assets add … --update --class " + ledger.class_of(src) + ")")
     return out
 
 
@@ -403,7 +409,7 @@ def credits(project, lang=None, said=None):
         r = e["record"]
         if "removed" in r or e["problems"] and not isinstance(r.get("license"), dict):
             continue
-        cls = r["license"].get("class", "unknown") if isinstance(r.get("license"), dict) else "unknown"
+        cls = ledger.class_of(r)
         need = licenses.attribution(cls)
         if r.get("aigc") is True:
             gen.append(r)
