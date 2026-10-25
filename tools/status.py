@@ -32,7 +32,9 @@ the agent works towards one, or a command is running), nobody (delivered), or un
 Also: the versions of the project's films (out/versions/versions.json, bin/vh versions; out/versions and out/proxy are not
 listed as renders), the latest renders with what their sidecars say (.render.json, .deliver.json, the check record), the review items
 still open (a desk submission's change and ask items whose REVIEW.md section has no 定了 / 改了 yet), the facts NOTES.md
-still lists to verify, the last check, and the commands running now and the last ones (the activity log).
+still lists to verify, the last check, the material on record (bin/vh assets: how many, the licences not cleared, what
+the films loaded that the ledger lacks, the spend against the budget), and the commands running now and the last ones
+(the activity log).
 --json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1). Exit 0, 2 when there is no project.
 """
 import json, os, re, sys, time
@@ -395,6 +397,14 @@ def main(argv):
         except (ValueError, OSError) as e:
             vers = {"error": str(e)}
     cur_of = {f: i for f, i in (vers or {}).get("current", {}).items()}
+    # the material on record (bin/vh assets, tools/assets/uses.py): how many, the licences not cleared, what the films loaded
+    # that the ledger lacks, and the spend against the budget; a ledger that cannot be read is said, never a failure
+    try:
+        sys.path.insert(0, str(HERE / "assets"))
+        import uses as U
+        assets = U.overview(project)
+    except Exception as e:
+        assets = {"error": f"the asset ledger could not be read ({e})"}
 
     def vinfo(v, s):
         side = load(str(v) + ".render.json")
@@ -409,7 +419,7 @@ def main(argv):
            "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": desk},
            "open": {"review_items": open_items, "facts_to_verify": facts},
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
-           "check": check_summary(project, *checks[0]) if checks else None,
+           "check": check_summary(project, *checks[0]) if checks else None, "assets": assets,
            "activity": {"running": working, "listening": listening, "recent": recent}}
     if a.json:
         print(json.dumps(out, ensure_ascii=False, indent=1))
@@ -455,6 +465,18 @@ def show(o, now):
                     + (", the video changed since" if c.get("stale") else "") + ")")
     if bits:
         print(" · ".join(bits))
+    a = o.get("assets") or {}
+    bud = a.get("budget") or {}
+    if a.get("ledger") or bud.get("spent") or bud.get("limit") or bud.get("unlimited") or a.get("error"):
+        try:
+            import budget
+            money = budget.line(Path(o["project"]["path"]))
+        except Exception:   # tools/assets could not be read (said in a["error"])
+            money = ""
+        bits = [f"{a.get('records', 0)} on record"] + [x for x in (
+            f"{a['uncleared']} not cleared" + (f" ({a['not_taken']} not taken under {a['policy']})" if a.get("not_taken") else "") if a.get("uncleared") else "",
+            f"{a['unregistered']} loaded but not on record" if a.get("unregistered") else "", f"{a['aigc']} AI-generated" if a.get("aigc") else "") if x]
+        print("assets: " + ", ".join(bits) + (f" · {money}" if money else "") + (f" · {a['error']}" if a.get("error") else "") + " (bin/vh assets)")
     vs = o.get("versions") or {}
     if vs.get("list"):
         kept = sum(1 for x in vs["list"] if x["state"] == "kept")
