@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "The outside modules bin/vh uses: programs, packages, models, services and agents that others maintain, each behind a thin adapter here. bin/vh doctor reads this table and says which of them this machine can use (tools/doctor.py; --json, --probe). The fields are in bin/vh doctor -h; a new module gets its entry here in the PR that first calls it (CONTRIBUTING.md, 外接模块).",
+  "note": "The outside modules bin/vh uses: programs, packages, models, services and agents that others maintain, each behind a thin adapter here. bin/vh doctor reads this table and says which of them this machine can use (tools/doctor.py; --json, --probe). The fields are in bin/vh doctor -h; a new module gets its entry here in the PR that first calls it (CONTRIBUTING.md, 外接模块). The first_run sizes are those of the wiki's \"What gets downloaded\" table (Getting Started; measured on macOS arm64, 2026-10-01): keep the two in step when either changes.",
   "modules": [
     {
       "name": "node",
