@@ -137,6 +137,14 @@ JSON 的格式：
 
 客户端（审阅台，以后的 Studio）只是项目文件和 `bin/vh` 外面的一层壳：它要的数据都由命令给出，终端里的 agent 拿到的是同一份。下面的 JSON 都带 `"version": 1`；以后只加字段，改了含义就升版本号。
 
+### 命令表：`bin/vh commands [--stage <阶段>] [--json]`
+
+命令面板读它：每条命令的名字、一句话、什么时候用、属于哪几个阶段（playbook/01 总表的 0–9，加 `env`、`any`；`stages[0]` 是主站）、读写什么、用法和子命令，来源是 `tools/commands.json`。`reads`、`writes` 是给人看的文字，带 `<project>`、`<x>` 这类占位，不是能直接解析的路径；子命令名带尖括号的（`style` 的 `<preset>`）也是占位。字段见 `bin/vh commands -h`。
+
+### 这台机器能用什么：`bin/vh doctor [--json] [--probe]`
+
+每个外接模块（`tools/modules.json`：程序、包、模型、服务、agent）在这台机器上的状态：找到没有、版本对不对、服务的 key 设了没有（只说有没有，从不给值），再加上页面工具的浏览器和 WebGL、参考仓库、LOCAL.md、AGENTS.md。`--probe` 给每个设了 key 的服务在不花钱的接口上打一次。字段见 `bin/vh doctor -h`。
+
 ### 一个项目到哪了：`bin/vh status <项目> [--json]`
 
 只读，只看已有的文件，不开浏览器、不跑 ffprobe（`tools/status.py`，零点一秒左右）。默认几行字；`--json` 的字段：
