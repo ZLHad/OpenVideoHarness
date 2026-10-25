@@ -31,6 +31,15 @@
 - **新的状态写进机器可读的文件，项目根目录不再加 markdown。** 给工具读的放 JSON（追加的记录用 JSONL，像 `.ovh/activity.jsonl`），带 `"version": 1`，`bin/vh status --json` 能汇总；人写的想法和决定仍然写在模板现有的那几份 markdown 里。
 - **外接模块记在 `tools/modules.json`。** 别人在维护、我们只是调用的东西（程序、npm 和 Python 包、模型、联网的服务、agent），在第一次有命令用它的那个 PR 里登记一项：用途；版本（`pin` 钉死的，`min` 最低，`range`，`tested` 测过的，服务写默认模型，按日期发版的工具可以给 `max_age_days`）；许可；要什么账号、key、平台，以及依赖这张表里的哪些模块（`needs`，模块名写在 `programs` 里，只在某个平台能用的再写 `elsewhere`：别处用什么）；适配文件在哪（`adapter`）；哪些命令用它（`commands`）；`bin/vh doctor` 怎么查它（`check`）。联网的服务再给一个不花钱的探测（`probe`，`bin/vh doctor --probe` 调它）。key 只放进 header，不进 URL，不跟着重定向走，只走 https（本机除外），不打印，失败时也只报状态码和错误码。改钉的版本时表里的 `pin` 一起改：HyperFrames 的，CI 拿它和 `bin/vh`、`styles/_swatch/package.json` 对。表本身用 `python3 tools/doctor.py --check` 查。
 
+## 改文档：四个绑定点
+
+真正改变一支片子怎么做的只有四样：必读的文档、模板里必填的格子、流程的形状（在哪停、停下来交什么）、评审的尺子。改其中一样，所有片子都跟着变，所以要单独改、写明理由；配方、风格、案例这些卡片，工具的默认值，样片，用到才起作用，加多少都不碍事。
+
+- **必读**：CLAUDE.md 路由到的那几篇，读量见下面 `tools/readpath.py` 打印的表。每加一段，每支片子都多读一段、多被它锚住一点；新知识先做成卡片或工具的默认值，必读里留一行指向。
+- **模板**：BRIEF 的 Content 这类"想"的部分保持散文；工具要读的字段照上一节放进 JSON 文件，不再往 markdown 表里加结构，`gate-<n>.json` 就是这样。BRIEF Spec 里一行一个的 `Key: value`（`Effort:`、`Budget:` 这些）是现有的约定，不算新加的结构。
+- **流程的形状**：关卡是底线，停下来交的东西可以换形式，例如草图立意卡（`playbook/12-ideation.md` 第 7 节）。
+- **评审的尺子**：`templates/TASTE_CHECKLIST.md` 的底线条目和打分层。reviewer 先写这支片子想做什么，再对着它打分；作者不采纳它的建议、写一行理由，是正当的结果。
+
 ## 推送前自查：`tools/ci.sh`
 
 本地和 CI 跑的是同一个脚本，几秒钟跑完：
