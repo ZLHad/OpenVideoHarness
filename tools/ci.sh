@@ -1897,9 +1897,11 @@ PY
     *) bad "activity with bytes that are not UTF-8: $a | exit $rb: $(printf '%s' "$b" | tail -c 400)" ;; esac
   # signals: a tool bin/vh exec'd into writes its own end, 128 + the signal (desk wait, the desk itself); a command bash
   # waits on (a stand-in uv that never ends): TERM ends bin/vh at once, with no end line (the run reads as gone), and a
-  # Ctrl-C (SIGINT to the process group) writes the end with 130 and then ends bin/vh by SIGINT (the caller sees -2)
+  # Ctrl-C (SIGINT to the process group) writes the end with 130 and then ends bin/vh by SIGINT (the caller sees -2). The
+  # stand-in traps INT: a loop of sleeps without it can miss a Ctrl-C that lands as a sleep ends (sh takes the sleep's
+  # normal exit for a child that handled it), and then it never ends, and bin/vh waits on it
   rm -f "$p/.ovh/activity.jsonl"; mkdir -p "$t/stub"
-  printf '#!/bin/sh\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
+  printf '#!/bin/sh\ntrap "exit 130" INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
   : > "$p/audio/mix.wav"
   a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY'
 import json, os, signal, subprocess, sys, time
