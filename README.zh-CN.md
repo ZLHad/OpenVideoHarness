@@ -255,7 +255,7 @@ bash install.sh --no-skill                       # 不注册全局 skill
 | 风格库、镜头配方、案例拆解 | [styles/](styles/README.md)、[recipes/](recipes/README.md)、[cases/](cases/README.md) |
 | 本仓库自己做的片子，带全部过程记录 | [showcase/](showcase/) |
 | 我们量过什么、因此改了什么 | [docs/research/](docs/research/README.md) |
-| 命令行 | `bin/vh help`，每个子命令加 `-h` |
+| 命令行 | `bin/vh commands` 按流程阶段列出每条命令干什么、什么时候用；`bin/vh help`，每个子命令加 `-h` |
 | 新手教程、排错、常见问题 | [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki) |
 
 ## 和其他项目的关系

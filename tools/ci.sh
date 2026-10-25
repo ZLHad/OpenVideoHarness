@@ -123,22 +123,30 @@ PY
 }
 
 doc_checks() {
-  local head
+  local head out
   head=$(head -3 AGENTS.md)
   if [ "$(tail -n +4 AGENTS.md)" = "$(cat CLAUDE.md)" ] && [ -n "$head" ]; then ok "AGENTS.md generated from CLAUDE.md"
   else bad "AGENTS.md is out of sync with CLAUDE.md: run bin/vh sync-agents"; fi
-  # every `bin/vh <command>` in the docs exists, and CLAUDE.md's command list names exactly the commands bin/vh dispatches
+  # the command table (tools/commands.json): its own rules, its stages those of playbook/01's 总表
+  if out=$(python3 tools/commands.py check 2>&1); then ok "$out: each with a summary, when, stages (playbook/01's), reads, writes, usage; subcommands in their usage"
+  else echo "$out"; bad "tools/commands.json"; fi
+  # every `bin/vh <command>` in the docs exists; the table names exactly the commands bin/vh dispatches, and CLAUDE.md's
+  # 命令行 line is the table's (bin/vh sync-agents writes it)
   if python3 - <<'PY'
-import re, subprocess, sys
+import json, re, subprocess, sys
 src = open("bin/vh", encoding="utf-8").read()
 block = src[src.index('case "${1:-help}" in'):]
 block = block[:block.index("\nesac")]
 cmds = {c for pat in re.findall(r"(?:^|;;)\s*([a-z|-]+)\)", block, re.M) for c in pat.split("|") if c and not c.startswith("-")}
 cmds.discard("help")
-listed = set(re.search(r"命令行：(.+)", open("CLAUDE.md", encoding="utf-8").read()).group(1).split(" · "))
+table = {c.get("name") for c in json.load(open("tools/commands.json", encoding="utf-8")).get("commands", [])}
 bad = []
-if listed != cmds:
-    bad.append(f"CLAUDE.md command list vs bin/vh dispatch: missing {sorted(cmds - listed)}, unknown {sorted(listed - cmds)}")
+if table != cmds:
+    bad.append(f"tools/commands.json vs bin/vh dispatch: not in the table {sorted(cmds - table)}, not dispatched {sorted(table - cmds)}")
+line = re.search(r"命令行：(.+)", open("CLAUDE.md", encoding="utf-8").read()).group(1)
+want = subprocess.run([sys.executable, "tools/commands.py", "claude-line"], capture_output=True, text=True).stdout.strip()
+if line != want:
+    bad.append(f"CLAUDE.md's 命令行 line is not tools/commands.json's (bin/vh sync-agents writes it): {line!r} vs {want!r}")
 docs = subprocess.run(["git", "ls-files", "*.md"], capture_output=True, text=True).stdout.split()
 for d in docs:   # commands written as code: inside `backticks` or a fenced block (prose like "bin/vh · QA tools" is a label)
     if d.startswith("references/") or d == "CHANGELOG.md":
@@ -154,7 +162,7 @@ for d in docs:   # commands written as code: inside `backticks` or a fenced bloc
 print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "docs name only real bin/vh commands"; else bad "docs vs bin/vh commands"; fi
+  then ok "docs name only real bin/vh commands; tools/commands.json and CLAUDE.md's 命令行 line name the ones bin/vh dispatches"; else bad "docs vs bin/vh commands"; fi
 }
 
 readpath_report() {   # how much an agent reads before it starts, per effort level and type: printed as a baseline, no limit yet
@@ -167,7 +175,7 @@ vh() { "$VH_BASH" "$ROOT/bin/vh" "$@"; }
 smoke_checks() {
   local slug="ci-smoke-$$" dir t rc langs a h o u ad
   vh help >/dev/null && vh --help >/dev/null && ok "bin/vh help exits 0" || bad "bin/vh help"
-  vh no-such-command >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "unknown command exits 1" || bad "unknown command exited $rc"
+  vh no-such-command >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "unknown command exits 2 (a usage error)" || bad "unknown command exited $rc"
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")   # a throwaway HOME: an old bin/vh would install the skill for a bad target
   HOME="$t" vh install-skill no-such-target >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "install-skill rejects unknown targets" || bad "install-skill bad target exited $rc"
   rm -rf "$t"
@@ -197,13 +205,64 @@ PY
   rc=0; for a in $cmds "style check"; do
     for h in -h --help; do
       # shellcheck disable=SC2086   # "style check" is two words on purpose
-      o=$(HOME="$t" PATH="$t/stub:$PATH" "$VH_BASH" "$t/bin/vh" $a "$h" 2>&1) && case "$o" in "usage: bin/vh $a "*) continue ;; esac
+      o=$(HOME="$t" PATH="$t/stub:$PATH" "$VH_BASH" "$t/bin/vh" $a "$h" 2>&1) && case "$o" in "usage: bin/vh $a "*|"usage: bin/vh $a"|"usage: bin/vh $a"$'\n'*) continue ;; esac
       bad "bin/vh $a $h: '$(printf '%s' "$o" | head -1)'"; rc=1
     done
   done; rm -rf "$t"
   n=$(printf '%s\n' $cmds | grep -c .)
   if [ $rc = 1 ]; then :; elif [ "$n" -gt 5 ]; then ok "-h and --help print a usage for the $n commands without a help of their own, and style check"
   else bad "only $n commands found in bin/vh's dispatch for the -h check"; fi
+  # the help is printed from tools/commands.json: bin/vh -h has a usage for every command there, bin/vh commands lists
+  # each one once (--stage: a stage's, by its id or a part of its name, those listed under it first), --json the same in
+  # the same order; a stage or an option it does not know is a usage error (2, stderr only), and so is a mistyped command,
+  # with the nearest names. sync-agents, on a copy, writes CLAUDE.md's 命令行 line from the table, then AGENTS.md
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); mkdir "$t/bin"; cp bin/vh "$t/bin/vh"; ln -s "$ROOT/tools" "$t/tools"
+  if python3 - "$VH_BASH" "$t" <<'PY'
+import json, re, subprocess, sys
+sh, t = sys.argv[1:3]
+vh = lambda *a, bin="bin/vh": subprocess.run([sh, bin, *a], capture_output=True, text=True)
+names = [c["name"] for c in json.load(open("tools/commands.json", encoding="utf-8"))["commands"]]
+bad = []
+h = vh("-h")
+miss = [n for n in names if not re.search(rf"^  {re.escape(n)}( |$)", h.stdout, re.M)]
+if h.returncode or miss:
+    bad.append(f"bin/vh -h (exit {h.returncode}) has no usage for {miss}")
+listed = re.findall(r"^  ([a-z][a-z-]*) ", vh("commands").stdout, re.M)
+if sorted(listed) != sorted(names):
+    bad.append(f"bin/vh commands lists {len(listed)} of the {len(names)} commands, or one twice")
+j = json.loads(vh("commands", "--json").stdout)
+if j.get("version") != 1 or [c["name"] for c in j["commands"]] != listed:
+    bad.append("bin/vh commands --json is not the list's commands in its order")
+keys = {"name", "summary", "when", "stages", "reads", "writes", "usage"}
+if any(not keys <= set(c) for c in j["commands"]) or any(set(s) - {"id", "name", "note"} for s in j["stages"]):
+    bad.append("bin/vh commands --json lacks a field or has an unknown one")
+a, b = vh("commands", "--stage", "4", "--json").stdout, vh("commands", "--stage=时间", "--json").stdout
+if a != b or json.loads(a).get("stage") != "4":
+    bad.append("bin/vh commands: --stage 4 and --stage=时间 differ")
+s3 = [c["name"] for c in json.loads(vh("commands", "--stage", "3", "--json").stdout)["commands"]]
+if s3[:3] != ["recipes", "storyboard", "rhythm"] or "gate" not in s3:
+    bad.append(f"bin/vh commands --stage 3: {s3}")
+for args in (["--stage", "nope"], ["--stage"], ["--stage", "e"], ["--bogus"]):   # "e": Brief and Review, two stages
+    r = vh("commands", *args)
+    if r.returncode != 2 or r.stdout or not r.stderr:
+        bad.append(f"bin/vh commands {' '.join(args)}: exit {r.returncode}, stdout {r.stdout[:40]!r}")
+r = vh("comands")
+if r.returncode != 2 or r.stdout or "did you mean commands" not in r.stderr:
+    bad.append(f"bin/vh comands: exit {r.returncode}, {r.stderr[:80]!r}")
+c = open("CLAUDE.md", encoding="utf-8").read()
+open(f"{t}/CLAUDE.md", "w", encoding="utf-8").write(re.sub(r"命令行：.*", "命令行：doctor · setup", c, count=1))
+want = subprocess.run([sys.executable, "tools/commands.py", "claude-line"], capture_output=True, text=True).stdout.strip()
+r = vh("sync-agents", bin=f"{t}/bin/vh")
+got = open(f"{t}/CLAUDE.md", encoding="utf-8").read()
+agents = open(f"{t}/AGENTS.md", encoding="utf-8").read() if r.returncode == 0 else "\n\n\n"
+if r.returncode or got != c.replace(re.search(r"命令行：.*", c).group(0), "命令行：" + want) or agents.split("\n", 3)[3] != got:
+    bad.append(f"sync-agents (exit {r.returncode}) did not write the 命令行 line from the table, or AGENTS.md from CLAUDE.md")
+print("\n".join(bad))
+sys.exit(1 if bad else 0)
+PY
+  then ok "bin/vh -h has a usage for each command of tools/commands.json, bin/vh commands lists each once (--stage by id or name, --json in the same order); a bad stage or option is 2 on stderr, a mistyped command 2 with the nearest name; sync-agents writes CLAUDE.md's 命令行 line from the table"
+  else bad "the help and bin/vh commands from tools/commands.json"; fi
+  rm -rf "$t"
   # usage errors exit 2, failures 1: these commands with no arguments or a wrong one (new with an option that has no
   # value included; a project, video or folder that is not there); new into a folder that is there already is a failure.
   # Every message of a usage error or a refusal is on stderr and stdout stays empty; the usage that was asked for (-h)
