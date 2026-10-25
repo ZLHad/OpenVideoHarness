@@ -261,16 +261,28 @@ def move_sidecar(src, dst):
     os.rename(src, dst)
 
 
+def check_fits(j, video):
+    """Is the check record j (parsed) of the bytes at video? By the size and mtime_ns the record kept of the film, so a film
+    put back with an old modification time (cp -p, rsync -a, use) is not taken for the one checked; a record from before
+    those were kept: made after the file was (1 s of slack)."""
+    from checkrec import film_changed
+    try:
+        st = os.stat(video)
+    except OSError:
+        return False
+    changed = film_changed(j, st)
+    if changed is None:
+        changed = not (isinstance(num(j.get("t")), (int, float)) and j["t"] >= st.st_mtime - 1)
+    return not changed
+
+
 def check_record(project, video):
-    """The path of bin/vh check's record of this video (out/check/<name>.check.json) when there is one made after the
-    file was (so it is this file's), else None."""
+    """The path of bin/vh check's record of this video (out/check/<name>.check.json) when there is one that is this file's
+    (check_fits), else None."""
     from checkrec import record_path
     p = record_path(place(video), Path(project).resolve())
     j = load_json(p)
-    i = identity(video) if not os.path.islink(video) else None
-    if j and i and isinstance(num(j.get("t")), (int, float)) and j["t"] >= i[1] - 1:
-        return p
-    return None
+    return p if j and not os.path.islink(video) and check_fits(j, video) else None
 
 
 def check_summary(p):
@@ -539,6 +551,7 @@ def drawn_since(project, film_rel, since_id):
 # ---- the reader ----
 
 def entry_view(project, e):
+    from checkrec import film_changed
     st = state(project, e)
     out = {k: e.get(k) for k in ("id", "n", "t", "at", "film", "file", "sidecar", "made_by", "from", "note", "changed", "size",
                                  "frames", "fps", "pixels", "span", "problems", "gone")}
@@ -550,6 +563,12 @@ def entry_view(project, e):
         chk = check_record(project, absolute(project, e["file"]))
     elif st == "kept" and e.get("check") and absolute(project, e["check"]).is_file():
         chk = absolute(project, e["check"])
+        j = load_json(chk)
+        try:
+            if j and film_changed(j, os.stat(absolute(project, e["file"]))):   # a record that kept the film's size and mtime_ns, and they differ
+                chk = None
+        except OSError:
+            chk = None
     out["check"] = dict(check_summary(chk), record=rel(project, chk)) if chk and check_summary(chk) else None
     return out
 
