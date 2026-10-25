@@ -101,7 +101,6 @@
 
 ```text
 [score round 2 · draft5] fresh-context reviewer, harsh director · sheets: out/check/phone_*.png, out/check/sheet.png
-aims: a 30 s launch film, one claim carried by the t-axis light through every scene; Pace brisk; STYLE: smooth long tails, cuts on the downbeat
 concept 8 · hook 7 · phone 8 · motion 8 · variety 6 · polish 8 · accuracy 9 · sync 8  → studio: craft all ≥ 7 · lowest of concept / hook / variety: variety 6
 - 0.0–2.0s  logo fades in over a static gradient, nothing stops the thumb → open with the t-axis light already moving, first read at 0.3s
 - 18–26s    one slow push-in for 8s → whip at 21.3s on the downbeat, macro crop at 24s
