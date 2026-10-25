@@ -187,7 +187,7 @@ vh() { "$VH_BASH" "$ROOT/bin/vh" "$@"; }
 smoke_checks() {
   local slug="ci-smoke-$$" dir t rc langs a h o u ad
   vh help >/dev/null && vh --help >/dev/null && ok "bin/vh help exits 0" || bad "bin/vh help"
-  vh no-such-command >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "unknown command exits 1" || bad "unknown command exited $rc"
+  vh no-such-command >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "unknown command exits 2 (a usage error)" || bad "unknown command exited $rc"
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")   # a throwaway HOME: an old bin/vh would install the skill for a bad target
   HOME="$t" vh install-skill no-such-target >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "install-skill rejects unknown targets" || bad "install-skill bad target exited $rc"
   rm -rf "$t"
@@ -226,8 +226,8 @@ PY
   else bad "only $n commands found in bin/vh's dispatch for the -h check"; fi
   # the help is printed from tools/commands.json: bin/vh -h has a usage for every command there, bin/vh commands lists
   # each one once (--stage: a stage's, by its id or a part of its name, those listed under it first), --json the same in
-  # the same order; a stage or an option it does not know is a usage error (2, stderr only), a mistyped command 1 with
-  # the nearest names. sync-agents, on a copy, writes CLAUDE.md's 命令行 line from the table, then AGENTS.md
+  # the same order; a stage or an option it does not know is a usage error (2, stderr only), and so is a mistyped command,
+  # with the nearest names. sync-agents, on a copy, writes CLAUDE.md's 命令行 line from the table, then AGENTS.md
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); mkdir "$t/bin"; cp bin/vh "$t/bin/vh"; ln -s "$ROOT/tools" "$t/tools"
   if python3 - "$VH_BASH" "$t" <<'PY'
 import json, re, subprocess, sys
@@ -259,7 +259,7 @@ for args in (["--stage", "nope"], ["--stage"], ["--stage", "e"], ["--bogus"]):  
     if r.returncode != 2 or r.stdout or not r.stderr:
         bad.append(f"bin/vh commands {' '.join(args)}: exit {r.returncode}, stdout {r.stdout[:40]!r}")
 r = vh("comands")
-if r.returncode != 1 or r.stdout or "did you mean commands" not in r.stderr:
+if r.returncode != 2 or r.stdout or "did you mean commands" not in r.stderr:
     bad.append(f"bin/vh comands: exit {r.returncode}, {r.stderr[:80]!r}")
 c = open("CLAUDE.md", encoding="utf-8").read()
 open(f"{t}/CLAUDE.md", "w", encoding="utf-8").write(re.sub(r"命令行：.*", "命令行：doctor · setup", c, count=1))
@@ -272,7 +272,7 @@ if r.returncode or got != c.replace(re.search(r"命令行：.*", c).group(0), "�
 print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "bin/vh -h has a usage for each command of tools/commands.json, bin/vh commands lists each once (--stage by id or name, --json in the same order); a bad stage or option is 2 on stderr, a mistyped command 1 with the nearest name; sync-agents writes CLAUDE.md's 命令行 line from the table"
+  then ok "bin/vh -h has a usage for each command of tools/commands.json, bin/vh commands lists each once (--stage by id or name, --json in the same order); a bad stage or option is 2 on stderr, a mistyped command 2 with the nearest name; sync-agents writes CLAUDE.md's 命令行 line from the table"
   else bad "the help and bin/vh commands from tools/commands.json"; fi
   rm -rf "$t"
   # doctor reads tools/modules.json. In a sandbox (stub programs on the PATH, fake keys, empty caches): a node under the

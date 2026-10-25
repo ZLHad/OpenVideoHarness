@@ -4,7 +4,7 @@ line of CLAUDE.md are all printed from it (stdlib only).
 usage: python3 tools/commands.py help                         bin/vh -h: every usage, by stage
        python3 tools/commands.py usage <command>              bin/vh <command> -h (exit 1: no such command)
        python3 tools/commands.py list [--stage S] [--json]    bin/vh commands
-       python3 tools/commands.py unknown <word>               bin/vh's message for a command it does not have (exit 1)
+       python3 tools/commands.py unknown <word>               bin/vh's message for a command it does not have (exit 2)
        python3 tools/commands.py claude-line [--write FILE]   the names for CLAUDE.md's 命令行 line; --write puts them in
                                                               (bin/vh sync-agents does, then writes AGENTS.md)
        python3 tools/commands.py check                        the table against its rules and playbook/01 (tools/ci.sh)
@@ -12,8 +12,10 @@ usage: python3 tools/commands.py help                         bin/vh -h: every u
 The table: {"version": 1, "stages": [{"id", "name", "note"?}], "commands": [{"name", "summary", "when", "stages", "reads",
 "writes", "usage": [{"synopsis", "text"}], "subcommands"?: [{"name", "summary"}]}]}. The stages are the 阶段 of
 playbook/01-pipeline.md's 总表 (ids "0"–"9", their names as written there; check holds them to it), plus "env" (this
-machine and the repo) and "any" (a project at any stage). A command's first stage is where bin/vh -h lists it; every
-list prints the commands in that order (by first stage, then as in the file). bin/vh commands -h has the --json fields.
+machine and the repo) and "any" (a project at any stage). A command's first stage is its main one, where bin/vh -h lists
+it; every list prints the commands in that order (by first stage, then as in the file). reads and writes are text to
+show, with placeholders (<project>/…, <x>), not paths to parse; a subcommand's name in angle brackets (<preset>) is a
+placeholder too. bin/vh commands -h has the --json fields.
 """
 import difflib, json, re, sys, textwrap
 from pathlib import Path
@@ -219,7 +221,7 @@ def main(argv):
         near = difflib.get_close_matches(word, [c["name"] for c in t["commands"]], n=3, cutoff=0.6)
         print(f"unknown command: {word}" + (f" (did you mean {' or '.join(near)}?)" if near else ""), file=sys.stderr)
         print("bin/vh commands lists the commands by stage, with what each is for; bin/vh -h every usage", file=sys.stderr)
-        return 1
+        return 2
     if what == "list":
         stage, js, i = None, False, 0
         while i < len(rest):

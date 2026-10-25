@@ -176,9 +176,12 @@
             "stage), with what each one is for and when; --stage <id, name or a part of it>: that stage alone, with what each",
             "command there reads and writes (a command used in several stages is under each)",
             "--json (\"version\": 1; these fields stay, new ones may be added): \"stages\": [{\"id\", \"name\", \"note\"}], \"commands\":",
-            "[{\"name\", \"summary\", \"when\", \"stages\" (ids; bin/vh -h lists it under the first), \"reads\", \"writes\" (<project>/…:",
-            "in the project; <x>: an argument; the rest: in the harness, or ~), \"usage\": [{\"synopsis\", \"text\": [lines]}] (what",
-            "bin/vh <command> -h prints), \"subcommands\": [{\"name\", \"summary\"}] (when it has any)}]; with --stage, \"stage\": its id"
+            "[{\"name\", \"summary\", \"when\", \"stages\" (stage ids; stages[0] is the command's main stage, where bin/vh -h lists",
+            "it, the rest are where it is used too), \"reads\", \"writes\" (text to show, not paths to parse: <project>/… is in the",
+            "project, <x> an argument or a name the command makes up, the rest in the harness or ~, often with a note in brackets),",
+            "\"usage\": [{\"synopsis\", \"text\": [lines]}] (what bin/vh <command> -h prints), \"subcommands\": [{\"name\", \"summary\"}]",
+            "(when it has any; a name in angle brackets, such as style's <preset>, is a placeholder, not a word to type)}]; with",
+            "--stage, \"stage\": its id"
           ]
         }
       ]

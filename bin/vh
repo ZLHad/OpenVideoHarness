@@ -1088,6 +1088,6 @@ case "${1:-help}" in
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;;
   help|-h|--help) cmd_help ;;
-  *) python3 "$ROOT/tools/commands.py" unknown "$1" || true; exit 1 ;;   # its message and the nearest names, on stderr
+  *) python3 "$ROOT/tools/commands.py" unknown "$1" || true; exit 2 ;;   # a usage error: its message and the nearest names, on stderr
 esac
 ACT_DONE=1   # came to its end: the EXIT trap writes the run's end line (killed, it does not)

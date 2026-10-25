@@ -139,7 +139,7 @@ JSON 的格式：
 
 ### 命令表：`bin/vh commands [--stage <阶段>] [--json]`
 
-命令面板读它：每条命令的名字、一句话、什么时候用、属于哪几个阶段（playbook/01 总表的 0–9，加 `env`、`any`）、读写什么、用法和子命令，来源是 `tools/commands.json`。字段见 `bin/vh commands -h`。
+命令面板读它：每条命令的名字、一句话、什么时候用、属于哪几个阶段（playbook/01 总表的 0–9，加 `env`、`any`；`stages[0]` 是主站）、读写什么、用法和子命令，来源是 `tools/commands.json`。`reads`、`writes` 是给人看的文字，带 `<project>`、`<x>` 这类占位，不是能直接解析的路径；子命令名带尖括号的（`style` 的 `<preset>`）也是占位。字段见 `bin/vh commands -h`。
 
 ### 这台机器能用什么：`bin/vh doctor [--json] [--probe]`
 
