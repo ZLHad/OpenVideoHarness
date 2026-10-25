@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/assets/asset.schema.json",
+  "title": "One asset record, version 1",
+  "description": "One file (or one folder of files, such as frames baked from a clip) that a film is made with: where it came from, its licence, its bytes. A project's assets/ledger.json, a generated clip's own ledger, a sound library outside the repo and a cross-film look ledger are all collections of these records; only where they live differs (tools/assets/ledger.py). Fields not named here are kept as they are (a vendor's terms, a request id, the inputs of a generation).",
+  "type": "object",
+  "required": ["v", "id", "kind", "path", "sha256", "license", "source", "aigc", "added_at"],
+  "additionalProperties": true,
+  "properties": {
+    "v": {"const": 1, "description": "the record's version; a new meaning gets a new number"},
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$", "description": "unique in its collection, never reused (a removed record keeps it)"},
+    "kind": {"enum": ["image", "video", "audio", "font", "model", "data", "other"], "description": "model: a 3D model (glb, gltf, usd, fbx, obj, blend)"},
+    "path": {"type": "string", "minLength": 1, "pattern": "^(?!\\.\\.(?:/|$))(?!.*/\\.\\.(?:/|$))[^\\\\]+$", "description": "POSIX, relative to the collection's base (a project ledger: the project folder) or absolute; a folder ends with /"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$", "description": "of the file's bytes; of a folder, the sha256 of its listing: one line per file, '<relative path>\\t<sha256>\\n', sorted by path"},
+    "bytes": {"type": "integer", "minimum": 0},
+    "license": {
+      "type": "object",
+      "required": ["class"],
+      "additionalProperties": true,
+      "properties": {
+        "class": {"enum": ["pd", "cc0", "cc-by", "cc-by-sa", "cc-by-nc", "cc-by-nc-sa", "cc-by-nd", "cc-by-nc-nd", "free", "managed", "own", "generated", "unknown"], "description": "tools/assets/licenses.py has what each means and which ones Assets: strict takes"},
+        "name": {"type": "string", "description": "the licence as the source writes it: CC BY 4.0, Pixabay Content License"},
+        "url": {"type": "string"},
+        "by": {"enum": ["classifier", "given"], "description": "how the class was decided: from the name and URL, or given with the record"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["origin"],
+      "additionalProperties": true,
+      "properties": {
+        "origin": {"enum": ["download", "generated", "self", "user", "library", "purchased"], "description": "self: made in the project; user: the user's own material"},
+        "url": {"type": "string", "description": "the item's page"},
+        "file_url": {"type": "string", "description": "what was fetched, when it differs from url"},
+        "provider": {"type": "string", "description": "nasa, wikimedia-commons, openverse, freesound, gemini, fal …"},
+        "provider_id": {"type": "string"},
+        "title": {"type": "string"},
+        "author": {"type": "string"},
+        "retrieved": {"type": "string", "description": "the date or time it was fetched"},
+        "range": {"type": "array", "items": {"type": "number", "minimum": 0}, "minItems": 2, "maxItems": 2, "description": "seconds in the original: the part taken"},
+        "library": {"type": "string", "description": "the library it was picked from (origin library)"}
+      }
+    },
+    "attribution": {"type": "string", "description": "the credit line exactly as it must appear; without it bin/vh assets credits builds one from source and license"},
+    "aigc": {"type": "boolean", "description": "made by a generative model (an image, a clip, a voice, music): the film has to say so where it is published"},
+    "model": {"type": "string", "description": "vendor/model, with its version: gemini/gemini-3-pro-image, fal/bytedance/seedance-2.5 (Seedance 2.5)"},
+    "prompt": {"type": "string"},
+    "prompt_file": {"type": "string", "description": "a path, on the same base as path"},
+    "seed": {"type": ["integer", "string"]},
+    "cost": {
+      "type": "object",
+      "required": ["amount", "currency"],
+      "additionalProperties": false,
+      "properties": {
+        "amount": {"type": "number", "minimum": 0},
+        "currency": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]{1,23}$", "description": "USD, CNY, EUR, or a vendor's credits (TRIPO-CREDITS)"}
+      },
+      "description": "what this record cost; the budget adds up assets/spend.jsonl, not these"
+    },
+    "added_at": {"type": "string", "description": "ISO 8601 with its offset"},
+    "updated_at": {"type": "string"},
+    "used_by": {"type": "array", "items": {"type": "string"}, "description": "what it is for, as declared: shot ids, a chapter, cover, bgm, input:<id>"},
+    "tags": {"type": "array", "items": {"type": "string"}},
+    "derived_from": {"type": "string", "description": "the id of the record this one was made from (a clip's baked frames, a crop)"},
+    "note": {"type": "string"},
+    "removed": {
+      "type": "object",
+      "required": ["at"],
+      "properties": {"at": {"type": "string"}, "why": {"type": "string"}},
+      "description": "no longer part of the film: kept on record, left out of check and credits"
+    }
+  },
+  "$defs": {
+    "ledger": {
+      "title": "A project's assets/ledger.json, version 1",
+      "type": "object",
+      "required": ["v", "assets"],
+      "additionalProperties": true,
+      "properties": {
+        "v": {"const": 1},
+        "note": {"type": "string"},
+        "assets": {"type": "array", "items": {"$ref": "#"}},
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["t", "at", "event", "id"],
+            "properties": {
+              "t": {"type": "number"},
+              "at": {"type": "string"},
+              "event": {"enum": ["add", "update", "remove"]},
+              "id": {"type": "string"},
+              "sha256": {"type": "string"},
+              "why": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -69,7 +69,7 @@
 
 像下文"真实影像"里的素材一样：下载、记账、算哈希，渲染时不再调用模型。入库时按交付规格统一格式。
 
-1. **下载即冻结**：放进 `assets/genclips/<id>/clip.mp4`，同目录放 `prompt.txt` 和 `ledger.json`（字段见 `references/genvideo-ledger.md`），算 sha256。渲染时只读这个文件，不调用 API。供应商的下载链接会过期（Veo 只保留 2 天），生成完立刻下载。
+1. **下载即冻结**：放进 `assets/genclips/<id>/clip.mp4`，同目录放 `prompt.txt`，再登记进项目的素材台账：`bin/vh assets add <项目> assets/genclips/<id>/clip.mp4 --id <id> --model <厂商/模型> --prompt-file assets/genclips/<id>/prompt.txt --seed <种子> --cost '$4.73'`（路径从当前目录找不到时按项目找），它算 sha256，记成 AI 生成；条款快照、来源标记这些用 `--extra` 一起放进记录（`references/genvideo-ledger.md`）。以前每个片段一份的 `ledger.json` 照读。渲染时只读这个文件，不调用 API。供应商的下载链接会过期（Veo 只保留 2 天），生成完立刻下载。
 2. **先 `ffprobe`**：编码、像素格式、分辨率、`r_frame_rate` 与 `avg_frame_rate`（不相等就是 VFR）、时长、色彩标签、音轨数量。
 3. **统一格式**（按需）：
 
@@ -261,7 +261,7 @@ done
 
 ## 许可和披露
 
-每个生成片段记一条台账（`assets/genclips/<id>/ledger.json`）：哪家、哪个模型、请求号和种子、输入素材的权利、条款快照、是否要声明 AI 生成。字段、各通道的条款要点和披露规则（中国、欧盟）在 `references/genvideo-ledger.md`，不是法律意见。几条要点：
+每个生成片段在项目的素材台账（`assets/ledger.json`，`bin/vh assets add`）里记一条：哪家、哪个模型、请求号和种子、输入素材的权利、条款快照、是否要声明 AI 生成；`bin/vh assets credits` 按它出 AI 标识的提示。记录的字段和旧格式的对照、各通道的条款要点和披露规则（中国、欧盟）在 `references/genvideo-ledger.md`，不是法律意见。几条要点：
 - 片中含生成片段：BRIEF 里问发布平台（中国平台发布时有 AI 声明开关；受众在欧盟时还有 AI Act 第 50 条），交付说明里写明，并提醒用户发布时打开声明。
 - 不主动去除 SynthID、C2PA 之类的来源标记；我们自己重新编码会让元数据丢掉，披露靠平台声明和交付说明。
 - 默认不把真人照片或视频当生成输入；用户自己的脸、他明确同意、供应商也允许时例外，记进台账。参考图和参考视频会上传给供应商，含真人或保密素材先问用户。

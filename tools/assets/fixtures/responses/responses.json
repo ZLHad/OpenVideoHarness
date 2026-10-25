@@ -1,0 +1,36 @@
+{
+ "v": 1,
+ "note": "recorded responses for tools/assets/fetch.py's Replay (tools/ci.sh); synthetic bodies",
+ "responses": [
+  {
+   "url": "https://example.org/files/tone.wav",
+   "status": 200,
+   "headers": {
+    "Content-Type": "audio/wav"
+   },
+   "body": "tone.bin"
+  },
+  {
+   "url": "https://example.org/files/noranges.wav",
+   "status": 200,
+   "headers": {
+    "Content-Type": "audio/wav"
+   },
+   "body": "tone.bin",
+   "ranges": false
+  },
+  {
+   "url": "https://example.org/files/missing.wav",
+   "status": 404,
+   "headers": {}
+  },
+  {
+   "url": "https://example.org/api/search?q=knock&license=cc0,by",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": "search.json"
+  }
+ ]
+}
