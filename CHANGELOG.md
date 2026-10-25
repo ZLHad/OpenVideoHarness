@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+**One asset record: `bin/vh assets` and `tools/assets/`, a budget for paid calls, and how networked commands are tested**
+- Why: batch 0 of the next round. The coming commands that bring material in (footage, image generation, the sound library, 3D) need one record of where a file came from, its licence and what it cost, instead of four ledgers in four shapes; and the budget decided on 10-26 (no budget, no paid call; over it, refused with the shortfall) needs one place that says it.
+- `tools/assets/asset.schema.json`: one asset record, `"v": 1`: id, kind, path, sha256 (of a folder: of its listing), licence and its class, source, attribution, aigc, model, prompt, seed, cost, added_at, used_by, and more fields kept as they are. A project's `assets/ledger.json`, a generated clip's own ledger, a sound library and the look ledger outside the repo are all collections of these records.
+- `bin/vh assets`, every subcommand with `--json`:
+  - `add` registers a file or a folder; it downloads a URL first, resumable, with `--sha256`, `--rate` and `--offline`. Where it came from must be said.
+  - `list` shows the records, the licence policy and the spend against the budget.
+  - `check` looks at each file (there, the same sha256) and at its licence against the BRIEF's `Assets:` policy. `strict`, the repo's default, fails NC, ND, BY-SA and unknown licences; `record` lists them.
+  - `credits` prints the credit lines and the AI-content notice.
+  - `remove` marks a record removed and keeps it.
+- The ledger is written like `versions.json`: under a lock, whole, through a temporary file, an event per change, nothing dropped. The spend is a line per payment in `assets/spend.jsonl`, appended like the activity log.
+- A generated clip's `assets/genclips/<id>/ledger.json` in the shape before v1 is read as it is. Adding the clip with its id moves it into the project's ledger.
+- `tools/assets/licenses.py` sorts a licence string into 13 classes: CC by name, legal name, code or deed; public domain; permissive; under an agreement; own; generated. Anything it does not know is unknown, never guessed upward.
+- `tools/assets/budget.py` reads `Budget:` from the BRIEF, else 默认预算 from LOCAL.md; an amount without a currency counts as no budget. `require()` refuses a call with no budget, one over the budget (saying how much is short) and one in a currency the budget lacks. `spend()` records each payment.
+- `tools/assets/fetch.py` downloads with HTTP range resume, a rate cap and a sha256 taken as the bytes arrive. It can replay recorded responses or record new ones.
+- Templates: BRIEF's Spec gains `Budget:` and `Assets:`; NOTES' hand-written 素材台账 table becomes a line pointing at `bin/vh assets`; `LOCAL.example.md` gains 素材许可 (strict by default).
+- Docs: CONTRIBUTING has a section on testing networked commands: a recorded response and `--offline` for each, CI testing only parsing, ledger writes and licence classes. playbook/05 and `references/genvideo-ledger.md` register generated clips with `bin/vh assets add` and map the old fields. `tools/desk/README.md` documents the ledger's JSON.
+- CI: the record against its fixtures, by the validator and by JSON Schema; the licence table; adds, updates and removals on a copy of the fixture project; the budget's arithmetic and refusals; downloads from recorded responses; credits; the usage errors.
+
 **The last small usage bugs: check, captions and mux on inputs that are not there; a free name for a failed film claimed at once**
 - Why: four leftovers from the review of the previous batch.
 - `bin/vh check <video>` on a video that is not there exited 1, with ffprobe's error (with `--json`, a failed record). It is a usage error now: one line on stderr and exit 2, with or without `--json`. A file that ffprobe cannot read stays a failed check (1).

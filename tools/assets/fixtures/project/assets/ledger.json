@@ -1,0 +1,182 @@
+{
+ "v": 1,
+ "note": "the project's material, one record a file (bin/vh assets; tools/assets/asset.schema.json)",
+ "assets": [
+  {
+   "v": 1,
+   "id": "grey-square",
+   "kind": "image",
+   "path": "assets/img/grey-square.png",
+   "sha256": "b4f60d0c2af23b9c5f74aca9c81cd536dea7378ec55783208e63dc904d2a6481",
+   "bytes": 72,
+   "license": {
+    "class": "pd",
+    "name": "Public domain",
+    "by": "classifier"
+   },
+   "source": {
+    "origin": "download",
+    "url": "https://example.org/items/grey-square",
+    "provider": "example-archive",
+    "title": "A grey square",
+    "author": "Example Archive",
+    "retrieved": "2026-10-26"
+   },
+   "aigc": false,
+   "added_at": "2026-10-26T10:00:00+0800",
+   "used_by": [
+    "S01"
+   ]
+  },
+  {
+   "v": 1,
+   "id": "knock",
+   "kind": "audio",
+   "path": "assets/sfx/knock.wav",
+   "sha256": "1e504e9baca13bc367e1df426c7d44e34e56bd7716ef85569ad52837986cd9e1",
+   "bytes": 844,
+   "license": {
+    "class": "cc-by",
+    "name": "CC BY 4.0",
+    "url": "https://creativecommons.org/licenses/by/4.0/",
+    "by": "classifier"
+   },
+   "source": {
+    "origin": "download",
+    "url": "https://example.org/sounds/knock",
+    "provider": "example-sounds",
+    "provider_id": "1234",
+    "title": "Knock",
+    "author": "Fixture Author",
+    "retrieved": "2026-10-26"
+   },
+   "aigc": false,
+   "added_at": "2026-10-26T10:00:00+0800",
+   "used_by": [
+    "S02"
+   ],
+   "tags": [
+    "sfx",
+    "knock",
+    "wood"
+   ]
+  },
+  {
+   "v": 1,
+   "id": "hero",
+   "kind": "image",
+   "path": "assets/genimg/hero/image.png",
+   "sha256": "6a0f5f8bf5fea435f9a25ba192f6fab9625d2d92d5cea34dbac0422a30481156",
+   "bytes": 72,
+   "license": {
+    "class": "generated",
+    "name": "the vendor's terms (paid API)",
+    "by": "given"
+   },
+   "source": {
+    "origin": "generated",
+    "provider": "example"
+   },
+   "aigc": true,
+   "added_at": "2026-10-26T10:00:00+0800",
+   "model": "example/image-model-1",
+   "prompt": "a grey square on black, flat light",
+   "prompt_file": "assets/genimg/hero/prompt.txt",
+   "seed": 42,
+   "cost": {
+    "amount": 0.04,
+    "currency": "USD"
+   },
+   "used_by": [
+    "S03",
+    "cover"
+   ]
+  },
+  {
+   "v": 1,
+   "id": "frames",
+   "kind": "image",
+   "path": "assets/frames/",
+   "sha256": "567f5b13a92152d927b75526495fa1c259d0bfe7d5037abd7b300b993ce0b3c7",
+   "bytes": 142,
+   "license": {
+    "class": "own",
+    "by": "classifier"
+   },
+   "source": {
+    "origin": "self"
+   },
+   "aigc": false,
+   "added_at": "2026-10-26T10:00:00+0800",
+   "note": "two frames drawn for the fixture"
+  },
+  {
+   "v": 1,
+   "id": "loop",
+   "kind": "audio",
+   "path": "assets/music/loop.wav",
+   "sha256": "382523f07dd12b3cf50c83f9305ab5410fe08dfa4de064711100fd151ea3c4ba",
+   "bytes": 1644,
+   "license": {
+    "class": "cc-by-nc",
+    "name": "CC BY-NC 4.0",
+    "by": "classifier"
+   },
+   "source": {
+    "origin": "download",
+    "url": "https://example.org/music/loop",
+    "provider": "example-music",
+    "title": "Loop",
+    "author": "Fixture Composer",
+    "retrieved": "2026-10-26"
+   },
+   "aigc": false,
+   "added_at": "2026-10-26T10:00:00+0800",
+   "used_by": [
+    "bgm"
+   ]
+  }
+ ],
+ "events": [
+  {
+   "t": 1792980000.0,
+   "at": "2026-10-26T10:00:00+0800",
+   "event": "add",
+   "id": "grey-square",
+   "sha256": "b4f60d0c2af23b9c5f74aca9c81cd536dea7378ec55783208e63dc904d2a6481",
+   "by": "bin/vh assets add"
+  },
+  {
+   "t": 1792980001.0,
+   "at": "2026-10-26T10:00:00+0800",
+   "event": "add",
+   "id": "knock",
+   "sha256": "1e504e9baca13bc367e1df426c7d44e34e56bd7716ef85569ad52837986cd9e1",
+   "by": "bin/vh assets add"
+  },
+  {
+   "t": 1792980002.0,
+   "at": "2026-10-26T10:00:00+0800",
+   "event": "add",
+   "id": "hero",
+   "sha256": "6a0f5f8bf5fea435f9a25ba192f6fab9625d2d92d5cea34dbac0422a30481156",
+   "by": "bin/vh assets add"
+  },
+  {
+   "t": 1792980003.0,
+   "at": "2026-10-26T10:00:00+0800",
+   "event": "add",
+   "id": "frames",
+   "sha256": "567f5b13a92152d927b75526495fa1c259d0bfe7d5037abd7b300b993ce0b3c7",
+   "by": "bin/vh assets add"
+  },
+  {
+   "t": 1792980004.0,
+   "at": "2026-10-26T10:00:00+0800",
+   "event": "add",
+   "id": "loop",
+   "sha256": "382523f07dd12b3cf50c83f9305ab5410fe08dfa4de064711100fd151ea3c4ba",
+   "by": "bin/vh assets add"
+  }
+ ]
+}

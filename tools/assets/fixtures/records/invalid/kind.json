@@ -1,0 +1,15 @@
+{
+ "v": 1,
+ "id": "a1",
+ "kind": "picture",
+ "path": "assets/a.png",
+ "sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+ "license": {
+  "class": "cc0"
+ },
+ "source": {
+  "origin": "download"
+ },
+ "aigc": false,
+ "added_at": "2026-10-26T10:00:00+0800"
+}

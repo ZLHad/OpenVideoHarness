@@ -1,0 +1,15 @@
+{
+ "v": 1,
+ "id": "f.1",
+ "kind": "image",
+ "path": "assets/frames/",
+ "sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+ "license": {
+  "class": "cc0"
+ },
+ "source": {
+  "origin": "download"
+ },
+ "aigc": false,
+ "added_at": "2026-10-26T10:00:00+0800"
+}

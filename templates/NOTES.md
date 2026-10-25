@@ -42,6 +42,4 @@
 - {问题} — 最后一次：{证据路径或输出} — 交给人：{要人定什么}
 
 ## 素材台账
-| 文件 | 来源 | 许可 |
-|---|---|---|
-| | | |
+素材一条一条记在 `assets/ledger.json`，不在这里手写：`bin/vh assets add` 登记（来源、许可、sha256、是否 AI 生成），`bin/vh assets list` 看，`bin/vh assets check` 查文件和许可，`bin/vh assets credits` 出署名。

@@ -1,0 +1,56 @@
+{
+ "v": 1,
+ "id": "hero",
+ "kind": "image",
+ "path": "assets/genimg/hero/image.png",
+ "sha256": "6a0f5f8bf5fea435f9a25ba192f6fab9625d2d92d5cea34dbac0422a30481156",
+ "bytes": 72,
+ "license": {
+  "class": "generated",
+  "name": "the vendor's terms (paid API)",
+  "by": "given"
+ },
+ "source": {
+  "origin": "generated",
+  "provider": "example",
+  "provider_id": "p1",
+  "url": "https://example.org/x",
+  "file_url": "https://example.org/x.png",
+  "title": "t",
+  "author": "a",
+  "retrieved": "2026-10-26",
+  "range": [
+   1.5,
+   4.0
+  ],
+  "library": "lib"
+ },
+ "aigc": true,
+ "added_at": "2026-10-26T10:00:00+0800",
+ "model": "example/image-model-1",
+ "prompt": "a grey square on black, flat light",
+ "prompt_file": "assets/genimg/hero/prompt.txt",
+ "seed": 42,
+ "cost": {
+  "amount": 0.04,
+  "currency": "USD"
+ },
+ "used_by": [
+  "S03",
+  "cover"
+ ],
+ "terms": {
+  "tier": "paid API"
+ },
+ "request_id": "r-1",
+ "updated_at": "2026-10-26T10:00:00+0800",
+ "derived_from": "grey-square",
+ "tags": [
+  "x"
+ ],
+ "attribution": "“t” by a",
+ "removed": {
+  "at": "2026-10-26T10:00:00+0800",
+  "why": "replaced"
+ }
+}

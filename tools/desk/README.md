@@ -200,6 +200,18 @@ JSON 的格式：
 
 每条 finding：`kind`、`severity`（`fail` 让退出码是 1，`warn` 要看一眼，`info` 只是说一声）、`message`、`t` 和 `t1`（秒，有时间或时间段的才有）、`frame` 和 `frames`（`[第一帧, 最后一帧]`）、`evidence`（判断依据：量到的数、BRIEF 那一行、画面的 key、确认它的那一条……）、`confirmed`（confirmed.json 盖住了是 true，能确认但没确认是 false，这一类从来不在那里确认就是 null）。没确认的孤立帧还带 `confirm`：填上 why 和 evidence 就能贴进 confirmed.json 的那一条。`kind` 用 confirmed.json 的名字：`check.spec`、`check.gate`、`check.black`、`check.freeze`、`check.silence`、`check.iso`（孤立帧；`declared: true` 是这次 `--allow` 声明的，`lapsed: true` 是确认失效了）、`check.periodic`、`check.static`、`check.cut`（从暗到亮的硬切）、`check.blind`（动得太多、扫描判断不了的一段）、`check.subtitles`、`check.colour`、`check.packaging`、`check.scale`、`check.confirmed`（confirmed.json 里没用上、失效或没收下的条目）。
 
+### 素材台账：`bin/vh assets <项目> [--json]`
+
+一个项目用到的素材，一个文件（或一个文件夹，比如从片段烘出来的一组帧）一条记录，记在 `<项目>/assets/ledger.json`（`tools/assets/`，只用标准库）。记录的格式是 `tools/assets/asset.schema.json` 的 v1；仓库外的声音库、跨片的外观账本以后也是这种记录，只是放在别处（库是 `ledger.jsonl`，一行一条）。
+
+- **一条记录**（`"v": 1`）：`id`（不复用）、`kind`（`image`、`video`、`audio`、`font`、`model`、`data`、`other`）、`path`（相对项目；文件夹以 `/` 结尾）、`sha256`（文件夹是它的清单的 sha256：每个文件一行"相对路径\tsha256\n"，按路径排）、`bytes`、`license`（`class`、`name`、`url`、`by`：分类器认的还是登记时给的）、`source`（`origin`：`download`、`generated`、`self`、`user`、`library`、`purchased`；`url`、`file_url`、`provider`、`provider_id`、`title`、`author`、`retrieved`、`range`）、`attribution`、`aigc`、`model`、`prompt`、`prompt_file`、`seed`、`cost`（`amount`、`currency`）、`added_at`、`updated_at`、`used_by`、`tags`、`derived_from`、`note`、`removed`（`at`、`why`）。没命名的字段原样留着（厂商条款、请求号、输入素材）。
+- **`license.class`** 十三类（`tools/assets/licenses.py`）：`pd`、`cc0`、`cc-by`、`cc-by-sa`、`cc-by-nc`、`cc-by-nc-sa`、`cc-by-nd`、`cc-by-nc-nd`、`free`、`managed`、`own`、`generated`、`unknown`。认不出的一律 `unknown`。风险标签 `nc`、`nd`、`sa`、`unknown`；`Assets: strict` 收 `pd`、`cc0`、`cc-by`、`free`、`managed`、`own`、`generated`。
+- **`ledger.json`**：`{"v": 1, "note", "assets", "events"}`；`events` 每条 `t`、`at`、`event`（`add`、`update`、`remove`）、`id`、`sha256`、`by`、`why`。记录从不删：`remove` 只是标上 `removed`。整份在 `assets/.ledger.lock` 的 flock 下先写临时文件再 `os.replace`，和 `versions.json` 一样。项目里以前每个生成片段一份的 `assets/genclips/<id>/ledger.json`（没有 `v`）照读成记录，台账里有同 id 或同路径的就以台账为准（`references/genvideo-ledger.md` 有字段对照）。
+- **`assets/spend.jsonl`**：花钱的记录，一笔一行，追加写（和活动记录一样一次 O_APPEND）：`v`、`t`、`at`、`amount`、`currency`、`what`、`tool`、`asset`、`estimate`、`run`。预算读 BRIEF 的 `Budget:`，没有就读 LOCAL.md 的"默认预算"；按货币分别累计，不换算（`tools/assets/budget.py`）。
+- **`list --json`**：`{"version": 1, "tool", "project", "ledger", "policy": {"assets", "from"}, "budget", "counts": {"assets", "removed", "uncleared", "aigc", "missing"}, "assets", "said"}`。`assets` 每项：`record`（原样），加上现在看到的 `from`（哪份台账）、`exists`、`class`、`risks`、`accepted`（这一档许可策略收不收）、`attribution`（`required`、`agreement`、`courtesy` 或 `null`）、`removed`、`problems`（对 schema 不合的地方）。`budget`：`budget`、`from`、`raw`、`error`、`spent`、`left`（都按货币）、`over`（超了的货币）。不算哈希，很快。
+- **`check --json`**：`{"version": 1, "tool", "project", "ledger", "policy", "exit", "verdict", "counts": {"fail", "warn", "info"}, "records", "findings", "said"}`；每条 finding：`kind`（`record`、`missing`、`sha256`、`prompt_file`、`license`、`credit`）、`severity`、`id`、`path`、`message`，许可的另有 `class` 和 `risks`，哈希不对的另有 `sha256_now`。要读每个文件算哈希，大项目要几秒。
+- **`credits --json`**：`{"version": 1, "tool", "project", "lang", "required", "courtesy", "aigc": {"count", "kinds", "models", "notice"}, "missing", "text"}`；`required`、`courtesy` 每项 `id`、`line`。
+
 ## 安全
 
 - 只绑定 127.0.0.1，只回答 Host 是自己的请求（挡住 DNS rebinding）。
