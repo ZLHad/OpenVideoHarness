@@ -14,6 +14,7 @@ unset CDPATH   # an exported one could send this relative cd elsewhere (as in bi
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 2
 ROOT=$(pwd)
 VH_BASH=${VH_BASH:-bash}
+export OVH_LOCAL_MD=/dev/null/LOCAL.md   # this machine's LOCAL.md stays out of every check (one that needs it writes its own)
 fails=0
 ok() { printf '\033[32m✓\033[0m %s\n' "$*"; }
 bad() { printf '\033[31m✗\033[0m %s\n' "$*"; fails=$((fails + 1)); }
@@ -423,7 +424,7 @@ PY
   # value included; a project, video or folder that is not there); new into a folder that is there already is a failure.
   # Every message of a usage error or a refusal is on stderr and stdout stays empty; the usage that was asked for (-h)
   # is on stdout, exit 0. Nothing here reaches uv or a browser; a project that is not there is not made (tts did)
-  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); a=""; u=""; mkdir "$t/empty"; : > "$t/v.mp4"; : > "$t/a.wav"
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); a=""; u=""; mkdir "$t/empty"; : > "$t/v.mp4"; : > "$t/a.wav"; cp -R tools/assets/fixtures/project "$t/fx"
   for c in deliver clean timeline remap timemap storyboard rhythm cover-preview "style compare" "style apply" "style apply dark-math" \
            "style apply no-such $t" "effort loud" new "new math" "new nope ci-x" "new math ci-x --style" "new math ci-x --effort" \
            "new math ci-x --lang" "new math ci-x --bogus" "new math ci-x --style no-such" versions proxy thumbs \
@@ -433,7 +434,9 @@ PY
            "check $t/no-such.mp4" "check $t/no-such.mp4 --json" \
            captions "captions $t/empty --media-end" "captions $t/empty --cps" "captions $t/empty --en-max" "captions $t/empty --bogus" \
            "captions $t/no-such" "captions $t/empty" "captions $t/empty zh" mix "style check" \
-           "mux $t/no-such.mp4 $t/no-such.wav $t/o.mp4" "mux $t/v.mp4 $t/a.wav $t/no-dir/o.mp4"; do
+           "mux $t/no-such.mp4 $t/no-such.wav $t/o.mp4" "mux $t/v.mp4 $t/a.wav $t/no-dir/o.mp4" \
+           assets "assets no-such" "assets list $t/no-such" "assets check $t/empty" "assets add" "assets add $t/no-such $t/v.mp4" "assets credits" \
+           "assets remove $t/fx no-such-id" "assets add $t/fx $t/no-such.png" "assets add $t/fx $t/v.mp4 --class nope" "assets check $t/fx --policy loose"; do
     # shellcheck disable=SC2086   # several words on purpose
     OVH_PROJECTS="$t" vh $c >"$t/out" 2>"$t/err"; rc=$?
     [ $rc = 2 ] || a="$a | $c exited $rc"
@@ -441,7 +444,8 @@ PY
   done
   OVH_PROJECTS="$t" vh new math ci-twice >/dev/null 2>&1; OVH_PROJECTS="$t" vh new math ci-twice >"$t/out" 2>"$t/err"; rc=$?
   { [ ! -s "$t/out" ] && [ -s "$t/err" ]; } || u="$u | new over a project"
-  for c in deliver new effort tts sheet gif hf-init status clean "style apply" "style apply dark-math" "new math" "new math ci-h" "new math ci-h --style dark-math"; do
+  for c in deliver new effort tts sheet gif hf-init status clean "style apply" "style apply dark-math" "new math" "new math ci-h" "new math ci-h --style dark-math" \
+           assets "assets add" "assets check"; do
     for h in -h --help; do
       # shellcheck disable=SC2086   # several words on purpose
       OVH_PROJECTS="$t" vh $c $h >"$t/out" 2>"$t/err"; rc2=$?
@@ -450,7 +454,7 @@ PY
   done
   [ -z "$(ls -d "$t"/*-ci-h "$t"/*--h "$t"/*---help 2>/dev/null)" ] || u="$u | new -h made a folder"
   [ -z "$a" ] && [ $rc = 1 ] && [ -z "$(ls -d "$t"/*-ci-x 2>/dev/null)" ] && [ ! -e "$t/no-such" ] \
-    && ok "usage errors exit 2 (new, effort, style, deliver, clean, timeline, remap, timemap, storyboard, rhythm, cover-preview, versions, proxy, thumbs, textcheck, fonts, frames, render, determinism, cues, patch, activity, status, gate, desk, tts, sheet, gif, hf-init, check, captions, mix, mux: no arguments, an option where the video goes or with no value, a project, video, timeline, input or output folder that is not there, a frame it does not know); new over a project is 1" \
+    && ok "usage errors exit 2 (new, effort, style, deliver, clean, timeline, remap, timemap, storyboard, rhythm, cover-preview, versions, proxy, thumbs, textcheck, fonts, frames, render, determinism, cues, patch, activity, status, gate, desk, tts, sheet, gif, hf-init, check, captions, mix, mux, assets: no arguments, an option where the video goes or with no value, a project, video, timeline, input or output folder that is not there, a frame it does not know); new over a project is 1" \
     || bad "usage errors:$a (new twice exited $rc; a project made: $(ls -d "$t"/no-such 2>/dev/null))"
   [ -z "$u" ] && ok "usage errors and refusals are on stderr with nothing on stdout, the usage that was asked for (-h) on stdout with exit 0" \
     || bad "messages on the wrong stream:$u"
@@ -1890,6 +1894,321 @@ PY
 # the agent until it is handed over and REVIEW.md has its decision, and then the next gate is in progress; a Director stop
 # adds its checkpoint; quick skips the gates; the user's waiver skips what it names; a pause waits for the person; a delivery
 # record or a final film with a passing check record is delivered; a command running shows; the human view stays short
+assets_checks() {   # the asset ledger (tools/assets): the record and its fixtures, the licence table, the ledger's writes on a
+  # copy of the fixture project, the budget, a download from recorded responses (no network), the credits
+  local t p q a b c d e rc rc2 rc3 rc4 rc5 tone
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  # the validator takes every valid record and the fixture ledger, and refuses every invalid one; JSON Schema agrees
+  if a=$(python3 - <<'PY'
+import json, sys
+from pathlib import Path
+sys.path.insert(0, "tools/assets")
+import ledger
+F = Path("tools/assets/fixtures/records")
+load = lambda p: json.loads(p.read_text(encoding="utf-8"))   # noqa: E731
+bad = [f"{p.name}: {ledger.validate(load(p))}" for p in sorted((F / "valid").glob("*.json")) if ledger.validate(load(p))]
+bad += [f"invalid/{p.name} passes" for p in sorted((F / "invalid").glob("*.json")) if not ledger.validate(load(p))]
+d = load(Path("tools/assets/fixtures/project/assets/ledger.json"))
+bad += [f"the fixture ledger's {r.get('id')}: {ledger.validate(r)}" for r in d["assets"] if ledger.validate(r)]
+bad += [] if len(list((F / "invalid").glob("*.json"))) >= 15 else ["fewer than 15 invalid records"]
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "assets: the record's validator takes the valid fixtures and the fixture ledger, and refuses each invalid one"
+  else bad "assets: the record validator on tools/assets/fixtures: $a"; fi
+  if command -v uv >/dev/null 2>&1; then
+    if a=$(uv run -q --no-project --with "jsonschema==4.25.1" python - 2>&1 <<'PY'
+import json, sys
+from pathlib import Path
+from jsonschema import Draft202012Validator
+S = json.loads(Path("tools/assets/asset.schema.json").read_text(encoding="utf-8"))
+Draft202012Validator.check_schema(S)
+v, F = Draft202012Validator(S), Path("tools/assets/fixtures/records")
+load = lambda p: json.loads(p.read_text(encoding="utf-8"))   # noqa: E731
+bad = [f"{p.name}: {[e.message for e in v.iter_errors(load(p))]}" for p in sorted((F / "valid").glob("*.json")) if not v.is_valid(load(p))]
+bad += [f"invalid/{p.name} is valid to JSON Schema" for p in sorted((F / "invalid").glob("*.json")) if v.is_valid(load(p))]
+L = v.evolve(schema=S["$defs"]["ledger"])
+d = load(Path("tools/assets/fixtures/project/assets/ledger.json"))
+bad += [f"the fixture ledger: {e.message}" for e in L.iter_errors(d)]
+bad += [] if not L.is_valid(dict(d, assets=d["assets"] + [{"v": 1}])) else ["a ledger with a bad record is valid"]
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+    ); then ok "assets: asset.schema.json is a valid JSON Schema and agrees with the validator on every fixture"
+    else bad "assets: JSON Schema on the fixtures: $(printf '%s' "$a" | tail -c 600)"; fi
+  else skip "assets: the JSON Schema check" "no uv"; fi
+  if a=$(python3 - <<'PY'
+import sys
+sys.path.insert(0, "tools/assets")
+import licenses
+bad, n = [], 0
+for k, line in enumerate(open("tools/assets/fixtures/licenses.tsv", encoding="utf-8"), 1):
+    if line.startswith("#") or not line.strip("\n"):
+        continue
+    text, url, want = line.rstrip("\n").split("\t")
+    got, n = licenses.classify(text, url or None)[0], n + 1
+    if got != want:
+        bad.append(f"line {k}: {text!r} {url!r} is {got}, not {want}")
+ok = [licenses.risks(c) for c in ("cc-by-nc-nd", "cc-by-sa", "unknown", "cc0")] == [["nc", "nd"], ["sa"], ["unknown"], []] \
+    and [licenses.accepted(c, "strict") for c in ("cc-by", "cc-by-sa", "generated", "unknown")] == [True, False, True, False] \
+    and licenses.accepted("cc-by-nc", "record")
+print("\n".join(bad + ([] if ok else ["risks or accepted"])) or n); sys.exit(1 if bad or not ok or n < 40 else 0)
+PY
+  ); then ok "assets: the licence table classifies its $a lines (CC by name, legal name, code and deed; PD, permissive, agreements, own, generated; anything else unknown)"
+  else bad "assets: the licence table: $a"; fi
+  # the ledger's writes on a copy of the fixture project; its generated clip from before v1 gets its bytes here (no video in git)
+  p="$t/p"; cp -R tools/assets/fixtures/project "$p"; printf 'fixture clip\n' > "$p/assets/genclips/gc-0001/clip.mp4"
+  a=$(vh assets check "$p" 2>&1); rc=$?
+  b=$(vh assets check "$p" --policy strict 2>&1); rc2=$?
+  case "$rc:$rc2|$a|$b" in "0:1|"*"6 record(s) in assets/ledger.json and 1 from generated clips' ledgers"*"! loop"*"non-commercial (taken: Assets: record)"*"pass (0 fail, 1 warn)"*"|"*"✗ loop"*"fail (1 fail"*)
+      ok "assets check: a project's records and a generated clip's ledger from before v1, read as it is; NC listed under Assets: record, failed under strict" ;;
+    *) bad "assets check on the fixture (exit $rc, $rc2): $a | $b" ;; esac
+  printf 'x' > "$p/assets/img/new.png"
+  vh assets add "$p" "$p/assets/img/new.png" >/dev/null 2>"$t/e1"; r1=$?
+  vh assets add "$p" "$p/assets/img/new.png" --license "CC BY-SA 4.0" --source-url https://example.org/new --author Someone --cost '$0.25' >"$t/o2" 2>&1; r2=$?
+  vh assets add "$p" "$p/assets/img/new.png" --license own >/dev/null 2>"$t/e3"; r3=$?
+  vh assets add "$p" "$p/assets/img/new.png" --update --class own >"$t/o4" 2>&1; r4=$?
+  vh assets remove "$p" loop --why "a CC0 loop instead" >/dev/null 2>&1; r5=$?
+  vh assets remove "$p" gc-0001 >/dev/null 2>&1; r6=$?
+  printf 'y' > "$p/assets/img/again.png"; vh assets add "$p" "$p/assets/img/again.png" --class own --id loop >/dev/null 2>"$t/e7"; r7=$?
+  printf 'more' >> "$p/assets/sfx/knock.wav"; rm "$p/assets/frames/f0002.png"
+  a=$(vh assets check "$p" --json 2>/dev/null); rc=$?
+  if [ "$r1:$r2:$r3:$r4:$r5:$r6:$r7:$rc" = "2:0:2:0:0:0:2:1" ] && grep -q "where it came from is not said" "$t/e1" && grep -q "on record already as new" "$t/e3" \
+     && grep -q "the id loop is taken" "$t/e7" && grep -q 'spent $0.79 of $1.00' "$t/o2" && grep -q "updated new" "$t/o4" \
+     && python3 - "$p" "$a" <<'PY'
+import json, sys
+p, check = sys.argv[1], json.loads(sys.argv[2])
+d = json.load(open(f"{p}/assets/ledger.json", encoding="utf-8"))
+R = {r["id"]: r for r in d["assets"]}
+ev = [f"{e['event']}:{e['id']}" for e in d["events"]][5:]
+new = R["new"]
+pay = [json.loads(x) for x in open(f"{p}/assets/spend.jsonl", encoding="utf-8")]
+fs = {(f["kind"], f["id"]) for f in check["findings"] if f["severity"] == "fail"}
+ok = (ev == ["add:new", "update:new", "remove:loop", "remove:gc-0001"]
+      and new["license"] == {"name": "CC BY-SA 4.0", "class": "own", "by": "given"} and new["source"]["author"] == "Someone"
+      and new["cost"] == {"amount": 0.25, "currency": "USD"} and "updated_at" in new
+      and R["loop"]["removed"]["why"] == "a CC0 loop instead" and R["gc-0001"].get("legacy") == "genclip-ledger" and "removed" in R["gc-0001"]
+      and [x["amount"] for x in pay] == [0.04, 0.25] and pay[1]["asset"] == "new"
+      and fs == {("sha256", "knock"), ("sha256", "frames")} and check["verdict"] == "fail" and check["records"] == 5)
+if not ok:
+    print(f"{ev} {new} {pay} {fs} {check['records']}")
+sys.exit(0 if ok else 1)
+PY
+  then ok "assets add and remove: where it came from is required, a path or an id on record is refused (ids never reused), --update keeps the rest, a cost goes into spend.jsonl, a removed record stays (a clip's from before v1 moved in); check fails a changed file and a changed folder"
+  else bad "assets add/remove (exits $r1:$r2:$r3:$r4:$r5:$r6:$r7:$rc): $(cat "$t/e1" "$t/e3" "$t/e7" "$t/o2" "$t/o4" | tail -c 600)"; fi
+  # the ledger's edges: a class that is no string and an entry that is no object are findings, not tracebacks; a file
+  # made from another keeps its licence; a path is found from here or in the project; a URL keeps no secret; a cost that
+  # cannot be written is exit 1
+  q="$t/q"; cp -R tools/assets/fixtures/project "$q"; printf 'fixture clip\n' > "$q/assets/genclips/gc-0001/clip.mp4"
+  cp "$q/assets/music/loop.wav" "$q/assets/music/loop-cut.wav"
+  python3 - "$q" <<'PY'
+import json, sys
+q = sys.argv[1]
+f = f"{q}/assets/ledger.json"
+d = json.load(open(f, encoding="utf-8"))
+d["assets"][0]["license"]["class"] = 5                                  # grey-square: a class that is not a string
+d["assets"].append("not a record")
+d["assets"].append(dict(d["assets"][4], id="loop-cut", path="assets/music/loop-cut.wav", license={"class": "own", "by": "given"}, derived_from="loop"))
+d["assets"][2]["derived_from"] = "nothing-by-this-id"                    # hero: made from a record that is not there
+json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
+PY
+  a=$(vh assets check "$q" 2>&1); rc=$?
+  b=$(vh assets list "$q" 2>&1; vh assets credits "$q" 2>&1); rc2=$?
+  printf 'x' > "$q/assets/img/far.png"
+  c=$(cd "$t" && "$VH_BASH" "$ROOT/bin/vh" assets add "$q" assets/img/far.png --class own --source-url 'https://u:p@example.org/page?sig=secret#x' 2>&1); rc3=$?
+  d=$(vh assets add "$q" 'https://example.org/files/tone.wav?token=secret' --license CC0 --offline tools/assets/fixtures/responses 2>&1); rc4=$?
+  rm -f "$q/assets/spend.jsonl"; mkdir "$q/assets/spend.jsonl"; printf 'y' > "$q/assets/img/paid.png"
+  e=$(vh assets add "$q" "$q/assets/img/paid.png" --class managed --origin purchased --cost '$2' 2>&1); rc5=$?
+  if [ "$rc:$rc2:$rc3:$rc4:$rc5" = "1:0:0:1:1" ] && ! printf '%s' "$a$b$c$d$e" | grep -q 'Traceback\|secret\|u:p@' \
+     && case "$a" in *"grey-square"*"license.class is not one of"*) true ;; *) false ;; esac \
+     && case "$a" in *"assets[5] is not a record"*) true ;; *) false ;; esac \
+     && case "$a" in *"hero"*"derived_from names nothing-by-this-id"*) true ;; *) false ;; esac \
+     && case "$a" in *"loop-cut"*"made from loop (cc-by-nc) but on record as own"*) true ;; *) false ;; esac \
+     && grep -q '"url": "https://example.org/page?sig=…#…"' "$q/assets/ledger.json" \
+     && case "$e" in *"paid is on record, but its cost could not go into assets/spend.jsonl"*) true ;; *) false ;; esac
+  then ok "assets: a class that is no string and an entry that is no object are findings (no traceback); a file made from another keeps its licence; a path is found in the project too; URLs keep no secret; a cost that cannot be written is exit 1"
+  else bad "assets edges (exits $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s | %s | %s | %s | %s' "$a" "$b" "$c" "$d" "$e" | tail -c 900)"; fi
+  if a=$(python3 - <<'PY'
+import os, sys, tempfile
+sys.path.insert(0, "tools/assets")
+import fetch
+d = tempfile.mkdtemp()
+try:
+    fetch.Record(d).open("https://example.org/f.wav?X-Amz-Signature=abc")
+    print("a signed URL was recorded")
+except fetch.FetchError as e:
+    print("" if "not recorded" in str(e) and "abc" not in str(e) and not os.listdir(d) else f"Record: {e} {os.listdir(d)}")
+except OSError as e:
+    print(f"Record went to the network: {e}")
+PY
+  ) && [ -z "$a" ]; then ok "assets: Record refuses a URL that carries a credential, before it opens anything"
+  else bad "assets Record: $a"; fi
+  # the budget: the BRIEF's line, else LOCAL.md's 默认预算 (one line each: an empty Budget is not the line below it);
+  # amounts with their currency, one a currency, never guessed; spent per currency (spend.jsonl, a clip's cost_usd from
+  # before v1); a hold over it, in a currency it lacks, or with no budget is refused, and two at once cannot both pass
+  cp -R tools/assets/fixtures/project "$t/b"
+  if a=$(OVH_LOCAL_MD="$t/LOCAL.md" python3 - "$t/b" "$t/LOCAL.md" <<'PY'
+import subprocess, sys, textwrap, time
+sys.path.insert(0, "tools/assets")
+import budget, ledger
+b, local = sys.argv[1:]
+P = budget.parse
+bad = []
+cases = {"$5": {"USD": 5.0}, "每支片子 20 美元": {"USD": 20.0}, "$5, ¥30": {"USD": 5.0, "CNY": 30.0}, "30 元": {"CNY": 30.0}, "0": {}, "none": {}, "无": {},
+         "500 tripo-credits": {"TRIPO-CREDITS": 500.0}, "5 USD (drafts)": {"USD": 5.0}, "€2.5": {"EUR": 2.5}, "$1,000": {"USD": 1000.0}, "$1,000.50, ¥30": {"USD": 1000.5, "CNY": 30.0}}
+for v, want in cases.items():
+    got = P(v)
+    if not got or got["error"] or got["amounts"] != want:
+        bad.append(f"parse {v!r}: {got}")
+for v in ("default", "{例如每支片子 20 美元}", ""):
+    if P(v) is not None:
+        bad.append(f"parse {v!r} should say nothing")
+for v in ("5", "20 for drafts", "$5 per film, $20 total"):
+    if not (P(v) or {}).get("error"):
+        bad.append(f"parse {v!r} should be an error")
+if not (P("不限") or {}).get("unlimited") or not (P("unlimited") or {}).get("unlimited"):
+    bad.append("不限 / unlimited is no cap")
+s = budget.spent(b)
+if s != {"USD": 0.54}:
+    bad.append(f"spent {s}")
+for amount, cur, want in ((0.5, "USD", "$0.04 short"), (3, "CNY", "has no CNY")):
+    try:
+        with budget.hold(b, amount, cur, "image gen"):
+            bad.append(f"{amount} {cur} was held")
+    except budget.Refused as e:
+        if want not in str(e) or not str(e).startswith("image gen: paid call refused"):
+            bad.append(f"refusal: {e}")
+if budget.check(b, 0.5, "USD")["short"] != 0.04 or not budget.check(b, 0.46, "USD")["ok"]:
+    bad.append("check: $0.04 short for 0.50, 0.46 fits")
+with budget.hold(b, 0.2, "USD", "a call", asset="img1") as h:   # settled below its estimate, then registered at that cost
+    if budget.tally(b)[1] != {"USD": 0.2}:
+        bad.append(f"held while in flight: {budget.tally(b)}")
+    h.settle(0.1)
+try:
+    with budget.hold(b, 0.1, "USD", "a call that fails"):
+        raise RuntimeError("the vendor is down")
+except RuntimeError:
+    pass
+with budget.hold(b, 0.05, "USD", "a call not billed") as h:
+    h.settle(0)
+if budget.spent(b) != {"USD": 0.74} or budget.tally(b)[1]:   # 0.54 + 0.1 + 0.1 (an exception: its estimate) + 0
+    bad.append(f"after the holds: {budget.tally(b)}")
+open(f"{b}/assets/img/img1.png", "wb").write(b"x")
+_, _, pay = ledger.add(b, f"{b}/assets/img/img1.png", id="img1", license_class="own", cost={"amount": 0.1, "currency": "USD"})
+_, _, pay2 = ledger.add(b, f"{b}/assets/img/img1.png", update=True, cost={"amount": 0.15, "currency": "USD"})
+if pay is not None or not pay2 or pay2["amount"] != 0.05 or budget.spent(b) != {"USD": 0.79}:
+    bad.append(f"ledger.add's cost: what the log lacks for the id ({pay}, {pay2}, {budget.spent(b)})")
+# two processes hold at once: $1 left, each wants 0.6: one is refused
+open(f"{b}/BRIEF.md", "w").write("# BRIEF\n\n## Spec\n- Budget: $1.79\n")
+racer = textwrap.dedent("""
+    import sys, time; sys.path.insert(0, "tools/assets"); import budget
+    time.sleep(max(0, float(sys.argv[2]) - time.time()))
+    try:
+        with budget.hold(sys.argv[1], 0.6, "USD", "racing") as h:
+            time.sleep(0.4); h.settle(0.6)
+        print("held")
+    except budget.Refused:
+        print("refused")""")
+go = time.time() + 0.5
+ps = [subprocess.Popen([sys.executable, "-c", racer, b, str(go)], stdout=subprocess.PIPE, text=True) for _ in range(2)]
+got = sorted(p.communicate()[0].strip() for p in ps)
+if got != ["held", "refused"] or budget.spent(b) != {"USD": 1.39}:
+    bad.append(f"two holds at once: {got}, spent {budget.spent(b)}")
+# one line each: an empty Budget or Assets line does not read the next one
+open(f"{b}/BRIEF.md", "w").write("# BRIEF\n\n## Spec\n- Budget:\n- Output: 1080p, $5 test\n- Assets:\n- Pace: record\n")
+if budget.budget_of(b)["from"] is not None or ledger.policy_of(b) != ("strict", "the default"):
+    bad.append(f"an empty line read the next one: {budget.budget_of(b)} {ledger.policy_of(b)}")
+open(f"{b}/BRIEF.md", "w").write("# BRIEF\n\n## Spec\n- Budget: default\n")
+try:
+    with budget.hold(b, 0.1, "USD", "x"):
+        bad.append("no budget allowed a call")
+except budget.Refused as e:
+    if "no budget" not in str(e) or "Budget: $0.10" not in str(e):
+        bad.append(f"no-budget refusal: {e}")
+open(local, "w").write("- 默认预算：每支片子 20 美元\n")
+if not budget.check(b, 0.1, "USD")["ok"] or budget.budget_of(b)["from"] != "LOCAL.md":
+    bad.append("LOCAL.md's 默认预算 not read")
+budget.spend(b, 18.65, "USD", "a test")
+sm = budget.summary(b)
+if sm["limit"] != {"USD": 20.0} or sm["left"] != {"USD": -0.04} or sm["over"] != ["USD"] or "over: USD" not in budget.line(b):
+    bad.append(f"summary {sm} / {budget.line(b)}")
+open(local, "w").write("- 默认预算：不限\n")
+if not budget.check(b, 1000, "USD")["ok"] or not budget.summary(b)["unlimited"]:
+    bad.append("不限: no cap")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "assets budget: the BRIEF's Budget, else LOCAL.md's 默认预算, one line each; amounts need a currency, one a currency, \$1,000 is a thousand, 不限 no cap; a hold over it says how much is short, two at once cannot both pass, an exception counts its estimate; ledger.add records only what the log lacks"
+  else bad "assets budget: $a"; fi
+  # a download from recorded responses (fetch.Replay, no network): whole, resumed from a .part, a server that ignores
+  # ranges, a 404, a sha256 that does not match, a rate cap; and add <url> --offline registers what it got
+  tone=5fce37f3129150ce7ec3939b54016d9c1fd01364e27b0a788dc634064aec76b1
+  if a=$(python3 - "$t/dl" "$tone" <<'PY'
+import os, sys, time
+sys.path.insert(0, "tools/assets")
+import fetch
+d, tone = sys.argv[1:]
+R, bad = fetch.Replay("tools/assets/fixtures/responses"), []
+body = open("tools/assets/fixtures/responses/tone.bin", "rb").read()
+r = fetch.download("https://example.org/files/tone.wav", f"{d}/a.wav", sha256=tone, opener=R)
+if r["sha256"] != tone or r["resumed"] or open(f"{d}/a.wav", "rb").read() != body or os.path.exists(f"{d}/a.wav.part"):
+    bad.append(f"whole: {r}")
+open(f"{d}/b.wav.part", "wb").write(body[:1000])
+r = fetch.download("https://example.org/files/tone.wav", f"{d}/b.wav", sha256=tone, opener=R)
+if not r["resumed"] or r["status"] != 206 or r["sha256"] != tone:
+    bad.append(f"resumed: {r}")
+open(f"{d}/c.wav.part", "wb").write(b"junk" * 10)
+r = fetch.download("https://example.org/files/noranges.wav", f"{d}/c.wav", sha256=tone, opener=R)
+if r["resumed"] or r["status"] != 200 or r["sha256"] != tone:
+    bad.append(f"no ranges: {r}")
+open(f"{d}/e.wav.part", "wb").write(body)
+r = fetch.download("https://example.org/files/tone.wav", f"{d}/e.wav", sha256=tone, opener=R)
+if r["sha256"] != tone:
+    bad.append(f"a complete .part (416): {r}")
+for url, want in (("https://example.org/files/missing.wav", "HTTP 404"), ("https://example.org/files/nothing", "no recorded response")):
+    try:
+        fetch.download(url, f"{d}/x.wav", opener=R); bad.append(f"{url} downloaded")
+    except fetch.FetchError as e:
+        if want not in str(e):
+            bad.append(f"{url}: {e}")
+try:
+    fetch.download("https://example.org/files/tone.wav", f"{d}/f.wav", sha256="0" * 64, opener=R); bad.append("a wrong sha256 passed")
+except fetch.FetchError:
+    if os.path.exists(f"{d}/f.wav") or os.path.exists(f"{d}/f.wav.part"):
+        bad.append("a wrong sha256 left a file")
+t0 = time.monotonic(); fetch.download("https://example.org/files/tone.wav", f"{d}/g.wav", rate="128K", opener=R)
+if time.monotonic() - t0 < 0.4:
+    bad.append(f"128K/s for 64 kB took {time.monotonic() - t0:.2f} s")
+j = fetch.get_json("https://example.org/api/search?q=knock&license=cc0,by", opener=R)
+if j["results"][0]["license"] != "by":
+    bad.append(f"get_json: {j}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "assets download from recorded responses: whole, resumed with Range, over a server that ignores ranges, a complete .part; 404, unrecorded and sha256 mismatch fail with nothing left; a rate cap; get_json"
+  else bad "assets download (tools/assets/fetch.py): $a"; fi
+  a=$(vh assets add "$p" https://example.org/files/tone.wav --license "CC0" --title Tone --offline tools/assets/fixtures/responses --sha256 "$tone" --to assets/sfx/tone.wav 2>&1); rc=$?
+  b=$(vh assets add "$p" https://example.org/files/missing.wav --license CC0 --offline tools/assets/fixtures/responses 2>&1); rc2=$?
+  if [ "$rc:$rc2" = "0:1" ] && [ ! -e "$p/assets/missing.wav" ] && python3 - "$p" <<'PY'
+import json, sys
+r = {x["id"]: x for x in json.load(open(f"{sys.argv[1]}/assets/ledger.json", encoding="utf-8"))["assets"]}["tone"]
+s = r["source"]
+sys.exit(0 if r["path"] == "assets/sfx/tone.wav" and r["license"]["class"] == "cc0" and s["origin"] == "download"
+         and s["file_url"] == "https://example.org/files/tone.wav" and s.get("retrieved") and r["kind"] == "audio" else 1)
+PY
+  then ok "assets add <url> --offline: downloaded from the recording, then registered (origin download, the URL, the day); a 404 is exit 1 with nothing left"
+  else bad "assets add <url> (exit $rc, $rc2): $a | $b"; fi
+  # credits: the BY lines with their author, source and deed; public domain as courtesy; the AI notice counts what is generated
+  cp -R tools/assets/fixtures/project "$t/c"
+  a=$(vh assets credits "$t/c" --lang zh 2>/dev/null); b=$(vh assets credits "$t/c" --json 2>/dev/null); rc=$?
+  case "$a" in *"素材署名"*"《Knock》，Fixture Author，example-sounds（https://example.org/sounds/knock），CC BY 4.0（https://creativecommons.org/licenses/by/4.0/）"*"致谢"*"《A grey square》"*"AI 生成内容"*"图片 1 件、视频 1 件"*)
+      if [ $rc = 0 ] && python3 -c 'import json,sys; c=json.loads(sys.argv[1]); sys.exit(0 if c["lang"]=="en" and c["aigc"]["count"]==2 and [x["id"] for x in c["required"]]==["knock","loop"] and [x["id"] for x in c["courtesy"]]==["grey-square"] and not c["missing"] else 1)' "$b"
+      then ok "assets credits: the lines a licence asks for (title, author, source, licence and their pages), courtesy for public domain, the AI-content notice with what it covers; --json; the BRIEF's language"
+      else bad "assets credits --json: $b"; fi ;;
+    *) bad "assets credits: $a" ;; esac
+  # the commands write their notes into the project's activity log, list and check do not log
+  if grep -q '"cmd":"assets"' "$p/.ovh/activity.jsonl" 2>/dev/null && grep -q '"summary":"added new' "$p/.ovh/activity.jsonl" \
+     && ! grep -q '"args":\["check"' "$p/.ovh/activity.jsonl"; then ok "assets add and remove are in the activity log with what they did; check and list are not logged"
+  else bad "assets in the activity log: $(tail -c 400 "$p/.ovh/activity.jsonl" 2>&1)"; fi
+  rm -rf "$t"
+}
+
 status_checks() {
   local t p q a b c d e k rc rc2
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
@@ -3526,11 +3845,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; textcheck_checks; film_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; textcheck_checks; film_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

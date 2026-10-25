@@ -60,6 +60,16 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 
 另外，`tools/ci.sh` 会打印一张读量表（`tools/readpath.py`）：按 CLAUDE.md 的路由和 quick 卡，估算每一档、每一类片子开工前要读多少字符，用来看文档有没有越写越长，上限以后再定。数字本身不判失败；它要数的文件或章节不见了，CI 会报错，免得这张表悄悄变小。
 
+## 联网的命令怎么测
+
+下载素材、调生成服务、查平台数据的命令（`bin/vh assets add <url>`，批 1 的 footage、image、声音库）要联网，有的还调付费接口；CI 里被测的命令不联网、不花钱（CI 自己会用 uv 装测试用的包）。所以每条这样的命令都守三条：
+
+- **配一份录好的响应。** 请求都走 `tools/assets/fetch.py`：`download` 管断点续传、限速和 sha256，`get_json` 管接口。`bin/vh doctor --probe` 是例外：探活用它自己的 urllib，也有 `--offline`，读的是同一种录音。设 `OVH_RECORD=<文件夹>` 在线跑一次，每个响应存进那个文件夹的 `responses.json`；挑出要用的，放进这条命令自己的 `fixtures/`。录下来的不含请求头（key 在请求头里），也不含 cookie；正文超过 256 kB 只留前 256 kB。进仓库的正文用合成的字节或很小的 JSON，不放别人的整份作品。
+- **有 `--offline <文件夹>`。** 命令照常跑，只是响应从录音里取（`fetch.Replay`；Range 照样回答，续传也能离线测）。找不到对应的 URL 就失败，不会偷偷联网。
+- **CI 只测解析、台账写入和许可分类。** 用录好的响应跑命令，查三样：解析出的字段；写进 `assets/ledger.json` 的记录，对着 `tools/assets/asset.schema.json` 查；许可落进哪一类（`tools/assets/licenses.py`，对照表是 `tools/assets/fixtures/licenses.tsv`）。活的接口不进 CI，由 `bin/vh doctor --probe` 探（`tools/modules.json` 里登记的服务）。
+
+调付费接口的命令还要守预算：每次调用都包在 `tools/assets/budget.py` 的 `with budget.hold(项目, 估价, 币种, 做什么) as h:` 里。它在锁里检查并预占这笔估价，没有预算或者超了就拒绝，并说差多少；几个进程同时调用也不会一起越过预算。调用完用 `h.settle(实际花费)` 结算，没计费就记 0；出了异常没结算，按估价算。登记产物时把花费交给 `ledger.add(…, cost=…)`，花费记录里已有的不会重记。key 只从环境变量读，放在请求头里，不进 URL、录音和日志；记录和报错里的 URL 都去掉 query 的值（`fetch.redact`），带 key、token、签名的 URL 不录。
+
 ## 在 GitHub 上启用规则集
 
 规则集的配置在 [`.github/rulesets/main.json`](.github/rulesets/main.json)。本仓库已经在 2026-09-30 按这个文件启用了规则集 `main-via-pr`，同一天打开了 Allow auto-merge（见下面第 3 步）。改了文件以后，把线上配置同步过去：`gh api --method PUT repos/ZLHad/OpenVideoHarness/rulesets/<id> --input .github/rulesets/main.json`，`<id>` 用 `gh api repos/ZLHad/OpenVideoHarness/rulesets` 查。

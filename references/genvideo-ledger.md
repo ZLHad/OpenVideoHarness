@@ -4,7 +4,28 @@
 
 ## 台账
 
-每个生成片段一条，放 `assets/genclips/<id>/ledger.json`，汇总进 `NOTES.md` 的素材台账。下面的字段是起点，还没有在真实项目里用过；用过一轮之后再定稿，现在先不并进 `templates/NOTES.md`。
+每个生成片段是项目素材台账（`assets/ledger.json`）里的一条记录，格式是 `tools/assets/asset.schema.json` 的 v1，和下载的、自制的素材同一种：用 `bin/vh assets add` 登记，`aigc` 为真，许可类是 `generated`，`bin/vh assets credits` 按它出 AI 标识的提示。来历放在记录命名过的字段里（`model`、`prompt` 或 `prompt_file`、`seed`、`cost`）；厂商条款、来源标记、输入素材这些记录没有命名的，原样放在记录里（`--extra`），下面的字段是起点：
+
+```json
+{
+  "v": 1, "id": "gc-0007", "kind": "video", "path": "assets/genclips/gc-0007/clip.mp4", "sha256": "…", "bytes": 4194304,
+  "license": { "class": "generated", "name": "paid API, per vendor page", "by": "given" },
+  "source": { "origin": "generated", "provider": "fal" },
+  "aigc": true, "model": "fal/bytedance/seedance-2.5/reference-to-video (Seedance 2.5)",
+  "prompt_file": "assets/genclips/gc-0007/prompt.txt", "seed": 123456, "cost": { "amount": 8.5, "currency": "USD" },
+  "added_at": "2026-10-01T10:22:00+0800", "used_by": ["S03"], "note": "scene 3, hero character, 6 s",
+  "request_id": "…", "attempts": 3,
+  "inputs": [ { "file": "assets/char/sheet.png", "origin": "self-generated | user-provided", "rights": "…", "real_person": false } ],
+  "terms": { "url": "…", "retrieved": "2026-10-01", "snapshot_sha256": "…", "tier": "paid API",
+             "commercial_use": "per vendor page; verify", "inputs_outputs_used_for_training": "unknown | yes | no",
+             "verified_by_human": false },
+  "provenance_marks": { "synthid": "n/a", "c2pa": "unknown", "visible_watermark": false },
+  "disclosure": { "cn_label_required": true, "platforms": ["douyin", "xiaohongshu", "bilibili"] },
+  "restrictions_checked": ["no real faces", "no third-party IP characters", "no minors"]
+}
+```
+
+以前的做法是每个片段一份 `assets/genclips/<id>/ledger.json`，形状如下（没有 `v`）。已有项目里的这种文件 `bin/vh assets` 照读，当作一条记录，不改写它；`cost_usd` 算进已花的钱。项目台账里有同 id 或同路径的记录时以台账为准，所以 `bin/vh assets add <项目> <片段> --id <它的 id>` 就把它移进台账。
 
 ```json
 {
@@ -16,14 +37,20 @@
   "inputs": [ { "file": "assets/char/sheet.png", "origin": "self-generated | user-provided", "rights": "…", "real_person": false } ],
   "output": { "file": "assets/genclips/gc-0007/clip.mp4", "sha256": "…", "duration_s": 6.0, "fps": 24, "size": "1280x720" },
   "attempts": 3, "cost_usd": 8.5,
-  "terms": { "url": "…", "retrieved": "2026-10-01", "snapshot_sha256": "…", "tier": "paid API",
-             "commercial_use": "per vendor page; verify", "inputs_outputs_used_for_training": "unknown | yes | no",
-             "verified_by_human": false },
-  "provenance_marks": { "synthid": "n/a", "c2pa": "unknown", "visible_watermark": false },
-  "disclosure": { "cn_label_required": true, "platforms": ["douyin", "xiaohongshu", "bilibili"] },
-  "restrictions_checked": ["no real faces", "no third-party IP characters", "no minors"]
+  "terms": { … }, "provenance_marks": { … }, "disclosure": { … }, "restrictions_checked": [ … ]
 }
 ```
+
+| 旧字段 | v1 记录里 |
+|---|---|
+| `id` | `id` |
+| `output.file`、`output.sha256` | `path`、`sha256`；`output` 整个留着 |
+| `vendor`、`route`、`model_version` | `model`（`vendor/route (model_version)`）、`source.provider` |
+| `requested_at` | `added_at` |
+| `prompt_file`、`seed` | 同名 |
+| `cost_usd` | `cost`（USD） |
+| `purpose` | `note` |
+| 其余（`terms`、`provenance_marks`、`disclosure`、`inputs`、`request_id`、`attempts`、`prompt_sha256`、`restrictions_checked`） | 原样留着 |
 
 ## 各通道的条款要点
 

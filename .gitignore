@@ -18,6 +18,8 @@ __pycache__/
 # bin/vh mix: the build record and the lock beside a mix (tools/audio/mixstate.py)
 *.mix.json
 *.mix.lock
+# bin/vh assets: the lock beside a project's ledger (tools/assets/ledger.py)
+.ledger.lock
 
 # showcase 04: proxies rebuilt by tools/make_clips.sh from showcase 00–03; the film's regenerable audio;
 # the film atlases (tools/opening_export.sh, film_atlas.py, ai_atlas.py), the Blender frames and plate, the grid state
