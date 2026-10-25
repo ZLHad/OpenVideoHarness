@@ -309,6 +309,7 @@ PY
 import os, signal, subprocess, sys, time
 t, sh, vh = sys.argv[1:]
 open(f"{t}/x.mp4", "wb").close()   # sheet looks for its video before it runs uv
+os.makedirs(f"{t}/audio", exist_ok=True); open(f"{t}/audio/timeline.json", "w").close()   # and captions for its timeline
 mark, env = f"{t}/started", dict(os.environ, PATH=f"{t}:{os.environ['PATH']}", UVMARK=f"{t}/started")
 runs = [["music", "x"], ["sfx", "x"], ["beats", "x"], ["qa", "x"], ["mix", "profile=x"], ["tts", t], ["pace", "x"],
         ["cover-preview", "x"], ["style", "compare", "a,b"], ["sheet", f"{t}/x.mp4"], ["fonts", "list", "x"], ["captions", t],
