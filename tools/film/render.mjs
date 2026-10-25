@@ -45,6 +45,8 @@
 // A video inside a project is a version of its film (tools/versions.py, bin/vh versions): the film it replaces at that
 // path is kept in out/versions/ first (while the disk can hold it; else it goes to the Trash, said), and the record gets
 // the new one. The sidecar also keeps the page's shots and chapters (window.film.shots, chapters) when it gives them.
+// bin/vh patch draws its frames through this tool with OVH_RENDER_PIECE=1: a piece of a patch is a step, so it ends without
+// the "render: done" line (the patch's own last line says the job is done).
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -420,4 +422,4 @@ for (const p of problems) console.log(`  ${p}`);
 if (!okCount) console.log(`  the video has ${st.nb_frames} frames, not ${n}`);
 if (!okColor) console.log(`  the colour tags are not yuv420p tv/bt709`);
 if (problems.length || !okCount || !okColor || placed !== outFile) process.exit(1);
-console.log("render: done · the sound goes on with bin/vh mux");
+if (!process.env.OVH_RENDER_PIECE) console.log("render: done · the sound goes on with bin/vh mux");   // a piece of bin/vh patch is a step (patch sets it): patch says when it is done

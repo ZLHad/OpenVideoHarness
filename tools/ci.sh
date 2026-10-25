@@ -165,7 +165,7 @@ readpath_report() {   # how much an agent reads before it starts, per effort lev
 
 vh() { "$VH_BASH" "$ROOT/bin/vh" "$@"; }
 smoke_checks() {
-  local slug="ci-smoke-$$" dir t rc langs a h o
+  local slug="ci-smoke-$$" dir t rc langs a h o u ad
   vh help >/dev/null && vh --help >/dev/null && ok "bin/vh help exits 0" || bad "bin/vh help"
   vh no-such-command >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "unknown command exits 1" || bad "unknown command exited $rc"
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")   # a throwaway HOME: an old bin/vh would install the skill for a bad target
@@ -205,17 +205,53 @@ PY
   if [ $rc = 1 ]; then :; elif [ "$n" -gt 5 ]; then ok "-h and --help print a usage for the $n commands without a help of their own, and style check"
   else bad "only $n commands found in bin/vh's dispatch for the -h check"; fi
   # usage errors exit 2, failures 1: these commands with no arguments or a wrong one (new with an option that has no
-  # value included); new into a folder that is there already is a failure. Nothing here reaches uv or a browser
-  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); a=""
+  # value included; a project, video or folder that is not there); new into a folder that is there already is a failure.
+  # Every message of a usage error or a refusal is on stderr and stdout stays empty; the usage that was asked for (-h)
+  # is on stdout, exit 0. Nothing here reaches uv or a browser; a project that is not there is not made (tts did)
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); a=""; u=""; mkdir "$t/empty"
   for c in deliver clean timeline remap timemap storyboard rhythm cover-preview "style compare" "style apply" "style apply dark-math" \
            "style apply no-such $t" "effort loud" new "new math" "new nope ci-x" "new math ci-x --style" "new math ci-x --effort" \
-           "new math ci-x --lang" "new math ci-x --bogus" versions proxy thumbs; do
+           "new math ci-x --lang" "new math ci-x --bogus" "new math ci-x --style no-such" versions proxy thumbs \
+           textcheck fonts "fonts nope" frames render determinism cues patch activity status gate desk \
+           tts "tts $t/no-such" sheet "sheet $t/no-such.mp4" gif "gif $t/no-such.mp4" hf-init "hf-init $t/no-such" "hf-init $t/empty 4k" "hf-init $t/empty 2:3" \
+           check "check --bogus" "check $t/no-such.mp4 --bogus" "check $t/no-such.mp4 --allow" "check $t/no-such.mp4 --against" "check $t/no-such.mp4 --against $t/no-such-ref.mp4" \
+           captions "captions $t/empty --media-end" "captions $t/empty --cps" "captions $t/empty --en-max" "captions $t/empty --bogus" mix "style check"; do
     # shellcheck disable=SC2086   # several words on purpose
-    OVH_PROJECTS="$t" vh $c >/dev/null 2>&1; rc=$?; [ $rc = 2 ] || a="$a | $c exited $rc"
+    OVH_PROJECTS="$t" vh $c >"$t/out" 2>"$t/err"; rc=$?
+    [ $rc = 2 ] || a="$a | $c exited $rc"
+    { [ ! -s "$t/out" ] && [ -s "$t/err" ]; } || u="$u | $c"
   done
-  OVH_PROJECTS="$t" vh new math ci-twice >/dev/null 2>&1; OVH_PROJECTS="$t" vh new math ci-twice >/dev/null 2>&1; rc=$?
-  [ -z "$a" ] && [ $rc = 1 ] && [ -z "$(ls -d "$t"/*-ci-x 2>/dev/null)" ] && ok "usage errors exit 2 (deliver, clean, timeline, remap, timemap, storyboard, rhythm, cover-preview, style, effort, new, versions, proxy, thumbs); new over a project is 1" \
-    || bad "usage errors:$a (new twice exited $rc)"
+  OVH_PROJECTS="$t" vh new math ci-twice >/dev/null 2>&1; OVH_PROJECTS="$t" vh new math ci-twice >"$t/out" 2>"$t/err"; rc=$?
+  { [ ! -s "$t/out" ] && [ -s "$t/err" ]; } || u="$u | new over a project"
+  for c in deliver new effort tts sheet gif hf-init status clean "style apply" "style apply dark-math" "new math" "new math ci-h" "new math ci-h --style dark-math"; do
+    for h in -h --help; do
+      # shellcheck disable=SC2086   # several words on purpose
+      OVH_PROJECTS="$t" vh $c $h >"$t/out" 2>"$t/err"; rc2=$?
+      { [ $rc2 = 0 ] && [ -s "$t/out" ] && [ ! -s "$t/err" ]; } || u="$u | $c $h"
+    done
+  done
+  [ -z "$(ls -d "$t"/*-ci-h "$t"/*--h "$t"/*---help 2>/dev/null)" ] || u="$u | new -h made a folder"
+  [ -z "$a" ] && [ $rc = 1 ] && [ -z "$(ls -d "$t"/*-ci-x 2>/dev/null)" ] && [ ! -e "$t/no-such" ] \
+    && ok "usage errors exit 2 (new, effort, style, deliver, clean, timeline, remap, timemap, storyboard, rhythm, cover-preview, versions, proxy, thumbs, textcheck, fonts, frames, render, determinism, cues, patch, activity, status, gate, desk, tts, sheet, gif, hf-init, check, captions, mix: no arguments, an option where the video goes or with no value, a project or video that is not there, a frame it does not know); new over a project is 1" \
+    || bad "usage errors:$a (new twice exited $rc; a project made: $(ls -d "$t"/no-such 2>/dev/null))"
+  [ -z "$u" ] && ok "usage errors and refusals are on stderr with nothing on stdout, the usage that was asked for (-h) on stdout with exit 0" \
+    || bad "messages on the wrong stream:$u"
+  # arg_dir finds the project among a page tool's arguments, to pick the browser it renders with: a flag that takes no value
+  # in front of it must not swallow it (frames --covers, --no-title and cues --chapters took the project for their value and
+  # found "."). Every such flag of frames, render, determinism, cues, fonts check, patch, textcheck, readcheck, storyboard and
+  # thumbs; a flag with a value still hides its value (--out o <project>). The function is read out of bin/vh
+  mkdir "$t/proj"; a=""
+  ad=$(awk '/^arg_dir\(\) \{/,/^\}/' bin/vh)
+  for c in --covers --no-title --chapters --soft-gl --real-clock --png --force --save --export --strict --in-place --keep --snapshot \
+           --estimate --no-estimate --full --json -h --help --covers=A,B --out=o; do
+    o=$("$VH_BASH" -c "$ad"$'\n''arg_dir "$@"' _ "$c" "$t/proj"); [ "$o" = "$t/proj" ] || a="$a | $c gave '$o'"
+  done
+  for c in --out --at --range --strip --ratios --fps --browser --runtime --note --shot --texts; do
+    o=$("$VH_BASH" -c "$ad"$'\n''arg_dir "$@"' _ "$c" value --covers --no-title "$t/proj"); [ "$o" = "$t/proj" ] || a="$a | $c value gave '$o'"
+  done
+  o=$("$VH_BASH" -c "$ad"$'\n''arg_dir "$@"' _ --out o "$t/page.html"); [ "$o" = "$t" ] || a="$a | a page gave '$o'"
+  [ -z "$a" ] && ok "arg_dir: a flag without a value in front of the project (--covers, --no-title, --chapters …) does not hide it; one with a value hides only its value" \
+    || bad "arg_dir:$a"
   rm -rf "$t"
   # a project: effort and style are written in, and the quick gate waiver is recorded
   dir=$(ls -d "$ROOT"/projects/*-"$slug" 2>/dev/null); [ -z "$dir" ] || rm -rf "$dir"
@@ -269,6 +305,7 @@ PY
   if a=$(python3 - "$t" "$VH_BASH" "$ROOT/bin/vh" <<'PY'
 import os, signal, subprocess, sys, time
 t, sh, vh = sys.argv[1:]
+open(f"{t}/x.mp4", "wb").close()   # sheet looks for its video before it runs uv
 mark, env = f"{t}/started", dict(os.environ, PATH=f"{t}:{os.environ['PATH']}", UVMARK=f"{t}/started")
 runs = [["music", "x"], ["sfx", "x"], ["beats", "x"], ["qa", "x"], ["mix", "profile=x"], ["tts", t], ["pace", "x"],
         ["cover-preview", "x"], ["style", "compare", "a,b"], ["sheet", f"{t}/x.mp4"], ["fonts", "list", "x"], ["captions", t],
@@ -590,6 +627,24 @@ PY
     && [ "$(find "$t/home" -name '*.wav' | wc -l | tr -d ' ')" = 3 ] && [ "$(find "$t/home" -name '*.mp4' | wc -l | tr -d ' ')" = 2 ]
   then ok "clean: lists first; then the film, covers, review pages, the narration in use and the sources stay, the rest goes (old takes and renders to the Trash)"
   else bad "clean: exit $rc / $rc2, left: $left | $(printf '%s' "$a$b" | tail -c 700)"; fi
+  # what went to the Trash gives no space back until it is emptied, and Time Machine's local snapshots can hold it after that
+  # (a stand-in tmutil lists two, so this runs where there is none); what was deleted outright says only the snapshots' part;
+  # a run that does both says the two, the Trash's after it is emptied
+  mkdir -p "$t/stub" && printf '#!/bin/sh\nprintf "com.apple.TimeMachine.2026-10-25-120000.local\\ncom.apple.TimeMachine.2026-10-25-130000.local\\n"\n' > "$t/stub/tmutil" && chmod +x "$t/stub/tmutil"
+  c="$t/cl5"; mkdir -p "$c/out"; c2="$t/cl6"; mkdir -p "$c2/out/frames"; c3="$t/cl7"; mkdir -p "$c3/out/frames"
+  for f in BRIEF.md out/final.mp4 out/draft.mp4; do printf x > "$c/$f"; done; for f in BRIEF.md out/final.mp4 out/frames/a.png; do printf x > "$c2/$f"; done
+  for f in BRIEF.md out/final.mp4 out/draft.mp4 out/frames/a.png; do printf x > "$c3/$f"; done
+  a=$(PATH="$t/stub:$PATH" OVH_TRASH_DIR="$t/home/trash5" vh clean "$c" --yes 2>&1); rc=$?
+  b=$(PATH="$t/stub:$PATH" OVH_TRASH_DIR="$t/home/trash5" vh clean "$c2" --yes --delete 2>&1); rc2=$?
+  d=$(PATH="$t/stub:$PATH" OVH_TRASH_DIR="$t/home/trash5" vh clean "$c3" --yes --delete 2>&1); rc3=$?
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ $rc3 = 0 ] && [ -f "$t/home/trash5/draft.mp4" ] \
+    && printf '%s' "$d" | grep -q 'what went to the Trash frees its space when the Trash is emptied' \
+    && printf '%s' "$d" | grep -q "Time Machine holds 2 local snapshot(s): data deleted since the last one stays on the disk until macOS drops them, the Trash's too once it is emptied" \
+    && printf '%s' "$a" | grep -q 'what went to the Trash frees its space when the Trash is emptied' \
+    && printf '%s' "$a" | grep -q "Time Machine's 2 local snapshot(s) can still hold it on the disk after that" && ! printf '%s' "$a" | grep -q 'data deleted since the last one' \
+    && printf '%s' "$b" | grep -q 'Time Machine holds 2 local snapshot(s): data deleted since the last one stays' && ! printf '%s' "$b" | grep -q 'Trash is emptied'
+  then ok "clean: what went to the Trash gives its space back when the Trash is emptied (snapshots can hold it after that); what was deleted says the snapshots' part; a run of both says both"
+  else bad "clean's closing lines (exit $rc / $rc2 / $rc3): $(printf '%s' "$a" | tail -n 3 | tail -c 500) | $(printf '%s' "$b" | tail -n 2 | tail -c 300) | $(printf '%s' "$d" | tail -n 3 | tail -c 400)"; fi
   # a cover video inside out/final/ is not the film, so out/final.mp4 is; a path kept inside a folder that goes stays
   c="$t/cl2"; mkdir -p "$c/out/final/covers" "$c/out/frames"
   for f in BRIEF.md out/final/covers/loop.mp4 out/final.mp4 out/draft.mp4 out/frames/a.png out/frames/keep.png; do printf x > "$c/$f"; done
@@ -719,11 +774,13 @@ PY
     # out/check/<name>.check.json; the exit status as without it; a confirmation from the record's own entry passes it
     a=$(vh check "$t/cf/odd.mp4" --json 2>/dev/null); rc=$?
     python3 - "$t/cf" "$a" <<'PY' > "$t/cf/j1.txt" 2>&1; rc2=$?
-import json, sys
+import json, os, sys
 d, out = sys.argv[1], sys.argv[2]
 j = json.loads(out); rec = json.load(open(d + "/out/check/odd.check.json", encoding="utf-8"))
 iso = [f for f in j["findings"] if f["kind"] == "check.iso"]
 ok = j == rec and j["version"] == 1 and j["exit"] == 1 and j["verdict"] == "fail" and j["video"] == "odd.mp4" and j["record"] == "out/check/odd.check.json"
+st = os.stat(d + "/odd.mp4")   # the film's size and mtime_ns as checked: what status and versions compare with the film later
+ok = ok and j["size"] == st.st_size and j["mtime_ns"] == st.st_mtime_ns
 ok = ok and len(iso) == 1 and iso[0]["severity"] == "fail" and iso[0]["t"] == 1.0 and iso[0]["frame"] == 30 and iso[0]["confirmed"] is False
 ok = ok and iso[0]["confirm"]["tool"] == "check.iso" and iso[0]["evidence"]["key"].startswith("pic:") and j["counts"]["fail"] == 1
 json.dump({"items": [dict(iso[0]["confirm"], why="the red flash", evidence="STORYBOARD.md S01")]}, open(d + "/confirmed.json", "w"))
@@ -746,6 +803,22 @@ PY
         *) bad "clean does not keep check records: $(printf '%s' "$e" | tail -c 300)" ;; esac
     else bad "check --json (rc $rc/$rc2/$rc3/$rc4/$rc5): $(tail -c 300 "$t/cf/j1.txt") | $(printf '%s' "$b$c" | head -c 600)"; fi
     rm -f "$t/cf/confirmed.json"
+    # the record keeps the film as it was when the checks began (bin/vh check notes its size and mtime_ns first): a film touched
+    # while they run (here, once that note is in the scratch folder, which a private TMPDIR holds alone) is not the one checked, and
+    # status says so at once, where the end of the checks would have seen the new film; checkrec.py reads the note, and without it
+    # takes the film as it is
+    mkdir -p "$t/ck/out" "$t/ck-tmp" && printf -- '- Effort: quick\n' > "$t/ck/BRIEF.md" && cp "$t/clean.mp4" "$t/ck/out/film.mp4"
+    TMPDIR="$t/ck-tmp" vh check "$t/ck/out/film.mp4" >/dev/null 2>&1 & pid=$!
+    n=0; while [ -z "$(cat "$t"/ck-tmp/vh-check.*/film.txt 2>/dev/null)" ] && [ $n -lt 300 ]; do sleep 0.02; n=$((n + 1)); done
+    touch "$t/ck/out/film.mp4"; wait $pid
+    a=$(vh status "$t/ck" --json | python3 -c 'import json, sys; c = json.load(sys.stdin)["check"]; print(c["verdict"], c["stale"])')
+    mkdir -p "$t/ckd"; printf '12 34\n' > "$t/ckd/film.txt"
+    b=$(python3 tools/checkrec.py "$t/ck/out/film.mp4" --dir "$t/ckd" --exit 0 --print | python3 -c 'import json, sys; r = json.load(sys.stdin); print(r["size"], r["mtime_ns"])')
+    rm "$t/ckd/film.txt"
+    c=$(python3 tools/checkrec.py "$t/ck/out/film.mp4" --dir "$t/ckd" --exit 0 --print | python3 -c 'import json, os, sys; r = json.load(sys.stdin); s = os.stat(sys.argv[1]); print(r["size"] == s.st_size and r["mtime_ns"] == s.st_mtime_ns)' "$t/ck/out/film.mp4")
+    [ "$a" = "pass True" ] && [ "$b" = "12 34" ] && [ "$c" = True ] \
+      && ok "check: the record keeps the film as it was when the checks began (a film touched meanwhile is stale at once); read from the note, else from the film" \
+      || bad "check's record of the film's size and mtime_ns: status said '$a', note read as '$b', no note '$c'"
     # no scratch folder (mktemp -d fails): the same checks, lines and exit, one warning, no record; and freezedetect's
     # duration line (before its end line) goes to its own span, not to the span before
     a=$(vh check "$t/cf/odd.mp4" 2>/dev/null); rc=$?; rm -f "$t/cf/out/check/odd.check.json"
@@ -955,7 +1028,7 @@ decision_checks() {
     && ok "new refuses 4K for a 4:5 frame (HyperFrames has no preset)" || bad "new --aspect 4:5 --res 4k (rc $rc): $a"
   a=$(vh new math ci-x --aspect 9:16 2>&1); rc=$?; case "$rc:$a" in 2:*"manim.cfg"*) ok "new --aspect on a Manim type points to manim.cfg" ;; *) bad "new math --aspect (rc $rc): $a" ;; esac
   mkdir -p "$t/hfi"; a=$(vh hf-init "$t/hfi" landscape-4k 2>&1); rc=$?; b=$(vh hf-init "$t/hfi" 2:3 2>&1); rb=$?
-  case "$rc:$a|$rb:$b" in 1:*"4K is a render flag"*"|1:"*"unknown frame 2:3"*) [ -z "$(ls -A "$t/hfi")" ] && ok "hf-init refuses a 4K preset and an unknown frame before scaffolding" || bad "hf-init wrote files after refusing" ;;
+  case "$rc:$a|$rb:$b" in 2:*"4K is a render flag"*"|2:"*"unknown frame 2:3"*) [ -z "$(ls -A "$t/hfi")" ] && ok "hf-init refuses a 4K preset and an unknown frame before scaffolding (exit 2)" || bad "hf-init wrote files after refusing" ;;
     *) bad "hf-init frame check ($rc/$rb): $a | $b" ;; esac
   # 4:5: the BRIEF's lines (a pinned version that does not exist makes the scaffold fail fast, offline too; new goes on without it)
   a=$(HYPERFRAMES_VERSION=0.0.0-ci OVH_PROJECTS="$t/a45" vh new short ci-45 --aspect 4:5 2>&1); d=$(ls -d "$t"/a45/*-ci-45 2>/dev/null)
@@ -1599,7 +1672,7 @@ PY
 # adds its checkpoint; quick skips the gates; the user's waiver skips what it names; a pause waits for the person; a delivery
 # record or a final film with a passing check record is delivered; a command running shows; the human view stays short
 status_checks() {
-  local t p q a b c d e rc rc2
+  local t p q a b c d e k rc rc2
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   OVH_PROJECTS="$t" vh new math st >/dev/null 2>&1; p=$(ls -d "$t"/*-st)
   cat > "$t/st.py" <<'PY'
@@ -1674,6 +1747,40 @@ PY
     && [ "$c" = "1:in_progress 2:skipped 3:skipped deliver:not_started | agent" ] && [ "$d" = "1:in_progress 2:skipped 3:skipped deliver:not_started | person" ]
   then ok "status: quick skips the gates; a final film with a passing check record is delivered; a waiver skips the gates it names; a pause waits for the person"
   else bad "status: quick, waiver, pause: $a | $b | $c | $d"; fi
+  # a check record keeps the film's size and mtime_ns, and a film that differs from them in either is not the one checked:
+  # a film put back with an old modification time (cp -p, rsync -a, bin/vh versions use) is older than the record all the
+  # same, which the time alone calls current. A record without the two (made before) goes by the film's time, as it did
+  cat > "$t/ck.py" <<'PY'
+import json, os, sys, time
+q, what, a, b = sys.argv[1:5]
+film, rec = q + "/out/final.mp4", q + "/out/check/final.check.json"
+if what == "film":   # film <bytes> <modified: seconds from now | rec: the recorded mtime_ns>
+    open(film, "wb").write(a.encode())
+    ns = json.load(open(rec))["mtime_ns"] if b == "rec" else int((time.time() + float(b)) * 1e9)
+    os.utime(film, ns=(ns, ns))
+else:                # record <fields | none> <made: seconds from now>
+    r = {"version": 1, "video": "out/final.mp4", "t": time.time() + float(b), "verdict": "pass", "exit": 0, "counts": {"fail": 0, "warn": 0, "info": 0}, "findings": []}
+    if a == "fields":
+        s = os.stat(film); r.update(size=s.st_size, mtime_ns=s.st_mtime_ns)
+    json.dump(r, open(rec, "w"))
+PY
+  OVH_PROJECTS="$t" vh new math ck --effort quick >/dev/null 2>&1; q=$(ls -d "$t"/*-ck); mkdir -p "$q/out/check"
+  python3 "$t/ck.py" "$q" film 'film one' -100 && python3 "$t/ck.py" "$q" record fields 5
+  a=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:done | nobody" 'd["check"]["stale"] is False')
+  python3 "$t/ck.py" "$q" film 'film two!!' -200   # another film, older than the record, as a restore that keeps times puts it
+  b=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:in_progress | agent" 'd["check"]["stale"] is True' 'd["renders"][0]["check"]["stale"] is True')
+  python3 "$t/ck.py" "$q" film 'film one' -300     # the same size, another modification time
+  c=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:in_progress | agent" 'd["check"]["stale"] is True')
+  python3 "$t/ck.py" "$q" film 'film one, longer' rec   # the recorded modification time, another size
+  d=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:in_progress | agent" 'd["check"]["stale"] is True')
+  python3 "$t/ck.py" "$q" film 'film one' -100 && python3 "$t/ck.py" "$q" record none 5   # a record of the old kind: by time
+  e=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:done | nobody" 'd["check"]["stale"] is False')
+  python3 "$t/ck.py" "$q" record none -1000
+  k=$(st "$q" "1:skipped 2:skipped 3:skipped deliver:in_progress | agent" 'd["check"]["stale"] is True')
+  if [ "$a" = "1:skipped 2:skipped 3:skipped deliver:done | nobody" ] && [ "$b" = "1:skipped 2:skipped 3:skipped deliver:in_progress | agent" ] \
+    && [ "$c" = "$b" ] && [ "$d" = "$b" ] && [ "$e" = "$a" ] && [ "$k" = "$b" ]
+  then ok "status: a check record is stale when the film's size or mtime_ns is not the one it kept, though the film is older than the record (and then the delivery is not done); a record without them goes by time"
+  else bad "status: a check record and a film put back with an old time: $a | $b | $c | $d | $e | $k"; fi
   # gate ②: read from the section that names its page (the template's), whatever the dates; a section without the 页面
   # line is read by date, and the note says so (older than the page: not counted)
   OVH_PROJECTS="$t" vh new math s2 >/dev/null 2>&1; q=$(ls -d "$t"/*-s2)
@@ -1801,9 +1908,11 @@ PY
     *) bad "activity with bytes that are not UTF-8: $a | exit $rb: $(printf '%s' "$b" | tail -c 400)" ;; esac
   # signals: a tool bin/vh exec'd into writes its own end, 128 + the signal (desk wait, the desk itself); a command bash
   # waits on (a stand-in uv that never ends): TERM ends bin/vh at once, with no end line (the run reads as gone), and a
-  # Ctrl-C (SIGINT to the process group) writes the end with 130 and then ends bin/vh by SIGINT (the caller sees -2)
+  # Ctrl-C (SIGINT to the process group) writes the end with 130 and then ends bin/vh by SIGINT (the caller sees -2). The
+  # stand-in traps INT: a loop of sleeps without it can miss a Ctrl-C that lands as a sleep ends (sh takes the sleep's
+  # normal exit for a child that handled it), and then it never ends, and bin/vh waits on it
   rm -f "$p/.ovh/activity.jsonl"; mkdir -p "$t/stub"
-  printf '#!/bin/sh\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
+  printf '#!/bin/sh\ntrap "exit 130" INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
   : > "$p/audio/mix.wav"
   a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY'
 import json, os, signal, subprocess, sys, time
@@ -2019,7 +2128,8 @@ PY
     then ok "render: every frame, BT.709 tv range, a keyframe exactly every --gop frames across the chunks, and how it was made beside it"
     else bad "render on its fixture (exit $rc): $(printf '%s' "$a" | tail -c 700)"; fi
     a=$(vh render tools/film/fixture --out "$t/r/film.mp4" 2>&1); rc=$?
-    [ $rc = 0 ] && ok "render: a second render of the same file after the first one ended is not locked out" || bad "render again (exit $rc): $(printf '%s' "$a" | tail -c 400)"
+    [ $rc = 0 ] && printf '%s' "$a" | grep -q '^render: done · the sound goes on with bin/vh mux$' \
+      && ok "render: a second render of the same file after the first one ended is not locked out, and ends with its done line" || bad "render again (exit $rc): $(printf '%s' "$a" | tail -c 400)"
     a=$(OVH_FREE_BYTES=1000 vh render tools/film/fixture --out "$t/r/full.mp4" 2>&1); rc=$?
     case "$rc:$a" in 2:*"needed at the peak"*"GB free on that disk"*) ok "render: a disk too full for even a flat film stops it before a frame is drawn (exit 2)" ;;
       *) bad "render on a full disk: exit $rc: $(printf '%s' "$a" | tail -c 400)" ;; esac
@@ -2097,6 +2207,17 @@ sys.exit(0 if blue[2] > blue[0] + 80 and yellow[0] > yellow[2] + 80 and side["pa
 PY
     then ok "patch: frames put back between keyframes, every packet outside them the film's own; an edit reaching past the frames named is refused, the film untouched"
     else bad "patch on the fixture: exit $rc / $rc2: $(printf '%s' "$a$b" | tail -c 900)"; fi
+    # the render of a patch's frames is a step: its "render: done · the sound goes on with bin/vh mux" is left out, so the
+    # patch's own last line is the only one that says it is done. A film that failed the patch's checks is kept as
+    # <film>.failed.mp4 or the next free name (.failed-2.mp4): an earlier one is never overwritten, and the output names both
+    cp -R "$t/p, x" "$t/p3"   # a copy: the activity log of the project below counts its commands
+    k0=$(cksum < "$t/p3/out/film.failed.mp4")
+    c=$(vh patch "$t/p3/out/film.mp4" --frames 27-29 2>&1); rc3=$?
+    if [ $rc3 = 1 ] && ! printf '%s' "$a$b$c" | grep -q 'render: done' && printf '%s' "$b" | grep -q '^patch: done in ' \
+      && [ -s "$t/p3/out/film.failed-2.mp4" ] && [ "$(cksum < "$t/p3/out/film.failed.mp4")" = "$k0" ] \
+      && printf '%s' "$c" | grep -q 'the new one is in .*film.failed-2.mp4 to look at (.*film.failed.mp4 was there already and is left as it is)'
+    then ok "patch: its render's \"render: done\" line is left out (patch says when it is done); a second failed patch keeps its film as .failed-2.mp4, the first one untouched"
+    else bad "patch's last line and its failed films (exit $rc3): $(printf '%s' "$b" | tail -n 2 | tail -c 300) | $(printf '%s' "$c" | tail -n 1 | tail -c 400) | $(ls "$t/p3/out" | tr '\n' ' ')"; fi
     cp "$t/p, x/out/film.mp4" "$t/p, x/out/bare.mp4"
     a=$(vh patch "$t/p, x/out/bare.mp4" --frames 1-2 2>&1); rc=$?
     case "$rc:$a" in 2:*"no "*"bare.mp4.render.json"*) ok "patch: a film without its sidecar is refused at once (exit 2)" ;; *) bad "patch without a sidecar: exit $rc: $(printf '%s' "$a" | tail -c 400)" ;; esac
@@ -2260,6 +2381,32 @@ PY
     if [ "$rc:$rc2" = 0:0 ] && [ "$b" = "False current None kept pass None" ] && [ "$d" = pass ]
     then ok "versions use: the check record at the film's path is the version's own or none; the displaced one's goes with it and comes back with it"
     else bad "use and the check record (exit $rc:$rc2): $b | $d | $(printf '%s' "$a$c" | tail -c 400)"; fi
+    # a version's check record is the film's by the size and mtime_ns it kept (tools/checkrec.py), not by its time: made after
+    # the film, with the film's numbers it is reported (current, and kept with the film that was displaced), with other numbers
+    # (size or mtime_ns) it is not; a record of the old kind, without them, goes by time as before
+    if python3 - "$v" <<'PY'
+import json, os, subprocess, sys, time
+v = sys.argv[1]; rec = v + "/out/check/film.check.json"; film = v + "/out/film.mp4"
+listing = lambda: {x["id"]: x for x in json.loads(subprocess.run([sys.executable, "tools/versions.py", v, "--json"], capture_output=True, text=True).stdout)["versions"]}
+def write(**f):   # a passing record of the film at its path, made after it, with the fields given
+    json.dump({"version": 1, "tool": "bin/vh check", "video": "out/film.mp4", "t": time.time() + 2, "at": "now", "exit": 0, "verdict": "pass",
+               "counts": {"fail": 0, "warn": 0, "info": 0}, "findings": [], **f}, open(rec, "w"))
+st = os.stat(film)
+got = []
+for f in ({"size": st.st_size, "mtime_ns": st.st_mtime_ns}, {"size": st.st_size + 1, "mtime_ns": st.st_mtime_ns},
+          {"size": st.st_size, "mtime_ns": st.st_mtime_ns + 1}, {}):
+    write(**f); got.append(listing()["v2"]["check"] is not None)
+write(size=st.st_size, mtime_ns=st.st_mtime_ns)
+subprocess.run([sys.executable, "tools/versions.py", "use", v, "v1"], capture_output=True)   # v2 is kept, its record with it
+kept = listing()["v2"]
+got.append(kept["state"] == "kept" and kept["check"] is not None)
+kr = os.path.join(v, kept["check"]["record"]); j = json.load(open(kr)); j["size"] += 1; json.dump(j, open(kr, "w"))
+got.append(listing()["v2"]["check"] is None)
+subprocess.run([sys.executable, "tools/versions.py", "use", v, "v2"], capture_output=True)   # as it was
+sys.exit(0 if got == [True, False, False, True, True, True] else 1)
+PY
+    then ok "versions: a check record is the film's by the size and mtime_ns it kept (current and kept versions), not by its time; a record without them goes by time"
+    else bad "versions: a check record and the film's size and mtime_ns"; fi
     # a patch in place commits only over the film it cut: versions use refuses while it runs (its lock), and a film rewritten
     # meanwhile (the same bytes, another file) is left as it is, the patched one beside it (exit 1), the record unchanged
     sed 's|x.fillStyle = "#fc0"; x.fillRect(20 + t \* 80, 90, 40, 40);|x.fillStyle = "#fc0"; x.fillRect(20 + t * 80, 90, 40, 40); return new Promise((ok) => setTimeout(ok, 400));|' \

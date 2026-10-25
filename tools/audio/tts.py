@@ -1041,6 +1041,9 @@ def audition(a):
 
 # ---------- main ----------
 
+def usage_error(msg):   # a mistake in the command line: one line, exit 2 (a run that failed is 1)
+    print(f"tts: {msg}", file=sys.stderr); sys.exit(2)
+
 def main():
     if sys.argv[1:2] == ["voices"] and (len(sys.argv) == 2 or sys.argv[2] in ("list", "design", "delete", "audition", "-h", "--help")):
         return voices_main(sys.argv[2:])
@@ -1067,6 +1070,10 @@ def main():
                          "(recorded in vo/<lang>/_run.json); the timing flags may change")
     a = ap.parse_args()
     proj = Path(a.project).resolve(); audio = proj / "audio"; script = audio / "script.txt"
+    if not proj.is_dir():                                            # not made here: a mistyped name would get a sample script
+        usage_error(f"no such project folder: {a.project}")
+    if a.beats and not Path(a.beats).is_file():                      # before the last take is deleted
+        usage_error(f"--beats {a.beats}: no such file")
     if not script.exists():
         script.parent.mkdir(parents=True, exist_ok=True)
         script.write_text("# 一行一句（= 一条字幕 / 一个 cue）。双语用 ' || ' 分隔：中文 || English。可选 @id 前缀。\n"
@@ -1122,9 +1129,9 @@ def main():
     if man and join != man["join"]:
         sys.exit(f"--resume: the run used --join {man['join']}, now {join}: re-run the same command with --resume, or drop --resume to start over")
     if not 1 <= a.candidates <= 8:
-        sys.exit("--candidates wants 1–8 takes per block")
+        usage_error("--candidates wants 1–8 takes per block")
     if a.candidates > 1 and join == "none":
-        sys.exit("--candidates picks one take per block: use it with --join block (blank lines in script.txt make the blocks) or --join all")
+        usage_error("--candidates picks one take per block: use it with --join block (blank lines in script.txt make the blocks) or --join all")
     if a.candidates > 1:
         import importlib.util   # the takes are measured with numpy: bin/vh tts adds it with --candidates
         if importlib.util.find_spec("numpy") is None:
