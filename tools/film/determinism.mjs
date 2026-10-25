@@ -8,8 +8,12 @@
 // A difference is measured as PSNR over the RGB pixels; hard rule 1 allows a tolerance for the GPU (45 dB).
 //
 // usage: node tools/film/determinism.mjs <project | page.html> --browser <chrome> [--at t[,t…]] [--samples 6]
-//          [--min-psnr 45] [--size WxH] [--dpr 1] [--soft-gl] [--runtime auto|on|off] [--out dir]
+//          [--min-psnr 45] [--size WxH] [--dpr 1] [--soft-gl] [--runtime auto|on|off] [--out dir] [--frame-timeout 120]
 //        (bin/vh determinism finds the browser: CHROME_PATH, HyperFrames' chrome-headless-shell, then Chrome or Chromium)
+//
+// --frame-timeout 120: a frame not drawn after this many seconds, in any of the four ways, stops the check at once
+// (exit 2) and names it: the page's frame never returned, or the browser stopped painting (as bin/vh frames).
+// OVH_PAGE_TIMEOUT=S: how long each browser's page may take to set window.film and to be ready (tools/film/host.mjs).
 //
 // Without --at, --samples moments spread over the film. The PNGs go to <out> (default <project>/out/check/determinism).
 // Exit: 0 A, B and C agree (identical, or above --min-psnr) · 1 they do not, or a frame failed · 2 could not draw.
@@ -25,7 +29,7 @@ const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport "
 const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
 const bail = (msg) => { console.error("determinism: " + msg); process.exit(2); };
-const o = { samples: 6, minPsnr: 45, dpr: 1, runtime: "auto" };
+const o = { samples: 6, minPsnr: 45, dpr: 1, runtime: "auto", frameTimeout: 120 };
 let target = null, at = null, out = null, size = null;
 const r3 = (t) => Math.round(t * 1000) / 1000;
 for (let i = 0; i < argv.length; i++) {
@@ -36,6 +40,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (k === "--samples") o.samples = Math.floor(num(val(), k, 1));
   else if (k === "--min-psnr") o.minPsnr = num(val(), k, 0);
   else if (k === "--dpr") o.dpr = num(val(), k, 0.25);
+  else if (k === "--frame-timeout") o.frameTimeout = num(val(), k, 1);
   else if (k === "--size") { const m = val().match(/^(\d+)x(\d+)$/); if (!m || !+m[1] || !+m[2]) bail("--size: write it as 1920x1080"); size = [+m[1], +m[2]]; }
   else if (k === "--out") out = val();
   else if (k === "--browser") o.browser = val();
@@ -49,7 +54,17 @@ if (!target) bail("which project or page? (-h for the usage)");
 if (!o.browser) bail("no browser: pass --browser <chrome>, or run it as bin/vh determinism");
 const opts = { ...o, width: size && size[0], height: size && size[1] };
 
-const open = async (extra = {}) => { try { return await openFilm(target, { ...opts, ...extra }); } catch (e) { bail(e.message); } };
+let live = null;   // the browser drawing now: closed before a stop
+const open = async (extra = {}) => { try { live = await openFilm(target, { ...opts, ...extra }); return live; } catch (e) { bail(e.message); } };
+// one frame: back within --frame-timeout, or the check stops there and says which (a page or a browser that stopped
+// painting does not come back, and every frame queued behind it would wait too)
+const timely = (p, what) => {
+  let timer;
+  p.catch(() => { /* given up on */ });
+  return Promise.race([p, new Promise((_, no) => { timer = setTimeout(() => no(Object.assign(new Error(`${what}: no picture after ${o.frameTimeout} s ` +
+    "(--frame-timeout): the page's frame never returned, or the browser stopped painting"), { stuck: true })), o.frameTimeout * 1000); })]).finally(() => clearTimeout(timer));
+};
+const stop = async (msg) => { console.error("determinism: " + msg); if (live) { try { await live.close(); } catch { /* gone */ } } process.exit(2); };
 const A = await open();
 if (!(A.duration > 0) && !at) { await A.close(); bail("the page gives no duration: pass --at"); }
 const times = at || Array.from({ length: o.samples }, (_, k) => r3(A.duration * (k + 0.5) / o.samples));
@@ -68,11 +83,11 @@ const ms = [], touched = new Set();
 const flag = (way, t, msg) => { if (way === "D") dErrors++; else failed++; console.log(`  ${way} t=${t} s: ${msg}${way === "D" ? " (warning: without the host's clock)" : ""}`); };
 async function pass(film, way, order, warm) {
   const files = {};
-  if (warm !== undefined) await film.frame(warm).catch(() => {});   // a frame elsewhere first, so carried state shows
+  if (warm !== undefined) await timely(film.frame(warm), `${way} t=${warm} s`).catch(async (e) => { if (e.stuck) await stop(e.message); });   // a frame elsewhere first, so carried state shows
   for (const t of order) {
     const t0 = Date.now();
     try {
-      const { png, touched: tc } = await film.frame(t);
+      const { png, touched: tc } = await timely(film.frame(t), `${way} t=${t} s`).catch(async (e) => { if (e.stuck) await stop(e.message); throw e; });
       if (way === "A") { ms.push(Date.now() - t0); tc.forEach((c) => touched.add(c)); }
       const f = path.join(outDir, `${way}-t${t.toFixed(3).padStart(8, "0")}.png`);
       fs.writeFileSync(f, png); files[t] = f;

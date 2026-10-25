@@ -4,8 +4,13 @@
 // the DOM's text with their fonts, and asks the browser which font draws each character (tools/film/glyphs.mjs).
 //
 // usage: node tools/film/fonts.mjs <project | page.html> --browser <chrome> [--step 0.5] [--at t,…]
-//          [--allow-fallback "Apple Color Emoji,…"] [--strict] [--out dir] [--soft-gl] [--timeout 900]
+//          [--allow-fallback "Apple Color Emoji,…"] [--strict] [--out dir] [--soft-gl] [--frame-timeout 120] [--timeout 900]
 //        (bin/vh fonts check finds the browser as bin/vh frames does)
+//
+//   --frame-timeout 120 a frame or a cover not drawn after this many seconds stops the check at once (exit 2), naming it:
+//                    the page's frame never returned, or the browser stopped painting; --timeout bounds the whole run, and
+//                    given alone it is a frame's cap too (as bin/vh frames). OVH_PAGE_TIMEOUT=S: how long the page may
+//                    take to set window.film and to be ready (tools/film/host.mjs)
 //
 //   --step 0.5       draw a frame every 0.5 s (and the middle of every timed text the page lists, window.film.texts);
 //                    text on screen for less than the step between those can be missed
@@ -40,15 +45,16 @@ const finish = async (code, msg) => {
 };
 process.on("unhandledRejection", (e) => finish(2, (e && e.message) || String(e)));
 const bail = (msg) => { console.error("fonts: " + msg); process.exit(2); };
-const o = { step: 0.5, timeout: 900, runtime: "auto" };
-let target = null, at = null, out = null, allow = [], strict = false;
+const o = { step: 0.5, timeout: 900, frameTimeout: 120, runtime: "auto" };
+let target = null, at = null, out = null, allow = [], strict = false, frameCap = null, timeoutGiven = false;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], [k, inline] = a.startsWith("--") && a.includes("=") ? [a.slice(0, a.indexOf("=")), a.slice(a.indexOf("=") + 1)] : [a, undefined];
   const val = () => { const v = inline !== undefined ? inline : argv[++i]; if (v === undefined) bail(`${k} needs a value`); return v; };
   const num = (v, what) => { const x = Number(v); if (v === "" || !Number.isFinite(x) || x < 0) bail(`${what}: ${v} is not a number ≥ 0`); return x; };
   if (k === "--step") { o.step = num(val(), k); if (!(o.step > 0)) bail("--step must be > 0"); }
   else if (k === "--at") at = val().split(",").map((v) => num(v.trim(), "--at"));
-  else if (k === "--timeout") o.timeout = num(val(), k);
+  else if (k === "--timeout") { o.timeout = num(val(), k); timeoutGiven = true; }
+  else if (k === "--frame-timeout") { o.frameTimeout = num(val(), k); if (o.frameTimeout < 1) bail("--frame-timeout: seconds, at least 1"); frameCap = "--frame-timeout"; }
   else if (k === "--allow-fallback") allow = val().split(",").map((s) => s.trim()).filter(Boolean);
   else if (k === "--out") out = val();
   else if (k === "--strict") strict = true;
@@ -60,9 +66,17 @@ for (let i = 0; i < argv.length; i++) {
 }
 if (!target) bail("which project or page? (-h for the usage)");
 if (!o.browser) bail("no browser: pass --browser <chrome>, or run it as bin/vh fonts check");
+if (!frameCap && timeoutGiven && o.timeout >= 1) { o.frameTimeout = o.timeout; frameCap = "--timeout"; }   // a raised --timeout raises a frame's cap with it
 
 const watchdog = setTimeout(() => finish(2, `stopped after ${o.timeout} s (--timeout); a frame function that never returns?`), o.timeout * 1000);
 watchdog.unref();
+// one frame or cover: back within --frame-timeout, or the check stops there and says which (tools/film/frames.mjs does the same)
+const timely = (p, what) => {
+  let timer;
+  p.catch(() => { /* given up on */ });
+  return Promise.race([p, new Promise((_, no) => { timer = setTimeout(() => no(Object.assign(new Error(`${what}: no picture after ${o.frameTimeout} s ` +
+    `(${frameCap || "--frame-timeout"}): the page's frame never returned, or the browser stopped painting`), { stuck: true })), o.frameTimeout * 1000); })]).finally(() => clearTimeout(timer));
+};
 try { film = await openFilm(target, { ...o, prelude: [HOOK] }); } catch (e) { await finish(2, e.message); }
 const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };
 const T0 = Date.now();
@@ -80,14 +94,14 @@ if (bad.length) await finish(2, `${bad.join(", ")} s: outside the film (0 up to 
 let problems = 0;
 for (const p of film.loadProblems) console.log(`  while loading: ${p}`);
 for (const t of times) {
-  try { await film.draw(t); await collectDom(film); }
-  catch (e) { problems++; if (problems <= 5) console.log(`  t=${t} s: ${e.message}`); }
+  try { await timely(film.draw(t).then(() => collectDom(film)), `t=${t} s`); }
+  catch (e) { if (e.stuck) await finish(2, e.message); problems++; if (problems <= 5) console.log(`  t=${t} s: ${e.message}`); }
 }
 await collectDom(film, true);   // a HyperFrames composition: every clip's text, shown or not
 for (const c of (await film.list("covers").catch(() => null)) || []) {   // covers draw titles of their own
-  try { await film.cover(c.id, c.t); } catch (e) { problems++; console.log(`  cover ${c.id}: ${e.message}`); }
+  try { await timely(film.cover(c.id, c.t), `cover ${c.id}`); } catch (e) { if (e.stuck) await finish(2, e.message); problems++; console.log(`  cover ${c.id}: ${e.message}`); }
   for (const r of Array.isArray(c.ratios) ? c.ratios : []) {   // and each ratio it lays out a title for
-    try { await film.cover(c.id, c.t, { ratio: r, capture: false }); } catch (e) { problems++; console.log(`  cover ${c.id} ${r}: ${e.message}`); }
+    try { await timely(film.cover(c.id, c.t, { ratio: r, capture: false }), `cover ${c.id} ${r}`); } catch (e) { if (e.stuck) await finish(2, e.message); problems++; console.log(`  cover ${c.id} ${r}: ${e.message}`); }
   }
 }
 let res;

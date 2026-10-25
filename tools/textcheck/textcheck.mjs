@@ -3,7 +3,7 @@
 //
 // usage: node tools/textcheck/textcheck.mjs <project | composition.html> --browser <chrome> [--texts f.json]
 //          [--min-visible 0.7] [--min-contrast 3] [--samples 3] [--scan-step 1] [--caption-step 0.5] [--caption-close 0.12]
-//          [--ui-step 1] [--ui-share 0.002] [--out dir] [--soft-gl] [--timeout s]
+//          [--ui-step 1] [--ui-share 0.002] [--out dir] [--soft-gl] [--frame-timeout 120] [--timeout 900]
 //        (bin/vh textcheck finds the browser: CHROME_PATH, the chrome-headless-shell `hyperframes render` uses for the
 //         project, the newest one in ~/.cache/puppeteer, then Chrome or Chromium)
 //
@@ -51,6 +51,11 @@
 // or a shape crossing the bar or the caption (move one of them), a large one a busy picture under it. A ui(t) that
 // throws is a page error, like a frame that throws.
 //
+// --frame-timeout 120: a frame not drawn within this many seconds stops the check at once (exit 2), naming its t: the
+// page's frame never returned, or its script is stuck; --timeout (900 s) bounds the whole run, and given alone it is a
+// frame's cap too. The page's ready and its fonts may take OVH_PAGE_TIMEOUT seconds when it is set, else a frame's cap,
+// at least 120 s each (as bin/vh frames).
+//
 // Writes <out>/textcheck.json (every number) and a crop per finding (<out>/<t>s-<kind>.png); out defaults to
 // <project>/out/check/textcheck. Exit: 0 no read failed (warnings allowed) · 1 a registered read is covered, under the
 // contrast, outside or cut by the frame, or under a caption, or the frame function threw · 2 could not check (no
@@ -66,9 +71,10 @@ process.on("unhandledRejection", (e) => { console.error("textcheck: " + ((e && e
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");
 const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP); process.exit(argv.length ? 0 : 2); }
-const opt = { minVisible: 0.7, minContrast: 3, samples: 3, scanStep: 1, captionStep: 0.5, captionClose: 0.12, uiStep: 1, uiShare: 0.002, timeout: 900 };
+const opt = { minVisible: 0.7, minContrast: 3, samples: 3, scanStep: 1, captionStep: 0.5, captionClose: 0.12, uiStep: 1, uiShare: 0.002, timeout: 900, frameTimeout: 120 };
 const NUM = { "--min-visible": "minVisible", "--min-contrast": "minContrast", "--samples": "samples", "--scan-step": "scanStep", "--caption-step": "captionStep",
-  "--caption-close": "captionClose", "--ui-step": "uiStep", "--ui-share": "uiShare", "--timeout": "timeout" };
+  "--caption-close": "captionClose", "--ui-step": "uiStep", "--ui-share": "uiShare", "--timeout": "timeout", "--frame-timeout": "frameTimeout" };
+const given = new Set();   // --timeout given alone is a frame's cap too, as in bin/vh frames
 const BUSY = 0.15;   // a share of detail from which the scene under a box is a busy picture rather than a piece crossing it
 let target = null, browserPath = null, textsFile = null, outDir = null, softGl = false;
 const die = (msg) => { console.error("textcheck: " + msg); process.exit(2); };   // before the browser starts
@@ -77,7 +83,7 @@ const stop = (msg) => { throw new Stop(msg); };                                 
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], [k, inline] = a.startsWith("--") && a.includes("=") ? [a.slice(0, a.indexOf("=")), a.slice(a.indexOf("=") + 1)] : [a, undefined];
   const val = () => { const v = inline !== undefined ? inline : argv[++i]; if (v === undefined) die(`${k} needs a value`); return v; };
-  if (NUM[k]) { const v = Number(val()); if (!Number.isFinite(v) || v < 0) die(`${k}: not a number ≥ 0`); opt[NUM[k]] = v; }
+  if (NUM[k]) { const v = Number(val()); if (!Number.isFinite(v) || v < 0) die(`${k}: not a number ≥ 0`); if (k === "--frame-timeout" && v < 1) die("--frame-timeout: seconds, at least 1"); opt[NUM[k]] = v; given.add(k); }
   else if (k === "--browser") browserPath = val();
   else if (k === "--texts") textsFile = val();
   else if (k === "--out") outDir = val();
@@ -89,6 +95,11 @@ for (let i = 0; i < argv.length; i++) {
 if (!target) die("which project or composition? (-h for the usage)");
 if (!browserPath) die("no browser: pass --browser <chrome>, or run it as bin/vh textcheck");
 if (opt.samples < 1) opt.samples = 1;
+const capFrom = given.has("--frame-timeout") ? "--frame-timeout" : given.has("--timeout") ? "--timeout" : "--frame-timeout";
+if (!given.has("--frame-timeout") && given.has("--timeout") && opt.timeout >= 1) opt.frameTimeout = opt.timeout;
+// the page's own waits (ready, the fonts): OVH_PAGE_TIMEOUT seconds when set, else as long as a frame may take, at least
+// 120 s each, as tools/film/host.mjs bounds them
+const envWait = Number(process.env.OVH_PAGE_TIMEOUT), waitS = envWait > 0 ? envWait : Math.max(120, opt.frameTimeout), readyS = 2 * waitS + 10;
 
 let html = path.resolve(target);
 // a project folder: its film.html (the canvas-film engine's page), else its index.html, as bin/vh frames looks
@@ -140,26 +151,51 @@ try {
   await browser.send("Runtime.enable", {}, s);
   await browser.send("Emulation.setDeviceMetricsOverride", { width: W, height: H, deviceScaleFactor: 1, mobile: false }, s);
   await browser.send("Page.addScriptToEvaluateOnNewDocument", { source: fs.readFileSync(new URL("./page.js", import.meta.url), "utf8") }, s);
-  const ev = async (expression) => {
+  const rawEv = async (expression) => {
     const r = await browser.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, s);
     if (r.exceptionDetails) throw new Error((r.exceptionDetails.exception && r.exceptionDetails.exception.description) || r.exceptionDetails.text);
     return r.result.value;
   };
+  // a frame not back within --frame-timeout stops the check (exit 2) and names its t: while an evaluation is out, the page
+  // is asked once a second what it draws and for how long (page.js busy()); a page that does not answer within the bound
+  // is stuck in its script (a loop that never ends) or the browser stopped
+  let lastT = null;
+  const ev = (expression) => new Promise((ok, no) => {
+    let done = false, timer = null;
+    const end = () => { done = true; clearTimeout(timer); };
+    const stuck = (msg) => { if (!done) { end(); no(new Stop(msg)); } };
+    const tick = () => {
+      if (done) return;
+      let answered = false;
+      const bound = setTimeout(() => { if (!answered) stuck(`${lastT !== null ? `t=${lastT} s: ` : ""}the page does not answer after ${opt.frameTimeout} s (${capFrom}): its script is stuck, or the browser stopped`); }, opt.frameTimeout * 1000);
+      bound.unref();
+      rawEv("window.__vhTC && window.__vhTC.busy ? window.__vhTC.busy() : null").then((b) => {
+        answered = true; clearTimeout(bound);
+        if (done) return;
+        if (b) { lastT = b.t; if (b.ms > opt.frameTimeout * 1000) return stuck(`t=${b.t} s: no picture after ${opt.frameTimeout} s (${capFrom}): the page's frame never returned`); }
+        timer = setTimeout(tick, 1000); timer.unref();
+      }, () => { answered = true; clearTimeout(bound); if (!done) { timer = setTimeout(tick, 1000); timer.unref(); } });
+    };
+    timer = setTimeout(tick, 1000); timer.unref();
+    rawEv(expression).then((v) => { if (!done) { end(); ok(v); } }, (e) => { if (!done) { end(); no(e); } });
+  });
   const call = (fn, ...args) => ev(`window.__vhTC.${fn}(${args.map((a) => JSON.stringify(a)).join(", ")})`);
   const loaded = browser.once("Page.loadEventFired", s);
   loaded.catch(() => { /* a browser that dies first fails it; the race below reports that */ });
   await browser.send("Page.navigate", { url: server.url + encodeURIComponent(path.basename(html)) }, s);
   let loadTimer;
   await Promise.race([loaded, new Promise((_, rej) => { loadTimer = setTimeout(() => rej(new Error("the page did not load within 60 s")), 60000); })]).catch((e) => stop(e.message)).finally(() => clearTimeout(loadTimer));
-  const ready = await ev(`(async () => {
-    const wait = (p) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("not ready after 120 s")), 120000))]);
+  let readyTimer;
+  const ready = await Promise.race([rawEv(`(async () => {
+    const wait = (p) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("not ready after ${waitS} s")), ${waitS * 1000}))]);
     try { await wait(Promise.all(Object.values((window.__hf && window.__hf.buildReady) || {})));
       const src = window.film && typeof window.film.frame === "function" ? window.film : window.__vh || {};
       let r = src.ready; if (typeof r === "function") r = r.call(src);   // a method, as OpenFilm's hosts call it
       if (r) await wait(r); await wait(document.fonts.ready); }
     catch (e) { return String(e && e.message || e); }
     return "";
-  })()`);
+  })()`), new Promise((_, rej) => { readyTimer = setTimeout(() => rej(new Stop(`not ready after ${readyS} s, and the page does not answer (its script is stuck, or the browser stopped)`)), readyS * 1000); })])
+    .finally(() => clearTimeout(readyTimer));
   if (ready) stop(`${ready} (window.__hf.buildReady, window.film.ready, window.__vh.ready or the fonts)`);
   const T0 = Date.now(), phase = (name) => { if (process.env.TEXTCHECK_TIMING) console.error(`  [${((Date.now() - T0) / 1000).toFixed(1)} s] ${name}`); };
   const info = await call("info");

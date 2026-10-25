@@ -11,8 +11,8 @@ usage (via bin/vh qa):
                           [--out report.txt] [--json report.json]                                            mix report only
 <mix>: anything ffmpeg decodes (wav, m4a, the muxed mp4). beats.json: music.beats.json (sections, hits, fade, and the
 note map "notes" / "unmapped" when the score's parts set "note_map": true) or the output of beats.py, also given as --beats
-beats.json (as qa mix takes it); events.json: the SFX event list. A named file that is not there, or a beat map that is
-not a JSON object, stops at once (exit 2). --stems DIR: the folder `bin/vh mix … stems=DIR` wrote (the buses
+beats.json (as qa mix takes it); events.json: the SFX event list. A named file that is not there, a beat map that is
+not a JSON object, an --out or --json in a folder that is not there, or no mix at all, stops at once (exit 2). --stems DIR: the folder `bin/vh mix … stems=DIR` wrote (the buses
 as heard + meta.json); with it the scan knows the music's own dips, the cue check finds the events' sounds, and the
 mix report runs too. Exit status 1 if silence, dropouts, pumping, the cue check (on a lossless file; on an AAC encode
 only when the encode as a whole is off) or a hard target of the mix report fail (usable as a gate); clicks, marginal
@@ -1044,6 +1044,10 @@ def main():
                     ("--sfx", "the SFX bus"), ("--mix", "the mix"), ("--timeline", "the narration timeline"), ("--words", "the word times"),
                     ("--confirmed", "confirmed.json"), ("--stems", "the stems bin/vh mix wrote")):
         if k in a: need(a[a.index(k) + 1] if a.index(k) + 1 < len(a) else no(f"{k} needs {what}"), what, folder=k == "--stems")
+    for k in ("--out", "--json"):   # written after the analysis: a folder that is not there is said now, not minutes later
+        if k in a:
+            f = a[a.index(k) + 1] if a.index(k) + 1 < len(a) else no(f"{k} needs a file to write")
+            if not os.path.isdir(os.path.dirname(f) or "."): no(f"{k} {f}: no folder {os.path.dirname(f)} to write it in")
     if mode != "mix" and pos and "--beats" in a:   # the beat map: the second argument, or --beats as qa mix spells it
         if len(pos) > 1 and pos[1] not in ("-", opt("--beats")):
             no(f"two beat maps: {pos[1]} and --beats {opt('--beats')} (the second argument is the beat map; when {pos[1]} is the event "
@@ -1054,7 +1058,7 @@ def main():
         if len(pos) > 1 and pos[1] != "-": need(pos[1], "the beat map")
         if len(pos) > 2: need(pos[2], "the SFX event list")
     if mode == "mix":
-        if not pos and "--stems" not in a and "--music" not in a and "--voice" not in a: sys.exit(__doc__)
+        if not pos and "--stems" not in a and "--music" not in a and "--voice" not in a: print(__doc__, file=sys.stderr); sys.exit(2)
         txt, R = report(a, pos[0] if pos else None)
         st = pos[0] if pos else opt("--stems"); mp = os.path.join(st, "meta.json") if st else None
         meta = read_json(mp, "the stems' meta.json") if mp and os.path.exists(mp) else {}
@@ -1067,7 +1071,7 @@ def main():
         import activity   # tools/activity.py: the verdict in the project's log, when bin/vh ran us
         activity.note(f"qa mix {st}: " + (f"✗ {len(R['fails'])} hard miss(es)" if R["fails"] else "no hard miss"), [opt("--out")] if "--out" in a else [])
         sys.exit(1 if R["fails"] else 0)
-    if not pos: sys.exit(__doc__)
+    if not pos: print(__doc__, file=sys.stderr); sys.exit(2)   # no mix named: a usage error
     import sfx   # numbered: an event re-rendered alone (the cue check's own-sound match) gets the variant it got in the list
     mix_path = pos[0]; bm = beat_map(pos[1]) if len(pos) > 1 and pos[1] != "-" else {}
     ev = sfx.numbered(events_file(pos[2])) if len(pos) > 2 else []

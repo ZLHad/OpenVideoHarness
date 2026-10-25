@@ -28,7 +28,8 @@ bin/vh check record newer than it, and gate ③ is done or skipped (a delivery b
 once every stop is done or skipped.
 waiting_on: person (a stop waits for them, or REVIEW.md says the project is paused), agent (one waits for the agent,
 the agent works towards one, or a command is running), nobody (delivered), or unknown (no REVIEW.md).
-Also: the latest renders with what their sidecars say (.render.json, .deliver.json, the check record), the review items
+Also: the versions of the project's films (out/versions/versions.json, bin/vh versions; out/versions and out/proxy are not
+listed as renders), the latest renders with what their sidecars say (.render.json, .deliver.json, the check record), the review items
 still open (a desk submission's change and ask items whose REVIEW.md section has no 定了 / 改了 yet), the facts NOTES.md
 still lists to verify, the last check, and the commands running now and the last ones (the activity log).
 --json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1). Exit 0, 2 when there is no project.

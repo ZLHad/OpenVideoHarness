@@ -191,6 +191,16 @@ def projects_base():
     """Where projects live: $OVH_PROJECTS, else <harness>/projects (bin/vh new --dir puts one elsewhere)."""
     return Path(os.environ.get("OVH_PROJECTS") or ROOT / "projects").expanduser()
 
+class Usage(SystemExit):
+    """A mistake in what the command was given (a project, a file or a name that is not there, a value out of range):
+    exit 2 with the message, where SystemExit with a text exits 1 (kept for a failure). The tools' entry points print it."""
+    def __init__(self, msg):
+        super().__init__(2)
+        self.msg = str(msg)
+
+    def __str__(self):
+        return self.msg
+
 def project_dir(arg):
     """A project given as a path, or as a name under $OVH_PROJECTS / <harness>/projects (the date prefix may be left out)."""
     p = Path(arg).expanduser()
@@ -203,8 +213,8 @@ def project_dir(arg):
     if len(hits) == 1:
         return hits[0].resolve()
     if len(hits) > 1:
-        raise SystemExit(f"{arg}: several projects match: {', '.join(h.name for h in hits)}")
-    raise SystemExit(f"no such project: {arg} (a folder, or a name under {shown(base)})")
+        raise Usage(f"{arg}: several projects match: {', '.join(h.name for h in hits)}")
+    raise Usage(f"no such project: {arg} (a folder, or a name under {shown(base)})")
 
 # the pace rule of each video type: "a new payoff every N s" (upper bound), quoted from video-types/*.md
 PAYOFF = {

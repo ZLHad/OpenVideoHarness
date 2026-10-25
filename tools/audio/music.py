@@ -1613,6 +1613,9 @@ def compact(score):
         else: lines.append(f'  "{k}": {json.dumps(v, ensure_ascii=False)}{end}')
     return "\n".join(lines + ["}"])
 
+def usage_error(msg):   # a mistake in the command line: exit 2 (a score that cannot be rendered is 1)
+    print(msg, file=sys.stderr); sys.exit(2)
+
 def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--example":
         name = sys.argv[2] if len(sys.argv) > 2 else ""
@@ -1621,7 +1624,7 @@ def main():
             for k, (desc, _) in EXAMPLES.items(): print(f"  {k:<7} parts: {desc}")
             return
         if name in ("", "zh"): print(json.dumps(EXAMPLE_ZH if name == "zh" else EXAMPLE, indent=2)); return
-        if name not in EXAMPLES: sys.exit(f"music: no example {name!r} (--example list names them)")
+        if name not in EXAMPLES: usage_error(f"music: no example {name!r} (--example list names them)")
         print(compact(EXAMPLES[name][1])); return
     if len(sys.argv) > 1 and sys.argv[1] == "--instruments":
         for name, spec in ins.INSTR.items():
@@ -1637,14 +1640,14 @@ def main():
         if a == "--roll": roll = True
         elif a == "--length" or a.startswith("--length="):
             length = a.split("=", 1)[1] if "=" in a else next(it, None)
-            if length is None: sys.exit("music: --length needs seconds or auto")
+            if length is None: usage_error("music: --length needs seconds or auto")
             if length != "auto":
                 try: length = float(length)
-                except ValueError: sys.exit(f"music: --length {length!r}: give seconds (e.g. 10) or auto")
-                if not length > 0 or not math.isfinite(length): sys.exit("music: --length must be a positive number of seconds")
-        elif a.startswith("--"): sys.exit(f"music: unknown option {a}\n{usage}")
+                except ValueError: usage_error(f"music: --length {length!r}: give seconds (e.g. 10) or auto")
+                if not length > 0 or not math.isfinite(length): usage_error("music: --length must be a positive number of seconds")
+        elif a.startswith("--"): usage_error(f"music: unknown option {a}\n{usage}")
         else: args.append(a)
-    if len(args) != 2: sys.exit(usage)
+    if len(args) != 2: usage_error(usage)
     try:
         with open(args[0], encoding="utf-8") as fh: score = json.load(fh)
     except (OSError, ValueError) as e: print(f"music: can't read the score {args[0]}: {e}", file=sys.stderr); sys.exit(2)

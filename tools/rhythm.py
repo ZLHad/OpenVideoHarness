@@ -163,11 +163,11 @@ def main():
     runs = V.segments_of(shots)
     if a.segment:
         run = next((ss for n, ss in runs if n == a.segment), None)
-        if not run: raise SystemExit(f"rhythm: no segment {a.segment!r} in {shot_source} ({', '.join(n for n, _ in runs)})")
+        if not run: raise V.Usage(f"rhythm: no segment {a.segment!r} in {shot_source} ({', '.join(n for n, _ in runs)})")
         T0, T1 = run[0]["start"], run[-1]["end"]
     if a.t_from is not None: T0 = a.t_from
     if a.t_to is not None: T1 = a.t_to
-    if T1 <= T0: raise SystemExit("rhythm: --to must come after --from")
+    if T1 <= T0: raise V.Usage("rhythm: --to must come after --from")
     zoom = (T1 - T0) < 0.999 * max(ends)
     colors = {}
     for n, _ in runs: colors.setdefault(n, V.seg_color(len(colors)))
@@ -335,3 +335,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:   # Ctrl-C: the page reader has closed its Chrome (shot_source.live_page); no traceback
         sys.exit(130)
+    except V.Usage as e:   # a project or a segment that is not there, --to before --from: exit 2
+        print(e, file=sys.stderr); sys.exit(2)

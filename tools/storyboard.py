@@ -33,7 +33,7 @@ def pick_video(project, meta, arg):
     if arg:
         p = Path(arg) if Path(arg).is_absolute() else (Path.cwd() / arg if (Path.cwd() / arg).exists() else project / arg)
         if not p.exists():
-            raise SystemExit(f"storyboard: no such video: {arg}")
+            raise V.Usage(f"storyboard: no such video: {arg}")
         return p
     if meta.get("video"):
         p = project / meta["video"]
@@ -316,7 +316,7 @@ def main():
     page = live or ((project / "film.html") if (project / "film.html").is_file() else None)
     extra = {x.strip() for x in a.unsure.split(",") if x.strip()}
     unknown = extra - {s["id"] for s in shots}
-    if unknown: raise SystemExit(f"storyboard: --unsure names unknown shots: {', '.join(sorted(unknown))}")
+    if unknown: raise V.Usage(f"storyboard: --unsure names unknown shots: {', '.join(sorted(unknown))}")
     for s in shots:
         if s["id"] in extra and s["unsure"] is None: s["unsure"] = ""
     out = Path(a.out) if a.out else project / "out" / "check" / "storyboard"
@@ -475,3 +475,5 @@ if __name__ == "__main__":
         main()
     except KeyboardInterrupt:   # Ctrl-C: the page reader has closed its Chrome (shot_source.live_page); no traceback
         sys.exit(130)
+    except V.Usage as e:   # a project, a video or a shot that is not there: exit 2
+        print(e, file=sys.stderr); sys.exit(2)

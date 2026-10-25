@@ -169,7 +169,7 @@ smoke_checks() {
   vh help >/dev/null && vh --help >/dev/null && ok "bin/vh help exits 0" || bad "bin/vh help"
   vh no-such-command >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "unknown command exits 1" || bad "unknown command exited $rc"
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")   # a throwaway HOME: an old bin/vh would install the skill for a bad target
-  HOME="$t" vh install-skill no-such-target >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "install-skill rejects unknown targets" || bad "install-skill bad target exited $rc"
+  HOME="$t" vh install-skill no-such-target >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "install-skill rejects unknown targets" || bad "install-skill bad target exited $rc"
   rm -rf "$t"
   vh types >/dev/null && vh effort quick >/dev/null && vh style list >/dev/null && ok "types · effort · style list" || bad "types / effort / style list"
   # effort: the table comes from playbook/01, the caps and the floors from CLAUDE.md (a renamed heading must not drop them)
@@ -204,6 +204,19 @@ PY
   n=$(printf '%s\n' $cmds | grep -c .)
   if [ $rc = 1 ]; then :; elif [ "$n" -gt 5 ]; then ok "-h and --help print a usage for the $n commands without a help of their own, and style check"
   else bad "only $n commands found in bin/vh's dispatch for the -h check"; fi
+  # usage errors exit 2, failures 1: these commands with no arguments or a wrong one (new with an option that has no
+  # value included); new into a folder that is there already is a failure. Nothing here reaches uv or a browser
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); a=""
+  for c in deliver clean timeline remap timemap storyboard rhythm cover-preview "style compare" "style apply" "style apply dark-math" \
+           "style apply no-such $t" "effort loud" new "new math" "new nope ci-x" "new math ci-x --style" "new math ci-x --effort" \
+           "new math ci-x --lang" "new math ci-x --bogus" versions proxy thumbs; do
+    # shellcheck disable=SC2086   # several words on purpose
+    OVH_PROJECTS="$t" vh $c >/dev/null 2>&1; rc=$?; [ $rc = 2 ] || a="$a | $c exited $rc"
+  done
+  OVH_PROJECTS="$t" vh new math ci-twice >/dev/null 2>&1; OVH_PROJECTS="$t" vh new math ci-twice >/dev/null 2>&1; rc=$?
+  [ -z "$a" ] && [ $rc = 1 ] && [ -z "$(ls -d "$t"/*-ci-x 2>/dev/null)" ] && ok "usage errors exit 2 (deliver, clean, timeline, remap, timemap, storyboard, rhythm, cover-preview, style, effort, new, versions, proxy, thumbs); new over a project is 1" \
+    || bad "usage errors:$a (new twice exited $rc)"
+  rm -rf "$t"
   # a project: effort and style are written in, and the quick gate waiver is recorded
   dir=$(ls -d "$ROOT"/projects/*-"$slug" 2>/dev/null); [ -z "$dir" ] || rm -rf "$dir"
   if vh new math "$slug" --effort quick --style dark-math >/dev/null; then
@@ -241,7 +254,7 @@ PY
   fi
   vh new short cf2 --engine canvas-film --aspect 9:16 --dir "$t" >/dev/null 2>&1; rc=$?
   vh new short cf3 --engine no-such --dir "$t" >/dev/null 2>&1; a=$?
-  [ $rc = 1 ] && [ $a = 1 ] && [ -z "$(ls -d "$t"/*-cf2 "$t"/*-cf3 2>/dev/null)" ] && ok "bin/vh new refuses a vertical canvas-film and an unknown --engine" \
+  [ $rc = 2 ] && [ $a = 2 ] && [ -z "$(ls -d "$t"/*-cf2 "$t"/*-cf3 2>/dev/null)" ] && ok "bin/vh new refuses a vertical canvas-film and an unknown --engine" \
     || bad "bin/vh new --engine: --aspect 9:16 exited $rc, an unknown engine $a"
   rm -rf "$t"
   # tts picks the uv dependencies from --provider too (a fake uv prints the command instead of running it)
@@ -819,13 +832,24 @@ PY
       for c in "qa.py|nope.json (the beat map)|$t/qs/mix.wav|--beats|$t/qs/nope.json" "qa.py|nope.json (the beat map)|$t/qs/mix.wav|$t/qs/nope.json" \
                "qa.py|nope.wav (the mix)|$t/qs/nope.wav" "qa.py|list.json is not a beat map|$t/qs/mix.wav|$t/qs/list.json" \
                "qa.py|x.wav: no audio ffmpeg can read|$t/qs/x.wav" "beats.py|beats: no such file: $t/qs/nope.wav|$t/qs/nope.wav" "beats.py|beats: which track?|--no-drums" \
-               "qa.py|write - in its place: qa $t/qs/mix.wav - $t/qs/ev.json --beats $t/qs/b.json|$t/qs/mix.wav|$t/qs/ev.json|--beats|$t/qs/b.json"; do
+               "qa.py|write - in its place: qa $t/qs/mix.wav - $t/qs/ev.json --beats $t/qs/b.json|$t/qs/mix.wav|$t/qs/ev.json|--beats|$t/qs/b.json" \
+               "qa.py|--out $t/qs/none/r.txt: no folder $t/qs/none to write it in|$t/qs/mix.wav|--out|$t/qs/none/r.txt" \
+               "qa.py|--json $t/qs/none/r.json: no folder $t/qs/none to write it in|mix|$t/qs|--json|$t/qs/none/r.json"; do
         IFS='|' read -r -a cargs <<< "$c"
         b=$(uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/${cargs[0]}" "${cargs[@]:2}" 2>&1); rc=$?
         case "$rc:$b" in *Traceback*) a="$a | ${cargs[0]}: $b" ;; "2:"*"${cargs[1]}"*) [ "$(printf '%s\n' "$b" | wc -l | tr -d ' ')" = 1 ] || a="$a | ${cargs[0]}, more than a line: $b" ;;
           *) a="$a | ${cargs[0]} ${cargs[*]:2} (rc $rc): $b" ;; esac
       done
-      [ -z "$a" ] && ok "qa and beats: a missing or wrong input (beat map, --beats, mix, track) is one line and exit 2, not a traceback" || bad "qa / beats on a wrong input:$a"
+      [ -z "$a" ] && ok "qa and beats: a missing or wrong input (beat map, --beats, mix, track, a folder for --out / --json) is one line and exit 2, before the analysis, not a traceback" || bad "qa / beats on a wrong input:$a"
+      # usage errors of music and qa exit 2 (they were 1): no arguments, one, an unknown option, a bad --length, an unknown example
+      a=""
+      for c in "music.py" "music.py|$t/qs/np.json" "music.py|$t/qs/np.json|$t/qs/o.wav|--bogus" "music.py|$t/qs/np.json|$t/qs/o.wav|--length|-3" \
+               "music.py|--example|nope" "qa.py" "qa.py|mix"; do
+        IFS='|' read -r -a cargs <<< "$c"
+        uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/${cargs[0]}" "${cargs[@]:1}" >/dev/null 2>&1; rc=$?
+        [ $rc = 2 ] || a="$a | ${cargs[*]} exited $rc"
+      done
+      [ -z "$a" ] && ok "music and qa: usage errors exit 2" || bad "music / qa usage errors:$a"
     fi
     a=$(vh check "$t/a.wav" 2>&1); rc=$?
     case "$rc:$a" in 0:*"isolated"*) bad "check on audio only mentions the frame scan: $a" ;; 0:*) ok "check on an audio file skips the frame scan quietly" ;; *) bad "check on audio only (rc $rc): $a" ;; esac
@@ -925,11 +949,11 @@ decision_checks() {
   case "$a" in *"stops for your review"*) bad "new --effort quick still says it stops for review" ;; *"renders straight through"*) ok "new --effort quick does not promise a review stop" ;;
     *) bad "new --effort quick: no next-step line in '$a'" ;; esac
   OVH_PROJECTS="$t/env" vh new math ci-env >/dev/null 2>&1 && [ -f "$(ls -d "$t"/env/*-ci-env 2>/dev/null)/BRIEF.md" ] && ok "OVH_PROJECTS sets where projects go" || bad "OVH_PROJECTS ignored"
-  vh new math ci-x --aspect 16:9 >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "new --aspect is refused for a non-HyperFrames type" || bad "new math --aspect exited $rc"
-  vh new short ci-x --aspect 4:3 >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "new --aspect rejects 4:3" || bad "new --aspect 4:3 exited $rc"
-  a=$(vh new short ci-x --aspect 4:5 --res 4k 2>&1); rc=$?; [ $rc = 1 ] && case "$a" in *"no 4K preset for 4:5"*) true ;; *) false ;; esac \
+  vh new math ci-x --aspect 16:9 >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "new --aspect is refused for a non-HyperFrames type" || bad "new math --aspect exited $rc"
+  vh new short ci-x --aspect 4:3 >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "new --aspect rejects 4:3" || bad "new --aspect 4:3 exited $rc"
+  a=$(vh new short ci-x --aspect 4:5 --res 4k 2>&1); rc=$?; [ $rc = 2 ] && case "$a" in *"no 4K preset for 4:5"*) true ;; *) false ;; esac \
     && ok "new refuses 4K for a 4:5 frame (HyperFrames has no preset)" || bad "new --aspect 4:5 --res 4k (rc $rc): $a"
-  a=$(vh new math ci-x --aspect 9:16 2>&1); rc=$?; case "$rc:$a" in 1:*"manim.cfg"*) ok "new --aspect on a Manim type points to manim.cfg" ;; *) bad "new math --aspect (rc $rc): $a" ;; esac
+  a=$(vh new math ci-x --aspect 9:16 2>&1); rc=$?; case "$rc:$a" in 2:*"manim.cfg"*) ok "new --aspect on a Manim type points to manim.cfg" ;; *) bad "new math --aspect (rc $rc): $a" ;; esac
   mkdir -p "$t/hfi"; a=$(vh hf-init "$t/hfi" landscape-4k 2>&1); rc=$?; b=$(vh hf-init "$t/hfi" 2:3 2>&1); rb=$?
   case "$rc:$a|$rb:$b" in 1:*"4K is a render flag"*"|1:"*"unknown frame 2:3"*) [ -z "$(ls -A "$t/hfi")" ] && ok "hf-init refuses a 4K preset and an unknown frame before scaffolding" || bad "hf-init wrote files after refusing" ;;
     *) bad "hf-init frame check ($rc/$rb): $a | $b" ;; esac
@@ -938,7 +962,7 @@ decision_checks() {
   if [ -n "$d" ] && grep -q '^- Output: 1080x1350,' "$d/BRIEF.md" && grep -q '^- Watch on: phone' "$d/BRIEF.md" && grep -q '画幅 4:5（1080x1350' "$d/BRIEF.md"; then
     case "$a" in *"retry later: bin/vh hf-init"*" 4:5"*) ok "new --aspect 4:5 writes the BRIEF's frame lines, and a failed scaffold's retry hint keeps 4:5" ;; *) bad "new --aspect 4:5 retry hint: $a" ;; esac
   else bad "new --aspect 4:5 BRIEF: $a"; fi
-  a=$(vh new handdrawn ci-x --res 4k 2>&1); rc=$?; [ $rc = 1 ] && case "$a" in *"no 4K output"*) true ;; *) false ;; esac && ok "new --res 4k is refused for the hand-drawn engine" || bad "new handdrawn --res 4k exited $rc: $a"
+  a=$(vh new handdrawn ci-x --res 4k 2>&1); rc=$?; [ $rc = 2 ] && case "$a" in *"no 4K output"*) true ;; *) false ;; esac && ok "new --res 4k is refused for the hand-drawn engine" || bad "new handdrawn --res 4k exited $rc: $a"
   # the hand-drawn engine's window.film gives its frame rate (PROJECT.fps, else render.mjs's 24), as canvas-film's does
   a=$(node -e 'const vm = require("vm"), fs = require("fs"), out = [];
 for (const extra of ["", "PROJECT.fps = 30;"]) {
@@ -947,12 +971,12 @@ for (const extra of ["", "PROJECT.fps = 30;"]) {
   vm.runInContext(fs.readFileSync("engines/ClaudeAnimationBase/src/core.js", "utf8"), g); out.push(vm.runInContext("window.film.fps", g)); }
 console.log(out.join(" "))' 2>&1)
   [ "$a" = "24 30" ] && ok "ClaudeAnimationBase: window.film.fps is PROJECT.fps, 24 without it" || bad "ClaudeAnimationBase window.film.fps (want 24 30): $a"
-  a=$(vh new short ci-x --watch tv 2>&1); rc=$?; [ $rc = 1 ] && case "$a" in *"unknown --watch"*) true ;; *) false ;; esac && ok "new --watch rejects an unknown target" || bad "new --watch tv exited $rc: $a"
-  a=$(vh new short ci-x --watch feed 2>&1); rc=$?; [ $rc = 1 ] && case "$a" in *"already --watch phone"*) true ;; *) false ;; esac && ok "new refuses a feed target for a vertical frame" || bad "new short --watch feed exited $rc: $a"
-  a=$(vh new promo ci-x --watch phone 2>&1); rc=$?; [ $rc = 1 ] && case "$a" in *"--watch feed"*) true ;; *) false ;; esac && ok "new refuses a phone target for a landscape frame" || bad "new promo --watch phone exited $rc: $a"
-  vh new math ci-x --watch phone >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "new refuses a phone target for a Manim (landscape) type" || bad "new math --watch phone exited $rc"
+  a=$(vh new short ci-x --watch tv 2>&1); rc=$?; [ $rc = 2 ] && case "$a" in *"unknown --watch"*) true ;; *) false ;; esac && ok "new --watch rejects an unknown target" || bad "new --watch tv exited $rc: $a"
+  a=$(vh new short ci-x --watch feed 2>&1); rc=$?; [ $rc = 2 ] && case "$a" in *"already --watch phone"*) true ;; *) false ;; esac && ok "new refuses a feed target for a vertical frame" || bad "new short --watch feed exited $rc: $a"
+  a=$(vh new promo ci-x --watch phone 2>&1); rc=$?; [ $rc = 2 ] && case "$a" in *"--watch feed"*) true ;; *) false ;; esac && ok "new refuses a phone target for a landscape frame" || bad "new promo --watch phone exited $rc: $a"
+  vh new math ci-x --watch phone >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "new refuses a phone target for a Manim (landscape) type" || bad "new math --watch phone exited $rc"
   for bad_style in "dark-math,_swatch" "Dark-Math" "../styles/ink-wash" ","; do
-    vh new math ci-x --style "$bad_style" >/dev/null 2>&1; rc=$?; [ $rc = 1 ] || bad "new --style '$bad_style' exited $rc"; done
+    vh new math ci-x --style "$bad_style" >/dev/null 2>&1; rc=$?; [ $rc = 2 ] || bad "new --style '$bad_style' exited $rc"; done
   ok "new --style rejects a bad name anywhere in the list, paths and an empty list"
   [ -z "$(ls -d "$ROOT"/projects/*-ci-x 2>/dev/null)" ] || bad "a refused new left a project behind"
   # new: where it is watched and the output resolution land in the BRIEF (defaults from the frame, flags override)
@@ -981,7 +1005,7 @@ console.log(out.join(" "))' 2>&1)
       ok "style apply a,b: one call attaches both; an old base preset becomes a reference"
     else bad "style apply: comma list or migration of an old project's preset failed"; fi
   else bad "new math ci-m failed"; fi
-  vh style apply no-such-style "$p" >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "style apply rejects an unknown preset" || bad "style apply unknown preset exited $rc"
+  vh style apply no-such-style "$p" >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "style apply rejects an unknown preset" || bad "style apply unknown preset exited $rc"
   # readcheck: a budget, and the timed text of a composition without a browser
   a=$(vh readcheck --budget 3.2)
   case "$a" in *"normal pace"*"up to 14 CJK"*"one brisk read"*"up to 16 CJK"*"up to 28 CJK"*) ok "readcheck --budget: the pace's target, the floor, subtitles" ;; *) bad "readcheck --budget 3.2 said: $a" ;; esac
@@ -1169,7 +1193,7 @@ PY
   case "$a" in *"from: "*"audio/timeline.en.json"*) ok "rhythm --lang en reads timeline.en.json" ;; *) bad "rhythm --lang en: $a" ;; esac
   vh style compare blueprint,ink-wash --out "$t/sc.png" >/dev/null && vh style compare blueprint,ink-wash --frame 2 --out "$t/sc2.png" >/dev/null && [ -s "$t/sc.png" ] && [ -s "$t/sc2.png" ] \
     && ok "style compare: posters and swatch frames" || bad "bin/vh style compare"
-  vh style compare blueprint,no-such >/dev/null 2>&1; rc=$?; [ $rc != 0 ] && ok "style compare rejects an unknown preset" || bad "style compare accepted an unknown preset"
+  vh style compare blueprint,no-such >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "style compare rejects an unknown preset (exit 2)" || bad "style compare on an unknown preset exited $rc"
   out=$(vh cover-preview "$ROOT/styles/blueprint/media/poster.jpg" --out "$t/cover.png")
   case "$out" in *"smallest text"*"title stroke "*" px at the smallest slot"*|*"no text line found"*) [ -s "$t/cover.png" ] && ok "cover-preview draws the feed sizes and a legibility line (with the title's stroke width at the smallest slot)" || bad "cover-preview wrote nothing" ;; *) bad "cover-preview said: $out" ;; esac
   rm -rf "$t"
@@ -1502,7 +1526,7 @@ PY
   # the language: bin/vh new --lang writes the BRIEF line; bin/vh review takes it when the gate JSON has no lang
   if OVH_PROJECTS="$t/new" vh new math ci-lang --lang en >/dev/null 2>&1 && grep -q '^- Review language: en ' "$t"/new/*-ci-lang/BRIEF.md \
     && OVH_PROJECTS="$t/new" vh new math ci-zh >/dev/null 2>&1 && grep -q '^- Review language: zh ' "$t"/new/*-ci-zh/BRIEF.md; then
-    vh new math ci-x --lang fr >/dev/null 2>&1; rc=$?; [ $rc = 1 ] && ok "new --lang writes Review language (default zh) and rejects fr" || bad "new --lang fr exited $rc"
+    vh new math ci-x --lang fr >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "new --lang writes Review language (default zh) and rejects fr" || bad "new --lang fr exited $rc"
   else bad "new --lang: Review language not written"; fi
   cp -R tools/desk/fixtures/zh "$t/rz" && cp -R tools/desk/fixtures/zh "$t/re" && sed 's/^- Review language: zh /- Review language: en /' tools/desk/fixtures/zh/BRIEF.md > "$t/re/BRIEF.md"
   sed 's/^{/{"lang": "en",/' tools/desk/fixtures/zh/out/review/gate-1.json > "$t/rz/out/review/gate-1b.json"
@@ -1939,6 +1963,20 @@ film_checks() {
   a=$(vh frames tools/film/fixture --at 0.5 --timeout 300 --out "$t/ft" 2>&1); b=$(vh frames tools/film/fixture --at 0.5 --timeout 300 --frame-timeout 7 --out "$t/ft" 2>&1)
   case "$a|$b" in *"a frame may take 300 s (--timeout)"*"|"*"a frame may take 7 s (--frame-timeout)"*) ok "frames: --timeout alone is a frame's cap too; --frame-timeout wins" ;;
     *) bad "frames: a frame's cap from --timeout: $(printf '%s' "$a" | head -1) | $(printf '%s' "$b" | head -1)" ;; esac
+  # the other page tools stop at --frame-timeout too (exit 2, naming the t), not at their whole run's --timeout: fonts,
+  # determinism and textcheck on the page above, whose frames never return from 1 s on; cues on a page whose cues getter
+  # never returns (its script stuck in a loop)
+  printf '%s\n' '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=160, height=90"></head><body><script>' \
+    'window.film = { duration: 3, frame() {}, get cues() { for (;;) {} } };</script></body></html>' > "$t/hang/cues.html"
+  s0=$SECONDS
+  a=$(vh fonts check "$t/hang" --frame-timeout 3 --out "$t/hang/f" 2>&1); r1=$?
+  b=$(vh determinism "$t/hang" --at 0.5,1.5 --frame-timeout 3 --out "$t/hang/d" 2>&1); r2=$?
+  c=$(vh textcheck "$t/hang" --frame-timeout 3 --out "$t/hang/tc" 2>&1); r3=$?
+  d=$(vh cues "$t/hang/cues.html" --frame-timeout 3 2>&1); r4=$?
+  case "$r1:$r2:$r3:$r4|$a|$b|$c|$d" in "2:2:2:2|"*"t=1.25 s: no picture after 3 s (--frame-timeout)"*"|"*"A t=1.5 s: no picture after 3 s (--frame-timeout)"*"|"*"t=1.5 s: no picture after 3 s (--frame-timeout)"*"|"*"reading window.film.cues: no answer after 3 s (--frame-timeout)"*)
+      [ $((SECONDS - s0)) -lt 150 ] && ok "fonts, determinism, textcheck and cues stop at --frame-timeout (exit 2), naming the frame or the read" \
+        || bad "frame timeouts of fonts, determinism, textcheck, cues took $((SECONDS - s0)) s" ;;
+    *) bad "frame timeouts (exit $r1:$r2:$r3:$r4): $(printf '%s' "$a" | tail -c 200) | $(printf '%s' "$b" | tail -c 200) | $(printf '%s' "$c" | tail -c 200) | $(printf '%s' "$d" | tail -c 200)" ;; esac
   # a browser stuck on its way out (it answers, then ignores Browser.close and SIGTERM: a stand-in on the DevTools pipe)
   # is killed: close() returns within seconds, so no tool waits on it until its watchdog
   printf '%s\n' 'import json, os, signal, time' 'signal.signal(signal.SIGTERM, signal.SIG_IGN); buf = b""' \

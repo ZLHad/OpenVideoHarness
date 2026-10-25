@@ -18,6 +18,10 @@ import vhdraw as V
 
 STYLES = V.ROOT / "styles"
 
+def usage(msg):   # a mistake in what the command was given: exit 2 (a failure to make the picture is 1)
+    print(msg, file=sys.stderr)
+    raise SystemExit(2)
+
 def presets():
     return sorted(d.name for d in STYLES.iterdir() if d.is_dir() and not d.name.startswith("_") and (d / "STYLE.md").exists())
 
@@ -50,7 +54,7 @@ def frame_at(slug, t, width):
     dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(src)],
                                capture_output=True, text=True, check=True).stdout.strip() or 0)
     if not 0 <= t < dur:
-        raise SystemExit(f"style compare: --frame {t:g} is outside {slug}'s swatch (0–{dur:.2f} s)")
+        usage(f"style compare: --frame {t:g} is outside {slug}'s swatch (0–{dur:.2f} s)")
     with tempfile.TemporaryDirectory() as tmp:
         p = Path(tmp) / "f.png"
         subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-y", "-ss", f"{t:.3f}", "-i", str(src), "-frames:v", "1",
@@ -78,11 +82,11 @@ def main():
     have = presets()
     bad = [s for s in slugs if s not in have]
     if bad:
-        raise SystemExit(f"style compare: unknown preset(s) {', '.join(bad)}; bin/vh style list shows all {len(have)}")
+        usage(f"style compare: unknown preset(s) {', '.join(bad)}; bin/vh style list shows all {len(have)}")
     if not 2 <= len(slugs) <= 6:
-        raise SystemExit("style compare: give 2–6 presets, e.g. bin/vh style compare blueprint,ink-wash,editorial-data")
+        usage("style compare: give 2–6 presets, e.g. bin/vh style compare blueprint,ink-wash,editorial-data")
     if len(set(slugs)) != len(slugs):
-        raise SystemExit("style compare: a preset is listed twice")
+        usage("style compare: a preset is listed twice")
     tw = a.width; th = int(round(tw * 9 / 16))
     cols = len(slugs) if len(slugs) <= 3 else (2 if len(slugs) == 4 else 3)
     rows = (len(slugs) + cols - 1) // cols
