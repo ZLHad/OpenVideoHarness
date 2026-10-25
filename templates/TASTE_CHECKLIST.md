@@ -64,6 +64,7 @@
 
 - **谁来打**：不是作者。全新上下文的 reviewer 按 `playbook/02-verification.md` 第 5 层分两步接收材料：先从实际帧、上屏文字和时序复述含义，再对照意图和约束打分。两步属于同一轮；不给作者的自评，不能靠作者解释替片子补上含义。
   - 为什么不能自评：v0.2.0 时风格库的 26 个样片里，制作方给自己打的分普遍比独立 reviewer 高 1–2 分。例如某个样片自评 7 项全 8，独立评审只给 6。
+- **先写想做什么**：拿到约束以后、打分之前，reviewer 用一两句写下这支片子想做什么（BRIEF 的立意和 `Pace`、STYLE.md 的语法、人在关卡上定过的取舍），再对着它打分。它自己更想看的另一种做法，不是扣分的理由。
 - **打什么**：八个维度，各 1–10 分。
 
   | 维度 | 问的是 | 主要证据 |
@@ -93,13 +94,14 @@
 
   新开一轮整片评审只为两种情况：结构性的改动（几个小节一起重排时间、重写一个场景、换一个结尾），或者最后一遍。`studio` 的前 3 轮不受这条限制。
 - **后一轮推翻前一轮**：不同的 reviewer 会互相打架，这一轮嫌停留太长，下一轮嫌太短；这一轮要更亮，下一轮嫌刺眼。参考条目（没标【底线】的）上后一轮和前一轮说法相反时，作者可以保留前一轮的决定，在 NOTES 的评审记录写一行"不采纳"和理由，不算没修；这几行给下一轮 reviewer 看，同一个问题没有新证据就不再争。底线条目照常要 PASS。
-- **两层的关系**：底线条目 FAIL 没修，分数再高也不能交付；参考条目是建议，作者可以不采纳；`studio` 有做工项低于 7，同样要返工。返工都在上面的上限之内。
+- **两层的关系**：底线条目 FAIL 没修，分数再高也不能交付；参考条目和 reviewer 给的改法都是建议，作者不采纳、在 NOTES 写一行理由，是评审的正当结果，不算没修；`studio` 有做工项低于 7，同样要返工。返工都在上面的上限之内。
 - **来源**：社区做法，主要是 Movez 在 X 上的课程 *How to build motion design studio with Opus 5.5* 和 Eian 的中文指南（经社区调研转述）：让 agent 扮演严苛的导演而不是作者，按维度打分，多轮返工；原来的七个维度、≥ 8 分和 3 轮是那边的经验值，原文没能逐条核实。本仓库后来加了"立意"一项（2026-10-02，`cases/oneshot-five.md` 的五支片子赢在点子）；10 轮和 5 次的上限（2026-10-04，一支 `studio` 片子跑了 11 轮，每个新 reviewer 都挑出新的口味小毛病；维护者："每一种问题不超过5次，总共不超过10次"）；过线按档位（2026-10-05：原来"8 项都 ≥ 8"，介绍片 v5 五轮都没达到，慢的、手绘的、书信体的片子在 hook、变化、运动上一律吃亏）。
 
 每轮整片评审在 `NOTES.md` 的"评审记录"记一行：第几轮、八项分数、改了什么；同一类问题在"问题计数"表里加一次（格式写在 NOTES.md 那一节的注释里）。reviewer 的报告可以附在那一行下面，长这样：
 
 ```text
 [score round 2 · draft5] fresh-context reviewer, harsh director · sheets: out/check/phone_*.png, out/check/sheet.png
+aims: a 30 s launch film, one claim carried by the t-axis light through every scene; Pace brisk; STYLE: smooth long tails, cuts on the downbeat
 concept 8 · hook 7 · phone 8 · motion 8 · variety 6 · polish 8 · accuracy 9 · sync 8  → studio: craft all ≥ 7 · lowest of concept / hook / variety: variety 6
 - 0.0–2.0s  logo fades in over a static gradient, nothing stops the thumb → open with the t-axis light already moving, first read at 0.3s
 - 18–26s    one slow push-in for 8s → whip at 21.3s on the downbeat, macro crop at 24s
