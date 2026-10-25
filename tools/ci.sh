@@ -278,11 +278,16 @@ PY
   # doctor reads tools/modules.json. In a sandbox (stub programs on the PATH, fake keys, empty caches): a node under the
   # minimum and an ffmpeg without libx264 and ffprobe are said, a dated yt-dlp far over its age is outdated, a key is set
   # or not and its value never shown. --probe --offline answers the services from recorded responses: a key taken (and
-  # the models bin/vh uses listed), MiniMax's refusal with its hint, a 401 whose message echoes the key (scrubbed), no
-  # key skipped. Usage errors exit 2 before any probe; bin/vh doctor --json on this machine lists every module
+  # the models bin/vh uses listed), MiniMax's refusal with its hint, a 401 whose message echoes the key masked (only the
+  # status and the error code are said, no run of six of the key's characters), no key skipped. Live against two servers
+  # on this machine: a redirect is not followed (the second server hears nothing) and a base address over plain http to
+  # another host is not called. A module not made for this platform says what to use instead; a needed module that is not
+  # usable takes the one needing it off ok (needs.programs, also checked in the table). Without python3 on the PATH,
+  # bin/vh doctor still says node, ffmpeg, uv, git and Chrome and exits 0. Usage errors exit 2 before any probe;
+  # bin/vh doctor --json on this machine lists every module
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   if python3 - "$VH_BASH" "$t" <<'PY'
-import json, os, subprocess, sys
+import json, os, shutil, subprocess, sys
 sh, t = sys.argv[1:3]
 stub, rec = os.path.join(t, "stub"), os.path.join(t, "rec")
 os.makedirs(stub); os.makedirs(rec)
@@ -291,8 +296,8 @@ for name, body in (("node", "echo v18.19.0"), ("ffmpeg", "echo 'ffmpeg version 7
     with open(os.path.join(stub, name), "w") as f:
         f.write("#!/bin/sh\n" + body + "\n")
     os.chmod(os.path.join(stub, name), 0o755)
-keys = {"GEMINI_API_KEY": "ci-fake-gemini-0123456789abcdef", "MINIMAX_API_KEY": "ci-fake-minimax-0123456789abcdef",
-        "DASHSCOPE_API_KEY": "ci-fake-dashscope-0123456789abcdef"}
+keys = {"GEMINI_API_KEY": "ciK7Hq2Zt9Lm4Wp8Rs3Vb6Xy0Jg", "MINIMAX_API_KEY": "ciQ1Wz5Nx8Pc3Kd7Lf2Hm6Gy4Tq",
+        "DASHSCOPE_API_KEY": "ciT4Yb9Rg2Vs6Jn1Uk5Ep8Dw3Zc"}
 env = {"PATH": stub, "HOME": t, "HF_HOME": os.path.join(t, "hf"), **keys}
 doc = lambda *a: subprocess.run([sys.executable, "tools/doctor.py", *a], capture_output=True, text=True, encoding="utf-8", env=env)
 bad, outs = [], []
@@ -319,7 +324,8 @@ if txt.returncode or "\033[31m✗\033[0m node  18.19.0" not in txt.stdout:
     bad.append(f"doctor's text: exit {txt.returncode}, no ✗ for the old node")
 bodies = {"gemini.json": {"models": [{"name": "models/" + n} for n in ("gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.5-transcribe")]},
           "minimax.json": {"base_resp": {"status_code": 1004, "status_msg": "login fail"}},
-          "dashscope.json": {"error": {"message": "Incorrect API key provided: " + keys["DASHSCOPE_API_KEY"]}}}
+          "dashscope.json": {"error": {"message": "Incorrect API key provided: " + keys["DASHSCOPE_API_KEY"][:9] + "**********"
+                                       + keys["DASHSCOPE_API_KEY"][-6:], "code": "invalid_api_key"}}}
 for n, b in bodies.items():
     json.dump(b, open(os.path.join(rec, n), "w"))
 json.dump({"v": 1, "responses": [
@@ -331,12 +337,70 @@ p = doc("--json", "--probe", "--offline", rec); outs += [p.stdout, p.stderr]
 pr = {x["name"]: x["probe"] for x in json.loads(p.stdout)["modules"] if x["probe"]}
 if pr.get("gemini", {}).get("state") != "ok" or "3 models" not in pr["gemini"]["note"] \
         or pr.get("minimax", {}).get("state") != "failed" or "1004" not in pr["minimax"]["note"] or "MINIMAX_BASE_URL" not in pr["minimax"]["note"] \
-        or pr.get("dashscope", {}).get("state") != "failed" or "HTTP 401" not in pr["dashscope"]["note"] \
+        or pr.get("dashscope", {}).get("state") != "failed" or "HTTP 401 with DASHSCOPE_API_KEY (invalid_api_key)" != pr["dashscope"]["note"] \
         or pr.get("elevenlabs", {}).get("state") != "skipped":
     bad.append(f"doctor --probe from recordings: {pr}")
 pt = doc("--probe", "--offline", rec); outs += [pt.stdout, pt.stderr]
-if any(v in o for v in keys.values() for o in outs):
-    bad.append("a key's value is in doctor's output")
+import http.server, threading
+heard = []
+class Next(http.server.BaseHTTPRequestHandler):
+    def do_POST(self):
+        heard.append(dict(self.headers)); self.send_response(200); self.end_headers(); self.wfile.write(b"{}")
+    do_GET = do_POST
+    def log_message(self, *a):
+        pass
+class First(http.server.BaseHTTPRequestHandler):
+    def do_POST(self):
+        self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        self.send_response(302); self.send_header("Location", f"http://127.0.0.1:{nxt.server_address[1]}/v1/get_voice"); self.end_headers()
+    do_GET = do_POST
+    def log_message(self, *a):
+        pass
+nxt, first = http.server.HTTPServer(("127.0.0.1", 0), Next), http.server.HTTPServer(("127.0.0.1", 0), First)
+for srv in (nxt, first):
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+live = subprocess.run([sys.executable, "tools/doctor.py", "--json", "--probe"], capture_output=True, text=True, encoding="utf-8",
+                      env={"PATH": stub, "HOME": t, "HF_HOME": os.path.join(t, "hf"), "MINIMAX_API_KEY": keys["MINIMAX_API_KEY"],
+                           "MINIMAX_BASE_URL": f"http://127.0.0.1:{first.server_address[1]}", "DASHSCOPE_API_KEY": keys["DASHSCOPE_API_KEY"],
+                           "DASHSCOPE_BASE_URL": "http://example.invalid/api/v1"})
+outs += [live.stdout, live.stderr]
+for srv in (nxt, first):
+    srv.shutdown()
+lp = {x["name"]: x["probe"] for x in json.loads(live.stdout)["modules"] if x["probe"]}
+if lp["minimax"]["state"] != "failed" or f"127.0.0.1:{nxt.server_address[1]}" not in lp["minimax"]["note"] or "not followed" not in lp["minimax"]["note"] or heard:
+    bad.append(f"a redirect: {lp['minimax']}, the next host heard {len(heard)} request(s)")
+if lp["dashscope"]["state"] != "failed" or "not an https address" not in lp["dashscope"]["note"]:
+    bad.append(f"an http base address: {lp['dashscope']}")
+if any(v[i:i + 6] in o for v in keys.values() for i in range(len(v) - 5) for o in outs):
+    bad.append("six or more of a key's characters are in doctor's output")
+sys.path.insert(0, "tools")
+import datetime, doctor
+table = json.load(open("tools/modules.json", encoding="utf-8"))
+mod = {x["name"]: x for x in table["modules"]}
+doctor.this_platform = lambda: "linux-x86_64"
+q = doctor.check_module(mod["qwen3-tts"], {}, datetime.date.today())
+if q["state"] != "unsupported" or "edge, gemini, minimax, dashscope or elevenlabs" not in q["note"]:
+    bad.append(f"qwen3-tts off Apple Silicon: {q}")
+fake = [{"name": "a"}, {"name": "b", "needs": {"programs": ["a"]}}, {"name": "c", "needs": {"programs": ["b"]}}]
+res = doctor.apply_needs(fake, [{"state": "outdated", "note": ""}, {"state": "ok", "note": ""}, {"state": "ok", "note": "x"}])
+if [r["state"] for r in res] != ["outdated", "incomplete", "incomplete"] or res[1]["note"] != "needs a (outdated)" or res[2]["note"] != "x · needs b (incomplete)":
+    bad.append(f"needs.programs: {res}")
+mod["hyperframes"]["needs"]["programs"].append("no-such-module")
+if not any("no-such-module" in b for b in doctor.problems(table)):
+    bad.append("the table's rules take a needs.programs that names no module")
+bare = os.path.join(t, "bare")
+os.makedirs(bare)
+for d in ("/bin", "/usr/bin"):
+    for n in sorted(os.listdir(d)):
+        if not n.startswith("python") and not os.path.lexists(os.path.join(bare, n)):
+            os.symlink(os.path.join(d, n), os.path.join(bare, n))
+shell = shutil.which(sh) if os.sep not in sh else sh
+for args in ([], ["--json"]):
+    r = subprocess.run([shell, "bin/vh", "doctor", *args], capture_output=True, text=True, encoding="utf-8", env={"PATH": stub + os.pathsep + bare, "HOME": t})
+    ok_ = r.returncode == 0 and (json.loads(r.stdout)["modules"][1] == {"name": "node", "state": "outdated", "note": "v18.19.0 (22 or newer needed)"} if args
+                                 else all(w in r.stdout for w in ("python3  not found", "node  v18.19.0 (22 or newer needed)", "ffmpeg", "uv  uv 0.9.0", "git", "chrome", "needs python3")))
+    if not ok_:
+        bad.append(f"doctor {' '.join(args)} without python3: exit {r.returncode}, {r.stdout[:300]!r} {r.stderr[-200:]!r}")
 for args, via in ((["--bogus"], "bin/vh"), (["--offline", rec], "bin/vh"), (["--probe", "--offline", os.path.join(t, "none")], "doctor.py")):
     r = subprocess.run([sh, "bin/vh", "doctor", *args] if via == "bin/vh" else [sys.executable, "tools/doctor.py", *args],
                        capture_output=True, text=True, encoding="utf-8")
@@ -352,7 +416,7 @@ if r.returncode or here != list(m):
 print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
-  then ok "doctor from tools/modules.json: an old node, an ffmpeg without libx264, an aged yt-dlp and keys set or not are said, a key's value never; --probe --offline: a key taken, MiniMax's refusal, a 401 echoing the key (scrubbed), no key skipped; usage errors 2 before any probe; bin/vh doctor --json here lists every module"
+  then ok "doctor from tools/modules.json: an old node, an ffmpeg without libx264, an aged yt-dlp and keys set or not are said, no six of a key's characters ever; --probe: a key taken, MiniMax's refusal, a 401 echoing a masked key (status and code only), no key skipped, a redirect not followed, an http base elsewhere not called; the platform's alternative; needs.programs; no python3 still reports and exits 0; usage errors 2 before any probe; bin/vh doctor --json here lists every module"
   else bad "bin/vh doctor and tools/modules.json"; fi
   rm -rf "$t"
   # usage errors exit 2, failures 1: these commands with no arguments or a wrong one (new with an option that has no

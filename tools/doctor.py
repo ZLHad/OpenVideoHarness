@@ -13,7 +13,11 @@ usage: bin/vh doctor [--json] [--probe [--offline DIR]]
 Per module: the program on PATH (or found by bin/vh), its version against the table's (min: this or newer; pin: this
 one; max_age_days: a dated version no older than that), the parts it needs (libx264 in ffmpeg, a skill file), the
 packages in uv's cache, a model in Hugging Face's, and for a service whether one of its keys is set: only whether,
-never the value. A key travels in a header, never in a URL, and is never printed, recorded or written anywhere.
+never the value. A module whose needed modules (needs.programs) are not usable here is not ok either ("needs node
+(outdated)"); one not made for this platform says what to use instead (elsewhere). A probe's key travels in a header
+that no redirect carries on (a 30x is not followed), over https only (a base address set in the environment may be
+http for this machine alone), and no answer's text is passed on: a failure is its HTTP status and the provider's error
+code, with any run of six or more of the key's characters taken out. A key is never printed, recorded or written.
 Exit 0: it is a report (2 on a usage error or an unreadable table).
 
 --json, "version": 1 (these fields stay; new ones may be added): {"version", "tool", "platform", "modules": [{"name",
@@ -24,13 +28,14 @@ minimum, not the pin, or older than max_age_days) · incomplete (found, a part i
 (not on this platform) · per_project · unchecked. A probe: ok · failed · skipped.
 """
 import datetime, glob, http.client, json, os, platform, re, shutil, subprocess, sys, time
-import urllib.error, urllib.request
+import urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 TABLE = ROOT / "tools" / "modules.json"
 COMMANDS = ROOT / "tools" / "commands.json"
 UA = "OpenVideoHarness (+https://github.com/ZLHad/OpenVideoHarness)"   # tools/assets/fetch.py's
+LOCAL = ("localhost", "127.0.0.1", "::1")   # the hosts a key may reach over plain http (a local stand-in, the tests)
 KINDS = ("program", "npm", "python", "model", "service", "agent")
 STATES = ("ok", "missing", "outdated", "incomplete", "no_key", "unsupported", "per_project", "unchecked")
 OK, NO, WA = "\033[32m✓\033[0m", "\033[31m✗\033[0m", "\033[33m!\033[0m"
@@ -108,7 +113,7 @@ def check_module(m, found_by, today):
     r = {"state": "ok", "found": None, "version": None, "keys": {}, "note": ""}
     notes = []
     if not platform_ok(needs.get("platform")):
-        r.update(state="unsupported", note=f"for {needs['platform']} only; this is {this_platform()}")
+        r.update(state="unsupported", note=f"for {needs['platform']} only; this is {this_platform()}" + (f": {m['elsewhere']}" if m.get("elsewhere") else ""))
         return r
     for k in needs.get("keys", []):
         r["keys"][k] = bool(os.environ.get(k))
@@ -195,8 +200,64 @@ def check_module(m, found_by, today):
     return r
 
 
+class _Stay(urllib.request.HTTPRedirectHandler):
+    """Follows no redirect: the 30x is the answer, so a key sent to one host never goes on to another."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def scrub(text, key):
+    """The text with every run of 6 or more of the key's characters taken out: a server may echo a key whole, or a
+    masked one with a few characters at each end."""
+    s = str(text)
+    if not key:
+        return s
+    if len(key) < 6:
+        return s.replace(key, "…")
+    for n in range(len(key), 5, -1):
+        for i in range(len(key) - n + 1):
+            if key[i:i + n] in s:
+                s = s.replace(key[i:i + n], "…")
+    return s
+
+
+def error_code(js):
+    """A provider's error code from its answer (error.status, error.code, detail.code …), never its message: a message
+    can echo the key."""
+    for k in ("error", "detail"):
+        e = js.get(k) if isinstance(js, dict) else None
+        if isinstance(e, dict):
+            for f in ("status", "code", "type"):
+                v = e.get(f)
+                if isinstance(v, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9_.-]{1,40}", v):
+                    return v
+    return None
+
+
+def apply_needs(modules, results):
+    """A module whose needed modules (needs.programs) are not usable here is not ok either: "needs node (outdated)" at the
+    end of its note, until nothing changes (a need can be a need's)."""
+    by = {m["name"]: r for m, r in zip(modules, results)}
+    usable = lambda r: r["state"] in ("ok", "per_project", "unchecked")
+    changed = True
+    while changed:
+        changed = False
+        for m, r in zip(modules, results):
+            if r["state"] == "unsupported":
+                continue
+            for n in (m.get("needs") or {}).get("programs", []):
+                dep = by.get(n)
+                if dep is None or usable(dep) or f"needs {n} (" in r["note"]:
+                    continue
+                r["note"] = " · ".join(x for x in (r["note"], f"needs {n} ({dep['state'].replace('_', ' ')})") if x)
+                if r["state"] == "ok":
+                    r["state"], changed = "incomplete", True
+    return results
+
+
 def probe(m, offline, recs):
-    """Call a service once at its free endpoint, with the first of its keys that is set. {state, note}."""
+    """Call a service once at its free endpoint, with the first of its keys that is set. {state, note}. The key goes in a
+    header that no redirect carries on, only over https (or to this machine), and no answer's text is passed on."""
     p = m.get("probe")
     if not p:
         return None
@@ -205,40 +266,42 @@ def probe(m, offline, recs):
         return {"state": "skipped", "note": "no key set"}
     key, url = os.environ[var], p["url"]
     if p.get("base_env") and os.environ.get(p["base_env"]):
-        b = re.match(r"(https?://[^/]+)", os.environ[p["base_env"]])
-        if b:
-            url = b.group(1) + re.sub(r"^https?://[^/]+", "", url)
-    scrub = lambda s: str(s).replace(key, "…") if key else str(s)
-    headers = {"User-Agent": UA, p["auth"]["header"]: p["auth"].get("prefix", "") + key}
+        b = urllib.parse.urlsplit(os.environ[p["base_env"]])
+        if not b.hostname or not (b.scheme == "https" or (b.scheme == "http" and b.hostname in LOCAL)):
+            return {"state": "failed", "note": f"{p['base_env']} is not an https address (only this machine may be http): not called, the key would leave in the clear"}
+        u = urllib.parse.urlsplit(url)
+        url = urllib.parse.urlunsplit((b.scheme, b.netloc.rpartition("@")[2], u.path, u.query, ""))
+    host = urllib.parse.urlsplit(url).netloc
     body = json.dumps(p["body"]).encode() if "body" in p else None
-    if body is not None:
-        headers["Content-Type"] = "application/json"
     try:
         if offline:
             rec = next((x for x in recs if x.get("url") == url), None)
             if rec is None:
                 return {"state": "failed", "note": f"no recorded response for {url} in {offline}"}
-            status = rec.get("status", 200)
+            status, hdrs = rec.get("status", 200), {str(k).lower(): v for k, v in (rec.get("headers") or {}).items()}
             data = (Path(offline) / rec["body"]).read_bytes() if rec.get("body") else b""
         else:
-            req = urllib.request.Request(url, data=body, headers=headers, method=p.get("method", "GET"))
+            req = urllib.request.Request(url, data=body, method=p.get("method", "GET"), headers={"User-Agent": UA})
+            if body is not None:
+                req.add_header("Content-Type", "application/json")
+            req.add_unredirected_header(p["auth"]["header"], p["auth"].get("prefix", "") + key)
             try:
-                with urllib.request.urlopen(req, timeout=20) as resp:
-                    status, data = resp.status, resp.read(4 << 20)
+                with urllib.request.build_opener(_Stay).open(req, timeout=20) as resp:
+                    status, hdrs, data = resp.status, {k.lower(): v for k, v in resp.headers.items()}, resp.read(4 << 20)
             except urllib.error.HTTPError as e:
-                status, data = e.code, e.read(64 << 10)
+                status, hdrs, data = e.code, {k.lower(): v for k, v in (e.headers or {}).items()}, e.read(64 << 10)
     except (OSError, ValueError, http.client.HTTPException) as e:
-        return {"state": "failed", "note": scrub(f"{url}: {getattr(e, 'reason', e)}")}
+        return {"state": "failed", "note": scrub(f"{host}: {getattr(e, 'reason', e)}", key)}
+    if 300 <= status < 400:
+        to = urllib.parse.urlsplit(urllib.parse.urljoin(url, hdrs.get("location", ""))).netloc or "nowhere it says"
+        return {"state": "failed", "note": scrub(f"HTTP {status}: {host} sends it on to {to}, not followed (the key went nowhere else)", key)}
     try:
         js = json.loads(data.decode("utf-8")) if data else {}
     except (UnicodeDecodeError, ValueError):
         js = None
     if status >= 400:
-        msg = ""
-        if isinstance(js, dict):
-            e = js.get("error") or js.get("detail") or {}
-            msg = (e.get("message") if isinstance(e, dict) else str(e)) or ""
-        return {"state": "failed", "note": scrub(f"HTTP {status} with {var}" + (f": {msg[:160]}" if msg else ""))}
+        code = error_code(js)
+        return {"state": "failed", "note": scrub(f"HTTP {status} with {var}" + (f" ({code})" if code else ""), key)}
     if not isinstance(js, dict):
         return {"state": "failed", "note": f"HTTP {status}, but not the JSON it answers with"}
     exp, said = p.get("expect") or {}, [f"{var} taken"]
@@ -248,7 +311,7 @@ def probe(m, offline, recs):
             code = code.get(part) if isinstance(code, dict) else None
         if code != 0:
             hint = (exp.get("hints") or {}).get(str(code))
-            return {"state": "failed", "note": scrub(f"{var} refused: status_code {code}" + (f" ({hint})" if hint else ""))}
+            return {"state": "failed", "note": scrub(f"{var} refused: status_code {code}" + (f" ({hint})" if hint else ""), key)}
     if exp.get("list"):
         items = js.get(exp["list"])
         if not isinstance(items, list):
@@ -309,6 +372,7 @@ def problems(t, commands=None):
     if t.get("version") != 1:
         bad.append('"version" is not 1')
     known = None
+    table_names = {m.get("name") for m in t.get("modules") or []}
     if commands is not None:
         known = {c.get("name") for c in commands.get("commands", [])}
     for m in t.get("modules") or []:
@@ -318,7 +382,7 @@ def problems(t, commands=None):
             bad.append(f"{at}: the name is not lower-case letters, digits and -"); continue
         names.append(n)
         extra = set(m) - {"name", "kind", "status", "purpose", "version", "license", "needs", "adapter", "commands", "required", "check",
-                          "probe", "first_run", "install"}
+                          "probe", "first_run", "install", "elsewhere"}
         if extra:
             bad.append(f"{at}: fields doctor does not know: {sorted(extra)}")
         if m.get("kind") not in KINDS:
@@ -340,6 +404,11 @@ def problems(t, commands=None):
             for k in needs.get("keys", []):
                 if not re.fullmatch(r"[A-Z][A-Z0-9_]*", k):
                     bad.append(f"{at}: {k!r} is not the name of an environment variable")
+            for n in needs.get("programs", []):
+                if n not in table_names or n == m.get("name"):
+                    bad.append(f"{at}: needs.programs names {n!r}, which is not another module of this table")
+            if m.get("elsewhere") and not needs.get("platform"):
+                bad.append(f"{at}: elsewhere is what to use where needs.platform does not hold, and it has none")
         adapter = m.get("adapter")
         if not isinstance(adapter, list) or (not adapter and m.get("status") != "planned"):
             bad.append(f"{at}: no adapter (where the repo talks to it)")
@@ -430,12 +499,11 @@ def main(argv):
             print(f"bin/vh doctor: no recorded responses in {a['offline']} ({e})", file=sys.stderr); return 2
     today = datetime.date.today()
     found_by = {"chrome": a["chrome"], "hf-chrome": a["hf-chrome"], "hf-pin": a["hf-pin"]}
-    mods = []
-    for m in t["modules"]:
-        r = check_module(m, found_by, today)
+    mods = apply_needs(t["modules"], [check_module(m, found_by, today) for m in t["modules"]])
+    for i, (m, r) in enumerate(zip(t["modules"], mods)):
         pr = probe(m, a["offline"], recs) if a["probe"] else None
-        mods.append({"name": m["name"], "kind": m["kind"], "status": m.get("status", "used"), "required": m["required"], **r,
-                     "install": (m.get("install") or {}).get("macos" if sys.platform == "darwin" else "linux"), "probe": pr})
+        mods[i] = {"name": m["name"], "kind": m["kind"], "status": m.get("status", "used"), "required": m["required"], **r,
+                   "install": (m.get("install") or {}).get("macos" if sys.platform == "darwin" else "linux"), "probe": pr}
     checks = repo_checks(a["webgl"], found_by)
     first = [m.get("first_run") for m, r in zip(t["modules"], mods) if m.get("first_run") and r["state"] == "missing"]
     counts = {}

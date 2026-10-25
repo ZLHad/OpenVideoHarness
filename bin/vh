@@ -50,7 +50,7 @@ cmd_doctor() {
   case "${1:-}" in ""|-*) ;; *) python3 "$ROOT/tools/engine_copy.py" "$@"; return ;; esac
   # this machine: tools/doctor.py reads tools/modules.json and reports; bin/vh hands it what its own finders find (the
   # browser the page tools take, the chrome-headless-shell HyperFrames pins) and the WebGL probe, which runs only here
-  command -v python3 >/dev/null 2>&1 || { echo "$c_no python3 not found: bin/vh doctor and most commands need it ($( [ "$(uname)" = Darwin ] && echo "brew install python" || echo "sudo apt install python3"))"; exit 1; }
+  command -v python3 >/dev/null 2>&1 || { doctor_bare "$@"; return 0; }
   local a skip="" live="" rec=""
   for a in "$@"; do   # a usage error is said at once (by doctor.py), before the probe below
     if [ -n "$skip" ]; then skip=""; continue; fi
@@ -70,6 +70,31 @@ cmd_doctor() {
   elif r=$(webgl_probe "$chrome" $sb --ignore-gpu-blocklist --use-angle=swiftshader --enable-unsafe-swiftshader --disable-accelerated-2d-canvas 2>/dev/null); then gl="soft-gl|$r"
   else gl="none|"; fi
   exec python3 "$ROOT/tools/doctor.py" --chrome "$chrome" --hf-chrome "$hfc" --hf-pin "$pin" --webgl "$gl" "$@"
+}
+doctor_bare() { # doctor_bare [--json]: bin/vh doctor without python3, which reads tools/modules.json: the programs bash can
+  # look for itself, said as the doctor before the table said them, then that the rest needs python3. Exit 0, as ever
+  local p v st nv json="" hint="sudo apt install python3"
+  [ "$(uname)" = Darwin ] && hint="brew install python"
+  case " $* " in *" --json "*) json=1 ;; esac
+  if [ -n "$json" ]; then printf '{"version": 1, "tool": "bin/vh doctor", "error": "python3 not found (%s): the other checks need it", "modules": [{"name": "python3", "state": "missing", "note": "not found"}' "$hint"
+  else echo "$c_no python3  not found: bin/vh doctor reads tools/modules.json with it, and most commands need it → $hint"; fi
+  for p in node ffmpeg uv git chrome; do
+    v=""
+    if [ $p = chrome ]; then v=$(chrome_path) || v=""
+    elif command -v "$p" >/dev/null 2>&1; then
+      case $p in node) v=$(node -v 2>&1) || true ;; ffmpeg) v=$(ffmpeg -version 2>&1 | head -1) || true ;; *) v=$("$p" --version 2>&1 | head -1) || true ;; esac
+      [ -n "$v" ] || v="found"
+    fi
+    st=ok; [ -n "$v" ] || st=missing
+    if [ $p = node ] && [ -n "$v" ]; then nv=${v#v}; nv=${nv%%.*}; [ "$nv" -ge 22 ] 2>/dev/null || { st=outdated; v="$v (22 or newer needed)"; }; fi
+    if [ -n "$json" ]; then act_str "${v:-not found}"; printf ', {"name": "%s", "state": "%s", "note": %s}' "$p" "$st" "$ACT_S"
+    elif [ $st = outdated ]; then echo "$c_no $p  $v"
+    elif [ -n "$v" ]; then echo "$c_ok $p  $v"
+    elif [ $p = chrome ]; then echo "$c_no chrome  not found (install Chrome or Chromium, or set CHROME_PATH)"
+    else echo "$c_no $p  not found"; fi
+  done
+  if [ -n "$json" ]; then echo "]}"
+  else echo "   the rest (versions against tools/modules.json, packages, models, keys, WebGL, the repo) needs python3: install it, then bin/vh doctor again"; fi
 }
 hf_chrome() { # hf_chrome [dir]: the chrome-headless-shell `hyperframes render` uses (its ensureRenderBrowser asks for the managed one, so
   # unlike snapshot and check it never looks in ~/.cache/puppeteer): HYPERFRAMES_BROWSER_PATH (or PRODUCER_HEADLESS_SHELL_PATH), else

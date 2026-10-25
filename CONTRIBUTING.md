@@ -29,7 +29,7 @@
 - **新命令按阶段或题目成组，不再往顶层加动词。** 一组相关的事做成一条命令带子命令，像 `assets add|list|check`、`scout`、`sfx` / `bgm` 这样；子命令记进表里的 `subcommands`。
 - **新命令的参数只写在 `-h` 和 `--json` 里。** 说明写进表里的 `usage`（`bin/vh <命令> -h` 打印它）或工具自己的 `-h`；机读的输出给 `--json`，字段名写进 `-h`，以后只加不改。README 里每条命令最多一行，说它干什么，不解释参数。
 - **新的状态写进机器可读的文件，项目根目录不再加 markdown。** 给工具读的放 JSON（追加的记录用 JSONL，像 `.ovh/activity.jsonl`），带 `"version": 1`，`bin/vh status --json` 能汇总；人写的想法和决定仍然写在模板现有的那几份 markdown 里。
-- **外接模块记在 `tools/modules.json`。** 别人在维护、我们只是调用的东西（程序、npm 和 Python 包、模型、联网的服务、agent），在第一次有命令用它的那个 PR 里登记一项：用途；版本（`pin` 钉死的，`min` 最低，`range`，`tested` 测过的，服务写默认模型，按日期发版的工具可以给 `max_age_days`）；许可；要什么账号、key 或程序（`needs`）；适配文件在哪（`adapter`）；哪些命令用它（`commands`）；`bin/vh doctor` 怎么查它（`check`）。联网的服务再给一个不花钱的探测（`probe`，`bin/vh doctor --probe` 调它）。key 只放进 header，不进 URL，不打印。改钉的版本时表里的 `pin` 一起改：HyperFrames 的，CI 拿它和 `bin/vh`、`styles/_swatch/package.json` 对。表本身用 `python3 tools/doctor.py --check` 查。
+- **外接模块记在 `tools/modules.json`。** 别人在维护、我们只是调用的东西（程序、npm 和 Python 包、模型、联网的服务、agent），在第一次有命令用它的那个 PR 里登记一项：用途；版本（`pin` 钉死的，`min` 最低，`range`，`tested` 测过的，服务写默认模型，按日期发版的工具可以给 `max_age_days`）；许可；要什么账号、key、平台，以及依赖这张表里的哪些模块（`needs`，模块名写在 `programs` 里，只在某个平台能用的再写 `elsewhere`：别处用什么）；适配文件在哪（`adapter`）；哪些命令用它（`commands`）；`bin/vh doctor` 怎么查它（`check`）。联网的服务再给一个不花钱的探测（`probe`，`bin/vh doctor --probe` 调它）。key 只放进 header，不进 URL，不跟着重定向走，只走 https（本机除外），不打印，失败时也只报状态码和错误码。改钉的版本时表里的 `pin` 一起改：HyperFrames 的，CI 拿它和 `bin/vh`、`styles/_swatch/package.json` 对。表本身用 `python3 tools/doctor.py --check` 查。
 
 ## 推送前自查：`tools/ci.sh`
 
