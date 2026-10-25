@@ -146,6 +146,12 @@
 #                               words), in order; --save keeps them in out/cues.json with the timeline's sha256, and a later run says
 #                               which cues a new take moved and by how much; --chapters: the chapter list for a description (out/chapters.txt)
 #   sheet <video> [cols] [fps] [out]  contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)
+#   proxy <film|project> [--size 360] [--gop N] [--crf 28] [--full] [--out dir] [--json]   a small copy of the film to scrub: --size px
+#                               on its short side, a keyframe every fifth of a second, no B-frames, its sound (out/proxy/<name>.mp4 and
+#                               .mp4.json); run again after patches in place, only the windows around the frames drawn again are encoded
+#   thumbs <film|project> [--every 2] [--width 160] [--shot-width 320] [--full] [--out dir] [--json]   a tile every --every seconds in
+#                               10x10 sheets, a picture a shot (shots.json or window.film.shots), and thumbs.json mapping each to its
+#                               time and place (out/proxy/<name>.thumbs/); from the film's proxy, the film, or the page (tools/proxy.py)
 #   check <video> [--allow t,t…] [--against <ref.mp4>] [--json]  ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) + gate ①
 #                               on record in a standard or studio project (REVIEW.md, DECISIONS.md; exit 1 without it) + the
 #                               publishing copy in PACKAGING.md against the platforms' length limits (a warning) +
@@ -165,8 +171,9 @@
 #                               passes at it when the master's own rate is over it;
 #                               a keyframe every 2 s, BT.709, sound and subtitles copied; the size against each limit, the PSNR against the master;
 #                               a record beside the copy (<copy>.deliver.json) that bin/vh clean reads: the copy and its master stay as the film
-#   clean <project> [--yes] [--delete] [--keep path …] [--final f]   a finished project's intermediates (frames, check frames, render
-#                               chunks, drafts, old takes, stems, node_modules) to the Trash; the film (and what bin/vh deliver made from it),
+#   clean <project> [--yes] [--delete] [--keep path …] [--final f] [--keep-versions N]   a finished project's intermediates (frames, check frames, render
+#                               chunks, proxies, drafts, old takes, stems, node_modules, the earlier versions in out/versions but the newest
+#                               --keep-versions N of each film) to the Trash; the film (and what bin/vh deliver made from it),
 #                               covers, captions, review pages, check records, sources, docs and the narration in use stay. Without --yes it only lists them;
 #                               --delete deletes what the tools can make again
 set -euo pipefail
@@ -521,7 +528,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
       d=${d%/*}
     done
   done
-  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions) ;; *) return 0 ;; esac
+  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs) ;; *) return 0 ;; esac
   base=$(projects_base)
   for a in "$@"; do
     case $a in -*|*/*|"") continue ;; esac
@@ -902,6 +909,10 @@ cmd_review() { python3 "$ROOT/tools/review.py" "$@"; }
 cmd_activity() { [ $# -gt 0 ] || { cmd_usage activity; exit 1; }; exec python3 "$ROOT/tools/activity.py" "$@"; }   # read-only, not logged
 cmd_status() { [ $# -gt 0 ] || { cmd_usage status; exit 1; }; exec python3 "$ROOT/tools/status.py" "$@"; }         # read-only, not logged
 cmd_versions() { [ $# -gt 0 ] || { cmd_usage versions; exit 2; }; python3 "$ROOT/tools/versions.py" "$@"; }   # the list is not logged; compare and use are
+cmd_proxy() { [ $# -gt 0 ] || { cmd_usage proxy; exit 2; }; python3 "$ROOT/tools/proxy.py" proxy "$@"; }       # ffmpeg only
+cmd_thumbs() { [ $# -gt 0 ] || { cmd_usage thumbs; exit 2; }   # a browser only for a project with no film (the page's frames)
+  local b=""; b=$(film_browser thumbs "$(arg_dir "$@")" 2>/dev/null) || true
+  python3 "$ROOT/tools/proxy.py" thumbs ${b:+--browser "$b"} "$@"; }
 cmd_gate() { [ $# -gt 0 ] || { cmd_usage gate; exit 1; }   # exec: stopping a backgrounded gate --wait stops its watcher;
   export OVH_BASH=$BASH; exec python3 "$ROOT/tools/gate.py" "$@"; }   # the desk it starts runs under this same bash
 cmd_desk() { [ $# -gt 0 ] || { cmd_usage desk; exit 1; }   # stdlib only: no uv, works offline; exec, so stopping
@@ -1276,7 +1287,7 @@ case "${1:-help}" in
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
   gate) shift; cmd_gate "$@" ;;
-  status) shift; cmd_status "$@" ;; activity) shift; cmd_activity "$@" ;; versions) shift; cmd_versions "$@" ;;
+  status) shift; cmd_status "$@" ;; activity) shift; cmd_activity "$@" ;; versions) shift; cmd_versions "$@" ;; proxy) shift; cmd_proxy "$@" ;; thumbs) shift; cmd_thumbs "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;;
   help|-h|--help) cmd_help ;;

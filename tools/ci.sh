@@ -2172,6 +2172,50 @@ PY
     if [ $rc = 0 ] && printf '%s' "$a" | grep -q '0–14, 75–89 drawn again (keyframe to keyframe, 30 frames)' && printf '%s' "$a" | grep -q "packets outside 0–14, 75–89: 60 the film's own ✓"
     then ok "patch: two spans apart are drawn as two windows, the film's own packets between them"
     else bad "patch on two spans (exit $rc): $(printf '%s' "$a" | tail -c 700)"; fi
+    # proxy and thumbs (tools/proxy.py): a film with sound (the shots fixture, a tone muxed on) gets a proxy at --size on
+    # its short side with a keyframe every 6 frames, no B-frames and its sound, and thumbs (tiles in a sheet, a picture a
+    # shot from the sidecar's shots, a map); run again, both are up to date; after a patch in place only the proxy's
+    # window around the frames drawn again is encoded (it decodes as a whole remake does, its sound kept) and only the
+    # tiles and shots there are taken; a project with no film: thumbs from the page, no proxy (exit 2)
+    x="$t/px"; mkdir -p "$x" && cp tools/film/fixture/shots.html "$x/film.html" && printf '# BRIEF\n' > "$x/BRIEF.md"
+    vh render "$x" --gop 15 --workers 2 --out "$x/out/film.mp4" >/dev/null 2>&1
+    ffmpeg -v error -nostdin -y -i "$x/out/film.mp4" -f lavfi -i "sine=frequency=440:duration=3" -map 0:v -map 1:a -c:v copy -c:a aac -shortest "$x/out/final.mp4"
+    sed 's/colour: "#3c3"/colour: "#cc3"/' tools/film/fixture/shots.html > "$x/film.html"
+    vh patch "$x/out/final.mp4" --sidecar "$x/out/film.mp4.render.json" --shot S02 --in-place >/dev/null 2>&1
+    a=$(vh proxy "$x/out/final.mp4" --size 90 2>&1); rc=$?
+    b=$(vh proxy "$x/out/final.mp4" --size 90 2>&1); rc2=$?
+    c=$(vh thumbs "$x" --every 0.5 --width 80 2>&1); rc3=$?
+    sed 's/colour: "#c33"/colour: "#c3c"/' "$x/film.html" > "$x/f2.html" && mv "$x/f2.html" "$x/film.html"
+    vh patch "$x/out/final.mp4" --shot S01 --in-place >/dev/null 2>&1
+    d=$(vh proxy "$x/out/final.mp4" --size 90 2>&1); rc4=$?
+    e=$(vh thumbs "$x" --every 0.5 --width 80 --json 2>&1); rc5=$?
+    cp "$x/out/proxy/final.mp4" "$t/refreshed.mp4"
+    vh proxy "$x/out/final.mp4" --size 90 --full >/dev/null 2>&1
+    if [ "$rc:$rc2:$rc3:$rc4:$rc5" = 0:0:0:0:0 ] && printf '%s' "$a" | grep -q '160x90, a keyframe every 6 frames, with sound · made' && printf '%s' "$b" | grep -q 'up to date' \
+      && printf '%s' "$c" | grep -q '6 tiles every 0.5 s (80x46) in 1 sheet(s), 3 shot picture(s)' && printf '%s' "$d" | grep -q 'refreshed: 1 window(s) of frames encoded anew, 48 of 90 frames' \
+      && python3 - "$x" "$t/refreshed.mp4" "$e" <<'PY'
+import json, re, subprocess, sys
+x, refreshed, e = sys.argv[1], sys.argv[2], json.loads(sys.argv[3])
+def run(*a): return subprocess.run(a, capture_output=True, text=True)
+keys = [i for i, l in enumerate(run("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "packet=flags", "-of", "csv=p=0", refreshed).stdout.split()) if "K" in l]
+st = run("ffprobe", "-v", "error", "-show_entries", "stream=codec_type,width,height,nb_frames,has_b_frames", "-of", "json", refreshed).stdout
+st = {s["codec_type"]: s for s in json.loads(st)["streams"]}
+m = re.findall(r"average:(inf|[\d.]+)", run("ffmpeg", "-v", "info", "-i", refreshed, "-i", x + "/out/proxy/final.mp4", "-lavfi", "psnr", "-f", "null", "-").stderr)
+rec = json.load(open(x + "/out/proxy/final.mp4.json"))
+ok = keys == list(range(0, 90, 6)) and st["video"]["nb_frames"] == "90" and (st["video"]["width"], st["video"]["height"]) == (160, 90) and "audio" in st
+ok = ok and m and (m[-1] == "inf" or float(m[-1]) >= 50) and rec["made"] == "full" and rec["source_version"] == "v4"
+ok = ok and e["made"] == "refreshed" and e["taken"] == {"tiles": 3, "shots": 1} and e["from"] == "proxy" and [s["id"] for s in e["shots"]] == ["S01", "S02", "S03"]
+ok = ok and e["tiles"][3] == {"i": 3, "t": 1.5, "frame": 45, "sheet": 0, "x": 240, "y": 0} and e["sheets"][0]["size"] == [480, 46]
+sys.exit(0 if ok else 1)
+PY
+    then ok "proxy and thumbs: a small short-GOP copy with its sound, a tile sheet, a picture a shot and the map; up to date when the film is; after a patch in place only its window is encoded again and its tiles taken"
+    else bad "proxy and thumbs (exit $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s' "$a$b$c$d" | tail -c 900)"; fi
+    mkdir -p "$t/nofilm" && cp tools/film/fixture/shots.html "$t/nofilm/film.html" && printf '# BRIEF\n' > "$t/nofilm/BRIEF.md"
+    a=$(vh thumbs "$t/nofilm" --every 1 2>&1); rc=$?; b=$(vh proxy "$t/nofilm" 2>&1); rc2=$?; c=$(vh proxy "$x" --size x 2>&1); rc3=$?
+    s=$(vh status "$x" --json | python3 -c 'import json, sys; print(" ".join(r["path"] for r in json.load(sys.stdin)["renders"]))')
+    case "$rc:$rc2:$rc3:$a:$b:$s" in 0:2:2:*"3 tiles every 1.0 s"*"3 shot picture(s)"*"from the page"*:*"no film in"*"to make a proxy of"*:*) case " $s " in *out/proxy*) bad "status lists the proxy as a render: $s" ;;
+        *) ok "thumbs on a project with no film: from the page; proxy needs a film (exit 2); status does not list the proxy" ;; esac ;;
+      *) bad "thumbs from the page, proxy without a film (exit $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 600)" ;; esac
   fi
   if node -e 'import("./tools/film/host.mjs").then((m) => process.exit(m.findRuntime(process.cwd()) ? 0 : 1))' 2>/dev/null; then
     mkdir -p "$t/hf"

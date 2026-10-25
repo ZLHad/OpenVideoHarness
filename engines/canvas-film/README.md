@@ -210,6 +210,7 @@ bin/vh patch <项目>/out/film.mp4 --seconds 142.2-159.2   # 只重画改过的�
 bin/vh patch <项目>/out/film.mp4 --shot S04,S05 --in-place   # 按镜头 id 重画（也可 --chapter 2）；一镜一直算到下一镜的转场结束
 bin/vh versions <项目>                        # 每次 render、patch 都是一版；被盖掉的旧片留在 out/versions/
 bin/vh versions compare <项目> v3 v4 --t 12.4 --wipe   # 两版同一刻的擦除对比和 PSNR；versions use <项目> v3 换回 v3
+bin/vh proxy <项目>; bin/vh thumbs <项目>     # 拖动用的小代理（短 GOP，带声音）、缩略图拼图和每镜一张图；patch 之后再跑只重做改过的段
 bin/vh mux <项目>/out/film.mp4 <混音.wav> <成片.mp4>   # 套上混音（混音要和画面一样长：mix 写 profile=… dur=<画面秒数>，否则差 0.1 s 以上会被拒绝）
 ```
 

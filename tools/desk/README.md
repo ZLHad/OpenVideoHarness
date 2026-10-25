@@ -182,6 +182,14 @@ JSON 的格式：
 
 `bin/vh versions use <项目> <vN>`：让 vN 重新成为它路径上的当前片子。路径上现在的那支先挪进 `out/versions/` 留着（这里从不进废纸篓，也不按数量修剪），vN 的文件、`.render.json` 和检查记录放回原处。什么都不删。退出码：0；1 这一版不在项目里（进了废纸篓或不见了）、ffmpeg 失败；2 用法错、没有这个项目、记录读不了。`compare` 和 `use` 记进活动记录，列表不记。
 
+### 拖动用的代理和缩略图：`bin/vh proxy`、`bin/vh thumbs`
+
+都只用 ffmpeg（`tools/proxy.py`），参数给一支片子或一个项目；项目指它的片子：最新的当前版（`bin/vh versions`），否则 `out/` 里最新的、旁边有 `.render.json` 的视频，否则 `out/` 里最新的视频（不看 `out/check`、`out/review`、`out/proxy`、`out/versions`）。输出在 `<项目>/out/proxy/`（项目外的片子：它旁边的 `proxy/`），文件名照检查记录的起法（`out/review/sketch.mp4` 是 `review-sketch`）。`bin/vh clean` 把 `out/proxy/` 当作工具能重做的东西。退出码：0 做好了或本来就是新的；1 ffmpeg 或页面失败；2 用法错、`proxy` 没有片子、`thumbs` 既没片子也没页面。
+
+`bin/vh proxy <片子|项目> [--size 360] [--gop N] [--crf 28] [--full] [--out 目录] [--json]`：`<名字>.mp4`，短边 `--size` 像素（不放大），H.264，每 `--gop` 帧一个关键帧（默认五分之一秒，30 fps 是 6），没有 B 帧，按快速解码调过，带片子的声音（AAC）：任意一处拖过去，最多解 `--gop` 帧。旁边的 `<名字>.mp4.json`（`"version": 1`）：`source`、`source_ident`（片子的 `size`、`mtime`）、`source_version`、`proxy`、`settings`（`size`、`gop`、`crf`）、`fps`、`frames`、`duration`、`audio`、`made`（`full`、`refreshed`）、`windows`（refreshed 时重编的帧段）、`t`、`at`、`seconds`。再跑一次：片子没变就什么都不做（`up to date`）；片子在那之后只经过原地 patch（版本记录里从代理那一版到现在每一步都是这支片子的 `patch --in-place`），就只把重画的帧所在的代理关键帧段从新片子重编、接进去，其余照拷，声音照旧；别的情况（重新 render、换了参数、`--full`）整支重做。接进去的几段和整支重做的同一段可能差一点点（x264 的码率控制会看段外的帧），在测试片上最差的一帧约 65 dB。`--json` 打印这份记录，另加 `state`。
+
+`bin/vh thumbs <片子|项目> [--every 2] [--width 160] [--shot-width 320] [--full] [--out 目录] [--json]`：`<名字>.thumbs/` 里每 `--every` 秒一格（`--width` 宽），每 10×10 格拼一张 `sheet-01.jpg`……；每个镜头一张 `shots/<id>.jpg`（`--shot-width` 宽），取它的 `at`，没有就取镜头 60% 处，和 `bin/vh storyboard` 一样；`thumbs.json` 是对照表。镜头表：项目的 `shots.json`，否则片子 `.render.json` 里记的（渲的时候页面的 `window.film.shots`），否则页面的。帧从同一支片子做的代理里取（快），没有就从片子取，没有片子就画页面（`bin/vh frames`，要 Chrome）。片子只经过原地 patch 时，只重取落在重画帧里的格子和镜头。`thumbs.json`（`"version": 1`）：`source`、`from`（`proxy`、`film`、`page`）、`source_ident`、`source_version`、`fps`、`duration`、`frames`、`settings`、`tile`（`[宽, 高]`）、`shot`（镜头图的 `[宽, 高]`）、`sheets`（每张 `file`、`tiles`、`size`）、`tiles`（每格 `i`、`t`、`frame`、`sheet`、`x`、`y`：在那张拼图里的左上角）、`shots`（每镜 `id`、`t`、`frame`、`start`、`end`、`file`）、`shots_from`、`made`（`full`、`refreshed`）、`taken`（这次取了几格、几个镜头）、`t`、`at`、`seconds`。时间都是片子的秒（从 `--range` 渲的片子，镜头时间已经减去它的起点）。
+
 ### 检查记录：`bin/vh check <视频> --json`
 
 `bin/vh check` 每跑一次，都把结果存成视频所在项目的 `out/check/<名字>.check.json`（名字是文件名去掉扩展名，前面加上 `out/` 之后的文件夹：`out/review/sketch.mp4` 是 `review-sketch`；项目外的视频不存），`bin/vh clean` 留着它。`--json` 把同一份打到标准输出，给人看的那些行改去标准错误；检查本身、退出码和不加 `--json` 时一样（`tools/checkrec.py`）。
