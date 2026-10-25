@@ -2167,9 +2167,10 @@ PY
     then ok "versions: a full disk and OVH_KEEP_VERSIONS send the replaced film to the Trash (said, recorded); a film made by hand is kept as found; OVH_VERSIONS=off records nothing; status lists them"
     else bad "versions: the Trash, found, off, status (exit $rc:$rc2): $(printf '%s' "$a$b" | tail -c 900)"; fi
     a=$(vh versions 2>&1); rc=$?; b=$(vh versions compare "$v" v4 --t 1 2>&1); rc2=$?; c=$(vh versions use "$v" v1 2>&1); rc3=$?
-    d=$(vh versions compare "$v" v4 v5 2>&1); rc4=$?
-    case "$rc:$rc2:$rc3:$rc4:$c:$d" in 2:2:1:2:*"v1 is trashed: its film is not in the project"*"compare needs --t"*) ok "versions: usage errors exit 2, a version in the Trash cannot be used (exit 1)" ;;
-      *) bad "versions usage (exit $rc:$rc2:$rc3:$rc4): $(printf '%s' "$a$b$c$d" | tail -c 500)" ;; esac
+    d=$(vh versions compare "$v" v4 v5 2>&1); rc4=$?; e=$(vh versions compare "$v" v4 v5 --t 1 --wipe=abc 2>&1); rc5=$?
+    case "$rc:$rc2:$rc3:$rc4:$rc5:$c:$d:$e" in 2:2:1:2:2:*"v1 is trashed: its film is not in the project"*"compare needs --t"*"--wipe abc: where the line goes"*)
+        ok "versions: usage errors exit 2 (a --wipe that is no share of the width too), a version in the Trash cannot be used (exit 1)" ;;
+      *) bad "versions usage (exit $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s' "$a$b$c$d$e" | tail -c 500)" ;; esac
     a=$(vh clean "$v" 2>&1); b=$(OVH_TRASH_DIR="$t/trash" vh clean "$v" --yes --keep-versions 1 2>&1); rc=$?
     c=$(OVH_TRASH_DIR="$t/trash" vh clean "$v" --yes 2>&1); rc2=$?
     if [ "$rc:$rc2" = 0:0 ] && printf '%s' "$a" | grep -q 'versions (earlier versions of the films' && printf '%s' "$a" | grep -q 'out/versions/v5/' \
@@ -2210,6 +2211,73 @@ PY
     if [ $rc = 0 ] && printf '%s' "$a" | grep -q '0–14, 75–89 drawn again (keyframe to keyframe, 30 frames)' && printf '%s' "$a" | grep -q "packets outside 0–14, 75–89: 60 the film's own ✓"
     then ok "patch: two spans apart are drawn as two windows, the film's own packets between them"
     else bad "patch on two spans (exit $rc): $(printf '%s' "$a" | tail -c 700)"; fi
+    # a link in the project to a film outside it: render and patch --in-place replace the link, never write into what it
+    # points to (with versions and with OVH_VERSIONS=off), as before versions
+    l="$t/lk"; mkdir -p "$l/out" "$t/outside" && cp tools/film/fixture/index.html "$l/index.html" && printf '# BRIEF\n' > "$l/BRIEF.md"
+    vh render "$l" --gop 15 --workers 2 --out "$t/outside/target.mp4" >/dev/null 2>&1
+    cp "$t/outside/target.mp4" "$t/outside/t2.mp4"; s1=$(cksum < "$t/outside/target.mp4")
+    sig() { python3 -c 'import os, sys; print(" ".join("%d:%d" % (os.stat(f).st_ino, os.stat(f).st_mtime_ns) for f in sys.argv[1:]))' "$@"; }
+    g1=$(sig "$t/outside/target.mp4" "$t/outside/t2.mp4")   # the same file, untouched: a re-render of the same page has the same bytes
+    ln -s "$t/outside/target.mp4" "$l/out/link.mp4"; ln -s "$t/outside/t2.mp4" "$l/out/off.mp4"; ln -s "$t/outside/target.mp4" "$l/out/p.mp4"
+    cp "$t/outside/target.mp4.render.json" "$l/out/p.mp4.render.json"
+    a=$(vh render "$l" --gop 15 --workers 2 --out "$l/out/link.mp4" 2>&1); rc=$?
+    OVH_VERSIONS=off vh render "$l" --gop 15 --workers 2 --out "$l/out/off.mp4" >/dev/null 2>&1; rc2=$?
+    b=$(vh patch "$l/out/p.mp4" --frames 5-6 --in-place 2>&1); rc3=$?
+    if [ "$rc:$rc2:$rc3" = 0:0:0 ] && [ "$(sig "$t/outside/target.mp4" "$t/outside/t2.mp4")" = "$g1" ] && [ "$(cksum < "$t/outside/t2.mp4")" = "$s1" ] \
+      && [ -f "$l/out/link.mp4" ] && [ ! -L "$l/out/link.mp4" ] && [ ! -L "$l/out/off.mp4" ] && [ ! -L "$l/out/p.mp4" ] \
+      && printf '%s' "$a" | grep -q 'out/link.mp4 was a link to .*target.mp4: the link is replaced by the new film, what it points to is left as it was'
+    then ok "render and patch --in-place on a link replace the link, never what it points to (versions on and off)"
+    else bad "a film path that is a link (exit $rc:$rc2:$rc3; target $( [ "$(cksum < "$t/outside/target.mp4")" = "$s1" ] && echo same || echo changed)): $(printf '%s' "$a$b" | tail -c 600)"; fi
+    # an --out inside out/versions (a kept version's folder) is refused before anything is drawn, the kept film untouched
+    v="$t/in"; mkdir -p "$v" && cp tools/film/fixture/index.html "$v/index.html" && printf '# BRIEF\n' > "$v/BRIEF.md"
+    vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" >/dev/null 2>&1; vh render "$v" --gop 15 --workers 2 --out "$v/out/film.mp4" >/dev/null 2>&1
+    s1=$(cksum < "$v/out/versions/v1/film.mp4")
+    a=$(vh render "$v" --gop 15 --workers 2 --out "$v/out/versions/v1/film.mp4" 2>&1); rc=$?
+    b=$(vh patch "$v/out/film.mp4" --frames 5-6 --out "$v/out/versions/v1/film.mp4" 2>&1); rc2=$?
+    c=$(vh patch "$v/out/versions/v1/film.mp4" --frames 5-6 2>&1); rc3=$?
+    if [ "$rc:$rc2:$rc3" = 2:2:2 ] && [ "$(cksum < "$v/out/versions/v1/film.mp4")" = "$s1" ] && printf '%s' "$a$b$c" | grep -q 'inside out/versions' \
+      && vh versions "$v" | grep -q 'v1 .*kept out/versions/v1/film.mp4'
+    then ok "render and patch refuse an --out inside out/versions (exit 2), the kept film untouched"
+    else bad "an --out inside out/versions (exit $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 600)"; fi
+    # use: the check record at the film's path is the version's own or none. v2 checked (a record made after it), v1 never:
+    # after use v1 there is no record at out/check/film.check.json, v2's went into its folder; use v2 brings it back
+    mkdir -p "$v/out/check"
+    printf '{"version": 1, "tool": "bin/vh check", "video": "out/film.mp4", "t": %s, "at": "now", "exit": 0, "verdict": "pass", "counts": {"fail": 0, "warn": 0, "info": 0}, "findings": []}\n' \
+      "$(python3 -c 'import time; print(time.time() + 2)')" > "$v/out/check/film.check.json"
+    a=$(vh versions use "$v" v1 2>&1); rc=$?
+    b=$(python3 - "$v" <<'PY'
+import json, os, subprocess, sys
+v = sys.argv[1]
+L = json.loads(subprocess.run([sys.executable, "tools/versions.py", v, "--json"], capture_output=True, text=True).stdout)
+S = json.loads(subprocess.run(["bash", "bin/vh", "status", v, "--json"], capture_output=True, text=True).stdout)
+by = {x["id"]: x for x in L["versions"]}
+r = next(x for x in S["renders"] if x["path"] == "out/film.mp4")
+print(os.path.exists(v + "/out/check/film.check.json"), by["v1"]["state"], by["v1"]["check"], by["v2"]["state"], (by["v2"]["check"] or {}).get("verdict"), r["check"])
+PY
+)
+    c=$(vh versions use "$v" v2 2>&1); rc2=$?
+    d=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["verdict"])' "$v/out/check/film.check.json" 2>&1)
+    if [ "$rc:$rc2" = 0:0 ] && [ "$b" = "False current None kept pass None" ] && [ "$d" = pass ]
+    then ok "versions use: the check record at the film's path is the version's own or none; the displaced one's goes with it and comes back with it"
+    else bad "use and the check record (exit $rc:$rc2): $b | $d | $(printf '%s' "$a$c" | tail -c 400)"; fi
+    # a patch in place commits only over the film it cut: versions use refuses while it runs (its lock), and a film rewritten
+    # meanwhile (the same bytes, another file) is left as it is, the patched one beside it (exit 1), the record unchanged
+    sed 's|x.fillStyle = "#fc0"; x.fillRect(20 + t \* 80, 90, 40, 40);|x.fillStyle = "#fc0"; x.fillRect(20 + t * 80, 90, 40, 40); return new Promise((ok) => setTimeout(ok, 400));|' \
+      tools/film/fixture/index.html > "$v/index.html"
+    waitwork() { local n=0; while [ ! -d "$v/out/.film.mp4.patch" ] && [ $n -lt 300 ]; do sleep 0.1; n=$((n + 1)); done; }
+    vh patch "$v/out/film.mp4" --frames 20-21 --in-place --workers 1 > "$t/patch-use.log" 2>&1 & pid=$!
+    waitwork; a=$(vh versions use "$v" v1 2>&1); rc=$?
+    wait $pid; p_use=$?
+    vh patch "$v/out/film.mp4" --frames 20-21 --in-place --workers 1 > "$t/patch-swap.log" 2>&1 & pid=$!
+    waitwork; cp "$v/out/film.mp4" "$t/same.mp4"; mv "$t/same.mp4" "$v/out/film.mp4"
+    nv=$(python3 -c 'import json, sys; print(len(json.load(open(sys.argv[1]))["versions"]))' "$v/out/versions/versions.json")
+    wait $pid; p_swap=$?
+    b=$(cat "$t/patch-swap.log")
+    nv2=$(python3 -c 'import json, sys; print(len(json.load(open(sys.argv[1]))["versions"]))' "$v/out/versions/versions.json")
+    if [ "$rc:$p_use:$p_swap" = 1:0:1 ] && printf '%s' "$a" | grep -q 'is writing out/film.mp4' && printf '%s' "$b" | grep -q 'is not the one the patch cut from' \
+      && [ -f "$v/out/film.new.mp4" ] && [ "$nv" = "$nv2" ]
+    then ok "patch --in-place commits only over the film it cut: use waits for it, a film rewritten meanwhile is left as it is and the patched one goes beside it"
+    else bad "patch and a film changed meanwhile (use exit $rc, patches $p_use/$p_swap, versions $nv/$nv2): $a | $(printf '%s' "$b" | tail -c 500)"; fi
     # proxy and thumbs (tools/proxy.py): a film with sound (the shots fixture, a tone muxed on) gets a proxy at --size on
     # its short side with a keyframe every 6 frames, no B-frames and its sound, and thumbs (tiles in a sheet, a picture a
     # shot from the sidecar's shots, a map); run again, both are up to date; after a patch in place only the proxy's
@@ -2250,9 +2318,11 @@ PY
     else bad "proxy and thumbs (exit $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s' "$a$b$c$d" | tail -c 900)"; fi
     mkdir -p "$t/nofilm" && cp tools/film/fixture/shots.html "$t/nofilm/film.html" && printf '# BRIEF\n' > "$t/nofilm/BRIEF.md"
     a=$(vh thumbs "$t/nofilm" --every 1 2>&1); rc=$?; b=$(vh proxy "$t/nofilm" 2>&1); rc2=$?; c=$(vh proxy "$x" --size x 2>&1); rc3=$?
+    mkdir -p "$x/out/review/proxy" && cp "$x/out/film.mp4" "$x/out/review/proxy/kept.mp4"   # a folder of that name deeper down is the person's own
     s=$(vh status "$x" --json | python3 -c 'import json, sys; print(" ".join(r["path"] for r in json.load(sys.stdin)["renders"]))')
-    case "$rc:$rc2:$rc3:$a:$b:$s" in 0:2:2:*"3 tiles every 1.0 s"*"3 shot picture(s)"*"from the page"*:*"no film in"*"to make a proxy of"*:*) case " $s " in *out/proxy*) bad "status lists the proxy as a render: $s" ;;
-        *) ok "thumbs on a project with no film: from the page; proxy needs a film (exit 2); status does not list the proxy" ;; esac ;;
+    case "$rc:$rc2:$rc3:$a:$b:$s" in 0:2:2:*"3 tiles every 1.0 s"*"3 shot picture(s)"*"from the page"*:*"no film in"*"to make a proxy of"*:*) case " $s " in *" out/proxy"*|*" out/versions"*) bad "status lists the proxy or a kept version as a render: $s" ;;
+        *" out/review/proxy/kept.mp4 "*) ok "thumbs on a project with no film: from the page; proxy needs a film (exit 2); status lists neither out/proxy nor out/versions, but a proxy folder deeper down" ;;
+        *) bad "status left out out/review/proxy/kept.mp4: $s" ;; esac ;;
       *) bad "thumbs from the page, proxy without a film (exit $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 600)" ;; esac
   fi
   if node -e 'import("./tools/film/host.mjs").then((m) => process.exit(m.findRuntime(process.cwd()) ? 0 : 1))' 2>/dev/null; then

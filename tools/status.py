@@ -45,7 +45,8 @@ import feedback as F, reader   # noqa: E402,E401
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
 VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
-SKIP_DIRS = {"frames", "node_modules", "__pycache__", ".venv", "venv", "versions", "proxy"}   # versions: listed from their record
+SKIP_DIRS = {"frames", "node_modules", "__pycache__", ".venv", "venv"}
+OUT_SKIP = {"versions", "proxy"}   # out/versions (listed from its record) and out/proxy: not renders; only directly in out/
 STATE_MARK = {"done": "✓", "skipped": "–", "waiting_person": "●", "waiting_agent": "◆", "in_progress": "…", "not_started": "·",
               "no_record": "○"}
 STATE_WORDS = {"done": "done", "skipped": "skipped", "waiting_person": "waiting for you", "waiting_agent": "waiting for the agent",
@@ -196,7 +197,8 @@ def renders(project):
             continue
         for d, dirs, files in os.walk(base):
             depth = Path(d).relative_to(base).parts
-            dirs[:] = [x for x in dirs if x not in SKIP_DIRS and not x.startswith(".") and len(depth) < 3]
+            dirs[:] = [x for x in dirs if x not in SKIP_DIRS and not x.startswith(".") and len(depth) < 3
+                       and not (top == "out" and not depth and x in OUT_SKIP)]
             for f in files:
                 if Path(f).suffix.lower() in VIDEO and not f.startswith("."):
                     p = Path(d) / f

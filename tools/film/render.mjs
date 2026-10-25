@@ -128,6 +128,18 @@ try { fs.mkdirSync(path.dirname(outFile), { recursive: true }); } catch (e) { aw
 const inside = (f, dir) => (f + path.sep).startsWith(dir + path.sep);
 const outside = !!out && !path.isAbsolute(out) && !inside(fs.realpathSync(path.dirname(outFile)), first.root);
 const shown = outside ? outFile : rel(outFile);
+{   // a project's out/versions holds the earlier versions of its films (bin/vh versions): nothing is rendered over them
+  const dir = fs.realpathSync(path.dirname(outFile));
+  for (let d = dir; ; d = path.dirname(d)) {
+    if (fs.existsSync(path.join(d, "BRIEF.md"))) {
+      if (inside(dir, path.join(d, "out", "versions")) || dir === path.join(d, "out", "versions")) {
+        await first.close(); die(`--out ${shown} is inside out/versions, where the earlier versions of the project's films are kept: write it elsewhere (bin/vh versions use brings a kept one back)`);
+      }
+      break;
+    }
+    if (path.dirname(d) === d) break;
+  }
+}
 
 // one render per output file: a second one would interleave its chunks with ours. A lock whose render is gone (its pid
 // no longer runs) is deleted and taken afresh; an empty one is a render that has not written its pid yet, unless it is old

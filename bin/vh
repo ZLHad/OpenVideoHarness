@@ -855,7 +855,7 @@ arg_dir() { # the folder of the project or page among a tool's arguments: the fi
   for a in "$@"; do
     if [ $skip = 1 ]; then skip=0; continue; fi
     case $a in
-      --soft-gl|--real-clock|--png|--force|--save|--export|--strict|--in-place|--keep|--snapshot|--estimate|--no-estimate|--*=*) ;;
+      --soft-gl|--real-clock|--png|--force|--save|--export|--strict|--in-place|--keep|--snapshot|--estimate|--no-estimate|--full|--json|--*=*) ;;
       -*) skip=1 ;;
       *) if [ -d "$a" ]; then echo "$a"; else case $a in */*) echo "${a%/*}" ;; *) echo . ;; esac; fi; return 0 ;;
     esac

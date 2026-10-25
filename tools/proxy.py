@@ -16,8 +16,9 @@ proxy   <name>.mp4: the film at --size px on its short side (360; never larger t
 thumbs  <name>.thumbs/: a tile every --every seconds (2), --width px wide (160), in sheets of 10 x 10 (sheet-01.jpg …), one
         picture a shot (shots/<id>.jpg, --shot-width px wide) at its `at` or 60 % into it (as bin/vh storyboard picks), and
         thumbs.json, the map: every tile's time, frame, sheet and x, y; every shot's time, frame, span and file. The shots:
-        shots.json in the project, else the film's .render.json (the page's window.film.shots when it was rendered), else
-        the page's. Frames come from a proxy made of this same film when there is one (fast), else the film, else the page.
+        shots.json in the project, else, for a film, its .render.json (the page's window.film.shots when it was rendered:
+        no browser is started for a film, so a film without them gets no shot pictures), and with no film, the page's.
+        Frames come from a proxy made of this same film when there is one (fast), else the film, else the page.
         Run again after patches in place: only the tiles and shots in the frames drawn again are taken anew
 JSON (--json prints the record; "version": 1): tools/desk/README.md, 给客户端的数据, has the fields.
 Exit: 0 made or up to date · 1 ffmpeg or the page failed · 2 usage, no film (proxy) and nothing to draw (thumbs).
@@ -290,7 +291,7 @@ def shot_table(project, film, side):
     if project and (Path(project) / "shots.json").is_file():
         try:
             shots, _ = vhdraw.load_shots(Path(project) / "shots.json")
-            return [(s["id"], s["start"] - off, s["end"] - off, s["at"]) for s in shots], "shots.json"
+            return [(s["id"], s["start"] - off, s["end"] - off, s["at"] - off if s["at"] is not None else None) for s in shots], "shots.json"
         except SystemExit as e:
             print(f"thumbs: {e}; no shot pictures", file=sys.stderr)
             return [], None

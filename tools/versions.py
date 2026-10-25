@@ -20,12 +20,16 @@ shots and chapters they cross), an optional --note, and the check record of that
             at most 1920 px wide; the PSNR (dB, RGB; vB scaled to vA's size when they differ). Written to --out, default
             <project>/out/check/versions/<vA>-<vB>-t<seconds>.png
   use       make vN the current film at its path again: the film there now is kept first (moved into out/versions, never
-            thrown away), vN's file goes back with its .render.json and its check record. Nothing is deleted
+            thrown away) and its check record goes with it, vN's file goes back with its .render.json and its own check
+            record: the record at the path is vN's or none. Refused while bin/vh render or an in-place patch writes that
+            film (their locks). Nothing is deleted
 Earlier films are kept by moving them (no copy, no time): when a render or a patch replaces a film, the one it replaces
 goes to out/versions/<id>/ with its .render.json and its check record. A disk-aware default: the replaced film is kept
 while the disk keeps at least twice its size and 5 GB free after it, and up to OVH_KEEP_VERSIONS (default 3) earlier
 versions of each film stay in the project; one beyond that, or one the disk cannot hold, goes to the Trash (said, in
-the command's output, its activity note and this record), never deleted. bin/vh clean prunes the kept ones with its own
+the command's output, its activity note and this record), never deleted. Nothing in out/versions is ever overwritten,
+and an output there is refused. A link at the film's path is replaced, never written through. A patch in place goes in
+only over the film it cut (size and time); else it is put beside it. bin/vh clean prunes the kept ones with its own
 rules (a list first; --yes to the Trash; --keep-versions N keeps the newest N of each film). OVH_VERSIONS=off records
 nothing (a render then replaces the film as it did before versions). A video outside a project gets no record.
 Exit: 0 · 1 a version that is not there or not kept, ffmpeg failed · 2 usage, no project, an unreadable record.
@@ -58,9 +62,15 @@ def store(project):
     return Path(project) / "out" / "versions"
 
 
+def place(p):
+    """A path with its folders resolved but not its last part: a link stays the link (never what it points to)."""
+    a = os.path.abspath(p)
+    return Path(os.path.realpath(os.path.dirname(a))) / os.path.basename(a)
+
+
 def rel(project, p):
     try:
-        r = os.path.relpath(os.path.realpath(p) if os.path.lexists(p) else os.path.abspath(p), os.path.realpath(project))
+        r = os.path.relpath(place(p), os.path.realpath(project))
         return Path(r).as_posix() if not r.startswith("..") else str(p)
     except ValueError:
         return str(p)
@@ -231,24 +241,33 @@ def from_sidecar(side):
 
 
 def move_sidecar(src, dst):
-    """Move a .render.json, its page path made relative to its new folder (bin/vh patch finds the page from it)."""
+    """Move a .render.json, its page path made relative to its new folder (bin/vh patch finds the page from it). Never
+    over a file that is there; when the rewritten copy cannot be written (a full disk), the file is moved as it is."""
+    if os.path.lexists(dst):
+        raise OSError(f"{dst} is there already: not overwritten")
     side = load_json(src)
     if side and isinstance(side.get("page"), str) and not os.path.isabs(side["page"]):
         page = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(src)), side["page"]))
         side["page"] = os.path.relpath(page, os.path.dirname(os.path.abspath(dst)))
-        Path(dst).write_text(json.dumps(side, indent=1) + "\n", encoding="utf-8")
-        os.remove(src)
-    else:
-        os.replace(src, dst)
+        try:
+            Path(dst).write_text(json.dumps(side, indent=1) + "\n", encoding="utf-8")
+            os.remove(src)
+            return
+        except OSError:
+            try:
+                os.remove(dst)
+            except OSError:
+                pass
+    os.rename(src, dst)
 
 
 def check_record(project, video):
     """The path of bin/vh check's record of this video (out/check/<name>.check.json) when there is one made after the
     file was (so it is this file's), else None."""
     from checkrec import record_path
-    p = record_path(Path(video).resolve(), Path(project).resolve())
+    p = record_path(place(video), Path(project).resolve())
     j = load_json(p)
-    i = identity(video)
+    i = identity(video) if not os.path.islink(video) else None
     if j and i and isinstance(num(j.get("t")), (int, float)) and j["t"] >= i[1] - 1:
         return p
     return None
@@ -301,43 +320,70 @@ def trash(project, e, why, said):
     import clean
     p = absolute(project, e["file"])
     d = store(project) / e["id"]
+    left = None
     try:
         if p.parent == d:   # a kept version: its whole folder, named for the project and the version in the Trash
             named = d.with_name(f"{Path(project).name} {e['id']}")
-            os.replace(d, named)
+            if os.path.lexists(named):
+                raise OSError(f"{named.name} is there already")
+            os.rename(d, named)
             try:
                 clean.to_trash(named)
             except OSError:
-                os.replace(named, d)
+                os.rename(named, d)
                 raise
         else:
-            for q in (p, sidecar_of(p)):
-                if os.path.lexists(q):
-                    clean.to_trash(q)
+            clean.to_trash(p)   # the film first: the record follows the film's bytes
+            try:
+                if os.path.lexists(sidecar_of(p)):
+                    clean.to_trash(sidecar_of(p))
+            except OSError as x:
+                left = f"its .render.json stays at {rel(project, sidecar_of(p))} ({x})"
     except OSError as x:
         said.append(f"  {e['id']} could not go to the Trash ({x}): kept in {rel(project, p.parent if p.parent == d else p)}")
-        if p.parent != d:   # still at the film's path: keep it in the store after all, the new film takes the path
+        if p.parent != d and os.path.lexists(p):   # still at the film's path: keep it in the store after all, the new film takes the path
             keep(project, e, said, quiet=True)
         return False
     e.update(state="trashed", file=None, sidecar=None, gone={"at": iso(time.time()), "why": why})
-    said.append(f"  {e['id']} to the Trash: {why}")
+    said.append(f"  {e['id']} to the Trash: {why}" + (f"; {left}" if left else ""))
     return True
 
 
-def keep(project, e, said, quiet=False):
-    """Move the version's film (and its .render.json and check record) from its path into out/versions/<id>/."""
+def keep(project, e, said, quiet=False, move_check=False):
+    """Move the version's film (and its .render.json and check record) from its path into out/versions/<id>/. Nothing
+    there is overwritten. The record follows the film the moment it moves; a sidecar or a check record that cannot follow
+    (a full disk) is said. move_check (bin/vh versions use): the check record at the film's path goes with it (moved, not
+    copied), so the film put there next is not taken for checked; one made before this film was is moved aside too."""
     p = absolute(project, e["file"])
     d = store(project) / e["id"]
-    d.mkdir(parents=True, exist_ok=True)
-    chk = check_record(project, p)
     q = d / p.name
-    os.replace(p, q)
-    if sidecar_of(p).is_file():
-        move_sidecar(sidecar_of(p), sidecar_of(q))
-    if chk:
-        shutil.copy2(chk, d / chk.name)
-        e["check"] = rel(project, d / chk.name)
-    e.update(file=rel(project, q), sidecar=rel(project, sidecar_of(q)) if sidecar_of(q).is_file() else None, state="kept")
+    if os.path.lexists(q) or os.path.lexists(sidecar_of(q)):
+        raise OSError(f"{rel(project, q)} is there already: an earlier film in out/versions is never overwritten")
+    from checkrec import record_path
+    rec = record_path(place(p), Path(project).resolve())
+    chk = check_record(project, p)
+    d.mkdir(parents=True, exist_ok=True)
+    os.rename(p, q)
+    e.update(file=rel(project, q), sidecar=None, state="kept")
+    try:
+        if sidecar_of(p).is_file():
+            move_sidecar(sidecar_of(p), sidecar_of(q))
+    except OSError as x:
+        said.append(f"  {e['id']}: its .render.json stays at {rel(project, sidecar_of(p))} ({x})")
+    e["sidecar"] = rel(project, sidecar_of(q)) if sidecar_of(q).is_file() else None
+    try:
+        if chk and move_check:
+            os.rename(chk, d / chk.name)
+        elif chk:
+            shutil.copy2(chk, d / chk.name)
+        elif move_check and os.path.lexists(rec):   # someone else's, older than this film: not the next film's either
+            os.rename(rec, d / f"earlier.{rec.name}")
+        if chk:
+            e["check"] = rel(project, d / chk.name)
+    except OSError as x:
+        said.append(f"  {e['id']}: its check record could not follow it ({x})")
+        if move_check and os.path.lexists(rec):
+            raise OSError(f"the check record {rel(project, rec)} could not be moved aside ({x}): it would pass for the film put there next")
     if not quiet:
         said.append(f"  {e['id']} kept: {e['file']} ({human(e.get('size') or 0)}; bin/vh versions use brings it back)")
 
@@ -355,7 +401,7 @@ def make_room(project, r, e, said):
     try:   # into its own folder first, so the Trash shows "<project> vN" with its .render.json, not a bare film.mp4
         keep(project, e, said, quiet=True)
     except OSError:
-        pass
+        pass   # still at its path (keep moves the film first and the record follows it): trash takes it from there
     trash(project, e, why, said)
 
 
@@ -367,40 +413,93 @@ def prune(project, r, film_rel, said, protect=()):
         trash(project, e, f"more than {n} earlier version{'s' if n != 1 else ''} of {film_rel} (OVH_KEEP_VERSIONS)", said)
 
 
-def commit(job):
+class Refused(Exception):
+    """The new film does not go in at the path (render and patch put it beside, and say why)."""
+
+
+def inside_store(project, p):
+    return project is not None and (place(p).parent == store(project).resolve() or store(project).resolve() in place(p).parents)
+
+
+def matches(p, expect):
+    """Is the file at p the one expect ({size, mtime}) describes? (patch: the film it cut from; through a link, the file
+    it points to, as the patch read it)"""
+    i = identity(p)
+    return i is not None and i[0] == expect.get("size") and abs(i[1] - float(expect.get("mtime") or 0)) < 0.002
+
+
+def by_identity(project, r, expect):
+    """The version whose bytes expect describes, wherever they are now (current or kept), or None."""
+    for e in reversed(r["versions"]):
+        if e.get("size") == expect.get("size") and abs((e.get("mtime") or 0) - float(expect.get("mtime") or 0)) < 0.002 \
+                and state(project, e) in ("current", "kept"):
+            return e
+    return None
+
+
+def reconcile(project, r):
+    """The next id past every folder in out/versions too: an id is never given twice, even after a run that stopped
+    between moving a film there and writing the record."""
+    ids = [int(p.name[1:]) for p in store(project).glob("v*") if re.fullmatch(r"v\d+", p.name)] if store(project).is_dir() else []
+    r["next"] = max(r["next"], 1 + max(ids or [0]), 1 + max([e.get("n") or 0 for e in r["versions"]] or [0]))
+
+
+def commit(job, moved=None):
     """Put a new film in place (render and patch call this): the film at the path kept or sent to the Trash first, then
     the new one moved in with its .render.json, and its version added. job: film, new, new_sidecar, made_by, source
-    (patch: the film it was made from), changed, note, problems. → {"id", "from", "lines"}."""
-    film, new = Path(os.path.realpath(job["film"])), Path(job["new"])
+    (patch: the film it was made from), expect (patch: {size, mtime} of the film it cut; for --in-place the film at the
+    path must still be it, for a patch to another file it names the version it came from), changed, note, problems.
+    A link at the path is replaced, never written through: what it points to is left as it was. → {"id", "from",
+    "lines"}; Refused when the film at the path is not the one the patch cut, or the path is a kept version's.
+    moved: a dict; moved["away"] is set once the film that was at the path has left it (kept or in the Trash)."""
+    film, new = place(job["film"]), Path(job["new"])
     side = Path(job["new_sidecar"]) if job.get("new_sidecar") else None
     project = project_of(film.parent)
     said, out = [], {"id": None, "from": None, "lines": []}
+    moved = moved if moved is not None else {}
     off = os.environ.get("OVH_VERSIONS", "").lower() in ("off", "0", "no", "false")
-    inside = project is not None and store(project).resolve() in film.parents
-    if off or project is None or inside:
-        os.replace(new, film)
+    link = os.path.islink(film)
+    linked = f"{rel(project, film) if project else film} was a link to {os.readlink(film)}: the link is replaced by the new film, what it points to is left as it was" if link else None
+    if inside_store(project, film):
+        raise Refused(f"{rel(project, film)} is inside out/versions, where the earlier versions are kept")
+    if job.get("made_by") == "patch" and job.get("expect") and not job.get("source") and not matches(film, job["expect"]):
+        raise Refused(f"the film at {rel(project, film) if project else film} is not the one the patch cut from (it changed while the patch "
+                      "ran: another render, patch or bin/vh versions use)")
+    if off or project is None:
+        os.replace(new, film)   # a link: the link itself
         if side:
             os.replace(side, sidecar_of(film))
-        if inside:
-            out["lines"].append("not recorded: a film inside out/versions is a kept version (bin/vh versions use makes it current)")
+        out["lines"] = [linked] if linked else []
         return out
     with Locked(project):
         r = load_or_reset(project, said)
+        reconcile(project, r)
         film_rel = rel(project, film)
+        if job.get("made_by") == "patch" and job.get("expect") and not job.get("source") and not matches(film, job["expect"]):
+            raise Refused(f"the film at {film_rel} is not the one the patch cut from (it changed while the patch ran: another render, patch or bin/vh versions use)")
         prev = None
-        if os.path.lexists(film):
+        if link:
+            said.append(linked)
+        elif os.path.lexists(film):
             prev = current_at(project, r, film_rel) or adopt(project, r, film_rel, said)
             make_room(project, r, prev, said)
             if os.path.lexists(film):   # neither kept nor trashed (both failed): stop, the film as it was
+                write(project, r)
                 raise OSError(f"the film at {film_rel} could not be kept or moved to the Trash")
+            moved["away"] = True
         os.replace(new, film)
         if side:
             os.replace(side, sidecar_of(film))
         src = None
         if job.get("source"):
-            sp = Path(job["source"]).resolve()
+            sp = place(job["source"])
             srel = rel(project, sp)
-            src = (current_at(project, r, srel) or (adopt(project, r, srel, said) if sp.is_file() else None)) if project_of(sp) == project else None
+            if project_of(sp.parent) == project:   # the version the patch read: by its bytes, wherever they are now
+                src = by_identity(project, r, job["expect"]) if job.get("expect") else None
+                if src is None and (not job.get("expect") or matches(sp, job["expect"])):   # still the film the patch read
+                    src = current_at(project, r, srel) or (adopt(project, r, srel, said) if sp.is_file() and not sp.is_symlink() else None)
+                elif src is None:
+                    said.append(f"  {srel} changed while the patch ran, and the film it read is not among the versions: where it came from is not known")
         e = new_entry(project, r, film_rel, job.get("made_by") or "render", note=job.get("note") or None, changed=job.get("changed"))
         e["from"] = (src or prev or {}).get("id")
         if job.get("problems"):
@@ -577,10 +676,30 @@ def compare(project, a_id, b_id, t, wipe=None, out=None):
 
 # ---- use ----
 
+def writer_at(film):
+    """bin/vh render (<film>.lock) or an in-place bin/vh patch (<film>.patch.lock) writing this film now: (what, pid) or None."""
+    for suffix, what in ((".lock", "bin/vh render"), (".patch.lock", "bin/vh patch")):
+        try:
+            pid = int(Path(str(film) + suffix).read_text().strip() or 0)
+        except (OSError, ValueError):
+            continue
+        if pid > 0:
+            try:
+                os.kill(pid, 0)
+            except PermissionError:
+                return what, pid
+            except OSError:
+                continue
+            return what, pid
+    return None
+
+
 def use(project, vid):
     said = []
+    from checkrec import record_path
     with Locked(project):
         r = read(project)
+        reconcile(project, r)
         e = next((x for x in r["versions"] if x["id"] == vid), None)
         if e is None:
             raise LookupError(f"no version {vid} (the record has {', '.join(x['id'] for x in r['versions']) or 'none'})")
@@ -589,26 +708,36 @@ def use(project, vid):
             return {"id": vid, "film": e["film"], "already": True, "lines": [f"{vid} is the current film at {e['film']} already"]}
         if st != "kept":
             raise LookupError(f"{vid} is {st}: its film is not in the project to bring back")
-        film = absolute(project, e["film"])
+        film = place(absolute(project, e["film"]))
+        busy = writer_at(film)
+        if busy:
+            raise LookupError(f"{busy[0]} (pid {busy[1]}) is writing {e['film']}: wait for it, then use {vid}")
+        rec = record_path(film, Path(project).resolve())
         displaced = None
-        if os.path.lexists(film):
+        if os.path.islink(film):   # a link: replaced below, what it points to left as it was
+            said.append(f"  {e['film']} was a link to {os.readlink(film)}: the link is replaced, what it points to is left as it was")
+        elif os.path.lexists(film):
             displaced = current_at(project, r, e["film"]) or adopt(project, r, e["film"], said)
-            keep(project, displaced, said, quiet=True)   # never to the Trash here: use throws nothing away
+            try:
+                keep(project, displaced, said, quiet=True, move_check=True)   # never to the Trash here; its check record goes with it
+            except OSError:
+                write(project, r)   # the record where the bytes are (keep moves the film first); vN stays kept
+                raise
+        if os.path.lexists(rec):   # a check record of no film here: it must not pass for vN's
+            os.rename(rec, store(project) / f"{rec.name}.before-{vid}-{time.strftime('%Y%m%d-%H%M%S')}")
         src = absolute(project, e["file"])
         d = src.parent
         film.parent.mkdir(parents=True, exist_ok=True)
-        os.replace(src, film)
-        if sidecar_of(src).is_file():
-            move_sidecar(sidecar_of(src), sidecar_of(film))
-        if e.get("check") and absolute(project, e["check"]).is_file():   # its check record back where bin/vh check keeps it
-            from checkrec import record_path
-            dst = record_path(film.resolve(), Path(project).resolve())
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(absolute(project, e["check"]), dst)
+        os.replace(src, film)   # the path is free, or a link
         try:
-            for q in d.iterdir():
-                if q.name.endswith(".check.json"):
-                    q.unlink()
+            if sidecar_of(src).is_file():
+                move_sidecar(sidecar_of(src), sidecar_of(film))
+        except OSError as x:
+            said.append(f"  {vid}: its .render.json stays at {rel(project, sidecar_of(src))} ({x})")
+        if e.get("check") and absolute(project, e["check"]).is_file():   # its own check record back where bin/vh check keeps it
+            rec.parent.mkdir(parents=True, exist_ok=True)
+            os.rename(absolute(project, e["check"]), rec)
+        try:
             d.rmdir()
         except OSError:
             pass
@@ -655,12 +784,15 @@ def main(argv):
     if argv and argv[0] == "_commit":   # render and patch: the job as JSON on stdin, the outcome as JSON on stdout
         import signal
         signal.signal(signal.SIGINT, signal.SIG_IGN)   # a Ctrl-C reaches render first, once the film is in place
-        job = json.loads(sys.stdin.read())
+        job, moved = json.loads(sys.stdin.read()), {}
         try:
-            print(json.dumps(commit(job), ensure_ascii=False))
+            print(json.dumps(commit(job, moved), ensure_ascii=False))
             return 0
-        except Exception as e:   # the film as it was (render and patch say so and put the new one beside it)
-            print(json.dumps({"error": f"{type(e).__name__}: {e}"}))
+        except Refused as e:   # render and patch put the new film beside the path, and say why
+            print(json.dumps({"error": str(e), "refused": True, "moved_away": False}, ensure_ascii=False))
+            return 1
+        except Exception as e:   # moved_away: the film at the path left it (kept or in the Trash), so the new one may take it
+            print(json.dumps({"error": f"{type(e).__name__}: {e}", "moved_away": bool(moved.get("away"))}, ensure_ascii=False))
             return 1
     if not argv or "-h" in argv or "--help" in argv:
         print(__doc__.strip())
@@ -680,6 +812,8 @@ def main(argv):
             t = secs(v); i += 1 if "=" in a else 2
         elif a == "--wipe" or a.startswith("--wipe="):
             v = a.split("=", 1)[1] if "=" in a else (rest[i + 1] if i + 1 < len(rest) and re.fullmatch(r"\d*\.?\d+", rest[i + 1]) else None)
+            if v is not None and not re.fullmatch(r"\d*\.?\d+", v.strip()) or v is not None and not 0 <= float(v) <= 1:
+                raise Usage(f"--wipe {v}: where the line goes, a share of the width from 0 to 1 (0.5 by default)")
             wipe = float(v) if v is not None else 0.5
             i += 1 if "=" in a or v is None else 2
         elif a == "--out" or a.startswith("--out="):

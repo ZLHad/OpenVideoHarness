@@ -25,7 +25,10 @@
 //   --out f          default <film>.patched.mp4 beside the film; --in-place replaces the film (and its sidecar) once every
 //                    check has passed. Inside a project the result is a version of its film (bin/vh versions): with
 //                    --in-place the film it replaces is kept in out/versions/ first (while the disk can hold it, else it
-//                    goes to the Trash, said), and the record names the frames, seconds and shots changed
+//                    goes to the Trash, said), and the record names the frames, seconds and shots changed. --in-place
+//                    puts the new film in only over the film it cut: one changed meanwhile (another render, patch or
+//                    bin/vh versions use) is left as it is and the new one goes beside it (exit 1). An --out inside
+//                    out/versions is refused (exit 2)
 //   --verify         seams (default): decode one GOP either side of the new frames in both films and compare; full: also
 //                    decode the whole new film for errors (minutes for a long 4K film)
 //   --min-psnr 40    the frames rendered again but outside the spans named (to the keyframes) must come back like the
@@ -211,6 +214,15 @@ const span = (x, y) => `${x}–${y}`, list = (xs) => xs.map(([x, y]) => span(x, 
 const askedList = list(asked), winList = wins.map((w) => span(w.A, w.B - 1)).join(", "), nDrawn = wins.reduce((s, w) => s + w.B - w.A, 0);
 const outFile = inPlace ? film : path.resolve(out || path.join(path.dirname(film), `${path.basename(film, path.extname(film))}.patched${path.extname(film)}`));
 if (!inPlace && outFile === film) die("--out is the film itself: use --in-place");
+{   // the earlier versions in a project's out/versions are never patched over (bin/vh versions)
+  let dir = path.dirname(outFile);
+  try { dir = fs.realpathSync(dir); } catch { /* made later: compared as written */ }
+  const proj = (() => { for (let d = dir; ; d = path.dirname(d)) { if (fs.existsSync(path.join(d, "BRIEF.md"))) return d; if (path.dirname(d) === d) return null; } })();
+  if (proj && (dir + path.sep).startsWith(path.join(proj, "out", "versions") + path.sep))
+    die(`${rel(outFile)} is inside out/versions, where the earlier versions of the project's films are kept: --out somewhere else (or bin/vh versions use first)`);
+}
+// the film as the patch reads it: with --in-place, the new one goes in only over this same file (tools/versions.py)
+const filmAt = (() => { const s = fs.statSync(film); return { size: s.size, mtime: s.mtimeMs / 1000 }; })();
 console.log(`patch: ${rel(film)} · ${N} frames at ${fps} fps · frames ${askedList} (${asked.map(([a, b]) => `${(a / fps).toFixed(3)}–${((b + 1) / fps).toFixed(3)}`).join(", ")} s) asked; ` +
   `${winList} drawn again (keyframe to keyframe, ${nDrawn} frames) from ${rel(page)}`);
 if (shotIds.length) console.log(`  shots from ${tableFrom}`);
@@ -455,10 +467,13 @@ if (failures.length) {
 const sideTmp = joined + ".render.json";
 fs.writeFileSync(sideTmp, JSON.stringify(sideFor(outFile), null, 1) + "\n");
 // the new film in place: with --in-place the film it replaces is kept as an earlier version first (tools/film/versions.mjs)
-const ver = commit({ film: outFile, new: joined, new_sidecar: sideTmp, made_by: "patch", source: inPlace ? null : film, note, changed });
+const ver = commit({ film: outFile, new: joined, new_sidecar: sideTmp, made_by: "patch", source: inPlace ? null : film, expect: filmAt, note, changed });
 const placed = ver.placed;
 const tail = (ver.id ? ` · version ${ver.id}` : "") + (ver.error ? ` · ${ver.lines[0]}` : "");
-if (inPlace && placed === film) {
+if (placed !== outFile) {   // refused, or the record step failed with the film still there: the new one is beside it
+  console.log(`patch: the new film is not at ${rel(outFile)} but beside it, ${rel(placed)} (+ .render.json); ${rel(outFile)} is left as it is`);
+  activityNote(`frames ${askedList}${named} drawn again; not put in place: ${ver.error}`, [placed, placed + ".render.json"]);
+} else if (inPlace) {
   console.log(`patch: done in ${secs2.toFixed(0)} s · ${rel(film)} now has the new frames ${askedList}${named}; ${rel(film + ".render.json")} lists the patch`);
   activityNote(`frames ${askedList}${named} drawn again in place, in ${secs2.toFixed(0)} s${tail}`, [film, film + ".render.json"]);
 } else {
