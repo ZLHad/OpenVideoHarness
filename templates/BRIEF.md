@@ -5,8 +5,8 @@
 ## Spec
 - Effort: standard  <!-- quick | standard | studio：做多认真，规则见 CLAUDE.md "努力程度"。用户在对话里说的优先 -->
 - Director: default  <!-- 谁拍板：default = 按 Effort 的默认；人点名的写成 hook=own, character=own, packaging=own, rest=delegate（own 人选 / review 人过目 / delegate agent 定），stop=E3 加一个检查点。规则见 CLAUDE.md "导演模式"，对话里说的优先 -->
-- Budget: default  <!-- 付费接口（生图、生视频、付费配音、买的素材）这支片子最多花多少：$5、¥30、20 美元，几种货币用逗号隔开；0 = 不花钱。default = LOCAL.md 的"默认预算"，那里也没写就是没有预算：没有预算就不调付费接口，超了就拒绝并说差多少（tools/assets/budget.py）。花掉的一笔笔记在 assets/spend.jsonl，bin/vh assets list 末行是已花和预算 -->
-- Assets: default  <!-- strict | record：素材许可怎么管。strict 只收公有领域、CC0、CC BY、宽松许可（MIT、OFL、Pixabay 这类）、买来或授权的、自制和生成的，NC、ND、BY-SA、许可不明的 bin/vh assets check 判失败；record 都能用，记清并列出风险，不拦。default = LOCAL.md 的"素材许可"，再没写就是 strict -->
+- Budget: default  <!-- 付费接口这支片子最多花多少：$5、¥30、不限；0 是不花钱。default 用 LOCAL.md 的"默认预算"，都没写就不调付费接口（tools/assets/budget.py） -->
+- Assets: default  <!-- strict | record：strict 下 NC、ND、BY-SA 和许可不明的素材 bin/vh assets check 判失败；record 都能用，记清并列出风险。default 用 LOCAL.md 的"素材许可"，再没有就是 strict -->
 - Output: {W}x{H}, {fps} fps, exactly {N}s ({frames} frames)  <!-- 合成尺寸（代码按它写，4K 也照写 1080p 的尺寸）、帧率、时长；时长没定时写范围 {60–90}s。bin/vh check 拿成片对这一行和 Resolution 一行，对不上就失败（playbook/01 "规格"） -->
 - Watch on: {watch}  <!-- 主要在哪看，定字号下限和可读性检查缩到多宽（playbook/03 §4）：phone 手机竖屏；feed 横屏片放在手机信息流里，竖着拿、不转屏；desktop 电脑，或手机转成横屏全屏。bin/vh new 按画幅填了默认值，人说了发在哪就照着改 -->
 - Pace: normal  <!-- relaxed | normal | brisk：画面文字读得多从容，定 bin/vh readcheck 的目标（playbook/03 §2）。relaxed 讲解、论文、书信体，观众边读边想；normal 大多数片子；brisk 快剪、梗、卡点 MV。bin/vh new 给 math、paper 写 relaxed，meme 写 brisk，其余 normal。底线（够快读一遍）不随它变；某一段要换挡，在合成里标 data-pace -->

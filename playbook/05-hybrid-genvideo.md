@@ -68,7 +68,7 @@
 
 像下文"边界：档案素材纪录片"里的素材一样：下载、记账、算哈希，渲染时不再调用模型。入库时按交付规格统一格式。
 
-1. **下载即冻结**：放进 `assets/genclips/<id>/clip.mp4`，同目录放 `prompt.txt`，再登记进项目的素材台账：`bin/vh assets add <项目> assets/genclips/<id>/clip.mp4 --id <id> --model <厂商/模型> --prompt-file assets/genclips/<id>/prompt.txt --seed <种子> --cost <花费>`，它算 sha256，记成 AI 生成；条款快照、来源标记这些用 `--extra` 一起放进记录（`references/genvideo-ledger.md`）。以前每个片段一份的 `ledger.json` 照读。渲染时只读这个文件，不调用 API。供应商的下载链接会过期（Veo 只保留 2 天），生成完立刻下载。
+1. **下载即冻结**：放进 `assets/genclips/<id>/clip.mp4`，同目录放 `prompt.txt`，再登记进项目的素材台账：`bin/vh assets add <项目> assets/genclips/<id>/clip.mp4 --id <id> --model <厂商/模型> --prompt-file assets/genclips/<id>/prompt.txt --seed <种子> --cost '$4.73'`（路径从当前目录找不到时按项目找），它算 sha256，记成 AI 生成；条款快照、来源标记这些用 `--extra` 一起放进记录（`references/genvideo-ledger.md`）。以前每个片段一份的 `ledger.json` 照读。渲染时只读这个文件，不调用 API。供应商的下载链接会过期（Veo 只保留 2 天），生成完立刻下载。
 2. **先 `ffprobe`**：编码、像素格式、分辨率、`r_frame_rate` 与 `avg_frame_rate`（不相等就是 VFR）、时长、色彩标签、音轨数量。
 3. **统一格式**（按需）：
 

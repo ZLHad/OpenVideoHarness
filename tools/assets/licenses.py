@@ -20,8 +20,12 @@ classify(text, url=None) -> (class, why). The classes (an asset record's license
                restrictions", a software copyleft (GPL family) whose terms for media need reading, a retired CC licence,
                "Creative Commons" without saying which
 Anything not recognised is unknown (not cleared): a licence is never guessed upward, and an explicit class given with
-the record wins over this table. The categories follow documentary-storyboard-archival-finder's rights_classifier.py
-(MIT); the table is written anew here.
+the record wins over this table. A text with a restriction or a negation the table cannot weigh ("editorial use only",
+"for personal use", "non-commercial", "not in the public domain", "except", 仅限, 不得商用) is unknown, whatever else
+it names: only the CC elements (NC, ND, SA) are read as part of a licence. When the text and the URL give different
+classes, the stricter one is taken (the one whose risks hold the other's: CC BY with a BY-NC deed is BY-NC); classes
+that cannot be ranked so (BY-SA against BY-ND, a CC deed against a vendor's licence) are unknown. The categories follow
+documentary-storyboard-archival-finder's rights_classifier.py (MIT); the table is written anew here.
 
 risks(class) -> the risk tags a film inherits: nc, nd, sa, unknown. accepted(class, policy) -> True when the BRIEF's
 Assets policy takes it: strict takes pd, cc0, cc-by, free, managed, own and generated (clear for commercial use, with
@@ -45,9 +49,15 @@ _BEFORE = [
     (r"no known copyright restrictions", "unknown", "\"no known copyright restrictions\" is a statement, not a licence"),
     (r"\bsampling\b", "unknown", "a CC Sampling licence (retired)"),
     (r"\bcc ?0\b|\bcc zero\b|\bcczero\b|public ?domain dedication|\bkenney\b", "cc0", "CC0"),
-    (r"public ?domain|\bpdm\b|^pd$|\bpd [a-z]|公有领域|公共领域|\bno copyright\b|not (?:subject to|protected by) copyright|"
-     r"copyright (?:has )?expired|版权已过期|work of the u ?s(?: federal)? government|\bus government work\b", "pd", "public domain"),
+    (r"public ?domain|\bpdm\b|^pd$|\bpd [a-z]|公有领域|公共领域|copyright (?:has )?expired|版权已过期|"
+     r"work of the u ?s(?: federal)? government|\bus government work\b", "pd", "public domain"),
 ]
+# a restriction or a negation the table cannot weigh: in any text it makes the licence unknown (the CC elements NC, ND
+# and SA are read by _cc, not here). Chinese: 仅限 / 仅供 (only), 个人 (personal), 内部 (internal), 不得 / 不可 / 禁止商用
+# / 非商用 (must not, not commercial), 除外 (except)
+_LIMITS = (r"\b(?:not|never|without|except|excluding|unless|only|editorial|personal|internal|restricted|prohibited|forbidden)\b|"
+           r"\bno\b|仅限|仅供|个人|内部|不得|不可|禁止商用|非商用|除外|编辑用途")
+_NONCC_NC = r"\bnc\b|non ?commercial|非商业"   # outside a CC licence: a restriction, not an element
 _AFTER = [
     (r"\bgpl\b|\blgpl\b|\bagpl\b|gnu (?:general|lesser|affero)", "unknown", "a software copyleft licence (GPL family): read its terms for media"),
     (r"\bmit\b|\bapache\b|\bbsd\b|\bisc\b|\bunlicense\b|\bzlib\b|\bwtfpl\b|\bofl\b|open font licen[cs]e|\barphic\b|\bgust\b|"
@@ -91,46 +101,94 @@ def _cc(t):
     return "cc-by" + ("-nc" if nc else "") + ("-sa" if sa else "-nd" if nd else "")
 
 
-def classify(text, url=None):
-    """(class, why) for a licence as written, and its URL. Unrecognised: ("unknown", why)."""
-    for s in (url, text):
-        m = _URL.search(s or "")
-        if not m:
-            continue
-        kind, code = m.group(1).lower(), m.group(2).lower()
-        if kind == "publicdomain" and code in ("zero", "mark"):
-            return ("cc0", "the CC0 deed") if code == "zero" else ("pd", "the Public Domain Mark")
-        if kind == "licenses" and re.fullmatch(r"by(?:-nc)?(?:-sa|-nd)?", code):
-            return "cc-" + code, f"the CC {code.upper()} deed"
-        if "sampling" in code:
-            return "unknown", "a CC Sampling licence (retired)"
+def _from_url(url):
+    """(class, why) from a creativecommons.org deed, or None."""
+    m = _URL.search(url or "")
+    if not m:
+        return None
+    kind, code = m.group(1).lower(), m.group(2).lower()
+    if kind == "publicdomain" and code in ("zero", "mark"):
+        return ("cc0", "the CC0 deed") if code == "zero" else ("pd", "the Public Domain Mark")
+    if kind == "licenses" and re.fullmatch(r"by(?:-nc)?(?:-sa|-nd)?", code):
+        return "cc-" + code, f"the CC {code.upper()} deed"
+    if "sampling" in code:
+        return "unknown", "a CC Sampling licence (retired)"
+    return None
+
+
+def _from_text(text):
+    """(class, why) from a licence as written, or None when it is empty."""
+    m = _URL.search(text or "")   # a deed's URL written as the licence
+    if m:
+        return _from_url(text)
     t = norm(text)
     if not t:
-        return "unknown", "no licence given"
-    for pat, cls, why in _BEFORE:
+        return None
+    for pat, cls, why in _BEFORE[:2]:   # the statements that are no licence
         if re.search(pat, t):
             return cls, why
     cc = _cc(t)
+    lim = re.search(_LIMITS, t)
     if cc:
-        return cc, NAMES[cc]
-    for pat, cls, why in _AFTER:
+        return ("unknown", f"{NAMES[cc]} with a restriction it cannot carry ({lim.group(0)!r})") if lim else (cc, NAMES[cc])
+    nc = re.search(_NONCC_NC, t)
+    if lim or nc:
+        return "unknown", f"a restriction or a negation the table cannot weigh ({(lim or nc).group(0)!r}): give the class when it is clear"
+    for pat, cls, why in _BEFORE[2:] + _AFTER:
         if re.search(pat, t):
             return cls, why
-    return "unknown", f"not a licence this table knows ({(text or '').strip()[:60]!r})"
+    return "unknown", None   # not a licence this table knows: a URL that names one is read instead
+
+
+DEEDS = {"pd", "cc0"} | {c for c in CLASSES if c.startswith("cc-by")}
+
+
+def stricter(a, b):
+    """The stricter of two classes (the one whose risks hold the other's; pd over cc0; a BY licence over pd or cc0), or
+    None when they cannot be ranked (BY-SA against BY-ND, a deed against a vendor's licence)."""
+    if a == b:
+        return a
+    if a not in DEEDS or b not in DEEDS:
+        return None
+    if {a, b} == {"pd", "cc0"}:
+        return "pd"
+    ra, rb = set(risks(a)), set(risks(b))
+    if ra < rb or ra == rb and b.startswith("cc-by") and not a.startswith("cc-by"):
+        return b
+    if rb < ra or ra == rb and a.startswith("cc-by") and not b.startswith("cc-by"):
+        return a
+    return None
+
+
+def classify(text, url=None):
+    """(class, why) for a licence as written, and its URL. Unrecognised: ("unknown", why)."""
+    t, u = _from_text(text), _from_url(url)
+    if t and t[1] is None:   # a text the table does not know: the URL's deed, when there is one
+        t = None if u else ("unknown", f"not a licence this table knows ({(text or '').strip()[:60]!r})")
+    if not t and not u:
+        return "unknown", "no licence given"
+    if not t or not u or t[0] == u[0]:
+        return t or u
+    s = stricter(t[0], u[0])
+    if s:
+        return s, f"the stricter of the text ({t[1]}) and the URL ({u[1]})"
+    return "unknown", f"the text ({t[1]}) and the URL ({u[1]}) do not agree"
 
 
 def risks(cls):
     """The risk tags of a class, in a fixed order: nc, nd, sa; unknown for unknown (or a class this table lacks)."""
-    if cls not in CLASSES or cls == "unknown":
+    if not isinstance(cls, str) or cls not in CLASSES or cls == "unknown":
         return ["unknown"]
     return [r for r in ("nc", "nd", "sa") if f"-{r}" in cls]
 
 
 def accepted(cls, policy):
-    return policy == "record" or cls in STRICT
+    return policy == "record" or isinstance(cls, str) and cls in STRICT
 
 
 def attribution(cls):
+    if not isinstance(cls, str):
+        return None
     if cls.startswith("cc-by"):
         return "required"
     return {"managed": "agreement", "pd": "courtesy"}.get(cls)
