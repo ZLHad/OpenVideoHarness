@@ -8,7 +8,7 @@
   - The status line: on hold since 2026-10-25.
   - §5, the three themes: glass; hairlines and brackets; type and film. A theme changes the fonts, the surfaces, how selection and marks are drawn, and a few component variants. Four rules hold in all three: neutral grey around the picture, monospace readouts, colour says who, dark only. It is built as semantic tokens from the first phase.
   - §1.1, the evaluation of HyperFrames' open packages at 495dc95:
-    - no dependency and no fork: about 166k lines without tests, and 642 commits in 60 days;
+    - no dependency and no fork: about 166k lines of .ts/.tsx without tests, and 642 commits in 60 days;
     - the agent layer we wanted most is not in the open code;
     - its timeline is clips on tracks;
     - the leaf parts to copy: ruler, zoom, snapping, playhead, waveform, beat strip and dock layout;

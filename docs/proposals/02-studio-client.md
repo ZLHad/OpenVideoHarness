@@ -1,6 +1,6 @@
 # 提案 02 · Studio：从一句话到交付的客户端，剪辑交给本机的 agent
 
-*2026-10-19 · 状态：暂缓（2026-10-25），方向认可。维护者看过可以点的原型后说"有点意思了"，UI 样式要更与众不同，细节到正式开发时再打磨。这个 PR 只加了这份文档和原型，工具和流程都没改。2026-10-20 补了第 1.1 节 HyperFrames Studio：维护者说，客户端的重点是 agent 交互这层 harness，别的产品有、对我们有用的照样学，开源的部分可以直接拿来改，不只是做它们没有的。2026-10-25 做了第 5 节要的风格探索，同一块成片界面画成三个方向，维护者说都好，都做进去，可以切换；`packages/studio` 也评估完了（第 1.1 节末尾）。维护者说 Studio 暂时不做，先记下来。*
+*2026-10-19 · 状态：暂缓（2026-10-25），方向认可。维护者看过可以点的原型后说"有点意思了"，UI 样式要更与众不同，细节到正式开发时再打磨。最初的 PR 只加了这份文档和原型，工具和流程都没改。2026-10-20 补了第 1.1 节 HyperFrames Studio：维护者说，客户端的重点是 agent 交互这层 harness，别的产品有、对我们有用的照样学，开源的部分可以直接拿来改，不只是做它们没有的。2026-10-25 做了第 5 节要的风格探索，同一块成片界面画成三个方向，维护者说都好，都做进去，可以切换；`packages/studio` 也评估完了（第 1.1 节末尾）。维护者说 Studio 暂时不做，先记下来。*
 
 **起因。** 维护者提了四件事：
 
@@ -20,7 +20,7 @@
 3. **项目文件和 CLI 是真相，客户端只是一层壳。** 客户端做的每一步都对应一条 `bin/vh` 命令或一个项目文件；不开客户端，用 CLI 加 agent 照样能做完一支片子。客户端里能用的功能，先做进 CLI。
 4. **agent 接本机已经登录的那个。** 客户端不自带模型、不存 key；用 ACP 这类协议或 agent 自己的无头模式，接 Claude Code、Codex 等。接通之前，现有的 `bin/vh desk wait` 文件通道就能用。
 5. **我们的特色是"片子懂自己的结构"。** 别家的时间轴上是素材片段；我们的泳道是片子自己的数据：镜头和它要观众看懂的 reads、旁白、音乐小节、音效、检查告警、这一版改了哪儿。画面由页面合约的 `frame(t)` 实时画出，任意两版的同一帧可以逐像素比；agent 改完只重渲改过的那几段（`bin/vh patch`）。
-6. **力气花在 agent 交互的 harness 上，界面能借就借。** HyperFrames Studio 已经做出一个驱动本机 Claude Code、Codex 的视频编辑器，交互和这份提案想的很像（第 1.1 节）。它和别的产品有、对我们有用的，照着学；开源的部分（HyperFrames 的 `packages/studio` 是 Apache-2.0，OpenFilm 是 MIT）能直接拿来改的就改，不从零写。我们自己做的是 harness 这一层：站和关卡、谁来拍板、计划卡和结果卡、按片子结构排的泳道、检查告警、多引擎、事实和许可的底线。
+6. **力气花在 agent 交互的 harness 上，界面能借就借。** HyperFrames Studio 已经做出一个驱动本机 Claude Code、Codex 的视频编辑器，交互和这份提案想的很像（第 1.1 节）。它和别的产品有、对我们有用的，照着学；开源的部分（HyperFrames 的 `packages/studio` 是 Apache-2.0，OpenFilm 是 MIT）能直接拿来改的就改，不从零写；拿多少，见第 1.1 节末尾的评估。我们自己做的是 harness 这一层：站和关卡、谁来拍板、计划卡和结果卡、按片子结构排的泳道、检查告警、多引擎、事实和许可的底线。
 
 原型：[`figs/02-studio-prototype.html`](figs/02-studio-prototype.html)，用浏览器直接打开就能点；里面的片子、数字和 agent 的回复都是编的示例。
 
@@ -65,7 +65,7 @@ HeyGen 的桌面应用（Mac、Linux），见 [hyperframes.dev/studio](https://h
 
 - 交互照着学：待发送修改的列表和一次发出（和我们"攒成一轮"是一件事），排队或打断，每次运行单独撤销，在画面上圈画，右键快捷操作，agent 状态和修复按钮，导出面板。
 - 起步和灵感：它的灵感库和四段式起步卡，我们有现成的料可以对上：`recipes/`、`cases/`、`styles/` 和 `recipes/sequences/` 的全片骨架。
-- 组件能用就用：时间轴、播放器、检查器先看 `packages/studio` 能不能接上我们的页面合约；能改来用就改，按 Apache-2.0 保留 NOTICE、在改过的文件里写明改动。它的 agent 工具接口（WebMCP）也值得看，我们的模块可以照样把"选中、跳转、出计划"暴露给 agent。
+- 组件能用就用：看过了，结果在本节末尾的评估，拷几个叶子组件，不依赖它的包。它的 agent 工具接口（WebMCP）里的具体工具对不上我们选中的单位，做法可以照着：我们的模块也把"选中、跳转、出计划"暴露给 agent。
 
 **我们的侧重**：它是"会写视频的 agent 加一个编辑器"，我们是"一套做片的工作流，人和 agent 在里面配合"。所以多出来的是：站和关卡、谁来拍板、计划卡（先说动哪几镜、只重渲哪几段）、按片子结构排的泳道（reads、cue、时间映射、检查告警）、多引擎（canvas-film、手绘、Manim，不只 HyperFrames）、事实和许可的底线。几处不跟：它要厂商账号，默认给 agent 完全访问（能装东西、上网、跑任何命令），带使用数据记录；我们的客户端不要账号，权限跟 agent 自己的设置走，不收集使用数据。
 
@@ -73,14 +73,22 @@ HeyGen 的桌面应用（Mac、Linux），见 [hyperframes.dev/studio](https://h
 
 **评估（2026-10-25）**：第一期原定开工前先看 `packages/studio` 能拿多少，这次提前看了。读的是 495dc95（2026-10-25），`studio`、`studio-server`、`player` 都是 0.8.196；我们出片用的 HyperFrames 钉在 0.8.82（2026-09-28）。结论：不依赖它的包，也不 fork，拷几个叶子组件改来用，其余只借交互。
 
-- **变得太快**：`packages/studio` 不算测试约 16.6 万行，过去 60 天有 642 个提交改过它，从 0.8.82 到 0.8.196 只用了 27 天。fork 一份很快就跟不上。
-- **我们最想学的那层不在开源代码里**：圈画、钉评论、待发送的修改、排队和打断、对话、选 agent、每次运行的撤销界面、接 agent 的桥，只在应用文档里有。它的 WebMCP 是 13 个操作 DOM 和 GSAP 时间线的工具，对不上我们按片子结构选中的单位。
+- **变得太快**：`packages/studio` 的 `.ts`、`.tsx` 不算测试约 16.6 万行，过去 60 天有 642 个提交改过它，从 0.8.82 到 0.8.196 只用了 27 天。fork 一份很快就跟不上。
+- **我们最想学的那层不在开源代码里**：圈画、钉评论、待发送的修改、排队和打断、对话、选 agent、每次运行旁边的撤销按钮、接 agent 的桥，只在应用文档里有。开源代码里能读到的是选中元素后的提问框：写一句话，拼成提示词，复制出去（`AskAgentModal`、`domEditingAgentPrompt`）。它的 WebMCP 是 12 个操作页面元素和 GSAP 动画的工具，对不上我们按片子结构选中的单位。
 - **时间轴的模型不同**：它是"轨道上的片段"，我们是按片子结构排的区间、标记和版本差异（第 4 节）。
-- **能拷的叶子组件**：时间尺、缩放、吸附和播放头（四个文件，约 600 行），音频波形和取峰值，节拍条（要补小节线），dockview 的面板布局。钉在 495dc95，按 Apache-2.0 在改过的文件里写明改动；仓库没有 NOTICE 文件。
-- **能学的写法**：每次写入给一张回执（被拒、已发出、已保存、已验证、失败）；按轮存快照来撤销，留最近 10 轮（`studio-server` 的 `history/snapshotRuns.ts`）。
+- **能拷的叶子组件**：
+  - 时间尺、缩放、吸附和播放头，即 `player/components/` 下的 `TimelineRuler.tsx`、`timelineZoom.ts`、`timelineSnapping.ts`、`PlayheadIndicator.tsx`，共约 600 行。缩放和吸附可以单独拿；时间尺和播放头还连着 `timelineLayout`、`timelineTheme` 和 `playerStore`，要一起改写。
+  - 音频波形：前端是 `AudioWaveform.tsx`，取峰值在 `studio-server`。
+  - 节拍条，要补小节线。
+  - dockview 的面板布局。
+
+  都钉在 495dc95，按 Apache-2.0 在改过的文件里写明改动；仓库根目录没有 NOTICE 文件。
+- **能学的写法**：
+  - 每次写入给一张回执：被拒、已发出、已保存、已验证、失败（`studio` 的 `webmcp/writeCoordinator.ts`）。
+  - 按轮撤销：一轮写入记成一条带作者的历史，作者是人、agent 或外部。要撤的那条之后，又有改动碰过同样的文件时，先报冲突，让人选只撤这一条、退回到它之前，还是保留之后的改动（`studio-server` 的 `history/projectHistory.ts`）。撤销的服务端在开源代码里，界面不在。
 - **播放器**：`<hyperframes-player>` 能播 mp4，但不认 `window.film`。canvas 片子用我们自己的页面来播更简单。
-- **要单独核的**：它依赖的 GSAP 不是开源许可，mediabunny 是 MPL-2.0；studio 里有 PostHog 的使用数据上报（`utils/studioTelemetry.ts`），拷代码时不带。
-- **接 agent 照 OpenFilm**：OpenFilm（MIT）用 `@agentclientprotocol/sdk`，加上 Claude Code 和 Codex 各自的 ACP 适配器（`claude-agent-acp`、`codex-acp`）接本机的 agent，正是第二期要做的。
+- **要单独核的**：它依赖的 GSAP 不是开源许可，mediabunny 是 MPL-2.0；studio 里有 PostHog 的使用数据上报（`utils/studioTelemetry.ts` 和 `telemetry/`），拷代码时不带。
+- **接 agent 照 OpenFilm**：OpenFilm（MIT）用 `@agentclientprotocol/sdk` 接本机的 agent。Claude Code 和 Codex 走它们官方的 ACP 适配器（`@agentclientprotocol/claude-agent-acp`、`@agentclientprotocol/codex-acp`，Apache-2.0）；Gemini CLI、OpenCode 这些自己就讲 ACP（`gemini --acp`、`opencode acp`）。这正是第二期要做的。
 
 ## 2. 外壳
 
@@ -151,9 +159,11 @@ agent 怎么接活，每个模块都一样：
 
 | 主题 | 主要靠什么 | 认得出的地方 |
 |---|---|---|
-| 棱镜 | 玻璃 | 面板是浮在深空上的磨砂玻璃，选中的东西沿边缘亮一圈青到紫的光，读数只做点缀；最接近原型。玻璃只用在外壳和浮层，时间轴、清单、表格用实底，小字读得清 |
+| 棱镜 | 玻璃 | 面板是浮在深空上的磨砂玻璃，选中的东西沿边缘亮一圈青到紫的光（正式做时守下面第 3 条：人选中的以青为主），读数只做点缀；最接近原型。玻璃只用在外壳和浮层，时间轴、清单、表格用实底，小字读得清 |
 | 舰桥 | 线条 | 不用模糊：1 px 细线、四角角标、刻度尺；选中用准星框，按钮切角，读数密，像驾驶舱仪表 |
 | 暗场 | 字和胶片 | 哑光石墨底，几乎不发光；标题和 agent 的话用衬线字；镜头列表排成印样，镜头轨是一条带片孔的胶片，标记像油性笔圈出来的。最安静，画面最突出 |
+
+三个方向的界面稿没有放进仓库，仓库里只有这张表。
 
 换主题换的是字体、表面、选中和标记的画法，以及几处组件的样子（例如暗场的印样和胶片轨）；结构、交互和下面四条都不变：
 
@@ -182,7 +192,7 @@ agent 怎么接活，每个模块都一样：
 - **agent**：
   - 第一步走文件：人提交，客户端写反馈 JSON，`bin/vh desk wait` 交给终端里的 agent；
   - 第二步照 OpenFilm 的做法用 ACP（`@agentclientprotocol/sdk` 加各家的适配器），把对话接进 agent 栏；接不上的用 agent 自己的无头模式。各家 agent 的接入方式变得快，开工前要核实；
-  - DeepSeek 这类模型，走能换模型的 agent（比如 OpenCode）。
+  - DeepSeek 这类模型，走能换模型的 agent（比如 OpenCode，它自己就讲 ACP）。
 - **key**：客户端不存。硬规则 7 不改。
 - **界面组件**：HyperFrames 的 `packages/studio`（Apache-2.0）评估过了（第 1.1 节末尾）。时间轴的泳道和选中按我们的结构写；时间尺、缩放、吸附、播放头、波形、节拍条和面板布局拷它的改来用，保留许可，写明改动；不依赖它的包，也不 fork。OpenFilm 的 Studio（MIT）的组件还没细看。
 - **桌面外壳**：先做本地网页；用了一阵再用 Tauri（AutoClip 走的就是这条路）或 Electron 打包。
