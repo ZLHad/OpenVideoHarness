@@ -56,11 +56,12 @@
   "commands": [
     {
       "name": "doctor",
-      "summary": "Check this machine's toolchain (node, ffmpeg, Chrome with a WebGL probe, python, uv, LaTeX) and what the first runs still download; with a project, its copy of the engine against the engine now.",
-      "when": "setting up a machine, or a command says a tool is missing; with a project: a canvas-film or hand-drawn project made a while ago",
+      "summary": "What this machine can use, from tools/modules.json: each outside program, package, model, service and agent (found, its version against the pinned or minimum one, a service's key set or not), then WebGL, the reference repos, LOCAL.md and AGENTS.md; --probe calls each service with a key once. With a project, its copy of the engine against the engine now.",
+      "when": "setting up a machine, before a command that needs a service, or when a command says a tool or key is missing; with a project: a canvas-film or hand-drawn project made a while ago",
       "stages": ["env", "5"],
       "reads": [
-        "the machine: PATH, Chrome, the uv and Hugging Face caches",
+        "tools/modules.json",
+        "the machine: PATH, Chrome, the uv and Hugging Face caches, which keys are set (never their values)",
         "references/repos/",
         "LOCAL.md",
         "CLAUDE.md, AGENTS.md",
@@ -69,11 +70,21 @@
       "writes": [],
       "usage": [
         {
-          "synopsis": "doctor [project]",
+          "synopsis": "doctor [--json] [--probe [--offline DIR]]",
           "text": [
-            "check the toolchain (node, ffmpeg, chrome + a headless WebGL probe, python/uv, latex) and what the first runs still download;",
-            "with a canvas-film or hand-drawn project: its copy of the engine against the engine now, changed, missing and extra",
-            "files and the command to see a file's diff (read-only; exit 1 when it differs)"
+            "what this machine can use, from tools/modules.json (tools/doctor.py): each outside module's program and version (under the",
+            "minimum, not the pin, or older than its max_age_days: outdated), the parts it needs, packages in uv's cache, a model in",
+            "Hugging Face's, a service's key (set or not, never its value); then the browser and WebGL for the page tools (a headless",
+            "probe), the reference repos, LOCAL.md and AGENTS.md. --json: the same as JSON (bin/vh doctor -h has the fields);",
+            "--probe: also call each service with a key once, at an endpoint that costs nothing (--offline DIR: answered from",
+            "responses recorded the way tools/assets/fetch.py records them). Exit 0: it is a report"
+          ]
+        },
+        {
+          "synopsis": "doctor <project>",
+          "text": [
+            "a canvas-film or hand-drawn project's copy of its engine against the engine now: changed, missing and extra files and",
+            "the command to see a file's diff (read-only; exit 1 when it differs)"
           ]
         }
       ]

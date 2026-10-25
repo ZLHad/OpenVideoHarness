@@ -47,46 +47,29 @@ await b.close(); if (!r) process.exit(1); console.log(r);')
 }
 cmd_doctor() {
   # doctor <project>: the project's copy of its engine against the engine now (tools/engine_copy.py; read-only)
-  if [ $# -gt 0 ]; then python3 "$ROOT/tools/engine_copy.py" "$@"; return; fi
-  local mac="" chrome r gl sb=--no-sandbox; [ "$(uname)" = Darwin ] && { mac=1; sb=""; }
-  hint() { if [ -n "$mac" ]; then printf '%s\n' "$1"; else printf '%s\n' "$2"; fi; }   # $1 on macOS, $2 elsewhere
-  chk() { if command -v "$1" >/dev/null 2>&1; then echo "$c_ok $1  $($2 2>&1 | head -1)"; else echo "${4:-$c_no} $1  ($3)"; fi; }   # $4: the mark when missing
-  local nv; nv=$(node -v 2>/dev/null | sed 's/v//;s/\..*//' || echo 0)
-  if [ "${nv:-0}" -ge 22 ] 2>/dev/null; then echo "$c_ok node  $(node -v)"; else echo "$c_no node ≥22 required (found: $(node -v 2>/dev/null || echo none))"; fi
-  chk ffmpeg "ffmpeg -version" "$(hint "brew install ffmpeg" "sudo apt install ffmpeg, or your package manager")"
+  case "${1:-}" in ""|-*) ;; *) python3 "$ROOT/tools/engine_copy.py" "$@"; return ;; esac
+  # this machine: tools/doctor.py reads tools/modules.json and reports; bin/vh hands it what its own finders find (the
+  # browser the page tools take, the chrome-headless-shell HyperFrames pins) and the WebGL probe, which runs only here
+  command -v python3 >/dev/null 2>&1 || { echo "$c_no python3 not found: bin/vh doctor and most commands need it ($( [ "$(uname)" = Darwin ] && echo "brew install python" || echo "sudo apt install python3"))"; exit 1; }
+  local a skip="" live="" rec=""
+  for a in "$@"; do   # a usage error is said at once (by doctor.py), before the probe below
+    if [ -n "$skip" ]; then skip=""; continue; fi
+    case "$a" in -h|--help) exec python3 "$ROOT/tools/doctor.py" -h ;; --json) ;; --probe) live=1 ;; --offline=*) rec=1 ;; --offline) rec=1 skip=1 ;;
+      *) exec python3 "$ROOT/tools/doctor.py" "$@" ;; esac
+  done
+  [ -z "$rec" ] || [ -n "$live" ] || exec python3 "$ROOT/tools/doctor.py" "$@"
+  local chrome hfc pin sw="" r gl sb=--no-sandbox gpu=--use-gl=angle
+  [ "$(uname)" = Darwin ] && { sb=""; gpu=--use-angle=metal; }
   chrome=$(chrome_path) || chrome=""
-  [ -n "$chrome" ] && echo "$c_ok chrome  $chrome" || echo "$c_no chrome  ($(hint "install Google Chrome" "sudo apt install chromium, or npx playwright install chromium"), or set CHROME_PATH)"
-  chk python3 "python3 --version" "needed for audio analysis / Manim"
-  chk uv "uv --version" "$(hint "brew install uv" "curl -LsSf https://astral.sh/uv/install.sh | sh"); bin/vh tts, beats, music, sfx, qa, sheet and mix profiles run through it, Manim envs too"
-  chk latex "latex --version" "optional: $(hint "MacTeX: brew install --cask mactex-no-gui" "TeX Live: sudo apt install texlive-latex-extra"), needed for Manim MathTex" "$c_wa"
-  chk git "git --version" "needed by references/fetch.sh"
-  [ -d "$ROOT/engines/ClaudeAnimationBase/node_modules" ] && echo "$c_ok ClaudeAnimationBase deps installed" || echo "$c_wa ClaudeAnimationBase deps missing → bin/vh setup"
+  [ -d "$ROOT/styles/_swatch/node_modules/hyperframes" ] && sw="$ROOT/styles/_swatch"   # the HyperFrames the repo installs: the version it pins
+  hfc=$(hf_chrome "$sw") || hfc=""; pin=$(hf_pin "$sw") || pin=""
   # a real headless WebGL2 context with render.mjs's default flags; Linux without a GPU only gets one in software (--soft-gl)
-  if [ -z "$chrome" ] || [ ! -d "$ROOT/engines/ClaudeAnimationBase/node_modules/puppeteer-core" ]; then echo "$c_wa WebGL probe skipped (needs Chrome and the ClaudeAnimationBase deps)"
-  elif r=$(webgl_probe "$chrome" $sb --ignore-gpu-blocklist "$(hint --use-angle=metal --use-gl=angle)" 2>/dev/null); then
-    case "$r" in *SwiftShader*|*llvmpipe*) gl=software ;; *) gl=GPU ;; esac; echo "$c_ok WebGL ($gl)  $r"
-  else
-    echo "$c_wa no WebGL with the GPU flags → render with node render.mjs --soft-gl"
-    if r=$(webgl_probe "$chrome" $sb --ignore-gpu-blocklist --use-angle=swiftshader --enable-unsafe-swiftshader --disable-accelerated-2d-canvas 2>/dev/null)
-    then echo "$c_ok WebGL with --soft-gl  $r"; else echo "$c_wa no WebGL with --soft-gl either: WebGL scenes will not render on this machine"; fi
-  fi
-  # reference repos: how many of the ones references/fetch.sh lists are here (install.sh --no-refs skips them)
-  local want have=0 d
-  want=$(grep -cE '^(full|sparse|textonly)[[:space:]]' "$ROOT/references/fetch.sh" || true)
-  for d in "$ROOT"/references/repos/*/; do [ -d "$d.git" ] && have=$((have + 1)); done
-  if [ "$have" -ge "$want" ]; then echo "$c_ok references fetched ($have/$want repos, $(size_of "$ROOT/references/repos"))"
-  else echo "$c_wa references: $have/$want repos fetched → bash references/fetch.sh (all $want: about 195 MB; agents read them for the case studies)"; fi
-  if [ ! -f "$ROOT/LOCAL.md" ]; then echo "$c_wa no LOCAL.md → cp LOCAL.example.md LOCAL.md and fill it in"
-  else   # a copied template still has its {…} placeholders
-    local ph; ph=$(grep -c '{[^}]*}' "$ROOT/LOCAL.md" || true)
-    if [ "${ph:-0}" -gt 0 ]; then echo "$c_wa LOCAL.md still has $ph template line(s) with {…} placeholders → fill them in (this output goes on the 已装工具 line)"
-    else echo "$c_ok LOCAL.md filled in"; fi
-  fi
-  if [ "$(agents_body)" = "$(tail -n +4 "$ROOT/AGENTS.md" 2>/dev/null)" ]; then echo "$c_ok AGENTS.md in sync with CLAUDE.md"; else echo "$c_wa AGENTS.md out of sync → bin/vh sync-agents"; fi
-  doctor_downloads
-}
-size_of() { # disk size of a folder, symlinks followed (a Hugging Face snapshot is all links): "202 MB", "2.0 GB"
-  du -skL "$1" 2>/dev/null | awk '{m = $1 * 1024 / 1e6; if (m >= 1000) printf "%.1f GB", m / 1000; else printf "%.0f MB", m}'
+  if [ -z "$chrome" ] || [ ! -d "$ROOT/engines/ClaudeAnimationBase/node_modules/puppeteer-core" ]; then gl="skipped|"
+  elif r=$(webgl_probe "$chrome" $sb --ignore-gpu-blocklist "$gpu" 2>/dev/null); then
+    case "$r" in *SwiftShader*|*llvmpipe*) gl="software|$r" ;; *) gl="GPU|$r" ;; esac
+  elif r=$(webgl_probe "$chrome" $sb --ignore-gpu-blocklist --use-angle=swiftshader --enable-unsafe-swiftshader --disable-accelerated-2d-canvas 2>/dev/null); then gl="soft-gl|$r"
+  else gl="none|"; fi
+  exec python3 "$ROOT/tools/doctor.py" --chrome "$chrome" --hf-chrome "$hfc" --hf-pin "$pin" --webgl "$gl" "$@"
 }
 hf_chrome() { # hf_chrome [dir]: the chrome-headless-shell `hyperframes render` uses (its ensureRenderBrowser asks for the managed one, so
   # unlike snapshot and check it never looks in ~/.cache/puppeteer): HYPERFRAMES_BROWSER_PATH (or PRODUCER_HEADLESS_SHELL_PATH), else
@@ -117,43 +100,6 @@ shell_folder() { # shell_folder <cache dir> [version]: the folder of that chrome
     [ -n "$(find "$d/$v" -maxdepth 3 -type f \( -name chrome-headless-shell -o -name chrome-headless-shell.exe \) 2>/dev/null | head -1)" ] && { echo "$d/$v"; return 0; }
   done
   return 1
-}
-doctor_downloads() { # what the first runs download on their own and how big it is on disk. The sizes are the ones in the wiki's
-  # "What gets downloaded" table (Getting Started; measured on macOS arm64, 2026-10-01): keep the two in step when either changes
-  echo "first-run downloads (wiki: Getting Started; mirrors behind a slow or blocked network: wiki China-Network / 国内网络):"
-  local p pend="" hub model snap swatch="" voice_pkgs="" sw=""
-  [ -d "$ROOT/styles/_swatch/node_modules/hyperframes" ] && sw="$ROOT/styles/_swatch"   # the HyperFrames the repo installs: the version it pins
-  if p=$(hf_chrome "$sw"); then echo "$c_ok HyperFrames Chrome  $(basename "$p") · $(size_of "$p") · $(rel "$(dirname "$p")")"
-  else
-    [ -x "$ROOT/styles/_swatch/node_modules/.bin/hyperframes" ] && swatch="(cd styles/_swatch && npx hyperframes browser ensure)"
-    echo "$c_wa HyperFrames Chrome not downloaded: the first HyperFrames render fetches the chrome-headless-shell it pins (about 200 MB on disk) into ~/.cache/hyperframes, whatever other Chrome is installed${swatch:+; now: $swatch}"
-    pend="$pend Chrome 0.2 GB,"
-  fi
-  if command -v uv >/dev/null 2>&1; then
-    if on_ctrl_c uv run -q --no-project --offline --with numpy --with scipy --with librosa --with pillow python -c "" >/dev/null 2>&1; then
-      echo "$c_ok Python packages of bin/vh (numpy, scipy, librosa, pillow) are in the uv cache"
-    else echo "$c_wa Python packages not cached yet: the first bin/vh beats, qa, music, sheet or storyboard run fetches numpy, scipy, librosa and pillow (about 700 MB) into the uv cache"
-      pend="$pend Python packages 0.7 GB,"
-    fi
-  fi
-  model=${QWEN_TTS_MODEL:-mlx-community/Qwen3-TTS-12Hz-0.6B-CustomVoice-8bit}
-  hub=${HF_HUB_CACHE:-${HF_HOME:-$HOME/.cache/huggingface}/hub}
-  snap=$(ls -d "$hub/models--${model//\//--}/snapshots/"*/ 2>/dev/null | head -1 || true)
-  if [ "$(uname)" != Darwin ] || [ "$(uname -m)" != arm64 ]; then
-    echo "- Qwen3-TTS (bin/vh tts's default voice) runs on Apple Silicon only (mlx-audio): use edge, gemini, minimax, dashscope or elevenlabs here"
-  else
-    command -v uv >/dev/null 2>&1 && ! on_ctrl_c uv run -q --no-project --offline --with mlx-audio python -c "" >/dev/null 2>&1 && voice_pkgs=1
-    if [ -n "$snap" ] && [ -e "$(set -- "$snap"*.safetensors; echo "$1")" ]; then echo "$c_ok Qwen3-TTS model  $model · $(size_of "$snap")"
-    else
-      echo "$c_wa Qwen3-TTS model not downloaded: the first bin/vh tts with the default provider fetches $model (about 2 GB) from Hugging Face into $(rel "$hub")"
-      pend="$pend Qwen3-TTS model 2 GB,"
-    fi
-    if [ -n "$voice_pkgs" ]; then echo "$c_wa mlx-audio and its packages (about 750 MB) are not in the uv cache yet: the first bin/vh tts with the default provider fetches them"
-      pend="$pend mlx-audio 0.75 GB,"; fi
-  fi
-  echo "- every bin/vh new short|promo|data|meme installs its own pinned HyperFrames into the project (about 140 MB of node_modules)"
-  [ -n "$pend" ] && echo "   still to come on first use:${pend%,}"
-  return 0
 }
 agents_body() { cat "$ROOT/CLAUDE.md"; }
 cmd_install_skill() { # writes a thin pointer skill whose harness path is this clone
@@ -1118,6 +1064,7 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
   case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
+    doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
     frames|render|determinism|cues|patch) cmd_usage "$1"; echo; exec node "$ROOT/tools/film/$1.mjs" -h ;;   # + every flag
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
