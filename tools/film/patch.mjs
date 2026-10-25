@@ -43,14 +43,15 @@
 // Checks, every run: the new film has as many frames as the old one; every packet outside the frames rendered again is
 // the same bytes (and decoded, the frames next to the joins are the same pixels: PSNR infinite); the joined parts decode
 // without an error; the new frames' encoder setup (SPS/PPS) is the film's. Exit: 0 patched and checked · 1 a check failed
-// (the new film is kept for a look, never put in place) · 2 could not start (no sidecar, the film does not match it,
+// (the new film is kept for a look as <film>.failed.mp4, or the next free .failed-2.mp4 …: an earlier one is never
+// overwritten; never put in place) · 2 could not start (no sidecar, the film does not match it,
 // frames outside the film, a shot or chapter the page does not have, the page does not draw). Ctrl-C stops the render
 // and deletes the work folder.
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { note as activityNote } from "./activity.mjs";   // the project's activity log (bin/vh activity)
-import { commit } from "./versions.mjs";                  // the project's versions (bin/vh versions)
+import { besideName, commit } from "./versions.mjs";      // the project's versions (bin/vh versions)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -259,8 +260,9 @@ for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig,
 });
 const capture = String(side.capture || "jpeg q95"), q = capture.match(/jpeg q(\d+)/);
 const T0 = Date.now();
-// the pieces' renders: no activity lines of their own (the patch's run has its note) and no versions (they are parts)
-const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("OVH_ACTIVITY_"))), OVH_VERSIONS: "off" };
+// the pieces' renders: no activity lines of their own (the patch's run has its note), no versions (they are parts), and
+// no "render: done" line (a piece is a step: this patch's last line is the one that says it is done)
+const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("OVH_ACTIVITY_"))), OVH_VERSIONS: "off", OVH_RENDER_PIECE: "1" };
 const notes = [];
 let pieceSide = null;
 for (const [i, w] of wins.entries()) {
@@ -457,10 +459,13 @@ const changed = { whole: false, frames: asked, seconds: asked.map(([a, b]) => [+
   drawn: wins.map((w) => [w.A, w.B - 1]), shots: crossed, ...(shotIds.length || chapterIds.length ? { asked: { shots: shotIds, chapters: chapterIds } } : {}) };
 const named = crossed.length ? ` (${crossed.slice(0, 6).join(", ")}${crossed.length > 6 ? " …" : ""})` : "";
 if (failures.length) {
-  const kept2 = path.join(path.dirname(outFile), `${path.basename(film, path.extname(film))}.failed${path.extname(film)}`);
+  // <film>.failed.mp4 beside the output, or the next free name (.failed-2.mp4 …): an earlier failed film is never overwritten
+  const ext = path.extname(film), first = path.join(path.dirname(outFile), `${path.basename(film, ext)}.failed${ext}`);
+  const kept2 = besideName(path.join(path.dirname(outFile), path.basename(film)), "failed");
   fs.renameSync(joined, kept2);
   for (const f of failures) console.log(`  ✗ ${f}`);
-  console.log(`patch: a check failed; the film is as it was, and the new one is in ${rel(kept2)} to look at`);
+  console.log(`patch: a check failed; the film is as it was, and the new one is in ${rel(kept2)} to look at` +
+    (kept2 !== first ? ` (${rel(first)} was there already and is left as it is)` : ""));
   activityNote(`frames ${askedList}${named} drawn again; a check failed, the film is as it was`, [kept2]);
   cleanUp(); process.exit(1);
 }

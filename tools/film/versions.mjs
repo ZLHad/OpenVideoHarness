@@ -13,11 +13,12 @@ const HERE = path.dirname(new URL(import.meta.url).pathname);
 const PY = path.join(HERE, "..", "versions.py");
 const there = (f) => { try { fs.lstatSync(f); return true; } catch { return false; } };   // a dangling link is there too
 
-// a name beside the film that nothing has, with room for its .render.json
-function besideName(film) {
+// a name beside the film that nothing has, with room for its .render.json: <stem>.<tag>.mp4, <stem>.<tag>-2.mp4 …
+// (tag: new, here; bin/vh patch keeps a film whose check failed as .failed)
+export function besideName(film, tag = "new") {
   const ext = path.extname(film), stem = path.join(path.dirname(film), path.basename(film, ext));
   for (let k = 1; ; k++) {
-    const f = `${stem}.new${k > 1 ? `-${k}` : ""}${ext}`;
+    const f = `${stem}.${tag}${k > 1 ? `-${k}` : ""}${ext}`;
     if (!there(f) && !there(f + ".render.json")) return f;
   }
 }

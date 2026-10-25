@@ -32,8 +32,9 @@ Everything goes to the Trash (macOS: /usr/bin/trash where there is one, which al
 ~/.Trash; Linux: the freedesktop Trash, refused for an item on another disk); --delete deletes the "rebuilt" kind outright
 (the tools make it again). A video is never deleted outright: a mistaken render can come back from the Trash. Refused:
 a folder without BRIEF.md, the harness itself (bin/vh, projects/), and a project where a render or a patch holds a live
-lock. Nothing outside the project is touched; a symbolic link is removed as a link, never followed. On macOS, Time
-Machine's local snapshots can hold deleted data for a while: `df` may not grow at once.
+lock. Nothing outside the project is touched; a symbolic link is removed as a link, never followed. What went to the
+Trash frees its space when the Trash is emptied; on macOS, Time Machine's local snapshots can hold deleted data (the
+Trash's too, once it is emptied) for a while: `df` may not grow at once.
 Exit: 0 listed or cleared · 1 something could not be moved or deleted · 2 not a project, or refused.
 """
 import argparse, json, os, re, shutil, subprocess, sys, time
@@ -301,6 +302,15 @@ def to_trash(p):
     os.rename(p, files / name)
 
 
+def local_snapshots():
+    """How many Time Machine local snapshots macOS holds on / (0 where there is no tmutil)."""
+    try:
+        r = subprocess.run(["tmutil", "listlocalsnapshots", "/"], capture_output=True, text=True)
+    except OSError:
+        return 0
+    return len([ln for ln in r.stdout.splitlines() if "com.apple" in ln]) if r.returncode == 0 else 0
+
+
 def remove(p, root):
     if root not in p.parents:   # never outside the project
         raise OSError(f"{p} is not inside {root}")
@@ -414,13 +424,13 @@ def main():
         V.mark_trashed(root, vgone, "bin/vh clean")
     print(f"clean: {human(deleted)} deleted, {human(trashed)} moved to the Trash" + (f", {failed} could not be cleared" if failed else "") +
           f"; {root.name} is {human(size(root))} now")
-    if trashed:
-        print("  the space comes back when the Trash is emptied (that is yours to do)")
-    if sys.platform == "darwin" and (deleted or trashed):
-        r = subprocess.run(["tmutil", "listlocalsnapshots", "/"], capture_output=True, text=True)
-        n = len([ln for ln in r.stdout.splitlines() if "com.apple" in ln]) if r.returncode == 0 else 0
+    n = local_snapshots() if deleted or trashed else 0
+    if trashed:   # no space is back for it yet: that happens when the Trash is emptied, and the snapshots can hold it after that
+        print("  what went to the Trash frees its space when the Trash is emptied (that is yours to do)")
         if n:
-            print(f"  Time Machine holds {n} local snapshot(s): data deleted since the last one stays on the disk until macOS drops them (hours; sooner when space runs short)")
+            print(f"  and Time Machine's {n} local snapshot(s) can still hold it on the disk after that, until macOS drops them (hours; sooner when space runs short)")
+    elif n:
+        print(f"  Time Machine holds {n} local snapshot(s): data deleted since the last one stays on the disk until macOS drops them (hours; sooner when space runs short)")
     sys.exit(1 if failed else 0)
 
 

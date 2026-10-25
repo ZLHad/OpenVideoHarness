@@ -24,8 +24,9 @@ Each has a state:
   no_record       every stop of a standard or studio project with no REVIEW.md (made before the templates had one):
                   nothing to read its review from (gatecheck.py does not check those either)
 Delivery is done once bin/vh deliver has written a record, or the final film (out/final*, out/final/, media/) has a passing
-bin/vh check record newer than it, and gate ③ is done or skipped (a delivery before it is said in the note); in progress
-once every stop is done or skipped.
+bin/vh check record of that very film (the size and mtime_ns it kept are the film's now; a record from before those: newer
+than the film), and gate ③ is done or skipped (a delivery before it is said in the note); in progress once every stop is
+done or skipped.
 waiting_on: person (a stop waits for them, or REVIEW.md says the project is paused), agent (one waits for the agent,
 the agent works towards one, or a command is running), nobody (delivered), or unknown (no REVIEW.md).
 Also: the versions of the project's films (out/versions/versions.json, bin/vh versions; out/versions and out/proxy are not
@@ -40,7 +41,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
-import activity, gatecheck as G, review as R, versions as V   # noqa: E402,E401
+import activity, checkrec as C, gatecheck as G, review as R, versions as V   # noqa: E402,E401
 import feedback as F, reader   # noqa: E402,E401
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
@@ -242,10 +243,18 @@ def check_records(project):
     return sorted(out, key=lambda x: -(x[0]["t"] or 0))
 
 
+def film_changed(r, st):
+    """Is the film (st: its os.stat) other than the one the check record r was made of? By the size and mtime_ns the record
+    kept (a film put back with an old modification time differs in one of them); a record from before those: the film is
+    newer than the record."""
+    ch = C.film_changed(r, st)
+    return st.st_mtime > (r["t"] or 0) if ch is None else ch
+
+
 def check_summary(project, r, p):
     v = (project / r["video"] if not os.path.isabs(r["video"]) else Path(r["video"])) if r["video"] else None
     try:
-        stale = v.stat().st_mtime > (r["t"] or 0) if v else None
+        stale = film_changed(r, v.stat()) if v else None
     except (OSError, ValueError):
         stale = None
     fails = [f["message"] for f in r["findings"] if f.get("severity") == "fail" and isinstance(f.get("message"), str)]
@@ -310,7 +319,7 @@ def main(argv):
         if r["video"]:
             by_video.setdefault(r["video"], (r, p))
     finals = [(v, s) for v, s in vids if v.name.lower().startswith("final") or "final" in v.relative_to(project).parts[:-1] or v.parent.name == "media"]
-    final_ok = any((c := by_video.get(rel(project, v))) and c[0]["verdict"] == "pass" and (c[0]["t"] or 0) >= s.st_mtime for v, s in finals)
+    final_ok = any((c := by_video.get(rel(project, v))) and c[0]["verdict"] == "pass" and not film_changed(c[0], s) for v, s in finals)
     gates_through = all(s["state"] in ("done", "skipped") for s in st)
     g3 = next((s for s in st if s["id"] == "3"), None)
     g3_through = g3 is not None and g3["state"] in ("done", "skipped")   # delivered: the person has seen the draft (or waived it)

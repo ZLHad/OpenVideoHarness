@@ -131,7 +131,8 @@
 #                               draw frames a–b of a bin/vh render film again and put them back, the rest untouched: cut on its keyframes
 #                               (its .render.json says how it was made), joined, sound and subtitles kept; checks the frame count, that every
 #                               packet and pixel outside is the film's, decoding, and that the frames drawn again outside a–b came back the same
-#                               (exit 1: the new film is kept as <film>.failed.mp4, the film untouched); without --out: <film>.patched.mp4.
+#                               (exit 1: the new film is kept as <film>.failed.mp4, or .failed-2.mp4 … when that is there, the film untouched);
+#                               without --out: <film>.patched.mp4.
 #                               --shot / --chapter: their frames from shots.json or the page's window.film.shots / chapters (through the
 #                               next cut's transition); lists and mixes are the union. In a project the result is a version (bin/vh versions)
 #   determinism <project|page.html> [--at t,t…] [--samples 6] [--min-psnr 45] [--frame-timeout 120]   is each frame a function of t? draws the same t
@@ -161,7 +162,9 @@
 #                               which lapses when the picture there changes) nor declared for this run with --allow <seconds or spans a-b>;
 #                               evenly spaced ones are periodic motion, said, not failed) + motion (hard cuts from dark to bright, still stretches of 3 s or more: warnings) + colour tags; --against: a 4K render vs the approved 1080p cut
 #                               (exit 1 when the picture differs: a layout that breaks at device scale 2). The result is kept in the
-#                               video's project as out/check/<name>.check.json (bin/vh status reads the last); --json prints it instead
+#                               video's project as out/check/<name>.check.json (bin/vh status reads the last; with the video's size and
+#                               mtime_ns as the checks began, so a film put back later with an old modification time, or in its place
+#                               meanwhile, is told from the one checked); --json prints it instead
 #                               of the lines above (those go to stderr): each finding's kind, severity, time and frame, message,
 #                               evidence and whether confirmed.json covers it (tools/checkrec.py); the exit status is the same
 #   gif <video> [width] [fps]   palette-optimised GIF preview (for READMEs)
@@ -650,11 +653,11 @@ PY
 }
 
 cmd_new() {
-  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film] [--dir <folder>]"; cmd_types; exit 2; }
-  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine=""; doc=$(type_doc "$type") || { echo "unknown type: $type"; cmd_types; exit 2; }
+  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film] [--dir <folder>]" >&2; cmd_types >&2; exit 2; }
+  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine=""; doc=$(type_doc "$type") || { echo "unknown type: $type" >&2; cmd_types >&2; exit 2; }
   local typed=("$@"); act_now; ACT_T0=$ACT_NOW   # the run goes into the new project's activity log once it is made
   shift 2
-  needv() { [ "$1" -ge 2 ] && [ -n "$2" ] || { echo "$3"; exit 2; }; }   # needv $# "${2:-}" <message>: an option's value, or a usage error
+  needv() { [ "$1" -ge 2 ] && [ -n "$2" ] || { echo "$3" >&2; exit 2; }; }   # needv $# "${2:-}" <message>: an option's value, or a usage error
   while [ $# -gt 0 ]; do case "$1" in
     --style)  needv $# "${2:-}" "--style needs a preset or a comma list (bin/vh style list)"; style=$2; shift 2 ;;
     --effort) needv $# "${2:-}" "--effort needs quick, standard or studio"; effort=$2; shift 2 ;;
@@ -664,27 +667,27 @@ cmd_new() {
     --res)    needv $# "${2:-}" "--res needs 1080p or 4k"; outres=$2; shift 2 ;;
     --lang)   needv $# "${2:-}" "--lang needs zh or en"; lang=$2; shift 2 ;;
     --engine) needv $# "${2:-}" "--engine needs canvas-film (engines/canvas-film/README.md)"; engine=$2; shift 2 ;;
-    *) echo "unknown option: $1"; exit 2 ;;
+    *) echo "unknown option: $1" >&2; exit 2 ;;
   esac; done
-  case "$lang" in ""|zh|en) ;; *) echo "unknown --lang: $lang (zh | en: the language of the review pages, from the user's first request)"; exit 2 ;; esac
-  case "$engine" in ""|canvas-film) ;; *) echo "unknown --engine: $engine (canvas-film; leave it out for the type's own engine)"; exit 2 ;; esac
-  local s styles=""; if [ -n "$style" ]; then styles=$(parse_styles "$style") || { cmd_style list; exit 2; }; fi
-  case "${effort:-standard}" in quick|standard|studio) ;; *) echo "unknown effort: $effort (quick | standard | studio)"; exit 2 ;; esac
-  case "$watch" in ""|phone|feed|desktop) ;; *) echo "unknown --watch: $watch (phone: a vertical phone · feed: landscape in a phone feed, not rotated · desktop: a computer, or a phone turned sideways)"; exit 2 ;; esac
-  case "$outres" in ""|1080p) ;; 4k|4K|2160p) outres=4k ;; *) echo "unknown --res: $outres (1080p | 4k)"; exit 2 ;; esac
-  if [ "$outres" = 4k ] && [ -z "$engine" ]; then case "$type" in handdrawn|mv) echo "--res 4k: the hand-drawn engine (ClaudeAnimationBase) has no 4K output yet; use 1080p, or another engine (engines/README.md)"; exit 2 ;; esac; fi
+  case "$lang" in ""|zh|en) ;; *) echo "unknown --lang: $lang (zh | en: the language of the review pages, from the user's first request)" >&2; exit 2 ;; esac
+  case "$engine" in ""|canvas-film) ;; *) echo "unknown --engine: $engine (canvas-film; leave it out for the type's own engine)" >&2; exit 2 ;; esac
+  local s styles=""; if [ -n "$style" ]; then styles=$(parse_styles "$style") || { cmd_style list >&2; exit 2; }; fi
+  case "${effort:-standard}" in quick|standard|studio) ;; *) echo "unknown effort: $effort (quick | standard | studio)" >&2; exit 2 ;; esac
+  case "$watch" in ""|phone|feed|desktop) ;; *) echo "unknown --watch: $watch (phone: a vertical phone · feed: landscape in a phone feed, not rotated · desktop: a computer, or a phone turned sideways)" >&2; exit 2 ;; esac
+  case "$outres" in ""|1080p) ;; 4k|4K|2160p) outres=4k ;; *) echo "unknown --res: $outres (1080p | 4k)" >&2; exit 2 ;; esac
+  if [ "$outres" = 4k ] && [ -z "$engine" ]; then case "$type" in handdrawn|mv) echo "--res 4k: the hand-drawn engine (ClaudeAnimationBase) has no 4K output yet; use 1080p, or another engine (engines/README.md)" >&2; exit 2 ;; esac; fi
   if [ "$engine" = canvas-film ]; then   # the canvas engine draws 16:9 whatever the type
     case "$aspect" in ""|16:9|landscape) res=landscape ;;
-      *) echo "--aspect: the canvas-film engine draws 16:9 (1920x1080); another frame means editing its template (engines/canvas-film/README.md, 局限)"; exit 2 ;; esac
+      *) echo "--aspect: the canvas-film engine draws 16:9 (1920x1080); another frame means editing its template (engines/canvas-film/README.md, 局限)" >&2; exit 2 ;; esac
   elif [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of these; the other engines set their size themselves
     case "$aspect" in 16:9|landscape) res=landscape; aspect=16:9 ;; 9:16|portrait) res=portrait; aspect=9:16 ;; 1:1|square) res=square; aspect=1:1 ;;
       4:5) res=portrait; frameh=1350 ;; 3:4) res=portrait; frameh=1440 ;;   # feed posts (Instagram, 小红书): the portrait scaffold, shorter
-      *) echo "unknown aspect: $aspect (16:9 | 9:16 | 1:1 | 4:5 | 3:4)"; exit 2 ;; esac
+      *) echo "unknown aspect: $aspect (16:9 | 9:16 | 1:1 | 4:5 | 3:4)" >&2; exit 2 ;; esac
     case "$type" in short|promo|data|meme) ;;
-      math|paper) echo "--aspect: Manim renders 16:9 here; for a vertical film set pixel_width/pixel_height in manim.cfg (engines/README.md, Manim 竖屏)"; exit 2 ;;
-      handdrawn|mv) echo "--aspect: the hand-drawn engine (ClaudeAnimationBase) draws 1920x1080 only"; exit 2 ;;
-      *) echo "--aspect works for short, promo, data and meme (HyperFrames); $type follows its footage (video-types/09-editing-talking-head.md)"; exit 2 ;; esac
-    if [ -n "$frameh" ] && [ "$outres" = 4k ]; then echo "--res 4k: HyperFrames has no 4K preset for $aspect; it renders 1080x$frameh only"; exit 2; fi
+      math|paper) echo "--aspect: Manim renders 16:9 here; for a vertical film set pixel_width/pixel_height in manim.cfg (engines/README.md, Manim 竖屏)" >&2; exit 2 ;;
+      handdrawn|mv) echo "--aspect: the hand-drawn engine (ClaudeAnimationBase) draws 1920x1080 only" >&2; exit 2 ;;
+      *) echo "--aspect works for short, promo, data and meme (HyperFrames); $type follows its footage (video-types/09-editing-talking-head.md)" >&2; exit 2 ;; esac
+    if [ -n "$frameh" ] && [ "$outres" = 4k ]; then echo "--res 4k: HyperFrames has no 4K preset for $aspect; it renders 1080x$frameh only" >&2; exit 2; fi
   fi
   case "$type" in short) res=${res:-portrait} ;; promo|data|meme) res=${res:-landscape} ;; esac
   case "$res" in portrait) wh=1080x${frameh:-1920} ;; square) wh=1080x1080 ;; landscape) wh=1920x1080 ;; esac
@@ -695,13 +698,13 @@ cmd_new() {
   fi
   local frame=$res; case "$type" in math|paper) frame=${frame:-landscape} ;; esac   # Manim renders landscape
   case "$watch:$frame" in   # a frame and a target that contradict each other (the feed floor is for a 1920-wide frame)
-    feed:portrait|feed:square) echo "--watch feed is for a landscape film shown in a phone feed; a ${aspect:-vertical} frame is already --watch phone"; exit 2 ;;
-    phone:landscape) echo "--watch phone is for a vertical or square frame; a landscape film watched on a phone is --watch feed (in a feed, not rotated) or desktop (turned sideways)"; exit 2 ;;
+    feed:portrait|feed:square) echo "--watch feed is for a landscape film shown in a phone feed; a ${aspect:-vertical} frame is already --watch phone" >&2; exit 2 ;;
+    phone:landscape) echo "--watch phone is for a vertical or square frame; a landscape film watched on a phone is --watch feed (in a feed, not rotated) or desktop (turned sideways)" >&2; exit 2 ;;
   esac
   local base dir; base=$(projects_base "$parent")
-  mkdir -p "$base" || { echo "cannot create $base"; exit 1; }
+  mkdir -p "$base" || { echo "cannot create $base" >&2; exit 1; }
   base=$(cd "$base" && pwd); dir="$base/$(date +%F)-$slug"
-  [ -e "$dir" ] && { echo "$dir already exists"; exit 1; }
+  [ -e "$dir" ] && { echo "$dir already exists" >&2; exit 1; }
   # a step that fails from here on must not leave a half-built dir behind (a retry would say "already exists"): vh_exit removes it
   NEW_DIR=$dir; vh_trap
   if [ "$engine" = canvas-film ]; then   # a static page and its scripts: nothing to install (one command a line, so a failed copy stops here)
@@ -791,7 +794,7 @@ PY
 
 cmd_effort() { # the effort levels: the rules from CLAUDE.md's 努力程度, the table from playbook/01's; with a level, only that column
   local lvl=${1:-} sect='/^## 努力程度/{on=1} on && /^## / && !/努力程度/{exit} on'
-  case "$lvl" in ""|quick|standard|studio) ;; *) echo "usage: bin/vh effort [quick|standard|studio]"; exit 2 ;; esac
+  case "$lvl" in ""|quick|standard|studio) ;; *) echo "usage: bin/vh effort [quick|standard|studio]" >&2; exit 2 ;; esac
   { awk "$sect" "$ROOT/CLAUDE.md"; echo "@@table@@"; awk "$sect" "$ROOT/playbook/01-pipeline.md"; } | python3 -c '
 import sys
 lvl = sys.argv[1]; rules, table = sys.stdin.read().split("@@table@@\n", 1)
@@ -831,7 +834,7 @@ hf_shell() { # hf_shell [dir]: a chrome-headless-shell binary: the one `hyperfra
 cmd_textcheck() { # canvas text covered or too faint (tools/textcheck/textcheck.mjs). The browser: CHROME_PATH, else the chrome-headless-shell
   # `hyperframes render` uses for this project (what renders the film), else the newest one in ~/.cache/puppeteer (what snapshot and check
   # take first), then Chrome or Chromium, with a line saying it is not the film's; no npm package needed
-  [ $# -gt 0 ] || { cmd_usage textcheck; exit 1; }
+  [ $# -gt 0 ] || { cmd_usage textcheck >&2; exit 2; }
   local b=${CHROME_PATH:-} d
   if [ -z "$b" ] || [ ! -x "$b" ]; then
     d=$(arg_dir "$@")
@@ -846,16 +849,17 @@ cmd_fonts() { # check: through the page contract (tools/film/fonts.mjs); list an
     check) shift; cmd_film_tool fonts "$@" ;;
     list|subset) command -v uv >/dev/null 2>&1 || { echo "$c_no bin/vh fonts $1 needs uv (it brings fontTools): bin/vh doctor says how to install it" >&2; exit 2; }
       on_ctrl_c uv run -q --no-project --with fonttools --with brotli python "$ROOT/tools/fonts.py" "$@" ;;
-    *) cmd_usage fonts; exit 1 ;;
+    *) cmd_usage fonts >&2; exit 2 ;;
   esac
 }
 arg_dir() { # the folder of the project or page among a tool's arguments: the first that is neither an option nor an option's
-  # value (the options listed take none), a file's folder; "." when there is none, so --out o <project> finds the project too
+  # value (the options listed take none: all of those of frames, render, determinism, cues, fonts check, patch, textcheck,
+  # readcheck, storyboard and thumbs; one a tool gains goes here), a file's folder; "." when there is none, so --out o <project> finds the project too
   local a skip=0
   for a in "$@"; do
     if [ $skip = 1 ]; then skip=0; continue; fi
     case $a in
-      --soft-gl|--real-clock|--png|--force|--save|--export|--strict|--in-place|--keep|--snapshot|--estimate|--no-estimate|--full|--json|--*=*) ;;
+      -h|--help|--soft-gl|--real-clock|--png|--force|--save|--export|--strict|--in-place|--keep|--snapshot|--estimate|--no-estimate|--full|--json|--covers|--no-title|--chapters|--*=*) ;;
       -*) skip=1 ;;
       *) if [ -d "$a" ]; then echo "$a"; else case $a in */*) echo "${a%/*}" ;; *) echo . ;; esac; fi; return 0 ;;
     esac
@@ -872,7 +876,7 @@ film_browser() { # film_browser <command> [dir]: the browser the page-contract t
 }
 cmd_film_tool() { # $1: frames | render | determinism | cues | fonts | patch (tools/film/<it>.mjs)
   local tool=$1 b; shift
-  [ $# -gt 0 ] || { cmd_usage "$tool"; exit 1; }
+  [ $# -gt 0 ] || { cmd_usage "$tool" >&2; exit 2; }
   # a whole standard or studio film is made after gate ①: its decision on record (CLAUDE.md 关卡); a part (look-dev, a
   # test, the frames bin/vh patch draws again) is not held up
   if [ "$tool" = render ]; then
@@ -896,27 +900,27 @@ on_ctrl_c() { # on_ctrl_c <command…>: run it; a Ctrl-C while it runs ends bin/
   if [ "$int" != 0 ]; then [ "${BASH_SUBSHELL:-0}" = 0 ] || exit 130; ctrl_c_exit; fi
   return "$rc"
 }
-cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--shots shots.json|film.html] [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)"; exit 2; }
+cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--shots shots.json|film.html] [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)" >&2; exit 2; }
   local b=""
   b=$(film_browser storyboard "$(arg_dir "$@")" 2>/dev/null) || true
   on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" --browser "$b" "$@"; }
-cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--shots shots.json|film.html] [--segment NAME | --from s --to s] [--max s] [--out file.png]"; exit 2; }
+cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--shots shots.json|film.html] [--segment NAME | --from s --to s] [--max s] [--out file.png]" >&2; exit 2; }
   local b=""
   b=$(film_browser rhythm "$(arg_dir "$@")" 2>/dev/null) || true
   on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/rhythm.py" --browser "$b" "$@"; }
-cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image> [more…] [--text-px N] [--out file.png|folder]"; exit 2; }
+cmd_cover_preview() { [ $# -gt 0 ] || { echo "usage: bin/vh cover-preview <image> [more…] [--text-px N] [--out file.png|folder]" >&2; exit 2; }
   on_ctrl_c uv run -q --no-project --with pillow --with numpy --with scipy python "$ROOT/tools/cover_preview.py" "$@"; }
 cmd_review() { python3 "$ROOT/tools/review.py" "$@"; }
-cmd_activity() { [ $# -gt 0 ] || { cmd_usage activity; exit 1; }; exec python3 "$ROOT/tools/activity.py" "$@"; }   # read-only, not logged
-cmd_status() { [ $# -gt 0 ] || { cmd_usage status; exit 1; }; exec python3 "$ROOT/tools/status.py" "$@"; }         # read-only, not logged
-cmd_versions() { [ $# -gt 0 ] || { cmd_usage versions; exit 2; }; python3 "$ROOT/tools/versions.py" "$@"; }   # the list is not logged; compare and use are
-cmd_proxy() { [ $# -gt 0 ] || { cmd_usage proxy; exit 2; }; python3 "$ROOT/tools/proxy.py" proxy "$@"; }       # ffmpeg only
-cmd_thumbs() { [ $# -gt 0 ] || { cmd_usage thumbs; exit 2; }   # a browser only for a project with no film (the page's frames)
+cmd_activity() { [ $# -gt 0 ] || { cmd_usage activity >&2; exit 2; }; exec python3 "$ROOT/tools/activity.py" "$@"; }   # read-only, not logged
+cmd_status() { [ $# -gt 0 ] || { cmd_usage status >&2; exit 2; }; exec python3 "$ROOT/tools/status.py" "$@"; }         # read-only, not logged
+cmd_versions() { [ $# -gt 0 ] || { cmd_usage versions >&2; exit 2; }; python3 "$ROOT/tools/versions.py" "$@"; }   # the list is not logged; compare and use are
+cmd_proxy() { [ $# -gt 0 ] || { cmd_usage proxy >&2; exit 2; }; python3 "$ROOT/tools/proxy.py" proxy "$@"; }       # ffmpeg only
+cmd_thumbs() { [ $# -gt 0 ] || { cmd_usage thumbs >&2; exit 2; }   # a browser only for a project with no film (the page's frames)
   local b=""; b=$(film_browser thumbs "$(arg_dir "$@")" 2>/dev/null) || true
   python3 "$ROOT/tools/proxy.py" thumbs ${b:+--browser "$b"} "$@"; }
-cmd_gate() { [ $# -gt 0 ] || { cmd_usage gate; exit 1; }   # exec: stopping a backgrounded gate --wait stops its watcher;
+cmd_gate() { [ $# -gt 0 ] || { cmd_usage gate >&2; exit 2; }   # exec: stopping a backgrounded gate --wait stops its watcher;
   export OVH_BASH=$BASH; exec python3 "$ROOT/tools/gate.py" "$@"; }   # the desk it starts runs under this same bash
-cmd_desk() { [ $# -gt 0 ] || { cmd_usage desk; exit 1; }   # stdlib only: no uv, works offline; exec, so stopping
+cmd_desk() { [ $# -gt 0 ] || { cmd_usage desk >&2; exit 2; }   # stdlib only: no uv, works offline; exec, so stopping
   exec python3 "$ROOT/tools/desk/desk.py" "$@"; }            # a backgrounded bin/vh desk stops the server itself
 
 swatch_deps() { # the swatch renderer's pinned HyperFrames (render.sh and determinism.sh do not install it themselves);
@@ -941,12 +945,12 @@ PY
     gallery) shift; on_ctrl_c uv run -q --no-project --with pillow python "$sw/gallery.py" "$@" ;;
     check) shift; case "${1:-}" in -h|--help) echo "usage: bin/vh style check <preset> [workers_b=3]   frames from 1 and N render workers must match (styles/_swatch/determinism.sh)"; return ;; esac
       swatch_deps "${1:-}"; "$sw/determinism.sh" "$@" ;;
-    compare) shift; [ $# -gt 0 ] || { echo "usage: bin/vh style compare a,b,c [--frame t] [--out file.png]"; exit 2; }
+    compare) shift; [ $# -gt 0 ] || { echo "usage: bin/vh style compare a,b,c [--frame t] [--out file.png]" >&2; exit 2; }
       on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/style_compare.py" "$@" ;;
-    apply) shift; [ $# -eq 2 ] || { echo "usage: bin/vh style apply <preset[,preset]> <project>   (bin/vh style list shows the presets)"; exit 2; }
-      local s styles; styles=$(parse_styles "$1") || { cmd_style list; exit 2; }
+    apply) shift; [ $# -eq 2 ] || { echo "usage: bin/vh style apply <preset[,preset]> <project>   (bin/vh style list shows the presets)" >&2; exit 2; }
+      local s styles; styles=$(parse_styles "$1") || { cmd_style list >&2; exit 2; }
       local dir; dir=$(project_dir "$2") || exit 2
-      [ -f "$dir/BRIEF.md" ] && [ -f "$dir/STYLE.md" ] || { echo "$(rel "$dir") has no BRIEF.md and STYLE.md: not a bin/vh project"; exit 2; }
+      [ -f "$dir/BRIEF.md" ] && [ -f "$dir/STYLE.md" ] || { echo "$(rel "$dir") has no BRIEF.md and STYLE.md: not a bin/vh project" >&2; exit 2; }
       for s in $styles; do attach_style "$dir" "$s"
         echo "$c_ok styles/$s attached to $(rel "$dir") as a reference (style-refs/$s/, BRIEF Style refs, a DECISIONS line to fill in)"; done ;;
     *) swatch_deps "$1"; exec "$sw/render.sh" "$@" ;;
@@ -954,15 +958,16 @@ PY
 }
 
 cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/skills) unless HYPERFRAMES_SKIP_SKILLS=1
-  local dir=${1:?usage: bin/vh hf-init <project-dir> [landscape|portrait|square|4:5|3:4]} res=${2:-landscape} tmp f b font="" h=""
+  [ $# -gt 0 ] || { cmd_usage hf-init >&2; return 2; }
+  local dir=$1 res=${2:-landscape} tmp f b font="" h=""
   local frame=$res   # as given, for the messages (res becomes the preset)
   case "$res" in   # the composition's frame; HyperFrames renders 4K from it with render --resolution 4k
     landscape|16:9) res=landscape ;; portrait|9:16) res=portrait ;; square|1:1) res=square ;;
     4:5) res=portrait; h=1350 ;; 3:4) res=portrait; h=1440 ;;
-    *-4k|*-4K|4k|4K|*2160p) echo "$c_no hf-init $res: 4K is a render flag (render --resolution 4k), not a frame. Scaffold landscape, portrait or square and write the composition at 1080p, so the size floors hold"; return 1 ;;
-    *) echo "$c_no hf-init: unknown frame $res (landscape | portrait | square | 4:5 | 3:4)"; return 1 ;;
+    *-4k|*-4K|4k|4K|*2160p) echo "$c_no hf-init $res: 4K is a render flag (render --resolution 4k), not a frame. Scaffold landscape, portrait or square and write the composition at 1080p, so the size floors hold" >&2; return 2 ;;
+    *) echo "$c_no hf-init: unknown frame $res (landscape | portrait | square | 4:5 | 3:4)" >&2; return 2 ;;
   esac
-  [ -d "$dir" ] || { echo "no such project: $dir"; return 1; }
+  [ -d "$dir" ] || { echo "$c_no hf-init: no such project: $dir" >&2; return 2; }
   if [ -f "$dir/hyperframes.json" ]; then
     echo "$c_ok HyperFrames already initialised in ${dir#$ROOT/}"
     [ -z "$h" ] || echo "$c_wa nothing was changed for $frame: set the viewport, the CSS height and data-height in index.html to $h by hand"
@@ -1028,7 +1033,9 @@ project_of() { # nearest ancestor of $1 that contains BRIEF.md (a project), else
   while [ "$d" != "/" ]; do [ -f "$d/BRIEF.md" ] && { echo "$d"; return; }; d=$(dirname "$d"); done
 }
 cmd_sheet() {
-  local v=${1:?usage: bin/vh sheet <video> [cols] [fps] [out]} cols=${2:-6} fps=${3:-1} name base why="install uv"; name=$(basename "$v"); name=${name%.*}
+  [ $# -gt 0 ] || { cmd_usage sheet >&2; exit 2; }
+  local v=$1 cols=${2:-6} fps=${3:-1} name base why="install uv"; name=$(basename "$v"); name=${name%.*}
+  [ -f "$v" ] || { echo "$c_no bin/vh sheet: no such video: $v" >&2; exit 2; }
   base=$(project_of "$v"); [ -n "$base" ] || base="$(cd "$(dirname "$v")" && pwd)"
   local out=${4:-"$base/out/check/${name}-sheet-$(date +%H%M%S).png"}; mkdir -p "$(dirname "$out")"
   if command -v uv >/dev/null 2>&1; then   # timestamped tiles (ffmpeg builds often lack drawtext)
@@ -1063,6 +1070,9 @@ cmd_check() {
   CHECK_TMP=$(mktemp -d "${TMPDIR:-/tmp}/vh-check.XXXXXX" 2>/dev/null) || CHECK_TMP=""
   if [ -n "$CHECK_TMP" ]; then J=$CHECK_TMP; vh_trap
   else echo "$c_wa bin/vh check: no scratch folder in ${TMPDIR:-/tmp} (mktemp -d failed): the checks run, but no record is made" >&2; fi
+  # the film as it is when the checks begin, for the record (tools/checkrec.py keeps its size and mtime_ns): a film put in its
+  # place while they run is then not taken for the one that was checked
+  [ -z "$J" ] || python3 -c 'import os, sys; s = os.stat(sys.argv[1]); print(s.st_size, s.st_mtime_ns)' "$v" > "$J/film.txt" 2>/dev/null || true
   if [ -n "$json" ]; then
     exec 3>&1 1>&2
     if ! ffprobe -v error -show_entries format=duration -of csv=p=0 "$v" >/dev/null 2>&1; then
@@ -1181,7 +1191,9 @@ cmd_check() {
   return $status
 }
 cmd_tts() {
-  local proj=${1:?usage: bin/vh tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json --snap beat|half|downbeat] [--lead s] [--align gemini] [--join block|all] [--resume]} pos=() deps=""
+  [ $# -gt 0 ] || { cmd_usage tts >&2; exit 2; }
+  local proj=$1 pos=() deps=""
+  [ -d "$proj" ] || { echo "$c_no bin/vh tts: no such project: $proj" >&2; exit 2; }   # before uv builds an environment; tts.py would make the folder
   shift
   while [ $# -gt 0 ] && [ ${#pos[@]} -lt 4 ] && [[ "$1" != --* ]]; do pos+=("$1"); shift; done   # positionals stop at the first --flag
   local prov=${pos[0]:-qwen} voice=${pos[1]:-} lang=${pos[2]:-} instruct=${pos[3]:-} a prev="" np=""
@@ -1233,9 +1245,9 @@ cmd_captions() { # --media-end S: where a caption too short for its minimum may 
   on_ctrl_c env PYTHONWARNINGS=ignore "${py[@]}" "$ROOT/tools/audio/captions.py" "$proj" ${1:+--lang "$1"} ${2:+--zh-max "$2"} ${end[@]+"${end[@]}"}
 }
 cmd_beats() { on_ctrl_c uv run -q --no-project --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
-cmd_timeline() { [ $# -gt 0 ] || { cmd_usage timeline; exit 2; }; python3 "$ROOT/tools/audio/timeline_lint.py" "$@"; }
-cmd_remap() { [ $# -gt 0 ] || { cmd_usage remap; exit 2; }; python3 "$ROOT/tools/audio/remap.py" "$@"; }
-cmd_timemap() { [ $# -gt 0 ] || { cmd_usage timemap; exit 2; }; python3 "$ROOT/tools/audio/time_map.py" "$@"; }   # stdlib only
+cmd_timeline() { [ $# -gt 0 ] || { cmd_usage timeline >&2; exit 2; }; python3 "$ROOT/tools/audio/timeline_lint.py" "$@"; }
+cmd_remap() { [ $# -gt 0 ] || { cmd_usage remap >&2; exit 2; }; python3 "$ROOT/tools/audio/remap.py" "$@"; }
+cmd_timemap() { [ $# -gt 0 ] || { cmd_usage timemap >&2; exit 2; }; python3 "$ROOT/tools/audio/time_map.py" "$@"; }   # stdlib only
 cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then
   local a pil=""; for a in "$@"; do [ "$a" = --roll ] && pil="--with pillow"; done
   on_ctrl_c uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/music.py" "$@"; }
@@ -1250,10 +1262,12 @@ cmd_mix() { # a mix profile computes in numpy/scipy (through uv); the default ch
 cmd_qa() { on_ctrl_c uv run -q --no-project --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
 cmd_mux() { python3 "$ROOT/tools/audio/mux.py" "$@"; }   # verifies a tracked mix; deliberate duration changes need a flag
 
-cmd_deliver() { [ $# -gt 0 ] || { cmd_usage deliver; exit 2; }; python3 "$ROOT/tools/deliver.py" "$@"; }   # ffmpeg only
-cmd_clean() { [ $# -gt 0 ] || { cmd_usage clean; exit 2; }; python3 "$ROOT/tools/clean.py" "$@"; }         # stdlib only
+cmd_deliver() { [ $# -gt 0 ] || { cmd_usage deliver >&2; exit 2; }; python3 "$ROOT/tools/deliver.py" "$@"; }   # ffmpeg only
+cmd_clean() { [ $# -gt 0 ] || { cmd_usage clean >&2; exit 2; }; python3 "$ROOT/tools/clean.py" "$@"; }         # stdlib only
 cmd_gif() {
-  local v=${1:?usage: bin/vh gif <video> [width] [fps]} w=${2:-640} fps=${3:-15} b out; b=${v##*/}; out="${v%"$b"}${b%.*}.gif"   # extension off the file name, not a dotted folder
+  [ $# -gt 0 ] || { cmd_usage gif >&2; exit 2; }
+  local v=$1 w=${2:-640} fps=${3:-15} b out; b=${v##*/}; out="${v%"$b"}${b%.*}.gif"   # extension off the file name, not a dotted folder
+  [ -f "$v" ] || { echo "$c_no bin/vh gif: no such video: $v" >&2; exit 2; }
   ffmpeg -v error -y -i "$v" -vf "fps=$fps,scale=$w:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4" "$out" && ls -lh "$out" | awk '{print $5, $9}'
 }
 

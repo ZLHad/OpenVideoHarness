@@ -6,9 +6,14 @@ The record is saved in the video's project, out/check/<name>.check.json: <name> 
 extension, after the folders between out/ and it ("out/review/sketch.mp4" → review-sketch); a video outside a project gets
 no record. --print writes it to stdout too. It never changes what bin/vh check decided: --exit is its status.
 
-{"version": 1, "tool": "bin/vh check", "video", "project", "record", "t", "at", "args": {"allow", "against"},
+{"version": 1, "tool": "bin/vh check", "video", "project", "record", "t", "at", "size", "mtime_ns", "args": {"allow", "against"},
  "exit", "verdict": "pass" | "fail", "counts": {"fail", "warn", "info"}, "probe": {"duration", "size", "streams"},
  "motion": {"moving", "still_share", "cuts"} | null, "findings": [...], "skipped": [{"check", "why"}]}
+size, mtime_ns  the video file's bytes and modification time (nanoseconds) when the checks began, from os.stat (film.txt, below):
+                a reader tells whether the file is still the one that was checked by comparing them with the file now
+                (film_changed; bin/vh status and versions do), which the time of the record alone cannot (a film put back
+                with an old modification time: cp -p, rsync -a, bin/vh versions use; one put in its place while the checks
+                ran). Nothing is hashed. null when the file cannot be read
 A finding: {"kind", "severity", "message", "t", "t1", "frame", "frames", "evidence", "confirmed"}.
   kind      check.spec, check.gate, check.black, check.freeze, check.silence, check.iso (an isolated frame), check.periodic,
             check.static, check.cut (a hard cut from dark to bright), check.blind (frames that move too much to judge),
@@ -21,7 +26,8 @@ A finding: {"kind", "severity", "message", "t", "t1", "frame", "frames", "eviden
             never confirmed there. An open check.iso carries "confirm": the entry to paste once why and evidence are filled
 The pieces in --dir, each optional (a check that did not run is "skipped" or simply absent): spec.json (speccheck.py),
 gate.json (gatecheck.py), detect.txt (ffmpeg's black/freeze/silence lines), iso.json (isoframes.py), subs.json
-(subcheck.py), colour.txt (ffprobe's csv), pack.json (packcheck.py), scale.json (scalecheck.py), skipped.txt (lines of
+(subcheck.py), colour.txt (ffprobe's csv), film.txt ("<size> <mtime_ns>" of the video when the checks began; without it, the
+video as it is when the record is made), pack.json (packcheck.py), scale.json (scalecheck.py), skipped.txt (lines of
 "<check>\t<why>"), errors.txt (lines of "<kind>\t<severity>\t<message>": a failure with no result of its own).
 """
 import argparse, json, os, re, subprocess, sys, time
@@ -212,6 +218,16 @@ def record_path(video, project):
     return Path(project) / "out" / "check" / ("-".join(parts) + ".check.json")
 
 
+def film_changed(rec, st):
+    """Is the film (st: its os.stat) other than the one this record checked? By the size and mtime_ns the record kept: a film
+    put back with an old modification time still differs in one of them. None for a record without them (made before they
+    were kept): the reader's own rule, by time, applies. Nothing is read or hashed, so a 4K film costs no more than a draft."""
+    size, ns = rec.get("size"), rec.get("mtime_ns")
+    if all(isinstance(x, int) and not isinstance(x, bool) for x in (size, ns)):
+        return st.st_size != size or st.st_mtime_ns != ns
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser(prog="checkrec.py")
     ap.add_argument("video"); ap.add_argument("--dir", required=True); ap.add_argument("--exit", type=int, required=True)
@@ -245,8 +261,18 @@ def main():
     iso = load(a.dir, "iso.json") or {}
     motion = {"moving": iso.get("moving"), "still_share": iso.get("still_share"), "cuts": len(iso.get("cuts") or [])} if "moving" in iso else None
     now = time.time()
+    size = ns = None   # the film as it was when the checks began (film.txt), else as it is now: later readers compare it with the film then (film_changed)
+    try:
+        size, ns = map(int, (text(a.dir, "film.txt") or "").split())
+    except ValueError:
+        try:
+            st = os.stat(video)
+            size, ns = st.st_size, st.st_mtime_ns
+        except OSError:
+            pass
     rec = {"version": 1, "tool": "bin/vh check", "video": shown(video), "project": str(project) if project else None,
            "record": shown(rec_path) if rec_path else None, "t": round(now, 3), "at": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(now)),
+           "size": size, "mtime_ns": ns,
            "args": {"allow": a.allow or None, "against": shown(Path(a.against).resolve()) if a.against else None},
            "exit": a.exit, "verdict": "pass" if a.exit == 0 else "fail", "counts": counts, "probe": probe(video), "motion": motion,
            "findings": findings, "skipped": skipped}
