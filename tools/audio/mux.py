@@ -64,11 +64,15 @@ def main():
     ap.add_argument("--allow-long", action="store_true", help="deliberately trim audio more than 0.1 s longer than the picture")
     a = ap.parse_intermixed_args()
     inputs = [a.video, a.audio, *a.subtitles]
+    if not a.out.parent.is_dir():
+        ap.error(f"no folder for the output: {a.out.parent}")
     if any(a.out.resolve() == p.resolve() or (a.out.exists() and p.exists() and os.path.samefile(a.out, p)) for p in inputs):
         ap.error("output is also an input; choose a different output")
     temp = None
     try:
-        with verified(a.audio) as tracked:
+        with verified(a.audio) as tracked:   # a mix record says first why its audio is not there (a build writing it …)
+            if missing := [str(p) for p in inputs if not p.is_file()]:   # exit 2; one ffprobe cannot read stays 1
+                ap.error("no such file: " + ", ".join(missing))
             vd, ad = duration(a.video, "v"), duration(a.audio, "a")
             delta = ad - vd
             # a profile mix takes dur=: the music's tail (2.5 s by default) or a narration that ends early is fitted inside the mix

@@ -248,8 +248,12 @@ def main():
         ap.error("--cps must be > 0")
     if a.media_end is not None and not (math.isfinite(a.media_end) and a.media_end > 0):
         ap.error("--media-end must be > 0 seconds")
+    if not Path(a.project).is_dir():
+        print(f"captions: no such project: {a.project}", file=sys.stderr); sys.exit(2)
     audio = Path(a.project).resolve() / "audio"
     tl_path = audio / f"timeline.{a.lang}.json" if a.lang else audio / "timeline.json"
+    if not tl_path.is_file():   # bin/vh tts writes it
+        print(f"captions: no timeline at {tl_path} (bin/vh tts makes it{'' if a.lang else '; --lang picks timeline.<lang>.json'})", file=sys.stderr); sys.exit(2)
     tl = json.loads(tl_path.read_text(encoding="utf-8"))
     sys.path.insert(0, str(Path(__file__).resolve().parent)); import timeline_lint
     if (lint := timeline_lint.lint(tl, a.lang or tl.get("lang"))) and not a.skip_lint:   # captions take their times from the words

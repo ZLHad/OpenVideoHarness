@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+**The last small usage bugs: check, captions and mux on inputs that are not there; a free name for a failed film claimed at once**
+- Why: four leftovers from the review of the previous batch.
+- `bin/vh check <video>` on a video that is not there exited 1, with ffprobe's error (with `--json`, a failed record). It is a usage error now: one line on stderr and exit 2, with or without `--json`. A file that ffprobe cannot read stays a failed check (1).
+- `bin/vh captions` on a project that is not there, or on one with no timeline, ended in a Python traceback. The timeline is `audio/timeline.json`, or `timeline.<lang>.json` for a language. Both now give one line naming what is missing, and exit 2. bin/vh says it before uv looks for jieba, and `tools/audio/captions.py` says the same when it is run directly.
+- `bin/vh mux` with an input that is not there said "ffprobe failed" and exited 1. An output in a folder that is not there failed with an OS error, also exit 1. Both are said at once now, with exit 2. When the audio has a mix record, the record still speaks first, as before: for example, that a build is writing it.
+- When `bin/vh patch` keeps a failed film, it takes the next free name beside the film. So does a render or patch whose version record failed. Both looked for the name first and renamed after, so two runs failing at the same instant into one folder could take one name, and the later rename replaced the earlier film. The name is now claimed first: `moveBeside` in `tools/film/versions.mjs` makes the file with `wx`, then renames the film over it.
+- CI: the usage-error loop gains:
+  - the missing video, with and without `--json`;
+  - the missing project and timeline;
+  - mux's missing input and output folder.
+
 **Proposal 02 records the Studio's three switchable themes and what HyperFrames' `packages/studio` gives it; the Studio is on hold**
 - Why: the proposal asked for a round of style exploration before the build (§5). The same fragment of the cut module was drawn in three directions. The maintainer liked all three and asked for them all, switchable, and for the Studio to be put on hold with this written down.
 - `docs/proposals/02-studio-client.md`:
