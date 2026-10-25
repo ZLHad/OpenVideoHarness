@@ -384,9 +384,8 @@ def print_module(m, r):
         detail += f" (for bin/vh {', '.join(m['commands'])})"
     hint = f" → {r['install']}" if bad and r["install"] else ""
     print(f"{mark} {m['name']}  {detail}{hint}")
-    if r["probe"]:
-        pm = {"ok": OK, "failed": NO, "skipped": "-"}[r["probe"]["state"]]
-        print(f"   {pm} live: {r['probe']['note']}")
+    if r["probe"] and r["probe"]["state"] != "skipped":   # skipped: no key, said on the line above
+        print(f"   {OK if r['probe']['state'] == 'ok' else NO} live: {r['probe']['note']}")
 
 
 def main(argv):
