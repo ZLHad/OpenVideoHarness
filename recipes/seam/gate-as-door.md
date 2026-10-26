@@ -19,6 +19,7 @@ status: tuned
 pairs_with: [one-take-world-travel]
 impl: [showcase/04-intro-film/js/arch.js, showcase/04-intro-film/js/pipeline.js, showcase/04-intro-film/js/main.js]
 derived_from: []
+sketch_sha: "be0df33ca6da"
 ---
 
 # 穿门 · gate-as-door

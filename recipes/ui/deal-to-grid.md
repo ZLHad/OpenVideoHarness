@@ -20,6 +20,7 @@ pairs_with: [portal-wipe]
 derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/ui-entrance/deck-deal-flyin.md, license: Apache-2.0, note: 发牌隐喻、判例、预备拍幅度、拖拽层级}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/ui-entrance/deck-deal-flyin/DeckDealFlyin.tsx, license: Apache-2.0, note: 出牌公式、单卡飞行、相机追逐}
+sketch_sha: "c03670fb94c3"
 ---
 
 # 发牌入网格 · deal-to-grid

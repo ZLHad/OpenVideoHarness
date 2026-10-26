@@ -4,18 +4,29 @@ usage: bin/vh recipes list [--intent X[,Y]] [--energy N|A-B] [--engine E] [--fam
                            [--have N[,M]] [--seconds S|A-B] [--aspect A] [--jump J] [--status S] [--pitfall P]
                            [--sound S] [--ids | --json | --md]
        bin/vh recipes check [file.md …]
+       bin/vh recipes sample <id> [--style PRESET] [--draft] [--force]
        (no subcommand = list; python3 tools/recipes.py … is the same thing)
 
 list   Every filter is optional. Values inside one flag are alternatives (`--intent breath,chapter`); different flags
        must all hold. --energy and --seconds take one number (the recipe's range must contain it) or A-B (the ranges
        must overlap). --have lists the material you have: a recipe passes when everything it needs is in the list.
-       An unknown value is an error, not an empty result. --ids prints ids only, --json the parsed frontmatter,
-       --md index rows for recipes/README.md.
+       An unknown value is an error, not an empty result. --ids prints ids only, --json the parsed frontmatter (with
+       path, and sample when the recipe has a sheet), --md index rows for recipes/README.md.
 check  No file: every recipe and sequence under recipes/, plus the library-wide checks (unique ids, file and folder
        names, conflicts listed both ways, every recipe linked from recipes/README.md with the same energy, length and
        status, every vocabulary term documented there, every file derived from licensed material listed in
-       recipes/NOTICE.md). With files: those files, cross-checked against the library. A sketch (a ```js block that
-       defines renderAt) is syntax-checked with node when node is installed.
+       recipes/NOTICE.md, every recipe with a sketch carrying its sample sheet, rendered from the sketch as it is
+       (sketch_sha) and at most 120 kB and 2000 px wide, and every sheet belonging to a recipe). Each sketch is held
+       to hard rule 1 (tools/purity.py).
+       With files: those files, cross-checked against the library. A sketch (a ```js block that defines renderAt) is
+       syntax-checked with node when node is installed.
+sample The recipe's sketch (the first ```js block of its 实现 that defines renderAt) rendered by the style swatch
+       renderer (styles/_swatch/render.sh: 5 s, 1920×1080), and its contact sheet (1600 px wide, at the recipe's qa
+       frames and between them) kept as recipes/<family>/media/<id>.jpg, the sketch's sha256 (12 hex digits) written
+       into its frontmatter as sketch_sha: what the move looks like, for an agent to read. A sketch unchanged since
+       its sheet is not rendered again (--force does). --style PRESET: another skin, its sheet beside the video, not
+       the recipe's. --draft: HyperFrames' draft quality. The video stays in styles/_swatch/out/recipe-<id>/ (not in
+       git). Needs styles/_swatch's npm ci, ffmpeg, uv and Chrome.
 
 Frontmatter is a strict subset of YAML: one `key: value` per line; a value is a plain or quoted scalar, a [flow list]
 or a {flow map}; a key with no value takes a block list of `  - item` lines. No anchors, no multi-line scalars.
@@ -31,12 +42,15 @@ the commit, and a row in recipes/NOTICE.md (Apache-2.0 §4; MIT and CC BY ask fo
 
 Exit: 0 fine · 1 check found problems · 2 bad usage (unknown flag or vocabulary value). Reads files only.
 """
-import json, re, shutil, subprocess, sys
+import hashlib, json, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 LIB = ROOT / "recipes"
 FPS = 30
+SHEET_MAX_KB, SHEET_MAX_W, SHEET_W = 120, 2000, 1600   # a sample sheet: at most this big and this wide; rendered this wide
+sys.path.insert(0, str(ROOT / "tools"))
+import purity   # noqa: E402  tools/purity.py: hard rule 1's patterns (bin/vh hf add and components check read them too)
 
 # Controlled vocabularies. Append only: a published term is never renamed or reused (recipes/README.md, "词表").
 VOCAB = {
@@ -70,7 +84,7 @@ RECIPE = {
     "sound": (True, "sound"), "pitfalls": (True, "pitfalls+"), "qa": (True, "qamap"), "status": (True, "status"),
     "derived_from": (True, "sources"),
     "jump": (False, "jump+"), "max_per_film": (False, "count"), "conflicts": (False, "ids"),
-    "pairs_with": (False, "ids"), "impl": (False, "paths"),
+    "pairs_with": (False, "ids"), "impl": (False, "paths"), "sketch_sha": (False, "sha"),
 }
 SEQUENCE = {
     "id": (True, "id"), "kind": (True, "kind"), "name": (True, "str"), "one_liner": (True, "str"),
@@ -330,6 +344,9 @@ def check_field(key, kind, v, fm):
     elif kind == "str":
         if not isinstance(v, str) or not v.strip():
             raise FMError(f"{key}: expected text")
+    elif kind == "sha":
+        if not (isinstance(v, str) and re.fullmatch(r"[0-9a-f]{12}", v)):
+            raise FMError(f"{key}: the first 12 hex digits of the sketch's sha256, quoted (bin/vh recipes sample writes it), got {v!r}")
     elif kind.endswith("+"):
         if not isinstance(v, list) or not v:
             raise FMError(f"{key}: expected a non-empty [list] from the {vocab} vocabulary")
@@ -410,6 +427,45 @@ def section(body, heading):
     return m.group(1) if m else ""
 
 
+def sketch_of(body):
+    """The recipe's sketch: the first ```js block of its 实现 that defines renderAt (None when it has none)."""
+    return next((b for b in re.findall(r"```js\n(.*?)```", section(body, "## 实现"), re.S) if "renderAt" in b), None)
+
+
+def sample_path(p, rid):
+    """Where `bin/vh recipes sample` keeps a recipe's contact sheet: next to it, media/<id>.jpg."""
+    return Path(p).parent / "media" / f"{rid}.jpg"
+
+
+def sketch_sha(sketch):
+    """The first 12 hex digits of the sketch's sha256: what its sheet was rendered from (frontmatter sketch_sha)."""
+    return hashlib.sha256(sketch.encode("utf-8")).hexdigest()[:12]
+
+
+def jpeg_width(path):
+    """A JPEG's width from its frame header (SOFn), or None when it is not one."""
+    b = Path(path).read_bytes()
+    i = 2 if b[:2] == b"\xff\xd8" else len(b)
+    while i + 9 < len(b):
+        if b[i] != 0xFF:
+            return None
+        marker, n = b[i + 1], int.from_bytes(b[i + 2:i + 4], "big")
+        if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+            return int.from_bytes(b[i + 7:i + 9], "big")
+        i += 2 + n
+    return None
+
+
+def set_sketch_sha(path, sha):
+    """Write sketch_sha into the recipe's frontmatter: its line replaced, or a line added before the closing ---."""
+    text = Path(path).read_text(encoding="utf-8")
+    end = text.index("\n---", 4)
+    head, rest = text[:end], text[end:]
+    line = f'sketch_sha: "{sha}"'
+    head, n = re.subn(r"(?m)^sketch_sha:.*$", line, head)
+    Path(path).write_text((head if n else head + "\n" + line) + rest, encoding="utf-8")
+
+
 def frontmatter_problems(fm):
     """Field-by-field problems of one parsed frontmatter (no body, no cross-references)."""
     probs = []
@@ -482,13 +538,15 @@ def check_file(path, lib=None):
 
 
 def check_sketches(body):
-    """Syntax-check every ```js block that defines renderAt (an ES module), with node when it is installed."""
-    node = shutil.which("node")
-    if not node:
-        return []
-    probs = []
+    """Every ```js block that defines renderAt (an ES module): hard rule 1 (tools/purity.py), and its syntax with node
+    when node is installed."""
+    node, probs = shutil.which("node"), []
     for i, block in enumerate(re.findall(r"```js\n(.*?)```", body, re.S)):
         if "renderAt" not in block:
+            continue
+        probs += [f"sketch {i + 1}, line {n}: {what} (hard rule 1: a frame is a function of t; a line may say purity-ok with its reason)"
+                  for what, n, _ in purity.scan(block)]
+        if not node:
             continue
         r = subprocess.run([node, "--input-type=module", "--check"], input=block, capture_output=True, text=True, timeout=30)
         if r.returncode:
@@ -582,6 +640,36 @@ def library_checks(lib):
         for s in srcs:
             if s["path"] not in rows:
                 probs.append(f"recipes/NOTICE.md: the row for {target} does not name its upstream file {s['path']}")
+    for rid, (p, fm) in sorted(lib.items()):   # a recipe shows its move: the sketch rendered as a contact sheet
+        if fm.get("kind", "recipe") != "recipe" or sample_path(p, rid).exists():
+            continue
+        try:
+            _, body = read(p)
+        except (FMError, OSError, UnicodeDecodeError):
+            continue
+        if sketch_of(body) is not None:
+            probs.append(f"{rel(p)}: has a sketch but no sample sheet (bin/vh recipes sample {rid} --draft → "
+                         f"{rel(sample_path(p, rid))})")
+    for rid, (p, fm) in sorted(lib.items()):   # a sheet shows the sketch as it is now, and stays small
+        sheet = sample_path(p, rid)
+        if fm.get("kind", "recipe") != "recipe" or not sheet.exists():
+            continue
+        kb, w = sheet.stat().st_size / 1024, jpeg_width(sheet)
+        if kb > SHEET_MAX_KB or not w or w > SHEET_MAX_W:
+            probs.append(f"{rel(sheet)}: {kb:.0f} kB, {w or 'no JPEG'} px wide: at most {SHEET_MAX_KB} kB and {SHEET_MAX_W} px "
+                         f"(bin/vh recipes sample renders {SHEET_W} px)")
+        try:
+            _, body = read(p)
+        except (FMError, OSError, UnicodeDecodeError):
+            continue
+        sk = sketch_of(body)
+        if sk is not None and fm.get("sketch_sha") != sketch_sha(sk):
+            probs.append(f"{rel(p)}: " + ("its sheet has no sketch_sha in the frontmatter" if not fm.get("sketch_sha") else
+                                          "its sketch changed since its sheet was rendered") + f" (bin/vh recipes sample {rid} --draft)")
+    for sheet in sorted(LIB.glob("*/media/*.jpg")):
+        owner = lib.get(sheet.stem)
+        if not owner or sample_path(owner[0], sheet.stem).resolve() != sheet.resolve():
+            probs.append(f"{rel(sheet)}: no recipe {sheet.stem} in {sheet.parent.parent.name}/ (a sheet left behind)")
     return probs
 
 
@@ -719,7 +807,8 @@ def cmd_list(args):
         print("\n".join(r[0] for r in rows))
         return 0
     if out == "json":
-        print(json.dumps([dict(fm, path=rel(p)) for _, p, fm in rows], ensure_ascii=False, indent=1))
+        print(json.dumps([dict(fm, path=rel(p), **({"sample": rel(sample_path(p, rid))} if sample_path(p, rid).exists() else {}))
+                          for rid, p, fm in rows], ensure_ascii=False, indent=1))
         return 0
     if out == "md":
         print("\n".join(index_row(rid, p, fm) for rid, p, fm in rows))
@@ -735,6 +824,74 @@ def cmd_list(args):
     return 0
 
 
+def sample_times(fm):
+    """The sheet's moments (s): the recipe's qa frames inside the sample's 5 s, filled out evenly to ten."""
+    qa = sorted({round(min(4.9, max(0.1, f / FPS)), 2) for f in (fm.get("qa") or {}).values() if isinstance(f, int)})
+    ts = qa[:]
+    for x in (0.25, 1.25, 2.25, 3.25, 4.75, 0.75, 1.75, 2.75, 3.75, 4.25):
+        if len(ts) >= 10:
+            break
+        if all(abs(x - y) > 0.2 for y in ts):
+            ts.append(x)
+    return sorted(ts)
+
+
+def cmd_sample(args):
+    pos = [a for a in args if not a.startswith("-")]
+    style, draft, force, i = "swiss-grid-type", False, False, 0
+    while i < len(args):
+        if args[i] == "--draft":
+            draft = True
+        elif args[i] == "--force":
+            force = True
+        elif args[i] == "--style" and i + 1 < len(args):
+            style = args[i + 1]; pos.remove(args[i + 1]); i += 1
+        elif args[i].startswith("-"):
+            return usage(f"unknown option {args[i]!r}")
+        i += 1
+    if len(pos) != 1:
+        return usage("sample <id> [--style PRESET] [--draft] [--force]")
+    lib = load_library()
+    if pos[0] not in lib or lib[pos[0]][1].get("kind", "recipe") != "recipe":
+        return usage(f"no recipe {pos[0]!r} (bin/vh recipes list --ids)")
+    path, fm = lib[pos[0]]
+    _, body = read(path)
+    sketch = sketch_of(body)
+    if sketch is None:
+        print(f"bin/vh recipes sample: {rel(path)} has no sketch (a ```js block in 实现 that defines renderAt)", file=sys.stderr)
+        return 2
+    tokens = ROOT / "styles" / style / "tokens.json"
+    if not tokens.is_file():
+        return usage(f"no style {style!r} (bin/vh style list)")
+    stage, default = f"recipe-{fm['id']}", style == "swiss-grid-type"   # the stage: never a style's slug
+    sha = sketch_sha(sketch)
+    out = sample_path(path, fm["id"]) if default else ROOT / "styles" / "_swatch" / "out" / stage / f"sheet-{style}.jpg"   # another skin: a look, not the record
+    if default and out.exists() and fm.get("sketch_sha") == sha and not force:
+        print(f"bin/vh recipes sample: {rel(out)} is the sketch as it is ({sha}); --force renders it again")
+        return 0
+    tmp = Path(tempfile.mkdtemp(prefix="vh-recipe-"))
+    try:
+        scene = tmp / stage   # the renderer names its stage and output after the folder
+        scene.mkdir()
+        (scene / "swatch.js").write_text(sketch, encoding="utf-8")
+        shutil.copy2(tokens, scene / "tokens.json")
+        r = subprocess.run([str(ROOT / "styles" / "_swatch" / "render.sh"), str(scene)] + (["--draft"] if draft else []))
+        if r.returncode != 0:
+            return 1
+        hf = ROOT / "styles" / "_swatch" / "out" / scene.name / "hf.mp4"
+        out.parent.mkdir(exist_ok=True)
+        png = tmp / "sheet.png"
+        subprocess.run(["uv", "run", "-q", "--no-project", "--with", "pillow", "python", str(ROOT / "tools" / "sheet.py"), str(hf), str(png), "5", "2",
+                        str(SHEET_W // 5)], env=dict(os.environ, VH_SHEET_AT=",".join(str(x) for x in sample_times(fm))), check=True)
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(png), "-vf", f"scale='min({SHEET_W},iw)':-2", "-q:v", "4", str(out)], check=True)
+        if default:   # the sheet in git: record what it was rendered from
+            set_sketch_sha(path, sha)
+        print(f"bin/vh recipes sample: {rel(out)} ({out.stat().st_size // 1024} kB; the video: {rel(hf)}, not in git)")
+        return 0
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main(argv):
     if argv[:1] == ["help"] or any(a in ("-h", "--help") for a in argv):   # `recipes list -h` too, not an unknown option
         print(__doc__.strip())
@@ -745,6 +902,8 @@ def main(argv):
         return cmd_list(argv[1:])
     if argv[0] == "check":
         return cmd_check(argv[1:])
+    if argv[0] == "sample":
+        return cmd_sample(argv[1:])
     return usage(f"unknown subcommand {argv[0]!r}")
 
 

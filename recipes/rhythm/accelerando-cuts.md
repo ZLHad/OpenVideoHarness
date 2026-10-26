@@ -19,6 +19,7 @@ max_per_film: 1
 derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/rhythm/beat-cut-moves.md, license: Apache-2.0, note: 两式中的 A 式}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/rhythm/beat-cut-moves/BeatCutAccelerando.tsx, license: Apache-2.0, note: 切点帧、视图池、切帧提亮、末段慢推}
+sketch_sha: "4dfe40da9374"
 ---
 
 # 递进硬切串 · accelerando-cuts

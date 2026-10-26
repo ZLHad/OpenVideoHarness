@@ -19,6 +19,7 @@ max_per_film: 1
 derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/rhythm/montage-rhythm-moves.md, license: Apache-2.0, note: 三式中的 A 式}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/rhythm/montage-rhythm-moves/DropBlackoutSlam.tsx, license: Apache-2.0, note: 黑场长度、砸入、震屏、亮环、收尾}
+sketch_sha: "bb0ce23b0d41"
 ---
 
 # 黑场蓄爆 · drop-blackout-slam

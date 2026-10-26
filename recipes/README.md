@@ -78,6 +78,7 @@
 | [flash-stitch](seam/flash-stitch.md) | 两种画面媒介之间的硬切上插 1 帧（60 fps 是 2 帧）高反差的"底片"：二值、双色或负片，读不出内容，却把两边焊在一起 | 4–5 | 0.03–0.07 s | draft |
 | [focus-handoff](seam/focus-handoff.md) | 前景失焦、淡出、略向一侧滑走，后景错开 2 帧反向收焦进来，焦点本身就是剪辑点 | 2–3 | 0.4–0.67 s | tuned |
 | [gate-as-door](seam/gate-as-door.md) | 世界里立着一扇形状对应下一章的门（画框、竖屏、节点），镜头朝门心加速穿过去，门框掠出画面，门里的世界接管 | 3–5 | 0.8–1.6 s | tuned |
+| [gl-transition](seam/gl-transition.md) | 一段着色器、一个参数切五种转场：交叉扭曲、斜向扭曲擦除、梦幻波纹、涟漪、模糊交叉；前后两镜当纹理喂进去，进度由 t 算 | 2–4 | 0.5–1 s | tuned |
 | [portal-wipe](seam/portal-wipe.md) | 页面上的一张卡放大成全屏窗口，被点开的那个世界从窗里长出来接管画面 | 3–4 | 1.3–1.6 s | tuned |
 | [whip-pan](seam/whip-pan.md) | 相机一拍横甩到下一景，中段糊到认不出，借糊帧换景；两款：直接落位、急刹长尾 | 3–5 | 0.27–2 s | tuned |
 | [zoom-through](seam/zoom-through.md) | 沿镜头纵深方向切：推进款里旧字冲向镜头、新字从远处继续长大；拉回款里旧的退远、新的从镜头背后缩回来落定 | 2–4 | 0.6–0.8 s | tuned |
@@ -96,22 +97,68 @@
 |---|---|---|---|---|
 | [brand-imprint-open](type/brand-imprint-open.md) | 一个小记号先画出来，字标逐字压印，副标打出，整组停到读完再上浮离场，交给产品画面 | 1–2 | 3–5 s | upstream-tested |
 | [breath-title-card](type/breath-title-card.md) | 一句话逐词压印上屏，只有一个强调词，短横线收住，停到读完：两段高能镜头之间的喘息和路标 | 1–2 | 3.2–5.5 s | upstream-tested |
+| [char-stagger](type/char-stagger.md) | 一行短标题的字按阅读顺序从下方 64 px 升起、同时淡入，每个字比前一个晚 1 帧，各走约 0.6 s；中文按字、英文按字母 | 2 | 1–3 s | tuned |
 | [decode-type](type/decode-type.md) | 字像被程序一点点解出来：乱码按 2 帧一换，每个字在 0.3 s 内依次锁定，锁定之后才开始算读的时间 | 2–4 | 0.2–1 s | tuned |
+| [elastic-type](type/elastic-type.md) | 一个词的每个字母站在锁死的基线上拉高变窄，从中间的字母开始往两边传，中间那个最高、最窄、是唯一的强调色，旁边一个读数从 wdth 100 数到 62 | 4 | 2–5 s | tuned |
+| [glyph-roll](type/glyph-roll.md) | 每个字是一格只露一个字高的槽，字条往上滚、换成新词的同位字，左边的先走、每格晚 1–2 帧；状态词、按钮标签换值时用 | 2 | 0.67–1.5 s | tuned |
+| [handwrite-on](type/handwrite-on.md) | 一个手写的词或签名按真实笔顺被笔尖一笔笔写出来：笔画走中心线、圆头，每笔的时间跟长度成正比，曲线处慢、笔与笔之间停一下 | 1 | 1.5–4 s | tuned |
+| [highlight-sweep](type/highlight-sweep.md) | 句子先读一拍，一条荧光笔色带从左往右扫过关键词，色带在字的下半部、垫在字后面，一句话只扫一处 | 2 | 1.5–3 s | tuned |
+| [masked-type](type/masked-type.md) | 一个大的描边字，画面从字形的底部往上涨满，一条带小方块把手的强调色线标着涨到哪；第二行字从一条看不见的切线后面升出来，不是淡入 | 3 | 2–5 s | tuned |
+| [quote-build](type/quote-build.md) | 大引号先到，几行引文一行行从下方 24 px 升起，署名最后才贴上；停留时间按字数给足，引文一字不改 | 1 | 3–6 s | tuned |
+| [scatter-assemble](type/scatter-assemble.md) | 撒在画面四处、带着旋转的字母，从种子决定的起点依次飞回来，在落点前减速，拼成一句可读的话；落定时没有残留的旋转和透明 | 3 | 1.5–3 s | tuned |
+| [split-flap](type/split-flap.md) | 每个字是一张上下两半的翻牌，上半沿中线往下折、下半翻出新字，中途闪过两个别的字；从左往右每格晚 1 帧，像机场的到站牌 | 3 | 0.67–2 s | tuned |
+| [strike-replace](type/strike-replace.md) | 一条删除线从左往右划过旧说法，停一拍，新说法才从下方 12 px 升到它下面；旧的留在 45% 浓度，看得出改了什么 | 2 | 1–3 s | tuned |
+| [text-to-layout](type/text-to-layout.md) | 一行小字的标题拆成两半，各自飞到整页版式里的位置并长大，后一半先下落再左移、从不和前一半挤在一行；其余元素按阅读顺序到场：眉题、图、正文、引语卡 | 3 | 2–5 s | tuned |
+| [text-wave](type/text-wave.md) | 一道只有三四个字宽的波从句首扫到句尾，只托起它经过的字（高度不超过字号的 30%），扫完歇一下再来，像句子在呼吸 | 2 | 1.2–5 s | tuned |
+| [tracking-reveal](type/tracking-reveal.md) | 字距拉得很开的一行标题慢慢收拢成紧凑的整体，透明度在前 60% 里升满；插值的是每个字的位移，不是字距属性，所以行不会抖 | 1 | 0.6–1.5 s | tuned |
+| [underline-draw](type/underline-draw.md) | 关键词下面一笔画出一条略带弧度的下划线，从左到右一次画完，像有人拿笔指着它；线在字下面，不压笔画 | 2 | 1–2.5 s | tuned |
+| [word-emphasis](type/word-emphasis.md) | 整句先完整出现，然后其中一个短语换成强调色、围着自己的中心放大 6%，其余字退到 30% 左右的浓度，句子仍然读得通 | 2 | 1.5–4 s | tuned |
+| [word-relay](type/word-relay.md) | 一个巨大的词从右边冲进来、在中间停 0.6 s、往左退场，下一个词同时冲进来接棒；两到五个词，最后一个词留下来当结论 | 4 | 2–5 s | tuned |
+| [word-rise](type/word-rise.md) | 一两行字幕按词（中文按词组）依次上浮 12 px，模糊从 6 px 收到 0，全句在 1.2 s 内出齐；安静、按读的顺序 | 1 | 1–3 s | tuned |
+| [word-slot-cycle](type/word-slot-cycle.md) | 句子的固定部分不动，只有一个词槽上下轮换几个候选词：旧词往上带点模糊出去、新词从下面进来，槽宽按最宽的词定，句子不跟着跳 | 2 | 2–5 s | tuned |
 
-**开场 `open/`、界面 `ui/`、交互 `interaction/`、运镜 `camera/`、收尾 `outro/`**
+**开场 `open/`、界面 `ui/`、交互 `interaction/`、运镜 `camera/`、数据 `data/`、特效 `fx/`、收尾 `outro/`**
 
 | 配方 | 一句话 | 能量 | 时长 | 状态 |
 |---|---|---|---|---|
 | [spotlight-hero](open/spotlight-hero.md) | 光在整页上找一圈、停在一张卡上，镜头从左侧斜着推近；卡抬起悬停，边框上跑两圈光，再落回自己的格子 | 3 | 4.8–5.3 s | upstream-tested |
+| [accordion-expand](ui/accordion-expand.md) | 列表里一行从固定的上沿往下展开，下面的行被平滑推开让位，箭头转 180°，展开出来的内容等面板过半才按行淡入 | 2 | 1–2.5 s | tuned |
+| [answer-stream](ui/answer-stream.md) | 一段 AI 回答按词组一块块出来，每块先以 22% 浓度出现、0.26 s 内实到 100%，末尾跟一个强调色的光标块；出完停住给读的时间 | 2 | 2–5 s | tuned |
+| [button-to-player](ui/button-to-player.md) | 一颗"预览"小按钮的外壳自己拉长成整个播放器，播放键一路移到中心、长出底盘，再变成暂停，原位留一个按钮的虚影 | 3 | 2.2–5 s | tuned |
+| [card-to-workspace](ui/card-to-workspace.md) | 角落里一张小卡从自己的角上长成整个编辑器窗口，卡的标题是同一个元素、一路飞进窗口标题栏，虚线从卡角连到窗角，内容等外壳过半才进 | 3 | 2–5 s | tuned |
+| [chat-thread](ui/chat-thread.md) | 消息一条条出现，新气泡从 0.75 倍长到 1 倍，旧的对话整体往上推一格；问和答左右分开，条与条之间给够读的时间 | 2 | 3–6 s | tuned |
 | [deal-to-grid](ui/deal-to-grid.md) | 一摞卡像发牌一样飞进网格的真实槽位，出牌越来越快，相机追着往下滚，满板后停半秒 | 4–5 | 2.9–3.8 s | upstream-tested |
+| [diff-reveal](ui/diff-reveal.md) | 代码或文档的改动一行行显出来：先标删除（底色从左铺开、减号），再插入新增的行（把下面的行推开、加号），左边一列标记；一屏不超过 8 行改动 | 2 | 1.5–4 s | tuned |
 | [doc-self-writing](ui/doc-self-writing.md) | 一整页真排版的文档在光标后面一块块"写"出来，侧栏随后铺开，历史条目一条条落进侧栏 | 2 | 3.3–4 s | upstream-tested |
+| [drag-drop](ui/drag-drop.md) | 光标按住列表里的一项，提起一个半透明的副本；副本跟着光标走，经过的项依次让位，虚线槽标出它会落在哪，最后贴合落进去 | 3 | 1.5–3.5 s | tuned |
+| [error-shake](ui/error-shake.md) | 输入框短促地左右摇三下标出错误，边框和下面一行说明变成错误色；改对以后边框换成成功色，一个勾一笔画出来 | 3 | 1.5–3.5 s | tuned |
+| [gen-scan](ui/gen-scan.md) | 一条扫描带从上往下扫过画框，带上方是完成的图、下方还是粗像素格，进度数字跟着扫描带走、到底才说"完成" | 3 | 2–5 s | tuned |
+| [glass-focus](ui/glass-focus.md) | 一块玻璃透镜在一张整体模糊的报表上一行行移动，只有透镜里的那一行清晰、放大 1.1 倍，字的两侧各一道极淡的色散，透镜顶上一道高光、两圈边 | 2 | 2–5 s | tuned |
+| [hold-confirm](ui/hold-confirm.md) | 按住按钮时一层填充从左往右涨，第一次中途松手，填充退回去；第二次按满，按钮才换成完成的勾——"刻意的等待"被看见 | 2 | 2–4 s | tuned |
+| [magnetic-dock](ui/magnetic-dock.md) | 一排图标在深色半透明的坞里，光标滑过时每个图标按它到光标距离的钟形曲线放大，坞围着光标变宽而不是往一边长，标签始终在最大的那个图标上方 | 3 | 2–5 s | tuned |
+| [modal-lift](ui/modal-lift.md) | 背景压暗（不糊），一个对话框从下方 24 px、0.96 倍浮到正中落定，焦点只剩它；随后光标点下确认键，键按下去再弹回 | 2 | 1–3 s | tuned |
 | [row-embed](ui/row-embed.md) | 数据行一条条从上方落下，从斜的俯仰角放平，卡进页面里自己的行位，卡进去的那一帧底边闪一道强调色的缝 | 3 | 2.3–3.3 s | upstream-tested |
+| [search-results](ui/search-results.md) | 一个短胶囊先展开成整条搜索框，再一个字一个字打进搜索词，词打完后三张结果卡错开一拍从下方升起落位，每张带一个真数字 | 3 | 2–4 s | tuned |
+| [spring-fan](ui/spring-fan.md) | 三张叠在一起的卡各按不同阻尼的弹簧扇开，最上面那张阻尼最小、摆过头再晃回来；虚线虚影标出它的静止角度，角上拖一串点，角落的小曲线图同步走 | 3 | 2–5 s | tuned |
+| [swipe-reveal](ui/swipe-reveal.md) | 列表里一行被手指往左推开，底下露出两个操作按钮（归档、删除），停住让人看清，然后行回弹盖上；手势的方向和藏着的操作一起讲清楚 | 2 | 1.5–3.5 s | tuned |
+| [tab-stretch](ui/tab-stretch.md) | 选中的深色胶囊滑向下一个标签时前沿先走、后沿晚一拍，于是先拉长再缩回；标签字色跟着胶囊盖住的比例渐变，下面的面板逐行侧滑换成新内容 | 3 | 1.5–5 s | tuned |
+| [terminal-run](ui/terminal-run.md) | 终端里一条命令按人手的速度敲完、回车，输出一行行出来，最后一行是结论，然后回到提示符；输出照抄真实的一次运行，不编数字 | 2 | 2.5–5 s | tuned |
+| [toast-stack](ui/toast-stack.md) | 完成通知从右边滑进来、在右上角叠成一摞，最新的在最上面；中间一条被关掉以后，下面的平滑补上空位，同时可读的不超过三条 | 3 | 2–5 s | tuned |
+| [toggle-slide](ui/toggle-slide.md) | 开关的圆钮滑到另一头、带一点回弹落定，轨道换色，圆钮上出现勾、旁边的"关"换成"开"；状态不只靠颜色表达 | 2 | 0.67–2 s | tuned |
+| [upload-stack](ui/upload-stack.md) | 几张文件卡一张张抬起叠成一列，每张带自己的进度条，按各自的大小用不同的时间走到 100%；全部完成，标题才换成"已上传" | 2 | 2–5 s | tuned |
+| [zoom-callout](ui/zoom-callout.md) | 界面上一个很小的数先被圈出来，一条线从圈引到旁边，一个圆形放大框弹出来，里面是同一个数的 4.5 倍字号和它的标签 | 2 | 1.5–4 s | tuned |
 | [oversized-cursor](interaction/oversized-cursor.md) | 一只画面宽度 7% 的光标从画外进来，把视线带到下一个目标，点一下让下一件事发生，然后离开或带进下一镜 | 2–3 | 1–3 s | tuned |
 | [type-and-filter](interaction/type-and-filter.md) | 在真实界面上按人手的速度打字搜索，网格自己收敛成一张卡，点击它，镜头推进交给详情 | 3 | 2.3–2.7 s | upstream-tested |
+| [layer-depth](camera/layer-depth.md) | 叠得几乎平的三层（图表在后、列表居中、页面在前）从后往前依次拉开、转向同一个灭点，每层留着自己的内容；虚线引向灭点，停留时机位上下浮动，三层错开着呼吸 | 2 | 2–5 s | tuned |
 | [one-take-world-travel](camera/one-take-world-travel.md) | 一台镜头在同一个 3D 世界里从一个站点飞到下一个：甩过去、到站减速成慢推、停站时保留低幅漂移，字在读的时候骑在镜头前 | 2–5 | 3–8 s | tuned |
+| [chart-morph](data/chart-morph.md) | 六根柱子从左到右依次收细成发丝，一条线从左往右画过它们的顶点，点逐个弹出，最后一个点挂上数值标签；前后是同一组数 | 2 | 2–5 s | tuned |
+| [flowing-paths](data/flowing-paths.md) | 一个源头错开发出三个光点，沿弯曲的连线流向三个渠道，线是被光点一路点亮的；光点到达时节点回一圈涟漪，第二批光点汇进结果，线色从冷色渐到强调色 | 3 | 3–5 s | tuned |
+| [kpi-lift](data/kpi-lift.md) | 四个强调色角标先卡住要讲的那张指标卡，其余仪表盘变暗，那张卡从它真实的位置和大小放大成占满画面的大卡，原位留下空槽，大卡的内容后到 | 3 | 2–5 s | tuned |
+| [shutter-reveal](fx/shutter-reveal.md) | 整个画面被七条深色竖板盖着，竖板从左到右依次往自己的中线收窄到没有，每条带一道淡淡的亮边；露出的画面随后慢慢推近，左上角一个"新品"标签 | 3 | 1.5–5 s | tuned |
 | [group-photo-launch](outro/group-photo-launch.md) | 每个展示过的功能派一个代表元素，从四面八方飞来围成合影，字标最后压印落款，全片能量最高 | 5 | 5–6 s | upstream-tested |
+| [particle-mark](outro/particle-mark.md) | 左边一片撒开的小点，带着短拖尾沿弧线飞进右边标志的形状里，左边的先走、带一点种子随机；落定的点排在标志形状内的网格上，所以标志是清楚的 | 3 | 2–5 s | tuned |
 
-本库只收了一部分。shotcraft 的其余卡片（共 157 张）可以在它的[在线 Gallery](https://vincentwei1021.github.io/video-shotcraft/) 看样片，源码在 `references/repos/video-shotcraft/references/shots/`（Apache-2.0，只读）；借用时按下文"写一张新配方"改写进来。
+本库只收了一部分。shotcraft 的其余卡片（共 157 张）可以在它的[在线 Gallery](https://vincentwei1021.github.io/video-shotcraft/) 看样片，源码在 `references/repos/video-shotcraft/references/shots/`（Apache-2.0，只读）；借用时按下文"写一张新配方"改写进来。[motion-graphics-skills](https://github.com/charlie947/motion-graphics-skills) 的 16 张效果配方全收了；[awesome-ai-motion](https://github.com/gongnyang/awesome-ai-motion) 的 637 张卡里挑了 30 张文字和界面的，其余（转场、数据、加载、3D 等）在它的网站和仓库里；[gl-transitions](https://github.com/gl-transitions/gl-transitions) 挑了五式合成 `gl-transition` 一张，其余的照那张"实现"一节末尾的说明加进来。
 
 ## frontmatter
 
@@ -141,6 +188,7 @@ frontmatter 是 YAML 的一个严格子集：一行一个 `key: value`；值是�
 | `conflicts` | 否 | `[paparazzi-flash]` | 不能同片出现的配方；两边都要写 |
 | `pairs_with` | 否 | `[breath-title-card]` | 常和它搭配的配方 |
 | `impl` | 否 | `[showcase/04-intro-film/js/fx.js]` | 本仓库里已有的实现；`check` 会确认文件存在 |
+| `sketch_sha` | 否 | `"023b04a621bc"` | 联系表是照哪一版草图渲的：草图 sha256 的前 12 位，`bin/vh recipes sample` 写进来，不手填；`check` 拿它和现在的草图比 |
 
 骨架（`sequences/*.md`）用同一种格式，字段是 `id`、`kind: sequence`、`name`、`one_liner`、`duration_f`、`types`、`aspect`、`arc`（每一段的能量，如 `[1, 3, 4, 2, 5]`）、`uses`（用到的配方 id）、`status`、`derived_from`。`kind` 的取值是 `recipe`（缺省）或 `sequence`。
 
@@ -227,21 +275,31 @@ styles/_swatch/render.sh /tmp/try --draft --hud                         # → /t
 
 草图是 5 秒、30 fps（样片渲染器的固定长度），只为说明时序和结构，素材用灰盒代替。放进真实项目时，把灰盒换成截图，把时间换成分镜里的片内时间。
 
+**样片**：每张有草图的配方都带一张渲好的联系表，`<family>/media/<id>.jpg`（1600 px 宽，十格：验收帧和其间的时刻，`swiss-grid-type` 的皮），读配方前先看它，就知道这个动作长什么样。`bin/vh recipes list --json` 的 `sample` 字段给出路径。改了草图就重渲：
+
+```bash
+bin/vh recipes sample <id> --draft                  # → <family>/media/<id>.jpg，草图的 sha 写进 sketch_sha；视频留在 styles/_swatch/out/recipe-<id>/（不进 git）
+bin/vh recipes sample <id> --style risograph        # 换一张皮看看：联系表放在视频旁边，不动配方那张
+```
+
+草图没变就不重渲（`--force` 照渲）。`bin/vh recipes check` 会查：有草图的配方都有联系表，联系表是照现在的草图渲的（`sketch_sha`），每张不超过 120 kB、2000 px 宽，每张联系表都有它的配方；草图也要守硬规则 1（`tools/purity.py` 的那张表；HyperFrames 注册表的 add 和组件的 check 读的也是它）。
+
 ## 写一张新配方
 
 1. 复制 [`_TEMPLATE.md`](_TEMPLATE.md) 到 `<family>/<id>.md`，按模板的节写，全文控制在 150 行左右。
 2. 时间一律写 30 fps 的帧数，必要时附拍数；参数表标出 ★；验收帧写进 `qa`。
 3. 从别处学来的，用自己的话重写，不整段搬原文和代码；只学时序、编排、缓动这类手法，不复刻具体的画面、文案和品牌。在 `derived_from` 写明仓库、commit、上游路径和许可，正文"来源"一节写清改了什么。来源是 `Apache-2.0`、`MIT` 或 `CC-BY-4.0` 的，还要做三件事（`check` 会查）：把它的许可原文逐字放进 `LICENSES/<许可>-<仓库名>.txt`；在"来源"一节末尾加一段"**许可**：本文件修改自 …"，写出上游文件、commit 和许可原文的链接（照现有配方的写法）；在 [`NOTICE.md`](NOTICE.md) 的表里加一行。
-4. 在上面的索引里加一行，然后跑 `bin/vh recipes check`。
+4. 渲样片：`bin/vh recipes sample <id> --draft`，然后看那张联系表：动作是不是你写的样子，关键的一格（`peak`）是不是落在动作中间。
+5. 在上面的索引里加一行（`bin/vh recipes list --md` 打印），然后跑 `bin/vh recipes check`。
 
 ## 来源与许可
 
-本仓库是 MIT 许可，但下面这些文件改编自 Apache-2.0 的项目，按 Apache-2.0 第 4 条处理。逐文件的清单在 [`NOTICE.md`](NOTICE.md)。
+本仓库是 MIT 许可，但下面这些文件改编自别的项目：两个是 Apache-2.0，按 Apache-2.0 第 4 条处理；三个是 MIT，带上它们的版权和许可声明。逐文件的清单在 [`NOTICE.md`](NOTICE.md)。
 
-- **哪些文件**：17 张配方、3 条骨架和 `sequences/README.md` 修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft)（Copyright 2026 Wei Yihao）的镜头卡、demo 和全片骨架；`cut-the-curve`、`zoom-through`、`oversized-cursor` 三张修改自 [HyperFrames](https://github.com/heygen-com/hyperframes)（Copyright 2026 HeyGen, Inc.）的 skill。
-- **许可怎么算**：来自上游的部分仍按 Apache-2.0，两个上游的许可原文连同版权行逐字放在 [`LICENSES/`](LICENSES/)；本仓库的改动按 MIT。把这些文件拿到别处用，要连同它的"许可"一段、对应的许可原文和 `NOTICE.md` 一起带走。
+- **哪些文件**：17 张配方、3 条骨架和 `sequences/README.md` 修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft)（Copyright 2026 Wei Yihao）的镜头卡、demo 和全片骨架；`cut-the-curve`、`zoom-through`、`oversized-cursor` 三张修改自 [HyperFrames](https://github.com/heygen-com/hyperframes)（Copyright 2026 HeyGen, Inc.）的 skill。MIT 的三个：16 张修改自 [motion-graphics-skills](https://github.com/charlie947/motion-graphics-skills)（Copyright (c) 2026 Charlie Hills）的效果配方，30 张修改自 [awesome-ai-motion](https://github.com/gongnyang/awesome-ai-motion)（Copyright (c) 2026 gongnyang）的卡片，`gl-transition` 一张的着色器修改自 [gl-transitions](https://github.com/gl-transitions/gl-transitions)（Copyright (c) 2017-present gl-transitions contributors）的五个转场。
+- **许可怎么算**：来自上游的部分仍按它自己的许可（Apache-2.0 或 MIT），五个上游的许可原文连同版权行逐字放在 [`LICENSES/`](LICENSES/)；本仓库的改动按 MIT。把这些文件拿到别处用，要连同它的"许可"一段、对应的许可原文和 `NOTICE.md` 一起带走。
 - **每个文件怎么标**：frontmatter 的 `derived_from` 写上游仓库、commit 和路径；正文"来源"一节先写改了什么（文字重写，参数按本仓库的规则改过，见上文"和原文不同"的几处），末尾一段"**许可**"写明本文件修改自哪些上游文件、在哪个 commit，并链接许可原文。
-- **NOTICE 和署名**：两个上游在所用的 commit 都没有 NOTICE 文件，所以没有要转载的 NOTICE 文字；用到的上游文件里也没有单独的版权头，要保留的是两份 LICENSE 里的版权行。shotcraft 注明它的 B、C 两式转场来自对 Linear 发布片的抽帧逆向，这句话在 `dark-tunnel`、`focus-handoff` 的"来源"里保留了。
+- **NOTICE 和署名**：五个上游在所用的 commit 都没有 NOTICE 文件，所以没有要转载的 NOTICE 文字。Apache-2.0 的两个，用到的上游文件里没有单独的版权头，要保留的是两份 LICENSE 里的版权行；gl-transitions 的每个着色器文件写着自己的作者，作者名写在 `gl-transition` 的"来源"里，着色器代码里保留了作者注释。shotcraft 注明它的 B、C 两式转场来自对 Linear 发布片的抽帧逆向，这句话在 `dark-tunnel`、`focus-handoff` 的"来源"里保留了。
 - **其余都是本仓库的**：原创的配方（`decode-type`、`gate-as-door`、`one-take-world-travel`，以及只来自拆解、没有复制任何内容的 `flash-stitch`）、本文、`_TEMPLATE.md` 和 `tools/recipes.py` 按 MIT。
 
 shotcraft 的卡片本身研究自公开的商业片和个人作品，作者声明只取手法、全部重写；我们守同一条边界。拆解和取舍的全过程见 [`cases/promo-video-shotcraft.md`](../cases/promo-video-shotcraft.md)。同作者的 video-talkcraft、anything2explainer 是 PolyForm Noncommercial：`needs`（按输入素材筛）这个思路受 talkcraft 的输入类型索引启发，没有用它的文字和代码。
