@@ -1,7 +1,7 @@
 """Contact sheet with a burned-in timestamp on every tile.
 
 usage: uv run --with pillow python tools/sheet.py <video> <out.png> [cols=6] [fps=1] [width=480]
-       label colour via env VH_SHEET_LABEL (default #ffdc00)
+       label colour via env VH_SHEET_LABEL (default #ffdc00); VH_SHEET_AT=t,t,… takes those times instead of fps
 Frames are sampled at t = (k + 0.5) / fps so each tile sits mid-interval; the label is that exact time.
 A time past the last frame is clamped to it, so a clip shorter than one interval (0.4 s at fps 1) still gets a tile.
 """
@@ -37,6 +37,8 @@ def main():
     width = int(sys.argv[5]) if len(sys.argv) > 5 else 480
     dur, last = probe_duration(video)
     times = [min((k + 0.5) / fps, last) for k in range(max(1, math.floor(dur * fps)))]   # a short clip still gets a tile
+    if os.environ.get("VH_SHEET_AT"):   # the moments that show a move (a component's sample: the middle of its turn)
+        times = [min(max(0.0, float(x)), last) for x in os.environ["VH_SHEET_AT"].split(",") if x.strip()]
     tiles = []
     with tempfile.TemporaryDirectory() as tmp:
         for i, t in enumerate(times):
