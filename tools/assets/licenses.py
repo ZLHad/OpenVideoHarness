@@ -109,6 +109,8 @@ def _from_url(url):
     kind, code = m.group(1).lower(), m.group(2).lower()
     if kind == "publicdomain" and code in ("zero", "mark"):
         return ("cc0", "the CC0 deed") if code == "zero" else ("pd", "the Public Domain Mark")
+    if kind == "licenses" and code == "publicdomain":   # CC's Public Domain Dedication and Certification, retired for CC0 and the Mark
+        return "pd", "the CC Public Domain Dedication or Certification (before CC0)"
     if kind == "licenses" and re.fullmatch(r"by(?:-nc)?(?:-sa|-nd)?", code):
         return "cc-" + code, f"the CC {code.upper()} deed"
     if "sampling" in code:
@@ -166,7 +168,7 @@ def classify(text, url=None):
     if t and t[1] is None:   # a text the table does not know: the URL's deed, when there is one
         t = None if u else ("unknown", f"not a licence this table knows ({(text or '').strip()[:60]!r})")
     if not t and not u:
-        return "unknown", "no licence given"
+        return "unknown", f"not a licence this table knows ({url.strip()[:80]!r})" if (url or "").strip() else "no licence given"
     if not t or not u or t[0] == u[0]:
         return t or u
     s = stricter(t[0], u[0])

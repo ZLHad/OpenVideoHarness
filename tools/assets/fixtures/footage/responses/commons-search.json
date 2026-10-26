@@ -1,0 +1,139 @@
+{
+ "batchcomplete": "",
+ "continue": {
+  "gsroffset": 6,
+  "continue": "gsroffset||"
+ },
+ "query": {
+  "pages": {
+   "149451140": {
+    "pageid": 149451140,
+    "ns": 6,
+    "title": "File:Riding on a Sounding Rocket.webm",
+    "index": 1,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "size": 75592850,
+      "width": 1280,
+      "height": 720,
+      "duration": 269.887,
+      "url": "https://upload.wikimedia.org/wikipedia/commons/0/01/Riding_on_a_Sounding_Rocket.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Riding_on_a_Sounding_Rocket.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=149451140",
+      "extmetadata": {
+       "ObjectName": {
+        "value": "Riding on a Sounding Rocket",
+        "source": "mediawiki-metadata"
+       },
+       "DateTimeOriginal": {
+        "value": "Taken on 23 March 2011(Published on 5 July 2011 )",
+        "source": "commons-desc-page"
+       },
+       "Credit": {
+        "value": "<a rel=\"nofollow\" class=\"external text\" href=\"https://svs.gsfc.nasa.gov/cgi-bin/details.cgi?aid=10797\">Riding on a Sounding Rocket</a>",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "NASA/Goddard Space Flight Center",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "Public domain",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "UsageTerms": {
+        "value": "Public domain",
+        "source": "commons-desc-page"
+       },
+       "AttributionRequired": {
+        "value": "false",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "Copyrighted": {
+        "value": "False",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "Restrictions": {
+        "value": "",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "mime": "video/webm",
+      "mediatype": "VIDEO"
+     }
+    ]
+   },
+   "175597936": {
+    "pageid": 175597936,
+    "ns": 6,
+    "title": "File:Streichholzrakete (SSR-2, Steigflug).webm",
+    "index": 3,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "size": 21535235,
+      "width": 1920,
+      "height": 1080,
+      "duration": 97.208,
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/fa/Streichholzrakete_%28SSR-2%2C_Steigflug%29.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Streichholzrakete_(SSR-2,_Steigflug).webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=175597936",
+      "extmetadata": {
+       "ObjectName": {
+        "value": "Streichholzrakete (SSR-2, Steigflug)",
+        "source": "mediawiki-metadata"
+       },
+       "DateTimeOriginal": {
+        "value": "2025-09-24",
+        "source": "commons-desc-page"
+       },
+       "Credit": {
+        "value": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/wiki/User:Rhetos\" title=\"User:Rhetos\">Rhetos</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY-SA 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "UsageTerms": {
+        "value": "Creative Commons Attribution-Share Alike 4.0",
+        "source": "commons-desc-page"
+       },
+       "AttributionRequired": {
+        "value": "true",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by-sa/4.0",
+        "source": "commons-desc-page"
+       },
+       "Copyrighted": {
+        "value": "True",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "Restrictions": {
+        "value": "",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "mime": "video/webm",
+      "mediatype": "VIDEO"
+     }
+    ]
+   }
+  }
+ }
+}

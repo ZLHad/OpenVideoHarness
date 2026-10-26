@@ -1,0 +1,40 @@
+{
+ "collection": {
+  "version": "1.1",
+  "href": "http://images-api.nasa.gov/search?q=Artemis+II+launch&media_type=video&page_size=5",
+  "items": [
+   {
+    "href": "https://images-assets.nasa.gov/video/KSC ART II Cause Way Launch low angle/collection.json",
+    "data": [
+     {
+      "nasa_id": "KSC ART II Cause Way Launch low angle",
+      "title": "Artemis II launch Causeway Slow-motion ",
+      "date_created": "2026-04-01T00:00:00Z",
+      "media_type": "video",
+      "center": "MSFC",
+      "description": "Four astronauts aboard NASA’s Orion spacecraft atop the SLS (Space Launch System) rocket launch on the agency’s Artemis II test flight, Wednesday, April 1 from Launch Complex 39B at NASA’s Kennedy Space Center in Florida. Artemis II lifted off at 6:35 p.m. ET. Artemis II is the first crewed mission of the agency’s Artemis campaign. The mission will send NASA astronauts Reid Wiseman, Victor Glover, and Christina Koch and CSA (Canadian Space Agency) astronaut Jeremy Hansen on an approximately 10-day journey around the Moon and back to Earth.",
+      "photographer": "NASA/ Sam Lott",
+      "secondary_creator": "n/a"
+     }
+    ]
+   },
+   {
+    "href": "https://images-assets.nasa.gov/video/KSC-04012026-C4829/collection.json",
+    "data": [
+     {
+      "nasa_id": "KSC-04012026-C4829",
+      "title": "Artemis II Launch from OSB II Balcony - Slo Mo",
+      "date_created": "2026-04-01T00:00:00Z",
+      "media_type": "video",
+      "center": "KSC",
+      "description": "Four astronauts aboard NASA’s Orion spacecraft atop the SLS (Space Launch System) rocket launch on the agency’s Artemis II test flight, Wednesday, April 1 from Launch Complex 39B at NASA’s Kennedy Space Center in Florida. Artemis II lifted off at 6:35 p.m. ET. Artemis II is the first crewed mission of the agency’s Artemis campaign. The mission will send NASA astronauts Reid Wiseman, Victor Glover, and Christina Koch and CSA (Canadian Space Agency) astronaut Jeremy Hansen on an approximately 10-day journey around the Moon and back to Earth.",
+      "photographer": "NASA/Brandon Hancock"
+     }
+    ]
+   }
+  ],
+  "metadata": {
+   "total_hits": 339
+  }
+ }
+}

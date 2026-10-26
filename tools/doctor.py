@@ -1,11 +1,14 @@
 """bin/vh doctor: what this machine can use, from the table of outside modules (tools/modules.json). Stdlib only.
 
-usage: bin/vh doctor [--json] [--probe [--offline DIR]]
+usage: bin/vh doctor [--json] [--probe [--only NAMES] [--offline DIR]]
   (bin/vh passes what its own finders found: --chrome, --hf-chrome, --hf-pin, --webgl)
   --json        the same as JSON (below), the lines a person reads not printed
   --probe       also call each service that has a key set, once, at an endpoint that costs nothing (Gemini's model
                 list, MiniMax's system voices, ElevenLabs' user, Model Studio's model list): is the key taken, is the
-                interface there. Without it doctor never touches the network
+                interface there; and each service that needs no key (Internet Archive, Wikimedia Commons, NASA's
+                library, Openverse), with one small search: does it still answer in the shape the tools read. Without
+                it doctor never touches the network
+  --only NAMES  probe only these modules (a comma list: --only gemini,nasa-images)
   --offline DIR the probes answered from DIR/responses.json instead, recorded the way tools/assets/fetch.py records
                 ({"v": 1, "responses": [{"url", "status", "headers", "body": <file in DIR>}]}): the tests use it
   python3 tools/doctor.py --check   the table against its rules (tools/ci.sh)
@@ -256,15 +259,17 @@ def apply_needs(modules, results):
 
 
 def probe(m, offline, recs):
-    """Call a service once at its free endpoint, with the first of its keys that is set. {state, note}. The key goes in a
-    header that no redirect carries on, only over https (or to this machine), and no answer's text is passed on."""
+    """Call a service once at its free endpoint, with the first of its keys that is set (a service that needs none: with
+    no key). {state, note}. The key goes in a header that no redirect carries on, only over https (or to this machine),
+    and no answer's text is passed on."""
     p = m.get("probe")
     if not p:
         return None
-    var = next((k for k in (m.get("needs") or {}).get("keys", []) if os.environ.get(k)), None)
-    if not var:
+    keys = (m.get("needs") or {}).get("keys", [])
+    var = next((k for k in keys if os.environ.get(k)), None)
+    if keys and not var:
         return {"state": "skipped", "note": "no key set"}
-    key, url = os.environ[var], p["url"]
+    key, url = (os.environ[var] if var else ""), p["url"]
     if p.get("base_env") and os.environ.get(p["base_env"]):
         b = urllib.parse.urlsplit(os.environ[p["base_env"]])
         if not b.hostname or not (b.scheme == "https" or (b.scheme == "http" and b.hostname in LOCAL)):
@@ -284,7 +289,8 @@ def probe(m, offline, recs):
             req = urllib.request.Request(url, data=body, method=p.get("method", "GET"), headers={"User-Agent": UA})
             if body is not None:
                 req.add_header("Content-Type", "application/json")
-            req.add_unredirected_header(p["auth"]["header"], p["auth"].get("prefix", "") + key)
+            if var:
+                req.add_unredirected_header(p["auth"]["header"], p["auth"].get("prefix", "") + key)
             try:
                 with urllib.request.build_opener(_Stay).open(req, timeout=20) as resp:
                     status, hdrs, data = resp.status, {k.lower(): v for k, v in resp.headers.items()}, resp.read(4 << 20)
@@ -301,10 +307,10 @@ def probe(m, offline, recs):
         js = None
     if status >= 400:
         code = error_code(js)
-        return {"state": "failed", "note": scrub(f"HTTP {status} with {var}" + (f" ({code})" if code else ""), key)}
+        return {"state": "failed", "note": scrub(f"HTTP {status}" + (f" with {var}" if var else "") + (f" ({code})" if code else ""), key)}
     if not isinstance(js, dict):
         return {"state": "failed", "note": f"HTTP {status}, but not the JSON it answers with"}
-    exp, said = p.get("expect") or {}, [f"{var} taken"]
+    exp, said = p.get("expect") or {}, [f"{var} taken" if var else "answered (no key needed)"]
     if exp.get("status_code"):
         code = js
         for part in exp["status_code"].split("."):
@@ -313,9 +319,13 @@ def probe(m, offline, recs):
             hint = (exp.get("hints") or {}).get(str(code))
             return {"state": "failed", "note": scrub(f"{var} refused: status_code {code}" + (f" ({hint})" if hint else ""), key)}
     if exp.get("list"):
-        items = js.get(exp["list"])
+        items = js
+        for part in exp["list"].split("."):   # a dotted path: collection.items, query.search
+            items = items.get(part) if isinstance(items, dict) else None
         if not isinstance(items, list):
             return {"state": "failed", "note": f"HTTP {status}, but no {exp['list']} list in the answer"}
+        if len(items) < exp.get("min", 0):
+            return {"state": "failed", "note": f"HTTP {status}, but {exp['list']} is empty: it no longer finds what it found"}
         said.append(f"{len(items)} {exp['list']}")
         if exp.get("names"):
             have = {str(x.get("name", "")).split("/")[-1] for x in items if isinstance(x, dict)}
@@ -430,12 +440,16 @@ def problems(t, commands=None):
             bad.append(f"{at}: finder {ck['finder']!r} is not one bin/vh passes (chrome, hf-chrome)")
         p = m.get("probe")
         if p is not None:
-            if m.get("kind") != "service" or not (needs or {}).get("keys"):
-                bad.append(f"{at}: a probe is for a service with a key")
+            if m.get("kind") != "service":
+                bad.append(f"{at}: a probe is for a service")
             if not str(p.get("url", "")).startswith("https://") or re.search(r"[?&][^=]*(key|token|secret)", p.get("url", ""), re.I):
                 bad.append(f"{at}: a probe's url is https and carries no key")
-            if p.get("method", "GET") not in ("GET", "POST") or not isinstance(p.get("auth"), dict) or not p["auth"].get("header"):
-                bad.append(f"{at}: a probe needs GET or POST and auth.header (the key goes in a header)")
+            if p.get("method", "GET") not in ("GET", "POST"):
+                bad.append(f"{at}: a probe is a GET or a POST")
+            if (needs or {}).get("keys") and (not isinstance(p.get("auth"), dict) or not p["auth"].get("header")):
+                bad.append(f"{at}: a probe of a service with a key needs auth.header (the key goes in a header)")
+            if not (needs or {}).get("keys") and p.get("auth"):
+                bad.append(f"{at}: a probe of a service that needs no key has no auth")
     if len(set(names)) != len(names):
         bad.append(f"names repeat: {sorted(n for n in set(names) if names.count(n) > 1)}")
     return bad
@@ -458,7 +472,7 @@ def print_module(m, r):
 
 
 def main(argv):
-    a = {"json": False, "probe": False, "offline": None, "chrome": "", "hf-chrome": "", "hf-pin": "", "webgl": ""}
+    a = {"json": False, "probe": False, "offline": None, "only": None, "chrome": "", "hf-chrome": "", "hf-pin": "", "webgl": ""}
     i = 0
     while i < len(argv):
         x = argv[i]
@@ -475,18 +489,18 @@ def main(argv):
         k, eq, v = x[2:].partition("=")
         if x in ("--json", "--probe"):
             a[x[2:]] = True
-        elif k in ("offline", "chrome", "hf-chrome", "hf-pin", "webgl") and x.startswith("--"):
+        elif k in ("offline", "only", "chrome", "hf-chrome", "hf-pin", "webgl") and x.startswith("--"):
             if not eq:
                 if i + 1 >= len(argv):
                     print(f"bin/vh doctor: --{k} needs a value", file=sys.stderr); return 2
                 i += 1; v = argv[i]
             a[k] = v
         else:
-            print(f"bin/vh doctor: unknown option {x} (usage: bin/vh doctor [--json] [--probe [--offline DIR]], or bin/vh doctor <project>)", file=sys.stderr)
+            print(f"bin/vh doctor: unknown option {x} (usage: bin/vh doctor [--json] [--probe [--only NAMES] [--offline DIR]], or bin/vh doctor <project>)", file=sys.stderr)
             return 2
         i += 1
-    if a["offline"] and not a["probe"]:
-        print("bin/vh doctor: --offline answers the probes: give --probe too", file=sys.stderr); return 2
+    if (a["offline"] or a["only"]) and not a["probe"]:
+        print(f"bin/vh doctor: --{'offline' if a['offline'] else 'only'} is for the probes: give --probe too", file=sys.stderr); return 2
     try:
         t = json.loads(TABLE.read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
@@ -499,9 +513,12 @@ def main(argv):
             print(f"bin/vh doctor: no recorded responses in {a['offline']} ({e})", file=sys.stderr); return 2
     today = datetime.date.today()
     found_by = {"chrome": a["chrome"], "hf-chrome": a["hf-chrome"], "hf-pin": a["hf-pin"]}
+    only = {n.strip() for n in (a["only"] or "").split(",") if n.strip()} or None
+    if only and only - {m["name"] for m in t["modules"]}:
+        print(f"bin/vh doctor: --only names no module: {', '.join(sorted(only - {m['name'] for m in t['modules']}))} (tools/modules.json)", file=sys.stderr); return 2
     mods = apply_needs(t["modules"], [check_module(m, found_by, today) for m in t["modules"]])
     for i, (m, r) in enumerate(zip(t["modules"], mods)):
-        pr = probe(m, a["offline"], recs) if a["probe"] else None
+        pr = probe(m, a["offline"], recs) if a["probe"] and (only is None or m["name"] in only) else None
         mods[i] = {"name": m["name"], "kind": m["kind"], "status": m.get("status", "used"), "required": m["required"], **r,
                    "install": (m.get("install") or {}).get("macos" if sys.platform == "darwin" else "linux"), "probe": pr}
     checks = repo_checks(a["webgl"], found_by)

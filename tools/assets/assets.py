@@ -390,6 +390,10 @@ TXT = {"zh": {"source": "来源", "required": "素材署名", "courtesy": "致�
                         "(its name changes; the rules are in references/genvideo-ledger.md, 披露)."}}
 
 
+PROVIDERS = {"nasa": "NASA", "wikimedia-commons": "Wikimedia Commons", "internet-archive": "Internet Archive", "openverse": "Openverse",
+             "freesound": "Freesound", "jamendo": "Jamendo", "incompetech": "Incompetech", "kenney": "Kenney", "sonniss": "Sonniss"}
+
+
 def credit_line(r, lang):
     """A record's credit, and what it lacks: its attribution as written, else title, author, source (its page), licence
     (its deed): TASL, as CC asks."""
@@ -405,7 +409,8 @@ def credit_line(r, lang):
     missing, author = (None, src["author"]) if src.get("author") else ("author", T["no_author"])
     bits = [title, author]
     if src.get("provider") or src.get("url"):
-        bits.append(link(src.get("provider") or (T["source"]), src["url"]) if src.get("url") else src["provider"])
+        name = PROVIDERS.get(src.get("provider"), src.get("provider")) or T["source"]
+        bits.append(link(name, src["url"]) if src.get("url") else name)
     lname = lic.get("name") or licenses.NAMES.get(lic.get("class"), "")
     if lname:
         bits.append(link(lname, lic["url"]) if lic.get("url") else lname)
@@ -427,14 +432,18 @@ def credits(project, lang=None, said=None):
     lang = lang or lang_of(project)
     T = TXT[lang]
     req, cour, missing, gen = [], [], [], []
+    live = {e["record"].get("id"): e["record"] for e in ents if "removed" not in e["record"]}
     for e in ents:
         r = e["record"]
         if "removed" in r or e["problems"] and not isinstance(r.get("license"), dict):
             continue
         cls = ledger.class_of(r)
         need = licenses.attribution(cls)
-        if r.get("aigc") is True:
+        src = live.get(r.get("derived_from"))   # made from another record (a clip's baked frames, a crop): what that one says covers it
+        if r.get("aigc") is True and not (src and src.get("aigc") is True):
             gen.append(r)
+        if src and licenses.attribution(ledger.class_of(src)) == need and not (isinstance(r.get("attribution"), str) and r["attribution"].strip()):
+            continue
         if need in ("required", "agreement") or (isinstance(r.get("attribution"), str) and r["attribution"].strip() and need != "courtesy"):
             line, miss = credit_line(r, lang)
             req.append({"id": r.get("id"), "line": line})
