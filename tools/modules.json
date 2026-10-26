@@ -110,6 +110,21 @@
       "install": {"macos": "cd styles/_swatch && npm ci (each project gets its own through bin/vh new or hf-init)", "linux": "cd styles/_swatch && npm ci (each project gets its own through bin/vh new or hf-init)"}
     },
     {
+      "name": "hyperframes-registry",
+      "kind": "service",
+      "purpose": "HyperFrames' registry of blocks and components at the pinned tag: bin/vh hf catalog reads its registry.json and each item's manifest, hf add the item's files.",
+      "version": {"tested": "2026-10-27"},
+      "license": "Apache-2.0, the HyperFrames repository's; an item that names no licence of its own is recorded as the repository's, presumed",
+      "needs": {"account": "none: raw.githubusercontent.com needs no key (it answers a burst with 429, so hf reads six items at a time)"},
+      "adapter": ["tools/hf.py (load_registry, install_online)"],
+      "commands": ["hf"],
+      "required": false,
+      "check": {},
+      "probe": {"method": "GET", "url": "https://raw.githubusercontent.com/heygen-com/hyperframes/v0.8.202/registry/registry.json",
+                "expect": {"path": "items"}},
+      "install": {}
+    },
+    {
       "name": "gsap",
       "kind": "npm",
       "purpose": "The animation library of HyperFrames compositions; bin/vh hf-init installs the scaffold's version into each project so no render loads it from a CDN.",

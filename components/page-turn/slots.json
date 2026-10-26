@@ -2,6 +2,7 @@
  "version": 1,
  "name": "page-turn",
  "summary": "A book page: half of the current picture turns over in perspective, its back is the next picture's other half, the uncovered half lies under a shade that lifts. The turn itself is the cut.",
+ "tags": ["翻页", "翻书", "书页", "纸面", "转场", "page turn", "book"],
  "painters": ["canvas"],
  "use": "st = state(params, u) for u 0 → 1 over the turn; canvas(ctx, st, A, B, params) with A and B the two pictures as full-frame canvases (lib/paint.js offscreen()). leaf() and drawLeaf() are the geometry and its drawing, for other folds.",
  "slots": [

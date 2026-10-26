@@ -146,11 +146,15 @@ doc_checks() {
 import json, re, sys
 pins = set(re.findall(r"\$\{HYPERFRAMES_VERSION:-([0-9][0-9.]*)\}", open("bin/vh", encoding="utf-8").read()))
 swatch = json.load(open("styles/_swatch/package.json", encoding="utf-8"))["devDependencies"]["hyperframes"]
-table = next(m for m in json.load(open("tools/modules.json", encoding="utf-8"))["modules"] if m["name"] == "hyperframes")["version"]["pin"]
+mods = json.load(open("tools/modules.json", encoding="utf-8"))["modules"]
+table = next(m for m in mods if m["name"] == "hyperframes")["version"]["pin"]
 if not pins == {swatch} == {table}:
     sys.exit(f"HyperFrames pins differ: bin/vh {sorted(pins)}, styles/_swatch/package.json {swatch}, tools/modules.json {table}")
+reg = next(m for m in mods if m["name"] == "hyperframes-registry")["probe"]["url"]
+if f"/v{table}/registry/" not in reg:
+    sys.exit(f"tools/modules.json: hyperframes-registry probes {reg}, not the registry of the pinned v{table}")
 PY
-  then ok "$out: each with a purpose, version, licence, needs, adapters in the repo and real commands; the HyperFrames pin is bin/vh's and styles/_swatch's"
+  then ok "$out: each with a purpose, version, licence, needs, adapters in the repo and real commands; the HyperFrames pin is bin/vh's, styles/_swatch's and the registry probe's"
   else echo "$out"; bad "tools/modules.json"; fi
   # every `bin/vh <command>` in the docs exists; the table names exactly the commands bin/vh dispatches, and CLAUDE.md's
   # 命令行 line is the table's (bin/vh sync-agents writes it)
@@ -4462,23 +4466,23 @@ PY
     case "$rc:$a" in 2:*"needed at the peak"*"GB free on that disk"*) ok "render: a disk too full for even a flat film stops it before a frame is drawn (exit 2)" ;;
       *) bad "render on a full disk: exit $rc: $(printf '%s' "$a" | tail -c 400)" ;; esac
     # the queue and the resume, on a page whose frames cost unevenly (tools/film/fixture/uneven.html: from 2 s on 30 ms
-    # each, frame 75 5 s): chunks of one GOP, so 3 workers make the video 1 makes (PSNR: separate browsers). A render
-    # whose frame 75 passes --frame-timeout 3 keeps the 5 chunks it finished; with the page edited they are not used;
+    # each, frame 75 12 s): chunks of one GOP, so 3 workers make the video 1 makes (PSNR: separate browsers). A render
+    # whose frame 75 passes --frame-timeout 8 keeps the 5 chunks it finished; with the page edited they are not used;
     # the same command then draws only the last chunk, and the video is the one a whole render makes. The disk floor of a
     # resume is what it writes: the chunk left and the joined copy, the kept chunks' bytes in it (a disk 1000 bytes over
     # those refuses it, the chunks kept); its glyph check (the page writes a word) says the kept chunks' frames were not checked
     mkdir -p "$t/q" && sed 's|x.fillStyle = "#fc0";|x.font = "16px sans-serif"; x.fillStyle = "#fff"; x.fillText("chunk", 8, 24); x.fillStyle = "#fc0";|' tools/film/fixture/uneven.html > "$t/q/u.html"
     vh render "$t/q/u.html" --workers 1 --gop 15 --out "$t/q/one.mp4" >/dev/null 2>&1
     a=$(vh render "$t/q/u.html" --workers 3 --gop 15 --out "$t/q/three.mp4" 2>&1); rc=$?
-    b=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 3 --out "$t/q/r.mp4" 2>&1); rc2=$?
+    b=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 8 --out "$t/q/r.mp4" 2>&1); rc2=$?
     kb=$(python3 -c 'import os, sys; d = sys.argv[1]; print(sum(os.path.getsize(os.path.join(d, f)) for f in os.listdir(d) if f.startswith("part")))' "$t/q/.r.mp4.parts" 2>/dev/null || echo 0)
-    e=$(OVH_FREE_BYTES=$((kb + 1000)) vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 3 --out "$t/q/r.mp4" 2>&1); rc5=$?
+    e=$(OVH_FREE_BYTES=$((kb + 1000)) vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 8 --out "$t/q/r.mp4" 2>&1); rc5=$?
     case "$rc5:$e" in 2:*"needed at the peak for the 15 frames left to draw and the joined copy (5 chunks kept"*)
         kn=0; for kf in "$t/q/.r.mp4.parts"/part*.mp4; do [ ! -e "$kf" ] || kn=$((kn + 1)); done; [ $kn = 5 ] && ok "render: a resume's disk floor is the chunk left and the joined copy with the kept chunks' bytes; refused, it keeps them" \
           || bad "render: a resume refused for the disk did not keep its chunks: $(ls "$t/q/.r.mp4.parts" 2>&1)" ;;
       *) bad "render resume on a disk with room for the kept chunks only (exit $rc5, $kb bytes kept): $(printf '%s' "$e" | tail -c 500)" ;; esac
     printf '<!-- edited -->\n' >> "$t/q/u.html"
-    c=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 3 --out "$t/q/r.mp4" 2>&1); rc3=$?
+    c=$(vh render "$t/q/u.html" --workers 2 --gop 15 --frame-timeout 8 --out "$t/q/r.mp4" 2>&1); rc3=$?
     d=$(vh render "$t/q/u.html" --workers 2 --gop 15 --out "$t/q/r.mp4" 2>&1); rc4=$?
     if [ "$rc:$rc2:$rc3:$rc4" = 0:1:1:0 ] && printf '%s' "$b" | grep -q '5 of 6 chunks are kept' && printf '%s' "$c" | grep -q 'not used (changed: .*u\.html)' \
       && printf '%s' "$d" | grep -q 'resuming: 5 of 6 chunks kept' && printf '%s' "$d" | grep -q 'glyphs: checked in the 15 frames drawn now; the 75 frames of the 5 kept' \
@@ -4496,7 +4500,7 @@ PY
     then ok "render: one-GOP chunks taken in turn (3 workers make what 1 makes); a timed-out frame keeps the finished chunks, an edited page starts over, the same command resumes"
     else bad "render queue and resume: exit $rc:$rc2:$rc3:$rc4: $(printf '%s' "$b$c$d" | tail -c 900)"; fi
     # bin/vh patch passes --frame-timeout to the render of its frames: frames 74-76 of the film above take the GOP from 60,
-    # and frame 75 (5 s) is past 2 s
+    # and frame 75 (12 s) is past 2 s
     a=$(vh patch "$t/q/one.mp4" --frames 74-76 --frame-timeout 2 --out "$t/q/p.mp4" 2>&1); rc=$?
     case "$rc:$a" in 1:*"no picture after 2 s (--frame-timeout)"*"rendering frames"*"failed"*) ok "patch: --frame-timeout goes to the render of its frames" ;;
       *) bad "patch --frame-timeout (exit $rc): $(printf '%s' "$a" | tail -c 500)" ;; esac

@@ -1,9 +1,6 @@
 {
  "version": 1,
  "note": "Ways out of what a check finds: options to look at, not rules (CONTRIBUTING.md, 四个绑定点: a check reports, a tool offers, the film decides). Keyed by a finding's kind (tools/checkrec.py lists them). bin/vh check prints the ones for the kinds it found that are not confirmed, and each finding in its record carries them as remedies. An entry: say (one line: what it is for), and run (a bin/vh command, as typed) or doc (a file in the repo, #section). tools/remedies.py check (tools/ci.sh) holds the table to its rules: each kind one checkrec.py writes or one named in kinds_to_come, each run a real command, each recipes filter finding at least one recipe, each doc there.",
- "kinds_to_come": {
-  "check.loudness": "the whole film's loudness, line A's addition to bin/vh check (batch 1): whichever of the two lands second makes the kind's name agree"
- },
  "kinds": {
   "check.static": [
    {
