@@ -41,16 +41,23 @@ jobs:
           enable-cache: true
           cache-dependency-glob: .github/workflows/ci.yml
       - name: Install check tools
-        timeout-minutes: 10   # half a minute as a rule: a stalled install fails here instead of using up the job's 30 min
+        timeout-minutes: 10   # half a minute as a rule; the tries below end well inside this, so a hopeless install fails here
         run: |
           python3 -m pip install --quiet pyflakes
           if [ "$RUNNER_OS" = Linux ]; then
-            # on 2026-10-25 this took 17 to 30 min instead of half a minute, four times (the output was silenced, so where is
-            # not known; the two times below say it next time). man-db rebuilding its index after an install is a known slow
-            # step on GitHub's Ubuntu image, and no manual page is read here: skip it
-            sudo rm -f /var/lib/man-db/auto-update
-            s=$SECONDS; sudo apt-get update -qq -o Acquire::Retries=3; echo "apt-get update: $((SECONDS - s)) s"
-            s=$SECONDS; sudo apt-get install -y -qq -o Acquire::Retries=3 shellcheck ffmpeg >/dev/null; echo "apt-get install: $((SECONDS - s)) s"
+            # The runner fetches packages from an Azure Ubuntu mirror in its own region, and now and then one of them stops
+            # answering for minutes: 17 to 30 min instead of half a minute on 2026-10-25 and 26, mostly in westus3. Only the
+            # download is slow (a probe: 93 MB in 12 min, then dpkg in 7 s), and apt's own 15 s timeout does not get past it.
+            # So a step that runs long is killed and the next try goes to archive.ubuntu.com, the second line of
+            # /etc/apt/apt-mirrors.txt. What was downloaded is kept; dpkg only runs once every file is there.
+            aptget() { s=$SECONDS; sudo timeout -k 5 "$1" apt-get -y -q "${@:2}" >/tmp/apt.log 2>&1; r=$?; echo "apt-get $2: $((SECONDS - s)) s, exit $r"; return $r; }
+            for try in 1 2 3; do
+              aptget 60 update && aptget 60 install --download-only shellcheck ffmpeg && aptget 120 install shellcheck ffmpeg && break
+              tail -n 5 /tmp/apt.log
+              [ $try = 3 ] && exit 1
+              sudo sed -i '/azure.archive.ubuntu.com/d' /etc/apt/apt-mirrors.txt
+              sudo dpkg --configure -a || true   # a try killed inside dpkg leaves packages half set up
+            done
           else   # ffmpeg lets the bin/vh mux/gif smoke tests run under macOS /bin/bash 3.2 too
             HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install --quiet ffmpeg >/dev/null
           fi
