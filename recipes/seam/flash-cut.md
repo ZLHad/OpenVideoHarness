@@ -21,6 +21,7 @@ derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: assets/lib/FlashCut.tsx, license: Apache-2.0, note: 光的形状和时值}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 A 式}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: template/src/aifl/Main.tsx, license: Apache-2.0, note: 模板片里的 4 处用法和音效位置}
+sketch_sha: "f565e67e9d20"
 ---
 
 # 推进流白 · flash-cut

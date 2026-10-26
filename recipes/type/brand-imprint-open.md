@@ -19,6 +19,7 @@ pairs_with: [spotlight-hero]
 derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/opening/brand-ink-open.md, license: Apache-2.0, note: 开场结构和品牌 hold 的判例}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/typography/brand-ink-open/BrandInkOpen.tsx, license: Apache-2.0, note: 帧数、缓动、glint、退场}
+sketch_sha: "8b0c40a318ff"
 ---
 
 # 字标压印开场 · brand-imprint-open

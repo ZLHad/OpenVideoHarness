@@ -17,6 +17,7 @@ qa: {peak: 4, read: 9}
 status: tuned
 impl: [showcase/04-intro-film/js/fx.js, styles/_swatch/lib.js]
 derived_from: []
+sketch_sha: "bd9e67494650"
 ---
 
 # 解码字 · decode-type

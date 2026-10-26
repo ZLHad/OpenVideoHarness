@@ -19,6 +19,7 @@ status: tuned
 impl: [showcase/00-promo-launch-film/compositions/s-lockup.html]
 derived_from:
   - {repo: github.com/heygen-com/hyperframes, commit: "a46095f", path: .claude/skills/cut-the-curve/SKILL.md, license: Apache-2.0, note: 第 1、2 式 zoom-through 和 inverse zoom-through、Z 方向的符号规则、模糊量}
+sketch_sha: "79295ed6e83c"
 ---
 
 # 纵深切 · zoom-through

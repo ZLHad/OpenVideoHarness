@@ -21,6 +21,7 @@ derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/opening/spotlight-hero-card.md, license: Apache-2.0, note: 结构、判例、音效位置}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/opening/spotlight-hero-card/SpotlightHeroCard.tsx, license: Apache-2.0, note: 相机关键帧、聚光站点、动作弧、光束两圈}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/aesthetic-rules.md, license: Apache-2.0, note: 判例 Q2、Q4、Q5、Q6、R1、R3}
+sketch_sha: "bcad4eb6f530"
 ---
 
 # 聚光单主角 · spotlight-hero

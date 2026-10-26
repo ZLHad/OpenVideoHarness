@@ -280,7 +280,7 @@ This is an independent project, not affiliated with Anthropic, HeyGen, Remotion,
 
 ## License
 
-Original content is [MIT](LICENSE). The bundled ClaudeAnimationBase is MIT too (© John Heibel). Parts of `recipes/` adapted from Apache-2.0 projects stay Apache-2.0 ([`recipes/NOTICE.md`](recipes/NOTICE.md)). Files that call Blender's Python API (`import bpy`) are GPL-3.0-or-later, each with an SPDX header ([`engines/blender.md`](engines/blender.md)). The reference repos keep their own licenses and aren't part of this repo.
+Original content is [MIT](LICENSE). The bundled ClaudeAnimationBase is MIT too (© John Heibel). Parts of `recipes/` adapted from other projects keep their licences, Apache-2.0 or MIT ([`recipes/NOTICE.md`](recipes/NOTICE.md)). Files that call Blender's Python API (`import bpy`) are GPL-3.0-or-later, each with an SPDX header ([`engines/blender.md`](engines/blender.md)). The reference repos keep their own licenses and aren't part of this repo.
 
 Parts of `components/` adapted from another project keep its MIT licence ([`components/NOTICE.md`](components/NOTICE.md)).
 

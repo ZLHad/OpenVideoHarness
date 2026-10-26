@@ -20,6 +20,7 @@ pairs_with: [oversized-cursor]
 impl: [showcase/00-promo-launch-film/compositions/s-scaffold.html, showcase/00-promo-launch-film/STYLE.md]
 derived_from:
   - {repo: github.com/heygen-com/hyperframes, commit: "a46095f", path: .claude/skills/cut-the-curve/SKILL.md, license: Apache-2.0, note: 第 3 式 cut the curve 的行程、镜像缓动、淡出技巧}
+sketch_sha: "803da2afc392"
 ---
 
 # 速度匹配切 · cut-the-curve

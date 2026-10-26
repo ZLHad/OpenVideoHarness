@@ -21,6 +21,7 @@ derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/typography/paper-title-card.md, license: Apache-2.0, note: 压印配方、单强调词、短线、同色系底}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/typography/paper-title-card/PaperTitleCard.tsx, license: Apache-2.0, note: 帧数和缓动}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/sequences/promo-energy-arc.md, license: Apache-2.0, note: 呼吸字卡的密度规则}
+sketch_sha: "63584dcb85d6"
 ---
 
 # 呼吸字卡 · breath-title-card

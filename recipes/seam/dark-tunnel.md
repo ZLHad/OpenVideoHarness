@@ -20,6 +20,7 @@ pairs_with: [whip-pan]
 derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 B 式}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/DarkTunnelTransition.tsx, license: Apache-2.0, note: 帧数和缓动}
+sketch_sha: "73633329657e"
 ---
 
 # 穿暗场直航 · dark-tunnel

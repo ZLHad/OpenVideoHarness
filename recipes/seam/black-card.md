@@ -21,6 +21,7 @@ pairs_with: [focus-handoff, breath-title-card]
 derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 D 式}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/BlackCardTransition.tsx, license: Apache-2.0, note: 帧数、压印参数、暗底字色}
+sketch_sha: "19421ad96e2c"
 ---
 
 # 黑场字卡 · black-card

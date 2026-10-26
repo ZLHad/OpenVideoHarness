@@ -21,6 +21,7 @@ derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 F 式（平面款、纵深款）}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/PortalWipeV2.tsx, license: Apache-2.0, note: 纵深款的帧数、缓动、两层视差}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/MaskWipeReal.tsx, license: Apache-2.0, note: 平面款的帧数和卡面淡出}
+sketch_sha: "ad36097602bf"
 ---
 
 # 穿窗 · portal-wipe

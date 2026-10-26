@@ -20,6 +20,7 @@ pairs_with: [black-card]
 derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 C 式}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/FocusHandoffTransition.tsx, license: Apache-2.0, note: 帧数、模糊量、错开起跑}
+sketch_sha: "714652fcabf3"
 ---
 
 # 虚焦接力 · focus-handoff
