@@ -1118,9 +1118,8 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 case "${1:-}" in   # the activity log: every command that works on a project (act_start finds it) but the read-only views
-  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|new) ;;   # (new: once the project is made)
-  components) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list, check and sample touch no project
   ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|new) ;;   # (new: once the project is made)
+  components) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list, check and sample touch no project
   desk) [ "${2:-}" = data ] || act_start "$@" || true ;;
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
   sfx) [ "${2:-}" = search ] || act_start "$@" || true ;;   # search only reads
