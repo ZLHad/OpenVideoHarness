@@ -27,6 +27,7 @@
 - `references/repos/hyperframes/skills/hyperframes-creative/references/visual-styles.md` 是 8 种设计师风格预设。
 
 ## 特效做成预设栈
+<!-- know: vfx, effects, 质感, 颗粒, glow -->
 
 "炫酷"要到什么程度，事先很难说清，定稿后还常常改主意。所以特效强度不要写死在代码里，而是做成一张预设表，用一个 HyperFrames 变量（介绍片叫 `fx`）来选。这样 look-dev 的几个变体、定稿后"再狠一点"，都只是换个变量重渲一遍，代价就是一次渲染。
 
@@ -113,6 +114,7 @@ npx hyperframes render --variables '{"fx":"A"}' --output out/lookdev/A.mp4
 - **停留之后接远跳，出发关键帧要用停留段的切线**：Hermite / Catmull-Rom 按前后两个关键帧算切线。停留段后面紧接一次远距离的跳（例如拉到全景）时，停留段末尾的切线会被远处那一帧拽歪，镜头先往前冲一截再退回来，标签被挤出画面（v5 正文 44.4–45.3 s）。出发的那一帧用停留段自己的切线（介绍片代码里的 `"b"`），到达的那一帧用下一段停留的切线（`"f"`）。
 
 ## 声画联动的接法
+<!-- know: audio-reactive, beat sync, 卡点, 踩点, 声画同步 -->
 
 ```js
 // 引擎里读节拍表（music.beats.json）和字幕（captions.json），全部按 t 查表
