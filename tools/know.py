@@ -8,9 +8,11 @@ usage: bin/vh know <words…> [--kind recipe,component,style,doc,case] [-n N] [-
   the index   built each time from the files (no cache to go stale): every recipe and skeleton in recipes/ (its
               frontmatter: name, one_liner, family, role, intent, needs, types, engines, pitfalls), every style
               (styles/<slug>/STYLE.md's title and 一句话, tokens.json's family, transitions, camera, type_anim,
-              texture), every component with a frontmatter (components/), and the ## and ### sections of
-              playbook/*.md, video-types/*.md, engines/*.md and cases/*.md, cut where tools/readpath.py cuts them
-              (readpath.outline). A section can carry tags of its own in a comment: <!-- know: 翻页, 纸面 -->
+              texture), every component (components/<name>/slots.json: its name, summary and painters, its tags if
+              it has some, and each slot's name and text; lib/ and LICENSES/ have none, so they are not components),
+              and the ## and ### sections of playbook/*.md, video-types/*.md, engines/*.md
+              and cases/*.md, cut where tools/readpath.py cuts them (readpath.outline). A section can carry tags of
+              its own in a comment: <!-- know: 翻页, 纸面 -->
   matching    the words as they are written: Latin words in lower case, Chinese as pairs of characters (章节进度条:
               章节 节进 进度 度条), scored BM25 over each unit's title and tags (×3), its one-line summary (×2) and its
               text (×1), weighed by how many of the words it has, with a bonus for a word found whole in the title or
@@ -112,16 +114,18 @@ def build():
         rel = f.relative_to(ROOT).as_posix()
         tags = [t for k in RECIPE_TAGS for t in flat(fm.get(k))] + [fm.get("id", f.stem)]
         units.append(unit("recipe", fm.get("id", f.stem), fm.get("name") or f.stem, rel, 1, fm.get("one_liner", ""), tags, body))
-    comps = ROOT / "components"
-    if comps.is_dir():
-        for f in sorted(comps.rglob("*.md")):
-            fm, body = frontmatter(f)
-            if not fm:
-                continue
-            rel = f.relative_to(ROOT).as_posix()
-            tags = [t for k in RECIPE_TAGS + ("tags",) for t in flat(fm.get(k))] + [fm.get("id", f.parent.name)]
-            units.append(unit("component", fm.get("id", f.parent.name), fm.get("name") or f.parent.name, rel, 1,
-                              fm.get("one_liner") or fm.get("summary") or first_sentence(body), tags, body))
+    for f in sorted((ROOT / "components").glob("*/slots.json")):   # a component is a folder with its slots.json (components/README.md)
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(d, dict):
+            continue
+        name = str(d.get("name") or f.parent.name)
+        slots = [x for x in d.get("slots") or [] if isinstance(x, dict)] if isinstance(d.get("slots"), list) else []
+        tags = [name] + flat(d.get("painters")) + flat(d.get("tags")) + [str(x["name"]) for x in slots if x.get("name")]
+        body = "\n".join(f"{x.get('name', '')}: {x.get('text', '')}" for x in slots)
+        units.append(unit("component", name, name, f.relative_to(ROOT).as_posix(), 1, str(d.get("summary") or ""), tags, body))
     for d in sorted(p for p in (ROOT / "styles").iterdir() if p.is_dir() and not p.name.startswith("_")):
         f = d / "STYLE.md"
         if not f.is_file():

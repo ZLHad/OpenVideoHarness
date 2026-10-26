@@ -2684,6 +2684,27 @@ sys.exit(0 if ok else 1)
 PY
   then ok "know --index: every recipe, style, doc section and case section with a title, its file and its heading's line, unique ids; own tags from a section's comment; words as the index counts them"
   else bad "know --index (exit $rc): $(tail -c 300 "$t/index.json")"; fi
+  # a component from its slots.json (lib/ and LICENSES/ are not components) and a section by its own tags, in a small tree
+  # of their own (main has no components/ yet); then the sections tagged in the playbook, found by their tags
+  mkdir -p "$t/tree/tools" "$t/tree/styles" "$t/tree/playbook" "$t/tree/components/page-turn" "$t/tree/components/lib" "$t/tree/components/LICENSES"
+  cp tools/know.py tools/readpath.py "$t/tree/tools/"
+  printf '{"version": 1, "name": "page-turn", "summary": "A book page turns over in perspective.", "painters": ["canvas"], "slots": [{"name": "ease", "type": "string", "default": "inOutCubic", "text": "how the turn runs"}]}' > "$t/tree/components/page-turn/slots.json"
+  : > "$t/tree/components/lib/core.js"; : > "$t/tree/components/LICENSES/MIT.txt"
+  printf '# 03 运动\n\n## 6. 转场\n<!-- know: 翻页, 纸面转场 -->\n\n方向连续。\n\n## 7. 别的\n\n别的。\n' > "$t/tree/playbook/03-x.md"
+  a=$(python3 "$t/tree/tools/know.py" --index --json 2>/dev/null); b=$(python3 "$t/tree/tools/know.py" page turn --json 2>/dev/null)
+  c=$(python3 "$t/tree/tools/know.py" 翻页 --json 2>/dev/null); d=$(vh know transition seam --kind doc --json 2>/dev/null)
+  if python3 - "$a" "$b" "$c" "$d" <<'PY'
+import json, sys
+a, b, c, d = (json.loads(x) for x in sys.argv[1:5])
+comp = [u for u in a["units"] if u["kind"] == "component"]
+ok = a["by_kind"].get("component") == 1 and comp[0]["file"] == "components/page-turn/slots.json" and set(comp[0]["tags"]) >= {"page-turn", "canvas", "ease"}
+ok = ok and b["hits"][0]["kind"] == "component" and b["hits"][0]["id"] == "page-turn" and b["hits"][0]["summary"].startswith("A book page")
+ok = ok and c["hits"][0]["file"] == "playbook/03-x.md" and c["hits"][0]["title"].endswith("› 6. 转场") and "翻页" in c["hits"][0]["tags"]
+ok = ok and d["hits"][0]["file"] in ("playbook/03-motion-design.md", "playbook/09-narrative.md") and {"transition", "seam"} <= set(d["hits"][0]["tags"])
+sys.exit(0 if ok else 1)
+PY
+  then ok "know: a component from its slots.json (name, summary, painters, slots; lib/ and LICENSES/ are not components), a section by the tags in its own comment, the playbook's tagged sections"
+  else bad "know, components and own tags: $(printf '%s' "$b$c$d" | tail -c 400)"; fi
   a=$(vh know 黑场 字卡 --json 2>/dev/null; vh know 孔版 叠印 --kind style --json 2>/dev/null; vh know 抖音 分享页 --kind doc --json 2>/dev/null); rc=$?
   b=$(vh know 黑场 字卡 --json 2>/dev/null)
   if [ "$rc" = 0 ] && [ "$b" = "$(vh know 黑场 字卡 --json 2>/dev/null)" ] && python3 - "$a" <<'PY'
