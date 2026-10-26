@@ -231,7 +231,8 @@ const sha = (f) => {
 };
 const recipe = {
   page: fs.realpathSync(first.page), kind: first.kind, width: first.width, height: first.height, dpr: o.dpr, fps, frames: [k0, k1], gop,
-  capture: png ? "png" : `jpeg q${o.quality}`, crf: o.crf, preset: o.preset, vf: alpha ? VFA : vf, alpha, real_clock: !!o.realClock, soft_gl: !!o.softGl, browser: first.version,
+  capture: png ? "png" : `jpeg q${o.quality}`, ...(alpha ? { vf: VFA, alpha: true } : { crf: o.crf, preset: o.preset, vf }),   // what applies: x264 keeps its old keys
+  real_clock: !!o.realClock, soft_gl: !!o.softGl, browser: first.version,
   ffmpeg: (spawnSync("ffmpeg", ["-version"], { encoding: "utf8" }).stdout || "").split("\n")[0],
   tools: crypto.createHash("sha256").update(["render.mjs", "host.mjs", "clock.js", "glyphs.mjs"].map((f) => sha(path.join(HERE, f))).join()).digest("hex"),
 };
@@ -412,7 +413,7 @@ const sidecar = {
   })(),
   kind: first.kind, width: first.width, height: first.height, dpr: o.dpr, pixels: [st.width, st.height], fps, frames: n,
   span: [+(k0 / fps).toFixed(6), +(k1 / fps).toFixed(6)], first_frame: k0, capture: png ? "png" : `jpeg q${o.quality}`,
-  encoder: alpha ? { codec: "prores_ks", profile: "4444", alpha_bits: 16, crf: o.crf, preset: o.preset, gop, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] }
+  encoder: alpha ? { codec: "prores_ks", profile: "4444", alpha_bits: 16, gop, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] }
     : { codec: "libx264", crf: o.crf, preset: o.preset, gop, keyint_min: gop, sc_threshold: 0, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] },
   ...(alpha ? { alpha: true } : {}),
   chunks: plan.map(([a, b]) => [a, b]), reused_chunks: reuse.size, browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl, seconds: +secs.toFixed(1),
@@ -462,4 +463,4 @@ if (!okCount) console.log(`  the video has ${st.nb_frames} frames, not ${n}`);
 if (!okColor) console.log(`  the colour tags are not ${alpha ? "4:4:4 with alpha, bt709" : "yuv420p tv/bt709"}`);
 if (clear === 0) console.log("  --alpha: every pixel of the frames looked at is opaque: the page paints its own background (a full canvas, a body colour). Leave clear what should show through");
 if (problems.length || !okCount || !okColor || placed !== outFile) process.exit(1);
-if (!process.env.OVH_RENDER_PIECE) console.log("render: done · the sound goes on with bin/vh mux");   // a piece of bin/vh patch is a step (patch sets it): patch says when it is done
+if (!process.env.OVH_RENDER_PIECE) console.log(alpha ? "render: done · a transparent film, to lay over footage; bin/vh mux keeps it in a .mov" : "render: done · the sound goes on with bin/vh mux");   // a piece of bin/vh patch is a step (patch sets it): patch says when it is done

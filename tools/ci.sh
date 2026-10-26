@@ -2816,10 +2816,20 @@ at = lambda x, y: tuple(px[(y * 320 + x) * 4:(y * 320 + x) * 4 + 4])   # noqa: E
 side = json.load(open(f + ".render.json"))
 ok = (st["codec_name"], st["profile"], st["nb_frames"], st["color_space"]) == ("prores", "4444", "75", "bt709") and st["pix_fmt"].startswith("yuva444p")
 ok = ok and at(5, 5)[3] == 0 and at(150, 80)[3] == 255 and abs(at(150, 80)[0] - 0xdc) <= 2 and side.get("alpha") is True and side["encoder"]["codec"] == "prores_ks"
+ok = ok and "crf" not in side["encoder"] and "preset" not in side["encoder"]   # x264's settings do not apply to ProRes
 sys.exit(0 if ok else 1)
 PY
     then ok "render --alpha: ProRes 4444 with the page's own alpha (clear where it draws nothing, opaque where it does), joined over chunks; a page that paints its background is told, an .mp4 refused, patch refuses it"
     else bad "render --alpha ($rc, $rc2, $rc3, $rc4): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $c | $d"; fi
+    # what reads a transparent film: mux keeps it (and its alpha) in a .mov and says so for an .mp4; deliver makes no upload of it
+    ffmpeg -v error -f lavfi -i "sine=frequency=440:duration=2.5" -ac 2 -ar 48000 "$t/al/mix.wav"
+    e=$(vh mux "$t/al/clear.mov" "$t/al/mix.wav" "$t/al/final.mp4" 2>&1); rc=$?
+    vh mux "$t/al/clear.mov" "$t/al/mix.wav" "$t/al/final.mov" >/dev/null 2>&1; rc2=$?
+    f=$(vh deliver "$t/al/clear.mov" --psnr off 2>&1); rc3=$?
+    if [ "$rc:$rc2:$rc3" = "2:0:2" ] && grep -q "name the output .mov" <<<"$e" && grep -q "alpha channel" <<<"$f" && [ ! -e "$t/al/clear.upload.mp4" ] \
+       && ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt -of csv=p=0 "$t/al/final.mov" | grep -q '^yuva'
+    then ok "a transparent film: mux keeps it, alpha and all, in a .mov and refuses an .mp4; deliver makes no upload copy of it"
+    else bad "mux / deliver on an alpha film ($rc, $rc2, $rc3): $e | $f"; fi
     a=$(vh render tools/film/fixture --out "$t/r/film.mp4" 2>&1); rc=$?
     [ $rc = 0 ] && printf '%s' "$a" | grep -q '^render: done · the sound goes on with bin/vh mux$' \
       && ok "render: a second render of the same file after the first one ended is not locked out, and ends with its done line" || bad "render again (exit $rc): $(printf '%s' "$a" | tail -c 400)"

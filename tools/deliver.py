@@ -176,6 +176,9 @@ def main():
     v = next((s for s in info["streams"] if s["codec_type"] == "video"), None)
     if not v:
         die(f"{master.name} has no video")
+    if str(v.get("pix_fmt", "")).startswith(("yuva", "rgba", "bgra", "argb", "gbrap")):   # a transparent film (bin/vh render --alpha)
+        die(f"{master.name} carries an alpha channel ({v.get('codec_name')}, {v.get('pix_fmt')}): it is made to be laid over footage, "
+            "not uploaded, and an upload copy would turn its clear areas black. Deliver the film it goes into, or render without --alpha")
     dur = float(info["format"].get("duration") or v.get("duration") or 0)
     if dur <= 0:
         die(f"{master.name}: no duration")
