@@ -31,7 +31,7 @@ body over 256 kB to its first 256 kB with its length noted: a fixture stays smal
 message names a URL as redact() writes it (no user:password, no query values), and so do the records bin/vh assets
 writes.
 """
-import contextlib, hashlib, http.client, http.server, json, os, re, threading, time, urllib.error, urllib.parse, urllib.request
+import contextlib, hashlib, http.client, http.server, json, os, re, socket, threading, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 UA = "OpenVideoHarness (+https://github.com/ZLHad/OpenVideoHarness)"
@@ -40,7 +40,10 @@ CHUNK = 64 * 1024
 
 
 class FetchError(Exception):
-    """A download or a request that did not succeed (said why; its URL as redact() writes it)."""
+    """A download or a request that did not succeed (said why; its URL as redact() writes it). For post_json: status, the
+    HTTP status of an error answer (not billed); sent, False only when the request never left (refused, no such host),
+    so that a timeout, a reset or an answer that cannot be read may have been billed."""
+    status, sent = None, True
 
 
 SECRET = re.compile(r"key|token|sig|auth|credential|pass(?:word|wd)?|secret|session|x-amz-|x-goog-", re.I)
@@ -230,9 +233,13 @@ def post_json(url, body, opener=None, secret=None, timeout=180):
                 msg = " ".join(str(x) for x in (err.get("status") or err.get("code"), err.get("message")) if x)
             except ValueError:
                 msg = raw[:200]
-            raise FetchError(scrub(f"{redact(url)}: HTTP {e.code}" + (f": {msg[:400]}" if msg else ""), secret))
+            err = FetchError(scrub(f"{redact(url)}: HTTP {e.code}" + (f": {msg[:400]}" if msg else ""), secret))
+            err.status = e.code
+            raise err
         except (urllib.error.URLError, OSError) as e:
-            raise FetchError(scrub(f"{redact(url)}: {getattr(e, 'reason', e)}", secret))
+            err = FetchError(scrub(f"{redact(url)}: {getattr(e, 'reason', e)}", secret))
+            err.sent = not isinstance(getattr(e, "reason", e), (ConnectionRefusedError, socket.gaierror))
+            raise err
         if isinstance(opener, Record):
             opener.save(url, status, {k: v for k, v in hdrs.items() if k == "content-type"}, data)
     try:
