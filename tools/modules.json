@@ -126,7 +126,7 @@
       "name": "puppeteer-core",
       "kind": "npm",
       "purpose": "Drives Chrome for the hand-drawn engine's renders and for doctor's WebGL probe.",
-      "version": {"range": "^25.11.0 (engines/ClaudeAnimationBase/package.json)"},
+      "version": {"range": "^25.16.0 (engines/ClaudeAnimationBase/package.json)"},
       "license": "Apache-2.0",
       "needs": {"programs": ["node", "chrome"]},
       "adapter": ["engines/ClaudeAnimationBase/", "bin/vh (webgl_probe)"],
