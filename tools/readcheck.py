@@ -309,7 +309,7 @@ def _timeline(html):
     hf = proj / "node_modules" / ".bin" / "hyperframes"
     if html.name != "index.html" or not hf.exists():
         return None
-    env = {**os.environ, "HYPERFRAMES_SKIP_SKILLS": "1", "DO_NOT_TRACK": "1"}
+    env = {**os.environ, "HYPERFRAMES_SKIP_SKILLS": "1", "DO_NOT_TRACK": "1", "HYPERFRAMES_NO_UPDATE_CHECK": "1"}
     try:
         r = subprocess.run([str(hf), "timeline", "--json"], cwd=str(proj), capture_output=True, text=True, env=env, timeout=120)
         rows = [row for t in json.loads(r.stdout)["timeline"]["tracks"] for row in t.get("rows", [])]
