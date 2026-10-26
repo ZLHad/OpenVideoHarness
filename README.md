@@ -192,7 +192,7 @@ An agent can't hear, so the sound is built to be computed and measured:
 
 - **Voiceover** (`bin/vh tts`): local, open-source Qwen3-TTS by default (offline and free; five Chinese voices, two English), with Alibaba Cloud Model Studio, ElevenLabs and Gemini TTS as cloud options (showcases 02 and 03 use Gemini). Every line can get its own delivery and stress, and lines can land on the music's beats.
 - **Subtitles** (`bin/vh captions`): write the script as `中文 || English` to get Chinese, English or two-line subtitles, burned in or as switchable tracks.
-- **Music** (`bin/vh music`): composed as code, so the same score always renders the same audio, with the time of every beat for the picture to hit; it has Chinese instruments such as bianzhong, guzheng and dizi. For your own track, `bin/vh beats` finds the beats; `bin/vh bgm search` and `bgm pick` find a CC-licensed one on Openverse and cut it on a downbeat.
+- **Music** (`bin/vh music`): composed as code, so the same score always renders the same audio, with the time of every beat for the picture to hit; it has Chinese instruments such as bianzhong, guzheng and dizi. For your own track, `bin/vh beats` finds the beats; `bin/vh bgm search` and `bgm pick` find a CC-licensed one on Openverse and cut it on a downbeat; `bin/vh music --provider lyria` generates one with Google's Lyria (paid per track, held against the project's budget, on record as AI-generated).
 - **Sound effects** (`bin/vh sfx`): 21 original, code-synthesized effects placed on the frame where the action happens; most vary slightly from use to use, so repeats don't sound identical. Recorded ones too: `sfx search` looks in your own sound library (`bin/vh sound add`) and Openverse's CC0 and CC BY effects, and `sfx pick` brings one in with its licence and credit on record.
 - **Mixing and checks** (`bin/vh mix`, `bin/vh qa`): the music ducks under narration and the mix lands at −14 LUFS; `qa` checks for silence, dropouts, pumping and clipping, and that every cue lands within one frame.
 
@@ -225,7 +225,7 @@ Apart from the level, you can name what you want to decide yourself: the hook, t
 | LaTeX | formulas in Manim |
 | Blender 5.2 | only for 3D shots; the sandboxed render scripts run on macOS for now |
 
-- **Cost.** Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice or generated video you choose, billed by that provider; keys are always read from environment variables.
+- **Cost.** Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture or music, or generated video you choose, billed by that provider (a paid picture or track is held against the project's `Budget:` before it is asked for); keys are always read from environment variables.
 - **Time.** A 30-second film at the standard level takes about 1–2 hours, most of it checking and fixing.
 - **Limits.** The agent can't watch or listen, only read frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon). Realistic people need generated video. Type 09 (editing your own footage) is experimental and hasn't been tried on real footage yet.
 

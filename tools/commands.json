@@ -1146,16 +1146,18 @@
     },
     {
       "name": "music",
-      "summary": "A code-composed soundtrack from a score JSON, with its exact beat and section map.",
-      "when": "a film that needs its own music on a known grid",
+      "summary": "A code-composed soundtrack from a score JSON, with its exact beat and section map; or a generated track (--provider lyria), paid, held against the budget and kept on record.",
+      "when": "a film that needs its own music on a known grid; or a richer sound than a score gives (lyria)",
       "stages": ["4"],
       "reads": [
-        "<score.json>"
+        "<score.json>",
+        "--provider lyria: the prompt, GEMINI_API_KEY from the environment, <project>/BRIEF.md (Budget)"
       ],
       "writes": [
         "<out.wav>",
         "<out stem>.beats.json",
-        "a piano roll and energy curve per part (--roll)"
+        "a piano roll and energy curve per part (--roll)",
+        "--provider lyria: <project>/assets/genmusic/<id>/, audio/<as>.wav and .beats.json, their records in assets/ledger.json, assets/spend.jsonl"
       ],
       "usage": [
         {
@@ -1163,6 +1165,13 @@
           "text": [
             "code-composed soundtrack + exact beat/section map",
             "--length: end exactly there with a musical fade (auto: where the last bar ends); --roll: piano roll + energy curve per part (PNG)"
+          ]
+        },
+        {
+          "synopsis": "music --provider lyria <project> --prompt \"…\" [--model lyria-3.5] [--len 60] [--instrumental] [--as music] [--dry-run] [--json]",
+          "text": [
+            "a generated track (Google's Lyria, Gemini API): held at its price against the budget (none, or over it: not called), into",
+            "assets/genmusic/<id>/ and audio/<as>.wav (48 kHz) with a detected beat grid, on record as AI-generated; --prices lists them"
           ]
         }
       ]
