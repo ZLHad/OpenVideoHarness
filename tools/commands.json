@@ -1253,6 +1253,48 @@
       ]
     },
     {
+      "name": "hf",
+      "summary": "HyperFrames' registry of blocks and components at the pinned version: search it, or install one into a project with its files on the asset ledger.",
+      "when": "a HyperFrames film needs a ready-made block or component (captions, lower thirds, transitions, charts) before writing one by hand",
+      "stages": ["6", "5"],
+      "reads": [
+        "the registry at the pinned tag (raw.githubusercontent.com/heygen-com/hyperframes/v<pin>/registry; --offline DIR: its recorded responses)",
+        "~/.cache/ovh/hyperframes-registry/v<pin>.json (the list, kept per tag)",
+        "<project>/hyperframes.json"
+      ],
+      "writes": [
+        "<project>/hyperframes.json (registry pinned to the tag, registryItems)",
+        "<project>/compositions/… (the item's files, written by HyperFrames' add)",
+        "<project>/assets/ledger.json (a record per file written)"
+      ],
+      "usage": [
+        {
+          "synopsis": "hf catalog [words…] [--type block|component] [--tag T] [--json] [--refresh] [--offline DIR]",
+          "text": [
+            "the registry's blocks and components at the pinned version's tag (examples left out); each word must appear in",
+            "the name, title, description or tags"
+          ]
+        },
+        {
+          "synopsis": "hf add <project> <name> [--force] [--vars JSON] [--json] [--offline DIR]",
+          "text": [
+            "install one with HyperFrames' own add after pointing hyperframes.json at the pinned tag; each file it wrote goes",
+            "into the ledger (its licence, source, author) and is scanned for what hard rule 1 and an offline render warn of"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "catalog",
+          "summary": "search the pinned registry"
+        },
+        {
+          "name": "add",
+          "summary": "install one, its files on the ledger"
+        }
+      ]
+    },
+    {
       "name": "hf-init",
       "summary": "Scaffold HyperFrames into a project safely: the pinned version, no global skills, local fonts, GSAP vendored.",
       "when": "a project that needs HyperFrames and was not made with it (bin/vh new does it for short, promo, data and meme)",

@@ -1,0 +1,2 @@
+{"name": "demo-test", "type": "hyperframes:example", "title": "Demo Test", "description": "A synthetic example (a whole project)",
+ "files": [{"path": "index.html", "target": "index.html", "type": "hyperframes:composition"}]}

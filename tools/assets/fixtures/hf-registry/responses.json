@@ -1,0 +1,78 @@
+{
+ "v": 1,
+ "note": "a synthetic registry at the tag v0.0.0-ci for tools/hf.py's tests (tools/ci.sh); HYPERFRAMES_VERSION=0.0.0-ci reads it",
+ "responses": [
+  {
+   "url": "https://raw.githubusercontent.com/heygen-com/hyperframes/v0.0.0-ci/registry/registry.json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": "registry.json"
+  },
+  {
+   "url": "https://raw.githubusercontent.com/heygen-com/hyperframes/v0.0.0-ci/registry/components/grain-test/registry-item.json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": "grain-test.item.json"
+  },
+  {
+   "url": "https://raw.githubusercontent.com/heygen-com/hyperframes/v0.0.0-ci/registry/components/grain-test/grain-test.html",
+   "status": 200,
+   "headers": {
+    "Content-Type": "text/html"
+   },
+   "body": "grain-test.html"
+  },
+  {
+   "url": "https://raw.githubusercontent.com/heygen-com/hyperframes/v0.0.0-ci/registry/blocks/title-test/registry-item.json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": "title-test.item.json"
+  },
+  {
+   "url": "https://raw.githubusercontent.com/heygen-com/hyperframes/v0.0.0-ci/registry/blocks/title-test/title-test.html",
+   "status": 200,
+   "headers": {
+    "Content-Type": "text/html"
+   },
+   "body": "title-test.html"
+  },
+  {
+   "url": "https://raw.githubusercontent.com/heygen-com/hyperframes/v0.0.0-ci/registry/components/cdn-test/registry-item.json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": "cdn-test.item.json"
+  },
+  {
+   "url": "https://raw.githubusercontent.com/heygen-com/hyperframes/v0.0.0-ci/registry/components/cdn-test/cdn-test.html",
+   "status": 200,
+   "headers": {
+    "Content-Type": "text/html"
+   },
+   "body": "cdn-test.html"
+  },
+  {
+   "url": "https://example.org/cdn/noise.png",
+   "status": 200,
+   "headers": {
+    "Content-Type": "image/png"
+   },
+   "body": "noise.bin"
+  },
+  {
+   "url": "https://raw.githubusercontent.com/heygen-com/hyperframes/v0.0.0-ci/registry/examples/demo-test/registry-item.json",
+   "status": 200,
+   "headers": {
+    "Content-Type": "application/json"
+   },
+   "body": "demo-test.item.json"
+  }
+ ]
+}
