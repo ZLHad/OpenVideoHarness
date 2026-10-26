@@ -282,7 +282,7 @@ bin/vh recipes sample <id> --draft                  # → <family>/media/<id>.jp
 bin/vh recipes sample <id> --style risograph        # 换一张皮看看：联系表放在视频旁边，不动配方那张
 ```
 
-草图没变就不重渲（`--force` 照渲）。`bin/vh recipes check` 会查：有草图的配方都有联系表，联系表是照现在的草图渲的（`sketch_sha`），每张不超过 120 kB、2000 px 宽，每张联系表都有它的配方；草图也要守硬规则 1（`tools/purity.py` 的那张表，和 `bin/vh hf add`、`bin/vh components check` 共用）。
+草图没变就不重渲（`--force` 照渲）。`bin/vh recipes check` 会查：有草图的配方都有联系表，联系表是照现在的草图渲的（`sketch_sha`），每张不超过 120 kB、2000 px 宽，每张联系表都有它的配方；草图也要守硬规则 1（`tools/purity.py` 的那张表；HyperFrames 注册表的 add 和组件的 check 读的也是它）。
 
 ## 写一张新配方
 
