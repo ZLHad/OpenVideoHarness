@@ -313,7 +313,7 @@ got = {k: m[k]["state"] for k in want}
 if got != want:
     bad.append(f"doctor's states: {got}")
 if "22 or newer" not in m["node"]["note"] or "libx264" not in m["ffmpeg"]["note"] or "ffprobe" not in m["ffmpeg"]["note"] \
-        or "days old" not in m["yt-dlp"]["note"] or m["yt-dlp"]["status"] != "planned":
+        or "days old" not in m["yt-dlp"]["note"] or m["yt-dlp"]["status"] != "used":
     bad.append(f"doctor's notes: {m['node']['note']!r}, {m['ffmpeg']['note']!r}, {m['yt-dlp']['note']!r}")
 if m["gemini"]["keys"] != {"GEMINI_API_KEY": True} or m["elevenlabs"]["keys"] != {"ELEVENLABS_API_KEY": False} \
         or m["minimax"]["keys"] != {"MINIMAX_TOKEN_PLAN_KEY": False, "MINIMAX_API_KEY": True}:
@@ -2037,6 +2037,42 @@ print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
     then ok "footage get --offline: --range from the keyframe before it (stream-copied into Matroska, its first frame kept), conformed frame for frame (CFR at 30000/1001, keyframes ≤ 1 s, BT.709 tv, sound at 48 kHz); a WebM conformed to H.264 with the tags it lacked assumed; one record a clip folder; strict refuses BY-SA and --max-mb refuses before downloading; an id on record is exit 2"
     else bad "footage get (exits $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s | %s' "$a" "$b" | tail -c 600) $(cat "$t/e3" "$t/e4" "$t/e5" | tail -c 400)"; fi
+    # an orig a get left behind is used again only when its mark says it is that file, whole: another file's (a --file
+    # that failed after its download) is downloaded over, never registered as this one
+    cu=https://upload.wikimedia.org/wikipedia/commons/8/88/SpaceX_CRS-35_launch_and_jellyfish_cloud.webm
+    fq="$t/fq"; cp -R tools/assets/fixtures/footage/project "$fq"; mkdir -p "$fq/assets/footage/cam-x" "$fq/assets/footage/cam-y"
+    cp "$fr/media/nasa-orig.mp4.bin" "$fq/assets/footage/cam-x/orig.webm"
+    printf '{"file_url": "https://example.org/another.webm", "bytes": %s}\n' "$(wc -c < "$fr/media/nasa-orig.mp4.bin")" > "$fq/assets/footage/cam-x/.orig.json"
+    cp "$fr/media/commons-crs35.webm.bin" "$fq/assets/footage/cam-y/orig.webm"
+    printf '{"file_url": "%s", "bytes": %s}\n' "$cu" "$(wc -c < "$fr/media/commons-crs35.webm.bin")" > "$fq/assets/footage/cam-y/.orig.json"
+    a=$(vh footage get "$fq" "commons:File:SpaceX CRS-35 launch and jellyfish cloud.webm" --id cam-x --offline "$fr" 2>&1); rc=$?
+    b=$(vh footage get "$fq" "commons:File:SpaceX CRS-35 launch and jellyfish cloud.webm" --id cam-y --offline "$fr" 2>&1); rc2=$?
+    if [ "$rc:$rc2" = "0:0" ] && case "$a|$b" in *"kept, not downloaded again"*"|"*) false ;; *"|"*"kept, not downloaded again"*) true ;; *) false ;; esac && python3 - "$fq" "$fr/media/commons-crs35.webm.bin" <<'PY'
+import hashlib, json, sys
+fp, want = sys.argv[1], hashlib.sha256(open(sys.argv[2], "rb").read()).hexdigest()
+got = [json.load(open(f"{fp}/assets/footage/{c}/clip.json", encoding="utf-8"))["from"]["sha256"] for c in ("cam-x", "cam-y")]
+sys.exit(0 if got == [want, want] else 1)
+PY
+    then ok "footage get: an orig a get left behind is used again only when its mark names that file, whole; another file's is downloaded over, not registered as this one"
+    else bad "footage get, an orig left behind (exits $rc:$rc2): $(printf '%s | %s' "$a" "$b" | tail -c 500)"; fi
+    # --license / --license-url are the user's word over the site's record: on record as given, the note keeps what the
+    # site said; an Archive rights text with no licence link is the uploader's own words (unknown); CJK titles get ids apart
+    a=$(vh footage get "$fq" "commons:File:SpaceX CRS-35 launch and jellyfish cloud.webm" --id cam-z --license "CC BY 4.0" \
+      --license-url https://creativecommons.org/licenses/by/4.0/ --offline "$fr" 2>&1); rc=$?
+    if [ "$rc" = 0 ] && python3 - "$fq" <<'PY'
+import json, sys
+sys.path.insert(0, "tools/assets")
+import footage
+r = {x["id"]: x for x in json.load(open(f"{sys.argv[1]}/assets/ledger.json", encoding="utf-8"))["assets"]}["cam-z"]
+ids = {footage.default_id({"site": "commons", "id": t}) for t in ("File:嫦娥六号.webm", "File:嫦娥五号.webm")}
+ok = (r["license"]["by"] == "given" and r["license"]["class"] == "cc-by" and "licence given with --license" in (r.get("note") or "")
+      and footage.judge("archive", {"license": "Public Domain", "license_url": ""})[0] == "unknown"
+      and footage.judge("archive", {"license": "", "license_url": "http://creativecommons.org/licenses/publicdomain/"})[0] == "pd"
+      and len(ids) == 2 and all(len(x) > 3 for x in ids) and footage.default_id({"site": "archive", "id": "Apollo 11"}) == "ia-apollo-11")
+sys.exit(0 if ok else 1)
+PY
+    then ok "footage get --license: on record as given, the site's own reading in the note; an Archive rights text with no licence link is unknown; two CJK titles get ids apart"
+    else bad "footage get --license, judge, default_id (exit $rc): $(printf '%s' "$a" | tail -c 400)"; fi
     vh footage sync "$fp" cam-pad --group launch --c 1.0 --by "fixture" >/dev/null 2>&1; rc=$?
     a=$(vh footage sync "$fp" cam-crs --group launch --c 2.5 --k 2.5 2>&1); rc2=$?
     vh footage frames "$fp" cam-pad --film 0:2 --t0 1.0 >/dev/null 2>"$t/e1"; rc3=$?
@@ -2096,13 +2132,95 @@ ok = (m["nasa-images"]["state"] == "ok" and "no key" in m["nasa-images"]["note"]
 sys.exit(0 if ok else 1)' "$a"
   then ok "doctor --probe: footage's sites answered from recordings with no key (an answer without the path footage reads fails); --only probes those alone, an unknown name is exit 2"
   else bad "doctor --probe, key-less (exits $rc:$rc2): $(printf '%s | %s' "$a" "$b" | tail -c 500)"; fi
+  # HDR: after --tonemap, the conform's scale reads what zscale made (BT.709, tv), not the source's matrix again (that
+  # once turned (93,100,192) into (86,103,192)); where ffmpeg has zscale, the clip's pixels are the tone map's own
+  mkdir -p "$t/hdr"
+  ffmpeg -v error -y -f lavfi -i "color=c=0x5d64c0:s=320x180:r=30:d=1" -c:v ffv1 \
+    -vf "format=yuv420p10le,setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc:range=tv" "$t/hdr/orig.mkv"
+  if a=$(python3 - "$t/hdr" <<'PY'
+import subprocess, sys
+from pathlib import Path
+sys.path.insert(0, "tools/assets")
+import footage
+d, bad = Path(sys.argv[1]), []
+p = footage.probe(d / "orig.mkv")
+try:
+    footage.conform_argv(d / "orig.mkv", d / "x.mp4", p)
+    bad.append("HDR footage without --tonemap was conformed")
+except footage.Failed:
+    pass
+argv = footage.conform_argv(d / "orig.mkv", d / "x.mp4", p, "hable")[0]
+vf = argv[argv.index("-vf") + 1]
+sc = vf[vf.index(",scale="):]
+if "tonemap=hable" not in vf or "in_color_matrix=bt709:in_range=tv" not in sc:
+    bad.append(f"the scale after the tone map: {sc[:160]}")
+zs = " zscale " in subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True).stdout
+if zs and not bad:
+    def yuv(path, vf=None):   # the middle pixel's Y, U, V
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path)] + (["-vf", vf] if vf else []) + ["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "yuv444p", "-"],
+                             capture_output=True, check=True).stdout
+        n = len(raw) // 3; c = n // 2 + 160
+        return raw[c], raw[n + c], raw[2 * n + c]
+    ref = yuv(d / "orig.mkv", vf[:vf.index(",scale=")])
+    footage.conform(d, d / "orig.mkv", "hable")
+    got = yuv(d / "clip.mp4")
+    if max(abs(x - y) for x, y in zip(ref, got)) > 2:
+        bad.append(f"tone-mapped pixels: the clip has YUV {got}, the tone map {ref}")
+print("\n".join(bad) if bad else ("compared" if zs else "")); sys.exit(1 if bad else 0)
+PY
+  ); then ok "footage --tonemap: the scale after the tone map reads BT.709 tv, not the HDR source's matrix$( [ "$a" = compared ] && echo '; the clip'"'"'s pixels are the tone map'"'"'s own' || echo ' (no zscale here, so the pixels are not compared)'); HDR without --tonemap is refused"
+  else bad "footage --tonemap: $a"; fi
+  # a download is the working clip as it is only when it is what a conform makes: H.264 High, and every GOP closed (an
+  # open one's leading frames, shown before their keyframe, lean on the GOP before it: a cut there cannot decode them)
+  for k in closed open main; do
+    case $k in main) pr=main; xp="" ;; open) pr=high; xp=":open-gop=1" ;; *) pr=high; xp="" ;; esac
+    ffmpeg -v error -y -f lavfi -i "testsrc2=s=160x90:r=30:d=2" -vf "format=yuv420p,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709" \
+      -c:v libx264 -profile:v "$pr" -x264-params "keyint=15:min-keyint=15:bframes=3:scenecut=0$xp" -movflags +faststart "$t/hdr/$k.mp4"
+  done
+  if a=$(python3 - "$t/hdr" <<'PY'
+import sys
+sys.path.insert(0, "tools/assets")
+import footage
+d = sys.argv[1]
+why = {k: footage.unfit(f"{d}/{k}.mp4", footage.probe(f"{d}/{k}.mp4"), footage.video_packets(f"{d}/{k}.mp4")) for k in ("closed", "open", "main")}
+ok = why["closed"] == [] and any("open GOPs" in x for x in why["open"]) and len(why["open"]) == 1 and why["main"] == ["h264 Main, not H.264 High"]
+print(why); sys.exit(0 if ok else 1)
+PY
+  ); then ok "footage: a download is kept as the working clip only when it is H.264 High with every GOP closed; an open GOP and a Main profile are conformed"
+  else bad "footage, what is kept as it is: $a"; fi
+  if a=$(python3 - "$t/hdr" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "tools/assets")
+import fetch
+d = Path(sys.argv[1])
+class NoLength(fetch.Live):   # a server that says no Content-Length
+    def open(self, url, headers=None, timeout=60):
+        body, pos = b"x" * 5000, [0]
+        def read(n=-1):
+            part = body[pos[0]:] if n is None or n < 0 else body[pos[0]:pos[0] + n]
+            pos[0] += len(part)
+            return part
+        return fetch.Response(200, {"Content-Type": "application/octet-stream"}, read)
+try:
+    fetch.download("https://example.org/big.bin", d / "big.bin", opener=NoLength(), max_bytes=1000)
+    print("downloaded past the cap"); sys.exit(1)
+except fetch.FetchError as e:
+    left = [p.name for p in d.glob("big.bin*")]
+    print(e, left); sys.exit(0 if "cap" in str(e) and not left else 1)
+PY
+  ); then ok "fetch.download: --max-mb holds when the server says no length too: stopped at the cap, nothing kept"
+  else bad "fetch.download's cap without a Content-Length: $a"; fi
   rm -rf "$t"
 }
 
-image_checks() {   # bin/vh image (tools/assets/image.py) from synthesized answers in the documented shape, and a stand-in
-  # codex: the estimate and what a call cost by its usage; no budget, or one it would go over, and nothing is called; a
-  # dry run calls nothing; a picture on record (aigc, model, prompt, seed, cost, inputs) with its spend held and settled; a
-  # blocked answer settles at 0; --alpha cuts out the chroma green; codex on the plan's quota holds no budget
+image_checks() {   # bin/vh image (tools/assets/image.py) from the answer recorded live (gemini-nano-banana-2.1,
+  # 2026-10-26: every field kept, its picture and thought signature replaced by small ones; the blocked one documented)
+  # and a stand-in codex writing the events the real one wrote: the estimate and what a call cost by its usage; no
+  # budget, or one it would go over, and nothing is called; a
+  # dry run calls nothing; a picture on record (aigc, model, prompt, seed, inputs); a replay holds and spends nothing; a paid
+  # call (a stand-in API on this machine) is held and settled as it was billed; --alpha cuts out the chroma green; codex on
+  # the plan's quota holds no budget
   local t p r a b rc rc2 rc3 rc4 rc5 rc6
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); r="$t/r"; cp -R tools/assets/fixtures/image/responses "$r"
   if a=$(python3 - <<'PY'
@@ -2157,30 +2275,30 @@ p, bad = sys.argv[1], []
 R = {x["id"]: x for x in json.load(open(f"{p}/assets/ledger.json", encoding="utf-8"))["assets"]}
 r = R.get("sq") or {}
 if ledger.validate(r) or (r.get("aigc"), r.get("model"), r.get("seed"), r.get("cost"), r["license"]["class"], r["source"]["origin"], r.get("prompt_file")) \
-        != (True, "gemini/gemini-nano-banana-2.1", 7, {"amount": 0.036093, "currency": "USD"}, "generated", "generated", "assets/genimg/sq/prompt.txt"):
+        != (True, "gemini/gemini-nano-banana-2.1", 7, None, "generated", "generated", "assets/genimg/sq/prompt.txt") or "a call: $0.0355" not in r.get("offline", ""):
     bad.append(f"the record: {r}")
-spend = [json.loads(x) for x in open(f"{p}/assets/spend.jsonl", encoding="utf-8")]
-if [x["kind"] for x in spend] != ["hold", "settle"] or spend[1]["amount"] != 0.036093 or budget.spent(p) != {"USD": 0.036093}:
-    bad.append(f"the spend: {spend}")
+spend = open(f"{p}/assets/spend.jsonl", encoding="utf-8").read() if __import__("os").path.exists(f"{p}/assets/spend.jsonl") else ""
+if spend.strip() or budget.spent(p).get("USD", 0):   # a replay holds and spends nothing
+    bad.append(f"the spend of a replay: {spend}")
 req = json.load(open(f"{p}/assets/genimg/sq/request.json", encoding="utf-8"))
-if req["model"] != "gemini-nano-banana-2.1" or req["response_format"] != {"type": "image", "mime_type": "image/png", "aspect_ratio": "16:9", "image_size": "1K"} \
-        or req["generation_config"] != {"seed": 7} or req["store"] is not False:
+if req["model"] != "gemini-nano-banana-2.1" or req["response_format"] != {"type": "image", "mime_type": "image/jpeg", "aspect_ratio": "16:9", "image_size": "1K"} \
+        or req["generation_config"] != {"seed": 7, "thinking_level": "minimal"} or req["store"] is not False:
     bad.append(f"request.json: {req}")
 print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
-    then ok "image gen --offline: no budget and nothing is called (with the line to write); --dry-run calls nothing; no key is exit 2 by its name; a picture on record (aigc, model, prompt file, seed, cost by usage), its spend held and settled, request.json without the key"
+    then ok "image gen --offline: no budget and nothing is called (with the line to write); --dry-run calls nothing; no key is exit 2 by its name; a picture on record (aigc, model, prompt file, seed), request.json without the key; a replay holds and spends nothing and says what a call would cost"
     else bad "image gen (exits $rc:$rc2:$rc3:$rc4): $(printf '%s | %s' "$a" "$b" | tail -c 500) $(cat "$t/e1" "$t/e4" | tail -c 300)"; fi
     python3 -c 'import json,sys; f=sys.argv[1]+"/responses.json"; d=json.load(open(f)); d["responses"][0]["body"]="answer-green.json"; json.dump(d, open(f, "w"))' "$r"
     vh image gen "$p" --prompt "a red sticker" --alpha --id sticker --offline "$r" >/dev/null 2>"$t/e1"; rc=$?
-    a=$(vh image cutout "$p" assets/genimg/sticker/image.png --json 2>/dev/null); rc2=$?
-    vh image cutout "$p" assets/genimg/sticker/image.png --id other >/dev/null 2>"$t/e3"; rc3=$?
+    a=$(vh image cutout "$p" assets/genimg/sticker/image.jpg --json 2>/dev/null); rc2=$?
+    vh image cutout "$p" assets/genimg/sticker/image.jpg --id other >/dev/null 2>"$t/e3"; rc3=$?
     python3 -c 'import json,sys; f=sys.argv[1]+"/responses.json"; d=json.load(open(f)); d["responses"][0]["body"]="answer-blocked.json"; json.dump(d, open(f, "w"))' "$r"
     vh image gen "$p" --prompt "blocked" --id blocked --offline "$r" >/dev/null 2>"$t/e4"; rc4=$?
     python3 -c 'import json,sys; f=sys.argv[1]+"/responses.json"; d=json.load(open(f)); d["responses"][0]["body"]="answer-plain.json"; json.dump(d, open(f, "w"))' "$r"
     vh image gen "$p" --prompt "two" --n 2 --id two --offline "$r" >/dev/null 2>"$t/e5"; rc5=$?
-    vh image gen "$p" --prompt "one too many" --n 3 --offline "$r" >/dev/null 2>"$t/e6"; rc6=$?
+    vh image gen "$p" --prompt "one too many" --n 5 --offline "$r" >/dev/null 2>"$t/e6"; rc6=$?
     if [ "$rc:$rc2:$rc3:$rc4:$rc5:$rc6" = "0:0:2:1:0:1" ] && grep -q "the request was blocked" "$t/e4" && grep -q "short" "$t/e6" \
-       && [ ! -e "$p/assets/genimg/blocked/image.png" ] && [ -s "$p/assets/genimg/sticker/image.cutout-check.png" ] && [ -s "$p/assets/genimg/two/sheet.png" ] \
+       && [ ! -e "$p/assets/genimg/blocked/image.jpg" ] && [ -s "$p/assets/genimg/sticker/image.cutout-check.png" ] && [ -s "$p/assets/genimg/two/sheet.png" ] \
        && python3 - "$p" "$a" <<'PY'
 import json, subprocess, sys
 sys.path.insert(0, "tools/assets")
@@ -2194,26 +2312,88 @@ if fmt != "rgba":
 R = [x["id"] for x in json.load(open(f"{p}/assets/ledger.json", encoding="utf-8"))["assets"]]
 if R != ["sq", "sticker", "sticker.cutout", "two-1", "two-2"]:
     bad.append(f"the records: {R}")
-spend = [json.loads(x) for x in open(f"{p}/assets/spend.jsonl", encoding="utf-8")]
-blocked = [x for x in spend if x.get("asset") == "blocked"]
-if [x["kind"] for x in blocked] != ["hold", "settle"] or blocked[1]["amount"] != 0 or abs(budget.spent(p)["USD"] - 4 * 0.036093) > 1e-9:
-    bad.append(f"the spend: {blocked} {budget.spent(p)}")
+if budget.spent(p).get("USD", 0):   # replays: nothing held or spent, a blocked one neither
+    bad.append(f"the spend of replays: {budget.spent(p)}")
 print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
-    then ok "image gen --alpha: the chroma green measured and cut out (straight RGBA, a check on three grounds, on record and derived); cut out again, the same record; a blocked answer settles at 0 and leaves no picture; --n 2 with a sheet; a call the budget cannot take is refused with the shortfall"
+    then ok "image gen --alpha: the chroma green measured and cut out (straight RGBA, a check on three grounds, on record and derived); cut out again, the same record; a blocked answer leaves no picture; --n 2 with a sheet; a call the budget cannot take is refused with the shortfall"
     else bad "image gen --alpha, blocked, --n (exits $rc:$rc2:$rc3:$rc4:$rc5:$rc6): $(printf '%s' "$a" | tail -c 300) $(cat "$t/e1" "$t/e3" "$t/e4" "$t/e5" "$t/e6" | tail -c 500)"; fi
+    # a paid call, against a stand-in Interactions API on this machine (post_json takes http only there): held at the
+    # estimate and settled by the answer's usage; a blocked answer by its usage too (its input); an error answer at 0; an
+    # answer cut off after the request left keeps the estimate ("may have been billed"); a request that never left at 0
+    if a=$(python3 - "$t" <<'PY'
+import contextlib, io, json, os, sys, threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+sys.path.insert(0, "tools/assets")
+import image
+t, fx, mode = Path(sys.argv[1]), Path("tools/assets/fixtures/image/responses"), {"m": "ok"}
+class H(BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+    def do_POST(self):
+        self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        if mode["m"] == "cut":   # the request arrived; no answer comes back
+            return
+        body, code = {"ok": ((fx / "answer-plain.json").read_bytes(), 200), "blocked": ((fx / "answer-blocked.json").read_bytes(), 200),
+                      "http400": (b'{"error": {"code": 400, "message": "bad request"}}', 400)}[mode["m"]]
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+image.API = f"http://127.0.0.1:{srv.server_address[1]}/v1beta/interactions"
+os.environ["GEMINI_API_KEY"] = "test-not-a-key"
+p = t / "paid"
+p.mkdir()
+(p / "BRIEF.md").write_text("# BRIEF\n\n## Spec\n- Output: 1920x1080, 30 fps\n- Budget: $1\n", encoding="utf-8")
+codes, said = {}, {}
+def gen(m):
+    err = io.StringIO()
+    with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+        codes[m] = image.main(["gen", str(p), "--prompt", "x", "--id", f"p-{m}"])
+    said[m] = err.getvalue()
+for m in ("ok", "blocked", "http400", "cut"):
+    mode["m"] = m
+    gen(m)
+srv.shutdown()
+srv.server_close()   # nothing listens there now: a request that never leaves
+gen("refused")
+spend = [json.loads(x) for x in open(p / "assets/spend.jsonl", encoding="utf-8")]
+held = {x["asset"]: x["amount"] for x in spend if x["kind"] == "hold"}
+settled = {x["asset"]: x["amount"] for x in spend if x["kind"] == "settle"}
+want = {"p-ok": 0.035454, "p-blocked": 0.000078, "p-http400": 0.0, "p-cut": held.get("p-cut"), "p-refused": 0.0}
+bad = []
+if codes != {"ok": 0, "blocked": 1, "http400": 1, "cut": 1, "refused": 1}:
+    bad.append(f"exits {codes}")
+if settled != want or not held.get("p-cut"):
+    bad.append(f"settled {settled}, wanted {want}")
+if "may have been billed" not in said["cut"] or "may have been billed" in said["http400"] + said["refused"]:
+    bad.append(f"what was said: {said}")
+rec = {x["id"]: x for x in json.load(open(p / "assets/ledger.json", encoding="utf-8"))["assets"]}
+if list(rec) != ["p-ok"] or rec["p-ok"]["cost"] != {"amount": 0.035454, "currency": "USD"}:
+    bad.append(f"the records: {list(rec)}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+    ); then ok "image gen, a paid call (a stand-in API on this machine): held, settled by the answer's usage; a blocked answer by its usage; an error answer and a request that never left at 0; an answer cut off keeps the estimate, said as maybe billed"
+    else bad "image gen, settling a paid call: $a"; fi
     mkdir -p "$t/codex"
     a=$(PATH="$ROOT/tools/assets/fixtures/image/bin:$PATH" CODEX_HOME="$t/codex" FAKE_CODEX_PNG="$p/assets/genimg/sticker/image.cutout.png" vh image gen "$p" --prompt "a tile" --provider codex --alpha --id tile 2>&1); rc=$?
     PATH="$ROOT/tools/assets/fixtures/image/bin:$PATH" vh image gen "$p" --prompt "x" --provider codex --size 2K >/dev/null 2>&1; rc2=$?
-    if [ "$rc:$rc2" = "0:2" ] && case "$a" in *"made tile"*"the ChatGPT plan's quota"*) true ;; *) false ;; esac && python3 - "$p" <<'PY'
-import json, sys
+    b=$(PATH="$ROOT/tools/assets/fixtures/image/bin:$PATH" CODEX_HOME="$t/codex" FAKE_CODEX_FAIL=1 vh image gen "$p" --prompt "y" --provider codex --id nomodel 2>&1); rc3=$?
+    if [ "$rc:$rc2:$rc3" = "0:2:1" ] && case "$a" in *"made tile"*"the ChatGPT plan's quota"*) true ;; *) false ;; esac \
+       && case "$b" in *"codex said: The 'some-model' model is not supported when using Codex with a ChatGPT account. [model_not_found]"*"a newer codex CLI may know it"*) true ;; *) false ;; esac \
+       && ! grep -q '"nomodel"' "$p/assets/ledger.json" && python3 - "$p" <<'PY'
+import json, os, sys
 p = sys.argv[1]
 r = {x["id"]: x for x in json.load(open(f"{p}/assets/ledger.json", encoding="utf-8"))["assets"]}["tile"]
-spend = [json.loads(x) for x in open(f"{p}/assets/spend.jsonl", encoding="utf-8")]
+spend = [json.loads(x) for x in open(f"{p}/assets/spend.jsonl", encoding="utf-8")] if os.path.exists(f"{p}/assets/spend.jsonl") else []
 sys.exit(0 if "image_gen via codex (codex-cli 0.0.0-test)" in r["model"] and "cost" not in r and r["aigc"] and not any(x.get("asset") == "tile" for x in spend) else 1)
 PY
-    then ok "image gen --provider codex (a stand-in CLI): the picture found under CODEX_HOME by its thread, on record as AI-generated with no cost and no budget held; gemini's options refused"
-    else bad "image gen --provider codex (exits $rc:$rc2): $(printf '%s' "$a" | tail -c 400)"; fi
+    then ok "image gen --provider codex (a stand-in CLI): the picture found under CODEX_HOME by its thread, on record as AI-generated with no cost and no budget held; gemini's options refused; a turn that failed on its model is said in codex's own words, with what to change"
+    else bad "image gen --provider codex (exits $rc:$rc2:$rc3): $(printf '%s | %s' "$a" "$b" | tail -c 600)"; fi
   else skip "image gen and cutout" "no ffmpeg"; fi
   rm -rf "$t"
 }
@@ -2317,6 +2497,39 @@ PY
      && python3 -c 'import json,sys; m={x["name"]: x["probe"] for x in json.loads(sys.argv[1])["modules"]}; sys.exit(0 if m["openverse"]["state"] == "ok" and m["gemini"] is None else 1)' "$c"
   then ok "sfx: the built-in library and its old subcommands as before beside search and pick; doctor --probe asks Openverse with no key (from a recording)"
   else bad "sfx old and new, openverse probe (exits $rc:$rc2:$rc3): $(printf '%s | %s | %s' "$a" "$b" "$c" | tail -c 400)"; fi
+  # a link in a search's answer is other people's data: only http(s) is taken (urllib would read a file:// one off this
+  # machine), and no more than the cap, also from a server that says no length
+  if a=$(python3 - "$t" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "tools/audio")
+sys.path.insert(0, "tools/assets")
+import fetch, library
+t, bad = Path(sys.argv[1]), []
+class Big(fetch.Live):
+    def open(self, url, headers=None, timeout=60):
+        body, pos = b"x" * 5000, [0]
+        def read(n=-1):
+            part = body[pos[0]:] if n is None or n < 0 else body[pos[0]:pos[0] + n]
+            pos[0] += len(part)
+            return part
+        return fetch.Response(200, {"Content-Type": "audio/mpeg"}, read)
+for url in ("file:///etc/hosts", "ftp://example.org/a.mp3"):
+    try:
+        library.take(url, t / "x.mp3", Big()); bad.append(f"{url} was taken")
+    except fetch.FetchError as e:
+        if "not an http(s) link" not in str(e):
+            bad.append(f"{url}: {e}")
+library.MAX_BYTES = 1000
+try:
+    library.take("https://example.org/big.mp3", t / "big.mp3", Big()); bad.append("past the cap")
+except fetch.FetchError as e:
+    if "cap" not in str(e) or list(t.glob("big.mp3*")) or (t / "x.mp3").exists():
+        bad.append(f"the cap: {e}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "sfx|bgm pick: only an http(s) link from a search's answer is taken (no file://), and no more than the cap, also with no length said"
+  else bad "the library's downloads: $a"; fi
   rm -rf "$t"
 }
 
@@ -2801,6 +3014,165 @@ PY
   image_checks     # bin/vh image: so are its pictures, and its spend the budget's
   library_checks   # the sound library's picks: on record in the project's ledger
   lyria_checks     # a generated track: on record, its price the budget's
+}
+
+scout_checks() {   # bin/vh scout and ref (tools/scout) from recorded responses, no network: YouTube through yt-dlp's recorded
+  # JSON, X through fxtwitter, Bilibili's view endpoint, the hot lists; the records, the outliers, a platform that asks
+  # for a verification stopping the run, rows added by hand, the references as asset records, doctor's keyless probes
+  local t p r a b c rc rc2 rc3 F=tools/scout/fixtures/responses
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); r="$t/research"
+  a=$(vh scout topic doppler effect -n 5 --baseline 2 --dir "$r" --offline "$F" --csv "$t/topic.csv" 2>&1); rc=$?
+  b=$(vh scout channel @examplephysics -n 15 --dir "$r" --offline "$F" 2>&1); rc2=$?
+  c=$(vh scout channel https://x.com/exampleacct --dir "$r" --offline "$F" 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 0:0:0 ] && python3 - "$r/scout.jsonl" "$t/topic.csv" <<'PY'
+import csv, json, sys
+recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
+topic = [x for x in recs if x["via"] == "topic"]
+by = {x["key"]: x for x in topic}
+ok = len(topic) == 5 and all(x["v"] == 1 and x["fetched_at"] and x["method"].startswith("yt-dlp") and x["date_approx"] for x in topic)
+ok = ok and by["youtube:AAAAAAAAAA1"]["multiple"] == 23.41 and by["youtube:AAAAAAAAAA1"]["baseline"] == {"of": "views", "over": "the channel's latest 15", "n": 8, "median": 102500.0}
+ok = ok and by["youtube:AAAAAAAAAA2"]["multiple"] == 3.46 and "multiple" not in by["youtube:AAAAAAAAAA3"]   # only the first 2 channels
+ok = ok and by["youtube:AAAAAAAAAA1"]["followers"] == 512000 and all(isinstance(x.get("z"), float) for x in topic)
+ok = ok and by["youtube:AAAAAAAAAA3"]["z"] < -1 < by["youtube:AAAAAAAAAA1"]["z"] - 1
+ch = [x for x in recs if x["via"] == "channel" and x["platform"] == "youtube"]
+ok = ok and len(ch) == 8 and next(x for x in ch if x["metrics"]["views"] == 400000)["multiple"] == 3.9
+xs = [x for x in recs if x["via"] == "channel" and x["platform"] == "x"]
+ok = ok and len(xs) == 5 and xs[0]["multiple"] == 18.64 and xs[0]["followers"] == 25000 and xs[0]["metrics"]["shares"] == 650
+rows = list(csv.DictReader(open(sys.argv[2], encoding="utf-8")))
+ok = ok and len(rows) == 5 and rows[0]["platform"] == "youtube" and rows[0]["views"] == "2400000" and rows[0]["multiple"] == "23.41"
+sys.exit(0 if ok else 1)
+PY
+  then case "$a|$b|$c" in *"★ 23.4×"*"★ 2 at 3× its channel's median"*"5 records onto"*"|"*"512K followers · latest 8 · median 102.5K views"*"posts about every 7 days"*"|"*"25K followers · latest 5 · median 22K views"*)
+      ok "scout topic and channel from recordings: the top results with z against their age band, --baseline's channel medians and multiples (★ at 3×), a channel's and an X account's latest against their own median, how often they post; JSONL records and the CSV" ;;
+    *) bad "scout topic and channel, their lines: $(printf '%s' "$a$b$c" | tail -c 600)" ;; esac
+  else bad "scout topic and channel (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 600)"; fi
+  # post: three platforms, then a block (Bilibili's -352) stops the run before the next URL; HTTP 412 is a block too;
+  # Douyin is said to be read in the browser; a URL with no recording fails, never goes online
+  a=$(vh scout post https://www.bilibili.com/video/BV1Ab4y1C7De https://x.com/exampleacct/status/1000000000000000001 "https://www.youtube.com/watch?v=AAAAAAAAAA1" --topic T05 --score 72 --dir "$r" --offline "$F" 2>&1); rc=$?
+  b=$(vh scout post https://www.bilibili.com/video/BV1Zz4y1Bk00 https://www.bilibili.com/video/BV1Ab4y1C7De --dir "$t/r2" --offline "$F" 2>&1); rc2=$?
+  c=$(vh scout post https://www.douyin.com/video/7000000000000000001 "https://www.youtube.com/watch?v=BBBBBBBBBB1" https://x.com/a/status/1000000000000000099 --dir "$t/r3" --offline "$F" 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 0:1:1 ] && [ ! -e "$t/r2/scout.jsonl" ] && [ ! -e "$t/r3/scout.jsonl" ] && python3 - "$r/scout.jsonl" <<'PY'
+import json, sys
+recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
+post = {x["platform"]: x for x in recs if x["via"] == "post"}
+b, x, y = post["bilibili"], post["x"], post["youtube"]
+ok = set(post) == {"bilibili", "x", "youtube"} and all(r["topic"] == "T05" and r["score"] == 72 for r in post.values())
+ok = ok and b["metrics"] == {"views": 128000, "likes": 9400, "comments": 640, "shares": 950, "favorites": 3100, "coins": 1800, "danmaku": 210}
+ok = ok and b["followers"] == 41000 and b["copyright"] == "original" and "license" not in b and b["method"] == "bilibili view endpoint"
+ok = ok and y["date"] == "2024-04-10" and "date_approx" not in y and y["metrics"]["likes"] == 81200 and y["license"].startswith("Creative Commons")
+ok = ok and x["metrics"]["views"] == 410000 and x["age_days"] >= 0 and x["per_follower"] == 16.4
+sys.exit(0 if ok else 1)
+PY
+  then case "$a|$b|$c" in *"your films on record (3)"*"3 scored with views: 4 or more"*"|"*"✗ blocked: bilibili /x/web-interface/view: code -352 (risk control)"*"nothing was retried"*"|"*"douyin has no interface scout may read without a login"*"no recorded response"*"✗ blocked:"*"HTTP 412"*)
+      if [ "$(printf '%s' "$b" | grep -c '多普勒效应')" = 0 ]; then
+        ok "scout post from recordings: Bilibili (its counts, followers, original as the uploader's claim, not a licence), X and YouTube with the topic and score; a -352 and an HTTP 412 stop the run unretried, Douyin points to the browser, a URL with no recording fails offline" 
+      else bad "scout post: the URL after a block was looked up: $b"; fi ;;
+    *) bad "scout post, its lines: $(printf '%s' "$a$b$c" | tail -c 700)" ;; esac
+  else bad "scout post (exits $rc:$rc2:$rc3, want 0:1:1; nothing written after a block): $(printf '%s' "$a$b$c" | tail -c 700)"; fi
+  # add: a row by flags as the page writes its counts (1.2万), rows from a CSV, a bad count refused; --post joins the
+  # report, and with 4 scored films it ranks score against views
+  a=$(vh scout add https://www.douyin.com/video/7000000000000000001 --title 抖音那支 --likes 1.2万 --favorites 5600 --followers 8.1万 --date 2026-10-19 --post --score 80 --dir "$r" 2>&1); rc=$?
+  printf 'platform,url,title,views,likes,date\nyoutube,https://www.youtube.com/watch?v=CCCCCCCCCC1,手填一支,90000,1200,2026-10-01\nxiaohongshu,https://www.xiaohongshu.com/explore/650000000000000000000001,笔记,,3.4K,2026-10-20\n' > "$t/rows.csv"
+  b=$(vh scout add --from "$t/rows.csv" --dir "$r" 2>&1); rc2=$?
+  printf 'platform,url,likes\ndouyin,https://www.douyin.com/video/7000000000000000003,lots\n' > "$t/bad.csv"
+  c=$(vh scout add --from "$t/bad.csv" --dir "$r" 2>&1); rc3=$?
+  d=$(vh scout add "https://www.youtube.com/watch?v=CCCCCCCCCC2" --views 50000 --likes 900 --date 2026-10-10 --post --score 60 --dir "$r" 2>&1) || rc3=9
+  if [ "$rc:$rc2:$rc3" = 0:0:2 ] && python3 - "$r/scout.jsonl" <<'PY'
+import json, sys
+recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
+d = next(x for x in recs if x["platform"] == "douyin")
+xhs = next(x for x in recs if x["platform"] == "xiaohongshu")
+ok = d["via"] == "post" and d["metrics"] == {"likes": 12000, "favorites": 5600} and d["followers"] == 81000 and d["method"] == "built-in browser, read by hand"
+ok = ok and xhs["via"] == "add" and xhs["key"] == "xiaohongshu:650000000000000000000001" and xhs["metrics"] == {"likes": 3400}
+ok = ok and not any(x.get("platform") == "douyin" and x["url"].endswith("0003") for x in recs)
+sys.exit(0 if ok else 1)
+PY
+  then case "$a|$c|$d" in *"your films on record (4)"*"3 scored with views"*"|"*"bad.csv:2: likes 'lots' is not a count"*"|"*"your films on record (5)"*"score against views, Spearman ρ = +"*"over 4 films"*)
+      ok "scout add: rows read by hand (flags or a CSV, counts as the page writes them), a bad count refused with its row; --post joins your films" ;;
+    *) bad "scout add, its lines: $(printf '%s' "$a$c" | tail -c 500)" ;; esac
+  else bad "scout add (exits $rc:$rc2:$rc3, want 0:0:2): $(printf '%s' "$a$b$c" | tail -c 500)"; fi
+  # hot: four lists into today's snapshot, a second run appended to it; an unknown list is a usage error
+  a=$(vh scout hot --dir "$r" --offline "$F" -n 3 2>&1); rc=$?
+  b=$(vh scout hot --source baidu --dir "$r" --offline "$F" --json 2>/dev/null); rc2=$?
+  c=$(vh scout hot --source baidu,weibo --dir "$r" --offline "$F" 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 0:0:2 ] && python3 - "$r/hot" "$b" <<'PY'
+import json, sys
+from pathlib import Path
+fs = sorted(Path(sys.argv[1]).glob("*.json"))
+doc = json.loads(fs[-1].read_text(encoding="utf-8")) if fs else {}
+srcs = [s["source"] for s in doc.get("snapshots", [])]
+b = [s for s in doc["snapshots"] if s["source"] == "baidu"][0]["items"]
+g = [s for s in doc["snapshots"] if s["source"] == "google"][0]["items"]
+ok = len(fs) == 1 and srcs == ["baidu", "toutiao", "google", "x", "baidu"] and b[0]["pinned"] and b[1] == {"rank": 1, "title": "救护车为什么变调", "score": 4920000, "url": "https://www.baidu.com/s?wd=b", "desc": "一个合成的热搜"}
+ok = ok and g[0]["score"] == 2000 and g[0]["news"][0]["url"] == "https://example.com/radar" and json.loads(sys.argv[2])["snapshots"][0]["source"] == "baidu"
+sys.exit(0 if ok else 1)
+PY
+  then ok "scout hot from recordings: Baidu, Toutiao, Google Trends and X into hot/<date>.json, a later run appended to the day; an unknown list refused"
+  else bad "scout hot (exits $rc:$rc2:$rc3): $(printf '%s' "$a$c" | tail -c 500)"; fi
+  # list: the latest look at each key, filtered, as CSV; nowhere to read is a usage error; topic with nowhere to write says so
+  a=$(vh scout list --dir "$r" --via post --csv "$t/posts.csv" 2>&1); rc=$?
+  b=$(cd "$t" && OVH_SCOUT="" "$VH_BASH" "$ROOT/bin/vh" scout list 2>&1); rc2=$?
+  c=$(cd "$t" && OVH_SCOUT="" "$VH_BASH" "$ROOT/bin/vh" scout topic doppler effect -n 5 --offline "$ROOT/$F" 2>&1); rc3=$?
+  case "$rc:$rc2:$rc3|$a|$b|$c" in "0:2:0|"*"5 records (the latest look at each)"*"|"*"no research folder"*"|"*"not written: no research folder"*)
+      if [ "$(wc -l < "$t/posts.csv" | tr -d ' ')" = 6 ]; then ok "scout list: the latest look at each, filtered, as CSV; with no research folder list refuses and topic prints without writing"
+      else bad "scout list --csv: $(cat "$t/posts.csv")"; fi ;;
+    *) bad "scout list (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 500)" ;; esac
+  # ref: references as asset records in research/refs.json, out of the project's ledger; a CC licence the platform
+  # names is classified, anything else unknown (a platform's "original" is never "own"); a duplicate refused; a block exits 1
+  OVH_PROJECTS="$t" vh new short refs >/dev/null 2>&1; p=$(ls -d "$t"/*-refs)
+  cp "$F/cover.jpg" "$p/frame.jpg"
+  a=$(vh ref add "$p" "https://www.youtube.com/watch?v=AAAAAAAAAA1" --why 慢放的开场 --thumb --offline "$F" 2>&1); rc=$?
+  b=$(vh ref add "$p" https://youtu.be/AAAAAAAAAA1 --offline "$F" 2>&1; vh ref add "$p" https://www.bilibili.com/video/BV1Ab4y1C7De --offline "$F" 2>&1; vh ref add "$p" https://www.bilibili.com/video/BV1Zz4y1Bk00 --offline "$F" 2>&1); rc2=$?
+  c=$(vh ref add "$p" "https://example.com/a?id=3" --title 一篇文章 --type page 2>&1; vh ref add "$p" frame.jpg --why 构图 2>&1; vh ref list "$p" 2>&1); rc3=$?
+  if [ "$rc" = 0 ] && [ -s "$p/research/refs/yt-AAAAAAAAAA1/thumb.jpg" ] && [ ! -e "$p/assets/ledger.json" ] && python3 - "$p" <<'PY'
+import json, sys
+from pathlib import Path
+sys.path.insert(0, "tools/assets")
+import ledger
+p = Path(sys.argv[1])
+d = json.loads((p / "research/refs.json").read_text(encoding="utf-8"))
+by = {r["id"]: r for r in d["assets"]}
+ok = list(by) == ["yt-AAAAAAAAAA1", "bili-BV1Ab4y1C7De", "example.com-a", "frame"] and not any(ledger.validate(r) for r in d["assets"])
+ok = ok and [e["event"] for e in d["events"]] == ["add"] * 4
+y, b, w, f = by["yt-AAAAAAAAAA1"], by["bili-BV1Ab4y1C7De"], by["example.com-a"], by["frame"]
+ok = ok and y["license"] == {"class": "cc-by", "name": "Creative Commons Attribution license (reuse allowed)", "by": "classifier"}
+ok = ok and y["path"] == "research/refs/yt-AAAAAAAAAA1/" and y["ref"]["why"] == "慢放的开场" and y["ref"]["metrics"]["views"] == 2400311
+ok = ok and b["license"]["class"] == "unknown" and b["source"]["provider_id"] == "BV1Ab4y1C7De" and b["ref"]["followers"] == 41000
+ok = ok and w["source"]["url"] == "https://example.com/a?id=…" and w["ref"]["type"] == "page" and w["license"]["class"] == "unknown"
+ok = ok and f["path"] == "frame.jpg" and f["kind"] == "image" and f["source"]["origin"] == "user"
+meta = json.loads((p / "research/refs/yt-AAAAAAAAAA1/meta.json").read_text(encoding="utf-8"))
+ok = ok and meta["title"] == "The Doppler effect, slowed down" and meta["description"].startswith("A siren")
+sys.exit(0 if ok else 1)
+PY
+  then case "$b|$c" in *"is on record already as yt-AAAAAAAAAA1"*"✓ bili-BV1Ab4y1C7De"*"✗ blocked: bilibili"*"|"*"4 references (studied, not shown)"*"why: 构图"*)
+      if [ "$rc2" = 1 ] && [ "$rc3" = 0 ]; then ok "ref add and list: a YouTube video (CC BY as it says, its cover fetched), a Bilibili BV (all rights reserved: unknown), a page as given, a file where it is; asset records in research/refs.json, none in the project's ledger; a duplicate refused, a block exits 1"
+      else bad "ref: exits $rc2:$rc3, want 1:0"; fi ;;
+    *) bad "ref add and list, their lines: $(printf '%s' "$b$c" | tail -c 600)" ;; esac
+  else bad "ref add (exit $rc): $(printf '%s' "$a$b$c" | tail -c 600)"; fi
+  # doctor's probes of the public services that take no key, from recordings: a JSON path that must be there, an RSS text
+  mkdir -p "$t/rec"; printf '{"code": 200, "status": {"id": "20"}}' > "$t/rec/fx.json"; printf '<rss version="2.0"></rss>' > "$t/rec/g.xml"
+  printf '{"code": 0, "message": "0", "data": null}' > "$t/rec/bi.json"
+  printf '{"v": 1, "responses": [{"url": "https://api.fxtwitter.com/2/status/20", "status": 200, "body": "fx.json"}, {"url": "https://trends.google.com/trending/rss?geo=US", "status": 200, "body": "g.xml"}, {"url": "https://top.baidu.com/api/board?platform=pc&tab=realtime", "status": 200, "body": "bi.json"}, {"url": "https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc", "status": 403}]}' > "$t/rec/responses.json"
+  a=$(python3 tools/doctor.py --json --probe --only fxtwitter,google-trends,baidu-top,toutiao-hot,bilibili-view --offline "$t/rec" 2>&1); rc=$?
+  b=$(python3 tools/doctor.py --probe --only nosuch 2>&1); rc2=$?; c=$(python3 tools/doctor.py --only fxtwitter 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 0:2:2 ] && python3 - "$a" <<'PY'
+import json, sys
+pr = {m["name"]: m["probe"] for m in json.loads(sys.argv[1])["modules"] if m["probe"]}
+ok = set(pr) == {"fxtwitter", "google-trends", "baidu-top", "toutiao-hot", "bilibili-view"}
+ok = ok and pr["fxtwitter"] == {"state": "ok", "note": "answers (HTTP 200, no key)"} and pr["google-trends"]["state"] == "ok"
+ok = ok and pr["baidu-top"]["state"] == "failed" and "no data.cards" in pr["baidu-top"]["note"]
+ok = ok and pr["toutiao-hot"] == {"state": "failed", "note": "HTTP 403"} and "no recorded response" in pr["bilibili-view"]["note"]
+sys.exit(0 if ok else 1)
+PY
+  then ok "doctor --probe of the keyless services from recordings: an answer the adapter reads, one without its path, an RSS feed, an HTTP error; --only picks the probes, a name it lacks and --only without --probe are usage errors"
+  else bad "doctor's keyless probes (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 500)"; fi
+  # usage errors exit 2 and print to stderr only
+  rc=0; for x in "scout" "scout bogus" "scout topic" "ref" "ref add" "scout channel https://www.bilibili.com/video/BV1Ab4y1C7De"; do
+    # shellcheck disable=SC2086
+    a=$(vh $x 2>/dev/null); b=$?; [ "$b" = 2 ] && [ -z "$a" ] || { rc=1; bad "bin/vh $x: exit $b, stdout ${a:0:80}"; }
+  done
+  [ "$rc" = 1 ] || ok "scout and ref: usage errors exit 2, nothing on stdout"
+  rm -rf "$t"
 }
 
 status_checks() {
@@ -4439,11 +4811,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; scout_checks; textcheck_checks; film_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; scout_checks; textcheck_checks; film_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

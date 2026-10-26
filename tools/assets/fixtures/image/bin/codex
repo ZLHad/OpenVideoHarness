@@ -1,8 +1,21 @@
 #!/bin/sh
 # A stand-in for the Codex CLI (tools/ci.sh, image_checks): --version, and an exec that reads its prompt, "makes" the
-# picture FAKE_CODEX_PNG names under $CODEX_HOME/generated_images/<thread>/ and prints the thread on --json's first line
+# picture FAKE_CODEX_PNG names under $CODEX_HOME/generated_images/<thread>/ and prints the thread on --json's first line;
+# with FAKE_CODEX_FAIL set, the events of a turn that failed on its model instead, and exit 1
 case "$1" in --version) echo "codex-cli 0.0.0-test"; exit 0 ;; esac
 cat > /dev/null
+if [ -n "${FAKE_CODEX_FAIL:-}" ]; then   # the events codex-cli 0.133.0 wrote when its config named a model a ChatGPT login cannot use (2026-10-26)
+  cat <<EOF
+{"type":"thread.started","thread_id":"th-$$"}
+{"type":"turn.started"}
+{"type":"error","message":"{\"type\":\"error\",\"status\":400,\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The 'some-model' model is not supported when using Codex with a ChatGPT account.\",\"code\":\"model_not_found\"}}"}
+{"type":"turn.failed","error":{"message":"{\"type\":\"error\",\"status\":400,\"error\":{\"type\":\"invalid_request_error\",\"message\":\"The 'some-model' model is not supported when using Codex with a ChatGPT account.\",\"code\":\"model_not_found\"}}"}}
+EOF
+  exit 1
+fi
 th="th-$$"
 mkdir -p "$CODEX_HOME/generated_images/$th" && cp "$FAKE_CODEX_PNG" "$CODEX_HOME/generated_images/$th/ig_test.png"
-printf '{"type":"thread.started","thread_id":"%s"}\n{"type":"turn.completed"}\n' "$th"
+# the events in the order codex-cli 0.164.0 wrote them for a picture (2026-10-26); the text and the counts are made up
+printf '{"type":"thread.started","thread_id":"%s"}\n{"type":"turn.started"}\n' "$th"
+printf '{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"DONE"}}\n'
+printf '{"type":"turn.completed","usage":{"input_tokens":0,"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":0,"reasoning_output_tokens":0}}\n'

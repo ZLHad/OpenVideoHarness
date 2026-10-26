@@ -28,7 +28,8 @@ library is the user's, outside the repo (its files are other people's work); the
            results stay in <lib>/cache/search.json, so a pick takes the ref's first 8 characters
   pick     <ref>: lib:<id> (the library's), or openverse:<id or its first 8 characters>. An Openverse item is
            downloaded into the library first (Freesound's HQ preview, an MP3: fine for effects; the original WAV needs a
-           Freesound account) and recorded there. Then into the project, as 48 kHz PCM: sfx to audio/sfx/<NAME>.wav (a
+           Freesound account) and recorded there; only an http(s) link, of at most 100 MB, is taken. Then into the
+           project, as 48 kHz PCM: sfx to audio/sfx/<NAME>.wav (a
            name taken: <NAME>_a.wav, _b …, which bin/vh qa reads as takes of one sound), bgm to audio/<as>.wav with
            audio/<as>.beats.json. Each is one record in the project's assets/ledger.json (origin library; the source, the
            licence, and the site's credit line verbatim as attribution), so bin/vh assets credits and deliver have its
@@ -214,6 +215,16 @@ def resolve_ov(lib, key, opener):
 
 # ---- picks ----
 
+MAX_BYTES = 100_000_000   # a sound or a track; a link to more than this is not one
+
+
+def take(url, dest, opener):
+    """fetch.download, for a link from a search's answer (other people's data): http(s) only, at most MAX_BYTES."""
+    if urllib.parse.urlsplit(url).scheme not in ("https", "http"):
+        raise fetch.FetchError(f"{fetch.redact(url)}: not an http(s) link: not downloaded")
+    return fetch.download(url, dest, opener=opener, max_bytes=MAX_BYTES)
+
+
 def into_library(lib, it, kind, opener):
     """The library's record of an Openverse item, downloading and recording it the first time."""
     rid = f"ov-{it['id']}"
@@ -222,7 +233,7 @@ def into_library(lib, it, kind, opener):
         return have
     dest = lib / kind / "openverse" / f"{it['id']}{it['ext']}"
     try:
-        fetch.download(it["file_url"], dest, opener=opener)
+        take(it["file_url"], dest, opener)
     except fetch.FetchError as e:
         raise Failed(str(e))
     h, size = ledger.digest(dest)
@@ -339,7 +350,7 @@ def audition(lib, items, outf, opener):
         f = lib / "cache" / "preview" / f"{x['id']}{x['ext']}"
         if not f.is_file():
             try:
-                fetch.download(x["file_url"], f, opener=opener)
+                take(x["file_url"], f, opener)
             except fetch.FetchError as e:
                 say(f"  ! {x['ref'][:18]}: not fetched for the audition ({e})")
                 continue

@@ -1,45 +1,44 @@
 {
- "id": "v1_fixture",
- "object": "interaction",
  "status": "completed",
- "model": "gemini-nano-banana-2.1",
- "steps": [
-  {
-   "type": "model_output",
-   "content": [
-    {
-     "type": "text",
-     "text": "A red square on chroma green."
-    },
-    {
-     "type": "image",
-     "mime_type": "image/png",
-     "data": "iVBORw0KGgoAAAANSUhEUgAAAKAAAABaCAIAAACwpMoFAAAACXBIWXMAAAABAAAAAQBPJcTWAAABH0lEQVR4nO3csQkCUQAFQQ+syOQqEixJsKJLDCxIjTUSQb5/mangweZv2d13hO1HD+C3BI4TOE7gOIHjBI4TOE7gOIHjBI4TOE7gOIHjBI4TOE7gOIHjBI4TOG6awI/TcfSEF8v5MnrCR6YJfN220ROmNE1gviNwnMBxAscJHCdwnMBxAscJHCdwnMBxAscJHCdwnMBxAscJHCdwnMBxAscJHCdwnMBxAscJHCdwnMBxAscJHCdwnMBxAscJHCdwnMBxAscJHCdwnMBxAscJHCdwnMBxAscJHCdwnMBx0wQ+rOvoCW9uowd8ZJrAszys/5tpAvMdgeMEjhM4TuA4geMEjhM4TuA4geMEjhM4TuA4geMEjhM4TuA4geMEjnsCKe0KagcJGlUAAAAASUVORK5CYII="
-    }
-   ]
-  }
- ],
  "usage": {
-  "total_input_tokens": 52,
+  "total_tokens": 1380,
+  "total_input_tokens": 16,
   "input_tokens_by_modality": [
    {
     "modality": "text",
-    "tokens": 52
+    "tokens": 16
    }
   ],
   "total_cached_tokens": 0,
-  "total_output_tokens": 1132,
+  "total_output_tokens": 1364,
   "output_tokens_by_modality": [
    {
     "modality": "image",
     "tokens": 1120
-   },
-   {
-    "modality": "text",
-    "tokens": 12
    }
   ],
-  "total_thought_tokens": 310,
-  "total_tokens": 1494
- }
+  "total_tool_use_tokens": 0,
+  "total_thought_tokens": 0
+ },
+ "created": "2026-10-26T13:38:30Z",
+ "updated": "2026-10-26T13:38:30Z",
+ "service_tier": "standard",
+ "steps": [
+  {
+   "signature": "YSB0aG91Z2h0IHNpZ25hdHVyZSwgcmVwbGFjZWQgaW4gdGhlIGZpeHR1cmU=",
+   "type": "thought"
+  },
+  {
+   "content": [
+    {
+     "data": "/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjExLjEwMAD/2wBDAAgEBAQEBAUFBQUFBQYGBgYGBgYGBgYGBgYHBwcICAgHBwcGBgcHCAgICAkJCQgICAgJCQoKCgwMCwsODg4RERT/xABoAAEBAQAAAAAAAAAAAAAAAAAABgUBAQADAQAAAAAAAAAAAAAAAAAIBgcFEAEAAQUBAAAAAAAAAAAAAAAAAwUEFtOSUxEBAAAEAwkBAAAAAAAAAAAAAAWlFlbT1AED4wcXpBhU5WSj/8AAEQgAWgCgAwESAAISAAMSAP/aAAwDAQACEQMRAD8A1RlQxQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZWXU3yu+Itydd2i/v6ffu413tX1u+S+2a6osupvld8Rbk64dF/f0+/dxkXavrd8l9s11RZdTfK74i3J1w6L+/p9+7jIu1fW75L7Zrqiy6m+V3xFuTrh0X9/T793GRdq+t3yX2zXVFl1N8rviLcnXDov7+n37uMi7V9bvkvtmuqLLqb5XfEW5OuHRf39Pv3cZF2r63fJfbNdW4owiKAAAAAAAAAAAAAAAAAAAAAAAAAAIgXkS6AAAAAAAAAAFuKMIigAAAAAAAAAAAAAAAAAAAAAAAAACIF5EugAAAAAAAAABbijCIoAAAAAAAAAAAAAAAAAAAAAAAAAAncRqXrady6VEtdSQXyvx2+EqiRfPjhVcMti+QR0TuI1L1tO5dKiWupIL5X47fCVRIvnxwquGWxfII6J3Eal62nculRLXUkF8r8dvhKokXz44VXDLYvkEdE7iNS9bTuXSolrqSC+V+O3wlUSL58cKrhlsXyCOidxGpetp3LpUS11JBfK/Hb4SqJF8+OFVwy2L5BHRO4jUvW07l0qJa6kgvlfjt8JVEi+fHCq4ZbF8gjoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//9k=",
+     "mime_type": "image/jpeg",
+     "type": "image"
+    }
+   ],
+   "type": "model_output"
+  }
+ ],
+ "object": "interaction",
+ "model": "gemini-nano-banana-2.1"
 }
