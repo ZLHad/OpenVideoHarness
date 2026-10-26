@@ -48,19 +48,20 @@ jobs:
             # GitHub's runners install from an Azure Ubuntu mirror in their own region. Now and then one serves at a crawl or
             # stops answering: 10 to 30 min instead of half a minute on 2026-10-25 and 26, in westus3 above all (known upstream:
             # actions/runner-images#14823, open). A probe put the time in the download (93 MB in 12 min; dpkg took 7 s), and
-            # apt's own 15 s timeout did not fail over. So every stage has a time limit, and a try that runs over is killed and
-            # repeated without that mirror, from archive.ubuntu.com (the second line of /etc/apt/apt-mirrors.txt). What was
-            # downloaded is kept; dpkg only starts once every file is local, and a try killed inside it is repaired first.
-            aptget() {   # aptget <seconds> <apt-get arguments>: one apt-get under a time limit, with how long it took
+            # apt's own 15 s timeout did not fail over. So the stages that fetch have a time limit, and a try that runs over is
+            # killed and repeated without that mirror, from archive.ubuntu.com (the second line of /etc/apt/apt-mirrors.txt).
+            # What was downloaded is kept. dpkg runs last, on files that are all local, and has no limit: it was never the slow
+            # part, and a dpkg killed half way keeps running on its own and holds the lock.
+            aptget() {   # aptget <seconds, 0 for no limit> <apt-get arguments>: one apt-get, with how long it took
               s=$SECONDS; sudo timeout -k 5 "$1" apt-get -y -q "${@:2}" >/tmp/apt.log 2>&1; r=$?
               echo "apt-get ${*:2}: $((SECONDS - s)) s, exit $r"; return $r
             }
             for try in 1 2 3; do
-              aptget 60 update && aptget 60 install --download-only shellcheck ffmpeg && aptget 120 install shellcheck ffmpeg && break
+              aptget 60 update && aptget 60 install --download-only shellcheck ffmpeg && aptget 0 install shellcheck ffmpeg && break
               tail -n 5 /tmp/apt.log
               [ $try = 3 ] && exit 1
               sudo sed -i '/azure.archive.ubuntu.com/d' /etc/apt/apt-mirrors.txt || true
-              sudo dpkg --configure -a || true
+              sudo dpkg --configure -a || true   # after a dpkg that failed, not one that was killed
             done
           else   # ffmpeg lets the bin/vh mux/gif smoke tests run under macOS /bin/bash 3.2 too
             HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install --quiet ffmpeg >/dev/null

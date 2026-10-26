@@ -1,0 +1,61 @@
+# THROWAWAY: runs the install step of ci.yml as it is, 24 times in parallel, and 3 times with the regional mirror throttled. Not part of the PR.
+name: apt-fix-probe
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/ci-apt-install]
+    paths: [.github/workflows/apt-fix-probe.yml]
+permissions:
+  contents: read
+jobs:
+  fix:
+    name: fix ${{ matrix.n }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        n: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: the install step of ci.yml, as it is
+        run: |
+          region=$(curl -s -m 3 -H Metadata:true 'http://169.254.169.254/metadata/instance/compute/location?api-version=2021-02-01&format=text')
+          yq '.jobs.checks.steps[] | select(.name == "Install check tools") | .run' .github/workflows/ci.yml > /tmp/install.sh
+          start=$SECONDS; rc=0
+          RUNNER_OS=Linux bash -e /tmp/install.sh || rc=$?
+          echo "FIXPROBE n=${{ matrix.n }} region=${region:-none} step=$((SECONDS - start)) exit=$rc $(ffmpeg -version | head -1) | $(shellcheck --version | sed -n 2p)"
+          exit $rc
+  simulate:
+    name: simulate ${{ matrix.n }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        n: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: the install step of ci.yml, with the regional mirror throttled from the moment the download starts
+        run: |
+          region=$(curl -s -m 3 -H Metadata:true 'http://169.254.169.254/metadata/instance/compute/location?api-version=2021-02-01&format=text')
+          ip=$(getent ahostsv4 azure.archive.ubuntu.com | awk 'NR==1{print $1}')
+          echo "FIXPROBE azure mirror $ip, region ${region:-none}"
+          yq '.jobs.checks.steps[] | select(.name == "Install check tools") | .run' .github/workflows/ci.yml > /tmp/install.sh
+          start=$SECONDS; rc=0
+          (
+            until pgrep -f 'apt-get.*--download-only' >/dev/null; do sleep 0.2; done
+            sudo iptables -I INPUT -s "$ip" -j DROP
+            sudo iptables -I INPUT -s "$ip" -m limit --limit 40/second --limit-burst 10 -j ACCEPT
+            echo "FIXPROBE throttle on from +$((SECONDS - start)) s: at most 40 packets a second from $ip"
+          ) &
+          RUNNER_OS=Linux bash -e /tmp/install.sh || rc=$?
+          echo "FIXPROBE simulate n=${{ matrix.n }} region=${region:-none} step=$((SECONDS - start)) exit=$rc $(ffmpeg -version | head -1) | $(shellcheck --version | sed -n 2p)"
+          exit $rc
