@@ -1,0 +1,64 @@
+{
+ "_type": "playlist",
+ "id": "UCwavelabxxxxxxxxxxxxxxx",
+ "channel": "Wave Lab",
+ "uploader": "Wave Lab",
+ "uploader_id": "@wavelab",
+ "uploader_url": "https://www.youtube.com/@wavelab",
+ "channel_url": "https://www.youtube.com/@wavelab",
+ "channel_follower_count": 88000,
+ "title": "Wave Lab - Videos",
+ "extractor": "youtube:tab",
+ "entries": [
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "WAVE0000001",
+   "url": "https://www.youtube.com/watch?v=WAVE0000001",
+   "title": "Wave Lab video 1",
+   "duration": 241,
+   "view_count": 60000,
+   "timestamp": 1792136000
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "WAVE0000002",
+   "url": "https://www.youtube.com/watch?v=WAVE0000002",
+   "title": "Wave Lab video 2",
+   "duration": 242,
+   "view_count": 45000,
+   "timestamp": 1791531200
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "WAVE0000003",
+   "url": "https://www.youtube.com/watch?v=WAVE0000003",
+   "title": "Wave Lab video 3",
+   "duration": 243,
+   "view_count": 52000,
+   "timestamp": 1790926400
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "WAVE0000004",
+   "url": "https://www.youtube.com/watch?v=WAVE0000004",
+   "title": "Wave Lab video 4",
+   "duration": 244,
+   "view_count": 70000,
+   "timestamp": 1790321600
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "WAVE0000005",
+   "url": "https://www.youtube.com/watch?v=WAVE0000005",
+   "title": "Wave Lab video 5",
+   "duration": 245,
+   "view_count": 38000,
+   "timestamp": 1789716800
+  }
+ ]
+}

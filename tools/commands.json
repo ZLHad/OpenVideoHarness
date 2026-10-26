@@ -70,14 +70,15 @@
       "writes": [],
       "usage": [
         {
-          "synopsis": "doctor [--json] [--probe [--offline DIR]]",
+          "synopsis": "doctor [--json] [--probe [--only a,b] [--offline DIR]]",
           "text": [
             "what this machine can use, from tools/modules.json (tools/doctor.py): each outside module's program and version (under the",
             "minimum, not the pin, or older than its max_age_days: outdated), the parts it needs, packages in uv's cache, a model in",
             "Hugging Face's, a service's key (set or not, never its value); then the browser and WebGL for the page tools (a headless",
             "probe), the reference repos, LOCAL.md and AGENTS.md. --json: the same as JSON (bin/vh doctor -h has the fields);",
-            "--probe: also call each service with a key once, at an endpoint that costs nothing (--offline DIR: answered from",
-            "responses recorded the way tools/assets/fetch.py records them). Exit 0: it is a report"
+            "--probe: also call each service with a key, and each public one that takes none, once, at an endpoint that costs",
+            "nothing (--only a,b: these modules alone; --offline DIR: answered from responses recorded the way",
+            "tools/assets/fetch.py records them). Exit 0: it is a report"
           ]
         },
         {
@@ -457,6 +458,129 @@
         {
           "name": "remove",
           "summary": "mark a record removed, kept on record"
+        }
+      ]
+    },
+    {
+      "name": "scout",
+      "summary": "What a topic looks like on the platforms before a film is chosen, and how a film did after it went out: a search's top videos with their outliers, an account's latest against its own median, hot lists kept day by day, your own films' numbers against the score they were chosen with; public, no-login interfaces only (yt-dlp, fxtwitter, Bilibili's view endpoint, Baidu, Toutiao, Google Trends), the rest read in the built-in browser and added by hand.",
+      "when": "choosing a topic (how crowded it is, what its outliers share), before the concept cards; a week after a film went out (post)",
+      "stages": ["1", "9"],
+      "reads": [
+        "YouTube (yt-dlp, metadata only), api.fxtwitter.com, api.bilibili.com (one video's view), top.baidu.com, toutiao.com, trends.google.com (--offline DIR: their recorded responses)",
+        "<research>/scout.jsonl, <research>/hot/ (list, post, hot)",
+        "rows read by hand: a CSV or JSON (add --from)"
+      ],
+      "writes": [
+        "<research>/scout.jsonl (topic, channel, post, add): <research> is --dir, the project's research/ (--project, or the project here), else $OVH_SCOUT, else nothing",
+        "<research>/hot/<date>.json (hot)",
+        "a CSV (--csv)"
+      ],
+      "usage": [
+        {
+          "synopsis": "scout topic <keywords> [-n 20] [--baseline [N]] [--dir D | --project P] [--csv F] [--json] [--offline DIR]",
+          "text": [
+            "a search's top N on YouTube (yt-dlp, metadata only, ages approximate): views, age, z against the results of its",
+            "age; --baseline: each result's channel median too, multiple = views ÷ it (★ at 3×)"
+          ]
+        },
+        {
+          "synopsis": "scout channel <url|@handle> [-n 30] [--platform youtube|x] …",
+          "text": [
+            "an account's latest: followers, its median, each one's multiple of it, how often it posts"
+          ]
+        },
+        {
+          "synopsis": "scout post <url>… [--topic ID] [--score N] …",
+          "text": [
+            "your films after they went out (a YouTube video, a Bilibili BV, an X post), then all of them on record against",
+            "the score they were chosen with (Spearman's ρ from 4 films)"
+          ]
+        },
+        {
+          "synopsis": "scout hot [--source baidu,toutiao,google,x] [--geo US] [--days 14] …",
+          "text": [
+            "hot lists, kept as hot/<date>.json: each item with the days it has been on the list"
+          ]
+        },
+        {
+          "synopsis": "scout add <url> [--platform P] [--views N] [--likes N] … [--post] | --from rows.csv",
+          "text": [
+            "Douyin, Xiaohongshu and a Bilibili search have no interface scout may read: read the page in the built-in",
+            "browser and fill the same table by hand"
+          ]
+        },
+        {
+          "synopsis": "scout list [--via V] [--platform P] [--query Q] [--all] [--csv F] [--json]",
+          "text": [
+            "the records, the latest look at each (bin/vh scout -h: the record's fields)"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "topic",
+          "summary": "a search's top videos, with their outliers"
+        },
+        {
+          "name": "channel",
+          "summary": "an account's latest, against its own median"
+        },
+        {
+          "name": "post",
+          "summary": "your films after they went out, against their topic score"
+        },
+        {
+          "name": "hot",
+          "summary": "a snapshot of hot lists, with the days each item has been on"
+        },
+        {
+          "name": "add",
+          "summary": "rows read by hand in the built-in browser"
+        },
+        {
+          "name": "list",
+          "summary": "the records; --csv exports them"
+        }
+      ]
+    },
+    {
+      "name": "ref",
+      "summary": "A project's references (a video, a post, an image, a page it learns from), one asset record each in research/refs.json: where it came from, its licence (not cleared unless it says so), why it is a reference, its numbers at the time; studied, not shown, so out of assets check and credits.",
+      "when": "a reference comes up while the concept, the style or a shot is worked out (gate ①, the storyboard)",
+      "stages": ["1", "2", "3"],
+      "reads": [
+        "a URL: YouTube (yt-dlp), api.fxtwitter.com, api.bilibili.com, as scout post reads one (--offline DIR: recorded)",
+        "a file in or outside the project",
+        "<project>/research/refs.json (list)"
+      ],
+      "writes": [
+        "<project>/research/refs.json",
+        "<project>/research/refs/<id>/meta.json, thumb.jpg (--thumb)"
+      ],
+      "usage": [
+        {
+          "synopsis": "ref add <project> <url|file> [--why TEXT] [--type video|post|image|page] [--title T] [--license L] [--thumb] [--json]",
+          "text": [
+            "record a reference: a YouTube video, a Bilibili BV or an X post is looked up; a page scout does not read is",
+            "recorded as given; a file where it is. On screen it is material: bin/vh assets add"
+          ]
+        },
+        {
+          "synopsis": "ref list <project> [--json]",
+          "text": [
+            "the references, with why each is one"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "add",
+          "summary": "record a reference"
+        },
+        {
+          "name": "list",
+          "summary": "the references"
         }
       ]
     },
