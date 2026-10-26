@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**A topic card, the title formulas checked against a topic's outliers, a sheet of covers**
+- Why: the five ways of finding a topic and the demand behind it had nowhere to live but playbook/12, which every standard film reads in full; the Chinese title formulas in playbook/10 are second-hand and were never held against what does well on the same topic; playbook/07 had no way to look at a batch of covers side by side.
+- `playbook/topics.md`, read when a topic is being chosen: five methods (the audience's words, a map of what the same topic already has, a hot item turned into its principle, long-tail questions, starting from your own field), each with the `bin/vh scout` command that feeds it, and an optional "需求证据" line for the concept card. playbook/12 gets one line pointing to it; CLAUDE.md's directory names it.
+- `bin/vh scout topic` prints the titles of the ★ results against the rest's (length, a question, a number, a comparison, a colon); playbook/10 §5 says how to calibrate the formulas on them. `--covers` fetches each result's cover with a caption (rank, views, multiple, title) and draws them as one sheet.
+- `bin/vh sheet <folder>`: a contact sheet of a folder of pictures, each in a 16:9 cell with its caption from the folder's `captions.json` (CJK faces). playbook/07 §1 says how to sheet a batch of covers saved from a Chinese platform.
+
 **`bin/vh scout` and `bin/vh ref`: topic research from the platforms' public interfaces, and a project's references on record**
 - Why: choosing a topic was hand work every time (benchmark accounts, an 18-day pull of one account's numbers, a duplicate check of ten ideas: agents sent off ad hoc, pages read one by one), and nothing came back after a film went out, so a topic's score was never held against how the film did.
 - `bin/vh scout topic|channel|post|hot|add|list` (tools/scout): a YouTube search's top N with z against the results of their age and, with `--baseline`, each channel's median and the result's multiple of it (★ at 3×); a YouTube channel's or an X account's latest against its own median, and how often it posts; your own films a week on, against the score each was chosen with (Spearman's ρ once 4 are scored); hot lists (Baidu, Toutiao, Google Trends, X) kept day by day, each item with the days it has been on; rows read by hand in the built-in browser where there is no interface (Douyin, Xiaohongshu, a Bilibili search), into the same table. The records are JSONL in a research folder (`--dir`, the project's `research/`, or `$OVH_SCOUT`); `--csv` exports them.

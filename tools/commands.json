@@ -1182,11 +1182,11 @@
     },
     {
       "name": "sheet",
-      "summary": "A contact sheet of a video, with timestamped tiles.",
-      "when": "looking at a whole draft at once",
-      "stages": ["7"],
+      "summary": "A contact sheet of a video, with timestamped tiles; or of a folder of pictures (covers, stills), a caption under each.",
+      "when": "looking at a whole draft at once; a batch of covers side by side (a topic's, an account's)",
+      "stages": ["7", "1"],
       "reads": [
-        "<video>"
+        "<video>, or a folder of pictures and its captions.json"
       ],
       "writes": [
         "<project>/out/check/<name>-sheet-<HHMMSS>.png (or [out])"
@@ -1196,6 +1196,13 @@
           "synopsis": "sheet <video> [cols] [fps] [out]",
           "text": [
             "contact sheet (default: <project>/out/check/<name>-sheet-<HHMMSS>.png)"
+          ]
+        },
+        {
+          "synopsis": "sheet <folder> [cols] [-] [out]",
+          "text": [
+            "a folder's pictures in the order of their names, each in a 16:9 cell, its caption from captions.json",
+            "({\"file name\": \"caption\"}) under it, else its name (bin/vh scout topic --covers makes one)"
           ]
         }
       ]

@@ -34,14 +34,6 @@
    "body": "yt-video.json"
   },
   {
-   "url": "https://i.ytimg.com/vi/AAAAAAAAAA1/hqdefault.jpg",
-   "status": 200,
-   "headers": {
-    "content-type": "image/jpeg"
-   },
-   "body": "cover.jpg"
-  },
-  {
    "url": "https://api.bilibili.com/x/web-interface/view?bvid=BV1Ab4y1C7De",
    "status": 200,
    "headers": {
@@ -119,6 +111,46 @@
     "content-type": "application/rss+xml"
    },
    "body": "hot-google.xml"
+  },
+  {
+   "url": "https://i.ytimg.com/vi/AAAAAAAAAA1/hqdefault.jpg",
+   "status": 200,
+   "headers": {
+    "content-type": "image/jpeg"
+   },
+   "body": "cover-1.jpg"
+  },
+  {
+   "url": "https://i.ytimg.com/vi/AAAAAAAAAA2/hqdefault.jpg",
+   "status": 200,
+   "headers": {
+    "content-type": "image/jpeg"
+   },
+   "body": "cover-2.jpg"
+  },
+  {
+   "url": "https://i.ytimg.com/vi/AAAAAAAAAA3/hqdefault.jpg",
+   "status": 200,
+   "headers": {
+    "content-type": "image/jpeg"
+   },
+   "body": "cover-3.jpg"
+  },
+  {
+   "url": "https://i.ytimg.com/vi/AAAAAAAAAA4/hqdefault.jpg",
+   "status": 200,
+   "headers": {
+    "content-type": "image/jpeg"
+   },
+   "body": "cover-4.jpg"
+  },
+  {
+   "url": "https://i.ytimg.com/vi/AAAAAAAAAA5/hqdefault.jpg",
+   "status": 200,
+   "headers": {
+    "content-type": "image/jpeg"
+   },
+   "body": "cover-5.jpg"
   }
  ]
 }

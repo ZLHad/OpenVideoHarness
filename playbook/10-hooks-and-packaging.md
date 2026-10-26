@@ -116,6 +116,8 @@
 
 B站偏爱的词，第三方总结有"干货、保姆级、实测、一口气、手把手"【二手】[S24]，只当风格参考。
 
+**拿同题的 outlier 校一次**：上表是二手经验，没在同题上验证过。选题时 `bin/vh scout topic <词> --baseline` 取同题前 20 支，它会打印 ★ 的那几支（播放 ≥ 自己频道中位数的 3 倍）和其余标题的几样特征：长度、问句、数字、对比、冒号；中文平台的同题在浏览器里读，用 `bin/vh scout add` 填进同一张表。outlier 用得多的公式排前面，同题里一支都没有的类型别硬套。封面一起看（`scout topic --covers`），标题和封面说成同一句话的，算承诺说了两遍（第 6 节）。【综合】
+
 ### English
 
 1. `Why {X} {Y}?` 2. `How {X} actually works` 3. `{X} isn't what you think` 4. `{N} things about {X}` 5. `{X} in {N} minutes` 6. `What happens if {X}?` 7. `{X} vs {Y}` 8. `I {did X}. Here's what I found.`（只在片子真的是第一人称时用）
