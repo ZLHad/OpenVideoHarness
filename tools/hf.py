@@ -7,7 +7,9 @@ usage: bin/vh hf catalog [words…] [--type block|component] [--tag T] [--json] 
            hyperframes; the registry is raw.githubusercontent.com/heygen-com/hyperframes/v<pin>/registry): name, type,
            title, tags, a block's length and frame, the licence when the item names one. Each word must appear in the
            name, the title, the description or a tag (any case). The list is kept in ~/.cache/ovh/hyperframes-registry/
-           v<pin>.json, since a tag does not move; --refresh reads it again. The registry has examples too; they are
+           v<pin>.json, since a tag does not move; --refresh reads it again. It is read six items at a time, an item that
+           answers 429 or 5xx once more after a pause; a read cut short keeps what it read (v<pin>.partial.json) and
+           the next one takes only the rest. The registry has examples too; they are
            whole projects (hyperframes init --example), not something to add, so they are left out, as HyperFrames'
            own catalog does.
   add      install a block or a component into a project with HyperFrames' own add (the items it depends on too),
@@ -42,7 +44,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE / "assets"))
 sys.path.insert(0, str(HERE))
-import fetch, ledger   # noqa: E402,E401
+import fetch, ledger, purity   # noqa: E402,E401
 
 PROG = "bin/vh hf"
 REPO = "https://raw.githubusercontent.com/heygen-com/hyperframes"
@@ -50,11 +52,9 @@ DEFAULT_REGISTRY = REPO + "/main/registry"   # what HyperFrames' own config fall
 TYPE_DIRS = {"hyperframes:block": "blocks", "hyperframes:component": "components", "hyperframes:example": "examples"}
 PATHS = {"blocks": "compositions", "components": "compositions/components", "assets": "assets"}   # hyperframes.json's defaults
 SCAN_EXT = {".html", ".htm", ".js", ".mjs", ".css", ".json", ".svg"}
-# hard rule 1 (CLAUDE.md): what a page must not lean on; each a warning, with the line it is on
-CLOCK = [("CSS @keyframes", r"@keyframes\b"), ("CSS animation", r"(?<![\w-])animation(?:-name)?\s*:"),
-         ("CSS transition", r"(?<![\w-])transition\s*:"), ("Math.random", r"\bMath\.random\s*\("),
-         ("Date.now", r"\bDate\.now\s*\("), ("new Date", r"\bnew\s+Date\s*\("), ("performance.now", r"\bperformance\.now\s*\("),
-         ("requestAnimationFrame", r"\brequestAnimationFrame\s*\("), ("a timer", r"\bset(?:Timeout|Interval)\s*\(")]
+# hard rule 1 (CLAUDE.md): what a page must not lean on is tools/purity.py's table; each hit a warning, with its line
+WORKERS = 6   # item manifests read at once: raw.githubusercontent.com answers a burst with 429
+BACKOFF = 2.0   # seconds before the one retry of a 429 or 5xx, times the attempt
 # a load from the network when the page renders (an attribute, a CSS url(), an import, a fetch): not the xmlns of an SVG
 NET = re.compile(r"""(?:\b(?:src|href)\s*=\s*["']?|url\(\s*["']?|\bimport\s*(?:[\w*{}\s,]+from\s*)?["']|\bfetch\(\s*["'])(https?://[^"')\s>]+)""", re.I)
 out = sys.stdout
@@ -88,8 +88,34 @@ def cache_file(version):
     return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache") / "ovh" / "hyperframes-registry" / f"v{version}.json"
 
 
+def partial_file(version):
+    """What a read of the registry that was cut short had already read: the next read takes only the rest."""
+    return cache_file(version).with_name(f"v{version}.partial.json")
+
+
+def get_json_retry(url, opener, tries=2):
+    """fetch.get_json, read once more after a pause when the answer is 429 or 5xx."""
+    for n in range(tries):
+        try:
+            return fetch.get_json(url, opener=opener)
+        except fetch.FetchError as e:
+            m = re.search(r"\bHTTP (\d{3})\b", str(e))
+            code = int(m.group(1)) if m else 0
+            if n + 1 >= tries or not (code == 429 or 500 <= code < 600):
+                raise
+            time.sleep(BACKOFF * (n + 1))
+
+
+def save_json(path, data):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, path)
+
+
 def load_registry(version, opener, refresh=False, offline=False):
-    """Every item of the tag's registry with its manifest: [{name, type, title, …}], examples included. Cached per tag."""
+    """Every item of the tag's registry with its manifest: [{name, type, title, …}], examples included. Cached per tag;
+    a read cut short (an item that still answers 429 or 5xx after its retry) keeps what it read for the next one."""
     cf = cache_file(version)
     if not refresh and not offline and cf.is_file():
         try:
@@ -98,23 +124,42 @@ def load_registry(version, opener, refresh=False, offline=False):
                 return d["items"]
         except (OSError, ValueError):
             pass
-    base = registry_of(version)
-    man = fetch.get_json(base + "/registry.json", opener=opener)
+    base, pf, have, errors = registry_of(version), partial_file(version), {}, []
+    man = get_json_retry(base + "/registry.json", opener)
     entries = [e for e in man.get("items", []) if isinstance(e, dict) and e.get("type") in TYPE_DIRS and valid_name(e.get("name"))]
-    say(f"{PROG}: reading {len(entries)} items of the v{version} registry …")
+    if not offline and not refresh:
+        try:
+            d = json.loads(pf.read_text(encoding="utf-8"))
+            if d.get("version") == 1 and d.get("pin") == version:
+                have = {it["name"]: it for it in d.get("items", []) if isinstance(it, dict) and isinstance(it.get("name"), str)}
+        except (OSError, ValueError):
+            pass
+    todo = [e for e in entries if e["name"] not in have]
+    say(f"{PROG}: reading {len(todo)} items of the v{version} registry …" + (f" ({len(have)} kept from a read cut short)" if have else ""))
 
     def one(e):
-        it = fetch.get_json(item_url(base, e["type"], e["name"]), opener=opener)
+        try:
+            it = get_json_retry(item_url(base, e["type"], e["name"]), opener)
+        except fetch.FetchError as err:
+            errors.append(str(err))
+            return None
         return it if isinstance(it, dict) and it.get("name") == e["name"] else {"name": e["name"], "type": e["type"], "unreadable": True}
-    with ThreadPoolExecutor(max_workers=1 if offline else 16) as ex:
-        items = list(ex.map(one, entries))
+    with ThreadPoolExecutor(max_workers=1 if offline else WORKERS) as ex:
+        have.update((it["name"], it) for it in ex.map(one, todo) if it)
+    if errors:
+        kept = ""
+        if not offline:
+            try:
+                save_json(pf, {"version": 1, "pin": version, "registry": base, "items": list(have.values())})
+                kept = f"; the {len(have)} read are kept, and the next read takes only the rest"
+            except OSError:
+                pass
+        raise fetch.FetchError(f"{len(errors)} of {len(entries)} items of the v{version} registry could not be read ({errors[0]}){kept}")
+    items = [have[e["name"]] for e in entries]
     if not offline:
         try:
-            cf.parent.mkdir(parents=True, exist_ok=True)
-            tmp = cf.with_suffix(".part")
-            tmp.write_text(json.dumps({"version": 1, "pin": version, "registry": base, "fetched_at": ledger.iso(), "items": items},
-                                      ensure_ascii=False), encoding="utf-8")
-            os.replace(tmp, cf)
+            save_json(cf, {"version": 1, "pin": version, "registry": base, "fetched_at": ledger.iso(), "items": items})
+            pf.unlink(missing_ok=True)
         except OSError as e:
             say(f"{PROG}: could not keep the list in {cf} ({e}); it is read again next time")
     return items
@@ -357,21 +402,20 @@ def scan(project, files):
             text = p.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        hits = []
+        hits = [{"what": what, "line": i, "text": t} for what, i, t in purity.scan(text)]
         for i, line in enumerate(text.splitlines(), 1):
-            for what, pat in CLOCK:
-                if re.search(pat, line):
-                    hits.append({"what": what, "line": i, "text": line.strip()[:120]})
             for m in NET.finditer(line):
                 if "www.w3.org/" not in m.group(1):
                     hits.append({"what": "loads from the network", "line": i, "text": fetch.redact(m.group(1))})
+        hits.sort(key=lambda h: h["line"])
         if hits:
             found[ledger.rel(project, p)] = hits
     return found
 
 
-def record(project, files, plan, base, version):
-    """Each file written into the project's ledger: a new record, or the one at its path updated (--force)."""
+def record(project, files, plan, base, version, found=None):
+    """Each file written into the project's ledger: a new record, or the one at its path updated (--force). Its note
+    says when the licence is presumed, and what the scan found in it (found: scan()'s answer)."""
     recs = []
     by_target = {}
     _, d = read_config(project)
@@ -388,11 +432,17 @@ def record(project, files, plan, base, version):
             cls, note = "unknown", f"fetched from {fetch.redact(fl['url'])}, outside the registry's repository; the item names no licence for it"
         elif not lic:
             lic = "Apache-2.0"
+            note = ("the item names no licence: Apache-2.0 presumed from the repository's LICENSE; "
+                    "fonts, pictures or libraries bundled in it may carry their own")
         src = {"origin": "download", "url": item_url(base, it["type"], it["name"]), "file_url": source_url(base, it, fl) if fl else None,
                "provider": "hyperframes-registry", "provider_id": it["name"], "title": it.get("title"),
                "author": it.get("author") or "HeyGen, Inc. (heygen-com/hyperframes)", "retrieved": time.strftime("%Y-%m-%d")}
         credit = f"{it.get('title') or it['name']}: HyperFrames registry (heygen-com/hyperframes v{version}, {lic or 'licence not stated'})"
         at = ledger.rel(project, p)
+        hits = (found or {}).get(at) or []
+        if hits:
+            seen = list(dict.fromkeys(f"{h['what']} (line {h['line']})" for h in hits))
+            note = "; ".join(filter(None, [note, "leans on the clock or the network: " + ", ".join(seen[:6]) + (" …" if len(seen) > 6 else "")]))
         on = any(r.get("path") == at and "removed" not in r for r in ledger.read_ledger(project / ledger.LEDGER)["assets"] if isinstance(r, dict))
         rec, _, _ = ledger.add(project, str(p), license=lic, license_url=lic_url if lic and not it.get("license") else None,
                                license_class=cls, source=src, attribution=credit, tags=["hyperframes", short_type(it["type"])],
@@ -433,12 +483,12 @@ def cmd_add(a):
         warnings.append(f"the project runs HyperFrames {used}; the registry is v{version}'s (bin/vh pins {version})")
     warnings += [str(w) for w in res.get("warnings") or []]
     written = [str(Path(p) if Path(p).is_absolute() else project / p) for p in res.get("written") or []]
+    found = scan(project, written)
     try:
-        recs = record(project, written, plan, base, version)
+        recs = record(project, written, plan, base, version, found)
     except (ledger.LedgerError, ledger.Refused, ValueError) as e:
         say(f"{PROG} add: installed, but the ledger refused a record: {e}")
         return 1
-    found = scan(project, written)
     for at, hits in found.items():
         for h in hits:
             warnings.append(f"{at}:{h['line']}: {h['what']} ({h['text']})")

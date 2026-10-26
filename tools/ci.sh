@@ -2360,6 +2360,45 @@ hf_checks() {   # bin/vh hf (tools/hf.py): HyperFrames' registry at the pin's ta
      && case "$c" in *"cdn-test"*"grain-test"*"2 of 3"*) ! printf '%s' "$c" | grep -q title-test ;; *) false ;; esac
   then ok "hf catalog: the registry at the pin's tag, examples left out; words, --tag and --type filter; --json"
   else bad "hf catalog: $a | $b | $c"; fi
+  # the registry read: an item that answers 429 is read once more, then the read is cut short with what it had kept;
+  # the next read takes only the rest (a stand-in opener, no network, no pause)
+  if a=$(python3 - "$t/cache" <<'PY' 2>&1
+import json, os, sys
+sys.path.insert(0, "tools"); sys.path.insert(0, "tools/assets")
+import fetch, hf
+hf.time.sleep = lambda s: None
+os.environ["XDG_CACHE_HOME"] = sys.argv[1]
+class R:
+    def __init__(self, body): self.body = body.encode()
+    def read(self, n=-1): return self.body
+    def close(self): pass
+class Opener:
+    def __init__(self, bad=()): self.bad, self.calls = set(bad), []
+    def open(self, url, headers=None, timeout=60):
+        self.calls.append(url)
+        if url.endswith("/registry.json"):
+            return R(json.dumps({"items": [{"name": n, "type": "hyperframes:block"} for n in ("a-one", "b-two", "c-three")]}))
+        name = url.rsplit("/", 2)[-2]
+        if name in self.bad:
+            raise fetch.FetchError(f"{url}: HTTP 429 Too Many Requests")
+        return R(json.dumps({"name": name, "type": "hyperframes:block", "title": name}))
+v, bad, good = "9.9.9-ci", Opener({"b-two"}), Opener()
+try:
+    hf.load_registry(v, bad)
+    sys.exit("a 429 that stays did not stop the read")
+except fetch.FetchError as e:
+    msg = str(e)
+part = sorted(i["name"] for i in json.load(open(hf.partial_file(v)))["items"])
+items = [i["name"] for i in hf.load_registry(v, good)]
+again = [u.rsplit("/", 2)[-2] for u in good.calls if u.endswith("registry-item.json")]
+tried = sum(u.endswith("/b-two/registry-item.json") for u in bad.calls)
+ok = ("1 of 3 items" in msg and "kept" in msg and tried == 2 and part == ["a-one", "c-three"] and again == ["b-two"]
+      and items == ["a-one", "b-two", "c-three"] and not hf.partial_file(v).exists() and hf.cache_file(v).exists())
+print(msg if ok else f"{msg} | partial {part} | read again {again} | tried b-two {tried} | {items}")
+sys.exit(0 if ok else 1)
+PY
+  ); then ok "hf catalog's read: a 429 is tried once more, a read cut short keeps what it read and the next one reads only the rest"
+  else bad "hf registry read with a 429: $a"; fi
   # add: dependencies first, hyperframes.json pointed at the tag, the files on the ledger with the item's licence (the
   # repository's Apache-2.0 when it names none), the scan's warnings; a file from elsewhere with no licence is unknown
   p="$t/p"; mkdir -p "$p"; printf '# BRIEF\n' > "$p/BRIEF.md"; printf '<!doctype html><div data-composition-id="main"></div>\n' > "$p/index.html"
@@ -2372,13 +2411,15 @@ cfg = json.load(open(f"{p}/hyperframes.json", encoding="utf-8"))
 recs = {r["path"]: r for r in json.load(open(f"{p}/assets/ledger.json", encoding="utf-8"))["assets"]}
 g, b = recs.get("compositions/components/grain-test.html"), recs.get("compositions/title-test.html")
 what = sorted({h["what"] for hs in d["scan"].values() for h in hs})
+notes = all(hs[0]["what"] in (recs.get(at) or {}).get("note", "") for at, hs in d["scan"].items() if at in recs)
 ok = (cfg["registry"].endswith("/v0.0.0-ci/registry") and [x["name"] for x in cfg["registryItems"]] == ["grain-test", "title-test"]
       and d["installed"] == ["grain-test", "title-test"] and g and b and g["license"]["class"] == "free" and g["license"]["name"] == "Apache-2.0"
       and b["license"]["name"] == "MIT" and b["source"]["provider"] == "hyperframes-registry" and b["source"]["file_url"].endswith("/blocks/title-test/title-test.html")
-      and what == ["CSS @keyframes", "CSS animation", "Math.random", "loads from the network"] and d["snippet"].startswith('<div data-composition-src="compositions/title-test.html"'))
+      and what == ["CSS @keyframes", "CSS animation", "Math.random", "loads from the network"] and d["snippet"].startswith('<div data-composition-src="compositions/title-test.html"')
+      and "Apache-2.0 presumed" in g.get("note", "") and "presumed" not in b.get("note", "") and notes)
 sys.exit(0 if ok else 1)
 PY
-  then ok "hf add --offline: its dependency first, hyperframes.json pinned to the tag, each file on the ledger (MIT, or the repository's Apache-2.0), the clock and network lines warned"
+  then ok "hf add --offline: its dependency first, hyperframes.json pinned to the tag, each file on the ledger (MIT, or the repository's Apache-2.0, said to be presumed), the clock and network lines warned and noted on the file's record"
   else bad "hf add --offline (exit $rc): $a"; fi
   a=$(HYPERFRAMES_VERSION=0.0.0-ci vh hf add "$p" cdn-test --offline "$F" 2>&1); rc=$?
   b=$(vh assets check "$p" 2>&1); rc2=$?
