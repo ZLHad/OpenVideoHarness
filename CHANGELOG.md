@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**A target image and a critic for the keyframes nobody is sure of**
+- Why: batch 1, line B. The loop of dream-loop (achimala/dream-loop, MIT): before building a hard shot, make a picture of what it should look like; once it renders, a critic in a fresh context compares the two side by side.
+- `playbook/target-critic.md`, a card read when used: when (`studio`'s hook and climax, shots marked unsure; not for type, numbers or real people), where the target comes from (a reference, a reference film's frame, a swatch, a grey box completed by an image model, or image generation under the budget floor), how the critic compares (one side-by-side image, the shot's reads, at most three differences that change the read, each with a fix; matching is a valid answer; invented text and numbers are not compared; the film may depart from the target on purpose), and when to stop (three rounds a shot).
+- playbook/02 gains one sentence pointing to it; nothing else is added to what every film reads (CONTRIBUTING, 四个绑定点).
+
 **CI: the Linux install step gets past a stalled mirror**
 - Why: on 2026-10-25 and 26 `apt-get install shellcheck ffmpeg` took 10 to 30 minutes instead of half a minute, six times, and two jobs failed at the step's limit. A probe of 40 installs put the time in the download from the runner's regional Azure Ubuntu mirror (westus3 above all); `apt-get update` and dpkg were never slow. GitHub knows it: actions/runner-images#14823, still open.
 - The step now runs `apt-get update` and a download-only install with 60 s each, then dpkg on the files it has. A try that runs over is killed and the next one goes to archive.ubuntu.com instead of the regional mirror; what was downloaded is kept. Up to three tries, then the step fails. In the probe every install that stalled finished in under two minutes.
