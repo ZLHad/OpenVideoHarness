@@ -523,7 +523,7 @@ def main():
     ap.add_argument("--stop", type=float, help="floor of a pause at a full stop (。？！), inside a line and between lines (s; default 0.25)."
                                                " A shorter silence there is lengthened with silence at its quietest point; the voice is not touched")
     ap.add_argument("--extra", help="id=s,… seconds added after a line (negative: taken away)")
-    ap.add_argument("--align", default="map", choices=["map", "gemini", "whisper"], help="word times of the new take")
+    ap.add_argument("--align", default="map", choices=["map", "gemini", "whisper", "local"], help="word times of the new take (local: whisper, as bin/vh tts calls it)")
     ap.add_argument("--dry-run", action="store_true", help="measure and print, write nothing")
     ap.add_argument("--restore", action="store_true", help="put the original take and timeline back, remove the .raw files")
     ap.add_argument("--skip-lint", action="store_true", help="go on even when the timeline fails its checks (tools/audio/timeline_lint.py)")
@@ -532,6 +532,8 @@ def main():
         if argv[k] == "--relative":
             argv[k:k + 2] = [f"--relative={argv[k + 1]}", ""]
     a = ap.parse_intermixed_args([v for v in argv if v != ""])   # the language may come after the flags too
+    if a.align == "local":   # bin/vh tts's name for the same local whisper
+        a.align = "whisper"
     if a.restore and a.dry_run:
         ap.error("--restore puts files back; --dry-run only measures: use one of them")
     if a.relative is not None:

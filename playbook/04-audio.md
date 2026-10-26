@@ -12,7 +12,7 @@
 # 配音（双语）：audio/script.txt → voiceover.<lang>.wav + timeline.<lang>.json
 bin/vh tts projects/<p> qwen Serena zh            # 本地开源 Qwen3-TTS（默认；首次下载约 2GB）
 bin/vh tts projects/<p> qwen Aiden en             # 同一份稿子，英文旁白
-bin/vh tts projects/<p> gemini Kore zh --align gemini   # 云端 Gemini；--align：逐句词级时间 + ASR 对稿，跑偏的句子会被标出来
+bin/vh tts projects/<p> gemini Kore zh --align gemini   # 云端 Gemini；--align：逐句词级时间 + ASR 对稿，跑偏的句子会被标出来（--align local 用本机的 Whisper）
 bin/vh tts projects/<p> minimax "Chinese (Mandarin)_Reliable_Executive" zh --join all   # 云端 MiniMax：整份稿一个请求，音色不漂，自带逐字时间
 bin/vh captions projects/<p> zh                    # → captions.zh/en/bi.srt + captions.json（给引擎画进画面）；按词断行，--cards 一行一条
 bin/vh voices list en-GB --gender female           # Gemini 音色库；bin/vh voices design "<描述>" 设计一个音色 → voice_… id
@@ -68,11 +68,11 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 **每条配音都要查**：加 `--align gemini` 让机器逐句转写、对稿（见下一节），或者至少看一眼 `timeline.<lang>.json` 里每句的时长。被标出来的句子重跑，或者换 provider。
 
-#### 词级时间和对稿检查（`--align gemini`）
+#### 词级时间和对稿检查（`--align gemini`，或本机的 `--align local`）
 
 `--align gemini` 对任何 provider 都能用：每句合成完交给 Gemini 转写，拿回带时间戳的词，再和稿子逐字对齐。结果写进 timeline：`words` 是逐词时间（文字用稿子的写法），字幕和画面逐词同步用它；`asr` 是和稿子的相似度，跑偏、或者句首句尾多出 1 s 以上声音的句子标上 `flag`，命令最后逐句列出来。转写失败也不丢配音：修好原因后，同一条命令加 `--resume` 接着跑。时间步长、费用、限额和实测见 `tools/audio/README.md` 的同名一节。
 
-**转写用不了时**（当天额度用完，或者接口一直报错）：额度用完后，`--align gemini` 直接报错退出，报错里写出是哪一项日配额（429 没写明配额、又只要求等几十秒时，仍会等了再试，每次调用最多 5 次）。合成好的音频已经在盘上（逐句合成时是 `voiceover.<lang>.wav`，`--join` 时是 `vo/<lang>/_blockNN.wav`），停掉不会丢；可以等额度恢复后加 `--resume` 接着转写，也可以改用本地 whisper 拿词级时间（还没封装；Apple Silicon 上用 mlx-whisper 的 `whisper-large-v3-turbo`，`initial_prompt` 里写上人名和术语；别的做法见下文"选型"的词级时间戳一行），再交给 `tools/audio/tts.py` 的 `align_lines` 和稿子对齐（`--align gemini` 用的也是它）。whisper 常把年份写成阿拉伯数字，和稿子里为念法写的"一九五三"对不上：相似度会掉，自己写的逐字对齐还可能把那句的起点算偏（一支 2026-10 的片子算晚了，剪掉了第一个字）。对齐前先把这些数字换回稿子的写法。
+**转写用不了时**（当天额度用完，或者接口一直报错）：额度用完后，`--align gemini` 直接报错退出，报错里写出是哪一项日配额（429 没写明配额、又只要求等几十秒时，仍会等了再试，每次调用最多 5 次）。合成好的音频已经在盘上（逐句合成时是 `voiceover.<lang>.wav`，`--join` 时是 `vo/<lang>/_blockNN.wav`），停掉不会丢；可以等额度恢复后加 `--resume` 接着转写，也可以把同一条命令的 `--align gemini` 换成 `--align local`、加上 `--resume`：在 Apple Silicon 上用 mlx-whisper 的 `whisper-large-v3-turbo`，不要 key、没有日配额，词级时间、对稿和标记照旧，被标出的句子带着人名和术语（`initial_prompt`）再听一遍（别的机器见下文"选型"的词级时间戳一行）。whisper 常把年份写成阿拉伯数字，和稿子里为念法写的"一九五三"对不上：相似度会掉，逐字对齐还可能把那句的起点算偏（一支 2026-10 的片子算晚了，剪掉了第一个字）。`bin/vh tts` 对齐前会把这样的数字换成稿子的写法（稿子里有逐位的念法才换，"二十六"这类读法不动）；自己拿 whisper 的结果对齐时，也要先换。
 
 有词级时间时，`bin/vh captions` 会给每条字幕加上 `words`，念得太快的短字幕会往后延到 1.8 s（`tools/audio/README.md` 的"字幕"）。
 
@@ -142,6 +142,8 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 - **不要让每个音效都去压音乐。** 介绍片 v2 把 74 个音效全接进了 ducker，ratio 是 6，配乐跟着每个音效一抽一抽。混音 profile 里音效从不压音乐（只有没人说话时，hero 命中处音乐让 2–2.5 dB）；不用 profile 时默认也只让人声压音乐（`duck=voice`），真要用 `duck=on`，把 `duck_ratio` 降到 2–3。`bin/vh qa` 的抽吸一项专门查这种问题。
 
 ### 混音（`mix`）和混音报告（`qa mix`）
+
+- **机器之外要人听的地方**：`bin/vh qa <mix> --listen 5 --stems DIR` 挑出最弱的一句、最响的一击、变化最大的转折、片尾和 AAC 最容易过冲的地方，各剪 6 s（`--gate 3` 放进审阅页）；`--picture` 把频谱、旁白句子、音效、响度和切点画在一条时间轴上。成片的响度 `bin/vh check` 会量，对照的是这支片子混音时定的目标（`bin/vh mix` 把 `lufs=`、`tp=` 记在输出旁的 `<out>.mix.json` 里；没有的话读 BRIEF 的 `- Loudness: -16 LUFS`，再没有按 −14）；拍子网格是不是锁在反拍上，`bin/vh beats <曲子> [网格] --check` 看。
 
 **按视频类型选一个 profile，所有层都相对一个锚点放。** 有旁白时锚点是旁白（各句响度的中位数），没有旁白时是音乐（它 3 s 的短时响度，最低取整体响度下方 8 LU）。顺序是人声锚点 → 音乐 VMR → 音效分级 → 纵深 → 母带。各类音效的范围、所有 profile 共用的参数、`role` 的判法见 `tools/audio/README.md` 的"混音"。
 
@@ -292,7 +294,7 @@ bin/vh qa mix $A/stems --beats $A/music.beats.json   # 只看混音报告（词�
 | 中文配音，本地 | `mlx-audio` 在 Apple Silicon 上跑 Qwen3-TTS（Apache-2.0，支持方言和声音设计）。要克隆声音用 CosyVoice 或 GPT-SoVITS。 |
 | 配音，云端，追求稳定 | ElevenLabs 的 `/v1/text-to-speech/{voice_id}/with-timestamps` 直接返回字符级时间（`bin/vh tts` 拼成词级）；讲解旁白要表演力、或者要双人对话时，用 Gemini 3.8 Flash TTS（`bin/vh tts … gemini`，能用一句话导演语气，有免费档）；MiniMax 已封装（`bin/vh tts … minimax`，自带逐字时间，整份稿一个请求音色不漂）；国内还可选火山豆包、阿里百炼。 |
 | 免费、先凑合用 | `edge-tts`（微软中文音色，非官方接口，随时可能失效） |
-| 词级时间戳 | 已封装：`bin/vh tts … --align gemini`（Gemini 3.5 Transcribe，词级，0.1 s 步长，顺带对稿）。离线的话，中文用 FunASR（字级，带标点）；通用用 whisper.cpp（Mac 上有 Metal 加速）；已有讲稿或歌词、只需对齐时用 ctc-forced-aligner |
+| 词级时间戳 | 已封装：`bin/vh tts … --align gemini`（Gemini 3.5 Transcribe，词级，0.1 s 步长，顺带对稿）和 `--align local`（本机的 mlx-whisper，Apple Silicon，不要 key、没有日配额，同样对稿）。别的机器上离线的话，中文用 FunASR（字级，带标点）；通用用 whisper.cpp；已有讲稿或歌词、只需对齐时用 ctc-forced-aligner |
 | 节拍 | librosa 或 beat_this（后者 downbeat 更准）。音乐平缓时，检测出来的 BPM 只是一个强加的节拍器，不能拿来硬切。 |
 | 歌词对齐 | Demucs 分离人声 → Whisper 分块转写 → 用序列对齐（Needleman–Wunsch 或 difflib）把真实歌词对到转写结果上。functional-emotions-video 的 `analysis/` 目录有完整脚本。 |
 | 音乐 | 能调用的接口：Lyria（`bin/vh music --provider lyria`；lyria-3.5 每首 $0.08、30 s 的 lyria-3-clip-preview $0.04，没有免费档，2026-10-26 对着 Google 的价目页核过）；要每段精确时长时用 Eleven Music（没接）。现成的曲子：`bin/vh bgm search`、`bgm pick`。Suno 没有公开的自助 API，不接；人在 Suno 上生成，再把文件交给 agent。 |

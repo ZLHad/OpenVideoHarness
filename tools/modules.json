@@ -221,16 +221,16 @@
     {
       "name": "mlx-whisper",
       "kind": "python",
-      "purpose": "Local word timing for bin/vh pace --align whisper.",
-      "version": {},
-      "license": "MIT",
+      "purpose": "Local word timing (Whisper on Apple Silicon, mlx-community/whisper-large-v3-turbo unless WHISPER_MODEL says): bin/vh tts --align local and bin/vh pace --align whisper (or local), no key and no daily quota.",
+      "version": {"models": ["mlx-community/whisper-large-v3-turbo (WHISPER_MODEL)"]},
+      "license": "MIT (the Whisper weights: MIT)",
       "needs": {"programs": ["uv"], "platform": "darwin-arm64"},
-      "elsewhere": "bin/vh pace takes --align map (the default) or gemini here",
-      "adapter": ["tools/audio/pace.py"],
-      "commands": ["pace"],
+      "elsewhere": "bin/vh tts takes --align gemini here, and bin/vh pace --align map (the default) or gemini",
+      "adapter": ["tools/audio/pace.py", "tools/audio/tts.py (transcribe_local)"],
+      "commands": ["pace", "tts"],
       "required": false,
       "check": {"uv": ["mlx-whisper"]},
-      "install": {"macos": "the first bin/vh pace --align whisper fetches it"}
+      "install": {"macos": "the first bin/vh tts --align local or pace --align whisper fetches it (the model: about 1.6 GB, once)"}
     },
     {
       "name": "say",
