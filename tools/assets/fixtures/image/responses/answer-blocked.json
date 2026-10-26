@@ -1,0 +1,23 @@
+{
+ "id": "v1_blocked",
+ "object": "interaction",
+ "status": "failed",
+ "model": "gemini-nano-banana-2.1",
+ "steps": [],
+ "usage": {
+  "total_input_tokens": 52,
+  "input_tokens_by_modality": [
+   {
+    "modality": "text",
+    "tokens": 52
+   }
+  ],
+  "total_output_tokens": 0
+ },
+ "errors": [
+  {
+   "code": "safety",
+   "message": "the request was blocked"
+  }
+ ]
+}

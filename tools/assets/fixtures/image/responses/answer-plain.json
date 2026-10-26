@@ -1,0 +1,44 @@
+{
+ "status": "completed",
+ "usage": {
+  "total_tokens": 1380,
+  "total_input_tokens": 16,
+  "input_tokens_by_modality": [
+   {
+    "modality": "text",
+    "tokens": 16
+   }
+  ],
+  "total_cached_tokens": 0,
+  "total_output_tokens": 1364,
+  "output_tokens_by_modality": [
+   {
+    "modality": "image",
+    "tokens": 1120
+   }
+  ],
+  "total_tool_use_tokens": 0,
+  "total_thought_tokens": 0
+ },
+ "created": "2026-10-26T13:38:30Z",
+ "updated": "2026-10-26T13:38:30Z",
+ "service_tier": "standard",
+ "steps": [
+  {
+   "signature": "YSB0aG91Z2h0IHNpZ25hdHVyZSwgcmVwbGFjZWQgaW4gdGhlIGZpeHR1cmU=",
+   "type": "thought"
+  },
+  {
+   "content": [
+    {
+     "data": "/9j/4AAQSkZJRgABAgAAAQABAAD//gAQTGF2YzYyLjExLjEwMAD/2wBDAAgEBAQEBAUFBQUFBQYGBgYGBgYGBgYGBgYHBwcICAgHBwcGBgcHCAgICAkJCQgICAgJCQoKCgwMCwsODg4RERT/xAB+AAEBAQEAAAAAAAAAAAAAAAAABgUHAQEBAQEAAAAAAAAAAAAAAAAABgUHEAEAAAEMAgMBAAAAAAAAAAAAExIUFxHkxEUHpIRlBgMkFmNhQxEBAAABBwwBBQEAAAAAAAAAABMSFEVlBhHkFiQXBQekYaWFxIRjwwMCMRVEQ//AABEIAFoAoAMBEgACEgADEgD/2gAMAwEAAhEDEQA/AJYU4wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABtdQ6h8rnvuzOawP4R5caL93ikyYf7XW2soca2F5Yds7Z5IzHMZ7O5x/RAhwYXo+rKlROF1zD2y0H1DtWhqLUX7qcZxAgw/84kqXL9n2XXSeP5aFhaQ8b5iiHmtBbFoaZaj5hgkOZC1hu2IUCLoh5rQWxaLjTLUfMMEh0/kLWG7YhQIuiHmtBbFouNMtR8wwSHT+QtYbtiFAi6Iea0FsWi40y1HzDBIdP5C1hu2IUDmPb+ofFJl7s8nUf+ECRBhfd5ZUqJ+VVNrN7Bd/dnVLGWzyun2YzKaTf+iPEjRfR9KTJh8b72Hsapzp/dI/Xuov0s3ziPGif5w5MiR7PvvvlcPw0LdUf5PwosXAnwAAAAAAAAAAAAAAAAAAAAAAAAABaZQ41sLyZQ41sLyh9stB9Q7U2y0H1DtVBYWkPG+YsLSHjfMtBDigAAAAAAEXm9gu/uxm9gu/uy42NU50/ujY1TnT+6T9uqP8n4S3VH+T8KLFwJ8AAAAAAAAAAAAAAAAAAAAAAAAAAWmUONbC8sXqHb/ik99KeTqB/eBIgxfp8sqVE/KqkPtloPqHaty2djMrpjn0ymk4/njxI0L3/SkyYfG+9QWFpDxvmZ+ote/pZxm8eND/ANIcmRL9f333yuH4dORdL3C6+xuVrjQ1XnL8asE/l1V+84daIul7hdfY0OuNDVecvxqgT+XVX7zh1oi6XuF19jQ640NV5y/GqBP5dVfvOHWiLpe4XX2NDrjQ1XnL8aoE/l1V+84czewXf3Zi9v7f8rmXpTOax/7x5caF9PikyYf7XWbGqc6f3TcsZYzJGfZ9PZ3N/wCeBDgxff8AVlSonC64t1R/k/Cz9e69/dTfN4EGJ/pElS5Hr+y66Tx/LFG4M8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAf//Z",
+     "mime_type": "image/jpeg",
+     "type": "image"
+    }
+   ],
+   "type": "model_output"
+  }
+ ],
+ "object": "interaction",
+ "model": "gemini-nano-banana-2.1"
+}

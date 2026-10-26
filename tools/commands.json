@@ -382,6 +382,60 @@
       ]
     },
     {
+      "name": "image",
+      "summary": "Generated pictures, made once into files and kept on record: Gemini's Nano Banana (2.1 for drafts and gate ② keyframes, Pro for what goes on screen) or Codex's image_gen, an estimate first and every paid call held against the budget; transparent cutouts with an edge check.",
+      "when": "a keyframe for gate ②, a plate behind the code, a cover's ground, a character sheet for 3D; a cutout of a picture on a flat colour",
+      "stages": ["6", "3", "9"],
+      "reads": [
+        "the prompt (--prompt, --prompt-file) and the reference pictures (--ref)",
+        "<project>/BRIEF.md (Budget; Output for the aspect), LOCAL.md (默认预算)",
+        "GEMINI_API_KEY from the environment; or the codex CLI, signed in with ChatGPT",
+        "--offline <folder>: recorded answers"
+      ],
+      "writes": [
+        "<project>/assets/genimg/<id>/ (image.jpg from Gemini, image.png from Codex; prompt.txt, request.json; sheet.png for several) and a record a picture in assets/ledger.json",
+        "<project>/assets/spend.jsonl (each Gemini call: held at its estimate, settled at what its usage says)",
+        "<picture>.cutout.png and <picture>.cutout-check.png (cutout, gen --alpha)"
+      ],
+      "usage": [
+        {
+          "synopsis": "image gen <project> --prompt \"…\" [--tier draft|final] [--size 1K|2K|4K] [--aspect 16:9] [--ref a.png] [--alpha] [--n 2] [--dry-run] [--json]",
+          "text": [
+            "one picture a call into assets/genimg/<id>/, on record (aigc, model, prompt, seed, cost, inputs); gemini (default):",
+            "draft = Nano Banana 2.1, final = Nano Banana Pro, each call held against the budget (none, or over it: not called,",
+            "the shortfall said); --provider codex: image_gen on the ChatGPT plan; --alpha: cut out of chroma green; --dry-run: the estimate"
+          ]
+        },
+        {
+          "synopsis": "image cutout <project> <picture> [--key auto|green|blue|#rrggbb] [--json]",
+          "text": [
+            "a transparent background for a picture on a flat colour: the key measured on its border, chromakey and despill,",
+            "the spill on the edge band, and the cutout on black, white and paper to look at"
+          ]
+        },
+        {
+          "synopsis": "image prices [--json]",
+          "text": [
+            "the models and a picture's price at each size (checked against Google's pricing page)"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "gen",
+          "summary": "generate pictures into the project, on record"
+        },
+        {
+          "name": "cutout",
+          "summary": "a transparent background, with an edge check"
+        },
+        {
+          "name": "prices",
+          "summary": "the models and their prices"
+        }
+      ]
+    },
+    {
       "name": "assets",
       "summary": "The project's material, one record a file in assets/ledger.json: register a file or download one, list the records with the spend against the budget, check the files and their licences, print the credits.",
       "when": "a file a film uses comes in (downloaded, generated, bought or made), before a delivery (check, credits), or to see what is spent against the budget",
