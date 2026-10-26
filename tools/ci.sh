@@ -2398,6 +2398,141 @@ PY
   rm -rf "$t"
 }
 
+library_checks() {   # the sound library (tools/audio/library.py: bin/vh sfx search|pick, bgm search|pick, sound add|list)
+  # from Openverse's recorded answers, with sounds made by ffmpeg: results and their licence classes under either policy;
+  # a pack registered where it is (a copy skipped); a pick from the library and from Openverse into the project (takes
+  # named _a, the site's credit line verbatim, strict refusing NC before a download); bgm cut on a downbeat of the grid
+  local t r l p a b rc rc2 rc3 rc4 rc5 rc6
+  if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then skip "sound library (sfx|bgm search and pick, sound add)" "no ffmpeg"; return; fi
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); r="$t/r"; l="$t/lib"; p="$t/p"; cp -R tools/audio/fixtures/library/responses "$r"; mkdir -p "$r/media" "$p" "$t/q" "$t/pack/doors"
+  for id in eab8a6e2 f340c2c6 aec0904a e8978d57; do ffmpeg -v error -y -f lavfi -i "sine=f=440:r=44100:d=0.8" -f wav "$r/media/$id.bin"; done
+  ffmpeg -v error -y -f lavfi -i "sine=f=220:r=44100:d=20" -ac 2 -f wav "$r/media/5f7af4b0.bin"
+  ffmpeg -v error -y -f lavfi -i "sine=f=300:r=48000:d=0.6" "$t/pack/doors/wood_door_close.wav"
+  ffmpeg -v error -y -f lavfi -i "sine=f=500:r=48000:d=0.9" "$t/pack/doors/metal_door_slam.wav"
+  cp "$t/pack/doors/wood_door_close.wav" "$t/pack/wood_copy.wav"   # the same bytes, after doors/ in path order: skipped
+  printf '# BRIEF\n\n## Spec\n- Assets: strict\n- Language: en\n' > "$p/BRIEF.md"; printf '# BRIEF\n\n## Spec\n- Assets: record\n' > "$t/q/BRIEF.md"
+  lv() { OVH_SOUND_LIB="$l" vh "$@"; }
+  a=$(lv sfx search whoosh --top 5 --project "$p" --offline "$r" --json 2>/dev/null); rc=$?
+  b=$(lv sfx search whoosh --top 6 --where openverse --project "$t/q" --offline "$r" --json 2>/dev/null); rc2=$?
+  lv sound add "$t/pack" --source kenney --license "CC0 1.0" >"$t/o3" 2>&1; rc3=$?
+  lv sound add "$t/pack/doors" --source kenney --license "CC0 1.0" >"$t/o4" 2>&1; rc4=$?
+  c=$(lv sfx search "door close" --where library --dur 0.5-1 --json 2>/dev/null); rc5=$?
+  if [ "$rc:$rc2:$rc3:$rc4:$rc5" = "0:0:0:0:0" ] && grep -q "2 file(s) into" "$t/o3" && grep -q "1 on record already" "$t/o3" && grep -q "0 file(s) into.*2 on record already" "$t/o4" \
+     && python3 - "$a" "$b" "$c" "$l" <<'PY'
+import json, sys
+sys.path.insert(0, "tools/assets")
+import ledger
+a, b, c, lib = json.loads(sys.argv[1]), json.loads(sys.argv[2]), json.loads(sys.argv[3]), sys.argv[4]
+bad = []
+got = [(x["ref"][:18], x["class"], x["license"]) for x in a["results"]]
+if got[:2] != [("openverse:eab8a6e2", "cc0", "CC0 1.0"), ("openverse:f1dc6045", "cc0", "CC0 1.0")] or a["policy"] != "strict" or not all(x["taken"] for x in a["results"]) \
+        or abs(a["results"][0]["duration"] - 3.155) > 1e-6 or "freesound.org" not in a["results"][0]["page"]:
+    bad.append(f"strict search: {got}")
+nc = [x for x in b["results"] if x["class"] == "cc-by-nc"]
+if b["policy"] != "record" or len(nc) != 1 or not nc[0]["taken"] or nc[0]["ref"][:18] != "openverse:e8978d57":
+    bad.append(f"record search: {[(x['ref'][:18], x['class']) for x in b['results']]}")
+recs = ledger.read_jsonl(f"{lib}/ledger.jsonl")
+if len(recs) != 2 or any(ledger.validate(r) for r in recs) or {r["license"]["class"] for r in recs} != {"cc0"} or not all(r["sound"]["duration"] for r in recs) \
+        or "doors" not in recs[0]["tags"]:
+    bad.append(f"sound add: {[(r['id'], r['path'], ledger.validate(r)) for r in recs]}")
+if [x["ref"] for x in c["results"]] != ["lib:kenney-wood_door_close", "lib:kenney-metal_door_slam"]:
+    bad.append(f"library search: {[(x['ref'], x['score']) for x in c['results']]}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  then ok "sfx search: Openverse's results with their licence classes (strict asks for CC0 and CC BY; record takes NC and says so); sound add registers a pack where it is, one record a file, a copy skipped; the library found by name and tag first, --dur kept"
+  else bad "sfx search, sound add (exits $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s | %s' "$a" "$c" | tail -c 400) $(cat "$t/o3" "$t/o4" | tail -c 300)"; fi
+  lv sfx search whoosh --top 5 --project "$p" --offline "$r" >/dev/null 2>&1
+  lv sfx pick "$p" openverse:eab8a6e2 --as whoosh --offline "$r" >/dev/null 2>"$t/e1"; rc=$?
+  lv sfx pick "$p" openverse:f340c2c6 --as whoosh --offline "$r" >/dev/null 2>"$t/e2"; rc2=$?
+  lv sfx pick "$p" lib:kenney-wood_door_close --as door --used-by S03 >/dev/null 2>"$t/e3"; rc3=$?
+  lv sfx search whoosh --top 6 --where openverse --project "$t/q" --offline "$r" >/dev/null 2>&1
+  lv sfx pick "$p" openverse:e8978d57 --as hit --offline "$r" >/dev/null 2>"$t/e4"; rc4=$?
+  lv bgm search "calm piano" --top 4 --offline "$r" >/dev/null 2>&1
+  lv bgm pick "$p" openverse:5f7af4b0 --len 9 --fade 1 --beats tools/audio/fixtures/library/grid.beats.json --offline "$r" >/dev/null 2>"$t/e5"; rc5=$?
+  lv bgm pick "$p" openverse:5f7af4b0 --as bed --len 7.3 --no-beats --offline "$r" >/dev/null 2>"$t/e6"; rc6=$?
+  a=$(vh assets credits "$p" --lang en 2>/dev/null); b=$(vh assets check "$p" 2>&1)
+  if [ "$rc:$rc2:$rc3:$rc4:$rc5:$rc6" = "0:0:0:1:0:0" ] && grep -q "cc-by-nc: Assets: strict (BRIEF) does not take it: nothing downloaded" "$t/e4" \
+     && ! compgen -G "$l/sfx/openverse/e8978d57-*" >/dev/null && case "$a|$b" in *'"whoosh motron very low.wav" by melissapons is licensed under CC BY 4.0'*'"Intro" by zero-project is licensed under CC BY 3.0'*"|"*"pass (0 fail"*) true ;; *) false ;; esac \
+     && python3 - "$p" "$l" <<'PY'
+import json, subprocess, sys
+sys.path.insert(0, "tools/assets")
+import ledger
+p, lib = sys.argv[1:]
+bad = []
+def info(f):
+    j = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=sample_rate,channels:format=duration", "-of", "json", f], capture_output=True, text=True).stdout)
+    return int(j["streams"][0]["sample_rate"]), float(j["format"]["duration"])
+R = {x["id"]: x for x in json.load(open(f"{p}/assets/ledger.json", encoding="utf-8"))["assets"]}
+if sorted(R) != ["bed", "door", "music", "whoosh", "whoosh_a"] or any(ledger.validate(r) for r in R.values()):
+    bad.append(f"the records: {sorted(R)}")
+else:
+    w, wa, d, m = R["whoosh"], R["whoosh_a"], R["door"], R["music"]
+    if (w["path"], wa["path"], w["source"]["origin"], w["source"]["provider"], w["license"]["class"], wa["license"]["class"]) \
+            != ("audio/sfx/whoosh.wav", "audio/sfx/whoosh_a.wav", "library", "freesound", "cc0", "cc-by") or "attribution" in w \
+            or not wa.get("attribution", "").startswith('"whoosh motron very low.wav" by melissapons') or w["library_id"] != "ov-eab8a6e2-0ac8-4615-9e0d-ebde30523783":
+        bad.append(f"the sfx picks: {w} {wa}")
+    if d["used_by"] != ["S03"] or d["source"]["provider"] != "kenney" or d["license"]["class"] != "cc0":
+        bad.append(f"the library pick: {d}")
+    if m["used_by"] != ["bgm"] or m["source"]["provider"] == "jamendo" is False:
+        bad.append(f"the bgm pick: {m}")
+for f, want in (("audio/sfx/whoosh.wav", None), ("audio/music.wav", 8.0), ("audio/bed.wav", 7.3)):
+    sr, dur = info(f"{p}/{f}")
+    if sr != 48000 or (want is not None and abs(dur - want) > 0.002):
+        bad.append(f"{f}: {sr} Hz, {dur:.3f} s (want {want})")
+g = json.load(open(f"{p}/audio/music.beats.json", encoding="utf-8"))
+if g["duration"] != 8.0 or g["downbeats"] != [0.0, 2.0, 4.0, 6.0] or max(g["beats"]) >= 8.0 or "grid.beats.json" not in g["note"]:
+    bad.append(f"music.beats.json: {g}")
+lr = ledger.read_jsonl(f"{lib}/ledger.jsonl")
+if not any(r["id"] == "ov-5f7af4b0-3629-4345-83ae-9ca5bca2e9d9" and r["sound"]["kind"] == "bgm" and r["path"].startswith("bgm/openverse/") for r in lr):
+    bad.append("the library has no record of the bgm it downloaded")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  then ok "sfx and bgm pick: an Openverse item into the library first, then the project at 48 kHz (a second take named _a), on record with the site's credit line verbatim (none for CC0); a library pick keeps its source; strict refuses NC before a download; bgm cut on the grid's last downbeat before --len with its beats up to the cut, or at --len with --no-beats; credits and check pass"
+  else bad "sfx and bgm pick (exits $rc:$rc2:$rc3:$rc4:$rc5:$rc6): $(printf '%s | %s' "$a" "$b" | tail -c 500) $(cat "$t/e1" "$t/e2" "$t/e3" "$t/e4" "$t/e5" "$t/e6" | tail -c 500)"; fi
+  a=$(vh sfx lib "$t/builtin" 2>&1); rc=$?; b=$(vh sfx search -h 2>&1); rc2=$?
+  mkdir -p "$t/rec"; printf '{"results": [{"id": "x"}]}' > "$t/rec/ov.json"
+  printf '{"v": 1, "responses": [{"url": "https://api.openverse.org/v1/audio/?q=whoosh&source=freesound&license=cc0&page_size=1", "status": 200, "body": "ov.json"}]}' > "$t/rec/responses.json"
+  c=$(python3 tools/doctor.py --json --probe --only openverse --offline "$t/rec" 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = "0:0:0" ] && [ -f "$t/builtin/sfx-lib.json" ] && case "$a|$b" in *"21 SFX"*"|"*"usage: bin/vh sfx search"*) true ;; *) false ;; esac \
+     && python3 -c 'import json,sys; m={x["name"]: x["probe"] for x in json.loads(sys.argv[1])["modules"]}; sys.exit(0 if m["openverse"]["state"] == "ok" and m["gemini"] is None else 1)' "$c"
+  then ok "sfx: the built-in library and its old subcommands as before beside search and pick; doctor --probe asks Openverse with no key (from a recording)"
+  else bad "sfx old and new, openverse probe (exits $rc:$rc2:$rc3): $(printf '%s | %s | %s' "$a" "$b" "$c" | tail -c 400)"; fi
+  # a link in a search's answer is other people's data: only http(s) is taken (urllib would read a file:// one off this
+  # machine), and no more than the cap, also from a server that says no length
+  if a=$(python3 - "$t" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "tools/audio")
+sys.path.insert(0, "tools/assets")
+import fetch, library
+t, bad = Path(sys.argv[1]), []
+class Big(fetch.Live):
+    def open(self, url, headers=None, timeout=60):
+        body, pos = b"x" * 5000, [0]
+        def read(n=-1):
+            part = body[pos[0]:] if n is None or n < 0 else body[pos[0]:pos[0] + n]
+            pos[0] += len(part)
+            return part
+        return fetch.Response(200, {"Content-Type": "audio/mpeg"}, read)
+for url in ("file:///etc/hosts", "ftp://example.org/a.mp3"):
+    try:
+        library.take(url, t / "x.mp3", Big()); bad.append(f"{url} was taken")
+    except fetch.FetchError as e:
+        if "not an http(s) link" not in str(e):
+            bad.append(f"{url}: {e}")
+library.MAX_BYTES = 1000
+try:
+    library.take("https://example.org/big.mp3", t / "big.mp3", Big()); bad.append("past the cap")
+except fetch.FetchError as e:
+    if "cap" not in str(e) or list(t.glob("big.mp3*")) or (t / "x.mp3").exists():
+        bad.append(f"the cap: {e}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "sfx|bgm pick: only an http(s) link from a search's answer is taken (no file://), and no more than the cap, also with no length said"
+  else bad "the library's downloads: $a"; fi
+  rm -rf "$t"
+}
+
 assets_checks() {   # the asset ledger (tools/assets): the record and its fixtures, the licence table, the ledger's writes on a
   # copy of the fixture project, the budget, a download from recorded responses (no network), the credits, and end to end
   # with a render (bin/vh render's .render.json against the ledger, status, the review page, deliver, patch)
@@ -2816,6 +2951,7 @@ PY
   rm -rf "$t"
   footage_checks   # bin/vh footage: its records are the ledger's
   image_checks     # bin/vh image: so are its pictures, and its spend the budget's
+  library_checks   # the sound library's picks: on record in the project's ledger
 }
 
 scout_checks() {   # bin/vh scout and ref (tools/scout) from recorded responses, no network: YouTube through yt-dlp's recorded

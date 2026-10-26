@@ -329,7 +329,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
       d=${d%/*}
     done
   done
-  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs|assets|footage|image|ref|scout) ;; *) return 0 ;; esac
+  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs|assets|footage|image|sfx|bgm|ref|scout) ;; *) return 0 ;; esac
   base=$(projects_base)
   for a in "$@"; do
     case $a in -*|*/*|"") continue ;; esac
@@ -1061,7 +1061,8 @@ cmd_timemap() { [ $# -gt 0 ] || { cmd_usage timemap >&2; exit 2; }; python3 "$RO
 cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then
   local a pil=""; for a in "$@"; do [ "$a" = --roll ] && pil="--with pillow"; done
   on_ctrl_c uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/music.py" "$@"; }
-cmd_sfx() { # audition --png draws a spectrogram: pillow joins numpy and scipy only then
+cmd_sfx() { # audition --png draws a spectrogram: pillow joins numpy and scipy only then; search and pick are the sound library's
+  case "${1:-}" in search|pick) python3 "$ROOT/tools/audio/library.py" sfx "$@"; return ;; esac   # stdlib and ffmpeg
   local a pil=""; for a in "$@"; do [ "$a" = --png ] && pil="--with pillow"; done
   on_ctrl_c uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/sfx.py" "$@"; }
 cmd_mix() { # a mix profile computes in numpy/scipy (through uv); the default chain is ffmpeg only and runs on plain python3
@@ -1073,6 +1074,8 @@ cmd_mix() { # a mix profile computes in numpy/scipy (through uv); the default ch
 cmd_qa() { on_ctrl_c uv run -q --no-project --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
 cmd_mux() { python3 "$ROOT/tools/audio/mux.py" "$@"; }   # verifies a tracked mix; deliberate duration changes need a flag
 
+cmd_bgm() { [ $# -gt 0 ] || { cmd_usage bgm >&2; exit 2; }; python3 "$ROOT/tools/audio/library.py" bgm "$@"; }       # stdlib and ffmpeg
+cmd_sound() { [ $# -gt 0 ] || { cmd_usage sound >&2; exit 2; }; python3 "$ROOT/tools/audio/library.py" sound "$@"; }   # stdlib and ffmpeg
 cmd_footage() { [ $# -gt 0 ] || { cmd_usage footage >&2; exit 2; }; python3 "$ROOT/tools/assets/footage.py" "$@"; }   # stdlib and ffmpeg
 cmd_image() { [ $# -gt 0 ] || { cmd_usage image >&2; exit 2; }; python3 "$ROOT/tools/assets/image.py" "$@"; }   # stdlib and ffmpeg
 cmd_assets() { [ $# -gt 0 ] || { cmd_usage assets >&2; exit 2; }; python3 "$ROOT/tools/assets/assets.py" "$@"; }   # stdlib only
@@ -1091,7 +1094,7 @@ cmd_help() { python3 "$ROOT/tools/commands.py" help; }            # every usage,
 cmd_usage() { python3 "$ROOT/tools/commands.py" usage "$1"; }    # one command's usage from there; exit 1 if it has none
 
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa|assets|footage|image|scout|ref) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa|assets|footage|image|bgm|sound|scout|ref) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
@@ -1102,6 +1105,8 @@ case "${1:-}" in   # the activity log: every command that works on a project (ac
   ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|new) ;;   # (new: once the project is made)
   desk) [ "${2:-}" = data ] || act_start "$@" || true ;;
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
+  sfx) [ "${2:-}" = search ] || act_start "$@" || true ;;   # search only reads
+  bgm|sound) case "${2:-}" in pick|add) act_start "$@" || true ;; esac ;;   # search and list only read
   footage) case "${2:-}" in get|sync|frames) act_start "$@" || true ;; esac ;;   # search, files and list only read
   image) case "${2:-}" in gen|cutout) act_start "$@" || true ;; esac ;;   # prices only reads
   assets) case "${2:-}" in add|remove|credits) act_start "$@" || true ;; esac ;;   # list and check only read
@@ -1114,6 +1119,8 @@ case "${1:-help}" in
   tts) shift; cmd_tts "$@" ;; pace) shift; cmd_pace "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; timeline) shift; cmd_timeline "$@" ;; remap) shift; cmd_remap "$@" ;; timemap) shift; cmd_timemap "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
+  bgm) shift; cmd_bgm "$@" ;;
+  sound) shift; cmd_sound "$@" ;;
   footage) shift; cmd_footage "$@" ;;
   image) shift; cmd_image "$@" ;;
   assets) shift; cmd_assets "$@" ;;
