@@ -1,11 +1,13 @@
 """bin/vh doctor: what this machine can use, from the table of outside modules (tools/modules.json). Stdlib only.
 
-usage: bin/vh doctor [--json] [--probe [--offline DIR]]
+usage: bin/vh doctor [--json] [--probe [--only a,b] [--offline DIR]]
   (bin/vh passes what its own finders found: --chrome, --hf-chrome, --hf-pin, --webgl)
   --json        the same as JSON (below), the lines a person reads not printed
   --probe       also call each service that has a key set, once, at an endpoint that costs nothing (Gemini's model
                 list, MiniMax's system voices, ElevenLabs' user, Model Studio's model list): is the key taken, is the
-                interface there. Without it doctor never touches the network
+                interface there; and each public one that takes no key (scout's: fxtwitter, Bilibili's view, the hot
+                lists): does it still answer the way the adapter reads it. Without it doctor never touches the network
+  --only a,b    probe only these modules (by name); the others are reported without a probe
   --offline DIR the probes answered from DIR/responses.json instead, recorded the way tools/assets/fetch.py records
                 ({"v": 1, "responses": [{"url", "status", "headers", "body": <file in DIR>}]}): the tests use it
   python3 tools/doctor.py --check   the table against its rules (tools/ci.sh)
@@ -256,15 +258,17 @@ def apply_needs(modules, results):
 
 
 def probe(m, offline, recs):
-    """Call a service once at its free endpoint, with the first of its keys that is set. {state, note}. The key goes in a
-    header that no redirect carries on, only over https (or to this machine), and no answer's text is passed on."""
+    """Call a service once at its free endpoint, with the first of its keys that is set (a public one that takes no key:
+    without one). {state, note}. The key goes in a header that no redirect carries on, only over https (or to this
+    machine), and no answer's text is passed on."""
     p = m.get("probe")
     if not p:
         return None
-    var = next((k for k in (m.get("needs") or {}).get("keys", []) if os.environ.get(k)), None)
-    if not var:
+    keyless = not (m.get("needs") or {}).get("keys") and not p.get("auth")
+    var = None if keyless else next((k for k in (m.get("needs") or {}).get("keys", []) if os.environ.get(k)), None)
+    if not var and not keyless:
         return {"state": "skipped", "note": "no key set"}
-    key, url = os.environ[var], p["url"]
+    key, url = (os.environ[var] if var else ""), p["url"]
     if p.get("base_env") and os.environ.get(p["base_env"]):
         b = urllib.parse.urlsplit(os.environ[p["base_env"]])
         if not b.hostname or not (b.scheme == "https" or (b.scheme == "http" and b.hostname in LOCAL)):
@@ -284,7 +288,8 @@ def probe(m, offline, recs):
             req = urllib.request.Request(url, data=body, method=p.get("method", "GET"), headers={"User-Agent": UA})
             if body is not None:
                 req.add_header("Content-Type", "application/json")
-            req.add_unredirected_header(p["auth"]["header"], p["auth"].get("prefix", "") + key)
+            if var:
+                req.add_unredirected_header(p["auth"]["header"], p["auth"].get("prefix", "") + key)
             try:
                 with urllib.request.build_opener(_Stay).open(req, timeout=20) as resp:
                     status, hdrs, data = resp.status, {k.lower(): v for k, v in resp.headers.items()}, resp.read(4 << 20)
@@ -301,10 +306,20 @@ def probe(m, offline, recs):
         js = None
     if status >= 400:
         code = error_code(js)
-        return {"state": "failed", "note": scrub(f"HTTP {status} with {var}" + (f" ({code})" if code else ""), key)}
+        return {"state": "failed", "note": scrub(f"HTTP {status}" + (f" with {var}" if var else "") + (f" ({code})" if code else ""), key)}
+    exp, said = p.get("expect") or {}, [f"{var} taken" if var else f"answers (HTTP {status}, no key)"]
+    if exp.get("text"):   # an answer that is not JSON (an RSS feed): the text it must hold
+        if exp["text"] not in data.decode("utf-8", errors="replace"):
+            return {"state": "failed", "note": f"HTTP {status}, but not the answer the adapter reads (no {exp['text']!r} in it)"}
+        return {"state": "ok", "note": ", ".join(said)}
     if not isinstance(js, dict):
         return {"state": "failed", "note": f"HTTP {status}, but not the JSON it answers with"}
-    exp, said = p.get("expect") or {}, [f"{var} taken"]
+    if exp.get("path"):
+        v = js
+        for part in exp["path"].split("."):
+            v = v.get(part) if isinstance(v, dict) else None
+        if v in (None, "", [], {}):
+            return {"state": "failed", "note": f"HTTP {status}, but no {exp['path']} in the answer (the adapter reads it)"}
     if exp.get("status_code"):
         code = js
         for part in exp["status_code"].split("."):
@@ -430,12 +445,16 @@ def problems(t, commands=None):
             bad.append(f"{at}: finder {ck['finder']!r} is not one bin/vh passes (chrome, hf-chrome)")
         p = m.get("probe")
         if p is not None:
-            if m.get("kind") != "service" or not (needs or {}).get("keys"):
-                bad.append(f"{at}: a probe is for a service with a key")
+            if m.get("kind") != "service":
+                bad.append(f"{at}: a probe is for a service")
+            elif bool((needs or {}).get("keys")) != bool(p.get("auth")):
+                bad.append(f"{at}: a probe sends a key (auth) exactly when the service needs one (needs.keys)")
             if not str(p.get("url", "")).startswith("https://") or re.search(r"[?&][^=]*(key|token|secret)", p.get("url", ""), re.I):
                 bad.append(f"{at}: a probe's url is https and carries no key")
-            if p.get("method", "GET") not in ("GET", "POST") or not isinstance(p.get("auth"), dict) or not p["auth"].get("header"):
-                bad.append(f"{at}: a probe needs GET or POST and auth.header (the key goes in a header)")
+            if p.get("method", "GET") not in ("GET", "POST") or ("auth" in p and (not isinstance(p["auth"], dict) or not p["auth"].get("header"))):
+                bad.append(f"{at}: a probe needs GET or POST, and its auth an auth.header (the key goes in a header)")
+            if set(p.get("expect") or {}) - {"list", "names", "status_code", "hints", "path", "text"}:
+                bad.append(f"{at}: a probe's expect has a key doctor does not know")
     if len(set(names)) != len(names):
         bad.append(f"names repeat: {sorted(n for n in set(names) if names.count(n) > 1)}")
     return bad
@@ -458,7 +477,7 @@ def print_module(m, r):
 
 
 def main(argv):
-    a = {"json": False, "probe": False, "offline": None, "chrome": "", "hf-chrome": "", "hf-pin": "", "webgl": ""}
+    a = {"json": False, "probe": False, "offline": None, "only": None, "chrome": "", "hf-chrome": "", "hf-pin": "", "webgl": ""}
     i = 0
     while i < len(argv):
         x = argv[i]
@@ -475,22 +494,26 @@ def main(argv):
         k, eq, v = x[2:].partition("=")
         if x in ("--json", "--probe"):
             a[x[2:]] = True
-        elif k in ("offline", "chrome", "hf-chrome", "hf-pin", "webgl") and x.startswith("--"):
+        elif k in ("offline", "only", "chrome", "hf-chrome", "hf-pin", "webgl") and x.startswith("--"):
             if not eq:
                 if i + 1 >= len(argv):
                     print(f"bin/vh doctor: --{k} needs a value", file=sys.stderr); return 2
                 i += 1; v = argv[i]
             a[k] = v
         else:
-            print(f"bin/vh doctor: unknown option {x} (usage: bin/vh doctor [--json] [--probe [--offline DIR]], or bin/vh doctor <project>)", file=sys.stderr)
+            print(f"bin/vh doctor: unknown option {x} (usage: bin/vh doctor [--json] [--probe [--only a,b] [--offline DIR]], or bin/vh doctor <project>)", file=sys.stderr)
             return 2
         i += 1
-    if a["offline"] and not a["probe"]:
-        print("bin/vh doctor: --offline answers the probes: give --probe too", file=sys.stderr); return 2
+    if (a["offline"] or a["only"] is not None) and not a["probe"]:
+        print(f"bin/vh doctor: --{'offline answers' if a['offline'] else 'only picks'} the probes: give --probe too", file=sys.stderr); return 2
     try:
         t = json.loads(TABLE.read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
         print(f"bin/vh doctor: cannot read {shown(TABLE)}: {e}", file=sys.stderr); return 2
+    only = None if a["only"] is None else {n.strip() for n in a["only"].split(",") if n.strip()}
+    if only is not None and (not only or only - {m.get("name") for m in t["modules"]}):
+        print(f"bin/vh doctor: --only names no module of the table: {', '.join(sorted(only - {m.get('name') for m in t['modules']})) or '(none given)'}", file=sys.stderr)
+        return 2
     recs = []
     if a["offline"]:
         try:
@@ -501,7 +524,7 @@ def main(argv):
     found_by = {"chrome": a["chrome"], "hf-chrome": a["hf-chrome"], "hf-pin": a["hf-pin"]}
     mods = apply_needs(t["modules"], [check_module(m, found_by, today) for m in t["modules"]])
     for i, (m, r) in enumerate(zip(t["modules"], mods)):
-        pr = probe(m, a["offline"], recs) if a["probe"] else None
+        pr = probe(m, a["offline"], recs) if a["probe"] and (only is None or m["name"] in only) else None
         mods[i] = {"name": m["name"], "kind": m["kind"], "status": m.get("status", "used"), "required": m["required"], **r,
                    "install": (m.get("install") or {}).get("macos" if sys.platform == "darwin" else "linux"), "probe": pr}
     checks = repo_checks(a["webgl"], found_by)

@@ -1,0 +1,28 @@
+{
+ "code": 0,
+ "message": "0",
+ "ttl": 1,
+ "data": {
+  "bvid": "BV1Ab4y1C7De",
+  "aid": 1000001,
+  "title": "多普勒效应：救护车为什么变调",
+  "pubdate": 1792222400,
+  "duration": 312,
+  "copyright": 1,
+  "desc": "一个合成的例子：放慢两秒钟的警笛。",
+  "pic": "http://i0.hdslb.com/bfs/archive/example.jpg",
+  "owner": {
+   "mid": 20000001,
+   "name": "示例科普"
+  },
+  "stat": {
+   "view": 128000,
+   "danmaku": 210,
+   "reply": 640,
+   "favorite": 3100,
+   "coin": 1800,
+   "share": 950,
+   "like": 9400
+  }
+ }
+}
