@@ -857,6 +857,45 @@
       ]
     },
     {
+      "name": "concept",
+      "summary": "Optional parts of the concept cards at gate ①, none of which changes what the stop hands over: a framework drawn with the project's name as the seed (a style, a whole-film skeleton or a lever the model would not reach for), and the six-then-three page of candidate directions before three become cards.",
+      "when": "writing the concept cards, when they come out alike, or to give the person more to choose from (playbook/ideation-extras.md)",
+      "stages": ["1"],
+      "reads": [
+        "styles/*/tokens.json and STYLE.md, recipes/sequences/, playbook/12-ideation.md §3 (roulette)",
+        "<project>/style-refs/ (roulette leaves those out)",
+        "candidates.json and its pictures (board)"
+      ],
+      "writes": [
+        "<project>/out/check/concept-board.png (board, or --out)"
+      ],
+      "usage": [
+        {
+          "synopsis": "concept roulette <project> [--from styles,sequences,levers] [--not a,b] [--n 1] [--reroll K] [--json]",
+          "text": [
+            "a framework drawn with the project's name as the seed, the ones thought of already left out (--not): the",
+            "roulette card says what it makes of this material, whether it fits, and why"
+          ]
+        },
+        {
+          "synopsis": "concept board <project> <candidates.json> [--pick A,C,E] [--cols 3] [--out f.png] [--json]",
+          "text": [
+            "the six-then-three page: up to nine directions, a picture and a line each, their sources counted"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "roulette",
+          "summary": "a framework drawn with the project's name as the seed"
+        },
+        {
+          "name": "board",
+          "summary": "the six-then-three page of candidate directions"
+        }
+      ]
+    },
+    {
       "name": "recipes",
       "summary": "Shot and sequence recipes: filter them by intent, energy, engine and the rest of their frontmatter, or check it.",
       "when": "storyboarding a shot, or a whole film's rhythm, you are unsure how to move",

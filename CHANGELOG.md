@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Optional parts for the concept cards: `bin/vh concept roulette` and `board`, and a card on spreading three proposals**
+- Why: the concept cards often came out as three variants of one idea, and a person choosing among them had no sense of what each would cost to render or what was left out. The v0.4 plan's roulette card (E5) and the six-then-three page were never built.
+- `playbook/ideation-extras.md`, read when it helps: three proposals spread as safe / another picture language / another way of telling, compared on the same key shot; a 2–4 s motion sample in place of a still when the motion is the point; a render estimate per card (a frame's time × frames × 1.3, measured with `render --estimate`); the six-then-three page; the roulette card. None changes what gate ① hands over. playbook/12 §7 gets one line pointing to it.
+- `bin/vh concept roulette <project>`: a style preset, a whole-film skeleton or a lever of playbook/12 §3, drawn with the project's name as the seed (the same draw every time; `--reroll K` the K-th, to be said in DECISIONS.md), leaving out the styles the project attached and what `--not` names.
+- `bin/vh concept board <project> <candidates.json>`: up to nine candidate directions on one page, a picture and a line each, their sources counted, the picked ones framed; the same bytes for the same input.
+
 **A target image and a critic for the keyframes nobody is sure of**
 - Why: batch 1, line B. The loop of dream-loop (achimala/dream-loop, MIT): before building a hard shot, make a picture of what it should look like; once it renders, a critic in a fresh context compares the two side by side.
 - `playbook/target-critic.md`, a card read when used: when (`studio`'s hook and climax, shots marked unsure; not for type, numbers or real people), where the target comes from (a reference, a reference film's frame, a swatch, a grey box completed by an image model, or image generation under the budget floor), how the critic compares (one side-by-side image, the shot's reads, at most three differences that change the read, each with a fix; matching is a valid answer; invented text and numbers are not compared; the film may depart from the target on purpose), and when to stop (three rounds a shot).
