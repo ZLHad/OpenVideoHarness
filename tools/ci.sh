@@ -2661,14 +2661,15 @@ PY
 # bin/vh textcheck on its fixture (tools/textcheck/fixture/index.html: one read per case), with whatever headless Chrome
 # the machine has (GitHub's runners come with Chrome); skipped without one
 know_checks() {   # bin/vh know: the index of recipes, styles and the sections read when needed, and what a few words find
-  local a b rc rc2
-  a=$(vh know --index --json 2>/dev/null); rc=$?
-  if [ "$rc" = 0 ] && python3 - "$a" <<'PY'
+  local t a b rc rc2
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  vh know --index --json > "$t/index.json" 2>/dev/null; rc=$?   # a file: the index is over Linux's 128 KB for one argument
+  if [ "$rc" = 0 ] && python3 - "$t/index.json" <<'PY'
 import json, re, sys
 from pathlib import Path
 sys.path.insert(0, "tools")
 import know
-d = json.loads(sys.argv[1])
+d = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 units, by = d["units"], d["by_kind"]
 ok = all(by.get(k, 0) > 0 for k in ("recipe", "style", "doc", "case")) and len(units) == sum(by.values())
 ok = ok and all(set(u) >= {"kind", "id", "title", "file", "line", "summary", "tags", "chars"} and u["title"] for u in units)
@@ -2682,7 +2683,7 @@ ok = ok and know.terms("章节进度条 black-card") == ["章节", "节进", "�
 sys.exit(0 if ok else 1)
 PY
   then ok "know --index: every recipe, style, doc section and case section with a title, its file and its heading's line, unique ids; own tags from a section's comment; words as the index counts them"
-  else bad "know --index (exit $rc): $(printf '%s' "$a" | tail -c 300)"; fi
+  else bad "know --index (exit $rc): $(tail -c 300 "$t/index.json")"; fi
   a=$(vh know 黑场 字卡 --json 2>/dev/null; vh know 孔版 叠印 --kind style --json 2>/dev/null; vh know 抖音 分享页 --kind doc --json 2>/dev/null); rc=$?
   b=$(vh know 黑场 字卡 --json 2>/dev/null)
   if [ "$rc" = 0 ] && [ "$b" = "$(vh know 黑场 字卡 --json 2>/dev/null)" ] && python3 - "$a" <<'PY'
@@ -2710,6 +2711,7 @@ PY
   done
   vh know zzqqxxkk >/dev/null 2>&1; [ $? = 1 ] || { rc=1; bad "know with nothing matched: not exit 1"; }
   [ "$rc" = 1 ] || ok "know: usage errors exit 2, nothing on stdout; nothing matched is 1"
+  rm -rf "$t"
 }
 
 textcheck_checks() {
