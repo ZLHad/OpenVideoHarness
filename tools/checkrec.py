@@ -17,8 +17,9 @@ size, mtime_ns  the video file's bytes and modification time (nanoseconds) when 
 A finding: {"kind", "severity", "message", "t", "t1", "frame", "frames", "evidence", "confirmed"}.
   kind      check.spec, check.gate, check.black, check.freeze, check.silence, check.iso (an isolated frame), check.periodic,
             check.static, check.cut (a hard cut from dark to bright), check.blind (frames that move too much to judge),
-            check.subtitles, check.colour, check.packaging, check.scale, check.confirmed (an entry of confirmed.json
-            unused, lapsed or not taken). The names are confirmed.json's ("tool": "check.iso")
+            check.subtitles, check.colour, check.loudness (the film's sound against what it was mixed to), check.packaging,
+            check.scale, check.confirmed (an entry of confirmed.json unused, lapsed or not taken). The names are
+            confirmed.json's ("tool": "check.iso")
   severity  fail (it makes bin/vh check exit 1), warn (to look at), info (said, nothing to do)
   t, t1     the time, or the span, in seconds (null when it has none); frame / frames: the frame, or [first, last]
   evidence  what the finding rests on: the measured numbers, the BRIEF's line, the key, the entry that confirms it …
@@ -191,6 +192,16 @@ def colour_findings(csv):
     return [finding("check.colour", "warn", f"colour: {v} (pix_fmt, range, matrix, transfer, primaries); deliver yuv420p, tv, bt709 ×3", evidence=ev)]
 
 
+def loud_findings(ld):
+    """The film's loudness (tools/loudcheck.py): a warning a way it is off what it was mixed to, else what it measured (info)."""
+    if not ld.get("audio"):
+        return []
+    ev = {k: ld.get(k) for k in ("integrated", "true_peak", "lra", "target")}
+    if ld.get("problems"):
+        return [finding("check.loudness", "warn", f"loudness: {p}", evidence=ev) for p in ld["problems"]]
+    return [finding("check.loudness", "info", f"loudness: {ld['integrated']:.1f} LUFS integrated, true peak {ld['true_peak']:.1f} dBTP, on the target", evidence=ev)]
+
+
 def pack_findings(pk):
     out = []
     for f in pk.get("fields") or []:
@@ -240,7 +251,7 @@ def main():
     shown = lambda p: os.path.relpath(p, project) if project and os.path.commonpath([str(p), str(project)]) == str(project) else str(p)   # noqa: E731
     findings, skipped = [], []
     pieces = [("spec.json", spec_findings, load), ("gate.json", gate_findings, load), ("detect.txt", detect_findings, text),
-              ("iso.json", iso_findings, load), ("subs.json", subs_findings, load), ("colour.txt", colour_findings, text),
+              ("iso.json", iso_findings, load), ("subs.json", subs_findings, load), ("colour.txt", colour_findings, text), ("loud.json", loud_findings, load),
               ("pack.json", pack_findings, load), ("scale.json", scale_findings, load)]
     for name, fn, get in pieces:
         try:

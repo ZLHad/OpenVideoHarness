@@ -634,6 +634,7 @@ class Stub(BaseHTTPRequestHandler):
             data, dur, words = speak([c["text"] for c in body["input"][0]["content"]], f0); st["takes"].append((dur, words, voice))
             r = {"steps": [{"type": "model_output", "content": [{"type": "audio", "data": base64.b64encode(data).decode()}]}]}
         else:                                              # transcription: the take whose length matches (trimmed by ~0.04 s)
+            st["asr"] = st.get("asr", 0) + 1
             with wave.open(io.BytesIO(base64.b64decode(body["input"][0]["data"]))) as w:
                 dur = w.getnframes() / w.getframerate()
             _, words, voice = min(reversed(st["takes"]), key=lambda tk: abs(tk[0] - 0.04 - dur))   # the latest of equal ones
@@ -735,9 +736,38 @@ with tempfile.TemporaryDirectory() as d:
         if not all(abs(R[v]["pitch_hz"] / PITCH[v] - 1) < 0.03 for v in R): bad.append(f"pitch {[(v, R[v]['pitch_hz']) for v in R]}")
         if not all(abs(R[v]["speech_rate"] / true - 1) < 0.08 for v in R): bad.append(f"speech rate {[(v, R[v]['speech_rate']) for v in R]} (true {true:.2f})")
         if R["Kore"]["misread"] != [] or not any("那" in m for m in R["Charon"]["misread"]): bad.append(f"misread {[(v, R[v]['misread']) for v in R]}")
+    # --align local: a stand-in mlx_whisper (the real one runs on Apple Silicon only) hears each take as the stub's
+    # transcriber does; no transcription goes to Gemini, and the lines are heard one at a time (MLX keeps to one thread).
+    # The stand-in finds a file's take by its length, so no two lines have as many characters
+    import importlib.machinery, types
+    seen = {"n": 0, "threads": set()}
+    fake = types.ModuleType("mlx_whisper"); fake.__spec__ = importlib.machinery.ModuleSpec("mlx_whisper", None)
+    def fake_transcribe(path, **kw):
+        seen["n"] += 1; seen["threads"].add(threading.get_ident())
+        with wave.open(path) as w:
+            dur = w.getnframes() / w.getframerate()
+        _, words, voice = min(reversed(st["takes"]), key=lambda tk: abs(tk[0] - 0.04 - dur))
+        ws = heard(words, voice)
+        i = "".join(w[0] for w in ws).find("一九五三")       # Whisper writes the year as digits
+        if i >= 0:
+            ws = ws[:i] + [("1953", ws[i][1], ws[i + 3][2])] + ws[i + 4:]
+        return {"text": "".join(w[0] for w in ws), "segments": [{"words": [{"word": w[0], "start": max(0, w[1] - 0.02), "end": max(0, w[2] - 0.02)} for w in ws]}]}
+    fake.transcribe = fake_transcribe
+    sys.modules["mlx_whisper"] = fake
+    p2 = Path(d) / "p2"; (p2 / "audio").mkdir(parents=True)
+    (p2 / "audio/script.txt").write_text("@l1 声音从一根琴弦说起。\n@l2 它振动时推空气。\n@l3 耳朵把它变成声音。\n@l4 一九五三年的冬天特别冷。\n", encoding="utf-8")
+    before = st.get("asr", 0)
+    rc, out = run([str(p2), "--provider", "gemini", "--voice", "Kore", "--align", "local"])
+    tl = json.loads((p2 / "audio/timeline.zh.json").read_text(encoding="utf-8")) if (p2 / "audio/timeline.zh.json").exists() else {"segments": []}
+    l4 = next((s for s in tl["segments"] if s.get("id") == "l4"), {})
+    if rc != 0 or seen["n"] < 4 or seen["threads"] != {threading.get_ident()} or st.get("asr", 0) != before or not all(s.get("words") and s.get("asr", {}).get("similarity") for s in tl["segments"]):
+        bad.append(f"--align local: exit {rc}, {seen['n']} local transcription(s) on {len(seen['threads'])} thread(s), {st.get('asr', 0) - before} sent to Gemini: {out[-300:]}")
+    elif l4.get("asr", {}).get("similarity", 0) < 0.95 or l4["asr"].get("flag") or not l4["words"][0]["w"].startswith("一") or abs(l4["words"][0]["start"] - l4["start"]) > 0.15:
+        bad.append(f"--align local: 1953 heard for 一九五三 is not taken as the script's reading: {l4.get('asr')}, first word {(l4.get('words') or [None])[0]}, line start {l4.get('start')}")
+    del sys.modules["mlx_whisper"]; tts.ASR["engine"] = "gemini"
 print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
-); then ok "tts --candidates keeps the take nearest the median voice per block; a slow line and a repeated phrase are warned of; --resume hears a block swapped by hand again, the rest not; voices audition measures pitch, speech rate and misreads"
+); then ok "tts --candidates keeps the take nearest the median voice per block; a slow line and a repeated phrase are warned of; --resume hears a block swapped by hand again, the rest not; voices audition measures pitch, speech rate and misreads; --align local hears each line on this machine, one at a time, none sent to Gemini, a year heard as digits taken as the script's 一九五三"
   else bad "tts --candidates / voices audition on the Gemini stub: $a"; fi
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); printf '%s\n' '一句试音。' > "$t/t.txt"
   a=$(env -u GEMINI_API_KEY "$VH_BASH" "$ROOT/bin/vh" voices audition --provider gemini --voices Kore,Puck --text "$t/t.txt" 2>&1); rc=$?
@@ -2648,6 +2678,105 @@ PY
   rm -rf "$t"
 }
 
+sound_tools_checks() {   # check's loudness (tools/loudcheck.py), qa --listen and --picture (tools/audio/listen.py), and
+  # beats --check's judgement (offbeat and verdict in tools/audio/beats.py, numpy only: the kicks themselves need librosa)
+  local t p a b c rc rc2 rc3
+  if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then skip "check's loudness, qa --listen, beats --check" "no ffmpeg"; return; fi
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  # lavfi's sine is at 1/8 of full scale (−21.07 LUFS at 1 kHz): +7.07 dB is −14 LUFS, −11 dB about −32
+  ffmpeg -v error -y -f lavfi -i color=c=gray:s=160x90:r=30 -f lavfi -i "sine=f=1000:r=48000,volume=7.07dB" -t 4 -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest "$t/ok.mp4"
+  ffmpeg -v error -y -f lavfi -i color=c=gray:s=160x90:r=30 -f lavfi -i "sine=f=1000:r=48000,volume=-11dB" -t 4 -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest "$t/quiet.mp4"
+  ffmpeg -v error -y -f lavfi -i color=c=gray:s=160x90:r=30 -t 4 -c:v libx264 -pix_fmt yuv420p "$t/silent.mp4"
+  a=$(python3 tools/loudcheck.py "$t/ok.mp4" --json "$t/ok.json"); rc=$?
+  b=$(python3 tools/loudcheck.py "$t/quiet.mp4" --json "$t/quiet.json"); rc2=$?
+  c=$(python3 tools/loudcheck.py "$t/silent.mp4" --json "$t/silent.json"); rc3=$?
+  if [ "$rc:$rc2:$rc3" = "0:0:0" ] && case "$a|$b|$c" in "loudness: -14.0 LUFS integrated"*"|WARN loudness: -32."*"quieter than asked"*"|loudness: no sound"*) true ;; *) false ;; esac \
+     && python3 - "$t" <<'PY'
+import json, sys
+sys.path.insert(0, "tools")
+import checkrec
+t = sys.argv[1]
+ok, quiet, silent = (json.load(open(f"{t}/{n}.json")) for n in ("ok", "quiet", "silent"))
+f = checkrec.loud_findings(quiet)
+good = (ok["ok"] and abs(ok["integrated"] + 14) < 0.3 and not quiet["ok"] and len(f) == 1 and f[0]["kind"] == "check.loudness" and f[0]["severity"] == "warn"
+        and checkrec.loud_findings(silent) == [] and checkrec.loud_findings(ok)[0]["severity"] == "info")
+sys.exit(0 if good else 1)
+PY
+  then ok "check's loudness: a film's sound measured as uploaded (ebur128): on the mix's −14 LUFS it is info, a quiet one a warning saying what to do, a silent film nothing; a finding of its own in the check record"
+  else bad "check's loudness (exits $rc:$rc2:$rc3): $a | $b | $c"; fi
+  # the target is what the film was mixed to: bin/vh mix keeps lufs= and tp= in its record (<out>.mix.json); a film mixed
+  # to −16 is on target, read from that record; an older record's arguments say it too; else the BRIEF's Loudness line
+  ffmpeg -v error -y -f lavfi -i color=c=gray:s=160x90:r=30 -f lavfi -i "sine=f=1000:r=48000,volume=5.07dB" -t 4 -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest "$t/m16.mp4"
+  ffmpeg -v error -y -f lavfi -i "sine=f=440:r=48000:d=3" "$t/voice.wav"
+  for d in rec old brief; do mkdir -p "$t/$d/audio"; printf '# BRIEF\n\n## Spec\n- Language: en\n' > "$t/$d/BRIEF.md"; done
+  printf -- '- Loudness: -16 LUFS\n' >> "$t/brief/BRIEF.md"
+  printf '{"version": 1, "status": "complete", "args": ["voice=v.wav", "lufs=-16"]}\n' > "$t/old/audio/mix.wav.mix.json"
+  vh mix "$t/rec/audio/mix.wav" voice="$t/voice.wav" lufs=-16 >/dev/null 2>&1; rc=$?
+  a=$(python3 tools/loudcheck.py "$t/m16.mp4" --project "$t/rec"); rc2=$?
+  b=$(python3 tools/loudcheck.py "$t/m16.mp4" --project "$t/old"); rc3=$?
+  c=$(python3 tools/loudcheck.py "$t/m16.mp4" --project "$t/brief"); rc4=$?
+  d=$(python3 tools/loudcheck.py "$t/m16.mp4"); rc5=$?
+  if [ "$rc:$rc2:$rc3:$rc4:$rc5" = "0:0:0:0:0" ] && python3 -c 'import json,sys; t=json.load(open(sys.argv[1])).get("target"); sys.exit(0 if t == {"lufs": -16.0, "tp": -1.5} else 1)' "$t/rec/audio/mix.wav.mix.json" \
+     && case "$a|$b|$c|$d" in "loudness: -16."*"target -16 ±1"*"audio/mix.wav.mix.json)|loudness: -16."*"target -16 ±1"*"audio/mix.wav.mix.json)|loudness: -16."*"target -16 ±1"*"BRIEF.md)|WARN loudness: -16."*"target -14 ±1"*) true ;; *) false ;; esac
+  then ok "check's loudness: the target is what the film was mixed to: bin/vh mix keeps lufs= and tp= in its record, read back (an older record by its arguments), else the BRIEF's Loudness line, else −14"
+  else bad "check's loudness target (exits $rc:$rc2:$rc3:$rc4:$rc5): $a | $b | $c | $d"; fi
+  p="$t/p"; mkdir -p "$p/audio/stems" "$p/out/review"; printf '# BRIEF\n\n## Spec\n- Language: en\n' > "$p/BRIEF.md"
+  printf '{"gate": "3", "summary": "draft", "decisions": [], "assets": [{"path": "audio/mix.wav", "caption": "the mix"}]}' > "$p/out/review/gate-3.json"
+  if uv run -q --no-project --with numpy python - "$p" <<'PY'
+import json, sys, wave
+import numpy as np
+P = sys.argv[1]; SR = 48000; n = SR * 20; t = np.arange(n) / SR
+voice = np.zeros(n); lines = [(1, 4, 0.30), (5, 8, 0.05), (9, 12, 0.25), (13, 17, 0.20)]   # line 2 is the weak one
+for a, b, g in lines:
+    m = (t >= a) & (t < b); voice[m] = g * np.sin(2 * np.pi * 220 * t[m])
+music = 0.05 * np.sin(2 * np.pi * 110 * t); music[t >= 10] *= 4                        # the music turns up at 10 s
+sfx = np.zeros(n); i = int(14.5 * SR); sfx[i:i + 2400] = 0.9 * np.exp(-np.arange(2400) / 300)   # the one hit, at 14.5 s
+def w(f, x):
+    with wave.open(f, "wb") as o:
+        o.setnchannels(1); o.setsampwidth(2); o.setframerate(SR); o.writeframes((np.clip(x, -1, 1) * 32767).astype("<i2").tobytes())
+for name, x in (("stems/voice", voice), ("stems/music", music), ("stems/sfx", sfx), ("mix", voice + music + sfx)):
+    w(f"{P}/audio/{name}.wav", x)
+json.dump({"lines": [{"id": f"l{k + 1}", "start": a, "end": b, "text": f"line {k + 1}"} for k, (a, b, g) in enumerate(lines)]}, open(f"{P}/audio/timeline.en.json", "w"))
+json.dump({"bpm": 120, "beats": [], "sections": [{"name": "a", "start": 0.0, "end": 10.0}, {"name": "b", "start": 10.0, "end": 20.0}]}, open(f"{P}/audio/music.beats.json", "w"))
+json.dump([{"t": 14.5, "sfx": "impact"}], open(f"{P}/audio/events.json", "w"))
+PY
+  then
+    a=$(vh qa "$p/audio/mix.wav" "$p/audio/music.beats.json" "$p/audio/events.json" --listen 5 --stems "$p/audio/stems" --gate 3 --picture "$p/out/sound.png" --json 2>/dev/null); rc=$?
+    if [ $rc = 0 ] && [ -s "$p/out/sound.png" ] && python3 - "$p" "$a" <<'PY'
+import json, sys
+p, j = sys.argv[1], json.loads(sys.argv[2])
+pts = {x["why"]: x for x in j["points"]}
+g = json.load(open(f"{p}/out/review/gate-3.json"))
+ok = (len(j["points"]) == 5 and pts["weakest-line"]["detail"]["line"] == "l2" and abs(pts["loudest-hit"]["t"] - 14.7) < 0.3 and "aac-risk" in pts["loudest-hit"]["note"]
+      and abs(pts["biggest-turn"]["t"] - 10.0) < 0.01 and abs(pts["ending"]["t"] - 17.0) < 0.01
+      and [x["t"] for x in g["listen"]] == [x["t"] for x in j["points"]] and g["assets"][0]["path"] == "audio/mix.wav"
+      and [a["path"] for a in g["assets"][1:]] == [x["file"] for x in j["points"]] and all(x["file"].startswith("out/listen/") for x in j["points"]))
+sys.exit(0 if ok else 1)
+PY
+    then ok "qa --listen: the weakest line (by the stems), the loudest hit (the AAC risk folded into it), the biggest turn, the ending and one more weak line, 6 s each; into the gate's listen and assets; --picture draws the sound"
+    else bad "qa --listen (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  else skip "qa --listen" "uv cannot run numpy here"; fi
+  if a=$(uv run -q --no-project --with numpy --with scipy python - 2>&1 <<'PY'
+import sys
+sys.path.insert(0, "tools/audio")
+import beats as B
+grid = [0.5 * k for k in range(33)]
+on, off = [0.5 * k + 0.004 for k in range(32)], [0.5 * k + 0.25 for k in range(32)]
+bad = []
+for kicks, want_off, words in ((on, False, "on the beat"), (off, True, "locked to the off-beat"), ([0.5 * k + 0.1 for k in range(32)], True, "+0.20 of a beat"),
+                               (on[:5], False, "too few"), ([0.5 * k + (0.25 if k % 2 else 0.0) for k in range(32)], False, "too few or too scattered")):
+    got = B.verdict(*B.offbeat(kicks, grid), 120)
+    if got[0] != want_off or words not in got[1]:
+        bad.append(f"{words}: {got}")
+if "0.250 s" not in B.verdict(*B.offbeat(off, grid), 120)[1]:
+    bad.append("the shift for half a beat at 120 BPM")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "beats --check: kicks on the grid are on the beat; half a beat off is the off-beat with the shift to make; another steady offset says how much; too few kicks, or ones that agree on nothing, say nothing"
+  else bad "beats --check's judgement: $a"; fi
+  rm -rf "$t"
+}
+
 assets_checks() {   # the asset ledger (tools/assets): the record and its fixtures, the licence table, the ledger's writes on a
   # copy of the fixture project, the budget, a download from recorded responses (no network), the credits, and end to end
   # with a render (bin/vh render's .render.json against the ledger, status, the review page, deliver, patch)
@@ -3068,6 +3197,7 @@ PY
   image_checks     # bin/vh image: so are its pictures, and its spend the budget's
   library_checks   # the sound library's picks: on record in the project's ledger
   lyria_checks     # a generated track: on record, its price the budget's
+  sound_tools_checks   # check's loudness, qa --listen and --picture, beats --check
 }
 
 scout_checks() {   # bin/vh scout and ref (tools/scout) from recorded responses, no network: YouTube through yt-dlp's recorded

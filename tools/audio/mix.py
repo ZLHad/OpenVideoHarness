@@ -95,6 +95,8 @@ def main():
     out = sys.argv[1]
     with Build(out, sys.argv[2:]) as build:
         kv = arguments()
+        layered_chain = kv.get("profile", "none") != "none"   # the target the record keeps: bin/vh check reads it against the film
+        build.state["target"] = {"lufs": float(kv.get("lufs", -14)), "tp": float(kv.get("tp", -1.65 if layered_chain else -1.5))}
         build.snapshot(kv)
         if kv.get("profile", "none") == "none":
             report = default_chain(build.temp, kv, out)

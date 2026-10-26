@@ -22,7 +22,7 @@
 
 **已知问题**：默认的本地 Qwen3-TTS 0.6B 模型念英文短句时偶尔停不下来。实测 "One sentence in, a film out." 念完后又多出约 10 秒低电平的含糊声音，整句 12.6 s。所以每条配音都要查一遍：加 `--align gemini` 让机器查（见下一节），或者至少看一眼 `timeline.<lang>.json` 里的时长。被标出来的那句重跑，或者换 1.7B 模型、换 `gemini`。同一稿 Gemini 的四条都正常。
 
-### 词级时间和对稿检查（`--align gemini`）
+### 词级时间和对稿检查（`--align gemini`，或本机的 `--align local`）
 
 
 `--align gemini` 对任何 provider 都能用：每句合成完，交给 Gemini 3.5 Transcribe（`gemini-3.5-transcribe`）转写一遍，拿回带时间戳的词，再和稿子逐字对齐。结果写进 timeline：
@@ -37,6 +37,10 @@
 - 双人对话里，ASR 会把 B 说话时 A 的一声"嗯"也转出来。这种插话按稿子里的 `|嗯|` 算，不扣分。
 
 局限：时间戳的步长是 0.1 s（30 fps 下 3 帧）；数字可能被规范化（"二十六"转成"26"），相似度会降，但不算念错；每次调用有 3–7 s 延迟，逐句模式下 4 句并发。费用约 $0.005 / 分钟音频（付费档），免费档不收费。Tier 1 每分钟只能转写 10 次，超过 10 句（算上复查）时会碰到 429：这时按接口给的时间等（通常不到 1 分钟）再重试，12 句实测 155 s 跑完。429 写明是日配额用完的（见下文"转写的配额"），或者要求等 90 s 以上的，直接报错，不再等。转写失败到底（日配额、断网、某个文件坏了）也不丢配音：`voiceover.<lang>.wav` 和 timeline 在合成后就先写好，出错的句子保留实测时长、`asr` 里记 `error`，命令以非 0 退出；修好原因后用**同一条命令**加 `--resume` 接着跑：只补合成缺的文件（合成中途失败也一样），转写成功过的句子不再重转（结果存在 `vo/<lang>/*.asr.json`，记着所听文件的 sha256；文件换过的照样重转），其余重做；`--join` 时整段音频留在 `vo/<lang>/_blockNN.wav`，在那之前它的几句共用整段的起止（`minimax` 例外：句子照样按它自己的逐字时间切开）。那次运行的稿子、provider、音色、语气指示（`--instruct`）和 `--join` 方式记录在 `vo/<lang>/_run.json` 里，`--resume` 要求它们一样，改了就拒绝并指出改了什么（对拍、间距这些时间参数可以改）。不带 `--align` 的普通合成中途失败，也用同一条命令加 `--resume` 接着合成；合成好的普通配音之后再加 `--align gemini --resume`，只做转写，不再合成。key 在合成前就检查。
+
+**本机转写（`--align local`）**：同样的对稿，转写换成本机的 Whisper（mlx-whisper，只在 Apple Silicon 上；模型默认 `mlx-community/whisper-large-v3-turbo`，`WHISPER_MODEL` 可改，第一次用时下载约 1.6 GB；`bin/vh tts` 带 `--align local` 时自动加上 mlx-whisper）。不要 key，没有日配额，`--resume` 照旧；词级时间用 Whisper 自己的步长。被标出的句子复查时，词表放进 Whisper 的 `initial_prompt`（它没有 custom_vocabulary）。MLX 的计算流只认创建它的那个线程，所以一句一句转写，不并发。实测（2026-10-26，本机）：两句中文，相似度 0.90 和 0.86。
+
+转写常把逐位念的年份写成阿拉伯数字（"1953"，Whisper 尤其如此）：稿子里有对应的逐位念法（"一九五三"，〇 和零都认）时，两种转写都先换成稿子的写法，再算对齐和相似度；"二十六"这类读法不换。
 
 
 需要更细的强制对齐（音素级、离线）时，仍然可以用 mlx-audio 的 Qwen3-ForcedAligner、FunASR 或 whisper.cpp，这些没有封装。

@@ -953,6 +953,16 @@ cmd_check() {
   if [ -z "$col" ]; then :
   elif [ "$col" = "yuv420p,tv,bt709,bt709,bt709" ]; then echo "$c_ok colour: yuv420p, limited range, BT.709 with all four tags"
   else echo "$c_wa colour: $col (pix_fmt,range,matrix,transfer,primaries); deliver yuv420p, tv, bt709 ×3 — re-encode with the command in playbook/02-verification.md (色彩标签)"; fi
+  # loudness: the film's sound as uploaded against what it was mixed to (the project's mix record, else the BRIEF, else
+  # −14 LUFS ±1; true peak ≤ −1 dBTP), measured (a warning)
+  local ld lrc=0 lproj; lproj=$(project_of "$v")
+  ld=$(python3 "$ROOT/tools/loudcheck.py" "$v" ${lproj:+--project "$lproj"} ${J:+--json "$J/loud.json"} 2>&1) || lrc=$?
+  case "$lrc:$ld" in
+    0:*"no sound"*) ;;
+    0:"WARN "*) printf '%s\n' "${ld#WARN }" | sed "1s/^/$c_wa /" ;;
+    0:*) echo "$c_ok $ld" ;;
+    *) echo "$c_wa loudness check failed: $ld"; ck_note skipped.txt $'loudness\tthe loudness check failed' ;;
+  esac
   # the publishing copy (PACKAGING.md, 发布文案) against the platforms' length limits: said, not a failure of the film
   local proj pk prc=0; proj=$(project_of "$v")
   if [ -n "$proj" ] && [ -f "$proj/PACKAGING.md" ]; then
@@ -1005,7 +1015,8 @@ cmd_tts() {
   local prov=${pos[0]:-qwen} voice=${pos[1]:-} lang=${pos[2]:-} instruct=${pos[3]:-} a prev="" np=""
   for a in "$@"; do   # tts.py's own --provider X / --provider=X picks the dependencies too; the last one wins, as in argparse
     [ "$prev" = --provider ] && prov=$a
-    case "$a" in --provider=*) prov=${a#--provider=} ;; --candidates|--candidates=*) np="--with numpy" ;; esac   # the takes are measured with numpy
+    case "$a" in --provider=*) prov=${a#--provider=} ;; --candidates|--candidates=*) np="--with numpy" ;; --align=local) np="$np --with mlx-whisper" ;; esac   # the takes are measured with numpy
+    [ "$prev|$a" = "--align|local" ] && np="$np --with mlx-whisper"   # a local Whisper for the word times
     prev=$a
   done
   # everything from the first --flag on goes straight to tts.py (--beats, --snap, --lead, --gap, --min-gap, --align, --join, --candidates, --min-sim, --vocab, --resume)
@@ -1018,13 +1029,13 @@ cmd_voices() { # audition measures the takes (numpy) and synthesizes with the pr
   [ $# -gt 0 ] || set -- list
   [ "$1" = audition ] || { python3 "$ROOT/tools/audio/tts.py" voices "$@"; return; }
   local a prev="" prov=gemini deps="--with numpy"
-  for a in "$@"; do [ "$prev" = --provider ] && prov=$a; case "$a" in --provider=*) prov=${a#--provider=} ;; esac; prev=$a; done
+  for a in "$@"; do [ "$prev" = --provider ] && prov=$a; [ "$prev|$a" = "--align|local" ] && deps="$deps --with mlx-whisper"; case "$a" in --provider=*) prov=${a#--provider=} ;; --align=local) deps="$deps --with mlx-whisper" ;; esac; prev=$a; done
   case "$prov" in qwen) deps="$deps --with mlx-audio" ;; edge) deps="$deps --with edge-tts" ;; dashscope) deps="$deps --with dashscope" ;; esac
   on_ctrl_c uv run -q --no-project $deps python "$ROOT/tools/audio/tts.py" voices "$@"
 }
 cmd_pace() { # numpy for the waveform; mlx-whisper only with --align whisper (Apple Silicon)
   local a prev="" deps="--with numpy"
-  for a in "$@"; do case "$prev:$a" in --align:whisper|*:--align=whisper) deps="$deps --with mlx-whisper" ;; esac; prev=$a; done
+  for a in "$@"; do case "$prev:$a" in --align:whisper|*:--align=whisper|--align:local|*:--align=local) deps="$deps --with mlx-whisper" ;; esac; prev=$a; done
   on_ctrl_c uv run -q --no-project $deps python "$ROOT/tools/audio/pace.py" "$@"
 }
 cmd_captions() { # --media-end S: where a caption too short for its minimum may be lengthened to (default: the picture's length)
@@ -1054,7 +1065,9 @@ cmd_captions() { # --media-end S: where a caption too short for its minimum may 
   fi
   on_ctrl_c env PYTHONWARNINGS=ignore "${py[@]}" "$ROOT/tools/audio/captions.py" "$proj" ${1:+--lang "$1"} ${2:+--zh-max "$2"} ${end[@]+"${end[@]}"}
 }
-cmd_beats() { on_ctrl_c uv run -q --no-project --with librosa python "$ROOT/tools/audio/beats.py" "$@"; }
+cmd_beats() { # --png draws the check's picture: pillow joins librosa only then
+  local a pil=""; for a in "$@"; do [ "$a" = --png ] && pil="--with pillow"; done
+  on_ctrl_c uv run -q --no-project --with librosa $pil python "$ROOT/tools/audio/beats.py" "$@"; }
 cmd_timeline() { [ $# -gt 0 ] || { cmd_usage timeline >&2; exit 2; }; python3 "$ROOT/tools/audio/timeline_lint.py" "$@"; }
 cmd_remap() { [ $# -gt 0 ] || { cmd_usage remap >&2; exit 2; }; python3 "$ROOT/tools/audio/remap.py" "$@"; }
 cmd_timemap() { [ $# -gt 0 ] || { cmd_usage timemap >&2; exit 2; }; python3 "$ROOT/tools/audio/time_map.py" "$@"; }   # stdlib only
@@ -1073,7 +1086,11 @@ cmd_mix() { # a mix profile computes in numpy/scipy (through uv); the default ch
   for a in "$@"; do case "$a" in profile=none) ;; profile=*) on_ctrl_c uv run -q --no-project --with numpy --with scipy python "$ROOT/tools/audio/mix.py" "$@"; return ;; esac; done
   python3 "$ROOT/tools/audio/mix.py" "$@"
 }
-cmd_qa() { on_ctrl_c uv run -q --no-project --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
+cmd_qa() { # --listen and --picture: where to put headphones on, and the sound as one picture (tools/audio/listen.py)
+  local a
+  for a in "$@"; do case "$a" in --listen|--listen=*|--picture|--picture=*)
+    on_ctrl_c uv run -q --no-project --with numpy --with scipy --with pillow python "$ROOT/tools/audio/listen.py" "$@"; return ;; esac; done
+  on_ctrl_c uv run -q --no-project --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
 cmd_mux() { python3 "$ROOT/tools/audio/mux.py" "$@"; }   # verifies a tracked mix; deliberate duration changes need a flag
 
 cmd_bgm() { [ $# -gt 0 ] || { cmd_usage bgm >&2; exit 2; }; python3 "$ROOT/tools/audio/library.py" bgm "$@"; }       # stdlib and ffmpeg
