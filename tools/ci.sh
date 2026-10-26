@@ -2036,6 +2036,42 @@ print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
     then ok "footage get --offline: --range from the keyframe before it (stream-copied into Matroska, its first frame kept), conformed frame for frame (CFR at 30000/1001, keyframes ≤ 1 s, BT.709 tv, sound at 48 kHz); a WebM conformed to H.264 with the tags it lacked assumed; one record a clip folder; strict refuses BY-SA and --max-mb refuses before downloading; an id on record is exit 2"
     else bad "footage get (exits $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s | %s' "$a" "$b" | tail -c 600) $(cat "$t/e3" "$t/e4" "$t/e5" | tail -c 400)"; fi
+    # an orig a get left behind is used again only when its mark says it is that file, whole: another file's (a --file
+    # that failed after its download) is downloaded over, never registered as this one
+    cu=https://upload.wikimedia.org/wikipedia/commons/8/88/SpaceX_CRS-35_launch_and_jellyfish_cloud.webm
+    fq="$t/fq"; cp -R tools/assets/fixtures/footage/project "$fq"; mkdir -p "$fq/assets/footage/cam-x" "$fq/assets/footage/cam-y"
+    cp "$fr/media/nasa-orig.mp4.bin" "$fq/assets/footage/cam-x/orig.webm"
+    printf '{"file_url": "https://example.org/another.webm", "bytes": %s}\n' "$(wc -c < "$fr/media/nasa-orig.mp4.bin")" > "$fq/assets/footage/cam-x/.orig.json"
+    cp "$fr/media/commons-crs35.webm.bin" "$fq/assets/footage/cam-y/orig.webm"
+    printf '{"file_url": "%s", "bytes": %s}\n' "$cu" "$(wc -c < "$fr/media/commons-crs35.webm.bin")" > "$fq/assets/footage/cam-y/.orig.json"
+    a=$(vh footage get "$fq" "commons:File:SpaceX CRS-35 launch and jellyfish cloud.webm" --id cam-x --offline "$fr" 2>&1); rc=$?
+    b=$(vh footage get "$fq" "commons:File:SpaceX CRS-35 launch and jellyfish cloud.webm" --id cam-y --offline "$fr" 2>&1); rc2=$?
+    if [ "$rc:$rc2" = "0:0" ] && case "$a|$b" in *"kept, not downloaded again"*"|"*) false ;; *"|"*"kept, not downloaded again"*) true ;; *) false ;; esac && python3 - "$fq" "$fr/media/commons-crs35.webm.bin" <<'PY'
+import hashlib, json, sys
+fp, want = sys.argv[1], hashlib.sha256(open(sys.argv[2], "rb").read()).hexdigest()
+got = [json.load(open(f"{fp}/assets/footage/{c}/clip.json", encoding="utf-8"))["from"]["sha256"] for c in ("cam-x", "cam-y")]
+sys.exit(0 if got == [want, want] else 1)
+PY
+    then ok "footage get: an orig a get left behind is used again only when its mark names that file, whole; another file's is downloaded over, not registered as this one"
+    else bad "footage get, an orig left behind (exits $rc:$rc2): $(printf '%s | %s' "$a" "$b" | tail -c 500)"; fi
+    # --license / --license-url are the user's word over the site's record: on record as given, the note keeps what the
+    # site said; an Archive rights text with no licence link is the uploader's own words (unknown); CJK titles get ids apart
+    a=$(vh footage get "$fq" "commons:File:SpaceX CRS-35 launch and jellyfish cloud.webm" --id cam-z --license "CC BY 4.0" \
+      --license-url https://creativecommons.org/licenses/by/4.0/ --offline "$fr" 2>&1); rc=$?
+    if [ "$rc" = 0 ] && python3 - "$fq" <<'PY'
+import json, sys
+sys.path.insert(0, "tools/assets")
+import footage
+r = {x["id"]: x for x in json.load(open(f"{sys.argv[1]}/assets/ledger.json", encoding="utf-8"))["assets"]}["cam-z"]
+ids = {footage.default_id({"site": "commons", "id": t}) for t in ("File:嫦娥六号.webm", "File:嫦娥五号.webm")}
+ok = (r["license"]["by"] == "given" and r["license"]["class"] == "cc-by" and "licence given with --license" in (r.get("note") or "")
+      and footage.judge("archive", {"license": "Public Domain", "license_url": ""})[0] == "unknown"
+      and footage.judge("archive", {"license": "", "license_url": "http://creativecommons.org/licenses/publicdomain/"})[0] == "pd"
+      and len(ids) == 2 and all(len(x) > 3 for x in ids) and footage.default_id({"site": "archive", "id": "Apollo 11"}) == "ia-apollo-11")
+sys.exit(0 if ok else 1)
+PY
+    then ok "footage get --license: on record as given, the site's own reading in the note; an Archive rights text with no licence link is unknown; two CJK titles get ids apart"
+    else bad "footage get --license, judge, default_id (exit $rc): $(printf '%s' "$a" | tail -c 400)"; fi
     vh footage sync "$fp" cam-pad --group launch --c 1.0 --by "fixture" >/dev/null 2>&1; rc=$?
     a=$(vh footage sync "$fp" cam-crs --group launch --c 2.5 --k 2.5 2>&1); rc2=$?
     vh footage frames "$fp" cam-pad --film 0:2 --t0 1.0 >/dev/null 2>"$t/e1"; rc3=$?
@@ -2095,6 +2131,85 @@ ok = (m["nasa-images"]["state"] == "ok" and "no key" in m["nasa-images"]["note"]
 sys.exit(0 if ok else 1)' "$a"
   then ok "doctor --probe: footage's sites answered from recordings with no key (an answer without the path footage reads fails); --only probes those alone, an unknown name is exit 2"
   else bad "doctor --probe, key-less (exits $rc:$rc2): $(printf '%s | %s' "$a" "$b" | tail -c 500)"; fi
+  # HDR: after --tonemap, the conform's scale reads what zscale made (BT.709, tv), not the source's matrix again (that
+  # once turned (93,100,192) into (86,103,192)); where ffmpeg has zscale, the clip's pixels are the tone map's own
+  mkdir -p "$t/hdr"
+  ffmpeg -v error -y -f lavfi -i "color=c=0x5d64c0:s=320x180:r=30:d=1" -c:v ffv1 \
+    -vf "format=yuv420p10le,setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc:range=tv" "$t/hdr/orig.mkv"
+  if a=$(python3 - "$t/hdr" <<'PY'
+import subprocess, sys
+from pathlib import Path
+sys.path.insert(0, "tools/assets")
+import footage
+d, bad = Path(sys.argv[1]), []
+p = footage.probe(d / "orig.mkv")
+try:
+    footage.conform_argv(d / "orig.mkv", d / "x.mp4", p)
+    bad.append("HDR footage without --tonemap was conformed")
+except footage.Failed:
+    pass
+argv = footage.conform_argv(d / "orig.mkv", d / "x.mp4", p, "hable")[0]
+vf = argv[argv.index("-vf") + 1]
+sc = vf[vf.index(",scale="):]
+if "tonemap=hable" not in vf or "in_color_matrix=bt709:in_range=tv" not in sc:
+    bad.append(f"the scale after the tone map: {sc[:160]}")
+zs = " zscale " in subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True).stdout
+if zs and not bad:
+    def yuv(path, vf=None):   # the middle pixel's Y, U, V
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path)] + (["-vf", vf] if vf else []) + ["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "yuv444p", "-"],
+                             capture_output=True, check=True).stdout
+        n = len(raw) // 3; c = n // 2 + 160
+        return raw[c], raw[n + c], raw[2 * n + c]
+    ref = yuv(d / "orig.mkv", vf[:vf.index(",scale=")])
+    footage.conform(d, d / "orig.mkv", "hable")
+    got = yuv(d / "clip.mp4")
+    if max(abs(x - y) for x, y in zip(ref, got)) > 2:
+        bad.append(f"tone-mapped pixels: the clip has YUV {got}, the tone map {ref}")
+print("\n".join(bad) if bad else ("compared" if zs else "")); sys.exit(1 if bad else 0)
+PY
+  ); then ok "footage --tonemap: the scale after the tone map reads BT.709 tv, not the HDR source's matrix$( [ "$a" = compared ] && echo '; the clip'"'"'s pixels are the tone map'"'"'s own' || echo ' (no zscale here, so the pixels are not compared)'); HDR without --tonemap is refused"
+  else bad "footage --tonemap: $a"; fi
+  # a download is the working clip as it is only when it is what a conform makes: H.264 High, and every GOP closed (an
+  # open one's leading frames, shown before their keyframe, lean on the GOP before it: a cut there cannot decode them)
+  for k in closed open main; do
+    case $k in main) pr=main; xp="" ;; open) pr=high; xp=":open-gop=1" ;; *) pr=high; xp="" ;; esac
+    ffmpeg -v error -y -f lavfi -i "testsrc2=s=160x90:r=30:d=2" -vf "format=yuv420p,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709" \
+      -c:v libx264 -profile:v "$pr" -x264-params "keyint=15:min-keyint=15:bframes=3:scenecut=0$xp" -movflags +faststart "$t/hdr/$k.mp4"
+  done
+  if a=$(python3 - "$t/hdr" <<'PY'
+import sys
+sys.path.insert(0, "tools/assets")
+import footage
+d = sys.argv[1]
+why = {k: footage.unfit(f"{d}/{k}.mp4", footage.probe(f"{d}/{k}.mp4"), footage.video_packets(f"{d}/{k}.mp4")) for k in ("closed", "open", "main")}
+ok = why["closed"] == [] and any("open GOPs" in x for x in why["open"]) and len(why["open"]) == 1 and why["main"] == ["h264 Main, not H.264 High"]
+print(why); sys.exit(0 if ok else 1)
+PY
+  ); then ok "footage: a download is kept as the working clip only when it is H.264 High with every GOP closed; an open GOP and a Main profile are conformed"
+  else bad "footage, what is kept as it is: $a"; fi
+  if a=$(python3 - "$t/hdr" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "tools/assets")
+import fetch
+d = Path(sys.argv[1])
+class NoLength(fetch.Live):   # a server that says no Content-Length
+    def open(self, url, headers=None, timeout=60):
+        body, pos = b"x" * 5000, [0]
+        def read(n=-1):
+            part = body[pos[0]:] if n is None or n < 0 else body[pos[0]:pos[0] + n]
+            pos[0] += len(part)
+            return part
+        return fetch.Response(200, {"Content-Type": "application/octet-stream"}, read)
+try:
+    fetch.download("https://example.org/big.bin", d / "big.bin", opener=NoLength(), max_bytes=1000)
+    print("downloaded past the cap"); sys.exit(1)
+except fetch.FetchError as e:
+    left = [p.name for p in d.glob("big.bin*")]
+    print(e, left); sys.exit(0 if "cap" in str(e) and not left else 1)
+PY
+  ); then ok "fetch.download: --max-mb holds when the server says no length too: stopped at the cap, nothing kept"
+  else bad "fetch.download's cap without a Content-Length: $a"; fi
   rm -rf "$t"
 }
 

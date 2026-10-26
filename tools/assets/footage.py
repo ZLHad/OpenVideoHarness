@@ -32,7 +32,8 @@ file (then --license, --license-url and --page say what the tools cannot read). 
            fetch.py's local range proxy (serve), from the keyframe at or before a, stream-copied: orig is the original's
            own packets, its range on record from that keyframe. --max-mb: a whole download over this is refused before
            it starts (default 800; --range is not capped). --rate: a cap, 2M = 2 MB a second.
-           --license/--license-url: the licence as its page writes it, classified; --class: the class outright (when
+           --license/--license-url: the licence as its page writes it, classified and on record as given (over the
+           site's rules; the note keeps what the site's record said); --class: the class outright (when
            the page says what the table cannot read). Under the project's Assets: strict (tools/assets/ledger.py
            policy_of), what strict does not take is refused before anything is downloaded (exit 1); under record it is
            downloaded and its risk said. HDR footage (PQ, HLG) is converted to SDR only with --tonemap (hable, mobius,
@@ -50,7 +51,8 @@ file (then --license, --license-url and --page say what the tools cannot read). 
            pads), --vf adds an ffmpeg filter chain after it (a grade, delogo, crop, transpose), --png bakes lossless
            PNGs. frames.json in the folder records the mapping; the folder is one record, derived_from the clip
 The licence, site by site (what get and search read; an explicit --class wins):
-  archive  the item's licenseurl, else its rights statement. An item that is a re-upload from a video site (an
+  archive  the item's licenseurl. A rights statement with no licenseurl is the uploader's own words (anyone can type
+           "Public Domain"): unknown. An item that is a re-upload from a video site (an
            identifier youtube-…, the mirrortube collection) is unknown whatever it says: its origin is not on record
   commons  the file page's LicenseShortName and LicenseUrl. "No restrictions" (a statement, not a licence) is unknown;
            the page's Restrictions (trademarked, personality rights) go into the record's note
@@ -73,7 +75,7 @@ LemoLab, its licence in recipes/LICENSES/MIT-lemo-opuscar.txt):
 the three sites' search and file APIs, the NASA rendition order, the per-site licence rules and the sync table with
 frames baked by film frame number come from there; the code is written anew around tools/assets.
 """
-import argparse, json, math, os, re, shutil, subprocess, sys, tempfile, time, urllib.parse
+import argparse, hashlib, json, math, os, re, shutil, subprocess, sys, tempfile, time, urllib.parse
 from fractions import Fraction
 from pathlib import Path
 
@@ -163,6 +165,8 @@ def judge(site, meta):
         return "pd", "NASA's own media: a U.S. government work", "site"
     if not name and not url:
         return "unknown", "no licence on the item's record", "classifier"
+    if site == "archive" and not url:   # the uploader's own words with no licence link: anyone can type "Public Domain"
+        return "unknown", f"only the uploader's own rights text ({name[:60]!r}), no licence link: read the item's page and its source", "site"
     cls, why = licenses.classify(name, url)
     return cls, why or licenses.NAMES.get(cls, cls), "classifier"
 
@@ -461,8 +465,8 @@ def unfit(path, p, packets):
     rate, cfr = rate_of(v)
     if Path(path).suffix.lower() != ".mp4" or not moov_first(path):
         why.append("not an MP4 with its index first")
-    if v.get("codec_name") != "h264" or v.get("profile") not in ("High", "Main", "Constrained Baseline"):
-        why.append(f"{v.get('codec_name')} {v.get('profile') or ''}".strip() + ", not H.264")
+    if v.get("codec_name") != "h264" or v.get("profile") != "High":
+        why.append(f"{v.get('codec_name')} {v.get('profile') or ''}".strip() + ", not H.264 High")
     if v.get("pix_fmt") != "yuv420p":
         why.append(f"pixel format {v.get('pix_fmt')}")
     if [v.get("color_range"), v.get("color_space"), v.get("color_primaries"), v.get("color_transfer")] != ["tv", "bt709", "bt709", "bt709"]:
@@ -482,7 +486,21 @@ def unfit(path, p, packets):
         why.append("its first packet is no keyframe")
     elif any(b - a > 1.0 + 1e-3 for a, b in zip(keys, keys[1:] + [max(t for t, _ in packets)])):
         why.append("keyframes more than 1 s apart")
+    if any(k and opens(packets, i) for i, (_, k) in enumerate(packets)):
+        why.append("open GOPs (frames after a keyframe, in decoding order, shown before it)")
     return why
+
+
+def opens(packets, i):
+    """Whether the GOP of the keyframe at packets[i] is open: a packet after it, before the next keyframe, shows earlier
+    (a leading frame that leans on the GOP before, which a cut at this keyframe cannot decode)."""
+    t = packets[i][0]
+    for u, k in packets[i + 1:]:
+        if k:
+            return False
+        if u < t - 1e-6:
+            return True
+    return False
 
 
 def conform_argv(src, dst, p, tonemap=None):
@@ -511,6 +529,7 @@ def conform_argv(src, dst, p, tonemap=None):
             raise Failed(f"HDR footage ({trc}): converting it to SDR is a creative choice: --tonemap hable (or mobius, reinhard), or keep it out")
         chain.append(f"zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap={tonemap}:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p")
         notes.append(f"HDR ({trc}) tone-mapped to SDR BT.709 with {tonemap}")
+        mtx, rng = "bt709", "tv"   # what zscale made: the scale below must not read it as the source's matrix and range again
     chain.append(f"scale={w}:{h}:flags=lanczos+accurate_rnd+full_chroma_int:in_color_matrix={SWS_MATRIX.get(mtx, 'bt709')}:in_range={rng}"
                  ":out_color_matrix=bt709:out_range=tv,setsar=1,format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv")
     if not cfr:
@@ -739,8 +758,13 @@ def parse_range(s):
 
 
 def default_id(it):
-    base = {"archive": "ia", "commons": "wc", "nasa": "nasa"}.get(it["site"], "ft") + "-" + (it.get("id") or "clip").removeprefix("File:")
-    return ledger.slug(re.sub(r"\.[A-Za-z0-9]{2,5}$", "", base))
+    """The site's prefix and the item's id as a slug. A title the slug cannot keep (CJK, say) gets a short hash of the
+    item's id too, so that two such items do not share one id."""
+    raw = re.sub(r"\.[A-Za-z0-9]{2,5}$", "", (it.get("id") or "clip").removeprefix("File:"))
+    base = ledger.slug({"archive": "ia", "commons": "wc", "nasa": "nasa"}.get(it["site"], "ft") + "-" + raw)
+    if re.search(r"[^\x00-\x7f]", raw):
+        base = base[:40].rstrip("-._") + "-" + hashlib.sha256(str(it.get("id")).encode("utf-8")).hexdigest()[:8]
+    return base
 
 
 def cmd_get(a):
@@ -763,10 +787,13 @@ def cmd_get(a):
     for k in ("title", "author", "page"):
         if getattr(a, k):
             it[k] = getattr(a, k)
-    if a.license is not None or a.license_url is not None:
+    given = None
+    if a.license is not None or a.license_url is not None:   # the user's word over the site's record: on record as given, with what the site said
+        scls, swhy, _ = judge(it["site"], it)
         it["license"], it["license_url"] = a.license or "", a.license_url or ""
         cls, why = licenses.classify(it["license"], it["license_url"])
-        by = "classifier"
+        by = "given"
+        given = f"licence given with --license/--license-url, not read from the site (its record: {scls}, {swhy})"
     else:
         cls, why, by = judge(it["site"], it)
     if a.license_class:
@@ -783,7 +810,7 @@ def cmd_get(a):
     if any(e["record"].get("id") == cid for e in ents):
         raise Usage(f"the id {cid} is on record already: --id another (ids are never reused)")
     note = "; ".join(x for x in ([NASA_NOTE] if it["site"] == "nasa" else []) + ([f"restrictions: {it['restrictions']}"] if it.get("restrictions") else [])
-                     + ([a.note] if a.note else []) if x) or None
+                     + ([given] if given else []) + ([a.note] if a.note else []) if x) or None
     src = {"origin": "download", "url": it.get("page") or None, "file_url": it["file_url"], "provider": {"archive": "internet-archive", "commons": "wikimedia-commons",
            "nasa": "nasa"}.get(it["site"]), "provider_id": it.get("id") if it["site"] != "url" else None, "title": it.get("title") or None,
            "author": it.get("author") or None, "retrieved": time.strftime("%Y-%m-%d")}
@@ -809,15 +836,27 @@ def cmd_get(a):
                 raise Usage(f"{ledger.rel(project, folder)}/ is there already: --id another")
             folder.mkdir(parents=True, exist_ok=True)
             orig = folder / ("orig.mkv" if rng else f"orig{it['ext']}")
-            if orig.exists() and not rng:   # a get that stopped after the download (orig is only ever there whole)
+            mark = folder / ".orig.json"   # the file orig (or its .part) is of, and its length once whole
+            try:
+                m = json.loads(mark.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                m = {}
+            same = not rng and isinstance(m, dict) and m.get("file_url") == it["file_url"]
+            for f in folder.glob("orig*"):   # what a get that stopped left of another file (another --file, a range) goes
+                if not (same and f.name in (orig.name, orig.name + ".part")):
+                    f.unlink()
+            if same and orig.exists() and m.get("bytes") == orig.stat().st_size:   # a get that stopped after the download
                 say(f"  · {ledger.rel(project, orig)} is there from a get that stopped: kept, not downloaded again")
                 taken, got = None, {"bytes": 0}
             elif rng:   # a range is cheap to take again, and its keyframe is known only then
+                mark.unlink(missing_ok=True)
                 taken, nbytes, size = range_copy(it["file_url"], orig, rng[0], rng[1], media_opener, rate)
                 src["range"] = taken
                 got = {"bytes": nbytes, "size": size, "range": taken}
             else:
+                write_json(mark, {"file_url": it["file_url"]})
                 dl = fetch.download(it["file_url"], orig, rate=rate, opener=media_opener, max_bytes=int(a.max_mb * 1e6))
+                write_json(mark, {"file_url": it["file_url"], "bytes": dl["bytes"]})
                 got = {"bytes": dl["bytes"]}
                 taken = None
             conformed, cmd, assumed, cnotes, gop, audio, _ = conform(folder, orig, a.tonemap, force=bool(rng))
