@@ -3,7 +3,7 @@
 ## Unreleased
 
 **CI: the Linux install step gets past a stalled mirror**
-- Why: on 2026-10-25 and 26 `apt-get install shellcheck ffmpeg` took 10 to 30 minutes instead of half a minute, five times, and one job failed at the step's limit. A probe of 40 installs put the time in the download from the runner's regional Azure Ubuntu mirror (westus3 above all); `apt-get update` and dpkg were never slow. GitHub knows it: actions/runner-images#14823, still open.
+- Why: on 2026-10-25 and 26 `apt-get install shellcheck ffmpeg` took 10 to 30 minutes instead of half a minute, six times, and two jobs failed at the step's limit. A probe of 40 installs put the time in the download from the runner's regional Azure Ubuntu mirror (westus3 above all); `apt-get update` and dpkg were never slow. GitHub knows it: actions/runner-images#14823, still open.
 - The step now runs `apt-get update` and a download-only install with 60 s each, then dpkg on the files it has. A try that runs over is killed and the next one goes to archive.ubuntu.com instead of the regional mirror; what was downloaded is kept. Up to three tries, then the step fails. In the probe every install that stalled finished in under two minutes.
 - The man-db skip from the entry below is gone: man-db's trigger takes about a second.
 
