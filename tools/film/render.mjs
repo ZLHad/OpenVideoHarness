@@ -6,7 +6,7 @@
 // put the sound on with bin/vh mux.
 //
 // usage: node tools/film/render.mjs <project | page.html> --browser <chrome> [--out out/film.mp4] [--fps 30]
-//          [--range a:b | --frames k0:k1] [--dpr 1] [--workers 4] [--crf 16] [--preset medium] [--gop 60] [--png] [--quality 95]
+//          [--range a:b | --frames k0:k1] [--dpr 1] [--workers 4] [--crf 16] [--preset medium] [--gop 60] [--png] [--quality 95] [--alpha]
 //          [--frame-timeout 120] [--estimate | --no-estimate] [--note text] [--force] [--real-clock] [--soft-gl]
 //        (bin/vh render finds the browser: CHROME_PATH, HyperFrames' chrome-headless-shell, then Chrome or Chromium)
 //
@@ -21,6 +21,11 @@
 //   --gop 60       a keyframe every 60 frames exactly, from the span's first frame (default 2 s of frames). Each chunk is
 //                  one GOP, so a later patch can cut the video on keyframes, and the video does not depend on --workers
 //   --png          lossless frames into the encoder (slower, larger pipes); default JPEG at --quality 95
+//   --alpha        a transparent film, to lay over footage or into an editor: the browsers' default background is made
+//                  transparent, the frames are captured as PNG with their alpha, and the video is ProRes 4444 with alpha
+//                  (prores_ks, yuva444p10le, BT.709 tags) in a .mov (default <project>/out/<page>.mov). What the page
+//                  paints stays opaque, so a page that fills its canvas has nothing to show through: it is said. Large:
+//                  about 1–12 bits a pixel. A HyperFrames composition: npx hyperframes render --format mov
 //   --estimate     before a span of more than 600 frames to draw (--estimate: any span), a few frames spread over it are
 //                  drawn and encoded first: the time a frame takes, the video's size and the disk it needs are printed,
 //                  and a disk that cannot hold it stops the render (exit 2). A few seconds; --no-estimate skips it
@@ -66,7 +71,7 @@ const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
 const die = (msg) => { console.error("render: " + msg); process.exit(2); };
 const o = { fps: 30, dpr: 1, workers: 4, crf: 16, preset: "medium", quality: 95, frameTimeout: 120, estimate: "auto" };
-let target = null, out = null, range = null, frames = null, gop = null, png = false, force = false, fpsGiven = false, note = null;
+let target = null, out = null, range = null, frames = null, gop = null, png = false, force = false, fpsGiven = false, note = null, alpha = false;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], [k, inline] = a.startsWith("--") && a.includes("=") ? [a.slice(0, a.indexOf("=")), a.slice(a.indexOf("=") + 1)] : [a, undefined];
   const val = () => { const v = inline !== undefined ? inline : argv[++i]; if (v === undefined) die(`${k} needs a value`); return v; };
@@ -84,6 +89,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (k === "--frame-timeout") o.frameTimeout = num(val(), k, 1);
   else if (k === "--estimate" || k === "--no-estimate") { const e = k === "--estimate" ? "on" : "off"; if (o.estimate !== "auto" && o.estimate !== e) die("--estimate or --no-estimate, not both"); o.estimate = e; }
   else if (k === "--png") png = true;
+  else if (k === "--alpha") { alpha = true; png = true; }
   else if (k === "--note") note = val();
   else if (k === "--force") force = true;
   else if (k === "--browser") o.browser = val();
@@ -97,6 +103,7 @@ if (!target) die("which project or page? (-h for the usage)");
 if (range && frames) die("--range or --frames, not both");
 if (out && fs.existsSync(out) && fs.statSync(out).isDirectory()) die(`--out ${out} is a folder: name the video file (…/film.mp4)`);
 if (out && !/\.(mp4|mov)$/i.test(out)) die(`--out ${out}: the video file, .mp4 (or .mov)`);
+if (alpha && out && !/\.mov$/i.test(out)) die(`--out ${out}: --alpha writes ProRes 4444 with its alpha, which goes in a .mov`);
 if (!o.browser) die("no browser: pass --browser <chrome>, or run it as bin/vh render");
 for (const tool of ["ffmpeg", "ffprobe"]) if (spawnSync(tool, ["-version"]).status !== 0) die(`${tool} is not installed`);
 
@@ -105,7 +112,8 @@ let first;
 try { first = await openFilm(target, { ...o, runtime: "auto", prelude: [HOOK] }); } catch (e) { die(e.message); }
 if (first.kind === "hyperframes" && !force) {
   await first.close();
-  die("this is a HyperFrames composition: render it with npx hyperframes render (its renderer is the path this repo measured); --force renders it through the page contract anyway");
+  die("this is a HyperFrames composition: render it with npx hyperframes render (its renderer is the path this repo measured)" +
+    (alpha ? "; transparent: npx hyperframes render --format mov (ProRes 4444)" : "") + "; --force renders it through the page contract anyway");
 }
 if (!(first.duration > 0)) { await first.close(); die("the page gives no duration"); }
 // the frame rate the page is made for: window.film.fps (engines/CONTRACT.md), else canvas-film's settings in a copy made
@@ -126,7 +134,10 @@ const n = k1 - k0;
 if (n <= 0) { await first.close(); die(`no frames in ${frames ? `frames ${frames.join("–")}` : range ? range.join("–") + " s" : "the film"} (it is ${first.duration} s, ${last} frames)`); }
 gop = gop || Math.round(2 * fps);
 const stem = path.basename(first.page, path.extname(first.page));
-const outFile = path.resolve(out || path.join(first.root, "out", `${stem}.mp4`));
+const outFile = path.resolve(out || path.join(first.root, "out", `${stem}.${alpha ? "mov" : "mp4"}`));
+// --alpha: the browser paints no white under the page, so what the page leaves clear is clear in the capture
+const clearBackground = (film) => film.send("Emulation.setDefaultBackgroundColorOverride", { color: { r: 0, g: 0, b: 0, a: 0 } });
+if (alpha) { try { await clearBackground(first); } catch (e) { await first.close(); die(`--alpha: the browser would not take a transparent background (${e.message})`); } }
 try { fs.mkdirSync(path.dirname(outFile), { recursive: true }); } catch (e) { await first.close(); die(`cannot make ${rel(path.dirname(outFile))}: ${e.message}`); }
 // a relative --out is from the current folder; one that lands outside the project (bin/vh run from the harness with
 // --out out/x.mp4) is said in full, as the short form would read as the project's own out/
@@ -175,8 +186,9 @@ process.on("exit", unlock);
 // there) and a chunk's bytes depend on its own frames only, not on how many workers there were or which drew it
 const plan = Array.from({ length: Math.ceil(n / gop) }, (_, i) => [k0 + i * gop, Math.min(k1, k0 + (i + 1) * gop)]);
 const parts = path.join(path.dirname(outFile), `.${path.basename(outFile)}.parts`);
-const kept = (i) => path.join(parts, `part${String(i).padStart(4, "0")}.mp4`);   // a chunk finished clean: kept for a resume
-const isKept = (f) => /^part\d{4,}\.mp4$/.test(f);
+const PEXT = alpha ? "mov" : "mp4";   // the chunks' container: ProRes goes in a .mov
+const kept = (i) => path.join(parts, `part${String(i).padStart(4, "0")}.${PEXT}`);   // a chunk finished clean: kept for a resume
+const isKept = (f) => new RegExp(`^part\\d{4,}\\.${PEXT}$`).test(f);
 const encoders = new Set();
 // after a stop or a failure the finished chunks stay (and plan.json, which says what they were made from); the rest goes
 const keepFinished = () => {
@@ -203,6 +215,13 @@ const x264 = (file) => spawn("ffmpeg", ["-v", "error", "-y", "-f", "image2pipe",
   "-vf", vf, "-c:v", "libx264", "-preset", o.preset, "-crf", String(o.crf), "-g", String(gop), "-keyint_min", String(gop), "-sc_threshold", "0",
   "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-r", String(fps), file], { stdio: ["pipe", "ignore", "pipe"] });
 const capture = png ? { format: "png" } : { format: "jpeg", quality: o.quality };
+// --alpha: PNG frames with their alpha into ProRes 4444 (every frame a keyframe; the chunks stay a GOP long for the
+// workers and a resume), 4:4:4 with a 16-bit alpha, BT.709 limited range with all four tags
+const VFA = `${EVEN},scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuva444p10le,setparams=${COLOR}`;
+const prores = (file) => spawn("ffmpeg", ["-v", "error", "-y", "-f", "image2pipe", "-framerate", String(fps), "-c:v", "png", "-i", "-",
+  "-vf", VFA, "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", "-alpha_bits", "16", "-vendor", "apl0",
+  "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-r", String(fps), file], { stdio: ["pipe", "ignore", "pipe"] });
+const encoder = alpha ? prores : x264;
 
 // ---- what the chunks are made from: a resume takes the finished ones only while all of it is the same ----
 const sha = (f) => {
@@ -212,7 +231,7 @@ const sha = (f) => {
 };
 const recipe = {
   page: fs.realpathSync(first.page), kind: first.kind, width: first.width, height: first.height, dpr: o.dpr, fps, frames: [k0, k1], gop,
-  capture: png ? "png" : `jpeg q${o.quality}`, crf: o.crf, preset: o.preset, vf, real_clock: !!o.realClock, soft_gl: !!o.softGl, browser: first.version,
+  capture: png ? "png" : `jpeg q${o.quality}`, crf: o.crf, preset: o.preset, vf: alpha ? VFA : vf, alpha, real_clock: !!o.realClock, soft_gl: !!o.softGl, browser: first.version,
   ffmpeg: (spawnSync("ffmpeg", ["-version"], { encoding: "utf8" }).stdout || "").split("\n")[0],
   tools: crypto.createHash("sha256").update(["render.mjs", "host.mjs", "clock.js", "glyphs.mjs"].map((f) => sha(path.join(HERE, f))).join()).digest("hex"),
 };
@@ -246,7 +265,7 @@ const todo = plan.map((_, i) => i).filter((i) => !reuse.has(i)), nTodo = todo.re
 // page) to 0.4 (4K 3D with grain): refuse only when even 0.01 does not fit, say so when 0.06–0.4 might not and nothing
 // measured it (the estimate below measures it)
 const keptBytes = [...reuse].reduce((s, i) => s + fs.statSync(kept(i)).size, 0), free = freeOnDisk();
-const peak = (bpp) => keptBytes + 2 * px[0] * px[1] * nTodo * bpp / 8;
+const peak = (bpp) => keptBytes + 2 * px[0] * px[1] * nTodo * (alpha ? 25 * bpp : bpp) / 8;   // ProRes 4444: 1–12 bits a pixel, about 25 times x264's
 const peakOf = reuse.size ? `the ${nTodo} frames left to draw and the joined copy (${reuse.size} chunks kept, ${gb(keptBytes)} GB)` : `${n} frames`;
 if (peak(0.01) > free) {
   await first.close(); keepFinished();
@@ -254,7 +273,7 @@ if (peak(0.01) > free) {
 }
 const W = Math.min(o.workers, todo.length);
 console.log(`render: ${rel(first.page)} · ${first.kind === "film" ? "window.film" : first.kind} · ${first.width}x${first.height}${o.dpr !== 1 ? ` @${o.dpr}x` : ""} · ` +
-  `${n} frames at ${fps} fps (${(k0 / fps).toFixed(3)}–${(k1 / fps).toFixed(3)} s) · ${plan.length} chunk${plan.length > 1 ? "s" : ""}, ${W} worker${W === 1 ? "" : "s"} · ${png ? "PNG" : `JPEG q${o.quality}`} → x264 crf ${o.crf} ${o.preset}, keyframe every ${gop} · ${first.version}`);
+  `${n} frames at ${fps} fps (${(k0 / fps).toFixed(3)}–${(k1 / fps).toFixed(3)} s) · ${plan.length} chunk${plan.length > 1 ? "s" : ""}, ${W} worker${W === 1 ? "" : "s"} · ${alpha ? "PNG with alpha → ProRes 4444 (.mov)" : `${png ? "PNG" : `JPEG q${o.quality}`} → x264 crf ${o.crf} ${o.preset}, keyframe every ${gop}`} · ${first.version}`);
 for (const p of first.loadProblems) console.log(`  while loading: ${p}`);
 if (outside) console.log(`  --out ${out} is from the current folder: ${outFile}, outside the project (${first.root})`);
 if (px[0] % 2 || px[1] % 2) console.log(`  note: ${px[0]}x${px[1]} pixels; x264 needs even sizes, so the video is ${px[0] - px[0] % 2}x${px[1] - px[1] % 2}`);
@@ -286,7 +305,7 @@ if (todo.length && (o.estimate === "on" || (o.estimate === "auto" && nTodo > 600
   } catch (e) { await first.close(); console.error(`render: ${e.message} (drawing the estimate's frames)`); keepFinished(); process.exit(1); }
   first.problems();   // what these frames report, they report again when the render draws them
   const sizes = await Promise.all(runs.map((imgs, j) => new Promise((ok) => {
-    const f = path.join(parts, `estimate${j}.mp4`), ff = x264(f);
+    const f = path.join(parts, `estimate${j}.${PEXT}`), ff = encoder(f);
     encoders.add(ff); ff.stdin.on("error", () => {}); ff.stderr.resume();
     for (const img of imgs) ff.stdin.write(img);
     ff.stdin.end();
@@ -321,7 +340,7 @@ progress.unref();
 // one chunk into its own encoder; → { encoded: a promise that settles once the encoder is done with it } (the browser goes
 // on to the next chunk meanwhile). A chunk is kept for a resume only when every frame went in and the page reported nothing
 async function chunk(film, i) {
-  const [a, b] = plan[i], file = path.join(parts, `part${String(i).padStart(4, "0")}.new.mp4`), ff = x264(file);
+  const [a, b] = plan[i], file = path.join(parts, `part${String(i).padStart(4, "0")}.new.${PEXT}`), ff = encoder(file);
   encoders.add(ff);
   let ffErr = ""; ff.stderr.on("data", (d) => { ffErr = (ffErr + d).slice(-2000); });
   const closed = new Promise((ok) => ff.on("close", (code, sig) => ok(code ?? sig)));
@@ -352,7 +371,7 @@ async function worker(w) {
   let film = w === 0 ? first : null;
   const encoding = [];
   try {
-    if (!film) film = await openFilm(target, { ...o, runtime: "auto", prelude: [HOOK] });
+    if (!film) { film = await openFilm(target, { ...o, runtime: "auto", prelude: [HOOK] }); if (alpha) await clearBackground(film); }
     while (!failed && next < todo.length) encoding.push((await chunk(film, todo[next++])).encoded);
   } catch (e) { failWith(e.message); }
   await Promise.all(encoding);
@@ -393,7 +412,9 @@ const sidecar = {
   })(),
   kind: first.kind, width: first.width, height: first.height, dpr: o.dpr, pixels: [st.width, st.height], fps, frames: n,
   span: [+(k0 / fps).toFixed(6), +(k1 / fps).toFixed(6)], first_frame: k0, capture: png ? "png" : `jpeg q${o.quality}`,
-  encoder: { codec: "libx264", crf: o.crf, preset: o.preset, gop, keyint_min: gop, sc_threshold: 0, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] },
+  encoder: alpha ? { codec: "prores_ks", profile: "4444", alpha_bits: 16, crf: o.crf, preset: o.preset, gop, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] }
+    : { codec: "libx264", crf: o.crf, preset: o.preset, gop, keyint_min: gop, sc_threshold: 0, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] },
+  ...(alpha ? { alpha: true } : {}),
   chunks: plan.map(([a, b]) => [a, b]), reused_chunks: reuse.size, browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl, seconds: +secs.toFixed(1),
   ...(pageShots.length ? { shots: pageShots } : {}), ...(pageChapters.length ? { chapters: pageChapters } : {}),
   // the files the page loaded (plan.json's table, which goes with the parts): those in the page's folder, from it, sorted
@@ -402,7 +423,19 @@ const sidecar = {
 };
 const sideTmp = joined + ".render.json";
 fs.writeFileSync(sideTmp, JSON.stringify(sidecar, null, 1) + "\n");
-const okCount = +st.nb_frames === n, okColor = st.pix_fmt === "yuv420p" && st.color_range === "tv" && st.color_space === "bt709";
+// ProRes keeps the matrix, primaries and transfer but no range flag, and reads back as 4:4:4 with alpha at 12 bits
+const okColor = alpha ? /^yuva444p/.test(st.pix_fmt || "") && st.color_space === "bt709" && st.color_primaries === "bt709" && st.color_transfer === "bt709"
+  : st.pix_fmt === "yuv420p" && st.color_range === "tv" && st.color_space === "bt709";
+const okCount = +st.nb_frames === n;
+// --alpha: is anything clear? a few frames decoded with their alpha; all opaque means the page paints its own background
+let clear = null;
+if (alpha && okCount) {
+  clear = 0;
+  for (const k of [...new Set([0, Math.floor(n / 2), n - 1])]) {
+    const r = spawnSync("ffmpeg", ["-v", "error", "-i", joined, "-vf", `select=eq(n\\,${k})`, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgba", "-"], { maxBuffer: 1 << 30 });
+    if (r.status === 0) for (let i = 3; i < r.stdout.length; i += 4) if (r.stdout[i] < 250) { clear++; break; }
+  }
+}
 // the new film in place: the one it replaces kept as an earlier version first (tools/film/versions.mjs)
 const ver = commit({ film: outFile, new: joined, new_sidecar: sideTmp, made_by: "render", note, changed: { whole: true },
   problems: problems.length + (okCount ? 0 : 1) + (okColor ? 0 : 1) });
@@ -426,6 +459,7 @@ for (const p of problems) console.log(`  ${p}`);
     `${n - nTodo} frames of the ${reuse.size} kept chunk(s) were drawn by the render that stopped, before its check (bin/vh fonts check covers the whole film)`);
 }
 if (!okCount) console.log(`  the video has ${st.nb_frames} frames, not ${n}`);
-if (!okColor) console.log(`  the colour tags are not yuv420p tv/bt709`);
+if (!okColor) console.log(`  the colour tags are not ${alpha ? "4:4:4 with alpha, bt709" : "yuv420p tv/bt709"}`);
+if (clear === 0) console.log("  --alpha: every pixel of the frames looked at is opaque: the page paints its own background (a full canvas, a body colour). Leave clear what should show through");
 if (problems.length || !okCount || !okColor || placed !== outFile) process.exit(1);
 if (!process.env.OVH_RENDER_PIECE) console.log("render: done · the sound goes on with bin/vh mux");   // a piece of bin/vh patch is a step (patch sets it): patch says when it is done

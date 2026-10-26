@@ -206,6 +206,7 @@ bin/vh readcheck <项目> --export              # 只导出 window.film.texts �
 bin/vh readcheck <项目> --out /tmp/reads.json  # 保存到指定文件，再检查；加 --export 就只导出
 bin/vh determinism <项目>                     # 同几个时刻换顺序画、换进程画，看是不是 t 的纯函数
 bin/vh render <项目> [--dpr 2]                # 成片画面：<项目>/out/film.mp4（--dpr 2 是 4K），没有声音
+bin/vh render <项目> --alpha                  # 透明底：ProRes 4444 带 alpha 的 out/film.mov，叠到实拍上、拖进剪辑软件用；页面自己留空的地方才透明（画面铺满了会提醒）
 bin/vh patch <项目>/out/film.mp4 --seconds 142.2-159.2   # 只重画改过的一镜，接回成片（片子要是 bin/vh render 出的，旁边有 .render.json）
 bin/vh patch <项目>/out/film.mp4 --shot S04,S05 --in-place   # 按镜头 id 重画（也可 --chapter 2）；一镜一直算到下一镜的转场结束
 bin/vh versions <项目>                        # 每次 render、patch 都是一版；被盖掉的旧片留在 out/versions/

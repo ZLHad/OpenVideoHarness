@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**`bin/vh render --alpha`: a transparent film, to lay over footage**
+- Why: batch 1, line B. `bin/vh render` wrote x264 only, so motion drawn in code could not go over real footage or into an editor (type 09, the B-roll overlays).
+- `--alpha`: each browser's default background is made transparent, frames are captured as PNG with their alpha, and the film is ProRes 4444 with alpha (`prores_ks`, 4:4:4, a 16-bit alpha, BT.709 matrix, primaries and transfer) in a `.mov`, by default `<project>/out/<page>.mov`. Chunks, workers and resuming work as for x264; the disk estimate allows for ProRes's size.
+- What the page paints stays opaque: a page that fills its canvas has nothing to show through, and the render says so after looking at a few frames. An `.mp4` with `--alpha` is refused (it cannot carry the alpha), and `bin/vh patch` refuses an alpha film for now: render the span again.
+- A HyperFrames composition has its own way since 0.8.202, `npx hyperframes render --format mov`; `bin/vh render --alpha` on one says so.
+- CI: a page with a clear background renders over three chunks to ProRes 4444 whose alpha is 0 where nothing is drawn and 255 where something is; the opaque page is told; the `.mp4` and the patch are refused.
+
 **CI: the Linux install step gets past a stalled mirror**
 - Why: on 2026-10-25 and 26 `apt-get install shellcheck ffmpeg` took 10 to 30 minutes instead of half a minute, six times, and two jobs failed at the step's limit. A probe of 40 installs put the time in the download from the runner's regional Azure Ubuntu mirror (westus3 above all); `apt-get update` and dpkg were never slow. GitHub knows it: actions/runner-images#14823, still open.
 - The step now runs `apt-get update` and a download-only install with 60 s each, then dpkg on the files it has. A try that runs over is killed and the next one goes to archive.ubuntu.com instead of the regional mirror; what was downloaded is kept. Up to three tries, then the step fails. In the probe every install that stalled finished in under two minutes.
