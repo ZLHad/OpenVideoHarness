@@ -845,7 +845,13 @@ project_of() { # nearest ancestor of $1 that contains BRIEF.md (a project), else
 cmd_sheet() {
   [ $# -gt 0 ] || { cmd_usage sheet >&2; exit 2; }
   local v=$1 cols=${2:-6} fps=${3:-1} name base why="install uv"; name=$(basename "$v"); name=${name%.*}
-  [ -f "$v" ] || { echo "$c_no bin/vh sheet: no such video: $v" >&2; exit 2; }
+  if [ -d "$v" ]; then   # a folder of pictures (covers): pillow draws it, there is no ffmpeg fallback
+    command -v uv >/dev/null 2>&1 || { echo "$c_no bin/vh sheet: a folder of pictures needs uv (pillow)" >&2; exit 2; }
+    base=$(project_of "$v"); [ -n "$base" ] || base="$(cd "$v" && pwd)"
+    local out=${4:-"$base/out/check/${name}-sheet-$(date +%H%M%S).png"}; mkdir -p "$(dirname "$out")"
+    on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/sheet.py" "$v" "$out" "${2:-5}"; return
+  fi
+  [ -f "$v" ] || { echo "$c_no bin/vh sheet: no such video or folder: $v" >&2; exit 2; }
   base=$(project_of "$v"); [ -n "$base" ] || base="$(cd "$(dirname "$v")" && pwd)"
   local out=${4:-"$base/out/check/${name}-sheet-$(date +%H%M%S).png"}; mkdir -p "$(dirname "$out")"
   if command -v uv >/dev/null 2>&1; then   # timestamped tiles (ffmpeg builds often lack drawtext)
