@@ -449,12 +449,12 @@ def cmd_prices(a):
     return 0
 
 
-def paid_call(h, estimate, url, body, opener):
+def paid_call(h, estimate, url, body, opener, timeout=180):
     """post_json under a hold h: an HTTP error answer (status 4xx/5xx) and a request that never left (refused, no such
     host) settle at 0; a timeout, a reset or an answer that cannot be read leave the hold at the estimate, as such a
     call may have been billed. → the answer."""
     try:
-        return fetch.post_json(url, body, opener, secret={"x-goog-api-key": os.environ.get("GEMINI_API_KEY", "")})
+        return fetch.post_json(url, body, opener, secret={"x-goog-api-key": os.environ.get("GEMINI_API_KEY", "")}, timeout=timeout)
     except fetch.FetchError as e:
         if (e.status or 0) >= 400 or not e.sent:
             h.settle(0)
