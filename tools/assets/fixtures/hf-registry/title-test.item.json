@@ -1,0 +1,4 @@
+{"name": "title-test", "type": "hyperframes:block", "title": "Title Test", "description": "A synthetic title block that needs grain-test",
+ "tags": ["title", "test"], "license": "MIT", "author": "CI", "duration": 3, "dimensions": {"width": 1920, "height": 1080},
+ "registryDependencies": ["grain-test"],
+ "files": [{"path": "title-test.html", "target": "compositions/title-test.html", "type": "hyperframes:composition"}]}

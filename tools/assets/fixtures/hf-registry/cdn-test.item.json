@@ -1,0 +1,4 @@
+{"name": "cdn-test", "type": "hyperframes:component", "title": "CDN Test", "description": "A synthetic component with a file from elsewhere",
+ "tags": ["test", "texture"],
+ "files": [{"path": "cdn-test.html", "target": "compositions/components/cdn-test.html", "type": "hyperframes:snippet"},
+           {"path": "noise.png", "url": "https://example.org/cdn/noise.png", "target": "assets/noise.png", "type": "hyperframes:asset"}]}

@@ -3397,6 +3397,121 @@ PY
   rm -rf "$t"
 }
 
+hf_checks() {   # bin/vh hf (tools/hf.py): HyperFrames' registry at the pin's tag, from a synthetic registry recorded under
+  # the tag v0.0.0-ci (tools/assets/fixtures/hf-registry; HYPERFRAMES_VERSION points the tool there), no network
+  local t p F a b c rc rc2 rc3
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); F="$ROOT/tools/assets/fixtures/hf-registry"
+  a=$(HYPERFRAMES_VERSION=0.0.0-ci vh hf catalog --offline "$F" --json 2>/dev/null); rc=$?
+  b=$(HYPERFRAMES_VERSION=0.0.0-ci vh hf catalog grain --offline "$F" 2>&1); c=$(HYPERFRAMES_VERSION=0.0.0-ci vh hf catalog --tag texture --type component --offline "$F" 2>&1)
+  if [ $rc = 0 ] && python3 -c 'import json,sys; d=json.loads(sys.argv[1]); n=sorted(i["name"] for i in d["items"]); sys.exit(0 if n==["cdn-test","grain-test","title-test"] and d["registry"].endswith("/v0.0.0-ci/registry") and d["pin"]=="0.0.0-ci" else 1)' "$a" \
+     && case "$b" in *"title-test"*"grain-test"*"2 of 3"*) true ;; *) false ;; esac \
+     && case "$c" in *"cdn-test"*"grain-test"*"2 of 3"*) ! printf '%s' "$c" | grep -q title-test ;; *) false ;; esac
+  then ok "hf catalog: the registry at the pin's tag, examples left out; words, --tag and --type filter; --json"
+  else bad "hf catalog: $a | $b | $c"; fi
+  # the registry read: an item that answers 429 is read once more, then the read is cut short with what it had kept;
+  # the next read takes only the rest (a stand-in opener, no network, no pause)
+  if a=$(python3 - "$t/cache" <<'PY' 2>&1
+import json, os, sys
+sys.path.insert(0, "tools"); sys.path.insert(0, "tools/assets")
+import fetch, hf
+hf.time.sleep = lambda s: None
+os.environ["XDG_CACHE_HOME"] = sys.argv[1]
+class R:
+    def __init__(self, body): self.body = body.encode()
+    def read(self, n=-1): return self.body
+    def close(self): pass
+class Opener:
+    def __init__(self, bad=()): self.bad, self.calls = set(bad), []
+    def open(self, url, headers=None, timeout=60):
+        self.calls.append(url)
+        if url.endswith("/registry.json"):
+            return R(json.dumps({"items": [{"name": n, "type": "hyperframes:block"} for n in ("a-one", "b-two", "c-three")]}))
+        name = url.rsplit("/", 2)[-2]
+        if name in self.bad:
+            raise fetch.FetchError(f"{url}: HTTP 429 Too Many Requests")
+        return R(json.dumps({"name": name, "type": "hyperframes:block", "title": name}))
+v, bad, good = "9.9.9-ci", Opener({"b-two"}), Opener()
+try:
+    hf.load_registry(v, bad)
+    sys.exit("a 429 that stays did not stop the read")
+except fetch.FetchError as e:
+    msg = str(e)
+part = sorted(i["name"] for i in json.load(open(hf.partial_file(v)))["items"])
+items = [i["name"] for i in hf.load_registry(v, good)]
+again = [u.rsplit("/", 2)[-2] for u in good.calls if u.endswith("registry-item.json")]
+tried = sum(u.endswith("/b-two/registry-item.json") for u in bad.calls)
+ok = ("1 of 3 items" in msg and "kept" in msg and tried == 2 and part == ["a-one", "c-three"] and again == ["b-two"]
+      and items == ["a-one", "b-two", "c-three"] and not hf.partial_file(v).exists() and hf.cache_file(v).exists())
+print(msg if ok else f"{msg} | partial {part} | read again {again} | tried b-two {tried} | {items}")
+sys.exit(0 if ok else 1)
+PY
+  ); then ok "hf catalog's read: a 429 is tried once more, a read cut short keeps what it read and the next one reads only the rest"
+  else bad "hf registry read with a 429: $a"; fi
+  # add: dependencies first, hyperframes.json pointed at the tag, the files on the ledger with the item's licence (the
+  # repository's Apache-2.0 when it names none), the scan's warnings; a file from elsewhere with no licence is unknown
+  p="$t/p"; mkdir -p "$p"; printf '# BRIEF\n' > "$p/BRIEF.md"; printf '<!doctype html><div data-composition-id="main"></div>\n' > "$p/index.html"
+  printf '{"registry": "https://raw.githubusercontent.com/heygen-com/hyperframes/main/registry"}\n' > "$p/hyperframes.json"
+  a=$(HYPERFRAMES_VERSION=0.0.0-ci vh hf add "$p" title-test --offline "$F" --json 2>/dev/null); rc=$?
+  if [ $rc = 0 ] && python3 - "$p" "$a" <<'PY'
+import json, sys
+p, d = sys.argv[1], json.loads(sys.argv[2])
+cfg = json.load(open(f"{p}/hyperframes.json", encoding="utf-8"))
+recs = {r["path"]: r for r in json.load(open(f"{p}/assets/ledger.json", encoding="utf-8"))["assets"]}
+g, b = recs.get("compositions/components/grain-test.html"), recs.get("compositions/title-test.html")
+what = sorted({h["what"] for hs in d["scan"].values() for h in hs})
+notes = all(hs[0]["what"] in (recs.get(at) or {}).get("note", "") for at, hs in d["scan"].items() if at in recs)
+ok = (cfg["registry"].endswith("/v0.0.0-ci/registry") and [x["name"] for x in cfg["registryItems"]] == ["grain-test", "title-test"]
+      and d["installed"] == ["grain-test", "title-test"] and g and b and g["license"]["class"] == "free" and g["license"]["name"] == "Apache-2.0"
+      and b["license"]["name"] == "MIT" and b["source"]["provider"] == "hyperframes-registry" and b["source"]["file_url"].endswith("/blocks/title-test/title-test.html")
+      and what == ["CSS @keyframes", "CSS animation", "Math.random", "loads from the network"] and d["snippet"].startswith('<div data-composition-src="compositions/title-test.html"')
+      and "Apache-2.0 presumed" in g.get("note", "") and "presumed" not in b.get("note", "") and notes)
+sys.exit(0 if ok else 1)
+PY
+  then ok "hf add --offline: its dependency first, hyperframes.json pinned to the tag, each file on the ledger (MIT, or the repository's Apache-2.0, said to be presumed), the clock and network lines warned and noted on the file's record"
+  else bad "hf add --offline (exit $rc): $a"; fi
+  a=$(HYPERFRAMES_VERSION=0.0.0-ci vh hf add "$p" cdn-test --offline "$F" 2>&1); rc=$?
+  b=$(vh assets check "$p" 2>&1); rc2=$?
+  case "$rc:$rc2:$a:$b" in 0:1:*"assets/noise.png  unknown"*:*"noise"*"unknown"*) ok "hf add: a file the item fetches from elsewhere, with no licence named, is unknown on the ledger; assets check (strict) fails on it" ;;
+    *) bad "hf add of a file from elsewhere ($rc, $rc2): $a | $b" ;; esac
+  printf '<!-- edited -->\n' >> "$p/compositions/components/grain-test.html"
+  a=$(HYPERFRAMES_VERSION=0.0.0-ci vh hf add "$p" grain-test --offline "$F" 2>&1); rc=$?
+  b=$(HYPERFRAMES_VERSION=0.0.0-ci vh hf add "$p" grain-test --offline "$F" --force 2>&1); rc2=$?
+  if [ "$rc:$rc2" = "0:0" ] && grep -q edited <<<"$a" && ! grep -q edited "$p/compositions/components/grain-test.html" && python3 - "$p" <<'PY'
+import hashlib, json, sys
+p = sys.argv[1]; f = "compositions/components/grain-test.html"
+r = next(x for x in json.load(open(f"{p}/assets/ledger.json", encoding="utf-8"))["assets"] if x["path"] == f)
+sys.exit(0 if r["sha256"] == hashlib.sha256(open(f"{p}/{f}", "rb").read()).hexdigest() else 1)
+PY
+  then ok "hf add keeps a file edited since it was installed; --force writes it again and updates its record"
+  else bad "hf add over an edited file ($rc, $rc2): $a | $b"; fi
+  a=$(HYPERFRAMES_VERSION=0.0.0-ci vh hf add "$p" demo-test --offline "$F" 2>&1); rc=$?
+  b=$(HYPERFRAMES_VERSION=0.0.0-ci vh hf add "$p" no-such --offline "$F" 2>&1); rc2=$?
+  c=$(HYPERFRAMES_VERSION=0.0.0-ci vh hf add "$p" title-test --offline "$F" --vars '{"a": 1}' 2>&1); rc3=$?
+  case "$rc:$rc2:$rc3:$a:$b" in 2:2:2:*"an example"*:*"no 'no-such'"*) ok "hf add: an example, a name the registry lacks and --vars offline are usage errors (exit 2)" ;;
+    *) bad "hf add refusals ($rc, $rc2, $rc3): $a | $b | $c" ;; esac
+  # online, HyperFrames' own add runs: its --json read (a stand-in prints what 0.8.202 prints), its files recorded
+  mkdir -p "$p/node_modules/.bin"
+  cat > "$p/node_modules/.bin/hyperframes" <<'SH'
+#!/bin/sh
+mkdir -p compositions/components && printf '<div id="x"></div>\n' > compositions/components/stand-in.html
+printf '{"ok":true,"name":"grain-test","type":"hyperframes:component","written":["%s/compositions/components/stand-in.html"],"preserved":[],"installed":["grain-test"],"snippet":"<!-- paste -->","warnings":["a warning of its own"]}\n' "$PWD"
+SH
+  chmod +x "$p/node_modules/.bin/hyperframes"
+  if a=$(cd "$ROOT/tools" && python3 - "$p" "$F" <<'PY'
+import sys
+import hf, fetch
+p, F = hf.Path(sys.argv[1]), sys.argv[2]
+res, v = hf.install_online(p, "grain-test", "0.0.0-ci", False, None)
+plan = hf.resolve("grain-test", hf.registry_of("0.0.0-ci"), fetch.Replay(F))
+recs = hf.record(p, res["written"], plan, hf.registry_of("0.0.0-ci"), "0.0.0-ci")
+ok = res["warnings"] == ["a warning of its own"] and [r["path"] for r in recs] == ["compositions/components/stand-in.html"] and v is None
+print(res, recs); sys.exit(0 if ok else 1)
+PY
+  ); then ok "hf add online: HyperFrames' own add runs in the project (its own CLI), its --json is read and what it wrote goes on the ledger"
+  else bad "hf add online with a stand-in CLI: $a"; fi
+  rm -rf "$t"
+}
+
 status_checks() {
   local t p q a b c d e k rc rc2
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
@@ -5033,11 +5148,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; scout_checks; textcheck_checks; film_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; hf_checks; scout_checks; textcheck_checks; film_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; scout_checks; textcheck_checks; film_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; hf_checks; scout_checks; textcheck_checks; film_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these
