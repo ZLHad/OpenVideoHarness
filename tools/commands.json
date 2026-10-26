@@ -296,86 +296,6 @@
       ]
     },
     {
-      "name": "assets",
-      "summary": "The project's material, one record a file in assets/ledger.json: register a file or download one, list the records with the spend against the budget, check the files and their licences, print the credits.",
-      "when": "a file a film uses comes in (downloaded, generated, bought or made), before a delivery (check, credits), or to see what is spent against the budget",
-      "stages": ["1", "8", "9"],
-      "reads": [
-        "<project>/assets/ledger.json",
-        "<project>/assets/genclips/<id>/ledger.json (a generated clip's, in the shape before v1)",
-        "<project>/assets/spend.jsonl",
-        "<project>/BRIEF.md (Budget, Assets), LOCAL.md (默认预算, 素材许可)",
-        "the files on record (check: their sha256)",
-        "a URL (add <url>; --offline <folder>: its recorded response)",
-        "the films' <film>.render.json (files) and <mix>.mix.json (check: what the pages and mixes used)"
-      ],
-      "writes": [
-        "<project>/assets/ledger.json (add, remove)",
-        "<project>/assets/spend.jsonl (add --cost)",
-        "<project>/assets/<its name> (add <url>, or --to)",
-        "the credits file (credits --out f)"
-      ],
-      "usage": [
-        {
-          "synopsis": "assets [list] <project> [--json]",
-          "text": [
-            "the project's material, one record a file in assets/ledger.json (tools/assets): where it came from, its licence and",
-            "the class it falls in, its sha256, AIGC, model, prompt, seed, cost; list ends with the spend against the BRIEF's Budget",
-            "(assets/spend.jsonl; no budget, no paid call)"
-          ]
-        },
-        {
-          "synopsis": "assets add <project> <file|folder|url> [--license L] [--origin O] [--source-url U] [--author A] [--aigc] [--model M] [--cost \"$0.04\"] … [--update] [--json]",
-          "text": [
-            "add downloads a URL first (resumable, --sha256, --rate, --offline)"
-          ]
-        },
-        {
-          "synopsis": "assets check <project> [--policy strict|record] [--film <video> | --all-films] [--json]",
-          "text": [
-            "check: each file there and unchanged, its licence one the BRIEF's Assets policy takes (strict:",
-            "NC, ND, BY-SA and unknown fail; record: listed), then both ways against the films (each .render.json lists the files",
-            "its page loaded; the newest film of each page) and the mixes: material a page loaded that the ledger lacks fails,",
-            "a record nothing uses is said"
-          ]
-        },
-        {
-          "synopsis": "assets credits <project> [--lang zh|en] [--out f] [--json]",
-          "text": [
-            "credits: the credit lines and the AI-content notice"
-          ]
-        },
-        {
-          "synopsis": "assets remove <project> <id> [--why text]",
-          "text": [
-            "remove: the record marked removed, kept on record and in the spend, out of check and credits"
-          ]
-        }
-      ],
-      "subcommands": [
-        {
-          "name": "list",
-          "summary": "the records, the licence policy and the spend against the budget"
-        },
-        {
-          "name": "add",
-          "summary": "register a file or a folder, or download a URL and register it"
-        },
-        {
-          "name": "check",
-          "summary": "each file there and unchanged, its licence against the Assets policy"
-        },
-        {
-          "name": "credits",
-          "summary": "the credit lines and the AI-content notice"
-        },
-        {
-          "name": "remove",
-          "summary": "mark a record removed, kept on record"
-        }
-      ]
-    },
-    {
       "name": "footage",
       "summary": "Real footage and pictures from Internet Archive, Wikimedia Commons and NASA: search with each result's licence class, get one (whole, or only the seconds needed) as a clip folder on record in the ledger, a sync table for several cameras of one event, frames baked by the film's frame numbers.",
       "when": "a film made of archival or public-domain footage (a launch countdown, a newsreel), or a real picture instead of a drawn one",
@@ -457,6 +377,86 @@
         {
           "name": "frames",
           "summary": "frames baked by the film's frame numbers"
+        }
+      ]
+    },
+    {
+      "name": "assets",
+      "summary": "The project's material, one record a file in assets/ledger.json: register a file or download one, list the records with the spend against the budget, check the files and their licences, print the credits.",
+      "when": "a file a film uses comes in (downloaded, generated, bought or made), before a delivery (check, credits), or to see what is spent against the budget",
+      "stages": ["1", "8", "9"],
+      "reads": [
+        "<project>/assets/ledger.json",
+        "<project>/assets/genclips/<id>/ledger.json (a generated clip's, in the shape before v1)",
+        "<project>/assets/spend.jsonl",
+        "<project>/BRIEF.md (Budget, Assets), LOCAL.md (默认预算, 素材许可)",
+        "the files on record (check: their sha256)",
+        "a URL (add <url>; --offline <folder>: its recorded response)",
+        "the films' <film>.render.json (files) and <mix>.mix.json (check: what the pages and mixes used)"
+      ],
+      "writes": [
+        "<project>/assets/ledger.json (add, remove)",
+        "<project>/assets/spend.jsonl (add --cost)",
+        "<project>/assets/<its name> (add <url>, or --to)",
+        "the credits file (credits --out f)"
+      ],
+      "usage": [
+        {
+          "synopsis": "assets [list] <project> [--json]",
+          "text": [
+            "the project's material, one record a file in assets/ledger.json (tools/assets): where it came from, its licence and",
+            "the class it falls in, its sha256, AIGC, model, prompt, seed, cost; list ends with the spend against the BRIEF's Budget",
+            "(assets/spend.jsonl; no budget, no paid call)"
+          ]
+        },
+        {
+          "synopsis": "assets add <project> <file|folder|url> [--license L] [--origin O] [--source-url U] [--author A] [--aigc] [--model M] [--cost \"$0.04\"] … [--update] [--json]",
+          "text": [
+            "add downloads a URL first (resumable, --sha256, --rate, --offline)"
+          ]
+        },
+        {
+          "synopsis": "assets check <project> [--policy strict|record] [--film <video> | --all-films] [--json]",
+          "text": [
+            "check: each file there and unchanged, its licence one the BRIEF's Assets policy takes (strict:",
+            "NC, ND, BY-SA and unknown fail; record: listed), then both ways against the films (each .render.json lists the files",
+            "its page loaded; the newest film of each page) and the mixes: material a page loaded that the ledger lacks fails,",
+            "a record nothing uses is said"
+          ]
+        },
+        {
+          "synopsis": "assets credits <project> [--lang zh|en] [--out f] [--json]",
+          "text": [
+            "credits: the credit lines and the AI-content notice"
+          ]
+        },
+        {
+          "synopsis": "assets remove <project> <id> [--why text]",
+          "text": [
+            "remove: the record marked removed, kept on record and in the spend, out of check and credits"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "list",
+          "summary": "the records, the licence policy and the spend against the budget"
+        },
+        {
+          "name": "add",
+          "summary": "register a file or a folder, or download a URL and register it"
+        },
+        {
+          "name": "check",
+          "summary": "each file there and unchanged, its licence against the Assets policy"
+        },
+        {
+          "name": "credits",
+          "summary": "the credit lines and the AI-content notice"
+        },
+        {
+          "name": "remove",
+          "summary": "mark a record removed, kept on record"
         }
       ]
     },

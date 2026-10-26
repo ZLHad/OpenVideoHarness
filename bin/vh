@@ -1073,8 +1073,8 @@ cmd_mix() { # a mix profile computes in numpy/scipy (through uv); the default ch
 cmd_qa() { on_ctrl_c uv run -q --no-project --with librosa python "$ROOT/tools/audio/qa.py" "$@"; }
 cmd_mux() { python3 "$ROOT/tools/audio/mux.py" "$@"; }   # verifies a tracked mix; deliberate duration changes need a flag
 
-cmd_assets() { [ $# -gt 0 ] || { cmd_usage assets >&2; exit 2; }; python3 "$ROOT/tools/assets/assets.py" "$@"; }   # stdlib only
 cmd_footage() { [ $# -gt 0 ] || { cmd_usage footage >&2; exit 2; }; python3 "$ROOT/tools/assets/footage.py" "$@"; }   # stdlib and ffmpeg
+cmd_assets() { [ $# -gt 0 ] || { cmd_usage assets >&2; exit 2; }; python3 "$ROOT/tools/assets/assets.py" "$@"; }   # stdlib only
 cmd_deliver() { [ $# -gt 0 ] || { cmd_usage deliver >&2; exit 2; }; python3 "$ROOT/tools/deliver.py" "$@"; }   # ffmpeg only
 cmd_clean() { [ $# -gt 0 ] || { cmd_usage clean >&2; exit 2; }; python3 "$ROOT/tools/clean.py" "$@"; }         # stdlib only
 cmd_gif() {
@@ -1099,8 +1099,8 @@ case "${1:-}" in   # the activity log: every command that works on a project (ac
   ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|new) ;;   # (new: once the project is made)
   desk) [ "${2:-}" = data ] || act_start "$@" || true ;;
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
-  assets) case "${2:-}" in add|remove|credits) act_start "$@" || true ;; esac ;;   # list and check only read
   footage) case "${2:-}" in get|sync|frames) act_start "$@" || true ;; esac ;;   # search, files and list only read
+  assets) case "${2:-}" in add|remove|credits) act_start "$@" || true ;; esac ;;   # list and check only read
   *) act_start "$@" || true ;;
 esac
 
@@ -1109,8 +1109,8 @@ case "${1:-help}" in
   tts) shift; cmd_tts "$@" ;; pace) shift; cmd_pace "$@" ;; voices) shift; cmd_voices "$@" ;; captions) shift; cmd_captions "$@" ;; timeline) shift; cmd_timeline "$@" ;; remap) shift; cmd_remap "$@" ;; timemap) shift; cmd_timemap "$@" ;; music) shift; cmd_music "$@" ;; sfx) shift; cmd_sfx "$@" ;; beats) shift; cmd_beats "$@" ;; mix) shift; cmd_mix "$@" ;; qa) shift; cmd_qa "$@" ;; mux) shift; cmd_mux "$@" ;;
   install-skill) shift; cmd_install_skill "$@" ;;
   recipes) shift; python3 "$ROOT/tools/recipes.py" "$@" ;;
-  assets) shift; cmd_assets "$@" ;;
   footage) shift; cmd_footage "$@" ;;
+  assets) shift; cmd_assets "$@" ;;
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
   gate) shift; cmd_gate "$@" ;;
