@@ -563,7 +563,8 @@
           "synopsis": "breakdown <video> [--out DIR] [--fps 30] [--beats auto|off|beats.json] [--json]",
           "text": [
             "the change per frame, the transitions, the cuts against the beat grid, the contact strips, the segments' keyframes",
-            "and heat maps, and swap.md (the timing to keep, the content to swap); bin/vh breakdown -h has breakdown.json"
+            "and heat maps, and swap.md (the timing to keep, the content to swap); bin/vh breakdown -h has breakdown.json.",
+            "The first --beats auto run downloads librosa through uv (--beats off stays offline)"
           ]
         }
       ]

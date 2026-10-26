@@ -1,6 +1,8 @@
-"""bin/vh breakdown: a reference film taken apart in one command: playbook/07's frame grabbing and first layers. Its
-frame-to-frame change, where each transition starts, how the cuts sit on the music's beat grid, a contact strip of
-each transition, each segment's keyframe and where its motion is, and a "what to swap" table to fill in.
+"""bin/vh breakdown: a reference film taken apart in one command. Its first run with --beats auto (the default when the
+film has sound and uv is here) downloads librosa through uv, over the network, unless uv has it cached; --beats off
+stays offline. playbook/07's frame grabbing and first layers: the film's frame-to-frame change, where each transition
+starts, how the cuts sit on the music's beat grid, a contact strip of each transition, each segment's keyframe and
+where its motion is, and a "what to swap" table to fill in.
 
 usage: bin/vh breakdown <video> [--out DIR] [--fps 30] [--beats auto|off|beats.json] [--json]
 
