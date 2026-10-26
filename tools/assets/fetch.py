@@ -305,6 +305,10 @@ def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries
                     h.update(b)
                     hashed += len(b)
                     got += len(b)
+                    if max_bytes and hashed > max_bytes:   # no Content-Length said so (or it was wrong): the bytes do
+                        f.close()
+                        part.unlink(missing_ok=True)
+                        raise FetchError(f"{redact(url)}: more than the {size_of(max_bytes)} cap, with no length said first: stopped, nothing kept")
                     if rate:   # ahead of the average the rate allows: wait until it is caught up
                         ahead = got / rate - (time.monotonic() - t0)
                         if ahead > 0:

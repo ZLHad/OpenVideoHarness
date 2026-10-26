@@ -1,0 +1,38 @@
+{
+ "success": true,
+ "data": {
+  "cards": [
+   {
+    "component": "hotList",
+    "topContent": [
+     {
+      "word": "置顶的一条",
+      "rawUrl": "https://www.baidu.com/s?wd=a",
+      "desc": "合成的置顶条目"
+     }
+    ],
+    "content": [
+     {
+      "word": "救护车为什么变调",
+      "hotScore": "4920000",
+      "index": 0,
+      "rawUrl": "https://www.baidu.com/s?wd=b",
+      "desc": "一个合成的热搜"
+     },
+     {
+      "word": "第二条热搜",
+      "hotScore": "3810000",
+      "index": 1,
+      "rawUrl": "https://www.baidu.com/s?wd=c"
+     },
+     {
+      "word": "第三条热搜",
+      "hotScore": "2200000",
+      "index": 2,
+      "rawUrl": "https://www.baidu.com/s?wd=d"
+     }
+    ]
+   }
+  ]
+ }
+}

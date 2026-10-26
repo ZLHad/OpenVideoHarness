@@ -1,0 +1,149 @@
+{
+ "code": 200,
+ "results": [
+  {
+   "type": "status",
+   "id": "1000000000000000001",
+   "url": "https://x.com/exampleacct/status/1000000000000000001",
+   "text": "A siren, slowed down 15×",
+   "author": {
+    "screen_name": "exampleacct",
+    "name": "Example Account",
+    "url": "https://x.com/exampleacct",
+    "followers": 25000
+   },
+   "replies": 260,
+   "reposts": 650,
+   "likes": 5200,
+   "bookmarks": 520,
+   "quotes": 130,
+   "created_timestamp": 1792827200,
+   "views": 410000,
+   "reposted_by": null,
+   "media": {
+    "all": [
+     {
+      "type": "photo",
+      "url": "https://pbs.twimg.com/media/example1.jpg"
+     }
+    ]
+   }
+  },
+  {
+   "type": "status",
+   "id": "1000000000000000002",
+   "url": "https://x.com/exampleacct/status/1000000000000000002",
+   "text": "Notes on wave fronts",
+   "author": {
+    "screen_name": "exampleacct",
+    "name": "Example Account",
+    "url": "https://x.com/exampleacct",
+    "followers": 25000
+   },
+   "replies": 15,
+   "reposts": 38,
+   "likes": 310,
+   "bookmarks": 31,
+   "quotes": 7,
+   "created_timestamp": 1792481600,
+   "views": 22000,
+   "reposted_by": null,
+   "media": {
+    "all": [
+     {
+      "type": "photo",
+      "url": "https://pbs.twimg.com/media/example2.jpg"
+     }
+    ]
+   }
+  },
+  {
+   "type": "status",
+   "id": "1000000000000000003",
+   "url": "https://x.com/exampleacct/status/1000000000000000003",
+   "text": "Thread: the Doppler radar",
+   "author": {
+    "screen_name": "exampleacct",
+    "name": "Example Account",
+    "url": "https://x.com/exampleacct",
+    "followers": 25000
+   },
+   "replies": 21,
+   "reposts": 52,
+   "likes": 420,
+   "bookmarks": 42,
+   "quotes": 10,
+   "created_timestamp": 1792222400,
+   "views": 31000,
+   "reposted_by": null,
+   "media": {
+    "all": [
+     {
+      "type": "photo",
+      "url": "https://pbs.twimg.com/media/example3.jpg"
+     }
+    ]
+   }
+  },
+  {
+   "type": "status",
+   "id": "1000000000000000004",
+   "url": "https://x.com/exampleacct/status/1000000000000000004",
+   "text": "Behind the animation",
+   "author": {
+    "screen_name": "exampleacct",
+    "name": "Example Account",
+    "url": "https://x.com/exampleacct",
+    "followers": 25000
+   },
+   "replies": 13,
+   "reposts": 32,
+   "likes": 260,
+   "bookmarks": 26,
+   "quotes": 6,
+   "created_timestamp": 1791876800,
+   "views": 18000,
+   "reposted_by": null,
+   "media": {
+    "all": [
+     {
+      "type": "photo",
+      "url": "https://pbs.twimg.com/media/example4.jpg"
+     }
+    ]
+   }
+  },
+  {
+   "type": "status",
+   "id": "1000000000000000005",
+   "url": "https://x.com/exampleacct/status/1000000000000000005",
+   "text": "Q&A tomorrow",
+   "author": {
+    "screen_name": "exampleacct",
+    "name": "Example Account",
+    "url": "https://x.com/exampleacct",
+    "followers": 25000
+   },
+   "replies": 6,
+   "reposts": 15,
+   "likes": 120,
+   "bookmarks": 12,
+   "quotes": 3,
+   "created_timestamp": 1791704000,
+   "views": 9000,
+   "reposted_by": null,
+   "media": {
+    "all": [
+     {
+      "type": "photo",
+      "url": "https://pbs.twimg.com/media/example5.jpg"
+     }
+    ]
+   }
+  }
+ ],
+ "cursor": {
+  "top": "T",
+  "bottom": "B"
+ }
+}

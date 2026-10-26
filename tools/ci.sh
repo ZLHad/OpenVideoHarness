@@ -313,7 +313,7 @@ got = {k: m[k]["state"] for k in want}
 if got != want:
     bad.append(f"doctor's states: {got}")
 if "22 or newer" not in m["node"]["note"] or "libx264" not in m["ffmpeg"]["note"] or "ffprobe" not in m["ffmpeg"]["note"] \
-        or "days old" not in m["yt-dlp"]["note"] or m["yt-dlp"]["status"] != "planned":
+        or "days old" not in m["yt-dlp"]["note"] or m["yt-dlp"]["status"] != "used":
     bad.append(f"doctor's notes: {m['node']['note']!r}, {m['ffmpeg']['note']!r}, {m['yt-dlp']['note']!r}")
 if m["gemini"]["keys"] != {"GEMINI_API_KEY": True} or m["elevenlabs"]["keys"] != {"ELEVENLABS_API_KEY": False} \
         or m["minimax"]["keys"] != {"MINIMAX_TOKEN_PLAN_KEY": False, "MINIMAX_API_KEY": True}:
@@ -2037,6 +2037,42 @@ print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
     then ok "footage get --offline: --range from the keyframe before it (stream-copied into Matroska, its first frame kept), conformed frame for frame (CFR at 30000/1001, keyframes ≤ 1 s, BT.709 tv, sound at 48 kHz); a WebM conformed to H.264 with the tags it lacked assumed; one record a clip folder; strict refuses BY-SA and --max-mb refuses before downloading; an id on record is exit 2"
     else bad "footage get (exits $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s | %s' "$a" "$b" | tail -c 600) $(cat "$t/e3" "$t/e4" "$t/e5" | tail -c 400)"; fi
+    # an orig a get left behind is used again only when its mark says it is that file, whole: another file's (a --file
+    # that failed after its download) is downloaded over, never registered as this one
+    cu=https://upload.wikimedia.org/wikipedia/commons/8/88/SpaceX_CRS-35_launch_and_jellyfish_cloud.webm
+    fq="$t/fq"; cp -R tools/assets/fixtures/footage/project "$fq"; mkdir -p "$fq/assets/footage/cam-x" "$fq/assets/footage/cam-y"
+    cp "$fr/media/nasa-orig.mp4.bin" "$fq/assets/footage/cam-x/orig.webm"
+    printf '{"file_url": "https://example.org/another.webm", "bytes": %s}\n' "$(wc -c < "$fr/media/nasa-orig.mp4.bin")" > "$fq/assets/footage/cam-x/.orig.json"
+    cp "$fr/media/commons-crs35.webm.bin" "$fq/assets/footage/cam-y/orig.webm"
+    printf '{"file_url": "%s", "bytes": %s}\n' "$cu" "$(wc -c < "$fr/media/commons-crs35.webm.bin")" > "$fq/assets/footage/cam-y/.orig.json"
+    a=$(vh footage get "$fq" "commons:File:SpaceX CRS-35 launch and jellyfish cloud.webm" --id cam-x --offline "$fr" 2>&1); rc=$?
+    b=$(vh footage get "$fq" "commons:File:SpaceX CRS-35 launch and jellyfish cloud.webm" --id cam-y --offline "$fr" 2>&1); rc2=$?
+    if [ "$rc:$rc2" = "0:0" ] && case "$a|$b" in *"kept, not downloaded again"*"|"*) false ;; *"|"*"kept, not downloaded again"*) true ;; *) false ;; esac && python3 - "$fq" "$fr/media/commons-crs35.webm.bin" <<'PY'
+import hashlib, json, sys
+fp, want = sys.argv[1], hashlib.sha256(open(sys.argv[2], "rb").read()).hexdigest()
+got = [json.load(open(f"{fp}/assets/footage/{c}/clip.json", encoding="utf-8"))["from"]["sha256"] for c in ("cam-x", "cam-y")]
+sys.exit(0 if got == [want, want] else 1)
+PY
+    then ok "footage get: an orig a get left behind is used again only when its mark names that file, whole; another file's is downloaded over, not registered as this one"
+    else bad "footage get, an orig left behind (exits $rc:$rc2): $(printf '%s | %s' "$a" "$b" | tail -c 500)"; fi
+    # --license / --license-url are the user's word over the site's record: on record as given, the note keeps what the
+    # site said; an Archive rights text with no licence link is the uploader's own words (unknown); CJK titles get ids apart
+    a=$(vh footage get "$fq" "commons:File:SpaceX CRS-35 launch and jellyfish cloud.webm" --id cam-z --license "CC BY 4.0" \
+      --license-url https://creativecommons.org/licenses/by/4.0/ --offline "$fr" 2>&1); rc=$?
+    if [ "$rc" = 0 ] && python3 - "$fq" <<'PY'
+import json, sys
+sys.path.insert(0, "tools/assets")
+import footage
+r = {x["id"]: x for x in json.load(open(f"{sys.argv[1]}/assets/ledger.json", encoding="utf-8"))["assets"]}["cam-z"]
+ids = {footage.default_id({"site": "commons", "id": t}) for t in ("File:嫦娥六号.webm", "File:嫦娥五号.webm")}
+ok = (r["license"]["by"] == "given" and r["license"]["class"] == "cc-by" and "licence given with --license" in (r.get("note") or "")
+      and footage.judge("archive", {"license": "Public Domain", "license_url": ""})[0] == "unknown"
+      and footage.judge("archive", {"license": "", "license_url": "http://creativecommons.org/licenses/publicdomain/"})[0] == "pd"
+      and len(ids) == 2 and all(len(x) > 3 for x in ids) and footage.default_id({"site": "archive", "id": "Apollo 11"}) == "ia-apollo-11")
+sys.exit(0 if ok else 1)
+PY
+    then ok "footage get --license: on record as given, the site's own reading in the note; an Archive rights text with no licence link is unknown; two CJK titles get ids apart"
+    else bad "footage get --license, judge, default_id (exit $rc): $(printf '%s' "$a" | tail -c 400)"; fi
     vh footage sync "$fp" cam-pad --group launch --c 1.0 --by "fixture" >/dev/null 2>&1; rc=$?
     a=$(vh footage sync "$fp" cam-crs --group launch --c 2.5 --k 2.5 2>&1); rc2=$?
     vh footage frames "$fp" cam-pad --film 0:2 --t0 1.0 >/dev/null 2>"$t/e1"; rc3=$?
@@ -2096,6 +2132,85 @@ ok = (m["nasa-images"]["state"] == "ok" and "no key" in m["nasa-images"]["note"]
 sys.exit(0 if ok else 1)' "$a"
   then ok "doctor --probe: footage's sites answered from recordings with no key (an answer without the path footage reads fails); --only probes those alone, an unknown name is exit 2"
   else bad "doctor --probe, key-less (exits $rc:$rc2): $(printf '%s | %s' "$a" "$b" | tail -c 500)"; fi
+  # HDR: after --tonemap, the conform's scale reads what zscale made (BT.709, tv), not the source's matrix again (that
+  # once turned (93,100,192) into (86,103,192)); where ffmpeg has zscale, the clip's pixels are the tone map's own
+  mkdir -p "$t/hdr"
+  ffmpeg -v error -y -f lavfi -i "color=c=0x5d64c0:s=320x180:r=30:d=1" -c:v ffv1 \
+    -vf "format=yuv420p10le,setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc:range=tv" "$t/hdr/orig.mkv"
+  if a=$(python3 - "$t/hdr" <<'PY'
+import subprocess, sys
+from pathlib import Path
+sys.path.insert(0, "tools/assets")
+import footage
+d, bad = Path(sys.argv[1]), []
+p = footage.probe(d / "orig.mkv")
+try:
+    footage.conform_argv(d / "orig.mkv", d / "x.mp4", p)
+    bad.append("HDR footage without --tonemap was conformed")
+except footage.Failed:
+    pass
+argv = footage.conform_argv(d / "orig.mkv", d / "x.mp4", p, "hable")[0]
+vf = argv[argv.index("-vf") + 1]
+sc = vf[vf.index(",scale="):]
+if "tonemap=hable" not in vf or "in_color_matrix=bt709:in_range=tv" not in sc:
+    bad.append(f"the scale after the tone map: {sc[:160]}")
+zs = " zscale " in subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True).stdout
+if zs and not bad:
+    def yuv(path, vf=None):   # the middle pixel's Y, U, V
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path)] + (["-vf", vf] if vf else []) + ["-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "yuv444p", "-"],
+                             capture_output=True, check=True).stdout
+        n = len(raw) // 3; c = n // 2 + 160
+        return raw[c], raw[n + c], raw[2 * n + c]
+    ref = yuv(d / "orig.mkv", vf[:vf.index(",scale=")])
+    footage.conform(d, d / "orig.mkv", "hable")
+    got = yuv(d / "clip.mp4")
+    if max(abs(x - y) for x, y in zip(ref, got)) > 2:
+        bad.append(f"tone-mapped pixels: the clip has YUV {got}, the tone map {ref}")
+print("\n".join(bad) if bad else ("compared" if zs else "")); sys.exit(1 if bad else 0)
+PY
+  ); then ok "footage --tonemap: the scale after the tone map reads BT.709 tv, not the HDR source's matrix$( [ "$a" = compared ] && echo '; the clip'"'"'s pixels are the tone map'"'"'s own' || echo ' (no zscale here, so the pixels are not compared)'); HDR without --tonemap is refused"
+  else bad "footage --tonemap: $a"; fi
+  # a download is the working clip as it is only when it is what a conform makes: H.264 High, and every GOP closed (an
+  # open one's leading frames, shown before their keyframe, lean on the GOP before it: a cut there cannot decode them)
+  for k in closed open main; do
+    case $k in main) pr=main; xp="" ;; open) pr=high; xp=":open-gop=1" ;; *) pr=high; xp="" ;; esac
+    ffmpeg -v error -y -f lavfi -i "testsrc2=s=160x90:r=30:d=2" -vf "format=yuv420p,setparams=range=tv:colorspace=bt709:color_primaries=bt709:color_trc=bt709" \
+      -c:v libx264 -profile:v "$pr" -x264-params "keyint=15:min-keyint=15:bframes=3:scenecut=0$xp" -movflags +faststart "$t/hdr/$k.mp4"
+  done
+  if a=$(python3 - "$t/hdr" <<'PY'
+import sys
+sys.path.insert(0, "tools/assets")
+import footage
+d = sys.argv[1]
+why = {k: footage.unfit(f"{d}/{k}.mp4", footage.probe(f"{d}/{k}.mp4"), footage.video_packets(f"{d}/{k}.mp4")) for k in ("closed", "open", "main")}
+ok = why["closed"] == [] and any("open GOPs" in x for x in why["open"]) and len(why["open"]) == 1 and why["main"] == ["h264 Main, not H.264 High"]
+print(why); sys.exit(0 if ok else 1)
+PY
+  ); then ok "footage: a download is kept as the working clip only when it is H.264 High with every GOP closed; an open GOP and a Main profile are conformed"
+  else bad "footage, what is kept as it is: $a"; fi
+  if a=$(python3 - "$t/hdr" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "tools/assets")
+import fetch
+d = Path(sys.argv[1])
+class NoLength(fetch.Live):   # a server that says no Content-Length
+    def open(self, url, headers=None, timeout=60):
+        body, pos = b"x" * 5000, [0]
+        def read(n=-1):
+            part = body[pos[0]:] if n is None or n < 0 else body[pos[0]:pos[0] + n]
+            pos[0] += len(part)
+            return part
+        return fetch.Response(200, {"Content-Type": "application/octet-stream"}, read)
+try:
+    fetch.download("https://example.org/big.bin", d / "big.bin", opener=NoLength(), max_bytes=1000)
+    print("downloaded past the cap"); sys.exit(1)
+except fetch.FetchError as e:
+    left = [p.name for p in d.glob("big.bin*")]
+    print(e, left); sys.exit(0 if "cap" in str(e) and not left else 1)
+PY
+  ); then ok "fetch.download: --max-mb holds when the server says no length too: stopped at the cap, nothing kept"
+  else bad "fetch.download's cap without a Content-Length: $a"; fi
   rm -rf "$t"
 }
 
@@ -2641,6 +2756,165 @@ PY
   rm -rf "$t"
   footage_checks   # bin/vh footage: its records are the ledger's
   image_checks     # bin/vh image: so are its pictures, and its spend the budget's
+}
+
+scout_checks() {   # bin/vh scout and ref (tools/scout) from recorded responses, no network: YouTube through yt-dlp's recorded
+  # JSON, X through fxtwitter, Bilibili's view endpoint, the hot lists; the records, the outliers, a platform that asks
+  # for a verification stopping the run, rows added by hand, the references as asset records, doctor's keyless probes
+  local t p r a b c rc rc2 rc3 F=tools/scout/fixtures/responses
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); r="$t/research"
+  a=$(vh scout topic doppler effect -n 5 --baseline 2 --dir "$r" --offline "$F" --csv "$t/topic.csv" 2>&1); rc=$?
+  b=$(vh scout channel @examplephysics -n 15 --dir "$r" --offline "$F" 2>&1); rc2=$?
+  c=$(vh scout channel https://x.com/exampleacct --dir "$r" --offline "$F" 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 0:0:0 ] && python3 - "$r/scout.jsonl" "$t/topic.csv" <<'PY'
+import csv, json, sys
+recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
+topic = [x for x in recs if x["via"] == "topic"]
+by = {x["key"]: x for x in topic}
+ok = len(topic) == 5 and all(x["v"] == 1 and x["fetched_at"] and x["method"].startswith("yt-dlp") and x["date_approx"] for x in topic)
+ok = ok and by["youtube:AAAAAAAAAA1"]["multiple"] == 23.41 and by["youtube:AAAAAAAAAA1"]["baseline"] == {"of": "views", "over": "the channel's latest 15", "n": 8, "median": 102500.0}
+ok = ok and by["youtube:AAAAAAAAAA2"]["multiple"] == 3.46 and "multiple" not in by["youtube:AAAAAAAAAA3"]   # only the first 2 channels
+ok = ok and by["youtube:AAAAAAAAAA1"]["followers"] == 512000 and all(isinstance(x.get("z"), float) for x in topic)
+ok = ok and by["youtube:AAAAAAAAAA3"]["z"] < -1 < by["youtube:AAAAAAAAAA1"]["z"] - 1
+ch = [x for x in recs if x["via"] == "channel" and x["platform"] == "youtube"]
+ok = ok and len(ch) == 8 and next(x for x in ch if x["metrics"]["views"] == 400000)["multiple"] == 3.9
+xs = [x for x in recs if x["via"] == "channel" and x["platform"] == "x"]
+ok = ok and len(xs) == 5 and xs[0]["multiple"] == 18.64 and xs[0]["followers"] == 25000 and xs[0]["metrics"]["shares"] == 650
+rows = list(csv.DictReader(open(sys.argv[2], encoding="utf-8")))
+ok = ok and len(rows) == 5 and rows[0]["platform"] == "youtube" and rows[0]["views"] == "2400000" and rows[0]["multiple"] == "23.41"
+sys.exit(0 if ok else 1)
+PY
+  then case "$a|$b|$c" in *"★ 23.4×"*"★ 2 at 3× its channel's median"*"5 records onto"*"|"*"512K followers · latest 8 · median 102.5K views"*"posts about every 7 days"*"|"*"25K followers · latest 5 · median 22K views"*)
+      ok "scout topic and channel from recordings: the top results with z against their age band, --baseline's channel medians and multiples (★ at 3×), a channel's and an X account's latest against their own median, how often they post; JSONL records and the CSV" ;;
+    *) bad "scout topic and channel, their lines: $(printf '%s' "$a$b$c" | tail -c 600)" ;; esac
+  else bad "scout topic and channel (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 600)"; fi
+  # post: three platforms, then a block (Bilibili's -352) stops the run before the next URL; HTTP 412 is a block too;
+  # Douyin is said to be read in the browser; a URL with no recording fails, never goes online
+  a=$(vh scout post https://www.bilibili.com/video/BV1Ab4y1C7De https://x.com/exampleacct/status/1000000000000000001 "https://www.youtube.com/watch?v=AAAAAAAAAA1" --topic T05 --score 72 --dir "$r" --offline "$F" 2>&1); rc=$?
+  b=$(vh scout post https://www.bilibili.com/video/BV1Zz4y1Bk00 https://www.bilibili.com/video/BV1Ab4y1C7De --dir "$t/r2" --offline "$F" 2>&1); rc2=$?
+  c=$(vh scout post https://www.douyin.com/video/7000000000000000001 "https://www.youtube.com/watch?v=BBBBBBBBBB1" https://x.com/a/status/1000000000000000099 --dir "$t/r3" --offline "$F" 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 0:1:1 ] && [ ! -e "$t/r2/scout.jsonl" ] && [ ! -e "$t/r3/scout.jsonl" ] && python3 - "$r/scout.jsonl" <<'PY'
+import json, sys
+recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
+post = {x["platform"]: x for x in recs if x["via"] == "post"}
+b, x, y = post["bilibili"], post["x"], post["youtube"]
+ok = set(post) == {"bilibili", "x", "youtube"} and all(r["topic"] == "T05" and r["score"] == 72 for r in post.values())
+ok = ok and b["metrics"] == {"views": 128000, "likes": 9400, "comments": 640, "shares": 950, "favorites": 3100, "coins": 1800, "danmaku": 210}
+ok = ok and b["followers"] == 41000 and b["copyright"] == "original" and "license" not in b and b["method"] == "bilibili view endpoint"
+ok = ok and y["date"] == "2024-04-10" and "date_approx" not in y and y["metrics"]["likes"] == 81200 and y["license"].startswith("Creative Commons")
+ok = ok and x["metrics"]["views"] == 410000 and x["age_days"] >= 0 and x["per_follower"] == 16.4
+sys.exit(0 if ok else 1)
+PY
+  then case "$a|$b|$c" in *"your films on record (3)"*"3 scored with views: 4 or more"*"|"*"✗ blocked: bilibili /x/web-interface/view: code -352 (risk control)"*"nothing was retried"*"|"*"douyin has no interface scout may read without a login"*"no recorded response"*"✗ blocked:"*"HTTP 412"*)
+      if [ "$(printf '%s' "$b" | grep -c '多普勒效应')" = 0 ]; then
+        ok "scout post from recordings: Bilibili (its counts, followers, original as the uploader's claim, not a licence), X and YouTube with the topic and score; a -352 and an HTTP 412 stop the run unretried, Douyin points to the browser, a URL with no recording fails offline" 
+      else bad "scout post: the URL after a block was looked up: $b"; fi ;;
+    *) bad "scout post, its lines: $(printf '%s' "$a$b$c" | tail -c 700)" ;; esac
+  else bad "scout post (exits $rc:$rc2:$rc3, want 0:1:1; nothing written after a block): $(printf '%s' "$a$b$c" | tail -c 700)"; fi
+  # add: a row by flags as the page writes its counts (1.2万), rows from a CSV, a bad count refused; --post joins the
+  # report, and with 4 scored films it ranks score against views
+  a=$(vh scout add https://www.douyin.com/video/7000000000000000001 --title 抖音那支 --likes 1.2万 --favorites 5600 --followers 8.1万 --date 2026-10-19 --post --score 80 --dir "$r" 2>&1); rc=$?
+  printf 'platform,url,title,views,likes,date\nyoutube,https://www.youtube.com/watch?v=CCCCCCCCCC1,手填一支,90000,1200,2026-10-01\nxiaohongshu,https://www.xiaohongshu.com/explore/650000000000000000000001,笔记,,3.4K,2026-10-20\n' > "$t/rows.csv"
+  b=$(vh scout add --from "$t/rows.csv" --dir "$r" 2>&1); rc2=$?
+  printf 'platform,url,likes\ndouyin,https://www.douyin.com/video/7000000000000000003,lots\n' > "$t/bad.csv"
+  c=$(vh scout add --from "$t/bad.csv" --dir "$r" 2>&1); rc3=$?
+  d=$(vh scout add "https://www.youtube.com/watch?v=CCCCCCCCCC2" --views 50000 --likes 900 --date 2026-10-10 --post --score 60 --dir "$r" 2>&1) || rc3=9
+  if [ "$rc:$rc2:$rc3" = 0:0:2 ] && python3 - "$r/scout.jsonl" <<'PY'
+import json, sys
+recs = [json.loads(l) for l in open(sys.argv[1], encoding="utf-8")]
+d = next(x for x in recs if x["platform"] == "douyin")
+xhs = next(x for x in recs if x["platform"] == "xiaohongshu")
+ok = d["via"] == "post" and d["metrics"] == {"likes": 12000, "favorites": 5600} and d["followers"] == 81000 and d["method"] == "built-in browser, read by hand"
+ok = ok and xhs["via"] == "add" and xhs["key"] == "xiaohongshu:650000000000000000000001" and xhs["metrics"] == {"likes": 3400}
+ok = ok and not any(x.get("platform") == "douyin" and x["url"].endswith("0003") for x in recs)
+sys.exit(0 if ok else 1)
+PY
+  then case "$a|$c|$d" in *"your films on record (4)"*"3 scored with views"*"|"*"bad.csv:2: likes 'lots' is not a count"*"|"*"your films on record (5)"*"score against views, Spearman ρ = +"*"over 4 films"*)
+      ok "scout add: rows read by hand (flags or a CSV, counts as the page writes them), a bad count refused with its row; --post joins your films" ;;
+    *) bad "scout add, its lines: $(printf '%s' "$a$c" | tail -c 500)" ;; esac
+  else bad "scout add (exits $rc:$rc2:$rc3, want 0:0:2): $(printf '%s' "$a$b$c" | tail -c 500)"; fi
+  # hot: four lists into today's snapshot, a second run appended to it; an unknown list is a usage error
+  a=$(vh scout hot --dir "$r" --offline "$F" -n 3 2>&1); rc=$?
+  b=$(vh scout hot --source baidu --dir "$r" --offline "$F" --json 2>/dev/null); rc2=$?
+  c=$(vh scout hot --source baidu,weibo --dir "$r" --offline "$F" 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 0:0:2 ] && python3 - "$r/hot" "$b" <<'PY'
+import json, sys
+from pathlib import Path
+fs = sorted(Path(sys.argv[1]).glob("*.json"))
+doc = json.loads(fs[-1].read_text(encoding="utf-8")) if fs else {}
+srcs = [s["source"] for s in doc.get("snapshots", [])]
+b = [s for s in doc["snapshots"] if s["source"] == "baidu"][0]["items"]
+g = [s for s in doc["snapshots"] if s["source"] == "google"][0]["items"]
+ok = len(fs) == 1 and srcs == ["baidu", "toutiao", "google", "x", "baidu"] and b[0]["pinned"] and b[1] == {"rank": 1, "title": "救护车为什么变调", "score": 4920000, "url": "https://www.baidu.com/s?wd=b", "desc": "一个合成的热搜"}
+ok = ok and g[0]["score"] == 2000 and g[0]["news"][0]["url"] == "https://example.com/radar" and json.loads(sys.argv[2])["snapshots"][0]["source"] == "baidu"
+sys.exit(0 if ok else 1)
+PY
+  then ok "scout hot from recordings: Baidu, Toutiao, Google Trends and X into hot/<date>.json, a later run appended to the day; an unknown list refused"
+  else bad "scout hot (exits $rc:$rc2:$rc3): $(printf '%s' "$a$c" | tail -c 500)"; fi
+  # list: the latest look at each key, filtered, as CSV; nowhere to read is a usage error; topic with nowhere to write says so
+  a=$(vh scout list --dir "$r" --via post --csv "$t/posts.csv" 2>&1); rc=$?
+  b=$(cd "$t" && OVH_SCOUT="" "$VH_BASH" "$ROOT/bin/vh" scout list 2>&1); rc2=$?
+  c=$(cd "$t" && OVH_SCOUT="" "$VH_BASH" "$ROOT/bin/vh" scout topic doppler effect -n 5 --offline "$ROOT/$F" 2>&1); rc3=$?
+  case "$rc:$rc2:$rc3|$a|$b|$c" in "0:2:0|"*"5 records (the latest look at each)"*"|"*"no research folder"*"|"*"not written: no research folder"*)
+      if [ "$(wc -l < "$t/posts.csv" | tr -d ' ')" = 6 ]; then ok "scout list: the latest look at each, filtered, as CSV; with no research folder list refuses and topic prints without writing"
+      else bad "scout list --csv: $(cat "$t/posts.csv")"; fi ;;
+    *) bad "scout list (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 500)" ;; esac
+  # ref: references as asset records in research/refs.json, out of the project's ledger; a CC licence the platform
+  # names is classified, anything else unknown (a platform's "original" is never "own"); a duplicate refused; a block exits 1
+  OVH_PROJECTS="$t" vh new short refs >/dev/null 2>&1; p=$(ls -d "$t"/*-refs)
+  cp "$F/cover.jpg" "$p/frame.jpg"
+  a=$(vh ref add "$p" "https://www.youtube.com/watch?v=AAAAAAAAAA1" --why 慢放的开场 --thumb --offline "$F" 2>&1); rc=$?
+  b=$(vh ref add "$p" https://youtu.be/AAAAAAAAAA1 --offline "$F" 2>&1; vh ref add "$p" https://www.bilibili.com/video/BV1Ab4y1C7De --offline "$F" 2>&1; vh ref add "$p" https://www.bilibili.com/video/BV1Zz4y1Bk00 --offline "$F" 2>&1); rc2=$?
+  c=$(vh ref add "$p" "https://example.com/a?id=3" --title 一篇文章 --type page 2>&1; vh ref add "$p" frame.jpg --why 构图 2>&1; vh ref list "$p" 2>&1); rc3=$?
+  if [ "$rc" = 0 ] && [ -s "$p/research/refs/yt-AAAAAAAAAA1/thumb.jpg" ] && [ ! -e "$p/assets/ledger.json" ] && python3 - "$p" <<'PY'
+import json, sys
+from pathlib import Path
+sys.path.insert(0, "tools/assets")
+import ledger
+p = Path(sys.argv[1])
+d = json.loads((p / "research/refs.json").read_text(encoding="utf-8"))
+by = {r["id"]: r for r in d["assets"]}
+ok = list(by) == ["yt-AAAAAAAAAA1", "bili-BV1Ab4y1C7De", "example.com-a", "frame"] and not any(ledger.validate(r) for r in d["assets"])
+ok = ok and [e["event"] for e in d["events"]] == ["add"] * 4
+y, b, w, f = by["yt-AAAAAAAAAA1"], by["bili-BV1Ab4y1C7De"], by["example.com-a"], by["frame"]
+ok = ok and y["license"] == {"class": "cc-by", "name": "Creative Commons Attribution license (reuse allowed)", "by": "classifier"}
+ok = ok and y["path"] == "research/refs/yt-AAAAAAAAAA1/" and y["ref"]["why"] == "慢放的开场" and y["ref"]["metrics"]["views"] == 2400311
+ok = ok and b["license"]["class"] == "unknown" and b["source"]["provider_id"] == "BV1Ab4y1C7De" and b["ref"]["followers"] == 41000
+ok = ok and w["source"]["url"] == "https://example.com/a?id=…" and w["ref"]["type"] == "page" and w["license"]["class"] == "unknown"
+ok = ok and f["path"] == "frame.jpg" and f["kind"] == "image" and f["source"]["origin"] == "user"
+meta = json.loads((p / "research/refs/yt-AAAAAAAAAA1/meta.json").read_text(encoding="utf-8"))
+ok = ok and meta["title"] == "The Doppler effect, slowed down" and meta["description"].startswith("A siren")
+sys.exit(0 if ok else 1)
+PY
+  then case "$b|$c" in *"is on record already as yt-AAAAAAAAAA1"*"✓ bili-BV1Ab4y1C7De"*"✗ blocked: bilibili"*"|"*"4 references (studied, not shown)"*"why: 构图"*)
+      if [ "$rc2" = 1 ] && [ "$rc3" = 0 ]; then ok "ref add and list: a YouTube video (CC BY as it says, its cover fetched), a Bilibili BV (all rights reserved: unknown), a page as given, a file where it is; asset records in research/refs.json, none in the project's ledger; a duplicate refused, a block exits 1"
+      else bad "ref: exits $rc2:$rc3, want 1:0"; fi ;;
+    *) bad "ref add and list, their lines: $(printf '%s' "$b$c" | tail -c 600)" ;; esac
+  else bad "ref add (exit $rc): $(printf '%s' "$a$b$c" | tail -c 600)"; fi
+  # doctor's probes of the public services that take no key, from recordings: a JSON path that must be there, an RSS text
+  mkdir -p "$t/rec"; printf '{"code": 200, "status": {"id": "20"}}' > "$t/rec/fx.json"; printf '<rss version="2.0"></rss>' > "$t/rec/g.xml"
+  printf '{"code": 0, "message": "0", "data": null}' > "$t/rec/bi.json"
+  printf '{"v": 1, "responses": [{"url": "https://api.fxtwitter.com/2/status/20", "status": 200, "body": "fx.json"}, {"url": "https://trends.google.com/trending/rss?geo=US", "status": 200, "body": "g.xml"}, {"url": "https://top.baidu.com/api/board?platform=pc&tab=realtime", "status": 200, "body": "bi.json"}, {"url": "https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc", "status": 403}]}' > "$t/rec/responses.json"
+  a=$(python3 tools/doctor.py --json --probe --only fxtwitter,google-trends,baidu-top,toutiao-hot,bilibili-view --offline "$t/rec" 2>&1); rc=$?
+  b=$(python3 tools/doctor.py --probe --only nosuch 2>&1); rc2=$?; c=$(python3 tools/doctor.py --only fxtwitter 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 0:2:2 ] && python3 - "$a" <<'PY'
+import json, sys
+pr = {m["name"]: m["probe"] for m in json.loads(sys.argv[1])["modules"] if m["probe"]}
+ok = set(pr) == {"fxtwitter", "google-trends", "baidu-top", "toutiao-hot", "bilibili-view"}
+ok = ok and pr["fxtwitter"] == {"state": "ok", "note": "answers (HTTP 200, no key)"} and pr["google-trends"]["state"] == "ok"
+ok = ok and pr["baidu-top"]["state"] == "failed" and "no data.cards" in pr["baidu-top"]["note"]
+ok = ok and pr["toutiao-hot"] == {"state": "failed", "note": "HTTP 403"} and "no recorded response" in pr["bilibili-view"]["note"]
+sys.exit(0 if ok else 1)
+PY
+  then ok "doctor --probe of the keyless services from recordings: an answer the adapter reads, one without its path, an RSS feed, an HTTP error; --only picks the probes, a name it lacks and --only without --probe are usage errors"
+  else bad "doctor's keyless probes (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 500)"; fi
+  # usage errors exit 2 and print to stderr only
+  rc=0; for x in "scout" "scout bogus" "scout topic" "ref" "ref add" "scout channel https://www.bilibili.com/video/BV1Ab4y1C7De"; do
+    # shellcheck disable=SC2086
+    a=$(vh $x 2>/dev/null); b=$?; [ "$b" = 2 ] && [ -z "$a" ] || { rc=1; bad "bin/vh $x: exit $b, stdout ${a:0:80}"; }
+  done
+  [ "$rc" = 1 ] || ok "scout and ref: usage errors exit 2, nothing on stdout"
+  rm -rf "$t"
 }
 
 status_checks() {
@@ -4279,11 +4553,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; scout_checks; textcheck_checks; film_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; scout_checks; textcheck_checks; film_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these
