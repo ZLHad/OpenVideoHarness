@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+**`bin/vh render --alpha`: a transparent film, to lay over footage**
+- Why: batch 1, line B. `bin/vh render` wrote x264 only, so motion drawn in code could not go over real footage or into an editor (type 09, the B-roll overlays).
+- `--alpha`: each browser's default background is made transparent, frames are captured as PNG with their alpha, and the film is ProRes 4444 with alpha (`prores_ks`, 4:4:4, a 16-bit alpha, BT.709 matrix, primaries and transfer) in a `.mov`, by default `<project>/out/<page>.mov`. Chunks, workers and resuming work as for x264; the disk estimate allows for ProRes's size.
+- What the page paints stays opaque: a page that fills its canvas has nothing to show through, and the render says so after looking at a few frames. An `.mp4` with `--alpha` is refused (it cannot carry the alpha), and `bin/vh patch` refuses an alpha film for now: render the span again.
+- A HyperFrames composition has its own way since 0.8.202, `npx hyperframes render --format mov`; `bin/vh render --alpha` on one says so.
+- What reads the film: `versions` and `proxy` take the `.mov` as any film. `bin/vh mux` keeps it in a `.mov`, alpha and all, and refuses an `.mp4` output with the reason (MP4 cannot carry ProRes) instead of ffmpeg's error. `bin/vh deliver` makes no upload copy of a film with an alpha channel: the copy would turn its clear areas black.
+- The sidecar's encoder record of an alpha film has no `crf` or `preset` (x264's, not ProRes's), and the resume recipe holds only what applies: x264 renders keep their old keys, an alpha render adds `alpha`. Chunks kept from a render before this version are rendered again once all the same, as after any change to the renderer: the recipe hashes `render.mjs` itself.
+- CI: a page with a clear background renders over three chunks to ProRes 4444 whose alpha is 0 where nothing is drawn and 255 where something is; the opaque page is told; the `.mp4` and the patch are refused; mux keeps the alpha in a `.mov` and refuses an `.mp4`; deliver refuses the film.
+
 **`bin/vh check` names a way out of what it finds**
 - Why: batch 1, line B (the plan's 9.10 §3: a check reports, a tool offers options, the film decides). A still stretch of 3 s or a cut from dark to bright was reported with no pointer to what could answer it.
 - `tools/remedies.json`: one table, keyed by the kind of finding (`check.static`, `check.cut`, `check.silence` …): for each, one or two entries, a line saying what it is for and a recipe filter, a command or a doc section. `bin/vh check` prints the ones for the kinds it found after its own lines (not for confirmed or info findings), and each finding in the record (`--json`, `out/check/<name>.check.json`) carries them as `remedies`. A still stretch points to `bin/vh recipes list --role breath`, a bright cut to rising seams, silence to `bin/vh sfx` and `bin/vh mix`, a capture glitch to `bin/vh patch`.

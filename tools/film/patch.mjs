@@ -113,6 +113,7 @@ if (!fs.existsSync(sidecarFile)) die(`no ${rel(sidecarFile)}: a patch needs to k
 let side;
 try { side = JSON.parse(fs.readFileSync(sidecarFile, "utf8")); } catch (e) { die(`${rel(sidecarFile)}: ${e.message}`); }
 const enc = side.encoder || {};
+if (side.alpha) die(`${rel(film)} is a transparent film (bin/vh render --alpha, ProRes 4444): patch puts back x264 GOPs only. Render the span again with --alpha --range, or the whole film`);
 for (const [k, v] of [["fps", side.fps], ["frames", side.frames], ["first_frame", side.first_frame], ["page", side.page], ["encoder.gop", enc.gop], ["encoder.crf", enc.crf], ["encoder.preset", enc.preset]])
   if (v === undefined || v === null) die(`${rel(sidecarFile)} has no ${k}: not a bin/vh render sidecar`);
 const probe = (f, args) => {
