@@ -771,6 +771,9 @@ PY
     && ok "recipes check refuses frontmatter that YAML would read differently" || bad "recipes check on {peak:4} exited $rc"
   vh recipes check --json >/dev/null 2>&1; rc=$?
   [ $rc = 2 ] && ok "recipes check treats an option as bad usage" || bad "recipes check --json exited $rc"
+  a=$(vh recipes list -h 2>&1); rc=$?; b=$(vh recipes check --help 2>&1); rc2=$?
+  case "$rc:$rc2|$a|$b" in "0:0|"*"usage: bin/vh recipes list"*"|"*"usage: bin/vh recipes list"*) ok "recipes list -h and check --help print the help" ;;
+    *) bad "recipes list -h / check --help exited $rc / $rc2: $(printf '%s' "$a" | head -c 200)" ;; esac
   # packcheck counts X's way (a Chinese character 2, a link 23); "X" names X only standing alone, not inside "xhs"
   { printf '%s\n' '# PACKAGING' '## 发布文案' '### X / 推特'; python3 -c "print('简介：' + '字' * 127 + ' https://example.com/' + 'a' * 40 + '.')"
     printf '%s\n' '### B站 + X' '简介：两个平台'; python3 -c "print('字' * 139)"; printf '%s\n' '### 小红书 xhs' "简介：$(python3 -c "print('字' * 300)")"; } > "$t/PACKAGING.md"
@@ -836,6 +839,29 @@ PY
     *) bad "deliver --for on a short master: exit $rc: $(printf '%s' "$a" | tail -c 500)" ;; esac
   a=$(vh deliver "$t/master.mp4" --max-gb 0.00001 2>&1); rc=$?
   case "$rc:$a" in 2:*"too little"*) ok "deliver: a limit that leaves no room for the picture is refused (exit 2)" ;; *) bad "deliver with a tiny limit: exit $rc: $a" ;; esac
+  # deliver under Assets: strict, no browser: two renders of one page (sidecars as bin/vh render writes them) and another
+  # page's scratch film. The older render loaded a picture with no record: it stops (its own check, not the newest film's);
+  # the newer one goes, though the scratch film's picture has no record either. A ledger it cannot read stops it too;
+  # under record that is said and the copy made
+  s="$t/strict"; mkdir -p "$s/out" "$s/renders" "$s/assets"; printf -- '- Assets: strict\n' > "$s/BRIEF.md"
+  printf 'a' > "$s/assets/a.png"; printf 'b' > "$s/assets/b.png"; printf '<p>' > "$s/index.html"; printf '<p>' > "$s/other.html"
+  for f in out/old out/new renders/scratch; do cp "$t/master.mp4" "$s/$f.mp4"; done
+  printf '{"page": "../index.html", "files": {"index.html": null, "assets/a.png": null}}' > "$s/out/old.mp4.render.json"
+  printf '{"page": "../index.html", "files": {"index.html": null}}' > "$s/out/new.mp4.render.json"
+  printf '{"page": "../other.html", "files": {"other.html": null, "assets/b.png": null}}' > "$s/renders/scratch.mp4.render.json"
+  touch -t 202601010000 "$s/out/old.mp4"
+  a=$(vh deliver "$s/out/old.mp4" --psnr off 2>&1); r1=$?
+  b=$(vh deliver "$s/out/new.mp4" --psnr off 2>&1); r2=$?
+  printf '{' > "$s/assets/ledger.json"
+  c2=$(vh deliver "$s/out/new.mp4" --out "$s/out/new.2.mp4" --psnr off 2>&1); r3=$?
+  sed 's/strict/record/' "$s/BRIEF.md" > "$s/BRIEF.tmp" && mv "$s/BRIEF.tmp" "$s/BRIEF.md"
+  d=$(vh deliver "$s/out/new.mp4" --out "$s/out/new.3.mp4" --psnr off 2>&1); r4=$?
+  if [ "$r1:$r2:$r3:$r4" = "2:0:2:0" ] && [ ! -e "$s/out/old.upload.mp4" ] && [ -s "$s/out/new.upload.mp4" ] && [ ! -e "$s/out/new.2.mp4" ] && [ -s "$s/out/new.3.mp4" ] \
+     && case "$a" in *"✗ assets check: fail (1 fail"*"--film "*"out/old.mp4"*"assets/a.png"*"no copy made"*) true ;; *) false ;; esac \
+     && case "$b" in *"assets check"*) false ;; *) true ;; esac \
+     && case "$c2|$d" in *"could not run"*"no copy made"*"|"*"the asset ledger could not be read"*) true ;; *) false ;; esac
+  then ok "deliver under Assets: strict checks the master's own render: an unrecorded picture stops it (exit 2, said), another film's does not; an unreadable ledger stops it; under record that is said and the copy made"
+  else bad "deliver under Assets: strict (exit $r1 $r2 $r3 $r4): $(printf '%s' "$a|$b|$c2|$d" | tail -c 700)"; fi
   # bin/vh clean: a finished project's frames, render chunks, drafts and old takes go (to a stand-in Trash here, OVH_TRASH_DIR);
   # the film in out/final/, its covers, the review pages, the narration in use and its original, sources and docs stay
   c="$t/cl"; mkdir -p "$c/out/frames" "$c/out/.film.mp4.parts" "$c/out/final/covers" "$c/out/review" "$c/audio/takes" "$c/src" "$c/node_modules/x" "$t/home"
@@ -2247,6 +2273,14 @@ sys.exit(0 if ok else 1)
 PY
       then ok "assets end to end: render lists every file the page loaded (.render.json files); check finds the picture the ledger lacks (fail), the records nothing uses (warn) and, in one line, the mix's sound the ledger lacks, while the mix's loop counts as used; status --json gives the counts and the spend"
       else bad "assets end to end, check (exit $rc): $(printf '%s' "$a" | tail -c 500)"; fi
+      # under Assets: strict a failing check stops deliver before the encode; under record (the fixture's) it is only said
+      sed 's/^- Assets: record/- Assets: strict/' "$e/BRIEF.md" > "$e/BRIEF.tmp" && mv "$e/BRIEF.tmp" "$e/BRIEF.md"
+      a=$(vh deliver "$e/out/film.mp4" --psnr off 2>&1); rc=$?
+      sed 's/^- Assets: strict/- Assets: record/' "$e/BRIEF.md" > "$e/BRIEF.tmp" && mv "$e/BRIEF.tmp" "$e/BRIEF.md"
+      case "$rc:$a" in 2:*"✗ assets check: fail"*"Assets: strict, and bin/vh assets check"*"no copy made"*)
+          if [ -e "$e/out/film.upload.mp4" ] || ls "$e/out/".film.upload.mp4.* >/dev/null 2>&1; then bad "deliver under Assets: strict left a file behind"
+          else ok "deliver under Assets: strict stops before the encode when assets check fails (exit 2, no copy, no part file)"; fi ;;
+        *) bad "deliver under Assets: strict with a failing check: exit $rc: $(printf '%s' "$a" | tail -c 500)" ;; esac
       vh assets add "$e" "$e/assets/img/stray.png" --class own >/dev/null 2>&1
       vh assets add "$e" assets/genimg/hero/image.png --update --derived-from frames >/dev/null 2>&1   # hero was made from frames: frames is used
       a=$(vh assets check "$e" 2>&1); rc=$?

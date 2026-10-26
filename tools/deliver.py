@@ -18,11 +18,14 @@ change: the upload page has the last word. Without --for or --max-gb there is no
 Writes <master stem>.upload.mp4 beside the master (--out another), and its record beside it, <copy>.deliver.json: the
 copy and the master (paths relative to the record), their sizes and times, the arguments and when (bin/vh clean keeps
 the copy and its master as the film, and says when a file is no longer the one recorded). In a project with an asset
-ledger (bin/vh assets) it also says what the upload owes: bin/vh assets check's verdict (said, never a reason to stop),
-the credit lines the licences ask for, the AI-content notice, the licences not cleared (and keeps their counts in the
-record, "assets"). Exit: 0 written and within every limit asked for ·
+ledger (bin/vh assets), or whose film loaded material without one, it also says what the upload owes: bin/vh assets
+check's verdict (of the master itself when it is a render that lists the files its page loaded, else of the project's
+newest films), the credit lines the licences ask for, the AI-content notice, the licences not cleared (and keeps their
+counts in the record, "assets"). Under Assets: strict a check that fails, or cannot run, stops it before the encode,
+with no copy made and what failed said; under record the verdict is said and the copy made.
+Exit: 0 written and within every limit asked for ·
 1 written but over a limit asked for, without the four colour tags, or the PSNR could not be measured · 2 could not start (no ffmpeg, not a video,
-not enough disk).
+not enough disk, or Assets: strict and bin/vh assets check fails or cannot run).
 """
 import argparse, glob, json, math, os, re, shutil, signal, subprocess, sys, time
 from pathlib import Path
@@ -92,29 +95,46 @@ def record(out, master, assets=None):
 
 
 def assets_notes(master):
-    """What the film's project ledger asks of the upload (bin/vh assets): (lines to print, the record's "assets" field), or
-    ([], None) outside a project or with nothing on record. Never fails the delivery."""
+    """What the film's project ledger asks of the upload (bin/vh assets): (lines to print, the record's "assets" field, why
+    the delivery stops: (lines, reason) or None), or ([], None, None) outside a project, or with nothing on record and
+    nothing to say. The check is bin/vh assets check's: of the master itself when it is a render whose .render.json lists
+    the files its page loaded (--film), else of the project's newest films (a mux's master names no film). It stops only
+    under Assets: strict, when that check fails or cannot run; under record that is said."""
     sys.path.insert(0, str(Path(__file__).resolve().parent / "assets"))
+    policy = where = None
     try:
         import assets as A, ledger as L, licenses as LI, uses as U
         proj = L.project_of(master.parent)
         if proj is None:
-            return [], None
+            return [], None, None
+        short = lambda p: str(p) if os.path.relpath(p).startswith("..") else os.path.relpath(p)   # noqa: E731
+        where = short(proj)
+        policy, _ = L.policy_of(proj)
         base, ents, _ = L.entries(proj)
         live = [e["record"] for e in ents if "removed" not in e["record"]]
-        if not live:
-            return [], None
+        try:
+            used, cmd = U.uses(proj, film=master), f"bin/vh assets check {where} --film {short(master)}"
+        except ValueError:
+            used, cmd = U.uses(proj), f"bin/vh assets check {where}"
+        fs = A.findings(base, ents, policy) + U.compare(ents, used, policy)
+        n = {k: sum(1 for x in fs if x["severity"] == k) for k in ("fail", "warn")}
+        if not live and not n["fail"] and not n["warn"]:   # no ledger, and no film loaded material without one
+            return [], None, None
         c = A.credits(proj)
-        policy, _ = L.policy_of(proj)
-        fs = A.findings(base, ents, policy) + U.compare(ents, U.uses(proj), policy)   # bin/vh assets check's, said here, not a gate
     except Exception as e:
-        return [f"  ! the asset ledger could not be read ({e}): bin/vh assets check"], None
+        lines = [f"  ! the asset ledger could not be read ({e}): bin/vh assets check" + (f" {where}" if where else "")]
+        return lines, None, ((lines, "Assets: strict, and the asset check could not run (the line above): no copy made") if policy == "strict" else None)
     uncleared = sum(1 for r in live if LI.risks(L.class_of(r)))
-    where = os.path.relpath(proj)
-    where = str(proj) if where.startswith("..") else where
-    n = {k: sum(1 for x in fs if x["severity"] == k) for k in ("fail", "warn")}
+    stopping = n["fail"] and policy == "strict"
     lines = [f"  {'✗' if n['fail'] else '!' if n['warn'] else '✓'} assets check: {'fail' if n['fail'] else 'pass'} ({n['fail']} fail, {n['warn']} warn)"
-             + (f": bin/vh assets check {where} (said, not stopping the delivery)" if n["fail"] or n["warn"] else "")]
+             + (f": {cmd}" + ("" if stopping else f" (said, not stopping the delivery under Assets: {policy})") if n["fail"] or n["warn"] else "")]
+    stop = None
+    if stopping:
+        fails = [x for x in fs if x["severity"] == "fail"]
+        said = [f"  ✗ {'  '.join(str(v) for v in (x['id'], x['path']) if v)}: {x['message']}" for x in fails[:5]]
+        stop = (lines + said + ([f"  … and {len(fails) - 5} more: {cmd}"] if len(fails) > 5 else []),
+                f"Assets: strict, and {cmd} fails ({n['fail']} fail): no copy made. Register what a page loads without a record"
+                " (bin/vh assets add), replace what strict does not take, or, if the user takes the risk, their BRIEF says Assets: record")
     if c["required"] or c["courtesy"]:
         lines.append(f"  credits: {len(c['required'])} line(s) the licences ask for" + (f", {len(c['courtesy'])} courtesy" if c["courtesy"] else "")
                      + f": into the description (PACKAGING.md, 署名和 AI 标识): bin/vh assets credits {where} [--out f]")
@@ -126,7 +146,7 @@ def assets_notes(master):
     for m in c["missing"]:
         lines.append(f"  ! {m['id']}: its licence asks for a credit and no {m['what']} is on record")
     return lines, {"records": len(live), "credits": len(c["required"]), "aigc": c["aigc"]["count"], "uncleared": uncleared,
-                   "check": {"verdict": "fail" if n["fail"] else "pass", **n}}
+                   "check": {"verdict": "fail" if n["fail"] else "pass", **n}}, stop
 
 
 def main():
@@ -184,6 +204,11 @@ def main():
     free = shutil.disk_usage(out.parent).free
     if need > free:
         die(f"about {need / 1e9:.1f} GB needed for {out.name}, {free / 1e9:.1f} GB free on that disk")
+    notes, asset_rec, stop = assets_notes(master)   # before the encode: a 4K copy takes a while
+    if stop:
+        for line in stop[0]:   # the verdict and what failed
+            print(line, file=sys.stderr)
+        die(stop[1])
     col = (v.get("pix_fmt"), v.get("color_range"), v.get("color_space"))
     # the four tags are set on the frames (setparams), as bin/vh render does: the encoder's own options lose to what the
     # decoded frames carry. A master that is not limited-range BT.709 yuv420p (a JPEG pipe's yuvj420p) is converted first
@@ -242,7 +267,6 @@ def main():
         die(f"ffmpeg failed (exit {r.returncode})", 1)
     os.replace(part, out)
     size = out.stat().st_size
-    notes, asset_rec = assets_notes(master)
     record(out, master, asset_rec)
     print(f"  {out.name}: {size / 1e9:.2f} GB, {size * 8 / dur / 1e6:.1f} Mb/s on average (the master: {master.stat().st_size * 8 / dur / 1e6:.1f})")
     u = next((s for s in probe(out)["streams"] if s["codec_type"] == "video"), {})

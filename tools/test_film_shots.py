@@ -45,6 +45,19 @@ const SHOTS=[{id:'S01',at:0,see:'First idea',draw:paint},
         review = json.loads((out / "review.json").read_text())
         return [s for segment in review["segments"] for s in segment["shots"]]
 
+    def assert_same_picture(self, a, b):
+        """Two captures of one page: GitHub's macOS runner does not rasterise it to the same bytes twice, so the same
+        picture is a PSNR of 45 dB or more (CLAUDE.md, hard rule 1), measured with ffmpeg when the bytes differ."""
+        if a.read_bytes() == b.read_bytes():
+            return
+        if not shutil.which("ffmpeg"):
+            self.fail(f"{a.name} differs between the two runs (no ffmpeg to say by how much)")
+        r = subprocess.run(["ffmpeg", "-v", "info", "-nostdin", "-i", str(a), "-i", str(b), "-lavfi", "[0:v]format=rgb24[a];[1:v]format=rgb24[b];[a][b]psnr",
+                            "-f", "null", "-"], capture_output=True, text=True, timeout=60)
+        m = re.findall(r"average:(inf|[\d.]+)", r.stderr)
+        self.assertTrue(m, f"no PSNR between the two runs' {a.name}: {r.stderr[-400:]}")
+        self.assertTrue(m[-1] == "inf" or float(m[-1]) >= 45, f"the two runs' {a.name} are {m[-1]} dB apart (under 45)")
+
     def test_live_times_ids_metadata_frames_and_timeline_edit(self):
         out = self.p / "out/check/storyboard"
         log = self.vh("storyboard", self.p, "--lang", "en")
@@ -104,7 +117,7 @@ frame(){const x=document.getElementById('c').getContext('2d');x.fillStyle='green
             for job in jobs:
                 self.assertIn("other.html (window.film.shots)", job.result())
         self.assertEqual(self.review_shots(self.p / "out/run0")[0]["id"], "explicit")
-        self.assertEqual((self.p / "out/run0/frames/explicit.png").read_bytes(), (self.p / "out/run1/frames/explicit.png").read_bytes())
+        self.assert_same_picture(self.p / "out/run0/frames/explicit.png", self.p / "out/run1/frames/explicit.png")
         self.assertIn("other.html", self.vh("rhythm", self.p, "--shots", "other.html", "--lang", "en"))
 
     def test_manual_shots_can_capture_without_reading_unused_live_registry(self):
