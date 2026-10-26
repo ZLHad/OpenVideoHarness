@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**Batch 0's leftovers: strict stops a delivery, `recipes list -h`, two CI flakes**
+- Why: what batch 0 left open. Under `Assets: strict` a failing `bin/vh assets check` was printed and the copy made anyway, so strict and record differed only in the wording.
+- `bin/vh deliver` under `Assets: strict`: when `assets check` fails (the same findings), it stops before the encode, with no copy and exit 2, and says how to clear it (register what a page loads without a record, replace what strict does not take, or the user's BRIEF says `Assets: record`). Under `record` the verdict is said as before. It now also speaks in a project with no ledger whose film loaded material without a record, as `assets check` does.
+- `bin/vh recipes list -h` and `recipes check --help` print the help (they were an unknown option, exit 2).
+- `tools/test_film_shots.py`: two captures of one page are compared by PSNR (45 dB or more, hard rule 1) when their bytes differ. GitHub's macOS runner does not rasterise a page to the same bytes twice.
+- CI: the install step has a 10-minute limit of its own, and on Linux it skips man-db's index rebuild. On 2026-10-25 that step took 17 to 30 minutes four times instead of half a minute, and the job ran out of time.
+
 **A budget floor for paid calls, real footage as a route the repo takes, sketch concept cards, subagent roles and the four binding points**
 - Why: three decisions of 10-26 written into the docs (a budget is a floor; archival and public-domain footage may be used; MVs, hand-drawn and experimental films may show sketches instead of text concept cards), and two sections the next round planned for the pipeline.
 - CLAUDE.md's floors gain one: a paid interface (image or video generation, narration or music billed per call, bought material) is called only with a budget, the BRIEF's `Budget:` or LOCAL.md's 默认预算. A number or `不限` is the user's go-ahead; a call that would go over is not made, and the agent says how much is missing. The existing `bin/vh tts`, `music` and `voices` run locally, on a subscription or on a quota, and go on as before. `bin/vh effort` prints the floor with the others; `LOCAL.example.md` gains the 默认预算 line; playbook/05's cost section follows `Budget:` instead of "stop at 1.5 times".

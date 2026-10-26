@@ -1359,8 +1359,8 @@
             "passes at it when the master's own rate is over it;",
             "a keyframe every 2 s, BT.709, sound and subtitles copied; the size against each limit, the PSNR against the master;",
             "a record beside the copy (<copy>.deliver.json) that bin/vh clean reads: the copy and its master stay as the film",
-            "(in a project with an asset ledger, also bin/vh assets check's verdict, said and never stopping it, and the",
-            "credits and the AI-content notice the upload owes)"
+            "(in a project with an asset ledger, also bin/vh assets check's verdict, and the credits and the AI-content notice",
+            "the upload owes; under Assets: strict a failing check stops it before the encode, exit 2)"
           ]
         }
       ]

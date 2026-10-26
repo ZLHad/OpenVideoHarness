@@ -771,6 +771,9 @@ PY
     && ok "recipes check refuses frontmatter that YAML would read differently" || bad "recipes check on {peak:4} exited $rc"
   vh recipes check --json >/dev/null 2>&1; rc=$?
   [ $rc = 2 ] && ok "recipes check treats an option as bad usage" || bad "recipes check --json exited $rc"
+  a=$(vh recipes list -h 2>&1); rc=$?; b=$(vh recipes check --help 2>&1); rc2=$?
+  case "$rc:$rc2|$a|$b" in "0:0|"*"usage: bin/vh recipes list"*"|"*"usage: bin/vh recipes list"*) ok "recipes list -h and check --help print the help" ;;
+    *) bad "recipes list -h / check --help exited $rc / $rc2: $(printf '%s' "$a" | head -c 200)" ;; esac
   # packcheck counts X's way (a Chinese character 2, a link 23); "X" names X only standing alone, not inside "xhs"
   { printf '%s\n' '# PACKAGING' '## 发布文案' '### X / 推特'; python3 -c "print('简介：' + '字' * 127 + ' https://example.com/' + 'a' * 40 + '.')"
     printf '%s\n' '### B站 + X' '简介：两个平台'; python3 -c "print('字' * 139)"; printf '%s\n' '### 小红书 xhs' "简介：$(python3 -c "print('字' * 300)")"; } > "$t/PACKAGING.md"
@@ -2247,6 +2250,14 @@ sys.exit(0 if ok else 1)
 PY
       then ok "assets end to end: render lists every file the page loaded (.render.json files); check finds the picture the ledger lacks (fail), the records nothing uses (warn) and, in one line, the mix's sound the ledger lacks, while the mix's loop counts as used; status --json gives the counts and the spend"
       else bad "assets end to end, check (exit $rc): $(printf '%s' "$a" | tail -c 500)"; fi
+      # under Assets: strict a failing check stops deliver before the encode; under record (the fixture's) it is only said
+      sed 's/^- Assets: record/- Assets: strict/' "$e/BRIEF.md" > "$e/BRIEF.tmp" && mv "$e/BRIEF.tmp" "$e/BRIEF.md"
+      a=$(vh deliver "$e/out/film.mp4" --psnr off 2>&1); rc=$?
+      sed 's/^- Assets: strict/- Assets: record/' "$e/BRIEF.md" > "$e/BRIEF.tmp" && mv "$e/BRIEF.tmp" "$e/BRIEF.md"
+      case "$rc:$a" in 2:*"✗ assets check: fail"*"Assets: strict, and bin/vh assets check"*"no copy made"*)
+          if [ -e "$e/out/film.upload.mp4" ] || ls "$e/out/".film.upload.mp4.* >/dev/null 2>&1; then bad "deliver under Assets: strict left a file behind"
+          else ok "deliver under Assets: strict stops before the encode when assets check fails (exit 2, no copy, no part file)"; fi ;;
+        *) bad "deliver under Assets: strict with a failing check: exit $rc: $(printf '%s' "$a" | tail -c 500)" ;; esac
       vh assets add "$e" "$e/assets/img/stray.png" --class own >/dev/null 2>&1
       vh assets add "$e" assets/genimg/hero/image.png --update --derived-from frames >/dev/null 2>&1   # hero was made from frames: frames is used
       a=$(vh assets check "$e" 2>&1); rc=$?

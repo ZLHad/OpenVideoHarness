@@ -736,7 +736,7 @@ def cmd_list(args):
 
 
 def main(argv):
-    if argv and argv[0] in ("-h", "--help", "help"):
+    if argv[:1] == ["help"] or any(a in ("-h", "--help") for a in argv):   # `recipes list -h` too, not an unknown option
         print(__doc__.strip())
         return 0
     if not argv or argv[0].startswith("--"):   # bare `bin/vh recipes` (or only filters) lists, like `bin/vh style`
