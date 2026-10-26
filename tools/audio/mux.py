@@ -27,6 +27,13 @@ def duration(path, kind):
     return seconds
 
 
+def video_format(path):
+    result = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_name,pix_fmt",
+                             "-of", "json", str(path)], check=True, capture_output=True, text=True)
+    s = (json.loads(result.stdout).get("streams") or [{}])[0]
+    return s.get("codec_name", ""), s.get("pix_fmt", "")
+
+
 def subtitles_off(path):
     # MP4 enables its first subtitle even with no default disposition. Clear each
     # subtitle track's enabled flag, preserving the selectable tracks (old mux rule).
@@ -83,6 +90,11 @@ def main():
             if delta > 0.1 + 1e-6 and not a.allow_long:
                 ap.error(f"audio is {delta:.3f} s longer than the picture ({ad:.3f} vs {vd:.3f} s): {fit}, "
                          "or pass --allow-long to cut it at the picture's end with a 40 ms fade")
+            codec, pix = video_format(a.video)
+            if codec == "prores" and a.out.suffix.lower() != ".mov":   # MP4 cannot carry ProRes: a transparent film stays a .mov
+                ap.error(f"{a.video.name} is ProRes{' with an alpha channel (bin/vh render --alpha)' if pix.startswith('yuva') else ''}, which "
+                         f"{a.out.suffix or 'a file without an extension'} cannot carry: name the output .mov to keep it (and the alpha); "
+                         "an .mp4 master is rendered without --alpha")
             print("mux: " + ("mix inputs and audio match the successful build" if tracked else "external/legacy audio: no mix record; duration checked, source freshness not verified"), flush=True)
             fade = f",afade=t=out:st={max(0, vd - 0.04):.9f}:d=0.04" if ad > vd + 0.001 else ""
             ins, maps, meta = ["-i", str(a.video), "-i", str(a.audio)], ["-map", "0:v", "-map", "[a]"], []
