@@ -2690,7 +2690,7 @@ sound_tools_checks() {   # check's loudness (tools/loudcheck.py), qa --listen an
   a=$(python3 tools/loudcheck.py "$t/ok.mp4" --json "$t/ok.json"); rc=$?
   b=$(python3 tools/loudcheck.py "$t/quiet.mp4" --json "$t/quiet.json"); rc2=$?
   c=$(python3 tools/loudcheck.py "$t/silent.mp4" --json "$t/silent.json"); rc3=$?
-  if [ "$rc:$rc2:$rc3" = "0:0:0" ] && case "$a|$b|$c" in "loudness: -14.0 LUFS integrated"*"|WARN loudness: -32."*"quieter than the platforms"*"|loudness: no sound"*) true ;; *) false ;; esac \
+  if [ "$rc:$rc2:$rc3" = "0:0:0" ] && case "$a|$b|$c" in "loudness: -14.0 LUFS integrated"*"|WARN loudness: -32."*"quieter than asked"*"|loudness: no sound"*) true ;; *) false ;; esac \
      && python3 - "$t" <<'PY'
 import json, sys
 sys.path.insert(0, "tools")
@@ -2704,6 +2704,22 @@ sys.exit(0 if good else 1)
 PY
   then ok "check's loudness: a film's sound measured as uploaded (ebur128): on the mix's −14 LUFS it is info, a quiet one a warning saying what to do, a silent film nothing; a finding of its own in the check record"
   else bad "check's loudness (exits $rc:$rc2:$rc3): $a | $b | $c"; fi
+  # the target is what the film was mixed to: bin/vh mix keeps lufs= and tp= in its record (<out>.mix.json); a film mixed
+  # to −16 is on target, read from that record; an older record's arguments say it too; else the BRIEF's Loudness line
+  ffmpeg -v error -y -f lavfi -i color=c=gray:s=160x90:r=30 -f lavfi -i "sine=f=1000:r=48000,volume=5.07dB" -t 4 -c:v libx264 -pix_fmt yuv420p -c:a aac -b:a 192k -shortest "$t/m16.mp4"
+  ffmpeg -v error -y -f lavfi -i "sine=f=440:r=48000:d=3" "$t/voice.wav"
+  for d in rec old brief; do mkdir -p "$t/$d/audio"; printf '# BRIEF\n\n## Spec\n- Language: en\n' > "$t/$d/BRIEF.md"; done
+  printf -- '- Loudness: -16 LUFS\n' >> "$t/brief/BRIEF.md"
+  printf '{"version": 1, "status": "complete", "args": ["voice=v.wav", "lufs=-16"]}\n' > "$t/old/audio/mix.wav.mix.json"
+  vh mix "$t/rec/audio/mix.wav" voice="$t/voice.wav" lufs=-16 >/dev/null 2>&1; rc=$?
+  a=$(python3 tools/loudcheck.py "$t/m16.mp4" --project "$t/rec"); rc2=$?
+  b=$(python3 tools/loudcheck.py "$t/m16.mp4" --project "$t/old"); rc3=$?
+  c=$(python3 tools/loudcheck.py "$t/m16.mp4" --project "$t/brief"); rc4=$?
+  d=$(python3 tools/loudcheck.py "$t/m16.mp4"); rc5=$?
+  if [ "$rc:$rc2:$rc3:$rc4:$rc5" = "0:0:0:0:0" ] && python3 -c 'import json,sys; t=json.load(open(sys.argv[1])).get("target"); sys.exit(0 if t == {"lufs": -16.0, "tp": -1.5} else 1)' "$t/rec/audio/mix.wav.mix.json" \
+     && case "$a|$b|$c|$d" in "loudness: -16."*"target -16 ±1"*"audio/mix.wav.mix.json)|loudness: -16."*"target -16 ±1"*"audio/mix.wav.mix.json)|loudness: -16."*"target -16 ±1"*"BRIEF.md)|WARN loudness: -16."*"target -14 ±1"*) true ;; *) false ;; esac
+  then ok "check's loudness: the target is what the film was mixed to: bin/vh mix keeps lufs= and tp= in its record, read back (an older record by its arguments), else the BRIEF's Loudness line, else −14"
+  else bad "check's loudness target (exits $rc:$rc2:$rc3:$rc4:$rc5): $a | $b | $c | $d"; fi
   p="$t/p"; mkdir -p "$p/audio/stems" "$p/out/review"; printf '# BRIEF\n\n## Spec\n- Language: en\n' > "$p/BRIEF.md"
   printf '{"gate": "3", "summary": "draft", "decisions": [], "assets": [{"path": "audio/mix.wav", "caption": "the mix"}]}' > "$p/out/review/gate-3.json"
   if uv run -q --no-project --with numpy python - "$p" <<'PY'

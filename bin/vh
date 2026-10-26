@@ -953,9 +953,10 @@ cmd_check() {
   if [ -z "$col" ]; then :
   elif [ "$col" = "yuv420p,tv,bt709,bt709,bt709" ]; then echo "$c_ok colour: yuv420p, limited range, BT.709 with all four tags"
   else echo "$c_wa colour: $col (pix_fmt,range,matrix,transfer,primaries); deliver yuv420p, tv, bt709 ×3 — re-encode with the command in playbook/02-verification.md (色彩标签)"; fi
-  # loudness: the film's sound as uploaded against the mix's target (−14 LUFS ±1, true peak ≤ −1 dBTP), measured (a warning)
-  local ld lrc=0
-  ld=$(python3 "$ROOT/tools/loudcheck.py" "$v" ${J:+--json "$J/loud.json"} 2>&1) || lrc=$?
+  # loudness: the film's sound as uploaded against what it was mixed to (the project's mix record, else the BRIEF, else
+  # −14 LUFS ±1; true peak ≤ −1 dBTP), measured (a warning)
+  local ld lrc=0 lproj; lproj=$(project_of "$v")
+  ld=$(python3 "$ROOT/tools/loudcheck.py" "$v" ${lproj:+--project "$lproj"} ${J:+--json "$J/loud.json"} 2>&1) || lrc=$?
   case "$lrc:$ld" in
     0:*"no sound"*) ;;
     0:"WARN "*) printf '%s\n' "${ld#WARN }" | sed "1s/^/$c_wa /" ;;

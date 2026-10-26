@@ -194,7 +194,7 @@ AI 听不见，所以声音尽量做成能计算、能测量的：
 - **字幕**（`bin/vh captions`）：旁白稿写成 `中文 || English`，出中文、英文或双行字幕，也能封装成可开关的字幕轨。
 - **配乐**（`bin/vh music`）：用代码作曲，同一份谱永远生成同一段音乐，并给出每一拍的时间让画面卡点；有编钟、古筝、竹笛这些中国乐器。用你自己的曲子时，`bin/vh beats` 分析节拍；`bin/vh bgm search` 和 `bgm pick` 在 Openverse 找一首 CC 许可的曲子，在强拍上截好；`bin/vh music --provider lyria` 用 Google 的 Lyria 生成一首（按首付费，先按项目预算占住，记进台账、标成 AI 生成）。
 - **音效**（`bin/vh sfx`）：21 个代码合成的原创音效，摆在动作发生的那一帧；大多数音效每次略有变化，听着不重复。也能用录好的：`sfx search` 查你自己的声音库（`bin/vh sound add` 登记）和 Openverse 上 CC0、CC BY 的音效，`sfx pick` 取进项目，许可和署名都记进台账。
-- **混音和质检**（`bin/vh mix`、`bin/vh qa`）：有旁白时音乐自动让开，整体响度按 −14 LUFS；`qa` 查断音、掉音、忽大忽小、爆音，以及每个卡点是否落在一帧以内。机器判断不了的，`qa --listen 5` 剪出几段让人戴耳机听（最弱的一句、最响的一击、片尾……）；成片的响度 `bin/vh check` 会量。
+- **混音和质检**（`bin/vh mix`、`bin/vh qa`）：有旁白时音乐自动让开，整体响度按 −14 LUFS；`qa` 查断音、掉音、忽大忽小、爆音，以及每个卡点是否落在一帧以内。机器判断不了的，`qa --listen 5` 剪出几段让人戴耳机听（最弱的一句、最响的一击、片尾……）；成片的响度 `bin/vh check` 会量，对照的是混音时定的目标。
 
 详见 [playbook/04-audio.md](playbook/04-audio.md)。
 
