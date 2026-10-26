@@ -72,7 +72,7 @@ def snapshot(project, want, dst):
         V.warn_once("--snapshot: no node_modules/.bin/hyperframes in the project (bin/vh hf-init installs it); using the video instead"); return {}
     if not want: return {}
     tmp = Path(tempfile.mkdtemp(prefix="vh-snap-"))
-    env = {**os.environ, "HYPERFRAMES_SKIP_SKILLS": "1", "DO_NOT_TRACK": "1"}
+    env = {**os.environ, "HYPERFRAMES_SKIP_SKILLS": "1", "DO_NOT_TRACK": "1", "HYPERFRAMES_NO_UPDATE_CHECK": "1"}
     cmd = [str(hf), "snapshot", str(project), "--at", ",".join(f"{t:.3f}" for _, _, t in want), "--no-end", "--describe", "false", "-o", str(tmp)]
     r = subprocess.run(cmd, capture_output=True, text=True, env=env)
     got = {}

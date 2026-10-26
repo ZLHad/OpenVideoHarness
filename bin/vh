@@ -783,26 +783,7 @@ cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/s
   # the scaffold's font (0.8.82: Inter; 0.8.202: --font-display: sans-serif, which HyperFrames turns into Inter) has no
   # @font-face, so every render, snapshot and check requests it from Google Fonts and hangs where that is blocked: declare
   # system fonts through local() instead, as styles/_swatch/fonts.css does (in the scaffold, before the copy)
-  python3 - "$tmp/hf/index.html" <<'PY' && font=local
-import re, sys
-p = sys.argv[1]; s = open(p, encoding="utf-8").read()
-faces = """\
-      /* Local fonts only. At render time HyperFrames fetches a font from Google Fonts for every family without an @font-face
-         (it hangs where that is blocked), lint-clean names like Arial or Menlo included, and for a stack that starts with a
-         generic family (it puts Inter first). Declare each font you add like these; more macOS faces: styles/_swatch/fonts.css */
-      @font-face { font-family: "Helvetica Neue"; src: local("HelveticaNeue"), local("Helvetica Neue"); font-weight: 400; }
-      @font-face { font-family: "Helvetica Neue"; src: local("HelveticaNeue-Bold"), local("Helvetica Neue Bold"); font-weight: 700; }
-      @font-face { font-family: "Liberation Sans"; src: local("LiberationSans"), local("Liberation Sans"); font-weight: 400; }
-      @font-face { font-family: "Liberation Sans"; src: local("LiberationSans-Bold"), local("Liberation Sans Bold"); font-weight: 700; }
-      @font-face { font-family: "DejaVu Sans"; src: local("DejaVuSans"), local("DejaVu Sans"); font-weight: 400; }
-      @font-face { font-family: "DejaVu Sans"; src: local("DejaVuSans-Bold"), local("DejaVu Sans Bold"); font-weight: 700; }
-"""
-stack = '"Helvetica Neue", "Liberation Sans", "DejaVu Sans", sans-serif;'
-s, n = re.subn(r"font-family: Inter\b[^;]*;", "font-family: " + stack, s)
-s, m = re.subn(r"(--font-display:)[^;]*;", lambda g: g.group(1) + " " + stack, s)
-if not (n or m) or "<style>\n" not in s: sys.exit(1)
-open(p, "w", encoding="utf-8").write(s.replace("<style>\n", "<style>\n" + faces, 1))
-PY
+  python3 "$ROOT/tools/hfinit.py" fonts "$tmp/hf/index.html" && font=local   # tools/hfinit.py check states the rule
   if [ -n "$h" ]; then   # 4:5 and 3:4 have no preset: the portrait scaffold, its height set in the three places it is written
     python3 - "$tmp/hf/index.html" "$h" <<'PY' || echo "$c_wa could not set the composition to 1080x$h: set the viewport, the CSS height and data-height in index.html by hand"
 import sys
