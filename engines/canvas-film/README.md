@@ -225,6 +225,8 @@ bin/vh mux <项目>/out/film.mp4 <混音.wav> <成片.mp4>   # 套上混音（�
 
 ## 可选模块
 
+- **动效组件**：`bin/vh components add <项目> lib page-turn …` 把组件库和组件复制进项目，`film.html` 加一行 `<script type="module" src="components/lib/global.js"></script>`，经典脚本里就能 `OVH.grain(X, t, {…})`、`OVH.paper(X, {…})`，或者用组件的 `state()` 和画法（`components/README.md`）；画面不是 1920×1080 时，在 `ready` 里先 `OVH.setFrame({ w: W, h: H, fps: FILM.fps, dpr: PRX })`。
+
 下面两个模块不设就不起作用：不写 `FILM.music`、`FILM.timemap`，片子照旧按旁白时间走，两份文件留着无妨，也不用读。需要时再看：配乐撑着的片子用小节表，数据有自己的轴（日期、步数、旧版的秒数）时用时间映射。
 
 ### 配乐主导片：只维护一份小节表

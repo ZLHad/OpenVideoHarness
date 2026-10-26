@@ -117,6 +117,9 @@ rm -rf "$STAGE"; mkdir -p "$STAGE"
 for f in index.html boot.js lib.js fonts.css hyperframes.json meta.json package.json; do cp "$SW/$f" "$STAGE/"; done
 for d in demo catalog fontprobe; do [ -d "$SW/$d" ] && cp -R "$SW/$d" "$STAGE/"; done
 [ -d "$SW/vendor" ] && cp -R "$SW/vendor" "$STAGE/"
+# the component library and the components (components/README.md): lib.js re-exports components/lib, and a scene may
+# import a component as ../../components/<name>/component.js. Scripts and tables only, not the samples' media
+rsync -a --include='*/' --include='*.js' --include='*.json' --exclude='*' --prune-empty-dirs "$ROOT/components/" "$STAGE/components/"
 if [ $builtin = 0 ]; then
   mkdir -p "$STAGE/scenes"
   rsync -a --exclude media --exclude '*.md' --exclude '.DS_Store' "$SRC/" "$STAGE/scenes/$slug/"

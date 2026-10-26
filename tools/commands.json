@@ -875,6 +875,48 @@
       ]
     },
     {
+      "name": "components",
+      "summary": "The repo's motion components (spring scene, page turn, paper transitions, chapter bar) and the library under them: list them with their parameter tables, copy them into a project, render a sample.",
+      "when": "a shot needs a move the components already make (a shape that springs between states, a page turn, a fold or ink seam, a chapter bar) before writing one by hand",
+      "stages": ["6", "5"],
+      "reads": [
+        "components/<name>/slots.json, component.js",
+        "components/<name>/sample/ (sample: through the style swatch renderer)"
+      ],
+      "writes": [
+        "<project>/components/lib/, <project>/components/<name>/ (add)",
+        "components/<name>/sample/media/sheet.jpg and swatch.mp4 (sample)"
+      ],
+      "usage": [
+        {
+          "synopsis": "components [list] [--json] | check | add <project> <name…> | sample <name> [--draft]",
+          "text": [
+            "the components (components/README.md): each a state(params, t) and a canvas or DOM painter, its parameters in",
+            "slots.json; add copies the library and the named ones into a project and prints how its engine loads them;",
+            "sample renders one's 5 s sample and keeps its contact sheet"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "list",
+          "summary": "the components, their painters and parameters"
+        },
+        {
+          "name": "check",
+          "summary": "defaults against slots.json, painters, samples, provenance"
+        },
+        {
+          "name": "add",
+          "summary": "copy the library and components into a project"
+        },
+        {
+          "name": "sample",
+          "summary": "render a component's sample and its contact sheet"
+        }
+      ]
+    },
+    {
       "name": "hf-init",
       "summary": "Scaffold HyperFrames into a project safely: the pinned version, no global skills, local fonts, GSAP vendored.",
       "when": "a project that needs HyperFrames and was not made with it (bin/vh new does it for short, promo, data and meme)",

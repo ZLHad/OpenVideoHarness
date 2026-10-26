@@ -106,7 +106,7 @@ OpenVideoHarness/
 ├── CLAUDE.md / AGENTS.md     入口（本文件；AGENTS.md 由 bin/vh sync-agents 生成，内容相同）
 ├── README.md / README.zh-CN.md  给人看的说明；CONTRIBUTING.md 是改本仓库时的规则；install.sh 一键安装
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
-├── bin/vh                    命令行：doctor · setup · install-skill · sync-agents · commands · status · activity · types · effort · new · assets · review · gate · desk · style · recipes · storyboard · rhythm · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · hf-init · determinism · frames · cues · readcheck · textcheck · fonts · sheet · proxy · thumbs · render · patch · versions · check · mix · qa · mux · deliver · clean · gif · cover-preview
+├── bin/vh                    命令行：doctor · setup · install-skill · sync-agents · commands · status · activity · types · effort · new · assets · review · gate · desk · style · recipes · storyboard · rhythm · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · hf-init · determinism · components · frames · cues · readcheck · textcheck · fonts · sheet · proxy · thumbs · render · patch · versions · check · mix · qa · mux · deliver · clean · gif · cover-preview
 ├── tools/                    bin/vh 背后的脚本；commands.json 是命令表（`bin/vh commands` 按阶段列出），modules.json 是外接模块表（`bin/vh doctor` 报这台机器能用哪些），audio/README.md 是声音命令的参数手册，desk/README.md 是审阅台的读取约定；ci.sh 是仓库自检
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              9 类视频（09 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例
@@ -114,6 +114,7 @@ OpenVideoHarness/
 ├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、DECISIONS、NOTES、LESSONS、TASTE_CHECKLIST；用到时再复制：SCRIPT、CHARACTER、PACKAGING
 ├── styles/                   风格预设（参考，不是模板）：STYLE.md + tokens.json + 真渲的 5 s 样片；_swatch/ 是样片渲染器
 ├── recipes/                  镜头配方和全片骨架
+├── components/               能复用的动效（弹簧场景、翻页、纸面转场、章节进度条），各带参数表和样片；lib/ 是它们和样片共用的库
 ├── cases/                    真实案例拆解；opus55-gallery 是社区作品精选
 ├── showcase/                 本仓库自己做的片子（成片在 GitHub Release `media`，tools/fetch_media.sh 下载）
 ├── docs/research/            研究笔记：量过的几件事和因此改了什么；是实验记录，不是规则
