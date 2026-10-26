@@ -547,6 +547,28 @@
       ]
     },
     {
+      "name": "breakdown",
+      "summary": "A reference film taken apart in one command: its frame-to-frame change, where each transition starts (a cut or a soft one), how the cuts sit on its beat grid, five frames round each transition, each segment's keyframe and where its motion is, and a what-to-swap table to fill in.",
+      "when": "a reference film to learn from (playbook/07): before writing its case, or to take its structure for a new film",
+      "stages": ["1", "3"],
+      "reads": [
+        "<video>",
+        "a beats.json of bin/vh beats (--beats), else its audio through bin/vh beats"
+      ],
+      "writes": [
+        "<out>/breakdown.json, change.png, cuts.jpg, segments.jpg, swap.md: <out> is --out, else in a project its research/breakdown/<video name>/, else <video name>-breakdown/ beside it"
+      ],
+      "usage": [
+        {
+          "synopsis": "breakdown <video> [--out DIR] [--fps 30] [--beats auto|off|beats.json] [--json]",
+          "text": [
+            "the change per frame, the transitions, the cuts against the beat grid, the contact strips, the segments' keyframes",
+            "and heat maps, and swap.md (the timing to keep, the content to swap); bin/vh breakdown -h has breakdown.json"
+          ]
+        }
+      ]
+    },
+    {
       "name": "storyboard",
       "summary": "Labelled storyboard pages, one per segment and an overview, from shots.json or the page's window.film.shots, a frame per shot.",
       "when": "gate ②, and to hold the plan against the frames later",
@@ -1362,6 +1384,54 @@
             "(in a project, also bin/vh assets check's verdict, and the credits and the AI-content notice the upload owes;",
             "under Assets: strict a check that fails or cannot run stops it before the encode, exit 2)"
           ]
+        }
+      ]
+    },
+    {
+      "name": "looks",
+      "summary": "The cross-film look ledger, outside the repo: each delivered film's background, palette, layout fingerprint, fonts, transitions, sound files and presets as one record; a new film's frames checked against the last ones at gate ①.",
+      "when": "after a film is delivered (add); at gate ①, with the concept cards' frames, to see which recent films it looks like (check)",
+      "stages": ["9", "1"],
+      "reads": [
+        "<film> (its frames, through ffmpeg) and its .render.json, the project's STORYBOARD.md, shots.json, newest mix and style-refs/",
+        "the pictures given (check --images)",
+        "<ledger>/ledger.jsonl: --ledger, else $OVH_LOOKS, else ~/.ovh/looks"
+      ],
+      "writes": [
+        "<ledger>/ledger.jsonl (add: one line)"
+      ],
+      "usage": [
+        {
+          "synopsis": "looks add <project> [--film F] [--ledger DIR] [--json]",
+          "text": [
+            "a delivered film's look onto the ledger (an asset record with a look field)"
+          ]
+        },
+        {
+          "synopsis": "looks check <project> [--film F | --images a.png,b.png] [--last 8] [--ledger DIR] [--json]",
+          "text": [
+            "which of the last films the project looks like: background, palette, layout, fonts, transitions, sounds, presets"
+          ]
+        },
+        {
+          "synopsis": "looks list [--ledger DIR] [--json]",
+          "text": [
+            "the films on record"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "add",
+          "summary": "a delivered film's look onto the ledger"
+        },
+        {
+          "name": "check",
+          "summary": "which of the last films the project looks like"
+        },
+        {
+          "name": "list",
+          "summary": "the films on record"
         }
       ]
     },

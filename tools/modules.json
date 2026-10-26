@@ -23,7 +23,7 @@
       "license": "LGPL-2.1-or-later, GPL when built with libx264 (Homebrew's: GPL-3.0-or-later)",
       "needs": {},
       "adapter": ["bin/vh (check, sheet, gif)", "tools/film/render.mjs", "tools/deliver.py", "tools/proxy.py", "tools/audio/"],
-      "commands": ["render", "patch", "check", "sheet", "gif", "mux", "mix", "qa", "deliver", "proxy", "thumbs", "versions", "tts", "pace", "captions"],
+      "commands": ["render", "patch", "check", "sheet", "gif", "mux", "mix", "qa", "deliver", "proxy", "thumbs", "versions", "tts", "pace", "captions", "breakdown", "looks"],
       "required": true,
       "check": {"program": "ffmpeg", "version": ["ffmpeg", "-version"], "pattern": "ffmpeg version n?(\\d+(?:\\.\\d+)*)", "also": ["ffprobe"],
                 "features": [{"argv": ["ffmpeg", "-hide_banner", "-encoders"], "contains": "libx264",
@@ -51,7 +51,7 @@
       "license": "MIT OR Apache-2.0",
       "needs": {},
       "adapter": ["bin/vh (on_ctrl_c uv run …)"],
-      "commands": ["tts", "pace", "voices", "beats", "music", "sfx", "mix", "qa", "sheet", "storyboard", "rhythm", "cover-preview", "fonts", "check", "captions", "style"],
+      "commands": ["tts", "pace", "voices", "beats", "music", "sfx", "mix", "qa", "sheet", "storyboard", "rhythm", "cover-preview", "fonts", "check", "captions", "style", "breakdown"],
       "required": true,
       "check": {"program": "uv", "version": ["uv", "--version"], "pattern": "uv (\\d+(?:\\.\\d+)*)"},
       "install": {"macos": "brew install uv", "linux": "curl -LsSf https://astral.sh/uv/install.sh | sh"}
