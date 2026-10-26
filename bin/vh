@@ -331,6 +331,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
   done
   case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs|assets|footage|image|sfx|bgm|ref|scout) ;; *) return 0 ;; esac
   case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs|assets|concept) ;; *) return 0 ;; esac
+  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs|assets|looks) ;; *) return 0 ;; esac
   base=$(projects_base)
   for a in "$@"; do
     case $a in -*|*/*|"") continue ;; esac
@@ -1092,6 +1093,12 @@ cmd_ref() { [ $# -gt 0 ] || { cmd_usage ref >&2; exit 2; }; python3 "$ROOT/tools
 cmd_hf() { [ $# -gt 0 ] || { cmd_usage hf >&2; exit 2; }; python3 "$ROOT/tools/hf.py" "$@"; }   # stdlib; add runs HyperFrames' own add
 cmd_components() { python3 "$ROOT/tools/components.py" "$@"; }   # stdlib; check reads component.js through node, sample runs the swatch renderer
 cmd_deliver() { [ $# -gt 0 ] || { cmd_usage deliver >&2; exit 2; }; python3 "$ROOT/tools/deliver.py" "$@"; }   # ffmpeg only
+cmd_looks() { [ $# -gt 0 ] || { cmd_usage looks >&2; exit 2; }; python3 "$ROOT/tools/looks.py" "$@"; }         # ffmpeg; the ledger outside the repo
+cmd_breakdown() { # the measures need ffmpeg alone; the pictures need pillow (through uv; without uv they are said to be skipped)
+  [ $# -gt 0 ] || { cmd_usage breakdown >&2; exit 2; }
+  if command -v uv >/dev/null 2>&1; then on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/breakdown.py" "$@"
+  else python3 "$ROOT/tools/breakdown.py" "$@"; fi
+}
 cmd_clean() { [ $# -gt 0 ] || { cmd_usage clean >&2; exit 2; }; python3 "$ROOT/tools/clean.py" "$@"; }         # stdlib only
 cmd_gif() {
   [ $# -gt 0 ] || { cmd_usage gif >&2; exit 2; }
@@ -1104,7 +1111,7 @@ cmd_help() { python3 "$ROOT/tools/commands.py" help; }            # every usage,
 cmd_usage() { python3 "$ROOT/tools/commands.py" usage "$1"; }    # one command's usage from there; exit 1 if it has none
 
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa|assets|concept|components|hf|footage|image|bgm|sound|scout|ref) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa|assets|looks|breakdown|concept|components|hf|footage|image|bgm|sound|scout|ref) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
@@ -1124,6 +1131,7 @@ case "${1:-}" in   # the activity log: every command that works on a project (ac
   assets) case "${2:-}" in add|remove|credits) act_start "$@" || true ;; esac ;;   # list and check only read
   scout|ref) case "${2:-}" in list) ;; *) act_start "$@" || true ;; esac ;;   # list only reads
   hf) [ "${2:-}" != add ] || act_start "$@" || true ;;   # catalog reads the registry, no project
+  looks) [ "${2:-}" != add ] || act_start "$@" || true ;;   # check and list only read
   *) act_start "$@" || true ;;
 esac
 
@@ -1147,7 +1155,7 @@ case "${1:-help}" in
   commands) shift; exec python3 "$ROOT/tools/commands.py" list "$@" ;;   # read-only, not logged
   status) shift; cmd_status "$@" ;; activity) shift; cmd_activity "$@" ;; versions) shift; cmd_versions "$@" ;; proxy) shift; cmd_proxy "$@" ;; thumbs) shift; cmd_thumbs "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
-  storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;;
+  storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;; looks) shift; cmd_looks "$@" ;; breakdown) shift; cmd_breakdown "$@" ;;
   help|-h|--help) cmd_help ;;
   *) python3 "$ROOT/tools/commands.py" unknown "$1" || true; exit 2 ;;   # a usage error: its message and the nearest names, on stderr
 esac

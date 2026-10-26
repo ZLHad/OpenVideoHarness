@@ -3886,6 +3886,70 @@ sys.exit(0 if d("hook=own, stop=E1, stop=E3") == d("stop=E1,E3") == d("stop = e1
 # that handles it logs 128 + n, a Ctrl-C logs 130 and ends bin/vh by SIGINT; a project that cannot be written to changes
 # nothing in what the command does or says; bin/vh activity reads it back (and --follow as it grows). The page tools' lines
 # (render's progress, patch) are checked in film_checks
+looks_checks() {   # bin/vh breakdown on a made-up film (a cut at 1 s, a 0.2 s fade at 2 s) and bin/vh looks: a delivered film's look
+  # onto a ledger outside the project, a project's frames checked against it
+  local t p q a b c rc rc2 rc3 m='{"bpm": 120, "beats": [0.5, 1.0, 1.5, 2.0, 2.5, 3.0], "downbeats": [1.0, 3.0]}'
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  if ! command -v ffmpeg >/dev/null 2>&1; then skip "breakdown and looks" "no ffmpeg"; rm -rf "$t"; return; fi
+  ffmpeg -v error -f lavfi -i "color=c=0xd04020:s=320x180:d=1:r=30" -f lavfi -i "color=c=0x2050a0:s=320x180:d=1.2:r=30" -f lavfi -i "color=c=0x80a0a0:s=320x180:d=1.2:r=30" \
+    -filter_complex "[0][1]concat=n=2:v=1:a=0,settb=1/30,fps=30[ab];[2]settb=1/30[c];[ab][c]xfade=transition=fade:duration=0.2:offset=2.0,format=yuv420p" -c:v libx264 -crf 10 "$t/film.mp4"
+  printf '%s' "$m" > "$t/beats.json"
+  a=$(vh breakdown "$t/film.mp4" --out "$t/bd" --beats "$t/beats.json" --json 2>"$t/bd.err"); rc=$?
+  b=$(vh breakdown "$t/film.mp4" --out "$t/bd2" --beats off 2>&1); rc2=$?
+  if [ "$rc:$rc2" = 0:0 ] && python3 - "$a" "$t/bd" <<'PY'
+import json, sys
+from pathlib import Path
+d, out = json.loads(sys.argv[1]), Path(sys.argv[2])
+tr = [(t["t"], t["kind"]) for t in d["transitions"]]
+ok = d["v"] == 1 and len(tr) == 2 and tr[0] == (1.0, "cut") and tr[1][1] == "soft" and 1.95 <= tr[1][0] <= 2.05
+ok = ok and [s["i"] for s in d["segments"]] == [1, 2, 3] and d["segments"][0]["length"] == 1.0 and d["stats"]["cuts"] == 1 and d["stats"]["soft"] == 1
+ok = ok and d["beats"]["on_beat"] == 2 and d["beats"]["of"] == 2 and d["beats"]["on_downbeat"] == 1 and d["beats"]["bpm"] == 120
+ok = ok and json.loads((out / "breakdown.json").read_text(encoding="utf-8"))["transitions"] == d["transitions"]
+swap = (out / "swap.md").read_text(encoding="utf-8")
+ok = ok and "| 1 | 0.00–1.00 | 1.00 s | cut |" in swap and swap.count("{…}") == 9
+sys.exit(0 if ok else 1)
+PY
+  then
+    if ! command -v uv >/dev/null 2>&1; then skip "breakdown's pictures" "no uv"
+    elif [ -s "$t/bd/change.png" ] && [ -s "$t/bd/cuts.jpg" ] && [ -s "$t/bd/segments.jpg" ] && printf '%s' "$b" | grep -q "1 cuts, 1 soft transitions · 3 segments"; then
+      ok "breakdown: a cut and a 6-frame fade found where they are, three segments, the cuts against a given beat grid (2 of 2 on a beat, 1 on a downbeat), the contact strips, keyframes and heat maps, swap.md with the measured timing and empty cells"
+    else bad "breakdown's pictures: $(ls "$t/bd" | tr '\n' ' ') $b"; fi
+  else bad "breakdown (exits $rc:$rc2): $(printf '%s' "$a" | tail -c 300) $(tail -c 300 "$t/bd.err")"; fi
+  # looks: a film on record with its storyboard's transitions; the same film's frame looks like it, another picture
+  # does not; no ledger yet is said, exit 0; a project with no film to add is 1
+  OVH_PROJECTS="$t" vh new short lk-one >/dev/null 2>&1; OVH_PROJECTS="$t" vh new short lk-two >/dev/null 2>&1; OVH_PROJECTS="$t" vh new short lk-three >/dev/null 2>&1
+  p=$(ls -d "$t"/*-lk-one); q=$(ls -d "$t"/*-lk-two)
+  for x in "$p" "$q"; do printf '\n| # | 时间 | 配方 | 转场出 |\n|---|---|---|---|\n| A | 0–1 | black-card | flash-cut |\n' >> "$x/STORYBOARD.md"; done
+  ffmpeg -v error -y -ss 0.5 -i "$t/film.mp4" -frames:v 1 "$t/red.png"; ffmpeg -v error -y -f lavfi -i "color=c=0xeeeeee:s=320x180" -frames:v 1 "$t/grey.png"
+  a=$(vh looks check "$q" --images "$t/red.png" --ledger "$t/L" 2>&1); rc=$?
+  b=$(vh looks add "$p" --film "$t/film.mp4" --ledger "$t/L" --json 2>/dev/null); rc2=$?
+  c=$(vh looks check "$q" --images "$t/red.png" --ledger "$t/L" 2>&1; vh looks check "$(ls -d "$t"/*-lk-three)" --images "$t/grey.png" --ledger "$t/L" 2>&1; vh looks list --ledger "$t/L" 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 0:0:0 ] && python3 - "$b" <<'PY'
+import json, sys
+sys.path.insert(0, "tools/assets")
+import ledger
+r = json.loads(sys.argv[1])["record"]
+lk = r["look"]
+ok = not ledger.validate(r) and r["id"] == "lk-one-film" and r["license"]["class"] == "own" and r["source"]["origin"] == "self"
+ok = ok and lk["transitions"] == ["black-card", "flash-cut"] and 20 <= lk["frames"] <= 24 and len(lk["layout"]) == 80 and lk["measured_from"] == "film"
+ok = ok and all(p["hex"].startswith("#") and 0 < p["share"] <= 1 for p in lk["palette"]) and lk["bg"].startswith("#")
+sys.exit(0 if ok else 1)
+PY
+  then case "$a|$c" in *"(no ledger yet)"*"0 of 0 alike"*"|"*"! like lk-one-film"*"transitions black-card, flash-cut"*"1 of 1 alike"*"0 of 1 alike"*"1 film"*)
+      if vh looks add "$(ls -d "$t"/*-lk-three)" --ledger "$t/L" >/dev/null 2>&1; [ $? = 1 ]; then
+        ok "looks: a delivered film's background, palette, layout, transitions and the rest as an asset record outside the repo; a frame of it and the same storyboard look alike, another picture does not; no ledger yet is said; nothing to add is 1"
+      else bad "looks add with no film: not exit 1"; fi ;;
+    *) bad "looks check: $(printf '%s' "$a$c" | tail -c 600)" ;; esac
+  else bad "looks (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b" | tail -c 400)"; fi
+  rc=0; for x in "looks" "looks bogus" "looks check" "breakdown" "breakdown $t/none.mp4" "breakdown $t/film.mp4 --beats nowhere.json"; do
+    # shellcheck disable=SC2086
+    a=$(vh $x 2>/dev/null); b=$?; [ "$b" = 2 ] && [ -z "$a" ] || { rc=1; bad "bin/vh $x: exit $b, stdout ${a:0:80}"; }
+  done
+  a=$(vh looks check "$p" --film "$t/film.mp4" --images "$t/red.png" 2>/dev/null); b=$?; [ "$b" = 2 ] || { rc=1; bad "looks check --film and --images: exit $b"; }
+  [ "$rc" = 1 ] || ok "breakdown and looks: usage errors exit 2, nothing on stdout"
+  rm -rf "$t"
+}
+
 activity_checks() {
   local t p a b c rc rc2 i pid want la
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/p q"   # a space in the path
@@ -5389,11 +5453,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; components_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; components_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; components_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; components_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these
