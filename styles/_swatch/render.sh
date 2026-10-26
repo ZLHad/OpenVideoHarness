@@ -156,7 +156,7 @@ rm -f "$HFMP4" "$LOG"
 vars="{\"style\":\"$slug\",\"hud\":$hud}"
 
 hf_render() { # --no-browser-gpu: every frame is a pure function of t only when nothing in the pipeline depends on GPU state (header)
-  cd "$STAGE" && exec env HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 "$HF" render . --fps $FPS --workers "$workers" \
+  cd "$STAGE" && exec env HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1 "$HF" render . --fps $FPS --workers "$workers" \
     --no-browser-gpu --variables "$vars" "$@"
 }
 bl_render() { # $1 = frame folder, $2 = frame list ("0-149", "149,90,12"): the list cut into $workers contiguous chunks,
