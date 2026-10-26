@@ -87,7 +87,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 ### 配乐（`music`）
 
 来源优先级（借鉴自归藏 product-video skill 的做法）：
-1. **用户给的曲子**，或用户有授权的曲库。按它的实际节拍重新对齐画面：`bin/vh beats`。
+1. **用户给的曲子**，或用户有授权的曲库。按它的实际节拍重新对齐画面：`bin/vh beats`。要找一首可以用的现成曲子：`bin/vh bgm search` 查本机声音库和 Openverse（多是 Jamendo 的 CC BY），`bgm pick` 在强拍上截好、连节拍表和署名一起进项目（参数见 `bin/vh bgm -h`）。
 2. **本机确实能跑的音乐生成模型**：先确认权重已经下载、运行环境也装好，才算可用。接口位已留，见下文"歌曲"。
 3. **代码原创作曲**：`bin/vh music`。编曲源码 `score.json` 跟着项目一起提交，段落（`sections`）按镜头边界排，音色和速度按片子的气质选。因为曲子是我们自己写的，节拍网格和冲击点是**精确的**，不用再做节拍检测。
 
@@ -112,6 +112,7 @@ bin/vh beats <任意音乐文件>                          # 外来音乐的节�
 
 ### 音效（`sfx`）
 
+- **录好的音效**：`bin/vh sfx search` 查本机声音库和 Openverse（Freesound 的 CC0、CC BY，免 key），`sfx pick` 转成 48 kHz 放进 `audio/sfx/`，连许可和署名记进台账；本地下好的包用 `bin/vh sound add` 登记（参数见 `bin/vh sfx search -h`、`bin/vh sound -h`）。下面讲内置的合成音效。
 - **音效是独立的事件层**，和音乐分开：`audio/events.json` 写成 `[{t, sfx, gain_db, pan, dist}]`，后两项可选；内置音效还可以带 `variant` 和塑形参数（见下）。`sfx place` 输出 48 kHz 立体声。
 - **`t` 可以写引用，不写死秒数**：给 events.json 加一个表头，`t` 就能写成画面用的同一种挂点（`"@a4>"`、`"@a2:风"`、`{"$music": [12, 3]}`、时间映射的 `"@#e2"`），改了配音、谱子或映射，重跑 `sfx place` 或 `mix` 声音就跟上；写法见 `tools/audio/README.md`。
 - **`t` 是"落点"**：内置音效各自带落点偏移（例如 whoosh 的峰值、riser 的顶点），摆放时会自动对齐，保证声音峰值和动作在同一帧。riser 因此写在它要冲到的那一刻，声音从 `t − dur` 开始；写成铺垫开始的时刻，整段声音就早了一个 `dur`，峰值落在铺垫刚开始的地方。

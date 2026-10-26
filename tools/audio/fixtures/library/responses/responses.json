@@ -1,0 +1,78 @@
+{
+ "v": 1,
+ "note": "bin/vh sfx|bgm search and pick's answers for the tests (tools/ci.sh, library_checks): Openverse's audio search, recorded 2026-10-26 and cut to the fields the tool reads. The sounds themselves (media/) are not the authors' files: tools/ci.sh makes them with ffmpeg in a copy of this folder (people's work stays out of the repo)",
+ "responses": [
+  {
+   "url": "https://api.openverse.org/v1/audio/?q=whoosh&page_size=5&source=freesound&license=cc0%2Cby",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "sfx-whoosh-strict.json"
+  },
+  {
+   "url": "https://api.openverse.org/v1/audio/?q=door+close&page_size=4&source=freesound&license=cc0%2Cby",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "sfx-door-strict.json"
+  },
+  {
+   "url": "https://api.openverse.org/v1/audio/?q=whoosh&page_size=6&source=freesound",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "sfx-whoosh-record.json"
+  },
+  {
+   "url": "https://api.openverse.org/v1/audio/?q=calm+piano&page_size=4&category=music&license=cc0%2Cby",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "bgm-calm-piano.json"
+  },
+  {
+   "url": "https://cdn.freesound.org/previews/351/351256_2247456-hq.mp3",
+   "status": 200,
+   "headers": {
+    "content-type": "audio/mpeg"
+   },
+   "body": "media/eab8a6e2.bin"
+  },
+  {
+   "url": "https://cdn.freesound.org/previews/171/171588_2034796-hq.mp3",
+   "status": 200,
+   "headers": {
+    "content-type": "audio/mpeg"
+   },
+   "body": "media/f340c2c6.bin"
+  },
+  {
+   "url": "https://cdn.freesound.org/previews/466/466864_9135300-hq.mp3",
+   "status": 200,
+   "headers": {
+    "content-type": "audio/mpeg"
+   },
+   "body": "media/aec0904a.bin"
+  },
+  {
+   "url": "https://cdn.freesound.org/previews/178/178545_321967-hq.mp3",
+   "status": 200,
+   "headers": {
+    "content-type": "audio/mpeg"
+   },
+   "body": "media/e8978d57.bin"
+  },
+  {
+   "url": "https://prod-1.storage.jamendo.com/?trackid=2185462&format=mp32",
+   "status": 200,
+   "headers": {
+    "content-type": "audio/mpeg"
+   },
+   "body": "media/5f7af4b0.bin"
+  }
+ ]
+}

@@ -1,6 +1,6 @@
 """Code-synthesised sound effects + an event placer → an SFX track that lines up with on-screen actions.
 
-usage (via bin/vh sfx):
+usage (via bin/vh sfx; recorded effects from the sound library and Openverse: bin/vh sfx search -h, sfx pick -h):
   python tools/audio/sfx.py lib <out_dir>                         the built-in library: 48 kHz mono WAVs, the plain variant 0
   python tools/audio/sfx.py place <events.json> <out.wav> [duration_s] [--lib DIR]   → 48 kHz STEREO track
                                                                   + <out>.events.json: levels, variants

@@ -1,0 +1,165 @@
+{
+ "result_count": 240,
+ "page_count": 60,
+ "page_size": 4,
+ "page": 1,
+ "results": [
+  {
+   "id": "ba24597e-d505-4062-aa4b-64765c87f756",
+   "title": "Car door close, engine start",
+   "foreign_landing_url": "https://freesound.org/people/Frederik_Sunne/sounds/324138",
+   "url": "https://cdn.freesound.org/previews/324/324138_2845145-hq.mp3",
+   "creator": "Frederik_Sunne",
+   "license": "by",
+   "license_version": "4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "provider": "freesound",
+   "source": "freesound",
+   "category": null,
+   "genres": null,
+   "filetype": "mp3",
+   "tags": [
+    {
+     "name": "Car"
+    },
+    {
+     "name": "VW"
+    },
+    {
+     "name": "car"
+    },
+    {
+     "name": "closes"
+    },
+    {
+     "name": "door"
+    },
+    {
+     "name": "engine"
+    }
+   ],
+   "attribution": "\"Car door close, engine start\" by Frederik_Sunne is licensed under CC BY 4.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/.",
+   "duration": 9567,
+   "audio_set": null,
+   "detail_url": "https://api.openverse.org/v1/audio/ba24597e-d505-4062-aa4b-64765c87f756/"
+  },
+  {
+   "id": "aec0904a-4703-4303-88bb-879ec6031fa5",
+   "title": "Door closing, door closed",
+   "foreign_landing_url": "https://freesound.org/people/steinhyrningur/sounds/466864",
+   "url": "https://cdn.freesound.org/previews/466/466864_9135300-hq.mp3",
+   "creator": "steinhyrningur",
+   "license": "cc0",
+   "license_version": "1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "provider": "freesound",
+   "source": "freesound",
+   "category": null,
+   "genres": null,
+   "filetype": "mp3",
+   "tags": [
+    {
+     "name": "Close"
+    },
+    {
+     "name": "Door"
+    },
+    {
+     "name": "door"
+    },
+    {
+     "name": "front"
+    },
+    {
+     "name": "heavy"
+    }
+   ],
+   "attribution": "\"Door closing, door closed\" by steinhyrningur is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+   "duration": 4437,
+   "audio_set": null,
+   "detail_url": "https://api.openverse.org/v1/audio/aec0904a-4703-4303-88bb-879ec6031fa5/"
+  },
+  {
+   "id": "d4025ccc-f3d5-4ced-8e7b-d6e745c83d8b",
+   "title": "door close 2.wav",
+   "foreign_landing_url": "https://freesound.org/people/THE_bizniss/sounds/53269",
+   "url": "https://cdn.freesound.org/previews/53/53269_382028-hq.mp3",
+   "creator": "THE_bizniss",
+   "license": "by",
+   "license_version": "3.0",
+   "license_url": "https://creativecommons.org/licenses/by/3.0/",
+   "provider": "freesound",
+   "source": "freesound",
+   "category": null,
+   "genres": null,
+   "filetype": "mp3",
+   "tags": [
+    {
+     "name": "bell"
+    },
+    {
+     "name": "close"
+    },
+    {
+     "name": "door"
+    },
+    {
+     "name": "doorbell"
+    },
+    {
+     "name": "doorclose"
+    },
+    {
+     "name": "effects"
+    }
+   ],
+   "attribution": "\"door close 2.wav\" by THE_bizniss is licensed under CC BY 3.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/3.0/.",
+   "duration": 650,
+   "audio_set": {
+    "title": "doors and such"
+   },
+   "detail_url": "https://api.openverse.org/v1/audio/d4025ccc-f3d5-4ced-8e7b-d6e745c83d8b/"
+  },
+  {
+   "id": "03a6e3f8-4f31-4fc0-a631-0a140bd389e2",
+   "title": "Door - Close 03.wav",
+   "foreign_landing_url": "https://freesound.org/people/JarredGibb/sounds/219495",
+   "url": "https://cdn.freesound.org/previews/219/219495_4056007-hq.mp3",
+   "creator": "JarredGibb",
+   "license": "cc0",
+   "license_version": "1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "provider": "freesound",
+   "source": "freesound",
+   "category": null,
+   "genres": null,
+   "filetype": "mp3",
+   "tags": [
+    {
+     "name": "Door"
+    },
+    {
+     "name": "close"
+    },
+    {
+     "name": "closing"
+    },
+    {
+     "name": "door"
+    },
+    {
+     "name": "doors"
+    },
+    {
+     "name": "open"
+    }
+   ],
+   "attribution": "\"Door - Close 03.wav\" by JarredGibb is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+   "duration": 1741,
+   "audio_set": {
+    "title": "Household"
+   },
+   "detail_url": "https://api.openverse.org/v1/audio/03a6e3f8-4f31-4fc0-a631-0a140bd389e2/"
+  }
+ ]
+}

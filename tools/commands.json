@@ -436,6 +436,81 @@
       ]
     },
     {
+      "name": "bgm",
+      "summary": "Music to license rather than compose: search the sound library and Openverse (mostly Jamendo, CC BY), pick a track into the project cut on a downbeat, with its beat grid and its licence on record.",
+      "when": "a film that wants a real track (an outside piece instead of bin/vh music's code-composed score)",
+      "stages": ["4"],
+      "reads": [
+        "the sound library and Openverse (--offline <folder>: recorded answers)",
+        "<project>/BRIEF.md (Assets)",
+        "--beats <grid> (pick), or the track's own, by bin/vh beats"
+      ],
+      "writes": [
+        "<project>/audio/<as>.wav (music) and <as>.beats.json, and its record in assets/ledger.json; the library's ledger.jsonl and files (pick)"
+      ],
+      "usage": [
+        {
+          "synopsis": "bgm search <query> [--len 60] [--top 8] [--where all|library|openverse] [--project P] [--json]",
+          "text": [
+            "tracks at least --len seconds long, each with its licence class and whether the project's Assets policy takes it"
+          ]
+        },
+        {
+          "synopsis": "bgm pick <project> <ref> [--as music] [--len 60] [--fade 1.5] [--beats f.json | --no-beats] [--json]",
+          "text": [
+            "into audio/<as>.wav, 48 kHz, cut at the last downbeat before --len (8 ms off at the cut, --fade before it), with",
+            "<as>.beats.json up to the cut (detected beats: check them before cutting hard); on record with the site's credit"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "search",
+          "summary": "tracks in the sound library and on Openverse"
+        },
+        {
+          "name": "pick",
+          "summary": "one into the project, cut on a downbeat, on record"
+        }
+      ]
+    },
+    {
+      "name": "sound",
+      "summary": "The sound library outside the repo: register packs already on disk (Sonniss, Kenney, Incompetech, your own), each file with its licence and length, and list what it has.",
+      "when": "after downloading a pack, so sfx search and bgm search find it",
+      "stages": ["env"],
+      "reads": [
+        "the files and folders given; --license, --class, --restrict"
+      ],
+      "writes": [
+        "<library>/ledger.jsonl (--lib, $OVH_SOUND_LIB, LOCAL.md's 声音库, else ~/.ovh/sound)"
+      ],
+      "usage": [
+        {
+          "synopsis": "sound add <file|folder …> --source NAME [--kind sfx|bgm] [--license L] [--class C] [--restrict no_resell,no_ai_train] [--json]",
+          "text": [
+            "one record a sound file, where it is: sha256, length, channels, tags from its folders and name, the licence classed"
+          ]
+        },
+        {
+          "synopsis": "sound list [--kind sfx|bgm] [--source NAME] [--json]",
+          "text": [
+            "counts by kind, source and licence class"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "add",
+          "summary": "register packs already on disk"
+        },
+        {
+          "name": "list",
+          "summary": "what the library has"
+        }
+      ]
+    },
+    {
       "name": "assets",
       "summary": "The project's material, one record a file in assets/ledger.json: register a file or download one, list the records with the spend against the budget, check the files and their licences, print the credits.",
       "when": "a file a film uses comes in (downloaded, generated, bought or made), before a delivery (check, credits), or to see what is spent against the budget",
@@ -1094,16 +1169,18 @@
     },
     {
       "name": "sfx",
-      "summary": "The built-in synthesized sound effects: write the library, place effects on action times (stereo, pan, distance), audition a family.",
+      "summary": "The built-in synthesized sound effects: write the library, place effects on action times (stereo, pan, distance), audition a family; and recorded ones: search the sound library and Openverse, pick one into the project with its licence on record.",
       "when": "sound design, once the action times are known",
       "stages": ["4", "8"],
       "reads": [
-        "<events.json> (place)"
+        "<events.json> (place)",
+        "the sound library (search, pick: --lib, $OVH_SOUND_LIB, LOCAL.md's 声音库, else ~/.ovh/sound) and Openverse (--offline <folder>: recorded answers)"
       ],
       "writes": [
         "<dir>/*.wav and sfx-lib.json (lib)",
         "<out.wav> and <out>.events.json (place)",
-        "--out f.wav, --png (audition)"
+        "--out f.wav, --png (audition)",
+        "<project>/audio/sfx/<name>.wav and its record in assets/ledger.json; the library's ledger.jsonl and files (pick)"
       ],
       "usage": [
         {
@@ -1120,6 +1197,20 @@
           "text": [
             "hear a family: n variants 0.6 s apart (--walk: one film's n in a row) + a line each (+ spectrogram)"
           ]
+        },
+        {
+          "synopsis": "sfx search <query> [--top 8] [--dur 0.3-2] [--where all|library|openverse] [--project P] [--audition] [--json]",
+          "text": [
+            "recorded effects: the sound library, then Openverse (Freesound's CC0 and CC BY, no key), each with its licence class",
+            "and whether the project's Assets policy takes it; --audition: the top ones in one WAV to listen to"
+          ]
+        },
+        {
+          "synopsis": "sfx pick <project> <ref> --as NAME [--json]",
+          "text": [
+            "into audio/sfx/NAME.wav (taken: NAME_a, _b …, qa's takes of one sound), 48 kHz, on record with the site's credit line;",
+            "strict refuses NC, ND, BY-SA and unknown before downloading"
+          ]
         }
       ],
       "subcommands": [
@@ -1134,6 +1225,14 @@
         {
           "name": "audition",
           "summary": "hear a family's variants"
+        },
+        {
+          "name": "search",
+          "summary": "recorded effects in the sound library and on Openverse"
+        },
+        {
+          "name": "pick",
+          "summary": "one into the project, on record with its credit"
         }
       ]
     },

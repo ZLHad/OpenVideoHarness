@@ -1,0 +1,243 @@
+{
+ "result_count": 240,
+ "page_count": 40,
+ "page_size": 6,
+ "page": 1,
+ "results": [
+  {
+   "id": "eab8a6e2-0ac8-4615-9e0d-ebde30523783",
+   "title": "Deep Whoosh #1",
+   "foreign_landing_url": "https://freesound.org/people/Kinoton/sounds/351256",
+   "url": "https://cdn.freesound.org/previews/351/351256_2247456-hq.mp3",
+   "creator": "Kinoton",
+   "license": "cc0",
+   "license_version": "1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "provider": "freesound",
+   "source": "freesound",
+   "category": null,
+   "genres": null,
+   "filetype": "mp3",
+   "tags": [
+    {
+     "name": "air"
+    },
+    {
+     "name": "sfx"
+    },
+    {
+     "name": "sound-design"
+    },
+    {
+     "name": "soundeffect"
+    },
+    {
+     "name": "sweeping"
+    },
+    {
+     "name": "swish"
+    }
+   ],
+   "attribution": "\"Deep Whoosh #1\" by Kinoton is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+   "duration": 3155,
+   "audio_set": {
+    "title": "Transitions"
+   },
+   "detail_url": "https://api.openverse.org/v1/audio/eab8a6e2-0ac8-4615-9e0d-ebde30523783/"
+  },
+  {
+   "id": "f1dc6045-7965-41de-87f8-4731d2583fd2",
+   "title": "Swosh swoosh whoosh air sound, free, high quality",
+   "foreign_landing_url": "https://freesound.org/people/qubodup/sounds/60026",
+   "url": "https://cdn.freesound.org/previews/60/60026_71257-hq.mp3",
+   "creator": "qubodup",
+   "license": "cc0",
+   "license_version": "1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "provider": "freesound",
+   "source": "freesound",
+   "category": null,
+   "genres": null,
+   "filetype": "mp3",
+   "tags": [
+    {
+     "name": "air"
+    },
+    {
+     "name": "attack"
+    },
+    {
+     "name": "bamboo"
+    },
+    {
+     "name": "cut"
+    },
+    {
+     "name": "domain"
+    },
+    {
+     "name": "flup"
+    }
+   ],
+   "attribution": "\"Swosh swoosh whoosh air sound, free, high quality\" by qubodup is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+   "duration": 490,
+   "audio_set": {
+    "title": "Free Whoosh Sound Pack"
+   },
+   "detail_url": "https://api.openverse.org/v1/audio/f1dc6045-7965-41de-87f8-4731d2583fd2/"
+  },
+  {
+   "id": "b7ae7822-8ec5-4a82-b6f8-d539b51caa61",
+   "title": "Swipe Whoosh",
+   "foreign_landing_url": "https://freesound.org/people/qubodup/sounds/60007",
+   "url": "https://cdn.freesound.org/previews/60/60007_71257-hq.mp3",
+   "creator": "qubodup",
+   "license": "cc0",
+   "license_version": "1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "provider": "freesound",
+   "source": "freesound",
+   "category": null,
+   "genres": null,
+   "filetype": "mp3",
+   "tags": [
+    {
+     "name": "air"
+    },
+    {
+     "name": "attack"
+    },
+    {
+     "name": "bamboo"
+    },
+    {
+     "name": "cut"
+    },
+    {
+     "name": "domain"
+    },
+    {
+     "name": "flup"
+    }
+   ],
+   "attribution": "\"Swipe Whoosh\" by qubodup is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+   "duration": 447,
+   "audio_set": {
+    "title": "Free Whoosh Sound Pack"
+   },
+   "detail_url": "https://api.openverse.org/v1/audio/b7ae7822-8ec5-4a82-b6f8-d539b51caa61/"
+  },
+  {
+   "id": "f340c2c6-4b41-4acd-a593-b5bbdb2c2b8b",
+   "title": "whoosh motron very low.wav",
+   "foreign_landing_url": "https://freesound.org/people/melissapons/sounds/171588",
+   "url": "https://cdn.freesound.org/previews/171/171588_2034796-hq.mp3",
+   "creator": "melissapons",
+   "license": "by",
+   "license_version": "4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "provider": "freesound",
+   "source": "freesound",
+   "category": null,
+   "genres": null,
+   "filetype": "mp3",
+   "tags": [
+    {
+     "name": "sci-fi"
+    },
+    {
+     "name": "sfx"
+    },
+    {
+     "name": "whoosh"
+    }
+   ],
+   "attribution": "\"whoosh motron very low.wav\" by melissapons is licensed under CC BY 4.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/.",
+   "duration": 10500,
+   "audio_set": {
+    "title": "Whooshes"
+   },
+   "detail_url": "https://api.openverse.org/v1/audio/f340c2c6-4b41-4acd-a593-b5bbdb2c2b8b/"
+  },
+  {
+   "id": "e8978d57-2055-4371-9e36-d421742f990c",
+   "title": "04102 cinematic whoosh hit 2.wav",
+   "foreign_landing_url": "https://freesound.org/people/Robinhood76/sounds/178545",
+   "url": "https://cdn.freesound.org/previews/178/178545_321967-hq.mp3",
+   "creator": "Robinhood76",
+   "license": "by-nc",
+   "license_version": "4.0",
+   "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+   "provider": "freesound",
+   "source": "freesound",
+   "category": null,
+   "genres": null,
+   "filetype": "mp3",
+   "tags": [
+    {
+     "name": "accent"
+    },
+    {
+     "name": "cinematic"
+    },
+    {
+     "name": "hit"
+    },
+    {
+     "name": "impact"
+    },
+    {
+     "name": "rumble"
+    },
+    {
+     "name": "sfx"
+    }
+   ],
+   "attribution": "\"04102 cinematic whoosh hit 2.wav\" by Robinhood76 is licensed under CC BY-NC 4.0. To view a copy of this license, visit https://creativecommons.org/licenses/by-nc/4.0/.",
+   "duration": 5246,
+   "audio_set": {
+    "title": "SPACE fiction sound effects"
+   },
+   "detail_url": "https://api.openverse.org/v1/audio/e8978d57-2055-4371-9e36-d421742f990c/"
+  },
+  {
+   "id": "edf585a5-7c4f-48ac-9587-49d492c86de8",
+   "title": "Melee Combat Whoosh",
+   "foreign_landing_url": "https://freesound.org/people/EminYILDIRIM/sounds/539172",
+   "url": "https://cdn.freesound.org/previews/539/539172_10912485-hq.mp3",
+   "creator": "EminYILDIRIM",
+   "license": "by",
+   "license_version": "4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+   "provider": "freesound",
+   "source": "freesound",
+   "category": null,
+   "genres": null,
+   "filetype": "mp3",
+   "tags": [
+    {
+     "name": "Combat"
+    },
+    {
+     "name": "Melee"
+    },
+    {
+     "name": "Whoosh"
+    },
+    {
+     "name": "attack"
+    },
+    {
+     "name": "close"
+    },
+    {
+     "name": "combat"
+    }
+   ],
+   "attribution": "\"Melee Combat Whoosh\" by EminYILDIRIM is licensed under CC BY 4.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/.",
+   "duration": 800,
+   "audio_set": null,
+   "detail_url": "https://api.openverse.org/v1/audio/edf585a5-7c4f-48ac-9587-49d492c86de8/"
+  }
+ ]
+}
