@@ -1,0 +1,14 @@
+{
+ "v": 1,
+ "note": "bin/vh image's answers for the tests (tools/ci.sh, image_checks): synthesized in the shape Google documents for the Interactions API (ai.google.dev/api/interactions, 2026-10-26: steps \u2192 model_output \u2192 content blocks with base64 data; usage by modality), with ffmpeg-made 160\u00d790 pictures; not recorded from the live API. tools/ci.sh copies this folder and puts in the answer each case needs",
+ "responses": [
+  {
+   "url": "https://generativelanguage.googleapis.com/v1beta/interactions",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "answer-plain.json"
+  }
+ ]
+}

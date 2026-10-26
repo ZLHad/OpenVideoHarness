@@ -262,16 +262,16 @@
     {
       "name": "gemini",
       "kind": "service",
-      "purpose": "Google's Gemini API: bin/vh tts gemini and gemini-lite, word timing with --align gemini (tts, pace), and the voice library and voice design (voices).",
-      "version": {"models": ["gemini-3.8-flash-tts (GEMINI_TTS_MODEL)", "gemini-3.8-flash-lite-tts", "gemini-3.5-transcribe (GEMINI_ASR_MODEL)"]},
-      "license": "Google's Gemini API terms; its speech carries an inaudible SynthID watermark, so AI narration is disclosed (NOTES.md)",
+      "purpose": "Google's Gemini API: bin/vh tts gemini and gemini-lite, word timing with --align gemini (tts, pace), the voice library and voice design (voices), and pictures (image gen: Nano Banana 2.1 for drafts, Nano Banana Pro for finals, through the Interactions API).",
+      "version": {"models": ["gemini-3.8-flash-tts (GEMINI_TTS_MODEL)", "gemini-3.8-flash-lite-tts", "gemini-3.5-transcribe (GEMINI_ASR_MODEL)", "gemini-nano-banana-2.1 (image gen --tier draft)", "gemini-3-pro-image (image gen --tier final)"]},
+      "license": "Google's Gemini API terms; its speech carries an inaudible SynthID watermark, so AI narration is disclosed (NOTES.md); so do its pictures (image gen: AIGC on record)",
       "needs": {"keys": ["GEMINI_API_KEY"], "account": "a Google AI Studio API key; the free tier has a daily quota"},
-      "adapter": ["tools/audio/tts.py (gemini_call)", "tools/audio/pace.py"],
-      "commands": ["tts", "pace", "voices"],
+      "adapter": ["tools/audio/tts.py (gemini_call)", "tools/audio/pace.py", "tools/assets/image.py (gemini_body, picture_of)"],
+      "commands": ["tts", "pace", "voices", "image"],
       "required": false,
       "check": {},
       "probe": {"method": "GET", "url": "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000", "auth": {"header": "x-goog-api-key"},
-                "expect": {"list": "models", "names": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.5-transcribe"]}},
+                "expect": {"list": "models", "names": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.5-transcribe", "gemini-nano-banana-2.1", "gemini-3-pro-image"]}},
       "install": {}
     },
     {
@@ -367,12 +367,12 @@
     {
       "name": "codex",
       "kind": "agent",
-      "purpose": "OpenAI's Codex CLI, an agent that reads AGENTS.md; bin/vh install-skill codex puts the skill where it looks (~/.agents/skills).",
+      "purpose": "OpenAI's Codex CLI, an agent that reads AGENTS.md; bin/vh install-skill codex puts the skill where it looks (~/.agents/skills); bin/vh image gen --provider codex runs its image_gen (codex exec, read-only sandbox) on the ChatGPT plan it is signed in with.",
       "version": {},
       "license": "Apache-2.0",
       "needs": {"account": "a ChatGPT sign-in or an OpenAI API key"},
-      "adapter": ["bin/vh (install-skill, sync-agents)", "AGENTS.md", "skills/open-video-harness/SKILL.md"],
-      "commands": ["install-skill", "sync-agents"],
+      "adapter": ["bin/vh (install-skill, sync-agents)", "AGENTS.md", "skills/open-video-harness/SKILL.md", "tools/assets/image.py (codex_picture)"],
+      "commands": ["install-skill", "sync-agents", "image"],
       "required": false,
       "check": {"program": "codex", "version": ["codex", "--version"], "pattern": "(\\d+(?:\\.\\d+)+)", "files": ["~/.agents/skills/open-video-harness/SKILL.md"]},
       "install": {"macos": "npm install -g @openai/codex, then bin/vh install-skill codex", "linux": "npm install -g @openai/codex, then bin/vh install-skill codex"}

@@ -1,0 +1,8 @@
+#!/bin/sh
+# A stand-in for the Codex CLI (tools/ci.sh, image_checks): --version, and an exec that reads its prompt, "makes" the
+# picture FAKE_CODEX_PNG names under $CODEX_HOME/generated_images/<thread>/ and prints the thread on --json's first line
+case "$1" in --version) echo "codex-cli 0.0.0-test"; exit 0 ;; esac
+cat > /dev/null
+th="th-$$"
+mkdir -p "$CODEX_HOME/generated_images/$th" && cp "$FAKE_CODEX_PNG" "$CODEX_HOME/generated_images/$th/ig_test.png"
+printf '{"type":"thread.started","thread_id":"%s"}\n{"type":"turn.completed"}\n' "$th"

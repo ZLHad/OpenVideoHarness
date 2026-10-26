@@ -67,6 +67,8 @@
 
 ## 片段入库：生成片段是冻结素材
 
+生成图走 `bin/vh image gen`：估价、按预算占住再调、每张进台账（AIGC、模型、提示词、种子、花费），草稿用 Nano Banana 2.1、出镜的定稿用 Pro，透明底用 `--alpha` 或 `bin/vh image cutout`（参数见 `bin/vh image -h`）。下面讲生成片段。
+
 像下文"真实影像"里的素材一样：下载、记账、算哈希，渲染时不再调用模型。入库时按交付规格统一格式。
 
 1. **下载即冻结**：放进 `assets/genclips/<id>/clip.mp4`，同目录放 `prompt.txt`，再登记进项目的素材台账：`bin/vh assets add <项目> assets/genclips/<id>/clip.mp4 --id <id> --model <厂商/模型> --prompt-file assets/genclips/<id>/prompt.txt --seed <种子> --cost '$4.73'`（路径从当前目录找不到时按项目找），它算 sha256，记成 AI 生成；条款快照、来源标记这些用 `--extra` 一起放进记录（`references/genvideo-ledger.md`）。以前每个片段一份的 `ledger.json` 照读。渲染时只读这个文件，不调用 API。供应商的下载链接会过期（Veo 只保留 2 天），生成完立刻下载。

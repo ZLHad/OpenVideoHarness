@@ -12,6 +12,10 @@ download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries=3, 
   - a dropped connection, a timeout or a short body is tried again from where it stopped, `retries` times (1, 2, 4 s apart)
   - max_bytes: a file the server says is larger is refused before a byte of it is written (FetchError, its size said)
 get_json(url, opener=None, headers=None, timeout=60) → the JSON of a GET (an API's search results).
+post_json(url, body, opener=None, secret=None, timeout=180) → the JSON of a POST with a JSON body (a paid API's call).
+secret is {header: value}, the key: sent in a header no redirect carries on, never recorded, and taken out of every
+message; an HTTP error is a FetchError with its status and the API's own message (and its status word). A Replay answers
+it by URL; a Record keeps the answer, not the request (a prompt is the user's).
 serve(url, opener=None, rate=None) → a context: (a local http://127.0.0.1 address for that one file, stats) for a program
 that reads it with HTTP ranges itself (ffmpeg -ss … -i <it> reads only the parts it needs: the index, then the seconds
 asked for). Each request's Range goes to the file through the opener, so a recording answers it as well; stats["bytes"]
@@ -144,6 +148,18 @@ class Record(Live):
         r = super().open(url, headers, timeout)
         body = r.read()
         r.close()
+        keep = {k: v for k, v in r.headers.items() if k in ("content-type", "content-length", "content-range", "etag", "last-modified")}
+        self.save(url, r.status, keep, body)
+        pos = [0]
+        def read(n=-1):
+            part = body[pos[0]:] if n is None or n < 0 else body[pos[0]:pos[0] + n]
+            pos[0] += len(part)
+            return part
+        return Response(r.status, r.headers, read)
+
+
+    def save(self, url, status, headers, body):
+        """One answer into responses.json (the URL's earlier one replaced); a body over 256 kB keeps its first 256 kB."""
         f = self.dir / "responses.json"
         try:
             recs = json.loads(f.read_text(encoding="utf-8"))["responses"]
@@ -151,18 +167,11 @@ class Record(Live):
             recs = []
         name = "body-" + hashlib.sha256(url.encode()).hexdigest()[:12]
         (self.dir / name).write_bytes(body[:CUT])
-        keep = {k: v for k, v in r.headers.items() if k in ("content-type", "content-length", "content-range", "etag", "last-modified")}
-        rec = {"url": url, "status": r.status, "headers": keep, "body": name, "bytes": len(body)}
+        rec = {"url": url, "status": status, "headers": headers, "body": name, "bytes": len(body)}
         if len(body) > CUT:
             rec["cut"] = True
         recs = [x for x in recs if x.get("url") != url] + [rec]
         f.write_text(json.dumps({"v": 1, "responses": recs}, indent=1) + "\n", encoding="utf-8")
-        pos = [0]
-        def read(n=-1):
-            part = body[pos[0]:] if n is None or n < 0 else body[pos[0]:pos[0] + n]
-            pos[0] += len(part)
-            return part
-        return Response(r.status, r.headers, read)
 
 
 def opener_from(offline=None):
@@ -179,6 +188,53 @@ def get_json(url, opener=None, headers=None, timeout=60):
         data = r.read(16 << 20)
     finally:
         r.close()
+    try:
+        return json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as e:
+        raise FetchError(f"{redact(url)}: not JSON ({e})")
+
+
+def scrub(text, secret):
+    """text with every value of secret ({header: value}) taken out, and any run of six or more of a value's characters."""
+    for v in (secret or {}).values():
+        v = str(v)
+        if len(v) >= 6:
+            text = text.replace(v, "…")
+            for i in range(len(v) - 5):
+                text = text.replace(v[i:i + 6], "…")
+    return text
+
+
+def post_json(url, body, opener=None, secret=None, timeout=180):
+    if isinstance(opener, Replay):
+        r = opener.open(url)
+        try:
+            data = r.read(64 << 20)
+        finally:
+            r.close()
+    else:
+        if not url.startswith("https://") and urllib.parse.urlsplit(url).hostname not in ("127.0.0.1", "localhost", "::1"):
+            raise FetchError(f"{redact(url)}: not https: a key is not sent in the clear")
+        req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), method="POST",
+                                     headers={"User-Agent": UA, "Content-Type": "application/json"})
+        for k, v in (secret or {}).items():
+            req.add_unredirected_header(k, v)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                status, hdrs, data = resp.status, {k.lower(): v for k, v in resp.headers.items()}, resp.read(64 << 20)
+        except urllib.error.HTTPError as e:
+            raw = e.read(64 << 10).decode("utf-8", "replace")
+            try:
+                j = json.loads(raw)
+                err = j.get("error", j) if isinstance(j, dict) else {}
+                msg = " ".join(str(x) for x in (err.get("status") or err.get("code"), err.get("message")) if x)
+            except ValueError:
+                msg = raw[:200]
+            raise FetchError(scrub(f"{redact(url)}: HTTP {e.code}" + (f": {msg[:400]}" if msg else ""), secret))
+        except (urllib.error.URLError, OSError) as e:
+            raise FetchError(scrub(f"{redact(url)}: {getattr(e, 'reason', e)}", secret))
+        if isinstance(opener, Record):
+            opener.save(url, status, {k: v for k, v in hdrs.items() if k == "content-type"}, data)
     try:
         return json.loads(data.decode("utf-8"))
     except (UnicodeDecodeError, ValueError) as e:
