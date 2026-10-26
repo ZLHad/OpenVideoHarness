@@ -1,0 +1,99 @@
+# THROWAWAY: times `apt-get install shellcheck ffmpeg` on ubuntu-latest, phase by phase (update, download, dpkg). Not part of the PR.
+name: apt-probe
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/ci-apt-install]
+    paths: [.github/workflows/apt-probe.yml]
+permissions:
+  contents: read
+jobs:
+  probe:
+    name: probe ${{ matrix.n }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        n: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]
+    steps:
+      - name: probe
+        env:
+          PROBE_N: ${{ matrix.n }}
+        run: |
+          #!/usr/bin/env bash
+          # Throwaway probe: where does `apt-get install shellcheck ffmpeg` spend its time on a GitHub ubuntu-latest runner?
+          # Update, download-only and the dpkg part are timed separately; a sampler writes bytes-on-disk, connections and IO pressure
+          # every 5 s, and a watchdog dumps what apt/dpkg are doing whenever the install runs long.
+          set +e
+          mkdir -p /tmp/probe
+          start=$SECONDS
+          say() { printf 'PROBE %s +%ss %s\n' "$(date +%T)" "$((SECONDS - start))" "$*"; }
+          ts() { while IFS= read -r l; do printf '%s +%ss %s\n' "$(date +%T)" "$((SECONDS - start))" "$l"; done; }
+
+          say "node=$(hostname) kernel=$(uname -r) cpus=$(nproc) mem=$(free -m | awk '/Mem:/{print $2}')MB n=${PROBE_N:-?}"
+          region=$(curl -s -m 3 -H Metadata:true 'http://169.254.169.254/metadata/instance/compute/location?api-version=2021-02-01&format=text')
+          say "region(imds)=${region:-none}"
+          say "preinstalled: shellcheck=$(command -v shellcheck || echo no) ffmpeg=$(command -v ffmpeg || echo no) needrestart=$(dpkg -s needrestart 2>/dev/null | head -1 | tr -d '\n')"
+          grep -hE '^(URIs|Suites)' /etc/apt/sources.list.d/*.sources 2>/dev/null | sort -u | while read -r l; do say "src: $l"; done
+          if [ -f /etc/apt/apt-mirrors.txt ]; then while read -r l; do say "apt-mirrors.txt: $l"; done < /etc/apt/apt-mirrors.txt; fi
+          apt-config dump | grep -E 'Acquire::(Retries|http::(Timeout|Pipeline|No-Cache)|https::Timeout|ForceIPv4|BrokenProxy)|Dpkg::(Use-Pty|Options)|APT::Get::Assume' | while read -r l; do say "apt-config: $l"; done
+          say "dns azure.archive: $(getent ahosts azure.archive.ubuntu.com | awk '{print $1}' | sort -u | tr '\n' ' ')"
+          say "dns archive: $(getent ahosts archive.ubuntu.com | awk '{print $1}' | sort -u | tr '\n' ' ')"
+          say "background apt-ish processes: $(ps -eo cmd | grep -E 'apt|dpkg|unattended|packagekit' | grep -v grep | head -5 | tr '\n' '|')"
+          say "locks: $(sudo lsof /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock 2>/dev/null | tail -n +2 | tr '\n' '|')"
+
+          dump() {
+            say "---- dump ----"
+            ps -eo pid,ppid,etimes,stat,wchan:22,pcpu,cmd --sort=-etimes 2>/dev/null | grep -E 'apt|dpkg|http|curl|timeout|ldconfig|fc-cache|man-db|update-|trigger|systemd-|snapd|packagekit|gtk|glib|mime|dconf' | grep -v -E 'grep|ps -eo' | cut -c1-200 | head -30
+            ss -tnpoi 2>/dev/null | grep -E ':80 |:443 ' -A1 | cut -c1-230 | head -30
+            echo "-- dpkg.log"; tail -n 8 /var/log/dpkg.log 2>/dev/null
+            echo "-- term.log"; tail -n 6 /var/log/apt/term.log 2>/dev/null
+            echo "-- partial"; ls -la /var/cache/apt/archives/partial 2>/dev/null | head -8
+            echo "-- psi"; cat /proc/pressure/io /proc/pressure/cpu /proc/pressure/memory 2>/dev/null
+            say "---- end dump ----"
+          }
+
+          (
+            while :; do
+              a=$(du -sb /var/cache/apt/archives 2>/dev/null | cut -f1)
+              c=$(ss -tn state established '( dport = :80 or dport = :443 )' 2>/dev/null | tail -n +2 | wc -l)
+              io=$(head -1 /proc/pressure/io 2>/dev/null | sed 's/^some avg10=\([^ ]*\).*/\1/')
+              w=$(awk '/^cpu /{print $6}' /proc/stat)
+              printf '%s +%ss bytes=%s conns=%s load=%s io_psi=%s iowait_jiffies=%s dpkg=%s\n' "$(date +%T)" "$((SECONDS - start))" "$a" "$c" "$(cut -d' ' -f1 /proc/loadavg)" "$io" "$w" "$(pgrep -c -x dpkg)"
+              sleep 5
+            done > /tmp/probe/samples.txt 2>&1
+          ) &
+          sampler=$!
+          (
+            while :; do sleep 100; say "WATCHDOG: still running at +$((SECONDS - start))s"; dump; done
+          ) &
+          watchdog=$!
+
+          s=$SECONDS
+          sudo apt-get update -qq -o Acquire::Retries=3 2>&1 | ts
+          rc=${PIPESTATUS[0]}; t_update=$((SECONDS - s)); say "PHASE update: ${t_update}s rc=$rc"
+
+          s=$SECONDS
+          sudo apt-get install -y --download-only -o Dpkg::Use-Pty=0 -o Acquire::Retries=3 shellcheck ffmpeg 2>&1 | ts > /tmp/probe/download.log
+          rc=${PIPESTATUS[0]}; t_download=$((SECONDS - s))
+          say "PHASE download: ${t_download}s rc=$rc lines=$(wc -l < /tmp/probe/download.log) get=$(grep -c ' Get:' /tmp/probe/download.log) archives=$(du -sh /var/cache/apt/archives | cut -f1)"
+
+          s=$SECONDS
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Use-Pty=0 shellcheck ffmpeg 2>&1 | ts > /tmp/probe/install.log
+          rc=${PIPESTATUS[0]}; t_install=$((SECONDS - s))
+          say "PHASE install (dpkg, files already local): ${t_install}s rc=$rc lines=$(wc -l < /tmp/probe/install.log) setting_up=$(grep -c 'Setting up' /tmp/probe/install.log)"
+
+          kill "$sampler" "$watchdog" 2>/dev/null
+          total=$((SECONDS - start))
+          say "tools now: $(command -v ffmpeg) $(command -v shellcheck)"
+          if [ "$total" -gt 90 ] || [ "$t_update" -gt 20 ] || [ "$t_download" -gt 40 ] || [ "$t_install" -gt 50 ]; then
+            say "SLOW: dumping logs"
+            echo "== samples"; cat /tmp/probe/samples.txt
+            echo "== download.log (head/tail)"; head -n 15 /tmp/probe/download.log; echo ...; tail -n 15 /tmp/probe/download.log
+            echo "== install.log (all timestamps, 'Setting up'/'Processing triggers'/'Unpacking' with gaps)"
+            cat /tmp/probe/install.log
+          fi
+          say "SUMMARY n=${PROBE_N:-?} region=${region:-none} update=${t_update} download=${t_download} install=${t_install} total=$total"
+
