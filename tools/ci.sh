@@ -324,7 +324,7 @@ txt = doc(); outs += [txt.stdout, txt.stderr]
 if txt.returncode or "\033[31m✗\033[0m node  18.19.0" not in txt.stdout:
     bad.append(f"doctor's text: exit {txt.returncode}, no ✗ for the old node")
 bodies = {"gemini.json": {"models": [{"name": "models/" + n} for n in ("gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.5-transcribe",
-                                                                       "gemini-nano-banana-2.1", "gemini-3-pro-image")]},
+                                                                       "gemini-nano-banana-2.1", "gemini-3-pro-image", "lyria-3.5")]},
           "minimax.json": {"base_resp": {"status_code": 1004, "status_msg": "login fail"}},
           "dashscope.json": {"error": {"message": "Incorrect API key provided: " + keys["DASHSCOPE_API_KEY"][:9] + "**********"
                                        + keys["DASHSCOPE_API_KEY"][-6:], "code": "invalid_api_key"}}}
@@ -337,7 +337,7 @@ json.dump({"v": 1, "responses": [
     open(os.path.join(rec, "responses.json"), "w"))
 p = doc("--json", "--probe", "--offline", rec); outs += [p.stdout, p.stderr]
 pr = {x["name"]: x["probe"] for x in json.loads(p.stdout)["modules"] if x["probe"]}
-if pr.get("gemini", {}).get("state") != "ok" or "5 models" not in pr["gemini"]["note"] \
+if pr.get("gemini", {}).get("state") != "ok" or "6 models" not in pr["gemini"]["note"] \
         or pr.get("minimax", {}).get("state") != "failed" or "1004" not in pr["minimax"]["note"] or "MINIMAX_BASE_URL" not in pr["minimax"]["note"] \
         or pr.get("dashscope", {}).get("state") != "failed" or "HTTP 401 with DASHSCOPE_API_KEY (invalid_api_key)" != pr["dashscope"]["note"] \
         or pr.get("elevenlabs", {}).get("state") != "skipped":
@@ -2320,6 +2320,67 @@ PY
   rm -rf "$t"
 }
 
+lyria_checks() {   # bin/vh music --provider lyria (tools/audio/lyria.py) from answers in the documented shape and one
+  # recorded live (lyria-3-clip-preview, 2026-10-26: every field kept, its 30 s of MP3 replaced by 0.5 s of tone): no
+  # budget and nothing is called; a dry run calls nothing; no key is said by its name; a track on record (the answer as it
+  # came and the 48 kHz WAV made from it), its price held and settled, the length and the instrumental asked for in words;
+  # a blocked answer settles at 0 and leaves no track; the recorded clip read as it came (text and audio in two steps)
+  local t r p a b rc rc2 rc3 rc4 rc5 rc6 rc7
+  if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then skip "music --provider lyria" "no ffmpeg"; return; fi
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); r="$t/r"; p="$t/p"; cp -R tools/audio/fixtures/lyria/responses "$r"; mkdir -p "$p"
+  printf '# BRIEF\n\n## Spec\n- Assets: strict\n- Language: en\n' > "$p/BRIEF.md"
+  vh music --provider lyria "$p" --prompt "calm piano" --offline "$r" --no-beats >/dev/null 2>"$t/e1"; rc=$?
+  a=$(vh music --provider lyria "$p" --prompt "calm piano" --dry-run 2>&1); rc2=$?
+  printf -- '- Budget: $0.10\n' >> "$p/BRIEF.md"
+  b=$(env -u GEMINI_API_KEY "$VH_BASH" "$ROOT/bin/vh" music --provider lyria "$p" --prompt "x" 2>&1); rc3=$?
+  vh music --provider lyria "$p" --prompt "calm piano for an explainer" --len 30 --instrumental --no-beats --offline "$r" >/dev/null 2>"$t/e4"; rc4=$?
+  python3 -c 'import json,sys; f=sys.argv[1]+"/responses.json"; d=json.load(open(f)); d["responses"][0]["body"]="answer-blocked.json"; json.dump(d, open(f, "w"))' "$r"
+  printf -- '- Budget: $1\n' >> "$p/BRIEF.md"; sed 's/^- Budget: \$0.10$//' "$p/BRIEF.md" > "$t/b" && mv "$t/b" "$p/BRIEF.md"
+  vh music --provider lyria "$p" --prompt "in the voice of a famous singer" --as other --no-beats --offline "$r" >/dev/null 2>"$t/e5"; rc5=$?
+  vh music --provider lyria "$p" --prompt "again" --no-beats --offline "$r" >/dev/null 2>"$t/e6"; rc6=$?
+  python3 -c 'import json,sys; f=sys.argv[1]+"/responses.json"; d=json.load(open(f)); d["responses"][0]["body"]="answer-clip.json"; json.dump(d, open(f, "w"))' "$r"
+  vh music --provider lyria "$p" --model lyria-3-clip-preview --prompt "a calm, warm acoustic guitar piece" --instrumental --as clip --id clip --no-beats --offline "$r" >/dev/null 2>"$t/e7"; rc7=$?
+  if [ "$rc:$rc2:$rc3:$rc4:$rc5:$rc6:$rc7" = "1:0:2:0:1:2:0" ] && grep -qF 'write - Budget: $0.08' "$t/e1" && grep -q "a named artist's voice" "$t/e5" && grep -q "audio/music.wav is there already" "$t/e6" \
+     && case "$a|$b" in *'lyria-3.5, $0.08 a track'*"nothing called (--dry-run)"*"|"*"set GEMINI_API_KEY"*) true ;; *) false ;; esac \
+     && [ ! -e "$p/audio/other.wav" ] && python3 - "$p" <<'PY'
+import glob, json, subprocess, sys
+sys.path.insert(0, "tools/assets")
+import budget, ledger
+p, bad = sys.argv[1], []
+sys.path.insert(0, "tools/audio")
+import lyria
+if lyria.body_of("lyria-3-clip-preview", "x")["response_format"] != {"type": "audio"} or lyria.body_of("lyria-3.5", "x")["response_format"] != {"type": "audio", "mime_type": "audio/wav"}:
+    bad.append("the response format: WAV asked of lyria-3.5 only")
+R = {x["id"]: x for x in json.load(open(f"{p}/assets/ledger.json", encoding="utf-8"))["assets"]}
+tr, wav = R.get("music-calm-piano-for-an") or {}, R.get("music-calm-piano-for-an-wav") or {}
+if ledger.validate(tr) or ledger.validate(wav) or (tr.get("aigc"), tr.get("model"), tr.get("seed"), tr.get("cost"), tr["path"]) \
+        != (True, "gemini/lyria-3.5", None, {"amount": 0.08, "currency": "USD"}, "assets/genmusic/music-calm-piano-for-an/track.wav") \
+        or wav.get("derived_from") != tr.get("id") or wav.get("path") != "audio/music.wav" or wav.get("used_by") != ["bgm"]:
+    bad.append(f"the records: {tr} {wav}")
+ask = open(f"{p}/assets/genmusic/music-calm-piano-for-an/prompt.txt", encoding="utf-8").read()
+req = json.load(open(f"{p}/assets/genmusic/music-calm-piano-for-an/request.json", encoding="utf-8"))
+if "Length: about 30 seconds." not in ask or "Instrumental only, no vocals." not in ask or req["store"] is not False or "generation_config" in req:
+    bad.append(f"what was asked: {ask!r} {req}")
+st = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=sample_rate,channels", "-of", "json", f"{p}/audio/music.wav"], capture_output=True, text=True).stdout)["streams"][0]
+if (int(st["sample_rate"]), st["channels"]) != (48000, 2):
+    bad.append(f"audio/music.wav: {st}")
+spend = [json.loads(x) for x in open(f"{p}/assets/spend.jsonl", encoding="utf-8")]
+if [(x["kind"], x["amount"]) for x in spend] != [("hold", 0.08), ("settle", 0.08), ("hold", 0.08), ("settle", 0.0), ("hold", 0.04), ("settle", 0.04)] \
+        or budget.spent(p) != {"USD": 0.12}:
+    bad.append(f"the spend: {[(x['kind'], x['amount']) for x in spend]}")
+cl, cw = R.get("clip") or {}, R.get("clip-wav") or {}
+if (cl.get("model"), cl.get("cost"), cl.get("path"), cw.get("path"), cw.get("derived_from")) != ("gemini/lyria-3-clip-preview", {"amount": 0.04, "currency": "USD"},
+        "assets/genmusic/clip/track.mp3", "audio/clip.wav", "clip") or open(f"{p}/assets/genmusic/clip/lyrics.txt", encoding="utf-8").read().strip() != "<instrumental>":
+    bad.append(f"the recorded clip: {cl} {cw}")
+if sorted(glob.glob(f"{p}/assets/genmusic/*/track.*")) != [f"{p}/assets/genmusic/clip/track.mp3", f"{p}/assets/genmusic/music-calm-piano-for-an/track.wav"]:
+    bad.append(f"tracks: {glob.glob(p + '/assets/genmusic/*/track.*')}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  then ok "music --provider lyria --offline: no budget and nothing is called; --dry-run calls nothing; no key is exit 2 by its name; the track on record as AI-generated with the 48 kHz WAV made from it, \$0.08 held and settled, length and instrumental asked in words; a blocked answer settles at 0; a name taken is exit 2; the answer recorded from lyria-3-clip-preview read as it came (MP3, text and audio in two steps)"
+  else bad "music --provider lyria (exits $rc:$rc2:$rc3:$rc4:$rc5:$rc6:$rc7): $(printf '%s | %s' "$a" "$b" | tail -c 400) $(cat "$t/e1" "$t/e4" "$t/e5" "$t/e6" "$t/e7" | tail -c 500)"; fi
+  rm -rf "$t"
+}
+
 assets_checks() {   # the asset ledger (tools/assets): the record and its fixtures, the licence table, the ledger's writes on a
   # copy of the fixture project, the budget, a download from recorded responses (no network), the credits, and end to end
   # with a render (bin/vh render's .render.json against the ledger, status, the review page, deliver, patch)
@@ -2739,6 +2800,7 @@ PY
   footage_checks   # bin/vh footage: its records are the ledger's
   image_checks     # bin/vh image: so are its pictures, and its spend the budget's
   library_checks   # the sound library's picks: on record in the project's ledger
+  lyria_checks     # a generated track: on record, its price the budget's
 }
 
 status_checks() {

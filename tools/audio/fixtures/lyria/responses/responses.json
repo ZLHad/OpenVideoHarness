@@ -1,0 +1,14 @@
+{
+ "v": 1,
+ "note": "bin/vh music --provider lyria's answers for the tests (tools/ci.sh, lyria_checks): synthesized in the shape Google documents for the Interactions API (ai.google.dev/api/interactions, 2026-10-26: an audio content block with base64 data), with a half-second ffmpeg tone; not recorded from the live API",
+ "responses": [
+  {
+   "url": "https://generativelanguage.googleapis.com/v1beta/interactions",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "answer.json"
+  }
+ ]
+}

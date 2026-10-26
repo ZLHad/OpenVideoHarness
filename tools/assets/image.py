@@ -131,38 +131,43 @@ def gemini_body(model, prompt, refs, aspect, size, seed):
             "generation_config": {"seed": seed}, "store": False}
 
 
-def picture_of(answer):
-    """(bytes, mime, text, usage) of an answer: Interactions' steps → content blocks, or generateContent's candidates →
-    parts (inlineData). Failed: no picture in it (said why)."""
+def media_of(answer, kind="image"):
+    """(bytes, mime, text, usage) of an answer's picture or sound (kind "image" or "audio"): Interactions' steps →
+    content blocks, or generateContent's candidates → parts (inlineData). Failed: none in it (said why)."""
     if not isinstance(answer, dict):
         raise Failed("the answer is not a JSON object")
-    texts, pic = [], None
+    what = {"image": "picture", "audio": "sound"}[kind]
+    texts, got = [], None
     for st in answer.get("steps") or []:
         for b in (st.get("content") or []) if isinstance(st, dict) else []:
             if not isinstance(b, dict):
                 continue
             if b.get("type") == "text" and b.get("text"):
                 texts.append(b["text"])
-            elif b.get("type") == "image" and b.get("data"):
-                pic = (b["data"], b.get("mime_type") or "image/png")
+            elif b.get("type") == kind and b.get("data"):
+                got = (b["data"], b.get("mime_type") or ("image/png" if kind == "image" else "audio/mpeg"))
     for c in answer.get("candidates") or []:
         for prt in ((c.get("content") or {}).get("parts") or []) if isinstance(c, dict) else []:
             inl = prt.get("inlineData") or prt.get("inline_data") if isinstance(prt, dict) else None
-            if inl and inl.get("data"):
-                pic = (inl["data"], inl.get("mimeType") or inl.get("mime_type") or "image/png")
+            if inl and inl.get("data") and str(inl.get("mimeType") or inl.get("mime_type") or kind).startswith(kind):
+                got = (inl["data"], inl.get("mimeType") or inl.get("mime_type"))
             elif isinstance(prt, dict) and prt.get("text"):
                 texts.append(prt["text"])
     usage = answer.get("usage") or answer.get("usageMetadata") or {}
-    if pic is None:
+    if got is None:
         why = answer.get("status") if answer.get("status") not in (None, "completed") else None
         errs = "; ".join(str(e.get("message") or e) for e in answer.get("errors") or [] if isinstance(e, dict))
         blocked = next((c.get("finishReason") for c in answer.get("candidates") or [] if isinstance(c, dict) and c.get("finishReason") not in (None, "STOP")), None)
-        raise Failed("no picture in the answer" + "".join(f" ({x})" for x in (why, blocked, errs) if x) + (f": it said {' '.join(texts)[:300]!r}" if texts else ""))
+        raise Failed(f"no {what} in the answer" + "".join(f" ({x})" for x in (why, blocked, errs) if x) + (f": it said {' '.join(texts)[:300]!r}" if texts else ""))
     try:
-        data = base64.b64decode(pic[0], validate=False)
+        data = base64.b64decode(got[0], validate=False)
     except (ValueError, TypeError) as e:
-        raise Failed(f"the picture's data is not base64 ({e})")
-    return data, pic[1], " ".join(texts), usage
+        raise Failed(f"the {what}'s data is not base64 ({e})")
+    return data, got[1], " ".join(texts), usage
+
+
+def picture_of(answer):
+    return media_of(answer, "image")
 
 
 def codex_home():

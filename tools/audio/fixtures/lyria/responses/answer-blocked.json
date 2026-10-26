@@ -1,0 +1,13 @@
+{
+ "id": "v1_blocked",
+ "object": "interaction",
+ "status": "failed",
+ "model": "lyria-3.5",
+ "steps": [],
+ "errors": [
+  {
+   "code": "safety",
+   "message": "a named artist's voice was asked for"
+  }
+ ]
+}

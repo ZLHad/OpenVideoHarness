@@ -262,16 +262,16 @@
     {
       "name": "gemini",
       "kind": "service",
-      "purpose": "Google's Gemini API: bin/vh tts gemini and gemini-lite, word timing with --align gemini (tts, pace), the voice library and voice design (voices), and pictures (image gen: Nano Banana 2.1 for drafts, Nano Banana Pro for finals, through the Interactions API).",
-      "version": {"models": ["gemini-3.8-flash-tts (GEMINI_TTS_MODEL)", "gemini-3.8-flash-lite-tts", "gemini-3.5-transcribe (GEMINI_ASR_MODEL)", "gemini-nano-banana-2.1 (image gen --tier draft)", "gemini-3-pro-image (image gen --tier final)"]},
+      "purpose": "Google's Gemini API: bin/vh tts gemini and gemini-lite, word timing with --align gemini (tts, pace), the voice library and voice design (voices), pictures (image gen: Nano Banana 2.1 for drafts, Nano Banana Pro for finals) and music (music --provider lyria: Lyria 3.5), both through the Interactions API.",
+      "version": {"models": ["gemini-3.8-flash-tts (GEMINI_TTS_MODEL)", "gemini-3.8-flash-lite-tts", "gemini-3.5-transcribe (GEMINI_ASR_MODEL)", "gemini-nano-banana-2.1 (image gen --tier draft)", "gemini-3-pro-image (image gen --tier final)", "lyria-3.5 (music --provider lyria)", "lyria-3-clip-preview"]},
       "license": "Google's Gemini API terms; its speech carries an inaudible SynthID watermark, so AI narration is disclosed (NOTES.md); so do its pictures (image gen: AIGC on record)",
       "needs": {"keys": ["GEMINI_API_KEY"], "account": "a Google AI Studio API key; the free tier has a daily quota"},
-      "adapter": ["tools/audio/tts.py (gemini_call)", "tools/audio/pace.py", "tools/assets/image.py (gemini_body, picture_of)"],
-      "commands": ["tts", "pace", "voices", "image"],
+      "adapter": ["tools/audio/tts.py (gemini_call)", "tools/audio/pace.py", "tools/assets/image.py (gemini_body, media_of)", "tools/audio/lyria.py"],
+      "commands": ["tts", "pace", "voices", "image", "music"],
       "required": false,
       "check": {},
       "probe": {"method": "GET", "url": "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000", "auth": {"header": "x-goog-api-key"},
-                "expect": {"list": "models", "names": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.5-transcribe", "gemini-nano-banana-2.1", "gemini-3-pro-image"]}},
+                "expect": {"list": "models", "names": ["gemini-3.8-flash-tts", "gemini-3.8-flash-lite-tts", "gemini-3.5-transcribe", "gemini-nano-banana-2.1", "gemini-3-pro-image", "lyria-3.5"]}},
       "install": {}
     },
     {

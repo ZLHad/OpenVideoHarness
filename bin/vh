@@ -1058,8 +1058,10 @@ cmd_beats() { on_ctrl_c uv run -q --no-project --with librosa python "$ROOT/tool
 cmd_timeline() { [ $# -gt 0 ] || { cmd_usage timeline >&2; exit 2; }; python3 "$ROOT/tools/audio/timeline_lint.py" "$@"; }
 cmd_remap() { [ $# -gt 0 ] || { cmd_usage remap >&2; exit 2; }; python3 "$ROOT/tools/audio/remap.py" "$@"; }
 cmd_timemap() { [ $# -gt 0 ] || { cmd_usage timemap >&2; exit 2; }; python3 "$ROOT/tools/audio/time_map.py" "$@"; }   # stdlib only
-cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then
-  local a pil=""; for a in "$@"; do [ "$a" = --roll ] && pil="--with pillow"; done
+cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then; --provider lyria is a generated track (stdlib and ffmpeg)
+  local a pil="" prev=""
+  for a in "$@"; do case "$prev|$a" in "--provider|lyria"|*"|--provider=lyria") exec python3 "$ROOT/tools/audio/lyria.py" "$@" ;; esac; prev=$a; done
+  for a in "$@"; do [ "$a" = --roll ] && pil="--with pillow"; done
   on_ctrl_c uv run -q --no-project --with numpy --with scipy $pil python "$ROOT/tools/audio/music.py" "$@"; }
 cmd_sfx() { # audition --png draws a spectrogram: pillow joins numpy and scipy only then; search and pick are the sound library's
   case "${1:-}" in search|pick) python3 "$ROOT/tools/audio/library.py" sfx "$@"; return ;; esac   # stdlib and ffmpeg
