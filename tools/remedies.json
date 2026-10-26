@@ -1,0 +1,121 @@
+{
+ "version": 1,
+ "note": "Ways out of what a check finds: options to look at, not rules (CONTRIBUTING.md, 四个绑定点: a check reports, a tool offers, the film decides). Keyed by a finding's kind (tools/checkrec.py lists them). bin/vh check prints the ones for the kinds it found that are not confirmed, and each finding in its record carries them as remedies. An entry: say (one line: what it is for), and run (a bin/vh command, as typed) or doc (a file in the repo, #section). tools/remedies.py check (tools/ci.sh) holds the table to its rules: each kind one checkrec.py writes or one named in kinds_to_come, each run a real command, each recipes filter finding at least one recipe, each doc there.",
+ "kinds_to_come": {
+  "check.loudness": "the whole film's loudness, line A's addition to bin/vh check (batch 1): whichever of the two lands second makes the kind's name agree"
+ },
+ "kinds": {
+  "check.static": [
+   {
+    "say": "a still stretch nobody meant: a breath shot that keeps moving",
+    "run": "bin/vh recipes list --role breath"
+   },
+   {
+    "say": "or a slow push or drift over the hold",
+    "run": "bin/vh recipes list --family camera"
+   }
+  ],
+  "check.freeze": [
+   {
+    "say": "a frozen picture nobody meant: a breath shot that keeps moving",
+    "run": "bin/vh recipes list --role breath"
+   },
+   {
+    "say": "a frozen stretch in a render that should move: draw it again",
+    "run": "bin/vh patch"
+   }
+  ],
+  "check.black": [
+   {
+    "say": "a black meant as a chapter break: a black card that reads, with a sound bed under it",
+    "run": "bin/vh recipes list --family seam --intent chapter"
+   },
+   {
+    "say": "a black nobody meant: look at the frames there",
+    "run": "bin/vh frames"
+   }
+  ],
+  "check.silence": [
+   {
+    "say": "no digital silence in a film with sound: a quiet bed (ambience, room tone) under the hush",
+    "run": "bin/vh sfx"
+   },
+   {
+    "say": "and mix it in at its level",
+    "run": "bin/vh mix"
+   }
+  ],
+  "check.cut": [
+   {
+    "say": "a hard cut from dark to bright flashes: a seam that carries the light up",
+    "run": "bin/vh recipes list --family seam --jump rise"
+   },
+   {
+    "say": "or dim the bright side a step, or fade up from the dark over a few frames",
+    "doc": "playbook/03-motion-design.md"
+   }
+  ],
+  "check.iso": [
+   {
+    "say": "a capture glitch: draw those frames again, the rest kept",
+    "run": "bin/vh patch"
+   },
+   {
+    "say": "why single frames go bad, and the HyperFrames flags against it",
+    "doc": "playbook/02-verification.md#静默失败"
+   }
+  ],
+  "check.blind": [
+   {
+    "say": "too busy to judge from motion alone: look at the frames",
+    "run": "bin/vh sheet"
+   }
+  ],
+  "check.subtitles": [
+   {
+    "say": "a subtitle shorter than its reading time: cut the lines again from the narration's timing",
+    "run": "bin/vh captions"
+   },
+   {
+    "say": "and the on-screen words held long enough to read",
+    "run": "bin/vh readcheck"
+   }
+  ],
+  "check.colour": [
+   {
+    "say": "the colour tags a platform reads: the re-encode command",
+    "doc": "playbook/02-verification.md#色彩标签每个-mp4-出片前查一次"
+   }
+  ],
+  "check.spec": [
+   {
+    "say": "the size, rate or length the BRIEF names: render it again to the spec",
+    "run": "bin/vh render"
+   }
+  ],
+  "check.gate": [
+   {
+    "say": "gate ① not on record: stop and put the concept cards to the person",
+    "run": "bin/vh gate"
+   }
+  ],
+  "check.packaging": [
+   {
+    "say": "the publishing copy over a platform's limit: the lengths and how to cut",
+    "doc": "playbook/10-hooks-and-packaging.md"
+   }
+  ],
+  "check.scale": [
+   {
+    "say": "a 4K render whose layout moved: what reads pixel sizes at device scale 2",
+    "doc": "engines/README.md#出-4k"
+   }
+  ],
+  "check.loudness": [
+   {
+    "say": "the film's loudness off its target: mix it again to the platform's level (lufs=, tp=)",
+    "run": "bin/vh mix"
+   }
+  ]
+ }
+}

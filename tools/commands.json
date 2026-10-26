@@ -1707,7 +1707,8 @@
             "mtime_ns as the checks began, so a film put back later with an old modification time, or in its place",
             "meanwhile, is told from the one checked); --json prints it instead",
             "of the lines above (those go to stderr): each finding's kind, severity, time and frame, message,",
-            "evidence and whether confirmed.json covers it (tools/checkrec.py); the exit status is the same"
+            "evidence and whether confirmed.json covers it (tools/checkrec.py), and its remedies; the exit status is the same.",
+            "After the lines, the ways out of what it found: a recipe filter, a command or a doc for each kind (tools/remedies.json)"
           ]
         }
       ]
