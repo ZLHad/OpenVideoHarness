@@ -1,7 +1,7 @@
 """bin/vh scout: what a topic looks like on the platforms before a film is chosen, and how a film did after it went out.
 Public, no-login interfaces only (tools/scout/sources.py); every number keeps where it came from, how, and when.
 
-usage: bin/vh scout topic <keywords> [-n 20] [--baseline [N]] [where] [--csv F] [--json] [--offline DIR] [--sleep S]
+usage: bin/vh scout topic <keywords> [-n 20] [--baseline [N]] [--covers] [where] [--csv F] [--json] [--offline DIR] [--sleep S]
        bin/vh scout channel <url|@handle> [-n 30] [--platform youtube|x] [where] [--csv F] [--json] [--offline DIR]
        bin/vh scout post <url>… [--topic ID] [--score N] [where] [--csv F] [--json] [--offline DIR]
        bin/vh scout hot [--source baidu,toutiao,google,x] [--geo US] [-n 20] [--days 14] [where] [--csv F] [--json] [--offline DIR]
@@ -15,7 +15,10 @@ usage: bin/vh scout topic <keywords> [-n 20] [--baseline [N]] [where] [--csv F] 
            z, the log of the views against the other results of the same age (0–30 d, –180 d, –2 y, older; all of them
            when a band has under 4). --baseline [N]: also each result's channel (the first N channels, default 8; one
            request each): its followers and the median views of its latest 15, so multiple = views ÷ that median, the
-           outlier measure that holds across channels of any size (★ at 3× and over)
+           outlier measure that holds across channels of any size (★ at 3× and over). The titles of the ★ ones and of
+           the rest side by side: length, a question, a number, a comparison, a colon (playbook/10 calibrates its title
+           formulas on them). --covers: each result's cover into <research>/covers/<run>/ with a caption (rank, views,
+           multiple, title), and the lot as one sheet beside it, <run>.png (bin/vh sheet's folder form; uv for pillow)
   channel  a YouTube channel's or an X account's latest N (an X profile gives about 20): followers, the median, each one's
            multiple of it, and how often it posts
   post     your own films after they went out (7 days on is the usual look): a YouTube video, a Bilibili BV, an X post;
@@ -45,7 +48,7 @@ Rules kept: read only, low rate, no proxy pool, no login; a platform that asks f
 HTTP 412 or 429, Bilibili's -352) stops the run and is said, never retried round; an interface that answers nothing
 is said too, never written as an empty table. Exit: 0 · 1 a source failed, was blocked or found nothing · 2 usage.
 """
-import argparse, csv, datetime, io, json, math, os, re, sys, time
+import argparse, csv, datetime, io, json, math, os, re, subprocess, sys, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -360,6 +363,58 @@ def run_id(via):
     return time.strftime("%Y%m%d-%H%M%S") + "-" + via
 
 
+QUESTION = re.compile(r"[?？]|^(?:why|how|what|when|where|who|is|are|can|does|do|should)\b|为什么|为何|怎么|如何|是什么|会不会|能不能|是不是", re.I)
+SHAPES = (("a question", lambda t: bool(QUESTION.search(t))), ("a number", lambda t: bool(re.search(r"\d", t))),
+          ("a comparison", lambda t: bool(re.search(r"\bvs\.?(?!\w)|对比|PK|还是", t, re.I))), ("a colon", lambda t: bool(re.search(r"[:：|｜—]", t))))
+
+
+def title_shapes(recs):
+    """Lines comparing the titles of the ★ results with the rest's: median length and how many have each shape."""
+    star = [r.get("title") or "" for r in recs if isinstance(r.get("multiple"), (int, float)) and r["multiple"] >= STAR]
+    rest = [r.get("title") or "" for r in recs if not (isinstance(r.get("multiple"), (int, float)) and r["multiple"] >= STAR)]
+    if not star or not rest:
+        return []
+    def line(name, ts):
+        return (f"  {name} {len(ts)}: {median([len(t) for t in ts]):g} characters · "
+                + " · ".join(f"{sum(1 for t in ts if f(t))}/{len(ts)} {what}" for what, f in SHAPES))
+    return ["titles", line("★", star), line("the rest", rest)]
+
+
+def covers(net, recs, folder, run):
+    """Each record's cover into <folder>/covers/<run>/, a caption each in captions.json, and one sheet of them."""
+    d = folder / "covers" / run
+    d.mkdir(parents=True, exist_ok=True)
+    caps, got = {}, 0
+    for r in recs:
+        if not r.get("thumb"):
+            continue
+        name = f"{r.get('rank', 0):02d}-{re.sub(r'[^A-Za-z0-9_-]+', '-', (r.get('key') or 'x').split(':', 1)[-1])[:40]}.jpg"
+        try:
+            net.pace.wait(r["thumb"])
+            sources.fetch.download(r["thumb"], d / name, opener=net.opener, retries=1)
+        except sources.fetch.FetchError as e:
+            say(f"! cover of #{r.get('rank')}: {e}")
+            continue
+        got += 1
+        m = r.get("multiple")
+        caps[name] = f"#{r.get('rank', '')} · {human(metric(r)[1])}" + (f" · {m:.1f}×" if isinstance(m, (int, float)) else "") + f" · {r.get('title', '')}"
+    (d / "captions.json").write_text(json.dumps(caps, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    if not got:
+        say("! no cover was fetched")
+        return None
+    sheet = d.parent / f"{run}.png"   # beside the folder, not in it: bin/vh sheet on the folder again stays the same
+    cmd = ["uv", "run", "-q", "--no-project", "--with", "pillow", "python", str(HERE.parent / "sheet.py"), str(d), str(sheet), "5"]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if r.returncode == 0 and sheet.is_file():
+            say(f"→ covers: {got} in {shown(d)}, the sheet {shown(sheet)}")
+            return sheet
+        say(f"! the covers sheet was not drawn: {(r.stderr or r.stdout).strip()[-200:]}")
+    except (OSError, subprocess.SubprocessError) as e:
+        say(f"! the covers sheet was not drawn ({e}): bin/vh sheet {shown(d)}")
+    return None
+
+
 def failed(e):
     if isinstance(e, Blocked):
         say(f"✗ blocked: {e}")
@@ -416,7 +471,12 @@ def cmd_topic(a):
     stars = [r for r in recs if isinstance(r.get("multiple"), (int, float)) and r["multiple"] >= STAR]
     if stars:
         say(f"  ★ {len(stars)} at {STAR:g}× its channel's median or more: what they share is worth a look (title, cover, the first seconds)")
-    finish(a, "topic", recs, folder, how)
+    for line in title_shapes(recs):
+        say(line)
+    sheet = covers(net, recs, folder, recs[0]["run"]) if a.covers and folder else None
+    if a.covers and not folder:
+        say("! --covers: no research folder to keep them in (--dir, --project, a project here, or $OVH_SCOUT)")
+    finish(a, "topic", recs, folder, how, {"covers": str(sheet) if sheet else None} if a.covers else None)
     return 1 if net.blocked else 0
 
 
@@ -756,6 +816,7 @@ def parser():
     p.add_argument("keywords", nargs="+")
     p.add_argument("-n", type=int, default=20)
     p.add_argument("--baseline", type=int, nargs="?", const=8, default=0, metavar="N", help="also the first N channels' medians (default 8)")
+    p.add_argument("--covers", action="store_true", help="each result's cover, and one sheet of them")
     common(p)
     p = sp.add_parser("channel", prog=f"{PROG} channel", help="an account's latest, against its own median")
     p.add_argument("ref", metavar="url|@handle")

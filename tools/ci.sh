@@ -3458,7 +3458,7 @@ PY
   # ref: references as asset records in research/refs.json, out of the project's ledger; a CC licence the platform
   # names is classified, anything else unknown (a platform's "original" is never "own"); a duplicate refused; a block exits 1
   OVH_PROJECTS="$t" vh new short refs >/dev/null 2>&1; p=$(ls -d "$t"/*-refs)
-  cp "$F/cover.jpg" "$p/frame.jpg"
+  cp "$F/cover-1.jpg" "$p/frame.jpg"
   a=$(vh ref add "$p" "https://www.youtube.com/watch?v=AAAAAAAAAA1" --why 慢放的开场 --thumb --offline "$F" 2>&1); rc=$?
   b=$(vh ref add "$p" https://youtu.be/AAAAAAAAAA1 --offline "$F" 2>&1; vh ref add "$p" https://www.bilibili.com/video/BV1Ab4y1C7De --offline "$F" 2>&1; vh ref add "$p" https://www.bilibili.com/video/BV1Zz4y1Bk00 --offline "$F" 2>&1); rc2=$?
   c=$(vh ref add "$p" "https://example.com/a?id=3" --title 一篇文章 --type page 2>&1; vh ref add "$p" frame.jpg --why 构图 2>&1; vh ref list "$p" 2>&1); rc3=$?
@@ -3522,6 +3522,19 @@ sys.exit(0 if ok else 1)
 PY
   then ok "doctor --probe of the keyless services from recordings: an answer the adapter reads, one without its path, an RSS feed, an HTTP error, a refusal code (named by its host); --only picks the probes, a name it lacks and --only without --probe are usage errors"
   else bad "doctor's keyless probes (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 500)"; fi
+  # topic's titles of the ★ results against the rest's, and --covers: each cover with its caption, one sheet beside them
+  # (bin/vh sheet's folder form: pillow through uv); a folder with no pictures is refused
+  a=$(vh scout topic doppler effect -n 5 --baseline 2 --covers --dir "$t/cov" --offline "$F" 2>&1); rc=$?
+  case "$rc|$a" in "0|"*"titles"*"★ 2: 27.5 characters · 1/2 a question · 0/2 a number"*"the rest 3: 24 characters · 0/3 a question · 1/3 a number"*)
+      if ! command -v uv >/dev/null 2>&1; then skip "scout topic --covers: the sheet" "no uv"
+      elif [ "$(find "$t/cov/covers" -mindepth 2 -name '*.jpg' | wc -l | tr -d ' ')" = 5 ] && [ -n "$(find "$t/cov/covers" -maxdepth 1 -name '*.png')" ] \
+          && grep -q '"01-AAAAAAAAAA1.jpg": "#1 · 2.4M · 23.4× · The Doppler effect, slowed down"' "$t"/cov/covers/*/captions.json; then
+        mkdir -p "$t/empty"; b=$(vh sheet "$t/empty" 2>&1); rc2=$?
+        if [ "$rc2" != 0 ] && printf '%s' "$b" | grep -q "no pictures"; then
+          ok "scout topic: the ★ results' titles against the rest's; --covers fetches each cover with its caption and draws one sheet beside them (bin/vh sheet <folder>); a folder with no pictures is refused"
+        else bad "bin/vh sheet on an empty folder (exit $rc2): $b"; fi
+      else bad "scout topic --covers: $(find "$t/cov/covers" | head -12)"; fi ;;
+    *) bad "scout topic's titles and covers (exit $rc): $(printf '%s' "$a" | tail -c 500)" ;; esac
   # usage errors exit 2 and print to stderr only
   rc=0; for x in "scout" "scout bogus" "scout topic" "ref" "ref add" "scout channel https://www.bilibili.com/video/BV1Ab4y1C7De"; do
     # shellcheck disable=SC2086
