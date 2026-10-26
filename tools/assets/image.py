@@ -9,22 +9,29 @@ usage: bin/vh image gen <project> (--prompt TEXT | --prompt-file F) [--provider 
        bin/vh image prices [--json]
 <project> as bin/vh assets takes it.
 
-  gen      one picture a call (--n: that many calls), into assets/genimg/<id>/: image.png (image-1.png … with --n),
+  gen      one picture a call (--n: that many calls), into assets/genimg/<id>/: image.jpg from Gemini (it sends JPEG
+           only), image.png from Codex (image-1.jpg … with --n),
            prompt.txt and request.json (what was asked, never a key), and a contact sheet (sheet.png) when there are
            several. Each picture is one record in assets/ledger.json: aigc, the model, the prompt file, the seed, what it
            cost and the reference images it was given (inputs).
            gemini (the default): Google's Interactions API with GEMINI_API_KEY (the key in a header only). --tier draft
-           (the default) is Nano Banana 2.1, for exploring and gate ② keyframes; --tier final is Nano Banana Pro, for a
+           (the default) is Nano Banana 2.1, for exploring and gate ② keyframes, asked to think at its minimal level (it
+           thinks at medium unless told, and thinking is billed); --tier final is Nano Banana Pro, for a
            picture that goes on screen; --model names another (prices lists them). --size: 1K, 2K or 4K (default 1K
            draft, 2K final); --aspect: 1:1, 3:2, 2:3, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9 (default from the BRIEF's
            Output, else 16:9); --ref: reference pictures (up to 14; they are uploaded to the vendor: ask first when one
            shows a real person or something confidential); --seed: sent as given, else a random one, recorded either way.
            Every call is paid: it is held against the project's budget first (tools/assets/budget.py: no budget, or one it
            would go over, and the call is not made, with how much is missing), and settled at what the answer's usage
-           says it cost.
+           says it cost, a blocked answer's input and thinking too. An error answer (HTTP 4xx/5xx) and a request that
+           never left settle at 0; a timeout, a reset or an answer that cannot be read keep the estimate as spent, as
+           such a call may have been billed (said so).
            codex: the Codex CLI's image_gen, on the ChatGPT plan the CLI is signed in with: not billed per picture, so
            no budget is held (as bin/vh tts on a plan's quota); no seed, no size. A transparent background comes from
-           the model itself.
+           the model itself. The model is the one the user's Codex config names (none is set here; only the
+           reasoning effort is, low: making a picture is one tool call); when codex makes nothing, its own
+           error is said, with what to change (a model a ChatGPT login cannot use: a newer CLI, or another
+           model in config.toml).
            --alpha: a transparent background. Gemini has none of its own: the picture is asked for on flat chroma green
            and cut out (cutout below) into cutout.png beside it; codex is asked for a transparent PNG.
            --dry-run: the estimate and the budget's verdict, nothing called. Pictures that go on screen are AI-generated
@@ -37,7 +44,8 @@ usage: bin/vh image gen <project> (--prompt TEXT | --prompt-file F) [--provider 
            and paper, to look at the edges
   prices   the models gen knows, a picture's price at each size, and what a reference picture and the thinking add
 --json: {"version": 1, "tool", …}; the lines go to stderr. --offline DIR: the answers from DIR/responses.json, recorded
-before (CONTRIBUTING.md, 联网的命令); no network, nothing spent; a stand-in codex on the PATH answers for the Codex CLI.
+before (CONTRIBUTING.md, 联网的命令); no network, and nothing held or spent (the budget's verdict still applies, as it
+would to a call): the record has no cost and says it was replayed. A stand-in codex on the PATH answers for the Codex CLI.
 Exit: 0 · 1 a call refused by the budget, or failed · 2 usage: no prompt, no key (said by its name), no such file.
 The Codex route follows lemo-opuscar's styles/news-package/demo/tools/gen_image.py (MIT, Copyright (c) 2026 LemoLab): codex
 exec in a read-only sandbox told to call image_gen once, the picture found under generated_images or in the session log by
@@ -68,6 +76,8 @@ PRICES = {
 PRICES_CHECKED = "2026-10-26"
 REF_TOKENS = 560        # an input picture, in tokens (the page's $0.0011 a picture at $2 a million)
 THINK_TOKENS = 2000     # what the estimate allows for thinking, billed as text output; the answer's usage settles it
+THINKING = {"gemini-nano-banana-2.1": "minimal"}   # thinking_level sent: 2.1's lowest (its default is medium); the Flash
+                                                   # images default to minimal, Pro lists no levels (the image docs, 2026-10-26)
 GREEN = "on a perfectly flat, evenly lit pure chroma-key green background (#00FF00), nothing else in the background, no shadow cast on it, no green in the subject"
 CODEX_PREAMBLE = ("Use your built-in image generation tool (image_gen) to create exactly one image, then reply DONE. If the tool fails, "
                   "print its error verbatim and stop. Do not run shell commands, do not look for or save files, do not retry.\n\n")
@@ -98,9 +108,10 @@ def estimate(model, size, refs, prompt):
     return {"amount": round(pic + ref + text + think, 6), "picture": pic, "refs": round(ref, 6), "prompt": round(text, 6), "thinking": round(think, 6)}
 
 
-def cost_of(model, usage, fallback):
+def cost_of(model, usage, fallback, picture=True):
     """What a call cost by its answer's usage (Interactions: total_input_tokens, output_tokens_by_modality,
-    total_thought_tokens; generateContent: usageMetadata), else the estimate."""
+    total_thought_tokens; generateContent: usageMetadata), else the fallback. picture=False: an answer with no picture
+    (blocked), whose input and thinking are billed all the same."""
     p = PRICES[model]
     if not isinstance(usage, dict) or not usage:
         return fallback, "the estimate (the answer gave no usage)"
@@ -113,8 +124,10 @@ def cost_of(model, usage, fallback):
         img = outm.get("image", 0)
         txt = int(usage.get("total_output_tokens") or 0) - img + int(usage.get("total_thought_tokens") or 0)
         inp = int(usage.get("total_input_tokens") or 0)
-    if not img:
+    if picture and not img:
         return fallback, "the estimate (the usage named no image tokens)"
+    if not (img or inp or txt):
+        return fallback, "the estimate (the usage counted nothing)"
     return round(inp * p["input"] / 1e6 + img * p["image_out"] / 1e6 + max(0, txt) * p["text"] / 1e6, 6), "the answer's usage"
 
 
@@ -127,8 +140,8 @@ def mime_of(path):
 def gemini_body(model, prompt, refs, aspect, size, seed):
     parts = [{"type": "text", "text": prompt}] + [{"type": "image", "mime_type": mime_of(r), "data": base64.b64encode(Path(r).read_bytes()).decode("ascii")}
                                                  for r in refs]
-    return {"model": model, "input": parts, "response_format": {"type": "image", "mime_type": "image/png", "aspect_ratio": aspect, "image_size": size},
-            "generation_config": {"seed": seed}, "store": False}
+    return {"model": model, "input": parts, "response_format": {"type": "image", "mime_type": "image/jpeg", "aspect_ratio": aspect, "image_size": size},
+            "generation_config": {"seed": seed, **({"thinking_level": THINKING[model]} if model in THINKING else {})}, "store": False}
 
 
 def picture_of(answer):
@@ -172,8 +185,7 @@ def codex_home():
 def codex_picture(prompt, aspect, alpha, timeout):
     """(bytes, where it was found, the CLI's version) from codex exec's image_gen: read-only sandbox, one call, the
     picture under $CODEX_HOME/generated_images/<thread>/ (or embedded in that session's log). The user's own config
-    stays as it is; the reasoning effort is set low for this call (picture generation needs none, and an effort this CLI
-    does not know in config.toml would stop it)."""
+    stays as it is, its model too; only the reasoning effort is set, low: making a picture is one tool call."""
     exe = shutil.which("codex")
     if not exe:
         raise Usage("the codex CLI is not installed (npm install -g @openai/codex, then codex login with ChatGPT): or --provider gemini")
@@ -226,8 +238,41 @@ def codex_picture(prompt, aspect, alpha, timeout):
                     return base64.b64decode(ev["result"]), f, ver
                 except (ValueError, TypeError):
                     pass
-    tail = ((se or "") + (so or ""))[-500:]
-    raise Failed(f"codex made no picture (exit {p.returncode}): {tail.strip() or 'nothing said'}")
+    said = codex_said(so, se)
+    raise Failed(f"codex made no picture ({ver or 'codex'}, exit {p.returncode}): " + (said or "it said nothing"))
+
+
+def codex_said(so, se):
+    """What codex exec said when it made nothing: the errors in its --json events as it wrote them (the API's message and
+    code, from inside the JSON a message may wrap), else its stderr's last lines; and what to change for the known ones.
+    The model is the user's own (their Codex config), never one named here."""
+    errs = []
+    for line in (so or "").splitlines():
+        try:
+            ev = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(ev, dict) or ev.get("type") not in ("error", "turn.failed"):
+            continue
+        msg = ev.get("message") if ev.get("type") == "error" else (ev.get("error") or {}).get("message")
+        code = None
+        try:
+            inner = json.loads(msg).get("error") or {}
+            msg, code = inner.get("message") or msg, inner.get("code")
+        except (TypeError, ValueError, AttributeError):
+            pass
+        if msg and (msg, code) not in errs:
+            errs.append((str(msg), code))
+    said = "; ".join(f"{m}" + (f" [{c}]" if c else "") for m, c in errs) or " ".join((se or "").strip().splitlines()[-3:])[-500:]
+    if not said:
+        return ""
+    codes = {c for _, c in errs}
+    if "model_not_found" in codes:
+        said += (" — the model is the one your Codex config names (model in $CODEX_HOME/config.toml, ~/.codex by default): "
+                 "a newer codex CLI may know it (npm install -g @openai/codex), or name a model your plan has there")
+    elif re.search(r"config\.toml|unknown variant", said):
+        said += " — your Codex config has a value this CLI does not know: update the CLI (npm install -g @openai/codex) or change that line"
+    return "codex said: " + said
 
 
 # ---- pictures ----
@@ -238,6 +283,18 @@ def png_size(data):
         return None
     w, h = int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
     return w, h, data[25] in (4, 6) or b"tRNS" in data[:4096]
+
+
+def picture_size(data):
+    """(width, height, has an alpha channel) of PNG or JPEG bytes (a JPEG's from its frame header), or None."""
+    if data[:2] != b"\xff\xd8":
+        return png_size(data)
+    i = 2
+    while i + 9 <= len(data) and data[i] == 0xFF:
+        if data[i + 1] in (0xC0, 0xC1, 0xC2):
+            return int.from_bytes(data[i + 7:i + 9], "big"), int.from_bytes(data[i + 5:i + 7], "big"), False
+        i += 2 + int.from_bytes(data[i + 2:i + 4], "big")
+    return None
 
 
 def rgba(path):
@@ -387,6 +444,20 @@ def cmd_prices(a):
     return 0
 
 
+def paid_call(h, estimate, url, body, opener):
+    """post_json under a hold h: an HTTP error answer (status 4xx/5xx) and a request that never left (refused, no such
+    host) settle at 0; a timeout, a reset or an answer that cannot be read leave the hold at the estimate, as such a
+    call may have been billed. → the answer."""
+    try:
+        return fetch.post_json(url, body, opener, secret={"x-goog-api-key": os.environ.get("GEMINI_API_KEY", "")})
+    except fetch.FetchError as e:
+        if (e.status or 0) >= 400 or not e.sent:
+            h.settle(0)
+            raise Failed(str(e))
+        raise Failed(f"{e}: it may have been billed, so the estimate (${estimate:.4f}) stays as spent; "
+                     "the provider's usage page says what it was") from None
+
+
 def cmd_gen(a):
     project = A.find(a.project)
     if bool(a.prompt) == bool(a.prompt_file):
@@ -476,43 +547,47 @@ def cmd_gen(a):
             write_json(folder / ("request.json" if a.n == 1 else f"request-{k + 1}.json"),
                        dict(body, input=[b if b["type"] == "text" else {"type": "image", "mime_type": b["mime_type"], "path": plan["refs"][i - 1]}
                                          for i, b in enumerate(body["input"])]))
-            try:
-                with budget.hold(project, plan["estimate"]["amount"], "USD", f"image gen {pid} ({model} {plan['size']})", tool=f"{PROG} gen", asset=pid) as h:
-                    try:
-                        answer = fetch.post_json(API, body, opener, secret={"x-goog-api-key": os.environ.get("GEMINI_API_KEY", "")})
-                    except fetch.FetchError as e:
-                        h.settle(0)   # an error answer is not billed
-                        raise Failed(str(e))
-                    try:
-                        data, mime, said, usage = picture_of(answer)
-                    except Failed:
-                        h.settle(cost_of(model, (answer or {}).get("usage") or {}, 0.0)[0] if isinstance(answer, dict) else 0)
-                        raise
-                    cost, how = cost_of(model, usage, plan["estimate"]["amount"])
-                    h.settle(cost)
-            except budget.Refused as e:
-                raise Failed(str(e))
+            if a.offline:   # a recorded answer: nothing is called, so nothing is held or spent
+                data, mime, said, usage = picture_of(fetch.post_json(API, body, opener))
+                cost, how = cost_of(model, usage, plan["estimate"]["amount"])
+                replayed, cost, how = cost, 0.0, f"nothing spent: replayed with --offline (a call: ${cost:.4f} by {how})"
+            else:
+                replayed = None
+                try:
+                    with budget.hold(project, plan["estimate"]["amount"], "USD", f"image gen {pid} ({model} {plan['size']})", tool=f"{PROG} gen", asset=pid) as h:
+                        answer = paid_call(h, plan["estimate"]["amount"], API, body, opener)
+                        try:
+                            data, mime, said, usage = picture_of(answer)
+                        except Failed:   # blocked: the input and the thinking are billed all the same
+                            h.settle(cost_of(model, (answer or {}).get("usage") or {}, 0.0, picture=False)[0] if isinstance(answer, dict) else 0)
+                            raise
+                        cost, how = cost_of(model, usage, plan["estimate"]["amount"])
+                        h.settle(cost)
+                except budget.Refused as e:
+                    raise Failed(str(e))
             where = "Google's Interactions API"
         else:
             data, where, ver = codex_picture(prompt, aspect, a.alpha, a.timeout)
-            mime, said, cost, how = "image/png", "", 0.0, "the ChatGPT plan's quota"
+            mime, said, cost, how, replayed = "image/png", "", 0.0, "the ChatGPT plan's quota", None
             model = f"image_gen via codex ({ver})" if ver else "image_gen via codex"
         if mime != "image/png":
             name = name[:-4] + {"image/jpeg": ".jpg", "image/webp": ".webp"}.get(mime, ".bin")
         dest = folder / name
         dest.write_bytes(data)
-        info = png_size(data)
+        info = picture_size(data)
         spent += cost
         extra = {"inputs": [{"path": plan["refs"][i], "sha256": ledger.sha256_file(r)} for i, r in enumerate(refs)]} if refs else {}
         extra["request"] = {"aspect": aspect, **({"size": plan["size"]} if plan["size"] else {}), "provider": a.provider}
         if said:
             extra["model_said"] = said[:500]
+        if replayed is not None:
+            extra["offline"] = f"replayed from a recording: nothing called, nothing spent (a call: ${replayed:.4f})"
         try:
             rec, _, _ = ledger.add(project, str(dest), id=pid, kind="image", license_class="generated",
                                    license="the vendor's terms: Gemini API" if a.provider == "gemini" else "the vendor's terms: OpenAI (ChatGPT plan, through Codex)",
                                    source={"origin": "generated", "provider": "gemini" if a.provider == "gemini" else "codex"}, aigc=True,
                                    model=plan["model"] if a.provider == "gemini" else f"openai/{model}", prompt_file=str(folder / "prompt.txt"), seed=seed,
-                                   cost={"amount": round(cost, 6), "currency": "USD"} if a.provider == "gemini" else None,
+                                   cost={"amount": round(cost, 6), "currency": "USD"} if a.provider == "gemini" and replayed is None else None,
                                    used_by=[x.strip() for x in a.used_by.split(",") if x.strip()] if a.used_by else None, tags=["genimg"],
                                    note="AI-generated, illustrative: not a photograph of anything that happened", extra=extra, by=f"{PROG} gen")
         except (ledger.Refused, ValueError, ledger.LedgerError) as e:
@@ -520,7 +595,8 @@ def cmd_gen(a):
         made.append(dest)
         recs.append(rec)
         say(f"made {pid}: {ledger.rel(project, dest)}" + (f" · {info[0]}×{info[1]}" if info else "") + f" · {plan['model'] if a.provider == 'gemini' else 'codex image_gen'}"
-            + (f" · ${cost:.4f} ({how})" if a.provider == "gemini" else " · the ChatGPT plan's quota") + (f" · seed {seed}" if seed is not None else ""))
+            + (f" · {how}" if replayed is not None else f" · ${cost:.4f} ({how})" if a.provider == "gemini" else " · the ChatGPT plan's quota")
+            + (f" · seed {seed}" if seed is not None else ""))
         if a.alpha:
             if a.provider == "gemini":
                 cdst, facts, crec = cutout(project, dest, by=f"{PROG} gen --alpha")

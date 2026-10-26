@@ -1,0 +1,94 @@
+{
+ "_type": "playlist",
+ "id": "UCexamplephysicsxxxxxxxx",
+ "channel": "Example Physics",
+ "uploader": "Example Physics",
+ "uploader_id": "@examplephysics",
+ "uploader_url": "https://www.youtube.com/@examplephysics",
+ "channel_url": "https://www.youtube.com/@examplephysics",
+ "channel_follower_count": 512000,
+ "title": "Example Physics - Videos",
+ "extractor": "youtube:tab",
+ "entries": [
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "EXAM0000001",
+   "url": "https://www.youtube.com/watch?v=EXAM0000001",
+   "title": "Example Physics video 1",
+   "duration": 241,
+   "view_count": 90000,
+   "timestamp": 1792136000
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "EXAM0000002",
+   "url": "https://www.youtube.com/watch?v=EXAM0000002",
+   "title": "Example Physics video 2",
+   "duration": 242,
+   "view_count": 120000,
+   "timestamp": 1791531200
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "EXAM0000003",
+   "url": "https://www.youtube.com/watch?v=EXAM0000003",
+   "title": "Example Physics video 3",
+   "duration": 243,
+   "view_count": 75000,
+   "timestamp": 1790926400
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "EXAM0000004",
+   "url": "https://www.youtube.com/watch?v=EXAM0000004",
+   "title": "Example Physics video 4",
+   "duration": 244,
+   "view_count": 400000,
+   "timestamp": 1790321600
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "EXAM0000005",
+   "url": "https://www.youtube.com/watch?v=EXAM0000005",
+   "title": "Example Physics video 5",
+   "duration": 245,
+   "view_count": 110000,
+   "timestamp": 1789716800
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "EXAM0000006",
+   "url": "https://www.youtube.com/watch?v=EXAM0000006",
+   "title": "Example Physics video 6",
+   "duration": 246,
+   "view_count": 95000,
+   "timestamp": 1789112000
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "EXAM0000007",
+   "url": "https://www.youtube.com/watch?v=EXAM0000007",
+   "title": "Example Physics video 7",
+   "duration": 247,
+   "view_count": 130000,
+   "timestamp": 1788507200
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "EXAM0000008",
+   "url": "https://www.youtube.com/watch?v=EXAM0000008",
+   "title": "Example Physics video 8",
+   "duration": 248,
+   "view_count": 80000,
+   "timestamp": 1787902400
+  }
+ ]
+}
