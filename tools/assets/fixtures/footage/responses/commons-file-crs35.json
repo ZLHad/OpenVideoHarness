@@ -1,0 +1,72 @@
+{
+ "batchcomplete": "",
+ "query": {
+  "pages": {
+   "201713140": {
+    "pageid": 201713140,
+    "ns": 6,
+    "title": "File:SpaceX CRS-35 launch and jellyfish cloud.webm",
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "size": 6332786,
+      "width": 1920,
+      "height": 1080,
+      "duration": 122.60000000000001,
+      "url": "https://upload.wikimedia.org/wikipedia/commons/8/88/SpaceX_CRS-35_launch_and_jellyfish_cloud.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:SpaceX_CRS-35_launch_and_jellyfish_cloud.webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=201713140",
+      "extmetadata": {
+       "ObjectName": {
+        "value": "SpaceX CRS-35 launch and jellyfish cloud",
+        "source": "mediawiki-metadata"
+       },
+       "DateTimeOriginal": {
+        "value": "2026-10-13",
+        "source": "commons-desc-page"
+       },
+       "Credit": {
+        "value": "<span class=\"int-own-work\" lang=\"en\">Own work</span>",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "<a href=\"//commons.wikimedia.org/wiki/User:The_Eloquent_Peasant\" title=\"User:The Eloquent Peasant\">The Eloquent Peasant</a>",
+        "source": "commons-desc-page"
+       },
+       "LicenseShortName": {
+        "value": "CC BY 4.0",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "UsageTerms": {
+        "value": "Creative Commons Attribution 4.0",
+        "source": "commons-desc-page"
+       },
+       "AttributionRequired": {
+        "value": "true",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "LicenseUrl": {
+        "value": "https://creativecommons.org/licenses/by/4.0",
+        "source": "commons-desc-page"
+       },
+       "Copyrighted": {
+        "value": "True",
+        "source": "commons-desc-page",
+        "hidden": ""
+       },
+       "Restrictions": {
+        "value": "",
+        "source": "commons-desc-page",
+        "hidden": ""
+       }
+      },
+      "mime": "video/webm",
+      "mediatype": "VIDEO"
+     }
+    ]
+   }
+  }
+ }
+}

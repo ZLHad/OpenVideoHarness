@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=320, height=180">
+<style>html, body { margin: 0; background: #06080a; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="320" height="180"></canvas>
+<script>
+  // bin/vh footage's end-to-end fixture (tools/ci.sh, footage_checks): two cells of one moment, each drawn from frames
+  // that bin/vh footage frames baked by film frame number (the sync is in the file names, not here: hard rule 1)
+  const c = document.getElementById("c"), x = c.getContext("2d"), FPS = 30, N = 60;
+  const cam = (name) => Array.from({ length: N }, (_, n) => Object.assign(new Image(), { src: `assets/frames/${name}/${String(n).padStart(5, "0")}.jpg` }));
+  const pad = cam("cam-pad"), crs = cam("cam-crs");
+  window.film = {
+    duration: N / FPS, fps: FPS,
+    ready: () => Promise.all([...pad, ...crs].map((p) => p.decode())),
+    frame(t) {
+      const n = Math.min(N - 1, Math.floor(t * FPS + 1e-6));
+      x.fillStyle = "#06080a"; x.fillRect(0, 0, 320, 180);
+      x.drawImage(pad[n], 8, 45, 148, 83);
+      x.drawImage(crs[n], 164, 45, 148, 83);
+      x.fillStyle = "#ff5b1f"; x.fillRect(8, 136, Math.round(304 * n / (N - 1)), 3);
+    },
+  };
+</script>
+</body>
+</html>

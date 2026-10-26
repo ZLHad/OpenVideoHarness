@@ -1,0 +1,63 @@
+{
+ "responseHeader": {
+  "status": 0,
+  "QTime": 41,
+  "params": {
+   "query": "((text:rocket OR text:rocket OR text__reviews:rocket) AND collection:prelinger) AND mediatype:movies",
+   "qin": "(rocket AND collection:(prelinger)) AND mediatype:(movies)",
+   "fields": "identifier,title,year,date,creator,licenseurl,rights,collection,mediatype",
+   "wt": "json",
+   "rows": 6,
+   "start": 0
+  }
+ },
+ "response": {
+  "numFound": 73,
+  "start": 0,
+  "docs": [
+   {
+    "collection": [
+     "prelinger",
+     "fav-bgoral",
+     "fav-frankonaut",
+     "fav-haliautumn",
+     "fav-matth2612",
+     "fav-sheazam"
+    ],
+    "creator": "Probst (Charles), Cinefonics Production",
+    "identifier": "0632_Charlies_Atlas_13_50_50_00",
+    "mediatype": "movies",
+    "title": "Charlie's Atlas"
+   },
+   {
+    "collection": [
+     "prelinger",
+     "fav-aodiorne",
+     "fav-bizfinguy",
+     "fav-charlie_connolly",
+     "fav-fdeb",
+     "fav-filament",
+     "fav-fuzzyqjones",
+     "fav-girl2k",
+     "fav-jcope",
+     "fav-jeff_f_",
+     "fav-karah515",
+     "fav-lisa_morgan726",
+     "fav-mrhistoryvideo",
+     "fav-reddvelvett",
+     "fav-rikke",
+     "fav-ryan_estrada",
+     "fav-screamgender",
+     "fav-unkledave1221"
+    ],
+    "creator": "Warner Pathé News",
+    "date": "1957-01-01T00:00:00Z",
+    "identifier": "NewsMaga00_9",
+    "licenseurl": "http://creativecommons.org/licenses/publicdomain/",
+    "mediatype": "movies",
+    "title": "News Magazine of the Screen, The (Vol. 7, Issue 6)",
+    "year": 1957
+   }
+  ]
+ }
+}

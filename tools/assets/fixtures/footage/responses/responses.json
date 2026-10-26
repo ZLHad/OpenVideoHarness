@@ -1,0 +1,102 @@
+{
+ "v": 1,
+ "note": "bin/vh footage's recorded answers (tools/ci.sh, footage_checks): the three sites' search and item JSON, cut to a few results, from 2026-10-26. The two media bodies under media/ are not in git (no video is): tools/ci.sh makes them with ffmpeg (testsrc2) into a copy of this folder before it runs footage get --offline",
+ "responses": [
+  {
+   "url": "https://images-api.nasa.gov/search?q=Artemis+II+launch&media_type=video&page_size=5",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "nasa-search.json"
+  },
+  {
+   "url": "https://archive.org/advancedsearch.php?q=%28rocket+launch%29+AND+mediatype%3A%28movies%29&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=year&fl%5B%5D=date&fl%5B%5D=creator&fl%5B%5D=licenseurl&fl%5B%5D=rights&fl%5B%5D=collection&fl%5B%5D=mediatype&rows=6&output=json",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "archive-search.json"
+  },
+  {
+   "url": "https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrsearch=rocket+launch+filetype%3Avideo&gsrnamespace=6&gsrlimit=6&prop=imageinfo&iiprop=url%7Csize%7Cmime%7Cmediatype%7Cextmetadata&iiextmetadatafilter=LicenseShortName%7CLicenseUrl%7CArtist%7CCredit%7CDateTimeOriginal%7CAttributionRequired%7CRestrictions%7CUsageTerms%7CCopyrighted%7CObjectName",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "commons-search.json"
+  },
+  {
+   "url": "https://archive.org/advancedsearch.php?q=%28rocket+AND+collection%3A%28prelinger%29%29+AND+mediatype%3A%28movies%29&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=year&fl%5B%5D=date&fl%5B%5D=creator&fl%5B%5D=licenseurl&fl%5B%5D=rights&fl%5B%5D=collection&fl%5B%5D=mediatype&rows=6&output=json",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "archive-search-prelinger.json"
+  },
+  {
+   "url": "https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrsearch=launch+incategory%3ACC-BY-4.0+filetype%3Avideo&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url%7Csize%7Cmime%7Cmediatype%7Cextmetadata&iiextmetadatafilter=LicenseShortName%7CLicenseUrl%7CArtist%7CCredit%7CDateTimeOriginal%7CAttributionRequired%7CRestrictions%7CUsageTerms%7CCopyrighted%7CObjectName",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "commons-search-ccby.json"
+  },
+  {
+   "url": "https://images-api.nasa.gov/search?nasa_id=KSC-04012026-C4829",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "nasa-item.json"
+  },
+  {
+   "url": "https://archive.org/metadata/NewsMaga00_9",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "archive-item.json"
+  },
+  {
+   "url": "https://commons.wikimedia.org/w/api.php?action=query&format=json&titles=File%3AStreichholzrakete+%28SSR-2%2C+Steigflug%29.webm&prop=imageinfo&iiprop=url%7Csize%7Cmime%7Cmediatype%7Cextmetadata&iiextmetadatafilter=LicenseShortName%7CLicenseUrl%7CArtist%7CCredit%7CDateTimeOriginal%7CAttributionRequired%7CRestrictions%7CUsageTerms%7CCopyrighted%7CObjectName",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "commons-file-bysa.json"
+  },
+  {
+   "url": "https://commons.wikimedia.org/w/api.php?action=query&format=json&titles=File%3ASpaceX+CRS-35+launch+and+jellyfish+cloud.webm&prop=imageinfo&iiprop=url%7Csize%7Cmime%7Cmediatype%7Cextmetadata&iiextmetadatafilter=LicenseShortName%7CLicenseUrl%7CArtist%7CCredit%7CDateTimeOriginal%7CAttributionRequired%7CRestrictions%7CUsageTerms%7CCopyrighted%7CObjectName",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "commons-file-crs35.json"
+  },
+  {
+   "url": "https://images-api.nasa.gov/asset/KSC-04012026-C4829",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "nasa-asset.json"
+  },
+  {
+   "url": "https://images-assets.nasa.gov/video/KSC-04012026-C4829/KSC-04012026-C4829~orig.mp4",
+   "status": 200,
+   "headers": {
+    "content-type": "video/mp4"
+   },
+   "body": "media/nasa-orig.mp4.bin"
+  },
+  {
+   "url": "https://upload.wikimedia.org/wikipedia/commons/8/88/SpaceX_CRS-35_launch_and_jellyfish_cloud.webm",
+   "status": 200,
+   "headers": {
+    "content-type": "video/webm"
+   },
+   "body": "media/commons-crs35.webm.bin"
+  }
+ ]
+}

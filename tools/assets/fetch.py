@@ -1,8 +1,8 @@
 """Downloads for the commands that bring material in, and the network convention they all keep (CONTRIBUTING.md, 联网的命令).
 Stdlib only.
 
-download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries=3, headers=None) → {"path", "url", "sha256",
-"bytes", "resumed", "status", "content_type"}:
+download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries=3, headers=None, max_bytes=None) → {"path",
+"url", "sha256", "bytes", "resumed", "status", "content_type"}:
   - the bytes go to <dest>.part first, and <dest>.part becomes <dest> (os.replace) only when they are all there: dest is
     never half written. A .part already there is resumed with Range: bytes=<its size>-: a 206 appends to it, a 200 (a
     server that ignores ranges) starts it over, a 416 whose Content-Range total is the .part's size means it was complete
@@ -10,7 +10,12 @@ download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries=3, 
   - the sha256 is taken as the bytes arrive (a resumed .part is read once first). Given one, a mismatch deletes the .part
     and raises: the next try starts clean
   - a dropped connection, a timeout or a short body is tried again from where it stopped, `retries` times (1, 2, 4 s apart)
+  - max_bytes: a file the server says is larger is refused before a byte of it is written (FetchError, its size said)
 get_json(url, opener=None, headers=None, timeout=60) → the JSON of a GET (an API's search results).
+serve(url, opener=None, rate=None) → a context: (a local http://127.0.0.1 address for that one file, stats) for a program
+that reads it with HTTP ranges itself (ffmpeg -ss … -i <it> reads only the parts it needs: the index, then the seconds
+asked for). Each request's Range goes to the file through the opener, so a recording answers it as well; stats["bytes"]
+is what was read from the file, stats["size"] its whole size once a response said it. Only on 127.0.0.1, only that file.
 
 The opener: Live (urllib, with a User-Agent naming the project; keys belong in headers, never in a URL), Replay(dir) (the
 responses recorded in dir/responses.json, matched by URL; a Range is honoured by slicing the recorded body, so a resume
@@ -22,7 +27,7 @@ body over 256 kB to its first 256 kB with its length noted: a fixture stays smal
 message names a URL as redact() writes it (no user:password, no query values), and so do the records bin/vh assets
 writes.
 """
-import hashlib, http.client, json, os, re, time, urllib.error, urllib.parse, urllib.request
+import contextlib, hashlib, http.client, http.server, json, os, re, threading, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 UA = "OpenVideoHarness (+https://github.com/ZLHad/OpenVideoHarness)"
@@ -50,6 +55,11 @@ def redact(url):
         host = f"[{host}]"
     q = "&".join(f"{k}=…" for k, _ in urllib.parse.parse_qsl(p.query, keep_blank_values=True)) or ("…" if p.query else "")
     return urllib.parse.urlunsplit((p.scheme, host + (f":{port}" if port else ""), p.path, q, "…" if p.fragment else ""))
+
+
+def size_of(n):
+    """A byte count as a person reads it: 3.2 GB, 41.5 MB, 230 kB."""
+    return f"{n / 1e9:,.1f} GB" if n >= 1e9 else f"{n / 1e6:,.1f} MB" if n >= 1e6 else f"{n / 1e3:,.0f} kB"
 
 
 def rate_of(s):
@@ -98,7 +108,10 @@ class Replay:
             raise FetchError(f"{redact(url)}: no recorded response in {self.dir} (record one: OVH_RECORD=<folder> and the same command online)")
         if rec.get("status", 200) >= 400:
             raise FetchError(f"{redact(url)}: HTTP {rec['status']} (recorded)")
-        body = (self.dir / rec["body"]).read_bytes() if rec.get("body") else b""
+        try:
+            body = (self.dir / rec["body"]).read_bytes() if rec.get("body") else b""
+        except OSError as e:
+            raise FetchError(f"{redact(url)}: its recorded body {rec['body']} cannot be read ({e.strerror or e})")
         h = dict(rec.get("headers") or {})
         status = rec.get("status", 200)
         m = re.match(r"bytes=(\d+)-$", (headers or {}).get("Range", ""))
@@ -183,7 +196,7 @@ def _hasher(part):
     return h, n
 
 
-def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries=3, headers=None):
+def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries=3, headers=None, max_bytes=None):
     opener = opener or Live()
     dest = Path(dest)
     part = dest.with_name(dest.name + ".part")
@@ -224,6 +237,9 @@ def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries
                 h, hashed = hashlib.sha256(), 0
             else:
                 raise FetchError(f"{redact(url)}: HTTP {r.status}")
+            if max_bytes and total and total > max_bytes:
+                part.unlink(missing_ok=True)
+                raise FetchError(f"{redact(url)}: {size_of(total)}, over the {size_of(max_bytes)} cap: nothing downloaded")
             with open(part, mode) as f:
                 while True:
                     b = r.read(CHUNK)
@@ -233,6 +249,10 @@ def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries
                     h.update(b)
                     hashed += len(b)
                     got += len(b)
+                    if max_bytes and hashed > max_bytes:   # no Content-Length said so (or it was wrong): the bytes do
+                        f.close()
+                        part.unlink(missing_ok=True)
+                        raise FetchError(f"{redact(url)}: more than the {size_of(max_bytes)} cap, with no length said first: stopped, nothing kept")
                     if rate:   # ahead of the average the rate allows: wait until it is caught up
                         ahead = got / rate - (time.monotonic() - t0)
                         if ahead > 0:
@@ -260,3 +280,79 @@ def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries
     os.replace(part, dest)
     return {"path": str(dest), "url": redact(url), "sha256": digest, "bytes": dest.stat().st_size, "resumed": resumed, "status": status,
             "content_type": ctype}
+
+
+@contextlib.contextmanager
+def serve(url, opener=None, rate=None, timeout=60):
+    """(local_url, stats) while the block runs: see the module's note. A request the opener cannot answer gets a 502 (the
+    reading program then fails and says so); the reason is kept in stats["errors"]."""
+    opener = opener or Live()
+    rate = rate if isinstance(rate, (int, float)) else rate_of(rate)
+    stats = {"bytes": 0, "size": None, "requests": 0, "errors": []}
+    lock, t0 = threading.Lock(), time.monotonic()
+    suffix = re.sub(r"[^A-Za-z0-9.]", "", Path(urllib.parse.urlsplit(url).path).suffix)[:8]
+    path = "/file" + suffix
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            if self.path != path:
+                self.send_error(404)
+                return
+            rng = self.headers.get("Range")
+            with lock:
+                stats["requests"] += 1
+            try:
+                r = opener.open(url, {"Range": rng} if rng else None, timeout)
+            except (FetchError, ConnectionError) as e:
+                with lock:
+                    stats["errors"].append(str(e))
+                self.send_error(502, str(e)[:200])
+                return
+            try:
+                h = r.headers
+                m = re.match(r"bytes (?:\d+-\d+|\*)/(\d+)", h.get("content-range", ""))
+                with lock:
+                    if m:
+                        stats["size"] = int(m.group(1))
+                    elif r.status == 200 and h.get("content-length", "").isdigit():
+                        stats["size"] = int(h["content-length"])
+                self.send_response(r.status)
+                for k in ("content-type", "content-length", "content-range", "last-modified", "etag"):
+                    if h.get(k):
+                        self.send_header(k.title(), h[k])
+                self.send_header("Accept-Ranges", "bytes" if r.status == 206 or h.get("accept-ranges") == "bytes" else "none")
+                self.end_headers()
+                while True:
+                    b = r.read(CHUNK)
+                    if not b:
+                        break
+                    self.wfile.write(b)
+                    with lock:
+                        stats["bytes"] += len(b)
+                        got = stats["bytes"]
+                    if rate:
+                        ahead = got / rate - (time.monotonic() - t0)
+                        if ahead > 0:
+                            time.sleep(ahead)
+            except (BrokenPipeError, ConnectionResetError):
+                pass   # the reader seeks elsewhere and drops this one: what it read is counted, the rest never fetched
+            except (ConnectionError, TimeoutError, http.client.HTTPException, OSError) as e:
+                with lock:
+                    stats["errors"].append(f"{redact(url)}: {e}")
+            finally:
+                r.close()
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    srv.daemon_threads = True
+    th = threading.Thread(target=srv.serve_forever, daemon=True)
+    th.start()
+    try:
+        yield f"http://127.0.0.1:{srv.server_address[1]}{path}", stats
+    finally:
+        srv.shutdown()
+        srv.server_close()

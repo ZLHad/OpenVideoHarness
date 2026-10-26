@@ -138,6 +138,10 @@ def assets_notes(master):
     if c["required"] or c["courtesy"]:
         lines.append(f"  credits: {len(c['required'])} line(s) the licences ask for" + (f", {len(c['courtesy'])} courtesy" if c["courtesy"] else "")
                      + f": into the description (PACKAGING.md, 署名和 AI 标识): bin/vh assets credits {where} [--out f]")
+        shown = (c["required"] + c["courtesy"])[:6]
+        lines += [f"    - {x['line']}" for x in shown]
+        if len(c["required"]) + len(c["courtesy"]) > len(shown):
+            lines.append(f"    … and {len(c['required']) + len(c['courtesy']) - len(shown)} more: bin/vh assets credits {where}")
     if c["aigc"]["count"]:
         lines.append(f"  AI-generated: {c['aigc']['count']} asset(s) ({', '.join(f'{n} {k}' for k, n in c['aigc']['kinds'].items())}): turn on the platform's"
                      " AI-content declaration when you publish (references/genvideo-ledger.md, 披露)")
