@@ -1976,6 +1976,9 @@ for ref in ("http://example.org/a.mp4", "youtube:abc"):
         pass
 if [F.frame_from(t, 30) for t in (0, 6.85, 4.1, 10.04)] != [0, 206, 123, 302] or F.frame_at(4.1, 30) != 123 or F.frame_at(0.0333, 30) != 0:
     bad.append("frame_from / frame_at: not the edit list's two functions")
+from fractions import Fraction as Fr
+if [str(F.snap(x)) for x in (Fr(19001, 317), Fr(2997, 100), Fr(25), Fr(144))] != ["60000/1001", "30000/1001", "25", "144"]:
+    bad.append("snap: a Matroska copy's 19001/317 is 60000/1001, 29.97 is 30000/1001, an odd rate stays")
 r = subprocess.run([sys.executable, "tools/assets/footage.py", "search", "commons", "rocket launch", "--type", "video", "-n", "6", "--json", "--offline", fr],
                    capture_output=True, text=True)
 j = json.loads(r.stdout or "{}")

@@ -364,8 +364,19 @@ def video_packets(path):
     return outp
 
 
+STANDARD_RATES = [Fraction(n, d) for n, d in ((12, 1), (25, 2), (15, 1), (16, 1), (18, 1), (24000, 1001), (24, 1), (25, 1), (30000, 1001), (30, 1),
+                                               (48, 1), (50, 1), (60000, 1001), (60, 1), (100, 1), (120000, 1001), (120, 1))]
+
+
+def snap(rate):
+    """A measured rate within 0.1 % of a standard one is that one: a Matroska copy keeps milliseconds only, and ffprobe
+    then reads 59.94 as 19001/317."""
+    best = min(STANDARD_RATES, key=lambda r: abs(float(r) - float(rate)))
+    return best if abs(float(best) / float(rate) - 1) < 1e-3 else rate
+
+
 def rate_of(v):
-    """The video stream's nominal rate as a Fraction, and whether it is constant."""
+    """The video stream's nominal rate as a Fraction (snapped to a standard rate), and whether it is constant."""
     def fr(s):
         try:
             n, _, d = str(s or "0/0").partition("/")
@@ -376,7 +387,7 @@ def rate_of(v):
     rate = r if r else avg
     if not rate:
         raise Failed("the video says no frame rate")
-    return rate, (not avg or abs(float(avg) - float(r)) < 0.01 * float(r))
+    return snap(rate), (not avg or abs(float(avg) - float(rate)) < 0.01 * float(rate))
 
 
 def frate(f):
