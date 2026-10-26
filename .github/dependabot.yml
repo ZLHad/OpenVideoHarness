@@ -1,4 +1,4 @@
-# Keep the CI workflow's actions up to date. npm is left out on purpose: HyperFrames is pinned to the validated 0.8.82.
+# Keep the CI workflow's actions up to date. npm is left out on purpose: HyperFrames is pinned to a version checked by hand (engines/README.md, 升级核对).
 version: 2
 updates:
   - package-ecosystem: github-actions

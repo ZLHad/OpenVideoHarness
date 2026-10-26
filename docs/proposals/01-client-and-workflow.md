@@ -262,7 +262,7 @@ OpenFilm 的手册不写风格和方法。它没有这些东西：
 | `@hyperframes/studio` | React 写的编辑器：可视时间线、CodeMirror 代码编辑、实时预览、元素检查器。`npx hyperframes preview` 打开的就是它 | 给会写代码的人用；今天就能用，文档里写一句就行 |
 | `@hyperframes/sdk` | 无界面的合成编辑引擎：`openComposition`、补丁、撤销历史、`OverrideSet`，带类型的变量（字符串、数字、颜色、布尔、枚举、字体、图片），以及 fs、iframe、memory、headless 四种适配器 | 让人改"变量"而不碰代码，比如主色、标题字、某段的时长。look-dev 用的 `fx` 变量（`playbook/01-pipeline.md`）就是这个思路 |
 
-我们现在钉在 0.8.82（`engines/README.md`）。用这几个包之前，先单独做一次升级核对。审阅台只用 Python 标准库、不从 CDN 拉东西，所以播放器要放进本地文件，不走 CDN。
+我们现在钉在 0.8.202（`engines/README.md`，升级核对表在它的 HyperFrames 一节）。用这几个包之前，先单独做一次升级核对。审阅台只用 Python 标准库、不从 CDN 拉东西，所以播放器要放进本地文件，不走 CDN。
 
 ---
 

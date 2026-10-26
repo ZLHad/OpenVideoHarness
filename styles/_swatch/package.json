@@ -9,6 +9,6 @@
     "lint": "HYPERFRAMES_SKIP_SKILLS=1 hyperframes lint out/stage/demo"
   },
   "devDependencies": {
-    "hyperframes": "0.8.82"
+    "hyperframes": "0.8.202"
   }
 }

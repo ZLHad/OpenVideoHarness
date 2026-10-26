@@ -1310,6 +1310,17 @@ decision_checks() {
   mkdir -p "$t/hfi"; a=$(vh hf-init "$t/hfi" landscape-4k 2>&1); rc=$?; b=$(vh hf-init "$t/hfi" 2:3 2>&1); rb=$?
   case "$rc:$a|$rb:$b" in 2:*"4K is a render flag"*"|2:"*"unknown frame 2:3"*) [ -z "$(ls -A "$t/hfi")" ] && ok "hf-init refuses a 4K preset and an unknown frame before scaffolding (exit 2)" || bad "hf-init wrote files after refusing" ;;
     *) bad "hf-init frame check ($rc/$rb): $a | $b" ;; esac
+  # hf-init's font fix, offline (tools/hfinit.py): the scaffold's stack starts with a generic family (0.8.202) or names
+  # Inter (0.8.82), which HyperFrames fills in from Google Fonts at render time; after the fix no family is fetched
+  printf '%s\n' '<!doctype html><html><head><style>' '      :root {' '        --font-display: sans-serif;' '      }' \
+    '      body { font-family: var(--font-display); }' '      .old { font-family: Inter, sans-serif; }' '</style></head><body></body></html>' > "$t/hfi/index.html"
+  python3 tools/hfinit.py check "$t/hfi/index.html" > "$t/hfi/before.txt"; rc=$?
+  python3 tools/hfinit.py fonts "$t/hfi/index.html"; rb=$?
+  a=$(python3 tools/hfinit.py check "$t/hfi/index.html"); rc2=$?
+  if [ "$rc:$rb:$rc2" = "1:0:0" ] && [ -z "$a" ] && grep -q "starts with the generic sans-serif" "$t/hfi/before.txt" && grep -q "names Inter with no @font-face" "$t/hfi/before.txt" \
+     && ! grep -qE "fonts\.(googleapis|gstatic)" "$t/hfi/index.html" && grep -q 'src: local("HelveticaNeue")' "$t/hfi/index.html"
+  then ok "hf-init's font fix: the scaffold's generic-first and Inter stacks get local @font-face fonts, so HyperFrames fetches none"
+  else bad "hf-init font fix ($rc, $rb, $rc2): $(cat "$t/hfi/before.txt") | $a"; fi
   # 4:5: the BRIEF's lines (a pinned version that does not exist makes the scaffold fail fast, offline too; new goes on without it)
   a=$(HYPERFRAMES_VERSION=0.0.0-ci OVH_PROJECTS="$t/a45" vh new short ci-45 --aspect 4:5 2>&1); d=$(ls -d "$t"/a45/*-ci-45 2>/dev/null)
   if [ -n "$d" ] && grep -q '^- Output: 1080x1350,' "$d/BRIEF.md" && grep -q '^- Watch on: phone' "$d/BRIEF.md" && grep -q '画幅 4:5（1080x1350' "$d/BRIEF.md"; then
