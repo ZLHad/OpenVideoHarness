@@ -29,7 +29,7 @@ styles/_swatch/
 ├── README.md          本文件
 ├── index.html         唯一的 composition：5.0 s · 30 fps · 1920×1080 · 一张 canvas#c；变量 style / hud
 ├── boot.js            运行时：读变量 → 加载 tokens 和场景 → 预载字体 → setup → 预热 → 每次 seek 画一帧
-├── lib.js             共享工具（传给场景的 lib）
+├── lib.js             传给场景的 lib：组件库 components/lib 的全部，加上样片自己的内容规格（W、SPEC、SAFE…）
 ├── fonts.css          生成文件：本机系统字体的 @font-face local() 目录（fonts.py 生成）
 ├── fonts.py           重新生成 fonts.css；--list 打印字体清单
 ├── render.sh          渲染 + 看门狗 + 检查 + 转码 + 封面 + 联系表
@@ -167,15 +167,17 @@ def apply(t, env): …       # 按 t（= k/30）直接设好每个会动的属�
 
 ## lib.js 速查
 
+`lib.js` 只有样片自己的内容规格（表的第一行"常量"），其余都转自组件库 [`components/lib`](../../components/README.md)：项目、canvas-film 和 HyperFrames 的合成用的是同一份。stage 会把 `components/` 一起复制过去，场景也能直接引入一个组件（`import … from "../../components/<组件>/component.js"`）。
+
 | 类别 | 函数 |
 |---|---|
 | 常量 | `W H FPS DUR FRAMES POSTER_T SPEC TITLE_EN TITLE_ZH MOTIF SAFE.action/.title`（`{x0,y0,x1,y1,w,h,cx,cy}`） |
-| 布局 | `anchor("C4")`（安全框里的 6×6 锚点，A–F 是列，1–6 是行）· `slots(3, {area, y, gap})` 母题的三个槽位 |
+| 布局 | `anchor("C4")`（安全框里的 6×6 锚点，A–F 是列，1–6 是行）· `slots(3, {area, y, gap})` 母题的三个槽位 · `safeBoxes(w, h)` 任意画幅的安全框 · `FRAME` / `setFrame({w, h, fps, dpr})` 画面的尺寸和帧率（样片是 1920×1080、30 fps） |
 | 时间 | `frame(t)` · `step(t, 12)`（按 12 fps 停帧，"一拍二"用 15）· `seg(t,a,b)` · `env(t,a,b,fadeIn,fadeOut)` · `tween(t,a,b,ease)` |
 | 数学 | `clamp lerp invlerp remap smoothstep fract TAU` |
 | 随机 | `hash(...nums)` → [0,1)，按 IEEE 位模式哈希，跨机器一致 · `hashS` → [-1,1) · `hash32` · `rng(seed)`（只在 setup 或单次调用里用）· `noise1 noise2 fbm2` |
 | 缓动 | `bezier(x1,y1,x2,y2)` · `ease.{outExpo,outQuint,outCubic,inCubic,inExpo,inOutCubic,inOutQuart,inOutSine,outBack,steps(n)}` · `easeOf(spec)` |
-| 弹簧 | `spring(tau, {w, zeta} 或 {stiffness, damping, mass}, v0)`：闭式解，没有积分也没有状态 · `springTrack(t, [{t,v}…])`：叠加弹簧，中途改目标 |
+| 弹簧 | `spring(tau, {w, zeta} 或 {stiffness, damping, mass}, v0)`：闭式解，没有积分也没有状态 · `springTrack(t, [{t,v}…])`：叠加弹簧，中途改目标 · `track(v0, [[t,v,spring?]…], spring, period)` 返回 `t => 值`，带预设 `SPRINGS` 和循环接缝 · `colorTrack` · `hold` · `swap(t, tin, tout)` 内容换位 · `cursorPath` · `presses` · `scene(cfg)` 声明式场景的状态（`components/lib/motion.js`） |
 | 颜色 | `color(tokens, key)` · `palette(tokens)` · `rgb rgba mixColor luminance` · `tok(tokens, "a.b.c", fallback)` |
 | 文字 | `fontStack font setFont tracking` · `layoutText(ctx, str, {x,y,align,tracking})` 返回每个字形的框，字距保留 · `drawGlyphs(ctx, layout, (g,i)=>({alpha,dx,dy,scale,sx,sy,rot,fill,stroke,ch}))`（`sx`、`sy` 缺省时取 `scale`；缩放为 0 就不画） · `drawText` · `fitText` · `wrapText`（中文逐字换行，避头标点）· `graphemes isCJK` · `fontAvailable(family)` |
 | 解码 | `scrambleGlyphs(str, t, {start, stagger, settle, rate, seed, charset, charsetCJK})` 返回 `[{ch, final, state, u}]`；`scramble(...)` 返回字符串；随机字按 `rate` 次/秒量化到帧 · `typewriter(str, t, {start, cps})` |

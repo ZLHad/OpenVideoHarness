@@ -3512,6 +3512,148 @@ PY
   rm -rf "$t"
 }
 
+components_checks() {   # bin/vh components (tools/components.py, components/): the tables and the code agree, each state is a
+  # function of t, add copies what a project needs, and a page of classic scripts (canvas-film's kind) and one of modules
+  # draw the library and the components through the page contract, the same frames in any order
+  local t p a b rc rc2
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  a=$(vh components check 2>&1); rc=$?
+  cp -R "$ROOT/components" "$t/comp"
+  python3 - "$t/comp/page-turn/slots.json" <<'PY'
+import json, sys
+p = sys.argv[1]; d = json.load(open(p, encoding="utf-8"))
+next(x for x in d["slots"] if x["name"] == "slices")["default"] = 12
+json.dump(d, open(p, "w", encoding="utf-8"))
+PY
+  b=$(OVH_COMPONENTS="$t/comp" vh components check 2>&1); rc2=$?
+  case "$rc:$rc2:$b" in 0:1:*"slices's default is 48 in component.js, 12 in slots.json"*) ok "components check: each component's defaults are its slots.json's, its painters exported, a sample there; a default that differs is named" ;;
+    *) bad "components check ($rc, $rc2): $a | $b" ;; esac
+  # every state() is a function of its arguments: the same JSON forwards, backwards and alone
+  if a=$(cd "$ROOT" && node --input-type=module -e '
+const bad = [], ts = [0, 0.3, 0.71, 1.2, 2.5, 3.9, 4.99];
+const run = async (name, fn) => { const fw = ts.map(fn).map((x) => JSON.stringify(x)), bw = [...ts].reverse().map(fn).map((x) => JSON.stringify(x)).reverse(), one = JSON.stringify(fn(ts[3]));
+  if (fw.join() !== bw.join() || one !== fw[3]) bad.push(name); };
+const S = await import("./components/spring-scene/component.js"), P = { ...S.defaults, layers: [{ id: "a", tin: 0.2, tout: 1.5 }], cursor: { keys: [[0, 0, 0], [1, 50, 20]], clicks: [0.9] } };
+await run("spring-scene", (t) => S.state(P, t));
+const T = await import("./components/page-turn/component.js"); await run("page-turn", (t) => T.state({}, t / 5)); await run("page-turn backward", (t) => T.state({ backward: true }, t / 5));
+const F = await import("./components/paper-transition/component.js"); await run("fold", (t) => F.state({}, t / 5)); await run("blot", (t) => F.state({ variant: "blot" }, t / 5));
+const C = await import("./components/chapter-bar/component.js"), CP = { chapters: [{ t: 0, title: "一" }, { t: 1, title: "二二" }, { t: 3, title: "三" }], end: 5 };
+const lay = C.layout(CP, (s, z) => s.length * z * 0.6); await run("chapter-bar", (t) => C.state(CP, t, lay));
+if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot and chapter-bar, the same forwards, backwards and alone"
+  else bad "components: a state() that depends on what was drawn before: $a"; fi
+  # add: the library and the components named, and what a component imports from another (paper-transition: page-turn)
+  p="$t/proj"; mkdir -p "$p"; printf '# BRIEF\n' > "$p/BRIEF.md"; printf '<!doctype html>\n' > "$p/film.html"
+  a=$(vh components add "$p" paper-transition chapter-bar 2>&1); rc=$?
+  b=$(vh components add "$p" no-such 2>&1); rc2=$?
+  if [ "$rc:$rc2" = "0:2" ] && [ -f "$p/components/lib/global.js" ] && [ -f "$p/components/page-turn/component.js" ] && [ -f "$p/components/chapter-bar/slots.json" ] \
+     && [ ! -e "$p/components/page-turn/sample" ] && grep -q "OVH.grain" <<<"$a"; then ok "components add: the library, the components named and what they import (page-turn for paper-transition), no samples; canvas-film is told how to load them; an unknown name is exit 2"
+  else bad "components add ($rc, $rc2): $a | $b"; fi
+  # a page of classic scripts, as canvas-film's: the library from components/lib/global.js as OVH, grain and paper drawn
+  cat > "$p/classic.html" <<'HTML'
+<!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>html,body{margin:0;background:#000}</style>
+<script type="module" src="components/lib/global.js"></script></head>
+<body><canvas id="c" width="640" height="360"></canvas><script>
+const X = document.getElementById("c").getContext("2d");
+window.film = { duration: 2,
+  ready: () => (window.OVH ? OVH.setFrame({ w: 640, h: 360, fps: 30 }) : Promise.reject(new Error("no OVH: global.js did not load"))),
+  frame(t) { X.reset(); OVH.paper(X, { tone: "#efe8da", seed: 3 }); OVH.grain(X, t, { amount: 0.3 }); X.fillStyle = "#c33"; X.fillRect(40 + 200 * t, 140, 80, 80); } };
+</script></body></html>
+HTML
+  # and a page of modules: page-turn between two pictures, the chapter bar over it
+  cat > "$p/modules.html" <<'HTML'
+<!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>html,body{margin:0;background:#000}</style></head>
+<body><canvas id="c" width="640" height="360"></canvas><script type="module">
+import * as L from "./components/lib/index.js";
+import * as turn from "./components/page-turn/component.js";
+import * as bar from "./components/chapter-bar/component.js";
+L.setFrame({ w: 640, h: 360, fps: 30 });
+const X = document.getElementById("c").getContext("2d"), P = { chapters: [{ t: 0, title: "一" }, { t: 1, title: "二" }], end: 2, y: 30, margin: 40, pad: 20 };
+let lay;
+window.film = { duration: 2,
+  ready: async () => { await document.fonts.ready; lay = bar.layout(P, (s, z) => { X.font = `600 ${z}px sans-serif`; return X.measureText(s).width; }); },
+  frame(t) {
+    X.reset();
+    const A = L.offscreen("a", (x) => { x.fillStyle = "#e8dcc4"; x.fillRect(0, 0, 640, 360); x.fillStyle = "#222"; x.fillRect(80, 120, 160, 120); });
+    const B = L.offscreen("b", (x) => { x.fillStyle = "#243447"; x.fillRect(0, 0, 640, 360); x.fillStyle = "#eee"; x.fillRect(400, 120, 160, 120); });
+    turn.canvas(X, turn.state({}, L.seg(t, 0.4, 1.6)), A, B);
+    bar.canvas(X, bar.state(P, t, lay), P);
+  } };
+</script></body></html>
+HTML
+  a=$(vh frames "$p/classic.html" --at 0.5 --out "$t/f" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "components on a page" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  b=$(vh frames "$p/modules.html" --at 1.0 --out "$t/f" 2>&1); rc2=$?
+  if [ "$rc:$rc2" = "0:0" ] && python3 - "$t/f/classic-t0000.500.png" "$t/f/modules-t0001.000.png" <<'PY'
+import struct, sys, zlib
+def rows(f):   # the PNG's pixel rows (8-bit RGB or RGBA, filter bytes kept; enough to tell a drawn frame from an empty one)
+    d = open(f, "rb").read(); i = 8; idat = b""
+    while i < len(d):
+        n, kind = struct.unpack(">I4s", d[i:i + 8]); body = d[i + 8:i + 8 + n]; i += 12 + n
+        if kind == b"IHDR": w, h = struct.unpack(">II", body[:8])
+        if kind == b"IDAT": idat += body
+    return w, h, zlib.decompress(idat)
+for f in sys.argv[1:]:
+    w, h, raw = rows(f)
+    if (w, h) != (640, 360) or len(set(raw[::97])) < 8:   # a frame of one flat colour has a handful of byte values
+        sys.exit(f"{f}: {w}x{h}, {len(set(raw[::97]))} values")
+PY
+  then
+    a=$(vh determinism "$p/classic.html" --samples 3 2>&1); rc=$?
+    b=$(vh determinism "$p/modules.html" --samples 3 2>&1); rc2=$?
+    case "$rc:$rc2:$a:$b" in 0:0:*"determinism: holds"*:*"determinism: holds"*) ok "components on a page: a classic-script page (canvas-film's kind) draws OVH.paper and OVH.grain from global.js, a module page draws page-turn and the chapter bar; both a function of t (bin/vh determinism)" ;;
+      *) bad "components on a page, determinism ($rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)" ;; esac
+  else bad "components on a page (frames $rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)"; fi
+  # the other painters through the page contract too: a canvas page of paper-transition (the fold over the first second,
+  # the blot over the second) under spring-scene's canvas painter, and a page of the DOM painters (spring-scene's, the bar's)
+  vh components add "$p" spring-scene > /dev/null
+  cat > "$p/paper.html" <<'HTML'
+<!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>html,body{margin:0;background:#000}</style></head>
+<body><canvas id="c" width="640" height="360"></canvas><script type="module">
+import * as L from "./components/lib/index.js";
+import * as paper from "./components/paper-transition/component.js";
+import * as S from "./components/spring-scene/component.js";
+L.setFrame({ w: 640, h: 360, fps: 30 });
+const X = document.getElementById("c").getContext("2d");
+const P = { ...S.defaults, center: [320, 180], layers: [{ id: "a", tin: 0.2, tout: 1.5 }], cursor: { keys: [[0, 0, 0], [1, 50, 20]], clicks: [0.9] } };
+window.film = { duration: 2,
+  frame(t) {
+    X.reset();
+    const A = L.offscreen("pa", (x) => { x.fillStyle = "#e8dcc4"; x.fillRect(0, 0, 640, 360); x.fillStyle = "#222"; x.fillRect(80, 120, 160, 120); });
+    const B = L.offscreen("pb", (x) => { x.fillStyle = "#243447"; x.fillRect(0, 0, 640, 360); x.fillStyle = "#eee"; x.fillRect(400, 120, 160, 120); });
+    const V = { variant: t < 1 ? "fold" : "blot" };   // the fold over the first second, the blot over the second
+    paper.canvas(X, paper.state(V, t < 1 ? t : t - 1), A, B, V);
+    S.canvas(X, S.state(P, t), P, (c) => { c.fillStyle = "#c33"; c.fillRect(-40, -20, 80, 40); });
+  } };
+</script></body></html>
+HTML
+  cat > "$p/dom.html" <<'HTML'
+<!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>
+html,body{margin:0;background:#101418;overflow:hidden} #world,#shape,#la,#cur,#bar{position:absolute;left:0;top:0}
+#world{transform-origin:0 0} #la{font:600 28px sans-serif;color:#fff} #cur{width:12px;height:12px;border-radius:6px;background:#fc0}
+</style></head>
+<body><div id="world"><div id="shape"></div><div id="la">Layer</div></div><div id="cur"></div><div id="bar"></div>
+<script type="module">
+import * as L from "./components/lib/index.js";
+import * as S from "./components/spring-scene/component.js";
+import * as bar from "./components/chapter-bar/component.js";
+L.setFrame({ w: 640, h: 360, fps: 30 });
+const P = { ...S.defaults, center: [320, 180], layers: [{ id: "a", tin: 0.2, tout: 1.5 }], cursor: { keys: [[0, 0, 0], [1, 50, 20]], clicks: [0.9] } };
+const els = { world: document.getElementById("world"), shape: document.getElementById("shape"), layers: { a: document.getElementById("la") }, cursor: document.getElementById("cur") };
+const BP = { chapters: [{ t: 0, title: "一" }, { t: 1, title: "二" }], end: 2, y: 30, margin: 40, pad: 20 };
+let bels, blay;
+window.film = { duration: 2,
+  ready: async () => { await document.fonts.ready; const M = document.createElement("canvas").getContext("2d");
+    blay = bar.layout(BP, (s, z) => { M.font = `600 ${z}px sans-serif`; return M.measureText(s).width; }); bels = bar.build(document.getElementById("bar"), BP, blay); },
+  frame(t) { S.dom(els, S.state(P, t), P); bar.dom(bels, bar.state(BP, t, blay)); } };
+</script></body></html>
+HTML
+  a=$(vh determinism "$p/paper.html" --samples 3 2>&1); rc=$?
+  b=$(vh determinism "$p/dom.html" --samples 3 2>&1); rc2=$?
+  case "$rc:$rc2:$a:$b" in 0:0:*"determinism: holds"*:*"determinism: holds"*) ok "components on a page: paper-transition's fold and blot, spring-scene's canvas and DOM painters and the chapter bar's DOM painter are each a function of t (bin/vh determinism)" ;;
+    *) bad "components' other painters, determinism ($rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)" ;; esac
+  rm -rf "$t"
+}
+
 status_checks() {
   local t p q a b c d e k rc rc2
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
@@ -5148,11 +5290,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; hf_checks; scout_checks; textcheck_checks; film_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; hf_checks; scout_checks; textcheck_checks; film_checks; components_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; hf_checks; scout_checks; textcheck_checks; film_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; hf_checks; scout_checks; textcheck_checks; film_checks; components_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

@@ -44,3 +44,7 @@ styles/gallery-readme.mp4
 *.part
 # docs/site: the author's own films for the homepage stay local
 docs/site/media/
+
+# bin/vh components sample: the video and the poster beside the contact sheet (sheet.jpg is kept)
+components/*/sample/media/swatch.mp4
+components/*/sample/media/poster.jpg

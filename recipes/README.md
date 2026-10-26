@@ -215,7 +215,7 @@ frontmatter 是 YAML 的一个严格子集：一行一个 `key: value`；值是�
 
 ## 草图怎么跑
 
-每张配方的"实现"一节给一段草图，写法是风格样片的场景接口（`styles/_swatch/README.md`）：一个 ES module，导出 `renderAt(t, ctx, tokens, lib)`，画在 1920×1080 的 canvas 上，`lib` 是 `styles/_swatch/lib.js`（缓动、`seg`、`hash`、`drawGlyphs`、`motionBlur` 等）。草图只读 `tokens` 里的 `bg`、`fg`、`accent` 三个颜色和 `display`、`body`、`zh`、`mono` 几个字体角色。大多数预设都有这些键；缺的时候 `lib.js` 的 `color()` 回退到前景色（`fg`、`ink`、`text` 依次找），字体角色回退到安全字体。
+每张配方的"实现"一节给一段草图，写法是风格样片的场景接口（`styles/_swatch/README.md`）：一个 ES module，导出 `renderAt(t, ctx, tokens, lib)`，画在 1920×1080 的 canvas 上，`lib` 是 `styles/_swatch/lib.js`，也就是组件库 `components/lib` 加上样片的内容规格（缓动、`seg`、`hash`、`drawGlyphs`、`motionBlur`、弹簧轨道等）；做好的动效组件（翻页、纸面转场、章节进度条……）在 `components/`，`bin/vh components list` 列出来。草图只读 `tokens` 里的 `bg`、`fg`、`accent` 三个颜色和 `display`、`body`、`zh`、`mono` 几个字体角色。大多数预设都有这些键；缺的时候 `lib.js` 的 `color()` 回退到前景色（`fg`、`ink`、`text` 依次找），字体角色回退到安全字体。
 
 试一张草图，并且换一张皮：
 

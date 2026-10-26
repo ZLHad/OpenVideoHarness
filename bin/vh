@@ -1085,6 +1085,7 @@ cmd_assets() { [ $# -gt 0 ] || { cmd_usage assets >&2; exit 2; }; python3 "$ROOT
 cmd_scout() { [ $# -gt 0 ] || { cmd_usage scout >&2; exit 2; }; python3 "$ROOT/tools/scout/scout.py" "$@"; }    # stdlib; yt-dlp for YouTube
 cmd_ref() { [ $# -gt 0 ] || { cmd_usage ref >&2; exit 2; }; python3 "$ROOT/tools/scout/refs.py" "$@"; }        # stdlib; the look as scout's
 cmd_hf() { [ $# -gt 0 ] || { cmd_usage hf >&2; exit 2; }; python3 "$ROOT/tools/hf.py" "$@"; }   # stdlib; add runs HyperFrames' own add
+cmd_components() { python3 "$ROOT/tools/components.py" "$@"; }   # stdlib; check reads component.js through node, sample runs the swatch renderer
 cmd_deliver() { [ $# -gt 0 ] || { cmd_usage deliver >&2; exit 2; }; python3 "$ROOT/tools/deliver.py" "$@"; }   # ffmpeg only
 cmd_clean() { [ $# -gt 0 ] || { cmd_usage clean >&2; exit 2; }; python3 "$ROOT/tools/clean.py" "$@"; }         # stdlib only
 cmd_gif() {
@@ -1098,7 +1099,7 @@ cmd_help() { python3 "$ROOT/tools/commands.py" help; }            # every usage,
 cmd_usage() { python3 "$ROOT/tools/commands.py" usage "$1"; }    # one command's usage from there; exit 1 if it has none
 
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa|assets|hf|footage|image|bgm|sound|scout|ref) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa|assets|components|hf|footage|image|bgm|sound|scout|ref) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
@@ -1107,6 +1108,7 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
 esac
 case "${1:-}" in   # the activity log: every command that works on a project (act_start finds it) but the read-only views
   ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|new) ;;   # (new: once the project is made)
+  components) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list, check and sample touch no project
   desk) [ "${2:-}" = data ] || act_start "$@" || true ;;
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
   sfx) [ "${2:-}" = search ] || act_start "$@" || true ;;   # search only reads
@@ -1131,6 +1133,7 @@ case "${1:-help}" in
   assets) shift; cmd_assets "$@" ;;
   scout) shift; cmd_scout "$@" ;; ref) shift; cmd_ref "$@" ;;
   hf) shift; cmd_hf "$@" ;;
+  components) shift; cmd_components "$@" ;;
   review) shift; cmd_review "$@" ;;
   desk) shift; cmd_desk "$@" ;;
   gate) shift; cmd_gate "$@" ;;
