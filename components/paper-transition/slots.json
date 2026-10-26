@@ -2,6 +2,7 @@
  "version": 1,
  "name": "paper-transition",
  "summary": "Two seams that read as paper: fold, the current picture swings away about its left edge like a panel; blot, ink spreads from scattered points and opens onto the next picture with soft edges.",
+ "tags": ["纸面", "纸张", "折页", "晕染", "墨迹", "转场", "paper", "fold", "ink"],
  "painters": ["canvas"],
  "use": "st = state(params, u) for u 0 → 1 over the seam; canvas(ctx, st, A, B, params) with A and B full-frame canvases. The book page is components/page-turn.",
  "slots": [

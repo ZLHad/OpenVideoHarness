@@ -2,6 +2,7 @@
  "version": 1,
  "name": "spring-scene",
  "summary": "One shape that never cuts: it grows, shrinks and recolours on a timetable, content swaps in and out on it, the camera and a cursor follow; every change a closed-form spring, so a timetable edit is a data edit.",
+ "tags": ["弹簧", "弹性", "一镜到底", "形变", "变形", "光标", "spring", "morph"],
  "painters": ["canvas", "dom"],
  "use": "state(params, t) → g; canvas(ctx, g, params, drawLayer) or dom({ world, shape, layers, cursor }, g, params). The tracks are built once a params object: change a copy, not the object.",
  "slots": [

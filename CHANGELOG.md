@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**Batch 1's leftovers: Chinese tags on the components, the HyperFrames registry probed, a 45 min CI limit, a resume test with room**
+- Why: what batch 1 left for after its merge, and two CI limits the merge ran into.
+- `components/*/slots.json` carry `tags` in Chinese and English, so `bin/vh know 翻页 纸面 转场` finds page-turn (the components' own text is English; `know` already read `tags`).
+- `tools/modules.json`: `hyperframes-registry`, a service probed without a key at the pinned tag (`registry/registry.json`, its `items`); the pin check in `tools/ci.sh` holds the probe's tag to the HyperFrames pin.
+- `tools/remedies.json`: `kinds_to_come` is gone, `bin/vh check` writing `check.loudness` now; `tools/remedies.py` still reads it for the next branch that needs it.
+- playbook/target-critic.md names `bin/vh image gen` as a command again (it was plain text while `bin/vh image` was not on main).
+- CI: the job limit is 45 min; GitHub's macOS runners took 21–28 min for the whole suite, and 30 cut two of them off. The queue-and-resume test's slow frame is 12 s against `--frame-timeout 8` (it was 5 s against 3): on a slow runner an ordinary chunk took about 5 s, so the chunk beside frame 75 did not finish before the timeout, and fewer than five were kept.
+
 **Recipes: 47 more, each with its sample sheet, and `bin/vh recipes sample`**
 - Why: batch 1, line B (the plan's 9.10 §2: a recipe shows its move). The library had 24 recipes, few of them for interfaces and type, and an agent met a recipe's sketch only as code.
 - 16 from motion-graphics-skills (charlie947, MIT), all of its effect recipes: `button-to-player`, `search-results`, `card-to-workspace`, `tab-stretch`, `spring-fan`, `magnetic-dock`, `glass-focus` (ui), `chart-morph`, `kpi-lift`, `flowing-paths` (data), `masked-type`, `elastic-type`, `text-to-layout` (type), `shutter-reveal` (fx), `layer-depth` (camera), `particle-mark` (outro). The upstream's 8 s loop is one move and a hold at 30 fps here, and every hold keeps something alive.

@@ -20,7 +20,7 @@ jobs:
   checks:
     name: checks (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30   # macOS runners take 15 min or more for the whole suite now
+    timeout-minutes: 45   # GitHub's macOS runners take 21-28 min for the whole suite (2026-10-26); 30 cut two of them off
     strategy:
       fail-fast: false
       matrix:
