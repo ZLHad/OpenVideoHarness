@@ -103,8 +103,8 @@
       "version": {"pin": "0.8.202"},
       "license": "Apache-2.0",
       "needs": {"programs": ["node", "ffmpeg"]},
-      "adapter": ["bin/vh (cmd_hf_init; HYPERFRAMES_VERSION overrides the pin)", "styles/_swatch/package.json", "engines/README.md (HyperFrames)"],
-      "commands": ["new", "hf-init", "style"],
+      "adapter": ["bin/vh (cmd_hf_init; HYPERFRAMES_VERSION overrides the pin)", "styles/_swatch/package.json", "engines/README.md (HyperFrames)", "tools/hf.py (its registry at the pin's tag, and its add)"],
+      "commands": ["new", "hf-init", "hf", "style"],
       "required": false,
       "check": {"npm": {"package": "hyperframes", "in": "styles/_swatch"}},
       "install": {"macos": "cd styles/_swatch && npm ci (each project gets its own through bin/vh new or hf-init)", "linux": "cd styles/_swatch && npm ci (each project gets its own through bin/vh new or hf-init)"}

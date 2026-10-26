@@ -1,0 +1,3 @@
+{"name": "grain-test", "type": "hyperframes:component", "title": "Grain Test", "description": "A synthetic grain overlay for the tests",
+ "tags": ["texture", "grain", "test"],
+ "files": [{"path": "grain-test.html", "target": "compositions/components/grain-test.html", "type": "hyperframes:snippet"}]}
