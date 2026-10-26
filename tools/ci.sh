@@ -2497,6 +2497,39 @@ PY
      && python3 -c 'import json,sys; m={x["name"]: x["probe"] for x in json.loads(sys.argv[1])["modules"]}; sys.exit(0 if m["openverse"]["state"] == "ok" and m["gemini"] is None else 1)' "$c"
   then ok "sfx: the built-in library and its old subcommands as before beside search and pick; doctor --probe asks Openverse with no key (from a recording)"
   else bad "sfx old and new, openverse probe (exits $rc:$rc2:$rc3): $(printf '%s | %s | %s' "$a" "$b" "$c" | tail -c 400)"; fi
+  # a link in a search's answer is other people's data: only http(s) is taken (urllib would read a file:// one off this
+  # machine), and no more than the cap, also from a server that says no length
+  if a=$(python3 - "$t" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "tools/audio")
+sys.path.insert(0, "tools/assets")
+import fetch, library
+t, bad = Path(sys.argv[1]), []
+class Big(fetch.Live):
+    def open(self, url, headers=None, timeout=60):
+        body, pos = b"x" * 5000, [0]
+        def read(n=-1):
+            part = body[pos[0]:] if n is None or n < 0 else body[pos[0]:pos[0] + n]
+            pos[0] += len(part)
+            return part
+        return fetch.Response(200, {"Content-Type": "audio/mpeg"}, read)
+for url in ("file:///etc/hosts", "ftp://example.org/a.mp3"):
+    try:
+        library.take(url, t / "x.mp3", Big()); bad.append(f"{url} was taken")
+    except fetch.FetchError as e:
+        if "not an http(s) link" not in str(e):
+            bad.append(f"{url}: {e}")
+library.MAX_BYTES = 1000
+try:
+    library.take("https://example.org/big.mp3", t / "big.mp3", Big()); bad.append("past the cap")
+except fetch.FetchError as e:
+    if "cap" not in str(e) or list(t.glob("big.mp3*")) or (t / "x.mp3").exists():
+        bad.append(f"the cap: {e}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "sfx|bgm pick: only an http(s) link from a search's answer is taken (no file://), and no more than the cap, also with no length said"
+  else bad "the library's downloads: $a"; fi
   rm -rf "$t"
 }
 
