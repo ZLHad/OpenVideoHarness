@@ -2417,7 +2417,7 @@ PY
     vh footage get "$fp" "commons:File:SpaceX CRS-35 launch and jellyfish cloud.webm" --id cam-big --max-mb 0.001 --offline "$fr" >/dev/null 2>"$t/e4"; rc4=$?
     vh footage get "$fp" nasa:KSC-04012026-C4829 --id cam-pad --offline "$fr" >/dev/null 2>"$t/e5"; rc5=$?
     if [ "$rc:$rc2:$rc3:$rc4:$rc5" = "0:0:1:1:2" ] && grep -q "Assets: strict (BRIEF) does not take it: nothing downloaded" "$t/e3" && grep -q "over the 1 kB cap: nothing downloaded" "$t/e4" \
-       && ! ls "$fp/assets/footage" | grep -q -i streichholz && [ ! -e "$fp/assets/footage/cam-big/orig.webm" ] && python3 - "$fp" <<'PY'
+       && [ ! -e "$fp/assets/footage/wc-streichholzrakete-ssr-2-steigflug" ] && [ ! -e "$fp/assets/footage/cam-big/orig.webm" ] && python3 - "$fp" <<'PY'
 import json, subprocess, sys
 sys.path.insert(0, "tools/assets")
 import ledger
@@ -2491,7 +2491,7 @@ PY
       *"needs a headless Chrome"*) skip "footage end to end (render, assets check, deliver's credits)" "no Chrome, Chromium or chrome-headless-shell" ;;
       0:*) a=$(vh assets check "$fp" 2>&1); rc=$?
         b=$(vh deliver "$fp/out/film.mp4" --psnr off 2>&1); rc2=$?
-        case "$rc:$rc2|$a|$b" in "0:0|"*"121 files their pages loaded"*"pass (0 fail, 0 warn)"*"|"*"credits: 1 line(s) the licences ask for, 1 courtesy"*"- “SpaceX CRS-35 launch and jellyfish cloud”, The Eloquent Peasant, Wikimedia Commons"*"CC BY 4.0"*"- “Artemis II Launch from OSB II Balcony - Slo Mo”"*"NASA ("*)
+        case "$rc:$rc2|$a|$b" in "0:0|"*"121 files their pages loaded"*"pass (0 fail, 0 warn)"*"|"*"credits: 1 line(s) the licences ask for, 1 courtesy"*'- “SpaceX CRS-35 launch and jellyfish cloud”, The Eloquent Peasant, Wikimedia Commons'*"CC BY 4.0"*'- “Artemis II Launch from OSB II Balcony - Slo Mo”'*"NASA ("*)
             ok "footage end to end: two clips got offline, synced and baked; the page that loads their frames rendered; assets check finds every frame on record; deliver prints the CC BY credit and the NASA courtesy line once each (the frames credited through their clips)" ;;
           *) bad "footage end to end (exits $rc:$rc2): $(printf '%s | %s' "$a" "$b" | tail -c 700)" ;; esac ;;
       *) bad "footage end to end, render (exit $rc): $(printf '%s' "$a" | tail -c 500)" ;;
