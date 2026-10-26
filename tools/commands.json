@@ -294,7 +294,8 @@
             "--dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness;",
             "--from <project>: the next episode of a series: that project's BRIEF spec, style and outline skeleton, STYLE.md,",
             "style refs, recipes and sound effects carried over (its frame and engine too, unless given), its content left",
-            "behind; series.json says what came (tools/series.py)"
+            "behind; not its Budget, Effort or Director (each film's own: their values are said), nor its style when --style",
+            "is given; series.json says what came (tools/series.py)"
           ]
         }
       ]
