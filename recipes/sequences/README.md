@@ -4,7 +4,7 @@
 
 它和 `playbook/09-narrative.md` 分工：playbook/09 定片子的形状（讲什么、在哪里转、好奇缺口怎么走），这里把形状落成帧数、停顿和接缝。开头的钩子怎么写见 `playbook/10-hooks-and-packaging.md`。
 
-本目录有九条骨架，是填空用的起点，不是命令；有意偏离的地方在 `DECISIONS.md` 写一句为什么。前三条按能量弧排，适合还没有特别立意的片子；中间五条从一个立意出发（`playbook/12-ideation.md`），立意本身已经定了结构，选中了就照它的弧走；最后一条按题材排，给一类素材定节奏和几处机制，长相留给立意和风格。
+本目录有十条骨架，是填空用的起点，不是命令；有意偏离的地方在 `DECISIONS.md` 写一句为什么。前三条按能量弧排，适合还没有特别立意的片子；中间五条从一个立意出发（`playbook/12-ideation.md`），立意本身已经定了结构，选中了就照它的弧走；最后两条按题材排，给一类素材定节奏和几处机制，长相留给立意和风格。
 
 | 骨架 | 长度 | 适合 | 一句话 |
 |---|---|---|---|
@@ -22,11 +22,12 @@
 | [mascot-style-tour](mascot-style-tour.md) | 15–60 s | 一个主角穿过一个个风格世界，锚点不变 | showreel、品牌片、风格库展示；可以直接用 `styles/` 的预设当世界 |
 | [workflow-as-story](workflow-as-story.md) | 20–60 s | 一个主体走完产品的工作流，最后拉远揭示 | 输入到输出的创作类、流水线类产品 |
 
-按题材的一条：
+按题材的两条：
 
 | 骨架 | 长度 | 题材 | 一句话 |
 |---|---|---|---|
 | [data-along-time](data-along-time.md) | 60–150 s | 数据有自己的时间轴（日期、步数、版本） | 一份时间映射管画面和声音；事件处放慢、定位环和引线连起点和字，字卡按车道排够读时，换视图时线被带过去 |
+| [live-countdown](live-countdown.md) | 40–120 s | 一个有明确零点的真实事件，多路公有领域机位（发射、宣判、终场） | 屏幕时间就是事件时间；格子越开越多，切点落在原声的口令上，零点合成一格；同步表和烘帧走 `bin/vh footage` |
 
 ## 能量的六档
 
@@ -91,6 +92,6 @@
 
 ## 来源
 
-从立意出发的五条骨架依据 `cases/oneshot-five.md` 对五支社区片子的拆解排出，没有改编原片或上游的文字、代码，`derived_from` 为空。`data-along-time` 是本仓库从 canvas-film 的时间映射和 `video-types/05` 归纳的，没有上游来源。五条规则和 60 s 骨架的段位改写自 video-shotcraft（Vincent Wei，Apache-2.0）的全片骨架 `references/sequences/promo-energy-arc.md`、转场卡 `shot-transitions` 和审美准则 R1–R4、P4、Q4；原骨架来自一支 36 s 模板片和两次独立复现，作者注明是"单例判例"。15 s 和 30 s 两条骨架是本仓库按同一套规则推出来的，还没有在成片里验证过。读时规则、闪白底线和接缝数量来自本仓库的 CLAUDE.md、TASTE_CHECKLIST 和 playbook/03。
+从立意出发的五条骨架依据 `cases/oneshot-five.md` 对五支社区片子的拆解排出，没有改编原片或上游的文字、代码，`derived_from` 为空。`data-along-time` 是本仓库从 canvas-film 的时间映射和 `video-types/05` 归纳的，没有上游来源。`live-countdown` 改写自 lemo-opuscar 的 countdown 风格（MIT），出处和许可在它自己的"来源"一节和 [`NOTICE.md`](../NOTICE.md)。五条规则和 60 s 骨架的段位改写自 video-shotcraft（Vincent Wei，Apache-2.0）的全片骨架 `references/sequences/promo-energy-arc.md`、转场卡 `shot-transitions` 和审美准则 R1–R4、P4、Q4；原骨架来自一支 36 s 模板片和两次独立复现，作者注明是"单例判例"。15 s 和 30 s 两条骨架是本仓库按同一套规则推出来的，还没有在成片里验证过。读时规则、闪白底线和接缝数量来自本仓库的 CLAUDE.md、TASTE_CHECKLIST 和 playbook/03。
 
 **许可**：本文件修改自 [video-shotcraft](https://github.com/Vincentwei1021/video-shotcraft) 在 commit `e2d8928` 时的 `references/sequences/promo-energy-arc.md`、`references/shots/transition/shot-transitions.md`、`references/aesthetic-rules.md`（Copyright 2026 Wei Yihao，Apache-2.0），改了什么见上一段。来自上游的部分仍按 Apache-2.0 授权，许可全文见 [`LICENSES/Apache-2.0-video-shotcraft.txt`](../LICENSES/Apache-2.0-video-shotcraft.txt)；本仓库的改动按仓库根目录的 MIT 许可。所有改编文件和上游出处的清单见 [`NOTICE.md`](../NOTICE.md)。

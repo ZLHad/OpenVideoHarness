@@ -297,6 +297,91 @@
       ]
     },
     {
+      "name": "footage",
+      "summary": "Real footage and pictures from Internet Archive, Wikimedia Commons and NASA: search with each result's licence class, get one (whole, or only the seconds needed) as a clip folder on record in the ledger, a sync table for several cameras of one event, frames baked by the film's frame numbers.",
+      "when": "a film made of archival or public-domain footage (a launch countdown, a newsreel), or a real picture instead of a drawn one",
+      "stages": ["1", "6"],
+      "reads": [
+        "the three sites' APIs (--offline <folder>: their recorded answers)",
+        "<project>/BRIEF.md (Assets: what strict does not take is refused before it is downloaded)",
+        "<project>/assets/footage/<id>/clip.json (sync, frames)"
+      ],
+      "writes": [
+        "<project>/assets/footage/<id>/ (orig.<ext>, clip.mp4, clip.json, audio.wav) and its record in assets/ledger.json (get)",
+        "<project>/assets/img/<id>.<ext> (get, a picture)",
+        "<project>/assets/footage/<id>/clip.json's sync (sync)",
+        "<project>/assets/frames/<name>/<n>.jpg and frames.json, on record as <name>.frames (frames)"
+      ],
+      "usage": [
+        {
+          "synopsis": "footage search <archive|commons|nasa> <query> [--type video|image] [-n 15] [--json]",
+          "text": [
+            "one site's results: the ref, date, title, the licence as written and its class (the site's own rules first:",
+            "a YouTube re-upload on the Archive and \"No restrictions\" on Commons are unknown, NASA's own media public domain)"
+          ]
+        },
+        {
+          "synopsis": "footage files <ref> [--json]",
+          "text": [
+            "an Archive item's files, a NASA item's renditions, a Commons file's size and length"
+          ]
+        },
+        {
+          "synopsis": "footage get <project> <ref|url> [--id ID] [--range a:b] [--file F] [--rendition orig|large] [--license L] [--class C] [--json]",
+          "text": [
+            "into assets/footage/<id>/ as the edit list reads a clip: orig, clip.mp4 (CFR, pts from 0, keyframes ≤ 1 s, BT.709 tv),",
+            "clip.json, audio.wav; --range takes only those seconds (from the keyframe before, read with HTTP ranges); --max-mb,",
+            "--rate; registered in the ledger; under Assets: strict, a licence strict does not take is refused before downloading"
+          ]
+        },
+        {
+          "synopsis": "footage list <project> [--json]",
+          "text": [
+            "the clips: rate, size, length, the range taken, sync, licence class"
+          ]
+        },
+        {
+          "synopsis": "footage sync <project> [<id> --group G --c S [--k K] [--by text] | <id> --clear]",
+          "text": [
+            "the sync table: s = k·M + c on the group's clock M (k: slow motion); without an id, the table"
+          ]
+        },
+        {
+          "synopsis": "footage frames <project> <id> --film a:b [--fps F] (--t0 T | --at S) [--size WxH] [--vf F] [--png]",
+          "text": [
+            "frames named by film frame number: n shows clip frame ⌊s·rate + 10⁻⁶⌋, s from the sync table (zero at film time T)",
+            "or from --at; the page draws assets/frames/<name>/<n>.jpg, no sync in the page; registered, derived from the clip"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "search",
+          "summary": "one site's results, with their licence classes"
+        },
+        {
+          "name": "files",
+          "summary": "what an item has"
+        },
+        {
+          "name": "get",
+          "summary": "download into the project as a clip folder, registered"
+        },
+        {
+          "name": "list",
+          "summary": "the project's clips"
+        },
+        {
+          "name": "sync",
+          "summary": "the sync table of several cameras"
+        },
+        {
+          "name": "frames",
+          "summary": "frames baked by the film's frame numbers"
+        }
+      ]
+    },
+    {
       "name": "assets",
       "summary": "The project's material, one record a file in assets/ledger.json: register a file or download one, list the records with the spend against the budget, check the files and their licences, print the credits.",
       "when": "a file a film uses comes in (downloaded, generated, bought or made), before a delivery (check, credits), or to see what is spent against the budget",

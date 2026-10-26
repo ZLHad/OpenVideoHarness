@@ -1,6 +1,6 @@
 # NOTICE: material from other projects in `recipes/`
 
-OpenVideoHarness is under the MIT License ([`../LICENSE`](../LICENSE)). The files listed below are modified versions of files from two projects under the Apache License 2.0. For these files the repository follows section 4 of that licence:
+OpenVideoHarness is under the MIT License ([`../LICENSE`](../LICENSE)). The files listed below are modified versions of files from two projects under the Apache License 2.0 and one under the MIT License. For the Apache-2.0 files the repository follows section 4 of that licence (the MIT one asks for the same notice to travel with the file, and gets it the same way):
 
 - **(a) The licence travels with them.** Each upstream `LICENSE` is in [`LICENSES/`](LICENSES/), copied byte for byte from the commit named below, copyright line included.
 - **(b) Each file says it was changed.** Its 来源 section ends with a 许可 paragraph that names the project, the upstream files and the commit, and says the file is modified from them. The paragraph before it says what we changed. The `derived_from` frontmatter carries the same repository, commit and paths.
@@ -53,6 +53,17 @@ The parts that come from upstream stay under Apache-2.0. Our changes, and every 
 | [`interaction/oversized-cursor.md`](interaction/oversized-cursor.md) | `.claude/skills/oversized-cursor/SKILL.md` |
 | [`seam/cut-the-curve.md`](seam/cut-the-curve.md) | `.claude/skills/cut-the-curve/SKILL.md` |
 | [`seam/zoom-through.md`](seam/zoom-through.md) | `.claude/skills/cut-the-curve/SKILL.md` |
+
+## lemo-opuscar
+
+- Upstream: <https://github.com/lemomo-ai/lemo-opuscar>, commit `a401d6c26d4b3846b699257af25a85d2d45b438e` (the last to change the files below; read at `413a6bd`, 2026-10-24)
+- Copyright (c) 2026 LemoLab. MIT License
+- Licence copy: [`LICENSES/MIT-lemo-opuscar.txt`](LICENSES/MIT-lemo-opuscar.txt)
+- The same upstream files are also the source of `tools/assets/footage.py` (code written anew; its header names them).
+
+| File here | Modified from (upstream paths at that commit) |
+|---|---|
+| [`sequences/live-countdown.md`](sequences/live-countdown.md) | `styles/countdown/STYLE.md`<br>`styles/countdown/demo/tools/prep.sh` |
 
 ## Not derived from upstream text
 

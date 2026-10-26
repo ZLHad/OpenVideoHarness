@@ -1,0 +1,51 @@
+{
+ "metadata": {
+  "identifier": "NewsMaga00_9",
+  "title": "News Magazine of the Screen, The (Vol. 7, Issue 6)",
+  "date": "1957/02/00",
+  "creator": "Warner Pathé News",
+  "licenseurl": "http://creativecommons.org/licenses/publicdomain/",
+  "mediatype": "movies",
+  "collection": "prelinger"
+ },
+ "files": [
+  {
+   "name": "50517.MPG",
+   "source": "original",
+   "format": "MPEG1",
+   "size": "589860324",
+   "length": "1277.27"
+  },
+  {
+   "name": "50517.mp4",
+   "source": "derivative",
+   "format": "h.264",
+   "original": "50517.MPG",
+   "size": "132777671",
+   "length": "1277.31"
+  },
+  {
+   "name": "50517.ogv",
+   "source": "derivative",
+   "format": "Ogg Video",
+   "original": "50517.MPG",
+   "size": "91412828",
+   "length": "1277.31"
+  },
+  {
+   "name": "50517_512kb.mp4",
+   "source": "derivative",
+   "format": "512Kb MPEG4",
+   "original": "50517.MPG",
+   "size": "90270879",
+   "length": "1277.31"
+  },
+  {
+   "name": "NewsMaga00_9.thumbs/50517_000001.jpg",
+   "source": "derivative",
+   "format": "Thumbnail",
+   "original": "50517.MPG",
+   "size": "883"
+  }
+ ]
+}
