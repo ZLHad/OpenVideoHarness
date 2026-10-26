@@ -776,12 +776,13 @@ cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/s
     [ -z "$h" ] || echo "$c_wa nothing was changed for $frame: set the viewport, the CSS height and data-height in index.html to $h by hand"
     return 0
   fi
-  echo "→ scaffolding HyperFrames ${HYPERFRAMES_VERSION:-0.8.82} (${h:+1080x$h from }$res) — pinned, no global skills, telemetry off"
+  echo "→ scaffolding HyperFrames ${HYPERFRAMES_VERSION:-0.8.202} (${h:+1080x$h from }$res) — pinned, no global skills, telemetry off"
   tmp=$(mktemp -d)
-  if ! (cd "$tmp" && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 npx --yes "hyperframes@${HYPERFRAMES_VERSION:-0.8.82}" init hf --non-interactive --resolution "$res" >/dev/null 2>&1); then
+  if ! (cd "$tmp" && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1 npx --yes "hyperframes@${HYPERFRAMES_VERSION:-0.8.202}" init hf --non-interactive --resolution "$res" >/dev/null 2>&1); then
     echo "$c_wa hyperframes init failed (offline?) — retry later: bin/vh hf-init ${dir#$ROOT/} $frame"; rm -rf "$tmp"; return 1; fi
-  # the scaffold's Inter has no @font-face, so every render, snapshot and check requests it from Google Fonts and hangs where
-  # that is blocked: declare system fonts through local() instead, as styles/_swatch/fonts.css does (in the scaffold, before the copy)
+  # the scaffold's font (0.8.82: Inter; 0.8.202: --font-display: sans-serif, which HyperFrames turns into Inter) has no
+  # @font-face, so every render, snapshot and check requests it from Google Fonts and hangs where that is blocked: declare
+  # system fonts through local() instead, as styles/_swatch/fonts.css does (in the scaffold, before the copy)
   python3 - "$tmp/hf/index.html" <<'PY' && font=local
 import re, sys
 p = sys.argv[1]; s = open(p, encoding="utf-8").read()
@@ -796,8 +797,10 @@ faces = """\
       @font-face { font-family: "DejaVu Sans"; src: local("DejaVuSans"), local("DejaVu Sans"); font-weight: 400; }
       @font-face { font-family: "DejaVu Sans"; src: local("DejaVuSans-Bold"), local("DejaVu Sans Bold"); font-weight: 700; }
 """
-s, n = re.subn(r"font-family: Inter\b[^;]*;", 'font-family: "Helvetica Neue", "Liberation Sans", "DejaVu Sans", sans-serif;', s)
-if not n or "<style>\n" not in s: sys.exit(1)
+stack = '"Helvetica Neue", "Liberation Sans", "DejaVu Sans", sans-serif;'
+s, n = re.subn(r"font-family: Inter\b[^;]*;", "font-family: " + stack, s)
+s, m = re.subn(r"(--font-display:)[^;]*;", lambda g: g.group(1) + " " + stack, s)
+if not (n or m) or "<style>\n" not in s: sys.exit(1)
 open(p, "w", encoding="utf-8").write(s.replace("<style>\n", "<style>\n" + faces, 1))
 PY
   if [ -n "$h" ]; then   # 4:5 and 3:4 have no preset: the portrait scaffold, its height set in the three places it is written
@@ -816,7 +819,7 @@ PY
     [ -e "$dir/$b" ] || cp -R "$f" "$dir/"
   done
   shopt -u dotglob; rm -rf "$tmp"
-  (cd "$dir" && npm i -D --save-exact --silent --no-fund --no-audit "hyperframes@${HYPERFRAMES_VERSION:-0.8.82}" >/dev/null 2>&1) || echo "$c_wa could not pin hyperframes locally (offline?)"
+  (cd "$dir" && npm i -D --save-exact --silent --no-fund --no-audit "hyperframes@${HYPERFRAMES_VERSION:-0.8.202}" >/dev/null 2>&1) || echo "$c_wa could not pin hyperframes locally (offline?)"
   # the scaffold loads GSAP from a CDN; an offline render then hangs silently, so vend it locally (same pinned version)
   local gv; gv=$(grep -o 'cdn.jsdelivr.net/npm/gsap@[0-9.]*' "$dir"/*.html 2>/dev/null | head -1 | sed 's/.*gsap@//') || true
   if [ -n "$gv" ] && (cd "$dir" && npm i -D --save-exact --silent --no-fund --no-audit "gsap@$gv" >/dev/null 2>&1); then

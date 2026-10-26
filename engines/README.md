@@ -44,12 +44,12 @@ bin/vh doctor projects/<date>-<slug>              # 项目里的引擎副本和�
 
 ## HyperFrames（HTML + GSAP）
 
-要求 Node ≥ 22 和 FFmpeg。**版本固定在实测过的 0.8.82**（`bin/vh` 默认使用；想试新版，就设 `HYPERFRAMES_VERSION=0.8.84`，先跑 lint 和一次冒烟渲染确认没有回归，再把默认版本改上去：`bin/vh`、`styles/_swatch/package.json` 和 `tools/modules.json` 三处一起改，CI 会对）。**`bin/vh new short|promo|data|meme <slug>` 会自动初始化**，也可以对已有项目单独运行 `bin/vh hf-init <项目目录> [landscape|portrait|square]`。
+要求 Node ≥ 22 和 FFmpeg。**版本固定在 0.8.202**（2026-10-26 从 0.8.82 升上来，查了什么、变了什么见下面"升级核对"；`bin/vh` 默认使用。想试新版，就设 `HYPERFRAMES_VERSION=<版本>`，照"升级核对"那几项跑一遍，再把默认版本改上去：`bin/vh`、`styles/_swatch/package.json` 和 `tools/modules.json` 三处一起改，CI 会对）。**`bin/vh new short|promo|data|meme <slug>` 会自动初始化**，也可以对已有项目单独运行 `bin/vh hf-init <项目目录> [landscape|portrait|square]`。
 
-> ⚠️ HyperFrames 0.8.x 的 `init` 和 `skills update` 会把 skills 装进**全局**的 `~/.claude/skills` 和 `~/.agents/skills`。`--skip-skills` 参数目前不生效，只能用环境变量 `HYPERFRAMES_SKIP_SKILLS=1` 跳过。`bin/vh hf-init` 已经设置了这个变量，并且只把工程文件拷进项目，不拷它生成的 CLAUDE.md 和 AGENTS.md，避免和本仓库的路由冲突。自己手动运行 npx 时，也要带上这个变量：
+> ⚠️ HyperFrames 0.8.x 的 `init` 和 `skills update` 会把 skills 装进**全局**的 `~/.claude/skills` 和 `~/.agents/skills`。0.8.82 的 `--skip-skills` 参数不生效；0.8.202 的代码认它，帮助里却仍写着"暂时忽略"，所以照旧用环境变量 `HYPERFRAMES_SKIP_SKILLS=1` 跳过。`bin/vh hf-init` 已经设置了这个变量，并且只把工程文件拷进项目，不拷它生成的 CLAUDE.md 和 AGENTS.md，避免和本仓库的路由冲突。自己手动运行 npx 时，也要带上这个变量：
 
 ```bash
-export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1          # 每次开终端先设置
+export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1   # 每次开终端先设置
 npx hyperframes lint                                    # 写的过程中随时检查
 npx hyperframes check --snapshots                       # 最终关卡
 npx hyperframes snapshot --at 1.5,4.2 --describe false  # 单帧；--describe false 不能省，见下
@@ -61,11 +61,11 @@ npx hyperframes render --quality delivery --fps 30 --output out/final.mp4
 用 `&` 或 `nohup` 把渲染放到后台、这条命令在渲染结束前就返回时（agent 常这样跑），在这一行加上 `HYPERFRAMES_RENDER_DETACHED=1`：
 
 ```bash
-export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1
+export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1
 HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quality draft --fps 30 --output out/draft.mp4 > out/draft.log 2>&1 &
 ```
 
-- **为什么**：0.8.82 的 render 开始时记下启动它的那串父进程，之后其中任何一个退出，它就自己取消，日志末尾是 `Render cancelled: render_cancelled_parent_exited`。agent 的一条 Bash 命令返回，那个 shell 就退出了。`nohup … & disown` 挡不住，因为渲染查的是父进程还在不在，不是收没收到信号。设了这个变量，它就不再记父进程（`render --help` 里没写，见 hyperframes 包里 `dist/cli.js` 的 `createRenderCancellationScope`）。
+- **为什么**：render 开始时记下启动它的那串父进程，之后其中任何一个退出，它就自己取消，日志末尾是 `Render cancelled: render_cancelled_parent_exited`（0.8.82 实测，0.8.202 复测仍是这样）。agent 的一条 Bash 命令返回，那个 shell 就退出了。`nohup … & disown` 挡不住，因为渲染查的是父进程还在不在，不是收没收到信号。设了这个变量，它就不再记父进程（`render --help` 里没写；源码是 hyperframes 包里的 `createRenderCancellationScope`，0.8.202 自己的 CLI skill 也写了这个变量）。
 - **时有时无**：shell 在渲染起来之前就退了的话，父进程链里已经没有它，能渲完；同一条命令里还在 `sleep` 或 `tail` 日志，就会被取消。所以跑通过一次，不说明可以不加。
 - **别把长渲染交给 agent 自己的后台任务**：agent 的后台命令往往有时长上限（2026-10 的 Claude Code 默认 30 分钟），到点连同渲染一起被停。照上面那行把渲染脱离出去，命令立刻返回，再看日志等它结束。
 - **代价**：加了变量，父进程退出，渲染也不会停，要停得自己杀，按输出路径匹配：`pkill -f "[h]yperframes render.*out/draft.mp4"`（`[h]` 让执行 pkill 的 shell 不匹配到自己）。变量只写在后台那一行，不 export，前台渲染照旧跟着父进程停。`caffeinate -i` 防止 Mac 睡眠，只有 macOS 有，Linux 上去掉。
@@ -96,7 +96,7 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 
 成本（介绍片 103 s，M3 Max）：HyperFrames high 画质 1080p 约 4 分钟、509 MB，4K 约 9–13 分钟、1.5 GB（约 125 Mbps，2 个 worker）。发布前用 x264 CRF 18–19、`-preset slow` 重编码：1080p 297 MB，4K 1.04 GB。GitHub release 每个文件不能超过 2 GiB，按 high 画质的码率，超过约 135 s 的 4K 要先重编码。Blender 原生 4K 每帧约是 1080p 的 4 倍（`engines/blender.md`）。
 
-**长片出 4K 先看磁盘。** 4K 一律走截屏（drawElement 和 Linux 的 BeginFrame 截帧都不支持 2 倍密度），而 0.8.82 的多 worker 截屏默认先把每一帧存成 JPEG，最后再编码；只有 `--workers 1` 默认是流式的。临时帧写在 `--output` 旁边的 `work-…` 文件夹里（Windows 上是系统临时目录），按每帧约 4 MB 估：一支 7–8 分钟的片子（约 14000 帧）要五六十 GB。开渲前它按这个估算查那块盘，超过空余空间的 90% 就直接拒绝，截完前 10 帧再按实测大小查一次；报错开头是 `Disk capture may need ~… MB of temporary frame storage`。三个办法：
+**长片出 4K 先看磁盘。** 4K 一律走截屏（drawElement 和 Linux 的 BeginFrame 截帧都不支持 2 倍密度），而多 worker 截屏默认先把每一帧存成 JPEG，最后再编码（0.8.82 实测；0.8.202 的代码只在 Linux 的 1 倍 BeginFrame 截帧时默认改成流式，4K 照旧落盘）；只有 `--workers 1` 默认是流式的。临时帧写在 `--output` 旁边的 `work-…` 文件夹里（Windows 上是系统临时目录），按每帧约 4 MB 估：一支 7–8 分钟的片子（约 14000 帧）要五六十 GB。开渲前它按这个估算查那块盘，超过空余空间的 90% 就直接拒绝，截完前 10 帧再按实测大小查一次；报错开头是 `Disk capture may need ~… MB of temporary frame storage`。三个办法：
 
 - 设 `HF_CAPTURE_PARALLEL_STREAM=true`：多个 worker 截下的帧直接流进编码器，不落盘。那支片子 4 个 worker 在 M3 Max 上渲了十来分钟；
 - `--workers 1`：单个 worker 本来就是流式的，只是慢；
@@ -110,9 +110,9 @@ HF_CAPTURE_PARALLEL_STREAM=true NODE_OPTIONS=--max-old-space-size=8192 npx hyper
 
 码率和耗时随画面差很多：这支 canvas 片子的 4K 约 26 Mbps，渲 1 s 片长约 1.4 s；上面的介绍片（3D）约 125 Mbps，要 5–8 s。所以上面"超过约 135 s 的 4K 要先重编码"是按介绍片的码率算的，自己的片子先量再定。
 
-### 最小写法（0.8.82）
+### 最小写法（0.8.202）
 
-`bin/vh hf-init` 搭出来的 `index.html` 就是最小的合成（`bin/vh new short|promo|data|meme` 会自动跑它；`--aspect 4:5` / `3:4` 用竖屏模板，把视口、CSS 高度和 `data-height` 改成 1350 / 1440），手写时照着改；完整样板见 `showcase/02-short-leo-doppler/index.html`。`<body>` 里是这样：
+`bin/vh hf-init` 搭出来的 `index.html` 就是最小的合成（0.8.202 的脚手架把底色、字色和标题字体写成 `:root` 里的 `--ground`、`--ink`、`--font-display` 三个变量，换成自己片子的）（`bin/vh new short|promo|data|meme` 会自动跑它；`--aspect 4:5` / `3:4` 用竖屏模板，把视口、CSS 高度和 `data-height` 改成 1350 / 1440），手写时照着改；完整样板见 `showcase/02-short-leo-doppler/index.html`。`<body>` 里是这样：
 
 ```html
 <div id="root" data-composition-id="main" data-start="0" data-duration="10" data-width="1080" data-height="1920">
@@ -159,25 +159,26 @@ window.film = {
 - **浏览器**：`CHROME_PATH`，否则用这个项目 `render` 时用的 chrome-headless-shell（`HYPERFRAMES_BROWSER_PATH`，或项目里装的 HyperFrames 固定的那个版本；还没下载就先 `npx hyperframes browser ensure`），再否则用 `~/.cache/puppeteer` 里最新的 chrome-headless-shell，最后是系统的 Chrome 或 Chromium，不用装 npm 包。用的不是 `render` 那个时会提示一行：版本不同，字的排布可能和成片有细微差别。合成从项目目录起一个只在本机 127.0.0.1 的服务来打开，尺寸按根元素的 `data-width` × `data-height`，设备像素比 1；先等 `window.__hf.buildReady`、`window.__vh.ready`（可选）和字体加载完。
 - **结果**：有登记的 read 被盖住（露出不到 70%）、低于 3:1、出画或被裁、压在字幕下，或画帧函数抛错，退出码 1；没登记的字、字幕底下的画面太亮、场景画到界面底下只警告；没法检查（没有 `window.film.frame` 也没有 `window.__vh.draw`、页面没加载起来、找不到浏览器、一条 canvas 字都没量到）是 2，不算通过。每处问题存一张裁图到 `out/check/textcheck/`，全部数字在同一目录的 `textcheck.json`；阈值都能调，见 `bin/vh textcheck -h`。一支七八分钟、一百来条登记文字的片子，在 M3 Max 上十几秒跑完。
 
-### 注意事项和已知问题（0.8.82 实测）
+### 注意事项和已知问题（0.8.82 实测，0.8.202 复核）
 
-- **`snapshot` 一律带 `--describe false`。** 环境里有 `GEMINI_API_KEY`（或 `GOOGLE_API_KEY`）时，`snapshot` 默认把每一帧发给 Gemini 做画面描述，结果写进 `snapshots/descriptions.md`：画面离开本机，还要按 Gemini 计费。本仓库的 `bin/vh tts … --align gemini` 也要这个 key，所以 key 多半是设了的。`--describe false` 和 `--describe=false` 都能关掉；没设 key 时它只打一行 "skipping"。`check` 不受影响。
-- **第一次 `render` 会下载 chrome-headless-shell，而且几乎没有提示。** 现象：在非交互的 shell 里（agent 就是这样跑的），终端只有 "Checking browser…" 在转圈，没有大小和百分比，下载期间一直是这一行，网慢时看上去就像卡死了。原因：`render` 用 HyperFrames 自己管理的 chrome-headless-shell（0.8.82 固定为 152.0.7977.30，macOS 12 上是 150.0.7871.124），缓存里没有就先下载：约 100 MB，解压后约 200 MB，放在 `~/.cache/hyperframes/chrome`，所有项目共用。它先看 `HYPERFRAMES_BROWSER_PATH`（设了就用它指的那个），再看这个缓存里的固定版本，都没有就下载；装了 Google Chrome、`~/.cache/puppeteer` 里有别的版本，也一样下载。下完会打出 `Browser: download`，以后是 `Browser: cache`。解决：第一次渲染之前先跑 `npx hyperframes browser ensure`，它会写明在下什么、多大，下完打印路径；下不了，看 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
-- **`snapshot` 和 `render` 用的可能不是同一个 Chrome。** `snapshot`、`check`、`validate`、`layout`、`compare` 找浏览器的顺序和 `render` 不一样：`HYPERFRAMES_BROWSER_PATH`，然后 `~/.cache/puppeteer/chrome-headless-shell` 里最新的版本，再是上面那个固定版本，再是系统的 Chrome，都没有才下载。所以 `~/.cache/puppeteer` 里有 chrome-headless-shell 的机器上，快照和成片出自两个版本（实测一台 Mac 上 `snapshot` 用 150.0.7871.24，`render` 用 152.0.7977.30），字的排布会有细微差别。要让快照、成片、`bin/vh textcheck` 和别的机器上的结果可比，把 `HYPERFRAMES_BROWSER_PATH` 设成同一个 chrome-headless-shell 的路径（`npx hyperframes browser ensure` 下完打印的那个），这几样都认它；只固定 textcheck 就设 `CHROME_PATH`。
+- **0.8.202 会自己更新。** 它在后台去 npm 查有没有新版，是全局安装（`npm -g`、bun、pnpm、Homebrew）时就自己装上，钉的版本被悄悄换掉；项目里本地装的、`npx` 跑的不会（它认得出来，跳过）。`bin/vh` 调它时都设了 `HYPERFRAMES_NO_UPDATE_CHECK=1`；自己在终端用的，照上面那一行 export。
+- **`snapshot` 一律带 `--describe false`。** 0.8.82 在环境里有 `GEMINI_API_KEY`（或 `GOOGLE_API_KEY`）时，`snapshot` 默认把每一帧发给 Gemini 做画面描述，结果写进 `snapshots/descriptions.md`：画面离开本机，还要按 Gemini 计费。本仓库的 `bin/vh tts … --align gemini` 也要这个 key，所以 key 多半是设了的。`--describe false` 和 `--describe=false` 都能关掉；没设 key 时它只打一行 "skipping"。`check` 不受影响。0.8.202 改成默认不发，`--describe false` 仍然读作关；照旧写上，换回旧版本时也不会发。
+- **第一次 `render` 会下载 chrome-headless-shell，而且几乎没有提示。** 现象：在非交互的 shell 里（agent 就是这样跑的），终端只有 "Checking browser…" 在转圈，没有大小和百分比，下载期间一直是这一行，网慢时看上去就像卡死了。原因：`render` 用 HyperFrames 自己管理的 chrome-headless-shell（0.8.82 和 0.8.202 都固定为 152.0.7977.30，macOS 12 上是 150.0.7871.124），缓存里没有就先下载：约 100 MB，解压后约 200 MB，放在 `~/.cache/hyperframes/chrome`，所有项目共用。它先看 `HYPERFRAMES_BROWSER_PATH`（设了就用它指的那个），再看这个缓存里的固定版本，都没有就下载；装了 Google Chrome、`~/.cache/puppeteer` 里有别的版本，也一样下载。下完会打出 `Browser: download`，以后是 `Browser: cache`。解决：第一次渲染之前先跑 `npx hyperframes browser ensure`，它会写明在下什么、多大，下完打印路径；下不了，看 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
+- **`snapshot` 和 `render` 用的可能不是同一个 Chrome（0.8.202 已修）。** 0.8.202 的 `snapshot`、`check` 等也先用 HyperFrames 自己缓存里的固定版本（实测 `npx hyperframes browser path` 从 0.8.82 的 150.0.7871.24 变成 152.0.7977.30），下面这段只对旧版本成立。0.8.82 的 `snapshot`、`check`、`validate`、`layout`、`compare` 找浏览器的顺序和 `render` 不一样：`HYPERFRAMES_BROWSER_PATH`，然后 `~/.cache/puppeteer/chrome-headless-shell` 里最新的版本，再是上面那个固定版本，再是系统的 Chrome，都没有才下载。所以 `~/.cache/puppeteer` 里有 chrome-headless-shell 的机器上，快照和成片出自两个版本（实测一台 Mac 上 `snapshot` 用 150.0.7871.24，`render` 用 152.0.7977.30），字的排布会有细微差别。要让快照、成片、`bin/vh textcheck` 和别的机器上的结果可比，把 `HYPERFRAMES_BROWSER_PATH` 设成同一个 chrome-headless-shell 的路径（`npx hyperframes browser ensure` 下完打印的那个），这几样都认它；只固定 textcheck 就设 `CHROME_PATH`。
 - **`font-weight: 800` 在 macOS 自带的 PingFang SC 上等于 600。** 现象：字幕规格写了字重 800，渲出来却不够粗，也没有报错。原因：PingFang SC 只有 6 个字重，从 Ultralight 到 Semibold（CSS 的 100–600），没有 Bold 和 Heavy；请求 700、800、900 都落到 600，实测渲出的字和 600 逐像素相同，浏览器也不会再合成粗体。解决：用 PingFang SC 就写 600，并在 STYLE.md 里记下；真要 800，自己带一个有这个字重的字体（Noto Sans SC 等，不联网的取法见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)），或者换一个有更粗字重的系统字体（比如 Songti SC 有 900，`styles/_swatch/README.md` 的字体表列了各字体实测可用的字重）。
-- **`--format png-sequence` 写出的是 RGBA，而且不画页面背景。** `html`、`body` 和合成根元素上的 `background` 都不会进 PNG（那些地方 alpha = 0），只有元素自己的底色会留下。做确定性检查时要留意，细节和比对办法见 `playbook/02-verification.md` 的"确定性"一节。
+- **`--format png-sequence` 写出的是 RGBA，而且不画 `html`、`body` 的背景。** 那些地方 alpha = 0，元素自己的底色会留下。0.8.82 连合成根元素（带 `data-composition-id` 的那个）上的 `background` 也不画；0.8.202 画它，根元素有不透明的底色时整帧不透明，PNG 就成了不带 alpha 的 RGB（2026-10-26 用 html、body、根元素三种写法各测一遍）。做确定性检查时要留意，细节和比对办法见 `playbook/02-verification.md` 的"确定性"一节。
 - **不要运行 `npx hyperframes skills update`**。skill 文档已经拉到本地，直接读：`references/repos/hyperframes/skills/`（工作流和参考资料）、`references/repos/hyperframes/_upstream_claude/skills/`（motion-doctrine 等内部规范，写动画前先读 motion-doctrine）。
 - 想让所有项目都能用 `/hyperframes`、`/faceless-explainer` 等命令，可以装成 Claude Code 的用户级插件（`claude plugin marketplace add heygen-com/hyperframes && claude plugin install hyperframes@hyperframes`）。这会修改全局配置，**必须先征得用户同意**。
 - **没有 `@font-face` 的字体，渲染时会去 Google Fonts 取。** `render`、`snapshot`、`check` 每次运行都请求，连不上就挂住（render 停在 5% 的 "Compiling composition"）。lint 拦不住其中两种：它别名表里的名字（Arial、Helvetica Neue、Menlo 等）没有声明也算通过，渲染时被换成 Inter、JetBrains Mono 去取；以 `sans-serif` 这类通用族名开头的栈，前面会被补上 Inter。所以本机字体也写 `@font-face`、`src` 用 `local()`，栈里排第一的写声明过的字体，照 `bin/vh hf-init` 搭的脚手架做。渲染日志里出现 `[Compiler] Injected deterministic @font-face rules`，就是还有字体没声明。国内网络下的做法见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
 - **字体里缺的字**：字体在、字不在时，浏览器换一个字体画这个字，哪个字体都没有就画成空的缺字字形（苹方的是空白），lint 和渲染都不报。`bin/vh fonts check <项目>` 用 HyperFrames 自己的运行时抽帧，查每个 clip 的 DOM 字和 canvas 字实际由哪个字体画（2026-10-12 在一台 Mac 上：showcase 00 的 "LF Mono" 里有三个汉字落到了苹方，showcase 02 的"Δ"落到了 Arial）。HyperFrames 渲染时把 Google 字体换成它缓存的一份，这个检查看的是页面声明的字体，所以 `local()` 和项目里的字体文件最准。
-- **中文字体**：lint 会拒绝没有 `@font-face` 或 Google Fonts `<link>` 的字体。Noto Sans SC 不在它的自动字体列表里（列表里只有 Noto Sans JP），要显式用 `<link>` 引入，或者把字体文件放进 `assets/` 并写 `@font-face`。
+- **中文字体**：lint 会拒绝没有 `@font-face` 或 Google Fonts `<link>` 的字体。Noto Sans SC 不在它的自动字体列表里（0.8.202 也一样，列表里只有 Noto Sans JP），要显式用 `<link>` 引入，或者把字体文件放进 `assets/` 并写 `@font-face`。
 - **0.8.82 实测的上游问题**：
-  - 两条 lint 规则互相矛盾：`gsap_repeated_fromto_without_baseline` 建议加 `tl.set(…,0)`，加了又会触发 `gsap_timeline_set_initial_hide`。解法是在时间线外用 `gsap.set()` 设初始状态，同时给 tween 加 `immediateRender:false`。
+  - 两条 lint 规则互相矛盾（0.8.202 已修）：0.8.82 的 `gsap_repeated_fromto_without_baseline` 建议加 `tl.set(…,0)`，加了又会触发 `gsap_timeline_set_initial_hide`。0.8.202 改了建议：给除最早那个以外的每个 `fromTo` 加 `immediateRender: false`，照做就没有警告；`tl.set(…,0)` 会触发另一条，在时间线外写的 `gsap.set()` 会被后面的 `fromTo` 盖掉，这两样都别用。
   - 某次渲染后，本机被切换到较慢的截帧路径，之后每次渲染的耗时约为原来的 3 倍。这是本机设置，不跟着项目走；用 `HF_DE_PARALLEL_ROUTER=true` 可以恢复。
   - **浏览器 GPU 开着时，长片偶尔出单帧坏帧。** drawElement 截帧自检失败、退回多 worker 截屏以后（日志：`drawElement self-verification failed; re-rendering via screenshot`），一支 160 s 的 canvas 片子渲 4 次有 1 次出了坏帧：6 处各一帧、一处连着 3 帧，闪进别的场景，或者字被画成乱码。同一时刻的 snapshot 是干净的，抽 snapshot 查不出；`bin/vh check` 的孤立帧扫描会列出其中的单帧坏帧（连着几帧的看不到）。修法（还在验证，之后 7 次渲染都干净）：`npx hyperframes render … --no-browser-gpu --experimental-fast-capture=false`，软件渲染。扫描的做法和它漏掉的情况见 `playbook/02-verification.md` 的"静默失败"。
-- **外部 `<script src>` 的两个坑**：一支 canvas 片子把场景代码放在 `assets/js/*.js` 里用 `<script src>` 引入，渲出来整片空白，把这些文件依次内联进 `index.html` 以后正常（原因没细查）；另一支的外部脚本执行时 `<canvas>` 元素还不存在，脚本顶层的 `getElementById` 拿到 null，snapshot 全黑。稳妥做法：场景代码内联进 `index.html`（文件多就写个小 build 脚本拼起来），DOM 引用放到第一次画的时候再取。另外，lint 只认内联脚本里的 `window.__timelines` 登记（否则报 `missing_timeline_registry`），登记那几行写在内联 `<script>` 里。
+- **外部 `<script src>` 的两个坑**（2026-10-26 用一页最小的合成在 0.8.82 和 0.8.202 上都没能复现整片空白，原因仍不清楚，做法照旧）：一支 canvas 片子把场景代码放在 `assets/js/*.js` 里用 `<script src>` 引入，渲出来整片空白，把这些文件依次内联进 `index.html` 以后正常（原因没细查）；另一支的外部脚本执行时 `<canvas>` 元素还不存在，脚本顶层的 `getElementById` 拿到 null，snapshot 全黑。稳妥做法：场景代码内联进 `index.html`（文件多就写个小 build 脚本拼起来），DOM 引用放到第一次画的时候再取。另外，lint 只认内联脚本里的 `window.__timelines` 登记（否则报 `missing_timeline_registry`），登记那几行写在内联 `<script>` 里。
 - 空格会被吞：sub-composition 模板里的连续空格和词间空格、JS 设置的文本前导空格，都可能被 HTML 合并掉。需要保留时用 `&nbsp;` 或 `white-space: pre`。
-- **等宽字体的坑**：`ui-monospace, monospace` 能通过字体 lint，快照里看起来也是等宽，但 `hyperframes render` 渲染出来却是比例字体（showcase 00 在第一版全片都中了招）。要用 `@font-face` 显式声明，例如 `@font-face{font-family:"LF Mono";src:local("SF Mono"),local("Menlo")}`。**判断字体要看 mp4 渲染出的帧，不要看快照。**`check --snapshots` 只保存对比度检查用的 PNG，不能替代 `snapshot --at`。
+- **等宽字体的坑**（2026-10-26 用一页最小的合成在两个版本上都没能复现，做法照旧）：`ui-monospace, monospace` 能通过字体 lint，快照里看起来也是等宽，但 `hyperframes render` 渲染出来却是比例字体（showcase 00 在第一版全片都中了招）。要用 `@font-face` 显式声明，例如 `@font-face{font-family:"LF Mono";src:local("SF Mono"),local("Menlo")}`。**判断字体要看 mp4 渲染出的帧，不要看快照。**`check --snapshots` 只保存对比度检查用的 PNG，不能替代 `snapshot --at`。
 - `snapshot` 在 tween 刚开始的那一刻，可能和最终渲染出的帧不一致。关键帧以渲染出的 mp4 为准，逐帧 strip 的做法见 `playbook/02-verification.md`。
 - 完整样板：`showcase/02-short-leo-doppler/`（竖屏科普，单个 `index.html`）。
 - **HyperFrames 加 Three.js（3D 世界、一镜到底）的坑**，多数来自介绍片的制作：
@@ -206,6 +207,27 @@ window.film = {
   - **Hermite 路径在"快甩、慢推"的站点会冲过头。** 关键帧的切线默认由前后两个邻居估出来，甩镜到站时，站点的切线带着甩镜的速度，镜头会冲进字里（介绍片的架构站把节点标签推出了画面）。给关键帧加一个切线模式：到站的关键帧用 `tm: "f"`，切线只取后面那段慢推；离站的关键帧用 `tm: "b"`，只取前面那段慢推。两站之间的甩镜就成了一条干净的 S 曲线。
   - **世界里的节点标签按屏幕像素定字号**，不要按画面宽度的比例缩放，否则长标签的中文会掉到 20 多 px。介绍片的 `pin()` 每帧把节点投影到屏幕，用 `2·d·tan(fov/2) / 1080` 算出这个深度上 1 px 对应的世界长度（d 是节点沿视线方向的深度，fov 是竖直视场角），据此缩放面向镜头的标签平面，字号就固定了（英文 54–56 px，中文 ≥ 46 px）。另外两件事：标签框夹在安全框里；节点出画、或者标签被推离节点太远时就淡出，否则镜头离开后，标签会在画面边上堆成一摞。
   - **变拍只改一个 `bar(k)`。** 画面、事件表、字幕、HUD 都从同一个 `bar(k, beat)` 取时间，不手写秒数。介绍片把第 11 小节改成 6/4 时，画面这边只在 `bar()` 里给第 12 小节以后统一加 2 拍，HUD 改用按真实拍号换算的 `barBeat()`；作曲那边在 `score.json` 写 `"meters": {"11": 6}`（`bin/vh music` 现在也支持这个字段，beat map 会多出 `bars`）。其他秒数一个都不用手改。
+
+### 升级核对（0.8.82 → 0.8.202，2026-10-26）
+
+结论：升。中间隔了 1,278 个提交（GitHub compare v0.8.82...v0.8.202），但渲染用的 Chrome 没换（152.0.7977.30），两版画面的差别只在抗锯齿和缩放取样上；页面合约的 shim、`bin/vh fonts check`、`bin/vh readcheck` 的结果和 0.8.82 一样。下次升级照这张表再跑一遍。
+
+| 查什么 | 怎么查 | 结果 |
+|---|---|---|
+| lint | showcase 00、02 | 两版一样，0 error |
+| 冒烟渲染 | showcase 00、02 出 draft、delivery 的 mp4 和 PNG 序列 | 都渲完；x264 参数相同，delivery 的帧和无损帧比都是 40–42 dB |
+| 两版的画面 | 每 0.5 s 取一帧无损 PNG，0.8.82 的先叠到底色上（它不画根元素的底色）再比 | 02：61–80 dB，中位 75.7；00：中位 54.5 dB，只有一段推镜里放大的截图是 36–41 dB，位置和时间都对，是 0.8.202 把缩放的图画得更锐 |
+| 确定性 | 02 整片的无损 PNG，1 个和 4 个 worker（开 GPU）各渲一遍 | 744 帧里 642 帧逐字节相同，其余 ≥ 80 dB |
+| 乱序单帧、页面合约 | `bin/vh determinism`：宿主经 shim 调 0.8.202 的运行时，换顺序、换浏览器画 | 02 最差 84.4 dB，00 最差 104.9 dB；单帧和整片里的同一帧比，数字和 0.8.82 一模一样（28.7–60 dB，HyperFrames 换 Google 字体的老差别，见 `CONTRACT.md`） |
+| 风格样片 | 31 个 JS 样片加 demo，两版各渲一遍无损 PNG（`render.sh --png`，CPU 路径）；三个最敏感的（halftone-comic、fui-hud、synthwave-outrun）在 0.8.202 上再跑 `determinism.sh` | 32 个、每个 150 帧，两版逐字节相同，提交在库里的样片不用重渲；三个的 1 个和 3 个 worker 也逐字节相同 |
+| 已知的坑 | 上一节逐条复核，能复现的都在两个版本上各跑一遍 | 修好三条（两个 Chrome、lint 矛盾、snapshot 默认发 Gemini），一条变了（PNG 序列画根元素的底色），其余照旧 |
+
+变了、跟着改了的：
+- 脚手架的字体改成 `:root` 里的 `--font-display: sans-serif`，渲染时它被换成 Inter 去 Google Fonts 取（实测日志 `Fetched 11 font face(s) for "Inter" from Google Fonts`）。`bin/vh hf-init` 现在改写这个变量，旧脚手架的 `font-family: Inter…` 那行也照旧改。
+- 新加了后台自动更新（上一节第一条），`bin/vh` 调它时都设了 `HYPERFRAMES_NO_UPDATE_CHECK=1`。
+- `catalog` 和 `add` 默认取 GitHub 上 `main` 分支最新的组件目录，不跟着 CLI 的版本走；项目 `hyperframes.json` 里的 `registry` 可以指到某个 tag 的那一份，这样装进来的东西才是钉住的。
+- `render` 多了 `--format mov`（ProRes 4444，带透明）和带透明的 webm。
+- showcase 的 `package.json` 仍写着 0.8.82：那是它们当时渲染用的版本，留作记录，没有改。
 
 ## Remotion（React），未安装
 
