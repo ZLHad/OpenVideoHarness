@@ -2099,8 +2099,10 @@ sys.exit(0 if ok else 1)' "$a"
   rm -rf "$t"
 }
 
-image_checks() {   # bin/vh image (tools/assets/image.py) from synthesized answers in the documented shape, and a stand-in
-  # codex: the estimate and what a call cost by its usage; no budget, or one it would go over, and nothing is called; a
+image_checks() {   # bin/vh image (tools/assets/image.py) from the answer recorded live (gemini-nano-banana-2.1,
+  # 2026-10-26: every field kept, its picture and thought signature replaced by small ones; the blocked one documented)
+  # and a stand-in codex writing the events the real one wrote: the estimate and what a call cost by its usage; no
+  # budget, or one it would go over, and nothing is called; a
   # dry run calls nothing; a picture on record (aigc, model, prompt, seed, cost, inputs) with its spend held and settled; a
   # blocked answer settles at 0; --alpha cuts out the chroma green; codex on the plan's quota holds no budget
   local t p r a b rc rc2 rc3 rc4 rc5 rc6
@@ -2157,14 +2159,14 @@ p, bad = sys.argv[1], []
 R = {x["id"]: x for x in json.load(open(f"{p}/assets/ledger.json", encoding="utf-8"))["assets"]}
 r = R.get("sq") or {}
 if ledger.validate(r) or (r.get("aigc"), r.get("model"), r.get("seed"), r.get("cost"), r["license"]["class"], r["source"]["origin"], r.get("prompt_file")) \
-        != (True, "gemini/gemini-nano-banana-2.1", 7, {"amount": 0.036093, "currency": "USD"}, "generated", "generated", "assets/genimg/sq/prompt.txt"):
+        != (True, "gemini/gemini-nano-banana-2.1", 7, {"amount": 0.035454, "currency": "USD"}, "generated", "generated", "assets/genimg/sq/prompt.txt"):
     bad.append(f"the record: {r}")
 spend = [json.loads(x) for x in open(f"{p}/assets/spend.jsonl", encoding="utf-8")]
-if [x["kind"] for x in spend] != ["hold", "settle"] or spend[1]["amount"] != 0.036093 or budget.spent(p) != {"USD": 0.036093}:
+if [x["kind"] for x in spend] != ["hold", "settle"] or spend[1]["amount"] != 0.035454 or budget.spent(p) != {"USD": 0.035454}:
     bad.append(f"the spend: {spend}")
 req = json.load(open(f"{p}/assets/genimg/sq/request.json", encoding="utf-8"))
-if req["model"] != "gemini-nano-banana-2.1" or req["response_format"] != {"type": "image", "mime_type": "image/png", "aspect_ratio": "16:9", "image_size": "1K"} \
-        or req["generation_config"] != {"seed": 7} or req["store"] is not False:
+if req["model"] != "gemini-nano-banana-2.1" or req["response_format"] != {"type": "image", "mime_type": "image/jpeg", "aspect_ratio": "16:9", "image_size": "1K"} \
+        or req["generation_config"] != {"seed": 7, "thinking_level": "minimal"} or req["store"] is not False:
     bad.append(f"request.json: {req}")
 print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
@@ -2172,15 +2174,15 @@ PY
     else bad "image gen (exits $rc:$rc2:$rc3:$rc4): $(printf '%s | %s' "$a" "$b" | tail -c 500) $(cat "$t/e1" "$t/e4" | tail -c 300)"; fi
     python3 -c 'import json,sys; f=sys.argv[1]+"/responses.json"; d=json.load(open(f)); d["responses"][0]["body"]="answer-green.json"; json.dump(d, open(f, "w"))' "$r"
     vh image gen "$p" --prompt "a red sticker" --alpha --id sticker --offline "$r" >/dev/null 2>"$t/e1"; rc=$?
-    a=$(vh image cutout "$p" assets/genimg/sticker/image.png --json 2>/dev/null); rc2=$?
-    vh image cutout "$p" assets/genimg/sticker/image.png --id other >/dev/null 2>"$t/e3"; rc3=$?
+    a=$(vh image cutout "$p" assets/genimg/sticker/image.jpg --json 2>/dev/null); rc2=$?
+    vh image cutout "$p" assets/genimg/sticker/image.jpg --id other >/dev/null 2>"$t/e3"; rc3=$?
     python3 -c 'import json,sys; f=sys.argv[1]+"/responses.json"; d=json.load(open(f)); d["responses"][0]["body"]="answer-blocked.json"; json.dump(d, open(f, "w"))' "$r"
     vh image gen "$p" --prompt "blocked" --id blocked --offline "$r" >/dev/null 2>"$t/e4"; rc4=$?
     python3 -c 'import json,sys; f=sys.argv[1]+"/responses.json"; d=json.load(open(f)); d["responses"][0]["body"]="answer-plain.json"; json.dump(d, open(f, "w"))' "$r"
     vh image gen "$p" --prompt "two" --n 2 --id two --offline "$r" >/dev/null 2>"$t/e5"; rc5=$?
     vh image gen "$p" --prompt "one too many" --n 3 --offline "$r" >/dev/null 2>"$t/e6"; rc6=$?
     if [ "$rc:$rc2:$rc3:$rc4:$rc5:$rc6" = "0:0:2:1:0:1" ] && grep -q "the request was blocked" "$t/e4" && grep -q "short" "$t/e6" \
-       && [ ! -e "$p/assets/genimg/blocked/image.png" ] && [ -s "$p/assets/genimg/sticker/image.cutout-check.png" ] && [ -s "$p/assets/genimg/two/sheet.png" ] \
+       && [ ! -e "$p/assets/genimg/blocked/image.jpg" ] && [ -s "$p/assets/genimg/sticker/image.cutout-check.png" ] && [ -s "$p/assets/genimg/two/sheet.png" ] \
        && python3 - "$p" "$a" <<'PY'
 import json, subprocess, sys
 sys.path.insert(0, "tools/assets")
@@ -2196,7 +2198,7 @@ if R != ["sq", "sticker", "sticker.cutout", "two-1", "two-2"]:
     bad.append(f"the records: {R}")
 spend = [json.loads(x) for x in open(f"{p}/assets/spend.jsonl", encoding="utf-8")]
 blocked = [x for x in spend if x.get("asset") == "blocked"]
-if [x["kind"] for x in blocked] != ["hold", "settle"] or blocked[1]["amount"] != 0 or abs(budget.spent(p)["USD"] - 4 * 0.036093) > 1e-9:
+if [x["kind"] for x in blocked] != ["hold", "settle"] or blocked[1]["amount"] != 0 or abs(budget.spent(p)["USD"] - 4 * 0.035454) > 1e-9:
     bad.append(f"the spend: {blocked} {budget.spent(p)}")
 print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
@@ -2205,15 +2207,18 @@ PY
     mkdir -p "$t/codex"
     a=$(PATH="$ROOT/tools/assets/fixtures/image/bin:$PATH" CODEX_HOME="$t/codex" FAKE_CODEX_PNG="$p/assets/genimg/sticker/image.cutout.png" vh image gen "$p" --prompt "a tile" --provider codex --alpha --id tile 2>&1); rc=$?
     PATH="$ROOT/tools/assets/fixtures/image/bin:$PATH" vh image gen "$p" --prompt "x" --provider codex --size 2K >/dev/null 2>&1; rc2=$?
-    if [ "$rc:$rc2" = "0:2" ] && case "$a" in *"made tile"*"the ChatGPT plan's quota"*) true ;; *) false ;; esac && python3 - "$p" <<'PY'
+    b=$(PATH="$ROOT/tools/assets/fixtures/image/bin:$PATH" CODEX_HOME="$t/codex" FAKE_CODEX_FAIL=1 vh image gen "$p" --prompt "y" --provider codex --id nomodel 2>&1); rc3=$?
+    if [ "$rc:$rc2:$rc3" = "0:2:1" ] && case "$a" in *"made tile"*"the ChatGPT plan's quota"*) true ;; *) false ;; esac \
+       && case "$b" in *"codex said: The 'some-model' model is not supported when using Codex with a ChatGPT account. [model_not_found]"*"a newer codex CLI may know it"*) true ;; *) false ;; esac \
+       && ! grep -q '"nomodel"' "$p/assets/ledger.json" && python3 - "$p" <<'PY'
 import json, sys
 p = sys.argv[1]
 r = {x["id"]: x for x in json.load(open(f"{p}/assets/ledger.json", encoding="utf-8"))["assets"]}["tile"]
 spend = [json.loads(x) for x in open(f"{p}/assets/spend.jsonl", encoding="utf-8")]
 sys.exit(0 if "image_gen via codex (codex-cli 0.0.0-test)" in r["model"] and "cost" not in r and r["aigc"] and not any(x.get("asset") == "tile" for x in spend) else 1)
 PY
-    then ok "image gen --provider codex (a stand-in CLI): the picture found under CODEX_HOME by its thread, on record as AI-generated with no cost and no budget held; gemini's options refused"
-    else bad "image gen --provider codex (exits $rc:$rc2): $(printf '%s' "$a" | tail -c 400)"; fi
+    then ok "image gen --provider codex (a stand-in CLI): the picture found under CODEX_HOME by its thread, on record as AI-generated with no cost and no budget held; gemini's options refused; a turn that failed on its model is said in codex's own words, with what to change"
+    else bad "image gen --provider codex (exits $rc:$rc2:$rc3): $(printf '%s | %s' "$a" "$b" | tail -c 600)"; fi
   else skip "image gen and cutout" "no ffmpeg"; fi
   rm -rf "$t"
 }

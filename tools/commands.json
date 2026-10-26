@@ -392,7 +392,7 @@
         "--offline <folder>: recorded answers"
       ],
       "writes": [
-        "<project>/assets/genimg/<id>/ (image.png, prompt.txt, request.json; sheet.png for several) and a record a picture in assets/ledger.json",
+        "<project>/assets/genimg/<id>/ (image.jpg from Gemini, image.png from Codex; prompt.txt, request.json; sheet.png for several) and a record a picture in assets/ledger.json",
         "<project>/assets/spend.jsonl (each Gemini call: held at its estimate, settled at what its usage says)",
         "<picture>.cutout.png and <picture>.cutout-check.png (cutout, gen --alpha)"
       ],
