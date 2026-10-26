@@ -717,6 +717,7 @@ cmd_concept() { # roulette reads files (stdlib); board draws a page (pillow, thr
   case "$1" in board) on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/concept.py" "$@" ;; *) python3 "$ROOT/tools/concept.py" "$@" ;; esac
 }
 cmd_activity() { [ $# -gt 0 ] || { cmd_usage activity >&2; exit 2; }; exec python3 "$ROOT/tools/activity.py" "$@"; }   # read-only, not logged
+cmd_know() { [ $# -gt 0 ] || { cmd_usage know >&2; exit 2; }; exec python3 "$ROOT/tools/know.py" "$@"; }   # read-only, not logged; stdlib
 cmd_status() { [ $# -gt 0 ] || { cmd_usage status >&2; exit 2; }; exec python3 "$ROOT/tools/status.py" "$@"; }         # read-only, not logged
 cmd_versions() { [ $# -gt 0 ] || { cmd_usage versions >&2; exit 2; }; python3 "$ROOT/tools/versions.py" "$@"; }   # the list is not logged; compare and use are
 cmd_proxy() { [ $# -gt 0 ] || { cmd_usage proxy >&2; exit 2; }; python3 "$ROOT/tools/proxy.py" proxy "$@"; }       # ffmpeg only
@@ -1111,7 +1112,7 @@ cmd_help() { python3 "$ROOT/tools/commands.py" help; }            # every usage,
 cmd_usage() { python3 "$ROOT/tools/commands.py" usage "$1"; }    # one command's usage from there; exit 1 if it has none
 
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa|assets|looks|breakdown|concept|components|hf|footage|image|bgm|sound|scout|ref) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|cover-preview|voices|mix|recipes|sfx|qa|assets|know|looks|breakdown|concept|components|hf|footage|image|bgm|sound|scout|ref) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
@@ -1121,6 +1122,7 @@ esac
 case "${1:-}" in   # the activity log: every command that works on a project (act_start finds it) but the read-only views
   ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|new) ;;   # (new: once the project is made)
   components) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list, check and sample touch no project
+  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|new) ;;   # (new: once the project is made)
   desk) [ "${2:-}" = data ] || act_start "$@" || true ;;
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
   sfx) [ "${2:-}" = search ] || act_start "$@" || true ;;   # search only reads
@@ -1153,7 +1155,7 @@ case "${1:-help}" in
   desk) shift; cmd_desk "$@" ;;
   gate) shift; cmd_gate "$@" ;;
   commands) shift; exec python3 "$ROOT/tools/commands.py" list "$@" ;;   # read-only, not logged
-  status) shift; cmd_status "$@" ;; activity) shift; cmd_activity "$@" ;; versions) shift; cmd_versions "$@" ;; proxy) shift; cmd_proxy "$@" ;; thumbs) shift; cmd_thumbs "$@" ;;
+  status) shift; cmd_status "$@" ;; activity) shift; cmd_activity "$@" ;; know) shift; cmd_know "$@" ;; versions) shift; cmd_versions "$@" ;; proxy) shift; cmd_proxy "$@" ;; thumbs) shift; cmd_thumbs "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;; looks) shift; cmd_looks "$@" ;; breakdown) shift; cmd_breakdown "$@" ;;
   help|-h|--help) cmd_help ;;

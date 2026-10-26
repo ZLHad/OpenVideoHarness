@@ -4103,6 +4103,81 @@ PY
 
 # bin/vh textcheck on its fixture (tools/textcheck/fixture/index.html: one read per case), with whatever headless Chrome
 # the machine has (GitHub's runners come with Chrome); skipped without one
+know_checks() {   # bin/vh know: the index of recipes, styles and the sections read when needed, and what a few words find
+  local t a b rc rc2
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  vh know --index --json > "$t/index.json" 2>/dev/null; rc=$?   # a file: the index is over Linux's 128 KB for one argument
+  if [ "$rc" = 0 ] && python3 - "$t/index.json" <<'PY'
+import json, re, sys
+from pathlib import Path
+sys.path.insert(0, "tools")
+import know
+d = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+units, by = d["units"], d["by_kind"]
+ok = all(by.get(k, 0) > 0 for k in ("recipe", "style", "doc", "case")) and len(units) == sum(by.values())
+ok = ok and all(set(u) >= {"kind", "id", "title", "file", "line", "summary", "tags", "chars"} and u["title"] for u in units)
+for u in units:   # a section's line is its heading's (or line 1, a file's lead)
+    if u["kind"] in ("doc", "case") and u["line"] > 1:
+        line = Path(u["file"]).read_text(encoding="utf-8").splitlines()[u["line"] - 1]
+        ok = ok and bool(re.match(r"#{2,3} ", line))
+ok = ok and len({u["id"] for u in units}) == len(units)
+ok = ok and know.own_tags("text <!-- know: 翻页, 纸面、转场 --> more") == ["翻页", "纸面", "转场"]
+ok = ok and know.terms("章节进度条 black-card") == ["章节", "节进", "进度", "度条", "black-card", "black", "card"]
+sys.exit(0 if ok else 1)
+PY
+  then ok "know --index: every recipe, style, doc section and case section with a title, its file and its heading's line, unique ids; own tags from a section's comment; words as the index counts them"
+  else bad "know --index (exit $rc): $(tail -c 300 "$t/index.json")"; fi
+  # a component from its slots.json (lib/ and LICENSES/ are not components) and a section by its own tags, in a small tree
+  # of their own (main has no components/ yet); then the sections tagged in the playbook, found by their tags
+  mkdir -p "$t/tree/tools" "$t/tree/styles" "$t/tree/playbook" "$t/tree/components/page-turn" "$t/tree/components/lib" "$t/tree/components/LICENSES"
+  cp tools/know.py tools/readpath.py "$t/tree/tools/"
+  printf '{"version": 1, "name": "page-turn", "summary": "A book page turns over in perspective.", "painters": ["canvas"], "slots": [{"name": "ease", "type": "string", "default": "inOutCubic", "text": "how the turn runs"}]}' > "$t/tree/components/page-turn/slots.json"
+  : > "$t/tree/components/lib/core.js"; : > "$t/tree/components/LICENSES/MIT.txt"
+  printf '# 03 运动\n\n## 6. 转场\n<!-- know: 翻页, 纸面转场 -->\n\n方向连续。\n\n## 7. 别的\n\n别的。\n' > "$t/tree/playbook/03-x.md"
+  a=$(python3 "$t/tree/tools/know.py" --index --json 2>/dev/null); b=$(python3 "$t/tree/tools/know.py" page turn --json 2>/dev/null)
+  c=$(python3 "$t/tree/tools/know.py" 翻页 --json 2>/dev/null); d=$(vh know transition seam --kind doc --json 2>/dev/null)
+  if python3 - "$a" "$b" "$c" "$d" <<'PY'
+import json, sys
+a, b, c, d = (json.loads(x) for x in sys.argv[1:5])
+comp = [u for u in a["units"] if u["kind"] == "component"]
+ok = a["by_kind"].get("component") == 1 and comp[0]["file"] == "components/page-turn/slots.json" and set(comp[0]["tags"]) >= {"page-turn", "canvas", "ease"}
+ok = ok and b["hits"][0]["kind"] == "component" and b["hits"][0]["id"] == "page-turn" and b["hits"][0]["summary"].startswith("A book page")
+ok = ok and c["hits"][0]["file"] == "playbook/03-x.md" and c["hits"][0]["title"].endswith("› 6. 转场") and "翻页" in c["hits"][0]["tags"]
+ok = ok and d["hits"][0]["file"] in ("playbook/03-motion-design.md", "playbook/09-narrative.md") and {"transition", "seam"} <= set(d["hits"][0]["tags"])
+sys.exit(0 if ok else 1)
+PY
+  then ok "know: a component from its slots.json (name, summary, painters, slots; lib/ and LICENSES/ are not components), a section by the tags in its own comment, the playbook's tagged sections"
+  else bad "know, components and own tags: $(printf '%s' "$b$c$d" | tail -c 400)"; fi
+  a=$(vh know 黑场 字卡 --json 2>/dev/null; vh know 孔版 叠印 --kind style --json 2>/dev/null; vh know 抖音 分享页 --kind doc --json 2>/dev/null); rc=$?
+  b=$(vh know 黑场 字卡 --json 2>/dev/null)
+  if [ "$rc" = 0 ] && [ "$b" = "$(vh know 黑场 字卡 --json 2>/dev/null)" ] && python3 - "$a" <<'PY'
+import json, sys
+docs, dec, i = [], json.JSONDecoder(), 0
+s = sys.argv[1]
+while i < len(s):
+    while i < len(s) and s[i].isspace():
+        i += 1
+    if i < len(s):
+        o, i = dec.raw_decode(s, i)
+        docs.append(o)
+a, b, c = docs
+ok = a["hits"][0]["kind"] == "recipe" and a["hits"][0]["id"] == "black-card" and not a["hits"][0]["partial"]
+ok = ok and {h["kind"] for h in a["hits"]} >= {"recipe", "style", "doc", "case"}
+ok = ok and [h["kind"] for h in b["hits"]] and all(h["kind"] == "style" for h in b["hits"]) and b["hits"][0]["id"] == "risograph"
+ok = ok and c["hits"][0]["file"] == "playbook/07-reverse-engineer.md" and c["hits"][0]["title"].endswith("› 1. 拿到帧")
+sys.exit(0 if ok else 1)
+PY
+  then ok "know: a recipe by its name (black-card), a style by its craft (risograph), a playbook section by a platform's habit (07 §1), each kind in the answer, the same answer twice"
+  else bad "know's answers (exit $rc): $(printf '%s' "$a" | tail -c 400)"; fi
+  rc=0; for x in "know" "know --kind bogus 黑场" "know --index 黑场" "know -n -1 黑场"; do
+    # shellcheck disable=SC2086
+    a=$(vh $x 2>/dev/null); b=$?; [ "$b" = 2 ] && [ -z "$a" ] || { rc=1; bad "bin/vh $x: exit $b, stdout ${a:0:80}"; }
+  done
+  vh know zzqqxxkk >/dev/null 2>&1; [ $? = 1 ] || { rc=1; bad "know with nothing matched: not exit 1"; }
+  [ "$rc" = 1 ] || ok "know: usage errors exit 2, nothing on stdout; nothing matched is 1"
+  rm -rf "$t"
+}
+
 textcheck_checks() {
   local t a rc
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
@@ -5453,11 +5528,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; components_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; components_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; components_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; components_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

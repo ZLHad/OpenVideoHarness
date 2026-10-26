@@ -18,7 +18,7 @@ engine    the engine docs counted at every level: the section of engines/README.
 tools/ci.sh prints this table as a baseline. It never fails on the numbers; it fails when a file or a section it
 counts is missing, so the table cannot quietly shrink.
 """
-import json, sys
+import json, re, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -44,6 +44,26 @@ def sections(rel, *prefixes):
     missing = [p for p in prefixes if p not in found]
     if missing: sys.exit(f"readpath: {rel} has no '## ' section starting with {', '.join(missing)}")
     return "".join(out)
+
+def outline(rel, levels=(2, 3)):
+    """The sections of a markdown file by its headings at these levels: [(level, heading, line, text)], each up to the
+    next heading at any of them (a ## section's text stops where its first ### starts), its heading line included;
+    the lines before the first one (title and lead) as level 1 under the # title. A heading inside a ``` fence is not
+    one. bin/vh know (tools/know.py) indexes these."""
+    out, fence, cur = [], False, None
+    for n, line in enumerate(text(rel).splitlines(), 1):
+        if line.lstrip().startswith("```"):
+            fence = not fence
+        m = None if fence else re.match(r"(#{1,6}) +(.+?)\s*#*\s*$", line)
+        lv = len(m.group(1)) if m else 0
+        if m and (lv in levels or (lv == 1 and cur is None)):
+            cur = [lv, m.group(2).strip(), n, []]
+            out.append(cur)
+        elif cur is None:
+            cur = [1, "", n, []]
+            out.append(cur)
+        cur[3].append(line)
+    return [(lv, h, n, "\n".join(body)) for lv, h, n, body in out]
 
 def table():
     base = len(text("CLAUDE.md")) + len(sections("playbook/03-motion-design.md", "4.")) + len(text("templates/TASTE_CHECKLIST.md"))
