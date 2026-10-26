@@ -4,7 +4,9 @@
 
 **Batch 0's leftovers: strict stops a delivery, `recipes list -h`, two CI flakes**
 - Why: what batch 0 left open. Under `Assets: strict` a failing `bin/vh assets check` was printed and the copy made anyway, so strict and record differed only in the wording.
-- `bin/vh deliver` under `Assets: strict`: when `assets check` fails (the same findings), it stops before the encode, with no copy and exit 2, and says how to clear it (register what a page loads without a record, replace what strict does not take, or the user's BRIEF says `Assets: record`). Under `record` the verdict is said as before. It now also speaks in a project with no ledger whose film loaded material without a record, as `assets check` does.
+- `bin/vh deliver` under `Assets: strict`: when `assets check` fails, or cannot run (a ledger it cannot read), it stops before the encode, with no copy and exit 2. It says what failed and how to clear it: register what a page loads without a record, replace what strict does not take, or the user's BRIEF says `Assets: record`. Under `record` the verdict is said as before.
+- The check is of the master itself when it is a render whose `.render.json` lists the files its page loaded (`assets check --film`): an older draft is no longer cleared by a newer film of its page, nor stopped by another page's scratch film. A mux's master names no film, so its check is the project's newest films, as `assets check <project>` gives.
+- `deliver` now also speaks in a project with no ledger whose film loaded material without a record, as `assets check` does. Under the default `strict`, such a film is not delivered until its material is registered.
 - `bin/vh recipes list -h` and `recipes check --help` print the help (they were an unknown option, exit 2).
 - `tools/test_film_shots.py`: two captures of one page are compared by PSNR (45 dB or more, hard rule 1) when their bytes differ. GitHub's macOS runner does not rasterise a page to the same bytes twice.
 - CI: the install step has a 10-minute limit of its own, and on Linux it skips man-db's index rebuild. On 2026-10-25 that step took 17 to 30 minutes four times instead of half a minute, and the job ran out of time.
@@ -27,7 +29,7 @@
   - the sound files a mix used without a record get one line (a TTS take is AI-generated).
 - `bin/vh status --json` has `assets`: the records, the licences not cleared, the material loaded but not on record, the AI-generated count, the policy, and the budget in the same shape as `assets list --json`. The text output has a line for it too.
 - The review page shows 已花 / 预算 (spent / budget) in its header when there is a budget or a spend.
-- `bin/vh deliver`, in a project with a ledger, says `assets check`'s verdict (it does not stop the delivery) and what the upload owes: the credit lines, the AI-content notice, the licences not cleared. It keeps the counts in `<copy>.deliver.json`. PACKAGING.md gains a 署名和 AI 标识 section.
+- `bin/vh deliver`, in a project with a ledger, says `assets check`'s verdict (under `Assets: strict` a failing one stops it: the first entry above) and what the upload owes: the credit lines, the AI-content notice, the licences not cleared. It keeps the counts in `<copy>.deliver.json`. PACKAGING.md gains a 署名和 AI 标识 section.
 - CI, end to end: the fixture project's page loads two pictures on record and one not. After a render, check fails on the third and passes once it is registered. A file changed after the render is said. Status, the review page, deliver and a patch are checked on the same project, then an older film of the same page and a patch of a film without a table.
 
 **One asset record: `bin/vh assets` and `tools/assets/`, a budget for paid calls, and how networked commands are tested**

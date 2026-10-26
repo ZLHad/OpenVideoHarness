@@ -1345,7 +1345,7 @@
       "stages": ["9"],
       "reads": [
         "<master.mp4>",
-        "<project>/assets/ledger.json and what assets check reads (in a project with an asset ledger)"
+        "<project>/assets/ledger.json and what assets check reads (in a project: a folder above the master with a BRIEF.md)"
       ],
       "writes": [
         "<master stem>.upload.mp4 (or --out)",
@@ -1359,8 +1359,8 @@
             "passes at it when the master's own rate is over it;",
             "a keyframe every 2 s, BT.709, sound and subtitles copied; the size against each limit, the PSNR against the master;",
             "a record beside the copy (<copy>.deliver.json) that bin/vh clean reads: the copy and its master stay as the film",
-            "(in a project with an asset ledger, also bin/vh assets check's verdict, and the credits and the AI-content notice",
-            "the upload owes; under Assets: strict a failing check stops it before the encode, exit 2)"
+            "(in a project, also bin/vh assets check's verdict, and the credits and the AI-content notice the upload owes;",
+            "under Assets: strict a check that fails or cannot run stops it before the encode, exit 2)"
           ]
         }
       ]

@@ -839,6 +839,29 @@ PY
     *) bad "deliver --for on a short master: exit $rc: $(printf '%s' "$a" | tail -c 500)" ;; esac
   a=$(vh deliver "$t/master.mp4" --max-gb 0.00001 2>&1); rc=$?
   case "$rc:$a" in 2:*"too little"*) ok "deliver: a limit that leaves no room for the picture is refused (exit 2)" ;; *) bad "deliver with a tiny limit: exit $rc: $a" ;; esac
+  # deliver under Assets: strict, no browser: two renders of one page (sidecars as bin/vh render writes them) and another
+  # page's scratch film. The older render loaded a picture with no record: it stops (its own check, not the newest film's);
+  # the newer one goes, though the scratch film's picture has no record either. A ledger it cannot read stops it too;
+  # under record that is said and the copy made
+  s="$t/strict"; mkdir -p "$s/out" "$s/renders" "$s/assets"; printf -- '- Assets: strict\n' > "$s/BRIEF.md"
+  printf 'a' > "$s/assets/a.png"; printf 'b' > "$s/assets/b.png"; printf '<p>' > "$s/index.html"; printf '<p>' > "$s/other.html"
+  for f in out/old out/new renders/scratch; do cp "$t/master.mp4" "$s/$f.mp4"; done
+  printf '{"page": "../index.html", "files": {"index.html": null, "assets/a.png": null}}' > "$s/out/old.mp4.render.json"
+  printf '{"page": "../index.html", "files": {"index.html": null}}' > "$s/out/new.mp4.render.json"
+  printf '{"page": "../other.html", "files": {"other.html": null, "assets/b.png": null}}' > "$s/renders/scratch.mp4.render.json"
+  touch -t 202601010000 "$s/out/old.mp4"
+  a=$(vh deliver "$s/out/old.mp4" --psnr off 2>&1); r1=$?
+  b=$(vh deliver "$s/out/new.mp4" --psnr off 2>&1); r2=$?
+  printf '{' > "$s/assets/ledger.json"
+  c2=$(vh deliver "$s/out/new.mp4" --out "$s/out/new.2.mp4" --psnr off 2>&1); r3=$?
+  sed 's/strict/record/' "$s/BRIEF.md" > "$s/BRIEF.tmp" && mv "$s/BRIEF.tmp" "$s/BRIEF.md"
+  d=$(vh deliver "$s/out/new.mp4" --out "$s/out/new.3.mp4" --psnr off 2>&1); r4=$?
+  if [ "$r1:$r2:$r3:$r4" = "2:0:2:0" ] && [ ! -e "$s/out/old.upload.mp4" ] && [ -s "$s/out/new.upload.mp4" ] && [ ! -e "$s/out/new.2.mp4" ] && [ -s "$s/out/new.3.mp4" ] \
+     && case "$a" in *"✗ assets check: fail (1 fail"*"--film "*"out/old.mp4"*"assets/a.png"*"no copy made"*) true ;; *) false ;; esac \
+     && case "$b" in *"assets check"*) false ;; *) true ;; esac \
+     && case "$c2|$d" in *"could not run"*"no copy made"*"|"*"the asset ledger could not be read"*) true ;; *) false ;; esac
+  then ok "deliver under Assets: strict checks the master's own render: an unrecorded picture stops it (exit 2, said), another film's does not; an unreadable ledger stops it; under record that is said and the copy made"
+  else bad "deliver under Assets: strict (exit $r1 $r2 $r3 $r4): $(printf '%s' "$a|$b|$c2|$d" | tail -c 700)"; fi
   # bin/vh clean: a finished project's frames, render chunks, drafts and old takes go (to a stand-in Trash here, OVH_TRASH_DIR);
   # the film in out/final/, its covers, the review pages, the narration in use and its original, sources and docs stay
   c="$t/cl"; mkdir -p "$c/out/frames" "$c/out/.film.mp4.parts" "$c/out/final/covers" "$c/out/review" "$c/audio/takes" "$c/src" "$c/node_modules/x" "$t/home"
