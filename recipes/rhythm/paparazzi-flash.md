@@ -20,6 +20,7 @@ pairs_with: [breath-title-card]
 derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/rhythm/beat-cut-moves.md, license: Apache-2.0, note: 两式中的 B 式}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/rhythm/beat-cut-moves/PaparazziFlash.tsx, license: Apache-2.0, note: 闪点、白层衰减、快门余韵、三个裁切}
+sketch_sha: "eff0f96be1c3"
 ---
 
 # 连闪定格 · paparazzi-flash

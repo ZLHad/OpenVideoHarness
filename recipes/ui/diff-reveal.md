@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [terminal-run, strike-replace]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/diff-reveal/README.md, license: MIT, note: 规则（先删后加、加减号和颜色并用、一屏不超过 8 行）}
+sketch_sha: "c5d082970017"
 ---
 
 # 改动按行显出来 · diff-reveal

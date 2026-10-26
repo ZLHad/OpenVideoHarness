@@ -22,6 +22,7 @@ derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/transition/shot-transitions.md, license: Apache-2.0, note: 六式中的 E 式（基本款、急刹款）}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/WhipPanReal.tsx, license: Apache-2.0, note: 跨度、缓动、快门}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/transition/shot-transitions/WhipBrakeReal.tsx, license: Apache-2.0, note: 急刹款的路程配比}
+sketch_sha: "95e9bc587540"
 ---
 
 # 甩镜 · whip-pan

@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [char-stagger]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/text-wave/README.md, license: MIT, note: 参数（振幅、波宽、周期、缓动）和禁止项}
+sketch_sha: "de855712ae1b"
 ---
 
 # 一道波扫过句子 · text-wave

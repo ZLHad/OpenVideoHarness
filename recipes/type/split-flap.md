@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [glyph-roll]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/split-flap/README.md, license: MIT, note: 参数（每次翻动时长、错开、中间字数）和禁止项}
+sketch_sha: "2b2659ef57ee"
 ---
 
 # 翻牌字 · split-flap

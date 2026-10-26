@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [answer-stream]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/image-generation-scan/README.md, license: MIT, note: 时序和禁止项（显示的完成率要和真实进度一致；完成后停住）}
+sketch_sha: "47e4c4fd81b3"
 ---
 
 # 扫描带扫出生成的图 · gen-scan

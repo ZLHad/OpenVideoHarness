@@ -23,6 +23,7 @@ derived_from:
   - {repo: github.com/gl-transitions/gl-transitions, commit: "0efa165", path: transitions/Dreamy.glsl, license: MIT, note: dreamy 一式（作者 mikolalysenko）}
   - {repo: github.com/gl-transitions/gl-transitions, commit: "0efa165", path: transitions/Ripple.glsl, license: MIT, note: ripple 一式（作者 gre）}
   - {repo: github.com/gl-transitions/gl-transitions, commit: "0efa165", path: transitions/LinearBlur.glsl, license: MIT, note: linearblur 一式（作者 gre）}
+sketch_sha: "750e69668961"
 ---
 
 # 着色器转场五式 · gl-transition

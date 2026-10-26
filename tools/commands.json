@@ -531,10 +531,10 @@
       ],
       "usage": [
         {
-          "synopsis": "recipes list [--intent X --energy N --engine E …] | check [file…] | sample <id> [--style S] [--draft]",
+          "synopsis": "recipes list [--intent X --energy N --engine E …] | check [file…] | sample <id> [--style S] [--draft] [--force]",
           "text": [
             "shot recipes (recipes/): filter by frontmatter, validate it",
-            "sample: the recipe's sketch rendered in a style's skin, its contact sheet kept beside it (list --json gives the path)"
+            "sample: the recipe's sketch rendered, its contact sheet kept beside it and the sketch's sha in its frontmatter (list --json gives the path); unchanged, it is not rendered again"
           ]
         }
       ],

@@ -17,6 +17,7 @@ qa: {peak: 36, settle: 90}
 status: tuned
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 01 Button → player 的结构和时序}
+sketch_sha: "023b04a621bc"
 ---
 
 # 按钮长成播放器 · button-to-player

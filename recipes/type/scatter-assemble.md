@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [particle-mark]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/text-scatter-assemble/README.md, license: MIT, note: 参数（起点范围、错开、时长、缓动、种子）和禁止项}
+sketch_sha: "71e883f37970"
 ---
 
 # 散落的字母聚成一句话 · scatter-assemble

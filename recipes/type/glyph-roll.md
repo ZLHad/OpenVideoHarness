@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [split-flap]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/glyph-roll/README.md, license: MIT, note: 参数（单字时长、错开、滚动距离、方向）和禁止项}
+sketch_sha: "b10aead3bb3d"
 ---
 
 # 字在槽里滚到下一个 · glyph-roll

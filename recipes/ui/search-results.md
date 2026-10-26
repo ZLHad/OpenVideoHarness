@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [type-and-filter]
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 02 Search → results 的结构和时序}
+sketch_sha: "c722f8fd3d67"
 ---
 
 # 搜索框展开出结果 · search-results

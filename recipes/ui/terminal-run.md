@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [diff-reveal]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/terminal-run/README.md, license: MIT, note: 时序和"不放编出来的成功数字"的禁止项}
+sketch_sha: "f1cc40af63d7"
 ---
 
 # 终端里敲命令出结果 · terminal-run

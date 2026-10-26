@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [underline-draw]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/handwriting-write-on/README.md, license: MIT, note: 参数（每笔时长、笔间停顿、线宽）和"走中心线"的禁止项}
+sketch_sha: "3ba8e13f9fc3"
 ---
 
 # 笔尖按笔顺写出来 · handwrite-on

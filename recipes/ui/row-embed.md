@@ -19,6 +19,7 @@ pairs_with: [portal-wipe]
 derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/ui-entrance/row-embed.md, license: Apache-2.0, note: 结构、判例}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/ui-entrance/row-embed/RowEmbed.tsx, license: Apache-2.0, note: 节拍、飞行姿态、补丁、强调色缝、相机}
+sketch_sha: "9b3e2eae7278"
 ---
 
 # 行嵌入 · row-embed

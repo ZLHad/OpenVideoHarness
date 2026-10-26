@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [highlight-sweep]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/word-emphasis/README.md, license: MIT, note: 参数（倍率、周围浓度、时长、起点）和禁止项}
+sketch_sha: "20af905203a5"
 ---
 
 # 句中一处变色放大，其余退后 · word-emphasis

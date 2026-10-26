@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [brand-imprint-open]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/tracking-reveal/README.md, license: MIT, note: 参数（时长、起始字距、透明度区间、缓动）和"不插值字距"的禁止项}
+sketch_sha: "1c5230930275"
 ---
 
 # 字距收拢成一个整体 · tracking-reveal

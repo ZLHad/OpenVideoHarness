@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [word-emphasis]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/strikethrough-replace/README.md, license: MIT, note: 参数（划线时长、停顿、新文出场、旧文浓度）和顺序规则}
+sketch_sha: "9f374d973203"
 ---
 
 # 划掉旧说法，换上新说法 · strike-replace

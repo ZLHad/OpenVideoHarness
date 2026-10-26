@@ -19,6 +19,7 @@ status: draft
 pairs_with: [accelerando-cuts]
 derived_from:
   - {repo: x.com/tkm_hmng8, path: status/2105255710531674358, license: none, note: 本仓库 2026-10-01 对这支 showreel 的逐帧测量；只取手法}
+sketch_sha: "d782dace1f9c"
 ---
 
 # 闪帧缝合 · flash-stitch

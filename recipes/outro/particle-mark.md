@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [brand-imprint-open, group-photo-launch]
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 16 Particle logo 的结构和时序}
+sketch_sha: "702666fa81c4"
 ---
 
 # 散点飞来拼成标志 · particle-mark

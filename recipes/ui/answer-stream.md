@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [chat-thread, doc-self-writing]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/answer-stream/README.md, license: MIT, note: 参数（组数、间隔、起始浓度、实化时长）和禁止项}
+sketch_sha: "b4664d68cfe8"
 ---
 
 # 回答按词组流出来 · answer-stream

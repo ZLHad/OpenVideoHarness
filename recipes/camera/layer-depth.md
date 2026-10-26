@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [row-embed]
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 13 Perspective shift 的结构和时序}
+sketch_sha: "74ec1da78d86"
 ---
 
 # 页面的几层拉开纵深 · layer-depth

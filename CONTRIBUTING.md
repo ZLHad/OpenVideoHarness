@@ -21,6 +21,7 @@
 5. 用户能感知到的改动，在 `CHANGELOG.md` 的 Unreleased 里记一笔。改了 `CLAUDE.md` 或 `tools/commands.json`，跑 `bin/vh sync-agents`：它按命令表写好 `CLAUDE.md` 的命令行，再重新生成 `AGENTS.md`。
 6. 提交信息写清改了什么、为什么。末尾可以带 `Co-Authored-By:` 署名行。
 7. PR 说明里写"其余都没问题"之前，把涉及的每个子命令真跑一遍。只改措辞的 PR 也要逐句查行为变没变（#62 的评审就查出过一条底线和类型文档的阅读范围被顺手改了）。
+8. 改了配方的草图（`recipes/` 里"实现"一节定义 `renderAt` 的那段代码），用 `bin/vh recipes sample <id> --draft` 重渲它的联系表：`bin/vh recipes check`（CI 也跑）要求有草图的配方都带联系表，而且 `sketch_sha` 对得上现在的草图。渲联系表要风格样片的渲染器：`styles/_swatch` 里 `npm ci`，再加 ffmpeg、uv 和 Chrome（`bin/vh doctor` 会说缺哪样）；CI 不渲，只核对。
 
 ## 加命令、加状态
 

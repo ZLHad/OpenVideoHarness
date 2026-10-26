@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [oversized-cursor]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/modal-lift/README.md, license: MIT, note: 时序和"不要同时重度模糊背景"的禁止项}
+sketch_sha: "89bf7968c663"
 ---
 
 # 对话框浮起 · modal-lift

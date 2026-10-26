@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [drag-drop]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/swipe-action-reveal/README.md, license: MIT, note: 时序和禁止项（不用动画假装执行了删除；停住给读的时间）}
+sketch_sha: "a8e88c64cec0"
 ---
 
 # 横滑露出操作 · swipe-reveal

@@ -17,6 +17,7 @@ qa: {peak: 20, settle: 60}
 status: tuned
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 04 Tabs → panels 的结构和时序}
+sketch_sha: "b6f9b7473f51"
 ---
 
 # 选中块拉伸着换标签 · tab-stretch

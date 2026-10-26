@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [doc-self-writing]
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 11 Text → layout 的结构和时序}
+sketch_sha: "5cfc1175af28"
 ---
 
 # 一行标题重排成整页 · text-to-layout

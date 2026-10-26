@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [chart-morph, spotlight-hero]
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 06 Dashboard zoom 的结构和时序}
+sketch_sha: "4e8e7c077f94"
 ---
 
 # 指标卡从仪表盘里浮出来 · kpi-lift

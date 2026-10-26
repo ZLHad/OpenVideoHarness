@@ -18,6 +18,7 @@ status: upstream-tested
 derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/typography/document-typewriter-reveal.md, license: Apache-2.0, note: 结构、判例、音效}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/ui-entrance/document-typewriter-reveal/DocumentTypewriterReveal.tsx, license: Apache-2.0, note: 写入节拍、遮罩、光标、侧栏、历史条目、相机}
+sketch_sha: "c3b326fbecef"
 ---
 
 # 文档自己写出来 · doc-self-writing

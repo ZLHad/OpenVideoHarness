@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [accelerando-cuts]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/word-relay/README.md, license: MIT, note: 参数（进场、停留、退场、最后一词）和禁止项}
+sketch_sha: "6f0ae6a52a91"
 ---
 
 # 大字接力 · word-relay

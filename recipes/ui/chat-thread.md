@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [answer-stream]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/chat-thread/README.md, license: MIT, note: 参数（出现时长、起始倍率、消息间隔、行高）和禁止项}
+sketch_sha: "23d0ee5fa620"
 ---
 
 # 对话一条条上来 · chat-thread

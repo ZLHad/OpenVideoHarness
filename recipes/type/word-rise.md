@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [breath-title-card, char-stagger]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/word-rise-fade/README.md, license: MIT, note: 参数（词间隔、单词时长、上浮距离、起始模糊）和按词组切的规则}
+sketch_sha: "0806c6a5e347"
 ---
 
 # 逐词上浮、去掉模糊 · word-rise

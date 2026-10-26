@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [oversized-cursor]
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 08 Magnetic dock 的结构和时序}
+sketch_sha: "9c8cf2d7d734"
 ---
 
 # 光标划过的放大坞 · magnetic-dock

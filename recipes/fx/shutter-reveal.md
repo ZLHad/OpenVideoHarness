@@ -17,6 +17,7 @@ qa: {peak: 30, settle: 60}
 status: tuned
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 12 Image reveal 的结构和时序}
+sketch_sha: "82033d51561d"
 ---
 
 # 百叶板收拢露出画面 · shutter-reveal

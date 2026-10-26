@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [highlight-sweep]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/underline-draw/README.md, license: MIT, note: 参数（时长、线宽、起点）和禁止项}
+sketch_sha: "98f3443e7429"
 ---
 
 # 一笔画出下划线 · underline-draw

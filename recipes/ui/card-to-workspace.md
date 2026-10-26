@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [button-to-player, portal-wipe]
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 03 Card → workspace 的结构和时序}
+sketch_sha: "473409e1e0f5"
 ---
 
 # 小卡展开成工作台 · card-to-workspace

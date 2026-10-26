@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [toast-stack]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/file-upload-stack/README.md, license: MIT, note: 时序和禁止项（完成前进度条不能到 100%；完成后停住）}
+sketch_sha: "61c99ea1f3e9"
 ---
 
 # 文件卡叠起来上传 · upload-stack

@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [hold-confirm]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/error-shake/README.md, license: MIT, note: 时序和"只摇出错的那个框，配一行说明"的禁止项}
+sketch_sha: "4ee7482b094f"
 ---
 
 # 错了就摇，改对了打勾 · error-shake

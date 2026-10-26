@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [kpi-lift, glass-focus]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/zoom-callout/README.md, license: MIT, note: 参数（放大倍数）和禁止项（放大的数和原处一致；连线指对地方）}
+sketch_sha: "5a1eba8b014f"
 ---
 
 # 小数值放进圆形放大框 · zoom-callout

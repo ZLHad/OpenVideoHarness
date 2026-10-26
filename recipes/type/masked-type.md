@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [brand-imprint-open]
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 09 Masked type 的结构和时序}
+sketch_sha: "a015629fc7b0"
 ---
 
 # 画面从字里涨上来 · masked-type

@@ -188,6 +188,7 @@ frontmatter 是 YAML 的一个严格子集：一行一个 `key: value`；值是�
 | `conflicts` | 否 | `[paparazzi-flash]` | 不能同片出现的配方；两边都要写 |
 | `pairs_with` | 否 | `[breath-title-card]` | 常和它搭配的配方 |
 | `impl` | 否 | `[showcase/04-intro-film/js/fx.js]` | 本仓库里已有的实现；`check` 会确认文件存在 |
+| `sketch_sha` | 否 | `"023b04a621bc"` | 联系表是照哪一版草图渲的：草图 sha256 的前 12 位，`bin/vh recipes sample` 写进来，不手填；`check` 拿它和现在的草图比 |
 
 骨架（`sequences/*.md`）用同一种格式，字段是 `id`、`kind: sequence`、`name`、`one_liner`、`duration_f`、`types`、`aspect`、`arc`（每一段的能量，如 `[1, 3, 4, 2, 5]`）、`uses`（用到的配方 id）、`status`、`derived_from`。`kind` 的取值是 `recipe`（缺省）或 `sequence`。
 
@@ -274,14 +275,14 @@ styles/_swatch/render.sh /tmp/try --draft --hud                         # → /t
 
 草图是 5 秒、30 fps（样片渲染器的固定长度），只为说明时序和结构，素材用灰盒代替。放进真实项目时，把灰盒换成截图，把时间换成分镜里的片内时间。
 
-**样片**：每张有草图的配方都带一张渲好的联系表，`<family>/media/<id>.jpg`（十格：验收帧和其间的时刻，`swiss-grid-type` 的皮），读配方前先看它，就知道这个动作长什么样。`bin/vh recipes list --json` 的 `sample` 字段给出路径。改了草图就重渲：
+**样片**：每张有草图的配方都带一张渲好的联系表，`<family>/media/<id>.jpg`（1600 px 宽，十格：验收帧和其间的时刻，`swiss-grid-type` 的皮），读配方前先看它，就知道这个动作长什么样。`bin/vh recipes list --json` 的 `sample` 字段给出路径。改了草图就重渲：
 
 ```bash
-bin/vh recipes sample <id> --draft                  # → <family>/media/<id>.jpg；视频留在 styles/_swatch/out/<id>/（不进 git）
-bin/vh recipes sample <id> --style risograph        # 换一张皮看看（会覆盖那张联系表，看完重渲回默认的皮）
+bin/vh recipes sample <id> --draft                  # → <family>/media/<id>.jpg，草图的 sha 写进 sketch_sha；视频留在 styles/_swatch/out/recipe-<id>/（不进 git）
+bin/vh recipes sample <id> --style risograph        # 换一张皮看看：联系表放在视频旁边，不动配方那张
 ```
 
-`bin/vh recipes check` 会查：有草图的配方都有联系表，每张联系表都有它的配方。
+草图没变就不重渲（`--force` 照渲）。`bin/vh recipes check` 会查：有草图的配方都有联系表，联系表是照现在的草图渲的（`sketch_sha`），每张不超过 120 kB、2000 px 宽，每张联系表都有它的配方；草图也要守硬规则 1（`tools/purity.py` 的那张表，和 `bin/vh hf add`、`bin/vh components check` 共用）。
 
 ## 写一张新配方
 

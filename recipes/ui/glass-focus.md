@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [kpi-lift]
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 14 Glass focus 的结构和时序}
+sketch_sha: "519bb25a14b4"
 ---
 
 # 玻璃透镜扫过模糊的报表 · glass-focus

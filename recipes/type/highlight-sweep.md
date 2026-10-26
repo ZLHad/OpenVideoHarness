@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [underline-draw, word-emphasis]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/highlight-sweep/README.md, license: MIT, note: 参数（时长、起点、色带高度、左右余量）和禁止项}
+sketch_sha: "2226e90c4e4d"
 ---
 
 # 荧光笔扫过关键词 · highlight-sweep

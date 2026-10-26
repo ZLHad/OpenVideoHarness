@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [breath-title-card]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/char-stagger/README.md, license: MIT, note: 参数（间隔、距离、单字时长）和禁止项}
+sketch_sha: "f34edcf80574"
 ---
 
 # 字按阅读顺序升起 · char-stagger

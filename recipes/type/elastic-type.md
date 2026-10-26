@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [breath-title-card]
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 10 Elastic type 的结构和时序}
+sketch_sha: "c0ccacdf62ce"
 ---
 
 # 字母站在同一条基线上拉伸 · elastic-type

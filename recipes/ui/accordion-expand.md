@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [card-to-workspace]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/accordion-expand/README.md, license: MIT, note: 时序和"先量高度"的禁止项}
+sketch_sha: "eb5bc28d94b5"
 ---
 
 # 折叠面板展开 · accordion-expand

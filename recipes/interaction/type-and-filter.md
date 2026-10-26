@@ -19,6 +19,7 @@ pairs_with: [flash-cut, portal-wipe, oversized-cursor]
 derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/interaction/type-and-filter.md, license: Apache-2.0, note: 结构、判例、音效位置}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/interaction/type-and-filter/TypeAndFilter.tsx, license: Apache-2.0, note: 打字速度、呼吸位、错峰退场、滑位、双圈点击、推进}
+sketch_sha: "4575cde95de3"
 ---
 
 # 打字筛选点进 · type-and-filter

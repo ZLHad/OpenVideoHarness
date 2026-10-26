@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [error-shake]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/hold-to-confirm/README.md, license: MIT, note: 时序和禁止项（中途松手不能显示完成；完成后停住）}
+sketch_sha: "00e544009e0b"
 ---
 
 # 按住确认 · hold-confirm

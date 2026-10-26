@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [word-rise]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/quote-card-build/README.md, license: MIT, note: 参数（引号、每行、行间、署名延迟、停留）和禁止项}
+sketch_sha: "eb73e678a0d3"
 ---
 
 # 引语卡按顺序搭起来 · quote-build

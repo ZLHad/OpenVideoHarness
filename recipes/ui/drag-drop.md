@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [oversized-cursor]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/drag-and-drop/README.md, license: MIT, note: 时序和"移动中原件和副本不能都不透明"的禁止项}
+sketch_sha: "1d7bf28a5c57"
 ---
 
 # 拖到新位置 · drag-drop

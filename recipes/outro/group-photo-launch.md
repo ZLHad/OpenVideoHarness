@@ -20,6 +20,7 @@ pairs_with: [brand-imprint-open]
 derived_from:
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: references/shots/outro/outro-group-photo-launch.md, license: Apache-2.0, note: 合影结构、判例、固定的收尾声音句式}
   - {repo: github.com/Vincentwei1021/video-shotcraft, commit: "e2d8928", path: demos/outro/outro-group-photo-launch/OutroGroupPhotoLaunch.tsx, license: Apache-2.0, note: 飞入、退后排、crane、氛围三件套、字标}
+sketch_sha: "6824e0f18a46"
 ---
 
 # 发布会合影 · group-photo-launch

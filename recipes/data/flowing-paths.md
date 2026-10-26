@@ -17,6 +17,7 @@ qa: {peak: 45, settle: 96}
 status: tuned
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 15 Flowing paths 的结构和时序}
+sketch_sha: "812d5153fb8e"
 ---
 
 # 光点沿路径流过节点 · flowing-paths

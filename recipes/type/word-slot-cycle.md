@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [glyph-roll]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/word-slot-cycle/README.md, license: MIT, note: 参数（停留、交换、距离、出场模糊）和"槽宽固定"的禁止项}
+sketch_sha: "b2db22149330"
 ---
 
 # 句子里一个槽轮换词 · word-slot-cycle

@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [oversized-cursor]
 derived_from:
   - {repo: github.com/gongnyang/awesome-ai-motion, commit: "1e3c249", path: effects/toggle-slide/README.md, license: MIT, note: 时序和"状态不只靠颜色"的禁止项}
+sketch_sha: "cdee1adb1d20"
 ---
 
 # 开关滑过去 · toggle-slide

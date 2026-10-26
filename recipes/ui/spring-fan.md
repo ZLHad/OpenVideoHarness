@@ -18,6 +18,7 @@ status: tuned
 pairs_with: [deal-to-grid]
 derived_from:
   - {repo: github.com/charlie947/motion-graphics-skills, commit: "229022e", path: skills/motion-effects/references/effects.md, license: MIT, note: 07 Spring stack 的结构和时序}
+sketch_sha: "126ec585f7f7"
 ---
 
 # 一摞卡弹簧扇开 · spring-fan
