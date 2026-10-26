@@ -304,19 +304,24 @@
         "templates/",
         "video-types/<type doc>",
         "the type's engine in engines/",
-        "styles/<preset>/ (--style)"
+        "styles/<preset>/ (--style)",
+        "<project>/BRIEF.md, STYLE.md, style-refs/, STORYBOARD.md, audio/*events*.json (--from)"
       ],
       "writes": [
         "projects/<date>-<slug>/ (or under --dir, $OVH_PROJECTS)"
       ],
       "usage": [
         {
-          "synopsis": "new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film] [--dir <folder>]",
+          "synopsis": "new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film] [--from <project>] [--dir <folder>]",
           "text": [
             "create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);",
             "--engine canvas-film: the narration-driven canvas engine instead, any type, 16:9 (engines/canvas-film/README.md);",
             "--aspect: short/promo/data/meme only (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only); --lang: the review pages' language (default zh; set it from the user's first request);",
-            "--dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness"
+            "--dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness;",
+            "--from <project>: the next episode of a series: that project's BRIEF spec, style and outline skeleton, STYLE.md,",
+            "style refs, recipes and sound effects carried over (its frame and engine too, unless given), its content left",
+            "behind; not its Budget, Effort or Director (each film's own: their values are said), nor its style when --style",
+            "is given; series.json says what came (tools/series.py)"
           ]
         }
       ]
