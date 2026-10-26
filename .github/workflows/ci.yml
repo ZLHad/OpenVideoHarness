@@ -41,7 +41,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: .github/workflows/ci.yml
       - name: Install check tools
-        timeout-minutes: 10   # half a minute as a rule, two when a mirror stalls; this only stops what the tries below cannot
+        timeout-minutes: 10   # half a minute as a rule, two when a mirror stalls; what the tries below cannot catch (dpkg) stops here
         run: |
           python3 -m pip install --quiet pyflakes
           if [ "$RUNNER_OS" = Linux ]; then
