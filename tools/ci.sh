@@ -1259,6 +1259,56 @@ PY
   rm -rf "$t"
 }
 
+series_checks() {   # bin/vh new --from: the next episode carries the earlier one's spec, style, outline skeleton, STYLE.md,
+  # style refs, recipes and sound effects, and its frame and engine unless given; its content is left behind
+  local t p q r a rc rc2 rc3
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  OVH_PROJECTS="$t" vh new short ep1 --aspect 16:9 --style risograph >/dev/null 2>&1; p=$(ls -d "$t"/*-ep1)
+  python3 - "$p" <<'PY'
+import json, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+b = (p / "BRIEF.md").read_text(encoding="utf-8")
+for old, new in (("- Output: 1920x1080, {fps} fps, exactly {N}s ({frames} frames)", "- Output: 1920x1080, 30 fps, exactly 60s (1800 frames)"),
+                 ("- Platform / audience: {where it plays, who watches, sound-on or muted}", "- Platform / audience: 横屏，泛科普，有声"),
+                 ("- Concept (one line): {", "- Concept (one line): 第一集的立意 {"),
+                 ("| 1 | {按内容起的段名} | {可不写：起 / 承 / 转 / 合} | {0–10 s} | {…} | {…} |", "| 1 | 冷开场设问 | 起 | 0–8 s | 一个问题 | 警笛 |\n| 2 | 回扣 | 合 | 8–60 s | 答案 | 街景 |")):
+    assert old in b, old
+    b = b.replace(old, new)
+(p / "BRIEF.md").write_text(b, encoding="utf-8")
+(p / "STYLE.md").write_text("# STYLE\n\n第一集定下的样子。\n", encoding="utf-8")
+(p / "STORYBOARD.md").write_text((p / "STORYBOARD.md").read_text(encoding="utf-8") + "\n| # | 配方 | 转场出 |\n|---|---|---|\n| A | black-card | flash-cut |\n| B | 自创 | 硬切 |\n", encoding="utf-8")
+(p / "audio" / "events.json").write_text(json.dumps([{"t": 1, "sfx": "whoosh"}, {"t": 2, "sfx": "click"}, {"t": 3, "sfx": "whoosh"}]), encoding="utf-8")
+PY
+  a=$(OVH_PROJECTS="$t" vh new short ep2 --from ep1 2>&1); rc=$?
+  OVH_PROJECTS="$t" vh new short ep3 --from ep1 --aspect 9:16 >/dev/null 2>&1; rc2=$?
+  OVH_PROJECTS="$t" vh new short ep4 --from no-such-project >/dev/null 2>&1; rc3=$?
+  q=$(ls -d "$t"/*-ep2 2>/dev/null); r=$(ls -d "$t"/*-ep3 2>/dev/null)
+  if [ "$rc:$rc2:$rc3" = 0:0:2 ] && [ -z "$(ls -d "$t"/*-ep4 2>/dev/null)" ] && printf '%s' "$a" | grep -q "frame    : 1920x1080" && python3 - "$p" "$q" "$r" <<'PY'
+import json, sys
+from pathlib import Path
+p, q, r = (Path(x) for x in sys.argv[1:4])
+s = json.loads((q / "series.json").read_text(encoding="utf-8"))
+b2, b3 = (q / "BRIEF.md").read_text(encoding="utf-8"), (r / "BRIEF.md").read_text(encoding="utf-8")
+ok = s["v"] == 1 and Path(s["from"]) == p.resolve() and s["recipes"] == ["black-card", "flash-cut"] and s["unknown"] == ["硬切", "自创"]
+ok = ok and s["sfx"] == {"whoosh": 2, "click": 1} and s["style"] and s["style_refs"] == ["risograph"] and s["outline"] == 2
+ok = ok and "- Output: 1920x1080, 30 fps, exactly 60s (1800 frames)" in b2 and "- Platform / audience: 横屏，泛科普，有声" in b2 and "- Watch on: desktop" in b2
+ok = ok and "第一集的立意" not in b2 and "| 1 | {…} | 起 | 0–8 s | {…} | {…} |" in b2 and "Style refs (repo presets): `styles/risograph`" in b2
+ok = ok and (q / "STYLE.md").read_text(encoding="utf-8") == "# STYLE\n\n第一集定下的样子。\n" and (q / "style-refs" / "risograph").is_dir()
+ok = ok and "配方 black-card、flash-cut；音效 whoosh ×2、click ×1" in (q / "STORYBOARD.md").read_text(encoding="utf-8")
+ok = ok and "沿用 `" + p.name + "`" in (q / "DECISIONS.md").read_text(encoding="utf-8") and not (q / "audio" / "events.json").exists()
+ok = ok and "- Output: 1080x1920, 30 fps, exactly 60s (1800 frames)" in b3 and "- Watch on: phone" in b3   # --aspect given: its frame, the rest carried
+sys.exit(0 if ok else 1)
+PY
+  then ok "new --from: the next episode gets the earlier one's frame, spec, style section, outline skeleton, STYLE.md, style refs, recipes and sound effects (series.json), not its content; an option given now wins; a project that is not there is a usage error and leaves nothing"
+  else bad "new --from (exits $rc:$rc2:$rc3): $(printf '%s' "$a" | tail -c 300)"; fi
+  OVH_PROJECTS="$t" vh new short cf1 --engine canvas-film >/dev/null 2>&1; OVH_PROJECTS="$t" vh new short cf2 --from cf1 >/dev/null 2>&1; rc=$?
+  q=$(ls -d "$t"/*-cf2 2>/dev/null)
+  if [ "$rc" = 0 ] && [ -f "$q/ENGINE_README.md" ] && grep -q '^- Engine: canvas-film' "$q/BRIEF.md"; then ok "new --from a canvas-film project: the episode is canvas-film too"
+  else bad "new --from a canvas-film project (exit $rc)"; fi
+  rm -rf "$t"
+}
+
 decision_checks() {
   local t p a rc out
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
@@ -3974,11 +4024,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

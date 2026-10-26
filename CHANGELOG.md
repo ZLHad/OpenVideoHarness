@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`bin/vh new … --from <project>`: the next episode of a series starts from the last one**
+- Why: every film started from the templates, so a second episode chose its frame, look, pace, recipes and sounds all over again. A full series pack (SERIES.md, cast/, pilot/) waits for a two-episode pilot; this is its smallest form (plan 4.7, decision 15).
+- `--from <project>` makes the project the usual way, then carries over what stays the same from one episode to the next: the BRIEF's Spec lines (effort, budget, assets, output with its fps and length, watch on, pace, resolution, platform, language, deliverables), its Style, Text rules and Process sections, the Outline's rows with their labels and times (the content cells emptied), STYLE.md, the attached style presets, and the earlier project's frame and engine (canvas-film) unless given now. The recipes its storyboard names, the components its files use and the sound effects its event lists place go into `series.json` and one line at the top of STORYBOARD.md; DECISIONS.md says where the episode comes from. The concept, specifics, spine, storyboard, notes, audio and assets are left behind; the earlier project is only read.
+
 **CI: the Linux install step gets past a stalled mirror**
 - Why: on 2026-10-25 and 26 `apt-get install shellcheck ffmpeg` took 10 to 30 minutes instead of half a minute, six times, and two jobs failed at the step's limit. A probe of 40 installs put the time in the download from the runner's regional Azure Ubuntu mirror (westus3 above all); `apt-get update` and dpkg were never slow. GitHub knows it: actions/runner-images#14823, still open.
 - The step now runs `apt-get update` and a download-only install with 60 s each, then dpkg on the files it has. A try that runs over is killed and the next one goes to archive.ubuntu.com instead of the regional mirror; what was downloaded is kept. Up to three tries, then the step fails. In the probe every install that stalled finished in under two minutes.
