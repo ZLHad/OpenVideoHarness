@@ -6,7 +6,8 @@ The record is saved in the video's project, out/check/<name>.check.json: <name> 
 extension, after the folders between out/ and it ("out/review/sketch.mp4" → review-sketch); a video outside a project gets
 no record. --print writes it to stdout too. It never changes what bin/vh check decided: --exit is its status.
 --remedies: the ways out of what was found (tools/remedies.json: a recipe filter, a command or a doc for each kind) on
-stderr, after the checks' own lines; each finding in the record carries them as "remedies" whether or not it is given.
+stdout, after the checks' own lines (on stderr with --print, whose stdout is the record); each finding in the record carries
+them as "remedies" whether or not it is given.
 
 {"version": 1, "tool": "bin/vh check", "video", "project", "record", "t", "at", "size", "mtime_ns", "args": {"allow", "against"},
  "exit", "verdict": "pass" | "fail", "counts": {"fail", "warn", "info"}, "probe": {"duration", "size", "streams"},
@@ -267,8 +268,9 @@ def main():
         if r:
             f["remedies"] = r
     if a.remedies:
+        out = sys.stderr if a.print else sys.stdout   # with --print, stdout is the record: the ways out go beside it
         for line in remedies.lines(findings):
-            print(line, file=sys.stderr)
+            print(line, file=out)
     counts = {s: sum(f["severity"] == s for f in findings) for s in ("fail", "warn", "info")}
     iso = load(a.dir, "iso.json") or {}
     motion = {"moving": iso.get("moving"), "still_share": iso.get("still_share"), "cuts": len(iso.get("cuts") or [])} if "moving" in iso else None

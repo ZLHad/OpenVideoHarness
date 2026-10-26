@@ -993,7 +993,7 @@ cmd_check() {
   elif [ -n "$json" ]; then
     python3 "$ROOT/tools/checkrec.py" "${ra[@]}" --print --remedies >&3 \
       || printf '{"version": 1, "tool": "bin/vh check", "exit": %s, "verdict": "%s", "error": "the record could not be made"}\n' "$status" "$([ $status = 0 ] && echo pass || echo fail)" >&3
-  else { python3 "$ROOT/tools/checkrec.py" "${ra[@]}" --remedies >/dev/null; } 2>&1 || true; fi   # the ways out (tools/remedies.json) on the lines
+  else python3 "$ROOT/tools/checkrec.py" "${ra[@]}" --remedies || true; fi   # the ways out (tools/remedies.json) after the lines, on stdout; its errors stay on stderr
   return $status
 }
 cmd_tts() {

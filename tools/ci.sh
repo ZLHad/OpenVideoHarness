@@ -134,6 +134,12 @@ doc_checks() {
   # the ways out of a check's findings (tools/remedies.json): each kind checkrec.py writes, each run a real command, each
   # recipe filter finding a recipe, each doc there
   if out=$(python3 tools/remedies.py check 2>&1); then ok "$out"; else echo "$out"; bad "tools/remedies.json"; fi
+  # checkrec.py's docstring reworded so its kinds cannot be found: a sentence, not a traceback
+  rk=$(mktemp -d "${TMPDIR:-/tmp}/vh-rk.XXXXXX"); sed 's/^  kind      /  kinds:    /' tools/checkrec.py > "$rk/checkrec.py"; cp tools/commands.json "$rk/"
+  out=$(python3 -c 'import pathlib, sys; sys.path.insert(0, "tools"); import remedies; remedies.HERE = pathlib.Path(sys.argv[1]); print("\n".join(remedies.check()))' "$rk" 2>&1)
+  case "$out" in *"its docstring has no"*) ok "tools/remedies.py: a checkrec.py docstring it cannot read is said in a sentence" ;;
+    *) bad "tools/remedies.py on a reworded docstring: $out" ;; esac
+  rm -rf "$rk"
   # the table of outside modules (tools/modules.json): its own rules (commands that exist, adapters in the repo, keys as
   # variable names, probes over https with the key in a header), and its HyperFrames pin the one bin/vh and styles/_swatch install
   if out=$(python3 tools/doctor.py --check 2>&1) && python3 - <<'PY'

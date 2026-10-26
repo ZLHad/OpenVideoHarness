@@ -51,9 +51,12 @@ def lines(findings):
 
 
 def checkrec_kinds():
+    """The kinds tools/checkrec.py writes, read from its docstring's kind paragraph; None when that paragraph is not found."""
     doc = (HERE / "checkrec.py").read_text(encoding="utf-8")
-    block = doc[doc.index("kind      "):doc.index("severity  ")]
-    return set(re.findall(r"\bcheck\.[a-z]+", block))
+    a, b = doc.find("kind      "), doc.find("severity  ")
+    if a < 0 or b < a:
+        return None
+    return set(re.findall(r"\bcheck\.[a-z]+", doc[a:b]))
 
 
 def heading_slugs(path):
@@ -72,7 +75,11 @@ def check():
     t = table()
     if t.get("version") != 1 or not isinstance(t.get("kinds"), dict):
         return ["tools/remedies.json: version 1 and a kinds object"]
-    known = checkrec_kinds() | set(t.get("kinds_to_come") or {})
+    kinds = checkrec_kinds()
+    if kinds is None:   # a sentence, not a traceback, when checkrec.py's docstring is reworded
+        bad.append("tools/checkrec.py: its docstring has no `kind      …` paragraph before `severity  `, where the kinds of finding are listed")
+        kinds = set()
+    known = kinds | set(t.get("kinds_to_come") or {})
     cmds = {c["name"] for c in json.loads((HERE / "commands.json").read_text(encoding="utf-8"))["commands"]}
     for kind, entries in t["kinds"].items():
         if kind not in known:
