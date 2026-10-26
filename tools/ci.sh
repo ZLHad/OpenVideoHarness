@@ -1915,6 +1915,53 @@ PY
   if ! kill -0 $pid 2>/dev/null && grep -q 'no request for 1 s, stopped' "$t/idle.out" && [ ! -e "$t/gs/out/review/.desk.json" ]; then ok "desk --idle: a desk nobody asks anything stops by itself"
   else kill $pid 2>/dev/null; bad "desk --idle 1: $(cat "$t/idle.out")"; fi
 }
+concept_checks() {   # bin/vh concept: the roulette (seeded by the project's name, what the project has and --not left out)
+  # and the six-then-three board (pillow through uv: the same bytes for the same input)
+  local t p a b c rc rc2 rc3
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  OVH_PROJECTS="$t" vh new short roul --style risograph >/dev/null 2>&1; p=$(ls -d "$t"/*-roul)
+  a=$(vh concept roulette "$p" --from styles,sequences,levers --n 3 --json 2>/dev/null); rc=$?
+  b=$(vh concept roulette "$p" --from styles,sequences,levers --n 3 --json 2>/dev/null); rc2=$?
+  c=$(vh concept roulette "$p" --from styles --reroll 1 --json 2>/dev/null); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 0:0:0 ] && [ "$a" = "$b" ] && python3 - "$a" "$c" "$(vh concept roulette "$p" --from styles --json 2>/dev/null)" \
+      "$(vh concept roulette "$p" --from styles --not "$(printf '%s' "$c" | python3 -c 'import json,sys; print(json.load(sys.stdin)["picks"][0]["id"])')" --reroll 1 --json 2>/dev/null)" <<'PY'
+import json, sys
+a, c, first, without = (json.loads(x) for x in sys.argv[1:5])
+ok = a["seed"] == "roul" and [p["pool"] for p in a["picks"]] == ["styles", "sequences", "levers"] and all(p["name"] and p["path"] for p in a["picks"])
+ok = ok and "styles/risograph" in a["left_out"] and all(p["id"] != "risograph" for p in a["picks"])
+ok = ok and c["reroll"] == 1 and c["picks"][0]["id"] != first["picks"][0]["id"]
+ok = ok and without["picks"][0]["id"] not in (c["picks"][0]["id"], "risograph")
+sys.exit(0 if ok else 1)
+PY
+  then ok "concept roulette: the same draw for the same project (its name the seed), one from each pool, a style the project attached and --not left out, --reroll the next one"
+  else bad "concept roulette (exits $rc:$rc2:$rc3): $(printf '%s' "$a$c" | tail -c 400)"; fi
+  if command -v uv >/dev/null 2>&1; then
+    mkdir -p "$p/cards"
+    for i in 1 2 3; do python3 -c "import struct,zlib,sys
+w,h=$((32*i)),18
+raw=b''.join(b'\x00'+bytes([40*$i,90,160])*w for _ in range(h))
+c=lambda t,d: struct.pack('>I',len(d))+t+d+struct.pack('>I',zlib.crc32(t+d))
+sys.stdout.buffer.write(b'\x89PNG\r\n\x1a\n'+c(b'IHDR',struct.pack('>IIBBBBB',w,h,8,2,0,0,0))+c(b'IDAT',zlib.compress(raw))+c(b'IEND',b''))" > "$p/cards/c$i.png"; done
+    printf '{"candidates": [{"id": "A", "title": "时间放大镜", "image": "cards/c1.png", "source": "designer", "note": "读数常驻"}, {"id": "B", "title": "证据桌", "image": "cards/c2.png", "source": "screenshot"}, {"id": "C", "title": "孔版", "image": "c3.png", "source": "library"}, {"id": "D", "title": "没有图", "source": "roulette"}]}' > "$p/cards/four.json"
+    a=$(vh concept board "$p" "$p/cards/four.json" --pick A,C --json 2>/dev/null); rc=$?
+    cp "$p/out/check/concept-board.png" "$t/b1.png"; vh concept board "$p" "$p/cards/four.json" --pick A,C >/dev/null 2>&1
+    printf '{"candidates": [{"id": "A", "image": "cards/nope.png", "source": "designer"}, {"id": "B", "source": "other"}]}' > "$p/cards/miss.json"
+    b=$(vh concept board "$p" "$p/cards/miss.json" --out "$t/m.png" 2>&1); rc2=$?
+    printf '{"candidates": [{"id": "A", "source": "magazine"}, {"id": "B"}]}' > "$p/cards/bad.json"
+    vh concept board "$p" "$p/cards/bad.json" >/dev/null 2>&1; rc3=$?
+    vh concept board "$p" "$p/cards/four.json" --pick Z >/dev/null 2>&1 || rc3="$rc3:$?"
+    if [ "$rc:$rc2:$rc3" = 0:1:2:2 ] && cmp -s "$t/b1.png" "$p/out/check/concept-board.png" && [ -s "$t/m.png" ] \
+        && printf '%s' "$b" | grep -q "A: no cards/nope.png" && python3 -c "import json,sys; d=json.loads(sys.argv[1]); sys.exit(0 if d['sources']=={'designer':1,'screenshot':1,'library':1,'roulette':1} and d['picked']==['A','C'] else 1)" "$a"
+    then ok "concept board: candidates with their pictures (from the project or the JSON's folder) and sources counted, the picked ones framed, the same bytes twice; a missing picture is drawn as such and exits 1; an unknown source or pick is a usage error"
+    else bad "concept board (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b" | tail -c 400)"; fi
+  else skip "concept board" "no uv"; fi
+  rc=0; for x in "concept" "concept bogus" "concept roulette" "concept board $p" "concept roulette $p --from nothing" "concept roulette $p --n 0"; do
+    # shellcheck disable=SC2086
+    a=$(vh $x 2>/dev/null); b=$?; [ "$b" = 2 ] && [ -z "$a" ] || { rc=1; bad "bin/vh $x: exit $b, stdout ${a:0:80}"; }
+  done
+  [ "$rc" = 1 ] || ok "concept: usage errors exit 2, nothing on stdout"
+  rm -rf "$t"
+}
 
 # bin/vh status: a new standard project works towards gate ①; a page out waits for the person; a desk submission waits for
 # the agent until it is handed over and REVIEW.md has its decision, and then the next gate is in progress; a Director stop
@@ -3974,11 +4021,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; concept_checks; textcheck_checks; film_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; concept_checks; textcheck_checks; film_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

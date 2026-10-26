@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Optional parts for the concept cards: `bin/vh concept roulette` and `board`, and a card on spreading three proposals**
+- Why: the concept cards often came out as three variants of one idea, and a person choosing among them had no sense of what each would cost to render or what was left out. The v0.4 plan's roulette card (E5) and the six-then-three page were never built.
+- `playbook/ideation-extras.md`, read when it helps: three proposals spread as safe / another picture language / another way of telling, compared on the same key shot; a 2–4 s motion sample in place of a still when the motion is the point; a render estimate per card (a frame's time × frames × 1.3, measured with `render --estimate`); the six-then-three page; the roulette card. None changes what gate ① hands over. playbook/12 §7 gets one line pointing to it.
+- `bin/vh concept roulette <project>`: a style preset, a whole-film skeleton or a lever of playbook/12 §3, drawn with the project's name as the seed (the same draw every time; `--reroll K` the K-th, to be said in DECISIONS.md), leaving out the styles the project attached and what `--not` names.
+- `bin/vh concept board <project> <candidates.json>`: up to nine candidate directions on one page, a picture and a line each, their sources counted, the picked ones framed; the same bytes for the same input.
+
 **CI: the Linux install step gets past a stalled mirror**
 - Why: on 2026-10-25 and 26 `apt-get install shellcheck ffmpeg` took 10 to 30 minutes instead of half a minute, six times, and two jobs failed at the step's limit. A probe of 40 installs put the time in the download from the runner's regional Azure Ubuntu mirror (westus3 above all); `apt-get update` and dpkg were never slow. GitHub knows it: actions/runner-images#14823, still open.
 - The step now runs `apt-get update` and a download-only install with 60 s each, then dpkg on the files it has. A try that runs over is killed and the next one goes to archive.ubuntu.com instead of the regional mirror; what was downloaded is kept. Up to three tries, then the step fails. In the probe every install that stalled finished in under two minutes.
