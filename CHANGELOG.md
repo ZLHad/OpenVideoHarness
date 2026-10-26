@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**A target image and a critic for the keyframes nobody is sure of**
+- Why: batch 1, line B. The loop of dream-loop (achimala/dream-loop, MIT): before building a hard shot, make a picture of what it should look like; once it renders, a critic in a fresh context compares the two side by side.
+- `playbook/target-critic.md`, a card read when used: when (`studio`'s hook and climax, shots marked unsure; not for type, numbers or real people), where the target comes from (a reference, a reference film's frame, a swatch, a grey box completed by an image model, or image generation under the budget floor), how the critic compares (one side-by-side image, the shot's reads, at most three differences that change the read, each with a fix; matching is a valid answer; invented text and numbers are not compared; the film may depart from the target on purpose), and when to stop (three rounds a shot).
+- playbook/02 gains one sentence pointing to it; nothing else is added to what every film reads (CONTRIBUTING, 四个绑定点).
+
 **`bin/vh render --alpha`: a transparent film, to lay over footage**
 - Why: batch 1, line B. `bin/vh render` wrote x264 only, so motion drawn in code could not go over real footage or into an editor (type 09, the B-roll overlays).
 - `--alpha`: each browser's default background is made transparent, frames are captured as PNG with their alpha, and the film is ProRes 4444 with alpha (`prores_ks`, 4:4:4, a 16-bit alpha, BT.709 matrix, primaries and transfer) in a `.mov`, by default `<project>/out/<page>.mov`. Chunks, workers and resuming work as for x264; the disk estimate allows for ProRes's size.
