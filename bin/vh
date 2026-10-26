@@ -452,8 +452,8 @@ PY
 
 cmd_new() {
   local x; for x in "$@"; do case "$x" in -h|--help) cmd_usage new; return ;; esac; done   # also as the slug or among the options: not a name for a folder
-  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film] [--dir <folder>]" >&2; cmd_types >&2; exit 2; }
-  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine=""; doc=$(type_doc "$type") || { echo "unknown type: $type" >&2; cmd_types >&2; exit 2; }
+  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film] [--from <project>] [--dir <folder>]" >&2; cmd_types >&2; exit 2; }
+  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine="" from="" fromdir="" given="" fromsaid="" eff=""; doc=$(type_doc "$type") || { echo "unknown type: $type" >&2; cmd_types >&2; exit 2; }
   local typed=("$@"); act_now; ACT_T0=$ACT_NOW   # the run goes into the new project's activity log once it is made
   shift 2
   needv() { [ "$1" -ge 2 ] && [ -n "$2" ] || { echo "$3" >&2; exit 2; }; }   # needv $# "${2:-}" <message>: an option's value, or a usage error
@@ -466,8 +466,22 @@ cmd_new() {
     --res)    needv $# "${2:-}" "--res needs 1080p or 4k"; outres=$2; shift 2 ;;
     --lang)   needv $# "${2:-}" "--lang needs zh or en"; lang=$2; shift 2 ;;
     --engine) needv $# "${2:-}" "--engine needs canvas-film (engines/canvas-film/README.md)"; engine=$2; shift 2 ;;
+    --from)   needv $# "${2:-}" "--from needs a project (a folder, or a name under the projects folder)"; from=$2; shift 2 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac; done
+  if [ -n "$from" ]; then   # an episode of a series: the earlier project's frame and engine unless given now (tools/series.py carries the rest)
+    fromdir=$(project_dir "$from") || exit 2
+    [ -f "$fromdir/BRIEF.md" ] || { echo "--from: $fromdir is not a project (no BRIEF.md)" >&2; exit 2; }
+    for x in aspect:"$aspect" watch:"$watch" res:"$outres" lang:"$lang" effort:"$effort" engine:"$engine" style:"$style"; do [ -z "${x#*:}" ] || given="$given${given:+,}${x%%:*}"; done
+    [ -n "$engine" ] || ! grep -q '^- Engine: canvas-film' "$fromdir/BRIEF.md" || engine=canvas-film
+    if [ -z "$aspect" ] && [ -z "$engine" ]; then
+      case "$type:$(sed -n 's/^- Output: \([0-9]*x[0-9]*\).*/\1/p' "$fromdir/BRIEF.md" | head -1)" in
+        short:1920x1080|promo:1920x1080|data:1920x1080|meme:1920x1080) aspect=16:9 ;; short:1080x1920|promo:1080x1920|data:1080x1920|meme:1080x1920) aspect=9:16 ;;
+        short:1080x1080|promo:1080x1080|data:1080x1080|meme:1080x1080) aspect=1:1 ;; short:1080x1350|promo:1080x1350|data:1080x1350|meme:1080x1350) aspect=4:5 ;;
+        short:1080x1440|promo:1080x1440|data:1080x1440|meme:1080x1440) aspect=3:4 ;;
+      esac
+    fi
+  fi
   case "$lang" in ""|zh|en) ;; *) echo "unknown --lang: $lang (zh | en: the language of the review pages, from the user's first request)" >&2; exit 2 ;; esac
   case "$engine" in ""|canvas-film) ;; *) echo "unknown --engine: $engine (canvas-film; leave it out for the type's own engine)" >&2; exit 2 ;; esac
   local s styles=""; if [ -n "$style" ]; then styles=$(parse_styles "$style") || { cmd_style list >&2; exit 2; }; fi
@@ -572,18 +586,22 @@ PY
     meme) sedi "s/^- Pace: normal /- Pace: brisk /" "$dir/BRIEF.md" ;;
   esac
   for s in $styles; do attach_style "$dir" "$s"; done   # presets as references: copies in style-refs/, listed in BRIEF, a DECISIONS line
+  if [ -n "$fromdir" ]; then fromsaid=$(python3 "$ROOT/tools/series.py" carry "$fromdir" "$dir" --given "$given") || exit 1; fi   # the lines to show
+  eff=$(sed -n 's/^- Effort: \([a-z]*\).*/\1/p' "$dir/BRIEF.md" | head -1); eff=${eff:-${effort:-standard}}   # as the BRIEF has it now
   NEW_DIR=""
-  ACT_SUMMARY="created ${dir##*/} · $type · ${effort:-standard}"; act_begin "$dir" new "${typed[@]}" || true
+  ACT_SUMMARY="created ${dir##*/} · $type · $eff"; act_begin "$dir" new "${typed[@]}" || true
   echo "$c_ok created $(rel "$dir")"
   echo "   type doc : video-types/$doc.md"
   local fdesc="${frameh:+$aspect, }$res"   # empty for the types whose engine is not scaffolded here (math, paper, handdrawn, mv, edit)
   [ -n "$wh" ] && echo "   frame    : $wh${fdesc:+ ($fdesc)}"
   echo "   watch on : $watch · ${outres:-1080p}  (text-size floor and readability check: playbook/03 §4)"
   [ -n "$styles" ] && echo "   style ref: $(printf '%s\n' $styles | sed 's|^|styles/|' | paste -sd, - | sed 's/,/, /g') (copies in style-refs/; references, not rules: note in DECISIONS.md what each lends)"
-  echo "   effort   : ${effort:-standard}  (bin/vh effort ${effort:-standard} shows what that means)"
+  [ -n "$fromdir" ] && echo "   from     : $(rel "$fromdir"): its BRIEF's spec (not its budget, effort or director)$([ -n "$style" ] || printf ', style'), outline skeleton,$([ -n "$style" ] || printf ' STYLE.md,') recipes and sound (series.json); the content left behind"
+  [ -n "$fromsaid" ] && printf '%s\n' "$fromsaid"
+  echo "   effort   : $eff  (bin/vh effort $eff shows what that means)"
   echo "   review in: ${lang:-zh}  (the review pages' language: --lang en for an English-speaking user)"
   echo "   next     : open Claude Code in the repo root and say what the video is about;"
-  case "${effort:-standard}" in
+  case "$eff" in
     quick) echo "              the agent fills $(rel "$dir")/BRIEF.md and renders straight through; it stops only for what you say you'll decide." ;;
     studio) echo "              the agent fills $(rel "$dir")/BRIEF.md and STORYBOARD.md and stops for your review (concept and outline, storyboard, first draft)"
             echo "              in the review desk (bin/vh desk): tick, comment and submit in the page, and it carries on." ;;
