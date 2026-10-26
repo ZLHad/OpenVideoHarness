@@ -3,10 +3,10 @@
 usage (via bin/vh tts): python tools/audio/tts.py <project_dir> [--provider qwen] [--voice V] [--lang zh|en]
                                                  [--gap 0.25] [--instruct "calm, warm"]
                                                  [--beats music.beats.json [--snap beat|half|downbeat]] [--lead 0.0]
-                                                 [--align gemini [--min-sim 0.85] [--vocab "术语,Term"]]
+                                                 [--align gemini|local [--min-sim 0.85] [--vocab "术语,Term"]]
                                                  [--join none|block|all [--candidates N]] [--resume]
        (via bin/vh voices): python tools/audio/tts.py voices list [lang] | design "<description>" | delete <voice_id>
-                            | audition --provider P --voices a,b,c --text f.txt [--lang zh|en] [--align gemini] [--out dir]
+                            | audition --provider P --voices a,b,c --text f.txt [--lang zh|en] [--align gemini|local] [--out dir]
 
 Input  <project>/audio/script.txt — one spoken line per row (a line = one caption / cue unit).
        Blank lines and '#' comments are ignored. Optional id prefix "@hook ".
@@ -56,6 +56,12 @@ Alignment check (--align gemini, any provider): every line is transcribed by gem
        word timestamps, so it cannot be used in the timing pass. ASR timestamps come in 0.1 s steps; numbers may come
        back normalised ("二十六" → "26"), which lowers similarity without being an error. GEMINI_ASR_MODEL,
        GEMINI_ASR_LANGS (default cmn-Hans-CN / en-US) override the model and language hints.
+       --align local: the same check with a local Whisper (mlx-whisper on Apple Silicon; WHISPER_MODEL, default
+       mlx-community/whisper-large-v3-turbo, the one bin/vh pace --align whisper uses): no key, no daily quota (Gemini's
+       transcription allows 100 calls a day on Tier 1), word times in Whisper's own steps; a flagged line is checked again
+       with the vocabulary as Whisper's initial prompt. bin/vh tts adds mlx-whisper with --align local. With either
+       engine, digits heard where the script spells their reading digit by digit (1953 for 一九五三) count as that
+       reading: Whisper writes years so.
        The key is checked before anything is synthesized. The voiceover and timeline are written right after synthesis,
        so a transcribe call that fails for good (a daily quota, the network, a bad file) cannot lose the take: the line
        keeps its measured timing and gets asr {"error"}, the command exits 1, and --resume continues that run: it
@@ -137,7 +143,7 @@ Providers (API keys come from environment variables only, never from files):
 """
 import argparse, base64, difflib, hashlib, json, os, re, shutil, subprocess, sys, tempfile, time, unicodedata
 import urllib.error, urllib.parse, urllib.request, wave
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 
 SR = 48000
@@ -743,9 +749,27 @@ def align_lines(texts, asr_words, dur, alts=None):
     res[-1]["tail"] = round(dur - asr_words[-1]["end"] if asr_words else dur, 2)
     return res
 
+ASR = {"engine": "gemini"}   # --align local makes it "local": every transcription of the run is Whisper's then
+
+
+def transcribe_local(wav: Path, lang, vocab=None):
+    """A local Whisper (mlx-whisper) on one file → (text, [{"w","start","end"}]), as transcribe gives them. With vocab,
+    the terms go into Whisper's initial prompt (it has no custom vocabulary)."""
+    import mlx_whisper   # bin/vh tts adds it with --align local
+    prompt = ("，".join(vocab) if vocab else None) or None
+    r = mlx_whisper.transcribe(str(wav), path_or_hf_repo=os.environ.get("WHISPER_MODEL", "mlx-community/whisper-large-v3-turbo"),
+                               word_timestamps=True, language=lang if lang in ("zh", "en", "ja", "ko") else None, condition_on_previous_text=False,
+                               initial_prompt=prompt)
+    words = [{"w": w["word"].strip(), "start": float(w["start"]), "end": float(w["end"])}
+             for sg in r.get("segments", []) for w in sg.get("words", []) if str(w.get("word", "")).strip()]
+    return str(r.get("text", "")).strip(), words
+
+
 def transcribe(wav: Path, lang, tmp: Path, vocab=None):
     """gemini-3.5-transcribe on one file → (text, [{"w","start","end"}]). Timestamps and custom_vocabulary exclude
-    each other in the API, so a vocab call returns text only."""
+    each other in the API, so a vocab call returns text only. Under --align local, Whisper's (transcribe_local)."""
+    if ASR["engine"] == "local":
+        return transcribe_local(wav, lang, vocab)
     small = tmp / f"asr-{wav.stem}.wav"                     # 16 kHz mono: ≈ 10 min fits the 20 MB inline request limit
     run(["ffmpeg", "-v", "error", "-y", "-i", str(wav), "-ac", "1", "-ar", "16000", str(small)])
     cfg = {"language_codes": [c for c in os.environ.get("GEMINI_ASR_LANGS", ASR_LANGS.get(lang, "")).split(",") if c]}
@@ -767,6 +791,32 @@ def transcribe(wav: Path, lang, tmp: Path, vocab=None):
             words += [{"w": an.get("text", ""), "start": sec(an["start_offset"]), "end": sec(an.get("end_offset", an["start_offset"]))}
                       for an in c.get("annotations") or [] if an.get("type") == "word_info" and "start_offset" in an]
     return "".join(texts).strip(), words
+
+DIGIT_READ = "零一二三四五六七八九"
+
+def as_read(heard, script):
+    """Digits heard where the script spells their reading digit by digit (1953 for 一九五三, 2026 for 二〇二六): that
+    reading, so the alignment and the similarity compare like with like. Whisper writes years so, and an alignment that
+    misses them can start the line late (a 2026-10 film lost its first character). Other numbers stay as heard."""
+    def read(m):
+        for zero in "零〇":
+            r = "".join(zero if d == "0" else DIGIT_READ[int(d)] for d in m.group())
+            if r in script:
+                return r
+        return m.group()
+    return re.sub(r"[0-9]+", read, heard) if heard and script else heard
+
+def heard_as_read(txt, ws, script):
+    """as_read on a transcript's text and on each of its words."""
+    return as_read(txt, script), [dict(w, w=as_read(w["w"], script)) for w in ws or []]
+
+def need_local_asr():
+    """--align local: mlx-whisper importable here (Apple Silicon), or the run stops before anything is synthesized."""
+    import importlib.util
+    if importlib.util.find_spec("mlx_whisper") is None:
+        sys.exit("--align local needs mlx-whisper (Apple Silicon; bin/vh tts adds it with --align local): or --align gemini")
+    ASR["engine"] = "local"
+
 
 def vocab_terms(texts, extra=""):
     """Terms for the custom-vocabulary re-check: Latin words in Chinese lines; names, acronyms, CamelCase and tokens
@@ -919,7 +969,7 @@ def voices_main(argv):
     au.add_argument("--text", required=True, help="a text file: what every voice reads (tags as in script.txt)")
     au.add_argument("--lang", choices=["zh", "en"], help="default: zh when the text has Chinese, else en")
     au.add_argument("--instruct", help="one delivery direction for every voice (gemini, qwen 1.7B)")
-    au.add_argument("--align", default="none", choices=["none", "gemini"], help="transcribe each take: what it disagrees with in the text")
+    au.add_argument("--align", default="none", choices=["none", "gemini", "local"], help="transcribe each take: what it disagrees with in the text")
     au.add_argument("--out", help="folder (default: audition-<text file name> next to the text file)")
     a = ap.parse_args(argv)
     if a.cmd == "audition":
@@ -997,6 +1047,8 @@ def audition(a):
         sys.exit("voices audition: an empty text, or no voices (--voices a,b,c)")
     lang = a.lang or ("zh" if CJK_TEXT.search(raw) else "en")
     gemini = a.provider.startswith("gemini")
+    if a.align == "local":
+        need_local_asr()
     if (gemini or a.align == "gemini") and not os.environ.get("GEMINI_API_KEY"):
         sys.exit("voices audition: set GEMINI_API_KEY (Google AI Studio → Get API key)"
                  + (f" for --provider {a.provider}" if gemini else " for --align gemini") + "; nothing was synthesized")
@@ -1024,9 +1076,9 @@ def audition(a):
             ft = voicefeat.features(voicefeat.read(f))
             row = {"voice": v, "file": f.name, "duration": round(duration(f), 2), "pitch_hz": ft["pitch_hz"], "centroid_hz": ft["centroid_hz"],
                    "speech_s": ft["speech_s"], "speech_rate": round(units / ft["speech_s"], 2) if ft["speech_s"] else None, "misread": None}
-            if a.align == "gemini":
+            if a.align in ("gemini", "local"):
                 try:
-                    heard, _ = transcribe(f, lang, tmp)
+                    heard = as_read(transcribe(f, lang, tmp)[0], plain)
                     row.update(heard=heard, similarity=similarity(plain, heard), misread=disputed(plain, heard))
                 except Exception as e:
                     row["asr_error"] = str(e); bad += 1
@@ -1036,7 +1088,7 @@ def audition(a):
     rep = {"provider": a.provider, "lang": lang, "unit": unit, "units": units, "text": plain, "instruct": a.instruct, "align": a.align, "voices": rows}
     (out / "audition.json").write_text(json.dumps(rep, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"→ {out}/audition.json and {sum('file' in r for r in rows)} WAV(s)"
-          + ("" if a.align == "gemini" else " · misread words: --align gemini transcribes each take (GEMINI_API_KEY)"))
+          + ("" if a.align in ("gemini", "local") else " · misread words: --align gemini (or local) transcribes each take"))
     sys.exit(1 if bad else 0)
 
 # ---------- main ----------
@@ -1056,7 +1108,7 @@ def main():
     ap.add_argument("--snap", choices=["beat", "half", "downbeat"], help="with --beats: the grid (default beat)")
     ap.add_argument("--lead", type=float, default=0.0, help="earliest start of the first line (s)")
     ap.add_argument("--min-gap", type=float, default=0.12, help="with --beats: minimum breath before the next grid point")
-    ap.add_argument("--align", default="none", choices=["none", "gemini"], help="word timestamps + ASR check per line")
+    ap.add_argument("--align", default="none", choices=["none", "gemini", "local"], help="word timestamps + ASR check per line (local: Whisper on this machine)")
     ap.add_argument("--min-sim", type=float, default=0.85, help="with --align: flag lines whose ASR similarity is lower")
     ap.add_argument("--vocab", default="", help="with --align: extra terms (comma-separated) for the re-check of flagged lines")
     ap.add_argument("--join", default="auto", choices=["auto", "none", "block", "all"],
@@ -1136,11 +1188,13 @@ def main():
         import importlib.util   # the takes are measured with numpy: bin/vh tts adds it with --candidates
         if importlib.util.find_spec("numpy") is None:
             sys.exit("--candidates measures the takes with numpy: run it as bin/vh tts (it adds numpy)")
-    align = a.align == "gemini" or (join != "none" and not timed)
-    if join != "none" and a.align != "gemini" and not timed:
+    align = a.align in ("gemini", "local") or (join != "none" and not timed)
+    if join != "none" and a.align == "none" and not timed:
         print("  --join recovers line boundaries from word timestamps → --align gemini is on")
-    if (gemini or align) and not os.environ.get("GEMINI_API_KEY"):     # before anything is synthesized or deleted
-        sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)" + ("" if gemini else ": --align gemini / --join transcribe with Gemini"))
+    if a.align == "local":   # before anything is synthesized or deleted
+        need_local_asr()
+    if (gemini or (align and a.align != "local")) and not os.environ.get("GEMINI_API_KEY"):     # before anything is synthesized or deleted
+        sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)" + ("" if gemini else ": --align gemini / --join transcribe with Gemini (or --align local)"))
     if man and a.provider == "minimax" and join != "none" and man.get("gap") != a.gap:
         sys.exit(f"--resume: --gap was {man.get('gap')} for the run, now {a.gap}; in a joined minimax request it is part of the"
                  f" text: pass --gap {man.get('gap')}, or drop --resume to start over")
@@ -1335,12 +1389,22 @@ def main():
             if align:                                                  # every line in parallel, after synthesis
                 write_outputs()                                        # the take is on disk before the first ASR call
                 t0 = time.time()
-                with ThreadPoolExecutor(4) as ex:
-                    futs = [ex.submit(asr_words, proj / s["file"]) for s in segs]
+                if ASR["engine"] == "local":   # MLX keeps its stream to the thread that made it: Whisper runs here, one line at a time
+                    futs = []
+                    for s in segs:
+                        f = Future()
+                        try:
+                            f.set_result(asr_words(proj / s["file"]))
+                        except Exception as e:
+                            f.set_exception(e)
+                        futs.append(f)
+                else:
+                    with ThreadPoolExecutor(4) as ex:
+                        futs = [ex.submit(asr_words, proj / s["file"]) for s in segs]
                 asr_s = time.time() - t0
                 for s, f in zip(segs, futs):
                     try:
-                        txt, ws = f.result()
+                        txt, ws = heard_as_read(*f.result(), s["text"] + s.get("_alt", ""))
                     except Exception as e:                             # quota, network, a bad file: the line keeps its timing
                         s["asr"] = {"error": err(e)}; continue
                     r = align_lines([s["text"]], ws, s["end"] - s["start"])[0]
@@ -1429,7 +1493,7 @@ def main():
                 if align:
                     t0 = time.time()
                     try:
-                        txt, ws = asr_words(bout)
+                        txt, ws = heard_as_read(*asr_words(bout), "".join(s["text"] + s.get("_alt", "") for s in blk))
                     except Exception as e:                             # without the provider's timing the block stays whole and
                         fail = err(e)                                  # its lines share its span; flagged either way
                     asr_s += time.time() - t0
@@ -1461,7 +1525,7 @@ def main():
                     continue
                 t0 = time.time()
                 try:
-                    txt = asr_recheck(proj / s["file"], vocab)
+                    txt = as_read(asr_recheck(proj / s["file"], vocab), s["text"] + s.get("_alt", ""))
                 except Exception as e:                                 # the line stays flagged; the first pass is kept
                     s["asr"]["recheck"] = {"error": err(e), "vocab": vocab}; continue
                 asr_s += time.time() - t0

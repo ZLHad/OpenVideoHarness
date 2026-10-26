@@ -819,10 +819,10 @@
       ],
       "usage": [
         {
-          "synopsis": "tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json] [--align gemini] [--join block|all [--candidates N]] [--resume]",
+          "synopsis": "tts <project> [provider] [voice] [zh|en] [instruct] [--beats map.json] [--align gemini|local] [--join block|all [--candidates N]] [--resume]",
           "text": [
             "voiceover from audio/script.txt (中文 || English; [direction] per line; lines snap to beats; @speakers A=Kore B=Puck + \"A: …\" lines = a dialogue;",
-            "--align gemini: word timestamps + ASR-vs-script check per line; --join: several lines per request;",
+            "--align gemini: word timestamps + ASR-vs-script check per line (--align local: the same with Whisper on this machine, no key, no daily quota); --join: several lines per request;",
             "--candidates N: N takes a block, the one nearest the narration's median voice kept (N × the synthesis);",
             "warns of a line far off the take's seconds per character, and (with --align) of a phrase heard twice;",
             "--resume: continue the last run after a failed synthesis or transcription, same script and command)",
@@ -1016,6 +1016,13 @@
           "text": [
             "beat grid (bpm, offset, beats, downbeats) + hits, kick/snare accents (librosa),",
             "+ lifts: candidate \"breath, then the hit\" points (a dip in the level, then a downbeat or a strong hit)"
+          ]
+        },
+        {
+          "synopsis": "beats <audio> [grid.beats.json] --check [--png f.png]",
+          "text": [
+            "is the grid on the beat? where the kicks fall within it: half a beat off is \"locked to the off-beat\" (exit 1), with",
+            "the shift; --png: eight bars under 120 Hz with the grid and the kicks over them"
           ]
         }
       ]
@@ -1463,7 +1470,7 @@
     },
     {
       "name": "check",
-      "summary": "Check a rendered video: the probe, the BRIEF's spec, gate ① on record, black, freeze and silence, isolated frames, motion, subtitles, colour tags and the publishing copy; --against a 1080p cut.",
+      "summary": "Check a rendered video: the probe, the BRIEF's spec, gate ① on record, black, freeze and silence, isolated frames, motion, subtitles, colour tags, loudness and the publishing copy; --against a 1080p cut.",
       "when": "on every draft, and once before release (CLAUDE.md's floors)",
       "stages": ["8", "7", "9"],
       "reads": [
@@ -1485,7 +1492,8 @@
             "black/freeze/silence detection + isolated-frame scan (one-frame capture glitches; exit 1 on any not",
             "confirmed in the project's confirmed.json (a designed flash: why, evidence, and the key the scan prints,",
             "which lapses when the picture there changes) nor declared for this run with --allow <seconds or spans a-b>;",
-            "evenly spaced ones are periodic motion, said, not failed) + motion (hard cuts from dark to bright, still stretches of 3 s or more: warnings) + colour tags; --against: a 4K render vs the approved 1080p cut",
+            "evenly spaced ones are periodic motion, said, not failed) + motion (hard cuts from dark to bright, still stretches of 3 s or more: warnings) + colour tags",
+            "+ loudness (integrated and true peak of the film's sound against the mix's −14 LUFS ±1, ≤ −1 dBTP: a warning); --against: a 4K render vs the approved 1080p cut",
             "(exit 1 when the picture differs: a layout that breaks at device scale 2). The result is kept in the",
             "video's project as out/check/<name>.check.json (bin/vh status reads the last; with the video's size and",
             "mtime_ns as the checks began, so a film put back later with an old modification time, or in its place",
@@ -1551,6 +1559,13 @@
           "synopsis": "qa mix <stems dir>",
           "text": [
             "the mix report of a profile mix: VMR per line, words at risk, SFX classes, depth (exit 1 on a hard miss)"
+          ]
+        },
+        {
+          "synopsis": "qa <mix> [beats.json] [events.json] --listen [5] [--stems DIR] [--gate G] [--picture f.png] [--cuts f]",
+          "text": [
+            "where to put headphones on: the weakest line, the loudest hit, the biggest turn, the ending, the AAC risk, 6 s each",
+            "into out/listen/ (--gate: into that review page); --picture: spectrogram, lines, events, loudness and cuts on one axis"
           ]
         }
       ],

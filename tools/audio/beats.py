@@ -1,6 +1,14 @@
 """Beat grid + accents for an external music track → beats.json (feeds bpm/offset in engines, cut timing, SFX and hit placement).
 
 usage (via bin/vh beats): python tools/audio/beats.py <audio> [out.json] [--no-drums] [--lift-window 2.0] [--lift-dip 6]
+                          python tools/audio/beats.py <audio> [grid.beats.json] --check [--png f.png]
+--check: is the grid on the beat? A tracker can lock onto the off-beat, and it shows only under 120 Hz, where the kick
+is. The kicks (below) are placed within the grid's beats; their circular mean says where they fall (0 on the beat, 0.5
+halfway) and its strength how much they agree. Half a beat off: "locked to the off-beat", with the offset to shift by;
+another steady offset: by how much; kicks that agree on nothing (or under 8 of them): nothing to say. Exit 1 when the
+grid is off (usable as a gate), 0 otherwise. A grid file given (an outside track's, bin/vh music's own) is the one
+checked; without one, the track's own is tracked first. --png: eight bars from the first downbeat, the track under
+120 Hz with the grid (beats grey, downbeats dark) and the kicks (red) over it, to see what the numbers say.
 Output: {"bpm","offset","beats":[s…],"downbeats":[s…],"duration","note",
          "hits":[{"t","strength"}…],                                   every onset peak (any instrument)
          "kick":[{"t","strength"}…], "snare":[{"t","strength"}…],      drums only (omitted with --no-drums)
@@ -102,6 +110,71 @@ def accents(res, floor=0.5):
             out.append(dict(e))
     return out
 
+def offbeat(kicks, beats):
+    """(phase, strength, n): the circular mean of where the kicks fall within the grid's beats (0 on the beat, 0.5 halfway),
+    its mean resultant length (1: every kick at that phase, 0: anywhere) and how many kicks lay inside the grid. Numpy
+    only (tools/ci.sh tests it without librosa)."""
+    b = np.asarray(sorted(float(x) for x in beats))
+    k = np.asarray([float(x) for x in kicks])
+    if len(b) < 2 or not len(k):
+        return 0.0, 0.0, 0
+    k = k[(k >= b[0]) & (k < b[-1])]
+    if not len(k):
+        return 0.0, 0.0, 0
+    i = np.searchsorted(b, k, side="right") - 1
+    ang = 2 * np.pi * (k - b[i]) / (b[i + 1] - b[i])
+    c, s = float(np.cos(ang).mean()), float(np.sin(ang).mean())
+    return round((np.arctan2(s, c) / (2 * np.pi)) % 1.0, 3), round(float(np.hypot(c, s)), 3), int(len(k))
+
+
+def verdict(phase, strength, n, bpm):
+    """(off, the line to print) for offbeat()'s numbers."""
+    beat = 60.0 / bpm if bpm else 0.5
+    d = phase if phase <= 0.5 else phase - 1.0                   # −0.5 … 0.5 of a beat, signed
+    head = f"{n} kicks, {d:+.2f} of a beat from the grid (strength {strength:.2f})"
+    if n < 8 or strength < 0.3:
+        return False, f"check: {head}: too few or too scattered to say (a track without a steady kick)"
+    if abs(abs(d) - 0.5) <= 0.12:
+        return True, (f"check: {head}: the grid is locked to the off-beat. Shift it by half a beat ({beat / 2:.3f} s): "
+                      "offset, every beat and downbeat; then check again")
+    if abs(d) > 0.12:
+        return True, f"check: {head}: the grid sits {d:+.2f} of a beat from the kicks ({d * beat:+.3f} s): shift it by that much, then check again"
+    return False, f"check: {head}: on the beat"
+
+
+def picture(y, sr, res, kicks, dest):
+    """Eight bars from the first downbeat: the track under 120 Hz, the grid and the kicks."""
+    from PIL import Image, ImageDraw
+    sos = butter(4, 120, btype="low", fs=sr, output="sos")
+    low = sosfiltfilt(sos, y)
+    downs = res.get("downbeats") or res.get("beats") or [0.0]
+    t0 = float(downs[0])
+    bar = 4 * 60.0 / res["bpm"] if res.get("bpm") else 2.0
+    t1 = min(len(y) / sr, t0 + 8 * bar)
+    W, H = 1600, 360
+    img = Image.new("RGB", (W, H), (250, 250, 248))
+    d = ImageDraw.Draw(img)
+    seg = low[int(t0 * sr):int(t1 * sr)]
+    if len(seg):
+        peak = float(np.max(np.abs(seg))) or 1.0
+        cols = np.array_split(seg, W)
+        for xpx, c in enumerate(cols):
+            if len(c):
+                d.line([xpx, H / 2 - c.max() / peak * (H / 2 - 20), xpx, H / 2 - c.min() / peak * (H / 2 - 20)], fill=(60, 90, 160))
+    xt = lambda t: int((t - t0) / max(t1 - t0, 1e-9) * (W - 1))   # noqa: E731
+    for t in res.get("beats") or []:
+        if t0 <= t <= t1:
+            d.line([xt(t), 0, xt(t), H], fill=(180, 180, 180))
+    for t in downs:
+        if t0 <= t <= t1:
+            d.line([xt(t), 0, xt(t), H], fill=(40, 40, 40), width=2)
+    for t in kicks:
+        if t0 <= t <= t1:
+            d.line([xt(t), H - 30, xt(t), H - 4], fill=(220, 30, 60), width=3)
+    d.text((6, 6), f"under 120 Hz · grid {res.get('bpm')} bpm (grey beats, dark downbeats) · kicks (red)", fill=(60, 60, 60))
+    img.save(dest)
+
+
 def main():
     for k in ("window", "dip"):                               # --lift-window S, --lift-dip DB
         if f"--lift-{k}" in sys.argv:
@@ -110,19 +183,45 @@ def main():
                 LIFT[k] = float(sys.argv[i + 1]); del sys.argv[i:i + 2]
             except (IndexError, ValueError):
                 sys.exit(f"--lift-{k} wants a number (default {LIFT[k]:g})")
+    png = None
+    if "--png" in sys.argv:
+        i = sys.argv.index("--png")
+        if i + 1 >= len(sys.argv) or sys.argv[i + 1].startswith("--"):
+            print("beats: --png wants a file (f.png)", file=sys.stderr); sys.exit(2)
+        png = sys.argv[i + 1]; del sys.argv[i:i + 2]
+    check = "--check" in sys.argv
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     def no(msg): print(f"beats: {msg}", file=sys.stderr); sys.exit(2)   # one line, not a traceback
     if not args: no("which track? usage: bin/vh beats <audio> [out.json] [--no-drums] [--lift-window 2.0] [--lift-dip 6]")
     src = args[0]
     out = Path(args[1]) if len(args) > 1 else Path(src).with_suffix(".beats.json")
     if not Path(src).is_file(): no(f"no such file: {src}")
-    if not out.parent.is_dir(): no(f"no such folder for the beat map: {out.parent}")
+    grid = None
+    if check and len(args) > 1:   # --check with a grid: that grid, read, never written
+        try:
+            grid = json.loads(out.read_text(encoding="utf-8"))
+            assert isinstance(grid, dict) and isinstance(grid.get("beats"), list)
+        except (OSError, ValueError, AssertionError):
+            no(f"{out}: not a beat map (a JSON object with beats)")
+    elif not out.parent.is_dir(): no(f"no such folder for the beat map: {out.parent}")
     try:
         with warnings.catch_warnings():   # librosa's "PySoundFile failed. Trying audioread instead" on an mp3 or a bad file
             warnings.simplefilter("ignore"); y, sr = librosa.load(src, sr=22050, mono=True)
     except Exception as e:   # soundfile, audioread and ffmpeg each raise their own kind for a file they cannot decode
         why = str(e).strip().splitlines()[-1] if str(e).strip() else ""
         no(f"{src}: not audio librosa can read ({type(e).__name__}{': ' + why if why else ''})")
+    if check:
+        res = grid
+        if res is None:
+            tempo, frames = librosa.beat.beat_track(y=y, sr=sr, units="frames")
+            beats = [round(float(t), 3) for t in librosa.frames_to_time(frames, sr=sr)]
+            res = {"bpm": round(float(tempo[0] if hasattr(tempo, "__len__") else tempo), 2), "beats": beats, "downbeats": beats[::4]}
+        kicks = [k["t"] for k in drums(y, sr)["kick"]]
+        off, line = verdict(*offbeat(kicks, res["beats"]), res.get("bpm") or 0)
+        print(line)
+        if png:
+            picture(y, sr, res, kicks, png); print(f"  picture: {png}")
+        sys.exit(1 if off else 0)
     tempo, frames = librosa.beat.beat_track(y=y, sr=sr, units="frames")
     beats = [round(float(t), 3) for t in librosa.frames_to_time(frames, sr=sr)]
     bpm = round(float(tempo[0] if hasattr(tempo, "__len__") else tempo), 2)

@@ -191,6 +191,16 @@ def colour_findings(csv):
     return [finding("check.colour", "warn", f"colour: {v} (pix_fmt, range, matrix, transfer, primaries); deliver yuv420p, tv, bt709 ×3", evidence=ev)]
 
 
+def loud_findings(ld):
+    """The film's loudness (tools/loudcheck.py): a warning a way it is off the mix's target, else what it measured (info)."""
+    if not ld.get("audio"):
+        return []
+    ev = {k: ld.get(k) for k in ("integrated", "true_peak", "lra", "target")}
+    if ld.get("problems"):
+        return [finding("check.loudness", "warn", f"loudness: {p}", evidence=ev) for p in ld["problems"]]
+    return [finding("check.loudness", "info", f"loudness: {ld['integrated']:.1f} LUFS integrated, true peak {ld['true_peak']:.1f} dBTP, on the target", evidence=ev)]
+
+
 def pack_findings(pk):
     out = []
     for f in pk.get("fields") or []:
@@ -240,7 +250,7 @@ def main():
     shown = lambda p: os.path.relpath(p, project) if project and os.path.commonpath([str(p), str(project)]) == str(project) else str(p)   # noqa: E731
     findings, skipped = [], []
     pieces = [("spec.json", spec_findings, load), ("gate.json", gate_findings, load), ("detect.txt", detect_findings, text),
-              ("iso.json", iso_findings, load), ("subs.json", subs_findings, load), ("colour.txt", colour_findings, text),
+              ("iso.json", iso_findings, load), ("subs.json", subs_findings, load), ("colour.txt", colour_findings, text), ("loud.json", loud_findings, load),
               ("pack.json", pack_findings, load), ("scale.json", scale_findings, load)]
     for name, fn, get in pieces:
         try:
