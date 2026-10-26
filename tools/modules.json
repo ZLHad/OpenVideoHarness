@@ -365,6 +365,21 @@
       "install": {}
     },
     {
+      "name": "openverse",
+      "kind": "service",
+      "purpose": "Openverse's audio search (api.openverse.org): bin/vh sfx search and pick (Freesound's effects, an HQ preview MP3 each), bgm search and pick (Jamendo's music), with each item's licence, credit line and page.",
+      "version": {"tested": "2026-10-26"},
+      "license": "Openverse's terms (WordPress.org); every item under the licence its source gives (CC0, CC BY …), which the tools classify",
+      "needs": {"account": "none: anonymous clients get 20 searches a minute and 200 a day (the x-ratelimit headers); a registered app gets more"},
+      "adapter": ["tools/audio/library.py (openverse_url, ov_item)"],
+      "commands": ["sfx", "bgm"],
+      "required": false,
+      "check": {},
+      "probe": {"method": "GET", "url": "https://api.openverse.org/v1/audio/?q=whoosh&source=freesound&license=cc0&page_size=1",
+                "expect": {"path": "results"}},
+      "install": {}
+    },
+    {
       "name": "codex",
       "kind": "agent",
       "purpose": "OpenAI's Codex CLI, an agent that reads AGENTS.md; bin/vh install-skill codex puts the skill where it looks (~/.agents/skills); bin/vh image gen --provider codex runs its image_gen (codex exec, read-only sandbox) on the ChatGPT plan it is signed in with.",

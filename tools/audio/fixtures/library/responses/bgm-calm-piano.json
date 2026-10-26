@@ -1,0 +1,180 @@
+{
+ "result_count": 5,
+ "page_count": 2,
+ "page_size": 4,
+ "page": 1,
+ "results": [
+  {
+   "id": "5f7af4b0-3629-4345-83ae-9ca5bca2e9d9",
+   "title": "Intro",
+   "foreign_landing_url": "https://www.jamendo.com/track/2185462",
+   "url": "https://prod-1.storage.jamendo.com/?trackid=2185462&format=mp32",
+   "creator": "zero-project",
+   "license": "by",
+   "license_version": "3.0",
+   "license_url": "https://creativecommons.org/licenses/by/3.0/",
+   "provider": "jamendo",
+   "source": "jamendo",
+   "category": "music",
+   "genres": [
+    "electronic",
+    "newage"
+   ],
+   "filetype": "mp32",
+   "tags": [
+    {
+     "name": "bagpipes"
+    },
+    {
+     "name": "calm"
+    },
+    {
+     "name": "ethno"
+    },
+    {
+     "name": "instrumental"
+    },
+    {
+     "name": "neutral"
+    },
+    {
+     "name": "piano"
+    }
+   ],
+   "attribution": "\"Intro\" by zero-project is licensed under CC BY 3.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/3.0/.",
+   "duration": 222000,
+   "audio_set": {
+    "title": "e-world"
+   },
+   "detail_url": "https://api.openverse.org/v1/audio/5f7af4b0-3629-4345-83ae-9ca5bca2e9d9/"
+  },
+  {
+   "id": "80fade4a-66e0-45dd-9afc-dcd7dc8a550c",
+   "title": "nuage",
+   "foreign_landing_url": "https://www.jamendo.com/track/1241611",
+   "url": "https://prod-1.storage.jamendo.com/?trackid=1241611&format=mp32",
+   "creator": "thomas saliba",
+   "license": "by",
+   "license_version": "3.0",
+   "license_url": "https://creativecommons.org/licenses/by/3.0/",
+   "provider": "jamendo",
+   "source": "jamendo",
+   "category": "music",
+   "genres": [
+    "classical"
+   ],
+   "filetype": "mp32",
+   "tags": [
+    {
+     "name": "instrumental"
+    },
+    {
+     "name": "speed_medium"
+    },
+    {
+     "name": "piano"
+    },
+    {
+     "name": "violin"
+    },
+    {
+     "name": "calme"
+    }
+   ],
+   "attribution": "\"nuage\" by thomas saliba is licensed under CC BY 3.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/3.0/.",
+   "duration": 199000,
+   "audio_set": {
+    "title": "Couleurs"
+   },
+   "detail_url": "https://api.openverse.org/v1/audio/80fade4a-66e0-45dd-9afc-dcd7dc8a550c/"
+  },
+  {
+   "id": "5dc042e4-6953-4bb7-a896-768624f30f1b",
+   "title": "Dream keeper (dreamy version)",
+   "foreign_landing_url": "https://www.jamendo.com/track/2193530",
+   "url": "https://prod-1.storage.jamendo.com/?trackid=2193530&format=mp32",
+   "creator": "zero-project",
+   "license": "by",
+   "license_version": "3.0",
+   "license_url": "https://creativecommons.org/licenses/by/3.0/",
+   "provider": "jamendo",
+   "source": "jamendo",
+   "category": "music",
+   "genres": [
+    "chillout",
+    "electronic"
+   ],
+   "filetype": "mp32",
+   "tags": [
+    {
+     "name": "calm"
+    },
+    {
+     "name": "instrumental"
+    },
+    {
+     "name": "neutral"
+    },
+    {
+     "name": "piano"
+    },
+    {
+     "name": "soft"
+    },
+    {
+     "name": "speed_medium"
+    }
+   ],
+   "attribution": "\"Dream keeper (dreamy version)\" by zero-project is licensed under CC BY 3.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/3.0/.",
+   "duration": 304000,
+   "audio_set": {
+    "title": "Dream keeper"
+   },
+   "detail_url": "https://api.openverse.org/v1/audio/5dc042e4-6953-4bb7-a896-768624f30f1b/"
+  },
+  {
+   "id": "48266e9e-3864-4097-a9df-60123fdf4830",
+   "title": "A new world",
+   "foreign_landing_url": "https://www.jamendo.com/track/2185505",
+   "url": "https://prod-1.storage.jamendo.com/?trackid=2185505&format=mp32",
+   "creator": "zero-project",
+   "license": "by",
+   "license_version": "3.0",
+   "license_url": "https://creativecommons.org/licenses/by/3.0/",
+   "provider": "jamendo",
+   "source": "jamendo",
+   "category": "music",
+   "genres": [
+    "electronic",
+    "newage"
+   ],
+   "filetype": "mp32",
+   "tags": [
+    {
+     "name": "calm"
+    },
+    {
+     "name": "instrumental"
+    },
+    {
+     "name": "neutral"
+    },
+    {
+     "name": "piano"
+    },
+    {
+     "name": "space"
+    },
+    {
+     "name": "speed_medium"
+    }
+   ],
+   "attribution": "\"A new world\" by zero-project is licensed under CC BY 3.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/3.0/.",
+   "duration": 226000,
+   "audio_set": {
+    "title": "e-world"
+   },
+   "detail_url": "https://api.openverse.org/v1/audio/48266e9e-3864-4097-a9df-60123fdf4830/"
+  }
+ ]
+}

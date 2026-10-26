@@ -192,8 +192,8 @@ An agent can't hear, so the sound is built to be computed and measured:
 
 - **Voiceover** (`bin/vh tts`): local, open-source Qwen3-TTS by default (offline and free; five Chinese voices, two English), with Alibaba Cloud Model Studio, ElevenLabs and Gemini TTS as cloud options (showcases 02 and 03 use Gemini). Every line can get its own delivery and stress, and lines can land on the music's beats.
 - **Subtitles** (`bin/vh captions`): write the script as `中文 || English` to get Chinese, English or two-line subtitles, burned in or as switchable tracks.
-- **Music** (`bin/vh music`): composed as code, so the same score always renders the same audio, with the time of every beat for the picture to hit; it has Chinese instruments such as bianzhong, guzheng and dizi. For your own track, `bin/vh beats` finds the beats.
-- **Sound effects** (`bin/vh sfx`): 21 original, code-synthesized effects placed on the frame where the action happens; most vary slightly from use to use, so repeats don't sound identical.
+- **Music** (`bin/vh music`): composed as code, so the same score always renders the same audio, with the time of every beat for the picture to hit; it has Chinese instruments such as bianzhong, guzheng and dizi. For your own track, `bin/vh beats` finds the beats; `bin/vh bgm search` and `bgm pick` find a CC-licensed one on Openverse and cut it on a downbeat.
+- **Sound effects** (`bin/vh sfx`): 21 original, code-synthesized effects placed on the frame where the action happens; most vary slightly from use to use, so repeats don't sound identical. Recorded ones too: `sfx search` looks in your own sound library (`bin/vh sound add`) and Openverse's CC0 and CC BY effects, and `sfx pick` brings one in with its licence and credit on record.
 - **Mixing and checks** (`bin/vh mix`, `bin/vh qa`): the music ducks under narration and the mix lands at −14 LUFS; `qa` checks for silence, dropouts, pumping and clipping, and that every cue lands within one frame.
 
 More in [playbook/04-audio.md](playbook/04-audio.md) (in Chinese).
