@@ -1,0 +1,20 @@
+{
+ "code": 200,
+ "timeline_type": "trending",
+ "trends": [
+  {
+   "name": "Doppler",
+   "rank": null,
+   "context": "Science · Trending"
+  },
+  {
+   "name": "#WaveDay",
+   "rank": null,
+   "context": "Trending in United States"
+  }
+ ],
+ "cursor": {
+  "top": "T",
+  "bottom": "B"
+ }
+}

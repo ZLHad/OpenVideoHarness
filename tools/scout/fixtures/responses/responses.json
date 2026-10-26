@@ -1,0 +1,140 @@
+{
+ "v": 1,
+ "responses": [
+  {
+   "url": "yt-dlp:ytsearch5:doppler effect",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "yt-search.json"
+  },
+  {
+   "url": "yt-dlp:https://www.youtube.com/@examplephysics/videos -I 1:15",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "yt-channel-examplephysics.json"
+  },
+  {
+   "url": "yt-dlp:https://www.youtube.com/@wavelab/videos -I 1:15",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "yt-channel-wavelab.json"
+  },
+  {
+   "url": "yt-dlp:https://www.youtube.com/watch?v=AAAAAAAAAA1",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "yt-video.json"
+  },
+  {
+   "url": "https://i.ytimg.com/vi/AAAAAAAAAA1/hqdefault.jpg",
+   "status": 200,
+   "headers": {
+    "content-type": "image/jpeg"
+   },
+   "body": "cover.jpg"
+  },
+  {
+   "url": "https://api.bilibili.com/x/web-interface/view?bvid=BV1Ab4y1C7De",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "bili-view.json"
+  },
+  {
+   "url": "https://api.bilibili.com/x/relation/stat?vmid=20000001",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "bili-relation.json"
+  },
+  {
+   "url": "https://api.bilibili.com/x/web-interface/view?bvid=BV1Zz4y1Bk00",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "bili-blocked.json"
+  },
+  {
+   "url": "https://api.fxtwitter.com/2/status/1000000000000000099",
+   "status": 412,
+   "headers": {
+    "content-type": "text/html"
+   }
+  },
+  {
+   "url": "https://api.fxtwitter.com/2/profile/exampleacct/statuses",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "x-profile.json"
+  },
+  {
+   "url": "https://api.fxtwitter.com/2/status/1000000000000000001",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "x-status.json"
+  },
+  {
+   "url": "https://api.fxtwitter.com/2/trends",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "x-trends.json"
+  },
+  {
+   "url": "https://top.baidu.com/api/board?platform=pc&tab=realtime",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "hot-baidu.json"
+  },
+  {
+   "url": "https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "hot-toutiao.json"
+  },
+  {
+   "url": "https://trends.google.com/trending/rss?geo=US",
+   "status": 200,
+   "headers": {
+    "content-type": "application/rss+xml"
+   },
+   "body": "hot-google.xml"
+  },
+  {
+   "url": "https://api.bilibili.com/x/web-interface/view?bvid=BV1Cd4y1F7Gh",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "bili-view-2.json"
+  },
+  {
+   "url": "https://api.bilibili.com/x/relation/stat?vmid=20000002",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "bili-blocked.json"
+  }
+ ]
+}

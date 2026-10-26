@@ -1,0 +1,83 @@
+{
+ "_type": "playlist",
+ "id": "doppler effect",
+ "title": "doppler effect",
+ "extractor": "youtube:search",
+ "entries": [
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "AAAAAAAAAA1",
+   "url": "https://www.youtube.com/watch?v=AAAAAAAAAA1",
+   "title": "The Doppler effect, slowed down",
+   "duration": 300,
+   "channel": "Example Physics",
+   "channel_id": "UCexamplephysicsxxxxxxxx",
+   "uploader_id": "@examplephysics",
+   "uploader_url": "https://www.youtube.com/@examplephysics",
+   "channel_url": "https://www.youtube.com/@examplephysics",
+   "view_count": 2400000,
+   "timestamp": 1715240000
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "AAAAAAAAAA2",
+   "url": "https://www.youtube.com/watch?v=AAAAAAAAAA2",
+   "title": "Why sirens drop in pitch",
+   "duration": 300,
+   "channel": "Wave Lab",
+   "channel_id": "UCwavelabxxxxxxxxxxxxxxx",
+   "uploader_id": "@wavelab",
+   "uploader_url": "https://www.youtube.com/@wavelab",
+   "channel_url": "https://www.youtube.com/@wavelab",
+   "view_count": 180000,
+   "timestamp": 1758440000
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "AAAAAAAAAA3",
+   "url": "https://www.youtube.com/watch?v=AAAAAAAAAA3",
+   "title": "Doppler effect in 60 seconds",
+   "duration": 300,
+   "channel": "Quick Science",
+   "channel_id": "UCquickscixxxxxxxxxxxxxx",
+   "uploader_id": "@quicksci",
+   "uploader_url": "https://www.youtube.com/@quicksci",
+   "channel_url": "https://www.youtube.com/@quicksci",
+   "view_count": 5200,
+   "timestamp": 1791272000
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "AAAAAAAAAA4",
+   "url": "https://www.youtube.com/watch?v=AAAAAAAAAA4",
+   "title": "Doppler problems, worked",
+   "duration": 300,
+   "channel": "Tutor Room",
+   "channel_id": "UCtutorroomxxxxxxxxxxxxx",
+   "uploader_id": "@tutorroom",
+   "uploader_url": "https://www.youtube.com/@tutorroom",
+   "channel_url": "https://www.youtube.com/@tutorroom",
+   "view_count": 650000,
+   "timestamp": 1663400000
+  },
+  {
+   "_type": "url",
+   "ie_key": "Youtube",
+   "id": "AAAAAAAAAA5",
+   "url": "https://www.youtube.com/watch?v=AAAAAAAAAA5",
+   "title": "Doppler effect | waves",
+   "duration": 300,
+   "channel": "Open Course",
+   "channel_id": "UCopencoursexxxxxxxxxxxx",
+   "uploader_id": "@opencourse",
+   "uploader_url": "https://www.youtube.com/@opencourse",
+   "channel_url": "https://www.youtube.com/@opencourse",
+   "view_count": 610000,
+   "timestamp": 1447400000
+  }
+ ]
+}
