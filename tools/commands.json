@@ -520,18 +520,21 @@
     },
     {
       "name": "recipes",
-      "summary": "Shot and sequence recipes: filter them by intent, energy, engine and the rest of their frontmatter, or check it.",
+      "summary": "Shot and sequence recipes: filter them by intent, energy, engine and the rest of their frontmatter, check them, or render a recipe's sketch as its sample sheet.",
       "when": "storyboarding a shot, or a whole film's rhythm, you are unsure how to move",
       "stages": ["3"],
       "reads": [
         "recipes/"
       ],
-      "writes": [],
+      "writes": [
+        "recipes/<family>/media/<id>.jpg (sample: the contact sheet; its video in styles/_swatch/out/<id>/, not in git)"
+      ],
       "usage": [
         {
-          "synopsis": "recipes list [--intent X --energy N --engine E …] | check [file…]",
+          "synopsis": "recipes list [--intent X --energy N --engine E …] | check [file…] | sample <id> [--style S] [--draft]",
           "text": [
-            "shot recipes (recipes/): filter by frontmatter, validate it"
+            "shot recipes (recipes/): filter by frontmatter, validate it",
+            "sample: the recipe's sketch rendered in a style's skin, its contact sheet kept beside it (list --json gives the path)"
           ]
         }
       ],
@@ -542,7 +545,11 @@
         },
         {
           "name": "check",
-          "summary": "validate the frontmatter"
+          "summary": "validate the frontmatter, the index, NOTICE and the sample sheets"
+        },
+        {
+          "name": "sample",
+          "summary": "render the sketch as its contact sheet"
         }
       ]
     },

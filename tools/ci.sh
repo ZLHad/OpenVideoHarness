@@ -774,6 +774,13 @@ PY
   a=$(vh recipes list -h 2>&1); rc=$?; b=$(vh recipes check --help 2>&1); rc2=$?
   case "$rc:$rc2|$a|$b" in "0:0|"*"usage: bin/vh recipes list"*"|"*"usage: bin/vh recipes list"*) ok "recipes list -h and check --help print the help" ;;
     *) bad "recipes list -h / check --help exited $rc / $rc2: $(printf '%s' "$a" | head -c 200)" ;; esac
+  # recipes sample: bad usage exits 2 before any render (an unknown id, a sequence, an unknown style); list --json names
+  # the sheet a recipe carries (recipes check, above, holds every sketch to its sheet)
+  vh recipes sample no-such-recipe >/dev/null 2>&1; rc=$?; vh recipes sample launch-15s >/dev/null 2>&1; rc2=$?
+  vh recipes sample button-to-player --style no-such-style >/dev/null 2>&1; rc3=$?
+  a=$(vh recipes list --family ui --json | python3 -c 'import json, os, sys; d = {r["id"]: r for r in json.load(sys.stdin)}; s = d["button-to-player"].get("sample", ""); print(s if os.path.isfile(s) else "missing")')
+  case "$rc:$rc2:$rc3:$a" in "2:2:2:recipes/ui/media/button-to-player.jpg") ok "recipes sample: an unknown id, a sequence or an unknown style is bad usage; list --json names the sheet" ;;
+    *) bad "recipes sample usage ($rc, $rc2, $rc3) / list --json sample: $a" ;; esac
   # packcheck counts X's way (a Chinese character 2, a link 23); "X" names X only standing alone, not inside "xhs"
   { printf '%s\n' '# PACKAGING' '## 发布文案' '### X / 推特'; python3 -c "print('简介：' + '字' * 127 + ' https://example.com/' + 'a' * 40 + '.')"
     printf '%s\n' '### B站 + X' '简介：两个平台'; python3 -c "print('字' * 139)"; printf '%s\n' '### 小红书 xhs' "简介：$(python3 -c "print('字' * 300)")"; } > "$t/PACKAGING.md"
