@@ -2660,6 +2660,58 @@ PY
 
 # bin/vh textcheck on its fixture (tools/textcheck/fixture/index.html: one read per case), with whatever headless Chrome
 # the machine has (GitHub's runners come with Chrome); skipped without one
+know_checks() {   # bin/vh know: the index of recipes, styles and the sections read when needed, and what a few words find
+  local a b rc rc2
+  a=$(vh know --index --json 2>/dev/null); rc=$?
+  if [ "$rc" = 0 ] && python3 - "$a" <<'PY'
+import json, re, sys
+from pathlib import Path
+sys.path.insert(0, "tools")
+import know
+d = json.loads(sys.argv[1])
+units, by = d["units"], d["by_kind"]
+ok = all(by.get(k, 0) > 0 for k in ("recipe", "style", "doc", "case")) and len(units) == sum(by.values())
+ok = ok and all(set(u) >= {"kind", "id", "title", "file", "line", "summary", "tags", "chars"} and u["title"] for u in units)
+for u in units:   # a section's line is its heading's (or line 1, a file's lead)
+    if u["kind"] in ("doc", "case") and u["line"] > 1:
+        line = Path(u["file"]).read_text(encoding="utf-8").splitlines()[u["line"] - 1]
+        ok = ok and bool(re.match(r"#{2,3} ", line))
+ok = ok and len({u["id"] for u in units}) == len(units)
+ok = ok and know.own_tags("text <!-- know: 翻页, 纸面、转场 --> more") == ["翻页", "纸面", "转场"]
+ok = ok and know.terms("章节进度条 black-card") == ["章节", "节进", "进度", "度条", "black-card", "black", "card"]
+sys.exit(0 if ok else 1)
+PY
+  then ok "know --index: every recipe, style, doc section and case section with a title, its file and its heading's line, unique ids; own tags from a section's comment; words as the index counts them"
+  else bad "know --index (exit $rc): $(printf '%s' "$a" | tail -c 300)"; fi
+  a=$(vh know 黑场 字卡 --json 2>/dev/null; vh know 孔版 叠印 --kind style --json 2>/dev/null; vh know 抖音 分享页 --kind doc --json 2>/dev/null); rc=$?
+  b=$(vh know 黑场 字卡 --json 2>/dev/null)
+  if [ "$rc" = 0 ] && [ "$b" = "$(vh know 黑场 字卡 --json 2>/dev/null)" ] && python3 - "$a" <<'PY'
+import json, sys
+docs, dec, i = [], json.JSONDecoder(), 0
+s = sys.argv[1]
+while i < len(s):
+    while i < len(s) and s[i].isspace():
+        i += 1
+    if i < len(s):
+        o, i = dec.raw_decode(s, i)
+        docs.append(o)
+a, b, c = docs
+ok = a["hits"][0]["kind"] == "recipe" and a["hits"][0]["id"] == "black-card" and not a["hits"][0]["partial"]
+ok = ok and {h["kind"] for h in a["hits"]} >= {"recipe", "style", "doc", "case"}
+ok = ok and [h["kind"] for h in b["hits"]] and all(h["kind"] == "style" for h in b["hits"]) and b["hits"][0]["id"] == "risograph"
+ok = ok and c["hits"][0]["file"] == "playbook/07-reverse-engineer.md" and c["hits"][0]["title"].endswith("› 1. 拿到帧")
+sys.exit(0 if ok else 1)
+PY
+  then ok "know: a recipe by its name (black-card), a style by its craft (risograph), a playbook section by a platform's habit (07 §1), each kind in the answer, the same answer twice"
+  else bad "know's answers (exit $rc): $(printf '%s' "$a" | tail -c 400)"; fi
+  rc=0; for x in "know" "know --kind bogus 黑场" "know --index 黑场" "know -n -1 黑场"; do
+    # shellcheck disable=SC2086
+    a=$(vh $x 2>/dev/null); b=$?; [ "$b" = 2 ] && [ -z "$a" ] || { rc=1; bad "bin/vh $x: exit $b, stdout ${a:0:80}"; }
+  done
+  vh know zzqqxxkk >/dev/null 2>&1; [ $? = 1 ] || { rc=1; bad "know with nothing matched: not exit 1"; }
+  [ "$rc" = 1 ] || ok "know: usage errors exit 2, nothing on stdout; nothing matched is 1"
+}
+
 textcheck_checks() {
   local t a rc
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
@@ -3974,11 +4026,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; know_checks; assets_checks; textcheck_checks; film_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; assets_checks; textcheck_checks; film_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; decision_checks; gate_checks; desk_checks; activity_checks; status_checks; know_checks; assets_checks; textcheck_checks; film_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

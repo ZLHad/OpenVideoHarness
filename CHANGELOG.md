@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**`bin/vh know`: what the repo knows about a few words, without reading the documents first**
+- Why: knowledge here lives in chapters an agent reads up front (standard reads 78–107 thousand characters before it starts) or in cards it has to know to look for. `bin/vh commands` answers "what tools are there"; nothing answered "what do we know about this".
+- `bin/vh know <words…>`: a few recipes (and components, once there are some), a style, a section of the playbook, a type doc or an engine doc, and a case, each with its file and line and the words that matched. The index is built from the files each time: the frontmatter of recipes and components, each style's STYLE.md and tokens.json, and the ## and ### sections of playbook/, video-types/, engines/ and cases/, cut where `tools/readpath.py` cuts them (its new `outline()`). Words as written (Chinese as pairs of characters), BM25 over title and tags, summary and text, weighed by how many of the words a unit has; no vectors, no model. A section can tag itself with `<!-- know: … -->`. `--index --json` gives every unit's metadata, for a client's knowledge panel.
+- The must-read list is unchanged: the index is there to be asked; whether the list can shrink once it is in use is decided later (decision 16).
+
 **CI: the Linux install step gets past a stalled mirror**
 - Why: on 2026-10-25 and 26 `apt-get install shellcheck ffmpeg` took 10 to 30 minutes instead of half a minute, six times, and two jobs failed at the step's limit. A probe of 40 installs put the time in the download from the runner's regional Azure Ubuntu mirror (westus3 above all); `apt-get update` and dpkg were never slow. GitHub knows it: actions/runner-images#14823, still open.
 - The step now runs `apt-get update` and a download-only install with 60 s each, then dpkg on the files it has. A try that runs over is killed and the next one goes to archive.ubuntu.com instead of the regional mirror; what was downloaded is kept. Up to three tries, then the step fails. In the probe every install that stalled finished in under two minutes.

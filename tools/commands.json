@@ -235,6 +235,31 @@
       ]
     },
     {
+      "name": "know",
+      "summary": "What the repo knows about a few words: a few recipes and components, a style, a section of the playbook, a type doc or an engine doc, a case; from the cards and sections read when needed, indexed by their headings and frontmatter, matched by words (Chinese in pairs of characters), no model.",
+      "when": "before reading a document to find out whether the repo has something for this (a transition, a look, a platform's habit); the tools are bin/vh commands, the knowledge is bin/vh know",
+      "stages": ["any"],
+      "reads": [
+        "recipes/ (frontmatter), components/ (frontmatter), styles/*/STYLE.md and tokens.json",
+        "the ## and ### sections of playbook/, video-types/, engines/*.md and cases/ (tools/readpath.py's outline)"
+      ],
+      "writes": [],
+      "usage": [
+        {
+          "synopsis": "know <words…> [--kind recipe,component,style,doc,case] [-n N] [--json]",
+          "text": [
+            "the best of each kind for these words, where each is (file:line) and what matched (bin/vh know -h: the scoring)"
+          ]
+        },
+        {
+          "synopsis": "know --index [--json]",
+          "text": [
+            "the index: every unit's kind, title, file and line, summary and tags"
+          ]
+        }
+      ]
+    },
+    {
       "name": "types",
       "summary": "The video types and their docs.",
       "when": "choosing the type doc for a request (CLAUDE.md, 路由表)",
