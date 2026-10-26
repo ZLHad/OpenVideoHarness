@@ -2440,6 +2440,54 @@ PY
     case "$rc:$rc2:$a:$b" in 0:0:*"determinism: holds"*:*"determinism: holds"*) ok "components on a page: a classic-script page (canvas-film's kind) draws OVH.paper and OVH.grain from global.js, a module page draws page-turn and the chapter bar; both a function of t (bin/vh determinism)" ;;
       *) bad "components on a page, determinism ($rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)" ;; esac
   else bad "components on a page (frames $rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)"; fi
+  # the other painters through the page contract too: a canvas page of paper-transition (the fold over the first second,
+  # the blot over the second) under spring-scene's canvas painter, and a page of the DOM painters (spring-scene's, the bar's)
+  vh components add "$p" spring-scene > /dev/null
+  cat > "$p/paper.html" <<'HTML'
+<!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>html,body{margin:0;background:#000}</style></head>
+<body><canvas id="c" width="640" height="360"></canvas><script type="module">
+import * as L from "./components/lib/index.js";
+import * as paper from "./components/paper-transition/component.js";
+import * as S from "./components/spring-scene/component.js";
+L.setFrame({ w: 640, h: 360, fps: 30 });
+const X = document.getElementById("c").getContext("2d");
+const P = { ...S.defaults, center: [320, 180], layers: [{ id: "a", tin: 0.2, tout: 1.5 }], cursor: { keys: [[0, 0, 0], [1, 50, 20]], clicks: [0.9] } };
+window.film = { duration: 2,
+  frame(t) {
+    X.reset();
+    const A = L.offscreen("pa", (x) => { x.fillStyle = "#e8dcc4"; x.fillRect(0, 0, 640, 360); x.fillStyle = "#222"; x.fillRect(80, 120, 160, 120); });
+    const B = L.offscreen("pb", (x) => { x.fillStyle = "#243447"; x.fillRect(0, 0, 640, 360); x.fillStyle = "#eee"; x.fillRect(400, 120, 160, 120); });
+    const V = { variant: t < 1 ? "fold" : "blot" };   // the fold over the first second, the blot over the second
+    paper.canvas(X, paper.state(V, t < 1 ? t : t - 1), A, B, V);
+    S.canvas(X, S.state(P, t), P, (c) => { c.fillStyle = "#c33"; c.fillRect(-40, -20, 80, 40); });
+  } };
+</script></body></html>
+HTML
+  cat > "$p/dom.html" <<'HTML'
+<!doctype html><html><head><meta name="viewport" content="width=640, height=360"><style>
+html,body{margin:0;background:#101418;overflow:hidden} #world,#shape,#la,#cur,#bar{position:absolute;left:0;top:0}
+#world{transform-origin:0 0} #la{font:600 28px sans-serif;color:#fff} #cur{width:12px;height:12px;border-radius:6px;background:#fc0}
+</style></head>
+<body><div id="world"><div id="shape"></div><div id="la">Layer</div></div><div id="cur"></div><div id="bar"></div>
+<script type="module">
+import * as L from "./components/lib/index.js";
+import * as S from "./components/spring-scene/component.js";
+import * as bar from "./components/chapter-bar/component.js";
+L.setFrame({ w: 640, h: 360, fps: 30 });
+const P = { ...S.defaults, center: [320, 180], layers: [{ id: "a", tin: 0.2, tout: 1.5 }], cursor: { keys: [[0, 0, 0], [1, 50, 20]], clicks: [0.9] } };
+const els = { world: document.getElementById("world"), shape: document.getElementById("shape"), layers: { a: document.getElementById("la") }, cursor: document.getElementById("cur") };
+const BP = { chapters: [{ t: 0, title: "一" }, { t: 1, title: "二" }], end: 2, y: 30, margin: 40, pad: 20 };
+let bels, blay;
+window.film = { duration: 2,
+  ready: async () => { await document.fonts.ready; const M = document.createElement("canvas").getContext("2d");
+    blay = bar.layout(BP, (s, z) => { M.font = `600 ${z}px sans-serif`; return M.measureText(s).width; }); bels = bar.build(document.getElementById("bar"), BP, blay); },
+  frame(t) { S.dom(els, S.state(P, t), P); bar.dom(bels, bar.state(BP, t, blay)); } };
+</script></body></html>
+HTML
+  a=$(vh determinism "$p/paper.html" --samples 3 2>&1); rc=$?
+  b=$(vh determinism "$p/dom.html" --samples 3 2>&1); rc2=$?
+  case "$rc:$rc2:$a:$b" in 0:0:*"determinism: holds"*:*"determinism: holds"*) ok "components on a page: paper-transition's fold and blot, spring-scene's canvas and DOM painters and the chapter bar's DOM painter are each a function of t (bin/vh determinism)" ;;
+    *) bad "components' other painters, determinism ($rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)" ;; esac
   rm -rf "$t"
 }
 

@@ -11,8 +11,9 @@ usage: bin/vh components [list] [--json]
   check   each component against its rules: component.js exports defaults, state() and the painters slots.json names,
           and its defaults are slots.json's; slots.json has a version, a name, painters and a slot for each default; a
           sample (sample/swatch.js, sample/tokens.json); provenance from another project has its licence copy in
-          components/LICENSES/ and a row in components/NOTICE.md; the library uses no Math.random, Date.now or
-          performance.now (hard rule 1)
+          components/LICENSES/ and a row in components/NOTICE.md; no file of the library, a component or its sample
+          leans on a clock or chance (tools/purity.py: Math.random, Date.now, new Date, performance.now,
+          requestAnimationFrame, timers, CSS animations and transitions; hard rule 1)
   add     copy lib/ and the named components (component.js, slots.json) into <project>/components/, and print how the
           project's engine loads them (HyperFrames: a module script; canvas-film: lib/global.js, then OVH.<name> from
           its classic scripts). Copies made before are replaced: a component is the repo's, not the project's to edit;
@@ -28,6 +29,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
+sys.path.insert(0, str(HERE))
+import purity   # noqa: E402  tools/purity.py: hard rule 1's patterns
 COMP = Path(os.environ.get("OVH_COMPONENTS") or ROOT / "components")   # another folder: the tests
 PROG = "bin/vh components"
 PAINTERS = {"canvas", "dom"}
@@ -122,11 +125,10 @@ def check():
                 bad.append(f"{where}: provenance {p.get('repo')}: the commit it was taken at")
             if f"`{name}/component.js`" not in notice and f"`{name}/" not in notice:
                 bad.append(f"{where}: provenance {p.get('repo')}: no row for it in components/NOTICE.md")
-    for f in sorted((COMP / "lib").glob("*.js")):
-        for i, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
-            code = line.split("//")[0]
-            if re.search(r"\bMath\.random\s*\(|\bDate\.now\s*\(|\bperformance\.now\s*\(", code):
-                bad.append(f"components/lib/{f.name}:{i}: a clock or Math.random (hard rule 1)")
+    # hard rule 1 in every file a component is made of: tools/purity.py's table (also bin/vh hf add's and recipes check's)
+    for f in sorted((COMP / "lib").glob("*.js")) + sorted(COMP.glob("*/component.js")) + sorted(COMP.glob("*/sample/*.js")):
+        for what, i, _ in purity.scan(f.read_text(encoding="utf-8")):
+            bad.append(f"{f.relative_to(COMP.parent)}:{i}: {what} (hard rule 1; a line may say purity-ok with its reason)")
     return bad
 
 

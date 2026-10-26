@@ -281,6 +281,8 @@ bash install.sh --no-skill                       # 不注册全局 skill
 
 原创内容采用 [MIT](LICENSE)。自带的 ClaudeAnimationBase 也是 MIT（© John Heibel）。`recipes/` 里改编自 Apache-2.0 项目的部分仍按 Apache-2.0，见 [`recipes/NOTICE.md`](recipes/NOTICE.md)。调用 Blender Python API（`import bpy`）的文件按 GPL-3.0-or-later 分发，每个文件头都有 SPDX 标注，见 [`engines/blender.md`](engines/blender.md)。参考仓库遵循各自的许可证，不进本仓库。
 
+`components/` 里改编自别的项目的部分仍按它的 MIT 许可，见 [`components/NOTICE.md`](components/NOTICE.md)。
+
 ## 引用
 
 ```bibtex
