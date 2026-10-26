@@ -223,8 +223,8 @@ def obs(platform, kind, native, url, **kw):
 
 def _yt_entry(e, method, query=None, rank=None, channel=None):
     vid = e.get("id")
-    date = day(e.get("timestamp")) or (f"{e['upload_date'][:4]}-{e['upload_date'][4:6]}-{e['upload_date'][6:]}"
-                                       if re.fullmatch(r"\d{8}", str(e.get("upload_date") or "")) else None)
+    ud = str(e.get("upload_date") or "")   # the platform's own date first: a timestamp's day depends on this machine's zone
+    date = f"{ud[:4]}-{ud[4:6]}-{ud[6:]}" if re.fullmatch(r"\d{8}", ud) else day(e.get("timestamp"))
     ch = channel or {}
     return obs("youtube", "video", vid, f"https://www.youtube.com/watch?v={vid}", title=e.get("title"),
                author=e.get("channel") or e.get("uploader") or ch.get("author"),
