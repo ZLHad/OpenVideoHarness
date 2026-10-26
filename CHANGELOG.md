@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**`bin/vh music --provider lyria`: a generated track, paid and on record**
+- Why: batch 1, line A, item 4. Code-composed music keeps its beats exact and its bytes the same, but its timbres are thin; a generated track gives the sound a score cannot. Lyria is on the Gemini key already in use (checked 2026-10-26: `lyria-3.5` $0.08 a track, `lyria-3-clip-preview` $0.04 for 30 s, no free tier; through the Interactions API, not Vertex).
+- `bin/vh music --provider lyria <project> --prompt …`: the call is held at the track's price against the BRIEF's `Budget:` (none, or over it: not called, with the shortfall said) and settled once the answer comes, at its model's price per track (the clip $0.04, a whole track $0.08; the answer's usage counts tokens, not money). A blocked answer (no track), an error answer and a request that never left settle at 0; a timeout or an answer cut off keeps the price and says it may have been billed. `--offline` replays spend nothing. The answer goes into `assets/genmusic/<id>/` as it came, with the prompt, the request (no key) and the lyrics it wrote; `audio/<as>.wav` (48 kHz) is made from it and both are on record as AI-generated. `--len` and `--instrumental` are asked in words, as Lyria takes them, and a track far off the length asked is said. A beat grid comes from `bin/vh beats` (detected). `--dry-run` gives the price and the budget's verdict; `--prices` lists the models.
+- `bin/vh music` without `--provider` composes from a score as before.
+- README: the music line names Lyria; Cost names generated pictures and music too, a paid one held against the budget first.
+- playbook/04's music and effects rows say where to get each now (Lyria, `bgm`, `sfx search`), and Suno is no longer "unverified": it has no public API and is not wired.
+- Checked once against the live API (2026-10-26, approved, $0.04): `lyria-3-clip-preview` gave a 30.8 s MP3, its text (`<instrumental>`) and its sound in two steps, and the tool made the 48 kHz WAV and both records from it. The answer is a fixture now, every field kept and its sound replaced by 0.5 s of tone. No seed is sent: Lyria's docs name none.
+
 **A sound library: `bin/vh sfx search|pick`, `bgm search|pick` and `sound add|list`**
 - Why: batch 1, line A, item 3. Sound had TTS, code-composed music and 21 synthesized effects; the films that used real recordings and real tracks sounded better, and each such file was found and credited by hand. What was missing was not a generator but a library with its licences on record, searchable by text, that plugs into `mix` and `qa`.
 - The library lives outside the repo (its files are other people's work): `--lib`, `$OVH_SOUND_LIB`, LOCAL.md's 声音库 line, else `~/.ovh/sound`. Its `ledger.jsonl` holds one asset record a sound (the same record as a project's ledger), with its length, channels and the terms' restrictions.

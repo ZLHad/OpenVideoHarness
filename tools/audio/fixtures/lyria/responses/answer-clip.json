@@ -1,0 +1,43 @@
+{
+ "status": "completed",
+ "usage": {
+  "total_tokens": 314,
+  "total_input_tokens": 21,
+  "input_tokens_by_modality": [
+   {
+    "modality": "text",
+    "tokens": 21
+   }
+  ],
+  "total_cached_tokens": 0,
+  "total_output_tokens": 293,
+  "total_tool_use_tokens": 0,
+  "total_thought_tokens": 0
+ },
+ "created": "2026-10-26T12:58:30Z",
+ "updated": "2026-10-26T12:58:30Z",
+ "service_tier": "standard",
+ "steps": [
+  {
+   "content": [
+    {
+     "text": "<instrumental>",
+     "type": "text"
+    }
+   ],
+   "type": "model_output"
+  },
+  {
+   "content": [
+    {
+     "data": "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",
+     "mime_type": "audio/mpeg",
+     "type": "audio"
+    }
+   ],
+   "type": "model_output"
+  }
+ ],
+ "object": "interaction",
+ "model": "lyria-3-clip-preview"
+}
