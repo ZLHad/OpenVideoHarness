@@ -2567,7 +2567,7 @@ if lyria.body_of("lyria-3-clip-preview", "x")["response_format"] != {"type": "au
 R = {x["id"]: x for x in json.load(open(f"{p}/assets/ledger.json", encoding="utf-8"))["assets"]}
 tr, wav = R.get("music-calm-piano-for-an") or {}, R.get("music-calm-piano-for-an-wav") or {}
 if ledger.validate(tr) or ledger.validate(wav) or (tr.get("aigc"), tr.get("model"), tr.get("seed"), tr.get("cost"), tr["path"]) \
-        != (True, "gemini/lyria-3.5", None, {"amount": 0.08, "currency": "USD"}, "assets/genmusic/music-calm-piano-for-an/track.wav") \
+        != (True, "gemini/lyria-3.5", None, None, "assets/genmusic/music-calm-piano-for-an/track.wav") or "a call: $0.08" not in tr.get("offline", "") \
         or wav.get("derived_from") != tr.get("id") or wav.get("path") != "audio/music.wav" or wav.get("used_by") != ["bgm"]:
     bad.append(f"the records: {tr} {wav}")
 ask = open(f"{p}/assets/genmusic/music-calm-piano-for-an/prompt.txt", encoding="utf-8").read()
@@ -2577,20 +2577,74 @@ if "Length: about 30 seconds." not in ask or "Instrumental only, no vocals." not
 st = json.loads(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=sample_rate,channels", "-of", "json", f"{p}/audio/music.wav"], capture_output=True, text=True).stdout)["streams"][0]
 if (int(st["sample_rate"]), st["channels"]) != (48000, 2):
     bad.append(f"audio/music.wav: {st}")
-spend = [json.loads(x) for x in open(f"{p}/assets/spend.jsonl", encoding="utf-8")]
-if [(x["kind"], x["amount"]) for x in spend] != [("hold", 0.08), ("settle", 0.08), ("hold", 0.08), ("settle", 0.0), ("hold", 0.04), ("settle", 0.04)] \
-        or budget.spent(p) != {"USD": 0.12}:
-    bad.append(f"the spend: {[(x['kind'], x['amount']) for x in spend]}")
+if budget.spent(p).get("USD", 0):   # replays: nothing held or spent
+    bad.append(f"the spend of replays: {budget.spent(p)}")
 cl, cw = R.get("clip") or {}, R.get("clip-wav") or {}
-if (cl.get("model"), cl.get("cost"), cl.get("path"), cw.get("path"), cw.get("derived_from")) != ("gemini/lyria-3-clip-preview", {"amount": 0.04, "currency": "USD"},
+if (cl.get("model"), cl.get("cost"), cl.get("path"), cw.get("path"), cw.get("derived_from")) != ("gemini/lyria-3-clip-preview", None,
         "assets/genmusic/clip/track.mp3", "audio/clip.wav", "clip") or open(f"{p}/assets/genmusic/clip/lyrics.txt", encoding="utf-8").read().strip() != "<instrumental>":
     bad.append(f"the recorded clip: {cl} {cw}")
 if sorted(glob.glob(f"{p}/assets/genmusic/*/track.*")) != [f"{p}/assets/genmusic/clip/track.mp3", f"{p}/assets/genmusic/music-calm-piano-for-an/track.wav"]:
     bad.append(f"tracks: {glob.glob(p + '/assets/genmusic/*/track.*')}")
 print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
-  then ok "music --provider lyria --offline: no budget and nothing is called; --dry-run calls nothing; no key is exit 2 by its name; the track on record as AI-generated with the 48 kHz WAV made from it, \$0.08 held and settled, length and instrumental asked in words; a blocked answer settles at 0; a name taken is exit 2; the answer recorded from lyria-3-clip-preview read as it came (MP3, text and audio in two steps)"
+  then ok "music --provider lyria --offline: no budget and nothing is called; --dry-run calls nothing; no key is exit 2 by its name; the track on record as AI-generated with the 48 kHz WAV made from it, a replay holding and spending nothing, length and instrumental asked in words; a blocked answer leaves no track; a name taken is exit 2; the answer recorded from lyria-3-clip-preview read as it came (MP3, text and audio in two steps)"
   else bad "music --provider lyria (exits $rc:$rc2:$rc3:$rc4:$rc5:$rc6:$rc7): $(printf '%s | %s' "$a" "$b" | tail -c 400) $(cat "$t/e1" "$t/e4" "$t/e5" "$t/e6" "$t/e7" | tail -c 500)"; fi
+  # a paid call against a stand-in Interactions API on this machine: held and settled at the model's price per track (the
+  # clip's, the whole track's); a blocked answer made no track (0); an error answer at 0; an answer cut off keeps the price
+  if a=$(python3 - "$t" <<'PY'
+import contextlib, io, json, os, sys, threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+sys.path.insert(0, "tools/audio")
+import lyria
+t, fx, mode = Path(sys.argv[1]), Path("tools/audio/fixtures/lyria/responses"), {"m": "ok"}
+class H(BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+    def do_POST(self):
+        self.rfile.read(int(self.headers.get("Content-Length") or 0))
+        if mode["m"] == "cut":
+            return
+        body, code = {"ok": ((fx / "answer.json").read_bytes(), 200), "clip": ((fx / "answer-clip.json").read_bytes(), 200),
+                      "blocked": ((fx / "answer-blocked.json").read_bytes(), 200), "http400": (b'{"error": {"code": 400, "message": "bad"}}', 400)}[mode["m"]]
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+lyria.API = f"http://127.0.0.1:{srv.server_address[1]}/v1beta/interactions"
+os.environ["GEMINI_API_KEY"] = "test-not-a-key"
+p = t / "paid"
+p.mkdir()
+(p / "BRIEF.md").write_text("# BRIEF\n\n## Spec\n- Budget: $1\n", encoding="utf-8")
+codes, said = {}, {}
+for m in ("ok", "clip", "blocked", "http400", "cut"):
+    mode["m"] = m
+    err = io.StringIO()
+    with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+        codes[m] = lyria.main(["--provider", "lyria", str(p), "--prompt", "x", "--id", f"m-{m}", "--as", f"m{m}", "--no-beats"]
+                              + (["--model", "lyria-3-clip-preview"] if m == "clip" else []))
+    said[m] = err.getvalue()
+srv.shutdown()
+srv.server_close()
+spend = [json.loads(x) for x in open(p / "assets/spend.jsonl", encoding="utf-8")]
+settled = {x["asset"]: x["amount"] for x in spend if x["kind"] == "settle"}
+bad = []
+if codes != {"ok": 0, "clip": 0, "blocked": 1, "http400": 1, "cut": 1}:
+    bad.append(f"exits {codes}")
+if settled != {"m-ok": 0.08, "m-clip": 0.04, "m-blocked": 0.0, "m-http400": 0.0, "m-cut": 0.08}:
+    bad.append(f"settled {settled}")
+if "may have been billed" not in said["cut"]:
+    bad.append(f"cut said: {said['cut'][-200:]}")
+rec = {x["id"]: x for x in json.load(open(p / "assets/ledger.json", encoding="utf-8"))["assets"]}
+if rec["m-ok"]["cost"] != {"amount": 0.08, "currency": "USD"} or rec["m-clip"]["cost"] != {"amount": 0.04, "currency": "USD"}:
+    bad.append(f"the records' costs: {rec['m-ok'].get('cost')} {rec['m-clip'].get('cost')}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "music --provider lyria, a paid call (a stand-in API on this machine): settled at the model's price per track (\$0.08 whole, \$0.04 the clip); a blocked answer and an error answer at 0; an answer cut off keeps the price, said as maybe billed"
+  else bad "music --provider lyria, settling a paid call: $a"; fi
   rm -rf "$t"
 }
 

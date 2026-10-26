@@ -1,6 +1,6 @@
 {
  "v": 1,
- "note": "bin/vh music --provider lyria's answers for the tests (tools/ci.sh, lyria_checks): synthesized in the shape Google documents for the Interactions API (ai.google.dev/api/interactions, 2026-10-26: an audio content block with base64 data), with a half-second ffmpeg tone; not recorded from the live API",
+ "note": "bin/vh music --provider lyria's answers for the tests (tools/ci.sh, lyria_checks). answer-clip.json is the answer recorded from the live Interactions API on 2026-10-26 (lyria-3-clip-preview, approved by the maintainer, $0.04): a model_output step with the text \"<instrumental>\", then one with the sound as audio/mpeg, no id; every field kept, its 30.8 s of MP3 replaced by 0.5 s of ffmpeg tone. answer.json (lyria-3.5 as WAV) and answer-blocked.json are still in the documented shape: neither was called live. tools/ci.sh copies this folder and puts in the answer each case needs",
  "responses": [
   {
    "url": "https://generativelanguage.googleapis.com/v1beta/interactions",

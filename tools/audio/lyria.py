@@ -14,7 +14,10 @@ usage: bin/vh music --provider lyria <project> (--prompt TEXT | --prompt-file F)
   voice, no copyrighted lyrics: its filter refuses them). No seed is sent: Lyria's docs name none, and the same
   prompt can give another track.
   Every call is paid, per track: held against the project's budget first (tools/assets/budget.py: no budget, or one it
-  would go over, and nothing is called, with how much is missing) and settled at the track's price (0 when it made none).
+  would go over, and nothing is called, with how much is missing) and settled at its model's price per track (the
+  pricing page, 2026-10-26: the clip $0.04, a whole track $0.08; the answer's usage counts tokens, not money). A
+  blocked answer made no track and settles at 0, and so do an error answer and a request that never left; a timeout or
+  an answer cut off keeps the price as spent, as such a call may have been billed (said so).
   The answer goes into assets/genmusic/<id>/ (track.<wav|mp3> as it came, prompt.txt, request.json without the key,
   lyrics.txt when it wrote any), on record as AI-generated (model, prompt, cost); audio/<as>.wav (48 kHz, what the
   mix reads) is on record too, made from it. audio/<as>.beats.json comes from bin/vh beats (librosa, detected, not exact
@@ -22,7 +25,8 @@ usage: bin/vh music --provider lyria <project> (--prompt TEXT | --prompt-file F)
   SynthID watermark: the film's description says the music is AI-generated (bin/vh assets credits gives the notice).
   --dry-run: the price and the budget's verdict, nothing called. --prices: the models and their prices.
 --json: {"version": 1, "tool", …}; the lines go to stderr. --offline DIR: the answer from DIR/responses.json, recorded
-before (CONTRIBUTING.md, 联网的命令): no network, nothing spent.
+before (CONTRIBUTING.md, 联网的命令): no network, and nothing held or spent (the budget's verdict still applies): the
+records have no cost and say they were replayed.
 Exit: 0 · 1 a call refused by the budget, or failed · 2 usage: no prompt, no key (said by its name), a name taken.
 """
 import argparse, json, os, re, shutil, subprocess, sys
@@ -136,21 +140,26 @@ def cmd_gen(a):
     (folder / "prompt.txt").write_text(ask + "\n", encoding="utf-8")
     body = body_of(a.model, ask)
     (folder / "request.json").write_text(json.dumps(body, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    try:
-        with budget.hold(project, price, "USD", f"music {cid} ({a.model})", tool=PROG, asset=cid) as h:
-            try:
-                answer = fetch.post_json(API, body, fetch.opener_from(a.offline), secret={"x-goog-api-key": os.environ.get("GEMINI_API_KEY", "")}, timeout=600)
-            except fetch.FetchError as e:
-                h.settle(0)
-                raise Failed(str(e))
-            try:
-                data, mime, said, _ = image.media_of(answer, "audio")
-            except image.Failed as e:
-                h.settle(0)
-                raise Failed(str(e))
-            h.settle(price)
-    except budget.Refused as e:
-        raise Failed(str(e))
+    if a.offline:   # a recorded answer: nothing is called, so nothing is held or spent
+        try:
+            data, mime, said, _ = image.media_of(fetch.post_json(API, body, fetch.opener_from(a.offline)), "audio")
+        except image.Failed as e:
+            raise Failed(str(e))
+    else:
+        try:
+            with budget.hold(project, price, "USD", f"music {cid} ({a.model})", tool=PROG, asset=cid) as h:
+                try:
+                    answer = image.paid_call(h, price, API, body, fetch.opener_from(None), timeout=600)
+                except image.Failed as e:
+                    raise Failed(str(e))
+                try:
+                    data, mime, said, _ = image.media_of(answer, "audio")
+                except image.Failed as e:   # a blocked answer made no track, and a track is what is billed
+                    h.settle(0)
+                    raise Failed(str(e))
+                h.settle(price)
+        except budget.Refused as e:
+            raise Failed(str(e))
     ext = {"audio/wav": ".wav", "audio/x-wav": ".wav", "audio/wave": ".wav", "audio/mpeg": ".mp3", "audio/mp3": ".mp3"}.get(str(mime).split(";")[0].lower(), ".mp3")
     track = folder / f"track{ext}"
     track.write_bytes(data)
@@ -169,8 +178,9 @@ def cmd_gen(a):
     lic = "the vendor's terms: Gemini API (Lyria)"
     try:
         rec, _, _ = ledger.add(project, str(track), id=cid, kind="audio", license=lic, license_class="generated", source=src, aigc=True,
-                               model=f"gemini/{a.model}", prompt_file=str(folder / "prompt.txt"), cost={"amount": price, "currency": "USD"},
-                               tags=["genmusic"], note="AI-generated music (SynthID watermark)", extra={"request": {"len_asked": a.len, "instrumental": a.instrumental}},
+                               model=f"gemini/{a.model}", prompt_file=str(folder / "prompt.txt"), cost=None if a.offline else {"amount": price, "currency": "USD"},
+                               tags=["genmusic"], note="AI-generated music (SynthID watermark)", extra={"request": {"len_asked": a.len, "instrumental": a.instrumental},
+                                      **({"offline": f"replayed from a recording: nothing called, nothing spent (a call: ${price:g})"} if a.offline else {})},
                                by=PROG)
         rec2, _, _ = ledger.add(project, str(dest), id=ledger.slug(f"{cid}-wav"), kind="audio", license=lic, license_class="generated", source=src,
                                 aigc=True, model=f"gemini/{a.model}", derived_from=cid, used_by=["bgm"], note=f"48 kHz WAV of {ledger.rel(project, track)}",
