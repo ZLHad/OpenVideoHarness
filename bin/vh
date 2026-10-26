@@ -991,9 +991,9 @@ cmd_check() {
   if [ -z "$J" ]; then   # no scratch folder: no record (said above)
     [ -z "$json" ] || printf '{"version": 1, "tool": "bin/vh check", "exit": %s, "verdict": "%s", "error": "no scratch folder (mktemp -d failed): no record was made"}\n' "$status" "$([ $status = 0 ] && echo pass || echo fail)" >&3
   elif [ -n "$json" ]; then
-    python3 "$ROOT/tools/checkrec.py" "${ra[@]}" --print >&3 \
+    python3 "$ROOT/tools/checkrec.py" "${ra[@]}" --print --remedies >&3 \
       || printf '{"version": 1, "tool": "bin/vh check", "exit": %s, "verdict": "%s", "error": "the record could not be made"}\n' "$status" "$([ $status = 0 ] && echo pass || echo fail)" >&3
-  else python3 "$ROOT/tools/checkrec.py" "${ra[@]}" >/dev/null || true; fi
+  else { python3 "$ROOT/tools/checkrec.py" "${ra[@]}" --remedies >/dev/null; } 2>&1 || true; fi   # the ways out (tools/remedies.json) on the lines
   return $status
 }
 cmd_tts() {

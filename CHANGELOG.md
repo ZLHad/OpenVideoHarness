@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`bin/vh check` names a way out of what it finds**
+- Why: batch 1, line B (the plan's 9.10 §3: a check reports, a tool offers options, the film decides). A still stretch of 3 s or a cut from dark to bright was reported with no pointer to what could answer it.
+- `tools/remedies.json`: one table, keyed by the kind of finding (`check.static`, `check.cut`, `check.silence` …): for each, one or two entries, a line saying what it is for and a recipe filter, a command or a doc section. `bin/vh check` prints the ones for the kinds it found after its own lines (not for confirmed or info findings), and each finding in the record (`--json`, `out/check/<name>.check.json`) carries them as `remedies`. A still stretch points to `bin/vh recipes list --role breath`, a bright cut to rising seams, silence to `bin/vh sfx` and `bin/vh mix`, a capture glitch to `bin/vh patch`.
+- `check.loudness` (line A's addition to `check`) has its entry already, `bin/vh mix`; `kinds_to_come` holds its name until it lands.
+- `tools/remedies.py check` (in CI): each kind one checkrec.py writes, each run a real command, each recipe filter finding a recipe, each doc and its section there. CONTRIBUTING: a new kind of finding gets its entry.
+
 **CI: the Linux install step gets past a stalled mirror**
 - Why: on 2026-10-25 and 26 `apt-get install shellcheck ffmpeg` took 10 to 30 minutes instead of half a minute, six times, and two jobs failed at the step's limit. A probe of 40 installs put the time in the download from the runner's regional Azure Ubuntu mirror (westus3 above all); `apt-get update` and dpkg were never slow. GitHub knows it: actions/runner-images#14823, still open.
 - The step now runs `apt-get update` and a download-only install with 60 s each, then dpkg on the files it has. A try that runs over is killed and the next one goes to archive.ubuntu.com instead of the regional mirror; what was downloaded is kept. Up to three tries, then the step fails. In the probe every install that stalled finished in under two minutes.

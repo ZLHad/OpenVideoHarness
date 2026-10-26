@@ -1,10 +1,12 @@
 """bin/vh check's record: what each of its checks found, one finding at a time, as JSON (bin/vh check --json prints it).
 
 usage (bin/vh check runs it last): python3 tools/checkrec.py <video> --dir <the checks' JSON pieces> --exit <status>
-                                   [--allow s] [--against f] [--print]
+                                   [--allow s] [--against f] [--print] [--remedies]
 The record is saved in the video's project, out/check/<name>.check.json: <name> is the video's file name without its
 extension, after the folders between out/ and it ("out/review/sketch.mp4" → review-sketch); a video outside a project gets
 no record. --print writes it to stdout too. It never changes what bin/vh check decided: --exit is its status.
+--remedies: the ways out of what was found (tools/remedies.json: a recipe filter, a command or a doc for each kind) on
+stderr, after the checks' own lines; each finding in the record carries them as "remedies" whether or not it is given.
 
 {"version": 1, "tool": "bin/vh check", "video", "project", "record", "t", "at", "size", "mtime_ns", "args": {"allow", "against"},
  "exit", "verdict": "pass" | "fail", "counts": {"fail", "warn", "info"}, "probe": {"duration", "size", "streams"},
@@ -14,7 +16,7 @@ size, mtime_ns  the video file's bytes and modification time (nanoseconds) when 
                 (film_changed; bin/vh status and versions do), which the time of the record alone cannot (a film put back
                 with an old modification time: cp -p, rsync -a, bin/vh versions use; one put in its place while the checks
                 ran). Nothing is hashed. null when the file cannot be read
-A finding: {"kind", "severity", "message", "t", "t1", "frame", "frames", "evidence", "confirmed"}.
+A finding: {"kind", "severity", "message", "t", "t1", "frame", "frames", "evidence", "confirmed", "remedies"?}.
   kind      check.spec, check.gate, check.black, check.freeze, check.silence, check.iso (an isolated frame), check.periodic,
             check.static, check.cut (a hard cut from dark to bright), check.blind (frames that move too much to judge),
             check.subtitles, check.colour, check.packaging, check.scale, check.confirmed (an entry of confirmed.json
@@ -24,6 +26,7 @@ A finding: {"kind", "severity", "message", "t", "t1", "frame", "frames", "eviden
   evidence  what the finding rests on: the measured numbers, the BRIEF's line, the key, the entry that confirms it …
   confirmed true when confirmed.json covers it, false when it could (check.iso) and does not, null for the kinds that are
             never confirmed there. An open check.iso carries "confirm": the entry to paste once why and evidence are filled
+  remedies  for a kind tools/remedies.json has: [{"say", "run" | "doc"}], what can answer it (options, not verdicts)
 The pieces in --dir, each optional (a check that did not run is "skipped" or simply absent): spec.json (speccheck.py),
 gate.json (gatecheck.py), detect.txt (ffmpeg's black/freeze/silence lines), iso.json (isoframes.py), subs.json
 (subcheck.py), colour.txt (ffprobe's csv), film.txt ("<size> <mtime_ns>" of the video when the checks began; without it, the
@@ -232,6 +235,7 @@ def main():
     ap = argparse.ArgumentParser(prog="checkrec.py")
     ap.add_argument("video"); ap.add_argument("--dir", required=True); ap.add_argument("--exit", type=int, required=True)
     ap.add_argument("--allow"); ap.add_argument("--against"); ap.add_argument("--print", action="store_true")
+    ap.add_argument("--remedies", action="store_true")
     a = ap.parse_args()
     import confirm   # project_of: the nearest folder holding BRIEF.md
     video = Path(a.video).resolve()
@@ -257,6 +261,14 @@ def main():
         if line.count("\t") >= 2:
             kind, sev, msg = line.split("\t", 2)
             findings.append(finding(kind, sev, msg))
+    import remedies   # tools/remedies.json: what can answer each kind of finding
+    for f in findings:
+        r = remedies.for_kind(f["kind"])
+        if r:
+            f["remedies"] = r
+    if a.remedies:
+        for line in remedies.lines(findings):
+            print(line, file=sys.stderr)
     counts = {s: sum(f["severity"] == s for f in findings) for s in ("fail", "warn", "info")}
     iso = load(a.dir, "iso.json") or {}
     motion = {"moving": iso.get("moving"), "still_share": iso.get("still_share"), "cuts": len(iso.get("cuts") or [])} if "moving" in iso else None
