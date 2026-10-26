@@ -160,6 +160,7 @@ JSON 的格式：
 - `check`：最近一次 `bin/vh check` 的记录摘要：`record`、`video`、`at`、`verdict`、`exit`、`counts`、`fails`（前三条）、`stale`（视频不是检查时的那一支了：检查记录里的 `size` 或 `mtime_ns` 和视频现在的不同；没有这两个字段的老记录，看视频的修改时间是不是比记录晚，见"检查记录"）。
 - `activity`：`running`（正在跑的命令）、`listening`（在跑的审阅台、`gate --wait`：是在等人，不是在干活）、`recent`（最近结束的五条），每条是下面活动记录里的一个 run。
 - `assets`：素材台账的摘要（`tools/assets/uses.py` 的 `overview`，下面"素材台账"）：`ledger`（有台账时是 `assets/ledger.json`，否则 `null`）、`records`（没删的记录条数）、`removed`、`uncleared`（许可有风险的：NC、ND、BY-SA、未知）、`not_taken`（其中这一档许可策略不收的）、`aigc`、`unregistered`（成片的页面载了、台账没有的素材个数；还没有一支成片记下载了哪些文件时是 `null`）、`films_known`（记下了的成片数）、`policy`、`policy_from`、`budget`（和 `bin/vh assets list --json` 的 `budget` 同一个形状，见下面"素材台账"）、`error`（台账或 Budget 一行读不了时）。不算哈希，很快。
+- `research`：项目 `research/` 里的调研（`tools/scout/scout.py` 的 `overview`），没有这个文件夹时是 `null`：`scout`（`bin/vh scout` 的记录：`file`、`records` 行数、`latest` 看过的视频和帖子数、`films` 其中当作自己的片子记的、`last` 最后一条的 `fetched_at`）、`hot`（`days` 有热榜快照的天数、`first`、`last`）、`refs`（`bin/vh ref` 的参考：`file`、`records`、`error`）；读不了时是 `{"error"}`。只读文件，不联网。
 
 ### 活动记录：`bin/vh activity <项目> [--json] [--follow] [--limit N]`
 
