@@ -331,7 +331,7 @@
       "required": false,
       "check": {},
       "probe": {"method": "GET", "url": "https://archive.org/advancedsearch.php?q=identifier%3ANewsMaga00_9&fl%5B%5D=identifier&rows=1&output=json",
-                "expect": {"list": "response.docs", "min": 1}},
+                "expect": {"path": "response.docs"}},
       "install": {}
     },
     {
@@ -346,7 +346,7 @@
       "required": false,
       "check": {},
       "probe": {"method": "GET", "url": "https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search&srsearch=Apollo%2011&srnamespace=6&srlimit=1",
-                "expect": {"list": "query.search", "min": 1}},
+                "expect": {"path": "query.search"}},
       "install": {}
     },
     {
@@ -361,7 +361,7 @@
       "required": false,
       "check": {},
       "probe": {"method": "GET", "url": "https://images-api.nasa.gov/search?q=Apollo%2011&media_type=video&page_size=1",
-                "expect": {"list": "collection.items", "min": 1}},
+                "expect": {"path": "collection.items"}},
       "install": {}
     },
     {

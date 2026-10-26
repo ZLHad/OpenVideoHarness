@@ -10,7 +10,7 @@
 - `recipes/sequences/live-countdown.md`: the countdown's edit grammar as a skeleton (screen time is event time; cuts on spoken calls; the cell count as the tension curve; many into one at zero). Rewritten from lemo-opuscar's countdown style (MIT); its licence is in `recipes/LICENSES/`, listed in `recipes/NOTICE.md`. No sample film yet: videos do not go in git.
 - `bin/vh assets credits` gives a record made from another one (a clip's baked frames) no line of its own when its source's line covers it, and names the sites as people read them (Wikimedia Commons, NASA). `bin/vh deliver` prints the credit lines themselves, up to six, under the count.
 - `tools/assets/licenses.py`: CC's retired public-domain deed (`creativecommons.org/licenses/publicdomain/`, the Prelinger films on the Archive) is public domain; a URL the table does not know says so instead of "no licence given".
-- `bin/vh doctor --probe` also asks the three sites (no key needed), one small search each; `--only NAMES` probes just those. They are in `tools/modules.json` as `internet-archive`, `wikimedia-commons` and `nasa-images`.
+- The three sites are in `tools/modules.json` as `internet-archive`, `wikimedia-commons` and `nasa-images`; `bin/vh doctor --probe` asks each with one small search, no key.
 
 **CI: the Linux install step gets past a stalled mirror**
 - Why: on 2026-10-25 and 26 `apt-get install shellcheck ffmpeg` took 10 to 30 minutes instead of half a minute, six times, and two jobs failed at the step's limit. A probe of 40 installs put the time in the download from the runner's regional Azure Ubuntu mirror (westus3 above all); `apt-get update` and dpkg were never slow. GitHub knows it: actions/runner-images#14823, still open.

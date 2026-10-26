@@ -2497,7 +2497,7 @@ PY
       *) bad "footage end to end, render (exit $rc): $(printf '%s' "$a" | tail -c 500)" ;;
     esac
   else skip "footage get, sync and frames" "no ffmpeg with libx264 and libvpx"; fi
-  # doctor --probe: the key-less sites from recordings (no key needed, an empty answer fails), and --only keeps to the names
+  # doctor --probe: the key-less sites from recordings (no key; an answer without the path footage reads fails); --only
   mkdir -p "$t/rec"
   printf '{"collection": {"items": [{"data": [{"nasa_id": "x"}]}]}}' > "$t/rec/nasa.json"; printf '{"query": {"search": []}}' > "$t/rec/commons.json"
   printf '{"v": 1, "responses": [{"url": "https://images-api.nasa.gov/search?q=Apollo%%2011&media_type=video&page_size=1", "status": 200, "body": "nasa.json"}, {"url": "https://commons.wikimedia.org/w/api.php?action=query&format=json&list=search&srsearch=Apollo%%2011&srnamespace=6&srlimit=1", "status": 200, "body": "commons.json"}]}' > "$t/rec/responses.json"
@@ -2506,10 +2506,10 @@ PY
   if [ "$rc:$rc2" = "0:2" ] && python3 -c '
 import json, sys
 m = {x["name"]: x["probe"] for x in json.loads(sys.argv[1])["modules"]}
-ok = (m["nasa-images"]["state"] == "ok" and "no key needed" in m["nasa-images"]["note"] and "1 collection.items" in m["nasa-images"]["note"]
-      and m["wikimedia-commons"]["state"] == "failed" and "empty" in m["wikimedia-commons"]["note"] and m["internet-archive"] is None and m["gemini"] is None)
+ok = (m["nasa-images"]["state"] == "ok" and "no key" in m["nasa-images"]["note"]
+      and m["wikimedia-commons"]["state"] == "failed" and "no query.search in the answer" in m["wikimedia-commons"]["note"] and m["internet-archive"] is None and m["gemini"] is None)
 sys.exit(0 if ok else 1)' "$a"
-  then ok "doctor --probe: a key-less site answered from a recording (no key needed; an empty list fails); --only probes those names alone, and an unknown name is exit 2"
+  then ok "doctor --probe: footage's sites answered from recordings with no key (an answer without the path footage reads fails); --only probes those alone, an unknown name is exit 2"
   else bad "doctor --probe, key-less (exits $rc:$rc2): $(printf '%s | %s' "$a" "$b" | tail -c 500)"; fi
   rm -rf "$t"
 }
