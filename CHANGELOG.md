@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`bin/vh check` names a way out of what it finds**
+- Why: batch 1, line B (the plan's 9.10 §3: a check reports, a tool offers options, the film decides). A still stretch of 3 s or a cut from dark to bright was reported with no pointer to what could answer it.
+- `tools/remedies.json`: one table, keyed by the kind of finding (`check.static`, `check.cut`, `check.silence` …): for each, one or two entries, a line saying what it is for and a recipe filter, a command or a doc section. `bin/vh check` prints the ones for the kinds it found after its own lines (not for confirmed or info findings), and each finding in the record (`--json`, `out/check/<name>.check.json`) carries them as `remedies`. A still stretch points to `bin/vh recipes list --role breath`, a bright cut to rising seams, silence to `bin/vh sfx` and `bin/vh mix`, a capture glitch to `bin/vh patch`.
+- `check.loudness` (line A's addition to `check`) has its entry already, `bin/vh mix`; `kinds_to_come` holds its name until it lands.
+- `tools/remedies.py check` (in CI): each kind one checkrec.py writes, each run a real command, each recipe filter finding a recipe, each doc and its section there. CONTRIBUTING: a new kind of finding gets its entry.
+
 **`components/`: one library under the swatches and the films, and the first four components**
 - Why: batch 1, line B (v0.4's F1). `styles/_swatch/lib.js` held the repo's motion and texture helpers but only the swatches could use them, fixed at 1920×1080 and 30 fps; films hand-built a spring, a page turn and a chapter bar each time.
 - `components/lib/` is that library, split into `core.js` (the frame, time, maths, seeded noise, easing, springs, colour), `motion.js`, `text.js`, `paint.js` and `gl.js`. The frame's size, rate and device pixel ratio are a setting (`setFrame`); at dpr 2 the full-frame layers follow it, and a page drawn at dpr 2 and scaled down matches dpr 1 (42–58 dB on a test page). `styles/_swatch/lib.js` re-exports it and keeps the swatch's content spec; the stage copies `components/`. All 32 swatches render byte-identical through it (150 frames each).

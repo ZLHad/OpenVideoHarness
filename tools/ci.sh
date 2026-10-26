@@ -131,6 +131,15 @@ doc_checks() {
   # the command table (tools/commands.json): its own rules, its stages those of playbook/01's 总表
   if out=$(python3 tools/commands.py check 2>&1); then ok "$out: each with a summary, when, stages (playbook/01's), reads, writes, usage; subcommands in their usage"
   else echo "$out"; bad "tools/commands.json"; fi
+  # the ways out of a check's findings (tools/remedies.json): each kind checkrec.py writes, each run a real command, each
+  # recipe filter finding a recipe, each doc there
+  if out=$(python3 tools/remedies.py check 2>&1); then ok "$out"; else echo "$out"; bad "tools/remedies.json"; fi
+  # checkrec.py's docstring reworded so its kinds cannot be found: a sentence, not a traceback
+  rk=$(mktemp -d "${TMPDIR:-/tmp}/vh-rk.XXXXXX"); sed 's/^  kind      /  kinds:    /' tools/checkrec.py > "$rk/checkrec.py"; cp tools/commands.json "$rk/"
+  out=$(python3 -c 'import pathlib, sys; sys.path.insert(0, "tools"); import remedies; remedies.HERE = pathlib.Path(sys.argv[1]); print("\n".join(remedies.check()))' "$rk" 2>&1)
+  case "$out" in *"its docstring has no"*) ok "tools/remedies.py: a checkrec.py docstring it cannot read is said in a sentence" ;;
+    *) bad "tools/remedies.py on a reworded docstring: $out" ;; esac
+  rm -rf "$rk"
   # the table of outside modules (tools/modules.json): its own rules (commands that exist, adapters in the repo, keys as
   # variable names, probes over https with the key in a header), and its HyperFrames pin the one bin/vh and styles/_swatch install
   if out=$(python3 tools/doctor.py --check 2>&1) && python3 - <<'PY'
@@ -1008,6 +1017,12 @@ PY
     a=$(vh check "$t/still.mp4" 2>&1); rc=$?
     case "$rc:$a" in 0:*"motion: "*"1 hard cut(s)"*"static: 1 stretch(es) of 3 s or more"*"2.00–6.00 s (frozen)"*"cuts: 1 hard cut(s) from dark to bright"*"2.00 s"*) ok "check --motion: a still stretch and a cut from dark to bright are warnings, the exit status untouched" ;;
       *) bad "check on a still stretch and a bright cut (rc $rc): $a" ;; esac
+    # the ways out (tools/remedies.json) after the lines, for the kinds found: a still stretch → breath recipes, a bright cut → rising seams
+    case "$a" in *"ways out (tools/remedies.json"*"static (1): "*"bin/vh recipes list --role breath"*"cut (1): "*"bin/vh recipes list --family seam --jump rise"*) ok "check names a way out for what it found (a breath recipe for a still stretch, a rising seam for a bright cut), from tools/remedies.json" ;;
+      *) bad "check's ways out: $(printf '%s' "$a" | tail -c 600)" ;; esac
+    b=$(vh check "$t/still.mp4" --json 2>/dev/null)
+    python3 -c 'import json,sys; d=json.loads(sys.argv[1]); f=[x for x in d["findings"] if x["kind"]=="check.static"]; sys.exit(0 if f and f[0]["remedies"][0]["run"]=="bin/vh recipes list --role breath" else 1)' "$b" \
+      && ok "check --json: each finding carries its remedies" || bad "check --json remedies: $(printf '%s' "$b" | tail -c 400)"
     # the publishing copy in PACKAGING.md: a Bilibili description of 2100 characters is over its 2000 (said, not a failure)
     { printf '%s\n' '# PACKAGING' '## 发布文案' '### B站' '标题：一个够短的标题' '标签：科普, 物理' '简介：'; python3 -c "print('字' * 2100)"; printf '%s\n' '### YouTube' 'Title: short'; } > "$t/sp/PACKAGING.md"
     a=$(vh check "$t/sp/out/ref.mp4" 2>&1); rc=$?
@@ -1099,7 +1114,8 @@ PY
     [ "$a" = "pass True" ] && [ "$b" = "12 34" ] && [ "$c" = True ] \
       && ok "check: the record keeps the film as it was when the checks began (a film touched meanwhile is stale at once); read from the note, else from the film" \
       || bad "check's record of the film's size and mtime_ns: status said '$a', note read as '$b', no note '$c'"
-    # no scratch folder (mktemp -d fails): the same checks, lines and exit, one warning, no record; and freezedetect's
+    # no scratch folder (mktemp -d fails): the same checks, lines and exit, one warning, no record (so no ways out, which
+    # come from the record's findings); and freezedetect's
     # duration line (before its end line) goes to its own span, not to the span before
     a=$(vh check "$t/cf/odd.mp4" 2>/dev/null); rc=$?; rm -f "$t/cf/out/check/odd.check.json"
     b=$(TMPDIR="$t/no-such-folder" vh check "$t/cf/odd.mp4" 2>"$t/cf/notmp.err"); rc2=$?
@@ -1107,7 +1123,7 @@ PY
     d=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import checkrec as C
 f = C.detect_findings("\n".join("lavfi.freezedetect.freeze_%s: %s" % x for x in [("start", 1), ("duration", 4), ("end", 5), ("start", 10), ("duration", 3.5), ("end", 13.5)]))
 print([x["evidence"]["duration"] for x in f])')
-    if [ $rc = 1 ] && [ $rc2 = 1 ] && [ "$a" = "$b" ] && [ "$(grep -c 'no scratch folder' "$t/cf/notmp.err")" = 1 ] && [ ! -e "$t/cf/out/check/odd.check.json" ] \
+    if [ $rc = 1 ] && [ $rc2 = 1 ] && [ "$(printf '%s\n' "$a" | sed '/^→ ways out/,$d')" = "$b" ] && [ "$(grep -c 'no scratch folder' "$t/cf/notmp.err")" = 1 ] && [ ! -e "$t/cf/out/check/odd.check.json" ] \
       && [ $rc3 = 1 ] && case "$c" in *'"verdict": "fail", "error": "no scratch folder'*) true ;; *) false ;; esac && [ "$d" = "[4.0, 3.5]" ]
     then ok "check with no scratch folder: the same lines and exit status, one warning, no record; each frozen span keeps its own duration"
     else bad "check without mktemp (rc $rc/$rc2/$rc3): $(tail -c 300 "$t/cf/notmp.err") | $c | freeze durations $d"; fi
