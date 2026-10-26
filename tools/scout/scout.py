@@ -19,10 +19,10 @@ usage: bin/vh scout topic <keywords> [-n 20] [--baseline [N]] [where] [--csv F] 
   channel  a YouTube channel's or an X account's latest N (an X profile gives about 20): followers, the median, each one's
            multiple of it, and how often it posts
   post     your own films after they went out (7 days on is the usual look): a YouTube video, a Bilibili BV, an X post;
-           --topic and --score tie a film to its topic and the score it had when it was chosen. Then every film of
-           yours on record, the latest look at each: age, the numbers, views ÷ followers, multiple of your own median,
-           and with 4 or more scored, Spearman's ρ between the score and the views. A film on Douyin or Xiaohongshu:
-           scout add --post with the numbers read in the browser
+           --topic and --score tie a film to its topic and the score it had when it was chosen (a later look without
+           them keeps the ones given before). Then every film of yours on record, the latest look at each: age, the
+           numbers, views ÷ followers, multiple of your own median, and with 4 or more scored, Spearman's ρ between
+           the score and the views. A film on Douyin or Xiaohongshu: scout add --post with the numbers read in the browser
   hot      a snapshot of hot lists (Baidu's realtime board, Toutiao's hot board, Google Trends' daily RSS for --geo, X's
            trends), kept as hot/<date>.json in the research folder; each item with the days it has been on the list
            in the last --days (a one-day wonder, or one that lasts). A list that fails is said; the others are kept
@@ -417,7 +417,7 @@ def cmd_topic(a):
     if stars:
         say(f"  ★ {len(stars)} at {STAR:g}× its channel's median or more: what they share is worth a look (title, cover, the first seconds)")
     finish(a, "topic", recs, folder, how)
-    return 0
+    return 1 if net.blocked else 0
 
 
 def cmd_channel(a):
@@ -453,12 +453,13 @@ def cmd_channel(a):
 
 def posts_report(folder):
     """Your films on record: each key ever looked at as a post, its latest look (a later channel run refreshes the
-    numbers), with the topic and score of its latest post record; oldest film first."""
+    numbers), with the topic and the score last given for it (a later look without them keeps the earlier ones, so a
+    film stays in the rank correlation); oldest film first."""
     log = read_log(folder)
     tied = {}
     for r in log:
         if r.get("via") == "post" and r.get("key"):
-            tied[r["key"]] = {k: r[k] for k in ("topic", "score") if k in r}
+            tied.setdefault(r["key"], {}).update({k: r[k] for k in ("topic", "score") if r.get(k) not in (None, "")})
     recs = [dict(r, **tied[r["key"]]) for r in latest(log) if r.get("key") in tied]
     recs.sort(key=lambda r: r.get("date") or "9999")
     if not recs:
@@ -495,6 +496,9 @@ def cmd_post(a):
         except SourceError as e:
             bad = failed(e)
             continue
+        for n in net.notes:
+            say(f"! {u}: {n}")
+        net.notes.clear()
         if a.topic:
             r["topic"] = a.topic
         if a.score is not None:
@@ -507,7 +511,7 @@ def cmd_post(a):
     finish(a, "post", recs, folder, how)
     if folder:
         posts_report(folder)
-    return bad
+    return 1 if bad or net.blocked else 0
 
 
 def snapshot_file(folder, date):
@@ -708,6 +712,29 @@ def cmd_list(a):
     if a.json:
         print(json.dumps({"version": 1, "via": "list", "dir": str(folder), "file": str(folder / LOG), "records": recs}, ensure_ascii=False, indent=1))
     return 0
+
+
+def overview(project):
+    """What a project's research/ holds, for bin/vh status (tools/desk/README.md, 给客户端的数据): the scout records,
+    the days with a hot-list snapshot, the references (bin/vh ref). Files read, nothing fetched; None with no research/."""
+    d = Path(project) / "research"
+    if not d.is_dir():
+        return None
+    log = read_log(d)
+    days = sorted(f.stem for f in (d / "hot").glob("*.json") if re.fullmatch(r"\d{4}-\d\d-\d\d", f.stem))
+    refs, err = [], None
+    try:
+        doc = json.loads((d / "refs.json").read_text(encoding="utf-8"))
+        refs = [r for r in doc.get("assets", []) if isinstance(r, dict)]
+    except FileNotFoundError:
+        pass
+    except (OSError, ValueError, AttributeError) as e:
+        err = f"research/refs.json could not be read ({e})"
+    return {"scout": {"file": f"research/{LOG}" if log else None, "records": len(log), "latest": len(latest(log)),
+                      "films": len({r["key"] for r in log if r.get("via") == "post" and r.get("key")}),
+                      "last": max((r.get("fetched_at") or "" for r in log), default="") or None},
+            "hot": {"days": len(days), "first": days[0] if days else None, "last": days[-1] if days else None},
+            "refs": {"file": "research/refs.json" if refs or err else None, "records": len(refs), "error": err}}
 
 
 # ---- the command line ----

@@ -2413,6 +2413,15 @@ PY
       ok "scout add: rows read by hand (flags or a CSV, counts as the page writes them), a bad count refused with its row; --post joins your films" ;;
     *) bad "scout add, its lines: $(printf '%s' "$a$c" | tail -c 500)" ;; esac
   else bad "scout add (exits $rc:$rc2:$rc3, want 0:0:2): $(printf '%s' "$a$b$c" | tail -c 500)"; fi
+  # a later look at a film without --topic or --score keeps the ones given before (it stays in the rank correlation);
+  # a block on the uploader's follower count is said, the video's own numbers kept, the run stopped there, exit 1
+  a=$(vh scout post https://x.com/exampleacct/status/1000000000000000001 --dir "$r" --offline "$F" 2>&1); rc=$?
+  b=$(vh scout post https://www.bilibili.com/video/BV1Cd4y1F7Gh https://www.bilibili.com/video/BV1Ab4y1C7De --dir "$t/r4" --offline "$F" 2>&1); rc2=$?
+  case "$rc:$rc2|$a|$b" in "0:1|"*"your films on record (5)"*"Spearman ρ = +"*"over 4 films"*"|"*"BV1Cd4y1F7Gh: no follower count, blocked: bilibili /x/relation/stat: code -352"*"✗ blocked:"*"(not asked again this run)"*"→ 1 record onto"*)
+      if [ "$(wc -l < "$t/r4/scout.jsonl" | tr -d ' ')" = 1 ] && ! grep -q '"followers"' "$t/r4/scout.jsonl"; then
+        ok "scout post again without --topic or --score keeps the film's topic and score; a blocked follower count is said, the video's numbers kept, the run stopped there (exit 1)"
+      else bad "scout post with its follower count blocked: $(cat "$t/r4/scout.jsonl")"; fi ;;
+    *) bad "scout post again, or with its follower count blocked (exits $rc:$rc2, want 0:1): $(printf '%s' "$a$b" | tail -c 700)" ;; esac
   # hot: four lists into today's snapshot, a second run appended to it; an unknown list is a usage error
   a=$(vh scout hot --dir "$r" --offline "$F" -n 3 2>&1); rc=$?
   b=$(vh scout hot --source baidu --dir "$r" --offline "$F" --json 2>/dev/null); rc2=$?
@@ -2471,10 +2480,28 @@ PY
       else bad "ref: exits $rc2:$rc3, want 1:0"; fi ;;
     *) bad "ref add and list, their lines: $(printf '%s' "$b$c" | tail -c 600)" ;; esac
   else bad "ref add (exit $rc): $(printf '%s' "$a$b$c" | tail -c 600)"; fi
+  # status reads the project's research/: the scout records, the days with a hot-list snapshot, the references; then a
+  # reference whose uploader's follower count is blocked is kept, said, and exits 1; ref fetch is a name kept, not built
+  vh scout add https://www.douyin.com/video/7000000000000000005 --likes 300 --post --project "$p" >/dev/null 2>&1
+  vh scout hot --source baidu --project "$p" --offline "$F" >/dev/null 2>&1
+  a=$(vh status "$p" --json 2>/dev/null); b=$(vh status "$p" 2>&1)
+  c=$(vh ref add "$p" https://www.bilibili.com/video/BV1Cd4y1F7Gh --offline "$F" 2>&1); rc=$?
+  d=$(vh ref fetch 2>&1); rc2=$?
+  if python3 - "$a" <<'PY'
+import json, sys
+r = json.loads(sys.argv[1])["research"]
+ok = r["scout"]["file"] == "research/scout.jsonl" and (r["scout"]["records"], r["scout"]["latest"], r["scout"]["films"]) == (1, 1, 1) and r["scout"]["last"]
+ok = ok and r["hot"]["days"] == 1 and r["hot"]["first"] == r["hot"]["last"] and r["refs"] == {"file": "research/refs.json", "records": 4, "error": None}
+sys.exit(0 if ok else 1)
+PY
+  then case "$rc:$rc2|$b|$c|$d" in "1:2|"*"research: 1 scout record (1 looked at, 1 your own) · hot lists on 1 day (the last "*"· 4 references (bin/vh scout, bin/vh ref)"*"|"*"! no follower count, blocked: bilibili /x/relation/stat: code -352"*"✓ bili-BV1Cd4y1F7Gh"*"|"*"references/fetch.sh"*)
+      ok "status --json and its lines: the project's research/ (scout records, hot-list days, references); ref add keeps a reference whose follower count is blocked and says so (exit 1); ref fetch is kept as a name" ;;
+    *) bad "status's research, or ref add with its follower count blocked (exits $rc:$rc2, want 1:2): $(printf '%s' "$b$c$d" | tail -c 700)" ;; esac
+  else bad "status --json, its research: $(printf '%s' "$a" | tail -c 500)"; fi
   # doctor's probes of the public services that take no key, from recordings: a JSON path that must be there, an RSS text
   mkdir -p "$t/rec"; printf '{"code": 200, "status": {"id": "20"}}' > "$t/rec/fx.json"; printf '<rss version="2.0"></rss>' > "$t/rec/g.xml"
-  printf '{"code": 0, "message": "0", "data": null}' > "$t/rec/bi.json"
-  printf '{"v": 1, "responses": [{"url": "https://api.fxtwitter.com/2/status/20", "status": 200, "body": "fx.json"}, {"url": "https://trends.google.com/trending/rss?geo=US", "status": 200, "body": "g.xml"}, {"url": "https://top.baidu.com/api/board?platform=pc&tab=realtime", "status": 200, "body": "bi.json"}, {"url": "https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc", "status": 403}]}' > "$t/rec/responses.json"
+  printf '{"code": 0, "message": "0", "data": null}' > "$t/rec/bi.json"; printf '{"code": -352, "message": "-352"}' > "$t/rec/bv.json"
+  printf '{"v": 1, "responses": [{"url": "https://api.fxtwitter.com/2/status/20", "status": 200, "body": "fx.json"}, {"url": "https://trends.google.com/trending/rss?geo=US", "status": 200, "body": "g.xml"}, {"url": "https://top.baidu.com/api/board?platform=pc&tab=realtime", "status": 200, "body": "bi.json"}, {"url": "https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc", "status": 403}, {"url": "https://api.bilibili.com/x/web-interface/view?bvid=BV1xx411c7mD", "status": 200, "body": "bv.json"}]}' > "$t/rec/responses.json"
   a=$(python3 tools/doctor.py --json --probe --only fxtwitter,google-trends,baidu-top,toutiao-hot,bilibili-view --offline "$t/rec" 2>&1); rc=$?
   b=$(python3 tools/doctor.py --probe --only nosuch 2>&1); rc2=$?; c=$(python3 tools/doctor.py --only fxtwitter 2>&1); rc3=$?
   if [ "$rc:$rc2:$rc3" = 0:2:2 ] && python3 - "$a" <<'PY'
@@ -2483,10 +2510,10 @@ pr = {m["name"]: m["probe"] for m in json.loads(sys.argv[1])["modules"] if m["pr
 ok = set(pr) == {"fxtwitter", "google-trends", "baidu-top", "toutiao-hot", "bilibili-view"}
 ok = ok and pr["fxtwitter"] == {"state": "ok", "note": "answers (HTTP 200, no key)"} and pr["google-trends"]["state"] == "ok"
 ok = ok and pr["baidu-top"]["state"] == "failed" and "no data.cards" in pr["baidu-top"]["note"]
-ok = ok and pr["toutiao-hot"] == {"state": "failed", "note": "HTTP 403"} and "no recorded response" in pr["bilibili-view"]["note"]
+ok = ok and pr["toutiao-hot"] == {"state": "failed", "note": "HTTP 403"} and pr["bilibili-view"] == {"state": "failed", "note": "api.bilibili.com refused: status_code -352"}
 sys.exit(0 if ok else 1)
 PY
-  then ok "doctor --probe of the keyless services from recordings: an answer the adapter reads, one without its path, an RSS feed, an HTTP error; --only picks the probes, a name it lacks and --only without --probe are usage errors"
+  then ok "doctor --probe of the keyless services from recordings: an answer the adapter reads, one without its path, an RSS feed, an HTTP error, a refusal code (named by its host); --only picks the probes, a name it lacks and --only without --probe are usage errors"
   else bad "doctor's keyless probes (exits $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 500)"; fi
   # usage errors exit 2 and print to stderr only
   rc=0; for x in "scout" "scout bogus" "scout topic" "ref" "ref add" "scout channel https://www.bilibili.com/video/BV1Ab4y1C7De"; do

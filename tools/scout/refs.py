@@ -6,6 +6,8 @@ it with bin/vh assets add (its derived_from can name the reference's id).
 usage: bin/vh ref add <project> <url|file> [--why TEXT] [--type video|post|image|page] [--title T] [--author A]
                   [--license TEXT] [--class C] [--tags a,b] [--id ID] [--thumb] [--offline DIR] [--sleep S] [--json]
        bin/vh ref list <project> [--json]
+       bin/vh ref fetch …   not built: the name is kept for the command form of references/fetch.sh (the repo's own
+                            read-only reference repos, references/repos/); meanwhile bash references/fetch.sh [<dir>]
 <project> is a folder (or a file inside it), or a name under $OVH_PROJECTS / projects/ (the date prefix optional).
 
   add   a URL: a YouTube video, a Bilibili BV or an X post is looked up the way bin/vh scout post looks one up (its
@@ -24,7 +26,7 @@ usage: bin/vh ref add <project> <url|file> [--why TEXT] [--type video|post|image
 
 --json: {"version": 1, "project", "file", "refs": [record…]} on stdout (add: "ref": the record), the lines on stderr.
 --offline DIR: the look and the cover from DIR/responses.json (tools/assets/fetch.py), no network. Exit: 0 · 1 a look
-failed or was blocked · 2 usage.
+failed or was blocked (a block on the uploader's follower count keeps the record, and says so) · 2 usage.
 """
 import argparse, fcntl, json, os, re, sys, time, urllib.parse
 from pathlib import Path
@@ -130,6 +132,8 @@ def cmd_add(a):
                 if isinstance(e, Blocked):
                     say("  nothing was retried: read it in the built-in browser and give --title, --author (and the counts in --why or a note)")
                 return 1
+            for n in net.notes:
+                say(f"! {n}")
         rtype = a.type or ("post" if plat == "x" or what == "post" else "video" if what == "video" else "page")
         kind = {"video": "video", "image": "image"}.get(rtype, "other")
     else:
@@ -224,7 +228,7 @@ def cmd_add(a):
     say(f"  {FILE.as_posix()} · {path} · licence {rec['license']['class']} (studied, not shown: on screen it is material, bin/vh assets add)")
     if a.json:
         print(json.dumps({"version": 1, "project": str(project), "file": str(project / FILE), "ref": rec}, ensure_ascii=False, indent=1))
-    return 0
+    return 1 if net.blocked else 0
 
 
 def sources_line(ref):
@@ -288,6 +292,10 @@ def main(argv):
     if not argv:
         parser().print_usage(sys.stderr)
         print(f"{PROG}: a subcommand (add, list)", file=sys.stderr)
+        return 2
+    if argv[0] == "fetch":
+        print(f"{PROG} fetch: not built yet. The name is kept for the command form of references/fetch.sh, which fetches "
+              "the read-only reference repos into references/repos/: meanwhile run bash references/fetch.sh [<dir>]", file=sys.stderr)
         return 2
     a = parser().parse_args(argv)
     if a.cmd is None:

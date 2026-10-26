@@ -326,7 +326,7 @@ def probe(m, offline, recs):
             code = code.get(part) if isinstance(code, dict) else None
         if code != 0:
             hint = (exp.get("hints") or {}).get(str(code))
-            return {"state": "failed", "note": scrub(f"{var} refused: status_code {code}" + (f" ({hint})" if hint else ""), key)}
+            return {"state": "failed", "note": scrub(f"{var or host} refused: status_code {code}" + (f" ({hint})" if hint else ""), key)}
     if exp.get("list"):
         items = js.get(exp["list"])
         if not isinstance(items, list):
@@ -336,7 +336,7 @@ def probe(m, offline, recs):
             have = {str(x.get("name", "")).split("/")[-1] for x in items if isinstance(x, dict)}
             gone = [n for n in exp["names"] if n not in have]
             if gone:
-                return {"state": "failed", "note": f"{var} taken, but the models bin/vh uses are not listed: {', '.join(gone)}"}
+                return {"state": "failed", "note": (f"{var} taken" if var else f"{host} answers") + f", but the models bin/vh uses are not listed: {', '.join(gone)}"}
             said.append(f"the {len(exp['names'])} models bin/vh uses among them")
     return {"state": "ok", "note": ", ".join(said)}
 

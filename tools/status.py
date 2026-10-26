@@ -33,7 +33,8 @@ Also: the versions of the project's films (out/versions/versions.json, bin/vh ve
 listed as renders), the latest renders with what their sidecars say (.render.json, .deliver.json, the check record), the review items
 still open (a desk submission's change and ask items whose REVIEW.md section has no 定了 / 改了 yet), the facts NOTES.md
 still lists to verify, the last check, the material on record (bin/vh assets: how many, the licences not cleared, what
-the films loaded that the ledger lacks, the spend against the budget), and the commands running now and the last ones
+the films loaded that the ledger lacks, the spend against the budget), the research in research/ (bin/vh scout's
+records, the days with a hot-list snapshot, bin/vh ref's references), and the commands running now and the last ones
 (the activity log).
 --json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1). Exit 0, 2 when there is no project.
 """
@@ -405,6 +406,13 @@ def main(argv):
         assets = U.overview(project)
     except Exception as e:
         assets = {"error": f"the asset ledger could not be read ({e})"}
+    # the research on record (bin/vh scout, bin/vh ref; tools/scout/scout.py's overview): files only, never a failure
+    try:
+        sys.path.insert(0, str(HERE / "scout"))
+        import scout as S
+        research = S.overview(project)
+    except Exception as e:
+        research = {"error": f"research/ could not be read ({e})"}
 
     def vinfo(v, s):
         side = load(str(v) + ".render.json")
@@ -419,7 +427,7 @@ def main(argv):
            "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": desk},
            "open": {"review_items": open_items, "facts_to_verify": facts},
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
-           "check": check_summary(project, *checks[0]) if checks else None, "assets": assets,
+           "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "research": research,
            "activity": {"running": working, "listening": listening, "recent": recent}}
     if a.json:
         print(json.dumps(out, ensure_ascii=False, indent=1))
@@ -477,6 +485,16 @@ def show(o, now):
             f"{a['uncleared']} not cleared" + (f" ({a['not_taken']} not taken under {a['policy']})" if a.get("not_taken") else "") if a.get("uncleared") else "",
             f"{a['unregistered']} loaded but not on record" if a.get("unregistered") else "", f"{a['aigc']} AI-generated" if a.get("aigc") else "") if x]
         print("assets: " + ", ".join(bits) + (f" · {money}" if money else "") + (f" · {a['error']}" if a.get("error") else "") + " (bin/vh assets)")
+    rs = o.get("research") or {}
+    sc, hot, refs = rs.get("scout") or {}, rs.get("hot") or {}, rs.get("refs") or {}
+    bits = [x for x in (
+        f"{sc['records']} scout record{'s' if sc['records'] != 1 else ''} ({sc['latest']} looked at"
+        + (f", {sc['films']} your own" if sc.get("films") else "") + ")" if sc.get("records") else "",
+        f"hot lists on {hot['days']} day{'s' if hot['days'] != 1 else ''} (the last {hot['last']})" if hot.get("days") else "",
+        f"{refs['records']} reference{'s' if refs['records'] != 1 else ''}" if refs.get("records") else "",
+        refs.get("error") or "", rs.get("error") or "") if x]
+    if bits:
+        print("research: " + " · ".join(bits) + " (bin/vh scout, bin/vh ref)")
     vs = o.get("versions") or {}
     if vs.get("list"):
         kept = sum(1 for x in vs["list"] if x["state"] == "kept")

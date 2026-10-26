@@ -119,6 +119,22 @@
     "content-type": "application/rss+xml"
    },
    "body": "hot-google.xml"
+  },
+  {
+   "url": "https://api.bilibili.com/x/web-interface/view?bvid=BV1Cd4y1F7Gh",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "bili-view-2.json"
+  },
+  {
+   "url": "https://api.bilibili.com/x/relation/stat?vmid=20000002",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "bili-blocked.json"
   }
  ]
 }

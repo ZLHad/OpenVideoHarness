@@ -55,6 +55,7 @@ class Net:
         self.opener = fetch.opener_from(offline)
         self.pace = Pace(sleep, bool(offline))
         self.blocked = {}   # host → why: a host that asked for a verification gets no further request this run
+        self.notes = []     # what a look let pass and the person should still hear (a count it could not get): the caller says them
 
     def stop(self, host, why):
         self.blocked[host] = why
@@ -336,8 +337,10 @@ def bilibili_video(net, bvid, followers=True):
     if followers and owner.get("mid"):
         try:
             fans = num(_bili(net, f"/x/relation/stat?vmid={owner['mid']}").get("follower"))
-        except (SourceError, Blocked):
-            fans = None   # the count is a nicety: the video's own numbers stand without it (a block still stops the host)
+        except Blocked as e:   # the count is a nicety: the video's own numbers stand without it, and the block stops the host
+            net.notes.append(f"no follower count, blocked: {e}; the video's own numbers stand, and Bilibili is not asked again this run")
+        except SourceError as e:
+            net.notes.append(f"no follower count ({e}); the video's own numbers stand")
     o = obs("bilibili", "video", v.get("bvid") or bvid, f"https://www.bilibili.com/video/{v.get('bvid') or bvid}", title=v.get("title"),
             author=owner.get("name"), author_id=owner.get("mid") and str(owner["mid"]),
             author_url=owner.get("mid") and f"https://space.bilibili.com/{owner['mid']}", followers=fans,
