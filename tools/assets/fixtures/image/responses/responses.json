@@ -1,0 +1,14 @@
+{
+ "v": 1,
+ "note": "bin/vh image's answers for the tests (tools/ci.sh, image_checks). answer-plain.json is the answer recorded from the live Interactions API on 2026-10-26 (gemini-nano-banana-2.1, 1K, JPEG asked; approved by the maintainer): a thought step that holds only a signature, then a model_output step with the picture, no text; every field kept, the picture replaced by an ffmpeg-made 160×90 JPEG and the signature by a short placeholder. answer-green.json is that answer around a green picture (for --alpha); answer-blocked.json is still the documented shape (no blocked answer was recorded). tools/ci.sh copies this folder and puts in the answer each case needs",
+ "responses": [
+  {
+   "url": "https://generativelanguage.googleapis.com/v1beta/interactions",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "answer-plain.json"
+  }
+ ]
+}
