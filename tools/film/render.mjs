@@ -7,7 +7,7 @@
 //
 // usage: node tools/film/render.mjs <project | page.html> --browser <chrome> [--out out/film.mp4] [--fps 30]
 //          [--range a:b | --frames k0:k1] [--dpr 1] [--workers 4] [--crf 16] [--preset medium] [--gop 60] [--png] [--quality 95] [--alpha]
-//          [--frame-timeout 120] [--estimate | --no-estimate] [--note text] [--force] [--real-clock] [--soft-gl]
+//          [--frame-timeout 120] [--estimate | --no-estimate] [--note text] [--force] [--real-clock] [--soft-gl] [--fresh] [--cache-max 10]
 //        (bin/vh render finds the browser: CHROME_PATH, HyperFrames' chrome-headless-shell, then Chrome or Chromium)
 //
 //   --out          default <project>/out/<page>.mp4. A relative path is from the current folder, as every bin/vh path
@@ -35,6 +35,13 @@
 //                  browser's page may take as long to set window.film and to be ready (at least 30 s and 120 s a wait;
 //                  OVH_PAGE_TIMEOUT=S sets those alone, tools/film/host.mjs)
 //   --note text    a line for this version in the project's record (bin/vh versions)
+//   --fresh        an edit list: draw every chunk again, none taken from the chunk cache (the new ones are kept in it)
+//   --cache-max 10 an edit list's chunk cache, <project>/out/cache/chunks, in GB: a finished chunk is kept there under its
+//                  key (what its frames are made from: the run's drawing, their place in it, the settings, the browser
+//                  for what a browser draws, the ffmpeg and these tools) with the files its page was sent, and a later
+//                  render takes it instead of drawing it while that key is the same and those files are the same bytes:
+//                  change one entry and only its chunks are drawn again. After a render the chunks used longest ago go
+//                  first past this size; 0: no cache. bin/vh clean clears it (it is made again)
 //
 // The colour: Chrome's frames are full-range RGB; the encode converts them to limited-range BT.709 with all four colour
 // tags (what bin/vh check expects). Beside the video, <out>.render.json records how it was made (size, fps, frames,
@@ -66,7 +73,8 @@ import { note as activityNote, progress as activityProgress } from "./activity.m
 import { commit } from "./versions.mjs";                                                 // the project's versions (bin/vh versions)
 import { frameFrom } from "./timegrid.mjs";                                              // seconds to frames (tools/timegrid.py)
 import { concatChunks } from "./join.mjs";                                               // the chunks joined, one DTS step a frame
-import { EditFilm, allFacts, build as buildEdit, chaptersOf, clipIndex, decodeArgs, drawingKey, editProject, indexOf, openEdit, pageShort, shotsOf, timeSourceProblems } from "./edit.mjs";   // edit lists (engines/EDIT.md)
+import { EditFilm, allFacts, build as buildEdit, chaptersOf, chunkKey, clipIndex, decodeArgs, editProject, openEdit, pageShort, shotsOf, timeSourceProblems } from "./edit.mjs";   // edit lists (engines/EDIT.md)
+import { CACHE, ChunkCache } from "./cache.mjs";                                         // an edit list's chunk cache
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -74,7 +82,7 @@ const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport "
 const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
 const die = (msg) => { console.error("render: " + msg); process.exit(2); };
-const o = { fps: 30, dpr: 1, workers: 4, crf: 16, preset: "medium", quality: 95, frameTimeout: 120, estimate: "auto" };
+const o = { fps: 30, dpr: 1, workers: 4, crf: 16, preset: "medium", quality: 95, frameTimeout: 120, estimate: "auto", fresh: false, cacheMax: 10 };
 let target = null, out = null, range = null, frames = null, gop = null, png = false, force = false, fpsGiven = false, note = null, alpha = false;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], [k, inline] = a.startsWith("--") && a.includes("=") ? [a.slice(0, a.indexOf("=")), a.slice(a.indexOf("=") + 1)] : [a, undefined];
@@ -99,6 +107,8 @@ for (let i = 0; i < argv.length; i++) {
   else if (k === "--browser") o.browser = val();
   else if (k === "--real-clock") o.realClock = true;
   else if (k === "--soft-gl") o.softGl = true;
+  else if (k === "--fresh") o.fresh = true;
+  else if (k === "--cache-max") o.cacheMax = num(val(), k, 0);
   else if (k.startsWith("-")) die(`unknown option ${k} (-h for the options)`);
   else if (target) die(`one project or page, got ${target} and ${a}`);
   else target = a;
@@ -297,6 +307,13 @@ const recipe = {
     ...(editRoot ? ["edit.mjs", "timegrid.mjs", "pages/still.html", "pages/slate.html", "pages/color.html", "../edit.py"] : [])].map((f) => sha(path.join(HERE, f))).join()).digest("hex"),
   ...(editRoot ? { edit: crypto.createHash("sha256").update(JSON.stringify(doc.runs)).digest("hex") } : {}),   // what each frame is drawn from
 };
+// an edit list's chunk keys (tools/film/edit.mjs chunkKey) and its chunk cache (tools/film/cache.mjs, out/cache/chunks): a
+// chunk whose key the cache holds, and whose page's files are still the same bytes, is taken from it, not drawn
+const keySettings = { width: first.width, height: first.height, dpr: o.dpr, fps, gop, crf: o.crf, preset: o.preset, ffmpeg: recipe.ffmpeg, tools: recipe.tools,
+  capture: recipe.capture, vf, vfRaw: VFRGB, browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl };
+const keyOf = (r, a, b) => chunkKey(r, a, b, keySettings);
+const cache = editRoot && !alpha && o.cacheMax > 0 ? new ChunkCache(path.join(editRoot, CACHE), editRoot, o.cacheMax * 1e9) : null;
+const cached = new Set(), cachedFiles = new Map();   // the chunks this render took from the cache; a run → the files their pages were sent
 const loaded = new Map();   // every file a browser of this render was sent, and its sha256
 const planFile = path.join(parts, "plan.json");
 const writePlan = (film) => {   // before a chunk is kept: the files its frames loaded are on record first
@@ -321,6 +338,20 @@ let reuse = new Set(), why = null;
   else { fs.rmSync(parts, { recursive: true, force: true }); fs.mkdirSync(parts, { recursive: true }); }
   writePlan(first);
 }
+if (cache && !o.fresh) {   // --fresh draws every chunk again (and keeps them)
+  for (let i = 0; i < plan.length; i++) {
+    if (reuse.has(i)) continue;
+    const [a, b] = plan[i], hit = cache.get(keyOf(runOf[i], a, b), b - a);
+    if (!hit) continue;
+    try { fs.linkSync(hit.file, kept(i)); } catch { try { fs.copyFileSync(hit.file, kept(i)); } catch { continue; } }
+    for (const [f, h] of Object.entries(hit.files)) if (!loaded.has(f)) loaded.set(f, h);
+    if (!cachedFiles.has(runOf[i])) cachedFiles.set(runOf[i], new Set());
+    for (const f of Object.keys(hit.files)) cachedFiles.get(runOf[i]).add(f);
+    reuse.add(i); cached.add(i);
+  }
+  if (cached.size) writePlan(first);
+}
+const resumed = reuse.size - cached.size;   // kept in the parts folder by a render of this file that stopped
 const todo = plan.map((_, i) => i).filter((i) => !reuse.has(i)), nTodo = todo.reduce((s, i) => s + plan[i][1] - plan[i][0], 0);
 // the disk at the peak is what this run writes on top of what is there: the chunks it draws, then the joined copy, which
 // is the kept chunks' bytes (known) and those chunks again. x264 at these CRFs has made 0.04 bits a pixel (a flat test
@@ -346,7 +377,8 @@ if (pageFps && Math.abs(pageFps - fps) > 1e-6) console.log(`  fps: drawn at ${fp
 if (editRoot) for (const [src, f] of Object.entries(facts)) if (f.fps && Math.abs(f.fps - fps) > 1e-6) console.log(`  fps: ${src} (${doc.files[src].path}) is made for ${f.fps} fps, the edit list runs at ${fps}: what it steps once a frame steps at its rate`);
 if (editRoot && doc.slates.length) console.log(`  slates: ${doc.slates.join(", ")} (no source yet): an animatic; bin/vh check and deliver refuse the film until each has one`);
 if (editRoot) for (const line of (doc.said || []).slice(doc.slates.length ? 1 : 0)) console.log(`  edit: ${line}`);   // what the build noticed (its slates line is the one above)
-if (reuse.size) console.log(`  resuming: ${reuse.size} of ${plan.length} chunks kept from the last render of this file (${plan.length - reuse.size} to draw)`);
+if (resumed) console.log(`  resuming: ${resumed} of ${plan.length} chunks kept from the last render of this file (${plan.length - reuse.size} to draw)`);
+if (cache) console.log(`  cache: ${o.fresh ? `--fresh: every chunk drawn again and kept in ${rel(cache.dir)}` : `${cached.size} of ${plan.length} chunks taken from ${rel(cache.dir)} (the same drawing, settings and page files), ${plan.length - reuse.size} to draw`}`);
 
 let done = 0;
 // the first failure ends the render; the other workers finish the chunk they are on, so that it is kept for a resume
@@ -434,7 +466,15 @@ async function chunk(film, i) {
     if (code !== 0 || wrote < b - a) return failWith(`the encoder for frames ${a}–${b - 1} ${wrote < b - a ? `stopped after ${wrote} of them` : "failed"} (exit ${code}): ${ffErr.trim() || "no message"}`);
     if (said) { fileOf[i] = file; return; }   // in this video, not for a resume: drawn again next time, and said again
     writePlan(film); fs.renameSync(file, kept(i)); fileOf[i] = kept(i);
+    store(i, film);
   }) };
+}
+// a finished chunk into the cache, with the files its page was sent and their sha256 (footage: its file is in the key)
+function store(i, film) {
+  if (!cache) return;
+  const [a, b] = plan[i], r = runOf[i], files = {};
+  if (film && r.draw !== "clip") for (const f of film.servedFor(r)) files[f] = loaded.has(f) ? loaded.get(f) : cache.hash(f);
+  cache.put(keyOf(r, a, b), kept(i), b - a, files);
 }
 // an edit list's footage chunk: one decoder from the chunk's first source frame (an exact seek), its frames handed to the
 // encoder as the film shows them (a frame shown twice is written twice, one left out is not written); no browser
@@ -476,6 +516,7 @@ async function clipChunk(i) {
     if (!loaded.has(abs)) loaded.set(abs, run.sha256 || null);   // what the chunk is made from (a resume, bin/vh assets check)
     fs.writeFileSync(planFile, JSON.stringify({ note: "what bin/vh render's chunks here were made from; a render resumes from them only while all of it is the same", recipe, files: Object.fromEntries(loaded) }, null, 1) + "\n");
     fs.renameSync(file, kept(i)); fileOf[i] = kept(i);
+    store(i, null);
   }) };
 }
 // the chunks in turn; an edit list's worker takes one of a run it has open first (a run's chunks stay with the browser
@@ -545,7 +586,7 @@ const sidecar = {
   encoder: alpha ? { codec: "prores_ks", profile: "4444", alpha_bits: 16, gop, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] }
     : { codec: "libx264", crf: o.crf, preset: o.preset, gop, keyint_min: gop, sc_threshold: 0, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] },
   ...(alpha ? { alpha: true } : {}),
-  chunks: plan.map(([a, b]) => [a, b]), reused_chunks: reuse.size, browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl, seconds: +secs.toFixed(1),
+  chunks: plan.map(([a, b]) => [a, b]), reused_chunks: resumed, ...(cache ? { cached_chunks: cached.size } : {}), browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl, seconds: +secs.toFixed(1),
   ...(pageShots.length ? { shots: pageShots } : {}), ...(pageChapters.length ? { chapters: pageChapters } : {}),
   // the files the page loaded (plan.json's table, which goes with the parts): those in the page's folder, from it, sorted
   files: Object.fromEntries([...loaded].filter(([f]) => inside(f, first.root)).map(([f, h]) => [path.relative(first.root, f).split(path.sep).join("/"), h])
@@ -559,20 +600,15 @@ function editSidecar() {
   const relIn = (f) => path.relative(first.root, f).split(path.sep).join("/");
   const byKey = new Map();
   for (const f of editFilms) for (const [k, set] of f.servedBy) { if (!byKey.has(k)) byKey.set(k, new Set()); for (const x of set) byKey.get(k).add(x); }
-  const filesOf = (r) => Object.fromEntries([...(byKey.get(r.draw === "page" ? `page:${r.path}` : r.draw) || [])].filter((f) => inside(f, first.root))
+  const filesOf = (r) => Object.fromEntries([...new Set([...(byKey.get(r.draw === "page" ? `page:${r.path}` : r.draw) || []), ...(cachedFiles.get(r) || [])])].filter((f) => inside(f, first.root))
     .map((f) => [relIn(f), loaded.has(f) ? loaded.get(f) : (() => { try { return sha(f); } catch { return null; } })()]).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
-  // what a chunk is made from beyond its run: the render's settings; the browser only for what a browser draws
-  const base = { width: first.width, height: first.height, dpr: o.dpr, fps, gop, crf: o.crf, preset: o.preset, ffmpeg: recipe.ffmpeg, tools: recipe.tools };
-  const keyRecipe = (r) => (r.draw === "clip" ? { ...base, input: "rgb24", vf: VFRGB }
-    : { ...base, capture: recipe.capture, vf, browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl });
-  const keyOf = (r, a, b) => crypto.createHash("sha256").update(JSON.stringify({ v: 1, drawing: drawingKey(r), index: [indexOf(r, a), indexOf(r, b)], recipe: keyRecipe(r) })).digest("hex");
   return {
     inputs: { ...(doc.runs.some((r) => r.draw !== "clip") ? { page: recipe.capture } : {}), ...(doc.runs.some((r) => r.draw === "clip") ? { clip: "rgb24" } : {}) },   // into the one x264 setting
     edit: { path: relIn(path.join(editRoot, "edit.json")), sha256: doc.edit.sha256, resolved: crypto.createHash("sha256").update(JSON.stringify(doc)).digest("hex") },
     refs: doc.refs, slates: doc.slates,
     entries: doc.entries.map((e) => ({ id: e.id, kind: e.kind, src: e.src, ...(e.clock ? { clock: e.clock } : {}), frames: e.frames, start: e.start, end: e.end })),
     runs: doc.runs.map((r) => ({ ...r, ...(r.draw === "page" ? { files: filesOf(r) } : {}),
-      chunks: plan.map(([a, b], i) => [a, b, i]).filter(([, , i]) => runOf[i] === r).map(([a, b]) => ({ frames: [a, b], key: keyOf(r, a, b) })) })),
+      chunks: plan.map(([a, b], i) => [a, b, i]).filter(([, , i]) => runOf[i] === r).map(([a, b, i]) => ({ frames: [a, b], key: keyOf(r, a, b), ...(cached.has(i) ? { cached: true } : {}) })) })),
   };
 }
 const sideTmp = joined + ".render.json";
@@ -595,14 +631,16 @@ const ver = commit({ film: outFile, new: joined, new_sidecar: sideTmp, made_by: 
   changed: { whole: true, ...(editRoot ? { entries: [...new Set(plan.map((_, i) => runOf[i].entry))] } : {}) },
   problems: problems.length + (okCount ? 0 : 1) + (okColor ? 0 : 1) });
 fs.rmSync(parts, { recursive: true, force: true });
+const pruned = cache ? cache.prune() : null;   // the chunks used longest ago go first, past --cache-max
 const placed = ver.placed, placedShown = placed === outFile ? shown : rel(placed);
 activityProgress(nTodo, nTodo, "frames");
 activityNote(`${st.nb_frames} frames, ${st.width}x${st.height}, ${fps} fps, ${(k0 / fps).toFixed(2)}–${(k1 / fps).toFixed(2)} s, in ${secs.toFixed(0)} s` +
-  (reuse.size ? ` (${reuse.size} chunk(s) kept from a stopped run)` : "") + (problems.length ? ` · ${problems.length} problem(s) reported` : "") +
+  (resumed ? ` (${resumed} chunk(s) kept from a stopped run)` : "") + (cached.size ? ` (${cached.size} chunk(s) from the cache)` : "") + (problems.length ? ` · ${problems.length} problem(s) reported` : "") +
   (ver.id ? ` · version ${ver.id}` : "") + (ver.error ? ` · ${ver.lines[0]}` : ""), [placed, placed + ".render.json"]);
 console.log(`  ${placedShown}: ${st.nb_frames} frames, ${st.width}x${st.height}, ${st.pix_fmt} ${st.color_range}/${st.color_space}, in ${secs.toFixed(0)} s` +
   (nTodo ? ` (${(secs * 1000 / nTodo).toFixed(0)} ms a frame${reuse.size ? `, ${nTodo} of them drawn` : ""})` : " (every chunk kept)") + `; how it was made: ${outside ? placed + ".render.json" : rel(placed + ".render.json")}`);
 for (const l of ver.lines) console.log(`  ${l}`);
+if (pruned) console.log(`  cache: ${rel(cache.dir)} holds ${pruned.kept} chunks, ${size(pruned.bytes)}` + (pruned.removed ? ` (${pruned.removed} used longest ago removed to stay under --cache-max ${o.cacheMax} GB)` : ` (--cache-max ${o.cacheMax} GB)`));
 for (const p of problems) console.log(`  ${p}`);
 {   // a character in another font than it asks for, or in none: said, not fatal
   const okG = glyphs.filter((g) => !g.error), errG = glyphs.filter((g) => g.error);
@@ -611,7 +649,7 @@ for (const p of problems) console.log(`  ${p}`);
   if (errG.length) console.log(`  glyphs: ${errG.length} of ${glyphs.length} worker(s) could not check theirs (${errG[0].error}); bin/vh fonts check does it on its own`);
   // a resume draws only the chunks left; the kept ones come from a render that stopped before its own check
   if (reuse.size && (!W || okG.some((g) => g.chars))) console.log(`  glyphs: ${W ? `checked in the ${nTodo} frames drawn now; the` : "not checked: every chunk was kept, so no frame was drawn; the"} ` +
-    `${n - nTodo} frames of the ${reuse.size} kept chunk(s) were drawn by the render that stopped, before its check (bin/vh fonts check covers the whole film)`);
+    `${n - nTodo} frames of the ${reuse.size} kept chunk(s) were drawn by ${cached.size ? "earlier renders" : "the render that stopped"}, before its check (bin/vh fonts check covers the whole film)`);
 }
 if (!okCount) console.log(`  the video has ${st.nb_frames} frames, not ${n}`);
 if (!okColor) console.log(`  the colour tags are not ${alpha ? "4:4:4 with alpha, bt709" : "yuv420p tv/bt709"}`);

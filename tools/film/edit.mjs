@@ -66,6 +66,16 @@ export function drawingKey(run) {
   return { draw: run.draw, color: run.color, n };
 }
 export const indexOf = (run, k) => (run.draw === "page" && run.clock === "film" ? k : k - run.frames[0]);
+// a chunk's key (frames a up to b of run): its drawing, their index in it, the render's settings. settings: { width,
+// height, dpr, fps, gop, crf, preset, ffmpeg, tools } and, for what a browser draws, { capture, vf, browser, real_clock,
+// soft_gl }; footage takes { vfRaw } instead: decoded by ffmpeg, its chunk does not depend on the browser. Two chunks with
+// one key are the same bytes (x264 on the same frames with the same settings); what a page loads is checked beside it
+// (tools/film/cache.mjs)
+export function chunkKey(run, a, b, settings) {
+  const { capture, vf, vfRaw, browser, real_clock, soft_gl, ...base } = settings;
+  const recipe = run.draw === "clip" ? { ...base, input: "rgb24", vf: vfRaw } : { ...base, capture, vf, browser, real_clock, soft_gl };
+  return crypto.createHash("sha256").update(JSON.stringify({ v: 1, drawing: drawingKey(run), index: [indexOf(run, a), indexOf(run, b)], recipe })).digest("hex");
+}
 // the window of frames [a, b) where two lists of runs draw anything differently, or null when they draw the same
 export function differences(oldRuns, newRuns) {
   const at = (runs, k) => runs.find((r) => k >= r.frames[0] && k < r.frames[1]);
@@ -182,6 +192,14 @@ export class EditFilm {
   }
   sourceKey(run) { return run.draw === "page" ? `page:${run.path}` : run.draw; }
   isOpen(run) { return this.open.has(this.sourceKey(run)); }
+  // the files the page that draws run has been sent so far, the ones closed before and the one open (a chunk's record:
+  // everything its frames could have read, and perhaps a little more)
+  servedFor(run) {
+    const key = this.sourceKey(run), out = new Set(this.servedBy.get(key) || []);
+    const slot = this.open.get(key);
+    if (slot) for (const f of slot.film.served()) out.add(f);
+    return [...out];
+  }
 
   async film(run) {
     const key = this.sourceKey(run);

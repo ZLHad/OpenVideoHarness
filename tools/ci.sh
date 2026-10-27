@@ -5331,7 +5331,7 @@ PY
   a=$(vh edit build "$p" 2>&1); b=$(vh cues "$p" 2>&1); rc=$?
   c=$(vh patch "$p/out/film.mp4" --shot S05 --out "$p/out/s5.mp4" 2>&1); rc2=$?
   d=$(vh patch "$p/out/film.mp4" --shot S03 --in-place 2>&1); rc3=$?
-  vh render "$p" --gop 30 --workers 3 --out "$p/out/fresh.mp4" >/dev/null 2>&1
+  vh render "$p" --gop 30 --workers 3 --fresh --out "$p/out/fresh.mp4" >/dev/null 2>&1
   if [ "$rc:$rc2:$rc3" = 0:2:0 ] && printf '%s' "$a" | grep -q 'S03 moved −0.333 s (−10 frames) (audio/timeline.zh.json changed); S02 is shorter by 0.333 s (10 frames)' \
      && printf '%s' "$b" | grep -q 'S03 moved −0.333 s (another take of the narration)' && printf '%s' "$b" | grep -q 'S02.c1 moved −0.250 s' \
      && printf '%s' "$c" | grep -q 'the edit list changed in S02, S03' && [ ! -e "$p/out/s5.mp4" ] && printf '%s' "$d" | grep -q "frames: 302 (the film: 302) ✓" \
@@ -5477,7 +5477,7 @@ PY
   python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); d["tracks"][0]["entries"][1]["in"] = 0.6; json.dump(d, open(sys.argv[1], "w"))' "$p/edit.json"
   a=$(vh mux "$p/out/edit.mp4" "$p/audio/mix.wav" "$p/out/final2.mp4" 2>&1); rc=$?
   b=$(vh patch "$p/out/edit.mp4" --shot S02 --in-place 2>&1); rc2=$?
-  vh render "$p" --gop 30 --workers 2 --out "$p/out/fresh.mp4" >/dev/null 2>&1
+  vh render "$p" --gop 30 --workers 2 --fresh --out "$p/out/fresh.mp4" >/dev/null 2>&1
   c=$(vh determinism "$p" --out "$t/det" 2>&1); rc3=$?
   if [ "$rc" != 0 ] && [ "$rc2:$rc3" = 0:0 ] && printf '%s' "$a" | grep -q 'edit.json' && [ ! -e "$p/out/final2.mp4" ] && printf '%s' "$c" | grep -q 'determinism: holds' \
      && python3 - "$p" <<'PY'
@@ -5551,6 +5551,63 @@ PY
      && printf '%s' "$b" | grep -q 'setsar=1'
   then ok "a video file as a clip: with no colour tags edit check fails it; with pixels not square it is refused, and the conform that makes it fit is said"
   else bad "a video file as a clip (check $rc, build $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)"; fi
+  rm -rf "$t"
+}
+
+# an edit list's chunk cache (tools/film/cache.mjs): a render again takes every chunk from it, the same bytes; a byte of a
+# clip changed draws that run's chunks only, a page changed its own; a key leaves the browser out for footage only;
+# --fresh draws them all, --cache-max prunes, bin/vh clean clears it
+edit_cache_checks() {
+  local t p a b c d e rc rc2 rc3 rc4
+  command -v ffmpeg >/dev/null || { skip "an edit list's chunk cache" "no ffmpeg"; return; }
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/k"
+  cp -R tools/film/fixture/edit "$p" && printf '# BRIEF\n' > "$p/BRIEF.md" && mkdir -p "$p/assets/footage/cam"
+  ffmpeg -v error -y -f lavfi -i testsrc2=s=320x180:r=30:d=2 -vf "format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv" \
+    -c:v libx264 -crf 18 -g 30 -keyint_min 30 -sc_threshold 0 -flags +cgop -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
+    -movflags +faststart "$p/assets/footage/cam/clip.mp4"
+  python3 -c 'import json, sys; p = sys.argv[1]
+json.dump({"v": 1, "id": "cam", "file": "clip.mp4", "rate": "30", "frames": 60, "duration": 2.0, "size": [320, 180], "color": ["tv", "bt709", "bt709", "bt709"],
+           "assumed": [], "audio": None, "words": None}, open(p + "/assets/footage/cam/clip.json", "w"))
+d = json.load(open(p + "/edit.json")); d["sources"]["cam"] = {"clip": "assets/footage/cam"}; d["tracks"][0]["entries"][3]["src"] = "cam"
+json.dump(d, open(p + "/edit.json", "w"), ensure_ascii=False)' "$p"
+  a=$(vh frames "$p" --at 0.5 --out "$t/f0" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "an edit list's chunk cache" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  flags() { python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); print(d.get("cached_chunks"), " ".join(r["entry"] + ":" + "".join("c" if c.get("cached") else "d" for c in r["chunks"]) for r in d["runs"]))' "$1"; }
+  vh render "$p" --gop 30 --workers 2 --out "$p/out/a.mp4" >/dev/null 2>&1; rc=$?
+  b=$(vh render "$p" --gop 30 --workers 2 --out "$p/out/b.mp4" 2>&1); rc2=$?
+  printf 'x' >> "$p/assets/footage/cam/clip.mp4"
+  vh render "$p" --gop 30 --workers 2 --out "$p/out/c.mp4" >/dev/null 2>&1; rc3=$?
+  vh render "$p" --gop 30 --workers 2 --fresh --out "$p/out/c2.mp4" >/dev/null 2>&1
+  sed 's/#e8e2d0/#e8e2d1/' "$t/k/title.html" > "$t/title.html" && mv "$t/title.html" "$p/title.html"
+  vh render "$p" --gop 30 --workers 2 --out "$p/out/d.mp4" >/dev/null 2>&1; rc4=$?
+  a=$(flags "$p/out/a.mp4.render.json"); c=$(flags "$p/out/c.mp4.render.json"); d=$(flags "$p/out/d.mp4.render.json"); e=$(flags "$p/out/c2.mp4.render.json")
+  if [ "$rc:$rc2:$rc3:$rc4" = 0:0:0:0 ] && [ "$a" = "0 S01:dd S02:dd S03:ddd S04:d S05:ddd S06:dd" ] && printf '%s' "$b" | grep -q 'cache: 13 of 13 chunks taken from' \
+     && cmp -s "$p/out/a.mp4" "$p/out/b.mp4" && [ "$c" = "12 S01:cc S02:cc S03:ccc S04:d S05:ccc S06:cc" ] && [ "$e" = "0 S01:dd S02:dd S03:ddd S04:d S05:ddd S06:dd" ] \
+     && [ "$d" = "11 S01:dd S02:cc S03:ccc S04:c S05:ccc S06:cc" ] && python3 - "$p/out/c.mp4" "$p/out/c2.mp4" <<'PY'
+import re, subprocess, sys
+md5 = lambda f: [l.split(",")[-1].strip() for l in subprocess.run(["ffmpeg", "-v", "error", "-i", f, "-f", "framemd5", "-"], capture_output=True, text=True).stdout.splitlines() if l and not l.startswith("#")]   # noqa: E731
+a, b = md5(sys.argv[1]), md5(sys.argv[2])
+same = a == b and len(a) == 302
+if not same and len(a) == len(b) == 302:   # a browser that rasterises a page differently twice: the same picture is 45 dB or more
+    r = subprocess.run(["ffmpeg", "-v", "info", "-i", sys.argv[1], "-i", sys.argv[2], "-lavfi", "psnr", "-f", "null", "-"], capture_output=True, text=True).stderr
+    m = re.findall(r"min:(inf|[\d.]+)", r)
+    same = bool(m) and (m[-1] == "inf" or float(m[-1]) >= 45)
+sys.exit(0 if same else 1)
+PY
+  then ok "the chunk cache: a second render takes every chunk from it (the same bytes); a byte added to a clip draws its run again (the film then as --fresh draws it), a page changed its own entry, the rest from the cache"
+  else bad "the chunk cache (exit $rc:$rc2:$rc3:$rc4): first [$a] changed clip [$c] changed page [$d] fresh [$e] | $(printf '%s' "$b" | tail -c 300)"; fi
+  # the browser is in a key for what a browser draws, not for footage; --cache-max prunes; bin/vh clean takes the cache
+  e=$(node --input-type=module -e 'import { chunkKey } from "./tools/film/edit.mjs";
+const s = { width: 320, height: 180, dpr: 1, fps: 30, gop: 30, crf: 16, preset: "medium", ffmpeg: "f", tools: "t", capture: "jpeg q95", vf: "v", vfRaw: "r", browser: "A", real_clock: false, soft_gl: false };
+const runs = [{ draw: "page", clock: "film", path: "a.html", frames: [0, 30] }, { draw: "still", path: "i.png", sha256: "1", frames: [0, 30] }, { draw: "color", color: "#000000", frames: [0, 30] },
+  { draw: "clip", path: "c.mp4", sha256: "2", rate: "30", color: ["tv"], j0: 0, speed: 1, frames: [0, 30] }];
+console.log(runs.map((r) => (chunkKey(r, 0, 30, s) === chunkKey(r, 0, 30, { ...s, browser: "B" }) ? "same" : "new")).join(" "))' 2>&1)
+  vh render "$p" --gop 30 --workers 2 --cache-max 0.000000001 --out "$p/out/e.mp4" >/dev/null 2>&1; rc=$?
+  b=$(find "$p/out/cache/chunks" -name '*.mp4' | wc -l | tr -d ' ')
+  c=$(vh clean "$p" 2>&1)
+  if [ "$e" = "new new new same" ] && [ "$rc" = 0 ] && [ "$b" = 0 ] && printf '%s' "$c" | grep -q 'out/cache/'
+  then ok "a chunk's key holds the browser for what a browser draws and not for footage; --cache-max prunes the cache; bin/vh clean takes it as made again"
+  else bad "the cache's keys, cap and clean (keys: $e, exit $rc, chunks left $b): $(printf '%s' "$c" | tail -c 300)"; fi
   rm -rf "$t"
 }
 
@@ -6020,11 +6077,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; components_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; components_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these
