@@ -5464,9 +5464,13 @@ srt = open(p + "/audio/captions.zh.srt", encoding="utf-8").read()
 ev, _, _ = time_refs.load_events(p + "/audio/events.json")
 ok = lines == [("l1", 0.2, 0.9, "第一句话"), ("S02_1", 1.141, 1.941, "码头上的人"), ("S02_2", 2.541, 2.841, "船")]
 ok = ok and "00:00:00,200 -->" in srt and "00:00:01,141 -->" in srt and "码头上的人" in srt and "来了" not in srt and [e["t"] for e in ev] == [1.0, 2.8]
+sys.path.insert(0, "tools")
+import edit   # the muxed film is read by the render record its mux kept
+mux = json.load(open(p + "/out/final.mp4.mux.json"))
+ok = ok and mux["video"] == "edit.mp4" and mux["render"]["kind"] == "edit" and "as bin/vh mux kept it" in edit.film_facts(p + "/out/final.mp4")["from"]
 sys.exit(0 if ok else 1)
 PY
-  then ok "the clip's sound goes on the voice bus; its words join the narration in film seconds (one mostly past the cut left out), and captions and \"@|S02\" in events.json follow them"
+  then ok "the clip's sound goes on the voice bus; its words join the narration in film seconds (one mostly past the cut left out), and captions and \"@|S02\" in events.json follow them; the muxed film keeps its picture's render record"
   else bad "an edit list's footage sound (mix $rc, mux $rc2, captions $rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $(printf '%s' "$c" | tail -c 300)"; fi
   # S02 starts 0.1 s later in the clip: mux refuses the mix made before; patch --shot S02 draws it again, the same frames a
   # whole render makes (clip frame 14 first); determinism decodes each sampled clip frame alone and in a run

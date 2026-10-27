@@ -1977,7 +1977,8 @@
         "subs.srt …"
       ],
       "writes": [
-        "<out>"
+        "<out>",
+        "<out>.mux.json (what it was muxed from: the picture's render record as it was)"
       ],
       "usage": [
         {

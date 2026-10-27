@@ -1289,19 +1289,27 @@ def page_findings(doc, facts):
 
 def film_facts(video):
     """What bin/vh check and deliver ask of a video that is an edit list's film: {"from", "entries", "slates", "changed"},
-    or None when it is not one. From its .render.json (what it was rendered from) when it has one; a film with none in a
-    project with an edit list (a mux's) is taken as the edit list is now. slates: [{id, frames, t, t1}] inside the film's
+    or None when it is not one. From its .render.json (what it was rendered from) when it has one, else from the render
+    record bin/vh mux kept in <film>.mux.json; a film with neither in a project with an edit list is taken as the edit
+    list is now. slates: [{id, frames, t, t1}] inside the film's
     span; changed: the images it was drawn from that are no longer those bytes."""
     video = Path(video).resolve()
+    side, side_dir, said = None, video.parent, "its .render.json"
     try:
         side = json.loads(Path(str(video) + ".render.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        side = None
+        try:   # a muxed film: its picture's render record as bin/vh mux kept it (the picture may have been rendered again since)
+            mux = json.loads(Path(str(video) + ".mux.json").read_text(encoding="utf-8"))
+            if isinstance(mux.get("render"), dict) and isinstance(mux.get("video"), str):
+                side, side_dir = mux["render"], (video.parent / mux["video"]).resolve().parent
+                said = f"the render record of {mux['video']}, as bin/vh mux kept it"
+        except (OSError, ValueError, AttributeError):
+            side = None
     project = next((d for d in [video.parent, *video.parents] if (d / "BRIEF.md").is_file() or (d / FILE).is_file()), None)
     if isinstance(side, dict) and side.get("kind") == "edit" and isinstance(side.get("entries"), list):
-        fps, entries, runs, src = side.get("fps") or 30, side["entries"], side.get("runs") or [], "its .render.json"
+        fps, entries, runs, src = side.get("fps") or 30, side["entries"], side.get("runs") or [], said
         span = [side.get("first_frame") or 0, (side.get("first_frame") or 0) + (side.get("frames") or 0)]
-        base = (Path(str(video) + ".render.json").parent / side["page"]).resolve().parent if isinstance(side.get("page"), str) else project
+        base = (side_dir / side["page"]).resolve().parent if isinstance(side.get("page"), str) else project
     elif isinstance(side, dict) or project is None or not find(project):
         return None
     else:

@@ -1,4 +1,6 @@
-"""Mux the picture and checked audio, making deliberate duration changes explicit."""
+"""Mux the picture and checked audio, making deliberate duration changes explicit. Beside the film, <out>.mux.json
+records what it was muxed from, with the picture's .render.json as it was then (bin/vh check and deliver read an edit
+list's film by it)."""
 import argparse
 import json
 import math
@@ -60,6 +62,24 @@ def subtitles_off(path):
     path.write_bytes(b)
 
 
+def record(video, audio, subtitles, out):
+    """<out>.mux.json: what the film was muxed from, its picture's render record as it was then (bin/vh check and deliver
+    read an edit list's film by it: the picture may be rendered again after the mux). Paths from the film's folder."""
+    rel = lambda p: os.path.relpath(Path(p).resolve(), out.resolve().parent)   # noqa: E731
+    rec = {"version": 1, "tool": "bin/vh mux", "note": "what this film was muxed from; render: its picture's .render.json at the time",
+           "video": rel(video), "audio": rel(audio), "subtitles": [rel(p) for p in subtitles]}
+    try:
+        side = json.loads(Path(str(video) + ".render.json").read_text(encoding="utf-8"))
+        if isinstance(side, dict):
+            rec["render"] = side
+    except (OSError, ValueError):
+        pass
+    f = Path(str(out) + ".mux.json")
+    tmp = f.with_name(f".{f.name}.{os.getpid()}")
+    tmp.write_text(json.dumps(rec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    os.replace(tmp, f)
+
+
 def main():
     ap = argparse.ArgumentParser(prog="bin/vh mux", description=__doc__)
     ap.add_argument("video", type=Path)
@@ -113,6 +133,7 @@ def main():
             if a.subs_off and a.subtitles:
                 subtitles_off(temp)
         os.replace(temp, a.out)
+        record(a.video, a.audio, a.subtitles, a.out)
     finally:
         if temp is not None and temp.exists():
             temp.unlink()
