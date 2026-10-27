@@ -1,6 +1,6 @@
 # 剪辑表：`edit.json`
 
-一支片子可以是一个页面，也可以是一串段。项目根目录的 `edit.json` 把片子排成一行段：每一段从一个来源取画面（一个页面、一张图、一种纯色），还没有来源的段画成灰卡。`bin/vh render` 看到它就按它出片，每一段各用各的画法，段与段之间是硬切，每个切点都是关键帧。
+一支片子可以是一个页面，也可以是一串段。项目根目录的 `edit.json` 把片子排成一行段：每一段从一个来源取画面（一个页面、一张图、一种纯色、一段实拍或档案片段、另一支片子），还没有来源的段画成灰卡。`bin/vh render` 看到它就按它出片，每一段各用各的画法，段与段之间是硬切，每个切点都是关键帧。片段自己的声音、只出声的段放在哪一刻，也由它定，`bin/vh mix … edit=` 照着放进混音。
 
 它就是 `shots.json` 长大了：每一行还是那些字段（`id`、`segment`、`reads`、`label`、`unsure`、`frame`、`at`），多一个 `src` 说这一段的画面从哪来。一个项目只留一份镜头表：有了 `edit.json`，段就是镜头，storyboard、rhythm、审阅台、thumbs、`patch --shot` 都从它读。两份都在时，这些命令都会停下，让你留一份。
 
@@ -12,6 +12,8 @@
 - **照片推拉**：一张图加一个 `move`，由宿主自己的取景页画，浏览器解码，带颜色配置的手机照片颜色也对。
 - **关卡 ② 的全长 animatic**：`bin/vh edit init <项目>` 把 `shots.json` 并成剪辑表，每镜一张灰卡，按原来的时间排；`bin/vh render` 出来就是整片长度的灰盒，之后一镜一镜换上真画面。
 - **片头、片尾、黑场**：一张可复用的片名页（自己的钟），一个纯色段。
+- **实拍和档案片段**：`bin/vh footage get` 取来的片段夹直接当来源，按片子的帧率逐帧挑，不过浏览器；片段里有人说话，它的词进字幕和混音。
+- **双系统录音、环境声底**：一条只出声的轨，段放在片子的哪一刻，声音就在哪一刻。
 
 ## 一个例子
 
@@ -28,6 +30,8 @@
   "title": { "page": "pages/title.html", "clock": "local" },
   "farm": { "page": "farm.html", "clock": "film" },
   "roast": { "image": "assets/img/roast.jpg", "asset": "img-roast" },
+  "pour": { "clip": "assets/footage/pour", "sound": { "role": "ambience", "gain_db": -8 } },
+  "kettle": { "sound": "assets/sfx/kettle.wav", "role": "detail" },
   "black": { "color": "#000000" }
  },
  "tracks": [
@@ -36,15 +40,19 @@
    { "id": "S02", "src": "farm", "end": "@l2>", "segment": "种植", "reads": ["咖啡树", "果实变红"] },
    { "id": "S03", "src": "roast", "end": "@l3:烘焙", "fit": "cover",
      "move": { "from": [0.5, 0.5, 1], "to": [0.6, 0.45, 1.3], "ease": "inOut" }, "segment": "烘焙", "reads": "豆子变深" },
-   { "id": "S04", "src": null, "end": "@l5>", "segment": "冲煮", "reads": "手冲的水流", "unsure": "实拍素材还没到" },
-   { "id": "S05", "src": "black", "end": "@l5>+1.5", "segment": "结尾" }
+   { "id": "S04", "src": "pour", "in": 12.4, "end": "@l4>", "fit": "cover", "segment": "冲煮", "reads": "手冲的水流" },
+   { "id": "S05", "src": null, "end": "@l5>", "segment": "冲煮", "reads": "一杯咖啡", "unsure": "还没拍" },
+   { "id": "S06", "src": "black", "end": "@l5>+1.5", "segment": "结尾" }
+  ] },
+  { "id": "A1", "entries": [
+   { "id": "K01", "src": "kettle", "start": "@|S04-0.4", "dur": 3 }
   ] }
  ],
  "chapters": [ { "t": 0, "title": "种植" }, { "t": "@|S03", "title": "烘焙" } ]
 }
 ```
 
-读法：S01 是片名页，画它自己的 0–2.5 s；S02 是种植那一章的页面，画片子的时间，到第 2 句念完为止；S03 是一张照片，从中间推到右上，旁白念到"烘焙"时切；S04 还没有画面，是灰卡；S05 黑场到最后一句念完再留 1.5 s。没写 `start` 的段都紧接上一段。
+读法：S01 是片名页，画它自己的 0–2.5 s；S02 是种植那一章的页面，画片子的时间，到第 2 句念完为止；S03 是一张照片，从中间推到右上，旁白念到"烘焙"时切；S04 是一段实拍，从片段的 12.4 s 起铺满画面，到第 4 句念完，带着它自己的水声（压低 8 dB，当环境声）；S05 还没有画面，是灰卡；S06 黑场到最后一句念完再留 1.5 s。没写 `start` 的段都紧接上一段。A1 是只出声的轨：烧水壶的声音在 S04 切进来之前 0.4 s 先响，响 3 s。
 
 ## 顶层字段
 
@@ -71,9 +79,12 @@
 | 页面 | `{"page": "farm.html", "clock": "film"}` | 路径相对 `edit.json`，要在项目里面。`clock` 必填，没有默认值，见"页面的两种钟" |
 | 图 | `{"image": "assets/img/roast.jpg"}` | png、jpg、webp、gif、avif、svg。由宿主的取景页 `tools/film/pages/still.html` 画 |
 | 纯色 | `{"color": "#000000"}` | `#rgb` 或 `#rrggbb`。由 `tools/film/pages/color.html` 画 |
+| 片段 | `{"clip": "assets/footage/pour"}` | 一个片段夹（`bin/vh footage get` 做的，读里面的 `clip.json`），或一个视频文件。ffmpeg 解码，不过浏览器，见"片段" |
+| 另一支片子 | `{"film": "../other-project", "version": "v7"}` | 另一个项目 `bin/vh versions` 记下的某一版成片，当片段用 |
+| 声音 | `{"sound": "assets/sfx/kettle.wav", "role": "ambience", "gain_db": -8}` | 只出声，不出画，放在第一轨以后的轨上，见"声音" |
 | （无） | 段上写 `"src": null` | 灰卡：`tools/film/pages/slate.html` 画出段的 id、segment、reads、unsure 和剩余秒数。`bin/vh check` 判失败、`bin/vh deliver` 拒绝出片，交付前一张都不能剩 |
 
-来源都可以带 `asset`（素材台账里的 id，`bin/vh assets`）和 `sha256`（钉住这个文件，换了字节就报错）。视频片段、另一支片子、只出声的段，这一版还不收，写了会直接报出来。
+来源都可以带 `asset`（素材台账里的 id，`bin/vh assets`）和 `sha256`（钉住这个文件，换了字节就报错）。片段和另一支片子还可以带 `sound`（它自己的声音怎么放，见"声音"），片段可以带 `sync`（同步表的一行，盖过 `clip.json` 的）。
 
 ## 段的字段
 
@@ -82,19 +93,20 @@
 | `id` | 全部 | 字母、数字和 `_`，全片唯一。`patch --shot`、`"@|S03"`、版本对比都按它找，改稿时别改它 |
 | `src` | 全部 | `sources` 里的键，或 `null` |
 | `start` | 全部 | 起点：秒、`"0:12.5"` 或引用。不写就紧接上一段（第一段是 0） |
-| `end` / `dur` | 全部 | 终点（秒或引用）或长度（秒），二选一，必写。只有写了 `out` 的自己钟页面可以都不写 |
-| `in` / `out` | 自己钟的页面 | 页面自己的时间：秒，或 `{"f": 12}`（按片子帧率的第 12 帧）。`in` 默认 0 |
-| `speed` | 自己钟的页面 | 0.25–4，默认 1 |
+| `end` / `dur` | 全部 | 终点（秒或引用）或长度（秒），二选一，必写。写了 `out` 的自己钟页面、片段和声音段可以都不写 |
+| `in` / `out` | 自己钟的页面、片段、声音 | 来源自己的时间。页面：秒，或 `{"f": 12}`（按片子帧率的第 12 帧）；片段：秒、`{"f": 12}`（片段自己的第 12 帧）或 `{"sync": M}`（同步组时间 M，按同步表 s = k·M + c 换成片段的秒）。`in` 默认 0 |
+| `speed` | 自己钟的页面、片段 | 0.25–4，默认 1。带声音的片段只能是 1 |
 | `hold` | 页面 | `true` 时段可以比页面长，多出来的停在页面的最后一帧；不写时比页面长就报错 |
-| `fit`、`bg` | 图 | `contain`（默认：整张图放进画面，留边填 `bg`，默认黑）或 `cover`（铺满画面，裁掉多的） |
-| `move` | 图 | `{"from": [cx, cy, z], "to": [cx, cy, z], "ease": "linear" 或 "inOut"}`：画面中心落在图的哪一点（0–1），在 `fit` 之上再放大多少（≥ 1）。`inOut` 是 (1 − cos πp) / 2，p 从段首的 0 走到段尾 |
+| `fit`、`bg` | 图、片段 | `contain`（默认：整张放进画面，留边填 `bg`，默认黑）或 `cover`（铺满画面，裁掉多的） |
+| `move` | 图 | `{"from": [cx, cy, z], "to": [cx, cy, z], "ease": "linear" 或 "inOut"}`：画面中心落在图的哪一点（0–1），在 `fit` 之上再放大多少（≥ 1）。`inOut` 是 (1 − cos πp) / 2，p 从段首的 0 走到段尾。片段上不收：ffmpeg 按整像素取景会抖，动的取景要进页面画，以后由页面接片段的画面来做 |
+| `sound` | 片段、另一支片子、声音段 | 这一段的声音怎么放，盖过来源上写的；`false` 是这一段不出声。见"声音" |
 | `transition` | 全部 | 进入这一段的转场，`{"type", "duration"}`。现在还不画：挨着灰卡的照硬切画，两段真画面之间写了它，render 会停下 |
 | `segment`、`reads`、`label`、`unsure`、`frame`、`at` | 全部 | 和 `shots.json` 一样。`at` 是分镜格子取哪一刻（片子秒或引用） |
 | `why`、`caption`、`recipe`、`seam`、`note` | 全部 | 给人和审阅页看的备注，渲染不读 |
 
 ## 时间：秒、帧和引用
 
-- **引用由 `tools/audio/time_refs.py` 解**：`12.5`、`"@l4"`（第 4 句开始）、`"@l4:词"`（念到这个词）、`"@l4>"`（念完），都可以加减秒；`{"$music": [24, 1]}`（第 24 小节第 1 拍）；`"@#e2"`（时间映射的事件）。和页面里的 cue 是同一套写法。段的起止不能挂在别的段上；`"@|S03"`、`"@|S03>"` 只给章节、封面用。
+- **引用由 `tools/audio/time_refs.py` 解**：`12.5`、`"@l4"`（第 4 句开始）、`"@l4:词"`（念到这个词）、`"@l4>"`（念完），都可以加减秒；`{"$music": [24, 1]}`（第 24 小节第 1 拍）；`"@#e2"`（时间映射的事件）。和页面里的 cue 是同一套写法。画面的段（第一轨）不能挂在别的段上，只紧接上一段；`"@|S03"`（S03 的起点）、`"@|S03>"`（终点）可加减秒，给声音轨的段、章节、封面和 events.json 的音效用。
 - **秒变帧只有两个函数**（`tools/timegrid.py`，JS 里是 `tools/film/timegrid.mjs`）：边界用 `frame_from(t) = ⌈t·fps − 10⁻⁶⌉`，第 k 帧属于 [起点, 终点) 当且仅当起点 ≤ k/fps < 终点；"这一刻是哪一帧"用 `frame_at(t) = ⌊t·fps + 10⁻⁶⌋`。所以 10.04 s 的页面直接渲是 302 帧，写成 `end: 10.04` 的一段也是 302 帧。
 - **长度这样定**：起点是写的，或上一段的终点；终点是写的 `end`，或起点加 `dur`，或（写了 `out`）起点加 (out − in) / speed。解好之后只用整数帧。
 - **排不下就报错**：段间有空（会出黑帧）、重叠、短于一帧、`out` 和 `end` 对不上（差半帧以上）。要黑场就放一个纯色段。
@@ -111,16 +123,46 @@
 
 剪辑表模式下宿主从 `edit.json` 所在的文件夹（项目根）起服务，页面按相对路径打开，所以 `pages/ch2/film.html` 也能读到项目根的 `audio/timeline.zh.json`。见 `engines/CONTRACT.md` 的"在序列里"。
 
+## 片段
+
+片段由 ffmpeg 解码，不进浏览器，不过 JPEG：按 `clip.json` 的颜色标签读，缩放（lanczos）到片子的像素尺寸，`fit` 留边或裁切，以 RGB 进编码器。和页面的块用同一套 x264 输出设置，拼之前逐块核 SPS/PPS，对不上就停下，不拼出坏片子。
+
+- **片段夹**（`bin/vh footage get` 做的，`assets/footage/<id>/`）：剪辑表只读 `clip.json`：`file`、`rate`（有理数，如 `"24000/1001"`）、`frames`（解出来的帧数）、`color`、`audio`、`words`、`sync`。文件本身每次 build 都算 sha256，不信 `clip.json` 里记的那个；两者不同时说一句（`clip.json` 可能描述的是另一个文件）。
+- **视频文件**（没有 `clip.json`）：本来就合规的才收：恒定帧率、pts 从 0 起、不旋转、方像素、逐行、SDR。不合规的，build 拒绝，并给出 `bin/vh footage get` 规整它用的那条 ffmpeg 命令。没有颜色标签的，按 footage get 的规矩读（高清按 BT.709 tv，标清按 BT.601），build 说一句，`bin/vh edit check` 判失败，直到它有了标签。
+- **HDR**（PQ、HLG）不收：转成 SDR 是创作上的决定，入库时用 `bin/vh footage get --tonemap` 定。
+- **每一帧取片段的哪一帧**：段的第一帧显示片段在 `in` 那一刻正显示的帧，j_in = `frame_at(in)`（`{"f": n}` 就是 n）；之后第 k 帧显示 j_in + ⌊(k − K0) · speed · rate / fps + 10⁻⁶⌋。两边帧率相同、speed 为 1 时就是逐帧对应。帧率不同时（24000/1001 放进 30 fps，每 4 帧左右有一帧显示两次），`edit build` 说一句；要不要换素材或改帧率，由项目定，定了记进 DECISIONS.md。
+- 片段不够长（最后一帧超出 `frames`）就报错，说差多少。片段里有硬切（`clip.json` 的 `cuts`）不影响画法。
+
+另一支片子（`film` 来源）按同样的方式解，读的是那个项目 `out/versions/versions.json` 记下的成片。它的许可归那个项目：`edit check` 提醒去那边跑 `bin/vh assets check`。
+
+## 声音
+
+剪辑表只管片段带来的声音、只出声的段**在片子的什么时刻**；旁白、配乐、音效，以及所有声音怎么响（分级、让位、响度、母带），还是 `bin/vh mix` 的事。
+
+- **片段的声音默认关**：来源或段上写了 `sound` 才出声（档案和生成片段的原声多半不能用）。`sound` 是 `{"role", "gain_db", "fade", "lead", "lag"}`：
+  - `role`：`voice`（进人声总线，和旁白一样当锚点、参与 VMR 和让位），或 `ambience`、`detail`、`hero`、`signal`（进音效的同名一类，`tools/audio/README.md` 的 profile 表）；
+  - `gain_db`：增益，默认 0；`fade`：两头的淡入淡出，秒或 `[入, 出]`，默认 0.03 s；
+  - `lead`、`lag`：声音比画面早进、晚出多少秒（J 切、L 切），只挪声音，素材要够长。
+- 声音从段的第一帧显示的那一帧起放（j_in 的时刻，不是 `in` 本身），所以口型和画面对得上；带声音的片段只能是 speed 1。
+- **声音轨**：第一轨以后的轨只收声音来源。段可以写 `start`（秒、引用，也可以挂在画面的段上：`"@|S04-0.4"`），同一轨上的两段不能重叠；长度用 `end`、`dur` 或 `out`，都不写就放到声音文件结束。双系统录音就是一个片段段加一个对齐过的声音段。
+- **混音**：`bin/vh mix <out.wav> … edit=<项目或 edit.json>` 先 build，再把每条声音按它的片子时间、入点、长度、淡入淡出和增益剪好，`voice` 的并进人声总线，其余的在 profile 里各成一个它那一类的事件（不用 profile 时并进音效总线）。用 profile 时 `dur=` 默认取片长。mix 的记录里有剪辑表、它读的时间源、每个声音文件和词文件的 sha256，所以剪辑表一改，`bin/vh mux` 就拒绝旧的混音。
+- **片段里的话**：`clip.json` 的 `words`（片段自己时间上的词，和 `bin/vh tts` 的时间轴同一个形状）。剪辑表放了 `voice` 的片段时，`edit build` 多写一份 `out/edit.timeline.<lang>.json`：旁白的每一行照抄（加上 `refs.lead`），再加上片段里的话，按片子时间排好，行的 id 是"段_序号"（`S04_1`）。只留落在这一段里的词，跨切点的词有一半以上在里面才留，并截到切点上。和旁白同时响的会被指出来（两个人同时说话，字幕也只能放一行）。
+  - 用 profile 的 mix 默认拿它当 `timeline=`；`timeline=` 指着别的文件时说一句。`bin/vh qa --stems` 从 mix 写的 `meta.json` 里读到它，片段里的词也按它查有没有被盖住。
+  - `bin/vh captions` 在剪辑表项目里先 build，片段说了话就按这一份出字幕。
+  - 剪辑表自己的引用和 `film` 页面仍只挂在旁白时间轴（`refs.timeline`）上：合并的这一份是产出，不当时间源，不会成环。
+- **音效挂在段上**：带表头的 events.json 在 `refs` 里加 `"edit": "../out/edit.resolved.json"`（路径相对 events.json），`"t": "@|S04"`（S04 的起点）、`"@|S04>-0.2"`（终点前 0.2 s）就能用，剪辑表一改，音效跟着段走。
+
 ## 解好的剪辑表
 
 `bin/vh edit build` 写 `out/edit.resolved.json`，render 每次开工也先 build 一遍。读它的工具不再解引用：
 
 - `edit`：`edit.json` 的路径和 sha256；`refs`：读过的时间源和它们的 sha256；
 - `fps`、`size`、`frames`（总帧数）、`duration`（frames / fps）；
-- `files`：每个来源的种类、路径，图的 sha256；
-- `entries`：每段的 `frames: [第一帧, 下一段的第一帧]`、`start`、`end`（帧的时间，保留到毫秒）、种类、钟，原来的写法在 `ref` 里，其余字段照抄；
-- `runs`：render 要画的一串串帧，每串一种画法（`page`、`still`、`slate`、`color`）和它的参数；
-- `cuts`、`slates`、`chapters`、`covers`。
+- `files`：每个来源的种类、路径，图、片段和声音的 sha256，片段的帧率、帧数、尺寸、颜色；
+- `entries`：每段的 `frames: [第一帧, 下一段的第一帧]`、`start`、`end`（帧的时间，保留到毫秒）、种类、钟，片段的 `j0`，原来的写法在 `ref` 里，其余字段照抄；
+- `runs`：render 要画的一串串帧，每串一种画法（`page`、`still`、`slate`、`color`、`clip`）和它的参数；
+- `sound`：每条要放的声音：哪一段、哪个文件、片子时间 `film: [起, 止]`、文件里的 `in`、`role`、`gain_db`、`fade`；
+- `cuts`、`slates`、`chapters`、`covers`、`notes`（build 说过的提醒）。
 
 同一份输入写出逐字节相同的文件。
 
@@ -128,18 +170,21 @@
 
 | 命令 | 剪辑表片子 |
 |---|---|
-| `render` | 先 build；按串分块，每串从自己的第一帧起每 `--gop` 帧一个关键帧，所以每个切点都是关键帧；`--fps` 必须和 `edit.json` 一样；`--alpha` 不收。默认输出 `out/edit.mp4`。sidecar 写 `"kind": "edit"`、剪辑表的哈希、每段、每串和它的块（每块一个键，说明它由什么画成） |
+| `render` | 先 build，并把 build 的提醒印在开头；按串分块，每串从自己的第一帧起每 `--gop` 帧一个关键帧，所以每个切点都是关键帧；片段的块由 ffmpeg 解码，不开浏览器（全是片段的片子一个浏览器都不开），拼之前逐块核 SPS/PPS；`--fps` 必须和 `edit.json` 一样；`--alpha` 不收。默认输出 `out/edit.mp4`。sidecar 写 `"kind": "edit"`、剪辑表的哈希、`inputs`（页面是 JPEG，片段是 rgb24）、每段、每串和它的块（每块一个键，说明它由什么画成；片段的键里没有浏览器） |
 | `patch` | 先 build 当前的剪辑表，和片子 sidecar 里的串逐帧比：总帧数变了、或者要重画的窗口以外有一帧的画法变了，就拒绝，说是哪几段。`--shot` 收段的 id（S03）和页面段里的镜头（`S02.S05`） |
 | `frames` | `--at t` 按 t 落在的那一段画；`--entry S03 --at 2` 是 S03 开始后 2 s。`--covers` 这一版还不收 |
-| `determinism` | 按串抽样：每串里两帧，每个切点两边各一帧 |
+| `determinism` | 按串抽样：每串里两帧，每个切点两边各一帧；片段的帧单独解一次、在一次连续解码里再取一次，md5 必须相同 |
 | `cues` | 两层：剪辑表自己的起止（写法和解出来的秒），每个页面段的 cue（换算到片子时间）；`--save` 两层都存，下次说谁挪了 |
 | `storyboard`、`rhythm` | 段就是镜头，不用浏览器读；格子角上标来源种类，灰卡是灰格；没有视频时按片子的画法取帧 |
 | 审阅台、`thumbs` | 段就是镜头；thumbs 读片子 sidecar 里的段和页面里的镜头 |
 | `check` | 还剩灰卡就判失败；画它的图在 render 之后变了，提醒；每条有时间的发现都标上它落在哪一段 |
 | `deliver` | 还剩灰卡就不出片 |
 | `versions` | 每一版记剪辑表的哈希；`compare` 两版时按段说谁挪了、谁换了来源 |
-| `edit check` | build 的检查，加上 build 之后变了的文件、每个来源的许可（BRIEF 的 `Assets:`，strict 不收 NC、ND 和未知的）、剩下的灰卡，有浏览器时再查每个页面 |
+| `edit check` | build 的检查，加上 build 之后变了的文件（片段和声音也算）、每个来源的许可（BRIEF 的 `Assets:`，strict 不收 NC、ND 和未知的；片段夹在台账上是一条记录）、没有颜色标签的视频文件（判失败）、剩下的灰卡，有浏览器时再查每个页面 |
+| `mix` | `edit=` 放剪辑表里的声音，见"声音" |
+| `mux` | 混音之后剪辑表、它的时间源或它放的声音变了，就拒绝旧的混音 |
+| `captions` | 先 build；片段说了话，按合并的时间轴 `out/edit.timeline.<lang>.json` 出字幕 |
 
 ## 这一版不做的
 
-转场、上层轨（字幕、叠层）、把别的段的画面喂给页面、视频片段、另一支片子、只出声的段、页面里的 `<video>`，以及 `frames --covers`。格式里留了位置的（`transition`、`inputs`），写了会被拒绝或照硬切画，不会悄悄当成别的意思。
+转场、画面的上层轨（字幕、叠层）、把别的段的画面喂给页面（所以片段上也还没有推拉）、变速带声音、HDR 片段、页面里的 `<video>`，以及 `frames --covers`。格式里留了位置的（`transition`、`inputs`），写了会被拒绝或照硬切画，不会悄悄当成别的意思。

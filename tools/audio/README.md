@@ -388,6 +388,8 @@ MINIMAX_TTS_SPEED=1.25 bin/vh tts projects/<p> minimax - zh --join all --gap 0.3
    "events": [{"id": "hit1", "t": "@#e2", "sfx": "impact"}, {"t": "@a4>", "sfx": "whoosh", "pan": -0.4}, {"t": 12.5, "sfx": "click"}]}
   ```
 
+  剪辑表的片子在 `refs` 里再加 `"edit": "../out/edit.resolved.json"`（`bin/vh edit build` 写的），`"@|S04"`（S04 的起点）、`"@|S04>-0.2"`（终点前 0.2 s）就能用：剪辑表一改，音效跟着段走。
+
   `t` 可以是秒数、旁白 cue（`"@a4"`、`"@a4:风"`、`"@a4>"`，可加 ±秒；时间轴的秒数加上 `lead`，和画面的 `FILM.lead` 一致）、`{"$music": [小节, 拍], "offset": 秒}`、时间映射的 `"@#id"`、`"@#id>"` 或 `{"$map": u}`，解析规则和 canvas-film 的画面完全相同（`tools/audio/test_time_map.py` 两边对拍）。`sfx place`、`bin/vh mix … events=`、`bin/vh qa` 都认这种写法；解不了的一次列出来再退出。`sfx place` 的 sidecar 每个事件多记一项 `ref`（原来写的是什么），文件头记下读过的文件和 SHA-256；`bin/vh mix` 把这些文件也算作混音的输入，换了配音、谱子或映射，`bin/vh mux` 会认出混音过期。事件可以带 `"id"`（字母、数字、`_`），`keep=` 和 roles 可以用它点名，不用秒数和序号。时间映射记下的 sources 和表头给的时间轴或 beats 对不上时也会停下，提示重建映射。
 - **`role`**（可选：`hero`、`detail`、`ambience`、`signal`）：这个事件在混音 profile 里属于哪一类，什么时候要写见下文"混音"。`sfx place` 会检查它，并在输出旁边写一个 `<out>.events.json`：每个事件的类和原因、起点，以及它自己摆好后的电平（fast：最响 100 ms 的 K 加权响度；m400；tp：真峰值；len：持续时间；lf：150 Hz 以下能量占比），混音前就能读。
 
@@ -429,6 +431,7 @@ VMR 这一列有三个数：
 其他参数：
 - `sfx=`（一整条摆好的音效轨）只能当一层 detail，不分级，所以有 events.json 时用 `events=`；
 - `roles=`、`keep=` 见下文；
+- `edit=`（项目或它的 `edit.json`）：剪辑表放的声音，片段的原声和声音轨的段（`engines/EDIT.md` 的"声音"）。每条按片子时间剪好：`voice` 并进人声总线，其余的在 profile 里各成一个它那一类的事件（不用 profile 时并进音效总线）；剪辑表放了 `voice` 的片段时，`timeline=` 默认是 `out/edit.timeline.<lang>.json`（旁白加上片段里的话），profile 的 `dur=` 默认取片长。剪辑表、它读的时间源和它放的每个声音文件都算混音的输入；
 - `stems=DIR` 按最终增益写出各总线和 `meta.json`，`bin/vh qa` 的 `--stems` 读它；
 - 不写 `profile`（或写 `profile=none`）就是原来的 ffmpeg 链（`duck=voice` 侧链压缩，响度按 loudnorm 定），输出和以前逐字节相同。
 

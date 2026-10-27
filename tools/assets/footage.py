@@ -22,8 +22,7 @@ file (then --license, --license-url and --page say what the tools cannot read). 
   files    what an item has: an Archive item's files (name, size, format, original or derivative), a NASA item's
            renditions, a Commons file's size, length and type
   get      download it into the project and register it in assets/ledger.json. A video becomes a clip folder in the
-           shape the edit list reads (docs: engines/CONTRACT.md's 在序列里 when it lands; the design is the edit list's
-           §9): assets/footage/<id>/orig.<ext> (as downloaded, never changed), clip.mp4 (the working clip: CFR at the
+           shape an edit list reads as a clip source (engines/EDIT.md, 片段): assets/footage/<id>/orig.<ext> (as downloaded, never changed), clip.mp4 (the working clip: CFR at the
            footage's own rate, pts from 0, every keyframe closed and at most 1 s apart, H.264 High yuv420p crf 12,
            BT.709 tv with its four tags, square pixels, upright, +faststart; not made when orig is all that already),
            clip.json (the clip's facts, below), audio.wav (its sound as 48 kHz PCM, from the first picture on, when it

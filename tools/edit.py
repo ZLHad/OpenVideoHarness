@@ -1,7 +1,10 @@
 """bin/vh edit: a film as an edit list. <project>/edit.json lays the film out as a row of entries, each drawn from a source:
-a page (the page contract, engines/CONTRACT.md), a still image, a solid colour, or nothing yet (a slate: a grey card with
-the entry's reads). It is shots.json grown up: the rows keep shots.json's fields (id, segment, reads, label, unsure,
-frame, at) and say where each entry's picture comes from (src). The format: engines/EDIT.md. stdlib only.
+a page (the page contract, engines/CONTRACT.md), a still image, a solid colour, footage (a clip folder bin/vh footage get
+makes, or a video file that keeps the clip rules), a version of another project's film, or nothing yet (a slate: a grey
+card with the entry's reads). Tracks after the first place sounds (a sound source each), and footage can bring its own
+(off unless asked): bin/vh mix … edit= puts them in the mix. It is shots.json grown up: the rows keep shots.json's
+fields (id, segment, reads, label, unsure, frame, at) and say where each entry's picture comes from (src). The format:
+engines/EDIT.md. stdlib only (and ffprobe, for footage).
 
 usage: bin/vh edit init <project> [--fps 30] [--size 1920x1080]
        bin/vh edit build <project> [--json] [--quiet]
@@ -15,11 +18,15 @@ usage: bin/vh edit init <project> [--fps 30] [--size 1920x1080]
          the shots do not follow one another (a gap or an overlap: said, nothing written)
   build  resolves edit.json into out/edit.resolved.json: every start and end, written in seconds or as a reference
          (narration cues "@l4>", {"$music": [24, 1]}, a time map's "@#id"; tools/audio/time_refs.py), in whole frames
-         (frame_from, tools/timegrid.py), each entry's source, the runs render draws. Prints what it found and, since
-         the last build, which entries moved. bin/vh render builds it first, every time; nothing else needs a browser
+         (frame_from, tools/timegrid.py), each entry's source, the runs render draws, footage's first frame (frame_at
+         of its in), the sounds placed. With footage that speaks (sound role voice, clip.json's words), it also writes
+         out/edit.timeline.<lang>.json: the narration with the footage's words, in film seconds (what bin/vh mix,
+         captions and qa read). Prints what it found and, since the last build, which entries moved. bin/vh render
+         builds it first, every time; nothing else needs a browser
   check  build's checks without writing, and: the files the sources name against the last build (changed since?), each
          source's licence against the BRIEF's Assets policy (bin/vh assets: strict refuses NC, ND and unknown, record
-         says them), the slates left; with a browser (bin/vh finds one), each page too: one shorter than its entry
+         says them; a clip folder is one record), a video file with no colour tags (it fails until it is tagged), the
+         slates left; with a browser (bin/vh finds one), each page too: one shorter than its entry
          without "hold", a film-clock page reading another narration timeline, beat map or time map than edit.json's
          refs, a local-clock page whose cues hang on the narration
   list   the entries, one a line: frames, seconds, what draws each, segment, reads
@@ -27,10 +34,11 @@ usage: bin/vh edit init <project> [--fps 30] [--size 1920x1080]
 --json: build prints the resolved document with "said" (its lines); check {"version": 1, "tool", "edit", "exit",
 "findings": [{"severity", "kind", "entry", "message"}]}; list {"version": 1, "fps", "frames", "entries": [...]}.
 Exit: 0 done (with notes) · 1 the entries do not fit (a gap or an overlap between two, an entry shorter than a frame,
-out and end that disagree; check: a licence strict refuses, a page shorter than its entry) · 2 the file, its format or a
-reference (an unknown source or id, a time that does not resolve, a file that is not there: all listed at once).
+out and end that disagree, footage too short for its entry; check: a licence strict refuses, a page shorter than its
+entry, footage with no colour tags) · 2 the file, its format or a reference (an unknown source or id, a time that does
+not resolve, a file that is not there, footage that cannot be drawn as it is: all listed at once).
 """
-import argparse, difflib, hashlib, json, math, os, re, subprocess, sys
+import argparse, difflib, hashlib, json, math, os, re, shlex, subprocess, sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -50,6 +58,7 @@ IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".svg"}
 TOP = ("v", "note", "fps", "size", "refs", "sources", "tracks", "chapters", "covers", "approval", "removed", "video")
 KINDS = ("page", "image", "color", "clip", "film", "sound")
 SOURCE_KEYS = {"page": ("clock",), "image": (), "color": (), "clip": ("sound", "sync"), "film": ("version", "sound"), "sound": ("role", "gain_db")}
+HDR = ("smpte2084", "arib-std-b67")   # PQ, HLG: transfers an edit list does not draw (SDR only)
 ROLES = ("voice", "ambience", "detail", "hero", "signal")   # the mix's buses: voice is the narration's, the rest the effects' classes
 ENTRY = ("id", "src", "start", "end", "dur", "in", "out", "speed", "fit", "bg", "move", "hold", "sound", "transition", "inputs",
          "segment", "reads", "label", "unsure", "frame", "at", "why", "caption", "recipe", "seam", "quote", "snap", "note")
@@ -333,6 +342,9 @@ class Reader:
             col = c.get("color")
             if not (isinstance(col, list) and len(col) == 4):
                 self.bad(f"{where}.clip: {rel}/clip.json gives no colour tags (bin/vh footage get conforms them)"); return None
+            if col[3] in HDR:
+                self.bad(f"{where}.clip: {rel} is HDR ({col[3]}): an edit list draws SDR, and turning HDR into SDR is a creative choice "
+                         "(bin/vh footage get --tonemap hable, or mobius, reinhard)"); return None
             try:
                 rate = rate_text(c.get("rate"))
             except ValueError:
@@ -345,10 +357,14 @@ class Reader:
                 words = self.rel(p / c["words"]) if (p / c["words"]).is_file() else None
                 if words is None:
                     self.bad(f"{where}.clip: {rel}/clip.json names words {c['words']}, which is not there")
-            out = {"path": self.rel(f), "sha256": c.get("sha256") or sha256(f), "rate": rate, "frames": c["frames"], "size": c.get("size"),
+            h = sha256(f)   # the file as it is now, never clip.json's word for it: what a chunk's key and bin/vh check compare
+            if c.get("sha256") and c["sha256"] != h:
+                self.notes.append(("edit.changed", None, f"{where}: {self.rel(f)} is not the file its clip.json describes (another sha256): "
+                                   "its rate and frame count may be another file's; get or conform the clip again"))
+            out = {"path": self.rel(f), "sha256": h, "rate": rate, "frames": c["frames"], "size": c.get("size"),
                    "color": col, "folder": self.rel(p), **({"asset": c["asset"]} if c.get("asset") else {})}
             if audio:
-                out["audio"] = {"path": self.rel(p / audio["file"]), "sha256": audio.get("sha256")}
+                out["audio"] = {"path": self.rel(p / audio["file"]), "sha256": sha256(p / audio["file"])}
             if words:
                 out["words"] = words
             if isinstance(c.get("sync"), dict):
@@ -357,22 +373,53 @@ class Reader:
                 out["cuts"] = c["cuts"]
             return out
         if p.is_file():
-            pr = probe(p)
-            if not pr or not pr.get("video"):
-                self.bad(f"{where}.clip: {rel} is not a video ffmpeg can read"); return None
-            v = pr["video"]
-            col = [v.get("color_range"), v.get("color_space"), v.get("color_primaries"), v.get("color_transfer")]
-            note = [f"{rel}: no clip.json, probed as it is"]
-            if not all(x and x not in ("unknown", "reserved") for x in col):
-                col = ["tv", "bt709", "bt709", "bt709"]
-                note.append("its colour is not tagged: read as BT.709 limited range (bin/vh footage get makes a clip folder with its colours on record)")
-            self.notes.append(("edit.clip", None, f"{where}: " + "; ".join(note)))
-            out = {"path": self.rel(p), "sha256": sha256(p), "rate": pr["rate"], "frames": pr["frames"], "size": [v.get("width"), v.get("height")],
-                   "color": col, "untagged": len(note) > 1}
-            if pr.get("audio"):
-                out["audio"] = {"path": self.rel(p), "sha256": out["sha256"]}
-            return out
+            return self.plain_clip(p, rel, where)
         self.bad(f"{where}.clip: no such clip folder or video {rel}"); return None
+
+    def plain_clip(self, p, rel, where):
+        """A video file with no clip.json, taken as it is when it keeps the clip rules that decide which frame shows and
+        how it looks (a constant rate, pts from 0, upright, square pixels, progressive, SDR; bin/vh footage get's own
+        tests); refused otherwise, with the conform footage get would run. With no colour tags it is read as footage get
+        reads it (BT.709 tv for HD, BT.601 for SD), said, and bin/vh edit check fails it until it is tagged."""
+        sys.path.insert(0, str(HERE / "assets"))
+        import footage as FT
+        try:
+            pr = FT.probe(p)
+            v = pr["video"]
+            rate, cfr = FT.rate_of(v) if v else (None, None)
+        except FT.Failed as e:
+            self.bad(f"{where}.clip: {rel}: {e}"); return None
+        if v is None:
+            self.bad(f"{where}.clip: {rel} has no video stream"); return None
+        col, assumed = FT.colour(v)
+        wrong = ([] if cfr else ["a variable frame rate"]) + \
+                (["pts not from 0"] if abs(float(v.get("start_time") or 0)) > 1e-4 or abs(float(pr["format"].get("start_time") or 0)) > 1e-4 else []) + \
+                ([f"pixels not square ({v.get('sample_aspect_ratio')})"] if FT.sar_of(v) != 1 else []) + \
+                ([f"rotated {FT.rotation(v)}°"] if FT.rotation(v) else []) + \
+                ([f"interlaced ({v.get('field_order')})"] if v.get("field_order") not in (None, "progressive", "unknown") else []) + \
+                ([f"HDR ({col[3]}), whose SDR is a creative choice (hable below is one; mobius, reinhard)"] if col[3] in HDR else [])
+        cmd = None
+        if wrong or assumed:
+            try:
+                argv = FT.conform_argv(p, p.with_name(p.stem + ".clip.mp4"), pr, "hable" if col[3] in HDR else None)[0]
+                cmd = " ".join(shlex.quote(os.path.relpath(a, self.project) if a.startswith(str(p.parent)) else a) for a in argv)
+            except FT.Failed:
+                cmd = None
+        if wrong:
+            self.bad(f"{where}.clip: {rel} cannot be drawn as it is ({'; '.join(wrong)}): conform it as bin/vh footage get does, "
+                     f"and point the source at the result{': ' + cmd if cmd else ''}"); return None
+        frames = int(v.get("nb_read_packets") or v.get("nb_frames") or 0)
+        if frames <= 0:
+            self.bad(f"{where}.clip: {rel}: no frames counted"); return None
+        out = {"path": self.rel(p), "sha256": sha256(p), "rate": FT.frate(rate), "frames": frames, "size": [v.get("width"), v.get("height")], "color": col}
+        if assumed:
+            out["assumed"] = assumed
+            out["conform"] = cmd
+            self.notes.append(("edit.untagged", None, f"{where}: {rel} has no colour tags ({'; '.join(assumed)}); bin/vh edit check fails it until "
+                               "it is tagged: conform it as bin/vh footage get does" + (f" ({cmd})" if cmd else "")))
+        if pr.get("audio"):
+            out["audio"] = {"path": self.rel(p), "sha256": out["sha256"]}
+        return out
 
     def film(self, s, where):
         """Another film: a version of another project's film (bin/vh versions), taken as a clip: no nested edit list."""
@@ -430,8 +477,8 @@ class Reader:
             m = ENTRY_REF.match(s)
             if s.startswith("@|"):
                 if entries is None:
-                    raise TR.RefError("an entry's own times do not hang on another entry (each one follows the one before it); "
-                                      "@|id is for chapters, covers and the sound effects")
+                    raise TR.RefError("a picture entry's own times do not hang on another entry (each one follows the one before it); "
+                                      "@|id is for a sound track's entries, chapters, covers and the sound effects")
                 if not m:
                     raise TR.RefError('not an entry cue: "@|id" (where the entry starts) or "@|id>" (where it ends), with an optional +0.3 or -0.2')
                 if m[1] not in entries:
@@ -499,7 +546,7 @@ class Reader:
             info = self.src.get(src) if src is not None else None
             kind = info["kind"] if info else None
             if ti > 0:   # a sound track
-                snd = self.sound_entry(eid, e, info, last_on.get(ti, 0.0), track)
+                snd = self.sound_entry(eid, e, info, last_on.get(ti, 0.0), track, {x["id"]: x["frames"] for x in ents})
                 if snd:
                     sounds.append(snd); last_on[ti] = snd["end"]
                 continue
@@ -689,8 +736,9 @@ class Reader:
                 "film": [r3(t0 - snd["lead"]), r3(t1 + snd["lag"])], "in": r3(max(0.0, sin)), "role": snd["role"], "gain_db": snd["gain_db"],
                 "fade": snd["fade"], "lead": snd["lead"], "lag": snd["lag"], **({"words": info["words"]} if info.get("words") else {})}
 
-    def sound_entry(self, eid, e, info, follows, track):
-        """an entry on a sound track: its source's sound from in, placed from start to end (or for its length)"""
+    def sound_entry(self, eid, e, info, follows, track, picture):
+        """an entry on a sound track: its source's sound from in, placed from start to end (or for its length); its start
+        and end can hang on the picture's entries ("@|S04-0.4": the first track is resolved before it, so no loop)"""
         if info is None or info["kind"] != "sound":
             self.bad(f"{eid}: a sound track's entry takes a sound source"); return None
         for k in e:
@@ -699,13 +747,13 @@ class Reader:
         snd = self.sound_spec(e["sound"], f"{eid}: sound") if "sound" in e else info.get("sound")
         if not snd:
             self.bad(f"{eid}: no role for its sound: \"sound\": {{\"role\": …}} on the entry or \"role\" on {e.get('src')}"); return None
-        start = self.time(e["start"], f"{eid}: start") if "start" in e else follows
+        start = self.time(e["start"], f"{eid}: start", picture) if "start" in e else follows
         tin = self.local_time(e.get("in", 0), f"{eid}: in")
         tout = self.local_time(e["out"], f"{eid}: out") if "out" in e else None
         if start is None or tin is None:
             return None
         if "end" in e:
-            end = self.time(e["end"], f"{eid}: end")
+            end = self.time(e["end"], f"{eid}: end", picture)
         elif number(e.get("dur")):
             end = start + e["dur"]
         elif tout is not None:
@@ -947,12 +995,15 @@ def merged_timeline(doc, project):
                 return None
             return {**w, "start": max(a, v["in"]), "end": min(max(a, b), span)}
         for s in wd.get("segments") or []:
-            ws = [k for k in (kept(w) for w in s.get("words") or [] if isinstance(w, dict) and number(w.get("start"))) if k]
+            every = [w for w in s.get("words") or [] if isinstance(w, dict) and number(w.get("start"))]
+            ws = [k for k in (kept(w) for w in every) if k]
             if not ws:
                 continue
             n += 1
-            lines.append({"id": f"{v['entry']}_{n}", "start": r3(ws[0]["start"] + d), "end": r3(ws[-1]["end"] + d),
-                          "text": "".join(str(w.get("w", "")) for w in ws) if lang.startswith("zh") else " ".join(str(w.get("w", "")) for w in ws),
+            text = "".join(str(w.get("w", "")) for w in ws) if lang.startswith("zh") else " ".join(str(w.get("w", "")) for w in ws)
+            side = "zh" if lang.startswith("zh") else "en"   # the text in the narration's language, as bin/vh tts writes a line
+            other = {k: s[k] for k in ("zh", "en") if k != side and isinstance(s.get(k), str) and len(ws) == len(every)}   # a translation, when all of it plays
+            lines.append({"id": f"{v['entry']}_{n}", "start": r3(ws[0]["start"] + d), "end": r3(ws[-1]["end"] + d), "text": text, side: text, **other,
                           "words": [shift(w, d) for w in ws], "from": v["entry"]})
     lines.sort(key=lambda s: (s["start"], s["id"]))
     out = {k: v for k, v in base.items() if k != "segments"} if isinstance(base, dict) else {}
@@ -982,7 +1033,22 @@ def build(project, write=True):
             n = sum(1 for s in tl["segments"] if s.get("from"))
             said.append(f"{f.relative_to(Path(project)).as_posix()}: the narration with {n} line{'s' * (n != 1)} of the footage's words "
                         "(bin/vh mix … edit= takes it as its timeline, captions and qa read it)")
+            said += voices_at_once(tl["segments"])
     return doc, said
+
+
+def voices_at_once(lines):
+    """the footage's lines that play over another voice (the narration or other footage): two voices at once, which
+    captions cannot show and nobody follows; the merged timeline keeps them, its lint calls them out of order"""
+    out = []
+    for i, a in enumerate(lines):
+        for b in lines[i + 1:]:
+            if b["start"] >= a["end"]:
+                break
+            if (a.get("from") or b.get("from")) and a.get("from") != b.get("from"):
+                out.append(f"{a['id']} ({a['start']:.3f}–{a['end']:.3f} s) and {b['id']} ({b['start']:.3f}–{b['end']:.3f} s) play at once: "
+                           "two voices; move the cut, or give the footage's sound another role")
+    return out[:3] + ([f"… {len(out) - 3} more"] if len(out) > 3 else [])
 
 
 # ---- the shots it gives the shot tools ----
@@ -1090,8 +1156,12 @@ def licence_findings(project, doc):
     for key, f in doc["files"].items():
         if not f.get("path") or f["kind"] == "page":
             continue
-        rec = by_id.get(f.get("asset")) if f.get("asset") else by_path.get(f["path"])
         users = [e["id"] for e in doc["entries"] if e["src"] == key]
+        if f["kind"] == "film":   # a film of another project: its sources are on that project's ledger
+            out.append(("info", "edit.licence", users[0] if users else None, f"{key}: a film of {f['film']['project']}: its sources' licences are "
+                        f"that project's (bin/vh assets check {f['film']['project']})"))
+            continue
+        rec = by_id.get(f.get("asset")) if f.get("asset") else (by_path.get(f.get("folder")) or by_path.get(f["path"]))   # a clip folder is one record
         cls = L.class_of(rec) if rec else "unknown"
         if f.get("asset") and not rec:
             msg = f"{key}: no record {f['asset']} in the asset ledger"
@@ -1114,8 +1184,8 @@ def check(project, browser=None):
         doc = resolve(project)
     except EditError as e:
         return e.code, [("fail", "edit.format" if e.code == 2 else "edit.layout", None, p) for p in e.problems], None
-    for kind, eid, line in notes(doc):
-        found.append(("warn", kind, eid, line))
+    for kind, eid, line in notes(doc):   # footage with no colour tags fails: its colours are a guess until it is tagged
+        found.append(("fail" if kind == "edit.untagged" else "warn", kind, eid, line))
     old = read_resolved(project)
     if old is None:
         found.append(("info", "edit.build", None, f"no {RESOLVED.as_posix()} yet: bin/vh edit build (bin/vh render builds it too)"))

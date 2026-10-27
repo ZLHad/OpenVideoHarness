@@ -873,7 +873,8 @@ def layered(out, kv, final_out=None, extra_events=()):
         d = kv["stems"]; os.makedirs(d, exist_ok=True); rel = lambda p: os.path.relpath(os.path.abspath(p), os.path.abspath(d))
         meta.update(balance={"music_db": mdb, "sfx_db": sdb, "voice_db": vdb}, zh=zh, keep=keep,
                     lib=rel(kv["lib"]) if "lib" in kv else None, root=rel(kv.get("root", ".")) if "events" in kv else None,
-                    inputs={k: rel(kv[k]) for k in ("voice", "music", "sfx", "events", "timeline", "roles") if k in kv})
+                    inputs={**{k: rel(kv.get("_given", {}).get(k, kv[k])) for k in ("voice", "music", "sfx", "events", "timeline", "roles")
+                               if k in kv and kv.get("_given", {}).get(k, kv[k])}, **({"edit": rel(kv["edit"])} if "edit" in kv else {})})   # not edit='s cut files
         names = ["voice", "music", "sfx"] + [f"sfx_{c}" for c in CLASSES]
         for k in names:   # only what this mix has: a stale stem from an earlier run would mislead qa mix
             p = os.path.join(d, f"{k}.wav")

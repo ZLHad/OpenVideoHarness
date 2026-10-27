@@ -343,6 +343,7 @@ if (px[0] % 2 || px[1] % 2) console.log(`  note: ${px[0]}x${px[1]} pixels; x264 
 if (pageFps && Math.abs(pageFps - fps) > 1e-6) console.log(`  fps: drawn at ${fps} fps (${fpsGiven ? "--fps" : "the default; --fps sets it"}), the page says ${pageFps} (window.film.fps or FILM.fps): what it steps once a frame (grain) steps at its rate; make the two agree`);
 if (editRoot) for (const [src, f] of Object.entries(facts)) if (f.fps && Math.abs(f.fps - fps) > 1e-6) console.log(`  fps: ${src} (${doc.files[src].path}) is made for ${f.fps} fps, the edit list runs at ${fps}: what it steps once a frame steps at its rate`);
 if (editRoot && doc.slates.length) console.log(`  slates: ${doc.slates.join(", ")} (no source yet): an animatic; bin/vh check and deliver refuse the film until each has one`);
+if (editRoot) for (const line of (doc.said || []).slice(doc.slates.length ? 1 : 0)) console.log(`  edit: ${line}`);   // what the build noticed (its slates line is the one above)
 if (reuse.size) console.log(`  resuming: ${reuse.size} of ${plan.length} chunks kept from the last render of this file (${plan.length - reuse.size} to draw)`);
 
 let done = 0;
@@ -564,7 +565,7 @@ function editSidecar() {
     : { ...base, capture: recipe.capture, vf, browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl });
   const keyOf = (r, a, b) => crypto.createHash("sha256").update(JSON.stringify({ v: 1, drawing: drawingKey(r), index: [indexOf(r, a), indexOf(r, b)], recipe: keyRecipe(r) })).digest("hex");
   return {
-    inputs: { page: recipe.capture, ...(doc.runs.some((r) => r.draw === "clip") ? { clip: "rgb24" } : {}) },   // into the one x264 setting
+    inputs: { ...(doc.runs.some((r) => r.draw !== "clip") ? { page: recipe.capture } : {}), ...(doc.runs.some((r) => r.draw === "clip") ? { clip: "rgb24" } : {}) },   // into the one x264 setting
     edit: { path: relIn(path.join(editRoot, "edit.json")), sha256: doc.edit.sha256, resolved: crypto.createHash("sha256").update(JSON.stringify(doc)).digest("hex") },
     refs: doc.refs, slates: doc.slates,
     entries: doc.entries.map((e) => ({ id: e.id, kind: e.kind, src: e.src, ...(e.clock ? { clock: e.clock } : {}), frames: e.frames, start: e.start, end: e.end })),

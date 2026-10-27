@@ -1,6 +1,6 @@
 # 09 真人素材剪辑 / 口播（实验性）
 
-> **实验性：本类型是 2026-10-01 根据同类项目的调研写出来的，还没有做过一支完整的片子。** 文中标【实测】的数字只在合成材料上标定过（`say` 合成的中文语音加噪声、手写的字符串和 EDL），没有用真人口播素材试过，也没有在任何剪辑软件里导入过导出的文件；当起点用，拿第一批真实素材校准后再回来改。算法、规则表和出处在 `engines/editing.md`。缺口测量、逐接缝指标、重转写对账、EDL 审阅页、EDL 到 HyperFrames 的编译器**都还没有实现**，现在按那里写的算法自己做；已有的是 HyperFrames 的 `transcript-cut.mjs`，以及本仓库的 `bin/vh qa`、`sheet`、`check`、`mix`。
+> **实验性：本类型是 2026-10-01 根据同类项目的调研写出来的，还没有做过一支完整的片子。** 文中标【实测】的数字只在合成材料上标定过（`say` 合成的中文语音加噪声、手写的字符串和 EDL），没有用真人口播素材试过，也没有在任何剪辑软件里导入过导出的文件；当起点用，拿第一批真实素材校准后再回来改。算法、规则表和出处在 `engines/editing.md`。缺口测量、逐接缝指标、重转写对账、EDL 审阅页**都还没有实现**，现在按那里写的算法自己做；已有的是 HyperFrames 的 `transcript-cut.mjs`，以及本仓库的 `bin/vh qa`、`sheet`、`check`、`mix`。EDL 写成剪辑表 `edit.json`（`engines/EDIT.md`）：`bin/vh render` 按它直接出硬切，片段里的话进混音和字幕；把字幕和图解压进画面，要等剪辑表画面的上层轨。
 
 **适用**：
 - 用户自己录的口播、访谈、Vlog、播客视频，要剪干净、加字幕、加图解、出竖屏版；
@@ -38,10 +38,10 @@
 7. **验证**：逐接缝指标、重转写对账、按播放顺序连读一遍、接缝 strip。有问题只改受影响的区间重渲。
 8. **包装**：避脸字幕、必要的重构图、图解叠层（只用真实截图或录屏）、配乐和声音。
 9. **评审**：**打分层照旧（`TASTE_CHECKLIST` 的 8 项，过线按档位，见那里的打分层；立意一项问的是这一版的剪辑思路：结构和取舍是不是在讲这段内容）**；再加两两对比，决定新版能不能取代当前版（`engines/editing.md`）。`standard` 做 1 轮，`studio` 至少 3 轮、最多 10 轮（同一类问题最多改 5 次，小修只做局部复查，见 `TASTE_CHECKLIST` 打分层）；再交人，关卡 ③。
-10. **导出与交付**：`final.mp4`、`captions.srt`、`edl.json`；按需 FCPXML、OTIO、CapCut 或剪映包；素材台账和授权记录。
+10. **导出与交付**：`final.mp4`、`captions.srt`、`edit.json`；按需 FCPXML、OTIO、CapCut 或剪映包；素材台账和授权记录。
 
 **档位**：
-- `quick`（降档只能来自用户本人）：`transcript-cut.mjs` 自动粗剪加字幕，一张联系表，没有人工关卡；它按 ASR 的词边界切，这是本类唯一有意的例外（见"禁止"第一条），交付说明里写明接缝没测过。改动仍然先写成 `edl.json`，方便回溯。
+- `quick`（降档只能来自用户本人）：`transcript-cut.mjs` 自动粗剪加字幕，一张联系表，没有人工关卡；它按 ASR 的词边界切，这是本类唯一有意的例外（见"禁止"第一条），交付说明里写明接缝没测过。改动仍然先写成 `edit.json`，方便回溯。
 - `standard`：EDL 关卡、逐接缝指标、重转写对账、1 轮两两对比。
 - `studio`：再加重构图检查、至少 3 轮两两对比（最多 10 轮）、导出到剪辑软件、人耳逐个接缝复听。
 
@@ -86,11 +86,11 @@
 ## Prompt 增量块
 
 ```text
-+ TYPE: editing the user's own footage (talking head). Sources {files, duration, CFR fps, resolution, zh-CN}. Deliver {1080x1920 | 1920x1080} {30}fps {45–90}s + captions.srt + edl.json. Platform: {抖音 | 小红书 | 视频号 | B站 | Shorts}.
++ TYPE: editing the user's own footage (talking head). Sources {files, duration, CFR fps, resolution, zh-CN}. Deliver {1080x1920 | 1920x1080} {30}fps {45–90}s + captions.srt + edit.json. Platform: {抖音 | 小红书 | 视频号 | B站 | Shorts}.
 Plan first: 4–8 plain sentences (structure, what goes, packaging, length); wait for approval before cutting.
 Cut where the audio is quiet, not at ASR word times: measure gaps (>=250 ms), cut in the energy valley, snap to the frame grid, 40 ms audio crossfade, hard picture cut. No gap: keep the word.
 Keep the speaker's words: transcribe with fillers, remove retakes, false starts, dead air; keep qualifiers and a few natural fillers; never rewrite or add words. A leading 对/然后/所以 is judged by reading it aloud, not by list.
-Write edl.json (integer frames, a reason per cut) and STOP for approval; render only from the approved hash.
+Write edit.json (engines/EDIT.md: integer frames, a reason per cut) and STOP for approval; render only from the approved hash.
 One-line captions, face-safe, inside the platform safe area; overlays only from real screenshots or recordings.
 Verify: re-transcribe the render and diff it against the EDL; every cut has measured evidence.
 ```

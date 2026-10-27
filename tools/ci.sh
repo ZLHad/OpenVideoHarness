@@ -5350,6 +5350,165 @@ PY
   rm -rf "$t"
 }
 
+# an edit list's footage (engines/EDIT.md): a clip picked frame by frame into another rate, its chunks joined to a page's,
+# patched; a colour chart drawn as a page, an image and a clip; the clip's sound in the mix, its words in the captions
+edit_footage_checks() {
+  local t p a b c d rc rc2 rc3 rc4
+  command -v ffmpeg >/dev/null || { skip "an edit list's footage" "no ffmpeg"; return; }
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/f"
+  # a clip as bin/vh footage get makes one (24000/1001 fps, BT.709 tv with its tags, closed GOPs a second apart, its sound
+  # as audio.wav, its words): each frame shows its own number in binary, eight squares along the top
+  mkdir -p "$p/assets/footage/cam" "$p/audio" && cp tools/film/fixture/edit/title.html "$p/" && printf '# BRIEF\n' > "$p/BRIEF.md"
+  if ! python3 - "$p" <<'PY'
+import hashlib, json, subprocess, sys
+from pathlib import Path
+p = Path(sys.argv[1]); d = p / "assets/footage/cam"
+lum = "if(lt(Y,40),16+219*mod(floor(N/pow(2,floor(X/40))),2),126)"
+subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=gray:s=320x180:r=24000/1001:d=4", "-f", "lavfi", "-i", "sine=frequency=330:sample_rate=48000:duration=4",
+                "-vf", f"format=yuv420p,geq=lum='{lum}':cb=128:cr=128,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv",
+                "-c:v", "libx264", "-crf", "12", "-g", "24", "-keyint_min", "24", "-sc_threshold", "0", "-flags", "+cgop", "-color_range", "tv", "-colorspace", "bt709",
+                "-color_primaries", "bt709", "-color_trc", "bt709", "-c:a", "aac", "-shortest", "-movflags", "+faststart", str(d / "clip.mp4")], check=True)
+subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(d / "clip.mp4"), "-vn", "-c:a", "pcm_s16le", "-ar", "48000", str(d / "audio.wav")], check=True)
+n = int(subprocess.run(["ffprobe", "-v", "error", "-count_packets", "-select_streams", "v:0", "-show_entries", "stream=nb_read_packets", "-of", "csv=p=0", str(d / "clip.mp4")],
+                       capture_output=True, text=True).stdout.strip())
+sha = lambda f: hashlib.sha256(f.read_bytes()).hexdigest()   # noqa: E731
+(d / "words.json").write_text(json.dumps({"segments": [
+    {"id": "1", "start": 0.6, "end": 1.4, "text": "码头上的人", "words": [{"w": "码头", "start": 0.6, "end": 1.0}, {"w": "上的人", "start": 1.05, "end": 1.4}]},
+    {"id": "2", "start": 2.0, "end": 2.8, "text": "船来了", "words": [{"w": "船", "start": 2.0, "end": 2.3}, {"w": "来了", "start": 2.35, "end": 2.8}]}]}, ensure_ascii=False))
+json.dump({"v": 1, "id": "cam", "asset": "cam", "file": "clip.mp4", "sha256": sha(d / "clip.mp4"), "rate": "24000/1001", "frames": n, "duration": round(n * 1001 / 24000, 3),
+           "size": [320, 180], "sar": "1:1", "color": ["tv", "bt709", "bt709", "bt709"], "assumed": [], "gop": 24,
+           "audio": {"file": "audio.wav", "sha256": sha(d / "audio.wav"), "rate": 48000, "channels": 1}, "from": None, "crop": None, "cuts": [],
+           "words": "words.json", "sync": None, "source": {}}, open(d / "clip.json", "w"))
+(p / "audio/timeline.zh.json").write_text(json.dumps({"lang": "zh", "segments": [
+    {"id": "l1", "start": 0.2, "end": 0.9, "text": "第一句话", "zh": "第一句话", "words": [{"w": "第一句话", "start": 0.2, "end": 0.9}]}]}, ensure_ascii=False))
+json.dump({"v": 1, "fps": 30, "size": [320, 180], "refs": {"timeline": "audio/timeline.zh.json"},
+           "sources": {"title": {"page": "title.html", "clock": "local"}, "cam": {"clip": "assets/footage/cam", "sound": {"role": "voice"}}, "black": {"color": "#000000"}},
+           "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "title", "dur": 1}, {"id": "S02", "src": "cam", "in": 0.5, "dur": 2},
+                                               {"id": "S03", "src": "black", "dur": 0.5}]}]}, open(p / "edit.json", "w"))
+PY
+  then bad "an edit list's footage: the test clip could not be made"; rm -rf "$t"; return; fi
+  a=$(vh frames "$p" --at 0.5 --out "$t/f0" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "an edit list's footage" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  # 24000/1001 into 30: film frame k of S02 shows clip frame 11 + ⌊(k − 30)·800/1001⌋ (11: the frame on screen at 0.5 s),
+  # read back from the film; the page's chunk and the clip's are one SPS/PPS, and the film decodes to the end
+  a=$(vh render "$p" --gop 30 --workers 2 2>&1); rc=$?
+  if [ $rc = 0 ] && printf '%s' "$a" | grep -q 'S02 cam: 24000/1001 fps into 30 fps: one frame shown twice' && python3 - "$p" <<'PY'
+import json, subprocess, sys
+p, W, H = sys.argv[1], 320, 180
+dec = subprocess.run(["ffmpeg", "-v", "error", "-i", p + "/out/edit.mp4", "-vf", "format=gray", "-f", "rawvideo", "-"], capture_output=True)
+f = [dec.stdout[i * W * H:(i + 1) * W * H] for i in range(len(dec.stdout) // (W * H))]
+got = [sum((x[20 * W + 40 * b + 20] > 128) << b for b in range(8)) for x in f[30:90]]
+side = json.load(open(p + "/out/edit.mp4.render.json"))
+ok = len(f) == 105 and got == [11 + m * 800 // 1001 for m in range(60)] and dec.stderr.strip() == b""
+ok = ok and side["inputs"] == {"page": "jpeg q95", "clip": "rgb24"} and [r["draw"] for r in side["runs"]] == ["page", "clip", "color"]
+sys.exit(0 if ok else 1)
+PY
+  then ok "footage at 24000/1001 in a 30 fps edit list: each film frame shows the clip frame j_in + ⌊(k − K0)·rate/fps⌋; its chunks and the page's join into a film that decodes to the end"
+  else bad "an edit list's footage drawn (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  # its sound in the mix (the voice bus), its words in the merged timeline (a word mostly past the cut left out) and in
+  # the captions; an events.json header with "edit" takes "@|S02"
+  printf '{"refs": {"edit": "../out/edit.resolved.json"}, "events": [{"t": "@|S02", "sfx": "a.wav"}, {"t": "@|S02>-0.2", "sfx": "a.wav"}]}\n' > "$p/audio/events.json"
+  a=$(vh mix "$p/audio/mix.wav" edit="$p" 2>&1); rc=$?
+  b=$(vh mux "$p/out/edit.mp4" "$p/audio/mix.wav" "$p/out/final.mp4" 2>&1); rc2=$?
+  c=$(vh captions "$p" 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 0:0:0 ] && printf '%s' "$a" | grep -q 'edit: 1 sound of footage on the voice bus (S02)' && printf '%s' "$c" | grep -q 'out/edit.timeline.zh.json' \
+     && python3 - "$p" <<'PY'
+import json, sys
+sys.path.insert(0, "tools/audio")
+import time_refs
+p = sys.argv[1]
+tl = json.load(open(p + "/out/edit.timeline.zh.json"))
+lines = [(s["id"], s["start"], s["end"], s["text"]) for s in tl["segments"]]
+srt = open(p + "/audio/captions.zh.srt", encoding="utf-8").read()
+ev, _, _ = time_refs.load_events(p + "/audio/events.json")
+ok = lines == [("l1", 0.2, 0.9, "第一句话"), ("S02_1", 1.141, 1.941, "码头上的人"), ("S02_2", 2.541, 2.841, "船")]
+ok = ok and "00:00:00,200 -->" in srt and "00:00:01,141 -->" in srt and "码头上的人" in srt and "来了" not in srt and [e["t"] for e in ev] == [1.0, 2.8]
+sys.exit(0 if ok else 1)
+PY
+  then ok "the clip's sound goes on the voice bus; its words join the narration in film seconds (one mostly past the cut left out), and captions and \"@|S02\" in events.json follow them"
+  else bad "an edit list's footage sound (mix $rc, mux $rc2, captions $rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $(printf '%s' "$c" | tail -c 300)"; fi
+  # S02 starts 0.1 s later in the clip: mux refuses the mix made before; patch --shot S02 draws it again, the same frames a
+  # whole render makes (clip frame 14 first); determinism decodes each sampled clip frame alone and in a run
+  python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); d["tracks"][0]["entries"][1]["in"] = 0.6; json.dump(d, open(sys.argv[1], "w"))' "$p/edit.json"
+  a=$(vh mux "$p/out/edit.mp4" "$p/audio/mix.wav" "$p/out/final2.mp4" 2>&1); rc=$?
+  b=$(vh patch "$p/out/edit.mp4" --shot S02 --in-place 2>&1); rc2=$?
+  vh render "$p" --gop 30 --workers 2 --out "$p/out/fresh.mp4" >/dev/null 2>&1
+  c=$(vh determinism "$p" --out "$t/det" 2>&1); rc3=$?
+  if [ "$rc" != 0 ] && [ "$rc2:$rc3" = 0:0 ] && printf '%s' "$a" | grep -q 'edit.json' && [ ! -e "$p/out/final2.mp4" ] && printf '%s' "$c" | grep -q 'determinism: holds' \
+     && python3 - "$p" <<'PY'
+import re, subprocess, sys
+p, W, H = sys.argv[1], 320, 180
+md5 = lambda f: [l.split(",")[-1].strip() for l in subprocess.run(["ffmpeg", "-v", "error", "-i", f, "-f", "framemd5", "-"], capture_output=True, text=True).stdout.splitlines() if l and not l.startswith("#")]   # noqa: E731
+a, b = md5(p + "/out/edit.mp4"), md5(p + "/out/fresh.mp4")
+same = a[30:] == b[30:] and len(a) == len(b) == 105   # the footage and the black: exact
+if same and a[:30] != b[:30]:   # the page: the same picture (a browser that rasterises a page differently twice)
+    r = subprocess.run(["ffmpeg", "-v", "info", "-i", p + "/out/edit.mp4", "-i", p + "/out/fresh.mp4", "-lavfi", "psnr", "-f", "null", "-"], capture_output=True, text=True).stderr
+    m = re.findall(r"min:(inf|[\d.]+)", r)
+    same = bool(m) and (m[-1] == "inf" or float(m[-1]) >= 45)
+raw = subprocess.run(["ffmpeg", "-v", "error", "-i", p + "/out/edit.mp4", "-vf", "select=eq(n\\,30),format=gray", "-frames:v", "1", "-f", "rawvideo", "-"], capture_output=True).stdout
+sys.exit(0 if same and sum((raw[20 * W + 40 * b + 20] > 128) << b for b in range(8)) == 14 else 1)
+PY
+  then ok "a clip entry moved in its clip: mux refuses the mix made before; patch --shot draws it again as a whole render does; determinism holds for its frames"
+  else bad "a clip entry changed (mux $rc, patch $rc2, determinism $rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $(printf '%s' "$c" | tail -c 300)"; fi
+  # one colour chart as a page (canvas), an image (PNG) and a clip (BT.709 tv): each patch's mean within 1 level and
+  # every channel within 3 between any two of them
+  if python3 - "$t/chart" <<'PY'
+import hashlib, json, struct, subprocess, sys, zlib
+from pathlib import Path
+p = Path(sys.argv[1]); (p / "img").mkdir(parents=True); (p / "cl").mkdir()
+C = [(200, 60, 60), (60, 180, 60), (60, 80, 200), (128, 128, 128), (210, 160, 120), (32, 40, 48)]
+box = [(i % 3 * 100 + 10, i // 3 * 80 + 10) for i in range(6)]
+def px(x, y):
+    return next((c for (bx, by), c in zip(box, C) if bx <= x < bx + 80 and by <= y < by + 60), (232, 226, 208))
+raw = b"".join(b"\x00" + bytes(v for x in range(320) for v in px(x, y)) for y in range(180))
+chunk = lambda k, d: struct.pack(">I", len(d)) + k + d + struct.pack(">I", zlib.crc32(k + d) & 0xFFFFFFFF)   # noqa: E731
+(p / "img/chart.png").write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 320, 180, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+subprocess.run(["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", "30", "-i", str(p / "img/chart.png"), "-t", "1", "-vf",
+                "scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv",
+                "-c:v", "libx264", "-crf", "12", "-g", "30", "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", str(p / "cl/clip.mp4")], check=True)
+json.dump({"v": 1, "id": "cl", "file": "clip.mp4", "sha256": hashlib.sha256((p / "cl/clip.mp4").read_bytes()).hexdigest(), "rate": "30", "frames": 30, "duration": 1.0,
+           "size": [320, 180], "color": ["tv", "bt709", "bt709", "bt709"], "assumed": [], "audio": None, "words": None}, open(p / "cl/clip.json", "w"))
+fills = "".join(f'x.fillStyle = "rgb{c}"; x.fillRect({bx}, {by}, 80, 60);' for (bx, by), c in zip(box, C))
+(p / "chart.html").write_text('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=320, height=180"><style>html,body{margin:0}'
+                              'canvas{display:block}</style></head><body><canvas id="c" width="320" height="180"></canvas><script>const x = document.getElementById("c").getContext("2d");'
+                              f'window.film = {{ duration: 3, frame(t) {{ x.fillStyle = "rgb(232, 226, 208)"; x.fillRect(0, 0, 320, 180); {fills} }} }};</script></body></html>\n')
+json.dump({"v": 1, "fps": 30, "size": [320, 180], "sources": {"page": {"page": "chart.html", "clock": "film"}, "img": {"image": "img/chart.png"}, "cl": {"clip": "cl"}},
+           "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "page", "dur": 1}, {"id": "S02", "src": "img", "dur": 1}, {"id": "S03", "src": "cl", "dur": 1}]}]},
+          open(p / "edit.json", "w"))
+PY
+  then a=$(vh render "$t/chart" 2>&1); rc=$?
+  else a="the chart could not be made"; rc=9; fi
+  if [ $rc = 0 ] && python3 - "$t/chart/out/edit.mp4" <<'PY'
+import subprocess, sys
+box, W = [(i % 3 * 100 + 10, i // 3 * 80 + 10) for i in range(6)], 320
+def means(n):
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", sys.argv[1], "-vf", f"select=eq(n\\,{n})", "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                         capture_output=True, check=True).stdout
+    return [[sum(raw[(y * W + x) * 3 + c] for y in range(y0 + 10, y0 + 50) for x in range(x0 + 10, x0 + 70)) / 2400 for c in range(3)] for x0, y0 in box]
+P = [means(15), means(45), means(75)]   # the page, the image, the clip
+ok = True
+for a, b in ((0, 1), (0, 2), (1, 2)):
+    d = [abs(u - v) for pa, pb in zip(P[a], P[b]) for u, v in zip(pa, pb)]
+    ok = ok and sum(d) / len(d) <= 1 and max(d) <= 3
+sys.exit(0 if ok else 1)
+PY
+  then ok "a colour chart drawn as a page, an image and a BT.709 clip: within 1 level on average and 3 at most, any two of them"
+  else bad "the colour chart's three paths (exit $rc): $(printf '%s' "$a" | tail -c 400)"; fi
+  # a video file with no clip.json: one with no colour tags is read as footage get reads it, and edit check fails it
+  # until it is tagged; one whose pixels are not square cannot be drawn as it is (refused, the conform said)
+  mkdir -p "$t/raw" && ffmpeg -v error -y -f lavfi -i testsrc2=s=320x180:r=25:d=1 -c:v libx264 -pix_fmt yuv420p "$t/raw/plain.mp4" \
+    && ffmpeg -v error -y -f lavfi -i testsrc2=s=320x180:r=25:d=1 -vf setsar=4/3 -c:v libx264 -pix_fmt yuv420p "$t/raw/wide.mp4"
+  printf '{"v": 1, "fps": 25, "size": [320, 180], "sources": {"a": {"clip": "plain.mp4"}}, "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "a", "dur": 1}]}]}\n' > "$t/raw/edit.json"
+  a=$(vh edit check "$t/raw" 2>&1); rc=$?
+  sed 's/plain.mp4/wide.mp4/' "$t/raw/edit.json" > "$t/raw/e2" && mv "$t/raw/e2" "$t/raw/edit.json"
+  b=$(vh edit build "$t/raw" 2>&1); rc2=$?
+  if [ "$rc:$rc2" = 1:2 ] && printf '%s' "$a" | grep -q 'plain.mp4 has no colour tags' && printf '%s' "$b" | grep -q 'wide.mp4 cannot be drawn as it is (pixels not square (4:3))' \
+     && printf '%s' "$b" | grep -q 'setsar=1'
+  then ok "a video file as a clip: with no colour tags edit check fails it; with pixels not square it is refused, and the conform that makes it fit is said"
+  else bad "a video file as a clip (check $rc, build $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)"; fi
+  rm -rf "$t"
+}
+
 # bin/vh timeline (the narration timeline's checks) and bin/vh remap, and the refusal in bin/vh captions
 timeline_checks() {
   local t a rc
@@ -5816,11 +5975,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; components_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; components_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; components_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; components_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these
