@@ -650,16 +650,9 @@ def conform(folder, orig, tonemap=None, force=False):
     return conformed, cmd, assumed, notes, gop, audio, p
 
 
-# ---- the frame grid (the edit list's two functions; tools/timegrid.py when it lands) ----
+# ---- the frame grid: the repo's two functions (tools/timegrid.py), so a baked frame is the one an edit list picks ----
 
-def frame_from(t, fps):
-    """The first frame at or after t: ⌈t·fps − 10⁻⁶⌉ (render.mjs's total)."""
-    return math.ceil(t * fps - 1e-6)
-
-
-def frame_at(t, rate):
-    """The frame on screen at t: ⌊t·rate + 10⁻⁶⌋."""
-    return math.floor(t * rate + 1e-6)
+from timegrid import frame_at, frame_from   # noqa: E402,F401
 
 
 # ---- commands ----
@@ -986,7 +979,7 @@ def cmd_frames(a):
             s = c["sync"]
             return s["k"] * (t - a.t0) + s["c"]
         return a.at + (t - fa)
-    pick = {n: frame_at(src_time(n), float(rate)) for n in range(k0, k1)}
+    pick = {n: frame_at(src_time(n), rate) for n in range(k0, k1)}
     lo, hi = min(pick.values()), max(pick.values())
     if lo < 0 or hi >= c["frames"]:
         bad = [n for n, j in pick.items() if j < 0 or j >= c["frames"]]

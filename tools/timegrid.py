@@ -13,15 +13,18 @@ rate: a whole number (30), a number (29.97 is read as it is), "24000/1001" or [2
 to the millisecond first: a page's duration is often computed (57.21333… s), and rounding it would move a frame boundary.
 """
 import math
+from fractions import Fraction
 
 EPS = 1e-6
 
 
 def rate_of(rate):
-    """(num, den) of a frame rate: 30, 29.97, "30", "24000/1001" or [24000, 1001]; ValueError for anything else."""
+    """(num, den) of a frame rate: 30, 29.97, "30", "24000/1001", [24000, 1001] or a Fraction; ValueError for anything else."""
     if isinstance(rate, bool):
         raise ValueError(f"not a frame rate: {rate!r}")
-    if isinstance(rate, (list, tuple)) and len(rate) == 2:
+    if isinstance(rate, Fraction):
+        num, den = rate.numerator, rate.denominator
+    elif isinstance(rate, (list, tuple)) and len(rate) == 2:
         num, den = rate
     elif isinstance(rate, str):
         num, _, den = rate.strip().partition("/")
