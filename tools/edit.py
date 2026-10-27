@@ -40,6 +40,7 @@ from timegrid import frame_from   # noqa: E402  (seconds to frames, the one way)
 import time_refs as TR   # noqa: E402  (references: tools/audio/time_refs.py)
 
 FILE = "edit.json"
+REF_KEYS = ("timeline", "lead", "music", "timemap")   # an edit list's time sources (an events.json header also takes "edit": out/edit.resolved.json)
 RESOLVED = Path("out") / "edit.resolved.json"
 ID = re.compile(r"[A-Za-z0-9_]+\Z")
 KEY = re.compile(r"[A-Za-z0-9_.-]+\Z")
@@ -180,8 +181,8 @@ class Reader:
         if not isinstance(given, dict):
             self.bad(f"{FILE}: refs: an object naming the time sources (timeline, lead, music, timemap)"); given = {}
         for k in given:
-            if k not in TR.REF_KEYS:
-                self.bad(f"{FILE}: refs.{k}: unknown{near(k, TR.REF_KEYS)} (refs takes {', '.join(TR.REF_KEYS)})")
+            if k not in REF_KEYS:
+                self.bad(f"{FILE}: refs.{k}: unknown{near(k, REF_KEYS)} (refs takes {', '.join(REF_KEYS)})")
         at = lambda k: str(self.project / given[k]) if isinstance(given.get(k), str) else None   # noqa: E731
         for k in ("timeline", "music", "timemap"):
             if k in given and not isinstance(given[k], str):

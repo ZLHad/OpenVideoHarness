@@ -10,8 +10,11 @@ picture hangs on instead of on typed seconds:
   "@#e2", "@#e2>"                        event e2 of the time map and its end (tools/audio/time_map.py), ± seconds too
   {"$map": 40, "offset": 0}              the first moment the time map's axis reaches 40 (mapAt(40); a date axis takes
                                           "YYYY-MM-DD")
+  "@|S04", "@|S04>"                      where entry S04 of the edit list starts and ends (engines/EDIT.md: the resolved
+                                          one, bin/vh edit build's out/edit.resolved.json), ± seconds too: a sound on a cut
 
-  refs = Refs(timeline="audio/timeline.zh.json", lead=0, music="audio/music.beats.json", timemap="data/time.map.json")
+  refs = Refs(timeline="audio/timeline.zh.json", lead=0, music="audio/music.beats.json", timemap="data/time.map.json",
+              edit="out/edit.resolved.json")
   refs.t("@a2>")  → seconds;  refs.sources → [{"path", "sha256"}] of the files it read
 
 A word is found the way the film finds it: letters only (punctuation, symbols and spaces left out, NFKC, lower case),
@@ -20,7 +23,8 @@ each letter timed by the aligned words. tools/audio/test_time_map.py checks the 
 events.json (bin/vh sfx place, bin/vh mix … events=, bin/vh qa) is a plain list of {t, sfx, …} with t in seconds, or, to
 write t as a reference, the same list under a header naming the files the references read (paths beside events.json):
 
-  {"refs": {"timeline": "timeline.zh.json", "lead": 0, "music": "music.beats.json", "timemap": "../data/time.map.json"},
+  {"refs": {"timeline": "timeline.zh.json", "lead": 0, "music": "music.beats.json", "timemap": "../data/time.map.json",
+            "edit": "../out/edit.resolved.json"},
    "events": [{"id": "hit1", "t": "@#e2", "sfx": "impact"}, {"t": "@a4>", "sfx": "whoosh"}, {"t": 12.5, "sfx": "click"}]}
 
 load_events(path) → (events with t in seconds and what was written kept in "ref", sources, refs). An event may carry an
@@ -46,6 +50,7 @@ NOT_EOL = r"[^\n\r  ]"   # JS's "." (Python's also takes \r and the two sepa
 NUM = r"[+-](?:[0-9]+\.?[0-9]*|\.[0-9]+)"   # JS's \d is ASCII; Python's takes every script's digits
 CUE = re.compile(rf"@([A-Za-z0-9_]+)(?:(>)|:({NOT_EOL}+?))?({NUM})?\Z")
 MAP_CUE = re.compile(rf"@#([A-Za-z0-9_]+)(>)?({NUM})?\Z")
+ENTRY_CUE = re.compile(rf"@\|([A-Za-z0-9_]+)(>)?({NUM})?\Z")
 
 
 def js_trim(s):
@@ -150,11 +155,12 @@ def sha256(path):
 
 
 class Refs:
-    """the files references read: a narration timeline (with the film's lead), a beat map, a time map; each optional"""
+    """the files references read: a narration timeline (with the film's lead), a beat map, a time map, the resolved edit
+    list (its entries' frames); each optional"""
 
-    def __init__(self, timeline=None, lead=0, music=None, timemap=None):
+    def __init__(self, timeline=None, lead=0, music=None, timemap=None, edit=None):
         if not number(lead): raise RefError(f"lead {json.dumps(lead)}: seconds, a finite number")
-        self.narration = self.music = self.timemap = None
+        self.narration = self.music = self.timemap = self.edit = None
         self.sources, files = [], {}
 
         def read(path, what):
@@ -178,6 +184,13 @@ class Refs:
             except ValueError as e: raise RefError(f"{timemap}: {e}") from None
             stale = self.timemap.stale(files)
             if stale: raise RefError(self.timemap.stale_message(stale))
+        if edit is not None:
+            p = read(edit, "the edit list as bin/vh edit build resolves it (out/edit.resolved.json)")
+            try: d = json.loads(p.read_text(encoding="utf-8"))
+            except ValueError as e: raise RefError(f"{edit}: not JSON ({e})") from None
+            if not (isinstance(d, dict) and number(d.get("fps")) and isinstance(d.get("entries"), list)):
+                raise RefError(f"{edit}: not a resolved edit list (bin/vh edit build writes out/edit.resolved.json)")
+            self.edit = (d["fps"], {e["id"]: e["frames"] for e in d["entries"] if isinstance(e, dict) and isinstance(e.get("frames"), list)})
 
     def t(self, ref):
         """a reference → film seconds (a RefError says why it does not resolve)"""
@@ -194,6 +207,15 @@ class Refs:
             return self.map_t(ref["$map"]) + off
         if isinstance(ref, str) and ref[:1] == "@" and not ref.startswith("@@"):
             c = js_trim(ref)
+            if c.startswith("@|"):
+                m = ENTRY_CUE.match(c)
+                if not m: raise RefError('not an entry cue: write "@|id" (where the entry starts) or "@|id>" (where it ends), with an optional +0.3 or -0.2')
+                if self.edit is None: raise RefError('no edit list: the refs name no "edit" (bin/vh edit build\'s out/edit.resolved.json)')
+                fps, frames = self.edit
+                if m[1] not in frames:
+                    near = [k for _, k in sorted(((lcs(k, m[1]), k) for k in frames), key=lambda x: -x[0]) if _ > 0][:3]
+                    raise RefError(f"no entry {m[1]} in the edit list" + (f" (nearest: {', '.join(near)})" if near else ""))
+                return frames[m[1]][1 if m[2] else 0] / fps + (float(m[3]) if m[3] else 0)
             if c.startswith("@#"):
                 m = MAP_CUE.match(c)
                 if not m: raise RefError('not an event cue: write "@#id" (the event\'s time) or "@#id>" (its end), with an optional +0.3 or -0.2; ids are letters, digits and _')
@@ -214,7 +236,7 @@ class Refs:
 
 
 HEADER = ("refs", "events", "note")
-REF_KEYS = ("timeline", "lead", "music", "timemap")
+REF_KEYS = ("timeline", "lead", "music", "timemap", "edit")
 
 
 def load_events(path):
@@ -236,7 +258,7 @@ def load_events(path):
     if bad: raise RefError(f"{path}: unknown key(s) {', '.join(bad)} (the header takes refs: {', '.join(REF_KEYS)}; and events)")
     base, given = Path(path).resolve().parent, data.get("refs") or {}
     at = lambda k: base / given[k] if given.get(k) is not None else None
-    refs = Refs(timeline=at("timeline"), lead=given.get("lead", 0), music=at("music"), timemap=at("timemap"))
+    refs = Refs(timeline=at("timeline"), lead=given.get("lead", 0), music=at("music"), timemap=at("timemap"), edit=at("edit"))
     out, problems, ids = [], [], set()
     for k, e in enumerate(data["events"]):
         if not isinstance(e, dict) or "t" not in e:
