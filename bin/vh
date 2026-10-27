@@ -1084,6 +1084,7 @@ cmd_captions() { # --media-end S: where a caption too short for its minimum may 
   set -- ${pos[@]+"${pos[@]}"}
   [ -d "$proj" ] || { echo "bin/vh captions: no such project: $proj" >&2; return 2; }   # both before uv looks for jieba
   local tl="$proj/audio/timeline${1:+.$1}.json"   # as captions.py picks it: --lang zh reads timeline.zh.json
+  [ -f "$proj/edit.json" ] && [ -f "$proj/out/edit.timeline.${1:-zh}.json" ] && tl="$proj/out/edit.timeline.${1:-zh}.json"   # an edit list's: the narration with its footage's words
   [ -f "$tl" ] || { echo "bin/vh captions: no timeline at $tl (bin/vh tts makes it)" >&2; return 2; }
   # word boundaries come from jieba: through uv when it has it cached (offline, at once), else one short try to fetch it
   # (a network that hangs costs seconds, not a minute), else plain python3 and the fallback

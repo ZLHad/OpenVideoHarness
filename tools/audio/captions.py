@@ -252,6 +252,11 @@ def main():
         print(f"captions: no such project: {a.project}", file=sys.stderr); sys.exit(2)
     audio = Path(a.project).resolve() / "audio"
     tl_path = audio / f"timeline.{a.lang}.json" if a.lang else audio / "timeline.json"
+    # an edit list that places footage with a voice: the narration with the footage's words (bin/vh edit build), film seconds
+    merged = Path(a.project).resolve() / "out" / f"edit.timeline.{a.lang or 'zh'}.json"
+    if (Path(a.project) / "edit.json").is_file() and merged.is_file():
+        tl_path = merged
+        print(f"captions: {merged.relative_to(Path(a.project).resolve())}: the edit list's narration with its footage's words (bin/vh edit build)")
     if not tl_path.is_file():   # bin/vh tts writes it
         print(f"captions: no timeline at {tl_path} (bin/vh tts makes it{'' if a.lang else '; --lang picks timeline.<lang>.json'})", file=sys.stderr); sys.exit(2)
     tl = json.loads(tl_path.read_text(encoding="utf-8"))

@@ -49,11 +49,11 @@ ENTRY_REF = re.compile(rf"@\|([A-Za-z0-9_]+)(>)?({TR.NUM})?\Z")
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".svg"}
 TOP = ("v", "note", "fps", "size", "refs", "sources", "tracks", "chapters", "covers", "approval", "removed", "video")
 KINDS = ("page", "image", "color", "clip", "film", "sound")
-LATER = {"clip": "footage (clip)", "film": "another film (film)", "sound": "a sound (sound)"}
 SOURCE_KEYS = {"page": ("clock",), "image": (), "color": (), "clip": ("sound", "sync"), "film": ("version", "sound"), "sound": ("role", "gain_db")}
+ROLES = ("voice", "ambience", "detail", "hero", "signal")   # the mix's buses: voice is the narration's, the rest the effects' classes
 ENTRY = ("id", "src", "start", "end", "dur", "in", "out", "speed", "fit", "bg", "move", "hold", "sound", "transition", "inputs",
          "segment", "reads", "label", "unsure", "frame", "at", "why", "caption", "recipe", "seam", "quote", "snap", "note")
-DRAW = {"page": "page", "image": "still", "color": "color", None: "slate"}
+DRAW = {"page": "page", "image": "still", "color": "color", "clip": "clip", "film": "clip", None: "slate"}
 
 
 class EditError(Exception):
@@ -87,6 +87,39 @@ def near(word, choices):
 
 def jd(x):
     return json.dumps(x, ensure_ascii=False)
+
+
+def rate_text(r):
+    """a frame rate as the resolved list keeps it: "25", "24000/1001" (tools/timegrid.py reads both)"""
+    from timegrid import rate_of
+    num, den = rate_of(r)
+    return str(num) if den == 1 else f"{num}/{den}"
+
+
+def probe(f):
+    """{video: its stream, audio: bool, rate: "num/den", frames, duration} of a media file, or None; frames counted when
+    the container does not say (a few seconds for a long file)"""
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,width,height,r_frame_rate,nb_frames,color_range,"
+                            "color_space,color_primaries,color_transfer:format=duration", "-of", "json", str(f)], capture_output=True, text=True, timeout=120)
+        j = json.loads(r.stdout or "{}")
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return None
+    v = next((s for s in j.get("streams") or [] if s.get("codec_type") == "video"), None)
+    out = {"video": v, "audio": any(s.get("codec_type") == "audio" for s in j.get("streams") or []),
+           "duration": float((j.get("format") or {}).get("duration") or 0)}
+    if v:
+        try:
+            out["rate"] = rate_text(v.get("r_frame_rate") or "0/1")
+        except ValueError:
+            return None
+        n = v.get("nb_frames")
+        if not str(n or "").isdigit():
+            c = subprocess.run(["ffprobe", "-v", "error", "-count_packets", "-select_streams", "v:0", "-show_entries", "stream=nb_read_packets",
+                                "-of", "csv=p=0", str(f)], capture_output=True, text=True)
+            n = (c.stdout or "").strip()
+        out["frames"] = int(n) if str(n).isdigit() else 0
+    return out
 
 
 # ---- where ----
@@ -139,13 +172,15 @@ class Reader:
     def bad(self, msg):
         self.p2.append(msg)
 
-    def path_in(self, rel, what):
-        """A file named relative to edit.json, inside the project: its Path, or None (said)."""
+    def path_in(self, rel, what, inside=True):
+        """A file named relative to edit.json, inside the project (what a browser loads: a page, an image) or anywhere (a
+        sound, read by ffmpeg): its Path, or None (said)."""
         if not isinstance(rel, str) or not rel.strip():
             self.bad(f"{what}: a file path relative to {FILE}"); return None
         p = (self.project / rel).resolve()
         try:
-            p.relative_to(self.project)
+            if inside:
+                p.relative_to(self.project)
         except ValueError:
             self.bad(f"{what}: {rel} is outside the project (the pages are served from its folder, and nothing above it)"); return None
         if not p.is_file():
@@ -205,16 +240,13 @@ class Reader:
                 self.bad(f"{where}: a key of letters, digits, _, . and -"); continue
             if not isinstance(s, dict):
                 self.bad(f"{where}: an object, e.g. {{\"page\": \"ch1.html\", \"clock\": \"film\"}}"); continue
-            kinds = [k for k in KINDS if k in s]
+            kinds = [k for k in KINDS if k in s and k != "sound"] or (["sound"] if "sound" in s else [])   # footage's "sound" is its sound's settings
             if len(kinds) != 1:
                 self.bad(f"{where}: one of {', '.join(KINDS)}" + (f", not {' and '.join(kinds)}" if kinds else "")); continue
             kind = kinds[0]
             for k in s:
                 if k not in (kind, "asset", "sha256") + SOURCE_KEYS[kind]:
                     self.bad(f"{where}: {k} does not go with a {kind} source")
-            if kind in LATER:
-                self.bad(f"{where}: {LATER[kind]} sources are not drawn yet: this version of bin/vh edit takes pages, images and colours")
-                continue
             if "asset" in s and not (isinstance(s["asset"], str) and s["asset"]):
                 self.bad(f"{where}: asset: the id of its record in the asset ledger (bin/vh assets)")
             info = {"kind": kind}
@@ -239,9 +271,155 @@ class Reader:
                 if not (isinstance(s["color"], str) and COLOR.match(s["color"])):
                     self.bad(f"{where}: color {jd(s['color'])}: a hex colour, \"#000000\" or \"#000\"")
                 info["color"] = s["color"].lower() if isinstance(s["color"], str) else None
+            elif kind == "clip":
+                got = self.clip(s["clip"], where)
+                if got is None:
+                    continue
+                info.update(got)
+            elif kind == "film":
+                got = self.film(s, where)
+                if got is None:
+                    continue
+                info.update(got)
+            elif kind == "sound":
+                f = self.path_in(s["sound"], f"{where}.sound", inside=False)
+                if f is None:
+                    continue
+                pr = probe(f)
+                if not pr or not pr.get("audio"):
+                    self.bad(f"{where}: {s['sound']} has no sound ffmpeg can read"); continue
+                info.update(path=self.rel(f), sha256=sha256(f), duration=pr["duration"])
+            if kind in ("clip", "film", "sound") and "sha256" in s and s["sha256"] != info.get("sha256"):
+                self.bad(f"{where}: not the file pinned (sha256 {str(s['sha256'])[:12]}…, it is {str(info.get('sha256'))[:12]}…)")
+            if kind in ("clip", "film"):
+                snd = self.sound_spec(s.get("sound"), f"{where}.sound") if "sound" in s else None
+                if snd and not info.get("audio"):
+                    self.bad(f"{where}: sound asked of {info['path']}, which has none")
+                info["sound"] = snd
+                if "sync" in s:
+                    if not (isinstance(s["sync"], dict) and number(s["sync"].get("c")) and number(s["sync"].get("k", 1)) and s["sync"].get("k", 1) > 0):
+                        self.bad(f"{where}: sync {{\"group\", \"c\": seconds, \"k\": 1}}: the clip's s = k·M + c on its group's clock M")
+                    else:
+                        info["sync"] = {"group": s["sync"].get("group"), "c": float(s["sync"]["c"]), "k": float(s["sync"].get("k", 1))}
+            if kind == "sound":   # its role on the source (each entry can say its own)
+                info["sound"] = self.sound_spec({"role": s["role"], **({"gain_db": s["gain_db"]} if "gain_db" in s else {})}, where) if "role" in s else None
             if s.get("asset"):
                 info["asset"] = s["asset"]
             self.src[key] = info
+
+    def rel(self, f):
+        """a file's path as the resolved list keeps it: from the project when inside it, else as found (absolute)"""
+        try:
+            return Path(f).resolve().relative_to(self.project).as_posix()
+        except ValueError:
+            return str(Path(f).resolve())
+
+    def clip(self, rel, where):
+        """A clip source: a folder holding clip.json (bin/vh footage get writes it), or a video file probed as it is."""
+        if not isinstance(rel, str) or not rel.strip():
+            self.bad(f"{where}.clip: a clip folder (with clip.json) or a video file, relative to {FILE}"); return None
+        p = (self.project / rel).resolve()
+        if p.is_dir():
+            cf = p / "clip.json"
+            try:
+                c = json.loads(cf.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as e:
+                self.bad(f"{where}.clip: {rel}/clip.json cannot be read ({type(e).__name__}): a clip folder is what bin/vh footage get makes"); return None
+            if not isinstance(c, dict) or c.get("v") != 1:
+                self.bad(f"{where}.clip: {rel}/clip.json is not a clip's facts of version 1"); return None
+            f = p / str(c.get("file") or "")
+            if not f.is_file():
+                self.bad(f"{where}.clip: {rel}/clip.json names {c.get('file')}, which is not there"); return None
+            col = c.get("color")
+            if not (isinstance(col, list) and len(col) == 4):
+                self.bad(f"{where}.clip: {rel}/clip.json gives no colour tags (bin/vh footage get conforms them)"); return None
+            try:
+                rate = rate_text(c.get("rate"))
+            except ValueError:
+                self.bad(f"{where}.clip: {rel}/clip.json: rate {jd(c.get('rate'))} is not a frame rate"); return None
+            if not (isinstance(c.get("frames"), int) and c["frames"] > 0):
+                self.bad(f"{where}.clip: {rel}/clip.json gives no frame count"); return None
+            audio = c.get("audio") if isinstance(c.get("audio"), dict) and (p / str(c["audio"].get("file") or "")).is_file() else None
+            words = None
+            if isinstance(c.get("words"), str) and c["words"]:
+                words = self.rel(p / c["words"]) if (p / c["words"]).is_file() else None
+                if words is None:
+                    self.bad(f"{where}.clip: {rel}/clip.json names words {c['words']}, which is not there")
+            out = {"path": self.rel(f), "sha256": c.get("sha256") or sha256(f), "rate": rate, "frames": c["frames"], "size": c.get("size"),
+                   "color": col, "folder": self.rel(p), **({"asset": c["asset"]} if c.get("asset") else {})}
+            if audio:
+                out["audio"] = {"path": self.rel(p / audio["file"]), "sha256": audio.get("sha256")}
+            if words:
+                out["words"] = words
+            if isinstance(c.get("sync"), dict):
+                out["sync"] = {k: c["sync"][k] for k in ("group", "c", "k") if k in c["sync"]}
+            if c.get("cuts"):
+                out["cuts"] = c["cuts"]
+            return out
+        if p.is_file():
+            pr = probe(p)
+            if not pr or not pr.get("video"):
+                self.bad(f"{where}.clip: {rel} is not a video ffmpeg can read"); return None
+            v = pr["video"]
+            col = [v.get("color_range"), v.get("color_space"), v.get("color_primaries"), v.get("color_transfer")]
+            note = [f"{rel}: no clip.json, probed as it is"]
+            if not all(x and x not in ("unknown", "reserved") for x in col):
+                col = ["tv", "bt709", "bt709", "bt709"]
+                note.append("its colour is not tagged: read as BT.709 limited range (bin/vh footage get makes a clip folder with its colours on record)")
+            self.notes.append(("edit.clip", None, f"{where}: " + "; ".join(note)))
+            out = {"path": self.rel(p), "sha256": sha256(p), "rate": pr["rate"], "frames": pr["frames"], "size": [v.get("width"), v.get("height")],
+                   "color": col, "untagged": len(note) > 1}
+            if pr.get("audio"):
+                out["audio"] = {"path": self.rel(p), "sha256": out["sha256"]}
+            return out
+        self.bad(f"{where}.clip: no such clip folder or video {rel}"); return None
+
+    def film(self, s, where):
+        """Another film: a version of another project's film (bin/vh versions), taken as a clip: no nested edit list."""
+        proj, ver = s.get("film"), s.get("version")
+        if not isinstance(proj, str) or not isinstance(ver, str) or not re.fullmatch(r"v\d+", ver or ""):
+            self.bad(f"{where}: {{\"film\": \"../other-project\", \"version\": \"v7\"}}: a project and one of its versions (bin/vh versions)"); return None
+        p = (self.project / proj).resolve()
+        try:
+            rec = json.loads((p / "out" / "versions" / "versions.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            self.bad(f"{where}: {proj} has no versions on record (bin/vh versions {proj})"); return None
+        e = next((x for x in rec.get("versions") or [] if isinstance(x, dict) and x.get("id") == ver), None)
+        if e is None or not e.get("file") or not (p / e["file"]).is_file():
+            have = ", ".join(x.get("id") for x in rec.get("versions") or [] if isinstance(x, dict) and x.get("file") and (p / x["file"]).is_file())
+            self.bad(f"{where}: {proj} has no film of version {ver} to take (it has {have or 'none'})"); return None
+        f = p / e["file"]
+        pr = probe(f)
+        if not pr or not pr.get("video"):
+            self.bad(f"{where}: {proj}'s {ver} ({e['file']}) is not a video ffmpeg can read"); return None
+        v = pr["video"]
+        col = [v.get("color_range") or "tv", v.get("color_space") or "bt709", v.get("color_primaries") or "bt709", v.get("color_transfer") or "bt709"]
+        out = {"path": self.rel(f), "sha256": sha256(f), "rate": pr["rate"], "frames": pr["frames"], "size": [v.get("width"), v.get("height")], "color": col,
+               "film": {"project": proj, "version": ver, "file": e["file"]}}
+        if pr.get("audio"):
+            out["audio"] = {"path": self.rel(f), "sha256": out["sha256"]}
+        return out
+
+    def sound_spec(self, v, where):
+        """A sound's settings: {role, gain_db, fade: [in, out], lead, lag}; false or null: no sound (the default for footage)."""
+        if v in (None, False):
+            return None
+        if not isinstance(v, dict):
+            self.bad(f"{where}: {{\"role\": \"ambience\", \"gain_db\": -8}} (role: {', '.join(ROLES)}), or false"); return None
+        bad = [k for k in v if k not in ("role", "gain_db", "fade", "lead", "lag")]
+        if bad:
+            self.bad(f"{where}: unknown {', '.join(bad)} (role, gain_db, fade, lead, lag)")
+        if v.get("role") not in ROLES:
+            self.bad(f"{where}: role {jd(v.get('role'))}: {', '.join(ROLES)} (voice joins the narration's bus, the others the effects' classes)"); return None
+        fade = v.get("fade", [0.03, 0.03])
+        fade = [fade, fade] if number(fade) else fade
+        if not (isinstance(fade, list) and len(fade) == 2 and all(number(x) and x >= 0 for x in fade)):
+            self.bad(f"{where}: fade: seconds, or [in, out]"); fade = [0.03, 0.03]
+        out = {"role": v["role"], "gain_db": float(v.get("gain_db", 0)) if number(v.get("gain_db", 0)) else 0.0, "fade": [float(x) for x in fade],
+               "lead": float(v.get("lead", 0)) if number(v.get("lead", 0)) else 0.0, "lag": float(v.get("lag", 0)) if number(v.get("lag", 0)) else 0.0}
+        if out["lead"] < 0 or out["lag"] < 0:
+            self.bad(f"{where}: lead and lag are seconds ≥ 0 (the sound in before the picture, out after it)")
+        return out
 
     # a time: seconds, "0:12.5", a reference time_refs takes, or (chapters and covers) an entry's start or end
     def t(self, v, where, entries=None):
@@ -285,9 +463,9 @@ class Reader:
             ents = tr.get("entries")
             if not isinstance(ents, list):
                 self.bad(f"tracks[{ti}]: entries, a list"); continue
-            if ti > 0 and ents:
-                self.bad(f"tracks[{ti}] ({tr.get('id', '?')}): only the first track is drawn in this version (one picture track, hard cuts); "
-                         "layers over it come later")
+            if ti > 0 and any(isinstance(e, dict) and (self.src.get(e.get("src")) or {}).get("kind") != "sound" for e in ents):
+                self.bad(f"tracks[{ti}] ({tr.get('id', '?')}): a track after the first takes sounds only (a sound source on each entry); "
+                         "pictures over the first track come later")
                 continue
             for i, e in enumerate(ents):
                 where = f"{tr.get('id') or f'tracks[{ti}]'}[{i}]"
@@ -302,7 +480,7 @@ class Reader:
                 for k in e:
                     if k not in ENTRY:
                         self.bad(f"{eid}: unknown field {k}{near(k, ENTRY)}")
-                out.append((tr.get("id") or "V1", eid, e))
+                out.append((tr.get("id") or ("V1" if ti == 0 else f"A{ti}"), eid, e, ti))
         return out
 
     def resolve(self):
@@ -311,8 +489,8 @@ class Reader:
         fps, size = self.fps, self.size
         if fps is None or size is None:
             raise EditError(2, self.p2)
-        ents, prev_end, prev = [], 0.0, None
-        for track, eid, e in rows:
+        ents, prev_end, prev, sounds, last_on = [], 0.0, None, [], {}
+        for track, eid, e, ti in rows:
             src = e.get("src")
             if src is not None and src not in self.src:
                 if src in (self.doc.get("sources") or {}):
@@ -320,24 +498,34 @@ class Reader:
                 self.bad(f"{eid}: src {jd(src)}: no such source{near(src, list(self.src))} (sources has {', '.join(self.src) or 'none'}; null for a slate)"); continue
             info = self.src.get(src) if src is not None else None
             kind = info["kind"] if info else None
+            if ti > 0:   # a sound track
+                snd = self.sound_entry(eid, e, info, last_on.get(ti, 0.0), track)
+                if snd:
+                    sounds.append(snd); last_on[ti] = snd["end"]
+                continue
+            if kind == "sound":
+                self.bad(f"{eid}: {src} is a sound: it goes on a track of its own after the first (the first track is the picture)"); continue
             clock = info.get("clock") if info else None
             local = kind == "page" and clock == "local"
+            footage = kind in ("clip", "film")
             # what goes with what
             if kind != "page" and "hold" in e:
-                self.bad(f"{eid}: hold is for a page (an image or a slate holds already)")
+                self.bad(f"{eid}: hold is for a page (an image or a slate holds already; footage ends where it ends)")
             if "hold" in e and not isinstance(e["hold"], bool):
                 self.bad(f"{eid}: hold: true or false")
-            if not local:
+            if not (local or footage):
                 for k in ("in", "out", "speed"):
                     if k in e:
-                        self.bad(f"{eid}: {k} is for a page on its own clock (\"clock\": \"local\")" +
+                        self.bad(f"{eid}: {k} is for footage, another film or a page on its own clock (\"clock\": \"local\")" +
                                  (": a film-clock page draws the film's time" if kind == "page" else ""))
-            if kind != "image":
-                for k in ("fit", "bg", "move"):
+            if kind not in ("image", "clip", "film"):
+                for k in ("fit", "bg"):
                     if k in e:
-                        self.bad(f"{eid}: {k} is for an image")
-            if "sound" in e:
-                self.bad(f"{eid}: sound goes with footage and films, which this version does not draw yet")
+                        self.bad(f"{eid}: {k} is for an image or footage")
+            if "move" in e and kind != "image":
+                self.bad(f"{eid}: move is for an image" + (" (a move over footage comes with pictures fed to a page, later)" if footage else ""))
+            if "sound" in e and not footage:
+                self.bad(f"{eid}: sound is for footage and other films (a sound of its own goes on a track after the first)")
             if "inputs" in e:
                 self.bad(f"{eid}: inputs (pictures of other entries fed to a page) come later: one picture track, hard cuts")
             if "end" in e and "dur" in e:
@@ -347,10 +535,10 @@ class Reader:
             # times
             start = self.time(e["start"], f"{eid}: start") if "start" in e else prev_end
             speed = e.get("speed", 1)
-            if local and not (number(speed) and 0.25 <= speed <= 4):
+            if (local or footage) and not (number(speed) and 0.25 <= speed <= 4):
                 self.bad(f"{eid}: speed {jd(speed)}: 0.25 to 4"); speed = 1
-            tin = self.local_time(e.get("in", 0), f"{eid}: in") if local else 0.0
-            tout = self.local_time(e["out"], f"{eid}: out") if local and "out" in e else None
+            tin = (self.source_time(e.get("in", 0), f"{eid}: in", info) if footage else self.local_time(e.get("in", 0), f"{eid}: in")) if (local or footage) else 0.0
+            tout = (self.source_time(e["out"], f"{eid}: out", info) if footage else self.local_time(e["out"], f"{eid}: out")) if (local or footage) and "out" in e else None
             if tout is not None and tin is not None and tout <= tin:
                 self.bad(f"{eid}: out {jd(e['out'])} is not after in {jd(e.get('in', 0))}")
             end = None
@@ -362,7 +550,7 @@ class Reader:
                 end = start + (tout - tin) / speed
             elif not ("end" in e or "dur" in e or "out" in e):
                 self.bad(f"{eid}: no length: write end (seconds or a cue such as \"@l4>\") or dur" +
-                         (", or out" if local else "") + (" (a page's own duration is not read: edit build opens no browser)" if kind == "page" else ""))
+                         (", or out" if local or footage else "") + (" (a page's own duration is not read: edit build opens no browser)" if kind == "page" else ""))
             if start is None or end is None:
                 prev_end = end if end is not None else prev_end
                 continue
@@ -396,6 +584,17 @@ class Reader:
                 row["hold"] = bool(e.get("hold"))
             if kind == "image":
                 row.update(self.framing(eid, e))
+            if footage and tin is not None:
+                row.update(self.footage_frames(eid, e, info, tin, speed, k0, max(k0, k1)))
+                row.update(self.framing(eid, {k: v for k, v in e.items() if k != "move"}))
+                snd = self.sound_spec(e["sound"], f"{eid}: sound") if "sound" in e else info.get("sound")
+                if snd:
+                    if not info.get("audio"):
+                        self.bad(f"{eid}: sound asked of {info['path']}, which has none")
+                    elif speed != 1:
+                        self.bad(f"{eid}: footage with its sound plays at speed 1 (the sound is not stretched): speed 1, or \"sound\": false")
+                    else:
+                        sounds.append(self.footage_sound(eid, track, src, info, row, snd))
             ref = {k: e[k] for k in ("start", "end", "dur", "in", "out") if k in e}
             if ref:
                 row["ref"] = ref
@@ -415,6 +614,9 @@ class Reader:
         if not ents:
             raise EditError(2, [f"{FILE}: no entries on the first track"])
         frames = ents[-1]["frames"][1]
+        for s in sounds:   # a sound that runs past the film is cut there
+            if s["film"][0] >= frames / fps - 1e-9:
+                self.p1.append(f"{s['entry']}: its sound starts at {s['film'][0]:.3f} s, after the film ends ({frames / fps:.3f} s)")
         by = {x["id"]: x["frames"] for x in ents}
         chapters = []
         for i, c in enumerate(self.doc.get("chapters") or []):
@@ -436,7 +638,92 @@ class Reader:
             raise EditError(2, self.p2)
         if self.p1:
             raise EditError(1, self.p1)
-        return self.document(ents, frames, chapters, covers)
+        return self.document(ents, frames, chapters, covers, sounds)
+
+    def source_time(self, v, where, info):
+        """Footage's own time (in, out): seconds, {"f": n} (its frame n), or {"sync": M} (its group's clock: s = k·M + c)."""
+        if isinstance(v, dict) and set(v) == {"f"} and isinstance(v["f"], int) and not isinstance(v["f"], bool) and v["f"] >= 0:
+            from timegrid import rate_of
+            num, den = rate_of(info["rate"])
+            return v["f"] * den / num
+        if isinstance(v, dict) and set(v) == {"sync"} and number(v["sync"]):
+            sy = info.get("sync")
+            if not sy:
+                self.bad(f"{where} {jd(v)}: {info['path']} has no sync (bin/vh footage sync, or the source's \"sync\")"); return None
+            return sy.get("k", 1) * v["sync"] + sy["c"]
+        if number(v) and v >= 0:
+            return round(float(v), 3)
+        self.bad(f"{where} {jd(v)}: the footage's own seconds (≥ 0), {{\"f\": n}} (its frame n) or {{\"sync\": M}} (its group's clock)")
+        return None
+
+    def footage_frames(self, eid, e, info, tin, speed, k0, k1):
+        """Where footage's frames come from: its first one (j0, frame_at of in, or {"f": n} as it is) and the rule
+        j(k) = j0 + floor((k − K0) · speed · rate / fps + 1e-6); the clip must hold every one of them."""
+        from timegrid import frame_at, rate_of
+        num, den = rate_of(info["rate"])
+        j0 = e["in"]["f"] if isinstance(e.get("in"), dict) and "f" in e["in"] else frame_at(tin, info["rate"])
+        last = j0 + int(math.floor((k1 - 1 - k0) * speed * num / den / self.fps + 1e-6))
+        if j0 >= info["frames"] or last >= info["frames"]:
+            have = info["frames"] * den / num
+            self.p1.append(f"{eid} needs {info['path']} up to frame {last} ({(last + 1) * den / num:.3f} s), and it has {info['frames']} frames "
+                           f"({have:.3f} s): move its in earlier, or shorten it")
+        out = {"in": r3(tin), "j0": j0, "speed": speed, "rate": info["rate"]}
+        if num / den != self.fps * (1 if speed == 1 else speed):
+            r = num / den / speed
+            each = round(1 / abs(self.fps / r - 1)) if abs(self.fps / r - 1) > 1e-9 else 0
+            self.notes.append(("edit.rate", eid, f"{eid} {e.get('src')}: {info['rate']} fps" + (f" at speed {speed}" if speed != 1 else "") +
+                               f" into {self.fps} fps: {'one frame shown twice' if r < self.fps else 'one frame left out'} in about every {each or 1} "
+                               "(fine for most footage; say so in DECISIONS.md if not)"))
+        return out
+
+    def footage_sound(self, eid, track, src, info, row, snd):
+        """footage's own sound, placed with its picture: from the film time of its first frame, its own time from the
+        frame it shows there; lead and lag move it in before and out after"""
+        from timegrid import rate_of
+        num, den = rate_of(info["rate"])
+        t0, t1 = row["frames"][0] / self.fps, row["frames"][1] / self.fps
+        sin = row["j0"] * den / num - snd["lead"]
+        if sin < -1e-9:
+            self.bad(f"{eid}: its sound's lead ({snd['lead']} s) reaches before the start of {info['path']}")
+        return {"entry": eid, "track": track, "src": src, "file": info["audio"]["path"], "sha256": info["audio"].get("sha256"),
+                "film": [r3(t0 - snd["lead"]), r3(t1 + snd["lag"])], "in": r3(max(0.0, sin)), "role": snd["role"], "gain_db": snd["gain_db"],
+                "fade": snd["fade"], "lead": snd["lead"], "lag": snd["lag"], **({"words": info["words"]} if info.get("words") else {})}
+
+    def sound_entry(self, eid, e, info, follows, track):
+        """an entry on a sound track: its source's sound from in, placed from start to end (or for its length)"""
+        if info is None or info["kind"] != "sound":
+            self.bad(f"{eid}: a sound track's entry takes a sound source"); return None
+        for k in e:
+            if k in ("fit", "bg", "move", "hold", "speed", "transition", "inputs"):
+                self.bad(f"{eid}: {k} is not for a sound")
+        snd = self.sound_spec(e["sound"], f"{eid}: sound") if "sound" in e else info.get("sound")
+        if not snd:
+            self.bad(f"{eid}: no role for its sound: \"sound\": {{\"role\": …}} on the entry or \"role\" on {e.get('src')}"); return None
+        start = self.time(e["start"], f"{eid}: start") if "start" in e else follows
+        tin = self.local_time(e.get("in", 0), f"{eid}: in")
+        tout = self.local_time(e["out"], f"{eid}: out") if "out" in e else None
+        if start is None or tin is None:
+            return None
+        if "end" in e:
+            end = self.time(e["end"], f"{eid}: end")
+        elif number(e.get("dur")):
+            end = start + e["dur"]
+        elif tout is not None:
+            end = start + tout - tin
+        else:
+            end = start + info["duration"] - tin
+        if end is None:
+            return None
+        if end <= start:
+            self.p1.append(f"{eid}: its sound ends at {end:.3f} s, not after it starts ({start:.3f} s)"); return None
+        if start < follows - 1e-9:
+            self.p1.append(f"{eid} overlaps the sound before it on {track} (it starts at {start:.3f} s, that one ends at {follows:.3f} s): put it on a track of its own")
+        if tin + (end - start) > info["duration"] + 0.5 / self.fps:
+            self.p1.append(f"{eid} needs {info['path']} up to {tin + end - start:.3f} s, and it is {info['duration']:.3f} s long")
+        return {"entry": eid, "track": track, "src": e.get("src"), "file": info["path"], "sha256": info["sha256"],
+                "film": [r3(start - snd["lead"]), r3(end + snd["lag"])], "in": r3(max(0.0, tin - snd["lead"])), "role": snd["role"],
+                "gain_db": snd["gain_db"], "fade": snd["fade"], "lead": snd["lead"], "lag": snd["lag"], "start": r3(start), "end": r3(end),
+                **({k: e[k] for k in ("why", "note") if k in e})}
 
     def local_time(self, v, where):
         """A page's own time (in, out): seconds, or {"f": n}, its frame n at the film's rate."""
@@ -472,16 +759,21 @@ class Reader:
                 out["move"] = {"from": [float(x) for x in m["from"]], "to": [float(x) for x in m["to"]], "ease": m.get("ease", "linear")}
         return out
 
-    def document(self, ents, frames, chapters, covers):
+    def document(self, ents, frames, chapters, covers, sounds=()):
         fps = self.fps
         files = {}
-        for e in ents:
-            if e["src"] is not None and e["src"] not in files:
-                files[e["src"]] = self.src[e["src"]]
+        for e in list(ents) + list(sounds):
+            k = e.get("src")
+            if k is not None and k not in files:
+                files[k] = {x: v for x, v in self.src[k].items() if x != "sound"}
         runs = []
         for e in ents:
             r = {"frames": list(e["frames"]), "draw": DRAW[None if e["kind"] == "slate" else e["kind"]], "entry": e["id"]}
-            if e["kind"] == "page":
+            if e["kind"] in ("clip", "film"):   # footage, decoded by ffmpeg: frame k shows j0 + floor((k − K0)·speed·rate/fps + 1e-6)
+                f = files[e["src"]]
+                r.update(src=e["src"], path=f["path"], sha256=f.get("sha256"), rate=f["rate"], nframes=f["frames"], size=f.get("size"),
+                         color=f["color"], j0=e["j0"], speed=e["speed"], fit=e["fit"], bg=e["bg"])
+            elif e["kind"] == "page":
                 r.update(src=e["src"], path=files[e["src"]]["path"], clock=e["clock"], hold=e["hold"])
                 if e["clock"] == "local":
                     r.update({"in": e["in"]}, speed=e["speed"])
@@ -504,12 +796,16 @@ class Reader:
                "frames": frames, "duration": r3(frames / fps), "files": files, "entries": ents, "runs": runs,
                "cuts": {e["id"]: [e["start"], e["end"]] for e in ents},
                "slates": [e["id"] for e in ents if e["kind"] == "slate"]}
+        if sounds:   # the sounds the edit list places (footage's own, the sound tracks'): bin/vh mix … edit= takes them
+            doc["sound"] = sorted(sounds, key=lambda s: (s["film"][0], s["entry"]))
         if chapters:
             doc["chapters"] = chapters
         if covers:
             doc["covers"] = covers
         if isinstance(self.doc.get("video"), str):
             doc["video"] = self.doc["video"]
+        if self.notes:
+            doc["notes"] = [{"kind": k, "entry": e, "text": t} for k, e, t in self.notes]
         return doc
 
 
@@ -569,13 +865,16 @@ def summary(doc):
     kinds = {}
     for e in doc["entries"]:
         kinds[e["kind"]] = kinds.get(e["kind"], 0) + 1
-    names = {"page": ("page", "pages"), "image": ("image", "images"), "color": ("colour", "colours"), "slate": ("slate", "slates")}
+    names = {"page": ("page", "pages"), "image": ("image", "images"), "color": ("colour", "colours"), "slate": ("slate", "slates"),
+             "clip": ("clip", "clips"), "film": ("film", "films")}
     parts = [f"{n} {names[k][n != 1]}" for k, n in kinds.items()]
-    return f"{doc['duration']} s · {doc['frames']} frames at {doc['fps']} fps · {len(doc['entries'])} entr{'y' if len(doc['entries']) == 1 else 'ies'} on V1 ({', '.join(parts)})"
+    snd = doc.get("sound") or []
+    return (f"{doc['duration']} s · {doc['frames']} frames at {doc['fps']} fps · {len(doc['entries'])} entr{'y' if len(doc['entries']) == 1 else 'ies'} on V1 ({', '.join(parts)})"
+            + (f" · {len(snd)} sound{'s' * (len(snd) != 1)} placed ({', '.join(sorted({s['role'] for s in snd}))})" if snd else ""))
 
 
 def notes(doc):
-    """[(kind, entry, line)]: the slates left, the transitions not drawn yet."""
+    """[(kind, entry, line)]: the slates left, the transitions not drawn yet, what the build noticed (footage at another rate)."""
     out = []
     for e in doc["entries"]:
         if e["kind"] == "slate":
@@ -583,6 +882,8 @@ def notes(doc):
         if e.get("transition_draw"):
             out.append(("edit.transition", e["id"], f"{e['id']}: a transition ({e['transition'].get('type', '?')} {e['transition'].get('duration')} s) is not drawn yet: "
                         "bin/vh render draws a hard cut where a slate is on either side, and stops between two sources"))
+    for n in doc.get("notes") or []:
+        out.append((n["kind"], n["entry"], n["text"]))
     return out
 
 
@@ -603,8 +904,65 @@ def read_resolved(project):
         return None
 
 
+def merged_timeline(doc, project):
+    """The narration with the words of the footage whose sound is a voice, in film seconds, the shape bin/vh tts writes
+    (each line {id, start, end, text, words: [{w, start, end}]}): what bin/vh mix (its timeline= by default with edit=),
+    captions and qa read in an edit list's film. A footage's lines come from its clip's words file (clip.json's "words",
+    the clip's own seconds, the same shape): a word is kept when it starts inside what the entry plays, moved by
+    film start − in; the line's id is <entry>_<n>. None when nothing placed is a voice."""
+    voice = [s for s in doc.get("sound") or [] if s["role"] == "voice"]
+    if not voice:
+        return None, None
+    tl = next((r for r in doc.get("refs") or [] if r.get("kind") == "timeline"), None)
+    base, lang = {"segments": []}, "zh"
+    if tl:
+        try:
+            base = json.loads((Path(project) / tl["path"]).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            base = {"segments": []}
+        m = re.search(r"timeline\.([A-Za-z-]+)\.json$", tl["path"])
+        lang = (m.group(1) if m else None) or base.get("lang") or "zh"
+    lead = 0.0
+    try:
+        lead = float(json.loads((Path(project) / FILE).read_text(encoding="utf-8")).get("refs", {}).get("lead", 0) or 0)
+    except (OSError, ValueError, TypeError, AttributeError):
+        pass
+    shift = lambda w, d: {**w, "start": r3(w["start"] + d), "end": r3(w.get("end", w["start"]) + d)}   # noqa: E731
+    lines = [{**s, "start": r3(s["start"] + lead), "end": r3(s["end"] + lead), **({"words": [shift(w, lead) for w in s["words"] if number(w.get("start"))]} if isinstance(s.get("words"), list) else {})}
+             for s in base.get("segments") or [] if isinstance(s, dict) and number(s.get("start")) and number(s.get("end"))]
+    for v in voice:
+        if not v.get("words"):
+            continue
+        try:
+            wd = json.loads((Path(project) / v["words"]).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        d, n = v["film"][0] - v["in"], 0
+        span = v["in"] + (v["film"][1] - v["film"][0])
+
+        def kept(w):   # a word across a cut stays when more than half of it is inside what plays; then cut to it
+            a, b = w["start"], w.get("end", w["start"]) if number(w.get("end")) else w["start"]
+            inside = min(b, span) - max(a, v["in"])
+            if not (inside > (b - a) / 2 or (b <= a and v["in"] <= a < span)):
+                return None
+            return {**w, "start": max(a, v["in"]), "end": min(max(a, b), span)}
+        for s in wd.get("segments") or []:
+            ws = [k for k in (kept(w) for w in s.get("words") or [] if isinstance(w, dict) and number(w.get("start"))) if k]
+            if not ws:
+                continue
+            n += 1
+            lines.append({"id": f"{v['entry']}_{n}", "start": r3(ws[0]["start"] + d), "end": r3(ws[-1]["end"] + d),
+                          "text": "".join(str(w.get("w", "")) for w in ws) if lang.startswith("zh") else " ".join(str(w.get("w", "")) for w in ws),
+                          "words": [shift(w, d) for w in ws], "from": v["entry"]})
+    lines.sort(key=lambda s: (s["start"], s["id"]))
+    out = {k: v for k, v in base.items() if k != "segments"} if isinstance(base, dict) else {}
+    out.update(lang=lang, note="bin/vh edit build: the narration with the words of the footage placed as a voice, in film seconds", duration=doc["duration"], segments=lines)
+    return out, Path(project) / "out" / f"edit.timeline.{lang}.json"
+
+
 def build(project, write=True):
-    """→ (the resolved document, the lines said). Writes out/edit.resolved.json when write."""
+    """→ (the resolved document, the lines said). Writes out/edit.resolved.json when write (and the merged timeline,
+    out/edit.timeline.<lang>.json, when the edit list places a voice)."""
     doc = resolve(project)
     said = [line for kind, _, line in notes(doc) if kind != "edit.slate"]
     if doc["slates"]:
@@ -616,6 +974,14 @@ def build(project, write=True):
         said.append("since the last build: " + "; ".join(moved))
     if write:
         write_resolved(project, doc)
+        tl, f = merged_timeline(doc, project)
+        if tl is not None:
+            tmp = f.with_name(f".{f.name}.{os.getpid()}")
+            tmp.write_text(json.dumps(tl, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+            os.replace(tmp, f)
+            n = sum(1 for s in tl["segments"] if s.get("from"))
+            said.append(f"{f.relative_to(Path(project)).as_posix()}: the narration with {n} line{'s' * (n != 1)} of the footage's words "
+                        "(bin/vh mix … edit= takes it as its timeline, captions and qa read it)")
     return doc, said
 
 

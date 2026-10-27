@@ -19,7 +19,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { openFilm, HostError } from "./host.mjs";
-import { frameAt, frameFrom } from "./timegrid.mjs";
+import { frameAt, frameFrom, rateOf } from "./timegrid.mjs";
 
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 export const EDIT = "edit.json";
@@ -61,6 +61,7 @@ export function drawingKey(run) {
   if (run.draw === "page") return run.clock === "film" ? { draw: "page", path: run.path, clock: "film", hold: !!run.hold }
     : { draw: "page", path: run.path, clock: "local", in: run.in, speed: run.speed, hold: !!run.hold };
   if (run.draw === "still") return { draw: "still", path: run.path, sha256: run.sha256, fit: run.fit, bg: run.bg, move: run.move || null, n };
+  if (run.draw === "clip") return { draw: "clip", path: run.path, sha256: run.sha256, rate: run.rate, color: run.color, j0: run.j0, speed: run.speed, fit: run.fit, bg: run.bg };
   if (run.draw === "slate") return { draw: "slate", slate: run.slate, n };
   return { draw: run.draw, color: run.color, n };
 }
@@ -109,6 +110,44 @@ export function timeSourceProblems(doc, facts) {
     }
   }
   return out;
+}
+
+// ---- footage (a clip, another film): decoded by ffmpeg, never through the browser ----
+
+// the source frame film frame k shows: j0 + floor((k − K0) · speed · rate / fps + 1e-6), frame_at's rounding
+export function clipIndex(run, k, fps) {
+  const [num, den] = rateOf(run.rate);
+  return run.j0 + Math.floor((k - run.frames[0]) * run.speed * num / den / fps + 1e-6);
+}
+const SWS = { bt709: "bt709", smpte170m: "smpte170m", bt470bg: "bt470", bt601: "bt601", smpte240m: "smpte240m", bt2020nc: "bt2020", bt2020c: "bt2020", fcc: "fcc" };
+// the decoder's picture: the clip's colours read by its tags, fitted into W×H (contain: all of it on bg; cover: it fills), as RGB
+export function clipFilter(run, W, H) {
+  const [rng, mtx] = run.color || ["tv", "bt709"];
+  const scale = `scale=${W}:${H}:force_original_aspect_ratio=${run.fit === "cover" ? "increase" : "decrease"}:in_color_matrix=${SWS[mtx] || "bt709"}` +
+    `:in_range=${rng === "pc" ? "pc" : "tv"}:out_range=pc:flags=lanczos+accurate_rnd+full_chroma_int`;
+  const fit = run.fit === "cover" ? `crop=${W}:${H}` : `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=${(run.bg || "#000000").replace("#", "0x")}`;
+  return `${scale},setsar=1,${fit},format=rgb24`;
+}
+// ffmpeg's arguments to decode count source frames from frame j (an exact seek: the first frame out is j) as `as`:
+// "rawvideo" (rgb24, for the encoder) or "png" (a picture of each)
+export function decodeArgs(run, project, j, count, W, H, as = "rawvideo") {
+  const [num, den] = rateOf(run.rate), file = path.isAbsolute(run.path) ? run.path : path.join(project, run.path);
+  return ["-v", "error", "-nostdin", ...(j > 0 ? ["-ss", ((j - 0.5) * den / num).toFixed(6)] : []), "-i", file, "-map", "0:v:0", "-frames:v", String(count),
+    "-vf", clipFilter(run, W, H), "-fps_mode", "passthrough",   // each frame as decoded: a constant-rate output would repeat the first one after the seek
+    ...(as === "png" ? ["-f", "image2pipe", "-c:v", "png"] : ["-f", "rawvideo", "-pix_fmt", "rgb24"]), "-"];
+}
+// one source frame as a PNG (bin/vh frames, determinism, storyboard's tiles): → { png, touched: [] }
+export function clipPng(run, project, j, W, H) {
+  const r = spawnSync("ffmpeg", decodeArgs(run, project, j, 1, W, H, "png"), { maxBuffer: 1 << 30 });
+  if (r.status !== 0 || !r.stdout || !r.stdout.length) throw new Error(`decoding ${run.path} frame ${j}: ${(r.stderr || "").toString().trim().split("\n")[0] || `exit ${r.status}`}`);
+  return { png: r.stdout, touched: [] };
+}
+// source frames j..j+count−1 as raw RGB, one Buffer each, in a single decode (determinism compares them with clipPng's)
+export function clipRaw(run, project, j, count, W, H) {
+  const r = spawnSync("ffmpeg", decodeArgs(run, project, j, count, W, H), { maxBuffer: Math.max(1 << 26, W * H * 3 * count + 1024) });
+  if (r.status !== 0) throw new Error(`decoding ${run.path}: ${(r.stderr || "").toString().trim().split("\n")[0]}`);
+  const n = W * H * 3;
+  return Array.from({ length: Math.floor(r.stdout.length / n) }, (_, i) => r.stdout.subarray(i * n, (i + 1) * n));
 }
 
 // what a page run needs of its page: up to the end of the entry, unless it holds its last frame
@@ -198,8 +237,18 @@ export class EditFilm {
     return u > last ? last : u;
   }
 
-  async frameK(k, capture) { const run = this.runAt(k), f = await this.film(run); return f.frame(this.localK(run, k), capture); }
-  async frame(t, capture) { const run = this.runAt(frameAt(t, this.fps)), f = await this.film(run); return f.frame(this.localT(run, t), capture); }
+  // footage: its source frame decoded by ffmpeg, as a PNG whatever the capture (render draws footage's chunks its own way)
+  get px() { return [Math.round(this.width * (this.o.dpr || 1)), Math.round(this.height * (this.o.dpr || 1))]; }
+  async frameK(k, capture) {
+    const run = this.runAt(k);
+    if (run.draw === "clip") return clipPng(run, this.project, clipIndex(run, k, this.fps), ...this.px);
+    const f = await this.film(run); return f.frame(this.localK(run, k), capture);
+  }
+  async frame(t, capture) {
+    const k = frameAt(t, this.fps), run = this.runAt(k);
+    if (run.draw === "clip") return clipPng(run, this.project, clipIndex(run, k, this.fps), ...this.px);   // the frame on screen at t
+    const f = await this.film(run); return f.frame(this.localT(run, t), capture);
+  }
   // a page closed (the least used, or all at the end): what it sent and reported is kept; o.onRetire(film) first (render's glyph check)
   async retire(film, key) {
     this._problems.push(...film.problems());   // what its frames reported, before the check below runs in it
@@ -224,7 +273,9 @@ export class EditFilm {
 export async function openEdit(project, o = {}) {
   const doc = o.doc || build(project);
   const ef = new EditFilm(project, doc, o);
-  try { await ef.film(doc.runs[0]); } catch (e) { await ef.close(); throw e; }
+  const first = doc.runs.find((r) => r.draw !== "clip");   // footage needs no browser
+  if (!first) { ef.version = "no browser (footage only)"; return ef; }
+  try { await ef.film(first); } catch (e) { await ef.close(); throw e; }
   return ef;
 }
 
