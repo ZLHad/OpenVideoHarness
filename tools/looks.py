@@ -200,8 +200,9 @@ def own(proj, film=None):
     sb = proj / "STORYBOARD.md"
     if sb.is_file():
         trans += columns(sb.read_text(encoding="utf-8"), ("转场出", "配方", "转场", "transition", "recipe"))
-    sj = proj / "shots.json"
-    if sj.is_file():
+    import shot_source   # where the project's shot table is
+    sj = shot_source.table(proj)
+    if sj:
         try:
             d = json.loads(sj.read_text(encoding="utf-8"))
             shots = d.get("shots", d) if isinstance(d, dict) else d

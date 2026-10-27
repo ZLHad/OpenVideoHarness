@@ -52,6 +52,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { note as activityNote } from "./activity.mjs";   // the project's activity log (bin/vh activity)
 import { commit, moveBeside, there } from "./versions.mjs";   // the project's versions (bin/vh versions)
+import { findTable, readTable, tidyShots } from "./shot_source.mjs";   // the project's shot table (tools/shot_source.py's mirror)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -141,25 +142,9 @@ const gop = enc.gop, ff0 = side.first_frame;
 const page = path.resolve(pageArg || (path.isAbsolute(side.page) ? side.page : path.join(path.dirname(sidecarFile), side.page)));
 if (!fs.existsSync(page)) die(`no page at ${rel(page)} (the sidecar's; --page names another)`);
 
-// ---- the shots and chapters, when the spans name them: shots.json in the project, else the page ----
-const secs = (x) => {
-  if (typeof x === "number") return Number.isFinite(x) ? x : null;
-  const m = String(x ?? "").match(/^\s*(?:(\d+):)?(\d+):(\d+(?:\.\d+)?)\s*$/);
-  const y = m ? +(m[1] || 0) * 3600 + +m[2] * 60 + +m[3] : String(x ?? "").trim() === "" ? NaN : Number(x);
-  return Number.isFinite(y) ? y : null;
-};
-const tidyShots = (raw) => raw.map((s, i) => {   // as bin/vh storyboard reads them: start / t0, end / t1, an id or S01 …
-  const pick = (...ks) => ks.map((kk) => s && s[kk]).find((x) => x !== undefined && x !== null && x !== "");
-  const d = s && s.transition && typeof s.transition === "object" ? +s.transition.duration : typeof (s && s.transition) === "number" ? s.transition : NaN;
-  return { id: String((s && s.id) || `S${String(i + 1).padStart(2, "0")}`), start: secs(pick("start", "t0")), end: secs(pick("end", "t1")), ...(d > 0 ? { transition: d } : {}) };
-}).filter((s) => s.start !== null && s.end !== null && s.end > s.start).sort((p, q) => p.start - q.start);
-const shotsJson = project && fs.existsSync(path.join(project, "shots.json")) ? path.join(project, "shots.json") : null;
-const readShotsJson = () => {
-  let j; try { j = JSON.parse(fs.readFileSync(shotsJson, "utf8")); } catch (e) { die(`${rel(shotsJson)}: ${e.message}`); }
-  const raw = Array.isArray(j) ? j : j && j.shots;
-  if (!Array.isArray(raw)) die(`${rel(shotsJson)}: a list of shots, or {"shots": [...]} (bin/vh storyboard -h)`);
-  return tidyShots(raw);
-};
+// ---- the shots and chapters, when the spans name them: the project's shot table, else the page ----
+const shotsJson = findTable(project);
+const readShotsJson = () => { try { return readTable(shotsJson); } catch (e) { die(`${rel(shotsJson)}: ${e.message}`); } };
 let table = null, tableFrom = null, chapters = null;
 if (shotIds.length || chapterIds.length) {
   if (shotIds.length && shotsJson) { table = readShotsJson(); tableFrom = rel(shotsJson); }
@@ -444,8 +429,7 @@ const crossTable = (() => {   // names only: a table that cannot be read names n
   try {
     if (!shotsJson) return tidyShots((pieceSide && pieceSide.shots) || side.shots || []);
     if (table && tableFrom === rel(shotsJson)) return table;
-    const j = JSON.parse(fs.readFileSync(shotsJson, "utf8")), raw = Array.isArray(j) ? j : j && j.shots;
-    return Array.isArray(raw) ? tidyShots(raw) : [];
+    return readTable(shotsJson);
   } catch { return []; }
 })();
 const crossed = crossTable.filter((s) => asked.some(([a, b]) => s.start < (b + 1 + ff0) / fps - 1e-9 && s.end > (a + ff0) / fps + 1e-9)).map((s) => s.id);

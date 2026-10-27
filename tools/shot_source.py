@@ -1,10 +1,18 @@
-"""Shared shot selection for storyboard and rhythm; live registries stay in memory."""
+"""The project's shot table, for every tool that reads one (storyboard, rhythm, the review desk, thumbs, looks); live
+registries stay in memory. tools/film/shot_source.mjs is its mirror for the page tools (bin/vh patch --shot): the two
+find the table the same way, so where it lives is said in one place each."""
 import json
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 import vhdraw as V
+
+
+def table(project):
+    """The project's hand-written shot table: <project>/shots.json, or None when there is none."""
+    p = Path(project) / "shots.json"
+    return p if p.is_file() else None
 
 
 def live_page(page, browser, capture=None):
@@ -50,8 +58,8 @@ def load(project, explicit=None, browser=None, required=True):
         source = Path(explicit)
         if not source.is_absolute() and not source.exists():
             source = project / source
-    elif (project / "shots.json").exists():
-        source = project / "shots.json"
+    elif table(project):
+        source = table(project)
     elif (project / "film.html").exists():
         source = project / "film.html"
     elif not required:

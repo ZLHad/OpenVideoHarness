@@ -286,11 +286,12 @@ def cmd_proxy(a):
 
 def shot_table(project, film, side):
     """[(id, start, end, at)] in film seconds, and where they came from."""
-    import vhdraw
+    import shot_source, vhdraw
     off = (side or {}).get("first_frame", 0) / ((side or {}).get("fps") or 1) if side else 0
-    if project and (Path(project) / "shots.json").is_file():
+    table = shot_source.table(project) if project else None
+    if table:
         try:
-            shots, _ = vhdraw.load_shots(Path(project) / "shots.json")
+            shots, _ = vhdraw.load_shots(table)
             return [(s["id"], s["start"] - off, s["end"] - off, s["at"] - off if s["at"] is not None else None) for s in shots], "shots.json"
         except SystemExit as e:
             print(f"thumbs: {e}; no shot pictures", file=sys.stderr)
@@ -369,8 +370,9 @@ def cmd_thumbs(a):
         raw = live.get("shots")
         shots = [] if not raw else [(s["id"], s["start"], s["end"], s["at"]) for s in vhdraw.parse_shots(raw, page)[0]]
         shots_from = f"{rel(project, page)} (window.film.shots)" if shots else None
-        if project and (Path(project) / "shots.json").is_file():
-            sh, _ = vhdraw.load_shots(Path(project) / "shots.json")
+        table = shot_source.table(project) if project else None
+        if table:
+            sh, _ = vhdraw.load_shots(table)
             shots, shots_from = [(s["id"], s["start"], s["end"], s["at"]) for s in sh], "shots.json"
     pick_t = lambda s, e, at: min(max(0.0, at if at is not None else s + 0.6 * (e - s)), dur - 0.5 / fps)   # noqa: E731
     shot_rows = [(sid, s, e, round(pick_t(s, e, at), 6)) for sid, s, e, at in shots if e > 0 and s < dur]

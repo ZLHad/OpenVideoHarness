@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import review as R   # noqa: E402  (tools/review.py: merge_includes, review_lang, the gate names)
+import shot_source as SS   # noqa: E402  (tools/shot_source.py: where the project's shot table is)
 
 DOCS = ["BRIEF.md", "STORYBOARD.md", "SCRIPT.md", "STYLE.md", "NOTES.md", "DECISIONS.md", "REVIEW.md",
         "LESSONS.md", "PACKAGING.md", "CHARACTER.md"]
@@ -548,7 +549,8 @@ def _normalize_round(d):
 
 
 def _shots(project, outline, rounds, warnings):
-    sj = _json(project / "shots.json", warnings)
+    table = SS.table(project)
+    sj = _json(table, warnings) if table else None
     if sj is None:
         return {}
     items = sj.get("shots") if isinstance(sj, dict) else sj
