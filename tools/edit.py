@@ -9,8 +9,9 @@ usage: bin/vh edit init <project> [--fps 30] [--size 1920x1080]
        bin/vh edit list <project> [--json]
 
   init   folds the project's shots.json into a new edit.json: every shot an entry with no source (a slate) and its fields
-         as they were, timed as the shots were; shots.json is renamed shots.json.folded (kept, not deleted). Then
-         bin/vh render draws the whole film as slates timed to the plan: gate ②'s full-length animatic. fps and size:
+         as they were, timed as the shots were; shots.json is renamed shots.json.folded (kept, not deleted; .folded-2, -3 …
+         when an earlier one is there). Then bin/vh render draws the whole film as slates timed to the plan: gate ②'s
+         full-length animatic. fps and size:
          --fps and --size, else the BRIEF's Output line, else 30 and 1920x1080. Refused when edit.json is there, and when
          the shots do not follow one another (a gap or an overlap: said, nothing written)
   build  resolves edit.json into out/edit.resolved.json: every start and end, written in seconds or as a reference
@@ -27,7 +28,8 @@ usage: bin/vh edit init <project> [--fps 30] [--size 1920x1080]
 --json: build prints the resolved document with "said" (its lines); check {"version": 1, "tool", "edit", "exit",
 "findings": [{"severity", "kind", "entry", "message"}]}; list {"version": 1, "fps", "frames", "entries": [...]}.
 Exit: 0 done (with notes) · 1 the entries do not fit (a gap or an overlap between two, an entry shorter than a frame,
-out and end that disagree; check: a licence strict refuses, a page shorter than its entry) · 2 the file, its format or a
+out and end that disagree; check: a licence strict refuses or a ledger it cannot read, a page shorter than its entry, a
+transition bin/vh render stops on, pages a browser could not read) · 2 the file, its format or a
 reference (an unknown source or id, a time that does not resolve, a file that is not there: all listed at once).
 """
 import argparse, difflib, hashlib, json, math, os, re, subprocess, sys
@@ -182,10 +184,17 @@ class Reader:
         for k in given:
             if k not in TR.REF_KEYS:
                 self.bad(f"{FILE}: refs.{k}: unknown{near(k, TR.REF_KEYS)} (refs takes {', '.join(TR.REF_KEYS)})")
-        at = lambda k: str(self.project / given[k]) if isinstance(given.get(k), str) else None   # noqa: E731
-        for k in ("timeline", "music", "timemap"):
-            if k in given and not isinstance(given[k], str):
-                self.bad(f"{FILE}: refs.{k}: a file path relative to {FILE}")
+        files = {}
+        for k in ("timeline", "music", "timemap"):   # inside the project, as the sources are (and the pages that read them)
+            if k in given:
+                f = self.path_in(given[k], f"{FILE}: refs.{k}")
+                if f is not None:
+                    files[k] = str(f)
+        at = files.get
+        if len(files) < sum(k in given for k in ("timeline", "music", "timemap")):
+            self.given_refs = given
+            self.R = TR.Refs()
+            return
         self.given_refs = given
         try:
             self.R = TR.Refs(timeline=at("timeline"), lead=given.get("lead", 0), music=at("music"), timemap=at("timemap"))
@@ -225,6 +234,10 @@ class Reader:
                     self.bad(f"{where}: clock \"film\" (the page draws the film's time; its cues hang on the narration) or \"local\" "
                              "(it draws its own time from 0: a title card, a page from elsewhere): it has no default, as the wrong one shifts the whole picture")
                 info.update(path=Path(s["page"]).as_posix() if isinstance(s.get("page"), str) else None, clock=s.get("clock"))
+                if "sha256" in s and f is not None and f.is_file():   # the page file pinned (what it loads is the render's record)
+                    info["sha256"] = sha256(f)
+                    if s["sha256"] != info["sha256"]:
+                        self.bad(f"{where}: {s['page']} is not the file pinned (sha256 {str(s['sha256'])[:12]}…, it is {info['sha256'][:12]}…)")
             elif kind == "image":
                 f = self.path_in(s["image"], f"{where}.image")
                 if f is not None and f.suffix.lower() not in IMAGE_EXT:
@@ -235,6 +248,8 @@ class Reader:
                     if "sha256" in s and s["sha256"] != info["sha256"]:
                         self.bad(f"{where}: {s['image']} is not the file pinned (sha256 {str(s['sha256'])[:12]}…, it is {info['sha256'][:12]}…)")
             elif kind == "color":
+                if "sha256" in s:
+                    self.bad(f"{where}: sha256 pins a file, and a colour has none")
                 if not (isinstance(s["color"], str) and COLOR.match(s["color"])):
                     self.bad(f"{where}: color {jd(s['color'])}: a hex colour, \"#000000\" or \"#000\"")
                 info["color"] = s["color"].lower() if isinstance(s["color"], str) else None
@@ -691,8 +706,17 @@ def init(project, fps=None, size=None):
     Reader(project, doc, folding=True).resolve()   # the shots must follow one another: nothing is written if they do not
     out = project / FILE
     out.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    os.replace(sj, project / "shots.json.folded")
-    return resolve(project)
+    kept = folded_name(project)   # an earlier fold's copy stays as it was
+    os.replace(sj, kept)
+    return resolve(project), kept.name
+
+
+def folded_name(project):
+    """shots.json.folded, or shots.json.folded-2, -3 … when an earlier init kept one"""
+    f, n = Path(project) / "shots.json.folded", 2
+    while f.exists():
+        f, n = Path(project) / f"shots.json.folded-{n}", n + 1
+    return f
 
 
 # ---- check ----
@@ -711,12 +735,13 @@ def page_facts(project, browser):
 def licence_findings(project, doc):
     out = []
     sys.path.insert(0, str(HERE / "assets"))
+    import ledger as L, licenses as LI
+    policy, where = L.policy_of(project)
     try:
-        import ledger as L, licenses as LI
-        policy, where = L.policy_of(project)
-        _, ents, _ = L.entries(project)
-    except Exception as e:   # no ledger, or one that cannot be read
-        return [("warn", "edit.licence", None, f"the asset ledger could not be read ({e}): bin/vh assets check")]
+        _, ents, _ = L.entries(project)   # no ledger is an empty one
+    except Exception as e:   # one that cannot be read: under strict nothing on it can be taken as cleared
+        return [("fail" if policy == "strict" else "warn", "edit.licence", None,
+                 f"the asset ledger could not be read ({e}): bin/vh assets check; Assets: {policy} ({where})")]
     recs = [x["record"] for x in ents if "removed" not in x["record"]]
     by_id = {r.get("id"): r for r in recs}
     by_path = {r.get("path"): r for r in recs}
@@ -740,6 +765,13 @@ def licence_findings(project, doc):
     return out
 
 
+def transitions_refused(doc):
+    """the entries whose transition bin/vh render stops on: between two entries that both have a source (next to a slate
+    it is drawn as a hard cut)"""
+    ents = doc["entries"]
+    return [e["id"] for p, e in zip(ents, ents[1:]) if e.get("transition_draw") and p["kind"] != "slate" and e["kind"] != "slate"]
+
+
 def check(project, browser=None):
     """→ (exit, findings [(severity, kind, entry, message)], doc or None)."""
     found = []
@@ -747,8 +779,14 @@ def check(project, browser=None):
         doc = resolve(project)
     except EditError as e:
         return e.code, [("fail", "edit.format" if e.code == 2 else "edit.layout", None, p) for p in e.problems], None
+    stops = set(transitions_refused(doc))
     for kind, eid, line in notes(doc):
-        found.append(("warn", kind, eid, line))
+        if kind == "edit.transition" and eid in stops:   # render stops on it: the same words, a failure here too
+            e = next(x for x in doc["entries"] if x["id"] == eid)
+            found.append(("fail", kind, eid, f"{eid}: a transition ({e['transition'].get('type')} {e['transition'].get('duration')} s) is not drawn yet: "
+                          "leave it out for a hard cut (one next to a slate is drawn as a hard cut); bin/vh render stops on it"))
+        else:
+            found.append(("warn", kind, eid, line))
     old = read_resolved(project)
     if old is None:
         found.append(("info", "edit.build", None, f"no {RESOLVED.as_posix()} yet: bin/vh edit build (bin/vh render builds it too)"))
@@ -767,7 +805,7 @@ def check(project, browser=None):
     if browser:
         facts = page_facts(project, browser)
         if isinstance(facts, list):
-            found.append(("warn", "edit.pages", None, f"the pages were not read: {facts[0]}"))
+            found.append(("fail", "edit.pages", None, f"the pages were not read, so their checks did not run (length, time sources, cues): {facts[0]}"))
         else:
             found += page_findings(doc, facts)
     elif any(f["kind"] == "page" for f in doc["files"].values()):
@@ -788,9 +826,10 @@ def page_findings(doc, facts):
             continue
         if f.get("error"):
             out.append(("fail", "edit.pages", e["id"], f"{e['id']} ({e['src']}): {f['error']}")); continue
-        need = e["frames"][1] / fps if e["clock"] == "film" else e["in"] + (e["frames"][1] - e["frames"][0]) * e["speed"] / fps
-        if not e.get("hold") and f.get("duration") is not None and frame_from(f["duration"], fps) < frame_from(need, fps):
-            out.append(("fail", "edit.layout", e["id"], f"{e['id']}: {e['src']} is {f['duration']:.3f} s long and the entry needs it up to {need:.3f} s: "
+        n = e["frames"][1] - e["frames"][0]   # the page's own time at the entry's last frame, before the page's end (as pageShort in edit.mjs)
+        last = (e["frames"][1] - 1) / fps if e["clock"] == "film" else e["in"] + (n - 1) * e["speed"] / fps
+        if not e.get("hold") and f.get("duration") is not None and last * fps >= f["duration"] * fps - 1e-6:
+            out.append(("fail", "edit.layout", e["id"], f"{e['id']}: {e['src']} is {f['duration']:.3f} s long and the entry's last frame is at {last:.3f} s of it: "
                         "shorten the entry, or \"hold\": true to hold its last frame"))
         n = len(f.get("cues") or [])
         if e["clock"] == "local" and n:
@@ -949,9 +988,9 @@ def cmd_init(a):
         if not m:
             raise EditError(2, ["--size: write it as 1920x1080"])
         size = [int(m.group(1)), int(m.group(2))]
-    doc = init(project, a.fps, size)
+    doc, kept = init(project, a.fps, size)
     write_resolved(project, doc)
-    print(f"edit: shots.json folded into {FILE} (shots.json is shots.json.folded now) · {summary(doc)}")
+    print(f"edit: shots.json folded into {FILE} (shots.json is {kept} now) · {summary(doc)}")
     print("  every entry is a slate: give each a source as its picture comes (engines/EDIT.md); bin/vh render draws it as it stands, gate ②'s animatic")
     return 0
 

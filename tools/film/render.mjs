@@ -65,6 +65,7 @@ import { HOOK, check as checkGlyphs, collectDom, merge as mergeGlyphs, report as
 import { note as activityNote, progress as activityProgress } from "./activity.mjs";   // the project's activity log (bin/vh activity)
 import { commit } from "./versions.mjs";                                                 // the project's versions (bin/vh versions)
 import { frameFrom } from "./timegrid.mjs";                                              // seconds to frames (tools/timegrid.py)
+import { concatChunks } from "./join.mjs";                                               // the chunks joined, one DTS step a frame
 import { EditFilm, allFacts, build as buildEdit, chaptersOf, drawingKey, editProject, indexOf, openEdit, pageShort, shotsOf, timeSourceProblems } from "./edit.mjs";   // edit lists (engines/EDIT.md)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
@@ -132,7 +133,7 @@ if (editRoot) {
     const f = facts[r.src] || {};
     if (f.error) { bad.push(`${r.entry} (${r.path}): ${f.error}`); continue; }
     const short = pageShort(r, f.duration, doc.fps);
-    if (short !== null) bad.push(`${r.entry}: ${r.path} is ${f.duration} s long and the entry needs it up to ${short.toFixed(3)} s: shorten the entry, or "hold": true to hold its last frame`);
+    if (short !== null) bad.push(`${r.entry}: ${r.path} is ${f.duration} s long and the entry's last frame is at ${short.toFixed(3)} s of it: shorten the entry, or "hold": true to hold its last frame`);
   }
   bad.push(...timeSourceProblems(doc, facts));
   if (bad.length) die(`the edit list's pages:\n  ${bad.join("\n  ")}`);
@@ -332,6 +333,7 @@ const kindSaid = editRoot ? `an edit list, ${doc.entries.length} entr${doc.entri
 console.log(`render: ${rel(first.page)} · ${kindSaid} · ${first.width}x${first.height}${o.dpr !== 1 ? ` @${o.dpr}x` : ""} · ` +
   `${n} frames at ${fps} fps (${(k0 / fps).toFixed(3)}–${(k1 / fps).toFixed(3)} s) · ${plan.length} chunk${plan.length > 1 ? "s" : ""}, ${W} worker${W === 1 ? "" : "s"} · ${alpha ? "PNG with alpha → ProRes 4444 (.mov)" : `${png ? "PNG" : `JPEG q${o.quality}`} → x264 crf ${o.crf} ${o.preset}, keyframe every ${gop}`} · ${first.version}`);
 for (const p of first.loadProblems) console.log(`  while loading: ${p}`);
+if (editRoot) for (const [src, f] of Object.entries(facts)) for (const p of f.loadProblems || []) console.log(`  while loading ${doc.files[src].path}: ${p} (it fails the chunk that draws it)`);
 if (outside) console.log(`  --out ${out} is from the current folder: ${outFile}, outside the project (${first.root})`);
 if (px[0] % 2 || px[1] % 2) console.log(`  note: ${px[0]}x${px[1]} pixels; x264 needs even sizes, so the video is ${px[0] - px[0] % 2}x${px[1] - px[1] % 2}`);
 if (pageFps && Math.abs(pageFps - fps) > 1e-6) console.log(`  fps: drawn at ${fps} fps (${fpsGiven ? "--fps" : "the default; --fps sets it"}), the page says ${pageFps} (window.film.fps or FILM.fps): what it steps once a frame (grain) steps at its rate; make the two agree`);
@@ -464,7 +466,7 @@ fs.writeFileSync(path.join(parts, "list.txt"), plan.map(([a, b], i) => `file '${
 // joined inside the parts folder and moved onto <out> whole (through the project's versions): a join cut short (Ctrl-C)
 // never replaces an earlier video
 const joined = path.join(parts, `joined${path.extname(outFile)}`);
-const join = spawnSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", path.join(parts, "list.txt"), "-c", "copy", "-movflags", "+faststart", joined], { encoding: "utf8" });
+const join = concatChunks(path.join(parts, "list.txt"), joined, fps, ["-movflags", "+faststart"]);
 if (join.status !== 0) fail(`joining the chunks failed: ${(join.stderr || join.signal || "").toString().trim()}`);
 // the frame count the MP4 records (counting by decoding would take minutes on a long 4K film)
 const probe = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",

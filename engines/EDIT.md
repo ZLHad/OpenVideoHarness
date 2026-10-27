@@ -54,7 +54,7 @@
 | `note` | 否 | 一句话 |
 | `fps` | 是 | 整数（24、25、30、50、60）。29.97 这类不收 |
 | `size` | 是 | `[宽, 高]`，CSS px。4K 照旧 `bin/vh render --dpr 2` |
-| `refs` | 否 | 引用读哪些时间源，和带表头的 events.json 一样：`timeline`（旁白时间轴）、`lead`、`music`（beats）、`timemap`，路径相对 `edit.json` |
+| `refs` | 否 | 引用读哪些时间源，和带表头的 events.json 一样：`timeline`（旁白时间轴）、`lead`、`music`（beats）、`timemap`，路径相对 `edit.json`，要在项目里面 |
 | `sources` | 是 | `{键: 来源}`，见下一节 |
 | `tracks` | 是 | `[{id, entries: [...]}]`。现在只画第一轨（V1）；上层轨以后再加 |
 | `chapters` | 否 | `[{t, title}]`，`t` 可以写引用，包括 `"@|S03"`（S03 的起点）。不写时用页面段自己的章节，按钟换算 |
@@ -73,7 +73,7 @@
 | 纯色 | `{"color": "#000000"}` | `#rgb` 或 `#rrggbb`。由 `tools/film/pages/color.html` 画 |
 | （无） | 段上写 `"src": null` | 灰卡：`tools/film/pages/slate.html` 画出段的 id、segment、reads、unsure 和剩余秒数。`bin/vh check` 判失败、`bin/vh deliver` 拒绝出片，交付前一张都不能剩 |
 
-来源都可以带 `asset`（素材台账里的 id，`bin/vh assets`）和 `sha256`（钉住这个文件，换了字节就报错）。视频片段、另一支片子、只出声的段，这一版还不收，写了会直接报出来。
+来源都可以带 `asset`（素材台账里的 id，`bin/vh assets`）；页面和图还可以带 `sha256`（钉住这个文件，换了字节就报错；页面钉的是它自己的 HTML，它加载的文件由 render 的记录管），纯色没有文件可钉，写了也报错。视频片段、另一支片子、只出声的段，这一版还不收，写了会直接报出来。
 
 ## 段的字段
 
@@ -88,7 +88,7 @@
 | `hold` | 页面 | `true` 时段可以比页面长，多出来的停在页面的最后一帧；不写时比页面长就报错 |
 | `fit`、`bg` | 图 | `contain`（默认：整张图放进画面，留边填 `bg`，默认黑）或 `cover`（铺满画面，裁掉多的） |
 | `move` | 图 | `{"from": [cx, cy, z], "to": [cx, cy, z], "ease": "linear" 或 "inOut"}`：画面中心落在图的哪一点（0–1），在 `fit` 之上再放大多少（≥ 1）。`inOut` 是 (1 − cos πp) / 2，p 从段首的 0 走到段尾 |
-| `transition` | 全部 | 进入这一段的转场，`{"type", "duration"}`。现在还不画：挨着灰卡的照硬切画，两段真画面之间写了它，render 会停下 |
+| `transition` | 全部 | 进入这一段的转场，`{"type", "duration"}`。现在还不画：挨着灰卡的照硬切画，两段真画面之间写了它，render 会停下，`edit check` 判失败 |
 | `segment`、`reads`、`label`、`unsure`、`frame`、`at` | 全部 | 和 `shots.json` 一样。`at` 是分镜格子取哪一刻（片子秒或引用） |
 | `why`、`caption`、`recipe`、`seam`、`note` | 全部 | 给人和审阅页看的备注，渲染不读 |
 
@@ -138,7 +138,7 @@
 | `check` | 还剩灰卡就判失败；画它的图在 render 之后变了，提醒；每条有时间的发现都标上它落在哪一段 |
 | `deliver` | 还剩灰卡就不出片 |
 | `versions` | 每一版记剪辑表的哈希；`compare` 两版时按段说谁挪了、谁换了来源 |
-| `edit check` | build 的检查，加上 build 之后变了的文件、每个来源的许可（BRIEF 的 `Assets:`，strict 不收 NC、ND 和未知的）、剩下的灰卡，有浏览器时再查每个页面 |
+| `edit check` | build 的检查，加上 build 之后变了的文件、每个来源的许可（BRIEF 的 `Assets:`，strict 不收 NC、ND 和未知的，台账读不了也判失败）、render 会停下的转场、剩下的灰卡，有浏览器时再查每个页面（页面读不成也判失败，因为这几项就没查） |
 
 ## 这一版不做的
 
