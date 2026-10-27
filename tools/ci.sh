@@ -5221,7 +5221,7 @@ PY
   then ok "edit build: the fixture in whole frames (@l1>, @l3:三, a page's 10.04 s), its runs and slates, the same bytes twice"
   else bad "edit build on the fixture (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   vary() {   # vary <name> <python expression on d, the edit list>: a copy of the fixture with that change
-    rm -rf "$t/$1"; cp -R "$t/e" "$t/$1"; rm -rf "$t/$1/out"
+    rm -rf "${t:?}/${1:?}"; cp -R "$t/e" "$t/$1"; rm -rf "${t:?}/${1:?}/out"
     python3 -c 'import json, sys; p = sys.argv[1] + "/edit.json"; d = json.load(open(p)); E = d["tracks"][0]["entries"]; exec(sys.argv[2]); json.dump(d, open(p, "w"), ensure_ascii=False)' "$t/$1" "$2"
   }
   vary gap 'E[2]["start"] = 3.0'; vary over 'E[2]["start"] = 2.4'; vary twice 'd["sources"]["title"]["clock"] = "local"; E[0].update({"in": 0, "out": 1, "dur": 2})'
