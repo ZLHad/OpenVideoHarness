@@ -113,6 +113,22 @@
     "say": "the film's loudness off its target: mix it again to the platform's level (lufs=, tp=)",
     "run": "bin/vh mix"
    }
+  ],
+  "check.slate": [
+   {
+    "say": "a slate left in the film: give its entry a source (a page, an image, a colour), then render",
+    "doc": "engines/EDIT.md#来源"
+   },
+   {
+    "say": "which entries are still slates",
+    "run": "bin/vh edit list"
+   }
+  ],
+  "check.edit": [
+   {
+    "say": "an image changed since the film was drawn: build the edit list again, then render the entries that use it",
+    "run": "bin/vh edit build"
+   }
   ]
  }
 }

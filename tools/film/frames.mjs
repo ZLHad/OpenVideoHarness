@@ -4,7 +4,7 @@
 // captured as a lossless PNG.
 //
 // usage: node tools/film/frames.mjs <project | page.html> --browser <chrome>
-//          (--at t[,t…] | --range a:b[:step] | --strip a:b | --covers[=id,…] [--no-title] [--ratios 9:16,…]) [--fps 30] [--cols 6] [--cell 320]
+//          (--at t[,t…] | --range a:b[:step] | --strip a:b | --covers[=id,…] [--no-title] [--ratios 9:16,…]) [--entry S03] [--fps 30] [--cols 6] [--cell 320]
 //          [--out dir] [--size WxH] [--dpr 1] [--real-clock] [--soft-gl] [--runtime auto|on|off] [--frame-timeout 120] [--timeout 600]
 //        (bin/vh frames finds the browser: CHROME_PATH, HyperFrames' chrome-headless-shell, then Chrome or Chromium)
 //

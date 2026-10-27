@@ -16,7 +16,8 @@ proxy   <name>.mp4: the film at --size px on its short side (360; never larger t
 thumbs  <name>.thumbs/: a tile every --every seconds (2), --width px wide (160), in sheets of 10 x 10 (sheet-01.jpg …), one
         picture a shot (shots/<id>.jpg, --shot-width px wide) at its `at` or 60 % into it (as bin/vh storyboard picks), and
         thumbs.json, the map: every tile's time, frame, sheet and x, y; every shot's time, frame, span and file. The shots:
-        shots.json in the project, else, for a film, its .render.json (the page's window.film.shots when it was rendered:
+        an edit list's film: its .render.json's entries and the shots inside its pages; else the project's shot table
+        (edit.json or shots.json), else, for a film, its .render.json (the page's window.film.shots when it was rendered:
         no browser is started for a film, so a film without them gets no shot pictures), and with no film, the page's.
         Frames come from a proxy made of this same film when there is one (fast), else the film, else the page.
         Run again after patches in place: only the tiles and shots in the frames drawn again are taken anew
@@ -456,7 +457,7 @@ def cmd_thumbs(a):
         print(json.dumps(dict(rec, state=made), ensure_ascii=False, indent=1))
     else:
         print(f"thumbs: {rel(project, d)} · {len(tiles)} tiles every {every} s ({W}x{H}) in {len(sh)} sheet(s), {len(shot_rows)} shot picture(s)"
-              + (f" ({shots_from})" if shots_from else " (no shots: shots.json, or a page that gives window.film.shots)")
+              + (f" ({shots_from})" if shots_from else " (no shots: a shot table, edit.json or shots.json, or a page that gives window.film.shots)")
               + f" · from the {frm} · " + {"full": "made" + (f" anew ({why})" if why else ""), "up to date": "up to date",
                                            "refreshed": f"refreshed: {len(todo_t)} tile(s) and {len(todo_s)} shot picture(s) taken anew"}[made]
               + (f" · {rec['seconds']} s" if made != "up to date" else ""))

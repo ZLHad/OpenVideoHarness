@@ -88,7 +88,7 @@ export async function pageFacts(film, project) {
   if (typeof tl === "string" && tl) { const f = path.resolve(pageDir, tl); try { timeline = { path: rel(f), sha256: sha256(f) }; } catch { timeline = { path: rel(f), sha256: null }; } }
   const src = (x) => (x && typeof x.path === "string" && typeof x.sha256 === "string" ? { path: rel(path.resolve(pageDir, x.path)), sha256: x.sha256 } : null);
   const fpsOf = +(await get("fps")) || null;
-  return { duration: film.duration, width: film.width, height: film.height, fps: fpsOf, cues: Array.isArray(cues) ? cues.length : 0,
+  return { duration: film.duration, width: film.width, height: film.height, fps: fpsOf, cues: Array.isArray(cues) ? cues.filter((c) => c && typeof c === "object") : [],
     timeline, music: src(music), timemap: src(map), shots: Array.isArray(await get("shots")) ? await get("shots") : null,
     chapters: Array.isArray(await get("chapters")) ? await get("chapters") : null };
 }
@@ -214,6 +214,8 @@ export class EditFilm {
   problems() { const out = this._problems.splice(0); for (const { film } of this.open.values()) out.push(...film.problems()); return out; }
   served() { const out = new Set(this._served); for (const { film } of this.open.values()) for (const x of film.served()) out.add(x); return [...out]; }
   async lateProblems() { const out = []; for (const { film } of this.open.values()) out.push(...(await film.lateProblems())); return out; }
+  async field() { return null; }   // the edit list's own data is the resolved document; a page's fields: pageFacts
+  async list() { return null; }
   send(method, params) { return Promise.all([...this.open.values()].map(({ film }) => film.send(method, params))); }
   async close() { for (const [k, s] of [...this.open]) { this.open.delete(k); await this.retire(s.film, k); } }
 }
@@ -248,6 +250,21 @@ export function shotsOf(doc, facts) {
   }
   return out;
 }
+// each page entry's cues in the film's seconds (a local-clock page's moved to where it plays), those inside the entry:
+// [{ entry, src, path, clock, cues: [{ id: <entry>.<cue>, cue, ref, t }] }]
+export function cuesOf(doc, facts) {
+  const fps = doc.fps, out = [];
+  for (const e of doc.entries) {
+    const f = e.kind === "page" ? facts[e.src] : null;
+    if (!f || f.error) continue;
+    const [a, b] = [e.frames[0] / fps, e.frames[1] / fps], to = (u) => (e.clock === "film" ? u : a + (u - e.in) / e.speed);
+    const cues = (f.cues || []).filter((c) => typeof c.t === "number" && Number.isFinite(c.t)).map((c) => ({ id: `${e.id}.${c.id}`, cue: c.id, ref: c.ref, t: +to(c.t).toFixed(6) }))
+      .filter((c) => c.t >= a - 1e-9 && c.t < b);
+    out.push({ entry: e.id, src: e.src, path: doc.files[e.src].path, clock: e.clock, all: (f.cues || []).length, cues, timeline: f.timeline || null });
+  }
+  return out;
+}
+
 // the film's chapters: the edit list's own, else each page entry's own, in the film's seconds, inside the entry
 export function chaptersOf(doc, facts) {
   if (Array.isArray(doc.chapters) && doc.chapters.length) return doc.chapters.map((c) => ({ t: c.t, title: c.title, ...(c.id != null ? { id: c.id } : {}) }));

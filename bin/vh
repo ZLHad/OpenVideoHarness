@@ -717,11 +717,11 @@ on_ctrl_c() { # on_ctrl_c <command…>: run it; a Ctrl-C while it runs ends bin/
   if [ "$int" != 0 ]; then [ "${BASH_SUBSHELL:-0}" = 0 ] || exit 130; ctrl_c_exit; fi
   return "$rc"
 }
-cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--shots shots.json|film.html] [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)" >&2; exit 2; }
+cmd_storyboard() { [ $# -gt 0 ] || { echo "usage: bin/vh storyboard <project> [--shots shots.json|edit.json|film.html] [--video v.mp4 | --snapshot] [--unsure S02,S04] [--per 6]   (-h: the shots.json schema)" >&2; exit 2; }
   local b=""
   b=$(film_browser storyboard "$(arg_dir "$@")" 2>/dev/null) || true
   on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/storyboard.py" --browser "$b" "$@"; }
-cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--shots shots.json|film.html] [--segment NAME | --from s --to s] [--max s] [--out file.png]" >&2; exit 2; }
+cmd_rhythm() { [ $# -gt 0 ] || { echo "usage: bin/vh rhythm <project> [--shots shots.json|edit.json|film.html] [--segment NAME | --from s --to s] [--max s] [--out file.png]" >&2; exit 2; }
   local b=""
   b=$(film_browser rhythm "$(arg_dir "$@")" 2>/dev/null) || true
   on_ctrl_c uv run -q --no-project --with pillow python "$ROOT/tools/rhythm.py" --browser "$b" "$@"; }
@@ -926,6 +926,16 @@ cmd_check() {
       *) echo "$c_wa gate record check failed: $gr"; ck_note skipped.txt $'gate\tthe gate record check failed' ;;
     esac
   fi
+  # an edit list's film (engines/EDIT.md): a slate left in it (an entry with no source yet) is a placeholder, never delivered;
+  # an image it was drawn from that changed since is said. The record puts each finding in the entry it falls in
+  local ed erc=0
+  ed=$(python3 "$ROOT/tools/edit.py" _film "$v" ${J:+--json "$J/edit.json"} 2>&1) || erc=$?
+  case "$erc:$ed" in
+    0:) ;;   # not an edit list's film
+    0:*) printf '%s\n' "$ed" | sed "1s/^/$c_ok /" ;;
+    1:*) fail=1; printf '%s\n' "$ed" | sed "1s/^/$c_no /" ;;
+    *) echo "$c_wa edit list check failed: $ed"; ck_note skipped.txt $'edit\tthe edit list check failed' ;;
+  esac
   local hits; hits=$(ffmpeg -i "$v" -vf "blackdetect=d=0.3,freezedetect=d=3" -af silencedetect=d=3 -f null - 2>&1 | grep -E "black_|freeze_|silence_" | sed 's/.*\] //' || true)
   [ -z "$J" ] || printf '%s\n' "$hits" > "$J/detect.txt"
   if [ -z "$hits" ]; then echo "$c_ok no black/freeze/silence segments over threshold"
@@ -1013,7 +1023,7 @@ cmd_check() {
     fi
   fi
   local status=0
-  [ "$rc" != 1 ] && [ "$fail" = 0 ] || status=1   # exit 1 on isolated frames, a spec mismatch, no gate ① on record or a scale FAIL; the other findings are for review
+  [ "$rc" != 1 ] && [ "$fail" = 0 ] || status=1   # exit 1 on isolated frames, a spec mismatch, no gate ① on record, a slate left or a scale FAIL; the other findings are for review
   # the record: out/check/<name>.check.json in the video's project (bin/vh status reads the last); with --json, on stdout too
   local ra=("$v" --dir "$J" --exit "$status")
   [ -z "$allow" ] || ra+=(--allow "$allow"); [ -z "$against" ] || ra+=(--against "$against")

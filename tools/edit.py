@@ -792,8 +792,9 @@ def page_findings(doc, facts):
         if not e.get("hold") and f.get("duration") is not None and frame_from(f["duration"], fps) < frame_from(need, fps):
             out.append(("fail", "edit.layout", e["id"], f"{e['id']}: {e['src']} is {f['duration']:.3f} s long and the entry needs it up to {need:.3f} s: "
                         "shorten the entry, or \"hold\": true to hold its last frame"))
-        if e["clock"] == "local" and f.get("cues"):
-            out.append(("warn", "edit.cues", e["id"], f"{e['id']}: {e['src']} is on its own clock and hangs {f['cues']} cue{'s' * (f['cues'] != 1)} on the narration: "
+        n = len(f.get("cues") or [])
+        if e["clock"] == "local" and n:
+            out.append(("warn", "edit.cues", e["id"], f"{e['id']}: {e['src']} is on its own clock and hangs {n} cue{'s' * (n != 1)} on the narration: "
                         "they land in its own time, not the film's (did you mean \"clock\": \"film\"?)"))
         if e["clock"] == "film":
             for what in ("timeline", "music", "timemap"):
@@ -806,6 +807,75 @@ def page_findings(doc, facts):
                     out.append(("fail", "edit.refs", e["id"], f"{e['id']}: {e['src']} reads another {what} ({g.get('path')}) than {whose}: "
                                 "every film-clock page reads the same one; point them at one file, then bin/vh edit build"))
     return out
+
+
+# ---- a film of an edit list (bin/vh check and deliver) ----
+
+def film_facts(video):
+    """What bin/vh check and deliver ask of a video that is an edit list's film: {"from", "entries", "slates", "changed"},
+    or None when it is not one. From its .render.json (what it was rendered from) when it has one; a film with none in a
+    project with an edit list (a mux's) is taken as the edit list is now. slates: [{id, frames, t, t1}] inside the film's
+    span; changed: the images it was drawn from that are no longer those bytes."""
+    video = Path(video).resolve()
+    try:
+        side = json.loads(Path(str(video) + ".render.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        side = None
+    project = next((d for d in [video.parent, *video.parents] if (d / "BRIEF.md").is_file() or (d / FILE).is_file()), None)
+    if isinstance(side, dict) and side.get("kind") == "edit" and isinstance(side.get("entries"), list):
+        fps, entries, runs, src = side.get("fps") or 30, side["entries"], side.get("runs") or [], "its .render.json"
+        span = [side.get("first_frame") or 0, (side.get("first_frame") or 0) + (side.get("frames") or 0)]
+        base = (Path(str(video) + ".render.json").parent / side["page"]).resolve().parent if isinstance(side.get("page"), str) else project
+    elif isinstance(side, dict) or project is None or not find(project):
+        return None
+    else:
+        try:
+            doc = resolve(project)
+        except EditError as e:
+            return {"from": f"{FILE} as it is now", "entries": [], "slates": [], "changed": [], "error": "; ".join(e.problems[:3])}
+        fps, entries, runs, src, span, base = doc["fps"], doc["entries"], doc["runs"], f"{FILE} as it is now (the film has no .render.json)", [0, doc["frames"]], project
+    slates = [{"id": e["id"], "frames": [e["frames"][0], e["frames"][1] - 1], "t": r3(e["frames"][0] / fps), "t1": r3(e["frames"][1] / fps)}
+              for e in entries if e.get("kind") == "slate" and e["frames"][0] < span[1] and e["frames"][1] > span[0]]
+    changed = []
+    for r in runs:
+        if r.get("sha256") and r.get("path"):
+            f = Path(base) / r["path"]
+            try:
+                now = sha256(f)
+            except OSError:
+                now = None
+            if now != r["sha256"]:
+                changed.append({"entry": r.get("entry"), "path": r["path"], "now": "gone" if now is None else "other bytes"})
+    return {"from": src, "fps": fps, "entries": [{k: e.get(k) for k in ("id", "kind", "src", "frames", "start", "end")} for e in entries],
+            "slates": slates, "changed": changed}
+
+
+def film_main(argv):
+    """python3 tools/edit.py _film <video> [--json f]: bin/vh check's step. Nothing said and 0 for a film that is not an
+    edit list's; a line, and 1 while slates are left in it."""
+    video, out = argv[0] if argv else None, argv[argv.index("--json") + 1] if "--json" in argv[:-1] else None
+    if not video:
+        print("usage: python3 tools/edit.py _film <video> [--json f]", file=sys.stderr)
+        return 2
+    f = film_facts(video)
+    if f is None:
+        return 0
+    if out:
+        try:
+            Path(out).write_text(json.dumps(f, ensure_ascii=False), encoding="utf-8")
+        except OSError as e:
+            print(f"edit: could not write {out} ({e.strerror or e})", file=sys.stderr)
+    s = f["slates"]
+    if f.get("error"):
+        print(f"edit list: {FILE} does not resolve ({f['error']}): bin/vh edit build")
+        return 1
+    head = (f"edit list ({f['from']}): {len(s)} slate{'s' * (len(s) != 1)} left, " + ", ".join(f"{x['id']} ({x['t']:.2f}–{x['t1']:.2f} s)" for x in s[:6]) +
+            (" …" if len(s) > 6 else "") + ": an entry with no source yet is a placeholder, not a film to deliver") if s else \
+        f"edit list ({f['from']}): {len(f['entries'])} entries, no slate left"
+    print(head)
+    for c in f["changed"]:
+        print(f"  ! {c['path']} ({c['entry']}): {'gone' if c['now'] == 'gone' else 'not the bytes the film was drawn from'} (bin/vh edit build, then render it again)")
+    return 1 if s else 0
 
 
 # ---- the commands ----
@@ -887,6 +957,9 @@ def cmd_init(a):
 
 
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["_film"]:   # bin/vh check's and deliver's step (not a command of its own)
+        return film_main(argv[1:])
     ap = argparse.ArgumentParser(prog="bin/vh edit", description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog=__doc__.split("\n\n", 1)[1])
     sub = ap.add_subparsers(dest="cmd", required=True)

@@ -18,12 +18,19 @@
 // written to out/chapters.txt; it says what YouTube needs before it shows them (at least three, the first at 0:00,
 // each at least 10 s). After a new take of the narration, run it again.
 //
+// A project with an edit list (edit.json, engines/EDIT.md) has two layers, both listed and both saved: the edit list's own
+// times (each entry's start and end, as written: seconds or a cue on the narration, the beats, a time map; its chapters),
+// resolved by tools/edit.py; and each page entry's cues, in the film's seconds (a local-clock page's moved to where it
+// plays), those inside the entry. The next run says which entries moved and by how much ("S03–S07 moved +0.420 s"), and
+// which page cues moved, are new or gone. A local-clock page that hangs cues on the narration is said: they land in its
+// own time, not the film's. --chapters takes the edit list's chapters, else its pages'.
 // A cue that no longer resolves stops the page in ready, so the host's message names it and this exits 2.
 // Exit: 0 listed · 2 could not open the page, it gives no window.film.cues, or --save cannot write the file.
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { openFilm } from "./host.mjs";
+import { allFacts, build as buildEdit, chaptersOf, cuesOf, editProject } from "./edit.mjs";   // edit lists (engines/EDIT.md)
 import "./activity.mjs";   // bin/vh exec's into this: the run's end line in the project's activity log
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
@@ -45,6 +52,83 @@ for (let i = 0; i < argv.length; i++) {
 }
 if (!target) die("which project or page? (-h for the usage)");
 if (!browser) die("no browser: pass --browser <chrome>, or run it as bin/vh cues");
+const editRoot = editProject(target);
+if (editRoot) { await editCues(editRoot); process.exit(0); }
+
+// ---- an edit list: its own times, then each page entry's cues ----
+async function editCues(root) {
+  let doc, facts;
+  try { doc = buildEdit(root, false); } catch (e) { die(e.message.replace(/^edit: /, "")); }
+  try { facts = await allFacts(root, doc, { browser, frameTimeout }); } catch (e) { die(e.message); }
+  const bad = Object.entries(facts).filter(([, f]) => f.error);
+  if (bad.length) die(bad.map(([src, f]) => `${doc.files[src].path}: ${f.error}`).join("\n  "));
+  const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };
+  const two = (x) => String(Math.floor(x)).padStart(2, "0"), mmss = (s) => (s >= 3600 ? `${Math.floor(s / 3600)}:${two((s % 3600) / 60)}:${two(s % 60)}` : `${Math.floor(s / 60)}:${two(s % 60)}`);
+  if (chapters) {   // the description's chapter list, as for a page
+    const chs = chaptersOf(doc, facts);
+    if (!chs.length) die("the edit list has no chapters (edit.json's chapters, or its pages' window.film.chapters)");
+    const at = chs.map((c, i) => (i === 0 ? 0 : Math.max(0, Math.floor(c.t - 0.5)))), lines = chs.map((c, i) => `${mmss(at[i])} ${c.title}`);
+    console.log(`chapters: ${rel(path.join(root, "edit.json"))} · ${chs.length}, each 0.5 to 1.5 s before it starts (whole seconds; the first at 0:00)`);
+    for (const l of lines) console.log("  " + l);
+    if (chs.length < 3) console.log("  YouTube shows chapters only when there are at least three");
+    for (const [i, s] of at.entries()) { const d = (i + 1 < at.length ? at[i + 1] : doc.frames / doc.fps) - s; if (d < 10) console.log(`  YouTube shows chapters only when each lasts 10 s or more: "${chs[i].title}" lasts ${d.toFixed(0)} s`); }
+    const file = path.join(root, "out", "chapters.txt");
+    try { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, lines.join("\n") + "\n"); console.log(`  written: ${rel(file)}`); } catch (e) { die(`cannot write ${rel(file)}: ${e.message}`); }
+    return;
+  }
+  const entries = doc.entries.map((e) => ({ id: e.id, start: e.start, end: e.end, ...(e.ref ? { ref: e.ref } : {}) }));
+  const pages = cuesOf(doc, facts);
+  const tl = (doc.refs || []).find((r) => r.kind === "timeline");
+  console.log(`cues: ${rel(path.join(root, "edit.json"))} · ${entries.length} entr${entries.length === 1 ? "y" : "ies"}, ${entries.filter((e) => e.ref && Object.values(e.ref).some((v) => typeof v !== "number")).length} hanging on references` +
+    (tl ? ` (on ${tl.path}, sha256 ${tl.sha256.slice(0, 12)})` : " (edit.json's refs name no timeline)"));
+  const w = Math.max(4, ...entries.map((e) => e.id.length));
+  console.log(`  ${"start".padStart(8)}  ${"end".padStart(8)}  ${"id".padEnd(w)}  written`);
+  for (const e of entries) console.log(`  ${e.start.toFixed(3).padStart(8)}  ${e.end.toFixed(3).padStart(8)}  ${e.id.padEnd(w)}  ${e.ref ? Object.entries(e.ref).map(([k, v]) => `${k} ${JSON.stringify(v)}`).join(", ") : "follows"}`);
+  for (const c of doc.chapters || []) if (c.ref !== undefined) console.log(`  ${c.t.toFixed(3).padStart(8)}  ${"".padStart(8)}  ${"chapter".padEnd(w)}  ${c.title}: ${JSON.stringify(c.ref)}`);
+  for (const p of pages) {
+    console.log(`  ${p.entry}: ${p.path} (${p.clock} clock) · ${p.cues.length} cue${p.cues.length === 1 ? "" : "s"} inside the entry` + (p.all > p.cues.length ? ` (${p.all} on the page)` : ""));
+    if (p.clock === "local" && p.all) console.log(`    ! ${p.path} is on its own clock and hangs ${p.all} cue${p.all === 1 ? "" : "s"} on the narration: they land in its own time, not the film's (did you mean "clock": "film"?)`);
+    for (const c of p.cues) console.log(`    ${c.t.toFixed(3).padStart(8)}  ${String(c.cue).padEnd(w)}  ${c.ref}`);
+  }
+  // against the saved ones: entries that moved (a row moved by the same amount is one line), page cues moved, new, gone
+  const file = path.resolve(out || path.join(root, "out", "cues.json"));
+  let before = null;
+  if (fs.existsSync(file)) {
+    try { before = JSON.parse(fs.readFileSync(file, "utf8")); if (!before || !Array.isArray(before.entries)) throw new Error("not an edit list's"); }
+    catch { before = null; console.log(`  ${rel(file)}: not readable as an edit list's saved cues, so not compared`); }
+  }
+  if (before) {
+    const old = new Map(before.entries.map((e) => [e.id, e])), moved = [];
+    entries.forEach((e, i) => {
+      const p = old.get(e.id); if (!p) return;
+      const d = +(e.start - p.start).toFixed(3);
+      if (!d) return;
+      const l = moved[moved.length - 1];
+      if (l && l.d === d && l.i === i - 1) { l.to = e.id; l.i = i; } else moved.push({ from: e.id, to: e.id, d, i });
+    });
+    const tlOld = (before.refs || []).find((r) => r.kind === "timeline");
+    const why = tl && tlOld && tl.sha256 !== tlOld.sha256 ? " (another take of the narration)" : "";
+    const lines = moved.map((m) => `${m.from === m.to ? m.from : `${m.from}–${m.to}`} moved ${m.d > 0 ? "+" : "−"}${Math.abs(m.d).toFixed(3)} s${why}`);
+    for (const e of entries) { const p = old.get(e.id); if (p && +(e.end - e.start).toFixed(3) !== +(p.end - p.start).toFixed(3)) lines.push(`${e.id} is ${e.end - e.start > p.end - p.start ? "longer" : "shorter"} by ${Math.abs((e.end - e.start) - (p.end - p.start)).toFixed(3)} s`); }
+    for (const e of entries) if (!old.has(e.id)) lines.push(`${e.id} is new`);
+    for (const id of old.keys()) if (!entries.some((e) => e.id === id)) lines.push(`${id} is gone`);
+    const oc = new Map((before.pages || []).flatMap((p) => (p.cues || []).map((c) => [c.id, c]))), nc = new Map(pages.flatMap((p) => p.cues.map((c) => [c.id, c])));
+    for (const [id, c] of nc) { const p = oc.get(id); if (p && Math.abs(p.t - c.t) >= 0.0005) lines.push(`${id} moved ${c.t > p.t ? "+" : "−"}${Math.abs(c.t - p.t).toFixed(3)} s (${p.t.toFixed(3)} → ${c.t.toFixed(3)})`); else if (!p) lines.push(`${id} is new`); }
+    for (const id of oc.keys()) if (!nc.has(id)) lines.push(`${id} is gone`);
+    console.log(`  since ${rel(file)}:${lines.length ? "" : " nothing moved"}`);
+    for (const l of lines.slice(0, 30)) console.log(`    ${l}`);
+    if (lines.length > 30) console.log(`    … and ${lines.length - 30} more`);
+  }
+  if (save) {
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, JSON.stringify({ note: "bin/vh cues --save: where an edit list's entries and its pages' cues landed, and the time sources they were resolved on",
+        edit: path.relative(path.dirname(file), path.join(root, "edit.json")), edit_sha256: doc.edit.sha256, refs: doc.refs, entries,
+        pages: pages.map(({ all, ...p }) => p) }, null, 1) + "\n");
+    } catch (e) { die(`cannot write ${rel(file)}: ${e.message}`); }
+    console.log(`  saved: ${rel(file)}`);
+  }
+}
 
 let film;
 try { film = await openFilm(target, { browser, runtime: "auto", frameTimeout }); } catch (e) { die(e.message); }

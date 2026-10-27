@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=320, height=180">
+<style>html, body { margin: 0; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="320" height="180"></canvas>
+<script>
+  // An edit list's fixture (tools/ci.sh, engines/EDIT.md): a chapter page on the film's clock. Its duration does not fall
+  // on a frame (10.04 s: 302 frames at 30 fps). It reads the narration timeline in ready and hangs one cue on it, as a
+  // page whose times follow the voice does; what it draws is a function of t alone.
+  const x = document.getElementById("c").getContext("2d");
+  window.film = {
+    duration: 10.04, timeline: "audio/timeline.zh.json", cues: [],
+    async ready() {
+      const tl = await (await fetch("audio/timeline.zh.json")).json();
+      const l1 = tl.segments.find((s) => s.id === "l1");   // "话", the last of its four letters, spread evenly over the line
+      this.cues = [{ id: "c1", ref: "@l1:话", t: l1.start + (l1.end - l1.start) * 3 / 4 }];
+    },
+    frame(t) {
+      x.fillStyle = `hsl(${Math.round(t * 36)}, 60%, 30%)`; x.fillRect(0, 0, 320, 180);
+      x.fillStyle = "#fc0"; x.fillRect(10 + t * 28, 90, 30, 30);
+    },
+  };
+</script>
+</body>
+</html>

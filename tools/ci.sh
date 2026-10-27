@@ -5173,6 +5173,183 @@ PY
   rm -rf "$t"
 }
 
+# edit lists (bin/vh edit, tools/edit.py, engines/EDIT.md) on their fixture (tools/film/fixture/edit: a title card on its
+# own clock, a chapter page on the film's clock whose duration is 10.04 s, a picture with a push, a slate and a black, cut on
+# the narration). Without a browser: seconds to frames the same in Python and JS, build and its refusals, init, two shot
+# tables; with one: a one-entry edit list renders the frames its page renders alone, a new take moves the entries (build
+# and cues say so), patch puts back an entry that moved and refuses one away from what changed, determinism by runs, the
+# shot tools find the entries, check and deliver refuse a film with a slate, versions compare says what changed
+edit_checks() {
+  local t a b c d e rc rc2 rc3 rc4 rc5 p
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  # frame_from and frame_at: the same frame in Python and JS for every frame boundary, a hair either side of it, the
+  # values a double computes too small (4.1 s), 6.85 s, a computed duration and a fractional rate
+  if python3 - "$ROOT" <<'PY'
+import json, subprocess, sys
+sys.path.insert(0, sys.argv[1] + "/tools")
+from timegrid import frame_at, frame_from
+cases = []
+for fps in (24, 25, 30, 50, 60):
+    for k in range(0, 400, 7):
+        for d in (0, 1e-7, -1e-7):
+            cases.append((k / fps + d / fps, fps))
+cases += [(6.85, 30), (4.1, 30), (10.04, 30), (57.21333333333333, 30), (1.0, "24000/1001"), (12.2, "24000/1001"), (0.5, [30000, 1001])]
+py = [[frame_from(t, r), frame_at(t, r)] for t, r in cases]
+js = json.loads(subprocess.run(["node", "--input-type=module", "-e",
+    "import { frameFrom, frameAt } from './tools/film/timegrid.mjs'; const c = JSON.parse(process.argv[1]); console.log(JSON.stringify(c.map(([t, r]) => [frameFrom(t, r), frameAt(t, r)])));",
+    json.dumps(cases)], capture_output=True, text=True, cwd=sys.argv[1]).stdout)
+ok = py == js and frame_from(6.85, 30) == 206 and frame_from(4.1, 30) == 123 and frame_from(10.04, 30) == 302 and frame_at(4.1, 30) == 123 \
+    and frame_from(205 / 30 + 1e-7 / 30, 30) == 205 and frame_from(205 / 30 - 1e-7 / 30, 30) == 205
+sys.exit(0 if ok else 1)
+PY
+  then ok "timegrid: frame_from and frame_at give the same frame in Python and JS (boundaries ±1e-7 frame, 4.1 s, 6.85 s, 10.04 s, 24000/1001)"
+  else bad "timegrid: Python and JS disagree, or a known value is off"; fi
+  # build on the fixture: whole frames, the slate said, the same bytes twice; the refusals, each with its exit code
+  cp -R tools/film/fixture/edit "$t/e" && printf '# BRIEF\n' > "$t/e/BRIEF.md"
+  a=$(vh edit build "$t/e" 2>&1); rc=$?
+  cp "$t/e/out/edit.resolved.json" "$t/r1.json"; vh edit build "$t/e" >/dev/null 2>&1
+  if [ $rc = 0 ] && cmp -s "$t/r1.json" "$t/e/out/edit.resolved.json" && printf '%s' "$a" | grep -q '302 frames at 30 fps · 6 entries on V1 (3 pages, 1 image, 1 slate, 1 colour)' \
+     && printf '%s' "$a" | grep -q 'S04: a slate, no source yet' && python3 - "$t/e/out/edit.resolved.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+fr = {e["id"]: e["frames"] for e in d["entries"]}
+ok = fr == {"S01": [0, 45], "S02": [45, 78], "S03": [78, 150], "S04": [150, 180], "S05": [180, 270], "S06": [270, 302]}
+ok = ok and [r["draw"] for r in d["runs"]] == ["page", "page", "still", "slate", "page", "color"] and d["slates"] == ["S04"]
+ok = ok and d["chapters"][1] == {"t": 2.6, "title": "二", "ref": "@|S03"} and d["refs"][0]["kind"] == "timeline" and d["entries"][1]["ref"] == {"end": "@l1>"}
+sys.exit(0 if ok else 1)
+PY
+  then ok "edit build: the fixture in whole frames (@l1>, @l3:三, a page's 10.04 s), its runs and slates, the same bytes twice"
+  else bad "edit build on the fixture (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  vary() {   # vary <name> <python expression on d, the edit list>: a copy of the fixture with that change
+    rm -rf "$t/$1"; cp -R "$t/e" "$t/$1"; rm -rf "$t/$1/out"
+    python3 -c 'import json, sys; p = sys.argv[1] + "/edit.json"; d = json.load(open(p)); E = d["tracks"][0]["entries"]; exec(sys.argv[2]); json.dump(d, open(p, "w"), ensure_ascii=False)' "$t/$1" "$2"
+  }
+  vary gap 'E[2]["start"] = 3.0'; vary over 'E[2]["start"] = 2.4'; vary twice 'd["sources"]["title"]["clock"] = "local"; E[0].update({"in": 0, "out": 1, "dur": 2})'
+  vary nolen 'del E[1]["end"]'; vary noref 'E[2]["end"] = "@l9>"; E[3]["src"] = "nosuch"'
+  a=$(vh edit build "$t/gap" 2>&1); rc=$?; b=$(vh edit build "$t/over" 2>&1); rc2=$?; c=$(vh edit build "$t/twice" 2>&1); rc3=$?
+  d=$(vh edit build "$t/nolen" 2>&1); rc4=$?; e=$(vh edit build "$t/noref" 2>&1); rc5=$?
+  case "$rc:$rc2:$rc3:$rc4:$rc5" in 1:1:1:2:2)
+      if printf '%s' "$a" | grep -q 'a gap between S02 and S03: frames 78–89' && printf '%s' "$b" | grep -q 'S03 overlaps S02 by 6 frames' \
+         && printf '%s' "$c" | grep -q 'S01 is said twice over' && printf '%s' "$d" | grep -q 'S02: no length' \
+         && printf '%s' "$e" | grep -q 'no narration line "l9"' && printf '%s' "$e" | grep -q 'S04: src "nosuch": no such source' && [ ! -e "$t/gap/out/edit.resolved.json" ]
+      then ok "edit build refuses a gap, an overlap, out and dur that disagree (exit 1), a page with no length, a cue and a source that are not there (exit 2, listed together), and writes nothing"
+      else bad "edit build's refusals say other things: $(printf '%s' "$a$b$c$d$e" | tail -c 900)"; fi ;;
+    *) bad "edit build's refusals (exit $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s' "$a$b$c$d$e" | tail -c 900)" ;;
+  esac
+  # init folds shots.json in: every shot a slate, timed as it was; shots with a gap are refused with nothing written; a
+  # project with both tables is told to keep one (storyboard stops)
+  mkdir -p "$t/i" "$t/ig" && printf '# BRIEF\n- Output: 1280x720, 25 fps, exactly 4s\n' > "$t/i/BRIEF.md" && cp "$t/i/BRIEF.md" "$t/ig/BRIEF.md"
+  printf '[{"id": "S01", "start": 0, "end": 1.5, "reads": "一"}, {"id": "S02", "start": "0:01.5", "end": 4, "unsure": "?"}]\n' > "$t/i/shots.json"
+  printf '[{"id": "S01", "start": 0, "end": 1.5}, {"id": "S02", "start": 2, "end": 4}]\n' > "$t/ig/shots.json"
+  a=$(vh edit init "$t/i" 2>&1); rc=$?; b=$(vh edit init "$t/i" 2>&1); rc2=$?; c=$(vh edit init "$t/ig" 2>&1); rc3=$?
+  cp "$t/i/shots.json.folded" "$t/i/shots.json"; d=$(vh storyboard "$t/i" 2>&1); rc4=$?; rm "$t/i/shots.json"
+  if [ "$rc:$rc2:$rc3:$rc4" = 0:2:1:1 ] && [ -f "$t/i/shots.json.folded" ] && [ -f "$t/ig/shots.json" ] && [ ! -e "$t/ig/edit.json" ] \
+     && printf '%s' "$c" | grep -q 'a gap between S01 and S02' && printf '%s' "$d" | grep -q 'two shot tables' && python3 - "$t/i" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1] + "/edit.json")); r = json.load(open(sys.argv[1] + "/out/edit.resolved.json"))
+E = d["tracks"][0]["entries"]
+ok = d["fps"] == 25 and d["size"] == [1280, 720] and [e["src"] for e in E] == [None, None] and "start" not in E[1] and E[1]["unsure"] == "?"
+ok = ok and r["frames"] == 100 and r["slates"] == ["S01", "S02"] and r["entries"][1]["frames"] == [38, 100]
+sys.exit(0 if ok else 1)
+PY
+  then ok "edit init: shots.json folded into slates (the BRIEF's size and rate), kept as shots.json.folded; a second init, shots with a gap, two shot tables refused"
+  else bad "edit init (exit $rc:$rc2:$rc3:$rc4): $(printf '%s' "$a$b$c$d" | tail -c 700)"; fi
+  # the rest draws: a browser
+  a=$(vh frames "$t/e" --at 1 --out "$t/f0" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "edit lists drawn" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  command -v ffmpeg >/dev/null || { skip "edit lists drawn" "no ffmpeg"; rm -rf "$t"; return; }
+  # a one-entry edit list of the chapter page (end: its duration, 10.04 s, not on a frame) renders what the page renders alone
+  mkdir -p "$t/one" && cp "$t/e/ch.html" "$t/one/" && cp -R "$t/e/audio" "$t/one/"
+  printf '{"v": 1, "fps": 30, "size": [320, 180], "sources": {"ch": {"page": "ch.html", "clock": "film"}}, "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "ch", "end": 10.04}]}]}\n' > "$t/one/edit.json"
+  vh render "$t/one/ch.html" --gop 30 --workers 3 --out "$t/one/page.mp4" >/dev/null 2>&1
+  a=$(vh render "$t/one" --gop 30 --workers 3 --out "$t/one/edit.mp4" 2>&1); rc=$?
+  if [ $rc = 0 ] && python3 - "$t/one" <<'PY'
+import json, re, subprocess, sys
+d = sys.argv[1]
+md5 = lambda f: [l.split(",")[-1].strip() for l in subprocess.run(["ffmpeg", "-v", "error", "-i", f, "-f", "framemd5", "-"], capture_output=True, text=True).stdout.splitlines() if l and not l.startswith("#")]   # noqa: E731
+a, b = md5(d + "/page.mp4"), md5(d + "/edit.mp4")
+same = a == b
+if not same and len(a) == len(b):   # a browser that rasterises a page differently twice: the same picture is 45 dB or more
+    r = subprocess.run(["ffmpeg", "-v", "info", "-i", d + "/page.mp4", "-i", d + "/edit.mp4", "-lavfi", "psnr", "-f", "null", "-"], capture_output=True, text=True).stderr
+    m = re.findall(r"min:(inf|[\d.]+)", r)
+    same = bool(m) and (m[-1] == "inf" or float(m[-1]) >= 45)
+side = json.load(open(d + "/edit.mp4.render.json"))
+ok = len(a) == 302 and len(b) == 302 and same and side["kind"] == "edit" and side["page"] == "edit.json" and side["runs"][0]["chunks"][0]["key"]
+sys.exit(0 if ok else 1)
+PY
+  then ok "render: a one-entry edit list of a film-clock page (10.04 s) is the page's 302 frames, the same pictures, and its sidecar records the runs and chunk keys"
+  else bad "render of a one-entry edit list (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  # the fixture rendered; a new take of the narration (line 1 ends 0.33 s earlier): S02 is 10 frames shorter, S03 10
+  # longer, and build and cues say so; patch --shot S05 is refused (the frames that changed are outside it), --shot S03
+  # puts S02's tail and S03 back, the same frames a whole render makes
+  p="$t/e"; rm -rf "$p/out"
+  vh render "$p" --gop 30 --workers 3 --out "$p/out/film.mp4" >/dev/null 2>&1
+  vh cues "$p" --save >/dev/null 2>&1
+  sed 's/"end": 2.6, "text": "第一句话", "words": \[{"w": "第一句话", "start": 0.2, "end": 2.6}\]/"end": 2.2666, "text": "第一句话", "words": [{"w": "第一句话", "start": 0.2, "end": 2.2666}]/' \
+    tools/film/fixture/edit/audio/timeline.zh.json > "$p/audio/timeline.zh.json"
+  a=$(vh edit build "$p" 2>&1); b=$(vh cues "$p" 2>&1); rc=$?
+  c=$(vh patch "$p/out/film.mp4" --shot S05 --out "$p/out/s5.mp4" 2>&1); rc2=$?
+  d=$(vh patch "$p/out/film.mp4" --shot S03 --in-place 2>&1); rc3=$?
+  vh render "$p" --gop 30 --workers 3 --out "$p/out/fresh.mp4" >/dev/null 2>&1
+  if [ "$rc:$rc2:$rc3" = 0:2:0 ] && printf '%s' "$a" | grep -q 'S03 moved −0.333 s (−10 frames) (audio/timeline.zh.json changed); S02 is shorter by 0.333 s (10 frames)' \
+     && printf '%s' "$b" | grep -q 'S03 moved −0.333 s (another take of the narration)' && printf '%s' "$b" | grep -q 'S02.c1 moved −0.250 s' \
+     && printf '%s' "$c" | grep -q 'the edit list changed in S02, S03' && [ ! -e "$p/out/s5.mp4" ] && printf '%s' "$d" | grep -q "frames: 302 (the film: 302) ✓" \
+     && python3 - "$p" <<'PY'
+import json, re, subprocess, sys
+p = sys.argv[1]
+md5 = lambda f: [l.split(",")[-1].strip() for l in subprocess.run(["ffmpeg", "-v", "error", "-i", f, "-f", "framemd5", "-"], capture_output=True, text=True).stdout.splitlines() if l and not l.startswith("#")]   # noqa: E731
+a, b = md5(p + "/out/film.mp4"), md5(p + "/out/fresh.mp4")
+same = a == b
+if not same and len(a) == len(b):
+    r = subprocess.run(["ffmpeg", "-v", "info", "-i", p + "/out/film.mp4", "-i", p + "/out/fresh.mp4", "-lavfi", "psnr", "-f", "null", "-"], capture_output=True, text=True).stderr
+    m = re.findall(r"min:(inf|[\d.]+)", r)
+    same = bool(m) and (m[-1] == "inf" or float(m[-1]) >= 45)
+side = json.load(open(p + "/out/film.mp4.render.json"))
+runs = {r["entry"]: (r["frames"], [c["frames"] for c in r["chunks"]]) for r in side["runs"]}
+ok = same and len(a) == 302 and runs["S02"] == ([45, 68], [[45, 68]]) and runs["S03"][0] == [68, 150] and runs["S05"][1] == [[180, 210], [210, 240], [240, 270]]
+sys.exit(0 if ok else 1)
+PY
+  then ok "a new take moves the entries (build and cues say by how much); patch refuses an entry away from what changed, puts back the one that moved: the frames a whole render makes, the sidecar's runs the edit list's now"
+  else bad "edit list after a new take (cues $rc, patch S05 $rc2, patch S03 $rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $(printf '%s' "$c$d" | tail -c 500)"; fi
+  # determinism by runs; frames at a time and into an entry; the shot tools find the entries with no shots.json
+  a=$(vh determinism "$p" --out "$t/det" 2>&1); rc=$?
+  b=$(vh frames "$p" --entry S03 --at 0,1 --out "$t/fe" 2>&1); rc2=$?
+  c=$(vh storyboard "$p" 2>&1); rc3=$?
+  d=$(vh thumbs "$p/out/film.mp4" --every 1 --width 80 --json 2>&1); rc4=$?
+  e=$(python3 - "$p" <<'PY'
+import sys
+sys.path.insert(0, "tools/desk"); sys.path.insert(0, "tools")
+from pathlib import Path
+import reader
+w = []
+s = reader._shots(Path(sys.argv[1]), [], [], w)
+print(len(s.get("items", [])), [x["id"] for x in s.get("items", [])][:2], w)
+PY
+)
+  if [ "$rc:$rc2:$rc3:$rc4" = 0:0:0:0 ] && printf '%s' "$a" | grep -q 'an edit list, 6 runs' && printf '%s' "$a" | grep -q 'determinism: holds' \
+     && [ -s "$t/fe/edit-S03-t0001.000.png" ] && printf '%s' "$c" | grep -q 'shots from: edit.json' && [ "$e" = "6 ['S01', 'S02'] []" ] \
+     && printf '%s' "$d" | python3 -c 'import json, sys; d = json.load(sys.stdin); sys.exit(0 if [s["id"] for s in d["shots"]] == ["S01", "S02", "S03", "S04", "S05", "S06"] and "edit list" in d["shots_from"] else 1)'
+  then ok "determinism holds run by run; frames --entry; storyboard, thumbs and the review desk find the entries with no shots.json"
+  else bad "edit list's frames and shots (exit $rc:$rc2:$rc3:$rc4, desk: $e): $(printf '%s' "$a$b$c" | tail -c 700) | $(printf '%s' "$d" | tail -c 200)"; fi
+  # check fails a film with a slate left, and says which entry each finding is in; deliver refuses it; versions compare
+  # says what changed entry by entry
+  a=$(vh check "$p/out/film.mp4" 2>&1); rc=$?
+  b=$(vh deliver "$p/out/film.mp4" --psnr off 2>&1); rc2=$?
+  c=$(vh versions compare "$p" v1 v2 --t 2.5 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 1:2:0 ] && printf '%s' "$a" | grep -q '1 slate left, S04 (5.00–6.00 s)' && printf '%s' "$a" | grep -q 'in S06 (color black)' \
+     && printf '%s' "$b" | grep -q '1 slate left in it (S04)' && [ ! -e "$p/out/film.upload.mp4" ] && printf '%s' "$c" | grep -q 'the edit list, v1 → v2: S03 moved −0.333 s' \
+     && python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); f = [x for x in d["findings"] if x["kind"] == "check.slate"]; sys.exit(0 if f and f[0]["severity"] == "fail" and f[0]["frames"] == [150, 179] else 1)' "$p/out/check/film.check.json"
+  then ok "check fails a film with a slate left and puts each finding in its entry; deliver refuses it; versions compare says what changed entry by entry"
+  else bad "check / deliver / versions on an edit list's film (exit $rc:$rc2:$rc3): $(printf '%s' "$a" | tail -c 500) | $(printf '%s' "$b$c" | tail -c 400)"; fi
+  # a local-clock page that hangs cues on the narration: cues and edit check say so (a note, exit 0)
+  vary localcues 'd["sources"]["ch"]["clock"] = "local"; E[1].pop("end"); E[1]["dur"] = 1.1; E[4].pop("end"); E[4]["dur"] = 3'
+  a=$(vh cues "$t/localcues" 2>&1); rc=$?; b=$(vh edit check "$t/localcues" 2>&1); rc2=$?
+  if [ "$rc" = 0 ] && printf '%s' "$a" | grep -q 'ch.html is on its own clock and hangs 1 cue on the narration' && printf '%s' "$b" | grep -q 'S02: ch is on its own clock and hangs 1 cue'
+  then ok "a local-clock page with cues on the narration is said by cues and edit check"
+  else bad "a local-clock page with cues (exit $rc:$rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)"; fi
+  rm -rf "$t"
+}
+
 # bin/vh timeline (the narration timeline's checks) and bin/vh remap, and the refusal in bin/vh captions
 timeline_checks() {
   local t a rc
@@ -5639,11 +5816,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; components_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; components_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; components_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; components_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

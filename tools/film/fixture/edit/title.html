@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=320, height=180">
+<style>html, body { margin: 0; background: #000; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c" width="320" height="180"></canvas>
+<script>
+  // An edit list's fixture: a title card on its own clock (from 0, whatever film it is in), 2 s long: a bar that grows.
+  const x = document.getElementById("c").getContext("2d");
+  window.film = {
+    duration: 2,
+    frame(t) {
+      x.fillStyle = "#223"; x.fillRect(0, 0, 320, 180);
+      x.fillStyle = "#e8e2d0"; x.fillRect(20, 80, 280 * Math.min(1, t / 2), 20);
+    },
+  };
+</script>
+</body>
+</html>

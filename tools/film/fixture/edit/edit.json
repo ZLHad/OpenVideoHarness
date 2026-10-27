@@ -1,0 +1,24 @@
+{
+ "v": 1,
+ "note": "an edit list's fixture (tools/ci.sh): a title card, a chapter page, a picture with a push, a slate and a black, cut on the narration",
+ "fps": 30,
+ "size": [320, 180],
+ "refs": {"timeline": "audio/timeline.zh.json"},
+ "sources": {
+  "title": {"page": "title.html", "clock": "local"},
+  "ch": {"page": "ch.html", "clock": "film"},
+  "card": {"image": "img/card.svg"},
+  "black": {"color": "#000000"}
+ },
+ "tracks": [
+  {"id": "V1", "entries": [
+   {"id": "S01", "src": "title", "dur": 1.5, "segment": "开头", "reads": "片名"},
+   {"id": "S02", "src": "ch", "end": "@l1>", "segment": "开头", "reads": "第一句"},
+   {"id": "S03", "src": "card", "end": "@l2>", "fit": "cover", "move": {"from": [0.5, 0.5, 1], "to": [0.4, 0.4, 1.5], "ease": "inOut"}, "segment": "中段", "reads": "图上的方块"},
+   {"id": "S04", "src": null, "end": "@l3:三", "segment": "中段", "reads": "还没有画面的一镜", "unsure": "素材还没到"},
+   {"id": "S05", "src": "ch", "end": 9.0, "segment": "结尾", "reads": "回到章节页"},
+   {"id": "S06", "src": "black", "end": 10.04, "segment": "结尾"}
+  ]}
+ ],
+ "chapters": [{"t": 0, "title": "一"}, {"t": "@|S03", "title": "二"}, {"t": "@|S05", "title": "三"}]
+}
