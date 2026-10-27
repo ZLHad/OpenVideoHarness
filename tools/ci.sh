@@ -5581,59 +5581,88 @@ sys.exit(0 if L and L[0]["text"] == "one small step" and L[0]["en"] == "one smal
   rm -rf "$t"
 }
 
-# an edit list's chunk cache (tools/film/cache.mjs): a render again takes every chunk from it, the same bytes; a byte of a
-# clip changed draws that run's chunks only, a page changed its own; a key leaves the browser out for footage only;
-# --fresh draws them all, --cache-max prunes, bin/vh clean clears it
+# an edit list's chunk cache (tools/film/cache.mjs): a render again takes every chunk from it, the same bytes; a chunk
+# whose bytes changed in the cache is drawn again; a byte of a clip changed draws that run's chunks only, a page changed
+# its own; images change one at a time; a page that missed a file keeps none of its chunks; --fresh draws them all;
+# every setting is in a key, the browser not in footage's; --cache-max prunes, clean clears
 edit_cache_checks() {
-  local t p a b c d e rc rc2 rc3 rc4
+  local t p q a b c d e key rc rc2 rc3 rc4 rc5
   command -v ffmpeg >/dev/null || { skip "an edit list's chunk cache" "no ffmpeg"; return; }
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/k"
   cp -R tools/film/fixture/edit "$p" && printf '# BRIEF\n' > "$p/BRIEF.md" && mkdir -p "$p/assets/footage/cam"
-  ffmpeg -v error -y -f lavfi -i testsrc2=s=320x180:r=30:d=2 -vf "format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv" \
+  ffmpeg -v error -y -f lavfi -i testsrc2=s=160x90:r=30:d=1 -vf "format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv" \
     -c:v libx264 -crf 18 -g 30 -keyint_min 30 -sc_threshold 0 -flags +cgop -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
     -movflags +faststart "$p/assets/footage/cam/clip.mp4"
   python3 -c 'import json, sys; p = sys.argv[1]
-json.dump({"v": 1, "id": "cam", "file": "clip.mp4", "rate": "30", "frames": 60, "duration": 2.0, "size": [320, 180], "color": ["tv", "bt709", "bt709", "bt709"],
+json.dump({"v": 1, "id": "cam", "file": "clip.mp4", "rate": "30", "frames": 30, "duration": 1.0, "size": [160, 90], "color": ["tv", "bt709", "bt709", "bt709"],
            "assumed": [], "audio": None, "words": None}, open(p + "/assets/footage/cam/clip.json", "w"))
 d = json.load(open(p + "/edit.json")); d["sources"]["cam"] = {"clip": "assets/footage/cam"}; d["tracks"][0]["entries"][3]["src"] = "cam"
 json.dump(d, open(p + "/edit.json", "w"), ensure_ascii=False)' "$p"
-  a=$(vh frames "$p" --at 0.5 --out "$t/f0" 2>&1); rc=$?
+  a=$(vh frames "$p" --at 0.2 --out "$t/f0" 2>&1); rc=$?
   case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "an edit list's chunk cache" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
   flags() { python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); print(d.get("cached_chunks"), " ".join(r["entry"] + ":" + "".join("c" if c.get("cached") else "d" for c in r["chunks"]) for r in d["runs"]))' "$1"; }
-  vh render "$p" --gop 30 --workers 2 --out "$p/out/a.mp4" >/dev/null 2>&1; rc=$?
-  b=$(vh render "$p" --gop 30 --workers 2 --out "$p/out/b.mp4" 2>&1); rc2=$?
-  printf 'x' >> "$p/assets/footage/cam/clip.mp4"
-  vh render "$p" --gop 30 --workers 2 --out "$p/out/c.mp4" >/dev/null 2>&1; rc3=$?
-  vh render "$p" --gop 30 --workers 2 --fresh --out "$p/out/c2.mp4" >/dev/null 2>&1
-  sed 's/#e8e2d0/#e8e2d1/' "$t/k/title.html" > "$t/title.html" && mv "$t/title.html" "$p/title.html"
-  vh render "$p" --gop 30 --workers 2 --out "$p/out/d.mp4" >/dev/null 2>&1; rc4=$?
-  a=$(flags "$p/out/a.mp4.render.json"); c=$(flags "$p/out/c.mp4.render.json"); d=$(flags "$p/out/d.mp4.render.json"); e=$(flags "$p/out/c2.mp4.render.json")
-  if [ "$rc:$rc2:$rc3:$rc4" = 0:0:0:0 ] && [ "$a" = "0 S01:dd S02:dd S03:ddd S04:d S05:ddd S06:dd" ] && printf '%s' "$b" | grep -q 'cache: 13 of 13 chunks taken from' \
-     && cmp -s "$p/out/a.mp4" "$p/out/b.mp4" && [ "$c" = "12 S01:cc S02:cc S03:ccc S04:d S05:ccc S06:cc" ] && [ "$e" = "0 S01:dd S02:dd S03:ddd S04:d S05:ddd S06:dd" ] \
-     && [ "$d" = "11 S01:dd S02:cc S03:ccc S04:c S05:ccc S06:cc" ] && python3 - "$p/out/c.mp4" "$p/out/c2.mp4" <<'PY'
+  same() { python3 - "$1" "$2" <<'PY'
 import re, subprocess, sys
 md5 = lambda f: [l.split(",")[-1].strip() for l in subprocess.run(["ffmpeg", "-v", "error", "-i", f, "-f", "framemd5", "-"], capture_output=True, text=True).stdout.splitlines() if l and not l.startswith("#")]   # noqa: E731
 a, b = md5(sys.argv[1]), md5(sys.argv[2])
-same = a == b and len(a) == 302
-if not same and len(a) == len(b) == 302:   # a browser that rasterises a page differently twice: the same picture is 45 dB or more
+ok = a == b and len(a) > 0
+if not ok and len(a) == len(b) > 0:   # a browser that rasterises a page differently twice: the same picture is 45 dB or more
     r = subprocess.run(["ffmpeg", "-v", "info", "-i", sys.argv[1], "-i", sys.argv[2], "-lavfi", "psnr", "-f", "null", "-"], capture_output=True, text=True).stderr
     m = re.findall(r"min:(inf|[\d.]+)", r)
-    same = bool(m) and (m[-1] == "inf" or float(m[-1]) >= 45)
-sys.exit(0 if same else 1)
+    ok = bool(m) and (m[-1] == "inf" or float(m[-1]) >= 45)
+sys.exit(0 if ok else 1)
 PY
-  then ok "the chunk cache: a second render takes every chunk from it (the same bytes); a byte added to a clip draws its run again (the film then as --fresh draws it), a page changed its own entry, the rest from the cache"
-  else bad "the chunk cache (exit $rc:$rc2:$rc3:$rc4): first [$a] changed clip [$c] changed page [$d] fresh [$e] | $(printf '%s' "$b" | tail -c 300)"; fi
-  # the browser is in a key for what a browser draws, not for footage; --cache-max prunes; bin/vh clean takes the cache
+  }
+  # the fixture (a clip for its slate) at --gop 10: 9 chunks drawn, then all 9 taken; one changed in the cache drawn
+  # again; a byte added to the clip draws S04's; the title page changed draws S01's
+  vh render "$p" --gop 10 --workers 2 --out "$p/out/a.mp4" >/dev/null 2>&1; rc=$?
+  b=$(vh render "$p" --gop 10 --workers 2 --out "$p/out/b.mp4" 2>&1); rc2=$?
+  key=$(python3 -c 'import json, sys; print([r for r in json.load(open(sys.argv[1]))["runs"] if r["entry"] == "S03"][0]["chunks"][1]["key"])' "$p/out/a.mp4.render.json")
+  python3 -c 'import sys; f = sys.argv[1]; d = bytearray(open(f, "rb").read()); n = len(d) // 2; d[n:n + 64] = bytes(x ^ 0xFF for x in d[n:n + 64]); open(f, "wb").write(d)' "$p/out/cache/chunks/$key.mp4"
+  vh render "$p" --gop 10 --workers 2 --out "$p/out/b2.mp4" >/dev/null 2>&1; rc3=$?
+  printf 'x' >> "$p/assets/footage/cam/clip.mp4"
+  vh render "$p" --gop 10 --workers 2 --out "$p/out/c.mp4" >/dev/null 2>&1; rc4=$?
+  sed 's/#e8e2d0/#e8e2d1/' "$p/title.html" > "$t/title.html" && mv "$t/title.html" "$p/title.html"
+  vh render "$p" --gop 10 --workers 2 --out "$p/out/d.mp4" >/dev/null 2>&1; rc5=$?
+  a=$(flags "$p/out/a.mp4.render.json"); c=$(flags "$p/out/b2.mp4.render.json"); d=$(flags "$p/out/c.mp4.render.json"); e=$(flags "$p/out/d.mp4.render.json")
+  if [ "$rc:$rc2:$rc3:$rc4:$rc5" = 0:0:0:0:0 ] && [ "$a" = "0 S01:d S02:dd S03:dd S04:d S05:d S06:dd" ] && printf '%s' "$b" | grep -q 'cache: 9 of 9 chunks taken from' \
+     && cmp -s "$p/out/a.mp4" "$p/out/b.mp4" && [ "$c" = "8 S01:c S02:cc S03:cd S04:c S05:c S06:cc" ] && same "$p/out/a.mp4" "$p/out/b2.mp4" \
+     && [ "$d" = "8 S01:c S02:cc S03:cc S04:d S05:c S06:cc" ] && same "$p/out/a.mp4" "$p/out/c.mp4" && [ "$e" = "8 S01:d S02:cc S03:cc S04:c S05:c S06:cc" ]
+  then ok "the chunk cache: a second render takes every chunk from it (the same bytes); a chunk whose bytes changed in the cache is drawn again; a byte added to a clip draws its run again, a page changed its own entry, the rest from the cache"
+  else bad "the chunk cache (exit $rc:$rc2:$rc3:$rc4:$rc5): first [$a] a cached chunk changed [$c] the clip changed [$d] the page changed [$e] | $(printf '%s' "$b" | tail -c 300)"; fi
+  # three images, the middle one changed: only it is drawn again; --fresh draws every one; a page that missed a file
+  # while it loaded keeps none of its chunks, so with the file there it is drawn
+  q="$t/img"; mkdir -p "$q/img" && printf '# BRIEF\n' > "$q/BRIEF.md"
+  png() { python3 -c 'import struct, sys, zlib; c = bytes.fromhex(sys.argv[2]); raw = b"".join(b"\x00" + c * 160 for _ in range(90))
+k = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+open(sys.argv[1], "wb").write(b"\x89PNG\r\n\x1a\n" + k(b"IHDR", struct.pack(">IIBBBBB", 160, 90, 8, 2, 0, 0, 0)) + k(b"IDAT", zlib.compress(raw)) + k(b"IEND", b""))' "$1" "$2"; }
+  png "$q/img/a.png" c83c3c; png "$q/img/b.png" 3cb43c; png "$q/img/c.png" 3c50c8; png "$q/img/logo.png.later" ffffff
+  printf '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=160, height=90"><style>html,body{margin:0}canvas{display:block}</style></head><body><canvas id="c" width="160" height="90"></canvas><img id="logo" src="img/logo.png" style="display:none"><script>const x = document.getElementById("c").getContext("2d"), im = document.getElementById("logo");
+window.film = { duration: 1, ready() { return new Promise((ok) => { if (im.complete) ok(); else { im.onload = ok; im.onerror = ok; } }); },
+  frame(t) { x.fillStyle = "#123"; x.fillRect(0, 0, 160, 90); if (im.naturalWidth) x.drawImage(im, 40, 20, 40, 40); } };</script></body></html>\n' > "$q/logo.html"
+  printf '{"v": 1, "fps": 30, "size": [160, 90], "sources": {"a": {"image": "img/a.png"}, "b": {"image": "img/b.png"}, "c": {"image": "img/c.png"}, "logo": {"page": "logo.html", "clock": "local"}}, "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "a", "dur": 0.2}, {"id": "S02", "src": "b", "dur": 0.2}, {"id": "S03", "src": "c", "dur": 0.2}, {"id": "S04", "src": "logo", "dur": 0.4}]}]}\n' > "$q/edit.json"
+  vh render "$q" --gop 6 --workers 2 --out "$q/out/a.mp4" >/dev/null 2>&1; rc=$?   # the logo is missing: said, exit 1
+  png "$q/img/b.png" 808080; mv "$q/img/logo.png.later" "$q/img/logo.png"
+  vh render "$q" --gop 6 --workers 2 --out "$q/out/b.mp4" >/dev/null 2>&1; rc2=$?
+  vh render "$q" --gop 6 --workers 2 --fresh --out "$q/out/c.mp4" >/dev/null 2>&1; rc3=$?
+  a=$(flags "$q/out/a.mp4.render.json"); b=$(flags "$q/out/b.mp4.render.json"); c=$(flags "$q/out/c.mp4.render.json")
+  if [ "$rc:$rc2:$rc3" = 1:0:0 ] && [ "$a" = "0 S01:d S02:d S03:d S04:dd" ] && [ "$b" = "2 S01:c S02:d S03:c S04:dd" ] && [ "$c" = "0 S01:d S02:d S03:d S04:dd" ] \
+     && same "$q/out/b.mp4" "$q/out/c.mp4"
+  then ok "the chunk cache: of three images the one changed is drawn again, the others taken; a page that missed a file keeps none of its chunks; --fresh draws every one"
+  else bad "the chunk cache's images, a missing file, --fresh (exit $rc:$rc2:$rc3): [$a] [$b] [$c]"; fi
+  # every setting is in a page's key, and all but the browser's in footage's; --cache-max prunes; bin/vh clean takes it
   e=$(node --input-type=module -e 'import { chunkKey } from "./tools/film/edit.mjs";
-const s = { width: 320, height: 180, dpr: 1, fps: 30, gop: 30, crf: 16, preset: "medium", ffmpeg: "f", tools: "t", capture: "jpeg q95", vf: "v", vfRaw: "r", browser: "A", real_clock: false, soft_gl: false };
-const runs = [{ draw: "page", clock: "film", path: "a.html", frames: [0, 30] }, { draw: "still", path: "i.png", sha256: "1", frames: [0, 30] }, { draw: "color", color: "#000000", frames: [0, 30] },
-  { draw: "clip", path: "c.mp4", sha256: "2", rate: "30", color: ["tv"], j0: 0, speed: 1, frames: [0, 30] }];
-console.log(runs.map((r) => (chunkKey(r, 0, 30, s) === chunkKey(r, 0, 30, { ...s, browser: "B" }) ? "same" : "new")).join(" "))' 2>&1)
-  vh render "$p" --gop 30 --workers 2 --cache-max 0.000000001 --out "$p/out/e.mp4" >/dev/null 2>&1; rc=$?
+const s = { width: 320, height: 180, dpr: 1, fps: 30, gop: 30, crf: 16, preset: "medium", ffmpeg: "f", tools: "t", platform: "p", capture: "jpeg q95", vf: "v", vfRaw: "r", browser: "A", real_clock: false, soft_gl: false };
+const other = { width: 640, height: 360, dpr: 2, fps: 25, gop: 15, crf: 18, preset: "slow", ffmpeg: "g", tools: "u", platform: "q", capture: "png", vf: "w", vfRaw: "s", browser: "B", real_clock: true, soft_gl: true };
+const page = { draw: "page", clock: "film", path: "a.html", frames: [0, 30] }, clip = { draw: "clip", path: "c.mp4", sha256: "2", rate: "30", color: ["tv"], j0: 0, speed: 1, frames: [0, 30] };
+const changes = (r) => Object.keys(s).filter((k) => chunkKey(r, 0, 30, s) !== chunkKey(r, 0, 30, { ...s, [k]: other[k] })).join(",");
+console.log(changes(page), "|", changes(clip))' 2>&1)
+  vh render "$p" --gop 10 --workers 2 --cache-max 0.000000001 --out "$p/out/e.mp4" >/dev/null 2>&1; rc=$?
   b=$(find "$p/out/cache/chunks" -name '*.mp4' | wc -l | tr -d ' ')
   c=$(vh clean "$p" 2>&1)
-  if [ "$e" = "new new new same" ] && [ "$rc" = 0 ] && [ "$b" = 0 ] && printf '%s' "$c" | grep -q 'out/cache/'
-  then ok "a chunk's key holds the browser for what a browser draws and not for footage; --cache-max prunes the cache; bin/vh clean takes it as made again"
+  if [ "$e" = "width,height,dpr,fps,gop,crf,preset,ffmpeg,tools,platform,capture,vf,browser,real_clock,soft_gl | width,height,dpr,fps,gop,crf,preset,ffmpeg,tools,platform,vfRaw" ] \
+     && [ "$rc" = 0 ] && [ "$b" = 0 ] && printf '%s' "$c" | grep -q 'out/cache/'
+  then ok "a chunk's key holds every setting, footage's all but the browser's; --cache-max prunes the cache; bin/vh clean takes it as made again"
   else bad "the cache's keys, cap and clean (keys: $e, exit $rc, chunks left $b): $(printf '%s' "$c" | tail -c 300)"; fi
   rm -rf "$t"
 }

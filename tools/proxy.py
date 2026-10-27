@@ -33,7 +33,7 @@ import versions as V   # noqa: E402
 from timegrid import frame_at, frame_from   # noqa: E402  (seconds to frames, the one way)
 
 VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
-SKIP = {"check", "review", "proxy", "versions", "frames"}
+SKIP = {"check", "review", "proxy", "versions", "frames", "cache"}   # cache: an edit list's chunks (bin/vh render)
 
 
 class Usage(Exception):

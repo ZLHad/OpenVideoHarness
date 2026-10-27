@@ -35,7 +35,8 @@
 //                  browser's page may take as long to set window.film and to be ready (at least 30 s and 120 s a wait;
 //                  OVH_PAGE_TIMEOUT=S sets those alone, tools/film/host.mjs)
 //   --note text    a line for this version in the project's record (bin/vh versions)
-//   --fresh        an edit list: draw every chunk again, none taken from the chunk cache (the new ones are kept in it)
+//   --fresh        draw every chunk again: none kept from a stopped render, none taken from an edit list's chunk cache (the
+//                  new ones are kept in it)
 //   --cache-max 10 an edit list's chunk cache, <project>/out/cache/chunks, in GB: a finished chunk is kept there under its
 //                  key (what its frames are made from: the run's drawing, their place in it, the settings, the browser
 //                  for what a browser draws, the ffmpeg and these tools) with the files its page was sent, and a later
@@ -51,7 +52,8 @@
 // Stopped (Ctrl-C or SIGTERM: exit 130, 143) or failed, a render keeps the chunks it finished in .<out>.parts beside
 // the video: the same command again draws only the rest, while the page and every file it loaded, the options that shape
 // the video (all but --workers, --frame-timeout and the estimate), the browser and these tools are unchanged; anything
-// else changed, it says what and starts over. A chunk in which the page reported an error is never kept.
+// else changed, it says what and starts over. A chunk in which the page reported an error is never kept; in an edit list,
+// none of that page's chunks go into the chunk cache in that render.
 // Before drawing it checks the disk the render needs at its peak (the chunks it draws and the joined copy; on a resume,
 // the chunks left and the joined copy, kept chunks included): it stops (exit 2) when even a flat film would not fit; the
 // estimate above measures it. Its glyph check covers the frames it draws: on a resume it says the kept ones were not.
@@ -308,17 +310,30 @@ const recipe = {
   capture: png ? "png" : `jpeg q${o.quality}`, ...(alpha ? { vf: VFA, alpha: true } : { crf: o.crf, preset: o.preset, vf }),   // what applies: x264 keeps its old keys
   real_clock: !!o.realClock, soft_gl: !!o.softGl, browser: first.version,
   ffmpeg: (spawnSync("ffmpeg", ["-version"], { encoding: "utf8" }).stdout || "").split("\n")[0],
-  tools: crypto.createHash("sha256").update(["render.mjs", "host.mjs", "clock.js", "glyphs.mjs",
+  tools: crypto.createHash("sha256").update(["render.mjs", "host.mjs", "clock.js", "glyphs.mjs", "../textcheck/browser.mjs",
     ...(editRoot ? ["edit.mjs", "timegrid.mjs", "pages/still.html", "pages/slate.html", "pages/color.html", "../edit.py"] : [])].map((f) => sha(path.join(HERE, f))).join()).digest("hex"),
   ...(editRoot ? { edit: crypto.createHash("sha256").update(JSON.stringify(doc.runs)).digest("hex") } : {}),   // what each frame is drawn from
 };
 // an edit list's chunk keys (tools/film/edit.mjs chunkKey) and its chunk cache (tools/film/cache.mjs, out/cache/chunks): a
 // chunk whose key the cache holds, and whose page's files are still the same bytes, is taken from it, not drawn
-const keySettings = { width: first.width, height: first.height, dpr: o.dpr, fps, gop, crf: o.crf, preset: o.preset, ffmpeg: recipe.ffmpeg, tools: recipe.tools,
+const cache = editRoot && !alpha && o.cacheMax > 0 ? new ChunkCache(path.join(editRoot, CACHE), editRoot, o.cacheMax * 1e9) : null;
+// what ffmpeg and x264 are, in full: ffmpeg's whole -version (its build, its libraries) and x264's own version, which a
+// one-frame encode writes (an x264 upgraded under the same ffmpeg changes the bytes), and the platform
+const encoderBuild = () => {
+  const v = spawnSync("ffmpeg", ["-version"], { encoding: "utf8" }).stdout || "";
+  const one = spawnSync("ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "color=c=black:s=16x16:d=0.04", "-frames:v", "1", "-c:v", "libx264", "-f", "h264", "-"], { maxBuffer: 1 << 22 });
+  const x = (one.stdout || Buffer.alloc(0)).toString("latin1").match(/x264 - core \d+( r\d+ [0-9a-f]+)?/);
+  return `${crypto.createHash("sha256").update(v).digest("hex")} ${x ? x[0] : "x264 ?"}`;
+};
+const keySettings = { width: first.width, height: first.height, dpr: o.dpr, fps, gop, crf: o.crf, preset: o.preset,
+  ffmpeg: cache ? `${recipe.ffmpeg} · ${encoderBuild()}` : recipe.ffmpeg, tools: recipe.tools, platform: `${process.platform} ${process.arch}`,
   capture: recipe.capture, vf, vfRaw: VFRGB, browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl };
 const keyOf = (r, a, b) => chunkKey(r, a, b, keySettings);
-const cache = editRoot && !alpha && o.cacheMax > 0 ? new ChunkCache(path.join(editRoot, CACHE), editRoot, o.cacheMax * 1e9) : null;
 const cached = new Set(), cachedFiles = new Map();   // the chunks this render took from the cache; a run → the files their pages were sent
+// a page that reported a problem in this render (a file missing while it loaded, an error): none of its chunks go into
+// the cache, whichever worker drew them (what it drew without the file is not what it draws with it)
+const sourceOf = (r) => (r.draw === "page" ? `page:${r.path}` : r.draw);
+const tainted = new Set(editRoot ? Object.entries(facts).filter(([, f]) => (f.loadProblems || []).length || f.error).map(([src]) => `page:${doc.files[src].path}`) : []);
 const loaded = new Map();   // every file a browser of this render was sent, and its sha256
 const planFile = path.join(parts, "plan.json");
 const writePlan = (film) => {   // before a chunk is kept: the files its frames loaded are on record first
@@ -326,6 +341,7 @@ const writePlan = (film) => {   // before a chunk is kept: the files its frames 
   fs.writeFileSync(planFile, JSON.stringify({ note: "what bin/vh render's chunks here were made from; a render resumes from them only while all of it is the same", recipe, files: Object.fromEntries(loaded) }, null, 1) + "\n");
 };
 let reuse = new Set(), why = null;
+if (o.fresh) fs.rmSync(parts, { recursive: true, force: true });   // --fresh: nothing kept from a stopped render either
 {
   let old = null, names = [];
   try { names = fs.readdirSync(parts); old = JSON.parse(fs.readFileSync(planFile, "utf8")); } catch { /* none, or not ours */ }
@@ -348,7 +364,7 @@ if (cache && !o.fresh) {   // --fresh draws every chunk again (and keeps them)
     if (reuse.has(i)) continue;
     const [a, b] = plan[i], hit = cache.get(keyOf(runOf[i], a, b), b - a);
     if (!hit) continue;
-    try { fs.linkSync(hit.file, kept(i)); } catch { try { fs.copyFileSync(hit.file, kept(i)); } catch { continue; } }
+    try { fs.linkSync(hit.file, kept(i)); } catch { try { fs.copyFileSync(hit.file, kept(i)); } catch { fs.rmSync(kept(i), { force: true }); continue; } }
     for (const [f, h] of Object.entries(hit.files)) if (!loaded.has(f)) loaded.set(f, h);
     if (!cachedFiles.has(runOf[i])) cachedFiles.set(runOf[i], new Set());
     for (const f of Object.keys(hit.files)) cachedFiles.get(runOf[i]).add(f);
@@ -460,7 +476,10 @@ async function chunk(film, i) {
       const t = k / fps;
       const { png: img } = await within(editRoot ? film.frameK(k, capture) : film.frame(t, capture), o.frameTimeout, `t=${t.toFixed(3)} s`);
       const later = film.problems();
-      if (later.length) { problems.push(`t=${t.toFixed(3)} s: ${later.join(" | ")}`); said = true; }
+      if (later.length) {
+        problems.push(`t=${t.toFixed(3)} s: ${later.join(" | ")}`); said = true;
+        if (editRoot) { tainted.add(sourceOf(runOf[i])); for (const k of film.openKeys()) tainted.add(k); }
+      }
       if (!ff.stdin.write(img)) await Promise.race([new Promise((ok) => ff.stdin.once("drain", ok)), exited]);
       if (gone) break;
       wrote++; done++;
@@ -474,13 +493,29 @@ async function chunk(film, i) {
     store(i, film);
   }) };
 }
-// a finished chunk into the cache, with the files its page was sent and their sha256 (footage: its file is in the key)
+// a finished chunk into the cache, with the files its page was sent and their sha256. A page's chunk only, and only while
+// each of those files is still the size and mtime it was sent at (one saved while the render ran is not trusted); an
+// image's, a slate's and a colour's are made from what their key holds, footage's from its file's sha256 in the key. A
+// page that reported a problem in this render keeps none
 function store(i, film) {
-  if (!cache) return;
-  const [a, b] = plan[i], r = runOf[i], files = {};
-  if (film && r.draw !== "clip") for (const f of film.servedFor(r)) files[f] = loaded.has(f) ? loaded.get(f) : cache.hash(f);
+  const r = runOf[i];
+  if (!cache || tainted.has(sourceOf(r))) return;
+  const [a, b] = plan[i], files = {};
+  if (film && r.draw === "page") for (const [f, was] of film.servedFor(r)) {
+    let now = null;
+    try { const st = fs.statSync(f); now = [st.size, st.mtimeMs]; } catch { /* gone */ }
+    if (!was || !now || was[0] !== now[0] || was[1] !== now[1]) return;
+    files[f] = loaded.has(f) ? loaded.get(f) : cache.hash(f);
+  }
   cache.put(keyOf(r, a, b), kept(i), b - a, files);
 }
+// chunks taken from the cache that a check of the joined film does not pass: out of the cache, so the same command draws
+// them again (→ what to say)
+const dropCached = () => {
+  if (!cache || !cached.size) return "";
+  for (const i of cached) { cache.drop(keyOf(runOf[i], ...plan[i])); fs.rmSync(kept(i), { force: true }); }   // nor kept for a resume
+  return ` ${cached.size} of the chunks came from the chunk cache (${rel(cache.dir)}): they are taken out of it, so the same command draws them again (--fresh draws every one)`;
+};
 // an edit list's footage chunk: one decoder from the chunk's first source frame (an exact seek), its frames handed to the
 // encoder as the film shows them (a frame shown twice is written twice, one left out is not written); no browser
 async function clipChunk(i) {
@@ -569,7 +604,7 @@ if (editRoot) {   // an edit list's chunks came from pages and from footage: one
     const i = odd[0], diff = FIELDS.filter((f) => facts[i][f] !== facts[0][f]).map((f) => `${f} ${facts[0][f] ?? "unset"} → ${facts[i][f] ?? "unset"}`);
     fail(`the chunks of ${[...new Set(odd.map((x) => runOf[x].entry))].join(", ")} are encoded otherwise than ${runOf[0].entry}'s: ` +
       `${diff.length ? diff.join(", ") : "their SPS/PPS bytes (no field ffprobe shows differs: another x264, or other settings)"} ` +
-      `(chunk ${i}, frames ${plan[i][0]}–${plan[i][1] - 1}, against chunk 0): joining them would make a broken film`);
+      `(chunk ${i}, frames ${plan[i][0]}–${plan[i][1] - 1}, against chunk 0): joining them would make a broken film.${dropCached()}`);
   }
 }
 // each chunk's length in frames: an MP4's own duration is rounded to its movie timescale (1/1000 s), which would move the
@@ -651,7 +686,8 @@ activityNote(`${st.nb_frames} frames, ${st.width}x${st.height}, ${fps} fps, ${(k
 console.log(`  ${placedShown}: ${st.nb_frames} frames, ${st.width}x${st.height}, ${st.pix_fmt} ${st.color_range}/${st.color_space}, in ${secs.toFixed(0)} s` +
   (nTodo ? ` (${(secs * 1000 / nTodo).toFixed(0)} ms a frame${reuse.size ? `, ${nTodo} of them drawn` : ""})` : " (every chunk kept)") + `; how it was made: ${outside ? placed + ".render.json" : rel(placed + ".render.json")}`);
 for (const l of ver.lines) console.log(`  ${l}`);
-if (pruned) console.log(`  cache: ${rel(cache.dir)} holds ${pruned.kept} chunks, ${size(pruned.bytes)}` + (pruned.removed ? ` (${pruned.removed} used longest ago removed to stay under --cache-max ${o.cacheMax} GB)` : ` (--cache-max ${o.cacheMax} GB)`));
+if (pruned) console.log(`  cache: ${rel(cache.dir)} holds ${pruned.kept} chunks, ${size(pruned.bytes)} (--cache-max ${o.cacheMax} GB)` +
+  (pruned.evicted ? `; the ${pruned.evicted} used longest ago removed to stay under it` : "") + (pruned.cleared ? `; ${pruned.cleared} leftover file(s) of earlier renders cleared` : ""));
 for (const p of problems) console.log(`  ${p}`);
 {   // a character in another font than it asks for, or in none: said, not fatal
   const okG = glyphs.filter((g) => !g.error), errG = glyphs.filter((g) => g.error);
@@ -662,7 +698,7 @@ for (const p of problems) console.log(`  ${p}`);
   if (reuse.size && (!W || okG.some((g) => g.chars))) console.log(`  glyphs: ${W ? `checked in the ${nTodo} frames drawn now; the` : "not checked: every chunk was kept, so no frame was drawn; the"} ` +
     `${n - nTodo} frames of the ${reuse.size} kept chunk(s) were drawn by ${cached.size ? "earlier renders" : "the render that stopped"}, before its check (bin/vh fonts check covers the whole film)`);
 }
-if (!okCount) console.log(`  the video has ${st.nb_frames} frames, not ${n}`);
+if (!okCount) console.log(`  the video has ${st.nb_frames} frames, not ${n}.${dropCached()}`);
 if (!okColor) console.log(`  the colour tags are not ${alpha ? "4:4:4 with alpha, bt709" : "yuv420p tv/bt709"}`);
 if (clear === 0) console.log("  --alpha: every pixel of the frames looked at is opaque: the page paints its own background (a full canvas, a body colour). Leave clear what should show through");
 if (problems.length || !okCount || !okColor || placed !== outFile) process.exit(1);

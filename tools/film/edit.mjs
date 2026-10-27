@@ -200,6 +200,7 @@ export class EditFilm {
     this.open = new Map(); this.max = o.maxOpen || 2; this.tick = 0;
     this._served = new Set(); this._problems = []; this.checked = new Set(); this.durations = new Map();
     this.servedBy = new Map();   // a source (page:<path>, still, slate, color) → the files its page was sent, once it is closed
+    this.sentBy = new Map();     // the same → Map(file → [size, mtime] when it was first sent)
   }
 
   runAt(k) {
@@ -212,14 +213,15 @@ export class EditFilm {
   }
   sourceKey(run) { return run.draw === "page" ? `page:${run.path}` : run.draw; }
   isOpen(run) { return this.open.has(this.sourceKey(run)); }
-  // the files the page that draws run has been sent so far, the ones closed before and the one open (a chunk's record:
-  // everything its frames could have read, and perhaps a little more)
+  // the files the page that draws run has been sent so far, by the ones closed before and the one open, each with its
+  // [size, mtime] when it was first sent (a chunk's record: everything its frames could have read, and perhaps more)
   servedFor(run) {
-    const key = this.sourceKey(run), out = new Set(this.servedBy.get(key) || []);
+    const key = this.sourceKey(run), out = new Map(this.sentBy.get(key) || []);
     const slot = this.open.get(key);
-    if (slot) for (const f of slot.film.served()) out.add(f);
+    if (slot) for (const f of slot.film.served()) if (!out.has(f)) out.set(f, slot.film.sentAs ? slot.film.sentAs(f) : null);
     return [...out];
   }
+  openKeys() { return [...this.open.keys()]; }
 
   async film(run) {
     const key = this.sourceKey(run);
@@ -297,8 +299,11 @@ export class EditFilm {
   // a page closed (the least used, or all at the end): what it sent and reported is kept; o.onRetire(film) first (render's glyph check)
   async retire(film, key) {
     this._problems.push(...film.problems());   // what its frames reported, before the check below runs in it
-    if (!this.servedBy.has(key)) this.servedBy.set(key, new Set());
-    for (const x of film.served()) { this._served.add(x); this.servedBy.get(key).add(x); }
+    if (!this.servedBy.has(key)) { this.servedBy.set(key, new Set()); this.sentBy.set(key, new Map()); }
+    for (const x of film.served()) {
+      this._served.add(x); this.servedBy.get(key).add(x);
+      if (!this.sentBy.get(key).has(x)) this.sentBy.get(key).set(x, film.sentAs ? film.sentAs(x) : null);
+    }
     if (this.o.onRetire) {
       try { await this.o.onRetire(film); } catch { /* said by the caller's own check */ }
       film.problems();   // the check's own DevTools reads (CSS.enable fetches the styles again: no-store, a cache miss) are not the film's
