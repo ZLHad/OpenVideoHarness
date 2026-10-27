@@ -292,8 +292,8 @@ def shot_table(project, film, side):
     import shot_source
     off = (side or {}).get("first_frame", 0) / ((side or {}).get("fps") or 1) if side else 0
     raw = (side or {}).get("shots")
-    if (side or {}).get("kind") == "edit" and isinstance(raw, list):
-        return [(str(s["id"]), float(s["start"]) - off, float(s["end"]) - off, None) for s in raw
+    if (side or {}).get("kind") == "edit" and isinstance(raw, list):   # an entry's at: its tile's moment, as the shot table gives it
+        return [(str(s["id"]), float(s["start"]) - off, float(s["end"]) - off, float(s["at"]) - off if isinstance(s.get("at"), (int, float)) else None) for s in raw
                 if isinstance(s, dict) and isinstance(s.get("start"), (int, float)) and isinstance(s.get("end"), (int, float))], \
             f"{rel(project, str(film) + '.render.json')} (the edit list's entries and the pages' shots)"
     try:

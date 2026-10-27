@@ -91,7 +91,7 @@ export async function pageFacts(film, project) {
   const fpsOf = +(await get("fps")) || null;
   return { duration: film.duration, width: film.width, height: film.height, fps: fpsOf, cues: Array.isArray(cues) ? cues.filter((c) => c && typeof c === "object") : [],
     timeline, music: src(music), timemap: src(map), shots: Array.isArray(await get("shots")) ? await get("shots") : null,
-    chapters: Array.isArray(await get("chapters")) ? await get("chapters") : null };
+    chapters: Array.isArray(await get("chapters")) ? await get("chapters") : null, loadProblems: [...(film.loadProblems || [])] };
 }
 
 // every film-clock page reads the same narration timeline, beat map and time map as the edit list's refs (when it names
@@ -151,10 +151,13 @@ export function clipRaw(run, project, j, count, W, H) {
 }
 
 // what a page run needs of its page: up to the end of the entry, unless it holds its last frame
+// → the page's own time at the entry's last frame when the page has ended by then (null: long enough, or held). A page draws
+// its times before its duration, as frame_from counts them (a frame at its very end is past it)
 export function pageShort(run, duration, fps) {
   if (run.hold) return null;
-  const need = run.clock === "film" ? run.frames[1] / fps : run.in + (run.frames[1] - run.frames[0]) * run.speed / fps;
-  return frameFrom(duration, fps) < frameFrom(need, fps) ? need : null;
+  const n = run.frames[1] - run.frames[0];
+  const last = run.clock === "film" ? (run.frames[1] - 1) / fps : run.in + (n - 1) * run.speed / fps;
+  return last * fps >= duration * fps - 1e-6 ? last : null;
 }
 
 export class EditFilm {
@@ -201,7 +204,7 @@ export class EditFilm {
     slot.used = ++this.tick;
     if (run.draw === "page" && !this.checked.has(run.entry)) {
       const short = pageShort(run, slot.film.duration, this.fps);
-      if (short !== null) throw new EditError(`${run.entry}: ${run.path} is ${slot.film.duration} s long and the entry needs it up to ${short.toFixed(3)} s: ` +
+      if (short !== null) throw new EditError(`${run.entry}: ${run.path} is ${slot.film.duration} s long and the entry's last frame is at ${short.toFixed(3)} s of it: ` +
         "shorten the entry, or \"hold\": true to hold its last frame", 1);
       this.checked.add(run.entry);
     }
@@ -244,7 +247,11 @@ export class EditFilm {
     if (run.draw === "clip") return clipPng(run, this.project, clipIndex(run, k, this.fps), ...this.px);
     const f = await this.film(run); return f.frame(this.localK(run, k), capture);
   }
+  // a moment on a frame is that frame, drawn as render draws it (the same float for a local clock's u = in + (k − K0)·speed/fps:
+  // the other way round, in + (t − K0/fps)·speed, can differ in its last digit and floor to the frame before)
   async frame(t, capture) {
+    const n = Math.round(t * this.fps);
+    if (Math.abs(t * this.fps - n) < 1e-6) return this.frameK(n, capture);
     const k = frameAt(t, this.fps), run = this.runAt(k);
     if (run.draw === "clip") return clipPng(run, this.project, clipIndex(run, k, this.fps), ...this.px);   // the frame on screen at t
     const f = await this.film(run); return f.frame(this.localT(run, t), capture);
@@ -288,7 +295,7 @@ export async function openTarget(target, o = {}) {
 // the entries as shots, then the shots inside the page entries, in the film's seconds (a local-clock page's moved to
 // where it plays, cut to its entry); ids of the inner ones are <entry>.<shot>
 export function shotsOf(doc, facts) {
-  const fps = doc.fps, out = doc.entries.map((e) => ({ id: e.id, start: e.frames[0] / fps, end: e.frames[1] / fps, kind: e.kind }));
+  const fps = doc.fps, out = doc.entries.map((e) => ({ id: e.id, start: e.frames[0] / fps, end: e.frames[1] / fps, kind: e.kind, ...(e.at !== undefined ? { at: e.at } : {}) }));   // at: a storyboard tile's moment
   for (const e of doc.entries) {
     const f = e.kind === "page" ? facts[e.src] : null;
     if (!f || !Array.isArray(f.shots)) continue;

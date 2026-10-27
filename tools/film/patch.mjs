@@ -60,6 +60,7 @@ import { note as activityNote } from "./activity.mjs";   // the project's activi
 import { commit, moveBeside, there } from "./versions.mjs";   // the project's versions (bin/vh versions)
 import { findTable, readTable, tidyShots } from "./shot_source.mjs";   // the project's shot table (tools/shot_source.py's mirror)
 import { frameFrom } from "./timegrid.mjs";                           // seconds to frames (tools/timegrid.py)
+import { concatChunks } from "./join.mjs";                            // the pieces joined, one DTS step a frame
 import { allFacts, build as buildEdit, chaptersOf, differences, editProject, shotsOf } from "./edit.mjs";   // edit lists (engines/EDIT.md)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
@@ -349,7 +350,10 @@ if (cuts.length) {
 fs.writeFileSync(path.join(work, "list.txt"), parts.map(([f, n]) => `file '${path.basename(f)}'\nduration ${(n / fps).toFixed(9)}`).join("\n") + "\n");
 const video = path.join(work, "video.mp4");
 const others = filmStreams.filter((s) => s.codec_type !== "video");
-ff(["-f", "concat", "-safe", "0", "-i", path.join(work, "list.txt"), "-map", "0:v", "-c", "copy", ...(others.length ? [] : ["-movflags", "+faststart"]), video], "joining");
+{
+  const r = concatChunks(path.join(work, "list.txt"), video, fps, others.length ? [] : ["-movflags", "+faststart"]);
+  if (r.status !== 0) die(`joining: ${(r.stderr || r.error || "").toString().trim()}`, 1);
+}
 for (const f of fs.readdirSync(work)) if (/^seg\d+\.mp4$/.test(f)) fs.rmSync(path.join(work, f));   // the cut film: its packets are in video.mp4 now
 const joined = path.join(work, `joined${path.extname(outFile) || ".mp4"}`);
 if (others.length) {

@@ -5236,6 +5236,21 @@ PY
       else bad "edit build's refusals say other things: $(printf '%s' "$a$b$c$d$e" | tail -c 900)"; fi ;;
     *) bad "edit build's refusals (exit $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s' "$a$b$c$d$e" | tail -c 900)" ;;
   esac
+  # a pinned page that is another file, a pin on a colour, a time source outside the project (exit 2); a transition
+  # between two sources, which render stops on, and a ledger that cannot be read under strict fail edit check (exit 1);
+  # a page on its own clock at speed 2 is long enough while its last frame falls before its end
+  vary pin 'd["sources"]["ch"]["sha256"] = "0" * 64; d["sources"]["black"]["sha256"] = "0" * 64'; vary outref 'd["refs"]["timeline"] = "/etc/hosts"'
+  vary trans 'E[1]["transition"] = {"type": "turn", "duration": 0.8}'; vary badledger 'pass'
+  mkdir -p "$t/badledger/assets" && printf '{' > "$t/badledger/assets/ledger.json"
+  a=$(vh edit build "$t/pin" 2>&1); rc=$?; b=$(vh edit build "$t/outref" 2>&1); rc2=$?
+  c=$(vh edit check "$t/trans" 2>&1); rc3=$?; d=$(vh edit check "$t/badledger" 2>&1); rc4=$?
+  e=$(node --input-type=module -e 'import { pageShort } from "./tools/film/edit.mjs"; const r = (n) => pageShort({ clock: "local", in: 0.5, speed: 2, frames: [0, n] }, 2, 30);
+    console.log(r(23) === null && Math.abs(r(24) - 2.0333) < 1e-3 && pageShort({ clock: "film", frames: [0, 302] }, 10.04, 30) === null && pageShort({ clock: "film", frames: [0, 303] }, 10.04, 30) !== null)' 2>&1)
+  if [ "$rc:$rc2:$rc3:$rc4:$e" = 2:2:1:1:true ] && printf '%s' "$a" | grep -q 'ch.html is not the file pinned' && printf '%s' "$a" | grep -q 'sha256 pins a file, and a colour has none' \
+     && printf '%s' "$b" | grep -q 'refs.timeline: /etc/hosts is outside the project' && printf '%s' "$c" | grep -q '✗ S02: a transition (turn 0.8 s) is not drawn yet.*bin/vh render stops on it' \
+     && printf '%s' "$d" | grep -q '✗ the asset ledger could not be read'
+  then ok "edit build refuses a page that is not the file pinned, a pin on a colour, a time source outside the project; edit check fails a transition render stops on and a ledger it cannot read (strict); a page at speed 2 is long enough to its last frame"
+  else bad "pins, refs, transitions, the ledger (exit $rc:$rc2:$rc3:$rc4, pageShort $e): $(printf '%s' "$a$b" | tail -c 500) | $(printf '%s' "$c$d" | tail -c 500)"; fi
   # init folds shots.json in: every shot a slate, timed as it was; shots with a gap are refused with nothing written; a
   # project with both tables is told to keep one (storyboard stops)
   mkdir -p "$t/i" "$t/ig" && printf '# BRIEF\n- Output: 1280x720, 25 fps, exactly 4s\n' > "$t/i/BRIEF.md" && cp "$t/i/BRIEF.md" "$t/ig/BRIEF.md"
@@ -5243,7 +5258,10 @@ PY
   printf '[{"id": "S01", "start": 0, "end": 1.5}, {"id": "S02", "start": 2, "end": 4}]\n' > "$t/ig/shots.json"
   a=$(vh edit init "$t/i" 2>&1); rc=$?; b=$(vh edit init "$t/i" 2>&1); rc2=$?; c=$(vh edit init "$t/ig" 2>&1); rc3=$?
   cp "$t/i/shots.json.folded" "$t/i/shots.json"; d=$(vh storyboard "$t/i" 2>&1); rc4=$?; rm "$t/i/shots.json"
+  mkdir -p "$t/i2" && cp "$t/i/BRIEF.md" "$t/i/shots.json.folded" "$t/i2/" && printf '[{"id": "S01", "start": 0, "end": 2}]\n' > "$t/i2/shots.json"
+  vh edit init "$t/i2" >/dev/null 2>&1   # a project folded before (its edit.json since taken away): the first fold's copy stays
   if [ "$rc:$rc2:$rc3:$rc4" = 0:2:1:1 ] && [ -f "$t/i/shots.json.folded" ] && [ -f "$t/ig/shots.json" ] && [ ! -e "$t/ig/edit.json" ] \
+     && grep -q '"unsure": "?"' "$t/i2/shots.json.folded" && grep -q '"end": 2' "$t/i2/shots.json.folded-2" \
      && printf '%s' "$c" | grep -q 'a gap between S01 and S02' && printf '%s' "$d" | grep -q 'two shot tables' && python3 - "$t/i" <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1] + "/edit.json")); r = json.load(open(sys.argv[1] + "/out/edit.resolved.json"))
@@ -5252,7 +5270,7 @@ ok = d["fps"] == 25 and d["size"] == [1280, 720] and [e["src"] for e in E] == [N
 ok = ok and r["frames"] == 100 and r["slates"] == ["S01", "S02"] and r["entries"][1]["frames"] == [38, 100]
 sys.exit(0 if ok else 1)
 PY
-  then ok "edit init: shots.json folded into slates (the BRIEF's size and rate), kept as shots.json.folded; a second init, shots with a gap, two shot tables refused"
+  then ok "edit init: shots.json folded into slates (the BRIEF's size and rate), kept as shots.json.folded (a later fold beside it, -2); a second init, shots with a gap, two shot tables refused"
   else bad "edit init (exit $rc:$rc2:$rc3:$rc4): $(printf '%s' "$a$b$c$d" | tail -c 700)"; fi
   # the rest draws: a browser
   a=$(vh frames "$t/e" --at 1 --out "$t/f0" 2>&1); rc=$?
@@ -5275,10 +5293,33 @@ if not same and len(a) == len(b):   # a browser that rasterises a page different
     same = bool(m) and (m[-1] == "inf" or float(m[-1]) >= 45)
 side = json.load(open(d + "/edit.mp4.render.json"))
 ok = len(a) == 302 and len(b) == 302 and same and side["kind"] == "edit" and side["page"] == "edit.json" and side["runs"][0]["chunks"][0]["key"]
+for f in ("/page.mp4", "/edit.mp4"):   # the last chunk is 2 frames: the frame rate stays whole, a constant-rate decode gives 302 frames
+    rate = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=avg_frame_rate", "-of", "csv=p=0", d + f], capture_output=True, text=True).stdout.strip()
+    n = len(subprocess.run(["ffmpeg", "-v", "error", "-i", d + f, "-vf", "scale=1:1", "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True).stdout)
+    ok = ok and rate == "30/1" and n == 302
 sys.exit(0 if ok else 1)
 PY
-  then ok "render: a one-entry edit list of a film-clock page (10.04 s) is the page's 302 frames, the same pictures, and its sidecar records the runs and chunk keys"
+  then ok "render: a one-entry edit list of a film-clock page (10.04 s) is the page's 302 frames, the same pictures, and its sidecar records the runs and chunk keys; with a last chunk of 2 frames both stay 30/1, 302 frames decoded at a constant rate"
   else bad "render of a one-entry edit list (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  # runs of 31, 32, 1, 2, 29, 61 and 90 frames at --gop 30 (chunks of 1 and 2 frames in the middle): every packet one
+  # frame long, and a constant-rate decode (bin/vh check's) gives each frame its own colour, 246 of them
+  mkdir -p "$t/short" && python3 -c 'import json, sys; L = [31, 32, 1, 2, 29, 61, 90]; C = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#00ffff", "#ff00ff", "#ffffff"]
+json.dump({"v": 1, "fps": 30, "size": [160, 90], "sources": {f"c{i}": {"color": c} for i, c in enumerate(C)},
+           "tracks": [{"id": "V1", "entries": [{"id": f"S{i + 1:02d}", "src": f"c{i}", "dur": n / 30} for i, n in enumerate(L)]}]}, open(sys.argv[1], "w"))' "$t/short/edit.json"
+  a=$(vh render "$t/short" --gop 30 --workers 2 2>&1); rc=$?
+  if [ $rc = 0 ] && python3 - "$t/short/out/edit.mp4" <<'PY'
+import subprocess, sys
+f = sys.argv[1]
+durs = {l.strip() for l in subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "packet=duration", "-of", "csv=p=0", f],
+                                          capture_output=True, text=True).stdout.split()}
+raw = subprocess.run(["ffmpeg", "-v", "error", "-i", f, "-vf", "scale=1:1:flags=area", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True).stdout
+C = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (0, 255, 255), (255, 0, 255), (255, 255, 255)]
+want = [c for c, n in zip(C, [31, 32, 1, 2, 29, 61, 90]) for _ in range(n)]
+got = [tuple(raw[3 * i:3 * i + 3]) for i in range(len(raw) // 3)]
+sys.exit(0 if len(durs) == 1 and len(got) == 246 and all(max(abs(x - y) for x, y in zip(g, w)) <= 40 for g, w in zip(got, want)) else 1)
+PY
+  then ok "render: runs of 31, 32, 1 and 2 frames join with every packet one frame long; a constant-rate decode gives the 246 frames, each its own colour"
+  else bad "render of short runs (exit $rc): $(printf '%s' "$a" | tail -c 400)"; fi
   # the fixture rendered; a new take of the narration (line 1 ends 0.33 s earlier): S02 is 10 frames shorter, S03 10
   # longer, and build and cues say so; patch --shot S05 is refused (the frames that changed are outside it), --shot S03
   # puts S02's tail and S03 back, the same frames a whole render makes
