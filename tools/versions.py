@@ -633,7 +633,8 @@ def ffprobe_fps(f):
 
 def grab(f, t, fps, out):
     """The frame shown at t (frame floor(t·fps)) as a PNG; → its frame number."""
-    k = int(t * fps + 1e-6)
+    from timegrid import frame_at   # seconds to frames, the one way
+    k = frame_at(t, fps)
     ss = max(0.0, (k - 0.5) / fps) if k > 0 else 0
     r = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-y", "-ss", f"{ss:.6f}", "-i", str(f), "-frames:v", "1", "-f", "image2", str(out)],
                        capture_output=True, text=True)

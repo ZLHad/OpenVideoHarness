@@ -53,6 +53,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { note as activityNote } from "./activity.mjs";   // the project's activity log (bin/vh activity)
 import { commit, moveBeside, there } from "./versions.mjs";   // the project's versions (bin/vh versions)
 import { findTable, readTable, tidyShots } from "./shot_source.mjs";   // the project's shot table (tools/shot_source.py's mirror)
+import { frameFrom } from "./timegrid.mjs";                           // seconds to frames (tools/timegrid.py)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -165,10 +166,10 @@ if (shotIds.length || chapterIds.length) {
 }
 // a shot's span runs on through the transition into the next one, which draws it underneath
 const nextAfter = (t) => (table || []).find((s) => Math.abs(s.start - t) < 1e-6);
-const toFrames = (s, e) => [Math.ceil((s * fps) - 1e-6) - ff0, Math.ceil((e * fps) - 1e-6) - 1 - ff0];   // page seconds → film frames
+const toFrames = (s, e) => [frameFrom(s, fps) - ff0, frameFrom(e, fps) - 1 - ff0];   // page seconds → film frames
 const spans = [], sources = [];
 for (const f of frameLists) spans.push(f);
-for (const [s, e] of secondLists) spans.push([Math.ceil(s * fps - 1e-6), Math.min(N, Math.ceil(e * fps - 1e-6)) - 1]);   // seconds past the end: to the last frame
+for (const [s, e] of secondLists) spans.push([frameFrom(s, fps), Math.min(N, frameFrom(e, fps)) - 1]);   // seconds past the end: to the last frame
 for (const id of shotIds) {
   const s = table.find((x) => x.id === id);
   if (!s) die(`no shot ${id}: ${tableFrom} has ${table.map((x) => x.id).slice(0, 30).join(", ")}${table.length > 30 ? " …" : ""}`);

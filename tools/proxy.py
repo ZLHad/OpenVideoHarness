@@ -29,6 +29,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import versions as V   # noqa: E402
+from timegrid import frame_at, frame_from   # noqa: E402  (seconds to frames, the one way)
 
 VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
 SKIP = {"check", "review", "proxy", "versions", "frames"}
@@ -54,7 +55,7 @@ def probe(f):
     a, _, b = str(v.get("r_frame_rate", "0/1")).partition("/")
     fps = float(a) / float(b or 1) if float(b or 1) else 0
     dur = float((j.get("format") or {}).get("duration") or 0)
-    n = int(v["nb_frames"]) if str(v.get("nb_frames", "")).isdigit() else round(dur * fps)
+    n = int(v["nb_frames"]) if str(v.get("nb_frames", "")).isdigit() else (frame_from(dur, fps) if fps > 0 else 0)
     return {"width": v.get("width"), "height": v.get("height"), "fps": fps, "frames": n, "duration": dur,
             "audio": any(s.get("codec_type") == "audio" for s in j.get("streams") or []), "extradata": v.get("extradata_hash")}
 
@@ -352,7 +353,7 @@ def cmd_thumbs(a):
         import shot_source
         live = shot_source.live_page(page, a["browser"])
         fps, dur, aspect = 30.0, float(live["duration"] or 0), live["width"] / live["height"]
-        nfr = math.ceil(dur * fps - 1e-6)
+        nfr = frame_from(dur, fps)
         name, base = Path(page).stem, page
     if not (dur > 0):
         raise RuntimeError("no length to take pictures of")
@@ -362,7 +363,7 @@ def cmd_thumbs(a):
     old = V.load_json(recf) if recf.is_file() else None
     every, W, SW = a["every"], a["width"], a["shot_width"]
     H, SH = even(W / aspect), even(SW / aspect)   # every picture at exactly this size: the map's x and y hold
-    tiles = [(i, round(i * every, 6), min(nfr - 1, int(i * every * fps + 1e-6))) for i in range(max(1, math.ceil(dur / every - 1e-9)))]
+    tiles = [(i, round(i * every, 6), min(nfr - 1, frame_at(i * every, fps))) for i in range(max(1, math.ceil(dur / every - 1e-9)))]
     if film:
         shots, shots_from = shot_table(project, film, side)
     else:
@@ -376,7 +377,7 @@ def cmd_thumbs(a):
             shots, shots_from = [(s["id"], s["start"], s["end"], s["at"]) for s in sh], "shots.json"
     pick_t = lambda s, e, at: min(max(0.0, at if at is not None else s + 0.6 * (e - s)), dur - 0.5 / fps)   # noqa: E731
     shot_rows = [(sid, s, e, round(pick_t(s, e, at), 6)) for sid, s, e, at in shots if e > 0 and s < dur]
-    shot_rows = [(sid, s, e, t, min(nfr - 1, int(t * fps + 1e-6)), re.sub(r"[^\w.-]+", "-", sid) or "shot") for sid, s, e, t in shot_rows]
+    shot_rows = [(sid, s, e, t, min(nfr - 1, frame_at(t, fps)), re.sub(r"[^\w.-]+", "-", sid) or "shot") for sid, s, e, t in shot_rows]
     # the source of the pictures: a proxy made of this same film (fast), else the film, else the page
     src, frm = base, "page" if not film else "film"
     if film:

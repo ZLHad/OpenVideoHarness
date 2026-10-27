@@ -15,7 +15,8 @@
 //                  of the same file
 //   --fps 30       the frame rate drawn. A page that gives its own (window.film.fps; canvas-film's FILM.fps, which steps
 //                  its grain once a frame) is told apart when the two differ
-//   --range a:b    only that span (frames a·fps up to b·fps); default the whole film
+//   --range a:b    only that span: the frames shown from a up to b seconds (frame k when a ≤ k / fps < b, as patch
+//                  --seconds counts them); default the whole film
 //   --frames k0:k1 only frames k0 up to k1 (k1 left out), frame k drawn at k / fps: exact, for bin/vh patch
 //   --dpr 2        twice the pixels (4K for a 1920x1080 page)
 //   --gop 60       a keyframe every 60 frames exactly, from the span's first frame (default 2 s of frames). Each chunk is
@@ -63,6 +64,7 @@ import { openFilm } from "./host.mjs";
 import { HOOK, check as checkGlyphs, collectDom, merge as mergeGlyphs, report as glyphReport } from "./glyphs.mjs";
 import { note as activityNote, progress as activityProgress } from "./activity.mjs";   // the project's activity log (bin/vh activity)
 import { commit } from "./versions.mjs";                                                 // the project's versions (bin/vh versions)
+import { frameFrom } from "./timegrid.mjs";                                              // seconds to frames (tools/timegrid.py)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -127,9 +129,10 @@ const pageShots = ((await listOf("shots")) || []).filter((x) => x && fin(+x.star
   id: String(x.id ?? `S${String(i + 1).padStart(2, "0")}`), start: +x.start, end: +x.end,
   ...(x.transition && fin(+x.transition.duration) && +x.transition.duration > 0 ? { transition: +x.transition.duration } : {}) }));
 const pageChapters = ((await listOf("chapters")) || []).filter((x) => x && fin(+x.t)).map((x) => ({ t: +x.t, title: String(x.title ?? ""), ...(x.id != null ? { id: String(x.id) } : {}) }));
-const fps = o.fps, last = Math.ceil(first.duration * fps - 1e-6);   // the film's frame count: its last frame is last - 1
-const k0 = frames ? frames[0] : range ? Math.round(range[0] * fps) : 0;
-const k1 = frames ? Math.min(frames[1], last) : !range || range[1] >= first.duration ? last : Math.round(range[1] * fps);
+const fps = o.fps, last = frameFrom(first.duration, fps);   // the film's frame count: its last frame is last - 1
+// --range a:b: the frames shown from a up to b seconds (frame k when a ≤ k / fps < b), as patch --seconds counts them
+const k0 = frames ? frames[0] : range ? frameFrom(range[0], fps) : 0;
+const k1 = frames ? Math.min(frames[1], last) : !range || range[1] >= first.duration ? last : frameFrom(range[1], fps);
 const n = k1 - k0;
 if (n <= 0) { await first.close(); die(`no frames in ${frames ? `frames ${frames.join("–")}` : range ? range.join("–") + " s" : "the film"} (it is ${first.duration} s, ${last} frames)`); }
 gop = gop || Math.round(2 * fps);
