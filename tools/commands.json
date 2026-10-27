@@ -1027,6 +1027,70 @@
       ]
     },
     {
+      "name": "edit",
+      "summary": "The film as an edit list (edit.json, engines/EDIT.md): a row of entries, each drawn from a page, an image, a colour or nothing yet (a slate); init folds shots.json into one, build resolves it to whole frames, check and list.",
+      "when": "a film made of several pages (a chapter an engine) or with still images, and gate ②'s full-length animatic (edit init: every shot a slate, timed as planned)",
+      "stages": ["3", "6", "8"],
+      "reads": [
+        "<project>/edit.json and the files its sources name",
+        "the narration timeline, beat map and time map its refs name",
+        "<project>/shots.json (init), BRIEF.md (init: Output; check: Assets)",
+        "<project>/assets/ledger.json (check)",
+        "the pages, with a browser (check)"
+      ],
+      "writes": [
+        "<project>/edit.json and shots.json.folded (init)",
+        "<project>/out/edit.resolved.json (init, build)"
+      ],
+      "usage": [
+        {
+          "synopsis": "edit init <project> [--fps 30] [--size 1920x1080]",
+          "text": [
+            "folds shots.json into a new edit.json: every shot an entry with no source yet (a slate), its fields kept, timed",
+            "as the shots were; shots.json is renamed shots.json.folded. bin/vh render then draws gate ②'s full-length animatic"
+          ]
+        },
+        {
+          "synopsis": "edit build <project> [--json] [--quiet]",
+          "text": [
+            "resolves edit.json into out/edit.resolved.json: every start and end (seconds, or a cue on the narration, the",
+            "beats, a time map) in whole frames, each entry's source, the runs bin/vh render draws; says what moved since"
+          ]
+        },
+        {
+          "synopsis": "edit check <project> [--json]",
+          "text": [
+            "build's checks without writing, the files changed since the last build, each source's licence against the",
+            "BRIEF's Assets policy, the slates left; with a browser, each page against its entry and the edit list's refs"
+          ]
+        },
+        {
+          "synopsis": "edit list <project> [--json]",
+          "text": [
+            "the entries, one a line: frames, seconds, what draws each, segment, reads"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "init",
+          "summary": "fold shots.json into a new edit.json, every shot a slate"
+        },
+        {
+          "name": "build",
+          "summary": "resolve edit.json into whole frames (out/edit.resolved.json)"
+        },
+        {
+          "name": "check",
+          "summary": "build's checks, files changed since, licences, slates, the pages"
+        },
+        {
+          "name": "list",
+          "summary": "the entries, one a line"
+        }
+      ]
+    },
+    {
       "name": "tts",
       "summary": "A voiceover from audio/script.txt: local Qwen3-TTS by default or a cloud provider, the timeline, word timestamps with --align.",
       "when": "once the script is set, and again for a new take",

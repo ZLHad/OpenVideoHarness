@@ -111,7 +111,7 @@ def pick(target):
     if film is None:
         vids = films_in(project)
         film = next((f for f in vids if Path(str(f) + ".render.json").is_file()), vids[0] if vids else None)
-    page = next((Path(project) / n for n in ("film.html", "index.html", "studio.html") if (Path(project) / n).is_file()), None)
+    page = next((Path(project) / n for n in ("edit.json", "film.html", "index.html", "studio.html") if (Path(project) / n).is_file()), None)
     return (film.resolve() if film else None), Path(project), page
 
 
@@ -286,18 +286,22 @@ def cmd_proxy(a):
 # ---- thumbs ----
 
 def shot_table(project, film, side):
-    """[(id, start, end, at)] in film seconds, and where they came from."""
-    import shot_source, vhdraw
+    """[(id, start, end, at)] in film seconds, and where they came from: an edit list's film, the entries and the shots
+    inside its pages as its .render.json recorded them; else the project's shot table; else the page's shots there."""
+    import shot_source
     off = (side or {}).get("first_frame", 0) / ((side or {}).get("fps") or 1) if side else 0
-    table = shot_source.table(project) if project else None
-    if table:
-        try:
-            shots, _ = vhdraw.load_shots(table)
-            return [(s["id"], s["start"] - off, s["end"] - off, s["at"] - off if s["at"] is not None else None) for s in shots], "shots.json"
-        except SystemExit as e:
-            print(f"thumbs: {e}; no shot pictures", file=sys.stderr)
-            return [], None
     raw = (side or {}).get("shots")
+    if (side or {}).get("kind") == "edit" and isinstance(raw, list):
+        return [(str(s["id"]), float(s["start"]) - off, float(s["end"]) - off, None) for s in raw
+                if isinstance(s, dict) and isinstance(s.get("start"), (int, float)) and isinstance(s.get("end"), (int, float))], \
+            f"{rel(project, str(film) + '.render.json')} (the edit list's entries and the pages' shots)"
+    try:
+        shots, table = shot_source.parsed(project) if project else ([], None)
+    except SystemExit as e:
+        print(f"thumbs: {e}; no shot pictures", file=sys.stderr)
+        return [], None
+    if table:
+        return [(s["id"], s["start"] - off, s["end"] - off, s["at"] - off if s["at"] is not None else None) for s in shots], table.name
     if isinstance(raw, list) and raw:
         return [(str(s["id"]), float(s["start"]) - off, float(s["end"]) - off, None) for s in raw
                 if isinstance(s, dict) and isinstance(s.get("start"), (int, float)) and isinstance(s.get("end"), (int, float))], \
@@ -351,9 +355,18 @@ def cmd_thumbs(a):
         if not a["browser"]:
             raise Usage("no film, and no headless Chrome to draw the page: run it as bin/vh thumbs, or set CHROME_PATH")
         import shot_source
-        live = shot_source.live_page(page, a["browser"])
-        fps, dur, aspect = 30.0, float(live["duration"] or 0), live["width"] / live["height"]
-        nfr = frame_from(dur, fps)
+        if shot_source.is_edit(page):   # an edit list with no film yet: its frames drawn as bin/vh frames draws them
+            import edit
+            try:
+                doc = edit.resolve(project)
+            except edit.EditError as e:
+                raise Usage("edit.json does not resolve: " + "; ".join(e.problems[:3])) from None
+            live = {"shots": None}
+            fps, dur, aspect, nfr = float(doc["fps"]), doc["frames"] / doc["fps"], doc["size"][0] / doc["size"][1], doc["frames"]
+        else:
+            live = shot_source.live_page(page, a["browser"])
+            fps, dur, aspect = 30.0, float(live["duration"] or 0), live["width"] / live["height"]
+            nfr = frame_from(dur, fps)
         name, base = Path(page).stem, page
     if not (dur > 0):
         raise RuntimeError("no length to take pictures of")
@@ -371,10 +384,9 @@ def cmd_thumbs(a):
         raw = live.get("shots")
         shots = [] if not raw else [(s["id"], s["start"], s["end"], s["at"]) for s in vhdraw.parse_shots(raw, page)[0]]
         shots_from = f"{rel(project, page)} (window.film.shots)" if shots else None
-        table = shot_source.table(project) if project else None
+        sh, table = shot_source.parsed(project) if project else ([], None)
         if table:
-            sh, _ = vhdraw.load_shots(table)
-            shots, shots_from = [(s["id"], s["start"], s["end"], s["at"]) for s in sh], "shots.json"
+            shots, shots_from = [(s["id"], s["start"], s["end"], s["at"]) for s in sh], table.name
     pick_t = lambda s, e, at: min(max(0.0, at if at is not None else s + 0.6 * (e - s)), dur - 0.5 / fps)   # noqa: E731
     shot_rows = [(sid, s, e, round(pick_t(s, e, at), 6)) for sid, s, e, at in shots if e > 0 and s < dur]
     shot_rows = [(sid, s, e, t, min(nfr - 1, frame_at(t, fps)), re.sub(r"[^\w.-]+", "-", sid) or "shot") for sid, s, e, t in shot_rows]

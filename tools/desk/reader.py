@@ -549,11 +549,17 @@ def _normalize_round(d):
 
 
 def _shots(project, outline, rounds, warnings):
-    table = SS.table(project)
-    sj = _json(table, warnings) if table else None
-    if sj is None:
+    # the project's shot table (tools/shot_source.py): shots.json, or an edit list's entries with their resolved times
+    try:
+        items, sj, table = SS.rows(project)
+    except (OSError, ValueError) as e:
+        warnings.append(f"shots.json: not readable JSON ({e})")
         return {}
-    items = sj.get("shots") if isinstance(sj, dict) else sj
+    except SystemExit as e:   # two tables, or an edit list that does not resolve
+        warnings.append(str(e).removeprefix("shots: "))
+        return {}
+    if table is None:
+        return {}
     if not isinstance(items, list):
         warnings.append("shots.json: expected a list of shots, or {\"shots\": [...]}")
         return {}
@@ -566,6 +572,9 @@ def _shots(project, outline, rounds, warnings):
             s[k] = float(s[k]) if isinstance(s.get(k), (int, float)) else None
         reads = s.get("reads")
         s["reads"] = [reads] if isinstance(reads, str) else [str(r) for r in reads] if isinstance(reads, list) else []
+        tr = s.get("transition")
+        if isinstance(tr, dict):   # an edit list's {"type", "duration"}: said as words
+            s["transition"] = " ".join(str(x) for x in (tr.get("type"), f"{tr['duration']} s" if isinstance(tr.get("duration"), (int, float)) else None) if x)
         frame = s.get("frame") or f"out/check/storyboard/frames/{s['id']}.png"   # bin/vh storyboard writes these
         s["frame"] = frame if _inside(project, frame) else ""
         s["seg"] = _match_segment(str(s.get("segment", "")), outline, s["start"])

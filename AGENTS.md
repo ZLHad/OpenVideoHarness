@@ -109,7 +109,7 @@ OpenVideoHarness/
 ├── CLAUDE.md / AGENTS.md     入口（本文件；AGENTS.md 由 bin/vh sync-agents 生成，内容相同）
 ├── README.md / README.zh-CN.md  给人看的说明；CONTRIBUTING.md 是改本仓库时的规则；install.sh 一键安装
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
-├── bin/vh                    命令行：doctor · setup · install-skill · sync-agents · sound · commands · status · activity · know · types · effort · new · footage · assets · scout · ref · review · gate · desk · concept · breakdown · style · recipes · storyboard · rhythm · bgm · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · hf-init · determinism · image · hf · components · frames · cues · readcheck · textcheck · fonts · sheet · proxy · thumbs · render · patch · versions · check · mix · qa · mux · deliver · looks · clean · gif · cover-preview
+├── bin/vh                    命令行：doctor · setup · install-skill · sync-agents · sound · commands · status · activity · know · types · effort · new · footage · assets · scout · ref · review · gate · desk · concept · breakdown · style · recipes · storyboard · rhythm · edit · bgm · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · hf-init · determinism · image · hf · components · frames · cues · readcheck · textcheck · fonts · sheet · proxy · thumbs · render · patch · versions · check · mix · qa · mux · deliver · looks · clean · gif · cover-preview
 ├── tools/                    bin/vh 背后的脚本；commands.json 是命令表（`bin/vh commands` 按阶段列出），modules.json 是外接模块表（`bin/vh doctor` 报这台机器能用哪些），audio/README.md 是声音命令的参数手册，desk/README.md 是审阅台的读取约定；ci.sh 是仓库自检
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
 ├── video-types/              9 类视频（09 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例

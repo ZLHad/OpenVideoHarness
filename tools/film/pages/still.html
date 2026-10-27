@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #000; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // The host's page for an edit list's image entries (engines/EDIT.md): the picture fitted to the frame ("contain": all of
+  // it, the rest bg; "cover": it fills the frame), and with "move" a push or a pull: the point of the picture at the
+  // frame's centre goes from move.from [cx, cy, zoom] to move.to (cx, cy: 0–1 across and down the picture; zoom ≥ 1, on
+  // top of the fit), linear or inOut ((1 − cos πp) / 2), p = t / the entry's length. The browser decodes the picture, so a
+  // photo with a colour profile (a phone's P3) comes out as it should. Drawn on the canvas at fractions of a pixel: a slow
+  // push does not step. What it draws comes from window.filmHost.params (tools/film/edit.mjs sets them): { image (its URL
+  // from the project's root), fit, bg, move, frames, fps }; a pure function of t and those.
+  const c = document.getElementById("c"), x = c.getContext("2d");
+  const P = () => (window.filmHost && window.filmHost.params) || {};
+  const cache = new Map();
+  const load = (url) => {
+    if (!cache.has(url)) { const im = new Image(); im.src = url; cache.set(url, im.decode().then(() => im)); }
+    return cache.get(url);
+  };
+  const ease = { linear: (p) => p, inOut: (p) => (1 - Math.cos(Math.PI * p)) / 2 };
+  const fitCanvas = () => {
+    const d = window.devicePixelRatio || 1, w = Math.round(innerWidth * d), h = Math.round(innerHeight * d);
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; c.style.width = innerWidth + "px"; c.style.height = innerHeight + "px"; }
+    return [w, h];
+  };
+  window.film = {
+    get duration() { const p = P(); return p.frames > 0 && p.fps > 0 ? p.frames / p.fps : 1; },
+    ready: () => (P().image ? load(P().image) : Promise.resolve()),
+    async frame(t) {
+      const p = P(), [W, H] = fitCanvas(), im = await load(p.image);
+      x.setTransform(1, 0, 0, 1, 0, 0);
+      x.fillStyle = p.bg || "#000"; x.fillRect(0, 0, W, H);
+      const iw = im.naturalWidth, ih = im.naturalHeight, fit = p.fit === "cover" ? Math.max(W / iw, H / ih) : Math.min(W / iw, H / ih);
+      const m = p.move, q = m ? ease[m.ease || "linear"](Math.min(1, Math.max(0, (t * p.fps) / p.frames))) : 0;
+      const a = m ? m.from : [0.5, 0.5, 1], b = m ? m.to : a, at = (i) => a[i] + (b[i] - a[i]) * q;
+      const s = fit * at(2), dw = iw * s, dh = ih * s;
+      x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+      x.drawImage(im, W / 2 - at(0) * dw, H / 2 - at(1) * dh, dw, dh);
+    },
+  };
+</script>
+</body>
+</html>

@@ -36,6 +36,12 @@
 //                       --frame-timeout's seconds, at least 30 s for window.film and 120 s for each of ready and the fonts
 //
 // A project folder means its film.html, else index.html, else studio.html; the page is served from its own folder.
+// A project with an edit list (edit.json, engines/EDIT.md) means the film it lays out: each time is drawn the way the
+// entry it falls in is (its page at the film's time or its own, its image, its slate), the frame rate and size are the
+// edit list's (--fps and --size are not taken), and the files are <out>/edit-t<seconds>.png.
+//   --entry S03         with --at, --range or --strip: the times are seconds into that entry (0 is its first frame),
+//                       not the film's (<out>/edit-S03-t<seconds>.png)
+// A page shorter than its entry, without "hold", is refused when it is opened (exit 2). --covers is not taken there yet.
 // Writes <out>/<page>-t<seconds>.png (out defaults to <project>/out/frames) and, for --strip, <out>/<page>-strip-<a>-<b>.jpg
 // with the frames in a folder beside it. Exit: 0 drawn · 1 a frame threw, or the page reported an error or a failed
 // load (while loading, while drawing, or just after the last frame) · 2 could not draw (no page, no window.film, not
@@ -43,7 +49,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { openFilm, findPage, readPage } from "./host.mjs";
+import { openFilm, findPage, readPage, HostError } from "./host.mjs";
+import { EditError, editProject, openEdit, build as buildEdit } from "./edit.mjs";   // an edit list's film (engines/EDIT.md)
 import "./activity.mjs";   // bin/vh exec's into this: the run's end line in the project's activity log
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
@@ -60,7 +67,7 @@ const finish = async (code, msg) => {
 const die = (msg) => finish(2, msg);
 process.on("unhandledRejection", (e) => finish(2, (e && e.message) || String(e)));
 const o = { fps: 30, cols: 6, cell: 320, dpr: 1, timeout: 600, frameTimeout: 120, runtime: "auto" };
-let target = null, at = null, range = null, strip = null, covers = null, out = null, size = null, ratios = null, noTitle = false;
+let target = null, at = null, range = null, strip = null, covers = null, out = null, size = null, ratios = null, noTitle = false, entry = null, fpsGiven = false;
 let frameCap = null, timeoutGiven = false;   // where a frame's cap came from: --frame-timeout, --timeout, else the default
 const r3 = (t) => Math.round(t * 1000) / 1000;
 for (let i = 0; i < argv.length; i++) {
@@ -73,7 +80,8 @@ for (let i = 0; i < argv.length; i++) {
   else if (k === "--covers") covers = inline !== undefined ? [...new Set(inline.split(",").map((x) => x.trim()).filter(Boolean))] : [];
   else if (k === "--no-title") noTitle = true;
   else if (k === "--ratios") ratios = [...new Set(val().split(",").map((x) => x.trim()).filter(Boolean))];
-  else if (["--fps", "--cols", "--cell", "--timeout"].includes(k)) { o[k.slice(2)] = num(val(), k, 1); if (k === "--timeout") timeoutGiven = true; }
+  else if (["--fps", "--cols", "--cell", "--timeout"].includes(k)) { o[k.slice(2)] = num(val(), k, 1); if (k === "--timeout") timeoutGiven = true; if (k === "--fps") fpsGiven = true; }
+  else if (k === "--entry") entry = val();
   else if (k === "--frame-timeout") { o.frameTimeout = num(val(), k, 1); frameCap = "--frame-timeout"; }
   else if (k === "--dpr") o.dpr = num(val(), k, 0.25);
   else if (k === "--out") out = val();
@@ -98,6 +106,17 @@ if (strip && (strip.length !== 2 || strip[1] <= strip[0])) bail("--strip a:b, b 
 if ((noTitle || ratios) && !covers) bail(`${noTitle ? "--no-title" : "--ratios"} goes with --covers`);
 const RATIO = /^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/, ratioOf = (r) => { const m = r.match(RATIO); return m && +m[1] > 0 && +m[2] > 0 ? +m[1] / +m[2] : 0; };
 if (ratios && (!ratios.length || ratios.some((r) => !ratioOf(r)))) bail(`--ratios: write them as 9:16,3:4,4:3 (got ${ratios.join(",") || "nothing"})`);
+// an edit list's film: its frame rate and size, and --entry's times from that entry's first frame
+const editRoot = editProject(target);
+let doc = null, ent = null;
+if (editRoot) {
+  if (covers) bail("--covers on an edit list's film is not taken yet: draw a cover's moment with --at <t>, or run --covers on the page of its entry");
+  if (size) bail("--size: an edit list's film is drawn at its own size (edit.json's size)");
+  try { doc = buildEdit(editRoot, false); } catch (e) { bail(e.message); }
+  if (fpsGiven && o.fps !== doc.fps) bail(`--fps ${o.fps}: an edit list's film runs at its own ${doc.fps} fps (edit.json)`);
+  o.fps = doc.fps;
+  if (entry) { ent = doc.entries.find((x) => x.id === entry); if (!ent) bail(`no entry ${entry} (the edit list has ${doc.entries.map((x) => x.id).slice(0, 20).join(", ")})`); }
+} else if (entry) bail("--entry names an entry of an edit list (edit.json): this is a page");
 
 let times = at ? [...new Set(at)] : covers ? [] : null;
 if (range) { const step = range[2] || 1; times = []; for (let k = 0; range[0] + k * step <= range[1] + 1e-9; k++) times.push(r3(range[0] + k * step)); }
@@ -133,7 +152,7 @@ const dprFor = (fw, fh) => {
 let fw = size ? size[0] : 1920, fh = size ? size[1] : 1080;
 try { if (ratios && !size) ({ width: fw, height: fh } = readPage(findPage(target))); } catch { /* openFilm says what is wrong */ }
 let pageDpr = dprFor(fw, fh);
-try { film = await openFilm(target, { ...o, dpr: pageDpr, width: size && size[0], height: size && size[1] }); } catch (e) { await die(e.message); }
+try { film = editRoot ? await openEdit(editRoot, { ...o, doc }) : await openFilm(target, { ...o, dpr: pageDpr, width: size && size[0], height: size && size[1] }); } catch (e) { await die(e.message); }
 // the page's own size (window.film.width and height) wins over what its HTML says: a crop of another size needs another
 // pixel ratio, and a canvas is sized once, when the page starts, so the page is opened again at the right one
 if (ratios && Math.abs(dprFor(film.width, film.height) - pageDpr) > 1e-9) {
@@ -142,19 +161,24 @@ if (ratios && Math.abs(dprFor(film.width, film.height) - pageDpr) > 1e-9) {
   pageDpr = dprFor(w, h);
   try { film = await openFilm(target, { ...o, dpr: pageDpr, width: w, height: h }); } catch (e) { await die(e.message); }
 }
-const stem = path.basename(film.page, path.extname(film.page));
+const stem = path.basename(film.page, path.extname(film.page)) + (ent ? `-${ent.id}` : "");
 const outDir = path.resolve(out || path.join(film.root, "out", covers ? "covers" : "frames"));
 try { fs.mkdirSync(outDir, { recursive: true }); } catch (e) { await die(`cannot write ${outDir}: ${e.message}`); }
 const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };
-console.log(`frames: ${rel(film.page)} · ${film.kind === "film" ? "window.film" : film.kind === "__vh" ? "window.__vh" : "HyperFrames runtime"} · ` +
+const kindSaid = film.kind === "edit" ? `an edit list, ${doc.entries.length} entr${doc.entries.length === 1 ? "y" : "ies"}${ent ? `, from ${ent.id} (${ent.kind}, ${ent.start}–${ent.end} s)` : ""}`
+  : film.kind === "film" ? "window.film" : film.kind === "__vh" ? "window.__vh" : "HyperFrames runtime";
+console.log(`frames: ${rel(film.page)} · ${kindSaid} · ` +
   `${film.width}x${film.height}${o.dpr !== 1 ? ` @${o.dpr}x` : ""}${pageDpr !== o.dpr ? ` (drawn @${+pageDpr.toFixed(3)}x for the crops)` : ""} · ${film.duration ? film.duration + " s" : "no duration"} · ${film.version}` +
   (frameCap ? ` · a frame may take ${o.frameTimeout} s (${frameCap})` : ""));
 let failed = 0;
 for (const p of film.loadProblems) { console.log(`  while loading: ${p}`); failed++; }
-// the film's own end is not a frame (0 ≤ t < duration): a --range that reaches it leaves it out
-if (range && film.duration > 0) times = times.filter((t) => t < film.duration || t !== r3(range[1]));
-const bad = times.filter((t) => t < 0 || (film.duration > 0 && t >= film.duration));
-if (bad.length) await die(`${bad.join(", ")} s: outside the film (0 up to ${film.duration} s)`);
+// the film's own end is not a frame (0 ≤ t < duration): a --range that reaches it leaves it out (--entry: the entry's end)
+const span = ent ? (ent.frames[1] - ent.frames[0]) / doc.fps : film.duration;
+if (range && span > 0) times = times.filter((t) => t < span || t !== r3(range[1]));
+const bad = times.filter((t) => t < 0 || (span > 0 && t >= span));
+if (bad.length) await die(`${bad.join(", ")} s: outside the ${ent ? `entry ${ent.id}` : "film"} (0 up to ${+span.toFixed(6)} s)`);
+// --entry: a time into the entry → the film's (on the frame grid when it falls on it)
+const filmT = (t) => { if (!ent) return t; const j = t * doc.fps; return Math.abs(j - Math.round(j)) < 1e-6 ? (ent.frames[0] + Math.round(j)) / doc.fps : t + ent.frames[0] / doc.fps; };
 
 const readers = new Map(), written = [];
 const name = (t) => `${stem}-t${t.toFixed(3).padStart(8, "0")}.png`;
@@ -164,7 +188,7 @@ if (stripDir) { fs.rmSync(stripDir, { recursive: true, force: true }); fs.mkdirS
 for (const t of times) {
   const t0 = Date.now();
   try {
-    const { png, touched } = await timely(film.frame(t), `t=${at3(t)} s`);
+    const { png, touched } = await timely(film.frame(filmT(t)), `t=${at3(t)} s`);
     // strip frames are numbered by the frames written, so a failed one leaves no gap for the picture to stop at
     const f = stripDir ? path.join(stripDir, `${String(written.length + 1).padStart(4, "0")}.png`) : path.join(outDir, name(t));
     fs.writeFileSync(f, png); written.push(f);
@@ -173,7 +197,7 @@ for (const t of times) {
     const later = film.problems();
     if (later.length) { failed++; console.log(`  t=${at3(t)} s: ${later.join(" | ")}`); }
     if (!stripDir) console.log(`  ${rel(f)}  (${Date.now() - t0} ms)`);
-  } catch (e) { if (e.stuck) await finish(2, e.message); failed++; console.log(`  t=${at3(t)} s: ${e.message}`); }
+  } catch (e) { if (e.stuck || e instanceof EditError || e instanceof HostError) await finish(2, e.message); failed++; console.log(`  t=${at3(t)} s: ${e.message}`); }
 }
 if (covers) {   // the page's covers: [{ id, t }]
   const all = (await film.list("covers").catch(() => null)) || [];

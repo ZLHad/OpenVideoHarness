@@ -55,23 +55,25 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".htm": "text/html; charset
   ".m4a": "audio/mp4", ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".wasm": "application/wasm", ".glsl": "text/plain", ".txt": "text/plain",
   ".glb": "model/gltf-binary", ".gltf": "model/gltf+json" };
 
-// the page's folder on 127.0.0.1; the page itself with `inject` before </head>; /__vh/<name> from `extra`; no path out of the folder.
-// `served` collects the path of every file sent (bin/vh render resumes only while they are unchanged)
-function serve(root, pageRel, inject, extra, served) {
+// the page's folder on 127.0.0.1 (or the folder given as the root: an edit list's, the project); the page itself with
+// `inject` before </head>; /__vh/<name> from `extra` (a page of the host's own, tools/film/pages/, is one of them, typed by
+// its extension); no path out of the folder. `served` collects the path of every file sent (bin/vh render resumes only
+// while they are unchanged)
+function serve(root, pageUrl, pageFile, inject, extra, served) {
   const server = http.createServer((req, res) => {
     let rel;
     try { rel = decodeURIComponent(new URL(req.url, "http://x").pathname); } catch { res.writeHead(400); return res.end(); }
-    if (rel.startsWith("/__vh/") && Object.hasOwn(extra, rel.slice(6))) {
-      res.writeHead(200, { "content-type": "text/javascript", "cache-control": "no-store" });
-      served.add(extra[rel.slice(6)]);
-      return fs.createReadStream(extra[rel.slice(6)]).pipe(res);
-    }
-    if (rel === "/" + pageRel && inject) {
-      const html = fs.readFileSync(path.join(root, pageRel), "utf8");
+    if (rel === "/" + pageUrl && (inject || pageUrl.startsWith("__vh/"))) {
+      const html = fs.readFileSync(pageFile, "utf8");
       const i = html.search(/<\/head>/i);
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
-      served.add(path.join(root, pageRel));
-      return res.end(i >= 0 ? html.slice(0, i) + inject + html.slice(i) : inject + html);
+      served.add(pageFile);
+      return res.end(!inject ? html : i >= 0 ? html.slice(0, i) + inject + html.slice(i) : inject + html);
+    }
+    if (rel.startsWith("/__vh/") && Object.hasOwn(extra, rel.slice(6))) {
+      res.writeHead(200, { "content-type": TYPES[path.extname(extra[rel.slice(6)]).toLowerCase()] || "text/javascript", "cache-control": "no-store" });
+      served.add(extra[rel.slice(6)]);
+      return fs.createReadStream(extra[rel.slice(6)]).pipe(res);
     }
     const f = path.join(root, rel);
     let ok = false;
@@ -84,12 +86,20 @@ function serve(root, pageRel, inject, extra, served) {
   return new Promise((ok) => server.listen(0, "127.0.0.1", () => ok({ url: `http://127.0.0.1:${server.address().port}/`, close: () => new Promise((r) => server.close(r)) })));
 }
 
-// openFilm(target, { browser, dpr, width, height, realClock, softGl, runtime, prelude }) → a film to draw: { page, kind,
-// width, height, duration, frame(t) → { png, touched }, draw(t), problems(), served(), close(), ev, send }. runtime: "auto"
-// (HyperFrames' runtime for a composition that writes no contract of its own), "on" or "off". prelude: more scripts to
-// run before the page's own, after the clock (tools/film/glyphs.mjs records the text a page draws this way).
+// openFilm(target, { browser, dpr, width, height, realClock, softGl, runtime, prelude, root, params }) → a film to draw:
+// { page, kind, width, height, duration, frame(t) → { png, touched }, draw(t), setParams(p), problems(), served(), close(),
+// ev, send }. runtime: "auto" (HyperFrames' runtime for a composition that writes no contract of its own), "on" or "off".
+// prelude: more scripts to run before the page's own, after the clock (tools/film/glyphs.mjs records the text a page draws
+// this way). root: the folder to serve (an edit list's, the project: engines/EDIT.md), the page opened by its path from
+// there; a page outside it (the host's own pages, tools/film/pages/) is served as /__vh/page/<name>. params: what the
+// page reads as window.filmHost.params (setParams(p) changes it between two frames: the host's own pages draw from it)
 export async function openFilm(target, o = {}) {
-  const page = findPage(target), root = fs.realpathSync(path.dirname(page)), pageRel = path.basename(page);
+  const page = findPage(target);
+  const real = path.join(fs.realpathSync(path.dirname(page)), path.basename(page));   // its folder's real path (a linked page stays the link)
+  const root = o.root ? fs.realpathSync(o.root) : path.dirname(real);
+  const inRoot = real.startsWith(root + path.sep);
+  const pageRel = inRoot ? path.relative(root, real).split(path.sep).join("/") : path.basename(page);
+  const pageUrl = inRoot ? pageRel : `__vh/page/${pageRel}`;
   const info = readPage(page);
   let width = o.width || info.width, height = o.height || info.height;
   const useRuntime = info.hyperframes && (o.runtime === "on" || (o.runtime !== "off" && !info.ownContract));
@@ -101,7 +111,7 @@ export async function openFilm(target, o = {}) {
     scripts.push('<script data-hyperframes-preview-runtime="1" src="/__vh/hf-runtime.js"></script>', '<script src="/__vh/hf-adapter.js"></script>');
   }
   const served = new Set();
-  const server = await serve(root, pageRel, scripts.join("\n"), extra, served);
+  const server = await serve(root, pageUrl, real, scripts.join("\n"), extra, served);
   const flags = o.softGl ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
     : process.platform === "darwin" ? ["--use-angle=metal", "--ignore-gpu-blocklist"] : ["--ignore-gpu-blocklist"];
   if (process.platform === "linux") flags.push("--no-sandbox", "--disable-dev-shm-usage");
@@ -124,6 +134,7 @@ export async function openFilm(target, o = {}) {
     await browser.send("Emulation.setTimezoneOverride", { timezoneId: "UTC" }, s);   // local time reads the same on every machine
     const prelude = o.realClock ? 'window.filmHost = { version: "0.1", name: "ovh" };' : fs.readFileSync(path.join(HERE, "clock.js"), "utf8");
     await browser.send("Page.addScriptToEvaluateOnNewDocument", { source: prelude }, s);
+    if (o.params !== undefined) await browser.send("Page.addScriptToEvaluateOnNewDocument", { source: `window.filmHost.params = ${JSON.stringify(o.params)};` }, s);
     for (const source of o.prelude || []) await browser.send("Page.addScriptToEvaluateOnNewDocument", { source }, s);
     const ev = async (expression, what) => {
       const r = await browser.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, s);
@@ -132,7 +143,7 @@ export async function openFilm(target, o = {}) {
     };
     const loaded = browser.once("Page.loadEventFired", s);
     loaded.catch(() => { /* a browser that dies first fails it; the race below reports that */ });
-    await browser.send("Page.navigate", { url: server.url + encodeURIComponent(pageRel) }, s);
+    await browser.send("Page.navigate", { url: server.url + pageUrl.split("/").map(encodeURIComponent).join("/") }, s);
     let timer;
     await Promise.race([loaded, new Promise((_, no) => { timer = setTimeout(() => no(new HostError("the page did not load within 60 s")), 60000); })]).finally(() => clearTimeout(timer));
     // the contract: window.film, else window.__vh; a page has 10 s after load to set it
@@ -188,6 +199,8 @@ export async function openFilm(target, o = {}) {
         return { png: Buffer.from(shot.data, "base64"), touched };
       },
       draw,   // draw t without capturing it (a check that reads the page, not its pixels)
+      // what the page reads as window.filmHost.params from the next frame on (the host's own pages, tools/film/pages/)
+      setParams: (p) => ev(`(() => { window.filmHost.params = ${JSON.stringify(p)}; return true; })()`, "setting the page's params"),
       // a cover (window.film.covers): the page's cover(id, opts) when it has one (its own camera and title), else frame(t).
       // o.title false: no title (a page with cover() must say it left it out: it returns { title: false }). o.ratio "9:16":
       // the page draws the cover with a title laid out for that ratio and returns the crop of its frame ({ crop: [x, y, w,
