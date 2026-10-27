@@ -367,6 +367,14 @@ def video_packets(path):
     return outp
 
 
+def off_grid(packets, rate):
+    """How far, in frames, a video's furthest frame sits from the constant grid at rate (its pts sorted, against the first
+    one + i/rate). Over a quarter of a frame, its rate varies, whatever its average says: one frame dropped in 120 moves
+    the average by under 1 %, and every frame after it by one (an edit list picks frames by their place in the stream)."""
+    ts = sorted(t for t, _ in packets)
+    return max((abs((t - ts[0]) * float(rate) - i) for i, t in enumerate(ts)), default=0.0)
+
+
 STANDARD_RATES = [Fraction(n, d) for n, d in ((12, 1), (25, 2), (15, 1), (16, 1), (18, 1), (24000, 1001), (24, 1), (25, 1), (30000, 1001), (30, 1),
                                                (48, 1), (50, 1), (60000, 1001), (60, 1), (100, 1), (120000, 1001), (120, 1))]
 
@@ -472,6 +480,8 @@ def unfit(path, p, packets):
         why.append("not tagged BT.709 tv")
     if not cfr:
         why.append("a variable frame rate")
+    elif packets and off_grid(packets, rate) > 0.25:
+        why.append(f"frames off a constant {frate(rate)} fps grid (a variable rate its average hides)")
     if abs(float(v.get("start_time") or 0)) > 1e-4 or abs(float(p["format"].get("start_time") or 0)) > 1e-4:
         why.append("pts not from 0")
     if sar_of(v) != 1:

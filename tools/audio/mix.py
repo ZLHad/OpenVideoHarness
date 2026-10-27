@@ -97,6 +97,10 @@ def main():
         kv = arguments()
         layered_chain = kv.get("profile", "none") != "none"   # the target the record keeps: bin/vh check reads it against the film
         build.state["target"] = {"lufs": float(kv.get("lufs", -14)), "tp": float(kv.get("tp", -1.65 if layered_chain else -1.5))}
+        if "edit" in kv:   # built before the snapshot: an events.json header naming out/edit.resolved.json reads it as it is now
+            import editsound
+            try: editsound.load(kv["edit"], write=True)
+            except ValueError as e: sys.exit(str(e))   # it names edit= itself
         build.snapshot(kv)   # edit=: the edit list, its time sources and every sound it places are inputs too (tools/audio/mixstate.py)
         said, extra, tmp = [], [], None
         if "edit" in kv:   # the sounds the edit list places, cut and put on their buses (tools/audio/editsound.py)

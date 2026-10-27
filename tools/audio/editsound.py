@@ -44,12 +44,16 @@ def load(path, write=False):
 
 
 def files(doc, project):
-    """the edit list itself, the time sources it read, and every sound file it places: absolute paths"""
+    """the edit list itself, the time sources it read, and every sound file it places, with the words and the clip.json
+    of the footage it comes from (its rate, frames and sync place the sound): absolute paths"""
     out = {Path(project) / "edit.json"}
     out |= {Path(project) / r["path"] for r in doc.get("refs") or [] if isinstance(r, dict) and r.get("path")}
     for s in doc.get("sound") or []:
         for f in (Path(s["file"]),) + ((Path(s["words"]),) if s.get("words") else ()):   # the words make the merged timeline
             out.add(f if f.is_absolute() else Path(project) / f)
+        folder = ((doc.get("files") or {}).get(s.get("src")) or {}).get("folder")
+        if folder:
+            out.add(Path(project) / folder / "clip.json")
     return sorted(str(Path(os.path.abspath(f))) for f in out)
 
 
@@ -107,8 +111,8 @@ def apply(kv, tmp):
         given["voice"] = kv.get("voice")
         kv["voice"] = str(plus(kv["voice"], v, Path(tmp) / "voice+edit.wav") if kv.get("voice") else v)
         said.append(f"edit: {len(voice)} sound{'s' * (len(voice) != 1)} of footage on the voice bus ({', '.join(s['entry'] for _, _, s in voice)})")
-        lang = next((r["path"].split("timeline.")[-1].split(".json")[0] for r in doc.get("refs") or [] if r.get("kind") == "timeline" and "timeline." in r["path"]), "zh")
-        merged = Path(project) / "out" / f"edit.timeline.{lang if lang != 'json' else 'zh'}.json"
+        import edit
+        merged = edit.merged_path(doc, project)   # in the narration's language, as edit build names it
         if kv.get("profile", "none") != "none" and merged.is_file():   # a profile anchors, levels and makes way by each line of it
             shown = os.path.relpath(merged)
             if "timeline" not in kv:
