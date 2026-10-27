@@ -402,12 +402,15 @@ class Reader:
             pr = FT.probe(p)
             v = pr["video"]
             rate, cfr = FT.rate_of(v) if v else (None, None)
+            packets = FT.video_packets(p) if v else []
         except FT.Failed as e:
             self.bad(f"{where}.clip: {rel}: {e}"); return None
         if v is None:
             self.bad(f"{where}.clip: {rel} has no video stream"); return None
         col, assumed = FT.colour(v)
+        off = FT.off_grid(packets, rate) if cfr and packets else 0.0   # every frame on the grid the picking counts in
         wrong = ([] if cfr else ["a variable frame rate"]) + \
+                ([f"frames off a constant {FT.frate(rate)} fps grid (one {off:.2f} frames off: a variable rate its average hides)"] if off > 0.25 else []) + \
                 (["pts not from 0"] if abs(float(v.get("start_time") or 0)) > 1e-4 or abs(float(pr["format"].get("start_time") or 0)) > 1e-4 else []) + \
                 ([f"pixels not square ({v.get('sample_aspect_ratio')})"] if FT.sar_of(v) != 1 else []) + \
                 ([f"rotated {FT.rotation(v)}°"] if FT.rotation(v) else []) + \
@@ -423,7 +426,7 @@ class Reader:
         if wrong:
             self.bad(f"{where}.clip: {rel} cannot be drawn as it is ({'; '.join(wrong)}): conform it as bin/vh footage get does, "
                      f"and point the source at the result{': ' + cmd if cmd else ''}"); return None
-        frames = int(v.get("nb_read_packets") or v.get("nb_frames") or 0)
+        frames = len(packets) or int(v.get("nb_read_packets") or v.get("nb_frames") or 0)
         if frames <= 0:
             self.bad(f"{where}.clip: {rel}: no frames counted"); return None
         out = {"path": self.rel(p), "sha256": sha256(p), "rate": FT.frate(rate), "frames": frames, "size": [v.get("width"), v.get("height")], "color": col}
@@ -450,16 +453,10 @@ class Reader:
         if e is None or not e.get("file") or not (p / e["file"]).is_file():
             have = ", ".join(x.get("id") for x in rec.get("versions") or [] if isinstance(x, dict) and x.get("file") and (p / x["file"]).is_file())
             self.bad(f"{where}: {proj} has no film of version {ver} to take (it has {have or 'none'})"); return None
-        f = p / e["file"]
-        pr = probe(f)
-        if not pr or not pr.get("video"):
-            self.bad(f"{where}: {proj}'s {ver} ({e['file']}) is not a video ffmpeg can read"); return None
-        v = pr["video"]
-        col = [v.get("color_range") or "tv", v.get("color_space") or "bt709", v.get("color_primaries") or "bt709", v.get("color_transfer") or "bt709"]
-        out = {"path": self.rel(f), "sha256": sha256(f), "rate": pr["rate"], "frames": pr["frames"], "size": [v.get("width"), v.get("height")], "color": col,
-               "film": {"project": proj, "version": ver, "file": e["file"]}}
-        if pr.get("audio"):
-            out["audio"] = {"path": self.rel(f), "sha256": out["sha256"]}
+        f = p / e["file"]   # held to the rules of any video file taken as it is (a render of this repo keeps them)
+        out = self.plain_clip(f, os.path.relpath(f, self.project), where)
+        if out is not None:
+            out["film"] = {"project": proj, "version": ver, "file": e["file"]}
         return out
 
     def sound_spec(self, v, where):
@@ -671,6 +668,11 @@ class Reader:
                 row["transition_draw"] = True   # a transition to draw (not a note): render refuses it between two sources
             ents.append(row)
             prev, prev_end = row, end
+        placed = sorted((x for x in sounds if "start" in x), key=lambda x: (x["track"], x["start"], x["end"]))   # a sound track's entries, by time
+        for a, b in zip(placed, placed[1:]):
+            if a["track"] == b["track"] and b["start"] < a["end"] - 1e-9:
+                self.p1.append(f"{b['entry']} overlaps {a['entry']} on {a['track']} ({a['start']:.3f}–{a['end']:.3f} s and {b['start']:.3f}–{b['end']:.3f} s): "
+                               "put one of them on a track of its own")
         if self.p2:
             raise EditError(2, self.p2)
         if not ents:
@@ -712,7 +714,11 @@ class Reader:
             sy = info.get("sync")
             if not sy:
                 self.bad(f"{where} {jd(v)}: {info['path']} has no sync (bin/vh footage sync, or the source's \"sync\")"); return None
-            return sy.get("k", 1) * v["sync"] + sy["c"]
+            t = sy.get("k", 1) * v["sync"] + sy["c"]
+            if t < -1e-9:   # this camera was not rolling yet at M
+                self.bad(f"{where} {jd(v)}: falls before the start of {info['path']} (s = {sy.get('k', 1):g}·{v['sync']:g} + {sy['c']:g} = {t:.3f} s): "
+                         "start the entry later, where the clip has pictures"); return None
+            return max(0.0, t)
         if number(v) and v >= 0:
             return round(float(v), 3)
         self.bad(f"{where} {jd(v)}: the footage's own seconds (≥ 0), {{\"f\": n}} (its frame n) or {{\"sync\": M}} (its group's clock)")
@@ -724,6 +730,8 @@ class Reader:
         from timegrid import frame_at, rate_of
         num, den = rate_of(info["rate"])
         j0 = e["in"]["f"] if isinstance(e.get("in"), dict) and "f" in e["in"] else frame_at(tin, info["rate"])
+        if j0 < 0:   # never drawn from before the clip's first frame (a decoder starts there whatever was asked)
+            self.bad(f"{eid}: its first frame would be clip frame {j0}, before {info['path']} starts"); j0 = 0
         last = j0 + int(math.floor((k1 - 1 - k0) * speed * num / den / self.fps + 1e-6))
         if j0 >= info["frames"] or last >= info["frames"]:
             have = info["frames"] * den / num
@@ -759,6 +767,10 @@ class Reader:
         for k in e:
             if k in ("fit", "bg", "move", "hold", "speed", "transition", "inputs"):
                 self.bad(f"{eid}: {k} is not for a sound")
+        if "end" in e and "dur" in e:
+            self.bad(f"{eid}: end or dur, not both")
+        if "dur" in e and not (number(e["dur"]) and e["dur"] > 0):
+            self.bad(f"{eid}: dur {jd(e['dur'])}: seconds, more than 0"); return None
         snd = self.sound_spec(e["sound"], f"{eid}: sound") if "sound" in e else info.get("sound")
         if not snd:
             self.bad(f"{eid}: no role for its sound: \"sound\": {{\"role\": …}} on the entry or \"role\" on {e.get('src')}"); return None
@@ -779,8 +791,6 @@ class Reader:
             return None
         if end <= start:
             self.p1.append(f"{eid}: its sound ends at {end:.3f} s, not after it starts ({start:.3f} s)"); return None
-        if start < follows - 1e-9:
-            self.p1.append(f"{eid} overlaps the sound before it on {track} (it starts at {start:.3f} s, that one ends at {follows:.3f} s): put it on a track of its own")
         if tin + (end - start) > info["duration"] + 0.5 / self.fps:
             self.p1.append(f"{eid} needs {info['path']} up to {tin + end - start:.3f} s, and it is {info['duration']:.3f} s long")
         return {"entry": eid, "track": track, "src": e.get("src"), "file": info["path"], "sha256": info["sha256"],
@@ -803,6 +813,10 @@ class Reader:
             self.bad(f"{eid}: fit {jd(out['fit'])}: contain (the whole picture, the rest bg) or cover (it fills the frame)")
         if not (isinstance(out["bg"], str) and COLOR.match(out["bg"])):
             self.bad(f"{eid}: bg {jd(out['bg'])}: a hex colour")
+        elif len(out["bg"]) == 4:   # #rgb as #rrggbb: what the pages and ffmpeg's pad both take
+            out["bg"] = "#" + "".join(c * 2 for c in out["bg"][1:])
+        if isinstance(out["bg"], str):
+            out["bg"] = out["bg"].lower()
         if "move" in e:
             m = e["move"]
             ok = isinstance(m, dict) and all(isinstance(m.get(k), list) and len(m[k]) == 3 and all(number(x) for x in m[k]) for k in ("from", "to"))

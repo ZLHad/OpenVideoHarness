@@ -262,11 +262,17 @@ for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig,
 const COLOR = "colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv";
 // x264's yuv420p needs an even width and height: an odd one (1366 x 768 at --dpr 1.5 is 2049 x 1152) loses its last column or row
 const EVEN = "crop=trunc(iw/2)*2:trunc(ih/2)*2", px = [Math.round(first.width * o.dpr), Math.round(first.height * o.dpr)];
-const vf = png ? `${EVEN},scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=${COLOR}`
-  : `${EVEN},scale=in_color_matrix=bt601:in_range=pc:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=${COLOR}`;
+// the end of every path into x264, said outright whatever the input leaves on its frames (a JPEG says SAR 1:1 and, decoded
+// by ffmpeg 6, a centred chroma; a PNG and raw RGB say neither): yuv420p, BT.709 tv with its four tags, square pixels,
+// chroma sited left, H.264's default (x264 then writes no chroma location). So a page's JPEG or PNG chunks and footage's
+// raw RGB chunks get one SPS/PPS, which the join needs, with any ffmpeg
+const OUT = `format=yuv420p,setparams=${COLOR},setsar=1`;
+const X264 = () => ["-c:v", "libx264", "-preset", o.preset, "-crf", String(o.crf), "-g", String(gop), "-keyint_min", String(gop), "-sc_threshold", "0",
+  "-x264-params", "chromaloc=0", "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-r", String(fps)];
+const vf = png ? `${EVEN},scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,${OUT}`
+  : `${EVEN},scale=in_color_matrix=bt601:in_range=pc:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,${OUT}`;
 const x264 = (file) => spawn("ffmpeg", ["-v", "error", "-y", "-f", "image2pipe", "-framerate", String(fps), "-c:v", png ? "png" : "mjpeg", "-i", "-",
-  "-vf", vf, "-c:v", "libx264", "-preset", o.preset, "-crf", String(o.crf), "-g", String(gop), "-keyint_min", String(gop), "-sc_threshold", "0",
-  "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-r", String(fps), file], { stdio: ["pipe", "ignore", "pipe"] });
+  "-vf", vf, ...X264(), file], { stdio: ["pipe", "ignore", "pipe"] });
 const capture = png ? { format: "png" } : { format: "jpeg", quality: o.quality };
 // --alpha: PNG frames with their alpha into ProRes 4444 (every frame a keyframe; the chunks stay a GOP long for the
 // workers and a resume), 4:4:4 with a 16-bit alpha, BT.709 limited range with all four tags
@@ -275,12 +281,11 @@ const prores = (file) => spawn("ffmpeg", ["-v", "error", "-y", "-f", "image2pipe
   "-vf", VFA, "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", "-alpha_bits", "16", "-vendor", "apl0",
   "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-r", String(fps), file], { stdio: ["pipe", "ignore", "pipe"] });
 const encoder = alpha ? prores : x264;
-// an edit list's footage: raw RGB from ffmpeg's decoder into an x264 with the same output settings (so the same SPS/PPS
+// an edit list's footage: raw RGB from ffmpeg's decoder into an x264 with the same output end (OUT, X264: the same SPS/PPS
 // as the pages' chunks, checked before the join), read as RGB as a PNG frame is
-const VFRGB = `${EVEN},scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=${COLOR},setsar=1`;   // setsar: a JPEG says 1:1, raw RGB nothing, and x264 writes what it is told into the SPS
+const VFRGB = `${EVEN},scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,${OUT}`;
 const rawX264 = (file) => spawn("ffmpeg", ["-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", `${px[0]}x${px[1]}`, "-framerate", String(fps), "-i", "-",
-  "-vf", VFRGB, "-c:v", "libx264", "-preset", o.preset, "-crf", String(o.crf), "-g", String(gop), "-keyint_min", String(gop), "-sc_threshold", "0",
-  "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-r", String(fps), file], { stdio: ["pipe", "ignore", "pipe"] });
+  "-vf", VFRGB, ...X264(), file], { stdio: ["pipe", "ignore", "pipe"] });
 
 // ---- what the chunks are made from: a resume takes the finished ones only while all of it is the same ----
 const sha = (f) => {
@@ -512,13 +517,19 @@ clearInterval(progress);
 const fail = (msg) => { const k = keepFinished(); console.error(`render: ${msg}`); if (k) console.error(`  ${keptSay(k)}`); process.exit(1); };
 if (failed) fail(failed);
 if (editRoot) {   // an edit list's chunks came from pages and from footage: one SPS/PPS, or the joined film does not decode
-  const sps = plan.map((_, i) => {
+  const FIELDS = ["profile", "level", "pix_fmt", "width", "height", "sample_aspect_ratio", "color_range", "color_space", "color_primaries", "color_transfer",
+    "chroma_location", "field_order", "has_b_frames", "refs"];
+  const facts = plan.map((_, i) => {
     const r = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_streams", "-show_data_hash", "sha256", "-of", "json", fileOf[i]], { encoding: "utf8" });
-    const s = (JSON.parse(r.stdout || "{}").streams || [])[0] || {};
-    return [s.extradata_hash, s.profile, s.level, s.pix_fmt].join(" ");
+    return (JSON.parse(r.stdout || "{}").streams || [])[0] || {};
   });
-  const odd = [...new Set(plan.map((_, i) => i).filter((i) => sps[i] !== sps[0]).map((i) => runOf[i].entry))];
-  if (odd.length) fail(`the chunks of ${odd.join(", ")} are encoded otherwise than ${runOf[0].entry}'s (their SPS/PPS differ: another x264, or other settings): joining them would make a broken film`);
+  const odd = plan.map((_, i) => i).filter((i) => facts[i].extradata_hash !== facts[0].extradata_hash || FIELDS.some((f) => facts[i][f] !== facts[0][f]));
+  if (odd.length) {   // what differs, field by field, in the first such chunk: the SPS/PPS bytes alone when no field shows it
+    const i = odd[0], diff = FIELDS.filter((f) => facts[i][f] !== facts[0][f]).map((f) => `${f} ${facts[0][f] ?? "unset"} → ${facts[i][f] ?? "unset"}`);
+    fail(`the chunks of ${[...new Set(odd.map((x) => runOf[x].entry))].join(", ")} are encoded otherwise than ${runOf[0].entry}'s: ` +
+      `${diff.length ? diff.join(", ") : "their SPS/PPS bytes (no field ffprobe shows differs: another x264, or other settings)"} ` +
+      `(chunk ${i}, frames ${plan[i][0]}–${plan[i][1] - 1}, against chunk 0): joining them would make a broken film`);
+  }
 }
 // each chunk's length in frames: an MP4's own duration is rounded to its movie timescale (1/1000 s), which would move the
 // chunk after it by a few ticks when a GOP is not a whole number of milliseconds (--gop 20 at 30 fps)
