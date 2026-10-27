@@ -17,7 +17,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { openFilm, HostError } from "./host.mjs";
 import { frameAt, frameFrom, rateOf } from "./timegrid.mjs";
 
@@ -142,12 +142,32 @@ export function clipPng(run, project, j, W, H) {
   if (r.status !== 0 || !r.stdout || !r.stdout.length) throw new Error(`decoding ${run.path} frame ${j}: ${(r.stderr || "").toString().trim().split("\n")[0] || `exit ${r.status}`}`);
   return { png: r.stdout, touched: [] };
 }
-// source frames j..j+count−1 as raw RGB, one Buffer each, in a single decode (determinism compares them with clipPng's)
+// source frames j..j+count−1 as raw RGB, one Buffer each, in a single decode (a frame alone: count 1)
 export function clipRaw(run, project, j, count, W, H) {
   const r = spawnSync("ffmpeg", decodeArgs(run, project, j, count, W, H), { maxBuffer: Math.max(1 << 26, W * H * 3 * count + 1024) });
   if (r.status !== 0) throw new Error(`decoding ${run.path}: ${(r.stderr || "").toString().trim().split("\n")[0]}`);
   const n = W * H * 3;
   return Array.from({ length: Math.floor(r.stdout.length / n) }, (_, i) => r.stdout.subarray(i * n, (i + 1) * n));
+}
+// the md5 of each of the source frames js (any order), in one decode from frame j0 on, read as it streams: nothing of the
+// run is kept but the sums (a clip of minutes would not fit in memory whole). → Map(j → md5)
+export async function clipSums(run, project, j0, js, W, H) {
+  const want = new Set(js), last = Math.max(...js), n = W * H * 3, out = new Map();
+  const dec = spawn("ffmpeg", decodeArgs(run, project, j0, last - j0 + 1, W, H), { stdio: ["ignore", "pipe", "pipe"] });
+  let err = ""; dec.stderr.on("data", (d) => { err = (err + d).slice(-2000); });
+  const closed = new Promise((ok) => dec.on("close", (code) => ok(code)));
+  let j = j0, filled = 0, sum = want.has(j) ? crypto.createHash("md5") : null;
+  for await (const c of dec.stdout) {
+    for (let off = 0; off < c.length && j <= last;) {
+      const take = Math.min(n - filled, c.length - off);
+      if (sum) sum.update(c.subarray(off, off + take));
+      off += take; filled += take;
+      if (filled === n) { if (sum) out.set(j, sum.digest("hex")); j++; filled = 0; sum = want.has(j) ? crypto.createHash("md5") : null; }
+    }
+  }
+  const code = await closed;
+  if (code !== 0 || out.size < want.size) throw new Error(`decoding ${run.path}: ${err.trim().split("\n")[0] || `exit ${code}, ${out.size} of ${want.size} frames`}`);
+  return out;
 }
 
 // what a page run needs of its page: up to the end of the entry, unless it holds its last frame
