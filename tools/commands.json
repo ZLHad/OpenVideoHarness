@@ -1569,7 +1569,8 @@
           "synopsis": "determinism <project|page.html> [--at t,t…] [--samples 6] [--min-psnr 45] [--frame-timeout 120]",
           "text": [
             "is each frame a function of t? draws the same t in one browser in two orders and in a second browser, compares them, and again with the real clock;",
-            "an edit list (edit.json) is sampled run by run: two frames inside each, and either side of each cut"
+            "an edit list (edit.json) is sampled run by run: two frames inside each, and either side of each cut;",
+            "no --motion-blur: its sub-frames are the page at other times of the same function of t (--at 1.0167,… looks at them)"
           ]
         }
       ]
@@ -1588,14 +1589,15 @@
       ],
       "usage": [
         {
-          "synopsis": "frames <project|page.html> (--at t,t… | --range a:b[:step] | --strip a:b | --covers[=A,B] [--no-title] [--ratios 9:16,3:4]) [--fps 30] [--out dir] [--size WxH] [--dpr 2] [--real-clock]",
+          "synopsis": "frames <project|page.html> (--at t,t… | --range a:b[:step] | --strip a:b | --covers[=A,B] [--no-title] [--ratios 9:16,3:4]) [--fps 30] [--motion-blur N [--shutter 0.5]] [--out dir] [--size WxH] [--dpr 2] [--real-clock]",
           "text": [
             "frames drawn from the source through the page contract (window.film, engines/CONTRACT.md), for any web-page",
             "engine: ClaudeAnimationBase, a page that writes window.film, HyperFrames (a composition without it gets its own",
             "runtime); lossless PNGs in <project>/out/frames; --strip: every frame of a span and one picture of them all;",
             "--covers: the page's covers (window.film.covers; canvas-film COVERS, picked by cue) in <project>/out/covers",
             "(--no-title: without their titles, <id>-clean.png; --ratios: each ratio a crop of the cover with its own title, <id>-9x16.png);",
-            "a project with an edit list (edit.json): each time drawn as its entry draws it, --entry S03 for times into one entry"
+            "a project with an edit list (edit.json): each time drawn as its entry draws it, --entry S03 for times into one entry;",
+            "--motion-blur N: each frame as bin/vh render --motion-blur N draws it, its sub-frames averaged into the PNG"
           ]
         }
       ]
@@ -1805,7 +1807,7 @@
       ],
       "usage": [
         {
-          "synopsis": "render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b | --frames k0:k1] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png] [--alpha] [--estimate | --no-estimate] [--note text] [--fresh] [--cache-max 10]",
+          "synopsis": "render <project|page.html> [--out f.mp4] [--fps 30] [--range a:b | --frames k0:k1] [--dpr 2] [--workers 4] [--crf 16] [--gop 60] [--png] [--alpha] [--motion-blur N [--shutter 0.5]] [--estimate | --no-estimate] [--note text] [--fresh] [--cache-max 10]",
           "text": [
             "an MP4 drawn through the page contract (the canvas engine, ClaudeAnimationBase, any page that writes",
             "window.film): one-GOP chunks that the --workers browsers take in turn, each into its own x264, BT.709 tv",
@@ -1823,7 +1825,10 @@
             "(its page on the film's clock or its own, its image, its slate, its footage), a keyframe at every cut (out/edit.mp4);",
             "each finished chunk is kept in out/cache/chunks under its key, and a later render takes it while that key and",
             "the files its page loaded are the same: an entry changed draws only its own chunks (--fresh: draw them all;",
-            "--cache-max GB, default 10, the chunks used longest ago go first; 0: no cache)"
+            "--cache-max GB, default 10, the chunks used longest ago go first; 0: no cache)",
+            "--motion-blur N: each frame the mean of N sub-frames over --shutter (0.5 of a frame, centred on its time), cut short at the",
+            "film's ends, an edit list's cuts and the page's shot boundaries, so a hard cut stays a cut; N times the drawing; bin/vh",
+            "patch draws its frames the same way; in an edit list its pages and moving images, not slates, colours, stills or footage"
           ]
         }
       ]

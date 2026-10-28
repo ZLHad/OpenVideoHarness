@@ -676,12 +676,13 @@ cmd_fonts() { # check: through the page contract (tools/film/fonts.mjs); list an
 }
 arg_dir() { # the folder of the project or page among a tool's arguments: the first that is neither an option nor an option's
   # value (the options listed take none: all of those of frames, render, determinism, cues, fonts check, patch, textcheck,
-  # readcheck, storyboard and thumbs; one a tool gains goes here), a file's folder; "." when there is none, so --out o <project> finds the project too
+  # readcheck, storyboard, rhythm and thumbs; one a tool gains goes here, and tools/ci.sh reads them out of the tools'
+  # parsers to check), a file's folder; "." when there is none, so --out o <project> finds the project too
   local a skip=0
   for a in "$@"; do
     if [ $skip = 1 ]; then skip=0; continue; fi
     case $a in
-      -h|--help|--soft-gl|--real-clock|--png|--force|--save|--export|--strict|--in-place|--keep|--snapshot|--estimate|--no-estimate|--full|--json|--covers|--no-title|--chapters|--*=*) ;;
+      -h|--help|--soft-gl|--real-clock|--png|--alpha|--fresh|--force|--save|--export|--strict|--in-place|--keep|--snapshot|--estimate|--no-estimate|--full|--json|--covers|--no-title|--chapters|--*=*) ;;
       -*) skip=1 ;;
       *) if [ -d "$a" ]; then echo "$a"; else case $a in */*) echo "${a%/*}" ;; *) echo . ;; esac; fi; return 0 ;;
     esac
