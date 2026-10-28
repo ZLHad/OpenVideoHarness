@@ -24,6 +24,9 @@
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
   #film { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
 </style>
+<!-- the Three.js layer's modules (src/07-three.js), used only when FILM.three is set: three/ is in a project made with
+     bin/vh new … --engine canvas-film --three (ENGINE_README.md, Three.js 层) -->
+<script type="importmap">{ "imports": { "three": "./three/build/three.module.js", "three/addons/": "./three/addons/" } }</script>
 </head>
 <body>
 <!-- A canvas-film page (engines/canvas-film/README.md). It draws only when asked: open it with bin/vh frames <project>
@@ -33,6 +36,7 @@
 <script src="src/00-core.js"></script>
 <script src="src/05-music-clock.js"></script>
 <script src="src/06-time-map.js"></script>
+<script src="src/07-three.js"></script>
 <script src="src/10-draw.js"></script>
 <script src="src/15-fx.js"></script>
 <script src="src/20-ui.js"></script>

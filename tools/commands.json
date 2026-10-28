@@ -304,6 +304,7 @@
         "templates/",
         "video-types/<type doc>",
         "the type's engine in engines/",
+        "engines/canvas-film/three/ (--three)",
         "styles/<preset>/ (--style)",
         "<project>/BRIEF.md, STYLE.md, style-refs/, STORYBOARD.md, audio/*events*.json (--from)"
       ],
@@ -312,10 +313,11 @@
       ],
       "usage": [
         {
-          "synopsis": "new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film] [--from <project>] [--dir <folder>]",
+          "synopsis": "new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three]] [--from <project>] [--dir <folder>]",
           "text": [
             "create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);",
             "--engine canvas-film: the narration-driven canvas engine instead, any type, 16:9 (engines/canvas-film/README.md);",
+            "--three with it: the Three.js layer in three/ and a pinned three.js, 3D drawn under the 2D (its README, Three.js 层);",
             "--aspect: short/promo/data/meme only (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only); --lang: the review pages' language (default zh; set it from the user's first request);",
             "--dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness;",
             "--from <project>: the next episode of a series: that project's BRIEF spec, style and outline skeleton, STYLE.md,",
@@ -462,6 +464,36 @@
         {
           "name": "prices",
           "summary": "the models and their prices"
+        }
+      ]
+    },
+    {
+      "name": "model3d",
+      "summary": "3D models for canvas-film's Three.js layer: check reads a glTF or GLB on this machine (stdlib, nothing paid) and says its triangles, textures, skins and joints, clips and their lengths, its size in metres, its origin and which way it stands, against a hero or prop budget.",
+      "when": "before a model goes into a film (downloaded, made elsewhere, out of Blender), and when the layer's ready says a clip is missing or too short",
+      "stages": ["6", "1"],
+      "reads": [
+        "<model.glb|model.gltf>, and the buffers and images beside it"
+      ],
+      "writes": [],
+      "usage": [
+        {
+          "synopsis": "model3d check <model.glb|model.gltf> [--tier hero|prop] [--max-faces N] [--max-texture PX] [--json]",
+          "text": [
+            "triangles as the scene draws them, meshes, materials; each texture's size, format and bytes and what uses it; skins",
+            "and joints; each clip's name and length as the Three.js layer names it; the box in metres, the origin, which way it is",
+            "tallest (glTF is metres and +Y up by definition). Fails over the tier (hero 200,000 triangles and 4096 px textures,",
+            "prop 50,000 and 2048; --max-faces, --max-texture change them), on an extension the layer cannot decode (Draco,",
+            "meshopt, KTX2; Draco even listed only as used), on a file not beside it, on a part that points outside the file",
+            "(a cheap pass, not a validator: Khronos's glTF-Validator is one); --json: the report, also when the file cannot",
+            "be read (bin/vh model3d -h has the fields). gen comes later"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "check",
+          "summary": "what a model holds, against a tier's budget"
         }
       ]
     },

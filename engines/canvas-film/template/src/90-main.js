@@ -7,7 +7,8 @@ function shotAt(t) { let i = 0; while (i + 1 < SHOT_T.length && t >= SHOT_T[i + 
 // shot i at film time t, into X. Its draw(t, s) gets s = { i, id, t0, t1, lt (s into the shot), u (0..1 through it), o
 // (its o, cues as seconds), din, dout (the transitions in and out, s), cover (the id of the cover being drawn, null in the
 // film's own frames: a shot can frame a cover its own way and leave the film as it is) }. A shot's cam = [z0, z1, cx, cy] drifts the
-// camera from zoom z0 to z1 about (cx, cy) over the shot, so a held picture never freezes.
+// camera from zoom z0 to z1 about (cx, cy) over the shot, so a held picture never freezes. A shot with a three field has
+// its 3D drawn first (src/07-three.js), under what its draw paints.
 function drawShot(i, t) {
   const S = SHOT_T[i], prev = SHOT;
   SHOT = { i, id: S.id, t0: S.a, t1: S.b, lt: t - S.a, u: seg(t, S.a, S.b), o: S.o, din: S.din, dout: S.dout, cover: COVER_NOW };
@@ -15,6 +16,7 @@ function drawShot(i, t) {
   try {
     const cam = S.shot.cam;
     if (cam) { const z = lerp(cam[0], cam[1], eSine(SHOT.u)), cx = cam[2] ?? W / 2, cy = cam[3] ?? H / 2; X.translate(cx, cy); X.scale(z, z); X.translate(-cx, -cy); }
+    if (S.three) drawThree(t, S);
     S.shot.draw(t, SHOT);
   } finally { X.restore(); SHOT = prev; }
 }
@@ -124,6 +126,7 @@ function build(T) {
   if (!(DUR > 0)) throw new Error("canvas-film: the film has no length (a timeline, FILM.music, or FILM.duration for a silent film)" +
     (problems.length ? `:\n  ${problems.slice(0, 12).join("\n  ")}` : ""));
   buildShots(problems);
+  checkThree(problems);
   for (const S of SHOT_T) for (const id of S.shot.nocap || []) { if (LINES[id]) nocap.add(id); else problems.push(`shot ${S.id} (nocap): no narration line "${id}"`); }
   buildChapters(problems);
   buildCovers(problems);
@@ -178,7 +181,7 @@ async function boot() {
   const cv = document.getElementById("film");
   cv.width = Math.round(W * PRX); cv.height = Math.round(H * PRX); cv.style.width = W + "px"; cv.style.height = H + "px";
   X = cv.getContext("2d");
-  const [missing, , T] = await Promise.all([loadFonts(), loadImages(), loadTimeline(), loadCaptions(), loadMusic(), loadTimeMap()]);
+  const [missing, , T] = await Promise.all([loadFonts(), loadImages(), loadTimeline(), loadCaptions(), loadMusic(), loadTimeMap(), loadThree()]);
   TIMELINE = T ? T.file : null;
   await checkTimeMapSources(T);
   build(T);
