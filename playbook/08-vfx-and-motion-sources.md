@@ -85,7 +85,8 @@ npx hyperframes render --variables '{"fx":"A"}' --output out/lookdev/A.mp4
 - 代价是渲染时间 ×N，N 取 4–8 一般就够。只在最终版开，draft 不开。
 - 好处：跟镜头的字在 N 个子时刻的位置都一样，自动保持清晰；只有真正在画面上移动的东西才会糊，不再需要 guard 之类的补丁。
 
-两种接法：
+三种接法：
+- **`bin/vh render --motion-blur N`**：守页面合约的页面都能用，不改页面。快门默认半帧（`--shutter`），以这一帧的时刻为中心，所以模糊后的画面和不模糊时在同一个位置；快门在片头片尾、剪辑表的切点和页面自己的镜头边界截住，硬切不混。平均在 sRGB 值上做；要线性光、逐镜头给不同的 N，用下一种。出片前用 `bin/vh frames --motion-blur N --strip …` 先看一段。
 - **在 Three.js 层里累积**：`renderAt(t)` 把场景在 N 个子时刻各渲一次，累加进一张浮点 render target 取平均；bloom、调色、颗粒这些后期只在平均之后做一次。
 - **整页高帧率渲染，再用 ffmpeg 平均**：[product-film-skill](https://github.com/Rieranthony/product-film-skill)（Remotion）就是这样做的：渲 240 fps 母版，用 `tmix=frames=4` 加 `select='not(mod(n+1\,4))'` 降到 60 fps，相当于 360° 快门。HyperFrames 本地渲染的 `--fps` 文档只列了 24/30/60，输出 30 fps 时这条路最多只有 2 个子帧；它较新的版本有整帧子采样的 `motionBlur` 渲染选项（见 `references/repos/hyperframes/skills/hyperframes-animation/references/motion-blur.md`），在 0.8.82 上没有验证过。社区里也有人用 Playwright 渲子帧做运动模糊（`cases/opus55-gallery.md` 里 @twoclipping 那条）。
 

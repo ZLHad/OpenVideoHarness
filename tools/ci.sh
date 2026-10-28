@@ -4423,6 +4423,43 @@ sys.exit(0 if ok else 1)
 PY
     then ok "render: every frame, BT.709 tv range, a keyframe exactly every --gop frames across the chunks, and how it was made beside it"
     else bad "render on its fixture (exit $rc): $(printf '%s' "$a" | tail -c 700)"; fi
+    # --motion-blur (tools/film/blur.mjs) on tools/film/fixture/blur.html, a white square moving 16 px a frame, 4 sub-frames
+    # over half a frame centred on each frame's time: frame 2's edges are ramps of 1/4, 2/4 and 3/4, 2 px each (6 px a
+    # side), its light kept (30 px of white across); frame 5, the last before the page's hard cut 0.1 frame after it, has
+    # none of the next shot's grey; frame 0 none of before the film, frame 14 none of after its end (the page paints those
+    # white). patch draws frame 2's GOP again in a fresh browser, the frames around it identical (PSNR ∞); --motion-blur 1
+    # is the render without it, packet for packet (the fixture's first GOP, just rendered); frames --motion-blur draws
+    # frame 2 as the render does, losslessly: its ramp's levels exact
+    mkdir -p "$t/mb"
+    a=$(vh render tools/film/fixture/blur.html --motion-blur 4 --gop 5 --workers 1 --out "$t/mb/film.mp4" 2>&1); rc=$?
+    b=$(vh patch "$t/mb/film.mp4" --frames 2-2 --workers 1 2>&1); rc2=$?
+    c=$(vh render tools/film/fixture --frames 0:30 --gop 30 --workers 1 --motion-blur 1 --out "$t/mb/one.mp4" 2>&1); rc3=$?
+    d=$(vh frames tools/film/fixture/blur.html --at 0.0667 --motion-blur 4 --out "$t/mb/f" 2>&1); rc4=$?
+    if [ "$rc:$rc2:$rc3:$rc4" = "0:0:0:0" ] && grep -q "6 of the 15 frames drawn moved" <<<"$a" && grep -q "reach the keyframes at least ∞ dB ✓" <<<"$b" \
+       && python3 - "$t/mb" "$t/r/film.mp4" <<'PY'
+import json, subprocess, sys
+d, ref = sys.argv[1], sys.argv[2]
+W, H = 160, 90
+raw = subprocess.run(["ffmpeg", "-v", "error", "-i", f"{d}/film.mp4", "-f", "rawvideo", "-pix_fmt", "yuv420p", "-"], capture_output=True).stdout
+n = W * H * 3 // 2
+Y = [raw[i * n:i * n + W * H] for i in range(len(raw) // n)]
+row = lambda k, r: Y[k][r * W:(r + 1) * W]   # noqa: E731
+ramp = [x for x, v in enumerate(row(2, 45)) if 38 < v < 213]   # luma between 10 % and 90 % of white
+light = sum(min(1, max(0, (v - 16) / 219)) for v in row(2, 45))
+ok = len(Y) == 15 and ramp == [39, 40, 41, 42, 43, 44, 69, 70, 71, 72, 73, 74] and abs(light - 30) < 0.6
+ok = ok and max(row(5, 10)) <= 18 and max(row(0, 10)) <= 18 and min(Y[6]) >= 124 and max(Y[14]) <= 128
+ok = ok and json.load(open(f"{d}/film.mp4.render.json")).get("motion_blur") == {"samples": 4, "shutter": 0.5} and "motion_blur" not in json.load(open(f"{d}/one.mp4.render.json"))
+pk = lambda f: [l.split(",")[-1].strip() for l in subprocess.run(["ffmpeg", "-v", "error", "-i", f, "-map", "0:v:0", "-c", "copy", "-f", "framemd5", "-"],   # noqa: E731
+                                                                     capture_output=True, text=True).stdout.splitlines() if l and not l.startswith("#")]
+one, whole = pk(f"{d}/one.mp4"), pk(ref)
+ok = ok and len(one) == 30 and one == whole[:30]
+g = subprocess.run(["ffmpeg", "-v", "error", "-i", f"{d}/f/blur-t0000.067.png", "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True).stdout
+steps = [v for v in g[45 * W:46 * W] if 0 < v < 255]   # 1/4, 2/4, 3/4 of white (an ffmpeg that truncates the mean: one less)
+ok = ok and len(steps) == 12 and all(abs(v - e) <= 1 for v, e in zip(steps, [64, 64, 128, 128, 191, 191, 191, 191, 128, 128, 64, 64]))
+sys.exit(0 if ok else 1)
+PY
+    then ok "render --motion-blur: 4 sub-frames over half a frame blur a moving edge into steps of 1/4, 2/4, 3/4, 6 px a side, its light kept; no frame mixes in the next shot across the page's hard cut, nor a time before or after the page; patch draws a GOP again the same way (PSNR ∞); --motion-blur 1 is the render without it, packet for packet; frames --motion-blur draws a frame as render does"
+    else bad "render --motion-blur ($rc, $rc2, $rc3, $rc4): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $(printf '%s' "$c" | tail -c 200) | $(printf '%s' "$d" | tail -c 200)"; fi
     # --alpha: a page that leaves its background clear gives ProRes 4444 with that alpha; a page that paints one is told so;
     # an .mp4 is refused (no alpha there), and patch refuses an alpha film
     mkdir -p "$t/al"
@@ -4450,6 +4487,21 @@ sys.exit(0 if ok else 1)
 PY
     then ok "render --alpha: ProRes 4444 with the page's own alpha (clear where it draws nothing, opaque where it does), joined over chunks; a page that paints its background is told, an .mp4 refused, patch refuses it"
     else bad "render --alpha ($rc, $rc2, $rc3, $rc4): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $c | $d"; fi
+    # --alpha --motion-blur: the trail of a red square on a clear page keeps its red while its alpha ramps (the mean of the
+    # premultiplied colours), not a darker red where the clear pixels' black would count
+    printf '%s\n' '<!doctype html><html><head><meta name="viewport" content="width=160, height=90"><style>html,body{margin:0;background:transparent}</style></head>' \
+      '<body><canvas id="c" width="160" height="90"></canvas><script>const X = document.getElementById("c").getContext("2d");' \
+      'window.film = { duration: 0.2, fps: 30, frame(t) { X.clearRect(0, 0, 160, 90); X.fillStyle = "#dc3c28"; X.fillRect(10 + 480 * t, 30, 30, 30); } };</script></body></html>' > "$t/al/trail.html"
+    a=$(vh render "$t/al/trail.html" --alpha --motion-blur 4 --workers 1 --out "$t/al/trail.mov" 2>&1); rc=$?
+    if [ $rc = 0 ] && python3 - "$t/al/trail.mov" <<'PY'
+import subprocess, sys
+px = subprocess.run(["ffmpeg", "-v", "error", "-i", sys.argv[1], "-vf", "select=eq(n\\,2)", "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgba", "-"], capture_output=True).stdout
+ramp = [tuple(px[(45 * 160 + x) * 4:(45 * 160 + x) * 4 + 4]) for x in range(39, 45)]   # the trailing edge of frame 2
+ok = len(ramp) == 6 and all(abs(p[3] - a) <= 2 and abs(p[0] - 0xdc) <= 3 and abs(p[1] - 0x3c) <= 3 and abs(p[2] - 0x28) <= 3 for p, a in zip(ramp, [64, 64, 128, 128, 192, 192]))
+sys.exit(0 if ok else 1)
+PY
+    then ok "render --alpha --motion-blur: a moving edge's alpha ramps while its colour stays (the premultiplied mean)"
+    else bad "render --alpha --motion-blur (exit $rc): $(printf '%s' "$a" | tail -c 400)"; fi
     # what reads a transparent film: mux keeps it (and its alpha) in a .mov and says so for an .mp4; deliver makes no upload of it
     ffmpeg -v error -f lavfi -i "sine=frequency=440:duration=2.5" -ac 2 -ar 48000 "$t/al/mix.wav"
     e=$(vh mux "$t/al/clear.mov" "$t/al/mix.wav" "$t/al/final.mp4" 2>&1); rc=$?
@@ -5650,6 +5702,29 @@ console.log(changes(page), "|", changes(clip))' 2>&1)
      && printf '%s' "$c" | grep -q 'out/cache/'
   then ok "a chunk's key holds every setting, footage's all but the browser's; bin/vh clean takes the cache as made again"
   else bad "the cache's keys and clean (keys: $e): $(printf '%s' "$c" | tail -c 300)"; fi
+  # --motion-blur in an edit list: a colour, then tools/film/fixture/blur.html on its own clock. The page is drawn as
+  # sub-frames and the colour is not; the page's first frame (its entry's start: a cut) has no sub-frame from before it (the
+  # page would paint it white); a render again takes both chunks, the same bytes; one without the blur takes the colour's
+  # and draws the page's again: the blur is in a page's key, not a colour's
+  q="$t/mb"; mkdir -p "$q" && printf '# BRIEF\n' > "$q/BRIEF.md" && cp tools/film/fixture/blur.html "$q/blur.html"
+  printf '{"v": 1, "fps": 30, "size": [160, 90], "sources": {"grey": {"color": "#808080"}, "sq": {"page": "blur.html", "clock": "local"}}, "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "grey", "dur": 0.2}, {"id": "S02", "src": "sq", "dur": 0.2}]}]}\n' > "$q/edit.json"
+  vh render "$q" --gop 6 --workers 1 --motion-blur 4 --out "$q/out/1.mp4" >/dev/null 2>&1; rc=$?
+  b=$(vh render "$q" --gop 6 --workers 1 --motion-blur 4 --out "$q/out/2.mp4" 2>&1); rc2=$?
+  vh render "$q" --gop 6 --workers 1 --out "$q/out/3.mp4" >/dev/null 2>&1; rc3=$?
+  a=$(flags "$q/out/1.mp4.render.json"); c=$(flags "$q/out/2.mp4.render.json"); d=$(flags "$q/out/3.mp4.render.json")
+  if [ "$rc:$rc2:$rc3" = 0:0:0 ] && [ "$a" = "0 S01:d S02:d" ] && [ "$c" = "2 S01:c S02:c" ] && [ "$d" = "1 S01:c S02:d" ] && cmp -s "$q/out/1.mp4" "$q/out/2.mp4" \
+     && python3 - "$q/out" <<'PY'
+import json, subprocess, sys
+d = sys.argv[1]; W, H = 160, 90
+raw = subprocess.run(["ffmpeg", "-v", "error", "-i", f"{d}/1.mp4", "-f", "rawvideo", "-pix_fmt", "yuv420p", "-"], capture_output=True).stdout
+n = W * H * 3 // 2
+Y = [raw[i * n:i * n + W * H] for i in range(len(raw) // n)]
+ok = len(Y) == 12 and min(Y[5]) >= 124 and max(Y[5]) <= 128 and max(Y[6][10 * W:11 * W]) <= 18 and any(38 < v < 213 for v in Y[7][45 * W:46 * W])
+ok = ok and json.load(open(f"{d}/1.mp4.render.json")).get("motion_blur") == {"samples": 4, "shutter": 0.5} and "motion_blur" not in json.load(open(f"{d}/3.mp4.render.json"))
+sys.exit(0 if ok else 1)
+PY
+  then ok "an edit list with --motion-blur: its page is blurred, not its colour; no sub-frame reaches before the page's entry; a render again takes every chunk, the same bytes; without it, the colour's chunk is taken and the page's drawn again"
+  else bad "an edit list with --motion-blur (exit $rc:$rc2:$rc3): [$a] [$c] [$d] | $(printf '%s' "$b" | tail -c 300)"; fi
   rm -rf "$t"
 }
 

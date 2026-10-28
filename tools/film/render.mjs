@@ -7,7 +7,8 @@
 //
 // usage: node tools/film/render.mjs <project | page.html> --browser <chrome> [--out out/film.mp4] [--fps 30]
 //          [--range a:b | --frames k0:k1] [--dpr 1] [--workers 4] [--crf 16] [--preset medium] [--gop 60] [--png] [--quality 95] [--alpha]
-//          [--frame-timeout 120] [--estimate | --no-estimate] [--note text] [--force] [--real-clock] [--soft-gl] [--fresh] [--cache-max 10]
+//          [--motion-blur N [--shutter 0.5]] [--frame-timeout 120] [--estimate | --no-estimate] [--note text] [--force] [--real-clock]
+//          [--soft-gl] [--fresh] [--cache-max 10]
 //        (bin/vh render finds the browser: CHROME_PATH, HyperFrames' chrome-headless-shell, then Chrome or Chromium)
 //
 //   --out          default <project>/out/<page>.mp4. A relative path is from the current folder, as every bin/vh path
@@ -27,9 +28,24 @@
 //                  (prores_ks, yuva444p10le, BT.709 tags) in a .mov (default <project>/out/<page>.mov). What the page
 //                  paints stays opaque, so a page that fills its canvas has nothing to show through: it is said. Large:
 //                  about 1–12 bits a pixel. A HyperFrames composition: npx hyperframes render --format mov
-//   --estimate     before a span of more than 600 frames to draw (--estimate: any span), a few frames spread over it are
-//                  drawn and encoded first: the time a frame takes, the video's size and the disk it needs are printed,
-//                  and a disk that cannot hold it stops the render (exit 2). A few seconds; --no-estimate skips it
+//   --motion-blur 8  each frame the mean of 8 sub-frames: the page drawn at 8 times spread over --shutter (a fraction of a
+//                  frame, default 0.5: a 180° shutter) centred on the frame's own time, so what moves is blurred along its
+//                  path and what holds still (a caption riding the camera) stays sharp; 4–8 for most moves, more for very
+//                  fast ones. The shutter is cut short where the frame's picture ends: the film's start and end, an edit
+//                  list's entry (every cut there), and the boundaries of the page's own shots (window.film.shots), so a hard
+//                  cut stays a cut. Each sub-frame's time comes from the frame's number, N and the shutter alone
+//                  (tools/film/blur.mjs): a frame drawn again (a resume, a patch, a later render) is the same picture. The
+//                  mean is ffmpeg's tmix in the frames' own sRGB values, premultiplied with --alpha. In an edit list the
+//                  pages and the images that move are blurred; slates, colours, still images and footage are not. N times
+//                  the drawing, and each encoder holds N frames (4K at 8: about 100 MB a worker, 270 MB with --png, 530 MB
+//                  with --alpha). 1: no blur, the render as without it, byte for byte. The sidecar records it
+//                  (motion_blur), bin/vh patch draws its frames the same way, and it is in an edit list's chunk keys. A
+//                  page that rounds t to its own frames (HyperFrames' seek) draws one picture N times: it is said.
+//                  bin/vh frames --motion-blur shows a frame the same way first
+//   --estimate     before a span of more than 600 frames to draw (--motion-blur's sub-frames counted; --estimate: any
+//                  span), a few frames spread over it are drawn and encoded first: the time a frame takes, the video's
+//                  size and the disk it needs are printed, and a disk that cannot hold it stops the render (exit 2). A
+//                  few seconds; --no-estimate skips it
 //   --force        render a HyperFrames composition this way too (by default: use npx hyperframes render, the measured path)
 //   --frame-timeout 120  a frame not drawn in this many seconds fails the render (the finished chunks are kept). Each
 //                  browser's page may take as long to set window.film and to be ready (at least 30 s and 120 s a wait;
@@ -77,6 +93,7 @@ import { frameFrom } from "./timegrid.mjs";                                     
 import { concatChunks } from "./join.mjs";                                               // the chunks joined, one DTS step a frame
 import { EditFilm, allFacts, build as buildEdit, chaptersOf, chunkKey, clipIndex, decodeArgs, editProject, openEdit, pageShort, shotsOf, timeSourceProblems } from "./edit.mjs";   // edit lists (engines/EDIT.md)
 import { CACHE, ChunkCache } from "./cache.mjs";                                         // an edit list's chunk cache
+import { MAX_SAMPLES, blurs, meanFilter, offsets, pageBounds, runBounds } from "./blur.mjs";   // --motion-blur's sub-frames
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -84,8 +101,8 @@ const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport "
 const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
 const die = (msg) => { console.error("render: " + msg); process.exit(2); };
-const o = { fps: 30, dpr: 1, workers: 4, crf: 16, preset: "medium", quality: 95, frameTimeout: 120, estimate: "auto", fresh: false, cacheMax: 10 };
-let target = null, out = null, range = null, frames = null, gop = null, png = false, force = false, fpsGiven = false, note = null, alpha = false;
+const o = { fps: 30, dpr: 1, workers: 4, crf: 16, preset: "medium", quality: 95, frameTimeout: 120, estimate: "auto", fresh: false, cacheMax: 10, blur: 1, shutter: 0.5 };
+let target = null, out = null, range = null, frames = null, gop = null, png = false, force = false, fpsGiven = false, note = null, alpha = false, shutterGiven = false;
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i], [k, inline] = a.startsWith("--") && a.includes("=") ? [a.slice(0, a.indexOf("=")), a.slice(a.indexOf("=") + 1)] : [a, undefined];
   const val = () => { const v = inline !== undefined ? inline : argv[++i]; if (v === undefined) die(`${k} needs a value`); return v; };
@@ -104,6 +121,8 @@ for (let i = 0; i < argv.length; i++) {
   else if (k === "--estimate" || k === "--no-estimate") { const e = k === "--estimate" ? "on" : "off"; if (o.estimate !== "auto" && o.estimate !== e) die("--estimate or --no-estimate, not both"); o.estimate = e; }
   else if (k === "--png") png = true;
   else if (k === "--alpha") { alpha = true; png = true; }
+  else if (k === "--motion-blur") { o.blur = num(val(), k, 1); if (!Number.isInteger(o.blur) || o.blur > MAX_SAMPLES) die(`--motion-blur: a whole number of sub-frames a frame, 1 to ${MAX_SAMPLES} (1: no blur)`); }
+  else if (k === "--shutter") { o.shutter = num(val(), k, 0); shutterGiven = true; if (!(o.shutter > 0 && o.shutter <= 1)) die("--shutter: a fraction of a frame, more than 0 and at most 1 (0.5: a 180° shutter)"); }
   else if (k === "--note") note = val();
   else if (k === "--force") force = true;
   else if (k === "--browser") o.browser = val();
@@ -117,6 +136,9 @@ for (let i = 0; i < argv.length; i++) {
 }
 if (!target) die("which project or page? (-h for the usage)");
 if (range && frames) die("--range or --frames, not both");
+if (shutterGiven && !argv.some((a) => a === "--motion-blur" || a.startsWith("--motion-blur="))) die("--shutter goes with --motion-blur N: the sub-frames it spreads");
+// --motion-blur N: the shutter's sub-frames a frame (tools/film/blur.mjs); 1 is no blur, drawn exactly as without it
+const BLUR = o.blur > 1 ? { samples: o.blur, shutter: o.shutter } : null;
 if (out && fs.existsSync(out) && fs.statSync(out).isDirectory()) die(`--out ${out} is a folder: name the video file (…/film.mp4)`);
 if (out && !/\.(mp4|mov)$/i.test(out)) die(`--out ${out}: the video file, .mp4 (or .mov)`);
 if (alpha && out && !/\.mov$/i.test(out)) die(`--out ${out}: --alpha writes ProRes 4444 with its alpha, which goes in a .mov`);
@@ -253,6 +275,18 @@ const plan = !editRoot ? Array.from({ length: Math.ceil(n / gop) }, (_, i) => [k
   }
   return out;
 })();
+// --motion-blur: how many sub-frames a run's frames take (an edit list's slates, colours, still images and footage: one),
+// and where a frame's shutter may reach (tools/film/blur.mjs: its run's frames, its page's end and shot boundaries). r: an
+// edit list's run, null for a page drawn alone
+const runAt = (i) => (editRoot ? runOf[i] : null);
+const subN = (r) => (BLUR && (!r || blurs(r)) ? BLUR.samples : 1);
+const boundsBy = new Map();
+const boundsOf = (r) => {
+  if (!boundsBy.has(r)) boundsBy.set(r, r ? runBounds(r, fps, r.draw === "page" ? facts[r.src] : null) : pageBounds(last, first.duration, fps, pageShots));
+  return boundsBy.get(r);
+};
+const subOf = (r, k) => (subN(r) > 1 ? offsets(k, subN(r), BLUR.shutter, boundsOf(r)) : [0]);   // frame k's offsets, in frames
+let blurred = 0, moved = 0;   // frames drawn as sub-frames, and those whose sub-frames were not one picture
 const parts = path.join(path.dirname(outFile), `.${path.basename(outFile)}.parts`);
 const PEXT = alpha ? "mov" : "mp4";   // the chunks' container: ProRes goes in a .mov
 const kept = (i) => path.join(parts, `part${String(i).padStart(4, "0")}.${PEXT}`);   // a chunk finished clean: kept for a resume
@@ -286,14 +320,15 @@ const X264 = () => ["-c:v", "libx264", "-preset", o.preset, "-crf", String(o.crf
   "-x264-params", "chromaloc=0", "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-r", String(fps)];
 const vf = png ? `${EVEN},scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,${OUT}`
   : `${EVEN},scale=in_color_matrix=bt601:in_range=pc:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,${OUT}`;
-const x264 = (file) => spawn("ffmpeg", ["-v", "error", "-y", "-f", "image2pipe", "-framerate", String(fps), "-c:v", png ? "png" : "mjpeg", "-i", "-",
-  "-vf", vf, ...X264(), file], { stdio: ["pipe", "ignore", "pipe"] });
+// sub: the sub-frames that make one frame (--motion-blur): their mean (tools/film/blur.mjs meanFilter) goes first
+const x264 = (file, sub = 1) => spawn("ffmpeg", ["-v", "error", "-y", "-f", "image2pipe", "-framerate", String(fps * sub), "-c:v", png ? "png" : "mjpeg", "-i", "-",
+  "-vf", sub > 1 ? `${meanFilter(sub, fps)},${vf}` : vf, ...X264(), file], { stdio: ["pipe", "ignore", "pipe"] });
 const capture = png ? { format: "png" } : { format: "jpeg", quality: o.quality };
 // --alpha: PNG frames with their alpha into ProRes 4444 (every frame a keyframe; the chunks stay a GOP long for the
 // workers and a resume), 4:4:4 with a 16-bit alpha, BT.709 limited range with all four tags
 const VFA = `${EVEN},scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuva444p10le,setparams=${COLOR}`;
-const prores = (file) => spawn("ffmpeg", ["-v", "error", "-y", "-f", "image2pipe", "-framerate", String(fps), "-c:v", "png", "-i", "-",
-  "-vf", VFA, "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", "-alpha_bits", "16", "-vendor", "apl0",
+const prores = (file, sub = 1) => spawn("ffmpeg", ["-v", "error", "-y", "-f", "image2pipe", "-framerate", String(fps * sub), "-c:v", "png", "-i", "-",
+  "-vf", sub > 1 ? `${meanFilter(sub, fps, true)},${VFA}` : VFA, "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", "-alpha_bits", "16", "-vendor", "apl0",
   "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-r", String(fps), file], { stdio: ["pipe", "ignore", "pipe"] });
 const encoder = alpha ? prores : x264;
 // an edit list's footage: raw RGB from ffmpeg's decoder into an x264 with the same output end (OUT, X264: the same SPS/PPS
@@ -308,6 +343,7 @@ const sha = (f) => {
   try { for (let r; (r = fs.readSync(fd, buf, 0, buf.length, null)) > 0;) h.update(buf.subarray(0, r)); } finally { fs.closeSync(fd); }
   return h.digest("hex");
 };
+const BLUR_SHA = BLUR ? sha(path.join(HERE, "blur.mjs")) : null;   // how the sub-frames' times are found: another way, other frames
 const recipe = {
   page: fs.realpathSync(first.page), kind: first.kind, width: first.width, height: first.height, dpr: o.dpr, fps, frames: [k0, k1], gop,
   capture: png ? "png" : `jpeg q${o.quality}`, ...(alpha ? { vf: VFA, alpha: true } : { crf: o.crf, preset: o.preset, vf }),   // what applies: x264 keeps its old keys
@@ -316,6 +352,7 @@ const recipe = {
   tools: crypto.createHash("sha256").update(["render.mjs", "host.mjs", "clock.js", "glyphs.mjs", "../textcheck/browser.mjs",
     ...(editRoot ? ["edit.mjs", "timegrid.mjs", "pages/still.html", "pages/slate.html", "pages/color.html", "../edit.py"] : [])].map((f) => sha(path.join(HERE, f))).join()).digest("hex"),
   ...(editRoot ? { edit: crypto.createHash("sha256").update(JSON.stringify(doc.runs)).digest("hex") } : {}),   // what each frame is drawn from
+  ...(BLUR ? { motion_blur: { ...BLUR, version: BLUR_SHA } } : {}),
 };
 // an edit list's chunk keys (tools/film/edit.mjs chunkKey) and its chunk cache (tools/film/cache.mjs, out/cache/chunks): a
 // chunk whose key the cache holds, and whose page's files are still the same bytes, is taken from it, not drawn
@@ -331,7 +368,10 @@ const encoderBuild = () => {
 const keySettings = { width: first.width, height: first.height, dpr: o.dpr, fps, gop, crf: o.crf, preset: o.preset,
   ffmpeg: cache ? `${recipe.ffmpeg} · ${encoderBuild()}` : recipe.ffmpeg, tools: recipe.tools, platform: `${process.platform} ${process.arch}`,
   capture: recipe.capture, vf, vfRaw: VFRGB, browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl };
-const keyOf = (r, a, b) => chunkKey(r, a, b, keySettings);
+// a blurred run's chunk: its key holds N, the shutter, how the sub-frames' times are found (blur.mjs) and the times
+// themselves (they depend on where its run, its page and the page's shots end)
+const keyOf = (r, a, b) => chunkKey(r, a, b, subN(r) > 1 ? { ...keySettings, motion_blur: { ...BLUR, version: BLUR_SHA,
+  offsets: crypto.createHash("sha256").update(JSON.stringify(Array.from({ length: b - a }, (_, x) => subOf(r, a + x)))).digest("hex") } } : keySettings);
 const cached = new Set(), cachedFiles = new Map();   // the chunks this render took from the cache; a run → the files their pages were sent
 // a page that reported a problem in this render (a file missing while it loaded, an error): none of its chunks go into
 // the cache, whichever worker drew them (what it drew without the file is not what it draws with it)
@@ -355,7 +395,7 @@ if (o.fresh) fs.rmSync(parts, { recursive: true, force: true });   // --fresh: n
     if (!changed.length && !files.length) {
       for (const [f, h] of Object.entries(old.files)) loaded.set(f, h);
       reuse = new Set(plan.map((_, i) => i).filter((i) => done.includes(path.basename(kept(i))) && fs.statSync(kept(i)).size > 0));
-    } else why = [...changed.map((k) => k === "frames" ? "the span" : k === "tools" ? "these tools" : k === "edit" ? "the edit list" : k), ...files.slice(0, 3), ...(files.length > 3 ? [`${files.length - 3} more files`] : [])].join(", ");
+    } else why = [...changed.map((k) => k === "frames" ? "the span" : k === "tools" ? "these tools" : k === "edit" ? "the edit list" : k === "motion_blur" ? "the motion blur" : k), ...files.slice(0, 3), ...(files.length > 3 ? [`${files.length - 3} more files`] : [])].join(", ");
   } else if (done.length) why = "no record of what they were made from";
   if (why) console.log(`  the ${done.length} chunks kept from an earlier render are not used (changed: ${why}); starting over`);
   if (reuse.size) { const keep = new Set([...reuse].map((i) => path.basename(kept(i)))); for (const f of names) if (f !== "plan.json" && !keep.has(f)) fs.rmSync(path.join(parts, f), { recursive: true, force: true }); }
@@ -395,6 +435,12 @@ console.log(`render: ${rel(first.page)} · ${kindSaid} · ${first.width}x${first
   `${n} frames at ${fps} fps (${(k0 / fps).toFixed(3)}–${(k1 / fps).toFixed(3)} s) · ${plan.length} chunk${plan.length > 1 ? "s" : ""}, ${W} worker${W === 1 ? "" : "s"} · ${alpha ? "PNG with alpha → ProRes 4444 (.mov)" : `${png ? "PNG" : `JPEG q${o.quality}`} → x264 crf ${o.crf} ${o.preset}, keyframe every ${gop}`} · ${first.version}`);
 for (const p of first.loadProblems) console.log(`  while loading: ${p}`);
 if (editRoot) for (const [src, f] of Object.entries(facts)) for (const p of f.loadProblems || []) console.log(`  while loading ${doc.files[src].path}: ${p} (it fails the chunk that draws it)`);
+if (BLUR) {
+  console.log(`  motion blur: each frame the mean of ${BLUR.samples} sub-frames over a shutter of ${BLUR.shutter} frame centred on its time, cut short at the film's ends` +
+    `${editRoot ? ", at every cut between entries" : ""} and at the page's shot boundaries (${BLUR.samples}x the drawing${editRoot ? " of the pages and moving images" : ""})`);
+  if (!editRoot && !pageShots.length) console.log("  motion blur: the page gives no shots (window.film.shots): a hard cut inside it would show both of its sides in the frame at the cut");
+  if (first.kind === "hyperframes") console.log("  motion blur: HyperFrames' seek rounds t to the composition's own frames, so its sub-frames are one picture and nothing blurs");
+}
 if (outside) console.log(`  --out ${out} is from the current folder: ${outFile}, outside the project (${first.root})`);
 if (px[0] % 2 || px[1] % 2) console.log(`  note: ${px[0]}x${px[1]} pixels; x264 needs even sizes, so the video is ${px[0] - px[0] % 2}x${px[1] - px[1] % 2}`);
 if (pageFps && Math.abs(pageFps - fps) > 1e-6) console.log(`  fps: drawn at ${fps} fps (${fpsGiven ? "--fps" : "the default; --fps sets it"}), the page says ${pageFps} (window.film.fps or FILM.fps): what it steps once a frame (grain) steps at its rate; make the two agree`);
@@ -414,24 +460,25 @@ const ftime = (s) => s < 90 ? `${s.toFixed(0)} s` : s < 5400 ? `${(s / 60).toFix
 // ---- the estimate: a few frames spread over the span, drawn and encoded as the render will ----
 // (an edit list's footage is decoded, not drawn: its chunks are left out of the estimate)
 const drawn = todo.filter((i) => !editRoot || runOf[i].draw !== "clip");
-if (drawn.length && (o.estimate === "on" || (o.estimate === "auto" && nTodo > 600))) {
-  const S = Math.min(6, drawn.length), at = [...new Set(Array.from({ length: S }, (_, i) => plan[drawn[Math.floor((i + 0.5) * drawn.length / S)]][0]))];
+const toDraw = todo.reduce((s, i) => s + (plan[i][1] - plan[i][0]) * subN(runAt(i)), 0);   // what the browsers draw: --motion-blur's sub-frames each
+if (drawn.length && (o.estimate === "on" || (o.estimate === "auto" && toDraw > 600))) {
+  const S = Math.min(6, drawn.length), at = [...new Set(Array.from({ length: S }, (_, i) => drawn[Math.floor((i + 0.5) * drawn.length / S)]))];   // chunks
   const ms = [], runs = [];
   try {
-    await within(first.frame(at[0] / fps, capture), o.frameTimeout, `t=${(at[0] / fps).toFixed(3)} s`);   // not timed: the first frame also compiles and decodes
-    for (const k of at) {   // a keyframe and the two frames after it: what a GOP's first frame and its others cost
-      const imgs = [];
-      for (const kk of [k, k + 1, k + 2].filter((x) => x < k1)) {
+    await within(first.frame(plan[at[0]][0] / fps, capture), o.frameTimeout, `t=${(plan[at[0]][0] / fps).toFixed(3)} s`);   // not timed: the first frame also compiles and decodes
+    for (const i of at) {   // a keyframe and the two frames after it in its chunk: what a GOP's first frame and its others cost
+      const [k, kb] = plan[i], r = runAt(i), imgs = [];
+      for (const kk of [k, k + 1, k + 2].filter((x) => x < kb)) {
         const t0 = performance.now();
-        imgs.push((await within(first.frame(kk / fps, capture), o.frameTimeout, `t=${(kk / fps).toFixed(3)} s`)).png);
+        for (const d of subOf(r, kk)) imgs.push((await within(editRoot ? first.frameK(kk, capture, d) : first.frame((kk + d) / fps, capture), o.frameTimeout, `t=${((kk + d) / fps).toFixed(3)} s`)).png);
         ms.push(performance.now() - t0);
       }
-      runs.push(imgs);
+      runs.push({ imgs, sub: subN(r) });
     }
   } catch (e) { await first.close(); console.error(`render: ${e.message} (drawing the estimate's frames)`); keepFinished(); process.exit(1); }
   first.problems();   // what these frames report, they report again when the render draws them
-  const sizes = await Promise.all(runs.map((imgs, j) => new Promise((ok) => {
-    const f = path.join(parts, `estimate${j}.${PEXT}`), ff = encoder(f);
+  const sizes = await Promise.all(runs.map(({ imgs, sub }, j) => new Promise((ok) => {
+    const f = path.join(parts, `estimate${j}.${PEXT}`), ff = encoder(f, sub);
     encoders.add(ff); ff.stdin.on("error", () => {}); ff.stderr.resume();
     for (const img of imgs) ff.stdin.write(img);
     ff.stdin.end();
@@ -447,7 +494,7 @@ if (drawn.length && (o.estimate === "on" || (o.estimate === "auto" && nTodo > 60
   const film = got.length ? n * got.reduce((s, x) => s + x, 0) / got.length : null;
   // a few places can miss the busiest stretches (measured: a film up to twice what its samples said), so it is a range
   const more = film === null ? null : Math.max(0, 2 * film - keptBytes);
-  console.log(`  estimate (${ms.length} frames drawn in one browser, ${Math.min(...ms).toFixed(0)}–${Math.max(...ms).toFixed(0)} ms each): ${nTodo} frames in about ` +
+  console.log(`  estimate (${ms.length} frames drawn in one browser${BLUR ? `, a blurred one as its ${BLUR.samples} sub-frames` : ""}, ${Math.min(...ms).toFixed(0)}–${Math.max(...ms).toFixed(0)} ms each): ${nTodo} frames in about ` +
     `${ftime(nTodo * mean / 1000 / W)} with ${W} worker${W === 1 ? "" : "s"} (more when they share a GPU or the machine is busy)` +
     (film === null ? "; the size could not be measured" : `; the video ${size(film)}–${size(2 * film)} (x264 crf ${o.crf} ${o.preset} on those frames), ` +
       `${size(more)}–${size(more + 2 * film)} more on that disk at the peak (the chunks, then the joined copy), ${size(free)} free${more + 2 * film > free ? ": it may not fit" : ""}`));
@@ -466,7 +513,7 @@ progress.unref();
 // one chunk into its own encoder; → { encoded: a promise that settles once the encoder is done with it } (the browser goes
 // on to the next chunk meanwhile). A chunk is kept for a resume only when every frame went in and the page reported nothing
 async function chunk(film, i) {
-  const [a, b] = plan[i], file = path.join(parts, `part${String(i).padStart(4, "0")}.new.${PEXT}`), ff = encoder(file);
+  const [a, b] = plan[i], r = runAt(i), sub = subN(r), file = path.join(parts, `part${String(i).padStart(4, "0")}.new.${PEXT}`), ff = encoder(file, sub);
   encoders.add(ff);
   let ffErr = ""; ff.stderr.on("data", (d) => { ffErr = (ffErr + d).slice(-2000); });
   const closed = new Promise((ok) => ff.on("close", (code, sig) => ok(code ?? sig)));
@@ -476,14 +523,19 @@ async function chunk(film, i) {
   ff.stdin.on("error", () => { /* the encoder is gone: exited says so */ });
   try {
     for (let k = a; k < b && !gone; k++) {
-      const t = k / fps;
-      const { png: img } = await within(editRoot ? film.frameK(k, capture) : film.frame(t, capture), o.frameTimeout, `t=${t.toFixed(3)} s`);
+      const t = k / fps, imgs = [];
+      for (const d of subOf(r, k))   // the frame, or its sub-frames (--motion-blur), which the encoder averages
+        imgs.push((await within(editRoot ? film.frameK(k, capture, d) : film.frame((k + d) / fps, capture), o.frameTimeout, `t=${((k + d) / fps).toFixed(3)} s`)).png);
+      if (sub > 1) { blurred++; if (imgs.some((x) => !x.equals(imgs[0]))) moved++; }
       const later = film.problems();
       if (later.length) {
         problems.push(`t=${t.toFixed(3)} s: ${later.join(" | ")}`); said = true;
         if (editRoot) { tainted.add(sourceOf(runOf[i])); for (const k of film.openKeys()) tainted.add(k); }
       }
-      if (!ff.stdin.write(img)) await Promise.race([new Promise((ok) => ff.stdin.once("drain", ok)), exited]);
+      for (const img of imgs) {
+        if (!ff.stdin.write(img)) await Promise.race([new Promise((ok) => ff.stdin.once("drain", ok)), exited]);
+        if (gone) break;
+      }
       if (gone) break;
       wrote++; done++;
     }
@@ -635,6 +687,7 @@ const sidecar = {
   encoder: alpha ? { codec: "prores_ks", profile: "4444", alpha_bits: 16, gop, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] }
     : { codec: "libx264", crf: o.crf, preset: o.preset, gop, keyint_min: gop, sc_threshold: 0, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] },
   ...(alpha ? { alpha: true } : {}),
+  ...(BLUR ? { motion_blur: { samples: BLUR.samples, shutter: BLUR.shutter } } : {}),   // bin/vh patch draws its frames the same way
   chunks: plan.map(([a, b]) => [a, b]), reused_chunks: resumed, ...(cache ? { cached_chunks: cached.size } : {}), browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl, seconds: +secs.toFixed(1),
   ...(pageShots.length ? { shots: pageShots } : {}), ...(pageChapters.length ? { chapters: pageChapters } : {}),
   // the files the page loaded (plan.json's table, which goes with the parts): those in the page's folder, from it, sorted
@@ -701,6 +754,9 @@ for (const p of problems) console.log(`  ${p}`);
   if (reuse.size && (!W || okG.some((g) => g.chars))) console.log(`  glyphs: ${W ? `checked in the ${nTodo} frames drawn now; the` : "not checked: every chunk was kept, so no frame was drawn; the"} ` +
     `${n - nTodo} frames of the ${reuse.size} kept chunk(s) were drawn by ${cached.size ? "earlier renders" : "the render that stopped"}, before its check (bin/vh fonts check covers the whole film)`);
 }
+// --motion-blur: a page whose sub-frames were all one picture (it rounds t to its own frames) blurred nothing
+if (blurred) console.log(`  motion blur: ${moved} of the ${blurred} frames drawn moved within their shutter` + (moved ? "" :
+  `: at every frame the page drew one picture ${BLUR.samples} times (a page that rounds t to its own frames cannot blur), so the film is as without --motion-blur`));
 if (!okCount) console.log(`  the video has ${st.nb_frames} frames, not ${n}.${dropCached()}`);
 if (!okColor) console.log(`  the colour tags are not ${alpha ? "4:4:4 with alpha, bt709" : "yuv420p tv/bt709"}`);
 if (clear === 0) console.log("  --alpha: every pixel of the frames looked at is opaque: the page paints its own background (a full canvas, a body colour). Leave clear what should show through");

@@ -38,6 +38,7 @@
 //   --note text      a line for this version in the project's record
 //   --keep           keep the work folder (.<out>.patch/) to look at
 //
+// A film rendered with --motion-blur (its sidecar's motion_blur): its frames are drawn again with the same sub-frames.
 // A film of an edit list (its sidecar says "kind": "edit", engines/EDIT.md): the edit list is built again first, and
 // compared with the one the film was rendered from, frame by frame: the film's frame count must be the same, and every
 // frame the edit list now draws otherwise (another source, an entry that moved or changed its length) must fall inside
@@ -123,6 +124,10 @@ if (!fs.existsSync(sidecarFile)) die(`no ${rel(sidecarFile)}: a patch needs to k
 let side;
 try { side = JSON.parse(fs.readFileSync(sidecarFile, "utf8")); } catch (e) { die(`${rel(sidecarFile)}: ${e.message}`); }
 const enc = side.encoder || {};
+// a film rendered with --motion-blur: its frames drawn again with the same sub-frames (tools/film/blur.mjs)
+const mb = side.motion_blur;
+if (mb !== undefined && !(mb && Number.isInteger(mb.samples) && mb.samples >= 2 && mb.shutter > 0 && mb.shutter <= 1))
+  die(`${rel(sidecarFile)}: its motion_blur (${JSON.stringify(mb)}) is not { samples: 2 or more, shutter: more than 0, at most 1 } as bin/vh render writes it`);
 if (side.alpha) die(`${rel(film)} is a transparent film (bin/vh render --alpha, ProRes 4444): patch puts back x264 GOPs only. Render the span again with --alpha --range, or the whole film`);
 for (const [k, v] of [["fps", side.fps], ["frames", side.frames], ["first_frame", side.first_frame], ["page", side.page], ["encoder.gop", enc.gop], ["encoder.crf", enc.crf], ["encoder.preset", enc.preset]])
   if (v === undefined || v === null) die(`${rel(sidecarFile)} has no ${k}: not a bin/vh render sidecar`);
@@ -302,7 +307,8 @@ for (const [i, w] of wins.entries()) {
   const rargs = [path.join(HERE, "render.mjs"), page, "--browser", browser, "--frames", `${ff0 + w.A}:${ff0 + w.B}`, "--fps", String(fps), "--dpr", String(side.dpr || 1),
     "--crf", String(enc.crf), "--preset", String(enc.preset), "--gop", String(gop), "--workers", String(o.workers), "--out", w.piece, "--no-estimate",
     ...(o.frameTimeout ? ["--frame-timeout", String(o.frameTimeout)] : []),
-    ...(capture === "png" ? ["--png"] : ["--quality", q ? q[1] : "95"]), ...(side.real_clock ? ["--real-clock"] : []), ...(side.soft_gl ? ["--soft-gl"] : []), ...(side.kind === "hyperframes" ? ["--force"] : [])];
+    ...(capture === "png" ? ["--png"] : ["--quality", q ? q[1] : "95"]), ...(side.real_clock ? ["--real-clock"] : []), ...(side.soft_gl ? ["--soft-gl"] : []), ...(side.kind === "hyperframes" ? ["--force"] : []),
+    ...(mb ? ["--motion-blur", String(mb.samples), "--shutter", String(mb.shutter)] : [])];
   const code = await new Promise((ok) => {
     child = spawn(process.execPath, rargs, { stdio: ["ignore", "pipe", "pipe"], env });
     const show = (d) => { for (const l of String(d).split("\n").filter(Boolean)) console.log("  " + l); };
