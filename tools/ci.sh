@@ -4183,6 +4183,10 @@ PY
     '    build({ THREE, scene }) { const m = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial({ color: "#ffffff" })); m.position.y = 2.5; scene.add(m); } } });' \
     'const SHOTS = [{ id: "S01", at: 0, three: {}, draw() {} }];' > "$t/exr/src/50-shots.js"
   a=$(vh frames "$t/exr" --at 1 --soft-gl --out "$t/fx" 2>&1); rc=$?
+  # a machine without the template's CJK faces (the Linux runner) draws in a fallback and says so, which is exit 1; that
+  # alone is fine here (no text on this page), as in the canvas-film template's frames
+  if [ $rc = 1 ] && printf '%s' "$a" | grep -q 'fonts this machine does not have' \
+    && ! printf '%s\n' "$a" | grep -E 'while loading:|^  t=[0-9.]+ s:|just after the last frame' | grep -qv 'fonts this machine does not have'; then rc=0; fi
   if [ $rc = 0 ] && px_are "$t/fx/film-t0001.000.png" 'max(P[0]) <= 12 and P[1][2] > P[1][0] + 8 and P[2][0] > P[2][2] + 8' 80,45 80,3 80,88
   then ok "the Three.js layer: an EXR read and shown sharp behind (its sky above, its ground below); no lights and envIntensity 0 leave the box black"
   else bad "an EXR in the Three.js layer (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
