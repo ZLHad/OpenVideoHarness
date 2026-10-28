@@ -127,7 +127,7 @@ const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.s
 // an edit list (engines/EDIT.md): built first, every time; its pages read once for what the sidecar keeps and what they
 // must hold to (long enough for their entries, the same narration as the edit list); the frame rate and size are its own
 const editRoot = editProject(target);
-let doc = null, facts = {};
+let doc = null, facts = {}, spanK = null;
 if (editRoot) {
   if (alpha) die("--alpha draws one page with the alpha it leaves; an edit list's images, colours and slates are opaque, so its film has none: render the page that leaves its background clear with --alpha");
   try { doc = buildEdit(editRoot); } catch (e) { die(e.message.replace(/^edit: /, "")); }
@@ -139,9 +139,12 @@ if (editRoot) {
     if (e.transition_draw && src(runs[i - 1]) !== null && src(runs[i]) !== null)
       die(`${e.id}: a transition (${e.transition.type} ${e.transition.duration} s) is not drawn yet: leave it out for a hard cut (one next to a slate is drawn as a hard cut)`);
   }
-  try { facts = await allFacts(editRoot, doc, { ...o, runtime: "auto" }); } catch (e) { die(e.message); }
+  // the frames drawn (--frames, --range): a render of a span (a piece of a patch) reads only the pages it draws
+  spanK = frames ? [frames[0], Math.min(frames[1], doc.frames)] : range ? [frameFrom(range[0], doc.fps), range[1] >= doc.frames / doc.fps ? doc.frames : frameFrom(range[1], doc.fps)] : [0, doc.frames];
+  const drawnSrc = new Set(runs.filter((r) => r.frames[0] < spanK[1] && r.frames[1] > spanK[0]).map((r) => r.src));
+  try { facts = await allFacts(editRoot, doc, { ...o, runtime: "auto" }, drawnSrc); } catch (e) { die(e.message); }
   const bad = [];
-  for (const r of runs.filter((x) => x.draw === "page")) {
+  for (const r of runs.filter((x) => x.draw === "page" && drawnSrc.has(x.src))) {
     const f = facts[r.src] || {};
     if (f.error) { bad.push(`${r.entry} (${r.path}): ${f.error}`); continue; }
     const short = pageShort(r, f.duration, doc.fps);
@@ -161,7 +164,7 @@ const glyphCheck = async (film) => {
   finally { clearTimeout(timer); }
 };
 let first;
-try { first = editRoot ? await openEdit(editRoot, { ...o, doc, prelude: [HOOK], onRetire: glyphCheck }) : await openFilm(target, { ...o, runtime: "auto", prelude: [HOOK] }); } catch (e) { die(e.message); }
+try { first = editRoot ? await openEdit(editRoot, { ...o, doc, span: spanK, prelude: [HOOK], onRetire: glyphCheck }) : await openFilm(target, { ...o, runtime: "auto", prelude: [HOOK] }); } catch (e) { die(e.message); }
 if (editRoot) editFilms.push(first);
 if (first.kind === "hyperframes" && !force) {
   await first.close();

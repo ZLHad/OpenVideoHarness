@@ -323,7 +323,8 @@ export class EditFilm {
 export async function openEdit(project, o = {}) {
   const doc = o.doc || build(project);
   const ef = new EditFilm(project, doc, o);
-  const first = doc.runs.find((r) => r.draw !== "clip");   // footage needs no browser
+  const inSpan = (r) => !o.span || (r.frames[0] < o.span[1] && r.frames[1] > o.span[0]);   // o.span: [k0, k1), the frames to draw
+  const first = doc.runs.find((r) => r.draw !== "clip" && inSpan(r));   // footage needs no browser
   if (!first) { ef.version = "no browser (footage only)"; return ef; }
   try { await ef.film(first); } catch (e) { await ef.close(); throw e; }
   return ef;
@@ -384,10 +385,11 @@ export function chaptersOf(doc, facts) {
 }
 
 // every page source once: {src: facts | {error}}
-export async function allFacts(project, doc, o) {
+// only: the page sources to read (a render of a span reads the pages it draws), else all of them
+export async function allFacts(project, doc, o, only = null) {
   const out = {};
   for (const [src, f] of Object.entries(doc.files)) {
-    if (f.kind !== "page") continue;
+    if (f.kind !== "page" || (only && !only.has(src))) continue;
     let film = null;
     try { film = await openFilm(path.join(project, f.path), { ...o, root: project, width: doc.size[0], height: doc.size[1], runtime: "auto" }); out[src] = await pageFacts(film, project); }
     catch (e) { out[src] = { error: e.message.split("\n")[0] }; }
