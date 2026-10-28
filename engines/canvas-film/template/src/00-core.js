@@ -11,6 +11,8 @@ const FILM = {
   timeline: null,              // another file; false for a silent film (then set duration, and every time is in seconds)
   music: null,                 // bin/vh music's *.beats.json; musicAt() declarations and musicT() in draw use its bars
   timemap: null,               // a time map file (src/06-time-map.js): "@#id" and mapAt() in declarations, mapU(t) in draw
+  three: null,                 // the Three.js layer (src/07-three.js, three/layer.js): models, camera, lights, env; a shot's
+                               // three field draws its 3D under the shot's own drawing
   duration: 0,                 // a silent film's length in seconds
   lead: 0,                     // seconds added to the timeline's times. 0 when they are film times already: bin/vh tts --lead
                                // starts the voice and its timeline late together. Set it only for a timeline that starts at
@@ -174,7 +176,7 @@ function resolver(who, key, problems) {
 }
 
 // ---- shots and chapters, on film time ----
-let SHOT_T = [];      // [{ shot, i, id, a, b, o, tin, din, dout }]: a shot runs from its cue to the next shot's
+let SHOT_T = [];      // [{ shot, i, id, a, b, o, three, tin, din, dout }]: a shot runs from its cue to the next shot's
 let CHAPTER_T = [];   // [{ t, b, title }]
 let BAR_SPAN = [0, 0];
 function buildShots(problems) {
@@ -190,7 +192,7 @@ function buildShots(problems) {
     if (!T) problems.push(`shot ${id}: no transition "${tin}" (${Object.keys(TRANSITIONS).join(", ")})`);
     else if (d !== undefined && (!T.draw ? d !== 0 : !(isNum(d) && d >= 0))) problems.push(`shot ${id}: ${JSON.stringify(sh.tin)}: ${T.draw ? "the length is seconds, 0 or more" : `${tin} has no length`}`);
     const din = i === 0 || !T || !T.draw ? 0 : isNum(d) && d >= 0 ? d : T.d;
-    return { shot: sh, i, id, a, b: DUR, o: R(sh.o || {}, "o"), tin: i === 0 ? "cut" : tin, din, dout: 0 };
+    return { shot: sh, i, id, a, b: DUR, o: R(sh.o || {}, "o"), three: sh.three ? R(sh.three, "three") : null, tin: i === 0 ? "cut" : tin, din, dout: 0 };
   });
   for (let i = 0; i < SHOT_T.length; i++) {
     const S = SHOT_T[i], N = SHOT_T[i + 1];
