@@ -6,7 +6,8 @@ usage (via bin/vh clean): python tools/clean.py <project> [--yes] [--delete] [--
 Without --yes it only lists (a dry run; --dry-run says so, and wins over --yes). What goes, by kind:
   rebuilt   out/frames, out/check (check frames, contact sheets, storyboard tiles, textcheck crops: the check tools make
             them again; a video in it stays, and so do bin/vh check's records, *.check.json), out/proxy (bin/vh proxy and
-            thumbs), render chunks (.<film>.parts) and patch work folders (.<film>.patch),
+            thumbs), out/cache (an edit list's chunk cache, bin/vh render), render chunks (.<film>.parts) and patch work
+            folders (.<film>.patch),
             node_modules (npm ci brings it back), __pycache__, .venv and venv folders
   versions  the earlier versions of the films kept in out/versions/<id>/ (bin/vh versions), all but the newest
             --keep-versions N of each film (default 0), and folders there no version keeps; the record says where they
@@ -72,7 +73,7 @@ def dir_kind(rel):
     p = low(rel)
     if p[-1] in REBUILT_DIRS and p[0] not in ("src", "assets"):
         return "rebuilt"
-    if p[0] == "out" and (p in (("out", "frames"), ("out", "check"), ("out", "proxy")) or p[-1].endswith(".parts") or p[-1].endswith(".patch")):
+    if p[0] == "out" and (p in (("out", "frames"), ("out", "check"), ("out", "proxy"), ("out", "cache")) or p[-1].endswith(".parts") or p[-1].endswith(".patch")):
         return "rebuilt"
     if p[0] == "audio" and len(p) == 2 and "stems" in p[1]:
         return "sound"

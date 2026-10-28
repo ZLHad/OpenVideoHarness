@@ -58,21 +58,26 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".htm": "text/html; charset
 // the page's folder on 127.0.0.1 (or the folder given as the root: an edit list's, the project); the page itself with
 // `inject` before </head>; /__vh/<name> from `extra` (a page of the host's own, tools/film/pages/, is one of them, typed by
 // its extension); no path out of the folder. `served` collects the path of every file sent (bin/vh render resumes only
-// while they are unchanged)
-function serve(root, pageUrl, pageFile, inject, extra, served) {
+// while they are unchanged), `sent` its size and mtime as it was sent (an edit list's chunk cache keeps a chunk only
+// while its page's files are still what the page was sent)
+function serve(root, pageUrl, pageFile, inject, extra, served, sent = new Map()) {
+  const note = (f) => {   // before the file is read: what is sent is this or newer, never older
+    served.add(f);
+    if (!sent.has(f)) { try { const st = fs.statSync(f); sent.set(f, [st.size, st.mtimeMs]); } catch { sent.set(f, null); } }
+  };
   const server = http.createServer((req, res) => {
     let rel;
     try { rel = decodeURIComponent(new URL(req.url, "http://x").pathname); } catch { res.writeHead(400); return res.end(); }
     if (rel === "/" + pageUrl && (inject || pageUrl.startsWith("__vh/"))) {
+      note(pageFile);
       const html = fs.readFileSync(pageFile, "utf8");
       const i = html.search(/<\/head>/i);
       res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
-      served.add(pageFile);
       return res.end(!inject ? html : i >= 0 ? html.slice(0, i) + inject + html.slice(i) : inject + html);
     }
     if (rel.startsWith("/__vh/") && Object.hasOwn(extra, rel.slice(6))) {
       res.writeHead(200, { "content-type": TYPES[path.extname(extra[rel.slice(6)]).toLowerCase()] || "text/javascript", "cache-control": "no-store" });
-      served.add(extra[rel.slice(6)]);
+      note(extra[rel.slice(6)]);
       return fs.createReadStream(extra[rel.slice(6)]).pipe(res);
     }
     const f = path.join(root, rel);
@@ -80,7 +85,7 @@ function serve(root, pageUrl, pageFile, inject, extra, served) {
     try { ok = f.startsWith(root + path.sep) && fs.statSync(f).isFile(); } catch { /* missing */ }
     if (!ok) { res.writeHead(404); return res.end(); }
     res.writeHead(200, { "content-type": TYPES[path.extname(f).toLowerCase()] || "application/octet-stream", "cache-control": "no-store" });
-    served.add(f);
+    note(f);
     fs.createReadStream(f).pipe(res);
   });
   return new Promise((ok) => server.listen(0, "127.0.0.1", () => ok({ url: `http://127.0.0.1:${server.address().port}/`, close: () => new Promise((r) => server.close(r)) })));
@@ -110,8 +115,8 @@ export async function openFilm(target, o = {}) {
     extra["hf-runtime.js"] = rt; extra["hf-adapter.js"] = path.join(HERE, "hf-adapter.js");
     scripts.push('<script data-hyperframes-preview-runtime="1" src="/__vh/hf-runtime.js"></script>', '<script src="/__vh/hf-adapter.js"></script>');
   }
-  const served = new Set();
-  const server = await serve(root, pageUrl, real, scripts.join("\n"), extra, served);
+  const served = new Set(), sent = new Map();
+  const server = await serve(root, pageUrl, real, scripts.join("\n"), extra, served, sent);
   const flags = o.softGl ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
     : process.platform === "darwin" ? ["--use-angle=metal", "--ignore-gpu-blocklist"] : ["--ignore-gpu-blocklist"];
   if (process.platform === "linux") flags.push("--no-sandbox", "--disable-dev-shm-usage");
@@ -248,6 +253,7 @@ export async function openFilm(target, o = {}) {
       },
       problems: () => problems.splice(0),
       served: () => [...served],                             // the files sent to the page so far (absolute paths)
+      sentAs: (f) => sent.get(f),                            // a file's [size, mtime] when it was first sent, or undefined
       // the page's own fields (texts, events, chapters, cues, timeline: engines/CONTRACT.md); list(name) only takes an array
       field,
       list: async (name) => { const x = await field(name); return Array.isArray(x) ? x : null; },

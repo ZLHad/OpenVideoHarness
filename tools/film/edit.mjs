@@ -66,6 +66,16 @@ export function drawingKey(run) {
   return { draw: run.draw, color: run.color, n };
 }
 export const indexOf = (run, k) => (run.draw === "page" && run.clock === "film" ? k : k - run.frames[0]);
+// a chunk's key (frames a up to b of run): its drawing, their index in it, the render's settings. settings: { width,
+// height, dpr, fps, gop, crf, preset, ffmpeg, tools } and, for what a browser draws, { capture, vf, browser, real_clock,
+// soft_gl }; footage takes { vfRaw } instead: decoded by ffmpeg, its chunk does not depend on the browser. Two chunks with
+// one key are the same bytes (x264 on the same frames with the same settings); what a page loads is checked beside it
+// (tools/film/cache.mjs)
+export function chunkKey(run, a, b, settings) {
+  const { capture, vf, vfRaw, browser, real_clock, soft_gl, ...base } = settings;
+  const recipe = run.draw === "clip" ? { ...base, input: "rgb24", vf: vfRaw } : { ...base, capture, vf, browser, real_clock, soft_gl };
+  return crypto.createHash("sha256").update(JSON.stringify({ v: 1, drawing: drawingKey(run), index: [indexOf(run, a), indexOf(run, b)], recipe })).digest("hex");
+}
 // the window of frames [a, b) where two lists of runs draw anything differently, or null when they draw the same
 export function differences(oldRuns, newRuns) {
   const at = (runs, k) => runs.find((r) => k >= r.frames[0] && k < r.frames[1]);
@@ -190,6 +200,7 @@ export class EditFilm {
     this.open = new Map(); this.max = o.maxOpen || 2; this.tick = 0;
     this._served = new Set(); this._problems = []; this.checked = new Set(); this.durations = new Map();
     this.servedBy = new Map();   // a source (page:<path>, still, slate, color) → the files its page was sent, once it is closed
+    this.sentBy = new Map();     // the same → Map(file → [size, mtime] when it was first sent)
   }
 
   runAt(k) {
@@ -202,6 +213,15 @@ export class EditFilm {
   }
   sourceKey(run) { return run.draw === "page" ? `page:${run.path}` : run.draw; }
   isOpen(run) { return this.open.has(this.sourceKey(run)); }
+  // the files the page that draws run has been sent so far, by the ones closed before and the one open, each with its
+  // [size, mtime] when it was first sent (a chunk's record: everything its frames could have read, and perhaps more)
+  servedFor(run) {
+    const key = this.sourceKey(run), out = new Map(this.sentBy.get(key) || []);
+    const slot = this.open.get(key);
+    if (slot) for (const f of slot.film.served()) if (!out.has(f)) out.set(f, slot.film.sentAs ? slot.film.sentAs(f) : null);
+    return [...out];
+  }
+  openKeys() { return [...this.open.keys()]; }
 
   async film(run) {
     const key = this.sourceKey(run);
@@ -279,8 +299,11 @@ export class EditFilm {
   // a page closed (the least used, or all at the end): what it sent and reported is kept; o.onRetire(film) first (render's glyph check)
   async retire(film, key) {
     this._problems.push(...film.problems());   // what its frames reported, before the check below runs in it
-    if (!this.servedBy.has(key)) this.servedBy.set(key, new Set());
-    for (const x of film.served()) { this._served.add(x); this.servedBy.get(key).add(x); }
+    if (!this.servedBy.has(key)) { this.servedBy.set(key, new Set()); this.sentBy.set(key, new Map()); }
+    for (const x of film.served()) {
+      this._served.add(x); this.servedBy.get(key).add(x);
+      if (!this.sentBy.get(key).has(x)) this.sentBy.get(key).set(x, film.sentAs ? film.sentAs(x) : null);
+    }
     if (this.o.onRetire) {
       try { await this.o.onRetire(film); } catch { /* said by the caller's own check */ }
       film.problems();   // the check's own DevTools reads (CSS.enable fetches the styles again: no-store, a cache miss) are not the film's
@@ -300,7 +323,8 @@ export class EditFilm {
 export async function openEdit(project, o = {}) {
   const doc = o.doc || build(project);
   const ef = new EditFilm(project, doc, o);
-  const first = doc.runs.find((r) => r.draw !== "clip");   // footage needs no browser
+  const inSpan = (r) => !o.span || (r.frames[0] < o.span[1] && r.frames[1] > o.span[0]);   // o.span: [k0, k1), the frames to draw
+  const first = doc.runs.find((r) => r.draw !== "clip" && inSpan(r));   // footage needs no browser
   if (!first) { ef.version = "no browser (footage only)"; return ef; }
   try { await ef.film(first); } catch (e) { await ef.close(); throw e; }
   return ef;
@@ -361,10 +385,11 @@ export function chaptersOf(doc, facts) {
 }
 
 // every page source once: {src: facts | {error}}
-export async function allFacts(project, doc, o) {
+// only: the page sources to read (a render of a span reads the pages it draws), else all of them
+export async function allFacts(project, doc, o, only = null) {
   const out = {};
   for (const [src, f] of Object.entries(doc.files)) {
-    if (f.kind !== "page") continue;
+    if (f.kind !== "page" || (only && !only.has(src))) continue;
     let film = null;
     try { film = await openFilm(path.join(project, f.path), { ...o, root: project, width: doc.size[0], height: doc.size[1], runtime: "auto" }); out[src] = await pageFacts(film, project); }
     catch (e) { out[src] = { error: e.message.split("\n")[0] }; }
