@@ -100,7 +100,9 @@ export async function load(spec, { width, height, dpr }) {
   } catch (e) {
     fail(`no WebGL2 for the Three.js layer in this browser (${e.message}): a machine without a GPU draws it in software, --soft-gl (bin/vh frames, render, determinism … --soft-gl)`);
   }
-  renderer.setPixelRatio(dpr); renderer.setSize(width, height, false);
+  // the drawing buffer as many pixels as the 2D canvas has (src/90-main.js: Math.round(W × dpr)), so at any dpr, 1.333
+  // too, draw() copies it pixel for pixel
+  renderer.setPixelRatio(1); renderer.setSize(Math.round(width * dpr), Math.round(height * dpr), false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   const tone = spec.tone ?? "agx";
   if (!(tone in TONES)) fail(`FILM.three.tone: ${Object.keys(TONES).join(", ")}, not ${JSON.stringify(tone)}`);
@@ -149,7 +151,10 @@ export async function load(spec, { width, height, dpr }) {
   });
   const got = await Promise.all(list.map(async ([key, o]) => {
     try { return [key, o, await loader.loadAsync(o.src)]; }
-    catch (e) { return fail(`model "${key}" (${o.src}, FILM.three.models) did not load: ${(e && e.message) || e}`); }
+    catch (e) {   // a file that is not there comes back with its HTTP response; any other failure is the file's own
+      const why = e && e.response ? "" : `; bin/vh model3d check ${o.src} says what is wrong with the file`;
+      return fail(`model "${key}" (${o.src}, FILM.three.models) did not load: ${(e && e.message) || e}${why}`);
+    }
   }));
   for (const [key, o, gltf] of got) {   // in the order the settings list them, whichever file arrived first
     const root = new THREE.Group();
@@ -160,7 +165,7 @@ export async function load(spec, { width, height, dpr }) {
       if (x.isMesh) { x.castShadow = o.cast ?? true; x.receiveShadow = o.receive ?? true; }
       if (x.isSkinnedMesh) x.frustumCulled = false;   // its bounding sphere would be taken once, from whatever pose it first drew in
     });
-    const clips = {};
+    const clips = Object.create(null);   // no prototype: a clip named constructor or toString is a clip like any other
     for (const c of gltf.animations) if (!(c.name in clips)) clips[c.name] = c;   // two of one name: the first (bin/vh model3d check says so)
     M[key] = { key, src: o.src, root, scene: gltf.scene, gltf, clips, mixer: new THREE.AnimationMixer(gltf.scene) };
     scene.add(root);
@@ -350,7 +355,7 @@ export async function load(spec, { width, height, dpr }) {
       if (!bg) renderer.setClearColor(0x000000, 0);
       if (o.record) return;
       renderer.render(scene, camera);
-      ctx.drawImage(canvas, 0, 0, width, height);
+      ctx.drawImage(canvas, 0, 0, canvas.width / dpr, canvas.height / dpr);   // its pixels onto the 2D canvas's, one to one
     },
   };
 }

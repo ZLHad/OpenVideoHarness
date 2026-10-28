@@ -9,8 +9,10 @@ usage: python3 tools/model3d/fixture.py <out.glb> [--scale K] [--json]
   --json      print what it wrote: {"path", "bytes", "triangles", "vertices", "joints", "animations": {name: seconds}}
   --film P    the model as P/assets/models/box.glb and the layer's test film as P/src/50-shots.js (FILM below): 160 x 90,
               silent, 3 s. S01 holds the camera while the column bends in a loop, so t = 0.25 and t = 1.25 (clip time 0.25
-              both) are the same picture and t = 0.5 is not; S02 lifts it once from 1.5 s while the camera moves. Both
-              draw a white square at (4, 4), 12 px, over the 3D's opaque background (#203040)
+              both) are the same picture and t = 0.5 is not; from 0.4 s to 1 s its pose() moves the column 0.5 m right,
+              which a frame drawn after 0.5 keeps only if the layer does not put the world back each frame. S02 lifts it
+              once from 1.5 s while the camera moves. Both draw a white square at (4, 4), 12 px, over the 3D's opaque
+              background (#203040)
 build(scale) → (the glTF JSON, the BIN chunk's bytes), for a test that changes a part before writing it (glb.write_glb).
 """
 import json, math, struct, sys, zlib
@@ -146,7 +148,8 @@ Object.assign(FILM, {
 });
 const square = () => { X.fillStyle = "#ffffff"; X.fillRect(4, 4, 12, 12); };
 const SHOTS = [
-  { id: "S01", at: 0, three: { play: { box: { clip: "bend", loop: true } } }, draw: square },
+  { id: "S01", at: 0, three: { play: { box: { clip: "bend", loop: true } },
+    pose(t, s, { models }) { if (t > 0.4 && t < 1) models.box.root.position.x = 0.5; } }, draw: square },
   { id: "S02", at: 1.5, three: { play: { box: { clip: "lift", at: 1.5 } }, cam: { from: { pos: [0, 1.5, 4.6] }, to: { pos: [1.2, 1.4, 3.8], lens: 40 } } },
     draw: square },
 ];

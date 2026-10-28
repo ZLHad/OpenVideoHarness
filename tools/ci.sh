@@ -3913,6 +3913,42 @@ PY
       [ "$rc4" = 2 ] && ok "model3d check: a model the layer cannot decode or load fails, two clips of one name warn, a file that is no glTF fails (1), usage errors 2" \
         || bad "model3d check usage errors: exit $rc4: $d" ;;
     *) bad "model3d check on broken models ($rc, $rc2, $rc3): $a | $b | $c | $d" ;; esac
+  # a part that points outside the file, or is not the kind glTF says, fails with the part named, and --json prints the
+  # report all the same (no traceback): a node that is a number, a bufferView past its buffer, an accessor of type VEC9,
+  # one of 10^12 zeros (no list of them is made); Draco listed only as used fails (three's loader stops at it); bytes
+  # after the GLB header's length warn
+  if python3 - "$VH_BASH|$ROOT/bin/vh" "$t" <<'PY'
+import json, subprocess, sys
+sys.path.insert(0, "tools/model3d")
+import fixture, glb
+vh, t = sys.argv[1].split("|"), sys.argv[2]
+def zeros(g):
+    g["accessors"].append({"componentType": 5126, "type": "SCALAR", "count": 10**12})
+    g["animations"][0]["samplers"][0]["input"] = len(g["accessors"]) - 1
+cases = {   # name: (what is broken, the exit, words of the finding)
+    "node": (lambda g: g["nodes"].__setitem__(0, 5), 1, "nodes[0] is a number, not an object"),
+    "view": (lambda g: g["bufferViews"][0].update(byteLength=10**9), 1, "bytes past the end of buffers[0]"),
+    "vec9": (lambda g: g["accessors"][0].update(type="VEC9"), 1, 'type "VEC9": glTF'),
+    "zeros": (zeros, 1, "1,000,000,000,000 elements and no bufferView"),
+    "used": (lambda g: g.update(extensionsUsed=["KHR_draco_mesh_compression"]), 1, "lists KHR_draco_mesh_compression as used"),
+    "tail": (lambda g: None, 0, "7 bytes after the")}
+bad = []
+for name, (change, want, words) in cases.items():
+    g, blob = fixture.build(); change(g); glb.write_glb(f"{t}/{name}.glb", g, blob)
+    if name == "tail":
+        open(f"{t}/tail.glb", "ab").write(b"\0" * 7)
+    r = subprocess.run([*vh, "model3d", "check", f"{t}/{name}.glb", "--json"], capture_output=True, text=True, timeout=60)
+    try:
+        rep = json.loads(r.stdout)
+    except ValueError:
+        rep = {}
+    said = " | ".join(f["message"] for f in rep.get("findings", []))
+    if r.returncode != want or rep.get("exit") != want or words not in said or "Traceback" in r.stderr:
+        bad.append(f"{name}: exit {r.returncode} (want {want}): {said[:200] or r.stderr[-200:]}")
+sys.exit("\n".join(bad) if bad else 0)
+PY
+  then ok "model3d check: a part that points outside the file or is not glTF's (a node that is a number, a bufferView past its buffer, type VEC9, 10^12 zeros) fails naming it, the --json report all the same; Draco listed only as used fails; bytes after the GLB's length warn"
+  else bad "model3d check on models whose parts point outside them"; fi
   # three.js as the npm package has it: each file the layer carries, byte for byte as its NOTICE lists it
   if python3 - <<'PY'
 import hashlib, pathlib, re, sys
@@ -3938,8 +3974,10 @@ PY
   else bad "new --three ($rc, $rc2): $a"; p=""; fi
   # the layer on a page: the model through it in software WebGL, under the 2D. The test film (fixture.py --film) holds the
   # camera while the column bends in a loop, so t = 0.25 and 1.25 (both 0.25 s into the clip, mixer.setTime) are one
-  # picture and t = 0.5 another; any order, another browser (bin/vh determinism, ≥ 45 dB for WebGL, hard rule 1);
-  # a white square drawn by the shot lies over the 3D's opaque background
+  # picture and t = 0.5 another; S01's pose moves the column off the middle from 0.4 s to 1 s: at 0.5 it is off, at 0.25
+  # (after ready's recorder posed it) and 1.25 (after 0.5) it is back, as the world is put back each frame; any order,
+  # another browser (bin/vh determinism, ≥ 45 dB for WebGL, hard rule 1); the shot's white square lies over the 3D's
+  # opaque background
   [ -n "$p" ] || { rm -rf "$t"; return; }
   python3 tools/model3d/fixture.py --film "$p"
   a=$(vh determinism "$p" --at 0.25,0.5,1.25,2.5 --soft-gl --min-psnr 45 --out "$t/d" 2>&1); rc=$?
@@ -3947,8 +3985,9 @@ PY
   case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) skip "the Three.js layer on a page" "no WebGL here even with --soft-gl"; rm -rf "$t"; return ;; esac
   if [ $rc = 0 ] && printf '%s' "$a" | grep -q "determinism: holds" && cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0001.250.png" \
      && ! cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0000.500.png" && ! cmp -s "$t/d/A-t0000.500.png" "$t/d/A-t0002.500.png" \
-     && px_are "$t/d/A-t0000.250.png" '(w, h) == (160, 90) and P[0] == (255, 255, 255) and near(P[1], (0x20, 0x30, 0x40)) and not near(P[2], (0x20, 0x30, 0x40))' 8,8 150,80 80,45
-  then ok "the Three.js layer: a GLB's clip set to the film's time (0.25 s into a loop at t 0.25 and 1.25: one picture), the camera's moves, in any order and another browser (determinism, --soft-gl); the shot's 2D over the 3D"
+     && px_are "$t/d/A-t0000.250.png" '(w, h) == (160, 90) and P[0] == (255, 255, 255) and near(P[1], (0x20, 0x30, 0x40)) and not near(P[2], (0x20, 0x30, 0x40))' 8,8 150,80 80,45 \
+     && px_are "$t/d/A-t0000.500.png" 'near(P[0], (0x20, 0x30, 0x40)) and not near(P[1], (0x20, 0x30, 0x40))' 80,45 95,45
+  then ok "the Three.js layer: a GLB's clip set to the film's time (0.25 s into a loop at t 0.25 and 1.25: one picture), a pose put back after its frame, the camera's moves, in any order and another browser (determinism, --soft-gl); the shot's 2D over the 3D"
   else bad "the Three.js layer on a page (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   # ready names every problem of a shot's three at once: a clip the model lacks, one played once that stops before its
   # shot does, a model that is not there, a key the layer does not read; FILM.three without three/ says how to get it
