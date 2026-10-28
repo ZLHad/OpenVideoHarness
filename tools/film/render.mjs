@@ -28,20 +28,27 @@
 //                  (prores_ks, yuva444p10le, BT.709 tags) in a .mov (default <project>/out/<page>.mov). What the page
 //                  paints stays opaque, so a page that fills its canvas has nothing to show through: it is said. Large:
 //                  about 1–12 bits a pixel. A HyperFrames composition: npx hyperframes render --format mov
-//   --motion-blur 8  each frame the mean of 8 sub-frames: the page drawn at 8 times spread over --shutter (a fraction of a
-//                  frame, default 0.5: a 180° shutter) centred on the frame's own time, so what moves is blurred along its
-//                  path and what holds still (a caption riding the camera) stays sharp; 4–8 for most moves, more for very
-//                  fast ones. The shutter is cut short where the frame's picture ends: the film's start and end, an edit
-//                  list's entry (every cut there), and the boundaries of the page's own shots (window.film.shots), so a hard
-//                  cut stays a cut. Each sub-frame's time comes from the frame's number, N and the shutter alone
-//                  (tools/film/blur.mjs): a frame drawn again (a resume, a patch, a later render) is the same picture. The
-//                  mean is ffmpeg's tmix in the frames' own sRGB values, premultiplied with --alpha. In an edit list the
+//   --motion-blur 8  N from 1 to 64: each frame the mean of N sub-frames, the page drawn at N times spread over --shutter
+//                  (a fraction of a frame, more than 0 and at most 1; default 0.5: a 180° shutter) centred on the frame's
+//                  own time, so what moves is blurred along its path and what holds still (a caption riding the camera)
+//                  stays sharp. N about the fastest speed in px a frame × the shutter ÷ 2 keeps neighbouring sub-frames
+//                  within about 2 px (else a fast edge shows steps); 4–8 for most moves. The shutter is cut short where the
+//                  frame's picture ends: the film's start and end, an edit list's entry (every cut there), and the
+//                  boundaries of the page's own shots (window.film.shots), so a hard cut stays a cut; a frame there gets
+//                  the shutter on its own side only, half the smear. Each sub-frame's time comes from the frame's number,
+//                  N and the shutter alone (tools/film/blur.mjs): a frame drawn again (a resume, a patch, a later render)
+//                  is the same picture. The mean is ffmpeg's tmix in the frames' own sRGB values, premultiplied with
+//                  --alpha. Grain a page seeds by the frame's number (canvas-film steps it once a frame) stays as it is;
+//                  seeded by the continuous t it is averaged away. A page that blurs itself (sub-frames accumulated in
+//                  WebGL, the components library's motionBlur() or whip()) is not to be blurred again. In an edit list the
 //                  pages and the images that move are blurred; slates, colours, still images and footage are not. N times
-//                  the drawing, and each encoder holds N frames (4K at 8: about 100 MB a worker, 270 MB with --png, 530 MB
-//                  with --alpha). 1: no blur, the render as without it, byte for byte. The sidecar records it
-//                  (motion_blur), bin/vh patch draws its frames the same way, and it is in an edit list's chunk keys. A
-//                  page that rounds t to its own frames (HyperFrames' seek) draws one picture N times: it is said.
-//                  bin/vh frames --motion-blur shows a frame the same way first
+//                  the drawing, and more memory: each encoder holds N frames and the browser's N pictures wait for it
+//                  (measured, 4K at 8: 0.3 GB more a worker with JPEG, 0.9 GB with --png or --alpha); the render says what
+//                  its N, workers and size come to, and does not stop for it. 1: no blur, the render as without it, byte
+//                  for byte. The sidecar records it (motion_blur, with blur.mjs's sha256), bin/vh patch draws its frames
+//                  the same way, and it is in an edit list's chunk keys. A page that rounds t to its own frames
+//                  (HyperFrames' seek) draws one picture N times: it is said. bin/vh frames --motion-blur shows a frame
+//                  the same way first
 //   --estimate     before a span of more than 600 frames to draw (--motion-blur's sub-frames counted; --estimate: any
 //                  span), a few frames spread over it are drawn and encoded first: the time a frame takes, the video's
 //                  size and the disk it needs are printed, and a disk that cannot hold it stops the render (exit 2). A
@@ -390,7 +397,8 @@ if (o.fresh) fs.rmSync(parts, { recursive: true, force: true });   // --fresh: n
   try { names = fs.readdirSync(parts); old = JSON.parse(fs.readFileSync(planFile, "utf8")); } catch { /* none, or not ours */ }
   const done = names.filter(isKept);
   if (old && done.length) {
-    const changed = Object.keys(recipe).filter((k) => JSON.stringify((old.recipe || {})[k]) !== JSON.stringify(recipe[k]));
+    // every key either side has: one only the old render had (its motion_blur, when this one blurs nothing) is a change too
+    const changed = [...new Set([...Object.keys(recipe), ...Object.keys(old.recipe || {})])].filter((k) => JSON.stringify((old.recipe || {})[k]) !== JSON.stringify(recipe[k]));
     const files = Object.entries(old.files || {}).filter(([f, h]) => { try { return sha(f) !== h; } catch { return true; } }).map(([f]) => rel(f));
     if (!changed.length && !files.length) {
       for (const [f, h] of Object.entries(old.files)) loaded.set(f, h);
@@ -438,6 +446,11 @@ if (editRoot) for (const [src, f] of Object.entries(facts)) for (const p of f.lo
 if (BLUR) {
   console.log(`  motion blur: each frame the mean of ${BLUR.samples} sub-frames over a shutter of ${BLUR.shutter} frame centred on its time, cut short at the film's ends` +
     `${editRoot ? ", at every cut between entries" : ""} and at the page's shot boundaries (${BLUR.samples}x the drawing${editRoot ? " of the pages and moving images" : ""})`);
+  // the memory it adds: each encoder's tmix window and the browser's pictures waiting for it, measured at 4K and 8 sub-frames
+  // as 0.3 GB a worker with JPEG and 0.9 GB with PNG (about 4 and 14 bytes a pixel a sub-frame): said, never refused
+  const more = W * BLUR.samples * px[0] * px[1] * (png ? 14 : 4.2);
+  if (W) console.log(`  motion blur: about ${more >= 1e9 ? `${(more / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(more / 1e6))} MB`} more memory than without it ` +
+    `(${BLUR.samples} sub-frames × ${W} worker${W === 1 ? "" : "s"} at ${px[0]}x${px[1]}, ${png ? "PNG" : "JPEG"}); fewer --workers if the machine is short of it`);
   if (!editRoot && !pageShots.length) console.log("  motion blur: the page gives no shots (window.film.shots): a hard cut inside it would show both of its sides in the frame at the cut");
   if (first.kind === "hyperframes") console.log("  motion blur: HyperFrames' seek rounds t to the composition's own frames, so its sub-frames are one picture and nothing blurs");
 }
@@ -687,7 +700,8 @@ const sidecar = {
   encoder: alpha ? { codec: "prores_ks", profile: "4444", alpha_bits: 16, gop, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] }
     : { codec: "libx264", crf: o.crf, preset: o.preset, gop, keyint_min: gop, sc_threshold: 0, pix_fmt: st.pix_fmt, color: [st.color_range, st.color_space, st.color_primaries, st.color_transfer] },
   ...(alpha ? { alpha: true } : {}),
-  ...(BLUR ? { motion_blur: { samples: BLUR.samples, shutter: BLUR.shutter } } : {}),   // bin/vh patch draws its frames the same way
+  // bin/vh patch draws its frames the same way; version: blur.mjs's sha256, how the sub-frames' times were found
+  ...(BLUR ? { motion_blur: { samples: BLUR.samples, shutter: BLUR.shutter, version: BLUR_SHA } } : {}),
   chunks: plan.map(([a, b]) => [a, b]), reused_chunks: resumed, ...(cache ? { cached_chunks: cached.size } : {}), browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl, seconds: +secs.toFixed(1),
   ...(pageShots.length ? { shots: pageShots } : {}), ...(pageChapters.length ? { chapters: pageChapters } : {}),
   // the files the page loaded (plan.json's table, which goes with the parts): those in the page's folder, from it, sorted
