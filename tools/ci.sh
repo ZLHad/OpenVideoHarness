@@ -434,6 +434,35 @@ PY
   then ok "doctor from tools/modules.json: an old node, an ffmpeg without libx264, an aged yt-dlp and keys set or not are said, no six of a key's characters ever; --probe: a key taken, MiniMax's refusal, a 401 echoing a masked key (status and code only), no key skipped, a redirect not followed, an http base elsewhere not called; the platform's alternative; needs.programs; no python3 still reports and exits 0; usage errors 2 before any probe; bin/vh doctor --json here lists every module"
   else bad "bin/vh doctor and tools/modules.json"; fi
   rm -rf "$t"
+  # ManimGX, an optional backend for Manim scenes (tools/modules.json; CI does not install it): doctor lists it, and with
+  # no manimgx on the PATH says it is missing and how to install it (a uv tool, Python 3.13, the pinned version); a
+  # manimgx that says another version is told apart from the pin, the pinned one is ok while uv and ffmpeg (what it
+  # needs) are there, and not while they are not. Stand-ins on a PATH of their own: the machine's own do not count
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  if python3 - "$t" <<'PY'
+import json, os, subprocess, sys
+t = sys.argv[1]
+stub = os.path.join(t, "stub"); os.makedirs(stub)
+def gx():
+    r = subprocess.run([sys.executable, "tools/doctor.py", "--json"], capture_output=True, text=True, encoding="utf-8", env={"PATH": stub, "HOME": t})
+    return {m["name"]: m for m in json.loads(r.stdout)["modules"]}["manimgx"]
+def put(name, body):
+    f = os.path.join(stub, name)
+    open(f, "w").write("#!/bin/sh\n" + body + "\n"); os.chmod(f, 0o755)
+m = gx()
+ok = m["state"] == "missing" and not m["required"] and "uv tool install --python 3.13 manimgx==0.1.1" in (m["install"] or "")
+put("manimgx", "echo 'manimgx 0.1.1'"); m1 = gx()   # no uv, no ffmpeg
+put("uv", "echo 'uv 0.9.0'"); put("ffprobe", "echo 'ffprobe version 7.1'")
+put("ffmpeg", 'case "$1" in -version) echo "ffmpeg version 7.1" ;; *) echo " V....D libx264  libx264 H.264" ;; esac')
+put("manimgx", "echo 'manimgx 0.1.0'"); m2 = gx()
+put("manimgx", "echo 'manimgx 0.1.1'"); m3 = gx()
+ok = ok and m1["state"] == "incomplete" and "needs uv" in m1["note"] and "needs ffmpeg" in m1["note"]
+ok = ok and m2["state"] == "outdated" and "0.1.1" in m2["note"] and m3["state"] == "ok" and m3["version"] == "0.1.1"
+sys.exit(0 if ok else 1)
+PY
+  then ok "doctor: ManimGX (an optional Manim backend) is missing here and says how to install it; another version than the pinned one is told apart; the pinned one wants uv and ffmpeg"
+  else bad "doctor's ManimGX entry"; fi
+  rm -rf "$t"
   # usage errors exit 2, failures 1: these commands with no arguments or a wrong one (new with an option that has no
   # value included; a project, video or folder that is not there); new into a folder that is there already is a failure.
   # Every message of a usage error or a refusal is on stderr and stdout stays empty; the usage that was asked for (-h)
