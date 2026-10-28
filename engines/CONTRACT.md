@@ -31,7 +31,7 @@ window.film = {
 | 字段 | 格式 | 谁读 |
 |---|---|---|
 | `texts` | 数组，或 `ready` 之后调用、返回数组的函数：`[{text, start, end, read?}]`，同 readcheck 的 `texts.json` | `bin/vh textcheck`、`bin/vh readcheck` |
-| `shots` | 数组，或 `ready` 后返回数组的方法：`[{id, start, end, segment?, reads?, label?, unsure?}]`，同 `shots.json`，起止是解析好的秒数。canvas-film 另附 `transition: {type, duration}`；边界按切入点算，不把转场重叠算成镜头加长 | `bin/vh storyboard`、`bin/vh rhythm`：显式 `--shots JSON或页面` > 项目的 `shots.json` > `film.html` 的这个字段；手写 JSON 不需要浏览器。`bin/vh render --motion-blur`、`bin/vh frames --motion-blur`：每个镜头的起止都当切点，快门不跨过去，硬切不会混成一帧叠印 |
+| `shots` | 数组，或 `ready` 后返回数组的方法：`[{id, start, end, segment?, reads?, label?, unsure?, camera?}]`，同 `shots.json`，起止是解析好的秒数；`camera` 是镜头语法卡（`recipes/shot/`）的 code，分镜页印出来。canvas-film 另附 `transition: {type, duration}`；边界按切入点算，不把转场重叠算成镜头加长 | `bin/vh storyboard`、`bin/vh rhythm`：显式 `--shots JSON或页面` > 项目的 `shots.json` > `film.html` 的这个字段；手写 JSON 不需要浏览器。`bin/vh render --motion-blur`、`bin/vh frames --motion-blur`：每个镜头的起止都当切点，快门不跨过去，硬切不会混成一帧叠印 |
 | `events` | 画面事件：`[{t, kind, x?}]`，时刻、事件的种类（贴纸落下、盖章、翻页这类）、在画面上的横坐标（给声像用）。配什么声是另一步：`bin/vh sfx place` 读的 `events.json` 里写的是声音的名字 | 配音效、`bin/vh qa` 的 cue check（以后） |
 | `chapters` | `[{t, title}]` | 进度条、发布文案的章节表（以后） |
 | `cues` | 时间挂在旁白字词上时，每个挂点的解析结果：`[{id, ref, t}]` | `bin/vh cues`：列出来；`--save` 存下，换了配音以后再跑，说出哪些挪了 |
