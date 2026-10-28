@@ -500,7 +500,7 @@
     {
       "name": "hdri",
       "summary": "Environment maps from Poly Haven (every one CC0): search the library, get one into the project at a size and a format, its md5 checked and on record in the ledger, with the line the Three.js layer takes for it.",
-      "when": "a 3D shot that wants real light and reflections, or a sky behind it (FILM.three.env), and a Blender scene's world",
+      "when": "a 3D shot that wants real light and reflections, or a sky behind it (FILM.three.env)",
       "stages": ["6", "1"],
       "reads": [
         "Poly Haven's API (api.polyhaven.com; --offline <folder>: recorded answers)",
@@ -517,10 +517,11 @@
           ]
         },
         {
-          "synopsis": "hdri get <project> <hdri> [--res 2k] [--format hdr|exr] [--id ID] [--max-mb 600] [--json] [--offline DIR]",
+          "synopsis": "hdri get <project> <hdri> [--res 2k] [--format hdr|exr] [--id ID] [--max-mb 600] [--rate 2M] [--json] [--offline DIR]",
           "text": [
-            "into assets/hdri/<hdri>/ under Poly Haven's name for it, resumed if stopped, its md5 checked; on record as CC0 with its page,",
-            "authors and sha256; prints FILM.three.env's line. 1k or 2k light a scene, a background through a lens wants 8k or more"
+            "into assets/hdri/<hdri>/ under Poly Haven's name for it, resumed if stopped, its md5 checked (a resumed one that does not",
+            "match is fetched again once); on record as CC0 with its page, authors, sha256 and md5; prints FILM.three.env's line. 1k",
+            "or 2k light a scene, a background through a lens wants 8k or more (a get of 8k or more says what a sharp background costs)"
           ]
         }
       ],

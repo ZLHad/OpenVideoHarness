@@ -3239,6 +3239,74 @@ print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
   ); then ok "assets download from recorded responses: whole, resumed with Range, over a server that ignores ranges, a complete .part; 404, unrecorded and sha256 mismatch fail with nothing left; a rate cap; get_json"
   else bad "assets download (tools/assets/fetch.py): $a"; fi
+  # stand-in servers, no network: get_json tries again after no answer, a 503 or a 429 (1, 2, 4 s apart, counted here, not
+  # slept), never after a 404; a download resumed against a file that changed on the server since its .part began (the
+  # length a 206 gives is not the one kept beside the part) starts over and says why, in the same run or the next
+  if a=$(python3 - "$t/dl2" <<'PY' 2>&1
+import io, json, os, re, sys, time
+sys.path.insert(0, "tools/assets")
+import fetch
+d, bad, waits = sys.argv[1], [], []
+os.makedirs(d, exist_ok=True)
+time.sleep = waits.append   # fetch's waits between tries, counted
+def answer(status, body, h=None):
+    return fetch.Response(status, {"Content-Length": str(len(body)), **(h or {})}, io.BytesIO(body).read)
+class Flaky:   # fails first as told (no answer, or an HTTP status), then answers
+    def __init__(self, *fails): self.fails, self.n = list(fails), 0
+    def open(self, url, headers=None, timeout=60):
+        self.n += 1
+        if self.fails:
+            f = self.fails.pop(0)
+            if f == "drop": raise ConnectionError(f"{url}: connection reset")
+            e = fetch.FetchError(f"{url}: HTTP {f}"); e.status = f; raise e
+        return answer(200, b'{"ok": true}')
+for fails, want_waits in ((["drop"], [1]), ([503, 429], [1, 2])):
+    waits.clear(); o = Flaky(*fails)
+    if fetch.get_json("https://example.org/api", opener=o) != {"ok": True} or waits != want_waits or o.n != len(fails) + 1:
+        bad.append(f"get_json after {fails}: waits {waits}, {o.n} asks")
+waits.clear(); o = Flaky(404)
+try:
+    fetch.get_json("https://example.org/api", opener=o); bad.append("a 404 answered")
+except fetch.FetchError as e:
+    if waits or o.n != 1 or e.status != 404: bad.append(f"a 404 tried again: {waits} {o.n}")
+waits.clear(); o = Flaky("drop", "drop", "drop", "drop")
+try:
+    fetch.get_json("https://example.org/api", opener=o); bad.append("no answer, and yet JSON")
+except ConnectionError as e:
+    if waits != [1, 2, 4] or "after 4 tries" not in str(e): bad.append(f"four drops: {waits} {e}")
+class Site:   # serves bodies[k] at the k-th request (the last from then on), ranges honoured; cut: bytes the first answer stops after
+    def __init__(self, bodies, cut=None): self.bodies, self.n, self.cut = bodies, 0, cut
+    def open(self, url, headers=None, timeout=60):
+        body = self.bodies[min(self.n, len(self.bodies) - 1)]; self.n += 1
+        m = re.match(r"bytes=(\d+)-$", (headers or {}).get("Range", ""))
+        if m:
+            a = int(m.group(1))
+            return answer(206, body[a:], {"Content-Range": f"bytes {a}-{len(body) - 1}/{len(body)}"})
+        r = answer(200, body)
+        if self.cut and self.n == 1:   # the connection drops after cut bytes
+            src = io.BytesIO(body[:self.cut])
+            def read(k=-1):
+                b = src.read(k)
+                if not b: raise ConnectionResetError("reset")
+                return b
+            r.read = read
+        return r
+old, new = bytes(range(256)) * 12, bytes(reversed(range(256))) * 10   # 3072 bytes, then 2560
+r = fetch.download("https://example.org/f.bin", f"{d}/a.bin", opener=Site([old, new], cut=1000))
+if open(f"{d}/a.bin", "rb").read() != new or not r["restarted"] or os.path.exists(f"{d}/.a.bin.part.json"):
+    bad.append(f"changed while it came: {r}")
+open(f"{d}/b.bin.part", "wb").write(old[:1000]); open(f"{d}/.b.bin.part.json", "w").write(json.dumps({"total": len(old)}))
+r = fetch.download("https://example.org/f.bin", f"{d}/b.bin", opener=Site([new]))
+if open(f"{d}/b.bin", "rb").read() != new or not r["restarted"] or r["resumed"]:
+    bad.append(f"changed since the part: {r}")
+open(f"{d}/c.bin.part", "wb").write(old[:1000]); open(f"{d}/.c.bin.part.json", "w").write(json.dumps({"total": len(old)}))
+r = fetch.download("https://example.org/f.bin", f"{d}/c.bin", opener=Site([old]))
+if open(f"{d}/c.bin", "rb").read() != old or r["restarted"] or not r["resumed"] or os.path.exists(f"{d}/.c.bin.part.json"):
+    bad.append(f"the same file resumed: {r}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "fetch: get_json tries again after no answer, a 503 or a 429 (1, 2, 4 s), not after a 404; a resumed download whose file changed on the server starts over and says so, in one run or the next; the same file still resumes"
+  else bad "fetch's tries and resumes: $a"; fi
   a=$(vh assets add "$p" https://example.org/files/tone.wav --license "CC0" --title Tone --offline tools/assets/fixtures/responses --sha256 "$tone" --to assets/sfx/tone.wav 2>&1); rc=$?
   b=$(vh assets add "$p" https://example.org/files/missing.wav --license CC0 --offline tools/assets/fixtures/responses 2>&1); rc2=$?
   if [ "$rc:$rc2" = "0:1" ] && [ ! -e "$p/assets/missing.wav" ] && python3 - "$p" <<'PY'
@@ -3720,7 +3788,21 @@ const BP = [{ pieces: [cube(0, 0.5, 0), cube(1, 0.5, 0), cube(0, 1.5, 0), cube(1
 for (const p of BP) await run(`build-up ${p.order}`, (t) => B.state({ ...p }, t));   // a fresh object each call: no plan cached between them
 const st = B.state(BP[0], 0.69), ranks = B.plan(BP[0]).rank, grow = B.state(BP[1], 0.25).pieces;   // 0.69: the first floor in, the second not yet (0.7 on)
 if (ranks.join() !== "0,0,1,1" || st.started !== 2 || B.duration(BP[0]) > 0.7 + 0.3 + 0.5 + 1e-9 || !(grow[2].box.h > 0 && grow[0].box.h === 0 && grow[2].box.y - grow[2].box.h / 2 === 0)) bad.push("build-up: ranks, starts or growth");
-if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot, chapter-bar and build-up (by height, distance, seed), the same forwards, backwards and alone; build-up's ranks, starts and growth from the base"
+// one params object changed after its plan was made: the plan follows (a stagger, a piece pushed onto its list)
+const M = { ...BP[0], pieces: [...BP[0].pieces] }, j = (x) => JSON.stringify(x);
+B.state(M, 0.9); M.stagger = 0.2;
+if (j(B.state(M, 0.9)) !== j(B.state({ ...M }, 0.9))) bad.push("build-up: a stagger changed after the plan was made");
+M.pieces.push(cube(2, 2.5, 0));
+const five = B.state(M, 3);
+if (five.n !== 5 || five.pieces.some((q) => !Number.isFinite(q.t0) || !Number.isFinite(q.box.y) || !Number.isFinite(q.u))) bad.push(`build-up: a piece pushed after the plan: ${j(five.pieces[4])}`);
+// dur 0 is a step; an overshooting curve carries a rising piece past its place, never a grown one past its size; a wrong name or piece is an error
+const one = (o, t) => B.state({ pieces: [cube(0, 0.5, 0)], ...o }, t).pieces[0];
+if (one({ dur: 0 }, -0.1).on || j(one({ dur: 0 }, 0).box) !== j(cube(0, 0.5, 0)) || one({ dur: 0 }, 0).u !== 1) bad.push(`build-up: dur 0 ${j(one({ dur: 0 }, 0))}`);
+if (!(one({ ease: "outBack", lift: 1, dur: 1 }, 0.6).box.y > 0.5) || one({ ease: "outBack", appear: "grow", dur: 1 }, 0.6).box.h > 1 || one({ ease: "outBack", dur: 1 }, 1).box.y !== 0.5)
+  bad.push(`build-up: overshoot ${j(one({ ease: "outBack", lift: 1, dur: 1 }, 0.6).box)}`);
+[[{ ease: "outBak" }, "ease is a name"], [{ pieces: [{ x: 0, y: 0, z: 0, w: 1, d: 1 }] }, "pieces[0].h is a number"], [{ stagger: -1 }, "stagger is a number, 0 or more"], [{ from: [1, 2] }, "from is [x, y, z]"]].forEach(([o, want]) => {
+  try { B.state({ pieces: [cube(0, 0.5, 0)], ...o }, 1); bad.push(`build-up: ${j(o)} passed`); } catch (e) { if (!String(e.message).includes(want)) bad.push(`build-up: ${j(o)}: ${e.message}`); } });
+if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot, chapter-bar and build-up (by height, distance, seed), the same forwards, backwards and alone; build-up's ranks, starts and growth from the base, its plan after its params change, dur 0, an overshoot, errors that name the part"
   else bad "components: a state() that depends on what was drawn before: $a"; fi
   # add: the library and the components named, and what a component imports from another (paper-transition: page-turn)
   p="$t/proj"; mkdir -p "$p"; printf '# BRIEF\n' > "$p/BRIEF.md"; printf '<!doctype html>\n' > "$p/film.html"
@@ -3915,8 +3997,8 @@ PY
     *) bad "model3d check on broken models ($rc, $rc2, $rc3): $a | $b | $c | $d" ;; esac
   # a part that points outside the file, or is not the kind glTF says, fails with the part named, and --json prints the
   # report all the same (no traceback): a node that is a number, a bufferView past its buffer, an accessor of type VEC9,
-  # one of 10^12 zeros (no list of them is made); Draco listed only as used fails (three's loader stops at it); bytes
-  # after the GLB header's length warn
+  # one of 10^12 zeros (no list of them is made), a node its own child, sparse indices past the count; Draco listed
+  # only as used fails (three's loader stops at it); bytes after the GLB header's length warn
   if python3 - "$VH_BASH|$ROOT/bin/vh" "$t" <<'PY'
 import json, subprocess, sys
 sys.path.insert(0, "tools/model3d")
@@ -3925,8 +4007,13 @@ vh, t = sys.argv[1].split("|"), sys.argv[2]
 def zeros(g):
     g["accessors"].append({"componentType": 5126, "type": "SCALAR", "count": 10**12})
     g["animations"][0]["samplers"][0]["input"] = len(g["accessors"]) - 1
+def sparse(g):   # its indices read from the positions' floats: far past the 32 there are
+    a = g["accessors"][0]; a.pop("min"); a.pop("max")
+    a["sparse"] = {"count": 3, "indices": {"bufferView": 0, "componentType": 5125}, "values": {"bufferView": 0}}
 cases = {   # name: (what is broken, the exit, words of the finding)
     "node": (lambda g: g["nodes"].__setitem__(0, 5), 1, "nodes[0] is a number, not an object"),
+    "loop": (lambda g: g["nodes"][3].update(children=[3]), 1, "nodes 3 (Rig) → 3 (Rig): each the child of the one before, a loop"),
+    "sparse": (sparse, 1, "is past its 32 elements"),
     "view": (lambda g: g["bufferViews"][0].update(byteLength=10**9), 1, "bytes past the end of buffers[0]"),
     "vec9": (lambda g: g["accessors"][0].update(type="VEC9"), 1, 'type "VEC9": glTF'),
     "zeros": (zeros, 1, "1,000,000,000,000 elements and no bufferView"),
@@ -3947,7 +4034,7 @@ for name, (change, want, words) in cases.items():
         bad.append(f"{name}: exit {r.returncode} (want {want}): {said[:200] or r.stderr[-200:]}")
 sys.exit("\n".join(bad) if bad else 0)
 PY
-  then ok "model3d check: a part that points outside the file or is not glTF's (a node that is a number, a bufferView past its buffer, type VEC9, 10^12 zeros) fails naming it, the --json report all the same; Draco listed only as used fails; bytes after the GLB's length warn"
+  then ok "model3d check: a part that points outside the file or is not glTF's (a node that is a number, a bufferView past its buffer, type VEC9, 10^12 zeros, a node its own child, sparse indices past the count) fails naming it, the --json report all the same; Draco listed only as used fails; bytes after the GLB's length warn"
   else bad "model3d check on models whose parts point outside them"; fi
   # three.js as the npm package has it: each file the layer carries, byte for byte as its NOTICE lists it
   if python3 - <<'PY'
@@ -4017,7 +4104,7 @@ hdri_checks() {   # bin/vh hdri (tools/assets/hdri.py) on Poly Haven's answers r
   d=$(vh hdri get "$p" sunflowers_puresky --res 1k --offline "$fx" 2>&1); rc4=$?
   e=$(for x in "get $p rock_wall_08" "get $p no_such_hdri" "get $p studio_small_09 --res 8k" "nope"; do
         # shellcheck disable=SC2086   # each line is the arguments, split on purpose
-        vh hdri $x --offline "$fx" 2>&1; echo "exit $?"; done)
+        vh hdri $x --offline "$fx" 2>&1; echo "exit $?"; done; vh hdri search sky --offline "$t/none" 2>&1; echo "exit $?")
   if [ "$rc:$rc2:$rc3:$rc4" = "0:0:0:1" ] && python3 - "$p" "$a" "$b" "$c" "$d" "$e" <<'PY'
 import hashlib, json, sys
 sys.path.insert(0, "tools/assets")
@@ -4035,25 +4122,40 @@ recs = json.load(open(f"{p}/assets/ledger.json"))["assets"]
 if sorted(x["id"] for x in recs) != ["hdri-studio_small_09-2k", "hdri-studio_small_09-2k-exr"]: bad.append(f"the ledger: {[x['id'] for x in recs]}")
 import os
 if "its md5 is not the one Poly Haven lists" not in d or os.path.exists(f"{p}/assets/hdri/sunflowers_puresky"): bad.append(f"a wrong md5: {d[-300:]}")
-for want in ("is not an HDRI on Poly Haven", "Poly Haven has no no_such_hdri", "comes in 1k, 2k, 4k, not 8k", "no subcommand 'nope'"):
+for want in ("is not an HDRI on Poly Haven", "Poly Haven has no no_such_hdri", "comes in 1k, 2k, 4k, not 8k", "no subcommand 'nope'", "no such folder"):
     if want not in e: bad.append(f"usage: no {want!r} in {e[-400:]}")
-if e.count("exit 2") != 4: bad.append(f"usage errors are 2: {e[-300:]}")
+if e.count("exit 2") != 5: bad.append(f"usage errors are 2: {e[-300:]}")
 sys.exit("\n".join(bad) if bad else 0)
 PY
   then ok "hdri: Poly Haven's HDRIs by words and category, most downloaded first; get puts one in assets/hdri/<id>/ under Poly Haven's name, md5 checked, on record (CC0, page, authors, sha256: a valid record) with FILM.three.env's line; the same again is left as it is, an EXR beside it; a wrong md5 is deleted (1); a texture, an unknown id or size, an unknown subcommand: 2"
   else bad "hdri ($rc, $rc2, $rc3, $rc4): $(printf '%s' "$c$d" | tail -c 400)"; fi
   # build-up in the Three.js layer: the tower a floor at a time under the test sky (env and background from the HDRI just
-  # got), the pieces an InstancedMesh the component's three painter sets each frame; any order, another browser
+  # got, the light from a copy of it 64 px across: the layer's box filter on the GPU), the pieces an InstancedMesh the
+  # component's three painter sets each frame; a second shot puts the sun out in its pose, and the sky alone lights the
+  # tower; any order, another browser
   vh components add "$p" build-up >/dev/null && cp components/build-up/sample/three-film.js "$p/src/50-shots.js" \
-    && printf 'Object.assign(FILM, { width: 160, height: 90 });\n' >> "$p/src/50-shots.js"
-  a=$(vh determinism "$p" --at 0.2,2.5,5.9 --soft-gl --out "$t/d" 2>&1); rc=$?
+    && printf '%s\n' 'Object.assign(FILM, { width: 160, height: 90, duration: 8 });' 'FILM.three.envLight = 64;' \
+      'SHOTS.push({ id: "S02", at: 6, three: { pose(t, s, W3) { BUILD.three(MESH, BUILD.state(TOWER, 99), TOWER, THREE); W3.scene.getObjectByName("light0").intensity = 0; } }, draw() {} });' \
+      >> "$p/src/50-shots.js"
+  a=$(vh determinism "$p" --at 0.2,2.5,5.9,7 --soft-gl --out "$t/d" 2>&1); rc=$?
   case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "build-up in the Three.js layer" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
   case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) skip "build-up in the Three.js layer" "no WebGL here even with --soft-gl"; rm -rf "$t"; return ;; esac
   if [ $rc = 0 ] && printf '%s' "$a" | grep -q "determinism: holds" && ! cmp -s "$t/d/A-t0000.200.png" "$t/d/A-t0002.500.png" \
      && px_are "$t/d/A-t0000.200.png" 'P[0][2] > P[0][0] + 8 and not P[1][0] > P[1][2] + 40' 80,3 80,45 \
-     && px_are "$t/d/A-t0005.900.png" 'P[0][0] > P[0][2] + 40' 80,45
-  then ok "build-up in the Three.js layer: a tower a floor at a time (its three painter on an InstancedMesh, set from t) under an HDRI that lights it and shows behind it, the same in any order and another browser (determinism, --soft-gl)"
+     && px_are "$t/d/A-t0005.900.png" 'P[0][0] > P[0][2] + 40' 80,45 \
+     && px_are "$t/d/A-t0007.000.png" 'max(P[0]) > 24' 80,45
+  then ok "build-up in the Three.js layer: a tower a floor at a time (its three painter on an InstancedMesh, set from t) under an HDRI that lights it (the sun out, it still does) and shows behind it, the light from a smaller copy, the same in any order and another browser (determinism, --soft-gl)"
   else bad "build-up in the Three.js layer (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  # an EXR (fixture.py's, a real OpenEXR of the same sky) through EXRLoader, shown sharp behind a box that nothing lights:
+  # no lights and envIntensity 0 leave it black; one page, one frame
+  cp -R "$p" "$t/exr" && printf '%s\n' 'Object.assign(FILM, { width: 160, height: 90, timeline: false, duration: 2, grain: 0, fadeOut: 0, images: {},' \
+    '  three: { env: "assets/hdri/studio_small_09/studio_small_09_2k.exr", envIntensity: 0, lights: [], background: "env", camera: { pos: [0, 1.5, 6], at: [0, 2.5, 0], fov: 50 },' \
+    '    build({ THREE, scene }) { const m = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial({ color: "#ffffff" })); m.position.y = 2.5; scene.add(m); } } });' \
+    'const SHOTS = [{ id: "S01", at: 0, three: {}, draw() {} }];' > "$t/exr/src/50-shots.js"
+  a=$(vh frames "$t/exr" --at 1 --soft-gl --out "$t/fx" 2>&1); rc=$?
+  if [ $rc = 0 ] && px_are "$t/fx/film-t0001.000.png" 'max(P[0]) <= 12 and P[1][2] > P[1][0] + 8 and P[2][0] > P[2][2] + 8' 80,45 80,3 80,88
+  then ok "the Three.js layer: an EXR read and shown sharp behind (its sky above, its ground below); no lights and envIntensity 0 leave the box black"
+  else bad "an EXR in the Three.js layer (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   rm -rf "$t"
 }
 

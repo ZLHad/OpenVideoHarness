@@ -1,6 +1,6 @@
 {
  "v": 1,
- "note": "Poly Haven's answers in their shape (read live 2026-10-29), trimmed; the files' bodies are synthetic (tools/model3d/fixture.py rgbe and sky): nobody's HDRI",
+ "note": "Poly Haven's answers in their shape (read live 2026-10-29), trimmed; the files' bodies are synthetic (tools/model3d/fixture.py rgbe, exr and sky): nobody's HDRI",
  "responses": [
   {
    "url": "https://api.polyhaven.com/assets?t=hdris",

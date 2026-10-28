@@ -22,6 +22,7 @@ Object.assign(FILM, {
       BUILD = await import(new URL("components/build-up/component.js", document.baseURI).href);
       MESH = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ roughness: 0.6 }), TOWER.pieces.length);
       MESH.castShadow = MESH.receiveShadow = true;
+      BUILD.setup(MESH, TOWER, THREE);   // its colours, once: there when ready compiles the shaders
       const ground = new THREE.Mesh(new THREE.CircleGeometry(14, 64), new THREE.MeshStandardMaterial({ color: "#77736b", roughness: 0.95 }));
       ground.rotation.x = -Math.PI / 2;
       ground.receiveShadow = true;

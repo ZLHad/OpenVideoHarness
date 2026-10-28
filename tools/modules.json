@@ -413,7 +413,7 @@
       "purpose": "Poly Haven's API (api.polyhaven.com): bin/vh hdri search and get, environment maps for the Three.js layer and Blender, in sizes from 1k to 16k or more, as .hdr or .exr.",
       "version": {"tested": "2026-10-29"},
       "license": "Poly Haven's API terms (github.com/Poly-Haven/Public-API ToS.md and polyhaven.com/our-api, read 2026-10-29): free for any use, commercial included, no key or payment; every request with a unique User-Agent naming the software (tools/assets/fetch.py's); a tool on the live API makes clear to its users that the assets come from Poly Haven (bin/vh hdri get says so, and the record names it). The assets are CC0",
-      "needs": {"account": "none: no key. Its page also asks a tool that builds the API in on its users' side to tell Poly Haven, so it can say before endpoints change (polyhaven.com/our-api): a request, not a condition of use"},
+      "needs": {"account": "none: no key. polyhaven.com/our-api also invites a tool that builds the API in on its users' side to get in touch, so Poly Haven can tell it before endpoints change: an invitation, not a term of the ToS and not a condition of use"},
       "adapter": ["tools/assets/hdri.py"],
       "commands": ["hdri"],
       "required": false,

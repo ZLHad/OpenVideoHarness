@@ -29,7 +29,7 @@ const EASE = {
   out: (u) => 1 - Math.pow(1 - u, 3),
 };
 const TONES = { agx: THREE.AgXToneMapping, aces: THREE.ACESFilmicToneMapping, neutral: THREE.NeutralToneMapping, linear: THREE.LinearToneMapping, none: THREE.NoToneMapping };
-const SETTINGS = ["models", "camera", "lights", "env", "envIntensity", "envRotation", "background", "backgroundBlur", "tone", "exposure", "shadows", "antialias", "build"];
+const SETTINGS = ["models", "camera", "lights", "env", "envIntensity", "envRotation", "envLight", "background", "backgroundBlur", "tone", "exposure", "shadows", "antialias", "build"];
 const VIEW = ["pos", "at", "fov", "lens", "near", "far", "roll"];
 const SHOT = ["cam", "show", "play", "pose", "background"];
 const PLAY = ["clip", "at", "speed", "loop", "weight", "hold"];
@@ -89,6 +89,32 @@ function light(L, i) {
   return l;
 }
 
+// a smaller copy of an equirectangular map, at most w across, for the light: each texel the mean of the f × f of the map
+// it stands for (f a whole number: Poly Haven's sizes halve), drawn once on the GPU in ready. → its render target
+function shrink(renderer, map, w) {
+  const f = Math.ceil(map.image.width / w), W = Math.floor(map.image.width / f), H = Math.floor(map.image.height / f);
+  const rt = new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType, depthBuffer: false, generateMipmaps: false,
+    minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  rt.texture.mapping = THREE.EquirectangularReflectionMapping;
+  const mat = new THREE.ShaderMaterial({ uniforms: { map: { value: map }, f: { value: f } }, depthTest: false, depthWrite: false,
+    vertexShader: "void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }",
+    fragmentShader: `uniform sampler2D map; uniform int f;
+      void main() {
+        ivec2 o = ivec2(gl_FragCoord.xy) * f; vec4 s = vec4(0.0);
+        for (int j = 0; j < f; j++) for (int i = 0; i < f; i++) s += texelFetch(map, o + ivec2(i, j), 0);
+        gl_FragColor = vec4(s.rgb / float(f * f), 1.0);
+      }` });
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat), sc = new THREE.Scene(), cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  quad.frustumCulled = false;
+  sc.add(quad);
+  const before = renderer.getRenderTarget(), tone = renderer.toneMapping;
+  renderer.toneMapping = THREE.NoToneMapping;
+  renderer.setRenderTarget(rt); renderer.render(sc, cam); renderer.setRenderTarget(before);
+  renderer.toneMapping = tone;
+  quad.geometry.dispose(); mat.dispose();
+  return rt;
+}
+
 // load(FILM.three, { width, height, dpr }) → the layer: { check(shots, problems), draw(ctx, t, s, three, o), models, revision }
 export async function load(spec, { width, height, dpr }) {
   if (!spec || typeof spec !== "object" || Array.isArray(spec)) fail("FILM.three is { models, camera, lights, env, background, … } (ENGINE_README.md, Three.js 层)");
@@ -116,10 +142,14 @@ export async function load(spec, { width, height, dpr }) {
   if (isNum(r)) rot.set(0, r * DEG, 0); else { const v = vec(r, "FILM.three.envRotation"); rot.set(v[0] * DEG, v[1] * DEG, v[2] * DEG); }
   const envIntensity = spec.envIntensity ?? 1;
   if (!isNum(envIntensity) || envIntensity < 0) fail("FILM.three.envIntensity is a number, 0 or more");
-  let env = null, envBack = null;   // the light (a PMREM map) and the background "env" shows (the map itself)
+  const envLight = spec.envLight ?? 2048;
+  if (!(Number.isInteger(envLight) && envLight >= 64)) fail("FILM.three.envLight is the widest map the light is made from, in pixels: a whole number, 64 or more");
+  // env: the light (a PMREM map). envMap: what a sharp background "env" shows, the map itself, kept only while a shot
+  // shows it (check() lets it go otherwise)
+  let env = null, envMap = null;
   if (spec.env === "room") {   // a neutral studio three makes from a few boxes and lights: no file
     const pm = new THREE.PMREMGenerator(renderer), room = new RoomEnvironment();
-    env = envBack = pm.fromScene(room, 0.04).texture;
+    env = envMap = pm.fromScene(room, 0.04).texture;
     room.dispose(); pm.dispose();
   } else if (typeof spec.env === "string" && /\.(hdr|exr)$/i.test(spec.env)) {   // an equirectangular HDRI (bin/vh hdri get)
     const exr = /\.exr$/i.test(spec.env);
@@ -128,10 +158,14 @@ export async function load(spec, { width, height, dpr }) {
     try { map = await new (exr ? mod.EXRLoader : mod.HDRLoader)().loadAsync(spec.env); }
     catch (e) { fail(`FILM.three.env: ${spec.env} did not load (${(e && e.message) || e}): bin/vh hdri get <project> <name> puts one in assets/hdri/`); }
     map.mapping = THREE.EquirectangularReflectionMapping;
+    // the light from a copy at most envLight across: three's PMREM grows with the map (a quarter of its width a cube
+    // face), and an 8k map would make a 400 MB light for what a 2k one lights as well
+    const small = map.image.width > envLight ? shrink(renderer, map, envLight) : null;
     const pm = new THREE.PMREMGenerator(renderer);
-    env = pm.fromEquirectangular(map).texture;
+    env = pm.fromEquirectangular(small ? small.texture : map).texture;
     pm.dispose();
-    envBack = map;
+    if (small) small.dispose();
+    envMap = map;
   } else if (spec.env !== undefined && spec.env !== null) fail(`FILM.three.env: "room" (a neutral studio, no file), an .hdr or .exr file (bin/vh hdri get), or null, not ${JSON.stringify(spec.env)}`);
 
   for (const [i, L] of (spec.lights ?? (env ? [] : [{ type: "hemi", intensity: 1.2 }, { type: "sun", intensity: 2.5, pos: [3, 6, 4] }])).entries()) {
@@ -195,10 +229,12 @@ export async function load(spec, { width, height, dpr }) {
     });
   }
   scene.backgroundRotation.copy(rot);
-  scene.backgroundBlurriness = clamp(spec.backgroundBlur ?? 0);
+  const blur = clamp(spec.backgroundBlur ?? 0);
+  scene.backgroundBlurriness = blur;
+  // background "env": sharp, the map itself; blurred, the light's map (three would make another PMREM of the whole map)
   const BG = (b, what) => {
     if (b === undefined || b === null) return null;
-    if (b === "env") return envBack || fail(`${what}: "env" needs FILM.three.env`);
+    if (b === "env") return (blur > 0 ? env : envMap) || fail(`${what}: "env" needs FILM.three.env`);
     return colour(b, what);
   };
   const bg0 = BG(spec.background, "FILM.three.background");
@@ -219,11 +255,6 @@ export async function load(spec, { width, height, dpr }) {
     }
   };
   const count = () => { let n = 0; scene.traverse(() => n++); return n; };
-  // one render in ready on each background a shot can ask for: the shaders compile now (an error in one is said while
-  // loading), and what three makes on a first render (a skeleton's bone texture, a background's maps, each with a
-  // random id) is made here, not in the first frame drawn
-  aim(cam0);
-  for (const b of new Set([bg0, envBack])) { scene.background = b; renderer.render(scene, camera); }
 
   function aim(v) {
     camera.position.fromArray(v.pos); camera.up.set(0, 1, 0); camera.lookAt(...v.at);
@@ -327,7 +358,17 @@ export async function load(spec, { width, height, dpr }) {
     revision: THREE.REVISION,
     models: Object.values(M).map((m) => ({ key: m.key, src: m.src, clips: Object.fromEntries(Object.entries(m.clips).map(([n, c]) => [n, +c.duration.toFixed(4)])) })),
     // shots: [{ id, t0, t1 (its end, its transition out included), three (cues as seconds) }] → problems
-    check(shots, problems) { for (const S of shots) NORM.set(S.three, normalize(S, problems)); },
+    check(shots, problems) {
+      for (const S of shots) NORM.set(S.three, normalize(S, problems));
+      // the map itself only while a shot shows it sharp; else it goes now, from the GPU and the page
+      const shown = new Set([bg0, ...shots.map((S) => NORM.get(S.three).background).filter((b) => b !== undefined)]);
+      if (envMap && envMap !== env && !shown.has(envMap)) { envMap.dispose(); envMap = null; }
+      // one render in ready on each background the shots show: the shaders compile now (an error in one is said while
+      // loading), and what three makes on a first render (a skeleton's bone texture, a background's maps, each with a
+      // random id) is made here, not in the first frame drawn
+      aim(cam0);
+      for (const b of shown) { scene.background = b; renderer.render(scene, camera); }
+    },
     // the 3D of a shot at t into ctx at the frame's size (under ctx's transform); o.record: pose it, draw nothing (the
     // recorder's samples in ready)
     draw(ctx, t, s, three, o = {}) {

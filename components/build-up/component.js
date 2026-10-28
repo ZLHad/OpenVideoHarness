@@ -5,7 +5,7 @@
 // dropping from above, growing from its base, fading in). state(params, t) is geometry and time only; two painters draw
 // it: canvas (2.5D blocks in an isometric view, for the sample and for films without 3D) and three (the matrices of a
 // Three.js InstancedMesh: canvas-film's Three.js layer, or any Three.js scene; three is passed in, not imported).
-import { clamp, easeOf, hash, seg } from "../lib/core.js";
+import { clamp, ease as EASES, easeOf, hash, seg } from "../lib/core.js";
 
 export const defaults = {
   pieces: [],           // [{ x, y, z, w, h, d, color? }]: each box's centre and size (y up), in the scene's units
@@ -16,23 +16,58 @@ export const defaults = {
   start: 0,             // s: when the first rank starts
   stagger: 0.08,        // s: from one rank's start to the next's
   jitter: 0,            // s: each piece starts up to this much later, by a hash of seed and its index
-  dur: 0.5,             // s: how long one piece takes to come in
+  dur: 0.5,             // s: how long one piece takes to come in (0: it is there at its start)
   ease: "outCubic",     // its curve: a lib/core.js ease name, a CSS curve or [x1, y1, x2, y2]
   appear: "rise",       // rise (from lift below), drop (from lift above), grow (from its base), fade
   lift: 1,              // how far a rising or dropping piece travels, in the scene's units
   seed: 1,              // for the random order and the jitter
 };
 const opts = (p) => ({ ...defaults, ...p });
-const ORDERS = ["height", "distance", "index", "random"], WAYS = ["rise", "drop", "grow", "fade"];
+const ORDERS = ["height", "distance", "index", "random"], WAYS = ["rise", "drop", "grow", "fade"], SIZE = ["w", "h", "d"];
+const fail = (msg) => { throw new Error(`build-up: ${msg}`); };
+const say = (v) => (JSON.stringify(v) ?? String(v)).slice(0, 60);
+const num = (x) => typeof x === "number" && Number.isFinite(x);
 
-// each params object's ranks and start times, worked out once (they depend on params alone: change a copy, not the object)
-const PLANS = new WeakMap();
+// what the plan reads, checked when it is worked out: a wrong one is an error that names it, never a NaN in a box
+function check(p) {
+  if (!Array.isArray(p.pieces)) fail(`pieces is a list of { x, y, z, w, h, d, color? }, not ${say(p.pieces)}`);
+  p.pieces.forEach((q, i) => {
+    if (!q || typeof q !== "object") fail(`pieces[${i}] is { x, y, z, w, h, d, color? }, not ${say(q)}`);
+    for (const k of ["x", "y", "z", ...SIZE]) {
+      if (!num(q[k]) || (SIZE.includes(k) && q[k] < 0)) fail(`pieces[${i}].${k} is a number${SIZE.includes(k) ? ", 0 or more" : ""}, not ${say(q[k])}`);
+    }
+  });
+  if (!ORDERS.includes(p.order)) fail(`order is ${ORDERS.join(", ")}, not ${say(p.order)}`);
+  if (!(Array.isArray(p.from) && p.from.length === 3 && p.from.every(num))) fail(`from is [x, y, z], not ${say(p.from)}`);
+  for (const k of ["bucket", "stagger", "jitter", "dur"]) if (!(num(p[k]) && p[k] >= 0)) fail(`${k} is a number, 0 or more, not ${say(p[k])}`);
+  for (const k of ["start", "seed"]) if (!num(p[k])) fail(`${k} is a number, not ${say(p[k])}`);
+}
+
+// a curve by a name lib/core.js has, a CSS curve or four numbers: a name it does not have is an error, not a stand-in
+const CSS = ["linear", "ease", "ease-in", "ease-out", "ease-in-out"];
+function curve(e) {
+  if (typeof e === "function") return e;
+  if (Array.isArray(e) && e.length === 4 && e.every((x) => Number.isFinite(+x))) return easeOf(e);
+  if (typeof e === "string") {
+    const s = e.trim().toLowerCase(), m = s.match(/^cubic-bezier\(([^)]*)\)$/);
+    if ((Object.hasOwn(EASES, e) && e !== "steps") || CSS.includes(s) || /^steps\(\d+/.test(s)
+      || (m && m[1].split(",").length === 4 && m[1].split(",").every((x) => x.trim() !== "" && Number.isFinite(+x)))) return easeOf(e);
+  }
+  return fail(`ease is a name (${Object.keys(EASES).filter((k) => k !== "steps").join(", ")}), a CSS curve or [x1, y1, x2, y2], not ${say(e)}`);
+}
+
+// each params object's plan, kept while what it reads is the same: the pieces list (the same list, as long) and the
+// order, bucket, start, stagger, jitter, dur, seed, reverse and from; one of them changed, it is worked out again. A
+// piece changed in place is not seen: give the params a new pieces list.
+const PLANS = new WeakMap(), SIGNED = ["order", "bucket", "start", "stagger", "jitter", "dur", "seed", "reverse"];
+const sign = (p) => JSON.stringify([p.pieces.length, ...SIGNED.map((k) => p[k]), p.from]);
 /** → { t0: [each piece's start], rank: [each piece's rank], ranks, end (s: when the last piece is in) }. */
 export function plan(params) {
-  if (params && PLANS.has(params)) return PLANS.get(params);
-  const p = opts(params), n = p.pieces.length;
-  if (!ORDERS.includes(p.order)) throw new Error(`build-up: order is ${ORDERS.join(", ")}, not ${JSON.stringify(p.order)}`);
-  if (!WAYS.includes(p.appear)) throw new Error(`build-up: appear is ${WAYS.join(", ")}, not ${JSON.stringify(p.appear)}`);
+  const p = opts(params), keep = params && typeof params === "object";
+  const c = keep ? PLANS.get(params) : null;
+  if (c && c.pieces === p.pieces && c.sig === sign(p)) return c.out;
+  check(p);
+  const n = p.pieces.length;
   const key = p.pieces.map((q, i) => {
     let k = p.order === "height" ? q.y - q.h / 2 : p.order === "distance" ? Math.hypot(q.x - p.from[0], q.y - p.from[1], q.z - p.from[2])
       : p.order === "index" ? i : hash(p.seed, i, 101);
@@ -44,8 +79,10 @@ export function plan(params) {
   let r = -1;
   ids.forEach((i, k) => { if (k === 0 || key[i] !== key[ids[k - 1]]) r++; rank[i] = r; });   // one rank a distinct key
   const t0 = rank.map((rk, i) => p.start + rk * p.stagger + (p.jitter > 0 ? p.jitter * hash(p.seed, i, 202) : 0));
-  const out = { t0, rank, ranks: r + 1, end: n ? Math.max(...t0) + p.dur : p.start };
-  if (params) PLANS.set(params, out);
+  let last = -Infinity;
+  for (const x of t0) if (x > last) last = x;   // a loop, not Math.max(...t0): that runs out of stack at about 125,000
+  const out = { t0, rank, ranks: r + 1, end: n ? last + p.dur : p.start };
+  if (keep) PLANS.set(params, { pieces: p.pieces, sig: sign(p), out });
   return out;
 }
 
@@ -54,21 +91,25 @@ export const duration = (params) => plan(params).end;
 
 /**
  * The build at t: { t, n, started, done, pieces: [{ i, rank, t0, u (0 → 1, eased), on (u > 0), box: { x, y, z, w, h, d }
- * (where it is drawn now), alpha, color }] }. A piece before its start is off; a grown one grows from its base.
+ * (where it is drawn now), alpha, color }] }. A piece before its start is off. A curve that overshoots (outBack) carries
+ * a rising or dropping piece past its place and back; a grown piece's size and a fading one's alpha stop at full (u).
  */
 export function state(params, t) {
-  const p = opts(params), P = plan(params), e = easeOf(p.ease);
+  const p = opts(params), P = plan(params), e = curve(p.ease);
+  if (!WAYS.includes(p.appear)) fail(`appear is ${WAYS.join(", ")}, not ${say(p.appear)}`);
+  if (!num(p.lift)) fail(`lift is a number, not ${say(p.lift)}`);
   let started = 0, done = 0;
   const pieces = p.pieces.map((q, i) => {
-    const v = seg(t, P.t0[i], P.t0[i] + p.dur), u = clamp(e(v));
+    const t0 = P.t0[i], v = p.dur > 0 ? seg(t, t0, t0 + p.dur) : t >= t0 ? 1 : 0;   // dur 0: a step, there at its start
+    const k = v <= 0 ? 0 : v >= 1 ? 1 : e(v), u = clamp(k);   // k may pass 1 (an overshoot); u does not
     if (v > 0) started++;
     if (v >= 1) done++;
     let { x, y, z, w, h, d } = q, alpha = 1;
-    if (p.appear === "rise") y -= (1 - u) * p.lift;
-    else if (p.appear === "drop") y += (1 - u) * p.lift;
+    if (p.appear === "rise") y -= (1 - k) * p.lift;
+    else if (p.appear === "drop") y += (1 - k) * p.lift;
     else if (p.appear === "grow") { const base = y - h / 2; w *= u; d *= u; h *= u; y = base + h / 2; }
     else alpha = u;
-    return { i, rank: P.rank[i], t0: P.t0[i], u, on: v > 0, box: { x, y, z, w, h, d }, alpha, color: q.color };
+    return { i, rank: P.rank[i], t0, u, on: v > 0, box: { x, y, z, w, h, d }, alpha, color: q.color };
   });
   return { t, n: pieces.length, started, done, pieces };
 }
@@ -87,7 +128,11 @@ export function project(view, x, y, z) {
   return [v.origin[0] + (x - z) * Math.cos(a) * s, v.origin[1] + ((x + z) * Math.sin(a) - y) * s];
 }
 
-/** Canvas painter: each piece that is on, as a block with its top and its two faces toward the viewer, far ones first. */
+/**
+ * Canvas painter: each piece that is on, as a block with its top and its two faces toward the viewer, far ones first
+ * (by the sum of its centre's coordinates: right for boxes of one size, as a grid of bricks is; boxes of different sizes
+ * can be put in the wrong order, and the three painter draws those right).
+ */
 export function canvas(ctx, st, params, view = {}) {
   const v = { ...VIEW, ...view };
   const on = st.pieces.filter((q) => q.on && q.alpha > 0 && q.box.w > 0 && q.box.h > 0 && q.box.d > 0);
@@ -111,26 +156,44 @@ export function canvas(ctx, st, params, view = {}) {
   }
 }
 
+// ---- three: an InstancedMesh of a unit box ----
+const SET = new WeakMap();   // mesh → the pieces list its colours were set from
+
 /**
- * Three.js painter: the matrices of an InstancedMesh of a unit box (THREE.BoxGeometry(1, 1, 1)) with params.pieces.length
- * instances, set for every piece every frame (a piece that is off is scaled to nothing), and each piece's colour when it
- * has one. THREE is the three.js namespace (window.THREE in canvas-film's layer). An InstancedMesh has no opacity of its
- * own a piece: fade draws as grow there. Culling is turned off: three would take the instances' bounds once, from the
- * frame it first drew.
+ * Before the first frame (canvas-film: in FILM.three.build, after making the mesh): checks the mesh has an instance for
+ * every piece and sets each piece's colour once (white for one with none: the material's colour shows), so the colours
+ * are there when ready compiles the shaders. three() does it itself on its first call if this was not called, and again
+ * when the params get a new pieces list.
+ */
+export function setup(mesh, params, THREE) {
+  const p = opts(params), n = Array.isArray(p.pieces) ? p.pieces.length : 0;
+  if (mesh.count < n) fail(`the InstancedMesh draws ${mesh.count} instances, and there are ${n} pieces: make it with ${n} or more`);
+  if (p.pieces.some((q) => q && q.color)) {
+    const c = new THREE.Color();
+    p.pieces.forEach((q, i) => mesh.setColorAt(i, c.set(q.color || "#ffffff")));
+    mesh.instanceColor.needsUpdate = true;
+  }
+  mesh.frustumCulled = false;   // three would take the instances' bounds once, from the frame it first drew
+  SET.set(mesh, { pieces: p.pieces, n });
+}
+
+/**
+ * Three.js painter: the matrices of an InstancedMesh of a unit box (THREE.BoxGeometry(1, 1, 1)) with an instance a
+ * piece, set for every piece every frame (a piece that is off is scaled to nothing). THREE is the three.js namespace
+ * (window.THREE in canvas-film's layer). An InstancedMesh has no opacity of its own a piece: fade draws as grow there.
  */
 export function three(mesh, st, params, THREE) {
-  const m = new THREE.Matrix4(), pos = new THREE.Vector3(), scl = new THREE.Vector3(), rot = new THREE.Quaternion(), c = new THREE.Color();
-  const fade = opts(params).appear === "fade", grow = (q) => {   // fade as grow: about its base, by u
+  const p = opts(params), s = SET.get(mesh);
+  if (!s || s.pieces !== p.pieces || s.n !== p.pieces.length) setup(mesh, params, THREE);
+  const m = new THREE.Matrix4(), pos = new THREE.Vector3(), scl = new THREE.Vector3(), rot = new THREE.Quaternion();
+  const fade = p.appear === "fade", grow = (q) => {   // fade as grow: about its base, by u
     const { x, y, z, w, h, d } = q.box, base = y - h / 2;
     return { x, y: base + (h * q.u) / 2, z, w: w * q.u, h: h * q.u, d: d * q.u };
   };
   for (const q of st.pieces) {
     const b = fade ? grow(q) : q.box, k = q.on ? 1 : 0;
-    m.compose(pos.set(b.x, b.y, b.z), rot, scl.set(b.w * k, b.h * k, b.d * k));
+    m.compose(pos.set(b.x * k, b.y * k, b.z * k), rot, scl.set(b.w * k, b.h * k, b.d * k));
     mesh.setMatrixAt(q.i, m);
-    if (q.color) mesh.setColorAt(q.i, c.set(q.color));
   }
   mesh.instanceMatrix.needsUpdate = true;
-  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  mesh.frustumCulled = false;
 }

@@ -38,8 +38,29 @@ def rgbe(w, h, pixel):
     return head + b"".join(enc(*pixel(x, y)) for y in range(h) for x in range(w))
 
 
+def exr(w, h, pixel):
+    """A w x h OpenEXR (scan lines, no compression, half-float B, G and R; three's EXRLoader and Blender read it), from
+    the same pixel(x, y) as rgbe(): row 0 the top. 128 x 64 is about 50 kB."""
+    def attr(name, kind, value):
+        return name.encode() + b"\0" + kind.encode() + b"\0" + struct.pack("<i", len(value)) + value
+    chans = b"".join(c.encode() + b"\0" + struct.pack("<iB3xii", 1, 0, 1, 1) for c in "BGR") + b"\0"   # 1: HALF; alphabetical
+    box = struct.pack("<4i", 0, 0, w - 1, h - 1)
+    head = (struct.pack("<ii", 20000630, 2) + attr("channels", "chlist", chans) + attr("compression", "compression", b"\0")
+            + attr("dataWindow", "box2i", box) + attr("displayWindow", "box2i", box) + attr("lineOrder", "lineOrder", b"\0")
+            + attr("pixelAspectRatio", "float", struct.pack("<f", 1.0)) + attr("screenWindowCenter", "v2f", struct.pack("<ff", 0, 0))
+            + attr("screenWindowWidth", "float", struct.pack("<f", 1.0)) + b"\0")
+    size = w * 3 * 2
+    first = len(head) + 8 * h
+    table = b"".join(struct.pack("<Q", first + y * (8 + size)) for y in range(h))
+    rows = []
+    for y in range(h):
+        px = [pixel(x, y) for x in range(w)]
+        rows.append(struct.pack("<ii", y, size) + b"".join(struct.pack(f"<{w}e", *(p[c] for p in px)) for c in (2, 1, 0)))
+    return head + table + b"".join(rows)
+
+
 def sky(w, h):
-    """The test sky as pixel(x, y) for rgbe(w, h, …): a blue gradient down to a warm horizon, a dark ground, a bright sun to
+    """The test sky as pixel(x, y) for rgbe(w, h, …) or exr(w, h, …): a blue gradient down to a warm horizon, a dark ground, a bright sun to
     one side. Three's PMREM wants a map 64 px wide or more (a smaller one lights and blurs to black): 128 x 64 does."""
     def pixel(x, y):
         v = y / (h - 1)

@@ -48,6 +48,8 @@ bin/vh components add <项目> chapter-bar page-turn    # 复制 lib/ 和这两�
 
 每个组件带一段 5 秒的样片：`<组件>/sample/` 是一个样片场景（`swatch.js` + `tokens.json`，接口同 `styles/_swatch/README.md`），`bin/vh components sample <组件>` 用样片渲染器渲出来（`sample/media/swatch.mp4` 不入库），联系表存成 `sample/media/sheet.jpg` 入库：agent 读这张图，就知道这个组件动起来是什么样子。
 
+`build-up` 的联系表是它的 canvas 落笔画的（2.5D 方块），不是 three 落笔，也没有 HDRI；three 落笔的样子看 `build-up/sample/three-film.js` 渲出的帧。canvas 落笔按每块中心由远到近排着画，只对一样大的盒子排得对，大小不一的盒子前后会排错，要准确的遮挡就用 three 落笔。
+
 ## 写一个新组件
 
 1. 新建 `components/<名字>/`：`component.js` 导出 `defaults`、`state(params, t)` 和至少一种落笔；`slots.json` 写参数表；`sample/` 放一个 5 秒的样片场景。
