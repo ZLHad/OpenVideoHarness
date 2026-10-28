@@ -1,0 +1,113 @@
+{
+ "studio_small_09": {
+  "type": 0,
+  "name": "Studio Small 09",
+  "categories": [
+   "medium contrast",
+   "indoor",
+   "urban",
+   "artificial light",
+   "studio"
+  ],
+  "tags": [
+   "umbrella",
+   "softbox",
+   "infinity",
+   "lamp",
+   "studio",
+   "photo"
+  ],
+  "authors": {
+   "Sergej Majboroda": "All"
+  },
+  "max_resolution": [
+   16384,
+   8192
+  ],
+  "download_count": 710952
+ },
+ "kloofendal_48d_partly_cloudy_puresky": {
+  "type": 0,
+  "name": "Kloofendal 48d Partly Cloudy (Pure Sky)",
+  "categories": [
+   "outdoor",
+   "skies",
+   "nature",
+   "midday",
+   "partly cloudy",
+   "high contrast",
+   "natural light",
+   "pure skies"
+  ],
+  "tags": [
+   "pure skies"
+  ],
+  "authors": {
+   "Greg Zaal": "Original",
+   "Jarod Guest": "Sky edits"
+  },
+  "max_resolution": [
+   16384,
+   8192
+  ],
+  "download_count": 884986
+ },
+ "rogland_clear_night": {
+  "type": 0,
+  "name": "Rogland Clear Night",
+  "categories": [
+   "outdoor",
+   "natural light",
+   "nature",
+   "skies",
+   "clear",
+   "low contrast",
+   "night",
+   "collection: namaqualand"
+  ],
+  "tags": [
+   "stars",
+   "milky way",
+   "galaxy",
+   "astronomy",
+   "dark",
+   "rocky",
+   "arid",
+   "desert"
+  ],
+  "authors": {
+   "Greg Zaal": "All"
+  },
+  "max_resolution": [
+   24576,
+   12288
+  ],
+  "download_count": 336979
+ },
+ "sunflowers_puresky": {
+  "type": 0,
+  "name": "Sunflowers (Pure Sky)",
+  "categories": [
+   "outdoor",
+   "skies",
+   "nature",
+   "midday",
+   "partly cloudy",
+   "high contrast",
+   "natural light",
+   "pure skies"
+  ],
+  "tags": [
+   "pure skies"
+  ],
+  "authors": {
+   "Jarod Guest": "Sky Edits",
+   "Sergej Majboroda": "Original"
+  },
+  "max_resolution": [
+   16384,
+   8192
+  ],
+  "download_count": 323723
+ }
+}

@@ -219,12 +219,13 @@
     {
       "name": "blender",
       "kind": "program",
-      "purpose": "Shots that need path-traced light, physics or real depth of field, and the Blender style scenes (styles/tabletop-miniature).",
-      "version": {"tested": "5.2 LTS (engines/blender.md)"},
+      "purpose": "Shots that need path-traced light, physics or real depth of field, and the Blender style scenes (styles/tabletop-miniature); and bin/vh model3d check --blender, which reads a model in it for z-fighting and faces pointing inward.",
+      "version": {"tested": "5.2 LTS (engines/blender.md); model3d check --blender on 5.2.2"},
       "license": "GPL-2.0-or-later; this repo's scripts that import bpy are GPL-3.0-or-later; this repo's reading, not legal advice: what it renders is yours",
       "needs": {},
-      "adapter": ["engines/blender.md", "styles/_swatch/blender_render.py", "styles/_swatch/blender_prep.py", "styles/_swatch/render.sh (bl_run)"],
-      "commands": ["style"],
+      "adapter": ["engines/blender.md", "styles/_swatch/blender_render.py", "styles/_swatch/blender_prep.py", "styles/_swatch/render.sh (bl_run)",
+                  "tools/model3d/blender_qa.py", "tools/model3d/model3d.py (run_blender)"],
+      "commands": ["style", "model3d"],
       "required": false,
       "check": {"program": "blender", "version": ["blender", "--version"], "pattern": "Blender (\\d+(?:\\.\\d+)*)"},
       "install": {"macos": "brew install --cask blender", "linux": "blender.org's download, or your package manager"}
@@ -418,6 +419,20 @@
       "check": {},
       "probe": {"method": "GET", "url": "https://api.openverse.org/v1/audio/?q=whoosh&source=freesound&license=cc0&page_size=1",
                 "expect": {"path": "results"}},
+      "install": {}
+    },
+    {
+      "name": "polyhaven",
+      "kind": "service",
+      "purpose": "Poly Haven's API (api.polyhaven.com): bin/vh hdri search and get, environment maps for the Three.js layer and Blender, in sizes from 1k to 16k or more, as .hdr or .exr.",
+      "version": {"tested": "2026-10-29"},
+      "license": "Poly Haven's API terms (github.com/Poly-Haven/Public-API ToS.md and polyhaven.com/our-api, read 2026-10-29): free for any use, commercial included, no key or payment; every request with a unique User-Agent naming the software (tools/assets/fetch.py's); a tool on the live API makes clear to its users that the assets come from Poly Haven (bin/vh hdri get says so, and the record names it). The assets are CC0",
+      "needs": {"account": "none: no key. polyhaven.com/our-api also invites a tool that builds the API in on its users' side to get in touch, so Poly Haven can tell it before endpoints change: an invitation, not a term of the ToS and not a condition of use"},
+      "adapter": ["tools/assets/hdri.py"],
+      "commands": ["hdri"],
+      "required": false,
+      "check": {},
+      "probe": {"method": "GET", "url": "https://api.polyhaven.com/info/studio_small_09", "expect": {"path": "name"}},
       "install": {}
     },
     {

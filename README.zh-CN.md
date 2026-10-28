@@ -186,7 +186,7 @@ cd ~/OpenVideoHarness && claude
 
 介绍片的开场就是这样做的：118 万颗星组成一个星系，15.8 秒、475 帧，1080p 在 M3 Max 上渲了 1 小时 28 分。脚本在沙箱里跑，不联网，也拿不到你的 API key；长渲染分块、可以续渲。什么时候值得用、怎么接进片子、踩过哪些坑，见 [engines/blender.md](engines/blender.md)。
 
-旁白片里要放 3D 模型时，canvas 引擎有一个可选的 Three.js 层（`bin/vh new … --engine canvas-film --three`）：GLB 模型画在 2D 下面，动作按旁白的字放，每一帧都是 t 的函数。模型放进来之前，`bin/vh model3d check` 先读一遍：面数、贴图、骨骼、动作名和时长、以米计的尺寸。
+旁白片里要放 3D 模型时，canvas 引擎有一个可选的 Three.js 层（`bin/vh new … --engine canvas-film --three`）：GLB 模型画在 2D 下面，动作按旁白的字放，每一帧都是 t 的函数。模型放进来之前，`bin/vh model3d check` 先读一遍：面数、贴图、骨骼、动作名和时长、以米计的尺寸。`bin/vh hdri` 从 Poly Haven 取 CC0 的环境贴图，给场景打光、当背景。
 
 ## 声音
 
@@ -281,7 +281,7 @@ bash install.sh --no-skill                       # 不注册全局 skill
 
 ## 许可
 
-原创内容采用 [MIT](LICENSE)。自带的 ClaudeAnimationBase 也是 MIT（© John Heibel）。`recipes/` 里改编自别的项目的部分仍按它们各自的许可（Apache-2.0 或 MIT），见 [`recipes/NOTICE.md`](recipes/NOTICE.md)。调用 Blender Python API（`import bpy`）的文件按 GPL-3.0-or-later 分发，每个文件头都有 SPDX 标注，见 [`engines/blender.md`](engines/blender.md)。参考仓库遵循各自的许可证，不进本仓库。
+原创内容采用 [MIT](LICENSE)。自带的 ClaudeAnimationBase 也是 MIT（© John Heibel）。`recipes/` 里改编自别的项目的部分仍按它们各自的许可（Apache-2.0 或 MIT），见 [`recipes/NOTICE.md`](recipes/NOTICE.md)。调用 Blender Python API（`import bpy`）的文件按 GPL-3.0-or-later 分发，每个文件头都有 SPDX 标注，见 [`engines/blender.md`](engines/blender.md)；GPL 的全文在 [`LICENSES/GPL-3.0-or-later.txt`](LICENSES/GPL-3.0-or-later.txt)。canvas 引擎的 Three.js 层带着的 three.js 和 fflate 仍按各自的 MIT 许可，见 [`engines/canvas-film/three/NOTICE.md`](engines/canvas-film/three/NOTICE.md)；`bin/vh model3d` 的 Blender 检查改编了 blender-skills 的 MIT 代码，见 [`tools/model3d/NOTICE.md`](tools/model3d/NOTICE.md)。参考仓库遵循各自的许可证，不进本仓库。
 
 `components/` 里改编自别的项目的部分仍按它的 MIT 许可，见 [`components/NOTICE.md`](components/NOTICE.md)。
 

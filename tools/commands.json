@@ -478,15 +478,18 @@
       "writes": [],
       "usage": [
         {
-          "synopsis": "model3d check <model.glb|model.gltf> [--tier hero|prop] [--max-faces N] [--max-texture PX] [--json]",
+          "synopsis": "model3d check <model.glb|model.gltf> [--tier hero|prop] [--max-faces N] [--max-texture PX] [--blender [--eps M] [--max-tris N]] [--json]",
           "text": [
             "triangles as the scene draws them, meshes, materials; each texture's size, format and bytes and what uses it; skins",
-            "and joints; each clip's name and length as the Three.js layer names it; the box in metres, the origin, which way it is",
-            "tallest (glTF is metres and +Y up by definition). Fails over the tier (hero 200,000 triangles and 4096 px textures,",
-            "prop 50,000 and 2048; --max-faces, --max-texture change them), on an extension the layer cannot decode (Draco,",
-            "meshopt, KTX2; Draco even listed only as used), on a file not beside it, on a part that points outside the file",
-            "(a cheap pass, not a validator: Khronos's glTF-Validator is one); --json: the report, also when the file cannot",
-            "be read (bin/vh model3d -h has the fields). gen comes later"
+            "and joints, and each skinned vertex's weights; each clip's name and length as the Three.js layer names it; the box in",
+            "metres, the origin, which way it is tallest (glTF is metres and +Y up by definition). Fails over the tier (hero 200,000",
+            "triangles and 4096 px textures, prop 50,000 and 2048; --max-faces, --max-texture change them), on an extension the layer",
+            "cannot decode (Draco, meshopt, KTX2; Draco even listed only as used), a file not beside it, a part that points outside",
+            "the file (a cheap pass, not a validator: Khronos's glTF-Validator is one), a vertex whose weights are all 0 (three ties",
+            "it to one bone) and a skinned primitive with no JOINTS_0; weights not summing to 1 or past four bones warn (three scales",
+            "or drops them); --blender: z-fighting (within --eps metres) and faces pointing inward too, in Blender (sandboxed on",
+            "macOS; skipped and said without it; a Blender that gives no report fails); --json: the report, also when the file",
+            "cannot be read (bin/vh model3d -h has the fields). gen comes later"
           ]
         }
       ],
@@ -494,6 +497,45 @@
         {
           "name": "check",
           "summary": "what a model holds, against a tier's budget"
+        }
+      ]
+    },
+    {
+      "name": "hdri",
+      "summary": "Environment maps from Poly Haven (every one CC0): search the library, get one into the project at a size and a format, its md5 checked and on record in the ledger, with the line the Three.js layer takes for it.",
+      "when": "a 3D shot that wants real light and reflections, or a sky behind it (FILM.three.env), and a Blender scene's world (engines/blender.md)",
+      "stages": ["6", "1"],
+      "reads": [
+        "Poly Haven's API (api.polyhaven.com; --offline <folder>: recorded answers)",
+        "<project>/BRIEF.md (Assets)"
+      ],
+      "writes": [
+        "<project>/assets/hdri/<hdri>/<hdri>_<res>.<hdr|exr> and its record in assets/ledger.json (get)"
+      ],
+      "usage": [
+        {
+          "synopsis": "hdri search <words…> [--category C] [-n 12] [--json] [--offline DIR]",
+          "text": [
+            "Poly Haven's HDRIs whose id, name, tags or categories hold every word, most downloaded first: the id, name, largest size, categories, authors"
+          ]
+        },
+        {
+          "synopsis": "hdri get <project> <hdri> [--res 2k] [--format hdr|exr] [--id ID] [--max-mb 200] [--rate 2M] [--json] [--offline DIR]",
+          "text": [
+            "into assets/hdri/<hdri>/ under Poly Haven's name for it, resumed if stopped, its md5 checked (a resumed one that does not",
+            "match is fetched again once); on record as CC0 with its page, authors, sha256 and md5; prints FILM.three.env's line. 1k",
+            "or 2k light a scene, a background through a lens wants 8k or more (a get of 8k or more says what a sharp background costs)"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "search",
+          "summary": "Poly Haven's HDRIs by words and category"
+        },
+        {
+          "name": "get",
+          "summary": "one into the project, checked and on record"
         }
       ]
     },
@@ -1541,8 +1583,8 @@
     },
     {
       "name": "components",
-      "summary": "The repo's motion components (spring scene, page turn, paper transitions, chapter bar) and the library under them: list them with their parameter tables, copy them into a project, render a sample.",
-      "when": "a shot needs a move the components already make (a shape that springs between states, a page turn, a fold or ink seam, a chapter bar) before writing one by hand",
+      "summary": "The repo's motion components (spring scene, page turn, paper transitions, chapter bar, build-up) and the library under them: list them with their parameter tables, copy them into a project, render a sample.",
+      "when": "a shot needs a move the components already make (a shape that springs between states, a page turn, a fold or ink seam, a chapter bar, pieces that build a whole one after another) before writing one by hand",
       "stages": ["6", "5"],
       "reads": [
         "components/<name>/slots.json, component.js",
@@ -1556,7 +1598,7 @@
         {
           "synopsis": "components [list] [--json] | check | add <project> <name…> | sample <name> [--draft]",
           "text": [
-            "the components (components/README.md): each a state(params, t) and a canvas or DOM painter, its parameters in",
+            "the components (components/README.md): each a state(params, t) and a canvas, DOM or three painter, its parameters in",
             "slots.json; add copies the library and the named ones into a project and prints how its engine loads them;",
             "sample renders one's 5 s sample and keeps its contact sheet"
           ]

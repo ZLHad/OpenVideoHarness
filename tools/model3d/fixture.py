@@ -3,9 +3,15 @@ square and 2 m tall, skinned to two bones (Root at its foot, Tip at its middle),
 "bend" (Tip turns 45 degrees about Z and back, 1 s) and "lift" (Root rises 0.5 m and comes down, 2 s). bin/vh model3d
 check and the Three.js layer's test page (tools/ci.sh) both read it. Stdlib only.
 
-usage: python3 tools/model3d/fixture.py <out.glb> [--scale K] [--json]
+usage: python3 tools/model3d/fixture.py <out.glb> [--scale K] [--faulty] [--mirrored] [--json]
        python3 tools/model3d/fixture.py --film <canvas-film project made with --three>
   --scale K   every length times K (100: a model made in centimetres and read as metres)
+  --faulty    with what bin/vh model3d check --blender finds: a second top cap 0.2 mm over the first (z-fighting), a box
+              beside the column with its faces wound inward, the middle ring's weights summing to 0.8 and one vertex
+              bound to no bone
+  --mirrored  and a box on the other side, its faces wound outward, on a node scaled [-1, 1, 1]: glTF and three draw a
+              mirrored node's faces the other way round, so it is right, and bin/vh model3d check --blender finds nothing
+              in it (engines/blender.md says how to try it; CI has no Blender)
   --json      print what it wrote: {"path", "bytes", "triangles", "vertices", "joints", "animations": {name: seconds}}
   --film P    the model as P/assets/models/box.glb and the layer's test film as P/src/50-shots.js (FILM below): 160 x 90,
               silent, 3 s. S01 holds the camera while the column bends in a loop, so t = 0.25 and t = 1.25 (clip time 0.25
@@ -24,6 +30,52 @@ import glb   # noqa: E402
 W, H = 0.25, 2.0   # half the width, the height (metres)
 
 
+def rgbe(w, h, pixel):
+    """A w x h Radiance .hdr (RGBE, flat scanlines; three's HDRLoader and Blender read it); pixel(x, y) → (r, g, b) floats.
+    For a test sky: synthetic, nobody's photograph."""
+    def enc(r, g, b):
+        v = max(r, g, b)
+        if v < 1e-32:
+            return bytes(4)
+        m, e = math.frexp(v)
+        k = m * 256 / v
+        return bytes((int(r * k), int(g * k), int(b * k), e + 128))
+    head = f"#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y {h} +X {w}\n".encode()
+    return head + b"".join(enc(*pixel(x, y)) for y in range(h) for x in range(w))
+
+
+def exr(w, h, pixel):
+    """A w x h OpenEXR (scan lines, no compression, half-float B, G and R; three's EXRLoader and Blender read it), from
+    the same pixel(x, y) as rgbe(): row 0 the top. 128 x 64 is about 50 kB."""
+    def attr(name, kind, value):
+        return name.encode() + b"\0" + kind.encode() + b"\0" + struct.pack("<i", len(value)) + value
+    chans = b"".join(c.encode() + b"\0" + struct.pack("<iB3xii", 1, 0, 1, 1) for c in "BGR") + b"\0"   # 1: HALF; alphabetical
+    box = struct.pack("<4i", 0, 0, w - 1, h - 1)
+    head = (struct.pack("<ii", 20000630, 2) + attr("channels", "chlist", chans) + attr("compression", "compression", b"\0")
+            + attr("dataWindow", "box2i", box) + attr("displayWindow", "box2i", box) + attr("lineOrder", "lineOrder", b"\0")
+            + attr("pixelAspectRatio", "float", struct.pack("<f", 1.0)) + attr("screenWindowCenter", "v2f", struct.pack("<ff", 0, 0))
+            + attr("screenWindowWidth", "float", struct.pack("<f", 1.0)) + b"\0")
+    size = w * 3 * 2
+    first = len(head) + 8 * h
+    table = b"".join(struct.pack("<Q", first + y * (8 + size)) for y in range(h))
+    rows = []
+    for y in range(h):
+        px = [pixel(x, y) for x in range(w)]
+        rows.append(struct.pack("<ii", y, size) + b"".join(struct.pack(f"<{w}e", *(p[c] for p in px)) for c in (2, 1, 0)))
+    return head + table + b"".join(rows)
+
+
+def sky(w, h):
+    """The test sky as pixel(x, y) for rgbe(w, h, …) or exr(w, h, …): a blue gradient down to a warm horizon, a dark ground, a bright sun to
+    one side. Three's PMREM wants a map 64 px wide or more (a smaller one lights and blurs to black): 128 x 64 does."""
+    def pixel(x, y):
+        v = y / (h - 1)
+        r, g, b = (0.25 + 0.6 * v, 0.35 + 0.4 * v, 0.9 - 0.4 * v) if v < 0.5 else (0.12, 0.1, 0.08)
+        near = abs(x - w // 4) <= w // 64 and abs(y - h // 6) <= h // 32
+        return (r + 6.0, g + 5.0, b + 3.5) if near else (r, g, b)
+    return pixel
+
+
 def png(w, h, pixel):
     """A w x h RGB PNG; pixel(x, y) → (r, g, b). Stored without compression, so the bytes are the same on every zlib."""
     raw = b"".join(b"\0" + bytes(c for x in range(w) for c in pixel(x, y)) for y in range(h))
@@ -32,7 +84,7 @@ def png(w, h, pixel):
             + chunk(b"IDAT", zlib.compress(raw, 0)) + chunk(b"IEND", b""))
 
 
-def build(scale=1.0):
+def build(scale=1.0, faulty=False, mirrored=False):
     pos, nor, uv, jnt, wgt, idx = [], [], [], [], [], []
     rows = [(0, (0, 0), (1, 0)), (1, (0, 1), (0.5, 0.5)), (2, (1, 0), (1, 0))]   # y, joints, weights of each ring
     # four sides, each two quads high; right × up = the outward normal, so the triangles wind counter-clockwise seen from outside
@@ -52,6 +104,14 @@ def build(scale=1.0):
             pos.append((scale * W * x, scale * y, scale * W * z)); nor.append(n); uv.append(((x + 1) / 2, (z + 1) / 2))
             jnt.append((jn, 0, 0, 0)); wgt.append((1.0, 0.0, 0.0, 0.0))
         idx += [base, base + 1, base + 2, base, base + 2, base + 3]
+    if faulty:   # what bin/vh model3d check --blender finds: a second top cap 0.2 mm over the first, on vertices of its own
+        base = len(pos)
+        for x, z in zip((-1, 1, 1, -1), (1, 1, -1, -1)):
+            pos.append((scale * W * x, scale * (H + 0.0002), scale * W * z)); nor.append((0, 1, 0)); uv.append(((x + 1) / 2, (z + 1) / 2))
+            jnt.append((1, 0, 0, 0)); wgt.append((1.0, 0.0, 0.0, 0.0))
+        idx += [base, base + 1, base + 2, base, base + 2, base + 3]
+        wgt = [(0.5, 0.3, 0.0, 0.0) if w == (0.5, 0.5, 0.0, 0.0) else w for w in wgt]   # the middle ring's weights sum to 0.8
+        wgt[28] = (0.0, 0.0, 0.0, 0.0)   # and the bottom cap's first vertex is bound to no bone
 
     blob, views, accessors = bytearray(), [], []
 
@@ -106,8 +166,23 @@ def build(scale=1.0):
             {"name": "lift", "channels": [{"sampler": 0, "target": {"node": 1, "path": "translation"}}],
              "samplers": [{"input": lift_t, "output": lift_p, "interpolation": "LINEAR"}]},
         ],
-        "accessors": accessors, "bufferViews": views, "buffers": [{"byteLength": len(blob) + (-len(blob) % 4)}],
+        "accessors": accessors, "bufferViews": views, "buffers": [{"byteLength": 0}],
     }
+    s = 0.15 * scale
+    bp = [(x * s, y * s, z * s) for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)]
+    faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]   # each wound outward
+    boxes = []
+    if faulty:   # and a box beside it, its faces wound inward (a closed part inside out)
+        boxes.append(("Inverted", (0, 2, 1, 0, 3, 2), {"translation": [1.0 * scale, s, 0.0]}))
+    if mirrored:   # a box wound outward on a mirrored node: right as it is
+        boxes.append(("Mirrored", (0, 1, 2, 0, 2, 3), {"translation": [-1.0 * scale, s, 0.0], "scale": [-1.0, 1.0, 1.0]}))
+    for name, order, place in boxes:
+        bi = [f[k] for f in faces for k in order]
+        gltf["meshes"].append({"name": name, "primitives": [{"attributes": {"POSITION": acc(bp, 5126, "VEC3", 34962, minmax=True)},
+                                                              "indices": acc(bi, 5123, "SCALAR", 34963), "mode": 4}]})
+        gltf["nodes"].append({"name": name, "mesh": len(gltf["meshes"]) - 1, **place})
+        gltf["scenes"][0]["nodes"].append(len(gltf["nodes"]) - 1)
+    gltf["buffers"][0]["byteLength"] = len(blob) + (-len(blob) % 4)
     return gltf, bytes(blob)
 
 
@@ -143,7 +218,7 @@ def main(argv):
         glb.write_glb(p / "assets" / "models" / "box.glb", *build())
         (p / "src" / "50-shots.js").write_text(FILM, encoding="utf-8")
         return 0
-    out, scale, as_json, rest = None, 1.0, False, list(argv)
+    out, scale, as_json, faulty, mirrored, rest = None, 1.0, False, False, False, list(argv)
     while rest:
         a = rest.pop(0)
         if a == "--scale" and rest:
@@ -153,13 +228,17 @@ def main(argv):
                 print("fixture.py: --scale takes a number", file=sys.stderr); return 2
         elif a == "--json":
             as_json = True
+        elif a == "--faulty":
+            faulty = True
+        elif a == "--mirrored":
+            mirrored = True
         elif a.startswith("-") or out:
             print(f"fixture.py: {a}? (-h for the usage)", file=sys.stderr); return 2
         else:
             out = a
     if not out or not (scale > 0):
         print("fixture.py: an output path, and a --scale above 0", file=sys.stderr); return 2
-    gltf, blob = build(scale)
+    gltf, blob = build(scale, faulty, mirrored)
     n = glb.write_glb(out, gltf, blob)
     if as_json:
         print(json.dumps({"path": out, "bytes": n, "triangles": 20, "vertices": 32, "joints": 2, "animations": {"bend": 1.0, "lift": 2.0}}))

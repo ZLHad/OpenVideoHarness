@@ -5,13 +5,20 @@ download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries=3, 
 "url", "sha256", "bytes", "resumed", "status", "content_type"}:
   - the bytes go to <dest>.part first, and <dest>.part becomes <dest> (os.replace) only when they are all there: dest is
     never half written. A .part already there is resumed with Range: bytes=<its size>-: a 206 appends to it, a 200 (a
-    server that ignores ranges) starts it over, a 416 whose Content-Range total is the .part's size means it was complete
+    server that ignores ranges) starts it over, a 416 whose Content-Range total is the .part's size means it was complete.
+    The file's whole length, once a response says it, is kept beside the .part (.<dest>.part.json) until dest is there:
+    a 206 whose Content-Range gives another length is a file that changed on the server since, so the .part is dropped
+    and the download starts over (said on stderr, and in "restarted"), rather than joining the old file's head to the
+    new one's tail
   - rate: at most this many bytes a second, on average over the download ("2M", "500K", or a number)
   - the sha256 is taken as the bytes arrive (a resumed .part is read once first). Given one, a mismatch deletes the .part
     and raises: the next try starts clean
   - a dropped connection, a timeout or a short body is tried again from where it stopped, `retries` times (1, 2, 4 s apart)
   - max_bytes: a file the server says is larger is refused before a byte of it is written (FetchError, its size said)
-get_json(url, opener=None, headers=None, timeout=60) → the JSON of a GET (an API's search results).
+  - → also "restarted": why a .part was dropped and the file fetched from its start again, or None
+get_json(url, opener=None, headers=None, timeout=60, retries=3) → the JSON of a GET (an API's search results). A dropped
+connection, a timeout, a 5xx or a 429 is tried again, `retries` times (1, 2, 4 s apart); another 4xx is not (FetchError,
+its .status set, as every HTTP error's is).
 post_json(url, body, opener=None, secret=None, timeout=180) → the JSON of a POST with a JSON body (a paid API's call).
 secret is {header: value}, the key: sent in a header no redirect carries on, never recorded, and taken out of every
 message; an HTTP error is a FetchError with its status and the API's own message (and its status word). A Replay answers
@@ -31,7 +38,7 @@ body over 256 kB to its first 256 kB with its length noted: a fixture stays smal
 message names a URL as redact() writes it (no user:password, no query values), and so do the records bin/vh assets
 writes.
 """
-import contextlib, hashlib, http.client, http.server, json, os, re, socket, threading, time, urllib.error, urllib.parse, urllib.request
+import contextlib, hashlib, http.client, http.server, json, os, re, socket, sys, threading, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 UA = "OpenVideoHarness (+https://github.com/ZLHad/OpenVideoHarness)"
@@ -44,6 +51,20 @@ class FetchError(Exception):
     HTTP status of an error answer (not billed); sent, False only when the request never left (refused, no such host),
     so that a timeout, a reset or an answer that cannot be read may have been billed."""
     status, sent = None, True
+
+
+def http_error(msg, status):
+    e = FetchError(msg)
+    e.status = status
+    return e
+
+
+def again(e):
+    """Whether a failed request is worth another try: no answer (a dropped connection, a timeout, a body cut short), a
+    server error (5xx) or too many requests (429); not another 4xx, which says the same each time."""
+    if isinstance(e, FetchError):
+        return e.status is not None and (e.status == 429 or e.status >= 500)
+    return isinstance(e, (ConnectionError, TimeoutError, http.client.HTTPException))
 
 
 SECRET = re.compile(r"key|token|sig|auth|credential|pass(?:word|wd)?|secret|session|x-amz-|x-goog-", re.I)
@@ -92,7 +113,7 @@ class Live:
         except urllib.error.HTTPError as e:
             if e.code == 416:
                 return Response(416, dict(e.headers or {}), lambda n=-1: b"", e.close)
-            raise FetchError(f"{redact(url)}: HTTP {e.code} {e.reason}")
+            raise http_error(f"{redact(url)}: HTTP {e.code} {e.reason}", e.code)
         except (urllib.error.URLError, OSError) as e:
             raise ConnectionError(f"{redact(url)}: {getattr(e, 'reason', e)}")
         return Response(r.status, dict(r.headers), r.read, r.close)
@@ -114,7 +135,7 @@ class Replay:
         if rec is None:
             raise FetchError(f"{redact(url)}: no recorded response in {self.dir} (record one: OVH_RECORD=<folder> and the same command online)")
         if rec.get("status", 200) >= 400:
-            raise FetchError(f"{redact(url)}: HTTP {rec['status']} (recorded)")
+            raise http_error(f"{redact(url)}: HTTP {rec['status']} (recorded)", rec["status"])
         try:
             body = (self.dir / rec["body"]).read_bytes() if rec.get("body") else b""
         except OSError as e:
@@ -185,12 +206,22 @@ def opener_from(offline=None):
     return Live()
 
 
-def get_json(url, opener=None, headers=None, timeout=60):
-    r = (opener or Live()).open(url, headers, timeout)
-    try:
-        data = r.read(16 << 20)
-    finally:
-        r.close()
+def get_json(url, opener=None, headers=None, timeout=60, retries=3):
+    opener = opener or Live()
+    for attempt in range(retries + 1):
+        try:
+            r = opener.open(url, headers, timeout)
+            try:
+                data = r.read(16 << 20)
+            finally:
+                r.close()
+            break
+        except (FetchError, ConnectionError, TimeoutError, http.client.HTTPException) as e:
+            if not again(e) or attempt == retries:
+                if attempt:
+                    e.args = (f"{e} (after {attempt + 1} tries)",) + e.args[1:]
+                raise
+            time.sleep(2 ** attempt)
     try:
         return json.loads(data.decode("utf-8"))
     except (UnicodeDecodeError, ValueError) as e:
@@ -248,6 +279,16 @@ def post_json(url, body, opener=None, secret=None, timeout=180):
         raise FetchError(f"{redact(url)}: not JSON ({e})")
 
 
+def _mark(part):
+    """Where the whole length of the file a .part is of is kept: .<name>.part.json beside it."""
+    return part.with_name(f".{part.name}.json")
+
+
+def _drop(part):
+    part.unlink(missing_ok=True)
+    _mark(part).unlink(missing_ok=True)
+
+
 def _hasher(part):
     """A sha256 of the .part's bytes so far, and how many."""
     h, n = hashlib.sha256(), 0
@@ -265,7 +306,12 @@ def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries
     part = dest.with_name(dest.name + ".part")
     dest.parent.mkdir(parents=True, exist_ok=True)
     rate = rate if isinstance(rate, (int, float)) else rate_of(rate)
-    resumed, status, ctype, t0, got = False, None, None, time.monotonic(), 0
+    resumed, status, ctype, t0, got, restarted = False, None, None, time.monotonic(), 0, None
+    try:   # the whole length of the file the .part is of, as a response said it when the part began
+        known = json.loads(_mark(part).read_text(encoding="utf-8")).get("total") if part.exists() else None
+    except (OSError, ValueError, AttributeError):
+        known = None
+    known = known if isinstance(known, int) and not isinstance(known, bool) else None
     h, hashed = _hasher(part)
     for attempt in range(retries + 1):
         have = part.stat().st_size if part.exists() else 0
@@ -287,22 +333,35 @@ def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries
                 m = re.match(r"bytes \*/(\d+)", r.headers.get("content-range", ""))
                 if m and int(m.group(1)) == have:
                     break   # the .part was the whole file already
-                part.unlink(missing_ok=True)   # a .part longer than the file, or a 416 for another reason: start over
+                _drop(part)   # a .part longer than the file, or a 416 for another reason: start over
+                known = None
                 continue
             if r.status == 206 and have:
                 m = re.match(r"bytes (\d+)-\d+/(\d+|\*)", r.headers.get("content-range", ""))
                 if not m or int(m.group(1)) != have:
-                    part.unlink(missing_ok=True)   # not the range asked for: start over
+                    _drop(part)   # not the range asked for: start over
+                    known = None
                     continue
-                resumed, mode, total = True, "ab", int(m.group(2)) if m.group(2) != "*" else None
+                total = int(m.group(2)) if m.group(2) != "*" else None
+                if known is not None and total is not None and total != known:   # another file at the URL since the part began
+                    restarted = (f"{redact(url)} is {total:,} bytes now, and the {have:,} kept in {part.name} are of a file of {known:,}: "
+                                 "the file changed on the server, so the part is dropped and the download starts over")
+                    print(f"  · {restarted}", file=sys.stderr)
+                    _drop(part)
+                    known, resumed = None, False
+                    continue
+                resumed, mode = True, "ab"
             elif r.status == 200:   # the whole file (a server that ignores ranges sends it all again)
                 mode, total = "wb", int(r.headers["content-length"]) if r.headers.get("content-length", "").isdigit() else None
                 h, hashed = hashlib.sha256(), 0
             else:
                 raise FetchError(f"{redact(url)}: HTTP {r.status}")
             if max_bytes and total and total > max_bytes:
-                part.unlink(missing_ok=True)
+                _drop(part)
                 raise FetchError(f"{redact(url)}: {size_of(total)}, over the {size_of(max_bytes)} cap: nothing downloaded")
+            if total is not None and total != known:   # the length the part is of, kept until dest is there
+                _mark(part).write_text(json.dumps({"total": total}) + "\n", encoding="utf-8")
+                known = total
             with open(part, mode) as f:
                 while True:
                     b = r.read(CHUNK)
@@ -314,7 +373,7 @@ def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries
                     got += len(b)
                     if max_bytes and hashed > max_bytes:   # no Content-Length said so (or it was wrong): the bytes do
                         f.close()
-                        part.unlink(missing_ok=True)
+                        _drop(part)
                         raise FetchError(f"{redact(url)}: more than the {size_of(max_bytes)} cap, with no length said first: stopped, nothing kept")
                     if rate:   # ahead of the average the rate allows: wait until it is caught up
                         ahead = got / rate - (time.monotonic() - t0)
@@ -338,11 +397,12 @@ def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries
         h, hashed = _hasher(part)
     digest = h.hexdigest()
     if sha256 and digest != sha256.lower():
-        part.unlink(missing_ok=True)
+        _drop(part)
         raise FetchError(f"{redact(url)}: sha256 {digest[:12]}… is not the {sha256[:12]}… expected; the download is deleted")
     os.replace(part, dest)
+    _mark(part).unlink(missing_ok=True)
     return {"path": str(dest), "url": redact(url), "sha256": digest, "bytes": dest.stat().st_size, "resumed": resumed, "status": status,
-            "content_type": ctype}
+            "content_type": ctype, "restarted": restarted}
 
 
 @contextlib.contextmanager

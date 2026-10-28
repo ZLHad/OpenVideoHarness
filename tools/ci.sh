@@ -3349,6 +3349,74 @@ print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
   ); then ok "assets download from recorded responses: whole, resumed with Range, over a server that ignores ranges, a complete .part; 404, unrecorded and sha256 mismatch fail with nothing left; a rate cap; get_json"
   else bad "assets download (tools/assets/fetch.py): $a"; fi
+  # stand-in servers, no network: get_json tries again after no answer, a 503 or a 429 (1, 2, 4 s apart, counted here, not
+  # slept), never after a 404; a download resumed against a file that changed on the server since its .part began (the
+  # length a 206 gives is not the one kept beside the part) starts over and says why, in the same run or the next
+  if a=$(python3 - "$t/dl2" <<'PY' 2>&1
+import io, json, os, re, sys, time
+sys.path.insert(0, "tools/assets")
+import fetch
+d, bad, waits = sys.argv[1], [], []
+os.makedirs(d, exist_ok=True)
+time.sleep = waits.append   # fetch's waits between tries, counted
+def answer(status, body, h=None):
+    return fetch.Response(status, {"Content-Length": str(len(body)), **(h or {})}, io.BytesIO(body).read)
+class Flaky:   # fails first as told (no answer, or an HTTP status), then answers
+    def __init__(self, *fails): self.fails, self.n = list(fails), 0
+    def open(self, url, headers=None, timeout=60):
+        self.n += 1
+        if self.fails:
+            f = self.fails.pop(0)
+            if f == "drop": raise ConnectionError(f"{url}: connection reset")
+            e = fetch.FetchError(f"{url}: HTTP {f}"); e.status = f; raise e
+        return answer(200, b'{"ok": true}')
+for fails, want_waits in ((["drop"], [1]), ([503, 429], [1, 2])):
+    waits.clear(); o = Flaky(*fails)
+    if fetch.get_json("https://example.org/api", opener=o) != {"ok": True} or waits != want_waits or o.n != len(fails) + 1:
+        bad.append(f"get_json after {fails}: waits {waits}, {o.n} asks")
+waits.clear(); o = Flaky(404)
+try:
+    fetch.get_json("https://example.org/api", opener=o); bad.append("a 404 answered")
+except fetch.FetchError as e:
+    if waits or o.n != 1 or e.status != 404: bad.append(f"a 404 tried again: {waits} {o.n}")
+waits.clear(); o = Flaky("drop", "drop", "drop", "drop")
+try:
+    fetch.get_json("https://example.org/api", opener=o); bad.append("no answer, and yet JSON")
+except ConnectionError as e:
+    if waits != [1, 2, 4] or "after 4 tries" not in str(e): bad.append(f"four drops: {waits} {e}")
+class Site:   # serves bodies[k] at the k-th request (the last from then on), ranges honoured; cut: bytes the first answer stops after
+    def __init__(self, bodies, cut=None): self.bodies, self.n, self.cut = bodies, 0, cut
+    def open(self, url, headers=None, timeout=60):
+        body = self.bodies[min(self.n, len(self.bodies) - 1)]; self.n += 1
+        m = re.match(r"bytes=(\d+)-$", (headers or {}).get("Range", ""))
+        if m:
+            a = int(m.group(1))
+            return answer(206, body[a:], {"Content-Range": f"bytes {a}-{len(body) - 1}/{len(body)}"})
+        r = answer(200, body)
+        if self.cut and self.n == 1:   # the connection drops after cut bytes
+            src = io.BytesIO(body[:self.cut])
+            def read(k=-1):
+                b = src.read(k)
+                if not b: raise ConnectionResetError("reset")
+                return b
+            r.read = read
+        return r
+old, new = bytes(range(256)) * 12, bytes(reversed(range(256))) * 10   # 3072 bytes, then 2560
+r = fetch.download("https://example.org/f.bin", f"{d}/a.bin", opener=Site([old, new], cut=1000))
+if open(f"{d}/a.bin", "rb").read() != new or not r["restarted"] or os.path.exists(f"{d}/.a.bin.part.json"):
+    bad.append(f"changed while it came: {r}")
+open(f"{d}/b.bin.part", "wb").write(old[:1000]); open(f"{d}/.b.bin.part.json", "w").write(json.dumps({"total": len(old)}))
+r = fetch.download("https://example.org/f.bin", f"{d}/b.bin", opener=Site([new]))
+if open(f"{d}/b.bin", "rb").read() != new or not r["restarted"] or r["resumed"]:
+    bad.append(f"changed since the part: {r}")
+open(f"{d}/c.bin.part", "wb").write(old[:1000]); open(f"{d}/.c.bin.part.json", "w").write(json.dumps({"total": len(old)}))
+r = fetch.download("https://example.org/f.bin", f"{d}/c.bin", opener=Site([old]))
+if open(f"{d}/c.bin", "rb").read() != old or r["restarted"] or not r["resumed"] or os.path.exists(f"{d}/.c.bin.part.json"):
+    bad.append(f"the same file resumed: {r}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "fetch: get_json tries again after no answer, a 503 or a 429 (1, 2, 4 s), not after a 404; a resumed download whose file changed on the server starts over and says so, in one run or the next; the same file still resumes"
+  else bad "fetch's tries and resumes: $a"; fi
   a=$(vh assets add "$p" https://example.org/files/tone.wav --license "CC0" --title Tone --offline tools/assets/fixtures/responses --sha256 "$tone" --to assets/sfx/tone.wav 2>&1); rc=$?
   b=$(vh assets add "$p" https://example.org/files/missing.wav --license CC0 --offline tools/assets/fixtures/responses 2>&1); rc2=$?
   if [ "$rc:$rc2" = "0:1" ] && [ ! -e "$p/assets/missing.wav" ] && python3 - "$p" <<'PY'
@@ -3926,14 +3994,36 @@ const T = await import("./components/page-turn/component.js"); await run("page-t
 const F = await import("./components/paper-transition/component.js"); await run("fold", (t) => F.state({}, t / 5)); await run("blot", (t) => F.state({ variant: "blot" }, t / 5));
 const C = await import("./components/chapter-bar/component.js"), CP = { chapters: [{ t: 0, title: "一" }, { t: 1, title: "二二" }, { t: 3, title: "三" }], end: 5 };
 const lay = C.layout(CP, (s, z) => s.length * z * 0.6); await run("chapter-bar", (t) => C.state(CP, t, lay));
-if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot and chapter-bar, the same forwards, backwards and alone"
+const B = await import("./components/build-up/component.js"), cube = (x, y, z) => ({ x, y, z, w: 1, h: 1, d: 1 });
+const BP = [{ pieces: [cube(0, 0.5, 0), cube(1, 0.5, 0), cube(0, 1.5, 0), cube(1, 1.5, 1)], order: "height", bucket: 1, stagger: 0.7, jitter: 0.3, appear: "rise" },
+  { pieces: [cube(0, 0.5, 0), cube(2, 0.5, 0), cube(4, 0.5, 0)], order: "distance", from: [4, 0, 0], appear: "grow", stagger: 1 },
+  { pieces: [cube(0, 0.5, 0), cube(1, 0.5, 0), cube(2, 0.5, 0)], order: "random", seed: 9, appear: "drop", stagger: 0.9 }];
+for (const p of BP) await run(`build-up ${p.order}`, (t) => B.state({ ...p }, t));   // a fresh object each call: no plan cached between them
+const st = B.state(BP[0], 0.69), ranks = B.plan(BP[0]).rank, grow = B.state(BP[1], 0.25).pieces;   // 0.69: the first floor in, the second not yet (0.7 on)
+if (ranks.join() !== "0,0,1,1" || st.started !== 2 || B.duration(BP[0]) > 0.7 + 0.3 + 0.5 + 1e-9 || !(grow[2].box.h > 0 && grow[0].box.h === 0 && grow[2].box.y - grow[2].box.h / 2 === 0)) bad.push("build-up: ranks, starts or growth");
+// one params object changed after its plan was made: the plan follows (a stagger, a piece pushed onto its list)
+const M = { ...BP[0], pieces: [...BP[0].pieces] }, j = (x) => JSON.stringify(x);
+B.state(M, 0.9); M.stagger = 0.2;
+if (j(B.state(M, 0.9)) !== j(B.state({ ...M }, 0.9))) bad.push("build-up: a stagger changed after the plan was made");
+M.pieces.push(cube(2, 2.5, 0));
+const five = B.state(M, 3);
+if (five.n !== 5 || five.pieces.some((q) => !Number.isFinite(q.t0) || !Number.isFinite(q.box.y) || !Number.isFinite(q.u))) bad.push(`build-up: a piece pushed after the plan: ${j(five.pieces[4])}`);
+// dur 0 is a step; an overshooting curve carries a rising piece past its place, never a grown one past its size; a wrong name or piece is an error
+const one = (o, t) => B.state({ pieces: [cube(0, 0.5, 0)], ...o }, t).pieces[0];
+if (one({ dur: 0 }, -0.1).on || j(one({ dur: 0 }, 0).box) !== j(cube(0, 0.5, 0)) || one({ dur: 0 }, 0).u !== 1) bad.push(`build-up: dur 0 ${j(one({ dur: 0 }, 0))}`);
+if (!(one({ ease: "outBack", lift: 1, dur: 1 }, 0.6).box.y > 0.5) || one({ ease: "outBack", appear: "grow", dur: 1 }, 0.6).box.h > 1 || one({ ease: "outBack", dur: 1 }, 1).box.y !== 0.5)
+  bad.push(`build-up: overshoot ${j(one({ ease: "outBack", lift: 1, dur: 1 }, 0.6).box)}`);
+[[{ ease: "outBak" }, "ease is a name"], [{ pieces: [{ x: 0, y: 0, z: 0, w: 1, d: 1 }] }, "pieces[0].h is a number"], [{ stagger: -1 }, "stagger is a number, 0 or more"], [{ from: [1, 2] }, "from is [x, y, z]"]].forEach(([o, want]) => {
+  try { B.state({ pieces: [cube(0, 0.5, 0)], ...o }, 1); bad.push(`build-up: ${j(o)} passed`); } catch (e) { if (!String(e.message).includes(want)) bad.push(`build-up: ${j(o)}: ${e.message}`); } });
+if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot, chapter-bar and build-up (by height, distance, seed), the same forwards, backwards and alone; build-up's ranks, starts and growth from the base, its plan after its params change, dur 0, an overshoot, errors that name the part"
   else bad "components: a state() that depends on what was drawn before: $a"; fi
   # add: the library and the components named, and what a component imports from another (paper-transition: page-turn)
   p="$t/proj"; mkdir -p "$p"; printf '# BRIEF\n' > "$p/BRIEF.md"; printf '<!doctype html>\n' > "$p/film.html"
-  a=$(vh components add "$p" paper-transition chapter-bar 2>&1); rc=$?
+  a=$(vh components add "$p" paper-transition chapter-bar build-up 2>&1); rc=$?
   b=$(vh components add "$p" no-such 2>&1); rc2=$?
   if [ "$rc:$rc2" = "0:2" ] && [ -f "$p/components/lib/global.js" ] && [ -f "$p/components/page-turn/component.js" ] && [ -f "$p/components/chapter-bar/slots.json" ] \
-     && [ ! -e "$p/components/page-turn/sample" ] && grep -q "OVH.grain" <<<"$a"; then ok "components add: the library, the components named and what they import (page-turn for paper-transition), no samples; canvas-film is told how to load them; an unknown name is exit 2"
+     && [ ! -e "$p/components/page-turn/sample" ] && [ ! -e "$p/components/build-up/sample" ] && grep -q "OVH.grain" <<<"$a" && grep -q "build-up's three painter, in the Three.js layer" <<<"$a"
+  then ok "components add: the library, the components named and what they import (page-turn for paper-transition), no samples; canvas-film is told how to load them, and a three painter how it goes with the Three.js layer; an unknown name is exit 2"
   else bad "components add ($rc, $rc2): $a | $b"; fi
   # a page of classic scripts, as canvas-film's: the library from components/lib/global.js as OVH, grain and paper drawn
   cat > "$p/classic.html" <<'HTML'
@@ -3953,8 +4043,11 @@ HTML
 import * as L from "./components/lib/index.js";
 import * as turn from "./components/page-turn/component.js";
 import * as bar from "./components/chapter-bar/component.js";
+import * as build from "./components/build-up/component.js";
 L.setFrame({ w: 640, h: 360, fps: 30 });
 const X = document.getElementById("c").getContext("2d"), P = { chapters: [{ t: 0, title: "一" }, { t: 1, title: "二" }], end: 2, y: 30, margin: 40, pad: 20 };
+const BU = { pieces: [0, 1, 2, 3].flatMap((f) => [[0, 0], [1, 0], [0, 1], [1, 1]].map(([i, k]) => ({ x: i, y: f + 0.5, z: k, w: 0.9, h: 0.9, d: 0.9 }))),
+  bucket: 1, stagger: 0.4, jitter: 0.1, dur: 0.3 };
 let lay;
 window.film = { duration: 2,
   ready: async () => { await document.fonts.ready; lay = bar.layout(P, (s, z) => { X.font = `600 ${z}px sans-serif`; return X.measureText(s).width; }); },
@@ -3964,6 +4057,7 @@ window.film = { duration: 2,
     const B = L.offscreen("b", (x) => { x.fillStyle = "#243447"; x.fillRect(0, 0, 640, 360); x.fillStyle = "#eee"; x.fillRect(400, 120, 160, 120); });
     turn.canvas(X, turn.state({}, L.seg(t, 0.4, 1.6)), A, B);
     bar.canvas(X, bar.state(P, t, lay), P);
+    build.canvas(X, build.state(BU, t), BU, { origin: [560, 330], scale: 16, edge: "#222" });   // a small tower a floor at a time, bottom right
   } };
 </script></body></html>
 HTML
@@ -3987,7 +4081,7 @@ PY
   then
     a=$(vh determinism "$p/classic.html" --samples 3 2>&1); rc=$?
     b=$(vh determinism "$p/modules.html" --samples 3 2>&1); rc2=$?
-    case "$rc:$rc2:$a:$b" in 0:0:*"determinism: holds"*:*"determinism: holds"*) ok "components on a page: a classic-script page (canvas-film's kind) draws OVH.paper and OVH.grain from global.js, a module page draws page-turn and the chapter bar; both a function of t (bin/vh determinism)" ;;
+    case "$rc:$rc2:$a:$b" in 0:0:*"determinism: holds"*:*"determinism: holds"*) ok "components on a page: a classic-script page (canvas-film's kind) draws OVH.paper and OVH.grain from global.js, a module page draws page-turn, the chapter bar and build-up's 2.5D blocks; both a function of t (bin/vh determinism)" ;;
       *) bad "components on a page, determinism ($rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)" ;; esac
   else bad "components on a page (frames $rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)"; fi
   # the other painters through the page contract too: a canvas page of paper-transition (the fold over the first second,
@@ -4041,6 +4135,30 @@ HTML
   rm -rf "$t"
 }
 
+px_are() { # px_are <png> <python condition> x,y …: true when the condition holds over P (the points' (r, g, b), in order), w and
+  # h, with near(p, q) (each channel within 3); else it says what it saw. An 8-bit PNG as Chrome writes one: no ffmpeg needed
+  python3 - "$@" <<'PY'
+import struct, sys, zlib
+f, cond, pts = sys.argv[1], sys.argv[2], sys.argv[3:]
+d = open(f, "rb").read(); i = 8; idat = b""
+while i < len(d):
+    n, kind = struct.unpack(">I4s", d[i:i + 8]); body = d[i + 8:i + 8 + n]; i += 12 + n
+    if kind == b"IHDR": w, h, depth, ctype = struct.unpack(">IIBB", body[:10])
+    if kind == b"IDAT": idat += body
+bpp = {2: 3, 6: 4}[ctype]; raw = zlib.decompress(idat); stride = w * bpp; rows, prev = [], bytearray(stride)
+for y in range(h):   # undo the PNG filters (8-bit, not interlaced)
+    flt, line = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+    for x in range(stride):
+        a = line[x - bpp] if x >= bpp else 0; b = prev[x]; c = prev[x - bpp] if x >= bpp else 0
+        p = a + b - c; pr = a if abs(p - a) <= abs(p - b) and abs(p - a) <= abs(p - c) else b if abs(p - b) <= abs(p - c) else c
+        line[x] = (line[x] + (0, a, b, (a + b) // 2, pr)[flt]) & 255
+    rows.append(line); prev = line
+P = [tuple(rows[y][x * bpp:x * bpp + 3]) for x, y in (map(int, q.split(",")) for q in pts)]
+near = lambda p, q: all(abs(u - v) <= 3 for u, v in zip(p, q))   # noqa: E731
+sys.exit(0 if eval(cond, {"P": P, "w": w, "h": h, "near": near}) else f"{f}: {w}x{h}, at {pts}: {P}")
+PY
+}
+
 model3d_checks() {   # bin/vh model3d check (tools/model3d) on a model written on the spot (tools/model3d/fixture.py: a column of two
   # cubes on two bones, a 4x4 texture, the clips bend 1 s and lift 2 s; nothing downloaded), and canvas-film's Three.js
   # layer drawing the same model through the page contract in software WebGL (--soft-gl, as a machine without a GPU does)
@@ -4061,7 +4179,7 @@ if a["skins"][0]["joint_names"] != ["Root", "Tip"]: bad.append(f"skins {a['skins
 if a["bbox"]["size"] != [0.5, 2.0, 0.5] or a["origin"] != "base centre" or a["tallest"] != "y" or a["verdict"] != "pass" or a["tier"] != "hero": bad.append(f"box {a['bbox']} {a['origin']} {a['tallest']}")
 if sorted(f["kind"] for f in b["findings"] if f["severity"] == "fail") != ["model3d.faces", "model3d.texture"] or b["limits"] != {"faces": 10, "texture": 2} or b["exit"] != 1: bad.append(f"over the limits: {b['findings']}")
 if "200.00 m across" not in c or "glTF is metres" not in c: bad.append(f"a model 100 times its size: {c[-300:]}")
-print("\n".join(bad)); sys.exit(1 if bad else 0)
+sys.exit("\n".join(bad) if bad else 0)
 PY
   then ok "model3d check: the test model's triangles, vertices, texture (size, format, use), joints, clips and lengths, box in metres, origin and up; --tier prop with --max-faces and --max-texture fails it (exit 1); 100 times its size is said"
   else bad "model3d check ($rc, $rc2, $rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $(printf '%s' "$c" | tail -c 300)"; fi
@@ -4092,26 +4210,43 @@ PY
     *) bad "model3d check on broken models ($rc, $rc2, $rc3): $a | $b | $c | $d" ;; esac
   # a part that points outside the file, or is not the kind glTF says, fails with the part named, and --json prints the
   # report all the same (no traceback): a node that is a number, a bufferView past its buffer, an accessor of type VEC9,
-  # one of 10^12 zeros (no list of them is made); Draco listed only as used fails (three's loader stops at it); bytes
-  # after the GLB header's length warn
+  # one of 10^12 zeros (no list of them is made), a node its own child, sparse indices past the count, a skinned
+  # primitive without JOINTS_0 (three turns its skinning off); weights past a vertex's first four warn (three drops
+  # them); Draco listed only as used fails (three's loader stops at it); bytes after the GLB header's length warn
   if python3 - "$VH_BASH|$ROOT/bin/vh" "$t" <<'PY'
-import json, subprocess, sys
+import json, struct, subprocess, sys
 sys.path.insert(0, "tools/model3d")
 import fixture, glb
 vh, t = sys.argv[1].split("|"), sys.argv[2]
-def zeros(g):
+def zeros(g, b):
     g["accessors"].append({"componentType": 5126, "type": "SCALAR", "count": 10**12})
     g["animations"][0]["samplers"][0]["input"] = len(g["accessors"]) - 1
+def sparse(g, b):   # its indices read from the positions' floats: far past the 32 there are
+    a = g["accessors"][0]; a.pop("min"); a.pop("max")
+    a["sparse"] = {"count": 3, "indices": {"bufferView": 0, "componentType": 5125}, "values": {"bufferView": 0}}
+def five(g, b):   # JOINTS_1 / WEIGHTS_1: every vertex a fifth bone, weight 0.2
+    n, b = 32, bytearray(b) + bytes(-len(b) % 4)
+    for data, comp, typ in ((bytes([1, 0, 0, 0]) * n, 5121, "VEC4"), (struct.pack("<4f", 0.2, 0, 0, 0) * n, 5126, "VEC4")):
+        g["bufferViews"].append({"buffer": 0, "byteOffset": len(b), "byteLength": len(data)}); b += data
+        g["accessors"].append({"bufferView": len(g["bufferViews"]) - 1, "componentType": comp, "count": n, "type": typ})
+    at = g["meshes"][0]["primitives"][0]["attributes"]; at["JOINTS_1"], at["WEIGHTS_1"] = len(g["accessors"]) - 2, len(g["accessors"]) - 1
+    g["buffers"][0]["byteLength"] = len(b)
+    return bytes(b)
 cases = {   # name: (what is broken, the exit, words of the finding)
-    "node": (lambda g: g["nodes"].__setitem__(0, 5), 1, "nodes[0] is a number, not an object"),
-    "view": (lambda g: g["bufferViews"][0].update(byteLength=10**9), 1, "bytes past the end of buffers[0]"),
-    "vec9": (lambda g: g["accessors"][0].update(type="VEC9"), 1, 'type "VEC9": glTF'),
+    "node": (lambda g, b: g["nodes"].__setitem__(0, 5), 1, "nodes[0] is a number, not an object"),
+    "loop": (lambda g, b: g["nodes"][3].update(children=[3]), 1, "nodes 3 (Rig) → 3 (Rig): each the child of the one before, a loop"),
+    "sparse": (sparse, 1, "is past its 32 elements"),
+    "view": (lambda g, b: g["bufferViews"][0].update(byteLength=10**9), 1, "bytes past the end of buffers[0]"),
+    "vec9": (lambda g, b: g["accessors"][0].update(type="VEC9"), 1, 'type "VEC9": glTF'),
     "zeros": (zeros, 1, "1,000,000,000,000 elements and no bufferView"),
-    "used": (lambda g: g.update(extensionsUsed=["KHR_draco_mesh_compression"]), 1, "lists KHR_draco_mesh_compression as used"),
-    "tail": (lambda g: None, 0, "7 bytes after the")}
+    "noskin": (lambda g, b: g["meshes"][0]["primitives"][0]["attributes"].pop("JOINTS_0"), 1, "have no JOINTS_0 and WEIGHTS_0: three turns skinning off"),
+    "five": (five, 0, "32 of 32 vertices weighted to more than four bones (JOINTS_1 and on): three reads the first four"),
+    "used": (lambda g, b: g.update(extensionsUsed=["KHR_draco_mesh_compression"]), 1, "lists KHR_draco_mesh_compression as used"),
+    "tail": (lambda g, b: None, 0, "7 bytes after the")}
 bad = []
 for name, (change, want, words) in cases.items():
-    g, blob = fixture.build(); change(g); glb.write_glb(f"{t}/{name}.glb", g, blob)
+    g, blob = fixture.build(); out = change(g, blob); blob = out if isinstance(out, bytes) else blob   # a change that adds data gives the new blob
+    glb.write_glb(f"{t}/{name}.glb", g, blob)
     if name == "tail":
         open(f"{t}/tail.glb", "ab").write(b"\0" * 7)
     r = subprocess.run([*vh, "model3d", "check", f"{t}/{name}.glb", "--json"], capture_output=True, text=True, timeout=60)
@@ -4124,8 +4259,67 @@ for name, (change, want, words) in cases.items():
         bad.append(f"{name}: exit {r.returncode} (want {want}): {said[:200] or r.stderr[-200:]}")
 sys.exit("\n".join(bad) if bad else 0)
 PY
-  then ok "model3d check: a part that points outside the file or is not glTF's (a node that is a number, a bufferView past its buffer, type VEC9, 10^12 zeros) fails naming it, the --json report all the same; Draco listed only as used fails; bytes after the GLB's length warn"
+  then ok "model3d check: a part that points outside the file or is not glTF's (a node that is a number, a bufferView past its buffer, type VEC9, 10^12 zeros, a node its own child, sparse indices past the count) fails naming it, the --json report all the same; a skinned primitive without JOINTS_0 fails, weights past four bones warn; Draco listed only as used fails; bytes after the GLB's length warn"
   else bad "model3d check on models whose parts point outside them"; fi
+  # --blender (tools/model3d/blender_qa.py in Blender; CI has none): without one it is skipped and said, and the rest of
+  # the check stands; a stand-in that writes the report Blender would gives its findings (z-fighting and inward faces
+  # fail, faces back to back warn) and shows it gets none of our environment. The weights are read without Blender
+  # (fixture.py --faulty): a vertex whose weights are all 0 fails (three ties it to one bone), weights that do not sum to
+  # 1 warn (three scales them to 1)
+  python3 tools/model3d/fixture.py "$t/faulty.glb" --faulty
+  cat > "$t/blender" <<'SH'
+#!/bin/sh
+# a stand-in for Blender: the report tools/model3d/blender_qa.py would write, to its last argument
+for a; do out=$a; done
+printf '{"version": 1, "blender": "0 (stand-in)", %s"meshes": 2, "triangles": 34, "zfighting": [{"where": "Column", "tri_pairs": 2}], "back_to_back": [{"where": "Column", "tri_pairs": 1}], "inside_out": [{"object": "Inverted", "parts": 1}], "winding": [], "not_checked": ["home %s"]}\n' \
+  "${OVH_CI_LEAK:+\"error\": \"OVH_CI_LEAK reached it\", }" "$HOME" > "$out"
+SH
+  chmod +x "$t/blender"
+  a=$(BLENDER="$t/none" vh model3d check "$t/box.glb" --blender 2>&1); rc=$?
+  b=$(OVH_CI_LEAK=1 BLENDER="$t/blender" vh model3d check "$t/faulty.glb" --blender --json 2>/dev/null); rc2=$?
+  c=$(vh model3d check "$t/faulty.glb" --json 2>/dev/null); rc3=$?
+  if [ "$rc:$rc2:$rc3" = "0:1:1" ] && python3 - "$a" "$b" "$c" <<'PY'
+import json, sys
+a, b, c = sys.argv[1], json.loads(sys.argv[2]), json.loads(sys.argv[3]); bad = []
+if "--blender checks did not run: BLENDER is" not in a or "within hero" not in a: bad.append(f"no Blender: {a[-300:]}")
+kinds = sorted((f["kind"], f["severity"]) for f in b["findings"] if f["kind"] in ("model3d.zfighting", "model3d.normals", "model3d.hidden", "model3d.blender"))
+if kinds != [("model3d.blender", "info"), ("model3d.hidden", "warn"), ("model3d.normals", "fail"), ("model3d.zfighting", "fail")]: bad.append(f"the stand-in's findings: {kinds}")
+home = next((f["message"] for f in b["findings"] if f["message"].startswith("not checked: home ")), "")
+if "/vh-model3d-" not in home or b["blender"].get("error"): bad.append(f"Blender's environment: {home} {b['blender'].get('error')}")
+w = (c["meshes"][0].get("weights") or [{}])[0]
+sums = [f for f in c["findings"] if "do not sum to 1" in f["message"]]
+if (w.get("verts"), w.get("unweighted"), w.get("not_one")) != (36, 1, 8) or {f["kind"] for f in c["findings"] if f["severity"] == "fail"} != {"model3d.weights"} \
+   or [f["severity"] for f in sums] != ["warn"]: bad.append(f"weights {w} {c['findings']}")
+sys.exit("\n".join(bad) if bad else 0)
+PY
+  then ok "model3d check --blender: skipped and said without Blender, the rest standing; a stand-in's report becomes findings (z-fighting and inward faces fail, back to back warns) and gets none of our environment; weights read from the file (all 0 fails, a sum not 1 warns)"
+  else bad "model3d check --blender ($rc, $rc2, $rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300)"; fi
+  # macOS: the sandbox Blender runs in, tried by a stand-in from inside it: writing beside itself (outside its scratch
+  # folder) and connecting to a port on this machine are both refused (no network leaves either way)
+  if [ "$(uname -s)" = Darwin ]; then
+    cat > "$t/probe" <<'SH'
+#!/bin/sh
+# a stand-in for Blender that tries the sandbox's walls, and reports what it found where blender_qa.py's report goes
+for a; do out=$a; done
+here=$(dirname "$0")
+if (echo x > "$here/outside.txt") 2>/dev/null; then w=written; else w=refused; fi
+if nc -z -w 2 127.0.0.1 "$(cat "$here/port" 2>/dev/null)" >/dev/null 2>&1; then c=connected; else c=refused; fi
+printf '{"version": 1, "blender": "0 (probe)", "meshes": 1, "triangles": 20, "zfighting": [], "back_to_back": [], "inside_out": [], "winding": [], "not_checked": ["write beside it: %s", "connect to this machine: %s"]}\n' "$w" "$c" > "$out"
+SH
+    chmod +x "$t/probe"
+    python3 -c 'import socket, sys
+s = socket.socket(); s.bind(("127.0.0.1", 0)); s.listen(1); s.settimeout(30)
+open(sys.argv[1], "w").write(str(s.getsockname()[1]))
+try: s.accept()
+except OSError: pass' "$t/port" & lp=$!
+    for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s "$t/port" ] && break; sleep 0.2; done
+    a=$(BLENDER="$t/probe" vh model3d check "$t/box.glb" --blender 2>&1); rc=$?
+    kill "$lp" 2>/dev/null; wait "$lp" 2>/dev/null
+    case "$rc:$a" in 0:*"write beside it: refused"*"connect to this machine: refused"*)
+        [ ! -e "$t/outside.txt" ] && ok "model3d check --blender on macOS: inside its sandbox a stand-in can neither write outside its scratch folder nor connect to a port on this machine" \
+          || bad "the --blender sandbox let a file be written: $t/outside.txt" ;;
+      *) bad "the --blender sandbox ($rc): $(printf '%s' "$a" | tail -c 400)" ;; esac
+  fi
   # three.js as the npm package has it: each file the layer carries, byte for byte as its NOTICE lists it
   if python3 - <<'PY'
 import hashlib, pathlib, re, sys
@@ -4162,29 +4356,8 @@ PY
   case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) skip "the Three.js layer on a page" "no WebGL here even with --soft-gl"; rm -rf "$t"; return ;; esac
   if [ $rc = 0 ] && printf '%s' "$a" | grep -q "determinism: holds" && cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0001.250.png" \
      && ! cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0000.500.png" && ! cmp -s "$t/d/A-t0000.500.png" "$t/d/A-t0002.500.png" \
-     && python3 - "$t/d/A-t0000.250.png" "$t/d/A-t0000.500.png" <<'PY'
-import struct, sys, zlib
-def read(path):   # an 8-bit, not interlaced PNG (Chrome's screenshots): its size and px(x, y) → (r, g, b)
-    d = open(path, "rb").read(); i = 8; idat = b""
-    while i < len(d):
-        n, kind = struct.unpack(">I4s", d[i:i + 8]); body = d[i + 8:i + 8 + n]; i += 12 + n
-        if kind == b"IHDR": w, h, depth, ctype = struct.unpack(">IIBB", body[:10])
-        if kind == b"IDAT": idat += body
-    bpp = {2: 3, 6: 4}[ctype]; raw = zlib.decompress(idat); stride = w * bpp; rows, prev = [], bytearray(stride)
-    for y in range(h):   # undo the PNG filters
-        f, line = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
-        for x in range(stride):
-            a = line[x - bpp] if x >= bpp else 0; b = prev[x]; c = prev[x - bpp] if x >= bpp else 0
-            p = a + b - c; pr = a if abs(p - a) <= abs(p - b) and abs(p - a) <= abs(p - c) else b if abs(p - b) <= abs(p - c) else c
-            line[x] = (line[x] + (0, a, b, (a + b) // 2, pr)[f]) & 255
-        rows.append(line); prev = line
-    return w, h, lambda x, y: tuple(rows[y][x * bpp:x * bpp + 3])
-near = lambda p, q: all(abs(u - v) <= 3 for u, v in zip(p, q))   # noqa: E731
-bg = (0x20, 0x30, 0x40)
-w, h, px = read(sys.argv[1]); _, _, moved = read(sys.argv[2])
-ok = (w, h) == (160, 90) and px(8, 8) == (255, 255, 255) and near(px(150, 80), bg) and not near(px(80, 45), bg) and near(moved(80, 45), bg) and not near(moved(95, 45), bg)
-sys.exit(0 if ok else f"{w}x{h}: square {px(8, 8)}, background {px(150, 80)}, column {px(80, 45)}; posed at 0.5: {moved(80, 45)} in the middle, {moved(95, 45)} 0.5 m right")
-PY
+     && px_are "$t/d/A-t0000.250.png" '(w, h) == (160, 90) and P[0] == (255, 255, 255) and near(P[1], (0x20, 0x30, 0x40)) and not near(P[2], (0x20, 0x30, 0x40))' 8,8 150,80 80,45 \
+     && px_are "$t/d/A-t0000.500.png" 'near(P[0], (0x20, 0x30, 0x40)) and not near(P[1], (0x20, 0x30, 0x40))' 80,45 95,45
   then ok "the Three.js layer: a GLB's clip set to the film's time (0.25 s into a loop at t 0.25 and 1.25: one picture), a pose put back after its frame, the camera's moves, in any order and another browser (determinism, --soft-gl); the shot's 2D over the 3D"
   else bad "the Three.js layer on a page (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   # ready names every problem of a shot's three at once: a clip the model lacks, one played once that stops before its
@@ -4199,6 +4372,78 @@ PY
   case "$rc:$rc2:$a|$b" in 2:2:*'no model "crate"'*'"bend" is 1.00 s; played once from 0.00 s'*"has spin, which the layer does not read"*'has no clip "wave" (its clips: bend, lift'*"|"*"three/layer.js did not load"*"--engine canvas-film --three"*)
       ok "the Three.js layer's ready: a missing clip, a clip that stops before its shot, an unknown model and key, all at once (exit 2); FILM.three without three/ says how to get it" ;;
     *) bad "the Three.js layer's ready ($rc, $rc2): $a | $b" ;; esac
+  rm -rf "$t"
+}
+
+hdri_checks() {   # bin/vh hdri (tools/assets/hdri.py) on Poly Haven's answers recorded in their shape (tools/assets/fixtures/hdri:
+  # the lists trimmed, the files synthetic, a 128 x 64 test sky), no network; then build-up's three painter under that sky
+  # in the Three.js layer (components/build-up/sample/three-film.js at 160 x 90, software WebGL)
+  local t p a b c d e rc rc2 rc3 rc4 fx=tools/assets/fixtures/hdri
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  vh new short tw --engine canvas-film --three --dir "$t" >/dev/null 2>&1; p=$(ls -d "$t"/*-tw 2>/dev/null)
+  [ -n "$p" ] || { bad "hdri: no project to get into (bin/vh new … --three)"; rm -rf "$t"; return; }
+  a=$(vh hdri search sky --category outdoor --json --offline "$fx" 2>/dev/null); rc=$?
+  b=$(vh hdri get "$p" studio_small_09 --json --offline "$fx" 2>/dev/null); rc2=$?
+  c=$(vh hdri get "$p" studio_small_09 --offline "$fx" 2>&1; vh hdri get "$p" studio_small_09 --format exr --offline "$fx" 2>&1); rc3=$?
+  d=$(vh hdri get "$p" sunflowers_puresky --res 1k --offline "$fx" 2>&1); rc4=$?
+  e=$(for x in "get $p rock_wall_08" "get $p no_such_hdri" "get $p studio_small_09 --res 8k" "nope"; do
+        # shellcheck disable=SC2086   # each line is the arguments, split on purpose
+        vh hdri $x --offline "$fx" 2>&1; echo "exit $?"; done; vh hdri search sky --offline "$t/none" 2>&1; echo "exit $?")
+  if [ "$rc:$rc2:$rc3:$rc4" = "0:0:0:1" ] && python3 - "$p" "$a" "$b" "$c" "$d" "$e" <<'PY'
+import hashlib, json, sys
+sys.path.insert(0, "tools/assets")
+import ledger
+p, a, b, c, d, e = sys.argv[1:]; a, b = json.loads(a), json.loads(b); bad = []
+if [r["id"] for r in a["results"]] != ["kloofendal_48d_partly_cloudy_puresky", "sunflowers_puresky"] or a["results"][0]["max_resolution"] != "16k":
+    bad.append(f"search: {[r['id'] for r in a['results']]}")
+r, path = b["record"], "assets/hdri/studio_small_09/studio_small_09_2k.hdr"
+if (r["id"], r["path"], r["license"]["class"], r["source"]["provider"], r["source"]["url"], r["source"]["author"], b["env"]) != \
+   ("hdri-studio_small_09-2k", path, "cc0", "polyhaven", "https://polyhaven.com/a/studio_small_09", "Sergej Majboroda", path):
+    bad.append(f"get's record: {r}")
+if ledger.validate(r) or r["sha256"] != hashlib.sha256(open(f"{p}/{path}", "rb").read()).hexdigest(): bad.append(f"the record: {ledger.validate(r)}")
+if "is here already" not in c or "got hdri-studio_small_09-2k-exr" not in c: bad.append(f"again, and an exr: {c[-300:]}")
+recs = json.load(open(f"{p}/assets/ledger.json"))["assets"]
+if sorted(x["id"] for x in recs) != ["hdri-studio_small_09-2k", "hdri-studio_small_09-2k-exr"]: bad.append(f"the ledger: {[x['id'] for x in recs]}")
+import os
+if "its md5 is not the one Poly Haven lists" not in d or os.path.exists(f"{p}/assets/hdri/sunflowers_puresky"): bad.append(f"a wrong md5: {d[-300:]}")
+for want in ("is not an HDRI on Poly Haven", "Poly Haven has no no_such_hdri", "comes in 1k, 2k, 4k, not 8k", "no subcommand 'nope'", "no such folder"):
+    if want not in e: bad.append(f"usage: no {want!r} in {e[-400:]}")
+if e.count("exit 2") != 5: bad.append(f"usage errors are 2: {e[-300:]}")
+sys.exit("\n".join(bad) if bad else 0)
+PY
+  then ok "hdri: Poly Haven's HDRIs by words and category, most downloaded first; get puts one in assets/hdri/<id>/ under Poly Haven's name, md5 checked, on record (CC0, page, authors, sha256: a valid record) with FILM.three.env's line; the same again is left as it is, an EXR beside it; a wrong md5 is deleted (1); a texture, an unknown id or size, an unknown subcommand: 2"
+  else bad "hdri ($rc, $rc2, $rc3, $rc4): $(printf '%s' "$c$d" | tail -c 400)"; fi
+  # build-up in the Three.js layer: the tower a floor at a time under the test sky (env and background from the HDRI just
+  # got, the light from a copy of it 64 px across: the layer's box filter on the GPU), the pieces an InstancedMesh the
+  # component's three painter sets each frame; a second shot puts the sun out in its pose, and the sky alone lights the
+  # tower; any order, another browser
+  vh components add "$p" build-up >/dev/null && cp components/build-up/sample/three-film.js "$p/src/50-shots.js" \
+    && printf '%s\n' 'Object.assign(FILM, { width: 160, height: 90, duration: 8 });' 'FILM.three.envLight = 64;' \
+      'SHOTS.push({ id: "S02", at: 6, three: { pose(t, s, W3) { BUILD.three(MESH, BUILD.state(TOWER, 99), TOWER, THREE); W3.scene.getObjectByName("light0").intensity = 0; } }, draw() {} });' \
+      >> "$p/src/50-shots.js"
+  a=$(vh determinism "$p" --at 0.2,2.5,5.9,7 --soft-gl --out "$t/d" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "build-up in the Three.js layer" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) skip "build-up in the Three.js layer" "no WebGL here even with --soft-gl"; rm -rf "$t"; return ;; esac
+  if [ $rc = 0 ] && printf '%s' "$a" | grep -q "determinism: holds" && ! cmp -s "$t/d/A-t0000.200.png" "$t/d/A-t0002.500.png" \
+     && px_are "$t/d/A-t0000.200.png" 'P[0][2] > P[0][0] + 8 and not P[1][0] > P[1][2] + 40' 80,3 80,45 \
+     && px_are "$t/d/A-t0005.900.png" 'P[0][0] > P[0][2] + 40' 80,45 \
+     && px_are "$t/d/A-t0007.000.png" 'max(P[0]) > 24' 80,45
+  then ok "build-up in the Three.js layer: a tower a floor at a time (its three painter on an InstancedMesh, set from t) under an HDRI that lights it (the sun out, it still does) and shows behind it, the light from a smaller copy, the same in any order and another browser (determinism, --soft-gl)"
+  else bad "build-up in the Three.js layer (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  # an EXR (fixture.py's, a real OpenEXR of the same sky) through EXRLoader, shown sharp behind a box that nothing lights:
+  # no lights and envIntensity 0 leave it black; one page, one frame
+  cp -R "$p" "$t/exr" && printf '%s\n' 'Object.assign(FILM, { width: 160, height: 90, timeline: false, duration: 2, grain: 0, fadeOut: 0, images: {},' \
+    '  three: { env: "assets/hdri/studio_small_09/studio_small_09_2k.exr", envIntensity: 0, lights: [], background: "env", camera: { pos: [0, 1.5, 6], at: [0, 2.5, 0], fov: 50 },' \
+    '    build({ THREE, scene }) { const m = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 2), new THREE.MeshStandardMaterial({ color: "#ffffff" })); m.position.y = 2.5; scene.add(m); } } });' \
+    'const SHOTS = [{ id: "S01", at: 0, three: {}, draw() {} }];' > "$t/exr/src/50-shots.js"
+  a=$(vh frames "$t/exr" --at 1 --soft-gl --out "$t/fx" 2>&1); rc=$?
+  # a machine without the template's CJK faces (the Linux runner) draws in a fallback and says so, which is exit 1; that
+  # alone is fine here (no text on this page), as in the canvas-film template's frames
+  if [ $rc = 1 ] && printf '%s' "$a" | grep -q 'fonts this machine does not have' \
+    && ! printf '%s\n' "$a" | grep -E 'while loading:|^  t=[0-9.]+ s:|just after the last frame' | grep -qv 'fonts this machine does not have'; then rc=0; fi
+  if [ $rc = 0 ] && px_are "$t/fx/film-t0001.000.png" 'max(P[0]) <= 12 and P[1][2] > P[1][0] + 8 and P[2][0] > P[2][2] + 8' 80,45 80,3 80,88
+  then ok "the Three.js layer: an EXR read and shown sharp behind (its sky above, its ground below); no lights and envIntensity 0 leave the box black"
+  else bad "an EXR in the Three.js layer (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   rm -rf "$t"
 }
 
@@ -6600,11 +6845,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks; model3d_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks; model3d_checks; hdri_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks; model3d_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks; model3d_checks; hdri_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

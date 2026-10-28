@@ -186,7 +186,7 @@ Some shots are beyond a web engine: refracting glass, volumetric light, real dep
 
 The intro film's opening was made this way: a galaxy of 1.18 million stars, 15.8 s and 475 frames, 1 h 28 min at 1080p on an M3 Max. The scripts run sandboxed, with no network and no access to your API keys, and long renders go in resumable chunks. When Blender is worth it, how to join it to a film and what went wrong along the way: [engines/blender.md](engines/blender.md) (in Chinese).
 
-For 3D models in a narrated film, the canvas engine has an optional Three.js layer (`bin/vh new … --engine canvas-film --three`): GLB models drawn under the 2D, their animation clips set to the narration's words, each frame a function of t. `bin/vh model3d check` reads a model before it goes in: triangles, textures, joints, clip names and lengths, its size in metres.
+For 3D models in a narrated film, the canvas engine has an optional Three.js layer (`bin/vh new … --engine canvas-film --three`): GLB models drawn under the 2D, their animation clips set to the narration's words, each frame a function of t. `bin/vh model3d check` reads a model before it goes in: triangles, textures, joints, clip names and lengths, its size in metres. `bin/vh hdri` takes a CC0 environment map from Poly Haven to light the scene and stand behind it.
 
 ## Sound
 
@@ -282,7 +282,7 @@ This is an independent project, not affiliated with Anthropic, HeyGen, Remotion,
 
 ## License
 
-Original content is [MIT](LICENSE). The bundled ClaudeAnimationBase is MIT too (© John Heibel). Parts of `recipes/` adapted from other projects keep their licences, Apache-2.0 or MIT ([`recipes/NOTICE.md`](recipes/NOTICE.md)). Files that call Blender's Python API (`import bpy`) are GPL-3.0-or-later, each with an SPDX header ([`engines/blender.md`](engines/blender.md)). The reference repos keep their own licenses and aren't part of this repo.
+Original content is [MIT](LICENSE). The bundled ClaudeAnimationBase is MIT too (© John Heibel). Parts of `recipes/` adapted from other projects keep their licences, Apache-2.0 or MIT ([`recipes/NOTICE.md`](recipes/NOTICE.md)). Files that call Blender's Python API (`import bpy`) are GPL-3.0-or-later, each with an SPDX header ([`engines/blender.md`](engines/blender.md)); the GPL's text is in [`LICENSES/GPL-3.0-or-later.txt`](LICENSES/GPL-3.0-or-later.txt). three.js and fflate, carried by the canvas engine's Three.js layer, keep their MIT licences ([`engines/canvas-film/three/NOTICE.md`](engines/canvas-film/three/NOTICE.md)); the Blender checks of `bin/vh model3d` adapt MIT code from blender-skills ([`tools/model3d/NOTICE.md`](tools/model3d/NOTICE.md)). The reference repos keep their own licenses and aren't part of this repo.
 
 Parts of `components/` adapted from another project keep its MIT licence ([`components/NOTICE.md`](components/NOTICE.md)).
 

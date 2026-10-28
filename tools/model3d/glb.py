@@ -84,9 +84,11 @@ class Model:
 
     def problems(self):
         """What points outside the file, or is not the kind of thing glTF says, a line each (the first 20): the top-level
-        lists and their entries, each reference from one to another, each buffer's bytes, each bufferView inside its
-        buffer, each accessor's type, component type and count and its elements inside its bufferView. One pass over the
-        JSON, no data read. It is not the whole glTF 2.0 spec: Khronos's glTF-Validator checks a file against that."""
+        lists and their entries, each reference from one to another, the nodes as trees (no node its own ancestor, none
+        with two parents), each buffer's bytes, each bufferView inside its buffer, each accessor's type, component type
+        and count and its elements inside its bufferView, a sparse accessor's blocks inside theirs and its indices below
+        its count, in increasing order. One pass over the JSON; of the data, only sparse indices are read. It is not the
+        whole glTF 2.0 spec: Khronos's glTF-Validator checks a file against that."""
         J, out = self.json, []
         for k in LISTS:
             v = J.get(k, [])
@@ -125,9 +127,25 @@ class Model:
         for i, s in enumerate(self.list("scenes")):
             for r in items(s, "nodes", f"scenes[{i}].nodes"):
                 ref(r, "nodes", f"scenes[{i}].nodes")
-        for i, n in enumerate(self.list("nodes")):
+        nodes, parent = self.list("nodes"), {}
+        for i, n in enumerate(nodes):
             for c in items(n, "children", f"nodes[{i}].children"):
-                ref(c, "nodes", f"nodes[{i}].children")
+                if not ref(c, "nodes", f"nodes[{i}].children"):
+                    continue
+                if c in parent and parent[c] != i:
+                    out.append(f"nodes[{c}] is a child of nodes[{parent[c]}] and of nodes[{i}]: glTF's nodes are trees, one parent each")
+                parent.setdefault(c, i)
+        loops = []
+        for i in range(len(nodes)):   # up from each node: one that comes back to itself is in a loop
+            path, x = [], i
+            while x in parent and x not in path:
+                path.append(x)
+                x = parent[x]
+            if x in path and set(path[path.index(x):]) not in loops:
+                loops.append(set(path[path.index(x):]))
+                ring = list(reversed(path[path.index(x):]))
+                out.append("nodes " + " → ".join(f"{k} ({nodes[k].get('name', 'unnamed')})" for k in ring + ring[:1])
+                           + ": each the child of the one before, a loop; glTF's nodes are trees, and three's loader goes round it without end")
             for k, lst in (("mesh", "meshes"), ("skin", "skins"), ("camera", "cameras")):
                 if k in n:
                     ref(n[k], lst, f"nodes[{i}].{k}")
@@ -243,14 +261,32 @@ class Model:
             if not (whole(ic) and ic in (5121, 5123, 5125)):
                 out.append(f"{w}.sparse.indices.componentType is 5121, 5123 or 5125: {short(ic)}")
                 continue
+            inside = True
             for part, nbytes in (("indices", COMPONENT[ic][1]), ("values", COUNT[typ] * size)):
                 r, wp = sp[part], f"{w}.sparse.{part}"
                 if not ref(r.get("bufferView"), "bufferViews", f"{wp}.bufferView") or vlen[r["bufferView"]] is None:
+                    inside = False
                     continue
                 o = r.get("byteOffset", 0)
-                end = (o if whole(o) else 0) + sp["count"] * nbytes
+                if not whole(o):
+                    out.append(f"{wp}.byteOffset is a whole number, 0 or more: {short(o)}")
+                    inside = False
+                    continue
+                end = o + sp["count"] * nbytes
                 if end > vlen[r["bufferView"]]:
                     out.append(f"{wp}: {sp['count']:,} of them run past the end of bufferViews[{r['bufferView']}] ({end:,} bytes of {vlen[r['bufferView']]:,})")
+                    inside = False
+            if inside and not any(b is None for b in blen):   # the indices: each below the count, each above the one before
+                try:
+                    idx = [j[0] for j in _plain(self, {**sp["indices"], "componentType": ic}, sp["count"], 1)]
+                except (GltfError, struct.error):
+                    continue
+                past = [j for j in idx if j >= count]
+                if past:
+                    out.append(f"{w}.sparse.indices: {past[0]:,} is past its {count:,} elements" + (f" (and {len(past) - 1} more)" if len(past) > 1 else "")
+                               + ": glTF's sparse indices are each below the accessor's count")
+                elif any(b <= a for a, b in zip(idx, idx[1:])):
+                    out.append(f"{w}.sparse.indices are not in increasing order: glTF wants each above the one before")
         return out[:20] + ([f"… and {len(out) - 20} more like these"] if len(out) > 20 else [])
 
     # ---- what the JSON points at ----
