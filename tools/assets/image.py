@@ -20,7 +20,9 @@ usage: bin/vh image gen <project> (--prompt TEXT | --prompt-file F) [--provider 
            picture that goes on screen; --model names another (prices lists them). --size: 1K, 2K or 4K (default 1K
            draft, 2K final); --aspect: 1:1, 3:2, 2:3, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9 (default from the BRIEF's
            Output, else 16:9); --ref: reference pictures (up to 14; they are uploaded to the vendor: ask first when one
-           shows a real person or something confidential); --seed: sent as given, else a random one, recorded either way.
+           shows a real person or something confidential), cast:<id> for the pictures of the project's settled cast
+           entry in its order, cast:<id>:<view> for one of them (bin/vh cast; said which numbers are whose, for the
+           prompt to name them); --seed: sent as given, else a random one, recorded either way.
            Every call is paid: it is held against the project's budget first (tools/assets/budget.py: no budget, or one it
            would go over, and the call is not made, with how much is missing), and settled at what the answer's usage
            says it cost, a blocked answer's input and thinking too. An error answer (HTTP 4xx/5xx) and a request that
@@ -135,6 +137,19 @@ def cost_of(model, usage, fallback, picture=True):
 
 def mime_of(path):
     return {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}.get(Path(path).suffix.lower())
+
+
+def cast_said(labels):
+    """[(n, label)] of the pictures --ref cast:<id> sent → "references 1–3: cast:fox (character: …); 4: …": the prompt
+    should say which picture is which"""
+    runs = []
+    for n, label in labels:
+        if runs and runs[-1][2] == label and runs[-1][1] == n - 1:
+            runs[-1][1] = n
+        else:
+            runs.append([n, n, label])
+    return (("reference " if len(labels) == 1 else "references ") + "; ".join(f"{a}{'' if a == b else f'–{b}'}: {label}" for a, b, label in runs)
+            + " (the prompt should say which picture is which)")
 
 
 def gemini_body(model, prompt, refs, aspect, size, seed):
@@ -478,12 +493,29 @@ def cmd_gen(a):
         raise Usage("the prompt is empty")
     if a.n < 1 or a.n > 8:
         raise Usage("--n: 1 to 8 pictures")
-    refs = []
+    refs, labels, drafts = [], [], []   # labels: what each --ref cast:<id> picture is (bin/vh cast), said with the upload
     for r in a.ref or []:
+        if r.startswith("cast:"):   # a settled reference of the project's cast: its pictures, in its order
+            import cast
+            try:
+                got = cast.refs_for(project, r)
+                cid, _, entry = cast.entry_for(project, r)
+            except cast.Usage as e:
+                raise Usage(str(e))
+            if entry.get("status") != "final" and cid not in drafts:
+                drafts.append(cid)
+            for f, label in got:
+                refs.append(f); labels.append((len(refs), label))
+            continue
         f = ledger.find_file(project, r)
         if f is None or not f.is_file() or not mime_of(f):
-            raise Usage(f"--ref {r}: no such PNG, JPEG or WebP (from here, nor in the project)")
+            raise Usage(f"--ref {r}: no such PNG, JPEG or WebP (from here, nor in the project), nor cast:<id>")
         refs.append(f)
+    twice = sorted({ledger.rel(project, f) for f in refs if sum(Path(x).resolve() == Path(f).resolve() for x in refs) > 1})
+    if twice:   # cast:fox and cast:fox:front, or one --ref given twice: the same picture goes (and is paid for) twice
+        say(f"  ! the same picture is sent more than once: {', '.join(twice)} (one --ref each is enough)")
+    for cid in drafts:
+        say(f"  ! cast:{cid} is a draft, not settled yet (bin/vh cast add {cid} --final once the person has): what is made from it may need making again")
     aspect = a.aspect or brief_aspect(project) or "16:9"
     if aspect not in ASPECTS:
         raise Usage(f"--aspect {aspect}: one of {', '.join(ASPECTS)}")
@@ -530,6 +562,8 @@ def cmd_gen(a):
         else:
             say(f"image gen --dry-run: {a.n} × codex image_gen {aspect}: the ChatGPT plan's quota, nothing billed")
         say(f"  {plan['budget']['message']}")
+        if labels:
+            say(f"  · {cast_said(labels)}")
         say("  nothing called (--dry-run)")
         return 0
     if a.provider == "gemini":
@@ -539,6 +573,8 @@ def cmd_gen(a):
             raise Failed(f"{plan['budget']['message']} (bin/vh image gen --dry-run shows the estimate)")
     if refs:
         say(f"  · {len(refs)} reference picture(s) go to {'Google' if a.provider == 'gemini' else 'OpenAI (through Codex)'} with the prompt")
+        if labels:
+            say(f"  · {cast_said(labels)}")
     opener = fetch.opener_from(a.offline)
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "prompt.txt").write_text(ask + "\n", encoding="utf-8")

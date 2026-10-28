@@ -419,7 +419,7 @@
       "when": "a keyframe for gate ②, a plate behind the code, a cover's ground, a character sheet for 3D; a cutout of a picture on a flat colour",
       "stages": ["6", "3", "9"],
       "reads": [
-        "the prompt (--prompt, --prompt-file) and the reference pictures (--ref)",
+        "the prompt (--prompt, --prompt-file) and the reference pictures (--ref; cast:<id>: <project>/cast/<id>/'s, bin/vh cast)",
         "<project>/BRIEF.md (Budget; Output for the aspect), LOCAL.md (默认预算)",
         "GEMINI_API_KEY from the environment; or the codex CLI, signed in with ChatGPT",
         "--offline <folder>: recorded answers"
@@ -431,7 +431,7 @@
       ],
       "usage": [
         {
-          "synopsis": "image gen <project> --prompt \"…\" [--tier draft|final] [--size 1K|2K|4K] [--aspect 16:9] [--ref a.png] [--alpha] [--n 2] [--dry-run] [--json]",
+          "synopsis": "image gen <project> --prompt \"…\" [--tier draft|final] [--size 1K|2K|4K] [--aspect 16:9] [--ref a.png | cast:<id>] [--alpha] [--n 2] [--dry-run] [--json]",
           "text": [
             "one picture a call into assets/genimg/<id>/, on record (aigc, model, prompt, seed, cost, inputs); gemini (default):",
             "draft = Nano Banana 2.1, final = Nano Banana Pro, each call held against the budget (none, or over it: not called,",
@@ -691,6 +691,51 @@
         {
           "name": "remove",
           "summary": "mark a record removed, kept on record"
+        }
+      ]
+    },
+    {
+      "name": "cast",
+      "summary": "The project's cast: the settled references of its characters, costumes, props and sets, one folder each in cast/<id>/ with its pictures and cast.json, which image gen --ref cast:<id> sends and a 3D model made from four views will read.",
+      "when": "a character, a costume, a prop or a set must look the same in every shot: once its sheet is settled (the character stop E0, gate ②), and whenever a picture of it is made from references",
+      "stages": ["2", "3", "6"],
+      "reads": [
+        "<project>/cast/<id>/cast.json and its pictures",
+        "<project>/assets/ledger.json (add: the ledger id of a picture it copies)"
+      ],
+      "writes": [
+        "<project>/cast/<id>/ (add: the pictures copied in, and cast.json)"
+      ],
+      "usage": [
+        {
+          "synopsis": "cast add <project> <id> [--kind character|costume|prop|set] [--name N] [--note T] [--prompt T] [--ref picture[=view] …] [--source T --license T] [--final | --draft] [--force] [--json]",
+          "text": [
+            "make an entry, or add pictures and fields to one: each picture copied into cast/<id>/ with its sha256 and where it",
+            "came from; picture=view names its view, and front, left, back and right go into views (a model from four views later);",
+            "another --kind needs --force, and a refused add changes nothing"
+          ]
+        },
+        {
+          "synopsis": "cast list <project> [--json] | cast check <project> [--json]",
+          "text": [
+            "list: the entries, their kind, name, status, pictures and views; check: each cast.json against its folder (a picture",
+            "changed since it was recorded fails: what was made from it may need making again; a picture whose terms are on",
+            "record nowhere is said)"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "add",
+          "summary": "make an entry, or add pictures and fields to one"
+        },
+        {
+          "name": "list",
+          "summary": "the entries"
+        },
+        {
+          "name": "check",
+          "summary": "each cast.json against its folder"
         }
       ]
     },
@@ -1012,9 +1057,10 @@
       ],
       "usage": [
         {
-          "synopsis": "recipes list [--intent X --energy N --engine E …] | check [file…] | sample <id> [--style S] [--draft] [--force]",
+          "synopsis": "recipes list [--intent X --energy N --engine E …] | list --grammar [size,angle,axis,move] | check [file…] | sample <id> [--style S] [--draft] [--force]",
           "text": [
             "shot recipes (recipes/): filter by frontmatter, validate it",
+            "--grammar: the shot-grammar cards (recipes/shot/): shot sizes, angles, the axis and camera moves, what each does to the viewer, when to take it or not, and the code a shot table's camera writes",
             "sample: the recipe's sketch rendered, its contact sheet kept beside it and the sketch's sha in its frontmatter (list --json gives the path); unchanged, it is not rendered again"
           ]
         }
@@ -1073,7 +1119,8 @@
         {
           "synopsis": "storyboard <project> [--shots JSON|page.html] [--video v.mp4 | --snapshot] [--unsure S02,S04]",
           "text": [
-            "labelled pages from the shot table (shots.json or edit.json) or film.html: one per segment + overview (+ review.json)"
+            "labelled pages from the shot table (shots.json or edit.json) or film.html: one per segment + overview (+ review.json);",
+            "a shot's camera (size, angle, move by the shot-grammar cards' codes) printed under its id"
           ]
         }
       ]

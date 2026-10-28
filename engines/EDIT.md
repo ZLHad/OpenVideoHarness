@@ -103,6 +103,7 @@
 | `transition` | 全部 | 进入这一段的转场，`{"type", "duration"}`。现在还不画：挨着灰卡的照硬切画，两段真画面之间写了它，render 会停下，`edit check` 判失败 |
 | `segment`、`reads`、`label`、`unsure`、`frame`、`at` | 全部 | 和 `shots.json` 一样。`at` 是分镜格子取哪一刻（片子秒或引用） |
 | `why`、`caption`、`recipe`、`seam`、`note` | 全部 | 给人和审阅页看的备注，渲染不读 |
+| `camera` | 全部 | 这一镜的机位：`{"size": "MCU", "angle": "low", "move": "push-in", "axis": "hold"}`，写镜头语法卡（`recipes/shot/`）的 code，`bin/vh storyboard` 印在分镜页上，`edit check` 按同样的读法查（形状不对算失败，不认识的 code 提示）；渲染不读，和 `shots.json` 的同名字段一样 |
 
 ## 时间：秒、帧和引用
 

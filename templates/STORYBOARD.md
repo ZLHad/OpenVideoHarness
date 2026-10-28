@@ -21,14 +21,17 @@ Animatic: {out/animatic.mp4 · draft 画质的灰盒 · 真实 / 占位音频；
 
 ## Shots
 
-<!-- 配方、验收帧两列可选，用了配方才填：
+<!-- 机位、配方、验收帧三列可选。
+     机位 = 景别 · 角度 · 运镜，用镜头语法卡的 code（recipes/shot/，bin/vh recipes list --grammar）。关键镜头（钩子、转折、结尾）可以在这里
+     给 2–3 个选项和一句理由；这一列只放备选和理由，选定的只写进镜头表的 "camera"（{"size": "MCU", "angle": "low", "move": "push-in"}），
+     以那里为准，bin/vh storyboard 把它印在分镜页上。配方、验收帧用了配方才填：
      配方 = 用到的 recipes/ 配方 id（多式的写 id · 变体；按意图和能量挑：bin/vh recipes list --intent … --energy …）。自己想的镜头空着，不用写理由。
      验收帧 = 这一镜要逐帧看的 1–2 个片内帧号：峰值帧和落定帧，由配方 frontmatter 的 qa 加上本镜起点换算。
      转场出 = 接缝配方的 id（flash-cut、whip-pan …），或 brush wipe / match cut 这类写法。全片节奏排不顺时，可以套 recipes/sequences/ 的骨架。 -->
 
-| # | 时间 | 旁白 / 歌词 | 画面：看到什么 · 发生的事件 · 反应 · 镜头运动 | 焦点 | 配方 | 验收帧 | 转场出 |
-|---|---|---|---|---|---|---|---|
-| A | 0.0–3.6 | {…} | {…} | {…} | {spotlight-hero，或空着} | {f… 峰值 · f… 落定} | {flash-cut / match cut / cut on action / camera carry / iris …} |
+| # | 时间 | 旁白 / 歌词 | 画面：看到什么 · 发生的事件 · 反应 · 镜头运动 | 机位 | 焦点 | 配方 | 验收帧 | 转场出 |
+|---|---|---|---|---|---|---|---|---|
+| A | 0.0–3.6 | {…} | {…} | {可空着；关键镜头：WS · eye · push-in / MCU · low · static：{理由}} | {…} | {spotlight-hero，或空着} | {f… 峰值 · f… 落定} | {flash-cut / match cut / cut on action / camera carry / iris …} |
 
 ### A 的 reads
 | 时间 | read | 为什么这样定时 |
