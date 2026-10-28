@@ -1,0 +1,40 @@
+{
+ "hdri": {
+  "1k": {
+   "hdr": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/studio_small_09_1k.hdr",
+    "size": 32816,
+    "md5": "2d572b57eebf9ad19d681268015a4ee3"
+   },
+   "exr": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/studio_small_09_1k.exr",
+    "size": 50489,
+    "md5": "5585dcd169ca2a52548aa532b068ad64"
+   }
+  },
+  "2k": {
+   "hdr": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_09_2k.hdr",
+    "size": 32816,
+    "md5": "2d572b57eebf9ad19d681268015a4ee3"
+   },
+   "exr": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/2k/studio_small_09_2k.exr",
+    "size": 50489,
+    "md5": "5585dcd169ca2a52548aa532b068ad64"
+   }
+  },
+  "4k": {
+   "hdr": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/4k/studio_small_09_4k.hdr",
+    "size": 32816,
+    "md5": "2d572b57eebf9ad19d681268015a4ee3"
+   },
+   "exr": {
+    "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/4k/studio_small_09_4k.exr",
+    "size": 50489,
+    "md5": "5585dcd169ca2a52548aa532b068ad64"
+   }
+  }
+ }
+}

@@ -33,7 +33,7 @@ sys.path.insert(0, str(HERE))
 import purity   # noqa: E402  tools/purity.py: hard rule 1's patterns
 COMP = Path(os.environ.get("OVH_COMPONENTS") or ROOT / "components")   # another folder: the tests
 PROG = "bin/vh components"
-PAINTERS = {"canvas", "dom"}
+PAINTERS = {"canvas", "dom", "three"}   # three: a Three.js object's state (an InstancedMesh's matrices), three passed in
 TYPES = {"number", "string", "boolean", "array", "object", "null"}
 
 
@@ -174,6 +174,10 @@ def add(project, wanted):
     if (project / "film.html").is_file():
         print('  canvas-film: in film.html, before your scripts: <script type="module" src="components/lib/global.js"></script>')
         print("    then OVH.grain(X, t, {…}), OVH.paper(X, {…}) … from the classic scripts; in ready: OVH.setFrame({ w: W, h: H, fps: FILM.fps, dpr: PRX })")
+        threes = [n for n in got if n != "lib" and "three" in (slots_of(n).get("painters") or [])]
+        if threes:   # a three painter goes with the Three.js layer (engines/canvas-film/README.md, Three.js 层)
+            print(f"    {', '.join(threes)}'s three painter, in the Three.js layer: in FILM.three.build, "
+                  f'await import(new URL("components/{threes[0]}/component.js", document.baseURI).href); its three() in the shot\'s three.pose(t)')
     print("  the parameters: components/<name>/slots.json; what it looks like: the repo's components/<name>/sample/media/sheet.jpg")
     return 0
 

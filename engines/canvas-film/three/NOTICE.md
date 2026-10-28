@@ -13,5 +13,10 @@ This folder is canvas-film's Three.js layer. `bin/vh new … --engine canvas-fil
 | `addons/utils/BufferGeometryUtils.js` | `examples/jsm/utils/BufferGeometryUtils.js` | `9fb63427ce6641fa14fd0baff9cc4d1b5f9c3d85fd084bf2e90e803c44ec1797` |
 | `addons/utils/SkeletonUtils.js` | `examples/jsm/utils/SkeletonUtils.js` | `b1632a703206c3d830de9fcbe515696770d04b71a15ee6b50afa6d2c3298c86f` |
 | `addons/environments/RoomEnvironment.js` | `examples/jsm/environments/RoomEnvironment.js` | `55f466192cc84298755a424c5e040345006b2ee1455589b3b54126c2ea4123f4` |
+| `addons/loaders/HDRLoader.js` | `examples/jsm/loaders/HDRLoader.js` | `0986b578f9acd14cec74e5ee85e07f45e681b40bcd229a601a0391201f9b5ff1` |
+| `addons/loaders/EXRLoader.js` | `examples/jsm/loaders/EXRLoader.js` | `1355b32a2ee1226bffd0f96558f3d21e300832813ab70d51ec971025ebc34d5d` |
+| `addons/libs/fflate.module.js` | `examples/jsm/libs/fflate.module.js` | `209a4412eb48ce609edb4391992a792ffcc3983d30ee7e2b0b89a8c470f3cd8a` |
+
+`addons/libs/fflate.module.js` is **fflate 0.8.2** as three.js ships it (EXRLoader reads compressed EXRs with it): Copyright (c) 2023 Arjun Barrett, MIT License; its licence, byte for byte from the fflate repository at tag `v0.8.2`, is [`LICENSES/MIT-fflate.txt`](LICENSES/MIT-fflate.txt).
 
 The addons import `three` by name; the project's `film.html` maps it to `./three/build/three.module.js` (its import map), so they load unchanged. Another addon a film needs comes from the same version (`npm pack three@0.186.1`) into `three/addons/` at the path it has under `examples/jsm/`, with a row here. A new version replaces every file at once, gets new rows, and the Three.js layer's test in `tools/ci.sh` run again; `tools/modules.json` pins the version.

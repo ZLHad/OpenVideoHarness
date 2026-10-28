@@ -498,6 +498,45 @@
       ]
     },
     {
+      "name": "hdri",
+      "summary": "Environment maps from Poly Haven (every one CC0): search the library, get one into the project at a size and a format, its md5 checked and on record in the ledger, with the line the Three.js layer takes for it.",
+      "when": "a 3D shot that wants real light and reflections, or a sky behind it (FILM.three.env)",
+      "stages": ["6", "1"],
+      "reads": [
+        "Poly Haven's API (api.polyhaven.com; --offline <folder>: recorded answers)",
+        "<project>/BRIEF.md (Assets)"
+      ],
+      "writes": [
+        "<project>/assets/hdri/<hdri>/<hdri>_<res>.<hdr|exr> and its record in assets/ledger.json (get)"
+      ],
+      "usage": [
+        {
+          "synopsis": "hdri search <words…> [--category C] [-n 12] [--json] [--offline DIR]",
+          "text": [
+            "Poly Haven's HDRIs whose id, name, tags or categories hold every word, most downloaded first: the id, name, largest size, categories, authors"
+          ]
+        },
+        {
+          "synopsis": "hdri get <project> <hdri> [--res 2k] [--format hdr|exr] [--id ID] [--max-mb 600] [--rate 2M] [--json] [--offline DIR]",
+          "text": [
+            "into assets/hdri/<hdri>/ under Poly Haven's name for it, resumed if stopped, its md5 checked (a resumed one that does not",
+            "match is fetched again once); on record as CC0 with its page, authors, sha256 and md5; prints FILM.three.env's line. 1k",
+            "or 2k light a scene, a background through a lens wants 8k or more (a get of 8k or more says what a sharp background costs)"
+          ]
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "search",
+          "summary": "Poly Haven's HDRIs by words and category"
+        },
+        {
+          "name": "get",
+          "summary": "one into the project, checked and on record"
+        }
+      ]
+    },
+    {
       "name": "bgm",
       "summary": "Music to license rather than compose: search the sound library and Openverse (mostly Jamendo, CC BY), pick a track into the project cut on a downbeat, with its beat grid and its licence on record.",
       "when": "a film that wants a real track (an outside piece instead of bin/vh music's code-composed score)",
@@ -1541,8 +1580,8 @@
     },
     {
       "name": "components",
-      "summary": "The repo's motion components (spring scene, page turn, paper transitions, chapter bar) and the library under them: list them with their parameter tables, copy them into a project, render a sample.",
-      "when": "a shot needs a move the components already make (a shape that springs between states, a page turn, a fold or ink seam, a chapter bar) before writing one by hand",
+      "summary": "The repo's motion components (spring scene, page turn, paper transitions, chapter bar, build-up) and the library under them: list them with their parameter tables, copy them into a project, render a sample.",
+      "when": "a shot needs a move the components already make (a shape that springs between states, a page turn, a fold or ink seam, a chapter bar, pieces that build a whole one after another) before writing one by hand",
       "stages": ["6", "5"],
       "reads": [
         "components/<name>/slots.json, component.js",
@@ -1556,7 +1595,7 @@
         {
           "synopsis": "components [list] [--json] | check | add <project> <name…> | sample <name> [--draft]",
           "text": [
-            "the components (components/README.md): each a state(params, t) and a canvas or DOM painter, its parameters in",
+            "the components (components/README.md): each a state(params, t) and a canvas, DOM or three painter, its parameters in",
             "slots.json; add copies the library and the named ones into a project and prints how its engine loads them;",
             "sample renders one's 5 s sample and keeps its contact sheet"
           ]
