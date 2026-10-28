@@ -4,7 +4,9 @@ usage (via bin/vh captions): python tools/audio/captions.py <project_dir> [--lan
                                                             [--cards] [--cps 9] [--skip-lint]
 (--zh-max counts full-width characters, a half-width one as half; --en-max counts characters, spaces included)
 
-Reads audio/timeline.<lang>.json (or audio/timeline.json) written by bin/vh tts. Writes into <project>/audio/:
+Reads audio/timeline.<lang>.json (or audio/timeline.json) written by bin/vh tts; in a project with an edit list (edit.json) whose
+  footage speaks, out/edit.timeline.<lang>.json, the narration with the footage's words (the edit list is built first, as
+  bin/vh render builds it: engines/EDIT.md). Writes into <project>/audio/:
   captions.zh.srt, captions.en.srt (when that side exists), captions.bi.srt (zh line + en line) and
   captions.json: [{"id","start","end","zh":[lines],"en":[lines]}] — engines burn captions in from this file
   (HyperFrames / p5 / Manim read it; every caption stays a pure function of t).
@@ -252,6 +254,21 @@ def main():
         print(f"captions: no such project: {a.project}", file=sys.stderr); sys.exit(2)
     audio = Path(a.project).resolve() / "audio"
     tl_path = audio / f"timeline.{a.lang}.json" if a.lang else audio / "timeline.json"
+    if (Path(a.project) / "edit.json").is_file():   # an edit list: built first, as render does; with footage that speaks, its merged timeline
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent)); import edit
+        try:
+            doc, said = edit.build(Path(a.project).resolve())
+        except edit.EditError as e:
+            print("captions: the edit list does not resolve (bin/vh edit build):\n  " + "\n  ".join(e.problems), file=sys.stderr); sys.exit(2)
+        merged = edit.merged_path(doc, Path(a.project).resolve())   # in the narration's language
+        mlang = merged.name.split(".")[-2]
+        if any(line.startswith(f"out/{merged.name}") for line in said):   # the build wrote it now: the narration with the footage's words, film seconds
+            if a.lang and a.lang != mlang:
+                print(f"captions: --lang {a.lang}: the edit list's narration is {mlang}, so out/{merged.name} (its footage's words) is not used; "
+                      f"{tl_path.relative_to(Path(a.project).resolve())} has no footage in it")
+            else:
+                tl_path = merged
+                print(f"captions: out/{merged.name}: the edit list's narration with its footage's words (bin/vh edit build)")
     if not tl_path.is_file():   # bin/vh tts writes it
         print(f"captions: no timeline at {tl_path} (bin/vh tts makes it{'' if a.lang else '; --lang picks timeline.<lang>.json'})", file=sys.stderr); sys.exit(2)
     tl = json.loads(tl_path.read_text(encoding="utf-8"))

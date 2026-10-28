@@ -25,7 +25,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { openFilm } from "./host.mjs";
-import { build as buildEdit, editProject, openEdit } from "./edit.mjs";   // an edit list's film (engines/EDIT.md)
+import { build as buildEdit, clipIndex, clipRaw, clipSums, editProject, openEdit } from "./edit.mjs";   // an edit list's film (engines/EDIT.md)
+import { frameAt } from "./timegrid.mjs";
+import crypto from "node:crypto";
 import "./activity.mjs";   // bin/vh exec's into this: the run's end line in the project's activity log
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
@@ -135,6 +137,22 @@ for (const t of times) {
   for (const v of [vb, vc]) if (v !== null && !Number.isNaN(v)) worst = Math.min(worst, v);
   if (vd !== null && !(vd >= o.minPsnr)) clockOnly = true;
   console.log(`  ${t.toFixed(3).padStart(8)}   ${say(vb).padEnd(24)}${say(vc).padEnd(16)}${say(vd)}`);
+}
+// an edit list's footage: each frame sampled in a clip run decoded alone (a seek) and again in one decode from the run's
+// first frame on, summed as it streams: ffmpeg decoding a fixed file is exact, so the two are the same bytes, no tolerance
+if (editRoot) {
+  const W = Math.round(doc.size[0] * o.dpr), H = Math.round(doc.size[1] * o.dpr), md5 = (b) => crypto.createHash("md5").update(b).digest("hex");
+  for (const r of doc.runs.filter((x) => x.draw === "clip")) {
+    const ks = times.map((t) => frameAt(t, doc.fps)).filter((k) => k >= r.frames[0] && k < r.frames[1]);
+    if (!ks.length) continue;
+    try {
+      const js = ks.map((k) => clipIndex(r, k, doc.fps)), run = await clipSums(r, editRoot, r.j0, js, W, H);
+      const off = js.filter((j) => md5(clipRaw(r, editRoot, j, 1, W, H)[0] || Buffer.alloc(0)) !== run.get(j));
+      if (off.length) failed++;
+      console.log(`  ${r.entry} (${r.path}): ${js.length} source frame${js.length === 1 ? "" : "s"} decoded alone and in one run from its first: ` +
+        (off.length ? `frames ${off.join(", ")} differ` : "the same bytes"));
+    } catch (e) { failed++; console.log(`  ${r.entry} (${r.path}): ${e.message}`); }
+  }
 }
 ms.sort((p, q) => p - q);
 if (ms.length) console.log(`  a frame takes ${ms[Math.floor(ms.length / 2)]} ms (median: draw and capture)`);

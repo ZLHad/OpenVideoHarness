@@ -12,7 +12,7 @@ Without --yes it only lists (a dry run; --dry-run says so, and wins over --yes).
             --keep-versions N of each film (default 0), and folders there no version keeps; the record says where they
             went. The current films are not in there. Whether or not a film is found: the record tells them apart
   renders   video files under out/ that are not the film: drafts, video-only renders, segments, patches (*.mp4 *.mov *.webm
-            *.mkv *.m4v *.avi), with their .render.json and .lock beside them. Only once a film is found (below)
+            *.mkv *.m4v *.avi), with their .render.json, .mux.json and .lock beside them. Only once a film is found (below)
   sound     sound files directly in audio/ that are not the narration in use (voiceover.wav, voiceover.<lang>.wav and its
             .raw.wav original, any of wav, mp3, m4a, flac, aac; <lang> like zh, en or zh-CN), not a mix (mix*, *_mix*) and not
             named in any of the project's text files (a page's <audio src>, a timeline, the notes); audio/takes/; and stem
@@ -213,9 +213,9 @@ def candidates(root, film, keeps):
                 direct = len(rel.parts) == 2
                 if (direct and not (VOICE.fullmatch(n) or n.startswith("mix") or "_mix" in n or "-mix" in n)) or low(rel)[1] == "takes":
                     out.append(("sound", d / name))
-    gone = {p for k, p in out if k == "renders"}   # a render's sidecar and lock go with it
+    gone = {p for k, p in out if k == "renders"}   # a render's sidecar and lock go with it (a mux's record too)
     for p in list(gone):
-        for suf in (".render.json", ".lock"):
+        for suf in (".render.json", ".mux.json", ".lock"):
             q = p.with_name(p.name + suf)
             if q.exists() and not kept(q.relative_to(root)): out.append(("renders", q))
     return out

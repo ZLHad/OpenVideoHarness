@@ -79,6 +79,15 @@ def locked(out, shared=False):
 
 def dependencies(kv, directory):
     paths = {Path(os.path.abspath(kv[k])) for k in ("voice", "music", "sfx", "events", "timeline", "roles") if kv.get(k)}
+    if kv.get("edit"):   # the edit list, the time sources it read, every sound it places (tools/audio/editsound.py)
+        import editsound
+        try:
+            doc, project = editsound.load(kv["edit"])
+        except ValueError as e:
+            raise InvalidMix(str(e)) from None
+        paths |= {Path(f) for f in editsound.files(doc, project)}
+        if Path(kv["edit"]).is_file():
+            paths.add(Path(os.path.abspath(kv["edit"])))
     event_hash = None
     if kv.get("events"):
         if not Path(kv["events"]).is_file():

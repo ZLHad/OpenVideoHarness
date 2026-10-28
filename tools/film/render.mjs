@@ -66,7 +66,7 @@ import { note as activityNote, progress as activityProgress } from "./activity.m
 import { commit } from "./versions.mjs";                                                 // the project's versions (bin/vh versions)
 import { frameFrom } from "./timegrid.mjs";                                              // seconds to frames (tools/timegrid.py)
 import { concatChunks } from "./join.mjs";                                               // the chunks joined, one DTS step a frame
-import { EditFilm, allFacts, build as buildEdit, chaptersOf, drawingKey, editProject, indexOf, openEdit, pageShort, shotsOf, timeSourceProblems } from "./edit.mjs";   // edit lists (engines/EDIT.md)
+import { EditFilm, allFacts, build as buildEdit, chaptersOf, clipIndex, decodeArgs, drawingKey, editProject, indexOf, openEdit, pageShort, shotsOf, timeSourceProblems } from "./edit.mjs";   // edit lists (engines/EDIT.md)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -262,11 +262,17 @@ for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig,
 const COLOR = "colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv";
 // x264's yuv420p needs an even width and height: an odd one (1366 x 768 at --dpr 1.5 is 2049 x 1152) loses its last column or row
 const EVEN = "crop=trunc(iw/2)*2:trunc(ih/2)*2", px = [Math.round(first.width * o.dpr), Math.round(first.height * o.dpr)];
-const vf = png ? `${EVEN},scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=${COLOR}`
-  : `${EVEN},scale=in_color_matrix=bt601:in_range=pc:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=${COLOR}`;
+// the end of every path into x264, said outright whatever the input leaves on its frames (a JPEG says SAR 1:1 and, decoded
+// by ffmpeg 6, a centred chroma; a PNG and raw RGB say neither): yuv420p, BT.709 tv with its four tags, square pixels,
+// chroma sited left, H.264's default (x264 then writes no chroma location). So a page's JPEG or PNG chunks and footage's
+// raw RGB chunks get one SPS/PPS, which the join needs, with any ffmpeg
+const OUT = `format=yuv420p,setparams=${COLOR},setsar=1`;
+const X264 = () => ["-c:v", "libx264", "-preset", o.preset, "-crf", String(o.crf), "-g", String(gop), "-keyint_min", String(gop), "-sc_threshold", "0",
+  "-x264-params", "chromaloc=0", "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-r", String(fps)];
+const vf = png ? `${EVEN},scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,${OUT}`
+  : `${EVEN},scale=in_color_matrix=bt601:in_range=pc:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,${OUT}`;
 const x264 = (file) => spawn("ffmpeg", ["-v", "error", "-y", "-f", "image2pipe", "-framerate", String(fps), "-c:v", png ? "png" : "mjpeg", "-i", "-",
-  "-vf", vf, "-c:v", "libx264", "-preset", o.preset, "-crf", String(o.crf), "-g", String(gop), "-keyint_min", String(gop), "-sc_threshold", "0",
-  "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-r", String(fps), file], { stdio: ["pipe", "ignore", "pipe"] });
+  "-vf", vf, ...X264(), file], { stdio: ["pipe", "ignore", "pipe"] });
 const capture = png ? { format: "png" } : { format: "jpeg", quality: o.quality };
 // --alpha: PNG frames with their alpha into ProRes 4444 (every frame a keyframe; the chunks stay a GOP long for the
 // workers and a resume), 4:4:4 with a 16-bit alpha, BT.709 limited range with all four tags
@@ -275,6 +281,11 @@ const prores = (file) => spawn("ffmpeg", ["-v", "error", "-y", "-f", "image2pipe
   "-vf", VFA, "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", "-alpha_bits", "16", "-vendor", "apl0",
   "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-r", String(fps), file], { stdio: ["pipe", "ignore", "pipe"] });
 const encoder = alpha ? prores : x264;
+// an edit list's footage: raw RGB from ffmpeg's decoder into an x264 with the same output end (OUT, X264: the same SPS/PPS
+// as the pages' chunks, checked before the join), read as RGB as a PNG frame is
+const VFRGB = `${EVEN},scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,${OUT}`;
+const rawX264 = (file) => spawn("ffmpeg", ["-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", `${px[0]}x${px[1]}`, "-framerate", String(fps), "-i", "-",
+  "-vf", VFRGB, ...X264(), file], { stdio: ["pipe", "ignore", "pipe"] });
 
 // ---- what the chunks are made from: a resume takes the finished ones only while all of it is the same ----
 const sha = (f) => {
@@ -339,6 +350,7 @@ if (px[0] % 2 || px[1] % 2) console.log(`  note: ${px[0]}x${px[1]} pixels; x264 
 if (pageFps && Math.abs(pageFps - fps) > 1e-6) console.log(`  fps: drawn at ${fps} fps (${fpsGiven ? "--fps" : "the default; --fps sets it"}), the page says ${pageFps} (window.film.fps or FILM.fps): what it steps once a frame (grain) steps at its rate; make the two agree`);
 if (editRoot) for (const [src, f] of Object.entries(facts)) if (f.fps && Math.abs(f.fps - fps) > 1e-6) console.log(`  fps: ${src} (${doc.files[src].path}) is made for ${f.fps} fps, the edit list runs at ${fps}: what it steps once a frame steps at its rate`);
 if (editRoot && doc.slates.length) console.log(`  slates: ${doc.slates.join(", ")} (no source yet): an animatic; bin/vh check and deliver refuse the film until each has one`);
+if (editRoot) for (const line of (doc.said || []).slice(doc.slates.length ? 1 : 0)) console.log(`  edit: ${line}`);   // what the build noticed (its slates line is the one above)
 if (reuse.size) console.log(`  resuming: ${reuse.size} of ${plan.length} chunks kept from the last render of this file (${plan.length - reuse.size} to draw)`);
 
 let done = 0;
@@ -349,8 +361,10 @@ const size = (b) => b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e6 ? `${(b /
 const ftime = (s) => s < 90 ? `${s.toFixed(0)} s` : s < 5400 ? `${(s / 60).toFixed(0)} min` : `${(s / 3600).toFixed(1)} h`;
 
 // ---- the estimate: a few frames spread over the span, drawn and encoded as the render will ----
-if (todo.length && (o.estimate === "on" || (o.estimate === "auto" && nTodo > 600))) {
-  const S = Math.min(6, todo.length), at = [...new Set(Array.from({ length: S }, (_, i) => plan[todo[Math.floor((i + 0.5) * todo.length / S)]][0]))];
+// (an edit list's footage is decoded, not drawn: its chunks are left out of the estimate)
+const drawn = todo.filter((i) => !editRoot || runOf[i].draw !== "clip");
+if (drawn.length && (o.estimate === "on" || (o.estimate === "auto" && nTodo > 600))) {
+  const S = Math.min(6, drawn.length), at = [...new Set(Array.from({ length: S }, (_, i) => plan[drawn[Math.floor((i + 0.5) * drawn.length / S)]][0]))];
   const ms = [], runs = [];
   try {
     await within(first.frame(at[0] / fps, capture), o.frameTimeout, `t=${(at[0] / fps).toFixed(3)} s`);   // not timed: the first frame also compiles and decodes
@@ -427,6 +441,48 @@ async function chunk(film, i) {
     writePlan(film); fs.renameSync(file, kept(i)); fileOf[i] = kept(i);
   }) };
 }
+// an edit list's footage chunk: one decoder from the chunk's first source frame (an exact seek), its frames handed to the
+// encoder as the film shows them (a frame shown twice is written twice, one left out is not written); no browser
+async function clipChunk(i) {
+  const [a, b] = plan[i], run = runOf[i], file = path.join(parts, `part${String(i).padStart(4, "0")}.new.${PEXT}`), ff = rawX264(file);
+  encoders.add(ff);
+  let ffErr = "", decErr = ""; ff.stderr.on("data", (d) => { ffErr = (ffErr + d).slice(-2000); });
+  const closed = new Promise((ok) => ff.on("close", (code, sig) => ok(code ?? sig)));
+  let gone = false, wrote = 0;
+  const exited = new Promise((ok) => ff.once("exit", () => { gone = true; encoders.delete(ff); ok(); }));
+  ff.stdin.on("error", () => { /* the encoder is gone: exited says so */ });
+  const js = Array.from({ length: b - a }, (_, x) => clipIndex(run, a + x, fps));
+  const dec = spawn("ffmpeg", decodeArgs(run, editRoot, js[0], js[js.length - 1] - js[0] + 1, px[0], px[1]), { stdio: ["ignore", "pipe", "pipe"] });
+  encoders.add(dec);
+  dec.stderr.on("data", (d) => { decErr = (decErr + d).slice(-2000); });
+  const decoded = new Promise((ok) => dec.on("close", (code) => { encoders.delete(dec); ok(code); }));
+  const size = px[0] * px[1] * 3;
+  try {
+    let frame = Buffer.allocUnsafe(size), fill = 0, d = 0, x = 0;
+    for await (const c of dec.stdout) {
+      for (let off = 0; off < c.length && !gone;) {
+        const n = Math.min(size - fill, c.length - off);
+        c.copy(frame, fill, off, off + n); fill += n; off += n;
+        if (fill < size) continue;
+        for (const j = js[0] + d++; x < js.length && js[x] === j && !gone; x++) {
+          if (!ff.stdin.write(frame)) await Promise.race([new Promise((ok) => ff.stdin.once("drain", ok)), exited]);
+          wrote++; done++;
+        }
+        frame = Buffer.allocUnsafe(size); fill = 0;   // a fresh one: the encoder may still hold the last
+      }
+    }
+    const code = await decoded;
+    if (code !== 0 || wrote < b - a) failWith(`decoding ${run.path} for ${run.entry} (frames ${a}–${b - 1}): ${decErr.trim().split("\n")[0] || `exit ${code}, ${wrote} of ${b - a} frames`}`);
+  } catch (e) { failWith(e.message); }
+  ff.stdin.end();
+  return { encoded: closed.then((code) => {
+    if (code !== 0 || wrote < b - a) return failWith(`the encoder for frames ${a}–${b - 1} ${wrote < b - a ? `stopped after ${wrote} of them` : "failed"} (exit ${code}): ${ffErr.trim() || "no message"}`);
+    const abs = path.isAbsolute(run.path) ? run.path : path.join(editRoot, run.path);
+    if (!loaded.has(abs)) loaded.set(abs, run.sha256 || null);   // what the chunk is made from (a resume, bin/vh assets check)
+    fs.writeFileSync(planFile, JSON.stringify({ note: "what bin/vh render's chunks here were made from; a render resumes from them only while all of it is the same", recipe, files: Object.fromEntries(loaded) }, null, 1) + "\n");
+    fs.renameSync(file, kept(i)); fileOf[i] = kept(i);
+  }) };
+}
 // the chunks in turn; an edit list's worker takes one of a run it has open first (a run's chunks stay with the browser
 // that has its page), else the next
 const pending = [...todo];
@@ -441,7 +497,7 @@ async function worker(w) {
   try {
     if (!film && editRoot) { film = new EditFilm(editRoot, doc, { ...o, prelude: [HOOK], onRetire: glyphCheck }); editFilms.push(film); }
     if (!film) { film = await openFilm(target, { ...o, runtime: "auto", prelude: [HOOK] }); if (alpha) await clearBackground(film); }
-    for (let i; !failed && (i = nextChunk(film)) !== null;) encoding.push((await chunk(film, i)).encoded);
+    for (let i; !failed && (i = nextChunk(film)) !== null;) encoding.push((await (editRoot && runOf[i].draw === "clip" ? clipChunk(i) : chunk(film, i))).encoded);
   } catch (e) { failWith(e.message); }
   await Promise.all(encoding);
   // the characters this worker drew, each in the font it asked for? (tools/film/glyphs.mjs; a finding is reported, not fatal)
@@ -460,6 +516,21 @@ if (!W) await first.close();
 clearInterval(progress);
 const fail = (msg) => { const k = keepFinished(); console.error(`render: ${msg}`); if (k) console.error(`  ${keptSay(k)}`); process.exit(1); };
 if (failed) fail(failed);
+if (editRoot) {   // an edit list's chunks came from pages and from footage: one SPS/PPS, or the joined film does not decode
+  const FIELDS = ["profile", "level", "pix_fmt", "width", "height", "sample_aspect_ratio", "color_range", "color_space", "color_primaries", "color_transfer",
+    "chroma_location", "field_order", "has_b_frames", "refs"];
+  const facts = plan.map((_, i) => {
+    const r = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_streams", "-show_data_hash", "sha256", "-of", "json", fileOf[i]], { encoding: "utf8" });
+    return (JSON.parse(r.stdout || "{}").streams || [])[0] || {};
+  });
+  const odd = plan.map((_, i) => i).filter((i) => facts[i].extradata_hash !== facts[0].extradata_hash || FIELDS.some((f) => facts[i][f] !== facts[0][f]));
+  if (odd.length) {   // what differs, field by field, in the first such chunk: the SPS/PPS bytes alone when no field shows it
+    const i = odd[0], diff = FIELDS.filter((f) => facts[i][f] !== facts[0][f]).map((f) => `${f} ${facts[0][f] ?? "unset"} → ${facts[i][f] ?? "unset"}`);
+    fail(`the chunks of ${[...new Set(odd.map((x) => runOf[x].entry))].join(", ")} are encoded otherwise than ${runOf[0].entry}'s: ` +
+      `${diff.length ? diff.join(", ") : "their SPS/PPS bytes (no field ffprobe shows differs: another x264, or other settings)"} ` +
+      `(chunk ${i}, frames ${plan[i][0]}–${plan[i][1] - 1}, against chunk 0): joining them would make a broken film`);
+  }
+}
 // each chunk's length in frames: an MP4's own duration is rounded to its movie timescale (1/1000 s), which would move the
 // chunk after it by a few ticks when a GOP is not a whole number of milliseconds (--gop 20 at 30 fps)
 fs.writeFileSync(path.join(parts, "list.txt"), plan.map(([a, b], i) => `file '${path.basename(fileOf[i])}'\nduration ${((b - a) / fps).toFixed(9)}`).join("\n") + "\n");
@@ -501,10 +572,13 @@ function editSidecar() {
   for (const f of editFilms) for (const [k, set] of f.servedBy) { if (!byKey.has(k)) byKey.set(k, new Set()); for (const x of set) byKey.get(k).add(x); }
   const filesOf = (r) => Object.fromEntries([...(byKey.get(r.draw === "page" ? `page:${r.path}` : r.draw) || [])].filter((f) => inside(f, first.root))
     .map((f) => [relIn(f), loaded.has(f) ? loaded.get(f) : (() => { try { return sha(f); } catch { return null; } })()]).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
-  const keyRecipe = { width: first.width, height: first.height, dpr: o.dpr, fps, gop, capture: recipe.capture, crf: o.crf, preset: o.preset, vf,
-    browser: first.version, ffmpeg: recipe.ffmpeg, tools: recipe.tools, real_clock: !!o.realClock, soft_gl: !!o.softGl };
-  const keyOf = (r, a, b) => crypto.createHash("sha256").update(JSON.stringify({ v: 1, drawing: drawingKey(r), index: [indexOf(r, a), indexOf(r, b)], recipe: keyRecipe })).digest("hex");
+  // what a chunk is made from beyond its run: the render's settings; the browser only for what a browser draws
+  const base = { width: first.width, height: first.height, dpr: o.dpr, fps, gop, crf: o.crf, preset: o.preset, ffmpeg: recipe.ffmpeg, tools: recipe.tools };
+  const keyRecipe = (r) => (r.draw === "clip" ? { ...base, input: "rgb24", vf: VFRGB }
+    : { ...base, capture: recipe.capture, vf, browser: first.version, real_clock: !!o.realClock, soft_gl: !!o.softGl });
+  const keyOf = (r, a, b) => crypto.createHash("sha256").update(JSON.stringify({ v: 1, drawing: drawingKey(r), index: [indexOf(r, a), indexOf(r, b)], recipe: keyRecipe(r) })).digest("hex");
   return {
+    inputs: { ...(doc.runs.some((r) => r.draw !== "clip") ? { page: recipe.capture } : {}), ...(doc.runs.some((r) => r.draw === "clip") ? { clip: "rgb24" } : {}) },   // into the one x264 setting
     edit: { path: relIn(path.join(editRoot, "edit.json")), sha256: doc.edit.sha256, resolved: crypto.createHash("sha256").update(JSON.stringify(doc)).digest("hex") },
     refs: doc.refs, slates: doc.slates,
     entries: doc.entries.map((e) => ({ id: e.id, kind: e.kind, src: e.src, ...(e.clock ? { clock: e.clock } : {}), frames: e.frames, start: e.start, end: e.end })),

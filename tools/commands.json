@@ -1028,11 +1028,11 @@
     },
     {
       "name": "edit",
-      "summary": "The film as an edit list (edit.json, engines/EDIT.md): a row of entries, each drawn from a page, an image, a colour or nothing yet (a slate); init folds shots.json into one, build resolves it to whole frames, check and list.",
-      "when": "a film made of several pages (a chapter an engine) or with still images, and gate ②'s full-length animatic (edit init: every shot a slate, timed as planned)",
+      "summary": "The film as an edit list (edit.json, engines/EDIT.md): a row of entries, each drawn from a page, an image, a colour, footage, another film or nothing yet (a slate), and tracks of sounds; init folds shots.json into one, build resolves it to whole frames, check and list.",
+      "when": "a film made of several pages (a chapter an engine), with still images or footage, and gate ②'s full-length animatic (edit init: every shot a slate, timed as planned)",
       "stages": ["3", "6", "8"],
       "reads": [
-        "<project>/edit.json and the files its sources name",
+        "<project>/edit.json and the files its sources name (a clip folder: its clip.json and words)",
         "the narration timeline, beat map and time map its refs name",
         "<project>/shots.json (init), BRIEF.md (init: Output; check: Assets)",
         "<project>/assets/ledger.json (check)",
@@ -1040,7 +1040,8 @@
       ],
       "writes": [
         "<project>/edit.json and shots.json.folded (init)",
-        "<project>/out/edit.resolved.json (init, build)"
+        "<project>/out/edit.resolved.json (init, build)",
+        "<project>/out/edit.timeline.<lang>.json (build, when footage speaks: the narration with its words)"
       ],
       "usage": [
         {
@@ -1054,7 +1055,8 @@
           "synopsis": "edit build <project> [--json] [--quiet]",
           "text": [
             "resolves edit.json into out/edit.resolved.json: every start and end (seconds, or a cue on the narration, the",
-            "beats, a time map) in whole frames, each entry's source, the runs bin/vh render draws; says what moved since"
+            "beats, a time map) in whole frames, each entry's source, the runs bin/vh render draws, the sounds placed; with",
+            "footage that speaks, out/edit.timeline.<lang>.json (the narration with its words, for mix, captions, qa); says what moved since"
           ]
         },
         {
@@ -1197,6 +1199,7 @@
       "stages": ["4"],
       "reads": [
         "<project>/audio/timeline.json or timeline.<lang>.json",
+        "<project>/out/edit.timeline.<lang>.json (an edit list whose footage speaks: built first)",
         "<project>/audio/capbreaks.json"
       ],
       "writes": [
@@ -1896,7 +1899,8 @@
       "stages": ["8", "4"],
       "reads": [
         "voice=, music=, sfx= or events= and lib= files",
-        "timeline= (a profile)"
+        "timeline= (a profile)",
+        "edit= (an edit list: its footage's sound and its sound tracks, engines/EDIT.md)"
       ],
       "writes": [
         "<out.wav>",
@@ -1905,13 +1909,14 @@
       ],
       "usage": [
         {
-          "synopsis": "mix <out.wav> [voice=…] [music=…] [sfx=…] [music_db=-6]",
+          "synopsis": "mix <out.wav> [voice=…] [music=…] [sfx=…] [edit=…] [music_db=-6]",
           "text": [
-            "3-bus mix, music ducks under the voice (duck=on: + SFX), −14 LUFS"
+            "3-bus mix, music ducks under the voice (duck=on: + SFX), −14 LUFS; edit=: the edit list's sounds, cut and placed",
+            "(role voice on the voice bus, the others on the SFX bus)"
           ]
         },
         {
-          "synopsis": "mix <out.wav> profile=explainer|short|promo|cartoon|mv|swatch [voice=…] [music=…] [events=… lib=…] [timeline=…] [stems=DIR]",
+          "synopsis": "mix <out.wav> profile=explainer|short|promo|cartoon|mv|swatch [voice=…] [music=…] [events=… lib=…] [edit=…] [timeline=…] [stems=DIR]",
           "text": [
             "a level hierarchy from one anchor (the narration, else the music): VMR per line, SFX classes, depth"
           ]
@@ -1972,7 +1977,8 @@
         "subs.srt …"
       ],
       "writes": [
-        "<out>"
+        "<out>",
+        "<out>.mux.json (what it was muxed from: the picture's render record as it was)"
       ],
       "usage": [
         {

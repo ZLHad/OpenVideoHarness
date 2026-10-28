@@ -81,13 +81,13 @@ except ImportError:
 def loudness(stderr):  # loudnorm's print_format=json block → {"input_i", "input_tp", "input_lra", …}
     return json.loads(re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", stderr, re.S).group(0))
 
-USAGE = ("usage: bin/vh mix <out.wav> [voice=vo.wav] [music=m.wav] [sfx=s.wav] [music_db=-6] [sfx_db=0] [voice_db=0] "
+USAGE = ("usage: bin/vh mix <out.wav> [voice=vo.wav] [music=m.wav] [sfx=s.wav] [edit=edit.json] [music_db=-6] [sfx_db=0] [voice_db=0] "
          "[duck=voice|on|off] [duck_ratio=1.6] [lufs=-14] [tp=-1.5]\n"
          "       bin/vh mix <out.wav> profile=explainer|short|promo|cartoon|mv|swatch [voice=vo.wav] [music=m.wav] "
-         "[events=events.json [lib=DIR] [root=DIR] [roles=roles.json] [keep=t1,t2] | sfx=s.wav] [timeline=timeline.json] "
+         "[events=events.json [lib=DIR] [root=DIR] [roles=roles.json] [keep=t1,t2] | sfx=s.wav] [edit=edit.json] [timeline=timeline.json] "
          "[stems=DIR] [dur=S] [fade=S] [music_db=-6] [sfx_db=0] [voice_db=0] [lufs=-14] [tp=-1.65]")
 PROFILE_KEYS = ("profile", "events", "lib", "root", "timeline", "roles", "stems", "keep", "dur", "fade")
-KEYS = ("voice", "music", "sfx", "music_db", "sfx_db", "voice_db", "duck", "duck_ratio", "lufs", "tp") + PROFILE_KEYS
+KEYS = ("voice", "music", "sfx", "edit", "music_db", "sfx_db", "voice_db", "duck", "duck_ratio", "lufs", "tp") + PROFILE_KEYS
 
 def main():
     if sys.argv[1:2] in (["-h"], ["--help"]): print(USAGE); sys.exit(0)
@@ -97,12 +97,31 @@ def main():
         kv = arguments()
         layered_chain = kv.get("profile", "none") != "none"   # the target the record keeps: bin/vh check reads it against the film
         build.state["target"] = {"lufs": float(kv.get("lufs", -14)), "tp": float(kv.get("tp", -1.65 if layered_chain else -1.5))}
-        build.snapshot(kv)
-        if kv.get("profile", "none") == "none":
-            report = default_chain(build.temp, kv, out)
-        else:
-            report = layered(build.temp, kv, out)
+        if "edit" in kv:   # built before the snapshot: an events.json header naming out/edit.resolved.json reads it as it is now
+            import editsound
+            try: editsound.load(kv["edit"], write=True)
+            except ValueError as e: sys.exit(str(e))   # it names edit= itself
+        build.snapshot(kv)   # edit=: the edit list, its time sources and every sound it places are inputs too (tools/audio/mixstate.py)
+        said, extra, tmp = [], [], None
+        if "edit" in kv:   # the sounds the edit list places, cut and put on their buses (tools/audio/editsound.py)
+            import editsound, shutil, tempfile
+            tmp = tempfile.mkdtemp(prefix="vh-mix-edit-")
+            try: kv, extra, said = editsound.apply(kv, tmp)
+            except (ValueError, subprocess.CalledProcessError) as e:
+                shutil.rmtree(tmp, ignore_errors=True)
+                sys.exit(f"edit={kv['edit']}: {e}")
+        try:
+            if kv.get("profile", "none") == "none":
+                report = default_chain(build.temp, kv, out)
+            else:
+                report = layered(build.temp, kv, out, extra_events=extra)
+        finally:
+            if tmp:
+                import shutil
+                shutil.rmtree(tmp, ignore_errors=True)
         build.commit()
+    for line in said:
+        print(f"  {line}")
     print(report)
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import activity   # tools/activity.py: the run's summary in the project's log, when bin/vh ran us
@@ -799,7 +818,7 @@ def master(X, target, tp):
         if abs(I2 - target) > 0.1: g *= 10 ** ((target - I2) / 20); Y = X * g
     return Z, g, I2, TP, lim, npk
 
-def layered(out, kv, final_out=None):
+def layered(out, kv, final_out=None, extra_events=()):
     if np is None: sys.exit("profile= needs numpy and scipy: run it as bin/vh mix … profile=… (uv provides them)")
     name = kv["profile"]
     if name not in PROFILES: sys.exit(f"profile={name}: use one of {', '.join(PROFILES)}, or none for the default chain")
@@ -807,7 +826,7 @@ def layered(out, kv, final_out=None):
     if "events" in kv and "sfx" in kv: sys.exit("give events= (each event classed and levelled) or sfx= (one pre-placed bus), not both")
     for k, need in (("lib", "events"), ("root", "events"), ("roles", "events"), ("keep", "events"), ("timeline", "voice")):
         if k in kv and need not in kv: sys.exit(f"{k}= goes with {need}=")
-    if not any(k in kv for k in ("voice", "music", "sfx", "events")): sys.exit("give at least one of voice= music= sfx= events=")
+    if not any(k in kv for k in ("voice", "music", "sfx", "events")) and not extra_events: sys.exit("give at least one of voice= music= sfx= events= edit=")
     for k in ("voice", "music", "sfx", "events", "timeline", "roles"):
         if k in kv and not os.path.isfile(kv[k]): sys.exit(f"{k}={kv[k]}: no such file")
     for k in ("lib", "root"):
@@ -819,6 +838,7 @@ def layered(out, kv, final_out=None):
     except time_refs.RefError as e: sys.exit(f"events={kv['events']}: {e}")
     if not all(isinstance(e, dict) and "t" in e and "sfx" in e for e in events):
         sys.exit(f"events={kv['events']}: a JSON list of {{\"t\", \"sfx\", …}} events")
+    events = list(events) + list(extra_events)   # edit=: the edit list's sounds of the effects' classes, cut to length
     keep = []
     for x in (x.strip() for x in kv.get("keep", "").split(",")):   # seconds, an event id, or a reference
         if not x: continue
@@ -857,7 +877,8 @@ def layered(out, kv, final_out=None):
         d = kv["stems"]; os.makedirs(d, exist_ok=True); rel = lambda p: os.path.relpath(os.path.abspath(p), os.path.abspath(d))
         meta.update(balance={"music_db": mdb, "sfx_db": sdb, "voice_db": vdb}, zh=zh, keep=keep,
                     lib=rel(kv["lib"]) if "lib" in kv else None, root=rel(kv.get("root", ".")) if "events" in kv else None,
-                    inputs={k: rel(kv[k]) for k in ("voice", "music", "sfx", "events", "timeline", "roles") if k in kv})
+                    inputs={**{k: rel(kv.get("_given", {}).get(k, kv[k])) for k in ("voice", "music", "sfx", "events", "timeline", "roles")
+                               if k in kv and kv.get("_given", {}).get(k, kv[k])}, **({"edit": rel(kv["edit"])} if "edit" in kv else {})})   # not edit='s cut files
         names = ["voice", "music", "sfx"] + [f"sfx_{c}" for c in CLASSES]
         for k in names:   # only what this mix has: a stale stem from an earlier run would mislead qa mix
             p = os.path.join(d, f"{k}.wav")

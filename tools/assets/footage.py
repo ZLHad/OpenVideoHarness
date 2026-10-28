@@ -22,8 +22,7 @@ file (then --license, --license-url and --page say what the tools cannot read). 
   files    what an item has: an Archive item's files (name, size, format, original or derivative), a NASA item's
            renditions, a Commons file's size, length and type
   get      download it into the project and register it in assets/ledger.json. A video becomes a clip folder in the
-           shape the edit list reads (docs: engines/CONTRACT.md's 在序列里 when it lands; the design is the edit list's
-           §9): assets/footage/<id>/orig.<ext> (as downloaded, never changed), clip.mp4 (the working clip: CFR at the
+           shape an edit list reads as a clip source (engines/EDIT.md, 片段): assets/footage/<id>/orig.<ext> (as downloaded, never changed), clip.mp4 (the working clip: CFR at the
            footage's own rate, pts from 0, every keyframe closed and at most 1 s apart, H.264 High yuv420p crf 12,
            BT.709 tv with its four tags, square pixels, upright, +faststart; not made when orig is all that already),
            clip.json (the clip's facts, below), audio.wav (its sound as 48 kHz PCM, from the first picture on, when it
@@ -368,6 +367,14 @@ def video_packets(path):
     return outp
 
 
+def off_grid(packets, rate):
+    """How far, in frames, a video's furthest frame sits from the constant grid at rate (its pts sorted, against the first
+    one + i/rate). Over a quarter of a frame, its rate varies, whatever its average says: one frame dropped in 120 moves
+    the average by under 1 %, and every frame after it by one (an edit list picks frames by their place in the stream)."""
+    ts = sorted(t for t, _ in packets)
+    return max((abs((t - ts[0]) * float(rate) - i) for i, t in enumerate(ts)), default=0.0)
+
+
 STANDARD_RATES = [Fraction(n, d) for n, d in ((12, 1), (25, 2), (15, 1), (16, 1), (18, 1), (24000, 1001), (24, 1), (25, 1), (30000, 1001), (30, 1),
                                                (48, 1), (50, 1), (60000, 1001), (60, 1), (100, 1), (120000, 1001), (120, 1))]
 
@@ -473,6 +480,8 @@ def unfit(path, p, packets):
         why.append("not tagged BT.709 tv")
     if not cfr:
         why.append("a variable frame rate")
+    elif packets and off_grid(packets, rate) > 0.25:
+        why.append(f"frames off a constant {frate(rate)} fps grid (a variable rate its average hides)")
     if abs(float(v.get("start_time") or 0)) > 1e-4 or abs(float(p["format"].get("start_time") or 0)) > 1e-4:
         why.append("pts not from 0")
     if sar_of(v) != 1:

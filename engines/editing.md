@@ -2,24 +2,24 @@
 
 这一页是 `video-types/09-editing-talking-head.md` 的细节：EDL、用测量定切点、口水词和重录的规则、重转写对账、两两对比评审、重构图、避脸字幕、导出，以及借来的思路和出处。类型文档管"做什么、先后顺序、禁什么"，这一页管"具体怎么算"。
 
-> **实验性：下面标【实测】的数字只在合成材料上标定过**（macOS `say` 合成的中文语音加噪声、手写的字符串和 EDL），没有用真人口播素材试过，也没有在任何剪辑软件里导入过导出的文件。缺口测量、逐接缝指标、重转写对账、EDL 审阅页、EDL 到 HyperFrames 的编译器都**还没有实现**（顺序见"建议的落地顺序"），现在按这里写的算法自己做。
+> **实验性：下面标【实测】的数字只在合成材料上标定过**（macOS `say` 合成的中文语音加噪声、手写的字符串和 EDL），没有用真人口播素材试过，也没有在任何剪辑软件里导入过导出的文件。缺口测量、逐接缝指标、重转写对账、EDL 审阅页都**还没有实现**（顺序见"建议的落地顺序"），现在按这里写的算法自己做。EDL 本身是剪辑表 `edit.json`，硬切由 `bin/vh render` 直接渲（见下面的"EDL"）。
 >
 > 标记：【实测】在维护者的 Mac（macOS 15，ffmpeg 8.0.1，numpy）上跑过；【二手】没能读到原文；【推测】没有证据的推断。引用编号 `[n]` 见文末"来源"。依据是 2026-09-30 对同类项目的调研，2026-10-01 把相关仓库的源码重新读了一遍、重新核对了阈值。
 
 ## EDL
 
-EDL 是剪辑的唯一事实来源，综合了 video-use 的 EDL、open-edit 的 `apply-edl` 和 kinocut 的审批哈希 [4][6][7]。
+EDL 就是项目的剪辑表 `edit.json`（格式见 `engines/EDIT.md`），不另留一份 `edl.json`。它综合了 video-use 的 EDL、open-edit 的 `apply-edl` 和 kinocut 的审批哈希 [4][6][7]。一段口播里留下的一刀：
 
 ```json
 {
-  "version": 1, "fps": 30,
-  "sources": { "A": { "path": "footage/A.mov", "sha256": "…", "cfr": true, "src_fps": "30000/1001", "duration": 612.4 } },
-  "ranges": [
-    { "id": "r01", "source": "A", "in": 73, "out": 206, "beat": "HOOK",
-      "quote": "…", "reason": "最干净的一遍，在 38.46 s 的口误之前停",
+  "v": 1, "fps": 30, "size": [1920, 1080],
+  "sources": { "A": { "clip": "assets/footage/A", "sound": { "role": "voice" } } },
+  "tracks": [ { "id": "V1", "entries": [
+    { "id": "r01", "src": "A", "in": { "f": 73 }, "out": { "f": 206 }, "segment": "HOOK",
+      "quote": "…", "why": "最干净的一遍，在 38.46 s 的口误之前停",
       "snap": { "in": "valley", "out": "valley", "handle_in_ms": 50, "handle_out_ms": 20 },
-      "seam_out": "xfade40" }
-  ],
+      "sound": { "role": "voice", "fade": [0.03, 0.04] } }
+  ] } ],
   "removed": [
     { "source": "A", "in": 206, "out": 273, "class": "retake", "text": "我觉得吧我觉得", "confidence": 0.8 }
   ],
@@ -27,12 +27,24 @@ EDL 是剪辑的唯一事实来源，综合了 video-use 的 EDL、open-edit 的
 }
 ```
 
-- **入出点存整数帧**，`fps` 是渲染用的整数帧率。先吸附到缺口里的能量谷，再落到帧格，取整规则写死（四舍五入，恰好一半往后取），之后只存整数。存秒数会出事：6.85 s 在 30 fps 下是 205.5 帧，恰好平局，取整方式一换，切点就差一帧。
-- 总时长是各区间帧数之和，offset 也按帧数累加，不在秒数上累加浮点误差（open-edit 的做法）[6]。
-- **29.97、23.976、59.94 fps 的素材**：先转成 CFR 的整数帧率再渲（HyperFrames 0.8.82 其实也能按 `--fps 30000/1001`、`25` 这类帧率渲，测试合成上实测过；按素材原生帧率渲还没拿真实素材验证，验证之前照下面的做法）：29.97 用 `fps=30`，23.976 用 `fps=24`，59.94 用 `fps=60`；EDL 记转换后的整数帧号，`src_fps` 记素材自己的帧率。导出给剪辑软件时，用时间把入出点换回素材自己的帧格（29.97 的帧时长是 1001/30000 s）再取整，不要直接沿用转换后的帧号：转换每 1001 帧补 1 帧，画面看不出来，10 分钟之后帧号就差了 18 帧。
-- `class` 取值：`filler`、`retake`、`false_start`、`silence`、`offscript`、`take_loser`、`process_talk`。
-- **审批哈希**：人批准的是这份 EDL 的哈希；渲染前核对，不一致拒绝渲染。kinocut 对"已批准的 EDL 与时间线差异"做六项检查：审批哈希、源时间覆盖、顺序、只删批准的段、音画同映射、字幕重映射 [7]。我们至少做审批哈希、只删批准的段和音画同映射。
-- 源文件颜色或帧率不一致时拒绝拼接，不悄悄改标签（open-edit 的做法）[6]。
+原来这一页写的 `edl.json`，字段这样对过去：
+
+| `edl.json` | `edit.json` |
+|---|---|
+| `version: 1`、`fps` | `v: 1`、`fps`，再加 `size` |
+| `sources.A {path, sha256, cfr, src_fps, duration}` | `sources.A {clip, sha256}`：帧率、帧数、颜色在片段夹的 `clip.json` 里 |
+| `ranges[] {id, source, in, out}`（整数帧） | 第一轨的段 `{id, src, in: {"f": 73}, out: {"f": 206}}`，`{"f": n}` 是片段自己的第 n 帧；段一个接一个，不写 `start` |
+| `beat`、`reason` | `segment`、`why` |
+| `quote`、`snap` | 照抄，渲染不读 |
+| `seam_out: "xfade40"` | 这一刀两边声音的 `fade`（40 ms 就是 0.04） |
+| `removed[]`、`approval` | 顶层的 `removed`、`approval`，渲染不读 |
+
+- **入出点存整数帧**。先吸附到缺口里的能量谷，再落到帧格，取整规则写死（四舍五入，恰好一半往后取），之后只存整数。存秒数会出事：6.85 s 在 30 fps 下是 205.5 帧，恰好平局，取整方式一换，切点就差一帧。剪辑表的段由 `{"f": n}` 定长，起点紧接上一段，所以总帧数就是各段帧数之和，不在秒数上累加浮点误差（open-edit 的做法）[6]。
+- **29.97、23.976、59.94 fps 的素材**：剪辑表能直接放，按 `engines/EDIT.md` 的规则逐帧挑（29.97 放进 30 fps，每 1000 帧左右有一帧显示两次）。口播要逐帧对口型，按 09 的做法入库时先转成 CFR 的整数帧率更省心：29.97 用 `fps=30`，23.976 用 `fps=24`，59.94 用 `fps=60`，`clip.json` 的 `rate` 记转换后的帧率，`{"f": n}` 就和片子帧号一一对应，原来的帧率记在 `from`。导出给剪辑软件时，用时间把入出点换回素材自己的帧格（29.97 的帧时长是 1001/30000 s）再取整，不要直接沿用转换后的帧号：转换每 1001 帧补 1 帧，画面看不出来，10 分钟之后帧号就差了 18 帧。
+- `removed` 的 `class` 取值：`filler`、`retake`、`false_start`、`silence`、`offscript`、`take_loser`、`process_talk`。
+- **审批哈希**：人批准的是这份剪辑表的哈希；渲染前核对，不一致拒绝渲染（还没有实现：现在 render 不读 `approval`）。kinocut 对"已批准的 EDL 与时间线差异"做六项检查：审批哈希、源时间覆盖、顺序、只删批准的段、音画同映射、字幕重映射 [7]。我们至少做审批哈希、只删批准的段和音画同映射。
+- **颜色**：每个片段按它自己的颜色标签读，统一成片子的 BT.709；没有标签的视频文件，`bin/vh edit check` 判失败，不悄悄猜（open-edit 拒绝颜色不一致的源，是同一个道理）[6]。
+- **现在能出什么**：硬切。`bin/vh render` 直接渲剪辑表，片段由 ffmpeg 逐帧解；`sound` 是 `voice` 的段进 `bin/vh mix … edit=` 的人声总线；片段的 `words` 由 `bin/vh edit build` 合成 `out/edit.timeline.<lang>.json`，`bin/vh captions` 照它出 SRT，用 `bin/vh mux` 当软字幕带上（这就是 open-edit 的 retime，见"重转写对账"）。把字幕和图解压在画面上要等画面的上层轨（剪辑表的下一步），在那之前 09 的成片是硬切加软字幕。
 
 ## 用测量定切点
 
@@ -163,7 +175,7 @@ EDL 是剪辑的唯一事实来源，综合了 video-use 的 EDL、open-edit 的
 |---|---|---|
 | 成片 | mp4，H.264，BT.709 tv 四个标签齐全：`scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv` | 响度、黑场等走 `bin/vh check` |
 | 字幕 | SRT（按 retime 后的词时间生成）加 `captions.json` | — |
-| 我们自己的 EDL | `edl.json` | 是唯一事实来源 |
+| 我们自己的 EDL | `edit.json`（`engines/EDIT.md`） | 是唯一事实来源 |
 | Final Cut Pro、DaVinci Resolve | FCPXML：`asset-clip` 放在 `spine` 上，所有时间是帧时长的整数倍（有理数，NTSC 用 1001/30000 这样的精确值），只接受 CFR 素材 | **默认写 1.10**：FCP 10.8.1 用 1.12，FCP 11 用 1.13，FCP 12 用 1.14 [15]；新版通常能读旧版，FCP 会拒绝它不认识的更新版本【二手】；Resolve 19.1 读 1.3–1.10，据报 1.11 也可【二手】。**没有在 FCP 或 Resolve 里导入过，【未验证导入】** |
 | Premiere Pro、Resolve、通用 | OTIO：Premiere Pro 的 OTIO 导入导出 2024-10 进入 beta，正式版据报在 26.0（2026-01）【二手】；Resolve 自 18 起原生支持 .otio 和 .otioz；OTIO 官方 wiki 的原生支持列表里没有 Final Cut Pro，FCP 走 FCPXML。Premiere 支持的内容：名称、剪辑表、入出点、起始时码、帧率、多轨、线性变速、标记；外部生成的 OTIO 导入后，部分序列设置要手动调整 [16] | 最中立，首选给不知道用哪款 NLE 的用户 |
 | 只有简单剪切 | `auto-editor --export <目标>`，目标有 premiere、resolve、final-cut-pro、shotcut、kdenlive、clip-sequence（Unlicense）[17] | 只适合静音或音量阈值剪切 |
@@ -219,11 +231,11 @@ EDL 是剪辑的唯一事实来源，综合了 video-use 的 EDL、open-edit 的
 
 ## 建议的落地顺序
 
-下面这些工具现在都不存在：
+EDL 的结构（`edit.json`）、按 EDL 出硬切的成片（`bin/vh render`）、retime 生成字幕（`out/edit.timeline.<lang>.json` 和 `bin/vh captions`）已经有了。下面这些工具现在都不存在：
 
 1. 本地词级 ASR + 口水词标定 + 短语视图。
-2. 缺口测量（"用测量定切点"的算法做成命令）+ EDL 结构、审批哈希、EDL 审阅页（文本 diff、时间、理由、样本片段）。
-3. EDL → HyperFrames 合成的编译器（`data-media-start` 那一套）+ retime 生成字幕。
+2. 缺口测量（"用测量定切点"的算法做成命令）+ 审批哈希、EDL 审阅页（文本 diff、时间、理由、样本片段）。
+3. 把字幕和图解压在画面上：等剪辑表画面的上层轨。
 4. 逐接缝指标、重转写对账（中文字级）、通读脚本、两两对比评委。
 5. 避脸字幕与中文切分、重构图。
 6. 导出：SRT、FCPXML 1.10、OTIO；CapCut 作为实验性选项。
