@@ -815,6 +815,19 @@ PY
     && ok "recipes check refuses frontmatter that YAML would read differently" || bad "recipes check on {peak:4} exited $rc"
   vh recipes check --json >/dev/null 2>&1; rc=$?
   [ $rc = 2 ] && ok "recipes check treats an option as bad usage" || bad "recipes check --json exited $rc"
+  # the shot-grammar cards (recipes/shot/, kind grammar): listed by grammar; a card without one of its sections is refused,
+  # and a code twice in one grammar; --grammar takes no recipe filter, nor an unknown grammar
+  a=$(vh recipes list --grammar size --ids | tr '\n' ' '); vh recipes list --grammar zoom >/dev/null 2>&1; rc=$?
+  vh recipes list --grammar size --intent hook >/dev/null 2>&1; rc2=$?
+  sed -e 's/^id: .*/id: ci-card/' -e 's/^## 什么时候别用/## 别处/' recipes/shot/close-up.md > "$t/card.md"
+  b=$(vh recipes check "$t/card.md" 2>&1); rc3=$?
+  c=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import recipes as R
+lib = R.load_library(); p, fm = lib["close-up"]; lib["ci-twin"] = (p.with_name("ci-twin.md"), dict(fm, id="ci-twin"))
+print(sum("code '"'"'CU'"'"' is" in x for x in R.library_checks(lib)))' 2>&1)
+  if [ "$a" = "close-up extreme-close extreme-wide medium medium-close wide " ] && [ "$rc:$rc2:$rc3" = 2:2:1 ] && [ "$c" = 1 ] \
+     && grep -q "missing body section(s): ## 什么时候别用" <<<"$b"
+  then ok "recipes list --grammar lists the shot-grammar cards by grammar; check refuses a card without its sections and a code twice in a grammar; --grammar takes no recipe filter"
+  else bad "the shot-grammar cards: [$a] exit $rc:$rc2:$rc3, twins $c | $(printf '%s' "$b" | tail -c 300)"; fi
   a=$(vh recipes list -h 2>&1); rc=$?; b=$(vh recipes check --help 2>&1); rc2=$?
   case "$rc:$rc2|$a|$b" in "0:0|"*"usage: bin/vh recipes list"*"|"*"usage: bin/vh recipes list"*) ok "recipes list -h and check --help print the help" ;;
     *) bad "recipes list -h / check --help exited $rc / $rc2: $(printf '%s' "$a" | head -c 200)" ;; esac
@@ -1663,6 +1676,19 @@ PY
       && ok "storyboard: a page per segment, the unsure and the too-long shot flagged" || bad "storyboard pages or flags: $(cat "$p/out/check/storyboard/index.json")"
     cmp -s "$t/ov1.png" "$p/out/check/storyboard/overview.png" && ok "storyboard is deterministic" || bad "storyboard gave different bytes on a second run"
   else bad "bin/vh storyboard"; fi
+  # a shot's camera (recipes/shot/'s codes, or a card's id) under its id and in review.json, by the cards' names in Chinese
+  # and their codes in English; a value that is no card's code is printed as written and said; edit init carries it over
+  printf '%s\n' '[{"id": "C1", "start": 0, "end": 2, "segment": "开场", "reads": "一座塔", "camera": {"size": "EWS", "angle": "low", "move": "push-in"}},' \
+    '{"id": "C2", "start": 2, "end": 4, "segment": "开场", "reads": "灯", "camera": {"size": "close-up", "axis": "hold"}},' \
+    '{"id": "C3", "start": 4, "end": 6, "segment": "开场", "reads": "拉开", "camera": {"size": "XL", "move": "pull-out"}}]' > "$t/cam.json"
+  a=$(vh storyboard "$p" --shots "$t/cam.json" --out "$t/sbcam" 2>&1); b=$(vh storyboard "$p" --shots "$t/cam.json" --lang en --out "$t/sbcam-en" 2>&1)
+  mkdir -p "$t/camp" && printf '# BRIEF\n' > "$t/camp/BRIEF.md" && cp "$t/cam.json" "$t/camp/shots.json" && vh edit init "$t/camp" >/dev/null 2>&1 \
+    && vh storyboard "$t/camp" --out "$t/sbcam-edit" >/dev/null 2>&1
+  cams() { python3 -c 'import json, sys; print(" | ".join(s.get("camera", "-") for g in json.load(open(sys.argv[1]))["segments"] for s in g["shots"]))' "$1"; }
+  if [ "$(cams "$t/sbcam/review.json")" = "大远景 · 仰拍 · 推 | 特写 · 守轴线 | XL · 拉" ] && [ "$(cams "$t/sbcam-en/review.json")" = "EWS · low · push-in | CU · hold | XL · pull-out" ] \
+     && [ "$(cams "$t/sbcam-edit/review.json" 2>/dev/null)" = "大远景 · 仰拍 · 推 | 特写 · 守轴线 | XL · 拉" ] && grep -q "C3 size 'XL'" <<<"$a" && ! grep -q "C1" <<<"$a$b"
+  then ok "storyboard: a shot's camera under its id and in review.json (the shot-grammar cards' names, their codes in English); an unknown value is said and printed as written; edit init carries it"
+  else bad "storyboard's camera: [$(cams "$t/sbcam/review.json" 2>&1)] [$(cams "$t/sbcam-en/review.json" 2>&1)] [$(cams "$t/sbcam-edit/review.json" 2>&1)] | $(printf '%s' "$a" | head -c 300)"; fi
   a=$(vh rhythm "$p")
   case "$a" in *"S2 6.5 s > 5 s"*"l2"*"0.8 s < 1.8 s"*) [ -s "$p/out/check/rhythm.png" ] && ok "rhythm: long shot and short caption in red" || bad "rhythm.png missing" ;; *) bad "rhythm said: $a" ;; esac
   vh rhythm "$p" --segment body >/dev/null && [ -s "$p/out/check/rhythm-body.png" ] && ok "rhythm --segment zooms in" || bad "rhythm --segment"
@@ -3370,6 +3396,53 @@ PY
   library_checks   # the sound library's picks: on record in the project's ledger
   lyria_checks     # a generated track: on record, its price the budget's
   sound_tools_checks   # check's loudness, qa --listen and --picture, beats --check
+  cast_checks      # bin/vh cast: the references image gen sends with --ref cast:<id>
+}
+
+cast_checks() {   # bin/vh cast (tools/cast.py): a project's settled references, one folder an entry, and image gen
+  # --ref cast:<id> (dry runs only: nothing is sent, nothing spent)
+  local t p a b c rc rc2 rc3 rc4 rc5
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/p"
+  mkdir -p "$p/assets/genimg/x" && printf '# BRIEF\n' > "$p/BRIEF.md"
+  png() { python3 -c 'import struct, sys, zlib; c = bytes.fromhex(sys.argv[2]); raw = b"".join(b"\x00" + c * 16 for _ in range(8))
+k = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+open(sys.argv[1], "wb").write(b"\x89PNG\r\n\x1a\n" + k(b"IHDR", struct.pack(">IIBBBBB", 16, 8, 8, 2, 0, 0, 0)) + k(b"IDAT", zlib.compress(raw)) + k(b"IEND", b""))' "$1" "$2"; }
+  png "$p/assets/genimg/x/a.png" c83c3c; png "$p/assets/genimg/x/b.png" 3cb43c; png "$t/sheet.png" 3c50c8
+  # an entry from two pictures (front, left), then a sheet and settled; list and check; a picture changed since fails,
+  # recorded again passes; status sums it up
+  vh cast add "$p" fox --kind character --name 小狐狸 --ref assets/genimg/x/a.png=front --ref assets/genimg/x/b.png=left >/dev/null; rc=$?
+  vh cast add "$p" fox --ref "$t/sheet.png=sheet" --final >/dev/null; rc2=$?
+  a=$(vh cast list "$p" --json)
+  png "$p/cast/fox/front.png" 000000; b=$(vh cast check "$p" 2>&1); rc3=$?
+  vh cast add "$p" fox --ref cast/fox/front.png=front >/dev/null && vh cast check "$p" >/dev/null; rc4=$?
+  c=$(vh status "$p" --json | python3 -c 'import json, sys; print(json.load(sys.stdin)["cast"])')
+  if [ "$rc:$rc2:$rc3:$rc4" = 0:0:1:0 ] && grep -q "front.png is not the picture on record" <<<"$b" && [ "$c" = "{'entries': 1, 'by_kind': {'character': 1}, 'final': 1, 'failures': 0}" ] \
+     && python3 - "$a" "$p" <<'PY'
+import json, sys
+from pathlib import Path
+d, p = json.loads(sys.argv[1]), Path(sys.argv[2])
+e = d["entries"][0]
+c = json.loads((p / "cast/fox/cast.json").read_text(encoding="utf-8"))
+ok = (e["id"], e["kind"], e["name"], e["status"]) == ("fox", "character", "小狐狸", "final") and [r["file"] for r in e["refs"]] == ["front.png", "left.png", "sheet.png"]
+ok = ok and e["views"] == {"front": "front.png", "left": "left.png"} and c["version"] == 1 and c["refs"][0]["from"] == {"path": "assets/genimg/x/a.png"}
+ok = ok and all(len(r["sha256"]) == 64 for r in c["refs"]) and d["problems"] == []
+sys.exit(0 if ok else 1)
+PY
+  then ok "cast: an entry's pictures copied in with their views and where they came from; a picture changed since it was recorded fails check, recorded again it passes; status sums the cast up"
+  else bad "cast add/list/check (exit $rc:$rc2:$rc3:$rc4): $(printf '%s' "$a$b$c" | tail -c 500)"; fi
+  # image gen --ref cast:<id>: the entry's pictures in its order (cast:<id>:<view>: that one), said whose they are; an id
+  # or a view that is not there is a usage error
+  a=$(vh image gen "$p" --prompt "the fox" --ref cast:fox --ref "$t/sheet.png" --dry-run --json 2>"$t/err"); rc=$?
+  b=$(vh image gen "$p" --prompt "the fox" --ref cast:fox:left --dry-run --json 2>/dev/null)
+  vh image gen "$p" --prompt x --ref cast:wolf --dry-run >/dev/null 2>&1; rc2=$?
+  vh image gen "$p" --prompt x --ref cast:fox:back --dry-run >/dev/null 2>&1; rc3=$?
+  vh cast add "$p" Bad --kind prop --name x >/dev/null 2>&1; rc4=$?
+  vh cast add "$p" owl --name x >/dev/null 2>&1; rc5=$?
+  if [ "$rc:$rc2:$rc3:$rc4:$rc5" = 0:2:2:2:2 ] && grep -q "references 1–3: cast:fox (character: 小狐狸)" "$t/err" \
+     && python3 -c 'import json, sys; a, b = json.loads(sys.argv[1]), json.loads(sys.argv[2]); sys.exit(0 if a["refs"][:3] == ["cast/fox/front.png", "cast/fox/left.png", "cast/fox/sheet.png"] and len(a["refs"]) == 4 and b["refs"] == ["cast/fox/left.png"] else 1)' "$a" "$b"
+  then ok "image gen --ref cast:<id> sends the entry's pictures in its order (cast:<id>:<view> one), says whose they are; an unknown entry or view, a bad id, a new entry with no kind exit 2"
+  else bad "image gen --ref cast: (exit $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s' "$a" | tail -c 300) | $(tail -c 300 "$t/err")"; fi
+  rm -rf "$t"
 }
 
 scout_checks() {   # bin/vh scout and ref (tools/scout) from recorded responses, no network: YouTube through yt-dlp's recorded

@@ -63,7 +63,7 @@ SOURCE_KEYS = {"page": ("clock",), "image": (), "color": (), "clip": ("sound", "
 HDR = ("smpte2084", "arib-std-b67")   # PQ, HLG: transfers an edit list does not draw (SDR only)
 ROLES = ("voice", "ambience", "detail", "hero", "signal")   # the mix's buses: voice is the narration's, the rest the effects' classes
 ENTRY = ("id", "src", "start", "end", "dur", "in", "out", "speed", "fit", "bg", "move", "hold", "sound", "transition", "inputs",
-         "segment", "reads", "label", "unsure", "frame", "at", "why", "caption", "recipe", "seam", "quote", "snap", "note")
+         "segment", "reads", "label", "unsure", "frame", "at", "why", "caption", "recipe", "seam", "quote", "snap", "note", "camera")
 DRAW = {"page": "page", "image": "still", "color": "color", "clip": "clip", "film": "clip", None: "slate"}
 
 
@@ -678,7 +678,7 @@ class Reader:
                 a = self.time(e["at"], f"{eid}: at")
                 if a is not None:
                     row["at"] = r3(a)
-            for k in ("segment", "reads", "label", "unsure", "frame", "why", "caption", "recipe", "seam", "quote", "snap", "note", "transition"):
+            for k in ("segment", "reads", "label", "unsure", "frame", "why", "caption", "recipe", "seam", "quote", "snap", "note", "transition", "camera"):
                 if k in e:
                     row[k] = e[k]
             if isinstance(e.get("transition"), dict) and number(e["transition"].get("duration")) and e["transition"]["duration"] > 0:
@@ -1188,7 +1188,7 @@ def init(project, fps=None, size=None):
         if abs(s["start"] - prev) > 1e-6:
             e["start"] = s["start"]
         e["end"] = s["end"]
-        for k in ("segment", "reads", "label", "unsure", "frame", "at", "why", "caption", "recipe", "seam", "transition", "note"):
+        for k in ("segment", "reads", "label", "unsure", "frame", "at", "why", "caption", "recipe", "seam", "transition", "note", "camera"):
             for alias in {"segment": ("segment", "stage", "section"), "reads": ("reads", "read", "what"),
                           "unsure": ("unsure", "flag", "risk"), "frame": ("frame", "image"), "at": ("at", "snapshot")}.get(k, (k,)):
                 if r.get(alias) not in (None, ""):

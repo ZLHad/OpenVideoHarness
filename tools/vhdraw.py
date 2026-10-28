@@ -248,7 +248,10 @@ SHOTS_SCHEMA = """shots.json: a list of shots, or {"video": "out/animatic.mp4", 
   reads    what the viewer must get: a string or a list (read / what also read)
   label    optional title, e.g. "第一步 · 看见"          frame   an image for the tile, relative to the project
   at       snapshot time for the tile (default: start + 60 % of the shot)
-  unsure   true, or why this shot is the least sure one (flag / risk also read): drawn with a red frame"""
+  unsure   true, or why this shot is the least sure one (flag / risk also read): drawn with a red frame
+  camera   its framing, by the codes of the shot-grammar cards (bin/vh recipes list --grammar size,angle,move,axis):
+           {"size": "MCU", "angle": "low", "move": "push-in", "axis": "hold"}, any of them; printed under its tile"""
+CAMERA = ("size", "angle", "move", "axis")   # a shot's camera fields, in the order they are printed
 
 def _first(d, *keys):
     for k in keys:
@@ -278,7 +281,8 @@ def disp(start, end):
     return a, b, round(float(b) - float(a), 1)
 
 def load_shots(path):
-    """→ (shots, meta). Each shot: id, start, end, segment, reads (list), label, frame, at, unsure (str or None).
+    """→ (shots, meta). Each shot: id, start, end, segment, reads (list), label, frame, at, unsure (str or None), camera
+    ({size, angle, move, axis} as written, a string, or None).
     Ids must be unique; overlapping shots and negative starts are allowed but said once (the pictures hide them)."""
     try:
         data = load_json(path)
@@ -315,10 +319,18 @@ def parse_shots(data, path):
         uns = _first(s, "unsure", "flag", "risk")
         uns = None if uns in (None, False) else ("" if uns is True else str(uns))
         seg = _first(s, "segment", "stage", "section")
+        cam = s.get("camera")
+        if cam is not None and not isinstance(cam, (dict, str)):
+            raise SystemExit(f"{shown(path)}: shot {s.get('id', i + 1)}: camera {cam!r}: {{\"size\", \"angle\", \"move\", \"axis\"}} (the shot-grammar cards' codes)")
+        if isinstance(cam, dict):
+            odd = [k for k in cam if k not in CAMERA]
+            if odd: warn_once(f"shot {s.get('id', i + 1)}: camera {', '.join(map(str, odd))}: not a camera field ({', '.join(CAMERA)}), left out")
+            cam = {k: str(cam[k]) for k in CAMERA if cam.get(k) not in (None, "")} or None
         ds, de, dd = disp(t0, t1)
         shots.append({"id": str(s.get("id") or f"S{i + 1:02d}"), "start": t0, "end": t1, "dur": t1 - t0, "ds": ds, "de": de, "dd": dd,
                       "segment": str(seg) if seg is not None else "", "reads": reads, "label": s.get("label") or "",
-                      "frame": _first(s, "frame", "image"), "at": seconds(at) if at is not None else None, "unsure": uns})
+                      "frame": _first(s, "frame", "image"), "at": seconds(at) if at is not None else None, "unsure": uns,
+                      "camera": cam or None})
     seen, dup = set(), []
     for x in shots:
         if x["id"] in seen: dup.append(x["id"])

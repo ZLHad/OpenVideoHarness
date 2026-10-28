@@ -199,7 +199,7 @@ window.film = {
       const s = S.shot, chapter = CHAPTER_T.filter((c) => c.t <= S.a).at(-1);
       return { id: S.id, start: S.a, end: S.b, segment: s.segment ?? (chapter ? chapter.title : ""),
         reads: s.reads ?? s.see ?? [], label: s.label ?? "", unsure: s.unsure ?? false,
-        transition: { type: S.tin, duration: S.din } };
+        transition: { type: S.tin, duration: S.din }, ...(s.camera ? { camera: s.camera } : {}) };
     });
   },
   get texts() { return TEXTS; },                                                  // reads and captions: [{ text, start, end, read }]

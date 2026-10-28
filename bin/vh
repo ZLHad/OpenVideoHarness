@@ -1127,6 +1127,7 @@ cmd_sound() { [ $# -gt 0 ] || { cmd_usage sound >&2; exit 2; }; python3 "$ROOT/t
 cmd_footage() { [ $# -gt 0 ] || { cmd_usage footage >&2; exit 2; }; python3 "$ROOT/tools/assets/footage.py" "$@"; }   # stdlib and ffmpeg
 cmd_image() { [ $# -gt 0 ] || { cmd_usage image >&2; exit 2; }; python3 "$ROOT/tools/assets/image.py" "$@"; }   # stdlib and ffmpeg
 cmd_assets() { [ $# -gt 0 ] || { cmd_usage assets >&2; exit 2; }; python3 "$ROOT/tools/assets/assets.py" "$@"; }   # stdlib only
+cmd_cast() { [ $# -gt 0 ] || { cmd_usage cast >&2; exit 2; }; python3 "$ROOT/tools/cast.py" "$@"; }   # stdlib only
 cmd_scout() { [ $# -gt 0 ] || { cmd_usage scout >&2; exit 2; }; python3 "$ROOT/tools/scout/scout.py" "$@"; }    # stdlib; yt-dlp for YouTube
 cmd_ref() { [ $# -gt 0 ] || { cmd_usage ref >&2; exit 2; }; python3 "$ROOT/tools/scout/refs.py" "$@"; }        # stdlib; the look as scout's
 cmd_hf() { [ $# -gt 0 ] || { cmd_usage hf >&2; exit 2; }; python3 "$ROOT/tools/hf.py" "$@"; }   # stdlib; add runs HyperFrames' own add
@@ -1150,7 +1151,7 @@ cmd_help() { python3 "$ROOT/tools/commands.py" help; }            # every usage,
 cmd_usage() { python3 "$ROOT/tools/commands.py" usage "$1"; }    # one command's usage from there; exit 1 if it has none
 
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|know|looks|breakdown|concept|components|hf|footage|image|bgm|sound|scout|ref) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|cast|know|looks|breakdown|concept|components|hf|footage|image|bgm|sound|scout|ref) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
@@ -1169,6 +1170,7 @@ case "${1:-}" in   # the activity log: every command that works on a project (ac
   concept) [ "${2:-}" != board ] || act_start "$@" || true ;;   # roulette only reads
   edit) case "${2:-}" in init|build) act_start "$@" || true ;; esac ;;   # check and list only read
   assets) case "${2:-}" in add|remove|credits) act_start "$@" || true ;; esac ;;   # list and check only read
+  cast) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list and check only read
   scout|ref) case "${2:-}" in list) ;; *) act_start "$@" || true ;; esac ;;   # list only reads
   hf) [ "${2:-}" != add ] || act_start "$@" || true ;;   # catalog reads the registry, no project
   looks) [ "${2:-}" != add ] || act_start "$@" || true ;;   # check and list only read
@@ -1185,6 +1187,7 @@ case "${1:-help}" in
   footage) shift; cmd_footage "$@" ;;
   image) shift; cmd_image "$@" ;;
   assets) shift; cmd_assets "$@" ;;
+  cast) shift; cmd_cast "$@" ;;
   scout) shift; cmd_scout "$@" ;; ref) shift; cmd_ref "$@" ;;
   hf) shift; cmd_hf "$@" ;;
   components) shift; cmd_components "$@" ;;

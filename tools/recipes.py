@@ -3,6 +3,7 @@
 usage: bin/vh recipes list [--intent X[,Y]] [--energy N|A-B] [--engine E] [--family F] [--role R] [--type T]
                            [--have N[,M]] [--seconds S|A-B] [--aspect A] [--jump J] [--status S] [--pitfall P]
                            [--sound S] [--ids | --json | --md]
+       bin/vh recipes list --grammar size|angle|axis|move[,…] [--ids | --json | --md]
        bin/vh recipes check [file.md …]
        bin/vh recipes sample <id> [--style PRESET] [--draft] [--force]
        (no subcommand = list; python3 tools/recipes.py … is the same thing)
@@ -12,9 +13,13 @@ list   Every filter is optional. Values inside one flag are alternatives (`--int
        must overlap). --have lists the material you have: a recipe passes when everything it needs is in the list.
        An unknown value is an error, not an empty result. --ids prints ids only, --json the parsed frontmatter (with
        path, and sample when the recipe has a sheet), --md index rows for recipes/README.md.
-check  No file: every recipe and sequence under recipes/, plus the library-wide checks (unique ids, file and folder
-       names, conflicts listed both ways, every recipe linked from recipes/README.md with the same energy, length and
-       status, every vocabulary term documented there, every file derived from licensed material listed in
+       --grammar: the shot-grammar cards instead (recipes/shot/, kind grammar): shot sizes, angles, the axis and camera
+       moves, each with what it does to the viewer and when to take it or not; its code is what a shot table writes
+       in its camera field (bin/vh storyboard prints it). It takes no recipe filter.
+check  No file: every recipe, sequence and shot-grammar card under recipes/, plus the library-wide checks (unique ids,
+       file and folder names, a card's code once in its grammar, conflicts listed both ways, every file linked from
+       recipes/README.md (a recipe with the same energy, length and status), every vocabulary term documented there,
+       every file derived from licensed material listed in
        recipes/NOTICE.md, every recipe with a sketch carrying its sample sheet, rendered from the sketch as it is
        (sketch_sha) and at most 120 kB and 2000 px wide, and every sheet belonging to a recipe). Each sketch is held
        to hard rule 1 (tools/purity.py).
@@ -74,7 +79,8 @@ VOCAB = {
     "jump": ["rise", "level", "drop"],
     "qa": ["read", "peak", "seam", "settle", "last"],
     "license": ["Apache-2.0", "MIT", "CC0-1.0", "CC-BY-4.0", "none"],
-    "kind": ["recipe", "sequence"],
+    "kind": ["recipe", "sequence", "grammar"],
+    "grammar": ["size", "angle", "axis", "move"],
 }
 # field: (required, check). Recipes and sequences share the file format; `kind` picks the field set.
 RECIPE = {
@@ -91,8 +97,18 @@ SEQUENCE = {
     "duration_f": (True, "range"), "types": (True, "types+"), "aspect": (True, "aspect+"), "arc": (True, "arc"),
     "uses": (True, "ids"), "status": (True, "status"), "derived_from": (True, "sources"),
 }
+# a shot-grammar card (recipes/shot/): one choice of shot size, angle, axis or camera move, what it does to the viewer and
+# when to take it or not; `code` is what a shot table writes for it (shots.json's or edit.json's "camera"), unique in its grammar
+GRAMMAR = {
+    "id": (True, "id"), "kind": (True, "kind"), "grammar": (True, "grammar"), "code": (True, "code"), "name": (True, "str"),
+    "one_liner": (True, "str"), "derived_from": (True, "sources"), "types": (False, "types+"), "recipes": (False, "ids"),
+}
 RECIPE_HEADINGS = ["## 意图", "## 阶段与时值", "## 参数", "## 声音", "## 风格适配", "## 实现", "## 已知坑", "## 验收帧", "## 来源"]
 SEQUENCE_HEADINGS = ["## 能量弧", "## 预算", "## 接缝", "## 限额", "## 来源"]
+GRAMMAR_HEADINGS = ["## 情绪动机", "## 什么时候用", "## 什么时候别用", "## 来源"]
+FIELDS_OF = {"recipe": RECIPE, "sequence": SEQUENCE, "grammar": GRAMMAR}
+HEADINGS_OF = {"recipe": RECIPE_HEADINGS, "sequence": SEQUENCE_HEADINGS, "grammar": GRAMMAR_HEADINGS}
+FOLDER_OF = {"sequence": "sequences", "grammar": "shot"}   # a recipe lives in its family's folder
 INDICATORS = set("-?:,[]{}#&*!|>'\"%@`")
 # Licences whose text and notices must travel with a file derived from the material (recipes/LICENSES/, NOTICE.md).
 KEEP_NOTICE = ("Apache-2.0", "MIT", "CC-BY-4.0")
@@ -347,6 +363,9 @@ def check_field(key, kind, v, fm):
     elif kind == "sha":
         if not (isinstance(v, str) and re.fullmatch(r"[0-9a-f]{12}", v)):
             raise FMError(f"{key}: the first 12 hex digits of the sketch's sha256, quoted (bin/vh recipes sample writes it), got {v!r}")
+    elif kind == "code":
+        if not (isinstance(v, str) and re.fullmatch(r"[A-Za-z][A-Za-z0-9-]{0,15}", v)):
+            raise FMError(f"{key}: a short code a shot table writes (CU, low, push-in), letters, digits and -, got {v!r}")
     elif kind.endswith("+"):
         if not isinstance(v, list) or not v:
             raise FMError(f"{key}: expected a non-empty [list] from the {vocab} vocabulary")
@@ -470,7 +489,7 @@ def frontmatter_problems(fm):
     """Field-by-field problems of one parsed frontmatter (no body, no cross-references)."""
     probs = []
     kind = fm.get("kind", "recipe")
-    fields = SEQUENCE if kind == "sequence" else RECIPE
+    fields = FIELDS_OF.get(kind, RECIPE)
     for key in fm:
         if key not in fields:
             probs.append(f"unknown field {key!r} for a {kind} (fields: {', '.join(fields)})")
@@ -499,7 +518,7 @@ def check_file(path, lib=None):
         return None, [str(e)]
     probs = frontmatter_problems(fm)
     kind = fm.get("kind", "recipe")
-    heads = [h for h in (SEQUENCE_HEADINGS if kind == "sequence" else RECIPE_HEADINGS) if not re.search(rf"^{re.escape(h)}", body, re.M)]
+    heads = [h for h in HEADINGS_OF.get(kind, RECIPE_HEADINGS) if not re.search(rf"^{re.escape(h)}", body, re.M)]
     if heads:
         probs.append(f"missing body section(s): {', '.join(heads)} (copy recipes/_TEMPLATE.md)")
     src_text = section(body, "## 来源")
@@ -517,14 +536,14 @@ def check_file(path, lib=None):
     if inside and isinstance(fm.get("id"), str):
         if p.stem != fm["id"]:
             probs.append(f"file name {p.name} does not match id {fm['id']!r}")
-        want = "sequences" if kind == "sequence" else fm.get("family")
+        want = FOLDER_OF.get(kind, fm.get("family"))
         if p.parent.name != want:
             probs.append(f"lives in {p.parent.name}/, expected {want}/")
     if lib is not None:
         me = fm.get("id") if isinstance(fm.get("id"), str) else None
         if me in lib and lib[me][0] != p:
             probs.append(f"id {me!r} is already used by {rel(lib[me][0])}")
-        for key in ("conflicts", "pairs_with", "uses"):
+        for key in ("conflicts", "pairs_with", "uses", "recipes"):
             for other in as_list(fm.get(key)):   # a wrong type is already reported field by field
                 if not isinstance(other, str):
                     continue
@@ -619,6 +638,13 @@ def library_checks(lib):
     for target in sorted(linked):
         if not (LIB / target).exists():
             probs.append(f"recipes/README.md: links {target}, which does not exist")
+    codes = {}   # a shot table's camera value names one grammar card: a code once in its grammar
+    for rid, (p, fm) in sorted(lib.items()):
+        if fm.get("kind") == "grammar" and isinstance(fm.get("code"), str):
+            k = (fm.get("grammar"), fm["code"].lower())
+            if k in codes:
+                probs.append(f"{rel(p)}: code {fm['code']!r} is {codes[k]}'s too, in the same grammar ({fm.get('grammar')})")
+            codes.setdefault(k, rid)
     tpl = LIB / "_TEMPLATE.md"   # the template must stay a valid recipe (only its file name and folder are exempt)
     if tpl.exists():
         _, tp = check_file(tpl)
@@ -728,8 +754,46 @@ def parse_span(text, flag):
     return a, b
 
 
+def grammar_cards():
+    """The shot-grammar cards that validate: [(id, path, frontmatter)] by grammar, then id."""
+    out = []
+    for p in library_files():
+        try:
+            fm, _ = read(p)
+        except (FMError, OSError, UnicodeDecodeError):
+            continue
+        if fm.get("kind") == "grammar" and not frontmatter_problems(fm):
+            out.append((fm["id"], p, fm))
+    order = {g: i for i, g in enumerate(VOCAB["grammar"])}
+    return sorted(out, key=lambda r: (order.get(r[2]["grammar"], 99), r[0]))
+
+
+def grammar_row(rid, p, fm):
+    return f"| [{rid}]({rel(p)[len('recipes/'):]}) | `{fm['code']}` | {fm['name']} | {fm['one_liner']} |"
+
+
+def cmd_grammar(classes, out):
+    """list --grammar size,angle…: the shot-grammar cards of those grammars (recipes/shot/)."""
+    rows = [r for r in grammar_cards() if r[2]["grammar"] in classes]
+    if out == "ids":
+        print("\n".join(r[0] for r in rows))
+    elif out == "json":
+        print(json.dumps([dict(fm, path=rel(p)) for _, p, fm in rows], ensure_ascii=False, indent=1))
+    elif out == "md":
+        print("\n".join(grammar_row(*r) for r in rows))
+    else:
+        head = ("id", "grammar", "code", "name", "one_liner")
+        table = [head] + [(rid, fm["grammar"], fm["code"], fm["name"], fm["one_liner"]) for rid, _, fm in rows]
+        widths = [max(len(r[c]) for r in table) for c in range(len(head) - 1)]
+        for r in table:
+            print("  " + "  ".join(x.ljust(w) for x, w in zip(r, widths)) + "  " + r[-1])
+        print(f"{len(rows)} shot-grammar card{'' if len(rows) == 1 else 's'}: recipes/shot/<id>.md. A shot table writes the code in "
+              "its camera field ({\"size\": \"MCU\", \"angle\": \"low\", \"move\": \"push-in\"}); bin/vh storyboard prints it")
+    return 0
+
+
 def cmd_list(args):
-    want, out = {}, None
+    want, out, grammar = {}, None, None
     i = 0
     while i < len(args):
         a = args[i]
@@ -738,6 +802,15 @@ def cmd_list(args):
                 return usage(f"--{out} and {a} are two output formats: pick one")
             out = a[2:]
             i += 1
+            continue
+        if a == "--grammar" or a.startswith("--grammar="):   # the shot-grammar cards instead of the recipes
+            val = a.split("=", 1)[1] if "=" in a else (args[i + 1] if i + 1 < len(args) else None)
+            i += 1 if "=" in a else 2
+            vals = [v for v in (val or "").split(",") if v]
+            bad = [v for v in vals if v not in VOCAB["grammar"]]
+            if bad or not vals:
+                return usage(f"--grammar: unknown {bad or val!r}; known: {', '.join(VOCAB['grammar'])}")
+            grammar = set(vals)
             continue
         if "=" in a and a.split("=", 1)[0] in FILTERS:
             a, val = a.split("=", 1)
@@ -764,6 +837,10 @@ def cmd_list(args):
                 return usage(f"{a}: unknown {bad or val!r}; known: {', '.join(VOCAB[voc])}")
             want[a] = set(vals)
     out = out or "table"
+    if grammar is not None:
+        if want:
+            return usage(f"--grammar lists the shot-grammar cards, which {', '.join(want)} do not filter (those are for recipes)")
+        return cmd_grammar(grammar, out)
     rows, recipes, broken = [], [], []
     for p in library_files():   # list only what validates, so a half-written recipe cannot crash the table
         try:

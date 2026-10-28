@@ -10,6 +10,8 @@
 //   see    what the viewer must get from it, for the storyboard and the review
 //   segment / reads / label / unsure: optional storyboard metadata. segment defaults to the chapter at the cut;
 //          reads defaults to see. window.film.shots exports these with the resolved start/end (not the cue strings).
+//   camera { size, angle, move, axis }: optional, the shot's framing by the shot-grammar cards' codes (recipes/shot/:
+//          { size: "MCU", angle: "low", move: "push-in" }), printed on the storyboard page; drawing does not read it
 //   o      the shot's own times and values: every cue in it, at any depth, becomes seconds before the first frame, and
 //          one that no longer resolves stops the film in ready, naming the shot and the cue
 //   draw(t, s)  paints the shot at film time t: s = { id, t0, t1, lt, u, o, cover, … } (src/90-main.js, drawShot); s.cover is

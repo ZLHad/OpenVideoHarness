@@ -13,6 +13,8 @@
 - **比例**：和片中的关键道具同框，写成一句尺寸关系（例如 面板展开宽 = 误差泡泡短轴的 0.8 倍）；
 - **剪影测试**：涂成纯色还认得出，缩到 64 px 还认得出。
 
+定稿以后，设定图和各个视图放进 `cast/<id>/`：`bin/vh cast add <项目> <id> --kind character --name … --ref out/review/character-sheet.png=sheet --ref …=front --final`。之后生图用 `bin/vh image gen … --ref cast:<id>`，每一镜都从同一套参考出；front、left、back、right 四个视图也是以后做 3D 模型的输入。服装、道具、场景同样各放一个（`--kind costume|prop|set`）。
+
 ## 色彩 tokens
 
 | token | hex | 用在哪 |
