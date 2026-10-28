@@ -9,6 +9,8 @@ recipes: [one-take-world-travel]
 derived_from: []
 ---
 
+<!-- know: 移镜头, 跟镜头, 跟拍, 横移, 移动镜头, tracking shot, dolly -->
+
 # 移 track
 
 ## 情绪动机

@@ -634,17 +634,19 @@
       ],
       "usage": [
         {
-          "synopsis": "cast add <project> <id> [--kind character|costume|prop|set] [--name N] [--note T] [--prompt T] [--ref picture[=view] …] [--final | --draft] [--json]",
+          "synopsis": "cast add <project> <id> [--kind character|costume|prop|set] [--name N] [--note T] [--prompt T] [--ref picture[=view] …] [--source T --license T] [--final | --draft] [--force] [--json]",
           "text": [
             "make an entry, or add pictures and fields to one: each picture copied into cast/<id>/ with its sha256 and where it",
-            "came from; picture=view names its view, and front, left, back and right go into views (a model from four views later)"
+            "came from; picture=view names its view, and front, left, back and right go into views (a model from four views later);",
+            "another --kind needs --force, and a refused add changes nothing"
           ]
         },
         {
           "synopsis": "cast list <project> [--json] | cast check <project> [--json]",
           "text": [
             "list: the entries, their kind, name, status, pictures and views; check: each cast.json against its folder (a picture",
-            "changed since it was recorded fails: what was made from it may need making again)"
+            "changed since it was recorded fails: what was made from it may need making again; a picture whose terms are on",
+            "record nowhere is said)"
           ]
         }
       ],
@@ -981,7 +983,7 @@
       ],
       "usage": [
         {
-          "synopsis": "recipes list [--intent X --energy N --engine E …] | list --grammar size,angle,axis,move | check [file…] | sample <id> [--style S] [--draft] [--force]",
+          "synopsis": "recipes list [--intent X --energy N --engine E …] | list --grammar [size,angle,axis,move] | check [file…] | sample <id> [--style S] [--draft] [--force]",
           "text": [
             "shot recipes (recipes/): filter by frontmatter, validate it",
             "--grammar: the shot-grammar cards (recipes/shot/): shot sizes, angles, the axis and camera moves, what each does to the viewer, when to take it or not, and the code a shot table's camera writes",

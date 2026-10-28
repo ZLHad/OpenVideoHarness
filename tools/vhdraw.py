@@ -249,7 +249,7 @@ SHOTS_SCHEMA = """shots.json: a list of shots, or {"video": "out/animatic.mp4", 
   label    optional title, e.g. "第一步 · 看见"          frame   an image for the tile, relative to the project
   at       snapshot time for the tile (default: start + 60 % of the shot)
   unsure   true, or why this shot is the least sure one (flag / risk also read): drawn with a red frame
-  camera   its framing, by the codes of the shot-grammar cards (bin/vh recipes list --grammar size,angle,move,axis):
+  camera   its framing, by the codes of the shot-grammar cards (bin/vh recipes list --grammar):
            {"size": "MCU", "angle": "low", "move": "push-in", "axis": "hold"}, any of them; printed under its tile"""
 CAMERA = ("size", "angle", "move", "axis")   # a shot's camera fields, in the order they are printed
 

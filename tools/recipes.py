@@ -3,7 +3,7 @@
 usage: bin/vh recipes list [--intent X[,Y]] [--energy N|A-B] [--engine E] [--family F] [--role R] [--type T]
                            [--have N[,M]] [--seconds S|A-B] [--aspect A] [--jump J] [--status S] [--pitfall P]
                            [--sound S] [--ids | --json | --md]
-       bin/vh recipes list --grammar size|angle|axis|move[,…] [--ids | --json | --md]
+       bin/vh recipes list --grammar [size|angle|axis|move[,…]] [--ids | --json | --md]
        bin/vh recipes check [file.md …]
        bin/vh recipes sample <id> [--style PRESET] [--draft] [--force]
        (no subcommand = list; python3 tools/recipes.py … is the same thing)
@@ -15,10 +15,11 @@ list   Every filter is optional. Values inside one flag are alternatives (`--int
        path, and sample when the recipe has a sheet), --md index rows for recipes/README.md.
        --grammar: the shot-grammar cards instead (recipes/shot/, kind grammar): shot sizes, angles, the axis and camera
        moves, each with what it does to the viewer and when to take it or not; its code is what a shot table writes
-       in its camera field (bin/vh storyboard prints it). It takes no recipe filter.
+       in its camera field (bin/vh storyboard prints it). Alone, every grammar; it takes no recipe filter.
 check  No file: every recipe, sequence and shot-grammar card under recipes/, plus the library-wide checks (unique ids,
        file and folder names, a card's code once in its grammar, conflicts listed both ways, every file linked from
-       recipes/README.md (a recipe with the same energy, length and status), every vocabulary term documented there,
+       recipes/README.md (a recipe with the same energy, length and status, a card with the row list --grammar --md
+       prints), every vocabulary term documented there, a card's 什么时候用 and 什么时候别用 an item or more each,
        every file derived from licensed material listed in
        recipes/NOTICE.md, every recipe with a sketch carrying its sample sheet, rendered from the sketch as it is
        (sketch_sha) and at most 120 kB and 2000 px wide, and every sheet belonging to a recipe). Each sketch is held
@@ -47,7 +48,7 @@ the commit, and a row in recipes/NOTICE.md (Apache-2.0 §4; MIT and CC BY ask fo
 
 Exit: 0 fine · 1 check found problems · 2 bad usage (unknown flag or vocabulary value). Reads files only.
 """
-import hashlib, json, os, re, shutil, subprocess, sys, tempfile
+import hashlib, json, os, re, shutil, subprocess, sys, tempfile, unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -520,7 +521,13 @@ def check_file(path, lib=None):
     kind = fm.get("kind", "recipe")
     heads = [h for h in HEADINGS_OF.get(kind, RECIPE_HEADINGS) if not re.search(rf"^{re.escape(h)}", body, re.M)]
     if heads:
-        probs.append(f"missing body section(s): {', '.join(heads)} (copy recipes/_TEMPLATE.md)")
+        probs.append(f"missing body section(s): {', '.join(heads)} " + (
+            f"(every shot-grammar card has {', '.join(GRAMMAR_HEADINGS)}; recipes/shot/close-up.md is one)" if kind == "grammar"
+            else "(copy recipes/_TEMPLATE.md)"))
+    if kind == "grammar":   # what a card is for: when to take it and when not, an item at least each
+        for h in ("## 什么时候用", "## 什么时候别用"):
+            if h not in heads and not re.search(r"^\s*[-*] +\S", section(body, h), re.M):
+                probs.append(f"{h}: no item under it (a list of when, - …, one or more)")
     src_text = section(body, "## 来源")
     for s in kept_sources(fm):   # Apache-2.0 §4 (a) and (b): the licence travels with the file, which says it was modified
         lic = licence_copy(s)
@@ -620,12 +627,21 @@ def library_checks(lib):
     probs = []
     readme = (LIB / "README.md").read_text(encoding="utf-8") if (LIB / "README.md").exists() else ""
     linked = set(re.findall(r"\]\(([a-z-]+/[a-z0-9-]+\.md)\)", readme))
-    rows = {m.group(1): [c.strip() for c in m.group(0).strip("|").split("|")]
-            for m in re.finditer(r"^\| \[[a-z0-9-]+\]\(([a-z-]+/[a-z0-9-]+\.md)\) \|.*\|$", readme, re.M)}
+    found = list(re.finditer(r"^\| \[[a-z0-9-]+\]\(([a-z-]+/[a-z0-9-]+\.md)\) \|.*\|$", readme, re.M))
+    rows = {m.group(1): [c.strip() for c in m.group(0).strip("|").split("|")] for m in found}
+    lines = {m.group(1): m.group(0) for m in found}
     for rid, (p, fm) in sorted(lib.items()):
         target = rel(p)[len("recipes/"):]
         if target not in linked:
             probs.append(f"recipes/README.md: {rid} is not linked from the index (add a row that links {target})")
+        elif fm.get("kind") == "grammar" and target in lines:   # the row a shot table's code is copied from: as the card says
+            try:
+                want = grammar_row(rid, p, fm)
+            except KeyError:   # a field missing: said by the card's own check
+                continue
+            if lines[target] != want:
+                probs.append(f"recipes/README.md: the {rid} row is {lines[target]!r}, the card makes {want!r} "
+                             f"(bin/vh recipes list --grammar --md prints the rows)")
         elif fm.get("kind", "recipe") == "recipe" and target in rows:
             try:
                 want = [span_text(fm["energy"]), span_text(fm["duration_f"], FPS) + " s", fm["status"]]
@@ -773,7 +789,7 @@ def grammar_row(rid, p, fm):
 
 
 def cmd_grammar(classes, out):
-    """list --grammar size,angle…: the shot-grammar cards of those grammars (recipes/shot/)."""
+    """list --grammar [size,angle…]: the shot-grammar cards of those grammars (recipes/shot/), all four by default."""
     rows = [r for r in grammar_cards() if r[2]["grammar"] in classes]
     if out == "ids":
         print("\n".join(r[0] for r in rows))
@@ -784,9 +800,10 @@ def cmd_grammar(classes, out):
     else:
         head = ("id", "grammar", "code", "name", "one_liner")
         table = [head] + [(rid, fm["grammar"], fm["code"], fm["name"], fm["one_liner"]) for rid, _, fm in rows]
-        widths = [max(len(r[c]) for r in table) for c in range(len(head) - 1)]
+        cols = lambda s: sum(2 if unicodedata.east_asian_width(ch) in "WF" else 1 for ch in s)   # noqa: E731  a terminal's columns
+        widths = [max(cols(r[c]) for r in table) for c in range(len(head) - 1)]
         for r in table:
-            print("  " + "  ".join(x.ljust(w) for x, w in zip(r, widths)) + "  " + r[-1])
+            print("  " + "  ".join(x + " " * (w - cols(x)) for x, w in zip(r, widths)) + "  " + r[-1])
         print(f"{len(rows)} shot-grammar card{'' if len(rows) == 1 else 's'}: recipes/shot/<id>.md. A shot table writes the code in "
               "its camera field ({\"size\": \"MCU\", \"angle\": \"low\", \"move\": \"push-in\"}); bin/vh storyboard prints it")
     return 0
@@ -804,12 +821,18 @@ def cmd_list(args):
             i += 1
             continue
         if a == "--grammar" or a.startswith("--grammar="):   # the shot-grammar cards instead of the recipes
-            val = a.split("=", 1)[1] if "=" in a else (args[i + 1] if i + 1 < len(args) else None)
-            i += 1 if "=" in a else 2
-            vals = [v for v in (val or "").split(",") if v]
+            if "=" in a:
+                val, i = a.split("=", 1)[1], i + 1
+                if not val:
+                    return usage(f"--grammar= names no grammar: one or more of {', '.join(VOCAB['grammar'])}, or --grammar alone for all four")
+            elif i + 1 < len(args) and not args[i + 1].startswith("-"):
+                val, i = args[i + 1], i + 2
+            else:   # alone, or before another option: every grammar
+                val, i = ",".join(VOCAB["grammar"]), i + 1
+            vals = [v for v in val.split(",") if v]
             bad = [v for v in vals if v not in VOCAB["grammar"]]
             if bad or not vals:
-                return usage(f"--grammar: unknown {bad or val!r}; known: {', '.join(VOCAB['grammar'])}")
+                return usage(f"--grammar: {', '.join(bad) or repr(val)} is no grammar; they are {', '.join(VOCAB['grammar'])} (--grammar alone: all four)")
             grammar = set(vals)
             continue
         if "=" in a and a.split("=", 1)[0] in FILTERS:

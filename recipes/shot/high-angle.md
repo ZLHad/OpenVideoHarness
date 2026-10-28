@@ -8,6 +8,8 @@ one_liner: 机位高于主体、往下看：主体显得小、被看着；空间
 derived_from: []
 ---
 
+<!-- know: 俯拍, 俯角, 高机位, 俯视, high angle -->
+
 # 俯拍 high
 
 ## 情绪动机

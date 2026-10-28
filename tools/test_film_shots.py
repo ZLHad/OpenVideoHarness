@@ -26,7 +26,8 @@ grain:0,fadeOut:0,images:{}});
 const CHAPTERS=[{at:0,title:'Opening'},{at:'@next',title:'Body'}];
 function paint(t,s){rect(0,0,W,H,{fill:s.id==='S01'?'#ee2222':'#2222ee'});}
 const SHOTS=[{id:'S01',at:0,see:'First idea',draw:paint},
-{id:'S04a',at:'@next',tin:['dim',0.3],see:'Fallback idea',reads:['Actual idea'],label:'Detail',unsure:'check timing',draw:paint},
+{id:'S04a',at:'@next',tin:['dim',0.3],see:'Fallback idea',reads:['Actual idea'],label:'Detail',unsure:'check timing',
+ camera:{size:'medium-close',angle:'low',move:'push-in'},draw:paint},
 {id:'tail/odd',at:'@tail',segment:'Ending',see:'Last idea',draw:paint}];''')
         self.write_timeline(0)
 
@@ -67,6 +68,9 @@ const SHOTS=[{id:'S01',at:0,see:'First idea',draw:paint},
         self.assertEqual([s["id"] for s in shots], ["S01", "S04a", "tail/odd"])
         self.assertEqual([(s["t0"], s["t1"]) for s in shots], [(0, 2.5), (2.5, 5.5), (5.5, 8.5)])
         self.assertEqual(shots[1]["see"], "Detail / Actual idea")
+        # a shot's camera from SHOTS through window.film.shots: printed by the cards' codes, kept as codes in review.json
+        self.assertEqual((shots[1].get("camera"), shots[1].get("camera_codes")), ("MCU · low · push-in", {"size": "MCU", "angle": "low", "move": "push-in"}))
+        self.assertNotIn("camera", shots[0])
         self.assertEqual(json.loads((out / "index.json").read_text())["shot_source"], "film.html (window.film.shots)")
         frames = [(self.p / s["frame"]).read_bytes() for s in shots]
         self.assertTrue(all(f.startswith(b"\x89PNG") for f in frames))
