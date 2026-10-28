@@ -127,6 +127,8 @@ def problems(project, cid, d):
     if not isinstance(refs, list):
         fail("refs: a list of pictures [{file, view?, sha256}]")
         refs = []
+    elif not refs:
+        out.append(("warn", f"{where}: no pictures yet (bin/vh cast add {cid} --ref picture=view)"))
     for i, r in enumerate(refs):
         if not isinstance(r, dict) or not isinstance(r.get("file"), str) or not r["file"]:
             fail(f"refs[{i}]: {{\"file\": …}}"); continue
