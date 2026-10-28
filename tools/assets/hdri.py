@@ -1,8 +1,9 @@
 """bin/vh hdri: environment maps from Poly Haven (polyhaven.com, every HDRI CC0) for the Three.js layer's light and
-background. Search the library; get one into the project at a size and a format, on record in the ledger. Stdlib only.
+background, and for a Blender scene's world (engines/blender.md, 只做资产: how to wire it, and which way it faces). Search
+the library; get one into the project at a size and a format, on record in the ledger. Stdlib only.
 
 usage: bin/vh hdri search <words…> [--category C] [-n 12] [--json] [--offline DIR]
-       bin/vh hdri get <project> <hdri> [--res 1k|2k|4k|8k|16k] [--format hdr|exr] [--id ID] [--max-mb 600] [--rate 2M]
+       bin/vh hdri get <project> <hdri> [--res 1k|2k|4k|8k|16k] [--format hdr|exr] [--id ID] [--max-mb 200] [--rate 2M]
                   [--json] [--offline DIR]
 
   search  Poly Haven's HDRIs whose id, name, tags or categories hold every word (as a part of one), most downloaded
@@ -24,7 +25,8 @@ usage: bin/vh hdri search <words…> [--category C] [-n 12] [--json] [--offline 
           about 270 MB, 16k about 1.1 GB, and on the GPU too the cube three draws it through, six squares as tall as
           the map (4k 200 MB, 8k 800 MB, 16k 3.2 GB). Unshown, the map is let go in ready. A get of 8k or more says so.
           --format (default hdr): hdr (RGBE, smaller to read) or exr (half floats).
-          --max-mb: a file over this is refused before it starts (16k is 355–410 MB as hdr, 250 MB–1.3 GB as exr)
+          --max-mb (default 200): a file over this is refused before it starts. 2k, 4k and most 8k maps are within it;
+          16k is 355–410 MB as hdr and 250 MB–1.3 GB as exr, so a 16k get names its own --max-mb
 Poly Haven's API (api.polyhaven.com; its terms, github.com/Poly-Haven/Public-API ToS.md and polyhaven.com/our-api, read
 2026-10-29): free for any use, commercial included, no key. Every request carries a User-Agent naming the tool
 (tools/assets/fetch.py's, "OpenVideoHarness …"). A tool on the live API makes clear to its users that the assets come
@@ -264,7 +266,7 @@ def parser():
     g.add_argument("--res", default="2k")
     g.add_argument("--format", choices=("hdr", "exr"), default="hdr")
     g.add_argument("--id")
-    g.add_argument("--max-mb", type=float, default=600)
+    g.add_argument("--max-mb", type=float, default=200)
     g.add_argument("--rate")
     g.add_argument("--json", action="store_true")
     g.add_argument("--offline")
