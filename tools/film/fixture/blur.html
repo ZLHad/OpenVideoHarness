@@ -11,11 +11,12 @@
   // bin/vh render --motion-blur's fixture (tools/ci.sh): a white square 30 px wide moving 16 px a frame at 30 fps on
   // black (shot A), then a hard cut 0.1 frame after frame 5 to mid-grey (shot B). A time outside the page (before 0, at or
   // after its end) paints it all white, so a sub-frame that asks for one shows. It is 14.1 frames long: the last frame's
-  // shutter reaches past its end unless it is cut short there.
+  // shutter reaches past its end unless it is cut short there. Shot B ends at frame 13.6, before the page does, so what
+  // cuts that shutter short is the page's end, not a shot boundary.
   const x = document.getElementById("c").getContext("2d"), FPS = 30, CUT = 5.1 / FPS, END = 14.1 / FPS;
   window.film = {
     duration: END, fps: FPS,
-    shots: [{ id: "A", start: 0, end: CUT }, { id: "B", start: CUT, end: END }],
+    shots: [{ id: "A", start: 0, end: CUT }, { id: "B", start: CUT, end: 13.6 / FPS }],
     frame(t) {
       if (!(t >= 0 && t < END)) { x.fillStyle = "#fff"; x.fillRect(0, 0, 160, 90); return; }
       if (t >= CUT) { x.fillStyle = "#808080"; x.fillRect(0, 0, 160, 90); return; }

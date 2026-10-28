@@ -54,6 +54,7 @@
 // overwritten; never put in place) · 2 could not start (no sidecar, the film does not match it,
 // frames outside the film, a shot or chapter the page does not have, the page does not draw). Ctrl-C stops the render
 // and deletes the work folder.
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
@@ -126,8 +127,10 @@ try { side = JSON.parse(fs.readFileSync(sidecarFile, "utf8")); } catch (e) { die
 const enc = side.encoder || {};
 // a film rendered with --motion-blur: its frames drawn again with the same sub-frames (tools/film/blur.mjs)
 const mb = side.motion_blur;
-if (mb !== undefined && !(mb && Number.isInteger(mb.samples) && mb.samples >= 2 && mb.shutter > 0 && mb.shutter <= 1))
-  die(`${rel(sidecarFile)}: its motion_blur (${JSON.stringify(mb)}) is not { samples: 2 or more, shutter: more than 0, at most 1 } as bin/vh render writes it`);
+if (mb !== undefined && !(mb && Number.isInteger(mb.samples) && mb.samples >= 2 && mb.shutter > 0 && mb.shutter <= 1 && (mb.version === undefined || typeof mb.version === "string")))
+  die(`${rel(sidecarFile)}: its motion_blur (${JSON.stringify(mb)}) is not { samples: 2 or more, shutter: more than 0, at most 1, version } as bin/vh render writes it`);
+// another blur.mjs found its sub-frames' times: the frames drawn again may not be the film's (the PSNR check below says)
+const blurNow = mb && mb.version ? crypto.createHash("sha256").update(fs.readFileSync(path.join(HERE, "blur.mjs"))).digest("hex") : null;
 if (side.alpha) die(`${rel(film)} is a transparent film (bin/vh render --alpha, ProRes 4444): patch puts back x264 GOPs only. Render the span again with --alpha --range, or the whole film`);
 for (const [k, v] of [["fps", side.fps], ["frames", side.frames], ["first_frame", side.first_frame], ["page", side.page], ["encoder.gop", enc.gop], ["encoder.crf", enc.crf], ["encoder.preset", enc.preset]])
   if (v === undefined || v === null) die(`${rel(sidecarFile)} has no ${k}: not a bin/vh render sidecar`);
@@ -265,6 +268,8 @@ console.log(`patch: ${rel(film)} · ${N} frames at ${fps} fps · frames ${askedL
 if (shotIds.length) console.log(`  shots from ${tableFrom}`);
 for (const s of sources) console.log(`  ${s}`);
 if (side.patches && side.patches.length) console.log(`  patched before: ${side.patches.map((p) => `${p.frames[0]}–${p.frames[1]}`).join(", ")}`);
+if (mb) console.log(`  motion blur: ${mb.samples} sub-frames a frame over a shutter of ${mb.shutter}, as the film was drawn` +
+  (blurNow && blurNow !== mb.version ? "; another tools/film/blur.mjs found its sub-frames' times, so the frames drawn again may differ near cuts (the PSNR check below says)" : ""));
 
 // ---- one patch at a time, never while a render writes the film, and room for the work ----
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; } };
