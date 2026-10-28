@@ -14,7 +14,10 @@ window.film.shots after ready, and takes one frame per shot:
      --describe false, so no frame is sent to Gemini); needs the project's own hyperframes and its Chrome;
   4. nothing found: a grey tile that says so. The pages are still useful to read the plan.
 Shots marked "unsure" (or listed in --unsure) get a red frame and their reason under the tile. A duration longer
-than the type's "new payoff every N s" (see bin/vh rhythm) is printed in red.
+than the type's "new payoff every N s" (see bin/vh rhythm) is printed in red. A shot's "camera" (its size, angle, move
+and axis, by the codes of the shot-grammar cards in recipes/shot/) is printed under its id, by the cards' names in a
+Chinese storyboard ("近景（中近景） · 仰拍 · 推"), and goes into review.json (camera, as printed, and camera_codes, the
+cards' codes whatever the language); a value that is no card's code is printed as written and said once.
 
 Writes <project>/out/check/storyboard/: overview.png, NN-<segment>.png (one per segment; a segment with more than
 --per shots is split into pages), frames/ (the tiles' source frames) and index.json (pages, shots, files: for review
@@ -33,6 +36,41 @@ import shot_source as SS
 
 VIDEO_CANDIDATES = ["out/animatic.mp4", "out/draft.mp4", "out/final.mp4", "media/final.mp4"]
 KIND = {"page": ("页面", "page"), "image": ("图", "image"), "color": ("纯色", "colour"), "slate": ("灰卡", "slate")}   # an edit list's sources
+
+def camera_words(shots, lang):
+    """({shot id: its camera line}, {shot id: its codes}): the line "近景（中近景） · 仰拍 · 推" in Chinese, the codes in
+    English, from the shot-grammar cards (recipes/shot/, tools/recipes.py); the codes {"size": "MCU", …} whatever the
+    language, for review.json. A value written as a card's code or id is that card; another one is printed and kept as
+    written, and said once (bin/vh recipes list --grammar names the codes). No shot with a camera: no card is read"""
+    if not any(s.get("camera") for s in shots):
+        return {}, {}
+    try:
+        import recipes
+        cards = {(fm["grammar"], k.lower()): fm for _, _, fm in recipes.grammar_cards() for k in (fm["code"], fm["id"])}
+    except Exception as e:   # the cards cannot be read: the values as written
+        V.warn_once(f"the shot-grammar cards (recipes/shot/) could not be read ({e}): camera values printed as written")
+        cards = {}
+    out, codes, odd = {}, {}, []
+    for s in shots:
+        cam = s.get("camera")
+        if not cam:
+            continue
+        if isinstance(cam, str):
+            out[s["id"]] = cam; continue
+        bits, code = [], {}
+        for k in V.CAMERA:
+            if k not in cam:
+                continue
+            fm = cards.get((k, cam[k].lower()))
+            if fm is None and cards:
+                odd.append(f"{s['id']} {k} {cam[k]!r}")
+            bits.append((fm["name"] if lang == "zh" else fm["code"]) if fm else cam[k])
+            code[k] = fm["code"] if fm else cam[k]
+        out[s["id"]], codes[s["id"]] = " · ".join(bits), code
+    if odd:
+        V.warn_once(f"camera values that are no shot-grammar card's code (printed as written; bin/vh recipes list --grammar names them): {', '.join(odd[:8])}"
+                    + (f" … and {len(odd) - 8} more" if len(odd) > 8 else ""))
+    return out, codes
 
 def pick_video(project, meta, arg):
     if arg:
@@ -133,6 +171,7 @@ class Sheet:
         self.a, self.project, self.shots, self.frames, self.limit, self.limit_src = a, project, shots, frames, limit, limit_src
         self.notes = notes   # shot id → why its tile is grey
         self.L, self.lang, self.source_note = V.LABELS[lang], lang, source_note
+        self.cam, self.cam_codes = camera_words(shots, lang)   # shot id → its camera line (size · angle · move · axis), its codes
         self.ar = aspect
         if aspect >= 1.2: self.tw, self.cols = 600, 3
         elif aspect >= 0.8: self.tw, self.cols = 420, 4
@@ -198,7 +237,7 @@ class Sheet:
 
     def page(self, name, shots, k, n, colors, part=""):
         L, tw, th, cols = self.L, self.tw, self.th, self.page_cols(len(shots))
-        pad, gap, label_h = 36, 24, (150 if self.ar >= 0.8 else 222)
+        pad, gap, label_h = 36, 24, (150 if self.ar >= 0.8 else 222) + (34 if any(s["id"] in self.cam for s in shots) else 0)
         rows = math.ceil(len(shots) / cols)
         W = pad * 2 + cols * tw + (cols - 1) * gap
         W = max(W, 1100)
@@ -215,7 +254,7 @@ class Sheet:
         V.text(d, (pad, 84), V.fit(d, sub, V.font(24), W - 2 * pad), V.font(24), V.MUTED)
         self.strip(d, pad, head + 6, W - 2 * pad, strip_h, shots, t0, t1, colors)
         y = head + strip_h + 40
-        f_id, f_read, f_uns, f_dur = V.font(30, bold=True), V.font(25), V.font(23), V.font(26)
+        f_id, f_read, f_uns, f_dur, f_cam = V.font(30, bold=True), V.font(25), V.font(23), V.font(26), V.font(24, bold=True)
         for i, s in enumerate(shots):
             r, c = divmod(i, cols); x = pad + c * (tw + gap); yy = y + r * (th + label_h + gap)
             img.paste(self.tile(s, tw, th), (x, yy))
@@ -235,6 +274,8 @@ class Sheet:
                 V.text(d, (x + tw, ly + 3), f"{s['dd']:.1f} s", f_dur, V.RED if self.long(s) else V.MUTED, "ra")
                 V.text(d, (x, ly + 40), f"{s['ds']}–{s['de']} s", V.font(22), V.MUTED)
                 ly += 74
+            if s["id"] in self.cam:   # the camera: size · angle · move (the shot-grammar cards')
+                V.text(d, (x, ly), V.fit(d, self.cam[s["id"]], f_cam, tw), f_cam, V.MUTED); ly += 34
             reads = " / ".join(([s["label"]] if s["label"] else []) + s["reads"])
             nl = 2 if self.ar >= 0.8 else 3
             if s["unsure"] is not None: nl -= 1 if self.ar >= 0.8 else 0
@@ -251,6 +292,8 @@ class Sheet:
     def legend(self):
         zh = self.lang == "zh"
         bits = ["红框 = 没把握的镜头" if zh else "red frame = least sure"]
+        if self.cam:
+            bits.append("编号下的灰字 = 机位：景别、角度、运镜、轴线（镜头表的 camera）" if zh else "grey line under the id = the camera: size, angle, move, axis (the shot table's camera)")
         if self.limit is not None:
             bits.append((f"红色时长 = 超过 {self.limit:g} s" if zh else f"red duration = longer than {self.limit:g} s"))
         bits.append(("画面：" if zh else "frames: ") + self.source_note)
@@ -427,6 +470,7 @@ def main():
     for i, (name, _) in enumerate(runs):
         colors.setdefault(name, V.seg_color(len(colors)))
     sheet = Sheet(a, project, shots, frames, notes, aspect, limit, limit_src, lang, " + ".join(source) or ("—" if lang == "en" else "无"))
+    V.check_glyphs(list(sheet.cam.values()))
     pages = []
     for name, ss in runs:
         chunks = pages_of(ss, a.per)
@@ -487,7 +531,9 @@ def review_pack(project, out, shots, segs, frames, notes, sheet, lang, video, li
                       "note": ("；" if zh else "; ").join(bits),
                       "shots": [{"id": s["id"], "t0": round(s["start"], 3), "t1": round(s["end"], 3),
                                  "frame": V.relpath(frames[s["id"]], project) if s["id"] in frames and s["id"] not in notes else "",
-                                 "see": " / ".join(([s["label"]] if s["label"] else []) + s["reads"]), "vo": vo(s), "note": ""} for s in ch]})
+                                 "see": " / ".join(([s["label"]] if s["label"] else []) + s["reads"]), "vo": vo(s), "note": "",
+                                 **({"camera": sheet.cam[s["id"]]} if s["id"] in sheet.cam else {}),
+                                 **({"camera_codes": sheet.cam_codes[s["id"]]} if s["id"] in sheet.cam_codes else {})} for s in ch]})
         assets.append({"path": V.relpath(out / f"{sid}.png", project), "caption": title, "for": sid})
     pack = {"lang": "zh" if zh else "en", "segments": rsegs, "assets": assets,
             "least_sure": [{"id": s["id"], "note": s["unsure"]} for s in shots if s["unsure"] is not None]}

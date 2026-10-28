@@ -4,6 +4,7 @@
 
 - **配方**：`<family>/<id>.md`，一张一个镜头或一个接缝，索引见下文；
 - **骨架**：[`sequences/`](sequences/README.md)，整支片子的节奏语法：能量弧、先划走的 hold、按能量落差选接缝、全片限额；
+- **镜头语法卡**：`shot/`，景别、角度、轴线、运镜各几张，每张写情绪动机、什么时候用、什么时候别用；关键镜头可以从这里挑 2–3 个选项，选定的写进镜头表的 `camera`（索引见下文）；
 - **工具**：`bin/vh recipes list` 按意图、能量、引擎等条件筛，`bin/vh recipes check` 校验 frontmatter 和索引。
 
 分镜时每个镜头都要想"怎么动"；拿不准的时候，这里有现成的做法和数。它不替代类型文档和 playbook：类型文档说这类片子要什么，playbook 说通用的做法，配方说某一种镜头具体怎么做、做到什么数。
@@ -160,6 +161,49 @@
 
 本库只收了一部分。shotcraft 的其余卡片（共 157 张）可以在它的[在线 Gallery](https://vincentwei1021.github.io/video-shotcraft/) 看样片，源码在 `references/repos/video-shotcraft/references/shots/`（Apache-2.0，只读）；借用时按下文"写一张新配方"改写进来。[motion-graphics-skills](https://github.com/charlie947/motion-graphics-skills) 的 16 张效果配方全收了；[awesome-ai-motion](https://github.com/gongnyang/awesome-ai-motion) 的 637 张卡里挑了 30 张文字和界面的，其余（转场、数据、加载、3D 等）在它的网站和仓库里；[gl-transitions](https://github.com/gl-transitions/gl-transitions) 挑了五式合成 `gl-transition` 一张，其余的照那张"实现"一节末尾的说明加进来。
 
+**镜头语法 `shot/`**
+
+配方管一镜怎么动、动多少帧；这几张管机位怎么选：离多远、从哪个高度、守不守轴线、镜头怎么走，以及每种选择对观众意味着什么。关键镜头（钩子、转折、结尾）可以给 2–3 个选项和一句理由，选定的写进镜头表（`shots.json` 或 `edit.json` 的段）的 `camera`，写卡片的 `code`：`"camera": {"size": "MCU", "angle": "low", "move": "push-in"}`，可加 `"axis": "hold"`。`bin/vh storyboard` 在分镜页每镜下面印出它；`bin/vh recipes list --grammar` 列全部（`--grammar size` 只列景别）。这是选项，不是规定：用了哪一个、为什么，写在分镜里就行。
+
+| 卡片 | code | 名字 | 一句话 |
+|---|---|---|---|
+| [extreme-wide](shot/extreme-wide.md) | `EWS` | 大远景 | 环境占满画面，主体只是其中一个小点：先让观众知道这是哪里、有多大 |
+| [long](shot/long.md) | `LS` | 远景 | 主体认得出，但只占画面的一小块，环境占了大半：人在什么地方、周围有什么 |
+| [wide](shot/wide.md) | `WS` | 全景 | 主体从头到脚都在画面里，周围留一圈环境：看清整个动作和它在空间里的位置 |
+| [medium](shot/medium.md) | `MS` | 中景 | 主体腰部以上，手和脸都在画面里：讲解、对话和手上动作的默认距离 |
+| [medium-close](shot/medium-close.md) | `MCU` | 近景（中近景） | 主体胸口以上，脸是画面的重心：观众开始注意它在想什么 |
+| [close-up](shot/close-up.md) | `CU` | 特写 | 一张脸或一件东西占满画面：观众只能看它此刻的变化 |
+| [extreme-close](shot/extreme-close.md) | `ECU` | 大特写 | 一只眼睛、一根手指、一个零件的局部：强到几乎看不出它属于什么 |
+| [eye-level](shot/eye-level.md) | `eye` | 平视 | 机位和主体的眼睛一样高：中性、平等，观众和它站在同一个高度 |
+| [high-angle](shot/high-angle.md) | `high` | 俯拍 | 机位高于主体、往下看：主体显得小、被看着；空间的布局一眼看清 |
+| [low-angle](shot/low-angle.md) | `low` | 仰拍 | 机位低于主体、往上看：主体显得高大、有分量，像在仰望它 |
+| [top-down](shot/top-down.md) | `top` | 顶拍 | 相机在正上方垂直往下看：画面变成平面，图案、布局和顺序最清楚 |
+| [dutch](shot/dutch.md) | `dutch` | 斜角 | 画面绕镜头轴歪一个角度，地平线不再水平：读作失衡、不安、出了问题 |
+| [hold-line](shot/hold-line.md) | `hold` | 守轴线 | 两个主体之间连一条线，所有机位都在线的同一侧：谁在左、谁在右，切来切去都不变 |
+| [cross-line](shot/cross-line.md) | `cross` | 越轴 | 机位跨到轴线另一侧，左右对调：观众往往一下子迷了方向；有铺垫时，有时用来暗示关系或立场变了 |
+| [direction](shot/direction.md) | `direction` | 运动方向一致 | 主体在画面里朝哪边走，跨镜头也朝那边走：前进一直是同一个方向 |
+| [static](shot/static.md) | `static` | 固定 | 机位不动，只有画面里的东西在动：稳、可信，让内容自己说话 |
+| [push-in](shot/push-in.md) | `push-in` | 推 | 镜头朝主体慢慢靠近，景别越来越紧：注意力收拢，"这里要紧" |
+| [pull-out](shot/pull-out.md) | `pull-out` | 拉 | 镜头从主体往后退，周围的东西一点点进画：揭示语境，原来它在这里、原来它这么小 |
+| [pan](shot/pan.md) | `pan` | 摇 | 机位不动，镜头水平转头（上下转是俯仰摇 tilt）：扫过一片空间，把两样东西连起来 |
+| [tilt](shot/tilt.md) | `tilt` | 俯仰摇 | 机位不动，镜头上下转头：从脚看到头、从地面看到塔顶，在量一样东西有多高 |
+| [track](shot/track.md) | `track` | 移 | 镜头整体平行移动，跟着主体走或沿着一排东西滑过：在路上、一起走 |
+| [crane](shot/crane.md) | `crane` | 升降 | 镜头整体升高或降低，视点跟着变：升起常是离开、看清全局，降下是走进去、落到一个人身上 |
+| [orbit](shot/orbit.md) | `orbit` | 环绕 | 镜头绕着主体转圈，主体一直在画面中心：立体、隆重，像在端详一件展品 |
+| [drift](shot/drift.md) | `drift` | 漂移 | 镜头低幅度、慢慢地浮动，像手持或呼吸：画面是活的，但不引人注意 |
+
+和常用的景别对照：国内教材常说的五级是远景、全景、中景、近景、特写，再往两头加大远景和大特写；这里每一级一张卡，code 用英语的缩写。边界各家说法不一，最常见的分歧是中景（膝部以上还是腰部以上，见 `medium` 卡）。
+
+| 常用的说法 | 卡片 | code | 取到哪里（以人为例） |
+|---|---|---|---|
+| 大远景 | `extreme-wide` | `EWS` | 人只是一个点，环境占满画面 |
+| 远景 | `long` | `LS` | 人认得出，只占一小块 |
+| 全景 | `wide` | `WS` | 从头到脚 |
+| 中景 | `medium` | `MS` | 腰部以上（不少教材取膝部以上） |
+| 近景（中近景） | `medium-close` | `MCU` | 胸部以上 |
+| 特写 | `close-up` | `CU` | 肩部以上，或一张脸、一件东西 |
+| 大特写 | `extreme-close` | `ECU` | 脸或物件的一个局部 |
+
 ## frontmatter
 
 frontmatter 是 YAML 的一个严格子集：一行一个 `key: value`；值是普通或加引号的标量、`[列表]` 或 `{映射}`；没有值的键下面跟 `  - 项` 的块列表。不用锚点，不写多行标量。各家 YAML 解析器读法不一的写法，`bin/vh recipes check` 一律报错、不去猜：`yes`/`no`/`on`/`off`；带前导零、下划线、指数或冒号的数（`1:30` 在 YAML 1.1 里是 90）；日期；`{key:value}` 冒号后不空格；`[ ]`、`{ }` 里没加引号的 `?`；双引号里的反斜杠；既没有值也没有列表项的键。能通过校验的，PyYAML 读出来是同一个结果。`check` 还会逐项校验字段，并在词表和本文不一致时报错。
@@ -190,7 +234,7 @@ frontmatter 是 YAML 的一个严格子集：一行一个 `key: value`；值是�
 | `impl` | 否 | `[showcase/04-intro-film/js/fx.js]` | 本仓库里已有的实现；`check` 会确认文件存在 |
 | `sketch_sha` | 否 | `"023b04a621bc"` | 联系表是照哪一版草图渲的：草图 sha256 的前 12 位，`bin/vh recipes sample` 写进来，不手填；`check` 拿它和现在的草图比 |
 
-骨架（`sequences/*.md`）用同一种格式，字段是 `id`、`kind: sequence`、`name`、`one_liner`、`duration_f`、`types`、`aspect`、`arc`（每一段的能量，如 `[1, 3, 4, 2, 5]`）、`uses`（用到的配方 id）、`status`、`derived_from`。`kind` 的取值是 `recipe`（缺省）或 `sequence`。
+骨架（`sequences/*.md`）用同一种格式，字段是 `id`、`kind: sequence`、`name`、`one_liner`、`duration_f`、`types`、`aspect`、`arc`（每一段的能量，如 `[1, 3, 4, 2, 5]`）、`uses`（用到的配方 id）、`status`、`derived_from`。镜头语法卡（`shot/*.md`）也是，字段是 `id`、`kind: grammar`、`grammar`（词表）、`code`（镜头表里写的短码，同一类里不重复）、`name`、`one_liner`、`derived_from`，可加 `types`、`recipes`（做这个运镜的配方 id）；正文要有"情绪动机""什么时候用""什么时候别用""来源"四节，用和别用各至少一条；卡的别名写在 `<!-- know: 荷兰角, 倾斜 -->` 里，`bin/vh know` 按它找到卡。`kind` 的取值是 `recipe`（缺省）、`sequence` 或 `grammar`。
 
 ## 词表
 
@@ -226,6 +270,8 @@ frontmatter 是 YAML 的一个严格子集：一行一个 `key: value`；值是�
 **qa**（验收帧的种类）：`read` 第一条必读信息完整显示 · `peak` 动作最快、最满的一帧 · `seam` 转场正中 · `settle` 落定之后、hold 之中 · `last` 切走前的最后一帧
 
 **status**：`battle-tested` · `upstream-tested` · `tuned` · `draft`（见下一节）
+
+**grammar**（镜头语法卡的类别）：`size` 景别 · `angle` 角度 · `axis` 轴线 · `move` 运镜
 
 **license**（`derived_from` 里的许可）：`Apache-2.0` · `MIT` · `CC0-1.0` · `CC-BY-4.0` · `none`（只来自拆解分析，没有复制任何文字或代码）。`Apache-2.0`、`MIT`、`CC-BY-4.0` 的来源要带许可原文和 NOTICE 行，见"写一张新配方"。
 

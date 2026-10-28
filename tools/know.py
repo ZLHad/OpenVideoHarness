@@ -5,14 +5,16 @@ It answers "what do we have for this" without reading the documents first; the m
 usage: bin/vh know <words…> [--kind recipe,component,style,doc,case] [-n N] [--json]
        bin/vh know --index [--json]
 
-  the index   built each time from the files (no cache to go stale): every recipe and skeleton in recipes/ (its
-              frontmatter: name, one_liner, family, role, intent, needs, types, engines, pitfalls), every style
+  the index   built each time from the files (no cache to go stale): every recipe, skeleton and shot-grammar card in
+              recipes/ (its frontmatter: name, one_liner, family, role, intent, needs, types, engines, pitfalls; a
+              card's grammar and code), every style
               (styles/<slug>/STYLE.md's title and 一句话, tokens.json's family, transitions, camera, type_anim,
               texture), every component (components/<name>/slots.json: its name, summary and painters, its tags if
               it has some, and each slot's name and text; lib/ and LICENSES/ have none, so they are not components),
               and the ## and ### sections of playbook/*.md, video-types/*.md, engines/*.md
-              and cases/*.md, cut where tools/readpath.py cuts them (readpath.outline). A section can carry tags of
-              its own in a comment: <!-- know: 翻页, 纸面 -->
+              and cases/*.md, cut where tools/readpath.py cuts them (readpath.outline). A section, a recipe or a card
+              can carry tags of its own in a comment, for the words a seeker uses that its text lacks: <!-- know: 翻页,
+              纸面 -->
   matching    the words as they are written: Latin words in lower case, Chinese as pairs of characters (章节进度条:
               章节 节进 进度 度条), scored BM25 over each unit's title and tags (×3), its one-line summary (×2) and its
               text (×1), weighed by how many of the words it has, with a bonus for a word found whole in the title or
@@ -36,7 +38,7 @@ import readpath   # noqa: E402
 
 KINDS = ("recipe", "component", "style", "doc", "case")
 QUOTA = {"recipe": 3, "component": 2, "style": 1, "doc": 1, "case": 1}
-RECIPE_TAGS = ("family", "role", "intent", "needs", "types", "engines", "pitfalls")
+RECIPE_TAGS = ("family", "role", "intent", "needs", "types", "engines", "pitfalls", "grammar", "code")   # grammar, code: a shot-grammar card's
 WORD = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.+-]*|[㐀-鿿豈-﫿]+")
 OWN_TAGS = re.compile(r"<!--\s*know:\s*(.*?)-->", re.S)
 
@@ -112,7 +114,7 @@ def build():
         if not fm:
             continue
         rel = f.relative_to(ROOT).as_posix()
-        tags = [t for k in RECIPE_TAGS for t in flat(fm.get(k))] + [fm.get("id", f.stem)]
+        tags = [t for k in RECIPE_TAGS for t in flat(fm.get(k))] + [fm.get("id", f.stem)] + own_tags(body)   # a card's other names too
         units.append(unit("recipe", fm.get("id", f.stem), fm.get("name") or f.stem, rel, 1, fm.get("one_liner", ""), tags, body))
     for f in sorted((ROOT / "components").glob("*/slots.json")):   # a component is a folder with its slots.json (components/README.md)
         try:

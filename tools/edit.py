@@ -27,7 +27,8 @@ usage: bin/vh edit init <project> [--fps 30] [--size 1920x1080]
   check  build's checks without writing, and: the files the sources name against the last build (changed since?), each
          source's licence against the BRIEF's Assets policy (bin/vh assets: strict refuses NC, ND and unknown, record
          says them; a clip folder is one record), a video file with no colour tags (it fails until it is tagged), the
-         slates left; with a browser (bin/vh finds one), each page too: one shorter than its entry
+         slates left, an entry's camera (a sentence or the shot-grammar cards' codes, as bin/vh storyboard reads it: another
+         shape fails, a code no card has is said); with a browser (bin/vh finds one), each page too: one shorter than its entry
          without "hold", a film-clock page reading another narration timeline, beat map or time map than edit.json's
          refs, a local-clock page whose cues hang on the narration
   list   the entries, one a line: frames, seconds, what draws each, segment, reads
@@ -63,7 +64,7 @@ SOURCE_KEYS = {"page": ("clock",), "image": (), "color": (), "clip": ("sound", "
 HDR = ("smpte2084", "arib-std-b67")   # PQ, HLG: transfers an edit list does not draw (SDR only)
 ROLES = ("voice", "ambience", "detail", "hero", "signal")   # the mix's buses: voice is the narration's, the rest the effects' classes
 ENTRY = ("id", "src", "start", "end", "dur", "in", "out", "speed", "fit", "bg", "move", "hold", "sound", "transition", "inputs",
-         "segment", "reads", "label", "unsure", "frame", "at", "why", "caption", "recipe", "seam", "quote", "snap", "note")
+         "segment", "reads", "label", "unsure", "frame", "at", "why", "caption", "recipe", "seam", "quote", "snap", "note", "camera")
 DRAW = {"page": "page", "image": "still", "color": "color", "clip": "clip", "film": "clip", None: "slate"}
 
 
@@ -678,7 +679,7 @@ class Reader:
                 a = self.time(e["at"], f"{eid}: at")
                 if a is not None:
                     row["at"] = r3(a)
-            for k in ("segment", "reads", "label", "unsure", "frame", "why", "caption", "recipe", "seam", "quote", "snap", "note", "transition"):
+            for k in ("segment", "reads", "label", "unsure", "frame", "why", "caption", "recipe", "seam", "quote", "snap", "note", "transition", "camera"):
                 if k in e:
                     row[k] = e[k]
             if isinstance(e.get("transition"), dict) and number(e["transition"].get("duration")) and e["transition"]["duration"] > 0:
@@ -1188,7 +1189,7 @@ def init(project, fps=None, size=None):
         if abs(s["start"] - prev) > 1e-6:
             e["start"] = s["start"]
         e["end"] = s["end"]
-        for k in ("segment", "reads", "label", "unsure", "frame", "at", "why", "caption", "recipe", "seam", "transition", "note"):
+        for k in ("segment", "reads", "label", "unsure", "frame", "at", "why", "caption", "recipe", "seam", "transition", "note", "camera"):
             for alias in {"segment": ("segment", "stage", "section"), "reads": ("reads", "read", "what"),
                           "unsure": ("unsure", "flag", "risk"), "frame": ("frame", "image"), "at": ("at", "snapshot")}.get(k, (k,)):
                 if r.get(alias) not in (None, ""):
@@ -1286,6 +1287,37 @@ def cut_findings(doc):
     return out
 
 
+CAMERA = ("size", "angle", "move", "axis")   # an entry's camera fields (tools/vhdraw.py CAMERA, the grammars of recipes/shot/)
+
+
+def camera_findings(doc):
+    """an entry's camera as bin/vh storyboard reads it: a sentence, or {size, angle, move, axis} by the shot-grammar cards'
+    codes. Another shape fails (the storyboard stops on it); a field or a code no card has is said (printed as written)"""
+    out, cards = [], None
+    for e in doc["entries"]:
+        cam = e.get("camera")
+        if cam is None or isinstance(cam, str):
+            continue
+        if not isinstance(cam, dict):
+            out.append(("fail", "edit.camera", e["id"], f"{e['id']}: camera {json.dumps(cam, ensure_ascii=False)[:40]}: a sentence, or "
+                        "{\"size\": \"MCU\", \"angle\": \"low\", \"move\": \"push-in\", \"axis\": \"hold\"} (bin/vh recipes list --grammar)"))
+            continue
+        for k, v in cam.items():
+            if k not in CAMERA:
+                out.append(("warn", "edit.camera", e["id"], f"{e['id']}: camera.{k}: not a camera field ({', '.join(CAMERA)}): the storyboard leaves it out"))
+                continue
+            if cards is None:
+                try:
+                    import recipes   # the cards' codes and ids, by grammar
+                    cards = {(fm["grammar"], x.lower()) for _, _, fm in recipes.grammar_cards() for x in (fm["code"], fm["id"])}
+                except Exception:   # the cards cannot be read: the codes are not checked
+                    cards = set()
+            if not isinstance(v, str) or (cards and (k, v.lower()) not in cards):
+                out.append(("warn", "edit.camera", e["id"], f"{e['id']}: camera.{k} {json.dumps(v, ensure_ascii=False)}: no shot-grammar "
+                            f"card's code (bin/vh recipes list --grammar {k}): the storyboard prints it as written"))
+    return out
+
+
 def transitions_refused(doc):
     """the entries whose transition bin/vh render stops on: between two entries that both have a source (next to a slate
     it is drawn as a hard cut)"""
@@ -1322,7 +1354,7 @@ def check(project, browser=None):
             was = {x.get("path"): x.get("sha256") for x in old.get("refs") or [] if isinstance(x, dict)}
             if r["path"] in was and was[r["path"]] != r["sha256"]:
                 found.append(("warn", "edit.changed", None, f"{r['path']} changed since the last build: the entries that hang on it may move (bin/vh edit build says which)"))
-    found += licence_findings(project, doc) + cut_findings(doc)
+    found += licence_findings(project, doc) + cut_findings(doc) + camera_findings(doc)
     if browser:
         facts = page_facts(project, browser)
         if isinstance(facts, list):

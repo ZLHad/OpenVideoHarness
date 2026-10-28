@@ -33,7 +33,8 @@ Also: the versions of the project's films (out/versions/versions.json, bin/vh ve
 listed as renders), the latest renders with what their sidecars say (.render.json, .deliver.json, the check record), the review items
 still open (a desk submission's change and ask items whose REVIEW.md section has no 定了 / 改了 yet), the facts NOTES.md
 still lists to verify, the last check, the material on record (bin/vh assets: how many, the licences not cleared, what
-the films loaded that the ledger lacks, the spend against the budget), the research in research/ (bin/vh scout's
+the films loaded that the ledger lacks, the spend against the budget), the cast in cast/ (bin/vh cast: the entries by
+kind, the settled ones, what its check would fail), the research in research/ (bin/vh scout's
 records, the days with a hot-list snapshot, bin/vh ref's references), and the commands running now and the last ones
 (the activity log).
 --json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1). Exit 0, 2 when there is no project.
@@ -406,6 +407,12 @@ def main(argv):
         assets = U.overview(project)
     except Exception as e:
         assets = {"error": f"the asset ledger could not be read ({e})"}
+    # the cast's settled references (bin/vh cast, tools/cast.py's overview): files only, never a failure
+    try:
+        import cast as CA
+        cast = CA.overview(project)
+    except Exception as e:
+        cast = {"error": f"cast/ could not be read ({e})"}
     # the research on record (bin/vh scout, bin/vh ref; tools/scout/scout.py's overview): files only, never a failure
     try:
         sys.path.insert(0, str(HERE / "scout"))
@@ -427,7 +434,7 @@ def main(argv):
            "review": {"current": cur, "page": cur_stop["page"] if cur_stop else None, "desk": desk},
            "open": {"review_items": open_items, "facts_to_verify": facts},
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
-           "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "research": research,
+           "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "cast": cast, "research": research,
            "activity": {"running": working, "listening": listening, "recent": recent}}
     if a.json:
         print(json.dumps(out, ensure_ascii=False, indent=1))
@@ -485,6 +492,11 @@ def show(o, now):
             f"{a['uncleared']} not cleared" + (f" ({a['not_taken']} not taken under {a['policy']})" if a.get("not_taken") else "") if a.get("uncleared") else "",
             f"{a['unregistered']} loaded but not on record" if a.get("unregistered") else "", f"{a['aigc']} AI-generated" if a.get("aigc") else "") if x]
         print("assets: " + ", ".join(bits) + (f" · {money}" if money else "") + (f" · {a['error']}" if a.get("error") else "") + " (bin/vh assets)")
+    ca = o.get("cast") or {}
+    if ca.get("entries") or ca.get("error"):
+        kinds = ", ".join(f"{n} {k}{'' if n == 1 else 's'}" for k, n in sorted((ca.get("by_kind") or {}).items()))
+        print("cast: " + (ca["error"] if ca.get("error") else f"{ca['entries']} entr{'y' if ca['entries'] == 1 else 'ies'} ({kinds}), {ca.get('final', 0)} settled"
+              + (f", {ca['failures']} failure{'' if ca['failures'] == 1 else 's'} in its check" if ca.get("failures") else "")) + " (bin/vh cast)")
     rs = o.get("research") or {}
     sc, hot, refs = rs.get("scout") or {}, rs.get("hot") or {}, rs.get("refs") or {}
     bits = [x for x in (
