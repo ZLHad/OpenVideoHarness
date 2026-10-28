@@ -4,7 +4,7 @@
 
 - **配方**：`<family>/<id>.md`，一张一个镜头或一个接缝，索引见下文；
 - **骨架**：[`sequences/`](sequences/README.md)，整支片子的节奏语法：能量弧、先划走的 hold、按能量落差选接缝、全片限额；
-- **镜头语法卡**：`shot/`，景别、角度、轴线、运镜各几张，每张写情绪动机、什么时候用、什么时候别用；分镜时每镜从这里挑 2–3 个选项，选定的写进镜头表的 `camera`（索引见下文）；
+- **镜头语法卡**：`shot/`，景别、角度、轴线、运镜各几张，每张写情绪动机、什么时候用、什么时候别用；关键镜头可以从这里挑 2–3 个选项，选定的写进镜头表的 `camera`（索引见下文）；
 - **工具**：`bin/vh recipes list` 按意图、能量、引擎等条件筛，`bin/vh recipes check` 校验 frontmatter 和索引。
 
 分镜时每个镜头都要想"怎么动"；拿不准的时候，这里有现成的做法和数。它不替代类型文档和 playbook：类型文档说这类片子要什么，playbook 说通用的做法，配方说某一种镜头具体怎么做、做到什么数。
@@ -163,7 +163,7 @@
 
 **镜头语法 `shot/`**
 
-配方管一镜怎么动、动多少帧；这几张管机位怎么选：离多远、从哪个高度、守不守轴线、镜头怎么走，以及每种选择对观众意味着什么。分镜时每镜给 2–3 个选项和一句理由，选定的写进镜头表（`shots.json` 或 `edit.json` 的段）的 `camera`，写卡片的 `code`：`"camera": {"size": "MCU", "angle": "low", "move": "push-in"}`，可加 `"axis": "hold"`。`bin/vh storyboard` 在分镜页每镜下面印出它；`bin/vh recipes list --grammar size,angle,axis,move` 列全部。这是选项，不是规定：用了哪一个、为什么，写在分镜里就行。
+配方管一镜怎么动、动多少帧；这几张管机位怎么选：离多远、从哪个高度、守不守轴线、镜头怎么走，以及每种选择对观众意味着什么。关键镜头（钩子、转折、结尾）可以给 2–3 个选项和一句理由，选定的写进镜头表（`shots.json` 或 `edit.json` 的段）的 `camera`，写卡片的 `code`：`"camera": {"size": "MCU", "angle": "low", "move": "push-in"}`，可加 `"axis": "hold"`。`bin/vh storyboard` 在分镜页每镜下面印出它；`bin/vh recipes list --grammar size,angle,axis,move` 列全部。这是选项，不是规定：用了哪一个、为什么，写在分镜里就行。
 
 | 卡片 | code | 名字 | 一句话 |
 |---|---|---|---|
