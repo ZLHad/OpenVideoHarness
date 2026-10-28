@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #5d5f63; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // The host's page for an edit list's slates (engines/EDIT.md): an entry with no source yet, drawn as a grey card with
+  // its id, segment, reads and unsure note, a bar for how far into the entry the frame is and the seconds left. A full-
+  // length animatic of grey cards timed to the narration is gate ②'s; bin/vh check and deliver refuse a film with one.
+  // What it draws comes from window.filmHost.params (tools/film/edit.mjs sets them): { id, segment, label, reads, unsure,
+  // lang, frames, fps }; a pure function of t and those.
+  const c = document.getElementById("c"), x = c.getContext("2d");
+  const P = () => (window.filmHost && window.filmHost.params) || {};
+  const FONT = '"PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif';
+  const fitCanvas = () => {
+    const d = window.devicePixelRatio || 1, w = Math.round(innerWidth * d), h = Math.round(innerHeight * d);
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; c.style.width = innerWidth + "px"; c.style.height = innerHeight + "px"; }
+    return [w, h];
+  };
+  // a line broken where it runs past w: at a space in Latin text, anywhere in CJK
+  const wrap = (s, w, max) => {
+    const out = []; let line = "";
+    for (const ch of String(s)) {
+      const next = line + ch;
+      if (line && x.measureText(next).width > w) {
+        const sp = line.lastIndexOf(" ");
+        if (/\s/.test(ch)) { out.push(line); line = ""; continue; }
+        if (sp > 0 && /^[\x00-\x7f]*$/.test(line.slice(sp))) { out.push(line.slice(0, sp)); line = line.slice(sp + 1) + ch; } else { out.push(line); line = ch; }
+        if (out.length === max) return out;
+      } else line = next;
+    }
+    if (line && out.length < max) out.push(line);
+    return out;
+  };
+  window.film = {
+    get duration() { const p = P(); return p.frames > 0 && p.fps > 0 ? p.frames / p.fps : 1; },
+    frame(t) {
+      const p = P(), [W, H] = fitCanvas(), u = H / 100, zh = p.lang === "zh";
+      x.setTransform(1, 0, 0, 1, 0, 0);
+      x.fillStyle = "#5d5f63"; x.fillRect(0, 0, W, H);
+      x.strokeStyle = "rgba(255,255,255,0.18)"; x.lineWidth = Math.max(1, u * 0.3);
+      x.beginPath(); x.moveTo(0, 0); x.lineTo(W, H); x.moveTo(W, 0); x.lineTo(0, H); x.stroke();
+      const L = 6 * u, top = 9 * u;
+      x.textBaseline = "alphabetic"; x.fillStyle = "#ffffff";
+      x.font = `700 ${11 * u}px ${FONT}`; x.fillText(String(p.id || ""), L, top + 9 * u);
+      const idw = x.measureText(String(p.id || "")).width;
+      x.font = `500 ${5 * u}px ${FONT}`; x.fillStyle = "rgba(255,255,255,0.75)";
+      x.fillText([p.segment, p.label].filter(Boolean).join(" · "), L + idw + 3 * u, top + 8.5 * u);
+      x.textAlign = "right"; x.font = `600 ${4 * u}px ${FONT}`; x.fillStyle = "rgba(255,255,255,0.6)";
+      x.fillText(zh ? "灰卡 · 还没有画面" : "slate · no picture yet", W - L, top + 1 * u);
+      x.textAlign = "left";
+      let y = top + 22 * u;
+      x.font = `500 ${6.5 * u}px ${FONT}`; x.fillStyle = "#ffffff";
+      for (const r of (p.reads || []).slice(0, 4)) for (const line of wrap(r, W - 2 * L, 2)) { x.fillText(line, L, y); y += 9 * u; }
+      if (p.unsure !== null && p.unsure !== undefined) {
+        x.font = `600 ${5 * u}px ${FONT}`; x.fillStyle = "#ffcf5a";
+        for (const line of wrap("? " + (p.unsure || (zh ? "没把握" : "unsure")), W - 2 * L, 2)) { x.fillText(line, L, y + 2 * u); y += 7 * u; }
+      }
+      const total = p.frames > 0 && p.fps > 0 ? p.frames / p.fps : 0, done = Math.min(1, Math.max(0, total ? t / total : 0));
+      const by = H - 9 * u, bw = W - 2 * L;
+      x.fillStyle = "rgba(255,255,255,0.22)"; x.fillRect(L, by, bw, 1.6 * u);
+      x.fillStyle = "#ffffff"; x.fillRect(L, by, bw * done, 1.6 * u);
+      x.font = `600 ${4.5 * u}px ${FONT}`; x.textAlign = "right";
+      x.fillText(`${Math.max(0, total - t).toFixed(1)} s / ${total.toFixed(1)} s`, W - L, by - 2 * u);
+      x.textAlign = "left";
+    },
+  };
+</script>
+</body>
+</html>

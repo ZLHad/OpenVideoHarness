@@ -211,6 +211,14 @@ def main():
     free = shutil.disk_usage(out.parent).free
     if need > free:
         die(f"about {need / 1e9:.1f} GB needed for {out.name}, {free / 1e9:.1f} GB free on that disk")
+    # an edit list's film with a slate left in it (an entry with no source yet): a placeholder, never an upload
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import edit
+    ed = edit.film_facts(master)
+    if ed and (ed["slates"] or ed.get("error")):
+        die(f"{master.name} is an edit list's film with " + (f"an edit list that does not resolve ({ed['error']})" if ed.get("error") else
+            f"{len(ed['slates'])} slate{'s' * (len(ed['slates']) != 1)} left in it ({', '.join(s['id'] for s in ed['slates'][:8])}): "
+            "an entry with no source yet is a placeholder; give each a source (engines/EDIT.md), render, then deliver"))
     notes, asset_rec, stop = assets_notes(master)   # before the encode: a 4K copy takes a while
     if stop:
         for line in stop[0]:   # the verdict and what failed

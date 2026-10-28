@@ -1,0 +1,1019 @@
+"""bin/vh edit: a film as an edit list. <project>/edit.json lays the film out as a row of entries, each drawn from a source:
+a page (the page contract, engines/CONTRACT.md), a still image, a solid colour, or nothing yet (a slate: a grey card with
+the entry's reads). It is shots.json grown up: the rows keep shots.json's fields (id, segment, reads, label, unsure,
+frame, at) and say where each entry's picture comes from (src). The format: engines/EDIT.md. stdlib only.
+
+usage: bin/vh edit init <project> [--fps 30] [--size 1920x1080]
+       bin/vh edit build <project> [--json] [--quiet]
+       bin/vh edit check <project> [--json]
+       bin/vh edit list <project> [--json]
+
+  init   folds the project's shots.json into a new edit.json: every shot an entry with no source (a slate) and its fields
+         as they were, timed as the shots were; shots.json is renamed shots.json.folded (kept, not deleted; .folded-2, -3 …
+         when an earlier one is there). Then bin/vh render draws the whole film as slates timed to the plan: gate ②'s
+         full-length animatic. fps and size:
+         --fps and --size, else the BRIEF's Output line, else 30 and 1920x1080. Refused when edit.json is there, and when
+         the shots do not follow one another (a gap or an overlap: said, nothing written)
+  build  resolves edit.json into out/edit.resolved.json: every start and end, written in seconds or as a reference
+         (narration cues "@l4>", {"$music": [24, 1]}, a time map's "@#id"; tools/audio/time_refs.py), in whole frames
+         (frame_from, tools/timegrid.py), each entry's source, the runs render draws. Prints what it found and, since
+         the last build, which entries moved. bin/vh render builds it first, every time; nothing else needs a browser
+  check  build's checks without writing, and: the files the sources name against the last build (changed since?), each
+         source's licence against the BRIEF's Assets policy (bin/vh assets: strict refuses NC, ND and unknown, record
+         says them), the slates left; with a browser (bin/vh finds one), each page too: one shorter than its entry
+         without "hold", a film-clock page reading another narration timeline, beat map or time map than edit.json's
+         refs, a local-clock page whose cues hang on the narration
+  list   the entries, one a line: frames, seconds, what draws each, segment, reads
+
+--json: build prints the resolved document with "said" (its lines); check {"version": 1, "tool", "edit", "exit",
+"findings": [{"severity", "kind", "entry", "message"}]}; list {"version": 1, "fps", "frames", "entries": [...]}.
+Exit: 0 done (with notes) · 1 the entries do not fit (a gap or an overlap between two, an entry shorter than a frame,
+out and end that disagree; check: a licence strict refuses or a ledger it cannot read, a page shorter than its entry, a
+transition bin/vh render stops on, pages a browser could not read) · 2 the file, its format or a
+reference (an unknown source or id, a time that does not resolve, a file that is not there: all listed at once).
+"""
+import argparse, difflib, hashlib, json, math, os, re, subprocess, sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(HERE / "audio"))
+from timegrid import frame_from   # noqa: E402  (seconds to frames, the one way)
+import time_refs as TR   # noqa: E402  (references: tools/audio/time_refs.py)
+
+FILE = "edit.json"
+RESOLVED = Path("out") / "edit.resolved.json"
+ID = re.compile(r"[A-Za-z0-9_]+\Z")
+KEY = re.compile(r"[A-Za-z0-9_.-]+\Z")
+COLOR = re.compile(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})\Z")
+ENTRY_REF = re.compile(rf"@\|([A-Za-z0-9_]+)(>)?({TR.NUM})?\Z")
+IMAGE_EXT = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".svg"}
+TOP = ("v", "note", "fps", "size", "refs", "sources", "tracks", "chapters", "covers", "approval", "removed", "video")
+KINDS = ("page", "image", "color", "clip", "film", "sound")
+LATER = {"clip": "footage (clip)", "film": "another film (film)", "sound": "a sound (sound)"}
+SOURCE_KEYS = {"page": ("clock",), "image": (), "color": (), "clip": ("sound", "sync"), "film": ("version", "sound"), "sound": ("role", "gain_db")}
+ENTRY = ("id", "src", "start", "end", "dur", "in", "out", "speed", "fit", "bg", "move", "hold", "sound", "transition", "inputs",
+         "segment", "reads", "label", "unsure", "frame", "at", "why", "caption", "recipe", "seam", "quote", "snap", "note")
+DRAW = {"page": "page", "image": "still", "color": "color", None: "slate"}
+
+
+class EditError(Exception):
+    """The edit list does not resolve: code 2 (the file, its format, a reference) or 1 (the entries do not fit)."""
+
+    def __init__(self, code, problems):
+        super().__init__("; ".join(problems))
+        self.code, self.problems = code, list(problems)
+
+
+def r3(x):
+    return round(x, 3) + 0.0   # milliseconds; + 0.0: never "-0.0"
+
+
+def sha256(p):
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for b in iter(lambda: f.read(1 << 20), b""):
+            h.update(b)
+    return h.hexdigest()
+
+
+def number(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def near(word, choices):
+    got = difflib.get_close_matches(str(word), [str(c) for c in choices], n=1, cutoff=0.5)
+    return f" (nearest: {got[0]})" if got else ""
+
+
+def jd(x):
+    return json.dumps(x, ensure_ascii=False)
+
+
+# ---- where ----
+
+def project_of(arg):
+    """A project folder (one with edit.json, or a BRIEF.md), a name under projects/, or edit.json itself."""
+    p = Path(arg).expanduser()
+    if p.is_file() and p.name == FILE:
+        return p.resolve().parent
+    if p.is_dir():
+        return p.resolve()
+    import vhdraw
+    try:
+        return vhdraw.project_dir(arg)
+    except vhdraw.Usage as e:
+        raise EditError(2, [str(e)]) from None
+
+
+def find(project):
+    """<project>/edit.json, or None when the project has no edit list."""
+    f = Path(project) / FILE
+    return f if f.is_file() else None
+
+
+# ---- reading edit.json ----
+
+class Reader:
+    """Reads and checks edit.json, collecting every problem: format ones (2) first, then the layout's (1)."""
+
+    def __init__(self, project, doc=None, folding=False):
+        self.project = Path(project).resolve()
+        self.file = self.project / FILE
+        self.p2, self.p1, self.notes, self.folding = [], [], [], folding   # folding: bin/vh edit init, shots.json still beside it
+        if doc is None:
+            try:
+                raw = self.file.read_bytes()
+            except OSError as e:
+                raise EditError(2, [f"{FILE}: cannot be read ({e.strerror or e})"]) from None
+            try:
+                doc = json.loads(raw.decode("utf-8-sig"))
+            except ValueError as e:
+                raise EditError(2, [f"{FILE}: not valid JSON ({e})"]) from None
+            self.sha = hashlib.sha256(raw).hexdigest()
+        else:
+            self.sha = hashlib.sha256(json.dumps(doc, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        if not isinstance(doc, dict):
+            raise EditError(2, [f"{FILE}: an object, {{\"v\": 1, \"fps\", \"size\", \"sources\", \"tracks\": [...]}} (engines/EDIT.md)"])
+        self.doc = doc
+
+    def bad(self, msg):
+        self.p2.append(msg)
+
+    def path_in(self, rel, what):
+        """A file named relative to edit.json, inside the project: its Path, or None (said)."""
+        if not isinstance(rel, str) or not rel.strip():
+            self.bad(f"{what}: a file path relative to {FILE}"); return None
+        p = (self.project / rel).resolve()
+        try:
+            p.relative_to(self.project)
+        except ValueError:
+            self.bad(f"{what}: {rel} is outside the project (the pages are served from its folder, and nothing above it)"); return None
+        if not p.is_file():
+            self.bad(f"{what}: no such file {rel}"); return None
+        return p
+
+    def top(self):
+        d = self.doc
+        if (self.project / "shots.json").is_file() and not self.folding:
+            self.bad(f"two shot tables here, {FILE} and shots.json: a project keeps one. The entries are the shots: fold shots.json's "
+                     "into them by hand, then rename or delete shots.json")
+        for k in d:
+            if k not in TOP:
+                self.bad(f"{FILE}: unknown key {k}{near(k, TOP)} (engines/EDIT.md lists them)")
+        if d.get("v") != 1:
+            self.bad(f"{FILE}: \"v\": 1 (the format's version), not {jd(d.get('v'))}")
+        fps = d.get("fps")
+        if not (isinstance(fps, int) and not isinstance(fps, bool) and 1 <= fps <= 240):
+            self.bad(f"{FILE}: fps {jd(fps)}: a whole number of frames a second (24, 25, 30, 50, 60); 29.97 and the like are not taken")
+            fps = None
+        size = d.get("size")
+        if not (isinstance(size, list) and len(size) == 2 and all(isinstance(x, int) and not isinstance(x, bool) and x > 0 for x in size)):
+            self.bad(f"{FILE}: size {jd(size)}: [width, height] in CSS px, e.g. [1920, 1080]")
+            size = None
+        self.fps, self.size = fps, size
+        if "note" in d and not isinstance(d["note"], str):
+            self.bad(f"{FILE}: note: a line of text")
+        if "video" in d and not isinstance(d["video"], str):
+            self.bad(f"{FILE}: video: the path of the video storyboard plays")
+
+    def refs(self):
+        given = self.doc.get("refs") or {}
+        if not isinstance(given, dict):
+            self.bad(f"{FILE}: refs: an object naming the time sources (timeline, lead, music, timemap)"); given = {}
+        for k in given:
+            if k not in TR.REF_KEYS:
+                self.bad(f"{FILE}: refs.{k}: unknown{near(k, TR.REF_KEYS)} (refs takes {', '.join(TR.REF_KEYS)})")
+        files = {}
+        for k in ("timeline", "music", "timemap"):   # inside the project, as the sources are (and the pages that read them)
+            if k in given:
+                f = self.path_in(given[k], f"{FILE}: refs.{k}")
+                if f is not None:
+                    files[k] = str(f)
+        at = files.get
+        if len(files) < sum(k in given for k in ("timeline", "music", "timemap")):
+            self.given_refs = given
+            self.R = TR.Refs()
+            return
+        self.given_refs = given
+        try:
+            self.R = TR.Refs(timeline=at("timeline"), lead=given.get("lead", 0), music=at("music"), timemap=at("timemap"))
+        except TR.RefError as e:
+            self.bad(f"{FILE}: refs: {str(e).replace(str(self.project) + os.sep, '')}")
+            self.R = TR.Refs()
+
+    def sources(self):
+        src = self.doc.get("sources")
+        if not isinstance(src, dict):
+            self.bad(f"{FILE}: sources: an object of {{key: source}} (a page, an image, a colour)"); src = {}
+        self.src = {}
+        for key, s in src.items():
+            where = f"sources.{key}"
+            if not KEY.match(key):
+                self.bad(f"{where}: a key of letters, digits, _, . and -"); continue
+            if not isinstance(s, dict):
+                self.bad(f"{where}: an object, e.g. {{\"page\": \"ch1.html\", \"clock\": \"film\"}}"); continue
+            kinds = [k for k in KINDS if k in s]
+            if len(kinds) != 1:
+                self.bad(f"{where}: one of {', '.join(KINDS)}" + (f", not {' and '.join(kinds)}" if kinds else "")); continue
+            kind = kinds[0]
+            for k in s:
+                if k not in (kind, "asset", "sha256") + SOURCE_KEYS[kind]:
+                    self.bad(f"{where}: {k} does not go with a {kind} source")
+            if kind in LATER:
+                self.bad(f"{where}: {LATER[kind]} sources are not drawn yet: this version of bin/vh edit takes pages, images and colours")
+                continue
+            if "asset" in s and not (isinstance(s["asset"], str) and s["asset"]):
+                self.bad(f"{where}: asset: the id of its record in the asset ledger (bin/vh assets)")
+            info = {"kind": kind}
+            if kind == "page":
+                f = self.path_in(s["page"], f"{where}.page")
+                if f is not None and f.suffix.lower() not in (".html", ".htm"):
+                    self.bad(f"{where}.page: {s['page']} is not a page (.html)")
+                if s.get("clock") not in ("film", "local"):
+                    self.bad(f"{where}: clock \"film\" (the page draws the film's time; its cues hang on the narration) or \"local\" "
+                             "(it draws its own time from 0: a title card, a page from elsewhere): it has no default, as the wrong one shifts the whole picture")
+                info.update(path=Path(s["page"]).as_posix() if isinstance(s.get("page"), str) else None, clock=s.get("clock"))
+                if "sha256" in s and f is not None and f.is_file():   # the page file pinned (what it loads is the render's record)
+                    info["sha256"] = sha256(f)
+                    if s["sha256"] != info["sha256"]:
+                        self.bad(f"{where}: {s['page']} is not the file pinned (sha256 {str(s['sha256'])[:12]}…, it is {info['sha256'][:12]}…)")
+            elif kind == "image":
+                f = self.path_in(s["image"], f"{where}.image")
+                if f is not None and f.suffix.lower() not in IMAGE_EXT:
+                    self.bad(f"{where}.image: {s['image']} is not an image the browser draws ({', '.join(sorted(IMAGE_EXT))})")
+                info.update(path=Path(s["image"]).as_posix() if isinstance(s.get("image"), str) else None)
+                if f is not None and f.is_file():
+                    info["sha256"] = sha256(f)
+                    if "sha256" in s and s["sha256"] != info["sha256"]:
+                        self.bad(f"{where}: {s['image']} is not the file pinned (sha256 {str(s['sha256'])[:12]}…, it is {info['sha256'][:12]}…)")
+            elif kind == "color":
+                if "sha256" in s:
+                    self.bad(f"{where}: sha256 pins a file, and a colour has none")
+                if not (isinstance(s["color"], str) and COLOR.match(s["color"])):
+                    self.bad(f"{where}: color {jd(s['color'])}: a hex colour, \"#000000\" or \"#000\"")
+                info["color"] = s["color"].lower() if isinstance(s["color"], str) else None
+            if s.get("asset"):
+                info["asset"] = s["asset"]
+            self.src[key] = info
+
+    # a time: seconds, "0:12.5", a reference time_refs takes, or (chapters and covers) an entry's start or end
+    def t(self, v, where, entries=None):
+        if number(v):
+            return float(v)
+        if isinstance(v, str):
+            s = TR.js_trim(v)
+            m = ENTRY_REF.match(s)
+            if s.startswith("@|"):
+                if entries is None:
+                    raise TR.RefError("an entry's own times do not hang on another entry (each one follows the one before it); "
+                                      "@|id is for chapters, covers and the sound effects")
+                if not m:
+                    raise TR.RefError('not an entry cue: "@|id" (where the entry starts) or "@|id>" (where it ends), with an optional +0.3 or -0.2')
+                if m[1] not in entries:
+                    raise TR.RefError(f"no entry {m[1]}{near(m[1], entries)}")
+                k = entries[m[1]][1 if m[2] else 0]
+                return k / self.fps + (float(m[3]) if m[3] else 0)
+            if not s.startswith("@"):
+                import vhdraw
+                x = vhdraw.seconds(s)
+                if x is not None:
+                    return x
+        return self.R.t(v)
+
+    def time(self, v, where, entries=None):
+        try:
+            x = self.t(v, where, entries)
+        except TR.RefError as e:
+            self.bad(f"{where} {jd(v)}: {e}"); return None
+        if not number(x):
+            self.bad(f"{where} {jd(v)}: not a time"); return None
+        return x
+
+    def entries(self):
+        tracks = self.doc.get("tracks")
+        if not (isinstance(tracks, list) and tracks and all(isinstance(x, dict) for x in tracks)):
+            self.bad(f"{FILE}: tracks: a list of tracks, [{{\"id\": \"V1\", \"entries\": [...]}}]; the first is the picture"); return []
+        out, ids = [], set()
+        for ti, tr in enumerate(tracks):
+            ents = tr.get("entries")
+            if not isinstance(ents, list):
+                self.bad(f"tracks[{ti}]: entries, a list"); continue
+            if ti > 0 and ents:
+                self.bad(f"tracks[{ti}] ({tr.get('id', '?')}): only the first track is drawn in this version (one picture track, hard cuts); "
+                         "layers over it come later")
+                continue
+            for i, e in enumerate(ents):
+                where = f"{tr.get('id') or f'tracks[{ti}]'}[{i}]"
+                if not isinstance(e, dict):
+                    self.bad(f"{where}: an object, {{\"id\", \"src\", \"end\" …}}"); continue
+                eid = e.get("id")
+                if not (isinstance(eid, str) and ID.match(eid)):
+                    self.bad(f"{where}: id {jd(eid)}: letters, digits and _ (S01)"); continue
+                if eid in ids:
+                    self.bad(f"{eid}: the id is used twice (every entry has its own; patch --shot and @|{eid} find it by it)"); continue
+                ids.add(eid)
+                for k in e:
+                    if k not in ENTRY:
+                        self.bad(f"{eid}: unknown field {k}{near(k, ENTRY)}")
+                out.append((tr.get("id") or "V1", eid, e))
+        return out
+
+    def resolve(self):
+        self.top(); self.refs(); self.sources()
+        rows = self.entries()
+        fps, size = self.fps, self.size
+        if fps is None or size is None:
+            raise EditError(2, self.p2)
+        ents, prev_end, prev = [], 0.0, None
+        for track, eid, e in rows:
+            src = e.get("src")
+            if src is not None and src not in self.src:
+                if src in (self.doc.get("sources") or {}):
+                    continue   # said with its source
+                self.bad(f"{eid}: src {jd(src)}: no such source{near(src, list(self.src))} (sources has {', '.join(self.src) or 'none'}; null for a slate)"); continue
+            info = self.src.get(src) if src is not None else None
+            kind = info["kind"] if info else None
+            clock = info.get("clock") if info else None
+            local = kind == "page" and clock == "local"
+            # what goes with what
+            if kind != "page" and "hold" in e:
+                self.bad(f"{eid}: hold is for a page (an image or a slate holds already)")
+            if "hold" in e and not isinstance(e["hold"], bool):
+                self.bad(f"{eid}: hold: true or false")
+            if not local:
+                for k in ("in", "out", "speed"):
+                    if k in e:
+                        self.bad(f"{eid}: {k} is for a page on its own clock (\"clock\": \"local\")" +
+                                 (": a film-clock page draws the film's time" if kind == "page" else ""))
+            if kind != "image":
+                for k in ("fit", "bg", "move"):
+                    if k in e:
+                        self.bad(f"{eid}: {k} is for an image")
+            if "sound" in e:
+                self.bad(f"{eid}: sound goes with footage and films, which this version does not draw yet")
+            if "inputs" in e:
+                self.bad(f"{eid}: inputs (pictures of other entries fed to a page) come later: one picture track, hard cuts")
+            if "end" in e and "dur" in e:
+                self.bad(f"{eid}: end or dur, not both")
+            if "dur" in e and not (number(e["dur"]) and e["dur"] > 0):
+                self.bad(f"{eid}: dur {jd(e['dur'])}: seconds, more than 0")
+            # times
+            start = self.time(e["start"], f"{eid}: start") if "start" in e else prev_end
+            speed = e.get("speed", 1)
+            if local and not (number(speed) and 0.25 <= speed <= 4):
+                self.bad(f"{eid}: speed {jd(speed)}: 0.25 to 4"); speed = 1
+            tin = self.local_time(e.get("in", 0), f"{eid}: in") if local else 0.0
+            tout = self.local_time(e["out"], f"{eid}: out") if local and "out" in e else None
+            if tout is not None and tin is not None and tout <= tin:
+                self.bad(f"{eid}: out {jd(e['out'])} is not after in {jd(e.get('in', 0))}")
+            end = None
+            if "end" in e:
+                end = self.time(e["end"], f"{eid}: end")
+            elif number(e.get("dur")) and start is not None:
+                end = start + e["dur"]
+            elif tout is not None and tin is not None and start is not None:
+                end = start + (tout - tin) / speed
+            elif not ("end" in e or "dur" in e or "out" in e):
+                self.bad(f"{eid}: no length: write end (seconds or a cue such as \"@l4>\") or dur" +
+                         (", or out" if local else "") + (" (a page's own duration is not read: edit build opens no browser)" if kind == "page" else ""))
+            if start is None or end is None:
+                prev_end = end if end is not None else prev_end
+                continue
+            k0, k1 = frame_from(start, fps), frame_from(end, fps)
+            if tout is not None and tin is not None and ("end" in e or "dur" in e):
+                by_out = start + (tout - tin) / speed
+                if abs(by_out - end) > 0.5 / fps + 1e-9:
+                    self.p1.append(f"{eid} is said twice over: out {jd(e['out'])} makes it end at {by_out:.3f} s, " +
+                                   (f"end {jd(e['end'])} at {end:.3f} s" if "end" in e else f"dur {jd(e['dur'])} at {end:.3f} s") +
+                                   ": keep one of them")
+            if k1 <= k0:
+                self.p1.append(f"{eid} is shorter than a frame: {start:.3f}–{end:.3f} s" + (" (it ends before it starts)" if end < start else "") +
+                               " (every entry has a frame or more)")
+            pk = prev["frames"][1] if prev else 0
+            if k0 > pk:
+                gap = (k0 - pk) / fps
+                self.p1.append((f"a gap between {prev['id']} and {eid}" if prev else f"{eid} starts at {start:.3f} s, not at 0") +
+                               f": frames {pk}–{k0 - 1} ({gap:.3f} s) have nothing to draw. Let {eid} follow (leave out its start), "
+                               "or put a colour entry there for a black")
+            elif k0 < pk:
+                self.p1.append(f"{eid} overlaps {prev['id']} by {pk - k0} frame{'s' * (pk - k0 != 1)} ({(pk - k0) / fps:.3f} s): "
+                               f"{prev['id']} ends at frame {pk} ({pk / fps:.3f} s), {eid} starts at {start:.3f} s (frame {k0}). "
+                               f"One picture track has one entry a frame: let {eid} follow (leave out its start)")
+            row = {"id": eid, "track": track, "src": src, "kind": kind or "slate"}
+            if clock:
+                row["clock"] = clock
+            row.update(frames=[k0, max(k0, k1)], start=r3(k0 / fps), end=r3(max(k0, k1) / fps))
+            if local:
+                row.update({"in": r3(tin or 0)}, speed=speed)
+            if kind == "page":
+                row["hold"] = bool(e.get("hold"))
+            if kind == "image":
+                row.update(self.framing(eid, e))
+            ref = {k: e[k] for k in ("start", "end", "dur", "in", "out") if k in e}
+            if ref:
+                row["ref"] = ref
+            if "at" in e:
+                a = self.time(e["at"], f"{eid}: at")
+                if a is not None:
+                    row["at"] = r3(a)
+            for k in ("segment", "reads", "label", "unsure", "frame", "why", "caption", "recipe", "seam", "quote", "snap", "note", "transition"):
+                if k in e:
+                    row[k] = e[k]
+            if isinstance(e.get("transition"), dict) and number(e["transition"].get("duration")) and e["transition"]["duration"] > 0:
+                row["transition_draw"] = True   # a transition to draw (not a note): render refuses it between two sources
+            ents.append(row)
+            prev, prev_end = row, end
+        if self.p2:
+            raise EditError(2, self.p2)
+        if not ents:
+            raise EditError(2, [f"{FILE}: no entries on the first track"])
+        frames = ents[-1]["frames"][1]
+        by = {x["id"]: x["frames"] for x in ents}
+        chapters = []
+        for i, c in enumerate(self.doc.get("chapters") or []):
+            if not (isinstance(c, dict) and "t" in c):
+                self.bad(f"chapters[{i}]: {{\"t\": a time or \"@|S04\", \"title\": …}}"); continue
+            t = self.time(c["t"], f"chapters[{i}].t", by)
+            if t is not None:
+                chapters.append({"t": r3(t), "title": str(c.get("title", "")), **({"id": str(c["id"])} if c.get("id") is not None else {}),
+                                 **({"ref": c["t"]} if not number(c["t"]) else {})})
+        covers = []
+        for i, c in enumerate(self.doc.get("covers") or []):
+            if not (isinstance(c, dict) and "t" in c and isinstance(c.get("id"), str)):
+                self.bad(f"covers[{i}]: {{\"id\", \"t\": a time or \"@|S04\", \"title\"?}}"); continue
+            t = self.time(c["t"], f"covers[{i}].t", by)
+            if t is not None:
+                covers.append({"id": c["id"], "t": r3(t), **({"title": str(c["title"])} if c.get("title") is not None else {}),
+                               **({"ref": c["t"]} if not number(c["t"]) else {})})
+        if self.p2:
+            raise EditError(2, self.p2)
+        if self.p1:
+            raise EditError(1, self.p1)
+        return self.document(ents, frames, chapters, covers)
+
+    def local_time(self, v, where):
+        """A page's own time (in, out): seconds, or {"f": n}, its frame n at the film's rate."""
+        if isinstance(v, dict) and set(v) == {"f"} and isinstance(v["f"], int) and not isinstance(v["f"], bool) and v["f"] >= 0:
+            return v["f"] / self.fps
+        if number(v) and v >= 0:
+            return round(float(v), 3)
+        self.bad(f"{where} {jd(v)}: the page's own seconds (≥ 0), or {{\"f\": n}}, its frame n")
+        return None
+
+    def framing(self, eid, e):
+        out = {"fit": e.get("fit", "contain"), "bg": e.get("bg", "#000000")}
+        if out["fit"] not in ("contain", "cover"):
+            self.bad(f"{eid}: fit {jd(out['fit'])}: contain (the whole picture, the rest bg) or cover (it fills the frame)")
+        if not (isinstance(out["bg"], str) and COLOR.match(out["bg"])):
+            self.bad(f"{eid}: bg {jd(out['bg'])}: a hex colour")
+        if "move" in e:
+            m = e["move"]
+            ok = isinstance(m, dict) and all(isinstance(m.get(k), list) and len(m[k]) == 3 and all(number(x) for x in m[k]) for k in ("from", "to"))
+            if ok:
+                for k in ("from", "to"):
+                    cx, cy, z = m[k]
+                    if not (0 <= cx <= 1 and 0 <= cy <= 1 and z >= 1):
+                        self.bad(f"{eid}: move.{k} {jd(m[k])}: [cx, cy, zoom], the centre 0–1 across and down the picture, zoom ≥ 1"); ok = False
+                if m.get("ease", "linear") not in ("linear", "inOut"):
+                    self.bad(f"{eid}: move.ease {jd(m.get('ease'))}: linear or inOut"); ok = False
+                for k in m:
+                    if k not in ("from", "to", "ease"):
+                        self.bad(f"{eid}: move.{k}: unknown (from, to, ease)"); ok = False
+            else:
+                self.bad(f"{eid}: move: {{\"from\": [cx, cy, zoom], \"to\": [cx, cy, zoom], \"ease\": \"linear\" or \"inOut\"}}")
+            if ok:
+                out["move"] = {"from": [float(x) for x in m["from"]], "to": [float(x) for x in m["to"]], "ease": m.get("ease", "linear")}
+        return out
+
+    def document(self, ents, frames, chapters, covers):
+        fps = self.fps
+        files = {}
+        for e in ents:
+            if e["src"] is not None and e["src"] not in files:
+                files[e["src"]] = self.src[e["src"]]
+        runs = []
+        for e in ents:
+            r = {"frames": list(e["frames"]), "draw": DRAW[None if e["kind"] == "slate" else e["kind"]], "entry": e["id"]}
+            if e["kind"] == "page":
+                r.update(src=e["src"], path=files[e["src"]]["path"], clock=e["clock"], hold=e["hold"])
+                if e["clock"] == "local":
+                    r.update({"in": e["in"]}, speed=e["speed"])
+            elif e["kind"] == "image":
+                f = files[e["src"]]
+                r.update(src=e["src"], path=f["path"], sha256=f.get("sha256"), fit=e["fit"], bg=e["bg"], **({"move": e["move"]} if "move" in e else {}))
+            elif e["kind"] == "color":
+                r.update(src=e["src"], color=files[e["src"]]["color"])
+            else:
+                reads = e.get("reads")
+                r["slate"] = {"id": e["id"], "segment": str(e.get("segment") or ""), "label": str(e.get("label") or ""),
+                              "reads": [str(x) for x in reads] if isinstance(reads, list) else ([str(reads)] if reads else []),
+                              "unsure": None if e.get("unsure") in (None, False) else ("" if e.get("unsure") is True else str(e["unsure"]))}
+            runs.append(r)
+        kind_of = {str((self.project / v).resolve()): k for k, v in self.given_refs.items() if k in ("timeline", "music", "timemap") and isinstance(v, str)}
+        sources = [{"kind": kind_of.get(s["path"], "ref"), "path": os.path.relpath(s["path"], self.project).replace(os.sep, "/"), "sha256": s["sha256"]}
+                   for s in self.R.sources]
+        doc = {"v": 1, "note": "bin/vh edit build: what edit.json resolves to; bin/vh render, patch and the shot tools read this",
+               "edit": {"path": FILE, "sha256": self.sha}, "refs": sources, "fps": fps, "size": list(self.size),
+               "frames": frames, "duration": r3(frames / fps), "files": files, "entries": ents, "runs": runs,
+               "cuts": {e["id"]: [e["start"], e["end"]] for e in ents},
+               "slates": [e["id"] for e in ents if e["kind"] == "slate"]}
+        if chapters:
+            doc["chapters"] = chapters
+        if covers:
+            doc["covers"] = covers
+        if isinstance(self.doc.get("video"), str):
+            doc["video"] = self.doc["video"]
+        return doc
+
+
+def resolve(project, doc=None):
+    """edit.json (or doc, an edit list already read) → the resolved document; raises EditError. Writes nothing."""
+    return Reader(project, doc).resolve()
+
+
+# ---- what changed since the last build ----
+
+def changes(old, new):
+    """Lines saying what moved, changed its length or its source, came or went since the old resolved document."""
+    if not old or not isinstance(old.get("entries"), list):
+        return []
+    fps = new["fps"]
+    o = {e.get("id"): e for e in old["entries"] if isinstance(e, dict)}
+    n = {e["id"]: e for e in new["entries"]}
+    src_of = lambda doc, e: (e.get("src"), json.dumps((doc.get("files") or {}).get(e.get("src")), sort_keys=True))   # noqa: E731
+    moved, out = [], []   # [first id, last id, frames moved, index of the last]: a row moved by the same amount is one line
+    for i, e in enumerate(new["entries"]):
+        p = o.get(e["id"])
+        if p is None or not isinstance(p.get("frames"), list):
+            continue
+        d = e["frames"][0] - p["frames"][0]
+        if d:
+            if moved and moved[-1][2] == d and moved[-1][3] == i - 1:
+                moved[-1][1] = e["id"]; moved[-1][3] = i
+            else:
+                moved.append([e["id"], e["id"], d, i])
+    why = ""
+    oref = {r.get("path"): r.get("sha256") for r in old.get("refs") or [] if isinstance(r, dict)}
+    nref = {r["path"]: r["sha256"] for r in new.get("refs") or []}
+    changed_refs = [p for p in nref if p in oref and oref[p] != nref[p]]
+    if changed_refs:
+        why = f" ({', '.join(changed_refs)} changed)"
+    for a, b, d, _ in moved:
+        out.append(f"{a if a == b else f'{a}–{b}'} moved {'+' if d > 0 else '−'}{abs(d) / fps:.3f} s ({'+' if d > 0 else '−'}{abs(d)} frames){why}")
+    for e in new["entries"]:
+        p = o.get(e["id"])
+        if p is None:
+            out.append(f"{e['id']} is new"); continue
+        if isinstance(p.get("frames"), list) and (e["frames"][1] - e["frames"][0]) != (p["frames"][1] - p["frames"][0]):
+            dl = (e["frames"][1] - e["frames"][0]) - (p["frames"][1] - p["frames"][0])
+            out.append(f"{e['id']} is {'longer' if dl > 0 else 'shorter'} by {abs(dl) / fps:.3f} s ({abs(dl)} frames)")
+        if src_of(old, p) != src_of(new, e):
+            out.append(f"{e['id']}'s source changed ({p.get('src') or 'a slate'} → {e['src'] or 'a slate'})" if p.get("src") != e["src"]
+                       else f"{e['id']}'s source {e['src']} changed")
+    for i in o:
+        if i not in n:
+            out.append(f"{i} is gone")
+    return out
+
+
+# ---- the report ----
+
+def summary(doc):
+    kinds = {}
+    for e in doc["entries"]:
+        kinds[e["kind"]] = kinds.get(e["kind"], 0) + 1
+    names = {"page": ("page", "pages"), "image": ("image", "images"), "color": ("colour", "colours"), "slate": ("slate", "slates")}
+    parts = [f"{n} {names[k][n != 1]}" for k, n in kinds.items()]
+    return f"{doc['duration']} s · {doc['frames']} frames at {doc['fps']} fps · {len(doc['entries'])} entr{'y' if len(doc['entries']) == 1 else 'ies'} on V1 ({', '.join(parts)})"
+
+
+def notes(doc):
+    """[(kind, entry, line)]: the slates left, the transitions not drawn yet."""
+    out = []
+    for e in doc["entries"]:
+        if e["kind"] == "slate":
+            out.append(("edit.slate", e["id"], f"{e['id']}: a slate, no source yet: bin/vh check and deliver refuse the film until it has one"))
+        if e.get("transition_draw"):
+            out.append(("edit.transition", e["id"], f"{e['id']}: a transition ({e['transition'].get('type', '?')} {e['transition'].get('duration')} s) is not drawn yet: "
+                        "bin/vh render draws a hard cut where a slate is on either side, and stops between two sources"))
+    return out
+
+
+def write_resolved(project, doc):
+    f = Path(project) / RESOLVED
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_name(f".{f.name}.{os.getpid()}")
+    tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    os.replace(tmp, f)
+    return f
+
+
+def read_resolved(project):
+    try:
+        d = json.loads((Path(project) / RESOLVED).read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
+def build(project, write=True):
+    """→ (the resolved document, the lines said). Writes out/edit.resolved.json when write."""
+    doc = resolve(project)
+    said = [line for kind, _, line in notes(doc) if kind != "edit.slate"]
+    if doc["slates"]:
+        s = doc["slates"]
+        said.insert(0, (f"{s[0]}: a slate" if len(s) == 1 else f"{len(s)} slates ({', '.join(s[:8])}{' …' if len(s) > 8 else ''})") +
+                    ", no source yet: bin/vh check and deliver refuse the film until " + ("it has one" if len(s) == 1 else "each has one"))
+    moved = changes(read_resolved(project), doc)
+    if moved:
+        said.append("since the last build: " + "; ".join(moved))
+    if write:
+        write_resolved(project, doc)
+    return doc, said
+
+
+# ---- the shots it gives the shot tools ----
+
+def shot_rows(doc):
+    """The entries as shots.json rows (storyboard, rhythm, the review desk, thumbs): film seconds, every field kept."""
+    rows = []
+    for e in doc["entries"]:
+        r = {k: v for k, v in e.items() if k not in ("frames", "ref", "track", "transition_draw")}
+        rows.append(r)
+    return rows
+
+
+# ---- init ----
+
+def brief_spec(project):
+    """(fps, [w, h]) from the BRIEF's Output line, each None when it does not say (or says {placeholders})."""
+    try:
+        import speccheck
+        text = (Path(project) / "BRIEF.md").read_text(encoding="utf-8")
+        line = speccheck.spec_line(text, "Output") or ""
+    except (OSError, ImportError):
+        return None, None
+    m = re.search(r"(\d{3,5})\s*[x×]\s*(\d{3,5})", line)
+    f = re.search(r"(\d+(?:\.\d+)?)\s*fps", line, re.I)
+    fps = float(f.group(1)) if f else None
+    return (int(fps) if fps and fps.is_integer() else fps), ([int(m.group(1)), int(m.group(2))] if m else None)
+
+
+def init(project, fps=None, size=None):
+    project = Path(project)
+    if find(project):
+        raise EditError(2, [f"{FILE} is there already: edit it, or move it away to fold shots.json in again"])
+    sj = project / "shots.json"
+    if not sj.is_file():
+        raise EditError(2, ["no shots.json to fold in: write edit.json by hand (engines/EDIT.md has the format)"])
+    try:
+        data = json.loads(sj.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError) as e:
+        raise EditError(2, [f"shots.json: not readable JSON ({e})"]) from None
+    import vhdraw
+    try:
+        shots, meta = vhdraw.parse_shots(data, sj)   # its own checks: start and end, unique ids
+    except SystemExit as e:
+        raise EditError(2, [str(e)]) from None
+    raw = {str(s.get("id") or f"S{i + 1:02d}"): s for i, s in enumerate(data.get("shots") if isinstance(data, dict) else data)}
+    bfps, bsize = brief_spec(project)
+    fps = fps or bfps or 30
+    if not (isinstance(fps, int) or (isinstance(fps, float) and fps.is_integer())):
+        raise EditError(2, [f"the BRIEF's Output says {fps} fps: an edit list takes whole frame rates (--fps 30)"])
+    fps, size = int(fps), size or bsize or [1920, 1080]
+    entries, prev = [], 0.0
+    for s in shots:
+        r = raw.get(s["id"], {})
+        e = {"id": s["id"], "src": None}
+        if abs(s["start"] - prev) > 1e-6:
+            e["start"] = s["start"]
+        e["end"] = s["end"]
+        for k in ("segment", "reads", "label", "unsure", "frame", "at", "why", "caption", "recipe", "seam", "transition", "note"):
+            for alias in {"segment": ("segment", "stage", "section"), "reads": ("reads", "read", "what"),
+                          "unsure": ("unsure", "flag", "risk"), "frame": ("frame", "image"), "at": ("at", "snapshot")}.get(k, (k,)):
+                if r.get(alias) not in (None, ""):
+                    e[k] = vhdraw.seconds(r[alias]) if k == "at" and vhdraw.seconds(r[alias]) is not None else r[alias]
+                    break
+        if not ID.match(e["id"]):
+            raise EditError(2, [f"shots.json: shot id {e['id']!r}: an entry's id is letters, digits and _ (rename it there first)"])
+        entries.append(e)
+        prev = s["end"]
+    doc = {"v": 1, "note": "the film as an edit list (engines/EDIT.md); folded in from shots.json by bin/vh edit init",
+           "fps": fps, "size": size, "sources": {}, "tracks": [{"id": "V1", "entries": entries}]}
+    if isinstance(meta.get("video"), str):
+        doc["video"] = meta["video"]
+    Reader(project, doc, folding=True).resolve()   # the shots must follow one another: nothing is written if they do not
+    out = project / FILE
+    out.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    kept = folded_name(project)   # an earlier fold's copy stays as it was
+    os.replace(sj, kept)
+    return resolve(project), kept.name
+
+
+def folded_name(project):
+    """shots.json.folded, or shots.json.folded-2, -3 … when an earlier init kept one"""
+    f, n = Path(project) / "shots.json.folded", 2
+    while f.exists():
+        f, n = Path(project) / f"shots.json.folded-{n}", n + 1
+    return f
+
+
+# ---- check ----
+
+def page_facts(project, browser):
+    """Each page source's facts, read by its own browser (tools/film/edit.mjs facts): {src: {...}} or an error string."""
+    r = subprocess.run(["node", str(HERE / "film" / "edit.mjs"), "facts", str(project), "--browser", browser], capture_output=True, text=True, timeout=900)
+    if r.returncode:
+        return (r.stderr or r.stdout).strip().splitlines()[-1:] or ["the pages could not be read"]
+    try:
+        return json.loads(r.stdout)
+    except ValueError:
+        return ["the pages' facts were not JSON"]
+
+
+def licence_findings(project, doc):
+    out = []
+    sys.path.insert(0, str(HERE / "assets"))
+    import ledger as L, licenses as LI
+    policy, where = L.policy_of(project)
+    try:
+        _, ents, _ = L.entries(project)   # no ledger is an empty one
+    except Exception as e:   # one that cannot be read: under strict nothing on it can be taken as cleared
+        return [("fail" if policy == "strict" else "warn", "edit.licence", None,
+                 f"the asset ledger could not be read ({e}): bin/vh assets check; Assets: {policy} ({where})")]
+    recs = [x["record"] for x in ents if "removed" not in x["record"]]
+    by_id = {r.get("id"): r for r in recs}
+    by_path = {r.get("path"): r for r in recs}
+    for key, f in doc["files"].items():
+        if not f.get("path") or f["kind"] == "page":
+            continue
+        rec = by_id.get(f.get("asset")) if f.get("asset") else by_path.get(f["path"])
+        users = [e["id"] for e in doc["entries"] if e["src"] == key]
+        cls = L.class_of(rec) if rec else "unknown"
+        if f.get("asset") and not rec:
+            msg = f"{key}: no record {f['asset']} in the asset ledger"
+        elif not rec:
+            msg = f"{key}: {f['path']} is not on the asset ledger (bin/vh assets add)"
+        else:
+            msg = None
+        bad = LI.risks(cls) if cls != "unknown" else ["unknown"]
+        if msg or not LI.accepted(cls, "strict"):
+            sev = "fail" if policy == "strict" else "warn"
+            out.append((sev, "edit.licence", users[0] if users else None,
+                        (msg or f"{key}: {f['path']} is {cls} ({', '.join(bad)})") + f", used by {', '.join(users)}; Assets: {policy} ({where})"))
+    return out
+
+
+def transitions_refused(doc):
+    """the entries whose transition bin/vh render stops on: between two entries that both have a source (next to a slate
+    it is drawn as a hard cut)"""
+    ents = doc["entries"]
+    return [e["id"] for p, e in zip(ents, ents[1:]) if e.get("transition_draw") and p["kind"] != "slate" and e["kind"] != "slate"]
+
+
+def check(project, browser=None):
+    """→ (exit, findings [(severity, kind, entry, message)], doc or None)."""
+    found = []
+    try:
+        doc = resolve(project)
+    except EditError as e:
+        return e.code, [("fail", "edit.format" if e.code == 2 else "edit.layout", None, p) for p in e.problems], None
+    stops = set(transitions_refused(doc))
+    for kind, eid, line in notes(doc):
+        if kind == "edit.transition" and eid in stops:   # render stops on it: the same words, a failure here too
+            e = next(x for x in doc["entries"] if x["id"] == eid)
+            found.append(("fail", kind, eid, f"{eid}: a transition ({e['transition'].get('type')} {e['transition'].get('duration')} s) is not drawn yet: "
+                          "leave it out for a hard cut (one next to a slate is drawn as a hard cut); bin/vh render stops on it"))
+        else:
+            found.append(("warn", kind, eid, line))
+    old = read_resolved(project)
+    if old is None:
+        found.append(("info", "edit.build", None, f"no {RESOLVED.as_posix()} yet: bin/vh edit build (bin/vh render builds it too)"))
+    else:
+        if (old.get("edit") or {}).get("sha256") != doc["edit"]["sha256"]:
+            found.append(("warn", "edit.build", None, f"{FILE} changed since the last build: bin/vh edit build"))
+        for key, f in doc["files"].items():
+            was = (old.get("files") or {}).get(key) or {}
+            if f.get("sha256") and was.get("sha256") and f["sha256"] != was["sha256"]:
+                found.append(("warn", "edit.changed", None, f"{f['path']} changed since the last build ({key}): bin/vh edit build, then render the entries that use it"))
+        for r in doc["refs"]:
+            was = {x.get("path"): x.get("sha256") for x in old.get("refs") or [] if isinstance(x, dict)}
+            if r["path"] in was and was[r["path"]] != r["sha256"]:
+                found.append(("warn", "edit.changed", None, f"{r['path']} changed since the last build: the entries that hang on it may move (bin/vh edit build says which)"))
+    found += licence_findings(project, doc)
+    if browser:
+        facts = page_facts(project, browser)
+        if isinstance(facts, list):
+            found.append(("fail", "edit.pages", None, f"the pages were not read, so their checks did not run (length, time sources, cues): {facts[0]}"))
+        else:
+            found += page_findings(doc, facts)
+    elif any(f["kind"] == "page" for f in doc["files"].values()):
+        found.append(("info", "edit.pages", None, "no browser: the pages themselves (their length, cues and time sources) were not read"))
+    code = 1 if any(s == "fail" for s, *_ in found) else 0
+    return code, found, doc
+
+
+def page_findings(doc, facts):
+    out, fps = [], doc["fps"]
+    refs = {r.get("kind"): r for r in doc["refs"]}
+    first = {}   # the first film-clock page's own time source of each kind, when edit.json names none: the others match it
+    for e in doc["entries"]:
+        if e["kind"] != "page":
+            continue
+        f = facts.get(e["src"])
+        if not isinstance(f, dict):
+            continue
+        if f.get("error"):
+            out.append(("fail", "edit.pages", e["id"], f"{e['id']} ({e['src']}): {f['error']}")); continue
+        n = e["frames"][1] - e["frames"][0]   # the page's own time at the entry's last frame, before the page's end (as pageShort in edit.mjs)
+        last = (e["frames"][1] - 1) / fps if e["clock"] == "film" else e["in"] + (n - 1) * e["speed"] / fps
+        if not e.get("hold") and f.get("duration") is not None and last * fps >= f["duration"] * fps - 1e-6:
+            out.append(("fail", "edit.layout", e["id"], f"{e['id']}: {e['src']} is {f['duration']:.3f} s long and the entry's last frame is at {last:.3f} s of it: "
+                        "shorten the entry, or \"hold\": true to hold its last frame"))
+        n = len(f.get("cues") or [])
+        if e["clock"] == "local" and n:
+            out.append(("warn", "edit.cues", e["id"], f"{e['id']}: {e['src']} is on its own clock and hangs {n} cue{'s' * (n != 1)} on the narration: "
+                        "they land in its own time, not the film's (did you mean \"clock\": \"film\"?)"))
+        if e["clock"] == "film":
+            for what in ("timeline", "music", "timemap"):
+                g = f.get(what)
+                if not (isinstance(g, dict) and g.get("sha256")):
+                    continue
+                want = refs.get(what) or first.setdefault(what, {**g, "by": e["id"]})
+                if g["sha256"] != want["sha256"]:
+                    whose = "edit.json's refs" if what in refs else f"{want['by']}'s page ({want.get('path')})"
+                    out.append(("fail", "edit.refs", e["id"], f"{e['id']}: {e['src']} reads another {what} ({g.get('path')}) than {whose}: "
+                                "every film-clock page reads the same one; point them at one file, then bin/vh edit build"))
+    return out
+
+
+# ---- a film of an edit list (bin/vh check and deliver) ----
+
+def film_facts(video):
+    """What bin/vh check and deliver ask of a video that is an edit list's film: {"from", "entries", "slates", "changed"},
+    or None when it is not one. From its .render.json (what it was rendered from) when it has one; a film with none in a
+    project with an edit list (a mux's) is taken as the edit list is now. slates: [{id, frames, t, t1}] inside the film's
+    span; changed: the images it was drawn from that are no longer those bytes."""
+    video = Path(video).resolve()
+    try:
+        side = json.loads(Path(str(video) + ".render.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        side = None
+    project = next((d for d in [video.parent, *video.parents] if (d / "BRIEF.md").is_file() or (d / FILE).is_file()), None)
+    if isinstance(side, dict) and side.get("kind") == "edit" and isinstance(side.get("entries"), list):
+        fps, entries, runs, src = side.get("fps") or 30, side["entries"], side.get("runs") or [], "its .render.json"
+        span = [side.get("first_frame") or 0, (side.get("first_frame") or 0) + (side.get("frames") or 0)]
+        base = (Path(str(video) + ".render.json").parent / side["page"]).resolve().parent if isinstance(side.get("page"), str) else project
+    elif isinstance(side, dict) or project is None or not find(project):
+        return None
+    else:
+        try:
+            doc = resolve(project)
+        except EditError as e:
+            return {"from": f"{FILE} as it is now", "entries": [], "slates": [], "changed": [], "error": "; ".join(e.problems[:3])}
+        fps, entries, runs, src, span, base = doc["fps"], doc["entries"], doc["runs"], f"{FILE} as it is now (the film has no .render.json)", [0, doc["frames"]], project
+    slates = [{"id": e["id"], "frames": [e["frames"][0], e["frames"][1] - 1], "t": r3(e["frames"][0] / fps), "t1": r3(e["frames"][1] / fps)}
+              for e in entries if e.get("kind") == "slate" and e["frames"][0] < span[1] and e["frames"][1] > span[0]]
+    changed = []
+    for r in runs:
+        if r.get("sha256") and r.get("path"):
+            f = Path(base) / r["path"]
+            try:
+                now = sha256(f)
+            except OSError:
+                now = None
+            if now != r["sha256"]:
+                changed.append({"entry": r.get("entry"), "path": r["path"], "now": "gone" if now is None else "other bytes"})
+    return {"from": src, "fps": fps, "entries": [{k: e.get(k) for k in ("id", "kind", "src", "frames", "start", "end")} for e in entries],
+            "slates": slates, "changed": changed}
+
+
+def film_main(argv):
+    """python3 tools/edit.py _film <video> [--json f]: bin/vh check's step. Nothing said and 0 for a film that is not an
+    edit list's; a line, and 1 while slates are left in it."""
+    video, out = argv[0] if argv else None, argv[argv.index("--json") + 1] if "--json" in argv[:-1] else None
+    if not video:
+        print("usage: python3 tools/edit.py _film <video> [--json f]", file=sys.stderr)
+        return 2
+    f = film_facts(video)
+    if f is None:
+        return 0
+    if out:
+        try:
+            Path(out).write_text(json.dumps(f, ensure_ascii=False), encoding="utf-8")
+        except OSError as e:
+            print(f"edit: could not write {out} ({e.strerror or e})", file=sys.stderr)
+    s = f["slates"]
+    if f.get("error"):
+        print(f"edit list: {FILE} does not resolve ({f['error']}): bin/vh edit build")
+        return 1
+    head = (f"edit list ({f['from']}): {len(s)} slate{'s' * (len(s) != 1)} left, " + ", ".join(f"{x['id']} ({x['t']:.2f}–{x['t1']:.2f} s)" for x in s[:6]) +
+            (" …" if len(s) > 6 else "") + ": an entry with no source yet is a placeholder, not a film to deliver") if s else \
+        f"edit list ({f['from']}): {len(f['entries'])} entries, no slate left"
+    print(head)
+    for c in f["changed"]:
+        print(f"  ! {c['path']} ({c['entry']}): {'gone' if c['now'] == 'gone' else 'not the bytes the film was drawn from'} (bin/vh edit build, then render it again)")
+    return 1 if s else 0
+
+
+# ---- the commands ----
+
+def say_problems(e, prefix="edit"):
+    print(f"{prefix}: {FILE} {'does not resolve' if e.code == 2 else 'does not fit'} ({len(e.problems)} problem{'s' * (len(e.problems) != 1)}):", file=sys.stderr)
+    for p in e.problems[:30]:
+        print(f"  {p}", file=sys.stderr)
+    if len(e.problems) > 30:
+        print(f"  … and {len(e.problems) - 30} more", file=sys.stderr)
+
+
+def cmd_build(a):
+    project = project_of(a.project)
+    if not find(project):
+        raise EditError(2, [f"no {FILE} in {project} (bin/vh edit init folds shots.json into one)"])
+    doc, said = build(project, write=not a.no_write)
+    if a.json:
+        print(json.dumps(dict(doc, said=said), ensure_ascii=False))
+    elif not a.quiet:
+        print(f"edit: {FILE} → {RESOLVED.as_posix()} · {summary(doc)}")
+        for line in said:
+            print(f"  {line}")
+    return 0
+
+
+def cmd_check(a):
+    project = project_of(a.project)
+    if not find(project):
+        raise EditError(2, [f"no {FILE} in {project}"])
+    code, found, doc = check(project, a.browser)
+    if a.json:
+        print(json.dumps({"version": 1, "tool": "bin/vh edit check", "edit": str(project / FILE), "exit": code,
+                          "findings": [{"severity": s, "kind": k, "entry": e, "message": m} for s, k, e, m in found]}, ensure_ascii=False, indent=1))
+    else:
+        mark = {"fail": "✗", "warn": "!", "info": "·"}
+        print(f"edit check: {FILE}" + (f" · {summary(doc)}" if doc else ""))
+        for s, _, _, m in found:
+            print(f"  {mark[s]} {m}")
+        if not found:
+            print("  ✓ nothing to say")
+    return code
+
+
+def cmd_list(a):
+    project = project_of(a.project)
+    if not find(project):
+        raise EditError(2, [f"no {FILE} in {project}"])
+    doc = resolve(project)
+    if a.json:
+        print(json.dumps({"version": 1, "fps": doc["fps"], "frames": doc["frames"], "duration": doc["duration"], "entries": doc["entries"],
+                          "slates": doc["slates"]}, ensure_ascii=False, indent=1))
+        return 0
+    print(f"edit: {FILE} · {summary(doc)}")
+    w = max(len(e["id"]) for e in doc["entries"])
+    for e in doc["entries"]:
+        what = {"slate": "slate"}.get(e["kind"], f"{e['kind']} {e['src']}" + (f" ({e['clock']} clock)" if e.get("clock") else ""))
+        reads = e.get("reads")
+        reads = " / ".join(map(str, reads)) if isinstance(reads, list) else str(reads or "")
+        bits = [str(e.get("segment") or ""), reads, ("? " + str(e["unsure"])) if e.get("unsure") not in (None, False) else ""]
+        print(f"  {e['id']:<{w}}  {e['frames'][0]:>6}–{e['frames'][1] - 1:<6} {e['start']:>8.3f}–{e['end']:<8.3f}  {what:<28} "
+              + " · ".join(b for b in bits if b))
+    return 0
+
+
+def cmd_init(a):
+    project = project_of(a.project)
+    size = None
+    if a.size:
+        m = re.fullmatch(r"(\d+)x(\d+)", a.size)
+        if not m:
+            raise EditError(2, ["--size: write it as 1920x1080"])
+        size = [int(m.group(1)), int(m.group(2))]
+    doc, kept = init(project, a.fps, size)
+    write_resolved(project, doc)
+    print(f"edit: shots.json folded into {FILE} (shots.json is {kept} now) · {summary(doc)}")
+    print("  every entry is a slate: give each a source as its picture comes (engines/EDIT.md); bin/vh render draws it as it stands, gate ②'s animatic")
+    return 0
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["_film"]:   # bin/vh check's and deliver's step (not a command of its own)
+        return film_main(argv[1:])
+    ap = argparse.ArgumentParser(prog="bin/vh edit", description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter,
+                                 epilog=__doc__.split("\n\n", 1)[1])
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("init"); p.add_argument("project"); p.add_argument("--fps", type=int); p.add_argument("--size")
+    p = sub.add_parser("build"); p.add_argument("project"); p.add_argument("--json", action="store_true"); p.add_argument("--quiet", action="store_true")
+    p.add_argument("--no-write", action="store_true", help=argparse.SUPPRESS)   # the page tools' read of it (edit.mjs facts): nothing written
+    p = sub.add_parser("check"); p.add_argument("project"); p.add_argument("--json", action="store_true"); p.add_argument("--browser", help=argparse.SUPPRESS)
+    p = sub.add_parser("list"); p.add_argument("project"); p.add_argument("--json", action="store_true")
+    a = ap.parse_args(argv)
+    try:
+        return {"init": cmd_init, "build": cmd_build, "check": cmd_check, "list": cmd_list}[a.cmd](a)
+    except EditError as e:
+        say_problems(e)
+        return e.code
+
+
+if __name__ == "__main__":
+    sys.exit(main())

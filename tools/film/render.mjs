@@ -15,7 +15,8 @@
 //                  of the same file
 //   --fps 30       the frame rate drawn. A page that gives its own (window.film.fps; canvas-film's FILM.fps, which steps
 //                  its grain once a frame) is told apart when the two differ
-//   --range a:b    only that span (frames a·fps up to b·fps); default the whole film
+//   --range a:b    only that span: the frames shown from a up to b seconds (frame k when a ≤ k / fps < b, as patch
+//                  --seconds counts them); default the whole film
 //   --frames k0:k1 only frames k0 up to k1 (k1 left out), frame k drawn at k / fps: exact, for bin/vh patch
 //   --dpr 2        twice the pixels (4K for a 1920x1080 page)
 //   --gop 60       a keyframe every 60 frames exactly, from the span's first frame (default 2 s of frames). Each chunk is
@@ -63,6 +64,9 @@ import { openFilm } from "./host.mjs";
 import { HOOK, check as checkGlyphs, collectDom, merge as mergeGlyphs, report as glyphReport } from "./glyphs.mjs";
 import { note as activityNote, progress as activityProgress } from "./activity.mjs";   // the project's activity log (bin/vh activity)
 import { commit } from "./versions.mjs";                                                 // the project's versions (bin/vh versions)
+import { frameFrom } from "./timegrid.mjs";                                              // seconds to frames (tools/timegrid.py)
+import { concatChunks } from "./join.mjs";                                               // the chunks joined, one DTS step a frame
+import { EditFilm, allFacts, build as buildEdit, chaptersOf, drawingKey, editProject, indexOf, openEdit, pageShort, shotsOf, timeSourceProblems } from "./edit.mjs";   // edit lists (engines/EDIT.md)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -108,8 +112,45 @@ if (!o.browser) die("no browser: pass --browser <chrome>, or run it as bin/vh re
 for (const tool of ["ffmpeg", "ffprobe"]) if (spawnSync(tool, ["-version"]).status !== 0) die(`${tool} is not installed`);
 
 const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };
+// an edit list (engines/EDIT.md): built first, every time; its pages read once for what the sidecar keeps and what they
+// must hold to (long enough for their entries, the same narration as the edit list); the frame rate and size are its own
+const editRoot = editProject(target);
+let doc = null, facts = {};
+if (editRoot) {
+  if (alpha) die("--alpha draws one page with the alpha it leaves; an edit list's images, colours and slates are opaque, so its film has none: render the page that leaves its background clear with --alpha");
+  try { doc = buildEdit(editRoot); } catch (e) { die(e.message.replace(/^edit: /, "")); }
+  if (fpsGiven && o.fps !== doc.fps) die(`--fps ${o.fps}: the edit list's film runs at ${doc.fps} fps (edit.json's fps): its cuts are in its frames`);
+  o.fps = doc.fps;
+  const runs = doc.runs, src = (r) => (r.draw === "slate" ? null : r.src);
+  for (let i = 1; i < runs.length; i++) {
+    const e = doc.entries[i];
+    if (e.transition_draw && src(runs[i - 1]) !== null && src(runs[i]) !== null)
+      die(`${e.id}: a transition (${e.transition.type} ${e.transition.duration} s) is not drawn yet: leave it out for a hard cut (one next to a slate is drawn as a hard cut)`);
+  }
+  try { facts = await allFacts(editRoot, doc, { ...o, runtime: "auto" }); } catch (e) { die(e.message); }
+  const bad = [];
+  for (const r of runs.filter((x) => x.draw === "page")) {
+    const f = facts[r.src] || {};
+    if (f.error) { bad.push(`${r.entry} (${r.path}): ${f.error}`); continue; }
+    const short = pageShort(r, f.duration, doc.fps);
+    if (short !== null) bad.push(`${r.entry}: ${r.path} is ${f.duration} s long and the entry's last frame is at ${short.toFixed(3)} s of it: shorten the entry, or "hold": true to hold its last frame`);
+  }
+  bad.push(...timeSourceProblems(doc, facts));
+  if (bad.length) die(`the edit list's pages:\n  ${bad.join("\n  ")}`);
+}
+// the glyph check of each page, as an edit list's worker closes it (a single page's: when its worker is done)
+const glyphs = [], editFilms = [];   // editFilms: an edit list's, one a worker (what their pages loaded goes in the sidecar)
+let failed = null;
+const glyphCheck = async (film) => {
+  if (failed) return;
+  let timer;
+  try { glyphs.push(await Promise.race([(async () => { await collectDom(film); return checkGlyphs(film); })(), new Promise((_, no) => { timer = setTimeout(() => no(new Error("it did not finish within 60 s")), 60000); })])); }
+  catch (e) { glyphs.push({ error: e.message }); }
+  finally { clearTimeout(timer); }
+};
 let first;
-try { first = await openFilm(target, { ...o, runtime: "auto", prelude: [HOOK] }); } catch (e) { die(e.message); }
+try { first = editRoot ? await openEdit(editRoot, { ...o, doc, prelude: [HOOK], onRetire: glyphCheck }) : await openFilm(target, { ...o, runtime: "auto", prelude: [HOOK] }); } catch (e) { die(e.message); }
+if (editRoot) editFilms.push(first);
 if (first.kind === "hyperframes" && !force) {
   await first.close();
   die("this is a HyperFrames composition: render it with npx hyperframes render (its renderer is the path this repo measured)" +
@@ -117,19 +158,21 @@ if (first.kind === "hyperframes" && !force) {
 }
 if (!(first.duration > 0)) { await first.close(); die("the page gives no duration"); }
 // the frame rate the page is made for: window.film.fps (engines/CONTRACT.md), else canvas-film's settings in a copy made
-// before the engine gave it
+// before the engine gave it (an edit list's pages: each one's own, said when it is not the edit list's)
 let pageFps = null;
-try { pageFps = +(await first.field("fps")) || +(await first.ev('typeof FILM === "object" && FILM && Number(FILM.fps) || 0', "reading FILM.fps")) || null; } catch { /* none */ }
-// the page's shots and chapters, for the sidecar: what bin/vh patch names and bin/vh thumbs picks a frame for
-const listOf = async (name) => { try { const x = await first.field(name); return Array.isArray(x) ? x : null; } catch { return null; } };
+if (!editRoot) try { pageFps = +(await first.field("fps")) || +(await first.ev('typeof FILM === "object" && FILM && Number(FILM.fps) || 0', "reading FILM.fps")) || null; } catch { /* none */ }
+// the page's shots and chapters, for the sidecar: what bin/vh patch names and bin/vh thumbs picks a frame for (an edit
+// list: its entries, then the shots inside its pages, in the film's seconds)
+const listOf = async (name) => { if (editRoot) return null; try { const x = await first.field(name); return Array.isArray(x) ? x : null; } catch { return null; } };
 const fin = (x) => Number.isFinite(x);
-const pageShots = ((await listOf("shots")) || []).filter((x) => x && fin(+x.start) && fin(+x.end) && +x.end > +x.start).map((x, i) => ({
+const pageShots = editRoot ? shotsOf(doc, facts).map(({ kind, ...s }) => s) : ((await listOf("shots")) || []).filter((x) => x && fin(+x.start) && fin(+x.end) && +x.end > +x.start).map((x, i) => ({
   id: String(x.id ?? `S${String(i + 1).padStart(2, "0")}`), start: +x.start, end: +x.end,
   ...(x.transition && fin(+x.transition.duration) && +x.transition.duration > 0 ? { transition: +x.transition.duration } : {}) }));
-const pageChapters = ((await listOf("chapters")) || []).filter((x) => x && fin(+x.t)).map((x) => ({ t: +x.t, title: String(x.title ?? ""), ...(x.id != null ? { id: String(x.id) } : {}) }));
-const fps = o.fps, last = Math.ceil(first.duration * fps - 1e-6);   // the film's frame count: its last frame is last - 1
-const k0 = frames ? frames[0] : range ? Math.round(range[0] * fps) : 0;
-const k1 = frames ? Math.min(frames[1], last) : !range || range[1] >= first.duration ? last : Math.round(range[1] * fps);
+const pageChapters = editRoot ? chaptersOf(doc, facts) : ((await listOf("chapters")) || []).filter((x) => x && fin(+x.t)).map((x) => ({ t: +x.t, title: String(x.title ?? ""), ...(x.id != null ? { id: String(x.id) } : {}) }));
+const fps = o.fps, last = editRoot ? doc.frames : frameFrom(first.duration, fps);   // the film's frame count: its last frame is last - 1
+// --range a:b: the frames shown from a up to b seconds (frame k when a ≤ k / fps < b), as patch --seconds counts them
+const k0 = frames ? frames[0] : range ? frameFrom(range[0], fps) : 0;
+const k1 = frames ? Math.min(frames[1], last) : !range || range[1] >= first.duration ? last : frameFrom(range[1], fps);
 const n = k1 - k0;
 if (n <= 0) { await first.close(); die(`no frames in ${frames ? `frames ${frames.join("–")}` : range ? range.join("–") + " s" : "the film"} (it is ${first.duration} s, ${last} frames)`); }
 gop = gop || Math.round(2 * fps);
@@ -183,8 +226,18 @@ const unlock = () => { try { if (+fs.readFileSync(lock, "utf8") === process.pid)
 process.on("exit", unlock);
 
 // chunks are whole GOPs, one each, so every keyframe of the joined video falls on the grid k0 + m·gop (a patch can cut
-// there) and a chunk's bytes depend on its own frames only, not on how many workers there were or which drew it
-const plan = Array.from({ length: Math.ceil(n / gop) }, (_, i) => [k0 + i * gop, Math.min(k1, k0 + (i + 1) * gop)]);
+// there) and a chunk's bytes depend on its own frames only, not on how many workers there were or which drew it. An edit
+// list's grid starts again at each run's first frame (K0 + m·gop): every cut is a keyframe, and a run's chunks are the
+// same wherever the run sits; --frames and --range take the grid's chunks inside their span (a patch puts back whole ones)
+const runOf = [];   // an edit list's chunk → the run it draws
+const plan = !editRoot ? Array.from({ length: Math.ceil(n / gop) }, (_, i) => [k0 + i * gop, Math.min(k1, k0 + (i + 1) * gop)]) : (() => {
+  const out = [];
+  for (const r of doc.runs) for (let s = r.frames[0]; s < r.frames[1]; s += gop) {
+    const a = Math.max(s, k0), b = Math.min(s + gop, r.frames[1], k1);
+    if (a < b) { out.push([a, b]); runOf.push(r); }
+  }
+  return out;
+})();
 const parts = path.join(path.dirname(outFile), `.${path.basename(outFile)}.parts`);
 const PEXT = alpha ? "mov" : "mp4";   // the chunks' container: ProRes goes in a .mov
 const kept = (i) => path.join(parts, `part${String(i).padStart(4, "0")}.${PEXT}`);   // a chunk finished clean: kept for a resume
@@ -234,7 +287,9 @@ const recipe = {
   capture: png ? "png" : `jpeg q${o.quality}`, ...(alpha ? { vf: VFA, alpha: true } : { crf: o.crf, preset: o.preset, vf }),   // what applies: x264 keeps its old keys
   real_clock: !!o.realClock, soft_gl: !!o.softGl, browser: first.version,
   ffmpeg: (spawnSync("ffmpeg", ["-version"], { encoding: "utf8" }).stdout || "").split("\n")[0],
-  tools: crypto.createHash("sha256").update(["render.mjs", "host.mjs", "clock.js", "glyphs.mjs"].map((f) => sha(path.join(HERE, f))).join()).digest("hex"),
+  tools: crypto.createHash("sha256").update(["render.mjs", "host.mjs", "clock.js", "glyphs.mjs",
+    ...(editRoot ? ["edit.mjs", "timegrid.mjs", "pages/still.html", "pages/slate.html", "pages/color.html", "../edit.py"] : [])].map((f) => sha(path.join(HERE, f))).join()).digest("hex"),
+  ...(editRoot ? { edit: crypto.createHash("sha256").update(JSON.stringify(doc.runs)).digest("hex") } : {}),   // what each frame is drawn from
 };
 const loaded = new Map();   // every file a browser of this render was sent, and its sha256
 const planFile = path.join(parts, "plan.json");
@@ -253,7 +308,7 @@ let reuse = new Set(), why = null;
     if (!changed.length && !files.length) {
       for (const [f, h] of Object.entries(old.files)) loaded.set(f, h);
       reuse = new Set(plan.map((_, i) => i).filter((i) => done.includes(path.basename(kept(i))) && fs.statSync(kept(i)).size > 0));
-    } else why = [...changed.map((k) => k === "frames" ? "the span" : k === "tools" ? "these tools" : k), ...files.slice(0, 3), ...(files.length > 3 ? [`${files.length - 3} more files`] : [])].join(", ");
+    } else why = [...changed.map((k) => k === "frames" ? "the span" : k === "tools" ? "these tools" : k === "edit" ? "the edit list" : k), ...files.slice(0, 3), ...(files.length > 3 ? [`${files.length - 3} more files`] : [])].join(", ");
   } else if (done.length) why = "no record of what they were made from";
   if (why) console.log(`  the ${done.length} chunks kept from an earlier render are not used (changed: ${why}); starting over`);
   if (reuse.size) { const keep = new Set([...reuse].map((i) => path.basename(kept(i)))); for (const f of names) if (f !== "plan.json" && !keep.has(f)) fs.rmSync(path.join(parts, f), { recursive: true, force: true }); }
@@ -273,15 +328,20 @@ if (peak(0.01) > free) {
   die(`at least ${gb(peak(0.01))} GB needed at the peak for ${peakOf} at ${px[0]}x${px[1]} (likely ${gb(peak(0.06))}–${gb(peak(0.4))}), ${gb(free)} GB free on that disk`);
 }
 const W = Math.min(o.workers, todo.length);
-console.log(`render: ${rel(first.page)} · ${first.kind === "film" ? "window.film" : first.kind} · ${first.width}x${first.height}${o.dpr !== 1 ? ` @${o.dpr}x` : ""} · ` +
+const kindSaid = editRoot ? `an edit list, ${doc.entries.length} entr${doc.entries.length === 1 ? "y" : "ies"}` + (doc.slates.length ? ` (${doc.slates.length} slate${doc.slates.length === 1 ? "" : "s"})` : "")
+  : first.kind === "film" ? "window.film" : first.kind;
+console.log(`render: ${rel(first.page)} · ${kindSaid} · ${first.width}x${first.height}${o.dpr !== 1 ? ` @${o.dpr}x` : ""} · ` +
   `${n} frames at ${fps} fps (${(k0 / fps).toFixed(3)}–${(k1 / fps).toFixed(3)} s) · ${plan.length} chunk${plan.length > 1 ? "s" : ""}, ${W} worker${W === 1 ? "" : "s"} · ${alpha ? "PNG with alpha → ProRes 4444 (.mov)" : `${png ? "PNG" : `JPEG q${o.quality}`} → x264 crf ${o.crf} ${o.preset}, keyframe every ${gop}`} · ${first.version}`);
 for (const p of first.loadProblems) console.log(`  while loading: ${p}`);
+if (editRoot) for (const [src, f] of Object.entries(facts)) for (const p of f.loadProblems || []) console.log(`  while loading ${doc.files[src].path}: ${p} (it fails the chunk that draws it)`);
 if (outside) console.log(`  --out ${out} is from the current folder: ${outFile}, outside the project (${first.root})`);
 if (px[0] % 2 || px[1] % 2) console.log(`  note: ${px[0]}x${px[1]} pixels; x264 needs even sizes, so the video is ${px[0] - px[0] % 2}x${px[1] - px[1] % 2}`);
 if (pageFps && Math.abs(pageFps - fps) > 1e-6) console.log(`  fps: drawn at ${fps} fps (${fpsGiven ? "--fps" : "the default; --fps sets it"}), the page says ${pageFps} (window.film.fps or FILM.fps): what it steps once a frame (grain) steps at its rate; make the two agree`);
+if (editRoot) for (const [src, f] of Object.entries(facts)) if (f.fps && Math.abs(f.fps - fps) > 1e-6) console.log(`  fps: ${src} (${doc.files[src].path}) is made for ${f.fps} fps, the edit list runs at ${fps}: what it steps once a frame steps at its rate`);
+if (editRoot && doc.slates.length) console.log(`  slates: ${doc.slates.join(", ")} (no source yet): an animatic; bin/vh check and deliver refuse the film until each has one`);
 if (reuse.size) console.log(`  resuming: ${reuse.size} of ${plan.length} chunks kept from the last render of this file (${plan.length - reuse.size} to draw)`);
 
-let failed = null, done = 0;
+let done = 0;
 // the first failure ends the render; the other workers finish the chunk they are on, so that it is kept for a resume
 const failWith = (msg) => { if (failed) return; failed = msg; if (W > 1) console.log(`  stopping: ${msg} (the other workers finish their chunk first)`); };
 const within = (p, s, what) => { let timer; return Promise.race([p, new Promise((_, no) => { timer = setTimeout(() => no(new Error(`${what}: no picture after ${s} s (--frame-timeout)`)), s * 1000); })]).finally(() => clearTimeout(timer)); };
@@ -329,7 +389,7 @@ if (todo.length && (o.estimate === "on" || (o.estimate === "auto" && nTodo > 600
   if (more !== null && more > free) { await first.close(); keepFinished(); die(`about ${size(more)} is needed at the peak and ${size(free)} is free on that disk: free some, or a higher --crf; --no-estimate renders without measuring`); }
 } else if (peak(0.4) > free) console.log(`  disk: about ${gb(peak(0.06))}–${gb(peak(0.4))} GB needed at the peak for ${peakOf} (more for grain, 3D, photos), ${gb(free)} GB free: it may not fit`);
 
-const glyphs = [], fileOf = plan.map((_, i) => (reuse.has(i) ? kept(i) : null));
+const fileOf = plan.map((_, i) => (reuse.has(i) ? kept(i) : null));
 const T0 = Date.now(), problems = [];
 activityProgress(0, nTodo, "frames");
 const progress = setInterval(() => {
@@ -352,7 +412,7 @@ async function chunk(film, i) {
   try {
     for (let k = a; k < b && !gone; k++) {
       const t = k / fps;
-      const { png: img } = await within(film.frame(t, capture), o.frameTimeout, `t=${t.toFixed(3)} s`);
+      const { png: img } = await within(editRoot ? film.frameK(k, capture) : film.frame(t, capture), o.frameTimeout, `t=${t.toFixed(3)} s`);
       const later = film.problems();
       if (later.length) { problems.push(`t=${t.toFixed(3)} s: ${later.join(" | ")}`); said = true; }
       if (!ff.stdin.write(img)) await Promise.race([new Promise((ok) => ff.stdin.once("drain", ok)), exited]);
@@ -367,19 +427,28 @@ async function chunk(film, i) {
     writePlan(film); fs.renameSync(file, kept(i)); fileOf[i] = kept(i);
   }) };
 }
-let next = 0;
+// the chunks in turn; an edit list's worker takes one of a run it has open first (a run's chunks stay with the browser
+// that has its page), else the next
+const pending = [...todo];
+const nextChunk = (film) => {
+  if (!pending.length) return null;
+  const j = editRoot ? Math.max(0, pending.findIndex((i) => film.isOpen(runOf[i]))) : 0;
+  return pending.splice(j, 1)[0];
+};
 async function worker(w) {
   let film = w === 0 ? first : null;
   const encoding = [];
   try {
+    if (!film && editRoot) { film = new EditFilm(editRoot, doc, { ...o, prelude: [HOOK], onRetire: glyphCheck }); editFilms.push(film); }
     if (!film) { film = await openFilm(target, { ...o, runtime: "auto", prelude: [HOOK] }); if (alpha) await clearBackground(film); }
-    while (!failed && next < todo.length) encoding.push((await chunk(film, todo[next++])).encoded);
+    for (let i; !failed && (i = nextChunk(film)) !== null;) encoding.push((await chunk(film, i)).encoded);
   } catch (e) { failWith(e.message); }
   await Promise.all(encoding);
   // the characters this worker drew, each in the font it asked for? (tools/film/glyphs.mjs; a finding is reported, not fatal)
   // (canvas text is noted as it is drawn; the DOM's text as it stands after this worker's last frame)
   // (never in the way of the render: a minute at most, then it is said to be unchecked)
-  if (film && !failed) {
+  // (an edit list's pages: each one as it is closed, glyphCheck)
+  if (film && !failed && !editRoot) {
     try { glyphs.push(await within((async () => { await collectDom(film); return checkGlyphs(film); })(), 60, "the glyph check")); }
     catch (e) { glyphs.push({ error: /no picture after/.test(e.message) ? "it did not finish within 60 s" : e.message }); }
   }
@@ -397,7 +466,7 @@ fs.writeFileSync(path.join(parts, "list.txt"), plan.map(([a, b], i) => `file '${
 // joined inside the parts folder and moved onto <out> whole (through the project's versions): a join cut short (Ctrl-C)
 // never replaces an earlier video
 const joined = path.join(parts, `joined${path.extname(outFile)}`);
-const join = spawnSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", path.join(parts, "list.txt"), "-c", "copy", "-movflags", "+faststart", joined], { encoding: "utf8" });
+const join = concatChunks(path.join(parts, "list.txt"), joined, fps, ["-movflags", "+faststart"]);
 if (join.status !== 0) fail(`joining the chunks failed: ${(join.stderr || join.signal || "").toString().trim()}`);
 // the frame count the MP4 records (counting by decoding would take minutes on a long 4K film)
 const probe = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries",
@@ -421,7 +490,28 @@ const sidecar = {
   // the files the page loaded (plan.json's table, which goes with the parts): those in the page's folder, from it, sorted
   files: Object.fromEntries([...loaded].filter(([f]) => inside(f, first.root)).map(([f, h]) => [path.relative(first.root, f).split(path.sep).join("/"), h])
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))),
+  ...(editRoot ? editSidecar() : {}),
 };
+// an edit list's film: the edit list and what it resolved to, its entries, and each run as it was drawn with its chunks and
+// their keys (a key is what the chunk's frames are made from: the run's drawing, its frames' place in it, the settings of
+// the render; a page run also lists the files its page loaded). bin/vh patch compares the runs with the edit list's now
+function editSidecar() {
+  const relIn = (f) => path.relative(first.root, f).split(path.sep).join("/");
+  const byKey = new Map();
+  for (const f of editFilms) for (const [k, set] of f.servedBy) { if (!byKey.has(k)) byKey.set(k, new Set()); for (const x of set) byKey.get(k).add(x); }
+  const filesOf = (r) => Object.fromEntries([...(byKey.get(r.draw === "page" ? `page:${r.path}` : r.draw) || [])].filter((f) => inside(f, first.root))
+    .map((f) => [relIn(f), loaded.has(f) ? loaded.get(f) : (() => { try { return sha(f); } catch { return null; } })()]).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+  const keyRecipe = { width: first.width, height: first.height, dpr: o.dpr, fps, gop, capture: recipe.capture, crf: o.crf, preset: o.preset, vf,
+    browser: first.version, ffmpeg: recipe.ffmpeg, tools: recipe.tools, real_clock: !!o.realClock, soft_gl: !!o.softGl };
+  const keyOf = (r, a, b) => crypto.createHash("sha256").update(JSON.stringify({ v: 1, drawing: drawingKey(r), index: [indexOf(r, a), indexOf(r, b)], recipe: keyRecipe })).digest("hex");
+  return {
+    edit: { path: relIn(path.join(editRoot, "edit.json")), sha256: doc.edit.sha256, resolved: crypto.createHash("sha256").update(JSON.stringify(doc)).digest("hex") },
+    refs: doc.refs, slates: doc.slates,
+    entries: doc.entries.map((e) => ({ id: e.id, kind: e.kind, src: e.src, ...(e.clock ? { clock: e.clock } : {}), frames: e.frames, start: e.start, end: e.end })),
+    runs: doc.runs.map((r) => ({ ...r, ...(r.draw === "page" ? { files: filesOf(r) } : {}),
+      chunks: plan.map(([a, b], i) => [a, b, i]).filter(([, , i]) => runOf[i] === r).map(([a, b]) => ({ frames: [a, b], key: keyOf(r, a, b) })) })),
+  };
+}
 const sideTmp = joined + ".render.json";
 fs.writeFileSync(sideTmp, JSON.stringify(sidecar, null, 1) + "\n");
 // ProRes keeps the matrix, primaries and transfer but no range flag, and reads back as 4:4:4 with alpha at 12 bits
@@ -438,7 +528,8 @@ if (alpha && okCount) {
   }
 }
 // the new film in place: the one it replaces kept as an earlier version first (tools/film/versions.mjs)
-const ver = commit({ film: outFile, new: joined, new_sidecar: sideTmp, made_by: "render", note, changed: { whole: true },
+const ver = commit({ film: outFile, new: joined, new_sidecar: sideTmp, made_by: "render", note,
+  changed: { whole: true, ...(editRoot ? { entries: [...new Set(plan.map((_, i) => runOf[i].entry))] } : {}) },
   problems: problems.length + (okCount ? 0 : 1) + (okColor ? 0 : 1) });
 fs.rmSync(parts, { recursive: true, force: true });
 const placed = ver.placed, placedShown = placed === outFile ? shown : rel(placed);

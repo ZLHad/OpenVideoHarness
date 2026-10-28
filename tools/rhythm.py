@@ -3,7 +3,8 @@
 usage: bin/vh rhythm <project> [--max S] [--segment NAME | --from S --to S] [--lang zh|en] [--beats map.json] [--out PNG]
 
 Lanes, all aligned to the same seconds:
-  shots       one bar per shot from --shots JSON/page, else shots.json, else film.html's window.film.shots;
+  shots       one bar per shot from --shots JSON/page, else the shot table (edit.json's entries, a slate striped and
+              listed with the issues; or shots.json), else film.html's window.film.shots;
               bin/vh storyboard -h has the schema. Taller = longer. Red when it runs
               longer than the type's "new payoff every N s" (dashed line): BRIEF.md's "payoff every A–B s", else the
               type the project was made from (01: 15 s, 02: 5 s, 04: 4 s, 08: 1.5 s), else --max.
@@ -129,7 +130,7 @@ def main():
     ap = argparse.ArgumentParser(prog="bin/vh rhythm", description=__doc__.split("\n\n")[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("project")
-    ap.add_argument("--shots", help="JSON or page; default: shots.json, else film.html's window.film.shots")
+    ap.add_argument("--shots", help="JSON or page; default: the shot table (edit.json, or shots.json), else film.html's window.film.shots")
     ap.add_argument("--browser", help=argparse.SUPPRESS)
     ap.add_argument("--max", type=float, help="shots longer than this are red (default: the type's payoff interval)")
     ap.add_argument("--segment", help="zoom to one segment of the shots")
@@ -177,6 +178,7 @@ def main():
     issues = []
     for s in shots:
         if long(s): issues.append((s["start"], f"{s['id']} {s['dd']:.1f} s > {limit:g} s", "shot"))
+        if s.get("kind") == "slate": issues.append((s["start"], f"{s['id']} " + ("灰卡，还没有画面" if zh else "a slate, no picture yet"), "shot"))
     for c in caps:
         if not c["ok"]: issues.append((c["start"], f"{L['captions']} {c['id']}: {c['why']}", "cap"))
     for o in ons:
@@ -246,6 +248,9 @@ def main():
                 hh = min(s["dur"], cap_s) * scale
                 col = V.RED if long(s) else colors[s["segment"]]
                 d.rectangle([xa + 1, base - hh, max(xa + 2, xb - 1), base], fill=col)
+                if s.get("kind") == "slate":   # an edit list's entry with no source yet: striped, so the slates left show
+                    for k in range(int(xa) + 4, int(xb) - 1, 7):
+                        d.line([(k, base - hh), (k, base)], fill=(255, 255, 255), width=2)
                 if long(s) or zoom:
                     V.text(d, ((xa + xb) / 2, base - hh - 4), f"{s['dd']:.1f}s", f_small, V.RED if long(s) else V.MUTED, "md")
                 sid = s["id"] if s["unsure"] is None else s["id"] + "?"

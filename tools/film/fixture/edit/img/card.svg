@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480">
+  <!-- an edit list's fixture: a still image for an entry with a move -->
+  <rect width="640" height="480" fill="#2a4d6e"/>
+  <rect x="40" y="40" width="160" height="160" fill="#e3b341"/>
+  <circle cx="460" cy="300" r="120" fill="#c9503c"/>
+  <rect x="0" y="420" width="640" height="60" fill="#e8e2d0"/>
+</svg>

@@ -21,19 +21,22 @@ A finding: {"kind", "severity", "message", "t", "t1", "frame", "frames", "eviden
   kind      check.spec, check.gate, check.black, check.freeze, check.silence, check.iso (an isolated frame), check.periodic,
             check.static, check.cut (a hard cut from dark to bright), check.blind (frames that move too much to judge),
             check.subtitles, check.colour, check.loudness (the film's sound against what it was mixed to), check.packaging,
-            check.scale, check.confirmed (an entry of confirmed.json unused, lapsed or not taken). The names are
-            confirmed.json's ("tool": "check.iso")
+            check.scale, check.confirmed (an entry of confirmed.json unused, lapsed or not taken), check.slate (an edit
+            list's entry with no source yet, left in the film), check.edit (an image the film was drawn from that changed
+            since). The names are confirmed.json's ("tool": "check.iso")
   severity  fail (it makes bin/vh check exit 1), warn (to look at), info (said, nothing to do)
   t, t1     the time, or the span, in seconds (null when it has none); frame / frames: the frame, or [first, last]
   evidence  what the finding rests on: the measured numbers, the BRIEF's line, the key, the entry that confirms it …
   confirmed true when confirmed.json covers it, false when it could (check.iso) and does not, null for the kinds that are
             never confirmed there. An open check.iso carries "confirm": the entry to paste once why and evidence are filled
   remedies  for a kind tools/remedies.json has: [{"say", "run" | "doc"}], what can answer it (options, not verdicts)
+  entry     an edit list's film (engines/EDIT.md): the entry a finding with a time falls in, {"id", "kind", "src"}
 The pieces in --dir, each optional (a check that did not run is "skipped" or simply absent): spec.json (speccheck.py),
 gate.json (gatecheck.py), detect.txt (ffmpeg's black/freeze/silence lines), iso.json (isoframes.py), subs.json
 (subcheck.py), colour.txt (ffprobe's csv), film.txt ("<size> <mtime_ns>" of the video when the checks began; without it, the
-video as it is when the record is made), pack.json (packcheck.py), scale.json (scalecheck.py), skipped.txt (lines of
-"<check>\t<why>"), errors.txt (lines of "<kind>\t<severity>\t<message>": a failure with no result of its own).
+video as it is when the record is made), pack.json (packcheck.py), scale.json (scalecheck.py), edit.json (tools/edit.py _film:
+an edit list's film, its entries, slates and changed images), skipped.txt (lines of "<check>\t<why>"), errors.txt (lines of
+"<kind>\t<severity>\t<message>": a failure with no result of its own).
 """
 import argparse, json, os, re, subprocess, sys, time
 from pathlib import Path
@@ -225,6 +228,34 @@ def scale_findings(sc):
     return out
 
 
+def edit_findings(ed):
+    """An edit list's film: each slate left (fail), each image changed since it was drawn (warn)."""
+    out = []
+    if ed.get("error"):
+        out.append(finding("check.slate", "fail", f"the edit list does not resolve: {ed['error']}"))
+    for s in ed.get("slates") or []:
+        out.append(finding("check.slate", "fail", f"{s['id']} is a slate, {s['t']:.2f}–{s['t1']:.2f} s: an entry with no source yet is a placeholder, not a film to deliver",
+                           t=s["t"], t1=s["t1"], frame=s["frames"][0], frames=s["frames"], evidence={"from": ed.get("from")}))
+    for c in ed.get("changed") or []:
+        out.append(finding("check.edit", "warn", f"{c['path']} ({c['entry']}): {'gone' if c['now'] == 'gone' else 'not the bytes the film was drawn from'}",
+                           evidence={"entry": c["entry"], "path": c["path"], "from": ed.get("from")}))
+    return out
+
+
+def place_in_edit(findings, ed):
+    """Each finding with a time, in an edit list's film: the entry it falls in ({"id", "kind", "src"})."""
+    ents, fps = ed.get("entries") or [], ed.get("fps") or 30
+    for f in findings:
+        t = f.get("t")
+        if not isinstance(t, (int, float)) or f["kind"] == "check.slate":
+            continue
+        from timegrid import frame_at   # the frame on screen at t
+        k = frame_at(t, fps)
+        e = next((x for x in ents if isinstance(x.get("frames"), list) and x["frames"][0] <= k < x["frames"][1]), None)
+        if e:
+            f["entry"] = {"id": e.get("id"), "kind": e.get("kind"), "src": e.get("src")}
+
+
 def record_path(video, project):
     rel = Path(os.path.relpath(video, project)).with_suffix("")
     parts = list(rel.parts)
@@ -257,7 +288,7 @@ def main():
     findings, skipped = [], []
     pieces = [("spec.json", spec_findings, load), ("gate.json", gate_findings, load), ("detect.txt", detect_findings, text),
               ("iso.json", iso_findings, load), ("subs.json", subs_findings, load), ("colour.txt", colour_findings, text), ("loud.json", loud_findings, load),
-              ("pack.json", pack_findings, load), ("scale.json", scale_findings, load)]
+              ("pack.json", pack_findings, load), ("scale.json", scale_findings, load), ("edit.json", edit_findings, load)]
     for name, fn, get in pieces:
         try:
             got = get(a.dir, name)
@@ -273,6 +304,9 @@ def main():
         if line.count("\t") >= 2:
             kind, sev, msg = line.split("\t", 2)
             findings.append(finding(kind, sev, msg))
+    ed = load(a.dir, "edit.json")
+    if ed:   # an edit list's film: each finding with a time in the entry it falls in
+        place_in_edit(findings, ed)
     import remedies   # tools/remedies.json: what can answer each kind of finding
     for f in findings:
         r = remedies.for_kind(f["kind"])
@@ -280,6 +314,13 @@ def main():
             f["remedies"] = r
     if a.remedies:
         out = sys.stderr if a.print else sys.stdout   # with --print, stdout is the record: the ways out go beside it
+        placed = [f for f in findings if f.get("entry") and f["severity"] in ("fail", "warn") and not f.get("confirmed")]
+        if placed:
+            print("→ where in the edit list:", file=out)
+            for f in placed[:20]:
+                e = f["entry"]
+                print(f"   {f['kind'].split('.', 1)[-1]} {f['t']:.2f}" + (f"–{f['t1']:.2f}" if isinstance(f.get("t1"), (int, float)) else "") +
+                      f" s: in {e['id']} ({e['kind']}{' ' + e['src'] if e.get('src') else ''})", file=out)
         for line in remedies.lines(findings):
             print(line, file=out)
     counts = {s: sum(f["severity"] == s for f in findings) for s in ("fail", "warn", "info")}

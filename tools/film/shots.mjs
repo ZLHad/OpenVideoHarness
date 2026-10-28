@@ -2,7 +2,7 @@
 // --capture reads {out, frames: [{name, t}]} from stdin and draws those frames through the same host.
 import fs from "node:fs";
 import path from "node:path";
-import { openFilm } from "./host.mjs";
+import { openTarget } from "./edit.mjs";   // a page, or an edit list's film (engines/EDIT.md: storyboard's tiles when there is no video)
 
 let film, timer;
 // a watchdog per step, not one budget for the whole run: 120 s for the page to be ready, then 60 s for each frame
@@ -20,7 +20,7 @@ try {
   const [target, flag, browser, mode] = process.argv.slice(2);
   if (!target || flag !== "--browser" || !browser || (mode && mode !== "--capture"))
     throw new Error("use shots.mjs <page> --browser <chrome> [--capture]");
-  film = await openFilm(target, { browser, runtime: "auto" });
+  film = await openTarget(target, { browser, runtime: "auto" });
   if (film.loadProblems.length) throw new Error(film.loadProblems.join(" | "));
   // Capture may be requested by a hand-written JSON table; do not read an unselected registry.
   const shots = mode === "--capture" ? null : await film.field("shots");

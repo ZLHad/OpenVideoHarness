@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; overflow: hidden; } canvas { display: block; }</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+  // The host's page for an edit list's colour entries (engines/EDIT.md): the whole frame one colour, a black or a white
+  // between two entries. window.filmHost.params: { color } (tools/film/edit.mjs sets it).
+  const c = document.getElementById("c"), x = c.getContext("2d");
+  const P = () => (window.filmHost && window.filmHost.params) || {};
+  window.film = {
+    get duration() { const p = P(); return p.frames > 0 && p.fps > 0 ? p.frames / p.fps : 1; },
+    frame() {
+      const d = window.devicePixelRatio || 1, w = Math.round(innerWidth * d), h = Math.round(innerHeight * d);
+      if (c.width !== w || c.height !== h) { c.width = w; c.height = h; c.style.width = innerWidth + "px"; c.style.height = innerHeight + "px"; }
+      x.fillStyle = P().color || "#000"; x.fillRect(0, 0, w, h);
+    },
+  };
+</script>
+</body>
+</html>

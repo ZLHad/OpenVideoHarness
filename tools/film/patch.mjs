@@ -38,6 +38,12 @@
 //   --note text      a line for this version in the project's record
 //   --keep           keep the work folder (.<out>.patch/) to look at
 //
+// A film of an edit list (its sidecar says "kind": "edit", engines/EDIT.md): the edit list is built again first, and
+// compared with the one the film was rendered from, frame by frame: the film's frame count must be the same, and every
+// frame the edit list now draws otherwise (another source, an entry that moved or changed its length) must fall inside
+// the frames drawn again, or the patch is refused (exit 2): a film made from two edit lists would pass every check below.
+// --shot takes the entries (S03) and the shots inside a page entry (S02.S05); --chapter the edit list's chapters, else
+// the pages'. The frames are drawn with the edit list as it is now; the sidecar takes its runs.
 // Room: about twice the film's size free beside the output (the film is cut, joined and its tracks put back before the
 // parts go). One patch of an output at a time (<out>.patch.lock), and none while bin/vh render is writing the film.
 // Checks, every run: the new film has as many frames as the old one; every packet outside the frames rendered again is
@@ -52,6 +58,10 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { note as activityNote } from "./activity.mjs";   // the project's activity log (bin/vh activity)
 import { commit, moveBeside, there } from "./versions.mjs";   // the project's versions (bin/vh versions)
+import { findTable, readTable, tidyShots } from "./shot_source.mjs";   // the project's shot table (tools/shot_source.py's mirror)
+import { frameFrom } from "./timegrid.mjs";                           // seconds to frames (tools/timegrid.py)
+import { concatChunks } from "./join.mjs";                            // the pieces joined, one DTS step a frame
+import { allFacts, build as buildEdit, chaptersOf, differences, editProject, shotsOf } from "./edit.mjs";   // edit lists (engines/EDIT.md)
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
 const HERE = path.dirname(new URL(import.meta.url).pathname);
@@ -140,28 +150,33 @@ const gop = enc.gop, ff0 = side.first_frame;
 // the sidecar's page is relative to the sidecar's own folder (the render's video was beside it)
 const page = path.resolve(pageArg || (path.isAbsolute(side.page) ? side.page : path.join(path.dirname(sidecarFile), side.page)));
 if (!fs.existsSync(page)) die(`no page at ${rel(page)} (the sidecar's; --page names another)`);
+// an edit list's film: the edit list as it is now, the same length as the one the film was made from
+const editRoot = side.kind === "edit" ? editProject(page) : null;
+if (side.kind === "edit" && !editRoot) die(`${rel(sidecarFile)} is an edit list's film, and ${rel(page)} is not its edit.json`);
+let doc = null;
+if (editRoot) {
+  if (!Array.isArray(side.runs) || !side.runs.length) die(`${rel(sidecarFile)} has no runs: not the sidecar of an edit list's render`);
+  try { doc = buildEdit(editRoot); } catch (e) { die(`the edit list: ${e.message.replace(/^edit: /, "")}`); }
+  const was = side.runs[side.runs.length - 1].frames[1];
+  if (doc.fps !== fps) die(`the edit list runs at ${doc.fps} fps now, the film at ${fps}: render it again`);
+  if (doc.frames !== was) die(`the edit list is ${doc.frames} frames long now, the film was made from one of ${was}: a patch keeps the film's length, so render it again (bin/vh render)`);
+}
 
-// ---- the shots and chapters, when the spans name them: shots.json in the project, else the page ----
-const secs = (x) => {
-  if (typeof x === "number") return Number.isFinite(x) ? x : null;
-  const m = String(x ?? "").match(/^\s*(?:(\d+):)?(\d+):(\d+(?:\.\d+)?)\s*$/);
-  const y = m ? +(m[1] || 0) * 3600 + +m[2] * 60 + +m[3] : String(x ?? "").trim() === "" ? NaN : Number(x);
-  return Number.isFinite(y) ? y : null;
-};
-const tidyShots = (raw) => raw.map((s, i) => {   // as bin/vh storyboard reads them: start / t0, end / t1, an id or S01 …
-  const pick = (...ks) => ks.map((kk) => s && s[kk]).find((x) => x !== undefined && x !== null && x !== "");
-  const d = s && s.transition && typeof s.transition === "object" ? +s.transition.duration : typeof (s && s.transition) === "number" ? s.transition : NaN;
-  return { id: String((s && s.id) || `S${String(i + 1).padStart(2, "0")}`), start: secs(pick("start", "t0")), end: secs(pick("end", "t1")), ...(d > 0 ? { transition: d } : {}) };
-}).filter((s) => s.start !== null && s.end !== null && s.end > s.start).sort((p, q) => p.start - q.start);
-const shotsJson = project && fs.existsSync(path.join(project, "shots.json")) ? path.join(project, "shots.json") : null;
-const readShotsJson = () => {
-  let j; try { j = JSON.parse(fs.readFileSync(shotsJson, "utf8")); } catch (e) { die(`${rel(shotsJson)}: ${e.message}`); }
-  const raw = Array.isArray(j) ? j : j && j.shots;
-  if (!Array.isArray(raw)) die(`${rel(shotsJson)}: a list of shots, or {"shots": [...]} (bin/vh storyboard -h)`);
-  return tidyShots(raw);
-};
+// ---- the shots and chapters, when the spans name them: the project's shot table, else the page ----
+// (an edit list's film: its entries, the shots inside its pages as <entry>.<shot>, its chapters or else its pages')
+const shotsJson = editRoot ? null : findTable(project);
+const readShotsJson = () => { try { return readTable(shotsJson); } catch (e) { die(`${rel(shotsJson)}: ${e.message}`); } };
 let table = null, tableFrom = null, chapters = null;
-if (shotIds.length || chapterIds.length) {
+if (editRoot && (shotIds.length || chapterIds.length)) {
+  const pages = shotIds.some((id) => id.includes(".")) || (chapterIds.length && !(doc.chapters || []).length);
+  let facts = {};
+  if (pages) try { facts = await allFacts(editRoot, doc, { browser, frameTimeout: o.frameTimeout }); } catch (e) { die(`reading the edit list's pages: ${e.message}`); }
+  table = shotsOf(doc, facts).map(({ id, start, end }) => ({ id, start, end }));
+  tableFrom = `${rel(path.join(editRoot, "edit.json"))} (its entries${pages ? " and the shots inside its pages" : ""})`;
+  const cs = chaptersOf(doc, facts);
+  chapters = cs.length ? cs.map((c, i) => ({ n: i + 1, t: c.t, title: c.title, id: c.id ?? null, end: i + 1 < cs.length ? cs[i + 1].t : doc.frames / fps })) : null;
+  if (chapterIds.length && !chapters) die(`the edit list has no chapters (edit.json's chapters, or its pages' window.film.chapters): name the frames or the entries instead`);
+} else if (shotIds.length || chapterIds.length) {
   if (shotIds.length && shotsJson) { table = readShotsJson(); tableFrom = rel(shotsJson); }
   if (!table || chapterIds.length) {   // the page, as it draws now
     const { openFilm } = await import("./host.mjs");
@@ -180,10 +195,10 @@ if (shotIds.length || chapterIds.length) {
 }
 // a shot's span runs on through the transition into the next one, which draws it underneath
 const nextAfter = (t) => (table || []).find((s) => Math.abs(s.start - t) < 1e-6);
-const toFrames = (s, e) => [Math.ceil((s * fps) - 1e-6) - ff0, Math.ceil((e * fps) - 1e-6) - 1 - ff0];   // page seconds → film frames
+const toFrames = (s, e) => [frameFrom(s, fps) - ff0, frameFrom(e, fps) - 1 - ff0];   // page seconds → film frames
 const spans = [], sources = [];
 for (const f of frameLists) spans.push(f);
-for (const [s, e] of secondLists) spans.push([Math.ceil(s * fps - 1e-6), Math.min(N, Math.ceil(e * fps - 1e-6)) - 1]);   // seconds past the end: to the last frame
+for (const [s, e] of secondLists) spans.push([frameFrom(s, fps), Math.min(N, frameFrom(e, fps)) - 1]);   // seconds past the end: to the last frame
 for (const id of shotIds) {
   const s = table.find((x) => x.id === id);
   if (!s) die(`no shot ${id}: ${tableFrom} has ${table.map((x) => x.id).slice(0, 30).join(", ")}${table.length > 30 ? " …" : ""}`);
@@ -214,6 +229,21 @@ for (const [a, b] of asked) {
 }
 const span = (x, y) => `${x}–${y}`, list = (xs) => xs.map(([x, y]) => span(x, y)).join(", ");
 const askedList = list(asked), winList = wins.map((w) => span(w.A, w.B - 1)).join(", "), nDrawn = wins.reduce((s, w) => s + w.B - w.A, 0);
+// an edit list's film: every frame the edit list now draws otherwise than the film's was drawn falls inside the windows
+const drawnAbs = (f) => wins.some((w) => f >= w.A + ff0 && f < w.B + ff0);
+if (editRoot) {
+  const out = [];
+  for (const [a, b] of differences(side.runs, doc.runs)) {
+    const miss = [];
+    for (let f = Math.max(a, ff0); f < Math.min(b, ff0 + N); f++) if (!drawnAbs(f)) { const l = miss[miss.length - 1]; if (l && l[1] === f - 1) l[1] = f; else miss.push([f, f]); }
+    out.push(...miss);
+  }
+  if (out.length) {
+    const who = [...new Set([...side.runs, ...doc.runs].filter((r) => out.some(([a, b]) => r.frames[0] <= b && r.frames[1] > a)).map((r) => r.entry))];
+    die(`the edit list changed in ${who.join(", ")} since the film was rendered, and frames ${out.map(([a, b]) => (a === b ? `${a - ff0}` : `${a - ff0}–${b - ff0}`)).join(", ")} ` +
+      `of it are outside the frames drawn again (${winList}): the film would be made of two edit lists. Name those frames too (--shot ${who.join(",")}), or render it again (bin/vh render)`);
+  }
+}
 const outFile = inPlace ? film : path.resolve(out || path.join(path.dirname(film), `${path.basename(film, path.extname(film))}.patched${path.extname(film)}`));
 if (!inPlace && outFile === film) die("--out is the film itself: use --in-place");
 {   // the earlier versions in a project's out/versions are never patched over (bin/vh versions)
@@ -266,7 +296,7 @@ const T0 = Date.now();
 const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("OVH_ACTIVITY_"))), OVH_VERSIONS: "off", OVH_RENDER_PIECE: "1" };
 const notes = [];
 let pieceSide = null;
-const pieceFiles = {};
+const pieceFiles = {}, pieceSides = [];
 for (const [i, w] of wins.entries()) {
   w.piece = path.join(work, `piece${i}.mp4`);
   const rargs = [path.join(HERE, "render.mjs"), page, "--browser", browser, "--frames", `${ff0 + w.A}:${ff0 + w.B}`, "--fps", String(fps), "--dpr", String(side.dpr || 1),
@@ -285,6 +315,7 @@ for (const [i, w] of wins.entries()) {
   if (ps.frames !== w.B - w.A) die(`the page drew ${ps.frames} frames for ${w.A}–${w.B - 1}, not ${w.B - w.A}: it is shorter now than the film (${rel(page)}). Render the film again`, 1);
   if (side.browser && ps.browser !== side.browser && !notes.length) notes.push(`the film was rendered in ${side.browser}, these frames in ${ps.browser}: text and edges can differ a little (the PSNR below shows how much)`);
   pieceSide = pieceSide || ps;
+  pieceSides.push(ps);
   Object.assign(pieceFiles, ps.files || {});   // what each piece's page loaded (bin/vh assets check reads the union)
   // the same encoder setup? Joined streams share one SPS/PPS
   const pv = streams(w.piece).find((s) => s.codec_type === "video");
@@ -319,7 +350,10 @@ if (cuts.length) {
 fs.writeFileSync(path.join(work, "list.txt"), parts.map(([f, n]) => `file '${path.basename(f)}'\nduration ${(n / fps).toFixed(9)}`).join("\n") + "\n");
 const video = path.join(work, "video.mp4");
 const others = filmStreams.filter((s) => s.codec_type !== "video");
-ff(["-f", "concat", "-safe", "0", "-i", path.join(work, "list.txt"), "-map", "0:v", "-c", "copy", ...(others.length ? [] : ["-movflags", "+faststart"]), video], "joining");
+{
+  const r = concatChunks(path.join(work, "list.txt"), video, fps, others.length ? [] : ["-movflags", "+faststart"]);
+  if (r.status !== 0) die(`joining: ${(r.stderr || r.error || "").toString().trim()}`, 1);
+}
 for (const f of fs.readdirSync(work)) if (/^seg\d+\.mp4$/.test(f)) fs.rmSync(path.join(work, f));   // the cut film: its packets are in video.mp4 now
 const joined = path.join(work, `joined${path.extname(outFile) || ".mp4"}`);
 if (others.length) {
@@ -444,8 +478,7 @@ const crossTable = (() => {   // names only: a table that cannot be read names n
   try {
     if (!shotsJson) return tidyShots((pieceSide && pieceSide.shots) || side.shots || []);
     if (table && tableFrom === rel(shotsJson)) return table;
-    const j = JSON.parse(fs.readFileSync(shotsJson, "utf8")), raw = Array.isArray(j) ? j : j && j.shots;
-    return Array.isArray(raw) ? tidyShots(raw) : [];
+    return readTable(shotsJson);
   } catch { return []; }
 })();
 const crossed = crossTable.filter((s) => asked.some(([a, b]) => s.start < (b + 1 + ff0) / fps - 1e-9 && s.end > (a + ff0) / fps + 1e-9)).map((s) => s.id);
@@ -459,10 +492,22 @@ const sideFor = (videoFile) => {   // as bin/vh render writes it: the page relat
   // the film's files and the new frames' (a file drawn again: its bytes now); a film rendered before they were recorded
   // stays without (its few new frames are not the whole film's files: bin/vh assets check counts it as not known)
   if (side.files && typeof side.files === "object") s.files = { ...side.files, ...pieceFiles };
+  if (editRoot && pieceSide) {   // the edit list now, and each run's chunks: the film's outside the windows, the pieces' inside
+    for (const k of ["edit", "refs", "slates", "entries"]) if (pieceSide[k]) s[k] = pieceSide[k];
+    const old = (side.runs || []).flatMap((r) => (r.chunks || []).filter((c) => !drawnAbs(c.frames[0])));
+    const fresh = pieceSides.flatMap((ps) => (ps.runs || []).flatMap((r) => r.chunks || []));
+    const filesOf = (id) => Object.assign({}, ...(side.runs || []).filter((r) => r.entry === id).map((r) => r.files || {}),
+      ...pieceSides.flatMap((ps) => (ps.runs || []).filter((r) => r.entry === id).map((r) => r.files || {})));
+    s.runs = pieceSide.runs.map((r) => {
+      const inRun = (c) => c.frames[0] >= r.frames[0] && c.frames[1] <= r.frames[1];
+      return { ...r, ...(r.draw === "page" ? { files: filesOf(r.entry) } : {}), chunks: [...old.filter(inRun), ...fresh.filter(inRun)].sort((p, q) => p.frames[0] - q.frames[0]) };
+    });
+  }
   return s;
 };
 const changed = { whole: false, frames: asked, seconds: asked.map(([a, b]) => [+(a / fps).toFixed(6), +((b + 1) / fps).toFixed(6)]),
-  drawn: wins.map((w) => [w.A, w.B - 1]), shots: crossed, ...(shotIds.length || chapterIds.length ? { asked: { shots: shotIds, chapters: chapterIds } } : {}) };
+  drawn: wins.map((w) => [w.A, w.B - 1]), shots: crossed, ...(shotIds.length || chapterIds.length ? { asked: { shots: shotIds, chapters: chapterIds } } : {}),
+  ...(editRoot ? { entries: doc.runs.filter((r) => wins.some((w) => r.frames[0] < w.B + ff0 && r.frames[1] > w.A + ff0)).map((r) => r.entry) } : {}) };
 const named = crossed.length ? ` (${crossed.slice(0, 6).join(", ")}${crossed.length > 6 ? " …" : ""})` : "";
 if (failures.length) {
   // <film>.failed.mp4 beside the output, or the next free name (.failed-2.mp4 …): an earlier failed film is never overwritten

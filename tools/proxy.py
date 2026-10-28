@@ -16,7 +16,8 @@ proxy   <name>.mp4: the film at --size px on its short side (360; never larger t
 thumbs  <name>.thumbs/: a tile every --every seconds (2), --width px wide (160), in sheets of 10 x 10 (sheet-01.jpg …), one
         picture a shot (shots/<id>.jpg, --shot-width px wide) at its `at` or 60 % into it (as bin/vh storyboard picks), and
         thumbs.json, the map: every tile's time, frame, sheet and x, y; every shot's time, frame, span and file. The shots:
-        shots.json in the project, else, for a film, its .render.json (the page's window.film.shots when it was rendered:
+        an edit list's film: its .render.json's entries and the shots inside its pages; else the project's shot table
+        (edit.json or shots.json), else, for a film, its .render.json (the page's window.film.shots when it was rendered:
         no browser is started for a film, so a film without them gets no shot pictures), and with no film, the page's.
         Frames come from a proxy made of this same film when there is one (fast), else the film, else the page.
         Run again after patches in place: only the tiles and shots in the frames drawn again are taken anew
@@ -29,6 +30,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import versions as V   # noqa: E402
+from timegrid import frame_at, frame_from   # noqa: E402  (seconds to frames, the one way)
 
 VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
 SKIP = {"check", "review", "proxy", "versions", "frames"}
@@ -54,7 +56,7 @@ def probe(f):
     a, _, b = str(v.get("r_frame_rate", "0/1")).partition("/")
     fps = float(a) / float(b or 1) if float(b or 1) else 0
     dur = float((j.get("format") or {}).get("duration") or 0)
-    n = int(v["nb_frames"]) if str(v.get("nb_frames", "")).isdigit() else round(dur * fps)
+    n = int(v["nb_frames"]) if str(v.get("nb_frames", "")).isdigit() else (frame_from(dur, fps) if fps > 0 else 0)
     return {"width": v.get("width"), "height": v.get("height"), "fps": fps, "frames": n, "duration": dur,
             "audio": any(s.get("codec_type") == "audio" for s in j.get("streams") or []), "extradata": v.get("extradata_hash")}
 
@@ -110,7 +112,7 @@ def pick(target):
     if film is None:
         vids = films_in(project)
         film = next((f for f in vids if Path(str(f) + ".render.json").is_file()), vids[0] if vids else None)
-    page = next((Path(project) / n for n in ("film.html", "index.html", "studio.html") if (Path(project) / n).is_file()), None)
+    page = next((Path(project) / n for n in ("edit.json", "film.html", "index.html", "studio.html") if (Path(project) / n).is_file()), None)
     return (film.resolve() if film else None), Path(project), page
 
 
@@ -285,17 +287,22 @@ def cmd_proxy(a):
 # ---- thumbs ----
 
 def shot_table(project, film, side):
-    """[(id, start, end, at)] in film seconds, and where they came from."""
-    import vhdraw
+    """[(id, start, end, at)] in film seconds, and where they came from: an edit list's film, the entries and the shots
+    inside its pages as its .render.json recorded them; else the project's shot table; else the page's shots there."""
+    import shot_source
     off = (side or {}).get("first_frame", 0) / ((side or {}).get("fps") or 1) if side else 0
-    if project and (Path(project) / "shots.json").is_file():
-        try:
-            shots, _ = vhdraw.load_shots(Path(project) / "shots.json")
-            return [(s["id"], s["start"] - off, s["end"] - off, s["at"] - off if s["at"] is not None else None) for s in shots], "shots.json"
-        except SystemExit as e:
-            print(f"thumbs: {e}; no shot pictures", file=sys.stderr)
-            return [], None
     raw = (side or {}).get("shots")
+    if (side or {}).get("kind") == "edit" and isinstance(raw, list):   # an entry's at: its tile's moment, as the shot table gives it
+        return [(str(s["id"]), float(s["start"]) - off, float(s["end"]) - off, float(s["at"]) - off if isinstance(s.get("at"), (int, float)) else None) for s in raw
+                if isinstance(s, dict) and isinstance(s.get("start"), (int, float)) and isinstance(s.get("end"), (int, float))], \
+            f"{rel(project, str(film) + '.render.json')} (the edit list's entries and the pages' shots)"
+    try:
+        shots, table = shot_source.parsed(project) if project else ([], None)
+    except SystemExit as e:
+        print(f"thumbs: {e}; no shot pictures", file=sys.stderr)
+        return [], None
+    if table:
+        return [(s["id"], s["start"] - off, s["end"] - off, s["at"] - off if s["at"] is not None else None) for s in shots], table.name
     if isinstance(raw, list) and raw:
         return [(str(s["id"]), float(s["start"]) - off, float(s["end"]) - off, None) for s in raw
                 if isinstance(s, dict) and isinstance(s.get("start"), (int, float)) and isinstance(s.get("end"), (int, float))], \
@@ -349,9 +356,18 @@ def cmd_thumbs(a):
         if not a["browser"]:
             raise Usage("no film, and no headless Chrome to draw the page: run it as bin/vh thumbs, or set CHROME_PATH")
         import shot_source
-        live = shot_source.live_page(page, a["browser"])
-        fps, dur, aspect = 30.0, float(live["duration"] or 0), live["width"] / live["height"]
-        nfr = math.ceil(dur * fps - 1e-6)
+        if shot_source.is_edit(page):   # an edit list with no film yet: its frames drawn as bin/vh frames draws them
+            import edit
+            try:
+                doc = edit.resolve(project)
+            except edit.EditError as e:
+                raise Usage("edit.json does not resolve: " + "; ".join(e.problems[:3])) from None
+            live = {"shots": None}
+            fps, dur, aspect, nfr = float(doc["fps"]), doc["frames"] / doc["fps"], doc["size"][0] / doc["size"][1], doc["frames"]
+        else:
+            live = shot_source.live_page(page, a["browser"])
+            fps, dur, aspect = 30.0, float(live["duration"] or 0), live["width"] / live["height"]
+            nfr = frame_from(dur, fps)
         name, base = Path(page).stem, page
     if not (dur > 0):
         raise RuntimeError("no length to take pictures of")
@@ -361,7 +377,7 @@ def cmd_thumbs(a):
     old = V.load_json(recf) if recf.is_file() else None
     every, W, SW = a["every"], a["width"], a["shot_width"]
     H, SH = even(W / aspect), even(SW / aspect)   # every picture at exactly this size: the map's x and y hold
-    tiles = [(i, round(i * every, 6), min(nfr - 1, int(i * every * fps + 1e-6))) for i in range(max(1, math.ceil(dur / every - 1e-9)))]
+    tiles = [(i, round(i * every, 6), min(nfr - 1, frame_at(i * every, fps))) for i in range(max(1, math.ceil(dur / every - 1e-9)))]
     if film:
         shots, shots_from = shot_table(project, film, side)
     else:
@@ -369,12 +385,12 @@ def cmd_thumbs(a):
         raw = live.get("shots")
         shots = [] if not raw else [(s["id"], s["start"], s["end"], s["at"]) for s in vhdraw.parse_shots(raw, page)[0]]
         shots_from = f"{rel(project, page)} (window.film.shots)" if shots else None
-        if project and (Path(project) / "shots.json").is_file():
-            sh, _ = vhdraw.load_shots(Path(project) / "shots.json")
-            shots, shots_from = [(s["id"], s["start"], s["end"], s["at"]) for s in sh], "shots.json"
+        sh, table = shot_source.parsed(project) if project else ([], None)
+        if table:
+            shots, shots_from = [(s["id"], s["start"], s["end"], s["at"]) for s in sh], table.name
     pick_t = lambda s, e, at: min(max(0.0, at if at is not None else s + 0.6 * (e - s)), dur - 0.5 / fps)   # noqa: E731
     shot_rows = [(sid, s, e, round(pick_t(s, e, at), 6)) for sid, s, e, at in shots if e > 0 and s < dur]
-    shot_rows = [(sid, s, e, t, min(nfr - 1, int(t * fps + 1e-6)), re.sub(r"[^\w.-]+", "-", sid) or "shot") for sid, s, e, t in shot_rows]
+    shot_rows = [(sid, s, e, t, min(nfr - 1, frame_at(t, fps)), re.sub(r"[^\w.-]+", "-", sid) or "shot") for sid, s, e, t in shot_rows]
     # the source of the pictures: a proxy made of this same film (fast), else the film, else the page
     src, frm = base, "page" if not film else "film"
     if film:
@@ -441,7 +457,7 @@ def cmd_thumbs(a):
         print(json.dumps(dict(rec, state=made), ensure_ascii=False, indent=1))
     else:
         print(f"thumbs: {rel(project, d)} · {len(tiles)} tiles every {every} s ({W}x{H}) in {len(sh)} sheet(s), {len(shot_rows)} shot picture(s)"
-              + (f" ({shots_from})" if shots_from else " (no shots: shots.json, or a page that gives window.film.shots)")
+              + (f" ({shots_from})" if shots_from else " (no shots: a shot table, edit.json or shots.json, or a page that gives window.film.shots)")
               + f" · from the {frm} · " + {"full": "made" + (f" anew ({why})" if why else ""), "up to date": "up to date",
                                            "refreshed": f"refreshed: {len(todo_t)} tile(s) and {len(todo_s)} shot picture(s) taken anew"}[made]
               + (f" · {rec['seconds']} s" if made != "up to date" else ""))

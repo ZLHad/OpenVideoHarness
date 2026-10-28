@@ -16,12 +16,16 @@
 // OVH_PAGE_TIMEOUT=S: how long each browser's page may take to set window.film and to be ready (tools/film/host.mjs).
 //
 // Without --at, --samples moments spread over the film. The PNGs go to <out> (default <project>/out/check/determinism).
+// A project with an edit list (edit.json, engines/EDIT.md) is checked run by run: without --at, two frames inside each run
+// and the two frames either side of each cut (where a run starts after another, what one carries into the next shows),
+// each at its frame's exact time; --samples is not used there. --size is not taken (the edit list's own size).
 // Exit: 0 A, B and C agree (identical, or above --min-psnr) · 1 they do not, or a frame failed · 2 could not draw.
 // D only warns, its errors too: it tells whether the page leans on the host's clock.
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { openFilm } from "./host.mjs";
+import { build as buildEdit, editProject, openEdit } from "./edit.mjs";   // an edit list's film (engines/EDIT.md)
 import "./activity.mjs";   // bin/vh exec's into this: the run's end line in the project's activity log
 
 process.stdout.on("error", (e) => { if (e.code !== "EPIPE") throw e; });
@@ -53,9 +57,15 @@ for (let i = 0; i < argv.length; i++) {
 if (!target) bail("which project or page? (-h for the usage)");
 if (!o.browser) bail("no browser: pass --browser <chrome>, or run it as bin/vh determinism");
 const opts = { ...o, width: size && size[0], height: size && size[1] };
+const editRoot = editProject(target);
+let doc = null;
+if (editRoot) {
+  if (size) bail("--size: an edit list's film is drawn at its own size (edit.json's size)");
+  try { doc = buildEdit(editRoot, false); } catch (e) { bail(e.message); }
+}
 
 let live = null;   // the browser drawing now: closed before a stop
-const open = async (extra = {}) => { try { live = await openFilm(target, { ...opts, ...extra }); return live; } catch (e) { bail(e.message); } };
+const open = async (extra = {}) => { try { live = editRoot ? await openEdit(editRoot, { ...opts, ...extra, doc }) : await openFilm(target, { ...opts, ...extra }); return live; } catch (e) { bail(e.message); } };
 // one frame: back within --frame-timeout, or the check stops there and says which (a page or a browser that stopped
 // painting does not come back, and every frame queued behind it would wait too)
 const timely = (p, what) => {
@@ -67,13 +77,18 @@ const timely = (p, what) => {
 const stop = async (msg) => { console.error("determinism: " + msg); if (live) { try { await live.close(); } catch { /* gone */ } } process.exit(2); };
 const A = await open();
 if (!(A.duration > 0) && !at) { await A.close(); bail("the page gives no duration: pass --at"); }
-const times = at || Array.from({ length: o.samples }, (_, k) => r3(A.duration * (k + 0.5) / o.samples));
+// an edit list's: two frames inside each run, and the last frame before each cut with the first after it
+const byRun = () => [...new Set(doc.runs.flatMap((r, i) => {
+  const [K0, K1] = r.frames, n = K1 - K0;
+  return [...(i ? [K0 - 1, K0] : []), K0 + Math.floor(n / 3), K0 + Math.floor((2 * n) / 3)];
+}))].sort((p, q) => p - q).map((k) => k / doc.fps);
+const times = at || (editRoot ? byRun() : Array.from({ length: o.samples }, (_, k) => r3(A.duration * (k + 0.5) / o.samples)));
 const bad = times.filter((t) => t < 0 || (A.duration > 0 && t >= A.duration));
 if (bad.length) { await A.close(); bail(`${bad.join(", ")} s: outside the film (0 up to ${A.duration} s)`); }
 const outDir = path.resolve(out || path.join(A.root, "out", "check", "determinism"));
 fs.mkdirSync(outDir, { recursive: true });
 const rel = (f) => { const r = path.relative(process.cwd(), f); return r && !r.startsWith("..") ? r : f; };
-console.log(`determinism: ${rel(A.page)} · ${A.kind === "film" ? "window.film" : A.kind === "__vh" ? "window.__vh" : "HyperFrames runtime"} · ${A.width}x${A.height}` +
+console.log(`determinism: ${rel(A.page)} · ${A.kind === "edit" ? `an edit list, ${doc.runs.length} runs (two frames in each, and either side of each cut)` : A.kind === "film" ? "window.film" : A.kind === "__vh" ? "window.__vh" : "HyperFrames runtime"} · ${A.width}x${A.height}` +
   `${o.dpr !== 1 ? ` @${o.dpr}x` : ""} · ${times.length} moment${times.length > 1 ? "s" : ""} · ${A.version}`);
 
 let failed = 0, dErrors = 0;

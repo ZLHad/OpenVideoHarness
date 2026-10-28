@@ -3,7 +3,8 @@
 usage: bin/vh storyboard <project> [--shots shots.json] [--video out/animatic.mp4 | --snapshot] [--unsure S02,S04]
                                    [--per 6] [--at 0.6] [--max S] [--lang zh|en] [--out DIR]
 
-Reads --shots JSON/page, else <project>/shots.json, else film.html's window.film.shots after ready, and takes one frame per shot:
+Reads --shots JSON/page, else the project's shot table (edit.json's entries, or shots.json), else film.html's
+window.film.shots after ready, and takes one frame per shot:
   1. the shot's "frame" image, if it has one;
   2. else a frame of a rendered video at the shot's "at" time (default: start + 60 % of the shot, --at changes the 60 %):
      --video, else the "video" named in shots.json, else the first of out/animatic.mp4, out/draft.mp4, out/final.mp4,
@@ -18,6 +19,9 @@ than the type's "new payoff every N s" (see bin/vh rhythm) is printed in red.
 Writes <project>/out/check/storyboard/: overview.png, NN-<segment>.png (one per segment; a segment with more than
 --per shots is split into pages), frames/ (the tiles' source frames) and index.json (pages, shots, files: for review
 pages). Deterministic: the same shots and frames give the same PNG bytes. The shots.json schema: bin/vh storyboard -h.
+An edit list (edit.json, engines/EDIT.md): its entries are the shots, read without a browser; each tile is marked with
+what draws it (页面, 图, 纯色, 灰卡), a slate's tile is grey and says so, and with no video the frames are drawn the way
+the film draws them (bin/vh frames on the project).
 """
 import argparse, json, math, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
@@ -28,6 +32,7 @@ import readcheck as RC
 import shot_source as SS
 
 VIDEO_CANDIDATES = ["out/animatic.mp4", "out/draft.mp4", "out/final.mp4", "media/final.mp4"]
+KIND = {"page": ("页面", "page"), "image": ("图", "image"), "color": ("纯色", "colour"), "slate": ("灰卡", "slate")}   # an edit list's sources
 
 def pick_video(project, meta, arg):
     if arg:
@@ -135,6 +140,21 @@ class Sheet:
         self.th = int(round(self.tw / aspect))
 
     def tile(self, s, w, h):
+        return self.marked(s, self.picture(s, w, h))
+
+    def marked(self, s, im):
+        """An edit list's shot: what draws it, in the tile's corner (页面 / 图 / 纯色 / 灰卡)."""
+        k = KIND.get(s.get("kind"))
+        if not k:
+            return im
+        d, f_ = ImageDraw.Draw(im), V.font(max(12, im.size[0] // 30), bold=True)
+        label = k[0 if self.lang == "zh" else 1]
+        tw = V.tw(d, label, f_)
+        d.rectangle([6, 6, 6 + tw + 12, 6 + f_.size + 10], fill=(30, 30, 34))
+        V.text(d, (12, 11 + f_.size / 2), label, f_, (255, 255, 255), "lm")
+        return im
+
+    def picture(self, s, w, h):
         f, note = self.frames.get(s["id"]), self.notes.get(s["id"])
         if f and not note:
             try:
@@ -297,7 +317,7 @@ def main():
     ap = argparse.ArgumentParser(prog="bin/vh storyboard", description=__doc__.split("\n\n")[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter, epilog=V.SHOTS_SCHEMA)
     ap.add_argument("project")
-    ap.add_argument("--shots", help="JSON or page; default: shots.json, else film.html's window.film.shots")
+    ap.add_argument("--shots", help="JSON or page; default: the shot table (edit.json, or shots.json), else film.html's window.film.shots")
     ap.add_argument("--video", help="take the frames from this video")
     ap.add_argument("--snapshot", action="store_true", help="capture live frames from film.html or the HyperFrames composition")
     ap.add_argument("--browser", help=argparse.SUPPRESS)
@@ -313,7 +333,8 @@ def main():
     project = V.project_dir(a.project)
     shots, meta, sp, live = SS.load(project, a.shots, a.browser)
     shot_source = SS.label(sp, live, project)
-    page = live or ((project / "film.html") if (project / "film.html").is_file() else None)
+    edit = SS.is_edit(sp)   # an edit list: its entries are the shots, and with no video its frames are drawn as the film draws them
+    page = sp if edit else live or ((project / "film.html") if (project / "film.html").is_file() else None)
     extra = {x.strip() for x in a.unsure.split(",") if x.strip()}
     unknown = extra - {s["id"] for s in shots}
     if unknown: raise V.Usage(f"storyboard: --unsure names unknown shots: {', '.join(sorted(unknown))}")
@@ -335,6 +356,9 @@ def main():
             p = project / s["frame"]
             if p.is_file(): frames[s["id"]] = p; continue
             V.warn_once(f"{s['id']}: frame {s['frame']} not found; taking one from the video")
+        if s.get("kind") == "slate":   # an edit list's entry with no source yet: grey, said so
+            notes[s["id"]] = "未定：灰卡，还没有画面" if lang_hint(shots) == "zh" else "not decided: a slate, no picture yet"
+            continue
         t = float(s["at"]) if s["at"] is not None else s["start"] + a.at_frac * s["dur"]
         need.append((s, t))
     source, used_video = [], None
@@ -359,7 +383,7 @@ def main():
         elif page and not video:
             got, aspect, late, pdur = SS.capture(page, a.browser, [(s["id"], names[s["id"]], t) for s, t in need], fdir)
             frames.update(got)
-            if got: source.append(f"{V.relpath(page, project)} (window.film.frame)")
+            if got: source.append(f"{V.relpath(page, project)} ({'each entry as the film draws it' if edit else 'window.film.frame'})")
             for sid in late: notes[sid] = (f"在 {page.name} 的结尾（{pdur:.1f} s）之后" if lang_hint(shots) == "zh"
                                            else f"past the end of {page.name} ({pdur:.1f} s)")
             if late: past(page.name, pdur, late)

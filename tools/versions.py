@@ -236,7 +236,9 @@ def from_sidecar(side):
     if not side:
         return {}
     pair = lambda x: x if isinstance(x, list) and len(x) == 2 and all(num(y) is not None for y in x) else None   # noqa: E731
-    out = {"frames": num(side.get("frames")), "fps": num(side.get("fps")), "pixels": pair(side.get("pixels")), "span": pair(side.get("span"))}
+    out = {"frames": num(side.get("frames")), "fps": num(side.get("fps")), "pixels": pair(side.get("pixels")), "span": pair(side.get("span")),
+           # an edit list's film: the edit list it was made from, and what that resolved to (engines/EDIT.md)
+           "edit": {k: v for k, v in side["edit"].items() if k in ("path", "sha256", "resolved")} if side.get("kind") == "edit" and isinstance(side.get("edit"), dict) else None}
     return {k: v for k, v in out.items() if v is not None}
 
 
@@ -554,7 +556,7 @@ def entry_view(project, e):
     from checkrec import film_changed
     st = state(project, e)
     out = {k: e.get(k) for k in ("id", "n", "t", "at", "film", "file", "sidecar", "made_by", "from", "note", "changed", "size",
-                                 "frames", "fps", "pixels", "span", "problems", "gone")}
+                                 "frames", "fps", "pixels", "span", "edit", "problems", "gone")}
     out["state"] = st
     if st not in ("current", "kept"):
         out["file"] = out["sidecar"] = None
@@ -633,7 +635,8 @@ def ffprobe_fps(f):
 
 def grab(f, t, fps, out):
     """The frame shown at t (frame floor(t·fps)) as a PNG; → its frame number."""
-    k = int(t * fps + 1e-6)
+    from timegrid import frame_at   # seconds to frames, the one way
+    k = frame_at(t, fps)
     ss = max(0.0, (k - 0.5) / fps) if k > 0 else 0
     r = subprocess.run(["ffmpeg", "-v", "error", "-nostdin", "-y", "-ss", f"{ss:.6f}", "-i", str(f), "-frames:v", "1", "-f", "image2", str(out)],
                        capture_output=True, text=True)
@@ -688,9 +691,47 @@ def compare(project, a_id, b_id, t, wipe=None, out=None):
                             capture_output=True, text=True)
         if r2.returncode or not out.is_file():
             raise RuntimeError(f"ffmpeg could not make the picture: {(r2.stderr or '').strip()[:300]}")
-    return {"version": 1, "project": str(project), "t": t, "a": {"id": a_id, "file": A["file"], "frame": ka, "fps": pa},
-            "b": {"id": b_id, "file": B["file"], "frame": kb, "fps": pb}, "psnr": psnr, "layout": "wipe" if wipe is not None else "side by side",
-            "wipe": wipe, "image": rel(project, out), "from": "the encoded films"}
+    res = {"version": 1, "project": str(project), "t": t, "a": {"id": a_id, "file": A["file"], "frame": ka, "fps": pa},
+           "b": {"id": b_id, "file": B["file"], "frame": kb, "fps": pb}, "psnr": psnr, "layout": "wipe" if wipe is not None else "side by side",
+           "wipe": wipe, "image": rel(project, out), "from": "the encoded films"}
+    ea, eb = load_json(absolute(project, A["sidecar"])) if A.get("sidecar") else None, load_json(absolute(project, B["sidecar"])) if B.get("sidecar") else None
+    if all(isinstance(x, dict) and x.get("kind") == "edit" and isinstance(x.get("entries"), list) for x in (ea, eb)):
+        res["entries"] = entry_changes(ea, eb)
+    return res
+
+
+def entry_changes(a, b):
+    """Two edit-list films' sidecars, entry by entry: what moved (a row moved by the same amount is one line), what got
+    longer or shorter, which took another source, which came and went (bin/vh versions compare)."""
+    fps = b.get("fps") or a.get("fps") or 30
+    old = {e.get("id"): e for e in a["entries"] if isinstance(e, dict)}
+    out, moved = [], []
+    for i, e in enumerate(x for x in b["entries"] if isinstance(x, dict)):
+        p = old.get(e.get("id"))
+        if not p or not isinstance(p.get("frames"), list) or not isinstance(e.get("frames"), list):
+            continue
+        d = e["frames"][0] - p["frames"][0]
+        if d:
+            if moved and moved[-1][2] == d and moved[-1][3] == i - 1:
+                moved[-1][1], moved[-1][3] = e["id"], i
+            else:
+                moved.append([e["id"], e["id"], d, i])
+    out += [f"{x if x == y else f'{x}–{y}'} moved {'+' if d > 0 else '−'}{abs(d) / fps:.3f} s" for x, y, d, _ in moved]
+    src = lambda doc, e: next((json.dumps({k: r.get(k) for k in ("draw", "path", "sha256", "color", "clock")}, sort_keys=True)   # noqa: E731
+                                for r in doc.get("runs") or [] if r.get("entry") == e.get("id")), None)
+    for e in (x for x in b["entries"] if isinstance(x, dict)):
+        p = old.get(e.get("id"))
+        if p is None:
+            out.append(f"{e.get('id')} is new"); continue
+        if isinstance(p.get("frames"), list) and isinstance(e.get("frames"), list):
+            dl = (e["frames"][1] - e["frames"][0]) - (p["frames"][1] - p["frames"][0])
+            if dl:
+                out.append(f"{e['id']} is {'longer' if dl > 0 else 'shorter'} by {abs(dl) / fps:.3f} s")
+        if (p.get("src"), src(a, p)) != (e.get("src"), src(b, e)):
+            out.append(f"{e['id']} took another source ({p.get('src') or 'a slate'} → {e.get('src') or 'a slate'})" if p.get("src") != e.get("src")
+                       else f"{e['id']}'s source {e.get('src')} changed")
+    out += [f"{i} is gone" for i in old if i not in {e.get("id") for e in b["entries"] if isinstance(e, dict)}]
+    return out
 
 
 # ---- use ----
@@ -869,6 +910,8 @@ def main(argv):
                       f"{res['layout']}{f' at {wipe}' if wipe is not None else ''} → {res['image']}")
                 print(f"  PSNR {'∞ (the same pixels)' if p == 'inf' else f'{p} dB' if p is not None else 'not measured'} "
                       "(frames decoded from the two encoded films: both carry x264's loss, so this is how far apart the films are there, not the pages)")
+                if "entries" in res:   # two films of an edit list: what changed, entry by entry
+                    print(f"  the edit list, {res['a']['id']} → {res['b']['id']}: " + ("; ".join(res["entries"]) if res["entries"] else "the same entries, the same sources"))
             activity.note(f"{pos[1]} against {pos[2]} at {t:.3f} s: PSNR {res['psnr']}", [absolute(project, res["image"])])
             return 0
         res = use(project, pos[1])

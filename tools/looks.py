@@ -200,17 +200,17 @@ def own(proj, film=None):
     sb = proj / "STORYBOARD.md"
     if sb.is_file():
         trans += columns(sb.read_text(encoding="utf-8"), ("转场出", "配方", "转场", "transition", "recipe"))
-    sj = proj / "shots.json"
-    if sj.is_file():
-        try:
-            d = json.loads(sj.read_text(encoding="utf-8"))
-            shots = d.get("shots", d) if isinstance(d, dict) else d
-            for s in shots if isinstance(shots, list) else []:
-                for k in ("transition", "seam", "recipe"):
-                    if isinstance(s, dict) and isinstance(s.get(k), str) and s[k].strip():
-                        trans.append(s[k].strip())
-        except ValueError:
-            pass
+    import shot_source   # the project's shot table: shots.json, or an edit list's entries
+    try:
+        shots, _, _ = shot_source.rows(proj)
+        for s in shots if isinstance(shots, list) else []:
+            for k in ("transition", "seam", "recipe"):
+                v = s.get(k) if isinstance(s, dict) else None
+                v = v.get("type") if k == "transition" and isinstance(v, dict) else v   # an edit list's {"type", "duration"}
+                if isinstance(v, str) and v.strip():
+                    trans.append(v.strip())
+    except (OSError, ValueError, SystemExit):
+        pass
     styles = sorted(p.name for p in (proj / "style-refs").iterdir() if p.is_dir()) if (proj / "style-refs").is_dir() else []
     m = re.search(r"<!--\s*from\s+(\d\d)-", (proj / "BRIEF.md").read_text(encoding="utf-8"))
     return {"fonts": fonts, "transitions": sorted(set(trans)), "sounds": sounds, "styles": styles, "type": m.group(1) if m else None}
