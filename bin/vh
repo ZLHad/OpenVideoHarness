@@ -452,8 +452,8 @@ PY
 
 cmd_new() {
   local x; for x in "$@"; do case "$x" in -h|--help) cmd_usage new; return ;; esac; done   # also as the slug or among the options: not a name for a folder
-  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film] [--from <project>] [--dir <folder>]" >&2; cmd_types >&2; exit 2; }
-  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine="" from="" fromdir="" given="" fromsaid="" eff=""; doc=$(type_doc "$type") || { echo "unknown type: $type" >&2; cmd_types >&2; exit 2; }
+  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three]] [--from <project>] [--dir <folder>]" >&2; cmd_types >&2; exit 2; }
+  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine="" three="" from="" fromdir="" given="" fromsaid="" eff=""; doc=$(type_doc "$type") || { echo "unknown type: $type" >&2; cmd_types >&2; exit 2; }
   local typed=("$@"); act_now; ACT_T0=$ACT_NOW   # the run goes into the new project's activity log once it is made
   shift 2
   needv() { [ "$1" -ge 2 ] && [ -n "$2" ] || { echo "$3" >&2; exit 2; }; }   # needv $# "${2:-}" <message>: an option's value, or a usage error
@@ -466,6 +466,7 @@ cmd_new() {
     --res)    needv $# "${2:-}" "--res needs 1080p or 4k"; outres=$2; shift 2 ;;
     --lang)   needv $# "${2:-}" "--lang needs zh or en"; lang=$2; shift 2 ;;
     --engine) needv $# "${2:-}" "--engine needs canvas-film (engines/canvas-film/README.md)"; engine=$2; shift 2 ;;
+    --three)  three=1; shift ;;
     --from)   needv $# "${2:-}" "--from needs a project (a folder, or a name under the projects folder)"; from=$2; shift 2 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac; done
@@ -484,6 +485,8 @@ cmd_new() {
   fi
   case "$lang" in ""|zh|en) ;; *) echo "unknown --lang: $lang (zh | en: the language of the review pages, from the user's first request)" >&2; exit 2 ;; esac
   case "$engine" in ""|canvas-film) ;; *) echo "unknown --engine: $engine (canvas-film; leave it out for the type's own engine)" >&2; exit 2 ;; esac
+  [ -z "$fromdir" ] || [ "$engine" != canvas-film ] || [ ! -f "$fromdir/three/layer.js" ] || three=1   # an episode keeps the series' Three.js layer
+  [ -z "$three" ] || [ "$engine" = canvas-film ] || { echo "--three is canvas-film's Three.js layer: add --engine canvas-film (engines/canvas-film/README.md, Three.js 层)" >&2; exit 2; }
   local s styles=""; if [ -n "$style" ]; then styles=$(parse_styles "$style") || { cmd_style list >&2; exit 2; }; fi
   case "${effort:-standard}" in quick|standard|studio) ;; *) echo "unknown effort: $effort (quick | standard | studio)" >&2; exit 2 ;; esac
   case "$watch" in ""|phone|feed|desktop) ;; *) echo "unknown --watch: $watch (phone: a vertical phone · feed: landscape in a phone feed, not rotated · desktop: a computer, or a phone turned sideways)" >&2; exit 2 ;; esac
@@ -524,6 +527,7 @@ cmd_new() {
     mkdir -p "$dir"
     rsync -a --exclude out "$ROOT/engines/canvas-film/template/" "$dir/"
     cp "$ROOT/engines/canvas-film/README.md" "$dir/ENGINE_README.md"
+    [ -z "$three" ] || rsync -a "$ROOT/engines/canvas-film/three/" "$dir/three/"   # the Three.js layer and its pinned three.js
   elif [ "$type" = handdrawn ] || [ "$type" = mv ]; then
     rsync -a --exclude node_modules --exclude out "$ROOT/engines/ClaudeAnimationBase/" "$dir/"
     mv "$dir/README.md" "$dir/ENGINE_README.md"   # the engine's own readme; project docs are BRIEF/STORYBOARD/…
@@ -560,6 +564,7 @@ note = ("> **本项目用 canvas-film 引擎**（`ENGINE_README.md`，和 `engin
 open(p, "w").write(s.replace("# BRIEF\n", "# BRIEF\n\n" + note, 1))
 PY
     echo "   engine   : canvas-film (ENGINE_README.md) · the example film draws as it is: bin/vh frames $(rel "$dir") --at 1,5,9"
+    [ -z "$three" ] || echo "   three.js : the Three.js layer in three/ (a pinned three.js with it): FILM.three in src/50-shots.js turns it on (ENGINE_README.md, Three.js 层)"
   else
     case "$type" in
       short|promo|data|meme) if [ -n "$frameh" ]; then cmd_hf_init "$dir" "$aspect" || true; else cmd_hf_init "$dir" "$res" || true; fi ;;
@@ -1127,6 +1132,7 @@ cmd_bgm() { [ $# -gt 0 ] || { cmd_usage bgm >&2; exit 2; }; python3 "$ROOT/tools
 cmd_sound() { [ $# -gt 0 ] || { cmd_usage sound >&2; exit 2; }; python3 "$ROOT/tools/audio/library.py" sound "$@"; }   # stdlib and ffmpeg
 cmd_footage() { [ $# -gt 0 ] || { cmd_usage footage >&2; exit 2; }; python3 "$ROOT/tools/assets/footage.py" "$@"; }   # stdlib and ffmpeg
 cmd_image() { [ $# -gt 0 ] || { cmd_usage image >&2; exit 2; }; python3 "$ROOT/tools/assets/image.py" "$@"; }   # stdlib and ffmpeg
+cmd_model3d() { [ $# -gt 0 ] || { cmd_usage model3d >&2; exit 2; }; python3 "$ROOT/tools/model3d/model3d.py" "$@"; }   # stdlib; nothing leaves the machine
 cmd_assets() { [ $# -gt 0 ] || { cmd_usage assets >&2; exit 2; }; python3 "$ROOT/tools/assets/assets.py" "$@"; }   # stdlib only
 cmd_scout() { [ $# -gt 0 ] || { cmd_usage scout >&2; exit 2; }; python3 "$ROOT/tools/scout/scout.py" "$@"; }    # stdlib; yt-dlp for YouTube
 cmd_ref() { [ $# -gt 0 ] || { cmd_usage ref >&2; exit 2; }; python3 "$ROOT/tools/scout/refs.py" "$@"; }        # stdlib; the look as scout's
@@ -1151,7 +1157,7 @@ cmd_help() { python3 "$ROOT/tools/commands.py" help; }            # every usage,
 cmd_usage() { python3 "$ROOT/tools/commands.py" usage "$1"; }    # one command's usage from there; exit 1 if it has none
 
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|know|looks|breakdown|concept|components|hf|footage|image|bgm|sound|scout|ref) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|know|looks|breakdown|concept|components|hf|footage|image|model3d|bgm|sound|scout|ref) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
@@ -1167,6 +1173,7 @@ case "${1:-}" in   # the activity log: every command that works on a project (ac
   bgm|sound) case "${2:-}" in pick|add) act_start "$@" || true ;; esac ;;   # search and list only read
   footage) case "${2:-}" in get|sync|frames) act_start "$@" || true ;; esac ;;   # search, files and list only read
   image) case "${2:-}" in gen|cutout) act_start "$@" || true ;; esac ;;   # prices only reads
+  model3d) [ "${2:-}" = check ] || act_start "$@" || true ;;   # check only reads
   concept) [ "${2:-}" != board ] || act_start "$@" || true ;;   # roulette only reads
   edit) case "${2:-}" in init|build) act_start "$@" || true ;; esac ;;   # check and list only read
   assets) case "${2:-}" in add|remove|credits) act_start "$@" || true ;; esac ;;   # list and check only read
@@ -1185,6 +1192,7 @@ case "${1:-help}" in
   sound) shift; cmd_sound "$@" ;;
   footage) shift; cmd_footage "$@" ;;
   image) shift; cmd_image "$@" ;;
+  model3d) shift; cmd_model3d "$@" ;;
   assets) shift; cmd_assets "$@" ;;
   scout) shift; cmd_scout "$@" ;; ref) shift; cmd_ref "$@" ;;
   hf) shift; cmd_hf "$@" ;;

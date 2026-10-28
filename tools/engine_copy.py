@@ -7,7 +7,9 @@ and into a hand-drawn one (engines/ClaudeAnimationBase, README.md as ENGINE_READ
 this lists, file by file, what the copy has that differs: changed, missing (a module the copy lacks, e.g. a newer
 src/06-time-map.js, and whether film.html loads it), and extra (the project's own files in the engine's folders). The
 film's own files are left out: canvas-film's src/50-shots.js, audio/ and assets/; ClaudeAnimationBase's src/scenes/ and
-src/config.js. Nothing is changed; the diff command it prints shows a file's difference (+ lines are the engine's now).
+src/config.js. A canvas-film project made with --three has its three/ held to engines/canvas-film/three/ too (the
+Three.js layer and the three.js it pins; an addon of the project's own there is not listed). Nothing is changed; the
+diff command it prints shows a file's difference (+ lines are the engine's now).
 Exit: 0 the copy is the engine as it is · 1 something differs · 2 not a project with a copied engine.
 """
 import difflib, os, re, shlex, sys
@@ -23,6 +25,7 @@ ENGINES = {
                             lambda f: f == "src/config.js" or f.startswith("src/scenes/"), ROOT / "engines/ClaudeAnimationBase/README.md", ("src",)),
 }
 SKIP = ("node_modules", "out", ".DS_Store")
+THREE = ROOT / "engines/canvas-film/three"   # canvas-film's Three.js layer: a project made with --three has it as three/
 
 
 def files(d):
@@ -74,6 +77,8 @@ def main():
     if not mine_readme.is_file() and name == "ClaudeAnimationBase" and (proj / "README.md").is_file():
         mine_readme = proj / "README.md"   # a project from before bin/vh new renamed the engine's README
     pairs = [(f, proj / f, tmpl / f) for f in want] + [(mine_readme.name, mine_readme, readme)]
+    if name == "canvas-film" and (proj / "three" / "layer.js").is_file():   # the Three.js layer (bin/vh new … --three) against the engine's
+        pairs += [(f"three/{f}", proj / "three" / f, THREE / f) for f in files(THREE)]
     same, changed, missing = [], [], []
     for f, mine, theirs in pairs:
         if not mine.is_file():
@@ -107,7 +112,7 @@ def main():
     print(f"  same ({len(same)})" + (f": {', '.join(same)}" if same and len(same) <= 6 else ""))
     if changed or missing:
         f = changed[0][0] if changed else missing[0]
-        theirs = readme if f == mine_readme.name else tmpl / f
+        theirs = next(t for g, _, t in pairs if g == f)
         print(f"  a file's diff: diff -u {shlex.quote(show(proj / f)) if changed else '/dev/null'} {shlex.quote(show(theirs))}"
               + ("   (the same for the others)" if len(changed) + len(missing) > 1 else ""))
         print("  nothing was changed: take what the film needs by hand (the engine's README says what moved, CHANGELOG.md when)")
