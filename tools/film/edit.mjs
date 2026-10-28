@@ -282,10 +282,11 @@ export class EditFilm {
 
   // footage: its source frame decoded by ffmpeg, as a PNG whatever the capture (render draws footage's chunks its own way)
   get px() { return [Math.round(this.width * (this.o.dpr || 1)), Math.round(this.height * (this.o.dpr || 1))]; }
-  async frameK(k, capture) {
+  // d: a sub-frame's offset from frame k, in frames (motion blur, tools/film/blur.mjs: inside k's run); footage takes none
+  async frameK(k, capture, d = 0) {
     const run = this.runAt(k);
     if (run.draw === "clip") return clipPng(run, this.project, clipIndex(run, k, this.fps), ...this.px);
-    const f = await this.film(run); return f.frame(this.localK(run, k), capture);
+    const f = await this.film(run); return f.frame(this.localK(run, k + d), capture);
   }
   // a moment on a frame is that frame, drawn as render draws it (the same float for a local clock's u = in + (k − K0)·speed/fps:
   // the other way round, in + (t − K0/fps)·speed, can differ in its last digit and floor to the frame before)
