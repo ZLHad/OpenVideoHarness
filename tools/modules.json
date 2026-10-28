@@ -151,6 +151,19 @@
       "install": {"macos": "bin/vh setup", "linux": "bin/vh setup"}
     },
     {
+      "name": "three",
+      "kind": "npm",
+      "purpose": "three.js under canvas-film's Three.js layer: GLB models, their clips set to the film's time, lights and an environment, drawn under the 2D. Kept in the repo (engines/canvas-film/three/build and addons, the npm package's files unchanged), so a project and the tests need no download.",
+      "version": {"pin": "0.186.1 (r186; engines/canvas-film/three/NOTICE.md has the files and their sha256)"},
+      "license": "MIT (engines/canvas-film/three/LICENSES/MIT-three.js.txt)",
+      "needs": {"programs": ["chrome"]},
+      "adapter": ["engines/canvas-film/three/layer.js", "engines/canvas-film/template/src/07-three.js", "bin/vh (cmd_new, --three)"],
+      "commands": ["new"],
+      "required": false,
+      "check": {"per_project": "bin/vh new … --engine canvas-film --three copies engines/canvas-film/three/ into the project"},
+      "install": {}
+    },
+    {
       "name": "python-packages",
       "kind": "python",
       "purpose": "The libraries bin/vh's Python tools run with, fetched by uv on first use into its cache: numpy, scipy, librosa and pillow (beats, qa, music, sfx, mix profiles, sheet, storyboard, check's frame scan), jieba (captions), fonttools and brotli (fonts list, subset).",

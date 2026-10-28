@@ -186,6 +186,8 @@ Some shots are beyond a web engine: refracting glass, volumetric light, real dep
 
 The intro film's opening was made this way: a galaxy of 1.18 million stars, 15.8 s and 475 frames, 1 h 28 min at 1080p on an M3 Max. The scripts run sandboxed, with no network and no access to your API keys, and long renders go in resumable chunks. When Blender is worth it, how to join it to a film and what went wrong along the way: [engines/blender.md](engines/blender.md) (in Chinese).
 
+For 3D models in a narrated film, the canvas engine has an optional Three.js layer (`bin/vh new … --engine canvas-film --three`): GLB models drawn under the 2D, their animation clips set to the narration's words, each frame a function of t. `bin/vh model3d check` reads a model before it goes in: triangles, textures, joints, clip names and lengths, its size in metres.
+
 ## Sound
 
 An agent can't hear, so the sound is built to be computed and measured:

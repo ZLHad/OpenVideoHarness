@@ -163,7 +163,7 @@ import json, re, subprocess, sys
 src = open("bin/vh", encoding="utf-8").read()
 block = src[src.index('case "${1:-help}" in'):]
 block = block[:block.index("\nesac")]
-cmds = {c for pat in re.findall(r"(?:^|;;)\s*([a-z|-]+)\)", block, re.M) for c in pat.split("|") if c and not c.startswith("-")}
+cmds = {c for pat in re.findall(r"(?:^|;;)\s*([a-z0-9|-]+)\)", block, re.M) for c in pat.split("|") if c and not c.startswith("-")}
 cmds.discard("help")
 table = {c.get("name") for c in json.load(open("tools/commands.json", encoding="utf-8")).get("commands", [])}
 bad = []
@@ -182,7 +182,7 @@ for d in docs:   # commands written as code: inside `backticks` or a fenced bloc
         if line.lstrip().startswith("```"):
             fence = not fence; continue
         for code in [line] if fence else re.findall(r"`([^`]*)`", line):
-            for c in re.findall(r"bin/vh ([a-z][a-z-]*)", code):
+            for c in re.findall(r"bin/vh ([a-z][a-z0-9-]*)", code):
                 if c not in cmds and c != "help":
                     bad.append(f"{d}:{n}: bin/vh {c} is not a command")
 print("\n".join(bad))
@@ -220,8 +220,8 @@ import re, sys
 src = open("bin/vh", encoding="utf-8").read()
 block = src[src.index('case "${1:-help}" in'):]
 block = block[:block.index("\nesac")]
-cmds = {c for pat in re.findall(r"(?:^|;;)\s*([a-z|-]+)\)", block, re.M) for c in pat.split("|") if c and not c.startswith("-")} - {"help"}
-own = set(re.search(r'case "\$1" in ([a-z|-]+)\) ;;   # these print their own', src).group(1).split("|"))
+cmds = {c for pat in re.findall(r"(?:^|;;)\s*([a-z0-9|-]+)\)", block, re.M) for c in pat.split("|") if c and not c.startswith("-")} - {"help"}
+own = set(re.search(r'case "\$1" in ([a-z0-9|-]+)\) ;;   # these print their own', src).group(1).split("|"))
 if own - cmds: sys.exit(f"own-help list names commands bin/vh does not dispatch: {sorted(own - cmds)}")
 print(" ".join(sorted(cmds - own)))
 PY
@@ -253,7 +253,7 @@ h = vh("-h")
 miss = [n for n in names if not re.search(rf"^  {re.escape(n)}( |$)", h.stdout, re.M)]
 if h.returncode or miss:
     bad.append(f"bin/vh -h (exit {h.returncode}) has no usage for {miss}")
-listed = re.findall(r"^  ([a-z][a-z-]*) ", vh("commands").stdout, re.M)
+listed = re.findall(r"^  ([a-z][a-z0-9-]*) ", vh("commands").stdout, re.M)
 if sorted(listed) != sorted(names):
     bad.append(f"bin/vh commands lists {len(listed)} of the {len(names)} commands, or one twice")
 j = json.loads(vh("commands", "--json").stdout)
@@ -4036,6 +4036,167 @@ HTML
   rm -rf "$t"
 }
 
+model3d_checks() {   # bin/vh model3d check (tools/model3d) on a model written on the spot (tools/model3d/fixture.py: a column of two
+  # cubes on two bones, a 4x4 texture, the clips bend 1 s and lift 2 s; nothing downloaded), and canvas-film's Three.js
+  # layer drawing the same model through the page contract in software WebGL (--soft-gl, as a machine without a GPU does)
+  local t p a b c d rc rc2 rc3 rc4
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  python3 tools/model3d/fixture.py "$t/box.glb" && python3 tools/model3d/fixture.py "$t/big.glb" --scale 100
+  a=$(vh model3d check "$t/box.glb" --json 2>/dev/null); rc=$?
+  b=$(vh model3d check "$t/box.glb" --tier prop --max-faces 10 --max-texture 2 --json 2>/dev/null); rc2=$?
+  c=$(vh model3d check "$t/big.glb" 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = "0:1:0" ] && python3 - "$a" "$b" "$c" <<'PY'
+import json, sys
+a, b = json.loads(sys.argv[1]), json.loads(sys.argv[2]); c = sys.argv[3]; bad = []
+k = a["counts"]
+if (k["triangles"], k["vertices"], k["meshes"], k["materials"], k["skins"], k["joints"], k["animations"]) != (20, 32, 1, 1, 1, 2, 2): bad.append(f"counts {k}")
+if [(x["format"], x["width"], x["height"], x["where"], x["used_by"]) for x in a["textures"]] != [("png", 4, 4, "embedded", ["Paint.baseColor"])]: bad.append(f"textures {a['textures']}")
+if [(x["name"], x["duration"]) for x in a["animations"]] != [("bend", 1.0), ("lift", 2.0)]: bad.append(f"clips {a['animations']}")
+if a["skins"][0]["joint_names"] != ["Root", "Tip"]: bad.append(f"skins {a['skins']}")
+if a["bbox"]["size"] != [0.5, 2.0, 0.5] or a["origin"] != "base centre" or a["tallest"] != "y" or a["verdict"] != "pass" or a["tier"] != "hero": bad.append(f"box {a['bbox']} {a['origin']} {a['tallest']}")
+if sorted(f["kind"] for f in b["findings"] if f["severity"] == "fail") != ["model3d.faces", "model3d.texture"] or b["limits"] != {"faces": 10, "texture": 2} or b["exit"] != 1: bad.append(f"over the limits: {b['findings']}")
+if "200.00 m across" not in c or "glTF is metres" not in c: bad.append(f"a model 100 times its size: {c[-300:]}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  then ok "model3d check: the test model's triangles, vertices, texture (size, format, use), joints, clips and lengths, box in metres, origin and up; --tier prop with --max-faces and --max-texture fails it (exit 1); 100 times its size is said"
+  else bad "model3d check ($rc, $rc2, $rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $(printf '%s' "$c" | tail -c 300)"; fi
+  # what the Three.js layer cannot load fails (Draco required, an image not beside a .gltf); two clips of one name warn; a
+  # file that is no glTF is a failed check (1), a usage error 2 (no file, a bad tier, gen: not here yet)
+  python3 - "$t" <<'PY'
+import base64, json, sys
+sys.path.insert(0, "tools/model3d")
+import fixture, glb
+t = sys.argv[1]
+g, blob = fixture.build()
+g["extensionsUsed"] = g["extensionsRequired"] = ["KHR_draco_mesh_compression"]
+g["animations"][1]["name"] = "bend"
+glb.write_glb(f"{t}/draco.glb", g, blob)
+g, blob = fixture.build()
+g["buffers"] = [{"byteLength": len(blob), "uri": "data:application/octet-stream;base64," + base64.b64encode(blob).decode()}]
+g["images"] = [{"uri": "textures/checker.png"}]
+open(f"{t}/lost.gltf", "w").write(json.dumps(g))
+open(f"{t}/not.glb", "w").write("hello")
+PY
+  a=$(vh model3d check "$t/draco.glb" 2>&1); rc=$?
+  b=$(vh model3d check "$t/lost.gltf" 2>&1); rc2=$?
+  c=$(vh model3d check "$t/not.glb" 2>&1); rc3=$?
+  d=$(vh model3d check "$t/none.glb" 2>&1; vh model3d check "$t/box.glb" --tier huge 2>&1; vh model3d gen x 2>&1); rc4=$?
+  case "$rc:$rc2:$rc3:$a|$b|$c|$d" in 1:1:1:*"needs KHR_draco_mesh_compression, and the Three.js layer has no DRACOLoader"*"2 clips are named bend"*"|"*"textures/checker.png is not beside the model"*"|"*"not a glTF 2.0 model"*"|"*"no such file"*"--tier: hero or prop"*"comes later"*)
+      [ "$rc4" = 2 ] && ok "model3d check: a model the layer cannot decode or load fails, two clips of one name warn, a file that is no glTF fails (1), usage errors 2" \
+        || bad "model3d check usage errors: exit $rc4: $d" ;;
+    *) bad "model3d check on broken models ($rc, $rc2, $rc3): $a | $b | $c | $d" ;; esac
+  # a part that points outside the file, or is not the kind glTF says, fails with the part named, and --json prints the
+  # report all the same (no traceback): a node that is a number, a bufferView past its buffer, an accessor of type VEC9,
+  # one of 10^12 zeros (no list of them is made); Draco listed only as used fails (three's loader stops at it); bytes
+  # after the GLB header's length warn
+  if python3 - "$VH_BASH|$ROOT/bin/vh" "$t" <<'PY'
+import json, subprocess, sys
+sys.path.insert(0, "tools/model3d")
+import fixture, glb
+vh, t = sys.argv[1].split("|"), sys.argv[2]
+def zeros(g):
+    g["accessors"].append({"componentType": 5126, "type": "SCALAR", "count": 10**12})
+    g["animations"][0]["samplers"][0]["input"] = len(g["accessors"]) - 1
+cases = {   # name: (what is broken, the exit, words of the finding)
+    "node": (lambda g: g["nodes"].__setitem__(0, 5), 1, "nodes[0] is a number, not an object"),
+    "view": (lambda g: g["bufferViews"][0].update(byteLength=10**9), 1, "bytes past the end of buffers[0]"),
+    "vec9": (lambda g: g["accessors"][0].update(type="VEC9"), 1, 'type "VEC9": glTF'),
+    "zeros": (zeros, 1, "1,000,000,000,000 elements and no bufferView"),
+    "used": (lambda g: g.update(extensionsUsed=["KHR_draco_mesh_compression"]), 1, "lists KHR_draco_mesh_compression as used"),
+    "tail": (lambda g: None, 0, "7 bytes after the")}
+bad = []
+for name, (change, want, words) in cases.items():
+    g, blob = fixture.build(); change(g); glb.write_glb(f"{t}/{name}.glb", g, blob)
+    if name == "tail":
+        open(f"{t}/tail.glb", "ab").write(b"\0" * 7)
+    r = subprocess.run([*vh, "model3d", "check", f"{t}/{name}.glb", "--json"], capture_output=True, text=True, timeout=60)
+    try:
+        rep = json.loads(r.stdout)
+    except ValueError:
+        rep = {}
+    said = " | ".join(f["message"] for f in rep.get("findings", []))
+    if r.returncode != want or rep.get("exit") != want or words not in said or "Traceback" in r.stderr:
+        bad.append(f"{name}: exit {r.returncode} (want {want}): {said[:200] or r.stderr[-200:]}")
+sys.exit("\n".join(bad) if bad else 0)
+PY
+  then ok "model3d check: a part that points outside the file or is not glTF's (a node that is a number, a bufferView past its buffer, type VEC9, 10^12 zeros) fails naming it, the --json report all the same; Draco listed only as used fails; bytes after the GLB's length warn"
+  else bad "model3d check on models whose parts point outside them"; fi
+  # three.js as the npm package has it: each file the layer carries, byte for byte as its NOTICE lists it
+  if python3 - <<'PY'
+import hashlib, pathlib, re, sys
+d = pathlib.Path("engines/canvas-film/three")
+rows = re.findall(r"^\| `([^`]+)` \| `[^`]+` \| `([0-9a-f]{64})` \|$", (d / "NOTICE.md").read_text(encoding="utf-8"), re.M)
+have = sorted(p.relative_to(d).as_posix() for p in d.rglob("*") if p.is_file() and p.parts[len(d.parts)] in ("build", "addons"))
+bad = [f for f, h in rows if hashlib.sha256((d / f).read_bytes()).hexdigest() != h] if rows else ["no rows"]
+bad += [f"{f}: not in NOTICE.md" for f in have if f not in dict(rows)]
+sys.exit(" ".join(bad) if bad else 0)
+PY
+  then ok "three.js in engines/canvas-film/three: every file in build/ and addons/ is the package's, as NOTICE.md lists it (sha256)"
+  else bad "engines/canvas-film/three: files and NOTICE.md's sha256 differ"; fi
+  # new --three: the layer and three.js in the project (not without --engine canvas-film); doctor holds three/ to the engine's
+  a=$(vh new short tri --engine canvas-film --three --dir "$t" 2>&1); rc=$?
+  vh new short tri2 --three --dir "$t" >/dev/null 2>&1; rc2=$?
+  p=$(ls -d "$t"/*-tri 2>/dev/null)
+  if [ "$rc:$rc2" = "0:2" ] && [ -n "$p" ] && [ -f "$p/three/layer.js" ] && [ -f "$p/three/build/three.core.js" ] && [ -f "$p/three/LICENSES/MIT-three.js.txt" ] \
+     && [ -f "$p/src/07-three.js" ] && [ -z "$(ls -d "$t"/*-tri2 2>/dev/null)" ]; then
+    b=$(vh doctor "$p" 2>&1); rc=$?; printf '// a tweak\n' >> "$p/three/layer.js"; c=$(vh doctor "$p" 2>&1); rc2=$?
+    case "$rc:$rc2:$b|$c" in 0:1:*"the copy is the engine as it is now"*"|"*"changed (1): three/layer.js"*) ok "new --three copies the Three.js layer and three.js into the project (not without --engine canvas-film); doctor <project> holds three/ to the engine's" ;;
+      *) bad "doctor on a --three project ($rc, $rc2): $b | $c" ;; esac
+    cp "$ROOT/engines/canvas-film/three/layer.js" "$p/three/layer.js"
+  else bad "new --three ($rc, $rc2): $a"; p=""; fi
+  # the layer on a page: the model through it in software WebGL, under the 2D. The test film (fixture.py --film) holds the
+  # camera while the column bends in a loop, so t = 0.25 and 1.25 (both 0.25 s into the clip, mixer.setTime) are one
+  # picture and t = 0.5 another; S01's pose moves the column off the middle from 0.4 s to 1 s: at 0.5 it is off, at 0.25
+  # (after ready's recorder posed it) and 1.25 (after 0.5) it is back, as the world is put back each frame; any order,
+  # another browser (bin/vh determinism, ≥ 45 dB for WebGL, hard rule 1); the shot's white square lies over the 3D's
+  # opaque background
+  [ -n "$p" ] || { rm -rf "$t"; return; }
+  python3 tools/model3d/fixture.py --film "$p"
+  a=$(vh determinism "$p" --at 0.25,0.5,1.25,2.5 --soft-gl --min-psnr 45 --out "$t/d" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "the Three.js layer on a page" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) skip "the Three.js layer on a page" "no WebGL here even with --soft-gl"; rm -rf "$t"; return ;; esac
+  if [ $rc = 0 ] && printf '%s' "$a" | grep -q "determinism: holds" && cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0001.250.png" \
+     && ! cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0000.500.png" && ! cmp -s "$t/d/A-t0000.500.png" "$t/d/A-t0002.500.png" \
+     && python3 - "$t/d/A-t0000.250.png" "$t/d/A-t0000.500.png" <<'PY'
+import struct, sys, zlib
+def read(path):   # an 8-bit, not interlaced PNG (Chrome's screenshots): its size and px(x, y) → (r, g, b)
+    d = open(path, "rb").read(); i = 8; idat = b""
+    while i < len(d):
+        n, kind = struct.unpack(">I4s", d[i:i + 8]); body = d[i + 8:i + 8 + n]; i += 12 + n
+        if kind == b"IHDR": w, h, depth, ctype = struct.unpack(">IIBB", body[:10])
+        if kind == b"IDAT": idat += body
+    bpp = {2: 3, 6: 4}[ctype]; raw = zlib.decompress(idat); stride = w * bpp; rows, prev = [], bytearray(stride)
+    for y in range(h):   # undo the PNG filters
+        f, line = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+        for x in range(stride):
+            a = line[x - bpp] if x >= bpp else 0; b = prev[x]; c = prev[x - bpp] if x >= bpp else 0
+            p = a + b - c; pr = a if abs(p - a) <= abs(p - b) and abs(p - a) <= abs(p - c) else b if abs(p - b) <= abs(p - c) else c
+            line[x] = (line[x] + (0, a, b, (a + b) // 2, pr)[f]) & 255
+        rows.append(line); prev = line
+    return w, h, lambda x, y: tuple(rows[y][x * bpp:x * bpp + 3])
+near = lambda p, q: all(abs(u - v) <= 3 for u, v in zip(p, q))   # noqa: E731
+bg = (0x20, 0x30, 0x40)
+w, h, px = read(sys.argv[1]); _, _, moved = read(sys.argv[2])
+ok = (w, h) == (160, 90) and px(8, 8) == (255, 255, 255) and near(px(150, 80), bg) and not near(px(80, 45), bg) and near(moved(80, 45), bg) and not near(moved(95, 45), bg)
+sys.exit(0 if ok else f"{w}x{h}: square {px(8, 8)}, background {px(150, 80)}, column {px(80, 45)}; posed at 0.5: {moved(80, 45)} in the middle, {moved(95, 45)} 0.5 m right")
+PY
+  then ok "the Three.js layer: a GLB's clip set to the film's time (0.25 s into a loop at t 0.25 and 1.25: one picture), a pose put back after its frame, the camera's moves, in any order and another browser (determinism, --soft-gl); the shot's 2D over the 3D"
+  else bad "the Three.js layer on a page (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  # ready names every problem of a shot's three at once: a clip the model lacks, one played once that stops before its
+  # shot does, a model that is not there, a key the layer does not read; FILM.three without three/ says how to get it
+  printf '%s\n' 'Object.assign(FILM, { width: 160, height: 90, timeline: false, duration: 3, grain: 0, fadeOut: 0, images: {},' \
+    '  three: { models: { box: "assets/models/box.glb" } } });' \
+    'const SHOTS = [{ id: "S01", at: 0, three: { play: { box: "bend" }, show: ["box", "crate"] }, draw() {} },' \
+    '  { id: "S02", at: 1.5, three: { play: { box: "wave" }, spin: 1 }, draw() {} }];' > "$p/src/50-shots.js"
+  a=$(vh frames "$p" --at 1 --soft-gl --out "$t/f" 2>&1); rc=$?
+  rm -rf "$p/three"
+  b=$(vh frames "$p" --at 1 --soft-gl --out "$t/f" 2>&1); rc2=$?
+  case "$rc:$rc2:$a|$b" in 2:2:*'no model "crate"'*'"bend" is 1.00 s; played once from 0.00 s'*"has spin, which the layer does not read"*'has no clip "wave" (its clips: bend, lift'*"|"*"three/layer.js did not load"*"--engine canvas-film --three"*)
+      ok "the Three.js layer's ready: a missing clip, a clip that stops before its shot, an unknown model and key, all at once (exit 2); FILM.three without three/ says how to get it" ;;
+    *) bad "the Three.js layer's ready ($rc, $rc2): $a | $b" ;; esac
+  rm -rf "$t"
+}
+
 status_checks() {
   local t p q a b c d e k rc rc2
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
@@ -6434,11 +6595,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks; model3d_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks; model3d_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

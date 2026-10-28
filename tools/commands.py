@@ -172,8 +172,8 @@ def problems(t):
     for c in t.get("commands") or []:
         n = c.get("name")
         where = f"command {n!r}"
-        if not isinstance(n, str) or not re.fullmatch(r"[a-z][a-z-]*", n):
-            bad.append(f"{where}: the name is not lower-case letters and -"); continue
+        if not isinstance(n, str) or not re.fullmatch(r"[a-z][a-z0-9-]*", n):
+            bad.append(f"{where}: the name is not lower-case letters, digits and -, a letter first"); continue
         names.append(n)
         for k in ("summary", "when"):
             if not isinstance(c.get(k), str) or not c[k].strip():
