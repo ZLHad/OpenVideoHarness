@@ -22,6 +22,31 @@ import glb   # noqa: E402
 W, H = 0.25, 2.0   # half the width, the height (metres)
 
 
+def rgbe(w, h, pixel):
+    """A w x h Radiance .hdr (RGBE, flat scanlines; three's HDRLoader and Blender read it); pixel(x, y) → (r, g, b) floats.
+    For a test sky: synthetic, nobody's photograph."""
+    def enc(r, g, b):
+        v = max(r, g, b)
+        if v < 1e-32:
+            return bytes(4)
+        m, e = math.frexp(v)
+        k = m * 256 / v
+        return bytes((int(r * k), int(g * k), int(b * k), e + 128))
+    head = f"#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y {h} +X {w}\n".encode()
+    return head + b"".join(enc(*pixel(x, y)) for y in range(h) for x in range(w))
+
+
+def sky(w, h):
+    """The test sky as pixel(x, y) for rgbe(w, h, …): a blue gradient down to a warm horizon, a dark ground, a bright sun to
+    one side. Three's PMREM wants a map 64 px wide or more (a smaller one lights and blurs to black): 128 x 64 does."""
+    def pixel(x, y):
+        v = y / (h - 1)
+        r, g, b = (0.25 + 0.6 * v, 0.35 + 0.4 * v, 0.9 - 0.4 * v) if v < 0.5 else (0.12, 0.1, 0.08)
+        near = abs(x - w // 4) <= w // 64 and abs(y - h // 6) <= h // 32
+        return (r + 6.0, g + 5.0, b + 3.5) if near else (r, g, b)
+    return pixel
+
+
 def png(w, h, pixel):
     """A w x h RGB PNG; pixel(x, y) → (r, g, b). Stored without compression, so the bytes are the same on every zlib."""
     raw = b"".join(b"\0" + bytes(c for x in range(w) for c in pixel(x, y)) for y in range(h))

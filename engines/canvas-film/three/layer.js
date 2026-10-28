@@ -114,12 +114,23 @@ export async function load(spec, { width, height, dpr }) {
   if (isNum(r)) rot.set(0, r * DEG, 0); else { const v = vec(r, "FILM.three.envRotation"); rot.set(v[0] * DEG, v[1] * DEG, v[2] * DEG); }
   const envIntensity = spec.envIntensity ?? 1;
   if (!isNum(envIntensity) || envIntensity < 0) fail("FILM.three.envIntensity is a number, 0 or more");
-  let env = null;
+  let env = null, envBack = null;   // the light (a PMREM map) and the background "env" shows (the map itself)
   if (spec.env === "room") {   // a neutral studio three makes from a few boxes and lights: no file
     const pm = new THREE.PMREMGenerator(renderer), room = new RoomEnvironment();
-    env = pm.fromScene(room, 0.04).texture;
+    env = envBack = pm.fromScene(room, 0.04).texture;
     room.dispose(); pm.dispose();
-  } else if (spec.env !== undefined && spec.env !== null) fail(`FILM.three.env: "room" (a neutral studio, no file) or null, not ${JSON.stringify(spec.env)}`);
+  } else if (typeof spec.env === "string" && /\.(hdr|exr)$/i.test(spec.env)) {   // an equirectangular HDRI (bin/vh hdri get)
+    const exr = /\.exr$/i.test(spec.env);
+    const mod = await import(exr ? "three/addons/loaders/EXRLoader.js" : "three/addons/loaders/HDRLoader.js");
+    let map;
+    try { map = await new (exr ? mod.EXRLoader : mod.HDRLoader)().loadAsync(spec.env); }
+    catch (e) { fail(`FILM.three.env: ${spec.env} did not load (${(e && e.message) || e}): bin/vh hdri get <project> <name> puts one in assets/hdri/`); }
+    map.mapping = THREE.EquirectangularReflectionMapping;
+    const pm = new THREE.PMREMGenerator(renderer);
+    env = pm.fromEquirectangular(map).texture;
+    pm.dispose();
+    envBack = map;
+  } else if (spec.env !== undefined && spec.env !== null) fail(`FILM.three.env: "room" (a neutral studio, no file), an .hdr or .exr file (bin/vh hdri get), or null, not ${JSON.stringify(spec.env)}`);
 
   for (const [i, L] of (spec.lights ?? (env ? [] : [{ type: "hemi", intensity: 1.2 }, { type: "sun", intensity: 2.5, pos: [3, 6, 4] }])).entries()) {
     const l = light(L, i);
@@ -182,7 +193,7 @@ export async function load(spec, { width, height, dpr }) {
   scene.backgroundBlurriness = clamp(spec.backgroundBlur ?? 0);
   const BG = (b, what) => {
     if (b === undefined || b === null) return null;
-    if (b === "env") return env || fail(`${what}: "env" needs FILM.three.env`);
+    if (b === "env") return envBack || fail(`${what}: "env" needs FILM.three.env`);
     return colour(b, what);
   };
   const bg0 = BG(spec.background, "FILM.three.background");
@@ -207,7 +218,7 @@ export async function load(spec, { width, height, dpr }) {
   // loading), and what three makes on a first render (a skeleton's bone texture, a background's maps, each with a
   // random id) is made here, not in the first frame drawn
   aim(cam0);
-  for (const b of new Set([bg0, env])) { scene.background = b; renderer.render(scene, camera); }
+  for (const b of new Set([bg0, envBack])) { scene.background = b; renderer.render(scene, camera); }
 
   function aim(v) {
     camera.position.fromArray(v.pos); camera.up.set(0, 1, 0); camera.lookAt(...v.at);

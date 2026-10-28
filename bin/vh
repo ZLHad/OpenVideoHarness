@@ -1132,6 +1132,7 @@ cmd_sound() { [ $# -gt 0 ] || { cmd_usage sound >&2; exit 2; }; python3 "$ROOT/t
 cmd_footage() { [ $# -gt 0 ] || { cmd_usage footage >&2; exit 2; }; python3 "$ROOT/tools/assets/footage.py" "$@"; }   # stdlib and ffmpeg
 cmd_image() { [ $# -gt 0 ] || { cmd_usage image >&2; exit 2; }; python3 "$ROOT/tools/assets/image.py" "$@"; }   # stdlib and ffmpeg
 cmd_model3d() { [ $# -gt 0 ] || { cmd_usage model3d >&2; exit 2; }; python3 "$ROOT/tools/model3d/model3d.py" "$@"; }   # stdlib; nothing leaves the machine
+cmd_hdri() { [ $# -gt 0 ] || { cmd_usage hdri >&2; exit 2; }; python3 "$ROOT/tools/assets/hdri.py" "$@"; }   # stdlib; Poly Haven's API
 cmd_assets() { [ $# -gt 0 ] || { cmd_usage assets >&2; exit 2; }; python3 "$ROOT/tools/assets/assets.py" "$@"; }   # stdlib only
 cmd_scout() { [ $# -gt 0 ] || { cmd_usage scout >&2; exit 2; }; python3 "$ROOT/tools/scout/scout.py" "$@"; }    # stdlib; yt-dlp for YouTube
 cmd_ref() { [ $# -gt 0 ] || { cmd_usage ref >&2; exit 2; }; python3 "$ROOT/tools/scout/refs.py" "$@"; }        # stdlib; the look as scout's
@@ -1156,7 +1157,7 @@ cmd_help() { python3 "$ROOT/tools/commands.py" help; }            # every usage,
 cmd_usage() { python3 "$ROOT/tools/commands.py" usage "$1"; }    # one command's usage from there; exit 1 if it has none
 
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|know|looks|breakdown|concept|components|hf|footage|image|model3d|bgm|sound|scout|ref) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|know|looks|breakdown|concept|components|hf|footage|image|model3d|hdri|bgm|sound|scout|ref) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
@@ -1173,6 +1174,7 @@ case "${1:-}" in   # the activity log: every command that works on a project (ac
   footage) case "${2:-}" in get|sync|frames) act_start "$@" || true ;; esac ;;   # search, files and list only read
   image) case "${2:-}" in gen|cutout) act_start "$@" || true ;; esac ;;   # prices only reads
   model3d) [ "${2:-}" = check ] || act_start "$@" || true ;;   # check only reads
+  hdri) [ "${2:-}" != get ] || act_start "$@" || true ;;   # search only reads
   concept) [ "${2:-}" != board ] || act_start "$@" || true ;;   # roulette only reads
   edit) case "${2:-}" in init|build) act_start "$@" || true ;; esac ;;   # check and list only read
   assets) case "${2:-}" in add|remove|credits) act_start "$@" || true ;; esac ;;   # list and check only read
@@ -1192,6 +1194,7 @@ case "${1:-help}" in
   footage) shift; cmd_footage "$@" ;;
   image) shift; cmd_image "$@" ;;
   model3d) shift; cmd_model3d "$@" ;;
+  hdri) shift; cmd_hdri "$@" ;;
   assets) shift; cmd_assets "$@" ;;
   scout) shift; cmd_scout "$@" ;; ref) shift; cmd_ref "$@" ;;
   hf) shift; cmd_hf "$@" ;;

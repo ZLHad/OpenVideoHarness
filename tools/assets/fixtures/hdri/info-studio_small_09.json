@@ -1,0 +1,26 @@
+{
+ "type": 0,
+ "name": "Studio Small 09",
+ "categories": [
+  "medium contrast",
+  "indoor",
+  "urban",
+  "artificial light",
+  "studio"
+ ],
+ "tags": [
+  "umbrella",
+  "softbox",
+  "infinity",
+  "lamp",
+  "studio",
+  "photo"
+ ],
+ "authors": {
+  "Sergej Majboroda": "All"
+ },
+ "max_resolution": [
+  16384,
+  8192
+ ]
+}

@@ -331,11 +331,11 @@ const SHOTS = [
 | `models` | 名字 → 项目里的 `.glb` / `.gltf` 路径，或 `{ src, pos, rot（度）, scale, cast, receive }`。`ready` 等全部载完。放进来之前先跑 `bin/vh model3d check <文件>`：面数、贴图、骨骼、动作名和时长、米制尺寸和朝向；Draco、meshopt、KTX2 压缩的模型这一层解不开，它会说 |
 | `camera` | 默认机位 `{ pos, at, fov 或 lens, near, far, roll }`，镜头没写 `cam` 时用它 |
 | `lights` | `[{ type: "sun" \| "point" \| "spot" \| "hemi" \| "ambient", color, intensity, pos, at, shadow, … }]`；不写时，有 `env` 就不加灯，没有就一盏天光加一盏主光 |
-| `env`、`envIntensity`、`envRotation` | 环境光：`"room"`（three 自带的中性影棚，不用文件）或不写。它挂到每个受光材质的 `envMap` 上，材质自己的 `envMapIntensity` 才算数（只靠 `scene.environment` 时 three 不认它）；`envRotation` 是绕竖轴的度数，或 `[x, y, z]` |
-| `background`、`backgroundBlur` | 颜色、`"env"`（环境当背景）或不写：不写就是透明，`bin/vh render --alpha` 出的片子这里透明 |
+| `env`、`envIntensity`、`envRotation` | 环境光：`"room"`（three 自带的中性影棚，不用文件）、一张等距柱状的 `.hdr` / `.exr`（`bin/vh hdri get <项目> <名字>` 从 Poly Haven 取，CC0，记进台账，打出这一行该写的路径），或不写。它挂到每个受光材质的 `envMap` 上，材质自己的 `envMapIntensity` 才算数（只靠 `scene.environment` 时 three 不认它）；`envRotation` 是绕竖轴的度数，或 `[x, y, z]`。打光用 1k、2k 就够，要当清晰背景的用 8k 以上 |
+| `background`、`backgroundBlur` | 颜色、`"env"`（环境当背景：HDRI 就是那张图本身，`backgroundBlur` 0–1 把它虚掉）或不写：不写就是透明，`bin/vh render --alpha` 出的片子这里透明 |
 | `tone`、`exposure` | 色调映射：`agx`（默认）、`aces`、`neutral`、`linear`、`none`；曝光 |
 | `shadows`、`antialias` | 阴影（灯上再写 `shadow: true`）；抗锯齿，默认开 |
-| `build(W3)` | 模型载完后调一次：`W3 = { THREE, scene, camera, renderer, models, env }`，`models.<名字>` 有 `root`（摆放它的那一层）、`scene`、`clips`。物体只在这里建 |
+| `build(W3)` | 模型载完后调一次，可以是 async：`W3 = { THREE, scene, camera, renderer, models, env }`，`models.<名字>` 有 `root`（摆放它的那一层）、`scene`、`clips`。物体只在这里建；组件（`bin/vh components add` 复制进项目的）也在这里载入：`await import(new URL("components/build-up/component.js", document.baseURI).href)`，它的 `three` 画法在镜头的 `pose` 里按 t 设 `InstancedMesh` 的矩阵（`components/build-up/sample/three-film.js` 是一支能直接跑的例子：一座楼一层层长出来） |
 
 镜头的 `three`：
 

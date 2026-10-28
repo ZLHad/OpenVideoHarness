@@ -1,9 +1,9 @@
 # components：能复用的动效，算好状态再落笔
 
-一个组件是一段能复用的动效：弹簧驱动的形状、翻页、纸面转场、章节进度条。它分两层：
+一个组件是一段能复用的动效：弹簧驱动的形状、翻页、纸面转场、章节进度条、一块块搭起来的建筑。它分两层：
 
 - **状态层**：`state(params, t)` 算出这一帧的样子（位置、大小、透明度、进度、切片），是 t 的纯函数，不碰 DOM 和画布；
-- **落笔层**：薄薄一层，把状态画出来。`canvas(ctx, state, …)` 画进 2D canvas；`dom(…)` 改 DOM 元素的样式和文字。字幕、章节条、标题卡这类以字为主的组件两种都有，在 HyperFrames 里用 DOM 排，中文断行、字距、字体特性都交给浏览器；颗粒、纸纹、翻页这类效果只有 canvas 一种。
+- **落笔层**：薄薄一层，把状态画出来。`canvas(ctx, state, …)` 画进 2D canvas；`dom(…)` 改 DOM 元素的样式和文字；`three(mesh, state, params, THREE)` 改 Three.js 对象（比如 `InstancedMesh` 每个实例的矩阵），three 由调用的人传进来，组件自己不引入它。字幕、章节条、标题卡这类以字为主的组件 canvas 和 DOM 两种都有，在 HyperFrames 里用 DOM 排，中文断行、字距、字体特性都交给浏览器；颗粒、纸纹、翻页这类效果只有 canvas 一种；3D 的（`build-up`）有 canvas（2.5D 方块，样片和不用 3D 的片子用）和 three 两种。
 
 同一份状态，HyperFrames 的合成、canvas-film 的页面、风格样片的场景都能用；硬规则 1 由状态层保证：同一个 t 永远算出同一个状态，乱序画也一样。
 
@@ -41,7 +41,7 @@ bin/vh components add <项目> chapter-bar page-turn    # 复制 lib/ 和这两�
 ```
 
 - **HyperFrames**：合成里 `<script type="module">` 引入组件，在挂在时间线上的驱动 tween 里按 t 调 `state()` 和落笔（`engines/README.md`"最小写法"的驱动 tween）。字用 DOM 落笔。
-- **canvas-film**：`film.html` 加一行 `<script type="module" src="components/lib/global.js"></script>`，经典脚本里用 `OVH.grain(X, t, {…})` 这样调（模块在 `ready` 之前就加载完了）；画尺寸不是 1920×1080 的，在 `ready` 里 `OVH.setFrame({ w: W, h: H, fps: FILM.fps, dpr: PRX })`。
+- **canvas-film**：`film.html` 加一行 `<script type="module" src="components/lib/global.js"></script>`，经典脚本里用 `OVH.grain(X, t, {…})` 这样调（模块在 `ready` 之前就加载完了）；画尺寸不是 1920×1080 的，在 `ready` 里 `OVH.setFrame({ w: W, h: H, fps: FILM.fps, dpr: PRX })`。有 three 画法的组件配 Three.js 层用：在 `FILM.three.build` 里 `await import(new URL("components/<名字>/component.js", document.baseURI).href)`，在镜头的 `pose(t)` 里调它的 `three()`（`build-up/sample/three-film.js` 是一支完整的例子）。
 - **风格样片和配方草图**：场景从 `../../components/<组件>/component.js` 引入（样片的 stage 会把 `components/` 一起复制过去，同 `vendor/` 的约定）。
 
 ## 样片

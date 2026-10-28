@@ -1,0 +1,85 @@
+{
+ "v": 1,
+ "note": "Poly Haven's answers in their shape (read live 2026-10-29), trimmed; the files' bodies are synthetic (tools/model3d/fixture.py rgbe and sky): nobody's HDRI",
+ "responses": [
+  {
+   "url": "https://api.polyhaven.com/assets?t=hdris",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "assets.json"
+  },
+  {
+   "url": "https://api.polyhaven.com/info/studio_small_09",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "info-studio_small_09.json"
+  },
+  {
+   "url": "https://api.polyhaven.com/files/studio_small_09",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "files-studio_small_09.json"
+  },
+  {
+   "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/2k/studio_small_09_2k.hdr",
+   "status": 200,
+   "headers": {
+    "content-type": "application/octet-stream"
+   },
+   "body": "studio_small_09_2k.hdr"
+  },
+  {
+   "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/2k/studio_small_09_2k.exr",
+   "status": 200,
+   "headers": {
+    "content-type": "application/octet-stream"
+   },
+   "body": "studio_small_09_2k.exr"
+  },
+  {
+   "url": "https://api.polyhaven.com/info/rock_wall_08",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "info-rock_wall_08.json"
+  },
+  {
+   "url": "https://api.polyhaven.com/info/no_such_hdri",
+   "status": 404,
+   "headers": {
+    "content-type": "text/plain"
+   }
+  },
+  {
+   "url": "https://api.polyhaven.com/info/sunflowers_puresky",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "info-sunflowers_puresky.json"
+  },
+  {
+   "url": "https://api.polyhaven.com/files/sunflowers_puresky",
+   "status": 200,
+   "headers": {
+    "content-type": "application/json"
+   },
+   "body": "files-sunflowers_puresky.json"
+  },
+  {
+   "url": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/sunflowers_puresky_1k.hdr",
+   "status": 200,
+   "headers": {
+    "content-type": "application/octet-stream"
+   },
+   "body": "studio_small_09_2k.hdr"
+  }
+ ]
+}

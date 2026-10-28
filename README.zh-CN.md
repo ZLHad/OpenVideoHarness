@@ -186,7 +186,7 @@ cd ~/OpenVideoHarness && claude
 
 介绍片的开场就是这样做的：118 万颗星组成一个星系，15.8 秒、475 帧，1080p 在 M3 Max 上渲了 1 小时 28 分。脚本在沙箱里跑，不联网，也拿不到你的 API key；长渲染分块、可以续渲。什么时候值得用、怎么接进片子、踩过哪些坑，见 [engines/blender.md](engines/blender.md)。
 
-旁白片里要放 3D 模型时，canvas 引擎有一个可选的 Three.js 层（`bin/vh new … --engine canvas-film --three`）：GLB 模型画在 2D 下面，动作按旁白的字放，每一帧都是 t 的函数。模型放进来之前，`bin/vh model3d check` 先读一遍：面数、贴图、骨骼、动作名和时长、以米计的尺寸。
+旁白片里要放 3D 模型时，canvas 引擎有一个可选的 Three.js 层（`bin/vh new … --engine canvas-film --three`）：GLB 模型画在 2D 下面，动作按旁白的字放，每一帧都是 t 的函数。模型放进来之前，`bin/vh model3d check` 先读一遍：面数、贴图、骨骼、动作名和时长、以米计的尺寸。`bin/vh hdri` 从 Poly Haven 取 CC0 的环境贴图，给场景打光、当背景。
 
 ## 声音
 

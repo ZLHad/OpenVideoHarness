@@ -3713,14 +3713,22 @@ const T = await import("./components/page-turn/component.js"); await run("page-t
 const F = await import("./components/paper-transition/component.js"); await run("fold", (t) => F.state({}, t / 5)); await run("blot", (t) => F.state({ variant: "blot" }, t / 5));
 const C = await import("./components/chapter-bar/component.js"), CP = { chapters: [{ t: 0, title: "一" }, { t: 1, title: "二二" }, { t: 3, title: "三" }], end: 5 };
 const lay = C.layout(CP, (s, z) => s.length * z * 0.6); await run("chapter-bar", (t) => C.state(CP, t, lay));
-if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot and chapter-bar, the same forwards, backwards and alone"
+const B = await import("./components/build-up/component.js"), cube = (x, y, z) => ({ x, y, z, w: 1, h: 1, d: 1 });
+const BP = [{ pieces: [cube(0, 0.5, 0), cube(1, 0.5, 0), cube(0, 1.5, 0), cube(1, 1.5, 1)], order: "height", bucket: 1, stagger: 0.7, jitter: 0.3, appear: "rise" },
+  { pieces: [cube(0, 0.5, 0), cube(2, 0.5, 0), cube(4, 0.5, 0)], order: "distance", from: [4, 0, 0], appear: "grow", stagger: 1 },
+  { pieces: [cube(0, 0.5, 0), cube(1, 0.5, 0), cube(2, 0.5, 0)], order: "random", seed: 9, appear: "drop", stagger: 0.9 }];
+for (const p of BP) await run(`build-up ${p.order}`, (t) => B.state({ ...p }, t));   // a fresh object each call: no plan cached between them
+const st = B.state(BP[0], 0.69), ranks = B.plan(BP[0]).rank, grow = B.state(BP[1], 0.25).pieces;   // 0.69: the first floor in, the second not yet (0.7 on)
+if (ranks.join() !== "0,0,1,1" || st.started !== 2 || B.duration(BP[0]) > 0.7 + 0.3 + 0.5 + 1e-9 || !(grow[2].box.h > 0 && grow[0].box.h === 0 && grow[2].box.y - grow[2].box.h / 2 === 0)) bad.push("build-up: ranks, starts or growth");
+if (bad.length) { console.log(bad.join(", ")); process.exit(1); }' 2>&1); then ok "components: each state(), spring-scene, page-turn (both ways), fold, blot, chapter-bar and build-up (by height, distance, seed), the same forwards, backwards and alone; build-up's ranks, starts and growth from the base"
   else bad "components: a state() that depends on what was drawn before: $a"; fi
   # add: the library and the components named, and what a component imports from another (paper-transition: page-turn)
   p="$t/proj"; mkdir -p "$p"; printf '# BRIEF\n' > "$p/BRIEF.md"; printf '<!doctype html>\n' > "$p/film.html"
-  a=$(vh components add "$p" paper-transition chapter-bar 2>&1); rc=$?
+  a=$(vh components add "$p" paper-transition chapter-bar build-up 2>&1); rc=$?
   b=$(vh components add "$p" no-such 2>&1); rc2=$?
   if [ "$rc:$rc2" = "0:2" ] && [ -f "$p/components/lib/global.js" ] && [ -f "$p/components/page-turn/component.js" ] && [ -f "$p/components/chapter-bar/slots.json" ] \
-     && [ ! -e "$p/components/page-turn/sample" ] && grep -q "OVH.grain" <<<"$a"; then ok "components add: the library, the components named and what they import (page-turn for paper-transition), no samples; canvas-film is told how to load them; an unknown name is exit 2"
+     && [ ! -e "$p/components/page-turn/sample" ] && [ ! -e "$p/components/build-up/sample" ] && grep -q "OVH.grain" <<<"$a" && grep -q "build-up's three painter, in the Three.js layer" <<<"$a"
+  then ok "components add: the library, the components named and what they import (page-turn for paper-transition), no samples; canvas-film is told how to load them, and a three painter how it goes with the Three.js layer; an unknown name is exit 2"
   else bad "components add ($rc, $rc2): $a | $b"; fi
   # a page of classic scripts, as canvas-film's: the library from components/lib/global.js as OVH, grain and paper drawn
   cat > "$p/classic.html" <<'HTML'
@@ -3740,8 +3748,11 @@ HTML
 import * as L from "./components/lib/index.js";
 import * as turn from "./components/page-turn/component.js";
 import * as bar from "./components/chapter-bar/component.js";
+import * as build from "./components/build-up/component.js";
 L.setFrame({ w: 640, h: 360, fps: 30 });
 const X = document.getElementById("c").getContext("2d"), P = { chapters: [{ t: 0, title: "一" }, { t: 1, title: "二" }], end: 2, y: 30, margin: 40, pad: 20 };
+const BU = { pieces: [0, 1, 2, 3].flatMap((f) => [[0, 0], [1, 0], [0, 1], [1, 1]].map(([i, k]) => ({ x: i, y: f + 0.5, z: k, w: 0.9, h: 0.9, d: 0.9 }))),
+  bucket: 1, stagger: 0.4, jitter: 0.1, dur: 0.3 };
 let lay;
 window.film = { duration: 2,
   ready: async () => { await document.fonts.ready; lay = bar.layout(P, (s, z) => { X.font = `600 ${z}px sans-serif`; return X.measureText(s).width; }); },
@@ -3751,6 +3762,7 @@ window.film = { duration: 2,
     const B = L.offscreen("b", (x) => { x.fillStyle = "#243447"; x.fillRect(0, 0, 640, 360); x.fillStyle = "#eee"; x.fillRect(400, 120, 160, 120); });
     turn.canvas(X, turn.state({}, L.seg(t, 0.4, 1.6)), A, B);
     bar.canvas(X, bar.state(P, t, lay), P);
+    build.canvas(X, build.state(BU, t), BU, { origin: [560, 330], scale: 16, edge: "#222" });   // a small tower a floor at a time, bottom right
   } };
 </script></body></html>
 HTML
@@ -3774,7 +3786,7 @@ PY
   then
     a=$(vh determinism "$p/classic.html" --samples 3 2>&1); rc=$?
     b=$(vh determinism "$p/modules.html" --samples 3 2>&1); rc2=$?
-    case "$rc:$rc2:$a:$b" in 0:0:*"determinism: holds"*:*"determinism: holds"*) ok "components on a page: a classic-script page (canvas-film's kind) draws OVH.paper and OVH.grain from global.js, a module page draws page-turn and the chapter bar; both a function of t (bin/vh determinism)" ;;
+    case "$rc:$rc2:$a:$b" in 0:0:*"determinism: holds"*:*"determinism: holds"*) ok "components on a page: a classic-script page (canvas-film's kind) draws OVH.paper and OVH.grain from global.js, a module page draws page-turn, the chapter bar and build-up's 2.5D blocks; both a function of t (bin/vh determinism)" ;;
       *) bad "components on a page, determinism ($rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)" ;; esac
   else bad "components on a page (frames $rc, $rc2): $(printf '%s' "$a" | tail -c 400) | $(printf '%s' "$b" | tail -c 400)"; fi
   # the other painters through the page contract too: a canvas page of paper-transition (the fold over the first second,
@@ -3828,6 +3840,30 @@ HTML
   rm -rf "$t"
 }
 
+px_are() { # px_are <png> <python condition> x,y …: true when the condition holds over P (the points' (r, g, b), in order), w and
+  # h, with near(p, q) (each channel within 3); else it says what it saw. An 8-bit PNG as Chrome writes one: no ffmpeg needed
+  python3 - "$@" <<'PY'
+import struct, sys, zlib
+f, cond, pts = sys.argv[1], sys.argv[2], sys.argv[3:]
+d = open(f, "rb").read(); i = 8; idat = b""
+while i < len(d):
+    n, kind = struct.unpack(">I4s", d[i:i + 8]); body = d[i + 8:i + 8 + n]; i += 12 + n
+    if kind == b"IHDR": w, h, depth, ctype = struct.unpack(">IIBB", body[:10])
+    if kind == b"IDAT": idat += body
+bpp = {2: 3, 6: 4}[ctype]; raw = zlib.decompress(idat); stride = w * bpp; rows, prev = [], bytearray(stride)
+for y in range(h):   # undo the PNG filters (8-bit, not interlaced)
+    flt, line = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+    for x in range(stride):
+        a = line[x - bpp] if x >= bpp else 0; b = prev[x]; c = prev[x - bpp] if x >= bpp else 0
+        p = a + b - c; pr = a if abs(p - a) <= abs(p - b) and abs(p - a) <= abs(p - c) else b if abs(p - b) <= abs(p - c) else c
+        line[x] = (line[x] + (0, a, b, (a + b) // 2, pr)[flt]) & 255
+    rows.append(line); prev = line
+P = [tuple(rows[y][x * bpp:x * bpp + 3]) for x, y in (map(int, q.split(",")) for q in pts)]
+near = lambda p, q: all(abs(u - v) <= 3 for u, v in zip(p, q))   # noqa: E731
+sys.exit(0 if eval(cond, {"P": P, "w": w, "h": h, "near": near}) else f"{f}: {w}x{h}, at {pts}: {P}")
+PY
+}
+
 model3d_checks() {   # bin/vh model3d check (tools/model3d) on a model written on the spot (tools/model3d/fixture.py: a column of two
   # cubes on two bones, a 4x4 texture, the clips bend 1 s and lift 2 s; nothing downloaded), and canvas-film's Three.js
   # layer drawing the same model through the page contract in software WebGL (--soft-gl, as a machine without a GPU does)
@@ -3848,7 +3884,7 @@ if a["skins"][0]["joint_names"] != ["Root", "Tip"]: bad.append(f"skins {a['skins
 if a["bbox"]["size"] != [0.5, 2.0, 0.5] or a["origin"] != "base centre" or a["tallest"] != "y" or a["verdict"] != "pass" or a["tier"] != "hero": bad.append(f"box {a['bbox']} {a['origin']} {a['tallest']}")
 if sorted(f["kind"] for f in b["findings"] if f["severity"] == "fail") != ["model3d.faces", "model3d.texture"] or b["limits"] != {"faces": 10, "texture": 2} or b["exit"] != 1: bad.append(f"over the limits: {b['findings']}")
 if "200.00 m across" not in c or "glTF is metres" not in c: bad.append(f"a model 100 times its size: {c[-300:]}")
-print("\n".join(bad)); sys.exit(1 if bad else 0)
+sys.exit("\n".join(bad) if bad else 0)
 PY
   then ok "model3d check: the test model's triangles, vertices, texture (size, format, use), joints, clips and lengths, box in metres, origin and up; --tier prop with --max-faces and --max-texture fails it (exit 1); 100 times its size is said"
   else bad "model3d check ($rc, $rc2, $rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $(printf '%s' "$c" | tail -c 300)"; fi
@@ -3910,26 +3946,8 @@ PY
   case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "the Three.js layer on a page" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
   case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) skip "the Three.js layer on a page" "no WebGL here even with --soft-gl"; rm -rf "$t"; return ;; esac
   if [ $rc = 0 ] && printf '%s' "$a" | grep -q "determinism: holds" && cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0001.250.png" \
-     && ! cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0000.500.png" && ! cmp -s "$t/d/A-t0000.500.png" "$t/d/A-t0002.500.png" && python3 - "$t/d/A-t0000.250.png" <<'PY'
-import struct, sys, zlib
-d = open(sys.argv[1], "rb").read(); i = 8; idat = b""
-while i < len(d):
-    n, kind = struct.unpack(">I4s", d[i:i + 8]); body = d[i + 8:i + 8 + n]; i += 12 + n
-    if kind == b"IHDR": w, h, depth, ctype = struct.unpack(">IIBB", body[:10])
-    if kind == b"IDAT": idat += body
-bpp = {2: 3, 6: 4}[ctype]; raw = zlib.decompress(idat); stride = w * bpp; rows, prev = [], bytearray(stride)
-for y in range(h):   # undo the PNG filters (8-bit, not interlaced: Chrome's screenshots)
-    f, line = raw[y * (stride + 1)], bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
-    for x in range(stride):
-        a = line[x - bpp] if x >= bpp else 0; b = prev[x]; c = prev[x - bpp] if x >= bpp else 0
-        p = a + b - c; pr = a if abs(p - a) <= abs(p - b) and abs(p - a) <= abs(p - c) else b if abs(p - b) <= abs(p - c) else c
-        line[x] = (line[x] + (0, a, b, (a + b) // 2, pr)[f]) & 255
-    rows.append(line); prev = line
-px = lambda x, y: tuple(rows[y][x * bpp:x * bpp + 3])   # noqa: E731
-near = lambda p, q: all(abs(u - v) <= 3 for u, v in zip(p, q))   # noqa: E731
-ok = (w, h) == (160, 90) and px(8, 8) == (255, 255, 255) and near(px(150, 80), (0x20, 0x30, 0x40)) and not near(px(80, 45), (0x20, 0x30, 0x40))
-sys.exit(0 if ok else f"{w}x{h}: square {px(8, 8)}, background {px(150, 80)}, column {px(80, 45)}")
-PY
+     && ! cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0000.500.png" && ! cmp -s "$t/d/A-t0000.500.png" "$t/d/A-t0002.500.png" \
+     && px_are "$t/d/A-t0000.250.png" '(w, h) == (160, 90) and P[0] == (255, 255, 255) and near(P[1], (0x20, 0x30, 0x40)) and not near(P[2], (0x20, 0x30, 0x40))' 8,8 150,80 80,45
   then ok "the Three.js layer: a GLB's clip set to the film's time (0.25 s into a loop at t 0.25 and 1.25: one picture), the camera's moves, in any order and another browser (determinism, --soft-gl); the shot's 2D over the 3D"
   else bad "the Three.js layer on a page (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   # ready names every problem of a shot's three at once: a clip the model lacks, one played once that stops before its
@@ -3944,6 +3962,59 @@ PY
   case "$rc:$rc2:$a|$b" in 2:2:*'no model "crate"'*'"bend" is 1.00 s; played once from 0.00 s'*"has spin, which the layer does not read"*'has no clip "wave" (its clips: bend, lift'*"|"*"three/layer.js did not load"*"--engine canvas-film --three"*)
       ok "the Three.js layer's ready: a missing clip, a clip that stops before its shot, an unknown model and key, all at once (exit 2); FILM.three without three/ says how to get it" ;;
     *) bad "the Three.js layer's ready ($rc, $rc2): $a | $b" ;; esac
+  rm -rf "$t"
+}
+
+hdri_checks() {   # bin/vh hdri (tools/assets/hdri.py) on Poly Haven's answers recorded in their shape (tools/assets/fixtures/hdri:
+  # the lists trimmed, the files synthetic, a 128 x 64 test sky), no network; then build-up's three painter under that sky
+  # in the Three.js layer (components/build-up/sample/three-film.js at 160 x 90, software WebGL)
+  local t p a b c d e rc rc2 rc3 rc4 fx=tools/assets/fixtures/hdri
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  vh new short tw --engine canvas-film --three --dir "$t" >/dev/null 2>&1; p=$(ls -d "$t"/*-tw 2>/dev/null)
+  [ -n "$p" ] || { bad "hdri: no project to get into (bin/vh new … --three)"; rm -rf "$t"; return; }
+  a=$(vh hdri search sky --category outdoor --json --offline "$fx" 2>/dev/null); rc=$?
+  b=$(vh hdri get "$p" studio_small_09 --json --offline "$fx" 2>/dev/null); rc2=$?
+  c=$(vh hdri get "$p" studio_small_09 --offline "$fx" 2>&1; vh hdri get "$p" studio_small_09 --format exr --offline "$fx" 2>&1); rc3=$?
+  d=$(vh hdri get "$p" sunflowers_puresky --res 1k --offline "$fx" 2>&1); rc4=$?
+  e=$(for x in "get $p rock_wall_08" "get $p no_such_hdri" "get $p studio_small_09 --res 8k" "nope"; do
+        # shellcheck disable=SC2086   # each line is the arguments, split on purpose
+        vh hdri $x --offline "$fx" 2>&1; echo "exit $?"; done)
+  if [ "$rc:$rc2:$rc3:$rc4" = "0:0:0:1" ] && python3 - "$p" "$a" "$b" "$c" "$d" "$e" <<'PY'
+import hashlib, json, sys
+sys.path.insert(0, "tools/assets")
+import ledger
+p, a, b, c, d, e = sys.argv[1:]; a, b = json.loads(a), json.loads(b); bad = []
+if [r["id"] for r in a["results"]] != ["kloofendal_48d_partly_cloudy_puresky", "sunflowers_puresky"] or a["results"][0]["max_resolution"] != "16k":
+    bad.append(f"search: {[r['id'] for r in a['results']]}")
+r, path = b["record"], "assets/hdri/studio_small_09/studio_small_09_2k.hdr"
+if (r["id"], r["path"], r["license"]["class"], r["source"]["provider"], r["source"]["url"], r["source"]["author"], b["env"]) != \
+   ("hdri-studio_small_09-2k", path, "cc0", "polyhaven", "https://polyhaven.com/a/studio_small_09", "Sergej Majboroda", path):
+    bad.append(f"get's record: {r}")
+if ledger.validate(r) or r["sha256"] != hashlib.sha256(open(f"{p}/{path}", "rb").read()).hexdigest(): bad.append(f"the record: {ledger.validate(r)}")
+if "is here already" not in c or "got hdri-studio_small_09-2k-exr" not in c: bad.append(f"again, and an exr: {c[-300:]}")
+recs = json.load(open(f"{p}/assets/ledger.json"))["assets"]
+if sorted(x["id"] for x in recs) != ["hdri-studio_small_09-2k", "hdri-studio_small_09-2k-exr"]: bad.append(f"the ledger: {[x['id'] for x in recs]}")
+import os
+if "its md5 is not the one Poly Haven lists" not in d or os.path.exists(f"{p}/assets/hdri/sunflowers_puresky"): bad.append(f"a wrong md5: {d[-300:]}")
+for want in ("is not an HDRI on Poly Haven", "Poly Haven has no no_such_hdri", "comes in 1k, 2k, 4k, not 8k", "no subcommand 'nope'"):
+    if want not in e: bad.append(f"usage: no {want!r} in {e[-400:]}")
+if e.count("exit 2") != 4: bad.append(f"usage errors are 2: {e[-300:]}")
+sys.exit("\n".join(bad) if bad else 0)
+PY
+  then ok "hdri: Poly Haven's HDRIs by words and category, most downloaded first; get puts one in assets/hdri/<id>/ under Poly Haven's name, md5 checked, on record (CC0, page, authors, sha256: a valid record) with FILM.three.env's line; the same again is left as it is, an EXR beside it; a wrong md5 is deleted (1); a texture, an unknown id or size, an unknown subcommand: 2"
+  else bad "hdri ($rc, $rc2, $rc3, $rc4): $(printf '%s' "$c$d" | tail -c 400)"; fi
+  # build-up in the Three.js layer: the tower a floor at a time under the test sky (env and background from the HDRI just
+  # got), the pieces an InstancedMesh the component's three painter sets each frame; any order, another browser
+  vh components add "$p" build-up >/dev/null && cp components/build-up/sample/three-film.js "$p/src/50-shots.js" \
+    && printf 'Object.assign(FILM, { width: 160, height: 90 });\n' >> "$p/src/50-shots.js"
+  a=$(vh determinism "$p" --at 0.2,2.5,5.9 --soft-gl --out "$t/d" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "build-up in the Three.js layer" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) skip "build-up in the Three.js layer" "no WebGL here even with --soft-gl"; rm -rf "$t"; return ;; esac
+  if [ $rc = 0 ] && printf '%s' "$a" | grep -q "determinism: holds" && ! cmp -s "$t/d/A-t0000.200.png" "$t/d/A-t0002.500.png" \
+     && px_are "$t/d/A-t0000.200.png" 'P[0][2] > P[0][0] + 8 and not P[1][0] > P[1][2] + 40' 80,3 80,45 \
+     && px_are "$t/d/A-t0005.900.png" 'P[0][0] > P[0][2] + 40' 80,45
+  then ok "build-up in the Three.js layer: a tower a floor at a time (its three painter on an InstancedMesh, set from t) under an HDRI that lights it and shows behind it, the same in any order and another browser (determinism, --soft-gl)"
+  else bad "build-up in the Three.js layer (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   rm -rf "$t"
 }
 
@@ -6238,11 +6309,11 @@ PY
 }
 
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks; model3d_checks ;;
+  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks; model3d_checks; hdri_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
     (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks; model3d_checks ;;
+  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks; model3d_checks; hdri_checks ;;
   *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
 esac
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these
