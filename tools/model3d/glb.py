@@ -3,8 +3,9 @@ buffers and images beside it or in data: URIs. Accessors come out as numbers, no
 their format and size read from their own headers. bin/vh model3d check (tools/model3d/model3d.py) reports from it;
 tools/model3d/fixture.py writes the test model with its write_glb().
 
-Model(path) → .json (the glTF), .kind ("glb" or "gltf"), .bytes (the file's size), .accessor(i) → [tuple…],
-.buffer(i), .image(i) → (bytes or None, mime, where), .world() → {node: matrix} for the default scene, .roots().
+Model(path) → .json (the glTF), .kind ("glb" or "gltf"), .bytes (the file's size), .notes ([(kind, message)]: what
+reads but is off), .problems() → [line…] (what points outside the file), .accessor(i) → [tuple…], .buffer(i),
+.image(i) → (bytes or None, mime, where), .world() → {node: matrix} for the default scene, .roots().
 Nothing is decoded that the report does not need: no meshes are built, no images decompressed.
 """
 import base64, json, math, struct, urllib.parse
@@ -15,17 +16,32 @@ COMPONENT = {5120: ("b", 1), 5121: ("B", 1), 5122: ("h", 2), 5123: ("H", 2), 512
 NORM = {5120: 127.0, 5121: 255.0, 5122: 32767.0, 5123: 65535.0}   # a normalized integer's range (signed: max(c / n, -1))
 COUNT = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT2": 4, "MAT3": 9, "MAT4": 16}
 IDENTITY = (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0)   # column-major, as glTF writes it
+LISTS = ("accessors", "animations", "buffers", "bufferViews", "cameras", "images", "materials", "meshes", "nodes", "samplers",
+         "scenes", "skins", "textures")
+ZEROS = 1 << 24   # an accessor with no bufferView is that many zeros: more than any model holds is a broken count, not data
 
 
 class GltfError(Exception):
     """The file is not a glTF 2.0 model this reader can take, or a part of it points nowhere."""
 
 
+def kind_of(v):
+    return {dict: "an object", list: "a list", str: "a string", bool: "true or false", type(None): "null"}.get(type(v), "a number")
+
+
+def whole(v, lo=0):
+    return isinstance(v, int) and not isinstance(v, bool) and v >= lo
+
+
+def short(v):
+    return json.dumps(v)[:60]
+
+
 class Model:
     def __init__(self, path):
         self.path = Path(path)
         data = self.path.read_bytes()
-        self.bytes, self.bin, self._buffers = len(data), None, {}
+        self.bytes, self.bin, self._buffers, self.notes = len(data), None, {}, []
         if data[:4] == b"glTF":
             self.kind = "glb"
             if len(data) < 20:
@@ -33,8 +49,11 @@ class Model:
             magic, version, length = struct.unpack_from("<III", data, 0)
             if version != 2:
                 raise GltfError(f"GLB version {version}: glTF 2.0 files are version 2 (a glTF 1.0 file needs converting)")
-            if length != len(data):
-                raise GltfError(f"the GLB header says {length} bytes, the file has {len(data)} (cut short, or something appended)")
+            if length > len(data):
+                raise GltfError(f"the GLB header says {length} bytes, the file has {len(data)}: it was cut short")
+            if length < len(data):   # three reads up to the header's length, so the file loads
+                self.notes.append(("trailing", f"{len(data) - length:,} bytes after the {length:,} the GLB header gives: three reads up to its length and drops them"))
+                data = data[:length]
             chunks, at = [], 12
             while at + 8 <= len(data):
                 n, kind = struct.unpack_from("<II", data, at)
@@ -56,9 +75,183 @@ class Model:
             raise GltfError(f"its JSON does not parse: {e}") from None
         if not isinstance(self.json, dict):
             raise GltfError("its JSON is not an object")
-        ver = str((self.json.get("asset") or {}).get("version", ""))
+        asset = self.json.get("asset")
+        if not isinstance(asset, dict):
+            raise GltfError(f"asset is {kind_of(asset) if 'asset' in self.json else 'missing'}: a glTF 2.0 file says {{\"asset\": {{\"version\": \"2.0\"}}}}")
+        ver = str(asset.get("version", ""))
         if not ver.startswith("2."):
             raise GltfError(f"asset.version is {ver or 'missing'}: this reads glTF 2.0")
+
+    def problems(self):
+        """What points outside the file, or is not the kind of thing glTF says, a line each (the first 20): the top-level
+        lists and their entries, each reference from one to another, each buffer's bytes, each bufferView inside its
+        buffer, each accessor's type, component type and count and its elements inside its bufferView. One pass over the
+        JSON, no data read. It is not the whole glTF 2.0 spec: Khronos's glTF-Validator checks a file against that."""
+        J, out = self.json, []
+        for k in LISTS:
+            v = J.get(k, [])
+            if not isinstance(v, list):
+                out.append(f"{k} is {kind_of(v)}: glTF's {k} is a list of objects")
+                continue
+            odd = [i for i, x in enumerate(v) if not isinstance(x, dict)]
+            if odd:
+                out.append(f"{k}[{odd[0]}] is {kind_of(v[odd[0]])}, not an object" + (f" (and {len(odd) - 1} more of the {k})" if len(odd) > 1 else ""))
+        for k in ("extensionsUsed", "extensionsRequired"):
+            v = J.get(k, [])
+            if not isinstance(v, list) or not all(isinstance(x, str) for x in v):
+                out.append(f"{k} is a list of extension names: {short(v)}")
+        if out:
+            return out   # what follows walks these lists
+        many = {k: len(self.list(k)) for k in LISTS}
+
+        def ref(v, k, where):
+            if whole(v) and v < many[k]:
+                return True
+            out.append(f"{where} points at {k}[{short(v)}], and there are {many[k]}")
+            return False
+
+        def items(o, key, where, objects=False):
+            v = o.get(key, [])
+            if not isinstance(v, list):
+                out.append(f"{where} is {kind_of(v)}: a list")
+                return []
+            if objects and not all(isinstance(x, dict) for x in v):
+                out.append(f"{where} is a list of objects: {short(v)}")
+                return []
+            return v
+
+        if "scene" in J:
+            ref(J["scene"], "scenes", "scene")
+        for i, s in enumerate(self.list("scenes")):
+            for r in items(s, "nodes", f"scenes[{i}].nodes"):
+                ref(r, "nodes", f"scenes[{i}].nodes")
+        for i, n in enumerate(self.list("nodes")):
+            for c in items(n, "children", f"nodes[{i}].children"):
+                ref(c, "nodes", f"nodes[{i}].children")
+            for k, lst in (("mesh", "meshes"), ("skin", "skins"), ("camera", "cameras")):
+                if k in n:
+                    ref(n[k], lst, f"nodes[{i}].{k}")
+            for k, want in (("matrix", 16), ("translation", 3), ("rotation", 4), ("scale", 3)):
+                if k in n and not (isinstance(n[k], list) and len(n[k]) == want and all(finite(x) for x in n[k])):
+                    out.append(f"nodes[{i}].{k} is {want} numbers: {short(n[k])}")
+        for i, me in enumerate(self.list("meshes")):
+            for j, p in enumerate(items(me, "primitives", f"meshes[{i}].primitives", True)):
+                w, at = f"meshes[{i}].primitives[{j}]", p.get("attributes", {})
+                for name, a in (at.items() if isinstance(at, dict) else ()):
+                    ref(a, "accessors", f"{w}.attributes.{name}")
+                if not isinstance(at, dict):
+                    out.append(f"{w}.attributes is {kind_of(at)}: an object, attribute → accessor")
+                for k, lst in (("indices", "accessors"), ("material", "materials")):
+                    if k in p:
+                        ref(p[k], lst, f"{w}.{k}")
+                if "mode" in p and not (whole(p["mode"]) and p["mode"] <= 6):
+                    out.append(f"{w}.mode is 0 to 6 (4: triangles), not {short(p['mode'])}")
+                for k, tg in enumerate(items(p, "targets", f"{w}.targets", True)):
+                    for name, a in tg.items():
+                        ref(a, "accessors", f"{w}.targets[{k}].{name}")
+        for i, s in enumerate(self.list("skins")):
+            joints = items(s, "joints", f"skins[{i}].joints")
+            for j in joints:
+                ref(j, "nodes", f"skins[{i}].joints")
+            if "skeleton" in s:
+                ref(s["skeleton"], "nodes", f"skins[{i}].skeleton")
+            if "inverseBindMatrices" in s and ref(s["inverseBindMatrices"], "accessors", f"skins[{i}].inverseBindMatrices"):
+                a = self.list("accessors")[s["inverseBindMatrices"]]
+                if a.get("type") != "MAT4" or not whole(a.get("count"), len(joints)):
+                    out.append(f"skins[{i}].inverseBindMatrices is accessors[{s['inverseBindMatrices']}], {short(a.get('count'))} of {short(a.get('type'))}: "
+                               f"glTF wants a MAT4 for each of its {len(joints)} joints")
+        for i, an in enumerate(self.list("animations")):
+            samplers = items(an, "samplers", f"animations[{i}].samplers", True)
+            for j, s in enumerate(samplers):
+                ref(s.get("input"), "accessors", f"animations[{i}].samplers[{j}].input")
+                ref(s.get("output"), "accessors", f"animations[{i}].samplers[{j}].output")
+            for j, c in enumerate(items(an, "channels", f"animations[{i}].channels", True)):
+                if not (whole(c.get("sampler")) and c["sampler"] < len(samplers)):
+                    out.append(f"animations[{i}].channels[{j}].sampler points at its samplers[{short(c.get('sampler'))}], and it has {len(samplers)}")
+                tg = c.get("target")
+                if not isinstance(tg, dict):
+                    out.append(f"animations[{i}].channels[{j}].target is {kind_of(tg)}: {{node, path}}")
+                elif "node" in tg:
+                    ref(tg["node"], "nodes", f"animations[{i}].channels[{j}].target.node")
+        for i, t in enumerate(self.list("textures")):
+            for k, lst in (("source", "images"), ("sampler", "samplers")):
+                if k in t:
+                    ref(t[k], lst, f"textures[{i}].{k}")
+        for i, im in enumerate(self.list("images")):
+            if "bufferView" in im:
+                ref(im["bufferView"], "bufferViews", f"images[{i}].bufferView")
+            elif not isinstance(im.get("uri", ""), str):
+                out.append(f"images[{i}].uri is {kind_of(im['uri'])}: a file name or a data: URI")
+
+        blen = []   # each buffer's bytes, as it says them (None: said above)
+        for i, b in enumerate(self.list("buffers")):
+            n = b.get("byteLength")
+            blen.append(n if whole(n, 1) else None)
+            if not whole(n, 1):
+                out.append(f"buffers[{i}].byteLength is a whole number of bytes, 1 or more: {short(n)}")
+            elif "uri" in b:
+                if not isinstance(b["uri"], str):
+                    out.append(f"buffers[{i}].uri is {kind_of(b['uri'])}: a file name or a data: URI")
+            elif i == 0 and self.bin is not None:
+                if len(self.bin) < n:
+                    out.append(f"buffers[0] says {n:,} bytes, and the GLB's BIN chunk has {len(self.bin):,}")
+            else:
+                out.append(f"buffers[{i}] has no uri and is not the GLB's BIN chunk")
+        vlen = []   # each bufferView's bytes (None: said above)
+        for i, v in enumerate(self.list("bufferViews")):
+            n, at, st = v.get("byteLength"), v.get("byteOffset", 0), v.get("byteStride")
+            vlen.append(None)
+            if not ref(v.get("buffer"), "buffers", f"bufferViews[{i}].buffer"):
+                continue
+            if not (whole(n, 1) and whole(at)):
+                out.append(f"bufferViews[{i}]: byteLength (1 or more) and byteOffset (0 or more) are whole numbers of bytes: {short(n)}, {short(at)}")
+                continue
+            vlen[i], b = n, blen[v["buffer"]]
+            if b is not None and at + n > b:
+                out.append(f"bufferViews[{i}] runs {at + n - b:,} bytes past the end of buffers[{v['buffer']}] (from byte {at:,}, {n:,} bytes, of {b:,})")
+            if st is not None and not (whole(st, 4) and st <= 252 and st % 4 == 0):
+                out.append(f"bufferViews[{i}].byteStride is 4 to 252, a multiple of 4: {short(st)}")
+        for i, a in enumerate(self.list("accessors")):
+            w, comp, typ, count, at = f"accessors[{i}]", a.get("componentType"), a.get("type"), a.get("count"), a.get("byteOffset", 0)
+            if not (whole(comp) and comp in COMPONENT and isinstance(typ, str) and typ in COUNT):
+                out.append(f"{w}: componentType {short(comp)}, type {short(typ)}: glTF's are 5120, 5121, 5122, 5123, 5125, 5126 and SCALAR, VEC2–4, MAT2–4")
+                continue
+            if not (whole(count, 1) and whole(at)):
+                out.append(f"{w}: count (1 or more) and byteOffset (0 or more) are whole numbers: {short(count)}, {short(at)}")
+                continue
+            size, elem = COMPONENT[comp][1], element(typ, COMPONENT[comp][1])
+            if "bufferView" in a:
+                if not ref(a["bufferView"], "bufferViews", f"{w}.bufferView") or vlen[a["bufferView"]] is None:
+                    continue
+                st = self.list("bufferViews")[a["bufferView"]].get("byteStride")
+                st = st if whole(st, 1) else elem
+                end, have = at + st * (count - 1) + elem, vlen[a["bufferView"]]
+                if end > have:
+                    out.append(f"{w}: {count:,} elements of {elem} bytes" + (f" every {st}" if st != elem else "") +
+                               f" from byte {at:,} run past the end of bufferViews[{a['bufferView']}] ({end:,} bytes of {have:,})")
+                if at % size:
+                    out.append(f"{w}.byteOffset {at} is not a multiple of {size}, its component's bytes: three cannot read it")
+            elif count > ZEROS:
+                out.append(f"{w}: {count:,} elements and no bufferView (zeros): more than any model holds, a broken count")
+            sp = a.get("sparse")
+            if sp is None:
+                continue
+            if not (isinstance(sp, dict) and whole(sp.get("count"), 1) and sp["count"] <= count and isinstance(sp.get("indices"), dict) and isinstance(sp.get("values"), dict)):
+                out.append(f"{w}.sparse is {{count (1 to {count:,}), indices, values}}: {short(sp)}")
+                continue
+            ic = sp["indices"].get("componentType")
+            if not (whole(ic) and ic in (5121, 5123, 5125)):
+                out.append(f"{w}.sparse.indices.componentType is 5121, 5123 or 5125: {short(ic)}")
+                continue
+            for part, nbytes in (("indices", COMPONENT[ic][1]), ("values", COUNT[typ] * size)):
+                r, wp = sp[part], f"{w}.sparse.{part}"
+                if not ref(r.get("bufferView"), "bufferViews", f"{wp}.bufferView") or vlen[r["bufferView"]] is None:
+                    continue
+                o = r.get("byteOffset", 0)
+                end = (o if whole(o) else 0) + sp["count"] * nbytes
+                if end > vlen[r["bufferView"]]:
+                    out.append(f"{wp}: {sp['count']:,} of them run past the end of bufferViews[{r['bufferView']}] ({end:,} bytes of {vlen[r['bufferView']]:,})")
+        return out[:20] + ([f"… and {len(out) - 20} more like these"] if len(out) > 20 else [])
 
     # ---- what the JSON points at ----
     def list(self, key):
@@ -108,14 +301,14 @@ class Model:
         """An accessor's elements as tuples of numbers (normalized integers as floats in 0..1 or -1..1), sparse values in."""
         a = self.get("accessors", i, "a mesh, a skin or an animation")
         comp, typ, count = a.get("componentType"), a.get("type"), a.get("count", 0)
-        if comp not in COMPONENT or typ not in COUNT:
-            raise GltfError(f"accessors[{i}]: component type {comp} or type {typ} is not glTF's")
+        if not (whole(comp) and comp in COMPONENT and isinstance(typ, str) and typ in COUNT and whole(count)):
+            raise GltfError(f"accessors[{i}]: component type {short(comp)}, type {short(typ)} or count {short(count)} is not glTF's")
         fmt, size = COMPONENT[comp]
         n = COUNT[typ]
-        # a matrix of 1- or 2-byte components starts each column on a 4-byte boundary
-        rows = {"MAT2": 2, "MAT3": 3, "MAT4": 4}.get(typ)
-        col = -(-(rows * size) // 4) * 4 if rows and size < 4 else None
-        elem = col * rows if col else n * size
+        rows, col = {"MAT2": 2, "MAT3": 3, "MAT4": 4}.get(typ), None
+        if rows and size < 4:
+            col = -(-(rows * size) // 4) * 4
+        elem = element(typ, size)
         out = []
         if "bufferView" in a:
             data, stride = self.view(a["bufferView"])
@@ -128,8 +321,10 @@ class Model:
                     out.append(tuple(x for c in range(rows) for x in struct.unpack_from(f"<{rows}{fmt}", data, at + c * col)))
                 else:
                     out.append(struct.unpack_from(f"<{n}{fmt}", data, at))
+        elif count > ZEROS:
+            raise GltfError(f"accessors[{i}]: {count:,} elements and no bufferView (zeros): more than any model holds, a broken count")
         else:
-            out = [(0,) * n] * count
+            out = [(0,) * n] * count   # glTF: no bufferView is zeros, a sparse block may set some
         sp = a.get("sparse")
         if sp:
             idx = _plain(self, sp["indices"], sp["count"], 1)
@@ -190,6 +385,14 @@ def _plain(model, ref, count, n):
     return [struct.unpack_from(f"<{n}{fmt}", data, at + k * n * size) for k in range(count)]
 
 
+def element(typ, size):
+    """An accessor element's bytes: its components, a matrix of 1- or 2-byte ones with each column on a 4-byte boundary."""
+    rows = {"MAT2": 2, "MAT3": 3, "MAT4": 4}.get(typ)
+    if rows and size < 4:
+        return -(-(rows * size) // 4) * 4 * rows
+    return COUNT[typ] * size
+
+
 # ---- 4x4 matrices, column-major tuples as glTF writes them ----
 def mul(a, b):
     return tuple(sum(a[r + 4 * k] * b[k + 4 * c] for k in range(4)) for c in range(4) for r in range(4))
@@ -201,6 +404,9 @@ def local(node):
         return tuple(float(x) for x in node["matrix"])
     tx, ty, tz = node.get("translation", (0, 0, 0))
     x, y, z, w = node.get("rotation", (0, 0, 0, 1))
+    k = math.sqrt(x * x + y * y + z * z + w * w)
+    if k > 0:   # glTF's rotations are unit quaternions; one that is not is taken as the turn it points at (all zeros: none)
+        x, y, z, w = x / k, y / k, z / k, w / k
     sx, sy, sz = node.get("scale", (1, 1, 1))
     r = (1 - 2 * (y * y + z * z), 2 * (x * y + z * w), 2 * (x * z - y * w),
          2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w),

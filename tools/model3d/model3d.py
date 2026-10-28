@@ -10,9 +10,18 @@ usage: bin/vh model3d check <model.glb|model.gltf> [--tier hero|prop] [--max-fac
           animation_<i>, as three's GLTFLoader names it); the box it fills in metres, where its origin sits, and which
           way it is tallest (glTF is metres and +Y up by definition: a file cannot say otherwise, so a size far off for
           what it is says it was made in other units). Over the tier's triangles or texture size, an extension the
-          Three.js layer cannot decode (Draco, meshopt, KTX2 / Basis: it has no decoders), or an image or buffer that
-          is not beside the model fails it; a size over 100 m or under 1 cm across, two clips with one name, a clip
-          of no length are warnings. A skinned mesh is measured in its bind pose.
+          Three.js layer cannot decode (Draco, meshopt, KTX2 / Basis: it has no decoders; Draco even when it is only
+          listed as used, since three's loader then stops without one), or an image or buffer that is not beside the
+          model fails it; a size over 100 m or under 1 cm across, two clips with one name, a clip of no length, bytes
+          after the end a GLB's header gives are warnings. A skinned mesh is measured where its joints hold it in the
+          file: its box through each joint's world matrix times that joint's inverse bind matrix. In the bind pose those
+          are all the identity (the mesh as it was modelled) or one matrix (the rig placed as a whole), and the box is
+          the mesh's; when the file holds another pose, the box holds the mesh as each joint would move all of it, so
+          it comes out larger than the mesh.
+          A file whose parts point outside it (a bufferView past its buffer, an accessor past its bufferView, a type
+          or component type glTF does not have, a top-level list that is not one, a reference to nothing) fails with
+          the part named. That is a cheap pass, not a validator: Khronos's glTF-Validator
+          (github.com/KhronosGroup/glTF-Validator) checks a file against the whole glTF 2.0 spec.
   --tier  hero (default): 200,000 triangles, textures up to 4096 px a side · prop: 50,000 and 2048 px.
           --max-faces and --max-texture change the tier's numbers.
 --json: {"version": 1, "tool", "file", "kind" (glb | gltf), "bytes", "generator", "tier", "limits": {"faces", "texture"},
@@ -23,7 +32,9 @@ usage: bin/vh model3d check <model.glb|model.gltf> [--tier hero|prop] [--max-fac
 "format", "width", "height", "bytes", "where", "used_by"}], "skins": [{"name", "joints", "joint_names"}], "animations":
 [{"name", "duration", "start", "channels", "targets", "interpolations"}], "bbox": {"min", "max", "size", "center"} | null,
 "tallest" (x | y | z), "origin" (base centre | centre | inside | outside), "findings": [{"kind", "severity" (fail | warn |
-info), "message"}], "verdict" (pass | fail), "exit"}. The lines a person reads go to stderr with --json.
+info), "message"}], "verdict" (pass | fail), "exit"}. A file it cannot read has what was read before it stopped (version,
+tool, file, tier, limits, findings, verdict, exit; kind, bytes, generator and extensions if it got that far). The lines a
+person reads go to stderr with --json.
 Exit: 0 · 1 a check failed, or the file is not a glTF 2.0 model it can read · 2 usage: no such file, a bad option.
 """
 import json, math, sys
@@ -36,7 +47,8 @@ import glb   # noqa: E402
 PROG = "bin/vh model3d"
 TIERS = {"hero": {"faces": 200_000, "texture": 4096}, "prop": {"faces": 50_000, "texture": 2048}}
 # what three's GLTFLoader reads without a decoder the layer does not ship (engines/canvas-film/three/)
-NEEDS_DECODER = {"KHR_draco_mesh_compression": "DRACOLoader", "EXT_meshopt_compression": "MeshoptDecoder",
+DRACO = "KHR_draco_mesh_compression"
+NEEDS_DECODER = {DRACO: "DRACOLoader", "EXT_meshopt_compression": "MeshoptDecoder",
                  "KHR_meshopt_compression": "MeshoptDecoder", "KHR_texture_basisu": "KTX2Loader"}
 LOADER_KNOWS = {"KHR_lights_punctual", "KHR_materials_clearcoat", "KHR_materials_dispersion", "KHR_materials_ior", "KHR_materials_sheen",
                 "KHR_materials_specular", "KHR_materials_transmission", "KHR_materials_iridescence", "KHR_materials_anisotropy",
@@ -87,6 +99,8 @@ def accessor_range(m, i):
     """(min, max) of an accessor, from its min and max (normalized integers scaled) or, without them, from its data."""
     a = m.get("accessors", i, "a primitive or an animation")
     lo, hi = a.get("min"), a.get("max")
+    if "bufferView" not in a and not a.get("sparse"):   # all zeros (glTF): no list of them is made
+        return [0.0] * glb.COUNT[a["type"]], [0.0] * glb.COUNT[a["type"]]
     if isinstance(lo, list) and isinstance(hi, list) and lo and len(lo) == len(hi) and all(glb.finite(x) for x in lo + hi):
         if a.get("normalized") and a.get("componentType") in glb.NORM:
             k = glb.NORM[a["componentType"]]
@@ -105,10 +119,17 @@ def check(path, tier, limits):
     say = lambda kind, sev, msg: rep["findings"].append({"kind": f"model3d.{kind}", "severity": sev, "message": msg})   # noqa: E731
     try:
         m = glb.Model(path)
-        build(m, rep, say, limits)
+        rep.update(kind=m.kind, bytes=m.bytes, generator=str(m.json["asset"].get("generator", "")))
+        for kind, msg in m.notes:
+            say(kind, "warn", msg)
+        bad = m.problems()
+        for msg in bad:
+            say("structure", "fail", msg)
+        if not bad:
+            build(m, rep, say, limits)
     except glb.GltfError as e:
         say("read", "fail", f"not a glTF 2.0 model this can read: {e}")
-    except (OSError, ValueError, KeyError, TypeError, IndexError, ArithmeticError) as e:   # a malformed file, a part that is not what glTF says
+    except Exception as e:   # anything else in a file that is not what glTF says: a line, never a traceback
         say("read", "fail", f"a part of it is not what glTF 2.0 says ({type(e).__name__}: {e})")
     fails = [f for f in rep["findings"] if f["severity"] == "fail"]
     rep["verdict"], rep["exit"] = ("fail", 1) if fails else ("pass", 0)
@@ -117,14 +138,17 @@ def check(path, tier, limits):
 
 def build(m, rep, say, limits):
     J = m.json
-    rep.update(kind=m.kind, bytes=m.bytes, generator=(J.get("asset") or {}).get("generator", ""))
     used, req = list(J.get("extensionsUsed") or []), list(J.get("extensionsRequired") or [])
     rep["extensions"] = {"used": used, "required": req}
+    out = "write it out uncompressed (gltf-transform, or Blender's glTF export with compression off)"
     for e in req:
         if e in NEEDS_DECODER:
-            say("extension", "fail", f"it needs {e}, and the Three.js layer has no {NEEDS_DECODER[e]}: write it out uncompressed (gltf-transform, or Blender's glTF export with compression off)")
+            say("extension", "fail", f"it needs {e}, and the Three.js layer has no {NEEDS_DECODER[e]}: {out}")
         elif e not in LOADER_KNOWS:
             say("extension", "fail", f"it needs {e}, which three's GLTFLoader does not read")
+    if DRACO in used and DRACO not in req:   # three's GLTFLoader stops at a Draco listed as used, with no DRACOLoader
+        say("extension", "fail", f"it lists {DRACO} as used: three's GLTFLoader stops at that without a DRACOLoader, "
+            f"and the Three.js layer has none (even if every mesh has a fallback): {out}")
 
     world = m.world()
     meshes = m.list("meshes")
@@ -161,6 +185,8 @@ def build(m, rep, say, limits):
     for x in rep["materials"]:
         for slot, ti in x["textures"].items():
             used_by.setdefault(ti, []).append(f"{x['name']}.{slot}")
+            if not (glb.whole(ti) and ti < len(m.list("textures"))):
+                say("structure", "fail", f"material {x['name']}'s {slot} texture points at textures[{ti}], and there are {len(m.list('textures'))}")
     texs = []
     for ti, t in enumerate(m.list("textures")):
         src = tex_source(t)
@@ -239,7 +265,10 @@ def bbox(m, rep, say, world):
         if not isinstance(n.get("mesh"), int):
             continue
         mats = [w]
-        if isinstance(n.get("skin"), int) and n["skin"] < len(skins):   # the node's own transform is ignored (glTF); each joint's
+        # skinned: the node's own transform is ignored (glTF); each joint's world matrix times its inverse bind matrix,
+        # all of them identity in the bind pose (the mesh as modelled), one shared matrix if the rig is placed as a whole;
+        # if they differ (the file holds another pose), the box is the union of the mesh under each, larger than the mesh
+        if isinstance(n.get("skin"), int) and n["skin"] < len(skins):
             s = skins[n["skin"]]
             ibm = m.accessor(s["inverseBindMatrices"]) if "inverseBindMatrices" in s else [glb.IDENTITY] * len(s.get("joints", []))
             mats = [glb.mul(world.get(j, glb.IDENTITY), tuple(b)) for j, b in zip(s.get("joints", []), ibm)] or [glb.IDENTITY]
@@ -289,56 +318,57 @@ def bbox(m, rep, say, world):
 
 
 def lines(rep):
-    """The lines a person reads: what it holds, then the findings, then the verdict."""
-    out = []
+    """The lines a person reads: what it holds (as far as it got: a file it could not read through has fewer of them),
+    then the findings, then the verdict."""
     if "kind" not in rep:   # could not read it
-        out.append(f"{PROG} check: {rep['file']}")
+        out = [f"{PROG} check: {rep['file']}"]
     else:
-        kb = rep["bytes"] / 1000
-        out.append(f"{PROG} check: {Path(rep['file']).name} · {rep['kind']}, {kb:,.1f} kB" + (f" · from {rep['generator']}" if rep.get("generator") else ""))
-        c = rep["counts"]
+        out = [f"{PROG} check: {Path(rep['file']).name} · {rep['kind']}, {rep['bytes'] / 1000:,.1f} kB" + (f" · from {rep['generator']}" if rep.get("generator") else "")]
+    c = rep.get("counts")
+    if c:
         geo = f"{c['meshes']} mesh{'es' if c['meshes'] != 1 else ''}, {c['primitives']} primitive{'s' if c['primitives'] != 1 else ''} · {num(c['triangles'])} triangles"
         if c["triangles"] != c["triangles_in_meshes"]:
             geo += f" drawn ({num(c['triangles_in_meshes'])} in the meshes)"
         geo += f" · {num(c['vertices'])} vertices · {c['materials']} material{'s' if c['materials'] != 1 else ''}"
         if c["morph_targets"]:
             geo += f" · up to {c['morph_targets']} morph targets"
-        flat = [x["name"] for x in rep["meshes"] if not x["normals"]]
+        flat = [x["name"] for x in rep.get("meshes", []) if not x["normals"]]
         if flat:
             geo += f" · no normals in {', '.join(flat[:3])}{' …' if len(flat) > 3 else ''} (three shades them flat)"
         out.append(f"  geometry    {geo}")
-        if rep["textures"]:
-            t = rep["textures"]
-            shown = [f"{x['name'] or x['where'] or x['index']} {x['width']}x{x['height']} {x['format']}, {x['bytes'] / 1000:,.1f} kB, {x['where']}"
-                     + (f" · {', '.join(x['used_by'][:3])}" if x["used_by"] else " · unused") for x in t[:6]]
-            out.append(f"  textures    {len(t)}: " + "\n              ".join(shown) + (f"\n              … {len(t) - 6} more" if len(t) > 6 else ""))
-        else:
-            out.append("  textures    none")
-        if rep["skins"]:
-            out.append("  skins       " + " · ".join(f"{s['name'] or 'skin'}: {s['joints']} joints" + (f" ({', '.join(s['joint_names'][:4])}{' …' if s['joints'] > 4 else ''})" if s["joint_names"] else "")
-                                               for s in rep["skins"]))
-        if rep["animations"]:
-            out.append("  animations  " + " · ".join(f"{a['name']} {a['duration']:.2f} s" + (f" (from {a['start']:.2f})" if a["start"] > 0 else "") for a in rep["animations"][:8])
-                       + (f" · … {len(rep['animations']) - 8} more" if len(rep["animations"]) > 8 else ""))
-        else:
-            out.append("  animations  none")
-        b = rep.get("bbox")
-        if b:
-            s = b["size"]
-            out.append(f"  size        {metres(s[0])} x {metres(s[1])} x {metres(s[2])} m (x, y, z) · y from {metres(b['min'][1])} to {metres(b['max'][1])}"
-                       f" · origin: {rep['origin']}" + ("" if rep["origin"] != "outside" else f" (its box's centre is at {', '.join(metres(x) for x in b['center'])})"))
-            up = f"tallest along {rep['tallest']}" if rep["tallest"] else "flat"
-            hint = ""
-            if rep["tallest"] == "z" and s[1] * 2 < s[2] and s[1] <= min(s[0], s[2]):
-                hint = ": if it should stand up, it may have been made Z-up and exported without converting"
-            out.append(f"  units       metres and +Y up, as glTF defines them · {up}{hint}")
+    t = rep.get("textures")
+    if t:
+        shown = [f"{x['name'] or x['where'] or x['index']} {x['width']}x{x['height']} {x['format']}, {x['bytes'] / 1000:,.1f} kB, {x['where']}"
+                 + (f" · {', '.join(x['used_by'][:3])}" if x["used_by"] else " · unused") for x in t[:6]]
+        out.append(f"  textures    {len(t)}: " + "\n              ".join(shown) + (f"\n              … {len(t) - 6} more" if len(t) > 6 else ""))
+    elif t is not None:
+        out.append("  textures    none")
+    if rep.get("skins"):
+        out.append("  skins       " + " · ".join(f"{s['name'] or 'skin'}: {s['joints']} joints" + (f" ({', '.join(s['joint_names'][:4])}{' …' if s['joints'] > 4 else ''})" if s["joint_names"] else "")
+                                           for s in rep["skins"]))
+    an = rep.get("animations")
+    if an:
+        out.append("  animations  " + " · ".join(f"{a['name']} {a['duration']:.2f} s" + (f" (from {a['start']:.2f})" if a["start"] > 0 else "") for a in an[:8])
+                   + (f" · … {len(an) - 8} more" if len(an) > 8 else ""))
+    elif an is not None:
+        out.append("  animations  none")
+    b = rep.get("bbox")
+    if b:
+        s = b["size"]
+        out.append(f"  size        {metres(s[0])} x {metres(s[1])} x {metres(s[2])} m (x, y, z) · y from {metres(b['min'][1])} to {metres(b['max'][1])}"
+                   f" · origin: {rep['origin']}" + ("" if rep["origin"] != "outside" else f" (its box's centre is at {', '.join(metres(x) for x in b['center'])})"))
+        up = f"tallest along {rep['tallest']}" if rep["tallest"] else "flat"
+        hint = ""
+        if rep["tallest"] == "z" and s[1] * 2 < s[2] and s[1] <= min(s[0], s[2]):
+            hint = ": if it should stand up, it may have been made Z-up and exported without converting"
+        out.append(f"  units       metres and +Y up, as glTF defines them · {up}{hint}")
     for f in rep["findings"]:
         out.append(f"{ {'fail': NO, 'warn': WA}.get(f['severity'], '-') } {f['message']}")
     lim = rep["limits"]
-    if rep["verdict"] == "pass" and "counts" in rep:
-        side = max([max(x["width"], x["height"]) for x in rep["textures"]] or [0])
-        out.append(f"{OK} within {rep['tier']}: {num(rep['counts']['triangles'])} of {num(lim['faces'])} triangles"
-                   + (f", textures up to {side} of {lim['texture']} px" if rep["textures"] else ""))
+    if rep["verdict"] == "pass" and c:
+        side = max([max(x["width"], x["height"]) for x in t or []] or [0])
+        out.append(f"{OK} within {rep['tier']}: {num(c['triangles'])} of {num(lim['faces'])} triangles"
+                   + (f", textures up to {side} of {lim['texture']} px" if t else ""))
     elif rep["verdict"] == "fail":
         out.append(f"{NO} {PROG} check: {sum(1 for f in rep['findings'] if f['severity'] == 'fail')} failed")
     return out

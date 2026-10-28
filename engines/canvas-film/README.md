@@ -328,9 +328,9 @@ const SHOTS = [
 
 | 键 | 意思 |
 |---|---|
-| `models` | 名字 → 项目里的 `.glb` / `.gltf` 路径，或 `{ src, pos, rot（度）, scale, cast, receive }`。`ready` 等全部载完。放进来之前先跑 `bin/vh model3d check <文件>`：面数、贴图、骨骼、动作名和时长、米制尺寸和朝向；Draco、meshopt、KTX2 压缩的模型这一层解不开，它会说 |
+| `models` | 名字 → 项目里的 `.glb` / `.gltf` 路径，或 `{ src, pos, rot（度）, scale, cast, receive }`。`ready` 等全部载完。放进来之前先跑 `bin/vh model3d check <文件>`：面数、贴图、骨骼、动作名和时长、米制尺寸和朝向；Draco、meshopt、KTX2 压缩的模型这一层解不开，它会说。模型载不进来时，`ready` 的报错也指向这条命令 |
 | `camera` | 默认机位 `{ pos, at, fov 或 lens, near, far, roll }`，镜头没写 `cam` 时用它 |
-| `lights` | `[{ type: "sun" \| "point" \| "spot" \| "hemi" \| "ambient", color, intensity, pos, at, shadow, … }]`；不写时，有 `env` 就不加灯，没有就一盏天光加一盏主光 |
+| `lights` | 一串灯 `{ type, color, intensity, pos, at, shadow, shadowSize, shadowArea, sky, ground, distance, decay, angle, penumbra }`。`type`：`"sun"`（平行光，也可写 `"directional"`）、`"point"`、`"spot"`、`"hemi"`（天光）、`"ambient"`；`color` 默认白，`intensity` 默认 1。`pos` 是灯的位置（sun 和 spot 默认 `[3, 6, 4]`），`at` 是 sun 和 spot 照向哪里（默认原点）。`hemi` 不用 `color`，用 `sky`、`ground` 两个颜色（默认白和 `#444444`）。`point` 和 `spot` 有 `distance`（照多远，默认 0：不限）和 `decay`（衰减，默认 2）；`spot` 还有 `angle`（光锥半角，度，默认 30）和 `penumbra`（光锥边上渐暗的比例，0 到 1，默认 0.3）。`shadow: true` 让 sun、point、spot 投影（还要 `shadows: true`），`shadowSize` 是阴影贴图的边长（像素，默认 2048），`shadowArea` 是 sun 的阴影盒围着 `at` 的边长（米，默认 10）。不写 `lights` 时，有 `env` 就不加灯，没有就一盏天光加一盏主光 |
 | `env`、`envIntensity`、`envRotation` | 环境光：`"room"`（three 自带的中性影棚，不用文件）或不写。它挂到每个受光材质的 `envMap` 上，材质自己的 `envMapIntensity` 才算数（只靠 `scene.environment` 时 three 不认它）；`envRotation` 是绕竖轴的度数，或 `[x, y, z]` |
 | `background`、`backgroundBlur` | 颜色、`"env"`（环境当背景）或不写：不写就是透明，`bin/vh render --alpha` 出的片子这里透明 |
 | `tone`、`exposure` | 色调映射：`agx`（默认）、`aces`、`neutral`、`linear`、`none`；曝光 |
@@ -351,6 +351,7 @@ const SHOTS = [
 
 - 实测（2026-10-29，M3 Max）：测试片（一个两节骨骼的柱子循环弯曲、再升起，160 × 90）在 GPU（Metal）和 `--soft-gl`（SwiftShader）上，`bin/vh determinism` 换顺序、换进程都逐字节相同；1080p 和 `--dpr 2` 的同一帧缩小后 47 dB。
 - 没有 GPU 的机器（CI、云主机）：`bin/vh frames`、`render`、`determinism`、`textcheck` 都加 `--soft-gl`，用软件渲染 WebGL。没有 WebGL 时 `ready` 会这样说。
+- 镜头的 `cam: [z0, z1, …]` 推到 1 以上时，3D 跟着 2D 一起放大，可它是按片子分辨率渲好的一张图，会比矢量画的 2D 软一些。要推近又要清楚，就用 `three.cam` 移 3D 自己的机位。
 - 重 3D 的长片少开几个 worker：几个浏览器同时渲重帧会卡死 GPU（`bin/vh render --workers 2`，卡住的那段 `--workers 1` 续渲）。
 - 后期（泛光、景深）不在这一层里。
 

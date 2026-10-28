@@ -484,7 +484,9 @@
             "and joints; each clip's name and length as the Three.js layer names it; the box in metres, the origin, which way it is",
             "tallest (glTF is metres and +Y up by definition). Fails over the tier (hero 200,000 triangles and 4096 px textures,",
             "prop 50,000 and 2048; --max-faces, --max-texture change them), on an extension the layer cannot decode (Draco,",
-            "meshopt, KTX2) and on a file not beside it; --json: the report (bin/vh model3d -h has the fields). gen comes later"
+            "meshopt, KTX2; Draco even listed only as used), on a file not beside it, on a part that points outside the file",
+            "(a cheap pass, not a validator: Khronos's glTF-Validator is one); --json: the report, also when the file cannot",
+            "be read (bin/vh model3d -h has the fields). gen comes later"
           ]
         }
       ],
