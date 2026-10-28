@@ -271,6 +271,7 @@ uv run manim -qh --fps 30 scene.py MyScene       # 成片：1080p30（-qh 默认
 - 锚点网格和包围盒审计有现成实现：`showcase/03-math-fourier/scenes/style.py`，可以复制到自己的项目里用。
 - 写代码前先读 `references/repos/3brown1blue/src/three_b1b/skill/SKILL.md` 里的 Gotchas。
 - 注意 CE 和 ManimGL 的 API 不能混用，参考 `references/repos/3brown1blue/src/three_b1b/skill/rules/manimgl-differences.md`。
+- **可选后端 ManimGX**：同一套 API，Rust 和 wgpu 的内核，showcase 03 快约 5 倍，像素和几处时间不同。`uv tool install --python 3.13 manimgx==0.1.1` 装，场景改 4 处导入，出片前要整理成恒定 30 fps 和 BT.709：见 `engines/manimgx.md`。首选仍是 Manim CE。
 
 ## Blender，按需使用（部分验证）
 

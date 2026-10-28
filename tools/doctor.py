@@ -186,7 +186,7 @@ def check_module(m, found_by, today):
     v = r["version"]
     if v and ver.get("min") and vtuple(v) < vtuple(ver["min"]):
         r["state"] = "outdated"; notes.append(f"{ver['min']} or newer needed")
-    if v and ver.get("pin") and ck.get("npm") and v != ver["pin"].split()[0]:
+    if v and ver.get("pin") and (ck.get("npm") or ck.get("program")) and v != ver["pin"].split()[0]:
         r["state"] = "outdated"; notes.append(f"not {ver['pin'].split()[0]}, the pinned version")
     if v and ver.get("max_age_days"):
         mm = re.fullmatch(r"(\d{4})\.(\d{1,2})\.(\d{1,2})(?:\.\d+)?", v)
