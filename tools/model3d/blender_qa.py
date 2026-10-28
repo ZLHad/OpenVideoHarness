@@ -7,18 +7,21 @@ macOS in a sandbox: no network, writes only to the report's folder):
   blender -b --factory-startup --python-exit-code 1 --python tools/model3d/blender_qa.py -- <model.glb|gltf> <report.json>
           [--eps 0.001] [--max-tris 300000]
 
-  z-fighting   two triangles that face the same way, lie within eps (1 mm) of each other and overlap: the depth buffer
-               cannot tell them apart and they flicker from frame to frame as the camera moves. Faces glued back to back
-               (opposite normals) are hidden ones: said, not failed. Skipped over max-tris triangles
-  normals      closed parts (each mesh's seams welded first) whose faces point inward (a negative signed volume): lit
-               wrong and culled away; and edges whose two faces wind opposite ways
+  z-fighting   two triangles that face the same way, lie within eps (in metres; 1 mm) of each other and overlap: the
+               depth buffer cannot tell them apart and they flicker from frame to frame as the camera moves. Faces glued
+               back to back (opposite normals): said, not failed. Over max-tris triangles it is not looked for, and the
+               report says so (not_checked)
+  normals      closed parts (each mesh's seams welded first) whose faces point inward (a negative signed volume, in the
+               mesh's own space: a node mirrored by a negative scale turns its winding round in the world, and glTF and
+               three draw it the other way round to match, so what counts is the winding as stored); and edges whose two
+               faces wind opposite ways
 
 The skin weights are read from the file by bin/vh model3d check itself, not here: Blender's glTF importer binds a vertex
 whose weights are all 0 to the first joint, so an unbound vertex cannot be seen after the import (Blender 5.2.2).
 
 The report (JSON): {"version": 1, "blender", "meshes", "triangles", "zfighting": [{"where", "tri_pairs"}],
 "back_to_back": [{"where", "tri_pairs"}], "inside_out": [{"object", "parts"}], "winding": [{"object", "edges"}],
-"skipped": [why], "error": null | why}.
+"not_checked": [what and why], "error": null | why}.
 
 The z-fighting search (sample points of each triangle, a BVH's nearest triangles within eps, parallel normals, the point
 projected into the other triangle) and the inside-out and winding tests are adapted from EL4CTEO/blender-skills,
@@ -42,11 +45,12 @@ def point_in_tri(p, a, b, c, n):
     return True
 
 
-def world_bmesh(ob):
-    """The mesh as stored (its rest pose, no modifiers: the shape the file holds) in world space."""
+def mesh_bmesh(ob, world=True):
+    """The mesh as stored (its rest pose, no modifiers: the shape the file holds), in world space or its own."""
     bm = bmesh.new()
     bm.from_mesh(ob.data)
-    bm.transform(ob.matrix_world)
+    if world:
+        bm.transform(ob.matrix_world)
     bm.verts.ensure_lookup_table()
     bm.faces.ensure_lookup_table()
     return bm
@@ -68,8 +72,9 @@ def islands(bm):
 
 
 def normals(ob):
-    """(closed parts facing inward, edges wound opposite ways) of one mesh, its seams welded on a copy."""
-    bm = world_bmesh(ob)
+    """(closed parts facing inward, edges wound opposite ways) of one mesh, its seams welded on a copy, in its own space
+    (a mirrored node draws the stored winding the way it is meant: glTF and three turn the front face round with it)."""
+    bm = mesh_bmesh(ob, world=False)
     bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
     bm.verts.ensure_lookup_table()
     bm.verts.index_update()
@@ -95,7 +100,7 @@ def normals(ob):
 def zfighting(obs, eps, max_tris, rep):
     verts, tris, meta = [], [], []   # meta: (object index, the triangle's normal)
     for oi, ob in enumerate(obs):
-        bm = world_bmesh(ob)
+        bm = mesh_bmesh(ob)
         base = len(verts)
         verts.extend(v.co.copy() for v in bm.verts)
         tri = bm.copy()
@@ -107,7 +112,8 @@ def zfighting(obs, eps, max_tris, rep):
         bm.free()
     rep["triangles"] = len(tris)
     if len(tris) > max_tris:
-        rep["skipped"].append(f"z-fighting: {len(tris)} triangles, over {max_tris}: check the parts one at a time")
+        rep["not_checked"].append(f"z-fighting: {len(tris):,} triangles, over {max_tris:,} (--max-tris raises it, and it takes longer; "
+                                  "or export the parts as GLBs of their own)")
         return
     if not tris:
         return
@@ -151,7 +157,7 @@ def main():
     opt = lambda k, d: float(argv[argv.index(k) + 1]) if k in argv else d   # noqa: E731
     eps, max_tris = opt("--eps", 0.001), int(opt("--max-tris", 300000))
     rep = {"version": 1, "blender": bpy.app.version_string, "meshes": 0, "triangles": 0, "zfighting": [], "back_to_back": [],
-           "inside_out": [], "winding": [], "skipped": [], "error": None}
+           "inside_out": [], "winding": [], "not_checked": [], "error": None}
     try:
         bpy.ops.wm.read_factory_settings(use_empty=True)
         bpy.ops.import_scene.gltf(filepath=model)

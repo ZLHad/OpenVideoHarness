@@ -37,7 +37,7 @@ Blender 的增量只在路径追踪的光传输、物理模拟、真实运动模
 Blender 在这条路上只做四件事：
 
 1. **整理**：单位用米（glTF 就是米），缩放和旋转 apply 掉（Ctrl+A）；原点放在底面中心，模型立在地面上，摆的时候好算；正面朝 Blender 的 −Y（前视图看到的那一面），导出后就是 glTF 的 +Z、朝 +Y 立着。零件能合并就合并（Ctrl+J），面数超了用 Decimate，贴图缩到 tier 的上限以内（hero 4096，prop 2048）。
-2. **绑骨**：Rigify，或者付费的 Auto-Rig Pro。每个顶点最多 4 根骨头（Weights > Limit Total），权重归一（Weights > Normalize All）：three 一个顶点只认 4 个权重，也不替你归一。动作名就是 Three.js 层里 `play` 用的名字，导出前起好；每个要用的动作都要导出（导出设置的 Animation 一节）。
+2. **绑骨**：Rigify，或者付费的 Auto-Rig Pro。每个顶点最多 4 根骨头（Weights > Limit Total），权重归一（Weights > Normalize All）：three 一个顶点只读前 4 个权重（JOINTS_0 / WEIGHTS_0），多出来的丢掉；读到的 4 个它会按比例归一，全为 0 的就以权重 1 绑到 JOINTS_0 列的第一根骨头上。导出前自己限好、归一好，三边的姿态才一致。动作名就是 Three.js 层里 `play` 用的名字，导出前起好；每个要用的动作都要导出（导出设置的 Animation 一节）。
 3. **烘焙**：glTF 只带 PBR 贴图，Blender 的程序材质和节点进不了 three。程序纹理、AO、细节法线用 Cycles 的 Bake 烘成图，接回 Principled BSDF 再导出。
 4. **导出 GLB**：File > Export > glTF 2.0，格式 glb，+Y Up 开，Apply Modifiers 开，**Draco 压缩关**（Three.js 层没带解码器）。命令行：
 
@@ -53,7 +53,13 @@ bin/vh model3d check asset.glb --tier hero            # 面数、贴图、骨骼
 bin/vh model3d check asset.glb --tier hero --blender  # 再在 Blender 里查 z-fighting 和反面（法线朝里的封闭部件、绕向不一致的边）
 ```
 
-`--blender` 在没有 Blender 的机器上跳过并说一声，其余照查。Blender 运行时不带我们的环境变量（key 进不去），在 macOS 上套沙箱：不联网，只写它自己的临时目录，家目录里只读本仓库和模型所在的目录。权重不在 Blender 里查：它的 glTF 导入会把权重全是 0 的顶点改绑到第一根骨头上，导入以后就看不出来了，所以 `model3d check` 直接读文件里的权重，那也正是 three 用的数。z-fighting 报的是 1 mm 以内同向、互相重叠的三角形，镜头动起来会闪；藏在里面、永远拍不到的零件也会报出来，这种看过一眼、确认拍不到的，写进项目的 `DECISIONS.md` 放行就行。实测（2026-10-29，Blender 5.2.2）：测试模型约 1 秒；一个 240 个网格、11.9 万个三角形的模型 38 秒。查的做法借自 EL4CTEO/blender-skills 的 asset-qa（MIT，`tools/model3d/NOTICE.md`）。
+`--blender` 在没有 Blender 的机器上跳过并说一声，其余照查；Blender 在、却崩了或没交出报告，就判 fail（是你要它查的）。Blender 运行时不带我们的环境变量（key 进不去），在 macOS 上套沙箱：不联网，只写它自己的临时目录，家目录里只读本仓库和模型所在的目录。模型直接放在家目录、或家目录的上级目录时，沙箱放行那一层就等于放行整个家目录，所以 `.glb` 会先拷进临时目录再导入，`.gltf`（贴图和缓冲在旁边）则拒绝，请挪进单独的文件夹。Linux 上没有沙箱，只把环境变量砍到几项；要隔离，就在容器或虚拟机里跑（bwrap、unshare 这里不用）。
+
+权重不在 Blender 里查：它的 glTF 导入会把权重全是 0 的顶点改绑到第一根骨头上，导入以后就看不出来了，所以 `model3d check` 直接读文件里的权重，按 three 的读法判：全为 0 的判 fail（three 把它绑到 JOINTS_0 列的第一根骨头上，它就只跟着那根骨头走）；和不为 1 的给 warn（three 会按比例归一，姿态和 Blender 里会略有出入，别的 loader 不一定这样做）；第 5 根以后的骨头给 warn（three 丢掉）；带 skin 的网格缺 JOINTS_0 / WEIGHTS_0 判 fail（three 关掉它的蒙皮）。
+
+z-fighting 报的是 `--eps`（默认 0.001 米）以内同向、互相重叠的三角形，镜头动起来会闪。`--eps` 要跟模型的尺度走：1 mm 适合手掌大到一间屋子大的东西，3 cm 的小零件用 0.0001，200 m 的楼用 0.01。三角形超过 `--max-tris`（默认 30 万）时不查 z-fighting，报告里写明没查；调高它会慢一些，也可以把部件拆成几个 GLB 分开查。法线朝里在网格自己的坐标里判：节点的 scale 有负值（镜像）时，glTF 和 three 都把它的正面跟着翻过来，存的绕向就是画出来的样子。CI 里没有 Blender，这一条手测：`python3 tools/model3d/fixture.py m.glb --faulty --mirrored`，再 `bin/vh model3d check m.glb --blender`，应当只报 Inverted 朝里，不报挂在镜像节点上的 Mirrored。
+
+有几类是故意的，看过一眼、确认没问题就写进项目的 `DECISIONS.md` 放行：藏在里面、永远拍不到的零件（z-fighting）；从里面看的房间或天空盒、封闭空腔的内壁（报成朝里）；两面都看得见的薄片（报成背对背，它本来就该两面都在，用一个面加双面材质也行）。实测（2026-10-29，Blender 5.2.2）：测试模型约 1 秒；一个 240 个网格、11.9 万个三角形的模型 38 秒。查的做法借自 EL4CTEO/blender-skills 的 asset-qa（MIT，`tools/model3d/NOTICE.md`）。
 
 模型放进项目的 `assets/models/`，用 `bin/vh assets add` 登记来源和许可；环境光用 `bin/vh hdri get` 从 Poly Haven 取（CC0）。
 
@@ -62,14 +68,14 @@ bin/vh model3d check asset.glb --tier hero --blender  # 再在 Blender 里查 z-
 **blender-mcp（现名 mcp-for-blender，MIT）怎么接：默认不接。** 本仓库不装它。要在探索阶段用，先问用户，并照下面"安全"一节放在虚拟机或单独的 macOS 用户下：
 
 - 不跑它的一键安装（`curl … | sh` 会改本机所有 MCP 客户端的配置）。手动装：`uvx mcp-for-blender install-addon`，在 Blender 的 Edit > Preferences > Add-ons 里启用 MCP for Blender；
-- 客户端的配置钉住版本，打开安全模式，关掉遥测（它默认发一条匿名的使用记录：安装 ID、工具名、成败、时长、版本）：
+- 客户端的配置钉住一个发布满两周的版本，打开安全模式，关掉遥测（它默认发一条匿名的使用记录：随机的安装 ID 和会话 ID、工具名、成败、时长、它和 Blender 的版本、操作系统、时间）：
 
   ```json
-  {"mcpServers": {"blender": {"command": "uvx", "args": ["mcp-for-blender==2.2.6"],
+  {"mcpServers": {"blender": {"command": "uvx", "args": ["mcp-for-blender==2.1.9"],
     "env": {"BLENDER_MCP_SAFE_MODE": "1", "DISABLE_TELEMETRY": "true"}}}}
   ```
 
-  2.2.6 是 2026-10-29 时 PyPI 上的最新版；安全模式拦下读写文件、起进程、联网和常驻的代码，建模、材质、导入导出照常；
+  2.1.9（2026-10-06 发布）是 2026-10-29 时发布满两周的最新版，更新的 2.2.x 都是这两周里发的；它的源码里查得到 `install-addon`、`BLENDER_MCP_SAFE_MODE` 和 `DISABLE_TELEMETRY`。安全模式拦下读写文件、起进程、联网和常驻的代码，建模、材质、导入导出照常；
 - 它自带的 Poly Haven、Sketchfab 等素材源在 Blender 里关掉，素材走 `bin/vh hdri`、`bin/vh assets add`，进台账；
 - 会话本身不算产物：用完把确认有用的操作写成 `blender -b` 跑的脚本，资产照上面导出、检查。
 
@@ -130,7 +136,7 @@ projects/<date>-<slug>/blender/
 - 导入资产之后立刻用 `bin/vh assets add` 登记（来源、许可，sha256 由它算）；烘焙和缓存的产物写进 `caches/` 并登记哈希。
 - `lib/` 里放一层 API shim 和一条 5 帧冒烟测试，升级版本时先跑冒烟。
 
-这里不放可运行的 bpy 脚本（许可问题见"许可证"，维护者待定），循环的做法是：
+这里只写循环的做法，不放 `build.py` 的全文：它由 agent 按 timeline 在项目里生成（`projects/` 不入库）。仓库里 import bpy 的文件怎么标许可，见"许可证"。循环的做法是：
 
 ```text
 对每一帧 n，从 frame_start 到 frame_end：
@@ -298,7 +304,7 @@ sandbox-exec -f vh_blender.sb env -i PATH="$PATH" HOME="$PWD/blender/out/.home" 
 | 官方 MCP、`bpy` PyPI 包 | 元数据都标 GPL-3.0 [16][18] | 只读参考 |
 | 素材 | 各自许可：Poly Haven 等为 CC0，Poly Pizza 多为 CC-BY，Sketchfab 逐件不同 [16] | 一律 `bin/vh assets add` 登记 |
 
-本仓库是 MIT。调用 bpy 的脚本放进仓库时，许可怎么写，原有三个选项：(1) 仓库里不放 `import bpy` 的文件，`build.py` 由 agent 在项目目录里生成（`projects/` 不入库），仓库只放不 import bpy 的封装和模板 JSON；(2) `import bpy` 的文件标 `SPDX-License-Identifier: GPL-3.0-or-later`，这部分文件按 GPL 分发；(3) 保持 MIT，承担 FAQ 字面要求和 MIT 之间的差距。**维护者 2026-10-01 选了 (2)**：现在仓库里 import bpy 的文件是 `styles/_swatch/blender_render.py`、`styles/tabletop-miniature/swatch.py` 和 `tools/model3d/blender_qa.py`，文件头都有 SPDX 标注，`README.md` 的 License 一节写明了；不 import bpy 的封装（`blender_prep.py`、`render.sh`）仍是 MIT。以后加 import bpy 的文件，照样标。项目里 agent 生成的 `build.py` 在 `projects/` 下，不入库，不受影响。Blender 的名称和 logo 受单独的商标政策约束，片子里出现 Blender 界面截图前先看一眼 [17]。
+本仓库是 MIT。调用 bpy 的脚本放进仓库时，许可怎么写，原有三个选项：(1) 仓库里不放 `import bpy` 的文件，`build.py` 由 agent 在项目目录里生成（`projects/` 不入库），仓库只放不 import bpy 的封装和模板 JSON；(2) `import bpy` 的文件标 `SPDX-License-Identifier: GPL-3.0-or-later`，这部分文件按 GPL 分发；(3) 保持 MIT，承担 FAQ 字面要求和 MIT 之间的差距。**维护者 2026-10-01 选了 (2)**：现在仓库里 import bpy 的文件是 `styles/_swatch/blender_render.py`、`styles/tabletop-miniature/swatch.py` 和 `tools/model3d/blender_qa.py`，文件头都有 SPDX 标注，`README.md` 的 License 一节写明了；GPL 的全文随仓库附在 `LICENSES/GPL-3.0-or-later.txt`（gnu.org 上 gpl-3.0.txt 的原文，一个字节没改）；不 import bpy 的封装（`blender_prep.py`、`render.sh`）仍是 MIT。以后加 import bpy 的文件，照样标。项目里 agent 生成的 `build.py` 在 `projects/` 下，不入库，不受影响。Blender 的名称和 logo 受单独的商标政策约束，片子里出现 Blender 界面截图前先看一眼 [17]。
 
 ## 流程与验证
 

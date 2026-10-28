@@ -478,16 +478,18 @@
       "writes": [],
       "usage": [
         {
-          "synopsis": "model3d check <model.glb|model.gltf> [--tier hero|prop] [--max-faces N] [--max-texture PX] [--blender] [--json]",
+          "synopsis": "model3d check <model.glb|model.gltf> [--tier hero|prop] [--max-faces N] [--max-texture PX] [--blender [--eps M] [--max-tris N]] [--json]",
           "text": [
             "triangles as the scene draws them, meshes, materials; each texture's size, format and bytes and what uses it; skins",
             "and joints, and each skinned vertex's weights; each clip's name and length as the Three.js layer names it; the box in",
             "metres, the origin, which way it is tallest (glTF is metres and +Y up by definition). Fails over the tier (hero 200,000",
             "triangles and 4096 px textures, prop 50,000 and 2048; --max-faces, --max-texture change them), on an extension the layer",
             "cannot decode (Draco, meshopt, KTX2; Draco even listed only as used), a file not beside it, a part that points outside",
-            "the file (a cheap pass, not a validator: Khronos's glTF-Validator is one), a vertex bound to no bone or weights not",
-            "summing to 1; --blender: z-fighting and faces pointing inward too, in Blender (sandboxed; skipped and said without it);",
-            "--json: the report, also when the file cannot be read (bin/vh model3d -h has the fields). gen comes later"
+            "the file (a cheap pass, not a validator: Khronos's glTF-Validator is one), a vertex whose weights are all 0 (three ties",
+            "it to one bone) and a skinned primitive with no JOINTS_0; weights not summing to 1 or past four bones warn (three scales",
+            "or drops them); --blender: z-fighting (within --eps metres) and faces pointing inward too, in Blender (sandboxed on",
+            "macOS; skipped and said without it; a Blender that gives no report fails); --json: the report, also when the file",
+            "cannot be read (bin/vh model3d -h has the fields). gen comes later"
           ]
         }
       ],
@@ -518,7 +520,7 @@
           ]
         },
         {
-          "synopsis": "hdri get <project> <hdri> [--res 2k] [--format hdr|exr] [--id ID] [--max-mb 600] [--rate 2M] [--json] [--offline DIR]",
+          "synopsis": "hdri get <project> <hdri> [--res 2k] [--format hdr|exr] [--id ID] [--max-mb 200] [--rate 2M] [--json] [--offline DIR]",
           "text": [
             "into assets/hdri/<hdri>/ under Poly Haven's name for it, resumed if stopped, its md5 checked (a resumed one that does not",
             "match is fetched again once); on record as CC0 with its page, authors, sha256 and md5; prints FILM.three.env's line. 1k",

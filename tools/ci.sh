@@ -3997,31 +3997,43 @@ PY
     *) bad "model3d check on broken models ($rc, $rc2, $rc3): $a | $b | $c | $d" ;; esac
   # a part that points outside the file, or is not the kind glTF says, fails with the part named, and --json prints the
   # report all the same (no traceback): a node that is a number, a bufferView past its buffer, an accessor of type VEC9,
-  # one of 10^12 zeros (no list of them is made), a node its own child, sparse indices past the count; Draco listed
-  # only as used fails (three's loader stops at it); bytes after the GLB header's length warn
+  # one of 10^12 zeros (no list of them is made), a node its own child, sparse indices past the count, a skinned
+  # primitive without JOINTS_0 (three turns its skinning off); weights past a vertex's first four warn (three drops
+  # them); Draco listed only as used fails (three's loader stops at it); bytes after the GLB header's length warn
   if python3 - "$VH_BASH|$ROOT/bin/vh" "$t" <<'PY'
-import json, subprocess, sys
+import json, struct, subprocess, sys
 sys.path.insert(0, "tools/model3d")
 import fixture, glb
 vh, t = sys.argv[1].split("|"), sys.argv[2]
-def zeros(g):
+def zeros(g, b):
     g["accessors"].append({"componentType": 5126, "type": "SCALAR", "count": 10**12})
     g["animations"][0]["samplers"][0]["input"] = len(g["accessors"]) - 1
-def sparse(g):   # its indices read from the positions' floats: far past the 32 there are
+def sparse(g, b):   # its indices read from the positions' floats: far past the 32 there are
     a = g["accessors"][0]; a.pop("min"); a.pop("max")
     a["sparse"] = {"count": 3, "indices": {"bufferView": 0, "componentType": 5125}, "values": {"bufferView": 0}}
+def five(g, b):   # JOINTS_1 / WEIGHTS_1: every vertex a fifth bone, weight 0.2
+    n, b = 32, bytearray(b) + bytes(-len(b) % 4)
+    for data, comp, typ in ((bytes([1, 0, 0, 0]) * n, 5121, "VEC4"), (struct.pack("<4f", 0.2, 0, 0, 0) * n, 5126, "VEC4")):
+        g["bufferViews"].append({"buffer": 0, "byteOffset": len(b), "byteLength": len(data)}); b += data
+        g["accessors"].append({"bufferView": len(g["bufferViews"]) - 1, "componentType": comp, "count": n, "type": typ})
+    at = g["meshes"][0]["primitives"][0]["attributes"]; at["JOINTS_1"], at["WEIGHTS_1"] = len(g["accessors"]) - 2, len(g["accessors"]) - 1
+    g["buffers"][0]["byteLength"] = len(b)
+    return bytes(b)
 cases = {   # name: (what is broken, the exit, words of the finding)
-    "node": (lambda g: g["nodes"].__setitem__(0, 5), 1, "nodes[0] is a number, not an object"),
-    "loop": (lambda g: g["nodes"][3].update(children=[3]), 1, "nodes 3 (Rig) → 3 (Rig): each the child of the one before, a loop"),
+    "node": (lambda g, b: g["nodes"].__setitem__(0, 5), 1, "nodes[0] is a number, not an object"),
+    "loop": (lambda g, b: g["nodes"][3].update(children=[3]), 1, "nodes 3 (Rig) → 3 (Rig): each the child of the one before, a loop"),
     "sparse": (sparse, 1, "is past its 32 elements"),
-    "view": (lambda g: g["bufferViews"][0].update(byteLength=10**9), 1, "bytes past the end of buffers[0]"),
-    "vec9": (lambda g: g["accessors"][0].update(type="VEC9"), 1, 'type "VEC9": glTF'),
+    "view": (lambda g, b: g["bufferViews"][0].update(byteLength=10**9), 1, "bytes past the end of buffers[0]"),
+    "vec9": (lambda g, b: g["accessors"][0].update(type="VEC9"), 1, 'type "VEC9": glTF'),
     "zeros": (zeros, 1, "1,000,000,000,000 elements and no bufferView"),
-    "used": (lambda g: g.update(extensionsUsed=["KHR_draco_mesh_compression"]), 1, "lists KHR_draco_mesh_compression as used"),
-    "tail": (lambda g: None, 0, "7 bytes after the")}
+    "noskin": (lambda g, b: g["meshes"][0]["primitives"][0]["attributes"].pop("JOINTS_0"), 1, "have no JOINTS_0 and WEIGHTS_0: three turns skinning off"),
+    "five": (five, 0, "32 of 32 vertices weighted to more than four bones (JOINTS_1 and on): three reads the first four"),
+    "used": (lambda g, b: g.update(extensionsUsed=["KHR_draco_mesh_compression"]), 1, "lists KHR_draco_mesh_compression as used"),
+    "tail": (lambda g, b: None, 0, "7 bytes after the")}
 bad = []
 for name, (change, want, words) in cases.items():
-    g, blob = fixture.build(); change(g); glb.write_glb(f"{t}/{name}.glb", g, blob)
+    g, blob = fixture.build(); out = change(g, blob); blob = out if isinstance(out, bytes) else blob   # a change that adds data gives the new blob
+    glb.write_glb(f"{t}/{name}.glb", g, blob)
     if name == "tail":
         open(f"{t}/tail.glb", "ab").write(b"\0" * 7)
     r = subprocess.run([*vh, "model3d", "check", f"{t}/{name}.glb", "--json"], capture_output=True, text=True, timeout=60)
@@ -4034,18 +4046,19 @@ for name, (change, want, words) in cases.items():
         bad.append(f"{name}: exit {r.returncode} (want {want}): {said[:200] or r.stderr[-200:]}")
 sys.exit("\n".join(bad) if bad else 0)
 PY
-  then ok "model3d check: a part that points outside the file or is not glTF's (a node that is a number, a bufferView past its buffer, type VEC9, 10^12 zeros, a node its own child, sparse indices past the count) fails naming it, the --json report all the same; Draco listed only as used fails; bytes after the GLB's length warn"
+  then ok "model3d check: a part that points outside the file or is not glTF's (a node that is a number, a bufferView past its buffer, type VEC9, 10^12 zeros, a node its own child, sparse indices past the count) fails naming it, the --json report all the same; a skinned primitive without JOINTS_0 fails, weights past four bones warn; Draco listed only as used fails; bytes after the GLB's length warn"
   else bad "model3d check on models whose parts point outside them"; fi
   # --blender (tools/model3d/blender_qa.py in Blender; CI has none): without one it is skipped and said, and the rest of
   # the check stands; a stand-in that writes the report Blender would gives its findings (z-fighting and inward faces
   # fail, faces back to back warn) and shows it gets none of our environment. The weights are read without Blender
-  # (fixture.py --faulty): a vertex bound to no bone and weights that do not sum to 1 fail
+  # (fixture.py --faulty): a vertex whose weights are all 0 fails (three ties it to one bone), weights that do not sum to
+  # 1 warn (three scales them to 1)
   python3 tools/model3d/fixture.py "$t/faulty.glb" --faulty
   cat > "$t/blender" <<'SH'
 #!/bin/sh
 # a stand-in for Blender: the report tools/model3d/blender_qa.py would write, to its last argument
 for a; do out=$a; done
-printf '{"version": 1, "blender": "0 (stand-in)", %s"meshes": 2, "triangles": 34, "zfighting": [{"where": "Column", "tri_pairs": 2}], "back_to_back": [{"where": "Column", "tri_pairs": 1}], "inside_out": [{"object": "Inverted", "parts": 1}], "winding": [], "skipped": ["home %s"]}\n' \
+printf '{"version": 1, "blender": "0 (stand-in)", %s"meshes": 2, "triangles": 34, "zfighting": [{"where": "Column", "tri_pairs": 2}], "back_to_back": [{"where": "Column", "tri_pairs": 1}], "inside_out": [{"object": "Inverted", "parts": 1}], "winding": [], "not_checked": ["home %s"]}\n' \
   "${OVH_CI_LEAK:+\"error\": \"OVH_CI_LEAK reached it\", }" "$HOME" > "$out"
 SH
   chmod +x "$t/blender"
@@ -4058,14 +4071,42 @@ a, b, c = sys.argv[1], json.loads(sys.argv[2]), json.loads(sys.argv[3]); bad = [
 if "--blender checks did not run: BLENDER is" not in a or "within hero" not in a: bad.append(f"no Blender: {a[-300:]}")
 kinds = sorted((f["kind"], f["severity"]) for f in b["findings"] if f["kind"] in ("model3d.zfighting", "model3d.normals", "model3d.hidden", "model3d.blender"))
 if kinds != [("model3d.blender", "info"), ("model3d.hidden", "warn"), ("model3d.normals", "fail"), ("model3d.zfighting", "fail")]: bad.append(f"the stand-in's findings: {kinds}")
-home = next((f["message"] for f in b["findings"] if f["message"].startswith("home ")), "")
+home = next((f["message"] for f in b["findings"] if f["message"].startswith("not checked: home ")), "")
 if "/vh-model3d-" not in home or b["blender"].get("error"): bad.append(f"Blender's environment: {home} {b['blender'].get('error')}")
-w = c["meshes"][0].get("weights") or {}
-if (w.get("verts"), w.get("unweighted"), w.get("not_one")) != (36, 1, 8) or {f["kind"] for f in c["findings"] if f["severity"] == "fail"} != {"model3d.weights"}: bad.append(f"weights {w} {c['findings']}")
+w = (c["meshes"][0].get("weights") or [{}])[0]
+sums = [f for f in c["findings"] if "do not sum to 1" in f["message"]]
+if (w.get("verts"), w.get("unweighted"), w.get("not_one")) != (36, 1, 8) or {f["kind"] for f in c["findings"] if f["severity"] == "fail"} != {"model3d.weights"} \
+   or [f["severity"] for f in sums] != ["warn"]: bad.append(f"weights {w} {c['findings']}")
 sys.exit("\n".join(bad) if bad else 0)
 PY
-  then ok "model3d check --blender: skipped and said without Blender, the rest standing; a stand-in's report becomes findings (z-fighting and inward faces fail, back to back warns) and gets none of our environment; weights read from the file (a vertex on no bone, weights not summing to 1) fail"
+  then ok "model3d check --blender: skipped and said without Blender, the rest standing; a stand-in's report becomes findings (z-fighting and inward faces fail, back to back warns) and gets none of our environment; weights read from the file (all 0 fails, a sum not 1 warns)"
   else bad "model3d check --blender ($rc, $rc2, $rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300)"; fi
+  # macOS: the sandbox Blender runs in, tried by a stand-in from inside it: writing beside itself (outside its scratch
+  # folder) and connecting to a port on this machine are both refused (no network leaves either way)
+  if [ "$(uname -s)" = Darwin ]; then
+    cat > "$t/probe" <<'SH'
+#!/bin/sh
+# a stand-in for Blender that tries the sandbox's walls, and reports what it found where blender_qa.py's report goes
+for a; do out=$a; done
+here=$(dirname "$0")
+if (echo x > "$here/outside.txt") 2>/dev/null; then w=written; else w=refused; fi
+if nc -z -w 2 127.0.0.1 "$(cat "$here/port" 2>/dev/null)" >/dev/null 2>&1; then c=connected; else c=refused; fi
+printf '{"version": 1, "blender": "0 (probe)", "meshes": 1, "triangles": 20, "zfighting": [], "back_to_back": [], "inside_out": [], "winding": [], "not_checked": ["write beside it: %s", "connect to this machine: %s"]}\n' "$w" "$c" > "$out"
+SH
+    chmod +x "$t/probe"
+    python3 -c 'import socket, sys
+s = socket.socket(); s.bind(("127.0.0.1", 0)); s.listen(1); s.settimeout(30)
+open(sys.argv[1], "w").write(str(s.getsockname()[1]))
+try: s.accept()
+except OSError: pass' "$t/port" & lp=$!
+    for _ in 1 2 3 4 5 6 7 8 9 10; do [ -s "$t/port" ] && break; sleep 0.2; done
+    a=$(BLENDER="$t/probe" vh model3d check "$t/box.glb" --blender 2>&1); rc=$?
+    kill "$lp" 2>/dev/null; wait "$lp" 2>/dev/null
+    case "$rc:$a" in 0:*"write beside it: refused"*"connect to this machine: refused"*)
+        [ ! -e "$t/outside.txt" ] && ok "model3d check --blender on macOS: inside its sandbox a stand-in can neither write outside its scratch folder nor connect to a port on this machine" \
+          || bad "the --blender sandbox let a file be written: $t/outside.txt" ;;
+      *) bad "the --blender sandbox ($rc): $(printf '%s' "$a" | tail -c 400)" ;; esac
+  fi
   # three.js as the npm package has it: each file the layer carries, byte for byte as its NOTICE lists it
   if python3 - <<'PY'
 import hashlib, pathlib, re, sys
