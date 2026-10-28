@@ -16,8 +16,8 @@ window.film.shots after ready, and takes one frame per shot:
 Shots marked "unsure" (or listed in --unsure) get a red frame and their reason under the tile. A duration longer
 than the type's "new payoff every N s" (see bin/vh rhythm) is printed in red. A shot's "camera" (its size, angle, move
 and axis, by the codes of the shot-grammar cards in recipes/shot/) is printed under its id, by the cards' names in a
-Chinese storyboard ("中近景 · 仰拍 · 推"), and goes into review.json; a value that is no card's code is printed as written
-and said once.
+Chinese storyboard ("近景（中近景） · 仰拍 · 推"), and goes into review.json (camera, as printed, and camera_codes, the
+cards' codes whatever the language); a value that is no card's code is printed as written and said once.
 
 Writes <project>/out/check/storyboard/: overview.png, NN-<segment>.png (one per segment; a segment with more than
 --per shots is split into pages), frames/ (the tiles' source frames) and index.json (pages, shots, files: for review
@@ -38,23 +38,26 @@ VIDEO_CANDIDATES = ["out/animatic.mp4", "out/draft.mp4", "out/final.mp4", "media
 KIND = {"page": ("页面", "page"), "image": ("图", "image"), "color": ("纯色", "colour"), "slate": ("灰卡", "slate")}   # an edit list's sources
 
 def camera_words(shots, lang):
-    """{shot id: its camera line} ("中近景 · 仰拍 · 推" in Chinese, the codes in English), from the shot-grammar cards
-    (recipes/shot/, tools/recipes.py): a value written as a card's code or id is that card; another one is printed as
-    written and said once (bin/vh recipes list --grammar names the codes)"""
+    """({shot id: its camera line}, {shot id: its codes}): the line "近景（中近景） · 仰拍 · 推" in Chinese, the codes in
+    English, from the shot-grammar cards (recipes/shot/, tools/recipes.py); the codes {"size": "MCU", …} whatever the
+    language, for review.json. A value written as a card's code or id is that card; another one is printed and kept as
+    written, and said once (bin/vh recipes list --grammar names the codes). No shot with a camera: no card is read"""
+    if not any(s.get("camera") for s in shots):
+        return {}, {}
     try:
         import recipes
         cards = {(fm["grammar"], k.lower()): fm for _, _, fm in recipes.grammar_cards() for k in (fm["code"], fm["id"])}
     except Exception as e:   # the cards cannot be read: the values as written
         V.warn_once(f"the shot-grammar cards (recipes/shot/) could not be read ({e}): camera values printed as written")
         cards = {}
-    out, odd = {}, []
+    out, codes, odd = {}, {}, []
     for s in shots:
         cam = s.get("camera")
         if not cam:
             continue
         if isinstance(cam, str):
             out[s["id"]] = cam; continue
-        bits = []
+        bits, code = [], {}
         for k in V.CAMERA:
             if k not in cam:
                 continue
@@ -62,11 +65,12 @@ def camera_words(shots, lang):
             if fm is None and cards:
                 odd.append(f"{s['id']} {k} {cam[k]!r}")
             bits.append((fm["name"] if lang == "zh" else fm["code"]) if fm else cam[k])
-        out[s["id"]] = " · ".join(bits)
+            code[k] = fm["code"] if fm else cam[k]
+        out[s["id"]], codes[s["id"]] = " · ".join(bits), code
     if odd:
-        V.warn_once(f"camera values that are no shot-grammar card's code (printed as written; bin/vh recipes list --grammar size,angle,move,axis): {', '.join(odd[:8])}"
+        V.warn_once(f"camera values that are no shot-grammar card's code (printed as written; bin/vh recipes list --grammar names them): {', '.join(odd[:8])}"
                     + (f" … and {len(odd) - 8} more" if len(odd) > 8 else ""))
-    return out
+    return out, codes
 
 def pick_video(project, meta, arg):
     if arg:
@@ -167,7 +171,7 @@ class Sheet:
         self.a, self.project, self.shots, self.frames, self.limit, self.limit_src = a, project, shots, frames, limit, limit_src
         self.notes = notes   # shot id → why its tile is grey
         self.L, self.lang, self.source_note = V.LABELS[lang], lang, source_note
-        self.cam = camera_words(shots, lang)   # shot id → its camera line (size · angle · move · axis)
+        self.cam, self.cam_codes = camera_words(shots, lang)   # shot id → its camera line (size · angle · move · axis), its codes
         self.ar = aspect
         if aspect >= 1.2: self.tw, self.cols = 600, 3
         elif aspect >= 0.8: self.tw, self.cols = 420, 4
@@ -289,7 +293,7 @@ class Sheet:
         zh = self.lang == "zh"
         bits = ["红框 = 没把握的镜头" if zh else "red frame = least sure"]
         if self.cam:
-            bits.append("编号下的灰字 = 景别、角度、运镜" if zh else "grey line under the id = size, angle, move")
+            bits.append("编号下的灰字 = 机位：景别、角度、运镜、轴线（镜头表的 camera）" if zh else "grey line under the id = the camera: size, angle, move, axis (the shot table's camera)")
         if self.limit is not None:
             bits.append((f"红色时长 = 超过 {self.limit:g} s" if zh else f"red duration = longer than {self.limit:g} s"))
         bits.append(("画面：" if zh else "frames: ") + self.source_note)
@@ -528,7 +532,8 @@ def review_pack(project, out, shots, segs, frames, notes, sheet, lang, video, li
                       "shots": [{"id": s["id"], "t0": round(s["start"], 3), "t1": round(s["end"], 3),
                                  "frame": V.relpath(frames[s["id"]], project) if s["id"] in frames and s["id"] not in notes else "",
                                  "see": " / ".join(([s["label"]] if s["label"] else []) + s["reads"]), "vo": vo(s), "note": "",
-                                 **({"camera": sheet.cam[s["id"]]} if s["id"] in sheet.cam else {})} for s in ch]})
+                                 **({"camera": sheet.cam[s["id"]]} if s["id"] in sheet.cam else {}),
+                                 **({"camera_codes": sheet.cam_codes[s["id"]]} if s["id"] in sheet.cam_codes else {})} for s in ch]})
         assets.append({"path": V.relpath(out / f"{sid}.png", project), "caption": title, "for": sid})
     pack = {"lang": "zh" if zh else "en", "segments": rsegs, "assets": assets,
             "least_sure": [{"id": s["id"], "note": s["unsure"]} for s in shots if s["unsure"] is not None]}

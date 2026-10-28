@@ -8,6 +8,8 @@ one_liner: 相机在正上方垂直往下看：画面变成平面，图案、布
 derived_from: []
 ---
 
+<!-- know: 顶拍, 鸟瞰, 俯视图, 正俯视, 上帝视角, top shot, bird's eye -->
+
 # 顶拍 top
 
 ## 情绪动机

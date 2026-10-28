@@ -8,6 +8,8 @@ one_liner: 镜头绕着主体转圈，主体一直在画面中心：立体、隆
 derived_from: []
 ---
 
+<!-- know: 环绕, 环绕镜头, 环拍, 绕拍, orbit shot -->
+
 # 环绕 orbit
 
 ## 情绪动机

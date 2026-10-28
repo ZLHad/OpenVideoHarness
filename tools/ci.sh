@@ -496,16 +496,45 @@ PY
     || bad "usage errors:$a (new twice exited $rc; a project made: $(ls -d "$t"/no-such 2>/dev/null))"
   [ -z "$u" ] && ok "usage errors and refusals are on stderr with nothing on stdout, the usage that was asked for (-h) on stdout with exit 0" \
     || bad "messages on the wrong stream:$u"
-  # arg_dir finds the project among a page tool's arguments, to pick the browser it renders with: a flag that takes no value
-  # in front of it must not swallow it (frames --covers, --no-title and cues --chapters took the project for their value and
-  # found "."). Every such flag of frames, render, determinism, cues, fonts check, patch, textcheck, readcheck, storyboard and
-  # thumbs; a flag with a value still hides its value (--out o <project>). The function is read out of bin/vh
+  # arg_dir finds the project among a page tool's arguments, to pick the browser it renders with and the project render's
+  # gate check reads: a flag that takes no value in front of it must not swallow it (frames --covers, --no-title and cues
+  # --chapters took the project for their value and found "."; render --alpha and --fresh too, until arg_dir had them). The
+  # flags are read out of the tools' own parsers: each branch of an option loop that takes no value (frames, render,
+  # determinism, cues, fonts check, patch, textcheck), argparse's flags with no value (readcheck, storyboard, rhythm) and
+  # thumbs' (tools/proxy.py), so a flag a tool gains fails here until arg_dir has it; none may take a value in another of
+  # them. A flag with a value still hides its value (--out o <project>). The function is read out of bin/vh
   mkdir "$t/proj"; a=""
   ad=$(awk '/^arg_dir\(\) \{/,/^\}/' bin/vh)
-  for c in --covers --no-title --chapters --soft-gl --real-clock --png --force --save --export --strict --in-place --keep --snapshot \
-           --estimate --no-estimate --full --json -h --help --covers=A,B --out=o; do
-    o=$("$VH_BASH" -c "$ad"$'\n''arg_dir "$@"' _ "$c" "$t/proj"); [ "$o" = "$t/proj" ] || a="$a | $c gave '$o'"
-  done
+  if bare=$(python3 - <<'PY'
+import ast, re, sys
+from pathlib import Path
+bare, valued = {}, {}
+for f in ["tools/film/frames.mjs", "tools/film/render.mjs", "tools/film/determinism.mjs", "tools/film/cues.mjs", "tools/film/fonts.mjs",
+          "tools/film/patch.mjs", "tools/textcheck/textcheck.mjs"]:
+    for line in Path(f).read_text(encoding="utf-8").splitlines():
+        if re.match(r"\s*(?:else )?if \((?:k|a) === \"--", line):
+            for n in re.findall(r"\b(?:k|a) === \"(--[\w-]+)\"", line):
+                (valued if re.search(r"\b(?:val|next)\(\)", line) else bare).setdefault(n, set()).add(f)
+for f in ["tools/readcheck.py", "tools/storyboard.py", "tools/rhythm.py"]:
+    for c in ast.walk(ast.parse(Path(f).read_text(encoding="utf-8"))):
+        if isinstance(c, ast.Call) and getattr(c.func, "attr", "") == "add_argument" and c.args and isinstance(c.args[0], ast.Constant) and str(c.args[0].value).startswith("--"):
+            act = next((k.value.value for k in c.keywords if k.arg == "action" and isinstance(k.value, ast.Constant)), None)
+            (bare if act in ("store_true", "store_false", "store_const", "count") else valued).setdefault(c.args[0].value, set()).add(f)
+for n in re.findall(r"\bx == \"(--[\w-]+)\"", Path("tools/proxy.py").read_text(encoding="utf-8")):
+    bare.setdefault(n, set()).add("tools/proxy.py")
+both = sorted(set(bare) & set(valued))
+if both:
+    sys.exit(print("flags with a value in one tool and none in another: " + ", ".join(n + " (" + " ".join(sorted(bare[n] | valued[n])) + ")" for n in both)) or 1)
+if len(bare) < 15:
+    sys.exit(print("only %d flags without a value found in the parsers of these tools: are they written another way now?" % len(bare)) or 1)
+print(" ".join(sorted(bare)))
+PY
+  ); then
+    # shellcheck disable=SC2086
+    for c in $bare -h --help --covers=A,B --out=o; do
+      o=$("$VH_BASH" -c "$ad"$'\n''arg_dir "$@"' _ "$c" "$t/proj"); [ "$o" = "$t/proj" ] || a="$a | $c gave '$o'"
+    done
+  else a=" $bare"; fi
   for c in --out --at --range --strip --ratios --fps --browser --runtime --note --shot --texts; do
     o=$("$VH_BASH" -c "$ad"$'\n''arg_dir "$@"' _ "$c" value --covers --no-title "$t/proj"); [ "$o" = "$t/proj" ] || a="$a | $c value gave '$o'"
   done
@@ -839,19 +868,29 @@ PY
     && ok "recipes check refuses frontmatter that YAML would read differently" || bad "recipes check on {peak:4} exited $rc"
   vh recipes check --json >/dev/null 2>&1; rc=$?
   [ $rc = 2 ] && ok "recipes check treats an option as bad usage" || bad "recipes check --json exited $rc"
-  # the shot-grammar cards (recipes/shot/, kind grammar): listed by grammar; a card without one of its sections is refused,
-  # and a code twice in one grammar; --grammar takes no recipe filter, nor an unknown grammar
-  a=$(vh recipes list --grammar size --ids | tr '\n' ' '); vh recipes list --grammar zoom >/dev/null 2>&1; rc=$?
+  # the shot-grammar cards (recipes/shot/, kind grammar): listed by grammar, every grammar with --grammar alone (also
+  # before another option); a card without one of its sections is refused (not sent to the recipes' template), and one
+  # with nothing under 什么时候别用; a code twice in one grammar, and a README row that is not the card's; --grammar takes
+  # no recipe filter, an unknown grammar is said as one, an empty --grammar= as naming none
+  a=$(vh recipes list --grammar size --ids | tr '\n' ' '); vh recipes list --grammar zoom >/dev/null 2>"$t/e1"; rc=$?
   vh recipes list --grammar size --intent hook >/dev/null 2>&1; rc2=$?
+  d=$(vh recipes list --grammar --ids | wc -l | tr -d ' '); e=$(vh recipes list --grammar 2>/dev/null | tail -n 1); vh recipes list --grammar= >/dev/null 2>"$t/e2"; rc4=$?
   sed -e 's/^id: .*/id: ci-card/' -e 's/^## 什么时候别用/## 别处/' recipes/shot/close-up.md > "$t/card.md"
   b=$(vh recipes check "$t/card.md" 2>&1); rc3=$?
+  python3 -c 'import re, sys; s = open(sys.argv[1], encoding="utf-8").read().replace("id: close-up", "id: ci-empty")
+sys.stdout.write(re.sub(r"(## 什么时候别用\n)(.*?)(?=\n## )", r"\1\n", s, flags=re.S))' recipes/shot/close-up.md > "$t/empty.md"
+  f=$(vh recipes check "$t/empty.md" 2>&1); rc5=$?
   c=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import recipes as R
 lib = R.load_library(); p, fm = lib["close-up"]; lib["ci-twin"] = (p.with_name("ci-twin.md"), dict(fm, id="ci-twin"))
-print(sum("code '"'"'CU'"'"' is" in x for x in R.library_checks(lib)))' 2>&1)
-  if [ "$a" = "close-up extreme-close extreme-wide medium medium-close wide " ] && [ "$rc:$rc2:$rc3" = 2:2:1 ] && [ "$c" = 1 ] \
-     && grep -q "missing body section(s): ## 什么时候别用" <<<"$b"
-  then ok "recipes list --grammar lists the shot-grammar cards by grammar; check refuses a card without its sections and a code twice in a grammar; --grammar takes no recipe filter"
-  else bad "the shot-grammar cards: [$a] exit $rc:$rc2:$rc3, twins $c | $(printf '%s' "$b" | tail -c 300)"; fi
+print(sum("code '"'"'CU'"'"' is" in x for x in R.library_checks(lib)))
+lib = R.load_library(); p, fm = lib["close-up"]; lib["close-up"] = (p, dict(fm, name="近写"))
+print(sum("the close-up row is" in x for x in R.library_checks(lib)))' 2>&1 | tr '\n' ' ')
+  if [ "$a" = "close-up extreme-close extreme-wide long medium medium-close wide " ] && [ "$rc:$rc2:$rc3:$rc4:$rc5" = 2:2:1:2:1 ] && [ "$c" = "1 1 " ] \
+     && [ "$d" = "$(ls recipes/shot/*.md | wc -l | tr -d ' ')" ] && grep -q "^$d shot-grammar cards" <<<"$e" \
+     && grep -q "zoom is no grammar" "$t/e1" && grep -q "names no grammar" "$t/e2" \
+     && grep -q "missing body section(s): ## 什么时候别用 (every shot-grammar card has" <<<"$b" && ! grep -q "_TEMPLATE" <<<"$b" && grep -q "## 什么时候别用: no item under it" <<<"$f"
+  then ok "recipes list --grammar lists the shot-grammar cards by grammar, all of them alone; check refuses a card without its sections or with none under one, a code twice in a grammar, a README row that is not the card's; --grammar takes no recipe filter, and says an unknown or a missing grammar"
+  else bad "the shot-grammar cards: [$a] [$d] [$e] exit $rc:$rc2:$rc3:$rc4:$rc5, [$c] | $(printf '%s' "$b$f" | tail -c 300) | $(cat "$t/e1" "$t/e2" | head -c 200)"; fi
   a=$(vh recipes list -h 2>&1); rc=$?; b=$(vh recipes check --help 2>&1); rc2=$?
   case "$rc:$rc2|$a|$b" in "0:0|"*"usage: bin/vh recipes list"*"|"*"usage: bin/vh recipes list"*) ok "recipes list -h and check --help print the help" ;;
     *) bad "recipes list -h / check --help exited $rc / $rc2: $(printf '%s' "$a" | head -c 200)" ;; esac
@@ -1306,7 +1345,7 @@ PY
 # any browser) and failed by bin/vh check until REVIEW.md has the decision and DECISIONS.md the concept; the user's
 # waiver counts unless it sits under gate ② or ③; quick is not checked
 gate_checks() {
-  local t p a b c d rc rc2 rc3 rc4
+  local t p a b c d e g rc rc2 rc3 rc4
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   vh new math ci-gate --dir "$t" >/dev/null 2>&1; p=$(ls -d "$t"/*-ci-gate 2>/dev/null)
   if [ -z "$p" ] || [ ! -f "$p/REVIEW.md" ]; then bad "gate checks: bin/vh new made no project"; rm -rf "$t"; return; fi
@@ -1318,6 +1357,14 @@ gate_checks() {
     case "$c|$d" in *"no record of gate"*) bad "render of a part or of a sketch page was held by the gate: $c | $d" ;;
       *) ok "gate record: render refuses a whole standard film made from the templates, naming the lines to write; a part (--range) and a sketch page under out/ still render" ;; esac ;;
     *) bad "render without the gate record (exit $rc): $(printf '%s' "$a" | head -c 600)" ;; esac
+  # a flag that takes no value in front of the project leaves the gate the project's (bin/vh's arg_dir): --alpha and --fresh
+  # took the project for their value, so the gate looked at the current folder, found no project and let the render go
+  e=""
+  for g in --alpha --fresh; do
+    c=$(vh render "$g" "$p" --estimate 2>&1); rc2=$?
+    case "$rc2:$c" in 1:*"no record of gate ①"*) ;; *) e="$e | $g (exit $rc2): $(printf '%s' "$c" | head -c 300)" ;; esac
+  done
+  if [ -z "$e" ]; then ok "gate record: render --alpha or --fresh in front of the project still checks that project"; else bad "render with a flag in front of the project:$e"; fi
   if command -v ffmpeg >/dev/null; then
     mkdir -p "$p/out" && ffmpeg -nostdin -v error -f lavfi -i color=c=0x303030:s=320x180:r=30:d=2 -pix_fmt yuv420p "$p/out/film.mp4"
     b=$(vh check "$p/out/film.mp4" 2>&1); rc2=$?
@@ -1709,10 +1756,18 @@ PY
   mkdir -p "$t/camp" && printf '# BRIEF\n' > "$t/camp/BRIEF.md" && cp "$t/cam.json" "$t/camp/shots.json" && vh edit init "$t/camp" >/dev/null 2>&1 \
     && vh storyboard "$t/camp" --out "$t/sbcam-edit" >/dev/null 2>&1
   cams() { python3 -c 'import json, sys; print(" | ".join(s.get("camera", "-") for g in json.load(open(sys.argv[1]))["segments"] for s in g["shots"]))' "$1"; }
+  codes() { python3 -c 'import json, sys; print(json.dumps([s.get("camera_codes") for g in json.load(open(sys.argv[1]))["segments"] for s in g["shots"]], sort_keys=True))' "$1"; }
+  # edit check reads a camera as the storyboard does: another shape fails, a code no card has is said
+  c=$(vh edit check "$t/camp" 2>&1)
+  python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f)); d["tracks"][0]["entries"][0]["camera"] = 5; json.dump(d, open(f, "w"))' "$t/camp/edit.json"
+  d=$(vh edit check "$t/camp" 2>&1); rc=$?
   if [ "$(cams "$t/sbcam/review.json")" = "大远景 · 仰拍 · 推 | 特写 · 守轴线 | XL · 拉" ] && [ "$(cams "$t/sbcam-en/review.json")" = "EWS · low · push-in | CU · hold | XL · pull-out" ] \
-     && [ "$(cams "$t/sbcam-edit/review.json" 2>/dev/null)" = "大远景 · 仰拍 · 推 | 特写 · 守轴线 | XL · 拉" ] && grep -q "C3 size 'XL'" <<<"$a" && ! grep -q "C1" <<<"$a$b"
-  then ok "storyboard: a shot's camera under its id and in review.json (the shot-grammar cards' names, their codes in English); an unknown value is said and printed as written; edit init carries it"
-  else bad "storyboard's camera: [$(cams "$t/sbcam/review.json" 2>&1)] [$(cams "$t/sbcam-en/review.json" 2>&1)] [$(cams "$t/sbcam-edit/review.json" 2>&1)] | $(printf '%s' "$a" | head -c 300)"; fi
+     && [ "$(cams "$t/sbcam-edit/review.json" 2>/dev/null)" = "大远景 · 仰拍 · 推 | 特写 · 守轴线 | XL · 拉" ] && grep -q "C3 size 'XL'" <<<"$a" && ! grep -q "C1" <<<"$a$b" \
+     && [ "$(codes "$t/sbcam/review.json")" = "$(codes "$t/sbcam-en/review.json")" ] \
+     && [ "$(codes "$t/sbcam/review.json")" = '[{"angle": "low", "move": "push-in", "size": "EWS"}, {"axis": "hold", "size": "CU"}, {"move": "pull-out", "size": "XL"}]' ] \
+     && grep -q 'C3: camera.size "XL": no shot-grammar card' <<<"$c" && ! grep -q "C1: camera" <<<"$c" && [ "$rc" = 1 ] && grep -q "C1: camera 5: a sentence, or" <<<"$d"
+  then ok "storyboard: a shot's camera under its id and in review.json (the cards' names, their codes in English, the codes alone in camera_codes); an unknown value is said and printed as written; edit init carries it, and edit check reads it as the storyboard does"
+  else bad "storyboard's camera: [$(cams "$t/sbcam/review.json" 2>&1)] [$(cams "$t/sbcam-en/review.json" 2>&1)] [$(cams "$t/sbcam-edit/review.json" 2>&1)] [$(codes "$t/sbcam/review.json" 2>&1)] edit check $rc | $(printf '%s' "$a" | head -c 300) | $(printf '%s' "$c$d" | tail -c 300)"; fi
   a=$(vh rhythm "$p")
   case "$a" in *"S2 6.5 s > 5 s"*"l2"*"0.8 s < 1.8 s"*) [ -s "$p/out/check/rhythm.png" ] && ok "rhythm: long shot and short caption in red" || bad "rhythm.png missing" ;; *) bad "rhythm said: $a" ;; esac
   vh rhythm "$p" --segment body >/dev/null && [ -s "$p/out/check/rhythm-body.png" ] && ok "rhythm --segment zooms in" || bad "rhythm --segment"
@@ -3424,24 +3479,24 @@ PY
 }
 
 cast_checks() {   # bin/vh cast (tools/cast.py): a project's settled references, one folder an entry, and image gen
-  # --ref cast:<id> (dry runs only: nothing is sent, nothing spent)
-  local t p a b c rc rc2 rc3 rc4 rc5
+  # --ref cast:<id> (dry runs, and a replay of a recorded answer with --offline: nothing is sent, nothing spent)
+  local t p a b c d rc rc2 rc3 rc4 rc5 rc6
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/p"
-  mkdir -p "$p/assets/genimg/x" && printf '# BRIEF\n' > "$p/BRIEF.md"
+  mkdir -p "$p/assets/genimg/x" && printf '# BRIEF\n\n- Budget: $0.20\n' > "$p/BRIEF.md"
   png() { python3 -c 'import struct, sys, zlib; c = bytes.fromhex(sys.argv[2]); raw = b"".join(b"\x00" + c * 16 for _ in range(8))
 k = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
 open(sys.argv[1], "wb").write(b"\x89PNG\r\n\x1a\n" + k(b"IHDR", struct.pack(">IIBBBBB", 16, 8, 8, 2, 0, 0, 0)) + k(b"IDAT", zlib.compress(raw)) + k(b"IEND", b""))' "$1" "$2"; }
   png "$p/assets/genimg/x/a.png" c83c3c; png "$p/assets/genimg/x/b.png" 3cb43c; png "$t/sheet.png" 3c50c8
-  # an entry from two pictures (front, left), then a sheet and settled; list and check; a picture changed since fails,
-  # recorded again passes; status sums it up
+  # an entry from two of image gen's pictures (front, left), then a sheet from elsewhere with its source and licence, and
+  # settled; list and check; a picture changed since fails, recorded again passes; status sums it up, in its text too
   vh cast add "$p" fox --kind character --name 小狐狸 --ref assets/genimg/x/a.png=front --ref assets/genimg/x/b.png=left >/dev/null; rc=$?
-  vh cast add "$p" fox --ref "$t/sheet.png=sheet" --final >/dev/null; rc2=$?
+  vh cast add "$p" fox --ref "$t/sheet.png=sheet" --source "drawn for the test" --license "own work" --final >/dev/null; rc2=$?
   a=$(vh cast list "$p" --json)
   png "$p/cast/fox/front.png" 000000; b=$(vh cast check "$p" 2>&1); rc3=$?
   vh cast add "$p" fox --ref cast/fox/front.png=front >/dev/null && vh cast check "$p" >/dev/null; rc4=$?
-  c=$(vh status "$p" --json | python3 -c 'import json, sys; print(json.load(sys.stdin)["cast"])')
+  c=$(vh status "$p" --json | python3 -c 'import json, sys; print(json.load(sys.stdin)["cast"])'); d=$(vh status "$p" 2>&1)
   if [ "$rc:$rc2:$rc3:$rc4" = 0:0:1:0 ] && grep -q "front.png is not the picture on record" <<<"$b" && [ "$c" = "{'entries': 1, 'by_kind': {'character': 1}, 'final': 1, 'failures': 0}" ] \
-     && python3 - "$a" "$p" <<'PY'
+     && grep -q "^cast: 1 entry (1 character), 1 settled (bin/vh cast)" <<<"$d" && python3 - "$a" "$p" <<'PY'
 import json, sys
 from pathlib import Path
 d, p = json.loads(sys.argv[1]), Path(sys.argv[2])
@@ -3449,23 +3504,79 @@ e = d["entries"][0]
 c = json.loads((p / "cast/fox/cast.json").read_text(encoding="utf-8"))
 ok = (e["id"], e["kind"], e["name"], e["status"]) == ("fox", "character", "小狐狸", "final") and [r["file"] for r in e["refs"]] == ["front.png", "left.png", "sheet.png"]
 ok = ok and e["views"] == {"front": "front.png", "left": "left.png"} and c["version"] == 1 and c["refs"][0]["from"] == {"path": "assets/genimg/x/a.png"}
-ok = ok and all(len(r["sha256"]) == 64 for r in c["refs"]) and d["problems"] == []
+ok = ok and c["refs"][2]["from"] == {"file": "sheet.png"} and (c["refs"][2]["source"], c["refs"][2]["license"]) == ("drawn for the test", "own work")
+ok = ok and all(len(r["sha256"]) == 64 for r in c["refs"]) and [x["severity"] for x in d["problems"]] == ["warn"] and "without the back, right views" in d["problems"][0]["message"]
 sys.exit(0 if ok else 1)
 PY
-  then ok "cast: an entry's pictures copied in with their views and where they came from; a picture changed since it was recorded fails check, recorded again it passes; status sums the cast up"
+  then ok "cast: an entry's pictures copied in with their views and where they came from (a file from outside by its name only); a picture changed since it was recorded fails check, recorded again it passes; a settled character without four views is said; status sums the cast up"
   else bad "cast add/list/check (exit $rc:$rc2:$rc3:$rc4): $(printf '%s' "$a$b$c" | tail -c 500)"; fi
   # image gen --ref cast:<id>: the entry's pictures in its order (cast:<id>:<view>: that one), said whose they are; an id
-  # or a view that is not there is a usage error
+  # or a view that is not there is a usage error, and so is an entry whose picture changed since it was recorded
   a=$(vh image gen "$p" --prompt "the fox" --ref cast:fox --ref "$t/sheet.png" --dry-run --json 2>"$t/err"); rc=$?
   b=$(vh image gen "$p" --prompt "the fox" --ref cast:fox:left --dry-run --json 2>/dev/null)
   vh image gen "$p" --prompt x --ref cast:wolf --dry-run >/dev/null 2>&1; rc2=$?
   vh image gen "$p" --prompt x --ref cast:fox:back --dry-run >/dev/null 2>&1; rc3=$?
   vh cast add "$p" Bad --kind prop --name x >/dev/null 2>&1; rc4=$?
   vh cast add "$p" owl --name x >/dev/null 2>&1; rc5=$?
-  if [ "$rc:$rc2:$rc3:$rc4:$rc5" = 0:2:2:2:2 ] && grep -q "references 1–3: cast:fox (character: 小狐狸)" "$t/err" \
+  cp "$p/cast/fox/left.png" "$t/left.keep"; png "$p/cast/fox/left.png" 101010
+  c=$(vh image gen "$p" --prompt x --ref cast:fox --dry-run 2>&1); rc6=$?; cp "$t/left.keep" "$p/cast/fox/left.png"
+  if [ "$rc:$rc2:$rc3:$rc4:$rc5:$rc6" = 0:2:2:2:2:2 ] && grep -q "references 1–3: cast:fox (character: 小狐狸)" "$t/err" && grep -q "left.png is not the picture on record" <<<"$c" \
      && python3 -c 'import json, sys; a, b = json.loads(sys.argv[1]), json.loads(sys.argv[2]); sys.exit(0 if a["refs"][:3] == ["cast/fox/front.png", "cast/fox/left.png", "cast/fox/sheet.png"] and len(a["refs"]) == 4 and b["refs"] == ["cast/fox/left.png"] else 1)' "$a" "$b"
-  then ok "image gen --ref cast:<id> sends the entry's pictures in its order (cast:<id>:<view> one), says whose they are; an unknown entry or view, a bad id, a new entry with no kind exit 2"
-  else bad "image gen --ref cast: (exit $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s' "$a" | tail -c 300) | $(tail -c 300 "$t/err")"; fi
+  then ok "image gen --ref cast:<id> sends the entry's pictures in its order (cast:<id>:<view> one), says whose they are; an unknown entry or view, a picture changed since it was recorded, a bad id, a new entry with no kind exit 2"
+  else bad "image gen --ref cast: (exit $rc:$rc2:$rc3:$rc4:$rc5:$rc6): $(printf '%s' "$a" | tail -c 300) | $(tail -c 300 "$t/err") | $(printf '%s' "$c" | tail -c 200)"; fi
+  # a call made (a recorded answer replayed: --offline, nothing sent) says whose the pictures are too, and the ledger keeps
+  # what it was made from; a picture recorded again with other bytes makes check say what was made from the older one. The
+  # same picture twice is said, and so is a draft entry
+  if command -v ffprobe >/dev/null; then
+  cp -R tools/assets/fixtures/image/responses "$t/r"
+  vh image gen "$p" --prompt "the fox" --ref cast:fox --ref cast:fox:left --id fox-made --offline "$t/r" >"$t/err" 2>&1; rc=$?
+  png "$p/cast/fox/left.png" 3cb43d; vh cast add "$p" fox --ref cast/fox/left.png=left >/dev/null; b=$(vh cast check "$p" 2>&1); rc2=$?
+  png "$t/owl.png" 777777; vh cast add "$p" owl --kind prop --name 猫头鹰 --ref "$t/owl.png" >/dev/null 2>&1
+  c=$(vh image gen "$p" --prompt "the owl" --ref cast:owl --dry-run 2>&1)
+  if [ "$rc:$rc2" = 0:0 ] && grep -q "references 1–4: cast:fox (character: 小狐狸)" "$t/err" && grep -q "the same picture is sent more than once: cast/fox/left.png" "$t/err" \
+     && grep -q "cast/fox/left.png: fox-made (assets/genimg/fox-made/image.jpg) was made from an older version of it" <<<"$b" && grep -q "cast:owl is a draft" <<<"$c" \
+     && python3 - "$p" <<'PY'
+import json, sys
+r = {x["id"]: x for x in json.load(open(f"{sys.argv[1]}/assets/ledger.json", encoding="utf-8"))["assets"]}["fox-made"]
+sys.exit(0 if [x["path"] for x in r["inputs"]] == ["cast/fox/front.png", "cast/fox/left.png", "cast/fox/sheet.png", "cast/fox/left.png"] and all(len(x["sha256"]) == 64 for x in r["inputs"]) else 1)
+PY
+  then ok "image gen with --ref cast:<id>, a call replayed: whose the pictures are said, what it was made from on record; check names what was made from an older version of a picture; a picture sent twice and a draft entry are said"
+  else bad "image gen --ref cast:, a call (exit $rc:$rc2): $(tail -c 400 "$t/err") | $(printf '%s' "$b" | tail -c 300) | $(printf '%s' "$c" | tail -c 200)"; fi
+  else skip "image gen --ref cast:, a call replayed" "no ffprobe"; fi
+  # where a picture came from: one the ledger has (bin/vh assets add) is linked by its id; one on record nowhere is said by
+  # add and check. add itself: a picture that takes a side over leaves the other in refs without a view; another kind needs
+  # --force; a hidden file's copy is named plainly, a hidden one in the folder refused with nothing changed; a new entry
+  # whose picture is not there leaves no folder
+  png "$t/lake.png" 2050a0; png "$t/lake2.png" 2050a1; png "$t/.dot.png" 404040
+  vh assets add "$p" "$t/lake.png" --license CC0 --origin self >/dev/null 2>&1; rc=$?
+  vh cast add "$p" lake --kind set --name 湖 --ref "$t/lake.png=front" >/dev/null; rc2=$?
+  a=$(vh cast add "$p" lake --ref "$t/lake2.png=front" 2>&1); rc3=$?
+  vh cast add "$p" lake --kind prop >/dev/null 2>&1; rc4=$?
+  vh cast add "$p" lake --kind prop --force >/dev/null 2>&1 && vh cast add "$p" lake --kind set --force >/dev/null 2>&1; rc5=$?
+  vh cast add "$p" lake --ref "$t/.dot.png" >/dev/null; cp "$t/.dot.png" "$p/cast/lake/.inner.png"; cp "$p/cast/lake/cast.json" "$t/lake.json"
+  vh cast add "$p" lake --ref cast/lake/.inner.png >/dev/null 2>&1; rc6=$?
+  vh cast add "$p" ghost --kind prop --name g --ref "$t/no-such.png" >/dev/null 2>&1; b=$?
+  c=$(vh cast check "$p" 2>&1); d=$?
+  if [ "$rc:$rc2:$rc3:$rc4:$rc5:$rc6:$b:$d" = 0:0:0:2:0:2:2:0 ] && [ ! -e "$p/cast/ghost" ] && cmp -s "$t/lake.json" "$p/cast/lake/cast.json" \
+     && grep -q "front-2.png is the front view now; front.png keeps its place among the pictures, without a view" <<<"$a" && grep -q "front-2.png: where it came from and on what terms is on record nowhere" <<<"$a" \
+     && grep -q "dot.png: where it came from and on what terms is on record nowhere" <<<"$c" && ! grep -q "cast/lake/cast.json: refs\[0\]: front.png: where it came from" <<<"$c" && python3 - "$p" <<'PY'
+import json, sys
+c = json.load(open(f"{sys.argv[1]}/cast/lake/cast.json", encoding="utf-8"))
+ok = c["kind"] == "set" and c["views"] == {"front": "front-2.png"} and [(r["file"], r.get("view")) for r in c["refs"]] == [("front.png", None), ("front-2.png", "front"), ("dot.png", None)]
+ok = ok and c["refs"][0]["from"].get("asset") and "asset" not in c["refs"][1]["from"]
+sys.exit(0 if ok else 1)
+PY
+  then ok "cast add: a picture the ledger has is linked by its id, one on record nowhere is said; a side taken over leaves the other picture without a view; another kind needs --force; a hidden file's copy named plainly, a hidden picture in the folder refused with nothing changed; nothing left of a refused new entry"
+  else bad "cast add's records (exit $rc:$rc2:$rc3:$rc4:$rc5:$rc6:$b, check $d): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$c" | tail -c 400)"; fi
+  # a hand-written cast.json check did not foresee (a view that is a list): a failure of that entry, said, no traceback;
+  # list --json still answers; a fault of the tool itself exits 3, not 1
+  python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f)); d["views"]["back"] = ["a"]; json.dump(d, open(f, "w"))' "$p/cast/fox/cast.json"
+  a=$(vh cast check "$p" 2>&1); rc=$?; vh cast list "$p" --json >/dev/null 2>"$t/err"; rc2=$?
+  b=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import cast; cast.gather = lambda p: 1 / 0; sys.exit(cast.main(["check", sys.argv[1]]))' "$p" 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 1:0:3 ] && grep -q "views.back: a picture's file name, not list" <<<"$a" && ! grep -q Traceback <<<"$a" && [ ! -s "$t/err" ] \
+     && grep -q "an error in this tool itself, not in the cast (ZeroDivisionError" <<<"$b"
+  then ok "cast check: a cast.json of a shape it did not foresee fails that entry and says why (no traceback); a fault of the tool itself exits 3"
+  else bad "cast check on a hand-written view (exit $rc:$rc2:$rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | head -c 200)"; fi
   rm -rf "$t"
 }
 
@@ -4312,7 +4423,7 @@ PY
 # bin/vh textcheck on its fixture (tools/textcheck/fixture/index.html: one read per case), with whatever headless Chrome
 # the machine has (GitHub's runners come with Chrome); skipped without one
 know_checks() {   # bin/vh know: the index of recipes, styles and the sections read when needed, and what a few words find
-  local t a b rc rc2
+  local t a b q rc rc2
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   vh know --index --json > "$t/index.json" 2>/dev/null; rc=$?   # a file: the index is over Linux's 128 KB for one argument
   if [ "$rc" = 0 ] && python3 - "$t/index.json" <<'PY'
@@ -4377,6 +4488,12 @@ sys.exit(0 if ok else 1)
 PY
   then ok "know: a recipe by its name (black-card), a style by its craft (risograph), a playbook section by a platform's habit (07 §1), each kind in the answer, the same answer twice"
   else bad "know's answers (exit $rc): $(printf '%s' "$a" | tail -c 400)"; fi
+  # the shot-grammar cards by the other names their own comment gives them (<!-- know: 荷兰角, … -->): the first recipe found
+  a=""; for q in 荷兰角:dutch 鸟瞰:top-down 推镜头:push-in 摇镜头:pan 跟镜头:track 升降:crane 远景:long 近景:medium-close; do
+    b=$(vh know "${q%%:*}" --kind recipe -n 1 --json 2>/dev/null | python3 -c 'import json, sys; h = json.load(sys.stdin)["hits"]; print(h[0]["id"] if h else "-")' 2>/dev/null)
+    [ "$b" = "${q#*:}" ] || a="$a ${q%%:*} → ${b:-nothing} (not ${q#*:});"
+  done
+  if [ -z "$a" ]; then ok "know: a shot-grammar card by the names a seeker uses (荷兰角, 鸟瞰, 推镜头, 摇镜头, 跟镜头, 升降, 远景, 近景)"; else bad "know, the shot-grammar cards' other names:$a"; fi
   rc=0; for x in "know" "know --kind bogus 黑场" "know --index 黑场" "know -n -1 黑场"; do
     # shellcheck disable=SC2086
     a=$(vh $x 2>/dev/null); b=$?; [ "$b" = 2 ] && [ -z "$a" ] || { rc=1; bad "bin/vh $x: exit $b, stdout ${a:0:80}"; }
@@ -4520,18 +4637,20 @@ sys.exit(0 if ok else 1)
 PY
     then ok "render: every frame, BT.709 tv range, a keyframe exactly every --gop frames across the chunks, and how it was made beside it"
     else bad "render on its fixture (exit $rc): $(printf '%s' "$a" | tail -c 700)"; fi
-    # --motion-blur (tools/film/blur.mjs) on tools/film/fixture/blur.html, a white square moving 16 px a frame, 4 sub-frames
-    # over half a frame centred on each frame's time: frame 2's edges are ramps of 1/4, 2/4 and 3/4, 2 px each (6 px a
-    # side), its light kept (30 px of white across); frame 5, the last before the page's hard cut 0.1 frame after it, has
-    # none of the next shot's grey; frame 0 none of before the film, frame 14 none of after its end (the page paints those
-    # white). patch draws frame 2's GOP again in a fresh browser, the frames around it identical (PSNR ∞); --motion-blur 1
-    # is the render without it, packet for packet (the fixture's first GOP, just rendered); frames --motion-blur draws
-    # frame 2 as the render does, losslessly: its ramp's levels exact
+    # --motion-blur (tools/film/blur.mjs) on tools/film/fixture/blur.html, a white square moving 16 px a frame. render, 4
+    # sub-frames over a whole frame (--shutter 1) centred on each frame's time: frame 2's edges are ramps of 1/4, 2/4 and
+    # 3/4, 4 px each (12 px a side), its light kept (30 px of white across); frame 5, the last before the page's hard cut
+    # 0.1 frame after it, has none of the next shot's grey; frame 0 none of before the film, frame 14 none of after the
+    # page's end (the page paints those white; its last shot ends before the page does, so the page's end is what cuts
+    # that shutter short). patch draws frame 2's GOP again in a fresh browser with the film's shutter, the frames around it
+    # identical (PSNR ∞); --motion-blur 1 is the render without it, packet for packet (the fixture's first GOP, just
+    # rendered). frames, 4 sub-frames over the default half frame: frame 2's levels exact (2 px steps), frame 5 none of the
+    # grey, frame 14 none of the white, as render draws them
     mkdir -p "$t/mb"
-    a=$(vh render tools/film/fixture/blur.html --motion-blur 4 --gop 5 --workers 1 --out "$t/mb/film.mp4" 2>&1); rc=$?
+    a=$(vh render tools/film/fixture/blur.html --motion-blur 4 --shutter 1 --gop 5 --workers 1 --out "$t/mb/film.mp4" 2>&1); rc=$?
     b=$(vh patch "$t/mb/film.mp4" --frames 2-2 --workers 1 2>&1); rc2=$?
     c=$(vh render tools/film/fixture --frames 0:30 --gop 30 --workers 1 --motion-blur 1 --out "$t/mb/one.mp4" 2>&1); rc3=$?
-    d=$(vh frames tools/film/fixture/blur.html --at 0.0667 --motion-blur 4 --out "$t/mb/f" 2>&1); rc4=$?
+    d=$(vh frames tools/film/fixture/blur.html --at 0.0667,0.1667,0.4667 --motion-blur 4 --out "$t/mb/f" 2>&1); rc4=$?
     if [ "$rc:$rc2:$rc3:$rc4" = "0:0:0:0" ] && grep -q "6 of the 15 frames drawn moved" <<<"$a" && grep -q "reach the keyframes at least ∞ dB ✓" <<<"$b" \
        && python3 - "$t/mb" "$t/r/film.mp4" <<'PY'
 import json, subprocess, sys
@@ -4543,20 +4662,43 @@ Y = [raw[i * n:i * n + W * H] for i in range(len(raw) // n)]
 row = lambda k, r: Y[k][r * W:(r + 1) * W]   # noqa: E731
 ramp = [x for x, v in enumerate(row(2, 45)) if 38 < v < 213]   # luma between 10 % and 90 % of white
 light = sum(min(1, max(0, (v - 16) / 219)) for v in row(2, 45))
-ok = len(Y) == 15 and ramp == [39, 40, 41, 42, 43, 44, 69, 70, 71, 72, 73, 74] and abs(light - 30) < 0.6
+ok = len(Y) == 15 and ramp == list(range(36, 48)) + list(range(66, 78)) and abs(light - 30) < 0.6
 ok = ok and max(row(5, 10)) <= 18 and max(row(0, 10)) <= 18 and min(Y[6]) >= 124 and max(Y[14]) <= 128
-ok = ok and json.load(open(f"{d}/film.mp4.render.json")).get("motion_blur") == {"samples": 4, "shutter": 0.5} and "motion_blur" not in json.load(open(f"{d}/one.mp4.render.json"))
+mb = json.load(open(f"{d}/film.mp4.render.json")).get("motion_blur") or {}
+ok = ok and (mb.get("samples"), mb.get("shutter"), len(mb.get("version") or "")) == (4, 1, 64) and "motion_blur" not in json.load(open(f"{d}/one.mp4.render.json"))
 pk = lambda f: [l.split(",")[-1].strip() for l in subprocess.run(["ffmpeg", "-v", "error", "-i", f, "-map", "0:v:0", "-c", "copy", "-f", "framemd5", "-"],   # noqa: E731
                                                                      capture_output=True, text=True).stdout.splitlines() if l and not l.startswith("#")]
 one, whole = pk(f"{d}/one.mp4"), pk(ref)
 ok = ok and len(one) == 30 and one == whole[:30]
-g = subprocess.run(["ffmpeg", "-v", "error", "-i", f"{d}/f/blur-t0000.067.png", "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True).stdout
+png = lambda t: subprocess.run(["ffmpeg", "-v", "error", "-i", f"{d}/f/blur-t{t}.png", "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True).stdout   # noqa: E731
+g = png("0000.067")
 steps = [v for v in g[45 * W:46 * W] if 0 < v < 255]   # 1/4, 2/4, 3/4 of white (an ffmpeg that truncates the mean: one less)
 ok = ok and len(steps) == 12 and all(abs(v - e) <= 1 for v, e in zip(steps, [64, 64, 128, 128, 191, 191, 191, 191, 128, 128, 64, 64]))
+cut, end = png("0000.167"), png("0000.467")   # frame 5 (before the cut) on black, frame 14 (the last) grey
+ok = ok and len(cut) == W * H and max(cut[10 * W:11 * W]) == 0 and len(end) == W * H and set(end) <= {127, 128, 129}
 sys.exit(0 if ok else 1)
 PY
-    then ok "render --motion-blur: 4 sub-frames over half a frame blur a moving edge into steps of 1/4, 2/4, 3/4, 6 px a side, its light kept; no frame mixes in the next shot across the page's hard cut, nor a time before or after the page; patch draws a GOP again the same way (PSNR ∞); --motion-blur 1 is the render without it, packet for packet; frames --motion-blur draws a frame as render does"
+    then ok "render --motion-blur: 4 sub-frames over a whole frame blur a moving edge into steps of 1/4, 2/4, 3/4, 12 px a side, its light kept; no frame mixes in the next shot across the page's hard cut, nor a time before or after the page; patch draws a GOP again with the film's shutter (PSNR ∞); --motion-blur 1 is the render without it, packet for packet; frames --motion-blur draws the frames before the cut and at the end as render does"
     else bad "render --motion-blur ($rc, $rc2, $rc3, $rc4): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300) | $(printf '%s' "$c" | tail -c 200) | $(printf '%s' "$d" | tail -c 200)"; fi
+    # a render stopped with blurred chunks kept, then the same command without the blur, or with --motion-blur 1: those
+    # chunks are not taken, it starts over (the record compares the keys either render has). The page hangs on a time off
+    # the frame grid after 0.1 s, so the blurred render keeps its first chunk and stops at --frame-timeout, while an
+    # unblurred one draws only grid times. One stopped render: its chunk and record copied back before each of the two
+    sed 's|frame(t) {|frame(t) { if (t > 0.1 \&\& Math.abs(t * 30 - Math.round(t * 30)) > 1e-6) return new Promise(() => {});|' tools/film/fixture/blur.html > "$t/mb/stops.html"
+    vh render "$t/mb/stops.html" --motion-blur 4 --gop 3 --workers 1 --frame-timeout 2 --no-estimate --out "$t/mb/resume.mp4" >/dev/null 2>&1; rc=$?
+    cp -R "$t/mb/.resume.mp4.parts" "$t/mb/stopped" 2>/dev/null
+    for flag in "" "--motion-blur 1"; do
+      say=${flag:-"no --motion-blur"}
+      rm -rf "$t/mb/.resume.mp4.parts"; cp -R "$t/mb/stopped" "$t/mb/.resume.mp4.parts" 2>/dev/null
+      # shellcheck disable=SC2086
+      a=$(vh render "$t/mb/stops.html" $flag --gop 3 --workers 1 --no-estimate --out "$t/mb/resume.mp4" 2>&1); rc2=$?
+      if [ "$rc:$rc2" = 1:0 ] && grep -q "the 1 chunks kept from an earlier render are not used (changed: the motion blur); starting over" <<<"$a" \
+         && python3 -c 'import subprocess, sys
+y = subprocess.run(["ffmpeg", "-v", "error", "-i", sys.argv[1], "-vf", "select=eq(n\\,2)", "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "gray", "-"], capture_output=True).stdout
+sys.exit(0 if len(y) == 160 * 90 and not [v for v in y[45 * 160:46 * 160] if 38 < v < 213] else 1)' "$t/mb/resume.mp4"
+      then ok "render, $say: the blurred chunk a stopped render kept is not taken (the motion blur changed), the film drawn sharp"
+      else bad "render, $say, over a blurred chunk a stopped render kept (exit $rc:$rc2): $(printf '%s' "$a" | head -c 400)"; fi
+    done
     # --alpha: a page that leaves its background clear gives ProRes 4444 with that alpha; a page that paints one is told so;
     # an .mp4 is refused (no alpha there), and patch refuses an alpha film
     mkdir -p "$t/al"
@@ -5817,7 +5959,8 @@ raw = subprocess.run(["ffmpeg", "-v", "error", "-i", f"{d}/1.mp4", "-f", "rawvid
 n = W * H * 3 // 2
 Y = [raw[i * n:i * n + W * H] for i in range(len(raw) // n)]
 ok = len(Y) == 12 and min(Y[5]) >= 124 and max(Y[5]) <= 128 and max(Y[6][10 * W:11 * W]) <= 18 and any(38 < v < 213 for v in Y[7][45 * W:46 * W])
-ok = ok and json.load(open(f"{d}/1.mp4.render.json")).get("motion_blur") == {"samples": 4, "shutter": 0.5} and "motion_blur" not in json.load(open(f"{d}/3.mp4.render.json"))
+mb = json.load(open(f"{d}/1.mp4.render.json")).get("motion_blur") or {}
+ok = ok and (mb.get("samples"), mb.get("shutter"), len(mb.get("version") or "")) == (4, 0.5, 64) and "motion_blur" not in json.load(open(f"{d}/3.mp4.render.json"))
 sys.exit(0 if ok else 1)
 PY
   then ok "an edit list with --motion-blur: its page is blurred, not its colour; no sub-frame reaches before the page's entry; a render again takes every chunk, the same bytes; without it, the colour's chunk is taken and the page's drawn again"

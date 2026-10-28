@@ -493,14 +493,17 @@ def cmd_gen(a):
         raise Usage("the prompt is empty")
     if a.n < 1 or a.n > 8:
         raise Usage("--n: 1 to 8 pictures")
-    refs, labels = [], []   # labels: what each --ref cast:<id> picture is (bin/vh cast), said with the upload
+    refs, labels, drafts = [], [], []   # labels: what each --ref cast:<id> picture is (bin/vh cast), said with the upload
     for r in a.ref or []:
         if r.startswith("cast:"):   # a settled reference of the project's cast: its pictures, in its order
             import cast
             try:
                 got = cast.refs_for(project, r)
+                cid, _, entry = cast.entry_for(project, r)
             except cast.Usage as e:
                 raise Usage(str(e))
+            if entry.get("status") != "final" and cid not in drafts:
+                drafts.append(cid)
             for f, label in got:
                 refs.append(f); labels.append((len(refs), label))
             continue
@@ -508,6 +511,11 @@ def cmd_gen(a):
         if f is None or not f.is_file() or not mime_of(f):
             raise Usage(f"--ref {r}: no such PNG, JPEG or WebP (from here, nor in the project), nor cast:<id>")
         refs.append(f)
+    twice = sorted({ledger.rel(project, f) for f in refs if sum(Path(x).resolve() == Path(f).resolve() for x in refs) > 1})
+    if twice:   # cast:fox and cast:fox:front, or one --ref given twice: the same picture goes (and is paid for) twice
+        say(f"  ! the same picture is sent more than once: {', '.join(twice)} (one --ref each is enough)")
+    for cid in drafts:
+        say(f"  ! cast:{cid} is a draft, not settled yet (bin/vh cast add {cid} --final once the person has): what is made from it may need making again")
     aspect = a.aspect or brief_aspect(project) or "16:9"
     if aspect not in ASPECTS:
         raise Usage(f"--aspect {aspect}: one of {', '.join(ASPECTS)}")

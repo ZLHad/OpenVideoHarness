@@ -3,12 +3,14 @@ id: medium-close
 kind: grammar
 grammar: size
 code: MCU
-name: 中近景
+name: 近景（中近景）
 one_liner: 主体胸口以上，脸是画面的重心：观众开始注意它在想什么
 derived_from: []
 ---
 
-# 中近景 MCU
+<!-- know: 近景, 中近景, 胸部以上, 胸口以上, medium close-up -->
+
+# 近景（中近景） MCU
 
 ## 情绪动机
 
@@ -28,8 +30,8 @@ derived_from: []
 
 ## 怎么搭
 
-- 正反打（两个人对话）常用两边各一个中近景，机位守在同一条轴线的一侧（见 `hold-line`）。
-- 慢推到中近景，是"他要说重要的话了"的提示。
+- 正反打（两个人对话）常用两边各一个近景，机位守在同一条轴线的一侧（见 `hold-line`）。
+- 慢推到近景，常是"他要说重要的话了"的提示。
 
 ## 在代码里
 

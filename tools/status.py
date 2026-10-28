@@ -492,6 +492,11 @@ def show(o, now):
             f"{a['uncleared']} not cleared" + (f" ({a['not_taken']} not taken under {a['policy']})" if a.get("not_taken") else "") if a.get("uncleared") else "",
             f"{a['unregistered']} loaded but not on record" if a.get("unregistered") else "", f"{a['aigc']} AI-generated" if a.get("aigc") else "") if x]
         print("assets: " + ", ".join(bits) + (f" · {money}" if money else "") + (f" · {a['error']}" if a.get("error") else "") + " (bin/vh assets)")
+    ca = o.get("cast") or {}
+    if ca.get("entries") or ca.get("error"):
+        kinds = ", ".join(f"{n} {k}{'' if n == 1 else 's'}" for k, n in sorted((ca.get("by_kind") or {}).items()))
+        print("cast: " + (ca["error"] if ca.get("error") else f"{ca['entries']} entr{'y' if ca['entries'] == 1 else 'ies'} ({kinds}), {ca.get('final', 0)} settled"
+              + (f", {ca['failures']} failure{'' if ca['failures'] == 1 else 's'} in its check" if ca.get("failures") else "")) + " (bin/vh cast)")
     rs = o.get("research") or {}
     sc, hot, refs = rs.get("scout") or {}, rs.get("hot") or {}, rs.get("refs") or {}
     bits = [x for x in (
