@@ -14,12 +14,14 @@
 6. **合成与颜色**：默认交 PNG（straight alpha，视图变换已烘进去）；EXR 是 scene-linear，进 ffmpeg 要显式 `-apply_trc iec61966_2_1`；最后一步 H.264 要写 BT.709 矩阵和四个标签，否则饱和色偏 20 个色阶左右。
 7. **安全**：官方 MCP 自己警告，它会直接执行 LLM 生成的代码，没有任何防护 [16]。**没有沙箱，就不要让 LLM 生成的 bpy 代码经过任何 MCP 执行**；管线里跑 agent 写的脚本同理。
 8. **许可**：输出归自己，但公开发布的、调用 bpy 的脚本要以 GPL 兼容协议发布 [17]。本仓库的做法（维护者 2026-10-01 决定）：import bpy 的文件标 `SPDX-License-Identifier: GPL-3.0-or-later`，按 GPL 分发，其余仍是 MIT（见"许可证"）。
+9. **只做资产**：不需要路径追踪的 3D 镜头，整片在 Three.js 里渲，Blender 只整理模型、绑骨、烘焙，导出 GLB，再用 `bin/vh model3d check --blender` 查一遍（见"只做资产"）。
 
 ## 什么时候用 Blender
 
 | 需求 | 首选 | 原因 |
 |---|---|---|
 | 3D 世界里的文字、节点标签、UI，一镜到底 | HyperFrames + Three.js | 文字和相机是同一份代码，实时；样板已有（`showcase/04-intro-film`） |
+| 旁白片里的模型、骨骼动作、转台、一座楼长出来 | canvas-film 的 Three.js 层，Blender 只做资产 | 一帧几十毫秒，动作挂在旁白的字上；见下面"只做资产" |
 | 玻璃、水、皮肤（SSS）、焦散、体积光的产品镜头 | Blender（Cycles） | 路径追踪的光传输 |
 | 布料、液体、烟 | Blender + 烘焙（缓存当素材） | Three.js 没有 |
 | 非写实的 3D（toon、平涂、线稿） | Three.js 或 Blender（EEVEE） | 看有没有模型、要不要真运动模糊和景深 |
@@ -27,6 +29,49 @@
 | 超过 30 秒、4K、大量镜头 | 先算渲染账 | 见"渲染时间" |
 
 Blender 的增量只在路径追踪的光传输、物理模拟、真实运动模糊和景深、导入真实 3D 资产这几件事上。按类型：03 产品宣传收益最高（英雄镜头 1–3 个交给 Blender，UI 镜头仍是 HyperFrames；只用用户自己的模型，视图变换选 PBR Neutral）；01 讲解和 04 MV 可以做少量插页（公式和几何仍用 Manim，歌词和字仍在 HyperFrames）；02 短片最多 1–2 个 3D 镜头；05、07、08 不建议。风格里 `product-keynote`、`clockwork-map`、`monumental-scifi` 最可能受益，`blueprint` 和 `silhouette-papercut` 的 `STYLE.md` 明令不做 3D。reviewer 看 3D 镜头时，额外给它"为什么这个镜头需要 Blender（一句话）"，说不出来就降级成 Three.js 或 2D。
+
+## 只做资产：Blender 整理模型，Three.js 出片
+
+很多 3D 镜头用不着路径追踪：一个产品转台、一座楼一层层长出来、一个角色走几步回头。这类镜头整片在 Three.js 里渲（canvas-film 的 Three.js 层，`engines/canvas-film/README.md` 的"Three.js 层"），Blender 只把资产准备好。这样每一帧都是 t 的纯函数，3D 和字、字幕、章节条在同一个页面里；1080p 一帧几十毫秒，不用先算渲染账；动作挂在旁白的字上，改一句旁白不用重烘场景。路径追踪的光、布料和液体、真实景深，仍按上面的表交给 Blender 渲。
+
+Blender 在这条路上只做四件事：
+
+1. **整理**：单位用米（glTF 就是米），缩放和旋转 apply 掉（Ctrl+A）；原点放在底面中心，模型立在地面上，摆的时候好算；正面朝 Blender 的 −Y（前视图看到的那一面），导出后就是 glTF 的 +Z、朝 +Y 立着。零件能合并就合并（Ctrl+J），面数超了用 Decimate，贴图缩到 tier 的上限以内（hero 4096，prop 2048）。
+2. **绑骨**：Rigify，或者付费的 Auto-Rig Pro。每个顶点最多 4 根骨头（Weights > Limit Total），权重归一（Weights > Normalize All）：three 一个顶点只认 4 个权重，也不替你归一。动作名就是 Three.js 层里 `play` 用的名字，导出前起好；每个要用的动作都要导出（导出设置的 Animation 一节）。
+3. **烘焙**：glTF 只带 PBR 贴图，Blender 的程序材质和节点进不了 three。程序纹理、AO、细节法线用 Cycles 的 Bake 烘成图，接回 Principled BSDF 再导出。
+4. **导出 GLB**：File > Export > glTF 2.0，格式 glb，+Y Up 开，Apply Modifiers 开，**Draco 压缩关**（Three.js 层没带解码器）。命令行：
+
+   ```bash
+   blender -b --factory-startup asset.blend --python-expr \
+     "import bpy; bpy.ops.export_scene.gltf(filepath='asset.glb', export_format='GLB', export_yup=True, export_apply=True, export_draco_mesh_compression_enable=False)"
+   ```
+
+导出以后：
+
+```bash
+bin/vh model3d check asset.glb --tier hero            # 面数、贴图、骨骼和权重、动作名和时长、米制尺寸、原点和朝向；不用 Blender
+bin/vh model3d check asset.glb --tier hero --blender  # 再在 Blender 里查 z-fighting 和反面（法线朝里的封闭部件、绕向不一致的边）
+```
+
+`--blender` 在没有 Blender 的机器上跳过并说一声，其余照查。Blender 运行时不带我们的环境变量（key 进不去），在 macOS 上套沙箱：不联网，只写它自己的临时目录，家目录里只读本仓库和模型所在的目录。权重不在 Blender 里查：它的 glTF 导入会把权重全是 0 的顶点改绑到第一根骨头上，导入以后就看不出来了，所以 `model3d check` 直接读文件里的权重，那也正是 three 用的数。z-fighting 报的是 1 mm 以内同向、互相重叠的三角形，镜头动起来会闪；藏在里面、永远拍不到的零件也会报出来，这种看过一眼、确认拍不到的，写进项目的 `DECISIONS.md` 放行就行。实测（2026-10-29，Blender 5.2.2）：测试模型约 1 秒；一个 240 个网格、11.9 万个三角形的模型 38 秒。查的做法借自 EL4CTEO/blender-skills 的 asset-qa（MIT，`tools/model3d/NOTICE.md`）。
+
+模型放进项目的 `assets/models/`，用 `bin/vh assets add` 登记来源和许可；环境光用 `bin/vh hdri get` 从 Poly Haven 取（CC0）。
+
+同一张 HDRI 也能当 Blender 场景的世界贴图，在 Blender 里看光、烘焙，或者把某个镜头整个交给 Cycles 渲的时候用。World 的节点这样接：Texture Coordinate 的 Generated → Mapping → Environment Texture（打开 `assets/hdri/<名字>/` 里的那个文件）→ Background（Strength 是亮度）→ World Output。不转的时候，Blender 和 Three.js 层里图的朝向一样：图的正中朝 +X，图从左往右四分之三处朝 Blender 的 −Y（导出后是 glTF 的 +Z），两边的光从同一边来。要转的话，层里的 `envRotation: θ` 对应 Mapping 节点的 Z 旋转 −θ。实测（2026-10-29，Blender 5.2.2 的 Cycles 和 three r186 的这一层，同一张标了方向的测试图，镜头从原点朝四个方向看）。
+
+**blender-mcp（现名 mcp-for-blender，MIT）怎么接：默认不接。** 本仓库不装它。要在探索阶段用，先问用户，并照下面"安全"一节放在虚拟机或单独的 macOS 用户下：
+
+- 不跑它的一键安装（`curl … | sh` 会改本机所有 MCP 客户端的配置）。手动装：`uvx mcp-for-blender install-addon`，在 Blender 的 Edit > Preferences > Add-ons 里启用 MCP for Blender；
+- 客户端的配置钉住版本，打开安全模式，关掉遥测（它默认发一条匿名的使用记录：安装 ID、工具名、成败、时长、版本）：
+
+  ```json
+  {"mcpServers": {"blender": {"command": "uvx", "args": ["mcp-for-blender==2.2.6"],
+    "env": {"BLENDER_MCP_SAFE_MODE": "1", "DISABLE_TELEMETRY": "true"}}}}
+  ```
+
+  2.2.6 是 2026-10-29 时 PyPI 上的最新版；安全模式拦下读写文件、起进程、联网和常驻的代码，建模、材质、导入导出照常；
+- 它自带的 Poly Haven、Sketchfab 等素材源在 Blender 里关掉，素材走 `bin/vh hdri`、`bin/vh assets add`，进台账；
+- 会话本身不算产物：用完把确认有用的操作写成 `blender -b` 跑的脚本，资产照上面导出、检查。
 
 ## 版本与安装
 
@@ -253,7 +298,7 @@ sandbox-exec -f vh_blender.sb env -i PATH="$PATH" HOME="$PWD/blender/out/.home" 
 | 官方 MCP、`bpy` PyPI 包 | 元数据都标 GPL-3.0 [16][18] | 只读参考 |
 | 素材 | 各自许可：Poly Haven 等为 CC0，Poly Pizza 多为 CC-BY，Sketchfab 逐件不同 [16] | 一律 `bin/vh assets add` 登记 |
 
-本仓库是 MIT。调用 bpy 的脚本放进仓库时，许可怎么写，原有三个选项：(1) 仓库里不放 `import bpy` 的文件，`build.py` 由 agent 在项目目录里生成（`projects/` 不入库），仓库只放不 import bpy 的封装和模板 JSON；(2) `import bpy` 的文件标 `SPDX-License-Identifier: GPL-3.0-or-later`，这部分文件按 GPL 分发；(3) 保持 MIT，承担 FAQ 字面要求和 MIT 之间的差距。**维护者 2026-10-01 选了 (2)**：现在仓库里 import bpy 的文件是 `styles/_swatch/blender_render.py` 和 `styles/tabletop-miniature/swatch.py`，文件头都有 SPDX 标注，`README.md` 的 License 一节写明了；不 import bpy 的封装（`blender_prep.py`、`render.sh`）仍是 MIT。以后加 import bpy 的文件，照样标。项目里 agent 生成的 `build.py` 在 `projects/` 下，不入库，不受影响。Blender 的名称和 logo 受单独的商标政策约束，片子里出现 Blender 界面截图前先看一眼 [17]。
+本仓库是 MIT。调用 bpy 的脚本放进仓库时，许可怎么写，原有三个选项：(1) 仓库里不放 `import bpy` 的文件，`build.py` 由 agent 在项目目录里生成（`projects/` 不入库），仓库只放不 import bpy 的封装和模板 JSON；(2) `import bpy` 的文件标 `SPDX-License-Identifier: GPL-3.0-or-later`，这部分文件按 GPL 分发；(3) 保持 MIT，承担 FAQ 字面要求和 MIT 之间的差距。**维护者 2026-10-01 选了 (2)**：现在仓库里 import bpy 的文件是 `styles/_swatch/blender_render.py`、`styles/tabletop-miniature/swatch.py` 和 `tools/model3d/blender_qa.py`，文件头都有 SPDX 标注，`README.md` 的 License 一节写明了；不 import bpy 的封装（`blender_prep.py`、`render.sh`）仍是 MIT。以后加 import bpy 的文件，照样标。项目里 agent 生成的 `build.py` 在 `projects/` 下，不入库，不受影响。Blender 的名称和 logo 受单独的商标政策约束，片子里出现 Blender 界面截图前先看一眼 [17]。
 
 ## 流程与验证
 

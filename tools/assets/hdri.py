@@ -1,5 +1,6 @@
 """bin/vh hdri: environment maps from Poly Haven (polyhaven.com, every HDRI CC0) for the Three.js layer's light and
-background. Search the library; get one into the project at a size and a format, on record in the ledger. Stdlib only.
+background, and for a Blender scene's world (engines/blender.md, 只做资产: how to wire it, and which way it faces). Search
+the library; get one into the project at a size and a format, on record in the ledger. Stdlib only.
 
 usage: bin/vh hdri search <words…> [--category C] [-n 12] [--json] [--offline DIR]
        bin/vh hdri get <project> <hdri> [--res 1k|2k|4k|8k|16k] [--format hdr|exr] [--id ID] [--max-mb 600] [--rate 2M]

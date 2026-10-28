@@ -121,5 +121,8 @@ textonly alchaincyf/huashu-design               huashu-design              # 设
 textonly wheresryan22/anatomy                   anatomy                    # 把概念做成一台能拆开的机器：凸零件、四阶明暗、只点亮一个部件、拆分弹簧、穿模和线端的审计（MIT）
 textonly annnguyentt/anatomy-reveal-skill       anatomy-reveal             # 用 Anatomy 工具包的 3D 模式拍产品揭示片：翻滚、甩镜、拆开、合拢，按位移自适应的运动模糊（MIT；template/kit 来自 Anatomy）
 
+# Blender 只做资产（见 engines/blender.md"只做资产"）
+textonly EL4CTEO/blender-skills                 blender-skills             # Blender 5.2 的建模、UV、PBR、烘焙、绑骨、导出和资产质检 skill，`blender -b` 就能跑；bin/vh model3d check --blender 借它 asset-qa 的检查（MIT）
+
 [ -z "$SKIPPED" ] || echo "skipped (re-run later, e.g. bash references/fetch.sh <dir>):$SKIPPED"
 exit 0

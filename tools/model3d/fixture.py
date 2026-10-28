@@ -3,9 +3,12 @@ square and 2 m tall, skinned to two bones (Root at its foot, Tip at its middle),
 "bend" (Tip turns 45 degrees about Z and back, 1 s) and "lift" (Root rises 0.5 m and comes down, 2 s). bin/vh model3d
 check and the Three.js layer's test page (tools/ci.sh) both read it. Stdlib only.
 
-usage: python3 tools/model3d/fixture.py <out.glb> [--scale K] [--json]
+usage: python3 tools/model3d/fixture.py <out.glb> [--scale K] [--faulty] [--json]
        python3 tools/model3d/fixture.py --film <canvas-film project made with --three>
   --scale K   every length times K (100: a model made in centimetres and read as metres)
+  --faulty    with what bin/vh model3d check --blender finds: a second top cap 0.2 mm over the first (z-fighting), a box
+              beside the column with its faces wound inward, the middle ring's weights summing to 0.8 and one vertex
+              bound to no bone
   --json      print what it wrote: {"path", "bytes", "triangles", "vertices", "joints", "animations": {name: seconds}}
   --film P    the model as P/assets/models/box.glb and the layer's test film as P/src/50-shots.js (FILM below): 160 x 90,
               silent, 3 s. S01 holds the camera while the column bends in a loop, so t = 0.25 and t = 1.25 (clip time 0.25
@@ -78,7 +81,7 @@ def png(w, h, pixel):
             + chunk(b"IDAT", zlib.compress(raw, 0)) + chunk(b"IEND", b""))
 
 
-def build(scale=1.0):
+def build(scale=1.0, faulty=False):
     pos, nor, uv, jnt, wgt, idx = [], [], [], [], [], []
     rows = [(0, (0, 0), (1, 0)), (1, (0, 1), (0.5, 0.5)), (2, (1, 0), (1, 0))]   # y, joints, weights of each ring
     # four sides, each two quads high; right × up = the outward normal, so the triangles wind counter-clockwise seen from outside
@@ -98,6 +101,14 @@ def build(scale=1.0):
             pos.append((scale * W * x, scale * y, scale * W * z)); nor.append(n); uv.append(((x + 1) / 2, (z + 1) / 2))
             jnt.append((jn, 0, 0, 0)); wgt.append((1.0, 0.0, 0.0, 0.0))
         idx += [base, base + 1, base + 2, base, base + 2, base + 3]
+    if faulty:   # what bin/vh model3d check --blender finds: a second top cap 0.2 mm over the first, on vertices of its own
+        base = len(pos)
+        for x, z in zip((-1, 1, 1, -1), (1, 1, -1, -1)):
+            pos.append((scale * W * x, scale * (H + 0.0002), scale * W * z)); nor.append((0, 1, 0)); uv.append(((x + 1) / 2, (z + 1) / 2))
+            jnt.append((1, 0, 0, 0)); wgt.append((1.0, 0.0, 0.0, 0.0))
+        idx += [base, base + 1, base + 2, base, base + 2, base + 3]
+        wgt = [(0.5, 0.3, 0.0, 0.0) if w == (0.5, 0.5, 0.0, 0.0) else w for w in wgt]   # the middle ring's weights sum to 0.8
+        wgt[28] = (0.0, 0.0, 0.0, 0.0)   # and the bottom cap's first vertex is bound to no bone
 
     blob, views, accessors = bytearray(), [], []
 
@@ -152,8 +163,18 @@ def build(scale=1.0):
             {"name": "lift", "channels": [{"sampler": 0, "target": {"node": 1, "path": "translation"}}],
              "samplers": [{"input": lift_t, "output": lift_p, "interpolation": "LINEAR"}]},
         ],
-        "accessors": accessors, "bufferViews": views, "buffers": [{"byteLength": len(blob) + (-len(blob) % 4)}],
+        "accessors": accessors, "bufferViews": views, "buffers": [{"byteLength": 0}],
     }
+    if faulty:   # and a box beside it, its faces wound inward (a closed part inside out)
+        s = 0.15 * scale
+        bp = [(x * s, y * s, z * s) for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)]
+        faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]   # outward, then turned round
+        bi = [i for a, b, c, d in faces for i in (a, c, b, a, d, c)]
+        gltf["meshes"].append({"name": "Inverted", "primitives": [{"attributes": {"POSITION": acc(bp, 5126, "VEC3", 34962, minmax=True)},
+                                                                    "indices": acc(bi, 5123, "SCALAR", 34963), "mode": 4}]})
+        gltf["nodes"].append({"name": "Inverted", "mesh": 1, "translation": [1.0 * scale, s, 0.0]})
+        gltf["scenes"][0]["nodes"].append(len(gltf["nodes"]) - 1)
+    gltf["buffers"][0]["byteLength"] = len(blob) + (-len(blob) % 4)
     return gltf, bytes(blob)
 
 
@@ -189,7 +210,7 @@ def main(argv):
         glb.write_glb(p / "assets" / "models" / "box.glb", *build())
         (p / "src" / "50-shots.js").write_text(FILM, encoding="utf-8")
         return 0
-    out, scale, as_json, rest = None, 1.0, False, list(argv)
+    out, scale, as_json, faulty, rest = None, 1.0, False, False, list(argv)
     while rest:
         a = rest.pop(0)
         if a == "--scale" and rest:
@@ -199,13 +220,15 @@ def main(argv):
                 print("fixture.py: --scale takes a number", file=sys.stderr); return 2
         elif a == "--json":
             as_json = True
+        elif a == "--faulty":
+            faulty = True
         elif a.startswith("-") or out:
             print(f"fixture.py: {a}? (-h for the usage)", file=sys.stderr); return 2
         else:
             out = a
     if not out or not (scale > 0):
         print("fixture.py: an output path, and a --scale above 0", file=sys.stderr); return 2
-    gltf, blob = build(scale)
+    gltf, blob = build(scale, faulty)
     n = glb.write_glb(out, gltf, blob)
     if as_json:
         print(json.dumps({"path": out, "bytes": n, "triangles": 20, "vertices": 32, "joints": 2, "animations": {"bend": 1.0, "lift": 2.0}}))

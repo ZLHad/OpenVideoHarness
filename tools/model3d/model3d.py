@@ -2,7 +2,8 @@
 anything else that takes glTF. Stdlib only: nothing leaves the machine, nothing is paid for. (gen, a model made from
 pictures by a paid service, comes later; it is not here yet.)
 
-usage: bin/vh model3d check <model.glb|model.gltf> [--tier hero|prop] [--max-faces N] [--max-texture PX] [--json]
+usage: bin/vh model3d check <model.glb|model.gltf> [--tier hero|prop] [--max-faces N] [--max-texture PX] [--blender]
+                 [--json]
 
   check   what the model holds, against what a shot can carry: its triangles (as the scene draws them: a mesh used by
           two nodes counts twice), meshes and materials; each texture's size, format and bytes, and what uses it; skins
@@ -12,32 +13,44 @@ usage: bin/vh model3d check <model.glb|model.gltf> [--tier hero|prop] [--max-fac
           what it is says it was made in other units). Over the tier's triangles or texture size, an extension the
           Three.js layer cannot decode (Draco, meshopt, KTX2 / Basis: it has no decoders; Draco even when it is only
           listed as used, since three's loader then stops without one), or an image or buffer that is not beside the
-          model fails it; a size over 100 m or under 1 cm across, two clips with one name, a clip of no length, bytes
-          after the end a GLB's header gives are warnings. A skinned mesh is measured where its joints hold it in the
-          file: its box through each joint's world matrix times that joint's inverse bind matrix. In the bind pose those
-          are all the identity (the mesh as it was modelled) or one matrix (the rig placed as a whole), and the box is
-          the mesh's; when the file holds another pose, the box holds the mesh as each joint would move all of it, so
-          it comes out larger than the mesh.
+          model fails it, and so does a skinned mesh with a vertex bound to no bone, weights that do not sum to 1 (three
+          does not normalize them: the mesh shrinks or swells as it moves) or a weight on a joint its skin does not have
+          (read from the file: what three skins with); a size over 100 m or under 1 cm across, two clips with one name,
+          a clip of no length, bytes after the end a GLB's header gives are warnings. A skinned mesh is measured where
+          its joints hold it in the file: its box through each joint's world matrix times that joint's inverse bind
+          matrix. In the bind pose those are all the identity (the mesh as it was modelled) or one matrix (the rig placed
+          as a whole), and the box is the mesh's; when the file holds another pose, the box holds the mesh as each joint
+          would move all of it, so it comes out larger than the mesh.
           A file whose parts point outside it (a bufferView past its buffer, an accessor past its bufferView, a type
           or component type glTF does not have, a top-level list that is not one, a reference to nothing) fails with
           the part named. That is a cheap pass, not a validator: Khronos's glTF-Validator
           (github.com/KhronosGroup/glTF-Validator) checks a file against the whole glTF 2.0 spec.
   --tier  hero (default): 200,000 triangles, textures up to 4096 px a side · prop: 50,000 and 2048 px.
           --max-faces and --max-texture change the tier's numbers.
+  --blender  two more checks, in Blender (tools/model3d/blender_qa.py; BLENDER, else blender on the PATH, else the
+          macOS app): z-fighting (triangles facing the same way within 1 mm that overlap: they flicker as the camera
+          moves), and faces pointing inward (closed parts inside out) or wound against their neighbours. Blender runs
+          with no environment of ours (no key reaches it), and on macOS in a sandbox: no network, nothing written
+          outside its own scratch folder, nothing read in the home folder but this repo and the model's folder.
+          Without Blender they are skipped and said; the rest of the check stands. z-fighting and inward faces fail;
+          faces glued back to back and opposite winding are warnings.
 --json: {"version": 1, "tool", "file", "kind" (glb | gltf), "bytes", "generator", "tier", "limits": {"faces", "texture"},
 "extensions": {"used", "required"}, "counts": {"nodes", "meshes", "primitives", "triangles", "triangles_in_meshes",
 "vertices", "materials", "textures", "images", "skins", "joints", "animations", "morph_targets", "cameras", "lights"},
-"meshes": [{"name", "primitives", "triangles", "vertices", "uses", "skinned", "morph_targets", "normals"}], "materials":
+"meshes": [{"name", "primitives", "triangles", "vertices", "uses", "skinned", "morph_targets", "normals", "weights"?: {"verts",
+"unweighted", "not_one", "worst", "beyond"}}], "materials":
 [{"name", "alpha", "double_sided", "textures": {slot: texture}, "extensions"}], "textures": [{"index", "image", "name",
 "format", "width", "height", "bytes", "where", "used_by"}], "skins": [{"name", "joints", "joint_names"}], "animations":
 [{"name", "duration", "start", "channels", "targets", "interpolations"}], "bbox": {"min", "max", "size", "center"} | null,
-"tallest" (x | y | z), "origin" (base centre | centre | inside | outside), "findings": [{"kind", "severity" (fail | warn |
-info), "message"}], "verdict" (pass | fail), "exit"}. A file it cannot read has what was read before it stopped (version,
-tool, file, tier, limits, findings, verdict, exit; kind, bytes, generator and extensions if it got that far). The lines a
-person reads go to stderr with --json.
+"tallest" (x | y | z), "origin" (base centre | centre | inside | outside), "blender" (with --blender: {"state" (ran |
+skipped | failed), "note", "version", "seconds", "meshes", "triangles", "zfighting": [{"where", "tri_pairs"}],
+"back_to_back", "inside_out": [{"object", "parts"}], "winding": [{"object", "edges"}], "skipped"}), "findings": [{"kind",
+"severity" (fail | warn | info), "message"}], "verdict" (pass | fail), "exit"}. A file it cannot read has what was read
+before it stopped (version, tool, file, tier, limits, findings, verdict, exit; kind, bytes, generator and extensions if it
+got that far). The lines a person reads go to stderr with --json.
 Exit: 0 · 1 a check failed, or the file is not a glTF 2.0 model it can read · 2 usage: no such file, a bad option.
 """
-import json, math, sys
+import json, math, os, shutil, subprocess, sys, tempfile, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -131,6 +144,11 @@ def check(path, tier, limits):
         say("read", "fail", f"not a glTF 2.0 model this can read: {e}")
     except Exception as e:   # anything else in a file that is not what glTF says: a line, never a traceback
         say("read", "fail", f"a part of it is not what glTF 2.0 says ({type(e).__name__}: {e})")
+    return judge(rep)
+
+
+def judge(rep):
+    """The verdict and the exit status from the findings: a fail fails it."""
     fails = [f for f in rep["findings"] if f["severity"] == "fail"]
     rep["verdict"], rep["exit"] = ("fail", 1) if fails else ("pass", 0)
     return rep
@@ -218,6 +236,7 @@ def build(m, rep, say, limits):
         joints.update(js)
         skins.append({"name": s.get("name", ""), "joints": len(js), "joint_names": [m.list("nodes")[j].get("name", f"node_{j}") for j in js if j < len(m.list("nodes"))]})
     rep["skins"] = skins
+    weights(m, rep, say, world)
 
     anims, names = [], {}
     for ai, a in enumerate(m.list("animations")):
@@ -254,6 +273,53 @@ def build(m, rep, say, limits):
         say("empty", "warn", "no meshes: nothing for a shot to show")
 
     bbox(m, rep, say, world)
+
+
+def weights(m, rep, say, world):
+    """Each skinned mesh's vertex weights as the file holds them (what three skins with: it does not normalize them): a
+    vertex whose weights are all 0 is bound to no bone; one whose weights do not sum to 1 within 0.01 shrinks or swells
+    the mesh as it moves; a weight on a joint the skin does not have points at nothing. Into rep["meshes"][i]["weights"]."""
+    nodes, skins = m.list("nodes"), m.list("skins")
+    done = set()
+    for i in world:
+        n = nodes[i]
+        mi, si = n.get("mesh"), n.get("skin")
+        if not (isinstance(mi, int) and isinstance(si, int) and si < len(skins)) or mi in done:
+            continue
+        done.add(mi)
+        njoints = len(skins[si].get("joints", []))
+        verts = unbound = off = beyond = 0
+        worst = 1.0
+        for p in m.list("meshes")[mi].get("primitives", []):
+            at = p.get("attributes", {})
+            sets = [(at[f"JOINTS_{k}"], at[f"WEIGHTS_{k}"]) for k in range(8) if f"JOINTS_{k}" in at and f"WEIGHTS_{k}" in at]
+            if not sets:
+                continue
+            data = [(m.accessor(j), m.accessor(w)) for j, w in sets]
+            for v in range(len(data[0][1])):
+                s, far = 0.0, False
+                for js, ws in data:
+                    for jj, ww in zip(js[v], ws[v]):
+                        s += ww
+                        far = far or (ww > 0 and jj >= njoints)
+                verts += 1
+                beyond += far
+                if s < 1e-6:
+                    unbound += 1
+                elif abs(s - 1) > 0.01:
+                    off += 1
+                    worst = s if abs(s - 1) > abs(worst - 1) else worst
+        if not verts:
+            continue
+        name = rep["meshes"][mi]["name"]
+        rep["meshes"][mi]["weights"] = {"verts": verts, "unweighted": unbound, "not_one": off, "worst": round(worst, 4), "beyond": beyond}
+        if unbound:
+            say("weights", "fail", f"{name}: {unbound} of {verts} vertices bound to no bone (their weights are all 0): they stay put while the rig moves")
+        if off:
+            say("weights", "fail", f"{name}: {off} of {verts} vertices whose weights do not sum to 1 (one sums to {round(worst, 4)}): three does not "
+                "normalize them, so the mesh shrinks or swells as it moves (Blender: Weights > Normalize All, then export again)")
+        if beyond:
+            say("weights", "fail", f"{name}: {beyond} vertices weighted to a joint its skin does not have ({njoints} joints)")
 
 
 def bbox(m, rep, say, world):
@@ -317,6 +383,108 @@ def bbox(m, rep, say, world):
         say("scale", "warn", f"{metres(big)} m across: under 1 cm in glTF's metres; was it made in other units?")
 
 
+MAC_BLENDER = "/Applications/Blender.app/Contents/MacOS/Blender"
+
+
+def find_blender():
+    """(the Blender to run, or None, and why not): BLENDER, else blender on the PATH, else the macOS app (as
+    styles/_swatch/render.sh finds it)."""
+    b = os.environ.get("BLENDER")
+    if b:
+        return (b, "") if os.path.isfile(b) and os.access(b, os.X_OK) else (None, f"BLENDER is {b}, which is not a program here")
+    b = shutil.which("blender") or (MAC_BLENDER if os.access(MAC_BLENDER, os.X_OK) else None)
+    return (b, "") if b else (None, "Blender is not installed here (macOS: brew install --cask blender; or BLENDER=/path/to/blender)")
+
+
+def sbq(p):
+    return '"' + str(p).replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def sandbox(scratch, model_dir, blender):
+    """A macOS sandbox profile for Blender reading one model (as styles/_swatch/render.sh's bl_profile): no network, no
+    other app; writes only in its scratch folder and Blender's own cache; nothing read in the home folder but this repo,
+    the model's folder and the fonts. None when Blender's install folder holds the home folder (a sandbox reading it
+    would read everything)."""
+    home = os.path.realpath(os.path.expanduser("~"))
+    real = os.path.realpath(blender)
+    app = real.split("/Contents/MacOS/")[0] if "/Contents/MacOS/" in real else os.path.dirname(real)
+    if (home + "/").startswith(app.rstrip("/") + "/"):
+        return None
+    try:
+        cache = os.path.realpath(subprocess.run(["getconf", "DARWIN_USER_CACHE_DIR"], capture_output=True, text=True).stdout.strip())
+    except OSError:
+        cache = ""
+    reads = [HERE.parent.parent, model_dir, scratch, app, os.path.join(home, "Library", "Fonts")]
+    return "\n".join(["(version 1)", "(allow default)", "(deny network*)", "(deny lsopen)", "(deny appleevent-send)", "(deny file-write*)",
+                      f"(allow file-write* (subpath {sbq(scratch)})" + (f" (subpath {sbq(os.path.join(cache, 'org.blenderfoundation.blender'))})" if cache else "")
+                      + ' (literal "/dev/null") (literal "/dev/dtracehelper"))',
+                      f"(deny file-read* (subpath {sbq(home)}))",
+                      "(allow file-read* " + " ".join(f"(subpath {sbq(os.path.realpath(p))})" for p in reads) + f" (literal {sbq(real)}))", ""])
+
+
+def run_blender(path, timeout=600):
+    """tools/model3d/blender_qa.py on the model in a Blender with no environment of ours (and on macOS in a sandbox) →
+    {"state": ran | skipped | failed, "note", …the report's fields}."""
+    bl, why = find_blender()
+    if not bl:
+        return {"state": "skipped", "note": why}
+    scratch = os.path.realpath(tempfile.mkdtemp(prefix="vh-model3d-"))
+    try:
+        for d in ("home", "tmp"):
+            os.mkdir(os.path.join(scratch, d))
+        out = os.path.join(scratch, "report.json")
+        cmd = [bl, "-b", "--factory-startup", "--python-exit-code", "1", "--python", str(HERE / "blender_qa.py"), "--",
+               os.path.realpath(path), out]
+        env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": os.path.join(scratch, "home"), "TMPDIR": os.path.join(scratch, "tmp") + "/",
+               "LANG": "en_US.UTF-8", "PYTHONDONTWRITEBYTECODE": "1"}
+        if sys.platform == "darwin" and shutil.which("sandbox-exec"):
+            prof = sandbox(scratch, os.path.dirname(os.path.realpath(path)), bl)
+            if prof is None:
+                return {"state": "failed", "note": "Blender's install folder holds the home folder: not run (install Blender elsewhere)"}
+            with open(os.path.join(scratch, "blender.sb"), "w") as f:
+                f.write(prof)
+            cmd = ["sandbox-exec", "-f", os.path.join(scratch, "blender.sb")] + cmd
+        t0 = time.monotonic()
+        try:
+            r = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=timeout, errors="replace")
+        except subprocess.TimeoutExpired:
+            return {"state": "failed", "note": f"Blender gave no report in {timeout} s"}
+        secs = round(time.monotonic() - t0, 1)
+        try:
+            qa = json.loads(Path(out).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            tail = [x for x in (r.stderr + r.stdout).splitlines() if x.strip()][-3:]
+            return {"state": "failed", "note": f"Blender exited {r.returncode} with no report" + (f": {' | '.join(tail)}" if tail else "")}
+        return {"state": "ran", "seconds": secs, "version": qa.get("blender"), **{k: v for k, v in qa.items() if k not in ("version", "blender")}}
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+
+
+def blender_findings(rep, b):
+    """The Blender checks' report into the model's report: rep["blender"] and its findings (also for the tests: b is what
+    run_blender gives)."""
+    rep["blender"] = b
+    say = lambda kind, sev, msg: rep["findings"].append({"kind": f"model3d.{kind}", "severity": sev, "message": msg})   # noqa: E731
+    if b.get("state") != "ran":
+        say("blender", "info" if b.get("state") == "skipped" else "warn", f"the --blender checks did not run: {b.get('note', '')}")
+        return
+    if b.get("error"):
+        say("blender", "warn", f"Blender could not check it: {b['error']}")
+    for z in b.get("zfighting") or []:
+        say("zfighting", "fail", f"{z['where']}: {z['tri_pairs']} pairs of triangles face the same way within 1 mm and overlap: they flicker as "
+            "the camera moves (delete the hidden one, or move it 2–5 mm along its normal)")
+    for z in b.get("back_to_back") or []:
+        say("hidden", "warn", f"{z['where']}: {z['tri_pairs']} pairs of faces glued back to back: hidden, and drawn for nothing (delete them)")
+    for x in b.get("inside_out") or []:
+        say("normals", "fail", f"{x['object']}: {x['parts']} closed part{'s' if x['parts'] != 1 else ''} with the faces pointing inward: lit wrong "
+            "and culled away in three (Blender: Mesh > Normals > Recalculate Outside)")
+    for x in b.get("winding") or []:
+        say("normals", "warn", f"{x['object']}: {x['edges']} edges between faces wound opposite ways (recalculate the normals; a single-sided "
+            "material shows the holes)")
+    for s in b.get("skipped") or []:
+        say("blender", "info", s)
+
+
 def lines(rep):
     """The lines a person reads: what it holds (as far as it got: a file it could not read through has fewer of them),
     then the findings, then the verdict."""
@@ -362,6 +530,11 @@ def lines(rep):
         if rep["tallest"] == "z" and s[1] * 2 < s[2] and s[1] <= min(s[0], s[2]):
             hint = ": if it should stand up, it may have been made Z-up and exported without converting"
         out.append(f"  units       metres and +Y up, as glTF defines them · {up}{hint}")
+    b = rep.get("blender") or {}
+    if b.get("state") == "ran":
+        clean = not any(b.get(k) for k in ("zfighting", "back_to_back", "inside_out", "winding", "error"))
+        out.append(f"  blender     {b.get('version')}: {b.get('meshes', 0)} mesh{'es' if b.get('meshes') != 1 else ''}, {num(b.get('triangles', 0))} triangles"
+                   + f" · {b.get('seconds')} s" + (" · no z-fighting, every face outward" if clean else ""))
     for f in rep["findings"]:
         out.append(f"{ {'fail': NO, 'warn': WA}.get(f['severity'], '-') } {f['message']}")
     lim = rep["limits"]
@@ -384,10 +557,13 @@ def main(argv):
             raise Usage("gen (a model made from pictures by a paid service) comes later; check is here now")
         if cmd != "check":
             raise Usage(f"no subcommand {cmd!r}: check (bin/vh model3d -h)")
-        path, tier, as_json, over = None, "hero", False, {}
+        path, tier, as_json, over, use_blender = None, "hero", False, {}, False
         while rest:
             a = rest.pop(0)
             k, eq, v = a.partition("=")
+            if a == "--blender":
+                use_blender = True
+                continue
             if k in ("--tier", "--max-faces", "--max-texture"):
                 if not eq:
                     if not rest:
@@ -418,6 +594,14 @@ def main(argv):
         if not Path(path).is_file():
             raise Usage(f"no such file: {path}")
         rep = check(Path(path), tier, {**TIERS[tier], **over})
+        if use_blender:
+            if not any(f["kind"] in ("model3d.read", "model3d.structure") for f in rep["findings"]):   # read through: Blender can take it
+                if not as_json:
+                    print(f"{PROG} check: reading it in Blender too …", flush=True)
+                blender_findings(rep, run_blender(path))
+            else:
+                rep["blender"] = {"state": "skipped", "note": "the file could not be read: Blender was not asked"}
+            judge(rep)
     except Usage as e:
         print(f"{PROG} {cmd if cmd in ('check', 'gen') else ''}: {e}".replace("  ", " "), file=sys.stderr)
         return 2

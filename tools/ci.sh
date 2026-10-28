@@ -4036,6 +4036,36 @@ sys.exit("\n".join(bad) if bad else 0)
 PY
   then ok "model3d check: a part that points outside the file or is not glTF's (a node that is a number, a bufferView past its buffer, type VEC9, 10^12 zeros, a node its own child, sparse indices past the count) fails naming it, the --json report all the same; Draco listed only as used fails; bytes after the GLB's length warn"
   else bad "model3d check on models whose parts point outside them"; fi
+  # --blender (tools/model3d/blender_qa.py in Blender; CI has none): without one it is skipped and said, and the rest of
+  # the check stands; a stand-in that writes the report Blender would gives its findings (z-fighting and inward faces
+  # fail, faces back to back warn) and shows it gets none of our environment. The weights are read without Blender
+  # (fixture.py --faulty): a vertex bound to no bone and weights that do not sum to 1 fail
+  python3 tools/model3d/fixture.py "$t/faulty.glb" --faulty
+  cat > "$t/blender" <<'SH'
+#!/bin/sh
+# a stand-in for Blender: the report tools/model3d/blender_qa.py would write, to its last argument
+for a; do out=$a; done
+printf '{"version": 1, "blender": "0 (stand-in)", %s"meshes": 2, "triangles": 34, "zfighting": [{"where": "Column", "tri_pairs": 2}], "back_to_back": [{"where": "Column", "tri_pairs": 1}], "inside_out": [{"object": "Inverted", "parts": 1}], "winding": [], "skipped": ["home %s"]}\n' \
+  "${OVH_CI_LEAK:+\"error\": \"OVH_CI_LEAK reached it\", }" "$HOME" > "$out"
+SH
+  chmod +x "$t/blender"
+  a=$(BLENDER="$t/none" vh model3d check "$t/box.glb" --blender 2>&1); rc=$?
+  b=$(OVH_CI_LEAK=1 BLENDER="$t/blender" vh model3d check "$t/faulty.glb" --blender --json 2>/dev/null); rc2=$?
+  c=$(vh model3d check "$t/faulty.glb" --json 2>/dev/null); rc3=$?
+  if [ "$rc:$rc2:$rc3" = "0:1:1" ] && python3 - "$a" "$b" "$c" <<'PY'
+import json, sys
+a, b, c = sys.argv[1], json.loads(sys.argv[2]), json.loads(sys.argv[3]); bad = []
+if "--blender checks did not run: BLENDER is" not in a or "within hero" not in a: bad.append(f"no Blender: {a[-300:]}")
+kinds = sorted((f["kind"], f["severity"]) for f in b["findings"] if f["kind"] in ("model3d.zfighting", "model3d.normals", "model3d.hidden", "model3d.blender"))
+if kinds != [("model3d.blender", "info"), ("model3d.hidden", "warn"), ("model3d.normals", "fail"), ("model3d.zfighting", "fail")]: bad.append(f"the stand-in's findings: {kinds}")
+home = next((f["message"] for f in b["findings"] if f["message"].startswith("home ")), "")
+if "/vh-model3d-" not in home or b["blender"].get("error"): bad.append(f"Blender's environment: {home} {b['blender'].get('error')}")
+w = c["meshes"][0].get("weights") or {}
+if (w.get("verts"), w.get("unweighted"), w.get("not_one")) != (36, 1, 8) or {f["kind"] for f in c["findings"] if f["severity"] == "fail"} != {"model3d.weights"}: bad.append(f"weights {w} {c['findings']}")
+sys.exit("\n".join(bad) if bad else 0)
+PY
+  then ok "model3d check --blender: skipped and said without Blender, the rest standing; a stand-in's report becomes findings (z-fighting and inward faces fail, back to back warns) and gets none of our environment; weights read from the file (a vertex on no bone, weights not summing to 1) fail"
+  else bad "model3d check --blender ($rc, $rc2, $rc3): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300)"; fi
   # three.js as the npm package has it: each file the layer carries, byte for byte as its NOTICE lists it
   if python3 - <<'PY'
 import hashlib, pathlib, re, sys

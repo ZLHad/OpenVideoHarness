@@ -478,15 +478,16 @@
       "writes": [],
       "usage": [
         {
-          "synopsis": "model3d check <model.glb|model.gltf> [--tier hero|prop] [--max-faces N] [--max-texture PX] [--json]",
+          "synopsis": "model3d check <model.glb|model.gltf> [--tier hero|prop] [--max-faces N] [--max-texture PX] [--blender] [--json]",
           "text": [
             "triangles as the scene draws them, meshes, materials; each texture's size, format and bytes and what uses it; skins",
-            "and joints; each clip's name and length as the Three.js layer names it; the box in metres, the origin, which way it is",
-            "tallest (glTF is metres and +Y up by definition). Fails over the tier (hero 200,000 triangles and 4096 px textures,",
-            "prop 50,000 and 2048; --max-faces, --max-texture change them), on an extension the layer cannot decode (Draco,",
-            "meshopt, KTX2; Draco even listed only as used), on a file not beside it, on a part that points outside the file",
-            "(a cheap pass, not a validator: Khronos's glTF-Validator is one); --json: the report, also when the file cannot",
-            "be read (bin/vh model3d -h has the fields). gen comes later"
+            "and joints, and each skinned vertex's weights; each clip's name and length as the Three.js layer names it; the box in",
+            "metres, the origin, which way it is tallest (glTF is metres and +Y up by definition). Fails over the tier (hero 200,000",
+            "triangles and 4096 px textures, prop 50,000 and 2048; --max-faces, --max-texture change them), on an extension the layer",
+            "cannot decode (Draco, meshopt, KTX2; Draco even listed only as used), a file not beside it, a part that points outside",
+            "the file (a cheap pass, not a validator: Khronos's glTF-Validator is one), a vertex bound to no bone or weights not",
+            "summing to 1; --blender: z-fighting and faces pointing inward too, in Blender (sandboxed; skipped and said without it);",
+            "--json: the report, also when the file cannot be read (bin/vh model3d -h has the fields). gen comes later"
           ]
         }
       ],
@@ -500,7 +501,7 @@
     {
       "name": "hdri",
       "summary": "Environment maps from Poly Haven (every one CC0): search the library, get one into the project at a size and a format, its md5 checked and on record in the ledger, with the line the Three.js layer takes for it.",
-      "when": "a 3D shot that wants real light and reflections, or a sky behind it (FILM.three.env)",
+      "when": "a 3D shot that wants real light and reflections, or a sky behind it (FILM.three.env), and a Blender scene's world (engines/blender.md)",
       "stages": ["6", "1"],
       "reads": [
         "Poly Haven's API (api.polyhaven.com; --offline <folder>: recorded answers)",

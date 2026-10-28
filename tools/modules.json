@@ -206,12 +206,13 @@
     {
       "name": "blender",
       "kind": "program",
-      "purpose": "Shots that need path-traced light, physics or real depth of field, and the Blender style scenes (styles/tabletop-miniature).",
-      "version": {"tested": "5.2 LTS (engines/blender.md)"},
+      "purpose": "Shots that need path-traced light, physics or real depth of field, and the Blender style scenes (styles/tabletop-miniature); and bin/vh model3d check --blender, which reads a model in it for z-fighting and faces pointing inward.",
+      "version": {"tested": "5.2 LTS (engines/blender.md); model3d check --blender on 5.2.2"},
       "license": "GPL-2.0-or-later; this repo's scripts that import bpy are GPL-3.0-or-later; what it renders is yours",
       "needs": {},
-      "adapter": ["engines/blender.md", "styles/_swatch/blender_render.py", "styles/_swatch/blender_prep.py", "styles/_swatch/render.sh (bl_run)"],
-      "commands": ["style"],
+      "adapter": ["engines/blender.md", "styles/_swatch/blender_render.py", "styles/_swatch/blender_prep.py", "styles/_swatch/render.sh (bl_run)",
+                  "tools/model3d/blender_qa.py", "tools/model3d/model3d.py (run_blender)"],
+      "commands": ["style", "model3d"],
       "required": false,
       "check": {"program": "blender", "version": ["blender", "--version"], "pattern": "Blender (\\d+(?:\\.\\d+)*)"},
       "install": {"macos": "brew install --cask blender", "linux": "blender.org's download, or your package manager"}
