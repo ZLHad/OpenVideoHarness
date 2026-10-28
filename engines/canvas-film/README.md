@@ -5,13 +5,14 @@
 ## 什么时候用
 
 - 旁白撑着的横屏长片：几分钟到十几分钟的科普、人物、讲解，几十上百个镜头，镜头跟着旁白的字切。
-- 画面是代码画的 2D：纸面、卡片、图表、示意图、照片和截图。Three.js 底层以后再收进来，现在没有。
+- 画面是代码画的 2D：纸面、卡片、图表、示意图、照片和截图。要 3D（GLB 模型、骨骼动作、灯和环境光）的镜头，加可选的 Three.js 层，见"可选模块"。
 - 不合适的：DOM 排版和 GSAP 动效为主的短片（HyperFrames）、手绘角色（ClaudeAnimationBase）、数学推导（Manim）。
 
 ## 建项目
 
 ```bash
 bin/vh new <type> <slug> --engine canvas-film      # 任何类型都行；画幅固定 16:9（1920×1080），--res 4k 照常
+bin/vh new <type> <slug> --engine canvas-film --three   # 再带上 Three.js 层（three/）：GLB 模型画在 2D 下面，见"可选模块"
 bin/vh frames projects/<date>-<slug> --at 1,5,9    # 模板自带一支 23 秒的示例片，建好就能取帧
 ```
 
@@ -21,6 +22,7 @@ bin/vh frames projects/<date>-<slug> --at 1,5,9    # 模板自带一支 23 秒�
 | `src/00-core.js` | 设定 `FILM` 的默认值、时间（旁白时间轴、cue、镜头、章节、字幕）、录制器 |
 | `src/05-music-clock.js` | 可选：配乐小节、拍与音符时间；从 `music.beats.json` 读取，不设 `FILM.music` 就不起作用（见"可选模块"） |
 | `src/06-time-map.js` | 可选：时间映射，片子时间对另一条轴（数据的日期、步数、旧版的秒数）的折点，和轴上带 id 的事件；不设 `FILM.timemap` 就不起作用 |
+| `src/07-three.js` | 可选：Three.js 层的接口，不设 `FILM.three` 就不起作用；层本身和钉住的 three.js 在 `three/`，只有 `--three` 建的项目才有（见"可选模块"） |
 | `src/10-draw.js` | 画字（字号下限在这一层）、量字、折行、形状、图片、缓存的纹理 |
 | `src/15-fx.js` | 颗粒、暗角、整幅压暗 |
 | `src/20-ui.js` | `label`、`drop`、`stamp`，章节进度条，字幕 |
@@ -228,7 +230,7 @@ bin/vh mux <项目>/out/film.mp4 <混音.wav> <成片.mp4>   # 套上混音（�
 
 - **动效组件**：`bin/vh components add <项目> lib page-turn …` 把组件库和组件复制进项目，`film.html` 加一行 `<script type="module" src="components/lib/global.js"></script>`，经典脚本里就能 `OVH.grain(X, t, {…})`、`OVH.paper(X, {…})`，或者用组件的 `state()` 和画法（`components/README.md`）；画面不是 1920×1080 时，在 `ready` 里先 `OVH.setFrame({ w: W, h: H, fps: FILM.fps, dpr: PRX })`。
 
-下面两个模块不设就不起作用：不写 `FILM.music`、`FILM.timemap`，片子照旧按旁白时间走，两份文件留着无妨，也不用读。需要时再看：配乐撑着的片子用小节表，数据有自己的轴（日期、步数、旧版的秒数）时用时间映射。
+下面三个模块不设就不起作用：不写 `FILM.music`、`FILM.timemap`、`FILM.three`，片子照旧按旁白时间走、只画 2D，几份文件留着无妨，也不用读。需要时再看：配乐撑着的片子用小节表，数据有自己的轴（日期、步数、旧版的秒数）时用时间映射，镜头里要有 3D 模型时用 Three.js 层。
 
 ### 配乐主导片：只维护一份小节表
 
@@ -297,10 +299,68 @@ const SHOTS = [
 
 旧项目要用时间映射：复制 `src/06-time-map.js` 并在 `film.html` 里 `05-music-clock.js` 之后加它的 script 标签；`00-core.js` 合入 `FILM.timemap`、`cueT` 里的 `@#` 分支和 `resolver` 里的 `$map`；`90-main.js` 合入 `boot()` 里的 `loadTimeMap()`、`checkTimeMapSources()` 和 `window.film.timemap`。不设 `FILM.timemap` 时什么都不变。
 
+### Three.js 层：3D 画在 2D 下面
+
+`bin/vh new <type> <slug> --engine canvas-film --three` 建的项目多一个 `three/`：层本身（`layer.js`）和钉住的 three.js（r186，MIT，许可和每个文件的 sha256 在 `three/NOTICE.md`），约 2 MB。没用 `--three` 的项目不带它。`FILM.three` 一设，`ready` 载入这一层和全部模型；镜头写了 `three`，就先画它的 3D，再画它 `draw(t, s)` 里的 2D，章节条和字幕照旧压在最上面。3D 画进镜头正在画的那块画布，所以镜头的 `cam` 推镜、转场、封面的裁切都照常作用在它上面。
+
+```js
+Object.assign(FILM, {
+  three: {
+    models: { bot: "assets/models/bot.glb", crate: { src: "assets/models/crate.glb", pos: [1.2, 0, 0], rot: [0, 30, 0], scale: 0.5 } },
+    camera: { pos: [0, 1.6, 6], at: [0, 1, 0], lens: 50 },        // 默认机位：lens 是 36 mm 底片上的焦距（同 Blender），也可写 fov（竖直，度）
+    lights: [{ type: "hemi", intensity: 1.2 }, { type: "sun", intensity: 2.5, pos: [3, 6, 4], shadow: true }],
+    env: "room", background: "#14161b", shadows: true,
+    build({ THREE, scene, models }) { /* 文件里没有的东西只在这里建一次：地面、一排砖 */ },
+  },
+});
+const SHOTS = [
+  { id: "S03", at: "@b1",
+    three: {
+      play: { bot: { clip: "wave", at: "@b1:你好" } },             // 说到"你好"时挥手；不写 at 就从镜头开始
+      cam: { from: { pos: [0, 1.6, 6] }, to: { pos: [2, 1.4, 4] }, ease: "sine" },
+      pose(t, s, { models }) { models.crate.root.rotation.y = 0.5 * (t - s.t0); },
+    },
+    draw(t, s) { label(t, s.t0 + 0.5, "它在跟你打招呼", 160, 300, { size: 64 }); } },
+];
+```
+
+设定（`FILM.three`，拼错的键 `ready` 会报出来）：
+
+| 键 | 意思 |
+|---|---|
+| `models` | 名字 → 项目里的 `.glb` / `.gltf` 路径，或 `{ src, pos, rot（度）, scale, cast, receive }`。`ready` 等全部载完。放进来之前先跑 `bin/vh model3d check <文件>`：面数、贴图、骨骼、动作名和时长、米制尺寸和朝向；Draco、meshopt、KTX2 压缩的模型这一层解不开，它会说。模型载不进来时，`ready` 的报错也指向这条命令 |
+| `camera` | 默认机位 `{ pos, at, fov 或 lens, near, far, roll }`，镜头没写 `cam` 时用它 |
+| `lights` | 一串灯 `{ type, color, intensity, pos, at, shadow, shadowSize, shadowArea, sky, ground, distance, decay, angle, penumbra }`。`type`：`"sun"`（平行光，也可写 `"directional"`）、`"point"`、`"spot"`、`"hemi"`（天光）、`"ambient"`；`color` 默认白，`intensity` 默认 1。`pos` 是灯的位置（sun 和 spot 默认 `[3, 6, 4]`），`at` 是 sun 和 spot 照向哪里（默认原点）。`hemi` 不用 `color`，用 `sky`、`ground` 两个颜色（默认白和 `#444444`）。`point` 和 `spot` 有 `distance`（照多远，默认 0：不限）和 `decay`（衰减，默认 2）；`spot` 还有 `angle`（光锥半角，度，默认 30）和 `penumbra`（光锥边上渐暗的比例，0 到 1，默认 0.3）。`shadow: true` 让 sun、point、spot 投影（还要 `shadows: true`），`shadowSize` 是阴影贴图的边长（像素，默认 2048），`shadowArea` 是 sun 的阴影盒围着 `at` 的边长（米，默认 10）。不写 `lights` 时，有 `env` 就不加灯，没有就一盏天光加一盏主光 |
+| `env`、`envIntensity`、`envRotation` | 环境光：`"room"`（three 自带的中性影棚，不用文件）或不写。它挂到每个受光材质的 `envMap` 上，材质自己的 `envMapIntensity` 才算数（只靠 `scene.environment` 时 three 不认它）；`envRotation` 是绕竖轴的度数，或 `[x, y, z]` |
+| `background`、`backgroundBlur` | 颜色、`"env"`（环境当背景）或不写：不写就是透明，`bin/vh render --alpha` 出的片子这里透明 |
+| `tone`、`exposure` | 色调映射：`agx`（默认）、`aces`、`neutral`、`linear`、`none`；曝光 |
+| `shadows`、`antialias` | 阴影（灯上再写 `shadow: true`）；抗锯齿，默认开 |
+| `build(W3)` | 模型载完后调一次：`W3 = { THREE, scene, camera, renderer, models, env }`，`models.<名字>` 有 `root`（摆放它的那一层）、`scene`、`clips`。物体只在这里建 |
+
+镜头的 `three`：
+
+| 键 | 意思 |
+|---|---|
+| `play` | `{ 模型: 动作名 \| { clip, at, speed, loop, weight, hold } \| [几个] }`。`at` 是 cue 或秒数（默认镜头开始），动作在那一刻从头放，`speed` 倍速；`loop: false`（默认，放一遍停在最后一帧）、`true`（循环）、`"pingpong"`；几个动作同时放按 `weight` 混。`ready` 查：动作名在不在（报出模型有哪些动作）、放一遍的动作是不是在镜头结束前就停了（要的话写 `hold: true`）、开始时镜头是不是已经结束 |
+| `cam` | 一个机位 `{ pos, at, fov 或 lens, roll }`；`{ from, to, ease }` 在整镜里从 from 走到 to；`{ keys: [[时刻, 机位], …], ease }`，时刻是 cue 或秒数；或者函数 `(t, s, W3) => 机位`。没写的字段取 `FILM.three.camera` |
+| `show` | 这一镜显示哪些模型（默认全部） |
+| `pose(t, s, W3)` | 每帧调：按 t 摆 `build` 建的东西、改材质参数 |
+| `background` | 这一镜自己的背景 |
+
+守硬规则 1，这一层每帧这样做：先把世界放回 `ready` 结束时的样子（每个物体的位置、旋转、缩放、显隐，灯的颜色和强度，变形权重），再把每个模型的动作停掉、按这一镜的 `play` 重新放，用 `mixer.setTime(t)` 定到这一刻（动作时间是 (t − at) × speed，不是一帧帧 `update(dt)` 累加出来的），再摆机位、调 `pose`。所以 `pose` 只管按 t 设值，它改过的东西下一帧自动回原样；材质的颜色、`InstancedMesh` 的矩阵这类不在上面那张单子里的，`pose` 要每帧都设。`pose` 里新建或删掉物体会让这一帧报错：在 `build` 里建，在 `pose` 里显隐。蒙皮网格不做视锥剔除（它的包围球只算一次，算的是第一次画时的姿势）。
+
+- 实测（2026-10-29，M3 Max）：测试片（一个两节骨骼的柱子循环弯曲、再升起，160 × 90）在 GPU（Metal）和 `--soft-gl`（SwiftShader）上，`bin/vh determinism` 换顺序、换进程都逐字节相同；1080p 和 `--dpr 2` 的同一帧缩小后 47 dB。
+- 没有 GPU 的机器（CI、云主机）：`bin/vh frames`、`render`、`determinism`、`textcheck` 都加 `--soft-gl`，用软件渲染 WebGL。没有 WebGL 时 `ready` 会这样说。
+- 镜头的 `cam: [z0, z1, …]` 推到 1 以上时，3D 跟着 2D 一起放大，可它是按片子分辨率渲好的一张图，会比矢量画的 2D 软一些。要推近又要清楚，就用 `three.cam` 移 3D 自己的机位。
+- 重 3D 的长片少开几个 worker：几个浏览器同时渲重帧会卡死 GPU（`bin/vh render --workers 2`，卡住的那段 `--workers 1` 续渲）。
+- 后期（泛光、景深）不在这一层里。
+
+旧项目要用 Three.js 层：复制 `src/07-three.js`，在 `film.html` 的 `<head>` 里加 import map（`"three"` 指向 `./three/build/three.module.js`，`"three/addons/"` 指向 `./three/addons/`），`06-time-map.js` 之后加 `07-three.js` 的 script 标签；`00-core.js` 合入 `FILM.three` 和 `buildShots()` 里的 `three`；`90-main.js` 合入 `boot()` 里的 `loadThree()`、`build()` 里的 `checkThree()` 和 `drawShot()` 里的 `drawThree()`；再把 `engines/canvas-film/three/` 整个复制成项目的 `three/`。`bin/vh doctor <项目>` 会列出还差哪些。
+
 ## 局限
 
 - 只有 16:9。别的画幅要同时改 `FILM.width`、`FILM.height` 和 `film.html` 里的尺寸，`bin/vh textcheck` 也还是按 1920 × 1080 打开页面。
 - SRT 还没有导出；镜头表通过 `window.film.shots` 给 storyboard/rhythm，不自动保存为 `shots.json`。
-- 没有 Three.js 底层。
+- Three.js 层一支片子一个世界（每镜用 `show` 选模型），没有后期和压缩模型的解码器，见"Three.js 层"。
 - 引擎自己切字幕时不按词切；按词切要先跑 `bin/vh captions --cards`，见"字幕"。
 - 录制器只看得到每镜 5 个时刻画到的东西：一个只在两个时刻之间才调用的 `cue()` 或 `read()` 会漏掉。把它们写在 `if` 外面，先登记，再判断这一帧要不要画。
