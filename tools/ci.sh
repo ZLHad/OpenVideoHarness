@@ -472,16 +472,45 @@ PY
     || bad "usage errors:$a (new twice exited $rc; a project made: $(ls -d "$t"/no-such 2>/dev/null))"
   [ -z "$u" ] && ok "usage errors and refusals are on stderr with nothing on stdout, the usage that was asked for (-h) on stdout with exit 0" \
     || bad "messages on the wrong stream:$u"
-  # arg_dir finds the project among a page tool's arguments, to pick the browser it renders with: a flag that takes no value
-  # in front of it must not swallow it (frames --covers, --no-title and cues --chapters took the project for their value and
-  # found "."). Every such flag of frames, render, determinism, cues, fonts check, patch, textcheck, readcheck, storyboard and
-  # thumbs; a flag with a value still hides its value (--out o <project>). The function is read out of bin/vh
+  # arg_dir finds the project among a page tool's arguments, to pick the browser it renders with and the project render's
+  # gate check reads: a flag that takes no value in front of it must not swallow it (frames --covers, --no-title and cues
+  # --chapters took the project for their value and found "."; render --alpha and --fresh too, until arg_dir had them). The
+  # flags are read out of the tools' own parsers: each branch of an option loop that takes no value (frames, render,
+  # determinism, cues, fonts check, patch, textcheck), argparse's flags with no value (readcheck, storyboard, rhythm) and
+  # thumbs' (tools/proxy.py), so a flag a tool gains fails here until arg_dir has it; none may take a value in another of
+  # them. A flag with a value still hides its value (--out o <project>). The function is read out of bin/vh
   mkdir "$t/proj"; a=""
   ad=$(awk '/^arg_dir\(\) \{/,/^\}/' bin/vh)
-  for c in --covers --no-title --chapters --soft-gl --real-clock --png --force --save --export --strict --in-place --keep --snapshot \
-           --estimate --no-estimate --full --json -h --help --covers=A,B --out=o; do
-    o=$("$VH_BASH" -c "$ad"$'\n''arg_dir "$@"' _ "$c" "$t/proj"); [ "$o" = "$t/proj" ] || a="$a | $c gave '$o'"
-  done
+  if bare=$(python3 - <<'PY'
+import ast, re, sys
+from pathlib import Path
+bare, valued = {}, {}
+for f in ["tools/film/frames.mjs", "tools/film/render.mjs", "tools/film/determinism.mjs", "tools/film/cues.mjs", "tools/film/fonts.mjs",
+          "tools/film/patch.mjs", "tools/textcheck/textcheck.mjs"]:
+    for line in Path(f).read_text(encoding="utf-8").splitlines():
+        if re.match(r"\s*(?:else )?if \((?:k|a) === \"--", line):
+            for n in re.findall(r"\b(?:k|a) === \"(--[\w-]+)\"", line):
+                (valued if re.search(r"\b(?:val|next)\(\)", line) else bare).setdefault(n, set()).add(f)
+for f in ["tools/readcheck.py", "tools/storyboard.py", "tools/rhythm.py"]:
+    for c in ast.walk(ast.parse(Path(f).read_text(encoding="utf-8"))):
+        if isinstance(c, ast.Call) and getattr(c.func, "attr", "") == "add_argument" and c.args and isinstance(c.args[0], ast.Constant) and str(c.args[0].value).startswith("--"):
+            act = next((k.value.value for k in c.keywords if k.arg == "action" and isinstance(k.value, ast.Constant)), None)
+            (bare if act in ("store_true", "store_false", "store_const", "count") else valued).setdefault(c.args[0].value, set()).add(f)
+for n in re.findall(r"\bx == \"(--[\w-]+)\"", Path("tools/proxy.py").read_text(encoding="utf-8")):
+    bare.setdefault(n, set()).add("tools/proxy.py")
+both = sorted(set(bare) & set(valued))
+if both:
+    sys.exit(print("flags with a value in one tool and none in another: " + ", ".join(n + " (" + " ".join(sorted(bare[n] | valued[n])) + ")" for n in both)) or 1)
+if len(bare) < 15:
+    sys.exit(print("only %d flags without a value found in the parsers of these tools: are they written another way now?" % len(bare)) or 1)
+print(" ".join(sorted(bare)))
+PY
+  ); then
+    # shellcheck disable=SC2086
+    for c in $bare -h --help --covers=A,B --out=o; do
+      o=$("$VH_BASH" -c "$ad"$'\n''arg_dir "$@"' _ "$c" "$t/proj"); [ "$o" = "$t/proj" ] || a="$a | $c gave '$o'"
+    done
+  else a=" $bare"; fi
   for c in --out --at --range --strip --ratios --fps --browser --runtime --note --shot --texts; do
     o=$("$VH_BASH" -c "$ad"$'\n''arg_dir "$@"' _ "$c" value --covers --no-title "$t/proj"); [ "$o" = "$t/proj" ] || a="$a | $c value gave '$o'"
   done
@@ -1269,7 +1298,7 @@ PY
 # any browser) and failed by bin/vh check until REVIEW.md has the decision and DECISIONS.md the concept; the user's
 # waiver counts unless it sits under gate ② or ③; quick is not checked
 gate_checks() {
-  local t p a b c d rc rc2 rc3 rc4
+  local t p a b c d e g rc rc2 rc3 rc4
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   vh new math ci-gate --dir "$t" >/dev/null 2>&1; p=$(ls -d "$t"/*-ci-gate 2>/dev/null)
   if [ -z "$p" ] || [ ! -f "$p/REVIEW.md" ]; then bad "gate checks: bin/vh new made no project"; rm -rf "$t"; return; fi
@@ -1281,6 +1310,14 @@ gate_checks() {
     case "$c|$d" in *"no record of gate"*) bad "render of a part or of a sketch page was held by the gate: $c | $d" ;;
       *) ok "gate record: render refuses a whole standard film made from the templates, naming the lines to write; a part (--range) and a sketch page under out/ still render" ;; esac ;;
     *) bad "render without the gate record (exit $rc): $(printf '%s' "$a" | head -c 600)" ;; esac
+  # a flag that takes no value in front of the project leaves the gate the project's (bin/vh's arg_dir): --alpha and --fresh
+  # took the project for their value, so the gate looked at the current folder, found no project and let the render go
+  e=""
+  for g in --alpha --fresh; do
+    c=$(vh render "$g" "$p" --estimate 2>&1); rc2=$?
+    case "$rc2:$c" in 1:*"no record of gate ①"*) ;; *) e="$e | $g (exit $rc2): $(printf '%s' "$c" | head -c 300)" ;; esac
+  done
+  if [ -z "$e" ]; then ok "gate record: render --alpha or --fresh in front of the project still checks that project"; else bad "render with a flag in front of the project:$e"; fi
   if command -v ffmpeg >/dev/null; then
     mkdir -p "$p/out" && ffmpeg -nostdin -v error -f lavfi -i color=c=0x303030:s=320x180:r=30:d=2 -pix_fmt yuv420p "$p/out/film.mp4"
     b=$(vh check "$p/out/film.mp4" 2>&1); rc2=$?
