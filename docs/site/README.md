@@ -1,13 +1,13 @@
 # The OpenVideoHarness homepage
 
-`index.html` is the project's homepage, in English and Chinese, online at <https://zlhad.top/OpenVideoHarness/docs/site/>. It is about the project, not about who made it, and covers:
+`index.html` is the project's homepage, in English and Chinese, online at <https://zlhad.top/OpenVideoHarness/docs/site/>. It covers:
 
 - getting started, and what happens at the three stops;
 - why the project exists and what it adds, with a live f(t) demo;
 - how it works, and the capability map: the tools for thinking, gathering, making, checking and delivering;
 - the intro film and the four other showcase films;
 - the style library, with a few recipe and component contact sheets;
-- in practice: what each showcase folder records;
+- in practice: where the author publishes films made with it, the Nobel explainer's three hours, and what each showcase folder records;
 - an FAQ, and contact details.
 
 It is one HTML file with no build step.
@@ -46,13 +46,20 @@ To edit the text:
 - **Labels that are attributes** (`aria-label`) come from `data-aria-en` / `data-aria-zh`.
 - **Strings the script writes** are in `T` at the top of the script: the f(t) readout and check, the copy buttons, captions. The style names are in `STYLES`, as `[folder, English, Chinese]`.
 
+## Optional material
+
+The page works without either:
+
+- **WeChat QR**: save it as `docs/site/img/wechat.jpg` and commit it. The "Say hi on WeChat" card then appears next to the GitHub QR in the Contact section; without the file the card hides itself. Committing the image makes it public with the repo.
+- **Douyin and Bilibili links**: paste them into the two empty `href=""` in the "In practice" section. Left empty, the names show without a link.
+
 ## Counts, and what checks them
 
 A count on the page is wrapped as `<span data-n="styles">32</span>`. `tools/readme.py` (run by `tools/ci.sh`) holds every one to the repo; `python3 tools/readme.py` prints the current counts, and `check` names the line of one that is wrong. It also checks:
 
-- that every relative link, image, poster and `#anchor` is there (a film listed in `tools/media.txt` counts, since `tools/fetch_media.sh` puts it back);
+- that every relative link, image, poster and `#anchor` is there (a film listed in `tools/media.txt` counts, since `tools/fetch_media.sh` puts it back; a picture marked `data-optional`, the WeChat QR, may be missing);
 - that `STYLES` lists exactly the repo's styles, each with its thumbnail in `img/styles/` and its sample, and its Chinese name as in its `STYLE.md` title;
-- that there are as many `lang="en"` texts as `lang="zh"`;
+- that there are as many `lang="en"` texts as `lang="zh"` (a `<small>` gloss, like "TikTok in China" after Douyin, may stand in one language);
 - that nothing from another site loads with the page (a stylesheet, script, font, image or frame).
 
 A new style: add its row to `STYLES` and its thumbnail, `ffmpeg -i styles/<slug>/media/poster.jpg -vf scale=384:216:flags=lanczos -q:v 4 docs/site/img/styles/<slug>.jpg`.
@@ -62,6 +69,7 @@ A new style: add its row to `STYLES` and its thumbnail, `ffmpeg -i styles/<slug>
 - **The films**: the intro film is 103 s, with a Blender opening of 1.18 million stars over 475 frames and 124 sound events; the four other films' lengths and engines; the hand-drawn short's 40 minutes of the agent's active work, three review rounds and about 20 fixes. Source: `showcase/*/README.md`.
 - **Community films**: 389, with their prompts. Source: `cases/opus55-gallery.md`.
 - **The FAQ's answers**: requirements, cost, times, limits and the A/B result. Source: `README.md` and `docs/research/06-concept-first-ab.md`.
+- **The author's own account**: the Nobel explainer, its timing, and the Douyin and Bilibili channels.
 
 ## How it is built
 

@@ -499,11 +499,16 @@ html[data-lang="zh"] .lib-head h3 { letter-spacing: .01em; }
 .tl .track-line::after { content: ""; position: absolute; top: 50%; left: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 5px rgba(107,230,255,.2), 0 0 16px var(--cyan); transition: left 2.2s var(--ease) .3s; }
 .in .tl .track-line::before { transform: scaleX(1); }
 .in .tl .track-line::after { left: 100%; }
-.clock p { font-size: clamp(17px, 1.3vw, 21px); color: var(--text-2); position: relative; }
+.clock p { font-size: clamp(17px, 1.3vw, 21px); color: var(--text-2); position: relative; text-wrap: pretty; }
 .plats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .plat { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px; text-decoration: none; font-weight: 600; transition: transform .35s var(--ease), border-color .3s; }
 .plat small { font-weight: 400; color: var(--muted); font-size: 13px; }
-a.plat:hover { border-color: var(--cyan); transform: translateY(-2px); }
+a.plat[href]:hover { border-color: var(--cyan); transform: translateY(-2px); }
+.clocks { display: grid; gap: 12px; }
+.clock.sub { gap: 12px; padding: clamp(18px, 2.4vw, 30px); }
+.clock.sub::after { opacity: .55; }
+.clock.sub .big { font-size: clamp(60px, min(6.4vw, 11.5vh), 116px); }
+.clock.sub p { font-size: clamp(15px, 1.1vw, 18px); }
 
 /* ---------- 10 · get started ---------- */
 .start-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 48px); align-items: start; }
@@ -573,7 +578,7 @@ a.plat:hover { border-color: var(--cyan); transform: translateY(-2px); }
 .styles-lede { max-width: 26em; }
 .contact-lede { max-width: 24em; }
 .contact-links { justify-content: center; }
-.plat code { font-size: 14px; color: var(--text); }
+.plat code { font-size: 14px; color: var(--text); white-space: nowrap; }
 .wild .lede { margin-top: 16px; }
 
 /* ---------- faq ---------- */
@@ -1066,17 +1071,30 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   <div class="wrap wild">
     <div>
       <p class="eyebrow" data-r><b>09</b><span lang="en">In practice</span><span lang="zh">真实使用</span></p>
-      <h2 class="split"><span lang="en">Used for real, <em>with the receipts.</em></span><span lang="zh">真的在用，<em>每一步都有记录。</em></span></h2>
+      <h2 class="split"><span lang="en">Used for real, <em>on the news cycle.</em></span><span lang="zh">真的在用，<em>还赶得上热点。</em></span></h2>
+      <p class="lede" data-r><span lang="en">The author publishes films made with OpenVideoHarness on Douyin (TikTok in China) and Bilibili.</span><span lang="zh">作者把用 OpenVideoHarness 做的片子发在抖音和 B 站。</span></p>
+      <div class="plats" data-r>
+        <!-- Paste the channel links into href="" (left empty, the name shows without a link). -->
+        <a class="plat" href=""><span lang="en">Douyin</span><span lang="zh">抖音</span> <small lang="en">TikTok in China</small></a>
+        <a class="plat" href=""><span lang="en">Bilibili</span><span lang="zh">哔哩哔哩</span></a>
+      </div>
       <p class="lede" data-r><span lang="en">Every film on this page was made the way you would make yours: an agent, this repo's docs and one request. Each folder keeps the record: the request word for word, the storyboard, every review round, and how long it took.</span><span lang="zh">这一页上的每支片子，做法都和你做自己的片子一样：一个 agent、本仓库的文档、一句需求。每个目录都留着记录：需求原话、分镜、每一轮审阅、花了多久。</span></p>
       <div class="plats" data-r>
         <span class="plat"><code>cover-preview</code> <small><span lang="en">covers at Bilibili, Douyin, YouTube and Xiaohongshu feed sizes</span><span lang="zh">按 B 站、抖音、YouTube、小红书的信息流尺寸看封面</span></small></span>
         <span class="plat"><code>deliver</code> <small><span lang="en">the copy to upload, sized to a platform's limit</span><span lang="zh">上传用的版本，按平台的大小上限出</span></small></span>
       </div>
     </div>
-    <div class="clock liuli" data-r>
-      <div class="tl"><span><span lang="en">reading CLAUDE.md</span><span lang="zh">读 CLAUDE.md</span></span><i class="track-line"></i><span><span lang="en">delivered film</span><span lang="zh">交付成片</span></span></div>
-      <div class="big"><span data-count="40">≈40</span><small><span lang="en">min</span><span lang="zh">分钟</span></small></div>
-      <p><span lang="en">The hand-drawn short (showcase 01): about 40 minutes of the agent's active work, with three review rounds and about 20 fixes logged, not counting a pause for an API rate limit.</span><span lang="zh">手绘短片（样片 01）：agent 实际工作约 40 分钟，三轮自查，记下并修好约 20 处问题，不算中途因 API 限流停下的时间。</span></p>
+    <div class="clocks">
+      <div class="clock liuli" data-r>
+        <div class="tl"><span><span lang="en">Nobel Prize in Physics announced</span><span lang="zh">诺贝尔物理学奖公布</span></span><i class="track-line"></i><span><span lang="en">explainer out</span><span lang="zh">科普片发出</span></span></div>
+        <div class="big"><span data-count="3">≈3</span><small><span lang="en">hours</span><span lang="zh">小时</span></small></div>
+        <p><span lang="en">From the announcement of the 2026 Nobel Prize in Physics to a published science explainer, made with the harness.</span><span lang="zh">从 2026 年诺贝尔物理学奖公布，到一支用这套工作台做的科普片发出来。</span></p>
+      </div>
+      <div class="clock sub liuli" data-r>
+        <div class="tl"><span><span lang="en">reading CLAUDE.md</span><span lang="zh">读 CLAUDE.md</span></span><i class="track-line"></i><span><span lang="en">delivered film</span><span lang="zh">交付成片</span></span></div>
+        <div class="big"><span data-count="40">≈40</span><small><span lang="en">min</span><span lang="zh">分钟</span></small></div>
+        <p><span lang="en">The hand-drawn short (showcase 01): about 40 minutes of the agent's active work, with three review rounds and about 20 fixes logged, not counting a pause for an API rate limit.</span><span lang="zh">手绘短片（样片 01）：agent 实际工作约 40 分钟，三轮自查，记下并修好约 20 处问题，不算中途因 API 限流停下的时间。</span></p>
+      </div>
     </div>
   </div>
 </section>
@@ -1146,15 +1164,21 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   <div class="wrap">
     <div class="head">
       <div><p class="eyebrow" data-r><b>11</b><span lang="en">Contact</span><span lang="zh">联系</span></p><h2 class="split"><span lang="en">Questions or ideas? <em>Get in touch.</em></span><span lang="zh">有问题或想法？<em>来聊聊。</em></span></h2></div>
-      <p class="lede contact-lede" data-r><span lang="en">Star the repo, open an issue, or send a film you made with it.</span><span lang="zh">给仓库点个 Star，提个 issue，或者把你用它做的片子发过来。</span></p>
+      <p class="lede contact-lede" data-r><span lang="en">Star the repo, add the author on WeChat, or send a film you made with it.</span><span lang="zh">给仓库点个 Star，加作者微信，或者把你用它做的片子发过来。</span></p>
     </div>
     <div class="contact contact-wide">
-      <div class="qrs one" id="qrs">
+      <div class="qrs" id="qrs">
         <div class="qr" data-r>
           <h4><span lang="en">Star it on GitHub</span><span lang="zh">在 GitHub 上点 Star</span></h4>
           <div class="plate"><svg role="img" aria-label="QR code: github.com/ZLHad/OpenVideoHarness" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" shape-rendering="crispEdges"><path fill="currentColor" d="M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM9 0h1v1h-1zM12 0h1v1h-1zM15 0h1v1h-1zM18 0h1v1h-1zM19 0h1v1h-1zM22 0h1v1h-1zM23 0h1v1h-1zM24 0h1v1h-1zM25 0h1v1h-1zM26 0h1v1h-1zM27 0h1v1h-1zM28 0h1v1h-1zM0 1h1v1h-1zM6 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM12 1h1v1h-1zM13 1h1v1h-1zM15 1h1v1h-1zM17 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM12 2h1v1h-1zM16 2h1v1h-1zM17 2h1v1h-1zM22 2h1v1h-1zM24 2h1v1h-1zM25 2h1v1h-1zM26 2h1v1h-1zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM9 3h1v1h-1zM11 3h1v1h-1zM14 3h1v1h-1zM15 3h1v1h-1zM18 3h1v1h-1zM22 3h1v1h-1zM24 3h1v1h-1zM25 3h1v1h-1zM26 3h1v1h-1zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM9 4h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM14 4h1v1h-1zM15 4h1v1h-1zM16 4h1v1h-1zM18 4h1v1h-1zM19 4h1v1h-1zM22 4h1v1h-1zM24 4h1v1h-1zM25 4h1v1h-1zM26 4h1v1h-1zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM15 5h1v1h-1zM18 5h1v1h-1zM19 5h1v1h-1zM20 5h1v1h-1zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM23 6h1v1h-1zM24 6h1v1h-1zM25 6h1v1h-1zM26 6h1v1h-1zM27 6h1v1h-1zM28 6h1v1h-1zM12 7h1v1h-1zM15 7h1v1h-1zM16 7h1v1h-1zM17 7h1v1h-1zM20 7h1v1h-1zM0 8h1v1h-1zM3 8h1v1h-1zM5 8h1v1h-1zM6 8h1v1h-1zM8 8h1v1h-1zM11 8h1v1h-1zM13 8h1v1h-1zM14 8h1v1h-1zM15 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM19 8h1v1h-1zM21 8h1v1h-1zM23 8h1v1h-1zM0 9h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM9 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM16 9h1v1h-1zM19 9h1v1h-1zM20 9h1v1h-1zM22 9h1v1h-1zM25 9h1v1h-1zM28 9h1v1h-1zM0 10h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM11 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM16 10h1v1h-1zM17 10h1v1h-1zM19 10h1v1h-1zM20 10h1v1h-1zM21 10h1v1h-1zM24 10h1v1h-1zM25 10h1v1h-1zM26 10h1v1h-1zM27 10h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM10 11h1v1h-1zM11 11h1v1h-1zM13 11h1v1h-1zM16 11h1v1h-1zM18 11h1v1h-1zM20 11h1v1h-1zM24 11h1v1h-1zM26 11h1v1h-1zM27 11h1v1h-1zM1 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM8 12h1v1h-1zM9 12h1v1h-1zM11 12h1v1h-1zM12 12h1v1h-1zM13 12h1v1h-1zM15 12h1v1h-1zM16 12h1v1h-1zM19 12h1v1h-1zM21 12h1v1h-1zM22 12h1v1h-1zM25 12h1v1h-1zM27 12h1v1h-1zM28 12h1v1h-1zM1 13h1v1h-1zM2 13h1v1h-1zM4 13h1v1h-1zM5 13h1v1h-1zM10 13h1v1h-1zM11 13h1v1h-1zM12 13h1v1h-1zM14 13h1v1h-1zM20 13h1v1h-1zM21 13h1v1h-1zM0 14h1v1h-1zM1 14h1v1h-1zM4 14h1v1h-1zM6 14h1v1h-1zM10 14h1v1h-1zM11 14h1v1h-1zM12 14h1v1h-1zM13 14h1v1h-1zM20 14h1v1h-1zM22 14h1v1h-1zM23 14h1v1h-1zM24 14h1v1h-1zM25 14h1v1h-1zM26 14h1v1h-1zM27 14h1v1h-1zM28 14h1v1h-1zM3 15h1v1h-1zM4 15h1v1h-1zM5 15h1v1h-1zM7 15h1v1h-1zM9 15h1v1h-1zM11 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM14 15h1v1h-1zM15 15h1v1h-1zM16 15h1v1h-1zM17 15h1v1h-1zM18 15h1v1h-1zM20 15h1v1h-1zM21 15h1v1h-1zM22 15h1v1h-1zM25 15h1v1h-1zM27 15h1v1h-1zM0 16h1v1h-1zM6 16h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM11 16h1v1h-1zM12 16h1v1h-1zM17 16h1v1h-1zM20 16h1v1h-1zM23 16h1v1h-1zM27 16h1v1h-1zM1 17h1v1h-1zM3 17h1v1h-1zM4 17h1v1h-1zM7 17h1v1h-1zM8 17h1v1h-1zM9 17h1v1h-1zM10 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM13 17h1v1h-1zM16 17h1v1h-1zM18 17h1v1h-1zM20 17h1v1h-1zM21 17h1v1h-1zM22 17h1v1h-1zM23 17h1v1h-1zM25 17h1v1h-1zM28 17h1v1h-1zM0 18h1v1h-1zM2 18h1v1h-1zM3 18h1v1h-1zM6 18h1v1h-1zM13 18h1v1h-1zM14 18h1v1h-1zM16 18h1v1h-1zM18 18h1v1h-1zM21 18h1v1h-1zM23 18h1v1h-1zM24 18h1v1h-1zM27 18h1v1h-1zM28 18h1v1h-1zM3 19h1v1h-1zM5 19h1v1h-1zM7 19h1v1h-1zM8 19h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM14 19h1v1h-1zM15 19h1v1h-1zM17 19h1v1h-1zM20 19h1v1h-1zM21 19h1v1h-1zM23 19h1v1h-1zM24 19h1v1h-1zM27 19h1v1h-1zM28 19h1v1h-1zM0 20h1v1h-1zM2 20h1v1h-1zM4 20h1v1h-1zM6 20h1v1h-1zM9 20h1v1h-1zM10 20h1v1h-1zM16 20h1v1h-1zM19 20h1v1h-1zM20 20h1v1h-1zM21 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM26 20h1v1h-1zM8 21h1v1h-1zM9 21h1v1h-1zM10 21h1v1h-1zM11 21h1v1h-1zM16 21h1v1h-1zM17 21h1v1h-1zM19 21h1v1h-1zM20 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM27 21h1v1h-1zM28 21h1v1h-1zM0 22h1v1h-1zM1 22h1v1h-1zM2 22h1v1h-1zM3 22h1v1h-1zM4 22h1v1h-1zM5 22h1v1h-1zM6 22h1v1h-1zM10 22h1v1h-1zM11 22h1v1h-1zM12 22h1v1h-1zM16 22h1v1h-1zM20 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM27 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM8 23h1v1h-1zM9 23h1v1h-1zM11 23h1v1h-1zM12 23h1v1h-1zM14 23h1v1h-1zM15 23h1v1h-1zM18 23h1v1h-1zM20 23h1v1h-1zM24 23h1v1h-1zM25 23h1v1h-1zM26 23h1v1h-1zM0 24h1v1h-1zM2 24h1v1h-1zM3 24h1v1h-1zM4 24h1v1h-1zM6 24h1v1h-1zM10 24h1v1h-1zM11 24h1v1h-1zM12 24h1v1h-1zM15 24h1v1h-1zM16 24h1v1h-1zM17 24h1v1h-1zM20 24h1v1h-1zM21 24h1v1h-1zM22 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1zM0 25h1v1h-1zM2 25h1v1h-1zM3 25h1v1h-1zM4 25h1v1h-1zM6 25h1v1h-1zM8 25h1v1h-1zM12 25h1v1h-1zM13 25h1v1h-1zM19 25h1v1h-1zM20 25h1v1h-1zM22 25h1v1h-1zM23 25h1v1h-1zM24 25h1v1h-1zM25 25h1v1h-1zM26 25h1v1h-1zM27 25h1v1h-1zM0 26h1v1h-1zM2 26h1v1h-1zM3 26h1v1h-1zM4 26h1v1h-1zM6 26h1v1h-1zM11 26h1v1h-1zM14 26h1v1h-1zM16 26h1v1h-1zM19 26h1v1h-1zM20 26h1v1h-1zM24 26h1v1h-1zM25 26h1v1h-1zM26 26h1v1h-1zM28 26h1v1h-1zM0 27h1v1h-1zM6 27h1v1h-1zM9 27h1v1h-1zM10 27h1v1h-1zM11 27h1v1h-1zM13 27h1v1h-1zM16 27h1v1h-1zM17 27h1v1h-1zM19 27h1v1h-1zM20 27h1v1h-1zM21 27h1v1h-1zM24 27h1v1h-1zM27 27h1v1h-1zM0 28h1v1h-1zM1 28h1v1h-1zM2 28h1v1h-1zM3 28h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM8 28h1v1h-1zM9 28h1v1h-1zM13 28h1v1h-1zM14 28h1v1h-1zM16 28h1v1h-1zM20 28h1v1h-1zM21 28h1v1h-1zM22 28h1v1h-1zM23 28h1v1h-1zM24 28h1v1h-1zM25 28h1v1h-1zM27 28h1v1h-1z"/></svg></div>
           <a href="https://github.com/ZLHad/OpenVideoHarness" target="_blank" rel="noopener">ZLHad/OpenVideoHarness</a>
           <small><span lang="en">Open source · MIT</span><span lang="zh">开源 · MIT</span></small>
+        </div>
+        <!-- The author's WeChat QR: save the image as docs/site/img/wechat.jpg. Without it this card hides itself. -->
+        <div class="qr" id="wx" data-r>
+          <h4><span lang="en">Say hi on WeChat</span><span lang="zh">微信聊聊</span></h4>
+          <div class="plate"><img src="img/wechat.jpg" alt="WeChat QR code" id="wxImg" data-optional></div>
+          <small><span lang="en">Scan to add the author</span><span lang="zh">扫码加作者</span></small>
         </div>
       </div>
       <a class="mail liuli" href="mailto:zhangczssx@gmail.com" data-r>zhangczssx@gmail.com <span><span lang="en">questions, ideas, films</span><span lang="zh">问题、想法、片子</span></span></a>
@@ -1648,6 +1672,7 @@ onLeave.styles = stopWall;
 $$('[data-zoom]').forEach(b => b.addEventListener('click', () => { stopWall(); openLightbox({ img: $('img', b).src, cap: tr().lib(b.parentElement.querySelector('code').textContent) }); }));
 
 /* ---------- in practice ---------- */
+$$('a.plat').forEach(a => { if (!a.getAttribute('href')) a.removeAttribute('href'); else { a.target = '_blank'; a.rel = 'noopener'; } });
 onEnter.practice = () => $$('#practice [data-count]').forEach(el => countUp(el, 2400));
 
 /* ---------- get started: the commands type themselves ---------- */
@@ -1680,6 +1705,11 @@ onEnter.start = () => {
   };
   setTimeout(next, 700);
 };
+
+/* ---------- contact: the WeChat card shows only when its image is there ---------- */
+const wxImg = $('#wxImg');
+function wxMissing() { $('#wx').remove(); $('#qrs').classList.add('one'); }
+if (wxImg.complete && !wxImg.naturalWidth) wxMissing(); else wxImg.addEventListener('error', wxMissing);
 
 /* ---------- lightbox ---------- */
 const lb = $('#lightbox'), lbMedia = $('#lbMedia'), lbCap = $('#lbCap');
