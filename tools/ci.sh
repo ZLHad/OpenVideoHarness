@@ -189,6 +189,9 @@ print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
   then ok "docs name only real bin/vh commands; tools/commands.json and CLAUDE.md's 命令行 line name the ones bin/vh dispatches"; else bad "docs vs bin/vh commands"; fi
+  # the front pages (tools/readme.py): every count the READMEs and the overview diagrams state is the repo's (commands,
+  # styles, recipes …), their links and images are in the repo, and the two READMEs have the same sections and links
+  if out=$(python3 tools/readme.py check 2>&1); then ok "$out"; else echo "$out"; bad "the READMEs against the repo (python3 tools/readme.py lists the counts)"; fi
 }
 
 readpath_report() {   # how much an agent reads before it starts, per effort level and type: printed as a baseline, no limit yet

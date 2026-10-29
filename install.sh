@@ -3,10 +3,10 @@
 #   curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
 #   bash install.sh [--dir ~/OpenVideoHarness] [--no-refs] [--no-skill] [--skill claude|codex|all]
 # What it does, and where it puts things:
-#   1. clone the repo into --dir, newest commit only (about 185 MB on disk; a re-run moves it to the newest commit, keeping LOCAL.md and projects/)
-#   2. npm install in engines/ClaudeAnimationBase and npm ci in styles/_swatch (HyperFrames 0.8.202), both inside --dir (about 185 MB of
-#      node_modules; npm also writes its own cache, ~/.npm); unless --no-refs, fetch 30 read-only reference repos into references/repos/
-#      (about 195 MB, git-ignored; references/fetch.sh <name> fetches one later)
+#   1. clone the repo into --dir, newest commit only (about 200 MB on disk; a re-run moves it to the newest commit, keeping LOCAL.md and projects/)
+#   2. npm install in engines/ClaudeAnimationBase and npm ci in styles/_swatch (HyperFrames 0.8.202), both inside --dir (about 210 MB of
+#      node_modules; npm also writes its own cache, ~/.npm); unless --no-refs, fetch the read-only reference repos references/fetch.sh lists
+#      into references/repos/ (about 250 MB, git-ignored; references/fetch.sh <name> fetches one later)
 #   3. copy LOCAL.example.md to LOCAL.md (git-ignored) if there is no LOCAL.md
 #   4. unless --no-skill, write the open-video-harness skill file to ~/.claude/skills and ~/.agents/skills (--skill claude|codex: only one)
 #   5. run bin/vh doctor as a final check
@@ -56,7 +56,8 @@ if [ -d "$DIR/.git" ]; then say "updating $DIR"
 else say "cloning into $DIR (newest commit only)"; git clone -q --depth 1 --single-branch "$REPO" "$DIR"; fi
 cd "$DIR"
 say "installing the bundled engine (ClaudeAnimationBase)"; (cd engines/ClaudeAnimationBase && npm install --silent)
-if [ "$REFS" = 1 ]; then say "fetching 30 reference repos (about 195 MB, read-only, git-ignored; --no-refs skips them)"; references/fetch.sh; fi
+if [ "$REFS" = 1 ]; then n=$(grep -cE '^(full|sparse|textonly) ' references/fetch.sh || true)   # counted from the list, so it cannot go stale
+  say "fetching $n reference repos (about 250 MB, read-only, git-ignored; --no-refs skips them)"; references/fetch.sh; fi
 say "installing the style swatch renderer (HyperFrames, for bin/vh style)"
 (cd styles/_swatch && npm ci --silent) || echo "! swatch renderer not installed; bin/vh style retries it on first use (or: cd styles/_swatch && npm ci)"
 [ -f LOCAL.md ] || cp LOCAL.example.md LOCAL.md
