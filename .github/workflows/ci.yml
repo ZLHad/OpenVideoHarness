@@ -1,6 +1,8 @@
 # The repo's own checks (tools/ci.sh) on Linux and on macOS.
-# Both job names are required status checks in the main-branch ruleset (.github/rulesets/main.json):
-# renaming a job or an OS here means updating that ruleset too.
+# Two job names are required status checks in the main-branch ruleset (.github/rulesets/main.json): checks (ubuntu-latest)
+# and checks (macos-latest). Renaming either job, or an OS here, means updating that ruleset too.
+# macOS runs the checks in two shards side by side (tools/ci.sh --shard i/2, the groups dealt by tools/ci-shards.txt);
+# checks (macos-latest) is the job that waits for both and passes only when each of them passed.
 name: ci
 
 on:
@@ -17,14 +19,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
-    name: checks (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 45   # GitHub's macOS runners take 21-28 min for the whole suite (2026-10-26); 30 cut two of them off
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+  ubuntu:
+    name: checks (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45   # about 15 min (2026-10-29)
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -44,30 +42,88 @@ jobs:
         timeout-minutes: 10   # half a minute as a rule, two when a mirror stalls; what the tries below cannot catch (dpkg) stops here
         run: |
           python3 -m pip install --quiet pyflakes
-          if [ "$RUNNER_OS" = Linux ]; then
-            # GitHub's runners install from an Azure Ubuntu mirror in their own region. Now and then one serves at a crawl or
-            # stops answering: 10 to 30 min instead of half a minute on 2026-10-25 and 26, in westus3 above all (known upstream:
-            # actions/runner-images#14823, open). A probe put the time in the download (93 MB in 12 min; dpkg took 7 s), and
-            # apt's own 15 s timeout did not fail over. So the stages that fetch have a time limit, and a try that runs over is
-            # killed and repeated without that mirror, from archive.ubuntu.com (the second line of /etc/apt/apt-mirrors.txt).
-            # What was downloaded is kept. dpkg runs last, on files that are all local, and has no limit: it was never the slow
-            # part, and a dpkg killed half way keeps running on its own and holds the lock.
-            aptget() {   # aptget <seconds, 0 for no limit> <apt-get arguments>: one apt-get, with how long it took
-              s=$SECONDS; sudo timeout -k 5 "$1" apt-get -y -q "${@:2}" >/tmp/apt.log 2>&1; r=$?
-              echo "apt-get ${*:2}: $((SECONDS - s)) s, exit $r"; return $r
-            }
-            for try in 1 2 3; do
-              aptget 60 update && aptget 60 install --download-only shellcheck ffmpeg && aptget 0 install shellcheck ffmpeg && break
-              tail -n 5 /tmp/apt.log
-              [ $try = 3 ] && exit 1
-              sudo sed -i '/azure.archive.ubuntu.com/d' /etc/apt/apt-mirrors.txt || true
-              sudo dpkg --configure -a || true   # after a dpkg that failed, not one that was killed
-            done
-          else   # ffmpeg lets the bin/vh mux/gif smoke tests run under macOS /bin/bash 3.2 too
-            HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install --quiet ffmpeg >/dev/null
-          fi
-      # Linux: GNU userland. macOS: BSD userland, and bin/vh runs under the system /bin/bash 3.2 that Mac users have.
+          # GitHub's runners install from an Azure Ubuntu mirror in their own region. Now and then one serves at a crawl or
+          # stops answering: 10 to 30 min instead of half a minute on 2026-10-25 and 26, in westus3 above all (known upstream:
+          # actions/runner-images#14823, open). A probe put the time in the download (93 MB in 12 min; dpkg took 7 s), and
+          # apt's own 15 s timeout did not fail over. So the stages that fetch have a time limit, and a try that runs over is
+          # killed and repeated without that mirror, from archive.ubuntu.com (the second line of /etc/apt/apt-mirrors.txt).
+          # What was downloaded is kept. dpkg runs last, on files that are all local, and has no limit: it was never the slow
+          # part, and a dpkg killed half way keeps running on its own and holds the lock.
+          aptget() {   # aptget <seconds, 0 for no limit> <apt-get arguments>: one apt-get, with how long it took
+            s=$SECONDS; sudo timeout -k 5 "$1" apt-get -y -q "${@:2}" >/tmp/apt.log 2>&1; r=$?
+            echo "apt-get ${*:2}: $((SECONDS - s)) s, exit $r"; return $r
+          }
+          for try in 1 2 3; do
+            aptget 60 update && aptget 60 install --download-only shellcheck ffmpeg && aptget 0 install shellcheck ffmpeg && break
+            tail -n 5 /tmp/apt.log
+            [ $try = 3 ] && exit 1
+            sudo sed -i '/azure.archive.ubuntu.com/d' /etc/apt/apt-mirrors.txt || true
+            sudo dpkg --configure -a || true   # after a dpkg that failed, not one that was killed
+          done
+      # GNU userland: everything in one run
       - name: tools/ci.sh
+        run: tools/ci.sh
+
+  macos:
+    name: macos shard ${{ matrix.shard }}/2
+    runs-on: macos-latest
+    # a shard took about 16 min (2026-10-29); the whole suite in one job took 21-42 min and was cut off at 30 twice
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false   # both shards run to their end, so one run names every failure
+      matrix:
+        shard: [1, 2]   # the 2 is also in the name above, in the run step and in checks (macos-latest) below
+    outputs:   # each shard's own outcome, for checks (macos-latest) to name (the matrix's outputs merge, one name a shard)
+      shard_1: ${{ steps.outcome.outputs.shard_1 }}
+      shard_2: ${{ steps.outcome.outputs.shard_2 }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      # the same uv cache as the Linux job keeps, one for each shard: a shard saves only what its own groups fetched,
+      # so a cache shared by both would hold one shard's packages and the other shard would download its own every run.
+      # Keyed on this file and on tools/ci-shards.txt (moving a group between shards moves its packages too)
+      - uses: astral-sh/setup-uv@v10.3.0
+        with:
+          version: "0.12.21"
+          enable-cache: true
+          cache-dependency-glob: |
+            .github/workflows/ci.yml
+            tools/ci-shards.txt
+          cache-suffix: shard-${{ matrix.shard }}
+      - name: Install check tools
+        timeout-minutes: 10
+        run: |   # ffmpeg lets the bin/vh mux/gif smoke tests run under macOS /bin/bash 3.2 too
+          python3 -m pip install --quiet pyflakes
+          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install --quiet ffmpeg >/dev/null
+      # BSD userland, and bin/vh under the system /bin/bash 3.2 that Mac users have
+      - name: tools/ci.sh --shard ${{ matrix.shard }}/2
+        id: ci
+        run: VH_BASH=/bin/bash tools/ci.sh --shard ${{ matrix.shard }}/2
+      - name: Outcome
+        id: outcome
+        if: always()
+        run: echo "shard_${{ matrix.shard }}=${{ steps.ci.outcome }}" >> "$GITHUB_OUTPUT"
+
+  # The required check for macOS. It always runs (also when a shard failed, was cancelled or never started) and passes
+  # only when the shards' job and each shard by itself passed: a required check that is skipped counts as passed on
+  # GitHub, so this job must never be skipped, and an outcome it does not find is a failure.
+  macos-result:
+    name: checks (macos-latest)
+    needs: macos
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Both macOS shards passed
+        env:
+          SHARDS: ${{ needs.macos.result }}
+          SHARD_1: ${{ needs.macos.outputs.shard_1 }}
+          SHARD_2: ${{ needs.macos.outputs.shard_2 }}
         run: |
-          if [ "$RUNNER_OS" = macOS ]; then export VH_BASH=/bin/bash; fi
-          tools/ci.sh
+          echo "macos shards: ${SHARDS:-no result} · shard 1/2: ${SHARD_1:-no outcome} · shard 2/2: ${SHARD_2:-no outcome}"
+          [ "$SHARDS" = success ] && [ "$SHARD_1" = success ] && [ "$SHARD_2" = success ]

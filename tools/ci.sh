@@ -3,11 +3,14 @@
 #
 #   tools/ci.sh                      everything the installed tools allow (shellcheck, pyflakes, ffmpeg are optional locally)
 #   tools/ci.sh --smoke              only the bin/vh smoke tests
-#   tools/ci.sh --committed          check HEAD in a clean temporary checkout: what a push sends, not the working tree
+#   tools/ci.sh --shard i/n          shard i of n: the groups tools/ci-shards.txt deals to it (CI's macOS job runs 1/2 and 2/2)
+#   tools/ci.sh --committed [opt]    check HEAD in a clean temporary checkout: what a push sends, not the working tree
 #   VH_BASH=/bin/bash tools/ci.sh    run bin/vh and the syntax checks under another bash (macOS ships bash 3.2)
 #
 # Why each group exists: the v0.2.1 review found macOS-only sed/stat/md5 flags that broke every Linux user, a
-# doc/CLI mismatch, and a CLI that exited 0 on typos. These checks keep those from coming back.
+# doc/CLI mismatch, and a CLI that exited 0 on typos. These checks keep those from coming back. The groups (the *_checks
+# functions below) and the order they run in are listed in tools/ci-shards.txt, with their time on CI's macOS runner.
+# A run ends with how long it took, each group's seconds and the ten slowest checks.
 # Exit status: the number of failed checks (0 = all passed).
 set -uo pipefail
 unset CDPATH   # an exported one could send this relative cd elsewhere (as in bin/vh)
@@ -16,10 +19,14 @@ ROOT=$(pwd)
 VH_BASH=${VH_BASH:-bash}
 export OVH_LOCAL_MD=/dev/null/LOCAL.md   # this machine's LOCAL.md stays out of every check (one that needs it writes its own)
 fails=0
-ok() { printf '\033[32m✓\033[0m %s\n' "$*"; }
-bad() { printf '\033[31m✗\033[0m %s\n' "$*"; fails=$((fails + 1)); }
+# each check's time: since the check before it, or since its group began (EPOCHREALTIME in bash 5; whole seconds in 3.2)
+CI_TIMES=() CI_GROUPS=() CI_LAST=0 CI_NOW=0
+clock() { local r=${EPOCHREALTIME:-}; if [ -n "$r" ]; then r=${r//[.,]/}; CI_NOW=$((10#$r / 1000)); else CI_NOW=$((SECONDS * 1000)); fi; }
+took() { local m=${1%%$'\n'*}; clock; CI_TIMES+=("$((CI_NOW - CI_LAST))	${m:0:110}"); CI_LAST=$CI_NOW; }
+ok() { took "$*"; printf '\033[32m✓\033[0m %s\n' "$*"; }
+bad() { took "$*"; printf '\033[31m✗\033[0m %s\n' "$*"; fails=$((fails + 1)); }
 skipped=""
-skip() { printf '\033[33m-\033[0m %s (skipped: %s)\n' "$1" "$2"; skipped="$skipped${skipped:+, }$1"; }
+skip() { took "$1"; printf '\033[33m-\033[0m %s (skipped: %s)\n' "$1" "$2"; skipped="$skipped${skipped:+, }$1"; }
 files() { git ls-files "$@" | grep -v -E '^references/|(^|/)node_modules/|\.min\.js$'; }
 
 static_checks() {
@@ -189,6 +196,16 @@ print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
   then ok "docs name only real bin/vh commands; tools/commands.json and CLAUDE.md's 命令行 line name the ones bin/vh dispatches"; else bad "docs vs bin/vh commands"; fi
+  # the group table (tools/ci-shards.txt): a group and its seconds a line, each group once and a function here; a
+  # *_checks function that is not in it is called by one that is (or it would run in no run and no shard)
+  local g a="" b="" c=""
+  a=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' tools/ci-shards.txt | awk 'NF != 2 || $2 !~ /^[0-9]+$/ || seen[$1]++ { printf " %s", $0 }')
+  for g in $(groups | awk '{ print $1 }'); do declare -F "$g" >/dev/null || b="$b $g"; done
+  for g in $(sed -n 's/^\([a-z0-9_]*_checks\)() {.*/\1/p' tools/ci.sh); do
+    groups | awk -v g="$g" '$1 == g { f = 1 } END { exit !f }' || grep -q -E "^[[:space:]]+$g([[:space:];]|\$)" tools/ci.sh || c="$c $g"
+  done
+  if [ -z "$a$b$c" ]; then ok "tools/ci-shards.txt: each group once with its seconds, each a function in tools/ci.sh; every *_checks function runs"
+  else bad "tools/ci-shards.txt:${a:+ (lines that are not one group and its whole seconds, once:$a)}${b:+ (no such function:$b)}${c:+ (never run:$c)}"; fi
 }
 
 readpath_report() {   # how much an agent reads before it starts, per effort level and type: printed as a baseline, no limit yet
@@ -357,6 +374,8 @@ if pr.get("gemini", {}).get("state") != "ok" or "6 models" not in pr["gemini"]["
     bad.append(f"doctor --probe from recordings: {pr}")
 pt = doc("--probe", "--offline", rec); outs += [pt.stdout, pt.stderr]
 import http.server, threading
+sys.path.insert(0, "tools/assets")
+from fetch import LocalServer   # (http.server's own looks 127.0.0.1 up by name as it binds: 35 s on GitHub's macOS runners)
 heard = []
 class Next(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
@@ -371,7 +390,7 @@ class First(http.server.BaseHTTPRequestHandler):
     do_GET = do_POST
     def log_message(self, *a):
         pass
-nxt, first = http.server.HTTPServer(("127.0.0.1", 0), Next), http.server.HTTPServer(("127.0.0.1", 0), First)
+nxt, first = LocalServer(("127.0.0.1", 0), Next), LocalServer(("127.0.0.1", 0), First)
 for srv in (nxt, first):
     threading.Thread(target=srv.serve_forever, daemon=True).start()
 live = subprocess.run([sys.executable, "tools/doctor.py", "--json", "--probe", "--only", "minimax,dashscope"], capture_output=True, text=True, encoding="utf-8",
@@ -625,9 +644,11 @@ PY
   # tts: a Gemini 429 that names a per-day quota fails at once, though it asks for 30 s; a per-minute one is still waited
   # out and retried; one naming no daily quota fails at once only past 90 s (a stub on 127.0.0.1; waits recorded, not slept)
   if a=$(GEMINI_API_KEY=ci-stub python3 - 2>&1 <<'PY'
-import importlib.util, json, os, threading
+import importlib.util, json, os, sys, threading
 os.environ["no_proxy"] = "127.0.0.1"   # urlopen would send the stub's requests through an http_proxy
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
+sys.path.insert(0, "tools/assets")
+from fetch import LocalServer   # (http.server's own looks 127.0.0.1 up by name as it binds: 35 s on GitHub's macOS runners)
 spec = importlib.util.spec_from_file_location("tts", "tools/audio/tts.py"); tts = importlib.util.module_from_spec(spec); spec.loader.exec_module(tts)
 def body(*ids, delay="30s"):
     return json.dumps({"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "details": [
@@ -639,7 +660,7 @@ class Stub(BaseHTTPRequestHandler):
         self.rfile.read(int(self.headers["Content-Length"])); code, b = answers.pop(0)
         self.send_response(code); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
     def log_message(self, *a): pass
-srv = ThreadingHTTPServer(("127.0.0.1", 0), Stub); threading.Thread(target=srv.serve_forever, daemon=True).start()
+srv = LocalServer(("127.0.0.1", 0), Stub); threading.Thread(target=srv.serve_forever, daemon=True).start()
 tts.GEMINI_API = f"http://127.0.0.1:{srv.server_address[1]}"
 waits = []; tts.time.sleep = waits.append
 minute, day = "GenerateRequestsPerMinutePerProjectPerModel", "GenerateRequestsPerDayPerProjectPerModel"
@@ -668,8 +689,9 @@ import base64, contextlib, hashlib, importlib.util, io, json, os, re, shutil, sy
 import numpy as np
 os.environ["no_proxy"] = "127.0.0.1"; os.environ["GEMINI_API_KEY"] = "ci-stub"
 from pathlib import Path
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-sys.path.insert(0, "tools/audio")
+from http.server import BaseHTTPRequestHandler
+sys.path.insert(0, "tools/audio"); sys.path.insert(0, "tools/assets")
+from fetch import LocalServer   # (http.server's own looks 127.0.0.1 up by name as it binds: 35 s on GitHub's macOS runners)
 spec = importlib.util.spec_from_file_location("tts", "tools/audio/tts.py"); tts = importlib.util.module_from_spec(spec); spec.loader.exec_module(tts)
 SR, PITCH = 24000, {"Kore": 200.0, "Puck": 130.0, "Charon": 110.0}
 st = {"n": 0, "vary": False, "takes": []}                  # takes: (duration, [(unit, start, end)]) of every synthesis
@@ -714,7 +736,7 @@ class Stub(BaseHTTPRequestHandler):
                 {"type": "word_info", "text": w[0], "start_offset": f"{max(0, w[1] - 0.02):.2f}s", "end_offset": f"{max(0, w[2] - 0.02):.2f}s"} for w in ws]}]}]}
         b = json.dumps(r).encode(); self.send_response(200); self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
     def log_message(self, *a): pass
-srv = ThreadingHTTPServer(("127.0.0.1", 0), Stub); threading.Thread(target=srv.serve_forever, daemon=True).start()
+srv = LocalServer(("127.0.0.1", 0), Stub); threading.Thread(target=srv.serve_forever, daemon=True).start()
 tts.GEMINI_API = f"http://127.0.0.1:{srv.server_address[1]}"
 def run(argv):
     out = io.StringIO(); rc = 0
@@ -2635,10 +2657,11 @@ PY
     # answer cut off after the request left keeps the estimate ("may have been billed"); a request that never left at 0
     if a=$(python3 - "$t" <<'PY'
 import contextlib, io, json, os, sys, threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 sys.path.insert(0, "tools/assets")
 import image
+from fetch import LocalServer   # (http.server's own looks 127.0.0.1 up by name as it binds: 35 s on GitHub's macOS runners)
 t, fx, mode = Path(sys.argv[1]), Path("tools/assets/fixtures/image/responses"), {"m": "ok"}
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
@@ -2654,7 +2677,7 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
-srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
+srv = LocalServer(("127.0.0.1", 0), H)
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 image.API = f"http://127.0.0.1:{srv.server_address[1]}/v1beta/interactions"
 os.environ["GEMINI_API_KEY"] = "test-not-a-key"
@@ -2905,10 +2928,11 @@ PY
   # clip's, the whole track's); a blocked answer made no track (0); an error answer at 0; an answer cut off keeps the price
   if a=$(python3 - "$t" <<'PY'
 import contextlib, io, json, os, sys, threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 sys.path.insert(0, "tools/audio")
 import lyria
+from fetch import LocalServer   # (lyria's own import of tools/assets/fetch.py; http.server's looks 127.0.0.1 up by name: 35 s on macOS runners)
 t, fx, mode = Path(sys.argv[1]), Path("tools/audio/fixtures/lyria/responses"), {"m": "ok"}
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
@@ -2924,7 +2948,7 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
-srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
+srv = LocalServer(("127.0.0.1", 0), H)
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 lyria.API = f"http://127.0.0.1:{srv.server_address[1]}/v1beta/interactions"
 os.environ["GEMINI_API_KEY"] = "test-not-a-key"
@@ -4750,7 +4774,10 @@ PY
   # waits on (a stand-in uv that never ends): TERM ends bin/vh at once, with no end line (the run reads as gone), and a
   # Ctrl-C (SIGINT to the process group) writes the end with 130 and then ends bin/vh by SIGINT (the caller sees -2). The
   # stand-in traps INT: a loop of sleeps without it can miss a Ctrl-C that lands as a sleep ends (sh takes the sleep's
-  # normal exit for a child that handled it), and then it never ends, and bin/vh waits on it
+  # normal exit for a child that handled it), and then it never ends, and bin/vh waits on it. The whole check takes about
+  # 1.5 s; each start and each end may take 60 s. Once (GitHub's macOS runner, 2026-10-28) a Ctrl-C to qa had no answer
+  # within the 10 s there were, though the steps before it were on time: a command still running at 60 s is said with
+  # the processes of its group, so a hang names what held it
   rm -f "$p/.ovh/activity.jsonl"; mkdir -p "$t/stub"
   printf '#!/bin/sh\ntrap "exit 130" INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
   : > "$p/audio/mix.wav"
@@ -4758,20 +4785,27 @@ PY
 import json, os, signal, subprocess, sys, time
 sh, root, p, t = sys.argv[1:]
 env, mark = dict(os.environ, PATH=f"{t}/stub:{os.environ['PATH']}", UVMARK=f"{t}/started"), f"{t}/started"
-def start(*args, until):
+def start(*args, until):   # up to 60 s to get there (it takes a fraction of one): a slow start is not what this tests
     if os.path.exists(mark): os.remove(mark)
     pr = subprocess.Popen([sh, f"{root}/bin/vh", *args], start_new_session=True, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(300):
+    for _ in range(1200):
         if os.path.exists(until) or pr.poll() is not None: break
         time.sleep(0.05)
     return pr
 def stub():
     return subprocess.run(["pgrep", "-f", f"{t}/stub/uv"], capture_output=True).returncode == 0
+def ended(pr):   # the exit status, or what of its process group still ran 60 s after the signal (then killed)
+    try: return pr.wait(60)
+    except subprocess.TimeoutExpired: pass
+    ps = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,pgid=,stat=,command="], capture_output=True, text=True).stdout.splitlines()
+    left = [" ".join(l.split()[:4] + l.split()[4:7]) for l in ps if len(l.split()) > 4 and l.split()[2] == str(pr.pid)]
+    os.killpg(pr.pid, signal.SIGKILL); pr.wait()
+    return "still running 60 s on: " + " | ".join(left)
 out = []
 pr = start("desk", "wait", p, "--timeout", "30", until=f"{p}/out/review/feedback/.listening")
-pr.send_signal(signal.SIGTERM); out.append(f"wait {pr.wait(10)}")   # at once: its handlers are in place before the flag
+pr.send_signal(signal.SIGTERM); out.append(f"wait {ended(pr)}")   # at once: its handlers are in place before the flag
 pr = start("desk", p, "--port", "0", until=f"{p}/out/review/.desk.json")
-time.sleep(0.5); pr.send_signal(signal.SIGTERM); out.append(f"desk {pr.wait(10)}")
+time.sleep(0.5); pr.send_signal(signal.SIGTERM); out.append(f"desk {ended(pr)}")
 pr = start("qa", f"{p}/audio/mix.wav", until=mark)
 t0 = time.time(); pr.send_signal(signal.SIGTERM)   # to bin/vh alone, as kill <pid> does: it must not wait for the stand-in
 try: rc = pr.wait(5)
@@ -4779,7 +4813,7 @@ except subprocess.TimeoutExpired: rc = "waited"
 out.append(f"qa {rc} " + ("at once" if time.time() - t0 < 2 and stub() else "late"))
 subprocess.run(["pkill", "-f", f"{t}/stub/uv"])
 pr = start("qa", f"{p}/audio/mix.wav", until=mark)
-os.killpg(pr.pid, signal.SIGINT); out.append(f"qa {pr.wait(10)}")
+os.killpg(pr.pid, signal.SIGINT); out.append(f"qa {ended(pr)}")
 subprocess.run(["pkill", "-f", f"{t}/stub/uv"])
 recs = [json.loads(x) for x in open(f"{p}/.ovh/activity.jsonl", encoding="utf-8")]
 out.append(" ".join(f"{r['cmd']}:{r['exit']}" for r in recs if r["event"] == "end"))
@@ -4962,7 +4996,8 @@ PY
 }
 
 # bin/vh frames (tools/film): frames drawn through the page contract (engines/CONTRACT.md) on its fixtures, with
-# whatever headless Chrome the machine has; the HyperFrames adapter only where its runtime is installed
+# whatever headless Chrome the machine has; determinism on them, the frame timeouts, a browser stuck on its way out.
+# render_checks and film_engine_checks take the page tools further (three groups, so the shards can share them out)
 film_checks() {
   local t a rc
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
@@ -5032,6 +5067,18 @@ console.log(r, Math.round((Date.now() - t0) / 1000)); process.exit(0);' "$t/stuc
   a=$(vh determinism tools/film/fixture/stateful.html --samples 2 --out "$t/h" 2>&1); rc=$?
   case "$rc:$a" in 1:*"does not hold"*) ok "determinism: a frame that depends on the frames before it does not hold (exit 1)" ;;
     *) bad "determinism on a stateful page: exit $rc: $(printf '%s' "$a" | tail -c 700)" ;; esac
+  rm -rf "$t"
+}
+film_chrome() {   # film_chrome: whether the page tools find a headless Chrome (asked of a page that is not there: none starts)
+  case $(vh frames "$ROOT/tools/film/fixture/no-such-page.html" --at 0 2>&1) in *"needs a headless Chrome"*) return 1 ;; esac
+}
+
+# bin/vh render and patch (tools/film) on the same fixtures: chunks and keyframes, motion blur and alpha, the queue and
+# its resume, the disk floor, patch's windows, versions, --in-place, proxy and thumbs (where ffmpeg and ffprobe are)
+render_checks() {
+  local t a rc
+  film_chrome || { skip "render" "no Chrome, Chromium or chrome-headless-shell"; return; }
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
     a=$(vh render tools/film/fixture --workers 2 --gop 30 --out "$t/r/film.mp4" 2>&1); rc=$?
     if [ $rc = 0 ] && python3 - "$t/r/film.mp4" <<'PY'
@@ -5506,6 +5553,15 @@ PY
         *) bad "status left out out/review/proxy/kept.mp4: $s" ;; esac ;;
       *) bad "thumbs from the page, proxy without a film (exit $rc:$rc2:$rc3): $(printf '%s' "$a$b$c" | tail -c 600)" ;; esac
   fi
+  rm -rf "$t"
+}
+
+# the page tools beyond frames: HyperFrames' adapter where its runtime is installed, the music clock's and the time map's
+# pages, the canvas-film engine's template (cues, covers, fonts, readcheck), the shot tools, and a Ctrl-C to each kind
+film_engine_checks() {
+  local t a rc
+  film_chrome || { skip "page tools" "no Chrome, Chromium or chrome-headless-shell"; return; }
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   if node -e 'import("./tools/film/host.mjs").then((m) => process.exit(m.findRuntime(process.cwd()) ? 0 : 1))' 2>/dev/null; then
     mkdir -p "$t/hf"
     cat > "$t/hf/index.html" <<'HTML'
@@ -5864,10 +5920,12 @@ PY
     || bad "Ctrl-C during the profile's removal: exit $rc, $left profile folder(s) and $alive Chrome process(es) left"
   pkill -KILL -f "$t/tmpr" 2>/dev/null
   # Ctrl-C after the last browser closed (determinism comparing its frames, synchronous work): the process ends at once,
-  # not after the comparisons (a signal listener left in place would hold the signal until the event loop turned again)
+  # not after the comparisons (a signal listener left in place would hold the signal until the event loop turned again).
+  # 32 moments: their comparisons (an ffmpeg each, as D draws without the host's clock) take 1.6 s on an M3 Max and longer
+  # on CI's runners, time enough to be caught at 0.1 s; the 95 there were took a minute to draw on GitHub's macOS runner
   printf '%s\n' '<!doctype html><canvas id="c" width="64" height="36"></canvas><script>const x = document.getElementById("c").getContext("2d");' \
     'window.film = { duration: 2, frame(t) { x.fillStyle = `rgb(${Math.floor(Math.random() * 255)},90,${Math.floor(t * 100)})`; x.fillRect(0, 0, 64, 36); } };</script>' > "$t/rnd.html"
-  "$VH_BASH" "$ROOT/bin/vh" determinism "$t/rnd.html" --at "$(seq -s, 0.02 0.02 1.9 | sed 's/,$//')" --out "$t/rnd-out" >/dev/null 2>&1 & pid=$!
+  "$VH_BASH" "$ROOT/bin/vh" determinism "$t/rnd.html" --at "$(seq -s, 0.02 0.06 1.9 | sed 's/,$//')" --out "$t/rnd-out" >/dev/null 2>&1 & pid=$!
   seen=0; for _ in $(seq 1 600); do if pgrep -P "$pid" -f psnr >/dev/null 2>&1; then seen=1; break; fi; kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
   if [ $seen = 1 ]; then kill -INT "$pid" 2>/dev/null; wait "$pid"; rc=$?
     [ "$rc" = 130 ] && ok "determinism stopped with Ctrl-C while comparing ends at once (exit 130)" || bad "determinism after Ctrl-C while comparing: exit $rc (it went on)"
@@ -6844,14 +6902,47 @@ PY
   rm -rf "$t"
 }
 
+# the groups (tools/ci-shards.txt): one a line, in the order a full run takes them, with their seconds on CI's macOS runner
+groups() { sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$ROOT/tools/ci-shards.txt"; }
+shard_of() { # shard_of <i> <n>: the groups of shard i of n, in the table's order. The longest first, each to the shard with
+  # the fewest seconds so far (ties: the earlier group, the lower shard), so the same table always deals the same shards
+  groups | awk -v i="$1" -v n="$2" '{ name[NR] = $1; w[NR] = $2 + 0; o[NR] = NR }
+    END { for (a = 2; a <= NR; a++) { x = o[a]; for (b = a - 1; b >= 1 && w[o[b]] < w[x]; b--) o[b + 1] = o[b]; o[b + 1] = x }
+          for (a = 1; a <= NR; a++) { m = 1; for (s = 2; s <= n; s++) if (load[s] < load[m]) m = s; to[o[a]] = m; load[m] += w[o[a]] }
+          for (a = 1; a <= NR; a++) if (to[a] == i) print name[a] }'
+}
+run_groups() { # run_groups <group…>: each group's checks, timed; then how long the run took, each group's seconds as
+  # tools/ci-shards.txt takes them (to copy there when the shards drift apart) and the ten slowest checks
+  local g g0 t0 s ms m tab=$'\t'
+  clock; t0=$CI_NOW
+  for g in "$@"; do clock; g0=$CI_NOW; CI_LAST=$CI_NOW; "$g"; clock; CI_GROUPS+=("$g $(( (CI_NOW - g0 + 500) / 1000 ))"); done
+  s=$(( (CI_NOW - t0 + 500) / 1000 ))
+  printf '%s took %d min %02d s. Each group in seconds, as tools/ci-shards.txt takes them:\n' "$CI_RUN" $((s / 60)) $((s % 60))
+  printf '  %s\n' ${CI_GROUPS[@]+"${CI_GROUPS[@]}"}
+  echo "The ten slowest checks, in seconds (from the check before, or from the start of its group):"
+  printf '%s\n' ${CI_TIMES[@]+"${CI_TIMES[@]}"} | sort -t "$tab" -k1,1nr | head -10 | while IFS="$tab" read -r ms m; do
+    printf '  %5d.%d  %s\n' $((ms / 1000)) $((ms % 1000 / 100)) "$m"; done
+}
+usage="usage: tools/ci.sh [--smoke | --shard i/n | --committed [--smoke | --shard i/n]]"
 case "${1:-all}" in
-  --smoke) smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks; model3d_checks; hdri_checks ;;
   --committed)   # exactly what a push would send: HEAD in a clean temporary checkout, uncommitted changes left out
+    shift
     w="$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")/head"; git worktree add -q --detach "$w" HEAD || exit 2
-    (cd "$w" && tools/ci.sh); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
-  all) static_checks; doc_checks; readpath_report; smoke_checks; pace_checks; timeline_checks; series_checks; decision_checks; gate_checks; desk_checks; looks_checks; activity_checks; status_checks; know_checks; assets_checks; concept_checks; hf_checks; scout_checks; textcheck_checks; film_checks; edit_checks; edit_footage_checks; edit_cache_checks; components_checks; model3d_checks; hdri_checks ;;
-  *) echo "usage: tools/ci.sh [--smoke | --committed]"; exit 2 ;;
+    (cd "$w" && tools/ci.sh "$@"); rc=$?; git worktree remove --force "$w"; rmdir "$(dirname "$w")"; exit $rc ;;
+  --shard)   # i/n, 1 <= i <= n
+    case "$#:${2:-}" in 2:[1-9]*/[1-9]*) ;; *) echo "$usage" >&2; exit 2 ;; esac
+    i=${2%/*} n=${2#*/}
+    case "$i$n" in *[!0-9]*) echo "$usage" >&2; exit 2 ;; esac
+    [ "$i" -le "$n" ] || { echo "$usage" >&2; exit 2; }
+    CI_RUN="Shard $i/$n" list=$(shard_of "$i" "$n") ;;
+  --smoke) [ $# = 1 ] || { echo "$usage" >&2; exit 2; }
+    CI_RUN="The smoke tests" list=$(groups | awk '$1 !~ /^(static_checks|doc_checks|readpath_report)$/ { print $1 }') ;;
+  all) [ $# -le 1 ] || { echo "$usage" >&2; exit 2; }
+    CI_RUN="The run" list=$(groups | awk '{ print $1 }') ;;
+  *) echo "$usage" >&2; exit 2 ;;
 esac
+# shellcheck disable=SC2086   # one group a word
+run_groups $list
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these
 [ $fails = 0 ] && ok "all checks passed" || printf '\033[31m%s check(s) failed\033[0m\n' "$fails"
 exit $fails

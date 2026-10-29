@@ -44,13 +44,16 @@
 
 ## 推送前自查：`tools/ci.sh`
 
-本地和 CI 跑的是同一个脚本，几秒钟跑完：
+本地和 CI 跑的是同一个脚本。整套在一台 M3 Max 上要 10 分钟左右；CI 的 Linux 机器一次跑完，约 15 分钟；macOS 机器慢一倍多，分成两个 shard 并排跑，每个 16 分钟上下：
 
 ```bash
 tools/ci.sh                        # 全部检查；没装 shellcheck、pyflakes、ffmpeg 时，相应几项会跳过
 tools/ci.sh --committed            # 只检查已提交的内容（HEAD），和 CI 看到的一样；推送前用这个
 VH_BASH=/bin/bash tools/ci.sh      # macOS：用系统自带的 bash 3.2 跑，Mac 用户默认用的就是它
+tools/ci.sh --shard 1/2            # 只跑两个 shard 里的第 1 个，CI 的 macOS 就是这样分两半跑的
 ```
+
+跑完会打印总时长、每组检查各用了几秒，和最慢的十项。分组和每组的秒数记在 `tools/ci-shards.txt` 里，秒数按 CI 的 macOS 机器算：`--shard i/n` 照这些秒数把组分给各个 shard，长的先分，每次分给目前秒数最少的那个，同一张表永远分得一样。新加一组检查（`tools/ci.sh` 里一个 `*_checks` 函数）要在表里加一行，`tools/ci.sh` 会查表和函数对不对得上。两个 macOS shard 的用时差出一两分钟以上，就把两个 shard 日志末尾的各组秒数抄回表里，重新分匀。
 
 本地没装 shellcheck 和 pyflakes 时，这两项会跳过，CI 的 Linux 机器却会查，推上去才红。有 `uv` 的话不用装（shellcheck-py 的版本可能和 CI 的不同，以 CI 为准）：
 
@@ -111,6 +114,7 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 - **提交关联不到 GitHub 账号时要多一个批准**（`require_extra_approval_for_unattributed_changes`）。GitHub 创建规则集时默认就会打开，文件里写明是为了和线上一致。agent 的提交要用关联了账号的邮箱，否则这个 PR 需要管理员在 PR 里绕过才能合并。
 - **批准数填 0。** GitHub 不允许批准自己的 PR，而 agent 开的 PR 作者也是主人自己。要求 1 个批准的话，没有第二个人就什么都合不了。以后有了协作者，改成 1。
 - **CI 同时跑 Linux 和 macOS。** 这次最严重的几个 bug 都只在一个平台上出现：维护者在 Mac 上一切正常，Linux 用户却渲染不了样片。在 macOS 上还专门用系统的 bash 3.2 跑 `bin/vh`。
+- **macOS 那一项是汇总。** macOS 的检查分两个 shard 并排跑（`macos shard 1/2`、`macos shard 2/2`），规则集要求的 `checks (macos-latest)` 是另一个 job：等两个 shard 都跑完，两个各自通过才算通过。它带 `if: always()`，shard 失败、被取消、没启动时照样运行并报失败。GitHub 把被跳过的必需检查当成通过，汇总 job 要是能被跳过，红的 PR 也可能被自动合并。
 - **要求分支是最新的。** [第一个 PR](https://github.com/ZLHad/OpenVideoHarness/pull/1) 开着的时候 main 发了 v0.2.1，两边改了同一个文件。要求同步到最新以后，CI 检查的是合并后的真实结果，不是过期的分支。
 - **squash 加线性历史。** 一个 PR 在 main 上只留一个提交，和 CHANGELOG 的条目一一对应。
 - **打开 auto-merge。** 它只是"检查过了就合并"的排队，规则集的每一项照样要满足，合并方式也只能是 squash；好处是 CI 要跑几分钟时，人和 agent 都不用守着。
