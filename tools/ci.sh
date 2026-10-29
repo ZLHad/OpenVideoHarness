@@ -6920,7 +6920,8 @@ run_groups() { # run_groups <group…>: each group's checks, timed; then how lon
   printf '%s took %d min %02d s. Each group in seconds, as tools/ci-shards.txt takes them:\n' "$CI_RUN" $((s / 60)) $((s % 60))
   printf '  %s\n' ${CI_GROUPS[@]+"${CI_GROUPS[@]}"}
   echo "The ten slowest checks, in seconds (from the check before, or from the start of its group):"
-  printf '%s\n' ${CI_TIMES[@]+"${CI_TIMES[@]}"} | sort -t "$tab" -k1,1nr | head -10 | while IFS="$tab" read -r ms m; do
+  # (awk reads every line: a head that stops early leaves GNU sort writing into a closed pipe, which it says)
+  printf '%s\n' ${CI_TIMES[@]+"${CI_TIMES[@]}"} | sort -t "$tab" -k1,1nr | awk 'NR <= 10' | while IFS="$tab" read -r ms m; do
     printf '  %5d.%d  %s\n' $((ms / 1000)) $((ms % 1000 / 100)) "$m"; done
 }
 usage="usage: tools/ci.sh [--smoke | --shard i/n | --committed [--smoke | --shard i/n]]"
