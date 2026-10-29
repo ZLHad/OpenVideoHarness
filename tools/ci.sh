@@ -4580,19 +4580,19 @@ PY
   then ok "the Three.js layer: a GLB's clip set to the film's time (0.25 s into a loop at t 0.25 and 1.25: one picture), a pose put back after its frame, the camera's moves, in any order and another browser (determinism, --soft-gl); the shot's 2D over the 3D"
   else bad "the Three.js layer on a page (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   # ready names every problem of a shot's three at once: a clip the model lacks, one played once that stops before its
-  # shot does, a model that is not there, a key the layer does not read, an ease that is no name of its table (not even
-  # one every object has, "constructor"); FILM.three without three/ says how to get it
+  # shot does, a model that is not there, a key the layer does not read, an ease that is no name of its table (and not
+  # "constructor" as a model or an ease: every object has one); FILM.three without three/ says how to get it
   printf '%s\n' 'Object.assign(FILM, { width: 160, height: 90, timeline: false, duration: 3, grain: 0, fadeOut: 0, images: {},' \
     '  three: { models: { box: "assets/models/box.glb" } } });' \
-    'const SHOTS = [{ id: "S01", at: 0, three: { play: { box: "bend" }, show: ["box", "crate"] }, draw() {} },' \
+    'const SHOTS = [{ id: "S01", at: 0, three: { play: { box: "bend" }, show: ["box", "crate", "constructor"] }, draw() {} },' \
     '  { id: "S02", at: 1.5, three: { play: { box: "wave" }, spin: 1, cam: { from: { pos: [0, 1, 4] }, to: { pos: [1, 1, 4] }, ease: "constructor" } }, draw() {} }];' > "$p/src/50-shots.js"
   a=$(vh frames "$p" --at 1 --soft-gl --out "$t/f" 2>&1); rc=$?
   rm -rf "$p/three"
   b=$(vh frames "$p" --at 1 --soft-gl --out "$t/f" 2>&1); rc2=$?
   case "$rc:$rc2:$a|$b" in 2:2:*'no model "crate"'*'"bend" is 1.00 s; played once from 0.00 s'*"has spin, which the layer does not read"*'has no clip "wave" (its clips: bend, lift'*"|"*"three/layer.js did not load"*"--engine canvas-film --three"*)
-      if grep -q -F '.ease: linear, sine, inOut, in, out, not "constructor"' <<<"$a"
-      then ok "the Three.js layer's ready: a missing clip, a clip that stops before its shot, an unknown model, key and ease (\"constructor\" too), all at once (exit 2); FILM.three without three/ says how to get it"
-      else bad "the Three.js layer's ready took the ease \"constructor\": $(printf '%s' "$a" | tail -c 500)"; fi ;;
+      if grep -q -F '.ease: linear, sine, inOut, in, out, not "constructor"' <<<"$a" && grep -q -F 'no model "constructor"' <<<"$a"
+      then ok "the Three.js layer's ready: a missing clip, a clip that stops before its shot, an unknown model, key and ease (\"constructor\" as a model and an ease too), all at once (exit 2); FILM.three without three/ says how to get it"
+      else bad "the Three.js layer's ready took \"constructor\" for a model or an ease: $(printf '%s' "$a" | tail -c 500)"; fi ;;
     *) bad "the Three.js layer's ready ($rc, $rc2): $a | $b" ;; esac
   rm -rf "$t"
 }

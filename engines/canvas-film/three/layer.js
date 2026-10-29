@@ -297,7 +297,7 @@ export async function load(spec, { width, height, dpr }) {
     if (sh.show !== undefined) {
       if (!Array.isArray(sh.show)) problems.push(`${at}.show): a list of FILM.three.models names`);
       else {
-        for (const k of sh.show) if (!M[k]) problems.push(`${at}.show): no model "${k}" (FILM.three.models: ${Object.keys(M).join(", ") || "none"})`);
+        for (const k of sh.show) if (!Object.hasOwn(M, k)) problems.push(`${at}.show): no model "${k}" (FILM.three.models: ${Object.keys(M).join(", ") || "none"})`);
         N.show = new Set(sh.show);
       }
     }
@@ -327,7 +327,7 @@ export async function load(spec, { width, height, dpr }) {
     const play = sh.play ?? {};
     if (!play || typeof play !== "object" || Array.isArray(play)) { problems.push(`${at}.play): { model: clip, … }`); return N; }
     for (const [key, v] of Object.entries(play)) {
-      const m = M[key], seen = new Set();
+      const m = Object.hasOwn(M, key) ? M[key] : null, seen = new Set();   // own names: "constructor" is in every object
       if (!m) { problems.push(`${at}.play): no model "${key}" (FILM.three.models: ${Object.keys(M).join(", ") || "none"})`); continue; }
       for (const raw of [].concat(v)) {
         const p = typeof raw === "string" ? { clip: raw } : raw, w = `${at}.play.${key})`;
