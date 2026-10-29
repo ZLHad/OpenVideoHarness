@@ -1,7 +1,7 @@
 """The upload copy of a finished film: re-encoded to fit a platform's file-size limit, compared with the master.
 
 usage (via bin/vh deliver): python tools/deliver.py <master.mp4> [--for bilibili,douyin,youtube] [--max-gb N] [--crf 16]
-                                  [--preset medium] [--out f.mp4] [--psnr sample|full|off] [--samples 8]
+                                  [--preset medium] [--out f.mp4] [--psnr sample|full|off] [--samples 8] [--matrix bt601|bt709]
 
 A master render is made to be cut and patched (bin/vh render: CRF 16, sometimes 14), not uploaded: a 14-minute 4K master
 was 10.4 GB, over Bilibili's web upload limit, and the platform re-encodes whatever it gets. This makes the copy to upload:
@@ -11,6 +11,9 @@ was 10.4 GB, over Bilibili's web upload limit, and the platform re-encodes whate
   - without a limit, x264 at --crf (16): the master's quality in a file with fixed keyframes, tags and the moov first
   - a keyframe every 2 s exactly, yuv420p, limited range, BT.709 with all four tags, moov first; the sound and subtitle
     tracks copied as they are (sound that is not AAC becomes AAC 320 kb/s)
+  - the master's colours converted by the matrix it tags. One that tags none (limited range) is refused unless --matrix
+    says which: ffmpeg writes BT.601 from RGB when nobody tells it otherwise (Manim CE does), and taking that for BT.709
+    shifts its colours (pure green comes out (0, 216, 0)). Untagged full range (a JPEG pipe's yuvj420p) is BT.601, as JPEG is
   - then it prints the size against each platform's limit and the PSNR against the master: --psnr sample (default) over
     --samples 2-second stretches spread over the film, full over every frame (a full decode of both; minutes for 4K), off
 The limits (PLATFORMS below; playbook/10-hooks-and-packaging.md, 交付编码, has the sources and the date they were checked)
@@ -25,7 +28,7 @@ counts in the record, "assets"). Under Assets: strict a check that fails, or can
 with no copy made and what failed said; under record the verdict is said and the copy made.
 Exit: 0 written and within every limit asked for ·
 1 written but over a limit asked for, without the four colour tags, or the PSNR could not be measured · 2 could not start (no ffmpeg, not a video,
-not enough disk, or Assets: strict and bin/vh assets check fails or cannot run).
+not enough disk, a colour matrix untagged and not given, or Assets: strict and bin/vh assets check fails or cannot run).
 """
 import argparse, glob, json, math, os, re, shutil, signal, subprocess, sys, time
 from pathlib import Path
@@ -163,6 +166,7 @@ def main():
     ap.add_argument("--out")
     ap.add_argument("--psnr", choices=["sample", "full", "off"], default="sample")
     ap.add_argument("--samples", type=int, default=8)
+    ap.add_argument("--matrix", choices=["bt601", "bt709"], help="the colour matrix of a master that tags none (Manim CE's is bt601)")
     a = ap.parse_args()
     for tool in ("ffmpeg", "ffprobe"):
         if not shutil.which(tool):
@@ -183,6 +187,17 @@ def main():
     if str(v.get("pix_fmt", "")).startswith(("yuva", "rgba", "bgra", "argb", "gbrap")):   # a transparent film (bin/vh render --alpha)
         die(f"{master.name} carries an alpha channel ({v.get('codec_name')}, {v.get('pix_fmt')}): it is made to be laid over footage, "
             "not uploaded, and an upload copy would turn its clear areas black. Deliver the film it goes into, or render without --alpha")
+    # the colour matrix, before anything else is done: a tagged master goes by its tag; one that tags none (limited range)
+    # needs --matrix, as nothing in the file says whether it is BT.601 or BT.709 (a full-range one is a JPEG pipe's: BT.601)
+    untagged = v.get("color_space") in (None, "", "unknown", "unspecified")
+    full = v.get("color_range") == "pc" or str(v.get("pix_fmt", "")).startswith("yuvj")
+    if untagged and not full and not a.matrix:
+        die(f"{master.name} tags no colour matrix ({v.get('pix_fmt')}, {v.get('color_range') or 'no range'}): nothing in it says whether it is "
+            "BT.601, which ffmpeg writes from RGB unless told otherwise (Manim CE does), or BT.709, and a wrong guess shifts the colours "
+            "(pure green comes out (0, 216, 0)). Say which with --matrix bt601 or --matrix bt709, or convert it first "
+            "(playbook/02-verification.md, 色彩标签; engines/README.md for Manim CE); no copy made")
+    if a.matrix and not untagged:
+        die(f"--matrix is for a master that tags no colour matrix; {master.name} tags {v.get('color_space')}, which is what it goes by")
     dur = float(info["format"].get("duration") or v.get("duration") or 0)
     if dur <= 0:
         die(f"{master.name}: no duration")
@@ -230,9 +245,9 @@ def main():
     tags = "setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv"
     conv = ""
     if col != ("yuv420p", "tv", "bt709"):
-        # the matrix as tagged; untagged full-range video (yuvj420p from a JPEG pipe) is BT.601, as JPEG is
-        jpeg = v.get("color_range") == "pc" or str(v.get("pix_fmt", "")).startswith("yuvj")
-        bt601 = v.get("color_space") in ("bt470bg", "smpte170m") or (jpeg and v.get("color_space") in (None, "", "unknown"))
+        # the matrix as tagged; untagged full-range video (yuvj420p from a JPEG pipe) is BT.601, as JPEG is; an untagged
+        # limited-range one is what --matrix says (refused above without it)
+        bt601 = v.get("color_space") in ("bt470bg", "smpte170m") or (untagged and (a.matrix == "bt601" if a.matrix else full))
         conv = (f"scale=in_color_matrix={'bt601' if bt601 else 'bt709'}:in_range="
                 f"{'pc' if v.get('color_range') == 'pc' or str(v.get('pix_fmt', '')).startswith('yuvj') else 'tv'}:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,")
     vf = ["-vf", conv + tags]

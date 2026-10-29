@@ -1102,6 +1102,18 @@ PY
     *) bad "deliver --for on a short master: exit $rc: $(printf '%s' "$a" | tail -c 500)" ;; esac
   a=$(vh deliver "$t/master.mp4" --max-gb 0.00001 2>&1); rc=$?
   case "$rc:$a" in 2:*"too little"*) ok "deliver: a limit that leaves no room for the picture is refused (exit 2)" ;; *) bad "deliver with a tiny limit: exit $rc: $a" ;; esac
+  # a master that tags no colour matrix, BT.601 as ffmpeg writes it from RGB unless told otherwise (Manim CE's are): refused
+  # with no copy and the way out said; with --matrix bt601 its green is green in the copy (taken for BT.709, as deliver
+  # did, it came out (0, 216, 0) under BT.709 tags); --matrix on a master that tags one is refused
+  ffmpeg -nostdin -v error -f lavfi -i "color=c=0x00ff00:s=320x180:r=30:d=1,format=rgb24" -pix_fmt yuv420p -c:v libx264 -crf 10 "$t/u601.mp4"
+  a=$(vh deliver "$t/u601.mp4" --psnr off 2>&1); rc=$?; [ -e "$t/u601.upload.mp4" ] && rc="$rc, a copy made"
+  b=$(vh deliver "$t/u601.mp4" --matrix bt601 --psnr off 2>&1); rc2=$?
+  c=$(vh deliver "$t/master.mp4" --matrix bt601 --out "$t/master.m.mp4" --psnr off 2>&1); rc3=$?
+  g=$(ffmpeg -nostdin -v error -i "$t/u601.upload.mp4" -frames:v 1 -vf "scale=in_color_matrix=bt709:in_range=tv:out_range=pc:flags=accurate_rnd+full_chroma_int,format=rgb24" -f rawvideo - 2>/dev/null |
+    python3 -c 'import sys; d = sys.stdin.buffer.read(); i = (90 * 320 + 160) * 3; p = d[i:i + 3]; print("ok" if len(p) == 3 and p[0] <= 3 and p[1] >= 252 and p[2] <= 3 else tuple(p))')
+  if [ "$rc:$rc2:$rc3:$g" = 2:0:2:ok ] && grep -q 'tags no colour matrix' <<<"$a" && grep -q -- '--matrix bt601' <<<"$a" && grep -q 'tags bt709, which is what it goes by' <<<"$c"
+  then ok "deliver: a master that tags no colour matrix is refused (exit 2, no copy, --matrix said); with --matrix bt601 its green stays green; --matrix on a tagged master is refused"
+  else bad "deliver on an untagged BT.601 master (exit $rc:$rc2:$rc3, the copy's green $g): $(printf '%s | %s | %s' "$a" "$b" "$c" | tail -c 500)"; fi
   # deliver under Assets: strict, no browser: two renders of one page (sidecars as bin/vh render writes them) and another
   # page's scratch film. The older render loaded a picture with no record: it stops (its own check, not the newest film's);
   # the newer one goes, though the scratch film's picture has no record either. A ledger it cannot read stops it too;
