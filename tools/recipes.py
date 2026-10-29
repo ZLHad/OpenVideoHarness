@@ -523,6 +523,8 @@ def check_file(path, lib=None):
     if heads:
         probs.append(f"missing body section(s): {', '.join(heads)} " + (
             f"(every shot-grammar card has {', '.join(GRAMMAR_HEADINGS)}; recipes/shot/close-up.md is one)" if kind == "grammar"
+            else f"(every sequence has {', '.join(SEQUENCE_HEADINGS)}; recipes/sequences/launch-15s.md is one, and "
+                 "recipes/sequences/README.md says what goes in each)" if kind == "sequence"
             else "(copy recipes/_TEMPLATE.md)"))
     if kind == "grammar":   # what a card is for: when to take it and when not, an item at least each
         for h in ("## 什么时候用", "## 什么时候别用"):
@@ -642,15 +644,18 @@ def library_checks(lib):
             if lines[target] != want:
                 probs.append(f"recipes/README.md: the {rid} row is {lines[target]!r}, the card makes {want!r} "
                              f"(bin/vh recipes list --grammar --md prints the rows)")
-        elif fm.get("kind", "recipe") == "recipe" and target in rows:
+        elif fm.get("kind", "recipe") == "recipe" and target in lines:   # the whole row as the card makes it, one-liner too
             try:
-                want = [span_text(fm["energy"]), span_text(fm["duration_f"], FPS) + " s", fm["status"]]
-            except (KeyError, TypeError, ValueError):
+                want = index_row(rid, p, fm)
+            except (KeyError, TypeError, ValueError):   # a field missing or malformed: said by the card's own check
                 continue
-            got = rows[target][2:5]
-            if got != want:
-                probs.append(f"recipes/README.md: the {rid} row says {' | '.join(got)}, the frontmatter says "
-                             f"{' | '.join(want)} (bin/vh recipes list --md prints the rows)")
+            if lines[target] != want:
+                cols = ["link", "one-liner", "energy", "length", "status"]
+                got, made = rows[target], [c.strip() for c in want.strip("|").split("|")]
+                which = [cols[i] if i < len(cols) else f"column {i + 1}" for i in range(max(len(got), len(made)))
+                         if i >= len(got) or i >= len(made) or got[i] != made[i]]
+                probs.append(f"recipes/README.md: the {rid} row differs from its card in its {', '.join(which)}: it is "
+                             f"{lines[target]!r}, the card makes {want!r} (bin/vh recipes list --md prints the rows)")
     for target in sorted(linked):
         if not (LIB / target).exists():
             probs.append(f"recipes/README.md: links {target}, which does not exist")

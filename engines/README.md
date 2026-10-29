@@ -243,7 +243,7 @@ npx remotion studio                        # 预览
 - 许可：个人和 3 人以内的公司免费，超过这个规模需要购买授权。
 - 官方 skills 已拉到本地：`references/repos/remotion-skills/skills/`。
 
-## Manim CE（Python），未安装
+## Manim CE（Python），装进每个项目
 
 本机已有 MacTeX、cairo、pango、ffmpeg。
 
@@ -256,6 +256,13 @@ uv run manim -ql scene.py MyScene                # 草稿：480p15
 uv run manim -qh --fps 30 scene.py MyScene       # 成片：1080p30（-qh 默认是 60fps）
 ```
 
+- **出片前转成 BT.709**：Manim CE 按 BT.601 编码，不写色彩标签（0.21 实测）；浏览器按 BT.709 读高清片，纯绿读成 (0,216,0)，`bin/vh check` 报色彩警告。只补标签不够，要转换（`bin/vh deliver` 把没有标签的片子当 BT.709，也不会转）。渲完、进 mux 之前转一遍，色块读回来差 1 以内：
+
+  ```bash
+  ffmpeg -i media/videos/scene/1080p30/MyScene.mp4 \
+    -vf "scale=in_color_matrix=bt601:in_range=tv:out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int,format=yuv420p,setparams=colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv" \
+    -c:v libx264 -crf 16 -preset medium -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 -c:a copy out/scene.mp4
+  ```
 - 用 `--bare`：普通的 `uv init` 会在项目里多生成 `.git`、`main.py`、`README.md`、`.python-version`。
 - **4K**：`-qk --fps 30`（`-qk` 默认 60 fps），画面比例和构图不变。
 - **竖屏**：只给 `-r 1080,1920` 时，`frame_width` 还是横屏的 14.22，16:9 的画面缩在中间一条，`to_edge(UP)` 落在画面中段（0.21 实测）。在项目里写一个 `manim.cfg`，Manim 才会按画幅重算 `frame_width`（8 × 1080 / 1920 = 4.5），画面铺满：

@@ -11,7 +11,8 @@
 # doc/CLI mismatch, and a CLI that exited 0 on typos. These checks keep those from coming back. The groups (the *_checks
 # functions below) and the order they run in are listed in tools/ci-shards.txt, with their time on CI's macOS runner.
 # A run ends with how long it took, each group's seconds and the ten slowest checks.
-# Exit status: the number of failed checks (0 = all passed).
+# Exit status: 0 when every check passed, 1 when any failed (the count is in the last line), 2 when it could not run
+# (a usage error; no groups to run).
 set -uo pipefail
 unset CDPATH   # an exported one could send this relative cd elsewhere (as in bin/vh)
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 2
@@ -27,6 +28,11 @@ ok() { took "$*"; printf '\033[32m✓\033[0m %s\n' "$*"; }
 bad() { took "$*"; printf '\033[31m✗\033[0m %s\n' "$*"; fails=$((fails + 1)); }
 skipped=""
 skip() { took "$1"; printf '\033[33m-\033[0m %s (skipped: %s)\n' "$1" "$2"; skipped="$skipped${skipped:+, }$1"; }
+no_chrome() { # no_chrome <what>: what needs a headless Chrome and found none. Here a skip; on CI (CI=true) a failure: every
+  # runner has one, and a skip there would pass a run that drew nothing
+  if [ "${CI:-}" = true ]; then bad "$1: no Chrome, Chromium or chrome-headless-shell on this CI runner, and the page tools need one"
+  else skip "$1" "no Chrome, Chromium or chrome-headless-shell"; fi
+}
 files() { git ls-files "$@" | grep -v -E '^references/|(^|/)node_modules/|\.min\.js$'; }
 
 static_checks() {
@@ -199,7 +205,7 @@ PY
   # the group table (tools/ci-shards.txt): a group and its seconds a line, each group once and a function here; a group
   # function (named *_checks or *_report) that is not in it is called by one that is (or it would run in no run and no
   # shard)
-  local g a="" b="" c="" d r1 r2 r3
+  local g a="" b="" c="" d e r1 r2 r3 r4
   a=$(groups | awk 'NF != 2 || $2 !~ /^[0-9]+$/ || seen[$1]++ { printf " %s", $0 }')
   for g in $(groups | awk '{ print $1 }'); do declare -F "$g" >/dev/null || b="$b $g"; done
   for g in $(sed -n -E 's/^([a-z0-9_]+_(checks|report))\(\) \{.*/\1/p' tools/ci.sh); do
@@ -210,14 +216,22 @@ PY
   # a table that leaves nothing to run (empty, gone) stops tools/ci.sh with exit 2, never "all checks passed"; a group
   # that is no function fails the run
   d=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); : > "$d/empty.txt"; printf 'readpath_report 0\nno_such_checks 1\n' > "$d/bogus.txt"
+  seq 1 256 | sed 's/.*/no_such_checks_& 1/' > "$d/many.txt"   # 256 failures: an exit status of 256 % 256 = 0 was a pass
   a=$(OVH_CI_SHARDS="$d/empty.txt" tools/ci.sh 2>&1); r1=$?
   b=$(OVH_CI_SHARDS="$d/gone.txt" tools/ci.sh --shard 1/2 2>&1); r2=$?
   c=$(OVH_CI_SHARDS="$d/bogus.txt" tools/ci.sh --shard 1/1 2>&1); r3=$?
+  e=$(OVH_CI_SHARDS="$d/many.txt" tools/ci.sh 2>&1); r4=$?
   rm -rf "$d"
-  if [ "$r1:$r2" = 2:2 ] && [ "$r3" != 0 ] && grep -q 'no groups to run' <<<"$a" && grep -q 'no groups to run' <<<"$b" \
-     && grep -q 'names no_such_checks, which is no function' <<<"$c" && ! grep -q 'all checks passed' <<<"$a$b$c"
-  then ok "tools/ci.sh: an empty table and none stop it (exit 2: no groups to run); a group that is no function fails the run (exit $r3)"
-  else bad "tools/ci.sh on broken tables (empty: exit $r1, gone: exit $r2, a group that is no function: exit $r3): $(printf '%s | %s | %s' "$a" "$b" "$c" | tail -c 400)"; fi
+  if [ "$r1:$r2:$r3:$r4" = 2:2:1:1 ] && grep -q 'no groups to run' <<<"$a" && grep -q 'no groups to run' <<<"$b" \
+     && grep -q 'names no_such_checks, which is no function' <<<"$c" && grep -q '256 check(s) failed' <<<"$e" && ! grep -q 'all checks passed' <<<"$a$b$c$e"
+  then ok "tools/ci.sh: an empty table and none stop it (exit 2: no groups to run); a group that is no function fails the run (exit 1), and so do 256 (exit 1, not 256 % 256)"
+  else bad "tools/ci.sh on broken tables (empty: exit $r1, gone: exit $r2, a group that is no function: exit $r3, 256 of them: exit $r4): $(printf '%s | %s | %s | %s' "$a" "$b" "$c" "$e" | tail -c 400)"; fi
+  # no headless Chrome for the page tools: a skip here, a failure on CI (CI=true), where a skip would pass a run that
+  # drew nothing
+  a=$( (CI=true; fails=0; no_chrome "a page group" >/dev/null; echo "$fails") )
+  b=$( (CI=""; fails=0; skipped=""; no_chrome "a page group" >/dev/null; echo "$fails:$skipped") )
+  if [ "$a|$b" = "1|0:a page group" ]; then ok "no Chrome for the page tools: a skip on this machine, a failure on CI (CI=true)"
+  else bad "no_chrome on CI and off it (failures, then failures:skipped): $a | $b"; fi
   # the workflow and the ruleset: each context the ruleset requires is the name of a job in ci.yml, and the job that
   # reports checks (macos-latest) runs whatever became of its shards (if: always(); a required check that is skipped
   # counts as passed)
@@ -955,6 +969,16 @@ print(sum("the close-up row is" in x for x in R.library_checks(lib)))' 2>&1 | tr
      && grep -q "missing body section(s): ## 什么时候别用 (every shot-grammar card has" <<<"$b" && ! grep -q "_TEMPLATE" <<<"$b" && grep -q "## 什么时候别用: no item under it" <<<"$f"
   then ok "recipes list --grammar lists the shot-grammar cards by grammar, all of them alone; check refuses a card without its sections or with none under one, a code twice in a grammar, a README row that is not the card's; --grammar takes no recipe filter, and says an unknown or a missing grammar"
   else bad "the shot-grammar cards: [$a] [$d] [$e] exit $rc:$rc2:$rc3:$rc4:$rc5, [$c] | $(printf '%s' "$b$f" | tail -c 300) | $(cat "$t/e1" "$t/e2" | head -c 200)"; fi
+  # a recipe's README row is the whole row its card makes (its one-liner too: only energy, length and status were held to
+  # the card), and a sequence that lacks a section is pointed to a sequence, not to the recipes' template
+  sed -e 's/^id: .*/id: ci-seq/' -e 's/^## 限额/## 别的/' recipes/sequences/launch-15s.md > "$t/seq.md"
+  b=$(vh recipes check "$t/seq.md" 2>&1); rc=$?
+  c=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import recipes as R
+lib = R.load_library(); p, fm = lib["hold-confirm"]; lib["hold-confirm"] = (p, dict(fm, one_liner=fm["one_liner"] + "，再停一拍"))
+print(sum("the hold-confirm row differs from its card in its one-liner" in x for x in R.library_checks(lib)))' 2>&1)
+  if [ "$rc" = 1 ] && grep -q "## 限额 (every sequence has" <<<"$b" && ! grep -q "_TEMPLATE" <<<"$b" && [ "$c" = 1 ]
+  then ok "recipes check: a README row is the whole row its card makes (a one-liner that differs too); a sequence without a section is pointed to the sequences"
+  else bad "recipes check on a README row and a sequence (exit $rc, rows $c): $(printf '%s' "$b" | tail -c 300)"; fi
   a=$(vh recipes list -h 2>&1); rc=$?; b=$(vh recipes check --help 2>&1); rc2=$?
   case "$rc:$rc2|$a|$b" in "0:0|"*"usage: bin/vh recipes list"*"|"*"usage: bin/vh recipes list"*) ok "recipes list -h and check --help print the help" ;;
     *) bad "recipes list -h / check --help exited $rc / $rc2: $(printf '%s' "$a" | head -c 200)" ;; esac
@@ -2480,7 +2504,7 @@ PY
     vh assets remove "$fp" crs-png.frames >/dev/null 2>&1; rm -rf "$fp/assets/frames/crs-png"
     a=$(vh render "$fp" --out "$fp/out/film.mp4" --workers 1 2>&1); rc=$?
     case "$rc:$a" in
-      *"needs a headless Chrome"*) skip "footage end to end (render, assets check, deliver's credits)" "no Chrome, Chromium or chrome-headless-shell" ;;
+      *"needs a headless Chrome"*) no_chrome "footage end to end (render, assets check, deliver's credits)" ;;
       0:*) a=$(vh assets check "$fp" 2>&1); rc=$?
         b=$(vh deliver "$fp/out/film.mp4" --psnr off 2>&1); rc2=$?
         case "$rc:$rc2|$a|$b" in "0:0|"*"121 files their pages loaded"*"pass (0 fail, 0 warn)"*"|"*"credits: 1 line(s) the licences ask for, 1 courtesy"*'- “SpaceX CRS-35 launch and jellyfish cloud”, The Eloquent Peasant, Wikimedia Commons'*"CC BY 4.0"*'- “Artemis II Launch from OSB II Balcony - Slo Mo”'*"NASA ("*)
@@ -3507,7 +3531,7 @@ PY
   e="$t/e"; cp -R tools/assets/fixtures/project "$e"; printf 'fixture clip\n' > "$e/assets/genclips/gc-0001/clip.mp4"
   a=$(vh render "$e" --out "$e/out/film.mp4" --workers 1 2>&1); rc=$?
   case "$rc:$a" in
-    *"needs a headless Chrome"*) skip "assets end to end (render, check both ways, status, review, deliver, patch)" "no Chrome, Chromium or chrome-headless-shell" ;;
+    *"needs a headless Chrome"*) no_chrome "assets end to end (render, check both ways, status, review, deliver, patch)" ;;
     0:*)
       mkdir -p "$e/audio"; printf 'mix' > "$e/audio/mix.wav"; printf 'voice' > "$e/audio/voiceover.zh.wav"
       python3 - "$e" <<'PY'
@@ -4044,6 +4068,20 @@ PY
   b=$(OVH_COMPONENTS="$t/comp" vh components check 2>&1); rc2=$?
   case "$rc:$rc2:$b" in 0:1:*"slices's default is 48 in component.js, 12 in slots.json"*) ok "components check: each component's defaults are its slots.json's, its painters exported, a sample there; a default that differs is named" ;;
     *) bad "components check ($rc, $rc2): $a | $b" ;; esac
+  # lib.easeOf: an unknown string gets each caller's own fallback (the first call's used to be cached for all), and a
+  # name is one of lib.ease's own (an object's inherited constructor or toString used to be taken for a curve)
+  if a=$(cd "$ROOT" && node --input-type=module -e '
+import { easeOf, ease } from "./components/lib/core.js";
+const bad = [];
+if (easeOf("bogus", ease.linear) !== ease.linear || easeOf("bogus", ease.inCubic) !== ease.inCubic || easeOf("bogus") !== ease.outExpo) bad.push("an unknown string kept the first fallback");
+for (const n of ["constructor", "toString", "__proto__", "hasOwnProperty", "Constructor"]) {
+  let f; try { f = easeOf(n); } catch (e) { f = e.message; }
+  if (f !== ease.outExpo) bad.push(`${n}: ${typeof f === "function" ? f.name || "a function" : f}`);
+}
+const o = easeOf("ease-out");
+if (o !== easeOf("ease-out") || !(Math.abs(o(0.5) - 0.6846) < 1e-3) || easeOf("outExpo") !== ease.outExpo || easeOf("steps(4)")(0.6) !== 0.5) bad.push("the curves themselves");
+console.log(bad.join("; ")); process.exit(bad.length ? 1 : 0);' 2>&1); then ok "components lib: easeOf gives an unknown string each caller's own fallback, and takes only lib.ease's own names (constructor, toString, __proto__ are none)"
+  else bad "components lib, easeOf: $a"; fi
   # every state() is a function of its arguments: the same JSON forwards, backwards and alone
   if a=$(cd "$ROOT" && node --input-type=module -e '
 const bad = [], ts = [0, 0.3, 0.71, 1.2, 2.5, 3.9, 4.99];
@@ -4123,7 +4161,7 @@ window.film = { duration: 2,
 </script></body></html>
 HTML
   a=$(vh frames "$p/classic.html" --at 0.5 --out "$t/f" 2>&1); rc=$?
-  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "components on a page" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) no_chrome "components on a page"; rm -rf "$t"; return ;; esac
   b=$(vh frames "$p/modules.html" --at 1.0 --out "$t/f" 2>&1); rc2=$?
   if [ "$rc:$rc2" = "0:0" ] && python3 - "$t/f/classic-t0000.500.png" "$t/f/modules-t0001.000.png" <<'PY'
 import struct, sys, zlib
@@ -4413,7 +4451,7 @@ PY
   [ -n "$p" ] || { rm -rf "$t"; return; }
   python3 tools/model3d/fixture.py --film "$p"
   a=$(vh determinism "$p" --at 0.25,0.5,1.25,2.5 --soft-gl --min-psnr 45 --out "$t/d" 2>&1); rc=$?
-  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "the Three.js layer on a page" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) no_chrome "the Three.js layer on a page"; rm -rf "$t"; return ;; esac
   case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) skip "the Three.js layer on a page" "no WebGL here even with --soft-gl"; rm -rf "$t"; return ;; esac
   if [ $rc = 0 ] && printf '%s' "$a" | grep -q "determinism: holds" && cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0001.250.png" \
      && ! cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0000.500.png" && ! cmp -s "$t/d/A-t0000.500.png" "$t/d/A-t0002.500.png" \
@@ -4483,7 +4521,7 @@ PY
       'SHOTS.push({ id: "S02", at: 6, three: { pose(t, s, W3) { BUILD.three(MESH, BUILD.state(TOWER, 99), TOWER, THREE); W3.scene.getObjectByName("light0").intensity = 0; } }, draw() {} });' \
       >> "$p/src/50-shots.js"
   a=$(vh determinism "$p" --at 0.2,2.5,5.9,7 --soft-gl --out "$t/d" 2>&1); rc=$?
-  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "build-up in the Three.js layer" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) no_chrome "build-up in the Three.js layer"; rm -rf "$t"; return ;; esac
   case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) skip "build-up in the Three.js layer" "no WebGL here even with --soft-gl"; rm -rf "$t"; return ;; esac
   if [ $rc = 0 ] && printf '%s' "$a" | grep -q "determinism: holds" && ! cmp -s "$t/d/A-t0000.200.png" "$t/d/A-t0002.500.png" \
      && px_are "$t/d/A-t0000.200.png" 'P[0][2] > P[0][0] + 8 and not P[1][0] > P[1][2] + 40' 80,3 80,45 \
@@ -4993,7 +5031,7 @@ textcheck_checks() {
   local t a rc
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   a=$(vh textcheck tools/textcheck/fixture --out "$t/out" 2>&1); rc=$?
-  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "textcheck" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) no_chrome "textcheck"; rm -rf "$t"; return ;; esac
   if [ $rc = 1 ] && python3 - "$t/out/textcheck.json" <<'PY'
 import json, sys
 d = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -5043,7 +5081,7 @@ film_checks() {
   local t a rc
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   a=$(vh frames tools/film/fixture --at 0.5,2.5 --out "$t/a" 2>&1); rc=$?
-  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "frames" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) no_chrome "frames"; rm -rf "$t"; return ;; esac
   vh frames tools/film/fixture --at 2.5 --out "$t/b" >/dev/null 2>&1
   if [ $rc = 0 ] && cmp -s "$t/a/index-t0002.500.png" "$t/b/index-t0002.500.png" && printf '%s' "$a" | grep -q "read Math.random" \
      && python3 -c "import struct, sys; d = open(sys.argv[1], 'rb').read(); sys.exit(0 if struct.unpack('>II', d[16:24]) == (320, 180) else 1)" "$t/b/index-t0002.500.png"
@@ -5118,7 +5156,7 @@ film_chrome() {   # film_chrome: whether the page tools find a headless Chrome (
 # its resume, the disk floor, patch's windows, versions, --in-place, proxy and thumbs (where ffmpeg and ffprobe are)
 render_checks() {
   local t a rc
-  film_chrome || { skip "render" "no Chrome, Chromium or chrome-headless-shell"; return; }
+  film_chrome || { no_chrome "render"; return; }
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
     a=$(vh render tools/film/fixture --workers 2 --gop 30 --out "$t/r/film.mp4" 2>&1); rc=$?
@@ -5601,7 +5639,7 @@ PY
 # pages, the canvas-film engine's template (cues, covers, fonts, readcheck), the shot tools, and a Ctrl-C to each kind
 film_engine_checks() {
   local t a rc
-  film_chrome || { skip "page tools" "no Chrome, Chromium or chrome-headless-shell"; return; }
+  film_chrome || { no_chrome "page tools"; return; }
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   if node -e 'import("./tools/film/host.mjs").then((m) => process.exit(m.findRuntime(process.cwd()) ? 0 : 1))' 2>/dev/null; then
     mkdir -p "$t/hf"
@@ -6088,7 +6126,7 @@ PY
   mkdir -p "$t/one" && sed 's/duration: 2.24,/duration: 0.54,/' "$t/e/ch.html" > "$t/one/ch.html" && cp -R "$t/e/audio" "$t/one/"
   printf '{"v": 1, "fps": 30, "size": [160, 90], "sources": {"ch": {"page": "ch.html", "clock": "film"}}, "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "ch", "end": 0.54}]}]}\n' > "$t/one/edit.json"
   a=$(vh render "$t/one/ch.html" --gop 15 --workers 1 --out "$t/one/page.mp4" 2>&1); rc=$?
-  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "edit lists drawn" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) no_chrome "edit lists drawn"; rm -rf "$t"; return ;; esac
   a=$(vh render "$t/one" --gop 15 --workers 1 --out "$t/one/edit.mp4" 2>&1); rc=$?
   if [ $rc = 0 ] && python3 - "$t/one" <<'PY'
 import json, re, subprocess, sys
@@ -6247,7 +6285,7 @@ PY
   # read back from the film; the page's chunk and the clip's are one SPS/PPS, and the film decodes to the end; the same
   # with the page captured as PNG (--png: frames 9–20, a page chunk and a clip chunk)
   a=$(vh render "$p" --gop 15 --workers 2 2>&1); rc=$?
-  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "an edit list's footage" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) no_chrome "an edit list's footage"; rm -rf "$t"; return ;; esac
   b=$(vh render "$p" --png --frames 9:21 --gop 15 --workers 1 --out "$p/out/png.mp4" 2>&1); rc2=$?
   if [ "$rc:$rc2" = 0:0 ] && printf '%s' "$a" | grep -q 'S02 cam: 24000/1001 fps into 30 fps: one frame shown twice' && python3 - "$p" <<'PY'
 import json, subprocess, sys
@@ -6428,7 +6466,7 @@ PY
   # 1: the logo is missing (said, exit 1): its page keeps none of its chunks · 2: with it there, the page is drawn again,
   # the rest taken · 3: nothing changed, every chunk taken, the same bytes
   a=$(vh render "$q" --gop 6 --workers 1 --out "$q/out/1.mp4" 2>&1); rc=$?
-  case "$rc:$a" in 2:*"needs a headless Chrome"*) skip "an edit list's chunk cache" "no Chrome, Chromium or chrome-headless-shell"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in 2:*"needs a headless Chrome"*) no_chrome "an edit list's chunk cache"; rm -rf "$t"; return ;; esac
   cp "$t/logo.png" "$q/img/logo.png"
   vh render "$q" --gop 6 --workers 1 --out "$q/out/2.mp4" >/dev/null 2>&1; rc2=$?
   b=$(vh render "$q" --gop 6 --workers 1 --out "$q/out/3.mp4" 2>&1); rc3=$?
@@ -7001,4 +7039,5 @@ esac
 run_groups $list
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these
 [ $fails = 0 ] && ok "all checks passed" || printf '\033[31m%s check(s) failed\033[0m\n' "$fails"
-exit $fails
+# 1, not the count: an exit status is the count modulo 256, and 256 failed checks would have been a pass
+[ "$fails" = 0 ] || exit 1
