@@ -139,6 +139,37 @@ def mime_of(path):
     return {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"}.get(Path(path).suffix.lower())
 
 
+PICTURE_NAMES = {"image/png": "PNG", "image/jpeg": "JPEG", "image/webp": "WebP"}
+
+
+def picture_type(path):
+    """What a file is by its first bytes: "image/png", "image/jpeg" or "image/webp"; None for anything else, or unreadable."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(12)
+    except OSError:
+        return None
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def picture_problem(path):
+    """None when a file's name and its bytes agree on a PNG, JPEG or WebP; else what is wrong, in a few words (a JPEG
+    named .png goes to a vendor as a PNG it is not, and a text file named .png as a picture)."""
+    by_name, by_bytes = mime_of(path), picture_type(path)
+    if by_bytes is None:
+        named = "" if by_name else f" (nor does its name: {Path(path).suffix or 'no extension'})"
+        return "its bytes are no PNG, JPEG or WebP" + named
+    if by_name != by_bytes:
+        return f"named {Path(path).suffix or 'with no extension'}, but its bytes are a {PICTURE_NAMES[by_bytes]}: rename it or convert it"
+    return None
+
+
 def cast_said(labels):
     """[(n, label)] of the pictures --ref cast:<id> sent → "references 1–3: cast:fox (character: …); 4: …": the prompt
     should say which picture is which"""
@@ -153,7 +184,7 @@ def cast_said(labels):
 
 
 def gemini_body(model, prompt, refs, aspect, size, seed):
-    parts = [{"type": "text", "text": prompt}] + [{"type": "image", "mime_type": mime_of(r), "data": base64.b64encode(Path(r).read_bytes()).decode("ascii")}
+    parts = [{"type": "text", "text": prompt}] + [{"type": "image", "mime_type": picture_type(r) or mime_of(r), "data": base64.b64encode(Path(r).read_bytes()).decode("ascii")}
                                                  for r in refs]
     return {"model": model, "input": parts, "response_format": {"type": "image", "mime_type": "image/jpeg", "aspect_ratio": aspect, "image_size": size},
             "generation_config": {"seed": seed, **({"thinking_level": THINKING[model]} if model in THINKING else {})}, "store": False}
@@ -508,9 +539,13 @@ def cmd_gen(a):
                 refs.append(f); labels.append((len(refs), label))
             continue
         f = ledger.find_file(project, r)
-        if f is None or not f.is_file() or not mime_of(f):
+        if f is None or not f.is_file():
             raise Usage(f"--ref {r}: no such PNG, JPEG or WebP (from here, nor in the project), nor cast:<id>")
         refs.append(f)
+    for f in refs:   # each picture by its bytes, not its name: what is sent goes as what it is
+        why = picture_problem(f)
+        if why:
+            raise Usage(f"--ref {ledger.rel(project, f)}: {why}")
     twice = sorted({ledger.rel(project, f) for f in refs if sum(Path(x).resolve() == Path(f).resolve() for x in refs) > 1})
     if twice:   # cast:fox and cast:fox:front, or one --ref given twice: the same picture goes (and is paid for) twice
         say(f"  ! the same picture is sent more than once: {', '.join(twice)} (one --ref each is enough)")

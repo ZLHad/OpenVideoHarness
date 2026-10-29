@@ -71,6 +71,7 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 | 文档和命令行一致 | 命令表 `tools/commands.json`、`CLAUDE.md` 的命令行和 `bin/vh` 实际分发的命令对不上；表里缺一句话、阶段或用法，阶段名和 playbook/01 的总表不一致；文档里写了不存在的 `bin/vh` 子命令；`AGENTS.md` 没有同步 |
 | 外接模块表 | `tools/modules.json` 里写了不存在的命令或适配文件、不认识的字段；探测不走 https、把 key 放进 URL；HyperFrames 钉的版本在 `bin/vh`、`styles/_swatch/package.json` 和表里不一样；`bin/vh doctor` 把 key 的值打出来 |
 | README 的数字和链接 | 两份 README 和 `docs/assets/overview.*.svg` 写的命令数、风格数、配方数这类数字和仓库对不上（`python3 tools/readme.py` 列出现在的数）；链接或图片指向不存在的文件，`#锚点` 不是那一页的标题；中英两份 README 的小节数或链接的文件对不上 |
+| 研究笔记两种语言对齐 | `docs/research/` 的一篇笔记缺了英文版或中文版，两版的节数（`##`、`###`）、表格行数、图的张数对不上；中英两份索引漏了一篇、多列了不存在的一篇，或顺序不对 |
 | `bin/vh` 冒烟测试 | 打错命令也返回 0；`--effort`、`--style` 没写进项目；字幕语言被文件夹名带偏（`/home/zhang/…` 下的英文字幕被标成中文）；音频比画面短时被截断；gif 输出名算错 |
 
 另外，`tools/ci.sh` 会打印一张读量表（`tools/readpath.py`）：按 CLAUDE.md 的路由和 quick 卡，估算每一档、每一类片子开工前要读多少字符，用来看文档有没有越写越长，上限以后再定。数字本身不判失败；它要数的文件或章节不见了，CI 会报错，免得这张表悄悄变小。

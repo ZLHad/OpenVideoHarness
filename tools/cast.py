@@ -77,6 +77,11 @@ class Usage(Exception):
     pass
 
 
+def picture_problem(p):   # what is wrong with a picture by its bytes (tools/assets/image.py): a JPEG named .png, a text file
+    from image import picture_problem as by_bytes   # named .png; None when name and bytes agree
+    return by_bytes(p)
+
+
 def sha256(p):
     h = hashlib.sha256()
     with open(p, "rb") as f:
@@ -199,6 +204,8 @@ def problems(project, cid, d, known=None):
         digest = None
         if not p.is_file():
             fail(f"refs[{i}]: {f} is not in the folder")
+        elif Path(f).suffix.lower() in PICTURE and (why := picture_problem(p)):   # by its bytes, as image gen sends it
+            fail(f"refs[{i}]: {f}: {why}")
         elif r.get("sha256") and (digest := sha256(p)) != r["sha256"]:
             fail(f"refs[{i}]: {f} is not the picture on record (its bytes changed): what was made from it may need making "
                  f"again; bin/vh cast add {cid} --ref {CAST}/{cid}/{f} records it as it is")
@@ -379,6 +386,8 @@ def cmd_add(a):
             raise Usage(f"--ref {spec}: no such picture (from here, nor in the project)")
         if p.suffix.lower() not in PICTURE:
             raise Usage(f"--ref {spec}: a PNG, JPEG or WebP")
+        if why := picture_problem(p):   # by its bytes too: what image gen sends must be what it is named
+            raise Usage(f"--ref {spec}: {why} (nothing was changed)")
         plans.append((p.resolve(), view, spec))
     # every picture's place in the folder, decided and checked before anything is copied or written
     planned, steps = {}, []   # name → the bytes it is to hold, in this add

@@ -49,13 +49,19 @@ def save_json(path, rec):
         except OSError as e:
             print(f"speccheck: could not write {path} ({e.strerror or e})", file=sys.stderr)
 
+def tag_seconds(v):
+    """A Matroska DURATION tag ("HH:MM:SS.fffffffff") in seconds; 0 when there is none or it is not that."""
+    m = re.match(r"^(\d+):(\d+):(\d+(?:\.\d+)?)$", str(v or "").strip())
+    return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3)) if m else 0.0
+
+
 def main():
     ap = argparse.ArgumentParser(prog="speccheck.py", usage="python3 tools/speccheck.py <video> [--brief BRIEF.md] [--json f]")
     ap.add_argument("video"); ap.add_argument("--brief"); ap.add_argument("--json")
     a = ap.parse_args()
     try:
         out = subprocess.run(["ffprobe", "-v", "error", "-count_packets", "-select_streams", "v:0", "-show_entries",
-                              "stream=width,height,r_frame_rate,avg_frame_rate,nb_read_packets,sample_aspect_ratio,duration:format=duration",
+                              "stream=width,height,r_frame_rate,avg_frame_rate,nb_read_packets,sample_aspect_ratio,duration:stream_tags=DURATION:format=duration",
                               "-of", "json", a.video], capture_output=True, text=True)
     except OSError as e:
         print(f"speccheck: cannot run {e.filename or 'ffprobe'}: {e.strerror}", file=sys.stderr); sys.exit(2)
@@ -65,17 +71,33 @@ def main():
     W, H, n = st["width"], st["height"], int(st.get("nb_read_packets") or 0)
     rate = Fraction(st["r_frame_rate"]); fps = float(rate)
     whole = float((pr.get("format") or {}).get("duration") or 0)
-    dur = n / fps if n and fps else float(st.get("duration") or whole)   # the picture's length; the audio may run longer
+    # the video stream's own length; Matroska gives it as the track's DURATION tag ("00:00:10.000000000")
+    sdur = float(st.get("duration") or 0) or tag_seconds((st.get("tags") or {}).get("DURATION"))
+    # variable frame rate: the frames do not fill the stream's length at the nominal rate (a still stretch written as one
+    # long frame), or ffprobe's average rate is not the nominal one. The length is then the stream's (or frames at the
+    # average rate), not frames at the nominal rate
+    avg = st.get("avg_frame_rate") or "0/0"
+    avgf = float(Fraction(avg)) if avg != "0/0" else 0.0
+    vfr = bool(n and fps and sdur and abs(n - sdur * fps) > 1.5) or bool(avgf and abs(avgf - fps) > fps * 5e-4)
+    if vfr:
+        dur = sdur or (n / avgf if n and avgf else whole)
+    else:
+        dur = n / fps if n and fps else (sdur or whole)   # the picture's length; the audio may run longer
+    vfr_note = (f"variable frame rate: {n} frames over {dur:.2f} s, {n / dur:.4g} a second on average against the nominal {rate} "
+                f"(ffprobe's average {avg}): make it constant (ffmpeg -vf fps={rate}) before mux and the other checks, which count "
+                "frames at the nominal rate (engines/manimgx.md)") if vfr and dur else None
     if a.brief:
         brief = Path(a.brief)
         if not brief.is_file():
             print(f"speccheck: no BRIEF at {a.brief}", file=sys.stderr); sys.exit(2)
     else:
         brief = find_brief(a.video)
-    measured = {"width": W, "height": H, "fps": round(fps, 6), "frames": n, "duration": round(dur, 3)}
+    measured = {"width": W, "height": H, "fps": round(fps, 6), "frames": n, "duration": round(dur, 3), "vfr": vfr}
     if not brief:
-        save_json(a.json, {"brief": None, "measured": measured, "fails": [], "warns": []})
-        print(f"spec: {W}x{H}, {fps:g} fps, {n} frames, {dur:.2f} s; no BRIEF.md above the video, nothing to compare"); return
+        save_json(a.json, {"brief": None, "measured": measured, "fails": [], "warns": [vfr_note] if vfr_note else []})
+        print(f"spec: {W}x{H}, {fps:g} fps, {n} frames, {dur:.2f} s; no BRIEF.md above the video, nothing to compare")
+        if vfr_note: print(f"WARN {vfr_note}")
+        return
     text = brief.read_text(encoding="utf-8", errors="replace")
     o, r = spec_line(text, "Output"), spec_line(text, "Resolution")
     fails, warns = [], []
@@ -84,9 +106,8 @@ def main():
     sar = st.get("sample_aspect_ratio") or "1:1"
     if sar not in ("1:1", "0:1", "N/A"):
         warns.append(f"non-square pixels (SAR {sar})")
-    avg = st.get("avg_frame_rate") or "0/0"
-    if avg != "0/0" and abs(float(Fraction(avg)) - fps) > fps * 5e-4:
-        warns.append(f"variable frame rate (nominal {rate}, average {avg})")
+    if vfr_note:
+        warns.append(vfr_note)
     if whole - dur > 0.1:
         warns.append(f"the file runs {whole - dur:.2f} s past the last frame (audio longer than the picture)")
     draft = False

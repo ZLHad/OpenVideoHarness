@@ -205,6 +205,35 @@ PY
   # the front pages (tools/readme.py): every count the READMEs and the overview diagrams state is the repo's (commands,
   # styles, recipes …), their links and images are in the repo, and the two READMEs have the same sections and links
   if out=$(python3 tools/readme.py check 2>&1); then ok "$out"; else echo "$out"; bad "the READMEs against the repo (python3 tools/readme.py lists the counts)"; fi
+  # the research notes (docs/research): each in both languages, the two with as many sections (## and ###), table rows and
+  # figures; both indexes list every note, in the same order, and nothing that is not one
+  if out=$(python3 - <<'PY'
+import re, sys
+from pathlib import Path
+R = Path("docs/research")
+def shape(p):
+    s = re.sub(r"^```.*?^```", "", p.read_text(encoding="utf-8"), flags=re.S | re.M)
+    return {"## sections": len(re.findall(r"^## ", s, re.M)), "### sections": len(re.findall(r"^### ", s, re.M)),
+            "table rows": len(re.findall(r"^\|.*\|\s*$", s, re.M)), "figures": len(re.findall(r"!\[[^\]]*\]\(", s))}
+zh = sorted(p.name for p in R.glob("[0-9][0-9]-*.md")); en = sorted(p.name for p in (R / "en").glob("[0-9][0-9]-*.md"))
+bad = [f"{n}: no en/ twin" for n in sorted(set(zh) - set(en))] + [f"en/{n}: no Chinese one" for n in sorted(set(en) - set(zh))]
+for n in sorted(set(zh) & set(en)):
+    a, b = shape(R / n), shape(R / "en" / n)
+    bad += [f"{n}: {k} {a[k]} here, {b[k]} in en/" for k in a if a[k] != b[k]]
+for f in (R / "README.md", R / "en" / "README.md"):
+    rows = re.findall(r"^\| (\d\d) \| \[[^\]]*\]\(([^)]+)\) \|", f.read_text(encoding="utf-8"), re.M)
+    linked = [p for _, p in rows]
+    bad += [f"{f}: the row {k} links {p}" for k, p in rows if not p.startswith(k + "-")]
+    missing, extra = [n for n in zh if n not in linked], [p for p in linked if p not in zh]
+    if missing or extra:
+        bad.append(f"{f}: its index" + (f" leaves out {', '.join(missing)}" if missing else "") + (" and" if missing and extra else "")
+                   + (f" lists {', '.join(extra)}, which no note is" if extra else ""))
+    elif linked != zh:
+        bad.append(f"{f}: its index is not one row a note in the notes' order")
+print("; ".join(bad) or f"{len(zh)} notes, each in both languages with the same sections, table rows and figures; both indexes list them all")
+sys.exit(1 if bad else 0)
+PY
+  ); then ok "docs/research: $out"; else bad "docs/research: $out"; fi
   # the group table (tools/ci-shards.txt): a group and its seconds a line, each group once and a function here; a group
   # function (named *_checks or *_report) that is not in it is called by one that is (or it would run in no run and no
   # shard)
@@ -1188,6 +1217,15 @@ PY
   case "$rc:$a|$rb:$b|$rcc:$c" in 0:*"spec: 640x360"*"|0:"*"WARN 1.0 s, outside the BRIEF's 2–3 s"*"|0:"*"spec: 320x180"*)
       case "$b$c" in *placeholders*|*FAIL*) bad "check: a range or an approximate length was misread: $b | $c" ;; *) ok "check reads 1080p、4k, warns outside a range, skips approximate lengths" ;; esac ;;
     *) bad "check: separators / range / approximate ($rc/$rb/$rcc): $a | $b | $c" ;; esac
+  # a variable-rate file (a still stretch written as one long frame): its frames and its length as they are, and the
+  # rate said, with a BRIEF and without (the length was frames ÷ the nominal rate: 45 frames over 3 s read as 1.5 s)
+  ffmpeg -nostdin -v error -f lavfi -i "color=c=0x202020:s=320x180:r=30:d=3,drawbox=x=40:y=40:w=80:h=40:c=white:t=fill" \
+    -vf "select='not(between(n\,30\,74))'" -fps_mode vfr -pix_fmt yuv420p "$t/sp/out/vfr.mp4"
+  brief '320x180, 30 fps, exactly 3.0s' 1080p; a=$(vh check "$t/sp/out/vfr.mp4" 2>&1); rc=$?
+  mkdir -p "$t/vfr" && cp "$t/sp/out/vfr.mp4" "$t/vfr/"; b=$(python3 tools/speccheck.py "$t/vfr/vfr.mp4" 2>&1)
+  case "$rc:$a|$b" in 0:*"spec: 320x180, 30 fps, 45 frames, 3.00 s"*"WARN variable frame rate: 45 frames over 3.00 s"*"|"*"45 frames, 3.00 s; no BRIEF"*"WARN variable frame rate"*)
+      ok "check on a variable-rate file: its frames and length as they are (45 frames, 3.00 s against exactly 3 s), the rate said, with a BRIEF and without" ;;
+    *) bad "check on a variable-rate file (rc $rc): $(printf '%s' "$a" | head -c 500) | $b" ;; esac
   brief '320x180, 30 fps, exactly 1.0s (30 frames)' '1080p, 4k'
   # check: one odd frame in a moving clip fails with its time; the same clip without it, or with a two-frame flash, passes
   if command -v uv >/dev/null || python3 -c "import numpy" 2>/dev/null; then
@@ -3685,6 +3723,18 @@ PY
      && python3 -c 'import json, sys; a, b = json.loads(sys.argv[1]), json.loads(sys.argv[2]); sys.exit(0 if a["refs"][:3] == ["cast/fox/front.png", "cast/fox/left.png", "cast/fox/sheet.png"] and len(a["refs"]) == 4 and b["refs"] == ["cast/fox/left.png"] else 1)' "$a" "$b"
   then ok "image gen --ref cast:<id> sends the entry's pictures in its order (cast:<id>:<view> one), says whose they are; an unknown entry or view, a picture changed since it was recorded, a bad id, a new entry with no kind exit 2"
   else bad "image gen --ref cast: (exit $rc:$rc2:$rc3:$rc4:$rc5:$rc6): $(printf '%s' "$a" | tail -c 300) | $(tail -c 300 "$t/err") | $(printf '%s' "$c" | tail -c 200)"; fi
+  # a picture is taken by its bytes, not its name: a JPEG named .png and a text file named .png are refused by image gen
+  # --ref and cast add --ref, and a picture swapped for a JPEG under its PNG name fails cast check (on the extension alone
+  # they passed, and the JPEG would have gone to the vendor as a PNG)
+  printf '\377\330\377\340\000\020JFIF\000' > "$t/jpeg.png"; printf 'not a picture\n' > "$t/text.png"
+  a=$(vh image gen "$p" --prompt x --ref "$t/jpeg.png" --dry-run 2>&1); rc=$?
+  b=$(vh cast add "$p" owl2 --kind prop --name x --ref "$t/text.png" 2>&1); rc2=$?
+  cp "$p/cast/fox/sheet.png" "$t/sheet.keep"; cp "$t/jpeg.png" "$p/cast/fox/sheet.png"
+  c=$(vh cast check "$p" 2>&1); rc3=$?; cp "$t/sheet.keep" "$p/cast/fox/sheet.png"
+  if [ "$rc:$rc2:$rc3" = 2:2:1 ] && grep -q 'named .png, but its bytes are a JPEG' <<<"$a" && grep -q 'its bytes are no PNG, JPEG or WebP' <<<"$b" \
+     && grep -q 'sheet.png: named .png, but its bytes are a JPEG' <<<"$c" && [ ! -e "$p/cast/owl2" ]
+  then ok "image gen --ref and cast take a picture by its bytes: a JPEG named .png and text named .png are refused (exit 2), a picture swapped for a JPEG fails cast check"
+  else bad "pictures by their bytes (exit $rc:$rc2:$rc3): $(printf '%s | %s | %s' "$a" "$b" "$c" | tail -c 400)"; fi
   # a call made (a recorded answer replayed: --offline, nothing sent) says whose the pictures are too, and the ledger keeps
   # what it was made from; a picture recorded again with other bytes makes check say what was made from the older one. The
   # same picture twice is said, and so is a draft entry
