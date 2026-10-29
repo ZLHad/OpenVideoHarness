@@ -131,7 +131,7 @@ export async function load(spec, { width, height, dpr }) {
   renderer.setPixelRatio(1); renderer.setSize(Math.round(width * dpr), Math.round(height * dpr), false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   const tone = spec.tone ?? "agx";
-  if (!(tone in TONES)) fail(`FILM.three.tone: ${Object.keys(TONES).join(", ")}, not ${JSON.stringify(tone)}`);
+  if (!Object.hasOwn(TONES, tone)) fail(`FILM.three.tone: ${Object.keys(TONES).join(", ")}, not ${JSON.stringify(tone)}`);   // own names only: "constructor" is in every object
   renderer.toneMapping = TONES[tone];
   renderer.toneMappingExposure = spec.exposure ?? 1;
   renderer.shadowMap.enabled = !!spec.shadows;
@@ -297,7 +297,7 @@ export async function load(spec, { width, height, dpr }) {
     if (sh.show !== undefined) {
       if (!Array.isArray(sh.show)) problems.push(`${at}.show): a list of FILM.three.models names`);
       else {
-        for (const k of sh.show) if (!M[k]) problems.push(`${at}.show): no model "${k}" (FILM.three.models: ${Object.keys(M).join(", ") || "none"})`);
+        for (const k of sh.show) if (!Object.hasOwn(M, k)) problems.push(`${at}.show): no model "${k}" (FILM.three.models: ${Object.keys(M).join(", ") || "none"})`);
         N.show = new Set(sh.show);
       }
     }
@@ -309,7 +309,7 @@ export async function load(spec, { width, height, dpr }) {
       if (c === undefined || typeof c === "function") N.cam = c || null;
       else if (c && typeof c === "object" && (c.keys || c.from || c.to)) {
         unknown(c, ["keys", "from", "to", "ease"], `${at}.cam)`);
-        if (c.ease !== undefined && !EASE[c.ease]) fail(`${at}.cam).ease: ${Object.keys(EASE).join(", ")}, not ${JSON.stringify(c.ease)}`);
+        if (c.ease !== undefined && !Object.hasOwn(EASE, c.ease)) fail(`${at}.cam).ease: ${Object.keys(EASE).join(", ")}, not ${JSON.stringify(c.ease)}`);
         if (c.keys) {
           if (c.from || c.to) fail(`${at}.cam): keys, or from and to, not both`);
           if (!Array.isArray(c.keys) || c.keys.length < 2) fail(`${at}.cam).keys: two or more [time, view] (times are cues or seconds)`);
@@ -327,7 +327,7 @@ export async function load(spec, { width, height, dpr }) {
     const play = sh.play ?? {};
     if (!play || typeof play !== "object" || Array.isArray(play)) { problems.push(`${at}.play): { model: clip, … }`); return N; }
     for (const [key, v] of Object.entries(play)) {
-      const m = M[key], seen = new Set();
+      const m = Object.hasOwn(M, key) ? M[key] : null, seen = new Set();   // own names: "constructor" is in every object
       if (!m) { problems.push(`${at}.play): no model "${key}" (FILM.three.models: ${Object.keys(M).join(", ") || "none"})`); continue; }
       for (const raw of [].concat(v)) {
         const p = typeof raw === "string" ? { clip: raw } : raw, w = `${at}.play.${key})`;

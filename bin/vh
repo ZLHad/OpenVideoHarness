@@ -351,7 +351,8 @@ act_begin() { # act_begin <project> <command> <args…>: the start line; the run
     if [ -n "$hide" ]; then hide=""   # the value of a secret's option (a path to one stays; an option is one of its own)
       case $a in -?*) act_shown "$a"; a=$ACT_A; hide=$ACT_HIDE ;; *) [ -e "$a" ] || a="…" ;; esac
     else act_shown "$a"; a=$ACT_A; hide=$ACT_HIDE; fi
-    [ ${#a} -le 120 ] || a="${a:0:120}…"
+    # a path that is there stays whole up to 400 characters (the reader shows the project's own as .); the rest is cut at 120
+    [ ${#a} -le 120 ] || { [ ${#a} -le 400 ] && [ -e "$a" ]; } || a="${a:0:120}…"
     act_str "$a"; act_bytes "$ACT_S"; n=$((n + 1)); len=$((len + ACT_B + 1))
     if [ $n -gt 24 ] || [ $len -gt 480 ]; then args="$args${args:+,}\"…\""; break; fi   # (the line stays under 1 KiB)
     args="$args${args:+,}$ACT_S"
@@ -1074,7 +1075,8 @@ cmd_pace() { # numpy for the waveform; mlx-whisper only with --align whisper (Ap
   on_ctrl_c uv run -q --no-project $deps python "$ROOT/tools/audio/pace.py" "$@"
 }
 cmd_captions() { # --media-end S: where a caption too short for its minimum may be lengthened to (default: the picture's length)
-  local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--en-max 42] [--cards] [--cps 9] [--media-end S] [--skip-lint]"
+  local u="usage: bin/vh captions <project> [zh|en] [zh-max] [--en-max 42] [--cards] [--cps 9] [--media-end S] [--skip-lint]" x
+  for x in "$@"; do case "$x" in -h|--help) cmd_usage captions; return 0 ;; esac; done   # not a project's name
   [ $# -gt 0 ] || { cmd_usage captions >&2; exit 2; }
   local proj=$1; shift
   local pos=() end=()

@@ -64,7 +64,7 @@
 
 ## 索引
 
-状态的含义见下文"状态"。时长按 30 fps 换算；接缝的时长是它从两侧镜头里借走的帧，字卡和开场、收场的时长随文案变（停到读完）。这张表由 `bin/vh recipes list --md` 生成，`bin/vh recipes check` 会核对能量、时长和状态三列。
+状态的含义见下文"状态"。时长按 30 fps 换算；接缝的时长是它从两侧镜头里借走的帧，字卡和开场、收场的时长随文案变（停到读完）。这张表由 `bin/vh recipes list --md` 生成，`bin/vh recipes check` 会核对整行（链接、一句话、能量、时长、状态）。
 
 **全片骨架 `sequences/`**：[launch-15s](sequences/launch-15s.md)（15 s 发布 teaser）· [explainer-30s](sequences/explainer-30s.md)（30 s 有旁白的讲解）· [product-film-60s](sequences/product-film-60s.md)（60 s 产品发布片）；从立意出发的五条：[time-dilation-replay](sequences/time-dilation-replay.md)（时间放大镜）· [machine-eye-portrait](sequences/machine-eye-portrait.md)（机器视角的肖像）· [making-of-self](sequences/making-of-self.md)（用做法讲做法）· [mascot-style-tour](sequences/mascot-style-tour.md)（吉祥物穿越风格）· [workflow-as-story](sequences/workflow-as-story.md)（工作流即故事）；按题材的两条：[data-along-time](sequences/data-along-time.md)（沿时间轴的数据故事）· [live-countdown](sequences/live-countdown.md)（实时倒计时分屏）。规则和接缝选型表见 [sequences/README.md](sequences/README.md)。
 
@@ -135,7 +135,7 @@
 | [error-shake](ui/error-shake.md) | 输入框短促地左右摇三下标出错误，边框和下面一行说明变成错误色；改对以后边框换成成功色，一个勾一笔画出来 | 3 | 1.5–3.5 s | tuned |
 | [gen-scan](ui/gen-scan.md) | 一条扫描带从上往下扫过画框，带上方是完成的图、下方还是粗像素格，进度数字跟着扫描带走、到底才说"完成" | 3 | 2–5 s | tuned |
 | [glass-focus](ui/glass-focus.md) | 一块玻璃透镜在一张整体模糊的报表上一行行移动，只有透镜里的那一行清晰、放大 1.1 倍，字的两侧各一道极淡的色散，透镜顶上一道高光、两圈边 | 2 | 2–5 s | tuned |
-| [hold-confirm](ui/hold-confirm.md) | 按住按钮时一层填充从左往右涨，第一次中途松手，填充退回去；第二次按满，按钮才换成完成的勾——"刻意的等待"被看见 | 2 | 2–4 s | tuned |
+| [hold-confirm](ui/hold-confirm.md) | 按住按钮时一层填充从左往右涨，第一次中途松手，填充退回去；第二次按满，按钮才换成完成的勾；"刻意的等待"就这样被看见 | 2 | 2–4 s | tuned |
 | [magnetic-dock](ui/magnetic-dock.md) | 一排图标在深色半透明的坞里，光标滑过时每个图标按它到光标距离的钟形曲线放大，坞围着光标变宽而不是往一边长，标签始终在最大的那个图标上方 | 3 | 2–5 s | tuned |
 | [modal-lift](ui/modal-lift.md) | 背景压暗（不糊），一个对话框从下方 24 px、0.96 倍浮到正中落定，焦点只剩它；随后光标点下确认键，键按下去再弹回 | 2 | 1–3 s | tuned |
 | [row-embed](ui/row-embed.md) | 数据行一条条从上方落下，从斜的俯仰角放平，卡进页面里自己的行位，卡进去的那一帧底边闪一道强调色的缝 | 3 | 2.3–3.3 s | upstream-tested |
