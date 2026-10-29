@@ -1,8 +1,9 @@
 # The repo's own checks (tools/ci.sh) on Linux and on macOS.
 # Two job names are required status checks in the main-branch ruleset (.github/rulesets/main.json): checks (ubuntu-latest)
-# and checks (macos-latest). Renaming either job, or an OS here, means updating that ruleset too.
-# macOS runs the checks in two shards side by side (tools/ci.sh --shard i/2, the groups dealt by tools/ci-shards.txt);
-# checks (macos-latest) is the job that waits for both and passes only when each of them passed.
+# and checks (macos-latest). Renaming either job, or an OS here, means updating that ruleset too (tools/ci.sh's doc_checks
+# holds the two files to each other).
+# macOS runs the checks in shards side by side (tools/ci.sh --shard i/n, the groups dealt by tools/ci-shards.txt);
+# checks (macos-latest) is the job that waits for them and passes only when all of them passed.
 name: ci
 
 on:
@@ -65,17 +66,14 @@ jobs:
         run: tools/ci.sh
 
   macos:
-    name: macos shard ${{ matrix.shard }}/2
+    name: macos shard ${{ matrix.shard }}/${{ strategy.job-total }}
     runs-on: macos-latest
-    # a shard took about 16 min (2026-10-29); the whole suite in one job took 21-42 min and was cut off at 30 twice
+    # a shard's checks take 13-16 min (2026-10-29); the whole suite in one job took 21-42 min and was cut off at 30 twice
     timeout-minutes: 35
     strategy:
-      fail-fast: false   # both shards run to their end, so one run names every failure
+      fail-fast: false   # every shard runs to its end, so one run names every failure
       matrix:
-        shard: [1, 2]   # the 2 is also in the name above, in the run step and in checks (macos-latest) below
-    outputs:   # each shard's own outcome, for checks (macos-latest) to name (the matrix's outputs merge, one name a shard)
-      shard_1: ${{ steps.outcome.outputs.shard_1 }}
-      shard_2: ${{ steps.outcome.outputs.shard_2 }}
+        shard: [1, 2]   # how many shards: this list alone (each shard's name and --shard i/n take the count from it)
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -101,17 +99,12 @@ jobs:
           python3 -m pip install --quiet pyflakes
           HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install --quiet ffmpeg >/dev/null
       # BSD userland, and bin/vh under the system /bin/bash 3.2 that Mac users have
-      - name: tools/ci.sh --shard ${{ matrix.shard }}/2
-        id: ci
-        run: VH_BASH=/bin/bash tools/ci.sh --shard ${{ matrix.shard }}/2
-      - name: Outcome
-        id: outcome
-        if: always()
-        run: echo "shard_${{ matrix.shard }}=${{ steps.ci.outcome }}" >> "$GITHUB_OUTPUT"
+      - name: tools/ci.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}
+        run: VH_BASH=/bin/bash tools/ci.sh --shard ${{ matrix.shard }}/${{ strategy.job-total }}
 
   # The required check for macOS. It always runs (also when a shard failed, was cancelled or never started) and passes
-  # only when the shards' job and each shard by itself passed: a required check that is skipped counts as passed on
-  # GitHub, so this job must never be skipped, and an outcome it does not find is a failure.
+  # only when the shards' job passed, which is every shard's: a required check that is skipped counts as passed on
+  # GitHub, so this job must never be skipped. Which shard failed: each shard's own check run says.
   macos-result:
     name: checks (macos-latest)
     needs: macos
@@ -119,11 +112,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Both macOS shards passed
+      - name: Every macOS shard passed
         env:
           SHARDS: ${{ needs.macos.result }}
-          SHARD_1: ${{ needs.macos.outputs.shard_1 }}
-          SHARD_2: ${{ needs.macos.outputs.shard_2 }}
         run: |
-          echo "macos shards: ${SHARDS:-no result} · shard 1/2: ${SHARD_1:-no outcome} · shard 2/2: ${SHARD_2:-no outcome}"
-          [ "$SHARDS" = success ] && [ "$SHARD_1" = success ] && [ "$SHARD_2" = success ]
+          echo "the macOS shards: ${SHARDS:-no result}"
+          [ "$SHARDS" = success ]

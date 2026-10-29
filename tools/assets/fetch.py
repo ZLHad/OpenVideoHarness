@@ -27,8 +27,8 @@ serve(url, opener=None, rate=None) → a context: (a local http://127.0.0.1 addr
 that reads it with HTTP ranges itself (ffmpeg -ss … -i <it> reads only the parts it needs: the index, then the seconds
 asked for). Each request's Range goes to the file through the opener, so a recording answers it as well; stats["bytes"]
 is what was read from the file, stats["size"] its whole size once a response said it. Only on 127.0.0.1, only that file.
-LocalServer: the threading HTTP server serve() runs on, without the reverse DNS lookup of its own address that HTTPServer
-makes when it binds; the stand-in APIs in tools/ci.sh use it too.
+LocalServer: the threading HTTP server serve() runs on, its bind without the socket.getfqdn that HTTPServer's makes (that
+bind stalled 35 s on GitHub's macOS runners); the stand-in APIs in tools/ci.sh use it too.
 
 The opener: Live (urllib, with a User-Agent naming the project; keys belong in headers, never in a URL), Replay(dir) (the
 responses recorded in dir/responses.json, matched by URL; a Range is honoured by slicing the recorded body, so a resume
@@ -408,9 +408,9 @@ def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries
 
 
 class LocalServer(http.server.ThreadingHTTPServer):
-    """An HTTP server on this machine that does not look its own address up: HTTPServer.server_bind asks socket.getfqdn,
-    a reverse DNS lookup that stalled about 35 s on GitHub's macOS runners (tools/desk/server.py skips it the same way).
-    serve() runs on it, and so do the stand-in APIs of tools/ci.sh."""
+    """An HTTP server on this machine whose bind leaves out HTTPServer.server_bind's socket.getfqdn of its own address:
+    on GitHub's macOS runners that bind stalled 35 s, and without getfqdn it does not (tools/desk/server.py leaves it out
+    the same way). serve() runs on it, and so do the stand-in APIs of tools/ci.sh."""
     daemon_threads = True
 
     def server_bind(self):

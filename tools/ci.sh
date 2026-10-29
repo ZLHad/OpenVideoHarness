@@ -196,16 +196,53 @@ print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
   then ok "docs name only real bin/vh commands; tools/commands.json and CLAUDE.md's 命令行 line name the ones bin/vh dispatches"; else bad "docs vs bin/vh commands"; fi
-  # the group table (tools/ci-shards.txt): a group and its seconds a line, each group once and a function here; a
-  # *_checks function that is not in it is called by one that is (or it would run in no run and no shard)
-  local g a="" b="" c=""
-  a=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' tools/ci-shards.txt | awk 'NF != 2 || $2 !~ /^[0-9]+$/ || seen[$1]++ { printf " %s", $0 }')
+  # the group table (tools/ci-shards.txt): a group and its seconds a line, each group once and a function here; a group
+  # function (named *_checks or *_report) that is not in it is called by one that is (or it would run in no run and no
+  # shard)
+  local g a="" b="" c="" d r1 r2 r3
+  a=$(groups | awk 'NF != 2 || $2 !~ /^[0-9]+$/ || seen[$1]++ { printf " %s", $0 }')
   for g in $(groups | awk '{ print $1 }'); do declare -F "$g" >/dev/null || b="$b $g"; done
-  for g in $(sed -n 's/^\([a-z0-9_]*_checks\)() {.*/\1/p' tools/ci.sh); do
+  for g in $(sed -n -E 's/^([a-z0-9_]+_(checks|report))\(\) \{.*/\1/p' tools/ci.sh); do
     groups | awk -v g="$g" '$1 == g { f = 1 } END { exit !f }' || grep -q -E "^[[:space:]]+$g([[:space:];]|\$)" tools/ci.sh || c="$c $g"
   done
-  if [ -z "$a$b$c" ]; then ok "tools/ci-shards.txt: each group once with its seconds, each a function in tools/ci.sh; every *_checks function runs"
+  if [ -z "$a$b$c" ]; then ok "tools/ci-shards.txt: each group once with its seconds, each a function in tools/ci.sh; every *_checks and *_report function runs"
   else bad "tools/ci-shards.txt:${a:+ (lines that are not one group and its whole seconds, once:$a)}${b:+ (no such function:$b)}${c:+ (never run:$c)}"; fi
+  # a table that leaves nothing to run (empty, gone) stops tools/ci.sh with exit 2, never "all checks passed"; a group
+  # that is no function fails the run
+  d=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); : > "$d/empty.txt"; printf 'readpath_report 0\nno_such_checks 1\n' > "$d/bogus.txt"
+  a=$(OVH_CI_SHARDS="$d/empty.txt" tools/ci.sh 2>&1); r1=$?
+  b=$(OVH_CI_SHARDS="$d/gone.txt" tools/ci.sh --shard 1/2 2>&1); r2=$?
+  c=$(OVH_CI_SHARDS="$d/bogus.txt" tools/ci.sh --shard 1/1 2>&1); r3=$?
+  rm -rf "$d"
+  if [ "$r1:$r2" = 2:2 ] && [ "$r3" != 0 ] && grep -q 'no groups to run' <<<"$a" && grep -q 'no groups to run' <<<"$b" \
+     && grep -q 'names no_such_checks, which is no function' <<<"$c" && ! grep -q 'all checks passed' <<<"$a$b$c"
+  then ok "tools/ci.sh: an empty table and none stop it (exit 2: no groups to run); a group that is no function fails the run (exit $r3)"
+  else bad "tools/ci.sh on broken tables (empty: exit $r1, gone: exit $r2, a group that is no function: exit $r3): $(printf '%s | %s | %s' "$a" "$b" "$c" | tail -c 400)"; fi
+  # the workflow and the ruleset: each context the ruleset requires is the name of a job in ci.yml, and the job that
+  # reports checks (macos-latest) runs whatever became of its shards (if: always(); a required check that is skipped
+  # counts as passed)
+  if a=$(python3 - <<'PY'
+import json, re, sys
+wf = open(".github/workflows/ci.yml", encoding="utf-8").read()
+jobs, cur = {}, None
+for line in wf[wf.index("\njobs:\n") + 7:].splitlines():
+    m = re.match(r"^  ([A-Za-z0-9_-]+):\s*(#.*)?$", line)
+    if m:
+        cur = jobs.setdefault(m.group(1), {}); continue
+    m = re.match(r"^    (name|if):\s*(.*?)\s*(#.*)?$", line)
+    if m and cur is not None:
+        cur[m.group(1)] = re.sub(r"^\$\{\{\s*(.*?)\s*\}\}$", r"\1", m.group(2))
+names = {j.get("name"): j for j in jobs.values()}
+rules = json.load(open(".github/rulesets/main.json", encoding="utf-8"))["rules"]
+ctx = [c["context"] for r in rules if r["type"] == "required_status_checks" for c in r["parameters"]["required_status_checks"]]
+bad = [f"the ruleset requires {c!r}, and no job in ci.yml is named so" for c in ctx if c not in names]
+mac = names.get("checks (macos-latest)")
+if mac is not None and mac.get("if") != "always()":
+    bad.append(f"checks (macos-latest) runs with if: {mac.get('if')!r}, not always()")
+print("; ".join(bad) or f"the ruleset's {len(ctx)} required checks are jobs of ci.yml, and checks (macos-latest) runs always()")
+sys.exit(1 if bad or not ctx else 0)
+PY
+  ); then ok "$a"; else bad "workflow and ruleset: $a"; fi
 }
 
 readpath_report() {   # how much an agent reads before it starts, per effort level and type: printed as a baseline, no limit yet
@@ -375,7 +412,7 @@ if pr.get("gemini", {}).get("state") != "ok" or "6 models" not in pr["gemini"]["
 pt = doc("--probe", "--offline", rec); outs += [pt.stdout, pt.stderr]
 import http.server, threading
 sys.path.insert(0, "tools/assets")
-from fetch import LocalServer   # (http.server's own looks 127.0.0.1 up by name as it binds: 35 s on GitHub's macOS runners)
+from fetch import LocalServer   # (http.server's own bind, which asks socket.getfqdn, stalled 35 s on GitHub's macOS runners)
 heard = []
 class Next(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
@@ -648,7 +685,7 @@ import importlib.util, json, os, sys, threading
 os.environ["no_proxy"] = "127.0.0.1"   # urlopen would send the stub's requests through an http_proxy
 from http.server import BaseHTTPRequestHandler
 sys.path.insert(0, "tools/assets")
-from fetch import LocalServer   # (http.server's own looks 127.0.0.1 up by name as it binds: 35 s on GitHub's macOS runners)
+from fetch import LocalServer   # (http.server's own bind, which asks socket.getfqdn, stalled 35 s on GitHub's macOS runners)
 spec = importlib.util.spec_from_file_location("tts", "tools/audio/tts.py"); tts = importlib.util.module_from_spec(spec); spec.loader.exec_module(tts)
 def body(*ids, delay="30s"):
     return json.dumps({"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "details": [
@@ -691,7 +728,7 @@ os.environ["no_proxy"] = "127.0.0.1"; os.environ["GEMINI_API_KEY"] = "ci-stub"
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler
 sys.path.insert(0, "tools/audio"); sys.path.insert(0, "tools/assets")
-from fetch import LocalServer   # (http.server's own looks 127.0.0.1 up by name as it binds: 35 s on GitHub's macOS runners)
+from fetch import LocalServer   # (http.server's own bind, which asks socket.getfqdn, stalled 35 s on GitHub's macOS runners)
 spec = importlib.util.spec_from_file_location("tts", "tools/audio/tts.py"); tts = importlib.util.module_from_spec(spec); spec.loader.exec_module(tts)
 SR, PITCH = 24000, {"Kore": 200.0, "Puck": 130.0, "Charon": 110.0}
 st = {"n": 0, "vary": False, "takes": []}                  # takes: (duration, [(unit, start, end)]) of every synthesis
@@ -2661,7 +2698,7 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 sys.path.insert(0, "tools/assets")
 import image
-from fetch import LocalServer   # (http.server's own looks 127.0.0.1 up by name as it binds: 35 s on GitHub's macOS runners)
+from fetch import LocalServer   # (http.server's own bind, which asks socket.getfqdn, stalled 35 s on GitHub's macOS runners)
 t, fx, mode = Path(sys.argv[1]), Path("tools/assets/fixtures/image/responses"), {"m": "ok"}
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
@@ -2932,7 +2969,7 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 sys.path.insert(0, "tools/audio")
 import lyria
-from fetch import LocalServer   # (lyria's own import of tools/assets/fetch.py; http.server's looks 127.0.0.1 up by name: 35 s on macOS runners)
+from fetch import LocalServer   # (lyria's import of tools/assets/fetch.py; http.server's own bind stalled 35 s on GitHub's macOS runners)
 t, fx, mode = Path(sys.argv[1]), Path("tools/audio/fixtures/lyria/responses"), {"m": "ok"}
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):
@@ -4775,9 +4812,10 @@ PY
   # Ctrl-C (SIGINT to the process group) writes the end with 130 and then ends bin/vh by SIGINT (the caller sees -2). The
   # stand-in traps INT: a loop of sleeps without it can miss a Ctrl-C that lands as a sleep ends (sh takes the sleep's
   # normal exit for a child that handled it), and then it never ends, and bin/vh waits on it. The whole check takes about
-  # 1.5 s; each start and each end may take 60 s. Once (GitHub's macOS runner, 2026-10-28) a Ctrl-C to qa had no answer
-  # within the 10 s there were, though the steps before it were on time: a command still running at 60 s is said with
-  # the processes of its group, so a hang names what held it
+  # 1.5 s. Each command has 60 s to start; it has 10 s to end, as before, but is waited on for 60: one that ends later
+  # fails with how long it took, and one still running then fails with the processes of its group. Once (GitHub's macOS
+  # runner, 2026-10-28) a Ctrl-C to qa had no answer within 10 s, with the steps before it on time; that ended in a
+  # traceback that said nothing more
   rm -f "$p/.ovh/activity.jsonl"; mkdir -p "$t/stub"
   printf '#!/bin/sh\ntrap "exit 130" INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
   : > "$p/audio/mix.wav"
@@ -4794,8 +4832,11 @@ def start(*args, until):   # up to 60 s to get there (it takes a fraction of one
     return pr
 def stub():
     return subprocess.run(["pgrep", "-f", f"{t}/stub/uv"], capture_output=True).returncode == 0
-def ended(pr):   # the exit status, or what of its process group still ran 60 s after the signal (then killed)
-    try: return pr.wait(60)
+def ended(pr):   # the exit status within 10 s of the signal; later, with how long it took ("143 after 23 s"); still
+    t0 = time.time()   # running at 60 s, what of its process group ran then (and it is killed)
+    try:
+        rc = pr.wait(60); d = time.time() - t0
+        return rc if d <= 10 else f"{rc} after {d:.0f} s"
     except subprocess.TimeoutExpired: pass
     ps = subprocess.run(["ps", "-A", "-o", "pid=,ppid=,pgid=,stat=,command="], capture_output=True, text=True).stdout.splitlines()
     left = [" ".join(l.split()[:4] + l.split()[4:7]) for l in ps if len(l.split()) > 4 and l.split()[2] == str(pr.pid)]
@@ -5925,11 +5966,18 @@ PY
   # on CI's runners, time enough to be caught at 0.1 s; the 95 there were took a minute to draw on GitHub's macOS runner
   printf '%s\n' '<!doctype html><canvas id="c" width="64" height="36"></canvas><script>const x = document.getElementById("c").getContext("2d");' \
     'window.film = { duration: 2, frame(t) { x.fillStyle = `rgb(${Math.floor(Math.random() * 255)},90,${Math.floor(t * 100)})`; x.fillRect(0, 0, 64, 36); } };</script>' > "$t/rnd.html"
-  "$VH_BASH" "$ROOT/bin/vh" determinism "$t/rnd.html" --at "$(seq -s, 0.02 0.06 1.9 | sed 's/,$//')" --out "$t/rnd-out" >/dev/null 2>&1 & pid=$!
-  seen=0; for _ in $(seq 1 600); do if pgrep -P "$pid" -f psnr >/dev/null 2>&1; then seen=1; break; fi; kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  # Up to three tries to catch the comparisons; never caught, it is a failure on CI (CI=true) and a skip elsewhere
+  seen=0
+  for _ in 1 2 3; do
+    "$VH_BASH" "$ROOT/bin/vh" determinism "$t/rnd.html" --at "$(seq -s, 0.02 0.06 1.9 | sed 's/,$//')" --out "$t/rnd-out" >/dev/null 2>&1 & pid=$!
+    for _ in $(seq 1 600); do if pgrep -P "$pid" -f psnr >/dev/null 2>&1; then seen=1; break; fi; kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+    [ $seen = 1 ] && break
+    wait "$pid" 2>/dev/null
+  done
   if [ $seen = 1 ]; then kill -INT "$pid" 2>/dev/null; wait "$pid"; rc=$?
     [ "$rc" = 130 ] && ok "determinism stopped with Ctrl-C while comparing ends at once (exit 130)" || bad "determinism after Ctrl-C while comparing: exit $rc (it went on)"
-  else wait "$pid" 2>/dev/null; skip "Ctrl-C while determinism compares" "the comparisons were not caught running"; fi
+  elif [ "${CI:-}" = true ]; then bad "Ctrl-C while determinism compares: the comparisons were not caught running in 3 tries (on CI a failure, not a skip)"
+  else skip "Ctrl-C while determinism compares" "the comparisons were not caught running in 3 tries"; fi
   rm -rf "$t"
 }
 
@@ -6902,8 +6950,10 @@ PY
   rm -rf "$t"
 }
 
-# the groups (tools/ci-shards.txt): one a line, in the order a full run takes them, with their seconds on CI's macOS runner
-groups() { sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$ROOT/tools/ci-shards.txt"; }
+# the groups (tools/ci-shards.txt): one a line, in the order a full run takes them, with their seconds on CI's macOS runner.
+# OVH_CI_SHARDS=<file>: another table (doc_checks runs tools/ci.sh on broken ones)
+CI_TABLE=${OVH_CI_SHARDS:-$ROOT/tools/ci-shards.txt}
+groups() { sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$CI_TABLE"; }
 shard_of() { # shard_of <i> <n>: the groups of shard i of n, in the table's order. The longest first, each to the shard with
   # the fewest seconds so far (ties: the earlier group, the lower shard), so the same table always deals the same shards
   groups | awk -v i="$1" -v n="$2" '{ name[NR] = $1; w[NR] = $2 + 0; o[NR] = NR }
@@ -6915,7 +6965,10 @@ run_groups() { # run_groups <group…>: each group's checks, timed; then how lon
   # tools/ci-shards.txt takes them (to copy there when the shards drift apart) and the ten slowest checks
   local g g0 t0 s ms m tab=$'\t'
   clock; t0=$CI_NOW
-  for g in "$@"; do clock; g0=$CI_NOW; CI_LAST=$CI_NOW; "$g"; clock; CI_GROUPS+=("$g $(( (CI_NOW - g0 + 500) / 1000 ))"); done
+  for g in "$@"; do
+    declare -F "$g" >/dev/null || { bad "${CI_TABLE#"$ROOT"/} names $g, which is no function in tools/ci.sh: nothing of it ran"; continue; }
+    clock; g0=$CI_NOW; CI_LAST=$CI_NOW; "$g"; clock; CI_GROUPS+=("$g $(( (CI_NOW - g0 + 500) / 1000 ))")
+  done
   s=$(( (CI_NOW - t0 + 500) / 1000 ))
   printf '%s took %d min %02d s. Each group in seconds, as tools/ci-shards.txt takes them:\n' "$CI_RUN" $((s / 60)) $((s % 60))
   printf '  %s\n' ${CI_GROUPS[@]+"${CI_GROUPS[@]}"}
@@ -6942,6 +6995,8 @@ case "${1:-all}" in
     CI_RUN="The run" list=$(groups | awk '{ print $1 }') ;;
   *) echo "$usage" >&2; exit 2 ;;
 esac
+# no group to run is never a pass: a table gone, emptied or unreadable would make every run "all checks passed"
+[ -n "$list" ] || { echo "tools/ci.sh: no groups to run (${CI_TABLE#"$ROOT"/} is missing or empty, or this shard was dealt none)" >&2; exit 2; }
 # shellcheck disable=SC2086   # one group a word
 run_groups $list
 [ -n "$skipped" ] && printf '\033[33m! skipped, so not checked: %s\033[0m\n' "$skipped"   # said again at the end: a pass is not a pass of these

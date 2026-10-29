@@ -1,11 +1,12 @@
-# The check groups of tools/ci.sh (its *_checks functions), in the order a full run takes them, each with its seconds on
-# GitHub's macOS runner, the slower of CI's two. tools/ci.sh --shard i/n deals them out by these seconds: the longest
+# The check groups of tools/ci.sh, in the order a full run takes them, each with its seconds on GitHub's macOS runner,
+# the slower of CI's two. A group is a function of tools/ci.sh named *_checks or *_report; a helper is named otherwise,
+# or is called by the group it belongs to. tools/ci.sh --shard i/n deals the groups out by these seconds: the longest
 # first, each to the shard with the fewest seconds so far (ties: the earlier group, the lower shard), so this table
-# always deals the same shards, on any machine. CI's macOS job runs --shard 1/2 and 2/2 side by side; Linux runs them all.
+# always deals the same shards, on any machine. CI's macOS job runs its shards side by side; Linux runs every group.
 #
-# Rebalancing: every run of tools/ci.sh ends with each of its groups in seconds, in this file's form. When the two macOS
-# shards of a CI run end more than a minute or two apart, copy the group lines of both shards' logs over the numbers here
-# (a new group goes where it runs; tools/ci.sh checks that each group is here once and that each is a function).
+# Rebalancing: every run of tools/ci.sh ends with each of its groups in seconds, in this file's form. When the macOS
+# shards of a CI run end more than a minute or two apart, copy the group lines of every shard's log over the numbers
+# here (a new group goes where it runs; tools/ci.sh checks that each group is here once and that each is a function).
 # The seconds: both macOS shards of one CI run, 2026-10-29.
 static_checks 25
 doc_checks 2
