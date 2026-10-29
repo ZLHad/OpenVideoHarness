@@ -1,0 +1,38 @@
+# The check groups of tools/ci.sh, in the order a full run takes them, each with its seconds on GitHub's macOS runner,
+# the slower of CI's two. A group is a function of tools/ci.sh named *_checks or *_report; a helper is named otherwise,
+# or is called by the group it belongs to. tools/ci.sh --shard i/n deals the groups out by these seconds: the longest
+# first, each to the shard with the fewest seconds so far (ties: the earlier group, the lower shard), so this table
+# always deals the same shards, on any machine. CI's macOS job runs its shards side by side; Linux runs every group.
+#
+# Rebalancing: every run of tools/ci.sh ends with each of its groups in seconds, in this file's form. When the macOS
+# shards of a CI run end more than a minute or two apart, copy the group lines of every shard's log over the numbers
+# here (a new group goes where it runs; tools/ci.sh checks that each group is here once and that each is a function).
+# The seconds: both macOS shards of one CI run, 2026-10-29.
+static_checks 25
+doc_checks 2
+readpath_report 0
+smoke_checks 133
+pace_checks 15
+timeline_checks 25
+series_checks 28
+decision_checks 45
+gate_checks 23
+desk_checks 14
+looks_checks 17
+activity_checks 6
+status_checks 6
+know_checks 6
+assets_checks 108
+concept_checks 16
+hf_checks 2
+scout_checks 13
+textcheck_checks 22
+film_checks 83
+render_checks 600
+film_engine_checks 256
+edit_checks 99
+edit_footage_checks 34
+edit_cache_checks 54
+components_checks 37
+model3d_checks 43
+hdri_checks 29

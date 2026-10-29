@@ -27,6 +27,8 @@ serve(url, opener=None, rate=None) → a context: (a local http://127.0.0.1 addr
 that reads it with HTTP ranges itself (ffmpeg -ss … -i <it> reads only the parts it needs: the index, then the seconds
 asked for). Each request's Range goes to the file through the opener, so a recording answers it as well; stats["bytes"]
 is what was read from the file, stats["size"] its whole size once a response said it. Only on 127.0.0.1, only that file.
+LocalServer: the threading HTTP server serve() runs on, its bind without the socket.getfqdn that HTTPServer's makes (that
+bind stalled 35 s on GitHub's macOS runners); the stand-in APIs in tools/ci.sh use it too.
 
 The opener: Live (urllib, with a User-Agent naming the project; keys belong in headers, never in a URL), Replay(dir) (the
 responses recorded in dir/responses.json, matched by URL; a Range is honoured by slicing the recorded body, so a resume
@@ -38,7 +40,7 @@ body over 256 kB to its first 256 kB with its length noted: a fixture stays smal
 message names a URL as redact() writes it (no user:password, no query values), and so do the records bin/vh assets
 writes.
 """
-import contextlib, hashlib, http.client, http.server, json, os, re, socket, sys, threading, time, urllib.error, urllib.parse, urllib.request
+import contextlib, hashlib, http.client, http.server, json, os, re, socket, socketserver, sys, threading, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 UA = "OpenVideoHarness (+https://github.com/ZLHad/OpenVideoHarness)"
@@ -405,6 +407,17 @@ def download(url, dest, sha256=None, rate=None, opener=None, timeout=60, retries
             "content_type": ctype, "restarted": restarted}
 
 
+class LocalServer(http.server.ThreadingHTTPServer):
+    """An HTTP server on this machine whose bind leaves out HTTPServer.server_bind's socket.getfqdn of its own address:
+    on GitHub's macOS runners that bind stalled 35 s, and without getfqdn it does not (tools/desk/server.py leaves it out
+    the same way). serve() runs on it, and so do the stand-in APIs of tools/ci.sh."""
+    daemon_threads = True
+
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[0], self.server_address[1]
+
+
 @contextlib.contextmanager
 def serve(url, opener=None, rate=None, timeout=60):
     """(local_url, stats) while the block runs: see the module's note. A request the opener cannot answer gets a 502 (the
@@ -470,8 +483,7 @@ def serve(url, opener=None, rate=None, timeout=60):
             finally:
                 r.close()
 
-    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    srv.daemon_threads = True
+    srv = LocalServer(("127.0.0.1", 0), Handler)
     th = threading.Thread(target=srv.serve_forever, daemon=True)
     th.start()
     try:
