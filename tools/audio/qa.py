@@ -9,6 +9,9 @@ usage (via bin/vh qa):
   python tools/audio/qa.py cues <mix> <beats.json|-> [events.json] [--lib DIR] [--root DIR] [...]             cues only
   python tools/audio/qa.py mix <DIR> [--profile P] [--words w.json] [--beats b.json] [--timeline t.json]
                           [--out report.txt] [--json report.json]                                            mix report only
+  bin/vh qa <mix> [beats.json] [events.json] --listen [N] [--stems DIR] [--picture f.png] [...]           where to listen
+                          (tools/audio/listen.py: N excerpts of 6 s for a person with headphones, the weakest line, the
+                          loudest hit, the ending …; --picture: the sound as one picture; its -h has every flag)
 <mix>: anything ffmpeg decodes (wav, m4a, the muxed mp4). beats.json: music.beats.json (sections, hits, fade, and the
 note map "notes" / "unmapped" when the score's parts set "note_map": true) or the output of beats.py, also given as --beats
 beats.json (as qa mix takes it); events.json: the SFX event list. A named file that is not there, a beat map that is
