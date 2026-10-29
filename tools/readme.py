@@ -1,17 +1,22 @@
-"""The READMEs, their overview diagrams and the installer against the repo: the counts they state, the files they link,
-the two languages side by side (stdlib only).
+"""The READMEs, their overview diagrams, the installer and the homepage against the repo: the counts they state, the
+files they link, the two languages side by side (stdlib only).
 
 usage: python3 tools/readme.py          the counts, from the repo: what to write when one of these pages says one
        python3 tools/readme.py check    the pages in PAGES against the repo (tools/ci.sh)
 
-check reads README.md, README.zh-CN.md, docs/assets/overview.en.svg / overview.zh.svg and install.sh:
+check reads README.md, README.zh-CN.md, docs/assets/overview.en.svg / overview.zh.svg, install.sh and the homepage
+(docs/site/index.html):
   - counts: every phrase like "32 styles" / "32 种风格" (COUNT_PHRASES) states the repo's number, and each page states
     the counts PAGES lists for it, so a reworded sentence cannot leave its number unchecked; install.sh's HyperFrames
     version is the pin in tools/modules.json;
   - links: every relative link and image in the READMEs is a file or folder in the repo, and a #anchor on a markdown
     page is one of that page's headings (GitHub's anchors);
   - the two READMEs: as many sections (##) each, and the same relative links and images once the language is taken out
-    of their names (README.zh-CN.md is README.md, docs/research/en/x is docs/research/x, overview.zh.svg is overview.svg).
+    of their names (README.zh-CN.md is README.md, docs/research/en/x is docs/research/x, overview.zh.svg is overview.svg);
+  - the homepage: each <… data-n="name">N</…> is the count, and its phrases are read as above; its relative links,
+    images and #anchors are there; its STYLES are the repo's styles, each with its thumbnail (img/styles/<slug>.jpg) and
+    sample, its Chinese name the one in STYLE.md's title; as many lang="en" texts as lang="zh"; nothing from another
+    site loads with the page (a stylesheet, script, font, image or frame; a film's <source> waits for play).
 Links to the web are not fetched (CI runs offline). Exit status: 0 all good, 1 a problem (each said), 2 usage.
 """
 import ast, json, os, re, sys, unicodedata
@@ -78,6 +83,7 @@ def counts():
         elif table and table[0] == "in" and len(table) > 1 and not line.strip().startswith("|"):
             break
     fetch = (ROOT / "references/fetch.sh").read_text(encoding="utf-8")
+    engine_rows = _section_lines(ROOT / "README.md", "### Engines", "##")
     return {
         "commands": len(json.loads((ROOT / "tools/commands.json").read_text(encoding="utf-8"))["commands"]),
         "styles": sum(1 for p in (ROOT / "styles").glob("*/STYLE.md") if not p.parent.name.startswith("_")),
@@ -95,6 +101,7 @@ def counts():
         "sfx": sfx_lib or 0,
         "checklist": sum(1 for line in checklist if re.match(r"\d+\. ", line)),
         "scores": len(table) - 1 if table else 0,
+        "engines": sum(1 for line in engine_rows if line.startswith("| ") and not line.startswith(("| Engine ", "|---"))),
     }
 
 
@@ -115,6 +122,7 @@ WHAT = {   # what each count is, for the listing
     "sfx": "built-in synthesized sound effects (tools/audio/sfx.py LIB)",
     "checklist": "taste checklist items (templates/TASTE_CHECKLIST.md 检查项)",
     "scores": "scoring dimensions (templates/TASTE_CHECKLIST.md 打分层)",
+    "engines": "engines (the rows of README.md's engine table)",
 }
 
 # ── where the pages state them ─────────────────────────────────────────────────────────────────────────────────────
@@ -139,6 +147,7 @@ COUNT_PHRASES = {   # "Run these two commands" is not a count of bin/vh's: comma
     "sfx": [rf"\b{N} sound effects\b", rf"{N} 个(?:用代码合成的|代码合成的)?音效"],
     "checklist": [rf"\b{N}-point checklist\b", rf"{N} 条的?清单"],
     "scores": [rf"\bon {N} points\b", rf"按 {N} 项打分"],
+    "engines": [rf"\b{N} engines\b", rf"{N} 个引擎"],
 }
 
 PAGES = {   # page: the counts it must state somewhere (each is also checked wherever else it appears)
@@ -149,7 +158,10 @@ PAGES = {   # page: the counts it must state somewhere (each is also checked whe
     "docs/assets/overview.en.svg": ["types", "playbook", "styles", "recipes", "components", "cases", "refs", "commands"],
     "docs/assets/overview.zh.svg": ["types", "playbook", "styles", "recipes", "components", "cases", "refs", "commands"],
     "install.sh": [],   # counts the reference repos as it runs; a number written into it is checked all the same
+    "docs/site/index.html": ["types", "styles", "commands", "engines", "recipes", "sequences", "grammar", "components",
+                             "showcase", "cases", "playbook", "templates", "refs", "modules", "sfx", "checklist", "scores"],
 }
+SITE = "docs/site/index.html"
 READMES = ("README.md", "README.zh-CN.md")
 
 
@@ -163,6 +175,10 @@ def visible_text(path, text):
     <text> runs, one a line."""
     if path.suffix == ".svg":
         return "\n".join(re.sub(r"<[^>]+>", "", t) for t in re.findall(r"<text\b[^>]*>(.*?)</text>", text, re.S)).replace("&amp;", "&")
+    if path.suffix == ".html":   # its words: no script, style or comments; a block's end is a space, inline tags nothing
+        text = re.sub(r"<(script|style)\b.*?</\1>|<!--.*?-->", blank, text, flags=re.S | re.I)
+        text = re.sub(r"</?(?:p|div|li|ul|ol|h[1-6]|section|header|footer|nav|figure|figcaption|summary|details|button|td|th|tr|br|dt|dd|article)\b[^>]*>", " ", text, flags=re.I)
+        return re.sub(r"<[^>]+>", "", text).replace("&amp;", "&").replace("&nbsp;", " ")
     text = re.sub(r"<!--.*?-->", blank, text, flags=re.S)
     return re.sub(r"^```.*?^```", blank, text, flags=re.S | re.M)
 
@@ -174,9 +190,11 @@ def count_problems(have):
         if not p.is_file():
             bad.append(f"{page}: not there")
             continue
-        text = visible_text(p, p.read_text(encoding="utf-8"))
+        raw = p.read_text(encoding="utf-8")
+        text = visible_text(p, raw)
+        tagged = set(re.findall(r"\bdata-n=\"(\w+)\"", re.sub(r"<!--.*?-->", "", raw, flags=re.S))) if p.suffix == ".html" else set()
         for key, phrases in COUNT_PHRASES.items():
-            seen = []
+            seen = [have[key]] if key in tagged else []   # a data-n element states it (site_problems checks its value)
             for pat in phrases:
                 for m in re.finditer(pat, text, re.I):
                     n = number(m.group(1))
@@ -280,10 +298,74 @@ def pair_problems():
     return bad
 
 
+LOADS_WITH_PAGE = ("stylesheet", "preload", "modulepreload", "preconnect", "dns-prefetch", "prefetch", "icon")
+
+
+def site_problems(have):
+    """The homepage: its data-n counts, links and anchors, style wall, languages, and nothing from elsewhere at load."""
+    page = ROOT / SITE
+    html = re.sub(r"<!--.*?-->", lambda m: "\n" * m.group(0).count("\n"), page.read_text(encoding="utf-8"), flags=re.S)
+    base, bad = page.parent, []
+    fetched = {line.split()[0] for line in (ROOT / "tools/media.txt").read_text(encoding="utf-8").splitlines()
+               if line.strip() and not line.startswith("#")}   # films tools/fetch_media.sh puts back (git leaves them out)
+    for m in re.finditer(r"<(\w+)\b[^>]*\bdata-n=\"(\w*)\"[^>]*>(.*?)</\1>", html, re.S):
+        key, text = m.group(2), re.sub(r"<[^>]+>", "", m.group(3)).strip()
+        line = html.count("\n", 0, m.start()) + 1
+        if key not in have:
+            bad.append(f"{SITE} (line {line}): data-n=\"{key}\" is no count tools/readme.py knows ({', '.join(have)})")
+        elif number(text) != have[key]:
+            bad.append(f"{SITE} (line {line}): data-n=\"{key}\" says {text!r}, but the repo has {have[key]} {WHAT[key]}")
+    ids = set(re.findall(r"\bid=\"([^\"]+)\"", html))
+    for m in re.finditer(r"\b(?:href|src|data-src|poster)=\"([^\"]+)\"", html):
+        t = m.group(1)
+        if t.startswith("#"):
+            if t != "#" and t[1:] not in ids:
+                bad.append(f"{SITE}: links {t}, which is no id on the page")
+            continue
+        if not local(t):
+            continue
+        dest = Path(os.path.normpath(base / t.partition("#")[0].partition("?")[0]))
+        if not dest.is_relative_to(ROOT) or not (dest.exists() or str(dest.relative_to(ROOT)) in fetched):
+            bad.append(f"{SITE}: links {t}, which is not in the repo (nor in tools/media.txt)")
+    block = re.search(r"const STYLES = \[(.*?)\];", html, re.S)
+    listed = re.findall(r"\['([a-z0-9-]+)', '([^']*)', '([^']*)'\]", block.group(1)) if block else []
+    repo = {p.parent.name: p for p in (ROOT / "styles").glob("*/STYLE.md") if not p.parent.name.startswith("_")}
+    names = {slug for slug, _, _ in listed}
+    if not listed:
+        bad.append(f"{SITE}: no STYLES list of [slug, English, Chinese] found")
+    for slug in sorted(set(repo) - names):
+        bad.append(f"{SITE}: STYLES leaves out the style {slug} (add it, with img/styles/{slug}.jpg: see docs/site/README.md)")
+    for slug, _, zh in listed:
+        if slug not in repo:
+            bad.append(f"{SITE}: STYLES lists {slug}, which is no style in styles/")
+            continue
+        title = repo[slug].read_text(encoding="utf-8").splitlines()[0]
+        want = re.sub(r"^#\s*", "", title).split(" · ")[0].strip()
+        if zh != want:
+            bad.append(f"{SITE}: STYLES names {slug} {zh!r}, but its STYLE.md calls it {want!r}")
+        for f in (base / "img" / "styles" / f"{slug}.jpg", ROOT / "styles" / slug / "media" / "swatch.mp4"):
+            if not f.is_file():
+                bad.append(f"{SITE}: the style {slug} has no {f.relative_to(ROOT)}")
+    body = html[html.find("<body"):]
+    en, zh = len(re.findall(r"\blang=\"en\"", body)), len(re.findall(r"\blang=\"zh\"", body))
+    if en != zh:
+        bad.append(f"{SITE}: {en} texts in English and {zh} in Chinese: write each in both")
+    outside = [f"<{m.group(1)}> {m.group(3)}" for m in re.finditer(r"<(script|img|iframe|embed|object)\b[^>]*\b(src|data)=\"(https?:[^\"]+)\"", html, re.I)]
+    for m in re.finditer(r"<link\b([^>]*)>", html, re.I):
+        rel = re.search(r"\brel=\"([^\"]+)\"", m.group(1))
+        href = re.search(r"\bhref=\"(https?:[^\"]+)\"", m.group(1))
+        if href and rel and set(rel.group(1).lower().split()) & set(LOADS_WITH_PAGE):
+            outside.append(f"<link rel={rel.group(1)}> {href.group(1)}")
+    for css in re.findall(r"<style\b[^>]*>(.*?)</style>", html, re.S | re.I):
+        outside += [f"CSS {u}" for u in re.findall(r"(?:url\(\s*[\"']?|@import\s+[\"']?)(https?:[^\"')\s]+)", css)]
+    bad += [f"{SITE}: loads {o} with the page (keep it in the repo, or load it on a click)" for o in outside]
+    return bad
+
+
 def check():
     have = counts()
     bad = [f"tools/readme.py: the repo has no {WHAT[k]}" for k, v in have.items() if not v]
-    bad += count_problems(have) + pin_problems()
+    bad += count_problems(have) + pin_problems() + site_problems(have)
     for page in READMES:
         bad += link_problems(page)
     bad += pair_problems()
@@ -301,9 +383,9 @@ def main(argv):
             print("\n".join(bad))
             return 1
         have = counts()
-        print(f"the READMEs, the overview diagrams and install.sh: {len(have)} counts as the repo has them "
+        print(f"the READMEs, the overview diagrams, install.sh and the homepage: {len(have)} counts as the repo has them "
               f"({have['commands']} commands, {have['styles']} styles, {have['recipes']} recipes …) and the HyperFrames pin; "
-              f"the READMEs' links in the repo, side by side")
+              f"their links in the repo; the READMEs side by side; the homepage's styles, both languages, no outside loads")
         return 0
     print(__doc__.split("\n\n")[1], file=sys.stderr)
     return 2

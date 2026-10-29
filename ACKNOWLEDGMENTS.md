@@ -17,6 +17,8 @@ This project is independent. It is not affiliated with or endorsed by Anthropic,
 | [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) | John Heibel | MIT | `engines/ClaudeAnimationBase/`: the hand-painted p5.js + p5.brush engine, its `ANIMATION_GUIDE.md` and renderer. Copied unmodified; `.git` and build output are not included. Its "reads" timing method, review loop and failure list shaped `playbook/01-pipeline.md`, `playbook/02-verification.md` and `templates/TASTE_CHECKLIST.md`. |
 | [three.js](https://github.com/mrdoob/three.js) 0.186.1 | three.js authors | MIT | `engines/canvas-film/three/build/` and `addons/`: the canvas engine's Three.js layer (`bin/vh new … --engine canvas-film --three` copies it into a project). The npm package's files, unmodified; each file's sha256 in `engines/canvas-film/three/NOTICE.md`, the licence in its `LICENSES/`. |
 | [fflate](https://github.com/101arrowz/fflate) 0.8.2 | Arjun Barrett | MIT | `engines/canvas-film/three/addons/libs/fflate.module.js`, as three.js ships it: EXRLoader reads compressed EXRs with it. |
+| [Inter Tight](https://github.com/rsms/inter-tight) | The Inter Project Authors | SIL OFL 1.1 | `docs/site/fonts/InterTight-latin.woff2`: the homepage's display face, cut to Latin and weights 500–700 from the google/fonts copy, so the page loads no web font from elsewhere. Licence: `docs/site/fonts/OFL-InterTight.txt`. |
+| [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) | The JetBrains Mono Project Authors | SIL OFL 1.1 | `docs/site/fonts/JetBrainsMono-latin.woff2`: the homepage's mono face, cut to Latin and weights 400–500 the same way. Licence: `docs/site/fonts/OFL-JetBrainsMono.txt`. |
 
 ## Fetched as read-only references (`references/fetch.sh`)
 

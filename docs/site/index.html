@@ -372,11 +372,10 @@ body.cinema .topbar { transform: translateY(-100%); }
 .station h3 b { font-family: var(--mono); font-weight: 500; font-size: 12px; color: var(--cyan); letter-spacing: .08em; }
 .station ul { list-style: none; display: grid; gap: 10px; }
 .station li { display: grid; gap: 2px; font-size: 14px; line-height: 1.45; color: var(--text-2); }
-.station li > code, .station .tag-b { font-size: 13px; font-weight: 500; color: var(--text); }
-.station li > code { background: none; }
+.station li > .k { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); }
+.station li > .k code { font-size: 13px; }
 .station li code { color: var(--text); }
 .station li > span:last-child { color: var(--text-2); }
-.station .tag-b { font-family: var(--mono); }
 .map-lede { max-width: 30em; }
 .map-note { margin-top: 14px; }
 html[data-lang="zh"] .station h3 { letter-spacing: .01em; }
@@ -910,42 +909,42 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
       <div class="station" data-r>
         <h3><b>01</b><span lang="en">Think</span><span lang="zh">想</span></h3>
         <ul>
-          <li><code>know</code><span><span lang="en">what the repo already knows about a few words: a recipe, a component, a style, a case</span><span lang="zh">仓库里关于几个词已经有什么：配方、组件、风格、案例</span></span></li>
-          <li><code>scout</code><span><span lang="en">a topic on the platforms before you pick it, and your film's numbers after; public interfaces, no login</span><span lang="zh">选题前看题目在各平台的样子，发出去后看片子的数据；只用公开接口，不登录</span></span></li>
-          <li><code>ref</code> · <code>breakdown</code><span><span lang="en">references on record; a reference film taken apart, its cuts against its beats</span><span lang="zh">参考记进台账；拆一支参考片，看切点落在节拍的哪里</span></span></li>
-          <li><code>concept</code><span><span lang="en">seeded extras for the concept cards at gate ①</span><span lang="zh">关卡 ① 立意卡的可选配件</span></span></li>
+          <li><span class="k"><code>know</code></span><span><span lang="en">what the repo already knows about a few words: a recipe, a component, a style, a case</span><span lang="zh">仓库里关于几个词已经有什么：配方、组件、风格、案例</span></span></li>
+          <li><span class="k"><code>scout</code></span><span><span lang="en">a topic on the platforms before you pick it, and your film's numbers after; public interfaces, no login</span><span lang="zh">选题前看题目在各平台的样子，发出去后看片子的数据；只用公开接口，不登录</span></span></li>
+          <li><span class="k"><code>ref</code> · <code>breakdown</code></span><span><span lang="en">references on record; a reference film taken apart, its cuts against its beats</span><span lang="zh">参考记进台账；拆一支参考片，看切点落在节拍的哪里</span></span></li>
+          <li><span class="k"><code>concept</code></span><span><span lang="en">seeded extras for the concept cards at gate ①</span><span lang="zh">关卡 ① 立意卡的可选配件</span></span></li>
         </ul>
       </div>
       <div class="station" data-r>
         <h3><b>02</b><span lang="en">Gather</span><span lang="zh">料</span></h3>
         <ul>
-          <li><code>footage</code><span><span lang="en">real footage from Internet Archive, Wikimedia Commons and NASA: only the seconds you need, its licence on record</span><span lang="zh">从 Internet Archive、Wikimedia Commons、NASA 取真实影像：只取要用的几秒，许可记下来</span></span></li>
-          <li><code>image gen</code><span><span lang="en">pictures from Nano Banana or Codex: an estimate first, each paid call held against the budget</span><span lang="zh">用 Nano Banana 或 Codex 生成图：先估价，每次付费调用先按预算占住</span></span></li>
-          <li><code>sfx</code> · <code>bgm</code> · <code>sound</code><span><span lang="en">a sound library: your packs and Openverse, licences and credits on record</span><span lang="zh">声音库：你自己的音效包和 Openverse，许可和署名都记下</span></span></li>
-          <li><code>cast</code><span><span lang="en">characters, props and sets as settled reference pictures, sent along when they are drawn again</span><span lang="zh">角色、道具、场景的定稿参考图，再画它们时一起带上</span></span></li>
-          <li><code>model3d</code> · <code>hdri</code><span><span lang="en">a 3D model read before it goes in; CC0 light and sky from Poly Haven</span><span lang="zh">3D 模型放进来前先读一遍；从 Poly Haven 取 CC0 的光照和天空</span></span></li>
-          <li><code>assets</code><span><span lang="en">one ledger for every file: where it came from, its licence, its cost; checked before delivery</span><span lang="zh">每个文件记在一本台账里：从哪来、什么许可、花多少钱；交付前检查</span></span></li>
+          <li><span class="k"><code>footage</code></span><span><span lang="en">real footage from Internet Archive, Wikimedia Commons and NASA: only the seconds you need, its licence on record</span><span lang="zh">从 Internet Archive、Wikimedia Commons、NASA 取真实影像：只取要用的几秒，许可记下来</span></span></li>
+          <li><span class="k"><code>image gen</code></span><span><span lang="en">pictures from Nano Banana or Codex: an estimate first, each paid call held against the budget</span><span lang="zh">用 Nano Banana 或 Codex 生成图：先估价，每次付费调用先按预算占住</span></span></li>
+          <li><span class="k"><code>sfx</code> · <code>bgm</code> · <code>sound</code></span><span><span lang="en">a sound library: your packs and Openverse, licences and credits on record</span><span lang="zh">声音库：你自己的音效包和 Openverse，许可和署名都记下</span></span></li>
+          <li><span class="k"><code>cast</code></span><span><span lang="en">characters, props and sets as settled reference pictures, sent along when they are drawn again</span><span lang="zh">角色、道具、场景的定稿参考图，再画它们时一起带上</span></span></li>
+          <li><span class="k"><code>model3d</code> · <code>hdri</code></span><span><span lang="en">a 3D model read before it goes in; CC0 light and sky from Poly Haven</span><span lang="zh">3D 模型放进来前先读一遍；从 Poly Haven 取 CC0 的光照和天空</span></span></li>
+          <li><span class="k"><code>assets</code></span><span><span lang="en">one ledger for every file: where it came from, its licence, its cost; checked before delivery</span><span lang="zh">每个文件记在一本台账里：从哪来、什么许可、花多少钱；交付前检查</span></span></li>
         </ul>
       </div>
       <div class="station" data-r>
         <h3><b>03</b><span lang="en">Make</span><span lang="zh">做</span></h3>
         <ul>
-          <li><code>edit</code><span><span lang="en">an edit list: pages, images, footage, other films and sound in a row; gate ②'s animatic as grey slates</span><span lang="zh">剪辑表：页面、图片、实拍素材、别的片子和声音排成一列；关卡 ② 的 animatic 先是灰卡</span></span></li>
-          <li><code>components</code><span><span lang="en"><span data-n="components">5</span> motion components: a spring scene, a page turn, paper seams, a chapter bar, a build-up</span><span lang="zh"><span data-n="components">5</span> 个动效组件：弹簧场景、翻页、纸面转场、章节进度条、逐渐建成</span></span></li>
-          <li><code>recipes</code><span><span lang="en"><span data-n="recipes">71</span> shot recipes, <span data-n="sequences">10</span> whole-film skeletons, <span data-n="grammar">24</span> shot-grammar cards</span><span lang="zh"><span data-n="recipes">71</span> 张镜头配方、<span data-n="sequences">10</span> 条全片骨架、<span data-n="grammar">24</span> 张镜头语法卡</span></span></li>
-          <li><code>--three</code><span><span lang="en">canvas-film's Three.js layer: GLB models under the 2D, their clips on the narration's words</span><span lang="zh">canvas-film 的 Three.js 层：GLB 模型画在 2D 下面，动作挂在旁白的字上</span></span></li>
-          <li><span class="tag-b">Blender</span><span><span lang="en">path-traced shots, or only the asset, tidied and checked for the Three.js layer</span><span lang="zh">路径追踪的镜头；或者只做资产，整理、检查好交给 Three.js 层</span></span></li>
-          <li><code>tts</code> · <code>music</code> · <code>mix</code><span><span lang="en">voiceover, a score written as code, the mix</span><span lang="zh">配音、用代码写的配乐、混音</span></span></li>
+          <li><span class="k"><code>edit</code></span><span><span lang="en">an edit list: pages, images, footage, other films and sound in a row; gate ②'s animatic as grey slates</span><span lang="zh">剪辑表：页面、图片、实拍素材、别的片子和声音排成一列；关卡 ② 的 animatic 先是灰卡</span></span></li>
+          <li><span class="k"><code>components</code></span><span><span lang="en"><span data-n="components">5</span> motion components: a spring scene, a page turn, paper seams, a chapter bar, a build-up</span><span lang="zh"><span data-n="components">5</span> 个动效组件：弹簧场景、翻页、纸面转场、章节进度条、逐渐建成</span></span></li>
+          <li><span class="k"><code>recipes</code></span><span><span lang="en"><span data-n="recipes">71</span> shot recipes, <span data-n="sequences">10</span> whole-film skeletons, <span data-n="grammar">24</span> shot-grammar cards</span><span lang="zh"><span data-n="recipes">71</span> 张镜头配方、<span data-n="sequences">10</span> 条全片骨架、<span data-n="grammar">24</span> 张镜头语法卡</span></span></li>
+          <li><span class="k"><code>--three</code></span><span><span lang="en">canvas-film's Three.js layer: GLB models under the 2D, their clips on the narration's words</span><span lang="zh">canvas-film 的 Three.js 层：GLB 模型画在 2D 下面，动作挂在旁白的字上</span></span></li>
+          <li><span class="k">Blender</span><span><span lang="en">path-traced shots, or only the asset, tidied and checked for the Three.js layer</span><span lang="zh">路径追踪的镜头；或者只做资产，整理、检查好交给 Three.js 层</span></span></li>
+          <li><span class="k"><code>tts</code> · <code>music</code> · <code>mix</code></span><span><span lang="en">voiceover, a score written as code, the mix</span><span lang="zh">配音、用代码写的配乐、混音</span></span></li>
         </ul>
       </div>
       <div class="station" data-r>
         <h3><b>04</b><span lang="en">Check &amp; deliver</span><span lang="zh">查与交</span></h3>
         <ul>
-          <li><code>gate</code> · <code>desk</code><span><span lang="en">a stop for your sign-off in one command; the review desk</span><span lang="zh">一条命令停下来等你拍板；审阅台</span></span></li>
-          <li><code>check</code> · <code>determinism</code><span><span lang="en">the film against its brief; each frame really a function of t</span><span lang="zh">对着 Brief 查成片；查每一帧是不是只由 t 决定</span></span></li>
-          <li><code>render</code><span><span lang="en">parallel, resumable chunks; <code>--motion-blur N</code> for sub-frame blur, <code>--alpha</code> for a transparent film; an edit list redraws only what changed</span><span lang="zh">分块并行、能续渲；<code>--motion-blur N</code> 加子帧运动模糊，<code>--alpha</code> 出透明底；剪辑表只重画改过的部分</span></span></li>
-          <li><code>patch</code> · <code>versions</code><span><span lang="en">a few seconds redrawn in a finished film; compare renders, or go back</span><span lang="zh">只重画成片里的几秒；对比各版，或者退回</span></span></li>
-          <li><code>deliver</code> · <code>clean</code><span><span lang="en">the copy to upload; a finished project's intermediates cleared</span><span lang="zh">出上传用的版本；清掉做完的项目里的中间文件</span></span></li>
+          <li><span class="k"><code>gate</code> · <code>desk</code></span><span><span lang="en">a stop for your sign-off in one command; the review desk</span><span lang="zh">一条命令停下来等你拍板；审阅台</span></span></li>
+          <li><span class="k"><code>check</code> · <code>determinism</code></span><span><span lang="en">the film against its brief; each frame really a function of t</span><span lang="zh">对着 Brief 查成片；查每一帧是不是只由 t 决定</span></span></li>
+          <li><span class="k"><code>render</code></span><span><span lang="en">parallel, resumable chunks; <code>--motion-blur N</code> for sub-frame blur, <code>--alpha</code> for a transparent film; an edit list redraws only what changed</span><span lang="zh">分块并行、能续渲；<code>--motion-blur N</code> 加子帧运动模糊，<code>--alpha</code> 出透明底；剪辑表只重画改过的部分</span></span></li>
+          <li><span class="k"><code>patch</code> · <code>versions</code></span><span><span lang="en">a few seconds redrawn in a finished film; compare renders, or go back</span><span lang="zh">只重画成片里的几秒；对比各版，或者退回</span></span></li>
+          <li><span class="k"><code>deliver</code> · <code>clean</code></span><span><span lang="en">the copy to upload; a finished project's intermediates cleared</span><span lang="zh">出上传用的版本；清掉做完的项目里的中间文件</span></span></li>
         </ul>
       </div>
     </div>
@@ -978,7 +977,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
       <button data-t="90.5"><b>1:30</b><span lang="en">This film, too</span><span lang="zh">还有这一支</span></button>
     </div>
     <div class="film-notes" data-r>
-      <p class="fine"><span lang="en">The opening is path-traced in Blender, driven by Python: 1.18 million stars, 475 frames. HyperFrames and Three.js take over from 15 s. The score and 124 sound effects are code too. It streams from the repo's GitHub release (297 MB) once you press play.</span><span lang="zh">开场由 Python 驱动 Blender 路径追踪：118 万颗星，475 帧。15 秒起交给 HyperFrames 和 Three.js。配乐和 124 个音效也是代码写的。按下播放才从仓库的 GitHub Release 载入（297 MB）。</span></p>
+      <p class="fine"><span lang="en">The opening is path-traced in Blender, driven by Python: 1.18 million stars, 475 frames. HyperFrames and Three.js take over from 15 s. The score and its 124 sound events are code too. It streams from the repo's GitHub release (297 MB) once you press play.</span><span lang="zh">开场由 Python 驱动 Blender 路径追踪：118 万颗星，475 帧。15 秒起交给 HyperFrames 和 Three.js。配乐和 124 处音效也是代码写的。按下播放才从仓库的 GitHub Release 载入（297 MB）。</span></p>
     </div>
   </div>
 </section>
