@@ -316,8 +316,6 @@ def site_problems(have):
         elif number(text) != have[key]:
             bad.append(f"{SITE} (line {line}): data-n=\"{key}\" says {text!r}, but the repo has {have[key]} {WHAT[key]}")
     ids = set(re.findall(r"\bid=\"([^\"]+)\"", html))
-    optional = {src for tag in re.findall(r"<\w+\b[^>]*\bdata-optional\b[^>]*>", html)
-                for src in re.findall(r"\bsrc=\"([^\"]+)\"", tag)}   # pictures the page hides while they are missing (the WeChat QR)
     for m in re.finditer(r"\b(?:href|src|data-src|poster)=\"([^\"]+)\"", html):
         t = m.group(1)
         if t.startswith("#"):
@@ -327,7 +325,7 @@ def site_problems(have):
         if not local(t):
             continue
         dest = Path(os.path.normpath(base / t.partition("#")[0].partition("?")[0]))
-        if not dest.is_relative_to(ROOT) or not (dest.exists() or str(dest.relative_to(ROOT)) in fetched or t in optional):
+        if not dest.is_relative_to(ROOT) or not (dest.exists() or str(dest.relative_to(ROOT)) in fetched):
             bad.append(f"{SITE}: links {t}, which is not in the repo (nor in tools/media.txt)")
     block = re.search(r"const STYLES = \[(.*?)\];", html, re.S)
     listed = re.findall(r"\['([a-z0-9-]+)', '([^']*)', '([^']*)'\]", block.group(1)) if block else []

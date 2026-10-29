@@ -46,18 +46,15 @@ To edit the text:
 - **Labels that are attributes** (`aria-label`) come from `data-aria-en` / `data-aria-zh`.
 - **Strings the script writes** are in `T` at the top of the script: the f(t) readout and check, the copy buttons, captions. The style names are in `STYLES`, as `[folder, English, Chinese]`.
 
-## Optional material
+## Channel links
 
-The page works without either:
-
-- **WeChat QR**: save it as `docs/site/img/wechat.jpg` and commit it. The "Say hi on WeChat" card then appears next to the GitHub QR in the Contact section; without the file the card hides itself. Committing the image makes it public with the repo.
-- **Douyin and Bilibili links**: paste them into the two empty `href=""` in the "In practice" section. Left empty, the names show without a link.
+The Douyin and Bilibili entries in the "In practice" section have an empty `href=""`; paste the channel links there. Left empty, the names show without a link.
 
 ## Counts, and what checks them
 
 A count on the page is wrapped as `<span data-n="styles">32</span>`. `tools/readme.py` (run by `tools/ci.sh`) holds every one to the repo; `python3 tools/readme.py` prints the current counts, and `check` names the line of one that is wrong. It also checks:
 
-- that every relative link, image, poster and `#anchor` is there (a film listed in `tools/media.txt` counts, since `tools/fetch_media.sh` puts it back; a picture marked `data-optional`, the WeChat QR, may be missing);
+- that every relative link, image, poster and `#anchor` is there (a film listed in `tools/media.txt` counts, since `tools/fetch_media.sh` puts it back);
 - that `STYLES` lists exactly the repo's styles, each with its thumbnail in `img/styles/` and its sample, and its Chinese name as in its `STYLE.md` title;
 - that there are as many `lang="en"` texts as `lang="zh"` (a `<small>` gloss, like "TikTok in China" after Douyin, may stand in one language);
 - that nothing from another site loads with the page (a stylesheet, script, font, image or frame).
