@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**How many browsers an edit list starts: a research note, and no change**
+- Why: the page tools start a headless Chrome for every page they open, and the plan was to let one edit list's pages share one browser if those starts cost much.
+- `docs/research/09-browser-starts.md` (and `en/`): synthetic 12-page edit lists at 1080p (no film here is made with an edit list), on this machine and on GitHub's Linux and macOS runners. On the short list (18 s) render starts 24 browsers, determinism 50, cues 12; a page longer than one GOP is opened by each worker that draws a chunk of it, and a render of more than 600 frames draws a few chunks first for its estimate, so the 3-minute list (12 pages of 15 s) starts 54. Each start costs 0.37 s (an M3 Max) to about 1.7 s (the macOS runner) more than a tab in a running browser. Shared, determinism would be about a quarter faster and cues about seven tenths, but the 3-minute list's render only about 7.5%, and the CI suite starts 18 browsers more than it needs (14 in edit_checks, 3 in edit_footage_checks, 1 in film_engine_checks): at most about 24 s on the macOS runner. So no code changed. The note records the numbers and the conditions, a cheaper step to try first (the page data read four pages at a time instead of one after another), the order a shared browser would be done in, and what is not known.
+- Seen in passing: Chrome's version on the macOS runner changed in the middle of the job, and the chunk cache, keyed on it, then took nothing; and with Google Chrome, render waited about 4 minutes after "done" because Chrome's crashpad and GoogleUpdater processes held the pipe it reads Chrome's errors from. Both are left as follow-ups.
+
 **The homepage brought up to date in its own look: today's counts and tools, a capability map, nothing loaded from elsewhere, a better phone layout**
 - Why: the maintainer asked for the homepage to be refreshed in the style it has (the deep-space background, the galaxy of style thumbnails, the big two-line title, the gradient buttons and chips), with what the repo can do now, and for it to open in mainland China, where its Google Fonts did not. Several of its counts were stale (24 shot recipes, 30 reference repos and 590 MB), and it named Remotion among its engines.
 - `docs/site/index.html`, the same design and sections, updated:
