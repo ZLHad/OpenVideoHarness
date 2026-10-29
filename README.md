@@ -68,9 +68,7 @@ cd ~/OpenVideoHarness && claude        # or: codex
 
 The installer puts the repo in `~/OpenVideoHarness` with its packages, fetches 37 read-only reference repos and registers the `open-video-harness` skill for Claude Code and Codex, so asking for a video from any folder finds it. About 650 MB on disk. Then say what you want:
 
-```text
-Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.
-```
+> Make a 30-second vertical science short: why does a low-orbit satellite's signal change pitch? English voiceover, English and Chinese subtitles.
 
 What happens next:
 
@@ -135,7 +133,7 @@ The tools follow the work: think, gather, make, check and deliver. Each name bel
 | **Check and deliver** | `gate` · `desk` | A stop for your sign-off in one command; the review desk for item-by-item notes |
 | | `frames` · `sheet` · `determinism` | Lossless frames, contact sheets, and a check that each frame really is a function of t |
 | | `check` | The rendered film against its brief: black, frozen or silent stretches, flashes, subtitles, colour tags, loudness |
-| | `render` | An MP4 drawn in parallel, resumable chunks; `--motion-blur N` for sub-frame blur, `--alpha` for a transparent film |
+| | `render` | An MP4 drawn in parallel, resumable chunks, each render kept as a version |
 | | `patch` · `versions` | Redraw a few seconds of a finished film; compare renders or go back to one |
 | | `deliver` · `clean` | The copy to upload; a finished project cleared of its intermediates |
 
@@ -217,7 +215,7 @@ Some shots are beyond a web page: refracting glass, volumetric light, real depth
 
 A film doesn't have to be one page. `edit.json` lays it out as a row of entries, each drawn its own way: a page (one engine per chapter, if you like), an image with a push, a colour, a grey slate still to be made, a clip of footage, another project's film, and tracks of sound. `bin/vh edit init` turns the shot table into one, every shot a slate timed as planned, which is gate ②'s full-length animatic; the slates are then replaced one by one.
 
-`bin/vh render` builds the edit list, puts a keyframe at every cut and keeps each finished chunk, so a render after a change draws only the entries that changed. `bin/vh patch`, `check` and `deliver` read the same list, and a film with a slate left can't be delivered. The format: [engines/EDIT.md](engines/EDIT.md) (in Chinese).
+`bin/vh render` builds the edit list, puts a keyframe at every cut and keeps each finished chunk, so a render after a change draws only the entries that changed. `bin/vh patch`, `check` and `deliver` read the same list, and a film with a slate left can't be delivered. Any page, in an edit list or alone, can render with `--motion-blur N` (N sub-frames averaged into each frame, a cut still a cut) or `--alpha` (a transparent film to lay over footage). The format: [engines/EDIT.md](engines/EDIT.md) (in Chinese).
 
 ## Effort, and who decides
 

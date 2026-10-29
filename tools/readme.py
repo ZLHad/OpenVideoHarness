@@ -1,14 +1,15 @@
-"""The README files and the homepage against the repo: the counts they state, the files they link, the two languages
-side by side (stdlib only).
+"""The READMEs, their overview diagrams and the installer against the repo: the counts they state, the files they link,
+the two languages side by side (stdlib only).
 
-usage: python3 tools/readme.py          the counts, from the repo: what to write when a README or the homepage says one
-       python3 tools/readme.py check    the pages below against the repo (tools/ci.sh)
+usage: python3 tools/readme.py          the counts, from the repo: what to write when one of these pages says one
+       python3 tools/readme.py check    the pages in PAGES against the repo (tools/ci.sh)
 
-check reads README.md, README.zh-CN.md and docs/assets/overview.en.svg / overview.zh.svg:
+check reads README.md, README.zh-CN.md, docs/assets/overview.en.svg / overview.zh.svg and install.sh:
   - counts: every phrase like "32 styles" / "32 种风格" (COUNT_PHRASES) states the repo's number, and each page states
-    the counts REQUIRED lists for it, so a reworded sentence cannot leave its number unchecked;
-  - links: every relative link and image is a file or folder in the repo, and a #anchor on a markdown page is one of
-    that page's headings (GitHub's anchors);
+    the counts PAGES lists for it, so a reworded sentence cannot leave its number unchecked; install.sh's HyperFrames
+    version is the pin in tools/modules.json;
+  - links: every relative link and image in the READMEs is a file or folder in the repo, and a #anchor on a markdown
+    page is one of that page's headings (GitHub's anchors);
   - the two READMEs: as many sections (##) each, and the same relative links and images once the language is taken out
     of their names (README.zh-CN.md is README.md, docs/research/en/x is docs/research/x, overview.zh.svg is overview.svg).
 Links to the web are not fetched (CI runs offline). Exit status: 0 all good, 1 a problem (each said), 2 usage.
@@ -120,16 +121,17 @@ WHAT = {   # what each count is, for the listing
 # Each phrase captures a number (digits, or an English or Chinese number word); every match must be the count. Keep a
 # phrase narrow enough that it cannot catch another number (第 09 类 is a type's number, not the count of types).
 N = r"(\d+|[a-z]+|[零一二两三四五六七八九十]+)"
-COUNT_PHRASES = {
-    "commands": [rf"\b{N} commands\b", rf"{N} 条命令"],
+COUNT_PHRASES = {   # "Run these two commands" is not a count of bin/vh's: commands and components need their word
+    "commands": [rf"\ball {N} commands\b", rf"\b{N} `?bin/vh`? commands\b", rf"bin/vh: {N} commands\b",
+                 rf"全部 {N} 条命令", rf"{N} 条 ?`?bin/vh`? ?命令", rf"bin/vh：{N} 条命令"],
     "styles": [rf"\b{N} styles\b", rf"\b{N}-style\b", rf"{N} 种风格"],
     "recipes": [rf"\b{N} shot recipes\b", rf"{N} 张镜头配方"],
     "sequences": [rf"\b{N} whole-film skeletons\b", rf"{N} 条全片骨架"],
     "grammar": [rf"\b{N} shot-grammar cards\b", rf"{N} 张镜头语法卡"],
-    "components": [rf"\b{N} (?:motion )?components\b", rf"{N} 个(?:动效)?组件"],
+    "components": [rf"\b{N} motion components\b", rf"{N} 个动效组件"],
     "showcase": [rf"\b{N} showcase films\b", rf"{N} 支样片"],
     "types": [rf"\b{N} video types\b", rf"(?<!第 ){N} 类视频"],
-    "cases": [rf"\b{N} case studies\b", rf"{N} 个案例"],
+    "cases": [rf"\b{N} case studies\b", rf"\b{N} cases\b", rf"{N} 个案例"],
     "playbook": [rf"\b{N} playbook docs\b", rf"{N} 篇 playbook"],
     "templates": [rf"\b{N} project templates\b", rf"{N} 个项目模板"],
     "refs": [rf"\b{N} (?:read-only )?reference repos\b", rf"{N} 个(?:只读的?)?参考仓库"],
@@ -146,6 +148,7 @@ PAGES = {   # page: the counts it must state somewhere (each is also checked whe
                         "refs", "modules", "sfx", "checklist", "scores"],
     "docs/assets/overview.en.svg": ["types", "playbook", "styles", "recipes", "components", "cases", "refs", "commands"],
     "docs/assets/overview.zh.svg": ["types", "playbook", "styles", "recipes", "components", "cases", "refs", "commands"],
+    "install.sh": [],   # counts the reference repos as it runs; a number written into it is checked all the same
 }
 READMES = ("README.md", "README.zh-CN.md")
 
@@ -181,12 +184,21 @@ def count_problems(have):
                         continue
                     seen.append(n)
                     if n != have[key]:
-                        where = f"line {text.count(chr(10), 0, m.start()) + 1}" if p.suffix == ".md" else "a <text>"
+                        where = "a <text>" if p.suffix == ".svg" else f"line {text.count(chr(10), 0, m.start()) + 1}"
                         bad.append(f"{page} ({where}): \"{m.group(0)}\", but the repo has {have[key]} {WHAT[key]}")
             if key in required and not seen:
                 bad.append(f"{page}: states no count of {WHAT[key]} (a phrase in tools/readme.py COUNT_PHRASES: "
                            f"{' or '.join(phrases)}); say it, or take it out of PAGES")
     return bad
+
+
+def pin_problems():
+    """install.sh names the HyperFrames version it installs: the one tools/modules.json pins."""
+    mods = json.loads((ROOT / "tools/modules.json").read_text(encoding="utf-8"))["modules"]
+    pin = next(m for m in mods if m["name"] == "hyperframes")["version"]["pin"]
+    text = (ROOT / "install.sh").read_text(encoding="utf-8")
+    return [f"install.sh: HyperFrames {v}, but tools/modules.json pins {pin}"
+            for v in re.findall(r"HyperFrames (\d+\.\d+\.\d+)", text) if v != pin]
 
 
 # ── links ──────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -271,7 +283,7 @@ def pair_problems():
 def check():
     have = counts()
     bad = [f"tools/readme.py: the repo has no {WHAT[k]}" for k, v in have.items() if not v]
-    bad += count_problems(have)
+    bad += count_problems(have) + pin_problems()
     for page in READMES:
         bad += link_problems(page)
     bad += pair_problems()
@@ -289,9 +301,9 @@ def main(argv):
             print("\n".join(bad))
             return 1
         have = counts()
-        print(f"README.md, README.zh-CN.md and the overview diagrams: {len(have)} counts as the repo has them "
-              f"({have['commands']} commands, {have['styles']} styles, {have['recipes']} recipes …), their links in the repo, "
-              f"the two READMEs side by side")
+        print(f"the READMEs, the overview diagrams and install.sh: {len(have)} counts as the repo has them "
+              f"({have['commands']} commands, {have['styles']} styles, {have['recipes']} recipes …) and the HyperFrames pin; "
+              f"the READMEs' links in the repo, side by side")
         return 0
     print(__doc__.split("\n\n")[1], file=sys.stderr)
     return 2
