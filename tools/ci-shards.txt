@@ -6,32 +6,32 @@
 # Rebalancing: every run of tools/ci.sh ends with each of its groups in seconds, in this file's form. When the two macOS
 # shards of a CI run end more than a minute or two apart, copy the group lines of both shards' logs over the numbers here
 # (a new group goes where it runs; tools/ci.sh checks that each group is here once and that each is a function).
-# These are the seconds of 2026-10-29, from main at 7a6d3f9 with the waits this change took out.
-static_checks 34
+# The seconds: both macOS shards of one CI run, 2026-10-29.
+static_checks 25
 doc_checks 2
 readpath_report 0
-smoke_checks 132
-pace_checks 14
-timeline_checks 19
-series_checks 27
-decision_checks 31
-gate_checks 17
-desk_checks 12
-looks_checks 14
-activity_checks 7
-status_checks 5
+smoke_checks 133
+pace_checks 15
+timeline_checks 25
+series_checks 28
+decision_checks 45
+gate_checks 23
+desk_checks 14
+looks_checks 17
+activity_checks 6
+status_checks 6
 know_checks 6
-assets_checks 68
-concept_checks 5
+assets_checks 108
+concept_checks 16
 hf_checks 2
-scout_checks 9
-textcheck_checks 15
-film_checks 76
-render_checks 604
-film_engine_checks 353
-edit_checks 131
-edit_footage_checks 55
-edit_cache_checks 70
-components_checks 42
-model3d_checks 39
-hdri_checks 40
+scout_checks 13
+textcheck_checks 22
+film_checks 83
+render_checks 600
+film_engine_checks 256
+edit_checks 99
+edit_footage_checks 34
+edit_cache_checks 54
+components_checks 37
+model3d_checks 43
+hdri_checks 29
