@@ -43,11 +43,11 @@ https://github.com/user-attachments/assets/48923404-eff1-41cd-b303-82c9ede51c1f
 </tr>
 <tr>
 <td width="38%" valign="top"><a href="showcase/01-handdrawn-clawd-leaf/"><img src="docs/assets/films/01-clawd.jpg" width="100%" alt="手绘短片：Clawd 端着小摄影机，风把叶子抢走了"></a></td>
-<td valign="top"><b><a href="showcase/01-handdrawn-clawd-leaf/">01 · 手绘角色短片</a></b><br><sub>p5.brush · 12 秒 · 1920×1080</sub><br>没有字、没有旁白的三镜头默剧，配乐和拟音跟着每个动作走。<br><b><a href="showcase/01-handdrawn-clawd-leaf/README.md#the-request-this-was-built-from">需求</a>：</b>"Clawd 用手摇小摄影机拍一片落叶，风总在它对准的时候把叶子抢走……"<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/01-handdrawn-short.mp4">原片（9.0 MB）</a></sub></td>
+<td valign="top"><b><a href="showcase/01-handdrawn-clawd-leaf/">01 · 手绘角色短片</a></b><br><sub>p5.brush · 12 秒 · 1920×1080</sub><br>没有字、没有旁白的三镜头默剧，配乐和拟音跟着每个动作走。<br><b><a href="showcase/01-handdrawn-clawd-leaf/README.md#the-request-this-was-built-from">需求</a>：</b>"Clawd tries to film a falling autumn leaf with a tiny hand-cranked movie camera; the wind keeps snatching the leaf just as Clawd frames it …"（Clawd 用手摇小摄影机拍一片落叶，风总在它对准的时候把叶子抢走……）<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/01-handdrawn-short.mp4">原片（9.0 MB）</a></sub></td>
 </tr>
 <tr>
 <td width="38%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="docs/assets/films/00-launch.jpg" width="100%" alt="发布短片：CLAUDE.md 的路由表，产品片那一行被选中"></a></td>
-<td valign="top"><b><a href="showcase/00-promo-launch-film/">00 · 发布短片</a></b><br><sub>HyperFrames · 20 秒 · 1920×1080</sub><br>用这个仓库自己的终端、路由表和联系表搭成，画面上每个动作都有音效。<br><b><a href="showcase/00-promo-launch-film/README.md#the-request">需求</a>：</b>"做 README 首屏的主视频：一支给 OpenVideoHarness 本身的发布短片……"<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/00-launch-short.mp4">原片（6.8 MB）</a></sub></td>
+<td valign="top"><b><a href="showcase/00-promo-launch-film/">00 · 发布短片</a></b><br><sub>HyperFrames · 20 秒 · 1920×1080</sub><br>用这个仓库自己的终端、路由表和联系表搭成，画面上每个动作都有音效。<br><b><a href="showcase/00-promo-launch-film/README.md#the-request">需求</a>：</b>"Produce the README hero video — a short launch film for OpenVideoHarness itself …"（做 README 首屏的主视频：一支给 OpenVideoHarness 本身的发布短片……）<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/00-launch-short.mp4">原片（6.8 MB）</a></sub></td>
 </tr>
 <tr>
 <td width="38%" valign="top"><a href="styles/"><img src="docs/assets/films/styles.jpg" width="100%" alt="风格库里的 16 张样片，内容完全相同"></a></td>
@@ -68,9 +68,7 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 
 安装脚本把仓库装到 `~/OpenVideoHarness`，装好依赖，拉取 37 个只读的参考仓库，并把 `open-video-harness` skill 注册给 Claude Code 和 Codex，之后在任何目录说"做个视频"，agent 都能找到这里。一共占约 650 MB 磁盘。然后直接说你要什么：
 
-```text
-做一个 30 秒的竖屏科普：为什么低轨卫星的信号会"变调"。中文配音，中英双语字幕。
-```
+> 做一个 30 秒的竖屏科普：为什么低轨卫星的信号会"变调"。中文配音，中英双语字幕。
 
 接下来它会：
 
@@ -135,7 +133,7 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 | **查和交付** | `gate` · `desk` | 一条命令停下来等你拍板；审阅台可以逐条勾选、点评 |
 | | `frames` · `sheet` · `determinism` | 无损取帧、联系表，以及查每一帧是不是真的只由 t 决定 |
 | | `check` | 对着 Brief 查成片：黑场、定格、静音、闪烁、字幕、色彩标记、响度 |
-| | `render` | 分块并行渲 MP4，中断了能续渲；`--motion-blur N` 加子帧运动模糊，`--alpha` 出透明底的片子 |
+| | `render` | 分块并行渲 MP4，中断了能续渲，每次渲染都留一个版本 |
 | | `patch` · `versions` | 只重画成片里的几秒；对比各版渲染，或者退回某一版 |
 | | `deliver` · `clean` | 出上传用的版本；清掉做完的项目里的中间文件 |
 
@@ -217,7 +215,7 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 
 一支片子不必是一个页面。`edit.json` 把它排成一列条目，每条按自己的方式画：一个页面（愿意的话一章一个引擎）、一张带推拉的图、一块颜色、还没做的灰卡、一段实拍素材、另一个项目的成片，再加几条声音轨。`bin/vh edit init` 把镜头表变成剪辑表，每个镜头先是一张按计划计时的灰卡，这就是关卡 ② 的全长 animatic；之后再把灰卡一张张换成真的。
 
-`bin/vh render` 先解析剪辑表，在每个切点放关键帧，把渲好的每一块存起来，改动之后再渲，只画变了的条目。`bin/vh patch`、`check`、`deliver` 读的是同一份表，还留着灰卡的片子交付不了。格式见 [engines/EDIT.md](engines/EDIT.md)。
+`bin/vh render` 先解析剪辑表，在每个切点放关键帧，把渲好的每一块存起来，改动之后再渲，只画变了的条目。`bin/vh patch`、`check`、`deliver` 读的是同一份表，还留着灰卡的片子交付不了。任何页面，不管在不在剪辑表里，渲染时都能加 `--motion-blur N`（每帧由 N 个子帧平均而成，切点照样是硬切）或 `--alpha`（出透明底的片子，叠在实拍上）。格式见 [engines/EDIT.md](engines/EDIT.md)。
 
 ## 做多认真、谁来拍板
 
