@@ -6,7 +6,7 @@
 - why the project exists;
 - what it adds and how it works;
 - the intro film and four showcase films;
-- the 31-style library;
+- the 32-style library;
 - how the author uses it;
 - an FAQ, and contact details.
 
@@ -49,7 +49,7 @@ All of it is optional. The page works without any of it.
 
 ## Where the numbers come from
 
-- **Counts of things in the repo**: 9 video types, 13 playbook docs, 11 templates, 32 styles, 24 shot recipes. Source: `video-types/`, `playbook/`, `templates/`, `styles/`, `bin/vh recipes list`.
+- **Counts of things in the repo**: 9 video types, 13 playbook docs, 11 templates, 32 styles, 71 shot recipes. Source: `video-types/`, `playbook/`, `templates/`, `styles/`, `bin/vh recipes list`; `python3 tools/readme.py` prints them all.
 - **The films**:
   - the intro film: 103 s; a Blender opening of 1.18 million stars over 475 frames; 124 sound effects;
   - the four other films.
