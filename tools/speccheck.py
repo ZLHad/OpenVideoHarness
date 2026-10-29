@@ -17,7 +17,9 @@ FAIL: a frame size that is none of the listed deliveries (4K when the BRIEF list
 an odd width or height, another frame rate (0.05 % tolerance: 29.97 is not 30, 30.0008 is), another length than an
 exact one (one frame of tolerance; the picture's length, an audio tail does not count). WARN: a frame smaller than every
 delivery in the same aspect (a draft: only an exact length in seconds is still checked), a length outside a range, an Output line that still has
-{placeholders} or gives no size or rate, a variable frame rate, non-square pixels, audio running past the picture.
+{placeholders} or gives no size or rate, frames that do not fill the stream's length at the nominal rate (a variable
+frame rate, or an edit list such as a cut made with -c copy leaves), non-square pixels, audio running past the picture.
+The length is then the stream's own: its duration, a Matroska track's DURATION tag, else its packets' times.
 """
 import argparse, json, re, subprocess, sys
 from fractions import Fraction
@@ -55,13 +57,42 @@ def tag_seconds(v):
     return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3)) if m else 0.0
 
 
+def duration_tag(tags):
+    """A stream's DURATION tag in seconds, its key in any case and with a language after it too (DURATION-eng, as a
+    muxer that sets the tag's language writes it); 0 when it has none."""
+    for k, v in (tags or {}).items():
+        if re.fullmatch(r"duration(?:-\w+)?", str(k), re.I) and tag_seconds(v):
+            return tag_seconds(v)
+    return 0.0
+
+
+def seconds(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):   # absent, or "N/A"
+        return 0.0
+
+
+def packet_span(video):
+    """The video stream's length from its packets, the first one's time to the last one's end (a Matroska file written
+    through a pipe has no duration and no DURATION tag); 0 when they carry no times."""
+    try:
+        out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "packet=pts_time,duration_time",
+                              "-of", "json", video], capture_output=True, text=True)
+        packets = json.loads(out.stdout or "{}").get("packets") or []
+    except (OSError, ValueError):
+        return 0.0
+    times = [(t, t + seconds(p.get("duration_time"))) for p in packets for t in [seconds(p.get("pts_time"))] if p.get("pts_time") not in (None, "N/A")]
+    return max(b for _, b in times) - min(a for a, _ in times) if times else 0.0
+
+
 def main():
     ap = argparse.ArgumentParser(prog="speccheck.py", usage="python3 tools/speccheck.py <video> [--brief BRIEF.md] [--json f]")
     ap.add_argument("video"); ap.add_argument("--brief"); ap.add_argument("--json")
     a = ap.parse_args()
     try:
         out = subprocess.run(["ffprobe", "-v", "error", "-count_packets", "-select_streams", "v:0", "-show_entries",
-                              "stream=width,height,r_frame_rate,avg_frame_rate,nb_read_packets,sample_aspect_ratio,duration:stream_tags=DURATION:format=duration",
+                              "stream=width,height,r_frame_rate,avg_frame_rate,nb_read_packets,sample_aspect_ratio,duration:stream_tags:format=duration",
                               "-of", "json", a.video], capture_output=True, text=True)
     except OSError as e:
         print(f"speccheck: cannot run {e.filename or 'ffprobe'}: {e.strerror}", file=sys.stderr); sys.exit(2)
@@ -71,21 +102,25 @@ def main():
     W, H, n = st["width"], st["height"], int(st.get("nb_read_packets") or 0)
     rate = Fraction(st["r_frame_rate"]); fps = float(rate)
     whole = float((pr.get("format") or {}).get("duration") or 0)
-    # the video stream's own length; Matroska gives it as the track's DURATION tag ("00:00:10.000000000")
-    sdur = float(st.get("duration") or 0) or tag_seconds((st.get("tags") or {}).get("DURATION"))
-    # variable frame rate: the frames do not fill the stream's length at the nominal rate (a still stretch written as one
-    # long frame), or ffprobe's average rate is not the nominal one. The length is then the stream's (or frames at the
-    # average rate), not frames at the nominal rate
+    # the video stream's own length: its duration; Matroska gives it as the track's DURATION tag ("00:00:10.000000000");
+    # a Matroska file written through a pipe has neither, and its packets' times say it
+    sdur = seconds(st.get("duration")) or duration_tag(st.get("tags")) or packet_span(a.video)
+    # frames and length disagree: the frames do not fill the stream's length at the nominal rate (a still stretch written
+    # as one long frame; or an edit list, as a cut made with -c copy leaves, hiding the frames before its start), or
+    # ffprobe's average rate is not the nominal one. The length is then the stream's (or frames at the average rate),
+    # not frames at the nominal rate
     avg = st.get("avg_frame_rate") or "0/0"
     avgf = float(Fraction(avg)) if avg != "0/0" else 0.0
-    vfr = bool(n and fps and sdur and abs(n - sdur * fps) > 1.5) or bool(avgf and abs(avgf - fps) > fps * 5e-4)
+    off_avg = bool(avgf and abs(avgf - fps) > fps * 5e-4)
+    vfr = bool(n and fps and sdur and abs(n - sdur * fps) > 1.5) or off_avg
     if vfr:
         dur = sdur or (n / avgf if n and avgf else whole)
     else:
         dur = n / fps if n and fps else (sdur or whole)   # the picture's length; the audio may run longer
-    vfr_note = (f"variable frame rate: {n} frames over {dur:.2f} s, {n / dur:.4g} a second on average against the nominal {rate} "
-                f"(ffprobe's average {avg}): make it constant (ffmpeg -vf fps={rate}) before mux and the other checks, which count "
-                "frames at the nominal rate (engines/manimgx.md)") if vfr and dur else None
+    vfr_note = (f"frames and length disagree: {n} frames over {dur:.2f} s ({n / dur:.4g} a second; the nominal rate is {rate}"
+                + (f", ffprobe's average {avg}" if off_avg else "") + "): a variable frame rate, or an edit list (a cut made "
+                f"with -c copy). Make it constant with ffmpeg -vf fps={rate}, re-encoding, before mux and the other checks, which "
+                "count frames at the nominal rate (engines/manimgx.md has the command)") if vfr and dur else None
     if a.brief:
         brief = Path(a.brief)
         if not brief.is_file():

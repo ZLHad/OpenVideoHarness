@@ -69,8 +69,8 @@ def shown(p):
     return "~" + p[len(h):] if p == h or p.startswith(h + os.sep) else p
 
 
-def size_of(p):
-    """A folder's size on disk, links followed (a Hugging Face snapshot is all links): "202 MB", "2.0 GB"."""
+def bytes_of(p):
+    """A folder's size on disk in bytes, links followed (a Hugging Face snapshot is all links)."""
     n = 0
     for d, _, fs in os.walk(p, followlinks=True):
         for f in fs:
@@ -78,8 +78,34 @@ def size_of(p):
                 n += os.stat(os.path.join(d, f)).st_blocks * 512
             except OSError:
                 pass
+    return n
+
+
+def mb_text(n):
     mb = n / 1e6
     return f"{mb / 1000:.1f} GB" if mb >= 1000 else f"{mb:.0f} MB"
+
+
+def size_of(p):
+    """A folder's size on disk, links followed: "202 MB", "2.0 GB"."""
+    return mb_text(bytes_of(p))
+
+
+def install_says():
+    """What install.sh tells someone the reference repos come to ("250 MB"), or None: the figure doctor gives when none
+    is fetched, so it is written in one place."""
+    try:
+        m = re.search(r"reference repos \(about (\d+(?:\.\d+)? [MG]B)", (ROOT / "install.sh").read_text(encoding="utf-8"))
+    except OSError:
+        return None
+    return m.group(1) if m else None
+
+
+def references_note(have, want, fetched, said):
+    """doctor's line for references/repos when some are not fetched: the whole set's size worked out from the ones that
+    are (fetched: their bytes), else what install.sh says (said), else none."""
+    size = f"about {mb_text(fetched * want / have)}, at the size of the {have} here" if have and fetched else f"about {said}" if said else None
+    return f"{have}/{want} repos fetched → bash references/fetch.sh (all {want}{': ' + size if size else ''}; agents read them for the case studies)"
 
 
 def this_platform():
@@ -365,7 +391,7 @@ def repo_checks(webgl, found_by):
     if have >= want:
         out.append({"name": "references", "state": "ok", "note": f"{have}/{want} repos fetched, {size_of(ROOT / 'references' / 'repos')}"})
     else:
-        out.append({"name": "references", "state": "missing", "note": f"{have}/{want} repos fetched → bash references/fetch.sh (all {want}: about 195 MB; agents read them for the case studies)"})
+        out.append({"name": "references", "state": "missing", "note": references_note(have, want, bytes_of(ROOT / "references" / "repos") if have else 0, install_says())})
     local = ROOT / "LOCAL.md"
     if not local.exists():
         out.append({"name": "local_md", "state": "missing", "note": "no LOCAL.md → cp LOCAL.example.md LOCAL.md and fill it in"})

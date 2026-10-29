@@ -33,6 +33,11 @@ no_chrome() { # no_chrome <what>: what needs a headless Chrome and found none. H
   if [ "${CI:-}" = true ]; then bad "$1: no Chrome, Chromium or chrome-headless-shell on this CI runner, and the page tools need one"
   else skip "$1" "no Chrome, Chromium or chrome-headless-shell"; fi
 }
+no_webgl() { # no_webgl <what>: the Three.js layer got no WebGL2, even with --soft-gl. Here a skip; on CI (CI=true) a
+  # failure, as no_chrome: GitHub's runners draw it in software, and a skip there would pass a run that drew nothing
+  if [ "${CI:-}" = true ]; then bad "$1: no WebGL2 for the Three.js layer on this CI runner, even with --soft-gl"
+  else skip "$1" "no WebGL here even with --soft-gl"; fi
+}
 files() { git ls-files "$@" | grep -v -E '^references/|(^|/)node_modules/|\.min\.js$'; }
 
 static_checks() {
@@ -271,12 +276,12 @@ PY
      && grep -q 'names no_such_checks, which is no function' <<<"$c" && grep -q '256 check(s) failed' <<<"$e" && ! grep -q 'all checks passed' <<<"$a$b$c$e"
   then ok "tools/ci.sh: an empty table and none stop it (exit 2: no groups to run); a group that is no function fails the run (exit 1), and so do 256 (exit 1, not 256 % 256)"
   else bad "tools/ci.sh on broken tables (empty: exit $r1, gone: exit $r2, a group that is no function: exit $r3, 256 of them: exit $r4): $(printf '%s | %s | %s | %s' "$a" "$b" "$c" "$e" | tail -c 400)"; fi
-  # no headless Chrome for the page tools: a skip here, a failure on CI (CI=true), where a skip would pass a run that
-  # drew nothing
-  a=$( (CI=true; fails=0; no_chrome "a page group" >/dev/null; echo "$fails") )
-  b=$( (CI=""; fails=0; skipped=""; no_chrome "a page group" >/dev/null; echo "$fails:$skipped") )
-  if [ "$a|$b" = "1|0:a page group" ]; then ok "no Chrome for the page tools: a skip on this machine, a failure on CI (CI=true)"
-  else bad "no_chrome on CI and off it (failures, then failures:skipped): $a | $b"; fi
+  # no headless Chrome for the page tools, or no WebGL2 for the Three.js layer: a skip here, a failure on CI (CI=true),
+  # where a skip would pass a run that drew nothing
+  a=$( (CI=true; fails=0; no_chrome "a page group" >/dev/null; no_webgl "a Three.js check" >/dev/null; echo "$fails") )
+  b=$( (CI=""; fails=0; skipped=""; no_chrome "a page group" >/dev/null; no_webgl "a Three.js check" >/dev/null; echo "$fails:$skipped") )
+  if [ "$a|$b" = "2|0:a page group, a Three.js check" ]; then ok "no Chrome for the page tools, no WebGL for the Three.js layer: a skip on this machine, a failure on CI (CI=true)"
+  else bad "no_chrome and no_webgl on CI and off it (failures, then failures:skipped): $a | $b"; fi
   # the workflow and the ruleset: each context the ruleset requires is the name of a job in ci.yml, and the job that
   # reports checks (macos-latest) runs whatever became of its shards (if: always(); a required check that is skipped
   # counts as passed)
@@ -1015,18 +1020,43 @@ print(sum("the close-up row is" in x for x in R.library_checks(lib)))' 2>&1 | tr
   then ok "recipes list --grammar lists the shot-grammar cards by grammar, all of them alone; check refuses a card without its sections or with none under one, a code twice in a grammar, a README row that is not the card's; --grammar takes no recipe filter, and says an unknown or a missing grammar"
   else bad "the shot-grammar cards: [$a] [$d] [$e] exit $rc:$rc2:$rc3:$rc4:$rc5, [$c] | $(printf '%s' "$b$f" | tail -c 300) | $(cat "$t/e1" "$t/e2" | head -c 200)"; fi
   # a recipe's README row is the whole row its card makes (its one-liner too: only energy, length and status were held to
-  # the card), and a sequence that lacks a section is pointed to a sequence, not to the recipes' template
+  # the card), however it is spaced (a row with blanks after it was never compared; one spaced otherwise is said to be),
+  # and a sequence that lacks a section is pointed to a sequence, not to the recipes' template
   sed -e 's/^id: .*/id: ci-seq/' -e 's/^## 限额/## 别的/' recipes/sequences/launch-15s.md > "$t/seq.md"
   b=$(vh recipes check "$t/seq.md" 2>&1); rc=$?
   c=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import recipes as R
 lib = R.load_library(); p, fm = lib["hold-confirm"]; lib["hold-confirm"] = (p, dict(fm, one_liner=fm["one_liner"] + "，再停一拍"))
-print(sum("the hold-confirm row differs from its card in its one-liner" in x for x in R.library_checks(lib)))' 2>&1)
-  if [ "$rc" = 1 ] && grep -q "## 限额 (every sequence has" <<<"$b" && ! grep -q "_TEMPLATE" <<<"$b" && [ "$c" = 1 ]
-  then ok "recipes check: a README row is the whole row its card makes (a one-liner that differs too); a sequence without a section is pointed to the sequences"
+print(sum("the hold-confirm row differs from its card in its one-liner" in x for x in R.library_checks(lib)))
+text = (R.LIB / "README.md").read_text(encoding="utf-8"); row = next(l for l in text.splitlines() if l.startswith("| [hold-confirm]"))
+lib = R.load_library(); rows = lambda new: R.library_checks(lib, text.replace(row, new))
+print(sum("the hold-confirm row differs from its card in its spacing (one-liner)" in x for x in rows(row.replace(" | ", " |  ", 1))))
+print(sum("the hold-confirm row differs from its card in its one-liner" in x for x in rows(row.replace("按住", "按下", 1) + "  ")))
+print(sum("hold-confirm" in x for x in rows(row)))' 2>&1 | tr '\n' ' ')
+  if [ "$rc" = 1 ] && grep -q "## 限额 (every sequence has" <<<"$b" && ! grep -q "_TEMPLATE" <<<"$b" && [ "$c" = "1 1 1 0 " ]
+  then ok "recipes check: a README row is the whole row its card makes (a one-liner that differs too), however it is spaced (spacing alone is said as such); a sequence without a section is pointed to the sequences"
   else bad "recipes check on a README row and a sequence (exit $rc, rows $c): $(printf '%s' "$b" | tail -c 300)"; fi
   a=$(vh recipes list -h 2>&1); rc=$?; b=$(vh recipes check --help 2>&1); rc2=$?
   case "$rc:$rc2|$a|$b" in "0:0|"*"usage: bin/vh recipes list"*"|"*"usage: bin/vh recipes list"*) ok "recipes list -h and check --help print the help" ;;
     *) bad "recipes list -h / check --help exited $rc / $rc2: $(printf '%s' "$a" | head -c 200)" ;; esac
+  # help, not a run: captions -h and --help print the usage (it took -h for a project's name, exit 2); tools/fetch_media.sh
+  # -h and --help print theirs and fetch nothing (-h was a word, and matched every path with "-h" in it: a dead URL here,
+  # so nothing could come down either way), and an option it does not know is 2
+  a=$(vh captions -h 2>&1); rc=$?; b=$(vh captions --help 2>&1); rc2=$?
+  c=$(VH_MEDIA_URL=http://127.0.0.1:9/none tools/fetch_media.sh -h 2>&1); rc3=$?
+  d=$(VH_MEDIA_URL=http://127.0.0.1:9/none tools/fetch_media.sh --help 2>&1); rc4=$?
+  VH_MEDIA_URL=http://127.0.0.1:9/none tools/fetch_media.sh -x >/dev/null 2>&1; rc5=$?
+  case "$rc:$rc2:$rc3:$rc4:$rc5|$a|$b|$c|$d" in "0:0:0:0:2|usage: bin/vh captions"*"|usage: bin/vh captions"*"|"*"usage: tools/fetch_media.sh"*"|"*"usage: tools/fetch_media.sh"*)
+      case "$c$d" in *"fetch "*|*"could not download"*) bad "tools/fetch_media.sh --help went on to fetch: $(printf '%s' "$c$d" | tail -c 300)" ;;
+        *) ok "captions -h and --help print the usage; tools/fetch_media.sh -h and --help print theirs and fetch nothing, an option it does not know exits 2" ;; esac ;;
+    *) bad "the help of captions and tools/fetch_media.sh (exit $rc:$rc2:$rc3:$rc4:$rc5): $(printf '%s | %s' "$a" "$c" | head -c 400)" ;; esac
+  # doctor's size of the reference repos is worked out, not written in: from the ones fetched when there are some, else
+  # what install.sh tells the one installing
+  a=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import doctor as d
+print(d.references_note(0, 37, 0, d.install_says())); print(d.references_note(31, 37, 214e6, None))' 2>&1)
+  b=$(grep -o 'reference repos (about [0-9.]* [MG]B' install.sh | grep -o '[0-9.]* [MG]B')
+  case "$a" in "0/37 repos fetched → bash references/fetch.sh (all 37: about $b;"*"31/37 repos fetched → bash references/fetch.sh (all 37: about 255 MB, at the size of the 31 here;"*)
+      ok "doctor: the reference repos' size from the ones fetched (31 of 37 at 214 MB: about 255 MB), else as install.sh says it ($b)" ;;
+    *) bad "doctor's line for the reference repos: $a (install.sh says: ${b:-nothing found})" ;; esac
   # recipes sample: bad usage exits 2 before any render (an unknown id, a sequence, an unknown style); list --json names
   # the sheet a recipe carries (recipes check, above, holds every sketch to its sheet)
   vh recipes sample no-such-recipe >/dev/null 2>&1; rc=$?; vh recipes sample launch-15s >/dev/null 2>&1; rc2=$?
@@ -1243,14 +1273,24 @@ PY
       case "$b$c" in *placeholders*|*FAIL*) bad "check: a range or an approximate length was misread: $b | $c" ;; *) ok "check reads 1080p、4k, warns outside a range, skips approximate lengths" ;; esac ;;
     *) bad "check: separators / range / approximate ($rc/$rb/$rcc): $a | $b | $c" ;; esac
   # a variable-rate file (a still stretch written as one long frame): its frames and its length as they are, and the
-  # rate said, with a BRIEF and without (the length was frames ÷ the nominal rate: 45 frames over 3 s read as 1.5 s)
-  ffmpeg -nostdin -v error -f lavfi -i "color=c=0x202020:s=320x180:r=30:d=3,drawbox=x=40:y=40:w=80:h=40:c=white:t=fill" \
-    -vf "select='not(between(n\,30\,74))'" -fps_mode vfr -pix_fmt yuv420p "$t/sp/out/vfr.mp4"
+  # rate said, with a BRIEF and without (the length was frames ÷ the nominal rate: 45 frames over 3 s read as 1.5 s);
+  # the same frames as Matroska, whose length is the track's DURATION tag, and through a pipe, which writes none (its
+  # packets' times then); a DURATION tag with a language (DURATION-eng); and constant rate with the sound 1 s longer than
+  # the picture, which is no variable rate (its length frames ÷ the rate, the sound's tail said apart)
+  vf=(-nostdin -v error -f lavfi -i "color=c=0x202020:s=320x180:r=30:d=3,drawbox=x=40:y=40:w=80:h=40:c=white:t=fill" \
+    -vf "select='not(between(n\,30\,74))'" -fps_mode vfr -pix_fmt yuv420p)
+  ffmpeg "${vf[@]}" "$t/sp/out/vfr.mp4"; ffmpeg "${vf[@]}" "$t/sp/out/vfr.mkv"; ffmpeg "${vf[@]}" -f matroska - > "$t/sp/out/vfr-pipe.mkv"
+  ffmpeg -nostdin -v error -f lavfi -i "color=c=0x202020:s=320x180:r=30:d=3" -f lavfi -i "sine=f=440:d=4" -pix_fmt yuv420p \
+    -c:v libx264 -c:a aac "$t/sp/out/cfr-sound.mp4"
   brief '320x180, 30 fps, exactly 3.0s' 1080p; a=$(vh check "$t/sp/out/vfr.mp4" 2>&1); rc=$?
   mkdir -p "$t/vfr" && cp "$t/sp/out/vfr.mp4" "$t/vfr/"; b=$(python3 tools/speccheck.py "$t/vfr/vfr.mp4" 2>&1)
-  case "$rc:$a|$b" in 0:*"spec: 320x180, 30 fps, 45 frames, 3.00 s"*"WARN variable frame rate: 45 frames over 3.00 s"*"|"*"45 frames, 3.00 s; no BRIEF"*"WARN variable frame rate"*)
-      ok "check on a variable-rate file: its frames and length as they are (45 frames, 3.00 s against exactly 3 s), the rate said, with a BRIEF and without" ;;
-    *) bad "check on a variable-rate file (rc $rc): $(printf '%s' "$a" | head -c 500) | $b" ;; esac
+  c=$(for f in vfr.mkv vfr-pipe.mkv cfr-sound.mp4; do python3 tools/speccheck.py "$t/sp/out/$f" --brief "$t/sp/BRIEF.md" 2>&1; echo "exit $?"; done)
+  d=$(python3 -c 'import sys; sys.path.insert(0, "tools"); import speccheck as s
+print(s.duration_tag({"DURATION-eng": "00:00:03.000000000"}), s.duration_tag({"ENCODER": "x", "DURATION": "N/A"}))' 2>&1)
+  case "$rc:$a|$b|$c|$d" in 0:*"spec: 320x180, 30 fps, 45 frames, 3.00 s"*"WARN frames and length disagree: 45 frames over 3.00 s"*"|"*"45 frames, 3.00 s; no BRIEF"*"WARN frames and length disagree"*"|"*"45 frames, 3.00 s against"*"WARN frames and length disagree: 45 frames over 3.00 s (15 a second; the nominal rate is 30)"*"exit 0"*"45 frames, 3.00 s against"*"WARN frames and length disagree: 45 frames over 3.00 s"*"exit 0"*"90 frames, 3.00 s against"*"s past the last frame (audio longer than the picture)"*"exit 0|3.0 0.0")
+      case "$c" in *"90 frames"*"disagree"*) bad "check on constant rate with a longer sound: called a variable rate: $(printf '%s' "$c" | tail -c 400)" ;;
+        *) ok "check on a variable-rate file: its frames and length as they are (45 frames, 3.00 s against exactly 3 s), with a BRIEF and without, as MP4, as Matroska (its DURATION tag, or its packets' times through a pipe); DURATION-eng read; constant rate with a longer sound is none" ;; esac ;;
+    *) bad "check on a variable-rate file (rc $rc): $(printf '%s' "$a" | head -c 400) | $b | $(printf '%s' "$c" | tail -c 700) | $d" ;; esac
   brief '320x180, 30 fps, exactly 1.0s (30 frames)' '1080p, 4k'
   # check: one odd frame in a moving clip fails with its time; the same clip without it, or with a two-frame flash, passes
   if command -v uv >/dev/null || python3 -c "import numpy" 2>/dev/null; then
@@ -3756,9 +3796,11 @@ PY
   b=$(vh cast add "$p" owl2 --kind prop --name x --ref "$t/text.png" 2>&1); rc2=$?
   cp "$p/cast/fox/sheet.png" "$t/sheet.keep"; cp "$t/jpeg.png" "$p/cast/fox/sheet.png"
   c=$(vh cast check "$p" 2>&1); rc3=$?; cp "$t/sheet.keep" "$p/cast/fox/sheet.png"
-  if [ "$rc:$rc2:$rc3" = 2:2:1 ] && grep -q 'named .png, but its bytes are a JPEG' <<<"$a" && grep -q 'its bytes are no PNG, JPEG or WebP' <<<"$b" \
-     && grep -q 'sheet.png: named .png, but its bytes are a JPEG' <<<"$c" && [ ! -e "$p/cast/owl2" ]
-  then ok "image gen --ref and cast take a picture by its bytes: a JPEG named .png and text named .png are refused (exit 2), a picture swapped for a JPEG fails cast check"
+  if [ "$rc:$rc2:$rc3" = 2:2:1 ] && grep -q 'named .png, but its bytes are a JPEG: convert it to a PNG, or name it .jpg' <<<"$a" \
+     && grep -q 'its bytes are no PNG, JPEG or WebP: save it as one of them, then cast add it again' <<<"$b" \
+     && grep -q 'sheet.png: named .png, but its bytes are a JPEG: convert it to a PNG, or name it .jpg; then bin/vh cast add fox' <<<"$c" \
+     && grep -q 'sheet.png is not the picture on record (its bytes changed)' <<<"$c" && [ ! -e "$p/cast/owl2" ]
+  then ok "image gen --ref and cast take a picture by its bytes: a JPEG named .png and text named .png are refused (exit 2) with what to do, a picture swapped for a JPEG fails cast check, its bytes said to have changed too"
   else bad "pictures by their bytes (exit $rc:$rc2:$rc3): $(printf '%s | %s | %s' "$a" "$b" "$c" | tail -c 400)"; fi
   # a call made (a recorded answer replayed: --offline, nothing sent) says whose the pictures are too, and the ledger keeps
   # what it was made from; a picture recorded again with other bytes makes check say what was made from the older one. The
@@ -4530,7 +4572,7 @@ PY
   python3 tools/model3d/fixture.py --film "$p"
   a=$(vh determinism "$p" --at 0.25,0.5,1.25,2.5 --soft-gl --min-psnr 45 --out "$t/d" 2>&1); rc=$?
   case "$rc:$a" in 2:*"needs a headless Chrome"*) no_chrome "the Three.js layer on a page"; rm -rf "$t"; return ;; esac
-  case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) skip "the Three.js layer on a page" "no WebGL here even with --soft-gl"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) no_webgl "the Three.js layer on a page"; rm -rf "$t"; return ;; esac
   if [ $rc = 0 ] && printf '%s' "$a" | grep -q "determinism: holds" && cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0001.250.png" \
      && ! cmp -s "$t/d/A-t0000.250.png" "$t/d/A-t0000.500.png" && ! cmp -s "$t/d/A-t0000.500.png" "$t/d/A-t0002.500.png" \
      && px_are "$t/d/A-t0000.250.png" '(w, h) == (160, 90) and P[0] == (255, 255, 255) and near(P[1], (0x20, 0x30, 0x40)) and not near(P[2], (0x20, 0x30, 0x40))' 8,8 150,80 80,45 \
@@ -4538,16 +4580,19 @@ PY
   then ok "the Three.js layer: a GLB's clip set to the film's time (0.25 s into a loop at t 0.25 and 1.25: one picture), a pose put back after its frame, the camera's moves, in any order and another browser (determinism, --soft-gl); the shot's 2D over the 3D"
   else bad "the Three.js layer on a page (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   # ready names every problem of a shot's three at once: a clip the model lacks, one played once that stops before its
-  # shot does, a model that is not there, a key the layer does not read; FILM.three without three/ says how to get it
+  # shot does, a model that is not there, a key the layer does not read, an ease that is no name of its table (not even
+  # one every object has, "constructor"); FILM.three without three/ says how to get it
   printf '%s\n' 'Object.assign(FILM, { width: 160, height: 90, timeline: false, duration: 3, grain: 0, fadeOut: 0, images: {},' \
     '  three: { models: { box: "assets/models/box.glb" } } });' \
     'const SHOTS = [{ id: "S01", at: 0, three: { play: { box: "bend" }, show: ["box", "crate"] }, draw() {} },' \
-    '  { id: "S02", at: 1.5, three: { play: { box: "wave" }, spin: 1 }, draw() {} }];' > "$p/src/50-shots.js"
+    '  { id: "S02", at: 1.5, three: { play: { box: "wave" }, spin: 1, cam: { from: { pos: [0, 1, 4] }, to: { pos: [1, 1, 4] }, ease: "constructor" } }, draw() {} }];' > "$p/src/50-shots.js"
   a=$(vh frames "$p" --at 1 --soft-gl --out "$t/f" 2>&1); rc=$?
   rm -rf "$p/three"
   b=$(vh frames "$p" --at 1 --soft-gl --out "$t/f" 2>&1); rc2=$?
   case "$rc:$rc2:$a|$b" in 2:2:*'no model "crate"'*'"bend" is 1.00 s; played once from 0.00 s'*"has spin, which the layer does not read"*'has no clip "wave" (its clips: bend, lift'*"|"*"three/layer.js did not load"*"--engine canvas-film --three"*)
-      ok "the Three.js layer's ready: a missing clip, a clip that stops before its shot, an unknown model and key, all at once (exit 2); FILM.three without three/ says how to get it" ;;
+      if grep -q -F '.ease: linear, sine, inOut, in, out, not "constructor"' <<<"$a"
+      then ok "the Three.js layer's ready: a missing clip, a clip that stops before its shot, an unknown model, key and ease (\"constructor\" too), all at once (exit 2); FILM.three without three/ says how to get it"
+      else bad "the Three.js layer's ready took the ease \"constructor\": $(printf '%s' "$a" | tail -c 500)"; fi ;;
     *) bad "the Three.js layer's ready ($rc, $rc2): $a | $b" ;; esac
   rm -rf "$t"
 }
@@ -4600,7 +4645,7 @@ PY
       >> "$p/src/50-shots.js"
   a=$(vh determinism "$p" --at 0.2,2.5,5.9,7 --soft-gl --out "$t/d" 2>&1); rc=$?
   case "$rc:$a" in 2:*"needs a headless Chrome"*) no_chrome "build-up in the Three.js layer"; rm -rf "$t"; return ;; esac
-  case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) skip "build-up in the Three.js layer" "no WebGL here even with --soft-gl"; rm -rf "$t"; return ;; esac
+  case "$rc:$a" in *"no WebGL2 for the Three.js layer"*) no_webgl "build-up in the Three.js layer"; rm -rf "$t"; return ;; esac
   if [ $rc = 0 ] && printf '%s' "$a" | grep -q "determinism: holds" && ! cmp -s "$t/d/A-t0000.200.png" "$t/d/A-t0002.500.png" \
      && px_are "$t/d/A-t0000.200.png" 'P[0][2] > P[0][0] + 8 and not P[1][0] > P[1][2] + 40' 80,3 80,45 \
      && px_are "$t/d/A-t0005.900.png" 'P[0][0] > P[0][2] + 40' 80,45 \
@@ -4858,7 +4903,7 @@ PY
 }
 
 activity_checks() {
-  local t p a b c rc rc2 i pid want la
+  local t p a b c rc rc2 i pid want la lp
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/p q"   # a space in the path
   cp -R tools/desk/fixtures/zh "$p"
   vh review "$p" 1 >/dev/null 2>&1; rc=$?
@@ -5015,6 +5060,12 @@ sys.exit(0 if d["version"] == 1 and st[-2:] == ["ok", "failed"] and d["runs"][-2
 PY
   then ok "activity: bin/vh activity lists the runs (paths relative to the project), --json gives each run's state and outputs, --follow prints the lines as they come"
   else bad "bin/vh activity: $(printf '%s' "$a" | tail -c 400) | $(tail -c 300 "$t/follow.out")"; fi
+  # a project whose path is over 120 characters (a long TMPDIR, a deep folder): the path stays whole in the log, so the
+  # reader still shows it as . (cut at 120, it showed the cut path, and the arguments after it fell off the line)
+  lp="$t/$(printf 'd%.0s' $(seq 130))/p"; mkdir -p "${lp%/p}"; cp -R tools/desk/fixtures/zh "$lp"
+  vh review "$lp" 1 >/dev/null 2>&1; a=$(vh activity "$lp" 2>&1)
+  case "$a" in *"review . 1"*) ok "activity: a project path over 120 characters stays whole in the log, the reader shows it as ." ;;
+    *) bad "activity on a project path of ${#lp} characters: $(printf '%s' "$a" | tail -c 300)" ;; esac
   OVH_PROJECTS="$t/new" vh new math ci-act >/dev/null 2>&1
   a=$(cat "$t"/new/*-ci-act/.ovh/activity.jsonl 2>&1)
   case "$a" in *'"event":"start"'*'"cmd":"new"'*'"event":"end"'*'"exit":0'*'"summary":"created '*'-ci-act · math · standard"'*) ok "activity: bin/vh new logs itself into the project it made" ;;
@@ -5022,8 +5073,6 @@ PY
   rm -rf "$t"
 }
 
-# bin/vh textcheck on its fixture (tools/textcheck/fixture/index.html: one read per case), with whatever headless Chrome
-# the machine has (GitHub's runners come with Chrome); skipped without one
 know_checks() {   # bin/vh know: the index of recipes, styles and the sections read when needed, and what a few words find
   local t a b q rc rc2
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
@@ -5105,6 +5154,9 @@ PY
   rm -rf "$t"
 }
 
+# bin/vh textcheck on its fixture (tools/textcheck/fixture/index.html: one read per case), with whatever headless Chrome
+# the machine has (GitHub's runners come with Chrome); without one a skip on a machine of one's own, a failure on CI
+# (no_chrome)
 textcheck_checks() {
   local t a rc
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")

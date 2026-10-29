@@ -158,15 +158,22 @@ def picture_type(path):
     return None
 
 
+PICTURE_EXT = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}
+
+
 def picture_problem(path):
-    """None when a file's name and its bytes agree on a PNG, JPEG or WebP; else what is wrong, in a few words (a JPEG
-    named .png goes to a vendor as a PNG it is not, and a text file named .png as a picture)."""
+    """None when a file's name and its bytes agree on a PNG, JPEG or WebP; else what is wrong and what to do, in a few
+    words (a JPEG named .png goes to a vendor as a PNG it is not, and a text file named .png as a picture)."""
     by_name, by_bytes = mime_of(path), picture_type(path)
+    suffix = Path(path).suffix or "no extension"
     if by_bytes is None:
-        named = "" if by_name else f" (nor does its name: {Path(path).suffix or 'no extension'})"
-        return "its bytes are no PNG, JPEG or WebP" + named
+        named = "" if by_name else f" (nor does its name: {suffix})"
+        return f"its bytes are no PNG, JPEG or WebP{named}: save it as one of them"
+    if by_name is None:
+        return f"its bytes are a {PICTURE_NAMES[by_bytes]}, but it is named with {suffix}: name it {PICTURE_EXT[by_bytes]}"
     if by_name != by_bytes:
-        return f"named {Path(path).suffix or 'with no extension'}, but its bytes are a {PICTURE_NAMES[by_bytes]}: rename it or convert it"
+        return (f"named {suffix}, but its bytes are a {PICTURE_NAMES[by_bytes]}: convert it to a {PICTURE_NAMES[by_name]}, "
+                f"or name it {PICTURE_EXT[by_bytes]}")
     return None
 
 

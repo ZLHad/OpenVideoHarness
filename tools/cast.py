@@ -204,14 +204,16 @@ def problems(project, cid, d, known=None):
         digest = None
         if not p.is_file():
             fail(f"refs[{i}]: {f} is not in the folder")
-        elif Path(f).suffix.lower() in PICTURE and (why := picture_problem(p)):   # by its bytes, as image gen sends it
-            fail(f"refs[{i}]: {f}: {why}")
-        elif r.get("sha256") and (digest := sha256(p)) != r["sha256"]:
-            fail(f"refs[{i}]: {f} is not the picture on record (its bytes changed): what was made from it may need making "
-                 f"again; bin/vh cast add {cid} --ref {CAST}/{cid}/{f} records it as it is")
-            digest = None
-        elif not r.get("sha256"):
-            warn(f"refs[{i}]: {f} has no sha256 (bin/vh cast add records it)")
+        else:
+            why = picture_problem(p) if Path(f).suffix.lower() in PICTURE else None   # by its bytes, as image gen sends it
+            if why:
+                fail(f"refs[{i}]: {f}: {why}; then bin/vh cast add {cid} --ref <that picture> records it")
+            if r.get("sha256") and (digest := sha256(p)) != r["sha256"]:   # said with a wrong type too: what changed it
+                fail(f"refs[{i}]: {f} is not the picture on record (its bytes changed): what was made from it may need making "
+                     f"again" + ("" if why else f"; bin/vh cast add {cid} --ref {CAST}/{cid}/{f} records it as it is"))
+                digest = None
+            elif not r.get("sha256"):
+                warn(f"refs[{i}]: {f} has no sha256 (bin/vh cast add records it)")
         if "view" in r and not (isinstance(r["view"], str) and VIEW.match(r["view"])):
             fail(f"refs[{i}]: view {r['view']!r}: a lowercase word (front, left, back, right, three-quarter, sheet …)")
         said = all(isinstance(r.get(k), str) and r[k].strip() for k in ("source", "license"))
@@ -387,7 +389,7 @@ def cmd_add(a):
         if p.suffix.lower() not in PICTURE:
             raise Usage(f"--ref {spec}: a PNG, JPEG or WebP")
         if why := picture_problem(p):   # by its bytes too: what image gen sends must be what it is named
-            raise Usage(f"--ref {spec}: {why} (nothing was changed)")
+            raise Usage(f"--ref {spec}: {why}, then cast add it again (nothing was changed)")
         plans.append((p.resolve(), view, spec))
     # every picture's place in the folder, decided and checked before anything is copied or written
     planned, steps = {}, []   # name → the bytes it is to hold, in this add

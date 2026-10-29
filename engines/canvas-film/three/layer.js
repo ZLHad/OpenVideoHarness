@@ -131,7 +131,7 @@ export async function load(spec, { width, height, dpr }) {
   renderer.setPixelRatio(1); renderer.setSize(Math.round(width * dpr), Math.round(height * dpr), false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   const tone = spec.tone ?? "agx";
-  if (!(tone in TONES)) fail(`FILM.three.tone: ${Object.keys(TONES).join(", ")}, not ${JSON.stringify(tone)}`);
+  if (!Object.hasOwn(TONES, tone)) fail(`FILM.three.tone: ${Object.keys(TONES).join(", ")}, not ${JSON.stringify(tone)}`);   // own names only: "constructor" is in every object
   renderer.toneMapping = TONES[tone];
   renderer.toneMappingExposure = spec.exposure ?? 1;
   renderer.shadowMap.enabled = !!spec.shadows;
@@ -309,7 +309,7 @@ export async function load(spec, { width, height, dpr }) {
       if (c === undefined || typeof c === "function") N.cam = c || null;
       else if (c && typeof c === "object" && (c.keys || c.from || c.to)) {
         unknown(c, ["keys", "from", "to", "ease"], `${at}.cam)`);
-        if (c.ease !== undefined && !EASE[c.ease]) fail(`${at}.cam).ease: ${Object.keys(EASE).join(", ")}, not ${JSON.stringify(c.ease)}`);
+        if (c.ease !== undefined && !Object.hasOwn(EASE, c.ease)) fail(`${at}.cam).ease: ${Object.keys(EASE).join(", ")}, not ${JSON.stringify(c.ease)}`);
         if (c.keys) {
           if (c.from || c.to) fail(`${at}.cam): keys, or from and to, not both`);
           if (!Array.isArray(c.keys) || c.keys.length < 2) fail(`${at}.cam).keys: two or more [time, view] (times are cues or seconds)`);

@@ -18,8 +18,8 @@ list   Every filter is optional. Values inside one flag are alternatives (`--int
        in its camera field (bin/vh storyboard prints it). Alone, every grammar; it takes no recipe filter.
 check  No file: every recipe, sequence and shot-grammar card under recipes/, plus the library-wide checks (unique ids,
        file and folder names, a card's code once in its grammar, conflicts listed both ways, every file linked from
-       recipes/README.md (a recipe with the same energy, length and status, a card with the row list --grammar --md
-       prints), every vocabulary term documented there, a card's 什么时候用 and 什么时候别用 an item or more each,
+       recipes/README.md (a recipe with the row its card makes: link, one-liner, energy, length and status, as list
+       --md prints it; a card with the row list --grammar --md prints), every vocabulary term documented there, a card's 什么时候用 and 什么时候别用 an item or more each,
        every file derived from licensed material listed in
        recipes/NOTICE.md, every recipe with a sketch carrying its sample sheet, rendered from the sketch as it is
        (sketch_sha) and at most 120 kB and 2000 px wide, and every sheet belonging to a recipe). Each sketch is held
@@ -624,13 +624,17 @@ def load_library():
     return lib
 
 
-def library_checks(lib):
-    """Checks that need the whole library: README index both ways, vocabulary documented in README."""
+def library_checks(lib, readme=None):
+    """Checks that need the whole library: README index both ways, vocabulary documented in README (readme: its text,
+    when it is not the file's)."""
     probs = []
-    readme = (LIB / "README.md").read_text(encoding="utf-8") if (LIB / "README.md").exists() else ""
+    if readme is None:
+        readme = (LIB / "README.md").read_text(encoding="utf-8") if (LIB / "README.md").exists() else ""
     linked = set(re.findall(r"\]\(([a-z-]+/[a-z0-9-]+\.md)\)", readme))
-    found = list(re.finditer(r"^\| \[[a-z0-9-]+\]\(([a-z-]+/[a-z0-9-]+\.md)\) \|.*\|$", readme, re.M))
-    rows = {m.group(1): [c.strip() for c in m.group(0).strip("|").split("|")] for m in found}
+    # a row that links a file, however it is spaced (one spaced otherwise is compared too, and said to be)
+    found = list(re.finditer(r"^\|[ \t]*\[[a-z0-9-]+\]\(([a-z-]+/[a-z0-9-]+\.md)\)[ \t]*\|.*\|[ \t]*$", readme, re.M))
+    cells = lambda row: row.strip().strip("|").split("|")
+    rows = {m.group(1): cells(m.group(0)) for m in found}
     lines = {m.group(1): m.group(0) for m in found}
     for rid, (p, fm) in sorted(lib.items()):
         target = rel(p)[len("recipes/"):]
@@ -651,9 +655,13 @@ def library_checks(lib):
                 continue
             if lines[target] != want:
                 cols = ["link", "one-liner", "energy", "length", "status"]
-                got, made = rows[target], [c.strip() for c in want.strip("|").split("|")]
-                which = [cols[i] if i < len(cols) else f"column {i + 1}" for i in range(max(len(got), len(made)))
-                         if i >= len(got) or i >= len(made) or got[i] != made[i]]
+                name = lambda i: cols[i] if i < len(cols) else f"column {i + 1}"
+                raw, made_raw = rows[target], cells(want)
+                got, made = [c.strip() for c in raw], [c.strip() for c in made_raw]
+                which = [name(i) for i in range(max(len(got), len(made))) if i >= len(got) or i >= len(made) or got[i] != made[i]]
+                if not which:   # the same cells, spaced otherwise
+                    where = [name(i) for i in range(len(raw)) if raw[i] != made_raw[i]]
+                    which = [f"spacing ({', '.join(where)})" if where else "spacing (around the row)"]
                 probs.append(f"recipes/README.md: the {rid} row differs from its card in its {', '.join(which)}: it is "
                              f"{lines[target]!r}, the card makes {want!r} (bin/vh recipes list --md prints the rows)")
     for target in sorted(linked):
