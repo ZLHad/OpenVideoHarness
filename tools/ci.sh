@@ -196,6 +196,9 @@ print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
   then ok "docs name only real bin/vh commands; tools/commands.json and CLAUDE.md's 命令行 line name the ones bin/vh dispatches"; else bad "docs vs bin/vh commands"; fi
+  # the front pages (tools/readme.py): every count the READMEs and the overview diagrams state is the repo's (commands,
+  # styles, recipes …), their links and images are in the repo, and the two READMEs have the same sections and links
+  if out=$(python3 tools/readme.py check 2>&1); then ok "$out"; else echo "$out"; bad "the READMEs against the repo (python3 tools/readme.py lists the counts)"; fi
   # the group table (tools/ci-shards.txt): a group and its seconds a line, each group once and a function here; a group
   # function (named *_checks or *_report) that is not in it is called by one that is (or it would run in no run and no
   # shard)
