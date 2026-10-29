@@ -6,27 +6,28 @@
 <title>OpenVideoHarness · A video harness for Claude Code and Codex</title>
 <meta name="description" content="A video workbench for Claude Code and Codex: the agent writes the code that renders the film, checks its own work, and you sign off at three checkpoints. 给 Claude Code 和 Codex 用的视频工作台：AI 写代码出片，你在三个节点拍板。">
 <meta name="theme-color" content="#04050A">
-<link rel="canonical" href="https://zlhad.github.io/OpenVideoHarness/docs/site/">
-<link rel="alternate" hreflang="en" href="https://zlhad.github.io/OpenVideoHarness/docs/site/?lang=en">
-<link rel="alternate" hreflang="zh" href="https://zlhad.github.io/OpenVideoHarness/docs/site/?lang=zh">
+<link rel="canonical" href="https://zlhad.top/OpenVideoHarness/docs/site/">
+<link rel="alternate" hreflang="en" href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=en">
+<link rel="alternate" hreflang="zh" href="https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh">
 <meta property="og:type" content="website">
 <meta property="og:title" content="OpenVideoHarness">
 <meta property="og:description" content="A video workbench for Claude Code and Codex: the agent writes the code that renders the film, and you sign off at three checkpoints.">
-<meta property="og:url" content="https://zlhad.github.io/OpenVideoHarness/docs/site/">
-<meta property="og:image" content="https://zlhad.github.io/OpenVideoHarness/docs/site/img/04-intro.jpg">
+<meta property="og:url" content="https://zlhad.top/OpenVideoHarness/docs/site/">
+<meta property="og:image" content="https://zlhad.top/OpenVideoHarness/docs/site/img/04-intro.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237CF7FF'/%3E%3Cstop offset='.5' stop-color='%239D8CFF'/%3E%3Cstop offset='1' stop-color='%23F07CFF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='8' y='8' width='16' height='16' rx='4' transform='rotate(45 16 16)' fill='url(%23g)'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!--
   The project's homepage: one file, no build step, in English and Chinese (EN / 中 in the top bar, or ?lang=en / ?lang=zh).
   Every visible text is written twice, <span lang="en">…</span><span lang="zh">…</span>; the strings the script writes are in T.
-  It reads the style samples and contact sheets from ../../styles and ../../showcase, so open it from a clone of the repo
-  or on GitHub Pages. README.md next to this file has the details.
+  Nothing loads from another site until you press play on a film (GitHub's release): the two display fonts are in fonts/,
+  the pictures in this repo. A count on the page is <span data-n="name">…</span>, which tools/readme.py (tools/ci.sh) holds
+  to the repo. Open it from a clone or on GitHub Pages; README.md next to this file has the details.
 -->
 <script>(function(){var d=document.documentElement,l=null;try{var q=new URLSearchParams(location.search).get('lang');if(q==='zh'||q==='en')l=q;else l=localStorage.getItem('ovh-lang');}catch(e){}if(l!=='zh'&&l!=='en')l=/^zh\b/i.test(navigator.language||'')?'zh':'en';d.setAttribute('data-lang',l);d.lang=l==='zh'?'zh-CN':'en';d.classList.add('js');})();</script>
 <style>
+/* the display and mono faces, kept in the repo (SIL OFL 1.1, fonts/OFL-*.txt): Latin only, so Chinese falls to the system's */
+@font-face { font-family: "Inter Tight"; src: url("fonts/InterTight-latin.woff2") format("woff2"); font-weight: 500 700; font-style: normal; font-display: swap; unicode-range: U+0020-007E, U+00A0-00FF, U+2013-2014, U+2018-201D, U+2022, U+2026, U+2192, U+2197, U+2212; }
+@font-face { font-family: "JetBrains Mono"; src: url("fonts/JetBrainsMono-latin.woff2") format("woff2"); font-weight: 400 500; font-style: normal; font-display: swap; unicode-range: U+0020-007E, U+00A0-00FF, U+2013-2014, U+2018-201D, U+2022, U+2026, U+2190-2193, U+2197, U+21A9, U+21BA, U+2212; }
 :root {
   --bg: #04050A;
   --bg-2: #0A0E1A;
@@ -44,8 +45,8 @@
   --iri-v: linear-gradient(180deg, #7CF7FF, #9D8CFF 50%, #F07CFF);
   --glass: linear-gradient(155deg, rgba(255,255,255,.085), rgba(255,255,255,.022) 45%, rgba(255,255,255,.045));
   --glass-hi: inset 0 1px 0 rgba(255,255,255,.16), inset 0 -1px 0 rgba(255,255,255,.03);
-  --display: "Inter Tight", "Inter", system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
-  --sans: "Inter", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --display: "Inter Tight", system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --sans: system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", monospace;
   --ease: cubic-bezier(.2, .7, .1, 1);
   --pad-x: clamp(16px, 5vw, 88px);
@@ -364,7 +365,22 @@ body.cinema .topbar { transform: translateY(-100%); }
 /* the request moving through the system */
 .lit { border-color: rgba(255,255,255,.9) !important; box-shadow: 0 0 0 1px rgba(255,255,255,.7), 0 0 26px 2px rgba(107,230,255,.55), inset 0 0 18px rgba(107,230,255,.18) !important; transform: translateY(-3px) !important; }
 
-/* ---------- 5 · film ---------- */
+/* ---------- 5 · the capability map ---------- */
+.map { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.station { border-radius: 16px; padding: clamp(14px, 1.3vw, 20px); background: var(--glass); border: 1px solid var(--line); box-shadow: var(--glass-hi), 0 30px 60px -36px rgba(0,0,0,.8); -webkit-backdrop-filter: blur(16px) saturate(1.5); backdrop-filter: blur(16px) saturate(1.5); }
+.station h3 { display: flex; align-items: baseline; gap: 10px; font-family: var(--display); font-weight: 600; font-size: clamp(21px, 1.7vw, 28px); letter-spacing: -.02em; margin-bottom: 12px; }
+.station h3 b { font-family: var(--mono); font-weight: 500; font-size: 12px; color: var(--cyan); letter-spacing: .08em; }
+.station ul { list-style: none; display: grid; gap: 10px; }
+.station li { display: grid; gap: 2px; font-size: 14px; line-height: 1.45; color: var(--text-2); }
+.station li > .k { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--text); }
+.station li > .k code { font-size: 13px; }
+.station li code { color: var(--text); }
+.station li > span:last-child { color: var(--text-2); }
+.map-lede { max-width: 30em; }
+.map-note { margin-top: 14px; }
+html[data-lang="zh"] .station h3 { letter-spacing: .01em; }
+
+/* ---------- 6 · film ---------- */
 #film .head { margin-bottom: 16px; transition: opacity .5s; }
 #film h2 { max-width: none; font-size: clamp(28px, min(3.4vw, 5.8vh), 58px); }
 .screen-wrap { position: relative; width: 100%; max-width: calc((100svh - var(--bar) - 300px) * 16 / 9); margin: 0 auto; }
@@ -441,7 +457,7 @@ body.cinema #film .head, body.cinema .chapters, body.cinema .film-notes { opacit
 .sees-note { font-size: 14px; color: var(--muted); max-width: 30em; text-align: right; }
 
 /* ---------- 7 · styles ---------- */
-.wall-stage { perspective: 1600px; }
+.wall-stage { perspective: 1600px; overflow-x: clip; } /* the tilted wall must not widen the page (a phone would zoom out to fit it) */
 .wall { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; max-width: calc((100svh - var(--bar) - 250px) / .29); margin: 0 auto; transform-origin: 50% 0; transition: transform 1.8s var(--ease); }
 .js .wall { transform: rotateX(52deg) translateY(40px) scale(.92); }
 .js .in .wall { transform: none; }
@@ -458,6 +474,18 @@ body.cinema #film .head, body.cinema .chapters, body.cinema .film-notes { opacit
 .sw.info b { font-family: var(--display); font-weight: 600; font-size: clamp(18px, 1.6vw, 26px); line-height: 1; letter-spacing: -.02em; }
 .sw.info small { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 
+.lib-head { margin-top: clamp(22px, 3.5vh, 36px); display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 20px; }
+.lib-head h3 { font-family: var(--display); font-weight: 600; font-size: clamp(19px, 1.5vw, 24px); letter-spacing: -.02em; }
+html[data-lang="zh"] .lib-head h3 { letter-spacing: .01em; }
+.lib-head .fine { max-width: 46em; }
+.lib { margin-top: 12px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.lib-item { border-radius: 12px; overflow: hidden; background: var(--glass); border: 1px solid var(--line); box-shadow: var(--glass-hi); transition: border-color .3s, transform .4s var(--ease); }
+.lib-item:hover { border-color: rgba(107,230,255,.4); transform: translateY(-2px); }
+.lib-item button { display: block; width: 100%; background: #07090F; }
+.lib-item img { width: 100%; height: auto; aspect-ratio: 1600 / 360; object-fit: cover; }
+.lib-item figcaption { padding: 8px 12px 10px; font-size: 13.5px; color: var(--text-2); display: grid; gap: 2px; line-height: 1.4; }
+.lib-item figcaption code { color: var(--cyan); font-size: 12.5px; }
+
 /* ---------- 9 · in the wild ---------- */
 .wild { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: clamp(20px, 3vw, 48px); align-items: center; }
 .clock { position: relative; overflow: hidden; border-radius: 20px; padding: clamp(20px, 3vw, 40px); display: grid; gap: 16px; }
@@ -471,14 +499,16 @@ body.cinema #film .head, body.cinema .chapters, body.cinema .film-notes { opacit
 .tl .track-line::after { content: ""; position: absolute; top: 50%; left: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 5px rgba(107,230,255,.2), 0 0 16px var(--cyan); transition: left 2.2s var(--ease) .3s; }
 .in .tl .track-line::before { transform: scaleX(1); }
 .in .tl .track-line::after { left: 100%; }
-.clock p { font-size: clamp(17px, 1.3vw, 21px); color: var(--text-2); position: relative; }
+.clock p { font-size: clamp(17px, 1.3vw, 21px); color: var(--text-2); position: relative; text-wrap: pretty; }
 .plats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .plat { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px; text-decoration: none; font-weight: 600; transition: transform .35s var(--ease), border-color .3s; }
 .plat small { font-weight: 400; color: var(--muted); font-size: 13px; }
-a.plat:hover { border-color: var(--cyan); transform: translateY(-2px); }
-.mine { margin-top: 18px; position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #07090F; display: none; box-shadow: 0 0 0 1px var(--line); }
-.mine.has { display: block; }
-.mine video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+a.plat[href]:hover { border-color: var(--cyan); transform: translateY(-2px); }
+.clocks { display: grid; gap: 12px; }
+.clock.sub { gap: 12px; padding: clamp(18px, 2.4vw, 30px); }
+.clock.sub::after { opacity: .55; }
+.clock.sub .big { font-size: clamp(60px, min(6.4vw, 11.5vh), 116px); }
+.clock.sub p { font-size: clamp(15px, 1.1vw, 18px); }
 
 /* ---------- 10 · get started ---------- */
 .start-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 48px); align-items: start; }
@@ -510,11 +540,10 @@ a.plat:hover { border-color: var(--cyan); transform: translateY(-2px); }
 .gates li > span { font-size: 14px; color: var(--text-2); }
 .contact { display: grid; gap: 10px; }
 .contact-wide { max-width: 760px; width: 100%; margin: 0 auto; }
-.qrs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.qrs.one { grid-template-columns: minmax(0, 1fr); max-width: 300px; margin: 0 auto; width: 100%; }
+.qrs { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; max-width: 300px; margin: 0 auto; width: 100%; }
 .qr { position: relative; border-radius: 18px; padding: 16px; display: grid; gap: 10px; justify-items: center; text-align: center; overflow: hidden; }
 .qr .plate { background: #fff; border-radius: 12px; padding: 10px; width: 100%; max-width: 230px; box-shadow: 0 0 0 1px rgba(255,255,255,.5), 0 18px 40px -18px rgba(107,230,255,.6); }
-.qr svg, .qr img { width: 100%; height: auto; color: #0A0C14; aspect-ratio: 1; object-fit: contain; border-radius: 4px; }
+.qr svg { width: 100%; height: auto; color: #0A0C14; aspect-ratio: 1; object-fit: contain; border-radius: 4px; }
 .qr h4 { font-family: var(--display); font-weight: 600; font-size: clamp(19px, 1.5vw, 25px); line-height: 1; letter-spacing: -.02em; }
 .qr::after { content: ""; position: absolute; left: 0; right: 0; height: 50px; top: -50px; background: linear-gradient(rgba(107,230,255,0), rgba(107,230,255,.3), rgba(107,230,255,0)); animation: qrscan 3.8s var(--ease) infinite 1.2s; pointer-events: none; }
 .slide:not(.active) .qr::after { animation-play-state: paused; }
@@ -547,6 +576,8 @@ a.plat:hover { border-color: var(--cyan); transform: translateY(-2px); }
 .sees-box { display: grid; gap: 8px; justify-items: end; }
 .styles-lede { max-width: 26em; }
 .contact-lede { max-width: 24em; }
+.contact-links { justify-content: center; }
+.plat code { font-size: 14px; color: var(--text); white-space: nowrap; }
 .wild .lede { margin-top: 16px; }
 
 /* ---------- faq ---------- */
@@ -620,7 +651,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   .films { grid-template-columns: minmax(0, 1fr); }
   .film.tall { grid-column: auto; }
   .wall { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .efforts, .qrs, .faq { grid-template-columns: minmax(0, 1fr); }
+  .efforts, .faq { grid-template-columns: minmax(0, 1fr); }
   .gh .t { display: none; }
   .brand { font-size: 17px; }
 }
@@ -648,6 +679,21 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   .faq summary { padding: 11px 16px; }
   .faq .a { padding-bottom: 12px; }
 }
+@media (max-width: 1180px) {
+  .map { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lib { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .map, .lib { grid-template-columns: minmax(0, 1fr); }
+  .topbar { gap: 10px; }
+  .brand { font-size: 16px; }
+  .brand::before { margin-right: 9px; width: 16px; height: 16px; }
+  .langbtn span { padding: 5px 8px; }
+  .gh { padding: 7px 9px; }
+  .hero-scrim { background: linear-gradient(0deg, rgba(4,5,10,.97) 22%, rgba(4,5,10,.86) 52%, rgba(4,5,10,.6) 78%, rgba(4,5,10,.4)); }
+  .hero h1 { font-size: clamp(50px, 15vw, 64px); }
+  .tag { font-size: clamp(25px, 7vw, 30px); }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; }
   .js [data-r], .js .split .w > span, .js .hero h1, .js .wall, .js .sw { opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important; }
@@ -663,6 +709,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
     <a href="#start"><span lang="en">Get started</span><span lang="zh">快速开始</span></a>
     <a href="#features"><span lang="en">Features</span><span lang="zh">特性</span></a>
     <a href="#how"><span lang="en">How it works</span><span lang="zh">工作原理</span></a>
+    <a href="#map"><span lang="en">Tools</span><span lang="zh">能力地图</span></a>
     <a href="#film"><span lang="en">Film</span><span lang="zh">介绍片</span></a>
     <a href="#showcase"><span lang="en">Showcase</span><span lang="zh">作品</span></a>
     <a href="#styles"><span lang="en">Styles</span><span lang="zh">风格</span></a>
@@ -695,12 +742,12 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
     </div>
     <ul class="trust" data-r>
       <li class="badge">MIT · <span lang="en">open source</span><span lang="zh">开源</span></li>
-      <li><span lang="en">9 video types</span><span lang="zh">9 类视频</span></li>
-      <li><span lang="en">32 styles</span><span lang="zh">32 种风格</span></li>
-      <li><span lang="en">5 engines</span><span lang="zh">5 个引擎</span></li>
+      <li><span lang="en"><span data-n="types">9</span> video types</span><span lang="zh"><span data-n="types">9</span> 类视频</span></li>
+      <li><span lang="en"><span data-n="styles">32</span> styles</span><span lang="zh"><span data-n="styles">32</span> 种风格</span></li>
+      <li><span lang="en"><span data-n="engines">5</span> engines</span><span lang="zh"><span data-n="engines">5</span> 个引擎</span></li>
     </ul>
   </div>
-  <p class="galaxy-cap" data-r><span lang="en">Every star is a film: the 32 style samples, in orbit</span><span lang="zh">每颗星都是一支片子：32 种风格的样片</span></p>
+  <p class="galaxy-cap" data-r><span lang="en">Every star is a film: the <span data-n="styles">32</span> style samples, in orbit</span><span lang="zh">每颗星都是一支片子：<span data-n="styles">32</span> 种风格的样片</span></p>
   <div class="scroll-cue" aria-hidden="true"><i></i><span lang="en">scroll</span><span lang="zh">向下</span></div>
 </section>
 
@@ -720,7 +767,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
             <div class="cmd say" lang="zh"><span class="type" data-text="“做一个 30 秒的竖屏科普：为什么低轨卫星的信号会‘变调’。中文配音，中英双语字幕。”">“做一个 30 秒的竖屏科普：为什么低轨卫星的信号会‘变调’。中文配音，中英双语字幕。”</span></div>
           </div></li>
         </ol>
-        <p class="fine start-note" data-r><span lang="en">Needs macOS or Linux, Node.js 22+, Chrome, FFmpeg, Python 3 with uv, and Claude Code or Codex. About 590 MB on disk, with 30 read-only reference repos.</span><span lang="zh">需要 macOS 或 Linux、Node.js ≥ 22、Chrome、FFmpeg、Python 3 和 uv，以及 Claude Code 或 Codex。连同 30 个只读的参考仓库，约占 590 MB。</span></p>
+        <p class="fine start-note" data-r><span lang="en">Needs macOS or Linux, Node.js 22+, Chrome, FFmpeg, Python 3 with uv, and Claude Code or Codex. About 650 MB on disk, with <span data-n="refs">37</span> read-only reference repos. Step by step: the wiki's <a href="https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started" target="_blank" rel="noopener">Getting Started</a>; behind a slow network, <a href="https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network" target="_blank" rel="noopener">China network</a>.</span><span lang="zh">需要 macOS 或 Linux、Node.js ≥ 22、Chrome、FFmpeg、Python 3 和 uv，以及 Claude Code 或 Codex。连同 <span data-n="refs">37</span> 个只读的参考仓库，约占 650 MB。一步步的说明见 wiki 的<a href="https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B" target="_blank" rel="noopener">快速开始</a>；网络慢时看<a href="https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C" target="_blank" rel="noopener">国内网络</a>。</span></p>
       </div>
       <div class="flowcard" data-r>
         <h4><span lang="en">What happens next</span><span lang="zh">接下来</span></h4>
@@ -748,7 +795,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
       <p class="eyebrow" data-r><b>02</b><span lang="en">Why it exists</span><span lang="zh">为什么做它</span></p>
       <h2 class="split"><span lang="en">One great film is easy. <em>Every time is hard.</em></span><span lang="zh">做出一支好片不难，<em>每次都好才难。</em></span></h2>
       <p data-r><span lang="en">Claude Opus 5.5 writes video as code, and it has <strong>taste</strong>: in motion, in type, in pacing. The community has shared hundreds of these films; one collection alone holds 389, with their prompts.</span><span lang="zh">Claude Opus 5.5 能用代码写视频，而且有<strong>审美</strong>：运动、字体、节奏都在线。社区里已经有几百支这样的片子，光一个合集就收了 389 支，连同提示词。</span></p>
-      <p data-r><span lang="en">But the same model can be brilliant once, then lose the pacing, glow everything and invent numbers the next time. Engines like <strong>HyperFrames</strong> and <strong>Remotion</strong> turn code into frames. They don't choose the idea, the storyboard, the script or the style, and can't tell whether the film is any good.</span><span lang="zh">可同一个模型，这次惊艳，下次就节奏乱、满屏发光、数字乱编。<strong>HyperFrames</strong>、<strong>Remotion</strong> 这些引擎负责把代码变成画面；立意、分镜、脚本、风格它们不管，片子好不好也判断不了。</span></p>
+      <p data-r><span lang="en">But the same model can be brilliant once, then lose the pacing, glow everything and invent numbers the next time. Engines like <strong>HyperFrames</strong>, <strong>Manim</strong> and <strong>Blender</strong> turn code into frames. They don't choose the idea, the storyboard, the script or the style, and can't tell whether the film is any good.</span><span lang="zh">可同一个模型，这次惊艳，下次就节奏乱、满屏发光、数字乱编。<strong>HyperFrames</strong>、<strong>Manim</strong>、<strong>Blender</strong> 这些引擎负责把代码变成画面；立意、分镜、脚本、风格它们不管，片子好不好也判断不了。</span></p>
       <p data-r><span lang="en">OpenVideoHarness is the missing layer: <strong>the process and the checks, from idea to final cut</strong>, written as docs an agent follows. It stays light on purpose: a few hard floors, and defaults that a good idea can overrule.</span><span lang="zh">OpenVideoHarness 补的就是这一层：<strong>从立意到成片的流程和检查</strong>，写成 agent 能照着做的文档。它故意写得很轻：几条底线不让步，其余都是默认，好点子可以反着来。</span></p>
     </div>
     <div class="stack" data-aria-en="Where OpenVideoHarness sits" data-aria-zh="OpenVideoHarness 在哪一层">
@@ -761,7 +808,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
       <p class="drives" data-r><span lang="en">drives</span><span lang="zh">驱动</span> <i>↓</i></p>
       <div class="layer" data-r>
         <div class="layer-name"><span lang="en">Engines</span><span lang="zh">引擎</span><small><span lang="en">turn code into frames</span><span lang="zh">把代码变成画面</span></small></div>
-        <div class="pills"><span>HyperFrames</span><span>Remotion</span><span>Manim</span><span>p5.brush</span><span>Blender</span></div>
+        <div class="pills"><span>HyperFrames</span><span>canvas + Three.js</span><span>p5.brush</span><span>Manim</span><span>Blender</span></div>
       </div>
     </div>
   </div>
@@ -775,10 +822,10 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
     </div>
     <div class="features" id="cards">
       <article class="card" data-r><div class="ill ill-idea" aria-hidden="true"><i></i><i></i><i></i></div><span class="n">01</span><h3><span lang="en">Idea first</span><span lang="zh">先想立意</span></h3><p><span lang="en">Two or three concept cards, each with one frame and a hook, before a line of code. It names what every other video on the topic looks like, and steers away.</span><span lang="zh">写代码之前，先出两三张立意卡，每张配一帧画面和一个钩子。它会先说出同题视频都长什么样，然后避开。</span></p><span class="where">playbook/12-ideation.md</span></article>
-      <article class="card" data-r><div class="ill ill-nine" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:5"></i><i style="--i:4"></i><i style="--i:3"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i></div><span class="n">02</span><h3><span lang="en">Nine workflows</span><span lang="zh">九类工作流</span></h3><p><span lang="en">Science shorts, 3Blue1Brown-style explainers, launch films, music videos, data stories, paper talks, hand-drawn shorts, meme edits, and edits of your own footage.</span><span lang="zh">科普短视频、3Blue1Brown 风格讲解、产品发布片、MV、数据故事、论文讲解、手绘短片、梗图快剪，还有剪你自己录的素材。</span></p><span class="where">video-types/</span></article>
+      <article class="card" data-r><div class="ill ill-nine" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:5"></i><i style="--i:4"></i><i style="--i:3"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i></div><span class="n">02</span><h3><span lang="en"><span data-n="types">Nine</span> workflows</span><span lang="zh"><span data-n="types">九</span>类工作流</span></h3><p><span lang="en">Science shorts, 3Blue1Brown-style explainers, launch films, music videos, data stories, paper talks, hand-drawn shorts, meme edits, and edits of your own footage.</span><span lang="zh">科普短视频、3Blue1Brown 风格讲解、产品发布片、MV、数据故事、论文讲解、手绘短片、梗图快剪，还有剪你自己录的素材。</span></p><span class="where">video-types/</span></article>
       <article class="card" data-r><div class="ill ill-gates" aria-hidden="true"><i style="--i:0">1</i><i style="--i:1">2</i><i style="--i:2">3</i></div><span class="n">03</span><h3><span lang="en">You decide, three times</span><span lang="zh">三次由你拍板</span></h3><p><span lang="en">Direction, storyboard, first draft. Name anything else you want to own: the hook, the style, the voice, the cover. Or say "quick" and it runs straight through.</span><span lang="zh">创意方向、分镜、初版。还想亲自定别的，点名就行：钩子、风格、配音、封面。说"快速出一版"，它就一口气做完。</span></p><span class="where">CLAUDE.md · director mode</span></article>
-      <article class="card" data-r><div class="ill ill-sheet" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="n">04</span><h3><span lang="en">It checks its own work</span><span lang="zh">自己检查自己</span></h3><p><span lang="en">Claude can't watch video. So it reads contact sheets against a 20-point checklist, measures the audio, and a second Claude with a fresh context scores the draft on 8 points.</span><span lang="zh">Claude 看不了视频，所以它看联系表、对照 20 条清单改，用数据查声音；再由一个全新上下文的 Claude 按 8 项给初版打分。</span></p><span class="where">templates/TASTE_CHECKLIST.md</span></article>
-      <article class="card" data-r><div class="ill ill-eq" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i><i style="--i:10"></i></div><span class="n">05</span><h3><span lang="en">Sound, as code</span><span lang="zh">声音也是代码</span></h3><p><span lang="en">Chinese and English voiceover, two-language subtitles, a score and 21 sound effects written as code, every cue on its frame, mixed to −14 LUFS.</span><span lang="zh">中英配音、双语字幕，配乐和 21 个音效都用代码写，每个卡点落在它那一帧，混音到 −14 LUFS。</span></p><span class="where">bin/vh tts · music · sfx · mix · qa</span></article>
+      <article class="card" data-r><div class="ill ill-sheet" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="n">04</span><h3><span lang="en">It checks its own work</span><span lang="zh">自己检查自己</span></h3><p><span lang="en">Claude can't watch video. So it reads contact sheets against a <span data-n="checklist">20</span>-point checklist, measures the audio, and a second Claude with a fresh context scores the draft on <span data-n="scores">8</span> points.</span><span lang="zh">Claude 看不了视频，所以它看联系表、对照 <span data-n="checklist">20</span> 条清单改，用数据查声音；再由一个全新上下文的 Claude 按 <span data-n="scores">8</span> 项给初版打分。</span></p><span class="where">templates/TASTE_CHECKLIST.md</span></article>
+      <article class="card" data-r><div class="ill ill-eq" aria-hidden="true"><i style="--i:0"></i><i style="--i:1"></i><i style="--i:2"></i><i style="--i:3"></i><i style="--i:4"></i><i style="--i:5"></i><i style="--i:6"></i><i style="--i:7"></i><i style="--i:8"></i><i style="--i:9"></i><i style="--i:10"></i></div><span class="n">05</span><h3><span lang="en">Sound, as code</span><span lang="zh">声音也是代码</span></h3><p><span lang="en">Chinese and English voiceover, two-language subtitles, a score and <span data-n="sfx">21</span> sound effects written as code, every cue on its frame, mixed to −14 LUFS.</span><span lang="zh">中英配音、双语字幕，配乐和 <span data-n="sfx">21</span> 个音效都用代码写，每个卡点落在它那一帧，混音到 −14 LUFS。</span></p><span class="where">bin/vh tts · music · sfx · mix · qa</span></article>
       <article class="card wide" data-r>
         <div class="txt">
           <span class="n">06</span><h3><span lang="en">Every frame is <em class="iri">f(t)</em></span><span lang="zh">每一帧都是 <em class="iri">f(t)</em></span></h3>
@@ -798,7 +845,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
           <div class="ft-out" id="ftOut" aria-live="polite"></div>
         </div>
       </article>
-      <article class="card" data-r><div class="ill ill-orbit" aria-hidden="true"><i style="--i:0;background:#7CF7FF;color:#7CF7FF"></i><i style="--i:1;background:#9D8CFF;color:#9D8CFF"></i><i style="--i:2;background:#F07CFF;color:#F07CFF"></i><i style="--i:3;background:#FFC9A6;color:#FFC9A6"></i><i style="--i:4;background:#7CF5C8;color:#7CF5C8"></i><i style="--i:5;background:#6B8CFF;color:#6B8CFF"></i></div><span class="n">07</span><h3><span lang="en">32 styles, and Blender</span><span lang="zh">32 种风格，外加 Blender</span></h3><p><span lang="en">A style library to borrow from, each with a rendered sample. And when a shot needs real glass or a million stars, Claude drives Blender from Python.</span><span lang="zh">风格库可以借来用，每种都带实际渲染的样片。要真玻璃、上百万颗星时，Claude 写 Python 驱动 Blender。</span></p><span class="where">styles/ · engines/blender.md</span></article>
+      <article class="card" data-r><div class="ill ill-orbit" aria-hidden="true"><i style="--i:0;background:#7CF7FF;color:#7CF7FF"></i><i style="--i:1;background:#9D8CFF;color:#9D8CFF"></i><i style="--i:2;background:#F07CFF;color:#F07CFF"></i><i style="--i:3;background:#FFC9A6;color:#FFC9A6"></i><i style="--i:4;background:#7CF5C8;color:#7CF5C8"></i><i style="--i:5;background:#6B8CFF;color:#6B8CFF"></i></div><span class="n">07</span><h3><span lang="en"><span data-n="styles">32</span> styles, 3D and Blender</span><span lang="zh"><span data-n="styles">32</span> 种风格，还有 3D</span></h3><p><span lang="en">A style library to borrow from, each with a rendered sample. 3D models go in a Three.js layer under the 2D; when a shot needs real glass or a million stars, Claude drives Blender from Python.</span><span lang="zh">风格库可以借来用，每种都带实际渲染的样片。3D 模型放进 2D 下面的 Three.js 层；要真玻璃、上百万颗星时，Claude 写 Python 驱动 Blender。</span></p><span class="where">styles/ · engines/blender.md</span></article>
     </div>
   </div>
 </section>
@@ -821,19 +868,19 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         <div class="panel" data-r data-step>
           <h4><span lang="en">Reads</span><span lang="zh">读</span> <span class="sub"><span lang="en">know-how, written as markdown</span><span lang="zh">写成 markdown 的门道</span></span></h4>
           <div class="tiles">
-            <div class="tile"><code>video-types/</code><span lang="en">9 workflows</span><span lang="zh">9 类工作流</span></div>
-            <div class="tile"><code>playbook/</code><span lang="en">13 know-how docs</span><span lang="zh">13 篇通用知识</span></div>
-            <div class="tile"><code>styles/</code><span lang="en">32 styles</span><span lang="zh">32 种风格</span></div>
-            <div class="tile"><code>recipes/</code><span lang="en">24 shot recipes</span><span lang="zh">24 个镜头配方</span></div>
-            <div class="tile"><code>templates/</code><span lang="en">11 project files</span><span lang="zh">11 个项目模板</span></div>
-            <div class="tile"><code>cases/ showcase/</code><span lang="en">case studies, films</span><span lang="zh">案例拆解、样片</span></div>
+            <div class="tile"><code>video-types/</code><span lang="en"><span data-n="types">9</span> workflows</span><span lang="zh"><span data-n="types">9</span> 类工作流</span></div>
+            <div class="tile"><code>playbook/</code><span lang="en"><span data-n="playbook">13</span> know-how docs</span><span lang="zh"><span data-n="playbook">13</span> 篇通用知识</span></div>
+            <div class="tile"><code>styles/</code><span lang="en"><span data-n="styles">32</span> styles</span><span lang="zh"><span data-n="styles">32</span> 种风格</span></div>
+            <div class="tile"><code>recipes/</code><span lang="en"><span data-n="recipes">71</span> recipes, <span data-n="grammar">24</span> shot cards</span><span lang="zh"><span data-n="recipes">71</span> 张配方、<span data-n="grammar">24</span> 张镜头卡</span></div>
+            <div class="tile"><code>templates/</code><span lang="en"><span data-n="templates">11</span> project files</span><span lang="zh"><span data-n="templates">11</span> 个项目模板</span></div>
+            <div class="tile"><code>cases/ showcase/</code><span lang="en"><span data-n="cases">14</span> case studies, <span data-n="showcase">5</span> films</span><span lang="zh"><span data-n="cases">14</span> 个案例、<span data-n="showcase">5</span> 支样片</span></div>
           </div>
         </div>
         <div class="panel" data-r data-step>
-          <h4><span lang="en">Runs</span><span lang="zh">跑</span> <span class="sub"><span lang="en">one CLI, five engines</span><span lang="zh">一个命令行，五个引擎</span></span></h4>
-          <div class="cli"><code>bin/vh</code><span>new · tts · music · sfx · mix · qa · check · review · desk</span></div>
+          <h4><span lang="en">Runs</span><span lang="zh">跑</span> <span class="sub"><span lang="en">one CLI, <span data-n="commands">65</span> commands, <span data-n="engines">5</span> engines</span><span lang="zh">一个命令行，<span data-n="commands">65</span> 条命令，<span data-n="engines">5</span> 个引擎</span></span></h4>
+          <div class="cli"><code>bin/vh</code><span>new · edit · render · check · gate · desk · footage · image · tts · music</span></div>
           <div class="down" aria-hidden="true">↓</div>
-          <div class="engines-row"><span>HyperFrames</span><span>Manim</span><span>Remotion</span><span>p5.brush</span><span>Blender</span></div>
+          <div class="engines-row"><span>HyperFrames</span><span>canvas + Three.js</span><span>p5.brush</span><span>Manim</span><span>Blender</span></div>
         </div>
       </div>
       <div class="arch-flow" data-r>
@@ -855,16 +902,70 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 05 · the intro film -->
+<!-- 05 · the capability map: think, gather, make, check and deliver -->
+<section class="slide" id="map" data-en="Tools" data-zh="能力地图">
+  <div class="wrap">
+    <div class="head">
+      <div><p class="eyebrow" data-r><b>05</b><span lang="en">Capability map</span><span lang="zh">能力地图</span></p><h2 class="split"><span lang="en">From idea to delivery, <em>a tool at every step.</em></span><span lang="zh">从立意到交付，<em>每一步都有工具。</em></span></h2></div>
+      <p class="lede map-lede" data-r><span lang="en">One CLI, <code>bin/vh</code>, with <span data-n="commands">65</span> commands. Each name below is one; any command takes <code>-h</code>, and <code>bin/vh commands</code> lists them by stage.</span><span lang="zh">一个命令行 <code>bin/vh</code>，<span data-n="commands">65</span> 条命令。下面每个名字都是其中一条；每条加 <code>-h</code> 看用法，<code>bin/vh commands</code> 按阶段列出全部。</span></p>
+    </div>
+    <div class="map">
+      <div class="station" data-r>
+        <h3><b>01</b><span lang="en">Think</span><span lang="zh">想</span></h3>
+        <ul>
+          <li><span class="k"><code>know</code></span><span><span lang="en">what the repo already knows about a few words: a recipe, a component, a style, a case</span><span lang="zh">仓库里关于几个词已经有什么：配方、组件、风格、案例</span></span></li>
+          <li><span class="k"><code>scout</code></span><span><span lang="en">a topic on the platforms before you pick it, and your film's numbers after; public interfaces, no login</span><span lang="zh">选题前看题目在各平台的样子，发出去后看片子的数据；只用公开接口，不登录</span></span></li>
+          <li><span class="k"><code>ref</code> · <code>breakdown</code></span><span><span lang="en">references on record; a reference film taken apart, its cuts against its beats</span><span lang="zh">参考记进台账；拆一支参考片，看切点落在节拍的哪里</span></span></li>
+          <li><span class="k"><code>concept</code></span><span><span lang="en">seeded extras for the concept cards at gate ①</span><span lang="zh">关卡 ① 立意卡的可选配件</span></span></li>
+        </ul>
+      </div>
+      <div class="station" data-r>
+        <h3><b>02</b><span lang="en">Gather</span><span lang="zh">料</span></h3>
+        <ul>
+          <li><span class="k"><code>footage</code></span><span><span lang="en">real footage from Internet Archive, Wikimedia Commons and NASA: only the seconds you need, its licence on record</span><span lang="zh">从 Internet Archive、Wikimedia Commons、NASA 取真实影像：只取要用的几秒，许可记下来</span></span></li>
+          <li><span class="k"><code>image gen</code></span><span><span lang="en">pictures from Nano Banana or Codex: an estimate first, each paid call held against the budget</span><span lang="zh">用 Nano Banana 或 Codex 生成图：先估价，每次付费调用先按预算占住</span></span></li>
+          <li><span class="k"><code>sfx</code> · <code>bgm</code> · <code>sound</code></span><span><span lang="en">a sound library: your packs and Openverse, licences and credits on record</span><span lang="zh">声音库：你自己的音效包和 Openverse，许可和署名都记下</span></span></li>
+          <li><span class="k"><code>cast</code></span><span><span lang="en">characters, props and sets as settled reference pictures, sent along when they are drawn again</span><span lang="zh">角色、道具、场景的定稿参考图，再画它们时一起带上</span></span></li>
+          <li><span class="k"><code>model3d</code> · <code>hdri</code></span><span><span lang="en">a 3D model read before it goes in; CC0 light and sky from Poly Haven</span><span lang="zh">3D 模型放进来前先读一遍；从 Poly Haven 取 CC0 的光照和天空</span></span></li>
+          <li><span class="k"><code>assets</code></span><span><span lang="en">one ledger for every file: where it came from, its licence, its cost; checked before delivery</span><span lang="zh">每个文件记在一本台账里：从哪来、什么许可、花多少钱；交付前检查</span></span></li>
+        </ul>
+      </div>
+      <div class="station" data-r>
+        <h3><b>03</b><span lang="en">Make</span><span lang="zh">做</span></h3>
+        <ul>
+          <li><span class="k"><code>edit</code></span><span><span lang="en">an edit list: pages, images, footage, other films and sound in a row; gate ②'s animatic as grey slates</span><span lang="zh">剪辑表：页面、图片、实拍素材、别的片子和声音排成一列；关卡 ② 的 animatic 先是灰卡</span></span></li>
+          <li><span class="k"><code>components</code></span><span><span lang="en"><span data-n="components">5</span> motion components: a spring scene, a page turn, paper seams, a chapter bar, a build-up</span><span lang="zh"><span data-n="components">5</span> 个动效组件：弹簧场景、翻页、纸面转场、章节进度条、逐渐建成</span></span></li>
+          <li><span class="k"><code>recipes</code></span><span><span lang="en"><span data-n="recipes">71</span> shot recipes, <span data-n="sequences">10</span> whole-film skeletons, <span data-n="grammar">24</span> shot-grammar cards</span><span lang="zh"><span data-n="recipes">71</span> 张镜头配方、<span data-n="sequences">10</span> 条全片骨架、<span data-n="grammar">24</span> 张镜头语法卡</span></span></li>
+          <li><span class="k"><code>--three</code></span><span><span lang="en">canvas-film's Three.js layer: GLB models under the 2D, their clips on the narration's words</span><span lang="zh">canvas-film 的 Three.js 层：GLB 模型画在 2D 下面，动作挂在旁白的字上</span></span></li>
+          <li><span class="k">Blender</span><span><span lang="en">path-traced shots, or only the asset, tidied and checked for the Three.js layer</span><span lang="zh">路径追踪的镜头；或者只做资产，整理、检查好交给 Three.js 层</span></span></li>
+          <li><span class="k"><code>tts</code> · <code>music</code> · <code>mix</code></span><span><span lang="en">voiceover, a score written as code, the mix</span><span lang="zh">配音、用代码写的配乐、混音</span></span></li>
+        </ul>
+      </div>
+      <div class="station" data-r>
+        <h3><b>04</b><span lang="en">Check &amp; deliver</span><span lang="zh">查与交</span></h3>
+        <ul>
+          <li><span class="k"><code>gate</code> · <code>desk</code></span><span><span lang="en">a stop for your sign-off in one command; the review desk</span><span lang="zh">一条命令停下来等你拍板；审阅台</span></span></li>
+          <li><span class="k"><code>check</code> · <code>determinism</code></span><span><span lang="en">the film against its brief; each frame really a function of t</span><span lang="zh">对着 Brief 查成片；查每一帧是不是只由 t 决定</span></span></li>
+          <li><span class="k"><code>render</code></span><span><span lang="en">parallel, resumable chunks; <code>--motion-blur N</code> for sub-frame blur, <code>--alpha</code> for a transparent film; an edit list redraws only what changed</span><span lang="zh">分块并行、能续渲；<code>--motion-blur N</code> 加子帧运动模糊，<code>--alpha</code> 出透明底；剪辑表只重画改过的部分</span></span></li>
+          <li><span class="k"><code>patch</code> · <code>versions</code></span><span><span lang="en">a few seconds redrawn in a finished film; compare renders, or go back</span><span lang="zh">只重画成片里的几秒；对比各版，或者退回</span></span></li>
+          <li><span class="k"><code>deliver</code> · <code>clean</code></span><span><span lang="en">the copy to upload; a finished project's intermediates cleared</span><span lang="zh">出上传用的版本；清掉做完的项目里的中间文件</span></span></li>
+        </ul>
+      </div>
+    </div>
+    <p class="fine map-note" data-r><span lang="en"><code>bin/vh doctor</code> says which of the <span data-n="modules">39</span> outside programs, packages, models and services this machine can use.</span><span lang="zh"><code>bin/vh doctor</code> 告诉你这台机器能用上 <span data-n="modules">39</span> 个外接模块里的哪些。</span></p>
+  </div>
+</section>
+
+<!-- 06 · the intro film -->
 <section class="slide" id="film" data-en="Intro film" data-zh="介绍片">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>05</b><span lang="en">The intro film · 103 s · with sound</span><span lang="zh">介绍片 · 103 秒 · 有声</span></p><h2 class="split"><span lang="en">Its own intro film, <em>made with the harness.</em></span><span lang="zh">这支介绍片，<em>也是用它做的。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>06</b><span lang="en">The intro film · 103 s · with sound</span><span lang="zh">介绍片 · 103 秒 · 有声</span></p><h2 class="split"><span lang="en">Its own intro film, <em>made with the harness.</em></span><span lang="zh">这支介绍片，<em>也是用它做的。</em></span></h2></div>
     </div>
     <div class="screen-wrap" data-r>
       <canvas class="ambient" id="ambient" width="64" height="36" aria-hidden="true"></canvas>
       <div class="screen" id="screen">
-        <video id="intro" playsinline preload="metadata" poster="img/04-intro.jpg" title="OpenVideoHarness intro film">
+        <video id="intro" playsinline preload="none" poster="img/04-intro.jpg" title="OpenVideoHarness intro film">
           <source src="../../showcase/04-intro-film/media/final.mp4" type="video/mp4">
           <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4" type="video/mp4">
         </video>
@@ -880,16 +981,16 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
       <button data-t="90.5"><b>1:30</b><span lang="en">This film, too</span><span lang="zh">还有这一支</span></button>
     </div>
     <div class="film-notes" data-r>
-      <p class="fine"><span lang="en">The opening is path-traced in Blender, driven by Python: 1.18 million stars, 475 frames. HyperFrames and Three.js take over from 15 s. The score and 124 sound effects are code too.</span><span lang="zh">开场由 Python 驱动 Blender 路径追踪：118 万颗星，475 帧。15 秒起交给 HyperFrames 和 Three.js。配乐和 124 个音效也是代码写的。</span></p>
+      <p class="fine"><span lang="en">The opening is path-traced in Blender, driven by Python: 1.18 million stars, 475 frames. HyperFrames and Three.js take over from 15 s. The score and its 124 sound events are code too. It streams from the repo's GitHub release (297 MB) once you press play.</span><span lang="zh">开场由 Python 驱动 Blender 路径追踪：118 万颗星，475 帧。15 秒起交给 HyperFrames 和 Three.js。配乐和 124 处音效也是代码写的。按下播放才从仓库的 GitHub Release 载入（297 MB）。</span></p>
     </div>
   </div>
 </section>
 
-<!-- 06 · showcase -->
+<!-- 07 · showcase -->
 <section class="slide" id="showcase" data-en="Showcase" data-zh="作品">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>06</b><span lang="en">Showcase · hover to preview, click for sound</span><span lang="zh">作品 · 悬停预览，点击带声音播放</span></p><h2 class="split"><span lang="en">Each from <em>one sentence.</em></span><span lang="zh">每一支，<em>都从一句话开始。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>07</b><span lang="en">Showcase · hover to preview, click for sound</span><span lang="zh">作品 · 悬停预览，点击带声音播放</span></p><h2 class="split"><span lang="en">Each from <em>one sentence.</em></span><span lang="zh">每一支，<em>都从一句话开始。</em></span></h2></div>
       <div class="sees-box" data-r>
         <button class="toggle" id="sees" aria-pressed="false"><i></i><span lang="en">What Claude sees</span><span lang="zh">Claude 看到的</span></button>
         <p class="sees-note" id="seesNote" hidden><span lang="en">Claude can't watch video. It reviews contact sheets: frames tiled with their timecodes.</span><span lang="zh">Claude 看不了视频，它审的是联系表：按时间码平铺的一帧帧画面。</span></p>
@@ -901,7 +1002,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
           <source src="../../showcase/02-short-leo-doppler/media/final.mp4" type="video/mp4">
           <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/02-vertical-science-short.mp4" type="video/mp4">
         </video>
-        <img class="sheet" loading="lazy" src="../../showcase/02-short-leo-doppler/media/sheet.png" alt="Contact sheet of the science short">
+        <img class="sheet" data-src="../../showcase/02-short-leo-doppler/media/sheet.png" alt="Contact sheet of the science short">
         <i class="scan"></i><span class="sheet-tag"><span lang="en">contact sheet</span><span lang="zh">联系表</span></span><span class="pbtn" aria-hidden="true"></span>
         <figcaption><b><span lang="en">Vertical science short</span><span lang="zh">竖屏科普</span></b><q><span lang="en">Why does a low-orbit satellite's signal change pitch?</span><span lang="zh">为什么低轨卫星的信号会"变调"？</span></q><small><span lang="en">HyperFrames · 24.8 s · 1080×1920 · Chinese voice, two-language subtitles</span><span lang="zh">HyperFrames · 24.8 秒 · 1080×1920 · 中文配音，双语字幕</span></small></figcaption>
       </figure>
@@ -910,7 +1011,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
           <source src="../../showcase/03-math-fourier/media/final.mp4" type="video/mp4">
           <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/03-math-explainer.mp4" type="video/mp4">
         </video>
-        <img class="sheet" loading="lazy" src="../../showcase/03-math-fourier/media/sheet.png" alt="Contact sheet of the math explainer">
+        <img class="sheet" data-src="../../showcase/03-math-fourier/media/sheet.png" alt="Contact sheet of the math explainer">
         <i class="scan"></i><span class="sheet-tag"><span lang="en">contact sheet</span><span lang="zh">联系表</span></span><span class="pbtn" aria-hidden="true"></span>
         <figcaption><b><span lang="en">Math explainer, 3Blue1Brown style</span><span lang="zh">数学讲解，3Blue1Brown 风格</span></b><q><span lang="en">Building a square wave from sine waves</span><span lang="zh">用正弦波搭出方波</span></q><small><span lang="en">Manim · 25 s · English narration</span><span lang="zh">Manim · 25 秒 · 英文旁白</span></small></figcaption>
       </figure>
@@ -919,7 +1020,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
           <source src="../../showcase/01-handdrawn-clawd-leaf/media/final.mp4" type="video/mp4">
           <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/01-handdrawn-short.mp4" type="video/mp4">
         </video>
-        <img class="sheet" loading="lazy" src="../../showcase/01-handdrawn-clawd-leaf/media/sheet.png" alt="Contact sheet of the hand-drawn short">
+        <img class="sheet" data-src="../../showcase/01-handdrawn-clawd-leaf/media/sheet.png" alt="Contact sheet of the hand-drawn short">
         <i class="scan"></i><span class="sheet-tag"><span lang="en">contact sheet</span><span lang="zh">联系表</span></span><span class="pbtn" aria-hidden="true"></span>
         <figcaption><b><span lang="en">Hand-drawn short</span><span lang="zh">手绘短片</span></b><q><span lang="en">Clawd tries to film a falling autumn leaf</span><span lang="zh">Clawd 想拍下一片飘落的秋叶</span></q><small><span lang="en">p5.brush · 12 s · no words, score and foley</span><span lang="zh">p5.brush · 12 秒 · 无台词，配乐和拟音</span></small></figcaption>
       </figure>
@@ -928,7 +1029,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
           <source src="../../showcase/00-promo-launch-film/media/final.mp4" type="video/mp4">
           <source src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/00-launch-short.mp4" type="video/mp4">
         </video>
-        <img class="sheet" loading="lazy" src="../../showcase/00-promo-launch-film/media/sheet.png" alt="Contact sheet of the launch short">
+        <img class="sheet" data-src="../../showcase/00-promo-launch-film/media/sheet.png" alt="Contact sheet of the launch short">
         <i class="scan"></i><span class="sheet-tag"><span lang="en">contact sheet</span><span lang="zh">联系表</span></span><span class="pbtn" aria-hidden="true"></span>
         <figcaption><b><span lang="en">Launch short</span><span lang="zh">发布短片</span></b><q><span lang="en">A short launch film for OpenVideoHarness itself</span><span lang="zh">给 OpenVideoHarness 自己做的发布短片</span></q><small><span lang="en">HyperFrames · 20 s · a sound for every move</span><span lang="zh">HyperFrames · 20 秒 · 每个动作都有声音</span></small></figcaption>
       </figure>
@@ -946,22 +1047,29 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
   </div>
 </section>
 
-<!-- 07 · styles -->
+<!-- 08 · styles -->
 <section class="slide" id="styles" data-en="Styles" data-zh="风格">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>07</b><span lang="en">Style library · click one to hear it</span><span lang="zh">风格库 · 点开能听声音</span></p><h2 class="split"><span lang="en">32 styles. <em>Not one default look.</em></span><span lang="zh">32 种风格，<em>不再千篇一律。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>08</b><span lang="en">Style library · click one to hear it</span><span lang="zh">风格库 · 点开能听声音</span></p><h2 class="split"><span lang="en">32 styles. <em>Not one default look.</em></span><span lang="zh">32 种风格，<em>不再千篇一律。</em></span></h2></div>
       <p class="lede styles-lede" data-r><span lang="en">Left alone, AI video drifts to one look: dark background, glow, glass cards. Each style here is a real 5-second render of the same content.</span><span lang="zh">放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。这里每种风格都是同一段内容的 5 秒实渲样片。</span></p>
     </div>
     <div class="wall-stage"><div class="wall" id="wall"></div></div>
+    <div class="lib-head" data-r><h3><span lang="en">Recipes and components, as the agent sees them</span><span lang="zh">配方和组件，agent 看到的样子</span></h3><p class="fine"><span lang="en"><span data-n="recipes">71</span> shot recipes, <span data-n="sequences">10</span> whole-film skeletons, <span data-n="grammar">24</span> shot-grammar cards and <span data-n="components">5</span> motion components, each move with a contact sheet like these. Click one to enlarge it.</span><span lang="zh"><span data-n="recipes">71</span> 张镜头配方、<span data-n="sequences">10</span> 条全片骨架、<span data-n="grammar">24</span> 张镜头语法卡、<span data-n="components">5</span> 个动效组件，每个动作都配这样一张联系表。点开放大。</span></p></div>
+    <div class="lib">
+      <figure class="lib-item" data-r><button type="button" data-zoom><img src="../../components/build-up/sample/media/sheet.jpg" width="1600" height="360" loading="lazy" decoding="async" alt="Contact sheet of the build-up component: a tower rising floor by floor and a stepped block dropping in"></button><figcaption><code>build-up</code><span lang="en">pieces appear by a rule until the whole stands</span><span lang="zh">逐渐建成：零件按规则一块块出现，直到整体立起来</span></figcaption></figure>
+      <figure class="lib-item" data-r><button type="button" data-zoom><img src="../../components/page-turn/sample/media/sheet.jpg" width="1600" height="360" loading="lazy" decoding="async" alt="Contact sheet of the page-turn component: years printed on pages that turn over"></button><figcaption><code>page-turn</code><span lang="en">a book page turns over; the turn is the cut</span><span lang="zh">翻页：书页翻过去，翻页本身就是剪辑点</span></figcaption></figure>
+      <figure class="lib-item" data-r><button type="button" data-zoom><img src="../../recipes/type/media/decode-type.jpg" width="1600" height="360" loading="lazy" decoding="async" alt="Contact sheet of the decode-type recipe: a line of type decoding into place"></button><figcaption><code>decode-type</code><span lang="en">a recipe: type that decodes into place, then stays long enough to read</span><span lang="zh">一张配方：字解码到位，再停够读完的时间</span></figcaption></figure>
+      <figure class="lib-item" data-r><button type="button" data-zoom><img src="../../recipes/data/media/chart-morph.jpg" width="1600" height="360" loading="lazy" decoding="async" alt="Contact sheet of the chart-morph recipe: a bar chart turning into an area chart"></button><figcaption><code>chart-morph</code><span lang="en">a recipe: one chart becomes another without a cut</span><span lang="zh">一张配方：一种图表不切镜地变成另一种</span></figcaption></figure>
+    </div>
   </div>
 </section>
 
-<!-- 08 · in practice -->
+<!-- 09 · in practice -->
 <section class="slide" id="practice" data-en="In practice" data-zh="真实使用">
   <div class="wrap wild">
     <div>
-      <p class="eyebrow" data-r><b>08</b><span lang="en">In practice</span><span lang="zh">真实使用</span></p>
+      <p class="eyebrow" data-r><b>09</b><span lang="en">In practice</span><span lang="zh">真实使用</span></p>
       <h2 class="split"><span lang="en">Used for real, <em>on the news cycle.</em></span><span lang="zh">真的在用，<em>还赶得上热点。</em></span></h2>
       <p class="lede" data-r><span lang="en">The author publishes films made with OpenVideoHarness on Douyin (TikTok in China) and Bilibili.</span><span lang="zh">作者把用 OpenVideoHarness 做的片子发在抖音和 B 站。</span></p>
       <div class="plats" data-r>
@@ -969,24 +1077,32 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         <a class="plat" href=""><span lang="en">Douyin</span><span lang="zh">抖音</span> <small lang="en">TikTok in China</small></a>
         <a class="plat" href=""><span lang="en">Bilibili</span><span lang="zh">哔哩哔哩</span></a>
       </div>
-      <!-- A local copy of the Nobel explainer at docs/site/media/nobel.mp4 (git ignores that folder) shows up here. -->
-      <div class="mine" id="mine">
-        <video controls playsinline preload="metadata" src="media/nobel.mp4" title="Nobel Prize in Physics explainer"></video>
+      <p class="lede" data-r><span lang="en">Every film on this page was made the way you would make yours: an agent, this repo's docs and one request. Each folder keeps the record: the request word for word, the storyboard, every review round, and how long it took.</span><span lang="zh">这一页上的每支片子，做法都和你做自己的片子一样：一个 agent、本仓库的文档、一句需求。每个目录都留着记录：需求原话、分镜、每一轮审阅、花了多久。</span></p>
+      <div class="plats" data-r>
+        <span class="plat"><code>cover-preview</code> <small><span lang="en">covers at Bilibili, Douyin, YouTube and Xiaohongshu feed sizes</span><span lang="zh">按 B 站、抖音、YouTube、小红书的信息流尺寸看封面</span></small></span>
+        <span class="plat"><code>deliver</code> <small><span lang="en">the copy to upload, sized to a platform's limit</span><span lang="zh">上传用的版本，按平台的大小上限出</span></small></span>
       </div>
     </div>
-    <div class="clock liuli" data-r>
-      <div class="tl"><span><span lang="en">Nobel Prize in Physics announced</span><span lang="zh">诺贝尔物理学奖公布</span></span><i class="track-line"></i><span><span lang="en">explainer out</span><span lang="zh">科普片发出</span></span></div>
-      <div class="big"><span data-count="3">≈3</span><small><span lang="en">hours</span><span lang="zh">小时</span></small></div>
-      <p><span lang="en">From the announcement of the 2026 Nobel Prize in Physics to a published science explainer, made with the harness.</span><span lang="zh">从 2026 年诺贝尔物理学奖公布，到一支用这套工作台做的科普片发出来。</span></p>
+    <div class="clocks">
+      <div class="clock liuli" data-r>
+        <div class="tl"><span><span lang="en">Nobel Prize in Physics announced</span><span lang="zh">诺贝尔物理学奖公布</span></span><i class="track-line"></i><span><span lang="en">explainer out</span><span lang="zh">科普片发出</span></span></div>
+        <div class="big"><span data-count="3">≈3</span><small><span lang="en">hours</span><span lang="zh">小时</span></small></div>
+        <p><span lang="en">From the announcement of the 2026 Nobel Prize in Physics to a published science explainer, made with the harness.</span><span lang="zh">从 2026 年诺贝尔物理学奖公布，到一支用这套工作台做的科普片发出来。</span></p>
+      </div>
+      <div class="clock sub liuli" data-r>
+        <div class="tl"><span><span lang="en">reading CLAUDE.md</span><span lang="zh">读 CLAUDE.md</span></span><i class="track-line"></i><span><span lang="en">delivered film</span><span lang="zh">交付成片</span></span></div>
+        <div class="big"><span data-count="40">≈40</span><small><span lang="en">min</span><span lang="zh">分钟</span></small></div>
+        <p><span lang="en">The hand-drawn short (showcase 01): about 40 minutes of the agent's active work, with three review rounds and about 20 fixes logged, not counting a pause for an API rate limit.</span><span lang="zh">手绘短片（样片 01）：agent 实际工作约 40 分钟，三轮自查，记下并修好约 20 处问题，不算中途因 API 限流停下的时间。</span></p>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- 09 · faq -->
+<!-- 10 · faq -->
 <section class="slide faq-slide" id="faq" data-en="FAQ" data-zh="常见问题">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>09</b><span lang="en">FAQ</span><span lang="zh">常见问题</span></p><h2 class="split"><span lang="en">Good questions, <em>straight answers.</em></span><span lang="zh">常见问题，<em>一次说清。</em></span></h2></div>
+      <div><p class="eyebrow" data-r><b>10</b><span lang="en">FAQ</span><span lang="zh">常见问题</span></p><h2 class="split"><span lang="en">Good questions, <em>straight answers.</em></span><span lang="zh">常见问题，<em>一次说清。</em></span></h2></div>
       <a class="btn ghost" href="https://github.com/ZLHad/OpenVideoHarness/wiki" target="_blank" rel="noopener" data-r><span lang="en">More in the wiki</span><span lang="zh">更多见 Wiki</span> <span class="arrow">↗</span></a>
     </div>
     <div class="faq">
@@ -997,7 +1113,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">What does it cost?</span><span lang="zh">要花多少钱？</span></summary>
-          <div class="a"><span lang="en">Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice or generated video you choose, billed by that provider. Keys are always read from environment variables.</span><span lang="zh">渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量）；接云端配音或生成式视频时，按各家收费。key 一律从环境变量读。</span></div>
+          <div class="a"><span lang="en">Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture, generated music or generated video you choose, billed by that provider. A paid call needs a budget and is held against it before it is made; keys are always read from environment variables.</span><span lang="zh">渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量）；接云端配音、生成图、生成音乐或生成式视频时，按各家收费。付费调用要有预算，调用前先按预算占住；key 一律从环境变量读。</span></div>
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">How long does a film take?</span><span lang="zh">做一支要多久？</span></summary>
@@ -1005,7 +1121,7 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">What do I need?</span><span lang="zh">需要什么环境？</span></summary>
-          <div class="a"><span lang="en">macOS or Linux, Node.js 22+, Google Chrome, FFmpeg, Python 3 with uv, and Claude Code or Codex. The local voice needs Apple Silicon (a cloud voice doesn't), formulas need LaTeX, and only 3D shots need Blender 5.2. Windows is untested.</span><span lang="zh">macOS 或 Linux、Node.js ≥ 22、Google Chrome、FFmpeg、Python 3 和 uv，以及 Claude Code 或 Codex。本地配音要 Apple Silicon（换云端配音就不用），公式要 LaTeX，只有 3D 镜头才要 Blender 5.2。Windows 没有测过。</span></div>
+          <div class="a"><span lang="en">macOS or Linux, Node.js 22+, Google Chrome, FFmpeg, Python 3 with uv, and Claude Code or Codex. The local voice needs Apple Silicon (a cloud voice doesn't), formulas need LaTeX, and only path-traced shots and preparing 3D models need Blender 5.2. Windows is untested.</span><span lang="zh">macOS 或 Linux、Node.js ≥ 22、Google Chrome、FFmpeg、Python 3 和 uv，以及 Claude Code 或 Codex。本地配音要 Apple Silicon（换云端配音就不用），公式要 LaTeX，只有路径追踪的镜头和整理 3D 模型才要 Blender 5.2。Windows 没有测过。</span></div>
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">Does it work with Codex?</span><span lang="zh">能用 Codex 吗？</span></summary>
@@ -1018,12 +1134,16 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
           <div class="a"><span lang="en">Chinese and English. Voiceover runs on the local, open-source Qwen3-TTS by default, with cloud voices as options, and subtitles come in either language or both. Ask in either language; the review pages follow yours.</span><span lang="zh">中文和英文。配音默认用本地开源的 Qwen3-TTS，也能接云端配音；字幕可以出中文、英文或双语。需求用哪种语言都行，审阅页跟着你的语言走。</span></div>
         </details>
         <details name="faq" data-r>
-          <summary><span lang="en">Can it make films with real people?</span><span lang="zh">能做真人、实拍感的片子吗？</span></summary>
-          <div class="a"><span lang="en">Realistic people and a live-action look need generated video; the playbook shows how to combine generated clips with code-drawn overlays. Editing footage you shot yourself (talking heads, interviews, vlogs) is type 09, still experimental.</span><span lang="zh">写实人物、实拍感要靠生成式视频，playbook 里有一套"生成式视频 + 代码叠加"的做法。剪你自己录的素材（口播、访谈、Vlog）是第 09 类，还在试验。</span></div>
+          <summary><span lang="en">Can it use real footage, or real people?</span><span lang="zh">能用实拍素材、拍真人吗？</span></summary>
+          <div class="a"><span lang="en">Archive and public-domain footage, yes: <code>bin/vh footage</code> takes the seconds you need from Internet Archive, Wikimedia Commons and NASA with their licences on record, and an edit list cuts them in. Realistic people and a live-action look need generated video, with code drawn on top. Editing footage you shot yourself (talking heads, interviews, vlogs) is type 09, still experimental.</span><span lang="zh">档案和公有领域的影像可以：<code>bin/vh footage</code> 从 Internet Archive、Wikimedia Commons、NASA 只取要用的几秒，许可记在台账里，再用剪辑表剪进片子。写实人物、实拍感要靠生成式视频，再用代码叠加。剪你自己录的素材（口播、访谈、Vlog）是第 09 类，还在试验。</span></div>
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">What can't it do yet?</span><span lang="zh">现在还做不到什么？</span></summary>
           <div class="a"><span lang="en">The agent can't watch or listen. It reads rendered frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon), and type 09 hasn't been tried on real footage yet.</span><span lang="zh">agent 看不了视频、听不了声音，只能看渲染出的帧、读声音的数据，所以最后一关还是要你看、你听。目前只在 macOS（Apple Silicon）上完整跑过，第 09 类剪辑还没用真实素材试过。</span></div>
+        </details>
+        <details name="faq" data-r>
+          <summary><span lang="en">Does this page open from mainland China?</span><span lang="zh">在国内能打开这一页吗？</span></summary>
+          <div class="a"><span lang="en">It loads nothing from other sites: its two display fonts and every picture are in this repo. Only the films come from GitHub's release, and only once you press play, so they can be slow there; each film's folder and file are linked. For installing behind a slow network, see the wiki's <a href="https://github.com/ZLHad/OpenVideoHarness/wiki/China-Network" target="_blank" rel="noopener">China network ↗</a>.</span><span lang="zh">能。这一页不从别的网站加载任何东西：两种标题字体和所有图片都在本仓库里。只有片子来自 GitHub 的 Release，而且按下播放才载入，在国内可能比较慢；每支片子的目录和文件都有链接。网络慢时怎么安装，见 wiki 的<a href="https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C" target="_blank" rel="noopener">国内网络 ↗</a>。</span></div>
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">Is it an Anthropic project?</span><span lang="zh">是 Anthropic 官方项目吗？</span></summary>
@@ -1031,36 +1151,31 @@ html[data-lang="zh"] .layer.harness::after { content: "缺的那一层"; }
         </details>
         <details name="faq" data-r>
           <summary><span lang="en">How can I contribute?</span><span lang="zh">怎么参与？</span></summary>
-          <div class="a"><span lang="en">Pull requests are welcome: new video types, styles with their samples, case studies, lessons from your projects, and films you made with it, with everything that went into them. <a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md ↗</a></span><span lang="zh">欢迎提 PR：新的视频类型、带样片的风格、案例拆解、项目里踩过的坑，以及你用它做的片子和全部制作过程。<a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md ↗</a></span></div>
+          <div class="a"><span lang="en">Pull requests are welcome: new video types, styles with their samples, recipes, components, case studies, lessons from your projects, and films you made with it, with everything that went into them. <a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md ↗</a></span><span lang="zh">欢迎提 PR：新的视频类型、带样片的风格、配方、组件、案例拆解、项目里踩过的坑，以及你用它做的片子和全部制作过程。<a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md ↗</a></span></div>
         </details>
       </div>
     </div>
   </div>
 </section>
 
-<!-- 10 · contact -->
+<!-- 11 · contact -->
 <section class="slide" id="contact" data-en="Contact" data-zh="联系">
   <div class="wrap">
     <div class="head">
-      <div><p class="eyebrow" data-r><b>10</b><span lang="en">Contact</span><span lang="zh">联系</span></p><h2 class="split"><span lang="en">Questions or ideas? <em>Get in touch.</em></span><span lang="zh">有问题或想法？<em>来聊聊。</em></span></h2></div>
-      <p class="lede contact-lede" data-r><span lang="en">Star the repo, add the author on WeChat, or send a film you made with it.</span><span lang="zh">给仓库点个 Star，加作者微信，或者把你用它做的片子发过来。</span></p>
+      <div><p class="eyebrow" data-r><b>11</b><span lang="en">Contact</span><span lang="zh">联系</span></p><h2 class="split"><span lang="en">Questions or ideas? <em>Get in touch.</em></span><span lang="zh">有问题或想法？<em>来聊聊。</em></span></h2></div>
+      <p class="lede contact-lede" data-r><span lang="en">Star the repo, or send a film you made with it.</span><span lang="zh">给仓库点个 Star，或者把你用它做的片子发过来。</span></p>
     </div>
     <div class="contact contact-wide">
-      <div class="qrs" id="qrs">
+      <div class="qrs">
         <div class="qr" data-r>
           <h4><span lang="en">Star it on GitHub</span><span lang="zh">在 GitHub 上点 Star</span></h4>
           <div class="plate"><svg role="img" aria-label="QR code: github.com/ZLHad/OpenVideoHarness" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" shape-rendering="crispEdges"><path fill="currentColor" d="M0 0h1v1h-1zM1 0h1v1h-1zM2 0h1v1h-1zM3 0h1v1h-1zM4 0h1v1h-1zM5 0h1v1h-1zM6 0h1v1h-1zM9 0h1v1h-1zM12 0h1v1h-1zM15 0h1v1h-1zM18 0h1v1h-1zM19 0h1v1h-1zM22 0h1v1h-1zM23 0h1v1h-1zM24 0h1v1h-1zM25 0h1v1h-1zM26 0h1v1h-1zM27 0h1v1h-1zM28 0h1v1h-1zM0 1h1v1h-1zM6 1h1v1h-1zM9 1h1v1h-1zM10 1h1v1h-1zM12 1h1v1h-1zM13 1h1v1h-1zM15 1h1v1h-1zM17 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM3 2h1v1h-1zM4 2h1v1h-1zM6 2h1v1h-1zM10 2h1v1h-1zM11 2h1v1h-1zM12 2h1v1h-1zM16 2h1v1h-1zM17 2h1v1h-1zM22 2h1v1h-1zM24 2h1v1h-1zM25 2h1v1h-1zM26 2h1v1h-1zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h1v1h-1zM3 3h1v1h-1zM4 3h1v1h-1zM6 3h1v1h-1zM9 3h1v1h-1zM11 3h1v1h-1zM14 3h1v1h-1zM15 3h1v1h-1zM18 3h1v1h-1zM22 3h1v1h-1zM24 3h1v1h-1zM25 3h1v1h-1zM26 3h1v1h-1zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h1v1h-1zM3 4h1v1h-1zM4 4h1v1h-1zM6 4h1v1h-1zM9 4h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM14 4h1v1h-1zM15 4h1v1h-1zM16 4h1v1h-1zM18 4h1v1h-1zM19 4h1v1h-1zM22 4h1v1h-1zM24 4h1v1h-1zM25 4h1v1h-1zM26 4h1v1h-1zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM15 5h1v1h-1zM18 5h1v1h-1zM19 5h1v1h-1zM20 5h1v1h-1zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h1v1h-1zM1 6h1v1h-1zM2 6h1v1h-1zM3 6h1v1h-1zM4 6h1v1h-1zM5 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM23 6h1v1h-1zM24 6h1v1h-1zM25 6h1v1h-1zM26 6h1v1h-1zM27 6h1v1h-1zM28 6h1v1h-1zM12 7h1v1h-1zM15 7h1v1h-1zM16 7h1v1h-1zM17 7h1v1h-1zM20 7h1v1h-1zM0 8h1v1h-1zM3 8h1v1h-1zM5 8h1v1h-1zM6 8h1v1h-1zM8 8h1v1h-1zM11 8h1v1h-1zM13 8h1v1h-1zM14 8h1v1h-1zM15 8h1v1h-1zM16 8h1v1h-1zM18 8h1v1h-1zM19 8h1v1h-1zM21 8h1v1h-1zM23 8h1v1h-1zM0 9h1v1h-1zM1 9h1v1h-1zM2 9h1v1h-1zM9 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM16 9h1v1h-1zM19 9h1v1h-1zM20 9h1v1h-1zM22 9h1v1h-1zM25 9h1v1h-1zM28 9h1v1h-1zM0 10h1v1h-1zM2 10h1v1h-1zM3 10h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM11 10h1v1h-1zM12 10h1v1h-1zM13 10h1v1h-1zM16 10h1v1h-1zM17 10h1v1h-1zM19 10h1v1h-1zM20 10h1v1h-1zM21 10h1v1h-1zM24 10h1v1h-1zM25 10h1v1h-1zM26 10h1v1h-1zM27 10h1v1h-1zM1 11h1v1h-1zM2 11h1v1h-1zM3 11h1v1h-1zM5 11h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM10 11h1v1h-1zM11 11h1v1h-1zM13 11h1v1h-1zM16 11h1v1h-1zM18 11h1v1h-1zM20 11h1v1h-1zM24 11h1v1h-1zM26 11h1v1h-1zM27 11h1v1h-1zM1 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM8 12h1v1h-1zM9 12h1v1h-1zM11 12h1v1h-1zM12 12h1v1h-1zM13 12h1v1h-1zM15 12h1v1h-1zM16 12h1v1h-1zM19 12h1v1h-1zM21 12h1v1h-1zM22 12h1v1h-1zM25 12h1v1h-1zM27 12h1v1h-1zM28 12h1v1h-1zM1 13h1v1h-1zM2 13h1v1h-1zM4 13h1v1h-1zM5 13h1v1h-1zM10 13h1v1h-1zM11 13h1v1h-1zM12 13h1v1h-1zM14 13h1v1h-1zM20 13h1v1h-1zM21 13h1v1h-1zM0 14h1v1h-1zM1 14h1v1h-1zM4 14h1v1h-1zM6 14h1v1h-1zM10 14h1v1h-1zM11 14h1v1h-1zM12 14h1v1h-1zM13 14h1v1h-1zM20 14h1v1h-1zM22 14h1v1h-1zM23 14h1v1h-1zM24 14h1v1h-1zM25 14h1v1h-1zM26 14h1v1h-1zM27 14h1v1h-1zM28 14h1v1h-1zM3 15h1v1h-1zM4 15h1v1h-1zM5 15h1v1h-1zM7 15h1v1h-1zM9 15h1v1h-1zM11 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM14 15h1v1h-1zM15 15h1v1h-1zM16 15h1v1h-1zM17 15h1v1h-1zM18 15h1v1h-1zM20 15h1v1h-1zM21 15h1v1h-1zM22 15h1v1h-1zM25 15h1v1h-1zM27 15h1v1h-1zM0 16h1v1h-1zM6 16h1v1h-1zM8 16h1v1h-1zM9 16h1v1h-1zM11 16h1v1h-1zM12 16h1v1h-1zM17 16h1v1h-1zM20 16h1v1h-1zM23 16h1v1h-1zM27 16h1v1h-1zM1 17h1v1h-1zM3 17h1v1h-1zM4 17h1v1h-1zM7 17h1v1h-1zM8 17h1v1h-1zM9 17h1v1h-1zM10 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM13 17h1v1h-1zM16 17h1v1h-1zM18 17h1v1h-1zM20 17h1v1h-1zM21 17h1v1h-1zM22 17h1v1h-1zM23 17h1v1h-1zM25 17h1v1h-1zM28 17h1v1h-1zM0 18h1v1h-1zM2 18h1v1h-1zM3 18h1v1h-1zM6 18h1v1h-1zM13 18h1v1h-1zM14 18h1v1h-1zM16 18h1v1h-1zM18 18h1v1h-1zM21 18h1v1h-1zM23 18h1v1h-1zM24 18h1v1h-1zM27 18h1v1h-1zM28 18h1v1h-1zM3 19h1v1h-1zM5 19h1v1h-1zM7 19h1v1h-1zM8 19h1v1h-1zM9 19h1v1h-1zM11 19h1v1h-1zM14 19h1v1h-1zM15 19h1v1h-1zM17 19h1v1h-1zM20 19h1v1h-1zM21 19h1v1h-1zM23 19h1v1h-1zM24 19h1v1h-1zM27 19h1v1h-1zM28 19h1v1h-1zM0 20h1v1h-1zM2 20h1v1h-1zM4 20h1v1h-1zM6 20h1v1h-1zM9 20h1v1h-1zM10 20h1v1h-1zM16 20h1v1h-1zM19 20h1v1h-1zM20 20h1v1h-1zM21 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM26 20h1v1h-1zM8 21h1v1h-1zM9 21h1v1h-1zM10 21h1v1h-1zM11 21h1v1h-1zM16 21h1v1h-1zM17 21h1v1h-1zM19 21h1v1h-1zM20 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM27 21h1v1h-1zM28 21h1v1h-1zM0 22h1v1h-1zM1 22h1v1h-1zM2 22h1v1h-1zM3 22h1v1h-1zM4 22h1v1h-1zM5 22h1v1h-1zM6 22h1v1h-1zM10 22h1v1h-1zM11 22h1v1h-1zM12 22h1v1h-1zM16 22h1v1h-1zM20 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM27 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM8 23h1v1h-1zM9 23h1v1h-1zM11 23h1v1h-1zM12 23h1v1h-1zM14 23h1v1h-1zM15 23h1v1h-1zM18 23h1v1h-1zM20 23h1v1h-1zM24 23h1v1h-1zM25 23h1v1h-1zM26 23h1v1h-1zM0 24h1v1h-1zM2 24h1v1h-1zM3 24h1v1h-1zM4 24h1v1h-1zM6 24h1v1h-1zM10 24h1v1h-1zM11 24h1v1h-1zM12 24h1v1h-1zM15 24h1v1h-1zM16 24h1v1h-1zM17 24h1v1h-1zM20 24h1v1h-1zM21 24h1v1h-1zM22 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1zM0 25h1v1h-1zM2 25h1v1h-1zM3 25h1v1h-1zM4 25h1v1h-1zM6 25h1v1h-1zM8 25h1v1h-1zM12 25h1v1h-1zM13 25h1v1h-1zM19 25h1v1h-1zM20 25h1v1h-1zM22 25h1v1h-1zM23 25h1v1h-1zM24 25h1v1h-1zM25 25h1v1h-1zM26 25h1v1h-1zM27 25h1v1h-1zM0 26h1v1h-1zM2 26h1v1h-1zM3 26h1v1h-1zM4 26h1v1h-1zM6 26h1v1h-1zM11 26h1v1h-1zM14 26h1v1h-1zM16 26h1v1h-1zM19 26h1v1h-1zM20 26h1v1h-1zM24 26h1v1h-1zM25 26h1v1h-1zM26 26h1v1h-1zM28 26h1v1h-1zM0 27h1v1h-1zM6 27h1v1h-1zM9 27h1v1h-1zM10 27h1v1h-1zM11 27h1v1h-1zM13 27h1v1h-1zM16 27h1v1h-1zM17 27h1v1h-1zM19 27h1v1h-1zM20 27h1v1h-1zM21 27h1v1h-1zM24 27h1v1h-1zM27 27h1v1h-1zM0 28h1v1h-1zM1 28h1v1h-1zM2 28h1v1h-1zM3 28h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM8 28h1v1h-1zM9 28h1v1h-1zM13 28h1v1h-1zM14 28h1v1h-1zM16 28h1v1h-1zM20 28h1v1h-1zM21 28h1v1h-1zM22 28h1v1h-1zM23 28h1v1h-1zM24 28h1v1h-1zM25 28h1v1h-1zM27 28h1v1h-1z"/></svg></div>
           <a href="https://github.com/ZLHad/OpenVideoHarness" target="_blank" rel="noopener">ZLHad/OpenVideoHarness</a>
           <small><span lang="en">Open source · MIT</span><span lang="zh">开源 · MIT</span></small>
         </div>
-        <!-- The author's WeChat QR: save the image as docs/site/img/wechat.jpg. Without it this card hides itself. -->
-        <div class="qr" id="wx" data-r>
-          <h4><span lang="en">Say hi on WeChat</span><span lang="zh">微信聊聊</span></h4>
-          <div class="plate"><img src="img/wechat.jpg" alt="WeChat QR code" id="wxImg"></div>
-          <small><span lang="en">Scan to add the author</span><span lang="zh">扫码加作者</span></small>
-        </div>
       </div>
       <a class="mail liuli" href="mailto:zhangczssx@gmail.com" data-r>zhangczssx@gmail.com <span><span lang="en">questions, ideas, films</span><span lang="zh">问题、想法、片子</span></span></a>
+      <p class="links contact-links" data-r><a href="https://github.com/ZLHad/OpenVideoHarness/issues" target="_blank" rel="noopener"><span lang="en">Issues</span><span lang="zh">Issues 提问题</span></a><a href="https://github.com/ZLHad/OpenVideoHarness/discussions" target="_blank" rel="noopener"><span lang="en">Discussions</span><span lang="zh">Discussions 讨论区</span></a><a href="https://github.com/ZLHad/OpenVideoHarness/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener"><span lang="en">Contributing</span><span lang="zh">参与贡献</span></a></p>
     </div>
 
     <footer class="end" data-r>
@@ -1112,6 +1227,7 @@ const T = {
     sheet: name => `${name}: the contact sheet Claude reviews`,
     tile: name => `${name}: play with sound`,
     yours: '<b>+ yours</b><small>borrow the grammar, not the shots</small>',
+    lib: name => `${name}: its contact sheet`,
   },
   zh: {
     title: 'OpenVideoHarness · 给 Claude Code 和 Codex 用的视频工作台',
@@ -1124,6 +1240,7 @@ const T = {
     sheet: name => `${name}：Claude 审片时看的联系表`,
     tile: name => `${name}：带声音播放`,
     yours: '<b>+ 你的</b><small>借语法，不抄镜头</small>',
+    lib: name => `${name}：它的联系表`,
   },
 };
 const tr = () => T[lang];
@@ -1143,7 +1260,8 @@ const STYLES = [
   ['synthwave-outrun', 'Synthwave Outrun', '合成器浪潮'], ['tabletop-miniature', 'Tabletop Miniature', '桌面微缩剧场'], ['watercolor-pastoral', 'Watercolor Pastoral', '水彩田园'],
   ['y2k-chrome', 'Y2K Chrome', 'Y2K 铬面'],
 ];
-const stylePath = (slug, f) => `../../styles/${slug}/media/${f}`;
+const stylePath = (slug, f) => `../../styles/${slug}/media/${f}`;   // the 5 s sample (swatch.mp4)
+const thumbPath = slug => `img/styles/${slug}.jpg`;                   // a 384 x 216 copy of its poster, for the galaxy and the wall
 
 /* ---------- split headings into words (Chinese: characters) that rise in ---------- */
 const CJK = /[㐀-鿿豈-﫿]/;
@@ -1249,7 +1367,7 @@ gal.ctx = gal.cv.getContext('2d');
 STYLES.forEach(([slug], i) => {
   const img = new Image();
   img.onload = () => { const c = document.createElement('canvas'); c.width = 160; c.height = 90; c.getContext('2d').drawImage(img, 0, 0, 160, 90); gal.thumbs[i] = c; };
-  img.src = stylePath(slug, 'poster.jpg');
+  img.src = thumbPath(slug);
 });
 for (let i = 0; i < 380; i++) {
   const arm = i % 3, r = 0.1 + 0.9 * Math.pow(hash(i * 3 + 1), 0.8);
@@ -1270,7 +1388,7 @@ function galDraw(now) {
   ctx.setTransform(gal.dpr, 0, 0, gal.dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
   gal.mx += (gal.tx - gal.mx) * 0.05; gal.my += (gal.ty - gal.my) * 0.05;
-  const narrow = w < 980;
+  const narrow = w < 980, dim = w < 640 ? 0.55 : 1; // on a phone the text sits on the galaxy: keep it quieter
   const cx = w * (narrow ? 0.5 : 0.68) + gal.mx * 18, cy = h * (narrow ? 0.36 : 0.5) + gal.my * 12;
   const R = Math.min(w * (narrow ? 0.62 : 0.46), h * 0.8);
   const side = px => narrow ? 1 : Math.min(1, Math.max(0.05, (px - w * 0.34) / (w * 0.2))); // keep the title side quiet
@@ -1292,7 +1410,7 @@ function galDraw(now) {
     const e = ease((intro - d.r * 0.6) / 1.8);
     if (e <= 0) continue;
     const [px, py, k] = proj(d.r * e, d.a + rot - (1 - e) * 2, d.y);
-    ctx.fillStyle = `rgba(214,230,255,${d.b * e * Math.min(1, k * 0.9) * (0.35 + 0.65 * side(px))})`;
+    ctx.fillStyle = `rgba(214,230,255,${d.b * e * dim * Math.min(1, k * 0.9) * (0.35 + 0.65 * side(px))})`;
     const sz = 1.1 * k; ctx.fillRect(px, py, sz, sz);
   }
   // films: billboards, far to near
@@ -1306,7 +1424,7 @@ function galDraw(now) {
   list.sort((a, b) => b[0] - a[0]);
   for (const [z, px, py, k, f, e] of list) {
     const fw = (narrow ? 22 : 30) * f.s * k * k, fh = fw * 0.5625;
-    const alpha = e * Math.min(1, Math.max(0.12, 0.35 + (1 - z) * 0.55)) * side(px);
+    const alpha = e * dim * Math.min(1, Math.max(0.12, 0.35 + (1 - z) * 0.55)) * side(px);
     ctx.globalAlpha = alpha;
     const th = gal.thumbs[f.img];
     if (th) ctx.drawImage(th, px - fw / 2, py - fh / 2, fw, fh);
@@ -1485,7 +1603,7 @@ $$('.film:not(.info)', films).forEach(fig => {
     if (!full()) v.pause();
   });
   fig.addEventListener('click', e => {
-    if (films.classList.contains('sees')) { openLightbox({ img: $('.sheet', fig).src, cap: tr().sheet(filmTitle(fig)) }); return; }
+    if (films.classList.contains('sees')) { openLightbox({ img: $('.sheet', fig).dataset.src, cap: tr().sheet(filmTitle(fig)) }); return; }
     if (e.target === v && v.controls) return;
     if (!full()) {
       pauseAll(v); fig.classList.add('full'); fig.style.setProperty('--rx', '0deg'); fig.style.setProperty('--ry', '0deg');
@@ -1499,7 +1617,7 @@ const seesBtn = $('#sees');
 seesBtn.addEventListener('click', () => {
   const on = seesBtn.getAttribute('aria-pressed') !== 'true';
   seesBtn.setAttribute('aria-pressed', on); films.classList.toggle('sees', on); $('#seesNote').hidden = !on;
-  if (on) resetFilms();
+  if (on) { resetFilms(); $$('.sheet', films).forEach(i => { if (!i.getAttribute('src')) i.src = i.dataset.src; }); }
   seesBtn.blur();
 });
 onLeave.showcase = resetFilms;
@@ -1510,7 +1628,7 @@ const tiles = STYLES.map(([slug, en, zh], i) => {
   const b = document.createElement('button'); b.className = 'sw';
   const col = i % 8, row = Math.floor(i / 8);
   b.style.setProperty('--d', `${0.35 + (col + row) * 0.06}s`);
-  const img = new Image(); img.src = stylePath(slug, 'poster.jpg'); img.alt = ''; img.loading = 'lazy';
+  const img = new Image(); img.src = thumbPath(slug); img.alt = ''; img.loading = 'lazy'; img.width = 384; img.height = 216;
   const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'none';
   const label = document.createElement('span');
   const le = document.createElement('span'); le.lang = 'en'; le.textContent = en;
@@ -1544,14 +1662,11 @@ function startWall() {
 function stopWall() { clearInterval(wallTimer); wallTimer = null; tiles.forEach(t => { t.v.pause(); t.b.classList.remove('on'); }); }
 onEnter.styles = () => setTimeout(() => { if (sections[current].id === 'styles') startWall(); }, 1200);
 onLeave.styles = stopWall;
+$$('[data-zoom]').forEach(b => b.addEventListener('click', () => { stopWall(); openLightbox({ img: $('img', b).src, cap: tr().lib(b.parentElement.querySelector('code').textContent) }); }));
 
 /* ---------- in practice ---------- */
-$$('.plat').forEach(a => { if (!a.getAttribute('href')) a.removeAttribute('href'); else { a.target = '_blank'; a.rel = 'noopener'; } });
-const mine = $('#mine'), mineV = $('video', mine);
-mineV.addEventListener('loadedmetadata', () => mine.classList.add('has'));
-mineV.addEventListener('error', () => mine.remove());
+$$('a.plat').forEach(a => { if (!a.getAttribute('href')) a.removeAttribute('href'); else { a.target = '_blank'; a.rel = 'noopener'; } });
 onEnter.practice = () => $$('#practice [data-count]').forEach(el => countUp(el, 2400));
-onLeave.practice = () => { if (mine.isConnected) mineV.pause(); };
 
 /* ---------- get started: the commands type themselves ---------- */
 const caret = document.createElement('span'); caret.className = 'caret';
@@ -1583,11 +1698,6 @@ onEnter.start = () => {
   };
   setTimeout(next, 700);
 };
-
-/* ---------- contact: the WeChat card shows only when its image is there ---------- */
-const wxImg = $('#wxImg');
-function wxMissing() { $('#wx').remove(); $('#qrs').classList.add('one'); }
-if (wxImg.complete && !wxImg.naturalWidth) wxMissing(); else wxImg.addEventListener('error', wxMissing);
 
 /* ---------- lightbox ---------- */
 const lb = $('#lightbox'), lbMedia = $('#lbMedia'), lbCap = $('#lbCap');
