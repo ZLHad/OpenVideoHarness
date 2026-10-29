@@ -206,20 +206,33 @@ PY
   # styles, recipes …), their links and images are in the repo, and the two READMEs have the same sections and links
   if out=$(python3 tools/readme.py check 2>&1); then ok "$out"; else echo "$out"; bad "the READMEs against the repo (python3 tools/readme.py lists the counts)"; fi
   # the research notes (docs/research): each in both languages, the two with as many sections (## and ###), table rows and
-  # figures; both indexes list every note, in the same order, and nothing that is not one
+  # figures, and as many list items in each ## section; both indexes list every note, in the same order, and nothing
+  # that is not one
   if out=$(python3 - <<'PY'
 import re, sys
 from pathlib import Path
 R = Path("docs/research")
-def shape(p):
-    s = re.sub(r"^```.*?^```", "", p.read_text(encoding="utf-8"), flags=re.S | re.M)
+def text(p):
+    return re.sub(r"^```.*?^```", "", p.read_text(encoding="utf-8"), flags=re.S | re.M)
+def shape(s):
     return {"## sections": len(re.findall(r"^## ", s, re.M)), "### sections": len(re.findall(r"^### ", s, re.M)),
             "table rows": len(re.findall(r"^\|.*\|\s*$", s, re.M)), "figures": len(re.findall(r"!\[[^\]]*\]\(", s))}
+def items(s):   # each ## section's heading and its list items (- * + or 1., nested ones too)
+    out = []
+    for line in s.splitlines():
+        if line.startswith("## "):
+            out.append([line[3:].strip(), 0])
+        elif out and re.match(r"\s*(?:[-*+]|\d+\.) ", line):
+            out[-1][1] += 1
+    return out
 zh = sorted(p.name for p in R.glob("[0-9][0-9]-*.md")); en = sorted(p.name for p in (R / "en").glob("[0-9][0-9]-*.md"))
 bad = [f"{n}: no en/ twin" for n in sorted(set(zh) - set(en))] + [f"en/{n}: no Chinese one" for n in sorted(set(en) - set(zh))]
 for n in sorted(set(zh) & set(en)):
-    a, b = shape(R / n), shape(R / "en" / n)
+    ta, tb = text(R / n), text(R / "en" / n)
+    a, b = shape(ta), shape(tb)
     bad += [f"{n}: {k} {a[k]} here, {b[k]} in en/" for k in a if a[k] != b[k]]
+    if a["## sections"] == b["## sections"]:
+        bad += [f"{n}: list items in ## {x[0]}, {x[1]} here, {y[1]} in en/ (## {y[0]})" for x, y in zip(items(ta), items(tb)) if x[1] != y[1]]
 for f in (R / "README.md", R / "en" / "README.md"):
     rows = re.findall(r"^\| (\d\d) \| \[[^\]]*\]\(([^)]+)\) \|", f.read_text(encoding="utf-8"), re.M)
     linked = [p for _, p in rows]
@@ -230,7 +243,7 @@ for f in (R / "README.md", R / "en" / "README.md"):
                    + (f" lists {', '.join(extra)}, which no note is" if extra else ""))
     elif linked != zh:
         bad.append(f"{f}: its index is not one row a note in the notes' order")
-print("; ".join(bad) or f"{len(zh)} notes, each in both languages with the same sections, table rows and figures; both indexes list them all")
+print("; ".join(bad) or f"{len(zh)} notes, each in both languages with the same sections, table rows, figures and list items a section; both indexes list them all")
 sys.exit(1 if bad else 0)
 PY
   ); then ok "docs/research: $out"; else bad "docs/research: $out"; fi

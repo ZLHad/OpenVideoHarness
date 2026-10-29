@@ -256,7 +256,7 @@ uv run manim -ql scene.py MyScene                # 草稿：480p15
 uv run manim -qh --fps 30 scene.py MyScene       # 成片：1080p30（-qh 默认是 60fps）
 ```
 
-- **出片前转成 BT.709**：Manim CE 按 BT.601 编码，不写色彩标签（0.21 实测）；浏览器按 BT.709 读高清片，纯绿读成 (0,216,0)，`bin/vh check` 报色彩警告。只补标签不够，要转换（`bin/vh deliver` 把没有标签的片子当 BT.709，也不会转）。渲完、进 mux 之前转一遍，色块读回来差 1 以内：
+- **出片前转成 BT.709**：Manim CE 按 BT.601 编码，不写色彩标签（0.21 实测）；浏览器按 BT.709 读高清片，纯绿读成 (0,216,0)，`bin/vh check` 报色彩警告。只补标签不够，要转换。渲完、进 mux 之前转一遍，色块读回来差 1 以内（`bin/vh deliver` 遇到没有标签的片子会停下，要 `--matrix bt601` 才转）：
 
   ```bash
   ffmpeg -i media/videos/scene/1080p30/MyScene.mp4 \

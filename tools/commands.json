@@ -2136,11 +2136,12 @@
       ],
       "usage": [
         {
-          "synopsis": "deliver <master.mp4> [--for bilibili,douyin,youtube] [--max-gb N] [--crf 16] [--out f] [--psnr sample|full|off]",
+          "synopsis": "deliver <master.mp4> [--for bilibili,douyin,youtube] [--max-gb N] [--crf 16] [--out f] [--psnr sample|full|off] [--matrix bt601|bt709]",
           "text": [
             "the copy to upload: the bit rate a platform's file limit leaves for the picture (playbook/10, 交付编码): CRF 16 under it, or two",
             "passes at it when the master's own rate is over it;",
             "a keyframe every 2 s, BT.709, sound and subtitles copied; the size against each limit, the PSNR against the master;",
+            "the master's colours by the matrix it tags: one that tags none (limited range) needs --matrix (Manim CE's is bt601), else exit 2;",
             "a record beside the copy (<copy>.deliver.json) that bin/vh clean reads: the copy and its master stay as the film",
             "(in a project, also bin/vh assets check's verdict, and the credits and the AI-content notice the upload owes;",
             "under Assets: strict a check that fails or cannot run stops it before the encode, exit 2)"
