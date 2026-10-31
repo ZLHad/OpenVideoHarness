@@ -1,13 +1,13 @@
 # The OpenVideoHarness homepage
 
-`index.html` is the project's homepage, in English and Chinese. It covers:
+`index.html` is the project's homepage, in English and Chinese, online at <https://zlhad.top/OpenVideoHarness/docs/site/>. It covers:
 
-- getting started;
-- why the project exists;
-- what it adds and how it works;
-- the intro film and four showcase films;
-- the 32-style library;
-- how the author uses it;
+- getting started, and what happens at the three stops;
+- why the project exists and what it adds, with a live f(t) demo;
+- how it works, and the capability map: the tools for thinking, gathering, making, checking and delivering;
+- the intro film and the four other showcase films;
+- the style library, with a few recipe and component contact sheets;
+- in practice: where the author publishes films made with it, the Nobel explainer's three hours, and what each showcase folder records;
 - an FAQ, and contact details.
 
 It is one HTML file with no build step.
@@ -16,13 +16,20 @@ It is one HTML file with no build step.
 
 GitHub's file view shows the HTML source, not the page. To see the page:
 
-- **On GitHub Pages**: in Settings → Pages, set Source to "Deploy from a branch", pick `main` and `/ (root)`, and save.
-  - A minute later the site is at <https://zlhad.github.io/OpenVideoHarness/>. The `index.html` at the repo root redirects to <https://zlhad.github.io/OpenVideoHarness/docs/site/>.
+- **On GitHub Pages**: the repo publishes `main` from `/ (root)` (Settings → Pages, "Deploy from a branch"), at the custom domain zlhad.top.
+  - The `index.html` at the repo root redirects to `docs/site/`, keeping `?lang=` and `#section`.
   - The old address, `…/docs/talk/`, redirects here too.
   - The empty `.nojekyll` at the repo root makes Pages serve the files as they are.
-  - Online, the films stream from the `media` release.
-- **From a clone**: open `docs/site/index.html` in Chrome. It reads the style samples and contact sheets from `../../styles` and `../../showcase`.
+- **From a clone**: open `docs/site/index.html` in Chrome. It reads the style samples and contact sheets from `../../styles`, `../../components`, `../../recipes` and `../../showcase`.
   - With `tools/fetch_media.sh 00-promo 01-hand 02-short 03-math 04-intro` (about 320 MB, mostly the 103 s intro film), the films play from disk instead of streaming.
+
+## What it loads
+
+Nothing from another site loads with the page, so it opens where Google Fonts, YouTube or a CDN are blocked:
+
+- **Fonts**: the display face (Inter Tight) and the mono face (JetBrains Mono) are in `fonts/`, cut down to Latin and the weights the page uses (23 kB and 12 kB, WOFF2), under the SIL Open Font License 1.1 (`fonts/OFL-*.txt`). They were taken from the google/fonts repository and cut with fontTools (`varLib.instancer`, then `pyftsubset … --flavor=woff2`). Body text and every Chinese character use the system's fonts.
+- **Pictures**: all from this repo. `img/` holds five poster frames of the showcase films; `img/styles/` a 384 × 216 copy of each style's poster (about 14 kB each), for the galaxy and the style wall. The 5-second samples (`styles/<slug>/media/swatch.mp4`) load when a tile is hovered or clicked.
+- **Films**: the showcase films stream from the `media` release, and only when one is played (`preload="none"`); the contact sheets behind "What Claude sees" load when it is turned on. From mainland China the release can be slow; each film's folder and file are linked.
 
 ## Languages
 
@@ -39,30 +46,31 @@ To edit the text:
 - **Labels that are attributes** (`aria-label`) come from `data-aria-en` / `data-aria-zh`.
 - **Strings the script writes** are in `T` at the top of the script: the f(t) readout and check, the copy buttons, captions. The style names are in `STYLES`, as `[folder, English, Chinese]`.
 
-## Optional material
+## Channel links
 
-All of it is optional. The page works without any of it.
+The Douyin and Bilibili entries in the "In practice" section have an empty `href=""`; paste the channel links there. Left empty, the names show without a link.
 
-- **WeChat QR**: save it as `docs/site/img/wechat.jpg`. The "Say hi on WeChat" card then appears next to the GitHub QR in the Contact section; without the file the card stays hidden. Committing the image makes it public with the repo.
-- **Douyin and Bilibili links**: paste them into the two empty `href=""` in the "In practice" section. Left empty, the names show without a link.
-- **A local film**: a file at `docs/site/media/nobel.mp4` shows up as a player in "In practice". Git ignores that folder, so the player appears only on your machine, never online.
+## Counts, and what checks them
 
-## Where the numbers come from
+A count on the page is wrapped as `<span data-n="styles">32</span>`. `tools/readme.py` (run by `tools/ci.sh`) holds every one to the repo; `python3 tools/readme.py` prints the current counts, and `check` names the line of one that is wrong. It also checks:
 
-- **Counts of things in the repo**: 9 video types, 13 playbook docs, 11 templates, 32 styles, 71 shot recipes. Source: `video-types/`, `playbook/`, `templates/`, `styles/`, `bin/vh recipes list`; `python3 tools/readme.py` prints them all.
-- **The films**:
-  - the intro film: 103 s; a Blender opening of 1.18 million stars over 475 frames; 124 sound effects;
-  - the four other films.
+- that every relative link, image, poster and `#anchor` is there (a film listed in `tools/media.txt` counts, since `tools/fetch_media.sh` puts it back);
+- that `STYLES` lists exactly the repo's styles, each with its thumbnail in `img/styles/` and its sample, and its Chinese name as in its `STYLE.md` title;
+- that there are as many `lang="en"` texts as `lang="zh"` (a `<small>` gloss, like "TikTok in China" after Douyin, may stand in one language);
+- that nothing from another site loads with the page (a stylesheet, script, font, image or frame).
 
-  Source: `showcase/*/README.md`.
+A new style: add its row to `STYLES` and its thumbnail, `ffmpeg -i styles/<slug>/media/poster.jpg -vf scale=384:216:flags=lanczos -q:v 4 docs/site/img/styles/<slug>.jpg`.
+
+## Where the other numbers come from
+
+- **The films**: the intro film is 103 s, with a Blender opening of 1.18 million stars over 475 frames and 124 sound events; the four other films' lengths and engines; the hand-drawn short's 40 minutes of the agent's active work, three review rounds and about 20 fixes. Source: `showcase/*/README.md`.
 - **Community films**: 389, with their prompts. Source: `cases/opus55-gallery.md`.
-- **Checks**: the 20-point checklist and the 8 review scores. Source: `templates/TASTE_CHECKLIST.md`.
 - **The FAQ's answers**: requirements, cost, times, limits and the A/B result. Source: `README.md` and `docs/research/06-concept-first-ab.md`.
 - **The author's own account**: the Nobel explainer, its timing, and the Douyin and Bilibili channels.
 
 ## How it is built
 
-- **Assets**: one HTML file with inline CSS and JS. Fonts come from Google Fonts; offline, and for Chinese, it uses the system's fonts. `img/` holds five poster frames from the showcase films (`ffmpeg -ss … -frames:v 1`).
-- **The galaxy**: the opening galaxy draws the 32 style posters on a canvas, with no randomness (positions come from a seeded hash).
+- **Assets**: one HTML file with inline CSS and JS, the fonts and pictures above.
+- **The galaxy**: the opening galaxy draws the style thumbnails on a canvas, with no randomness (positions come from a seeded hash); on a phone it is dimmed behind the text.
 - **The f(t) panel**: it draws its frame as a pure function of `t`. Its "Render it again" button redraws that frame right after another one and compares every pixel.
 - **Motion**: it stops when a section is off screen, and `prefers-reduced-motion` turns it off.

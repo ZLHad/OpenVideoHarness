@@ -3,12 +3,23 @@
 # READMEs use (tools/media.txt lists them; git doesn't keep videos, so a clone stays small). A file already present
 # with the right checksum is skipped; one that differs (a local render, say) is kept unless you pass --force.
 # usage: tools/fetch_media.sh [--force] [word…]      (run from anywhere; words filter the paths, e.g. "04-intro" or "styles")
-# Exit status: 0 when every matching file is in place, 1 when a download or a checksum failed or nothing matched.
+#        tools/fetch_media.sh -h | --help          this, and nothing downloaded
+# Exit status: 0 when every matching file is in place, 1 when a download or a checksum failed or nothing matched, 2 for
+# an option it does not know.
 set -uo pipefail
 unset CDPATH   # an exported one could send this relative cd elsewhere (as in bin/vh)
+force=0 words=()
+for a in "$@"; do   # options before anything is fetched: -h was a word, and matched the paths with "-h" in them
+  case "$a" in
+    -h|--help) sed -n '2,8s/^# \{0,1\}//p' "$0"; exit 0 ;;
+    --force) force=1 ;;
+    -*) echo "tools/fetch_media.sh: unknown option $a (tools/fetch_media.sh --help)" >&2; exit 2 ;;
+    *) words+=("$a") ;;
+  esac
+done
+set -- ${words[@]+"${words[@]}"}
 cd "$(dirname "$0")/.." || exit 1
 BASE=${VH_MEDIA_URL:-https://github.com/ZLHad/OpenVideoHarness/releases/download/media}
-force=0; if [ "${1:-}" = "--force" ]; then force=1; shift; fi
 sha() { if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
 got_n=0 matched=0 failed=0
 while read -r path asset sum || [ -n "${path:-}" ]; do

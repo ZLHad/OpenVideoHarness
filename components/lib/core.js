@@ -118,24 +118,26 @@ export const ease = {
   steps: (n) => (u) => Math.min(1, Math.floor(clamp(u) * n) / n),
 };
 const CSS_EASE = { ease: [0.25, 0.1, 0.25, 1], "ease-in": [0.42, 0, 1, 1], "ease-out": [0, 0, 0.58, 1], "ease-in-out": [0.42, 0, 0.58, 1] };
-const _easeCache = new Map();
+const _easeCache = new Map();   // a CSS string → its curve, or null when it is none (the fallback is each caller's own)
 /**
  * Any easing spec → function: a lib.ease name ("outExpo"), a [x1,y1,x2,y2] array, a CSS string
  * ("cubic-bezier(0.76,0,0.24,1)", "ease-out", "linear", "steps(4)"), or a function. Unknown → fallback.
+ * Names are the tables' own keys only: "constructor" or "toString" is no easing (an object's inherited properties are not).
  */
 export function easeOf(e, fallback = ease.outExpo) {
   if (typeof e === "function") return e;
   if (Array.isArray(e) && e.length === 4) return bezier(...e.map(Number));
   if (typeof e !== "string") return fallback;
-  if (ease[e] && e !== "steps") return ease[e];
-  if (_easeCache.has(e)) return _easeCache.get(e);
-  const s = e.trim().toLowerCase(); let f = null, m;
-  if (s === "linear") f = ease.linear;
-  else if (CSS_EASE[s]) f = bezier(...CSS_EASE[s]);
-  else if ((m = s.match(/^cubic-bezier\(([^)]*)\)$/))) { const v = m[1].split(",").map(Number); if (v.length === 4 && v.every(Number.isFinite)) f = bezier(...v); }
-  else if ((m = s.match(/^steps\((\d+)/))) f = ease.steps(+m[1]);
-  _easeCache.set(e, f || fallback);
-  return f || fallback;
+  if (Object.hasOwn(ease, e) && e !== "steps") return ease[e];
+  if (!_easeCache.has(e)) {
+    const s = e.trim().toLowerCase(); let f = null, m;
+    if (s === "linear") f = ease.linear;
+    else if (Object.hasOwn(CSS_EASE, s)) f = bezier(...CSS_EASE[s]);
+    else if ((m = s.match(/^cubic-bezier\(([^)]*)\)$/))) { const v = m[1].split(",").map(Number); if (v.length === 4 && v.every(Number.isFinite)) f = bezier(...v); }
+    else if ((m = s.match(/^steps\((\d+)/))) f = ease.steps(+m[1]);
+    _easeCache.set(e, f);
+  }
+  return _easeCache.get(e) || fallback;
 }
 /** Eased progress across [a, b]. */
 export const tween = (t, a, b, e = ease.outExpo) => easeOf(e)(seg(t, a, b));
