@@ -4,12 +4,17 @@
 # holds the two files to each other).
 # macOS runs the checks in shards side by side (tools/ci.sh --shard i/n, the groups dealt by tools/ci-shards.txt);
 # checks (macos-latest) is the job that waits for them and passes only when all of them passed.
+# When: on pull requests, and not again on main. The ruleset merges a PR only when both checks passed on a branch up to
+# date with main, and the squash lands that tested tree as it is, so a run on the push to main tested the same tree twice.
+# Main runs once a night instead: that keeps the caches a pull request can restore (its own and main's, no other
+# branch's) and catches what changes under the checks (the runner image, its Chrome, brew's ffmpeg). By hand: Actions,
+# ci, Run workflow, or gh workflow run ci.yml --ref <branch>.
 name: ci
 
 on:
   pull_request:
-  push:
-    branches: [main]
+  schedule:
+    - cron: "17 18 * * *"   # 18:17 UTC (02:17 in Beijing); off the hour, when GitHub's scheduled runs crowd and start late
   workflow_dispatch:
 
 permissions:
