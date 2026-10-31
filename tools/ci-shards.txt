@@ -36,3 +36,4 @@ edit_cache_checks 54
 components_checks 37
 model3d_checks 43
 hdri_checks 29
+land_checks 10

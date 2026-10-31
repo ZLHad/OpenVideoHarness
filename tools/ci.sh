@@ -7118,6 +7118,164 @@ PY
   rm -rf "$t"
 }
 
+land_checks() {   # tools/land.py on a made-up repository with a local origin and a stand-in gh (no network): a PR stacked
+  # on one squashed since (-s ours, its tree kept), done (the squash's tree, main moved on, --clean), a plain merge on a PR
+  # already mergeable, --dry-run, a conflict, main moved on after --after (a plain merge, not -s ours), an ignored file,
+  # land-deny (named, not repeated), a batch's several CHANGELOG entries, and the PRs it refuses
+  local t r k m; t=$(mktemp -d "${TMPDIR:-/tmp}/vh-land.XXXXXX")
+  cat > "$t/test.py" <<'PY'
+import json, os, subprocess, sys
+t, LAND = sys.argv[1], sys.argv[2]
+bindir = os.path.join(t, "bin"); os.makedirs(bindir)
+with open(os.path.join(bindir, "gh"), "w") as f:   # gh pr view|ready|merge against prs.json, each call logged
+    f.write(r'''#!/usr/bin/env python3
+import json, os, sys
+a, sf = sys.argv[1:], os.environ["LAND_GH_STATE"]
+S = json.load(open(sf))
+open(os.environ["LAND_GH_LOG"], "a").write(json.dumps(a) + "\n")
+def opt(k): return a[a.index(k) + 1] if k in a else None
+if a[:2] == ["pr", "view"]:
+    print(json.dumps({k: S[a[2]].get(k) for k in opt("--json").split(",")})); sys.exit(0)
+if a[:2] == ["pr", "ready"]:
+    S[a[2]]["isDraft"] = False
+elif a[:2] == ["pr", "merge"]:
+    if S[a[2]].get("clean") and "--auto" in a:
+        sys.exit(print("GraphQL: Pull request Pull request is in clean status (enablePullRequestAutoMerge)", file=sys.stderr) or 1)
+    S[a[2]]["merged_with"] = {"auto": "--auto" in a, "subject": opt("--subject"), "match": opt("--match-head-commit"),
+                              "body": open(opt("--body-file")).read() if opt("--body-file") else opt("--body")}
+else:
+    sys.exit(print("stand-in gh: " + " ".join(a), file=sys.stderr) or 2)
+json.dump(S, open(sf, "w"))
+''')
+os.chmod(os.path.join(bindir, "gh"), 0o755)
+env = dict(os.environ, PATH=bindir + os.pathsep + os.environ["PATH"], LAND_GH_STATE=os.path.join(t, "prs.json"),
+           LAND_GH_LOG=os.path.join(t, "gh.log"), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1",
+           GIT_AUTHOR_NAME="ci", GIT_AUTHOR_EMAIL="ci@example.invalid", GIT_COMMITTER_NAME="ci", GIT_COMMITTER_EMAIL="ci@example.invalid")
+PRS = {}
+def git(*a, cwd):
+    p = subprocess.run(["git", *a], cwd=cwd, env=env, capture_output=True, text=True)
+    if p.returncode: sys.exit(f"setup: git {' '.join(a)}: {p.stderr.strip()}")
+    return p.stdout.strip()
+def land(*a, cwd):
+    json.dump(PRS, open(env["LAND_GH_STATE"], "w"))
+    p = subprocess.run([sys.executable, LAND, *a], cwd=cwd, env=env, capture_output=True, text=True)
+    PRS.update(json.load(open(env["LAND_GH_STATE"])))
+    return p.returncode, p.stdout + p.stderr
+def report(problems, what):
+    print(("bad\t" if problems else "ok\t") + what + (": " + "; ".join(problems) if problems else ""))
+origin, w, c = (os.path.join(t, d) for d in ("origin.git", "w", "c"))
+git("init", "-q", "--bare", origin, cwd=t); git("symbolic-ref", "HEAD", "refs/heads/main", cwd=origin)
+git("clone", "-q", origin, w, cwd=t); git("symbolic-ref", "HEAD", "refs/heads/main", cwd=w)
+CL = "# Changelog\n\n## Unreleased\n\n"
+def put(rel, text):
+    with open(os.path.join(w, rel), "w") as f: f.write(text)
+def entry(title, *lines):   # an entry on top, as a PR adds one
+    text = open(os.path.join(w, "CHANGELOG.md")).read()
+    put("CHANGELOG.md", text.replace(CL, CL + f"**{title}**\n" + "".join(f"- {x}\n" for x in lines) + "\n", 1))
+def commit(msg): git("add", "-A", cwd=w); git("commit", "-q", "-m", msg, cwd=w); return git("rev-parse", "HEAD", cwd=w)
+def branch(name, at): git("checkout", "-q", "-B", name, at, cwd=w)
+def push(*refs): git("push", "-q", "origin", *refs, cwd=w)
+def head(name): return git("rev-parse", f"refs/heads/{name}", cwd=origin)
+def tree(sha): return git("rev-parse", f"{sha}^{{tree}}", cwd=origin)
+def parents(sha): return git("log", "-1", "--format=%P", sha, cwd=origin).split()
+def squash(sha, onto, msg):   # what GitHub's squash makes: the head's tree on main
+    git("fetch", "-q", "origin", cwd=w); return git("commit-tree", f"{sha}^{{tree}}", "-p", onto, "-m", msg, cwd=w)
+def pr(n, br, sha, **k):
+    PRS[str(n)] = dict(dict(number=n, title=f"PR {n}", body="", state="OPEN", isDraft=True, baseRefName="main",
+                            headRefName=br, headRefOid=sha, isCrossRepository=False), **k)
+def queued(n): return PRS[str(n)].get("merged_with")
+put("CHANGELOG.md", CL + "**Older**\n- old\n"); put("a.txt", "a\n"); put(".gitignore", "LOCAL.md\n")
+m0 = commit("start"); push("main")
+branch("pa", m0); entry("First thing", "one"); put("a.txt", "a1\n"); a1 = commit("first")
+branch("pb", a1); entry("Second thing", "two", "three"); put("b.txt", "b\n")
+put("CHANGELOG.md", open(os.path.join(w, "CHANGELOG.md")).read().replace("- old\n", "- old, reworded\n")); b1 = commit("second")   # and an older entry edited
+branch("pc", m0); put("c.txt", "c\n"); c1 = commit("third")
+branch("pd", m0); entry("Fourth", "four"); d1 = commit("fourth")
+branch("pe", a1); entry("Fifth", "five"); e1 = commit("fifth")
+push("pa", "pb", "pc", "pd", "pe")
+s1 = squash(a1, m0, "First thing (#1)"); push(f"{s1}:refs/heads/main", ":pa")   # PR 1 squashed, its branch deleted
+git("clone", "-q", origin, c, cwd=t)   # the maintainer's clone, where land.py runs
+
+pr(2, "pb", b1, title="Second")
+rc, out = land("ready", "2", "--after", a1, cwd=c); new2 = head("pb"); p = []
+if rc: p.append(f"exit {rc}: {out[-300:]}")
+if parents(new2) != [b1, s1]: p.append("pb is not the PR's head merged with main")
+if tree(new2) != tree(b1): p.append("the tree changed")
+if PRS["2"]["isDraft"]: p.append("still a draft")
+if queued(2) != {"auto": True, "subject": "Second thing (#2)", "match": new2, "body": "- two\n- three"}: p.append(f"queued {queued(2)}")
+report(p, "a PR stacked on one squashed since: main merged with -s ours, its tree kept, pushed, ready, the squash queued (auto, that head, the CHANGELOG entry)")
+
+sq2 = squash(new2, s1, "Second thing (#2)"); push(f"{sq2}:refs/heads/main", ":pb")
+PRS["2"].update(state="MERGED", mergeCommit={"oid": sq2}, headRefOid=new2)
+git("branch", "pb", new2, cwd=c); git("worktree", "add", "-q", os.path.join(t, "c-pb"), "pb", cwd=c)
+git("worktree", "add", "-q", "--detach", os.path.join(t, "c-detached"), new2, cwd=c)
+rc, out = land("done", "2", "--clean", cwd=c); p = []
+if rc: p.append(f"exit {rc}: {out[-300:]}")
+if git("rev-parse", "main", cwd=c) != sq2: p.append("main not moved to the squash")
+if os.path.exists(os.path.join(t, "c-pb")): p.append("pb's clean worktree left")
+if git("branch", "--list", "pb", cwd=c): p.append("the branch pb left")
+if not os.path.exists(os.path.join(t, "c-detached")): p.append("a detached worktree removed")
+PRS["8"] = dict(number=8, state="MERGED", headRefName="x", headRefOid=b1, mergeCommit={"oid": s1})
+rc8, out8 = land("done", "8", cwd=c)
+if rc8 != 1 or "not the tree" not in out8: p.append(f"a squash of another tree: exit {rc8}")
+report(p, "done: the squash has the last head's tree, main moved, the branch and its clean worktree removed, a detached one kept; another tree is exit 1")
+
+pr(3, "pc", c1, title="Third", isDraft=False, clean=True)
+rc0, out0 = land("ready", "3", "--dry-run", cwd=c); dry_left = head("pc") == c1 and not queued(3)
+rc, out = land("ready", "3", cwd=c); new3 = head("pc"); p = []
+if rc0 or not dry_left or "dry run" not in out0: p.append(f"the dry run: exit {rc0}, left alone {dry_left}")
+if rc: p.append(f"exit {rc}: {out[-300:]}")
+if parents(new3) != [c1, sq2]: p.append("pc is not merged with main")
+if git("diff", "--name-only", sq2, new3, cwd=origin) != "c.txt": p.append("against main it changes more than c.txt")
+if queued(3) != {"auto": False, "subject": "Third (#3)", "match": new3, "body": ""}: p.append(f"merged {queued(3)}")
+report(p, "a PR behind main: --dry-run touches nothing; then a plain merge, pushed, no CHANGELOG entry (the PR's title), already mergeable so merged at once")
+
+pr(4, "pd", d1)
+rc, out = land("ready", "4", cwd=c)
+report([] if rc == 1 and "CHANGELOG.md" in out and "conflicts" in out and head("pd") == d1 and not queued(4)
+       else [f"exit {rc}, pd {'moved' if head('pd') != d1 else 'kept'}, queued {queued(4)}: {out[-200:]}"],
+       "a merge of main that conflicts: exit 1 with the file named, nothing pushed or queued")
+
+branch("main", sq2); entry("Other thing", "other"); s3 = commit("Other thing (#6)"); push("main")   # main moves on
+pr(5, "pe", e1)
+rc, out = land("ready", "5", "--after", a1, cwd=c)
+report([] if rc == 1 and "plain merge" in out and "conflicts" in out and head("pe") == e1 else [f"exit {rc}: {out[-200:]}"],
+       "--after when main has moved on since: a plain merge, not -s ours (which would drop main's change); here it conflicts")
+
+branch("pf", s3); put("LOCAL.md", "mine\n"); git("add", "-f", "LOCAL.md", cwd=w); f1 = commit("local"); push("pf")
+pr(6, "pf", f1)
+rc, out = land("ready", "6", cwd=c)
+report([] if rc == 1 and "LOCAL.md, which git ignores" in out and not queued(6) else [f"exit {rc}: {out[-200:]}"],
+       "a PR that adds a file git ignores: exit 1, the file named")
+
+with open(os.path.join(c, ".git", "info", "land-deny"), "w") as f: f.write("# mine\nsecret-name\n")
+branch("pg", s3); put("g.txt", "x secret-name\n"); g1 = commit("g"); push("pg")
+pr(7, "pg", g1, body="has secret-name in it")
+rc, out = land("ready", "7", cwd=c); os.remove(os.path.join(c, ".git", "info", "land-deny"))
+report([] if rc == 1 and "g.txt match land-deny line 2" in out and "description matches land-deny line 2" in out
+       and "secret-name" not in out and not queued(7) else [f"exit {rc}: {out[-300:]}"],
+       "land-deny: an added line and the description name the file and the pattern's line, not the text; nothing queued")
+
+branch("ph", s3); entry("Ninth A", "a"); entry("Ninth B", "b"); h1 = commit("ninth"); push("ph")
+pr(9, "ph", h1, title="Batch nine")
+rc, out = land("ready", "9", cwd=c)
+report([] if rc == 0 and queued(9) == {"auto": True, "subject": "Batch nine (#9)", "match": h1, "body": "Ninth B\n- b\n\nNinth A\n- a"}
+       else [f"exit {rc}, queued {queued(9)}"], "a batch adding two CHANGELOG entries: the PR's title, the entries the body")
+
+pr(10, "pe", e1, baseRefName="pb"); pr(11, "pc", c1, state="CLOSED")
+r10, o10 = land("ready", "10", cwd=c); r11, o11 = land("ready", "11", cwd=c)
+report([] if (r10, r11) == (2, 2) and "based on pb" in o10 and "closed" in o11 else [f"exit {r10}, {r11}"],
+       "a PR still based on another branch, and a closed one: exit 2")
+print("end")
+PY
+  python3 "$t/test.py" "$t" "$ROOT/tools/land.py" > "$t/out" 2>&1; r=$?
+  while IFS=$'\t' read -r k m; do
+    case $k in ok) ok "land: $m" ;; bad) bad "land: $m" ;; esac
+  done < "$t/out"
+  grep -qx end "$t/out" || bad "land: the test stopped (exit $r): $(tail -n 3 "$t/out" | tr '\n' ' ')"
+  rm -rf "$t"
+}
+
 # the groups (tools/ci-shards.txt): one a line, in the order a full run takes them, with their seconds on CI's macOS runner.
 # OVH_CI_SHARDS=<file>: another table (doc_checks runs tools/ci.sh on broken ones)
 CI_TABLE=${OVH_CI_SHARDS:-$ROOT/tools/ci-shards.txt}
