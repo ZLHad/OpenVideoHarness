@@ -7,8 +7,9 @@
 ## 分支和推送
 
 - **main 只接受 PR 合并。** 谁都不能直接推 main，包括仓库主人，也包括代表主人推送的 agent。这一条由 GitHub 规则集强制执行，见文末。
-- **一件事一个分支、一个 PR。** 分支名：人用 `<名字>/<主题>`，agent 用 `claude/<主题>` 或 `codex/<主题>`。
+- **一批相关的改动一个分支、一个 PR。** 里面一条一个提交，每一条在 CHANGELOG 里各记一笔。合并前分支要同步到最新的 main、再跑一遍 CI；PR 叠着开、一个一个合的话，每合进一个，后面的每一个都要再同步、再跑一遍，所以放得进一个 PR 的不拆开。分支名：人用 `<名字>/<主题>`，agent 用 `claude/<主题>` 或 `codex/<主题>`。
 - **PR 先开成草稿**，写清改了什么、为什么、怎么验证的。人看过以后转成正式 PR，用 squash 合并。合并后分支自动删除。
+- **合并用 `tools/land.py`。** `python3 tools/land.py ready <PR>` 把分支同步到最新的 main，核对它改了什么、加了什么，用它加的那条 CHANGELOG 写 squash 说明，再打开 auto-merge：两项检查都过了，GitHub 自己合。叠在另一个 PR 上、那个已经 squash 进 main 的，加 `--after <那个 PR 最后的 head>`，同步时不会在同样的几行上冲突。合并以后 `python3 tools/land.py done <PR> --clean`：核对 main 上落下的就是测过的那棵树，把本地的 main 往前挪，删掉这个 PR 的分支和它干净的工作树。两步都可以先加 `--dry-run`，只说要做什么。`.git/info/land-deny` 里一行一个正则，PR 加的内容、提交信息、标题、说明和 squash 说明碰上任何一条都不合；这个文件在 `.git` 里、不进版本库，各人写各人的（不想要的署名行、私人的名字和路径）。
 - **合并条件**：CI 的两项检查（Linux、macOS）都通过，分支已同步到最新的 main，评审里的对话都已解决。
 - **不改写已经推送的历史。** 不 rebase、不 amend、不 force push 已经推送的分支。main 往前走了，就把 main 合进自己的分支，冲突在分支上解决。只有一种例外：自己的分支在 PR 合并后还要接着用，这时从最新的 main 重开，用 `git push --force-with-lease`。
 
@@ -16,7 +17,7 @@
 
 1. 只推自己的分支。不推 main，不删分支，不动 tag。
 2. 推送前跑 `tools/ci.sh --committed`，全部通过才推。它在一份干净的检出上检查 HEAD，结果和 CI 一致；工作区里没提交的改动不算数。修 bug 要先复现，再证明修好，前后对比写进 PR。
-3. PR 一律开成草稿。合并由人决定：人在对话里明确让 agent 合并时，agent 先确认 CI 全绿、自己审过 diff，再用 squash 合并。人让 agent"检查通过后合并"时，agent 审过 diff、把草稿转成正式 PR 后，可以打开 auto-merge（squash），不用守着 CI：必需的检查都通过后由 GitHub 合并，有一项失败就不合。规则集允许管理员在 PR 里"绕过规则合并"，这个开关只留给人用，agent 不碰。
+3. PR 一律开成草稿。合并由人决定：人在对话里明确让 agent 合并时，agent 先确认 CI 全绿、自己审过 diff，再用 squash 合并。人让 agent"检查通过后合并"时，agent 审过 diff 后用 `python3 tools/land.py ready <PR>` 把草稿转成正式 PR、打开 auto-merge（squash），不用守着 CI：必需的检查都通过后由 GitHub 合并，有一项失败就不合；合并以后用 `python3 tools/land.py done <PR> --clean` 核对和清理。规则集允许管理员在 PR 里"绕过规则合并"，这个开关只留给人用，agent 不碰。
 4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。视频不进 git（风格样片 `swatch.mp4` 除外）：成片、样片集锦这类文件放在 GitHub Release `media`，`tools/media.txt` 登记它们在仓库里的路径、文件名和 sha256，`tools/fetch_media.sh` 按它下载。往这个 Release 里放文件是维护者的事，agent 只在维护者要求时做。换一个文件时用新文件名上传（例如 `intro-film-1080p-v2.mp4`），在同一个 PR 里改 `tools/media.txt` 和引用它的链接，合并以后再删旧文件；不要覆盖 main 还在引用的文件，否则在合并之前，按 main 的校验和下载会失败。README 里要直接播放的短片段走 GitHub 的附件链接（每个不到 10 MB）。`tools/ci.sh` 会拦住视频和超过 8 MB 的文件。
 5. 用户能感知到的改动，在 `CHANGELOG.md` 的 Unreleased 里记一笔。改了 `CLAUDE.md` 或 `tools/commands.json`，跑 `bin/vh sync-agents`：它按命令表写好 `CLAUDE.md` 的命令行，再重新生成 `AGENTS.md`。
 6. 提交信息写清改了什么、为什么。末尾可以带 `Co-Authored-By:` 署名行。
@@ -118,7 +119,8 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 - **CI 同时跑 Linux 和 macOS。** 这次最严重的几个 bug 都只在一个平台上出现：维护者在 Mac 上一切正常，Linux 用户却渲染不了样片。在 macOS 上还专门用系统的 bash 3.2 跑 `bin/vh`。
 - **macOS 那一项是汇总。** macOS 的检查分两个 shard 并排跑（`macos shard 1/2`、`macos shard 2/2`），规则集要求的 `checks (macos-latest)` 是另一个 job：等所有 shard 跑完，shard 那一组 job 的结果是通过（每个 shard 都通过）才算通过。它带 `if: always()`，shard 失败、被取消、没启动时照样运行并报失败。GitHub 把被跳过的必需检查当成通过，汇总 job 要是能被跳过，红的 PR 也可能被自动合并。`tools/ci.sh` 的 doc_checks 会查：规则集要求的两项都是 ci.yml 里某个 job 的名字，`checks (macos-latest)` 带着 `if: always()`。
 - **要求分支是最新的。** [第一个 PR](https://github.com/ZLHad/OpenVideoHarness/pull/1) 开着的时候 main 发了 v0.2.1，两边改了同一个文件。要求同步到最新以后，CI 检查的是合并后的真实结果，不是过期的分支。
-- **squash 加线性历史。** 一个 PR 在 main 上只留一个提交，和 CHANGELOG 的条目一一对应。
+- **CI 只在 PR 上跑，main 每晚跑一次。** 合进 main 的 PR 都在同步到最新 main 的分支上过了两项检查，squash 落下的就是那棵树（`tools/land.py done` 核对这一点），合并以后在 main 上再跑一遍，测的还是同一棵树。每晚跑一次为两件事：PR 只能用它自己的和 main 的缓存，main 长期不跑，缓存会过期；runner 的系统、Chrome、brew 的 ffmpeg 会变，每晚跑能早点发现。手动跑：Actions 页面的 Run workflow，或 `gh workflow run ci.yml --ref <分支>`。
+- **squash 加线性历史。** 一个 PR 在 main 上只留一个提交，说明取自它在 CHANGELOG 里加的条目。
 - **打开 auto-merge。** 它只是"检查过了就合并"的排队，规则集的每一项照样要满足，合并方式也只能是 squash；好处是 CI 要跑几分钟时，人和 agent 都不用守着。
 
 **规则集挡得住误操作，挡不住拿着管理员 token 的 agent。** agent 用的是主人的 token，技术上仍然可以在 PR 里用管理员身份绕过检查合并，甚至改掉规则集；现在靠的是上面"给 agent 的规则"。要在技术上真正限住 agent，给它单独一个低权限身份：比如一个只有 Contents 和 Pull requests 写权限、没有 Administration 权限的 fine-grained token。
