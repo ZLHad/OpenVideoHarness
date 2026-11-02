@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**A recipe for browser walkthroughs: real screenshots, measured targets, a calm cursor and camera**
+- Why: a product demo or a tool tutorial shows how to get something done on a website, and no recipe covered it. `video-types/03-product-promo.md` said to take a screenshot; `oversized-cursor` is a stylised pointer that leads the eye, not a recording. The way is adapted from the `browser-video-recording` skill in MengTo/Skills (MIT), which an outside review of video skills turned up.
+- `recipes/interaction/browser-walkthrough.md` (`tuned`), with a section on what to capture: a screenshot a state at a 1280×720 viewport and 3× scale, a measured box a target, the page made still first (animations, transitions and the caret off; fonts and the network settled), personal details hidden, each picture registered. Its Playwright script was run against a two-page test site through the local Chrome (Playwright 1.64.1): three 3840×2160 states and the boxes in CSS px.
+- The motion: a near-straight path a target, a pause before the click, the page changing 0.1 s after it, a camera that moves only when the area to look at changes, and a cursor drawn at a fixed size on the screen that tilts up to 8° with its tail behind. The text a viewer must read is worked out against the font floor (CSS size × 1.5 × the zoom), since `bin/vh textcheck` cannot see inside a screenshot. The grey-box sketch runs on `components/lib`'s `cursorPath`, `presses` and `track`, and its sheet is rendered.
+- It conflicts with `oversized-cursor` (one cursor a film), and `video-types/03-product-promo.md` points to it.
+- MengTo/Skills' MIT notice travels with it: `recipes/LICENSES/MIT-Skills.txt`, a row in `recipes/NOTICE.md` and the recipe's 许可 paragraph. `recipes/README.md`'s licence section now names all seven upstreams; it still said five, without lemo-opuscar. The READMEs, their overview diagrams and the homepage count 72 recipes.
+
 **Notes from the last film: fillers and numbers the similarity misses, voicing a few edited lines again, AAC on a narration film**
 - Why: a 2026-10 film found these by hand. Each is small enough for a note, so no tool works differently.
 - `playbook/04-audio.md`, on checking each take: the similarity flags a line that went astray, not one extra "啊" or "32 亿" read as "3.2 亿" in a long line. That film gave Gemini each chapter's audio with its script after every take and asked where the reading differed from the script: three extra fillers and one misread number. Gemini's Charon voice adds "啊" most at a pause after a comma, and taking the comma out fixed it. `--candidates` picks a take by its voice, not by what it says, so every take is listened to.
