@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Two recipes from an 8 s intro: a line through fast cuts, text out of noise**
+- Why: both held up in a film someone watched and passed. The first answered a verdict on the cut before it, whose flashes were each fine but read as a jumble together.
+- `recipes/rhythm/thread-through-cuts.md`: a spark trailing a line runs through every cut, at the same place on either side, so very different flashes read as one route. Its tail shortens as the cuts speed up, and flashes of 6 frames or fewer share one long curve; without those two it tangles or zigzags.
+- `recipes/type/diffusion-reveal.md`: the picture drowns in noise, a front sweeps back, cells getting finer towards it, text grows out one character every 3 frames, and the character that matters lands last, readable from its second frame. A hint of it shows in the noise for the last 8 frames first.
+- Both `battle-tested`, with sketches and sample sheets; the counts in the READMEs, the overview diagrams and the homepage go to 74.
+
 **Look at the 4K at 1:1 before delivery**
 - Why: an intro's chrome lettering had ribs along its curved bevels, a distance field's staircase magnified by the reflection. They do not show on 1080p contact sheets, and the film had passed review on those.
 - `playbook/02-verification.md`, the line on 4K: crop the brightest, most mirror-like thing at 1:1 and look.
