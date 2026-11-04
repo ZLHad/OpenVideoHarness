@@ -364,7 +364,8 @@ const SHOTS = [
 要辉光、镜头光条、色散、冲击变形，或者要让 2D 画的图和 3D 场景走同一套光，可以绕开"3D 画在 2D 下面"，自己写一条合成管线。一支 8 秒的片头就是这样做的：
 
 ```js
-Object.assign(FILM, { three: { lights: [], env: null, build({ THREE, renderer }) { /* 渲染目标、全屏 pass，都只在这里建一次 */ } } });
+let renderer, main, world, camera, finalScene, finalCam;   // 跨帧只留这些建好的对象，不留上一帧的结果
+Object.assign(FILM, { three: { lights: [], env: null, build(W3) { renderer = W3.renderer; /* 渲染目标、全屏 pass，都只在这里建一次 */ } } });
 const SHOTS = [{ id: "S01", at: 0, draw(t) {            // 镜头不写 three 字段：这一层就不替你画，renderer 归你用
   renderer.setRenderTarget(main); renderer.render(world, camera);   // 来源：3D 场景，或画进离屏 2D 画布的 CanvasTexture
   /* 叠加层、泛光的降采样和升采样 …… */

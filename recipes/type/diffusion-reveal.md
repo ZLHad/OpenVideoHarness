@@ -13,7 +13,7 @@ aspect: [landscape, portrait, square]
 needs: [text]
 sound: recommended
 pitfalls: [text-blur, flash-rate, state-leak, overuse]
-qa: {peak: 60, read: 68, settle: 120}
+qa: {peak: 60, read: 67, settle: 120}
 status: battle-tested
 max_per_film: 1
 pairs_with: [thread-through-cuts]
@@ -40,8 +40,8 @@ sketch_sha: "9ea9e23835fa"
 | 反向 | 48–66 | 前沿从右往左走，走过的地方噪声退去；后面的字逐个长出来，每 3 帧一个（第 57、60、63 帧） |
 | 雏形 | 58–66 | 最要紧的字在噪声里开始显形，从粗到细，升到约 40% |
 | 落下 | 66 | 这个字放大着落下，其余已就位；最多 1 帧全亮 |
-| 看清 | 68 起 | 第 2 帧起全部读得清 |
-| 停留 | 68–150 | 慢推，停到读完 |
+| 看清 | 67 起 | 第 2 帧（落下那帧算第 1 帧）起全部读得清 |
+| 停留 | 67–150 | 慢推，停到读完 |
 
 ## 参数
 
@@ -138,7 +138,7 @@ export function renderAt(t, ctx, tokens, lib) {
 }
 ```
 
-草图只演时序和结构，字直接用 `fillText`。真片子里可以把字做成距离场，让前沿和雏形都按距离场取样（`engines/canvas-film/README.md` 的"自己写合成"）。
+草图只演时序和结构：字直接用 `fillText`，落下时的热色和辉光没有画。真片子里可以把字做成距离场，让前沿和雏形都按距离场取样（`engines/canvas-film/README.md` 的"自己写合成"）。
 
 ## 已知坑
 
@@ -152,7 +152,7 @@ export function renderAt(t, ctx, tokens, lib) {
 ## 验收帧
 
 - `peak`（第 60 帧）：两个字已经长出来，前沿在走，左边还是噪声，离前沿越近格子越细；第一个字有雏形，但还读不出。
-- `read`（第 68 帧）：落下后第 2 帧，四个字都读得清。
+- `read`（第 67 帧）：落下那帧算第 1 帧，这是第 2 帧，四个字都读得清。
 - `settle`（第 120 帧）：字稳定，还有慢推，没有残留的噪声。
 
 ## 来源
