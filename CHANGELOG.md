@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**canvas-film docs: flashes shorter than a shot, and writing your own compositing pipeline**
+- Why: an intro needed both and neither was written down. A shot must be at least 0.2 s, and the Three.js layer has no post-processing.
+- `engines/canvas-film/README.md`: several short flashes share one shot and pick the flash by frame number, since `--motion-blur`'s shutter closes only at shot boundaries. The new 自己写合成 section: leave `three` off the shots and use the renderer yourself; render targets sized by `PRX`; linear light; no dither in the alpha; a distance field for lettering, with its normals from a slightly blurred copy.
+
 **Two recipes from an 8 s intro: a line through fast cuts, text out of noise**
 - Why: both held up in a film someone watched and passed. The first answered a verdict on the cut before it, whose flashes were each fine but read as a jumble together.
 - `recipes/rhythm/thread-through-cuts.md`: a spark trailing a line runs through every cut, at the same place on either side, so very different flashes read as one route. Its tail shortens as the cuts speed up, and flashes of 6 frames or fewer share one long curve; without those two it tangles or zigzags.
