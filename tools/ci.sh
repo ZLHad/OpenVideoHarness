@@ -5389,6 +5389,7 @@ side = json.load(open(f + ".render.json"))
 ok = (st["codec_name"], st["profile"], st["nb_frames"], st["color_space"]) == ("prores", "4444", "75", "bt709") and st["pix_fmt"].startswith("yuva444p")
 ok = ok and at(5, 5)[3] == 0 and at(150, 80)[3] == 255 and abs(at(150, 80)[0] - 0xdc) <= 2 and side.get("alpha") is True and side["encoder"]["codec"] == "prores_ks"
 ok = ok and "crf" not in side["encoder"] and "preset" not in side["encoder"]   # x264's settings do not apply to ProRes
+ok = ok and side["encoder"]["qscale"] == 6 and side["encoder"]["alpha_bits"] == 8   # without these, prores_ks gives colour 20 times its budget and alpha 16 lossless bits
 sys.exit(0 if ok else 1)
 PY
     then ok "render --alpha: ProRes 4444 with the page's own alpha (clear where it draws nothing, opaque where it does), joined over chunks; a page that paints its background is told, an .mp4 refused, patch refuses it"

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`bin/vh render --alpha`: files about 2.5 times smaller**
+- Why: a 2.4 s transparent title at 4K came out at 839 MB (2.9 Gbps). `prores_ks` multiplies its bit budget by 20 once there is alpha (`proresenc_kostya_common.c`), and ProRes codes alpha losslessly, so 16 bits kept all of a page's dither.
+- `tools/film/render.mjs`: a fixed quantizer (`-qscale:v 6`) and an 8-bit alpha. One second of that title: 1080p 140 → 57 MB, 4K 394 → 139 MB. Composited over dark, grey, orange and white, the worst of five frames is 56 dB from before at 1080p and 57 dB at 4K. 8 bits are all the PNG frames have; of `--motion-blur`'s mean it loses at most half a level of 255.
+- Tried and left out: smoothing the colour where alpha is tiny, which looked like the cause at first. As an ffmpeg chain it saved another 14 % and cost 10 dB.
+- The sidecar's `encoder` says `qscale` and `alpha_bits`, and CI holds them.
+
 **Narration for long explainers: a reversal every few minutes, three voices, saying things precisely**
 - Why: in 2026-11 the script of a 30-minute narrated explainer went through two outside reviews. What they found that any narrated film runs into is written down here as defaults; the rest stays with that film.
 - `playbook/09-narrative.md` §10, on sentences: paragraph after paragraph ending on a short summary line reads like tapping the blackboard, so the short line is kept for the one that matters; everyday words, but few slang ones, one or two vivid phrases a chapter; telling a case, explaining an idea and talking about people each take their own voice; say things precisely rather than fully (an observational study gives a correlation, a manuscript nobody has reviewed is not a paper, an experiment's result says how it was measured, a made-up scene says so and is called back with "假如", a big judgment that cannot be backed becomes a question for the viewer), by scoping the words rather than adding hedges; and from a reviewer's or another model's sample rewrites, take the meaning, not the sentences.
