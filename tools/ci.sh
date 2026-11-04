@@ -5385,6 +5385,9 @@ sys.exit(0 if len(y) == 160 * 90 and not [v for v in y[45 * 160:46 * 160] if 38 
     printf '%s\n' 'Object.assign(FILM, { width: 160, height: 90, timeline: false, duration: 2, grain: 0, fadeOut: 0.5, images: {} });' \
       'const SHOTS = [{ id: "S01", at: 0, draw() { X.fillStyle = "#e0e0e0"; X.fillRect(0, 0, W, H); } }];' > "$p/src/50-shots.js"
     a=$(vh frames "$p" --at 1.8,1.966667 --motion-blur 4 --out "$t/fo" 2>&1); rc=$?
+    # a machine without the template's faces (the Linux runner) draws in a fallback and says so, which is exit 1; that alone is fine here
+    if [ $rc = 1 ] && printf '%s' "$a" | grep -q 'fonts this machine does not have' \
+      && ! printf '%s\n' "$a" | grep -E 'while loading:|^  t=[0-9.]+ s:|just after the last frame' | grep -qv 'fonts this machine does not have'; then rc=0; fi
     if [ $rc = 0 ] && python3 - "$t/fo" <<'PY'
 import glob, subprocess, sys
 fs = sorted(glob.glob(sys.argv[1] + "/*.png"))
