@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`bin/vh check` says when a fade stops short of black, and canvas-film's `fadeOut` reaches it**
+- Why: a fade timed to the film's length ends after its last frame is drawn, because that frame is at length − 1 frame. An 8 s intro's last frame still had a mean of 13 of 255, so the next shot would have jumped, and its transparent version vanished instead of fading out.
+- `tools/isoframes.py --motion`: the mean brightness still falling on each of the last 4 frames, by at least 6 levels in all and 1 on the last step, with the last frame above 4, is a warning (`check.fade`, with its ways out in `tools/remedies.json`). Never a failure: a film may mean to end there. Of the 30 films at hand it flagged that intro's own cuts and one hand-drawn film that ends mid-shrink.
+- `engines/canvas-film`: `fadeOut` now ends 1.5 frames before the film does, so the last frame is black with `--motion-blur`'s shutter counted. Before, the default 0.6 s fade left 5.6 % of the picture on it. New projects only: a project keeps the engine it was made with.
+- `playbook/02-verification.md`, 已知的坑: a line on it.
+
 **`bin/vh render --alpha`: files about 2.5 times smaller**
 - Why: a 2.4 s transparent title at 4K came out at 839 MB (2.9 Gbps). `prores_ks` multiplies its bit budget by 20 once there is alpha (`proresenc_kostya_common.c`), and ProRes codes alpha losslessly, so 16 bits kept all of a page's dither.
 - `tools/film/render.mjs`: a fixed quantizer (`-qscale:v 6`) and an 8-bit alpha. One second of that title: 1080p 140 → 57 MB, 4K 394 → 139 MB. Composited over dark, grey, orange and white, the worst of five frames is 56 dB from before at 1080p and 57 dB at 4K. 8 bits are all the PNG frames have; of `--motion-blur`'s mean it loses at most half a level of 255.
