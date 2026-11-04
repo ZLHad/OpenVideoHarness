@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**Look at the 4K at 1:1 before delivery**
+- Why: an intro's chrome lettering had ribs along its curved bevels, a distance field's staircase magnified by the reflection. They do not show on 1080p contact sheets, and the film had passed review on those.
+- `playbook/02-verification.md`, the line on 4K: crop the brightest, most mirror-like thing at 1:1 and look.
+
 **`bin/vh check` says when a fade stops short of black, and canvas-film's `fadeOut` reaches it**
 - Why: a fade timed to the film's length ends after its last frame is drawn, because that frame is at length − 1 frame. An 8 s intro's last frame still had a mean of 13 of 255, so the next shot would have jumped, and its transparent version vanished instead of fading out.
 - `tools/isoframes.py --motion`: the mean brightness still falling on each of the last 4 frames, by at least 6 levels in all and 1 on the last step, with the last frame above 4, is a warning (`check.fade`, with its ways out in `tools/remedies.json`). Never a failure: a film may mean to end there. Of the 30 films at hand it flagged that intro's own cuts and one hand-drawn film that ends mid-shrink.
