@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`bin/vh assets credits`: text you can paste, one line a source, `--film`**
+- Why: on a 33-minute film (2026-11) its output was deduplicated by hand twice and rewritten once before it could go in a pinned comment. A sentence for the publisher sat in the text, one source had up to nine lines, and records the film never used were listed.
+- stdout is what viewers can read: the turn-on-the-declaration sentence goes to stderr (`aigc.declare` in `--json`, `aigc.public` the sentence that stays; `aigc.notice` still has both).
+- One line a source: the same line; or the same page, author and licence; or made from one record (`derived_from`). The first line stays, the original's when it is among them, and a different wording dropped that way is said on stderr, since a source can ask for its own wording per file. Another author on the same page stays apart. `required` and `courtesy` items gain `ids` and `merged`.
+- `--film <video>`: only what that film used, read as `assets check --film` reads it, plus what those files came from. `used_by` could not do this: on that film every record had one, stale ones included. A data or other file stays, since a table or a paper can be used without the page loading it; what is left out is listed on stderr and in `left_out`. On a copy of that film's ledger this took out the two unused pictures; a picture baked into something on no record is left out too, so the list is there to read.
+
 **canvas-film docs: flashes shorter than a shot, and writing your own compositing pipeline**
 - Why: an intro needed both and neither was written down. A shot must be at least 0.2 s, and the Three.js layer has no post-processing.
 - `engines/canvas-film/README.md`: several short flashes share one shot and pick the flash by frame number, since `--motion-blur`'s shutter closes only at shot boundaries. The new 自己写合成 section: leave `three` off the shots and use the renderer yourself; render targets sized by `PRX`; linear light; no dither in the alpha; a distance field for lettering, with its normals from a slightly blurred copy.

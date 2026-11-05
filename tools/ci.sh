@@ -3641,6 +3641,31 @@ PY
       then ok "assets credits: the lines a licence asks for (title, author, source, licence and their pages), courtesy for public domain, the AI-content notice with what it covers; --json; the BRIEF's language"
       else bad "assets credits --json: $b"; fi ;;
     *) bad "assets credits: $a" ;; esac
+  # what to paste has no word for the publisher (that goes to stderr); one line a source: the same line, or the same page,
+  # author and licence, or made from one record; a different line dropped is said; another author on the same page stays apart
+  q="$t/cm"; cp -R tools/assets/fixtures/project "$q"; mkdir -p "$q/out"
+  for n in a b c d e f; do printf "$n" > "$q/assets/img/$n.png"; done; printf x > "$q/assets/img/t.csv"
+  vh assets add "$q" assets/img/a.png --license 'CC BY 4.0' --author Ann --source-url https://example.org/p --attribution 'Ann, CC BY 4.0' >/dev/null 2>&1
+  vh assets add "$q" assets/img/b.png --license 'CC BY 4.0' --author Ann --source-url https://example.org/p --attribution 'Ann (CC BY 4.0)' >/dev/null 2>&1
+  vh assets add "$q" assets/img/c.png --license 'CC BY 4.0' --author Bea --source-url https://example.org/p --attribution 'Bea, CC BY 4.0' >/dev/null 2>&1
+  vh assets add "$q" assets/img/d.png --license 'CC BY 4.0' --origin download --attribution 'Same words, CC BY 4.0' >/dev/null 2>&1
+  vh assets add "$q" assets/img/e.png --license 'CC BY 4.0' --origin download --attribution 'Same words, CC BY 4.0' >/dev/null 2>&1
+  vh assets add "$q" assets/img/t.csv --license 'CC BY 4.0' --origin self --derived-from a --attribution 'Data from Ann' >/dev/null 2>&1
+  a=$(vh assets credits "$q" --lang zh 2>"$t/cm.err"); rc=$?; b=$(cat "$t/cm.err")
+  case "$rc|$a|$b" in 0"|"*"- Ann, CC BY 4.0"*"- Bea, CC BY 4.0"*"- Same words, CC BY 4.0"*"本片含 AI 生成的内容"*"|"*"for you, not for the text: 发布时"*"merged, same source: “Ann (CC BY 4.0)”"*"merged, same source: “Data from Ann”"*)
+      if printf '%s' "$a" | grep -Eq '发布时|Ann \(CC BY|Data from Ann' || [ "$(printf '%s' "$a" | grep -c 'Same words')" != 1 ]; then bad "assets credits, one line a source: $a"
+      else ok "assets credits: text to paste without the publisher's note (stderr), one line a source, a dropped wording said, another author on the same page apart"; fi ;;
+    *) bad "assets credits, one line a source (rc $rc): $a | $b" ;; esac
+  # --film: what that film's page loaded, any mix's inputs and what they came from; a data file stays; the rest is listed. Against
+  # PACKAGING.md's numbers either count will do; another is said
+  printf x > "$q/out/film.mp4"; printf '%s' '{"page": "../index.html", "files": {"assets/img/a.png": null, "assets/img/stray.png": null}}' > "$q/out/film.mp4.render.json"
+  a=$(vh assets credits "$q" --film out/film.mp4 --lang zh 2>"$t/cm.err"); rc=$?; b=$(cat "$t/cm.err"); c=$(vh assets credits "$q" --film out/nope.mp4 2>&1); rc2=$?
+  d=$(vh assets credits "$q" --film out/film.mp4 --json 2>/dev/null)
+  if [ $rc = 0 ] && [ $rc2 = 2 ] && printf '%s' "$a" | grep -q '^- Ann, CC BY 4.0' && ! printf '%s' "$a" | grep -Eq 'Bea|Same words|本片含' \
+    && printf '%s' "$b" | grep -q 'left out, not in what out/film.mp4 used: .*knock' \
+    && python3 -c 'import json,sys; c=json.loads(sys.argv[1]); sys.exit(0 if c["film"]=="out/film.mp4" and "hero" in c["left_out"] and c["aigc"]["count"]==0 and "t" not in c["left_out"] else 1)' "$d"
+  then ok "assets credits --film: only what the film used, a data file kept, the rest listed on stderr; a film with no list of files is a usage error"
+  else bad "assets credits --film (rc $rc / $rc2): $a | $b | $c"; fi
   # the commands write their notes into the project's activity log, list and check do not log
   if grep -q '"cmd":"assets"' "$p/.ovh/activity.jsonl" 2>/dev/null && grep -q '"summary":"added new' "$p/.ovh/activity.jsonl" \
      && ! grep -q '"args":\["check"' "$p/.ovh/activity.jsonl"; then ok "assets add and remove are in the activity log with what they did; check and list are not logged"

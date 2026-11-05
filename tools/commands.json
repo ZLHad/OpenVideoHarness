@@ -659,9 +659,10 @@
           ]
         },
         {
-          "synopsis": "assets credits <project> [--lang zh|en] [--out f] [--json]",
+          "synopsis": "assets credits <project> [--film <video>] [--lang zh|en] [--out f] [--json]",
           "text": [
-            "credits: the credit lines and the AI-content notice"
+            "credits: text to paste, one credit line a source and the AI-content sentence; what is for the publisher goes to stderr;",
+            "--film: only what that film used"
           ]
         },
         {

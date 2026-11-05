@@ -32,9 +32,11 @@
 
 <!-- 从素材台账出：bin/vh assets credits <项目> 打出署名和 AI 生成内容的提示（--out 存成文件），bin/vh deliver 交付时也会提醒。
      许可要求的署名（CC BY 一族、授权协议里写明的）放进简介，太长就放置顶评论；公有领域的致谢可写可不写。
-     片中有 AI 生成的内容（图、视频、配音、配乐），发布时在平台发布页打开 AI 生成内容的声明，入口名称以发布时的界面为准（references/genvideo-ledger.md 的"披露"）。 -->
+     片子定稿后加 --film <render> 只出它用到的（默认是台账里全部）；给发布人的话走 stderr，stdout 那段可以直接贴。
+     片中有 AI 生成的内容（图、视频、配音、配乐），发布时在平台发布页打开 AI 生成内容的声明，入口名称以发布时的界面为准（references/genvideo-ledger.md 的"披露"）。
+     件数照 bin/vh assets credits 抄，手写的数会过期（bin/vh check 会比一次）。 -->
 - 署名：{bin/vh assets credits 的"素材署名"一段；没有就写"无"}
-- AI 生成内容：{无 / 有：哪些，各平台的声明开了没有}
+- AI 生成内容：{无 / 有：哪些、各几件，各平台的声明开了没有}
 
 ## 发布文案
 
