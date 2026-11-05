@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`tools/packcheck.py`: `AI for Science` is one tag, and the AI count is compared**
+- Why: on the same film it counted that tag as three, said nothing about a topic with a space, and nobody noticed the AI count written by hand had gone stale (19 against 22).
+- Tags split at commas and 、 only; a `#` after a space still starts a new one. A topic with a space is said for 抖音, 小红书 and 视频号, where it stops at the space (seen by the maintainer publishing; no official page).
+- 视频号's title gets a limit of 50, second-hand like 抖音's: three third-party publishing tools' notes, found in 2026-11. The "16" that was going around for its short title has no source and is not used. B站's "10 tags" has none either: it is said with a `!` as `unverified` and does not count as over. `playbook/10` has both.
+- The numbers on PACKAGING.md's `AI 生成内容` line against `bin/vh assets credits`, all the records or what the newest films used: said when they match neither. These reminders are in `pack.json`'s `notes` and `bin/vh check`'s record.
+
 **`bin/vh assets credits`: text you can paste, one line a source, `--film`**
 - Why: on a 33-minute film (2026-11) its output was deduplicated by hand twice and rewritten once before it could go in a pinned comment. A sentence for the publisher sat in the text, one source had up to nine lines, and records the film never used were listed.
 - stdout is what viewers can read: the turn-on-the-declaration sentence goes to stderr (`aigc.declare` in `--json`, `aigc.public` the sentence that stays; `aigc.notice` still has both).

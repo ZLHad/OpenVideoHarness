@@ -1087,6 +1087,16 @@ PY
   case "$rc:$a" in 1:*"X / 推特: ✓ 简介 description 279 weighted"*"B站 + X: ✗ 简介 description 287 weighted"*"official, x)"*"小红书 xhs: · 简介 description 300 characters"*)
       ok "packcheck: X's limit in its weighted length (Chinese 2, a link 23), the tightest platform of a heading, a one-letter name standing alone" ;;
     *) bad "packcheck on X copy (rc $rc): $a" ;; esac
+  # tags split at commas and 、 only (AI for Science is one), a # after a space starts a new one; a topic with a space is said
+  # where a topic stops at it; B站's 10 has no source: said, not over; 视频号's title limit is second-hand and does count
+  mkdir -p "$t/pk"
+  { printf '%s\n' '# PACKAGING' '## 发布文案' '### B站' '标签：AI for Science, AI4S、科研，a, b, c, d, e, f, g, h' '### 抖音' '标签：#AI for Science #科研' '### 小红书' '标签：#科研 #博士' '### YouTube' '标签：AI for Science, research'
+    printf '%s\n' '### 视频号' "标题：$(python3 -c "print('字' * 51)")"; } > "$t/pk/PACKAGING.md"
+  a=$(python3 "$ROOT/tools/packcheck.py" "$t/pk/PACKAGING.md" --json "$t/pk/pack.json"); rc=$?
+  case "$rc:$a" in 1:*"B站: ! 标签 tags 11 tags (limit 10, unverified)"*"抖音: · 标签 tags 2 tags"*"抖音: a topic stops at a space there: AI for Science"*"小红书: · 标签 tags 2 tags"*"YouTube: · 标签 tags 2 tags"*"视频号: ✗ 标题 title 51 characters (limit 50, second-hand)"*)
+      if printf '%s' "$a" | grep -Eq '(小红书|YouTube): a topic stops' || ! python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if len(d["notes"])==1 and sum(f["over"] for f in d["fields"])==1 else 1)' "$t/pk/pack.json"
+      then bad "packcheck's notes: $a"; else ok "packcheck: tags split at commas and 、 only, a spaced topic said where it stops at the space, a limit with no source said but not over"; fi ;;
+    *) bad "packcheck on tags (rc $rc): $a" ;; esac
   # what X takes for a link (twitter-text's rules): a bare domain with a TLD it knows, with its path, Chinese straight
   # before it staying text; not after - _ . / @ $, not a file name with a TLD it does not know, not a host with no TLD
   if a=$(python3 - <<'PY'
@@ -3666,6 +3676,12 @@ PY
     && python3 -c 'import json,sys; c=json.loads(sys.argv[1]); sys.exit(0 if c["film"]=="out/film.mp4" and "hero" in c["left_out"] and c["aigc"]["count"]==0 and "t" not in c["left_out"] else 1)' "$d"
   then ok "assets credits --film: only what the film used, a data file kept, the rest listed on stderr; a film with no list of files is a usage error"
   else bad "assets credits --film (rc $rc / $rc2): $a | $b | $c"; fi
+  printf '%s\n' '- AI 生成内容：有。图片 9 件。' > "$q/PACKAGING.md"; a=$(python3 "$ROOT/tools/packcheck.py" "$q/PACKAGING.md" 2>&1)
+  printf '%s\n' '- AI 生成内容：有。图片 1 件，视频 1 段。' > "$q/PACKAGING.md"; b=$(python3 "$ROOT/tools/packcheck.py" "$q/PACKAGING.md" 2>&1)
+  printf '%s\n' '<!-- 图片 9 件 -->' '- AI 生成内容：有。' > "$q/PACKAGING.md"; c=$(python3 "$ROOT/tools/packcheck.py" "$q/PACKAGING.md" 2>&1)
+  case "$a|$b|$c" in *"says {'image': 9}, bin/vh assets credits says {'image': 1, 'video': 1}"*"|"*"|"*)
+      if printf '%s%s' "$b" "$c" | grep -q 'says {'; then bad "packcheck's AI count, a false alarm: $b | $c"; else ok "packcheck: the AI count on PACKAGING.md's line against bin/vh assets credits, said when it differs"; fi ;;
+    *) bad "packcheck's AI count: $a | $b | $c" ;; esac
   # the commands write their notes into the project's activity log, list and check do not log
   if grep -q '"cmd":"assets"' "$p/.ovh/activity.jsonl" 2>/dev/null && grep -q '"summary":"added new' "$p/.ovh/activity.jsonl" \
      && ! grep -q '"args":\["check"' "$p/.ovh/activity.jsonl"; then ok "assets add and remove are in the activity log with what they did; check and list are not logged"
