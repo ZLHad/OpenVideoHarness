@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**Reviewers read numbers on stopped frames; two false alarms and how to judge them**
+- Why: on that film a reviewer reported a chart's value as wrong from a frame mid-animation, and two checks raised an alarm that a look at the frames settled.
+- `playbook/02-verification.md`: layer 5 says to read a number after the animation stops. 已知的坑: `textcheck` on a sentence drawn in pieces or copies, and `check --against` on fine detail that resolves at 4K and blurs at 1080p, each with what to look at.
+
 **Scoring layer: two questions answered from the frames alone, before scoring**
 - Why: a fresh reviewer who has read the narration and storyboard fills in what a picture means. On that film the author and the reviewer both passed a symbol a viewer asked about at once, and the reviewer only mentioned a detail of the opening the user found empty. What this guards against is that; it adds no score and no pass mark, and the author still decides.
 - `templates/TASTE_CHECKLIST.md`: only the first 3 s, no narration: what happens on screen? Each main shot, no narration or captions: what is it saying? The ones with no answer are listed, and a shot that needs its narration is not thereby wrong.
