@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**Gate ② shows the first 5 s and what is on every frame**
+- Why: on the same film the progress bar was settled at gate ③, two versions, 1080p and 4K rendered whole each time, about 2 hours in all; and the opening's lack of anything happening was only noticed on the whole film, when the narration was already locked.
+- `playbook/01-pipeline.md`, gate ②: a strip of the first 5 s (`bin/vh frames <project> --strip 0:5 --fps 6`), and the progress bar, caption style and fonts as they will really look.
+
 **Long films: an animation lexicon, samples, disk and time, the session version**
 - Why: a 33-minute film (2026-11) was made in five parallel sessions. It went well, and the docs only described subagents; one animation also ended up in four chapters because its storyboard's motif table treated a motif and an animation as one thing.
 - `playbook/01-pipeline.md`, 长片: an animation lexicon before splitting, with a cross-chapter contact sheet after the merge; a short sample for each way of working instead of one model chapter; that film's disk and time as an order of size, and `OVH_KEEP_VERSIONS`; a section on running sessions in parallel: a grey skeleton first, a file a chapter, shared documents changed by one lane, and an opinion that holds for more than one chapter goes into the shared library at once. `playbook/09` points at the lexicon.
