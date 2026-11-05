@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**canvas-film: renaming a chapter**
+- Why: on that film a rename touched seven places: three JSON files and four documents.
+- `engines/canvas-film/README.md`: the chapter table is the source; which readers follow it; settle on one copy on the voice's side; the documents by hand; `bin/vh cues --chapters` again; and what it costs when the bar shows every chapter's name.
+
 **Narration: sentence-to-sentence pitch and loudness**
 - Why: `--candidates` picks by block, not by sentence. On that film questions and short lines read up to 9.57 semitones and 3.65 dB off their neighbours, and the user heard it.
 - `tools/audio/README.md`, 整段合成: how it was measured, why the other candidates come first (44 sentences changed, 12 new requests), a gain per sentence, and where a splice goes when two sentences have no silence between them. `playbook/04` points there.
