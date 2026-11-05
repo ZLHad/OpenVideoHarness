@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**A recipe: edit one plate into several, then a time-lapse**
+- Why: a long film's opening needed something happening from the first frame without changing the narration, and this answered the user's verdict that it lacked anything to catch the eye.
+- `recipes/fx/edited-plate-lapse.md` (`battle-tested`): a plate edited into day and without an object, nearly in register; the light as a cross-fade between plates; the object as a layer that rises from behind something and is only ever moved, so the picture is not warped, with what that gives up; at full height the composite is the plate. No sketch or sample sheet: the point of it is a generated picture and its layers. The counts in the READMEs, the overview diagrams and the homepage go to 75.
+
 **PACKAGING: a hypothetical in the film is one in the copy too**
 - Why: on that film a title in the first person turned its opening what-if into something that happened to the author. It was caught by hand before publishing.
 - `templates/PACKAGING.md`: one line, under the facts.
