@@ -3689,7 +3689,7 @@ PY
   vh assets add "$q" assets/img/g.png --license 'CC BY 3.0' --author Cy --source-url https://example.org/q --title One >/dev/null 2>&1
   vh assets add "$q" assets/img/h.png --license 'CC BY 4.0' --author Cy --source-url https://example.org/q --title Two >/dev/null 2>&1
   a=$(vh assets credits "$q" --lang zh 2>"$t/cm.err"); rc=$?; b=$(cat "$t/cm.err")
-  case "$rc|$a|$b" in 0"|"*"- Ann, CC BY 4.0"*"- Bea, CC BY 4.0"*"- Same words, CC BY 4.0"*"《One》，Cy"*"CC BY 3.0"*"《Two》，Cy"*"CC BY 4.0"*"本片含 AI 生成的内容"*"|"*"for you, not for the text: 发布时"*"merged, same source: “Ann (CC BY 4.0)”"*"merged, same source: “Data from Ann, CC BY 4.0”"*)
+  case "$rc|$a|$b" in 0"|"*"- Ann, CC BY 4.0"*"- Bea, CC BY 4.0"*"- Same words, CC BY 4.0"*"《One》，Cy"*"CC BY 3.0"*"《Two》，Cy"*"CC BY 4.0"*"本片含 AI 生成的内容"*"|"*"for you, not for the text: 发布时"*"merged, same source: "*"Ann (CC BY 4.0)"*"merged, same source: "*"Data from Ann, CC BY 4.0"*)
       if printf '%s' "$a" | grep -Eq '发布时|Ann \(CC BY|Data from Ann' || [ "$(printf '%s' "$a" | grep -c 'Same words')" != 1 ]; then bad "assets credits, one line a source: $a"
       else ok "assets credits: text to paste without the publisher's note (stderr); one line only when no words are lost, what was dropped said; another author, title or licence version apart"; fi ;;
     *) bad "assets credits, one line a source (rc $rc): $a | $b" ;; esac
