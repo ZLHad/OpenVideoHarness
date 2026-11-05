@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**Long films: an animation lexicon, samples, disk and time, the session version**
+- Why: a 33-minute film (2026-11) was made in five parallel sessions. It went well, and the docs only described subagents; one animation also ended up in four chapters because its storyboard's motif table treated a motif and an animation as one thing.
+- `playbook/01-pipeline.md`, 长片: an animation lexicon before splitting, with a cross-chapter contact sheet after the merge; a short sample for each way of working instead of one model chapter; that film's disk and time as an order of size, and `OVH_KEEP_VERSIONS`; a section on running sessions in parallel: a grey skeleton first, a file a chapter, shared documents changed by one lane, and an opinion that holds for more than one chapter goes into the shared library at once. `playbook/09` points at the lexicon.
+
 **`bin/vh clean`: what the project names as deliverables stays, and its own folders are listed; `assets add` warns about `out/`**
 - Why: a project's 1080p was listed as a render not the film, and a ledger path under `out/` turned `assets check` from pass to fail after a clean-up by hand (the same film, 2026-11; an earlier one too). Tried on a temporary project: once a film is found, every video under `out/` goes unless it is named, so `out/film-1080p.mp4` went to the Trash, and `out/ch01`-style folders lost their videos with the other files staying, unsaid.
 - A video on BRIEF.md's Deliverables line or anywhere in PACKAGING.md (not its comments) counts as the film. Files on the asset ledger stay. Nothing else about what goes changes.
