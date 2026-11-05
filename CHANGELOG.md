@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**A browser that stops answering as it starts is replaced, not waited for**
+- Why: full Chrome on macOS sometimes stops answering for good as its tab comes up, its main thread blocked in RunningBoard (`rbs_acquire_appnap_assertion`). On an M-series Mac: 6 of 278 launches when two start together, 1 of 518 one at a time, none of 3550 for chrome-headless-shell, which the tools prefer when it is there. A tool with no watchdog of its own, such as `render`'s workers, would have waited for ever.
+- `tools/textcheck/browser.mjs`, `launchTab`: the tab's first commands have 30 s each; no answer, and the browser is killed and another started, 3 tries, then an error. `tools/film/host.mjs` and `tools/textcheck/textcheck.mjs` open their tab through it.
+- `tools/ci.sh`: the edit list's check gives each command's own tail, so a failing `determinism` is no longer cut off by the output after it.
+
 **A recipe: edit one plate into several, then a time-lapse**
 - Why: a long film's opening needed something happening from the first frame without changing the narration, and this answered the user's verdict that it lacked anything to catch the eye.
 - `recipes/fx/edited-plate-lapse.md` (`battle-tested`): a plate edited into day and without an object, nearly in register; the light as a cross-fade between plates; the object as a layer that rises from behind something and is only ever moved, so the picture is not warped, with what that gives up; at full height the composite is the plate. No sketch or sample sheet: the point of it is a generated picture and its layers. The counts in the READMEs, the overview diagrams and the homepage go to 75.
