@@ -91,13 +91,33 @@ function serve(root, pageUrl, pageFile, inject, extra, served, sent = new Map())
   return new Promise((ok) => server.listen(0, "127.0.0.1", () => ok({ url: `http://127.0.0.1:${server.address().port}/`, close: () => new Promise((r) => server.close(r)) })));
 }
 
-// openFilm(target, { browser, dpr, width, height, realClock, softGl, runtime, prelude, root, params }) → a film to draw:
+// A lost GPU empties every canvas on the page, the ones a page keeps its textures in too, and no error says so: the page
+// only gets an event. Chrome's GPU process died this way in 1-2% of first frames with two browsers on a GitHub macOS
+// runner (2026-11), and the capture came out blank. So the page's contexts are counted (before its own scripts), and a
+// picture counts only from a page that never lost one: a frame is a function of t, so a fresh page draws the same one.
+const WATCH_CONTEXTS = `(() => {
+  let lost = 0; const seen = new WeakSet();
+  for (const C of [window.HTMLCanvasElement, window.OffscreenCanvas]) {
+    if (!C) continue;
+    const real = C.prototype.getContext;
+    C.prototype.getContext = function (...a) {
+      const got = real.apply(this, a);
+      if (got && !seen.has(this)) { seen.add(this); for (const e of ["contextlost", "webglcontextlost"]) this.addEventListener(e, () => { lost++; }); }
+      return got;
+    };
+  }
+  window.filmHost.contextsLost = () => lost;
+})();`;
+const CONTEXT_RELOADS = 3;
+
+// openFilm(target, { browser, dpr, width, height, realClock, softGl, runtime, prelude, root, params, beforeReload }) → a film to draw:
 // { page, kind, width, height, duration, frame(t) → { png, touched }, draw(t), setParams(p), problems(), served(), close(),
 // ev, send }. runtime: "auto" (HyperFrames' runtime for a composition that writes no contract of its own), "on" or "off".
 // prelude: more scripts to run before the page's own, after the clock (tools/film/glyphs.mjs records the text a page draws
 // this way). root: the folder to serve (an edit list's, the project: engines/EDIT.md), the page opened by its path from
 // there; a page outside it (the host's own pages, tools/film/pages/) is served as /__vh/page/<name>. params: what the
-// page reads as window.filmHost.params (setParams(p) changes it between two frames: the host's own pages draw from it)
+// page reads as window.filmHost.params (setParams(p) changes it between two frames: the host's own pages draw from it).
+// beforeReload(film): a page that lost a canvas is loaded again (see WATCH_CONTEXTS): read what it holds first
 export async function openFilm(target, o = {}) {
   const page = findPage(target);
   const real = path.join(fs.realpathSync(path.dirname(page)), path.basename(page));   // its folder's real path (a linked page stays the link)
@@ -139,6 +159,7 @@ export async function openFilm(target, o = {}) {
     await browser.send("Emulation.setTimezoneOverride", { timezoneId: "UTC" }, s);   // local time reads the same on every machine
     const prelude = o.realClock ? 'window.filmHost = { version: "0.1", name: "ovh" };' : fs.readFileSync(path.join(HERE, "clock.js"), "utf8");
     await browser.send("Page.addScriptToEvaluateOnNewDocument", { source: prelude }, s);
+    await browser.send("Page.addScriptToEvaluateOnNewDocument", { source: WATCH_CONTEXTS }, s);
     if (o.params !== undefined) await browser.send("Page.addScriptToEvaluateOnNewDocument", { source: `window.filmHost.params = ${JSON.stringify(o.params)};` }, s);
     for (const source of o.prelude || []) await browser.send("Page.addScriptToEvaluateOnNewDocument", { source }, s);
     const ev = async (expression, what) => {
@@ -146,11 +167,6 @@ export async function openFilm(target, o = {}) {
       if (r.exceptionDetails) throw new Error(`${what}: ${(r.exceptionDetails.exception && r.exceptionDetails.exception.description) || r.exceptionDetails.text}`);
       return r.result.value;
     };
-    const loaded = browser.once("Page.loadEventFired", s);
-    loaded.catch(() => { /* a browser that dies first fails it; the race below reports that */ });
-    await browser.send("Page.navigate", { url: server.url + pageUrl.split("/").map(encodeURIComponent).join("/") }, s);
-    let timer;
-    await Promise.race([loaded, new Promise((_, no) => { timer = setTimeout(() => no(new HostError("the page did not load within 60 s")), 60000); })]).finally(() => clearTimeout(timer));
     // the contract: window.film, else window.__vh; a page has 10 s after load to set it
     // the waits below time themselves out in the page; a page whose script is stuck (a loop that never ends) never gets to
     // its timer, so the host bounds them too. How long: OVH_PAGE_TIMEOUT seconds when it is set, else the tool's frame
@@ -158,16 +174,23 @@ export async function openFilm(target, o = {}) {
     const env = Number(process.env.OVH_PAGE_TIMEOUT), ft = Number(o.frameTimeout) || 0;
     const lookS = env > 0 ? env : Math.max(30, ft), waitS = env > 0 ? env : Math.max(120, ft), readyS = 2 * waitS + 10;
     const bounded = (p, sec, msg) => { let tm; p.catch(() => { /* what it says after the bound is not news */ }); return Promise.race([p, new Promise((_, no) => { tm = setTimeout(() => no(new HostError(msg)), sec * 1000); })]).finally(() => clearTimeout(tm)); };
-    const kind = await bounded(ev(`new Promise((ok) => { const t0 = Date.now(); const look = () => {
+    // load the page and wait until it is ready; → what kind of page it is
+    const load = async () => {
+      const loaded = browser.once("Page.loadEventFired", s);
+      loaded.catch(() => { /* a browser that dies first fails it; the race below reports that */ });
+      await browser.send("Page.navigate", { url: server.url + pageUrl.split("/").map(encodeURIComponent).join("/") }, s);
+      let timer;
+      await Promise.race([loaded, new Promise((_, no) => { timer = setTimeout(() => no(new HostError("the page did not load within 60 s")), 60000); })]).finally(() => clearTimeout(timer));
+      const found = await bounded(ev(`new Promise((ok) => { const t0 = Date.now(); const look = () => {
         if (window.film && typeof window.film.frame === "function") return ok(window.film.__adapter || "film");
         if (window.__vh && typeof window.__vh.draw === "function") return ok("__vh");
         if (Date.now() - t0 > 10000) return ok(""); setTimeout(look, 50); }; look(); })`, "looking for window.film"),
       lookS, `${pageRel}: no answer from the page within ${lookS} s of loading (its script never yields: a loop that does not end?)`);
-    if (!kind) {
-      throw new HostError(`${pageRel} sets no window.film (nor window.__vh) within 10 s of loading: see engines/CONTRACT.md` +
-        (problems.length ? `\npage errors while loading:\n  ${[...new Set(problems)].slice(0, 5).join("\n  ")}` : ""));
-    }
-    const ready = await bounded(ev(`(async () => {
+      if (!found) {
+        throw new HostError(`${pageRel} sets no window.film (nor window.__vh) within 10 s of loading: see engines/CONTRACT.md` +
+          (problems.length ? `\npage errors while loading:\n  ${[...new Set(problems)].slice(0, 5).join("\n  ")}` : ""));
+      }
+      const ready = await bounded(ev(`(async () => {
       const wait = (p) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("not ready after ${waitS} s")), ${waitS * 1000}))]);
       try {
         const src = window.film && window.film.frame ? window.film : window.__vh;
@@ -177,7 +200,10 @@ export async function openFilm(target, o = {}) {
       } catch (e) { return String((e && e.message) || e); }
       return "";
     })()`, "waiting for ready"), readyS, `${pageRel}: not ready after ${readyS} s, and the page does not answer (its script is stuck, or the browser stopped)`);
-    if (ready) throw new HostError(`${pageRel}: ${ready} (window.film.ready or the fonts)`);
+      if (ready) throw new HostError(`${pageRel}: ${ready} (window.film.ready or the fonts)`);
+      return found;
+    };
+    const kind = await load();
     const got = await ev(`(() => { const f = window.film && window.film.frame ? window.film : null, v = window.__vh || {};
       const root = document.querySelector("[data-composition-id]");
       return { duration: +((f ? f.duration : v.duration) || (root && root.dataset.duration) || 0), width: f && +f.width || 0, height: f && +f.height || 0 }; })()`, "reading window.film");
@@ -194,24 +220,44 @@ export async function openFilm(target, o = {}) {
     // one of the page's own fields as JSON (a function is called first), null when it gives none or nothing JSON can hold
     const field = (name) => ev(`((name) => { const f = window.film && window.film.frame ? window.film : window.__vh || {};
       let x = f[name]; if (typeof x === "function") x = x.call(f); const s = JSON.stringify(x); return s === undefined ? null : JSON.parse(s); })(${JSON.stringify(name)})`, `reading window.film.${name}`);
-    return {
+    // what the page reads as window.filmHost.params from the next frame on (the host's own pages, tools/film/pages/)
+    let params;
+    const setParams = (p) => { params = p; return ev(`(() => { window.filmHost.params = ${JSON.stringify(p)}; return true; })()`, "setting the page's params"); };
+    let film;
+    // take a picture; asked after it, since the GPU can go while the capture waits. Lost: the page again, then the picture again
+    const intact = async (what, take) => {
+      for (let n = 0; ; n++) {
+        const got = await take();
+        if (!(await ev("(() => { const H = window.filmHost; return H && H.contextsLost ? H.contextsLost() : 0; })()", "reading the page's lost contexts"))) return got;
+        if (n === CONTEXT_RELOADS) {
+          throw new HostError(`${pageRel}: the page's canvases lost their contexts ${n + 1} times in a row at ${what}, so the picture cannot be trusted. ` +
+            "The GPU keeps going (close what else is drawing on it, or use --soft-gl), or the page loses them itself (more than 16 WebGL contexts, WEBGL_lose_context)");
+        }
+        console.error(`${pageRel}: the GPU took the page's canvases at ${what}: loading the page again and drawing it again`);
+        if (o.beforeReload) await o.beforeReload(film);
+        const said = problems.length;
+        await load();
+        problems.push(...problems.splice(said).filter((p) => !loadProblems.includes(p)));   // what it says on every load is said once
+        if (params !== undefined) await setParams(params);
+      }
+    };
+    film = {
       page, root, kind, width, height, duration: got.duration, version: browser.version, loadProblems,
       // draw t, let the compositor paint it, capture it (a lossless PNG, or { format: "jpeg", quality } for a render);
       // touched: the clocks the frame read (tools/film/clock.js)
-      async frame(t, capture = { format: "png" }) {
+      frame: (t, capture = { format: "png" }) => intact(`t=${t}`, async () => {
         const touched = await draw(t);
         const shot = await browser.send("Page.captureScreenshot", { ...capture, fromSurface: true, captureBeyondViewport: false }, s);
         return { png: Buffer.from(shot.data, "base64"), touched };
-      },
+      }),
       draw,   // draw t without capturing it (a check that reads the page, not its pixels)
-      // what the page reads as window.filmHost.params from the next frame on (the host's own pages, tools/film/pages/)
-      setParams: (p) => ev(`(() => { window.filmHost.params = ${JSON.stringify(p)}; return true; })()`, "setting the page's params"),
+      setParams,
       // a cover (window.film.covers): the page's cover(id, opts) when it has one (its own camera and title), else frame(t).
       // o.title false: no title (a page with cover() must say it left it out: it returns { title: false }). o.ratio "9:16":
       // the page draws the cover with a title laid out for that ratio and returns the crop of its frame ({ crop: [x, y, w,
       // h], size: [w, h] }, engines/CONTRACT.md), captured at size x o.dpr px. o.capture: the screenshot's format, or
       // false to draw only. → { png, touched, reply (what cover() returned), width, height }
-      async cover(id, t, c = {}) {
+      cover: (id, t, c = {}) => intact(`cover ${id}`, async () => {
         const opts = {};
         if (c.title === false) opts.title = false;
         if (c.ratio) opts.ratio = c.ratio;
@@ -250,7 +296,7 @@ export async function openFilm(target, o = {}) {
           clip = { ...clip, scale: (want[0] - 1e-6) / (clip.width * (o.dpr || 1)) };
         }
         return { png, touched, reply, width: pw, height: ph };
-      },
+      }),
       problems: () => problems.splice(0),
       served: () => [...served],                             // the files sent to the page so far (absolute paths)
       sentAs: (f) => sent.get(f),                            // a file's [size, mtime] when it was first sent, or undefined
@@ -266,5 +312,6 @@ export async function openFilm(target, o = {}) {
       ev,                                                    // an expression in the page, awaited, its value as JSON
       send: (method, params = {}) => browser.send(method, params, s),   // a DevTools command to this page
     };
+    return film;
   } catch (e) { await closeAll(); throw e instanceof HostError ? e : new HostError(e.message); }
 }

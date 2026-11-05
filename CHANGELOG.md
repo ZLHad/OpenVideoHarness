@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**A lost GPU no longer leaves a blank frame: the page is loaded again and the frame drawn again**
+- Why: `film shots` failed now and then on macOS CI with two captures 1.56 dB apart, and one of them was blank. With two browsers on a GitHub macOS runner the GPU process died in 1-2% of first frames (a Metal GPU hang, where the log names a cause). That empties every canvas and no error says so, and `frames`, `storyboard` and `render` all capture this way. Drawing again on the same page is not enough: a canvas a page keeps a texture in is empty too, as canvas-film's `texture()` and grain would be (18 of 18 stayed blank).
+- `tools/film/host.mjs`: the page's contexts are counted before its own scripts. After each capture (`frame`, `cover`), a page that lost one is loaded again and the picture taken again, at most 3 times, then an error that names the two causes. `setParams` carries over, and what a page says on every load is said once. `render` reads its glyph notes before the page goes (`beforeReload`). `engines/CONTRACT.md`: item 7 of 宿主做什么. A Web Worker's `OffscreenCanvas` is not counted.
+- On that runner with two browsers: the old host 18 blank in 934 captures, this one 0 in 2684 with 26 reloads; the failing test 7 failures in 367 runs before, 0 in 189 after. On a Mac with a real GPU: no loss in 809 captures.
+
 **A recipe: edit one plate into several, then a time-lapse**
 - Why: a long film's opening needed something happening from the first frame without changing the narration, and this answered the user's verdict that it lacked anything to catch the eye.
 - `recipes/fx/edited-plate-lapse.md` (`battle-tested`): a plate edited into day and without an object, nearly in register; the light as a cross-fade between plates; the object as a layer that rises from behind something and is only ever moved, so the picture is not warped, with what that gives up; at full height the composite is the plate. No sketch or sample sheet: the point of it is a generated picture and its layers. The counts in the READMEs, the overview diagrams and the homepage go to 75.
