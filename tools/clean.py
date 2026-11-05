@@ -21,9 +21,10 @@ Without --yes it only lists (a dry run; --dry-run says so, and wins over --yes).
             a lyric video's audio/song.mp3 stays when its page names it, as it does when it plays it.
             Only once a film is found
 The film: video files in out/final/ (not in a covers or 封面 folder inside it), else out/final*.<video> directly in out/,
-media/*.<video>, what --final names (an existing video file, relative to the project or to here), every video the project
-names as a deliverable (BRIEF.md's Deliverables line and anywhere in PACKAGING.md: a path from the project, or a name
-directly in out/ or out/final/), and every copy bin/vh deliver wrote with the master it came from (named by its record,
+media/*.<video>, what --final names (an existing video file, relative to the project or to here), every video under out/
+the project names as a deliverable (BRIEF.md's Deliverables line and anywhere in PACKAGING.md: a path from the project, or
+a name directly in out/ or out/final/; like --final, naming one is a film found, so the other renders and old takes can
+then go), and every copy bin/vh deliver wrote with the master it came from (named by its record,
 <copy>.deliver.json, which stays too; a file that is no longer the size or time recorded is said, and kept all the same). Covers and
 out/publish/ stay, but do not count as the film. A project with no film found keeps its videos and its sound: name the
 film with --final. --keep protects a path, also inside a folder that would otherwise go (the folder is then cleared item
@@ -143,8 +144,9 @@ def find_film(root, finals):
 
 
 def named_deliverables(root):
-    """The videos the project itself names as what it delivers: on BRIEF.md's Deliverables line, anywhere in PACKAGING.md
-    (not its comments), as a path from the project or a name directly in out/ or out/final/."""
+    """The videos under out/ the project itself names as what it delivers: on BRIEF.md's Deliverables line, anywhere in
+    PACKAGING.md (not its comments), as a path from the project or a name directly in out/ or out/final/. Only under out/:
+    clean never touches a video elsewhere, and a source a page mentions (footage/raw.mp4) is no film found."""
     said = []
     try:
         said += re.findall(r"^\s*[-*]?\s*Deliverables\s*[:：](.*)$", (root / "BRIEF.md").read_text(encoding="utf-8", errors="ignore"), flags=re.M)
@@ -159,7 +161,7 @@ def named_deliverables(root):
         for base in (root, root / "out", root / "out" / "final"):
             q = os.path.normpath(base / name)
             rel = Path(os.path.relpath(q, root))
-            if Path(q).is_file() and not str(rel).startswith(".."):
+            if Path(q).is_file() and low(rel)[0] == "out":
                 if rel not in got: got.append(rel)
                 break
     return got
@@ -178,8 +180,10 @@ def on_ledger(root):
     for e in ents:
         r = e["record"]
         path = r.get("path")
-        if "removed" not in r and isinstance(path, str) and path and not os.path.isabs(path) and not str(path).startswith(".."):
-            got.append(Path(path.rstrip("/")))
+        if "removed" not in r and isinstance(path, str) and not os.path.isabs(path):
+            p = Path(path.rstrip("/"))
+            if p.parts and ".." not in p.parts:   # not "." or "./": it would keep the whole project
+                got.append(p)
     return got
 
 

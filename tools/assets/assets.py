@@ -43,10 +43,11 @@ usage: bin/vh assets [list] <project|ledger> [--json] [--all]
   credits  text to paste where viewers read it: the credit lines a licence requires (the BY family, an agreement's, every
            record's attribution), the courtesy ones (public domain), and a sentence on the AI-generated content with what
            it covers; to stdout, or --out a file. What is for the publisher and not for viewers (turn on the platform's
-           AI-content declaration; the lines merged; the records left out) goes to stderr. One line a source: records with
-           the same line, or from the same page, author and licence, or made from one record (derived_from) are one line,
-           the first's (the original's, when it is among them), and a different line dropped that way is said on stderr, in case that
-           source asks for its own wording per file. --film <video>: only what that film used, as check --film reads it: the files its page
+           AI-content declaration; the lines merged; the records left out) goes to stderr. Records become one line only when no
+           words a licence asks for are lost: the same words (punctuation aside), or, from one source (the same page, author and
+           licence, or made from one record: derived_from), one line's words inside the other's. The longer stays, or the
+           original's line when the other is made from it, and what was dropped is said on stderr. Lines that differ otherwise
+           (another title, another licence version, another author) stay apart. --film <video>: only what that film used, as check --film reads it: the files its page
            loaded, any mix's inputs, what those were made from; a data or other file (a table, a paper) stays, since a
            film can use one without loading it. A picture or a sound baked into something on no record is left out too:
            read the list. --lang: zh or en (default: the BRIEF's Language)
@@ -437,8 +438,8 @@ def lang_of(project):
 
 
 def source_key(r, live):
-    """What makes two records one source: the page the original came from, its author and licence, or that original itself
-    (up derived_from) when it has no page. None: nothing says, only the same line makes them one."""
+    """What makes two records one source: the page the original came from, its author and licence class, or that original
+    itself (up derived_from) when it has no page. None: nothing says."""
     root, seen = r, set()
     while root.get("derived_from") in live and root.get("id") not in seen:
         seen.add(root.get("id"))
@@ -449,19 +450,27 @@ def source_key(r, live):
     return ("original", root.get("id")) if root is not r else None
 
 
+def inside(short, long):
+    return bool(short) and any(long[i:i + len(short)] == short for i in range(len(long) - len(short) + 1))
+
+
 def one_line_a_source(lines, r, line, live):
-    """Put a record's line into lines: on the line of its source when there is one, its own otherwise."""
-    key = source_key(r, live)
+    """Put a record's line into lines, on another line only when no words a licence asks for are lost: the same words, or,
+    from one source, one's words inside the other's. The longer stays; the original's when the other is made from it
+    (the original's credit is what covers it: what goes is only the words on how it was used)."""
+    key, words, derived = source_key(r, live), re.findall(r"[^\W_]+", line.casefold()), bool(r.get("derived_from"))
     for x in lines:
-        if x["line"] == line or (key and x["_key"] == key):
+        same_source = key and x["_key"] == key
+        if words == x["_words"] or (same_source and (inside(words, x["_words"]) or inside(x["_words"], words))):
             x["ids"].append(r.get("id"))
-            if not r.get("derived_from") and x["_derived"]:   # the original's own line says it best
+            take = words != x["_words"] and (x["_derived"] and not derived or (x["_derived"] == derived and len(words) > len(x["_words"])))
+            if take:
                 x["merged"].append(x["line"])
-                x["id"], x["line"], x["_derived"] = r.get("id"), line, False
+                x["id"], x["line"], x["_words"], x["_derived"] = r.get("id"), line, words, derived
             elif x["line"] != line and line not in x["merged"]:
                 x["merged"].append(line)
             return
-    lines.append({"id": r.get("id"), "ids": [r.get("id")], "line": line, "merged": [], "_key": key, "_derived": bool(r.get("derived_from"))})
+    lines.append({"id": r.get("id"), "ids": [r.get("id")], "line": line, "merged": [], "_key": key, "_words": words, "_derived": derived})
 
 
 def credits(project, lang=None, said=None, used=None):

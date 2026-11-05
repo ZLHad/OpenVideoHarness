@@ -16,8 +16,8 @@ X weighs a Chinese character as 2). The limits (LIMITS below) are in playbook/10
 were checked; where a platform's limit is not known, only the counts are printed. A limit nobody could find a source for
 ("unverified") is said with a !, and does not count as over.
 Two reminders, neither counting as over: a tag with a space on a platform whose topics stop at a space (抖音, 小红书, 视频号), and,
-in a project, the numbers on the "AI 生成内容" line against bin/vh assets credits (all the records, or what the newest
-films used, either will do).
+in a project, the numbers on the "AI 生成内容" line against bin/vh assets credits (only the kinds the line gives a number
+for; all the records, or what the newest films used, either will do).
 Exit: 0 every field within its limit (or nothing to check) · 1 a field over its limit · 2 no such file.
 """
 import json, re, sys, unicodedata
@@ -199,7 +199,7 @@ def ai_said(text):
     """{kind: count} from the numbers on PACKAGING.md's "AI 生成内容" line (图片 22 件，旁白 14 段), and that line."""
     m = re.search(r"^\s*[-*]?\s*AI 生成内容\s*[：:](.*)$", re.sub(r"<!--.*?-->", "", text, flags=re.S), flags=re.M)
     said = {}
-    for word, n in re.findall(r"(图片|视频|声音|旁白|配音|配乐|音乐|音效|图)\s*(\d+)\s*(?:件|段|张|条|个|支)", m.group(1) if m else ""):
+    for word, n in re.findall(r"(图片|视频|声音|旁白|配音|配乐|音乐|音效|图)\s*(\d+)(?![0-9A-Za-z.])", m.group(1) if m else ""):
         said[AI_WORDS[word]] = said.get(AI_WORDS[word], 0) + int(n)
     return said
 
@@ -221,7 +221,7 @@ def ai_check(path, text):
         counted = [everything, A.credits(project, used=used)["aigc"]["kinds"]] if used["films"] else [everything]
     except Exception:   # a reminder: a ledger that cannot be read is for bin/vh assets check to say
         return None
-    if said in counted:
+    if any(all(c.get(k, 0) == n for k, n in said.items()) for c in counted):
         return None
     return f"  ! AI 生成内容 in {Path(path).name} says {said}, bin/vh assets credits says {everything}: copy the numbers from it"
 
@@ -242,10 +242,17 @@ def main():
     ai = ai_check(p, text)
     if ai:
         print(ai)
+    over, rec, notes = 0, [], [ai.strip(" !")] if ai else []
+    def record():
+        if not jpath:
+            return
+        try: Path(jpath).write_text(json.dumps({"file": str(p), "fields": rec, "notes": notes}, ensure_ascii=False), encoding="utf-8")
+        except OSError as e: print(f"packcheck: could not write {jpath} ({e.strerror or e})", file=sys.stderr)
     if not any(got.values()):
         print(f"packaging: {p.name} has no 发布文案 to measure (## 发布文案, a ### heading per platform: templates/PACKAGING.md)")
+        if notes:
+            record()
         sys.exit(0)
-    over, rec, notes = 0, [], [ai.strip(" !")] if ai else []
     for head, fields in got.items():
         if not fields:
             continue
@@ -274,9 +281,7 @@ def main():
             print(f"  ! {notes[-1]}")
     if over:
         print("  over a limit: shorten it there, or move the long part (credits, sources) to a pinned comment; the upload page has the last word")
-    if jpath:
-        try: Path(jpath).write_text(json.dumps({"file": str(p), "fields": rec, "notes": notes}, ensure_ascii=False), encoding="utf-8")
-        except OSError as e: print(f"packcheck: could not write {jpath} ({e.strerror or e})", file=sys.stderr)
+    record()
     sys.exit(1 if over else 0)
 
 
