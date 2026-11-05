@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**Narration: sentence-to-sentence pitch and loudness**
+- Why: `--candidates` picks by block, not by sentence. On that film questions and short lines read up to 9.57 semitones and 3.65 dB off their neighbours, and the user heard it.
+- `tools/audio/README.md`, 整段合成: how it was measured, why the other candidates come first (44 sentences changed, 12 new requests), a gain per sentence, and where a splice goes when two sentences have no silence between them. `playbook/04` points there.
+
 **Reviewers read numbers on stopped frames; two false alarms and how to judge them**
 - Why: on that film a reviewer reported a chart's value as wrong from a frame mid-animation, and two checks raised an alarm that a look at the frames settled.
 - `playbook/02-verification.md`: layer 5 says to read a number after the animation stops. 已知的坑: `textcheck` on a sentence drawn in pieces or copies, and `check --against` on fine detail that resolves at 4K and blurs at 1080p, each with what to look at.
