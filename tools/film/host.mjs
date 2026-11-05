@@ -93,20 +93,52 @@ function serve(root, pageUrl, pageFile, inject, extra, served, sent = new Map())
 
 // A lost GPU empties every canvas on the page, the ones a page keeps its textures in too, and no error says so: the page
 // only gets an event. Chrome's GPU process died this way in 1-2% of first frames with two browsers on a GitHub macOS
-// runner (2026-11), and the capture came out blank. So the page's contexts are counted (before its own scripts), and a
-// picture counts only from a page that never lost one: a frame is a function of t, so a fresh page draws the same one.
+// runner (2026-11), and the capture came out blank. So the page's contexts are counted (before its own scripts, in one
+// count for a page and its frames), and a picture counts only from a page that never lost one: a frame is a function of
+// t, so a fresh page draws the same one. Not counted, since the GPU is fine: a WebGL context the page ended itself
+// (WEBGL_lose_context, as three's forceContextLoss() when a film drops a 3D world), the oldest one, which the browser ends
+// as a new one goes past its limit (lost during that getContext call), and a 2D canvas too large to exist.
+// Not seen here: a Web Worker's OffscreenCanvas, WebGPU, a frame from another origin.
 const WATCH_CONTEXTS = `(() => {
-  let lost = 0; const seen = new WeakSet();
+  let up = null; try { up = window.top.filmHost; } catch { /* a frame from another origin */ }
+  const W = (up && up.contextWatch) || { lost: 0, ended: new WeakSet(), webgl: new Set() };
+  window.filmHost.contextWatch = W;
+  window.filmHost.contextsLost = () => W.lost;
+  const wrapped = new WeakSet();
+  for (const G of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) {
+    if (!G) continue;
+    const real = G.prototype.getExtension;
+    G.prototype.getExtension = function (name) {
+      const ext = real.call(this, name), gl = this;
+      if (ext && /^webgl_lose_context$/i.test(name) && !wrapped.has(ext)) {
+        wrapped.add(ext);
+        const lose = ext.loseContext;
+        ext.loseContext = function () { if (!gl.isContextLost()) W.ended.add(gl.canvas); return lose.call(this); };
+      }
+      return ext;
+    };
+  }
+  const seen = new WeakSet();
   for (const C of [window.HTMLCanvasElement, window.OffscreenCanvas]) {
     if (!C) continue;
     const real = C.prototype.getContext;
     C.prototype.getContext = function (...a) {
+      const webgl = /webgl/i.test(a[0]) && !seen.has(this);
+      const alive = webgl ? [...W.webgl].filter((r) => { const g = r.deref(); if (!g) W.webgl.delete(r); return g && !g.isContextLost(); }) : [];
       const got = real.apply(this, a);
-      if (got && !seen.has(this)) { seen.add(this); for (const e of ["contextlost", "webglcontextlost"]) this.addEventListener(e, () => { lost++; }); }
+      if (!got || seen.has(this)) return got;
+      seen.add(this);
+      this.addEventListener("contextlost", () => { if (this.width <= 65535 && this.height <= 65535 && this.width * this.height <= 268435456) W.lost++; });
+      if (webgl) {
+        for (const r of alive) { const g = r.deref(); if (g && g.isContextLost()) { W.ended.add(g.canvas); W.webgl.delete(r); } }
+        const mine = new WeakRef(got);
+        W.webgl.add(mine);
+        this.addEventListener("webglcontextlost", () => { W.webgl.delete(mine); if (!W.ended.delete(this)) W.lost++; });
+        this.addEventListener("webglcontextrestored", () => { W.webgl.add(mine); });
+      }
       return got;
     };
   }
-  window.filmHost.contextsLost = () => lost;
 })();`;
 const CONTEXT_RELOADS = 3;
 
@@ -127,6 +159,7 @@ export async function openFilm(target, o = {}) {
   const pageUrl = inRoot ? pageRel : `__vh/page/${pageRel}`;
   const info = readPage(page);
   let width = o.width || info.width, height = o.height || info.height;
+  const firstSize = [width, height];
   const useRuntime = info.hyperframes && (o.runtime === "on" || (o.runtime !== "off" && !info.ownContract));
   const extra = {}, scripts = [];
   if (useRuntime) {
@@ -141,6 +174,8 @@ export async function openFilm(target, o = {}) {
     : process.platform === "darwin" ? ["--use-angle=metal", "--ignore-gpu-blocklist"] : ["--ignore-gpu-blocklist"];
   if (process.platform === "linux") flags.push("--no-sandbox", "--disable-dev-shm-usage");
   flags.push("--font-render-hinting=none");   // as HyperFrames renders: glyph edges otherwise differ from its frames
+  // after 3 GPU process crashes Chrome goes on without WebGL, with no event to say so; it takes both to keep it
+  flags.push("--disable-gpu-process-crash-limit", "--disable-domain-blocking-for-3d-apis");
   let browser;
   try { browser = await launch(o.browser, flags); } catch (e) { await server.close(); throw new HostError(`could not start ${o.browser}: ${e.message}`); }
   const closeAll = async () => { try { await browser.close(); } catch { /* gone */ } await server.close(); };
@@ -224,20 +259,31 @@ export async function openFilm(target, o = {}) {
     let params;
     const setParams = (p) => { params = p; return ev(`(() => { window.filmHost.params = ${JSON.stringify(p)}; return true; })()`, "setting the page's params"); };
     let film;
-    // take a picture; asked after it, since the GPU can go while the capture waits. Lost: the page again, then the picture again
+    // take a picture; asked after it, since the GPU can go while the capture waits, and also when it failed, since a page
+    // can throw on a context that is gone. Lost: the page again, as it first loaded, then the picture again
     const intact = async (what, take) => {
       for (let n = 0; ; n++) {
-        const got = await take();
-        if (!(await ev("(() => { const H = window.filmHost; return H && H.contextsLost ? H.contextsLost() : 0; })()", "reading the page's lost contexts"))) return got;
+        const said = problems.length;
+        let got, failed = null;
+        try { got = await take(); } catch (e) { failed = e; }
+        let lost;
+        try { lost = await ev("(() => { const H = window.filmHost; return H && H.contextsLost ? H.contextsLost() : 0; })()", "reading the page's lost contexts"); }
+        catch (e) { throw failed || e; }
+        if (!lost) { if (failed) throw failed; return got; }
         if (n === CONTEXT_RELOADS) {
           throw new HostError(`${pageRel}: the page's canvases lost their contexts ${n + 1} times in a row at ${what}, so the picture cannot be trusted. ` +
-            "The GPU keeps going (close what else is drawing on it, or use --soft-gl), or the page loses them itself (more than 16 WebGL contexts, WEBGL_lose_context)");
+            "The GPU keeps going: close what else is drawing on it, or use --soft-gl");
         }
         console.error(`${pageRel}: the GPU took the page's canvases at ${what}: loading the page again and drawing it again`);
         if (o.beforeReload) await o.beforeReload(film);
-        const said = problems.length;
+        if (firstSize[0] !== width || firstSize[1] !== height) await metrics(...firstSize);
+        // what the page said on the way to the loss goes with that picture, and is shown; beforeReload's DevTools reads are noise
+        const dropped = problems.splice(said).filter((p) => !p.startsWith("failed to load ?:"));
+        if (dropped.length) console.error(`${pageRel}: on the way to that loss the page said (not counted): ${dropped.slice(0, 3).join(" | ")}`);
         await load();
-        problems.push(...problems.splice(said).filter((p) => !loadProblems.includes(p)));   // what it says on every load is said once
+        if (firstSize[0] !== width || firstSize[1] !== height) await metrics(width, height);
+        // what it says on every load is said once; "?": a request of the page before, its stylesheet fetched again by CSS.enable
+        problems.push(...problems.splice(said).filter((p) => !loadProblems.includes(p) && !p.startsWith("failed to load ?:")));
         if (params !== undefined) await setParams(params);
       }
     };
@@ -257,7 +303,7 @@ export async function openFilm(target, o = {}) {
       // the page draws the cover with a title laid out for that ratio and returns the crop of its frame ({ crop: [x, y, w,
       // h], size: [w, h] }, engines/CONTRACT.md), captured at size x o.dpr px. o.capture: the screenshot's format, or
       // false to draw only. → { png, touched, reply (what cover() returned), width, height }
-      cover: (id, t, c = {}) => intact(`cover ${id}`, async () => {
+      cover: (id, t, c = {}) => (c.capture === false ? (f) => f() : (f) => intact(`cover ${id}`, f))(async () => {
         const opts = {};
         if (c.title === false) opts.title = false;
         if (c.ratio) opts.ratio = c.ratio;
