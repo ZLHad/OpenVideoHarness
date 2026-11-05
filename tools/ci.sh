@@ -1258,6 +1258,23 @@ PY
     && printf '%s' "$a" | grep -q 'deliver.json stays, and what it names): out/upload.mp4' && ! printf '%s' "$a" | grep -Eq '^ +[0-9.]+ [KMG]?B  out/upload.mp4$'
   then ok "clean: an unreadable delivery record still keeps the copy its name names"
   else bad "clean with a broken delivery record (rc $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  # a video the project names as a deliverable (PACKAGING.md, BRIEF's Deliverables) is the film, not a render; a comment names
+  # nothing; a file on the asset ledger stays; a folder of the project's own in out/ is listed with what would go and stay
+  c="$t/clnamed"; mkdir -p "$c/out/ch01" "$c/out/samples" "$c/out/review" "$c/assets"; printf -- '- Deliverables: film-4k.mp4, cover\n' > "$c/BRIEF.md"
+  printf '%s\n' '<!-- not this: `out/draft.mp4` -->' '| 抖音 | `out/film-1080p.mp4`（2 GB） |' > "$c/PACKAGING.md"
+  for f in out/film-1080p.mp4 out/film-4k.mp4 out/draft.mp4 out/ch01/ch01.mp4 out/ch01/sheet.png out/samples/keep.mp4; do printf x > "$c/$f"; done
+  vh assets add "$c" out/samples/keep.mp4 --class own --origin self >"$t/clnamed.txt" 2>&1; b=$(cat "$t/clnamed.txt")
+  a=$(vh clean "$c" 2>&1); rc=$?
+  d=$(OVH_TRASH_DIR="$t/home/trash6" vh clean "$c" --yes 2>&1); rc2=$?
+  left=$(cd "$c/out" && find . -type f | sed 's|^\./||' | LC_ALL=C sort | tr '\n' ' ')
+  case "$b" in *"it is under out/"*) e=1 ;; *) e=0 ;; esac
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ "$e" = 1 ] && [ "$left" = "ch01/sheet.png film-1080p.mp4 film-4k.mp4 samples/keep.mp4 " ] \
+    && printf '%s' "$a" | grep -q "named as deliverables (BRIEF.md's Deliverables, PACKAGING.md): out/film-4k.mp4, out/film-1080p.mp4" \
+    && printf '%s' "$a" | grep -q 'on the asset ledger, stays (better under assets/): out/samples/keep.mp4' \
+    && printf '%s' "$a" | grep -q "not known to clean" && printf '%s' "$a" | grep -Eq 'out/ch01/ .* would go, .* would stay' \
+    && printf '%s' "$d" | grep -q 'then bin/vh assets check' && vh assets check "$c" >/dev/null 2>&1
+  then ok "clean: a video the project names as a deliverable and a file on the ledger stay; a folder of its own is listed; it says to run assets check. assets add warns about out/"
+  else bad "clean on named deliverables (rc $rc / $rc2, left: $left): $(printf '%s' "$a$b$d" | tail -c 900)"; fi
   # spec: the file against the BRIEF's Output and Resolution lines (python3 only)
   mkdir -p "$t/sp/out"
   sp() { ffmpeg -nostdin -v error -f lavfi -i "color=c=0x202020:s=${1}:r=${2}:d=${5:-1},${3}" -pix_fmt yuv420p "$t/sp/out/$4.mp4"; }

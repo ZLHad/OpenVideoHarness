@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`bin/vh clean`: what the project names as deliverables stays, and its own folders are listed; `assets add` warns about `out/`**
+- Why: a project's 1080p was listed as a render not the film, and a ledger path under `out/` turned `assets check` from pass to fail after a clean-up by hand (the same film, 2026-11; an earlier one too). Tried on a temporary project: once a film is found, every video under `out/` goes unless it is named, so `out/film-1080p.mp4` went to the Trash, and `out/ch01`-style folders lost their videos with the other files staying, unsaid.
+- A video on BRIEF.md's Deliverables line or anywhere in PACKAGING.md (not its comments) counts as the film. Files on the asset ledger stay. Nothing else about what goes changes.
+- A folder directly in `out/` that clean has no word for is listed with what would go and what would stay; under the renders, a line says how to keep a deliverable; after clearing, it says to run `bin/vh assets check`.
+- `bin/vh assets add` warns when the path is under `out/`.
+
 **`tools/packcheck.py`: `AI for Science` is one tag, and the AI count is compared**
 - Why: on the same film it counted that tag as three, said nothing about a topic with a space, and nobody noticed the AI count written by hand had gone stale (19 against 22).
 - Tags split at commas and 、 only; a `#` after a space still starts a new one. A topic with a space is said for 抖音, 小红书 and 视频号, where it stops at the space (seen by the maintainer publishing; no official page).

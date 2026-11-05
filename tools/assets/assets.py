@@ -270,6 +270,8 @@ def cmd_add(a):
         + (" · AIGC" if rec.get("aigc") else "") + (f" · {budget.money(pay['amount'], pay['currency'])} spent" if pay else ""))
     if os.path.isabs(rec["path"]):
         say("  ! it is outside the project: a page cannot load it (copy it under assets/ and register the copy)")
+    elif rec["path"].split("/")[0].casefold() == "out":
+        say("  ! it is under out/, which gets cleared (bin/vh clean, or by hand), and bin/vh assets check then fails on it: copy it under assets/ and register the copy")
     if licenses.risks(cls):
         say(f"  ! {', '.join(licenses.RISK_WORDS[k] for k in licenses.risks(cls))}: "
             + ("Assets: strict does not take it (bin/vh assets check fails on it)" if not licenses.accepted(cls, policy) else "listed by bin/vh assets check (Assets: record)"))
