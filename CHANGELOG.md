@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**canvas-film docs: pixel-sized things in the 3D layer at 4K, and text under the size floor**
+- Why: one film made two opposite mistakes in its 3D layer, stars half the size and a beam twice as wide, both only at 4K. And text written small is drawn at the floor with no warning unless it says `texture: true`.
+- `engines/canvas-film/README.md`, the Three.js layer: the canvas is physical pixels, so `gl_PointSize` and line widths are multiplied by `renderer.domElement.width / W`, and quantities already in picture units are not. Sample a few frames at `--dpr 2` before the 4K, and run `bin/vh check <4K> --against <1080p>` after it.
+- The same file, 字: small navigation text a person has allowed needs `texture: true` too.
+
 **`bin/vh image gen --provider codex --ref` sends the picture**
 - Why: it printed "reference picture(s) go to OpenAI (through Codex)", but `codex_picture` had no such argument, so nothing went. A model told to edit failed with "requested the last 1 conversation images, but only 0 were available", and the tool said "codex made no picture".
 - `tools/assets/image.py`: each `--ref` goes with `codex exec -i`, in the order given, and the model is told to edit what is attached. They are copied under plain names first, because `-i` splits a path at its commas and only tells the model about what it cannot read; `-i` also comes after the prompt's `-`, which it would take for a picture. `--dry-run` says how many.
