@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**PACKAGING: a hypothetical in the film is one in the copy too**
+- Why: on that film a title in the first person turned its opening what-if into something that happened to the author. It was caught by hand before publishing.
+- `templates/PACKAGING.md`: one line, under the facts.
+
 **canvas-film: renaming a chapter**
 - Why: on that film a rename touched seven places: three JSON files and four documents.
 - `engines/canvas-film/README.md`: the chapter table is the source; which readers follow it; settle on one copy on the voice's side; the documents by hand; `bin/vh cues --chapters` again; and what it costs when the bar shows every chapter's name.
