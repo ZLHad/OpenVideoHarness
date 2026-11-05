@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**Scoring layer: two questions answered from the frames alone, before scoring**
+- Why: a fresh reviewer who has read the narration and storyboard fills in what a picture means. On that film the author and the reviewer both passed a symbol a viewer asked about at once, and the reviewer only mentioned a detail of the opening the user found empty. What this guards against is that; it adds no score and no pass mark, and the author still decides.
+- `templates/TASTE_CHECKLIST.md`: only the first 3 s, no narration: what happens on screen? Each main shot, no narration or captions: what is it saying? The ones with no answer are listed, and a shot that needs its narration is not thereby wrong.
+- `playbook/02-verification.md`, layer 5: the transcript comes last, and the opening strip is 3 s.
+
 **Gate ② shows the first 5 s and what is on every frame**
 - Why: on the same film the progress bar was settled at gate ③, two versions, 1080p and 4K rendered whole each time, about 2 hours in all; and the opening's lack of anything happening was only noticed on the whole film, when the narration was already locked.
 - `playbook/01-pipeline.md`, gate ②: a strip of the first 5 s (`bin/vh frames <project> --strip 0:5 --fps 6`), and the progress bar, caption style and fonts as they will really look.
