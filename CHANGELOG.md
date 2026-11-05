@@ -2,9 +2,9 @@
 
 ## Unreleased
 
-**A browser that stops answering as it starts is replaced, not waited for**
+**A browser that stops answering as its tab comes up is replaced, not waited for**
 - Why: full Chrome on macOS sometimes stops answering for good as its tab comes up, its main thread blocked in RunningBoard (`rbs_acquire_appnap_assertion`). On an M-series Mac: 6 of 278 launches when two start together, 1 of 518 one at a time, none of 3550 for chrome-headless-shell, which the tools prefer when it is there. A tool with no watchdog of its own, such as `render`'s workers, would have waited for ever.
-- `tools/textcheck/browser.mjs`, `launchTab`: the tab's first commands have 30 s each; no answer, and the browser is killed and another started, 3 tries, then an error. `tools/film/host.mjs` and `tools/textcheck/textcheck.mjs` open their tab through it.
+- `tools/textcheck/browser.mjs`, `launchTab`: the tab's first commands have 30 s each (longer with `OVH_PAGE_TIMEOUT`); no answer, and the browser is killed and another started, 3 tries, then an error. `tools/film/host.mjs` and `tools/textcheck/textcheck.mjs` open their tab through it, and the page's 60 s to load now also covers `Page.navigate`.
 - `tools/ci.sh`: the edit list's check gives each command's own tail, so a failing `determinism` is no longer cut off by the output after it.
 
 **A lost GPU no longer leaves a blank frame: the page is loaded again and the frame drawn again**

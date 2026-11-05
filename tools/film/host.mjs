@@ -210,9 +210,9 @@ export async function openFilm(target, o = {}) {
     const load = async () => {
       const loaded = browser.once("Page.loadEventFired", s);
       loaded.catch(() => { /* a browser that dies first fails it; the race below reports that */ });
-      await browser.send("Page.navigate", { url: server.url + pageUrl.split("/").map(encodeURIComponent).join("/") }, s);
+      const sent = browser.send("Page.navigate", { url: server.url + pageUrl.split("/").map(encodeURIComponent).join("/") }, s);
       let timer;
-      await Promise.race([loaded, new Promise((_, no) => { timer = setTimeout(() => no(new HostError("the page did not load within 60 s")), 60000); })]).finally(() => clearTimeout(timer));
+      await Promise.race([Promise.all([sent, loaded]), new Promise((_, no) => { timer = setTimeout(() => no(new HostError("the page did not load within 60 s")), 60000); })]).finally(() => clearTimeout(timer));
       const found = await bounded(ev(`new Promise((ok) => { const t0 = Date.now(); const look = () => {
         if (window.film && typeof window.film.frame === "function") return ok(window.film.__adapter || "film");
         if (window.__vh && typeof window.__vh.draw === "function") return ok("__vh");

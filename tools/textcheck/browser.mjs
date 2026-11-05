@@ -150,9 +150,10 @@ export async function launch(exe, flags = []) {
 // (rbs_acquire_appnap_assertion). On an M-series Mac in 2026-11: 6 of 278 launches when two start together, 1 of 518 one
 // at a time, none of 3550 for chrome-headless-shell. Then not even a browser-wide command answers, and only a new browser
 // helps. Without a limit here a tool with no watchdog of its own (render's workers) would wait for ever.
-const TAB_ANSWER_S = 30, TAB_TRIES = 3;
+const TAB_TRIES = 3;
 class NoAnswer extends Error {}
 export async function launchTab(exe, flags, domains) {
+  const TAB_ANSWER_S = Math.max(30, Number(process.env.OVH_PAGE_TIMEOUT) || 0);   // a slow machine's way to give it longer, never less
   for (let n = 1; ; n++) {
     const browser = await launch(exe, flags);
     const answer = (method, params, session) => {
