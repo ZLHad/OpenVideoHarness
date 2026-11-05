@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**`bin/vh image gen --provider codex --ref` sends the picture**
+- Why: it printed "reference picture(s) go to OpenAI (through Codex)", but `codex_picture` had no such argument, so nothing went. A model told to edit failed with "requested the last 1 conversation images, but only 0 were available", and the tool said "codex made no picture".
+- `tools/assets/image.py`: each `--ref` goes with `codex exec -i`, in the order given, and the model is told to edit what is attached. They are copied under plain names first, because `-i` splits a path at its commas and only tells the model about what it cannot read; `-i` also comes after the prompt's `-`, which it would take for a picture. `--dry-run` says how many.
+- A corridor relit at night against its reference (codex-cli 0.164.0): no shift, edge correlation 0.51. The same corridor described without `--ref`: 0.07.
+
 **canvas-film docs: flashes shorter than a shot, and writing your own compositing pipeline**
 - Why: an intro needed both and neither was written down. A shot must be at least 0.2 s, and the Three.js layer has no post-processing.
 - `engines/canvas-film/README.md`: several short flashes share one shot and pick the flash by frame number, since `--motion-blur`'s shutter closes only at shot boundaries. The new 自己写合成 section: leave `three` off the shots and use the renderer yourself; render targets sized by `PRX`; linear light; no dither in the alpha; a distance field for lettering, with its normals from a slightly blurred copy.
