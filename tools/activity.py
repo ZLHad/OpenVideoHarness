@@ -26,7 +26,7 @@ Who writes them: bin/vh writes a run's start before the command and its end from
 it starts through the environment (OVH_ACTIVITY_LOG, _RUN, _PID, _T0, _CMD). A tool adds note and progress lines; a tool
 that bin/vh exec'd into (it has the run's pid: render, patch, frames and the other page tools, desk, gate) writes the end
 itself, since no shell is left to do it. Every bin/vh command that works on a project is logged, except the read-only
-views (status, activity, desk data, doctor). Never written: environment variables, keys, file contents.
+views (status, activity, artifacts, desk data, doctor). Never written: environment variables, keys, file contents.
 Safety: a line is one write(2) with O_APPEND, so the lines of commands running at once never interleave: under 1 KiB from
 bin/vh (bash's printf writes a longer line in 1024-byte pieces), under 4 KiB from Python and Node; a line that cannot be
 written is dropped without a word: a command never fails, and never waits, because of its log. Every line is UTF-8: a

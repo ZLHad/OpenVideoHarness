@@ -1,0 +1,44 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/versions.schema.json",
+ "title": "A project's film versions, out/versions/versions.json, version 1",
+ "description": "Every film bin/vh render and patch made in the project, one version each (tools/versions.py; tools/desk/README.md 版本 has every field). A version without an id or a film is dropped when read.",
+ "type": "object",
+ "required": ["version", "versions"],
+ "properties": {
+  "version": {"enum": [1]},
+  "note": {"type": "string"},
+  "next": {"type": "integer"},
+  "versions": {"type": "array", "items": {"$ref": "#/$defs/version"}},
+  "events": {"type": "array", "items": {"type": "object", "required": ["event"], "properties": {"t": {"type": "number"}, "at": {"type": "string"}, "event": {"type": "string"}, "id": {"type": "string"}, "film": {"type": "string"}}}}
+ },
+ "$defs": {
+  "version": {
+   "type": "object",
+   "required": ["id", "film"],
+   "properties": {
+    "id": {"type": "string"},
+    "n": {"type": "integer"},
+    "t": {"type": "number"},
+    "at": {"type": "string"},
+    "film": {"type": "string"},
+    "file": {"type": ["string", "null"]},
+    "sidecar": {"type": ["string", "null"]},
+    "made_by": {"type": "string"},
+    "from": {"type": ["string", "null"]},
+    "note": {"type": ["string", "null"]},
+    "changed": {"type": ["object", "null"]},
+    "size": {"type": ["integer", "null"]},
+    "mtime": {"type": ["number", "null"]},
+    "frames": {"type": ["integer", "null"]},
+    "fps": {"type": ["number", "string", "null"]},
+    "pixels": {"type": ["array", "null"]},
+    "span": {"type": ["array", "null"]},
+    "edit": {"type": ["object", "null"]},
+    "check": {"type": ["string", "null"]},
+    "problems": {"type": ["integer", "null"]},
+    "gone": {"type": ["object", "null"]}
+   }
+  }
+ }
+}

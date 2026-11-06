@@ -498,7 +498,7 @@ const records = asked.map(([a, b]) => { const w = wins.find((x) => a >= x.A && b
   return { frames: [a, b], drawn: [w.A, w.B - 1], at, browser: browserNow, seconds: +secs2.toFixed(1), min_psnr_kept: minKept === Infinity ? "inf" : minKept }; });
 const sideFor = (videoFile) => {   // as bin/vh render writes it: the page relative to the video's folder when that is inside the page's
   const dir = fs.realpathSync(path.dirname(videoFile)), real = fs.realpathSync(page), root = path.dirname(real);
-  const s = { ...side, page: (dir + path.sep).startsWith(root + path.sep) ? path.relative(dir, real) : real, patches: [...(side.patches || []), ...records] };
+  const s = { version: 1, ...side, page: (dir + path.sep).startsWith(root + path.sep) ? path.relative(dir, real) : real, patches: [...(side.patches || []), ...records] };
   for (const k of ["shots", "chapters"]) { if (pieceSide && pieceSide[k]) s[k] = pieceSide[k]; }   // the page's as it draws now
   // the film's files and the new frames' (a file drawn again: its bytes now); a film rendered before they were recorded
   // stays without (its few new frames are not the whole film's files: bin/vh assets check counts it as not known)

@@ -59,6 +59,8 @@ projects/2026-10-01-leo-doppler/
 └── out/final.mp4
 ```
 
+每种文件是什么、谁写谁读、什么时候必须有：`bin/vh artifacts spec`；这支片子有什么、缺什么、什么过期了：`bin/vh artifacts list <项目>`。
+
 ## reads：节奏的计量单位
 
 这个概念来自 ClaudeAnimationBase 的 `ANIMATION_GUIDE.md`，是整个流程里最值得掌握的一条。

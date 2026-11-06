@@ -1,0 +1,1 @@
+{"version": 1, "tool": "bin/vh deliver", "output": "film.upload.mp4", "size": 100, "mtime": 1790000000.123, "master": "film.mp4", "master_size": 200, "master_mtime": 1790000000.5, "args": ["out/film.mp4", "--for", "douyin"], "time": "2026-10-19T12:00:00+0800", "assets": {"records": 3, "credits": 1, "aigc": 0, "uncleared": 0, "check": {"verdict": "pass", "fail": 0, "warn": 1}}}

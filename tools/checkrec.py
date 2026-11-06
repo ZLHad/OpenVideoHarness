@@ -21,7 +21,8 @@ A finding: {"kind", "severity", "message", "t", "t1", "frame", "frames", "eviden
   kind      check.spec, check.gate, check.black, check.freeze, check.silence, check.iso (an isolated frame), check.periodic,
             check.static, check.cut (a hard cut from dark to bright), check.fade (a fade still under way at the last frame),
             check.blind (frames that move too much to judge),
-            check.subtitles, check.colour, check.loudness (the film's sound against what it was mixed to), check.packaging,
+            check.subtitles, check.captions (the captions older than the timeline they were timed from), check.colour,
+            check.loudness (the film's sound against what it was mixed to), check.packaging,
             check.scale, check.confirmed (an entry of confirmed.json unused, lapsed or not taken), check.slate (an edit
             list's entry with no source yet, left in the film), check.edit (an image the film was drawn from that changed
             since). The names are confirmed.json's ("tool": "check.iso")
@@ -34,7 +35,7 @@ A finding: {"kind", "severity", "message", "t", "t1", "frame", "frames", "eviden
   entry     an edit list's film (engines/EDIT.md): the entry a finding with a time falls in, {"id", "kind", "src"}
 The pieces in --dir, each optional (a check that did not run is "skipped" or simply absent): spec.json (speccheck.py),
 gate.json (gatecheck.py), detect.txt (ffmpeg's black/freeze/silence lines), iso.json (isoframes.py), subs.json
-(subcheck.py), colour.txt (ffprobe's csv), film.txt ("<size> <mtime_ns>" of the video when the checks began; without it, the
+(subcheck.py), captions.json (audio/capstate.py), colour.txt (ffprobe's csv), film.txt ("<size> <mtime_ns>" of the video when the checks began; without it, the
 video as it is when the record is made), pack.json (packcheck.py), scale.json (scalecheck.py), edit.json (tools/edit.py _film:
 an edit list's film, its entries, slates and changed images), skipped.txt (lines of "<check>\t<why>"), errors.txt (lines of
 "<kind>\t<severity>\t<message>": a failure with no result of its own).
@@ -193,6 +194,13 @@ def subs_findings(sb):
     return out
 
 
+def captions_findings(cs):
+    """The captions older than the timeline they were timed from (tools/audio/capstate.py): said, the film may not burn them in."""
+    if cs.get("state") != "stale":
+        return []
+    return [finding("check.captions", "warn", f"captions: {cs.get('why')}", evidence={"timeline": cs.get("timeline")})]
+
+
 def colour_findings(csv):
     v = (csv or "").strip()
     if not v:
@@ -294,7 +302,7 @@ def main():
     shown = lambda p: os.path.relpath(p, project) if project and os.path.commonpath([str(p), str(project)]) == str(project) else str(p)   # noqa: E731
     findings, skipped = [], []
     pieces = [("spec.json", spec_findings, load), ("gate.json", gate_findings, load), ("detect.txt", detect_findings, text),
-              ("iso.json", iso_findings, load), ("subs.json", subs_findings, load), ("colour.txt", colour_findings, text), ("loud.json", loud_findings, load),
+              ("iso.json", iso_findings, load), ("subs.json", subs_findings, load), ("captions.json", captions_findings, load), ("colour.txt", colour_findings, text), ("loud.json", loud_findings, load),
               ("pack.json", pack_findings, load), ("scale.json", scale_findings, load), ("edit.json", edit_findings, load)]
     for name, fn, get in pieces:
         try:
@@ -303,6 +311,9 @@ def main():
                 findings += fn(got)
         except Exception as e:   # one piece that cannot be read must not lose the others
             skipped.append({"check": name.split(".")[0], "why": f"its result could not be read ({type(e).__name__}: {e})"})
+    caps = load(a.dir, "captions.json")
+    if isinstance(caps, dict) and caps.get("state") == "not_checked":   # captions made before they recorded their timeline
+        skipped.append({"check": "captions", "why": str(caps.get("why"))})
     for line in (text(a.dir, "skipped.txt") or "").splitlines():
         if "\t" in line:
             c, why = line.split("\t", 1)

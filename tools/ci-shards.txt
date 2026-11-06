@@ -23,6 +23,7 @@ looks_checks 17
 activity_checks 6
 status_checks 6
 know_checks 6
+artifacts_checks 12
 assets_checks 108
 concept_checks 16
 hf_checks 2

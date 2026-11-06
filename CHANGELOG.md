@@ -2,6 +2,46 @@
 
 ## Unreleased
 
+**The docs point to the table**
+- Why: the table is only used if the places people look at say it is there; and the BRIEF's many `{…}` never said which ones a tool reads.
+- `playbook/01`'s 项目目录约定: one line to `bin/vh artifacts spec` and `list`. `tools/desk/README.md`: a short section for clients. `CONTRIBUTING.md`: a new kind of file gets an entry, and a schema when tools rely on its shape. The READMEs: one row in the tools table.
+- `templates/BRIEF.md`'s first comment says which Spec lines tools read, from the code: Effort, Director, Budget, Assets, Output, Watch on, Pace, Resolution and Review language. `bin/vh artifacts list` reports only Output's frame size and fps (`bin/vh check`, `bin/vh edit init`) and Resolution (`bin/vh check`) as required blanks. A comment: the blanks themselves are unchanged.
+
+**`tools/ci.sh` holds the table to the code: a new kind of file cannot be added silently**
+- Why: a table of files is only worth trusting if it fails when the code moves away from it.
+- `bin/vh artifacts check`, in the `artifacts_checks` group: every writer and reader is a real command (or `page`); every schema file exists and every schema has an entry; `clean` agrees with what `tools/clean.py --dry-run` does on a temporary tree of made-up files, one for each path of the table; each `<project>/…` path in `tools/commands.json`'s `writes` and `reads` matches an entry that lists that command, or `ignored_writes` with a reason. `bin/vh clean` itself is unchanged.
+- The group also breaks the table in each of those ways and expects the check to say so, runs `spec`, and `list` on a new project (the same bytes after it, nothing in the activity log) and on records written by hand, each up to date, out of date with why, and not checked.
+- The check also goes the other way: each writer an entry lists must have a `writes` line in `tools/commands.json` that names the entry's path (or its file name, where the line is free text), so a writer changed to another command, or dropped, fails; for a file the most specific entry must list the command (`gate-<n>` is made up as `gate-1`, `2`, `3` and `x1`, so `gate-1`..`3` are no longer covered by `gate-other`). What the free text cannot say is an explicit list in `tools/artifacts.py` (`NOT_SAID`): one line, for lock files, with why; a line nothing needs fails. It found and fixed: `audio/script.txt` listed `tts` as writer (it only reads it), and `commands.json`'s `writes` of `new`, `render`, `patch`, `mux`, `versions`, `clean`, `deliver`, `pace`, `captions`, `mix`, `music`, `desk`, `gate`, `scout` and `breakdown` now name what they write. `locks` is one entry a lock (`ledger-lock`, `spend-lock`, `refs-lock`, `versions-lock`, `consumed-lock`, `mix-lock`), each with the commands that hold it; `activity-log` lists `*`: every command that works on a project but the read-only views.
+
+**Captions say when they are older than their timeline**
+- Why: cues and mixes tell when the narration under them changed; captions did not. After a new take, `captions.json` went on holding the old take's times without a word.
+- `bin/vh captions` records the timeline it read and that file's sha256 in `audio/captions.args.json` (with `"version": 1`; `bin/vh pace` reads the same file by name, as before). `captions.json` keeps its shape, since pages read it.
+- A timeline that is there and cannot be read leaves the captions "not checked" instead of raising.
+- `bin/vh artifacts list` and `bin/vh check` compare it with the file now (`tools/audio/capstate.py`): out of date, with which file changed; a new finding `check.captions` (a warning, with `bin/vh captions` and `readcheck` as ways out in `tools/remedies.json`). Captions from before this record are "not checked".
+
+**`.render.json` and `.deliver.json` say their version; which file spells it how is written down**
+- Why: two records every delivery rests on had no version at all, and `tools/desk/README.md` said every JSON has `"version": 1` while half of them spell it `v`.
+- `bin/vh render`, `bin/vh patch` and `bin/vh deliver` write `"version": 1`. Their readers go by named fields, and the records written before stay as they are. No `v` is renamed.
+- `tools/desk/README.md` lists both spellings and which file uses which; `bin/vh artifacts spec --json` has it per kind (`version_key`). `CONTRIBUTING.md`: new files use `version`.
+- `tools/ci.sh`: a real render's and a real delivery's record are version 1 and fit their schemas.
+
+**`tools/schemas/`: the shape of the files tools and clients rely on**
+- Why: gate JSON, `shots.json`, the timeline and the other files everything reads had their fields only in docstrings and in what each reader tolerates.
+- A schema each for gate JSON, `shots.json`, `edit.json`, the narration timeline, events, `captions.json`, `.render.json`, `.deliver.json`, `versions.json` and one line of `.ovh/activity.jsonl`, derived from what the code reads and writes. Permissive on purpose: required fields and types are pinned, extra fields allowed, since fields are only ever added. Every such file of 15 real projects fits.
+- `tools/schemalite.py`: a small stdlib validator (`type`, `required`, `properties`, `items` as one schema, `enum`, `anyOf`, internal `$ref`; a list-form `items` counts as a keyword it does not read), so `bin/vh artifacts list` can report each file's result; the ledger and `research/refs.json` go through the ledger's own validator.
+- `tools/ci.sh`, new `artifacts_checks` group: the real `jsonschema` (through `uv`) checks each schema is valid and agrees with `schemalite` on the good and bad fixtures in `tools/schemas/fixtures/` and on each keyword against values of every kind.
+
+**`bin/vh artifacts`: what this project has, what is missing, what is out of date**
+- Why: an agent picking a project up, and later a client, had `bin/vh status` for where it stands and nothing for its files.
+- `bin/vh artifacts spec [--stage S] [--json]`: the table of `tools/artifacts.json`. `bin/vh artifacts list <project> [--stage S] [--json]`: per kind, the paths found, the version each says, whether it is out of date and why, the `{…}` left in markdown and gate JSON, and what is required by now and missing. It only reads, and is not logged: about 0.2 s on a project of 1.8 GB.
+- `bin/vh artifacts list --strict` exits 1 when anything is missing by now, has a schema problem or is out of date (not checked is none of these); without it the exit is 0 as before. A folder with no `BRIEF.md` but a path of the table (`audio/`, `out/`, `edit.json`) is listed, with the BRIEF as the one missing item; one with none is still exit 2. A stop already decided in `REVIEW.md` or with a page in `out/review/` needs no gate JSON, so a project from before `bin/vh gate` wrote one is not told it is missing.
+- Out of date comes from what each record already keeps, through the code that keeps it: `tools/audio/mixstate.py` for a mix, the check record's `film_changed`, the sha256 values of a `.render.json`'s `files` and of `out/cues.json`, `bin/vh clean`'s reading of a `.deliver.json`, a proxy's `source_ident`, `bin/vh versions`' states, `bin/vh cast check`, `bin/vh assets check`. Where nothing can tell, or telling would mean reading more than 1 GiB, it says "not checked" and why.
+
+**`tools/artifacts.json`: every kind of file a film project holds, in one table**
+- Why: to learn what a file in a project is, who writes it, when it must exist, how it goes out of date and what `bin/vh clean` does with it, an agent or a client had to read the code; the docs each knew a part.
+- One entry a kind, read from the code: `id`, `path` (with `<lang>`, `<n>`, `<id>`, `<film>`, `*`), `kind`, `format`, `stages`, `purpose` (one Chinese line), `made_by`, `writers` and `readers` (`tools/commands.json`'s names, and `page`), `required` (when it must exist), `version_key`, `schema`, `stale` (from what, by what, recorded where), `clean`, `doc`.
+- Where two names mean one thing, the entry says which wins as the code decides: `audio/timeline.<lang>.json` is that language's own, `audio/timeline.json` a copy of the latest `bin/vh tts`.
+
 **What a walkthrough from a one-line request turned up**
 - Why: following the new `CLAUDE.md` from 「做一个 60 秒竖屏短视频，讲清楚为什么天是蓝的」 to gate ① in a temp project worked, with four small snags.
 - `bin/vh know --show "playbook/01-pipeline.md#..规格"`: from the file's start through that section, which is what step 2 asks for.

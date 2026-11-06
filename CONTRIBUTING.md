@@ -30,7 +30,8 @@
 
 - **新命令按阶段或题目成组，不再往顶层加动词。** 一组相关的事做成一条命令带子命令，像 `assets add|list|check`、`scout`、`sfx` / `bgm` 这样；子命令记进表里的 `subcommands`。
 - **新命令的参数只写在 `-h` 和 `--json` 里。** 说明写进表里的 `usage`（`bin/vh <命令> -h` 打印它）或工具自己的 `-h`；机读的输出给 `--json`，字段名写进 `-h`，以后只加不改。README 里每条命令最多一行，说它干什么，不解释参数。
-- **新的状态写进机器可读的文件，项目根目录不再加 markdown。** 给工具读的放 JSON（追加的记录用 JSONL，像 `.ovh/activity.jsonl`），带 `"version": 1`，`bin/vh status --json` 能汇总；人写的想法和决定仍然写在模板现有的那几份 markdown 里。
+- **新的状态写进机器可读的文件，项目根目录不再加 markdown。** 给工具读的放 JSON（追加的记录用 JSONL，像 `.ovh/activity.jsonl`），带 `"version": 1`，`bin/vh status --json` 能汇总；人写的想法和决定仍然写在模板现有的那几份 markdown 里。版本字段新文件一律拼 `version`；已有文件的 `v`（`edit.json`、台账、活动记录这些）不改名。
+- **新的中间文件在 `tools/artifacts.json` 登记一项。** 一支片子里多了一种文件（命令写的，或者工具开始读的），就加一项：路径、谁写谁读、什么时候必须有、怎么判过期（`stale`，判不了就是 `null`）、`bin/vh clean` 怎么处理它。工具和客户端要靠它的形状时，在 `tools/schemas/` 放一份 schema 和好坏两种 fixture，只用 `tools/schemalite.py` 读得懂的关键字；字段只加不改，所以 schema 只钉必需的字段和类型，允许多字段。`bin/vh artifacts check` 查表和命令表、schema、`tools/clean.py` 对得上：`tools/commands.json` 的 `writes`、`reads` 里 `<project>/…` 的路径没有对应的一项，CI 就不过。反过来，一项里列的 writer，在 `tools/commands.json` 里要有一行 `writes` 写到它的路径（自由文本说不清的，在 `tools/artifacts.py` 的 `NOT_SAID` 里写明原因）。
 - **检查给出路。** `bin/vh check` 新报一类问题（checkrec.py 的一种 kind）时，在 `tools/remedies.json` 给它配一两条出路：能解决它的配方筛选、命令或文档的一节。检查只报告，出路只给选项；`tools/remedies.py check` 查每条都真有其物。
 - **外接模块记在 `tools/modules.json`。** 别人在维护、我们只是调用的东西（程序、npm 和 Python 包、模型、联网的服务、agent），在第一次有命令用它的那个 PR 里登记一项：用途；版本（`pin` 钉死的，`min` 最低，`range`，`tested` 测过的，服务写默认模型，按日期发版的工具可以给 `max_age_days`）；许可；要什么账号、key、平台，以及依赖这张表里的哪些模块（`needs`，模块名写在 `programs` 里，只在某个平台能用的再写 `elsewhere`：别处用什么）；适配文件在哪（`adapter`）；哪些命令用它（`commands`）；`bin/vh doctor` 怎么查它（`check`）。联网的服务再给一个不花钱的探测（`probe`，`bin/vh doctor --probe` 调它）。key 只放进 header，不进 URL，不跟着重定向走，只走 https（本机除外），不打印，失败时也只报状态码和错误码。改钉的版本时表里的 `pin` 一起改：HyperFrames 的，CI 拿它和 `bin/vh`、`styles/_swatch/package.json` 对。表本身用 `python3 tools/doctor.py --check` 查。
 
@@ -71,6 +72,7 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 | Python、JS 语法和 pyflakes | 语法错误、未定义的名字 |
 | 文档和命令行一致 | 命令表 `tools/commands.json`、`CLAUDE.md` 的命令行和 `bin/vh` 实际分发的命令对不上；表里缺一句话、阶段或用法，阶段名和 playbook/01 的总表不一致；文档里写了不存在的 `bin/vh` 子命令；`AGENTS.md` 没有同步 |
 | 外接模块表 | `tools/modules.json` 里写了不存在的命令或适配文件、不认识的字段；探测不走 https、把 key 放进 URL；HyperFrames 钉的版本在 `bin/vh`、`styles/_swatch/package.json` 和表里不一样；`bin/vh doctor` 把 key 的值打出来 |
+| 产物表 | `tools/artifacts.json` 写了不存在的命令、文档或 schema；`tools/schemas/` 里有一份 schema 没有项指向它；说 `bin/vh clean` 怎么处理一种文件，和 `tools/clean.py` 在一棵假树上实际做的不一样；`tools/commands.json` 写的项目里的路径，表里没有；schema 和真的 jsonschema、`tools/schemalite.py` 三者在 fixture 上说法不一 |
 | README 和官网的数字和链接 | 两份 README、`docs/assets/overview.*.svg`、`install.sh` 和官网写的命令数、风格数、配方数这类数字和仓库对不上（`python3 tools/readme.py` 列出现在的数）；链接或图片指向不存在的文件，`#锚点` 不是那一页的标题；中英两份 README 的小节数或链接的文件对不上；官网的风格列表不是仓库里的那些风格、中英文段数不一样，或者页面一打开就从别的网站加载字体、脚本、图片 |
 | 研究笔记两种语言对齐 | `docs/research/` 的一篇笔记缺了英文版或中文版，两版的节数（`##`、`###`）、表格行数、图的张数，或者某一节（`##`）里的列表条目数对不上；中英两份索引漏了一篇、多列了不存在的一篇，或顺序不对 |
 | `bin/vh` 冒烟测试 | 打错命令也返回 0；`--effort`、`--style` 没写进项目；字幕语言被文件夹名带偏（`/home/zhang/…` 下的英文字幕被标成中文）；音频比画面短时被截断；gif 输出名算错 |

@@ -135,7 +135,9 @@ JSON 的格式：
 
 ## 给客户端的数据
 
-客户端（审阅台，以后的 Studio）只是项目文件和 `bin/vh` 外面的一层壳：它要的数据都由命令给出，终端里的 agent 拿到的是同一份。下面的 JSON 都带 `"version": 1`；以后只加字段，改了含义就升版本号。
+客户端（审阅台，以后的 Studio）只是项目文件和 `bin/vh` 外面的一层壳：它要的数据都由命令给出，终端里的 agent 拿到的是同一份。以后只加字段，改了含义就升版本号。
+
+版本字段有两种拼法，已有的不改名，新文件一律用 `version`。命令的 `--json` 输出，和这些文件用 `version`：`<成片>.render.json`（有版本字段之前的记录没有它，形状相同）、`<成片>.mux.json`、`<副本>.deliver.json`（同上）、`<混音>.mix.json`、`audio/captions.args.json`、`out/versions/versions.json`、`out/check/*.check.json`、`out/proxy/` 的记录、`cast/<id>/cast.json`、`research/web.jsonl` 的每行、gate JSON（可写可不写）。这些用 `v`：`edit.json`、`out/edit.resolved.json`、`assets/ledger.json` 和它的每条记录、`assets/spend.jsonl`、`research/refs.json`、`research/scout.jsonl`、`research/hot/*.json`、`.ovh/activity.jsonl` 的每行、`clip.json`、`series.json`。每种文件用哪个，`bin/vh artifacts spec --json` 的 `version_key` 写着。
 
 ### 命令表：`bin/vh commands [--stage <阶段>] [--json]`
 
@@ -144,6 +146,10 @@ JSON 的格式：
 ### 这台机器能用什么：`bin/vh doctor [--json] [--probe]`
 
 每个外接模块（`tools/modules.json`：程序、包、模型、服务、agent）在这台机器上的状态：找到没有、版本对不对、服务的 key 设了没有（只说有没有，从不给值），再加上页面工具的浏览器和 WebGL、参考仓库、LOCAL.md、AGENTS.md。`--probe` 给每个设了 key 的服务在不花钱的接口上打一次。字段见 `bin/vh doctor -h`。
+
+### 项目里的文件：`bin/vh artifacts spec|list|check [--json]`
+
+每种中间文件的规范在 `tools/artifacts.json`，`spec` 打印它；`list <项目>` 只读，不开浏览器（零点几秒）：这支片子每种文件有哪些路径、版本、schema 的结果、过期没有和为什么、还剩几处 `{…}`，以及到现在该有而没有的。字段见 `bin/vh artifacts -h`。schema 在 `tools/schemas/`：字段只加不改，所以 schema 只钉必需的字段和类型。
 
 ### 一个项目到哪了：`bin/vh status <项目> [--json]`
 
@@ -166,7 +172,7 @@ JSON 的格式：
 
 ### 活动记录：`bin/vh activity <项目> [--json] [--follow] [--limit N]`
 
-每条作用在项目上的 `bin/vh` 命令往 `<项目>/.ovh/activity.jsonl` 追加 JSON 行；只读的 `status`、`activity`、`desk data`、`doctor` 不记，找不到项目的命令也不记。项目从参数里找：第一个是文件夹或文件（含 `--out=f`、`voice=f` 这种）的参数，往上最近的带 BRIEF.md 的文件夹；`review`、`gate`、`desk` 这些也认 projects/ 下的项目名。每行都有 `v`（1）、`event`、`t`（epoch 秒），属于某条命令的还有 `run`：
+每条作用在项目上的 `bin/vh` 命令往 `<项目>/.ovh/activity.jsonl` 追加 JSON 行；只读的 `status`、`activity`、`artifacts`、`desk data`、`doctor` 不记，找不到项目的命令也不记。项目从参数里找：第一个是文件夹或文件（含 `--out=f`、`voice=f` 这种）的参数，往上最近的带 BRIEF.md 的文件夹；`review`、`gate`、`desk` 这些也认 projects/ 下的项目名。每行都有 `v`（1）、`event`、`t`（epoch 秒），属于某条命令的还有 `run`：
 
 | event | 字段 | 谁写 |
 |---|---|---|
@@ -210,7 +216,7 @@ JSON 的格式：
 
 `size` 和 `mtime_ns` 是用来认片子的：`bin/vh status`（`check.stale`、各个 render 的 `check.stale`、交付那一站）和 `bin/vh versions`（每一版的 `check`）拿它们和视频现在的大小、`mtime_ns` 比，有一个不同，这份记录就不是这支片子的了（`stale` 为真，或这一版没有 `check`）。只看记录的时间认不出被换回来的旧片子：`cp -p`、`rsync -a`、`bin/vh versions use` 会把旧的修改时间一起放回去，视频看上去比记录还早；检查跑到一半被换上的片子也一样（记录存的是检查开始时的那一支）。没有这两个字段的老记录照旧：视频的修改时间比记录晚就算改过（`versions` 留 1 s 的宽限）。`mtime_ns` 超过 2^53，JavaScript 的 `JSON.parse` 读成数会丢低位：客户端要自己比就用 BigInt，一般直接看 `stale`。
 
-每条 finding：`kind`、`severity`（`fail` 让退出码是 1，`warn` 要看一眼，`info` 只是说一声）、`message`、`t` 和 `t1`（秒，有时间或时间段的才有）、`frame` 和 `frames`（`[第一帧, 最后一帧]`）、`evidence`（判断依据：量到的数、BRIEF 那一行、画面的 key、确认它的那一条……）、`confirmed`（confirmed.json 盖住了是 true，能确认但没确认是 false，这一类从来不在那里确认就是 null）。没确认的孤立帧还带 `confirm`：填上 why 和 evidence 就能贴进 confirmed.json 的那一条。`kind` 用 confirmed.json 的名字：`check.spec`、`check.gate`、`check.black`、`check.freeze`、`check.silence`、`check.iso`（孤立帧；`declared: true` 是这次 `--allow` 声明的，`lapsed: true` 是确认失效了）、`check.periodic`、`check.static`、`check.cut`（从暗到亮的硬切）、`check.blind`（动得太多、扫描判断不了的一段）、`check.subtitles`、`check.colour`、`check.packaging`、`check.scale`、`check.confirmed`（confirmed.json 里没用上、失效或没收下的条目）。
+每条 finding：`kind`、`severity`（`fail` 让退出码是 1，`warn` 要看一眼，`info` 只是说一声）、`message`、`t` 和 `t1`（秒，有时间或时间段的才有）、`frame` 和 `frames`（`[第一帧, 最后一帧]`）、`evidence`（判断依据：量到的数、BRIEF 那一行、画面的 key、确认它的那一条……）、`confirmed`（confirmed.json 盖住了是 true，能确认但没确认是 false，这一类从来不在那里确认就是 null）。没确认的孤立帧还带 `confirm`：填上 why 和 evidence 就能贴进 confirmed.json 的那一条。`kind` 用 confirmed.json 的名字：`check.spec`、`check.gate`、`check.black`、`check.freeze`、`check.silence`、`check.iso`（孤立帧；`declared: true` 是这次 `--allow` 声明的，`lapsed: true` 是确认失效了）、`check.periodic`、`check.static`、`check.cut`（从暗到亮的硬切）、`check.blind`（动得太多、扫描判断不了的一段）、`check.subtitles`、`check.captions`（字幕比它依据的时间轴旧：`audio/captions.args.json` 记的 sha256 和时间轴现在的不同）、`check.colour`、`check.packaging`、`check.scale`、`check.confirmed`（confirmed.json 里没用上、失效或没收下的条目）。
 
 ### 素材台账：`bin/vh assets <项目> [--json]`
 

@@ -693,6 +693,7 @@ const probe = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-s
 const st = JSON.parse(probe.stdout || "{}").streams?.[0] || {};
 const secs = (Date.now() - T0) / 1000;
 const sidecar = {
+  version: 1,
   note: "how this video was made (bin/vh render); a patch or re-render should match these",
   // from the video's folder when the video is in the project (it moves with it), else where the page is
   page: (() => {   // first.root is a real path (host.mjs), so the video's folder is compared as one too (macOS /tmp is /private/tmp)

@@ -1,0 +1,43 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/shots.schema.json",
+ "title": "The shot table, shots.json",
+ "description": "A list of shots, or {\"video\", \"note\", \"shots\": [...]} (tools/vhdraw.py parse_shots; bin/vh storyboard -h has the fields). A shot needs its start and end, under either name; a time is seconds, or text such as 0:12.5. The other names tools/vhdraw.py reads (stage, section, read, what, flag, risk, snapshot) and fields it does not read are kept.",
+ "anyOf": [
+  {"type": "array", "items": {"$ref": "#/$defs/shot"}},
+  {
+   "type": "object",
+   "required": ["shots"],
+   "properties": {
+    "video": {"type": "string"},
+    "note": {"type": "string"},
+    "shots": {"type": "array", "items": {"$ref": "#/$defs/shot"}}
+   }
+  }
+ ],
+ "$defs": {
+  "time": {"type": ["number", "string"]},
+  "shot": {
+   "type": "object",
+   "anyOf": [
+    {"required": ["start", "end"]},
+    {"required": ["t0", "t1"]},
+    {"required": ["start", "t1"]},
+    {"required": ["t0", "end"]}
+   ],
+   "properties": {
+    "id": {"type": ["string", "number"]},
+    "start": {"$ref": "#/$defs/time"},
+    "end": {"$ref": "#/$defs/time"},
+    "t0": {"$ref": "#/$defs/time"},
+    "t1": {"$ref": "#/$defs/time"},
+    "at": {"type": ["number", "string", "null"]},
+    "segment": {"type": ["string", "number", "null"]},
+    "label": {"type": ["string", "number", "null"]},
+    "frame": {"type": ["string", "null"]},
+    "unsure": {"type": ["boolean", "string", "null"]},
+    "camera": {"type": ["object", "string", "null"]}
+   }
+  }
+ }
+}
