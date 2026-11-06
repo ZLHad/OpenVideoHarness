@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`CLAUDE.md`, step 3: what to do for someone who does not write Chinese**
+- Why: `bin/vh new --lang en` only showed up in the option list, and the rules for English narration and captions were spread over three documents.
+- One sentence in step 3: `--lang en` sets the review pages' language, the narration and captions follow the person's language, and where the line length and reading speed are.
+
 **Two new video types: long explainers and photo recaps**
 - Why: a landscape explainer of 10 minutes or more could only go through the shorts doc plus `playbook/09`, and a wedding or a trip from someone's own photos had nowhere to go. Both were approved long ago and never written.
 - `video-types/10-long-explainer.md`: one question through the film, a table of turns and hooks before the script, voice first, a grey animatic, samples before the chapters fan out, and what works for the second half. Mostly pointers: `engines/canvas-film`, `bin/vh edit`, `playbook/09` §5, the long-film part of `playbook/01`, `recipes/sequences/`.

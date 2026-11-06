@@ -239,7 +239,9 @@ PY
   grep -q '出片前跑一次 `bin/vh check <' CLAUDE.md || out="$out CLAUDE.md's floor does not say what bin/vh check takes;"
   grep -qE '^[0-9]+\. \*\*Gate|Stop after each gate|bin/vh tts <项目> dashscope' video-types/06-paper-explainer.md && out="$out video-types/06 has gates of its own, or a paid provider as the way to run tts;"
   grep -q '没附论文时' video-types/06-paper-explainer.md || out="$out video-types/06 does not say what to do with no paper attached;"
-  if [ -z "$out" ]; then ok "docs agree: quick's one question in CLAUDE.md, playbook/quick.md, playbook/01 and what bin/vh new writes; what bin/vh check takes; video-types/06's steps are no gates of their own"
+  grep -q '^3\. \*\*建项目.*--lang en.*用户的语言.*video-types/02-knowledge-short.md' CLAUDE.md || out="$out CLAUDE.md's step 3 does not say what to do for someone who does not write Chinese;"
+  grep -q '≤ 42 字符' video-types/02-knowledge-short.md || out="$out the caption rule CLAUDE.md's step 3 points to is not in video-types/02;"
+  if [ -z "$out" ]; then ok "docs agree: quick's one question in CLAUDE.md, playbook/quick.md, playbook/01 and what bin/vh new writes; what bin/vh check takes; video-types/06's steps are no gates of their own; step 3 for someone who does not write Chinese"
   else bad "docs that disagree:$out"; fi
   # the front pages (tools/readme.py): every count the READMEs and the overview diagrams state is the repo's (commands,
   # styles, recipes …), their links and images are in the repo, and the two READMEs have the same sections and links
