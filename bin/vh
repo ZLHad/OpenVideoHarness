@@ -908,7 +908,7 @@ cmd_sheet() {
 }
 ck_note() { [ -z "${J:-}" ] || { printf '%s\n' "$2" >> "$J/$1"; } 2>/dev/null || true; }   # ck_note <file> <line>: a line into check's scratch folder, if it has one
 cmd_check() {
-  local u="usage: bin/vh check <video> [--allow t,t…] [--against <reference.mp4>] [--json]"
+  local u="usage: bin/vh check <video | project> [--allow t,t…] [--against <reference.mp4>] [--json]"
   [ $# -gt 0 ] || { cmd_usage check >&2; exit 2; }
   case "$1" in -*) echo "bin/vh check: unknown option $1 ($u)" >&2; exit 2 ;; esac   # an option where the video goes
   local v=$1 allow="" against="" fail=0 json=""
@@ -924,7 +924,12 @@ cmd_check() {
     *) echo "bin/vh check: unknown option $1 ($u)" >&2; return 2 ;;
   esac; done
   [ -z "$against" ] || [ -f "$against" ] || { echo "bin/vh check: no reference video at $against" >&2; return 2; }
-  [ -f "$v" ] || { echo "bin/vh check: no such video: $v" >&2; return 2; }   # one ffprobe cannot read is a failed check (1)
+  if [ ! -f "$v" ]; then   # a project: its newest film (tools/proxy.py says which, or that there is none yet)
+    local vp; vp=$(project_dir "$v" 2>/dev/null) && [ -f "$vp/BRIEF.md" ] || vp=""
+    [ -z "$vp" ] && [ -d "$v" ] && { echo "bin/vh check: $v is a folder with no BRIEF.md: give a video, or a project" >&2; return 2; }
+    [ -n "$vp" ] || { echo "bin/vh check: no such video: $v" >&2; return 2; }   # one ffprobe cannot read is a failed check (1)
+    v=$(python3 "$ROOT/tools/proxy.py" film "$vp") || return 2
+  fi
   # each check also leaves its result in CHECK_TMP (gone on exit, vh_exit); tools/checkrec.py makes the record of them at
   # the end, out/check/<name>.check.json. --json: that record on stdout, the lines a person reads on stderr. With no
   # scratch folder (mktemp cannot make one) the checks run all the same, and no record is made

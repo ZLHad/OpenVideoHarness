@@ -2017,8 +2017,9 @@
       ],
       "usage": [
         {
-          "synopsis": "check <video> [--allow t,t…] [--against <ref.mp4>] [--json]",
+          "synopsis": "check <video|project> [--allow t,t…] [--against <ref.mp4>] [--json]",
           "text": [
+            "a project (a folder, or its name): its newest film, and it says which (a copy bin/vh deliver made or an animatic only when there is nothing else); none yet: exit 2, render first",
             "ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) + gate ①",
             "on record in a standard or studio project (REVIEW.md, DECISIONS.md; exit 1 without it) + the",
             "publishing copy in PACKAGING.md against the platforms' length limits (a warning) +",

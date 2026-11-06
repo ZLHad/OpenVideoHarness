@@ -1327,6 +1327,20 @@ PY
   case "$rc:$a|$rb:$b|$rcc:$c" in 0:*"spec: 640x360"*"|0:"*"WARN 1.0 s, outside the BRIEF's 2–3 s"*"|0:"*"spec: 320x180"*)
       case "$b$c" in *placeholders*|*FAIL*) bad "check: a range or an approximate length was misread: $b | $c" ;; *) ok "check reads 1080p、4k, warns outside a range, skips approximate lengths" ;; esac ;;
     *) bad "check: separators / range / approximate ($rc/$rb/$rcc): $a | $b | $c" ;; esac
+  # a project instead of a video: its newest film, said; a copy for upload or an animatic is not the film; none yet, or a
+  # folder that is no project: exit 2
+  brief '320x180, 30 fps, exactly 1.0s (30 frames)' 1080p
+  : > "$t/sp/out/ref.upload.mp4"; printf '{"output": "ref.upload.mp4", "master": "ref.mp4"}\n' > "$t/sp/out/ref.upload.mp4.deliver.json"; : > "$t/sp/out/animatic.mp4"
+  python3 -c 'import os, sys, time
+for f, d in zip(sys.argv[1:], (10, 20, 20)): os.utime(f, (time.time() + d,) * 2)' "$t/sp/out/ref.mp4" "$t/sp/out/ref.upload.mp4" "$t/sp/out/animatic.mp4"
+  a=$(vh check "$t/sp" 2>&1); rc=$?; b=$(vh check "$t/sp" --json 2>/dev/null); rb=$?; c=$(OVH_PROJECTS="$t" vh check sp 2>&1); rcc=$?
+  rm -f "$t/sp/out/ref.upload.mp4" "$t/sp/out/ref.upload.mp4.deliver.json" "$t/sp/out/animatic.mp4"
+  mkdir -p "$t/nf" "$t/nb"; printf '# BRIEF\n' > "$t/nf/BRIEF.md"
+  o=$(vh check "$t/nf" 2>&1 >/dev/null); r2=$?; d=$(vh check "$t/nb" 2>&1 >/dev/null); r3=$?
+  if [ "$rc:$rb:$rcc:$r2:$r3" = 0:0:0:2:2 ] && case "$a" in *"out/ref.mp4, the newest film in sp"*"spec: 320x180, 30 fps"*) true ;; *) false ;; esac && case "$c" in *"out/ref.mp4, the newest film"*) true ;; *) false ;; esac \
+    && case "$o|$d" in *"no film yet"*"render one first"*"|"*"no BRIEF.md"*) true ;; *) false ;; esac && [ "$(printf '%s' "$b" | python3 -c 'import json, sys; print(json.load(sys.stdin)["video"])')" = out/ref.mp4 ]
+  then ok "check on a project: its newest film, by folder or name, and it says which (not an upload copy or an animatic); no film yet says render first; a folder that is no project is said"
+  else bad "check on a project ($rc/$rb/$rcc/$r2/$r3): $a | $c | $o | $d"; fi
   # a variable-rate file (a still stretch written as one long frame): its frames and its length as they are, and the
   # rate said, with a BRIEF and without (the length was frames ÷ the nominal rate: 45 frames over 3 s read as 1.5 s);
   # the same frames as Matroska, whose length is the track's DURATION tag, and through a pipe, which writes none (its

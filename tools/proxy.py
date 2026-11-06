@@ -522,7 +522,21 @@ def parse(argv, cmd):
     return a
 
 
+def main_film(project):
+    """bin/vh check <project>: the film's path on stdout, which one and why on stderr; none yet: says to render first, exit 2."""
+    project = Path(project).resolve()
+    film = newest_film(project)
+    if film is None:
+        print(f"bin/vh check: {project.name} has no film yet in out/, media/ or renders/: render one first (bin/vh status {project} says how)", file=sys.stderr)
+        return 2
+    print(f"bin/vh check: {V.rel(project, film)}, the newest film in {project.name} (to check another, give its path)", file=sys.stderr)
+    print(film)
+    return 0
+
+
 def main(argv):
+    if argv[:1] == ["film"] and len(argv) == 2:
+        return main_film(argv[1])
     if not argv or argv[0] not in ("proxy", "thumbs"):
         print(__doc__.strip(), file=sys.stderr)
         return 2

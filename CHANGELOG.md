@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`bin/vh check <project>` checks the newest film**
+- Why: `bin/vh check` takes a video, and CLAUDE.md said "run `bin/vh check`" with no argument, so an agent passed the project and got "no such video". The next step in `bin/vh status` also wants one command for it.
+- `bin/vh check <project folder or name>`: the newest video in `out/`, `media/` or `renders/`, and it says which; a copy `bin/vh deliver` made or an animatic only when there is nothing else (`tools/proxy.py`, `newest_film`). No film yet: exit 2, render first. A folder with no BRIEF.md: exit 2. A file works as before. `CLAUDE.md`'s floor says it takes either.
+
 **`bin/vh new`: the type as the docs write it, a scaffold that fails says so, and `--json`**
 - Why: the routing table names `02-knowledge-short`, and `bin/vh new` only took `short`. When HyperFrames' init failed it threw npx's words away, printed ✓ and exited 0, leaving a project with no `index.html` for an agent to find out about later. And its `next:` line spoke only to a person.
 - `bin/vh new`: `<type>` is the short name, the number (`02`), the doc's name (`02-knowledge-short`, also with `video-types/` and `.md`) or its stem (`knowledge-short`). A scaffold step that fails (`hf-init`, the hand-drawn engine's `npm install`) keeps the project, keeps npx's last lines, prints no ✓, says the command that finishes it and exits 1; `bin/vh status` says it first too. `next:` says what the agent reads and fills first, and what a person does.
