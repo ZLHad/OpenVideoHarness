@@ -5397,6 +5397,46 @@ PY
   printf '\n## 暂停 · 2026-10-19\n- 原话："先停一下"\n' >> "$p/REVIEW.md"
   b=$(ns "$p" 'n["who"] == "person"' '"paused" in n["do"]')
   [ -z "$a$b" ] && ok "status next: a checkpoint the Director line adds, and a pause, which is the person's" || bad "status next, a checkpoint and a pause: $a | $b"
+  # what the Director line keeps for the person (x=own), on both efforts: its stop joins, it is said first and the section to read
+  # is named until it is on record (its stop done, or its row in DECISIONS.md decided)
+  dirline() { python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Director: default", "- Director: " + sys.argv[2], 1))' "$1" "$2"; }
+  OVH_PROJECTS="$t" vh new math ns2 >/dev/null 2>&1; d=$(ls -d "$t"/*-ns2); dirline "$d" "voice=own, hook=own, packaging=own, rest=delegate"
+  a=$(st "$d" "1:in_progress E1:not_started 2:not_started 3:not_started deliver:not_started | agent")
+  b=$(ns "$d" 'n["do"].startswith("the Director line keeps voice (at 检查点 E1 脚本), hook (at 关卡 ① 立意和大纲), packaging (at 关卡 ③ 初版)")' '"2–3 concept cards" in n["do"]' 'r.startswith("playbook/01-pipeline.md#导演模式")')
+  python3 - "$d" <<'PY'
+import sys
+p = sys.argv[1]
+f = p + "/REVIEW.md"; s = open(f, encoding="utf-8").read()
+open(f, "w", encoding="utf-8").write(s.replace('- 原话："……"', '- 原话："选 A"', 1).replace("- 定了：{…}　改了：{…}", "- 定了：A　改了：无", 1))
+f = p + "/DECISIONS.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("{待定 / 已定（关卡 ①）}", "已定（关卡 ①）：A", 1))
+PY
+  c=$(st "$d" "1:done E1:in_progress 2:not_started 3:not_started deliver:not_started | agent")
+  e=$(ns "$d" 'n["do"].startswith("the Director line keeps voice (at 检查点 E1 脚本), packaging (at 关卡 ③ 初版)")' '"prepare 检查点 E1 脚本 for voice" in n["do"]' '"E1 --init" in c' '"#导演模式" in r')
+  python3 -c 'import sys; f = sys.argv[1] + "/DECISIONS.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("| voice 配音 | | |", "| voice 配音 | own | 已定：Charon |", 1))' "$d"
+  f=$(st "$d" "1:done 2:in_progress 3:not_started deliver:not_started | agent")
+  f="$f$(ns "$d" 'n["do"].startswith("the Director line keeps packaging (at 关卡 ③ 初版)")' '"storyboard" in c')"
+  if [ "$a" = "1:in_progress E1:not_started 2:not_started 3:not_started deliver:not_started | agent" ] && [ -z "$b$e" ] && [ "$c" = "1:done E1:in_progress 2:not_started 3:not_started deliver:not_started | agent" ] \
+    && [ "$f" = "1:done 2:in_progress 3:not_started deliver:not_started | agent" ]
+  then ok "status next, standard: what the Director line keeps (x=own) adds its stop, comes first in what to do and names the section, until its stop is done or its row in DECISIONS.md is decided"
+  else bad "status next, Director x=own on a standard project: $a | $b | $c | $e | $f"; fi
+  OVH_PROJECTS="$t" vh new math nq2 --effort quick >/dev/null 2>&1; d=$(ls -d "$t"/*-nq2); dirline "$d" "voice=own"
+  a=$(st "$d" "1:skipped E1:in_progress 2:skipped 3:skipped deliver:not_started | agent")
+  b=$(ns "$d" 'n["do"].startswith("the Director line keeps voice")' '"E1 --init" in c' 'r.startswith("playbook/01-pipeline.md#导演模式")')
+  mkdir -p "$d/out/review"; cp tools/desk/fixtures/zh/out/review/gate-1.json "$d/out/review/gate-E1.json"; vh gate "$d" E1 --page >/dev/null 2>&1
+  c=$(ns "$d" 'n["who"] == "person"' '"Director line" not in n["do"]')
+  printf '\n## 检查点 E1 脚本\n- 页面：`out/review/gate-E1.html`\n- 原话："用第二个"\n- 定了：第二个声音\n' >> "$d/REVIEW.md"
+  e=$(st "$d" "1:skipped E1:done 2:skipped 3:skipped deliver:in_progress | agent")
+  e="$e$(ns "$d" '"Director line" not in n["do"]' '"#导演模式" not in r')"
+  OVH_PROJECTS="$t" vh new math nq3 --effort quick >/dev/null 2>&1; d=$(ls -d "$t"/*-nq3); dirline "$d" "hook=own"
+  f=$(st "$d" "1:in_progress 2:skipped 3:skipped deliver:not_started | agent")
+  f="$f$(ns "$d" '"options for hook" in n["do"] and "concept cards" not in n["do"]' 'r.startswith("playbook/01-pipeline.md#导演模式") and "playbook/quick.md" in r')"
+  if [ "$a" = "1:skipped E1:in_progress 2:skipped 3:skipped deliver:not_started | agent" ] && [ -z "$b$c" ] && [ "$e" = "1:skipped E1:done 2:skipped 3:skipped deliver:in_progress | agent" ] && [ "$f" = "1:in_progress 2:skipped 3:skipped deliver:not_started | agent" ]
+  then ok "status next, quick: a thing the person keeps is a stop even so (no gate of its own is added but its), said first; once on record the film goes on; gate ① then asks only for what they kept"
+  else bad "status next, Director x=own on a quick project: $a | $b | $c | $e | $f"; fi
+  python3 -c 'import sys; sys.path.insert(0, "tools"); import status as S; d = S.director_own
+sys.exit(0 if d("hook=own, stop=E1, rest=delegate") == {"hook": "1"} and d("Voice = OWN，script=own") == {"voice": "E1", "script": "E1"} and d("default") == {} and d("hook=review") == {} and d("nope=own") == {"nope": None} \
+  and set(d("hook=review, rest=own")) == set(S.OWN_STOP) - {"hook"} and set(S.OWN_STOP.values()) <= set(S.ORDER) else 1)' \
+    && ok "status: the Director line's x=own items, a word it does not name without a stop, and rest=own" || bad "status: the Director line's x=own items"
   # quick skips the gates, not a stop the person asked for; a link to a film that is gone breaks nothing
   OVH_PROJECTS="$t" vh new math nd --effort quick >/dev/null 2>&1; d=$(ls -d "$t"/*-nd)
   python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Director: default", "- Director: stop=E3", 1))' "$d"
