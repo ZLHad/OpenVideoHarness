@@ -5742,7 +5742,9 @@ PY
   rm -rf "$t"
 }
 
-artifacts_checks() {   # the schemas of tools/schemas/ and their small validator (tools/schemalite.py) against the real jsonschema
+artifacts_checks() {   # bin/vh artifacts (tools/artifacts.py, tools/artifacts.json): the schemas of tools/schemas/ and their small
+  # validator (tools/schemalite.py) against the real jsonschema; captions and their timeline; the table against the commands,
+  # the schemas and tools/clean.py; spec; list on a new project and on records written by hand as the tools write them
   local a
   if a=$(python3 - <<'PY'
 import json, sys
@@ -5855,6 +5857,175 @@ PY
   rm -f "$p/audio/captions.args.json"
   b=$(vh artifacts list "$p" --json 2>/dev/null | python3 -c "$q")
   [ "$b" = not_checked ] && ok "bin/vh artifacts list: captions with no record of their timeline are not checked" || bad "bin/vh artifacts list on captions with no record: $b"
+  # the table (tools/artifacts.json): its own rules, against tools/commands.json, tools/schemas/ and what tools/clean.py does
+  # on a tree of made-up files, so a new kind of file cannot be added silently. And that the check catches each of these
+  if a=$(vh artifacts check 2>&1); then ok "$a"; else bad "bin/vh artifacts check: $(printf '%s' "$a" | tail -c 1200)"; fi
+  if a=$(python3 - <<'PY'
+import copy, json, sys
+sys.path.insert(0, "tools")
+import artifacts as A
+t = A.table()
+cmds = {c["name"]: c for c in A.stages_table()["commands"]}
+by = lambda tt, i: next(e for e in tt["artifacts"] if e["id"] == i)   # noqa: E731
+def rules(change):
+    x = copy.deepcopy(t); change(x); return A.own_rules(x, cmds)
+def seen(word, got, what):
+    return [] if any(word in g for g in got) else [f"{what}: no problem naming {word!r} in {got[:3]}"]
+bad = []
+bad += seen("is no command", rules(lambda x: by(x, "brief")["writers"].append("no-such")), "a writer that is no command")
+bad += seen("only a reader can be page", rules(lambda x: by(x, "brief")["writers"].append("page")), "page as a writer")
+bad += seen("no doc", rules(lambda x: by(x, "brief").update(doc="")), "no doc")
+bad += seen("no such section", rules(lambda x: by(x, "shots").update(doc="tools/desk/README.md#没有这一节")), "a section that is not there")
+bad += seen("ids of this table", rules(lambda x: by(x, "cues")["stale"].update({"from": ["no-such"]})), "stale from an unknown id")
+bad += seen("no rule for it", rules(lambda x: by(x, "brief").update(stale={"from": ["edit"], "by": "sha256", "recorded_in": "edit.json"})), "a stale with no rule")
+bad += seen("its stale is null", rules(lambda x: by(x, "cues").update(stale=None)), "a rule with no stale")
+bad += seen("is none of", rules(lambda x: by(x, "brief").update(path="<name>.md")), "a placeholder the table does not know")
+bad += seen("one plain Chinese line", rules(lambda x: by(x, "brief").update(purpose="in English")), "a purpose in English")
+x = copy.deepcopy(t); by(x, "gate-1")["schema"] = None; by(x, "gate-2")["schema"] = None; by(x, "gate-3")["schema"] = None; by(x, "gate-other")["schema"] = None
+bad += seen("no entry of tools/artifacts.json names it", A.schema_problems(x), "a schema no entry names")
+x = copy.deepcopy(t); by(x, "shots")["schema"] = "tools/schemas/no-such.schema.json"
+bad += seen("no such file", A.schema_problems(x), "a schema file that is not there")
+x = copy.deepcopy(t); by(x, "frames")["clean"] = "stays"
+bad += seen("lists under rebuilt", A.clean_problems(x), "clean that tools/clean.py does not do")
+x = copy.deepcopy(t); by(x, "shots")["clean"] = "rebuilt"
+bad += seen("keeps", A.clean_problems(x), "clean that says a kept file goes")
+c2 = copy.deepcopy(cmds); c2["render"]["writes"].append("<project>/out/new-kind.bin and <project>/brand-new.json")
+bad += seen("brand-new.json: no entry", A.writes_problems(t, c2), "a write no entry matches")
+c2 = copy.deepcopy(cmds); c2["sheet"]["writes"].append("<project>/shots.json")
+bad += seen("does not list it in writers", A.writes_problems(t, c2), "a write by a command the entry does not list")
+x = copy.deepcopy(t); x["ignored_writes"].append({"path": "gone/nothing.json", "why": "no reason"})
+bad += seen("no command writes it now", A.writes_problems(x, cmds), "a stale line of ignored_writes")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "bin/vh artifacts check catches a writer that is no command, a schema no entry names or that is not there, a clean that tools/clean.py does not do, a write no entry matches or whose entry does not list it, a stale with no rule"
+  else bad "bin/vh artifacts check on broken tables: $a"; fi
+  # spec: the table, by stage; --json with every field. A usage error is 2
+  a=$(vh artifacts spec); b=$(vh artifacts spec --stage 4 --json 2>/dev/null); c=$(vh artifacts spec --stage 不是阶段 2>&1); rc=$?
+  d=$(vh artifacts list 2>&1); rc2=$?; vh artifacts list "$t/no-such-project" >/dev/null 2>&1; rc3=$?
+  if [ "$rc:$rc2:$rc3" = 2:2:2 ] && case "$a" in *"BRIEF.md"*"audio/timeline.<lang>.json"*"kinds of file"*) true ;; *) false ;; esac && python3 -c '
+import json, sys
+d = json.loads(sys.argv[1])
+ok = d["version"] == 1 and d["stage"] == "4" and d["artifacts"] and all("4" in e["stages"] for e in d["artifacts"]) and any(e["id"] == "timeline" and e["also"] == ["audio/timeline.json"] and "wins" in e["note"] for e in d["artifacts"])
+sys.exit(0 if ok else 1)' "$b"
+  then ok "bin/vh artifacts spec: the table by stage, --json with every field (the timeline says which name wins); an unknown stage, list with no project or a project that is not there: exit 2"
+  else bad "bin/vh artifacts spec and usage errors ($rc, $rc2, $rc3): $(printf '%s' "$c $d" | tail -c 300)"; fi
+  # list on a new project, read-only: every file there the same bytes after it, and no line in the activity log
+  p=$(vh new math art --dir "$t" 2>&1 | sed -n 's/.*created //p' | head -1); p="$t/$(basename "$p")"
+  q=$(cat <<'PY'
+import hashlib, os, sys
+for d, _, fs in sorted(os.walk(sys.argv[1])):
+    for f in sorted(fs):
+        print(os.path.join(d, f), hashlib.sha256(open(os.path.join(d, f), "rb").read()).hexdigest())
+PY
+)
+  b=$(python3 -c "$q" "$p"); a=$(vh artifacts list "$p" 2>&1); rc=$?; c=$(python3 -c "$q" "$p")
+  d=$(vh artifacts list "$p" --json 2>/dev/null)
+  if [ $rc = 0 ] && [ -n "$b" ] && [ "$b" = "$c" ] && case "$a" in *"holds "*" kinds"*"BRIEF.md"*"blanks tools rely on:"*"BRIEF.md Output"*) true ;; *) false ;; esac && python3 -c '
+import json, sys
+d = json.loads(sys.argv[1])
+ids = {x["id"]: x for x in d["artifacts"]}
+ok = d["version"] == 1 and d["reached"] == {"new": True, "gate-1": False, "gate-2": False, "gate-3": False, "narration": False, "delivery": False} and not d["missing"]
+ok = ok and {"brief", "review-doc", "lessons-doc", "activity-log"} <= set(ids) and ids["brief"]["files"][0]["placeholders"] > 0 and ids["activity-log"]["files"][0]["version"] == 1 and ids["activity-log"]["files"][0]["schema"]["ok"]
+ok = ok and [b["key"] for b in d["blanks"]] == ["Output"] and not d["blanks"][0]["required"] and d["counts"]["missing"] == 0
+sys.exit(0 if ok else 1)' "$d"
+  then ok "bin/vh artifacts list on a new project: only reads (the same bytes after it, nothing in the log), required by new is there, nothing else by now, the BRIEF's blank tools rely on said and not yet required"
+  else bad "bin/vh artifacts list on a new project (exit $rc): $(printf '%s' "$a" | tail -c 500)"; fi
+  # what is required by now, the schema's result and each kind of out of date, on records written by hand as the tools write them
+  if a=$(python3 - "$p" <<'PY'
+import hashlib, json, os, struct, subprocess, sys, zlib
+from pathlib import Path
+sys.path.insert(0, "tools"); sys.path.insert(0, "tools/audio")
+import mixstate
+P = Path(sys.argv[1])
+def put(rel, body):
+    f = P / rel; f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(body if isinstance(body, str) else json.dumps(body, ensure_ascii=False), encoding="utf-8"); return f
+sha = lambda f: hashlib.sha256(Path(f).read_bytes()).hexdigest()   # noqa: E731
+def listed(*more):
+    return json.loads(subprocess.run([sys.executable, "tools/artifacts.py", "list", str(P), "--json", *more], capture_output=True, text=True).stdout)
+def states(d):
+    return {f["path"]: (f["stale"] or {}).get("state") for x in d["artifacts"] for f in x["files"]}
+bad = []
+# gate ② sent with a wrong shape and no gate ① JSON
+put("out/review/gate-2.json", {"summary": "s", "decisions": [{"question": "no recommend"}]}); put("out/review/gate-2.html", "<html>"); put("out/review/.current", "2\n")
+d = listed()
+if not (d["reached"]["gate-2"] and d["reached"]["gate-1"]) or "gate-1" not in [m["id"] for m in d["missing"]]:
+    bad.append(f"a page out at gate ②: {d['reached']} {d['missing']}")
+sch = [f["schema"] for x in d["artifacts"] for f in x["files"] if f["path"] == "out/review/gate-2.json"][0]
+if sch["ok"] or "recommend" not in " ".join(sch["problems"]) or d["counts"]["schema_problems"] != 1:
+    bad.append(f"a gate JSON of the wrong shape: {sch}")
+if not [b for b in d["blanks"] if b["key"] == "Output" and b["required"]] or d["counts"]["missing"] < 2:
+    bad.append(f"the BRIEF's blank once gate ① is reached: {d['blanks']}")
+# narration: a script and no take; the template's example timeline alone is no narration
+os.makedirs(P / "audio", exist_ok=True)
+put("audio/timeline.zh.json", {"provider": "example", "segments": []})
+if listed()["reached"]["narration"]:
+    bad.append("the template's example timeline counted as narration")
+put("audio/script.txt", "一句话\n")
+d = listed()
+if not d["reached"]["narration"] or not {"voiceover"} <= {m["id"] for m in d["missing"]}:
+    bad.append(f"a script and no take: {d['reached']} {d['missing']}")
+# every rule, up to date and then out of date
+put("out/film.mp4", "film"); put("src/a.js", "one"); put("film.html", "<html>")
+put("out/film.mp4.render.json", {"version": 1, "page": "../film.html", "fps": 30, "frames": 1, "first_frame": 0, "encoder": {"gop": 1}, "files": {"src/a.js": sha(P / "src/a.js")}})
+st = (P / "out/film.mp4").stat()
+put("out/check/film.check.json", {"version": 1, "video": "out/film.mp4", "t": 1.0, "at": "x", "size": st.st_size, "mtime_ns": st.st_mtime_ns, "verdict": "pass", "exit": 0})
+put("audio/mix.wav", "mix"); put("audio/v.wav", "voice")
+inputs = [{"path": "v.wav", "sha256": sha(P / "audio/v.wav")}]; args = ["voice=v.wav"]
+put("audio/mix.wav.mix.json", {"version": 1, "status": "complete", "args": args, "args_sha256": mixstate.json_hash(args), "inputs": inputs, "inputs_sha256": mixstate.json_hash(inputs), "output_sha256": sha(P / "audio/mix.wav")})
+put("out/av.mp4", "av"); put("out/av.mp4.mux.json", {"version": 1, "video": "film.mp4", "audio": "../audio/mix.wav", "subtitles": [], "film": {"size": 2, "duration": 1}})
+os.utime(P / "out/av.mp4", (st.st_mtime + 10, st.st_mtime + 10))
+put("edit.json", "{}"); put("out/edit.resolved.json", {"v": 1, "edit": {"path": "edit.json", "sha256": sha(P / "edit.json")}})
+put("assets/a.txt", "a file"); subprocess.run([sys.executable, "tools/assets/assets.py", "add", str(P), str(P / "assets/a.txt"), "--class", "own", "--origin", "self"], capture_output=True, check=True)
+chunk = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)   # noqa: E731
+png = lambda f, c: Path(f).write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 2, 2, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress((b"\x00" + c * 2) * 2)) + chunk(b"IEND", b""))   # noqa: E731
+png(P / "assets/p.png", b"\xc8\x3c\x3c"); subprocess.run([sys.executable, "tools/cast.py", "add", str(P), "fox", "--kind", "prop", "--name", "a fox", "--ref", "assets/p.png=front"], capture_output=True, check=True)
+put("out/cues.json", {"timeline": "../audio/timeline.zh.json", "timeline_sha256": sha(P / "audio/timeline.zh.json"), "cues": []})
+put("out/final.upload.mp4", "copy"); put("out/final.mp4", "final"); s1, s2 = (P / "out/final.upload.mp4").stat(), (P / "out/final.mp4").stat()
+put("out/final.upload.mp4.deliver.json", {"version": 1, "output": "final.upload.mp4", "size": s1.st_size, "mtime": round(s1.st_mtime, 3), "master": "final.mp4", "master_size": s2.st_size, "master_mtime": round(s2.st_mtime, 3)})
+import proxy as PX
+put("out/proxy/film.mp4", "p"); put("out/proxy/film.mp4.json", {"version": 1, "source": "out/film.mp4", "source_ident": PX.ident(P / "out/film.mp4")})
+put("out/proxy/film.thumbs/thumbs.json", {"version": 1, "source": "out/film.mp4", "source_ident": PX.ident(P / "out/film.mp4")})
+put("out/versions/versions.json", {"version": 1, "next": 1, "versions": [], "events": []})
+FRESH = ["out/film.mp4", "out/check/film.check.json", "audio/mix.wav", "audio/mix.wav.mix.json", "out/av.mp4.mux.json", "out/cues.json", "out/final.upload.mp4.deliver.json", "out/final.upload.mp4", "out/proxy/film.mp4", "out/proxy/film.thumbs/", "out/versions/versions.json",
+         "out/edit.resolved.json", "assets/ledger.json", "cast/fox/cast.json"]
+s = states(listed())
+for rel in FRESH:
+    if s.get(rel) != "fresh":
+        bad.append(f"{rel}: {s.get(rel)}, not fresh")
+put("src/a.js", "two"); put("audio/v.wav", "another take"); put("audio/timeline.zh.json", {"provider": "example", "segments": [], "x": 1}); put("out/final.mp4", "the final, again")
+put("out/film.mp4", "another film"); put("edit.json", "{ }"); put("assets/a.txt", "another file"); png(P / "cast/fox/front.png", b"\x00\x00\x00")
+os.utime(P / "out/av.mp4", (st.st_mtime - 100, st.st_mtime - 100))
+d = listed(); s = states(d)
+STALE = ["out/film.mp4", "out/check/film.check.json", "audio/mix.wav", "audio/mix.wav.mix.json", "out/av.mp4.mux.json", "out/cues.json", "out/final.upload.mp4.deliver.json", "out/proxy/film.mp4", "out/proxy/film.thumbs/",
+         "out/edit.resolved.json", "assets/ledger.json", "cast/fox/cast.json"]
+for rel in STALE:
+    if s.get(rel) != "stale":
+        bad.append(f"{rel}: {s.get(rel)}, not out of date")
+why = {f["path"]: f["stale"]["why"] for x in d["artifacts"] for f in x["files"] if f["stale"]}
+if "src/a.js changed since" not in why["out/film.mp4"] or "audio/v.wav" not in why["audio/mix.wav"] or str(P) in " ".join(why.values()):
+    bad.append(f"the reasons: {why['out/film.mp4']} | {why['audio/mix.wav']}")
+# a film with no record of what it was made from is not checked; a delivery asks for a check of the film
+put("out/hand.mp4", "by hand")
+if states(listed()).get("out/hand.mp4") != "not_checked":
+    bad.append("a film with no record is not 'not checked'")
+d = listed()
+if not d["reached"]["delivery"] or "check-record" not in [m["id"] for m in d["missing"]]:
+    bad.append(f"a delivery with no check of its film: {d['missing']}")
+# --stage: only the kinds of that stage
+d = listed("--stage", "9")
+if not all(x["id"] not in ("timeline", "shots") for x in d["artifacts"]) or "deliver-record" not in [x["id"] for x in d["artifacts"]] or d["stage"] != "9":
+    bad.append("--stage 9")
+# past what one list may read: not checked, not a wait
+import artifacts as A
+A.MAX_READ = 1
+s = states(A.report(P, A.table()["artifacts"], None))
+if s.get("audio/mix.wav.mix.json") != "not_checked" or s.get("assets/ledger.json") != "not_checked" or s.get("out/cues.json") != "not_checked":
+    bad.append(f"past the budget: {s.get('audio/mix.wav.mix.json')}, {s.get('assets/ledger.json')}, {s.get('out/cues.json')}")
+print("\n".join(bad)); sys.exit(1 if bad else 0)
+PY
+  ); then ok "bin/vh artifacts list: what each gate and the narration require by now, a gate JSON of the wrong shape, the BRIEF's blank once it is required; each kind of record up to date, out of date with why, and not checked; --stage"
+  else bad "bin/vh artifacts list on made-up records: $(printf '%s' "$a" | tail -c 1500)"; fi
   rm -rf "$t"
 }
 

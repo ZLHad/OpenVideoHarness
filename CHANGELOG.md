@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**`tools/ci.sh` holds the table to the code: a new kind of file cannot be added silently**
+- Why: a table of files is only worth trusting if it fails when the code moves away from it.
+- `bin/vh artifacts check`, in the `artifacts_checks` group: every writer and reader is a real command (or `page`); every schema file exists and every schema has an entry; `clean` agrees with what `tools/clean.py --dry-run` does on a temporary tree of made-up files, one for each path of the table; each `<project>/…` path in `tools/commands.json`'s `writes` and `reads` matches an entry that lists that command, or `ignored_writes` with a reason. `bin/vh clean` itself is unchanged.
+- The group also breaks the table in each of those ways and expects the check to say so, runs `spec`, and `list` on a new project (the same bytes after it, nothing in the activity log) and on records written by hand, each up to date, out of date with why, and not checked.
+
 **Captions say when they are older than their timeline**
 - Why: cues and mixes tell when the narration under them changed; captions did not. After a new take, `captions.json` went on holding the old take's times without a word.
 - `bin/vh captions` records the timeline it read and that file's sha256 in `audio/captions.args.json` (with `"version": 1`; `bin/vh pace` reads the same file by name, as before). `captions.json` keeps its shape, since pages read it.
