@@ -2079,6 +2079,24 @@
    "doc": "tools/commands.json"
   },
   {
+   "id": "project-identity",
+   "path": ".ovh/project.json",
+   "kind": "file",
+   "format": "json",
+   "stages": ["any"],
+   "purpose": "这个项目的身份：一个随机、不变的 id，文件夹搬走也跟着走",
+   "made_by": "tool",
+   "writers": ["new", "projects"],
+   "readers": ["projects", "status"],
+   "required": null,
+   "version_key": "version",
+   "schema": "tools/schemas/project.schema.json",
+   "stale": null,
+   "clean": "stays",
+   "doc": "tools/identity.py",
+   "note": "bin/vh new writes it; an older project has none until bin/vh projects --assign, and a command that only reads never writes it."
+  },
+  {
    "id": "activity-log",
    "path": ".ovh/activity.jsonl",
    "kind": "file",

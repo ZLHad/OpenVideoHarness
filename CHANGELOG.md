@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`bin/vh projects`: every project and where it stands; a project's identity that moves with its folder**
+- Why: nothing listed the projects on a machine with their state, and `versions.json` and `activity.jsonl` keep absolute paths, so a folder that moved had nothing to be known by. A client needs both before it can open anything.
+- `bin/vh new` writes `.ovh/project.json` (`"version": 1`, a random `id`, `created`; `tools/identity.py`). An older project has none until `bin/vh projects --assign`; read-only commands never write it. `bin/vh status --json` has `project.id`, `bin/vh new --json` has `id`.
+- `bin/vh projects [--root DIR …] [--assign] [--json]` lists every folder holding `BRIEF.md` under `$OVH_PROJECTS`, `<repo>/projects` and each `--root` (not in `out/`, `node_modules`, hidden folders and the like): `id`, `name`, `title`, `path`, `type`, `effort`, `state`, `station`, `waiting_on`, `next_step`, `running`, `last_activity`, `film`. A project that cannot be read is one row with an `error`, a folder copied whole says `same_id_as`, nothing is written without `--assign`.
+- It reuses `bin/vh status` in-process (`tools/status.py`'s `collect`, its `light` leaving out the ledger, the cast and the research): 30 projects with logs of 400 lines take 0.2 s here, so no cheaper path is needed.
+
 **The docs point to the table**
 - Why: the table is only used if the places people look at say it is there; and the BRIEF's many `{…}` never said which ones a tool reads.
 - `playbook/01`'s 项目目录约定: one line to `bin/vh artifacts spec` and `list`. `tools/desk/README.md`: a short section for clients. `CONTRIBUTING.md`: a new kind of file gets an entry, and a schema when tools rely on its shape. The READMEs: one row in the tools table.

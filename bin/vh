@@ -623,6 +623,7 @@ PY
   esac
   for s in $styles; do attach_style "$dir" "$s"; done   # presets as references: copies in style-refs/, listed in BRIEF, a DECISIONS line
   if [ -n "$fromdir" ]; then fromsaid=$(python3 "$ROOT/tools/series.py" carry "$fromdir" "$dir" --given "$given") || exit 1; fi   # the lines to show
+  python3 "$ROOT/tools/identity.py" "$dir" >/dev/null || echo "$c_wa no .ovh/project.json was written: bin/vh projects --assign gives $(rel "$dir") its id" >&2
   eff=$(sed -n 's/^- Effort: \([a-z]*\).*/\1/p' "$dir/BRIEF.md" | head -1); eff=${eff:-${effort:-standard}}   # as the BRIEF has it now
   NEW_DIR=""
   ACT_SUMMARY="created ${dir##*/} · $type · $eff${todo:+ · the scaffold did not finish}"; act_begin "$dir" new "${typed[@]}" || true
@@ -657,7 +658,7 @@ root, d, t, doc, eff, lang, watch, res, wh, engine, todo = sys.argv[1:12]
 st = json.loads(subprocess.run([sys.executable, root + "/tools/status.py", d, "--json"], capture_output=True, text=True).stdout)
 own = {"short": "hyperframes", "promo": "hyperframes", "data": "hyperframes", "meme": "hyperframes", "edit": "hyperframes", "math": "manim", "paper": "manim",
        "handdrawn": "ClaudeAnimationBase", "mv": "ClaudeAnimationBase"}
-print(json.dumps({"version": 1, "project": d, "type": t, "doc": f"video-types/{doc}.md", "effort": eff, "lang": lang, "frame": wh or None, "watch": watch,
+print(json.dumps({"version": 1, "project": d, "id": st["project"]["id"], "type": t, "doc": f"video-types/{doc}.md", "effort": eff, "lang": lang, "frame": wh or None, "watch": watch,
                   "resolution": res, "engine": engine or own.get(t), "scaffold": {"ok": not todo, "finish": todo or None}, "next": st["next_step"]},
                  ensure_ascii=False, indent=1))
 PY
@@ -798,6 +799,7 @@ cmd_concept() { # roulette reads files (stdlib); board draws a page (pillow, thr
 cmd_activity() { [ $# -gt 0 ] || { cmd_usage activity >&2; exit 2; }; exec python3 "$ROOT/tools/activity.py" "$@"; }   # read-only, not logged
 cmd_know() { [ $# -gt 0 ] || { cmd_usage know >&2; exit 2; }; exec python3 "$ROOT/tools/know.py" "$@"; }   # read-only, not logged; stdlib
 cmd_status() { [ $# -gt 0 ] || { cmd_usage status >&2; exit 2; }; exec python3 "$ROOT/tools/status.py" "$@"; }         # read-only, not logged
+cmd_projects() { exec python3 "$ROOT/tools/projects.py" "$@"; }   # about no one project: not logged; only --assign writes
 cmd_versions() { [ $# -gt 0 ] || { cmd_usage versions >&2; exit 2; }; python3 "$ROOT/tools/versions.py" "$@"; }   # the list is not logged; compare and use are
 cmd_proxy() { [ $# -gt 0 ] || { cmd_usage proxy >&2; exit 2; }; python3 "$ROOT/tools/proxy.py" proxy "$@"; }       # ffmpeg only
 cmd_thumbs() { [ $# -gt 0 ] || { cmd_usage thumbs >&2; exit 2; }   # a browser only for a project with no film (the page's frames)
@@ -1233,7 +1235,7 @@ cmd_help() { python3 "$ROOT/tools/commands.py" help; }            # every usage,
 cmd_usage() { python3 "$ROOT/tools/commands.py" usage "$1"; }    # one command's usage from there; exit 1 if it has none
 
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|cast|know|artifacts|looks|breakdown|concept|components|hf|footage|image|model3d|hdri|bgm|sound|scout|ref|web) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|cast|know|artifacts|looks|breakdown|concept|components|hf|footage|image|model3d|hdri|bgm|sound|scout|ref|web|projects) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
@@ -1241,7 +1243,7 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 case "${1:-}" in   # the activity log: every command that works on a project (act_start finds it) but the read-only views
-  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|new) ;;   # (new: once the project is made)
+  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|projects|new) ;;   # (new: once the project is made)
   components) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list, check and sample touch no project
   desk) [ "${2:-}" = data ] || act_start "$@" || true ;;
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
@@ -1284,7 +1286,7 @@ case "${1:-help}" in
   gate) shift; cmd_gate "$@" ;;
   commands) shift; exec python3 "$ROOT/tools/commands.py" list "$@" ;;   # read-only, not logged
   artifacts) shift; exec python3 "$ROOT/tools/artifacts.py" "$@" ;;   # read-only, not logged; stdlib only
-  status) shift; cmd_status "$@" ;; activity) shift; cmd_activity "$@" ;; know) shift; cmd_know "$@" ;; versions) shift; cmd_versions "$@" ;; proxy) shift; cmd_proxy "$@" ;; thumbs) shift; cmd_thumbs "$@" ;;
+  status) shift; cmd_status "$@" ;; projects) shift; cmd_projects "$@" ;; activity) shift; cmd_activity "$@" ;; know) shift; cmd_know "$@" ;; versions) shift; cmd_versions "$@" ;; proxy) shift; cmd_proxy "$@" ;; thumbs) shift; cmd_thumbs "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; edit) shift; cmd_edit "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;; looks) shift; cmd_looks "$@" ;; breakdown) shift; cmd_breakdown "$@" ;;
   help|-h|--help) cmd_help ;;

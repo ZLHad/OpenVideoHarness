@@ -194,6 +194,7 @@
       "when": "picking a project up again, or before telling the person what comes next",
       "stages": ["any"],
       "reads": [
+        "<project>/.ovh/project.json",
         "<project>/BRIEF.md, REVIEW.md, DECISIONS.md, NOTES.md",
         "<project>/out/review/",
         "<project>/out/check/*.check.json",
@@ -212,6 +213,31 @@
             "submissions, REVIEW.md's decisions; who is waited on, the latest renders and the last check, open",
             "review items, the material on record and the spend (bin/vh assets), what runs now, and the next step: who has it,",
             "what to do, the commands and the sections to read (tools/status.py; --json: the fields in tools/desk/README.md)"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "projects",
+      "summary": "Every project on this machine and where each stands: its id, type, effort, state, who is waited on, the next step, last activity and latest film.",
+      "when": "choosing what to pick up, or a client's list of projects",
+      "stages": ["any"],
+      "reads": [
+        "$OVH_PROJECTS, <repo>/projects and each --root: every folder holding BRIEF.md",
+        "<project>/.ovh/project.json",
+        "what bin/vh status reads of each project, but its asset ledger, cast and research"
+      ],
+      "writes": [
+        "<project>/.ovh/project.json (--assign, for a project without an id)"
+      ],
+      "usage": [
+        {
+          "synopsis": "projects [--root DIR …] [--assign] [--json]",
+          "text": [
+            "every folder holding BRIEF.md under $OVH_PROJECTS, <repo>/projects and each --root: its id (null until assigned; --assign",
+            "writes the missing ones in .ovh/project.json, and a moved folder keeps its id), name, path, type, effort, state, who is",
+            "waited on, the next step, last activity and latest film; a project that cannot be read is one row with an error",
+            "(tools/projects.py; --json: the fields in its -h)"
           ]
         }
       ]
@@ -356,6 +382,7 @@
         "<project>/BRIEF.md, STYLE.md, style-refs/, STORYBOARD.md, audio/*events*.json (--from)"
       ],
       "writes": [
+        "<project>/.ovh/project.json",
         "projects/<date>-<slug>/ (or under --dir, $OVH_PROJECTS)",
         "<project>/BRIEF.md, STYLE.md, STORYBOARD.md, REVIEW.md, DECISIONS.md, NOTES.md, LESSONS.md, TASTE_CHECKLIST.md, ENGINE_README.md, film.html, src/, node_modules/ (the type's templates and its engine's files)",
         "<project>/three/, style-refs/<id>/, series.json (with --three, --style, --from)"

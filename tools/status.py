@@ -54,7 +54,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
-import activity, checkrec as C, gatecheck as G, proxy as P, review as R, versions as V   # noqa: E402,E401
+import activity, checkrec as C, gatecheck as G, identity, proxy as P, review as R, versions as V   # noqa: E402,E401
 import feedback as F, reader   # noqa: E402,E401
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
@@ -96,14 +96,14 @@ def iso(t):
 
 
 def basics(project):
-    """The project as its BRIEF says: title, type, effort (and where it comes from), Director line, review language, Spec."""
+    """The project as its BRIEF says: title, type, effort (and where it comes from), Director line, review language, Spec; and its id (null until it has one)."""
     raw = reader._read(project / "BRIEF.md", [])
     brief = reader.strip_comments(raw)
     spec = {k: reader.plain(v) for k, v, _ in reader.bullets(reader.section(brief, r"^Spec", r"^规格"))}
     title = (re.search(r"^#\s+BRIEF\s*[：:]\s*(.+)$", brief, re.M) or [None, ""])[1].strip() or project.name
     m = re.search(r"video-types/(\d\d-[\w-]+)\.md", brief) or re.search(r"<!-- from (\d\d-[\w-]+)\.md -->", raw)
     effort, src = G.effort_of(project)
-    return {"path": str(project), "slug": project.name, "title": title, "type": m.group(1) if m else None, "effort": effort,
+    return {"id": identity.id_of(project), "path": str(project), "slug": project.name, "title": title, "type": m.group(1) if m else None, "effort": effort,
             "effort_from": src, "director": spec.get("Director") or "default", "lang": R.review_lang(project) or "zh", "spec": spec}
 
 
@@ -597,7 +597,18 @@ def main(argv):
         if not (project / "BRIEF.md").is_file():
             print(f"status: {project} is not a project (no BRIEF.md)", file=sys.stderr)
             return 2
-    now = time.time()
+    out = collect(project)
+    if a.json:
+        print(json.dumps(out, ensure_ascii=False, indent=1))
+        return 0
+    show(out, time.time())
+    return 0
+
+
+def collect(project, now=None, light=False):
+    """Everything bin/vh status says of a project, as its --json. Reads only, prints nothing. light leaves out what a list of
+    projects does not show and that takes the most on a large project: the asset ledger, the cast and the research (null)."""
+    now = time.time() if now is None else now
     proj = basics(project)
     rv = project / "REVIEW.md"
     review_text = G.strip_comments(G.read(rv)) if rv.is_file() else ""
@@ -708,27 +719,29 @@ def main(argv):
         except (ValueError, OSError) as e:
             vers = {"error": str(e)}
     cur_of = {f: i for f, i in (vers or {}).get("current", {}).items()}
-    # the material on record (bin/vh assets, tools/assets/uses.py): how many, the licences not cleared, what the films loaded
-    # that the ledger lacks, and the spend against the budget; a ledger that cannot be read is said, never a failure
-    try:
-        sys.path.insert(0, str(HERE / "assets"))
-        import uses as U
-        assets = U.overview(project)
-    except Exception as e:
-        assets = {"error": f"the asset ledger could not be read ({e})"}
-    # the cast's settled references (bin/vh cast, tools/cast.py's overview): files only, never a failure
-    try:
-        import cast as CA
-        cast = CA.overview(project)
-    except Exception as e:
-        cast = {"error": f"cast/ could not be read ({e})"}
-    # the research on record (bin/vh scout, bin/vh ref; tools/scout/scout.py's overview): files only, never a failure
-    try:
-        sys.path.insert(0, str(HERE / "scout"))
-        import scout as S
-        research = S.overview(project)
-    except Exception as e:
-        research = {"error": f"research/ could not be read ({e})"}
+    assets = cast = research = None
+    if not light:
+        # the material on record (bin/vh assets, tools/assets/uses.py): how many, the licences not cleared, what the films loaded
+        # that the ledger lacks, and the spend against the budget; a ledger that cannot be read is said, never a failure
+        try:
+            sys.path.insert(0, str(HERE / "assets"))
+            import uses as U
+            assets = U.overview(project)
+        except Exception as e:
+            assets = {"error": f"the asset ledger could not be read ({e})"}
+        # the cast's settled references (bin/vh cast, tools/cast.py's overview): files only, never a failure
+        try:
+            import cast as CA
+            cast = CA.overview(project)
+        except Exception as e:
+            cast = {"error": f"cast/ could not be read ({e})"}
+        # the research on record (bin/vh scout, bin/vh ref; tools/scout/scout.py's overview): files only, never a failure
+        try:
+            sys.path.insert(0, str(HERE / "scout"))
+            import scout as S
+            research = S.overview(project)
+        except Exception as e:
+            research = {"error": f"research/ could not be read ({e})"}
 
     def vinfo(v, s):
         side = load(str(v) + ".render.json")
@@ -750,11 +763,7 @@ def main(argv):
         out["next_step"] = next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], desk, by_video)
     except Exception as e:
         out["next_step"] = {"who": "unknown", "do": f"the next step could not be worked out ({e})", "commands": [], "read": [], "unfilled": {}}
-    if a.json:
-        print(json.dumps(out, ensure_ascii=False, indent=1))
-        return 0
-    show(out, now)
-    return 0
+    return out
 
 
 def show(o, now):

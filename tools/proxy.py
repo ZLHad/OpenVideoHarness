@@ -124,6 +124,22 @@ def newest_film(project):
     return film_of(project)[0]
 
 
+def versioned_film(project):
+    """The film of the newest current version (bin/vh versions), or None: no record, one that cannot be read, none current."""
+    try:
+        cur = sorted((x for x in V.listing(project)["versions"] if x["state"] == "current"), key=lambda x: -(x.get("t") or 0))
+    except (ValueError, OSError):
+        return None
+    return Path(project) / cur[0]["file"] if cur else None
+
+
+def current_film(project):
+    """The film a list or a client shows first: the newest current version, else what bin/vh check <project> takes; None when
+    there is neither. Resolved, like film_of's."""
+    film = versioned_film(project)
+    return film.resolve() if film else newest_film(project)
+
+
 def pick(target):
     """(film or None, project, page or None) for a film or a project."""
     p = Path(target).expanduser()
@@ -135,14 +151,7 @@ def pick(target):
         project = review.find_project(target)
     if project is None:
         raise Usage(f"no film or project at {target}")
-    film = None
-    try:
-        L = V.listing(project)
-        cur = sorted((x for x in L["versions"] if x["state"] == "current"), key=lambda x: -(x.get("t") or 0))
-        if cur:
-            film = Path(project) / cur[0]["file"]
-    except ValueError:
-        pass
+    film = versioned_film(project)
     if film is None:
         vids = films_in(project)
         film = next((f for f in vids if Path(str(f) + ".render.json").is_file()), vids[0] if vids else None)

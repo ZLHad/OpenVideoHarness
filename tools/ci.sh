@@ -5363,6 +5363,114 @@ sys.exit(0 if d("hook=own, stop=E1, stop=E3") == d("stop=E1,E3") == d("stop = e1
 
 # bin/vh status's next step, stop by stop: who has it, what to do, the commands, what to read. Every section it sends an
 # agent to is there, and the older fields stay as they were
+projects_checks() {   # bin/vh projects and a project's identity: what bin/vh new writes, what a read leaves alone, --assign, a moved
+  # folder, a broken project as one row, what is not walked into, and the time on 30 projects
+  local t a b rc i base
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd); base="$t/many"; mkdir -p "$base"   # (no // in the path: a row's path has none)
+  # bin/vh new writes the identity; status and new --json say the id; an older project has none, and reading writes nothing
+  a=$(OVH_PROJECTS="$base" vh new math ci-one --json 2>/dev/null)
+  mkdir -p "$base/old-one"; printf '# BRIEF：旧项目\n- Effort: quick\n' > "$base/old-one/BRIEF.md"
+  mkdir -p "$base/out/skipped" "$base/old-one/out/x" "$base/node_modules/y" "$base/.hidden/z"
+  for i in out/skipped old-one/out/x node_modules/y .hidden/z; do printf '# BRIEF\n' > "$base/$i/BRIEF.md"; done
+  mkdir -p "$base/group/docs"; printf '# BRIEF：放在 docs 里\n' > "$base/group/docs/BRIEF.md"
+  find "$base" | sort > "$t/before"
+  b=$(OVH_PROJECTS="$base" vh projects --json 2>&1); rc=$?
+  OVH_PROJECTS="$base" vh projects >"$t/human" 2>&1 || rc=$?
+  find "$base" | sort > "$t/after"
+  if [ $rc = 0 ] && cmp -s "$t/before" "$t/after" && python3 - "$a" "$b" "$base" <<'PY'
+import json, re, sys
+new, rec, base = json.loads(sys.argv[1]), json.loads(sys.argv[2]), sys.argv[3]
+one = json.load(open(new["project"] + "/.ovh/project.json"))
+rows = {r["name"]: r for r in rec["projects"]}
+ok = one["version"] == 1 and re.fullmatch(r"[0-9a-f]{32}", one["id"]) and re.match(r"\d{4}-\d\d-\d\dT", one["created"]) and new["id"] == one["id"]
+ok = ok and sorted(rows) == sorted([new["project"].split("/")[-1], "old-one", "group/docs"]) and rec["count"] == 3
+r = rows["old-one"]
+ok = ok and r["id"] is None and r["effort"] == "quick" and r["title"] == "旧项目" and r["error"] is None and r["path"] == base + "/old-one"
+r = rows[new["project"].split("/")[-1]]
+ok = ok and r["id"] == one["id"] and r["type"] == "01-math-science-explainer" and r["waiting_on"] == "agent" and r["state"] == "in_progress" and r["station"]["id"] == "1" \
+    and r["next_step"]["who"] == "agent" and r["last_activity"]["cmd"] == "new" and r["last_activity"]["state"] == "ok" and r["film"] is None
+sys.exit(0 if ok else 1)
+PY
+  then ok "projects: bin/vh new writes .ovh/project.json and says the id; the list has every folder holding BRIEF.md (not in out/, node_modules, hidden folders), with its state, next step and last activity; an older project's id is null; listing writes nothing"
+  else bad "bin/vh projects (exit $rc): $(printf '%s' "$a$b" | tail -c 500) $(diff "$t/before" "$t/after" | head -5)"; fi
+  # --assign writes the missing ones and no other; again changes nothing; a moved folder keeps its id; a copy is said
+  OVH_PROJECTS="$base" vh projects --assign --json > "$t/a1" 2>&1; rc=$?
+  OVH_PROJECTS="$base" vh projects --assign --json > "$t/a2" 2>&1
+  mv "$base/old-one" "$base/moved-one"
+  OVH_PROJECTS="$base" vh projects --json > "$t/a3" 2>&1
+  cp -R "$base/moved-one" "$base/copied-one"
+  OVH_PROJECTS="$base" vh projects --json > "$t/a4" 2>&1
+  if [ $rc = 0 ] && python3 - "$t" "$base" <<'PY'
+import json, sys
+t, base = sys.argv[1:]
+a1, a2, a3, a4 = (json.load(open(f"{t}/a{i}")) for i in (1, 2, 3, 4))
+ids = lambda rec: {r["name"]: r["id"] for r in rec["projects"]}   # noqa: E731
+one = ids(a1)
+ok = all(one.values()) and sorted(a1["assigned"]) == sorted([base + "/old-one", base + "/group/docs"]) and a2["assigned"] == [] and ids(a2) == one
+ok = ok and ids(a3)["moved-one"] == one["old-one"]
+rows = {r["name"]: r for r in a4["projects"]}
+ok = ok and rows["copied-one"]["same_id_as"] == [base + "/moved-one"] and rows["moved-one"]["same_id_as"] == [base + "/copied-one"]
+sys.exit(0 if ok else 1)
+PY
+  then ok "projects --assign: gives only the projects without one an id, again changes nothing; a moved folder keeps its id; a copied folder is said (same_id_as)"
+  else bad "bin/vh projects --assign (exit $rc): $(tail -c 300 "$t/a1") $(tail -c 300 "$t/a4")"; fi
+  rm -rf "$base/copied-one"
+  # a project that cannot be read: one row with an error, the others as they were; the same through a real one, a BRIEF with no read permission
+  a=$(python3 - "$base" <<'PY' 2>&1
+import json, sys
+sys.path.insert(0, "tools")
+import projects, status
+base, real = sys.argv[1], status.collect
+def broken(project, **kw):
+    if project.name == "moved-one":
+        raise OSError("made up")
+    return real(project, **kw)
+status.collect = broken
+import os
+os.environ["OVH_PROJECTS"] = base
+rec = projects.listing()
+rows = {r["name"]: r for r in rec["projects"]}
+print("ok" if rows["moved-one"]["error"] == "OSError: made up" and rows["moved-one"]["state"] is None and rows["moved-one"]["id"] and rows["group/docs"]["error"] is None and rec["count"] == 3 else json.dumps(rec)[:600])
+PY
+  )
+  [ "$a" = ok ] && ok "projects: a project that cannot be read is one row with an error, and the list goes on" || bad "projects on a broken project: $a"
+  # a --root: added to the list, the same folder twice is one row; one that is not there is a usage error; the current film
+  mkdir -p "$t/other/p2/out" "$t/empty"; printf '# BRIEF：另一个\n- Effort: quick\n' > "$t/other/p2/BRIEF.md"; : > "$t/other/p2/out/final.mp4"
+  a=$(OVH_PROJECTS="$t/empty" vh projects --root "$t/other" --root "$t/other/" --json 2>&1); rc=$?
+  b=$(OVH_PROJECTS="$t/empty" vh projects --root "$t/nope" 2>&1); i=$?
+  if [ $rc = 0 ] && [ $i = 2 ] && python3 - "$a" <<'PY'
+import json, sys
+rec = json.loads(sys.argv[1])
+sys.exit(0 if rec["count"] == 1 and rec["projects"][0]["name"] == "p2" and rec["projects"][0]["film"]["path"] == "out/final.mp4" and [r["from"] for r in rec["roots"]] == ["OVH_PROJECTS", "repo", "--root"] else 1)
+PY
+  then ok "projects --root: looked in too, the same folder once; the film it names; a root that is not there is a usage error (exit 2)"
+  else bad "bin/vh projects --root (exit $rc, $i): $(printf '%s' "$a$b" | tail -c 400)"; fi
+  # the time: 30 projects, each with a log of a few hundred lines
+  mkdir -p "$t/thirty"
+  python3 - "$t/thirty" <<'PY'
+import json, os, sys
+for i in range(30):
+    d = f"{sys.argv[1]}/p{i:02d}"
+    os.makedirs(d + "/.ovh"); os.makedirs(d + "/out/review")
+    open(d + "/BRIEF.md", "w").write("# BRIEF：第 %d 支\n- Effort: standard\n" % i)
+    open(d + "/REVIEW.md", "w").write("# REVIEW\n")
+    with open(d + "/.ovh/activity.jsonl", "w") as f:
+        for k in range(200):
+            f.write(json.dumps({"v": 1, "event": "start", "run": f"{k}-1", "t": 1790000000 + k, "cmd": "render", "args": ["a"], "cwd": "/x", "pid": 1}) + "\n")
+            f.write(json.dumps({"v": 1, "event": "end", "run": f"{k}-1", "t": 1790000000.5 + k, "cmd": "render", "exit": 0, "duration": 0.5}) + "\n")
+PY
+  a=$(OVH_PROJECTS="$t/thirty" vh projects --json 2>&1); rc=$?
+  if [ $rc = 0 ] && python3 - "$a" <<'PY'
+import json, sys
+rec = json.loads(sys.argv[1])
+print(f"{rec['count']} projects in {rec['seconds']} s")
+sys.exit(0 if rec["count"] == 30 and rec["seconds"] < 15 else 1)
+PY
+  then ok "projects: 30 projects with logs of 400 lines stay quick (a bound for a slow runner, 15 s)"
+  else bad "bin/vh projects on 30 projects (exit $rc): $(printf '%s' "$a" | tail -c 300)"; fi
+  rm -rf "$t"
+}
+
 next_step_checks() {
   local t=$1 p q a b c d e f
   # ns <project> <expression over n, c, r>…: prints what does not hold, and a crash too (these checks pass on empty output)
