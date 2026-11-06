@@ -30,7 +30,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import versions as V   # noqa: E402
+import jsonerr, versions as V   # noqa: E402,E401
 from timegrid import frame_at, frame_from   # noqa: E402  (seconds to frames, the one way)
 
 VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
@@ -40,7 +40,11 @@ FAILED = re.compile(r"\.failed(-\d+)?$", re.I)
 
 
 class Usage(Exception):
-    pass
+    """Exit 2. code: what tools/jsonerr.py calls it."""
+
+    def __init__(self, message, code="usage"):
+        super().__init__(message)
+        self.code = code
 
 
 def run(args, **kw):
@@ -150,7 +154,7 @@ def pick(target):
         import review
         project = review.find_project(target)
     if project is None:
-        raise Usage(f"no film or project at {target}")
+        raise Usage(f"no film or project at {target}", "no_project")
     film = versioned_film(project)
     if film is None:
         vids = films_in(project)
@@ -281,7 +285,7 @@ def refresh_proxy(film, info, o, dst, wins):
 def cmd_proxy(a):
     film, project, _ = pick(a["target"])
     if film is None:
-        raise Usage(f"no film in {project} to make a proxy of: bin/vh render first (bin/vh thumbs draws the page)")
+        raise Usage(f"no film in {project} to make a proxy of: bin/vh render first (bin/vh thumbs draws the page)", "not_found")
     info = probe(film)
     if not (info["fps"] > 0 and info["frames"] > 0):
         raise RuntimeError(f"{film}: no frame rate or frames")
@@ -387,7 +391,7 @@ def sheets(tdir, n, cols=10, rows=10):
 def cmd_thumbs(a):
     film, project, page = pick(a["target"])
     if film is None and page is None:
-        raise Usage(f"nothing to take pictures of in {project}: no film and no page (film.html, index.html, studio.html)")
+        raise Usage(f"nothing to take pictures of in {project}: no film and no page (film.html, index.html, studio.html)", "not_found")
     T0 = time.time()
     side = V.load_json(str(film) + ".render.json") if film else None
     if film:
@@ -397,14 +401,14 @@ def cmd_thumbs(a):
         name, base = name_of(film, project), film
     else:
         if not a["browser"]:
-            raise Usage("no film, and no headless Chrome to draw the page: run it as bin/vh thumbs, or set CHROME_PATH")
+            raise Usage("no film, and no headless Chrome to draw the page: run it as bin/vh thumbs, or set CHROME_PATH", "missing_tool")
         import shot_source
         if shot_source.is_edit(page):   # an edit list with no film yet: its frames drawn as bin/vh frames draws them
             import edit
             try:
                 doc = edit.resolve(project)
             except edit.EditError as e:
-                raise Usage("edit.json does not resolve: " + "; ".join(e.problems[:3])) from None
+                raise Usage("edit.json does not resolve: " + "; ".join(e.problems[:3]), "invalid") from None
             live = {"shots": None}
             fps, dur, aspect, nfr = float(doc["fps"]), doc["frames"] / doc["fps"], doc["size"][0] / doc["size"][1], doc["frames"]
         else:
@@ -584,18 +588,16 @@ def main(argv):
         a = parse(argv[1:], cmd)
         for tool in ("ffmpeg", "ffprobe"):
             if not shutil.which(tool):
-                raise RuntimeError(f"{tool} is not installed")
+                return jsonerr.fail("missing_tool", f"{cmd}: {tool} is not installed", "bin/vh doctor says how to get it", rc=1)
         return (cmd_proxy if cmd == "proxy" else cmd_thumbs)(a)
     except Usage as e:
-        print(f"{cmd}: {e}", file=sys.stderr)
-        return 2
+        return jsonerr.fail(e.code, f"{cmd}: {e}")
     except (RuntimeError, OSError, SystemExit) as e:
-        print(f"{cmd}: {e}", file=sys.stderr)
-        return 1
+        return jsonerr.fail("failed", f"{cmd}: {e}", rc=1)
 
 
 if __name__ == "__main__":
     try:
-        sys.exit(main(sys.argv[1:]))
+        sys.exit(jsonerr.guard(lambda: main(sys.argv[1:])))
     except BrokenPipeError:
         sys.exit(0)

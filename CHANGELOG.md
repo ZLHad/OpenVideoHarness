@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Errors a program can read; why a run failed is in the activity log**
+- Why: a failure was words on stderr and an exit status, each command with its own wording, and an `end` line that carried only the exit status: a client could not branch on a failure or say why a background run stopped.
+- `tools/jsonerr.py`: with `--json`, a failure prints `{"version": 1, "error": {"code", "message", "hint"}}` on stdout, the line a person reads stays on stderr, the exit status is what it was. The codes are stable and few: `usage`, `no_project`, `not_found`, `invalid`, `exists`, `refused`, `missing_tool`, `timeout`, `failed`. `status`, `activity`, `versions`, `check`, `assets`, `edit`, `proxy`, `thumbs`, `artifacts`, `projects`, `commands`, `doctor`, `desk data`, `gate` and `new` all have it, also for what fails in `bin/vh` before Python starts (`vh_fail`), an argparse error, words in a `SystemExit`, a traceback, and no `python3` (exit 127). A record a command prints of its own stays as it is.
+- `bin/vh gate` gains `--json`: the page, the channel, the desk's address and the chat message as a record; `bin/vh desk data` takes `--json` and answers failures in the same shape; `bin/vh new` refuses a slug that starts with `-` (`bin/vh new short --json` made a folder named `--json`).
+- Under a logged command the same helper leaves the message in `.ovh/activity.jsonl`, a `note` with `"level": "error"` and `"code"`, with or without `--json`; `bin/vh render` and `bin/vh patch` too. `bin/vh activity --json` has it as the run's `error` (`{code, message}`, or `null`), its listing and `--follow` say it.
+
 **`bin/vh projects`: every project and where it stands; a project's identity that moves with its folder**
 - Why: nothing listed the projects on a machine with their state, and `versions.json` and `activity.jsonl` keep absolute paths, so a folder that moved had nothing to be known by. A client needs both before it can open anything.
 - `bin/vh new` writes `.ovh/project.json` (`"version": 1`, a random `id`, `created`; `tools/identity.py`). An older project has none until `bin/vh projects --assign`; read-only commands never write it. `bin/vh status --json` has `project.id`, `bin/vh new --json` has `id`.

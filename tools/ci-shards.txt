@@ -23,6 +23,7 @@ looks_checks 17
 activity_checks 6
 status_checks 6
 projects_checks 8
+contract_checks 30
 know_checks 6
 artifacts_checks 12
 assets_checks 108

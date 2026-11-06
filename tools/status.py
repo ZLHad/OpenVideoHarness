@@ -46,7 +46,8 @@ to read (a file to read whole, or a "<file.md>#<section>" that bin/vh know --sho
 BRIEF.md, STYLE.md and STORYBOARD.md (outside code; the template's kind of braces, not a stylesheet's). What the Director line keeps for the person (x=own) comes first in what to do, until it is on record: its stop
 done or skipped, or its row in DECISIONS.md decided. The line starts "next:"; --json has it as next_step (the older "next" is
 one sentence, and stays).
---json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1). Exit 0, 2 when there is no project.
+--json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1). Exit 0, 2 when there is no project
+(with --json, the error's shape: tools/jsonerr.py).
 """
 import json, os, re, shlex, sys, time
 from pathlib import Path
@@ -54,7 +55,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
-import activity, checkrec as C, gatecheck as G, identity, proxy as P, review as R, versions as V   # noqa: E402,E401
+import activity, checkrec as C, gatecheck as G, identity, jsonerr, proxy as P, review as R, versions as V   # noqa: E402,E401
 import feedback as F, reader   # noqa: E402,E401
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
@@ -593,10 +594,10 @@ def main(argv):
     if project is None:
         project = R.find_project(a.project)
         if project is None:
+            jsonerr.mark("no_project")
             return 2
         if not (project / "BRIEF.md").is_file():
-            print(f"status: {project} is not a project (no BRIEF.md)", file=sys.stderr)
-            return 2
+            return jsonerr.fail("no_project", f"status: {project} is not a project (no BRIEF.md)")
     out = collect(project)
     if a.json:
         print(json.dumps(out, ensure_ascii=False, indent=1))
@@ -852,6 +853,6 @@ def show(o, now):
 
 if __name__ == "__main__":
     try:
-        sys.exit(main(sys.argv[1:]))
+        sys.exit(jsonerr.guard(lambda: main(sys.argv[1:])))
     except BrokenPipeError:
         sys.exit(0)

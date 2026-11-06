@@ -39,6 +39,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import jsonerr   # noqa: E402
 
 RECORD = "versions.json"
 KEEP_DEFAULT = 3
@@ -891,8 +892,7 @@ def main(argv):
                      "use": "bin/vh versions use <project> <vN>"}[sub])
     project = find(pos[0])
     if project is None:
-        print(f"versions: no project at {pos[0]} (a folder with BRIEF.md, or a name under projects/)", file=sys.stderr)
-        return 2
+        return jsonerr.fail("no_project", f"versions: no project at {pos[0]} (a folder with BRIEF.md, or a name under projects/)")
     try:
         if sub == "list":
             L = listing(project)
@@ -921,18 +921,22 @@ def main(argv):
             activity.note(res["lines"][0], [absolute(project, res["film"])])
         return 0
     except ValueError as e:   # an unreadable record
-        print(f"versions: {e}", file=sys.stderr)
-        return 2
-    except (LookupError, RuntimeError, OSError) as e:
-        print(f"versions: {e}", file=sys.stderr)
-        return 1
+        return jsonerr.fail("invalid", f"versions: {e}")
+    except LookupError as e:   # a version that is not there, or not kept
+        return jsonerr.fail("not_found", f"versions: {e}", rc=1)
+    except (RuntimeError, OSError) as e:
+        return jsonerr.fail("failed", f"versions: {e}", rc=1)
+
+
+def run():
+    try:
+        return main(sys.argv[1:])
+    except Usage as e:
+        return jsonerr.fail("usage", f"usage: {e}" if str(e).startswith("bin/vh") else f"versions: {e} (bin/vh versions -h)")
 
 
 if __name__ == "__main__":
     try:
-        sys.exit(main(sys.argv[1:]))
-    except Usage as e:
-        print(f"usage: {e}" if str(e).startswith("bin/vh") else f"versions: {e} (bin/vh versions -h)", file=sys.stderr)
-        sys.exit(2)
+        sys.exit(jsonerr.guard(run))
     except BrokenPipeError:
         sys.exit(0)

@@ -63,6 +63,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
+import jsonerr   # noqa: E402
 import budget, fetch, ledger, licenses, uses   # noqa: E402,E401
 
 SUB = ("list", "add", "check", "credits", "remove")
@@ -71,7 +72,16 @@ out = sys.stdout   # the lines; stderr under --json
 
 
 class Usage(Exception):
-    """A usage error: exit 2."""
+    """A usage error: exit 2. code: what tools/jsonerr.py calls it."""
+    code = "usage"
+
+
+class NoProject(Usage):
+    code = "no_project"
+
+
+class Invalid(Usage):
+    code = "invalid"
 
 
 def say(*a):
@@ -87,14 +97,14 @@ def find(arg, need_project=True):
             return proj
         if not need_project and p.is_file() and p.suffix in (".json", ".jsonl"):
             return p.resolve()
-        raise Usage(f"{arg} is not in a project (no BRIEF.md at or above it)")
+        raise NoProject(f"{arg} is not in a project (no BRIEF.md at or above it)")
     from vhdraw import project_dir, Usage as NameUsage
     try:
         proj = project_dir(arg)
     except (NameUsage, SystemExit) as e:
-        raise Usage(str(e))
+        raise NoProject(str(e))
     if not (proj / "BRIEF.md").is_file():
-        raise Usage(f"{proj} is not a project (no BRIEF.md)")
+        raise NoProject(f"{proj} is not a project (no BRIEF.md)")
     return proj
 
 
@@ -130,7 +140,7 @@ def cmd_list(a):
     try:
         base, ents, f = ledger.entries(target, said)
     except ledger.LedgerError as e:
-        raise Usage(str(e))
+        raise Invalid(str(e))
     is_project = target.is_dir()
     policy, pfrom = ledger.policy_of(base) if is_project else ("record", "a library")
     rows = []
@@ -647,12 +657,11 @@ def main(argv):
     try:
         return {"list": cmd_list, "add": cmd_add, "check": cmd_check, "credits": cmd_credits, "remove": cmd_remove}[a.cmd](a)
     except Usage as e:
-        print(f"{PROG} {a.cmd}: {e}", file=sys.stderr)
-        return 2
+        return jsonerr.fail(e.code, f"{PROG} {a.cmd}: {e}")
 
 
 if __name__ == "__main__":
     try:
-        sys.exit(main(sys.argv[1:]))
+        sys.exit(jsonerr.guard(lambda: main(sys.argv[1:])))
     except BrokenPipeError:
         sys.exit(0)

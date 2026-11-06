@@ -41,6 +41,14 @@ export function note(summary, outputs = []) {
     ...(outputs.length ? { outputs: outputs.filter(Boolean).map(rel).slice(0, 20) } : {}) });
 }
 
+// why it failed: a note with level error (tools/jsonerr.py has the codes), which bin/vh activity shows beside the exit status; once
+let errorSaid = false;
+export function error(message, code = "failed") {
+  if (errorSaid) return;
+  errorSaid = true;
+  write({ event: "note", run: RUN, t: now(), cmd: CMD, level: "error", code, summary: String(message).replace(/\s+/g, " ").slice(0, 300) });
+}
+
 // how far a long command has come (render: frames)
 export function progress(done, total, unit) {
   write({ event: "progress", run: RUN, t: now(), cmd: CMD, done, ...(total != null ? { total } : {}), ...(unit ? { unit } : {}) });

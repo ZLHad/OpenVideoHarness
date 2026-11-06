@@ -29,7 +29,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
-import identity   # noqa: E402
+import identity, jsonerr   # noqa: E402,E401
 
 DEPTH = 4         # folders below a root
 MAX_DIRS = 20000  # folders looked at, per run: a --root too wide says so and stops there
@@ -209,8 +209,7 @@ def main(argv):
     try:
         rec = listing(a.root, a.assign)
     except ValueError as e:
-        print(f"projects: {e}", file=sys.stderr)
-        return 2
+        return jsonerr.fail("not_found", f"projects: {e}")
     if a.json:
         print(json.dumps(rec, ensure_ascii=False, indent=1))
     else:
@@ -220,6 +219,6 @@ def main(argv):
 
 if __name__ == "__main__":
     try:
-        sys.exit(main(sys.argv[1:]))
+        sys.exit(jsonerr.guard(lambda: main(sys.argv[1:])))
     except BrokenPipeError:
         sys.exit(0)

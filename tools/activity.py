@@ -16,7 +16,7 @@ The lines (each has "v": 1, "event", and "t": seconds since the epoch; "run" tie
             started this one)
   progress  a long command's progress: run, done, total, unit (render: frames)
   note      what a command made, written by the tool itself: run, summary (one line), outputs (paths, relative to the
-            project when inside it)
+            project when inside it); or why it failed, with "level": "error", code and summary the message (tools/jsonerr.py)
   end       a command ended: run, exit (its exit status: 130 after a Ctrl-C, after which bin/vh ends by SIGINT itself;
             128 + n when a tool that handles signal n stopped on it: desk, desk wait, gate --wait; a command killed by
             TERM or HUP ends at once and has no end line), duration (seconds; whole seconds under a bash without
@@ -179,7 +179,7 @@ def event(project, kind, **fields):
 
 # ---------- reading ----------
 
-_STR = ("run", "cmd", "cwd", "summary", "unit", "parent", "file", "round")
+_STR = ("run", "cmd", "cwd", "summary", "unit", "parent", "file", "round", "level", "code")
 _INT = ("pid", "exit", "decisions")
 _NUM = ("duration", "done", "total")
 
@@ -246,7 +246,8 @@ def _alive(pid):
 def runs(records, now=None):
     """(runs, events): the records grouped by run, in the order they began (the log's own order), and the records
     outside any run. A run: {run, cmd, args, cwd, pid, parent, start, end, exit, duration, state, summary, outputs,
-    progress}; state is running, ok (exit 0), failed (another exit status) or gone (no end line, and its process is gone)."""
+    progress, error}; state is running, ok (exit 0), failed (another exit status) or gone (no end line, and its process is
+    gone); error is why it failed, when the tool could say: {code, message} (a note with level error), else null."""
     now = time.time() if now is None else now
     by, events = {}, []   # a dict keeps the order runs first appear in
     for r in records:
@@ -258,7 +259,7 @@ def runs(records, now=None):
         if run is None:
             run = by[rid] = {"run": rid, "cmd": r.get("cmd") or "", "args": [], "cwd": None, "pid": None, "parent": None,
                              "start": None, "end": None, "exit": None, "duration": None, "state": None, "summary": None,
-                             "outputs": [], "progress": None}
+                             "outputs": [], "progress": None, "error": None}
         if ev == "start":
             run.update(cmd=r.get("cmd") or run["cmd"], args=r.get("args") if isinstance(r.get("args"), list) else [],
                        cwd=r.get("cwd"), pid=r.get("pid"), parent=r.get("parent"), start=r["t"])
@@ -266,6 +267,8 @@ def runs(records, now=None):
             run.update(end=r["t"], exit=r.get("exit"), duration=r.get("duration"))
             if r.get("summary"):
                 run["summary"] = r["summary"]
+        elif ev == "note" and r.get("level") == "error":
+            run["error"] = {"code": r.get("code") or "failed", "message": r.get("summary") or ""}
         elif ev == "note":
             if r.get("summary"):
                 run["summary"] = r["summary"]
@@ -325,6 +328,8 @@ def show_run(run, now, project=None):
     if st == "running" and pr.get("done") is not None:
         how += f" · {pr['done']}" + (f" / {pr['total']}" if pr.get("total") is not None else "") + (f" {pr['unit']}" if pr.get("unit") else "")
     tail = run["summary"] or ""
+    if run.get("error"):
+        tail += (" · " if tail else "") + run["error"]["message"]
     outs = [o for o in run["outputs"] if o not in tail]
     if outs:
         tail += (" → " if tail else "→ ") + ", ".join(outs[:3]) + (" …" if len(outs) > 3 else "")
@@ -350,6 +355,8 @@ def show_line(r):
         return f"{_when(r['t'], False)}  {cmd:<9} {mark} · {_dur(r.get('duration'))}" + (f"  {r['summary']}" if r.get("summary") else "")
     if ev == "progress":
         return f"{_when(r['t'], False)}  {cmd:<9} {r.get('done')}" + (f" / {r['total']}" if r.get("total") is not None else "") + (f" {r['unit']}" if r.get("unit") else "")
+    if ev == "note" and r.get("level") == "error":
+        return f"{_when(r['t'], False)}  {cmd:<9} ✗ {r.get('summary') or ''}"
     if ev == "note":
         outs = ", ".join(r.get("outputs") or [])
         return f"{_when(r['t'], False)}  {cmd:<9} {r.get('summary') or ''}" + (f" → {outs}" if outs else "")
@@ -392,6 +399,7 @@ def follow(project, as_json, limit, poll=0.5):
 def main(argv):
     import argparse
     sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import jsonerr
     ap = argparse.ArgumentParser(prog="bin/vh activity", description=__doc__.split("\n\n")[0],
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("project", help="project folder (or a file inside it), or its name under projects/")
@@ -407,11 +415,9 @@ def main(argv):
         try:
             project = project_dir(a.project)
         except SystemExit as e:
-            print(f"activity: {e}", file=sys.stderr)
-            return 2
+            return jsonerr.fail("no_project", f"activity: {e}")
         if not (project / "BRIEF.md").is_file():
-            print(f"activity: {project} is not a project (no BRIEF.md)", file=sys.stderr)
-            return 2
+            return jsonerr.fail("no_project", f"activity: {project} is not a project (no BRIEF.md)")
     limit = a.limit if a.limit and a.limit > 0 else (100 if a.json else 20)
     if a.follow:
         return follow(project, a.json, limit)
@@ -436,7 +442,9 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import jsonerr
     try:
-        sys.exit(main(sys.argv[1:]))
+        sys.exit(jsonerr.guard(lambda: main(sys.argv[1:])))
     except BrokenPipeError:   # bin/vh activity … | head
         sys.exit(0)

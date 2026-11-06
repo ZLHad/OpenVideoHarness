@@ -1,8 +1,8 @@
 """bin/vh gate: one stop, one command. Check the gate data, build the review page, make it this round, open the review
 desk when this stop is reviewed there, print the chat message; with --wait, wait for the person's submission.
 
-usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeout s] [--port N]
-       bin/vh gate <project> <n> --init
+usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeout s] [--port N] [--json]
+       bin/vh gate <project> <n> --init [--json]
   <n>       1 | 2 | 3 | E0–E5 | 2b … : out/review/gate-<n>.json (playbook/01-pipeline.md, 审阅页, has every field); left out:
             this round, as bin/vh review takes it
   where the person reviews: --desk, --page or --chat when the person asked in chat; else the 审阅方式 line in LOCAL.md
@@ -15,19 +15,22 @@ usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeou
   --init    write out/review/gate-<n>.json as a skeleton for this stop, in the BRIEF's review language, and stop: every text
             to write is a {填：…} ({fill in: …}), and bin/vh gate refuses the file (exit 2) until none is left, so an unfilled page
             never reaches the person. It carries "version": 1. A file already there is not overwritten (exit 2)
+  --json    the record on stdout, the lines a person reads on stderr: {"version": 1, "tool", "project", "gate", "page", "channel", "url",
+            "message": the chat message} (--init: {"version": 1, "tool", "project", "gate", "init": true, "path"}); a failure in
+            the error's shape (tools/jsonerr.py). Not with --wait, whose answer is the submission
 The page and the desk read the same out/review/gate-<n>.json: it is the one file a client renders for a stop.
 Exit: 0 the stop is out (with --wait: the submission is printed) · 1 the page was written but breaks a rule: no message,
 no desk, and bin/vh status counts it as not sent until a run of it goes through (bin/vh review's 1) · 2 nothing to send: no project, no or bad gate JSON, placeholders left, the desk did not start,
 --wait without the desk, --init over a file · 3 --wait timed out.
 """
-import argparse, json, os, re, subprocess, sys, time
+import argparse, contextlib, json, os, re, subprocess, sys, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
-import activity, review   # noqa: E402,E401
+import activity, jsonerr, review   # noqa: E402,E401
 from gatecheck import effort_of, local_md, stop_of   # noqa: E402
 
 IDLE = 12 * 3600   # a desk gate starts stops by itself after this long without a request
@@ -101,12 +104,11 @@ def skeleton(gate, lang):
     return d
 
 
-def init_page(project, gate_arg, shown):
+def init_page(project, gate_arg, shown, as_json=False):
     """bin/vh gate <project> <n> --init: the skeleton, written once. → the exit status."""
     g = re.sub(r"\.json$", "", re.sub(r"^gate-", "", (gate_arg or "").strip()))
     if not review.GATE_ID.fullmatch(g):
-        print(f"gate: --init needs the stop it is for: bin/vh gate {shown} 1 --init (1, 2, 3, E0–E5, 2b …)", file=sys.stderr)
-        return 2
+        return jsonerr.fail("usage", f"gate: --init needs the stop it is for: bin/vh gate {shown} 1 --init (1, 2, 3, E0–E5, 2b …)")
     path = project / "out" / "review" / f"gate-{g}.json"
     lang = review.review_lang(project) or "zh"
     try:
@@ -114,17 +116,18 @@ def init_page(project, gate_arg, shown):
         with open(path, "x", encoding="utf-8") as out:   # "x": never over a page someone wrote
             out.write(json.dumps(skeleton(g, lang), ensure_ascii=False, indent=2) + "\n")
     except FileExistsError:
-        print(f"gate: {path} is already there, and --init does not overwrite: edit it, then bin/vh gate {shown} {g}", file=sys.stderr)
-        return 2
+        return jsonerr.fail("exists", f"gate: {path} is already there, and --init does not overwrite: edit it, then bin/vh gate {shown} {g}")
     except OSError as e:
-        print(f"gate: can't write {path}: {e.strerror or e}", file=sys.stderr)
-        return 2
-    print(f"✓ {path}: a skeleton for {review.gate_title(g, lang)}")
+        return jsonerr.fail("failed", f"gate: can't write {path}: {e.strerror or e}")
+    say = sys.stderr if as_json else sys.stdout
+    print(f"✓ {path}: a skeleton for {review.gate_title(g, lang)}", file=say)
     if effort_of(project)[0] == "quick":
-        print("  a quick project has no gates: this page is for a stop the person asked for")
-    print(f"  replace every {'{fill in: …}' if lang == 'en' else '{填：…}'}, delete what this page does not need; until none is left, bin/vh gate refuses the file")
-    print(f'  the fields: bin/vh know --show "playbook/01-pipeline.md#审阅页"; then: bin/vh gate {shown} {g}')
+        print("  a quick project has no gates: this page is for a stop the person asked for", file=say)
+    print(f"  replace every {'{fill in: …}' if lang == 'en' else '{填：…}'}, delete what this page does not need; until none is left, bin/vh gate refuses the file", file=say)
+    print(f'  the fields: bin/vh know --show "playbook/01-pipeline.md#审阅页"; then: bin/vh gate {shown} {g}', file=say)
     activity.note(f"{review.gate_title(g, 'en')}: a skeleton to fill in", [path])
+    if as_json:
+        print(json.dumps({"version": 1, "tool": "bin/vh gate", "project": str(project), "gate": g, "init": True, "path": str(path)}, ensure_ascii=False))
     return 0
 
 
@@ -181,41 +184,49 @@ def main(argv):
     ap.add_argument("--timeout", type=float, default=7100, help="with --wait: seconds (default 7100, under Claude Code's 2 h)")
     ap.add_argument("--port", type=int, help="the desk's port when it has to start (default: the first free of 8780–8799)")
     ap.add_argument("--init", action="store_true", help="write out/review/gate-<n>.json as a skeleton to fill in, and stop")
+    ap.add_argument("--json", action="store_true", help="the record on stdout, the lines a person reads on stderr")
     a = ap.parse_args(argv)
     project = review.find_project(a.project)
     if not project:
+        jsonerr.mark("no_project")
         return 2
     if a.init:
         if a.channel or a.wait:
-            print("gate: --init only writes the skeleton: leave --desk, --page, --chat and --wait for the run that sends it", file=sys.stderr)
-            return 2
-        return init_page(project, a.gate, a.project)
+            return jsonerr.fail("usage", "gate: --init only writes the skeleton: leave --desk, --page, --chat and --wait for the run that sends it")
+        return init_page(project, a.gate, a.project, a.json)
+    if a.json and a.wait:
+        return jsonerr.fail("usage", "gate: --json is for a run that only sends the page; --wait's answer is the submission (bin/vh desk feedback --json has it as JSON)")
     channel, why = channel_of(project, a.channel)
     if a.wait and channel != "desk":
-        print(f"gate: --wait waits for the review desk, and this stop is reviewed on the {channel} ({why}): the person answers in "
-              "the chat. Leave --wait out, or use --desk if they want the desk", file=sys.stderr)
-        return 2
-    rc, page, page_path = review.publish(project, a.gate, a.project)
+        return jsonerr.fail("usage", f"gate: --wait waits for the review desk, and this stop is reviewed on the {channel} ({why}): the person answers in "
+                            "the chat. Leave --wait out, or use --desk if they want the desk")
+    with contextlib.redirect_stdout(sys.stderr if a.json else sys.stdout):
+        rc, page, page_path = review.publish(project, a.gate, a.project)
     if rc:   # bin/vh review said what is wrong; nothing goes to the person
+        jsonerr.mark("refused" if rc == 1 else "invalid", f"bin/vh gate {a.project} --init writes a skeleton; bin/vh know --show \"playbook/01-pipeline.md#审阅页\" has the fields" if rc != 1 else None)
         return rc
     lines = [page.chat(page_path)]
     url = None
     if channel == "desk":
         url, started = start_desk(project, a.port)
         if not url:
-            print(f"gate: the review desk did not start (out/review/.desk.log says why); the page is {page_path}. "
-                  f"Start it by hand: bin/vh desk {a.project}", file=sys.stderr)
-            return 2
+            return jsonerr.fail("failed", f"gate: the review desk did not start (out/review/.desk.log says why); the page is {page_path}. "
+                                f"Start it by hand: bin/vh desk {a.project}")
         print(f"✓ review desk {url} ({'started, in the background' if started else 'already serving this project'})", file=sys.stderr)
         lines.append(SAY[page.lang]["desk_wait" if a.wait else "desk"].format(url=url))
     print(f"  this stop is reviewed on the {channel} ({why})", file=sys.stderr)
-    print("\n".join(lines), flush=True)
+    if a.json:
+        print(json.dumps({"version": 1, "tool": "bin/vh gate", "project": str(project), "gate": page.gate, "page": str(page_path), "channel": channel, "url": url,
+                          "message": "\n".join(lines)}, ensure_ascii=False), flush=True)
+    else:
+        print("\n".join(lines), flush=True)
     activity.note(f"{review.gate_title(page.gate, 'en')}: {len(page.d['decisions'])} decision(s) on the {channel}" + (f" · {url}" if url else ""), [page_path])
     if not a.wait:
         return 0
     import feedback
+    jsonerr.mark("timeout")
     return feedback.wait(project, a.timeout)
 
 
 if __name__ == "__main__":
-    sys.exit(activity.exiting(lambda: main(sys.argv[1:])))   # bin/vh exec's into this: this process ends the run
+    sys.exit(activity.exiting(lambda: jsonerr.guard(lambda: main(sys.argv[1:]))))   # bin/vh exec's into this: this process ends the run

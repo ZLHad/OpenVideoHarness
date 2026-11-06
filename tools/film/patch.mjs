@@ -58,7 +58,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
-import { note as activityNote } from "./activity.mjs";   // the project's activity log (bin/vh activity)
+import { error as activityError, note as activityNote } from "./activity.mjs";   // the project's activity log (bin/vh activity)
 import { commit, moveBeside, there } from "./versions.mjs";   // the project's versions (bin/vh versions)
 import { findTable, readTable, tidyShots } from "./shot_source.mjs";   // the project's shot table (tools/shot_source.py's mirror)
 import { frameFrom } from "./timegrid.mjs";                           // seconds to frames (tools/timegrid.py)
@@ -70,7 +70,7 @@ const HERE = path.dirname(new URL(import.meta.url).pathname);
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");
 const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
-const die = (msg, code = 2) => { console.error("patch: " + msg); cleanUp(); process.exit(code); };
+const die = (msg, code = 2) => { console.error("patch: " + msg); activityError(msg); cleanUp(); process.exit(code); };
 const o = { workers: 4, verify: "seams", minPsnr: 40 };
 let film = null, sidecarFile = null, pageArg = null, out = null, inPlace = false, keep = false, browser = null, note = null;
 const frameLists = [], secondLists = [], shotIds = [], chapterIds = [];

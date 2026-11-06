@@ -20,6 +20,9 @@ placeholder too. bin/vh commands -h has the --json fields.
 import difflib, json, re, sys, textwrap
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import jsonerr   # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 TABLE = ROOT / "tools" / "commands.json"
 PIPELINE = ROOT / "playbook" / "01-pipeline.md"
@@ -238,8 +241,11 @@ def main(argv):
     if what == "unknown":
         word = rest[0] if rest else ""
         near = difflib.get_close_matches(word, [c["name"] for c in t["commands"]], n=3, cutoff=0.6)
-        print(f"unknown command: {word}" + (f" (did you mean {' or '.join(near)}?)" if near else ""), file=sys.stderr)
-        print("bin/vh commands lists the commands by stage, with what each is for; bin/vh -h every usage", file=sys.stderr)
+        line = f"unknown command: {word}" + (f" (did you mean {' or '.join(near)}?)" if near else "")
+        print(line, file=sys.stderr)
+        hint = "bin/vh commands lists the commands by stage, with what each is for; bin/vh -h every usage"
+        print(hint, file=sys.stderr)
+        jsonerr.report("usage", line, hint)
         return 2
     if what == "list":
         stage, js, brief, i = None, False, False, 0
@@ -293,4 +299,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(jsonerr.guard(lambda: main(sys.argv[1:])))

@@ -5471,6 +5471,161 @@ PY
   rm -rf "$t"
 }
 
+contract_checks() {   # what a client relies on: each command's failures as tools/jsonerr.py's shape, with the exit status they always
+  # had; why a run failed in the activity log. No network, no paid call; a small project made here
+  local t p a rc
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd)
+  OVH_PROJECTS="$t/projects" vh new math ci-contract >/dev/null 2>&1
+  p=$(ls -d "$t"/projects/*-ci-contract)
+  mkdir -p "$t/plain" "$t/bad/out/versions" "$t/bad/assets" "$t/bad/out/review"
+  for a in BRIEF.md REVIEW.md; do printf '# x\n' > "$t/bad/$a"; done
+  printf 'not json' > "$t/bad/out/versions/versions.json"; printf 'not json' > "$t/bad/assets/ledger.json"; printf 'not json' > "$t/bad/edit.json"
+  printf 'not json' > "$t/bad/out/review/gate-1.json"; printf 'no film here' > "$t/bad/out/x.mp4"
+  a=$(OVH_PROJECTS="$t/projects" python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY' 2>&1
+import json, os, subprocess, sys
+sh, root, p, t = sys.argv[1:]
+vh = f"{root}/bin/vh"
+plain, broken = f"{t}/plain", f"{t}/bad"
+# (the arguments, without --json; the exit status; the code)
+TABLE = [
+ ("status", 2, "usage"), ("status nope", 2, "no_project"), (f"status {plain}", 2, "no_project"),
+ ("activity", 2, "usage"), ("activity nope", 2, "no_project"), (f"activity {plain}", 2, "no_project"),
+ ("versions", 2, "usage"), ("versions nope", 2, "no_project"), (f"versions {broken}", 2, "invalid"), (f"versions compare {p} v1 v2 --t 1", 1, "not_found"), (f"versions {p} --bogus", 2, "usage"),
+ ("check", 2, "usage"), ("check --bogus", 2, "usage"), (f"check {t}/nofile.mp4", 2, "not_found"), (f"check {plain}", 2, "no_project"), (f"check {p}", 2, "not_found"), (f"check {broken}/out/x.mp4 --bogus", 2, "usage"),
+ (f"check {broken}/out/x.mp4 --against {t}/nofile.mp4", 2, "not_found"),
+ ("assets list", 2, "usage"), ("assets list nope", 2, "no_project"), (f"assets list {plain}", 2, "no_project"), (f"assets list {broken}", 2, "invalid"), ("assets nope", 2, "no_project"),
+ ("edit", 2, "usage"), ("edit list nope", 2, "no_project"), (f"edit list {p}", 2, "not_found"), (f"edit build {p}", 2, "not_found"), (f"edit list {broken}", 2, "invalid"), (f"edit build {broken}", 2, "invalid"),
+ ("proxy", 2, "usage"), ("proxy nope", 2, "no_project"), (f"proxy {p}", 2, "not_found"), (f"proxy {p} --size nope", 2, "usage"), (f"proxy {p} --bogus", 2, "usage"),
+ ("thumbs", 2, "usage"), ("thumbs nope", 2, "no_project"), (f"thumbs {t}/bad/out --every nope", 2, "usage"),
+ ("artifacts", 2, "usage"), ("artifacts list", 2, "usage"), ("artifacts list nope", 2, "no_project"), ("artifacts spec --stage nope", 2, "usage"), ("artifacts bogus", 2, "usage"),
+ ("projects --bogus", 2, "usage"), (f"projects --root {t}/nope", 2, "not_found"),
+ ("commands --stage nope", 2, "usage"), ("commands --bogus", 2, "usage"),
+ ("doctor --bogus", 2, "usage"), (f"doctor {p}", 2, "usage"),
+ ("desk data", 2, "usage"), ("desk data nope", 2, "no_project"),
+ ("gate", 2, "usage"), ("gate nope", 2, "no_project"), (f"gate {p} 1", 2, "invalid"), (f"gate {broken} 1", 2, "invalid"), (f"gate {p} 1 --wait", 2, "usage"), (f"gate {p} 1 --init --wait", 2, "usage"),
+ ("new", 2, "usage"), ("new short", 2, "usage"), ("new nope x", 2, "usage"), ("new short x --bogus", 2, "usage"), ("new short x --effort nope", 2, "usage"), ("new short x --from nope", 2, "no_project"), ("new math ci-contract", 1, "exists"),
+ ("nope", 2, "usage"), ("statu", 2, "usage"),
+]
+# with no project, bin/vh prints the usage from the table; with --json, the option is taken for the slug, or refused where it does not go
+OTHER_WORDS = {"status", "activity", "check", "edit", "proxy", "thumbs", "artifacts", "gate", "new short", f"doctor {p}", f"gate {p} 1 --wait"}
+bad, n = [], 0
+def run(args, **kw):
+    return subprocess.run([sh, vh, *args], capture_output=True, text=True, stdin=subprocess.DEVNULL, **kw)
+for line, want, code in TABLE:
+    n += 1
+    args = line.split()
+    r = run(args + ["--json"])
+    try:
+        d = json.loads(r.stdout)
+        e = d["error"]
+        shape = d["version"] == 1 and set(e) == {"code", "message", "hint"} and isinstance(e["message"], str) and e["message"] and (e["hint"] is None or isinstance(e["hint"], str))
+    except (ValueError, KeyError, TypeError):
+        d, e, shape = None, {}, False
+    if r.returncode != want or not shape or e.get("code") != code or not r.stderr.strip():
+        bad.append(f"{line} --json: exit {r.returncode} (want {want}), code {e.get('code')} (want {code}), stdout {r.stdout[:120]!r}, stderr {r.stderr[-120:]!r}")
+        continue
+    if "\033" in e["message"] or e["message"] not in r.stderr.replace("\033[31m✗\033[0m ", ""):
+        bad.append(f"{line} --json: the message is not the line a person reads: {e['message'][:120]!r} / {r.stderr[-160:]!r}")
+    # without --json: the same exit status and, but where --json itself is what is wrong, the same words; nothing of this on stdout (bin/vh desk data speaks only JSON)
+    q = run(args)
+    words = line in OTHER_WORDS or e["message"] in q.stderr.replace("\033[31m✗\033[0m ", "")
+    if q.returncode != want or not q.stderr.strip() or not words or ('"error"' in q.stdout) != (args[:2] == ["desk", "data"]):
+        bad.append(f"{line}: exit {q.returncode} (want {want}), stdout {q.stdout[:120]!r}, stderr {q.stderr[-160:]!r}")
+# a filled gate page that is not there, a skeleton: --init says where, once, and then it exists
+r = run(["gate", p, "2", "--init", "--json"]); n += 1
+d = json.loads(r.stdout) if r.returncode == 0 else {}
+if not (d.get("init") is True and d.get("gate") == "2" and d.get("path", "").endswith("out/review/gate-2.json")):
+    bad.append(f"gate --init --json: exit {r.returncode}, {r.stdout[:200]!r}")
+r = run(["gate", p, "2", "--init", "--json"]); n += 1
+if r.returncode != 2 or json.loads(r.stdout or "{}").get("error", {}).get("code") != "exists":
+    bad.append(f"gate --init over a file: exit {r.returncode}, {r.stdout[:200]!r}")
+r = run(["gate", p, "2", "--json"]); n += 1   # placeholders left: nothing goes to the person
+if r.returncode != 2 or json.loads(r.stdout or "{}").get("error", {}).get("code") != "invalid":
+    bad.append(f"gate with placeholders: exit {r.returncode}, {r.stdout[:200]!r}")
+# no python3: said the same way, by bin/vh itself; bin/vh doctor --json keeps its own record
+bare = f"{t}/bare"; os.makedirs(bare)
+for d in os.environ["PATH"].split(os.pathsep):
+    if os.path.isdir(d):
+        for x in os.listdir(d):
+            if not x.startswith("python") and not os.path.lexists(os.path.join(bare, x)):
+                os.symlink(os.path.join(d, x), os.path.join(bare, x))
+real = subprocess.run(["sh", "-c", f'command -v "{sh}"'], capture_output=True, text=True).stdout.strip()
+r = subprocess.run([real, vh, "status", p, "--json"], capture_output=True, text=True, env=dict(os.environ, PATH=bare)); n += 1
+d = json.loads(r.stdout) if r.stdout.strip() else {}
+if r.returncode != 127 or d.get("error", {}).get("code") != "missing_tool" or "python3" not in r.stderr:
+    bad.append(f"status --json without python3: exit {r.returncode}, {r.stdout[:200]!r} {r.stderr[-200:]!r}")
+r = subprocess.run([real, vh, "doctor", "--json"], capture_output=True, text=True, env=dict(os.environ, PATH=bare)); n += 1
+if r.returncode != 0 or not isinstance(json.loads(r.stdout or "{}").get("modules"), list):
+    bad.append(f"doctor --json without python3: exit {r.returncode}, {r.stdout[:200]!r}")
+print("\n".join(bad[:15]) + (f"\n… and {len(bad) - 15} more" if len(bad) > 15 else "") or f"{n} failures")
+sys.exit(1 if bad else 0)
+PY
+  ); rc=$?
+  case "$rc:$a" in
+    0:*" failures") ok "errors a program can read: $a of the commands a client reads, each --json valid JSON in the one shape on stdout with the right code and exit status, the same exit and words without --json; before Python starts too, and with no python3" ;;
+    *) bad "failures as JSON (exit $rc): $a" ;;
+  esac
+  # the helper itself: argparse, words in a SystemExit and a traceback each get the shape; what printed its own record does not;
+  # exits from a signal say nothing; a mark names the code; with no --json nothing on stdout
+  a=$(python3 - "$ROOT" <<'PY' 2>&1
+import json, subprocess, sys
+root = sys.argv[1]
+def go(body, *args):
+    r = subprocess.run([sys.executable, "-c", f"import sys; sys.path.insert(0, {root + '/tools'!r}); import jsonerr\n{body}", *args], capture_output=True, text=True)
+    return r.returncode, r.stdout, r.stderr
+bad = []
+for name, body, want, code in (
+    ("argparse", "import argparse\ndef m():\n    ap = argparse.ArgumentParser(); ap.add_argument('--json', action='store_true'); ap.add_argument('x'); ap.parse_args()\nsys.exit(jsonerr.guard(m))", 2, "usage"),
+    ("words", "def m():\n    sys.exit('it went wrong')\nsys.exit(jsonerr.guard(m))", 1, "failed"),
+    ("traceback", "def m():\n    raise ValueError('broke')\nsys.exit(jsonerr.guard(m))", 1, "failed"),
+    ("a mark", "def m():\n    print('a line', file=sys.stderr); jsonerr.mark('no_project', 'look there'); return 2\nsys.exit(jsonerr.guard(m))", 2, "no_project"),
+    ("nothing said", "def m():\n    return 3\nsys.exit(jsonerr.guard(m))", 3, "failed")):
+    rc, out, err = go(body, "--json")
+    try:
+        e = json.loads(out)["error"]
+    except (ValueError, KeyError):
+        e = {}
+    if rc != want or e.get("code") != code or not e.get("message"):
+        bad.append(f"{name}: exit {rc}, {out!r}, {err[-120:]!r}")
+for name, body, want in (("its own record", "def m():\n    print(json.dumps({'version': 1, 'verdict': 'fail'})); return 1\nimport json\nsys.exit(jsonerr.guard(m))", 1),
+                         ("a signal", "def m():\n    print('stopped', file=sys.stderr); return 143\nsys.exit(jsonerr.guard(m))", 143)):
+    rc, out, err = go(body, "--json")
+    if rc != want or '"error"' in out:
+        bad.append(f"{name}: exit {rc}, {out!r}")
+rc, out, err = go("def m():\n    return jsonerr.fail('not_found', 'no such thing', rc=1)\nsys.exit(jsonerr.guard(m))")
+if rc != 1 or out or "no such thing" not in err:
+    bad.append(f"no --json: exit {rc}, {out!r}, {err!r}")
+print("\n".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "tools/jsonerr.py: a usage error from argparse, words in a SystemExit, a traceback and a marked failure all come out in the shape; a tool's own record and an exit from a signal are left alone; without --json nothing on stdout" \
+    || bad "tools/jsonerr.py: $a"
+  # why a run failed: the note a tool or bin/vh leaves, read back by bin/vh activity (--json: the run's error; the listing says it; --follow's line)
+  rm -f "$p/.ovh/activity.jsonl"
+  vh versions compare "$p" v1 v2 --t 1 >/dev/null 2>&1; vh check "$p/out/nofile.mp4" >/dev/null 2>&1; vh edit build "$p" >/dev/null 2>&1
+  vh timeline "$p" >/dev/null 2>&1   # (no error note: a tool with no helper yet says nothing, and an exit of its own)
+  a=$(python3 - "$p/.ovh/activity.jsonl" <<'PY' 2>&1
+import json, sys
+recs = [json.loads(x) for x in open(sys.argv[1], encoding="utf-8")]
+notes = [r for r in recs if r["event"] == "note" and r.get("level") == "error"]
+print("; ".join(f"{r['cmd']}/{r['code']}" for r in notes))
+PY
+  )
+  b=$(vh activity "$p" --json | python3 -c 'import json, sys; print(" | ".join(f"{r[chr(99)+"md"]}:{r["state"]}:{(r["error"] or {}).get("code")}" for r in json.load(sys.stdin)["runs"]))' 2>&1)
+  c=$(vh activity "$p" 2>&1)
+  if [ "$a" = "versions/not_found; check/not_found; edit/not_found" ] && case "$b" in "versions:failed:not_found | check:failed:not_found | edit:failed:not_found | timeline:"*":None") true ;; *) false ;; esac && case "$c" in *"exit 1"*"v1"*"no such video"*"no edit.json"*) true ;; *) false ;; esac
+  then ok "activity: a run that failed says why (a note with level error, from a tool or bin/vh itself; --json: the run's error; the listing shows it)"
+  else bad "why a run failed: notes '$a', runs '$b', listing $(printf '%s' "$c" | tail -c 400)"; fi
+  # the page tools: render's and patch's own failures, with a stand-in browser (no drawing: they stop before one starts)
+  if command -v node >/dev/null 2>&1; then
+    rm -f "$p/.ovh/activity.jsonl"
+    CHROME_PATH=/bin/sh vh render "$p" --frames 0:1 >/dev/null 2>&1; rc=$?
+    a=$(python3 -c 'import json, sys; print([r["code"] for r in map(json.loads, open(sys.argv[1], encoding="utf-8")) if r.get("level") == "error"])' "$p/.ovh/activity.jsonl" 2>&1)
+    [ "$rc" = 2 ] && [ "$a" = "['failed']" ] && ok "activity: bin/vh render's failure before it draws is in the log too" || bad "render's failure in the log: exit $rc, $a"
+  else skip "render's failure in the log" "needs node"; fi
+  rm -rf "$t"
+}
+
 next_step_checks() {
   local t=$1 p q a b c d e f
   # ns <project> <expression over n, c, r>…: prints what does not hold, and a crash too (these checks pass on empty output)

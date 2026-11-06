@@ -19,6 +19,8 @@
   "total": {"type": ["number", "null"]},
   "unit": {"type": "string"},
   "summary": {"type": "string"},
+  "level": {"type": "string"},
+  "code": {"type": "string"},
   "outputs": {"type": "array", "items": {"type": "string"}},
   "exit": {"type": "integer"},
   "duration": {"type": "number"},
