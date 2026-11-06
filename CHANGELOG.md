@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`.render.json` and `.deliver.json` say their version; which file spells it how is written down**
+- Why: two records every delivery rests on had no version at all, and `tools/desk/README.md` said every JSON has `"version": 1` while half of them spell it `v`.
+- `bin/vh render`, `bin/vh patch` and `bin/vh deliver` write `"version": 1`. Their readers go by named fields, and the records written before stay as they are. No `v` is renamed.
+- `tools/desk/README.md` lists both spellings and which file uses which; `bin/vh artifacts spec --json` has it per kind (`version_key`). `CONTRIBUTING.md`: new files use `version`.
+- `tools/ci.sh`: a real render's and a real delivery's record are version 1 and fit their schemas.
+
 **`tools/schemas/`: the shape of the files tools and clients rely on**
 - Why: gate JSON, `shots.json`, the timeline and the other files everything reads had their fields only in docstrings and in what each reader tolerates.
 - A schema each for gate JSON, `shots.json`, `edit.json`, the narration timeline, events, `captions.json`, `.render.json`, `.deliver.json`, `versions.json` and one line of `.ovh/activity.jsonl`, derived from what the code reads and writes. Permissive on purpose: required fields and types are pinned, extra fields allowed, since fields are only ever added. Every such file of 15 real projects fits.

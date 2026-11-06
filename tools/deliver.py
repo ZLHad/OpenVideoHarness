@@ -84,7 +84,7 @@ def record(out, master, assets=None):
     that a file was replaced, without reading gigabytes on every clean. assets: what the project's ledger asked of it
     (records, credits, aigc, uncleared), when it has one."""
     st, ms = out.stat(), master.stat()
-    rec = {"tool": "bin/vh deliver", "output": out.name, "size": st.st_size, "mtime": round(st.st_mtime, 3),
+    rec = {"version": 1, "tool": "bin/vh deliver", "output": out.name, "size": st.st_size, "mtime": round(st.st_mtime, 3),
            "master": os.path.relpath(master, out.parent), "master_size": ms.st_size, "master_mtime": round(ms.st_mtime, 3),
            "args": sys.argv[1:], "time": time.strftime("%Y-%m-%dT%H:%M:%S%z")}
     if assets:

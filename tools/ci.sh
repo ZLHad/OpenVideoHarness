@@ -1210,9 +1210,13 @@ keys = [l.split(",")[0] for l in subprocess.run(["ffprobe", "-v", "error", "-sel
                                                 capture_output=True, text=True).stdout.split() if "K" in l.split(",")[1]]
 ok = os.path.getsize(f) <= 500_000 and (v["pix_fmt"], v["color_range"], v["color_space"], v["color_transfer"], v["color_primaries"]) == ("yuv420p", "tv", "bt709", "bt709", "bt709")
 ok = ok and [s["codec_type"] for s in st] == ["video", "audio", "subtitle"] and [round(float(k), 3) for k in keys] == [0.0]
+sys.path.insert(0, "tools")
+import schemalite
+rec = json.load(open(f + ".deliver.json"))
+ok = ok and rec["version"] == 1 and not schemalite.problems(schemalite.load("tools/schemas/deliver.schema.json"), rec)
 sys.exit(0 if ok else 1)
 PY
-  then ok "deliver: the upload copy fits the size asked for, keeps BT.709 and the sound and subtitle tracks, and says its PSNR"
+  then ok "deliver: the upload copy fits the size asked for, keeps BT.709 and the sound and subtitle tracks, and says its PSNR; its record is version 1 and fits its schema"
   else bad "deliver (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
   a=$(vh deliver "$t/master.mp4" --for bilibili,youtube --out "$t/master.platform.mp4" --psnr off 2>&1); rc=$?
   case "$rc:$a" in 0:*"fits 8 GB with room"*"✓ Bilibili web"*"✓ YouTube"*) ok "deliver --for: a short master far under the limits is encoded at CRF alone, no VBV numbers past x264's range" ;;
@@ -5949,9 +5953,12 @@ keys = [l.split(",")[0] for l in subprocess.run(["ffprobe", "-v", "error", "-sel
 side = json.load(open(f + ".render.json"))
 ok = (st["nb_frames"], st["width"], st["height"], st["pix_fmt"], st["color_range"], st["color_space"]) == ("90", 320, 180, "yuv420p", "tv", "bt709")
 ok = ok and [round(float(k), 3) for k in keys] == [0.0, 1.0, 2.0] and side["frames"] == 90 and side["encoder"]["gop"] == 30
+sys.path.insert(0, "tools")
+import schemalite
+ok = ok and side["version"] == 1 and not schemalite.problems(schemalite.load("tools/schemas/render.schema.json"), side)
 sys.exit(0 if ok else 1)
 PY
-    then ok "render: every frame, BT.709 tv range, a keyframe exactly every --gop frames across the chunks, and how it was made beside it"
+    then ok "render: every frame, BT.709 tv range, a keyframe exactly every --gop frames across the chunks, and how it was made beside it (version 1, fits its schema)"
     else bad "render on its fixture (exit $rc): $(printf '%s' "$a" | tail -c 700)"; fi
     # --motion-blur (tools/film/blur.mjs) on tools/film/fixture/blur.html, a white square moving 16 px a frame. render, 4
     # sub-frames over a whole frame (--shutter 1) centred on each frame's time: frame 2's edges are ramps of 1/4, 2/4 and

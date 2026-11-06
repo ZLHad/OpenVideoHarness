@@ -135,7 +135,9 @@ JSON 的格式：
 
 ## 给客户端的数据
 
-客户端（审阅台，以后的 Studio）只是项目文件和 `bin/vh` 外面的一层壳：它要的数据都由命令给出，终端里的 agent 拿到的是同一份。下面的 JSON 都带 `"version": 1`；以后只加字段，改了含义就升版本号。
+客户端（审阅台，以后的 Studio）只是项目文件和 `bin/vh` 外面的一层壳：它要的数据都由命令给出，终端里的 agent 拿到的是同一份。以后只加字段，改了含义就升版本号。
+
+版本字段有两种拼法，已有的不改名，新文件一律用 `version`。命令的 `--json` 输出，和这些文件用 `version`：`<成片>.render.json`（有版本字段之前的记录没有它，形状相同）、`<成片>.mux.json`、`<副本>.deliver.json`（同上）、`<混音>.mix.json`、`out/versions/versions.json`、`out/check/*.check.json`、`out/proxy/` 的记录、`cast/<id>/cast.json`、`research/web.jsonl` 的每行、gate JSON（可写可不写）。这些用 `v`：`edit.json`、`out/edit.resolved.json`、`assets/ledger.json` 和它的每条记录、`assets/spend.jsonl`、`research/refs.json`、`research/scout.jsonl`、`research/hot/*.json`、`.ovh/activity.jsonl` 的每行、`clip.json`、`series.json`。每种文件用哪个，`bin/vh artifacts spec --json` 的 `version_key` 写着。
 
 ### 命令表：`bin/vh commands [--stage <阶段>] [--json]`
 
