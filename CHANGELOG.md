@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**`tools/artifacts.json`: every kind of file a film project holds, in one table**
+- Why: to learn what a file in a project is, who writes it, when it must exist, how it goes out of date and what `bin/vh clean` does with it, an agent or a client had to read the code; the docs each knew a part.
+- One entry a kind, read from the code: `id`, `path` (with `<lang>`, `<n>`, `<id>`, `<film>`, `*`), `kind`, `format`, `stages`, `purpose` (one Chinese line), `made_by`, `writers` and `readers` (`tools/commands.json`'s names, and `page`), `required` (when it must exist), `version_key`, `schema`, `stale` (from what, by what, recorded where), `clean`, `doc`.
+- Where two names mean one thing, the entry says which wins as the code decides: `audio/timeline.<lang>.json` is that language's own, `audio/timeline.json` a copy of the latest `bin/vh tts`.
+
 **What a walkthrough from a one-line request turned up**
 - Why: following the new `CLAUDE.md` from 「做一个 60 秒竖屏短视频，讲清楚为什么天是蓝的」 to gate ① in a temp project worked, with four small snags.
 - `bin/vh know --show "playbook/01-pipeline.md#..规格"`: from the file's start through that section, which is what step 2 asks for.
