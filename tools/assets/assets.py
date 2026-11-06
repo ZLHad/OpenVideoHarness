@@ -194,7 +194,13 @@ def parse_cost(s):
 
 def cmd_add(a):
     project = find(a.project)
-    src = {"origin": a.origin, "url": a.source_url, "provider": a.provider, "provider_id": a.provider_id, "title": a.title,
+    try:
+        origin = ledger.origin_of(a.origin) if a.origin else a.origin
+    except ValueError as e:
+        raise Usage(str(e))
+    if origin != a.origin:
+        print(f"{PROG} add: --origin {a.origin} is read as {origin}", file=sys.stderr)
+    src = {"origin": origin, "url": a.source_url, "provider": a.provider, "provider_id": a.provider_id, "title": a.title,
            "author": a.author, "retrieved": a.retrieved}
     if a.range:
         m = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*[:-]\s*(\d+(?:\.\d+)?)\s*", a.range)
@@ -591,7 +597,7 @@ def parser():
     p.add_argument("project")
     p.add_argument("file", metavar="file|folder|url")
     for flag, h in (("--license", "the licence as the source writes it (CC BY 4.0)"), ("--license-url", "the licence's page"),
-                    ("--origin", "download, generated, self, user, library or purchased"), ("--source-url", "the item's page"), ("--provider", None),
+                    ("--origin", "download, generated, self (made in the project), user (the person's own), library or purchased (self-made and other common words for them are taken)"), ("--source-url", "the item's page"), ("--provider", None),
                     ("--provider-id", None), ("--title", None), ("--author", None), ("--retrieved", "when it was fetched (default today for a URL)"),
                     ("--range", "start:end, seconds of the original taken"), ("--attribution", "the credit line exactly as it must appear"),
                     ("--model", "vendor/model"), ("--prompt", None), ("--prompt-file", None), ("--seed", None), ("--cost", "what it cost: $0.04, 0.04 USD, ¥3"),

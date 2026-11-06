@@ -171,8 +171,9 @@
       "writes": [],
       "usage": [
         {
-          "synopsis": "commands [--stage <stage>] [--json]",
+          "synopsis": "commands [--stage <stage>] [--brief] [--json]",
           "text": [
+            "--brief: one short line a command, with --stage too; --json is the same with it or without it",
             "the commands by the stages of playbook/01 (0 选路径 … 9 交付; env: this machine and the repo; any: a project at any",
             "stage), with what each one is for and when; --stage <id, name or a part of it>: that stage alone, with what each",
             "command there reads and writes (a command used in several stages is under each)",
@@ -209,8 +210,8 @@
             "each stop (gates ①②③, the checkpoints in use, delivery) done, skipped, waiting for the person,",
             "waiting for the agent, in progress or not started, from the files: the gate pages, the desk's",
             "submissions, REVIEW.md's decisions; who is waited on, the latest renders and the last check, open",
-            "review items, the material on record and the spend (bin/vh assets), what runs now (tools/status.py; --json: the",
-            "fields in tools/desk/README.md)"
+            "review items, the material on record and the spend (bin/vh assets), what runs now, and the next step: who has it,",
+            "what to do, the commands and the sections to read (tools/status.py; --json: the fields in tools/desk/README.md)"
           ]
         }
       ]
@@ -256,6 +257,12 @@
           "synopsis": "know --index [--json]",
           "text": [
             "the index: every unit's kind, title, file and line, summary and tags"
+          ]
+        },
+        {
+          "synopsis": "know --show \"<file.md>#<section>\" [--json]",
+          "text": [
+            "one section of a markdown file, to read it without the whole file (a ## section with the ### under it; #..<section>: from the file's start through it; no #section: the file's sections)"
           ]
         }
       ]
@@ -313,12 +320,15 @@
       ],
       "usage": [
         {
-          "synopsis": "new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three]] [--from <project>] [--dir <folder>]",
+          "synopsis": "new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three]] [--from <project>] [--dir <folder>] [--json]",
           "text": [
             "create projects/<date>-<slug> from templates (+ engine: p5 for handdrawn/mv, HyperFrames for short/promo/data/meme);",
-            "--engine canvas-film: the narration-driven canvas engine instead, any type, 16:9 (engines/canvas-film/README.md);",
+            "<type>: the short name, its number (02), its doc's name (02-knowledge-short) or that name's stem (knowledge-short);",
+            "a scaffold step that fails (HyperFrames' init, npm install): the project stays, the command that finishes it is said, exit 1;",
+            "--json: {\"version\": 1, \"project\", \"type\", \"doc\", \"effort\", \"lang\", \"frame\", \"watch\", \"resolution\", \"engine\", \"scaffold\": {\"ok\", \"finish\"}, \"next\"} on stdout (next is bin/vh status's next_step), the lines a person reads on stderr;",
+            "--engine canvas-film: the narration-driven canvas engine instead, any type, 16:9 (engines/canvas-film/README.md); long and recap have it by default;",
             "--three with it: the Three.js layer in three/ and a pinned three.js, 3D drawn under the 2D (its README, Three.js 层);",
-            "--aspect: short/promo/data/meme only (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only); --lang: the review pages' language (default zh; set it from the user's first request);",
+            "--aspect: short/promo/data/meme, and recap, whose film goes through edit.json while its pages stay 16:9 (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only on HyperFrames); --lang: the review pages' language (default zh; set it from the user's first request);",
             "--dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness;",
             "--from <project>: the next episode of a series: that project's BRIEF spec, style and outline skeleton, STYLE.md,",
             "style refs, recipes and sound effects carried over (its frame and engine too, unless given), its content left",
@@ -947,7 +957,8 @@
       "writes": [
         "<project>/out/review/gate-<n>.html",
         "<project>/out/review/index.html",
-        "<project>/out/review/.current"
+        "<project>/out/review/.current",
+        "<project>/out/review/.gate-<n>.refused.json (a page that breaks a rule: what is wrong, until a run of it goes through)"
       ],
       "usage": [
         {
@@ -969,7 +980,8 @@
         "<project>/BRIEF.md"
       ],
       "writes": [
-        "<project>/out/review/gate-<n>.html, index.html, .current",
+        "<project>/out/review/gate-<n>.html, index.html, .current, .gate-<n>.refused.json (a page that breaks a rule: nothing is sent)",
+        "<project>/out/review/gate-<n>.json (--init)",
         "the review desk, a local server, for a stop reviewed there"
       ],
       "usage": [
@@ -980,6 +992,12 @@
             "the review page and makes it this round, opens the review desk when the stop is reviewed there",
             "(LOCAL.md's 审阅方式; else studio: desk, standard and quick: page), prints the chat message;",
             "--wait (desk): then waits for the submission like desk wait (tools/gate.py)"
+          ]
+        },
+        {
+          "synopsis": "gate <project> <n> --init",
+          "text": [
+            "writes out/review/gate-<n>.json as a skeleton for this stop: each {填：…} says what goes there, and gate refuses the file until none is left; never overwrites"
           ]
         }
       ]
@@ -2073,8 +2091,9 @@
       ],
       "usage": [
         {
-          "synopsis": "check <video> [--allow t,t…] [--against <ref.mp4>] [--json]",
+          "synopsis": "check <video|project> [--allow t,t…] [--against <ref.mp4>] [--json]",
           "text": [
+            "a project (a folder, or its name): its newest film, and it says which (a copy bin/vh deliver made or an animatic only when there is nothing else); none yet: exit 2, render first",
             "ffprobe + the BRIEF's spec (size, rate, length; exit 1 on a mismatch) + gate ①",
             "on record in a standard or studio project (REVIEW.md, DECISIONS.md; exit 1 without it) + the",
             "publishing copy in PACKAGING.md against the platforms' length limits (a warning) +",

@@ -3,7 +3,7 @@ line of CLAUDE.md are all printed from it (stdlib only).
 
 usage: python3 tools/commands.py help                         bin/vh -h: every usage, by stage
        python3 tools/commands.py usage <command>              bin/vh <command> -h (exit 1: no such command)
-       python3 tools/commands.py list [--stage S] [--json]    bin/vh commands
+       python3 tools/commands.py list [--stage S] [--brief] [--json]    bin/vh commands
        python3 tools/commands.py unknown <word>               bin/vh's message for a command it does not have (exit 2)
        python3 tools/commands.py claude-line [--write FILE]   the names for CLAUDE.md's 命令行 line; --write puts them in
                                                               (bin/vh sync-agents does, then writes AGENTS.md)
@@ -104,7 +104,7 @@ def list_text(t, stage=None):
     out = []
     if stage is None:
         out += ["bin/vh commands by the stages of playbook/01-pipeline.md. --stage <id or name>: one stage, with what each",
-                "command reads and writes · bin/vh <command> -h: how to call it · --json: all of it, for a client"]
+                "command reads and writes · --brief: one line a command · bin/vh <command> -h: how to call it · --json: all of it, for a client"]
     for s in t["stages"]:
         if stage is not None and s is not stage:
             continue
@@ -124,6 +124,25 @@ def list_text(t, stage=None):
             if c.get("subcommands"):
                 out += wrap("subcommands: " + " · ".join(f"{x['name']}: {x['summary']}" for x in c["subcommands"]), " " * name_w, name_w + 13)
     return "\n".join(out[1:] if stage is not None else out)
+
+
+def short(summary, width=88):
+    """A summary's first clause, on one line: cut at a word when it is still longer than width."""
+    m = re.search(r"(: |; |\. |\.$|(?<=\?) )", summary)
+    s = summary[:m.start()] if m else summary
+    return s if len(s) <= width else s[:width].rsplit(" ", 1)[0].rstrip(" ,") + "…"
+
+
+def brief_text(t, stage=None):
+    """bin/vh commands --brief: one short line a command, under each stage (--stage: that stage, as list_text takes it)."""
+    cmds, out = ordered(t), []
+    for s in t["stages"]:
+        if stage is not None and s is not stage:
+            continue
+        here = in_stage(t, s["id"]) if stage is not None else [c for c in cmds if c["stages"][0] == s["id"]]
+        if here:
+            out += ["", stage_title(s)] + [f"  {c['name']:<14} {short(c['summary'])}" for c in here]
+    return "\n".join(out[1:])
 
 
 def claude_names(t):
@@ -223,11 +242,13 @@ def main(argv):
         print("bin/vh commands lists the commands by stage, with what each is for; bin/vh -h every usage", file=sys.stderr)
         return 2
     if what == "list":
-        stage, js, i = None, False, 0
+        stage, js, brief, i = None, False, False, 0
         while i < len(rest):
             a = rest[i]
             if a == "--json":
                 js = True
+            elif a == "--brief":
+                brief = True
             elif a == "--stage" or a.startswith("--stage="):
                 v = a.split("=", 1)[1] if "=" in a else (rest[i + 1] if i + 1 < len(rest) else None)
                 i += 0 if "=" in a else 1
@@ -241,7 +262,7 @@ def main(argv):
                           + " · ".join(f"{s['id']} {s['name']}" for s in some), file=sys.stderr)
                     return 2
             else:
-                print(f"bin/vh commands: unknown option {a} (usage: bin/vh commands [--stage <stage>] [--json])", file=sys.stderr)
+                print(f"bin/vh commands: unknown option {a} (usage: bin/vh commands [--stage <stage>] [--brief] [--json])", file=sys.stderr)
                 return 2
             i += 1
         if js:
@@ -249,6 +270,8 @@ def main(argv):
             if stage is not None:
                 out = {"version": 1, "stage": stage["id"], "stages": t["stages"], "commands": in_stage(t, stage["id"])}
             print(json.dumps(out, ensure_ascii=False, indent=2))
+        elif brief:
+            print(brief_text(t, stage))
         else:
             print(list_text(t, stage))
         return 0

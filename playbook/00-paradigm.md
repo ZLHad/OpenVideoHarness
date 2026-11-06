@@ -20,6 +20,7 @@
 | **Remotion** | React 组件 | 生态最大；有官方 skills；有 Studio 预览；支持 Lambda 云渲染 | 超过 3 人的公司需要买授权；动画必须用 `useCurrentFrame()` 驱动 | 同上；偏好 React 或需要云端批量渲染时选它 |
 | **Manim CE** | Python 场景类 | 公式、几何、坐标系精确；LLM 语料多；`manim-voiceover` 能按词触发动画 | 不适合排版密集或 UI 类画面；CE 和 GL 两个版本 API 不兼容，模型容易混用 | 数学、物理、算法、论文机制讲解 |
 | **p5.js + p5.brush**（ClaudeAnimationBase） | JS，每帧 `renderAt(t)` | 手绘、水彩、墨线质感；有现成角色和完整动画规范；仓库自带 | 纯 2D；没有 GPU 时水彩渲染慢（Apple Silicon 实测约 0.13 秒/帧） | 角色短片、手绘 MV、叙事型科普 |
+| **canvas-film + 剪辑表**（仓库自带，`engines/canvas-film/README.md`、`engines/EDIT.md`） | JS，每镜一个 `draw(t, s)`；`edit.json` 把页面、照片、片段排成一行 | 时间挂在旁白的字或歌的小节上，几十上百个镜头也管得住；照片推拉和手机片段直接当来源 | 页面只有 16:9（剪辑表可以换画幅）；要自己画每个镜头 | 横屏长讲解（`video-types/10-long-explainer.md`），人自己的照片和片段（`video-types/11-photo-recap.md`） |
 | **自定义 WebGL/Canvas** | JS | 可做任意画风，例如 functional-emotions 的 6 万笔触渲染器 | 要从头搭 | 有明确风格追求的 MV |
 | **Blender**（MCP 或 `blender -b` 脚本） | Python bpy | 真 3D、光照、物理 | 渲染慢；MCP 会直接执行 LLM 生成的代码 | 3D 产品展示、空间场景 |
 | **生成式视频 + 代码叠加** | 调 API，再写叠加层 | 写实人物和物理效果 | 花钱多；跨镜头角色一致性差；结果不确定 | 见 `05-hybrid-genvideo.md` |
@@ -27,6 +28,7 @@
 【综合】默认选法：
 - 要精确的数学图形，用 Manim；
 - 要手绘质感，用 ClaudeAnimationBase；
+- 10 分钟以上的横屏讲解，人自己的照片和片段，用 canvas-film 和剪辑表；
 - 其余先用 HyperFrames；
 - 需要真 3D，用 Blender；
 - 需要真人或写实效果，走混合管线。

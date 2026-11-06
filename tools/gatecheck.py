@@ -230,7 +230,9 @@ def waiver(review):
     return None
 
 
-def concept_decided(dec):
+def row_decided(dec, word):
+    """Does DECISIONS.md's table have a row for this decision (its first cell matches the regex word) whose 状态 / status
+    column says it is decided?"""
     text = strip_comments(dec)
     cells = lambda x: [c.strip() for c in x.strip().strip("|").split("|")]   # noqa: E731
     for _title, lines in sections(text):
@@ -245,12 +247,19 @@ def concept_decided(dec):
             while k < len(lines) and lines[k][0].strip().startswith("|") and not lines[k][1]:
                 c = cells(lines[k][0])
                 k += 1
-                if st is None or st >= len(c) or "~~" in c[0] or not re.search(r"concept|立意", c[0], re.I):
+                if st is None or st >= len(c) or "~~" in c[0] or not re.search(word, c[0], re.I):
                     continue
                 status = PLACEHOLDER.sub("", re.sub(r"~~.*?~~", "", c[st])).strip()
                 status = re.sub(r"^(?:[（(][^）)]*[）)]\s*)+", "", status.replace("**", "").strip("`* "))   # a leading note, "（作废）已定：B"
                 if YES.match(status) and not NOT_YET.match(status):
                     return True
+    return False
+
+
+def concept_decided(dec):
+    if row_decided(dec, r"concept|立意"):
+        return True
+    for _title, lines in sections(strip_comments(dec)):
         for line, code in lines:   # agent 定的事: - 2026-10-06 concept · …, not struck, not pending
             m = re.match(r"^\s*-\s+(\d{4}-\d{2}-\d{2})\s+(?:concept|立意)\b[^·\n]*·(.*)$", line, re.I)
             if m and not code and not PENDING_LINE.search(m.group(2).split(" — ")[0]):

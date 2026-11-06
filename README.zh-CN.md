@@ -97,7 +97,7 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 
 片子就是代码。agent 写一个页面（或一段 Manim 场景、一个 Blender 脚本），里面每一帧都是时间 t 的函数；浏览器（或 Manim、Blender）逐帧画出来，FFmpeg 再接上音轨。agent 看不了视频、听不了声音，所以每一步都做成能从帧、数据和文字上检查。
 
-1. **判断类型**：按 [CLAUDE.md](CLAUDE.md) 的路由表，定下是 9 类视频里的哪一类、照哪份工作流做；做多认真、哪些事你要亲自定，按你的需求来。
+1. **判断类型**：按 [CLAUDE.md](CLAUDE.md) 的路由表，定下是 11 类视频里的哪一类、照哪份工作流做；做多认真、哪些事你要亲自定，按你的需求来。
 2. **关卡 ①：立意和大纲**：两三张立意卡，每张配一帧画面和一个钩子。选定一张，立意、画面风格和钩子就一起定了，这时还没写一行代码。
 3. **关卡 ②：分镜**：每个镜头写清观众要依次看懂什么、各占几秒，每镜一张关键帧。
 4. **声音先行**：先做旁白或配乐，量出每个字、每一拍的时间，画面挂在这些时间上。
@@ -169,6 +169,8 @@ Remotion 在几份类型文档里列为备选，没有样片用它，要手动�
 | 07 手绘短片 | 水彩、白板、剪纸、角色小短片，能按笔顺写汉字 | p5.brush（自带） | [07](video-types/07-hand-drawn.md) |
 | 08 梗图快剪 | 野兽派、科技推特风 | HyperFrames | [08](video-types/08-brutalist-meme.md) |
 | 09 剪你自己的素材（试验中） | 口播、访谈：删口水词、加字幕和图解、出竖屏版 | HyperFrames | [09](video-types/09-editing-talking-head.md) |
+| 10 长讲解 | 10 分钟以上的横屏讲解 | canvas-film | [10](video-types/10-long-explainer.md) |
+| 11 照片回顾（试验中） | 你自己的照片和片段：婚礼、旅行、一年回顾 | canvas-film + 剪辑表 | [11](video-types/11-photo-recap.md) |
 
 要写实人物或真实物理时，接生成式视频再用代码叠加（[playbook/05](playbook/05-hybrid-genvideo.md)）；讲有起伏的故事或 3 分钟以上的长片看 [playbook/09](playbook/09-narrative.md)；开头钩子、标题和封面看 [playbook/10](playbook/10-hooks-and-packaging.md)。
 

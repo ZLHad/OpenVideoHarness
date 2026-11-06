@@ -1,5 +1,7 @@
 # 01 十阶段流程（阶段 0–9）
 
+开工前读到"规格"为止（`bin/vh know --show "playbook/01-pipeline.md#..规格"`）；后面几节（导演模式、审阅页、审阅台、animatic、look-dev、无人值守、长片、子代理）到用的那一站再读，`bin/vh know --show "playbook/01-pipeline.md#审阅页"` 只打印一节。
+
 ## 总表
 
 下表是 `standard` 档位的做法。`quick` 会省掉人工关卡、独立评审和大部分逐场景自查；`studio` 会加上 look-dev、animatic 和多轮打分。各档位具体做多少，见下面的"努力程度"（`bin/vh effort <档位>` 打印那一档的一列，外加底线）。
@@ -97,6 +99,8 @@ projects/2026-10-01-leo-doppler/
 | 01 数学、06 论文 | 1920×1080 | 30 | 1080p | `desktop` |
 | 04 MV、07 手绘 | 1920×1080（手绘引擎只有这一种画幅） | 24 或 30 | 1080p（手绘引擎暂不支持 4K） | `desktop` |
 | 09 剪辑口播 | 跟素材，多为 1080×1920 | 跟素材（恒定帧率） | 1080p（素材是 4K、方向又和成片一致时可以出 4K；从横屏 4K 裁竖屏最多 1215×2160，只够 1080×1920） | `phone` |
+| 10 长讲解 | 1920×1080 | 30 | 1080p（发 B 站、YouTube 可以出 4K） | `desktop` |
+| 11 照片回顾 | 1920×1080（竖屏：`bin/vh new recap --aspect 9:16`，片子走 `edit.json`） | 30 | 1080p | 横屏 `feed`，竖屏 `phone` |
 
 - **在哪看**决定字号下限和可读性检查缩到多宽（`03-motion-design.md` §4）。平台对应：竖屏、1:1、4:5、3:4 都是 `phone`（HyperFrames 类型用 `--aspect 4:5` / `3:4` 建项目，只出 1080p）；横屏片发抖音、视频号、小红书、微博、X 这类信息流，是 `feed`；发 B 站、YouTube、官网，是 `desktop`。抖音上 2–5 分钟的横屏知识中视频是个例外：`video-types/02-knowledge-short.md` 的"变体：抖音横屏中视频"默认按 `desktop`，理由写在那里。同一支横屏片既要在电脑上看、又要进手机信息流时，优先另出一个竖版（重新构图），而不是把横屏的字放大到 `feed` 那一档。
 - **4K**：用户要，或者精品档的片子要发到 B 站、YouTube 这类有 4K 播放的平台时再用；竖屏一般用不上（YouTube Shorts 最高只播 1080p）。照常按 1080p 写，出片时渲成 4K，BRIEF 的 Resolution 写 `1080p, 4k`。canvas、Three.js 这类自己画像素的代码要处理像素密度，出 4K 前先渲一个 4K draft，用 `bin/vh check <4K 视频> --against <1080p 成片>` 比一遍，再裁帧看锐度（`engines/README.md`"出 4K"）。成本：HyperFrames 渲染时间约 2.5–3.5 倍、文件约 3 倍；Blender 约 4 倍。
@@ -133,7 +137,7 @@ projects/2026-10-01-leo-doppler/
 
 ### 审阅页
 
-每次停：写 `out/review/gate-<n>.json`，运行 `bin/vh gate <project> <n>`。它检查 JSON，出 `out/review/gate-<n>.html`（也存成 `index.html`，图、GIF、mp4 和音频在浏览器里直接看、直接听）并记成这一轮；审阅方式（`LOCAL.md`，没写按上表"在哪审"；人点名的用 `--desk` / `--page` / `--chat`）是审阅台时再起审阅台。聊天里只发它打印的那几行。`<n>` 是关卡 `1` `2` `3` 或检查点 `E0`–`E5`，同一站的第二页加 `b`（`2b`）；页属于哪一站，看文件名。只有一两个纯文字的选择时，直接在聊天里问也行。
+每次停：写 `out/review/gate-<n>.json`（`bin/vh gate <project> <n> --init` 写一份骨架，每个 `{填：…}` 说明那里写什么，填完才放行），运行 `bin/vh gate <project> <n>`。它检查 JSON，出 `out/review/gate-<n>.html`（也存成 `index.html`，图、GIF、mp4 和音频在浏览器里直接看、直接听）并记成这一轮；审阅方式（`LOCAL.md`，没写按上表"在哪审"；人点名的用 `--desk` / `--page` / `--chat`）是审阅台时再起审阅台。聊天里只发它打印的那几行。`<n>` 是关卡 `1` `2` `3` 或检查点 `E0`–`E5`，同一站的第二页加 `b`（`2b`）；页属于哪一站，看文件名。只有一两个纯文字的选择时，直接在聊天里问也行。
 
 图不用手拼，`bin/vh` 有现成的：
 - **关卡 ②**：把 STORYBOARD 的镜头表写成 `shots.json`（格式见 `bin/vh storyboard -h`；最没把握的镜头写 `"unsure": "为什么"`；canvas-film 可以不写，没有它时从 `film.html` 读实际的镜头），运行 `bin/vh storyboard <project>` 出每段一页的分镜和总览，同时写好 `out/check/storyboard/review.json`；再运行 `bin/vh rhythm <project>` 出节奏图，超过类型回报间隔的镜头、读不完的字幕标红。gate JSON 里写 `"include": "out/check/storyboard/review.json"`，分段、关键帧、每镜的旁白、没把握的镜头和 animatic 就都带进来了；gate JSON 只写 `summary`、`decisions`，节奏图作为 asset 挂在节奏那个决定下，最后 `bin/vh gate <project> 2`。
@@ -172,7 +176,7 @@ projects/2026-10-01-leo-doppler/
 ```
 
 - **必填**：`summary`，一句话说这页要你定什么、看完要多久；`decisions`，没有要定的写 `[]`。每个决定要有 `question`、`recommend` 和 `reply`（不写 `reply` 就用选项名拼）。选项的 `id` 别用纯数字，免得和决定的编号混在一起；同一页的几个决定也别共用 `id`（一个用 A / B，另一个用 H1 / H2），人随手回一个"A"才不会有歧义。
-- **选填**：`why`、`cost`，选项的 `label` / `pro` / `con`；`decided` 和 `delegated`（都是列表，一项一条）、`not_reviewed`（一句话：这页不审什么）、`title`、`lang`（`zh` / `en`；不写就用 BRIEF 的 `Review language`）、`gate`（和文件名不一致时以文件名为准）。审阅台还认 `listen`、`music`、`film` 三个可选字段（见下面的"审阅台"），这一页不管它们。
+- **选填**：`version`（骨架带的 1，不读）、`why`、`cost`，选项的 `label` / `pro` / `con`；`decided` 和 `delegated`（都是列表，一项一条）、`not_reviewed`（一句话：这页不审什么）、`title`、`lang`（`zh` / `en`；不写就用 BRIEF 的 `Review language`）、`gate`（和文件名不一致时以文件名为准）。审阅台还认 `listen`、`music`、`film` 三个可选字段（见下面的"审阅台"），这一页不管它们。
 - `assets[].for` 写决定或分段的 `id`，图就放在它下面，不写就放进"其他材料"；视频加 `t0` / `t1` 只播一段，加 `poster` 指定封面帧。附录的 `text` 可以放简单的竖线表格（`| a | b |`、`|---|---|`）。写了 `animatic`，每个分段页只播自己那一段，播到段尾就停。
 - `least_sure` 写镜头号，那一镜就标红；文字里出现的镜头号会链到那一镜。镜头的 `note` 写"默认会这样改"，照样默认通过，但单独标出来。
 - `include`：一个 JSON 文件（或几个的列表），路径相对项目，只补 gate JSON 没写的键，gate JSON 写了的优先；`bin/vh storyboard` 写的 `out/check/storyboard/review.json` 就是给它用的。

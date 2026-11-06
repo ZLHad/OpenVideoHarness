@@ -19,8 +19,15 @@ declare -a TYPES=(
   "handdrawn:07-hand-drawn:手绘/水彩/白板/剪纸/角色短片（ClaudeAnimationBase）"
   "meme:08-brutalist-meme:网络梗/野兽派快剪（HyperFrames）"
   "edit:09-editing-talking-head:真人素材剪辑/口播，用户自己的素材（实验中；HyperFrames）"
+  "long:10-long-explainer:长讲解，10 分钟以上的横屏（canvas-film）"
+  "recap:11-photo-recap:照片回顾，用户自己的照片和片段：婚礼、旅行、一年回顾（实验中；canvas-film + 剪辑表）"
 )
 type_doc() { for t in "${TYPES[@]}"; do IFS=: read -r k f _ <<<"$t"; [ "$k" = "$1" ] && { echo "$f"; return; }; done; return 1; }
+type_key() { # type_key <word>: a type's short name, from the short name, its number (02), its doc's name (02-knowledge-short, also as video-types/02-knowledge-short.md) or that name's stem (knowledge-short)
+  local w=${1#video-types/} t k f; w=${w%.md}
+  for t in "${TYPES[@]}"; do IFS=: read -r k f _ <<<"$t"; case "$w" in "$k"|"$f"|"${f%%-*}"|"${f#*-}") echo "$k"; return 0 ;; esac; done
+  return 1
+}
 sedi() { local e=$1 f; shift; for f in "$@"; do sed "$e" "$f" > "$f.vh$$" && mv "$f.vh$$" "$f"; done; }   # in-place sed on both BSD/macOS and GNU/Linux
 
 chrome_path() { # the Chrome render.mjs would use: CHROME_PATH, system installs, then Playwright's Chromium builds (newest first)
@@ -167,7 +174,8 @@ cmd_setup() {
   echo "$c_ok setup done. Next: bin/vh new <type> <slug>   (types: bin/vh types)"
 }
 
-cmd_types() { for t in "${TYPES[@]}"; do IFS=: read -r k f d <<<"$t"; printf "  %-10s video-types/%-32s %s\n" "$k" "$f.md" "$d"; done; }
+cmd_types() { for t in "${TYPES[@]}"; do IFS=: read -r k f d <<<"$t"; printf "  %-10s video-types/%-32s %s\n" "$k" "$f.md" "$d"; done
+  echo "  bin/vh new takes any of: short, 02, 02-knowledge-short, knowledge-short"; }
 
 # shellcheck disable=SC2088   # the ~ is printed, not expanded
 rel() { case "$1" in "$ROOT"/*) printf '%s\n' "${1#"$ROOT"/}" ;; "$HOME"/*) printf '~/%s\n' "${1#"$HOME"/}" ;; *) printf '%s\n' "$1" ;; esac; }   # a path as printed
@@ -332,7 +340,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
       d=${d%/*}
     done
   done
-  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs|assets|footage|image|sfx|bgm|ref|scout|web|concept|looks) ;; *) return 0 ;; esac
+  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs|assets|footage|image|sfx|bgm|ref|scout|web|concept|looks|check) ;; *) return 0 ;; esac
   base=$(projects_base)
   for a in "$@"; do
     case $a in -*|*/*|"") continue ;; esac
@@ -456,8 +464,10 @@ PY
 
 cmd_new() {
   local x; for x in "$@"; do case "$x" in -h|--help) cmd_usage new; return ;; esac; done   # also as the slug or among the options: not a name for a folder
-  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three]] [--from <project>] [--dir <folder>]" >&2; cmd_types >&2; exit 2; }
-  local type=$1 slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine="" three="" from="" fromdir="" given="" fromsaid="" eff=""; doc=$(type_doc "$type") || { echo "unknown type: $type" >&2; cmd_types >&2; exit 2; }
+  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three]] [--from <project>] [--dir <folder>] [--json]" >&2; cmd_types >&2; exit 2; }
+  local type slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine="" three="" from="" fromdir="" given="" fromsaid="" eff="" json="" todo=""
+  type=$(type_key "$1") || { echo "unknown type: $1" >&2; cmd_types >&2; exit 2; }
+  doc=$(type_doc "$type")
   local typed=("$@"); act_now; ACT_T0=$ACT_NOW   # the run goes into the new project's activity log once it is made
   shift 2
   needv() { [ "$1" -ge 2 ] && [ -n "$2" ] || { echo "$3" >&2; exit 2; }; }   # needv $# "${2:-}" <message>: an option's value, or a usage error
@@ -472,8 +482,10 @@ cmd_new() {
     --engine) needv $# "${2:-}" "--engine needs canvas-film (engines/canvas-film/README.md)"; engine=$2; shift 2 ;;
     --three)  three=1; shift ;;
     --from)   needv $# "${2:-}" "--from needs a project (a folder, or a name under the projects folder)"; from=$2; shift 2 ;;
+    --json)   json=1; shift ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac; done
+  [ -z "$json" ] || exec 3>&1 1>&2   # --json: the record on stdout at the end, the lines a person reads on stderr
   if [ -n "$from" ]; then   # an episode of a series: the earlier project's frame and engine unless given now (tools/series.py carries the rest)
     fromdir=$(project_dir "$from") || exit 2
     [ -f "$fromdir/BRIEF.md" ] || { echo "--from: $fromdir is not a project (no BRIEF.md)" >&2; exit 2; }
@@ -486,7 +498,12 @@ cmd_new() {
         short:1080x1440|promo:1080x1440|data:1080x1440|meme:1080x1440) aspect=3:4 ;;
       esac
     fi
+    if [ -z "$aspect" ] && [ "$type" = recap ]; then   # a recap's frame is its edit list's
+      case "$(sed -n 's/^- Output: \([0-9]*x[0-9]*\).*/\1/p' "$fromdir/BRIEF.md" | head -1)" in
+        1080x1920) aspect=9:16 ;; 1080x1080) aspect=1:1 ;; 1080x1350) aspect=4:5 ;; 1080x1440) aspect=3:4 ;; esac
+    fi
   fi
+  [ -n "$engine" ] || case "$type" in long|recap) engine=canvas-film ;; esac   # these two types' own engine
   case "$lang" in ""|zh|en) ;; *) echo "unknown --lang: $lang (zh | en: the language of the review pages, from the user's first request)" >&2; exit 2 ;; esac
   case "$engine" in ""|canvas-film) ;; *) echo "unknown --engine: $engine (canvas-film; leave it out for the type's own engine)" >&2; exit 2 ;; esac
   [ -z "$fromdir" ] || [ "$engine" != canvas-film ] || [ ! -f "$fromdir/three/layer.js" ] || three=1   # an episode keeps the series' Three.js layer
@@ -497,7 +514,10 @@ cmd_new() {
   case "$outres" in ""|1080p) ;; 4k|4K|2160p) outres=4k ;; *) echo "unknown --res: $outres (1080p | 4k)" >&2; exit 2 ;; esac
   if [ "$outres" = 4k ] && [ -z "$engine" ]; then case "$type" in handdrawn|mv) echo "--res 4k: the hand-drawn engine (ClaudeAnimationBase) has no 4K output yet; use 1080p, or another engine (engines/README.md)" >&2; exit 2 ;; esac; fi
   if [ "$engine" = canvas-film ]; then   # the canvas engine draws 16:9 whatever the type
-    case "$aspect" in ""|16:9|landscape) res=landscape ;;
+    case "$aspect:$type" in :*|16:9:*|landscape:*) res=landscape ;;
+      9:16:recap|portrait:recap) res=portrait; aspect=9:16 ;; 1:1:recap|square:recap) res=square; aspect=1:1 ;;   # a recap's film is an edit list, which takes any frame
+      4:5:recap) res=portrait; frameh=1350 ;; 3:4:recap) res=portrait; frameh=1440 ;;
+      *:recap) echo "unknown aspect: $aspect (16:9 | 9:16 | 1:1 | 4:5 | 3:4)" >&2; exit 2 ;;
       *) echo "--aspect: the canvas-film engine draws 16:9 (1920x1080); another frame means editing its template (engines/canvas-film/README.md, 局限)" >&2; exit 2 ;; esac
   elif [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of these; the other engines set their size themselves
     case "$aspect" in 16:9|landscape) res=landscape; aspect=16:9 ;; 9:16|portrait) res=portrait; aspect=9:16 ;; 1:1|square) res=square; aspect=1:1 ;;
@@ -514,7 +534,7 @@ cmd_new() {
   [ -n "$wh" ] || case "$type" in math|paper|handdrawn|mv) wh=1920x1080 ;; edit) wh=1080x1920 ;; esac   # the other engines' frame (edit: follow the footage)
   local res4k=""; [ "$outres" = 4k ] && res4k="1080p, 4k"   # drafts and the reference cut stay 1080p
   if [ -z "$watch" ]; then   # where it is mostly watched sets the text-size floor (playbook/03 §4); the frame gives the default
-    case "$res:$type" in portrait:*|square:*|:edit) watch=phone ;; landscape:meme) watch=feed ;; *) watch=desktop ;; esac
+    case "$res:$type" in portrait:*|square:*|:edit) watch=phone ;; landscape:meme|landscape:recap) watch=feed ;; *) watch=desktop ;; esac
   fi
   local frame=$res; case "$type" in math|paper) frame=${frame:-landscape} ;; esac   # Manim renders landscape
   case "$watch:$frame" in   # a frame and a target that contradict each other (the feed floor is for a 1920-wide frame)
@@ -524,7 +544,11 @@ cmd_new() {
   local base dir; base=$(projects_base "$parent")
   mkdir -p "$base" || { echo "cannot create $base" >&2; exit 1; }
   base=$(cd "$base" && pwd); dir="$base/$(date +%F)-$slug"
-  [ -e "$dir" ] && { echo "$dir already exists" >&2; exit 1; }
+  if [ -e "$dir" ]; then
+    echo "$dir already exists" >&2
+    [ ! -f "$dir/BRIEF.md" ] || echo "   bin/vh status $(rel "$dir") says where it stands and what finishes it (a scaffold that did not finish: bin/vh hf-init, npm install); another slug makes a new project" >&2
+    exit 1
+  fi
   # a step that fails from here on must not leave a half-built dir behind (a retry would say "already exists"): vh_exit removes it
   NEW_DIR=$dir; vh_trap
   if [ "$engine" = canvas-film ]; then   # a static page and its scripts: nothing to install (one command a line, so a failed copy stops here)
@@ -535,7 +559,7 @@ cmd_new() {
   elif [ "$type" = handdrawn ] || [ "$type" = mv ]; then
     rsync -a --exclude node_modules --exclude out "$ROOT/engines/ClaudeAnimationBase/" "$dir/"
     mv "$dir/README.md" "$dir/ENGINE_README.md"   # the engine's own readme; project docs are BRIEF/STORYBOARD/…
-    (cd "$dir" && npm install --silent)
+    (cd "$dir" && npm install --no-fund --no-audit --loglevel=error) || todo="(cd $(rel "$dir") && npm install)"
   else mkdir -p "$dir"; fi
   mkdir -p "$dir/audio" "$dir/assets" "$dir/out/check"
   for f in BRIEF STYLE STORYBOARD REVIEW DECISIONS NOTES LESSONS TASTE_CHECKLIST; do cp "$ROOT/templates/$f.md" "$dir/$f.md"; done
@@ -548,10 +572,13 @@ b = open(brief).read().replace("- Type doc: {type doc}", f"- Type doc: `video-ty
 open(brief, "w").write(b.rstrip("\n") + f"\n<!-- from {name} -->\n")
 PY
   [ -n "$wh" ] && sedi "s/^- Output: {W}x{H},/- Output: $wh,/" "$dir/BRIEF.md"
+  case "$type" in short|promo|data|meme|edit) x=HyperFrames ;; math|paper) x="Manim CE" ;; handdrawn|mv) x="ClaudeAnimationBase (p5.brush)" ;; *) x="" ;; esac
+  [ -n "$engine" ] || [ -z "$x" ] || sedi "s/^- Engine: {[^}]*}/- Engine: $x/" "$dir/BRIEF.md"   # the type's own, until the concept says otherwise
   sedi "s/^- Watch on: {watch}/- Watch on: $watch/; s/^- Resolution: {res}/- Resolution: ${res4k:-1080p}/; s/^- Review language: zh /- Review language: ${lang:-zh} /" "$dir/BRIEF.md"
   local nframe='类型文档 Prompt 增量块写的画幅，以及按它算的尺寸（安全框、每行字数、字号），以这一行为准按新画幅重算。'
   if [ "$engine" = canvas-film ]; then   # 16:9 is these types' own frame except short and edit
     case "$type" in short|edit) printf '\n> **画幅 16:9（%s，canvas-film 引擎）**：%s\n' "$wh" "$nframe" >> "$dir/BRIEF.md" ;; esac
+    [ "$type:$res" = recap:landscape ] || [ "$type" != recap ] || printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：页面（`film.html`）还是 16:9，片子走 `edit.json`，`size` 按这一行（`video-types/11-photo-recap.md` 的"竖屏"）。%s\n' "${aspect:-$res}" "$wh" "$nframe" >> "$dir/BRIEF.md"
   else
     case "$type:$res:$frameh" in short:portrait:|promo:landscape:|data:landscape:|meme:landscape:|*::) ;;   # the type's own frame: nothing to say
       *) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：%s\n' "$aspect" "$wh" "$nframe" >> "$dir/BRIEF.md" ;;
@@ -571,7 +598,7 @@ PY
     [ -z "$three" ] || echo "   three.js : the Three.js layer in three/ (a pinned three.js with it): FILM.three in src/50-shots.js turns it on (ENGINE_README.md, Three.js 层)"
   else
     case "$type" in
-      short|promo|data|meme) if [ -n "$frameh" ]; then cmd_hf_init "$dir" "$aspect" || true; else cmd_hf_init "$dir" "$res" || true; fi ;;
+      short|promo|data|meme) x=${frameh:+$aspect}; x=${x:-$res}; cmd_hf_init "$dir" "$x" || todo="bin/vh hf-init $(rel "$dir") $x" ;;   # it says why
       math|paper) echo "   engine   : Manim → cd $(rel "$dir") && uv init --bare --python 3.12 && uv add manim   (see engines/README.md)" ;;
       edit) echo "   engine   : HyperFrames → bin/vh hf-init $(rel "$dir") portrait   (or landscape; see video-types/09-editing-talking-head.md)" ;;
     esac
@@ -591,31 +618,51 @@ PY
     [ "$effort" = quick ] && printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；人点名要拍板的事照样停（导演模式）；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
   fi
   case "$type" in   # the type's usual reading pace (the BRIEF's Pace comment); the BRIEF line can change it
-    math|paper) sedi "s/^- Pace: normal /- Pace: relaxed /" "$dir/BRIEF.md" ;;
+    math|paper|long|recap) sedi "s/^- Pace: normal /- Pace: relaxed /" "$dir/BRIEF.md" ;;
     meme) sedi "s/^- Pace: normal /- Pace: brisk /" "$dir/BRIEF.md" ;;
   esac
   for s in $styles; do attach_style "$dir" "$s"; done   # presets as references: copies in style-refs/, listed in BRIEF, a DECISIONS line
   if [ -n "$fromdir" ]; then fromsaid=$(python3 "$ROOT/tools/series.py" carry "$fromdir" "$dir" --given "$given") || exit 1; fi   # the lines to show
   eff=$(sed -n 's/^- Effort: \([a-z]*\).*/\1/p' "$dir/BRIEF.md" | head -1); eff=${eff:-${effort:-standard}}   # as the BRIEF has it now
   NEW_DIR=""
-  ACT_SUMMARY="created ${dir##*/} · $type · $eff"; act_begin "$dir" new "${typed[@]}" || true
-  echo "$c_ok created $(rel "$dir")"
+  ACT_SUMMARY="created ${dir##*/} · $type · $eff${todo:+ · the scaffold did not finish}"; act_begin "$dir" new "${typed[@]}" || true
+  if [ -n "$todo" ]; then echo "$c_no created $(rel "$dir"), but its engine's scaffold did not finish; this finishes it: $todo"
+  else echo "$c_ok created $(rel "$dir")"; fi
   echo "   type doc : video-types/$doc.md"
   local fdesc="${frameh:+$aspect, }$res"   # empty for the types whose engine is not scaffolded here (math, paper, handdrawn, mv, edit)
   [ -n "$wh" ] && echo "   frame    : $wh${fdesc:+ ($fdesc)}"
+  [ "$type:$res" = recap:landscape ] || [ "$type" != recap ] || echo "              its pages stay 16:9, and the film goes through edit.json at $wh (video-types/11-photo-recap.md)"
   echo "   watch on : $watch · ${outres:-1080p}  (text-size floor and readability check: playbook/03 §4)"
   [ -n "$styles" ] && echo "   style ref: $(printf '%s\n' $styles | sed 's|^|styles/|' | paste -sd, - | sed 's/,/, /g') (copies in style-refs/; references, not rules: note in DECISIONS.md what each lends)"
   [ -n "$fromdir" ] && echo "   from     : $(rel "$fromdir"): its BRIEF's spec (not its budget, effort or director)$([ -n "$style" ] || printf ', style'), outline skeleton,$([ -n "$style" ] || printf ' STYLE.md,') recipes and sound (series.json); the content left behind"
   [ -n "$fromsaid" ] && printf '%s\n' "$fromsaid"
   echo "   effort   : $eff  (bin/vh effort $eff shows what that means)"
   echo "   review in: ${lang:-zh}  (the review pages' language: --lang en for an English-speaking user)"
-  echo "   next     : open Claude Code in the repo root and say what the video is about;"
+  [ -z "$todo" ] || echo "   first    : $todo"
+  case "$eff" in
+    quick) echo "   next     : the agent reads playbook/quick.md and video-types/$doc.md (工作流, 禁止), fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
+    *) echo "   next     : the agent reads video-types/$doc.md, playbook/01-pipeline.md up to 规格 and playbook/02-verification.md's 七层检查 and 预算, fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
+  esac
+  echo "              a person starting here: open Claude Code or Codex in the repo root and say what the video is about;"
   case "$eff" in
     quick) echo "              the agent fills $(rel "$dir")/BRIEF.md and renders straight through; it stops only for what you say you'll decide." ;;
     studio) echo "              the agent fills $(rel "$dir")/BRIEF.md and STORYBOARD.md and stops for your review (concept and outline, storyboard, first draft)"
             echo "              in the review desk (bin/vh desk): tick, comment and submit in the page, and it carries on." ;;
     *) echo "              the agent fills $(rel "$dir")/BRIEF.md and STORYBOARD.md and stops for your review (concept and outline, storyboard, first draft)." ;;
   esac
+  if [ -n "$json" ]; then   # next: bin/vh status's next_step, so the two never tell different stories
+    python3 - "$ROOT" "$dir" "$type" "$doc" "$eff" "${lang:-zh}" "$watch" "${outres:-1080p}" "$wh" "$engine" "$todo" >&3 <<'PY'
+import json, subprocess, sys
+root, d, t, doc, eff, lang, watch, res, wh, engine, todo = sys.argv[1:12]
+st = json.loads(subprocess.run([sys.executable, root + "/tools/status.py", d, "--json"], capture_output=True, text=True).stdout)
+own = {"short": "hyperframes", "promo": "hyperframes", "data": "hyperframes", "meme": "hyperframes", "edit": "hyperframes", "math": "manim", "paper": "manim",
+       "handdrawn": "ClaudeAnimationBase", "mv": "ClaudeAnimationBase"}
+print(json.dumps({"version": 1, "project": d, "type": t, "doc": f"video-types/{doc}.md", "effort": eff, "lang": lang, "frame": wh or None, "watch": watch,
+                  "resolution": res, "engine": engine or own.get(t), "scaffold": {"ok": not todo, "finish": todo or None}, "next": st["next_step"]},
+                 ensure_ascii=False, indent=1))
+PY
+  fi
+  [ -z "$todo" ] || exit 1
 }
 
 cmd_effort() { # the effort levels: the rules from CLAUDE.md's 努力程度, the table from playbook/01's; with a level, only that column
@@ -817,8 +864,9 @@ cmd_hf_init() { # HyperFrames 0.8.x `init` installs skills GLOBALLY (~/.claude/s
   fi
   echo "→ scaffolding HyperFrames ${HYPERFRAMES_VERSION:-0.8.202} (${h:+1080x$h from }$res) — pinned, no global skills, telemetry off"
   tmp=$(mktemp -d)
-  if ! (cd "$tmp" && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1 npx --yes "hyperframes@${HYPERFRAMES_VERSION:-0.8.202}" init hf --non-interactive --resolution "$res" >/dev/null 2>&1); then
-    echo "$c_wa hyperframes init failed (offline?) — retry later: bin/vh hf-init ${dir#$ROOT/} $frame"; rm -rf "$tmp"; return 1; fi
+  if ! (cd "$tmp" && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1 npx --yes "hyperframes@${HYPERFRAMES_VERSION:-0.8.202}" init hf --non-interactive --resolution "$res" >"$tmp/.init.log" 2>&1); then
+    echo "$c_no hyperframes init failed (offline?); npx said last:" >&2; tail -n 6 "$tmp/.init.log" | sed 's/^/   /' >&2
+    echo "   retry later: bin/vh hf-init ${dir#$ROOT/} $frame" >&2; rm -rf "$tmp"; return 1; fi
   # the scaffold's font (0.8.82: Inter; 0.8.202: --font-display: sans-serif, which HyperFrames turns into Inter) has no
   # @font-face, so every render, snapshot and check requests it from Google Fonts and hangs where that is blocked: declare
   # system fonts through local() instead, as styles/_swatch/fonts.css does (in the scaffold, before the copy)
@@ -881,7 +929,7 @@ cmd_sheet() {
 }
 ck_note() { [ -z "${J:-}" ] || { printf '%s\n' "$2" >> "$J/$1"; } 2>/dev/null || true; }   # ck_note <file> <line>: a line into check's scratch folder, if it has one
 cmd_check() {
-  local u="usage: bin/vh check <video> [--allow t,t…] [--against <reference.mp4>] [--json]"
+  local u="usage: bin/vh check <video | project> [--allow t,t…] [--against <reference.mp4>] [--json]"
   [ $# -gt 0 ] || { cmd_usage check >&2; exit 2; }
   case "$1" in -*) echo "bin/vh check: unknown option $1 ($u)" >&2; exit 2 ;; esac   # an option where the video goes
   local v=$1 allow="" against="" fail=0 json=""
@@ -897,7 +945,16 @@ cmd_check() {
     *) echo "bin/vh check: unknown option $1 ($u)" >&2; return 2 ;;
   esac; done
   [ -z "$against" ] || [ -f "$against" ] || { echo "bin/vh check: no reference video at $against" >&2; return 2; }
-  [ -f "$v" ] || { echo "bin/vh check: no such video: $v" >&2; return 2; }   # one ffprobe cannot read is a failed check (1)
+  if [ ! -f "$v" ]; then   # a project: its newest film (tools/proxy.py says which, or that there is none yet)
+    local vp; vp=$(project_dir "$v" 2>/dev/null) && [ -f "$vp/BRIEF.md" ] || vp=""
+    [ -z "$vp" ] && [ -d "$v" ] && { echo "bin/vh check: $v is a folder with no BRIEF.md: give a video, or a project" >&2; return 2; }
+    if [ -z "$vp" ]; then   # one ffprobe cannot read is a failed check (1)
+      vp=$(project_dir "$v" 2>&1 >/dev/null || true)
+      case "$vp" in *"several projects match"*) echo "bin/vh check: $vp" >&2 ;; *) echo "bin/vh check: no such video: $v" >&2 ;; esac
+      return 2
+    fi
+    v=$(python3 "$ROOT/tools/proxy.py" film "$vp") || return 2
+  fi
   # each check also leaves its result in CHECK_TMP (gone on exit, vh_exit); tools/checkrec.py makes the record of them at
   # the end, out/check/<name>.check.json. --json: that record on stdout, the lines a person reads on stderr. With no
   # scratch folder (mktemp cannot make one) the checks run all the same, and no record is made
@@ -1060,7 +1117,8 @@ cmd_tts() {
   done
   # everything from the first --flag on goes straight to tts.py (--beats, --snap, --lead, --gap, --min-gap, --align, --join, --candidates, --min-sim, --vocab, --resume)
   [ "$voice" = "-" ] && voice=""; [ "$lang" = "-" ] && lang=""; [ "$instruct" = "-" ] && instruct=""   # no lang: tts.py picks zh, or en for an English-only script
-  case "$prov" in qwen) deps="--with mlx-audio" ;; edge) deps="--with edge-tts" ;; dashscope) deps="--with dashscope" ;; esac
+  case "$prov" in qwen) deps="--with mlx-audio" ;; edge) deps="--with edge-tts" ;;
+    dashscope) [ -z "${DASHSCOPE_API_KEY:-}" ] || deps="--with dashscope" ;; esac   # no key: tts.py says so, with no package fetched first
   deps="$deps${np:+ $np}"
   on_ctrl_c uv run -q --no-project $deps python "$ROOT/tools/audio/tts.py" "$proj" --provider "$prov" ${lang:+--lang "$lang"} ${voice:+--voice "$voice"} ${instruct:+--instruct "$instruct"} "$@"
 }

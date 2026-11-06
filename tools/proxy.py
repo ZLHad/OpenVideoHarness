@@ -3,9 +3,10 @@
 usage: bin/vh proxy <film | project> [--size 360] [--gop N] [--crf 28] [--full] [--out dir] [--json]
        bin/vh thumbs <film | project> [--every 2] [--width 160] [--shot-width 320] [--full] [--out dir] [--json]
 A project means its film: the newest current version (bin/vh versions), else the newest video under out/ with a
-.render.json, else the newest video under out/ (not out/check, out/review, out/proxy, out/versions); thumbs with no film
-draws the page instead (bin/vh frames). The outputs go to <project>/out/proxy/ (outside a project: proxy/ beside the film),
-named as bin/vh check names its records (out/review/sketch.mp4 → review-sketch).
+.render.json, else the newest video under out/ (not out/check, out/review, out/proxy, out/versions, nor a film bin/vh patch
+kept because a check failed); thumbs with no film draws the page instead (bin/vh frames). The outputs go to
+<project>/out/proxy/ (outside a project: proxy/ beside the film), named as bin/vh check names its records
+(out/review/sketch.mp4 → review-sketch).
 
 proxy   <name>.mp4: the film at --size px on its short side (360; never larger than the film), H.264 with a keyframe every
         --gop frames (a fifth of a second by default: 6 at 30 fps) and no B-frames, tuned for fast decoding, the film's
@@ -34,6 +35,8 @@ from timegrid import frame_at, frame_from   # noqa: E402  (seconds to frames, th
 
 VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
 SKIP = {"check", "review", "proxy", "versions", "frames", "cache"}   # cache: an edit list's chunks (bin/vh render)
+NOT_FILMS = {"frames", "node_modules", "__pycache__", ".venv", "venv", "partial_movie_files"}   # partial_movie_files: Manim's pieces of a scene
+FAILED = re.compile(r"\.failed(-\d+)?$", re.I)
 
 
 class Usage(Exception):
@@ -79,15 +82,46 @@ def name_of(film, project):
     return Path(film).stem
 
 
+def is_failed(f):
+    """A film bin/vh patch kept to look at because a check failed: <film>.failed.mp4, .failed-2.mp4 … (tools/film/patch.mjs)."""
+    return bool(FAILED.search(Path(f).stem))
+
+
+def videos_under(base, skip_top=()):
+    """The video files under a folder, three folders down at most (bin/vh status lists renders the same way): no hidden
+    ones, nothing in frames/ or Manim's partial_movie_files/, nor in the folders of skip_top directly under it."""
+    base, found = Path(base), []
+    if base.is_dir():
+        for d, dirs, files in os.walk(base):
+            depth = Path(d).relative_to(base).parts
+            dirs[:] = [x for x in dirs if x not in NOT_FILMS and not x.startswith(".") and len(depth) < 3 and not (not depth and x in skip_top)]
+            found += [Path(d) / f for f in files if Path(f).suffix.lower() in VIDEO and not f.startswith(".") and (Path(d) / f).is_file()]
+    return found
+
+
 def films_in(project):
-    out = Path(project) / "out"
-    found = []
-    if out.is_dir():
-        for d, dirs, files in os.walk(out):
-            depth = Path(d).relative_to(out).parts
-            dirs[:] = [x for x in dirs if not x.startswith(".") and not (not depth and x in SKIP) and len(depth) < 3]
-            found += [Path(d) / f for f in files if Path(f).suffix.lower() in VIDEO and not f.startswith(".")]
-    return sorted(found, key=lambda p: -p.stat().st_mtime)
+    return sorted((f for f in videos_under(Path(project) / "out", SKIP) if not is_failed(f)), key=lambda p: -p.stat().st_mtime)
+
+
+def film_of(project):
+    """What bin/vh check <project> and bin/vh status call the film, and the newer films passed over for it: the newest video
+    in out/ (as films_in looks), media/ or renders/, not a film a failed patch left; a copy bin/vh deliver made or an animatic
+    only when there is nothing else. When the newest is not a final* and out/ has a final (out/final*, out/final/…), the
+    final: a chapter's preview rendered later is not the film. (None, []) when there is none."""
+    project = Path(project)
+    vids = films_in(project) + [f for top in ("media", "renders") for f in videos_under(project / top) if not is_failed(f)]
+    own = sorted([f for f in vids if not Path(str(f) + ".deliver.json").is_file() and not f.name.lower().startswith("animatic")] or vids,
+                 key=lambda f: -f.stat().st_mtime)
+    if not own:
+        return None, []
+    named = lambda f: f.name.lower().startswith("final")   # noqa: E731
+    finals = [f for f in own if (f.parent == project / "out" and named(f)) or f.parent == project / "out" / "final"]
+    film = own[0] if named(own[0]) or not finals else finals[0]
+    return film.resolve(), own[:own.index(film)]
+
+
+def newest_film(project):
+    return film_of(project)[0]
 
 
 def pick(target):
@@ -509,7 +543,27 @@ def parse(argv, cmd):
     return a
 
 
+def also_here(project, films):
+    """The films passed over, as a line says them: the newest three."""
+    return ", ".join(V.rel(project, f) for f in films[:3]) + (" …" if len(films) > 3 else "")
+
+
+def main_film(project):
+    """bin/vh check <project>: the film's path on stdout, which one and why on stderr; none yet: says to render first, exit 2."""
+    project = Path(project).resolve()
+    film, also = film_of(project)
+    if film is None:
+        print(f"bin/vh check: {project.name} has no film yet in out/, media/ or renders/: render one first (bin/vh status {project} says how)", file=sys.stderr)
+        return 2
+    which = f"the final in {project.name}; also here: {also_here(project, also)}" if also else f"the newest film in {project.name}"
+    print(f"bin/vh check: {V.rel(project, film)}, {which} (to check another, give its path)", file=sys.stderr)
+    print(film)
+    return 0
+
+
 def main(argv):
+    if argv[:1] == ["film"] and len(argv) == 2:
+        return main_film(argv[1])
     if not argv or argv[0] not in ("proxy", "thumbs"):
         print(__doc__.strip(), file=sys.stderr)
         return 2

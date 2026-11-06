@@ -4,8 +4,9 @@ usage: bin/vh status <project> [--json]
 <project> is a folder (or a file inside it), or a name under $OVH_PROJECTS / projects/ (the date prefix optional).
 
 The stops, in the pipeline's order: gate ① ② ③ always; a checkpoint E0–E5 when it has a page, a REVIEW.md section or the
-BRIEF's Director line asks for it (stop=E3); a review page with another name ("final") as a stop of its own; then delivery.
-Each has a state:
+BRIEF's Director line asks for it (stop=E3, or voice=own: what a person keeps goes with the stop where playbook/01's 导演模式
+table first has it, voice and script at E1, character and theme at E0, packaging at gate ③); a review page with another name
+("final") as a stop of its own; then delivery. Each has a state:
   done            a decision for it is on record in REVIEW.md: "定了：…" (the template's {…} does not count), in the last
                   section about its latest page (the desk's section for a submission, or one that names
                   out/review/gate-<n>.html, as the template's sections do: REVIEW.md grows downwards, so a second
@@ -13,8 +14,10 @@ Each has a state:
                   was written after that page (said in the stop's note). Gate ① goes by gatecheck.py's own rule, as
                   bin/vh render and check do: a decision and the person's words in a gate ① section, and the concept
                   on record in DECISIONS.md
-  skipped         Effort quick (and no page of its own), or waived in the user's own words in REVIEW.md
-  waiting_person  its page is this round (out/review/.current) and nothing has come back for it yet
+  skipped         Effort quick (no page of its own, and the Director line does not ask for this stop, by stop= or x=own), or
+                  waived in the user's own words in REVIEW.md
+  waiting_person  its page is out (bin/vh gate made it: a gate JSON not sent yet is not, nor a page whose last run bin/vh gate
+                  refused, exit 1, for it sent nothing), it is this round (out/review/.current), and nothing has come back for it yet
   waiting_agent   the person submitted on the desk and no agent has it yet, or an agent has it and REVIEW.md has no
                   decision for it yet; or the project moved on past its page with no decision on record; gate ①
                   decided, but its record lacks the person's words or DECISIONS.md's concept (render and check refuse)
@@ -23,7 +26,8 @@ Each has a state:
   not_started     later stops; a stop passed over without a record stays not_started
   no_record       every stop of a standard or studio project with no REVIEW.md (made before the templates had one):
                   nothing to read its review from (gatecheck.py does not check those either)
-Delivery is done once bin/vh deliver has written a record, or the final film (out/final*, out/final/, media/) has a passing
+Delivery is done once bin/vh deliver has written a record, or the final film (out/final*, out/final/, a file directly in
+media/, Manim's render at 1080p or more; not its 480p15 and 720p30 drafts, and not a film a failed patch left) has a passing
 bin/vh check record of that very film (the size and mtime_ns it kept are the film's now; a record from before those: newer
 than the film), and gate ③ is done or skipped (a delivery before it is said in the note); in progress once every stop is
 done or skipped.
@@ -37,26 +41,47 @@ the films loaded that the ledger lacks, the spend against the budget), the cast 
 kind, the settled ones, what its check would fail), the research in research/ (bin/vh scout's
 records, the days with a hot-list snapshot, bin/vh ref's references), and the commands running now and the last ones
 (the activity log).
+The next step, from the stop the project is at: who has it (the person, the agent), what to do, which commands, which sections
+to read (a file to read whole, or a "<file.md>#<section>" that bin/vh know --show prints), and how many {…} are still unfilled in
+BRIEF.md, STYLE.md and STORYBOARD.md (outside code; the template's kind of braces, not a stylesheet's). What the Director line keeps for the person (x=own) comes first in what to do, until it is on record: its stop
+done or skipped, or its row in DECISIONS.md decided. The line starts "next:"; --json has it as next_step (the older "next" is
+one sentence, and stays).
 --json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1). Exit 0, 2 when there is no project.
 """
-import json, os, re, sys, time
+import json, os, re, shlex, sys, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
-import activity, checkrec as C, gatecheck as G, review as R, versions as V   # noqa: E402,E401
+import activity, checkrec as C, gatecheck as G, proxy as P, review as R, versions as V   # noqa: E402,E401
 import feedback as F, reader   # noqa: E402,E401
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
-VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
-SKIP_DIRS = {"frames", "node_modules", "__pycache__", ".venv", "venv"}
 OUT_SKIP = {"versions", "proxy"}   # out/versions (listed from its record) and out/proxy: not renders; only directly in out/
+MANIM_FINAL = re.compile(r"(1080|1440|1920|2160|3840)p")   # media/videos/<scene>/1080p30: the folder is named by the height, so 1920p30 is a vertical 1080p
 STATE_MARK = {"done": "✓", "skipped": "–", "waiting_person": "●", "waiting_agent": "◆", "in_progress": "…", "not_started": "·",
               "no_record": "○"}
 STATE_WORDS = {"done": "done", "skipped": "skipped", "waiting_person": "waiting for you", "waiting_agent": "waiting for the agent",
                "in_progress": "in progress", "not_started": "not started", "no_record": "no record"}
 LISTENING = ("desk", "gate")   # a running desk or gate --wait is someone waiting, not work being done
+PLACEHOLDER = re.compile(r"(?<!\$)\{[^{}\n]*\}")
+NOT_BLANK = re.compile(r"""\s*(?:(?:none)?\s*$|["']|[\w-]+\s*:)""", re.I)   # the template's {none}, and braces that hold a value: {}, {"a": 1}, {fill: #e33}
+# what the next step sends an agent to read, each for bin/vh know --show (tools/ci.sh checks each is there)
+R_PAGE, R_DESK, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES = (f"playbook/01-pipeline.md#{x}" for x in ("审阅页", "审阅台", "导演模式", "animatic", "长片", "look-dev", "子代理分工"))
+R_RECORD = "templates/REVIEW.md"   # how a stop goes on record
+R_IDEAS, R_CARDS = "playbook/12-ideation.md#3.", "playbook/12-ideation.md#7."
+R_FRAMES, R_PHONE, R_SILENT, R_BUDGET = (f"playbook/02-verification.md#{x}" for x in ("各引擎的取帧命令", "手机测试", "静默失败", "预算"))
+R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS, R_PITFALLS = (f"playbook/02-verification.md#{x}" for x in ("确定性", "色彩标签", "音频 QA", "事实核查", "已知的坑"))
+R_SCORES, R_LAYERS, R_QUICK = "templates/TASTE_CHECKLIST.md#打分层", "playbook/02-verification.md#七层检查", "playbook/quick.md"
+R_NARRATIVE, R_SOUND, R_HF, R_MANIM = "playbook/09-narrative.md#5. 长片", "playbook/04-audio.md#常用命令", "engines/README.md#HyperFrames", "engines/README.md#Manim CE"
+R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING = "engines/canvas-film/README.md", "engines/ClaudeAnimationBase/ANIMATION_GUIDE.md", "engines/EDIT.md", "engines/editing.md"
+TYPE_ENGINE = {"01": "manim", "06": "manim", "02": "hf", "03": "hf", "05": "hf", "08": "hf", "09": "hf", "04": "p5", "07": "p5", "10": "canvas", "11": "canvas"}
+# what a Director line can keep for the person (x=own), and the stop where playbook/01's 导演模式 table first has each
+OWN_STOP = {"concept": "1", "spec": "1", "outline": "1", "style": "1", "hook": "1", "character": "E0", "theme": "E0", "voice": "E1", "script": "E1",
+            "storyboard": "2", "rhythm": "2", "packaging": "3"}
+READS = (R_PAGE, R_DESK, R_RECORD, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES, R_IDEAS, R_CARDS, R_FRAMES, R_PHONE, R_SILENT, R_BUDGET, R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS,
+         R_PITFALLS, R_SCORES, R_LAYERS, R_QUICK, R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING)
 
 
 def rel(project, p):
@@ -88,6 +113,23 @@ def director_stops(director_line):
             for s in re.findall(r"E[0-9]", grp, re.I)}
 
 
+def director_own(director_line):
+    """What a Director line keeps for the person, {thing: its stop} (None for a word playbook/01 does not name): voice=own, and
+    rest=own for everything the line does not name."""
+    said = {k.lower(): v.lower() for k, v in re.findall(r"(\w+)\s*=\s*(\w+)", director_line or "")}
+    own = [k for k, v in said.items() if v == "own" and k != "rest"]
+    if said.get("rest") == "own":
+        own += [k for k in OWN_STOP if k not in said]
+    return {k: OWN_STOP.get(k) for k in own}
+
+
+def own_unsettled(project, proj):
+    """director_own without what DECISIONS.md's table already has as decided."""
+    f = project / "DECISIONS.md"
+    dec = G.read(f) if f.is_file() else ""
+    return {k: v for k, v in director_own(proj["director"]).items() if not G.row_decided(dec, rf"\b{re.escape(k)}\b")}
+
+
 def feedback_records(project):
     """[(path, record)] of the desk's submissions, oldest first."""
     return sorted(F._records(project), key=lambda x: F._order(*x))
@@ -103,7 +145,8 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
     """The stops and their states (but in_progress / not_started, which need the order): ([dict], this round).
     no_review: a standard or studio project without REVIEW.md, every stop no_record."""
     pages = R.gate_pages(project)                       # in review order, this round last
-    cur = R.current_page(project) or (pages[-1].stem[5:] if pages else None)
+    sent = [p for p in pages if R.refusal(project, p.stem[5:]) is None]
+    cur = R.current_page(project) or (sent[-1].stem[5:] if sent else None)
     by_stop, extra = {}, []
     for p in pages:
         pid = p.stem[5:]
@@ -166,7 +209,7 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
         stub = f"out/review/gate-{pid or key}.html"
         if no_review and effort != "quick":
             st["state"] = "no_record"
-        elif waived or (effort == "quick" and not plist):
+        elif waived or (effort == "quick" and not plist and key not in asked):
             st["state"] = "skipped"
             st["note"] = f"waived in the user's words ({waived})" if waived else "Effort quick: no gates"
         elif decided and missing:   # gatecheck's verdict: not on record yet
@@ -177,6 +220,10 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
                 st["note"] = "decided, but the person's words are not in REVIEW.md"
             elif how == "stop_by_date":
                 st["note"] = f"decided in its REVIEW.md section, read by date: the section names no page (its 页面 line: {stub})"
+        elif latest is not None and not latest.with_suffix(".html").exists() and not pend and not handed:
+            pass   # written, not sent yet: bin/vh gate makes the page, so it has not reached the person
+        elif latest is not None and R.refusal(project, pid) is not None and not pend and not handed:
+            st["note"] = "bin/vh gate refused this page, so that run sent the person nothing: fix it and send it again"
         elif latest is not None and pid == cur:
             if pend:
                 st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) not handed to the agent yet (bin/vh desk feedback)"
@@ -194,23 +241,14 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
 
 
 def renders(project):
-    """Video files under out/ (three levels down), renders/ and media/, newest first, with what lies beside them."""
+    """Video files under out/, renders/ and media/, three levels down, newest first, with what lies beside them."""
     found = []
     for top in ("out", "renders", "media"):
-        base = project / top
-        if not base.is_dir():
-            continue
-        for d, dirs, files in os.walk(base):
-            depth = Path(d).relative_to(base).parts
-            dirs[:] = [x for x in dirs if x not in SKIP_DIRS and not x.startswith(".") and len(depth) < 3
-                       and not (top == "out" and not depth and x in OUT_SKIP)]
-            for f in files:
-                if Path(f).suffix.lower() in VIDEO and not f.startswith("."):
-                    p = Path(d) / f
-                    try:
-                        found.append((p, p.stat()))
-                    except OSError:   # gone since the listing
-                        pass
+        for p in P.videos_under(project / top, OUT_SKIP if top == "out" else ()):
+            try:
+                found.append((p, p.stat()))
+            except OSError:   # gone since the listing
+                pass
     return sorted(found, key=lambda x: -x[1].st_mtime)
 
 
@@ -274,6 +312,276 @@ def render_info(side):
             "span": pair(side.get("span")), "seconds": num(side.get("seconds"))}
 
 
+def unfilled(project):
+    """{file: how many {…} are still in it}, comments and code aside (a stylesheet in a ``` block or between `…`); braces that hold
+    a value (NOT_BLANK) are no blanks."""
+    out = {}
+    for name in ("BRIEF.md", "STYLE.md", "STORYBOARD.md"):
+        f = project / name
+        if not f.is_file():
+            continue
+        secs = G.sections(reader.strip_comments(G.read(f)))
+        lines = [t for t, _ in secs] + [x for _, ls in secs for x, code in ls if not code]
+        n = sum(1 for x in lines for b in PLACEHOLDER.findall(re.sub(r"`[^`\n]*`", "", x)) if not NOT_BLANK.match(b[1:-1]))
+        if n:
+            out[name] = n
+    return out
+
+
+def has_sound(project, proj):
+    """Narration or music: something in audio/, or a narration the BRIEF's Language line names."""
+    d = project / "audio"
+    said = re.search(r"narration:\s*([^\s{}][^{}\n]*)", proj["spec"].get("Language") or "")
+    return (d.is_dir() and any(not x.name.startswith(".") for x in d.iterdir())) or bool(said and said.group(1).strip().lower() not in ("none", "无"))
+
+
+def shown(project):
+    """The project as a command takes it: from the repo's root when it is under it (bin/vh runs from there), else whole."""
+    try:
+        return shlex.quote(project.relative_to(HERE.parent.resolve()).as_posix())
+    except ValueError:
+        return shlex.quote(str(project))
+
+
+def engine_named(proj):
+    """The engine the BRIEF's Engine line names first (a concept can change the type's own): hf, manim, p5, canvas, or other (Remotion:
+    no commands here); with the line not filled in, the type's own, or None."""
+    line = (proj["spec"].get("Engine") or "").lower()
+    if not line or "{" in line:
+        return TYPE_ENGINE.get((proj["type"] or "")[:2])
+    m = re.search(r"hyperframes|manim|claudeanimationbase|p5|canvas", line)
+    return {"hyperframes": "hf", "manim": "manim", "canvas": "canvas"}.get(m.group(0), "p5") if m else "other"
+
+
+def engine_here(project, proj):
+    """The engine this project runs on: what its files show (page: a page of its own, which bin/vh render draws), else the named one."""
+    if (project / "edit.json").is_file() or (project / "film.html").is_file():
+        return "canvas"
+    if (project / "hyperframes.json").is_file():
+        return "hf"
+    if (project / "render.mjs").is_file():
+        return "p5"
+    return "page" if (project / "index.html").is_file() else engine_named(proj)
+
+
+def hf_init(project, proj):
+    m = re.search(r"(\d{3,4})\s*[x×]\s*(\d{3,4})", proj["spec"].get("Output") or "")
+    frame = {(1080, 1350): "4:5", (1080, 1440): "3:4", (1080, 1080): "square", (1920, 1080): "landscape"}.get((int(m[1]), int(m[2])) if m else None, "portrait")
+    return f"bin/vh hf-init {shown(project)} {frame}"
+
+
+def scaffold_todo(project, proj):
+    """The command that makes an engine's scaffold the project lacks, by the engine the BRIEF names, else its type's; None when
+    there is nothing to make, and for what bin/vh new leaves to the first picture (engine_setup)."""
+    if (project / "film.html").is_file() or (project / "edit.json").is_file():
+        return None
+    engine = engine_named(proj)
+    if engine == "hf" and (proj["type"] or "")[:2] != "09" and not (project / "hyperframes.json").is_file() and not (project / "index.html").is_file():
+        return hf_init(project, proj)
+    if engine == "p5" and (project / "render.mjs").is_file() and not (project / "node_modules").is_dir():
+        return f"(cd {shown(project)} && npm install)"
+    return None
+
+
+def engine_setup(project, proj):
+    """What bin/vh new only names and the first picture needs, when it is not done yet: Manim's project, HyperFrames in type 09."""
+    engine = engine_here(project, proj)
+    if engine == "manim" and not (project / "pyproject.toml").is_file():
+        return f"(cd {shown(project)} && uv init --bare --python 3.12 && uv add manim)"
+    if engine == "hf" and not (project / "hyperframes.json").is_file():
+        return hf_init(project, proj)
+    return None
+
+
+def manim_quality(proj, final):
+    """Manim's flags for a draft or the final. A vertical film goes by its size: -ql and -qh put the frame back to landscape
+    (engines/README.md, 竖屏)."""
+    m = re.search(r"(\d{3,4})\s*[x×]\s*(\d{3,4})", proj["spec"].get("Output") or "")
+    w, h = (int(m[1]), int(m[2])) if m else (1920, 1080)
+    if h > w:
+        return f"-r {w},{h} --fps 30" if final else f"-ql -r {w // 2},{h // 2}"
+    return "-qh --fps 30" if final else "-ql"
+
+
+def frame_cmd(project, proj):
+    """How to look at a frame before there is a film. bin/vh frames draws a page; Manim has none, and keeps its last frame."""
+    engine = engine_here(project, proj)
+    if engine == "manim":
+        return f"(cd {shown(project)} && uv run manim {manim_quality(proj, False)} -s scene.py <Scene>)"
+    return None if engine == "other" else f"bin/vh frames {shown(project)} --at 1,5,9"
+
+
+def render_cmd(project, proj, final):
+    """The command that renders this project's film (out/draft.mp4 or out/final.mp4), by the engine it runs on."""
+    p, name, engine = shown(project), "out/final.mp4" if final else "out/draft.mp4", engine_here(project, proj)
+    if engine == "hf":
+        return f"(cd {p} && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 npx hyperframes render --quality {'delivery' if final else 'draft'} --output {name})"
+    if engine == "p5":
+        return f"(cd {p} && node render.mjs --clip --out={name})"
+    if engine == "manim":
+        return f"(cd {p} && uv run manim {manim_quality(proj, final)} scene.py <Scene>)"
+    return None if engine == "other" else f"bin/vh render {p} --out {p}/{name}"
+
+
+def engine_docs(project, proj):
+    """What to read for this project's engine at the first picture: its section or guide, and the edit list's where it goes through one."""
+    kind = (proj["type"] or "")[:2]
+    doc = {"canvas": R_CANVAS, "hf": R_HF, "p5": R_HANDDRAWN, "manim": R_MANIM}.get(engine_here(project, proj))
+    return [doc, R_EDITING if kind == "09" else None, R_EDIT if kind == "11" or (project / "edit.json").is_file() else None]
+
+
+def film_state(project, by_video):
+    """The newest film and its check: (path from the project or None, none | unchecked | stale | failed | passed, what failed)."""
+    film = P.newest_film(project)
+    if film is None:
+        return None, "none", []
+    r = rel(project, film)
+    c = by_video.get(r)
+    if not c:
+        return r, "unchecked", []
+    try:
+        if film_changed(c[0], film.stat()):
+            return r, "stale", []
+    except OSError:
+        return r, "unchecked", []
+    if c[0]["verdict"] == "pass":
+        return r, "passed", []
+    return r, "failed", [f["message"] for f in c[0]["findings"] if f.get("severity") == "fail" and isinstance(f.get("message"), str)][:2]
+
+
+def is_final(path):
+    """A film (its path from the project) that counts as the delivery: out/final*, out/final/…, a file directly in media/, or
+    Manim's render at 1080p or more; not its drafts (480p15, 720p30), and not a film a failed patch left."""
+    parts = Path(path).parts
+    if P.is_failed(parts[-1]):
+        return False
+    if parts[:2] == ("media", "videos"):   # Manim's tree: the folder says the quality, whatever the scene is called
+        return bool(MANIM_FINAL.match(parts[-2]))
+    return parts[-1].lower().startswith("final") or "final" in parts[:-1] or (len(parts) > 1 and parts[-2] == "media")
+
+
+def next_step(project, proj, st, paused, no_record, working, desk, by_video):
+    """{who, do, commands, read, unfilled}: who has the next move at the stop the project is at, and how to take it."""
+    p = shown(project)
+    left = unfilled(project)
+    state = {x["id"]: x["state"] for x in st}
+    own = {k: v for k, v in own_unsettled(project, proj).items() if state.get(v) not in ("done", "skipped")}   # what the person keeps, still open
+    quick = proj["effort"] == "quick"
+    doc = f"video-types/{proj['type']}.md" if proj["type"] else None
+    long_film = (proj["type"] or "").startswith("10-")
+    m = re.search(r"(\d+)\s*s\b", proj["spec"].get("Output") or "")
+    if m and int(m.group(1)) > 180:
+        long_film = True
+
+    def out(who, do, commands=(), read=()):
+        if who == "agent" and own:
+            names = ", ".join(f"{k} (at {R.gate_title(v, proj['lang'])})" if v else k for k, v in own.items())
+            do, read = f"the Director line keeps {names} for the person, with no record yet: options and your pick at that stop, then wait for them; {do}", [R_DIRECTOR, *read]
+        return {"who": who, "do": do, "commands": [c for c in commands if c], "read": list(dict.fromkeys(x for x in read if x)), "unfilled": left}
+    busy = f"{working[0]['cmd']} is running (bin/vh activity {p}); when it ends: " if working else ""
+    if no_record:
+        return out("agent" if working else "unknown", busy + "no REVIEW.md: this project keeps no review record (made before the templates had one), so carry on from its files")
+    if paused:
+        return out("person", "paused (REVIEW.md): the person resumes it")
+    wait = next((s for s in st if s["state"] == "waiting_person"), None)
+    if wait:
+        where = f"the desk {desk['url']}" if desk else wait["page"] or "the chat"
+        return out("person", f"the person reviews {wait['name']} on {where}: stop here, and write their words into REVIEW.md when they answer",
+                   [f"bin/vh desk wait {p}"] if desk and not desk.get("listening") else [], [R_DESK] if desk else [])
+    s = next((x for x in st if x["state"] in ("waiting_agent", "in_progress")), None)
+    if s is None:
+        delivered = st[-1]["state"] == "done"
+        return out("nobody" if delivered and not working else "agent", busy + ("delivered: what this film taught goes into LESSONS.md" if delivered else "carry on"))
+    todo = scaffold_todo(project, proj)
+    if todo:
+        return out("agent", busy + "the engine's scaffold is not there: this makes it", [todo], [R_HF] if "hf-init" in todo else [])
+    if s["state"] == "waiting_agent":
+        fb = s["feedback"] or {}
+        if fb.get("pending"):
+            return out("agent", busy + f"read the person's submission for {s['name']}, then write what was decided into REVIEW.md", [f"bin/vh desk feedback {p}"], [R_DESK])
+        if fb.get("handed"):
+            return out("agent", busy + f"write what was decided and changed under the desk's section for {s['name']} in REVIEW.md (定了 / 改了)", [], [R_DESK])
+        return out("agent", busy + (s["note"] or f"record the decision for {s['name']} in REVIEW.md"), [], [R_RECORD])
+    key = s["id"]
+    mine = ", ".join(k for k, v in own.items() if v == key)   # what the person keeps at this stop
+    pid = Path(s["page"]).stem[5:] if s["page"] else key
+    refused = R.refusal(project, pid)
+    if refused is not None:
+        return out("agent", busy + f"bin/vh gate refused the page for {s['name']}, so the person got nothing: fix it ({'; '.join(refused[:3])}), then send it again", [f"bin/vh gate {p} {pid}"], [R_PAGE])
+    film, fstate, fails = film_state(project, by_video)
+    check = [f"bin/vh check {p}"]
+    # what the scenes need to be right: the sections of 02 after the frame commands (quick reads less: playbook/quick.md)
+    writing = [] if quick else [R_PURE, R_SILENT, R_COLOUR, R_AUDIO_QA if has_sound(project, proj) else None, R_FACTS, R_PITFALLS,
+                                R_ROLES if long_film or proj["effort"] == "studio" else None]
+    also = P.film_of(project)[1]
+    named = film and film + (f" (also here: {P.also_here(project, also)})" if also else "")   # the film in a sentence
+
+    def fill(what):
+        """what, with the {…} the files it names still have in front of it."""
+        return ", ".join(f"fill {n} ({left[n]} {{…}} left)" for n in what if n in left)
+
+    def first_scenes():
+        """What the first picture is made of: an edit list for a recap, or a cut, with no edit.json yet; else scenes."""
+        kind = (proj["type"] or "")[:2]
+        if kind in ("09", "11") and not (project / "edit.json").is_file():
+            return ("write the cut as edit.json" if kind == "09" else "write the photos and clips in their order as edit.json") + " (engines/EDIT.md), look at its frames, then render a draft"
+        return "write the scenes, look at their frames, then render a draft"
+
+    def page():
+        """The gate JSON's state: what to say about it, and the commands that send it."""
+        f = project / "out" / "review" / f"gate-{key}.json"
+        send = f"bin/vh gate {p} {key}"
+        try:
+            n = len(R.placeholders(json.loads(f.read_text(encoding="utf-8-sig")))) if f.is_file() else None
+        except (OSError, ValueError):
+            n = None
+        if n:
+            return f"fill out/review/gate-{key}.json ({n} placeholders left), then send it", [send]
+        return (f"send the page for {s['name']}", [send]) if f.is_file() else (f"then the page for {s['name']}", [f"bin/vh gate {p} {key} --init", send])
+    if key == "1":
+        say, cmds = page()
+        own_only = quick and mine and "concept" not in own   # quick's concept is the agent's: a page only for what the person kept
+        return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), f"NOTES.md's material first, your own concept (a quick film's), then options for {mine} with a frame each" if own_only
+                                                         else "NOTES.md's material first, then 2–3 concept cards with a frame each and the outline", say) if x),
+                   cmds, [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None] * quick + [None if quick else doc, R_IDEAS, R_CARDS, R_PAGE, R_DESK if proj["effort"] == "studio" else None, R_FRAMES])
+    if key == "2":
+        say, cmds = page()
+        return out("agent", busy + "; ".join(x for x in (fill(["STYLE.md", "STORYBOARD.md"]), "the shots in shots.json, then their key frames and the rhythm chart", say) if x),
+                   [f"bin/vh storyboard {p}", f"bin/vh rhythm {p}"] + cmds, [R_PAGE, R_ANIMATIC, R_LOOKDEV if proj["effort"] == "studio" else None, R_FRAMES, R_LONG if long_film else None, R_NARRATIVE if long_film else None])
+    if key == "3":
+        if fstate == "none":
+            return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]) if quick else "", first_scenes()) if x),
+                       [engine_setup(project, proj), frame_cmd(project, proj), render_cmd(project, proj, False)],
+                       [*engine_docs(project, proj), R_FRAMES, *writing, R_LONG if long_film else None])
+        if fstate in ("unchecked", "stale"):
+            return out("agent", busy + f"check {named} and look at its contact sheet", check + [f"bin/vh sheet {p}/{film}"], [R_BUDGET, R_FRAMES, R_PHONE, R_SILENT])
+        if fstate == "failed":
+            return out("agent", busy + f"fix what bin/vh check failed on {film}" + (": " + "; ".join(fails) if fails else ""), check, [R_SILENT])
+        say, cmds = page()
+        if quick:   # no reviewer here: only what the person kept
+            return out("agent", busy + f"put {mine or 'what they asked to see'} to the person beside {film}; {say}", cmds, [R_PAGE])
+        return out("agent", busy + f"a fresh reviewer scores {film}, fix the worst of it (at most 3 places), write down the 2–3 places you like least; {say}", cmds, [R_SCORES, R_LAYERS, R_PAGE])
+    if s["kind"] != "deliver":
+        say, cmds = page()
+        return out("agent", busy + f"prepare {s['name']}{f' for {mine}' if mine else ''}, a stop the director mode asks for; {say}", cmds, [R_DIRECTOR, R_LOOKDEV if key == "E0" else None, R_PAGE])
+    # delivery: quick's whole path, and the end of the others'
+    if fstate == "none":
+        return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), f"a short storyboard table, then {first_scenes()}" if quick else "render the final") if x),
+                   [engine_setup(project, proj), render_cmd(project, proj, not quick)],
+                   [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, *engine_docs(project, proj), R_PHONE] if quick else [*engine_docs(project, proj), R_FRAMES, *writing])
+    if fstate in ("unchecked", "stale"):
+        return out("agent", busy + f"check {named}" + (" and look at its contact sheet" if not is_final(film) else ""),
+                   check + ([f"bin/vh sheet {p}/{film}"] if not is_final(film) else []), [R_PHONE] if quick else [])
+    if fstate == "failed":
+        return out("agent", busy + f"fix what bin/vh check failed on {film}" + (": " + "; ".join(fails) if fails else ""), check, [R_SILENT])
+    if not is_final(film):
+        manim = engine_here(project, proj) == "manim"   # its film lands in media/videos/<scene>/1080p30/, by the scene's name
+        return out("agent", busy + (f"this is Manim's draft: render it at high quality ({manim_quality(proj, True).split(' --')[0]})" if manim else "render the final at delivery quality")
+                   + ", put the sound on when it has any (bin/vh mix, qa, mux), and check it",
+                   [render_cmd(project, proj, True), f"bin/vh check {p}" if manim else f"bin/vh check {p}/out/final.mp4"], [R_SOUND])
+    return out("agent", busy + "the final passes bin/vh check: bin/vh deliver makes the copy to upload", [f"bin/vh deliver {p}/{film}"], [])
+
+
 def main(argv):
     import argparse
     ap = argparse.ArgumentParser(prog="bin/vh status", description=__doc__.split("\n\n")[0])
@@ -296,7 +604,8 @@ def main(argv):
     review_mtime = rv.stat().st_mtime if rv.is_file() else 0
     no_record = not rv.is_file() and proj["effort"] != "quick"   # made before the templates had one: nothing to read
     paused = reader._history(review_text)[1] if review_text else False
-    st, cur = stops(project, review_text, review_mtime, proj["effort"], director_stops(proj["director"]), proj["lang"], no_record)
+    asked = director_stops(proj["director"]) | {v for v in own_unsettled(project, proj).values() if v}
+    st, cur = stops(project, review_text, review_mtime, proj["effort"], asked, proj["lang"], no_record)
     # in_progress: the first stop with nothing yet after the last one that has something (a skipped stop has nothing of
     # its own), once every stop before it is done or skipped; the ones passed over, and those after a stop that still
     # waits, stay not_started
@@ -322,7 +631,7 @@ def main(argv):
     for r, p in checks:
         if r["video"]:
             by_video.setdefault(r["video"], (r, p))
-    finals = [(v, s) for v, s in vids if v.name.lower().startswith("final") or "final" in v.relative_to(project).parts[:-1] or v.parent.name == "media"]
+    finals = [(v, s) for v, s in vids if is_final(rel(project, v))]
     final_ok = any((c := by_video.get(rel(project, v))) and c[0]["verdict"] == "pass" and not film_changed(c[0], s) for v, s in finals)
     gates_through = all(s["state"] in ("done", "skipped") for s in st)
     g3 = next((s for s in st if s["id"] == "3"), None)
@@ -435,7 +744,12 @@ def main(argv):
            "open": {"review_items": open_items, "facts_to_verify": facts},
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
            "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "cast": cast, "research": research,
-           "activity": {"running": working, "listening": listening, "recent": recent}}
+           "activity": {"running": working, "listening": listening, "recent": recent},
+           "next_step": None}
+    try:   # not the command that asks (bin/vh new); what cannot be worked out is said, never a failure of status
+        out["next_step"] = next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], desk, by_video)
+    except Exception as e:
+        out["next_step"] = {"who": "unknown", "do": f"the next step could not be worked out ({e})", "commands": [], "read": [], "unfilled": {}}
     if a.json:
         print(json.dumps(out, ensure_ascii=False, indent=1))
         return 0
@@ -462,6 +776,12 @@ def show(o, now):
             bits.append(s["note"])
         print(f"  {STATE_MARK[s['state']]} {s['name']:<{w}}  {' · '.join(bits)}")
     print(f"waiting on: {o['waiting_on']} — {o['next']}")
+    n = o["next_step"]
+    print(f"next: {n['who']} — {n['do']}")
+    if n["commands"]:
+        print("  run: " + " · ".join(n["commands"]))
+    if n["read"]:
+        print("  read: " + " · ".join(n["read"]) + "  (with a #section: bin/vh know --show \"<file>#<section>\" prints it; without: the whole file)")
     ri, fv = o["open"]["review_items"], o["open"]["facts_to_verify"]
     if ri or fv:
         print("open: " + " · ".join(x for x in (f"{len(ri)} review item(s) (round {', '.join(dict.fromkeys(str(i['round']) for i in ri))})" if ri else "",

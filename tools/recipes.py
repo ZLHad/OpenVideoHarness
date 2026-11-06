@@ -68,7 +68,7 @@ VOCAB = {
                "breath", "accelerate", "punctuate", "hush", "payoff",
                "carry", "enter", "chapter", "refocus",
                "sign-off", "cta"],
-    "types": ["math", "short", "promo", "mv", "data", "paper", "handdrawn", "meme"],
+    "types": ["math", "short", "promo", "mv", "data", "paper", "handdrawn", "meme", "long", "recap"],
     "engines": ["hyperframes", "canvas", "three", "p5", "manim", "remotion"],
     "aspect": ["landscape", "portrait", "square"],
     "needs": ["ui-page", "ui-element", "text", "number", "series", "photo", "footage", "logo", "3d", "none"],
@@ -756,6 +756,7 @@ def cmd_check(files):
 
 
 # ---------------------------------------------------------------- list
+TYPE_BORROWS = {"long": {"paper", "data", "math"}, "recap": {"mv"}}   # types few cards name yet: --type lists the cards of the types they share a language with
 FILTERS = {  # flag: (frontmatter field, vocabulary or special)
     "--intent": ("intent", "intent"), "--family": ("family", "family"), "--role": ("role", "role"),
     "--type": ("types", "types"), "--engine": ("engines", "engines"), "--aspect": ("aspect", "aspect"),
@@ -872,6 +873,10 @@ def cmd_list(args):
             if bad or not vals:
                 return usage(f"{a}: unknown {bad or val!r}; known: {', '.join(VOCAB[voc])}")
             want[a] = set(vals)
+            if a == "--type" and want[a] & set(TYPE_BORROWS):
+                also = sorted({x for v in want[a] for x in TYPE_BORROWS.get(v, ())} - want[a])
+                print(f"bin/vh recipes: --type {val}: also the cards for {', '.join(also)} (few are tagged {val} yet; recipes/README.md, 词表)", file=sys.stderr)
+                want[a] |= set(also)
     out = out or "table"
     if grammar is not None:
         if want:

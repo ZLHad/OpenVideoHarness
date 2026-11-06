@@ -17,7 +17,7 @@ A collection is one of:
 A record's path is relative to its collection's base: the project folder for the project's ledger and the clips' (as
 their output.file always was), the library's folder for a library's.
 """
-import fcntl, hashlib, json, os, re, sys, tempfile, time
+import difflib, fcntl, hashlib, json, os, re, sys, tempfile, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -29,6 +29,28 @@ LOCK = Path("assets") / ".ledger.lock"
 GENCLIPS = "assets/genclips/*/ledger.json"
 KINDS = ("image", "video", "audio", "font", "model", "data", "other")
 ORIGINS = ("download", "generated", "self", "user", "library", "purchased")
+ORIGIN_ALIASES = {   # what people and agents write for them (self: made in the project; user: the user's own material)
+    "self-made": "self", "selfmade": "self", "made": "self", "handmade": "self", "hand-made": "self", "project": "self", "自制": "self",
+    "users": "user", "user-provided": "user", "provided": "user", "client": "user", "personal": "user", "用户": "user", "用户提供": "user",
+    "downloaded": "download", "web": "download", "internet": "download", "url": "download", "online": "download", "下载": "download",
+    "generate": "generated", "gen": "generated", "ai": "generated", "aigc": "generated", "ai-generated": "generated", "生成": "generated",
+    "lib": "library", "素材库": "library",
+    "bought": "purchased", "purchase": "purchased", "paid": "purchased", "购买": "purchased"}
+OWN_HINT = "the person's own photos and clips are --origin user --class own; what this project made is --origin self"
+ORIGIN_UNCLEAR = {   # words that could be two of them: a wrong origin in the ledger is worse than being asked
+    "own": OWN_HINT, "owned": OWN_HINT, "mine": OWN_HINT, "original": OWN_HINT, "我的": OWN_HINT, "自己的": OWN_HINT,
+    "stock": "a stock site's file is --origin download with its --source-url, or --origin purchased if it was bought; --origin library is a pick from a library in bin/vh sfx or bgm"}
+
+
+def origin_of(word):
+    """--origin as written → one of ORIGINS: a common word for one is taken; anything else is a ValueError that names the closest."""
+    w = re.sub(r"[\s_]+", "-", word.strip().lower())
+    if w in ORIGINS or w in ORIGIN_ALIASES:
+        return ORIGIN_ALIASES.get(w, w)
+    if w in ORIGIN_UNCLEAR:
+        raise ValueError(f"--origin {word} could mean two things: {ORIGIN_UNCLEAR[w]}")
+    near = difflib.get_close_matches(w, list(ORIGINS) + list(ORIGIN_ALIASES), n=1, cutoff=0.5)
+    raise ValueError(f"--origin {word}: one of {', '.join(ORIGINS)}" + (f"; the closest is {ORIGIN_ALIASES.get(near[0], near[0])}" if near else ""))
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 SHA = re.compile(r"^[0-9a-f]{64}$")
 CURRENCY = re.compile(r"^[A-Z][A-Z0-9-]{1,23}$")
