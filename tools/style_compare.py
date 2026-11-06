@@ -62,8 +62,8 @@ def frame_at(slug, t, width):
         return Image.open(p).convert("RGB")
 
 TYPE_NAMES = {"zh": {"01": "数学讲解", "02": "知识短视频", "03": "宣传片", "04": "MV", "05": "数据叙事", "06": "论文讲解",
-                     "07": "手绘", "08": "网络梗"},
-              "en": {"01": "math", "02": "short", "03": "promo", "04": "mv", "05": "data", "06": "paper", "07": "handdrawn", "08": "meme"}}
+                     "07": "手绘", "08": "网络梗", "10": "长讲解", "11": "照片回顾"},
+              "en": {"01": "math", "02": "short", "03": "promo", "04": "mv", "05": "data", "06": "paper", "07": "handdrawn", "08": "meme", "10": "long", "11": "recap"}}
 
 def hexrgb(h):
     h = str(h).lstrip("#")

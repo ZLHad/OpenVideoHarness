@@ -776,6 +776,16 @@ PY
   done
   if [ -z "$a" ] && [ "$(cat "$t/nk/audio/voiceover.wav")" = take ] && [ ! -e "$t/nk/audio/vo" ]; then ok "tts: a provider with no key says the key it needs and what works with none, before anything is fetched or the last take deleted"
   else bad "tts with no key:$a"; fi
+  # --resume with every line voiced asks the provider nothing, so it needs no key; with one left it does (the run is made with a
+  # key and no dashscope package, which fails after writing _run.json)
+  if command -v ffmpeg >/dev/null; then
+    b=$(PATH="$t/nkbin:$PATH" DASHSCOPE_API_KEY=ci python3 "$ROOT/tools/audio/tts.py" "$t/nk" --provider dashscope 2>&1); rc=$?
+    c=$(env -u DASHSCOPE_API_KEY python3 "$ROOT/tools/audio/tts.py" "$t/nk" --provider dashscope --resume 2>&1); r2=$?
+    ffmpeg -v error -f lavfi -i 'sine=d=0.4:r=24000' -y "$t/nk/audio/vo/zh/01.wav"
+    d=$(env -u DASHSCOPE_API_KEY python3 "$ROOT/tools/audio/tts.py" "$t/nk" --provider dashscope --resume 2>&1); r3=$?
+    if [ "$rc:$r2:$r3" = 1:1:0 ] && case "$c" in *"set DASHSCOPE_API_KEY"*) true ;; *) false ;; esac && [ -s "$t/nk/audio/voiceover.zh.wav" ]; then ok "tts --resume: with every line voiced no key is asked for and the take is joined; with one left the key is"
+    else bad "tts --resume and the key ($rc/$r2/$r3): $b | $c | $d"; fi
+  else skip "tts --resume and the key" "no ffmpeg"; fi
   # Ctrl-C (to the process group, as a terminal sends it) while a command runs through uv run ends bin/vh by SIGINT (130
   # to a shell; the caller sees the Ctrl-C), even when uv itself exits 2 ("Failed to get PID of child process", the race
   # when its Python has just exited): a fake uv that does exactly that, under each command that goes through uv
@@ -1048,6 +1058,10 @@ got = set(sys.argv[1].split())
 sys.exit(0 if want and got == want else 1)
 PY
   then ok "recipes list --intent --energy --engine match the files"; else bad "recipes list filters: got '$(echo $a)'"; fi
+  a=$(vh recipes list --type long --ids 2>/dev/null); rc=$?; c=$(vh recipes list --type long --ids 2>&1 >/dev/null); b=$(vh recipes list --type recap --ids 2>/dev/null); r2=$?
+  if [ "$rc:$r2" = 0:0 ] && [ -n "$a" ] && [ -n "$b" ] && case "$c" in *"also the cards for data, math, paper"*) true ;; *) false ;; esac && [ "$(vh recipes list --type paper --ids | grep -c .)" -le "$(printf '%s\n' "$a" | grep -c .)" ]
+  then ok "recipes list --type long and recap: the types' own words, and the cards of the types they share a language with, said on stderr"
+  else bad "recipes list --type long, recap ($rc/$r2): $c"; fi
   vh recipes list --intent no-such-intent >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "recipes list rejects an unknown vocabulary value" || bad "recipes list --intent no-such-intent exited $rc"
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   sed 's/^id: .*/id: ci-copy/' recipes/seam/flash-cut.md > "$t/ok.md"; sed 's/^energy: .*/energy: 9/' "$t/ok.md" > "$t/bad.md"
@@ -4099,6 +4113,13 @@ sys.exit(0 if o == ["self", "self", "download"] else 1)
 PY
   then ok "assets add --origin: self-made and other common words are taken and said; a word it does not know is a usage error, with the closest when there is one"
   else bad "assets add --origin ($rc/$r1/$r2/$r3/$r4): $a | $d | $e | $(cat "$t/e1")"; fi
+  # own and stock could be two origins: a usage error that says which to write, and nothing on record
+  a=$(vh assets add "$t/fx" "$t/fx/o3.png" --origin own --id o6 2>&1); rc=$?; b=$(vh assets add "$t/fx" "$t/fx/o3.png" --origin stock --id o7 2>&1); r1=$?
+  c=$(vh assets add "$t/fx" "$t/fx/o2.png" --origin user --class own --update --id o2 --json 2>/dev/null); r2=$?
+  if [ "$rc:$r1:$r2" = 2:2:0 ] && case "$a" in *"--origin own could mean two things"*"--origin user --class own"*"--origin self"*) true ;; *) false ;; esac && case "$b" in *"--origin stock could mean two things"*"--origin download"*"--origin purchased"*) true ;; *) false ;; esac \
+    && ! grep -q '"o6"\|"o7"' "$t/fx/assets/ledger.json" && case "$c" in *'"origin": "user"'*) true ;; *) false ;; esac
+  then ok "assets add --origin: own and stock are not guessed: it says what to write, and --origin user --class own, as the photo recap's doc has it, is on record"
+  else bad "assets add --origin own or stock ($rc/$r1/$r2): $a | $b | $c"; fi
   rm -rf "$t"
   footage_checks   # bin/vh footage: its records are the ledger's
   image_checks     # bin/vh image: so are its pictures, and its spend the budget's

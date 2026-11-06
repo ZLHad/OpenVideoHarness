@@ -27,7 +27,7 @@
 
 **`bin/vh assets add --origin` takes the words people write**
 - Why: on real films an agent lost 44 runs to `--origin self-made` and the like: only the exact word `self` was taken.
-- `tools/assets/ledger.py`, `origin_of`: `self-made`, `selfmade`, `own`, `自制` and the like for `self`, and so on for each origin (case and spaces aside); what it took is said on stderr. An unknown word is a usage error with the six origins and the closest. `tools/assets/assets.py` calls it in `add`; the record still holds one of the six.
+- `tools/assets/ledger.py`, `origin_of`: `self-made`, `selfmade`, `自制` and the like for `self`, and so on for each origin (case and spaces aside); what it took is said on stderr. A word that could be two origins (`own`, `stock`) is not guessed: a usage error says what to write (`--origin user --class own` for the person's own photos). An unknown word is a usage error with the six origins and the closest. `tools/assets/assets.py` calls it in `add`; the record still holds one of the six.
 
 **`bin/vh commands --brief`: one short line a command**
 - Why: `bin/vh commands --stage 1` runs to 150 lines, and the whole list to 256. An agent looking for the tool at a stage wants the names and what each does.
@@ -61,7 +61,7 @@
 
 **`bin/vh tts`: a provider with no key says the key it needs and what works with none**
 - Why: `set DASHSCOPE_API_KEY` was all an agent got, after uv had fetched the provider's package and with the last take already deleted, and nothing said the default needs no key.
-- `tools/audio/tts.py`: `no_key` names the key and where it comes from, then what needs none on this machine: leave the provider out on Apple Silicon (the local qwen), `--provider edge` elsewhere. The check for elevenlabs and dashscope moves up with gemini's and minimax's, before anything is synthesized or deleted.
+- `tools/audio/tts.py`: `no_key` names the key and where it comes from, then what needs none on this machine: leave the provider out on Apple Silicon (the local qwen), `--provider edge` elsewhere. The check for elevenlabs and dashscope moves up with gemini's and minimax's, before anything is synthesized or deleted; a `--resume` with every line voiced asks for no key.
 - `bin/vh tts`: `--with dashscope` only when the key is set.
 
 **The docs no longer contradict each other on gates, quick's questions, the paper type and `bin/vh check`**
