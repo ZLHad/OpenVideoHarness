@@ -2577,7 +2577,7 @@ PY
   else bad "gate --init on the other stops:$a ($rc/$rc2): $b | $c"; fi
   OVH_PROJECTS="$t" vh new math gq --effort quick --lang en >/dev/null 2>&1; g=$(ls -d "$t"/*-gq)
   a=$(vh gate "$g" 1 2>&1 >/dev/null); rc=$?; b=$(vh gate "$g" E3 --init 2>&1); rc2=$?
-  if [ "$rc:$rc2" = 2:0 ] && case "$a" in *"quick project has no gates"*"asked for a stop"*"--init"*) true ;; *) false ;; esac && case "$b" in *"Checkpoint E3"*"quick project has no gates"*) true ;; *) false ;; esac \
+  if [ "$rc:$rc2" = 2:0 ] && case "$a" in *"quick project has no gates"*"asked for a stop"*"--init"*) true ;; *) false ;; esac && case "$b" in *"Checkpoint E3"*"quick project has no gates"*"replace every {fill: …}"*) true ;; *) false ;; esac \
     && grep -q '{fill: ' "$g/out/review/gate-E3.json" && ! grep -q '{填' "$g/out/review/gate-E3.json"
   then ok "gate in a quick project: no JSON says quick has no gates unless the person asked for a stop; --init still writes one, in the review language"
   else bad "gate in a quick project ($rc/$rc2): $a | $b"; fi
@@ -5293,7 +5293,7 @@ PY
     '"video-types/01-math-science-explainer.md" in r and "playbook/01-pipeline.md#审阅页" in r and "playbook/12-ideation.md#7." in r and "各引擎的取帧命令" in r')
   b=$(vh status "$p"); c=$(printf '%s\n' "$b" | grep -c '^next: agent — ')
   vh gate "$p" 1 --init >/dev/null 2>&1
-  d=$(ns "$p" '"{填：…} left" in n["do"]' '"--init" not in c and c.endswith(" 1")')
+  d=$(ns "$p" '"placeholders left" in n["do"]' '"--init" not in c and c.endswith(" 1")')
   python3 - "$p/out/review/gate-1.json" <<'PY'
 import json, sys
 f = sys.argv[1]

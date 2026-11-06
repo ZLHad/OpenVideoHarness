@@ -118,7 +118,7 @@ def init_page(project, gate_arg, shown):
     print(f"✓ {path}: a skeleton for {review.gate_title(g, lang)}")
     if effort_of(project)[0] == "quick":
         print("  a quick project has no gates: this page is for a stop the person asked for")
-    print("  replace every {填：…}, delete what this page does not need; until none is left, bin/vh gate refuses the file")
+    print(f"  replace every {'{fill: …}' if lang == 'en' else '{填：…}'}, delete what this page does not need; until none is left, bin/vh gate refuses the file")
     print(f'  the fields: bin/vh know --show "playbook/01-pipeline.md#审阅页"; then: bin/vh gate {shown} {g}')
     activity.note(f"{review.gate_title(g, 'en')}: a skeleton to fill in", [path])
     return 0

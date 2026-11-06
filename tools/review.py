@@ -944,7 +944,7 @@ def publish(project, gate_arg=None, shown=None):
         left = placeholders(data)
         if left:   # before anything else: a page that is not filled in never reaches the person
             print(f"{src}: {len(left)} placeholder(s) still to fill in ({', '.join(left[:6])}{' …' if len(left) > 6 else ''}): "
-                  "replace every {填：…}, or delete what this page does not need. Nothing was written, nothing goes to the person", file=sys.stderr)
+                  "replace each one, or delete what this page does not need. Nothing was written, nothing goes to the person", file=sys.stderr)
             return 2, None, None
         data = merge_includes(project, data)
     except OSError as e:

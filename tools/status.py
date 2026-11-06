@@ -429,7 +429,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         except (OSError, ValueError):
             n = None
         if n:
-            return f"fill out/review/gate-{key}.json ({n} {{填：…}} left), then send it", [send]
+            return f"fill out/review/gate-{key}.json ({n} placeholders left), then send it", [send]
         return (f"send the page for {s['name']}", [send]) if f.is_file() else (f"then the page for {s['name']}", [f"bin/vh gate {p} {key} --init", send])
     if key == "1":
         say, cmds = page()
