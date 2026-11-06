@@ -137,6 +137,7 @@ The tools follow the work: think, gather, make, check and deliver. Each name bel
 | | `render` | An MP4 drawn in parallel, resumable chunks, each render kept as a version |
 | | `patch` · `versions` | Redraw a few seconds of a finished film; compare renders or go back to one |
 | | `deliver` · `clean` | The copy to upload; a finished project cleared of its intermediates |
+| | `artifacts` | Every kind of file a project holds: what it is and who writes it; what this project has, lacks and has out of date |
 
 `bin/vh doctor` says which of the 40 outside programs, packages, models and services this machine can use (`tools/modules.json`).
 

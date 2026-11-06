@@ -137,6 +137,7 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 | | `render` | 分块并行渲 MP4，中断了能续渲，每次渲染都留一个版本 |
 | | `patch` · `versions` | 只重画成片里的几秒；对比各版渲染，或者退回某一版 |
 | | `deliver` · `clean` | 出上传用的版本；清掉做完的项目里的中间文件 |
+| | `artifacts` | 项目里每种文件是什么、谁写的；这支片子有什么、缺什么、什么过期了 |
 
 `bin/vh doctor` 读 `tools/modules.json`，告诉你这台机器能用上 40 个外接模块（程序、包、模型和联网服务）里的哪些。
 

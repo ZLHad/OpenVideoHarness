@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**The docs point to the table**
+- Why: the table is only used if the places people look at say it is there; and the BRIEF's many `{…}` never said which ones a tool reads.
+- `playbook/01`'s 项目目录约定: one line to `bin/vh artifacts spec` and `list`. `tools/desk/README.md`: a short section for clients. `CONTRIBUTING.md`: a new kind of file gets an entry, and a schema when tools rely on its shape. The READMEs: one row in the tools table.
+- `templates/BRIEF.md`'s first comment says which blanks tools rely on, read from the code: Output's frame size and fps (`bin/vh check`, `bin/vh edit init`) and Resolution (`bin/vh check`). `bin/vh artifacts list` reports only those as required. A comment: the blanks themselves are unchanged.
+
 **`tools/ci.sh` holds the table to the code: a new kind of file cannot be added silently**
 - Why: a table of files is only worth trusting if it fails when the code moves away from it.
 - `bin/vh artifacts check`, in the `artifacts_checks` group: every writer and reader is a real command (or `page`); every schema file exists and every schema has an entry; `clean` agrees with what `tools/clean.py --dry-run` does on a temporary tree of made-up files, one for each path of the table; each `<project>/…` path in `tools/commands.json`'s `writes` and `reads` matches an entry that lists that command, or `ignored_writes` with a reason. `bin/vh clean` itself is unchanged.

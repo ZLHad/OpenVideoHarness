@@ -147,6 +147,10 @@ JSON 的格式：
 
 每个外接模块（`tools/modules.json`：程序、包、模型、服务、agent）在这台机器上的状态：找到没有、版本对不对、服务的 key 设了没有（只说有没有，从不给值），再加上页面工具的浏览器和 WebGL、参考仓库、LOCAL.md、AGENTS.md。`--probe` 给每个设了 key 的服务在不花钱的接口上打一次。字段见 `bin/vh doctor -h`。
 
+### 项目里的文件：`bin/vh artifacts spec|list|check [--json]`
+
+每种中间文件的规范在 `tools/artifacts.json`，`spec` 打印它；`list <项目>` 只读，不开浏览器（零点几秒）：这支片子每种文件有哪些路径、版本、schema 的结果、过期没有和为什么、还剩几处 `{…}`，以及到现在该有而没有的。字段见 `bin/vh artifacts -h`。schema 在 `tools/schemas/`：字段只加不改，所以 schema 只钉必需的字段和类型。
+
 ### 一个项目到哪了：`bin/vh status <项目> [--json]`
 
 只读，只看已有的文件，不开浏览器、不跑 ffprobe（`tools/status.py`，零点一秒左右）。默认几行字；`--json` 的字段：
