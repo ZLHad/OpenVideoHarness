@@ -1771,6 +1771,12 @@ new_checks() {   # bin/vh new: how a type may be written; a scaffold that fails 
     && vh status "$p" --json | python3 -c 'import json, sys; n = json.load(sys.stdin)["next_step"]; sys.exit(0 if "video-types/10-long-explainer.md" in n["read"] else 1)'
   then ok "new long and new recap: canvas-film by default (--three works, --aspect 9:16 is refused), 1920x1080, their Watch on and Pace; status names the doc"
   else bad "new long, new recap ($rc/$rc2/$rc3/$c): $a | $b | $x | $(cat "$t/l.err")"; fi
+  # bin/vh new on a name that is there says where to go on; bin/vh check on a name several projects match says that, not "no such video"
+  a=$(OVH_PROJECTS="$t/l" vh new long ll 2>&1 >/dev/null); rc=$?
+  mkdir -p "$t/dup/2026-01-01-dup" "$t/dup/2026-01-02-dup"; b=$(OVH_PROJECTS="$t/dup" vh check dup 2>&1); rc2=$?; c=$(OVH_PROJECTS="$t/dup" vh check nosuchone 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 1:2:2 ] && case "$a" in *"already exists"*"bin/vh status "*"hf-init"*) true ;; *) false ;; esac && case "$b" in *"several projects match: 2026-01-01-dup 2026-01-02-dup"*) true ;; *) false ;; esac && case "$c" in *"no such video: nosuchone"*) true ;; *) false ;; esac
+  then ok "new on a name already there points to bin/vh status; check on a name several projects match says so, and no such name still says no such video"
+  else bad "new again, check on a name ($rc/$rc2/$rc3): $a | $b | $c"; fi
   a=$(python3 - "$("$VH_BASH" "$ROOT/bin/vh" types)" <<'PY'
 import re, sys
 from pathlib import Path
@@ -5173,7 +5179,7 @@ PY
   [ "$a" = "1:in_progress 2:not_started 3:not_started deliver:not_started | agent" ] && [ $rc = 0 ] && [ "$(printf '%s\n' "$b" | wc -l | tr -d ' ')" -le 9 ] \
     && ok "status: a new standard project works towards gate ①, the rest not started (--json version 1; a short human view)" || bad "status of a new project (rc $rc): $a | $b"
   # a page out (the page channel): waiting for the person; a desk submission: waiting for the agent, until handed over and recorded
-  mkdir -p "$p/out/review" && cp tools/desk/fixtures/zh/out/review/gate-1.json "$p/out/review/" && vh gate "$p" 1 --page >/dev/null 2>&1
+  mkdir -p "$p/out/review" && cp tools/desk/fixtures/zh/out/review/gate-1.json "$p/out/review/" && : > "$p/SCRIPT.md" && vh gate "$p" 1 --page >/dev/null 2>&1
   a=$(st "$p" "1:waiting_person 2:not_started 3:not_started deliver:not_started | person" 'd["stations"][0]["page"] == "out/review/gate-1.html" and d["review"]["current"] == "1"')
   python3 - "$p" <<'PY'
 import sys
@@ -5385,7 +5391,8 @@ f = p + "/REVIEW.md"; s = open(f, encoding="utf-8").read()
 i = s.index("## 关卡 ② 分镜")
 open(f, "w", encoding="utf-8").write(s[:i] + s[i:].replace("- 原话：\n", '- 原话："分镜可以"\n', 1).replace("- 定了：　改了：", "- 定了：通过　改了：无", 1))
 PY
-  b=$(ns "$p" '"render a draft" in n["do"]' '"bin/vh frames" in c and "manim" in c' '"各引擎的取帧命令" in r and "engines/README.md#Manim CE" in r')
+  b=$(ns "$p" '"render a draft" in n["do"]' '"bin/vh frames" not in c and "uv init" in c and "manim -ql -s" in c and "manim -ql scene.py" in c' '"各引擎的取帧命令" in r and "engines/README.md#Manim CE" in r')
+  : > "$p/pyproject.toml"; b="$b$(ns "$p" '"uv init" not in c and "manim -ql -s" in c')"
   mkdir -p "$p/out/check"; : > "$p/out/draft.mp4"
   c=$(ns "$p" '"check out/draft.mp4" in n["do"]' '"bin/vh check" in c and "bin/vh sheet" in c')
   printf '{"version": 1, "video": "out/draft.mp4", "t": %s, "verdict": "fail", "exit": 1, "counts": {"fail": 1}, "findings": [{"severity": "fail", "message": "the frame size is wrong"}]}\n' "$(($(date +%s) + 5))" > "$p/out/check/draft.check.json"
@@ -5407,6 +5414,23 @@ PY
   e=$(ns "$q" 'n["who"] == "nobody"' '"LESSONS.md" in n["do"]')
   if [ -z "$a$b$c$d$e" ]; then ok "status next: quick's path, from no film and BRIEF to fill, a draft to check, the final to render, to delivered"
   else bad "status next on quick's path: $a | $b | $c | $d | $e"; fi
+  # the commands work on the engine at hand: type 09 gets HyperFrames at the first picture, not at gate ①; the BRIEF's Engine line
+  # comes before the type's own, either way
+  hf_standin "$t/sbn"
+  OVH_PROJECTS="$t" vh new edit ne >/dev/null 2>&1; d=$(ls -d "$t"/*-ne)
+  a=$(ns "$d" '"hf-init" not in c and "1 --init" in c')
+  OVH_PROJECTS="$t" vh new edit neq --effort quick >/dev/null 2>&1; e=$(ls -d "$t"/*-neq)
+  a="$a$(ns "$e" '"hf-init" in c and c.endswith("--output out/draft.mp4)") and c.index("hf-init") < c.index("hyperframes render")' 'n["commands"][0].endswith(" portrait")' '"engines/editing.md" in r')"
+  PATH="$t/sbn:$PATH" vh hf-init "$e" portrait >/dev/null 2>&1
+  a="$a$(ns "$e" '"hf-init" not in c and "hyperframes render" in c')"
+  OVH_PROJECTS="$t" vh new math nb >/dev/null 2>&1; e=$(ls -d "$t"/*-nb); python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Engine: Manim CE", "- Engine: HyperFrames", 1))' "$e"
+  a="$a$(ns "$e" 'n["commands"][0].startswith("bin/vh hf-init ") and c.endswith(" landscape")')"
+  mkdir -p "$t/badnpx"; printf '#!/bin/sh\nexit 1\n' > "$t/badnpx/npx"; chmod +x "$t/badnpx/npx"
+  PATH="$t/badnpx:$PATH" OVH_PROJECTS="$t" vh new short nh >/dev/null 2>&1; e=$(ls -d "$t"/*-nh)
+  a="$a$(ns "$e" '"hf-init" in c')"
+  python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Engine: HyperFrames", "- Engine: Manim CE", 1))' "$e"
+  a="$a$(ns "$e" '"hf-init" not in c and "1 --init" in c')"
+  [ -z "$a" ] && ok "status next: type 09 gets hf-init at the first picture, not at gate ①; the BRIEF's Engine line comes before the type's own" || bad "status next, the engine at hand: $a"
   # Manim: its pieces of a scene are no film; 480p15 and 720p30 are drafts, and next says to render at high quality; 1080p30 and
   # a vertical 1920p30 are the final. A record of a passing film (rec): the same film, by its path
   rec() { printf '{"version": 1, "video": "%s", "t": %s, "verdict": "pass", "exit": 0, "counts": {"fail": 0}, "findings": []}\n' "$2" "$(($(date +%s) + 5))" > "$1/out/check/$3.check.json"; }
@@ -5473,7 +5497,7 @@ PY
   OVH_PROJECTS="$t" vh new math nq2 --effort quick >/dev/null 2>&1; d=$(ls -d "$t"/*-nq2); dirline "$d" "voice=own"
   a=$(st "$d" "1:skipped E1:in_progress 2:skipped 3:skipped deliver:not_started | agent")
   b=$(ns "$d" 'n["do"].startswith("the Director line keeps voice")' '"E1 --init" in c' 'r.startswith("playbook/01-pipeline.md#导演模式")')
-  mkdir -p "$d/out/review"; cp tools/desk/fixtures/zh/out/review/gate-1.json "$d/out/review/gate-E1.json"; vh gate "$d" E1 --page >/dev/null 2>&1
+  mkdir -p "$d/out/review"; cp tools/desk/fixtures/zh/out/review/gate-1.json "$d/out/review/gate-E1.json"; : > "$d/SCRIPT.md"; vh gate "$d" E1 --page >/dev/null 2>&1
   c=$(ns "$d" 'n["who"] == "person"' '"Director line" not in n["do"]')
   printf '\n## 检查点 E1 脚本\n- 页面：`out/review/gate-E1.html`\n- 原话："用第二个"\n- 定了：第二个声音\n' >> "$d/REVIEW.md"
   e=$(st "$d" "1:skipped E1:done 2:skipped 3:skipped deliver:in_progress | agent")

@@ -73,12 +73,13 @@ R_IDEAS, R_CARDS = "playbook/12-ideation.md#3.", "playbook/12-ideation.md#7."
 R_FRAMES, R_PHONE, R_SILENT = (f"playbook/02-verification.md#{x}" for x in ("各引擎的取帧命令", "手机测试", "静默失败"))
 R_SCORES, R_LAYERS, R_QUICK = "templates/TASTE_CHECKLIST.md#打分层", "playbook/02-verification.md#七层检查", "playbook/quick.md"
 R_NARRATIVE, R_SOUND, R_HF, R_MANIM = "playbook/09-narrative.md#5. 长片", "playbook/04-audio.md#常用命令", "engines/README.md#HyperFrames", "engines/README.md#Manim CE"
-R_CANVAS, R_HANDDRAWN = "engines/canvas-film/README.md", "engines/ClaudeAnimationBase/ANIMATION_GUIDE.md"
+R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING = "engines/canvas-film/README.md", "engines/ClaudeAnimationBase/ANIMATION_GUIDE.md", "engines/EDIT.md", "engines/editing.md"
+TYPE_ENGINE = {"01": "manim", "06": "manim", "02": "hf", "03": "hf", "05": "hf", "08": "hf", "09": "hf", "04": "p5", "07": "p5", "10": "canvas", "11": "canvas"}
 # what a Director line can keep for the person (x=own), and the stop where playbook/01's 导演模式 table first has each
 OWN_STOP = {"concept": "1", "spec": "1", "outline": "1", "style": "1", "hook": "1", "character": "E0", "theme": "E0", "voice": "E1", "script": "E1",
             "storyboard": "2", "rhythm": "2", "packaging": "3"}
 READS = (R_PAGE, R_DESK, R_GATES, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_IDEAS, R_CARDS, R_FRAMES, R_PHONE, R_SILENT, R_SCORES, R_LAYERS, R_QUICK,
-         R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_HANDDRAWN)
+         R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING)
 
 
 def rel(project, p):
@@ -328,44 +329,78 @@ def shown(project):
         return shlex.quote(str(project))
 
 
+def engine_named(proj):
+    """The engine the BRIEF's Engine line names first (a concept can change the type's own), else the type's own: hf, manim,
+    p5, canvas or None."""
+    line = (proj["spec"].get("Engine") or "").lower()
+    m = None if "{" in line else re.search(r"hyperframes|manim|claudeanimationbase|p5|canvas", line)
+    return {"hyperframes": "hf", "manim": "manim", "canvas": "canvas"}.get(m.group(0), "p5") if m else TYPE_ENGINE.get((proj["type"] or "")[:2])
+
+
+def engine_here(project, proj):
+    """The engine this project runs on: what its files show (page: a page of its own, which bin/vh render draws), else the named one."""
+    if (project / "edit.json").is_file() or (project / "film.html").is_file():
+        return "canvas"
+    if (project / "hyperframes.json").is_file():
+        return "hf"
+    if (project / "render.mjs").is_file():
+        return "p5"
+    return "page" if (project / "index.html").is_file() else engine_named(proj)
+
+
+def hf_init(project, proj):
+    m = re.search(r"(\d{3,4})\s*[x×]\s*(\d{3,4})", proj["spec"].get("Output") or "")
+    frame = {(1080, 1350): "4:5", (1080, 1440): "3:4", (1080, 1080): "square", (1920, 1080): "landscape"}.get((int(m[1]), int(m[2])) if m else None, "portrait")
+    return f"bin/vh hf-init {shown(project)} {frame}"
+
+
 def scaffold_todo(project, proj):
-    """The command that finishes a scaffold bin/vh new could not (an engine it sets up, and its files are not there); else None."""
-    p = shown(project)
-    kind = (proj["type"] or "")[:2]
+    """The command that makes an engine's scaffold the project lacks, by the engine the BRIEF names, else its type's; None when
+    there is nothing to make, and for what bin/vh new leaves to the first picture (engine_setup)."""
     if (project / "film.html").is_file() or (project / "edit.json").is_file():
         return None
-    if kind in ("02", "03", "05", "08") and not (project / "hyperframes.json").is_file() and not (project / "index.html").is_file():
-        m = re.search(r"(\d{3,4})\s*[x×]\s*(\d{3,4})", proj["spec"].get("Output") or "")
-        frame = {(1080, 1350): "4:5", (1080, 1440): "3:4", (1080, 1080): "square", (1920, 1080): "landscape"}.get((int(m[1]), int(m[2])) if m else None, "portrait")
-        return f"bin/vh hf-init {p} {frame}"
-    if kind in ("04", "07") and (project / "render.mjs").is_file() and not (project / "node_modules").is_dir():
-        return f"(cd {p} && npm install)"
+    engine = engine_named(proj)
+    if engine == "hf" and (proj["type"] or "")[:2] != "09" and not (project / "hyperframes.json").is_file() and not (project / "index.html").is_file():
+        return hf_init(project, proj)
+    if engine == "p5" and (project / "render.mjs").is_file() and not (project / "node_modules").is_dir():
+        return f"(cd {shown(project)} && npm install)"
     return None
 
 
+def engine_setup(project, proj):
+    """What bin/vh new only names and the first picture needs, when it is not done yet: Manim's project, HyperFrames in type 09."""
+    engine = engine_here(project, proj)
+    if engine == "manim" and not (project / "pyproject.toml").is_file():
+        return f"(cd {shown(project)} && uv init --bare --python 3.12 && uv add manim)"
+    if engine == "hf" and not (project / "hyperframes.json").is_file():
+        return hf_init(project, proj)
+    return None
+
+
+def frame_cmd(project, proj):
+    """How to look at a frame before there is a film. bin/vh frames draws a page; Manim has none, and keeps its last frame."""
+    if engine_here(project, proj) == "manim":
+        return f"(cd {shown(project)} && uv run manim -ql -s scene.py <Scene>)"
+    return f"bin/vh frames {shown(project)} --at 1,5,9"
+
+
 def render_cmd(project, proj, final):
-    """The command that renders this project's film (out/draft.mp4 or out/final.mp4), by the engine its files show."""
-    p, name = shown(project), "out/final.mp4" if final else "out/draft.mp4"
-    if (project / "edit.json").is_file() or (project / "film.html").is_file():
-        return f"bin/vh render {p} --out {p}/{name}"
-    if (project / "hyperframes.json").is_file():
+    """The command that renders this project's film (out/draft.mp4 or out/final.mp4), by the engine it runs on."""
+    p, name, engine = shown(project), "out/final.mp4" if final else "out/draft.mp4", engine_here(project, proj)
+    if engine == "hf":
         return f"(cd {p} && HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 npx hyperframes render --quality {'delivery' if final else 'draft'} --output {name})"
-    if (project / "render.mjs").is_file():
+    if engine == "p5":
         return f"(cd {p} && node render.mjs --clip --out={name})"
-    if (proj["type"] or "")[:2] in ("01", "06"):
+    if engine == "manim":
         return f"(cd {p} && uv run manim {'-qh --fps 30' if final else '-ql'} scene.py <Scene>)"
     return f"bin/vh render {p} --out {p}/{name}"
 
 
-def engine_doc(project, proj):
-    """What to read for this project's engine at the first picture, by the files it has."""
-    if (project / "film.html").is_file():
-        return R_CANVAS
-    if (project / "hyperframes.json").is_file():
-        return R_HF
-    if (project / "render.mjs").is_file():
-        return R_HANDDRAWN
-    return R_MANIM if (proj["type"] or "")[:2] in ("01", "06") else None
+def engine_docs(project, proj):
+    """What to read for this project's engine at the first picture: its section or guide, and the edit list's where it goes through one."""
+    kind = (proj["type"] or "")[:2]
+    doc = {"canvas": R_CANVAS, "hf": R_HF, "p5": R_HANDDRAWN, "manim": R_MANIM}.get(engine_here(project, proj))
+    return [doc, R_EDITING if kind == "09" else None, R_EDIT if kind == "11" or (project / "edit.json").is_file() else None]
 
 
 def film_state(project, by_video):
@@ -432,7 +467,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         return out("nobody" if delivered and not working else "agent", busy + ("delivered: what this film taught goes into LESSONS.md" if delivered else "carry on"))
     todo = scaffold_todo(project, proj)
     if todo:
-        return out("agent", busy + "the engine's scaffold did not finish: this finishes it", [todo], [R_HF] if "hf-init" in todo else [])
+        return out("agent", busy + "the engine's scaffold is not there: this makes it", [todo], [R_HF] if "hf-init" in todo else [])
     if s["state"] == "waiting_agent":
         fb = s["feedback"] or {}
         if fb.get("pending"):
@@ -454,6 +489,13 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     def fill(what):
         """what, with the {…} the files it names still have in front of it."""
         return ", ".join(f"fill {n} ({left[n]} {{…}} left)" for n in what if n in left)
+
+    def first_scenes():
+        """What the first picture is made of: an edit list for a recap, or a cut, with no edit.json yet; else scenes."""
+        kind = (proj["type"] or "")[:2]
+        if kind in ("09", "11") and not (project / "edit.json").is_file():
+            return ("write the cut as edit.json" if kind == "09" else "write the photos and clips in their order as edit.json") + " (engines/EDIT.md), look at its frames, then render a draft"
+        return "write the scenes, look at their frames, then render a draft"
 
     def page():
         """The gate JSON's state: what to say about it, and the commands that send it."""
@@ -478,8 +520,9 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
                    [f"bin/vh storyboard {p}", f"bin/vh rhythm {p}"] + cmds, [R_PAGE, R_ANIMATIC, R_FRAMES, R_LONG if long_film else None, R_NARRATIVE if long_film else None])
     if key == "3":
         if fstate == "none":
-            return out("agent", busy + "write the scenes, look at their frames, then render a draft", [f"bin/vh frames {p} --at 1,5,9", render_cmd(project, proj, False)],
-                       [engine_doc(project, proj), R_FRAMES, R_LONG if long_film else None])
+            return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]) if quick else "", first_scenes(), ) if x),
+                       [engine_setup(project, proj), frame_cmd(project, proj), render_cmd(project, proj, False)],
+                       [*engine_docs(project, proj), R_FRAMES, R_LONG if long_film else None])
         if fstate in ("unchecked", "stale"):
             return out("agent", busy + f"check {named} and look at its contact sheet", check + [f"bin/vh sheet {p}/{film}"], [R_FRAMES, R_PHONE, R_SILENT])
         if fstate == "failed":
@@ -494,7 +537,8 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     # delivery: quick's whole path, and the end of the others'
     if fstate == "none":
         return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), "a short storyboard table, the scenes, then a draft" if quick else "render the final") if x),
-                   [render_cmd(project, proj, not quick)], [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, engine_doc(project, proj), R_PHONE] if quick else [engine_doc(project, proj), R_FRAMES])
+                   [engine_setup(project, proj), render_cmd(project, proj, not quick)],
+                   [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, *engine_docs(project, proj), R_PHONE] if quick else [*engine_docs(project, proj), R_FRAMES])
     if fstate in ("unchecked", "stale"):
         return out("agent", busy + f"check {named}" + (" and look at its contact sheet" if not is_final(film) else ""),
                    check + ([f"bin/vh sheet {p}/{film}"] if not is_final(film) else []), [R_PHONE] if quick else [])

@@ -538,7 +538,11 @@ cmd_new() {
   local base dir; base=$(projects_base "$parent")
   mkdir -p "$base" || { echo "cannot create $base" >&2; exit 1; }
   base=$(cd "$base" && pwd); dir="$base/$(date +%F)-$slug"
-  [ -e "$dir" ] && { echo "$dir already exists" >&2; exit 1; }
+  if [ -e "$dir" ]; then
+    echo "$dir already exists" >&2
+    [ ! -f "$dir/BRIEF.md" ] || echo "   bin/vh status $(rel "$dir") says where it stands and what finishes it (a scaffold that did not finish: bin/vh hf-init, npm install); another slug makes a new project" >&2
+    exit 1
+  fi
   # a step that fails from here on must not leave a half-built dir behind (a retry would say "already exists"): vh_exit removes it
   NEW_DIR=$dir; vh_trap
   if [ "$engine" = canvas-film ]; then   # a static page and its scripts: nothing to install (one command a line, so a failed copy stops here)
@@ -936,7 +940,11 @@ cmd_check() {
   if [ ! -f "$v" ]; then   # a project: its newest film (tools/proxy.py says which, or that there is none yet)
     local vp; vp=$(project_dir "$v" 2>/dev/null) && [ -f "$vp/BRIEF.md" ] || vp=""
     [ -z "$vp" ] && [ -d "$v" ] && { echo "bin/vh check: $v is a folder with no BRIEF.md: give a video, or a project" >&2; return 2; }
-    [ -n "$vp" ] || { echo "bin/vh check: no such video: $v" >&2; return 2; }   # one ffprobe cannot read is a failed check (1)
+    if [ -z "$vp" ]; then   # one ffprobe cannot read is a failed check (1)
+      vp=$(project_dir "$v" 2>&1 >/dev/null || true)
+      case "$vp" in *"several projects match"*) echo "bin/vh check: $vp" >&2 ;; *) echo "bin/vh check: no such video: $v" >&2 ;; esac
+      return 2
+    fi
     v=$(python3 "$ROOT/tools/proxy.py" film "$vp") || return 2
   fi
   # each check also leaves its result in CHECK_TMP (gone on exit, vh_exit); tools/checkrec.py makes the record of them at
