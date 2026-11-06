@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Read less before starting: playbook/01 up to 规格 and 02's 七层检查; the rest at the stop that needs it**
+- Why: `CLAUDE.md`'s step 2 had every agent, and every subagent, read all of `playbook/01-pipeline.md` and `playbook/02-verification.md` before it started. About 12,000 of 01's 20,000 characters (director mode, the review page, the desk, animatic, look-dev, unattended runs, long films, subagents) and 18,000 of 02's 23,000 (frame commands, determinism, silent failures, colour, audio QA) only matter at a later stop. This changes a binding point (CONTRIBUTING.md, 四个绑定点).
+- `CLAUDE.md`, step 2: before starting, 01 from its start to 规格 and 02's 七层检查. Then the review page at the first gate, the frame commands and the rest of 02 at the first picture, 长片 for a long film, 导演模式 when someone names a decision as theirs. `bin/vh status`'s `next:` lists the sections for this stop and `bin/vh know --show` prints one. The floors stay in `CLAUDE.md`, as they were. Nothing is removed from any document, and `playbook/quick.md` already read only the sections it names.
+- `tools/readpath.py`: a `start` column, what a standard film reads before it starts; `standard` stays the total by the first draft. On `02-knowledge-short`, the 113,295 an agent read before it started is now 83,000 or so (the table in `tools/ci.sh` has every type). `tools/ci.sh` checks that `start` is under `standard`, that step 2 names the sections counted, and that a renamed heading stops the table.
+- `playbook/01`, `playbook/02`, `playbook/quick.md`: one line each saying the same. `video-types/04` and `07` name the section they point to.
+
 **`bin/vh assets add --origin` takes the words people write**
 - Why: on real films an agent lost 44 runs to `--origin self-made`, which only `self` satisfied, and the message listed nothing it could use from there.
 - `tools/assets/ledger.py`, `origin_of`: `self-made`, `selfmade`, `own`, `自制` and the like for `self`, and so on for each origin (case and spaces aside); what it took is said on stderr. An unknown word is a usage error with the six origins and the closest. `tools/assets/assets.py` calls it in `add`; the record still holds one of the six.

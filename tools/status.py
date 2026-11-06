@@ -421,7 +421,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     if key == "1":
         say, cmds = page()
         return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), "NOTES.md's material first, then 2–3 concept cards with a frame each and the outline", say) if x),
-                   cmds, [doc, R_IDEAS, R_CARDS, R_PAGE])
+                   cmds, [doc, R_IDEAS, R_CARDS, R_PAGE, R_DESK if proj["effort"] == "studio" else None, R_FRAMES])
     if key == "2":
         say, cmds = page()
         return out("agent", busy + "; ".join(x for x in (fill(["STYLE.md", "STORYBOARD.md"]), "the shots in shots.json, then their key frames and the rhythm chart", say) if x),

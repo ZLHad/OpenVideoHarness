@@ -24,7 +24,7 @@
 4. **改配置**：在 `src/config.js` 里设 `duration` 和 `bpm`。有音乐时，`offset` 设为第一个强拍的时间。
 5. **新建场景文件**：在 `src/scenes/` 下新建场景文件，然后在 `studio.html` 里把 `demo.js` 的 script 标签换成你的。
 6. **逐个镜头做**：先摆关键姿势，用 `--sheet` 在关键时刻检查静帧；姿势能读懂了，再补中间的运动。
-7. **三层自查**：用 `--sheet`、`--strip`、`--crop`（命令见 `playbook/02-verification.md`）。预算是每个镜头一张 sheet，每个关键动作一条 strip，每张承载剧情的脸一个 crop。
+7. **三层自查**：用 `--sheet`、`--strip`、`--crop`（命令见 `playbook/02-verification.md` 的"各引擎的取帧命令"）。预算是每个镜头一张 sheet，每个关键动作一条 strip，每张承载剧情的脸一个 crop。
 8. **出片**：`node render.mjs --clip --out=out/final.mp4`。长片用 `--frames --workers=4`，渲完再 `--encode --out=out/final.mp4`。
 
 ## 引擎使用技巧（showcase 01 踩出来的）

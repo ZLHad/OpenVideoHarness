@@ -1,5 +1,7 @@
 # 01 十阶段流程（阶段 0–9）
 
+开工前读到"规格"为止；后面几节（导演模式、审阅页、审阅台、animatic、look-dev、无人值守、长片、子代理）到用的那一站再读，`bin/vh know --show "playbook/01-pipeline.md#审阅页"` 只打印一节。
+
 ## 总表
 
 下表是 `standard` 档位的做法。`quick` 会省掉人工关卡、独立评审和大部分逐场景自查；`studio` 会加上 look-dev、animatic 和多轮打分。各档位具体做多少，见下面的"努力程度"（`bin/vh effort <档位>` 打印那一档的一列，外加底线）。

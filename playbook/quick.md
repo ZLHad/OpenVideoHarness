@@ -1,6 +1,6 @@
 # quick 路径卡
 
-用户要 `quick` 时（档位怎么定见 CLAUDE.md"努力程度"），不用把各步列的文档都读完，照这张卡做。人点名要拍板的事照样停（CLAUDE.md"导演模式"）；其余都是 `delegate`；需求有歧义时最多问 1 个问题。底线照旧（CLAUDE.md"任何档位都不降的底线"）。
+用户要 `quick` 时（档位怎么定见 CLAUDE.md"努力程度"），不用把各步列的文档都读完，照这张卡做。人点名要拍板的事照样停（CLAUDE.md"导演模式"）；其余都是 `delegate`；需求有歧义时最多问 1 个问题。底线照旧（CLAUDE.md"任何档位都不降的底线"）。走到哪一步、下一步做什么，`bin/vh status <项目>` 的 `next:` 会说。
 
 1. **读**：路由表对应的类型文档，只读"工作流"和"禁止"两节（"Prompt 增量块"是这类片子的默认做法，挑定立意以后再读）；再读 `engines/README.md` 里对应引擎的一节，HyperFrames 先看其中的"最小写法"。
 2. **建项目和立意**：`bin/vh new <type> <slug> --effort quick`。先想两三个一句话立意（`playbook/12-ideation.md` 第 3 节的四个问题可以帮忙），挑一个，写一行为什么，再写一行同题视频最常见的做法，交付时一起列给人看（第 7 节最后一条）；然后读类型文档的 Prompt 增量块，决定留哪些默认，留下的写进 BRIEF。风格从立意推出来；想参考预设就 `bin/vh style apply <preset[,preset]> <project>`（`bin/vh style list` 挑），副本放进项目的 `style-refs/`，写 STYLE.md 前翻一遍；借了什么在 `DECISIONS.md` 记一行，和它不一样不用解释。立意和风格各写一行理由进 `DECISIONS.md`；改了哪些口味默认，交付时一并列出。
