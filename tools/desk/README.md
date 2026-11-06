@@ -202,7 +202,7 @@ JSON 的格式：
 
 ### 文本的退路：`bin/vh history save|list|diff|restore`
 
-`tools/artifacts.json` 里 `made_by` 是 person 或 agent、格式是 markdown、json、text 的文件（不超过 1 MiB），按内容存在 `.ovh/history/objects/<sha256>`，每个快照是 `.ovh/history/index.jsonl` 的一行。`save` 没有变化就什么都不写；`bin/vh gate` 每发出一页存一次，存不了也不挡页面；`restore <文件> [--at <快照>]` 先存当下的状态，所以能撤销（`undo` 就是那条命令）；`diff` 是 unified diff。很多项目不在 git 下，这是它们唯一的退路。字段见 `bin/vh history -h`。
+`tools/artifacts.json` 里 `made_by` 是 person 或 agent、格式是 markdown、json、text 的文件（不超过 1 MiB），按内容存在 `.ovh/history/objects/<sha256>`，每个快照是 `.ovh/history/index.jsonl` 的一行。`save` 没有变化就什么都不写；`bin/vh gate` 每发出一页存一次，存不了也不挡页面，锁被占着最多等 2 s，跳过时说一声；`restore <文件> [--at <快照>]` 先存当下的状态，读回来确认存下的就是这些字节，所以能撤销（`undo` 就是那条命令）；存不下（超过 1 MiB、里面像有 key）就什么都不写，退出码 1，`code` 是 `refused`；路径上有链接、那个位置是文件夹，同样拒绝。里面像有 key 的文件不进快照，`skipped` 说是哪个文件，不说内容；`.ovh/history/.gitignore` 让项目自己的 git 不提交这个库。`diff` 是 unified diff。很多项目不在 git 下，这是它们唯一的退路。字段见 `bin/vh history -h`。
 
 ### 输出的契约：`tools/schemas/output/`
 

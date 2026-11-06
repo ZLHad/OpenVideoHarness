@@ -5899,6 +5899,169 @@ PY
   vh gate "$g" 1 --page >/dev/null 2>&1; c=$?
   if [ "$rc:$rc2:$c" = 0:0:2 ] && [ "$n1" = 1 ] && [ ! -e "$g/.ovh/history" ] && case "$a" in "gate 1: the page went out True") true ;; *) false ;; esac; then ok "gate: a page that went out is a snapshot of the text; a save that fails stops nothing; a page refused is no snapshot"
   else bad "gate's save (exit $rc, $rc2, $c, $n1 lines, '$a'): $(tail -c 300 "$t/gate1") | $(tail -c 300 "$t/gate2")"; fi
+  # what a restore must never do: lose what is there now, say it saved what it did not, write outside the project or through a link; and what the store must never hold
+  a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PY' 2>&1
+import glob, json, os, shlex, shutil, subprocess, sys, time
+sh, root, t = sys.argv[1:]
+vh = [sh, f"{root}/bin/vh"]
+base = f"{t}/hp"
+os.makedirs(base)
+env = dict(os.environ, OVH_PROJECTS=base, PYTHONDONTWRITEBYTECODE="1")
+bad = []
+def V(*a):
+    return subprocess.run([*vh, *a], capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL)
+def J(r):
+    try: return json.loads(r.stdout)
+    except ValueError: return {}
+def read(f):
+    return open(f, encoding="utf-8").read()
+def write(f, text):
+    with open(f, "w", encoding="utf-8") as o: o.write(text)
+def stored(p, word):
+    return any(word.encode() in open(x, "rb").read() for x in glob.glob(f"{p}/.ovh/**", recursive=True) + glob.glob(f"{p}/.ovh/history/.*") if os.path.isfile(x))
+n = [0]
+def mk(name=None):
+    n[0] += 1
+    p = f"{base}/{name or 'h%d' % n[0]}"
+    os.makedirs(f"{p}/audio"); os.makedirs(f"{p}/data")
+    for f, x in (("BRIEF.md", "# BRIEF\n"), ("NOTES.md", "first text\n"), ("STYLE.md", "style one\n"), ("audio/script.txt", "script one\n")):
+        write(f"{p}/{f}", x)
+    V("history", "save", p, "--note", "s1")
+    return p
+def refused(p, what, f, *args):
+    r = V("history", "restore", p, f, *args, "--json")
+    e = J(r).get("error") or {}
+    if r.returncode != 1 or e.get("code") != "refused":
+        bad.append(f"{what}: exit {r.returncode}, {r.stdout[:300]}")
+    return e.get("message") or ""
+def undo_of(d):
+    return subprocess.run([sh, *shlex.split(d["undo"].replace("bin/vh", f"{root}/bin/vh", 1))], capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL)
+# a file now over the limit, which save leaves out: refused, the file as it is, and what to do said; moved aside, the restore goes
+p = mk(); big = "UNIQUE-CURRENT-TEXT\n" + "x" * (1 << 21)
+write(f"{p}/NOTES.md", big)
+m = refused(p, "a file over the limit", "NOTES.md", "--at", "s1")
+if read(f"{p}/NOTES.md") != big or "over 1 MiB" not in m or not [x for x in os.listdir(p) if x == "NOTES.md"]:
+    bad.append(f"a file over the limit was touched: {m}")
+# a parent folder that is a link out of the project: nothing written through it; and a file that is a link: still the link, its target as it was
+p = mk(); oa = f"{t}/outside-audio"; shutil.move(f"{p}/audio", oa); os.symlink(oa, f"{p}/audio"); write(f"{oa}/script.txt", "OUTSIDE current\n")
+m = refused(p, "a parent that is a link", "audio/script.txt", "--at", "s1")
+if read(f"{oa}/script.txt") != "OUTSIDE current\n" or "audio is a link" not in m:
+    bad.append(f"a parent that is a link: {read(f'{oa}/script.txt')!r}, {m}")
+p = mk(); out = f"{t}/shared-style.md"; write(out, "the shared style\n"); os.remove(f"{p}/STYLE.md"); os.symlink(out, f"{p}/STYLE.md")
+m = refused(p, "a file that is a link", "STYLE.md", "--at", "s1")
+if not os.path.islink(f"{p}/STYLE.md") or read(out) != "the shared style\n" or "STYLE.md is a link" not in m:
+    bad.append(f"a file that is a link: link {os.path.islink(f'{p}/STYLE.md')}, {m}")
+# a folder where the file was: refused, and nothing left beside it
+p = mk(); os.remove(f"{p}/STYLE.md"); os.makedirs(f"{p}/STYLE.md")
+refused(p, "a folder there", "STYLE.md", "--at", "s1")
+if [x for x in os.listdir(p) if x.startswith(".STYLE")]:
+    bad.append(f"a folder there: left {os.listdir(p)}")
+# the index with a torn last line: what restore says it saved first is in list, and undo brings it back
+p = mk(); idx = f"{p}/.ovh/history/index.jsonl"
+write(f"{p}/NOTES.md", "second text\n"); V("history", "save", p)
+b = open(idx, "rb").read(); open(idx, "wb").write(b[:-20])
+write(f"{p}/NOTES.md", "TORN-CURRENT\n")
+r = V("history", "restore", p, "NOTES.md", "--at", "s1", "--json"); d = J(r)
+ids = [x["id"] for x in J(V("history", "list", p, "--json"))["snapshots"]]
+if r.returncode != 0 or d.get("saved_first") not in ids:
+    bad.append(f"a torn index: exit {r.returncode}, saved first {d.get('saved_first')}, list {ids}")
+else:
+    u = undo_of(d)
+    if u.returncode != 0 or read(f"{p}/NOTES.md") != "TORN-CURRENT\n":
+        bad.append(f"a torn index, undo: exit {u.returncode}, {u.stderr[-200:]}, {read(f'{p}/NOTES.md')!r}")
+# a full disk (only part of the index's next line goes in): the save fails, the file is as it was; with room again the restore goes, and can be undone
+p = mk(); idx = f"{p}/.ovh/history/index.jsonl"
+write(f"{p}/NOTES.md", "FULL-CURRENT\n")
+size = os.path.getsize(idx)
+short = f"import os, sys\nsys.path.insert(0, {root + '/tools'!r})\nimport history\nreal = os.write\nos.write = lambda fd, b: real(fd, b[:40])\nsys.exit(history.main(sys.argv[1:]))"
+r = subprocess.run([sys.executable, "-c", short, "restore", p, "NOTES.md", "--at", "s1", "--json"], capture_output=True, text=True, env=env)
+if r.returncode != 1 or read(f"{p}/NOTES.md") != "FULL-CURRENT\n" or os.path.getsize(idx) != size + 40 or "40 of the" not in r.stderr:
+    bad.append(f"a full disk: exit {r.returncode}, file {read(f'{p}/NOTES.md')!r}, index {os.path.getsize(idx)} from {size}, {r.stdout[:200]} {r.stderr[-200:]}")
+r = V("history", "restore", p, "NOTES.md", "--at", "s1", "--json"); d = J(r)
+if r.returncode != 0 or read(f"{p}/NOTES.md") != "first text\n" or undo_of(d).returncode != 0 or read(f"{p}/NOTES.md") != "FULL-CURRENT\n":
+    bad.append(f"after the full disk: exit {r.returncode}, {d}")
+# an object that is not what it was stored as: said, and the file as it is; the same text saved again heals it
+p = mk(); sha = json.loads(open(f"{p}/.ovh/history/index.jsonl").readline())["files"]["NOTES.md"]; o = f"{p}/.ovh/history/objects/{sha}"; write(o, "rotted\n")
+write(f"{p}/NOTES.md", "current\n")
+r = V("history", "restore", p, "NOTES.md", "--at", "s1", "--json")
+if r.returncode != 1 or (J(r).get("error") or {}).get("code") != "not_found" or read(f"{p}/NOTES.md") != "current\n":
+    bad.append(f"a rotten object: exit {r.returncode}, {r.stdout[:200]}, {read(f'{p}/NOTES.md')!r}")
+write(f"{p}/NOTES.md", "first text\n"); write(f"{p}/STYLE.md", "style one\n")
+r = V("history", "save", p, "--json")
+if read(o) != "first text\n":
+    bad.append(f"a rotten object, saved again: {read(o)!r}")
+# a hand-made index: no way into .git or the store, nor to a path the table does not keep; nothing is made
+p = mk(); idx = f"{p}/.ovh/history/index.jsonl"; sha = json.loads(open(idx).readline())["files"]["NOTES.md"]; os.makedirs(f"{p}/.git/hooks")
+with open(idx, "a") as f:
+    f.write(json.dumps({"version": 1, "id": "s9", "t": 1, "at": "x", "note": None, "files": {w: sha for w in (".git/hooks/post-commit", ".ovh/evil.md", "film.html", "../evil.md", f"{t}/evil.md")}, "changed": [], "removed": []}) + "\n")
+for w, there in ((".git/hooks/post-commit", f"{p}/.git/hooks/post-commit"), (".ovh/evil.md", f"{p}/.ovh/evil.md"), ("film.html", f"{p}/film.html"), ("../evil.md", f"{base}/evil.md"), (f"{t}/evil.md", f"{t}/evil.md")):
+    r = V("history", "restore", p, w, "--at", "s9", "--json")
+    if r.returncode != 2 or (J(r).get("error") or {}).get("code") != "usage" or os.path.exists(there):
+        bad.append(f"a hand-made index, {w}: exit {r.returncode}, made {os.path.exists(there)}, {r.stdout[:160]}")
+# spaces in the undo; the store out of a project's git
+p = mk("有 空格 é"); f = "data/中 文 é.map.json"; write(f"{p}/{f}", "{\"a\": 1}\n"); V("history", "save", p); write(f"{p}/{f}", "{\"a\": 2}\n")
+r = V("history", "restore", p, f, "--json"); d = J(r)
+if r.returncode != 0 or read(f"{p}/{f}") != "{\"a\": 1}\n" or undo_of(d).returncode != 0 or read(f"{p}/{f}") != "{\"a\": 2}\n":
+    bad.append(f"spaces in the undo: exit {r.returncode}, {d.get('undo')}")
+g = subprocess.run(["git", "-C", p, "init", "-q"], capture_output=True)
+if g.returncode == 0:
+    c = subprocess.run(["git", "-C", p, "check-ignore", "-q", ".ovh/history/objects/x"], capture_output=True)
+    if c.returncode != 0 or read(f"{p}/.ovh/history/.gitignore") != "*\n":
+        bad.append(f"the store in a project's git: {c.returncode}")
+# what looks like a key: the file left out by name, its text nowhere in the store; a --note filtered in the index, the log's note and its start line
+key = "sk-ant-api03-SECRETVALUE1234567890abcdefgh"
+p = mk(); write(f"{p}/NOTES.md", f"the key {key}\n"); write(f"{p}/STYLE.md", f"GEMINI_API_KEY=AQ1234567890abcdefgh12\n"); write(f"{p}/BRIEF.md", "# BRIEF\nsk-learn and hf_cache_dir are no keys, nor is 0123456789abcdef0123456789abcdef\n")
+r = V("history", "save", p, "--note", f"token {key}", "--json"); d = J(r)
+why = {x["path"]: x["why"] for x in d.get("skipped", [])}
+if r.returncode != 0 or "holds what looks like a key" not in why.get("NOTES.md", "") or "holds what looks like a key" not in why.get("STYLE.md", "") or "BRIEF.md" in why or "BRIEF.md" not in d["snapshot"]["changed"] or d["snapshot"]["note"] != "token …":
+    bad.append(f"a key in a file: exit {r.returncode}, {r.stdout[:400]}")
+if stored(p, "SECRETVALUE") or stored(p, "AQ1234567890") or "SECRETVALUE" in r.stdout:
+    bad.append(f"a key is in the store or the log: {[x for x in glob.glob(f'{p}/.ovh/**', recursive=True) if os.path.isfile(x) and b'SECRETVALUE' in open(x, 'rb').read()]}")
+m = refused(p, "a key in what is there now", "NOTES.md", "--at", "s1")
+if "SECRETVALUE" in m or "NOTES.md" not in m or read(f"{p}/NOTES.md") != f"the key {key}\n":
+    bad.append(f"a key in what is there now: {m}")
+d = J(V("history", "diff", p, "--json"))
+if "SECRETVALUE" in d.get("diff", "x") or "NOTES.md" in d.get("files", ["NOTES.md"]) or "NOTES.md" not in [x["path"] for x in d.get("skipped", [])]:
+    bad.append(f"a file left out, in diff: {str(d)[:300]}")
+# a project called save, or x-save: bin/vh history save real's run is real's
+for name in ("save", "2026-11-06-save"):
+    os.makedirs(f"{base}/{name}"); write(f"{base}/{name}/BRIEF.md", "# x\n")
+p = mk("real")
+if os.path.exists(f"{base}/save/.ovh") or os.path.exists(f"{base}/2026-11-06-save/.ovh") or not any(x.get("cmd") == "history" and x.get("event") == "start" for x in map(json.loads, open(f"{p}/.ovh/activity.jsonl", encoding="utf-8"))):
+    bad.append(f"a project called save: {os.listdir(f'{base}/save')}")
+# a name that is not UTF-8: left out with a word, and the record prints (real on a file system that takes one; on another, the same through the table's list)
+sys.path.insert(0, f"{root}/tools")
+import artifacts, history
+real = artifacts.holdings
+artifacts.holdings = lambda project, idx: {"time-map": ["data/\udcff.map.json"]}
+files, left = history.tracked(mk())
+artifacts.holdings = real
+if files or left != [{"path": "data/\\xff.map.json", "why": "its name is not UTF-8"}]:
+    bad.append(f"a name that is not UTF-8: {files}, {left}")
+try:
+    p = mk(); open(os.fsencode(f"{p}/data/") + b"\xff.map.json", "w").close()
+except OSError:   # (macOS: refused by the file system)
+    pass
+else:
+    r = V("history", "save", p, "--json")
+    if r.returncode != 0 or not any("not UTF-8" in x["why"] for x in J(r).get("skipped", [])):
+        bad.append(f"a raw name on disk: exit {r.returncode}, {r.stdout[:200]} {r.stderr[-200:]}")
+# bin/vh gate with the lock held elsewhere: at most 2 s, said, the page out all the same
+z = f"{t}/hz"; shutil.copytree(f"{root}/tools/desk/fixtures/zh", z)
+os.makedirs(f"{z}/.ovh/history", exist_ok=True); write(f"{z}/NOTES.md", "more\n")
+holder = subprocess.Popen([sys.executable, "-c", f"import fcntl, os, time\nf = os.open({z + '/.ovh/history/.lock'!r}, os.O_WRONLY | os.O_CREAT)\nfcntl.flock(f, fcntl.LOCK_EX)\nprint('held', flush=True)\ntime.sleep(60)\n"], stdout=subprocess.PIPE, text=True)
+holder.stdout.readline()
+t0 = time.time()
+r = V("gate", z, "1", "--page", "--json")
+took = time.time() - t0
+holder.kill(); holder.wait()
+if r.returncode != 0 or took > 20 or "no snapshot of this page" not in r.stderr or not J(r).get("page"):
+    bad.append(f"gate with the lock held: exit {r.returncode}, {took:.1f} s, {r.stderr[-300:]}")
+print("\n".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "history restore: what is there now is read back from the snapshot first, or nothing is written (over the limit, a key in it, a full disk); no link on the way, no folder, no path the table does not keep; a torn index takes the next line whole; a rotten object is said, and healed; the undo quotes its words. The store holds no key, stays out of a project's git, and gate waits at most 2 s for it" \
+    || bad "bin/vh history's safety: $(printf '%s' "$a" | tail -c 1800)"
   # bin/vh clean leaves it, and it still restores
   mkdir -p "$p/out/frames"; : > "$p/out/frames/a.png"; : > "$p/out/final.mp4"
   OVH_TRASH_DIR="$t/trash" vh clean "$p" --yes >"$t/clean" 2>&1; rc=$?

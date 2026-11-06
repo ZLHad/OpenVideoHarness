@@ -222,11 +222,12 @@ def main(argv):
     else:
         print("\n".join(lines), flush=True)
     activity.note(f"{review.gate_title(page.gate, 'en')}: {len(page.d['decisions'])} decision(s) on the {channel}" + (f" · {url}" if url else ""), [page_path])
-    try:   # the text as it was when the page went out (tools/history.py); a failure to save never stops the page
+    try:   # the text as it was when the page went out (tools/history.py); a failure to save never stops the page, nor does a lock held elsewhere for long
         import history
-        history.save(project, f"gate {page.gate}: the page went out")
-    except Exception:
-        pass
+        for x in history.save(project, f"gate {page.gate}: the page went out", wait=2)[1]:
+            print(f"  history: left out: {x['path']} ({x['why']})", file=sys.stderr)
+    except Exception as e:
+        print(f"  history: no snapshot of this page ({e})", file=sys.stderr)
     if not a.wait:
         return 0
     import feedback

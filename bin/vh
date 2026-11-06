@@ -352,6 +352,9 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
   # existing folder); else, for the commands that take a project by name, a name under the projects folder. Else empty
   local cmd=$1 a d m n base
   ACT_PROJ=""; shift
+  case "$cmd:${1:-}" in   # a subcommand is no folder and no project's name (bin/vh history save real, with a project called save)
+    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|hf:add|components:add|style:apply|style:check|style:compare|style:gallery) shift ;;
+  esac
   for a in "$@"; do
     case $a in -*=*|[A-Za-z_]*=*) a=${a#*=} ;; -*) continue ;; esac
     if [ -z "$a" ]; then continue

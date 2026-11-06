@@ -276,7 +276,7 @@
         "tools/artifacts.json: the kinds of file a person or an agent writes (md, json, txt)"
       ],
       "writes": [
-        "<project>/.ovh/history/index.jsonl, objects/<id> and .lock (save, restore)",
+        "<project>/.ovh/history/index.jsonl, objects/<id>, .gitignore and .lock (save, restore)",
         "the file restored"
       ],
       "usage": [
@@ -1103,7 +1103,7 @@
         "<project>/BRIEF.md"
       ],
       "writes": [
-        "<project>/.ovh/history/index.jsonl, objects/<id> and .lock (a snapshot on each page that goes out)",
+        "<project>/.ovh/history/index.jsonl, objects/<id>, .gitignore and .lock (a snapshot on each page that goes out)",
         "<project>/out/review/gate-<n>.html, index.html, .current, .gate-<n>.refused.json (a page that breaks a rule: nothing is sent)",
         "<project>/out/review/gate-<n>.json (--init)",
         "<project>/out/review/feedback/.consumed (--wait: the submission handed over)",

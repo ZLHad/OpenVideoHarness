@@ -8,22 +8,28 @@ usage: bin/vh history save <project> [--note text] [--json]
 by a path that leads into a project.
 
 What is kept: the small text files tools/artifacts.json says a person or an agent writes (made_by person or agent; format
-markdown, json or text; a file, not a folder of them; at most 1 MiB each, links left out): BRIEF.md, the other docs, shots.json, edit.json,
-the gate pages' JSON, the script. Each by its content in .ovh/history/objects/<sha256>, and each snapshot a line of
-.ovh/history/index.jsonl: {"version": 1, "id": "s3", "t", "at", "note", "files": {path: sha256}, "changed": [paths], "removed": [paths]}.
-  save     a snapshot, if anything changed since the last; else nothing is written at all. bin/vh gate saves on every page that goes
-           out; a failure to save never stops the page
+markdown, json or text; a file, not a folder of them; at most 1 MiB each): BRIEF.md, the other docs, shots.json, edit.json, the gate pages'
+JSON, the script. Left out, each said by name: a link, one over the limit, a name that is not UTF-8, and a file that holds what looks like a key
+(a vendor's token, a Bearer token, name = value where the name says key, token, secret or password): the store holds nothing a project should
+not hand on, and the note goes through the log's filter (tools/activity.py's scrub). Each file by its content in .ovh/history/objects/<sha256>
+(.ovh/history/.gitignore keeps the store out of a project's own git), and each snapshot a line of .ovh/history/index.jsonl:
+{"version": 1, "id": "s3", "t", "at", "note", "files": {path: sha256}, "changed": [paths], "removed": [paths]}.
+  save     a snapshot, if anything changed since the last; else nothing is written at all, but an object that has rotted is written again.
+           bin/vh gate saves on every page that goes out: at most 2 s on the lock, and a failure to save, said, never stops the page
   list     the snapshots, oldest first; with a file, those where it changed
-  diff     a unified diff of a file (no file: of each that differs), from --at (default: the last snapshot) to --to (default: as it is now)
-  restore  the file as it was at --at; without --at, in the newest snapshot where it differs from now. What is there now is saved first,
-           so a restore can be undone: the record's undo says how. A file already as it was is left alone
+  diff     a unified diff of a file (no file: of each that differs), from --at (default: the last snapshot) to --to (default: as it is now);
+           a file left out as it is now is not compared with now
+  restore  the file as it was at --at; without --at, in the newest snapshot where it differs from now. What is there now is saved first, and
+           read back: when the snapshot does not hold those very bytes (over the limit, a key in it) nothing is written and it says so, so a
+           restore can always be undone: the record's undo says how. A file already as it was is left alone. Refused too: a link on the way
+           to the file or the file itself, a folder there, and a path the table does not keep (a hand-made index cannot write .git/hooks/x)
 --json: save {"version": 1, "tool", "project", "saved", "snapshot": {…} | null, "skipped": [{"path", "why"}]}; list {"version": 1, "tool", "project", "file",
 "snapshots": [{"id", "t", "at", "note", "files": how many, "changed", "removed"}]}; diff {"version": 1, "tool", "project", "from", "to", "files": [paths that differ],
-"diff": text}; restore {"version": 1, "tool", "project", "file", "from", "restored", "saved_first", "undo"}.
+"diff": text, "skipped": [{"path", "why"}]}; restore {"version": 1, "tool", "project", "file", "from", "restored", "saved_first", "undo"}.
 bin/vh clean leaves .ovh alone. Nothing here ever prunes: a snapshot of a project's text is small.
-Exit: 0 · 1 no such snapshot, or no snapshot of that file · 2 usage, no project.
+Exit: 0 · 1 no such snapshot, no snapshot of that file, an object that is not what it was stored as, or a restore refused · 2 usage, no project.
 """
-import argparse, difflib, fcntl, hashlib, json, os, re, sys, time
+import argparse, difflib, errno, fcntl, hashlib, json, os, re, shlex, stat, sys, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -31,13 +37,26 @@ sys.path.insert(0, str(HERE))
 import activity, jsonerr   # noqa: E402,E401
 
 MAX_FILE = 1 << 20
+MADE_BY = ("person", "agent")
 FORMATS = ("markdown", "json", "text")
 SHA = re.compile(r"[0-9a-f]{64}\Z")
 ID = re.compile(r"s[1-9][0-9]*\Z")
+# What looks like a key in a file: stricter than the log's filter (a doc may say hf_cache_dir), and each with a digit in it
+KEY = re.compile(r"""(?<![A-Za-z0-9_-])(?:sk-[A-Za-z0-9_-]{20,}|sk_[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{30,}|AQ\.[A-Za-z0-9_-]{20,}|gh[pous]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}"""
+                 r"""|glpat-[A-Za-z0-9_-]{16,}|xox[abposr]-[A-Za-z0-9-]{16,}|hf_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|ya29\.[A-Za-z0-9_-]{20,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"""
+                 r"""|(?i:bearer)\s+[A-Za-z0-9._~+/-]{16,})|(?i:api[_-]?key|secret|token|passw(?:or)?d)[A-Za-z0-9_-]*["']?\s*[:=]\s*["']?[A-Za-z0-9_./+=-]{16,}""")
 
 
 class Lost(Exception):
     """A snapshot or a file that is not there: exit 1."""
+
+
+class Refused(Exception):
+    """A restore that would lose what is there now, or write where it should not: nothing is touched, exit 1."""
+
+
+class Busy(Exception):
+    """Another command holds the history's lock, and this save waits only so long."""
 
 
 def store(project):
@@ -48,11 +67,22 @@ def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def holds_key(data):
+    return any(re.search(r"[0-9]", m.group(0)) for m in KEY.finditer(data.decode("utf-8", "replace")))
+
+
+def kept(rel):
+    """Is rel a file this history keeps, by tools/artifacts.json?"""
+    import artifacts as A
+    hit = A.Index(A.table()["artifacts"]).file(rel)
+    return bool(hit) and hit[0]["made_by"] in MADE_BY and hit[0]["format"] in FORMATS and hit[0]["kind"] == "file"
+
+
 def tracked(project):
     """({path: bytes} of the files kept, [{path, why}] of those left out), by tools/artifacts.json."""
     import artifacts as A
     entries = A.table()["artifacts"]
-    ids = {e["id"] for e in entries if e["made_by"] in ("person", "agent") and e["format"] in FORMATS and e["kind"] == "file"}
+    ids = {e["id"] for e in entries if e["made_by"] in MADE_BY and e["format"] in FORMATS and e["kind"] == "file"}
     held = A.holdings(project, A.Index(entries))
     files, skipped = {}, []
     for ident, paths in held.items():
@@ -61,12 +91,19 @@ def tracked(project):
         for rel in paths:
             f = Path(project) / rel
             try:
+                rel.encode("utf-8")
                 if f.is_symlink():
                     skipped.append({"path": rel, "why": "a link"})
                 elif f.stat().st_size > MAX_FILE:
                     skipped.append({"path": rel, "why": f"over {MAX_FILE >> 20} MiB"})
                 else:
-                    files[rel] = f.read_bytes()
+                    data = f.read_bytes()
+                    if holds_key(data):
+                        skipped.append({"path": rel, "why": "it holds what looks like a key"})
+                    else:
+                        files[rel] = data
+            except UnicodeEncodeError:
+                skipped.append({"path": activity._text(rel), "why": "its name is not UTF-8"})
             except OSError as e:
                 skipped.append({"path": rel, "why": e.strerror or str(e)})
     return files, skipped
@@ -92,29 +129,53 @@ def snapshots(project):
 
 
 class Lock:
-    """The history's flock, around what reads its last line and adds the next."""
+    """The history's flock, around what reads its last line and adds the next. wait: seconds to wait for it, then Busy; None: as long as it takes.
+    Making the folder makes its .gitignore: a project under git never commits the store."""
 
-    def __init__(self, project):
+    def __init__(self, project, wait=None):
         d = store(project)
         d.mkdir(parents=True, exist_ok=True)
-        self.fd = os.open(d / ".lock", os.O_WRONLY | os.O_CREAT, 0o644)
+        if not (d / ".gitignore").exists():
+            try:
+                (d / ".gitignore").write_text("*\n", encoding="utf-8")
+            except OSError:   # (a store that takes no new file says so when it has something to keep)
+                pass
+        self.fd, self.wait = os.open(d / ".lock", os.O_WRONLY | os.O_CREAT, 0o644), wait
 
     def __enter__(self):
-        fcntl.flock(self.fd, fcntl.LOCK_EX)
-        return self
+        if self.wait is None:
+            fcntl.flock(self.fd, fcntl.LOCK_EX)
+            return self
+        deadline = time.monotonic() + self.wait
+        while True:
+            try:
+                fcntl.flock(self.fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return self
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    os.close(self.fd)
+                    raise Busy(f"another command has held the history's lock for {self.wait:g} s") from None
+                time.sleep(0.1)
 
     def __exit__(self, *a):
         os.close(self.fd)
 
 
 def put(project, sha, data):
+    """An object in the store, written when it is not there or not what its name says."""
     f = store(project) / "objects" / sha
-    if f.is_file():
-        return
+    try:
+        if digest(f.read_bytes()) == sha:
+            return
+    except OSError:
+        pass
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_name(f".{sha}.{os.getpid()}")
-    tmp.write_bytes(data)
-    os.replace(tmp, f)
+    try:
+        tmp.write_bytes(data)
+        os.replace(tmp, f)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def get(project, sha):
@@ -130,30 +191,43 @@ def get(project, sha):
     return data
 
 
-def save(project, note=None):
-    """A snapshot if anything changed. → (the snapshot or None, the files left out). OSError when it cannot be written."""
+def append(project, rec):
+    """A snapshot's line onto the index. A last line with no newline (a crash, a full disk) gets one first, or it swallows this one. OSError when not
+    all of it went in."""
+    line = (json.dumps(rec, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8")
+    fd = os.open(store(project) / "index.jsonl", os.O_RDWR | os.O_APPEND | os.O_CREAT, 0o644)
+    try:
+        size = os.fstat(fd).st_size
+        if size and os.pread(fd, 1, size - 1) != b"\n":
+            line = b"\n" + line
+        n = os.write(fd, line)
+        if n != len(line):
+            raise OSError(errno.ENOSPC, f"{n} of the {len(line)} bytes of a snapshot's line went into the index")
+    finally:
+        os.close(fd)
+
+
+def save(project, note=None, wait=None):
+    """A snapshot if anything changed. → (the snapshot or None, the files left out). OSError when it cannot be written; Busy after wait seconds on the lock."""
     files, skipped = tracked(project)
     hashes = {p: digest(b) for p, b in files.items()}
     left_out = {x["path"] for x in skipped}
     if not hashes and not store(project).is_dir():   # nothing to keep: not even the folder
         return None, skipped
-    with Lock(project):
+    with Lock(project, wait):
         snaps = snapshots(project)
         last = snaps[-1]["files"] if snaps else {}
         changed = sorted(p for p, h in hashes.items() if last.get(p) != h)
         removed = sorted(p for p in last if p not in hashes and p not in left_out)
+        for p, h in hashes.items():   # each looked at: one that has rotted is written again, also with nothing else to do
+            put(project, h, files[p])
         if not changed and not removed:
             return None, skipped
-        for p in changed:
-            put(project, hashes[p], files[p])
         now = time.time()
         n = 1 + max((int(s["id"][1:]) for s in snaps if ID.fullmatch(s["id"])), default=0)
+        note = activity.scrub(activity._text(note)) if note else note
         rec = {"version": 1, "id": f"s{n}", "t": round(now, 3), "at": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(now)), "note": note, "files": hashes, "changed": changed, "removed": removed}
-        fd = os.open(store(project) / "index.jsonl", os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
-        try:
-            os.write(fd, (json.dumps(rec, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8"))
-        finally:
-            os.close(fd)
+        append(project, rec)
     return rec, skipped
 
 
@@ -165,9 +239,27 @@ def by_id(snaps, ident):
 
 
 def safe(rel):
-    """A path inside a project, as the index keeps it: relative, with no way out."""
+    """A path inside a project, as the index keeps it: relative, with no way out, and not the project's git or this store."""
     p = Path(rel)
-    return not p.is_absolute() and ".." not in p.parts and rel not in ("", ".")
+    return not p.is_absolute() and not {"..", ".git", ".ovh"} & set(p.parts) and rel not in ("", ".")
+
+
+def in_the_way(project, rel):
+    """What stops a write to rel in the project: a link on the way to it or the file itself, a way out, what is no plain file; None when nothing does."""
+    root = os.path.realpath(project)
+    at = root
+    for part in Path(rel).parts:
+        at = os.path.join(at, part)
+        if os.path.islink(at):
+            return f"{os.path.relpath(at, root)} is a link"
+    if os.path.commonpath([root, os.path.realpath(at)]) != root:
+        return f"{rel} leads out of the project"
+    try:
+        if not stat.S_ISREG(os.lstat(at).st_mode):
+            return f"{rel} is a folder" if os.path.isdir(at) else f"{rel} is no plain file"
+    except OSError:   # not there: a file to make
+        pass
+    return None
 
 
 def text(data):
@@ -224,8 +316,11 @@ def cmd_diff(a, project):
     if frm is None:
         raise Lost("no snapshot yet: bin/vh history save makes one")
     to = by_id(snaps, a.to) if a.to else None
-    now_files = None if to else tracked(project)[0]
-    names = [rel_in(project, a.file)] if a.file else sorted(set(frm["files"]) | set(to["files"] if to else now_files))
+    now_files, skipped = ({}, []) if to else tracked(project)
+    left = {x["path"]: x["why"] for x in skipped}   # as it is now: not read, so not an empty file
+    names = [rel_in(project, a.file)] if a.file else sorted((set(frm["files"]) | set(to["files"] if to else now_files)) - set(left))
+    if a.file and names[0] in left:
+        raise Lost(f"{names[0]} is left out as it is now ({left[names[0]]}): nothing to compare it with")
     if a.file and names[0] not in frm["files"] and names[0] not in (to["files"] if to else now_files):
         raise Lost(f"{names[0]} is in neither")
     out, differ = [], []
@@ -240,16 +335,34 @@ def cmd_diff(a, project):
             out.append(one_diff(rel, old, new, frm["id"], to["id"] if to else "now"))
     body = "".join(out)
     if a.json:
-        print(json.dumps({"version": 1, "tool": "bin/vh history diff", "project": str(project), "from": frm["id"], "to": to["id"] if to else None, "files": differ, "diff": body}, ensure_ascii=False, indent=1))
+        print(json.dumps({"version": 1, "tool": "bin/vh history diff", "project": str(project), "from": frm["id"], "to": to["id"] if to else None, "files": differ, "diff": body, "skipped": skipped}, ensure_ascii=False, indent=1))
     else:
         print(body if body else f"history: no difference from {frm['id']} to {to['id'] if to else 'now'}", end="" if body else "\n")
     return 0
+
+
+def write_back(f, data, now):
+    """data at f, through a name beside it. Refused when what is there is no longer what was saved first; nothing is left beside it, whatever happens."""
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_name(f".{f.name}.{os.getpid()}")
+    try:
+        tmp.write_bytes(data)
+        if f.is_file():
+            os.chmod(tmp, os.stat(f).st_mode & 0o7777)
+        if (f.read_bytes() if f.is_file() else None) != now:
+            raise Refused(f"{f.name} changed while this ran: nothing was written")
+        os.replace(tmp, f)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def cmd_restore(a, project):
     rel = rel_in(project, a.file)
     if not safe(rel):
         return jsonerr.fail("usage", f"history: {a.file} is not a file of {project.name}")
+    why = in_the_way(project, rel)
+    if why:
+        raise Refused(f"{why}: nothing was written")
     f = Path(project) / rel
     now = f.read_bytes() if f.is_file() else None
     snaps = snapshots(project)
@@ -265,20 +378,21 @@ def cmd_restore(a, project):
         snap = next((s for s in reversed(having) if s["files"][rel] != now_sha), None)
         if snap is None:
             snap = having[-1]
+    if not kept(rel):   # (a hand-made index)
+        return jsonerr.fail("usage", f"history: {rel} is no file this history keeps (tools/artifacts.json): nothing was written")
     data = get(project, snap["files"][rel])
     undo = None
     restored = now != data
     saved = None
     if restored:
-        rec, _ = save(project, f"before restoring {rel} from {snap['id']}")
-        saved = rec["id"] if rec else (snapshots(project) or [{}])[-1].get("id")
-        f.parent.mkdir(parents=True, exist_ok=True)
-        tmp = f.with_name(f".{f.name}.{os.getpid()}")
-        tmp.write_bytes(data)
-        if f.is_file():
-            os.chmod(tmp, os.stat(f).st_mode & 0o7777)
-        os.replace(tmp, f)
-        undo = f"bin/vh history restore {project} {rel} --at {saved}" if saved and now is not None else None
+        _, left = save(project, f"before restoring {rel} from {snap['id']}")
+        last = (snapshots(project) or [{}])[-1]
+        saved = last.get("id")
+        if now is not None and (last.get("files") or {}).get(rel) != digest(now):   # read back: only what is in the index can be undone
+            why = next((x["why"] for x in left if x["path"] == rel), "the snapshot just saved does not have it")
+            raise Refused(f"what is in {rel} now cannot be saved first ({why}), and a restore would lose it: nothing was written. Move it aside, then restore")
+        write_back(f, data, now)
+        undo = f"bin/vh history restore {shlex.quote(str(project))} {shlex.quote(rel)} --at {saved}" if saved and now is not None else None
         activity.note(f"{rel} as it was at {snap['id']}" + (f"; what was there is in {saved}" if saved else ""), [f])
     if a.json:
         print(json.dumps({"version": 1, "tool": "bin/vh history restore", "project": str(project), "file": rel, "from": snap["id"], "restored": restored, "saved_first": saved, "undo": undo}, ensure_ascii=False, indent=1))
@@ -319,6 +433,8 @@ def main(argv):
         return {"save": cmd_save, "list": cmd_list, "diff": cmd_diff, "restore": cmd_restore}[a.cmd](a, project)
     except Lost as e:
         return jsonerr.fail("not_found", f"history: {e}", rc=1)
+    except Refused as e:
+        return jsonerr.fail("refused", f"history: {e}", rc=1)
     except OSError as e:
         return jsonerr.fail("failed", f"history: {e.strerror or e}: {getattr(e, 'filename', '') or ''}", rc=1)
 

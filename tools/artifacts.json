@@ -2149,7 +2149,7 @@
    "stale": null,
    "clean": "stays",
    "doc": "tools/history.py",
-   "note": "What it keeps comes from this table: made_by person or agent, format markdown, json or text, kind file, at most 1 MiB."
+   "note": "What it keeps comes from this table: made_by person or agent, format markdown, json or text, kind file, at most 1 MiB, no file that holds what looks like a key."
   },
   {
    "id": "history-objects",
@@ -2178,6 +2178,23 @@
    "made_by": "tool",
    "writers": ["history", "gate"],
    "readers": ["history"],
+   "required": null,
+   "version_key": null,
+   "schema": null,
+   "stale": null,
+   "clean": "stays",
+   "doc": "tools/history.py"
+  },
+  {
+   "id": "history-gitignore",
+   "path": ".ovh/history/.gitignore",
+   "kind": "file",
+   "format": "text",
+   "stages": ["any"],
+   "purpose": "和快照库一起建，内容是 *：项目自己在 git 下时不会把它提交上去",
+   "made_by": "tool",
+   "writers": ["history", "gate"],
+   "readers": [],
    "required": null,
    "version_key": null,
    "schema": null,
