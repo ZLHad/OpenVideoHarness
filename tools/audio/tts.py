@@ -157,6 +157,17 @@ def run(cmd, **kw):
 def to_wav(src: Path, dst: Path):
     run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-ac", "1", "-ar", str(SR), str(dst)])
 
+def into_place(out: Path, make):
+    """make(a name beside out) writes a take there, and only a whole take gets out's name: --resume trusts a file by its being there, and a stop in the
+    middle (ffmpeg may stop halfway at a Ctrl-C) must not leave it a clipped line nobody notices. → what make returns."""
+    part = out.with_name(f".{out.stem}.part{out.suffix}")
+    try:
+        made = make(part)
+        os.replace(part, out)
+        return made
+    finally:
+        part.unlink(missing_ok=True)
+
 def duration(p: Path) -> float:
     return float(run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)]).stdout)
 
@@ -1390,11 +1401,12 @@ def main():
                 if not (a.resume and out.exists() and (wfile.exists() or not timed)):   # --resume: only what the run did not get to
                     voice = speakers.get(s["speaker"], a.voice) if s.get("speaker") else a.voice
                     out.with_suffix(".asr.json").unlink(missing_ok=True)   # a new take gets a new transcription
+                    def take(part):
+                        w = PROVIDERS[a.provider](s["_ptext"], voice, part, tmp, a.lang, style_of(s))
+                        h, tail = (0.0, 0.0) if a.keep_edges else trim_edges(part, tmp)   # the provider's own lead-in / tail silence
+                        return shifted(w, h), h + tail
                     try:
-                        words = PROVIDERS[a.provider](s["_ptext"], voice, out, tmp, a.lang, style_of(s))
-                        if not a.keep_edges:                           # the provider's own lead-in / tail silence
-                            h, tail = trim_edges(out, tmp); trimmed += h + tail
-                            words = shifted(words, h)
+                        words, cut_s = into_place(out, take); trimmed += cut_s
                         if timed:                                      # kept for --resume
                             save_words(out, wfile, words)
                     except Exception as e:
@@ -1443,18 +1455,21 @@ def main():
                                        "end": round(s["start"] + w["end"], 3)} for w in r["words"]]
         else:
             def synth_block(blk, conv, bout):   # one request for the block → bout (edges trimmed); → (word times or None, s trimmed)
-                pw, cut_s = None, 0.0
-                if gemini:
-                    env_style = os.environ.get("GEMINI_TTS_STYLE")
-                    turns = [{"text": s["_ptext"], "style": style_of(s) or env_style, "speaker": s.get("speaker") if conv else None} for s in blk]
-                    gemini_tts(turns, bout, tmp, gemini_model(a.provider), dict(speakers) if conv else a.voice)
-                elif timed:
-                    pw = PROVIDERS[a.provider](linked([s["_ptext"] for s in blk]), a.voice, bout, tmp, a.lang, a.instruct)
-                else:
-                    PROVIDERS[a.provider](("" if a.lang == "zh" else " ").join(s["_ptext"] for s in blk), a.voice, bout, tmp, a.lang, a.instruct)
-                if not a.keep_edges:                                   # only the block's own edges: pauses inside stay
-                    h, tail = trim_edges(bout, tmp); cut_s = h + tail
-                    pw = shifted(pw, h)
+                def take(part):
+                    w, cut_s = None, 0.0
+                    if gemini:
+                        env_style = os.environ.get("GEMINI_TTS_STYLE")
+                        turns = [{"text": s["_ptext"], "style": style_of(s) or env_style, "speaker": s.get("speaker") if conv else None} for s in blk]
+                        gemini_tts(turns, part, tmp, gemini_model(a.provider), dict(speakers) if conv else a.voice)
+                    elif timed:
+                        w = PROVIDERS[a.provider](linked([s["_ptext"] for s in blk]), a.voice, part, tmp, a.lang, a.instruct)
+                    else:
+                        PROVIDERS[a.provider](("" if a.lang == "zh" else " ").join(s["_ptext"] for s in blk), a.voice, part, tmp, a.lang, a.instruct)
+                    if not a.keep_edges:                               # only the block's own edges: pauses inside stay
+                        h, tail = trim_edges(part, tmp); cut_s = h + tail
+                        w = shifted(w, h)
+                    return w, cut_s
+                pw, cut_s = into_place(bout, take)
                 if timed:                                              # kept for --resume
                     save_words(bout, bout.with_suffix(".words.json"), pw)
                 return pw, cut_s
@@ -1486,7 +1501,7 @@ def main():
                         print(f"  median voice of the {sum(len(v) for v in feats.values())} takes: pitch {med['pitch_hz']:.0f} Hz, centroid {med['centroid_hz']:.0f} Hz")
                     for bi, cps in takes.items():
                         k = choice[bi]; bout = vo / f"_block{bi+1:02d}.wav"
-                        shutil.copyfile(cps[k], bout); trimmed += cut_of.get(cps[k], 0.0)
+                        into_place(bout, lambda part: shutil.copyfile(cps[k], part)); trimmed += cut_of.get(cps[k], 0.0)
                         if timed:
                             shutil.copyfile(cps[k].with_suffix(".words.json"), bout.with_suffix(".words.json"))
                         picked.add(bi)

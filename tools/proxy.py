@@ -21,7 +21,8 @@ thumbs  <name>.thumbs/: a tile every --every seconds (2), --width px wide (160),
         (edit.json or shots.json), else, for a film, its .render.json (the page's window.film.shots when it was rendered:
         no browser is started for a film, so a film without them gets no shot pictures), and with no film, the page's.
         Frames come from a proxy made of this same film when there is one (fast), else the film, else the page.
-        Run again after patches in place: only the tiles and shots in the frames drawn again are taken anew
+        Run again after patches in place: only the tiles and shots in the frames drawn again are taken anew. They are made in a folder beside
+        it (.<name>.thumbs.new) that takes its place when they are all there: stopped, what was there is as it was
 JSON (--json prints the record; "version": 1): tools/desk/README.md, 给客户端的数据, has the fields.
 Exit: 0 made or up to date · 1 ffmpeg or the page failed · 2 usage, no film (proxy) and nothing to draw (thumbs).
 """
@@ -413,6 +414,16 @@ def sheets(tdir, n, cols=10, rows=10):
     return out
 
 
+def swap_in(new, d):
+    """A folder made beside d takes its place; d's old self goes."""
+    old = d.with_name(f".{d.name}.old")
+    shutil.rmtree(old, ignore_errors=True)
+    if d.exists():
+        os.rename(d, old)
+    os.rename(new, d)
+    shutil.rmtree(old, ignore_errors=True)
+
+
 def cmd_thumbs(a):
     film, project, page = pick(a["target"])
     if film is None and page is None:
@@ -444,7 +455,7 @@ def cmd_thumbs(a):
     if not (dur > 0):
         raise RuntimeError("no length to take pictures of")
     d = out_dir(base, project, a["out"]) / f"{name}.thumbs"
-    (d / "tiles").mkdir(parents=True, exist_ok=True); (d / "shots").mkdir(exist_ok=True)
+    d.parent.mkdir(parents=True, exist_ok=True)
     recf = d / "thumbs.json"
     old = V.load_json(recf) if recf.is_file() else None
     every, W, SW = a["every"], a["width"], a["shot_width"]
@@ -488,42 +499,51 @@ def cmd_thumbs(a):
                 made = "refreshed"
             else:
                 why = "a step since its version was not a patch in place"
-    if made == "full":
-        for q in (d / "tiles").glob("*.jpg"):
-            q.unlink()
-        for q in (d / "shots").glob("*.jpg"):
-            q.unlink()
-    jobs = [(k, (W, H), d / "tiles" / f"{i + 1:05d}.jpg") for i, _, k in todo_t] + [(k, (SW, SH), d / "shots" / f"{fn}.jpg") for _, _, _, _, k, fn in todo_s]
-    tick = activity.Progress(len(jobs), "pictures")
-    if jobs and frm != "page":
-        fps_src = probe(src)["fps"] if frm == "proxy" else fps
-        on_pool(lambda j: grab(src, fps_src, j[0], j[1], j[2]), jobs, tick)
-    elif jobs:   # the page, through bin/vh frames: every time at once, then each picture scaled
-        with tempfile.TemporaryDirectory(prefix="vh-thumbs-") as tmp:
-            at = sorted({round(k / fps, 3) for k, _, _ in jobs})
-            r = run(["node", str(HERE / "film" / "frames.mjs"), str(page), "--browser", a["browser"], "--at", ",".join(f"{t:.3f}" for t in at), "--out", tmp])
-            if r.returncode:
-                raise RuntimeError(f"drawing the page failed: {(r.stderr or r.stdout or '').strip()[-400:]}")
-            stem = Path(page).stem
-            on_pool(lambda j: from_png(Path(tmp) / f"{stem}-t{round(j[0] / fps, 3):08.3f}.png", j[1], j[2]), jobs, tick)
-    changed_sheets = {i // 100 for i, _, _ in todo_t}
-    sh = sheets(d, len(tiles)) if made == "full" or changed_sheets or not all((d / f"sheet-{j + 1:02d}.jpg").is_file() for j in range(math.ceil(len(tiles) / 100))) \
-        else [(d / f"sheet-{j + 1:02d}.jpg", min(100, len(tiles) - j * 100)) for j in range(math.ceil(len(tiles) / 100))]
-    for q in d.glob("sheet-*.jpg"):   # sheets of an earlier, longer film
-        if int(q.stem[6:] or 0) > len(sh):
-            q.unlink()
-    rec = {"version": 1, "tool": "bin/vh thumbs", "source": rel(project, base), "from": frm, "source_ident": idn, "source_version": ver,
-           "fps": fps, "duration": round(dur, 6), "frames": nfr, "settings": settings, "tile": [W, H], "shot": [SW, SH],
-           "sheets": [{"file": rel(project, f), "tiles": k, "size": [min(10, k) * W, math.ceil(k / 10) * H]} for f, k in sh],
-           "tiles": [{"i": i, "t": t, "frame": k, "sheet": i // 100, "x": (i % 100) % 10 * W, "y": (i % 100) // 10 * H} for i, t, k in tiles],
-           "shots": [{"id": sid, "t": t, "frame": k, "start": round(s, 6), "end": round(e, 6), "file": rel(project, d / "shots" / f"{fn}.jpg")}
-                     for sid, s, e, t, k, fn in shot_rows],
-           "shots_from": shots_from, "made": made, "taken": {"tiles": len(todo_t), "shots": len(todo_s)},
-           "t": round(time.time(), 3), "at": V.iso(time.time()), "seconds": round(time.time() - T0, 2)}
+    w = d   # up to date, nothing is made but a sheet that is not there. Else the pictures are made in a folder beside it, which takes its place when they
+    # are all there: stopped, what was there is as it was
     if made != "up to date":
-        save(recf, rec)
-    else:
-        rec = old
+        w = d.with_name(f".{d.name}.new")
+        shutil.rmtree(w, ignore_errors=True)
+        if made == "refreshed":
+            shutil.copytree(d, w)
+        else:
+            (w / "tiles").mkdir(parents=True); (w / "shots").mkdir()
+    try:
+        jobs = [(k, (W, H), w / "tiles" / f"{i + 1:05d}.jpg") for i, _, k in todo_t] + [(k, (SW, SH), w / "shots" / f"{fn}.jpg") for _, _, _, _, k, fn in todo_s]
+        tick = activity.Progress(len(jobs), "pictures")
+        if jobs and frm != "page":
+            fps_src = probe(src)["fps"] if frm == "proxy" else fps
+            on_pool(lambda j: grab(src, fps_src, j[0], j[1], j[2]), jobs, tick)
+        elif jobs:   # the page, through bin/vh frames: every time at once, then each picture scaled
+            with tempfile.TemporaryDirectory(prefix="vh-thumbs-") as tmp:
+                at = sorted({round(k / fps, 3) for k, _, _ in jobs})
+                r = run(["node", str(HERE / "film" / "frames.mjs"), str(page), "--browser", a["browser"], "--at", ",".join(f"{t:.3f}" for t in at), "--out", tmp])
+                if r.returncode:
+                    raise RuntimeError(f"drawing the page failed: {(r.stderr or r.stdout or '').strip()[-400:]}")
+                stem = Path(page).stem
+                on_pool(lambda j: from_png(Path(tmp) / f"{stem}-t{round(j[0] / fps, 3):08.3f}.png", j[1], j[2]), jobs, tick)
+        changed_sheets = {i // 100 for i, _, _ in todo_t}
+        sh = sheets(w, len(tiles)) if made == "full" or changed_sheets or not all((w / f"sheet-{j + 1:02d}.jpg").is_file() for j in range(math.ceil(len(tiles) / 100))) \
+            else [(w / f"sheet-{j + 1:02d}.jpg", min(100, len(tiles) - j * 100)) for j in range(math.ceil(len(tiles) / 100))]
+        for q in w.glob("sheet-*.jpg"):   # sheets of an earlier, longer film
+            if int(q.stem[6:] or 0) > len(sh):
+                q.unlink()
+        rec = {"version": 1, "tool": "bin/vh thumbs", "source": rel(project, base), "from": frm, "source_ident": idn, "source_version": ver,
+               "fps": fps, "duration": round(dur, 6), "frames": nfr, "settings": settings, "tile": [W, H], "shot": [SW, SH],
+               "sheets": [{"file": rel(project, d / f.name), "tiles": k, "size": [min(10, k) * W, math.ceil(k / 10) * H]} for f, k in sh],
+               "tiles": [{"i": i, "t": t, "frame": k, "sheet": i // 100, "x": (i % 100) % 10 * W, "y": (i % 100) // 10 * H} for i, t, k in tiles],
+               "shots": [{"id": sid, "t": t, "frame": k, "start": round(s, 6), "end": round(e, 6), "file": rel(project, d / "shots" / f"{fn}.jpg")}
+                         for sid, s, e, t, k, fn in shot_rows],
+               "shots_from": shots_from, "made": made, "taken": {"tiles": len(todo_t), "shots": len(todo_s)},
+               "t": round(time.time(), 3), "at": V.iso(time.time()), "seconds": round(time.time() - T0, 2)}
+        if made != "up to date":
+            save(w / "thumbs.json", rec)
+            swap_in(w, d)
+        else:
+            rec = old
+    finally:
+        if w != d:
+            shutil.rmtree(w, ignore_errors=True)
     if a["json"]:
         print(json.dumps(dict(rec, state=made), ensure_ascii=False, indent=1))
     else:

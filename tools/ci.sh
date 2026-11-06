@@ -6611,10 +6611,37 @@ except SystemExit as e:
     code = e.code
 rows = [json.loads(x) for x in open(log, encoding="utf-8")]
 kept = [r.get("kept") for r in rows if r["event"] == "note" and r.get("kept")]
+# a stop in the middle of writing a line (a stand-in provider that leaves half a file): it does not pass for done, and --resume makes it again, whole
+half = []
+def half_then_stop(text, voice, out, tmp, lang, style):
+    half.append(text)
+    with wave.open(str(out), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(48000); w.writeframes(b"\1\0" * (480 if len(half) == 2 else 4800))
+    if len(half) == 2 and os.environ.get("STOP2"):
+        raise KeyboardInterrupt
+    return None
+tts.PROVIDERS["edge"] = half_then_stop
+for f in os.listdir(f"{p}/audio/vo/zh"):
+    os.remove(f"{p}/audio/vo/zh/{f}")
+os.environ["STOP2"] = "1"; sys.argv = ["tts.py", p, "--provider", "edge", "--voice", "x", "--lang", "zh"]
+try:
+    tts.entry()
+except SystemExit as e:
+    code2 = e.code
+line2 = os.path.exists(f"{p}/audio/vo/zh/02.wav")
+left = [f for f in os.listdir(f"{p}/audio/vo/zh") if f.startswith(".")]
+del os.environ["STOP2"]; half.clear(); sys.argv = ["tts.py", p, "--provider", "edge", "--voice", "x", "--lang", "zh", "--resume"]
+try:
+    tts.main()
+except SystemExit as e:
+    pass
+resumed = list(half)
+if code2 != 130 or line2 or left or len(resumed) != 2 or "第二句" not in resumed[0]:
+    print("half a line:", code2, line2, left, resumed)
 print("ok" if done and done[0] == 0 and done[-1] == 3 and code == 130 and kept and "2 of 3 line(s)" in kept[0] and "--resume" in kept[0] else [done, code, rows])
 PY
     )
-    case "$a" in *ok) ok "progress: tts says its lines done; stopped, it says what a resume has" ;; *) bad "tts's progress and stop: $(printf '%s' "$a" | tail -c 800)" ;; esac
+    case "$a" in *"half a line"*) bad "tts: half a line under --resume: $(printf '%s' "$a" | tail -c 500)" ;; *ok) ok "progress: tts says its lines done; stopped, it says what a resume has, and a line cut short does not pass for done" ;; *) bad "tts's progress and stop: $(printf '%s' "$a" | tail -c 800)" ;; esac
     # proxy and deliver stopped in the middle of an encode (a stand-in ffmpeg that starts its output and never ends): what they began goes, what was there stays
     mkdir -p "$t/hang"
     printf '#!/bin/sh\nfor a in "$@"; do last=$a; done\n: > "$last"\n: > "$HANGMARK"\nwhile :; do sleep 0.05; done\n' > "$t/hang/ffmpeg"; chmod +x "$t/hang/ffmpeg"
@@ -6645,6 +6672,31 @@ print("; ".join(bad) or "ok")
 PY
     )
     [ "$a" = ok ] && ok "cancel: proxy and deliver stopped in the middle of an encode: ffmpeg goes, what they began goes, the film is as it was" || bad "cancel of proxy and deliver: $(printf '%s' "$a" | tail -c 800)"
+    # thumbs --full stopped in the middle: the pictures that were there are all there, the record as it was, nothing left beside them
+    vh thumbs "$p/out/film.mp4" --every 0.5 >/dev/null 2>&1
+    a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY' 2>&1
+import glob, hashlib, json, os, signal, subprocess, sys, time
+sh, root, p, t = sys.argv[1:]
+d = f"{p}/out/proxy/film.thumbs"
+state = lambda: {f: hashlib.sha256(open(f, "rb").read()).hexdigest() for f in glob.glob(f"{d}/**", recursive=True) if os.path.isfile(f)}
+before = state()
+mark = f"{t}/hanging"
+if os.path.exists(mark): os.remove(mark)
+pr = subprocess.Popen([sh, f"{root}/bin/vh", "thumbs", f"{p}/out/film.mp4", "--every", "0.5", "--full"], env=dict(os.environ, PATH=f"{t}/hang:{os.environ['PATH']}", HANGMARK=mark), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+for _ in range(1200):
+    if os.path.exists(mark) or pr.poll() is not None: break
+    time.sleep(0.05)
+r = subprocess.run([sh, f"{root}/bin/vh", "cancel", p, "--json"], capture_output=True, text=True)
+rec = json.loads(r.stdout) if r.stdout.strip() else {}
+row = (rec.get("runs") or [{}])[0]
+try: ex = pr.wait(10)
+except subprocess.TimeoutExpired:
+    os.killpg(pr.pid, signal.SIGKILL); pr.wait(); ex = "still running"
+left = [x for x in os.listdir(f"{p}/out/proxy") if ".thumbs." in x]
+print("ok" if len(before) > 5 and state() == before and not left and r.returncode == 0 and row.get("state") == "cancelled" and ex in (-2, -15, 130, 143) else [len(before), len(state()), left, r.returncode, row, ex])
+PY
+    )
+    [ "$a" = ok ] && ok "cancel: thumbs --full stopped in the middle: the pictures that were there are all there, the record as it was, nothing left beside them" || bad "cancel of thumbs --full: $(printf '%s' "$a" | tail -c 800)"
   else skip "progress lines of proxy, thumbs, deliver and tts" "needs ffmpeg"; fi
   # a real render, cancelled with chunks kept (its page hangs after half a second), and a real patch's progress
   if ! command -v ffmpeg >/dev/null; then skip "cancel of a real render, patch's progress" "needs ffmpeg"
