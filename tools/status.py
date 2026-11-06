@@ -344,11 +344,13 @@ def shown(project):
 
 
 def engine_named(proj):
-    """The engine the BRIEF's Engine line names first (a concept can change the type's own), else the type's own: hf, manim,
-    p5, canvas or None."""
+    """The engine the BRIEF's Engine line names first (a concept can change the type's own): hf, manim, p5, canvas, or other (Remotion:
+    no commands here); with the line not filled in, the type's own, or None."""
     line = (proj["spec"].get("Engine") or "").lower()
-    m = None if "{" in line else re.search(r"hyperframes|manim|claudeanimationbase|p5|canvas", line)
-    return {"hyperframes": "hf", "manim": "manim", "canvas": "canvas"}.get(m.group(0), "p5") if m else TYPE_ENGINE.get((proj["type"] or "")[:2])
+    if not line or "{" in line:
+        return TYPE_ENGINE.get((proj["type"] or "")[:2])
+    m = re.search(r"hyperframes|manim|claudeanimationbase|p5|canvas", line)
+    return {"hyperframes": "hf", "manim": "manim", "canvas": "canvas"}.get(m.group(0), "p5") if m else "other"
 
 
 def engine_here(project, proj):
@@ -393,9 +395,10 @@ def engine_setup(project, proj):
 
 def frame_cmd(project, proj):
     """How to look at a frame before there is a film. bin/vh frames draws a page; Manim has none, and keeps its last frame."""
-    if engine_here(project, proj) == "manim":
+    engine = engine_here(project, proj)
+    if engine == "manim":
         return f"(cd {shown(project)} && uv run manim -ql -s scene.py <Scene>)"
-    return f"bin/vh frames {shown(project)} --at 1,5,9"
+    return None if engine == "other" else f"bin/vh frames {shown(project)} --at 1,5,9"
 
 
 def render_cmd(project, proj, final):
@@ -407,7 +410,7 @@ def render_cmd(project, proj, final):
         return f"(cd {p} && node render.mjs --clip --out={name})"
     if engine == "manim":
         return f"(cd {p} && uv run manim {'-qh --fps 30' if final else '-ql'} scene.py <Scene>)"
-    return f"bin/vh render {p} --out {p}/{name}"
+    return None if engine == "other" else f"bin/vh render {p} --out {p}/{name}"
 
 
 def engine_docs(project, proj):
@@ -537,7 +540,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
                    [f"bin/vh storyboard {p}", f"bin/vh rhythm {p}"] + cmds, [R_PAGE, R_ANIMATIC, R_LOOKDEV if proj["effort"] == "studio" else None, R_FRAMES, R_LONG if long_film else None, R_NARRATIVE if long_film else None])
     if key == "3":
         if fstate == "none":
-            return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]) if quick else "", first_scenes(), ) if x),
+            return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]) if quick else "", first_scenes()) if x),
                        [engine_setup(project, proj), frame_cmd(project, proj), render_cmd(project, proj, False)],
                        [*engine_docs(project, proj), R_FRAMES, *writing, R_LONG if long_film else None])
         if fstate in ("unchecked", "stale"):
@@ -562,7 +565,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     if fstate == "failed":
         return out("agent", busy + f"fix what bin/vh check failed on {film}" + (": " + "; ".join(fails) if fails else ""), check, [R_SILENT])
     if not is_final(film):
-        manim = "manim" in render_cmd(project, proj, True)   # its film lands in media/videos/<scene>/1080p30/, by the scene's name
+        manim = engine_here(project, proj) == "manim"   # its film lands in media/videos/<scene>/1080p30/, by the scene's name
         return out("agent", busy + ("this is Manim's draft: render it at high quality (-qh)" if manim else "render the final at delivery quality")
                    + ", put the sound on when it has any (bin/vh mix, qa, mux), and check it",
                    [render_cmd(project, proj, True), f"bin/vh check {p}" if manim else f"bin/vh check {p}/out/final.mp4"], [R_SOUND])

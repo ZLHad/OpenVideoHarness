@@ -5485,6 +5485,8 @@ PY
   a="$a$(ns "$e" '"hf-init" in c')"
   python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Engine: HyperFrames", "- Engine: Manim CE", 1))' "$e"
   a="$a$(ns "$e" '"hf-init" not in c and "1 --init" in c')"
+  OVH_PROJECTS="$t" vh new math nr --effort quick >/dev/null 2>&1; e=$(ls -d "$t"/*-nr); python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Engine: Manim CE", "- Engine: Remotion", 1))' "$e"
+  a="$a$(ns "$e" 'n["commands"] == []')"
   [ -z "$a" ] && ok "status next: type 09 gets hf-init at the first picture, not at gate ①; the BRIEF's Engine line comes before the type's own" || bad "status next, the engine at hand: $a"
   # Manim: its pieces of a scene are no film; 480p15 and 720p30 are drafts, and next says to render at high quality; 1080p30 and
   # a vertical 1920p30 are the final. A record of a passing film (rec): the same film, by its path

@@ -957,7 +957,8 @@
       "writes": [
         "<project>/out/review/gate-<n>.html",
         "<project>/out/review/index.html",
-        "<project>/out/review/.current"
+        "<project>/out/review/.current",
+        "<project>/out/review/.gate-<n>.refused.json (a page that breaks a rule: what is wrong, until a run of it goes through)"
       ],
       "usage": [
         {
@@ -979,7 +980,7 @@
         "<project>/BRIEF.md"
       ],
       "writes": [
-        "<project>/out/review/gate-<n>.html, index.html, .current",
+        "<project>/out/review/gate-<n>.html, index.html, .current, .gate-<n>.refused.json (a page that breaks a rule: nothing is sent)",
         "<project>/out/review/gate-<n>.json (--init)",
         "the review desk, a local server, for a stop reviewed there"
       ],
