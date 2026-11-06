@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**Two small changes for every film: a grey check, and requests that hold from then on**
+- Why: both come from real reviews. Value contrast is what a squint test approximates, and turning a sheet grey checks it directly. And on one long film the person repeated the same request six times, because it was recorded under the stop where it was said and nobody reread it.
+- `templates/TASTE_CHECKLIST.md` #1 also asks whether the subject and the background still separate in grey, except where low contrast is the point. It is not a floor.
+- `templates/REVIEW.md` opens with a section for requests that hold from then on, one line each, in the person's words. `playbook/01` says to copy them there, and `playbook/02` hands the section to the reviewer with the other decisions. Tools ignore it: `gatecheck` and `status` match stops by their titles.
+
 **A film the video model shoots, written out: text first, then pictures, and only then paid video**
 - Why: `playbook/05` covered matching clips to code but not how to run a film whose pictures all come from a video model, and this repo has never called one. A long article by someone who makes such films (Eian, X, 2026-11-05) supplies the working method. It is the author's report, not measured here, and the section says so.
 - `playbook/05-hybrid-genvideo.md`, new section "模式 A 的落地", a short summary with a link back (the prompt templates and the error table stay in the article): the stages and what each costs to change, how to draw first and last frames, what to check on them, a review before paying, what to try before generating again. What is not taken from it is said too: an agent approving in the person's place, and running until the account is empty. `playbook/09` §4.3: on films with characters, a turn gets a reaction from those around it.
