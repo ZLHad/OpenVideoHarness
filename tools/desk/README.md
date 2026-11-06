@@ -156,7 +156,7 @@ JSON 的格式：
 - `next_step`：下一步，按项目停在哪一站算出来：`who`（`person`、`agent`、`nobody`、`unknown`）、`do`（一句话，还没填的 `{…}` 和 gate 骨架里的占位有几处都说出来；Director 写了 `x=own`、还没有记录的事排在最前面，记录是它那一站过了，或者 DECISIONS.md 里它那一行写了已定）、`commands`（能直接跑的命令，`<Scene>` 这类尖括号是要换的）、`read`（该读的：`<文件>#<节>` 由 `bin/vh know --show` 打印，没有 `#` 的整篇读）、`unfilled`（`BRIEF.md`、`STYLE.md`、`STORYBOARD.md` 各还有几处 `{…}`，不算代码块和行内代码里的，也不算模板的 `{none}` 和 `{fill: #e33}` 这种带值的花括号）。
 - `review`：`current`（这一轮的页名）、`page`、`desk`（在跑时：`url`、`listening`）。
 - `open`：`review_items`（审阅台提交里标了要改、疑问，而 REVIEW.md 那一节还没写定了 / 改了的条目：`round`、`file`、`target`、`status`、`label`、`text`）、`facts_to_verify`（NOTES.md 待核实里没打勾的）。
-- `renders`：`out/`（往下三层，不含 `out/versions/` 和 `out/proxy/`）、`renders/`、`media/` 里的视频，新的在前，最多 10 个：`path`、`size`、`mtime`、`render`（`.render.json` 的帧数、帧率、像素、时间段）、`patches`、`delivery`（它是 `bin/vh deliver` 出的上传版时）、`check`（它最近的检查记录）、`version`（它是哪一版的当前文件，见下面"版本"）。`deliveries`：`bin/vh deliver` 的记录。
+- `renders`：`out/`（不含 `out/versions/` 和 `out/proxy/`）、`renders/`、`media/` 往下三层的视频（不含 Manim 的 `partial_movie_files/`），新的在前，最多 10 个：`path`、`size`、`mtime`、`render`（`.render.json` 的帧数、帧率、像素、时间段）、`patches`、`delivery`（它是 `bin/vh deliver` 出的上传版时）、`check`（它最近的检查记录）、`version`（它是哪一版的当前文件，见下面"版本"）。`deliveries`：`bin/vh deliver` 的记录。
 - `versions`：版本记录（下面"版本"）的摘要，还没有记录时是 `null`：`record`、`keep`、`current`、`kept_bytes`、`list`（每版 `id`、`at`、`t`、`film`、`file`、`state`、`made_by`、`from`、`note`、`changed`、`frames`、`pixels`、`check`）；记录读不了时是 `{"error"}`。
 - `check`：最近一次 `bin/vh check` 的记录摘要：`record`、`video`、`at`、`verdict`、`exit`、`counts`、`fails`（前三条）、`stale`（视频不是检查时的那一支了：检查记录里的 `size` 或 `mtime_ns` 和视频现在的不同；没有这两个字段的老记录，看视频的修改时间是不是比记录晚，见"检查记录"）。
 - `activity`：`running`（正在跑的命令）、`listening`（在跑的审阅台、`gate --wait`：是在等人，不是在干活）、`recent`（最近结束的五条），每条是下面活动记录里的一个 run。
