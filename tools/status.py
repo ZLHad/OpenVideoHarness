@@ -25,7 +25,8 @@ Each has a state:
   not_started     later stops; a stop passed over without a record stays not_started
   no_record       every stop of a standard or studio project with no REVIEW.md (made before the templates had one):
                   nothing to read its review from (gatecheck.py does not check those either)
-Delivery is done once bin/vh deliver has written a record, or the final film (out/final*, out/final/, media/) has a passing
+Delivery is done once bin/vh deliver has written a record, or the final film (out/final*, out/final/, a file directly in
+media/, Manim's render at 1080p or more; not its 480p15 and 720p30 drafts, and not a film a failed patch left) has a passing
 bin/vh check record of that very film (the size and mtime_ns it kept are the film's now; a record from before those: newer
 than the film), and gate ③ is done or skipped (a delivery before it is said in the note); in progress once every stop is
 done or skipped.
@@ -54,9 +55,8 @@ import activity, checkrec as C, gatecheck as G, proxy as P, review as R, version
 import feedback as F, reader   # noqa: E402,E401
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
-VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
-SKIP_DIRS = {"frames", "node_modules", "__pycache__", ".venv", "venv"}
 OUT_SKIP = {"versions", "proxy"}   # out/versions (listed from its record) and out/proxy: not renders; only directly in out/
+MANIM_FINAL = re.compile(r"(1080|1440|1920|2160|3840)p")   # media/videos/<scene>/1080p30: the folder is named by the height, so 1920p30 is a vertical 1080p
 STATE_MARK = {"done": "✓", "skipped": "–", "waiting_person": "●", "waiting_agent": "◆", "in_progress": "…", "not_started": "·",
               "no_record": "○"}
 STATE_WORDS = {"done": "done", "skipped": "skipped", "waiting_person": "waiting for you", "waiting_agent": "waiting for the agent",
@@ -212,23 +212,14 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
 
 
 def renders(project):
-    """Video files under out/ (three levels down), renders/ and media/, newest first, with what lies beside them."""
+    """Video files under out/, renders/ and media/, three levels down, newest first, with what lies beside them."""
     found = []
     for top in ("out", "renders", "media"):
-        base = project / top
-        if not base.is_dir():
-            continue
-        for d, dirs, files in os.walk(base):
-            depth = Path(d).relative_to(base).parts
-            dirs[:] = [x for x in dirs if x not in SKIP_DIRS and not x.startswith(".") and len(depth) < 3
-                       and not (top == "out" and not depth and x in OUT_SKIP)]
-            for f in files:
-                if Path(f).suffix.lower() in VIDEO and not f.startswith("."):
-                    p = Path(d) / f
-                    try:
-                        found.append((p, p.stat()))
-                    except OSError:   # gone since the listing
-                        pass
+        for p in P.videos_under(project / top, OUT_SKIP if top == "out" else ()):
+            try:
+                found.append((p, p.stat()))
+            except OSError:   # gone since the listing
+                pass
     return sorted(found, key=lambda x: -x[1].st_mtime)
 
 
@@ -371,9 +362,14 @@ def film_state(project, by_video):
 
 
 def is_final(path):
-    """out/final*, out/final/…, media/…: a film that counts as the delivery (as main takes it)."""
+    """A film (its path from the project) that counts as the delivery: out/final*, out/final/…, a file directly in media/, or
+    Manim's render at 1080p or more; not its drafts (480p15, 720p30), and not a film a failed patch left."""
     parts = Path(path).parts
-    return parts[-1].lower().startswith("final") or "final" in parts[:-1] or parts[0] == "media"
+    if P.is_failed(parts[-1]):
+        return False
+    if parts[:2] == ("media", "videos"):   # Manim's tree: the folder says the quality, whatever the scene is called
+        return bool(MANIM_FINAL.match(parts[-2]))
+    return parts[-1].lower().startswith("final") or "final" in parts[:-1] or (len(parts) > 1 and parts[-2] == "media")
 
 
 def next_step(project, proj, st, paused, no_record, working, desk, by_video):
@@ -415,6 +411,8 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     key = s["id"]
     film, fstate, fails = film_state(project, by_video)
     check = [f"bin/vh check {p}"]
+    also = P.film_of(project)[1]
+    named = film and film + (f" (also here: {P.also_here(project, also)})" if also else "")   # the film in a sentence
 
     def fill(what):
         """what, with the {…} the files it names still have in front of it."""
@@ -444,7 +442,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
             return out("agent", busy + "write the scenes, look at their frames, then render a draft", [f"bin/vh frames {p} --at 1,5,9", render_cmd(project, proj, False)],
                        [engine_doc(project, proj), R_FRAMES, R_LONG if long_film else None])
         if fstate in ("unchecked", "stale"):
-            return out("agent", busy + f"check {film} and look at its contact sheet", check + [f"bin/vh sheet {p}/{film}"], [R_FRAMES, R_PHONE, R_SILENT])
+            return out("agent", busy + f"check {named} and look at its contact sheet", check + [f"bin/vh sheet {p}/{film}"], [R_FRAMES, R_PHONE, R_SILENT])
         if fstate == "failed":
             return out("agent", busy + f"fix what bin/vh check failed on {film}" + (": " + "; ".join(fails) if fails else ""), check, [R_SILENT])
         say, cmds = page()
@@ -458,13 +456,15 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), "a short storyboard table, the scenes, then a draft" if quick else "render the final") if x),
                    [render_cmd(project, proj, not quick)], [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, engine_doc(project, proj), R_PHONE] if quick else [engine_doc(project, proj), R_FRAMES])
     if fstate in ("unchecked", "stale"):
-        return out("agent", busy + f"check {film}" + (" and look at its contact sheet" if not is_final(film) else ""),
+        return out("agent", busy + f"check {named}" + (" and look at its contact sheet" if not is_final(film) else ""),
                    check + ([f"bin/vh sheet {p}/{film}"] if not is_final(film) else []), [R_PHONE] if quick else [])
     if fstate == "failed":
         return out("agent", busy + f"fix what bin/vh check failed on {film}" + (": " + "; ".join(fails) if fails else ""), check, [R_SILENT])
     if not is_final(film):
-        return out("agent", busy + "render the final at delivery quality, put the sound on when it has any (bin/vh mix, qa, mux), and check it",
-                   [render_cmd(project, proj, True), f"bin/vh check {p}/out/final.mp4"], [R_SOUND])
+        manim = "manim" in render_cmd(project, proj, True)   # its film lands in media/videos/<scene>/1080p30/, by the scene's name
+        return out("agent", busy + ("this is Manim's draft: render it at high quality (-qh)" if manim else "render the final at delivery quality")
+                   + ", put the sound on when it has any (bin/vh mix, qa, mux), and check it",
+                   [render_cmd(project, proj, True), f"bin/vh check {p}" if manim else f"bin/vh check {p}/out/final.mp4"], [R_SOUND])
     return out("agent", busy + "the final passes bin/vh check: bin/vh deliver makes the copy to upload", [f"bin/vh deliver {p}/{film}"], [])
 
 
@@ -516,7 +516,7 @@ def main(argv):
     for r, p in checks:
         if r["video"]:
             by_video.setdefault(r["video"], (r, p))
-    finals = [(v, s) for v, s in vids if v.name.lower().startswith("final") or "final" in v.relative_to(project).parts[:-1] or v.parent.name == "media"]
+    finals = [(v, s) for v, s in vids if is_final(rel(project, v))]
     final_ok = any((c := by_video.get(rel(project, v))) and c[0]["verdict"] == "pass" and not film_changed(c[0], s) for v, s in finals)
     gates_through = all(s["state"] in ("done", "skipped") for s in st)
     g3 = next((s for s in st if s["id"] == "3"), None)

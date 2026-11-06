@@ -5349,13 +5349,49 @@ PY
   mkdir -p "$q/out/check"; : > "$q/out/draft.mp4"
   b=$(ns "$q" '"check out/draft.mp4" in n["do"]')
   printf '{"version": 1, "video": "out/draft.mp4", "t": %s, "verdict": "pass", "exit": 0, "counts": {"fail": 0}, "findings": []}\n' "$(($(date +%s) + 5))" > "$q/out/check/draft.check.json"
-  c=$(ns "$q" '"render the final" in n["do"]' '"-qh" in c and "out/final.mp4" in c')
+  c=$(ns "$q" '"high quality" in n["do"]' '"-qh" in c and "bin/vh check" in c')
   sleep 1; : > "$q/out/final.mp4"
   d=$(ns "$q" '"check out/final.mp4" in n["do"]')
   printf '{"version": 1, "video": "out/final.mp4", "t": %s, "verdict": "pass", "exit": 0, "counts": {"fail": 0}, "findings": []}\n' "$(($(date +%s) + 5))" > "$q/out/check/final.check.json"
   e=$(ns "$q" 'n["who"] == "nobody"' '"LESSONS.md" in n["do"]')
   if [ -z "$a$b$c$d$e" ]; then ok "status next: quick's path, from no film and BRIEF to fill, a draft to check, the final to render, to delivered"
   else bad "status next on quick's path: $a | $b | $c | $d | $e"; fi
+  # Manim: its pieces of a scene are no film; 480p15 and 720p30 are drafts, and next says to render at high quality; 1080p30 and
+  # a vertical 1920p30 are the final. A record of a passing film (rec): the same film, by its path
+  rec() { printf '{"version": 1, "video": "%s", "t": %s, "verdict": "pass", "exit": 0, "counts": {"fail": 0}, "findings": []}\n' "$2" "$(($(date +%s) + 5))" > "$1/out/check/$3.check.json"; }
+  OVH_PROJECTS="$t" vh new math nm --effort quick >/dev/null 2>&1; d=$(ls -d "$t"/*-nm); e="$d/media/videos/scene"
+  mkdir -p "$e/480p15/partial_movie_files/X" "$e/720p30" "$e/1080p30" "$e/1920p30" "$d/media/deep/er/than/three"
+  : > "$e/480p15/X.mp4"; touch -t 202601010000 "$e/480p15/X.mp4"; : > "$e/480p15/partial_movie_files/X/00000.mp4"; : > "$d/media/deep/er/than/three/x.mp4"
+  a=$(ns "$d" '"check media/videos/scene/480p15/X.mp4" in n["do"]' '"partial_movie_files" not in c')
+  b=$(vh check "$d" 2>&1 >/dev/null | head -1); case "$b" in *"media/videos/scene/480p15/X.mp4, the newest film"*) ;; *) a="$a | check took: $b" ;; esac
+  c=$(vh status "$d" --json | python3 -c 'import json, sys; print(" ".join(r["path"] for r in json.load(sys.stdin)["renders"]))'); [ "$c" = media/videos/scene/480p15/X.mp4 ] || a="$a | status lists: $c"
+  rec "$d" media/videos/scene/480p15/X.mp4 m480
+  a="$a$(ns "$d" '"Manim" in n["do"] and "-qh" in n["do"]' '"-qh" in c and "bin/vh check" in c and "out/final.mp4" not in c and "deliver" not in c')"
+  : > "$e/720p30/X.mp4"; touch -t 202601010001 "$e/720p30/X.mp4"; rec "$d" media/videos/scene/720p30/X.mp4 m720
+  a="$a$(ns "$d" '"Manim" in n["do"] and "-qh" in c')"
+  : > "$e/1080p30/X.mp4"; touch -t 202601010002 "$e/1080p30/X.mp4"
+  a="$a$(ns "$d" '"check media/videos/scene/1080p30/X.mp4" in n["do"]')"
+  rec "$d" media/videos/scene/1080p30/X.mp4 m1080
+  a="$a$(ns "$d" 'n["who"] == "nobody"')"
+  rm -f "$d/out/check/m1080.check.json" "$e/1080p30/X.mp4"; : > "$e/1920p30/X.mp4"; touch -t 202601010002 "$e/1920p30/X.mp4"; rec "$d" media/videos/scene/1920p30/X.mp4 m1920
+  a="$a$(ns "$d" 'n["who"] == "nobody"')"
+  [ -z "$a" ] && ok "status next and check: Manim's pieces of a scene are no film, its 480p15 and 720p30 are drafts (render with -qh), 1080p30 and a vertical 1920p30 are the final; status and check look as deep" \
+    || bad "status next on Manim's renders: $a"
+  # a film a failed patch left is not the film, nor the final; a chapter's preview does not win over a final, and is said
+  OVH_PROJECTS="$t" vh new math nf --effort quick >/dev/null 2>&1; d=$(ls -d "$t"/*-nf); mkdir -p "$d/out/chapters" "$d/out/check"
+  : > "$d/out/final.failed.mp4"; rec "$d" out/final.failed.mp4 ff
+  a=$(ns "$d" 'n["who"] == "agent" and "out/final.failed" not in n["do"]' '"-ql" in c'); b=$(vh check "$d" 2>&1 >/dev/null); rc=$?
+  case "$rc:$b" in 2:*"no film yet"*) ;; *) a="$a | check with only a failed patch ($rc): $b" ;; esac
+  : > "$d/out/final.mp4"; touch -t 202601010000 "$d/out/final.mp4"; : > "$d/out/final.failed-2.mp4"
+  b=$(vh check "$d" 2>&1 >/dev/null | head -1); case "$b" in *"out/final.mp4, the newest film"*) ;; *) a="$a | check with a failed patch: $b" ;; esac
+  a="$a$(ns "$d" '"check out/final.mp4" in n["do"]')"
+  : > "$d/out/chapters/ch03.mp4"; rm -f "$d/out/final.failed.mp4" "$d/out/final.failed-2.mp4" "$d/out/check/ff.check.json"
+  b=$(vh check "$d" 2>&1 >/dev/null | head -1); case "$b" in *"out/final.mp4, the final in "*"also here: out/chapters/ch03.mp4"*) ;; *) a="$a | check with a chapter's preview: $b" ;; esac
+  a="$a$(ns "$d" '"check out/final.mp4 (also here: out/chapters/ch03.mp4)" in n["do"]')"
+  rm -f "$d/out/final.mp4"; : > "$d/out/draft.mp4"; touch -t 202601010000 "$d/out/draft.mp4"
+  b=$(vh check "$d" 2>&1 >/dev/null | head -1); case "$b" in *"out/chapters/ch03.mp4, the newest film"*) ;; *) a="$a | check with no final: $b" ;; esac
+  [ -z "$a" ] && ok "status next and check: a film a failed patch left is neither the film nor the final; a chapter's preview does not win over out/final*, and is said; with no final the newest stands" \
+    || bad "status next, a failed patch and a chapter's preview: $a"
   python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Director: default", "- Director: stop=E3", 1))' "$p"
   a=$(ns "$p" '"E3" in n["do"] and "director mode" in n["do"]' '"E3 --init" in c' '"playbook/01-pipeline.md#导演模式" in r')
   printf '\n## 暂停 · 2026-10-19\n- 原话："先停一下"\n' >> "$p/REVIEW.md"

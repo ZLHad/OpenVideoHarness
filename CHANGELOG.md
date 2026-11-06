@@ -35,7 +35,7 @@
 
 **`bin/vh check <project>` checks the newest film**
 - Why: `bin/vh check` takes a video, and CLAUDE.md said "run `bin/vh check`" with no argument, so an agent passed the project and got "no such video". The next step in `bin/vh status` also wants one command for it.
-- `bin/vh check <project folder or name>`: the newest video in `out/`, `media/` or `renders/`, and it says which; a copy `bin/vh deliver` made or an animatic only when there is nothing else (`tools/proxy.py`, `newest_film`). No film yet: exit 2, render first. A folder with no BRIEF.md: exit 2. A file works as before. `CLAUDE.md`'s floor says it takes either.
+- `bin/vh check <project folder or name>`: the newest video in `out/`, `media/` or `renders/`, and it says which; a copy `bin/vh deliver` made or an animatic only when there is nothing else, a film a failed patch left and Manim's `partial_movie_files` never (`tools/proxy.py`, `film_of`). A chapter's preview rendered after the final does not win over `out/final*`: it checks the final and says "also here: …". No film yet: exit 2, render first. A folder with no BRIEF.md: exit 2. A file works as before. `CLAUDE.md`'s floor says it takes either. `bin/vh status` looks for films the same way, as deep, and for it a Manim render under 1080p is a draft, which next says to render with `-qh`.
 
 **`bin/vh new`: the type as the docs write it, a scaffold that fails says so, and `--json`**
 - Why: the routing table names `02-knowledge-short`, and `bin/vh new` only took `short`. When HyperFrames' init failed it threw npx's words away, printed ✓ and exited 0, leaving a project with no `index.html` for an agent to find out about later. And its `next:` line spoke only to a person.
