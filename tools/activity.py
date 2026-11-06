@@ -30,7 +30,8 @@ it starts through the environment (OVH_ACTIVITY_LOG, _RUN, _PID, _T0, _CMD). A t
 that bin/vh exec'd into (it has the run's pid: render, patch, frames and the other page tools, desk, gate) writes the end
 itself, since no shell is left to do it. Every bin/vh command that works on a project is logged, except the read-only
 views (status, activity, artifacts, projects, desk data, doctor, timeline --resolved, history list and diff). Never written:
-environment variables, keys, file contents.
+environment variables, keys, file contents: what a start line hides of an argument, scrub() hides of a summary, an error's
+message above all, which may repeat what was typed (word by word by the same rules; bin/vh's act_scrub is the same in bash).
 Safety: a line is one write(2) with O_APPEND, so the lines of commands running at once never interleave: under 1 KiB from
 bin/vh (bash's printf writes a longer line in 1024-byte pieces), under 4 KiB from Python and Node; a line that cannot be
 written is dropped without a word: a command never fails, and never waits, because of its log. Every line is UTF-8: a
@@ -39,7 +40,7 @@ the reader shows a raw one in a line an older bin/vh wrote the same way.
 A run without an end line is running while its process lives (and started within 7 days), else gone (it was killed, or
 the machine restarted). bin/vh cancel stops a running one and sees that its end line says so. The reader reads the last 4 MB of the log.
 """
-import json, os, subprocess, sys, threading, time
+import json, os, re, subprocess, sys, threading, time
 from pathlib import Path
 
 MAX_LINE = 3800              # bytes: one line, one write, well under 4 KiB
@@ -83,6 +84,108 @@ def _text(x):
     return x
 
 
+_SECRET = re.compile(r"key|token|secret|pass|auth|cred|cookie|header|bearer", re.I)
+_KEY_STARTS = r"sk-|sk_|AIza|AQ\.|ghp_|gho_|ghu_|ghs_|github_pat_|glpat-|xox[abposr]-|eyJ|hf_|AKIA|ya29\."
+_KEY_START = re.compile(_KEY_STARTS)
+_KEY_INSIDE = re.compile(r"(^|[^A-Za-z0-9])((?:" + _KEY_STARTS + r")[A-Za-z0-9_.+/=-]{8,})")
+_WORD = re.compile(r"""(["'(\[{<]*)(.*?)(["')\]}>,;:.!?]*)""", re.S)
+
+
+def keyish(v):
+    """Does a word look like a key? bin/vh's act_keyish: a vendor's prefix; 32 or more letters, digits and _; or key characters (also
+    . + = -) with a digit among them: 32 or more, 16 or more in both cases, or 20 or more hex digits. Not a file name, a word, a slug, a date."""
+    if len(v) < 12:
+        return False
+    if _KEY_START.match(v):
+        return True
+    if re.search(r"[^A-Za-z0-9_.+=-]", v):
+        return False
+    if not re.search(r"[^A-Za-z0-9_]", v) and len(v) >= 32:
+        return True
+    if not re.search(r"[0-9]", v) or re.search(r"\.[a-z][a-z0-9]{0,3}$", v):
+        return False
+    if len(v) >= 32 or (re.search(r"[A-Z]", v) and re.search(r"[a-z]", v) and len(v) >= 16):
+        return True
+    return not re.search(r"[^0-9a-fA-F-]", v) and len(v) >= 20
+
+
+def _value(v, pname):
+    """bin/vh's act_value: a value as a log line shows it."""
+    w, frag = v, ""
+    if "://" in w:   # user:password@host, and the fragment
+        pre, post = w.split("://", 1)
+        au = re.split(r"[/?#]", post, maxsplit=1)[0]
+        if "@" in au:
+            post = "…@" + au.rsplit("@", 1)[1] + post[len(au):]
+        if "#" in post:
+            post, frag = post.split("#", 1)[0], "#…"
+        w = pre + "://" + post
+    if "?" in w and ("://" in w or "=" in w.split("?", 1)[1]):   # every query value
+        head, q = w.split("?", 1)
+        w = head + "?" + "&".join(k.split("=", 1)[0] + "=…" if "=" in k else "…" if keyish(k) else k for k in q.split("&") if k)
+    w += frag
+    m = re.search(r"bearer ", w, re.I)
+    if m:
+        w = w[:m.start()] + "Bearer …"
+    m = re.match(r"([A-Za-z][A-Za-z0-9_-]*): ", w)
+    if m and _SECRET.search(m.group(1)):
+        w = m.group(1) + ": …"
+    if w == v and not os.path.exists(w):
+        if re.search(r"\s", w):   # free text (a --note)
+            return scrub(w)
+        if pname == w or pname.endswith("-" + w):
+            return w
+        return "…" if keyish(w) else _KEY_INSIDE.sub(lambda x: x.group(1) + "…", w)
+    return w
+
+
+def _as_logged(a, pname):
+    """bin/vh's act_shown: (an argument as a log line shows it, is the next one its value)."""
+    n = ""
+    if re.match(r"--[^=].*=", a, re.S):
+        n = a.split("=", 1)[0]
+    elif re.match(r"[A-Za-z_][^=]*=", a, re.S):
+        n = a.split("=", 1)[0]
+        if re.search(r"[^A-Za-z0-9_.-]", n):
+            n = ""
+    if n:
+        if _SECRET.search(n) or not re.search(r"[^A-Z0-9_]", n):   # a secret's name, or NAME=value: a variable's
+            return n + "=…", False
+        return n + "=" + _value(a.split("=", 1)[1], pname), False
+    if a.startswith("--") and len(a) > 2:
+        return a, bool(_SECRET.search(a[2:]))
+    if a == "-h":
+        return a, False
+    if re.fullmatch(r"-[A-Za-z]", a):
+        return a, True
+    if re.match(r"-[A-Za-z].", a, re.S):
+        return a[:2] + "…", False
+    return _value(a, pname), False
+
+
+def scrub(text):
+    """Free text as a log line may hold it: word by word, as a start line shows an argument (bin/vh's act_scrub), each word's quotes
+    and punctuation aside. A word that names a secret hides the next (--key x, Authorization: x, Bearer x)."""
+    log = os.environ.get("OVH_ACTIVITY_LOG") or ""
+    pname = os.path.basename(os.path.dirname(os.path.dirname(log)))
+    out, hide = [], False
+    for i, w in enumerate(re.split(r"([ \t\r\n]+)", str(text))):
+        if i % 2 or not w:   # the white space as it was: a message's lines stay lines
+            out.append(w)
+            continue
+        pre, core, post = _WORD.fullmatch(w).groups()
+        if hide and not core.startswith("-"):
+            hide = core.lower() == "bearer"   # Authorization: Bearer x
+            out.append(pre + (core if os.path.exists(core) else "…") + post)
+        elif core.lower() == "bearer" or (post.startswith(":") and re.fullmatch(r"[A-Za-z0-9_-]+", core) and _SECRET.search(core)):
+            out.append(w)
+            hide = True
+        else:
+            a, hide = _as_logged(core, pname)
+            out.append(pre + a + post)
+    return "".join(out)
+
+
 def _write(log, rec):
     """Append one record as one line; never raises. A summary or an output list too long for one line is cut."""
     try:
@@ -110,7 +213,7 @@ def _write(log, rec):
 
 
 def _summary(s):
-    return " ".join(str(s).split())[:300] if s else None
+    return " ".join(scrub(s).split())[:300] if s else None
 
 
 def note(summary=None, outputs=None, **extra):

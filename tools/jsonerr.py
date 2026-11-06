@@ -4,7 +4,8 @@ With --json among a command's arguments, a failure prints {"version": 1, "error"
 line); the line a person reads stays on stderr, and the exit status is what it was. Under a logged command (bin/vh hands the
 run over in OVH_ACTIVITY_*) the message also goes into the project's activity log, as a note with "level": "error" and
 "code", so bin/vh activity can say why a run failed, with or without --json. bin/vh does the same for what fails before
-Python starts (vh_fail).
+Python starts (vh_fail). The record and the note hold the message as activity.scrub writes it, since it may repeat what was typed: a
+key given to the wrong option is … there (bin/vh's act_scrub, by the same rules), and only stderr has the words as they were.
 
 The codes are stable; a client branches on them, not on the words:
   usage         the arguments are wrong (exit 2)
@@ -66,7 +67,8 @@ def report(code, message, hint=None):
     _said = True
     try:
         import activity
-        message = activity._text(str(message))   # a raw byte in a path: \\xNN, so it prints anywhere
+        message = activity.scrub(activity._text(str(message)))   # a raw byte in a path: \\xNN, so it prints anywhere; a key typed by mistake: …, here and in the log
+        hint = activity.scrub(activity._text(str(hint))) if hint is not None else None
     except Exception:
         message = str(message)
     _note(code, message)
@@ -144,7 +146,9 @@ def guard(main):
             rc = _exit_status(main())
         except SystemExit as e:
             rc = _exit_status(e.code)
-        except Exception:   # KeyboardInterrupt and a closed pipe go on: each tool has its way with those
+        except BrokenPipeError:   # a closed pipe goes on (bin/vh … | head), and so does KeyboardInterrupt: each tool has its way with those
+            raise
+        except Exception:
             traceback.print_exc()
             rc = 1
         if 0 < rc < 128 and not _said:

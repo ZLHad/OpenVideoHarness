@@ -5473,7 +5473,7 @@ PY
 
 contract_checks() {   # what a client relies on (tools/test_contract.py makes a small project and runs the commands): each --json output
   # against tools/schemas/output/, a field removed fails; each command's failures in tools/jsonerr.py's shape, with the exit status
-  # they always had; why a run failed in the activity log. No network, no paid call
+  # they always had; why a run failed in the activity log, and no key in what it says. No network, no paid call
   local t p a b c rc k m
   t=$(mktemp "${TMPDIR:-/tmp}/vh-contract.XXXXXX")
   python3 tools/test_contract.py "$VH_BASH" > "$t" 2>&1; rc=$?
@@ -5565,6 +5565,69 @@ PY
   if [ "$a" = "versions/not_found; check/not_found; edit/not_found" ] && case "$b" in "versions:failed:not_found | check:failed:not_found | edit:failed:not_found | timeline:"*":None") true ;; *) false ;; esac && case "$c" in *"exit 1"*"v1"*"no such video"*"no edit.json"*) true ;; *) false ;; esac
   then ok "activity: a run that failed says why (a note with level error, from a tool or bin/vh itself; --json: the run's error; the listing shows it)"
   else bad "why a run failed: notes '$a', runs '$b', listing $(printf '%s' "$c" | tail -c 400)"; fi
+  # a key typed by mistake, in what a command repeats of its arguments: never in the log, in bin/vh activity or in --json's error; only on the person's own stderr
+  rm -f "$p/.ovh/activity.jsonl"
+  vh history save "$p" --api-key SECRETVALUE111 --json >"$t/k1" 2>"$t/k1.err"; rc=$?
+  vh peaks "$p" --token=SECRETVALUE222 --json >"$t/k2" 2>/dev/null; b=$?
+  vh check "$p" --key=SECRETVALUE666 --json >"$t/k3" 2>/dev/null; c=$?
+  vh activity "$p" > "$t/k4" 2>&1; vh activity "$p" --json > "$t/k5" 2>&1
+  m=$(python3 - "$t" "$p/.ovh/activity.jsonl" <<'PY' 2>&1
+import json, sys
+t, log = sys.argv[1:]
+codes = [json.load(open(f"{t}/k{i}"))["error"]["code"] for i in (1, 2, 3)]
+notes = [r for r in map(json.loads, open(log, encoding="utf-8")) if r.get("level") == "error"]
+want = ["--api-key …", "--token=…", "--key=…"]
+print("ok" if codes == ["usage"] * 3 and len(notes) == 3 and all(w in n["summary"] for w, n in zip(want, notes)) and all(w in json.load(open(f"{t}/k{i}"))["error"]["message"] for w, i in zip(want, (1, 2, 3))) else [codes, notes])
+PY
+  )
+  if [ "$rc:$b:$c:$m" = 2:2:2:ok ] && ! grep -l SECRETVALUE "$p/.ovh/activity.jsonl" "$t/k1" "$t/k2" "$t/k3" "$t/k4" "$t/k5" >/dev/null && grep -q SECRETVALUE111 "$t/k1.err"; then ok "errors: a key typed by mistake is … in the log's note, in bin/vh activity and in --json's error, from a tool (history, peaks) and from bin/vh itself (check)"
+  else bad "a key in an error: exit $rc, $b, $c, $m: $(grep -l SECRETVALUE "$p/.ovh/activity.jsonl" "$t"/k? | tr '\n' ' ')"; fi
+  # the filter's rules, one table for bash (through what bin/vh new repeats of an option it does not know) and Python
+  a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PY' 2>&1
+import json, os, subprocess, sys
+sh, root, t = sys.argv[1:]
+sys.path.insert(0, f"{root}/tools")
+import activity
+table = (("--api-key SECRETVALUE111", "--api-key …"), ("--api-key --json", None), ("--token=SECRETVALUE222", "--token=…"), ("GEMINI_API_KEY=abc123", "GEMINI_API_KEY=…"), ("cred=abc", "cred=…"), ("Authorization: Bearer abc.def", "Authorization: … …"),
+         ("Bearer abc.def", "Bearer …"), ("Cookie: abc", "Cookie: …"), ("token sk-ant-api03-SECRETVALUE1234567890abcdefgh", "token …"), ("AQ.Ab8RN6Lxyz_12345678 was refused", "… was refused"), ("AIzaSyA1234567890abcdefghijklmnop", "…"),
+         ("ghp_1234567890abcdefghij", "…"), ("{\"api_key\":\"sk-ant-api03-abcdefgh12345678\"}", "{\"api_key\":\"…\"}"), ("没有这个文件：sk-ant-abcdefgh12345678，请看", "没有这个文件：…，请看"), ("(sk-ant-abcdefgh12345678),", "(…),"),
+         ("https://u:pw@example.com/a?sig=abc&v=1#frag", "https://…@example.com/a?sig=…&v=…#…"), ("-k shortval", "-k …"), ("-abc", "-a…"), ("a" * 40, "…"), ("Ab3dEf6.hIj9kLm2n-opQ", "…"), ("0123456789abcdef0123", "…"),
+         ("no such video: /tmp/a b/nofile.mp4", None), ("two  spaces\nand a line", None), ("edit.json: S01: no such thing", None), ("2026-11-06-ci-contract", None), ("keepme.wav --crf 23 --out=a.wav foo=bar", None), ("--bogus word", None), ("片子.mp4", None), ("-5 and 1.5", None))
+bad = []
+for typed, want in table:
+    want = typed if want is None else want
+    p = activity.scrub(typed)
+    r = subprocess.run([sh, f"{root}/bin/vh", "new", "short", "ci-never-made", typed, "--json"], capture_output=True, text=True, cwd=t)
+    q = json.loads(r.stdout)["error"]["message"] if r.stdout.strip() else r.stderr
+    if p != want or q != "unknown option: " + want:
+        bad.append(f"{typed!r}: Python {p!r}, bash {q!r}, not {want!r}")
+    if activity.scrub(p) != p:
+        bad.append(f"{typed!r}: said twice, {activity.scrub(p)!r}")
+print("\n".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "errors: tools/activity.py's scrub and bin/vh's act_scrub hide the same things: what a start line hides of an argument, URL query values, what looks like a key (AQ. and sk- tokens too), inside quotes and punctuation; a message's other words and its white space stay" \
+    || bad "the key filter: $(printf '%s' "$a" | tail -c 900)"
+  # a closed pipe is no failure: bin/vh … | head leaves no traceback, no note and the exit it always had
+  a=$(python3 - "$ROOT" <<'PY' 2>&1
+import subprocess, sys
+root = sys.argv[1]
+body = "def m():\n    raise BrokenPipeError(32, 'closed')\ntry:\n    sys.exit(jsonerr.guard(m))\nexcept BrokenPipeError:\n    print('raised'); sys.exit(0)"
+r = subprocess.run([sys.executable, "-c", f"import sys; sys.path.insert(0, {root + '/tools'!r}); import jsonerr\n{body}"], capture_output=True, text=True)
+print("ok" if r.stdout.strip() == "raised" and "Traceback" not in r.stderr else [r.returncode, r.stdout, r.stderr[-200:]])
+PY
+  )
+  python3 - "$p/.ovh/activity.jsonl" <<'PY'
+import json, sys, time
+with open(sys.argv[1], "w") as f:
+    for i in range(3000):
+        f.write(json.dumps({"v": 1, "event": "start", "run": f"1-{i}", "t": time.time() - 9000 + i, "cmd": "x" * 40, "args": ["y" * 30], "pid": 0}) + "\n")
+        f.write(json.dumps({"v": 1, "event": "end", "run": f"1-{i}", "t": time.time() - 9000 + i, "cmd": "x" * 40, "exit": 0, "duration": 1}) + "\n")
+PY
+  b=$({ vh activity "$p" --limit 3000 2>"$t/pipe.err"; echo "$?" >"$t/pipe.rc"; } | head -c 5 | wc -c | tr -d ' ')
+  c=$(grep -c Traceback "$t/pipe.err")
+  if [ "$a" = ok ] && [ "$b" = 5 ] && [ "$c" = 0 ] && [ "$(wc -l < "$t/pipe.err" | tr -d ' ')" -le 2 ]; then ok "errors: a closed pipe is no failure: tools/jsonerr.py lets it through, with no traceback and no note"
+  else bad "a closed pipe: $a, $b bytes, exit $(cat "$t/pipe.rc"), $c tracebacks: $(tail -c 300 "$t/pipe.err")"; fi
   # the page tools: render's and patch's own failures, with a stand-in browser (no drawing: they stop before one starts)
   if command -v node >/dev/null 2>&1; then
     rm -f "$p/.ovh/activity.jsonl"

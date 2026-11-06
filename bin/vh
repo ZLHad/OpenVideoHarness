@@ -202,6 +202,7 @@ project_dir() { # a project folder, or a name under the projects folder (the dat
 # no fork but `date` on a bash without EPOCHREALTIME, every failure dropped, and nothing at all for a command without a project
 ACT_LOG="" ACT_RUN="" ACT_T0="" ACT_SUMMARY="" ACT_PROJ="" ACT_S="" ACT_NOW="" ACT_MS=0 ACT_RC=0 ACT_DONE="" NEW_DIR="" CHECK_TMP=""
 ACT_A="" ACT_B=0 ACT_HIDE="" ACT_PNAME=""
+ACT_KEYS='(^|[^A-Za-z0-9])((sk-|sk_|AIza|AQ\.|ghp_|gho_|ghu_|ghs_|github_pat_|glpat-|xox[abposr]-|eyJ|hf_|AKIA|ya29\.)[A-Za-z0-9_.+/=-]{8,})'
 ACT_C0=$'\001\002\003\004\005\006\007\010\013\014\016\017\020\021\022\023\024\025\026\027\030\031\032\033\034\035\036\037'
 act_now() { local r=${EPOCHREALTIME:-}   # s.mmm, or s (its digits only: after a failed write, text can come ahead of them)
   if [ -n "$r" ]; then r=${r/,/.}; ACT_NOW=${r%???}; else ACT_NOW=$(date +%s 2>/dev/null) || true; ACT_NOW=${ACT_NOW##*[!0-9]}; ACT_NOW=${ACT_NOW:-0}; fi; }
@@ -296,8 +297,35 @@ act_value() { # act_value <text>: into ACT_A, a value as the log shows it
   v=$v$frag
   case $v in *[Bb][Ee][Aa][Rr][Ee][Rr]' '*) v="${v%%[Bb][Ee][Aa][Rr][Ee][Rr] *}Bearer …" ;; esac
   case $v in [A-Za-z]*': '*) n=${v%%:*}; case $n in *[!A-Za-z0-9_-]*) ;; *) ! act_secret "$n" || v="$n: …" ;; esac ;; esac
-  if [ "$v" = "$1" ] && [ ! -e "$v" ]; then case $ACT_PNAME in "$v"|*-"$v") ;; *) ! act_keyish "$v" || v="…" ;; esac; fi
+  if [ "$v" = "$1" ] && [ ! -e "$v" ]; then
+    case $v in
+      *[$' \t\r\n']*) act_scrub "$v"; v=$ACT_A ;;   # free text (a --note): word by word
+      *) case $ACT_PNAME in "$v"|*-"$v") ;; *)
+           if act_keyish "$v"; then v="…"; else while [[ $v =~ $ACT_KEYS ]]; do v=${v/"${BASH_REMATCH[2]}"/…}; done; fi ;; esac ;;
+    esac
+  fi
   ACT_A=$v
+}
+act_scrub() { # act_scrub <text>: into ACT_A, free text as a log line may hold it: word by word, as a start line shows an argument
+  # (act_shown), each word's quotes and punctuation aside, the white space as it was. A word that names a secret hides the next
+  # (--key x, Authorization: x, Bearer x). tools/activity.py's scrub is the same in Python, and tools/ci.sh holds the two to one table
+  local rest=$1 w sep pre post core out="" hide="" named
+  while [ -n "$rest" ]; do
+    w=${rest%%[$' \t\r\n']*}; rest=${rest#"$w"}; sep=${rest%%[!$' \t\r\n']*}; rest=${rest#"$sep"}
+    pre=${w%%[!\"\'\(\[\{\<]*}; core=${w#"$pre"}; post=${core##*[!\"\'\)\]\}\>,\;:.\!\?]}; core=${core%"$post"}
+    case "$hide:$core" in
+      1:-*|:*)   # a word of its own
+        named=""
+        case $core in [Bb][Ee][Aa][Rr][Ee][Rr]) named=1 ;; esac
+        case $post in :*) case $core in ""|*[!A-Za-z0-9_-]*) ;; *) ! act_secret "$core" || named=1 ;; esac ;; esac
+        if [ -n "$named" ]; then hide=1; else act_shown "$core"; core=$ACT_A; hide=$ACT_HIDE; fi ;;
+      *)   # the value of the word before; Authorization: Bearer x has two
+        case $core in [Bb][Ee][Aa][Rr][Ee][Rr]) ;; *) hide="" ;; esac
+        [ -e "$core" ] || core="…" ;;
+    esac
+    out=$out$pre$core$post$sep
+  done
+  ACT_A=$out
 }
 act_shown() { # act_shown <argument>: into ACT_A, the argument as the log shows it; ACT_HIDE=1 when the next one is its value
   local a=$1 n=""
@@ -398,7 +426,8 @@ VH_JSON="" VH_JFD=1 VH_SAID="" VH_LOGGED="" VH_OWN=""   # --json among the argum
 vh_log_error() { # vh_log_error <code> <message>: why the run failed, into its log (a note with level error), once
   [ -n "$ACT_RUN" ] && [ -z "$VH_LOGGED" ] || return 0
   VH_LOGGED=1
-  local m=$2
+  local m
+  act_scrub "$2"; m=$ACT_A   # it may repeat what was typed: a key given to the wrong option is … (tools/activity.py's scrub)
   [ ${#m} -le 200 ] || m="${m:0:200}…"
   act_now; act_str "$m"; m=$ACT_S; act_str "${OVH_ACTIVITY_CMD:-}"
   act_line "{\"v\":1,\"event\":\"note\",\"run\":\"$ACT_RUN\",\"t\":$ACT_NOW,\"cmd\":$ACT_S,\"level\":\"error\",\"code\":\"$1\",\"summary\":$m}"
@@ -409,8 +438,8 @@ vh_said() { # vh_said <code> <message> [hint]: the failure on record: the note, 
   [ -n "$VH_JSON" ] && [ -z "$VH_SAID" ] || return 0
   VH_SAID=1
   [ -n "$h" ] || case $1 in usage) h="bin/vh <command> -h prints its usage" ;; no_project) h="bin/vh projects lists the projects" ;; esac
-  [ -z "$h" ] || { act_str "$h"; j=$ACT_S; }
-  act_str "$s"
+  [ -z "$h" ] || { act_scrub "$h"; act_str "$ACT_A"; j=$ACT_S; }
+  act_scrub "$s"; act_str "$ACT_A"
   printf '{"version": 1, "error": {"code": "%s", "message": %s, "hint": %s}}\n' "$1" "$ACT_S" "$j" >&"$VH_JFD"
 }
 vh_fail() { printf '%s\n' "$3" >&2; vh_said "$1" "$3" "${4:-}"; exit "$2"; }   # vh_fail <code> <exit> <line> [hint]: the line on stderr, the record, the exit

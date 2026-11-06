@@ -182,7 +182,7 @@ JSON 的格式：
 
 几种记录有自己的字段，不是这个形状：`bin/vh check --json` 读不了片子时打它的记录，`error` 是字符串，退出码 1（这是对这支片子的判决）；`bin/vh doctor --json` 没有 python3 时 `error` 也是字符串，退出码 0；清单和检查（`artifacts list --strict`、`assets check`、`edit check`）退出码 1 时打它们的记录。所以先看 `error` 是不是对象。
 
-在日志里跑的命令失败时，同样的话也写进 `.ovh/activity.jsonl`（`note`，带 `"level": "error"`），加不加 `--json` 都写，`bin/vh activity` 能说出一条命令为什么失败。
+在日志里跑的命令失败时，同样的话也写进 `.ovh/activity.jsonl`（`note`，带 `"level": "error"`），加不加 `--json` 都写，`bin/vh activity` 能说出一条命令为什么失败。这句话可能重复用户打的东西，所以日志和 `message` 里的 key 一律写成 `…`（`tools/activity.py` 的 `scrub`，和开始行藏参数的规矩相同），只有 stderr 上是原话。
 
 ### 停下一条命令：`bin/vh cancel <项目> [run] [--timeout S] [--json]`
 
