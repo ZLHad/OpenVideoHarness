@@ -13,13 +13,14 @@ The lines (each has "v": 1, "event", and "t": seconds since the epoch; "run" tie
             name says key, token, secret, pass, auth, cred, cookie, header or bearer, of an upper-case NAME=value and
             of a one-letter option, a URL's user:password@, query values and fragment, a Bearer token, and whatever
             looks like a key are written as "…"; at most 24 of them), cwd, pid, parent (the run of the bin/vh that
-            started this one)
+            started this one), project (the real path of the folder the run is of, so a copy of the folder and its log
+            is not taken for it; left out when over 480 bytes)
   progress  a long command's progress: run, done, total, unit (render, patch and proxy: frames; tts: lines; thumbs: pictures; deliver:
             percent, of its pass of passes). At most one line every several seconds, and the first and last (Progress below)
   note      what a command made, written by the tool itself: run, summary (one line), outputs (paths, relative to the
             project when inside it); or why it failed, with "level": "error", code and summary the message (tools/jsonerr.py);
             kept: what a tool that was stopped keeps for a resume; gone: true, from bin/vh cancel, when the pid in a run's start
-            line is another process now: the run reads as gone
+            line is gone or of another time now: the run reads as gone
   end       a command ended: run, exit (its exit status: 130 after a Ctrl-C, after which bin/vh ends by SIGINT itself;
             128 + n when a tool that handles signal n stopped on it: desk, desk wait, gate --wait; a command killed by
             TERM or HUP ends at once and has no end line), duration (seconds; whole seconds under a bash without
@@ -349,7 +350,7 @@ def event(project, kind, **fields):
 
 # ---------- reading ----------
 
-_STR = ("run", "cmd", "cwd", "summary", "unit", "parent", "file", "round", "level", "code", "kept")
+_STR = ("run", "cmd", "cwd", "summary", "unit", "parent", "file", "round", "level", "code", "kept", "project")
 _INT = ("pid", "exit", "decisions")
 _NUM = ("duration", "done", "total", "pass", "passes")
 
@@ -405,6 +406,8 @@ def read(project, tail=TAIL):
 
 def _alive(pid):
     try:
+        if int(pid) <= 0:   # (to kill(2), a process group)
+            return False
         os.kill(int(pid), 0)
     except PermissionError:
         return True

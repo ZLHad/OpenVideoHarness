@@ -293,8 +293,9 @@ if (2.2 * filmBytes > free) die(`about ${(2.2 * filmBytes / 1e9).toFixed(1)} GB 
 // ---- render the windows again, exactly as before ----
 work = path.join(path.dirname(outFile), `.${path.basename(outFile)}.patch`);
 fs.rmSync(work, { recursive: true, force: true }); fs.mkdirSync(work, { recursive: true });
-let child = null;
+let child = null, placing = false;
 for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig, () => {
+  if (placing) return;   // it came during the last, synchronous step: patch's last lines have said where the new film is, and it ends as they say
   console.error(`patch: stopped (${sig}); the work folder is deleted, the film is as it was`);
   if (child) child.kill(sig);
   keep = false; cleanUp(); process.exit(code);
@@ -537,6 +538,7 @@ if (failures.length) {
 const sideTmp = joined + ".render.json";
 fs.writeFileSync(sideTmp, JSON.stringify(sideFor(outFile), null, 1) + "\n");
 // the new film in place: with --in-place the film it replaces is kept as an earlier version first (tools/film/versions.mjs)
+placing = true;
 const ver = commit({ film: outFile, new: joined, new_sidecar: sideTmp, made_by: "patch", source: inPlace ? null : film, expect: filmAt, note, changed });
 const placed = ver.placed;
 const tail = (ver.id ? ` · version ${ver.id}` : "") + (ver.error ? ` · ${ver.lines[0]}` : "");

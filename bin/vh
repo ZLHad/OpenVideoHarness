@@ -199,7 +199,7 @@ project_dir() { # a project folder, or a name under the projects folder (the dat
 # activity: one JSON line per event in <project>/.ovh/activity.jsonl (tools/activity.py has the format and reads it: bin/vh
 # activity). A command that works on a project gets its start line here and its end line from the EXIT trap; the run goes to
 # what it runs through OVH_ACTIVITY_* (a tool bin/vh exec's into writes the end itself). It never fails or slows a command:
-# no fork but `date` on a bash without EPOCHREALTIME, every failure dropped, and nothing at all for a command without a project
+# one fork for the project's real path, and `date` on a bash without EPOCHREALTIME; every failure dropped, and nothing at all for a command without a project
 ACT_LOG="" ACT_RUN="" ACT_T0="" ACT_SUMMARY="" ACT_PROJ="" ACT_S="" ACT_NOW="" ACT_MS=0 ACT_RC=0 ACT_DONE="" NEW_DIR="" CHECK_TMP=""
 ACT_A="" ACT_B=0 ACT_HIDE="" ACT_PNAME=""
 ACT_KEYS='(^|[^A-Za-z0-9])((sk-|sk_|AIza|AQ\.|ghp_|gho_|ghu_|ghs_|github_pat_|glpat-|xox[abposr]-|eyJ|hf_|AKIA|ya29\.)[A-Za-z0-9_.+/=-]{8,})'
@@ -384,9 +384,11 @@ act_start() { act_project "$@"; [ -z "$ACT_PROJ" ] || act_begin "$ACT_PROJ" "$@"
 act_begin() { # act_begin <project> <command> <args…>: the start line; the run handed to what the command runs (OVH_ACTIVITY_*);
   # the EXIT trap writes its end (vh_trap), and a Ctrl-C ends it through ctrl_c_exit (the end line says 130). TERM and HUP
   # kill bin/vh as they would without a log, at once: no end line, and the reader shows the run as gone (bin/vh cancel writes it)
-  local proj=$1 cmd=$2 a args="" n=0 len=0 hide="" c parent="" line
+  local proj=$1 cmd=$2 a args="" n=0 len=0 hide="" c parent="" line real=""
   shift 2
   [ -d "$proj/.ovh" ] || mkdir "$proj/.ovh" 2>/dev/null; [ -d "$proj/.ovh" ] || return 0   # (another bin/vh may make it first)
+  real=$(cd "$proj" 2>/dev/null && pwd -P) || real=""   # which folder this is the run of, whole or not at all: bin/vh cancel in a copy of it stops nothing (tools/cancel.py)
+  if [ -n "$real" ]; then act_str "$real"; act_bytes "$ACT_S"; if [ "$ACT_B" -le 480 ]; then real=",\"project\":$ACT_S"; else real=""; fi; fi
   [ -n "$ACT_T0" ] || { act_now; ACT_T0=$ACT_NOW; }
   ACT_LOG="$proj/.ovh/activity.jsonl" ACT_RUN="${ACT_T0%.*}-$$" ACT_PNAME=${proj##*/}
   for a in "$@"; do   # as typed, but never a secret (act_shown)
@@ -403,9 +405,9 @@ act_begin() { # act_begin <project> <command> <args…>: the start line; the run
   act_str "$cmd"; c=$ACT_S
   a=$PWD; [ ${#a} -le 120 ] || a="…${a: -120}"; act_str "$a"; act_bytes "$ACT_S"
   [ "$ACT_B" -le 240 ] || { a="…${a: -40}"; act_str "$a"; }   # (a path in another script: up to 3 bytes a character)
-  line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent}"
+  line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent$real}"
   act_bytes "$line"
-  [ "$ACT_B" -lt 1000 ] || line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[\"…\"],\"cwd\":$ACT_S,\"pid\":$$$parent}"
+  [ "$ACT_B" -lt 1000 ] || line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[\"…\"],\"cwd\":$ACT_S,\"pid\":$$$parent$real}"
   act_line "$line"
   export OVH_ACTIVITY_LOG="$ACT_LOG" OVH_ACTIVITY_RUN="$ACT_RUN" OVH_ACTIVITY_PID=$$ OVH_ACTIVITY_T0="$ACT_T0" OVH_ACTIVITY_CMD="$cmd"
   trap ctrl_c_exit INT; vh_trap

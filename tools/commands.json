@@ -253,15 +253,15 @@
       ],
       "writes": [
         "<project>/.ovh/activity.jsonl (the end line of a run that could not write its own)",
-        "<project>/.ovh/cancel/<id> (a mark, only while it stops that run)"
+        "<project>/.ovh/cancel/<id> (a mark, while it stops that run; it stays with one that is still running)"
       ],
       "usage": [
         {
           "synopsis": "cancel <project> [run] [--timeout S] [--json]",
           "text": [
-            "every running run of the project's log (a desk or gate --wait only by name; a pid that is no longer that command is not",
-            "touched): SIGINT, then SIGTERM after a bounded wait; the end line says \"cancelled\": true, exit 130 or 143, and what a tool",
-            "kept for a resume is said (tools/cancel.py; --json: the fields in its -h)"
+            "every running run of the project's log (a desk or gate --wait only by name; a pid that cannot be confirmed as that command",
+            "in this project is not touched): SIGINT, then SIGTERM after a bounded wait; the end line says \"cancelled\": true, exit 130 or",
+            "143, and what a tool kept for a resume is said (tools/cancel.py; --json: the fields in its -h)"
           ]
         }
       ]

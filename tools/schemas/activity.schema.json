@@ -15,6 +15,7 @@
   "cwd": {"type": "string"},
   "pid": {"type": "integer"},
   "parent": {"type": "string"},
+  "project": {"type": "string"},
   "done": {"type": "number"},
   "total": {"type": ["number", "null"]},
   "unit": {"type": "string"},

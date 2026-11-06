@@ -2121,7 +2121,7 @@
    "kind": "folder",
    "format": "text",
    "stages": ["any"],
-   "purpose": "bin/vh cancel 正在停的命令各一个记号，它停完就删：结束行靠它写 cancelled",
+   "purpose": "bin/vh cancel 正在停的命令各一个记号，它停完就删（还没停下的留着，下一次 cancel 收走）：结束行靠它写 cancelled",
    "made_by": "tool",
    "writers": ["cancel"],
    "readers": ["cancel"],

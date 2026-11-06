@@ -6027,8 +6027,10 @@ if "SECRETVALUE" in d.get("diff", "x") or "NOTES.md" in d.get("files", ["NOTES.m
 for name in ("save", "2026-11-06-save"):
     os.makedirs(f"{base}/{name}"); write(f"{base}/{name}/BRIEF.md", "# x\n")
 p = mk("real")
-if os.path.exists(f"{base}/save/.ovh") or os.path.exists(f"{base}/2026-11-06-save/.ovh") or not any(x.get("cmd") == "history" and x.get("event") == "start" for x in map(json.loads, open(f"{p}/.ovh/activity.jsonl", encoding="utf-8"))):
-    bad.append(f"a project called save: {os.listdir(f'{base}/save')}")
+write(f"{p}/NOTES.md", "by name\n")
+r = V("history", "save", "real")
+if r.returncode != 0 or os.path.exists(f"{base}/save/.ovh") or os.path.exists(f"{base}/2026-11-06-save/.ovh") or not any(x.get("summary", "").startswith("s2") for x in map(json.loads, open(f"{p}/.ovh/activity.jsonl", encoding="utf-8"))):
+    bad.append(f"a project called save: exit {r.returncode}, {os.listdir(f'{base}/save')}, {r.stderr[-200:]}")
 # a name that is not UTF-8: left out with a word, and the record prints (real on a file system that takes one; on another, the same through the table's list)
 sys.path.insert(0, f"{root}/tools")
 import artifacts, history
@@ -6074,14 +6076,14 @@ PY
 }
 
 cancel_checks() {   # bin/vh cancel on commands a stand-in keeps busy (no network, no paid call): Ctrl-C's way, TERM's way when SIGINT is
-  # ignored, a tool bin/vh exec'd into, what it must not touch (a pid that is another program, or another time's); the progress lines
+  # ignored, a tool bin/vh exec'd into, what it must not touch (a pid of another program or another time, a copy of the folder, a forged id), ps that fails; the progress lines
   # of proxy, thumbs, deliver and tts; a real render and patch when there is a Chrome
   local t p a rc b c d pid
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd); p="$t/p"
   cp -R tools/desk/fixtures/zh "$p"; mkdir -p "$t/stub" "$p/audio"; : > "$p/audio/mix.wav"
   printf '#!/bin/sh\ntrap "exit 130" INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
   a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY' 2>&1
-import json, os, signal, subprocess, sys, time
+import json, os, re, shutil, signal, subprocess, sys, time
 sh, root, p, t = sys.argv[1:]
 vh = [sh, f"{root}/bin/vh"]
 log = f"{p}/.ovh/activity.jsonl"
@@ -6098,8 +6100,8 @@ def start(*args, until=mark, ignore_int=False):
         time.sleep(0.05)
     return pr
 records = []
-def cancel(*args):
-    r = subprocess.run([*vh, "cancel", p, *args, "--json"], capture_output=True, text=True, env=env)
+def cancel(*args, project=None):
+    r = subprocess.run([*vh, "cancel", project or p, *args, "--json"], capture_output=True, text=True, env=env)
     rec = json.loads(r.stdout) if r.stdout.strip() else {}
     records.append(rec)
     return r.returncode, rec, r.stderr
@@ -6152,27 +6154,192 @@ if not (rc == 0 and rec["runs"][0]["state"] == "not_running"):
 r2 = subprocess.run([*vh, "cancel", p, "nope-1", "--json"], capture_output=True, text=True)
 if r2.returncode != 2 or json.loads(r2.stdout or "{}").get("error", {}).get("code") != "not_found":
     bad.append(f"an unknown run: exit {r2.returncode}, {r2.stdout[:200]}")
-# not started by this log: a pid that is another program now, untouched; the run reads as gone from then on
+# not started by this log: a pid of another time, untouched, and the run reads as gone from then on; a pid of its time that is another program, untouched, and no line: it may be running
 sl = subprocess.Popen(["sleep", "30"], start_new_session=True)
+real = os.path.realpath(p)
 def line(**rec):
     with open(log, "a", encoding="utf-8") as f: f.write(json.dumps(dict({"v": 1}, **rec)) + "\n")
-line(event="start", run="1-a", t=time.time(), cmd="render", args=[], cwd="/x", pid=sl.pid)
+def over(*ids):
+    for x in ids: line(event="end", run=x, t=time.time(), cmd="x", exit=0, duration=0)
+line(event="start", run="1-a", t=time.time() - 3600, cmd="render", args=[], cwd="/x", pid=sl.pid, project=real)
 rc, rec, err = cancel()
 r = next((x for x in rec.get("runs", []) if x["run"] == "1-a"), {})
 one = next(x for x in runs() if x["run"] == "1-a")
-if not (rc == 0 and r.get("state") == "not_that_process" and "another program" in (r.get("why") or "") and sl.poll() is None and one["state"] == "gone"):
-    bad.append(f"a pid that is another program: exit {rc}, {r}, sleep {sl.poll()}, run {one}")
+if not (rc == 0 and r.get("state") == "not_that_process" and "another time" in (r.get("why") or "") and sl.poll() is None and one["state"] == "gone"):
+    bad.append(f"a pid of another time: exit {rc}, {r}, sleep {sl.poll()}, run {one}")
+line(event="start", run="1-o", t=time.time(), cmd="render", args=[], cwd="/x", pid=sl.pid, project=real)
+rc, rec, err = cancel()
+r = next((x for x in rec.get("runs", []) if x["run"] == "1-o"), {})
+one = next(x for x in runs() if x["run"] == "1-o")
+if not (rc == 1 and r.get("state") == "not_confirmed" and "command line" in (r.get("why") or "") and sl.poll() is None and one["state"] == "running" and not r.get("signal")):
+    bad.append(f"a pid of its time that is another program: exit {rc}, {r}, sleep {sl.poll()}, run {one}")
+over("1-o")
+sl.kill(); sl.wait()
 # a real bin/vh, but another time's: a reused pid; named, the exit status says it was not stopped
 pr = start("qa", f"{p}/audio/mix.wav")
-line(event="start", run="1-b", t=time.time() - 3600, cmd="qa", args=[], cwd="/x", pid=pr.pid)
+own = [x for x in runs() if x["cmd"] == "qa"][-1]
+line(event="start", run="1-b", t=time.time() - 3600, cmd="qa", args=[], cwd="/x", pid=pr.pid, project=real)
 rc, rec, err = cancel("1-b")
 r = (rec.get("runs") or [{}])[0]
 if not (rc == 1 and r.get("state") == "not_that_process" and pr.poll() is None and stub_alive()):
     bad.append(f"a pid of another time: exit {rc}, {r}, process {pr.poll()}")
+# another bin/vh command at its time; an older start line, which says no project: nothing is sent, and nothing written
+line(event="start", run="1-c", t=own["start"], cmd="render", args=[], cwd="/x", pid=pr.pid, project=real)
+rc, rec, err = cancel("1-c")
+r = (rec.get("runs") or [{}])[0]
+if not (rc == 1 and r.get("state") == "not_confirmed" and pr.poll() is None and stub_alive() and next(x for x in runs() if x["run"] == "1-c")["state"] == "running"):
+    bad.append(f"another bin/vh command at its time: exit {rc}, {r}, process {pr.poll()}")
+over("1-c")
+line(event="start", run="1-d", t=own["start"], cmd="qa", args=[], cwd="/x", pid=pr.pid)
+rc, rec, err = cancel("1-d")
+r = (rec.get("runs") or [{}])[0]
+if not (rc == 1 and r.get("state") == "not_confirmed" and "older" in (r.get("why") or "") and pr.poll() is None and stub_alive() and next(x for x in runs() if x["run"] == "1-d")["state"] == "running"):
+    bad.append(f"an older start line: exit {rc}, {r}, process {pr.poll()}")
+over("1-d")
+# a run's id that would name a file elsewhere, relative or absolute: nothing is written or deleted there, nothing is sent
+victim, victim2 = f"{t}/victim.txt", f"{t}/victim2.txt"
+for v in (victim, victim2):
+    with open(v, "w") as f: f.write("precious\n")
+for x in (os.path.relpath(victim, f"{p}/.ovh/cancel"), victim2):
+    line(event="start", run=x, t=own["start"], cmd="qa", args=[], cwd="/x", pid=pr.pid, project=real)
+    rc, rec, err = cancel(x)
+    r = (rec.get("runs") or [{}])[0]
+    if not (rc == 1 and r.get("state") == "not_confirmed" and pr.poll() is None and stub_alive()):
+        bad.append(f"a run's id that is a path: exit {rc}, {r}, process {pr.poll()}")
+    over(x)
+if open(victim).read() != "precious\n" or open(victim2).read() != "precious\n":
+    bad.append("a run's id that is a path: the file it names was touched")
+# a copy of the folder, made while the run is on: its log has the run, and cancel there stops nothing and writes nothing about it
+copy = f"{t}/p-copy"
+shutil.copytree(p, copy)
+before = open(f"{copy}/.ovh/activity.jsonl").read()
+rc, rec, err = cancel(project=copy)
+r = next((x for x in rec.get("runs", []) if x["run"] == own["run"]), {})
+written = [json.loads(x) for x in open(f"{copy}/.ovh/activity.jsonl").read()[len(before):].splitlines() if json.loads(x).get("run") == own["run"]]
+rc2, rec2, _ = cancel(own["run"], project=copy)
+if not (rc == 0 and rc2 == 1 and r.get("state") == "not_that_process" and "copy" in (r.get("why") or "") and pr.poll() is None and stub_alive() and not written):
+    bad.append(f"a copy of the folder: exit {rc}, {rc2}, {r}, process {pr.poll()}, written {written}")
+# the mark is not written through a link: a link in its place stays a link's worth, the file it leads to as it was
+os.makedirs(f"{p}/.ovh/cancel"); os.symlink(victim, f"{p}/.ovh/cancel/{own['run']}")
 rc, rec, err = cancel()   # (the real one goes)
-if ended(pr) not in (-2, 130) or stub_alive():
-    bad.append(f"after it, the real run: {rec}")
-sl.kill(); sl.wait()
+if ended(pr) not in (-2, 130) or stub_alive() or open(victim).read() != "precious\n":
+    bad.append(f"after it, the real run: {rec}, {open(victim).read()!r}")
+# ./vh, from bin/: bin/vh all the same
+if os.path.exists(mark): os.remove(mark)
+pr = subprocess.Popen([sh, "./vh", "qa", f"{p}/audio/mix.wav"], cwd=f"{root}/bin", env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+for _ in range(1200):
+    if os.path.exists(mark) or pr.poll() is not None: break
+    time.sleep(0.05)
+rc, rec, err = cancel()
+r = (rec.get("runs") or [{}])[0]
+if not (rc == 0 and r.get("state") == "cancelled" and ended(pr) in (-2, 130) and not stub_alive()):
+    bad.append(f"./vh: exit {rc}, {r}, process {pr.poll()}")
+# a tool bin/vh exec's into that is not named after its command: music's lyria.py (a stand-in: no paid call) and style's render.sh
+os.makedirs(f"{t}/fake/tools/audio"); os.makedirs(f"{t}/fake/styles/_swatch")
+with open(f"{t}/fake/tools/audio/lyria.py", "w") as f: f.write("import sys, time\nopen(sys.argv[1], 'w').close()\ntime.sleep(60)\n")
+with open(f"{t}/fake/styles/_swatch/render.sh", "w") as f: f.write('#!/bin/sh\ntrap "exit 130" INT\n: > "$1"\nwhile :; do sleep 0.05; done\n')
+for cmd, argv in (("music", [sys.executable, f"{t}/fake/tools/audio/lyria.py", mark, "--provider", "lyria"]), ("style", [sh, f"{t}/fake/styles/_swatch/render.sh", mark])):
+    if os.path.exists(mark): os.remove(mark)
+    pr = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    for _ in range(600):
+        if os.path.exists(mark) or pr.poll() is not None: break
+        time.sleep(0.05)
+    line(event="start", run=f"1-{cmd}", t=time.time(), cmd=cmd, args=[], cwd="/x", pid=pr.pid, project=real)
+    rc, rec, err = cancel()
+    r = next((x for x in rec.get("runs", []) if x["run"] == f"1-{cmd}"), {})
+    ex = ended(pr)
+    one = next(x for x in runs() if x["run"] == f"1-{cmd}")
+    if not (rc == 0 and r.get("state") == "cancelled" and r.get("signal") == "SIGINT" and ex != "still running" and one["state"] == "failed" and one["cancelled"] is True):
+        bad.append(f"{cmd}'s tool: exit {rc}, {r}, ended {ex}, run {one}")
+# ps that fails: at the first look nothing is sent and nothing written; in the middle of the wait, no end line for what is alive, and it ends as still_running
+sys.path.insert(0, f"{root}/tools")
+import cancel as C
+ps_real = shutil.which("ps")
+os.makedirs(f"{t}/psshim"); os.makedirs(f"{t}/stub2")
+with open(f"{t}/psshim/ps", "w") as f:
+    f.write(f'#!/bin/sh\nn=$(cat "$PSCOUNT"); echo $((n + 1)) > "$PSCOUNT"\nif [ "$n" -ge "$PSOK" ] || [ -e "$GOTINT" ]; then exit 1; fi\nexec {ps_real} "$@"\n')
+with open(f"{t}/stub2/uv", "w") as f:
+    f.write('#!/bin/sh\ntrap \': > "$GOTINT"\' INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n')
+os.chmod(f"{t}/psshim/ps", 0o755); os.chmod(f"{t}/stub2/uv", 0o755)
+def quick(ok, *args, path=None):
+    """bin/vh cancel with 0.5 s after SIGTERM, under a ps that fails after `ok` calls, or once GOTINT is there."""
+    open(f"{t}/ps-count", "w").write("0")
+    code = f"import sys; sys.path.insert(0, {root + '/tools'!r}); import cancel, jsonerr; cancel.AFTER_TERM = 0.5; sys.exit(jsonerr.guard(lambda: cancel.main(sys.argv[1:])))"
+    r = subprocess.run([sys.executable, "-c", code, p, "--json", *args], capture_output=True, text=True, env=dict(env, PATH=f"{t}/psshim:{os.environ['PATH']}", PSCOUNT=f"{t}/ps-count", PSOK=str(ok), GOTINT=f"{t}/got-int"))
+    rec = json.loads(r.stdout) if r.stdout.strip() else {}
+    records.append(rec)
+    return r.returncode, rec, r.stderr
+pr = start("qa", f"{p}/audio/mix.wav")
+own = [x for x in runs() if x["cmd"] == "qa"][-1]
+rc, rec, err = quick(1, "--timeout", "1")
+r = (rec.get("runs") or [{}])[0]
+one = next(x for x in runs() if x["run"] == own["run"])
+if not (rc == 1 and r.get("state") == "still_running" and r.get("signal") is None and pr.poll() is None and stub_alive() and one["state"] == "running" and not os.path.exists(f"{p}/.ovh/cancel")):
+    bad.append(f"ps that fails at the first look: exit {rc}, {r}, process {pr.poll()}, run {one}")
+rc, rec, err = cancel()
+if rc != 0 or ended(pr) not in (-2, 130) or stub_alive():
+    bad.append(f"after ps that failed at the first look: exit {rc}, {rec}")
+env2 = dict(env, PATH=f"{t}/stub2:{os.environ['PATH']}", GOTINT=f"{t}/got-int")
+if os.path.exists(mark): os.remove(mark)
+pr = subprocess.Popen([*vh, "qa", f"{p}/audio/mix.wav"], env=env2, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+for _ in range(1200):
+    if os.path.exists(mark) or pr.poll() is not None: break
+    time.sleep(0.05)
+own = [x for x in runs() if x["cmd"] == "qa"][-1]
+rc, rec, err = quick(100000, "--timeout", "1")
+r = (rec.get("runs") or [{}])[0]
+one = next(x for x in runs() if x["run"] == own["run"])
+if not (rc == 1 and r.get("state") == "still_running" and r.get("signal") == "SIGINT" and pr.poll() is None and one["state"] == "running" and not ends(own["run"]) and os.path.exists(f"{p}/.ovh/cancel/{own['run']}")):
+    bad.append(f"ps that fails in the middle of the wait: exit {rc}, {r}, process {pr.poll()}, run {one}, ends {ends(own['run'])}")
+os.killpg(pr.pid, signal.SIGKILL); pr.wait()
+subprocess.run(["pkill", "-9", "-f", f"{t}/stub2/uv"], capture_output=True)
+os.remove(f"{t}/got-int")
+one = next(x for x in runs() if x["run"] == own["run"])
+rc, rec, err = cancel()
+if one["state"] != "gone" or os.path.exists(f"{p}/.ovh/cancel"):
+    bad.append(f"the mark of a run that is over: {one}, {os.listdir(p + '/.ovh')}")
+# a tool in a step that takes no signal: still_running, the mark stays; it ends by itself, and its end line says cancelled
+with open(f"{t}/fake/tools/slow.py", "w") as f:
+    f.write(f"import os, signal, sys, time\nsys.path.insert(0, {root + '/tools'!r})\nimport activity\nsignal.signal(signal.SIGINT, signal.SIG_IGN); signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+            f"os.environ['OVH_ACTIVITY_PID'] = str(os.getpid())\nopen(sys.argv[1], 'w').close()\ndef main():\n    while not os.path.exists(sys.argv[2]): time.sleep(0.05)\n    return 130\nsys.exit(activity.exiting(main))\n")
+if os.path.exists(mark): os.remove(mark)
+pr = subprocess.Popen([sys.executable, f"{t}/fake/tools/slow.py", mark, f"{t}/slow-may-end"], env=dict(env, OVH_ACTIVITY_LOG=log, OVH_ACTIVITY_RUN="1-slow", OVH_ACTIVITY_CMD="slow", OVH_ACTIVITY_T0=str(time.time())), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+for _ in range(600):
+    if os.path.exists(mark) or pr.poll() is not None: break
+    time.sleep(0.05)
+line(event="start", run="1-slow", t=time.time(), cmd="slow", args=[], cwd="/x", pid=pr.pid, project=real)
+rc, rec, err = quick(100000, "--timeout", "0.5")
+r = (rec.get("runs") or [{}])[0]
+if not (rc == 1 and r.get("state") == "still_running" and r.get("signal") == "SIGTERM" and pr.poll() is None and os.path.exists(f"{p}/.ovh/cancel/1-slow") and "kill -9" in (r.get("why") or "")):
+    bad.append(f"a tool in a step that takes no signal: exit {rc}, {r}, process {pr.poll()}")
+open(f"{t}/slow-may-end", "w").close()
+ex = ended(pr)
+one = next(x for x in runs() if x["run"] == "1-slow")
+if not (ex == 130 and one["state"] == "failed" and one["cancelled"] is True and one["exit"] == 130):
+    bad.append(f"a tool in a step that takes no signal, after it: ended {ex}, run {one}")
+cancel()
+# each command bin/vh exec's into is known: the table of what its pid's command line looks like, and bin/vh's exec lines against it
+for cmd, cl in (("render", "node /r/tools/film/render.mjs --browser b p"), ("frames", "node /r/tools/film/frames.mjs p"), ("patch", "node /r/tools/film/patch.mjs f"), ("determinism", "node /r/tools/film/determinism.mjs p"), ("cues", "node /r/tools/film/cues.mjs p"), ("fonts", "node /r/tools/film/fonts.mjs p"),
+                ("textcheck", "node /r/tools/textcheck/textcheck.mjs p"), ("gate", "/usr/bin/python3 /r/tools/gate.py p 1"), ("desk", "python3 /r/tools/desk/desk.py p"), ("music", "/opt/x/Python /r/tools/audio/lyria.py p --provider lyria"), ("music", "bash /r/bin/vh music p"),
+                ("style", "bash /r/styles/_swatch/render.sh x"), ("qa", "/bin/bash /r/bin/vh qa x"), ("qa", "/bin/bash ./vh qa x"), ("qa", "bash vh qa x")):
+    if not C.is_ours(cmd, cl):
+        bad.append(f"is_ours: {cmd}, {cl}")
+for cmd, cl in (("render", "bash /r/bin/vh qa /p/render/x"), ("qa", "sleep 30"), ("", "bash /r/bin/vh qa"), ("music", "python3 /r/tools/audio/music.py p"), ("style", "bash /r/bin/vh qa x"), ("render", "node /elsewhere/render.mjs")):
+    if C.is_ours(cmd, cl):
+        bad.append(f"is_ours, not: {cmd}, {cl}")
+known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py"}
+for m in re.finditer(r'\bexec\s+(?:python3|node)?\s*"?\$(?:ROOT|sw)/([^"\s]+)', open(f"{root}/bin/vh", encoding="utf-8").read()):
+    if m.group(1).rsplit("/", 1)[-1] not in known:
+        bad.append(f"bin/vh exec's into {m.group(1)}: say in tools/cancel.py's EXEC what its pid's command line is (a command not named after its tool), and add it here")
+# the mark as a class: only an id bin/vh writes names a file; a folder that is a link is not written through
+try:
+    C.Mark(p, "../x"); bad.append("Mark took ../x")
+except ValueError:
+    pass
+os.makedirs(f"{t}/lm/.ovh"); os.makedirs(f"{t}/elsewhere"); os.symlink(f"{t}/elsewhere", f"{t}/lm/.ovh/cancel")
+C.Mark(f"{t}/lm", "1-1").set(130)
+if os.listdir(f"{t}/elsewhere"):
+    bad.append(f"the mark went through a folder that is a link: {os.listdir(f'{t}/elsewhere')}")
 # a tool that failed on its way out under the mark, and one that ended well: the writers' rule
 sys.path.insert(0, f"{root}/tools")
 import activity, schemalite
@@ -6189,7 +6356,7 @@ os.remove(f"{p}/.ovh/cancel/9-z"); os.rmdir(f"{p}/.ovh/cancel")
 print("; ".join(bad) or "ok")
 PY
   )
-  [ "$a" = ok ] && ok "cancel: a command under bash stops as at a Ctrl-C, or by SIGTERM when SIGINT is ignored (the end line written for it); a tool bin/vh exec'd into writes its own; each end line says cancelled, 130 or 143, not gone; a desk only by name; a pid that is another program or another time's is not touched" \
+  [ "$a" = ok ] && ok "cancel: a command under bash stops as at a Ctrl-C, or by SIGTERM when SIGINT is ignored (the end line written for it); a tool bin/vh exec'd into writes its own, not-named-after-it ones too; each end line says cancelled, 130 or 143, not gone; a desk only by name. Not touched: a pid of another time (gone), another command at its time, an older start line and a run's id that is a path (not confirmed), a copy of the folder; ps that fails writes nothing, and a tool that takes no signal keeps its mark" \
     || bad "bin/vh cancel: $(printf '%s' "$a" | tail -c 1500)"
   # no project, no film: the error's shape; with nothing running, exit 0
   a=$(vh cancel nope --json 2>/dev/null); rc=$?
@@ -6342,6 +6509,11 @@ PY
     a=$(python3 -c 'import json, sys; print([(r["done"], r["total"], r["unit"]) for r in map(json.loads, open(sys.argv[1], encoding="utf-8")) if r["event"] == "progress"])' "$t/r/.ovh/activity.jsonl" 2>&1)
     case "$rc:$c:$a" in "0:0:[(0, "[0-9]*", 'frames'), ("[0-9]*", "[0-9]*", 'frames')]") ok "progress: patch says the frames drawn again, from 0 to the whole" ;;
       *) bad "patch's progress: exit $rc, $c, $a: $(tail -c 300 "$t/r/err")" ;; esac
+    # a signal while the new film goes in place (a python3 that sends it as versions.py starts): patch does not say the film is as it was
+    mkdir -p "$t/pyshim"; printf '#!/bin/sh\ncase "$*" in *_commit*) kill -INT "$PPID"; sleep 0.2 ;; esac\nexec "%s" "$@"\n' "$(command -v python3)" > "$t/pyshim/python3"; chmod +x "$t/pyshim/python3"
+    PATH="$t/pyshim:$PATH" vh patch "$t/r/out/film.mp4" --frames 3-3 --workers 1 >"$t/r/out.txt" 2>"$t/r/err"; c=$?
+    if [ "$c" = 0 ] && ! grep -q 'the film is as it was' "$t/r/err" && grep -q 'patch: done' "$t/r/out.txt"; then ok "patch: a signal while the new film goes in place does not say the film is as it was"
+    else bad "patch, a signal as the film goes in place: exit $c: $(tail -c 300 "$t/r/err")"; fi
   fi
   rm -rf "$t"
 }

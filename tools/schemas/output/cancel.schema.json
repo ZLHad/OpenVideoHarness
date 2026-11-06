@@ -18,7 +18,7 @@
      "run": {"type": "string"},
      "cmd": {"type": ["string", "null"]},
      "pid": {"type": ["integer", "null"]},
-     "state": {"enum": ["cancelled", "finished", "not_running", "not_that_process", "still_running"]},
+     "state": {"enum": ["cancelled", "finished", "not_running", "not_that_process", "not_confirmed", "still_running"]},
      "signal": {"type": ["string", "null"]},
      "exit": {"type": ["integer", "null"]},
      "seconds": {"type": ["number", "null"]},
