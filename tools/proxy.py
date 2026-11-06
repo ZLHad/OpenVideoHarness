@@ -90,6 +90,19 @@ def films_in(project):
     return sorted(found, key=lambda p: -p.stat().st_mtime)
 
 
+def newest_film(project):
+    """What bin/vh check <project> and bin/vh status call the film: the newest video in out/ (as films_in looks), media/ or
+    renders/; a copy bin/vh deliver made or an animatic only when there is nothing else. None when there is none."""
+    project = Path(project)
+    vids = films_in(project)
+    for top in ("media", "renders"):
+        base = project / top
+        vids += [f for f in (base.rglob("*") if base.is_dir() else [])
+                 if f.is_file() and f.suffix.lower() in VIDEO and not f.name.startswith(".") and "frames" not in f.parts]
+    own = [f for f in vids if not Path(str(f) + ".deliver.json").is_file() and not f.name.lower().startswith("animatic")] or vids
+    return max(own, key=lambda f: f.stat().st_mtime).resolve() if own else None
+
+
 def pick(target):
     """(film or None, project, page or None) for a film or a project."""
     p = Path(target).expanduser()

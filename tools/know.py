@@ -28,8 +28,9 @@ usage: bin/vh know <words…> [--kind recipe,component,style,doc,case] [-n N] [-
               or a score of 10 or more. When no hit is strong the answer says so first: what follows is the nearest there
               is, and the repo may have nothing on this
   --show      one section of a markdown file, to read it without the whole file: its text, a ## section with the ### under
-              it. <section> is the heading, or the start of it, or a part of it (审阅页, 4., 长片); more than one at the
-              best of those is listed, not guessed (exit 1). With no #section: the file's sections
+              it. <section> is the heading, or the start of it, or a part of it (审阅页, 4., 长片); when more than one fits at the
+              best of those, the one that holds the rest, else they are listed, not guessed (exit 1). With no #section: the
+              file's sections
 
 --json: {"version": 1, "query", "terms", "strong", "hits": [{"kind", "id", "title", "file", "line", "summary", "tags",
 "score", "matched", "partial", "strong"}], "units": n, "by_kind": {kind: n}}; --index --json: {"version": 1, "units": [{"kind",
@@ -248,11 +249,15 @@ def show(target):
         found = [i for i, (_, h, _, _) in enumerate(secs) if h and pick(h)]
         if found:
             break
+    def span(i):
+        return next((j for j in range(i + 1, len(secs)) if secs[j][0] <= secs[i][0]), len(secs))
+    if len(found) > 1 and span(found[0]) > found[-1]:   # 5. and the 5.1, 5.2 under it: the one that holds them
+        found = found[:1]
     if len(found) != 1:
         return rel, None, listed, [secs[i][1] for i in found]
     i = found[0]
     lv, h, n, _ = secs[i]
-    end = next((j for j in range(i + 1, len(secs)) if secs[j][0] <= lv), len(secs))
+    end = span(i)
     body = "\n".join(x[3] for x in secs[i:end]).rstrip() + "\n"
     return rel, {"section": h, "level": lv, "line": n, "chars": len(body), "text": body}, listed, []
 

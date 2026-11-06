@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`bin/vh status` says what to do next: who, what, which commands, what to read**
+- Why: it said "the agent: work towards 关卡 ①" and stopped there. An agent coming back to a project, or starting one, had to work out from the docs what that stop asks for, which commands do it and which sections to open.
+- `tools/status.py`: a `next:` line, and `next_step` in `--json`: `who`, `do`, `commands`, `read` (each a `<file>#<section>` for `bin/vh know --show`) and `unfilled`, computed from the stop the project is at: each gate, a checkpoint the director mode adds, quick's path, render, check and delivery, with the render command of the engine its files show. It names what is unfilled: how many `{…}` BRIEF, STYLE and STORYBOARD still have, how many `{填：…}` the gate's skeleton has. A scaffold that did not finish comes first. Every existing field stays as it was, so `next` is still one sentence.
+- `tools/proxy.py`: `newest_film`, for this and for `bin/vh check <project>`.
+- `tools/ci.sh`, `next_step_checks`: stop by stop, and every section it names is there.
+
 **`bin/vh gate <project> <n> --init`: a skeleton for a stop, refused until it is filled in**
 - Why: the gate JSON is the main thing an agent writes for a person, its fields were in the middle of a long section, and with no JSON the tool said only "write one first", also in a quick project, which has no gates.
 - `tools/gate.py`: `--init` writes `out/review/gate-<n>.json` for that stop, in the BRIEF's review language, with `"version": 1` and every text to write as a `{填：…}` (`{fill: …}`) that says what goes there. Gate ① has the concept cards and the outline, gate ② takes the storyboard's data through `include`, gate ③ asks for the draft, the contact sheet and the three places least sure of. It never overwrites.

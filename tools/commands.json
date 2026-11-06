@@ -209,8 +209,8 @@
             "each stop (gates ①②③, the checkpoints in use, delivery) done, skipped, waiting for the person,",
             "waiting for the agent, in progress or not started, from the files: the gate pages, the desk's",
             "submissions, REVIEW.md's decisions; who is waited on, the latest renders and the last check, open",
-            "review items, the material on record and the spend (bin/vh assets), what runs now (tools/status.py; --json: the",
-            "fields in tools/desk/README.md)"
+            "review items, the material on record and the spend (bin/vh assets), what runs now, and the next step: who has it,",
+            "what to do, the commands and the sections to read (tools/status.py; --json: the fields in tools/desk/README.md)"
           ]
         }
       ]

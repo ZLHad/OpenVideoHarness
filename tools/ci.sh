@@ -4842,7 +4842,7 @@ PY
   a=$(st "$p" "1:in_progress 2:not_started 3:not_started deliver:not_started | agent" 'd["version"] == 1 and d["project"]["effort"] == "standard" and d["project"]["type"] == "01-math-science-explainer"' \
     'd["review"]["current"] is None and d["renders"] == [] and d["check"] is None and d["open"] == {"review_items": [], "facts_to_verify": []}')
   b=$(vh status "$p"); rc=$?
-  [ "$a" = "1:in_progress 2:not_started 3:not_started deliver:not_started | agent" ] && [ $rc = 0 ] && [ "$(printf '%s\n' "$b" | wc -l | tr -d ' ')" -le 8 ] \
+  [ "$a" = "1:in_progress 2:not_started 3:not_started deliver:not_started | agent" ] && [ $rc = 0 ] && [ "$(printf '%s\n' "$b" | wc -l | tr -d ' ')" -le 9 ] \
     && ok "status: a new standard project works towards gate ①, the rest not started (--json version 1; a short human view)" || bad "status of a new project (rc $rc): $a | $b"
   # a page out (the page channel): waiting for the person; a desk submission: waiting for the agent, until handed over and recorded
   mkdir -p "$p/out/review" && cp tools/desk/fixtures/zh/out/review/gate-1.json "$p/out/review/" && vh gate "$p" 1 --page >/dev/null 2>&1
@@ -4981,10 +4981,106 @@ PY
     && ok "status: no REVIEW.md is no record (waiting on: unknown); records of the wrong shape break neither status nor activity" \
     || bad "status without REVIEW.md, or with bad records: $a |$b"
   vh status "$t/no-such" >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "status: no project exits 2" || bad "status of nothing exited $rc"
+  next_step_checks "$t"
   python3 -c 'import sys; sys.path.insert(0, "tools"); import status as S; d = S.director_stops
 sys.exit(0 if d("hook=own, stop=E1, stop=E3") == d("stop=E1,E3") == d("stop = e1，E3") == {"E1", "E3"} and not d("stop=E12") and not d("nostop=E3") else 1)' \
     && ok "status: every stop= on the Director line counts (stop=E1, stop=E3), E12 and nostop= do not" || bad "status: the Director line's stop= items"
   rm -rf "$t"
+}
+
+# bin/vh status's next step, stop by stop: who has it, what to do, the commands, what to read. Every section it sends an
+# agent to is there, and the older fields stay as they were
+next_step_checks() {
+  local t=$1 p q a b c d e f
+  cat > "$t/ns.py" <<'PY'
+import json, subprocess, sys
+vh, p = sys.argv[1:3]
+n = json.loads(subprocess.run([*vh.split("|"), "status", p, "--json"], capture_output=True, text=True).stdout)["next_step"]
+for k in sys.argv[3:]:
+    if not eval(k, {"n": n, "c": " | ".join(n["commands"]), "r": " | ".join(n["read"])}):
+        print(f"not {k}: {json.dumps(n, ensure_ascii=False)[:600]}")
+PY
+  ns() { python3 "$t/ns.py" "$VH_BASH|$ROOT/bin/vh" "$@"; }
+  a=$(python3 - <<'PY'
+import sys
+sys.path.insert(0, "tools")
+import know, status
+bad = [t for t in status.READS if (know.show(t)[1] is None if "#" in t else know.show(t)[0] is None)]
+print("; ".join(bad))
+PY
+)
+  [ -z "$a" ] && ok "status: every section the next step sends an agent to is there for bin/vh know --show" || bad "status, sections to read that are not there: $a"
+  # a new standard project: BRIEF's placeholders counted, the gate ① commands; the skeleton's own count; the page out is the person's
+  OVH_PROJECTS="$t" vh new math ns >/dev/null 2>&1; p=$(ls -d "$t"/*-ns)
+  a=$(ns "$p" 'n["who"] == "agent"' 'n["unfilled"]["BRIEF.md"] > 10' '"BRIEF.md (" in n["do"] and "{…} left" in n["do"]' '"--init" in c and c.endswith(" 1")' \
+    '"video-types/01-math-science-explainer.md" in r and "playbook/01-pipeline.md#审阅页" in r and "playbook/12-ideation.md#7." in r')
+  b=$(vh status "$p"); c=$(printf '%s\n' "$b" | grep -c '^next: agent — ')
+  vh gate "$p" 1 --init >/dev/null 2>&1
+  d=$(ns "$p" '"{填：…} left" in n["do"]' '"--init" not in c and c.endswith(" 1")')
+  python3 - "$p/out/review/gate-1.json" <<'PY'
+import json, sys
+f = sys.argv[1]
+def fill(x):
+    if isinstance(x, dict): return {k: fill(v) for k, v in x.items()}
+    if isinstance(x, list): return [fill(v) for v in x]
+    return "填好了" if isinstance(x, str) and x.startswith("{") else x
+d = fill(json.load(open(f, encoding="utf-8"))); d.pop("assets"); d["decisions"][0]["recommend"] = "A"
+json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
+PY
+  e=$(ns "$p" '"send the page" in n["do"] and "--init" not in c')
+  vh gate "$p" 1 --page >/dev/null 2>&1
+  f=$(ns "$p" 'n["who"] == "person"' '"stop here" in n["do"]' 'n["commands"] == []')
+  if [ -z "$a$d$e$f" ] && [ "$c" = 1 ]; then ok "status next: gate ① names BRIEF's placeholders, --init and what to read; a skeleton says how many are left; a filled one says send it; a page out is the person's"
+  else bad "status next through gate ①: $a | ${c} next line(s) in: $b | $d | $e | $f"; fi
+  # gate ① decided: gate ②'s files and commands; gate ② decided: no film, a draft to check, one that failed, one that passed
+  python3 - "$p" <<'PY'
+import sys
+p = sys.argv[1]
+f = p + "/REVIEW.md"; s = open(f, encoding="utf-8").read()
+s = s.replace('- 原话："……"', '- 原话："选 A"', 1).replace("- 定了：{…}　改了：{…}", "- 定了：A　改了：无", 1)
+open(f, "w", encoding="utf-8").write(s)
+d = p + "/DECISIONS.md"; s = open(d, encoding="utf-8").read(); open(d, "w", encoding="utf-8").write(s.replace("{待定 / 已定（关卡 ①）}", "已定（关卡 ①）：A", 1))
+PY
+  a=$(ns "$p" 'n["who"] == "agent"' '"STORYBOARD.md (" in n["do"]' '"bin/vh storyboard" in c and "bin/vh rhythm" in c and "2 --init" in c' '"playbook/01-pipeline.md#animatic" in r and "#长片" not in r')
+  python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("{fps} fps, exactly {N}s ({frames} frames)", "30 fps, exactly 600s (18000 frames)", 1))' "$p"
+  a="$a$(ns "$p" '"playbook/01-pipeline.md#长片" in r and "playbook/09-narrative.md#5." in r')"
+  python3 - "$p" <<'PY'
+import sys
+p = sys.argv[1]
+f = p + "/REVIEW.md"; s = open(f, encoding="utf-8").read()
+i = s.index("## 关卡 ② 分镜")
+open(f, "w", encoding="utf-8").write(s[:i] + s[i:].replace("- 原话：\n", '- 原话："分镜可以"\n', 1).replace("- 定了：　改了：", "- 定了：通过　改了：无", 1))
+PY
+  b=$(ns "$p" '"render a draft" in n["do"]' '"bin/vh frames" in c and "manim" in c' '"各引擎的取帧命令" in r')
+  mkdir -p "$p/out/check"; : > "$p/out/draft.mp4"
+  c=$(ns "$p" '"check out/draft.mp4" in n["do"]' '"bin/vh check" in c and "bin/vh sheet" in c')
+  printf '{"version": 1, "video": "out/draft.mp4", "t": %s, "verdict": "fail", "exit": 1, "counts": {"fail": 1}, "findings": [{"severity": "fail", "message": "the frame size is wrong"}]}\n' "$(($(date +%s) + 5))" > "$p/out/check/draft.check.json"
+  d=$(ns "$p" '"the frame size is wrong" in n["do"]' '"bin/vh check" in c')
+  printf '{"version": 1, "video": "out/draft.mp4", "t": %s, "verdict": "pass", "exit": 0, "counts": {"fail": 0}, "findings": []}\n' "$(($(date +%s) + 5))" > "$p/out/check/draft.check.json"
+  e=$(ns "$p" '"fresh reviewer" in n["do"]' '"3 --init" in c' '"templates/TASTE_CHECKLIST.md#打分层" in r')
+  if [ -z "$a$b$c$d$e" ]; then ok "status next: gate ② names its files and commands; gate ③ goes from no film, to a draft to check, one that failed (and what failed), one that passed and goes to a reviewer"
+  else bad "status next through gates ② and ③: $a | $b | $c | $d | $e"; fi
+  # quick's path: no film, a draft, a final; a Director's checkpoint; a long film; a pause
+  OVH_PROJECTS="$t" vh new math nq --effort quick >/dev/null 2>&1; q=$(ls -d "$t"/*-nq)
+  a=$(ns "$q" 'n["who"] == "agent"' '"BRIEF.md (" in n["do"] and "short storyboard table" in n["do"]' '"manim" in c' 'r.startswith("playbook/quick.md")' '"video-types/01-math-science-explainer.md#工作流" in r')
+  mkdir -p "$q/out/check"; : > "$q/out/draft.mp4"
+  b=$(ns "$q" '"check out/draft.mp4" in n["do"]')
+  printf '{"version": 1, "video": "out/draft.mp4", "t": %s, "verdict": "pass", "exit": 0, "counts": {"fail": 0}, "findings": []}\n' "$(($(date +%s) + 5))" > "$q/out/check/draft.check.json"
+  c=$(ns "$q" '"render the final" in n["do"]' '"-qh" in c and "out/final.mp4" in c')
+  sleep 1; : > "$q/out/final.mp4"
+  d=$(ns "$q" '"check out/final.mp4" in n["do"]')
+  printf '{"version": 1, "video": "out/final.mp4", "t": %s, "verdict": "pass", "exit": 0, "counts": {"fail": 0}, "findings": []}\n' "$(($(date +%s) + 5))" > "$q/out/check/final.check.json"
+  e=$(ns "$q" 'n["who"] == "nobody"' '"LESSONS.md" in n["do"]')
+  if [ -z "$a$b$c$d$e" ]; then ok "status next: quick's path, from no film and BRIEF to fill, a draft to check, the final to render, to delivered"
+  else bad "status next on quick's path: $a | $b | $c | $d | $e"; fi
+  python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Director: default", "- Director: stop=E3", 1))' "$p"
+  a=$(ns "$p" '"E3" in n["do"] and "director mode" in n["do"]' '"E3 --init" in c' '"playbook/01-pipeline.md#导演模式" in r')
+  printf '\n## 暂停 · 2026-10-19\n- 原话："先停一下"\n' >> "$p/REVIEW.md"
+  b=$(ns "$p" 'n["who"] == "person"' '"paused" in n["do"]')
+  [ -z "$a$b" ] && ok "status next: a checkpoint the Director line adds, and a pause, which is the person's" || bad "status next, a checkpoint and a pause: $a | $b"
+  # the older fields stay what they were: next is still a sentence
+  a=$(vh status "$q" --json | python3 -c 'import json, sys; d = json.load(sys.stdin); print(isinstance(d["next"], str), isinstance(d["next_step"], dict), d["waiting_on"])')
+  [ "$a" = "True True nobody" ] && ok "status: next stays one sentence, the object is next_step" || bad "status: next and next_step: $a"
 }
 
 # the activity log (<project>/.ovh/activity.jsonl, tools/activity.py): a command on a project adds a start, its tool's note
@@ -5325,6 +5421,7 @@ PY
   a=$(vh know --show "playbook/01-pipeline.md#审阅页" 2>/dev/null); rc=$?
   b=$(vh know --show "playbook/01-pipeline.md#三道人工关卡" 2>/dev/null); rc2=$?
   c=$(vh know --show "playbook/03-motion-design.md#4." --json 2>/dev/null); q=$(vh know --show playbook/01-pipeline.md --json 2>/dev/null)
+  case "$(vh know --show "playbook/09-narrative.md#5." 2>/dev/null)" in "## 5. 长片的节奏"*"### 5.3"*) ;; *) rc=9 ;; esac
   if [ "$rc:$rc2" = 0:0 ] && case "$a" in "### 审阅页"*"out/review/gate-<n>.json"*) true ;; *) false ;; esac && case "$a" in *"### 审阅台"*) false ;; *) true ;; esac \
     && case "$b" in "## 三道人工关卡"*"### 规格"*"### 审阅页"*"### 授权的无人值守模式"*) true ;; *) false ;; esac && case "$b" in *"## 长片"*) false ;; *) true ;; esac \
     && python3 - "$c" "$q" <<'PY'
