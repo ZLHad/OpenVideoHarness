@@ -138,6 +138,7 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 | | `patch` · `versions` | 只重画成片里的几秒；对比各版渲染，或者退回某一版 |
 | | `deliver` · `clean` | 出上传用的版本；清掉做完的项目里的中间文件 |
 | | `artifacts` | 项目里每种文件是什么、谁写的；这支片子有什么、缺什么、什么过期了 |
+| | `projects` · `cancel` · `history` | 所有项目和各自到哪了；停下一条正在跑的命令，并在记录里写清楚；你和 agent 写的文本的退路 |
 
 `bin/vh doctor` 读 `tools/modules.json`，告诉你这台机器能用上 40 个外接模块（程序、包、模型和联网服务）里的哪些。
 

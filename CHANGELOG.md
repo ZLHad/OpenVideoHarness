@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**`tools/desk/README.md`: one place for a client's author**
+- Why: what a client can read had grown one command at a time, and how to follow a running command, or tell that it crashed, was written nowhere.
+- 给客户端的数据 starts with a table of what to read from where, then a section each for `projects` and the identity, following a run (`bin/vh activity --follow --json`, and that a crash leaves no line, so ask for its `state`), the error's shape, `cancel`, `peaks`, `timeline --resolved`, `history` and the output contracts. It says what is deliberately not there yet: write commands, a project lock, a many-project HTTP API.
+- The READMEs: one row in the tools table.
+
 **`bin/vh history`: a safety net for the text people and agents write**
 - Why: films have versions and the text they come from had none, and many of these projects are not under git: an overwrite of a BRIEF, by a person or an agent, was gone. Later a client's edits will need the same way back.
 - `bin/vh history save|list|diff|restore`: the small text files `tools/artifacts.json` says a person or an agent writes (`made_by` person or agent; markdown, json or text; at most 1 MiB), stored by content in `.ovh/history/objects/<sha256>`, a snapshot a line of `.ovh/history/index.jsonl` (`"version": 1`, time, note, files and hashes). `save` skips what did not change and writes nothing when nothing did.
