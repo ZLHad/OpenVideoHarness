@@ -1223,8 +1223,8 @@ def main():
             blocks[-1].append(s)
         else:
             blocks.append([s])
-    takes = [f"{i+1:02d}.wav" for i in range(len(segs))] if join == "none" else [f"_block{i+1:02d}.wav" for i in range(len(blocks))]
-    voiced = a.resume and all((vo / f).exists() and ((vo / f).with_suffix(".words.json").exists() or not timed) for f in takes)   # the synthesis loops' own test
+    wavs = [f"{i+1:02d}.wav" for i in range(len(segs))] if join == "none" else [f"_block{i+1:02d}.wav" for i in range(len(blocks))]
+    voiced = a.resume and all((vo / f).exists() and ((vo / f).with_suffix(".words.json").exists() or not timed) for f in wavs)   # the synthesis loops' own test
     if not voiced and a.provider in ("elevenlabs", "dashscope", "gemini", "gemini-lite") and not os.environ.get(KEY_OF[a.provider].split()[0]):
         no_key(a.provider)                                           # before anything is synthesized or deleted; --resume with all voiced needs none
     if a.provider == "minimax":

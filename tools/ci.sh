@@ -5507,6 +5507,10 @@ PY
   a="$a$(ns "$d" 'n["who"] == "nobody"')"
   rm -f "$d/out/check/m1080.check.json" "$e/1080p30/X.mp4"; : > "$e/1920p30/X.mp4"; touch -t 202601010002 "$e/1920p30/X.mp4"; rec "$d" media/videos/scene/1920p30/X.mp4 m1920
   a="$a$(ns "$d" 'n["who"] == "nobody"')"
+  OVH_PROJECTS="$t" vh new math nv --effort quick >/dev/null 2>&1; e=$(ls -d "$t"/*-nv); python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Output: 1920x1080,", "- Output: 1080x1920,", 1))' "$e"
+  a="$a$(ns "$e" '"manim -ql -r 540,960 scene.py" in c' '"-qh" not in c')"
+  mkdir -p "$e/media/videos/scene/960p15"; : > "$e/media/videos/scene/960p15/X.mp4"; rec "$e" media/videos/scene/960p15/X.mp4 m960
+  a="$a$(ns "$e" '"Manim" in n["do"] and "-r 1080,1920" in n["do"]' '"manim -r 1080,1920 --fps 30 scene.py" in c')"
   [ -z "$a" ] && ok "status next and check: Manim's pieces of a scene are no film, its 480p15 and 720p30 are drafts (render with -qh), 1080p30 and a vertical 1920p30 are the final; status and check look as deep" \
     || bad "status next on Manim's renders: $a"
   # a film a failed patch left is not the film, nor the final; a chapter's preview does not win over a final, and is said
@@ -5565,10 +5569,11 @@ PY
   if [ "$a" = "1:skipped E1:in_progress 2:skipped 3:skipped deliver:not_started | agent" ] && [ -z "$b$c" ] && [ "$e" = "1:skipped E1:done 2:skipped 3:skipped deliver:in_progress | agent" ] && [ "$f" = "1:in_progress 2:skipped 3:skipped deliver:not_started | agent" ]
   then ok "status next, quick: a thing the person keeps is a stop even so (no gate of its own is added but its), said first; once on record the film goes on; gate ① then asks only for what they kept"
   else bad "status next, Director x=own on a quick project: $a | $b | $c | $e | $f"; fi
-  python3 -c 'import sys; sys.path.insert(0, "tools"); import status as S; d = S.director_own
+  python3 -c 'import re, sys; sys.path.insert(0, "tools"); import status as S; d = S.director_own
+named = set(re.findall(r"`(\w+)`", next(x for x in open("CLAUDE.md", encoding="utf-8") if x.startswith("- **能点名的事**")).split("。")[0]))
 sys.exit(0 if d("hook=own, stop=E1, rest=delegate") == {"hook": "1"} and d("Voice = OWN，script=own") == {"voice": "E1", "script": "E1"} and d("default") == {} and d("hook=review") == {} and d("nope=own") == {"nope": None} \
-  and set(d("hook=review, rest=own")) == set(S.OWN_STOP) - {"hook"} and set(S.OWN_STOP.values()) <= set(S.ORDER) else 1)' \
-    && ok "status: the Director line's x=own items, a word it does not name without a stop, and rest=own" || bad "status: the Director line's x=own items"
+  and set(d("hook=review, rest=own")) == set(S.OWN_STOP) - {"hook"} and set(S.OWN_STOP.values()) <= set(S.ORDER) and named == set(S.OWN_STOP) else 1)' \
+    && ok "status: the Director line's x=own items, a word it does not name without a stop, and rest=own; what CLAUDE.md lets a person name each has a stop" || bad "status: the Director line's x=own items"
   # quick skips the gates, not a stop the person asked for; a link to a film that is gone breaks nothing
   OVH_PROJECTS="$t" vh new math nd --effort quick >/dev/null 2>&1; d=$(ls -d "$t"/*-nd)
   python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Director: default", "- Director: stop=E3", 1))' "$d"

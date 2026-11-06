@@ -393,11 +393,21 @@ def engine_setup(project, proj):
     return None
 
 
+def manim_quality(proj, final):
+    """Manim's flags for a draft or the final. A vertical film goes by its size: -ql and -qh put the frame back to landscape
+    (engines/README.md, 竖屏)."""
+    m = re.search(r"(\d{3,4})\s*[x×]\s*(\d{3,4})", proj["spec"].get("Output") or "")
+    w, h = (int(m[1]), int(m[2])) if m else (1920, 1080)
+    if h > w:
+        return f"-r {w},{h} --fps 30" if final else f"-ql -r {w // 2},{h // 2}"
+    return "-qh --fps 30" if final else "-ql"
+
+
 def frame_cmd(project, proj):
     """How to look at a frame before there is a film. bin/vh frames draws a page; Manim has none, and keeps its last frame."""
     engine = engine_here(project, proj)
     if engine == "manim":
-        return f"(cd {shown(project)} && uv run manim -ql -s scene.py <Scene>)"
+        return f"(cd {shown(project)} && uv run manim {manim_quality(proj, False)} -s scene.py <Scene>)"
     return None if engine == "other" else f"bin/vh frames {shown(project)} --at 1,5,9"
 
 
@@ -409,7 +419,7 @@ def render_cmd(project, proj, final):
     if engine == "p5":
         return f"(cd {p} && node render.mjs --clip --out={name})"
     if engine == "manim":
-        return f"(cd {p} && uv run manim {'-qh --fps 30' if final else '-ql'} scene.py <Scene>)"
+        return f"(cd {p} && uv run manim {manim_quality(proj, final)} scene.py <Scene>)"
     return None if engine == "other" else f"bin/vh render {p} --out {p}/{name}"
 
 
@@ -556,7 +566,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         return out("agent", busy + f"prepare {s['name']}{f' for {mine}' if mine else ''}, a stop the director mode asks for; {say}", cmds, [R_DIRECTOR, R_LOOKDEV if key == "E0" else None, R_PAGE])
     # delivery: quick's whole path, and the end of the others'
     if fstate == "none":
-        return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), "a short storyboard table, the scenes, then a draft" if quick else "render the final") if x),
+        return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), f"a short storyboard table, then {first_scenes()}" if quick else "render the final") if x),
                    [engine_setup(project, proj), render_cmd(project, proj, not quick)],
                    [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, *engine_docs(project, proj), R_PHONE] if quick else [*engine_docs(project, proj), R_FRAMES, *writing])
     if fstate in ("unchecked", "stale"):
@@ -566,7 +576,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         return out("agent", busy + f"fix what bin/vh check failed on {film}" + (": " + "; ".join(fails) if fails else ""), check, [R_SILENT])
     if not is_final(film):
         manim = engine_here(project, proj) == "manim"   # its film lands in media/videos/<scene>/1080p30/, by the scene's name
-        return out("agent", busy + ("this is Manim's draft: render it at high quality (-qh)" if manim else "render the final at delivery quality")
+        return out("agent", busy + (f"this is Manim's draft: render it at high quality ({manim_quality(proj, True).split(' --')[0]})" if manim else "render the final at delivery quality")
                    + ", put the sound on when it has any (bin/vh mix, qa, mux), and check it",
                    [render_cmd(project, proj, True), f"bin/vh check {p}" if manim else f"bin/vh check {p}/out/final.mp4"], [R_SOUND])
     return out("agent", busy + "the final passes bin/vh check: bin/vh deliver makes the copy to upload", [f"bin/vh deliver {p}/{film}"], [])
