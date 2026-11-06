@@ -285,16 +285,18 @@
           ]
         },
         {
-          "synopsis": "artifacts list <project> [--stage S] [--json]",
+          "synopsis": "artifacts list <project> [--stage S] [--strict] [--json]",
           "text": [
             "what this project holds, kind by kind: the paths, the version each says, the schema's result, whether it is out of date",
-            "and why (not checked where nothing can tell), the {…} left, and what is required by now and missing; a report: exit 0"
+            "and why (not checked where nothing can tell), the {…} left, and what is required by now and missing; a report: exit 0,",
+            "or with --strict exit 1 when anything is missing by now, has a schema problem or is out of date (not checked is none of them)"
           ]
         },
         {
           "synopsis": "artifacts check [--json]",
           "text": [
-            "the table against tools/commands.json, tools/clean.py and tools/schemas/ (tools/ci.sh runs it); exit 1 on a problem",
+            "the table against tools/commands.json (both ways: a path a command writes has an entry, a writer an entry lists writes it),",
+            "tools/clean.py and tools/schemas/ (tools/ci.sh runs it); exit 1 on a problem",
             "(bin/vh artifacts -h: the --json fields)"
           ]
         }
@@ -354,7 +356,9 @@
         "<project>/BRIEF.md, STYLE.md, style-refs/, STORYBOARD.md, audio/*events*.json (--from)"
       ],
       "writes": [
-        "projects/<date>-<slug>/ (or under --dir, $OVH_PROJECTS)"
+        "projects/<date>-<slug>/ (or under --dir, $OVH_PROJECTS)",
+        "<project>/BRIEF.md, STYLE.md, STORYBOARD.md, REVIEW.md, DECISIONS.md, NOTES.md, LESSONS.md, TASTE_CHECKLIST.md, ENGINE_README.md, film.html, src/, node_modules/ (the type's templates and its engine's files)",
+        "<project>/three/, style-refs/<id>/, series.json (with --three, --style, --from)"
       ],
       "usage": [
         {
@@ -801,6 +805,7 @@
       "writes": [
         "<research>/scout.jsonl (topic, channel, post, add): <research> is --dir, the project's research/ (--project, or the project here), else $OVH_SCOUT, else nothing",
         "<research>/hot/<date>.json (hot)",
+        "<research>/covers/<run>/ (topic --covers); in a project: <project>/research/scout.jsonl, research/hot/<date>.json, research/covers/<run>/",
         "a CSV (--csv)"
       ],
       "usage": [
@@ -1019,6 +1024,7 @@
       "writes": [
         "<project>/out/review/gate-<n>.html, index.html, .current",
         "<project>/out/review/gate-<n>.json (--init)",
+        "<project>/out/review/feedback/.consumed (--wait: the submission handed over)",
         "the review desk, a local server, for a stop reviewed there"
       ],
       "usage": [
@@ -1050,7 +1056,8 @@
       ],
       "writes": [
         "<project>/out/review/feedback/<round>-<time>.json and .md",
-        "<project>/REVIEW.md (a submission, as a dated section)"
+        "<project>/REVIEW.md (a submission, as a dated section)",
+        "<project>/out/review/feedback/.consumed (what an agent has been handed)"
       ],
       "usage": [
         {
@@ -1218,7 +1225,7 @@
         "a beats.json of bin/vh beats (--beats), else its audio through bin/vh beats"
       ],
       "writes": [
-        "<out>/breakdown.json, change.png, cuts.jpg, segments.jpg, swap.md: <out> is --out, else in a project its research/breakdown/<video name>/, else <video name>-breakdown/ beside it"
+        "<out>/breakdown.json, change.png, cuts.jpg, segments.jpg, swap.md: <out> is --out, else in a project <project>/research/breakdown/<video-name>/, else <video name>-breakdown/ beside it"
       ],
       "usage": [
         {
@@ -1379,8 +1386,9 @@
       ],
       "writes": [
         "<project>/audio/voiceover.<lang>.wav, timeline.<lang>.json (rewritten)",
-        "<project>/audio/voiceover.<lang>.raw.wav",
-        "<project>/audio/captions.*"
+        "<project>/audio/voiceover.<lang>.raw.wav, timeline.<lang>.raw.json (the originals)",
+        "<project>/audio/pace.<lang>.asr.json (the transcription of the new take, under its sha256)",
+        "<project>/audio/captions.<lang>.srt, captions.json, captions.args.json (bin/vh captions again)"
       ],
       "usage": [
         {
@@ -1454,7 +1462,8 @@
       "writes": [
         "<project>/audio/captions.<lang>.srt, captions.bi.srt",
         "<project>/audio/captions.json",
-        "<project>/audio/captions.args.json"
+        "<project>/audio/captions.args.json",
+        "<project>/out/edit.resolved.json, edit.timeline.<lang>.json (with an edit list, when footage speaks: built first)"
       ],
       "usage": [
         {
@@ -1578,7 +1587,7 @@
       "writes": [
         "<out.wav>",
         "<out stem>.beats.json",
-        "a piano roll and energy curve per part (--roll)",
+        "<project>/audio/<out>.roll/ (--roll: a piano roll and energy curve per part)",
         "--provider lyria: <project>/assets/genmusic/<id>/, audio/<as>.wav and .beats.json, their records in assets/ledger.json, assets/spend.jsonl"
       ],
       "usage": [
@@ -2020,7 +2029,9 @@
       "writes": [
         "<project>/out/<page>.mp4 (or --out) and <out>.render.json (with files: every file in the page's folder the page loaded, and its sha256)",
         "<project>/out/versions/ (the film it replaces)",
-        "<project>/out/cache/chunks/ (an edit list's chunks, under their keys, for the next render)"
+        "<project>/out/cache/chunks/ (an edit list's chunks, under their keys, for the next render)",
+        "<project>/out/edit.resolved.json, edit.timeline.<lang>.json (with an edit list: built first, as bin/vh edit build does)",
+        "<project>/out/.<page>.mp4.parts/ (the chunks of a stopped or failed render)"
       ],
       "usage": [
         {
@@ -2060,9 +2071,10 @@
         "<project>/shots.json, or the page's shots and chapters (an edit list's film: edit.json, its entries and its pages' shots)"
       ],
       "writes": [
-        "<film>.patched.mp4, --out, or the film in place",
+        "<project>/out/<name>.mp4 (or --out; in place) and <name>.mp4.render.json",
         "<film>.failed.mp4 when its checks fail",
-        "<project>/out/versions/"
+        "<project>/out/versions/",
+        "<project>/out/.<name>.mp4.patch/ (the work folder; --keep keeps it)"
       ],
       "usage": [
         {
@@ -2089,7 +2101,7 @@
       ],
       "writes": [
         "<project>/out/check/versions/<vA>-<vB>-t<s>.png (compare)",
-        "the film's path and <project>/out/versions/ (use)"
+        "<project>/out/<name>.mp4 and <name>.mp4.render.json, the film's path (use: the version put back) and <project>/out/versions/"
       ],
       "usage": [
         {
@@ -2162,8 +2174,8 @@
         "edit= (an edit list: its footage's sound and its sound tracks, engines/EDIT.md)"
       ],
       "writes": [
-        "<out.wav>",
-        "<out.wav>.mix.json (the build record mux verifies)",
+        "<project>/audio/mix.wav (or any <out.wav>)",
+        "<project>/audio/mix.wav.mix.json (the build record mux verifies)",
         "stems=DIR (a profile)"
       ],
       "usage": [
@@ -2236,8 +2248,8 @@
         "subs.srt …"
       ],
       "writes": [
-        "<out>",
-        "<out>.mux.json (what it was muxed from: the picture's render record as it was)"
+        "<project>/out/final.mp4 (or --out: <project>/out/<name>.mp4)",
+        "<project>/out/final.mp4.mux.json (what it was muxed from: the picture's render record as it was)"
       ],
       "usage": [
         {
@@ -2260,8 +2272,8 @@
         "<project>/assets/ledger.json and what assets check reads (in a project: a folder above the master with a BRIEF.md)"
       ],
       "writes": [
-        "<master stem>.upload.mp4 (or --out)",
-        "<copy>.deliver.json (assets: the records, credits, AI-generated and not cleared, the check's verdict)"
+        "<project>/out/<master>.upload.mp4 (or --out)",
+        "<project>/out/<master>.upload.mp4.deliver.json (assets: the records, credits, AI-generated and not cleared, the check's verdict)"
       ],
       "usage": [
         {
@@ -2335,7 +2347,8 @@
         "<project>"
       ],
       "writes": [
-        "the Trash (--yes); --delete deletes what the tools can make again"
+        "the Trash (--yes); --delete deletes what the tools can make again",
+        "<project>/out/versions/versions.json (the versions it removed, taken out of the record)"
       ],
       "usage": [
         {

@@ -1,6 +1,6 @@
 # BRIEF
 
-<!-- 由 agent 根据用户需求填写。standard / studio 在关卡 ① 给人看；quick 不停，人点名要定的事除外（CLAUDE.md"导演模式"）。花括号里的都要替换。工具靠得住的只有两处：Output 的画面尺寸和帧率（bin/vh check 拿成片和它比，bin/vh edit init 取它）、Resolution（bin/vh check 按它认交付哪几种），bin/vh artifacts list 只把这两处算作必填；其余的花括号写给人和 agent 看。 -->
+<!-- 由 agent 根据用户需求填写。standard / studio 在关卡 ① 给人看；quick 不停，人点名要定的事除外（CLAUDE.md"导演模式"）。花括号里的都要替换。工具会读 Spec 里这几行：Effort、Director、Budget、Assets、Output、Watch on、Pace、Resolution、Review language；其中 bin/vh artifacts list 只把 Output 的画面尺寸和帧率、Resolution 算作必填（bin/vh check 拿成片和 Output 比，按 Resolution 认交付哪几种），其余的花括号写给人和 agent 看。 -->
 
 ## Spec
 - Effort: standard  <!-- quick | standard | studio：做多认真，规则见 CLAUDE.md "努力程度"。用户在对话里说的优先 -->

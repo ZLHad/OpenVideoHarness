@@ -44,7 +44,11 @@ def state(project):
     f = project / tl
     if not f.is_file():
         return "stale", f"{tl}, the timeline they were timed from, is gone: bin/vh captions makes them from the timeline there is now"
-    if digest(f) != sha:
+    try:
+        now = digest(f)
+    except OSError as e:   # there, and not readable
+        return "not_checked", f"{tl} cannot be read ({e.strerror or type(e).__name__}): nothing says whether the captions are from it"
+    if now != sha:
         return "stale", f"{tl} changed since the captions were made from it: bin/vh captions makes them again"
     return "fresh", f"made from {tl} as it is"
 

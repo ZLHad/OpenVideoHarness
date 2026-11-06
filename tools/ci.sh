@@ -5834,6 +5834,13 @@ PY
   a=$(vh artifacts list "$p" 2>&1); b=$(vh artifacts list "$p" --json 2>/dev/null | python3 -c "$q")
   case "$b:$a" in stale:*"audio/captions.json: out of date: audio/timeline.zh.json changed since"*) ok "bin/vh artifacts list: captions older than their timeline are out of date, with why" ;;
     *) bad "bin/vh artifacts list on captions older than their timeline ($b): $(printf '%s' "$a" | tail -c 400)" ;; esac
+  if [ "$(id -u)" != 0 ]; then
+    chmod 000 "$p/audio/timeline.zh.json"
+    a=$(vh artifacts list "$p" 2>&1); rc=$?; b=$(vh artifacts list "$p" --json 2>/dev/null | python3 -c "$q")
+    chmod 644 "$p/audio/timeline.zh.json"
+    if [ $rc = 0 ] && [ "$b" = not_checked ] && ! printf '%s' "$a" | grep -q Traceback; then ok "bin/vh artifacts list: a timeline that cannot be read leaves the captions not checked, and no traceback"
+    else bad "bin/vh artifacts list on an unreadable timeline (exit $rc, $b): $(printf '%s' "$a" | tail -c 300)"; fi
+  fi
   if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
     ffmpeg -nostdin -v error -f lavfi -i "testsrc2=s=320x180:r=30:d=1" -c:v libx264 -pix_fmt yuv420p "$p/out/film.mp4"
     a=$(vh check "$p/out/film.mp4" 2>&1)
@@ -5895,9 +5902,27 @@ c2 = copy.deepcopy(cmds); c2["sheet"]["writes"].append("<project>/shots.json")
 bad += seen("does not list it in writers", A.writes_problems(t, c2), "a write by a command the entry does not list")
 x = copy.deepcopy(t); x["ignored_writes"].append({"path": "gone/nothing.json", "why": "no reason"})
 bad += seen("no command writes it now", A.writes_problems(x, cmds), "a stale line of ignored_writes")
+x = copy.deepcopy(t); by(x, "gate-1")["writers"] = ["check"]
+bad += seen("writers lists check", A.writes_problems(x, cmds), "a writer changed to a real command that does not write it")
+bad += seen("gate-1 does not list it in writers", A.writes_problems(x, cmds), "gate ① with no gate among its writers")
+for i in ("gate-1", "gate-2", "gate-3", "gate-other", "brief", "ledger"):
+    x = copy.deepcopy(t); by(x, i)["writers"] = []
+    bad += seen(f"{i} does not list it in writers", A.writes_problems(x, cmds), f"{i} with its writers taken out")
+x = copy.deepcopy(t); by(x, "mix-record")["writers"] = ["tts"]
+bad += seen("mix-record: writers lists tts", A.writes_problems(x, cmds), "an entry whose writer's lines never name it")
+c2 = copy.deepcopy(cmds); c2["mix"]["writes"] = [w for w in c2["mix"]["writes"] if ".mix.json" not in w]
+bad += seen("mix-record: writers lists mix", A.writes_problems(t, c2), "a writer whose line no longer names the file")
+x = copy.deepcopy(t); x["artifacts"] = [e for e in x["artifacts"] if e["format"] != "lock"]
+bad += seen("nothing needs it now", A.writes_problems(x, cmds), "a line of NOT_SAID nothing needs")
+import schemalite
+for sch in ({"items": [{"type": "string"}]}, {"properties": {"a": {"items": [{"type": "integer"}]}}}, {"$defs": {"d": {"anyOf": [{"items": []}]}}}):
+    if "items (a list)" not in schemalite.keywords(sch):
+        bad.append(f"schemalite.keywords lets a list-form items through in {sch}")
+if schemalite.keywords({"items": {"type": "string"}, "properties": {"a": {"items": {"type": "integer"}}}}):
+    bad.append("schemalite.keywords refuses an items that is one schema")
 print("\n".join(bad)); sys.exit(1 if bad else 0)
 PY
-  ); then ok "bin/vh artifacts check catches a writer that is no command, a schema no entry names or that is not there, a clean that tools/clean.py does not do, a write no entry matches or whose entry does not list it, a stale with no rule"
+  ); then ok "bin/vh artifacts check catches a writer that is no command, a schema no entry names or that is not there, a clean that tools/clean.py does not do, a write no entry matches or whose entry does not list it, a writer that is changed or dropped or that no writes line names, a stale with no rule; tools/schemalite.py refuses a list-form items"
   else bad "bin/vh artifacts check on broken tables: $a"; fi
   # spec: the table, by stage; --json with every field. A usage error is 2
   a=$(vh artifacts spec); b=$(vh artifacts spec --stage 4 --json 2>/dev/null); c=$(vh artifacts spec --stage 不是阶段 2>&1); rc=$?
@@ -5930,6 +5955,15 @@ ok = ok and [b["key"] for b in d["blanks"]] == ["Output"] and not d["blanks"][0]
 sys.exit(0 if ok else 1)' "$d"
   then ok "bin/vh artifacts list on a new project: only reads (the same bytes after it, nothing in the log), required by new is there, nothing else by now, the BRIEF's blank tools rely on said and not yet required"
   else bad "bin/vh artifacts list on a new project (exit $rc): $(printf '%s' "$a" | tail -c 500)"; fi
+  # --strict: exit 1 on what is missing, invalid or out of date; a folder with no BRIEF.md but files of a project is listed, one with none is a usage error
+  vh artifacts list "$p" --strict >/dev/null 2>&1; rc=$?
+  mkdir -p "$t/nobrief/audio" "$t/empty"; : > "$t/nobrief/audio/x.wav"
+  a=$(vh artifacts list "$t/nobrief" 2>&1); rc2=$?; vh artifacts list "$t/nobrief" --strict >/dev/null 2>&1; rc3=$?
+  b=$(vh artifacts list "$t/nobrief" --json 2>/dev/null | python3 -c 'import json, sys; d = json.load(sys.stdin); print([m["id"] for m in d["missing"]], d["counts"]["found"])')
+  vh artifacts list "$t/empty" >/dev/null 2>&1; rc4=$?
+  if [ "$rc:$rc2:$rc3:$rc4" = 0:0:1:2 ] && [ "$b" = "['brief'] 1" ] && case "$a" in *"BRIEF.md"*"required by new"*) true ;; *) false ;; esac
+  then ok "bin/vh artifacts list --strict: exit 0 on a new project, 1 on what is missing; a folder with no BRIEF.md and files of a project lists the BRIEF as missing, one with none is exit 2"
+  else bad "bin/vh artifacts list --strict and a folder with no BRIEF.md ($rc:$rc2:$rc3:$rc4, $b): $(printf '%s' "$a" | tail -c 300)"; fi
   # what is required by now, the schema's result and each kind of out of date, on records written by hand as the tools write them
   if a=$(python3 - "$p" <<'PY'
 import hashlib, json, os, struct, subprocess, sys, zlib
@@ -5956,6 +5990,12 @@ if sch["ok"] or "recommend" not in " ".join(sch["problems"]) or d["counts"]["sch
     bad.append(f"a gate JSON of the wrong shape: {sch}")
 if not [b for b in d["blanks"] if b["key"] == "Output" and b["required"]] or d["counts"]["missing"] < 2:
     bad.append(f"the BRIEF's blank once gate ① is reached: {d['blanks']}")
+# a stop with a page and no gate JSON (a project from before bin/vh gate wrote one) is passed: its file is not missing
+put("out/review/gate-1.html", "<html>")
+d = listed()
+if "gate-1" in [m["id"] for m in d["missing"]]:
+    bad.append(f"gate-1.json listed missing for a stop with a page: {d['missing']}")
+os.remove(P / "out/review/gate-1.html")
 # narration: a script and no take; the template's example timeline alone is no narration
 os.makedirs(P / "audio", exist_ok=True)
 put("audio/timeline.zh.json", {"provider": "example", "segments": []})

@@ -1,9 +1,7 @@
 {
  "version": 1,
  "note": "The intermediate files a film project holds, one entry a kind: what each is, who writes and reads it, when it must exist, how it is told out of date, what bin/vh clean does with it. bin/vh artifacts prints this table (spec) and holds a project against it (list); tools/ci.sh holds it to tools/commands.json, tools/clean.py and tools/schemas/ (bin/vh artifacts check). A new kind of file gets an entry here (CONTRIBUTING.md). Fields: id; path, relative to the project (<lang> a language such as zh; <n> a review page's name; <id> one folder name; <film> a video's path, under out/ at any depth, media/ or renders/; * anything within one folder name; a folder ends with /); also, other names for the same thing, with note saying which wins; kind (file, folder); format; stages (as in tools/commands.json, the first the main one); purpose, one plain Chinese line; made_by (person, agent, tool); writers and readers (commands of tools/commands.json, and page for what a film's page reads); required (null, or when it must exist: new, gate-1, gate-2, gate-3, narration, delivery); version_key (version, v, null); schema (a path, or null); stale (null, or {from: ids, by: sha256 or size_mtime, recorded_in: where}); made_from, only where stale is null: ids it is made from when nothing records which, so bin/vh artifacts list says not checked; clean (what bin/vh clean does with it, in tools/clean.py's terms: rebuilt, versions, renders and sound go, the last two only once it has found the film; film and stays stay); doc (a file, #section for a markdown one); note. ignored_writes: paths of tools/commands.json's writes that are no kind of file, each with why. Fields are only added.",
- "ignored_writes": [
-  {"path": "audio/captions.*", "why": "bin/vh pace runs bin/vh captions again: what that writes is listed under captions"}
- ],
+ "ignored_writes": [],
  "artifacts": [
   {
    "id": "brief",
@@ -1046,15 +1044,14 @@
    "doc": "tools/assets/hdri.py"
   },
   {
-   "id": "locks",
+   "id": "ledger-lock",
    "path": "assets/.ledger.lock",
-   "also": ["assets/.spend.lock", "research/.refs.lock", "out/versions/.lock", "out/review/feedback/.consumed.lock", "audio/*.mix.lock"],
    "kind": "file",
    "format": "lock",
    "stages": ["any"],
-   "purpose": "几条命令同时写时用的文件锁；内容没有意义",
+   "purpose": "几条命令同时改素材台账时的文件锁；内容没有意义",
    "made_by": "tool",
-   "writers": ["assets", "image", "ref", "render", "patch", "versions", "desk", "mix"],
+   "writers": ["assets", "footage", "image", "hdri", "bgm", "music", "sfx", "hf"],
    "readers": ["clean"],
    "required": null,
    "version_key": null,
@@ -1064,6 +1061,91 @@
    "doc": "tools/assets/ledger.py"
   },
   {
+   "id": "spend-lock",
+   "path": "assets/.spend.lock",
+   "kind": "file",
+   "format": "lock",
+   "stages": ["any"],
+   "purpose": "几条命令同时记付费调用时的文件锁；内容没有意义",
+   "made_by": "tool",
+   "writers": ["image", "assets", "music"],
+   "readers": ["clean"],
+   "required": null,
+   "version_key": null,
+   "schema": null,
+   "stale": null,
+   "clean": "stays",
+   "doc": "tools/assets/budget.py"
+  },
+  {
+   "id": "refs-lock",
+   "path": "research/.refs.lock",
+   "kind": "file",
+   "format": "lock",
+   "stages": ["any"],
+   "purpose": "几条命令同时改参考片库时的文件锁；内容没有意义",
+   "made_by": "tool",
+   "writers": ["ref"],
+   "readers": ["clean"],
+   "required": null,
+   "version_key": null,
+   "schema": null,
+   "stale": null,
+   "clean": "stays",
+   "doc": "tools/scout/refs.py"
+  },
+  {
+   "id": "versions-lock",
+   "path": "out/versions/.lock",
+   "kind": "file",
+   "format": "lock",
+   "stages": ["any"],
+   "purpose": "渲染、补渲、换版本、清理同时改版本记录时的文件锁；内容没有意义",
+   "made_by": "tool",
+   "writers": ["render", "patch", "versions", "clean"],
+   "readers": ["clean"],
+   "required": null,
+   "version_key": null,
+   "schema": null,
+   "stale": null,
+   "clean": "stays",
+   "doc": "tools/versions.py"
+  },
+  {
+   "id": "consumed-lock",
+   "path": "out/review/feedback/.consumed.lock",
+   "kind": "file",
+   "format": "lock",
+   "stages": ["any"],
+   "purpose": "几处同时记已交给 agent 的提交时的文件锁；内容没有意义",
+   "made_by": "tool",
+   "writers": ["desk", "gate"],
+   "readers": ["clean"],
+   "required": null,
+   "version_key": null,
+   "schema": null,
+   "stale": null,
+   "clean": "stays",
+   "doc": "tools/desk/feedback.py"
+  },
+  {
+   "id": "mix-lock",
+   "path": "audio/*.mix.lock",
+   "kind": "file",
+   "format": "lock",
+   "stages": ["any"],
+   "purpose": "一次混音写成片音频时的文件锁；内容没有意义",
+   "made_by": "tool",
+   "writers": ["mix"],
+   "readers": ["clean"],
+   "required": null,
+   "version_key": null,
+   "schema": null,
+   "stale": null,
+   "clean": "stays",
+   "doc": "tools/audio/mixstate.py"
+  },
+  {
    "id": "script",
    "path": "audio/script.txt",
    "kind": "file",
@@ -1071,7 +1153,7 @@
    "stages": ["3", "4"],
    "purpose": "旁白稿，一行一句；bin/vh tts 从它合成",
    "made_by": "agent",
-   "writers": ["tts"],
+   "writers": [],
    "readers": ["tts", "pace"],
    "required": "narration",
    "version_key": null,
@@ -1987,7 +2069,7 @@
    "stages": ["any"],
    "purpose": "bin/vh 在这个项目里做了什么，一行一个事件，只追加",
    "made_by": "tool",
-   "writers": ["new", "render", "patch", "review", "gate", "desk", "mix", "qa", "tts", "check", "versions", "frames"],
+   "writers": ["*"],
    "readers": ["activity", "status"],
    "required": null,
    "version_key": "v",
@@ -1995,7 +2077,7 @@
    "stale": null,
    "clean": "stays",
    "doc": "tools/desk/README.md#活动记录",
-   "note": "Every bin/vh command that works on a project appends to it, but the read-only views; writers lists the ones that add notes."
+   "note": "A client reads this file, not writers: \"*\" there means every bin/vh command that works on a project (new, once the project is made), all but the read-only ones (bin/vh's list before act_start: setup, install-skill, sync-agents, types, effort, recipes, doctor, commands, status, activity, know, artifacts). Each appends a start line and an end line; a command may add notes between them."
   }
  ]
 }

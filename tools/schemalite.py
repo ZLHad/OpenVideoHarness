@@ -130,6 +130,8 @@ def keywords(schema):
             walk(sub)
         for sub in s.get("anyOf", []):
             walk(sub)
+        if isinstance(s.get("items"), list):   # draft 2020-12 has no list-form items (prefixItems): this reads one schema, not a list
+            bad.add("items (a list)")
         walk(s.get("items"))
     walk(schema)
     return bad

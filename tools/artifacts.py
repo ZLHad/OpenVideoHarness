@@ -2,7 +2,7 @@
 Stdlib only; list only reads: no render, no browser, nothing written in the project.
 
 usage: bin/vh artifacts spec [--stage S] [--json]
-       bin/vh artifacts list <project> [--stage S] [--json]
+       bin/vh artifacts list <project> [--stage S] [--strict] [--json]
        bin/vh artifacts check [--json]
 <project> is a folder (or a file inside it), or a name under $OVH_PROJECTS / projects/ (the date prefix optional). --stage S:
 a stage of tools/commands.json, by its id (0–9, env, any) or a part of its name: only the kinds used there.
@@ -18,7 +18,8 @@ a stage of tools/commands.json, by its id (0–9, env, any) or a part of its nam
          By now: new always; gate-1, gate-2, gate-3 once that stop is decided, or its page is out, or a later stop is
          (a stop skipped by Effort quick or the user's own words requires nothing); narration once there is a script, a
          voiceover or a timeline that is not the template's example; delivery once there is a final film or a delivery record.
-         Of the BRIEF's blanks only the ones tools rely on count (Output's size and fps, Resolution), once gate ① is reached
+         A stop already decided in REVIEW.md or with a page in out/review/gate-<n>*.html needs no gate JSON (projects from before
+         bin/vh gate wrote one). Of the BRIEF's blanks only the ones tools rely on count (Output's size and fps, Resolution), once gate ① is reached
          or there is a film. --json: {"version": 1, "tool", "project", "stage", "reached": {milestone: true|false}, "counts":
          {"kinds", "found", "files", "stale", "not_checked", "schema_problems", "missing"}, "artifacts": [{"id", "kind",
          "required", "clean", "files": [{"path", "version", "schema": {"file", "ok", "problems"} | null, "stale": {"state":
@@ -28,9 +29,12 @@ a stage of tools/commands.json, by its id (0–9, env, any) or a part of its nam
   check  tools/ci.sh's check of the table: its own rules; every writer and reader a real command (or page); every schema file
          there and every schema in tools/schemas/ with an entry; what the table says bin/vh clean does agrees with tools/clean.py
          on a temporary tree of made-up files; each <project>/… path in tools/commands.json's writes and reads matches an entry
-         that lists that command, or (writes) the table's ignored_writes with a reason. --json: {"version": 1, "tool", "exit", "problems"}
---json: the record on stdout, a line for a person on stderr. Exit: 0 (list is a report: what it finds is not a failure) ·
-1 check found a problem · 2 usage, or no such project.
+         that lists that command, or (writes) the table's ignored_writes with a reason; and the other way: each writer an entry lists has a
+         writes line that names the entry's path, or a line of NOT_SAID below with why. --json: {"version": 1, "tool", "exit", "problems"}
+--json: the record on stdout, a line for a person on stderr. Exit: 0 (list is a report: what it finds is not a failure, unless
+--strict) · 1 check found a problem; list --strict: something is missing by now, has a schema problem or is out of date ("not
+checked" is none of these) · 2 usage, or no such project (a folder with no BRIEF.md is one when it holds a path of the table:
+the BRIEF is then a missing item).
 """
 import argparse, hashlib, json, os, re, shutil, subprocess, sys, tempfile
 from pathlib import Path
@@ -571,19 +575,31 @@ def the_film(project):
     return sorted({Path(f).as_posix() for f in films})
 
 
-def milestones(project, found):
-    """{milestone: reached?}, from the stops bin/vh status reads and what the project holds."""
+def stop_states(project):
+    """{stop id: bin/vh status's state of it}; {} where REVIEW.md or the BRIEF is in a shape status cannot read."""
     import status as S
-    state = {}
     try:
         proj = S.basics(project)
         rv = project / "REVIEW.md"
         text = S.G.strip_comments(S.G.read(rv)) if rv.is_file() else ""
         no_record = not rv.is_file() and proj["effort"] != "quick"
         st, _ = S.stops(project, text, rv.stat().st_mtime if rv.is_file() else 0, proj["effort"], S.director_stops(proj["director"]), proj["lang"], no_record)
-        state = {s["id"]: s["state"] for s in st}
-    except Exception:   # REVIEW.md or the BRIEF in a shape status cannot read: no gate is taken as reached
-        pass
+        return {s["id"]: s["state"] for s in st}
+    except Exception:   # no gate is taken as reached
+        return {}
+
+
+def passed_without_json(project, state):
+    """The stops (1, 2, 3) that need no gate JSON for this rule: decided in REVIEW.md (status says done), or with a page in
+    out/review/gate-<n>*.html. Projects from before bin/vh gate wrote the JSON have one or the other and no JSON."""
+    import status as S
+    paged = {S.G.stop_of(f.stem[5:]) for f in (Path(project) / "out" / "review").glob("gate-*.html")}
+    return {n for n in "123" if state.get(n) == "done" or n in paged}
+
+
+def milestones(project, found, state=None):
+    """{milestone: reached?}, from the stops bin/vh status reads and what the project holds."""
+    state = stop_states(project) if state is None else state
     out = {"new": True}
     reached = {n: state.get(n) in ("done", "waiting_person", "waiting_agent") for n in "123"}
     later = False
@@ -615,7 +631,7 @@ def blanks_of(project, found, reached):
     return out
 
 
-def missing_of(project, entries, found, reached):
+def missing_of(project, entries, found, reached, no_json=()):
     """What is required by now and is not there. The film goes by what bin/vh clean counts as the film; its check record by that
     film: a record of a draft is no check of it."""
     import status as S
@@ -624,6 +640,8 @@ def missing_of(project, entries, found, reached):
     for e in entries:
         m = e.get("required")
         if not m or not reached.get(m):
+            continue
+        if m.startswith("gate-") and m[5:] in no_json:   # decided or paged before there was a gate JSON: the stop is passed
             continue
         if e["id"] == "film-final":
             if not films:
@@ -682,15 +700,18 @@ def cmd_spec(a):
     return 0
 
 
-def find_project(word):
+def find_project(word, entries):
+    """The project folder; a folder with no BRIEF.md is one still when it holds a path the table knows (the BRIEF is then a
+    missing item of the report). None, with why on stderr, when there is no such folder or it holds none."""
     import gatecheck as G, review as R
     p = Path(word).expanduser()
     project = G.project_of(p) if p.exists() else None
     if project is None:
         project = R.find_project(word)
         if project is not None and not (project / "BRIEF.md").is_file():
-            print(f"bin/vh artifacts: {project} is not a project (no BRIEF.md)", file=sys.stderr)
-            return None
+            if not project.is_dir() or not holdings(project, Index(entries)):
+                print(f"bin/vh artifacts: {project} is not a project (no BRIEF.md, and none of the files a project holds)", file=sys.stderr)
+                return None
     return project
 
 
@@ -700,12 +721,15 @@ def report(project, entries_all, stage):
     found = holdings(project, idx)
     r = Reading(project)
     entries = in_stage(entries_all, stage)
-    reached = milestones(project, found)
+    state = stop_states(project)
+    reached = milestones(project, found, state)
     rows = []
     for e in entries:
         if found.get(e["id"]):
             rows.append({"id": e["id"], "kind": e["kind"], "required": e.get("required"), "clean": e["clean"], "files": [details(r, e, rel) for rel in found[e["id"]]]})
-    miss = missing_of(project, entries, found, reached)
+    miss = missing_of(project, entries, found, reached, passed_without_json(project, state))
+    if not (Path(project) / "BRIEF.md").is_file():   # a folder that is no project yet: the one thing to say is the BRIEF
+        miss = [dict(m, why="required by new: not there (the folder holds files of a project, so it is listed; bin/vh new makes the rest)") for m in miss if m["id"] == "brief"]
     blanks = blanks_of(project, found, reached) if any(e["id"] == "brief" for e in entries) else []
     files = [f for x in rows for f in x["files"]]
     counts = {"kinds": len(entries), "found": len(rows), "files": len(files),
@@ -781,7 +805,7 @@ def cmd_list(a):
         if stage is None:
             print(why, file=sys.stderr)
             return 2
-    project = find_project(a.project)
+    project = find_project(a.project, t["artifacts"])
     if project is None:
         return 2
     rec = report(project, t["artifacts"], stage)
@@ -790,7 +814,8 @@ def cmd_list(a):
         print(headline(rec), file=sys.stderr)
     else:
         show(rec)
-    return 0
+    n = rec["counts"]
+    return 1 if a.strict and (n["missing"] or n["schema_problems"] or n["stale"]) else 0
 
 
 # ---- check: the table against its rules, the commands, the schemas and tools/clean.py
@@ -837,7 +862,7 @@ def own_rules(t, commands):
             bad.append(f"{w} made by a tool, and no writers")
         for k in ("writers", "readers"):
             for c in e[k]:
-                if c not in commands and not (k == "readers" and c == "page"):
+                if c not in commands and not (k == "readers" and c == "page") and not (k == "writers" and c == "*" and e["writers"] == ["*"]):
                     bad.append(f"{w} {k}: {c} is no command of tools/commands.json" + (", and only a reader can be page" if c == "page" else ""))
         if e["required"] is not None and e["required"] not in MILESTONES:
             bad.append(f"{w} required {e['required']!r}: null or one of {', '.join(MILESTONES)}")
@@ -908,10 +933,10 @@ def schema_problems(t):
 WRITE = re.compile(r"<project>/([^\s,;()]+)((?:,\s*(?!<project>)[^\s,;()]+)*)")
 
 
-def written_paths(text):
-    """The paths a command's writes line names inside the project, made up to fit: <project>/a/b.json, c.json is a/b.json and
-    a/c.json; after a folder (<project>/a/, B.md) a name is from the project."""
-    holes = {"<lang>": "zh"}
+def written_paths(text, n="x1"):
+    """The paths a command's writes line names inside the project, made up to fit (<n> as n): <project>/a/b.json, c.json is
+    a/b.json and a/c.json; after a folder (<project>/a/, B.md) a name is from the project."""
+    holes = {"<lang>": "zh", "<n>": n}
     s = text.replace("<project>", "\0")
     s = re.sub(r"<[^<>]*>", lambda m: holes.get(m.group(0), "x1"), s).replace("\0", "<project>")
     s = s.replace("…", "x")
@@ -926,9 +951,48 @@ def written_paths(text):
     return out
 
 
+NS = ("x1", "1", "2", "3")   # what <n> is made up as: gate-<n> is gate-x1 (gate-other) and gate-1, 2, 3 (their own entries)
+
+# Writers the free text of tools/commands.json's writes cannot name, each with why: (an entry id, or "format:<format>") and a command.
+# Every line must still be needed: one that nothing needs any more fails the check.
+NOT_SAID = [
+    ("format:lock", "*", "a lock file is the flock around a write of the file its entry names; the command's writes line names that file, not the lock"),
+]
+
+
+def owners_of(t, idx, p):
+    got = idx.owners(p.replace("*", "x"))
+    if p.endswith("/"):   # a folder that is no entry of its own: what lies in it
+        got = got or [e for e in t["artifacts"] if any(q.startswith(p) for q in patterns(e))]
+    return got
+
+
+def mentioned(e, text):
+    """A writes line of free text that spells the last part of one of the entry's paths (audio/*.mix.json: ".mix.json"), where a
+    command's line names a file by its name and the folder is the project's own. A path that is only a hole (<film>) says nothing."""
+    for p in patterns(e):
+        tail = p.rstrip("/").rpartition("/")[2]
+        if len(HOLE.sub("", tail)) < 3:
+            continue
+        rx = "".join(r"[^\s,;()/]*" if HOLE.fullmatch(x) else re.escape(x) for x in re.split(r"(<[a-z]+>|\*)", tail) if x)
+        if re.search(rx, text):
+            return True
+    return False
+
+
+def paths_of(line):
+    """Every path a writes line names, <n> made up each way in NS."""
+    seen = []
+    for n in NS:
+        seen += [p for p in written_paths(line, n) if p not in seen]
+    return seen
+
+
 def writes_problems(t, commands):
-    """Each <project>/… path of the command table's writes and reads: an entry that lists that command, or (writes) the table's
-    ignored_writes, so a new kind of file cannot be added silently."""
+    """Both ways. Each <project>/… path of the command table's writes and reads: an entry that lists that command (for a file, the
+    most specific entry), or (writes) the table's ignored_writes; and each writer an entry lists: a writes line of that command
+    that names a path of the entry, or a line of NOT_SAID. So a new kind of file cannot be added silently, and a writer cannot be
+    changed or dropped silently. "*" as a writer is every command that works on a project."""
     bad = []
     idx = Index(t["artifacts"])
     ignored = t.get("ignored_writes") or []
@@ -936,26 +1000,39 @@ def writes_problems(t, commands):
         if not isinstance(g, dict) or not g.get("path") or not g.get("why"):
             bad.append(f"ignored_writes: {g!r}: a path and why")
     used = set()
-
-    def owners_of(p):
-        got = idx.owners(p.replace("*", "x"))
-        if p.endswith("/"):   # a folder that is no entry of its own: what lies in it
-            got = got or [e for e in t["artifacts"] if any(q.startswith(p) for q in patterns(e))]
-        return got
+    lists = lambda e, side, name: name in e[side] or "*" in e[side]   # noqa: E731
+    landed = set()
     for c in commands.values():
         for field, verb, side in (("writes", "writes", "writers"), ("reads", "reads", "readers")):
             for line in c[field]:
-                for p in written_paths(line):
+                for p in paths_of(line):
                     skip = next((g["path"] for g in ignored if isinstance(g, dict) and g.get("path") == p), None)
                     if skip and field == "writes":
                         used.add(skip)
                         continue
-                    owners = owners_of(p)
+                    owners = owners_of(t, idx, p)
+                    if field == "writes":
+                        landed.update((e["id"], c["name"]) for e in owners)
                     if not owners:
                         bad.append(f"bin/vh {c['name']} {verb} <project>/{p}: no entry of tools/artifacts.json matches it (add one, or to its ignored_writes with a reason)")
-                    elif not any(c["name"] in e[side] for e in owners):
+                        continue
+                    own = None if p.endswith("/") else idx.file(p.replace("*", "x"))
+                    if own and not lists(own[0], side, c["name"]):   # a file goes by its most specific entry
+                        bad.append(f"bin/vh {c['name']} {verb} <project>/{p}: {own[0]['id']} does not list it in {side}")
+                    elif not any(lists(e, side, c["name"]) for e in owners):
                         bad.append(f"bin/vh {c['name']} {verb} <project>/{p}: {' or '.join(sorted({e['id'] for e in owners}))} does not list it in {side}")
     bad += [f"ignored_writes: {g['path']}: no command writes it now" for g in ignored if isinstance(g, dict) and g.get("path") and g["path"] not in used]
+    spent = set()
+    for e in t["artifacts"]:
+        for w in e["writers"]:
+            if w == "*" or (e["id"], w) in landed or mentioned(e, "\n".join(commands[w]["writes"])):
+                continue
+            ex = next((x for x in NOT_SAID if x[0] in (e["id"], "format:" + str(e.get("format"))) and x[1] in (w, "*")), None)
+            if ex:
+                spent.add(ex)
+            else:
+                bad.append(f"{e['id']}: writers lists {w}, and no writes line of bin/vh {w} in tools/commands.json names {e['path']}")
+    bad += [f"NOT_SAID {x[0]} / {x[1]}: nothing needs it now" for x in NOT_SAID if x not in spent]
     return bad
 
 
@@ -1035,7 +1112,7 @@ def cmd_check(a):
     except (OSError, ValueError) as e:
         bad.append(f"the check against tools/clean.py did not run: {e}")
     line = f"tools/artifacts.json: {len(t['artifacts'])} kinds, {len({e['schema'] for e in t['artifacts'] if e.get('schema')})} schemas; writers and readers are real commands, every schema has an entry, " \
-           "clean agrees with tools/clean.py on a made-up tree, every <project>/… path in tools/commands.json's writes has an entry"
+           "clean agrees with tools/clean.py on a made-up tree, every <project>/… path in tools/commands.json's writes has an entry, every writer an entry lists has a writes line naming it"
     if a.json:
         print(json.dumps({"version": 1, "tool": "bin/vh artifacts check", "exit": 1 if bad else 0, "problems": bad}, ensure_ascii=False, indent=1))
     for b in bad:
@@ -1057,12 +1134,13 @@ def main(argv):
             p.add_argument("--stage")
         if name == "list":
             p.add_argument("project", nargs="?")
+            p.add_argument("--strict", action="store_true")
     a = ap.parse_args(argv)
     if a.help or not a.what:
         print(__doc__.strip(), file=sys.stdout if a.help else sys.stderr)
         return 0 if a.help else 2
     if a.what == "list" and not a.project:
-        print("bin/vh artifacts list <project> [--stage S] [--json]", file=sys.stderr)
+        print("bin/vh artifacts list <project> [--stage S] [--strict] [--json]", file=sys.stderr)
         return 2
     return {"spec": cmd_spec, "list": cmd_list, "check": cmd_check}[a.what](a)
 
