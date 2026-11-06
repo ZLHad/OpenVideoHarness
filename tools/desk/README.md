@@ -198,7 +198,7 @@ JSON 的格式：
 
 ### 一条时间线：`bin/vh timeline <项目> --resolved [zh|en] [--words] [--json]`
 
-`shots`（剪辑表的段，或 `shots.json` 的镜头，或页面渲染时记在 `.render.json` 里的镜头）、`narration`、`captions`、`beats`，每一项都有秒和帧（`start`、`end`、`start_frame`、`end_frame`，`end_frame` 是下一段的第一帧；节拍是 `t`、`frame`），`sources` 是每个来源文件的路径和 sha256。有剪辑表时读 `bin/vh edit build` 解出来的东西（`out/edit.resolved.json` 还是这份 `edit.json` 的就用它，否则同一段代码在内存里解一次，不写文件）。少的部分是空列表，`missing` 说哪部分、为什么；模板自带的示例时间轴不算旁白。只读，不开浏览器，不记日志。字段见 `tools/resolved.py` 开头。
+`shots`（剪辑表的段，或 `shots.json` 的镜头，或页面渲染时记在 `.render.json` 里的镜头）、`narration`、`captions`、`beats`，每一项都有秒和帧（`start`、`end`、`start_frame`、`end_frame`，`end_frame` 是下一段的第一帧；节拍是 `t`、`frame`），`sources` 是每个来源文件的路径和 sha256。有剪辑表时读 `bin/vh edit build` 解出来的东西（`out/edit.resolved.json` 还是这份 `edit.json`、读的文件也都没变时就用它，否则同一段代码在内存里解一次，不写文件）。每一行带着表里的其他字段；章节来自剪辑表或片子的 `.render.json`；只渲了一段的片子，镜头从它自己的第一帧算，超出的不要、跨边界的截断。少的部分（读不了、不是 UTF-8、时间是 NaN 也算）是空列表，`missing` 说哪部分、为什么，退出码还是 0；模板自带的示例时间轴不算旁白。只读，不开浏览器，不记日志。字段见 `tools/resolved.py` 开头。
 
 ### 文本的退路：`bin/vh history save|list|diff|restore`
 

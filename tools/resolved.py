@@ -5,15 +5,20 @@ usage: bin/vh timeline <project> --resolved [zh|en] [--words] [--json]
 <project> is a folder (or a file inside it), or a name under $OVH_PROJECTS / projects/ (the date prefix optional).
 
 Where each part comes from:
-  shots      edit.json as bin/vh edit build resolves it (its out/edit.resolved.json while that is of this edit.json, else the same
-             code in memory); else shots.json; else, for a page with neither, the shots its current film's .render.json kept
-             (window.film.shots when it was rendered: no browser is started here)
+  shots      edit.json as bin/vh edit build resolves it (its out/edit.resolved.json while that is of this edit.json and of the very
+             files it read: the narration it was timed on, the footage; else the same code in memory); else shots.json; else, for a page
+             with neither, the shots its current film's .render.json kept (window.film.shots when it was rendered: no browser is started
+             here). Each row with the table's other fields, as written. A film rendered as a part (first_frame): its shots from its own first
+             frame, what lies outside it left out and what crosses its ends cut there; with a table of the whole film, its frames and length are
+             not the film's, and the table's are taken
+  chapters   edit.json's, else the current film's .render.json (the same way for a part); a page with neither is a row of missing
   narration  an edit list's merged timeline (out/edit.timeline.<lang>.json) when there is one, else audio/timeline.<lang>.json, else
              audio/timeline.json; the template's example is no take. zh or en picks the language
   captions   audio/captions.json. beats: the music an edit list names, else the newest audio/*.beats.json
   fps        edit.json, else the current film's .render.json, else the BRIEF's Output line, else 30 (fps_from says which)
   duration   edit.json, else the film's frames, else the last end among the parts (duration_from says which)
-A part that is not there, or cannot be read, is an empty list and a row of missing. Frames are bin/vh's own (tools/timegrid.py): start_frame
+A part that is not there, or cannot be read (no permission, not UTF-8, not JSON, a time that is NaN), is an empty list, or without the rows it spoils, and
+a row of missing; a value that is NaN elsewhere is null. Frames are bin/vh's own (tools/timegrid.py): start_frame
 is the first frame of a span (a chapter's too), end_frame the first after it; a beat's frame is the one on screen then.
 --json: {"version": 1, "tool", "project", "fps", "fps_from", "duration", "duration_from", "frames", "size", "shots_from", "shots": [{"id", "start", "end",
 "start_frame", "end_frame", the table's other fields}], "chapters": [{"t", "frame", "title"}], "narration": [{"id", "start", "end", "start_frame", "end_frame",
@@ -21,13 +26,13 @@ is the first frame of a span (a chapter's too), end_frame the first after it; a 
 "part"}], "beats": [{"t", "frame", "downbeat"}], "bpm", "sources": {"shots" | "narration" | "captions" | "beats": {"path", "sha256"}}, "missing": [{"part", "why"}]}.
 Exit: 0, with parts missing too · 2 usage, or no project.
 """
-import hashlib, json, os, re, sys, time
+import hashlib, json, math, os, re, sys, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "audio"))
-import jsonerr   # noqa: E402
+import activity, jsonerr   # noqa: E402,E401
 from timegrid import frame_at, frame_from   # noqa: E402
 
 
@@ -44,7 +49,18 @@ def source(project, p):
 
 
 def num(x):
-    return x if isinstance(x, (int, float)) and not isinstance(x, bool) else None
+    return x if isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x) else None
+
+
+def finite(x):
+    """A value as JSON can hold it: a file's NaN or Infinity is null."""
+    if isinstance(x, float) and not math.isfinite(x):
+        return None
+    if isinstance(x, list):
+        return [finite(v) for v in x]
+    if isinstance(x, dict):
+        return {k: finite(v) for k, v in x.items()}
+    return x
 
 
 def spanned(row, fps):
@@ -60,20 +76,80 @@ class Doc:
     def lack(self, part, why):
         self.missing.append({"part": part, "why": str(why).replace(str(self.project) + os.sep, "")})
 
+    def part(self, name, empty, fn, *args):
+        """fn(*args), or what a part is when it cannot be read: empty, and a row of missing. A file's trouble is one row, never a traceback."""
+        try:
+            return fn(*args)
+        except (Exception, SystemExit) as e:
+            self.lack(name, f"{type(e).__name__}: {e}")
+            return empty
+
+    def source(self, name, p):
+        """The part's source row, its file's sha256; OSError when it cannot be read."""
+        self.sources[name] = source(self.project, p)
+
+    def rows(self, name, raw, make):
+        """make(row) of the rows that have finite times; how many do not is a row of missing."""
+        out = []
+        for s in raw:
+            r = make(s)
+            if r is not None:
+                out.append(r)
+        if len(out) < len(raw):
+            self.lack(name, f"{len(raw) - len(out)} of {len(raw)} rows have no time that can be read: left out")
+        return out
+
     # ---- the film the page's shots and the frame grid can come from
     def film_side(self):
         import proxy as P, versions as V
-        film = P.current_film(self.project)[0]
-        side = V.load_json(str(film) + ".render.json") if film else None
+        try:
+            film = P.current_film(self.project)[0]
+            side = V.load_json(str(film) + ".render.json") if film else None
+        except (Exception, SystemExit) as e:
+            self.lack("film", f"{type(e).__name__}: {e}")
+            return None, None
         return film, side if isinstance(side, dict) else None
 
+    def side_part(self, side):
+        """(the film's own first frame in seconds, its length in seconds or None) of a .render.json."""
+        fps = num(side.get("fps")) or 1
+        n = num(side.get("frames"))
+        return (num(side.get("first_frame")) or 0) / fps, (n / fps if n else None)
+
+    def side_chapters(self, film, side, fps):
+        """The chapters a film's .render.json kept, from its own first frame; a page with no record says so."""
+        raw = (side or {}).get("chapters")
+        if isinstance(raw, list) and raw:
+            off, dur = self.side_part(side)
+            out = []
+            for c in raw:
+                t = num(c.get("t")) if isinstance(c, dict) else None
+                if t is not None and t - off >= 0 and (dur is None or t - off < dur):
+                    out.append({"t": round(t - off, 6), "frame": frame_from(t - off, fps), "title": c.get("title")})
+            return out
+        if not side and any((self.project / n).is_file() for n in ("film.html", "index.html", "studio.html")):
+            self.lack("chapters", "a page's own chapters need a browser: a render keeps them in its .render.json")
+        return []
+
     # ---- shots
+    def holds(self, old, f):
+        """Is a build's record of this edit.json, and of the very files it read? A cue-timed list moves when its narration is taken again, with edit.json as it was."""
+        if not (isinstance(old, dict) and isinstance(old.get("edit"), dict) and old["edit"].get("sha256") == sha(f) and isinstance(old.get("entries"), list)):
+            return False
+        read = [r for r in old.get("refs") or [] if isinstance(r, dict)]
+        for v in (old.get("files") or {}).values() if isinstance(old.get("files"), dict) else ():
+            read += [x for x in (v, v.get("audio")) if isinstance(x, dict)] if isinstance(v, dict) else []
+        try:
+            return all(sha(self.project / r["path"]) == r["sha256"] for r in {(x["path"], x["sha256"]): x for x in read if x.get("path") and x.get("sha256")}.values())
+        except OSError:
+            return False
+
     def edit_doc(self):
-        """edit.json as bin/vh edit build resolves it: its record while that is of this edit.json, else the same code in memory. None, said, when it does not resolve."""
+        """edit.json as bin/vh edit build resolves it: its record while that is of this edit.json and the files it read, else the same code in memory. None, said, when it does not resolve."""
         import edit
         f = self.project / edit.FILE
         old = edit.read_resolved(self.project)
-        if old and (old.get("edit") or {}).get("sha256") == sha(f) and isinstance(old.get("entries"), list):
+        if self.holds(old, f):
             return old
         try:
             return edit.resolve(self.project)
@@ -90,8 +166,8 @@ class Doc:
             self.lack("shots", e)
             return [], None, None, None, None, None, [], None
         if table and shot_source.is_edit(table):
+            self.source("shots", table)
             doc = self.edit_doc()
-            self.sources["shots"] = source(self.project, table)
             if doc is None:
                 return [], "edit.json", None, None, None, None, [], None
             import edit
@@ -105,22 +181,35 @@ class Doc:
             return rows, "edit.json", fps, doc["frames"], doc["duration"], doc.get("size"), chapters, doc
         if table:
             import vhdraw
-            self.sources["shots"] = source(self.project, table)
+            self.source("shots", table)
             try:
                 shots, _ = vhdraw.load_shots(table)
-            except SystemExit as e:
+                written = shot_source.rows(self.project)[0]
+            except (SystemExit, ValueError) as e:
                 self.lack("shots", e)
                 return [], table.name, None, None, None, None, [], None
             keep = ("id", "start", "end", "segment", "reads", "label", "frame", "at", "unsure", "camera")
-            return [{k: s.get(k) for k in keep} for s in shots], table.name, None, None, None, None, [], None
+            rows = [dict({k: v for k, v in w.items() if k not in ("t0", "t1")}, **{k: s.get(k) for k in keep}) for s, w in zip(shots, written)]   # the table's other fields, as written
+            return self.rows("shots", rows, lambda r: r if num(r["start"]) is not None and num(r["end"]) is not None else None), table.name, None, None, None, None, [], None
         film, side = self.film_side()
         raw = (side or {}).get("shots")
         if isinstance(raw, list) and raw:
-            off = (side.get("first_frame") or 0) / (side.get("fps") or 1)
-            rows = [dict(id=str(s["id"]), start=float(s["start"]) - off, end=float(s["end"]) - off, **{k: s[k] for k in ("segment", "reads", "label", "at", "unsure") if k in s})
-                    for s in raw if isinstance(s, dict) and num(s.get("start")) is not None and num(s.get("end")) is not None and "id" in s]
+            off, dur = self.side_part(side)
+
+            def row(s):
+                """A shot from the film's own first frame, cut to what the film holds; None for one outside it (a part of the film)."""
+                if not isinstance(s, dict) or "id" not in s or num(s.get("start")) is None or num(s.get("end")) is None:
+                    return None
+                a, b = float(s["start"]) - off, float(s["end"]) - off
+                if b <= 0 or (dur is not None and a >= dur):
+                    return False
+                r = dict({k: v for k, v in s.items() if k not in ("id", "start", "end")}, id=str(s["id"]), start=max(a, 0.0), end=min(b, dur) if dur is not None else b)
+                if num(s.get("at")) is not None:
+                    r["at"] = s["at"] - off
+                return r
+            rows = self.rows("shots", [r for r in map(row, raw) if r is not False], lambda r: r)
             side_path = str(film) + ".render.json"
-            self.sources["shots"] = source(self.project, side_path)
+            self.source("shots", side_path)
             return rows, Path(os.path.relpath(side_path, self.project)).as_posix(), None, None, None, None, [], None
         pages = [n for n in ("film.html", "index.html", "studio.html") if (self.project / n).is_file()]
         self.lack("shots", (f"no shot table, and {pages[0]}'s own shots need a browser: a render keeps them in its .render.json; bin/vh storyboard reads them live" if pages
@@ -140,29 +229,30 @@ class Doc:
         if f is None or (lang and f.name in ("timeline.zh.json", "timeline.en.json") and f.name != f"timeline.{lang}.json"):   # (find falls back on another language's)
             self.lack("narration", no)
             return []
+        self.source("narration", f)
         tl, why = TL.load(f)
         if tl is None:
-            self.sources["narration"] = source(self.project, f)
             self.lack("narration", f"{f.name}: {why}")
             return []
         if tl.get("provider") == "example":
+            self.sources.pop("narration")
             self.lack("narration", f"{f.name} is the template's example, not a take (bin/vh tts makes one)")
             return []
         if lang and f.name == "timeline.json" and tl.get("lang") not in (None, lang):   # the copy of the latest take, whatever its language
+            self.sources.pop("narration")
             self.lack("narration", no)
             return []
-        self.sources["narration"] = source(self.project, f)
-        rows = []
-        for s in tl["segments"]:
+
+        def row(s):
             if not isinstance(s, dict) or num(s.get("start")) is None or num(s.get("end")) is None:
-                continue
+                return None
             ws = s.get("words") if isinstance(s.get("words"), list) else []
-            row = {"id": s.get("id"), "start": s["start"], "end": s["end"], "text": s.get("text") or s.get(lang or "") or s.get("zh") or s.get("en") or "", "word_count": len(ws)}
-            row.update({k: s[k] for k in ("speaker", "from") if k in s})
+            r = {"id": s.get("id"), "start": s["start"], "end": s["end"], "text": s.get("text") or s.get(lang or "") or s.get("zh") or s.get("en") or "", "word_count": len(ws)}
+            r.update({k: s[k] for k in ("speaker", "from") if k in s})
             if words:
-                row["words"] = [{"w": w.get("w"), "start": w.get("start"), "end": w.get("end")} for w in ws if isinstance(w, dict)]
-            rows.append(spanned(row, fps))
-        return rows
+                r["words"] = [{"w": w.get("w"), "start": w.get("start"), "end": w.get("end")} for w in ws if isinstance(w, dict)]
+            return spanned(r, fps)
+        return self.rows("narration", tl["segments"], row)
 
     # ---- captions
     def captions(self, fps):
@@ -170,7 +260,7 @@ class Doc:
         if not f.is_file():
             self.lack("captions", "no audio/captions.json (bin/vh captions makes it)")
             return []
-        self.sources["captions"] = source(self.project, f)
+        self.source("captions", f)
         try:
             caps = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, ValueError) as e:
@@ -179,11 +269,8 @@ class Doc:
         if not isinstance(caps, list):
             self.lack("captions", "audio/captions.json: not a list of captions")
             return []
-        rows = []
-        for c in caps:
-            if isinstance(c, dict) and num(c.get("start")) is not None and num(c.get("end")) is not None:
-                rows.append(spanned({k: c[k] for k in ("id", "start", "end", "zh", "en", "part") if k in c}, fps))
-        return rows
+        return self.rows("captions", caps, lambda c: spanned({k: c[k] for k in ("id", "start", "end", "zh", "en", "part") if k in c}, fps)
+                         if isinstance(c, dict) and num(c.get("start")) is not None and num(c.get("end")) is not None else None)
 
     # ---- beats
     def beats(self, doc, fps):
@@ -197,7 +284,7 @@ class Doc:
         if f is None or not f.is_file():
             self.lack("beats", "no audio/*.beats.json (bin/vh beats makes one, for a film with music)")
             return [], None
-        self.sources["beats"] = source(self.project, f)
+        self.source("beats", f)
         try:
             d = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, ValueError) as e:
@@ -207,31 +294,34 @@ class Doc:
             self.lack("beats", f"{f.name}: no list of beats")
             return [], None
         downs = {round(x, 3) for x in d.get("downbeats") or [] if num(x) is not None}
-        return [{"t": t, "frame": frame_at(t, fps), "downbeat": round(t, 3) in downs} for t in d["beats"] if num(t) is not None], num(d.get("bpm"))
+        return self.rows("beats", d["beats"], lambda t: {"t": t, "frame": frame_at(t, fps), "downbeat": round(t, 3) in downs} if num(t) is not None else None), num(d.get("bpm"))
 
 
 def document(project, lang=None, words=False):
     """The record --json prints."""
     D = Doc(project)
-    rows, shots_from, fps, frames, duration, size, chapters, doc = D.shots()
+    rows, shots_from, fps, frames, duration, size, chapters, doc = D.part("shots", ([], None, None, None, None, None, [], None), D.shots)
     film, side = D.film_side()
     fps_from = "edit.json" if fps else None
-    if not fps and side and num(side.get("fps")):
+    if not fps and side and num(side.get("fps")) and side["fps"] > 0:
         fps, fps_from = side["fps"], Path(os.path.relpath(str(film) + ".render.json", project)).as_posix()
     if not fps:
         import edit
-        fps = edit.brief_spec(project)[0]
+        fps = D.part("fps", (None, None), edit.brief_spec, project)[0]
         fps_from = "BRIEF.md" if fps else None
     if not fps:
         fps, fps_from = 30, "the default"
     if shots_from and shots_from != "edit.json":
         rows = [spanned(r, fps) for r in rows]
-    narration = D.narration(lang, doc, fps, words)
-    captions = D.captions(fps)
-    beats, bpm = D.beats(doc, fps)
+    if doc is None:
+        chapters = D.part("chapters", [], D.side_chapters, film, side, fps)
+    narration = D.part("narration", [], D.narration, lang, doc, fps, words)
+    captions = D.part("captions", [], D.captions, fps)
+    beats, bpm = D.part("beats", ([], None), D.beats, doc, fps)
     duration_from = "edit.json" if duration is not None else None
-    if duration is None and side and num(side.get("frames")) and num(side.get("fps")):
-        frames, duration, duration_from = side["frames"], round(side["frames"] / side["fps"], 6), fps_from if fps_from != "BRIEF.md" else "the film"
+    whole_film = not (side and num(side.get("first_frame")) and shots_from and shots_from != "edit.json" and not shots_from.endswith(".render.json"))   # a part of a film, and a table of the whole: the table's times
+    if duration is None and whole_film and side and num(side.get("frames")) and num(side.get("fps")) and side["fps"] > 0:
+        frames, duration, duration_from = int(side["frames"]), round(side["frames"] / side["fps"], 6), fps_from if fps_from != "BRIEF.md" else "the film"
     if duration is None:
         ends = [r["end"] for part in (rows, narration, captions) for r in part]
         duration = round(max(ends), 6) if ends else 0
@@ -267,7 +357,7 @@ def main(argv):
     if project is None:
         return 2
     t0 = time.time()
-    rec = document(project, a.lang, a.words)
+    rec = activity._text(finite(document(project, a.lang, a.words)))
     if a.json:
         print(json.dumps(rec, ensure_ascii=False, indent=1))
     else:

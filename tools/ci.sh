@@ -5792,6 +5792,115 @@ sys.exit(0 if ok else 1)
 PY
   then ok "timeline --resolved on a page: its own shots from its film's .render.json, with no browser; with no film that is said; the template's example is no take"
   else bad "timeline --resolved on a page (exit $rc, $c): $(printf '%s' "$a$b" | tail -c 600)"; fi
+  # the record and the edit list agree after the narration is taken again; the table's other fields; a film that is a part; chapters from a render's record; what cannot be read
+  a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PY' 2>&1
+import json, os, shutil, subprocess, sys
+sh, root, t = sys.argv[1:]
+sys.path.insert(0, f"{root}/tools")
+import schemalite
+sch = schemalite.load(f"{root}/tools/schemas/output/timeline.schema.json")
+bad = []
+def V(*a):
+    return subprocess.run([sh, f"{root}/bin/vh", *a], capture_output=True, text=True, stdin=subprocess.DEVNULL)
+def strict(text):
+    def no(c):
+        raise ValueError(f"{c} in the JSON")
+    return json.loads(text, parse_constant=no)
+def R(p, *a):
+    r = V("timeline", p, "--resolved", *a, "--json")
+    try:
+        d = strict(r.stdout)
+    except ValueError as e:
+        bad.append(f"{os.path.basename(p)}: exit {r.returncode}, not JSON ({e}): {r.stdout[:120]!r} {r.stderr[-300:]}")
+        return {"shots": [], "missing": [], "chapters": [], "narration": [], "captions": [], "beats": [], "frames": None, "duration": None}
+    if r.returncode != 0 or "Traceback" in r.stderr:
+        bad.append(f"{os.path.basename(p)}: exit {r.returncode}: {r.stderr[-300:]}")
+    bad.extend(f"{os.path.basename(p)}: {x}" for x in schemalite.problems(sch, d)[:3])
+    return d
+def W(p, text):
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "wb" if isinstance(text, bytes) else "w", **({} if isinstance(text, bytes) else {"encoding": "utf-8"})) as o:
+        o.write(text if isinstance(text, (str, bytes)) else json.dumps(text, ensure_ascii=False))
+def mk(n, brief="# BRIEF\n- Output: 1920x1080, 30 fps\n"):
+    p = f"{t}/x/{n}"
+    W(f"{p}/BRIEF.md", brief)
+    return p
+# a cue-timed edit list, its narration taken again after the build: the same frames as bin/vh edit list
+p = mk("cue")
+tl = lambda e: {"provider": "x", "lang": "zh", "duration": e, "segments": [{"id": "l1", "start": 0, "end": e, "text": "一", "words": []}, {"id": "l2", "start": e, "end": e + 1, "text": "二", "words": []}]}
+W(f"{p}/audio/timeline.zh.json", tl(2.0))
+W(f"{p}/edit.json", {"v": 1, "fps": 30, "size": [320, 180], "refs": {"timeline": "audio/timeline.zh.json"}, "sources": {"k": {"color": "#000000"}, "w": {"color": "#ffffff"}}, "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "k", "end": "@l1>"}, {"id": "S02", "src": "w", "dur": 1}]}]})
+b = json.loads(V("edit", "build", p, "--json").stdout)
+W(f"{p}/audio/timeline.zh.json", tl(4.0))
+l = json.loads(V("edit", "list", p, "--json").stdout)
+d = R(p)
+if not (b["frames"] == 90 and l["frames"] == 150 and d["frames"] == 150 and [(x["id"], x["start_frame"], x["end_frame"]) for x in d["shots"]] == [("S01", 0, 120), ("S02", 120, 150)]):
+    bad.append(f"the narration taken again: build {b['frames']}, list {l['frames']}, resolved {d['frames']}, {d['shots'][:2]}")
+# shots.json: the table's other fields, as written
+p = mk("fields")
+W(f"{p}/shots.json", {"shots": [{"id": "A", "t0": 0, "t1": 2, "vo": "一句", "caption": "字幕", "transition": {"type": "cut"}, "segment": "x"}, {"id": "B", "start": 2, "end": 3}]})
+d = R(p)
+r = d["shots"][0] if d["shots"] else {}
+if not (r.get("vo") == "一句" and r.get("caption") == "字幕" and r.get("transition") == {"type": "cut"} and r.get("start") == 0 and r.get("end") == 2 and r.get("end_frame") == 60 and "t0" not in r and d["shots"][1].get("vo") is None):
+    bad.append(f"the table's other fields: {r}")
+# a film rendered as a part: its shots and chapters from its first frame, cut to what it holds; its other fields; with a table of the whole film, the table's length
+p = mk("part")
+W(f"{p}/film.html", "x"); W(f"{p}/out/final.mp4", "x")
+W(f"{p}/out/final.mp4.render.json", {"version": 1, "fps": 30, "frames": 30, "first_frame": 60, "shots": [{"id": "a", "start": 0, "end": 2}, {"id": "b", "start": 1.5, "end": 2.5, "vo": "这一句", "at": 2.25}, {"id": "c", "start": 2.5, "end": 5}, {"id": "d", "start": 5, "end": 6}],
+                                    "chapters": [{"t": 0, "title": "before"}, {"t": 2.5, "title": "in it"}, {"t": 4, "title": "after"}]})
+d = R(p)
+if not ([(x["id"], x["start"], x["end"], x["start_frame"], x["end_frame"]) for x in d["shots"]] == [("b", 0.0, 0.5, 0, 15), ("c", 0.5, 1.0, 15, 30)] and d["shots"][0].get("vo") == "这一句" and d["shots"][0].get("at") == 0.25 and d["frames"] == 30
+        and d["chapters"] == [{"t": 0.5, "frame": 15, "title": "in it"}]):
+    bad.append(f"a film that is a part: {d['shots']}, {d['chapters']}, {d['frames']}")
+W(f"{p}/shots.json", {"shots": [{"id": "A", "start": 0, "end": 10}]})
+d = R(p)
+if not (d["frames"] == 300 and d["duration_from"] == "the last end" and d["shots"][0]["end_frame"] == 300):
+    bad.append(f"a part, and a table of the whole film: {d['frames']}, {d['duration_from']}, {d['shots']}")
+os.remove(f"{p}/shots.json"); os.remove(f"{p}/out/final.mp4"); os.remove(f"{p}/out/final.mp4.render.json")
+d = R(p)
+if "chapters" not in {m["part"] for m in d["missing"]}:
+    bad.append(f"a page with no record says so of its chapters: {d['missing']}")
+# whatever cannot be read is a row of missing and exit 0, the other parts there: no permission, not UTF-8, not JSON, NaN
+good = {"shots.json": {"shots": [{"id": "A", "start": 0, "end": 1}, {"id": "B", "start": 1, "end": 2}]}, "audio/timeline.zh.json": {"provider": "t", "lang": "zh", "segments": [{"id": "l1", "start": 0, "end": 1, "text": "一"}, {"id": "l2", "start": 1, "end": 2, "text": "二"}]},
+        "audio/captions.json": [{"id": "c1", "start": 0, "end": 1, "zh": ["一"]}, {"id": "c2", "start": 1, "end": 2, "zh": ["二"]}], "audio/song.beats.json": {"bpm": 120, "beats": [0, 0.5, 1], "downbeats": [0]}}
+part = {"shots.json": "shots", "audio/timeline.zh.json": "narration", "audio/captions.json": "captions", "audio/song.beats.json": "beats"}
+nan = {"shots.json": '{"shots": [{"id": "A", "start": NaN, "end": 1}, {"id": "B", "start": 1, "end": Infinity}, {"id": "C", "start": 2, "end": 3}]}', "audio/timeline.zh.json": '{"provider": "t", "segments": [{"id": "l1", "start": NaN, "end": 1, "text": "一"}, {"id": "l2", "start": 1, "end": 2, "text": "二"}]}',
+       "audio/captions.json": '[{"id": "c1", "start": 0, "end": NaN}, {"id": "c2", "start": 1, "end": 2}]', "audio/song.beats.json": '{"bpm": NaN, "beats": [0, NaN, 1], "downbeats": [NaN, 0]}'}
+n = 0
+for rel, name in part.items():
+    for how, text in (("not UTF-8", b"\xff\xfe{\"a\": 1}"), ("not JSON", "not json"), ("a list where an object goes", "[1, 2]"), ("NaN", nan[rel]), ("no permission", None)):
+        if how == "no permission" and os.geteuid() == 0:
+            continue
+        n += 1
+        p = mk(f"bad{n}")
+        for k, v in good.items():
+            W(f"{p}/{k}", v)
+        if how == "no permission":
+            os.chmod(f"{p}/{rel}", 0)
+        else:
+            W(f"{p}/{rel}", text)
+        d = R(p)
+        if how == "no permission":
+            os.chmod(f"{p}/{rel}", 0o644)
+        said = {m["part"] for m in d["missing"]}
+        others = [x for x in part.values() if x != name]
+        if name not in said and not (how == "a list where an object goes" and name in ("shots", "captions")):
+            bad.append(f"{rel}, {how}: {name} not in missing: {d['missing']}")
+        if any(d[x] == [] for x in others):
+            bad.append(f"{rel}, {how}: another part went with it: {[x for x in others if d[x] == []]}")
+# the record of a render, an edit list and a BRIEF that cannot be read: the same
+for name, files in (("side", {"out/final.mp4": "x", "out/final.mp4.render.json": '{"fps": NaN, "frames": NaN, "first_frame": "x", "shots": "no", "chapters": [1, {"t": NaN}]}'}), ("side2", {"out/final.mp4": "x", "out/final.mp4.render.json": b"\xff\xfe"}),
+                    ("edit", {"edit.json": b"\xff\xfe{"}), ("edit2", {"edit.json": "[1]"}), ("record", {"edit.json": '{"v": 1, "fps": 30, "size": [320, 180], "sources": {"k": {"color": "#000000"}}, "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "k", "dur": 1}]}]}', "out/edit.resolved.json": '{"edit": 7, "entries": "no"}'}),
+                    ("brief", {"BRIEF.md": b"# \xff\n- Output: \xfe\n"})):
+    p = mk(name)
+    for k, v in files.items():
+        W(f"{p}/{k}", v)
+    R(p)
+print("\n".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "timeline --resolved: a build's record holds only while the files it read are as they were; the table's other fields stay; a film that is a part has its shots and chapters from its own first frame, cut to what it holds; no permission, not UTF-8, not JSON and NaN are each a row of missing, exit 0, the other parts there" \
+    || bad "timeline --resolved on what it cannot read: $(printf '%s' "$a" | tail -c 1500)"
   # nothing logged; timeline's own arguments as they were; a failure's shape
   rm -f "$t/s/.ovh/activity.jsonl"
   vh timeline "$t/s" --resolved >"$t/human" 2>&1; rc=$?
