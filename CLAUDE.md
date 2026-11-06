@@ -64,7 +64,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 | 剪用户自己录的素材：口播、访谈、Vlog，删口水词和重录、剪接缝、加字幕和图解、出竖屏版（实验性） | `video-types/09-editing-talking-head.md`，细节在 `engines/editing.md` | HyperFrames |
 | 10 分钟以上的横屏讲解：长科普、讲透一件大事、讲观点的长片 | `video-types/10-long-explainer.md` | canvas-film |
 | 用自己的照片和片段做回顾：婚礼、旅行、一年回顾、纪念日（实验性） | `video-types/11-photo-recap.md` | canvas-film + 剪辑表（`engines/EDIT.md`） |
-| 需要写实人物、真实物理、实拍感 | `playbook/05-hybrid-genvideo.md`，再加上对应的类型文档（用户自己录的真人素材不用生成，走 09） | 生成式视频 + 代码叠加 |
+| 需要写实人物、真实物理、实拍感，或整片要由视频模型出画面 | `playbook/05-hybrid-genvideo.md`，再加上对应的类型文档（用户自己录的真人素材不用生成，走 09） | 生成式视频 + 代码叠加 |
 | 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`；要路径追踪的光影、物理模拟或真实景深时读 `engines/blender.md`（部分验证；渲染时间先渲 3–5 帧校准）。样板是 `showcase/04-intro-film/` | HyperFrames + Three.js 层；重光影的镜头用 Blender |
 | "这个视频是怎么做的"，想学某支参考视频 | `playbook/07-reverse-engineer.md` | —（产出一份 cases/ 拆解） |
 
