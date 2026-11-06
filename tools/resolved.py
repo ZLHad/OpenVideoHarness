@@ -6,7 +6,8 @@ usage: bin/vh timeline <project> --resolved [zh|en] [--words] [--json]
 
 Where each part comes from:
   shots      edit.json as bin/vh edit build resolves it (its out/edit.resolved.json while that is of this edit.json and of the very
-             files it read: the narration it was timed on, the footage; else the same code in memory); else shots.json; else, for a page
+             files it read: the narration it was timed on, the footage, each by its sha256, but a file over 64 MB not newer than the record;
+             else the same code in memory); else shots.json; else, for a page
              with neither, the shots its current film's .render.json kept (window.film.shots when it was rendered: no browser is started
              here). Each row with the table's other fields, as written. A film rendered as a part (first_frame): its shots from its own first
              frame, what lies outside it left out and what crosses its ends cut there; with a table of the whole film, its frames and length are
@@ -34,6 +35,9 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "audio"))
 import activity, jsonerr   # noqa: E402,E401
 from timegrid import frame_at, frame_from   # noqa: E402
+
+
+BIG = 64 << 20    # bytes: a file a build's record takes by its time, not its hash
 
 
 def sha(p):
@@ -140,7 +144,14 @@ class Doc:
         for v in (old.get("files") or {}).values() if isinstance(old.get("files"), dict) else ():
             read += [x for x in (v, v.get("audio")) if isinstance(x, dict)] if isinstance(v, dict) else []
         try:
-            return all(sha(self.project / r["path"]) == r["sha256"] for r in {(x["path"], x["sha256"]): x for x in read if x.get("path") and x.get("sha256")}.values())
+            import edit
+            built = (self.project / edit.RESOLVED).stat().st_mtime
+
+            def same(r):
+                f = self.project / r["path"]
+                s = f.stat()
+                return (s.st_size > BIG and s.st_mtime < built) or sha(f) == r["sha256"]   # footage older than the record is not read through again
+            return all(same(r) for r in {(x["path"], x["sha256"]): x for x in read if x.get("path") and x.get("sha256")}.values())
         except OSError:
             return False
 

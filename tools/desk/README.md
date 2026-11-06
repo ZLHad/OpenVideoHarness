@@ -254,7 +254,7 @@ JSON 的格式：
 
 | event | 字段 | 谁写 |
 |---|---|---|
-| `start` | `cmd`、`args`（照打的写，但不写秘密：名字（`=` 前那段）里带 key、token、secret、pass、auth、cred、cookie、header、bearer 的选项和 `名字=值` 的值，大写的 `NAME=值`、单字母选项后面的值，URL 里的 `用户:密码@`、查询参数的值和 `#` 后面，Bearer token，名字像秘密的 header，像 key 的参数，都写成 `…`；最多 24 个）、`cwd`、`pid`、`parent`（由另一条 `bin/vh` 起的） | `bin/vh` |
+| `start` | `cmd`、`args`（照打的写，但不写秘密：名字（`=` 前那段）里带 key、token、secret、pass、auth、cred、cookie、header、bearer 的选项和 `名字=值` 的值，大写的 `NAME=值`、单字母选项后面的值，URL 里的 `用户:密码@`、查询参数的值和 `#` 后面，Bearer token，名字像秘密的 header，像 key 的参数，都写成 `…`；最多 24 个）、`cwd`、`pid`、`project`（这条命令所在文件夹的真实路径，复制出来的一份不算它；路径太长时没有）、`parent`（由另一条 `bin/vh` 起的） | `bin/vh` |
 | `progress` | `done`、`total`、`unit`（`render`：frames，开头、每 15 s、结尾各一行；`patch`、`proxy`：frames；`tts`：lines；`thumbs`：pictures；`deliver`：percent，另有 `pass`、`passes`：这一行是第几遍；这些最多 5 到 10 s 一行，第一行和到头的一行总写） | 工具 |
 | `note` | `summary`（一行）、`outputs`（写了哪些文件，项目里的写相对路径）；为什么失败的那一条：`level`（`error`）、`code`（`tools/jsonerr.py` 的错误码）、`summary` 是那句话；`kept`（工具被停下时，留了什么可以接着做：`render` 的 chunk、`tts` 的句子）；`gone`（`true`：`bin/vh cancel` 发现这个 pid 已经是别的进程，这条命令读出来是 `gone`） | 工具：render、patch、review、gate、mix、qa、tts、check、`desk wait`、`versions compare`、`versions use`；为什么失败：`tools/jsonerr.py` 和 `bin/vh` 的 `vh_fail`，render、patch 自己 |
 | `end` | `exit`（退出码；Ctrl-C 是 130，写完 `bin/vh` 再用 SIGINT 结束自己，调用它的 shell 才知道是 Ctrl-C；自己处理信号 n 的工具（desk、`desk wait`、`gate --wait`）停下时是 128 + n；被 TERM、HUP 直接杀掉的命令当场结束，没有这一行，读出来是 `gone`）、`duration`（秒；没有 `EPOCHREALTIME` 的 bash，比如 macOS 自带的 3.2，只到整秒）、`cancelled`（`bin/vh cancel` 停的：`true`，`exit` 是 130 或 143） | `bin/vh` 的 EXIT trap；`bin/vh` exec 进去的工具（render、patch、frames 这些页面工具，desk、gate）自己写 |

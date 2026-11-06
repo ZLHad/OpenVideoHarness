@@ -325,7 +325,7 @@ act_scrub() { # act_scrub <text>: into ACT_A, free text as a log line may hold i
     esac
     out=$out$pre$core$post$sep
   done
-  ACT_A=$out
+  ACT_A=$out ACT_HIDE=""
 }
 act_shown() { # act_shown <argument>: into ACT_A, the argument as the log shows it; ACT_HIDE=1 when the next one is its value
   local a=$1 n=""

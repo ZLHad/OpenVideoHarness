@@ -5684,6 +5684,10 @@ PY
     CHROME_PATH=/bin/sh vh render "$p" --frames 0:1 >/dev/null 2>&1; rc=$?
     a=$(python3 -c 'import json, sys; print([r["code"] for r in map(json.loads, open(sys.argv[1], encoding="utf-8")) if r.get("level") == "error"])' "$p/.ovh/activity.jsonl" 2>&1)
     [ "$rc" = 2 ] && [ "$a" = "['failed']" ] && ok "activity: bin/vh render's failure before it draws is in the log too" || bad "render's failure in the log: exit $rc, $a"
+    rm -f "$t/n.jsonl"
+    OVH_ACTIVITY_LOG="$t/n.jsonl" OVH_ACTIVITY_RUN=1-n OVH_ACTIVITY_CMD=render node --input-type=module -e "import { error, note } from '$ROOT/tools/film/activity.mjs'; error('a key sk-ant-abcdefgh12345678 here'); note('made with AQ.Ab8RN6Lxyz_12345678');" >/dev/null 2>&1
+    a=$(python3 -c 'import json, sys; print([r["summary"] for r in map(json.loads, open(sys.argv[1], encoding="utf-8"))])' "$t/n.jsonl" 2>&1)
+    [ "$a" = "['a key … here', 'made with …']" ] && ok "activity: the page tools' notes drop what looks like a key" || bad "the page tools' notes: $a"
   else skip "render's failure in the log" "needs node"; fi
   rm -rf "$t"
 }
@@ -5994,6 +5998,8 @@ for rel, name in part.items():
             bad.append(f"{rel}, {how}: {name} not in missing: {d['missing']}")
         if any(d[x] == [] for x in others):
             bad.append(f"{rel}, {how}: another part went with it: {[x for x in others if d[x] == []]}")
+        if how == "NaN" and name != "shots" and not d[name]:
+            bad.append(f"{rel}, {how}: the rows with a time went too")
 # the record of a render, an edit list and a BRIEF that cannot be read: the same
 for name, files in (("side", {"out/final.mp4": "x", "out/final.mp4.render.json": '{"fps": NaN, "frames": NaN, "first_frame": "x", "shots": "no", "chapters": [1, {"t": NaN}]}'}), ("side2", {"out/final.mp4": "x", "out/final.mp4.render.json": b"\xff\xfe"}),
                     ("edit", {"edit.json": b"\xff\xfe{"}), ("edit2", {"edit.json": "[1]"}), ("record", {"edit.json": '{"v": 1, "fps": 30, "size": [320, 180], "sources": {"k": {"color": "#000000"}}, "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "k", "dur": 1}]}]}', "out/edit.resolved.json": '{"edit": 7, "entries": "no"}'}),
