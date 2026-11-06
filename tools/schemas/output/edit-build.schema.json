@@ -1,0 +1,42 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/edit-build.schema.json",
+ "title": "bin/vh edit build <project> --json",
+ "description": "The resolved edit list, as written to out/edit.resolved.json, and what building it said (tools/edit.py; engines/EDIT.md). It keeps the spelling v, as out/edit.resolved.json does.",
+ "type": "object",
+ "required": ["v", "note", "edit", "refs", "fps", "size", "frames", "duration", "files", "entries", "runs", "cuts", "slates", "chapters", "said"],
+ "properties": {
+  "v": {"enum": [1]},
+  "note": {"type": "string"},
+  "edit": {
+   "type": "object",
+   "required": ["path", "sha256"],
+   "properties": {
+    "path": {"type": "string"},
+    "sha256": {"type": "string"}
+   }
+  },
+  "refs": {"type": "array"},
+  "fps": {"type": "number"},
+  "size": {"type": "array", "items": {"type": "integer"}},
+  "frames": {"type": "integer"},
+  "duration": {"type": "number"},
+  "files": {"type": "object"},
+  "entries": {"type": "array", "items": {"type": "object", "required": ["id", "track", "src", "kind", "frames", "start", "end", "ref"]}},
+  "runs": {"type": "array", "items": {"type": "object", "required": ["frames", "draw", "entry"]}},
+  "cuts": {"type": "object"},
+  "slates": {"type": "array", "items": {"type": "string"}},
+  "chapters": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["t", "title"],
+    "properties": {
+     "t": {"type": "number"},
+     "title": {"type": "string"}
+    }
+   }
+  },
+  "said": {"type": "array", "items": {"type": "string"}}
+ }
+}

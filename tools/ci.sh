@@ -5471,100 +5471,49 @@ PY
   rm -rf "$t"
 }
 
-contract_checks() {   # what a client relies on: each command's failures as tools/jsonerr.py's shape, with the exit status they always
-  # had; why a run failed in the activity log. No network, no paid call; a small project made here
-  local t p a rc
+contract_checks() {   # what a client relies on (tools/test_contract.py makes a small project and runs the commands): each --json output
+  # against tools/schemas/output/, a field removed fails; each command's failures in tools/jsonerr.py's shape, with the exit status
+  # they always had; why a run failed in the activity log. No network, no paid call
+  local t p a b c rc k m
+  t=$(mktemp "${TMPDIR:-/tmp}/vh-contract.XXXXXX")
+  python3 tools/test_contract.py "$VH_BASH" > "$t" 2>&1; rc=$?
+  while IFS=$'\t' read -r k m; do
+    case $k in ok) ok "$m" ;; bad) bad "$m" ;; esac
+  done < "$t"
+  grep -q '^end' "$t" || bad "tools/test_contract.py stopped (exit $rc): $(tail -n 4 "$t" | tr '\n' ' ' | tail -c 600)"
+  rm -f "$t"
+  # the schemas and the real jsonschema, as for tools/schemas/
+  if command -v uv >/dev/null 2>&1; then
+    if a=$(uv run -q --no-project --with "jsonschema==4.25.1" python - 2>&1 <<'PY'
+import json
+from pathlib import Path
+from jsonschema import Draft202012Validator
+n = 0
+for f in sorted(Path("tools/schemas/output").glob("*.schema.json")):
+    Draft202012Validator.check_schema(json.loads(f.read_text(encoding="utf-8")))
+    n += 1
+print(n)
+PY
+    ); then ok "tools/schemas/output: $a schemas, each a valid JSON Schema to the real jsonschema"
+    else bad "tools/schemas/output against the real jsonschema: $(printf '%s' "$a" | tail -c 500)"; fi
+  else skip "tools/schemas/output against the real jsonschema" "no uv"; fi
+  # schemalite.undeclared: a field no schema names is said, a map of data is not, through $ref, items and anyOf
+  a=$(python3 - <<'PY' 2>&1
+import sys
+sys.path.insert(0, "tools")
+import schemalite as L
+s = {"type": "object", "properties": {"a": {"type": "object", "properties": {"b": {"type": "integer"}}}, "m": {"type": "object"}, "r": {"$ref": "#/$defs/x"}, "l": {"type": "array", "items": {"$ref": "#/$defs/x"}},
+                                      "o": {"anyOf": [{"type": "null"}, {"type": "object", "properties": {"y": {}}}]}},
+     "$defs": {"x": {"type": "object", "properties": {"z": {}}}}}
+v = {"new": 1, "a": {"b": 1, "c": 2}, "m": {"any": 1}, "r": {"z": 1, "w": 2}, "l": [{"z": 1}, {"q": 1}], "o": {"y": 1, "u": 2}}
+got, want = sorted(L.undeclared(s, v)), sorted(["$.new", "$.a.c", "$.r.w", "$.l[1].q", "$.o.u"])
+print("ok" if got == want and L.undeclared(s, {"a": {"b": 1}, "o": None}) == [] else got)
+PY
+  )
+  [ "$a" = ok ] && ok "tools/schemalite.py undeclared: a key no properties names is said, in \$ref, items and anyOf; a map of data is left alone" || bad "schemalite.undeclared: $a"
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd)
   OVH_PROJECTS="$t/projects" vh new math ci-contract >/dev/null 2>&1
   p=$(ls -d "$t"/projects/*-ci-contract)
-  mkdir -p "$t/plain" "$t/bad/out/versions" "$t/bad/assets" "$t/bad/out/review"
-  for a in BRIEF.md REVIEW.md; do printf '# x\n' > "$t/bad/$a"; done
-  printf 'not json' > "$t/bad/out/versions/versions.json"; printf 'not json' > "$t/bad/assets/ledger.json"; printf 'not json' > "$t/bad/edit.json"
-  printf 'not json' > "$t/bad/out/review/gate-1.json"; printf 'no film here' > "$t/bad/out/x.mp4"
-  a=$(OVH_PROJECTS="$t/projects" python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY' 2>&1
-import json, os, subprocess, sys
-sh, root, p, t = sys.argv[1:]
-vh = f"{root}/bin/vh"
-plain, broken = f"{t}/plain", f"{t}/bad"
-# (the arguments, without --json; the exit status; the code)
-TABLE = [
- ("status", 2, "usage"), ("status nope", 2, "no_project"), (f"status {plain}", 2, "no_project"),
- ("activity", 2, "usage"), ("activity nope", 2, "no_project"), (f"activity {plain}", 2, "no_project"),
- ("versions", 2, "usage"), ("versions nope", 2, "no_project"), (f"versions {broken}", 2, "invalid"), (f"versions compare {p} v1 v2 --t 1", 1, "not_found"), (f"versions {p} --bogus", 2, "usage"),
- ("check", 2, "usage"), ("check --bogus", 2, "usage"), (f"check {t}/nofile.mp4", 2, "not_found"), (f"check {plain}", 2, "no_project"), (f"check {p}", 2, "not_found"), (f"check {broken}/out/x.mp4 --bogus", 2, "usage"),
- (f"check {broken}/out/x.mp4 --against {t}/nofile.mp4", 2, "not_found"),
- ("assets list", 2, "usage"), ("assets list nope", 2, "no_project"), (f"assets list {plain}", 2, "no_project"), (f"assets list {broken}", 2, "invalid"), ("assets nope", 2, "no_project"),
- ("edit", 2, "usage"), ("edit list nope", 2, "no_project"), (f"edit list {p}", 2, "not_found"), (f"edit build {p}", 2, "not_found"), (f"edit list {broken}", 2, "invalid"), (f"edit build {broken}", 2, "invalid"),
- ("proxy", 2, "usage"), ("proxy nope", 2, "no_project"), (f"proxy {p}", 2, "not_found"), (f"proxy {p} --size nope", 2, "usage"), (f"proxy {p} --bogus", 2, "usage"),
- ("thumbs", 2, "usage"), ("thumbs nope", 2, "no_project"), (f"thumbs {t}/bad/out --every nope", 2, "usage"),
- ("artifacts", 2, "usage"), ("artifacts list", 2, "usage"), ("artifacts list nope", 2, "no_project"), ("artifacts spec --stage nope", 2, "usage"), ("artifacts bogus", 2, "usage"),
- ("projects --bogus", 2, "usage"), (f"projects --root {t}/nope", 2, "not_found"),
- ("commands --stage nope", 2, "usage"), ("commands --bogus", 2, "usage"),
- ("doctor --bogus", 2, "usage"), (f"doctor {p}", 2, "usage"),
- ("desk data", 2, "usage"), ("desk data nope", 2, "no_project"),
- ("gate", 2, "usage"), ("gate nope", 2, "no_project"), (f"gate {p} 1", 2, "invalid"), (f"gate {broken} 1", 2, "invalid"), (f"gate {p} 1 --wait", 2, "usage"), (f"gate {p} 1 --init --wait", 2, "usage"),
- ("new", 2, "usage"), ("new short", 2, "usage"), ("new nope x", 2, "usage"), ("new short x --bogus", 2, "usage"), ("new short x --effort nope", 2, "usage"), ("new short x --from nope", 2, "no_project"), ("new math ci-contract", 1, "exists"),
- ("nope", 2, "usage"), ("statu", 2, "usage"),
-]
-# with no project, bin/vh prints the usage from the table; with --json, the option is taken for the slug, or refused where it does not go
-OTHER_WORDS = {"status", "activity", "check", "edit", "proxy", "thumbs", "artifacts", "gate", "new short", f"doctor {p}", f"gate {p} 1 --wait"}
-bad, n = [], 0
-def run(args, **kw):
-    return subprocess.run([sh, vh, *args], capture_output=True, text=True, stdin=subprocess.DEVNULL, **kw)
-for line, want, code in TABLE:
-    n += 1
-    args = line.split()
-    r = run(args + ["--json"])
-    try:
-        d = json.loads(r.stdout)
-        e = d["error"]
-        shape = d["version"] == 1 and set(e) == {"code", "message", "hint"} and isinstance(e["message"], str) and e["message"] and (e["hint"] is None or isinstance(e["hint"], str))
-    except (ValueError, KeyError, TypeError):
-        d, e, shape = None, {}, False
-    if r.returncode != want or not shape or e.get("code") != code or not r.stderr.strip():
-        bad.append(f"{line} --json: exit {r.returncode} (want {want}), code {e.get('code')} (want {code}), stdout {r.stdout[:120]!r}, stderr {r.stderr[-120:]!r}")
-        continue
-    if "\033" in e["message"] or e["message"] not in r.stderr.replace("\033[31m✗\033[0m ", ""):
-        bad.append(f"{line} --json: the message is not the line a person reads: {e['message'][:120]!r} / {r.stderr[-160:]!r}")
-    # without --json: the same exit status and, but where --json itself is what is wrong, the same words; nothing of this on stdout (bin/vh desk data speaks only JSON)
-    q = run(args)
-    words = line in OTHER_WORDS or e["message"] in q.stderr.replace("\033[31m✗\033[0m ", "")
-    if q.returncode != want or not q.stderr.strip() or not words or ('"error"' in q.stdout) != (args[:2] == ["desk", "data"]):
-        bad.append(f"{line}: exit {q.returncode} (want {want}), stdout {q.stdout[:120]!r}, stderr {q.stderr[-160:]!r}")
-# a filled gate page that is not there, a skeleton: --init says where, once, and then it exists
-r = run(["gate", p, "2", "--init", "--json"]); n += 1
-d = json.loads(r.stdout) if r.returncode == 0 else {}
-if not (d.get("init") is True and d.get("gate") == "2" and d.get("path", "").endswith("out/review/gate-2.json")):
-    bad.append(f"gate --init --json: exit {r.returncode}, {r.stdout[:200]!r}")
-r = run(["gate", p, "2", "--init", "--json"]); n += 1
-if r.returncode != 2 or json.loads(r.stdout or "{}").get("error", {}).get("code") != "exists":
-    bad.append(f"gate --init over a file: exit {r.returncode}, {r.stdout[:200]!r}")
-r = run(["gate", p, "2", "--json"]); n += 1   # placeholders left: nothing goes to the person
-if r.returncode != 2 or json.loads(r.stdout or "{}").get("error", {}).get("code") != "invalid":
-    bad.append(f"gate with placeholders: exit {r.returncode}, {r.stdout[:200]!r}")
-# no python3: said the same way, by bin/vh itself; bin/vh doctor --json keeps its own record
-bare = f"{t}/bare"; os.makedirs(bare)
-for d in os.environ["PATH"].split(os.pathsep):
-    if os.path.isdir(d):
-        for x in os.listdir(d):
-            if not x.startswith("python") and not os.path.lexists(os.path.join(bare, x)):
-                os.symlink(os.path.join(d, x), os.path.join(bare, x))
-real = subprocess.run(["sh", "-c", f'command -v "{sh}"'], capture_output=True, text=True).stdout.strip()
-r = subprocess.run([real, vh, "status", p, "--json"], capture_output=True, text=True, env=dict(os.environ, PATH=bare)); n += 1
-d = json.loads(r.stdout) if r.stdout.strip() else {}
-if r.returncode != 127 or d.get("error", {}).get("code") != "missing_tool" or "python3" not in r.stderr:
-    bad.append(f"status --json without python3: exit {r.returncode}, {r.stdout[:200]!r} {r.stderr[-200:]!r}")
-r = subprocess.run([real, vh, "doctor", "--json"], capture_output=True, text=True, env=dict(os.environ, PATH=bare)); n += 1
-if r.returncode != 0 or not isinstance(json.loads(r.stdout or "{}").get("modules"), list):
-    bad.append(f"doctor --json without python3: exit {r.returncode}, {r.stdout[:200]!r}")
-print("\n".join(bad[:15]) + (f"\n… and {len(bad) - 15} more" if len(bad) > 15 else "") or f"{n} failures")
-sys.exit(1 if bad else 0)
-PY
-  ); rc=$?
-  case "$rc:$a" in
-    0:*" failures") ok "errors a program can read: $a of the commands a client reads, each --json valid JSON in the one shape on stdout with the right code and exit status, the same exit and words without --json; before Python starts too, and with no python3" ;;
-    *) bad "failures as JSON (exit $rc): $a" ;;
-  esac
   # the helper itself: argparse, words in a SystemExit and a traceback each get the shape; what printed its own record does not;
   # exits from a signal say nothing; a mark names the code; with no --json nothing on stdout
   a=$(python3 - "$ROOT" <<'PY' 2>&1

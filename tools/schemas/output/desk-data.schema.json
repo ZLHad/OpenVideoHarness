@@ -1,0 +1,109 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/desk-data.schema.json",
+ "title": "bin/vh desk data <project>",
+ "description": "What the review desk shows of a project (tools/desk/reader.py; tools/desk/README.md). Rows hold the fields the page shows; a round's data is its gate JSON (tools/schemas/gate.schema.json).",
+ "type": "object",
+ "required": ["version", "lang", "project", "stage", "spec", "concept", "outline", "captions", "facts", "fact_todo", "ledger", "agent_decided", "history", "rounds", "feedback", "shots", "music", "docs", "warnings"],
+ "properties": {
+  "version": {"enum": [1]},
+  "lang": {"type": "string"},
+  "project": {
+   "type": "object",
+   "required": ["slug", "title", "effort", "paused"],
+   "properties": {
+    "slug": {"type": "string"},
+    "title": {"type": "string"},
+    "effort": {"type": "string"},
+    "paused": {"type": "boolean"}
+   }
+  },
+  "stage": {"type": "integer"},
+  "spec": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["k", "v"],
+    "properties": {
+     "k": {"type": "string"},
+     "v": {"type": "string"}
+    }
+   }
+  },
+  "concept": {"type": ["object", "null"], "required": ["fields", "specifics", "line", "spine", "motif", "end"]},
+  "outline": {"type": "array", "items": {"type": "object", "required": ["id", "title", "tag", "stage", "bars", "t0", "t1", "know", "visual"]}},
+  "captions": {
+   "type": ["object", "null"],
+   "required": ["kind", "rows"],
+   "properties": {
+    "kind": {"type": "string"},
+    "rows": {"type": "array", "items": {"type": "object", "required": ["id", "part", "seg", "term", "bars", "t0", "t1", "text", "visual", "facts"]}}
+   }
+  },
+  "facts": {"type": "array", "items": {"type": "object", "required": ["id", "claim", "dropped", "kind", "onscreen", "source"]}},
+  "fact_todo": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["done", "text"],
+    "properties": {
+     "done": {"type": "boolean"},
+     "text": {"type": "string"}
+    }
+   }
+  },
+  "ledger": {"type": "array", "items": {"type": "object", "required": ["what", "who", "status", "where"]}},
+  "agent_decided": {"type": "array", "items": {"type": "object", "required": ["date", "topic", "what", "why", "undo", "superseded", "note", "group"]}},
+  "history": {"type": "array", "items": {"type": "object", "required": ["title", "quotes", "notes", "desk", "html"]}},
+  "rounds": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["id", "gate", "data", "page"],
+    "properties": {
+     "id": {"type": "string"},
+     "gate": {"type": "string"},
+     "data": {"type": "object"},
+     "page": {"type": "string"}
+    }
+   }
+  },
+  "feedback": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["file", "round", "submitted_at", "decisions", "items", "general"],
+    "properties": {
+     "file": {"type": "string"},
+     "round": {"type": "string"},
+     "submitted_at": {"type": "string"},
+     "decisions": {"type": "object"},
+     "items": {"type": "array", "items": {"type": "object", "required": ["target", "status"]}},
+     "general": {"type": "string"}
+    }
+   }
+  },
+  "shots": {
+   "type": ["object", "null"],
+   "properties": {
+    "video": {"type": ["string", "null"]},
+    "note": {"type": "string"},
+    "items": {"type": "array", "items": {"type": "object", "required": ["id", "segment", "start", "end", "label", "reads", "frame", "seg"]}}
+   }
+  },
+  "music": {"type": ["object", "null"]},
+  "docs": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["file", "intro", "sections"],
+    "properties": {
+     "file": {"type": "string"},
+     "intro": {"type": "string"},
+     "sections": {"type": "array", "items": {"type": "object", "required": ["title", "html"]}}
+    }
+   }
+  },
+  "warnings": {"type": "array"}
+ }
+}

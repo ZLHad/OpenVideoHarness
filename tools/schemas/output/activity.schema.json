@@ -1,0 +1,68 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/activity.schema.json",
+ "title": "bin/vh activity <project> --json",
+ "description": "The runs of a project's log and the events outside any run (tools/activity.py; tools/desk/README.md 活动记录).",
+ "type": "object",
+ "required": ["version", "project", "log", "runs", "events"],
+ "properties": {
+  "version": {"enum": [1]},
+  "project": {"type": "string"},
+  "log": {"type": "string"},
+  "runs": {"type": "array", "items": {"$ref": "#/$defs/run"}},
+  "events": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["v", "event", "t"],
+    "properties": {
+     "v": {"enum": [1]},
+     "event": {"type": "string"},
+     "t": {"type": "number"},
+     "round": {"type": "string"},
+     "file": {"type": "string"},
+     "items": {"type": "object"}
+    }
+   }
+  }
+ },
+ "$defs": {
+  "run": {
+   "type": "object",
+   "required": ["run", "cmd", "args", "cwd", "pid", "parent", "start", "end", "exit", "duration", "state", "summary", "outputs", "progress", "error"],
+   "properties": {
+    "run": {"type": "string"},
+    "cmd": {"type": "string"},
+    "args": {"type": "array", "items": {"type": "string"}},
+    "cwd": {"type": ["string", "null"]},
+    "pid": {"type": ["integer", "null"]},
+    "parent": {"type": ["string", "null"]},
+    "start": {"type": ["number", "null"]},
+    "end": {"type": ["number", "null"]},
+    "exit": {"type": ["integer", "null"]},
+    "duration": {"type": ["number", "null"]},
+    "state": {"enum": ["running", "ok", "failed", "gone"]},
+    "summary": {"type": ["string", "null"]},
+    "outputs": {"type": "array", "items": {"type": "string"}},
+    "progress": {
+     "type": ["object", "null"],
+     "required": ["done", "t"],
+     "properties": {
+      "done": {"type": "number"},
+      "total": {"type": "number"},
+      "unit": {"type": "string"},
+      "t": {"type": "number"}
+     }
+    },
+    "error": {
+     "type": ["object", "null"],
+     "required": ["code", "message"],
+     "properties": {
+      "code": {"type": "string"},
+      "message": {"type": "string"}
+     }
+    }
+   }
+  }
+ }
+}

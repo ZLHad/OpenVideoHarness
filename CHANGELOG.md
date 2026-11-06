@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**Output contracts: `tools/schemas/output/`, and CI fails when a field goes**
+- Why: `tools/ci.sh` used `--json` in over a hundred places, and one schema pinned what it printed: a client built on these outputs had nothing to hold them to.
+- A schema each for the `--json` of `status`, `activity`, `versions`, `check`, `commands`, `desk data`, `edit list`, `edit build`, `assets list`, `artifacts list`, `projects`, and the error's shape, in the permissive style of `tools/schemas/`: required fields and types, extra fields allowed. They are in a folder of their own since they describe what commands print, not the files `tools/artifacts.json` lists.
+- A CI group, `contract_checks` (`tools/test_contract.py`): makes a small project of each kind (a film with its records, the desk's fixture with a page and a submission, an edit list), runs each command, validates through `tools/schemalite.py`, takes each required field out of a real output and expects the schema to notice, and runs 70 failures of these commands, each valid JSON in the one shape with the right code and exit status, the same exit and words without `--json`.
+- A field an output has and its schema does not name fails too (`schemalite.undeclared`), where the schema names the object's fields: a client takes fields it does not know, but a new field gets written down, so its loss is seen from then on. Objects whose keys are data (a Spec, a map of films) name none. `CONTRIBUTING.md` says so in one line.
+
 **Errors a program can read; why a run failed is in the activity log**
 - Why: a failure was words on stderr and an exit status, each command with its own wording, and an `end` line that carried only the exit status: a client could not branch on a failure or say why a background run stopped.
 - `tools/jsonerr.py`: with `--json`, a failure prints `{"version": 1, "error": {"code", "message", "hint"}}` on stdout, the line a person reads stays on stderr, the exit status is what it was. The codes are stable and few: `usage`, `no_project`, `not_found`, `invalid`, `exists`, `refused`, `missing_tool`, `timeout`, `failed`. `status`, `activity`, `versions`, `check`, `assets`, `edit`, `proxy`, `thumbs`, `artifacts`, `projects`, `commands`, `doctor`, `desk data`, `gate` and `new` all have it, also for what fails in `bin/vh` before Python starts (`vh_fail`), an argparse error, words in a `SystemExit`, a traceback, and no `python3` (exit 127). A record a command prints of its own stays as it is.

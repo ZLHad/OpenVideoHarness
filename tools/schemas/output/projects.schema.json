@@ -1,0 +1,93 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/projects.schema.json",
+ "title": "bin/vh projects --json",
+ "description": "Every project and where it stands (tools/projects.py). A project that cannot be read has error, and null in what could not be read.",
+ "type": "object",
+ "required": ["version", "tool", "roots", "count", "truncated", "seconds", "assigned", "projects"],
+ "properties": {
+  "version": {"enum": [1]},
+  "tool": {"type": "string"},
+  "roots": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["path", "from", "exists"],
+    "properties": {
+     "path": {"type": "string"},
+     "from": {"type": "string"},
+     "exists": {"type": "boolean"}
+    }
+   }
+  },
+  "count": {"type": "integer"},
+  "truncated": {"type": "boolean"},
+  "seconds": {"type": "number"},
+  "assigned": {"type": "array"},
+  "projects": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["id", "name", "title", "path", "type", "effort", "state", "station", "waiting_on", "next_step", "running", "last_activity", "film", "same_id_as", "error"],
+    "properties": {
+     "id": {"type": ["string", "null"]},
+     "name": {"type": "string"},
+     "title": {"type": ["string", "null"]},
+     "path": {"type": "string"},
+     "type": {"type": ["string", "null"]},
+     "effort": {"type": ["string", "null"]},
+     "state": {"enum": ["paused", "delivered", "waiting_person", "waiting_agent", "in_progress", "no_record", "not_started", null]},
+     "station": {
+      "type": ["object", "null"],
+      "required": ["id", "name"],
+      "properties": {
+       "id": {"type": "string"},
+       "name": {"type": "string"}
+      }
+     },
+     "waiting_on": {"enum": ["person", "agent", "nobody", "unknown", null]},
+     "next_step": {
+      "type": ["object", "null"],
+      "required": ["who", "do", "commands", "read", "unfilled"],
+      "properties": {
+       "who": {"enum": ["person", "agent", "nobody", "unknown"]},
+       "do": {"type": "string"},
+       "commands": {"type": "array", "items": {"type": "string"}},
+       "read": {"type": "array", "items": {"type": "string"}},
+       "unfilled": {"type": "object"}
+      }
+     },
+     "running": {"type": "array"},
+     "last_activity": {
+      "type": ["object", "null"],
+      "required": ["t", "at", "cmd", "run", "state", "exit"],
+      "properties": {
+       "t": {"type": ["number", "null"]},
+       "at": {"type": ["string", "null"]},
+       "cmd": {"type": ["string", "null"]},
+       "run": {"type": ["string", "null"]},
+       "state": {"type": ["string", "null"]},
+       "exit": {"type": ["integer", "null"]}
+      }
+     },
+     "film": {
+      "type": ["object", "null"],
+      "required": ["path", "size", "mtime", "version", "check", "stale"],
+      "properties": {
+       "path": {"type": "string"},
+       "size": {"type": "integer"},
+       "mtime": {"type": "string"},
+       "version": {"type": ["string", "null"]},
+       "check": {"type": ["string", "null"]},
+       "stale": {"type": ["boolean", "null"]}
+      }
+     },
+     "same_id_as": {"type": "array"},
+     "error": {},
+     "assigned": {"type": "boolean"},
+     "assign_error": {"type": "string"}
+    }
+   }
+  }
+ }
+}
