@@ -25,7 +25,8 @@ Minimum duration: a caption shorter than the subtitle floor (readcheck.SUB_FLOOR
   keeps the spoken end as "speech_end" on the items it moved. A caption the gap cannot lengthen to 1.8 s is listed on
   stdout (bin/vh readcheck <project> --mode subtitle fails it too). The timeline itself is not touched.
   audio/captions.args.json keeps the mode, widths, --cps and --media-end of the run, and bin/vh pace makes the captions again
-  with them.
+  with them; and the timeline it read and that file's sha256, so bin/vh check and bin/vh artifacts list can say when the
+  captions are older than it (tools/audio/capstate.py). captions.json keeps its shape: pages read it.
 Breaks (tools/audio/capbreak.py): at word boundaries (jieba, which bin/vh captions brings through uv when it can; without
   it Latin words and numbers stay whole and a break may fall between any two Chinese characters), chosen by dynamic
   programming: the fewest lines, then even widths, breaks after a comma or a pause, none that leaves 把/是… at a line's end
@@ -55,7 +56,7 @@ CUE_GAP = 0.1   # seconds left between an extended caption and the next one
 TOUCH = 0.25    # captions closer than this touch: no one-frame blink between them
 LEAD, HOLD = 0.1, 0.8   # --cards: a card shows this much before its first word; the last of a line stays this far into the pause
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import capbreak
+import capbreak, capstate
 
 def ts(t: float) -> str:
     ms = int(round(t * 1000)); h, ms = divmod(ms, 3600000); m, ms = divmod(ms, 60000); s, ms = divmod(ms, 1000)
@@ -303,8 +304,10 @@ def main():
     moved = [c for c in items if "speech_end" in c]
     items = [{k: c[k] for k in ("id", "part", "start", "end", "speech_end", "zh", "en", "words") if k in c} for c in items]   # speech_end beside end
     (audio / "captions.json").write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
-    # how they were made, so bin/vh pace makes them again the same way after it changes the take
-    (audio / "captions.args.json").write_text(json.dumps({"cards": a.cards, "zh_max": a.zh_max, "en_max": a.en_max, "cps": a.cps, "media_end": a.media_end}) + "\n", encoding="utf-8")
+    # how they were made, so bin/vh pace makes them again the same way after it changes the take; from what, so a later
+    # bin/vh check or artifacts list can tell they are older than the timeline (tools/audio/capstate.py)
+    (audio / "captions.args.json").write_text(json.dumps({"version": 1, "cards": a.cards, "zh_max": a.zh_max, "en_max": a.en_max, "cps": a.cps, "media_end": a.media_end,
+                                                          **capstate.record(audio.parent, tl_path)}) + "\n", encoding="utf-8")
     wrote = ["captions.json"]
     if not a.cards and any(c.get("words") for c in items) and any(c[narr] for c in items):   # word timing → one cue per wrapped line
         cues = [{"start": t0, "end": t1, "l": ls} for c in items if c[narr]

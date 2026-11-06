@@ -5805,6 +5805,57 @@ PY
     ); then ok "tools/schemas: each a valid JSON Schema; the real jsonschema and tools/schemalite.py agree on the fixtures and on each keyword against values of every kind ($a cases)"
     else bad "tools/schemas against the real jsonschema: $(printf '%s' "$a" | tail -c 800)"; fi
   else skip "tools/schemas against the real jsonschema" "no uv"; fi
+  # captions against the timeline they were timed from (tools/audio/capstate.py): what bin/vh captions records, what bin/vh
+  # artifacts list and bin/vh check say once the timeline changes, and of a record from before there was one
+  local t p q q2 rc rc2 rc3 b c d
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); p="$t/cap"; mkdir -p "$p/audio" "$p/out"; printf '# BRIEF\n' > "$p/BRIEF.md"
+  printf '%s' '{"provider": "test", "lang": "zh", "duration": 4, "segments": [{"id": "a1", "start": 0, "end": 2, "text": "第一句话在这里", "zh": "第一句话在这里"}, {"id": "a2", "start": 2.1, "end": 4, "text": "第二句话也在", "zh": "第二句话也在"}]}' > "$p/audio/timeline.zh.json"
+  q=$(cat <<'PY'
+import json, sys
+rec = json.load(sys.stdin)
+got = {f["path"]: f["stale"] for x in rec["artifacts"] for f in x["files"] if x["id"] in ("captions", "captions-srt")}
+print(*sorted({s["state"] for s in got.values()}) if got else "none")
+PY
+)
+  a=$(vh captions "$p" zh 2>&1); rc=$?
+  b=$(vh artifacts list "$p" --json 2>/dev/null | python3 -c "$q")
+  if [ $rc = 0 ] && [ "$b" = fresh ] && python3 - "$p" <<'PY'
+import json, sys
+p = sys.argv[1]
+args = json.load(open(f"{p}/audio/captions.args.json"))
+caps = json.load(open(f"{p}/audio/captions.json"))
+sys.exit(0 if args["version"] == 1 and args["timeline"] == "audio/timeline.zh.json" and len(args["timeline_sha256"]) == 64 and args["zh_max"] == 16 and isinstance(caps, list) and "version" not in caps[0] else 1)
+PY
+  then ok "captions: audio/captions.args.json records the timeline and its sha256, captions.json keeps its shape, and bin/vh artifacts list has them up to date"
+  else bad "captions and their record (exit $rc, $b): $(printf '%s' "$a" | tail -c 300)"; fi
+  printf ' ' >> "$p/audio/timeline.zh.json"
+  a=$(vh artifacts list "$p" 2>&1); b=$(vh artifacts list "$p" --json 2>/dev/null | python3 -c "$q")
+  case "$b:$a" in stale:*"audio/captions.json: out of date: audio/timeline.zh.json changed since"*) ok "bin/vh artifacts list: captions older than their timeline are out of date, with why" ;;
+    *) bad "bin/vh artifacts list on captions older than their timeline ($b): $(printf '%s' "$a" | tail -c 400)" ;; esac
+  if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
+    ffmpeg -nostdin -v error -f lavfi -i "testsrc2=s=320x180:r=30:d=1" -c:v libx264 -pix_fmt yuv420p "$p/out/film.mp4"
+    a=$(vh check "$p/out/film.mp4" 2>&1); rc=$?
+    q2=$(cat <<'PY'
+import json, sys
+r = json.load(open(sys.argv[1] + "/out/check/film.check.json"))
+f = [x for x in r["findings"] if x["kind"] == "check.captions"]
+print(len(f), f[0]["severity"] if f else "", any(x.get("run") == "bin/vh captions" for x in f[0]["remedies"]) if f else "", [s["check"] for s in r["skipped"] if s["check"] == "captions"])
+PY
+)
+    b=$(python3 -c "$q2" "$p")
+    vh captions "$p" zh >/dev/null 2>&1; vh check "$p/out/film.mp4" >/dev/null 2>&1; rc2=$?
+    c=$(python3 -c "$q2" "$p")
+    printf '{"cards": false, "zh_max": 16}\n' > "$p/audio/captions.args.json"
+    vh check "$p/out/film.mp4" >/dev/null 2>&1; rc3=$?
+    d=$(python3 -c "$q2" "$p")
+    if [ "$rc:$rc2:$rc3" = 0:0:0 ] && [ "$b" = "1 warn True []" ] && [ "$c" = "0   []" ] && [ "$d" = "0   ['captions']" ] && case "$a" in *"captions: audio/timeline.zh.json changed since"*) true ;; *) false ;; esac
+    then ok "bin/vh check: captions older than their timeline are a warning with its way out (check.captions), gone once made again; a record from before there was one is a check skipped"
+    else bad "bin/vh check on captions older than their timeline ($rc, $rc2, $rc3): [$b] [$c] [$d] $(printf '%s' "$a" | tail -c 400)"; fi
+  else skip "bin/vh check on captions older than their timeline" "no ffmpeg"; fi
+  rm -f "$p/audio/captions.args.json"
+  b=$(vh artifacts list "$p" --json 2>/dev/null | python3 -c "$q")
+  [ "$b" = not_checked ] && ok "bin/vh artifacts list: captions with no record of their timeline are not checked" || bad "bin/vh artifacts list on captions with no record: $b"
+  rm -rf "$t"
 }
 
 # bin/vh textcheck on its fixture (tools/textcheck/fixture/index.html: one read per case), with whatever headless Chrome

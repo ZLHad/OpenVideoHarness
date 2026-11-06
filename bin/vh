@@ -1027,6 +1027,16 @@ cmd_check() {
     1:subtitles*) printf '%s\n' "$sub" | sed -e "s/^subtitles\(.*\)shorter than/$c_wa subtitles\1shorter than/" -e "s/^subtitles · \(.*\)long enough/$c_ok subtitles · \1long enough/" ;;
     *) echo "$c_wa subtitle check failed: $sub"; ck_note skipped.txt $'subtitles\tthe subtitle check failed' ;;
   esac
+  # the captions against the timeline they were timed from (tools/audio/capstate.py): made from another take, a warning
+  if [ -n "$gp" ]; then
+    local cs csrc=0
+    cs=$(python3 "$ROOT/tools/audio/capstate.py" "$gp" ${J:+--json "$J/captions.json"} 2>&1) || csrc=$?
+    case "$csrc:$cs" in
+      0:) ;;
+      0:*) echo "$c_wa $cs" ;;
+      *) echo "$c_wa captions check failed: $cs"; ck_note skipped.txt $'captions\tthe captions check failed' ;;
+    esac
+  fi
   # colour: browsers read untagged or BT.601-tagged HD video with the wrong matrix (playbook/02-verification.md, 色彩标签)
   local col; col=$(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt,color_range,color_space,color_transfer,color_primaries -of csv=p=0 "$v" 2>/dev/null)
   [ -z "$J" ] || printf '%s\n' "$col" > "$J/colour.txt"

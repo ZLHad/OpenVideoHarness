@@ -88,6 +88,16 @@
     "run": "bin/vh readcheck"
    }
   ],
+  "check.captions": [
+   {
+    "say": "captions timed from a take that has changed since: make them again from the timeline as it is",
+    "run": "bin/vh captions"
+   },
+   {
+    "say": "and check they can still be read in their time",
+    "run": "bin/vh readcheck"
+   }
+  ],
   "check.colour": [
    {
     "say": "the colour tags a platform reads: the re-encode command",

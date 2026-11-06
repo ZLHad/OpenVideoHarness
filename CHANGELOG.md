@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**Captions say when they are older than their timeline**
+- Why: cues and mixes tell when the narration under them changed; captions did not. After a new take, `captions.json` went on holding the old take's times without a word.
+- `bin/vh captions` records the timeline it read and that file's sha256 in `audio/captions.args.json` (with `"version": 1`; `bin/vh pace` reads the same file by name, as before). `captions.json` keeps its shape, since pages read it.
+- `bin/vh artifacts list` and `bin/vh check` compare it with the file now (`tools/audio/capstate.py`): out of date, with which file changed; a new finding `check.captions` (a warning, with `bin/vh captions` and `readcheck` as ways out in `tools/remedies.json`). Captions from before this record are "not checked".
+
 **`.render.json` and `.deliver.json` say their version; which file spells it how is written down**
 - Why: two records every delivery rests on had no version at all, and `tools/desk/README.md` said every JSON has `"version": 1` while half of them spell it `v`.
 - `bin/vh render`, `bin/vh patch` and `bin/vh deliver` write `"version": 1`. Their readers go by named fields, and the records written before stay as they are. No `v` is renamed.
