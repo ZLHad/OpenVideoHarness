@@ -563,6 +563,23 @@
    "doc": "playbook/01-pipeline.md#审阅页"
   },
   {
+   "id": "gate-refused",
+   "path": "out/review/.gate-<n>.refused.json",
+   "kind": "file",
+   "format": "json",
+   "stages": ["3", "8"],
+   "purpose": "审阅页不合规、没有发给人时记下错在哪，status 据此不把这一站算成在等人",
+   "made_by": "tool",
+   "writers": ["gate", "review"],
+   "readers": ["status"],
+   "required": null,
+   "version_key": null,
+   "schema": null,
+   "stale": null,
+   "clean": "stays",
+   "doc": "tools/desk/README.md"
+  },
+  {
    "id": "gate-page",
    "path": "out/review/gate-<n>.html",
    "also": ["out/review/index.html"],
