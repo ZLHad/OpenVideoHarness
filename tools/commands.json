@@ -370,7 +370,7 @@
             "--json: {\"version\": 1, \"project\", \"type\", \"doc\", \"effort\", \"lang\", \"frame\", \"watch\", \"resolution\", \"engine\", \"scaffold\": {\"ok\", \"finish\"}, \"next\"} on stdout (next is bin/vh status's next_step), the lines a person reads on stderr;",
             "--engine canvas-film: the narration-driven canvas engine instead, any type, 16:9 (engines/canvas-film/README.md); long and recap have it by default;",
             "--three with it: the Three.js layer in three/ and a pinned three.js, 3D drawn under the 2D (its README, Three.js 层);",
-            "--aspect: short/promo/data/meme only (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only); --lang: the review pages' language (default zh; set it from the user's first request);",
+            "--aspect: short/promo/data/meme, and recap, whose film goes through edit.json while its pages stay 16:9 (4:5 is 1080x1350, 3:4 1080x1440, both 1080p only on HyperFrames); --lang: the review pages' language (default zh; set it from the user's first request);",
             "--dir (or $OVH_PROJECTS): make it in <folder>/<date>-<slug> outside the harness;",
             "--from <project>: the next episode of a series: that project's BRIEF spec, style and outline skeleton, STYLE.md,",
             "style refs, recipes and sound effects carried over (its frame and engine too, unless given), its content left",
@@ -1000,7 +1000,8 @@
       "writes": [
         "<project>/out/review/gate-<n>.html",
         "<project>/out/review/index.html",
-        "<project>/out/review/.current"
+        "<project>/out/review/.current",
+        "<project>/out/review/.gate-<n>.refused.json (a page that breaks a rule: what is wrong, until a run of it goes through)"
       ],
       "usage": [
         {
@@ -1022,7 +1023,7 @@
         "<project>/BRIEF.md"
       ],
       "writes": [
-        "<project>/out/review/gate-<n>.html, index.html, .current",
+        "<project>/out/review/gate-<n>.html, index.html, .current, .gate-<n>.refused.json (a page that breaks a rule: nothing is sent)",
         "<project>/out/review/gate-<n>.json (--init)",
         "<project>/out/review/feedback/.consumed (--wait: the submission handed over)",
         "the review desk, a local server, for a stop reviewed there"

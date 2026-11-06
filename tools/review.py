@@ -19,8 +19,8 @@ every field:
   language" line, else zh), decided[], delegated[], not_reviewed, include (a JSON file, or a list of them, whose keys fill in
   what this file does not set: bin/vh storyboard writes out/check/storyboard/review.json for gate ②). The review desk (bin/vh
   desk, tools/desk/README.md) reads the same file and a few more optional keys (listen, music, film); this page ignores them.
-  A text that still holds a {填：…} or {fill: …} from bin/vh gate --init is not ready: nothing is written (exit 2), and the file
-  is no page yet for bin/vh status, the desk or this round.
+  A text that still holds a {填：…} or {fill in: …} from bin/vh gate --init, here or in a file it includes, is not ready: nothing
+  is written (exit 2), and the file is no page yet for bin/vh status, the desk or this round.
 
 Paths are relative to the project and linked relatively, so the page opens straight from disk (images, GIF, mp4 and
 audio play in the browser); http(s) URLs pass through, other schemes are refused. Every text is HTML-escaped; appendix
@@ -28,7 +28,8 @@ text may hold simple pipe tables (| a | b | / |---|---| / | 1 | 2 |).
 
 Exit: 0 written (warnings, e.g. more than 3 decisions, go to stderr) · 1 written, but the page breaks a rule
 (a decision without a question, recommendation or reply, an option without an id, a missing file, a refused URL,
-an unknown `for`, a duplicate id); no chat message then · 2 nothing written (no project, no JSON, bad JSON, a field
+an unknown `for`, a duplicate id); no chat message then, and out/review/.gate-<n>.refused.json keeps what is wrong, so that
+bin/vh status does not take the page for one the person has, until a run of it goes through · 2 nothing written (no project, no JSON, bad JSON, a field
 of the wrong shape, or a file that can't be read or written).
 """
 import argparse, html, json, os, re, sys
@@ -770,7 +771,7 @@ GATE_ID = re.compile(r"[A-Za-z0-9_-]{1,24}")   # a page name: gate-<id>.json (th
 GATE_ORDER = {"1": 1, "E0": 2, "E1": 3, "2": 4, "E2": 5, "E3": 6, "E4": 7, "3": 8, "E5": 9}
 
 
-FILL = re.compile(r"\{(?:填|fill)\s*[:：]")   # the placeholder bin/vh gate --init writes
+FILL = re.compile(r"\{(?:填：|fill in:)")   # the placeholder bin/vh gate --init writes; a stylesheet cannot write either
 
 
 def placeholders(x, at=""):
@@ -783,11 +784,36 @@ def placeholders(x, at=""):
 
 
 def _unfilled(page):
-    """A gate JSON that bin/vh gate --init wrote and nobody has filled in: not a page yet."""
+    """A gate JSON that bin/vh gate --init wrote and nobody has filled in, read as JSON (json.dump writes \\uXXXX), with the files
+    it includes: not a page yet. One that is not JSON goes by its text."""
     try:
-        return bool(FILL.search(page.read_text(encoding="utf-8-sig", errors="replace")))
+        raw = page.read_text(encoding="utf-8-sig", errors="replace")
     except OSError:
         return False
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return bool(FILL.search(raw))
+    try:
+        return bool(placeholders(data) or (isinstance(data, dict) and placeholders(merge_includes(page.parents[2], data))))
+    except ValueError:   # an include that cannot be read: publish says so
+        return False
+
+
+def _refused_file(project, gate):
+    return Path(project) / "out" / "review" / f".gate-{gate}.refused.json"
+
+
+def refusal(project, gate):
+    """What is wrong with a page publish wrote but would not send (exit 1), until a run of it goes through: [message], else
+    None. The person got nothing from that run, whatever gate-<n>.html now says."""
+    try:
+        j = json.loads(_refused_file(project, gate).read_text(encoding="utf-8"))
+    except OSError:
+        return None
+    except ValueError:
+        return []
+    return [str(x) for x in j["errors"]] if isinstance(j, dict) and isinstance(j.get("errors"), list) else []
 
 
 def _pages_on_disk(project):
@@ -942,11 +968,13 @@ def publish(project, gate_arg=None, shown=None):
         if not isinstance(data, dict):
             raise ValueError("expected a JSON object")
         left = placeholders(data)
+        if not left:
+            data = merge_includes(project, data)
+            left = placeholders(data)
         if left:   # before anything else: a page that is not filled in never reaches the person
             print(f"{src}: {len(left)} placeholder(s) still to fill in ({', '.join(left[:6])}{' …' if len(left) > 6 else ''}): "
                   "replace each one, or delete what this page does not need. Nothing was written, nothing goes to the person", file=sys.stderr)
             return 2, None, None
-        data = merge_includes(project, data)
     except OSError as e:
         print(f"can't read {src}: {e.strerror or e}", file=sys.stderr)
         return 2, None, None
@@ -977,10 +1005,15 @@ def publish(project, gate_arg=None, shown=None):
     if page.errors:   # not sent, so not this round either: the desk and its watcher stay on the page that is out
         print(f"✗ {page_path} written with {len(page.errors)} problem(s) above ({what}); fix them before sending, "
               "so no chat message this time", file=sys.stderr)
+        try:   # and bin/vh status: the person got nothing from this run
+            _refused_file(project, gate).write_text(json.dumps({"version": 1, "errors": page.errors}, ensure_ascii=False) + "\n", encoding="utf-8")
+        except OSError as e:
+            print(f"can't write {_refused_file(project, gate)}: {e.strerror or e}", file=sys.stderr)
         return 1, page, page_path
     try:   # the page just made is "this round" for the review desk and its watcher, whatever its name or the order of
         # the stops (a concept page 1b after gate 2, a voice page E3b after gate 3, a page called "final")
         (rdir / ".current").write_text(gate + "\n", encoding="utf-8")
+        _refused_file(project, gate).unlink(missing_ok=True)
     except OSError as e:
         print(f"can't write {rdir / '.current'}: {e.strerror or e}", file=sys.stderr)
         return 2, None, None

@@ -102,7 +102,7 @@ projects/2026-10-01-leo-doppler/
 | 04 MV、07 手绘 | 1920×1080（手绘引擎只有这一种画幅） | 24 或 30 | 1080p（手绘引擎暂不支持 4K） | `desktop` |
 | 09 剪辑口播 | 跟素材，多为 1080×1920 | 跟素材（恒定帧率） | 1080p（素材是 4K、方向又和成片一致时可以出 4K；从横屏 4K 裁竖屏最多 1215×2160，只够 1080×1920） | `phone` |
 | 10 长讲解 | 1920×1080 | 30 | 1080p（发 B 站、YouTube 可以出 4K） | `desktop` |
-| 11 照片回顾 | 1920×1080（竖屏改 `edit.json` 的 `size`） | 30 | 1080p | `feed` |
+| 11 照片回顾 | 1920×1080（竖屏：`bin/vh new recap --aspect 9:16`，片子走 `edit.json`） | 30 | 1080p | 横屏 `feed`，竖屏 `phone` |
 
 - **在哪看**决定字号下限和可读性检查缩到多宽（`03-motion-design.md` §4）。平台对应：竖屏、1:1、4:5、3:4 都是 `phone`（HyperFrames 类型用 `--aspect 4:5` / `3:4` 建项目，只出 1080p）；横屏片发抖音、视频号、小红书、微博、X 这类信息流，是 `feed`；发 B 站、YouTube、官网，是 `desktop`。抖音上 2–5 分钟的横屏知识中视频是个例外：`video-types/02-knowledge-short.md` 的"变体：抖音横屏中视频"默认按 `desktop`，理由写在那里。同一支横屏片既要在电脑上看、又要进手机信息流时，优先另出一个竖版（重新构图），而不是把横屏的字放大到 `feed` 那一档。
 - **4K**：用户要，或者精品档的片子要发到 B 站、YouTube 这类有 4K 播放的平台时再用；竖屏一般用不上（YouTube Shorts 最高只播 1080p）。照常按 1080p 写，出片时渲成 4K，BRIEF 的 Resolution 写 `1080p, 4k`。canvas、Three.js 这类自己画像素的代码要处理像素密度，出 4K 前先渲一个 4K draft，用 `bin/vh check <4K 视频> --against <1080p 成片>` 比一遍，再裁帧看锐度（`engines/README.md`"出 4K"）。成本：HyperFrames 渲染时间约 2.5–3.5 倍、文件约 3 倍；Blender 约 4 倍。

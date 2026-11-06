@@ -8,7 +8,7 @@
 
 0. **定档位和导演模式**：这支片子做多认真（`quick` / `standard` / `studio`），人要亲自拍板哪些事，规则见下面两节；后面每一步做多少、在哪里停，都按这两样来。`quick` 照 `playbook/quick.md` 做。
 1. **判断类型**：用路由表找到类型文档，整篇读；其中"Prompt 增量块"那一节是这类片子的默认做法，想完立意再读（`quick` 只读"工作流"和"禁止"两节，见 `playbook/quick.md`）。横跨两类（例如论文讲解做成竖屏短视频）就两份都读，以主类型为准。一句话需求是常态：先想立意（第 4 步），其余用类型文档的默认值补，关卡 ① 最多问 3 个真正影响制作的问题（`quick` 没有关卡，需求有歧义时最多问 1 个）。规格（画幅、分辨率、帧率、时长、在哪看）按 `playbook/01-pipeline.md` 的"规格"补；只有需求没说发在哪、而它又会改变画幅或字号下限时，才当成一个问题问。
-2. **读流程和自查**：开工前读 `playbook/01-pipeline.md` 从开头到"规格"（总表、努力程度、目录约定、reads、关卡、规格）和 `playbook/02-verification.md` 的"七层检查"；有配音或音乐时再读 `playbook/04-audio.md`。其余到用的那一站再读：第一道关卡读 01 的"审阅页"（用审阅台再读"审阅台"），第一次出画面读 02 的"各引擎的取帧命令"和它后面几节，长片读 01 的"长片"，有人点名拍板读 01 的"导演模式"。`bin/vh status <项目>` 的 `next:` 列着这一站该读的节，`bin/vh know --show "playbook/01-pipeline.md#审阅页"` 只打印一节，`"playbook/01-pipeline.md#..规格"` 打印到"规格"为止。
+2. **读流程和自查**：开工前读 `playbook/01-pipeline.md` 从开头到"规格"（总表、努力程度、目录约定、reads、关卡、规格）和 `playbook/02-verification.md` 的"七层检查"、"预算"；有配音或音乐时再读 `playbook/04-audio.md`。其余到用的那一站再读：第一道关卡读 01 的"审阅页"（用审阅台再读"审阅台"），要取帧时读 02 的"各引擎的取帧命令"，写场景时读它后面几节，长片读 01 的"长片"，有人点名拍板读 01 的"导演模式"。`bin/vh status <项目>` 的 `next:` 列着这一站该读的节，`bin/vh know --show "playbook/01-pipeline.md#审阅页"` 只打印一节，`"playbook/01-pipeline.md#..规格"` 打印到"规格"为止。
 3. **建项目**：`bin/vh new <type> <slug>` 建好 `projects/<日期>-<slug>/`，复制模板（选项见 `bin/vh new -h`）；手绘类还会复制引擎、装好依赖。其他引擎的初始化见 `engines/README.md`。每一阶段有哪些命令：`bin/vh commands --stage <阶段> --brief` 一条一行，不带 `--brief` 还有什么时候用、读写什么（阶段即 playbook/01 总表的 0–9）。用户不用中文时加 `--lang en`（审阅页的语言），旁白稿和字幕也用用户的语言；一行多长、读多快见 `video-types/02-knowledge-short.md` 第 5 步（英文一行 ≤ 42 字符、≤ 20 字符/秒）和 `playbook/03-motion-design.md` 第 2 节，命令见 `playbook/04-audio.md` 的"配音"。
 4. **先想立意，再看参考**：先读材料，把只属于它的数字、原话、物件记进 NOTES.md 的素材清单，再自己想几个方向（`playbook/12-ideation.md` 第 3 节的方法按需用）。直接、准确、有情绪地组织材料本身就是立意；装置让内容变难懂时，退回直接讲。先自己想，再看 Prompt 增量块、`styles/`、`recipes/` 和案例，点子不容易往看过的东西上靠。要人选方向时收敛成 2–3 张有实际差异的立意卡；人已经给了立意，就记进 BRIEF，不再出卡，最多附一个备选。参考：类型文档"可参考的案例"和"社区 skill 参考"两节；`showcase/` 是本仓库自己做的片子，各带 BRIEF、STORYBOARD、NOTES 和源码；`references/repos/` 是只读的源码。分镜时，拿不准怎么动的镜头、排不顺的全片节奏，可以查 `recipes/`（`bin/vh recipes list` 按意图和能量筛）；用了配方就把 id 写进 STORYBOARD，写代码前读全文。
 5. **停下来给人审**：`standard` 和 `studio` 必过三道关卡，`quick` 不设关卡；人点名要拍板的事按导演模式另外停，`quick` 也一样。
@@ -62,7 +62,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 | 手绘、水彩、白板、剪纸、角色小短片 | `video-types/07-hand-drawn.md` | ClaudeAnimationBase（p5.brush） |
 | 网络梗、野兽派、科技推特风的快剪 | `video-types/08-brutalist-meme.md` | HyperFrames |
 | 剪用户自己录的素材：口播、访谈、Vlog，删口水词和重录、剪接缝、加字幕和图解、出竖屏版（实验性） | `video-types/09-editing-talking-head.md`，细节在 `engines/editing.md` | HyperFrames |
-| 10 分钟以上的横屏讲解：长科普、讲透一件大事、思考型长片 | `video-types/10-long-explainer.md` | canvas-film |
+| 10 分钟以上的横屏讲解：长科普、讲透一件大事、讲观点的长片 | `video-types/10-long-explainer.md` | canvas-film |
 | 用自己的照片和片段做回顾：婚礼、旅行、一年回顾、纪念日（实验性） | `video-types/11-photo-recap.md` | canvas-film + 剪辑表（`engines/EDIT.md`） |
 | 需要写实人物、真实物理、实拍感 | `playbook/05-hybrid-genvideo.md`，再加上对应的类型文档（用户自己录的真人素材不用生成，走 09） | 生成式视频 + 代码叠加 |
 | 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`；要路径追踪的光影、物理模拟或真实景深时读 `engines/blender.md`（部分验证；渲染时间先渲 3–5 帧校准）。样板是 `showcase/04-intro-film/` | HyperFrames + Three.js 层；重光影的镜头用 Blender |

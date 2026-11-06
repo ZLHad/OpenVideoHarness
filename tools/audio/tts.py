@@ -1205,8 +1205,6 @@ def main():
         print("  --join recovers line boundaries from word timestamps → --align gemini is on")
     if a.align == "local":   # before anything is synthesized or deleted
         need_local_asr()
-    if a.provider in ("elevenlabs", "dashscope", "gemini", "gemini-lite") and not os.environ.get(KEY_OF[a.provider].split()[0]):
-        no_key(a.provider)                                           # before anything is synthesized or deleted
     if align and a.align != "local" and not os.environ.get("GEMINI_API_KEY"):
         sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key): --align gemini / --join transcribe with Gemini (or --align local)")
     if man and a.provider == "minimax" and join != "none" and man.get("gap") != a.gap:
@@ -1225,9 +1223,13 @@ def main():
             blocks[-1].append(s)
         else:
             blocks.append([s])
+    wavs = [f"{i+1:02d}.wav" for i in range(len(segs))] if join == "none" else [f"_block{i+1:02d}.wav" for i in range(len(blocks))]
+    voiced = a.resume and all((vo / f).exists() and ((vo / f).with_suffix(".words.json").exists() or not timed) for f in wavs)   # the synthesis loops' own test
+    if not voiced and a.provider in ("elevenlabs", "dashscope", "gemini", "gemini-lite") and not os.environ.get(KEY_OF[a.provider].split()[0]):
+        no_key(a.provider)                                           # before anything is synthesized or deleted; --resume with all voiced needs none
     if a.provider == "minimax":
         minimax_settings()                                           # a value out of range exits here, not mid-run
-        if not minimax_key()[0]:
+        if not voiced and not minimax_key()[0]:
             no_key("minimax")
         size, first = max(((len(linked([strip_tags(spoken(s), reactions, pauses=False) for s in blk])), blk[0]["id"]) for blk in blocks), default=(0, ""))
         if size > MINIMAX_MAX_CHARS:                                 # before the last take is deleted

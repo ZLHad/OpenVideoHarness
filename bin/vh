@@ -498,6 +498,10 @@ cmd_new() {
         short:1080x1440|promo:1080x1440|data:1080x1440|meme:1080x1440) aspect=3:4 ;;
       esac
     fi
+    if [ -z "$aspect" ] && [ "$type" = recap ]; then   # a recap's frame is its edit list's
+      case "$(sed -n 's/^- Output: \([0-9]*x[0-9]*\).*/\1/p' "$fromdir/BRIEF.md" | head -1)" in
+        1080x1920) aspect=9:16 ;; 1080x1080) aspect=1:1 ;; 1080x1350) aspect=4:5 ;; 1080x1440) aspect=3:4 ;; esac
+    fi
   fi
   [ -n "$engine" ] || case "$type" in long|recap) engine=canvas-film ;; esac   # these two types' own engine
   case "$lang" in ""|zh|en) ;; *) echo "unknown --lang: $lang (zh | en: the language of the review pages, from the user's first request)" >&2; exit 2 ;; esac
@@ -510,9 +514,11 @@ cmd_new() {
   case "$outres" in ""|1080p) ;; 4k|4K|2160p) outres=4k ;; *) echo "unknown --res: $outres (1080p | 4k)" >&2; exit 2 ;; esac
   if [ "$outres" = 4k ] && [ -z "$engine" ]; then case "$type" in handdrawn|mv) echo "--res 4k: the hand-drawn engine (ClaudeAnimationBase) has no 4K output yet; use 1080p, or another engine (engines/README.md)" >&2; exit 2 ;; esac; fi
   if [ "$engine" = canvas-film ]; then   # the canvas engine draws 16:9 whatever the type
-    case "$aspect" in ""|16:9|landscape) res=landscape ;;
-      *) [ "$type" != recap ] || { echo "--aspect: the canvas-film engine's pages draw 16:9; a recap's edit list takes any frame: write it as size in edit.json (video-types/11-photo-recap.md)" >&2; exit 2; }
-         echo "--aspect: the canvas-film engine draws 16:9 (1920x1080); another frame means editing its template (engines/canvas-film/README.md, 局限)" >&2; exit 2 ;; esac
+    case "$aspect:$type" in :*|16:9:*|landscape:*) res=landscape ;;
+      9:16:recap|portrait:recap) res=portrait; aspect=9:16 ;; 1:1:recap|square:recap) res=square; aspect=1:1 ;;   # a recap's film is an edit list, which takes any frame
+      4:5:recap) res=portrait; frameh=1350 ;; 3:4:recap) res=portrait; frameh=1440 ;;
+      *:recap) echo "unknown aspect: $aspect (16:9 | 9:16 | 1:1 | 4:5 | 3:4)" >&2; exit 2 ;;
+      *) echo "--aspect: the canvas-film engine draws 16:9 (1920x1080); another frame means editing its template (engines/canvas-film/README.md, 局限)" >&2; exit 2 ;; esac
   elif [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of these; the other engines set their size themselves
     case "$aspect" in 16:9|landscape) res=landscape; aspect=16:9 ;; 9:16|portrait) res=portrait; aspect=9:16 ;; 1:1|square) res=square; aspect=1:1 ;;
       4:5) res=portrait; frameh=1350 ;; 3:4) res=portrait; frameh=1440 ;;   # feed posts (Instagram, 小红书): the portrait scaffold, shorter
@@ -538,7 +544,11 @@ cmd_new() {
   local base dir; base=$(projects_base "$parent")
   mkdir -p "$base" || { echo "cannot create $base" >&2; exit 1; }
   base=$(cd "$base" && pwd); dir="$base/$(date +%F)-$slug"
-  [ -e "$dir" ] && { echo "$dir already exists" >&2; exit 1; }
+  if [ -e "$dir" ]; then
+    echo "$dir already exists" >&2
+    [ ! -f "$dir/BRIEF.md" ] || echo "   bin/vh status $(rel "$dir") says where it stands and what finishes it (a scaffold that did not finish: bin/vh hf-init, npm install); another slug makes a new project" >&2
+    exit 1
+  fi
   # a step that fails from here on must not leave a half-built dir behind (a retry would say "already exists"): vh_exit removes it
   NEW_DIR=$dir; vh_trap
   if [ "$engine" = canvas-film ]; then   # a static page and its scripts: nothing to install (one command a line, so a failed copy stops here)
@@ -568,6 +578,7 @@ PY
   local nframe='类型文档 Prompt 增量块写的画幅，以及按它算的尺寸（安全框、每行字数、字号），以这一行为准按新画幅重算。'
   if [ "$engine" = canvas-film ]; then   # 16:9 is these types' own frame except short and edit
     case "$type" in short|edit) printf '\n> **画幅 16:9（%s，canvas-film 引擎）**：%s\n' "$wh" "$nframe" >> "$dir/BRIEF.md" ;; esac
+    [ "$type:$res" = recap:landscape ] || [ "$type" != recap ] || printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：页面（`film.html`）还是 16:9，片子走 `edit.json`，`size` 按这一行（`video-types/11-photo-recap.md` 的"竖屏"）。%s\n' "${aspect:-$res}" "$wh" "$nframe" >> "$dir/BRIEF.md"
   else
     case "$type:$res:$frameh" in short:portrait:|promo:landscape:|data:landscape:|meme:landscape:|*::) ;;   # the type's own frame: nothing to say
       *) printf '\n> **画幅 %s（%s，建项目时用 --aspect 选定）**：%s\n' "$aspect" "$wh" "$nframe" >> "$dir/BRIEF.md" ;;
@@ -620,6 +631,7 @@ PY
   echo "   type doc : video-types/$doc.md"
   local fdesc="${frameh:+$aspect, }$res"   # empty for the types whose engine is not scaffolded here (math, paper, handdrawn, mv, edit)
   [ -n "$wh" ] && echo "   frame    : $wh${fdesc:+ ($fdesc)}"
+  [ "$type:$res" = recap:landscape ] || [ "$type" != recap ] || echo "              its pages stay 16:9, and the film goes through edit.json at $wh (video-types/11-photo-recap.md)"
   echo "   watch on : $watch · ${outres:-1080p}  (text-size floor and readability check: playbook/03 §4)"
   [ -n "$styles" ] && echo "   style ref: $(printf '%s\n' $styles | sed 's|^|styles/|' | paste -sd, - | sed 's/,/, /g') (copies in style-refs/; references, not rules: note in DECISIONS.md what each lends)"
   [ -n "$fromdir" ] && echo "   from     : $(rel "$fromdir"): its BRIEF's spec (not its budget, effort or director)$([ -n "$style" ] || printf ', style'), outline skeleton,$([ -n "$style" ] || printf ' STYLE.md,') recipes and sound (series.json); the content left behind"
@@ -629,7 +641,7 @@ PY
   [ -z "$todo" ] || echo "   first    : $todo"
   case "$eff" in
     quick) echo "   next     : the agent reads playbook/quick.md and video-types/$doc.md (工作流, 禁止), fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
-    *) echo "   next     : the agent reads video-types/$doc.md, playbook/01-pipeline.md up to 规格 and playbook/02-verification.md's 七层检查, fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
+    *) echo "   next     : the agent reads video-types/$doc.md, playbook/01-pipeline.md up to 规格 and playbook/02-verification.md's 七层检查 and 预算, fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
   esac
   echo "              a person starting here: open Claude Code or Codex in the repo root and say what the video is about;"
   case "$eff" in
@@ -936,7 +948,11 @@ cmd_check() {
   if [ ! -f "$v" ]; then   # a project: its newest film (tools/proxy.py says which, or that there is none yet)
     local vp; vp=$(project_dir "$v" 2>/dev/null) && [ -f "$vp/BRIEF.md" ] || vp=""
     [ -z "$vp" ] && [ -d "$v" ] && { echo "bin/vh check: $v is a folder with no BRIEF.md: give a video, or a project" >&2; return 2; }
-    [ -n "$vp" ] || { echo "bin/vh check: no such video: $v" >&2; return 2; }   # one ffprobe cannot read is a failed check (1)
+    if [ -z "$vp" ]; then   # one ffprobe cannot read is a failed check (1)
+      vp=$(project_dir "$v" 2>&1 >/dev/null || true)
+      case "$vp" in *"several projects match"*) echo "bin/vh check: $vp" >&2 ;; *) echo "bin/vh check: no such video: $v" >&2 ;; esac
+      return 2
+    fi
     v=$(python3 "$ROOT/tools/proxy.py" film "$vp") || return 2
   fi
   # each check also leaves its result in CHECK_TMP (gone on exit, vh_exit); tools/checkrec.py makes the record of them at
