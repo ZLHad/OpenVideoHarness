@@ -508,7 +508,8 @@ cmd_new() {
   if [ "$outres" = 4k ] && [ -z "$engine" ]; then case "$type" in handdrawn|mv) echo "--res 4k: the hand-drawn engine (ClaudeAnimationBase) has no 4K output yet; use 1080p, or another engine (engines/README.md)" >&2; exit 2 ;; esac; fi
   if [ "$engine" = canvas-film ]; then   # the canvas engine draws 16:9 whatever the type
     case "$aspect" in ""|16:9|landscape) res=landscape ;;
-      *) echo "--aspect: the canvas-film engine draws 16:9 (1920x1080); another frame means editing its template (engines/canvas-film/README.md, 局限)" >&2; exit 2 ;; esac
+      *) [ "$type" != recap ] || { echo "--aspect: the canvas-film engine's pages draw 16:9; a recap's edit list takes any frame: write it as size in edit.json (video-types/11-photo-recap.md)" >&2; exit 2; }
+         echo "--aspect: the canvas-film engine draws 16:9 (1920x1080); another frame means editing its template (engines/canvas-film/README.md, 局限)" >&2; exit 2 ;; esac
   elif [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of these; the other engines set their size themselves
     case "$aspect" in 16:9|landscape) res=landscape; aspect=16:9 ;; 9:16|portrait) res=portrait; aspect=9:16 ;; 1:1|square) res=square; aspect=1:1 ;;
       4:5) res=portrait; frameh=1350 ;; 3:4) res=portrait; frameh=1440 ;;   # feed posts (Instagram, 小红书): the portrait scaffold, shorter

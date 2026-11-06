@@ -6,7 +6,7 @@
 - Why: following the new `CLAUDE.md` from 「做一个 60 秒竖屏短视频，讲清楚为什么天是蓝的」 to gate ① in a temp project worked, with four small snags.
 - `bin/vh know --show "playbook/01-pipeline.md#..规格"`: from the file's start through that section, which is what step 2 asks for.
 - `bin/vh new`: the BRIEF's Engine line starts as the type's engine, one blank fewer.
-- `CLAUDE.md`, step 5, names `bin/vh gate … --init`. `bin/vh status`'s `read` adds `playbook/12`'s third section (think first), and says `know --show` is for the lines with a `#section`.
+- `CLAUDE.md`, step 5, names `bin/vh gate … --init`. `bin/vh status`'s `read` adds `playbook/12`'s third section (think first) and the engine's doc at the first picture, and says `know --show` is for the lines with a `#section`.
 
 **`CLAUDE.md`, step 3: what to do for someone who does not write Chinese**
 - Why: `bin/vh new --lang en` only showed up in the option list, and the rules for English narration and captions were spread over three documents.
@@ -26,11 +26,11 @@
 - `playbook/01`, `playbook/02`, `playbook/quick.md`: one line each saying the same. `video-types/04` and `07` name the section they point to.
 
 **`bin/vh assets add --origin` takes the words people write**
-- Why: on real films an agent lost 44 runs to `--origin self-made`, which only `self` satisfied, and the message listed nothing it could use from there.
+- Why: on real films an agent lost 44 runs to `--origin self-made` and the like: only the exact word `self` was taken.
 - `tools/assets/ledger.py`, `origin_of`: `self-made`, `selfmade`, `own`, `自制` and the like for `self`, and so on for each origin (case and spaces aside); what it took is said on stderr. An unknown word is a usage error with the six origins and the closest. `tools/assets/assets.py` calls it in `add`; the record still holds one of the six.
 
 **`bin/vh commands --brief`: one short line a command**
-- Why: `bin/vh commands --stage 1` runs to 150 lines, and the whole list to 400. An agent looking for the tool at a stage wants the names and what each does.
+- Why: `bin/vh commands --stage 1` runs to 150 lines, and the whole list to 256. An agent looking for the tool at a stage wants the names and what each does.
 - `tools/commands.py`: `--brief`, alone or with `--stage N`, prints each command with the first clause of its summary, cut at a word to fit one line. `--json` is the same with it or without it. `CLAUDE.md`, step 3, names it.
 
 **`bin/vh check <project>` checks the newest film**

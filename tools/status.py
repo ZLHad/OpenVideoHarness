@@ -70,8 +70,9 @@ R_IDEAS, R_CARDS = "playbook/12-ideation.md#3.", "playbook/12-ideation.md#7."
 R_FRAMES, R_PHONE, R_SILENT = (f"playbook/02-verification.md#{x}" for x in ("各引擎的取帧命令", "手机测试", "静默失败"))
 R_SCORES, R_LAYERS, R_QUICK = "templates/TASTE_CHECKLIST.md#打分层", "playbook/02-verification.md#七层检查", "playbook/quick.md"
 R_NARRATIVE, R_SOUND, R_HF, R_MANIM = "playbook/09-narrative.md#5. 长片", "playbook/04-audio.md#常用命令", "engines/README.md#HyperFrames", "engines/README.md#Manim CE"
+R_CANVAS, R_HANDDRAWN = "engines/canvas-film/README.md", "engines/ClaudeAnimationBase/ANIMATION_GUIDE.md"
 READS = (R_PAGE, R_DESK, R_GATES, R_DIRECTOR, R_ANIMATIC, R_LONG, R_IDEAS, R_CARDS, R_FRAMES, R_PHONE, R_SILENT, R_SCORES, R_LAYERS, R_QUICK,
-         R_NARRATIVE, R_SOUND, R_HF, R_MANIM)
+         R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_HANDDRAWN)
 
 
 def rel(project, p):
@@ -339,6 +340,17 @@ def render_cmd(project, proj, final):
     return f"bin/vh render {p} --out {p}/{name}"
 
 
+def engine_doc(project, proj):
+    """What to read for this project's engine at the first picture, by the files it has."""
+    if (project / "film.html").is_file():
+        return R_CANVAS
+    if (project / "hyperframes.json").is_file():
+        return R_HF
+    if (project / "render.mjs").is_file():
+        return R_HANDDRAWN
+    return R_MANIM if (proj["type"] or "")[:2] in ("01", "06") else None
+
+
 def film_state(project, by_video):
     """The newest film and its check: (path from the project or None, none | unchecked | stale | failed | passed, what failed)."""
     film = P.newest_film(project)
@@ -430,7 +442,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     if key == "3":
         if fstate == "none":
             return out("agent", busy + "write the scenes, look at their frames, then render a draft", [f"bin/vh frames {p} --at 1,5,9", render_cmd(project, proj, False)],
-                       [R_FRAMES, R_LONG if long_film else None])
+                       [engine_doc(project, proj), R_FRAMES, R_LONG if long_film else None])
         if fstate in ("unchecked", "stale"):
             return out("agent", busy + f"check {film} and look at its contact sheet", check + [f"bin/vh sheet {p}/{film}"], [R_FRAMES, R_PHONE, R_SILENT])
         if fstate == "failed":
@@ -444,7 +456,7 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     quick = proj["effort"] == "quick"
     if fstate == "none":
         return out("agent", busy + "; ".join(x for x in (fill(["BRIEF.md"]), "a short storyboard table, the scenes, then a draft" if quick else "render the final") if x),
-                   [render_cmd(project, proj, not quick)], [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, R_PHONE] if quick else [R_FRAMES])
+                   [render_cmd(project, proj, not quick)], [R_QUICK, f"{doc}#工作流" if doc else None, f"{doc}#禁止" if doc else None, engine_doc(project, proj), R_PHONE] if quick else [engine_doc(project, proj), R_FRAMES])
     if fstate in ("unchecked", "stale"):
         return out("agent", busy + f"check {film}" + (" and look at its contact sheet" if not is_final(film) else ""),
                    check + ([f"bin/vh sheet {p}/{film}"] if not is_final(film) else []), [R_PHONE] if quick else [])

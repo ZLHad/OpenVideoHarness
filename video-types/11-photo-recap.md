@@ -91,4 +91,5 @@ Words on screen: only what the person gave (names, dates, places). Nothing inven
 - `engines/EDIT.md`：来源、段的字段、片段的规矩、声音。`engines/canvas-film/README.md`：页面、转场、配乐主导片。
 - `playbook/09-narrative.md` 第 1、2 节：先定三件事，再选骨架。
 - `recipes/sequences/README.md`：全片节奏的骨架（`data-along-time` 也是按时间走）。
+- `styles/archival-pan-zoom/`：只有静止的照片、镜头慢慢推拉的一种风格，想借就 `bin/vh style apply archival-pan-zoom <项目>`。
 - `engines/editing.md`：可变帧率、避脸字幕、人脸追踪，留片段原声时有用。

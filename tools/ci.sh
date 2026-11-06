@@ -1765,7 +1765,7 @@ new_checks() {   # bin/vh new: how a type may be written; a scaffold that fails 
   b=$(OVH_PROJECTS="$t/l" vh new 11 rr 2>&1); rc2=$?; q=$(ls -d "$t"/l/*-rr 2>/dev/null)
   OVH_PROJECTS="$t/l" vh new photo-recap r2 --aspect 9:16 >/dev/null 2>"$t/l.err"; rc3=$?
   x=$(OVH_PROJECTS="$t/l" vh new long l3 --three 2>&1 >/dev/null); c=$?
-  if [ "$rc:$rc2:$rc3:$c" = 0:0:2:0 ] && [ -f "$p/film.html" ] && [ -f "$q/film.html" ] && [ -f "$(ls -d "$t"/l/*-l3)/three/layer.js" ] && grep -q 'canvas-film' "$t/l.err" \
+  if [ "$rc:$rc2:$rc3:$c" = 0:0:2:0 ] && [ -f "$p/film.html" ] && [ -f "$q/film.html" ] && [ -f "$(ls -d "$t"/l/*-l3)/three/layer.js" ] && grep -q 'edit.json' "$t/l.err" \
     && grep -q '^- Output: 1920x1080,' "$p/BRIEF.md" && grep -q '^- Engine: canvas-film' "$p/BRIEF.md" && grep -q '^- Watch on: desktop' "$p/BRIEF.md" && grep -q '^- Pace: relaxed' "$p/BRIEF.md" \
     && grep -q '^- Type doc: `video-types/10-long-explainer.md`' "$p/BRIEF.md" && grep -q '^- Watch on: feed' "$q/BRIEF.md" && grep -q '^- Type doc: `video-types/11-photo-recap.md`' "$q/BRIEF.md" \
     && vh status "$p" --json | python3 -c 'import json, sys; n = json.load(sys.stdin)["next_step"]; sys.exit(0 if "video-types/10-long-explainer.md" in n["read"] else 1)'
@@ -4034,7 +4034,7 @@ PY
   c=$(vh assets add "$t/fx" "$t/fx/o3.png" --origin download --source-url https://example.com/x --id o3 --json 2>"$t/e3"); r2=$?
   d=$(vh assets add "$t/fx" "$t/fx/o3.png" --origin selfy --id o4 2>&1); r3=$?
   e=$(vh assets add "$t/fx" "$t/fx/o3.png" --origin zzzqqq --id o5 2>&1); r4=$?
-  if [ "$rc:$r1:$r2:$r3:$r4" = 0:0:0:2:2 ] && grep -q 'self-made is read as self' "$t/e1" && [ ! -s "$t/e3" ] && case "$d" in *"--origin selfy: one of download, generated, self"*"the closest is self"*) true ;; *) false ;; esac \
+  if [ "$rc:$r1:$r2:$r3:$r4" = 0:0:0:2:2 ] && grep -q 'self-made is read as self' "$t/e1" && ! grep -q 'is read as' "$t/e3" && case "$d" in *"--origin selfy: one of download, generated, self"*"the closest is self"*) true ;; *) false ;; esac \
     && case "$e" in *"--origin zzzqqq: one of"*"closest"*) false ;; *"--origin zzzqqq: one of"*) true ;; *) false ;; esac && python3 - "$a" "$b" "$c" <<'PY'
 import json, sys
 o = [json.loads(x)["record"]["source"]["origin"] if "record" in json.loads(x) else json.loads(x)["source"]["origin"] for x in sys.argv[1:4]]
@@ -5205,7 +5205,7 @@ f = p + "/REVIEW.md"; s = open(f, encoding="utf-8").read()
 i = s.index("## 关卡 ② 分镜")
 open(f, "w", encoding="utf-8").write(s[:i] + s[i:].replace("- 原话：\n", '- 原话："分镜可以"\n', 1).replace("- 定了：　改了：", "- 定了：通过　改了：无", 1))
 PY
-  b=$(ns "$p" '"render a draft" in n["do"]' '"bin/vh frames" in c and "manim" in c' '"各引擎的取帧命令" in r')
+  b=$(ns "$p" '"render a draft" in n["do"]' '"bin/vh frames" in c and "manim" in c' '"各引擎的取帧命令" in r and "engines/README.md#Manim CE" in r')
   mkdir -p "$p/out/check"; : > "$p/out/draft.mp4"
   c=$(ns "$p" '"check out/draft.mp4" in n["do"]' '"bin/vh check" in c and "bin/vh sheet" in c')
   printf '{"version": 1, "video": "out/draft.mp4", "t": %s, "verdict": "fail", "exit": 1, "counts": {"fail": 1}, "findings": [{"severity": "fail", "message": "the frame size is wrong"}]}\n' "$(($(date +%s) + 5))" > "$p/out/check/draft.check.json"
