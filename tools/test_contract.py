@@ -21,7 +21,8 @@ sys.path.insert(0, str(HERE))
 import schemalite   # noqa: E402
 
 SCHEMAS = HERE / "schemas" / "output"
-ALL = ("status", "activity", "versions", "check", "commands", "desk-data", "edit-list", "edit-build", "assets-list", "artifacts-list", "projects", "error", "cancel", "peaks", "timeline", "history")
+ALL = ("status", "activity", "versions", "check", "commands", "desk-data", "edit-list", "edit-build", "assets-list", "artifacts-list", "projects", "error", "cancel", "peaks", "timeline", "history",
+       "history-save", "history-diff", "history-restore", "gate", "new", "proxy", "thumbs")
 
 
 class VH:
@@ -110,12 +111,18 @@ def outputs(vh, p, z, e, has_film):
     runs = [("status", ["status", p]), ("status", ["status", z]), ("activity", ["activity", p]), ("activity", ["activity", z]), ("versions", ["versions", p]),
             ("commands", ["commands"]), ("commands", ["commands", "--stage", "8"]), ("desk-data", ["desk", "data", z]), ("desk-data", ["desk", "data", p]),
             ("edit-list", ["edit", "list", e]), ("edit-build", ["edit", "build", e]), ("assets-list", ["assets", "list", p]), ("artifacts-list", ["artifacts", "list", p]),
-            ("artifacts-list", ["artifacts", "list", z]), ("projects", ["projects"]), ("cancel", ["cancel", p]), ("timeline", ["timeline", p, "--resolved"]), ("timeline", ["timeline", z, "--resolved"]), ("timeline", ["timeline", e, "--resolved"]), ("history", ["history", "list", p])]
+            ("artifacts-list", ["artifacts", "list", z]), ("projects", ["projects"]), ("cancel", ["cancel", p]), ("timeline", ["timeline", p, "--resolved"]), ("timeline", ["timeline", z, "--resolved"]), ("timeline", ["timeline", e, "--resolved"]), ("history", ["history", "list", p]),
+            ("history-save", ["history", "save", p]), ("history-diff", ["history", "diff", p]), ("history-restore", ["history", "restore", p, "NOTES.md", "--at", "s1"]), ("gate", ["gate", z, "1", "--page"]), ("new", ["new", "math", "ci-contract-too"])]
     if has_film:
         runs.insert(0, ("check", ["check", f"{p}/out/final.mp4"]))   # first: status and the others have its record
         runs.append(("peaks", ["peaks", f"{p}/out/final.mp4", "--bins", "8"]))
+        runs.append(("proxy", ["proxy", f"{p}/out/final.mp4"]))
+        runs.append(("thumbs", ["thumbs", f"{p}/out/final.mp4", "--every", "0.5"]))
     out, bad = {}, []
     for name, args in runs:
+        if name in ("history-save", "history-diff"):   # (something for each to find)
+            with open(f"{p}/NOTES.md", "a", encoding="utf-8") as f:
+                f.write(f"a line for {name}\n")
         r = vh(*args, "--json")
         said = " ".join(args).replace(str(Path(p).parent), "…")
         if r.returncode not in ((0, 1) if name == "check" else (0,)):

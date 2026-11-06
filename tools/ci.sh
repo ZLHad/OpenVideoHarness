@@ -6597,6 +6597,33 @@ print("ok" if ok else rows)
 PY
   )
   [ "$a" = ok ] && ok "activity.Progress: a line at most every several seconds, the first and the one that reaches the total always, each small" || bad "activity.Progress: $a"
+  # what ffmpeg's -progress says, report by report (a stand-in): frame and out_time_us or out_time_ms in microseconds, a report at each progress= line; its stderr kept; stopped by an exception, it goes too
+  mkdir -p "$t/ff"
+  printf '#!/bin/sh\nprintf "frame=1\\nout_time_us=500000\\nprogress=continue\\nframe=2\\nout_time_ms=1000000\\ndrop_frames=0\\nprogress=continue\\nframe=N/A\\nout_time_us=-5\\nprogress=end\\n"\necho "a warning" >&2\nexit 3\n' > "$t/ff/fake"; chmod +x "$t/ff/fake"
+  printf '#!/bin/sh\nprintf "frame=1\\nprogress=continue\\n"\necho $$ > "$1.pid"\nexec sleep 30\n' > "$t/ff/hang"; chmod +x "$t/ff/hang"
+  a=$(python3 - "$t" <<'PY' 2>&1
+import os, sys
+sys.path.insert(0, "tools")
+import activity
+t = sys.argv[1]
+got = []
+rc, err = activity.follow_ffmpeg([f"{t}/ff/fake", "x"], lambda f, s: got.append((f, s)))
+bad = []
+if not (rc == 3 and "a warning" in err and got == [(1, 0.5), (2, 1.0), (2, 0.0)]):
+    bad.append(f"{rc}, {err!r}, {got}")
+class Stop(Exception):
+    pass
+def tick(f, s):
+    raise Stop
+try:
+    activity.follow_ffmpeg([f"{t}/ff/hang"], tick)
+    bad.append("no exception")
+except Stop:
+    pass
+print("; ".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "activity.follow_ffmpeg: every report of -progress reaches the tick, with its frame and seconds; what ffmpeg says on stderr and its exit come back; stopped by an exception, it goes too" || bad "activity.follow_ffmpeg: $a"
   if command -v ffmpeg >/dev/null; then
     ffmpeg -nostdin -v error -f lavfi -i testsrc=s=160x90:r=10:d=2 -f lavfi -i sine=d=2 -pix_fmt yuv420p -c:a aac -shortest "$p/out/film.mp4"
     rm -f "$p/.ovh/activity.jsonl"

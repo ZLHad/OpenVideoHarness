@@ -1,0 +1,48 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/gate.schema.json",
+ "title": "bin/vh gate <project> <n> --json",
+ "description": "A page that went out: where, on which channel, and the message for the person (tools/gate.py). A skeleton's --init has its own short record.",
+ "type": "object",
+ "required": [
+  "version",
+  "tool",
+  "project",
+  "gate",
+  "page",
+  "channel",
+  "url",
+  "message"
+ ],
+ "properties": {
+  "version": {
+   "enum": [
+    1
+   ]
+  },
+  "tool": {
+   "type": "string"
+  },
+  "project": {
+   "type": "string"
+  },
+  "gate": {
+   "type": "string"
+  },
+  "page": {
+   "type": "string"
+  },
+  "channel": {
+   "type": "string"
+  },
+  "url": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "message": {
+   "type": "string"
+  }
+ }
+}

@@ -206,7 +206,7 @@ JSON 的格式：
 
 ### 输出的契约：`tools/schemas/output/`
 
-上面这些 `--json` 输出（`status`、`activity`、`versions`、`check`、`commands`、`desk data`、`edit list`、`edit build`、`assets list`、`artifacts list`、`projects`、`cancel`、`peaks`、`timeline --resolved`、`history list`）和错误的形状各有一份 schema：只钉必需的字段和类型，多的字段允许，所以客户端要容忍不认识的字段。`tools/ci.sh` 的 `contract_checks` 每次都建一个小项目、真跑这些命令、对着 schema 查：少了字段、改了类型会红，多了 schema 没写的字段也会红（写进去，它的丢失以后才看得见）。要自己校验：`tools/schemalite.py`（只用标准库），或任何 JSON Schema 2020-12 的实现。
+上面这些 `--json` 输出（`status`、`activity`、`versions`、`check`、`commands`、`desk data`、`edit list`、`edit build`、`assets list`、`artifacts list`、`projects`、`cancel`、`peaks`、`proxy`、`thumbs`、`timeline --resolved`、`history list`、`save`、`diff`、`restore`、`gate`、`new`）和错误的形状各有一份 schema：只钉必需的字段和类型，多的字段允许，所以客户端要容忍不认识的字段。`tools/ci.sh` 的 `contract_checks` 每次都建一个小项目、真跑这些命令、对着 schema 查：少了字段、改了类型会红，多了 schema 没写的字段也会红（写进去，它的丢失以后才看得见）。要自己校验：`tools/schemalite.py`（只用标准库），或任何 JSON Schema 2020-12 的实现。
 
 ### 现在还没有的
 

@@ -1,0 +1,78 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/new.schema.json",
+ "title": "bin/vh new <type> <slug> --json",
+ "description": "A project made: its identity, its spec, how its scaffold went and what comes next (bin/vh new).",
+ "type": "object",
+ "required": [
+  "version",
+  "project",
+  "id",
+  "type",
+  "doc",
+  "effort",
+  "lang",
+  "frame",
+  "watch",
+  "resolution",
+  "engine",
+  "scaffold",
+  "next"
+ ],
+ "properties": {
+  "version": {
+   "enum": [
+    1
+   ]
+  },
+  "project": {
+   "type": "string"
+  },
+  "id": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "type": {
+   "type": "string"
+  },
+  "doc": {
+   "type": "string"
+  },
+  "effort": {
+   "type": "string"
+  },
+  "lang": {
+   "type": "string"
+  },
+  "frame": {
+   "type": "string"
+  },
+  "watch": {
+   "type": "string"
+  },
+  "resolution": {
+   "type": "string"
+  },
+  "engine": {
+   "type": "string"
+  },
+  "scaffold": {
+   "type": "object",
+   "required": [
+    "ok",
+    "finish"
+   ],
+   "properties": {
+    "ok": {
+     "type": "boolean"
+    },
+    "finish": {}
+   }
+  },
+  "next": {
+   "type": "object"
+  }
+ }
+}

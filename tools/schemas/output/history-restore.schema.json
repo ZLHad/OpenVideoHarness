@@ -1,0 +1,51 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/history-restore.schema.json",
+ "title": "bin/vh history restore <project> <file> --json",
+ "description": "A file as it was; what was there is saved first, and undo says how to bring it back (tools/history.py).",
+ "type": "object",
+ "required": [
+  "version",
+  "tool",
+  "project",
+  "file",
+  "from",
+  "restored",
+  "saved_first",
+  "undo"
+ ],
+ "properties": {
+  "version": {
+   "enum": [
+    1
+   ]
+  },
+  "tool": {
+   "type": "string"
+  },
+  "project": {
+   "type": "string"
+  },
+  "file": {
+   "type": "string"
+  },
+  "from": {
+   "type": "string"
+  },
+  "restored": {
+   "type": "boolean"
+  },
+  "saved_first": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "undo": {
+   "type": [
+    "string",
+    "null"
+   ]
+  }
+ }
+}

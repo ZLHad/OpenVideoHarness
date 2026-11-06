@@ -1,0 +1,106 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/history-save.schema.json",
+ "title": "bin/vh history save <project> --json",
+ "description": "A snapshot if anything changed, and the files left out (tools/history.py).",
+ "type": "object",
+ "required": [
+  "version",
+  "tool",
+  "project",
+  "saved",
+  "snapshot",
+  "skipped"
+ ],
+ "properties": {
+  "version": {
+   "enum": [
+    1
+   ]
+  },
+  "tool": {
+   "type": "string"
+  },
+  "project": {
+   "type": "string"
+  },
+  "saved": {
+   "type": "boolean"
+  },
+  "snapshot": {
+   "anyOf": [
+    {
+     "type": "null"
+    },
+    {
+     "type": "object",
+     "required": [
+      "version",
+      "id",
+      "t",
+      "at",
+      "note",
+      "files",
+      "changed",
+      "removed"
+     ],
+     "properties": {
+      "version": {
+       "enum": [
+        1
+       ]
+      },
+      "id": {
+       "type": "string"
+      },
+      "t": {
+       "type": "number"
+      },
+      "at": {
+       "type": "string"
+      },
+      "note": {
+       "type": [
+        "string",
+        "null"
+       ]
+      },
+      "files": {
+       "type": "object"
+      },
+      "changed": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "removed": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   ]
+  },
+  "skipped": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "path",
+     "why"
+    ],
+    "properties": {
+     "path": {
+      "type": "string"
+     },
+     "why": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ }
+}

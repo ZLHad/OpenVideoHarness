@@ -1,0 +1,191 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/thumbs.schema.json",
+ "title": "bin/vh thumbs <film | project> --json",
+ "description": "Tiles and shot pictures, and the map of them: its record, and state: full, refreshed or up to date (tools/proxy.py).",
+ "type": "object",
+ "required": [
+  "version",
+  "tool",
+  "source",
+  "from",
+  "source_ident",
+  "source_version",
+  "fps",
+  "duration",
+  "frames",
+  "settings",
+  "tile",
+  "shot",
+  "sheets",
+  "tiles",
+  "shots",
+  "shots_from",
+  "made",
+  "taken",
+  "t",
+  "at",
+  "seconds",
+  "state"
+ ],
+ "properties": {
+  "version": {
+   "enum": [
+    1
+   ]
+  },
+  "tool": {
+   "type": "string"
+  },
+  "source": {
+   "type": "string"
+  },
+  "from": {
+   "type": "string"
+  },
+  "source_ident": {
+   "type": [
+    "object",
+    "null"
+   ]
+  },
+  "source_version": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "fps": {
+   "type": "number"
+  },
+  "duration": {
+   "type": "number"
+  },
+  "frames": {
+   "type": "integer"
+  },
+  "settings": {
+   "type": "object"
+  },
+  "tile": {
+   "type": "array"
+  },
+  "shot": {
+   "type": "array"
+  },
+  "sheets": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "file",
+     "tiles",
+     "size"
+    ],
+    "properties": {
+     "file": {
+      "type": "string"
+     },
+     "tiles": {
+      "type": "integer"
+     },
+     "size": {
+      "type": "array"
+     }
+    }
+   }
+  },
+  "tiles": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "i",
+     "t",
+     "frame",
+     "sheet",
+     "x",
+     "y"
+    ],
+    "properties": {
+     "i": {
+      "type": "integer"
+     },
+     "t": {
+      "type": "number"
+     },
+     "frame": {
+      "type": "integer"
+     },
+     "sheet": {
+      "type": "integer"
+     },
+     "x": {
+      "type": "integer"
+     },
+     "y": {
+      "type": "integer"
+     }
+    }
+   }
+  },
+  "shots": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "id",
+     "t",
+     "frame",
+     "start",
+     "end",
+     "file"
+    ],
+    "properties": {
+     "id": {
+      "type": "string"
+     },
+     "t": {
+      "type": "number"
+     },
+     "frame": {
+      "type": "integer"
+     },
+     "start": {
+      "type": "number"
+     },
+     "end": {
+      "type": "number"
+     },
+     "file": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "shots_from": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "made": {
+   "type": "string"
+  },
+  "taken": {
+   "type": "object"
+  },
+  "t": {
+   "type": "number"
+  },
+  "at": {
+   "type": "string"
+  },
+  "seconds": {
+   "type": "number"
+  },
+  "state": {
+   "type": "string"
+  }
+ }
+}
