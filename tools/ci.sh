@@ -5738,6 +5738,71 @@ PY
   rm -rf "$t"
 }
 
+artifacts_checks() {   # the schemas of tools/schemas/ and their small validator (tools/schemalite.py) against the real jsonschema
+  local a
+  if a=$(python3 - <<'PY'
+import json, sys
+from pathlib import Path
+sys.path.insert(0, "tools")
+import schemalite
+SC = Path("tools/schemas")
+load = lambda p: json.loads(p.read_text(encoding="utf-8"))   # noqa: E731
+names = sorted(p.name[:-len(".schema.json")] for p in SC.glob("*.schema.json"))
+bad, n = [], 0
+for name in names:
+    s = load(SC / f"{name}.schema.json")
+    bad += [f"{name}: keywords tools/schemalite.py does not read: {sorted(schemalite.keywords(s))}"] if schemalite.keywords(s) else []
+    fx = sorted((SC / "fixtures").glob(f"{name}.*.json"))
+    if {p.name.split(".")[1].split("-")[0] for p in fx} != {"good", "bad"}:
+        bad.append(f"{name}: it needs good and bad fixtures")
+    for p in fx:
+        n += 1
+        if bool(schemalite.problems(s, load(p))) == p.name.split(".")[1].startswith("good"):
+            bad.append(f"{p.name}: {schemalite.problems(s, load(p)) or 'it fits'}")
+left = sorted({p.name.split(".")[0] for p in (SC / "fixtures").glob("*.json")} - set(names))
+bad += [f"fixtures for no schema: {left}"] if left else []
+print("\n".join(bad) or f"{len(names)} schemas, {n} fixtures"); sys.exit(1 if bad else 0)
+PY
+  ); then ok "tools/schemalite.py: $a, each good one fits and each bad one does not; every schema uses only the keywords it reads"
+  else bad "tools/schemalite.py on tools/schemas/fixtures: $a"; fi
+  if command -v uv >/dev/null 2>&1; then
+    if a=$(uv run -q --no-project --with "jsonschema==4.25.1" python - 2>&1 <<'PY'
+import itertools, json, sys
+from pathlib import Path
+sys.path.insert(0, "tools")
+import schemalite
+from jsonschema import Draft202012Validator
+SC = Path("tools/schemas")
+load = lambda p: json.loads(p.read_text(encoding="utf-8"))   # noqa: E731
+bad, n = [], 0
+for f in sorted(SC.glob("*.schema.json")):
+    s = load(f)
+    Draft202012Validator.check_schema(s)
+    for p in sorted((SC / "fixtures").glob(f"{f.name[:-len('.schema.json')]}.*.json")):
+        n += 1
+        real, lite = Draft202012Validator(s).is_valid(load(p)), not schemalite.problems(s, load(p))
+        if real != lite:
+            bad.append(f"{p.name}: jsonschema says {real}, tools/schemalite.py {lite}")
+# each keyword it reads, on values of every kind: where a small validator and the real one part ways (1.0 as an integer, a
+# true as a number, a required on what is no object)
+VALUES = [None, True, False, 0, 1, 1.0, 1.5, "", "a", [], [1], [True], ["a"], {}, {"a": 1}, {"a": "x"}, {"b": [1.0]}, {"b": {"b": {}}}]
+SCHEMAS = [{"type": t} for t in ("null", "boolean", "integer", "number", "string", "array", "object")] + [
+    {"type": ["string", "null"]}, {"required": ["a"]}, {"properties": {"a": {"type": "string"}}}, {"items": {"type": "integer"}}, {"enum": [1]}, {"enum": [True]},
+    {"enum": [None, "a", [1], {"a": 1}]}, {"anyOf": [{"type": "string"}, {"required": ["a"]}]}, {"anyOf": [{"type": "integer"}, {"enum": ["a"]}], "type": ["integer", "string"]},
+    {"$ref": "#/$defs/s", "$defs": {"s": {"type": "array", "items": {"$ref": "#/$defs/t"}}, "t": {"type": "number"}}},
+    {"type": "object", "properties": {"b": {"$ref": "#"}}}, {"$ref": "#/$defs/s", "required": ["a"], "$defs": {"s": {"type": "object"}}}, True, False]
+for s, x in itertools.product(SCHEMAS, VALUES):
+    n += 1
+    real, lite = Draft202012Validator(s).is_valid(x), not schemalite.problems(s, x)
+    if real != lite:
+        bad.append(f"{json.dumps(s)} on {json.dumps(x)}: jsonschema says {real}, tools/schemalite.py {lite}")
+print("\n".join(bad[:12]) or n); sys.exit(1 if bad else 0)
+PY
+    ); then ok "tools/schemas: each a valid JSON Schema; the real jsonschema and tools/schemalite.py agree on the fixtures and on each keyword against values of every kind ($a cases)"
+    else bad "tools/schemas against the real jsonschema: $(printf '%s' "$a" | tail -c 800)"; fi
+  else skip "tools/schemas against the real jsonschema" "no uv"; fi
+}
+
 # bin/vh textcheck on its fixture (tools/textcheck/fixture/index.html: one read per case), with whatever headless Chrome
 # the machine has (GitHub's runners come with Chrome); without one a skip on a machine of one's own, a failure on CI
 # (no_chrome)

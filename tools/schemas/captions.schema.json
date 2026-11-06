@@ -1,0 +1,24 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/captions.schema.json",
+ "title": "The captions, audio/captions.json",
+ "description": "What bin/vh captions writes and the pages burn in (tools/audio/captions.py): a list, one item a caption, with its lines under zh and en. With --cards each item also has its part. A list with no version key: pages read it as it is, and what it was made from is in audio/captions.args.json.",
+ "type": "array",
+ "items": {
+  "type": "object",
+  "required": ["id", "start", "end"],
+  "properties": {
+   "id": {"type": ["string", "number"]},
+   "part": {"type": "integer"},
+   "start": {"type": "number"},
+   "end": {"type": "number"},
+   "speech_end": {"type": "number"},
+   "zh": {"type": "array", "items": {"type": "string"}},
+   "en": {"type": "array", "items": {"type": "string"}},
+   "words": {
+    "type": "array",
+    "items": {"type": "object", "required": ["w", "start"], "properties": {"w": {"type": "string"}, "start": {"type": "number"}, "end": {"type": "number"}}}
+   }
+  }
+ }
+}

@@ -1,0 +1,1 @@
+{"provider": "qwen", "voice": null, "lang": "zh", "duration": 4.2, "segments": [{"id": "a1", "text": "一句话", "zh": "一句话", "en": "One line", "start": 0.2, "end": 1.4, "file": "vo/zh/01.wav", "words": [{"w": "一句话", "start": 0.2, "end": 1.4}], "asr": {"similarity": 0.98}}], "pace": {"reference": 5.6}}

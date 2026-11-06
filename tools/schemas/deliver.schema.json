@@ -1,0 +1,30 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/deliver.schema.json",
+ "title": "An upload copy's record, <copy>.deliver.json",
+ "description": "What bin/vh deliver writes beside the copy (tools/deliver.py): the copy and the master, paths from the record's folder, with their sizes and times. bin/vh clean keeps what it names as the film, and bin/vh status reads it as a delivery. A record from before version 1 has no version key and is the same shape.",
+ "type": "object",
+ "required": ["output", "master"],
+ "properties": {
+  "version": {"type": "integer"},
+  "tool": {"type": "string"},
+  "output": {"type": "string"},
+  "size": {"type": "integer"},
+  "mtime": {"type": "number"},
+  "master": {"type": "string"},
+  "master_size": {"type": "integer"},
+  "master_mtime": {"type": "number"},
+  "args": {"type": "array", "items": {"type": "string"}},
+  "time": {"type": "string"},
+  "assets": {
+   "type": "object",
+   "properties": {
+    "records": {"type": "integer"},
+    "credits": {"type": "integer"},
+    "aigc": {"type": "integer"},
+    "uncleared": {"type": "integer"},
+    "check": {"type": "object", "properties": {"verdict": {"enum": ["pass", "fail"]}, "fail": {"type": "integer"}, "warn": {"type": "integer"}}}
+   }
+  }
+ }
+}

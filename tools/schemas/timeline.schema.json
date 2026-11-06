@@ -1,0 +1,39 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/timeline.schema.json",
+ "title": "A narration timeline, audio/timeline.<lang>.json",
+ "description": "What bin/vh tts writes and bin/vh pace rewrites: every line's start and end in seconds, and its words once aligned (tools/audio/tts.py; bin/vh timeline checks that the times make sense). out/edit.timeline.<lang>.json and the .raw.json bin/vh pace keeps have the same shape. No version key: fields are only added.",
+ "type": "object",
+ "required": ["segments"],
+ "properties": {
+  "provider": {"type": "string"},
+  "voice": {"type": ["string", "null"]},
+  "lang": {"type": ["string", "null"]},
+  "duration": {"type": "number"},
+  "pace": {"type": "object"},
+  "segments": {"type": "array", "items": {"$ref": "#/$defs/line"}}
+ },
+ "$defs": {
+  "line": {
+   "type": "object",
+   "required": ["id", "start", "end"],
+   "properties": {
+    "id": {"type": "string"},
+    "start": {"type": "number"},
+    "end": {"type": "number"},
+    "text": {"type": "string"},
+    "zh": {"type": "string"},
+    "en": {"type": "string"},
+    "file": {"type": ["string", "null"]},
+    "speaker": {"type": ["string", "null"]},
+    "asr": {"type": "object"},
+    "words": {"type": "array", "items": {"$ref": "#/$defs/word"}}
+   }
+  },
+  "word": {
+   "type": "object",
+   "required": ["w", "start"],
+   "properties": {"w": {"type": "string"}, "start": {"type": "number"}, "end": {"type": "number"}}
+  }
+ }
+}

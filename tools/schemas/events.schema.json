@@ -1,0 +1,35 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/events.schema.json",
+ "title": "A sound event list, audio/*events*.json",
+ "description": "What bin/vh sfx place, bin/vh mix … events= and bin/vh qa read (tools/audio/time_refs.py load_events): a plain list with t in seconds, or {\"refs\", \"events\"} with t written as a reference (the header takes no other key when it is read). The sidecar bin/vh sfx place writes, <out>.events.json, is an object with \"track\", \"sr\" and \"events\", and fits too.",
+ "anyOf": [
+  {"type": "array", "items": {"$ref": "#/$defs/event"}},
+  {
+   "type": "object",
+   "required": ["events"],
+   "properties": {
+    "refs": {"type": "object", "properties": {"timeline": {"type": "string"}, "lead": {"type": "number"}, "music": {"type": "string"}, "timemap": {"type": "string"}, "edit": {"type": "string"}}},
+    "events": {"type": "array", "items": {"$ref": "#/$defs/event"}}
+   }
+  }
+ ],
+ "$defs": {
+  "event": {
+   "type": "object",
+   "required": ["t", "sfx"],
+   "properties": {
+    "id": {"type": "string"},
+    "t": {"type": ["number", "string", "object"]},
+    "sfx": {"type": "string"},
+    "gain_db": {"type": "number"},
+    "pan": {"type": "number"},
+    "pan_from": {"type": "number"},
+    "pan_to": {"type": "number"},
+    "dist": {"type": "number"},
+    "role": {"type": "string"},
+    "variant": {"type": "integer"}
+   }
+  }
+ }
+}

@@ -1,0 +1,30 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/activity.schema.json",
+ "title": "One line of a project's activity log, .ovh/activity.jsonl",
+ "description": "One JSON line an event (tools/activity.py; tools/desk/README.md 活动记录). The reader skips a line it cannot read and drops a field of the wrong type, so one bad line stops nothing; this is what a good line is. A new event may come, fields are only added.",
+ "type": "object",
+ "required": ["v", "event", "t"],
+ "properties": {
+  "v": {"enum": [1]},
+  "event": {"type": "string"},
+  "t": {"type": "number"},
+  "run": {"type": "string"},
+  "cmd": {"type": "string"},
+  "args": {"type": "array", "items": {"type": "string"}},
+  "cwd": {"type": "string"},
+  "pid": {"type": "integer"},
+  "parent": {"type": "string"},
+  "done": {"type": "number"},
+  "total": {"type": ["number", "null"]},
+  "unit": {"type": "string"},
+  "summary": {"type": "string"},
+  "outputs": {"type": "array", "items": {"type": "string"}},
+  "exit": {"type": "integer"},
+  "duration": {"type": "number"},
+  "round": {"type": "string"},
+  "file": {"type": "string"},
+  "items": {"type": "object"},
+  "decisions": {"type": ["object", "array"]}
+ }
+}

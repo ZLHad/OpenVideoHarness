@@ -1,0 +1,90 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/gate.schema.json",
+ "title": "One review page's data, out/review/gate-<n>.json",
+ "description": "What bin/vh review, bin/vh gate and the review desk render for a stop (tools/review.py, playbook/01-pipeline.md 审阅页). Read as tools/review.py reads it: a text field may be a number, null is absent, summary and decisions may come from what include names. Other fields are kept and not read.",
+ "type": "object",
+ "anyOf": [
+  {"required": ["summary", "decisions"]},
+  {"required": ["include"]}
+ ],
+ "properties": {
+  "version": {"type": "integer", "description": "1 as bin/vh gate --init writes it; optional, not read"},
+  "gate": {"$ref": "#/$defs/text"},
+  "title": {"$ref": "#/$defs/text"},
+  "summary": {"$ref": "#/$defs/text"},
+  "not_reviewed": {"$ref": "#/$defs/text"},
+  "animatic": {"$ref": "#/$defs/text"},
+  "lang": {"type": ["string", "null"]},
+  "include": {"anyOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]},
+  "decided": {"$ref": "#/$defs/texts"},
+  "delegated": {"$ref": "#/$defs/texts"},
+  "decisions": {"type": ["array", "null"], "items": {"$ref": "#/$defs/decision"}},
+  "assets": {"type": ["array", "null"], "items": {"$ref": "#/$defs/asset"}},
+  "least_sure": {"type": ["array", "null"], "items": {"anyOf": [{"type": "object", "properties": {"id": {"$ref": "#/$defs/text"}, "note": {"$ref": "#/$defs/text"}}}, {"$ref": "#/$defs/text"}]}},
+  "segments": {"type": ["array", "null"], "items": {"$ref": "#/$defs/segment"}},
+  "appendix": {"type": ["array", "null"], "items": {"type": "object", "properties": {"title": {"$ref": "#/$defs/text"}, "text": {"$ref": "#/$defs/text"}, "path": {"$ref": "#/$defs/text"}}}},
+  "listen": {"type": "array", "items": {"type": "object", "required": ["t"]}},
+  "music": {"type": "object"},
+  "film": {"type": ["string", "null"]}
+ },
+ "$defs": {
+  "text": {"type": ["string", "number", "null"]},
+  "texts": {"type": ["array", "null"], "items": {"$ref": "#/$defs/text"}},
+  "seconds": {"type": ["number", "string", "null"]},
+  "decision": {
+   "type": "object",
+   "required": ["question", "recommend"],
+   "properties": {
+    "id": {"$ref": "#/$defs/text"},
+    "question": {"$ref": "#/$defs/text"},
+    "recommend": {"$ref": "#/$defs/text"},
+    "why": {"$ref": "#/$defs/text"},
+    "cost": {"$ref": "#/$defs/text"},
+    "reply": {"$ref": "#/$defs/text"},
+    "options": {"type": ["array", "null"], "items": {"anyOf": [{"$ref": "#/$defs/option"}, {"$ref": "#/$defs/text"}]}}
+   }
+  },
+  "option": {
+   "type": "object",
+   "required": ["id"],
+   "properties": {"id": {"$ref": "#/$defs/text"}, "label": {"$ref": "#/$defs/text"}, "pro": {"$ref": "#/$defs/text"}, "con": {"$ref": "#/$defs/text"}}
+  },
+  "asset": {
+   "type": "object",
+   "required": ["path"],
+   "properties": {
+    "path": {"$ref": "#/$defs/text"},
+    "caption": {"$ref": "#/$defs/text"},
+    "for": {"$ref": "#/$defs/text"},
+    "poster": {"$ref": "#/$defs/text"},
+    "t0": {"$ref": "#/$defs/seconds"},
+    "t1": {"$ref": "#/$defs/seconds"}
+   }
+  },
+  "segment": {
+   "type": "object",
+   "properties": {
+    "id": {"$ref": "#/$defs/text"},
+    "title": {"$ref": "#/$defs/text"},
+    "note": {"$ref": "#/$defs/text"},
+    "t0": {"$ref": "#/$defs/seconds"},
+    "t1": {"$ref": "#/$defs/seconds"},
+    "shots": {"type": ["array", "null"], "items": {"$ref": "#/$defs/shot"}}
+   }
+  },
+  "shot": {
+   "type": "object",
+   "required": ["id"],
+   "properties": {
+    "id": {"$ref": "#/$defs/text"},
+    "frame": {"$ref": "#/$defs/text"},
+    "see": {"$ref": "#/$defs/text"},
+    "vo": {"$ref": "#/$defs/text"},
+    "note": {"$ref": "#/$defs/text"},
+    "t0": {"$ref": "#/$defs/seconds"},
+    "t1": {"$ref": "#/$defs/seconds"}
+   }
+  }
+ }
+}

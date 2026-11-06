@@ -1,0 +1,41 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/edit.schema.json",
+ "title": "An edit list, edit.json, version 1",
+ "description": "The film laid out as a row of entries, each drawn from a source (engines/EDIT.md; tools/edit.py resolves it and says everything else that is wrong: unknown keys, a time that does not resolve, entries that do not fit). The shape only.",
+ "type": "object",
+ "required": ["v", "fps", "size", "sources", "tracks"],
+ "properties": {
+  "v": {"enum": [1]},
+  "note": {"type": "string"},
+  "fps": {"type": "integer"},
+  "size": {"type": "array", "items": {"type": "integer"}},
+  "video": {"type": "string"},
+  "refs": {"type": "object", "properties": {"timeline": {"type": "string"}, "lead": {"type": "number"}, "music": {"type": "string"}, "timemap": {"type": "string"}}},
+  "sources": {"type": "object"},
+  "tracks": {"type": "array", "items": {"$ref": "#/$defs/track"}},
+  "chapters": {"type": "array", "items": {"type": "object", "required": ["t", "title"], "properties": {"t": {"$ref": "#/$defs/time"}, "title": {"type": "string"}}}},
+  "covers": {"type": "array", "items": {"type": "object", "required": ["id", "t"], "properties": {"id": {"type": "string"}, "t": {"$ref": "#/$defs/time"}, "title": {"type": "string"}}}}
+ },
+ "$defs": {
+  "time": {"type": ["number", "string", "object"], "description": "seconds, \"0:12.5\", or a reference (tools/audio/time_refs.py)"},
+  "track": {
+   "type": "object",
+   "required": ["entries"],
+   "properties": {"id": {"type": "string"}, "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}}}
+  },
+  "entry": {
+   "type": "object",
+   "required": ["id"],
+   "properties": {
+    "id": {"type": "string"},
+    "src": {"type": ["string", "null"]},
+    "start": {"$ref": "#/$defs/time"},
+    "end": {"$ref": "#/$defs/time"},
+    "dur": {"type": "number"},
+    "segment": {"type": ["string", "number", "null"]},
+    "unsure": {"type": ["boolean", "string", "null"]}
+   }
+  }
+ }
+}

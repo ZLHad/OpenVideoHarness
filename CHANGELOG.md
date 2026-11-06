@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`tools/schemas/`: the shape of the files tools and clients rely on**
+- Why: gate JSON, `shots.json`, the timeline and the other files everything reads had their fields only in docstrings and in what each reader tolerates.
+- A schema each for gate JSON, `shots.json`, `edit.json`, the narration timeline, events, `captions.json`, `.render.json`, `.deliver.json`, `versions.json` and one line of `.ovh/activity.jsonl`, derived from what the code reads and writes. Permissive on purpose: required fields and types are pinned, extra fields allowed, since fields are only ever added. Every such file of 15 real projects fits.
+- `tools/schemalite.py`: a small stdlib validator (`type`, `required`, `properties`, `items`, `enum`, `anyOf`, internal `$ref`), so `bin/vh artifacts list` can report each file's result; the ledger and `research/refs.json` go through the ledger's own validator.
+- `tools/ci.sh`, new `artifacts_checks` group: the real `jsonschema` (through `uv`) checks each schema is valid and agrees with `schemalite` on the good and bad fixtures in `tools/schemas/fixtures/` and on each keyword against values of every kind.
+
 **`bin/vh artifacts`: what this project has, what is missing, what is out of date**
 - Why: an agent picking a project up, and later a client, had `bin/vh status` for where it stands and nothing for its files.
 - `bin/vh artifacts spec [--stage S] [--json]`: the table of `tools/artifacts.json`. `bin/vh artifacts list <project> [--stage S] [--json]`: per kind, the paths found, the version each says, whether it is out of date and why, the `{…}` left in markdown and gate JSON, and what is required by now and missing. It only reads, and is not logged: about 0.2 s on a project of 1.8 GB.
