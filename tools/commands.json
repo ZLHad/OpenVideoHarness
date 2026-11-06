@@ -171,8 +171,9 @@
       "writes": [],
       "usage": [
         {
-          "synopsis": "commands [--stage <stage>] [--json]",
+          "synopsis": "commands [--stage <stage>] [--brief] [--json]",
           "text": [
+            "--brief: one short line a command, with --stage too; --json is the same with it or without it",
             "the commands by the stages of playbook/01 (0 选路径 … 9 交付; env: this machine and the repo; any: a project at any",
             "stage), with what each one is for and when; --stage <id, name or a part of it>: that stage alone, with what each",
             "command there reads and writes (a command used in several stages is under each)",

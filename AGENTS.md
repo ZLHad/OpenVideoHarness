@@ -12,7 +12,7 @@
 0. **定档位和导演模式**：这支片子做多认真（`quick` / `standard` / `studio`），人要亲自拍板哪些事，规则见下面两节；后面每一步做多少、在哪里停，都按这两样来。`quick` 照 `playbook/quick.md` 做。
 1. **判断类型**：用路由表找到类型文档，整篇读；其中"Prompt 增量块"那一节是这类片子的默认做法，想完立意再读（`quick` 只读"工作流"和"禁止"两节，见 `playbook/quick.md`）。横跨两类（例如论文讲解做成竖屏短视频）就两份都读，以主类型为准。一句话需求是常态：先想立意（第 4 步），其余用类型文档的默认值补，关卡 ① 最多问 3 个真正影响制作的问题（`quick` 没有关卡，需求有歧义时最多问 1 个）。规格（画幅、分辨率、帧率、时长、在哪看）按 `playbook/01-pipeline.md` 的"规格"补；只有需求没说发在哪、而它又会改变画幅或字号下限时，才当成一个问题问。
 2. **读流程和自查**：`playbook/01-pipeline.md`、`playbook/02-verification.md`；有配音或音乐时再读 `playbook/04-audio.md`。
-3. **建项目**：`bin/vh new <type> <slug>` 建好 `projects/<日期>-<slug>/`，复制模板（选项见 `bin/vh new -h`）；手绘类还会复制引擎、装好依赖。其他引擎的初始化见 `engines/README.md`。每一阶段有哪些命令、什么时候用：`bin/vh commands --stage <阶段>`（阶段即 playbook/01 总表的 0–9）。
+3. **建项目**：`bin/vh new <type> <slug>` 建好 `projects/<日期>-<slug>/`，复制模板（选项见 `bin/vh new -h`）；手绘类还会复制引擎、装好依赖。其他引擎的初始化见 `engines/README.md`。每一阶段有哪些命令：`bin/vh commands --stage <阶段> --brief` 一条一行，不带 `--brief` 还有什么时候用、读写什么（阶段即 playbook/01 总表的 0–9）。
 4. **先想立意，再看参考**：先读材料，把只属于它的数字、原话、物件记进 NOTES.md 的素材清单，再自己想几个方向（`playbook/12-ideation.md` 第 3 节的方法按需用）。直接、准确、有情绪地组织材料本身就是立意；装置让内容变难懂时，退回直接讲。先自己想，再看 Prompt 增量块、`styles/`、`recipes/` 和案例，点子不容易往看过的东西上靠。要人选方向时收敛成 2–3 张有实际差异的立意卡；人已经给了立意，就记进 BRIEF，不再出卡，最多附一个备选。参考：类型文档"可参考的案例"和"社区 skill 参考"两节；`showcase/` 是本仓库自己做的片子，各带 BRIEF、STORYBOARD、NOTES 和源码；`references/repos/` 是只读的源码。分镜时，拿不准怎么动的镜头、排不顺的全片节奏，可以查 `recipes/`（`bin/vh recipes list` 按意图和能量筛）；用了配方就把 id 写进 STORYBOARD，写代码前读全文。
 5. **停下来给人审**：`standard` 和 `studio` 必过三道关卡，`quick` 不设关卡；人点名要拍板的事按导演模式另外停，`quick` 也一样。
    - ① **立意和大纲**：2–3 张有实际差异的立意卡，每张写明推出的画面和钩子，配一帧画面；选一张卡，立意、风格方向和钩子就一起定了。再附按推荐立意写的 BRIEF、3–7 段大纲、引擎和费用；

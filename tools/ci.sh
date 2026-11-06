@@ -149,6 +149,31 @@ doc_checks() {
   # the command table (tools/commands.json): its own rules, its stages those of playbook/01's 总表
   if out=$(python3 tools/commands.py check 2>&1); then ok "$out: each with a summary, when, stages (playbook/01's), reads, writes, usage; subcommands in their usage"
   else echo "$out"; bad "tools/commands.json"; fi
+  # bin/vh commands --brief: each command once on one short line, a stage's alone with --stage, and --json the same either way
+  if out=$(python3 - <<'PY'
+import json, subprocess, sys
+def run(*a):
+    return subprocess.run([sys.executable, "tools/commands.py", "list", *a], capture_output=True, text=True).stdout
+t = json.load(open("tools/commands.json", encoding="utf-8"))
+names = sorted(c["name"] for c in t["commands"])
+brief, one = run("--brief"), run("--stage", "1", "--brief")
+rows = [l.split()[0] for l in brief.splitlines() if l.startswith("  ")]
+bad = []
+if sorted(rows) != names:
+    bad.append("--brief does not list each command once")
+if max(len(l) for l in brief.splitlines()) > 110:
+    bad.append("a --brief line is longer than 110 columns")
+want = sorted(c["name"] for c in t["commands"] if "1" in c["stages"])
+if sorted(l.split()[0] for l in one.splitlines() if l.startswith("  ")) != want:
+    bad.append("--stage 1 --brief is not stage 1's commands")
+if run("--json") != run("--json", "--brief") or run("--stage", "1", "--json") != run("--stage", "1", "--brief", "--json"):
+    bad.append("--brief changes --json")
+if len(brief) * 3 > len(run()):
+    bad.append("--brief is not much shorter than the list")
+print("; ".join(bad) or f"{len(rows)} commands, each on one line, a third or less of the full list; --stage 1 --brief is that stage's; --json is the same with --brief")
+sys.exit(1 if bad else 0)
+PY
+  ); then ok "commands --brief: $out"; else bad "commands --brief: $out"; fi
   # the ways out of a check's findings (tools/remedies.json): each kind checkrec.py writes, each run a real command, each
   # recipe filter finding a recipe, each doc there
   if out=$(python3 tools/remedies.py check 2>&1); then ok "$out"; else echo "$out"; bad "tools/remedies.json"; fi

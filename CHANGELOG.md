@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`bin/vh commands --brief`: one short line a command**
+- Why: `bin/vh commands --stage 1` runs to 150 lines, and the whole list to 400. An agent looking for the tool at a stage wants the names and what each does.
+- `tools/commands.py`: `--brief`, alone or with `--stage N`, prints each command with the first clause of its summary, cut at a word to fit one line. `--json` is the same with it or without it. `CLAUDE.md`, step 3, names it.
+
 **`bin/vh check <project>` checks the newest film**
 - Why: `bin/vh check` takes a video, and CLAUDE.md said "run `bin/vh check`" with no argument, so an agent passed the project and got "no such video". The next step in `bin/vh status` also wants one command for it.
 - `bin/vh check <project folder or name>`: the newest video in `out/`, `media/` or `renders/`, and it says which; a copy `bin/vh deliver` made or an animatic only when there is nothing else (`tools/proxy.py`, `newest_film`). No film yet: exit 2, render first. A folder with no BRIEF.md: exit 2. A file works as before. `CLAUDE.md`'s floor says it takes either.
