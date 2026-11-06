@@ -272,6 +272,15 @@ def main(argv):
                         os.symlink(os.path.join(d, x), os.path.join(bare, x))
         real = shutil.which(sh) or sh
         nopy = VH(real, {"PATH": bare})
+        # no ps: a pid cannot be confirmed, so nothing is stopped and no run is called gone
+        n += 1
+        noact = f"{t}/nops"
+        os.makedirs(noact)
+        with open(f"{noact}/ps", "w") as f:
+            f.write("#!/bin/sh\nexit 1\n")
+        os.chmod(f"{noact}/ps", 0o755)
+        wrong = error_problems(sch, VH(real, {"PATH": f"{noact}:{os.environ['PATH']}"})("cancel", p, "--json"), 1, "missing_tool")
+        bad += [f"cancel with no ps: {'; '.join(wrong)}"] if wrong else []
         n += 2
         r = nopy("status", p, "--json")
         wrong = error_problems(sch, r, 127, "missing_tool") + ([] if "python3" in r.stderr else ["no word of python3"])

@@ -5749,7 +5749,7 @@ history_checks() {   # bin/vh history: what it keeps and leaves out, a save with
   p=$(ls -d "$t"/projects/*-ci-history)
   printf '{"shots": [{"id": "A", "start": 0, "end": 1}]}\n' > "$p/shots.json"; mkdir -p "$p/audio"; printf '@a 一句\n' > "$p/audio/script.txt"; printf '[]\n' > "$p/audio/captions.json"
   python3 -c 'import sys; open(sys.argv[1], "w").write("x" * (1 << 21))' "$p/NOTES.md"
-  ln -s BRIEF.md "$p/DECISIONS.md.link" 2>/dev/null
+  ln -s BRIEF.md "$p/CHARACTER.md"
   a=$(vh history save "$p" --note 第一次 --json 2>&1); rc=$?
   find "$p/.ovh/history" -type f | sort > "$t/before"
   b=$(vh history save "$p" --json 2>&1); rc2=$?
@@ -5760,14 +5760,14 @@ a, b, p = json.loads(sys.argv[1]), json.loads(sys.argv[2]), sys.argv[3]
 s = a["snapshot"]
 ok = a["version"] == 1 and a["saved"] is True and s["id"] == "s1" and s["note"] == "第一次" and b["saved"] is False and b["snapshot"] is None
 ok = ok and {"BRIEF.md", "REVIEW.md", "shots.json", "audio/script.txt", "STYLE.md"} <= set(s["files"]) and "NOTES.md" not in s["files"] and "audio/captions.json" not in s["files"] and not any(f.startswith(".ovh") for f in s["files"])
-ok = ok and {"path": "NOTES.md", "why": "over 1 MiB"} in a["skipped"]
+ok = ok and {"path": "NOTES.md", "why": "over 1 MiB"} in a["skipped"] and {"path": "CHARACTER.md", "why": "a link"} in a["skipped"] and "CHARACTER.md" not in s["files"]
 for f, h in s["files"].items():
     ok = ok and h == hashlib.sha256(open(f"{p}/{f}", "rb").read()).hexdigest() and open(f"{p}/.ovh/history/objects/{h}", "rb").read() == open(f"{p}/{f}", "rb").read()
 lines = [json.loads(x) for x in open(f"{p}/.ovh/history/index.jsonl", encoding="utf-8")]
 ok = ok and len(lines) == 1 and lines[0]["version"] == 1 and lines[0]["id"] == "s1"
 sys.exit(0 if ok else 1)
 PY
-  then ok "history save: the small text files a person or an agent writes, by content, a line in the index; a tool's file, one over the limit and .ovh left out; nothing changed, nothing written"
+  then ok "history save: the small text files a person or an agent writes, by content, a line in the index; a tool's file, one over the limit, a link and .ovh left out; nothing changed, nothing written"
   else bad "bin/vh history save (exit $rc, $rc2): $(printf '%s' "$a$b" | tail -c 500) $(diff "$t/before" "$t/after" | head -3)"; fi
   # a change: only it is stored again; list, with a file; diff; a file gone
   rm -f "$p/NOTES.md"
@@ -6094,12 +6094,12 @@ PY
     mkdir -p "$t/r/out"; printf '# BRIEF\n- Effort: quick\n' > "$t/r/BRIEF.md"
     sed 's|frame(t) {|frame(t) { if (t > 0.2) return new Promise(() => {});|' tools/film/fixture/blur.html > "$t/r/film.html"
     "$VH_BASH" "$ROOT/bin/vh" render "$t/r/film.html" --gop 2 --workers 1 --frame-timeout 120 --no-estimate --out "$t/r/out/film.mp4" >/dev/null 2>"$t/r/err" & pid=$!
-    for _ in $(seq 1 1200); do ls "$t"/r/out/.film.mp4.parts/part0000.* >/dev/null 2>&1 && break; kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+    for _ in $(seq 1 1800); do [ -s "$t/r/out/.film.mp4.parts/part0000.mp4" ] && break; kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done   # a chunk finished, the next ones on their way to the hang
     sleep 1
     if grep -q "needs a headless Chrome" "$t/r/err"; then no_chrome "cancel of a real render, patch's progress"; rm -rf "$t"; return; fi
     a=$(vh cancel "$t/r" --json 2>/dev/null); rc=$?
     wait "$pid" 2>/dev/null; c=$?
-    b=$(pgrep -f "$t/r" | wc -l | tr -d ' ')
+    for _ in $(seq 1 50); do b=$(pgrep -f "$t/r" | wc -l | tr -d ' '); [ "$b" = 0 ] && break; sleep 0.1; done
     if [ "$rc" = 0 ] && [ "$c" = 130 ] && [ "$b" = 0 ] && python3 - "$a" "$t/r/.ovh/activity.jsonl" <<'PY'
 import json, sys
 rec = json.loads(sys.argv[1])

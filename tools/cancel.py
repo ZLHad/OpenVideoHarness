@@ -232,6 +232,8 @@ def main(argv):
     project = jsonerr.project_arg(a.project, "cancel")
     if project is None:
         return 2
+    if not ps("-o", "pid=", "-p", str(os.getpid())):   # no ps, or one that may not look: a pid cannot be confirmed, nor said to be gone
+        return jsonerr.fail("missing_tool", "cancel: ps cannot be run here, so no process can be confirmed: nothing was stopped", rc=1)
     all_runs = [r for r in activity.runs(activity.read(project))[0] if r["run"] != os.environ.get("OVH_ACTIVITY_RUN")]   # not this command's own
     rows, skipped = [], []
     if a.run:
