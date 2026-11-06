@@ -2577,10 +2577,61 @@ PY
   else bad "gate --init on the other stops:$a ($rc/$rc2): $b | $c"; fi
   OVH_PROJECTS="$t" vh new math gq --effort quick --lang en >/dev/null 2>&1; g=$(ls -d "$t"/*-gq)
   a=$(vh gate "$g" 1 2>&1 >/dev/null); rc=$?; b=$(vh gate "$g" E3 --init 2>&1); rc2=$?
-  if [ "$rc:$rc2" = 2:0 ] && case "$a" in *"quick project has no gates"*"asked for a stop"*"--init"*) true ;; *) false ;; esac && case "$b" in *"Checkpoint E3"*"quick project has no gates"*"replace every {fill: …}"*) true ;; *) false ;; esac \
-    && grep -q '{fill: ' "$g/out/review/gate-E3.json" && ! grep -q '{填' "$g/out/review/gate-E3.json"
+  if [ "$rc:$rc2" = 2:0 ] && case "$a" in *"quick project has no gates"*"asked for a stop"*"--init"*) true ;; *) false ;; esac && case "$b" in *"Checkpoint E3"*"quick project has no gates"*"replace every {fill in: …}"*) true ;; *) false ;; esac \
+    && grep -q '{fill in: ' "$g/out/review/gate-E3.json" && ! grep -q '{填' "$g/out/review/gate-E3.json"
   then ok "gate in a quick project: no JSON says quick has no gates unless the person asked for a stop; --init still writes one, in the review language"
   else bad "gate in a quick project ($rc/$rc2): $a | $b"; fi
+  # a stylesheet's {fill: #e33} in a page is no placeholder; a half-filled skeleton saved with json.dump's \uXXXX is one, in the
+  # file or in a file it includes; with no reply written, the reply is built from the options there are
+  fillall() { python3 - "$@" <<'PY'
+import json, sys
+f, recommend = sys.argv[1:3]
+def fill(x):
+    if isinstance(x, dict): return {k: fill(v) for k, v in x.items()}
+    if isinstance(x, list): return [fill(v) for v in x]
+    return "填好了" if isinstance(x, str) and x.startswith("{") else x
+d = fill(json.load(open(f, encoding="utf-8"))); d.pop("assets", None)
+for x in d.get("decisions", []): x["recommend"] = recommend
+json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
+PY
+  }
+  stnow() { vh status "$1" --json | python3 -c 'import json, sys; d = json.load(sys.stdin); s = d["stations"][0]; print(s["state"], d["review"]["current"], s["pages"])'; }
+  OVH_PROJECTS="$t" vh new math gc >/dev/null 2>&1; g=$(ls -d "$t"/*-gc); mkdir -p "$g/out/review"
+  printf '%s\n' '{"summary": "一句", "decisions": [{"id": "c", "question": "哪个", "options": ["A", "B"], "recommend": "A"}], "appendix": [{"title": "css", "text": ".bar {fill: #e33}"}]}' > "$g/out/review/gate-1.json"
+  a=$(vh gate "$g" 1 --page 2>&1); rc=$?; c=$(stnow "$g")
+  if [ "$rc" = 0 ] && [ "$c" = "waiting_person 1 ['1']" ] && case "$a" in *"回 A / B"*) true ;; *) false ;; esac; then ok "gate: a page whose text has a stylesheet's {fill: #e33} goes out and stays a page"
+  else bad "gate on a page with {fill: #e33} ($rc, status $c): $a"; fi
+  OVH_PROJECTS="$t" vh new math ge >/dev/null 2>&1; g=$(ls -d "$t"/*-ge); vh gate "$g" 1 --init >/dev/null 2>&1
+  python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f, encoding="utf-8")); d["summary"] = "写好了"; json.dump(d, open(f, "w", encoding="utf-8"))' "$g/out/review/gate-1.json"
+  a=$(vh gate "$g" 1 --page 2>&1); rc=$?; c=$(stnow "$g"); grep -q '\\u586b' "$g/out/review/gate-1.json" && b=escaped || b=plain
+  if [ "$rc:$b" = 2:escaped ] && [ "$c" = "in_progress None []" ] && case "$a" in *"placeholder(s) still to fill in"*) true ;; *) false ;; esac; then ok "gate: a skeleton saved with \\uXXXX escapes is still a skeleton: refused, and no page for status or the desk"
+  else bad "gate on an escaped skeleton ($rc/$b, status $c): $a"; fi
+  rm -f "$g/out/review/gate-1.json"; vh gate "$g" 2 --init >/dev/null 2>&1; mkdir -p "$g/out/check/storyboard"; fillall "$g/out/review/gate-2.json" ""
+  python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f, encoding="utf-8")); d["include"] = "out/check/storyboard/review.json"; json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)' "$g/out/review/gate-2.json"
+  printf '%s\n' '{"least_sure": [{"id": "S1", "note": "{填：为什么"}]}' > "$g/out/check/storyboard/review.json"
+  a=$(vh gate "$g" 2 --page 2>&1); rc=$?; c=$(python3 -c 'import sys; from pathlib import Path; sys.path.insert(0, "tools"); import review; print(len(review.gate_pages(Path(sys.argv[1]))))' "$g")
+  if [ "$rc" = 2 ] && [ "$c" = 0 ] && case "$a" in *"placeholder(s) still to fill in"*"least_sure"*) true ;; *) false ;; esac; then ok "gate: a placeholder in a file the JSON includes is refused too, and that page is no page"
+  else bad "gate with a placeholder in an include ($rc, $c pages): $a"; fi
+  OVH_PROJECTS="$t" vh new math g2 >/dev/null 2>&1; g=$(ls -d "$t"/*-g2); vh gate "$g" 1 --init >/dev/null 2>&1
+  python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f, encoding="utf-8")); d["decisions"][0]["options"].pop(); json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)' "$g/out/review/gate-1.json"
+  fillall "$g/out/review/gate-1.json" A; a=$(vh gate "$g" 1 --page 2>&1)
+  vh gate "$g" 2 --init >/dev/null 2>&1; b=$(python3 -c 'import json, sys; d = json.load(open(sys.argv[1], encoding="utf-8")); print(" | ".join(x["path"] for x in d["assets"]))' "$g/out/review/gate-2.json")
+  case "$a|$b" in *"回 A / B"*"|out/check/rhythm.png | {填：前 5 s 连帧"*"--strip 0:5"*"{填：每一帧都在的东西"*) ok "gate --init: two cards reply A / B, as review builds it; gate ②'s skeleton has the first 5 s as a strip and what is on screen in every frame" ;;
+    *) bad "gate --init, the reply and gate ②'s skeleton: $a | $b" ;; esac
+  # a page that breaks a rule (exit 1) sent nothing: status does not wait for the person, and says what to fix; the desk stays on
+  # the page that is out; a run that goes through clears it; a page out and sent again broken goes back to the agent
+  OVH_PROJECTS="$t" vh new math gb >/dev/null 2>&1; g=$(ls -d "$t"/*-gb); mkdir -p "$g/out/review"
+  printf '%s\n' '{"summary": "一句", "decisions": [{"id": "c", "question": "哪个", "options": ["A", "B"], "recommend": "A"}], "assets": [{"path": "no/such.png", "caption": "x"}]}' > "$g/out/review/gate-1.json"
+  a=$(vh gate "$g" 1 --page 2>&1); rc=$?; c=$(stnow "$g")
+  b=$(vh status "$g" --json | python3 -c 'import json, sys; d = json.load(sys.stdin); n = d["next_step"]; print(n["who"], d["waiting_on"], "refused" in n["do"] and "no/such.png" in n["do"], n["commands"][0].endswith(" 1"), "refused" in d["stations"][0]["note"])')
+  e=$(vh gate "$g" 1 --desk --wait --timeout 0.01 2>/dev/null >/dev/null; echo $?)
+  python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f, encoding="utf-8")); d.pop("assets"); json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)' "$g/out/review/gate-1.json"
+  q=$(vh gate "$g" 1 --page 2>&1); rc2=$?; d=$(stnow "$g"); k=$(ls -A "$g/out/review" | grep -c refused)
+  printf '%s\n' '{"summary": "一句", "decisions": [{"id": "c", "question": "哪个", "options": ["A", "B"], "recommend": "A"}], "assets": [{"path": "no/such.png", "caption": "x"}]}' > "$g/out/review/gate-1.json"
+  vh gate "$g" 1 --page >/dev/null 2>&1; rc3=$?; i=$(stnow "$g")
+  if [ "$rc:$rc2:$rc3" = 1:0:1 ] && [ -f "$g/out/review/gate-1.html" ] && [ "$c" = "in_progress None ['1']" ] && [ "$b" = "agent agent True True True" ] && [ "$e" = 1 ] && [ "$d" = "waiting_person 1 ['1']" ] && [ "$k" = 0 ] && [ "$i" = "in_progress 1 ['1']" ]
+  then ok "gate: a page that breaks a rule is not sent: status has the agent fix it, and says what; a run that goes through clears that; a page out and sent again broken goes back to the agent"
+  else bad "gate that refused a page ($rc/$rc2/$rc3; $c | $b | desk $e | $d | $k | $i): $a | $q"; fi
   g="$t/g"; cp -R tools/desk/fixtures/zh "$g"; rm -rf "$g/out/review/feedback" "$g/out/review/.current"
   printf '%s\n' '# LOCAL' '- 审阅方式：{对话 | 审阅页 | 审阅台}（不填按档位）' > "$t/LOCAL-tpl.md"; printf '%s\n' '# LOCAL' '- 审阅方式：对话' > "$t/LOCAL-chat.md"
   a=$(vh gate "$g" 1 --page 2>"$t/g1.err"); rc=$?

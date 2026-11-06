@@ -13,11 +13,11 @@ usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeou
   --wait    the desk channel only: then wait like bin/vh desk wait (print the submission, exit 0; 3 after --timeout,
             default 7100 s). An agent runs this in the background: the message is printed first, before the waiting
   --init    write out/review/gate-<n>.json as a skeleton for this stop, in the BRIEF's review language, and stop: every text
-            to write is a {填：…} ({fill: …}), and bin/vh gate refuses the file (exit 2) until none is left, so an unfilled page
+            to write is a {填：…} ({fill in: …}), and bin/vh gate refuses the file (exit 2) until none is left, so an unfilled page
             never reaches the person. It carries "version": 1. A file already there is not overwritten (exit 2)
 The page and the desk read the same out/review/gate-<n>.json: it is the one file a client renders for a stop.
 Exit: 0 the stop is out (with --wait: the submission is printed) · 1 the page was written but breaks a rule: no message,
-no desk (bin/vh review's 1) · 2 nothing to send: no project, no or bad gate JSON, placeholders left, the desk did not start,
+no desk, and bin/vh status counts it as not sent until a run of it goes through (bin/vh review's 1) · 2 nothing to send: no project, no or bad gate JSON, placeholders left, the desk did not start,
 --wait without the desk, --init over a file · 3 --wait timed out.
 """
 import argparse, json, os, re, subprocess, sys, time
@@ -52,7 +52,7 @@ def skeleton(gate, lang):
     zh = lang != "en"
 
     def f(a, b):
-        return f"{{填：{a}}}" if zh else f"{{fill: {b}}}"
+        return f"{{填：{a}}}" if zh else f"{{fill in: {b}}}"   # a shape no stylesheet can write (.bar {fill: #e33} is a page's own text)
 
     def card(k):
         return {"id": k, "label": f(f"立意卡 {k}：一句话核心想法", f"concept card {k}: the idea in one line"),
@@ -63,8 +63,7 @@ def skeleton(gate, lang):
     if stop == "1":
         d["decisions"] = [{"id": "concept", "question": f("选哪张立意卡？写成这支片子自己的问题", "which concept card? In this film's own words"),
                            "options": [card("A"), card("B"), card("C")], "recommend": f("A、B 或 C", "A, B or C"),
-                           "why": f("推荐它的一句理由", "why, in one line"), "cost": "现在改：低 · 分镜后改：很高" if zh else "now: low · after the storyboard: very high",
-                           "reply": "A / B / C"}]
+                           "why": f("推荐它的一句理由", "why, in one line"), "cost": "现在改：低 · 分镜后改：很高" if zh else "now: low · after the storyboard: very high"}]
         d["assets"] = [{"path": f(f"立意卡 {k} 那一帧画面的路径", f"the path of card {k}'s frame"),
                         "caption": f("这一帧在说什么", "what this frame says"), "for": "concept"} for k in "ABC"]
         d["delegated"] = [f("替人定了的事，一项一条：规格（画幅、分辨率、帧率、时长、在哪看）、引擎、费用",
@@ -74,7 +73,12 @@ def skeleton(gate, lang):
     elif stop == "2":
         d["include"] = "out/check/storyboard/review.json"   # bin/vh storyboard writes it: segments, key frames, least-sure shots, animatic
         d["decisions"] = []
-        d["assets"] = [{"path": "out/check/rhythm.png", "caption": f("节奏图上要人看的地方（bin/vh rhythm 出图）", "what the rhythm chart shows (bin/vh rhythm draws it)")}]
+        d["assets"] = [{"path": "out/check/rhythm.png", "caption": f("节奏图上要人看的地方（bin/vh rhythm 出图）", "what the rhythm chart shows (bin/vh rhythm draws it)")},
+                       {"path": f("前 5 s 连帧的路径（bin/vh frames <项目> --strip 0:5 --fps 6 的拼图，在 out/frames/；还没有页面就放开头几个时刻的关键帧）",
+                                  "the path of the first 5 s as a strip (bin/vh frames <project> --strip 0:5 --fps 6 puts one picture in out/frames/; no page yet: key frames of the first moments)"),
+                        "caption": f("开头这几秒发生了什么", "what happens in these seconds")},
+                       {"path": f("每一帧都在的东西（进度条、字幕样式、字体）实拍样子的路径", "the path of what is on screen in every frame (progress bar, captions, type), as it will really look"),
+                        "caption": f("这些后改一次就是整片重渲，这一关定", "changed later, these mean rendering the whole film again: settled here")}]
     elif stop == "3":
         d["decisions"] = [{"id": "draft", "question": f("这版初稿放行吗？写清差什么", "does this draft pass? Say what is missing"),
                            "options": [{"id": "OK", "label": "放行，出正式画质" if zh else "It passes: render the final",
@@ -82,7 +86,7 @@ def skeleton(gate, lang):
                                        {"id": "FIX", "label": "改完下面几处再看" if zh else "Fix the places below, then look again",
                                         "pro": f("好处", "what it gains"), "con": f("代价", "what it costs")}],
                            "recommend": f("OK 或 FIX", "OK or FIX"), "why": f("一句理由", "why, in one line"),
-                           "cost": "现在改：中 · 锁画面后改：高" if zh else "now: medium · after the picture lock: high", "reply": "OK / FIX"}]
+                           "cost": "现在改：中 · 锁画面后改：高" if zh else "now: medium · after the picture lock: high"}]
         d["assets"] = [{"path": f("初版成片的路径，例如 out/draft.mp4", "the draft's path, e.g. out/draft.mp4"), "caption": f("初版：多长、什么画质", "the draft: its length and quality"), "for": "draft"},
                        {"path": f("联系表的路径（bin/vh sheet 出图）", "the contact sheet's path (bin/vh sheet draws it)"), "caption": f("整片的形状", "the whole film at a glance"), "for": "draft"}]
         d["least_sure"] = [{"id": f("镜头号", "shot id"), "note": f(f"自己最不满意的第 {i} 处，和可选的修法", f"what you like least, number {i}, and how it could be fixed")} for i in (1, 2, 3)]
@@ -92,7 +96,7 @@ def skeleton(gate, lang):
         d["decisions"] = [{"id": "pick", "question": f(f"要人定什么（{what}）", f"what the person decides ({what})"),
                            "options": [{"id": k, "label": f(f"选项 {k}", f"option {k}"), "pro": f("好处", "what it gains"), "con": f("代价", "what it costs")} for k in "AB"],
                            "recommend": f("A 或 B", "A or B"), "why": f("一句理由", "why, in one line"),
-                           "cost": f("现在改和以后改各要花多少", "what a change costs now, and later"), "reply": "A / B"}]
+                           "cost": f("现在改和以后改各要花多少", "what a change costs now, and later")}]
         d["assets"] = [{"path": f("给人看或听的文件的路径", "the path of what the person sees or hears"), "caption": f("一行说明", "one line about it"), "for": "pick"}]
     return d
 
@@ -118,7 +122,7 @@ def init_page(project, gate_arg, shown):
     print(f"✓ {path}: a skeleton for {review.gate_title(g, lang)}")
     if effort_of(project)[0] == "quick":
         print("  a quick project has no gates: this page is for a stop the person asked for")
-    print(f"  replace every {'{fill: …}' if lang == 'en' else '{填：…}'}, delete what this page does not need; until none is left, bin/vh gate refuses the file")
+    print(f"  replace every {'{fill in: …}' if lang == 'en' else '{填：…}'}, delete what this page does not need; until none is left, bin/vh gate refuses the file")
     print(f'  the fields: bin/vh know --show "playbook/01-pipeline.md#审阅页"; then: bin/vh gate {shown} {g}')
     activity.note(f"{review.gate_title(g, 'en')}: a skeleton to fill in", [path])
     return 0

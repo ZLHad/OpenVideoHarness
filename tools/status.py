@@ -16,8 +16,8 @@ table first has it, voice and script at E1, character and theme at E0, packaging
                   on record in DECISIONS.md
   skipped         Effort quick (no page of its own, and the Director line does not ask for this stop, by stop= or x=own), or
                   waived in the user's own words in REVIEW.md
-  waiting_person  its page is out (bin/vh gate made it: a gate JSON not sent yet is not), it is this round (out/review/.current),
-                  and nothing has come back for it yet
+  waiting_person  its page is out (bin/vh gate made it: a gate JSON not sent yet is not, nor a page whose last run bin/vh gate
+                  refused, exit 1, for it sent nothing), it is this round (out/review/.current), and nothing has come back for it yet
   waiting_agent   the person submitted on the desk and no agent has it yet, or an agent has it and REVIEW.md has no
                   decision for it yet; or the project moved on past its page with no decision on record; gate ①
                   decided, but its record lacks the person's words or DECISIONS.md's concept (render and check refuse)
@@ -142,7 +142,8 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
     """The stops and their states (but in_progress / not_started, which need the order): ([dict], this round).
     no_review: a standard or studio project without REVIEW.md, every stop no_record."""
     pages = R.gate_pages(project)                       # in review order, this round last
-    cur = R.current_page(project) or (pages[-1].stem[5:] if pages else None)
+    sent = [p for p in pages if R.refusal(project, p.stem[5:]) is None]
+    cur = R.current_page(project) or (sent[-1].stem[5:] if sent else None)
     by_stop, extra = {}, []
     for p in pages:
         pid = p.stem[5:]
@@ -218,6 +219,8 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
                 st["note"] = f"decided in its REVIEW.md section, read by date: the section names no page (its 页面 line: {stub})"
         elif latest is not None and not latest.with_suffix(".html").exists() and not pend and not handed:
             pass   # written, not sent yet: bin/vh gate makes the page, so it has not reached the person
+        elif latest is not None and R.refusal(project, pid) is not None and not pend and not handed:
+            st["note"] = "bin/vh gate refused this page, so that run sent the person nothing: fix it and send it again"
         elif latest is not None and pid == cur:
             if pend:
                 st["state"], st["note"] = "waiting_agent", f"{len(pend)} submission(s) not handed to the agent yet (bin/vh desk feedback)"
@@ -439,6 +442,10 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         return out("agent", busy + (s["note"] or f"record the decision for {s['name']} in REVIEW.md"), [], [R_GATES])
     key = s["id"]
     mine = ", ".join(k for k, v in own.items() if v == key)   # what the person keeps at this stop
+    pid = Path(s["page"]).stem[5:] if s["page"] else key
+    refused = R.refusal(project, pid)
+    if refused is not None:
+        return out("agent", busy + f"bin/vh gate refused the page for {s['name']}, so the person got nothing: fix it ({'; '.join(refused[:3])}), then send it again", [f"bin/vh gate {p} {pid}"], [R_PAGE])
     film, fstate, fails = film_state(project, by_video)
     check = [f"bin/vh check {p}"]
     also = P.film_of(project)[1]
