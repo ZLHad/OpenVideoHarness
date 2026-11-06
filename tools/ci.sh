@@ -4323,7 +4323,7 @@ ok = r["scout"]["file"] == "research/scout.jsonl" and (r["scout"]["records"], r[
 ok = ok and r["hot"]["days"] == 1 and r["hot"]["first"] == r["hot"]["last"] and r["refs"] == {"file": "research/refs.json", "records": 4, "error": None}
 sys.exit(0 if ok else 1)
 PY
-  then case "$rc:$rc2|$b|$c|$d" in "1:2|"*"research: 1 scout record (1 looked at, 1 your own) · hot lists on 1 day (the last "*"· 4 references (bin/vh scout, bin/vh ref)"*"|"*"! no follower count, blocked: bilibili /x/relation/stat: code -352"*"✓ bili-BV1Cd4y1F7Gh"*"|"*"references/fetch.sh"*)
+  then case "$rc:$rc2|$b|$c|$d" in "1:2|"*"research: 1 scout record (1 looked at, 1 your own) · hot lists on 1 day (the last "*"· 4 references (bin/vh scout, bin/vh ref, bin/vh web)"*"|"*"! no follower count, blocked: bilibili /x/relation/stat: code -352"*"✓ bili-BV1Cd4y1F7Gh"*"|"*"references/fetch.sh"*)
       ok "status --json and its lines: the project's research/ (scout records, hot-list days, references); ref add keeps a reference whose follower count is blocked and says so (exit 1); ref fetch is kept as a name" ;;
     *) bad "status's research, or ref add with its follower count blocked (exits $rc:$rc2, want 1:2): $(printf '%s' "$b$c$d" | tail -c 700)" ;; esac
   else bad "status --json, its research: $(printf '%s' "$a" | tail -c 500)"; fi
@@ -4975,6 +4975,129 @@ PY
   if [ $rc = 0 ] && px_are "$t/fx/film-t0001.000.png" 'max(P[0]) <= 12 and P[1][2] > P[1][0] + 8 and P[2][0] > P[2][2] + 8' 80,45 80,3 80,88
   then ok "the Three.js layer: an EXR read and shown sharp behind (its sky above, its ground below); no lights and envIntensity 0 leave the box black"
   else bad "an EXR in the Three.js layer (exit $rc): $(printf '%s' "$a" | tail -c 600)"; fi
+  rm -rf "$t"
+}
+
+web_checks() {   # bin/vh web (tools/web/web.py) with a stand-in obscura (OVH_OBSCURA), no network: a page kept with its record
+  # and cite line, a thin text dump said to be thin, a fact found in a script's JSON (\uXXXX and \/ decoded), a shot, a
+  # failed page that leaves nothing, usage errors; install from a made-up release (--from, --offline), its size and
+  # sha256 checked, an unpinned asset only with --accept-unpinned, an obscura that is not its own left alone
+  local t p q a b c d e rc rc2 rc3 rc4 o
+  t=$(cd "$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")" && pwd); p="$t/proj"; mkdir -p "$p" "$t/stub" "$t/rel"; echo "# BRIEF" > "$p/BRIEF.md"
+  cat > "$t/stub/obscura" <<'STUB'
+#!/bin/sh
+# a stand-in for obscura fetch <url> -q --timeout N [--dump D] [--screenshot F] [--wait S]; like the real one, S is whole seconds
+[ "$1" = --version ] && { echo "obscura 0.2.5"; exit 0; }
+url=$2; dump=; shot=; sel=
+while [ $# -gt 0 ]; do case $1 in --dump) dump=$2; shift ;; --screenshot) shot=$2; shift ;; --selector) sel=$2; shift ;;
+  -q) echo "this stand-in hides nothing: -q would lose the line below" >&2; exit 2 ;;
+  --timeout) case $2 in 0) echo "error: invalid value '0' for '--timeout <TIMEOUT>'" >&2; echo "For more information, try '--help'." >&2; exit 2 ;; esac; shift ;;
+  --wait) case $2 in *[!0-9]*) echo "error: invalid value '$2' for '--wait <WAIT>'" >&2; exit 2 ;; esac; shift ;; esac; shift; done
+case $url in *fail*) echo "Error: Failed to navigate to $url: dns error" >&2; exit 1 ;; esac
+case $url in *moved*) echo 'Page loaded: https://login.example/wall - "Just a moment"' >&2 ;; *) echo "Page loaded: $url - \"Ajuda &amp; FAQ\"" >&2 ;; esac
+case $sel in *missing*) echo "Warning: selector '$sel' not found after 5s" >&2 ;; esac
+[ -n "$shot" ] && { printf 'PNG-ish' > "$shot"; exit 0; }
+case $dump in
+  text) printf ' \n\n ' ;;
+  html) printf '%s' '<html><head><title>Ajuda &amp; FAQ</title></head><body><script>{"body":"Você pode enviar arquivos de até 2 GB. Veja https:\/\/faq.example\/x"};var e=/[\ud800-\udbff]/</script></body></html>' ;;
+  *) i=0; while [ $i -lt 12 ]; do printf 'A markdown page with enough words in it to read as text. '; i=$((i + 1)); done ;;
+esac
+STUB
+  chmod +x "$t/stub/obscura"; o="$t/stub/obscura"
+  a=$(OVH_OBSCURA="$o" vh web fetch "$p" https://faq.example/help --why "the 2 GB limit" --id first --wait 2 2>&1); rc=$?
+  b=$(OVH_OBSCURA="$o" vh web fetch "$p" https://faq.example/help --dump text 2>&1; OVH_OBSCURA="$o" vh web fetch "$p" https://faq.example/help --dump html --grep 'até 2 GB' 2>&1); rc2=$?
+  c=$(OVH_OBSCURA="$o" vh web shot "$p" https://faq.example/settings 2>&1; OVH_OBSCURA="$o" vh web grep "$p" all 'https://faq\.example/x' 2>&1); rc3=$?
+  d=$(OVH_OBSCURA="$o" vh web fetch "$p" https://fail.example/ 2>&1; echo "exit $?"
+      for x in "fetch $p notaurl" "fetch $p https://faq.example/ --id first" "grep $p nope x" "list" "nope"; do
+        # shellcheck disable=SC2086   # each line is the arguments, split on purpose
+        OVH_OBSCURA="$o" vh web $x 2>&1; echo "exit $?"; done)
+  e=$(OVH_OBSCURA="$o" vh web list "$p" --json 2>/dev/null); rc4=$?
+  if [ "$rc:$rc2:$rc3:$rc4" = 0:0:0:0 ] && python3 - "$p" "$a" "$b" "$c" "$d" "$e" <<'PY'
+import hashlib, json, os, sys
+p, a, b, c, d, e = sys.argv[1:]; bad = []
+rs = [json.loads(x) for x in open(f"{p}/research/web.jsonl")]
+ids = [r["id"] for r in rs]
+if len(rs) != 4 or len(set(ids)) != 4 or [r["kind"] for r in rs] != ["page", "page", "page", "shot"]: bad.append(f"the index: {ids}")
+r = rs[0]
+page = f"{p}/research/web/{r['id']}/page.md"
+if r["why"] != "the 2 GB limit" or r["obscura"] != "0.2.5" or not r["retrieved"].endswith("Z") or r["files"]["page.md"]["sha256"] != hashlib.sha256(open(page, "rb").read()).hexdigest():
+    bad.append(f"the record: {r}")
+if json.load(open(f"{p}/research/web/{r['id']}/meta.json")) != r: bad.append("meta.json is not the index's line")
+if r["id"] != "first" or f"cite: https://faq.example/help (retrieved {r['retrieved'][:10]}, research/web/{r['id']}/page.md, sha256 {r['files']['page.md']['sha256'][:12]})" not in a: bad.append(f"the cite line: {a}")
+if "only 0 visible characters" not in b or "--dump html" not in b or rs[1]["warnings"] == []: bad.append(f"a thin text dump: {b[-300:]}")
+if "1 hit(s)" not in b or "Você pode enviar arquivos de até 2 GB" not in b or rs[2]["title"] != "Ajuda & FAQ": bad.append(f"grep in the JSON: {b[-400:]} {rs[2]['title']}")
+if sorted(rs[3]["files"]) != ["page.html", "shot.png"] or "bin/vh ref add proj research/web/" not in c: bad.append(f"shot: {rs[3]['files']} {c[-300:]}")
+if "2 hit(s) in 4 page(s)" not in c: bad.append(f"grep all: {c[-300:]}")
+if "obscura exit 1: Error: Failed to navigate" not in d or os.listdir(f"{p}/research/web") and any("fail" in x for x in os.listdir(f"{p}/research/web")): bad.append(f"a failed page: {d[:300]}")
+for want in ("an http(s) URL is needed", "is taken in", "no capture nope", "the following arguments are required", "invalid choice: 'nope'"):
+    if want not in d: bad.append(f"usage: no {want!r} in {d[-500:]}")
+ex = [x for x in d.splitlines() if x.startswith("exit ")]
+if ex != ["exit 1"] + ["exit 2"] * 5: bad.append(f"exits: {ex}")
+if [x["id"] for x in json.loads(e)["captures"]] != ids: bad.append("list --json")
+sys.exit("\n".join(bad) if bad else 0)
+PY
+  then ok "web with a stand-in obscura: a page kept in research/web/<id>/ with meta.json, the index line and a cite: line (URL, date, file, sha256); a thin text dump points to --dump html and --grep, which finds the fact in a script's JSON; a shot with its HTML and ref add's line; grep over every page; a failed page leaves nothing (1); usage errors are 2"
+  else bad "web fetch, shot, grep, list (exits $rc:$rc2:$rc3:$rc4): $(printf '%s' "$a$b$c$d" | tail -c 700)"; fi
+  # what success means: another host is a warning, a selector that never came is said, the title and the final URL are on
+  # record and in the cite line; a bad expression or a bad URL fetches and keeps nothing; status counts the captures
+  q="$t/proj2"; mkdir -p "$q"; echo "# BRIEF" > "$q/BRIEF.md"
+  a=$(OVH_OBSCURA="$o" vh web fetch "$q" https://moved.example/a --id moved 2>&1); rc=$?
+  b=$(OVH_OBSCURA="$o" vh web fetch "$q" https://faq.example/b --id sel --selector .missing 2>&1); rc2=$?
+  c=$(for x in "fetch $q https://faq.example/c --grep (" "fetch $q http://[bad/x" "fetch $q https://faq.example/d --timeout 0" "fetch $q https://faq.example/e --wait -1"; do
+        # shellcheck disable=SC2086   # each line is the arguments, split on purpose
+        OVH_OBSCURA="$o" vh web $x 2>&1; echo "exit $?"; done; ls "$q/research/web" | wc -l)
+  d=$(OVH_OBSCURA="$o" vh status "$q" --json 2>/dev/null)
+  e=$(OVH_OBSCURA="$o" vh doctor --json 2>/dev/null)
+  if [ "$rc:$rc2" = 0:0 ] && python3 - "$q" "$a" "$b" "$c" "$d" "$e" "$o" <<'PY'
+import json, sys
+q, a, b, c, d, e, o = sys.argv[1:]; bad = []
+rs = [json.loads(x) for x in open(f"{q}/research/web.jsonl")]
+if [r["id"] for r in rs] != ["moved", "sel"]: bad.append(f"kept: {[r['id'] for r in rs]}")
+if rs[0]["final_url"] != "https://login.example/wall" or rs[0]["title"] != "Just a moment" or "another host" not in " ".join(rs[0]["warnings"]): bad.append(f"moved: {rs[0]}")
+if "'Just a moment'" not in a or "another host" not in a or "cite: https://login.example/wall (" not in a: bad.append(f"moved says: {a[-400:]}")
+if rs[1]["title"] != "Ajuda & FAQ" or "not found after" not in " ".join(rs[1]["warnings"]) or "not found after" not in b: bad.append(f"selector: {rs[1]} {b[-300:]}")
+if "--wait -1: whole seconds" not in c or "--timeout 0: whole seconds" not in c or "the regular expression" not in c or c.count("exit 2") != 4 or c.split()[-1] != "2": bad.append(f"refused before fetching: {c[-500:]}")
+w = json.loads(d)["research"]["web"]
+if w["records"] != 2 or w["file"] != "research/web.jsonl" or not w["last"]: bad.append(f"status: {w}")
+m = next(x for x in json.loads(e)["modules"] if x["name"] == "obscura")
+if m.get("found") != o or m.get("version") != "0.2.5": bad.append(f"doctor: {m}")
+sys.exit("\n".join(bad) if bad else 0)
+PY
+  then ok "web: a page that ended on another host is a warning, with its title and final URL on record and in the cite line; a selector that never came is said; a bad expression, URL or time keeps nothing (2); status counts the captures; doctor finds the browser through OVH_OBSCURA"
+  else bad "web, what success means (exits $rc:$rc2): $(printf '%s' "$a$b$c" | tail -c 600)"; fi
+  # install from a made-up release: a tarball of two stand-ins, its pins (every platform's key names it)
+  mkdir -p "$t/rel/x"; cp "$o" "$t/rel/x/obscura"; cp "$o" "$t/rel/x/obscura-worker"; tar czf "$t/rel/o.tar.gz" -C "$t/rel/x" obscura obscura-worker
+  python3 - "$t/rel" <<'PY'
+import hashlib, json, os, sys
+d = sys.argv[1]; b = open(f"{d}/o.tar.gz", "rb").read(); h = hashlib.sha256(b).hexdigest()
+def pins(size, sha): return {"version": 1, "repo": "example/obscura", "tag": "v0.2.5", "files": ["obscura", "obscura-worker"],
+    "assets": {k: {"name": "o.tar.gz", "size": size, "sha256": sha} for k in ("linux-x86_64", "linux-aarch64", "darwin-arm64", "darwin-x86_64")}}
+for n, s, sha in (("good", len(b), h), ("size", len(b) + 1, h), ("sha", len(b), "0" * 64), ("unpinned", len(b), None)):
+    json.dump(pins(s, sha), open(f"{d}/{n}.json", "w"))
+json.dump({**pins(len(b), h), "tag": "v0.2.6"}, open(f"{d}/newer.json", "w"))
+os.makedirs(f"{d}/rec", exist_ok=True); os.link(f"{d}/o.tar.gz", f"{d}/rec/o.tar.gz")
+json.dump({"v": 1, "responses": [{"url": "https://github.com/example/obscura/releases/download/v0.2.5/o.tar.gz", "status": 200, "headers": {}, "body": "o.tar.gz"}]}, open(f"{d}/rec/responses.json", "w"))
+PY
+  inst() { XDG_DATA_HOME="$t/share" vh web install --pins "$t/rel/$1.json" "${@:2}" 2>&1; echo "exit $?"; }
+  a=$(inst good --from "$t/rel/o.tar.gz" --bin "$t/bin"; "$t/bin/obscura" --version; inst good --offline "$t/rel/rec" --bin "$t/bin2" --json)
+  b=$(inst size --from "$t/rel/o.tar.gz" --bin "$t/b3"; inst sha --from "$t/rel/o.tar.gz" --bin "$t/b3"; inst unpinned --from "$t/rel/o.tar.gz" --bin "$t/b3"
+      inst unpinned --from "$t/rel/o.tar.gz" --bin "$t/b3" --accept-unpinned)
+  mkdir -p "$t/b4"; ln -s /bin/sh "$t/b4/obscura"
+  c=$(inst good --from "$t/rel/o.tar.gz" --bin "$t/b4"; inst good --from "$t/rel/o.tar.gz" --bin "$t/b4" --force; inst good --dry-run --bin "$t/b5")
+  # its own link: the same release is left as it is (nothing fetched, no network here), a newer one replaces it with no --force
+  d=$(inst good --bin "$t/bin"; inst newer --from "$t/rel/o.tar.gz" --bin "$t/bin"; inst good --from "$t/rel/none.tar.gz" --bin "$t/b6")
+  case "$d" in
+    *"is there already"*"exit 0"*"linked from $t/bin"*"exit 0"*"no such file"*"exit 2")
+      if [ "$(readlink "$t/bin/obscura")" = "$t/share/ovh/obscura/v0.2.6/obscura" ] && [ ! -e "$t/share/ovh/obscura/.download/o.tar.gz" ]
+      then ok "web install: its own link at the same release is left alone, nothing fetched; a newer release replaces it with no --force; a --from that is not there is usage (2)"
+      else bad "web install, its own link: $(readlink "$t/bin/obscura")"; fi ;;
+    *) bad "web install, its own link: $(printf '%s' "$d" | tail -c 500)" ;; esac
+  case "$a|$b|$c" in
+    *"✓ obscura 0.2.5 in $t/share/ovh/obscura/v0.2.5, linked from $t/bin"*"exit 0"*"obscura 0.2.5"*'"sha256_got"'*"exit 0|"*"bytes, not the"*"exit 1"*"is not the 0000"*"exit 1"*"--accept-unpinned installs it"*"exit 1"*"its sha256 is"*"exit 0|"*"b4/obscura is there already ("*"exit 1"*"linked from $t/b4"*"exit 0"*"would unpack into"*"exit 0")
+      if [ "$(readlink "$t/b4/obscura")" = "$t/share/ovh/obscura/v0.2.5/obscura" ] && [ -L "$t/b3/obscura" ] && [ -x "$t/bin2/obscura-worker" ] && [ ! -e "$t/b5" ]
+      then ok "web install from a made-up release (--from, and --offline through fetch.download): unpacked into the share folder and linked; a wrong size or sha256 installs nothing (1), an unpinned asset only with --accept-unpinned (its hash printed), an obscura not its own left alone unless --force; --dry-run touches nothing"
+      else bad "web install: the links ($(ls -l "$t/b4" "$t/b3" 2>&1 | tr '\n' ' '))"; fi ;;
+    *) bad "web install: $(printf '%s' "$a|$b|$c" | tail -c 900)" ;; esac
   rm -rf "$t"
 }
 
