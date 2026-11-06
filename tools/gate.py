@@ -18,7 +18,8 @@ usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeou
   --json    the record on stdout, the lines a person reads on stderr: {"version": 1, "tool", "project", "gate", "page", "channel", "url",
             "message": the chat message} (--init: {"version": 1, "tool", "project", "gate", "init": true, "path"}); a failure in
             the error's shape (tools/jsonerr.py). Not with --wait, whose answer is the submission
-The page and the desk read the same out/review/gate-<n>.json: it is the one file a client renders for a stop.
+The page and the desk read the same out/review/gate-<n>.json: it is the one file a client renders for a stop. A page that goes out is also
+a snapshot of the project's text (bin/vh history); a failure to save it never stops the page.
 Exit: 0 the stop is out (with --wait: the submission is printed) · 1 the page was written but breaks a rule: no message,
 no desk, and bin/vh status counts it as not sent until a run of it goes through (bin/vh review's 1) · 2 nothing to send: no project, no or bad gate JSON, placeholders left, the desk did not start,
 --wait without the desk, --init over a file · 3 --wait timed out.
@@ -221,6 +222,11 @@ def main(argv):
     else:
         print("\n".join(lines), flush=True)
     activity.note(f"{review.gate_title(page.gate, 'en')}: {len(page.d['decisions'])} decision(s) on the {channel}" + (f" · {url}" if url else ""), [page_path])
+    try:   # the text as it was when the page went out (tools/history.py); a failure to save never stops the page
+        import history
+        history.save(project, f"gate {page.gate}: the page went out")
+    except Exception:
+        pass
     if not a.wait:
         return 0
     import feedback

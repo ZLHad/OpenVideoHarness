@@ -267,6 +267,35 @@
       ]
     },
     {
+      "name": "history",
+      "summary": "A safety net for the text people and agents write: snapshots by content, list, a unified diff, restore with the state before it saved first.",
+      "when": "before a large rewrite of the docs, or to get back a file that was overwritten; bin/vh gate saves on every page that goes out",
+      "stages": ["any"],
+      "reads": [
+        "<project>/.ovh/history/index.jsonl",
+        "tools/artifacts.json: the kinds of file a person or an agent writes (md, json, txt)"
+      ],
+      "writes": [
+        "<project>/.ovh/history/index.jsonl, objects/<id> and .lock (save, restore)",
+        "the file restored"
+      ],
+      "usage": [
+        {
+          "synopsis": "history save <project> [--note text] [--json] | history list <project> [<file>] [--json] | history diff <project> [<file>] [--at s] [--to s] [--json] | history restore <project> <file> [--at s] [--json]",
+          "text": [
+            "the small text files a person or an agent writes, stored by content in .ovh/history (save writes nothing when nothing changed);",
+            "list the snapshots, diff a unified diff, restore a file as it was, what is there now saved first, so it can be undone (tools/history.py)"
+          ]
+        }
+      ],
+      "subcommands": [
+        { "name": "save", "summary": "a snapshot, if anything changed" },
+        { "name": "list", "summary": "the snapshots, or those where a file changed" },
+        { "name": "diff", "summary": "a unified diff between snapshots, or from one to now" },
+        { "name": "restore", "summary": "a file as it was, the state before it saved first" }
+      ]
+    },
+    {
       "name": "activity",
       "summary": "What bin/vh did in a project: a line per command (when, how it ended, how long, what it wrote), or --follow as it happens.",
       "when": "to see what ran and how it ended, such as a render in the background",
@@ -1074,6 +1103,7 @@
         "<project>/BRIEF.md"
       ],
       "writes": [
+        "<project>/.ovh/history/index.jsonl, objects/<id> and .lock (a snapshot on each page that goes out)",
         "<project>/out/review/gate-<n>.html, index.html, .current, .gate-<n>.refused.json (a page that breaks a rule: nothing is sent)",
         "<project>/out/review/gate-<n>.json (--init)",
         "<project>/out/review/feedback/.consumed (--wait: the submission handed over)",

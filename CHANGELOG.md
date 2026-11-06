@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`bin/vh history`: a safety net for the text people and agents write**
+- Why: films have versions and the text they come from had none, and many of these projects are not under git: an overwrite of a BRIEF, by a person or an agent, was gone. Later a client's edits will need the same way back.
+- `bin/vh history save|list|diff|restore`: the small text files `tools/artifacts.json` says a person or an agent writes (`made_by` person or agent; markdown, json or text; at most 1 MiB), stored by content in `.ovh/history/objects/<sha256>`, a snapshot a line of `.ovh/history/index.jsonl` (`"version": 1`, time, note, files and hashes). `save` skips what did not change and writes nothing when nothing did.
+- `restore <file> [--at <snapshot>]` saves what is there first, so a restore can be undone, and says how. `diff` is a unified diff, between two snapshots or from one to now. `list` and `diff` only read and are not logged.
+- `bin/vh gate` saves on a page that went out; a failure to save never blocks it. `bin/vh clean` keeps it; its behaviour is unchanged. Three entries in `tools/artifacts.json`, and a schema for the index's line.
+
 **`bin/vh timeline <project> --resolved`: one timeline to read**
 - Why: a client that draws a timeline had to know each project's table, the timeline's name, the captions' shape, the beats' file and two ways to count frames; an edit list had a resolved record and a project with only `shots.json` had none.
 - `bin/vh timeline <project> --resolved [zh|en] [--words] [--json]`: shots or the edit list, narration lines, captions and beats in one document, each in seconds and frames as the repo counts them (`tools/timegrid.py`), with the sha256 of each source file, `fps`, `duration`, `frames`, and where each came from.

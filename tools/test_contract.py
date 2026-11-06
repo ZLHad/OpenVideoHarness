@@ -21,7 +21,7 @@ sys.path.insert(0, str(HERE))
 import schemalite   # noqa: E402
 
 SCHEMAS = HERE / "schemas" / "output"
-ALL = ("status", "activity", "versions", "check", "commands", "desk-data", "edit-list", "edit-build", "assets-list", "artifacts-list", "projects", "error", "cancel", "peaks", "timeline")
+ALL = ("status", "activity", "versions", "check", "commands", "desk-data", "edit-list", "edit-build", "assets-list", "artifacts-list", "projects", "error", "cancel", "peaks", "timeline", "history")
 
 
 class VH:
@@ -83,6 +83,9 @@ def fixture(t, sh):
     r = vh("review", z, "1")
     if r.returncode:
         raise SystemExit(f"bin/vh review: exit {r.returncode}: {r.stderr[-400:]}")
+    r = vh("history", "save", p, "--note", "the fixture")
+    if r.returncode:
+        raise SystemExit(f"bin/vh history save: exit {r.returncode}: {r.stderr[-400:]}")
     write(f"{z}/out/review/feedback/1-a.json", json.dumps({"version": 1, "round": "1", "at": "2026-11-06T10:00:00+0800", "decisions": {}, "defaulted": [], "general": "",
                                                            "items": [{"target": "time:1.5", "status": "ask", "label": "小样 0:01.5", "text": "这里看不清", "t": 1.5}]}, ensure_ascii=False))
     e = f"{t}/projects/e"
@@ -107,7 +110,7 @@ def outputs(vh, p, z, e, has_film):
     runs = [("status", ["status", p]), ("status", ["status", z]), ("activity", ["activity", p]), ("activity", ["activity", z]), ("versions", ["versions", p]),
             ("commands", ["commands"]), ("commands", ["commands", "--stage", "8"]), ("desk-data", ["desk", "data", z]), ("desk-data", ["desk", "data", p]),
             ("edit-list", ["edit", "list", e]), ("edit-build", ["edit", "build", e]), ("assets-list", ["assets", "list", p]), ("artifacts-list", ["artifacts", "list", p]),
-            ("artifacts-list", ["artifacts", "list", z]), ("projects", ["projects"]), ("cancel", ["cancel", p]), ("timeline", ["timeline", p, "--resolved"]), ("timeline", ["timeline", z, "--resolved"]), ("timeline", ["timeline", e, "--resolved"])]
+            ("artifacts-list", ["artifacts", "list", z]), ("projects", ["projects"]), ("cancel", ["cancel", p]), ("timeline", ["timeline", p, "--resolved"]), ("timeline", ["timeline", z, "--resolved"]), ("timeline", ["timeline", e, "--resolved"]), ("history", ["history", "list", p])]
     if has_film:
         runs.insert(0, ("check", ["check", f"{p}/out/final.mp4"]))   # first: status and the others have its record
         runs.append(("peaks", ["peaks", f"{p}/out/final.mp4", "--bins", "8"]))
@@ -149,6 +152,7 @@ def failures(t, p):
         ("nope", 2, "usage", True), ("statu", 2, "usage", True),
         ("cancel", 2, "usage", False), ("cancel nope", 2, "no_project", True), (f"cancel {p} 7-7", 2, "not_found", True),
         ("timeline nope --resolved", 2, "no_project", False), (f"timeline {plain} --resolved", 2, "no_project", False), (f"timeline {p} xx! --resolved", 2, "usage", False),
+        ("history", 2, "usage", False), ("history save", 2, "usage", True), ("history save nope", 2, "no_project", True), (f"history restore {p}", 2, "usage", True), (f"history restore {p} BRIEF.md --at s99", 1, "not_found", True),
         ("peaks", 2, "usage", False), ("peaks nope", 2, "no_project", True), (f"peaks {t}/projects/e", 2, "not_found", True), (f"peaks {p} --bins 0", 2, "usage", True),
     ]
 

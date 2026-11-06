@@ -5741,6 +5741,112 @@ PY
   rm -rf "$t"
 }
 
+history_checks() {   # bin/vh history: what it keeps and leaves out, a save with nothing changed, list and diff, restore and its undo, what cannot be found; bin/vh
+  # gate saves on a page that went out and is never stopped by a save that fails; bin/vh clean leaves it
+  local t p g a b c d e f n0 n1 rc rc2
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd -P)
+  OVH_PROJECTS="$t/projects" vh new math ci-history >/dev/null 2>&1
+  p=$(ls -d "$t"/projects/*-ci-history)
+  printf '{"shots": [{"id": "A", "start": 0, "end": 1}]}\n' > "$p/shots.json"; mkdir -p "$p/audio"; printf '@a 一句\n' > "$p/audio/script.txt"; printf '[]\n' > "$p/audio/captions.json"
+  python3 -c 'import sys; open(sys.argv[1], "w").write("x" * (1 << 21))' "$p/NOTES.md"
+  ln -s BRIEF.md "$p/DECISIONS.md.link" 2>/dev/null
+  a=$(vh history save "$p" --note 第一次 --json 2>&1); rc=$?
+  find "$p/.ovh/history" -type f | sort > "$t/before"
+  b=$(vh history save "$p" --json 2>&1); rc2=$?
+  find "$p/.ovh/history" -type f | sort > "$t/after"
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && cmp -s "$t/before" "$t/after" && python3 - "$a" "$b" "$p" <<'PY'
+import hashlib, json, os, sys
+a, b, p = json.loads(sys.argv[1]), json.loads(sys.argv[2]), sys.argv[3]
+s = a["snapshot"]
+ok = a["version"] == 1 and a["saved"] is True and s["id"] == "s1" and s["note"] == "第一次" and b["saved"] is False and b["snapshot"] is None
+ok = ok and {"BRIEF.md", "REVIEW.md", "shots.json", "audio/script.txt", "STYLE.md"} <= set(s["files"]) and "NOTES.md" not in s["files"] and "audio/captions.json" not in s["files"] and not any(f.startswith(".ovh") for f in s["files"])
+ok = ok and {"path": "NOTES.md", "why": "over 1 MiB"} in a["skipped"]
+for f, h in s["files"].items():
+    ok = ok and h == hashlib.sha256(open(f"{p}/{f}", "rb").read()).hexdigest() and open(f"{p}/.ovh/history/objects/{h}", "rb").read() == open(f"{p}/{f}", "rb").read()
+lines = [json.loads(x) for x in open(f"{p}/.ovh/history/index.jsonl", encoding="utf-8")]
+ok = ok and len(lines) == 1 and lines[0]["version"] == 1 and lines[0]["id"] == "s1"
+sys.exit(0 if ok else 1)
+PY
+  then ok "history save: the small text files a person or an agent writes, by content, a line in the index; a tool's file, one over the limit and .ovh left out; nothing changed, nothing written"
+  else bad "bin/vh history save (exit $rc, $rc2): $(printf '%s' "$a$b" | tail -c 500) $(diff "$t/before" "$t/after" | head -3)"; fi
+  # a change: only it is stored again; list, with a file; diff; a file gone
+  rm -f "$p/NOTES.md"
+  printf '# 改过的\n' > "$p/BRIEF.md"; rm "$p/audio/script.txt"
+  a=$(vh history save "$p" --json 2>&1); rc=$?
+  b=$(vh history list "$p" --json 2>&1); c=$(vh history list "$p" BRIEF.md --json 2>&1)
+  d=$(vh history diff "$p" BRIEF.md --at s1 --to s2 2>&1); e=$(vh history diff "$p" --json 2>&1); printf '再改\n' >> "$p/BRIEF.md"; f=$(vh history diff "$p/BRIEF.md" 2>&1)
+  if [ $rc = 0 ] && python3 - "$a" "$b" "$c" "$e" <<'PY' && case "$d" in *'-'*'+# 改过的'*) true ;; *) false ;; esac && case "$f" in *'BRIEF.md (s2)'*'BRIEF.md (now)'*'+再改'*) true ;; *) false ;; esac
+import json, sys
+a, b, c, e = map(json.loads, sys.argv[1:])
+s = a["snapshot"]
+ok = s["id"] == "s2" and s["changed"] == ["BRIEF.md"] and s["removed"] == ["audio/script.txt"] and "audio/script.txt" not in s["files"]
+ok = ok and [x["id"] for x in b["snapshots"]] == ["s1", "s2"] and b["snapshots"][0]["note"] == "第一次" and b["file"] is None and [x["id"] for x in c["snapshots"]] == ["s1", "s2"] and c["file"] == "BRIEF.md"
+ok = ok and e["from"] == "s2" and e["to"] is None and e["files"] == [] and e["diff"] == ""
+sys.exit(0 if ok else 1)
+PY
+  then ok "history: a change stores only what changed, a file gone is said; list and list <file>; diff between two snapshots and from the last to now, a unified diff"
+  else bad "bin/vh history list and diff (exit $rc): $(printf '%s' "$a$b$c$e" | tail -c 400) | $d | $f"; fi
+  # restore: an overwrite undone; the state before it saved first, so the restore can be undone; a file already so; a deleted one back
+  cp "$p/BRIEF.md" "$t/good"; vh history save "$p" >/dev/null 2>&1
+  printf 'overwritten by mistake\n' > "$p/BRIEF.md"
+  a=$(vh history restore "$p" BRIEF.md --json 2>&1); rc=$?
+  cmp -s "$p/BRIEF.md" "$t/good" || rc=9
+  b=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["undo"])' "$a" 2>&1)
+  c=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["saved_first"])' "$a" 2>&1)
+  vh history restore "$p" BRIEF.md --at "$c" >/dev/null 2>&1; rc2=$?
+  d=$(cat "$p/BRIEF.md")
+  e=$(vh history restore "$p" BRIEF.md --at "$c" --json 2>&1)
+  rm "$p/shots.json"; vh history restore "$p/shots.json" --at s1 >/dev/null 2>&1 || vh history restore "$p" shots.json >/dev/null 2>&1; [ -f "$p/shots.json" ] || rc=8
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ "$d" = "overwritten by mistake" ] && case "$b" in "bin/vh history restore "*" BRIEF.md --at "*) true ;; *) false ;; esac && python3 - "$a" "$e" <<'PY'
+import json, sys
+a, e = map(json.loads, sys.argv[1:])
+sys.exit(0 if a["restored"] is True and a["file"] == "BRIEF.md" and a["from"] == "s3" and a["saved_first"] == "s4" and e["restored"] is False else 1)
+PY
+  then ok "history restore: an overwrite undone from the newest snapshot that differs; what was there saved first, and that restored in turn; a file already so left alone; a deleted file back"
+  else bad "bin/vh history restore (exit $rc, $rc2): $(printf '%s' "$a" | tail -c 300) | '$d' | $e"; fi
+  # what cannot be found, and what is refused; a bad line in the index; reading writes nothing and is not logged; save and restore are logged
+  printf 'not json\n' >> "$p/.ovh/history/index.jsonl"
+  rm -f "$p/.ovh/activity.jsonl"
+  find "$p" -type f | sort > "$t/before"
+  a=$(vh history list "$p" --json 2>&1); vh history diff "$p" --json >/dev/null 2>&1
+  find "$p" -type f | sort > "$t/after"
+  vh history restore "$p" BRIEF.md --at s99 --json >"$t/o1" 2>/dev/null; rc=$?
+  vh history restore "$p" LESSONS.nope --json >"$t/o2" 2>/dev/null; rc2=$?
+  vh history restore "$p" ../../x --at s1 --json >"$t/o3" 2>/dev/null; c=$?
+  vh history diff "$p" nope.md --json >"$t/o4" 2>/dev/null; d=$?
+  vh history save nope --json >"$t/o5" 2>/dev/null; e=$?
+  if cmp -s "$t/before" "$t/after" && [ "$rc:$rc2:$c:$d:$e" = 1:1:2:1:2 ] && python3 - "$a" "$t" "$p" <<'PY'
+import json, os, sys
+a, t, p = sys.argv[1:]
+codes = [json.load(open(f"{t}/o{i}"))["error"]["code"] for i in range(1, 6)]
+ok = codes == ["not_found", "not_found", "usage", "not_found", "no_project"] and len(json.loads(a)["snapshots"]) >= 4 and not os.path.exists(f"{t}/x")
+sys.exit(0 if ok else 1)
+PY
+  then ok "history: no such snapshot or file is exit 1, a way out of the project and no project exit 2, each in the error's shape; a bad index line is skipped; list and diff write nothing and log nothing"
+  else bad "bin/vh history's failures (exit $rc, $rc2, $c, $d, $e): $(cat "$t"/o? | tail -c 500)"; fi
+  # bin/vh gate saves on a page that went out; a save that fails does not stop it; a page refused is no save
+  g="$t/g"; cp -R tools/desk/fixtures/zh "$g"
+  vh gate "$g" 1 --page >"$t/gate1" 2>&1; rc=$?
+  n1=$(wc -l < "$g/.ovh/history/index.jsonl" | tr -d ' ')
+  a=$(tail -n 1 "$g/.ovh/history/index.jsonl" | python3 -c 'import json, sys; d = json.loads(sys.stdin.read()); print(d["note"], "out/review/gate-1.json" in d["files"])' 2>&1)
+  mv "$g/.ovh/history" "$t/kept-history"; printf 'not a folder\n' > "$g/.ovh/history"
+  printf '# 又改\n' >> "$g/BRIEF.md"
+  vh gate "$g" 1 --page >"$t/gate2" 2>&1; rc2=$?
+  rm -f "$g/.ovh/history"; mkdir -p "$g/out/review"; printf 'not json' > "$g/out/review/gate-1.json"
+  vh gate "$g" 1 --page >/dev/null 2>&1; c=$?
+  if [ "$rc:$rc2:$c" = 0:0:2 ] && [ "$n1" = 1 ] && [ ! -e "$g/.ovh/history" ] && case "$a" in "gate 1: the page went out True") true ;; *) false ;; esac; then ok "gate: a page that went out is a snapshot of the text; a save that fails stops nothing; a page refused is no snapshot"
+  else bad "gate's save (exit $rc, $rc2, $c, $n1 lines, '$a'): $(tail -c 300 "$t/gate1") | $(tail -c 300 "$t/gate2")"; fi
+  # bin/vh clean leaves it, and it still restores
+  mkdir -p "$p/out/frames"; : > "$p/out/frames/a.png"; : > "$p/out/final.mp4"
+  vh clean "$p" --yes >"$t/clean" 2>&1; rc=$?
+  n1=$(find "$p/.ovh/history" -type f | wc -l | tr -d ' ')
+  printf 'again\n' > "$p/REVIEW.md"; vh history restore "$p" REVIEW.md >/dev/null 2>&1; rc2=$?
+  a=$(cat "$p/REVIEW.md")
+  if [ "$rc:$rc2" = 0:0 ] && [ "$n1" -gt 2 ] && [ ! -e "$p/out/frames/a.png" ] && [ "$a" != again ]; then ok "clean: leaves .ovh/history, and a restore works after it"
+  else bad "history after bin/vh clean (exit $rc, $rc2, $n1 files, '$a'): $(tail -c 300 "$t/clean")"; fi
+  rm -rf "$t"
+}
+
 film_browser_here() { # is there a browser the page tools can draw with? (cancel_checks' real render; as bin/vh's film_browser looks)
   python3 - <<'PY'
 import os, shutil, sys
