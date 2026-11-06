@@ -142,7 +142,7 @@ def failures(t, p):
         ("proxy", 2, "usage", False), ("proxy nope", 2, "no_project", True), (f"proxy {plain}", 2, "not_found", True), (f"proxy {t}/projects/e --size nope", 2, "usage", True), (f"proxy {p} --bogus", 2, "usage", True),
         ("thumbs", 2, "usage", False), ("thumbs nope", 2, "no_project", True), (f"thumbs {broken}/out --every nope", 2, "usage", True),
         ("artifacts", 2, "usage", False), ("artifacts list", 2, "usage", True), ("artifacts list nope", 2, "no_project", True), ("artifacts spec --stage nope", 2, "usage", True), ("artifacts bogus", 2, "usage", True),
-        ("projects --bogus", 2, "usage", True), (f"projects --root {t}/nope", 2, "not_found", True),
+        ("projects --bogus", 2, "usage", True), (f"projects --root {t}/nope", 2, "usage", True),
         ("commands --stage nope", 2, "usage", True), ("commands --bogus", 2, "usage", True),
         ("doctor --bogus", 2, "usage", True), (f"doctor {p}", 2, "usage", False),
         ("desk data", 2, "usage", True), ("desk data nope", 2, "no_project", True),

@@ -5445,6 +5445,56 @@ sys.exit(0 if rec["count"] == 1 and rec["projects"][0]["name"] == "p2" and rec["
 PY
   then ok "projects --root: looked in too, the same folder once; the film it names; a root that is not there is a usage error (exit 2)"
   else bad "bin/vh projects --root (exit $rc, $i): $(printf '%s' "$a$b" | tail -c 400)"; fi
+  # a record of a later version is left as it is and said; a link and its folder go by the folder's name; an empty --root is refused; a name that is not UTF-8 prints
+  a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PY' 2>&1
+import json, os, subprocess, sys
+sh, root, t = sys.argv[1:]
+base = f"{t}/odd"
+os.makedirs(base)
+bad = []
+env = dict(os.environ, OVH_PROJECTS=base)
+def V(*a):
+    return subprocess.run([sh, f"{root}/bin/vh", *a], capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL)
+def brief(p):
+    os.makedirs(p, exist_ok=True)
+    with open(f"{p}/BRIEF.md", "w") as f: f.write("# BRIEF：x\n")
+    return p
+later = brief(f"{base}/later"); os.makedirs(f"{later}/.ovh")
+with open(f"{later}/.ovh/project.json", "w") as f: json.dump({"version": 2, "id": "keep-me"}, f)
+r = V("projects", "--assign", "--json"); d = json.loads(r.stdout)
+row = next(x for x in d["projects"] if x["name"] == "later")
+if not (row["id"] is None and "later" in row.get("assign_error", "") and sorted(os.listdir(f"{later}/.ovh")) == ["project.json"] and json.load(open(f"{later}/.ovh/project.json"))["id"] == "keep-me"):
+    bad.append(f"a record of a later version: {row}, {os.listdir(later + '/.ovh')}")
+h = V("projects", "--assign").stdout
+if "later bin/vh" not in h:
+    bad.append(f"a record of a later version, in the listing: {h[-300:]}")
+real = brief(f"{base}/zz-real"); os.symlink(real, f"{base}/aa-link")
+d = json.loads(V("projects", "--json").stdout)
+names = [x["name"] for x in d["projects"] if x["path"] == os.path.realpath(real)]
+if names != ["zz-real"]:
+    bad.append(f"a folder and a link to it: {names}")
+for root_word in ("", "  "):
+    r = subprocess.run([sh, f"{root}/bin/vh", "projects", "--root", root_word, "--json"], capture_output=True, text=True, env=env, cwd=t, stdin=subprocess.DEVNULL)
+    if r.returncode != 2 or json.loads(r.stdout)["error"]["code"] != "usage":
+        bad.append(f"an empty --root: exit {r.returncode}, {r.stdout[:200]}")
+try:
+    os.makedirs(os.fsencode(f"{base}/") + b"caf\xe9")
+    with open(os.fsencode(f"{base}/") + b"caf\xe9/BRIEF.md", "w") as f: f.write("# BRIEF\n")
+except OSError:   # (macOS: refused by the file system; the same through what prints)
+    sys.path.insert(0, f"{root}/tools")
+    import activity
+    if activity._text({"name": "caf\udce9", "l": ["caf\udce9"]}) != {"name": "caf\\xe9", "l": ["caf\\xe9"]}:
+        bad.append("activity._text")
+else:
+    for args in (["--json"], []):
+        r = V("projects", *args)
+        if r.returncode != 0 or "caf\\xe9" not in r.stdout.replace("\\\\", "\\"):
+            bad.append(f"a name that is not UTF-8, {args}: exit {r.returncode}, {r.stderr[-300:]}")
+print("\n".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "projects: a record of a later version is left as it is and said; a folder and a link to it go by the folder's name; an empty --root is a usage error; a name that is not UTF-8 prints" \
+    || bad "bin/vh projects on odd trees: $(printf '%s' "$a" | tail -c 900)"
   # the time: 30 projects, each with a log of a few hundred lines
   mkdir -p "$t/thirty"
   python3 - "$t/thirty" <<'PY'

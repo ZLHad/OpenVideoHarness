@@ -4,9 +4,9 @@ no browser, no ffprobe. Nothing is written, unless --assign asks.
 usage: bin/vh projects [--root DIR …] [--assign] [--json]
 
 Where it looks: $OVH_PROJECTS, <repo>/projects and each --root (the first two only when they are there; a --root that is
-not a folder is a usage error). A project is a folder holding BRIEF.md, at most 4 folders below its root; out/, node_modules,
-hidden folders, a project's assets/, audio/ and the like are not gone into. The same folder found twice (a link, two roots)
-is one row.
+not a folder is a usage error, code usage, an empty one too: it would scan the current folder). A project is a folder holding BRIEF.md, at most 4 folders
+below its root; out/, node_modules, hidden folders, a project's assets/, audio/ and the like are not gone into. The same folder found twice (a link, two roots)
+is one row, under its own name when the walk finds the folder itself. A name that is not UTF-8 has its bytes as the text \\xNN (tools/activity.py).
   --assign  give each project without an id one: .ovh/project.json (tools/identity.py). bin/vh new writes it for a new
             project; an older one has none (id null) until this. Moving a folder keeps its id.
   --json    {"version": 1, "tool", "roots": [{"path", "from", "exists"}], "count", "truncated" (more than MAX_DIRS folders
@@ -29,7 +29,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
-import identity, jsonerr   # noqa: E402,E401
+import activity, identity, jsonerr   # noqa: E402,E401
 
 DEPTH = 4         # folders below a root
 MAX_DIRS = 20000  # folders looked at, per run: a --root too wide says so and stops there
@@ -53,6 +53,8 @@ def roots_of(given):
         add(os.environ["OVH_PROJECTS"], "OVH_PROJECTS")
     add(ROOT / "projects", "repo")
     for r in given:
+        if not r.strip():
+            raise ValueError("--root with no folder named (an empty word would mean the current folder)")
         if not Path(r).expanduser().is_dir():
             raise ValueError(f"--root {r}: no such folder")
         add(r, "--root")
@@ -61,8 +63,8 @@ def roots_of(given):
 
 def find(roots):
     """([(project folder, the name it goes by)], whether the walk stopped at MAX_DIRS). Each folder once, links followed only one
-    step (a link to a project counts; nothing is walked through a link)."""
-    found, seen, looked = [], set(), 0
+    step (a link to a project counts; nothing is walked through a link). Links last, so a folder and a link to it go by the folder's name."""
+    found, seen, looked, links = [], set(), 0, []
 
     def take(d, base):
         real = os.path.realpath(d)
@@ -78,6 +80,8 @@ def find(roots):
         for d, dirs, files in os.walk(base):
             looked += 1
             if looked > MAX_DIRS:
+                for q, b in links:
+                    take(q, b)
                 return found, True
             if "BRIEF.md" in files:
                 take(d, base)
@@ -89,10 +93,12 @@ def find(roots):
                     continue
                 if os.path.islink(q):
                     if os.path.isfile(os.path.join(q, "BRIEF.md")):
-                        take(q, base)
+                        links.append((q, base))
                 else:
                     keep.append(x)
             dirs[:] = keep
+    for q, b in links:
+        take(q, b)
     return found, False
 
 
@@ -207,9 +213,9 @@ def main(argv):
     ap.add_argument("--json", action="store_true", help="the record, as JSON (version 1)")
     a = ap.parse_args(argv)
     try:
-        rec = listing(a.root, a.assign)
+        rec = activity._text(listing(a.root, a.assign))   # a raw byte in a folder's name: \\xNN, so it prints anywhere
     except ValueError as e:
-        return jsonerr.fail("not_found", f"projects: {e}")
+        return jsonerr.fail("usage", f"projects: {e}")
     if a.json:
         print(json.dumps(rec, ensure_ascii=False, indent=1))
     else:
