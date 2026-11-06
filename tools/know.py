@@ -4,6 +4,7 @@ It answers "what do we have for this" without reading the documents first; the m
 
 usage: bin/vh know <words…> [--kind recipe,component,style,doc,case] [-n N] [--json]
        bin/vh know --index [--json]
+       bin/vh know --show "<file.md>#<section>" [--json]
 
   the index   built each time from the files (no cache to go stale): every recipe, skeleton and shot-grammar card in
               recipes/ (its frontmatter: name, one_liner, family, role, intent, needs, types, engines, pitfalls; a
@@ -23,10 +24,18 @@ usage: bin/vh know <words…> [--kind recipe,component,style,doc,case] [-n N] [-
               --kind: only these kinds, 5 of each unless -n), each with half the words or more; a kind that has none
               shows its best one, marked partial. Each: where (file:line), its title, its summary, the words that
               matched. --index: the index itself, the metadata of every unit, without its text
+  strong      a hit that has three quarters of the words or more, and either half of them in its title, tags or summary,
+              or a score of 10 or more. When no hit is strong the answer says so first: what follows is the nearest there
+              is, and the repo may have nothing on this
+  --show      one section of a markdown file, to read it without the whole file: its text, a ## section with the ### under
+              it. <section> is the heading, or the start of it, or a part of it (审阅页, 4., 长片); more than one at the
+              best of those is listed, not guessed (exit 1). With no #section: the file's sections
 
---json: {"version": 1, "query", "terms", "hits": [{"kind", "id", "title", "file", "line", "summary", "tags",
-"score", "matched", "partial"}], "units": n, "by_kind": {kind: n}}; --index --json: {"version": 1, "units": [{"kind", "id",
-"title", "file", "line", "summary", "tags", "chars"}], "by_kind"}. Exit: 0 · 1 nothing matched · 2 usage.
+--json: {"version": 1, "query", "terms", "strong", "hits": [{"kind", "id", "title", "file", "line", "summary", "tags",
+"score", "matched", "partial", "strong"}], "units": n, "by_kind": {kind: n}}; --index --json: {"version": 1, "units": [{"kind",
+"id", "title", "file", "line", "summary", "tags", "chars"}], "by_kind"}; --show --json: {"version": 1, "file", "section", "level",
+"line", "chars", "text"}, with no #section {"version": 1, "file", "sections": [{"section", "level", "line", "chars"}]}. Exit: 0 ·
+1 nothing matched, no such file or section · 2 usage.
 """
 import argparse, json, math, re, sys
 from collections import Counter
@@ -157,6 +166,12 @@ def build():
     return units
 
 
+def is_strong(u, q, cover, score):
+    """Most of the words, and not only somewhere in the body: half of them in the title, tags or summary, or a high score."""
+    head = set(terms(u["title"])) | {x for tag in u["tags"] for x in terms(tag)} | set(terms(u["summary"]))
+    return cover >= 0.75 and (len(head & set(q)) / len(set(q)) >= 0.5 or score >= 10)
+
+
 def search(units, query, kinds, n):
     q = terms(query)
     if not q:
@@ -196,7 +211,7 @@ def search(units, query, kinds, n):
                 matched.append(w)
         if score > 0:
             hits.append(dict({k: v for k, v in u.items() if k != "body"}, score=round(score, 3), matched=sorted(set(matched)),
-                             partial=len(set(q)) > 1 and cover < 0.5))
+                             partial=len(set(q)) > 1 and cover < 0.5, strong=is_strong(u, q, cover, score)))
     hits.sort(key=lambda h: (-h["score"], h["file"], h["line"]))
     out, seen = [], Counter()
     for h in hits:   # those with half the words or more; a kind with none of them shows its best one, marked partial
@@ -213,6 +228,60 @@ def search(units, query, kinds, n):
     return sorted(out, key=lambda h: (order[h["kind"]], -h["score"])), q
 
 
+def show(target):
+    """--show "<file.md>#<section>": (the file, the section's dict or None, the file's sections, candidates when it was
+    not one). None for the file when it is not a markdown file in the repo."""
+    rel, _, want = target.partition("#")
+    f = (ROOT / rel.strip()).resolve()
+    if not rel.strip() or f.suffix != ".md" or not f.is_file() or ROOT not in f.parents:
+        return None, None, [], []
+    rel = f.relative_to(ROOT).as_posix()
+    secs = readpath.outline(rel)
+    listed = [{"section": h, "level": lv, "line": n,
+               "chars": sum(len(x[3]) for x in secs[i:next((j for j in range(i + 1, len(secs)) if secs[j][0] <= lv), len(secs))])}
+              for i, (lv, h, n, _) in enumerate(secs) if h]
+    want = want.strip().lstrip("#").strip()
+    if not want:
+        return rel, None, listed, []
+    low = want.lower()
+    for pick in (lambda h: h.lower() == low, lambda h: h.lower().startswith(low), lambda h: low in h.lower()):
+        found = [i for i, (_, h, _, _) in enumerate(secs) if h and pick(h)]
+        if found:
+            break
+    if len(found) != 1:
+        return rel, None, listed, [secs[i][1] for i in found]
+    i = found[0]
+    lv, h, n, _ = secs[i]
+    end = next((j for j in range(i + 1, len(secs)) if secs[j][0] <= lv), len(secs))
+    body = "\n".join(x[3] for x in secs[i:end]).rstrip() + "\n"
+    return rel, {"section": h, "level": lv, "line": n, "chars": len(body), "text": body}, listed, []
+
+
+def main_show(target, as_json):
+    rel, sec, listed, cands = show(target)
+    if rel is None:
+        print(f"bin/vh know --show: no such markdown file in the repo: {target.partition('#')[0] or target} (\"<file.md>#<section>\", the path from the repo's root)", file=sys.stderr)
+        return 1
+    want = target.partition("#")[2].strip()
+    if sec:
+        if as_json:
+            print(json.dumps({"version": 1, "file": rel, **sec}, ensure_ascii=False, indent=1))
+        else:
+            print(f"{rel}:{sec['line']} · {sec['chars']:,} characters", file=sys.stderr)
+            print(sec["text"], end="")
+        return 0
+    if not want:
+        if as_json:
+            print(json.dumps({"version": 1, "file": rel, "sections": listed}, ensure_ascii=False, indent=1))
+        else:
+            for x in listed:
+                print(f"{'  ' * max(0, x['level'] - 1)}{x['section']}  ·  line {x['line']}, {x['chars']:,} characters")
+        return 0
+    print(f"bin/vh know --show: {rel} has " + (f"{len(cands)} sections for {want!r}: " + "; ".join(cands) if cands else f"no section {want!r}; its sections: "
+          + "; ".join(x["section"] for x in listed if x["level"] <= 3)), file=sys.stderr)
+    return 1
+
+
 def main(argv):
     ap = argparse.ArgumentParser(prog="bin/vh know", description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter,
                                  epilog="\n\n".join(__doc__.split("\n\n")[1:]))
@@ -220,12 +289,18 @@ def main(argv):
     ap.add_argument("--kind", help=f"only these kinds, comma-separated ({', '.join(KINDS)})")
     ap.add_argument("-n", type=int, default=0, help="this many of each kind")
     ap.add_argument("--index", action="store_true", help="the index itself, without the texts")
+    ap.add_argument("--show", metavar="FILE#SECTION", help="one section of a markdown file (no #section: the file's sections)")
     ap.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
     kinds = [k.strip() for k in (a.kind or "").split(",") if k.strip()]
     if set(kinds) - set(KINDS) or a.n < 0:
         print(f"bin/vh know: --kind takes {', '.join(KINDS)}; -n is 0 or more", file=sys.stderr)
         return 2
+    if a.show is not None:
+        if a.words or a.index or a.kind or a.n:
+            print("bin/vh know: --show takes one \"<file.md>#<section>\" and nothing else but --json", file=sys.stderr)
+            return 2
+        return main_show(a.show, a.json)
     units = build()
     by_kind = dict(Counter(u["kind"] for u in units))
     if a.index:
@@ -247,6 +322,9 @@ def main(argv):
     hits, q = search(units, query, kinds, a.n)
     out = sys.stderr if a.json else sys.stdout
     print(f"know · {query} · {len(units)} units", file=out)
+    strong = any(h["strong"] for h in hits)
+    if hits and not strong:
+        print("nothing matched strongly: the repo may have nothing on this; the nearest it has:", file=out)
     kind = None
     for h in hits:
         if h["kind"] != kind:
@@ -260,7 +338,7 @@ def main(argv):
     if not hits:
         print("  nothing matched: other words, or bin/vh recipes list / bin/vh style list", file=out)
     if a.json:
-        print(json.dumps({"version": 1, "query": query, "terms": q, "hits": hits, "units": len(units), "by_kind": by_kind}, ensure_ascii=False, indent=1))
+        print(json.dumps({"version": 1, "query": query, "terms": q, "strong": strong, "hits": hits, "units": len(units), "by_kind": by_kind}, ensure_ascii=False, indent=1))
     return 0 if hits else 1
 
 

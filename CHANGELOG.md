@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**`bin/vh know` says when nothing matched strongly, and prints one section by name**
+- Why: it listed its nearest guesses in the same voice whether the repo had a card for the words or not, so an agent could not tell "here it is" from "we have nothing". And to read one section of a playbook an agent had to open the whole file.
+- `tools/know.py`: a hit is strong when it has three quarters of the words, and half of them in its title, tags or summary or a score of 10 or more. When none is, the answer says first that nothing matched strongly. `--json` gains `strong`, at the top and on each hit.
+- `bin/vh know --show "playbook/01-pipeline.md#审阅页"`: that section's text (a `##` with the `###` under it); the heading, its start or a part of it; more than one is listed, not guessed. With no `#section`, the file's sections with their sizes. `--json`.
+
 **`bin/vh tts`: a provider with no key says the key it needs and what works with none**
 - Why: `set DASHSCOPE_API_KEY` was all an agent got, after uv had fetched the provider's package and with the last take already deleted, and nothing said the default needs no key.
 - `tools/audio/tts.py`: `no_key` names the key and where it comes from, then what needs none on this machine: leave the provider out on Apple Silicon (the local qwen), `--provider edge` elsewhere. The check for elevenlabs and dashscope moves up with gemini's and minimax's, before anything is synthesized or deleted.

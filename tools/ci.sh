@@ -5179,7 +5179,7 @@ PY
 }
 
 know_checks() {   # bin/vh know: the index of recipes, styles and the sections read when needed, and what a few words find
-  local t a b q rc rc2
+  local t a b c d q k x rc rc2 rc3
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
   vh know --index --json > "$t/index.json" 2>/dev/null; rc=$?   # a file: the index is over Linux's 128 KB for one argument
   if [ "$rc" = 0 ] && python3 - "$t/index.json" <<'PY'
@@ -5255,7 +5255,43 @@ PY
     a=$(vh $x 2>/dev/null); b=$?; [ "$b" = 2 ] && [ -z "$a" ] || { rc=1; bad "bin/vh $x: exit $b, stdout ${a:0:80}"; }
   done
   vh know zzqqxxkk >/dev/null 2>&1; [ $? = 1 ] || { rc=1; bad "know with nothing matched: not exit 1"; }
+  for x in "know --show $t/x.md extra" "know --show playbook/01-pipeline.md --index" "know --show playbook/01-pipeline.md -n 2"; do
+    # shellcheck disable=SC2086
+    a=$(vh $x 2>/dev/null); b=$?; [ "$b" = 2 ] && [ -z "$a" ] || { rc=1; bad "bin/vh $x: exit $b, stdout ${a:0:80}"; }
+  done
   [ "$rc" = 1 ] || ok "know: usage errors exit 2, nothing on stdout; nothing matched is 1"
+  # weak matches are said to be weak; the words the repo has a card for are not
+  a=$(python3 "$t/tree/tools/know.py" 方向 天气 海洋 2>/dev/null); b=$(python3 "$t/tree/tools/know.py" 方向 天气 海洋 --json 2>/dev/null); c=$(vh know 翻页 纸面 转场 2>/dev/null); q=$(vh know 翻页 纸面 转场 --json 2>/dev/null)
+  if case "$a" in "know · "*$'\n'"nothing matched strongly"*) true ;; *) false ;; esac && case "$c" in *"nothing matched strongly"*) false ;; *) true ;; esac && python3 - "$b" "$q" <<'PY'
+import json, sys
+weak, good = (json.loads(x) for x in sys.argv[1:3])
+sys.exit(0 if weak["strong"] is False and weak["hits"] and not any(h["strong"] for h in weak["hits"]) and good["strong"] is True and good["hits"]
+         and all(isinstance(h["strong"], bool) for h in good["hits"]) else 1)
+PY
+  then ok "know: when every hit is weak it says so first, and --json says strong: false; words with a card are strong"
+  else bad "know, weak and strong: $(printf '%s' "$a" | head -3)"; fi
+  # --show: one section by its heading, the start of it or a part of it, with the ### under a ##; a file's sections; what
+  # is not there, or is more than one, is said on stderr with exit 1
+  a=$(vh know --show "playbook/01-pipeline.md#审阅页" 2>/dev/null); rc=$?
+  b=$(vh know --show "playbook/01-pipeline.md#三道人工关卡" 2>/dev/null); rc2=$?
+  c=$(vh know --show "playbook/03-motion-design.md#4." --json 2>/dev/null); q=$(vh know --show playbook/01-pipeline.md --json 2>/dev/null)
+  if [ "$rc:$rc2" = 0:0 ] && case "$a" in "### 审阅页"*"out/review/gate-<n>.json"*) true ;; *) false ;; esac && case "$a" in *"### 审阅台"*) false ;; *) true ;; esac \
+    && case "$b" in "## 三道人工关卡"*"### 规格"*"### 审阅页"*"### 授权的无人值守模式"*) true ;; *) false ;; esac && case "$b" in *"## 长片"*) false ;; *) true ;; esac \
+    && python3 - "$c" "$q" <<'PY'
+import json, sys
+c, q = (json.loads(x) for x in sys.argv[1:3])
+sys.exit(0 if c["version"] == 1 and c["file"] == "playbook/03-motion-design.md" and c["section"].startswith("4.") and c["level"] == 2 and c["text"].startswith("## 4.")
+         and c["chars"] == len(c["text"]) and [x for x in q["sections"] if x["section"] == "审阅页"][0]["level"] == 3 else 1)
+PY
+  then ok "know --show: a ### section alone, a ## with the ### under it and no further, by the start of its heading; --json; a file's sections"
+  else bad "know --show (exit $rc/$rc2): ${a:0:200} | ${b:0:200} | ${c:0:200}"; fi
+  a=$(vh know --show "playbook/01-pipeline.md#没有这节" 2>&1 >/dev/null); rc=$?
+  b=$(vh know --show "playbook/no-such.md#x" 2>&1 >/dev/null); rc2=$?
+  c=$(vh know --show "../CLAUDE.md#x" 2>&1 >/dev/null); rc3=$?
+  q=$(vh know --show "playbook/01-pipeline.md#审阅" 2>&1 >/dev/null); k=$?
+  if [ "$rc:$rc2:$rc3:$k" = 1:1:1:1 ] && case "$a|$b|$c|$q" in *"no section"*"审阅页"*"|"*"no such markdown file"*"|"*"no such markdown file"*"|"*"2 sections"*"审阅页"*"审阅台"*) true ;; *) false ;; esac
+  then ok "know --show: no such section lists the file's; no such file, or one outside the repo, is said; a part that fits two is listed, not guessed"
+  else bad "know --show on what is not there ($rc/$rc2/$rc3/$k): $a | $b | $c | $q"; fi
   rm -rf "$t"
 }
 

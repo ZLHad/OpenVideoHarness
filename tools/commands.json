@@ -257,6 +257,12 @@
           "text": [
             "the index: every unit's kind, title, file and line, summary and tags"
           ]
+        },
+        {
+          "synopsis": "know --show \"<file.md>#<section>\" [--json]",
+          "text": [
+            "one section of a markdown file, to read it without the whole file (a ## section with the ### under it; no #section: the file's sections)"
+          ]
         }
       ]
     },
