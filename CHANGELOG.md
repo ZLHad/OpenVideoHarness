@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**`bin/vh artifacts`: what this project has, what is missing, what is out of date**
+- Why: an agent picking a project up, and later a client, had `bin/vh status` for where it stands and nothing for its files.
+- `bin/vh artifacts spec [--stage S] [--json]`: the table of `tools/artifacts.json`. `bin/vh artifacts list <project> [--stage S] [--json]`: per kind, the paths found, the version each says, whether it is out of date and why, the `{…}` left in markdown and gate JSON, and what is required by now and missing. It only reads, and is not logged: about 0.2 s on a project of 1.8 GB.
+- Out of date comes from what each record already keeps, through the code that keeps it: `tools/audio/mixstate.py` for a mix, the check record's `film_changed`, the sha256 values of a `.render.json`'s `files` and of `out/cues.json`, `bin/vh clean`'s reading of a `.deliver.json`, a proxy's `source_ident`, `bin/vh versions`' states, `bin/vh cast check`, `bin/vh assets check`. Where nothing can tell, or telling would mean reading more than 1 GiB, it says "not checked" and why.
+
 **`tools/artifacts.json`: every kind of file a film project holds, in one table**
 - Why: to learn what a file in a project is, who writes it, when it must exist, how it goes out of date and what `bin/vh clean` does with it, an agent or a client had to read the code; the docs each knew a part.
 - One entry a kind, read from the code: `id`, `path` (with `<lang>`, `<n>`, `<id>`, `<film>`, `*`), `kind`, `format`, `stages`, `purpose` (one Chinese line), `made_by`, `writers` and `readers` (`tools/commands.json`'s names, and `page`), `required` (when it must exist), `version_key`, `schema`, `stale` (from what, by what, recorded where), `clean`, `doc`.

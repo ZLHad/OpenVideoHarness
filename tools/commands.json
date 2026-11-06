@@ -268,6 +268,44 @@
       ]
     },
     {
+      "name": "artifacts",
+      "summary": "The spec of every kind of file a film project holds (tools/artifacts.json: what it is, who writes and reads it, when it must exist, how it goes out of date, what bin/vh clean does with it), and what this project has of them: the paths, the version each says, the schema's result, what is out of date and why, the {…} left, what is required by now and missing.",
+      "when": "to find out what a file is for and who writes it; picking a project up, to see what it has, what is missing and what is out of date; before a script or a client relies on a file",
+      "stages": ["any"],
+      "reads": [
+        "tools/artifacts.json, tools/schemas/, tools/commands.json",
+        "<project>/ (list: the files themselves, and what each record keeps; only reads, no render and no browser)"
+      ],
+      "writes": [],
+      "usage": [
+        {
+          "synopsis": "artifacts spec [--stage S] [--json]",
+          "text": [
+            "the table: each kind's id, path, purpose, who makes it and when it must exist; --stage: those used at a stage"
+          ]
+        },
+        {
+          "synopsis": "artifacts list <project> [--stage S] [--json]",
+          "text": [
+            "what this project holds, kind by kind: the paths, the version each says, the schema's result, whether it is out of date",
+            "and why (not checked where nothing can tell), the {…} left, and what is required by now and missing; a report: exit 0"
+          ]
+        },
+        {
+          "synopsis": "artifacts check [--json]",
+          "text": [
+            "the table against tools/commands.json, tools/clean.py and tools/schemas/ (tools/ci.sh runs it); exit 1 on a problem",
+            "(bin/vh artifacts -h: the --json fields)"
+          ]
+        }
+      ],
+      "subcommands": [
+        {"name": "spec", "summary": "the table"},
+        {"name": "list", "summary": "what this project holds, is missing and has out of date"},
+        {"name": "check", "summary": "the table against the commands, tools/clean.py and the schemas"}
+      ]
+    },
+    {
       "name": "types",
       "summary": "The video types and their docs.",
       "when": "choosing the type doc for a request (CLAUDE.md, 路由表)",
