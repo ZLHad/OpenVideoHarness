@@ -337,6 +337,7 @@ act_scrub() { # act_scrub <text>: into ACT_A, free text as a log line may hold i
 }
 act_shown() { # act_shown <argument>: into ACT_A, the argument as the log shows it; ACT_HIDE=1 when the next one is its value
   local a=$1 n=""
+  local LC_ALL=C   # in bytes, as tools/activity.py compares: bash 3.2 takes a range by the locale's order, and in a UTF-8 one [A-Z] has b to z: foo=bar read as a variable's, a slug with a digit as a mixed-case key
   ACT_HIDE=""
   case $a in
     --?*=*) n=${a%%=*} ;;

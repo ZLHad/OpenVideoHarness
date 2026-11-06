@@ -5648,15 +5648,21 @@ table = (("--api-key SECRETVALUE111", "--api-key …"), ("--api-key --json", Non
          ("Bearer abc.def", "Bearer …"), ("Cookie: abc", "Cookie: …"), ("token sk-ant-api03-SECRETVALUE1234567890abcdefgh", "token …"), ("AQ.Ab8RN6Lxyz_12345678 was refused", "… was refused"), ("AIzaSyA1234567890abcdefghijklmnop", "…"),
          ("ghp_1234567890abcdefghij", "…"), ("{\"api_key\":\"sk-ant-api03-abcdefgh12345678\"}", "{\"api_key\":\"…\"}"), ("没有这个文件：sk-ant-abcdefgh12345678，请看", "没有这个文件：…，请看"), ("(sk-ant-abcdefgh12345678),", "(…),"),
          ("https://u:pw@example.com/a?sig=abc&v=1#frag", "https://…@example.com/a?sig=…&v=…#…"), ("-k shortval", "-k …"), ("-abc", "-a…"), ("a" * 40, "…"), ("Ab3dEf6.hIj9kLm2n-opQ", "…"), ("0123456789abcdef0123", "…"),
-         ("\udcffsk-ant-abcdefgh12345678", "\\xff…"), ("no such video: /tmp/a b/nofile.mp4", None), ("two  spaces\nand a line", None), ("edit.json: S01: no such thing", None), ("2026-11-06-ci-contract", None), ("keepme.wav --crf 23 --out=a.wav foo=bar", None), ("--bogus word", None), ("片子.mp4", None), ("-5 and 1.5", None))
+         ("\udcffsk-ant-abcdefgh12345678", "\\xff…"), ("no such video: /tmp/a b/nofile.mp4", None), ("two  spaces\nand a line", None), ("edit.json: S01: no such thing", None), ("2026-11-06-ci-contract", None), ("keepme.wav --crf 23 --out=a.wav foo=bar", None), ("FOO_BAR=baz", "FOO_BAR=…"), ("Foo=bar", None), ("--bogus word", None), ("片子.mp4", None), ("-5 and 1.5", None))
 bad = []
+# the bash a Mac has too, and a UTF-8 locale too: under bash 3.2 a range in a pattern goes by the locale, and there [A-Z] takes b
+shells = [sh] + [b for b in ("/bin/bash",) if b != sh and os.path.exists(b)]
 for typed, want in table:
     want = typed if want is None else want
     p = activity._text(activity.scrub(typed))
-    r = subprocess.run([sh, f"{root}/bin/vh", "new", "short", "ci-never-made", typed, "--json"], capture_output=True, text=True, errors="replace", cwd=t)
-    q = json.loads(r.stdout)["error"]["message"] if r.stdout.strip() else r.stderr
-    if p != want or q != "unknown option: " + want:
-        bad.append(f"{typed!r}: Python {p!r}, bash {q!r}, not {want!r}")
+    if p != want:
+        bad.append(f"{typed!r}: Python {p!r}, not {want!r}")
+    for s in shells:
+        for loc in ({}, {"LC_ALL": "en_US.UTF-8"}):
+            r = subprocess.run([s, f"{root}/bin/vh", "new", "short", "ci-never-made", typed, "--json"], capture_output=True, text=True, errors="replace", cwd=t, env=dict(os.environ, **loc))
+            q = json.loads(r.stdout)["error"]["message"] if r.stdout.strip() else r.stderr
+            if q != "unknown option: " + want:
+                bad.append(f"{typed!r}: {s} {loc}: {q!r}, not {want!r}")
     if activity.scrub(p) != p:
         bad.append(f"{typed!r}: said twice, {activity.scrub(p)!r}")
 print("\n".join(bad) or "ok")

@@ -53,7 +53,7 @@
 ```bash
 tools/ci.sh                        # 全部检查；没装 shellcheck、pyflakes、ffmpeg 时，相应几项会跳过
 tools/ci.sh --committed            # 只检查已提交的内容（HEAD），和 CI 看到的一样；推送前用这个
-VH_BASH=/bin/bash tools/ci.sh      # macOS：用系统自带的 bash 3.2 跑，Mac 用户默认用的就是它
+LC_ALL=en_US.UTF-8 VH_BASH=/bin/bash /bin/bash tools/ci.sh   # macOS：系统自带的 bash 3.2 加 UTF-8 locale，Mac 用户默认就是这样，CI 的 macOS 也是
 tools/ci.sh --shard 1/2            # 只跑两个 shard 里的第 1 个，CI 的 macOS 就是这样分两半跑的
 ```
 
