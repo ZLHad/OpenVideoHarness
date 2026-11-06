@@ -15,26 +15,37 @@
 
 `bin/vh new recap <slug>` 建 canvas-film 项目。两条路可以混用：
 
-- **剪辑表 `edit.json`**（`engines/EDIT.md`，默认走这条）：一段一张照片或一个片段，硬切。照片写 `{"image": "assets/photos/a.jpg"}`，推拉写 `move`（画面中心落在照片的哪一点、放大多少）。浏览器解码，手机照片的方向和颜色配置都对。HEIC 不收，先转成 jpg（macOS：`sips -s format jpeg a.heic --out a.jpg`）。片段写 `{"clip": "assets/clips/b.mov"}`，原声默认关，要留就写 `sound`；手机的可变帧率、旋转和 HDR 片段 `bin/vh edit build` 会拒绝，并给出规整它的 ffmpeg 命令（HDR 转 SDR 时颜色怎么转是个决定，要看一眼）。
+- **剪辑表 `edit.json`**（`engines/EDIT.md`，默认走这条）：一段一张照片或一个片段，硬切。照片写 `{"image": "assets/photos/a.jpg"}`，推拉写 `move`（画面中心落在照片的哪一点、放大多少）。浏览器解码，手机照片的方向和颜色配置都对。HEIC 不收，先转成 jpg（macOS：`sips -s format jpeg a.heic --out a.jpg`，拍摄时间留着；别的系统：libheif 的 `heif-convert a.heic a.jpg`）。片段写 `{"clip": "assets/clips/b.mov"}`，原声默认关，要留就写 `sound`；手机的可变帧率、旋转和 HDR 片段 `bin/vh edit build` 会拒绝，并给出规整它的 ffmpeg 命令（HDR 转 SDR 时颜色怎么转是个决定，要看一眼）。
 - **页面**（`src/50-shots.js`）：要在照片上写字、要叠化或翻页（`dim`、`turn`）、要照片墙时，写成镜头，整页作为一段放进剪辑表（`{"page": "film.html", "clock": "film"}`）。剪辑表这一版不画转场和上层字幕，所以这些都在页面里做。没有旁白时，时间用歌（`engines/canvas-film/README.md` 的"配乐主导片"）。
 
-**竖屏**：`edit.json` 的 `size` 写 `[1080, 1920]`，BRIEF 的 Output 一起改；页面只有 16:9（canvas-film 的局限），`bin/vh new` 的 `--aspect` 也不收。
+**竖屏**：`bin/vh new recap <slug> --aspect 9:16`（也收 `4:5`、`3:4`、`1:1`），BRIEF 的 Output 和 `Watch on` 跟着写好，`bin/vh edit init` 的 `size` 按 Output 来。页面还是 16:9，片子走 `edit.json`：竖屏的剪辑表里放不了页面（`bin/vh render` 会拒绝），要用页面的那一段，先单独渲出来（`bin/vh render <项目>/film.html --range a:b --out assets/a.mp4`），再当片段放进来（`{"clip": "assets/a.mp4"}`，`fit: contain` 留边）。
 
 ## 工作流
 
 1. **先问清（关卡 ①；`quick` 最多问 1 个，先问给谁看）**：给谁看、发在哪；多长（一首歌的长度常常就是片长）；哪些照片和人必须有、哪些不能有；要不要字，字谁给。
 2. **入库**：照片放 `assets/photos/`，片段放 `assets/clips/`，整个文件夹登记一条：`bin/vh assets add <项目> assets/photos --origin user --class own`。原图不改，要处理的另存一份。
-3. **读拍摄时间，按时间排**：照片读 EXIF，片段读 `creation_time`：
+3. **读拍摄时间，按时间排**：照片读 EXIF，片段读元数据（手机的 `.JPG`、`.jpeg`、`.HEIC` 都算；Pillow 自己打不开 HEIC，所以带上 `pillow-heif`）：
 
    ```bash
-   uv run -q --no-project --with pillow python - assets/photos/*.jpg <<'PY'
+   uv run -q --no-project --with pillow --with pillow-heif python - assets/photos/* <<'PY'
    import sys
+   from pathlib import Path
    from PIL import Image
+   from pillow_heif import register_heif_opener
+   register_heif_opener()
    for f in sys.argv[1:]:
-       print(Image.open(f).getexif().get_ifd(0x8769).get(36867, "no date"), f)
+       if Path(f).suffix.lower() not in (".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".heic", ".heif"):
+           continue
+       try:
+           e = Image.open(f).getexif().get_ifd(0x8769)
+           print(e.get(36867, "no date"), e.get(36881, "no zone"), f)   # DateTimeOriginal, OffsetTimeOriginal
+       except OSError as x:
+           print("unreadable", x, f)
    PY
-   ffprobe -v error -show_entries format_tags=creation_time -of csv=p=0 assets/clips/b.mov
+   ffprobe -v error -show_entries format_tags=creation_time,com.apple.quicktime.creationdate -of default=nw=1 assets/clips/b.mov
    ```
+
+   **两种时间不在一个钟上**：照片的 `DateTimeOriginal` 是当地时间，不带时区；片段的 `creation_time` 是 UTC。同一台手机在同一个时刻拍的，也差一个时区（在中国差 8 小时）。排之前换到同一个钟上：照片有 `OffsetTimeOriginal`（`+08:00`）就用它，没有就问人当时在哪，再把片段的时间加上这个偏移；iPhone 的片段还有 `com.apple.quicktime.creationdate`，本身就是当地时间带时区，有它就用它。
 
    文件的修改时间不算数，传一次就变了。几台手机的时钟可能差几分钟甚至一个时区，找一个都拍到的时刻对一下。读不出时间的（截图、转发过的图）列出来问人，不猜。排好的清单写进 `NOTES.md`。
 4. **选片和结构（关卡 ①②）**：连拍只留一张。立意不只有"按时间走"：也可以按一个人、按一件反复出现的东西（同一个地方每年一张）、从今天倒着走。大纲的段落按真实的时间或地点分。把清单写成 `edit.json`，`bin/vh storyboard <项目>` 每段出一页预览：人这时候删照片、换顺序最便宜。
@@ -45,7 +56,7 @@
 
 ## 审美要点
 
-- **手机上认得出脸**：`bin/vh new recap` 默认 `Watch on: feed`，横屏片竖着拿手机看，画面只有约 360 px 宽。合影里的脸只剩几个像素：用 `move` 从整张推到要看的那张脸，或者拆成两段。手、戒指、请柬上的字这类小细节要放到占满画面。按 `playbook/02-verification.md` 的"手机测试"缩小联系表看。
+- **手机上认得出脸**：横屏的 recap 默认 `Watch on: feed`，竖着拿手机看，画面只有约 360 px 宽。合影里的脸只剩几个像素：用 `move` 从整张推到要看的那张脸，或者拆成两段。手、戒指、请柬上的字这类小细节要放到占满画面。按 `playbook/02-verification.md` 的"手机测试"缩小联系表看。
 - **竖照片放进横屏**：`fit: contain` 留边（`bg` 定底色）；`fit: cover` 会裁掉上下，要看脸有没有被裁，再用 `move` 的 `from` 把中心放到脸上。
 - **一张照片多给几秒**：起点是 2–5 s，人多的多给；全片 2–3 种推拉，推向脸，不推向空白；照片和片段交替着来。
 - **真实的瑕疵留着**：糊的、歪的，有时候那一刻只有这一张。不磨皮，不把静帧扭成会动的脸。
@@ -72,7 +83,7 @@
 ```text
 + TYPE: photo recap from the person's own photos and clips ({a wedding | a trip | a year}). {2–4} min, {1920x1080 | 1080x1920} 30fps, music: {song, its licence}, watched on {feed | phone | desktop}, seen by {family only | the public}.
 Ask first: who sees it, whether the people in it agree, what must stay out. The material stays on this machine unless the person says otherwise.
-Order by capture time read from the files (EXIF DateTimeOriginal, creation_time), not by file name or modification time; ask about what has none.
+Order by capture time read from the files, on one clock (EXIF DateTimeOriginal is local time with no zone, OffsetTimeOriginal gives it; a clip's creation_time is UTC), not by file name or modification time; ask about what has none.
 Layout in edit.json: one entry a photo or clip, `move` towards a face, at most 2–3 kinds of move, cuts on the song's bars or phrases. A group photo pushes in to the faces that matter; faces and small details must read at 360 px wide.
 Words on screen: only what the person gave (names, dates, places). Nothing invented about real events; no generated or retouched picture passed off as what happened.
 ```
@@ -80,7 +91,7 @@ Words on screen: only what the person gave (names, dates, places). Nothing inven
 ## 自查重点
 
 - 手机大小的联系表：每张的主角认得出吗？小细节看得清吗？
-- 时间顺序对吗？几台手机、跨时区有没有排错？
+- 时间顺序对吗？照片和片段换到同一个钟上了吗？几台手机、跨时区有没有排错？
 - 每行字都是人给的吗？名字写对了吗？
 - 有没有不该放的：人没同意的、证件、住址？
 - 切点落在歌的小节或乐句上吗（`bin/vh beats … --check`）？片尾的音乐收好了吗？

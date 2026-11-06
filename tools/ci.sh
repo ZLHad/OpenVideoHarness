@@ -235,7 +235,7 @@ PY
   # the rules that are stated in more than one place say the same: quick's one question, what bin/vh check takes, and the
   # paper type's steps, which are not gates of their own
   out=""
-  for g in CLAUDE.md playbook/quick.md playbook/01-pipeline.md bin/vh; do grep -q '最多问 1 个' "$g" || out="$out $g does not say quick asks at most 1 question;"; done
+  local place; for place in CLAUDE.md playbook/quick.md playbook/01-pipeline.md bin/vh; do grep -q '最多问 1 个' "$place" || out="$out $place does not say quick asks at most 1 question;"; done
   grep -q '出片前跑一次 `bin/vh check <' CLAUDE.md || out="$out CLAUDE.md's floor does not say what bin/vh check takes;"
   grep -qE '^[0-9]+\. \*\*Gate|Stop after each gate|bin/vh tts <项目> dashscope' video-types/06-paper-explainer.md && out="$out video-types/06 has gates of its own, or a paid provider as the way to run tts;"
   grep -q '没附论文时' video-types/06-paper-explainer.md || out="$out video-types/06 does not say what to do with no paper attached;"
@@ -1777,14 +1777,28 @@ new_checks() {   # bin/vh new: how a type may be written; a scaffold that fails 
   # table has its doc and a row in CLAUDE.md's routing table
   a=$(OVH_PROJECTS="$t/l" vh new long ll 2>&1); rc=$?; p=$(ls -d "$t"/l/*-ll 2>/dev/null)
   b=$(OVH_PROJECTS="$t/l" vh new 11 rr 2>&1); rc2=$?; q=$(ls -d "$t"/l/*-rr 2>/dev/null)
-  OVH_PROJECTS="$t/l" vh new photo-recap r2 --aspect 9:16 >/dev/null 2>"$t/l.err"; rc3=$?
+  OVH_PROJECTS="$t/l" vh new long l4 --aspect 9:16 >/dev/null 2>"$t/l.err"; rc3=$?
   x=$(OVH_PROJECTS="$t/l" vh new long l3 --three 2>&1 >/dev/null); c=$?
-  if [ "$rc:$rc2:$rc3:$c" = 0:0:2:0 ] && [ -f "$p/film.html" ] && [ -f "$q/film.html" ] && [ -f "$(ls -d "$t"/l/*-l3)/three/layer.js" ] && grep -q 'edit.json' "$t/l.err" \
+  if [ "$rc:$rc2:$rc3:$c" = 0:0:2:0 ] && [ -f "$p/film.html" ] && [ -f "$q/film.html" ] && [ -f "$(ls -d "$t"/l/*-l3)/three/layer.js" ] && grep -q 'draws 16:9' "$t/l.err" \
     && grep -q '^- Output: 1920x1080,' "$p/BRIEF.md" && grep -q '^- Engine: canvas-film' "$p/BRIEF.md" && grep -q '^- Watch on: desktop' "$p/BRIEF.md" && grep -q '^- Pace: relaxed' "$p/BRIEF.md" \
     && grep -q '^- Type doc: `video-types/10-long-explainer.md`' "$p/BRIEF.md" && grep -q '^- Watch on: feed' "$q/BRIEF.md" && grep -q '^- Type doc: `video-types/11-photo-recap.md`' "$q/BRIEF.md" \
     && vh status "$p" --json | python3 -c 'import json, sys; n = json.load(sys.stdin)["next_step"]; sys.exit(0 if "video-types/10-long-explainer.md" in n["read"] else 1)'
-  then ok "new long and new recap: canvas-film by default (--three works, --aspect 9:16 is refused), 1920x1080, their Watch on and Pace; status names the doc"
+  then ok "new long and new recap: canvas-film by default (--three works, long's --aspect 9:16 is refused), 1920x1080, their Watch on and Pace; status names the doc"
   else bad "new long, new recap ($rc/$rc2/$rc3/$c): $a | $b | $x | $(cat "$t/l.err")"; fi
+  # a recap in another frame: its Output and Watch on, the one line about pages and edit.json, edit init takes the size, a vertical
+  # recap is not sent to a feed; a recap's next step is the edit list; the next episode keeps the frame
+  a=$(OVH_PROJECTS="$t/l" vh new photo-recap r2 --aspect 9:16 2>&1); rc=$?; p=$(ls -d "$t"/l/*-r2 2>/dev/null)
+  b=$(OVH_PROJECTS="$t/l" vh new recap r3 --aspect 4:5 2>&1 >/dev/null); rc2=$?; q=$(ls -d "$t"/l/*-r3 2>/dev/null)
+  c=$(OVH_PROJECTS="$t/l" vh new recap r4 --aspect 9:16 --watch feed 2>&1); rc3=$?
+  x=$(OVH_PROJECTS="$t/l" vh new recap r5 --aspect 5:4 2>&1); r4=$?
+  printf '%s\n' '{"shots": [{"id": "S01", "start": 0, "end": 2}]}' > "$p/shots.json"; vh edit init "$p" >/dev/null 2>&1; r5=$?
+  OVH_PROJECTS="$t/l" vh new recap r6 --from r2 >/dev/null 2>&1; r6=$?; k=$(ls -d "$t"/l/*-r6 2>/dev/null)
+  if [ "$rc:$rc2:$rc3:$r4:$r5:$r6" = 0:0:2:2:0:0 ] && grep -q '^- Output: 1080x1920,' "$p/BRIEF.md" && grep -q '^- Watch on: phone' "$p/BRIEF.md" && grep -q '片子走 `edit.json`' "$p/BRIEF.md" \
+    && case "$a" in *"frame    : 1080x1920"*"its pages stay 16:9, and the film goes through edit.json at 1080x1920"*) true ;; *) false ;; esac && grep -q '^- Output: 1080x1350,' "$q/BRIEF.md" \
+    && [ "$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["size"])' "$p/edit.json")" = "[1080, 1920]" ] && grep -q '^- Output: 1080x1920,' "$k/BRIEF.md" \
+    && vh status "$q" --json | python3 -c 'import json, sys; n = json.load(sys.stdin)["next_step"]; sys.exit(0 if n["who"] == "agent" else 1)'
+  then ok "new recap --aspect: another frame works: Output and Watch on follow, it says pages stay 16:9 and the film goes through edit.json, edit init takes the size, the next episode keeps it"
+  else bad "new recap --aspect ($rc/$rc2/$rc3/$r4/$r5/$r6): $a | $b | $c | $x"; fi
   # bin/vh new on a name that is there says where to go on; bin/vh check on a name several projects match says that, not "no such video"
   a=$(OVH_PROJECTS="$t/l" vh new long ll 2>&1 >/dev/null); rc=$?
   mkdir -p "$t/dup/2026-01-01-dup" "$t/dup/2026-01-02-dup"; b=$(OVH_PROJECTS="$t/dup" vh check dup 2>&1); rc2=$?; c=$(OVH_PROJECTS="$t/dup" vh check nosuchone 2>&1); rc3=$?
