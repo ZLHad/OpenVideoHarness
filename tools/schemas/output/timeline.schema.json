@@ -1,0 +1,94 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/timeline.schema.json",
+ "title": "bin/vh timeline <project> --resolved --json",
+ "description": "The shots or the edit list, the narration lines, the captions and the beats in one document, each in seconds and frames, with the sha256 of each source file (tools/resolved.py). A row of shots has the fields of its table beside these.",
+ "type": "object",
+ "required": ["version", "tool", "project", "fps", "fps_from", "duration", "duration_from", "frames", "size", "shots_from", "shots", "chapters", "narration", "captions", "beats", "bpm", "sources", "missing"],
+ "properties": {
+  "version": {"enum": [1]},
+  "tool": {"type": "string"},
+  "project": {"type": "string"},
+  "fps": {"type": "number"},
+  "fps_from": {"type": "string"},
+  "duration": {"type": "number"},
+  "duration_from": {"type": ["string", "null"]},
+  "frames": {"type": "integer"},
+  "size": {"type": ["array", "null"]},
+  "shots_from": {"type": ["string", "null"]},
+  "shots": {"type": "array", "items": {"type": "object", "required": ["id", "start", "end", "start_frame", "end_frame"]}},
+  "chapters": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["t", "frame", "title"],
+    "properties": {
+     "t": {"type": "number"},
+     "frame": {"type": "integer"},
+     "title": {"type": ["string", "null"]}
+    }
+   }
+  },
+  "narration": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["id", "start", "end", "start_frame", "end_frame", "text", "word_count"],
+    "properties": {
+     "id": {},
+     "start": {"type": "number"},
+     "end": {"type": "number"},
+     "start_frame": {"type": "integer"},
+     "end_frame": {"type": "integer"},
+     "text": {"type": "string"},
+     "word_count": {"type": "integer"},
+     "words": {"type": "array", "items": {"type": "object"}},
+     "speaker": {},
+     "from": {}
+    }
+   }
+  },
+  "captions": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["start", "end", "start_frame", "end_frame"],
+    "properties": {
+     "id": {},
+     "start": {"type": "number"},
+     "end": {"type": "number"},
+     "start_frame": {"type": "integer"},
+     "end_frame": {"type": "integer"},
+     "zh": {"type": "array"},
+     "en": {"type": "array"},
+     "part": {}
+    }
+   }
+  },
+  "beats": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["t", "frame", "downbeat"],
+    "properties": {
+     "t": {"type": "number"},
+     "frame": {"type": "integer"},
+     "downbeat": {"type": "boolean"}
+    }
+   }
+  },
+  "bpm": {"type": ["number", "null"]},
+  "sources": {"type": "object"},
+  "missing": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["part", "why"],
+    "properties": {
+     "part": {"type": "string"},
+     "why": {"type": "string"}
+    }
+   }
+  }
+ }
+}

@@ -1532,11 +1532,12 @@
     },
     {
       "name": "timeline",
-      "summary": "Check a narration timeline: lines in order, word times forward and inside their line, the words spelling the line.",
+      "summary": "Check a narration timeline: lines in order, word times forward and inside their line, the words spelling the line. --resolved: the whole timeline as one document, in seconds and frames.",
       "when": "after editing a timeline by hand (tts prints it; captions and pace refuse a timeline that fails)",
       "stages": ["4"],
       "reads": [
-        "<project>/audio/timeline.json or timeline.<lang>.json"
+        "<project>/audio/timeline.json or timeline.<lang>.json",
+        "<project>/edit.json, out/edit.resolved.json, shots.json, audio/captions.json and audio/*.beats.json (--resolved)"
       ],
       "writes": [],
       "usage": [
@@ -1545,6 +1546,13 @@
           "text": [
             "the narration timeline's checks: lines in order, word times forward and inside their line, the words",
             "spelling the line's text (exit 1 on a problem); tts prints them, captions and pace refuse a timeline that fails"
+          ]
+        },
+        {
+          "synopsis": "timeline <project> --resolved [zh|en] [--words] [--json]",
+          "text": [
+            "one timeline to read: shots or the edit list, narration lines, captions and beats, each in seconds and frames, with the sha256",
+            "of each source file; a part that is not there is an empty list, and says why (tools/resolved.py; --json: the fields in its -h)"
           ]
         }
       ]

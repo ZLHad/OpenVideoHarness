@@ -5643,6 +5643,104 @@ PY
   rm -rf "$t"
 }
 
+resolved_checks() {   # bin/vh timeline --resolved: an edit list (its build's record, and resolved in memory with none), shots.json, a page's own shots
+  # from a render's record, parts missing, a template's example; the frames against the rule; nothing written, nothing logged; timeline's
+  # own arguments as they were
+  local t p a b rc c
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd -P)
+  # an edit list, with narration, captions and beats
+  p="$t/e"; mkdir -p "$p/audio"; printf '# BRIEF\n- Effort: quick\n' > "$p/BRIEF.md"
+  cat > "$p/edit.json" <<'EOF'
+{"v": 1, "fps": 30, "size": [320, 180], "refs": {"timeline": "audio/timeline.zh.json"}, "sources": {"black": {"color": "#000000"}, "white": {"color": "#ffffff"}},
+ "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "black", "end": "@l1>", "segment": "一", "reads": "黑"}, {"id": "S02", "src": "white", "dur": 1.5}, {"id": "S03", "src": null, "dur": 0.5, "unsure": "还没画"}]}],
+ "chapters": [{"t": 0, "title": "开头"}, {"t": "@|S02", "title": "后面"}]}
+EOF
+  printf '%s' '{"provider": "test", "lang": "zh", "duration": 3.1, "segments": [{"id": "l1", "start": 0, "end": 1.0333, "text": "第一句", "words": [{"w": "第一", "start": 0, "end": 0.5}, {"w": "句", "start": 0.5, "end": 1.0}]}, {"id": "l2", "start": 1.5, "end": 2.9, "text": "第二句"}]}' > "$p/audio/timeline.zh.json"
+  printf '%s' '[{"id": "c1", "start": 0, "end": 1.0333, "zh": ["第一句"], "words": []}, {"id": "c2", "start": 1.5, "end": 2.9, "zh": ["第二句"], "en": ["two"]}]' > "$p/audio/captions.json"
+  printf '%s' '{"bpm": 120, "offset": 0, "beats": [0, 0.5, 1.0, 1.5, 2.0], "downbeats": [0, 2.0], "duration": 3}' > "$p/audio/song.beats.json"
+  find "$p" -type f | sort > "$t/before"
+  a=$(vh timeline "$p" --resolved --json 2>&1); rc=$?
+  find "$p" -type f | sort > "$t/after"
+  vh edit build "$p" >/dev/null 2>&1
+  python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f)); d["note"] = "from the record"; d["entries"][0]["label"] = "from the record"; json.dump(d, open(f, "w"))' "$p/out/edit.resolved.json"
+  b=$(vh timeline "$p" --resolved --json --words 2>&1); c=$?
+  if [ $rc = 0 ] && [ $c = 0 ] && cmp -s "$t/before" "$t/after" && python3 - "$a" "$b" "$p" <<'PY'
+import hashlib, json, sys
+a, b, p = json.loads(sys.argv[1]), json.loads(sys.argv[2]), sys.argv[3]
+sha = lambda f: hashlib.sha256(open(f, "rb").read()).hexdigest()   # noqa: E731
+ok = a["version"] == 1 and a["fps"] == 30 and a["fps_from"] == "edit.json" and a["frames"] == 91 and a["duration_from"] == "edit.json" and a["shots_from"] == "edit.json" and a["size"] == [320, 180]
+s = a["shots"]
+ok = ok and [x["id"] for x in s] == ["S01", "S02", "S03"] and s[0]["end_frame"] == s[1]["start_frame"] == 31 and s[1]["end_frame"] == 76 and s[0]["start"] == 0 and s[0]["segment"] == "一" and s[2]["kind"] == "slate"
+n = a["narration"]
+ok = ok and [x["id"] for x in n] == ["l1", "l2"] and n[0]["end_frame"] == 31 and n[0]["word_count"] == 2 and "words" not in n[0] and n[1]["start_frame"] == 45 and n[1]["end_frame"] == 87 and n[0]["text"] == "第一句"
+c = a["captions"]
+ok = ok and [x["id"] for x in c] == ["c1", "c2"] and c[1]["start_frame"] == 45 and c[1]["en"] == ["two"] and "words" not in c[0]
+bt = a["beats"]
+ok = ok and [x["frame"] for x in bt] == [0, 15, 30, 45, 60] and [x["downbeat"] for x in bt] == [True, False, False, False, True] and a["bpm"] == 120
+ok = ok and a["chapters"] == [{"t": 0, "frame": 0, "title": "开头"}, {"t": s[1]["start"], "frame": 31, "title": "后面"}]
+want = {"shots": "edit.json", "narration": "audio/timeline.zh.json", "captions": "audio/captions.json", "beats": "audio/song.beats.json"}
+ok = ok and {k: v["path"] for k, v in a["sources"].items()} == want and all(v["sha256"] == sha(f"{p}/{v['path']}") for v in a["sources"].values()) and a["missing"] == []
+ok = ok and b["shots"][0].get("label") == "from the record" and b["narration"][0]["words"] == [{"w": "第一", "start": 0, "end": 0.5}, {"w": "句", "start": 0.5, "end": 1.0}]
+sys.exit(0 if ok else 1)
+PY
+  then ok "timeline --resolved on an edit list: shots, narration, captions and beats in seconds and frames, with each source's sha256; it takes bin/vh edit build's record while that is of this edit.json, the same code in memory with none; it writes nothing"
+  else bad "timeline --resolved on an edit list (exit $rc, $c): $(printf '%s' "$a" | tail -c 500)"; fi
+  # a record of another edit.json is not taken; one that does not resolve is said, and the rest is there
+  python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f)); d["fps"] = 30; d["tracks"][0]["entries"][1]["dur"] = 2; json.dump(d, open(f, "w"))' "$p/edit.json"
+  a=$(vh timeline "$p" --resolved --json 2>&1 | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d["shots"][1]["end_frame"], d["shots"][0].get("label"))' 2>&1)
+  printf 'not json' > "$p/edit.json"
+  b=$(vh timeline "$p" --resolved --json 2>&1); rc=$?
+  if [ "$a" = "91 None" ] && [ $rc = 0 ] && python3 - "$b" <<'PY'
+import json, sys
+d = json.loads(sys.argv[1])
+sys.exit(0 if d["shots"] == [] and d["missing"][0]["part"] == "shots" and "does not resolve" in d["missing"][0]["why"] and len(d["narration"]) == 2 and d["fps_from"] in ("BRIEF.md", "the default") else 1)
+PY
+  then ok "timeline --resolved: a build's record of another edit.json is not taken; an edit.json that does not resolve is said, and the other parts are there"
+  else bad "timeline --resolved, a changed or broken edit.json: '$a', exit $rc: $(printf '%s' "$b" | tail -c 400)"; fi
+  # shots.json, the frame rate from the BRIEF, the language asked for
+  p="$t/s"; mkdir -p "$p/audio"; printf '# BRIEF\n- Output: 1080x1920, 25 fps, 10 s\n' > "$p/BRIEF.md"
+  printf '%s' '{"shots": [{"id": "A", "start": 0, "end": 2.5, "reads": ["一"], "segment": "x"}, {"id": "B", "start": 2.5, "end": 4}]}' > "$p/shots.json"
+  printf '%s' '{"provider": "t", "lang": "en", "duration": 1, "segments": [{"id": "e1", "start": 0, "end": 1, "text": "one"}]}' > "$p/audio/timeline.en.json"
+  a=$(vh timeline "$p" --resolved en --json 2>&1); rc=$?
+  b=$(vh timeline "$p" --resolved zh --json 2>&1); c=$?
+  if [ "$rc:$c" = 0:0 ] && python3 - "$a" "$b" <<'PY'
+import json, sys
+a, b = json.loads(sys.argv[1]), json.loads(sys.argv[2])
+ok = a["fps"] == 25 and a["fps_from"] == "BRIEF.md" and a["shots_from"] == "shots.json" and [x["start_frame"] for x in a["shots"]] == [0, 63] and a["shots"][1]["end_frame"] == 100 and a["frames"] == 100 and a["duration"] == 4 and a["duration_from"] == "the last end"
+ok = ok and a["narration"][0]["text"] == "one" and a["sources"]["narration"]["path"] == "audio/timeline.en.json" and b["narration"] == [] and {m["part"] for m in a["missing"]} == {"captions", "beats"} and {m["part"] for m in b["missing"]} == {"narration", "captions", "beats"}
+sys.exit(0 if ok else 1)
+PY
+  then ok "timeline --resolved on shots.json: seconds and frames at the BRIEF's rate (a boundary as the repo counts it), the language asked for, what is missing said"
+  else bad "timeline --resolved on shots.json (exit $rc, $c): $(printf '%s' "$a$b" | tail -c 500)"; fi
+  # a page with neither: its film's .render.json, from the film's own first frame; with no film, said; the template's example is no take
+  p="$t/g"; mkdir -p "$p/out" "$p/audio"; printf '# BRIEF\n' > "$p/BRIEF.md"; : > "$p/film.html"
+  printf '%s' '{"provider": "example", "segments": [{"id": "x", "start": 0, "end": 1, "text": "示例"}]}' > "$p/audio/timeline.zh.json"
+  a=$(vh timeline "$p" --resolved --json 2>&1); rc=$?
+  : > "$p/out/film.mp4"
+  printf '%s' '{"version": 1, "fps": 30, "frames": 60, "first_frame": 30, "shots": [{"id": "P1", "start": 1, "end": 2, "segment": "s"}, {"id": "P2", "start": 2, "end": 3}]}' > "$p/out/film.mp4.render.json"
+  b=$(vh timeline "$p" --resolved --json 2>&1); c=$?
+  if [ "$rc:$c" = 0:0 ] && python3 - "$a" "$b" <<'PY'
+import json, sys
+a, b = json.loads(sys.argv[1]), json.loads(sys.argv[2])
+why = {m["part"]: m["why"] for m in a["missing"]}
+ok = a["shots"] == [] and "browser" in why["shots"] and "example" in why["narration"] and "narration" not in a["sources"] and a["fps"] == 30 and a["fps_from"] == "the default"
+ok = ok and b["shots_from"] == "out/film.mp4.render.json" and [(x["id"], x["start"], x["start_frame"], x["end_frame"]) for x in b["shots"]] == [("P1", 0, 0, 30), ("P2", 1, 30, 60)] and b["frames"] == 60 and b["duration"] == 2 and b["sources"]["shots"]["path"] == "out/film.mp4.render.json"
+sys.exit(0 if ok else 1)
+PY
+  then ok "timeline --resolved on a page: its own shots from its film's .render.json, with no browser; with no film that is said; the template's example is no take"
+  else bad "timeline --resolved on a page (exit $rc, $c): $(printf '%s' "$a$b" | tail -c 600)"; fi
+  # nothing logged; timeline's own arguments as they were; a failure's shape
+  rm -f "$t/s/.ovh/activity.jsonl"
+  vh timeline "$t/s" --resolved >"$t/human" 2>&1; rc=$?
+  a=$(cat "$t/s/.ovh/activity.jsonl" 2>/dev/null | wc -l | tr -d ' ')
+  grep -q 'shots.*shots.json' "$t/human" && grep -q '! captions' "$t/human" || rc=9
+  vh timeline "$t/s" en >"$t/lint" 2>&1; c=$?
+  b=$(cat "$t/s/.ovh/activity.jsonl" 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$rc:$a:$c:$b" = 0:0:0:2 ] && grep -q 'timeline: sound' "$t/lint" && grep -q 'timeline.en.json' "$t/lint"; then ok "timeline: --resolved is read-only and not logged, with its human lines; timeline <project> [zh|en] is the same check as ever, and logged"
+  else bad "timeline's arguments: --resolved $rc, log $a; lint $c, log $b: $(tail -c 300 "$t/lint")"; fi
+  rm -rf "$t"
+}
+
 film_browser_here() { # is there a browser the page tools can draw with? (cancel_checks' real render; as bin/vh's film_browser looks)
   python3 - <<'PY'
 import os, shutil, sys

@@ -26,6 +26,7 @@ projects_checks 8
 contract_checks 30
 cancel_checks 25
 peaks_checks 6
+resolved_checks 6
 know_checks 6
 artifacts_checks 12
 assets_checks 108

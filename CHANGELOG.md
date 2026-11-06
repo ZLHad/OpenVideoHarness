@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`bin/vh timeline <project> --resolved`: one timeline to read**
+- Why: a client that draws a timeline had to know each project's table, the timeline's name, the captions' shape, the beats' file and two ways to count frames; an edit list had a resolved record and a project with only `shots.json` had none.
+- `bin/vh timeline <project> --resolved [zh|en] [--words] [--json]`: shots or the edit list, narration lines, captions and beats in one document, each in seconds and frames as the repo counts them (`tools/timegrid.py`), with the sha256 of each source file, `fps`, `duration`, `frames`, and where each came from.
+- It reads what `bin/vh edit build` resolves: its `out/edit.resolved.json` while that is of this `edit.json`, else the same code in memory, no write. A project with `shots.json`, and a page with neither, through the shots its film's `.render.json` kept: no browser is started.
+- A part that is not there, or cannot be read, is an empty list and a row of `missing` with why; the template's example timeline is no take. `--resolved` only reads and is not logged; `bin/vh timeline <project> [zh|en]` is the same check as ever.
+
 **`bin/vh peaks`; `bin/vh status --json` has `media`**
 - Why: a client had a proxy to scrub and thumbnails, nothing to draw the sound with, and no one place that said which of these exist for the film it is showing.
 - `bin/vh peaks <audio | film | project> [--bins 1000] [--json]`: a waveform as min and max per bin, in -1…1, through ffmpeg and the standard library. The record goes beside the proxies (`out/proxy/<name>.peaks.json`) with its source's size and mtime, so a repeat reads it and starts no ffmpeg.

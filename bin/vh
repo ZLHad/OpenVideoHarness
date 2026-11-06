@@ -1211,7 +1211,9 @@ cmd_captions() { # --media-end S: where a caption too short for its minimum may 
 cmd_beats() { # --png draws the check's picture: pillow joins librosa only then
   local a pil=""; for a in "$@"; do [ "$a" = --png ] && pil="--with pillow"; done
   on_ctrl_c uv run -q --no-project --with librosa $pil python "$ROOT/tools/audio/beats.py" "$@"; }
-cmd_timeline() { [ $# -gt 0 ] || { cmd_usage timeline >&2; exit 2; }; python3 "$ROOT/tools/audio/timeline_lint.py" "$@"; }
+cmd_timeline() { [ $# -gt 0 ] || { cmd_usage timeline >&2; exit 2; }   # --resolved: one document of the whole timeline (tools/resolved.py), else the narration's checks
+  case " $* " in *" --resolved "*) exec python3 "$ROOT/tools/resolved.py" "$@" ;; esac
+  python3 "$ROOT/tools/audio/timeline_lint.py" "$@"; }
 cmd_remap() { [ $# -gt 0 ] || { cmd_usage remap >&2; exit 2; }; python3 "$ROOT/tools/audio/remap.py" "$@"; }
 cmd_timemap() { [ $# -gt 0 ] || { cmd_usage timemap >&2; exit 2; }; python3 "$ROOT/tools/audio/time_map.py" "$@"; }   # stdlib only
 cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then; --provider lyria is a generated track (stdlib and ffmpeg)
@@ -1291,6 +1293,7 @@ case "${1:-}" in   # the activity log: every command that works on a project (ac
   hdri) [ "${2:-}" != get ] || act_start "$@" || true ;;   # search only reads
   concept) [ "${2:-}" != board ] || act_start "$@" || true ;;   # roulette only reads
   edit) case "${2:-}" in init|build) act_start "$@" || true ;; esac ;;   # check and list only read
+  timeline) case " $* " in *" --resolved "*) ;; *) act_start "$@" || true ;; esac ;;   # --resolved only reads
   assets) case "${2:-}" in add|remove|credits) act_start "$@" || true ;; esac ;;   # list and check only read
   cast) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list and check only read
   scout|ref) case "${2:-}" in list) ;; *) act_start "$@" || true ;; esac ;;   # list only reads
