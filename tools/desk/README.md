@@ -194,7 +194,7 @@ JSON 的格式：
 
 ### 波形：`bin/vh peaks <音频|片子|项目> [--bins 1000] [--json]`
 
-每一格的最小和最大值（`peaks`：`[[min, max], …]`，-1 到 1），ffmpeg 解成 8 kHz 单声道，只用标准库。记录放在代理旁边（`out/proxy/<名字>.peaks.json`，别的 `--bins` 是 `<名字>.peaks-<N>.json`），带着来源的大小和修改时间，来源没变再跑一次只读记录，不起 ffmpeg。字段见 `bin/vh peaks -h`。
+每一格的最小和最大值（`peaks`：`[[min, max], …]`，-1 到 1，各声道放在一起算），ffmpeg 解成 48 kHz、声道不混、分块读，只用标准库，两小时的片子半分钟，内存 130 MB 上下，和片长无关。看不到的：两个采样点之间的峰值（真峰值可能更高），和 24 kHz 以上的内容。记录放在代理旁边（`out/proxy/<名字>.peaks.json`，别的 `--bins` 是 `<名字>.peaks-<N>.json`），带着来源的大小和修改时间，来源没变再跑一次只读记录，不起 ffmpeg。字段见 `bin/vh peaks -h`。
 
 ### 一条时间线：`bin/vh timeline <项目> --resolved [zh|en] [--words] [--json]`
 

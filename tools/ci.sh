@@ -5681,6 +5681,62 @@ sys.exit(0 if json.load(open(f"{t}/o1"))["error"]["code"] == "not_found" and jso
 PY
   then ok "peaks: a source that changed is read again; a project means its film; outside a project, proxy/ beside the file; no sound is exit 1 and no such file exit 2, in the error's shape"
   else bad "bin/vh peaks: '$a' '$b' exit $c, $rc, $rc2: $(cat "$t/o1" "$t/o2" | tail -c 300)"; fi
+  # what it reads: high tones, one channel alone, two in opposite phase, more than two; a block's doubling; a record of another shape; a folder that takes no file
+  a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PY' 2>&1
+import array, io, json, os, subprocess, sys
+sh, root, t = sys.argv[1:]
+sys.path.insert(0, f"{root}/tools")
+bad = []
+def V(*a):
+    return subprocess.run([sh, f"{root}/bin/vh", *a], capture_output=True, text=True, stdin=subprocess.DEVNULL)
+os.makedirs(f"{t}/s", exist_ok=True)
+for name, expr, lo, hi in (("6 kHz", "0.9*sin(2*PI*6000*t)", 0.85, 0.95), ("3.9 kHz", "0.9*sin(2*PI*3900*t)", 0.85, 0.95), ("left only", "0.8*sin(2*PI*440*t)|0", 0.75, 0.85), ("opposite phase", "0.8*sin(2*PI*440*t)|-0.8*sin(2*PI*440*t)", 0.75, 0.85),
+                           ("third of three", "0|0|0.8*sin(2*PI*440*t)", 0.75, 0.85), ("a quiet mono", "0.1*sin(2*PI*440*t)", 0.08, 0.12)):
+    f = f"{t}/s/{name.replace(' ', '-')}.wav"
+    subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i", f"aevalsrc={expr}:s=48000:d=1", f], check=True)
+    r = V("peaks", f, "--bins", "4", "--json")
+    d = json.loads(r.stdout) if r.returncode == 0 else {}
+    want = len(expr.split("|"))
+    if not (d.get("channels") == want and d.get("rate") == 48000 and d.get("samples") == 48000 and d.get("duration") == 1.0 and all(lo < mx < hi and -hi < mn < -lo for mn, mx in d.get("peaks", [[9, 9]]))):
+        bad.append(f"{name}: exit {r.returncode}, channels {d.get('channels')}, {d.get('peaks')}, {r.stderr[-200:]}")
+# blocks: min and max of the whole, whatever the chunks and however often a block doubled; never more than cap
+import peaks
+for n, cap in ((5, 8), (8, 8), (9, 8), (100, 8), (100001, 16), (1 << 21, 64)):
+    a = array.array("h", ((i * 7919) % 40001 - 20000 for i in range(n)))
+    if sys.byteorder == "big":
+        a.byteswap()
+    mins, maxs, total = peaks.blocks(io.BytesIO(a.tobytes()).read, cap=cap)
+    if sys.byteorder == "big":
+        a.byteswap()
+    if total != n or min(mins) != min(a) or max(maxs) != max(a) or len(mins) > cap + 1 or len(mins) != len(maxs):
+        bad.append(f"blocks {n}, cap {cap}: {total}, {min(mins)}, {max(maxs)}, {len(mins)} blocks")
+    b = peaks.bins_of(mins, maxs, 4)
+    if len(b) != min(4, len(mins)) or min(x[0] for x in b) != round(min(a) / 32768, 4) or max(x[1] for x in b) != round(max(a) / 32768, 4):
+        bad.append(f"bins of {n}, cap {cap}: {b}")
+# a record of another shape, or another tool's rate, is made again; garbage too
+f = f"{t}/s/6-kHz.wav"
+rec = f"{t}/s/proxy/6-kHz.peaks-4.json"
+good = json.load(open(rec))
+for name, x in (("a list", "[1]"), ("no list of peaks", json.dumps(dict(good, peaks=7))), ("a peak of another shape", json.dumps(dict(good, peaks=[1, 2, 3, 4]))), ("no duration", json.dumps({k: v for k, v in good.items() if k != "duration"})), ("the old rate", json.dumps(dict(good, rate=8000))), ("garbage", "garbage")):
+    with open(rec, "w") as o: o.write(x)
+    r = V("peaks", f, "--bins", "4", "--json")
+    d = json.loads(r.stdout) if r.returncode == 0 else {}
+    r2 = V("peaks", f, "--bins", "4")
+    if d.get("state") != "made" or "up to date" not in r2.stdout:
+        bad.append(f"a record that is {name}: exit {r.returncode}, {d.get('state')}, {r.stderr[-200:]}")
+# a folder that takes no file: the record on stdout all the same, said on stderr
+ro = f"{t}/ro"; os.makedirs(ro); subprocess.run(["cp", f, f"{ro}/r.wav"], check=True); os.chmod(ro, 0o555)
+r = V("peaks", f"{ro}/r.wav", "--bins", "4", "--json")
+os.chmod(ro, 0o755)
+if os.geteuid() != 0:
+    d = json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else {}
+    if not (len(d.get("peaks", [])) == 4 and d.get("state") == "made" and "could not be kept" in r.stderr):
+        bad.append(f"a read-only folder: exit {r.returncode}, {r.stdout[:120]}, {r.stderr[-200:]}")
+print("\n".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "peaks: every channel kept and 48 kHz: 6 kHz, one channel alone, opposite phase and the third of three read as they are; blocks that double keep the memory bounded and the extremes whole; a record of another shape is made again; a read-only folder still gets the record on stdout" \
+    || bad "bin/vh peaks, what it reads: $(printf '%s' "$a" | tail -c 1200)"
   # status's media: the film from versions, each path once it exists; with no working ffmpeg, and it writes nothing
   vh proxy "$p/out/film.mp4" >/dev/null 2>&1; vh thumbs "$p/out/film.mp4" --every 1 >/dev/null 2>&1
   python3 - "$p" <<'PY'

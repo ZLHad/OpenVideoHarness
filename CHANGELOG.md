@@ -22,7 +22,7 @@
 
 **`bin/vh peaks`; `bin/vh status --json` has `media`**
 - Why: a client had a proxy to scrub and thumbnails, nothing to draw the sound with, and no one place that said which of these exist for the film it is showing.
-- `bin/vh peaks <audio | film | project> [--bins 1000] [--json]`: a waveform as min and max per bin, in -1…1, through ffmpeg and the standard library. The record goes beside the proxies (`out/proxy/<name>.peaks.json`) with its source's size and mtime, so a repeat reads it and starts no ffmpeg.
+- `bin/vh peaks <audio | film | project> [--bins 1000] [--json]`: a waveform as min and max per bin, in -1…1, through ffmpeg and the standard library, across the channels, at 48 kHz, read in chunks: one channel alone, two in opposite phase and a 6 kHz tone read as they are, and two hours take half a minute and some 130 MB, as little as ten minutes do. The record goes beside the proxies (`out/proxy/<name>.peaks.json`) with its source's size and mtime, so a repeat reads it and starts no ffmpeg; a record of another shape is made again, and a folder that takes no file still gets the waveform on stdout.
 - `bin/vh status --json` gains `media`: the current film (from versions, else what `bin/vh check` takes), its proxy, thumbs and peaks if they exist, as project-relative paths, and `stale`, which of them were made of another film. It only reads and computes nothing; `bin/vh projects` takes its film from there.
 
 **`bin/vh cancel`; tts, deliver, patch, proxy and thumbs say how far they are**

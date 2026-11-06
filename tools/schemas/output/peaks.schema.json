@@ -4,7 +4,7 @@
  "title": "bin/vh peaks <audio | film | project> --json",
  "description": "A waveform, min and max per bin in -1…1, and what it was made of (tools/peaks.py); the same as the record beside the proxies, with state.",
  "type": "object",
- "required": ["version", "tool", "source", "source_ident", "asked", "bins", "rate", "samples", "duration", "peaks", "t", "at", "state"],
+ "required": ["version", "tool", "source", "source_ident", "asked", "bins", "rate", "channels", "samples", "duration", "peaks", "t", "at", "state"],
  "properties": {
   "version": {"enum": [1]},
   "tool": {"type": "string"},
@@ -20,6 +20,7 @@
   "asked": {"type": "integer"},
   "bins": {"type": "integer"},
   "rate": {"type": "integer"},
+  "channels": {"type": "integer"},
   "samples": {"type": "integer"},
   "duration": {"type": "number"},
   "peaks": {"type": "array", "items": {"type": "array", "items": {"type": "number"}}},
