@@ -1756,6 +1756,30 @@ new_checks() {   # bin/vh new: how a type may be written; a scaffold that fails 
   if [ -z "$a" ] && [ "$rc:$rc2:$rc3" = 2:2:2 ] && case "$b|$c" in *"already --watch phone"*"|"*"unknown aspect"*) true ;; *) false ;; esac && [ -z "$(ls -d "$ROOT"/projects/*-ci-x 2>/dev/null)" ]
   then ok "new: the type by its short name, number, doc name, that name's stem or the doc's path, and the same rules apply after it; another word is a usage error"
   else bad "new, the ways to write a type:$a ($rc/$rc2/$rc3): $b | $c"; fi
+  # long and recap: canvas-film without asking, their frame, where they are watched and their pace; each type in bin/vh's
+  # table has its doc and a row in CLAUDE.md's routing table
+  a=$(OVH_PROJECTS="$t/l" vh new long ll 2>&1); rc=$?; p=$(ls -d "$t"/l/*-ll 2>/dev/null)
+  b=$(OVH_PROJECTS="$t/l" vh new 11 rr 2>&1); rc2=$?; q=$(ls -d "$t"/l/*-rr 2>/dev/null)
+  OVH_PROJECTS="$t/l" vh new photo-recap r2 --aspect 9:16 >/dev/null 2>"$t/l.err"; rc3=$?
+  x=$(OVH_PROJECTS="$t/l" vh new long l3 --three 2>&1 >/dev/null); c=$?
+  if [ "$rc:$rc2:$rc3:$c" = 0:0:2:0 ] && [ -f "$p/film.html" ] && [ -f "$q/film.html" ] && [ -f "$(ls -d "$t"/l/*-l3)/three/layer.js" ] && grep -q 'canvas-film' "$t/l.err" \
+    && grep -q '^- Output: 1920x1080,' "$p/BRIEF.md" && grep -q '^- Engine: canvas-film' "$p/BRIEF.md" && grep -q '^- Watch on: desktop' "$p/BRIEF.md" && grep -q '^- Pace: relaxed' "$p/BRIEF.md" \
+    && grep -q '^- Type doc: `video-types/10-long-explainer.md`' "$p/BRIEF.md" && grep -q '^- Watch on: feed' "$q/BRIEF.md" && grep -q '^- Type doc: `video-types/11-photo-recap.md`' "$q/BRIEF.md" \
+    && vh status "$p" --json | python3 -c 'import json, sys; n = json.load(sys.stdin)["next_step"]; sys.exit(0 if "video-types/10-long-explainer.md" in n["read"] else 1)'
+  then ok "new long and new recap: canvas-film by default (--three works, --aspect 9:16 is refused), 1920x1080, their Watch on and Pace; status names the doc"
+  else bad "new long, new recap ($rc/$rc2/$rc3/$c): $a | $b | $x | $(cat "$t/l.err")"; fi
+  a=$(python3 - "$("$VH_BASH" "$ROOT/bin/vh" types)" <<'PY'
+import re, sys
+from pathlib import Path
+docs = sorted(p.stem for p in Path("video-types").glob("[0-9][0-9]-*.md"))
+listed = re.findall(r"video-types/(\d\d-[\w-]+)\.md", sys.argv[1])
+route = Path("CLAUDE.md").read_text(encoding="utf-8")
+route = route[route.index("## 路由表"):route.index("## 硬规则")]
+bad = [f"{d}: not in bin/vh types" for d in docs if d not in listed] + [f"{d}: no doc" for d in listed if d not in docs] + [f"{d}: not in CLAUDE.md's routing table" for d in docs if f"video-types/{d}.md" not in route]
+print("; ".join(bad))
+PY
+)
+  [ -z "$a" ] && ok "each type doc is in bin/vh types and CLAUDE.md's routing table" || bad "type docs against bin/vh types and the routing table: $a"
   # a failed init: no ✓, npx's last lines, the command that finishes it, exit 1; status says it first; the command finishes it
   mkdir "$t/bad"; printf '#!/bin/sh\nfor i in 1 2 3 4 5 6 7 8 9 10 11 12; do echo "npx line $i"; done\nexit 1\n' > "$t/bad/npx"; printf '#!/bin/sh\nexit 1\n' > "$t/bad/npm"; chmod +x "$t/bad/npx" "$t/bad/npm"
   hf_standin "$t/good"

@@ -28,7 +28,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 
 Read `<harness>/CLAUDE.md` (Codex: `<harness>/AGENTS.md`, which is identical) and follow it exactly:
 
-- route the request to one of the 9 `video-types/` docs (09, editing the user's own footage, is experimental);
+- route the request to one of the 11 `video-types/` docs (09, editing the user's own footage, and 11, a recap of the user's own photos, are experimental);
 - create the project with `<harness>/bin/vh new <type> <slug>`;
 - stop for the user where effort and director mode say (CLAUDE.md "努力程度" and "导演模式"): `standard` and `studio` stop at the **three human review gates** (concept and outline → storyboard → first draft); `quick` renders straight through. Anything the user said they want to decide themselves (hook, main character, theme music, title and cover …) adds a stop before anything downstream needs it, or rides on the next gate if it can wait. Each stop is by default one local review page from `bin/vh review`, at most three decisions; send the user only the lines it prints, then wait;
 - follow the hard rules: every frame is a pure function of t; when there is sound, audio sets the timing; storyboard before code; self-review every scene; fact discipline;

@@ -19,6 +19,8 @@ declare -a TYPES=(
   "handdrawn:07-hand-drawn:手绘/水彩/白板/剪纸/角色短片（ClaudeAnimationBase）"
   "meme:08-brutalist-meme:网络梗/野兽派快剪（HyperFrames）"
   "edit:09-editing-talking-head:真人素材剪辑/口播，用户自己的素材（实验中；HyperFrames）"
+  "long:10-long-explainer:长讲解，10 分钟以上的横屏（canvas-film）"
+  "recap:11-photo-recap:照片回顾，用户自己的照片和片段：婚礼、旅行、一年回顾（实验中；canvas-film + 剪辑表）"
 )
 type_doc() { for t in "${TYPES[@]}"; do IFS=: read -r k f _ <<<"$t"; [ "$k" = "$1" ] && { echo "$f"; return; }; done; return 1; }
 type_key() { # type_key <word>: a type's short name, from the short name, its number (02), its doc's name (02-knowledge-short, also as video-types/02-knowledge-short.md) or that name's stem (knowledge-short)
@@ -494,6 +496,7 @@ cmd_new() {
       esac
     fi
   fi
+  [ -n "$engine" ] || case "$type" in long|recap) engine=canvas-film ;; esac   # these two types' own engine
   case "$lang" in ""|zh|en) ;; *) echo "unknown --lang: $lang (zh | en: the language of the review pages, from the user's first request)" >&2; exit 2 ;; esac
   case "$engine" in ""|canvas-film) ;; *) echo "unknown --engine: $engine (canvas-film; leave it out for the type's own engine)" >&2; exit 2 ;; esac
   [ -z "$fromdir" ] || [ "$engine" != canvas-film ] || [ ! -f "$fromdir/three/layer.js" ] || three=1   # an episode keeps the series' Three.js layer
@@ -521,7 +524,7 @@ cmd_new() {
   [ -n "$wh" ] || case "$type" in math|paper|handdrawn|mv) wh=1920x1080 ;; edit) wh=1080x1920 ;; esac   # the other engines' frame (edit: follow the footage)
   local res4k=""; [ "$outres" = 4k ] && res4k="1080p, 4k"   # drafts and the reference cut stay 1080p
   if [ -z "$watch" ]; then   # where it is mostly watched sets the text-size floor (playbook/03 §4); the frame gives the default
-    case "$res:$type" in portrait:*|square:*|:edit) watch=phone ;; landscape:meme) watch=feed ;; *) watch=desktop ;; esac
+    case "$res:$type" in portrait:*|square:*|:edit) watch=phone ;; landscape:meme|landscape:recap) watch=feed ;; *) watch=desktop ;; esac
   fi
   local frame=$res; case "$type" in math|paper) frame=${frame:-landscape} ;; esac   # Manim renders landscape
   case "$watch:$frame" in   # a frame and a target that contradict each other (the feed floor is for a 1920-wide frame)
@@ -598,7 +601,7 @@ PY
     [ "$effort" = quick ] && printf '\n> **Effort: quick**（%s，建项目时选定）：按 CLAUDE.md"努力程度"，人工关卡豁免，直接出片；人点名要拍板的事照样停（导演模式）；需求有歧义时最多问 1 个问题。\n' "$(date +%F)" >> "$dir/REVIEW.md"
   fi
   case "$type" in   # the type's usual reading pace (the BRIEF's Pace comment); the BRIEF line can change it
-    math|paper) sedi "s/^- Pace: normal /- Pace: relaxed /" "$dir/BRIEF.md" ;;
+    math|paper|long|recap) sedi "s/^- Pace: normal /- Pace: relaxed /" "$dir/BRIEF.md" ;;
     meme) sedi "s/^- Pace: normal /- Pace: brisk /" "$dir/BRIEF.md" ;;
   esac
   for s in $styles; do attach_style "$dir" "$s"; done   # presets as references: copies in style-refs/, listed in BRIEF, a DECISIONS line

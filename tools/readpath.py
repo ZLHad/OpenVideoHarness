@@ -25,7 +25,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ENGINE = {"01": "Manim", "02": "HyperFrames", "03": "HyperFrames", "04": "ClaudeAnimationBase", "05": "HyperFrames",
-          "06": "Manim", "07": "ClaudeAnimationBase", "08": "HyperFrames", "09": "HyperFrames"}   # what bin/vh new sets up
+          "06": "Manim", "07": "ClaudeAnimationBase", "08": "HyperFrames", "09": "HyperFrames", "10": "canvas-film", "11": "canvas-film"}   # what bin/vh new sets up
 GUIDE = {"04": "engines/ClaudeAnimationBase/ANIMATION_GUIDE.md", "07": "engines/ClaudeAnimationBase/ANIMATION_GUIDE.md",
          "09": "engines/editing.md"}
 

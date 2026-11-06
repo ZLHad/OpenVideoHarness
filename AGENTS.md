@@ -65,6 +65,8 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 | 手绘、水彩、白板、剪纸、角色小短片 | `video-types/07-hand-drawn.md` | ClaudeAnimationBase（p5.brush） |
 | 网络梗、野兽派、科技推特风的快剪 | `video-types/08-brutalist-meme.md` | HyperFrames |
 | 剪用户自己录的素材：口播、访谈、Vlog，删口水词和重录、剪接缝、加字幕和图解、出竖屏版（实验性） | `video-types/09-editing-talking-head.md`，细节在 `engines/editing.md` | HyperFrames |
+| 10 分钟以上的横屏讲解：长科普、讲透一件大事、思考型长片 | `video-types/10-long-explainer.md` | canvas-film |
+| 用自己的照片和片段做回顾：婚礼、旅行、一年回顾、纪念日（实验性） | `video-types/11-photo-recap.md` | canvas-film + 剪辑表（`engines/EDIT.md`） |
 | 需要写实人物、真实物理、实拍感 | `playbook/05-hybrid-genvideo.md`，再加上对应的类型文档（用户自己录的真人素材不用生成，走 09） | 生成式视频 + 代码叠加 |
 | 3D 场景、着色器短片（Three.js） | 暂无专门的类型文档：以 `03-product-promo.md` 的运动规则为准，加上 `playbook/08-vfx-and-motion-sources.md`；要路径追踪的光影、物理模拟或真实景深时读 `engines/blender.md`（部分验证；渲染时间先渲 3–5 帧校准）。样板是 `showcase/04-intro-film/` | HyperFrames + Three.js 层；重光影的镜头用 Blender |
 | "这个视频是怎么做的"，想学某支参考视频 | `playbook/07-reverse-engineer.md` | —（产出一份 cases/ 拆解） |
@@ -112,7 +114,7 @@ OpenVideoHarness/
 ├── bin/vh                    命令行：doctor · setup · install-skill · sync-agents · sound · commands · status · activity · know · types · effort · new · footage · assets · scout · ref · review · gate · desk · concept · breakdown · cast · style · recipes · storyboard · rhythm · edit · bgm · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · hf-init · determinism · image · model3d · hdri · hf · components · frames · cues · readcheck · textcheck · fonts · sheet · proxy · thumbs · render · patch · versions · check · mix · qa · mux · deliver · looks · clean · gif · cover-preview
 ├── tools/                    bin/vh 背后的脚本；commands.json 是命令表（`bin/vh commands` 按阶段列出），modules.json 是外接模块表（`bin/vh doctor` 报这台机器能用哪些），audio/README.md 是声音命令的参数手册，desk/README.md 是审阅台的读取约定；ci.sh 是仓库自检
 ├── skills/open-video-harness/  轻量 skill：在任何目录把做视频的请求引到本仓库
-├── video-types/              9 类视频（09 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例
+├── video-types/              11 类视频（09、11 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例
 ├── playbook/                 跨类型的通用知识：00 范式与引擎选型 · 01 流程、努力程度、关卡、导演模式、审阅页和审阅台 · 02 验证与取帧 · 03 运动、排版、安全区 · 04 音频 · 05 生成式视频 + 代码 · 06 学术工作里可借的机制 · 07 拉片 · 08 特效与声画联动 · 09 叙事与长片 · 10 钩子、标题、封面 · 11 作曲 · 12 立意，以及 quick.md（快出路径卡）、topics.md（选题卡）
 ├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、DECISIONS、NOTES、LESSONS、TASTE_CHECKLIST；用到时再复制：SCRIPT、CHARACTER、PACKAGING
 ├── styles/                   风格预设（参考，不是模板）：STYLE.md + tokens.json + 真渲的 5 s 样片；_swatch/ 是样片渲染器

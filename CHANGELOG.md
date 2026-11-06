@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**Two new video types: long explainers and photo recaps**
+- Why: a landscape explainer of 10 minutes or more could only go through the shorts doc plus `playbook/09`, and a wedding or a trip from someone's own photos had nowhere to go. Both were approved long ago and never written.
+- `video-types/10-long-explainer.md`: one question through the film, a table of turns and hooks before the script, voice first, a grey animatic, samples before the chapters fan out, and what works for the second half. Mostly pointers: `engines/canvas-film`, `bin/vh edit`, `playbook/09` §5, the long-film part of `playbook/01`, `recipes/sequences/`.
+- `video-types/11-photo-recap.md` (experimental, no film made with it yet): consent of the people in the photos, capture dates read from the files to order them, faces and small details at phone size, no invented captions about real events. Tried on a small project: an edit list of stills and a clip, rotated EXIF, a vertical frame, `bin/vh check`.
+- `bin/vh new long` and `bin/vh new recap` (also `10`, `11`, `long-explainer`, `photo-recap`): canvas-film with no `--engine`; a recap's `Watch on` defaults to `feed`, both go `Pace: relaxed`. `CLAUDE.md`'s routing table, `playbook/00`'s engine table (canvas-film had no row), `playbook/01`'s spec table and `tools/readpath.py` have them; the counts in the READMEs, the overview diagrams, the homepage and the skill go to 11.
+- `tools/ci.sh`: `new_checks`, and each type doc in `bin/vh types` and the routing table.
+
 **Read less before starting: playbook/01 up to 规格 and 02's 七层检查; the rest at the stop that needs it**
 - Why: `CLAUDE.md`'s step 2 had every agent, and every subagent, read all of `playbook/01-pipeline.md` and `playbook/02-verification.md` before it started. About 12,000 of 01's 20,000 characters (director mode, the review page, the desk, animatic, look-dev, unattended runs, long films, subagents) and 18,000 of 02's 23,000 (frame commands, determinism, silent failures, colour, audio QA) only matter at a later stop. This changes a binding point (CONTRIBUTING.md, 四个绑定点).
 - `CLAUDE.md`, step 2: before starting, 01 from its start to 规格 and 02's 七层检查. Then the review page at the first gate, the frame commands and the rest of 02 at the first picture, 长片 for a long film, 导演模式 when someone names a decision as theirs. `bin/vh status`'s `next:` lists the sections for this stop and `bin/vh know --show` prints one. The floors stay in `CLAUDE.md`, as they were. Nothing is removed from any document, and `playbook/quick.md` already read only the sections it names.

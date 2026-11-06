@@ -97,7 +97,7 @@ Coding agents can already make a video from one sentence. Getting a good one eve
 
 The film is code. The agent writes a page (or a Manim scene, or a Blender script) in which every frame is a function of its time t; a browser (or Manim, or Blender) draws each frame, and FFmpeg joins them with the soundtrack. An agent can't watch video or hear sound, so every step is built to be checked from frames, numbers and text.
 
-1. **Route.** The routing table in [CLAUDE.md](CLAUDE.md) picks one of the 9 video types and its workflow; your request sets the effort level and what you want to decide yourself.
+1. **Route.** The routing table in [CLAUDE.md](CLAUDE.md) picks one of the 11 video types and its workflow; your request sets the effort level and what you want to decide yourself.
 2. **Gate ①: direction and outline.** Two or three concept cards, each with a frame and a hook. Picking one settles the idea, the look and the hook together, before any code is written.
 3. **Gate ②: storyboard.** Every shot lists what the viewer must take in, in order and for how long, with one keyframe per shot.
 4. **Sound first.** Voiceover or music comes first; every word and beat is timed, and the picture hangs on those times.
@@ -168,6 +168,8 @@ Remotion appears in a few type docs as an alternative; no showcase film uses it,
 | 07 Hand-drawn shorts | Watercolour, whiteboard, paper cut-out, character shorts; Chinese characters written stroke by stroke | p5.brush (bundled) | [07](video-types/07-hand-drawn.md) |
 | 08 Meme edits | Brutalist, tech-Twitter quick cuts | HyperFrames | [08](video-types/08-brutalist-meme.md) |
 | 09 Edits of your own footage (experimental) | Talking heads and interviews: cut filler, add captions and graphics, make a vertical version | HyperFrames | [09](video-types/09-editing-talking-head.md) |
+| 10 Long explainers | Landscape explainers of 10 minutes or more | canvas-film | [10](video-types/10-long-explainer.md) |
+| 11 Photo recaps (experimental) | Your own photos and clips: a wedding, a trip, a year in review | canvas-film + edit list | [11](video-types/11-photo-recap.md) |
 
 For realistic people or physics, generated video with code on top ([playbook/05](playbook/05-hybrid-genvideo.md)); for a story with an arc or anything over three minutes, [playbook/09](playbook/09-narrative.md); for hooks, titles and covers, [playbook/10](playbook/10-hooks-and-packaging.md).
 
