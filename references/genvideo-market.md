@@ -3,6 +3,7 @@
 这一页是**会过期的数字**：模型版本、规格、价格、各通道的差别。方法（怎么入库、对齐画面、抠像、QA）在 `playbook/05-hybrid-genvideo.md`，许可和披露台账在 `references/genvideo-ledger.md`。
 
 - **核对过**（2026-10-01，对着官方页面）：Sora、Seedance 2.5（fal 和 Runway）、Veo 3.1 和 Gemini Omni、Runway 的规格和价格。Kling 只有第三方资料，标【二手】。
+- **另外核对过**（2026-11-06，对着火山方舟文档）：下面火山方舟的那几行。
 - **每个项目开工时重查三样**：版本、价格、条款，把查询日期和网址写进 `NOTES.md`。半年后这页就该重写。
 - 标记：【二手】只读到第三方转述或搜索摘要；【推测】没有证据的推断。引用编号 `[n]` 见文末。
 
@@ -25,6 +26,7 @@
 **其他**：
 - **Wan 3.0**（Alibaba）：闭源；经 Runway 调用时单次最长 30 s，带原生音频，480p、720p、1080p [3]；开放权重的 Wan 线停在 2.2（Apache-2.0）【二手】[12]。
 - **LTX-2.x**：开放权重，社区有 MLX 移植可在 Apple Silicon 上跑【二手】。`references/open-source.md` 已列 Wan2.2 和 LTX-2，许可证要逐个核对。
+- **Seedance 2.5、2.0 mini，火山方舟**（2026-11-06）：接口 `POST https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks`，key 放环境变量 `ARK_API_KEY`（仓库还没有封装的命令）。型号 `doubao-seedance-2-5-260628`、`doubao-seedance-2-0-mini-260615`，都能做首帧和首尾帧。2.5 的首尾帧任务 `ratio` 只能是 `adaptive`，输出比例跟首帧走（2.0 mini 没核对）。2.5 有样片模式（`draft=true`，只出 480p，确认后再出正式版；样片任务 ID 14 天内有效），2.0 系列没有。**开通 2.5 有门槛**：账户余额达到 ¥200（教程里写了"超过"和"大于等于"两种），或买 ¥200 档以上的节省计划，或有资源包 [13][14]。
 - 没有出现的版本：Seedance 3、Veo 4、Runway Gen-5，截至今天都没有官方发布（搜索结果均无官方页面【二手】）。
 
 ## 价格
@@ -33,6 +35,7 @@
 |---|---|
 | Seedance 2.5，fal | $0.0214 每千 token，token = 高 × 宽 × (输入视频秒数 + 输出秒数) × 24 ÷ 1024。页面给出 720p ≈ $0.473/s，带视频参考 ≈ $0.284/s；480p ≈ $0.2205/s 和 $0.1323/s [1][2]。美国托管的 `…/us/…` 端点更贵（约 $0.5676/s）【二手】[1] |
 | Seedance 2.5，Runway | 输出每秒 480p 20、720p 30、1080p 68 积分；输入和参考视频每秒另加 10、15、34 积分（合计最多 30 s）；参考图和音频免费；每次最低 80 积分。1 积分 = $0.01 [3] |
+| Seedance 2.5、2.0 mini，火山方舟 | 元/百万 token，不含 / 含视频输入：2.5 的 480p 和 720p 70 / 42，1080p 77 / 46；2.0 mini 23 / 14。token = (输入视频秒数 + 输出秒数) × 宽 × 高 × 帧率 ÷ 1024。16:9、24 fps、不含视频输入折算：2.5 的 480p ¥0.67/s、720p ¥1.51/s、1080p ¥3.74/s；2.0 mini 的 720p ¥0.50/s。只对成功生成的计费；输入含视频时有最低用量 [13] |
 | Veo 3.1 | 每秒：标准 $0.40（720p、1080p）、$0.60（4K）；Fast $0.10 / $0.12 / $0.30（720p / 1080p / 4K）；Lite $0.05 / $0.08（720p / 1080p）[7] |
 | Gemini Omni Flash 1.1 | 约 $0.10/s（720p）[7] |
 | Runway Gen-4.5 | 12 积分/s（$0.12/s），另加输出格式的积分（见上）；Aleph 2.0 28 积分/s，最低 56；Act-Two 5 积分/s；Enhance Frame Rate 每 2 秒 1 积分 [3] |
@@ -48,7 +51,7 @@
 | 长镜头（≥ 15 s）、多参考、要在一次生成里锁角色、场景、色板 | Seedance 2.5 | 30 s、50 个参考。经 fal 上限 720p：交付 1080p 要放大，放大后和代码层的清晰度对不上，要补颗粒；Runway 有 1080p 档，每秒 68 积分，不用放大 |
 | 原生 1080p 或 4K 的画质，要调色余量 | Veo 3.1（8 s，24 fps）；Kling 3.0（4K 档）；Runway Gen-4.5 | Veo 标准档 $0.40/s，价格最高，有 Fast 与 Lite 两档便宜的 |
 | **抠像或合成密集的镜头** | Runway Gen-4.5，要 `prores` 或 `png_sequence` | 省掉一次 H.264 压缩，抠像边缘更干净【推测：没有对比过抠像质量】；只有 2–10 s，每秒加 5 积分；格式要账号已开通。HDR 系（含 EXR）见上，先用 SDR 的两种 |
-| 预算敏感，草稿和探索 | Veo 3.1 Lite（$0.05–0.08/s）、Seedance 480p、Kling Turbo、Wan 3.0 的 480p | 先用便宜档试 prompt 和构图，再上贵档 |
+| 预算敏感，草稿和探索 | Veo 3.1 Lite（$0.05–0.08/s）、Seedance 2.0 mini（火山方舟 720p 约 ¥0.50/s）、Seedance 480p、Kling Turbo、Wan 3.0 的 480p | 先用便宜档试 prompt 和构图，再上贵档 |
 | 需要真人的表演或口型（例如借演员的动作） | Runway Act-Two；或让用户自己录 | 生成真人脸有肖像权和平台限制（见 `references/genvideo-ledger.md`） |
 | 要在已有素材上改光、改风格（视频到视频） | Runway Aleph 2.0；Gemini Omni Flash；Kling Omni 编辑 | 不确定性高。先用确定性的调色，不够再用它们 |
 | 素材保密，或要完全本地 | LTX-2.x（MLX）、Wan 2.2 | 维护者的 Mac 没有 NVIDIA GPU，速度和画质都要实测；先看许可证 |
@@ -67,3 +70,5 @@
 - [10] Runway 模型与输出格式见 [3]；Runway 新闻 https://techcrunch.com/2026/07/23/runway-bets-on-ai-model-routing-as-generative-media-gets-crowded/ 【二手】。
 - [11] Seedance 2.0 风波：财新 https://www.caixinglobal.com/2026-03-17/bytedance-halts-global-rollout-of-seedance-20-amid-copyright-dispute-102423674.html （2026-02-15 宣布暂停生成逼真人脸和 IP 角色；到 2026-03-16 暂停全球推广）；CNBC https://www.cnbc.com/2026/02/16/bytedance-safegaurds-seedance-ai-copyright-disney-mpa-netflix-paramount-sony-universal.html 与 TNW https://thenextweb.com/news/bytedance-seedance-watermarking-ip-global-rollout 均 403；输入侧限制与 fal 上线时间见搜索摘要【二手】。
 - [12] Wan 3.0：TechNode https://technode.com/2026/08/24/alibaba-launches-wan3-0-video-model-with-30-second-generation-and-document-input/ 【二手】；经 Runway 的规格见 [3]。
+- [13] 火山方舟，模型价格：https://ark.volcengine.com/region:cn-beijing/docs/model-pricing （2026-11-06 核对：token 单价、估算公式、Seedance 2.5 和 2.0 系列的单条价格、只对成功生成的计费、样片模式分两步计费、输入含视频时的最低用量）。
+- [14] 火山方舟，Doubao Seedance 2.5 教程：https://ark.volcengine.com/region:cn-beijing/docs/seedance-2-5 （2026-11-06 核对：型号、接口、开通条件、首尾帧任务的 `ratio`、样片模式）。
