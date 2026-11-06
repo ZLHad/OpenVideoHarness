@@ -133,7 +133,7 @@ projects/2026-10-01-leo-doppler/
 
 ### 审阅页
 
-每次停：写 `out/review/gate-<n>.json`，运行 `bin/vh gate <project> <n>`。它检查 JSON，出 `out/review/gate-<n>.html`（也存成 `index.html`，图、GIF、mp4 和音频在浏览器里直接看、直接听）并记成这一轮；审阅方式（`LOCAL.md`，没写按上表"在哪审"；人点名的用 `--desk` / `--page` / `--chat`）是审阅台时再起审阅台。聊天里只发它打印的那几行。`<n>` 是关卡 `1` `2` `3` 或检查点 `E0`–`E5`，同一站的第二页加 `b`（`2b`）；页属于哪一站，看文件名。只有一两个纯文字的选择时，直接在聊天里问也行。
+每次停：写 `out/review/gate-<n>.json`（`bin/vh gate <project> <n> --init` 写一份骨架，每个 `{填：…}` 说明那里写什么，填完才放行），运行 `bin/vh gate <project> <n>`。它检查 JSON，出 `out/review/gate-<n>.html`（也存成 `index.html`，图、GIF、mp4 和音频在浏览器里直接看、直接听）并记成这一轮；审阅方式（`LOCAL.md`，没写按上表"在哪审"；人点名的用 `--desk` / `--page` / `--chat`）是审阅台时再起审阅台。聊天里只发它打印的那几行。`<n>` 是关卡 `1` `2` `3` 或检查点 `E0`–`E5`，同一站的第二页加 `b`（`2b`）；页属于哪一站，看文件名。只有一两个纯文字的选择时，直接在聊天里问也行。
 
 图不用手拼，`bin/vh` 有现成的：
 - **关卡 ②**：把 STORYBOARD 的镜头表写成 `shots.json`（格式见 `bin/vh storyboard -h`；最没把握的镜头写 `"unsure": "为什么"`；canvas-film 可以不写，没有它时从 `film.html` 读实际的镜头），运行 `bin/vh storyboard <project>` 出每段一页的分镜和总览，同时写好 `out/check/storyboard/review.json`；再运行 `bin/vh rhythm <project>` 出节奏图，超过类型回报间隔的镜头、读不完的字幕标红。gate JSON 里写 `"include": "out/check/storyboard/review.json"`，分段、关键帧、每镜的旁白、没把握的镜头和 animatic 就都带进来了；gate JSON 只写 `summary`、`decisions`，节奏图作为 asset 挂在节奏那个决定下，最后 `bin/vh gate <project> 2`。
@@ -172,7 +172,7 @@ projects/2026-10-01-leo-doppler/
 ```
 
 - **必填**：`summary`，一句话说这页要你定什么、看完要多久；`decisions`，没有要定的写 `[]`。每个决定要有 `question`、`recommend` 和 `reply`（不写 `reply` 就用选项名拼）。选项的 `id` 别用纯数字，免得和决定的编号混在一起；同一页的几个决定也别共用 `id`（一个用 A / B，另一个用 H1 / H2），人随手回一个"A"才不会有歧义。
-- **选填**：`why`、`cost`，选项的 `label` / `pro` / `con`；`decided` 和 `delegated`（都是列表，一项一条）、`not_reviewed`（一句话：这页不审什么）、`title`、`lang`（`zh` / `en`；不写就用 BRIEF 的 `Review language`）、`gate`（和文件名不一致时以文件名为准）。审阅台还认 `listen`、`music`、`film` 三个可选字段（见下面的"审阅台"），这一页不管它们。
+- **选填**：`version`（骨架带的 1，不读）、`why`、`cost`，选项的 `label` / `pro` / `con`；`decided` 和 `delegated`（都是列表，一项一条）、`not_reviewed`（一句话：这页不审什么）、`title`、`lang`（`zh` / `en`；不写就用 BRIEF 的 `Review language`）、`gate`（和文件名不一致时以文件名为准）。审阅台还认 `listen`、`music`、`film` 三个可选字段（见下面的"审阅台"），这一页不管它们。
 - `assets[].for` 写决定或分段的 `id`，图就放在它下面，不写就放进"其他材料"；视频加 `t0` / `t1` 只播一段，加 `poster` 指定封面帧。附录的 `text` 可以放简单的竖线表格（`| a | b |`、`|---|---|`）。写了 `animatic`，每个分段页只播自己那一段，播到段尾就停。
 - `least_sure` 写镜头号，那一镜就标红；文字里出现的镜头号会链到那一镜。镜头的 `note` 写"默认会这样改"，照样默认通过，但单独标出来。
 - `include`：一个 JSON 文件（或几个的列表），路径相对项目，只补 gate JSON 没写的键，gate JSON 写了的优先；`bin/vh storyboard` 写的 `out/check/storyboard/review.json` 就是给它用的。

@@ -15,10 +15,12 @@ every field:
   summary, decisions[{id, question, options[{id, label, pro, con} | "id"], recommend, why, cost, reply}],
   assets[{path, caption, for, t0, t1, poster}], least_sure[{id, note} | "note"], animatic,
   segments[{id, title, t0, t1, note, shots[{id, t0, t1, frame, see, vo, note}]}], appendix[{title, text, path}]
-  optional: gate, title, lang (zh | en; default: the BRIEF's "Review language" line, else zh), decided[], delegated[],
-  not_reviewed, include (a JSON file, or a list of them, whose keys fill in what this file does not set: bin/vh storyboard
-  writes out/check/storyboard/review.json for gate ②). The review desk (bin/vh desk, tools/desk/README.md) reads the
-  same file and a few more optional keys (listen, music, film); this page ignores them.
+  optional: version (1, as bin/vh gate --init writes it; not read), gate, title, lang (zh | en; default: the BRIEF's "Review
+  language" line, else zh), decided[], delegated[], not_reviewed, include (a JSON file, or a list of them, whose keys fill in
+  what this file does not set: bin/vh storyboard writes out/check/storyboard/review.json for gate ②). The review desk (bin/vh
+  desk, tools/desk/README.md) reads the same file and a few more optional keys (listen, music, film); this page ignores them.
+  A text that still holds a {填：…} or {fill: …} from bin/vh gate --init is not ready: nothing is written (exit 2), and the file
+  is no page yet for bin/vh status, the desk or this round.
 
 Paths are relative to the project and linked relatively, so the page opens straight from disk (images, GIF, mp4 and
 audio play in the browser); http(s) URLs pass through, other schemes are refused. Every text is HTML-escaped; appendix
@@ -768,6 +770,26 @@ GATE_ID = re.compile(r"[A-Za-z0-9_-]{1,24}")   # a page name: gate-<id>.json (th
 GATE_ORDER = {"1": 1, "E0": 2, "E1": 3, "2": 4, "E2": 5, "E3": 6, "E4": 7, "3": 8, "E5": 9}
 
 
+FILL = re.compile(r"\{(?:填|fill)\s*[:：]")   # the placeholder bin/vh gate --init writes
+
+
+def placeholders(x, at=""):
+    """Where a gate JSON still holds bin/vh gate --init's placeholders: its paths (summary, decisions[0].question)."""
+    if isinstance(x, dict):
+        return [w for k, v in x.items() for w in placeholders(v, f"{at}.{k}" if at else str(k))]
+    if isinstance(x, list):
+        return [w for i, v in enumerate(x) for w in placeholders(v, f"{at}[{i}]")]
+    return [at] if isinstance(x, str) and FILL.search(x) else []
+
+
+def _unfilled(page):
+    """A gate JSON that bin/vh gate --init wrote and nobody has filled in: not a page yet."""
+    try:
+        return bool(FILL.search(page.read_text(encoding="utf-8-sig", errors="replace")))
+    except OSError:
+        return False
+
+
 def _pages_on_disk(project):
     """out/review/gate-<id>.json files with a valid id whose real path stays inside the project (a symlink that
     leads out of it is skipped)."""
@@ -801,11 +823,11 @@ def gate_pages(project):
     (out/review/.current), whatever its name: a concept page 1b after gate 2, a page E3b after gate 3, "final".
     Without it (or when it names a page that is gone), the review order decides: the stop (1, E0, E1, 2, E2, E3, E4,
     3, E5), then the page within it (1, 1b, 1c …, any case); other names come first, ordered by modification time.
-    Copying or touching a file never changes which page is current."""
+    Copying or touching a file never changes which page is current. A skeleton not filled in yet is no page."""
     def key(p):
         m = re.fullmatch(r"(E\d|\d)([A-Za-z]*)", p.stem[5:])
         return (GATE_ORDER.get(m.group(1), 0), len(m.group(2)), m.group(2).lower(), 0, p.name) if m else (0, 0, "", p.stat().st_mtime, p.name)
-    pages = sorted(_pages_on_disk(project), key=key)
+    pages = sorted((p for p in _pages_on_disk(project) if not _unfilled(p)), key=key)
     cur = current_page(project)
     return [p for p in pages if p.stem[5:] != cur] + [p for p in pages if p.stem[5:] == cur]
 
@@ -877,6 +899,17 @@ def main():
     return 0
 
 
+def no_pack(project, where, gate, shown):
+    """What to do about a stop with no gate JSON. A quick project has no gates, unless the person asked for a stop."""
+    from gatecheck import effort_of   # (tools/ is on the path: this file's folder, or bin/vh gate's)
+    init = f"bin/vh gate {shown or project} {gate or '<n>'} --init"
+    if effort_of(project)[0] == "quick":
+        return (f"no review pack at {where}. A quick project has no gates, so there is nothing to send unless the person asked for a "
+                f"stop (the director mode, CLAUDE.md); for one, {init} writes a skeleton")
+    return (f"no review pack at {where}: {init} writes a skeleton to fill in; "
+            'the fields: bin/vh know --show "playbook/01-pipeline.md#审阅页"')
+
+
 def publish(project, gate_arg=None, shown=None):
     """Build out/review/gate-<n>.html (and index.html) from gate-<n>.json and, when it breaks no rule (it can be sent),
     make it this round (.current); what is wrong goes to stderr. → (exit status as main's, the Page, the page's path);
@@ -884,6 +917,7 @@ def publish(project, gate_arg=None, shown=None):
     (tools/gate.py) does the rest of a stop."""
     rdir = project / "out" / "review"
     pages = _pages_on_disk(project)
+    g = None
     if gate_arg:
         g = re.sub(r"\.json$", "", re.sub(r"^gate-", "", gate_arg.strip()))
         if not GATE_ID.fullmatch(g):
@@ -893,20 +927,25 @@ def publish(project, gate_arg=None, shown=None):
         where = rdir / f"gate-{g}.json"
     else:
         ordered = gate_pages(project)
-        src = ordered[-1] if ordered else None
+        src = ordered[-1] if ordered else next((p for p in pages if _unfilled(p)), None)   # only a skeleton: said below
         where = rdir / "gate-<n>.json"
         newer = [p for p in pages if src and p.stat().st_mtime > src.stat().st_mtime]
         if newer:
             print(f"! rendering this round, {src.stem[5:]}; {', '.join(sorted(p.name for p in newer))} is newer: to render "
                   f"a new page, name it (bin/vh review {shown or project} <n>)", file=sys.stderr)
     if src is None or not src.is_file():
-        print(f"no review pack at {where}: write one first (playbook/01-pipeline.md, 审阅页)", file=sys.stderr)
+        print(no_pack(project, where, g, shown), file=sys.stderr)
         return 2, None, None
     gate = src.stem[5:]
     try:
         data = json.loads(src.read_text(encoding="utf-8-sig"))   # a BOM from a Windows editor is fine
         if not isinstance(data, dict):
             raise ValueError("expected a JSON object")
+        left = placeholders(data)
+        if left:   # before anything else: a page that is not filled in never reaches the person
+            print(f"{src}: {len(left)} placeholder(s) still to fill in ({', '.join(left[:6])}{' …' if len(left) > 6 else ''}): "
+                  "replace every {填：…}, or delete what this page does not need. Nothing was written, nothing goes to the person", file=sys.stderr)
+            return 2, None, None
         data = merge_includes(project, data)
     except OSError as e:
         print(f"can't read {src}: {e.strerror or e}", file=sys.stderr)

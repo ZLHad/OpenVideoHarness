@@ -904,6 +904,7 @@
       ],
       "writes": [
         "<project>/out/review/gate-<n>.html, index.html, .current",
+        "<project>/out/review/gate-<n>.json (--init)",
         "the review desk, a local server, for a stop reviewed there"
       ],
       "usage": [
@@ -914,6 +915,12 @@
             "the review page and makes it this round, opens the review desk when the stop is reviewed there",
             "(LOCAL.md's 审阅方式; else studio: desk, standard and quick: page), prints the chat message;",
             "--wait (desk): then waits for the submission like desk wait (tools/gate.py)"
+          ]
+        },
+        {
+          "synopsis": "gate <project> <n> --init",
+          "text": [
+            "writes out/review/gate-<n>.json as a skeleton for this stop: each {填：…} says what goes there, and gate refuses the file until none is left; never overwrites"
           ]
         }
       ]

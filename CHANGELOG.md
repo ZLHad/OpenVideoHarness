@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**`bin/vh gate <project> <n> --init`: a skeleton for a stop, refused until it is filled in**
+- Why: the gate JSON is the main thing an agent writes for a person, its fields were in the middle of a long section, and with no JSON the tool said only "write one first", also in a quick project, which has no gates.
+- `tools/gate.py`: `--init` writes `out/review/gate-<n>.json` for that stop, in the BRIEF's review language, with `"version": 1` and every text to write as a `{填：…}` (`{fill: …}`) that says what goes there. Gate ① has the concept cards and the outline, gate ② takes the storyboard's data through `include`, gate ③ asks for the draft, the contact sheet and the three places least sure of. It never overwrites.
+- `tools/review.py`: a file with placeholders left is refused (exit 2) with where they are, and nothing is written, so an unfilled page cannot reach the person; `gate_pages` leaves it out, so `bin/vh status` and the desk do not take it for a page that is out. The `version` key is not read. With no JSON: `--init` and the section of the playbook; a quick project is told it has no gates unless the person asked for a stop, and `gate` works there as before.
+
 **`bin/vh know` says when nothing matched strongly, and prints one section by name**
 - Why: it listed its nearest guesses in the same voice whether the repo had a card for the words or not, so an agent could not tell "here it is" from "we have nothing". And to read one section of a playbook an agent had to open the whole file.
 - `tools/know.py`: a hit is strong when it has three quarters of the words, and half of them in its title, tags or summary or a score of 10 or more. When none is, the answer says first that nothing matched strongly. `--json` gains `strong`, at the top and on each hit.

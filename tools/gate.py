@@ -2,6 +2,7 @@
 desk when this stop is reviewed there, print the chat message; with --wait, wait for the person's submission.
 
 usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeout s] [--port N]
+       bin/vh gate <project> <n> --init
   <n>       1 | 2 | 3 | E0–E5 | 2b … : out/review/gate-<n>.json (playbook/01-pipeline.md, 审阅页, has every field); left out:
             this round, as bin/vh review takes it
   where the person reviews: --desk, --page or --chat when the person asked in chat; else the 审阅方式 line in LOCAL.md
@@ -11,12 +12,15 @@ usage: bin/vh gate <project> [<n>] [--desk | --page | --chat] [--wait] [--timeou
             this project yet (it stops by itself after 12 h without a request), and its address in the message
   --wait    the desk channel only: then wait like bin/vh desk wait (print the submission, exit 0; 3 after --timeout,
             default 7100 s). An agent runs this in the background: the message is printed first, before the waiting
+  --init    write out/review/gate-<n>.json as a skeleton for this stop, in the BRIEF's review language, and stop: every text
+            to write is a {填：…} ({fill: …}), and bin/vh gate refuses the file (exit 2) until none is left, so an unfilled page
+            never reaches the person. It carries "version": 1. A file already there is not overwritten (exit 2)
 The page and the desk read the same out/review/gate-<n>.json: it is the one file a client renders for a stop.
 Exit: 0 the stop is out (with --wait: the submission is printed) · 1 the page was written but breaks a rule: no message,
-no desk (bin/vh review's 1) · 2 nothing to send: no project, no or bad gate JSON, the desk did not start, --wait without
-the desk · 3 --wait timed out.
+no desk (bin/vh review's 1) · 2 nothing to send: no project, no or bad gate JSON, placeholders left, the desk did not start,
+--wait without the desk, --init over a file · 3 --wait timed out.
 """
-import argparse, os, re, subprocess, sys, time
+import argparse, json, os, re, subprocess, sys, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -24,7 +28,7 @@ ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
 import activity, review   # noqa: E402,E401
-from gatecheck import effort_of, local_md   # noqa: E402
+from gatecheck import effort_of, local_md, stop_of   # noqa: E402
 
 IDLE = 12 * 3600   # a desk gate starts stops by itself after this long without a request
 CHANNEL = {"对话": "chat", "审阅页": "page", "审阅台": "desk", "chat": "chat", "page": "page", "desk": "desk"}
@@ -32,6 +36,92 @@ SAY = {"zh": {"desk_wait": "审阅台：{url}（勾选、点评、提交；我�
               "desk": "审阅台：{url}（勾选、点评、提交，然后回到这里说一声“看审阅台”）"},
        "en": {"desk_wait": "Review desk: {url} (tick, comment, submit; I'm waiting and carry on as soon as you submit)",
               "desk": "Review desk: {url} (tick, comment, submit, then tell me here: “check the desk”)"}}
+
+
+CHECKPOINT_WHAT = {  # what a checkpoint puts in front of the person (playbook/01-pipeline.md, 导演模式)
+    "E0": ("设定图、主旋律试听或 look-dev 变体", "the design sheet, the theme to listen to, or the look-dev variants"),
+    "E1": ("两种音色的试听、旁白稿或钩子画面", "two voices to listen to, the script, or the hook's frames"),
+    "E2": ("一张 cue 表：主旋律在哪几段、哪里留白、音效多密", "a cue sheet: where the theme comes in, where it is silent, how dense the effects are"),
+    "E3": ("最终的配音和配乐，听一遍再锁时", "the final voice and score, heard once before the timing locks"),
+    "E4": ("第一章的联系表和 10–20 s 片段", "the first chapter's contact sheet and a 10–20 s clip"),
+    "E5": ("锁画面：bin/vh qa 的结果和请听的几处", "the picture lock: bin/vh qa's result and the places to listen to")}
+
+
+def skeleton(gate, lang):
+    """A gate JSON to fill in, for this stop. Each {填：…} says what goes there; bin/vh gate takes it once none is left."""
+    zh = lang != "en"
+
+    def f(a, b):
+        return f"{{填：{a}}}" if zh else f"{{fill: {b}}}"
+
+    def card(k):
+        return {"id": k, "label": f(f"立意卡 {k}：一句话核心想法", f"concept card {k}: the idea in one line"),
+                "pro": f("为什么是这份材料；推出的画面和钩子", "why this material; the picture and the hook it leads to"),
+                "con": f("风险或代价", "its risk or cost")}
+    d = {"version": 1, "summary": f("一句话：这页要人定什么、看完要多久", "one line: what this page asks the person, and how long it takes")}
+    stop = stop_of(gate)
+    if stop == "1":
+        d["decisions"] = [{"id": "concept", "question": f("选哪张立意卡？写成这支片子自己的问题", "which concept card? In this film's own words"),
+                           "options": [card("A"), card("B"), card("C")], "recommend": f("A、B 或 C", "A, B or C"),
+                           "why": f("推荐它的一句理由", "why, in one line"), "cost": "现在改：低 · 分镜后改：很高" if zh else "now: low · after the storyboard: very high",
+                           "reply": "A / B / C"}]
+        d["assets"] = [{"path": f(f"立意卡 {k} 那一帧画面的路径", f"the path of card {k}'s frame"),
+                        "caption": f("这一帧在说什么", "what this frame says"), "for": "concept"} for k in "ABC"]
+        d["delegated"] = [f("替人定了的事，一项一条：规格（画幅、分辨率、帧率、时长、在哪看）、引擎、费用",
+                            "what you decided for the person, one an item: the spec (frame, resolution, rate, length, where it is watched), the engine, the cost")]
+        d["appendix"] = [{"title": "大纲" if zh else "Outline", "text": f("按推荐立意写的 3–7 段，竖线表：段落、时间、看完知道什么", "3–7 segments for the recommended concept, a pipe table: segment, time, what the viewer knows after it")},
+                         {"title": "BRIEF", "path": "BRIEF.md"}]
+    elif stop == "2":
+        d["include"] = "out/check/storyboard/review.json"   # bin/vh storyboard writes it: segments, key frames, least-sure shots, animatic
+        d["decisions"] = []
+        d["assets"] = [{"path": "out/check/rhythm.png", "caption": f("节奏图上要人看的地方（bin/vh rhythm 出图）", "what the rhythm chart shows (bin/vh rhythm draws it)")}]
+    elif stop == "3":
+        d["decisions"] = [{"id": "draft", "question": f("这版初稿放行吗？写清差什么", "does this draft pass? Say what is missing"),
+                           "options": [{"id": "OK", "label": "放行，出正式画质" if zh else "It passes: render the final",
+                                        "pro": f("好处", "what it gains"), "con": f("代价", "what it costs")},
+                                       {"id": "FIX", "label": "改完下面几处再看" if zh else "Fix the places below, then look again",
+                                        "pro": f("好处", "what it gains"), "con": f("代价", "what it costs")}],
+                           "recommend": f("OK 或 FIX", "OK or FIX"), "why": f("一句理由", "why, in one line"),
+                           "cost": "现在改：中 · 锁画面后改：高" if zh else "now: medium · after the picture lock: high", "reply": "OK / FIX"}]
+        d["assets"] = [{"path": f("初版成片的路径，例如 out/draft.mp4", "the draft's path, e.g. out/draft.mp4"), "caption": f("初版：多长、什么画质", "the draft: its length and quality"), "for": "draft"},
+                       {"path": f("联系表的路径（bin/vh sheet 出图）", "the contact sheet's path (bin/vh sheet draws it)"), "caption": f("整片的形状", "the whole film at a glance"), "for": "draft"}]
+        d["least_sure"] = [{"id": f("镜头号", "shot id"), "note": f(f"自己最不满意的第 {i} 处，和可选的修法", f"what you like least, number {i}, and how it could be fixed")} for i in (1, 2, 3)]
+        d["appendix"] = [{"title": "reviewer 的分数" if zh else "The reviewer's scores", "text": f("8 项分数和没修好的几处", "the 8 scores and what is still not fixed")}]
+    else:
+        what = CHECKPOINT_WHAT.get(stop, ("这一站要人看的东西", "what this stop puts in front of the person"))[0 if zh else 1]
+        d["decisions"] = [{"id": "pick", "question": f(f"要人定什么（{what}）", f"what the person decides ({what})"),
+                           "options": [{"id": k, "label": f(f"选项 {k}", f"option {k}"), "pro": f("好处", "what it gains"), "con": f("代价", "what it costs")} for k in "AB"],
+                           "recommend": f("A 或 B", "A or B"), "why": f("一句理由", "why, in one line"),
+                           "cost": f("现在改和以后改各要花多少", "what a change costs now, and later"), "reply": "A / B"}]
+        d["assets"] = [{"path": f("给人看或听的文件的路径", "the path of what the person sees or hears"), "caption": f("一行说明", "one line about it"), "for": "pick"}]
+    return d
+
+
+def init_page(project, gate_arg, shown):
+    """bin/vh gate <project> <n> --init: the skeleton, written once. → the exit status."""
+    g = re.sub(r"\.json$", "", re.sub(r"^gate-", "", (gate_arg or "").strip()))
+    if not review.GATE_ID.fullmatch(g):
+        print(f"gate: --init needs the stop it is for: bin/vh gate {shown} 1 --init (1, 2, 3, E0–E5, 2b …)", file=sys.stderr)
+        return 2
+    path = project / "out" / "review" / f"gate-{g}.json"
+    lang = review.review_lang(project) or "zh"
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "x", encoding="utf-8") as out:   # "x": never over a page someone wrote
+            out.write(json.dumps(skeleton(g, lang), ensure_ascii=False, indent=2) + "\n")
+    except FileExistsError:
+        print(f"gate: {path} is already there, and --init does not overwrite: edit it, then bin/vh gate {shown} {g}", file=sys.stderr)
+        return 2
+    except OSError as e:
+        print(f"gate: can't write {path}: {e.strerror or e}", file=sys.stderr)
+        return 2
+    print(f"✓ {path}: a skeleton for {review.gate_title(g, lang)}")
+    if effort_of(project)[0] == "quick":
+        print("  a quick project has no gates: this page is for a stop the person asked for")
+    print("  replace every {填：…}, delete what this page does not need; until none is left, bin/vh gate refuses the file")
+    print(f'  the fields: bin/vh know --show "playbook/01-pipeline.md#审阅页"; then: bin/vh gate {shown} {g}')
+    activity.note(f"{review.gate_title(g, 'en')}: a skeleton to fill in", [path])
+    return 0
 
 
 def channel_of(project, flag=None):
@@ -86,10 +176,16 @@ def main(argv):
     ap.add_argument("--wait", action="store_true", help="the desk only: then wait for the submission, like bin/vh desk wait")
     ap.add_argument("--timeout", type=float, default=7100, help="with --wait: seconds (default 7100, under Claude Code's 2 h)")
     ap.add_argument("--port", type=int, help="the desk's port when it has to start (default: the first free of 8780–8799)")
+    ap.add_argument("--init", action="store_true", help="write out/review/gate-<n>.json as a skeleton to fill in, and stop")
     a = ap.parse_args(argv)
     project = review.find_project(a.project)
     if not project:
         return 2
+    if a.init:
+        if a.channel or a.wait:
+            print("gate: --init only writes the skeleton: leave --desk, --page, --chat and --wait for the run that sends it", file=sys.stderr)
+            return 2
+        return init_page(project, a.gate, a.project)
     channel, why = channel_of(project, a.channel)
     if a.wait and channel != "desk":
         print(f"gate: --wait waits for the review desk, and this stop is reviewed on the {channel} ({why}): the person answers in "

@@ -2392,7 +2392,57 @@ PY
 # desk channel starts the desk in the background (once), adds its address, and with --wait hands over the submission;
 # desk --idle stops a desk nobody asks anything
 gate_stop_checks() {
-  local t=$1 g a b rc rc2 rc3 i pid url
+  local t=$1 g a b c rc rc2 rc3 i pid url
+  # --init: a skeleton for the stop in the review language, "version": 1; refused until filled in, with nothing written and
+  # no page as far as status and the desk go; never overwritten; a quick project is told it has no gates, and can have a stop
+  OVH_PROJECTS="$t" vh new math gi >/dev/null 2>&1; g=$(ls -d "$t"/*-gi)
+  a=$(vh gate "$g" 1 2>&1 >/dev/null); rc=$?
+  b=$(vh gate "$g" 1 --init 2>&1); rc2=$?
+  c=$(vh gate "$g" 1 --init 2>&1); rc3=$?
+  if [ "$rc:$rc2:$rc3" = 2:0:2 ] && case "$a" in *"no review pack"*"$g 1 --init"*"playbook/01-pipeline.md#审阅页"*) true ;; *) false ;; esac \
+    && case "$b" in *"gate-1.json: a skeleton for 关卡 ①"*"{填：…}"*"bin/vh gate $g 1"*) true ;; *) false ;; esac && case "$c" in *"already there"*"does not overwrite"*) true ;; *) false ;; esac \
+    && python3 - "$g/out/review/gate-1.json" <<'PY'
+import json, sys
+sys.path.insert(0, "tools")
+import review
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+sys.exit(0 if d["version"] == 1 and review.placeholders(d) and d["decisions"][0]["id"] == "concept" and len(d["decisions"][0]["options"]) == 3 else 1)
+PY
+  then ok "gate: no JSON points to --init and the section of the playbook; --init writes a skeleton with version 1, and does not overwrite"
+  else bad "gate --init ($rc/$rc2/$rc3): $a | $b | $c"; fi
+  a=$(vh gate "$g" 1 --page 2>&1); rc=$?; b=$(vh review "$g" 1 2>&1); rc2=$?
+  c=$(vh status "$g" --json | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d["stations"][0]["state"], d["review"]["current"], d["stations"][0]["pages"])')
+  if [ "$rc:$rc2" = 2:2 ] && case "$a" in *"placeholder(s) still to fill in"*"summary"*"Nothing was written"*) true ;; *) false ;; esac && [ ! -e "$g/out/review/gate-1.html" ] && [ ! -e "$g/out/review/index.html" ] \
+    && [ ! -e "$g/out/review/.current" ] && [ "$c" = "in_progress None []" ] && [ -z "$(vh gate "$g" --page 2>/dev/null)" ]
+  then ok "gate and review refuse an unfilled skeleton, write nothing, and it is no page: status stays in progress with no round"
+  else bad "gate on an unfilled skeleton ($rc/$rc2, status $c): $a | $b"; fi
+  python3 - "$g/out/review/gate-1.json" <<'PY'
+import json, sys
+f = sys.argv[1]
+d = json.load(open(f, encoding="utf-8"))
+def fill(x):
+    if isinstance(x, dict): return {k: fill(v) for k, v in x.items()}
+    if isinstance(x, list): return [fill(v) for v in x]
+    return "填好了" if isinstance(x, str) and x.startswith("{") else x
+d = fill(d); d.pop("assets"); d["decisions"][0]["recommend"] = "A"
+json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)
+PY
+  a=$(vh gate "$g" 1 --page 2>&1); rc=$?
+  c=$(vh status "$g" --json | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d["stations"][0]["state"], d["review"]["current"])')
+  if [ "$rc" = 0 ] && case "$a" in *"要你定 1 件事"*) true ;; *) false ;; esac && [ -f "$g/out/review/gate-1.html" ] && [ "$c" = "waiting_person 1" ]; then ok "gate: the skeleton filled in goes out like any page (the version key is ignored, no warning)"
+  else bad "gate on a filled skeleton ($rc, status $c): $a"; fi
+  a=""
+  for i in 2 3 E0 E3 2b final; do b=$(vh gate "$g" "$i" --init 2>&1) || a="$a | $i: $b"; python3 -c 'import json, sys; sys.path.insert(0, "tools"); import review; d = json.load(open(sys.argv[1], encoding="utf-8")); sys.exit(0 if d["version"] == 1 and review.placeholders(d) else 1)' "$g/out/review/gate-$i.json" || a="$a | gate-$i.json"; done
+  c=$(vh gate "$g" 1 --init --desk 2>&1); rc=$?; b=$(vh gate "$g" --init 2>&1); rc2=$?
+  if [ -z "$a" ] && [ "$rc:$rc2" = 2:2 ] && case "$b" in *"--init needs the stop"*) true ;; *) false ;; esac && grep -q '"include": "out/check/storyboard/review.json"' "$g/out/review/gate-2.json" && grep -q 'least_sure' "$g/out/review/gate-3.json"
+  then ok "gate --init: a skeleton for each stop (gate ② includes the storyboard's data, gate ③ asks for the three places least sure of); --init with a channel or no stop is a usage error"
+  else bad "gate --init on the other stops:$a ($rc/$rc2): $b | $c"; fi
+  OVH_PROJECTS="$t" vh new math gq --effort quick --lang en >/dev/null 2>&1; g=$(ls -d "$t"/*-gq)
+  a=$(vh gate "$g" 1 2>&1 >/dev/null); rc=$?; b=$(vh gate "$g" E3 --init 2>&1); rc2=$?
+  if [ "$rc:$rc2" = 2:0 ] && case "$a" in *"quick project has no gates"*"asked for a stop"*"--init"*) true ;; *) false ;; esac && case "$b" in *"Checkpoint E3"*"quick project has no gates"*) true ;; *) false ;; esac \
+    && grep -q '{fill: ' "$g/out/review/gate-E3.json" && ! grep -q '{填' "$g/out/review/gate-E3.json"
+  then ok "gate in a quick project: no JSON says quick has no gates unless the person asked for a stop; --init still writes one, in the review language"
+  else bad "gate in a quick project ($rc/$rc2): $a | $b"; fi
   g="$t/g"; cp -R tools/desk/fixtures/zh "$g"; rm -rf "$g/out/review/feedback" "$g/out/review/.current"
   printf '%s\n' '# LOCAL' '- 审阅方式：{对话 | 审阅页 | 审阅台}（不填按档位）' > "$t/LOCAL-tpl.md"; printf '%s\n' '# LOCAL' '- 审阅方式：对话' > "$t/LOCAL-chat.md"
   a=$(vh gate "$g" 1 --page 2>"$t/g1.err"); rc=$?
