@@ -177,14 +177,14 @@ JSON 的格式：
 | event | 字段 | 谁写 |
 |---|---|---|
 | `start` | `cmd`、`args`（照打的写，但不写秘密：名字（`=` 前那段）里带 key、token、secret、pass、auth、cred、cookie、header、bearer 的选项和 `名字=值` 的值，大写的 `NAME=值`、单字母选项后面的值，URL 里的 `用户:密码@`、查询参数的值和 `#` 后面，Bearer token，名字像秘密的 header，像 key 的参数，都写成 `…`；最多 24 个）、`cwd`、`pid`、`parent`（由另一条 `bin/vh` 起的） | `bin/vh` |
-| `progress` | `done`、`total`、`unit`（`render`：frames，开头、每 15 s、结尾各一行） | 工具 |
-| `note` | `summary`（一行）、`outputs`（写了哪些文件，项目里的写相对路径）；为什么失败的那一条：`level`（`error`）、`code`（`tools/jsonerr.py` 的错误码）、`summary` 是那句话 | 工具：render、patch、review、gate、mix、qa、tts、check、`desk wait`、`versions compare`、`versions use`；为什么失败：`tools/jsonerr.py` 和 `bin/vh` 的 `vh_fail`，render、patch 自己 |
-| `end` | `exit`（退出码；Ctrl-C 是 130，写完 `bin/vh` 再用 SIGINT 结束自己，调用它的 shell 才知道是 Ctrl-C；自己处理信号 n 的工具（desk、`desk wait`、`gate --wait`）停下时是 128 + n；被 TERM、HUP 直接杀掉的命令当场结束，没有这一行，读出来是 `gone`）、`duration`（秒；没有 `EPOCHREALTIME` 的 bash，比如 macOS 自带的 3.2，只到整秒） | `bin/vh` 的 EXIT trap；`bin/vh` exec 进去的工具（render、patch、frames 这些页面工具，desk、gate）自己写 |
+| `progress` | `done`、`total`、`unit`（`render`：frames，开头、每 15 s、结尾各一行；`patch`、`proxy`：frames；`tts`：lines；`thumbs`：pictures；`deliver`：percent，另有 `pass`、`passes`：这一行是第几遍；这些最多 5 到 10 s 一行，第一行和到头的一行总写） | 工具 |
+| `note` | `summary`（一行）、`outputs`（写了哪些文件，项目里的写相对路径）；为什么失败的那一条：`level`（`error`）、`code`（`tools/jsonerr.py` 的错误码）、`summary` 是那句话；`kept`（工具被停下时，留了什么可以接着做：`render` 的 chunk、`tts` 的句子）；`gone`（`true`：`bin/vh cancel` 发现这个 pid 已经是别的进程，这条命令读出来是 `gone`） | 工具：render、patch、review、gate、mix、qa、tts、check、`desk wait`、`versions compare`、`versions use`；为什么失败：`tools/jsonerr.py` 和 `bin/vh` 的 `vh_fail`，render、patch 自己 |
+| `end` | `exit`（退出码；Ctrl-C 是 130，写完 `bin/vh` 再用 SIGINT 结束自己，调用它的 shell 才知道是 Ctrl-C；自己处理信号 n 的工具（desk、`desk wait`、`gate --wait`）停下时是 128 + n；被 TERM、HUP 直接杀掉的命令当场结束，没有这一行，读出来是 `gone`）、`duration`（秒；没有 `EPOCHREALTIME` 的 bash，比如 macOS 自带的 3.2，只到整秒）、`cancelled`（`bin/vh cancel` 停的：`true`，`exit` 是 130 或 143） | `bin/vh` 的 EXIT trap；`bin/vh` exec 进去的工具（render、patch、frames 这些页面工具，desk、gate）自己写 |
 | `feedback` | `round`、`file`、`items`（按状态计数）、`decisions` | 审阅台存下一份提交时；不属于哪条命令 |
 
 `bin/vh` 把这条命令交给它起的进程：环境变量 `OVH_ACTIVITY_LOG`、`_RUN`、`_PID`、`_T0`、`_CMD`。不写进去的：环境变量、key、文件内容。每行一次 O_APPEND 的 write，几条命令同时写也不会把行写乱：`bin/vh` 写的不超过 1 KiB（bash 的 printf 会把更长的一行拆成 1024 字节一段段写），Python、Node 写的不超过 4 KiB；写不进去（磁盘满、项目只读）就丢掉这一行，命令照常跑完、不多说一句。
 
-`--json` 是 `{"version", "project", "log", "runs", "events"}`。`runs` 里每条命令一项：`run`、`cmd`、`args`、`cwd`、`pid`、`parent`、`start`、`end`、`exit`、`duration`、`summary`、`outputs`、`progress`、`state`、`error`（为什么失败，工具说得出时是 `{"code", "message"}`，否则 `null`）。`state` 是 `running`（没有结束行，进程还在，开始不到 7 天）、`ok`（退出码 0）、`failed`、`gone`（没有结束行，进程也没了：被杀掉，或者机器重启过）。`events` 是不属于命令的行（`feedback`）。`--follow` 先打印最近的，再一行一行跟着打印新的；加 `--json` 是一行一个 JSON。读的时候，读不了的行跳过，类型不对的字段丢掉（`outputs` 不是列表、`summary` 不是字符串……），一行坏了不会让 `activity`、`status` 或客户端停下来。只读日志最后 4 MB。
+`--json` 是 `{"version", "project", "log", "runs", "events"}`。`runs` 里每条命令一项：`run`、`cmd`、`args`、`cwd`、`pid`、`parent`、`start`、`end`、`exit`、`duration`、`summary`、`outputs`、`progress`、`state`、`error`（为什么失败，工具说得出时是 `{"code", "message"}`，否则 `null`）、`cancelled`（`bin/vh cancel` 停的）、`kept`（留了什么可以接着做，否则 `null`）。`state` 是 `running`（没有结束行，进程还在，开始不到 7 天）、`ok`（退出码 0）、`failed`、`gone`（没有结束行，进程也没了：被杀掉，或者机器重启过）。`events` 是不属于命令的行（`feedback`）。`--follow` 先打印最近的，再一行一行跟着打印新的；加 `--json` 是一行一个 JSON。读的时候，读不了的行跳过，类型不对的字段丢掉（`outputs` 不是列表、`summary` 不是字符串……），一行坏了不会让 `activity`、`status` 或客户端停下来。只读日志最后 4 MB。
 
 ### 版本：`bin/vh versions <项目> [--json]`
 

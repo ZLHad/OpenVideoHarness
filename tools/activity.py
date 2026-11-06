@@ -14,13 +14,16 @@ The lines (each has "v": 1, "event", and "t": seconds since the epoch; "run" tie
             of a one-letter option, a URL's user:password@, query values and fragment, a Bearer token, and whatever
             looks like a key are written as "…"; at most 24 of them), cwd, pid, parent (the run of the bin/vh that
             started this one)
-  progress  a long command's progress: run, done, total, unit (render: frames)
+  progress  a long command's progress: run, done, total, unit (render, patch and proxy: frames; tts: lines; thumbs: pictures; deliver:
+            percent, of its pass of passes). At most one line every several seconds, and the first and last (Progress below)
   note      what a command made, written by the tool itself: run, summary (one line), outputs (paths, relative to the
-            project when inside it); or why it failed, with "level": "error", code and summary the message (tools/jsonerr.py)
+            project when inside it); or why it failed, with "level": "error", code and summary the message (tools/jsonerr.py);
+            kept: what a tool that was stopped keeps for a resume; gone: true, from bin/vh cancel, when the pid in a run's start
+            line is another process now: the run reads as gone
   end       a command ended: run, exit (its exit status: 130 after a Ctrl-C, after which bin/vh ends by SIGINT itself;
             128 + n when a tool that handles signal n stopped on it: desk, desk wait, gate --wait; a command killed by
             TERM or HUP ends at once and has no end line), duration (seconds; whole seconds under a bash without
-            EPOCHREALTIME, such as macOS's 3.2)
+            EPOCHREALTIME, such as macOS's 3.2), cancelled: true when bin/vh cancel stopped it (exit 130 or 143; tools/cancel.py)
   feedback  the review desk saved a submission (not part of a run): round, file, items by status
 Who writes them: bin/vh writes a run's start before the command and its end from its EXIT trap, and hands the run to what
 it starts through the environment (OVH_ACTIVITY_LOG, _RUN, _PID, _T0, _CMD). A tool adds note and progress lines; a tool
@@ -33,9 +36,9 @@ written is dropped without a word: a command never fails, and never waits, becau
 byte that is no part of a UTF-8 character (in an argument, a folder's or a file's name) is written as the text \\xNN, and
 the reader shows a raw one in a line an older bin/vh wrote the same way.
 A run without an end line is running while its process lives (and started within 7 days), else gone (it was killed, or
-the machine restarted). The reader reads the last 4 MB of the log.
+the machine restarted). bin/vh cancel stops a running one and sees that its end line says so. The reader reads the last 4 MB of the log.
 """
-import json, os, sys, time
+import json, os, subprocess, sys, threading, time
 from pathlib import Path
 
 MAX_LINE = 3800              # bytes: one line, one write, well under 4 KiB
@@ -123,11 +126,71 @@ def note(summary=None, outputs=None, **extra):
     _write(c[0], rec)
 
 
-def progress(done, total=None, unit=None):
+def progress(done, total=None, unit=None, **extra):
     c = _ctx()
     if c:
         _write(c[0], {"event": "progress", "run": c[1], "t": round(time.time(), 3), "cmd": c[2], "done": done,
-                      **({"total": total} if total is not None else {}), **({"unit": unit} if unit else {})})
+                      **({"total": total} if total is not None else {}), **({"unit": unit} if unit else {}), **extra})
+
+
+class Progress:
+    """A long command's progress lines at a low rate: tick(done) writes a line when done has changed and `every` seconds have gone
+    by since the last, always the first and the one that reaches total. The log is read back from its tail: a line is small, and
+    few. clock: for a test."""
+
+    def __init__(self, total=None, unit=None, every=5.0, clock=time.monotonic, **extra):
+        self.total, self.unit, self.every, self.clock, self.extra = total, unit, every, clock, extra
+        self.at, self.last = None, None
+
+    def __call__(self, done, **extra):
+        now = self.clock()
+        final = self.total is not None and done >= self.total
+        if done == self.last or (self.at is not None and now - self.at < self.every and not final):
+            return False
+        self.at, self.last = now, done
+        progress(done, self.total, self.unit, **{**self.extra, **extra})
+        return True
+
+
+def follow_ffmpeg(cmd, tick, keep_stderr=True):
+    """Run ffmpeg (cmd[0]) with its -progress on a pipe: tick(frame, seconds written) at each of its reports. → (exit status, what it
+    wrote on stderr; keep_stderr False: it goes where ours goes). Stopped by an exception (a Ctrl-C), ffmpeg goes too."""
+    p = subprocess.Popen([*cmd[:1], "-progress", "pipe:1", *cmd[1:]], stdout=subprocess.PIPE, stderr=subprocess.PIPE if keep_stderr else None, stdin=subprocess.DEVNULL, text=True, errors="replace")
+    err, th = [], None
+    if keep_stderr:
+        th = threading.Thread(target=lambda: err.append(p.stderr.read()), daemon=True)
+        th.start()
+    frame, seconds = None, None
+    try:
+        for line in p.stdout:
+            k, _, v = line.strip().partition("=")
+            if k == "frame" and v.isdigit():
+                frame = int(v)
+            elif k in ("out_time_us", "out_time_ms") and v.lstrip("-").isdigit():   # both are microseconds, as ffmpeg writes them
+                seconds = max(0.0, int(v) / 1e6)
+            elif k == "progress":
+                tick(frame, seconds)
+        p.wait()
+    except BaseException:
+        p.kill()
+        p.wait()
+        raise
+    if th:
+        th.join(5)
+    return p.returncode, "".join(err)
+
+
+def cancelling(log, run, code):
+    """(the exit status for the end line, is it a cancel): bin/vh cancel's mark for this run, there while it stops it (tools/cancel.py).
+    A run that ended well ended on its own; any other exit under the mark is the cancel's."""
+    try:
+        with open(os.path.join(os.path.dirname(log), "cancel", run), encoding="utf-8") as f:
+            said = f.read().strip()
+    except (OSError, ValueError):
+        return code, False
+    if code == 0:
+        return code, False
+    return (code if code in (130, 143) else 143 if said == "143" else 130), True
 
 
 def end(code, summary=None):
@@ -142,7 +205,10 @@ def end(code, summary=None):
         dur = round(max(0.0, now - float(os.environ.get("OVH_ACTIVITY_T0") or now)), 3)
     except ValueError:
         dur = None
+    code, cancelled = cancelling(c[0], c[1], code)
     rec = {"event": "end", "run": c[1], "t": round(now, 3), "cmd": c[2], "exit": code, "duration": dur}
+    if cancelled:
+        rec["cancelled"] = True
     if summary:
         rec["summary"] = _summary(summary)
     _write(c[0], rec)
@@ -179,9 +245,9 @@ def event(project, kind, **fields):
 
 # ---------- reading ----------
 
-_STR = ("run", "cmd", "cwd", "summary", "unit", "parent", "file", "round", "level", "code")
+_STR = ("run", "cmd", "cwd", "summary", "unit", "parent", "file", "round", "level", "code", "kept")
 _INT = ("pid", "exit", "decisions")
-_NUM = ("duration", "done", "total")
+_NUM = ("duration", "done", "total", "pass", "passes")
 
 
 def _number(x, whole=False):
@@ -246,10 +312,11 @@ def _alive(pid):
 def runs(records, now=None):
     """(runs, events): the records grouped by run, in the order they began (the log's own order), and the records
     outside any run. A run: {run, cmd, args, cwd, pid, parent, start, end, exit, duration, state, summary, outputs,
-    progress, error}; state is running, ok (exit 0), failed (another exit status) or gone (no end line, and its process is
-    gone); error is why it failed, when the tool could say: {code, message} (a note with level error), else null."""
+    progress, error, cancelled, kept}; state is running, ok (exit 0), failed (another exit status) or gone (no end line, and its
+    process is gone, or bin/vh cancel found its pid is another process now); error is why it failed, when the tool could say:
+    {code, message} (a note with level error), else null; cancelled: bin/vh cancel stopped it; kept: what it kept for a resume."""
     now = time.time() if now is None else now
-    by, events = {}, []   # a dict keeps the order runs first appear in
+    by, events, gone = {}, [], set()   # a dict keeps the order runs first appear in
     for r in records:
         rid, ev = r.get("run"), r["event"]
         if ev not in ("start", "end", "note", "progress") or not isinstance(rid, str):
@@ -259,12 +326,12 @@ def runs(records, now=None):
         if run is None:
             run = by[rid] = {"run": rid, "cmd": r.get("cmd") or "", "args": [], "cwd": None, "pid": None, "parent": None,
                              "start": None, "end": None, "exit": None, "duration": None, "state": None, "summary": None,
-                             "outputs": [], "progress": None, "error": None}
+                             "outputs": [], "progress": None, "error": None, "cancelled": False, "kept": None}
         if ev == "start":
             run.update(cmd=r.get("cmd") or run["cmd"], args=r.get("args") if isinstance(r.get("args"), list) else [],
                        cwd=r.get("cwd"), pid=r.get("pid"), parent=r.get("parent"), start=r["t"])
         elif ev == "end":
-            run.update(end=r["t"], exit=r.get("exit"), duration=r.get("duration"))
+            run.update(end=r["t"], exit=r.get("exit"), duration=r.get("duration"), cancelled=r.get("cancelled") is True)
             if r.get("summary"):
                 run["summary"] = r["summary"]
         elif ev == "note" and r.get("level") == "error":
@@ -273,13 +340,17 @@ def runs(records, now=None):
             if r.get("summary"):
                 run["summary"] = r["summary"]
             run["outputs"] += [o for o in r.get("outputs") or [] if isinstance(o, str) and o not in run["outputs"]]
+            if r.get("kept"):
+                run["kept"] = r["kept"]
+            if r.get("gone") is True:
+                gone.add(rid)
         else:
-            run["progress"] = {k: r.get(k) for k in ("done", "total", "unit", "t") if r.get(k) is not None}
+            run["progress"] = {k: r.get(k) for k in ("done", "total", "unit", "t", "pass", "passes") if r.get(k) is not None}
     out = list(by.values())
     for run in out:
         if run["end"] is not None:
             run["state"] = "ok" if run["exit"] == 0 else "failed"
-        elif run["pid"] and _alive(run["pid"]) and (run["start"] or 0) > now - RUNNING_FOR:
+        elif run["pid"] and run["run"] not in gone and _alive(run["pid"]) and (run["start"] or 0) > now - RUNNING_FOR:
             run["state"] = "running"
         else:
             run["state"] = "gone"
@@ -322,11 +393,11 @@ def _cmdline(run, project=None):
 
 def show_run(run, now, project=None):
     st = run["state"]
-    mark = {"ok": "✓", "failed": f"✗ exit {run['exit']}", "running": "…", "gone": "? gone"}[st]
+    mark = {"ok": "✓", "failed": "✗ cancelled" if run.get("cancelled") else f"✗ exit {run['exit']}", "running": "…", "gone": "? gone"}[st]
     how = _dur(run["duration"]) if st in ("ok", "failed") else _dur(now - run["start"]) if st == "running" and run["start"] else ""
     pr = run.get("progress") or {}
     if st == "running" and pr.get("done") is not None:
-        how += f" · {pr['done']}" + (f" / {pr['total']}" if pr.get("total") is not None else "") + (f" {pr['unit']}" if pr.get("unit") else "")
+        how += f" · {pr['done']}" + (f" / {pr['total']}" if pr.get("total") is not None else "") + (f" {pr['unit']}" if pr.get("unit") else "") + (f", pass {pr['pass']} of {pr['passes']}" if pr.get("passes") else "")
     tail = run["summary"] or ""
     if run.get("error"):
         tail += (" · " if tail else "") + run["error"]["message"]
@@ -351,7 +422,7 @@ def show_line(r):
     if ev == "start":
         return f"{_when(r['t'], False)}  {cmd:<9} started  {' '.join(str(x) for x in (r.get('args') or [])[:6])}".rstrip()
     if ev == "end":
-        mark = "✓" if r.get("exit") == 0 else f"✗ exit {r.get('exit')}"
+        mark = "✓" if r.get("exit") == 0 else "✗ cancelled" if r.get("cancelled") else f"✗ exit {r.get('exit')}"
         return f"{_when(r['t'], False)}  {cmd:<9} {mark} · {_dur(r.get('duration'))}" + (f"  {r['summary']}" if r.get("summary") else "")
     if ev == "progress":
         return f"{_when(r['t'], False)}  {cmd:<9} {r.get('done')}" + (f" / {r['total']}" if r.get("total") is not None else "") + (f" {r['unit']}" if r.get("unit") else "")

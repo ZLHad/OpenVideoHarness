@@ -340,7 +340,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
       d=${d%/*}
     done
   done
-  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs|assets|footage|image|sfx|bgm|ref|scout|web|concept|looks|check) ;; *) return 0 ;; esac
+  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs|assets|footage|image|sfx|bgm|ref|scout|web|concept|looks|check|cancel) ;; *) return 0 ;; esac
   base=$(projects_base)
   for a in "$@"; do
     case $a in -*|*/*|"") continue ;; esac
@@ -352,7 +352,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
 act_start() { act_project "$@"; [ -z "$ACT_PROJ" ] || act_begin "$ACT_PROJ" "$@"; }   # act_start <command> <args…>
 act_begin() { # act_begin <project> <command> <args…>: the start line; the run handed to what the command runs (OVH_ACTIVITY_*);
   # the EXIT trap writes its end (vh_trap), and a Ctrl-C ends it through ctrl_c_exit (the end line says 130). TERM and HUP
-  # kill bin/vh as they would without a log, at once: no end line, and the reader shows the run as gone
+  # kill bin/vh as they would without a log, at once: no end line, and the reader shows the run as gone (bin/vh cancel writes it)
   local proj=$1 cmd=$2 a args="" n=0 len=0 hide="" c parent="" line
   shift 2
   [ -d "$proj/.ovh" ] || mkdir "$proj/.ovh" 2>/dev/null; [ -d "$proj/.ovh" ] || return 0   # (another bin/vh may make it first)
@@ -381,13 +381,17 @@ act_begin() { # act_begin <project> <command> <args…>: the start line; the run
 }
 act_end() { # act_end <status>: the run's end line (from the EXIT trap; a tool bin/vh exec'd into writes its own)
   [ -n "$ACT_RUN" ] || return 0
-  local d s="" ms sm=$ACT_SUMMARY
+  local d s="" ms sm=$ACT_SUMMARY rc=$1 c="" said=""
   act_now; act_ms "$ACT_NOW"; d=$ACT_MS; act_ms "$ACT_T0"; d=$((d - ACT_MS)); [ $d -ge 0 ] || d=0
+  if [ "$rc" != 0 ] && [ -e "${ACT_LOG%/*}/cancel/$ACT_RUN" ]; then   # bin/vh cancel is stopping it (tools/cancel.py): its mark says with which exit status
+    c=',"cancelled":true'; read -r said < "${ACT_LOG%/*}/cancel/$ACT_RUN" 2>/dev/null || true
+    case $rc in 130|143) ;; *) rc=130; [ "$said" != 143 ] || rc=143 ;; esac
+  fi
   printf -v ms '%03d' $((d % 1000))
   [ ${#sm} -le 200 ] || sm="${sm:0:200}…"
   [ -z "$sm" ] || { act_str "$sm"; s=",\"summary\":$ACT_S"; }
   act_str "${OVH_ACTIVITY_CMD:-}"
-  act_line "{\"v\":1,\"event\":\"end\",\"run\":\"$ACT_RUN\",\"t\":$ACT_NOW,\"cmd\":$ACT_S,\"exit\":$1,\"duration\":$((d / 1000)).$ms$s}"
+  act_line "{\"v\":1,\"event\":\"end\",\"run\":\"$ACT_RUN\",\"t\":$ACT_NOW,\"cmd\":$ACT_S,\"exit\":$rc,\"duration\":$((d / 1000)).$ms$s$c}"
 }
 # a failure a program can read (tools/jsonerr.py has the shape and the codes): what fails here, before Python starts
 VH_JSON="" VH_JFD=1 VH_SAID="" VH_LOGGED="" VH_OWN=""   # --json among the arguments; the fd of its stdout; a record is out; its note is; new or check, which print their own JSON
@@ -825,6 +829,7 @@ cmd_activity() { [ $# -gt 0 ] || { cmd_usage activity >&2; exit 2; }; exec pytho
 cmd_know() { [ $# -gt 0 ] || { cmd_usage know >&2; exit 2; }; exec python3 "$ROOT/tools/know.py" "$@"; }   # read-only, not logged; stdlib
 cmd_status() { [ $# -gt 0 ] || { cmd_usage status >&2; exit 2; }; exec python3 "$ROOT/tools/status.py" "$@"; }         # read-only, not logged
 cmd_projects() { exec python3 "$ROOT/tools/projects.py" "$@"; }   # about no one project: not logged; only --assign writes
+cmd_cancel() { [ $# -gt 0 ] || { cmd_usage cancel >&2; exit 2; }; python3 "$ROOT/tools/cancel.py" "$@"; }   # stdlib and ps; only what the log started
 cmd_versions() { [ $# -gt 0 ] || { cmd_usage versions >&2; exit 2; }; python3 "$ROOT/tools/versions.py" "$@"; }   # the list is not logged; compare and use are
 cmd_proxy() { [ $# -gt 0 ] || { cmd_usage proxy >&2; exit 2; }; python3 "$ROOT/tools/proxy.py" proxy "$@"; }       # ffmpeg only
 cmd_thumbs() { [ $# -gt 0 ] || { cmd_usage thumbs >&2; exit 2; }   # a browser only for a project with no film (the page's frames)
@@ -1265,7 +1270,7 @@ case " $* " in *" --json "*) VH_JSON=1 ;; esac
 # with --json, no python3 is said as any failure is (bin/vh doctor --json has its own record for it)
 if [ -n "$VH_JSON" ] && [ "${1:-}" != doctor ] && ! command -v python3 >/dev/null 2>&1; then vh_fail missing_tool 127 "bin/vh ${1:-}: python3 not found: most commands need it" "bin/vh doctor says how to get it"; fi
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|cast|know|artifacts|looks|breakdown|concept|components|hf|footage|image|model3d|hdri|bgm|sound|scout|ref|web|projects) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|cast|know|artifacts|looks|breakdown|concept|components|hf|footage|image|model3d|hdri|bgm|sound|scout|ref|web|projects|cancel) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
@@ -1316,7 +1321,7 @@ case "${1:-help}" in
   gate) shift; cmd_gate "$@" ;;
   commands) shift; exec python3 "$ROOT/tools/commands.py" list "$@" ;;   # read-only, not logged
   artifacts) shift; exec python3 "$ROOT/tools/artifacts.py" "$@" ;;   # read-only, not logged; stdlib only
-  status) shift; cmd_status "$@" ;; projects) shift; cmd_projects "$@" ;; activity) shift; cmd_activity "$@" ;; know) shift; cmd_know "$@" ;; versions) shift; cmd_versions "$@" ;; proxy) shift; cmd_proxy "$@" ;; thumbs) shift; cmd_thumbs "$@" ;;
+  status) shift; cmd_status "$@" ;; projects) shift; cmd_projects "$@" ;; cancel) shift; cmd_cancel "$@" ;; activity) shift; cmd_activity "$@" ;; know) shift; cmd_know "$@" ;; versions) shift; cmd_versions "$@" ;; proxy) shift; cmd_proxy "$@" ;; thumbs) shift; cmd_thumbs "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; edit) shift; cmd_edit "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;; looks) shift; cmd_looks "$@" ;; breakdown) shift; cmd_breakdown "$@" ;;
   help|-h|--help) cmd_help ;;

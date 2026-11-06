@@ -2097,6 +2097,24 @@
    "note": "bin/vh new writes it; an older project has none until bin/vh projects --assign, and a command that only reads never writes it."
   },
   {
+   "id": "cancel-marks",
+   "path": ".ovh/cancel/",
+   "kind": "folder",
+   "format": "text",
+   "stages": ["any"],
+   "purpose": "bin/vh cancel 正在停的命令各一个记号，它停完就删：结束行靠它写 cancelled",
+   "made_by": "tool",
+   "writers": ["cancel"],
+   "readers": ["cancel"],
+   "required": null,
+   "version_key": null,
+   "schema": null,
+   "stale": null,
+   "clean": "stays",
+   "doc": "tools/cancel.py",
+   "note": "Each file is named by a run and holds the exit status for its end line. bin/vh and the tools that write an end line read it."
+  },
+  {
    "id": "activity-log",
    "path": ".ovh/activity.jsonl",
    "kind": "file",
@@ -2105,14 +2123,14 @@
    "purpose": "bin/vh 在这个项目里做了什么，一行一个事件，只追加",
    "made_by": "tool",
    "writers": ["*"],
-   "readers": ["activity", "status"],
+   "readers": ["activity", "status", "cancel"],
    "required": null,
    "version_key": "v",
    "schema": "tools/schemas/activity.schema.json",
    "stale": null,
    "clean": "stays",
    "doc": "tools/desk/README.md#活动记录",
-   "note": "A client reads this file, not writers: \"*\" there means every bin/vh command that works on a project (new, once the project is made), all but the read-only ones (bin/vh's list before act_start: setup, install-skill, sync-agents, types, effort, recipes, doctor, commands, status, activity, know, artifacts). Each appends a start line and an end line; a command may add notes between them."
+   "note": "A client reads this file, not writers: \"*\" there means every bin/vh command that works on a project (new, once the project is made), all but the read-only ones (bin/vh's list before act_start: setup, install-skill, sync-agents, types, effort, recipes, doctor, commands, status, activity, know, artifacts, projects). Each appends a start line and an end line; a command may add notes between them."
   }
  ]
 }

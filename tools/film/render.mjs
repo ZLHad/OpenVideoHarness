@@ -313,6 +313,7 @@ for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig,
   for (const ff of encoders) ff.kill("SIGKILL");
   const k = keepFinished();
   console.error(`render: stopped (${sig}); ` + (k ? keptSay(k) : "the chunks so far are deleted"));
+  activityNote(`stopped (${sig})`, [], k ? { kept: keptSay(k) } : {});
   process.exit(code);
 });
 const COLOR = "colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv";

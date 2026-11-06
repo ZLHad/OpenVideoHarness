@@ -206,7 +206,7 @@
  "$defs": {
   "run": {
    "type": "object",
-   "required": ["run", "cmd", "args", "cwd", "pid", "parent", "start", "end", "exit", "duration", "state", "summary", "outputs", "progress", "error"],
+   "required": ["run", "cmd", "args", "cwd", "pid", "parent", "start", "end", "exit", "duration", "state", "summary", "outputs", "progress", "error", "cancelled", "kept"],
    "properties": {
     "run": {"type": "string"},
     "cmd": {"type": "string"},
@@ -228,7 +228,9 @@
       "done": {"type": "number"},
       "total": {"type": "number"},
       "unit": {"type": "string"},
-      "t": {"type": "number"}
+      "t": {"type": "number"},
+      "pass": {"type": "number"},
+      "passes": {"type": "number"}
      }
     },
     "error": {
@@ -238,7 +240,9 @@
       "code": {"type": "string"},
       "message": {"type": "string"}
      }
-    }
+    },
+    "cancelled": {"type": "boolean"},
+    "kept": {"type": ["string", "null"]}
    }
   }
  }

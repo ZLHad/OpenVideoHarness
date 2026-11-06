@@ -1,0 +1,44 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/cancel.schema.json",
+ "title": "bin/vh cancel <project> [run] --json",
+ "description": "What was stopped and how, what was left running and why (tools/cancel.py).",
+ "type": "object",
+ "required": ["version", "tool", "project", "runs", "skipped", "cancelled"],
+ "properties": {
+  "version": {"enum": [1]},
+  "tool": {"type": "string"},
+  "project": {"type": "string"},
+  "runs": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["run", "cmd", "pid", "state", "signal", "exit", "seconds", "kept", "why"],
+    "properties": {
+     "run": {"type": "string"},
+     "cmd": {"type": ["string", "null"]},
+     "pid": {"type": ["integer", "null"]},
+     "state": {"enum": ["cancelled", "finished", "not_running", "not_that_process", "still_running"]},
+     "signal": {"type": ["string", "null"]},
+     "exit": {"type": ["integer", "null"]},
+     "seconds": {"type": ["number", "null"]},
+     "kept": {"type": ["string", "null"]},
+     "why": {"type": ["string", "null"]}
+    }
+   }
+  },
+  "skipped": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["run", "cmd", "why"],
+    "properties": {
+     "run": {"type": "string"},
+     "cmd": {"type": ["string", "null"]},
+     "why": {"type": "string"}
+    }
+   }
+  },
+  "cancelled": {"type": "integer"}
+ }
+}

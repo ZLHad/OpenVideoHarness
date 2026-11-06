@@ -141,10 +141,12 @@ Providers (API keys come from environment variables only, never from files):
               pronunciation_dict.tone. text_normalization is on: "1953 年" is read 一千九百五十三年, so write years
               as 一九五三年 in the spoken text.
 """
-import argparse, base64, difflib, hashlib, json, os, platform, re, shutil, subprocess, sys, tempfile, time, unicodedata
+import argparse, base64, difflib, hashlib, json, os, platform, re, shutil, signal, subprocess, sys, tempfile, time, unicodedata
 import urllib.error, urllib.parse, urllib.request, wave
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
+
+RESUME = None   # what a stop keeps for a resume, once a line is on disk
 
 SR = 48000
 GEMINI_API = "https://generativelanguage.googleapis.com/v1beta"
@@ -1325,6 +1327,16 @@ def main():
         out.unlink(missing_ok=True)                                  # never leave a half-written file for --resume to trust
         sys.exit(f"{what}: synthesis failed: {err(e)}. {done} of {total} are in {vo.relative_to(proj)}; re-run the same command"
                  f" with --resume to synthesize the rest")
+    sys.path.append(str(Path(__file__).resolve().parent.parent))
+    import activity   # tools/activity.py: the lines done in the project's log, when bin/vh ran us
+    progress = activity.Progress(len(segs), "lines")
+    progress(0)
+
+    def tick(done):
+        """So many lines are on disk: the log, and what a stop keeps for a resume."""
+        global RESUME
+        progress(done)
+        RESUME = f"{done} of {len(segs)} line(s) in {vo.relative_to(proj)}: the same command with --resume synthesizes the rest"
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
         made = []             # the transcribe calls actually made (a --resume that reuses every .asr.json makes none)
@@ -1402,6 +1414,7 @@ def main():
                     s["words"] = [{"w": w["w"], "start": round(t + w["start"], 3), "end": round(t + w["end"], 3)} for w in words]
                 parts.append(out); t += d
                 print(f"  {s['id']:<8} {s['start']:6.2f}–{s['end']:6.2f}s  {(s['speaker'] + ': ') if s.get('speaker') else ''}{s['text']}", flush=True)
+                tick(i + 1)
             if align:                                                  # every line in parallel, after synthesis
                 write_outputs()                                        # the take is on disk before the first ASR call
                 t0 = time.time()
@@ -1518,6 +1531,7 @@ def main():
                     parts.append(silence(start - t, bi))
                 t = start
                 print(f"  block {bi+1}: {len(blk)} line(s), {bd:.2f} s in one request" + (f" — not transcribed: {fail}" if fail else ""), flush=True)
+                tick(n + len(blk))
                 texts = [s["text"] for s in blk]
                 heard = None if fail or not align else align_lines(texts, ws, bd, {i: s["_alt"] for i, s in enumerate(blk) if s.get("_alt")})
                 res = align_lines(texts, pw, bd) if timed and pw is not None else heard or [None] * len(blk)   # line boundaries: the provider's
@@ -1560,8 +1574,6 @@ def main():
     if trimmed > 0.05:
         print(f"  trimmed {trimmed:.2f} s of provider silence at line edges (--keep-edges to keep it)")
     print(f"→ {joined.relative_to(proj)} ({tl['duration']}s) · audio/timeline.{a.lang}.json · captions: bin/vh captions {a.project}")
-    sys.path.append(str(Path(__file__).resolve().parent.parent))
-    import activity   # tools/activity.py: the take in the project's log, when bin/vh ran us
     activity.note(f"{len(segs)} line(s), {tl['duration']} s, {a.provider} {a.voice or ''}".rstrip(), [joined, audio / f"timeline.{a.lang}.json"])
     import timeline_lint   # the checks captions and pace rely on: say now what they would refuse later
     if (lint := timeline_lint.lint(tl, a.lang)):
@@ -1574,8 +1586,28 @@ def main():
         kept = f"; the block audio is kept in {vo.relative_to(proj)}/_blockNN.wav and its lines share the block's span" if failed and join != "none" and not timed else ""
         sys.exit(f"align: {what}. The take is written (voiceover and timeline above{kept}); fix the cause, then re-run the same command with --resume to redo only what failed")
 
-if __name__ == "__main__":
+def stopped(*_):
+    raise KeyboardInterrupt
+
+
+def go():
     try:
         main()
     except GeminiError as e:       # a voices call that failed for good (synthesis and transcription failures are handled in main)
         sys.exit(str(e))
+
+
+def entry():
+    sys.path.append(str(Path(__file__).resolve().parent.parent))
+    import activity, jsonerr   # the note of why it failed, or of what a stop keeps
+    signal.signal(signal.SIGTERM, stopped)   # as a Ctrl-C
+    try:
+        sys.exit(jsonerr.guard(go))
+    except KeyboardInterrupt:
+        activity.note("stopped", **({"kept": RESUME} if RESUME else {}))
+        print("tts: stopped" + (f"; {RESUME}" if RESUME else ""), file=sys.stderr)
+        sys.exit(130)
+
+
+if __name__ == "__main__":
+    entry()

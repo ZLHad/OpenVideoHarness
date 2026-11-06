@@ -25,12 +25,12 @@ thumbs  <name>.thumbs/: a tile every --every seconds (2), --width px wide (160),
 JSON (--json prints the record; "version": 1): tools/desk/README.md, 给客户端的数据, has the fields.
 Exit: 0 made or up to date · 1 ffmpeg or the page failed · 2 usage, no film (proxy) and nothing to draw (thumbs).
 """
-import concurrent.futures as cf, json, math, os, re, shutil, subprocess, sys, tempfile, time
+import concurrent.futures as cf, json, math, os, re, shutil, signal, subprocess, sys, tempfile, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import jsonerr, versions as V   # noqa: E402,E401
+import activity, jsonerr, versions as V   # noqa: E402,E401
 from timegrid import frame_at, frame_from   # noqa: E402  (seconds to frames, the one way)
 
 VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
@@ -229,11 +229,18 @@ def x264(o):
 def make_proxy(film, info, o, dst):
     vf = f"scale={o['size'][0]}:{o['size'][1]}:flags=bilinear,setsar=1"
     tmp = dst.with_name(f".{dst.name}.tmp.mp4")
-    r = run(["ffmpeg", "-v", "error", "-nostdin", "-y", "-i", str(film), "-map", "0:v:0", "-map", "0:a:0?", "-vf", vf, *x264(o),
-             "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(tmp)])
-    if r.returncode or not tmp.is_file():
+    tick = activity.Progress(info["frames"], "frames")
+    tick(0)
+    try:
+        rc, err = activity.follow_ffmpeg(["ffmpeg", "-v", "error", "-nostdin", "-y", "-i", str(film), "-map", "0:v:0", "-map", "0:a:0?", "-vf", vf, *x264(o),
+                                          "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(tmp)], lambda f, _: f is not None and tick(min(f, info["frames"] - 1)))
+    except BaseException:   # a Ctrl-C: the proxy there is as it was
         tmp.unlink(missing_ok=True)
-        raise RuntimeError(f"ffmpeg could not make the proxy: {(r.stderr or '').strip()[:300]}")
+        raise
+    if rc or not tmp.is_file():
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError(f"ffmpeg could not make the proxy: {(err or '').strip()[:300]}")
+    tick(info["frames"])
     os.replace(tmp, dst)
 
 
@@ -247,6 +254,8 @@ def refresh_proxy(film, info, o, dst, wins):
     with tempfile.TemporaryDirectory(prefix=".proxy-", dir=dst.parent) as w:
         w = Path(w)
         pieces = {}
+        tick, done = activity.Progress(sum(B - A for A, B in wins), "frames"), 0
+        tick(done)
         for i, (A, B) in enumerate(wins):
             piece = w / f"piece{i}.mp4"
             ss = ["-ss", f"{(A - 0.5) / fps:.6f}"] if A > 0 else []
@@ -257,6 +266,8 @@ def refresh_proxy(film, info, o, dst, wins):
             if pp["frames"] != B - A or pp["extradata"] != old["extradata"]:
                 return f"frames {A}–{B - 1} did not come out as the proxy's ({pp['frames']} frames, {'same' if pp['extradata'] == old['extradata'] else 'another'} encoder setup)"
             pieces[A] = (piece, B - A)
+            done += B - A
+            tick(done)
         cuts = sorted({k for A, B in wins for k in (A, B) if 0 < k < n})
         bounds = [0, *cuts, n]
         parts = []
@@ -359,6 +370,20 @@ def shot_table(project, film, side):
 
 def even(x):
     return max(2, int(x / 2 + 0.5) * 2)
+
+
+def on_pool(fn, jobs, tick):
+    """fn over the jobs on a pool of threads, the progress as they end. Stopped (a Ctrl-C): what has not started never does."""
+    n = 0
+    tick(n)
+    with cf.ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as ex:
+        try:
+            for _ in ex.map(fn, jobs):
+                n += 1
+                tick(n)
+        except BaseException:
+            ex.shutdown(wait=False, cancel_futures=True)
+            raise
 
 
 def grab(src, fps, k, size, dst):
@@ -469,10 +494,10 @@ def cmd_thumbs(a):
         for q in (d / "shots").glob("*.jpg"):
             q.unlink()
     jobs = [(k, (W, H), d / "tiles" / f"{i + 1:05d}.jpg") for i, _, k in todo_t] + [(k, (SW, SH), d / "shots" / f"{fn}.jpg") for _, _, _, _, k, fn in todo_s]
+    tick = activity.Progress(len(jobs), "pictures")
     if jobs and frm != "page":
         fps_src = probe(src)["fps"] if frm == "proxy" else fps
-        with cf.ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as ex:
-            list(ex.map(lambda j: grab(src, fps_src, j[0], j[1], j[2]), jobs))
+        on_pool(lambda j: grab(src, fps_src, j[0], j[1], j[2]), jobs, tick)
     elif jobs:   # the page, through bin/vh frames: every time at once, then each picture scaled
         with tempfile.TemporaryDirectory(prefix="vh-thumbs-") as tmp:
             at = sorted({round(k / fps, 3) for k, _, _ in jobs})
@@ -480,8 +505,7 @@ def cmd_thumbs(a):
             if r.returncode:
                 raise RuntimeError(f"drawing the page failed: {(r.stderr or r.stdout or '').strip()[-400:]}")
             stem = Path(page).stem
-            with cf.ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as ex:
-                list(ex.map(lambda j: from_png(Path(tmp) / f"{stem}-t{round(j[0] / fps, 3):08.3f}.png", j[1], j[2]), jobs))
+            on_pool(lambda j: from_png(Path(tmp) / f"{stem}-t{round(j[0] / fps, 3):08.3f}.png", j[1], j[2]), jobs, tick)
     changed_sheets = {i // 100 for i, _, _ in todo_t}
     sh = sheets(d, len(tiles)) if made == "full" or changed_sheets or not all((d / f"sheet-{j + 1:02d}.jpg").is_file() for j in range(math.ceil(len(tiles) / 100))) \
         else [(d / f"sheet-{j + 1:02d}.jpg", min(100, len(tiles) - j * 100)) for j in range(math.ceil(len(tiles) / 100))]
@@ -574,6 +598,10 @@ def main_film(project):
     return 0
 
 
+def stopped(*_):
+    raise KeyboardInterrupt
+
+
 def main(argv):
     if argv[:1] == ["film"] and len(argv) == 2:
         return main_film(argv[1])
@@ -597,7 +625,11 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, stopped)   # as a Ctrl-C: what it made so far goes, what was there stays
     try:
         sys.exit(jsonerr.guard(lambda: main(sys.argv[1:])))
     except BrokenPipeError:
         sys.exit(0)
+    except KeyboardInterrupt:
+        print("stopped: nothing was put in place", file=sys.stderr)
+        sys.exit(130)

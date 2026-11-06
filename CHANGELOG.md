@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**`bin/vh cancel`; tts, deliver, patch, proxy and thumbs say how far they are**
+- Why: only `render` wrote progress, and stopping a command meant finding its pid and knowing how it takes signals; one killed read as `gone`, as if it had crashed.
+- `tts` (lines), `deliver` (percent, of its pass of passes, from ffmpeg's `-progress`), `patch` and `proxy` (frames) and `thumbs` (pictures) write `progress` lines: at most one every 5 to 10 s, the first and the last always, each under 200 bytes (`activity.Progress`, its `throttled` for Node).
+- `bin/vh cancel <project> [run] [--timeout S] [--json]` stops what the log started: a run with no end line whose pid is alive, started when the log says, and is still that command; anything else is not touched, and the run reads as gone from then on. A tool `bin/vh` exec'd into gets SIGINT alone and closes its own browsers and encoders; a tool `bin/vh` waits on gets SIGINT with everything under it, as at a Ctrl-C, and SIGTERM after 3 s, since a command started with `&` from a script ignores SIGINT and macOS's `ps` cannot say so. A desk or `gate --wait` only by name. Nothing stronger than SIGTERM is sent: what outlives it is said, exit 1.
+- The end line says it: `"cancelled": true`, exit 130 or 143. A mark in `.ovh/cancel/<run>`, there only while cancel runs, tells `bin/vh`, `tools/activity.py` and `tools/film/activity.mjs` so when they write theirs; bash at a TERM has none, so cancel writes it. `bin/vh activity --json` has `cancelled` on the run, its `state` stays `failed`.
+- What a tool keeps for a resume it says in a note (`kept`): `render`'s chunks, `tts`'s lines; `cancel` passes it on, or says nothing is kept. `proxy` and `thumbs` stop on SIGTERM as on a Ctrl-C, what was there left as it was, and a thumbs stopped starts no more frames. `deliver` and `tts` also leave why they failed in the log.
+
 **Output contracts: `tools/schemas/output/`, and CI fails when a field goes**
 - Why: `tools/ci.sh` used `--json` in over a hundred places, and one schema pinned what it printed: a client built on these outputs had nothing to hold them to.
 - A schema each for the `--json` of `status`, `activity`, `versions`, `check`, `commands`, `desk data`, `edit list`, `edit build`, `assets list`, `artifacts list`, `projects`, and the error's shape, in the permissive style of `tools/schemas/`: required fields and types, extra fields allowed. They are in a folder of their own since they describe what commands print, not the files `tools/artifacts.json` lists.

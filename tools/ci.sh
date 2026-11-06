@@ -647,7 +647,7 @@ PY
            textcheck fonts "fonts nope" frames render determinism cues patch activity status gate desk \
            tts "tts $t/no-such" sheet "sheet $t/no-such.mp4" gif "gif $t/no-such.mp4" hf-init "hf-init $t/no-such" "hf-init $t/empty 4k" "hf-init $t/empty 2:3" \
            check "check --bogus" "check $t/no-such.mp4 --bogus" "check $t/no-such.mp4 --allow" "check $t/no-such.mp4 --against" "check $t/no-such.mp4 --against $t/no-such-ref.mp4" \
-           "check $t/no-such.mp4" "check $t/no-such.mp4 --json" \
+           "check $t/no-such.mp4" \
            captions "captions $t/empty --media-end" "captions $t/empty --cps" "captions $t/empty --en-max" "captions $t/empty --bogus" \
            "captions $t/no-such" "captions $t/empty" "captions $t/empty zh" mix "style check" \
            "mux $t/no-such.mp4 $t/no-such.wav $t/o.mp4" "mux $t/v.mp4 $t/a.wav $t/no-dir/o.mp4" \
@@ -5572,6 +5572,253 @@ PY
     a=$(python3 -c 'import json, sys; print([r["code"] for r in map(json.loads, open(sys.argv[1], encoding="utf-8")) if r.get("level") == "error"])' "$p/.ovh/activity.jsonl" 2>&1)
     [ "$rc" = 2 ] && [ "$a" = "['failed']" ] && ok "activity: bin/vh render's failure before it draws is in the log too" || bad "render's failure in the log: exit $rc, $a"
   else skip "render's failure in the log" "needs node"; fi
+  rm -rf "$t"
+}
+
+film_browser_here() { # is there a browser the page tools can draw with? (cancel_checks' real render; as bin/vh's film_browser looks)
+  python3 - <<'PY'
+import os, shutil, sys
+sys.exit(0 if os.environ.get("CHROME_PATH") or any(shutil.which(x) for x in ("google-chrome", "chromium", "chromium-browser", "chrome-headless-shell")) or os.path.exists("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome") or os.path.isdir(os.path.expanduser("~/.cache/ms-playwright")) or os.path.isdir(os.path.expanduser("~/.cache/hyperframes/chrome")) or os.path.isdir(os.path.expanduser("~/.cache/puppeteer")) else 1)
+PY
+}
+cancel_checks() {   # bin/vh cancel on commands a stand-in keeps busy (no network, no paid call): Ctrl-C's way, TERM's way when SIGINT is
+  # ignored, a tool bin/vh exec'd into, what it must not touch (a pid that is another program, or another time's); the progress lines
+  # of proxy, thumbs, deliver and tts; a real render and patch when there is a Chrome
+  local t p a rc b c d
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd); p="$t/p"
+  cp -R tools/desk/fixtures/zh "$p"; mkdir -p "$t/stub" "$p/audio"; : > "$p/audio/mix.wav"
+  printf '#!/bin/sh\ntrap "exit 130" INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
+  a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY' 2>&1
+import json, os, signal, subprocess, sys, time
+sh, root, p, t = sys.argv[1:]
+vh = [sh, f"{root}/bin/vh"]
+log = f"{p}/.ovh/activity.jsonl"
+mark, env = f"{t}/started", dict(os.environ, PATH=f"{t}/stub:{os.environ['PATH']}", UVMARK=f"{t}/started")
+bad = []
+def start(*args, until=mark, ignore_int=False):
+    if os.path.exists(until): os.remove(until)
+    def pre():
+        os.setsid()
+        if ignore_int: signal.signal(signal.SIGINT, signal.SIG_IGN)   # what & in a script does
+    pr = subprocess.Popen([*vh, *args], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, preexec_fn=pre)
+    for _ in range(1200):
+        if os.path.exists(until) or pr.poll() is not None: break
+        time.sleep(0.05)
+    return pr
+records = []
+def cancel(*args):
+    r = subprocess.run([*vh, "cancel", p, *args, "--json"], capture_output=True, text=True, env=env)
+    rec = json.loads(r.stdout) if r.stdout.strip() else {}
+    records.append(rec)
+    return r.returncode, rec, r.stderr
+def ended(pr):
+    try: return pr.wait(10)
+    except subprocess.TimeoutExpired:
+        os.killpg(pr.pid, signal.SIGKILL); pr.wait(); return "still running"
+def stub_alive():
+    return subprocess.run(["pgrep", "-f", f"{t}/stub/uv"], capture_output=True).returncode == 0
+def runs():
+    return json.loads(subprocess.run([*vh, "activity", p, "--json"], capture_output=True, text=True).stdout)["runs"]
+def ends(run):
+    return [json.loads(x) for x in open(log, encoding="utf-8") if '"end"' in x and json.loads(x).get("run") == run and json.loads(x)["event"] == "end"]
+# a command bin/vh waits on, SIGINT reaching it: the tree stops as at a Ctrl-C, bin/vh writes the end, once; it reads as cancelled, not gone
+pr = start("qa", f"{p}/audio/mix.wav")
+rc, rec, err = cancel()
+r = (rec.get("runs") or [{}])[0]
+ex = ended(pr)
+one = next((x for x in runs() if x["cmd"] == "qa"), {})
+if not (rc == 0 and rec.get("cancelled") == 1 and r.get("state") == "cancelled" and r.get("signal") == "SIGINT" and r.get("exit") == 130 and ex in (-2, 130) and not stub_alive()
+        and one.get("state") == "failed" and one.get("cancelled") is True and one.get("exit") == 130 and len(ends(one["run"])) == 1 and ends(one["run"])[0].get("cancelled") is True
+        and "nothing is kept" in err and not os.path.exists(f"{p}/.ovh/cancel")):
+    bad.append(f"under bash, SIGINT: exit {rc}, {r}, ended {ex}, stand-in alive {stub_alive()}, run {one}, stderr {err[-200:]!r}")
+# SIGINT ignored, as for a command started with & from a script: SIGTERM after the wait; bash goes at once, so the end line is written here
+pr = start("qa", f"{p}/audio/mix.wav", ignore_int=True)
+t0 = time.time()
+rc, rec, err = cancel("--timeout", "1")
+r = (rec.get("runs") or [{}])[0]
+ex = ended(pr)
+one = [x for x in runs() if x["cmd"] == "qa"][-1]
+if not (rc == 0 and r.get("state") == "cancelled" and r.get("signal") == "SIGTERM" and r.get("exit") == 143 and ex == -15 and not stub_alive() and time.time() - t0 < 8
+        and one.get("state") == "failed" and one.get("cancelled") is True and one.get("exit") == 143):
+    bad.append(f"SIGINT ignored: exit {rc}, {r}, ended {ex}, stand-in alive {stub_alive()}, run {one}")
+# a tool bin/vh exec'd into, that waits for a person: left running without a name; by name it writes its own end, cancelled
+pr = start("desk", "wait", p, "--timeout", "30", until=f"{p}/out/review/feedback/.listening")
+rc, rec, err = cancel()
+one = [x for x in runs() if x["cmd"] == "desk"][-1]
+if not (rc == 0 and rec.get("runs") == [] and [x["cmd"] for x in rec.get("skipped", [])] == ["desk"] and pr.poll() is None and one["state"] == "running"):
+    bad.append(f"a desk wait, no name: exit {rc}, {rec}")
+rc, rec, err = cancel(one["run"])
+r = (rec.get("runs") or [{}])[0]
+ex = ended(pr)
+one = [x for x in runs() if x["cmd"] == "desk"][-1]
+if not (rc == 0 and r.get("state") == "cancelled" and r.get("exit") in (130, 143) and ex in (130, 143, -2) and one.get("cancelled") is True):
+    bad.append(f"a desk wait, by name: exit {rc}, {r}, ended {ex}, run {one}")
+# a run that is over, named: said, nothing done; part of an id does; an unknown one is an error
+rc, rec, err = cancel(one["run"][-6:])
+if not (rc == 0 and rec["runs"][0]["state"] == "not_running"):
+    bad.append(f"a run that is over: exit {rc}, {rec}")
+r2 = subprocess.run([*vh, "cancel", p, "nope-1", "--json"], capture_output=True, text=True)
+if r2.returncode != 2 or json.loads(r2.stdout or "{}").get("error", {}).get("code") != "not_found":
+    bad.append(f"an unknown run: exit {r2.returncode}, {r2.stdout[:200]}")
+# not started by this log: a pid that is another program now, untouched; the run reads as gone from then on
+sl = subprocess.Popen(["sleep", "30"], start_new_session=True)
+def line(**rec):
+    with open(log, "a", encoding="utf-8") as f: f.write(json.dumps(dict({"v": 1}, **rec)) + "\n")
+line(event="start", run="1-a", t=time.time(), cmd="render", args=[], cwd="/x", pid=sl.pid)
+rc, rec, err = cancel()
+r = next((x for x in rec.get("runs", []) if x["run"] == "1-a"), {})
+one = next(x for x in runs() if x["run"] == "1-a")
+if not (rc == 0 and r.get("state") == "not_that_process" and "another program" in (r.get("why") or "") and sl.poll() is None and one["state"] == "gone"):
+    bad.append(f"a pid that is another program: exit {rc}, {r}, sleep {sl.poll()}, run {one}")
+# a real bin/vh, but another time's: a reused pid; named, the exit status says it was not stopped
+pr = start("qa", f"{p}/audio/mix.wav")
+line(event="start", run="1-b", t=time.time() - 3600, cmd="qa", args=[], cwd="/x", pid=pr.pid)
+rc, rec, err = cancel("1-b")
+r = (rec.get("runs") or [{}])[0]
+if not (rc == 1 and r.get("state") == "not_that_process" and pr.poll() is None and stub_alive()):
+    bad.append(f"a pid of another time: exit {rc}, {r}, process {pr.poll()}")
+rc, rec, err = cancel()   # (the real one goes)
+if ended(pr) not in (-2, 130) or stub_alive():
+    bad.append(f"after it, the real run: {rec}")
+sl.kill(); sl.wait()
+# a tool that failed on its way out under the mark, and one that ended well: the writers' rule
+sys.path.insert(0, f"{root}/tools")
+import activity, schemalite
+sch = schemalite.load(f"{root}/tools/schemas/output/cancel.schema.json")
+for said in records:
+    wrong = schemalite.problems(sch, said) + schemalite.undeclared(sch, said)
+    if wrong:
+        bad.append(f"the record against its schema: {wrong[:4]}")
+os.makedirs(f"{p}/.ovh/cancel", exist_ok=True); open(f"{p}/.ovh/cancel/9-z", "w").write("143\n")
+got = [activity.cancelling(log, "9-z", 1), activity.cancelling(log, "9-z", 130), activity.cancelling(log, "9-z", 0), activity.cancelling(log, "9-y", 1)]
+if got != [(143, True), (130, True), (0, False), (1, False)]:
+    bad.append(f"cancelling: {got}")
+os.remove(f"{p}/.ovh/cancel/9-z"); os.rmdir(f"{p}/.ovh/cancel")
+print("; ".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "cancel: a command under bash stops as at a Ctrl-C, or by SIGTERM when SIGINT is ignored (the end line written for it); a tool bin/vh exec'd into writes its own; each end line says cancelled, 130 or 143, not gone; a desk only by name; a pid that is another program or another time's is not touched" \
+    || bad "bin/vh cancel: $(printf '%s' "$a" | tail -c 1500)"
+  # no project, no film: the error's shape; with nothing running, exit 0
+  a=$(vh cancel nope --json 2>/dev/null); rc=$?
+  b=$(vh cancel "$p" 2>&1); c=$?
+  case "$rc:$c:$a:$b" in 2:0:*'"code": "no_project"'*:*"nothing is running"*) ok "cancel: no project is exit 2 in the error's shape; nothing running is exit 0, and said" ;;
+    *) bad "bin/vh cancel with nothing to do: exit $rc, $c: $a | $b" ;; esac
+  # the progress lines: at a low rate, the first and the last always; proxy, thumbs and deliver on a real film; tts through a stand-in provider, and what a stop keeps
+  a=$(python3 - <<'PY' 2>&1
+import json, os, sys, tempfile
+sys.path.insert(0, "tools")
+os.environ.update(OVH_ACTIVITY_RUN="1-1", OVH_ACTIVITY_CMD="x")
+d = tempfile.mkdtemp(); log = os.environ["OVH_ACTIVITY_LOG"] = f"{d}/a.jsonl"
+import activity
+now = [0.0]
+tick = activity.Progress(100, "frames", every=5, clock=lambda: now[0], **{"pass": 1})
+said = []
+for t, done in ((0, 0), (1, 1), (2, 2), (5.1, 3), (5.2, 3), (6, 4), (6.1, 100)):
+    now[0] = t
+    tick(done)
+rows = [json.loads(x) for x in open(log)]
+ok = [r["done"] for r in rows] == [0, 3, 100] and all(r["total"] == 100 and r["unit"] == "frames" and r["pass"] == 1 and len(json.dumps(r)) < 200 for r in rows)
+print("ok" if ok else rows)
+PY
+  )
+  [ "$a" = ok ] && ok "activity.Progress: a line at most every several seconds, the first and the one that reaches the total always, each small" || bad "activity.Progress: $a"
+  if command -v ffmpeg >/dev/null; then
+    ffmpeg -nostdin -v error -f lavfi -i testsrc=s=160x90:r=10:d=2 -f lavfi -i sine=d=2 -pix_fmt yuv420p -c:a aac -shortest "$p/out/film.mp4"
+    rm -f "$p/.ovh/activity.jsonl"
+    vh proxy "$p/out/film.mp4" >/dev/null 2>&1; rc=$?
+    vh thumbs "$p/out/film.mp4" --every 0.5 >/dev/null 2>&1; b=$?
+    vh deliver "$p/out/film.mp4" --matrix bt709 --psnr off >/dev/null 2>"$t/deliver.err"; c=$?
+    ffmpeg -nostdin -v error -f lavfi -i testsrc2=s=640x360:r=10:d=2 -f lavfi -i sine=d=2 -crf 1 -pix_fmt yuv420p -c:a aac -shortest "$p/out/hi.mp4"   # (over the ceiling: two passes)
+    vh deliver "$p/out/hi.mp4" --matrix bt709 --max-gb 0.0002 --psnr off --out "$p/out/two.mp4" >/dev/null 2>>"$t/deliver.err"; d=$?
+    a=$(python3 - "$p/.ovh/activity.jsonl" <<'PY' 2>&1
+import json, sys
+recs = [json.loads(x) for x in open(sys.argv[1], encoding="utf-8")]
+bad = []
+def prog(cmd):
+    runs = {}
+    for r in recs:
+        if r["event"] == "progress" and r["cmd"] == cmd:
+            runs.setdefault(r["run"], []).append(r)
+    return list(runs.values())
+p = prog("proxy")[0]
+if not (p[0]["done"] == 0 and p[-1]["done"] == 20 and p[-1]["total"] == 20 and p[-1]["unit"] == "frames"): bad.append(f"proxy {p}")
+p = prog("thumbs")[0]
+if not (p[0]["done"] == 0 and p[-1]["done"] == p[-1]["total"] >= 4 and p[-1]["unit"] == "pictures"): bad.append(f"thumbs {p}")
+d = prog("deliver")
+if not (len(d) == 2 and d[0][-1]["done"] == 100 and d[0][-1]["unit"] == "percent" and d[0][-1]["passes"] == 1 and d[0][-1]["pass"] == 1): bad.append(f"deliver one pass {d[:1]}")
+two = sorted({(r["pass"], r["passes"]) for r in d[1]}) if len(d) == 2 else []
+if two != [(1, 2), (2, 2)]: bad.append(f"deliver two passes {two}")
+print("; ".join(bad) or "ok")
+PY
+    )
+    if [ "$rc:$b:$c" = 0:0:0 ] && { [ "$d" = 0 ] || [ "$d" = 1 ]; } && [ "$a" = ok ]; then ok "progress: proxy (frames), thumbs (pictures) and deliver (percent, of its pass of passes) leave progress lines, from 0 to the whole"
+    else bad "progress lines: exit $rc, $b, $c, $d: $(printf '%s' "$a" | tail -c 800) | $(tail -c 300 "$t/deliver.err")"; fi
+    a=$(python3 - "$p" <<'PY' 2>&1
+import importlib.util, json, os, signal, sys, wave
+p = sys.argv[1]
+sys.path.insert(0, "tools")
+log = os.environ["OVH_ACTIVITY_LOG"] = f"{p}/.ovh/tts.jsonl"
+os.environ.update(OVH_ACTIVITY_RUN="2-1", OVH_ACTIVITY_CMD="tts")
+os.makedirs(f"{p}/.ovh", exist_ok=True)
+with open(f"{p}/audio/script.txt", "w", encoding="utf-8") as f:
+    f.write("@a 第一句话在这里。\n@b 第二句话也在。\n@c 第三句话。\n")
+spec = importlib.util.spec_from_file_location("tts", "tools/audio/tts.py"); tts = importlib.util.module_from_spec(spec); spec.loader.exec_module(tts)
+said = []
+def fake(text, voice, out, tmp, lang, style):
+    said.append(text)
+    if len(said) == 3 and os.environ.get("STOP"):
+        os.kill(os.getpid(), signal.SIGTERM)
+    with wave.open(str(out), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(48000); w.writeframes(b"\1\0" * 4800)
+    return None
+tts.PROVIDERS["edge"] = fake
+sys.argv = ["tts.py", p, "--provider", "edge", "--voice", "x", "--lang", "zh"]
+try:
+    tts.main()
+except SystemExit as e:
+    print("first run", e.code)
+rows = [json.loads(x) for x in open(log, encoding="utf-8")]
+done = [r["done"] for r in rows if r["event"] == "progress"]
+os.environ["STOP"] = "1"; said.clear(); open(log, "w").close()
+try:
+    tts.entry()
+except SystemExit as e:
+    code = e.code
+rows = [json.loads(x) for x in open(log, encoding="utf-8")]
+kept = [r.get("kept") for r in rows if r["event"] == "note" and r.get("kept")]
+print("ok" if done and done[0] == 0 and done[-1] == 3 and code == 130 and kept and "2 of 3 line(s)" in kept[0] and "--resume" in kept[0] else [done, code, rows])
+PY
+    )
+    case "$a" in *ok) ok "progress: tts says its lines done; stopped, it says what a resume has" ;; *) bad "tts's progress and stop: $(printf '%s' "$a" | tail -c 800)" ;; esac
+  else skip "progress lines of proxy, thumbs, deliver and tts" "needs ffmpeg"; fi
+  # a real render, cancelled with chunks kept (its page hangs after half a second), and a real patch's progress
+  if command -v ffmpeg >/dev/null && film_browser_here; then
+    mkdir -p "$t/r/out"; printf '# BRIEF\n- Effort: quick\n' > "$t/r/BRIEF.md"
+    sed 's|frame(t) {|frame(t) { if (t > 0.2) return new Promise(() => {});|' tools/film/fixture/blur.html > "$t/r/film.html"
+    "$VH_BASH" "$ROOT/bin/vh" render "$t/r/film.html" --gop 2 --workers 1 --frame-timeout 120 --no-estimate --out "$t/r/out/film.mp4" >/dev/null 2>"$t/r/err" & pid=$!
+    for _ in $(seq 1 1200); do ls "$t"/r/out/.film.mp4.parts/part0000.* >/dev/null 2>&1 && break; kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+    sleep 1
+    a=$(vh cancel "$t/r" --json 2>/dev/null); rc=$?
+    wait "$pid" 2>/dev/null; c=$?
+    b=$(pgrep -f "$t/r" | wc -l | tr -d ' ')
+    if [ "$rc" = 0 ] && [ "$c" = 130 ] && [ "$b" = 0 ] && python3 - "$a" "$t/r/.ovh/activity.jsonl" <<'PY'
+import json, sys
+rec = json.loads(sys.argv[1])
+r = rec["runs"][0]
+end = [json.loads(x) for x in open(sys.argv[2], encoding="utf-8") if '"end"' in x][-2]   # (the last: this cancel's own)
+sys.exit(0 if r["state"] == "cancelled" and r["exit"] == 130 and "chunks are kept" in (r["kept"] or "") and end["cmd"] == "render" and end["cancelled"] is True and end["exit"] == 130 else 1)
+PY
+    then ok "cancel: a real render stops by its own SIGINT, browser and encoder gone; its end line says cancelled, and it says the chunks it kept for a resume"
+    else bad "cancel of a real render: exit $rc, render $c, left $b: $(printf '%s' "$a" | tail -c 600) | $(tail -c 300 "$t/r/err")"; fi
+    cp tools/film/fixture/blur.html "$t/r/film.html"; rm -rf "$t/r/out" "$t/r/.ovh"; mkdir -p "$t/r/out"
+    vh render "$t/r/film.html" --gop 3 --workers 1 --no-estimate --out "$t/r/out/film.mp4" >/dev/null 2>&1; rc=$?
+    rm -f "$t/r/.ovh/activity.jsonl"
+    vh patch "$t/r/out/film.mp4" --frames 2-2 --workers 1 >/dev/null 2>"$t/r/err"; c=$?
+    a=$(python3 -c 'import json, sys; print([(r["done"], r["total"], r["unit"]) for r in map(json.loads, open(sys.argv[1], encoding="utf-8")) if r["event"] == "progress"])' "$t/r/.ovh/activity.jsonl" 2>&1)
+    case "$rc:$c:$a" in "0:0:[(0, "[0-9]*", 'frames'), ("[0-9]*", "[0-9]*", 'frames')]") ok "progress: patch says the frames drawn again, from 0 to the whole" ;;
+      *) bad "patch's progress: exit $rc, $c, $a: $(tail -c 300 "$t/r/err")" ;; esac
+  else no_chrome "cancel of a real render, patch's progress"; fi
   rm -rf "$t"
 }
 

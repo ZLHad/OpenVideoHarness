@@ -36,9 +36,9 @@ function rel(p) {   // relative to the project when inside it, else absolute
 }
 
 // what this command made: one line, and the files it wrote
-export function note(summary, outputs = []) {
+export function note(summary, outputs = [], extra = {}) {
   write({ event: "note", run: RUN, t: now(), cmd: CMD, ...(summary ? { summary: String(summary).replace(/\s+/g, " ").slice(0, 300) } : {}),
-    ...(outputs.length ? { outputs: outputs.filter(Boolean).map(rel).slice(0, 20) } : {}) });
+    ...(outputs.length ? { outputs: outputs.filter(Boolean).map(rel).slice(0, 20) } : {}), ...extra });
 }
 
 // why it failed: a note with level error (tools/jsonerr.py has the codes), which bin/vh activity shows beside the exit status; once
@@ -54,6 +54,17 @@ export function progress(done, total, unit) {
   write({ event: "progress", run: RUN, t: now(), cmd: CMD, done, ...(total != null ? { total } : {}), ...(unit ? { unit } : {}) });
 }
 
+// progress lines at a low rate: at most one every `every` seconds, always the first and the one that reaches total
+export function throttled(total, unit, every = 5) {
+  let at = null, last = null;
+  return (done) => {
+    const t = Date.now() / 1000, final = total != null && done >= total;
+    if (done === last || (at !== null && t - at < every && !final)) return;
+    at = t; last = done;
+    progress(done, total, unit);
+  };
+}
+
 // the run's end, from the process bin/vh exec'd into (the same pid): its exit status and how long it took
 if (on && E.OVH_ACTIVITY_PID === String(process.pid)) {
   let done = false;
@@ -61,6 +72,12 @@ if (on && E.OVH_ACTIVITY_PID === String(process.pid)) {
     if (done) return;
     done = true;
     const t0 = Number(E.OVH_ACTIVITY_T0), t = now();
-    write({ event: "end", run: RUN, t, cmd: CMD, exit: code ?? 0, duration: Number.isFinite(t0) ? Math.max(0, Math.round((t - t0) * 1000) / 1000) : null });
+    // bin/vh cancel's mark for this run, there while it stops it (tools/cancel.py): any exit but 0 under it is the cancel's
+    let cancelled = false, status = code ?? 0;
+    try {
+      const said = fs.readFileSync(path.join(path.dirname(LOG), "cancel", RUN), "utf8").trim();
+      if (status !== 0) { cancelled = true; if (status !== 130 && status !== 143) status = said === "143" ? 143 : 130; }
+    } catch { /* no mark */ }
+    write({ event: "end", run: RUN, t, cmd: CMD, exit: status, duration: Number.isFinite(t0) ? Math.max(0, Math.round((t - t0) * 1000) / 1000) : null, ...(cancelled ? { cancelled } : {}) });
   });
 }

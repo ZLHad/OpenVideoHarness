@@ -111,7 +111,7 @@ A few rules never relax ([CLAUDE.md](CLAUDE.md) has them all): every frame depen
 
 ## What's in the box
 
-The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 68 commands by pipeline stage, and any command takes `-h`.
+The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 69 commands by pipeline stage, and any command takes `-h`.
 
 | | Command | What it does |
 |---|---|---|

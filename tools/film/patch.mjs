@@ -58,7 +58,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
-import { error as activityError, note as activityNote } from "./activity.mjs";   // the project's activity log (bin/vh activity)
+import { error as activityError, note as activityNote, throttled } from "./activity.mjs";   // the project's activity log (bin/vh activity)
 import { commit, moveBeside, there } from "./versions.mjs";   // the project's versions (bin/vh versions)
 import { findTable, readTable, tidyShots } from "./shot_source.mjs";   // the project's shot table (tools/shot_source.py's mirror)
 import { frameFrom } from "./timegrid.mjs";                           // seconds to frames (tools/timegrid.py)
@@ -301,6 +301,9 @@ for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig,
 });
 const capture = String(side.capture || "jpeg q95"), q = capture.match(/jpeg q(\d+)/);
 const T0 = Date.now();
+const framesToDraw = wins.reduce((n, w) => n + w.B - w.A, 0), tick = throttled(framesToDraw, "frames");
+let framesDrawn = 0;
+tick(framesDrawn);
 // the pieces' renders: no activity lines of their own (the patch's run has its note), no versions (they are parts), and
 // no "render: done" line (a piece is a step: this patch's last line is the one that says it is done)
 const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("OVH_ACTIVITY_"))), OVH_VERSIONS: "off", OVH_RENDER_PIECE: "1" };
@@ -322,6 +325,7 @@ for (const [i, w] of wins.entries()) {
   });
   child = null;
   if (code !== 0) die(`rendering frames ${w.A}–${w.B - 1} failed (render exit ${code}); the film is as it was`, code === 2 ? 2 : 1);
+  tick(framesDrawn += w.B - w.A);
   const ps = JSON.parse(fs.readFileSync(w.piece + ".render.json", "utf8"));
   if (ps.frames !== w.B - w.A) die(`the page drew ${ps.frames} frames for ${w.A}–${w.B - 1}, not ${w.B - w.A}: it is shorter now than the film (${rel(page)}). Render the film again`, 1);
   if (side.browser && ps.browser !== side.browser && !notes.length) notes.push(`the film was rendered in ${side.browser}, these frames in ${ps.browser}: text and edges can differ a little (the PSNR below shows how much)`);

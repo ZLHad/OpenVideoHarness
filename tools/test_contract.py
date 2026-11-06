@@ -21,7 +21,7 @@ sys.path.insert(0, str(HERE))
 import schemalite   # noqa: E402
 
 SCHEMAS = HERE / "schemas" / "output"
-ALL = ("status", "activity", "versions", "check", "commands", "desk-data", "edit-list", "edit-build", "assets-list", "artifacts-list", "projects", "error")
+ALL = ("status", "activity", "versions", "check", "commands", "desk-data", "edit-list", "edit-build", "assets-list", "artifacts-list", "projects", "error", "cancel")
 
 
 class VH:
@@ -107,7 +107,7 @@ def outputs(vh, p, z, e, has_film):
     runs = [("status", ["status", p]), ("status", ["status", z]), ("activity", ["activity", p]), ("activity", ["activity", z]), ("versions", ["versions", p]),
             ("commands", ["commands"]), ("commands", ["commands", "--stage", "8"]), ("desk-data", ["desk", "data", z]), ("desk-data", ["desk", "data", p]),
             ("edit-list", ["edit", "list", e]), ("edit-build", ["edit", "build", e]), ("assets-list", ["assets", "list", p]), ("artifacts-list", ["artifacts", "list", p]),
-            ("artifacts-list", ["artifacts", "list", z]), ("projects", ["projects"])]
+            ("artifacts-list", ["artifacts", "list", z]), ("projects", ["projects"]), ("cancel", ["cancel", p])]
     if has_film:
         runs.insert(0, ("check", ["check", f"{p}/out/final.mp4"]))   # first: status and the others have its record
     out, bad = {}, []
@@ -146,6 +146,7 @@ def failures(t, p):
         ("new", 2, "usage", False), ("new short", 2, "usage", False), ("new nope x", 2, "usage", True), ("new short x --bogus", 2, "usage", True), ("new short x --effort nope", 2, "usage", True),
         ("new short x --from nope", 2, "no_project", True), ("new math ci-contract", 1, "exists", True),
         ("nope", 2, "usage", True), ("statu", 2, "usage", True),
+        ("cancel", 2, "usage", False), ("cancel nope", 2, "no_project", True), (f"cancel {p} 7-7", 2, "not_found", True),
     ]
 
 
