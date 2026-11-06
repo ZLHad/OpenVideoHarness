@@ -88,7 +88,7 @@
    "properties": {
     "video": {"type": ["string", "null"]},
     "note": {"type": "string"},
-    "items": {"type": "array", "items": {"type": "object", "required": ["id", "segment", "start", "end", "label", "reads", "frame", "seg"]}}
+    "items": {"type": "array", "items": {"type": "object", "required": ["id", "start", "end"]}}
    }
   },
   "music": {"type": ["object", "null"]},

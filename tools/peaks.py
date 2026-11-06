@@ -6,8 +6,8 @@ some 100 MB while it runs. The record goes beside the proxies (<project>/out/pro
 beside the file; another --bins: <name>.peaks-<N>.json), named as bin/vh proxy names its files, with the source's size and
 modification time: while they are the same a repeat reads the record and starts no ffmpeg.
 JSON (--json prints the record, one line, and state: made or "up to date"): {"version": 1, "tool", "source", "source_ident":
-{"size", "mtime"}, "bins", "rate", "samples", "duration", "peaks": [[min, max], …] in -1…1 (4 decimals), "t", "at"}. bins is less
-than was asked for when there are fewer samples than that.
+{"size", "mtime"}, "asked", "bins", "rate", "samples", "duration", "peaks": [[min, max], …] in -1…1 (4 decimals), "t", "at"}. bins is less
+than asked when there are fewer samples than that.
 Exit: 0 · 1 ffmpeg failed, or it has no sound · 2 usage, no such file or project, or a project with no film.
 """
 import array, json, os, subprocess, sys, time

@@ -1111,7 +1111,7 @@
       ],
       "usage": [
         {
-          "synopsis": "gate <project> [n] [--desk|--page|--chat] [--wait] [--timeout s]",
+          "synopsis": "gate <project> [n] [--desk|--page|--chat] [--wait] [--timeout s] [--json]",
           "text": [
             "a stop in one command: checks out/review/gate-<n>.json, builds",
             "the review page and makes it this round, opens the review desk when the stop is reviewed there",
@@ -1120,7 +1120,7 @@
           ]
         },
         {
-          "synopsis": "gate <project> <n> --init",
+          "synopsis": "gate <project> <n> --init [--json]",
           "text": [
             "writes out/review/gate-<n>.json as a skeleton for this stop: each {填：…} says what goes there, and gate refuses the file until none is left; never overwrites"
           ]

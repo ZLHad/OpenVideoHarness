@@ -276,7 +276,7 @@ def main(argv):
     ap.add_argument("--resolved", action="store_true", help="this document (without it: bin/vh timeline's checks)")
     ap.add_argument("--words", action="store_true", help="each narration line's words, with their times")
     ap.add_argument("--json", action="store_true", help="the record, as JSON (version 1)")
-    a = ap.parse_args(argv)
+    a = ap.parse_intermixed_args(argv)   # (the language after an option: Python before 3.12 takes it only so)
     if a.lang and not re.fullmatch(r"[a-z]{2,3}(-[A-Za-z0-9]{2,4})?", a.lang):
         return jsonerr.fail("usage", f"timeline: {a.lang} is no language (zh, en)")
     project = find_project(a.project)

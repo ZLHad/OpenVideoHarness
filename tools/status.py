@@ -39,8 +39,8 @@ still open (a desk submission's change and ask items whose REVIEW.md section has
 still lists to verify, the last check, the material on record (bin/vh assets: how many, the licences not cleared, what
 the films loaded that the ledger lacks, the spend against the budget), the cast in cast/ (bin/vh cast: the entries by
 kind, the settled ones, what its check would fail), the research in research/ (bin/vh scout's
-records, the days with a hot-list snapshot, bin/vh ref's references), and the commands running now and the last ones
-(the activity log).
+records, the days with a hot-list snapshot, bin/vh ref's references), the commands running now and the last ones
+(the activity log), and in --json media: the current film, its proxy, thumbs and peaks as paths from the project.
 The next step, from the stop the project is at: who has it (the person, the agent), what to do, which commands, which sections
 to read (a file to read whole, or a "<file.md>#<section>" that bin/vh know --show prints), and how many {…} are still unfilled in
 BRIEF.md, STYLE.md and STORYBOARD.md (outside code; the template's kind of braces, not a stylesheet's). What the Director line keeps for the person (x=own) comes first in what to do, until it is on record: its stop
@@ -784,7 +784,11 @@ def collect(project, now=None, light=False):
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
            "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "cast": cast, "research": research,
            "activity": {"running": working, "listening": listening, "recent": recent},
-           "media": media(project), "next_step": None}
+           "media": None, "next_step": None}
+    try:   # what cannot be read is said, never a failure of status
+        out["media"] = media(project)
+    except Exception as e:
+        out["media"] = {"film": None, "version": None, "from": None, "proxy": None, "thumbs": None, "peaks": None, "stale": [], "error": f"{type(e).__name__}: {e}"}
     try:   # not the command that asks (bin/vh new); what cannot be worked out is said, never a failure of status
         out["next_step"] = next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], desk, by_video)
     except Exception as e:

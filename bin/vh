@@ -384,7 +384,7 @@ act_end() { # act_end <status>: the run's end line (from the EXIT trap; a tool b
   local d s="" ms sm=$ACT_SUMMARY rc=$1 c="" said=""
   act_now; act_ms "$ACT_NOW"; d=$ACT_MS; act_ms "$ACT_T0"; d=$((d - ACT_MS)); [ $d -ge 0 ] || d=0
   if [ "$rc" != 0 ] && [ -e "${ACT_LOG%/*}/cancel/$ACT_RUN" ]; then   # bin/vh cancel is stopping it (tools/cancel.py): its mark says with which exit status
-    c=',"cancelled":true'; read -r said < "${ACT_LOG%/*}/cancel/$ACT_RUN" 2>/dev/null || true
+    c=',"cancelled":true'; { read -r said < "${ACT_LOG%/*}/cancel/$ACT_RUN"; } 2>/dev/null || true
     case $rc in 130|143) ;; *) rc=130; [ "$said" != 143 ] || rc=143 ;; esac
   fi
   printf -v ms '%03d' $((d % 1000))

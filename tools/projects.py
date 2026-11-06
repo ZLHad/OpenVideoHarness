@@ -4,13 +4,13 @@ no browser, no ffprobe. Nothing is written, unless --assign asks.
 usage: bin/vh projects [--root DIR …] [--assign] [--json]
 
 Where it looks: $OVH_PROJECTS, <repo>/projects and each --root (the first two only when they are there; a --root that is
-not a folder is a usage error). A project is a folder holding BRIEF.md, at most DEPTH folders below its root; out/,
-node_modules, a project's assets/ and audio/, hidden folders and the like are not gone into. The same folder found twice
-(a link, two roots) is one row.
+not a folder is a usage error). A project is a folder holding BRIEF.md, at most 4 folders below its root; out/, node_modules,
+hidden folders, a project's assets/, audio/ and the like are not gone into. The same folder found twice (a link, two roots)
+is one row.
   --assign  give each project without an id one: .ovh/project.json (tools/identity.py). bin/vh new writes it for a new
             project; an older one has none (id null) until this. Moving a folder keeps its id.
   --json    {"version": 1, "tool", "roots": [{"path", "from", "exists"}], "count", "truncated" (more than MAX_DIRS folders
-            looked at: a --root too wide), "seconds", "assigned": [path], "projects": [row]}.
+            looked at, 20000: a --root too wide), "seconds", "assigned": [path], "projects": [row]}.
 A row: id (null until assigned), name (the folder's, with what lies between it and its root: old/docs), title, path, type,
 effort, state (below), station ({id, name} of the stop it is at, or null), waiting_on, next_step (both as bin/vh status
 --json has them), running (the commands running now), last_activity ({t, at, cmd, run, state, exit}, or null), film
@@ -33,7 +33,8 @@ import identity, jsonerr   # noqa: E402,E401
 
 DEPTH = 4         # folders below a root
 MAX_DIRS = 20000  # folders looked at, per run: a --root too wide says so and stops there
-NOT_IN = {"out", "node_modules", "renders", "media", "assets", "audio", "frames", "dist", "build", "target", "__pycache__", "venv", "site-packages"}
+NOT_IN = {"out", "node_modules", "__pycache__", "venv", "site-packages"}
+NOT_IN_A_PROJECT = {"renders", "media", "assets", "audio", "frames", "dist", "build", "target", "src", "style-refs", "cast", "research", "tools"}   # what a project holds, and no project in it
 STATE_ORDER = ("waiting_person", "waiting_agent", "in_progress")
 MARK = {"paused": "‖", "delivered": "✓", "waiting_person": "●", "waiting_agent": "◆", "in_progress": "…", "no_record": "○", "not_started": "·", "error": "✗"}
 
@@ -84,7 +85,7 @@ def find(roots):
             keep = []
             for x in sorted(dirs):
                 q = os.path.join(d, x)
-                if x.startswith(".") or x in NOT_IN or depth >= DEPTH:
+                if x.startswith(".") or x in NOT_IN or depth >= DEPTH or ("BRIEF.md" in files and x in NOT_IN_A_PROJECT):
                     continue
                 if os.path.islink(q):
                     if os.path.isfile(os.path.join(q, "BRIEF.md")):

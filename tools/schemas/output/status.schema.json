@@ -201,7 +201,8 @@
     "proxy": {"type": ["string", "null"]},
     "thumbs": {"type": ["string", "null"]},
     "peaks": {"type": ["string", "null"]},
-    "stale": {"type": "array", "items": {"type": "string"}}
+    "stale": {"type": "array", "items": {"type": "string"}},
+    "error": {"type": "string"}
    }
   },
   "next_step": {

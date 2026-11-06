@@ -5480,7 +5480,7 @@ contract_checks() {   # what a client relies on (tools/test_contract.py makes a 
   while IFS=$'\t' read -r k m; do
     case $k in ok) ok "$m" ;; bad) bad "$m" ;; esac
   done < "$t"
-  grep -q '^end' "$t" || bad "tools/test_contract.py stopped (exit $rc): $(tail -n 4 "$t" | tr '\n' ' ' | tail -c 600)"
+  { grep -q '^end' "$t" && [ "$(grep -c '^ok\|^bad' "$t")" = 3 ]; } || bad "tools/test_contract.py stopped (exit $rc): $(tail -n 4 "$t" | tr '\n' ' ' | tail -c 600)"
   rm -f "$t"
   # the schemas and the real jsonschema, as for tools/schemas/
   if command -v uv >/dev/null 2>&1; then
@@ -5560,7 +5560,7 @@ notes = [r for r in recs if r["event"] == "note" and r.get("level") == "error"]
 print("; ".join(f"{r['cmd']}/{r['code']}" for r in notes))
 PY
   )
-  b=$(vh activity "$p" --json | python3 -c 'import json, sys; print(" | ".join(f"{r[chr(99)+"md"]}:{r["state"]}:{(r["error"] or {}).get("code")}" for r in json.load(sys.stdin)["runs"]))' 2>&1)
+  b=$(vh activity "$p" --json | python3 -c 'import json, sys; print(" | ".join(":".join((r["cmd"], r["state"], str((r["error"] or {}).get("code")))) for r in json.load(sys.stdin)["runs"]))' 2>&1)
   c=$(vh activity "$p" 2>&1)
   if [ "$a" = "versions/not_found; check/not_found; edit/not_found" ] && case "$b" in "versions:failed:not_found | check:failed:not_found | edit:failed:not_found | timeline:"*":None") true ;; *) false ;; esac && case "$c" in *"exit 1"*"v1"*"no such video"*"no edit.json"*) true ;; *) false ;; esac
   then ok "activity: a run that failed says why (a note with level error, from a tool or bin/vh itself; --json: the run's error; the listing shows it)"
@@ -5847,16 +5847,10 @@ PY
   rm -rf "$t"
 }
 
-film_browser_here() { # is there a browser the page tools can draw with? (cancel_checks' real render; as bin/vh's film_browser looks)
-  python3 - <<'PY'
-import os, shutil, sys
-sys.exit(0 if os.environ.get("CHROME_PATH") or any(shutil.which(x) for x in ("google-chrome", "chromium", "chromium-browser", "chrome-headless-shell")) or os.path.exists("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome") or os.path.isdir(os.path.expanduser("~/.cache/ms-playwright")) or os.path.isdir(os.path.expanduser("~/.cache/hyperframes/chrome")) or os.path.isdir(os.path.expanduser("~/.cache/puppeteer")) else 1)
-PY
-}
 cancel_checks() {   # bin/vh cancel on commands a stand-in keeps busy (no network, no paid call): Ctrl-C's way, TERM's way when SIGINT is
   # ignored, a tool bin/vh exec'd into, what it must not touch (a pid that is another program, or another time's); the progress lines
   # of proxy, thumbs, deliver and tts; a real render and patch when there is a Chrome
-  local t p a rc b c d
+  local t p a rc b c d pid
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd); p="$t/p"
   cp -R tools/desk/fixtures/zh "$p"; mkdir -p "$t/stub" "$p/audio"; : > "$p/audio/mix.wav"
   printf '#!/bin/sh\ntrap "exit 130" INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
@@ -6065,12 +6059,14 @@ PY
     case "$a" in *ok) ok "progress: tts says its lines done; stopped, it says what a resume has" ;; *) bad "tts's progress and stop: $(printf '%s' "$a" | tail -c 800)" ;; esac
   else skip "progress lines of proxy, thumbs, deliver and tts" "needs ffmpeg"; fi
   # a real render, cancelled with chunks kept (its page hangs after half a second), and a real patch's progress
-  if command -v ffmpeg >/dev/null && film_browser_here; then
+  if ! command -v ffmpeg >/dev/null; then skip "cancel of a real render, patch's progress" "needs ffmpeg"
+  else
     mkdir -p "$t/r/out"; printf '# BRIEF\n- Effort: quick\n' > "$t/r/BRIEF.md"
     sed 's|frame(t) {|frame(t) { if (t > 0.2) return new Promise(() => {});|' tools/film/fixture/blur.html > "$t/r/film.html"
     "$VH_BASH" "$ROOT/bin/vh" render "$t/r/film.html" --gop 2 --workers 1 --frame-timeout 120 --no-estimate --out "$t/r/out/film.mp4" >/dev/null 2>"$t/r/err" & pid=$!
     for _ in $(seq 1 1200); do ls "$t"/r/out/.film.mp4.parts/part0000.* >/dev/null 2>&1 && break; kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
     sleep 1
+    if grep -q "needs a headless Chrome" "$t/r/err"; then no_chrome "cancel of a real render, patch's progress"; rm -rf "$t"; return; fi
     a=$(vh cancel "$t/r" --json 2>/dev/null); rc=$?
     wait "$pid" 2>/dev/null; c=$?
     b=$(pgrep -f "$t/r" | wc -l | tr -d ' ')
@@ -6090,7 +6086,7 @@ PY
     a=$(python3 -c 'import json, sys; print([(r["done"], r["total"], r["unit"]) for r in map(json.loads, open(sys.argv[1], encoding="utf-8")) if r["event"] == "progress"])' "$t/r/.ovh/activity.jsonl" 2>&1)
     case "$rc:$c:$a" in "0:0:[(0, "[0-9]*", 'frames'), ("[0-9]*", "[0-9]*", 'frames')]") ok "progress: patch says the frames drawn again, from 0 to the whole" ;;
       *) bad "patch's progress: exit $rc, $c, $a: $(tail -c 300 "$t/r/err")" ;; esac
-  else no_chrome "cancel of a real render, patch's progress"; fi
+  fi
   rm -rf "$t"
 }
 

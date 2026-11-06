@@ -305,17 +305,24 @@ def find_project(word):
 
 
 def main(argv):
-    ap = argparse.ArgumentParser(prog="bin/vh history", description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__.split("\n\n", 1)[1])
-    sp = ap.add_subparsers(dest="cmd", required=True)
-    p = sp.add_parser("save", prog="bin/vh history save")
-    p.add_argument("project"); p.add_argument("--note"); p.add_argument("--json", action="store_true")
-    p = sp.add_parser("list", prog="bin/vh history list")
-    p.add_argument("project"); p.add_argument("file", nargs="?"); p.add_argument("--json", action="store_true")
-    p = sp.add_parser("diff", prog="bin/vh history diff")
-    p.add_argument("project"); p.add_argument("file", nargs="?"); p.add_argument("--at"); p.add_argument("--to"); p.add_argument("--json", action="store_true")
-    p = sp.add_parser("restore", prog="bin/vh history restore")
-    p.add_argument("project"); p.add_argument("file", nargs="?"); p.add_argument("--at"); p.add_argument("--json", action="store_true")
-    a = ap.parse_args(argv)
+    if argv[:1] in (["-h"], ["--help"]):
+        print(__doc__.strip())
+        return 0
+    if not argv or argv[0] not in ("save", "list", "diff", "restore"):
+        return jsonerr.fail("usage", "bin/vh history save|list|diff|restore <project> … (bin/vh history -h)")
+    p = argparse.ArgumentParser(prog=f"bin/vh history {argv[0]}", description=__doc__.split("\n\n")[0])
+    p.add_argument("project")
+    if argv[0] == "save":
+        p.add_argument("--note")
+    else:
+        p.add_argument("file", nargs="?")
+    if argv[0] in ("diff", "restore"):
+        p.add_argument("--at")
+    if argv[0] == "diff":
+        p.add_argument("--to")
+    p.add_argument("--json", action="store_true")
+    a = p.parse_intermixed_args(argv[1:])   # (a file after an option: Python before 3.12 takes it only so)
+    a.cmd = argv[0]
     if a.cmd in ("diff", "restore") and a.file is None and Path(a.project).is_file():   # the file alone: its project from its path
         a.file = str(Path(a.project).resolve())
     if a.cmd == "restore" and a.file is None:

@@ -45,11 +45,9 @@ PLATFORMS = {
 
 
 def die(msg, code=2):
-    if code < 128:
-        print(f"deliver: {msg}", file=sys.stderr)
-        jsonerr.report("failed", f"deliver: {msg}")   # (the note in the log: why this run failed)
-    else:
-        print(f"deliver: {msg}", file=sys.stderr)
+    print(f"deliver: {msg}", file=sys.stderr)
+    if code < 128:   # a stop by a signal is no failure to explain
+        jsonerr.report("failed", f"deliver: {msg}")   # the note in the log: why this run failed
     sys.exit(code)
 
 

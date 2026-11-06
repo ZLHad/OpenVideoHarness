@@ -9,7 +9,7 @@ desk's fixture with a page and a submission) and:
     a new field gets written down and its loss is seen from then on. A client takes fields it does not know: extra is allowed
     in the schema, and asked for here. Objects whose keys are data (a Spec, a map of films) name none;
   - takes every required field out of a real output in turn and expects the schema to notice;
-  - runs each command's failures (FAILURES below) and holds each to the error's shape, its code and its exit status, and,
+  - runs each command's failures (failures() below) and holds each to the error's shape, its code and its exit status, and,
     without --json, to the same exit status and the same words.
 """
 import glob, json, os, shutil, subprocess, sys, tempfile, time

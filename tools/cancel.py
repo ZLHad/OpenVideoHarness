@@ -52,7 +52,7 @@ def ps(*args):
 
 def process(pid):
     """(stat, start time, command line) of a live process; None when there is none or it is a zombie."""
-    rows = ps("-o", "stat=", "-o", "lstart=", "-o", "command=", "-p", str(pid))
+    rows = ps("-ww", "-o", "stat=", "-o", "lstart=", "-o", "command=", "-p", str(pid))
     if not rows:
         return None
     m = re.match(r"\s*(\S+)\s+(\w{3}\s+\w{3}\s+\d+\s+[\d:]+\s+\d{4})\s+(.*)$", rows[0])
@@ -240,7 +240,7 @@ def main(argv):
     ap.add_argument("run", nargs="?", help="this run only: its id, or the first or last part of one (bin/vh activity --json)")
     ap.add_argument("--timeout", type=float, default=15, help="seconds a tool has after SIGINT before SIGTERM (default 15; under bash at most 3)")
     ap.add_argument("--json", action="store_true", help="the record, as JSON (version 1)")
-    a = ap.parse_args(argv)
+    a = ap.parse_intermixed_args(argv)   # (the run after an option: Python before 3.12 takes it only so)
     project = find_project(a.project)
     if project is None:
         return 2
@@ -260,7 +260,7 @@ def main(argv):
     else:
         targets = []
         for r in all_runs:
-            if r["state"] != "running":
+            if r["state"] != "running" or r["cmd"] == "cancel":   # (another cancel at work)
                 continue
             if r["cmd"] in LISTENING:
                 skipped.append({"run": r["run"], "cmd": r["cmd"], "why": "it waits for a person: name its run to stop it"})
