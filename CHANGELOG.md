@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**`bin/vh new`: the type as the docs write it, a scaffold that fails says so, and `--json`**
+- Why: the routing table names `02-knowledge-short`, and `bin/vh new` only took `short`. When HyperFrames' init failed it threw npx's words away, printed ✓ and exited 0, leaving a project with no `index.html` for an agent to find out about later. And its `next:` line spoke only to a person.
+- `bin/vh new`: `<type>` is the short name, the number (`02`), the doc's name (`02-knowledge-short`, also with `video-types/` and `.md`) or its stem (`knowledge-short`). A scaffold step that fails (`hf-init`, the hand-drawn engine's `npm install`) keeps the project, keeps npx's last lines, prints no ✓, says the command that finishes it and exits 1; `bin/vh status` says it first too. `next:` says what the agent reads and fills first, and what a person does.
+- `--json`: `{"version": 1, "project", "type", "doc", "effort", "lang", "frame", "watch", "resolution", "engine", "scaffold": {"ok", "finish"}, "next"}`, with `next` the same object as `bin/vh status`'s `next_step`; the human lines go to stderr.
+- `tools/ci.sh`: `new_checks`, with stand-ins for npx and npm. `series_checks` scaffolds through the stand-in too, so it no longer needs the network. `install.sh` only names `bin/vh new`, nothing there changes.
+
 **`bin/vh status` says what to do next: who, what, which commands, what to read**
 - Why: it said "the agent: work towards 关卡 ①" and stopped there. An agent coming back to a project, or starting one, had to work out from the docs what that stop asks for, which commands do it and which sections to open.
 - `tools/status.py`: a `next:` line, and `next_step` in `--json`: `who`, `do`, `commands`, `read` (each a `<file>#<section>` for `bin/vh know --show`) and `unfilled`, computed from the stop the project is at: each gate, a checkpoint the director mode adds, quick's path, render, check and delivery, with the render command of the engine its files show. It names what is unfilled: how many `{…}` BRIEF, STYLE and STORYBOARD still have, how many `{填：…}` the gate's skeleton has. A scaffold that did not finish comes first. Every existing field stays as it was, so `next` is still one sentence.

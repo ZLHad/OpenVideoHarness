@@ -617,7 +617,7 @@ def main(argv):
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
            "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "cast": cast, "research": research,
            "activity": {"running": working, "listening": listening, "recent": recent},
-           "next_step": next_step(project, proj, st, paused, no_record, working, desk, by_video)}
+           "next_step": next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], desk, by_video)}   # (not the command that asks: bin/vh new)
     if a.json:
         print(json.dumps(out, ensure_ascii=False, indent=1))
         return 0

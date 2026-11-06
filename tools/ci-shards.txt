@@ -16,6 +16,7 @@ pace_checks 15
 timeline_checks 25
 series_checks 28
 decision_checks 45
+new_checks 4
 gate_checks 23
 desk_checks 14
 looks_checks 17

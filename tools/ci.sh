@@ -1680,11 +1680,66 @@ PY
   rm -rf "$t"
 }
 
+hf_standin() { # hf_standin <folder>: an npx that scaffolds as hyperframes init does and an npm with nothing to do, for a check of
+  # bin/vh new that needs a scaffold, not the network
+  mkdir -p "$1"
+  printf '#!/bin/sh\nmkdir -p hf\nprintf "<!doctype html><html></html>" > hf/index.html\nprintf "{}" > hf/hyperframes.json\n' > "$1/npx"
+  printf '#!/bin/sh\nexit 0\n' > "$1/npm"
+  chmod +x "$1/npx" "$1/npm"
+}
+new_checks() {   # bin/vh new: how a type may be written; a scaffold that fails keeps the project and says what finishes it (no ✓, exit 1);
+  # --json. Stand-ins for npx and npm, no network
+  local t p a b c x rc rc2 rc3
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  a=""
+  for x in math 01 01-math-science-explainer math-science-explainer video-types/01-math-science-explainer.md; do
+    rm -rf "$t/ty"; vh new "$x" ty --dir "$t/ty" >/dev/null 2>&1 || a="$a | $x: exit $?"
+    grep -q '^- Type doc: `video-types/01-math-science-explainer.md`' "$t"/ty/*-ty/BRIEF.md 2>/dev/null || a="$a | $x: the BRIEF's type doc"
+  done
+  b=$(vh new knowledge-short ci-x --watch feed 2>&1); rc=$?; c=$(vh new 02 ci-x --aspect 4:3 2>&1); rc2=$?; vh new 99 ci-x >/dev/null 2>&1; rc3=$?
+  if [ -z "$a" ] && [ "$rc:$rc2:$rc3" = 2:2:2 ] && case "$b|$c" in *"already --watch phone"*"|"*"unknown aspect"*) true ;; *) false ;; esac && [ -z "$(ls -d "$ROOT"/projects/*-ci-x 2>/dev/null)" ]
+  then ok "new: the type by its short name, number, doc name, that name's stem or the doc's path, and the same rules apply after it; another word is a usage error"
+  else bad "new, the ways to write a type:$a ($rc/$rc2/$rc3): $b | $c"; fi
+  # a failed init: no ✓, npx's last lines, the command that finishes it, exit 1; status says it first; the command finishes it
+  mkdir "$t/bad"; printf '#!/bin/sh\nfor i in 1 2 3 4 5 6 7 8 9 10 11 12; do echo "npx line $i"; done\nexit 1\n' > "$t/bad/npx"; printf '#!/bin/sh\nexit 1\n' > "$t/bad/npm"; chmod +x "$t/bad/npx" "$t/bad/npm"
+  hf_standin "$t/good"
+  a=$(PATH="$t/bad:$PATH" OVH_PROJECTS="$t/f" vh new short ff 2>&1); rc=$?; p=$(ls -d "$t"/f/*-ff 2>/dev/null)
+  b=$(vh status "$p" --json | python3 -c 'import json, sys; n = json.load(sys.stdin)["next_step"]; print(n["who"], "|".join(n["commands"]))')
+  c=$(PATH="$t/good:$PATH" vh hf-init "$p" portrait 2>&1); rc2=$?
+  if [ "$rc" = 1 ] && [ -f "$p/BRIEF.md" ] && case "$a" in *"✓"*|*"npx line 6"$'\n'*) false ;; *"npx line 12"*"retry later: bin/vh hf-init"*"created "*"did not finish"*"first    : bin/vh hf-init"*" portrait"*) true ;; *) false ;; esac \
+    && case "$b" in "agent bin/vh hf-init "*" portrait") true ;; *) false ;; esac && [ "$rc2" = 0 ] && [ -f "$p/hyperframes.json" ] && grep -q '"exit":1' "$p/.ovh/activity.jsonl" \
+    && [ "$(vh status "$p" --json | python3 -c 'import json, sys; print("hf-init" in " ".join(json.load(sys.stdin)["next_step"]["commands"]))')" = False ]
+  then ok "new: a failed HyperFrames init keeps the project, npx's last lines and the command that finishes it, no ✓, exit 1 (in the log too); status says it first; hf-init finishes it"
+  else bad "new with a failed init (exit $rc, then $rc2): $a | $b | $c"; fi
+  a=$(PATH="$t/bad:$PATH" OVH_PROJECTS="$t/h" vh new handdrawn hd 2>&1); rc=$?; p=$(ls -d "$t"/h/*-hd 2>/dev/null)
+  if [ "$rc" = 1 ] && [ -f "$p/ANIMATION_GUIDE.md" ] && case "$a" in *"✓"*) false ;; *"did not finish"*"npm install"*) true ;; *) false ;; esac
+  then ok "new: a failed npm install in the hand-drawn engine keeps the project and says what finishes it, no ✓, exit 1"
+  else bad "new handdrawn with a failed npm (exit $rc): $a"; fi
+  # --json: the record on stdout, the lines on stderr, the same next step as status; a failed scaffold says so, exit 1
+  b=$(PATH="$t/good:$PATH" OVH_PROJECTS="$t/j" vh new knowledge-short jj --effort quick --json 2>"$t/j.err"); rc=$?; p=$(ls -d "$t"/j/*-jj 2>/dev/null)
+  c=$(PATH="$t/bad:$PATH" OVH_PROJECTS="$t/j" vh new short jf --json 2>/dev/null); rc2=$?
+  if [ "$rc:$rc2" = 0:1 ] && grep -q "✓" "$t/j.err" && grep -q 'renders straight through' "$t/j.err" && python3 - "$b" "$c" "$p" "$VH_BASH|$ROOT/bin/vh" <<'PY'
+import json, subprocess, sys
+from pathlib import Path
+d, f, p, vh = sys.argv[1:5]
+d, f = json.loads(d), json.loads(f)
+st = json.loads(subprocess.run([*vh.split("|"), "status", p, "--json"], capture_output=True, text=True).stdout)
+ok = d["version"] == 1 and Path(d["project"]).resolve() == Path(p).resolve() and d["type"] == "short" and d["doc"] == "video-types/02-knowledge-short.md" and d["effort"] == "quick" and d["engine"] == "hyperframes"
+ok = ok and d["frame"] == "1080x1920" and d["watch"] == "phone" and d["scaffold"] == {"ok": True, "finish": None}
+ok = ok and d["next"] == st["next_step"] and d["next"]["who"] == "agent" and "BRIEF.md (" in d["next"]["do"] and "playbook/quick.md" in d["next"]["read"]
+ok = ok and f["scaffold"]["ok"] is False and "hf-init" in f["scaffold"]["finish"] and any("hf-init" in c for c in f["next"]["commands"])
+sys.exit(0 if ok else 1)
+PY
+  then ok "new --json: the record on stdout (project, type, doc, effort, engine, scaffold, next as status's next_step), the human lines on stderr; a failed scaffold says so, exit 1"
+  else bad "new --json (exit $rc/$rc2): $b | $c"; fi
+  rm -rf "$t"
+}
 series_checks() {   # bin/vh new --from: the next episode carries the earlier one's spec, style, outline skeleton, STYLE.md,
   # style refs, recipes and sound effects, and its frame and engine unless given; its content is left behind, and so are
   # its budget, effort and director (said instead); a --style given now keeps the episode's own style
   local t p q r u a b rc rc2 rc3 rc4
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")
+  hf_standin "$t/sb"; local PATH="$t/sb:$PATH"   # a scaffold, with no network
   OVH_PROJECTS="$t" vh new short ep1 --aspect 16:9 --style risograph >/dev/null 2>&1; p=$(ls -d "$t"/*-ep1)
   python3 - "$p" <<'PY'
 import json, sys
@@ -1782,7 +1837,7 @@ decision_checks() {
      && ! grep -qE "fonts\.(googleapis|gstatic)" "$t/hfi/index.html" && grep -q 'src: local("HelveticaNeue")' "$t/hfi/index.html"
   then ok "hf-init's font fix: the scaffold's generic-first and Inter stacks get local @font-face fonts, so HyperFrames fetches none"
   else bad "hf-init font fix ($rc, $rb, $rc2): $(cat "$t/hfi/before.txt") | $a"; fi
-  # 4:5: the BRIEF's lines (a pinned version that does not exist makes the scaffold fail fast, offline too; new goes on without it)
+  # 4:5: the BRIEF's lines (a pinned version that does not exist makes the scaffold fail fast, offline too; the project stays)
   a=$(HYPERFRAMES_VERSION=0.0.0-ci OVH_PROJECTS="$t/a45" vh new short ci-45 --aspect 4:5 2>&1); d=$(ls -d "$t"/a45/*-ci-45 2>/dev/null)
   if [ -n "$d" ] && grep -q '^- Output: 1080x1350,' "$d/BRIEF.md" && grep -q '^- Watch on: phone' "$d/BRIEF.md" && grep -q '画幅 4:5（1080x1350' "$d/BRIEF.md"; then
     case "$a" in *"retry later: bin/vh hf-init"*" 4:5"*) ok "new --aspect 4:5 writes the BRIEF's frame lines, and a failed scaffold's retry hint keeps 4:5" ;; *) bad "new --aspect 4:5 retry hint: $a" ;; esac
