@@ -1,0 +1,13 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/project.schema.json",
+ "title": "A project's identity, .ovh/project.json, version 1",
+ "description": "A random id that says nothing of the path and never changes, and when it was made (tools/identity.py).",
+ "type": "object",
+ "required": ["version", "id", "created"],
+ "properties": {
+  "version": {"enum": [1]},
+  "id": {"type": "string"},
+  "created": {"type": "string"}
+ }
+}

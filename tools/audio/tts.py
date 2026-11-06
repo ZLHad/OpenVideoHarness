@@ -141,10 +141,12 @@ Providers (API keys come from environment variables only, never from files):
               pronunciation_dict.tone. text_normalization is on: "1953 年" is read 一千九百五十三年, so write years
               as 一九五三年 in the spoken text.
 """
-import argparse, base64, difflib, hashlib, json, os, platform, re, shutil, subprocess, sys, tempfile, time, unicodedata
+import argparse, base64, difflib, hashlib, json, os, platform, re, shutil, signal, subprocess, sys, tempfile, time, unicodedata
 import urllib.error, urllib.parse, urllib.request, wave
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
+
+RESUME = None   # what a stop keeps for a resume, once a line is on disk
 
 SR = 48000
 GEMINI_API = "https://generativelanguage.googleapis.com/v1beta"
@@ -154,6 +156,17 @@ def run(cmd, **kw):
 
 def to_wav(src: Path, dst: Path):
     run(["ffmpeg", "-v", "error", "-y", "-i", str(src), "-ac", "1", "-ar", str(SR), str(dst)])
+
+def into_place(out: Path, make):
+    """make(a name beside out) writes a take there, and only a whole take gets out's name: --resume trusts a file by its being there, and a stop in the
+    middle (ffmpeg may stop halfway at a Ctrl-C) must not leave it a clipped line nobody notices. → what make returns."""
+    part = out.with_name(f".{out.stem}.part{out.suffix}")
+    try:
+        made = make(part)
+        os.replace(part, out)
+        return made
+    finally:
+        part.unlink(missing_ok=True)
 
 def duration(p: Path) -> float:
     return float(run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)]).stdout)
@@ -1325,6 +1338,16 @@ def main():
         out.unlink(missing_ok=True)                                  # never leave a half-written file for --resume to trust
         sys.exit(f"{what}: synthesis failed: {err(e)}. {done} of {total} are in {vo.relative_to(proj)}; re-run the same command"
                  f" with --resume to synthesize the rest")
+    sys.path.append(str(Path(__file__).resolve().parent.parent))
+    import activity   # tools/activity.py: the lines done in the project's log, when bin/vh ran us
+    progress = activity.Progress(len(segs), "lines")
+    progress(0)
+
+    def tick(done):
+        """So many lines are on disk: the log, and what a stop keeps for a resume."""
+        global RESUME
+        progress(done)
+        RESUME = f"{done} of {len(segs)} line(s) in {vo.relative_to(proj)}: the same command with --resume synthesizes the rest"
     with tempfile.TemporaryDirectory() as td:
         tmp = Path(td)
         made = []             # the transcribe calls actually made (a --resume that reuses every .asr.json makes none)
@@ -1378,11 +1401,12 @@ def main():
                 if not (a.resume and out.exists() and (wfile.exists() or not timed)):   # --resume: only what the run did not get to
                     voice = speakers.get(s["speaker"], a.voice) if s.get("speaker") else a.voice
                     out.with_suffix(".asr.json").unlink(missing_ok=True)   # a new take gets a new transcription
+                    def take(part):
+                        w = PROVIDERS[a.provider](s["_ptext"], voice, part, tmp, a.lang, style_of(s))
+                        h, tail = (0.0, 0.0) if a.keep_edges else trim_edges(part, tmp)   # the provider's own lead-in / tail silence
+                        return shifted(w, h), h + tail
                     try:
-                        words = PROVIDERS[a.provider](s["_ptext"], voice, out, tmp, a.lang, style_of(s))
-                        if not a.keep_edges:                           # the provider's own lead-in / tail silence
-                            h, tail = trim_edges(out, tmp); trimmed += h + tail
-                            words = shifted(words, h)
+                        words, cut_s = into_place(out, take); trimmed += cut_s
                         if timed:                                      # kept for --resume
                             save_words(out, wfile, words)
                     except Exception as e:
@@ -1402,6 +1426,7 @@ def main():
                     s["words"] = [{"w": w["w"], "start": round(t + w["start"], 3), "end": round(t + w["end"], 3)} for w in words]
                 parts.append(out); t += d
                 print(f"  {s['id']:<8} {s['start']:6.2f}–{s['end']:6.2f}s  {(s['speaker'] + ': ') if s.get('speaker') else ''}{s['text']}", flush=True)
+                tick(i + 1)
             if align:                                                  # every line in parallel, after synthesis
                 write_outputs()                                        # the take is on disk before the first ASR call
                 t0 = time.time()
@@ -1430,18 +1455,21 @@ def main():
                                        "end": round(s["start"] + w["end"], 3)} for w in r["words"]]
         else:
             def synth_block(blk, conv, bout):   # one request for the block → bout (edges trimmed); → (word times or None, s trimmed)
-                pw, cut_s = None, 0.0
-                if gemini:
-                    env_style = os.environ.get("GEMINI_TTS_STYLE")
-                    turns = [{"text": s["_ptext"], "style": style_of(s) or env_style, "speaker": s.get("speaker") if conv else None} for s in blk]
-                    gemini_tts(turns, bout, tmp, gemini_model(a.provider), dict(speakers) if conv else a.voice)
-                elif timed:
-                    pw = PROVIDERS[a.provider](linked([s["_ptext"] for s in blk]), a.voice, bout, tmp, a.lang, a.instruct)
-                else:
-                    PROVIDERS[a.provider](("" if a.lang == "zh" else " ").join(s["_ptext"] for s in blk), a.voice, bout, tmp, a.lang, a.instruct)
-                if not a.keep_edges:                                   # only the block's own edges: pauses inside stay
-                    h, tail = trim_edges(bout, tmp); cut_s = h + tail
-                    pw = shifted(pw, h)
+                def take(part):
+                    w, cut_s = None, 0.0
+                    if gemini:
+                        env_style = os.environ.get("GEMINI_TTS_STYLE")
+                        turns = [{"text": s["_ptext"], "style": style_of(s) or env_style, "speaker": s.get("speaker") if conv else None} for s in blk]
+                        gemini_tts(turns, part, tmp, gemini_model(a.provider), dict(speakers) if conv else a.voice)
+                    elif timed:
+                        w = PROVIDERS[a.provider](linked([s["_ptext"] for s in blk]), a.voice, part, tmp, a.lang, a.instruct)
+                    else:
+                        PROVIDERS[a.provider](("" if a.lang == "zh" else " ").join(s["_ptext"] for s in blk), a.voice, part, tmp, a.lang, a.instruct)
+                    if not a.keep_edges:                               # only the block's own edges: pauses inside stay
+                        h, tail = trim_edges(part, tmp); cut_s = h + tail
+                        w = shifted(w, h)
+                    return w, cut_s
+                pw, cut_s = into_place(bout, take)
                 if timed:                                              # kept for --resume
                     save_words(bout, bout.with_suffix(".words.json"), pw)
                 return pw, cut_s
@@ -1473,7 +1501,7 @@ def main():
                         print(f"  median voice of the {sum(len(v) for v in feats.values())} takes: pitch {med['pitch_hz']:.0f} Hz, centroid {med['centroid_hz']:.0f} Hz")
                     for bi, cps in takes.items():
                         k = choice[bi]; bout = vo / f"_block{bi+1:02d}.wav"
-                        shutil.copyfile(cps[k], bout); trimmed += cut_of.get(cps[k], 0.0)
+                        into_place(bout, lambda part: shutil.copyfile(cps[k], part)); trimmed += cut_of.get(cps[k], 0.0)
                         if timed:
                             shutil.copyfile(cps[k].with_suffix(".words.json"), bout.with_suffix(".words.json"))
                         picked.add(bi)
@@ -1518,6 +1546,7 @@ def main():
                     parts.append(silence(start - t, bi))
                 t = start
                 print(f"  block {bi+1}: {len(blk)} line(s), {bd:.2f} s in one request" + (f" — not transcribed: {fail}" if fail else ""), flush=True)
+                tick(n + len(blk))
                 texts = [s["text"] for s in blk]
                 heard = None if fail or not align else align_lines(texts, ws, bd, {i: s["_alt"] for i, s in enumerate(blk) if s.get("_alt")})
                 res = align_lines(texts, pw, bd) if timed and pw is not None else heard or [None] * len(blk)   # line boundaries: the provider's
@@ -1560,8 +1589,6 @@ def main():
     if trimmed > 0.05:
         print(f"  trimmed {trimmed:.2f} s of provider silence at line edges (--keep-edges to keep it)")
     print(f"→ {joined.relative_to(proj)} ({tl['duration']}s) · audio/timeline.{a.lang}.json · captions: bin/vh captions {a.project}")
-    sys.path.append(str(Path(__file__).resolve().parent.parent))
-    import activity   # tools/activity.py: the take in the project's log, when bin/vh ran us
     activity.note(f"{len(segs)} line(s), {tl['duration']} s, {a.provider} {a.voice or ''}".rstrip(), [joined, audio / f"timeline.{a.lang}.json"])
     import timeline_lint   # the checks captions and pace rely on: say now what they would refuse later
     if (lint := timeline_lint.lint(tl, a.lang)):
@@ -1574,8 +1601,28 @@ def main():
         kept = f"; the block audio is kept in {vo.relative_to(proj)}/_blockNN.wav and its lines share the block's span" if failed and join != "none" and not timed else ""
         sys.exit(f"align: {what}. The take is written (voiceover and timeline above{kept}); fix the cause, then re-run the same command with --resume to redo only what failed")
 
-if __name__ == "__main__":
+def stopped(*_):
+    raise KeyboardInterrupt
+
+
+def go():
     try:
         main()
     except GeminiError as e:       # a voices call that failed for good (synthesis and transcription failures are handled in main)
         sys.exit(str(e))
+
+
+def entry():
+    sys.path.append(str(Path(__file__).resolve().parent.parent))
+    import activity, jsonerr   # the note of why it failed, or of what a stop keeps
+    signal.signal(signal.SIGTERM, stopped)   # as a Ctrl-C
+    try:
+        sys.exit(jsonerr.guard(go))
+    except KeyboardInterrupt:
+        activity.note("stopped", **({"kept": RESUME} if RESUME else {}))
+        print("tts: stopped" + (f"; {RESUME}" if RESUME else ""), file=sys.stderr)
+        sys.exit(130)
+
+
+if __name__ == "__main__":
+    entry()

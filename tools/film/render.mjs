@@ -94,7 +94,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { openFilm } from "./host.mjs";
 import { HOOK, check as checkGlyphs, collectDom, merge as mergeGlyphs, report as glyphReport } from "./glyphs.mjs";
-import { note as activityNote, progress as activityProgress } from "./activity.mjs";   // the project's activity log (bin/vh activity)
+import { error as activityError, note as activityNote, progress as activityProgress } from "./activity.mjs";   // the project's activity log (bin/vh activity)
 import { commit } from "./versions.mjs";                                                 // the project's versions (bin/vh versions)
 import { frameFrom } from "./timegrid.mjs";                                              // seconds to frames (tools/timegrid.py)
 import { concatChunks } from "./join.mjs";                                               // the chunks joined, one DTS step a frame
@@ -107,7 +107,7 @@ const HERE = path.dirname(new URL(import.meta.url).pathname);
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");
 const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
-const die = (msg) => { console.error("render: " + msg); process.exit(2); };
+const die = (msg) => { console.error("render: " + msg); activityError(msg); process.exit(2); };
 const o = { fps: 30, dpr: 1, workers: 4, crf: 16, preset: "medium", quality: 95, frameTimeout: 120, estimate: "auto", fresh: false, cacheMax: 10, blur: 1, shutter: 0.5 };
 let target = null, out = null, range = null, frames = null, gop = null, png = false, force = false, fpsGiven = false, note = null, alpha = false, shutterGiven = false;
 for (let i = 0; i < argv.length; i++) {
@@ -313,6 +313,7 @@ for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig,
   for (const ff of encoders) ff.kill("SIGKILL");
   const k = keepFinished();
   console.error(`render: stopped (${sig}); ` + (k ? keptSay(k) : "the chunks so far are deleted"));
+  activityNote(`stopped (${sig})`, [], k ? { kept: keptSay(k) } : {});
   process.exit(code);
 });
 const COLOR = "colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv";
@@ -662,7 +663,7 @@ async function worker(w) {
 await Promise.all(Array.from({ length: W }, (_, w) => worker(w)));
 if (!W) await first.close();
 clearInterval(progress);
-const fail = (msg) => { const k = keepFinished(); console.error(`render: ${msg}`); if (k) console.error(`  ${keptSay(k)}`); process.exit(1); };
+const fail = (msg) => { const k = keepFinished(); console.error(`render: ${msg}`); activityError(msg); if (k) console.error(`  ${keptSay(k)}`); process.exit(1); };
 if (failed) fail(failed);
 if (editRoot) {   // an edit list's chunks came from pages and from footage: one SPS/PPS, or the joined film does not decode
   const FIELDS = ["profile", "level", "pix_fmt", "width", "height", "sample_aspect_ratio", "color_range", "color_space", "color_primaries", "color_transfer",

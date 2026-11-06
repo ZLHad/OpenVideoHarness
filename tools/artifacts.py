@@ -45,6 +45,7 @@ TABLE = HERE / "artifacts.json"
 SCHEMAS = HERE / "schemas"
 for sub in (HERE, HERE / "desk", HERE / "audio", HERE / "assets"):
     sys.path.insert(0, str(sub))
+import jsonerr   # noqa: E402
 
 VIDEO = "mp4|mov|webm|mkv|m4v|avi"   # tools/clean.py's VIDEO
 HOLES = {"<lang>": r"[a-z]{2,3}(?:-[A-Za-z0-9]{2,4})?", "<n>": r"[A-Za-z0-9_-]{1,24}", "<id>": r"[^/]+",
@@ -419,6 +420,10 @@ def thumbs_state(r, rel):
     return _source_state(r, *read_json(r.project / rel / "thumbs.json"), "thumbs")
 
 
+def peaks_state(r, rel):
+    return _source_state(r, *read_json(r.project / rel), "peaks")
+
+
 def versions_state(r, _rel):
     import versions as V
     try:
@@ -476,7 +481,7 @@ def ledger_state(r, _rel):
 
 STALE = {"captions": captions_state, "captions-srt": captions_state, "mix": mix_state, "mix-record": mix_state, "check-record": check_state, "cues": cues_state,
          "render": film_state, "film-final": film_state, "mux-record": mux_state, "deliver-copy": deliver_state, "deliver-record": deliver_state,
-         "proxy": proxy_state, "thumbs": thumbs_state, "versions-record": versions_state, "edit-resolved": resolved_state,
+         "proxy": proxy_state, "thumbs": thumbs_state, "peaks": peaks_state, "versions-record": versions_state, "edit-resolved": resolved_state,
          "cast-record": cast_state, "ledger": ledger_state}
 
 
@@ -807,6 +812,7 @@ def cmd_list(a):
             return 2
     project = find_project(a.project, t["artifacts"])
     if project is None:
+        jsonerr.mark("no_project")
         return 2
     rec = report(project, t["artifacts"], stage)
     if a.json:
@@ -1147,6 +1153,6 @@ def main(argv):
 
 if __name__ == "__main__":
     try:
-        sys.exit(main(sys.argv[1:]))
+        sys.exit(jsonerr.guard(lambda: main(sys.argv[1:])))
     except BrokenPipeError:
         sys.exit(0)

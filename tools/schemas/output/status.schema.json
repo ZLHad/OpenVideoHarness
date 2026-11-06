@@ -1,0 +1,263 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/status.schema.json",
+ "title": "bin/vh status <project> --json",
+ "description": "Where a project stands (tools/status.py; tools/desk/README.md, 给客户端的数据, says what each field means). assets, cast and research are objects or {\"error\"}.",
+ "type": "object",
+ "required": ["version", "project", "paused", "waiting_on", "next", "stations", "review", "open", "renders", "deliveries", "versions", "check", "assets", "cast", "research", "activity", "media", "next_step"],
+ "properties": {
+  "version": {"enum": [1]},
+  "project": {
+   "type": "object",
+   "required": ["id", "path", "slug", "title", "type", "effort", "effort_from", "director", "lang", "spec"],
+   "properties": {
+    "id": {"type": ["string", "null"]},
+    "path": {"type": "string"},
+    "slug": {"type": "string"},
+    "title": {"type": "string"},
+    "type": {"type": ["string", "null"]},
+    "effort": {"type": "string"},
+    "effort_from": {"type": "string"},
+    "director": {"type": "string"},
+    "lang": {"type": "string"},
+    "spec": {"type": "object"}
+   }
+  },
+  "paused": {"type": "boolean"},
+  "waiting_on": {"enum": ["person", "agent", "nobody", "unknown"]},
+  "next": {"type": "string"},
+  "stations": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["id", "name", "kind", "state", "pages", "page", "current", "record", "feedback", "note"],
+    "properties": {
+     "id": {"type": "string"},
+     "name": {"type": "string"},
+     "kind": {"enum": ["gate", "checkpoint", "page", "deliver"]},
+     "state": {"enum": ["done", "skipped", "waiting_person", "waiting_agent", "in_progress", "not_started", "no_record"]},
+     "pages": {"type": "array", "items": {"type": "string"}},
+     "page": {"type": ["string", "null"]},
+     "current": {"type": "boolean"},
+     "record": {
+      "type": ["object", "null"],
+      "required": ["decided", "said", "waived", "from"],
+      "properties": {
+       "decided": {"type": "boolean"},
+       "said": {"type": "boolean"},
+       "waived": {},
+       "from": {"type": ["string", "null"]},
+       "concept_on_record": {"type": "boolean"}
+      }
+     },
+     "feedback": {
+      "type": ["object", "null"],
+      "required": ["submitted", "handed", "pending", "last"],
+      "properties": {
+       "submitted": {"type": "integer"},
+       "handed": {"type": "integer"},
+       "pending": {"type": "integer"},
+       "last": {"type": "string"}
+      }
+     },
+     "note": {"type": ["string", "null"]}
+    }
+   }
+  },
+  "review": {
+   "type": "object",
+   "required": ["current", "page", "desk"],
+   "properties": {
+    "current": {"type": ["string", "null"]},
+    "page": {"type": ["string", "null"]},
+    "desk": {}
+   }
+  },
+  "open": {
+   "type": "object",
+   "required": ["review_items", "facts_to_verify"],
+   "properties": {
+    "review_items": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "required": ["round", "file", "target", "status", "label", "text"],
+      "properties": {
+       "round": {"type": ["string", "null"]},
+       "file": {"type": "string"},
+       "target": {"type": "string"},
+       "status": {"type": "string"},
+       "label": {"type": "string"},
+       "text": {"type": "string"}
+      }
+     }
+    },
+    "facts_to_verify": {"type": "array", "items": {"type": "string"}}
+   }
+  },
+  "renders": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["path", "size", "mtime", "t", "render", "patches", "delivery", "check", "version"],
+    "properties": {
+     "path": {"type": "string"},
+     "size": {"type": "integer"},
+     "mtime": {"type": "string"},
+     "t": {"type": "number"},
+     "render": {"type": ["object", "null"]},
+     "patches": {"type": "integer"},
+     "delivery": {
+      "type": ["object", "null"],
+      "required": ["master", "time"],
+      "properties": {
+       "master": {"type": "string"},
+       "time": {"type": "string"}
+      }
+     },
+     "check": {
+      "type": ["object", "null"],
+      "required": ["record", "video", "at", "t", "verdict", "exit", "counts", "fails", "stale"],
+      "properties": {
+       "record": {"type": "string"},
+       "video": {"type": ["string", "null"]},
+       "at": {"type": ["string", "null"]},
+       "t": {"type": ["number", "null"]},
+       "verdict": {"type": ["string", "null"]},
+       "exit": {"type": ["integer", "null"]},
+       "counts": {
+        "type": "object",
+        "required": ["fail", "warn", "info"],
+        "properties": {
+         "fail": {"type": "integer"},
+         "warn": {"type": "integer"},
+         "info": {"type": "integer"}
+        }
+       },
+       "fails": {"type": "array", "items": {"type": "string"}},
+       "stale": {"type": ["boolean", "null"]}
+      }
+     },
+     "version": {"type": ["string", "null"]}
+    }
+   }
+  },
+  "deliveries": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["record", "output", "master", "time"],
+    "properties": {
+     "record": {"type": "string"},
+     "output": {"type": "string"},
+     "master": {"type": ["string", "null"]},
+     "time": {"type": ["string", "null"]}
+    }
+   }
+  },
+  "versions": {"anyOf": [{"type": "object", "required": ["record", "keep", "current", "kept_bytes", "list"], "properties": {"record": {"type": "string"}, "keep": {"type": "integer"}, "current": {"type": "object"}, "kept_bytes": {"type": "integer"}, "list": {"type": "array", "items": {"type": "object", "required": ["id", "at", "t", "film", "file", "state", "made_by", "from", "note", "changed", "frames", "pixels", "check"], "properties": {"id": {"type": "string"}, "at": {"type": ["string", "null"]}, "t": {"type": ["number", "null"]}, "film": {"type": "string"}, "file": {"type": ["string", "null"]}, "state": {"type": "string"}, "made_by": {"type": ["string", "null"]}, "from": {}, "note": {}, "changed": {"type": ["object", "null"]}, "frames": {"type": ["integer", "null"]}, "pixels": {"type": ["array", "null"], "items": {"type": "number"}}, "check": {"type": ["object", "null"], "required": ["verdict", "at", "counts", "record"], "properties": {"verdict": {"type": "string"}, "at": {"type": "string"}, "counts": {"type": "object", "required": ["fail", "warn", "info"], "properties": {"fail": {"type": "integer"}, "warn": {"type": "integer"}, "info": {"type": "integer"}}}, "record": {"type": "string"}}}}}}}}, {"type": "object", "required": ["error"], "properties": {"error": {"type": "string"}}}, {"type": "null"}]},
+  "check": {
+   "type": ["object", "null"],
+   "required": ["record", "video", "at", "t", "verdict", "exit", "counts", "fails", "stale"],
+   "properties": {
+    "record": {"type": "string"},
+    "video": {"type": ["string", "null"]},
+    "at": {"type": ["string", "null"]},
+    "t": {"type": ["number", "null"]},
+    "verdict": {"type": ["string", "null"]},
+    "exit": {"type": ["integer", "null"]},
+    "counts": {
+     "type": "object",
+     "required": ["fail", "warn", "info"],
+     "properties": {
+      "fail": {"type": "integer"},
+      "warn": {"type": "integer"},
+      "info": {"type": "integer"}
+     }
+    },
+    "fails": {"type": "array", "items": {"type": "string"}},
+    "stale": {"type": ["boolean", "null"]}
+   }
+  },
+  "assets": {"anyOf": [{"type": "object", "required": ["ledger", "records", "removed", "uncleared", "not_taken", "aigc", "unregistered", "films_known", "policy", "policy_from", "budget", "error"], "properties": {"ledger": {"type": ["string", "null"]}, "records": {"type": "integer"}, "removed": {"type": "integer"}, "uncleared": {"type": "integer"}, "not_taken": {"type": "integer"}, "aigc": {"type": "integer"}, "unregistered": {}, "films_known": {"type": "integer"}, "policy": {"type": "string"}, "policy_from": {"type": "string"}, "budget": {"type": "object", "required": ["limit", "unlimited", "from", "raw", "error", "spent", "held", "left", "over"], "properties": {"limit": {"type": "object"}, "unlimited": {"type": "boolean"}, "from": {}, "raw": {}, "error": {}, "spent": {"type": "object"}, "held": {"type": "object"}, "left": {"type": "object"}, "over": {"type": "array"}}}, "error": {}}}, {"type": "object", "required": ["error"], "properties": {"error": {"type": "string"}}}]},
+  "cast": {"anyOf": [{"type": "object", "required": ["entries", "by_kind", "final", "failures"], "properties": {"entries": {"type": "integer"}, "by_kind": {"type": "object"}, "final": {"type": "integer"}, "failures": {"type": "integer"}}}, {"type": "object", "required": ["error"], "properties": {"error": {"type": "string"}}}, {"type": "null"}]},
+  "research": {"anyOf": [{"type": "object", "required": ["web", "scout", "hot", "refs"], "properties": {"web": {"type": "object", "required": ["file", "records", "error", "last"], "properties": {"file": {}, "records": {"type": "integer"}, "error": {}, "last": {}}}, "scout": {"type": "object", "required": ["file", "records", "latest", "films", "last"], "properties": {"file": {}, "records": {"type": "integer"}, "latest": {"type": "integer"}, "films": {"type": "integer"}, "last": {}}}, "hot": {"type": "object", "required": ["days", "first", "last"], "properties": {"days": {"type": "integer"}, "first": {}, "last": {}}}, "refs": {"type": "object", "required": ["file", "records", "error"], "properties": {"file": {}, "records": {"type": "integer"}, "error": {}}}}}, {"type": "object", "required": ["error"], "properties": {"error": {"type": "string"}}}, {"type": "null"}]},
+  "activity": {
+   "type": "object",
+   "required": ["running", "listening", "recent"],
+   "properties": {
+    "running": {"type": "array"},
+    "listening": {"type": "array"},
+    "recent": {"type": "array", "items": {"$ref": "#/$defs/run"}}
+   }
+  },
+  "media": {
+   "type": "object",
+   "required": ["film", "version", "from", "proxy", "thumbs", "peaks", "stale"],
+   "properties": {
+    "film": {"type": ["string", "null"]},
+    "version": {"type": ["string", "null"]},
+    "from": {"enum": ["versions", "newest", null]},
+    "proxy": {"type": ["string", "null"]},
+    "thumbs": {"type": ["string", "null"]},
+    "peaks": {"type": ["string", "null"]},
+    "stale": {"type": "array", "items": {"type": "string"}},
+    "error": {"type": "string"}
+   }
+  },
+  "next_step": {
+   "type": "object",
+   "required": ["who", "do", "commands", "read", "unfilled"],
+   "properties": {
+    "who": {"enum": ["person", "agent", "nobody", "unknown"]},
+    "do": {"type": "string"},
+    "commands": {"type": "array", "items": {"type": "string"}},
+    "read": {"type": "array", "items": {"type": "string"}},
+    "unfilled": {"type": "object"}
+   }
+  }
+ },
+ "$defs": {
+  "run": {
+   "type": "object",
+   "required": ["run", "cmd", "args", "cwd", "pid", "parent", "start", "end", "exit", "duration", "state", "summary", "outputs", "progress", "error", "cancelled", "kept"],
+   "properties": {
+    "run": {"type": "string"},
+    "cmd": {"type": "string"},
+    "args": {"type": "array", "items": {"type": "string"}},
+    "cwd": {"type": ["string", "null"]},
+    "pid": {"type": ["integer", "null"]},
+    "parent": {"type": ["string", "null"]},
+    "start": {"type": ["number", "null"]},
+    "end": {"type": ["number", "null"]},
+    "exit": {"type": ["integer", "null"]},
+    "duration": {"type": ["number", "null"]},
+    "state": {"enum": ["running", "ok", "failed", "gone"]},
+    "summary": {"type": ["string", "null"]},
+    "outputs": {"type": "array", "items": {"type": "string"}},
+    "progress": {
+     "type": ["object", "null"],
+     "required": ["done", "t"],
+     "properties": {
+      "done": {"type": "number"},
+      "total": {"type": "number"},
+      "unit": {"type": "string"},
+      "t": {"type": "number"},
+      "pass": {"type": "number"},
+      "passes": {"type": "number"}
+     }
+    },
+    "error": {
+     "type": ["object", "null"],
+     "required": ["code", "message"],
+     "properties": {
+      "code": {"type": "string"},
+      "message": {"type": "string"}
+     }
+    },
+    "cancelled": {"type": "boolean"},
+    "kept": {"type": ["string", "null"]}
+   }
+  }
+ }
+}

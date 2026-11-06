@@ -1,0 +1,108 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/artifacts-list.schema.json",
+ "title": "bin/vh artifacts list <project> --json",
+ "description": "What the project holds against tools/artifacts.json (tools/artifacts.py).",
+ "type": "object",
+ "required": ["version", "tool", "project", "stage", "reached", "counts", "artifacts", "missing", "blanks"],
+ "properties": {
+  "version": {"enum": [1]},
+  "tool": {"type": "string"},
+  "project": {"type": "string"},
+  "stage": {},
+  "reached": {
+   "type": "object",
+   "required": ["new", "gate-1", "gate-2", "gate-3", "narration", "delivery"],
+   "properties": {
+    "new": {"type": "boolean"},
+    "gate-1": {"type": "boolean"},
+    "gate-2": {"type": "boolean"},
+    "gate-3": {"type": "boolean"},
+    "narration": {"type": "boolean"},
+    "delivery": {"type": "boolean"}
+   }
+  },
+  "counts": {
+   "type": "object",
+   "required": ["kinds", "found", "files", "stale", "not_checked", "schema_problems", "missing"],
+   "properties": {
+    "kinds": {"type": "integer"},
+    "found": {"type": "integer"},
+    "files": {"type": "integer"},
+    "stale": {"type": "integer"},
+    "not_checked": {"type": "integer"},
+    "schema_problems": {"type": "integer"},
+    "missing": {"type": "integer"}
+   }
+  },
+  "artifacts": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["id", "kind", "required", "clean", "files"],
+    "properties": {
+     "id": {"type": "string"},
+     "kind": {"type": "string"},
+     "required": {"type": ["string", "null"]},
+     "clean": {"type": "string"},
+     "files": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": ["path", "version", "schema", "stale", "placeholders"],
+       "properties": {
+        "path": {"type": "string"},
+        "version": {"type": ["integer", "null"]},
+        "schema": {
+         "type": ["object", "null"],
+         "required": ["file", "ok", "problems"],
+         "properties": {
+          "file": {"type": "string"},
+          "ok": {"type": "boolean"},
+          "problems": {"type": "array", "items": {"type": "string"}}
+         }
+        },
+        "stale": {
+         "type": ["object", "null"],
+         "required": ["state", "why"],
+         "properties": {
+          "state": {"type": "string"},
+          "why": {"type": "string"}
+         }
+        },
+        "placeholders": {"type": ["integer", "null"]}
+       }
+      }
+     }
+    }
+   }
+  },
+  "missing": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["id", "path", "required", "why"],
+    "properties": {
+     "id": {"type": "string"},
+     "path": {"type": "string"},
+     "required": {"type": ["string", "null"]},
+     "why": {"type": "string"}
+    }
+   }
+  },
+  "blanks": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["file", "key", "value", "required", "why"],
+    "properties": {
+     "file": {"type": "string"},
+     "key": {"type": "string"},
+     "value": {"type": ["string", "null"]},
+     "required": {"type": "boolean"},
+     "why": {"type": "string"}
+    }
+   }
+  }
+ }
+}

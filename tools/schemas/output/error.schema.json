@@ -1,0 +1,20 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/error.schema.json",
+ "title": "A failure of any command with --json",
+ "description": "The shape of a failure (tools/jsonerr.py). The codes are stable; hint says what to do when there is something to say.",
+ "type": "object",
+ "required": ["version", "error"],
+ "properties": {
+  "version": {"enum": [1]},
+  "error": {
+   "type": "object",
+   "required": ["code", "message", "hint"],
+   "properties": {
+    "code": {"enum": ["usage", "no_project", "not_found", "invalid", "exists", "refused", "missing_tool", "timeout", "failed"]},
+    "message": {"type": "string"},
+    "hint": {"type": ["string", "null"]}
+   }
+  }
+ }
+}

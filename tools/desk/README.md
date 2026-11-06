@@ -137,7 +137,84 @@ JSON 的格式：
 
 客户端（审阅台，以后的 Studio）只是项目文件和 `bin/vh` 外面的一层壳：它要的数据都由命令给出，终端里的 agent 拿到的是同一份。以后只加字段，改了含义就升版本号。
 
-版本字段有两种拼法，已有的不改名，新文件一律用 `version`。命令的 `--json` 输出，和这些文件用 `version`：`<成片>.render.json`（有版本字段之前的记录没有它，形状相同）、`<成片>.mux.json`、`<副本>.deliver.json`（同上）、`<混音>.mix.json`、`audio/captions.args.json`、`out/versions/versions.json`、`out/check/*.check.json`、`out/proxy/` 的记录、`cast/<id>/cast.json`、`research/web.jsonl` 的每行、gate JSON（可写可不写）。这些用 `v`：`edit.json`、`out/edit.resolved.json`、`assets/ledger.json` 和它的每条记录、`assets/spend.jsonl`、`research/refs.json`、`research/scout.jsonl`、`research/hot/*.json`、`.ovh/activity.jsonl` 的每行、`clip.json`、`series.json`。每种文件用哪个，`bin/vh artifacts spec --json` 的 `version_key` 写着。
+版本字段有两种拼法，已有的不改名，新文件一律用 `version`。命令的 `--json` 输出，和这些文件用 `version`：`<成片>.render.json`（有版本字段之前的记录没有它，形状相同）、`<成片>.mux.json`、`<副本>.deliver.json`（同上）、`<混音>.mix.json`、`audio/captions.args.json`、`out/versions/versions.json`、`out/check/*.check.json`、`out/proxy/` 的记录、`cast/<id>/cast.json`、`research/web.jsonl` 的每行、`.ovh/project.json`、`.ovh/history/index.jsonl` 的每行、gate JSON（可写可不写）。这些用 `v`：`edit.json`、`out/edit.resolved.json`、`assets/ledger.json` 和它的每条记录、`assets/spend.jsonl`、`research/refs.json`、`research/scout.jsonl`、`research/hot/*.json`、`.ovh/activity.jsonl` 的每行、`clip.json`、`series.json`。每种文件用哪个，`bin/vh artifacts spec --json` 的 `version_key` 写着。
+
+一个客户端要的东西，从这里找：
+
+| 要什么 | 哪条命令 | 只读吗 |
+|---|---|---|
+| 这台机器上所有项目，各自到哪了 | `bin/vh projects --json` | 是（`--assign` 写 id） |
+| 一个项目认得住的身份 | `.ovh/project.json` 的 `id`；`bin/vh status --json` 的 `project.id` | 是 |
+| 一个项目的全貌和下一步 | `bin/vh status <项目> --json` | 是 |
+| 这支片子该有哪些文件，缺什么、什么过期了 | `bin/vh artifacts list <项目> --json` | 是 |
+| 播放和拖动用的文件（当前片子、代理、缩略图、波形） | `bin/vh status --json` 的 `media`；还没有的，对着 `media.film` 这个路径跑 `bin/vh proxy`、`thumbs`、`peaks` | `media` 是 |
+| 整条时间线：镜头、旁白、字幕、节拍，秒和帧 | `bin/vh timeline <项目> --resolved --json` | 是 |
+| 一条命令跑得怎么样 | `bin/vh activity <项目> --follow --json`，见下面 | 是 |
+| 停下一条命令 | `bin/vh cancel <项目> [run] --json` | 写结束行 |
+| 文本的退路 | `bin/vh history save|list|diff|restore` | `list`、`diff` 是 |
+| 失败了怎么读 | 下面"错误的形状" | |
+| 这些输出长什么样 | `tools/schemas/output/`，下面"输出的契约" | |
+
+### 所有项目：`bin/vh projects [--root DIR …] [--assign] [--json]`
+
+在 `$OVH_PROJECTS`、`<仓库>/projects` 和每个 `--root` 下面找带 `BRIEF.md` 的文件夹（不进 `out/`、`node_modules`、隐藏文件夹这些；一个文件夹只算一次），一行一个项目，最近动过的在前。每行：`id`（还没有时是 `null`）、`name`（文件夹名，和项目根之间隔着文件夹时带上它们：`旧片/docs`）、`title`、`path`（真实路径，和 `bin/vh status` 的一样）、`type`、`effort`、`state`、`station`（停在哪一站：`{"id", "name"}`）、`waiting_on`、`next_step`（这两个和 `bin/vh status --json` 同一个形状）、`running`（正在跑的命令名）、`last_activity`（`t`、`at`、`cmd`、`run`、`state`、`exit`）、`film`（当前片子：`path`、`size`、`mtime`、`version`、`check`、`stale`）、`same_id_as`（同一个 id 的别的路径：整个文件夹拷过一份）、`error`（读不了时为什么，其余字段是 `null`，列表照常往下）。
+
+`state` 是一个词：`paused`、`delivered`、`waiting_person`、`waiting_agent`、`in_progress`、`no_record`（模板有 REVIEW.md 之前的项目）、`not_started`。它用 `bin/vh status` 自己的读法（`tools/status.py` 的 `collect`，不读素材台账、cast 和调研，列表用不上），30 个项目 0.2 s 左右，不用缓存。
+
+**身份**：`.ovh/project.json`（`"version": 1`、`id`、`created`）。`id` 随机，和路径无关，从不改，文件夹搬走还是它：客户端用它认项目。`bin/vh new` 写它；老项目没有，`bin/vh projects --assign` 才写（`created` 是这时的时间），只读的命令从不写。整个文件夹拷过一份，两份同一个 `id`，列表用 `same_id_as` 说出来：删掉副本里的 `.ovh/project.json`，再 `--assign` 一次。
+
+### 跟着一条正在跑的命令
+
+每条作用在项目上的命令都往日志写，所以客户端不用自己起命令也能跟：`bin/vh activity <项目> --follow --json`，一行一个 JSON（`start`、`progress`、`note`、`end`，见下面"活动记录"），先是最近的，然后新的一行来一行，不会自己结束，不要了就结束这个进程。
+
+**崩溃没有行可写**，所以只跟 `--follow` 看不出来：命令被 `kill -9`、机器重启、bash 被 TERM 杀掉，都不会有 `end`。客户端在有命令 `running` 又好一阵没新行时，隔几秒问一次 `bin/vh activity <项目> --json`，看这个 `run` 的 `state`：
+
+- `running`：没有结束行，进程还在；
+- `ok`：退出码 0；
+- `failed`：别的退出码。`error`（`{"code", "message"}`）是工具说的原因，有的工具说不出来就是 `null`，看 `exit`；`cancelled` 为 `true` 是 `bin/vh cancel` 停的，不算出错；
+- `gone`：没有结束行，进程也没了：这就是崩溃，或者被杀掉、机器重启过。它留下了什么，看 `outputs` 和 `kept`。
+
+### 错误的形状
+
+下面这些命令加了 `--json`，失败时 stdout 是一行 `{"version": 1, "error": {"code", "message", "hint"}}`，给人看的那一行照旧在 stderr，退出码和不加 `--json` 时一样：`status`、`activity`、`versions`、`check`、`assets`、`edit`、`proxy`、`thumbs`、`peaks`、`artifacts`、`projects`、`cancel`、`history`、`timeline --resolved`、`commands`、`doctor`、`desk data`（它总是 JSON）、`gate`、`new`，连同 `bin/vh` 自己在 Python 起来之前发现的（打错的命令、`--json` 时没有 python3，退出码 127）。
+
+`code` 是稳定的，按它分支，别按文字：`usage`（参数错）、`no_project`（没有这个项目，或者这个文件夹不是）、`not_found`（项目在，它说的文件、片子、版本、run 不在）、`invalid`（文件在，读不成它该是的样子：不是 JSON、不合 schema、还有占位）、`exists`（要写的东西已经有了）、`refused`（规矩不让：页面犯了规）、`missing_tool`（少一个程序）、`timeout`（等到头了）、`failed`（别的）。`hint` 有话说时是一句接下来怎么办，否则 `null`。
+
+几种记录有自己的字段，不是这个形状：`bin/vh check --json` 读不了片子时打它的记录，`error` 是字符串，退出码 1（这是对这支片子的判决）；`bin/vh doctor --json` 没有 python3 时 `error` 也是字符串，退出码 0；清单和检查（`artifacts list --strict`、`assets check`、`edit check`）退出码 1 时打它们的记录。所以先看 `error` 是不是对象。
+
+在日志里跑的命令失败时，同样的话也写进 `.ovh/activity.jsonl`（`note`，带 `"level": "error"`），加不加 `--json` 都写，`bin/vh activity` 能说出一条命令为什么失败。这句话可能重复用户打的东西，所以日志和 `message` 里的 key 一律写成 `…`（`tools/activity.py` 的 `scrub`，和开始行藏参数的规矩相同），只有 stderr 上是原话。
+
+### 停下一条命令：`bin/vh cancel <项目> [run] [--timeout S] [--json]`
+
+只停这份日志起的：没有结束行、pid 活着、开始的时间对得上（pid 会被复用）、命令行还是那条命令（`./vh` 也算，exec 进去的工具也算：`music` 的 `lyria.py`、`style` 的 `render.sh`）、开始行写的项目（`project`，真实路径）就是这个文件夹。日志谁都能复制、能写，里面的话不照单全收：pid 没了或者是别的时间起的，状态 `not_that_process`，这个 run 从此读出来是 `gone`；开始行是别的文件夹的（这里是复制出来的一份，或者挪过），也是 `not_that_process`，什么都不发、不写；时间对得上而命令行对不上、开始行没写项目（旧版 `bin/vh` 写的）、run 的 id 不是 `bin/vh` 写的那种，状态 `not_confirmed`，什么都不发、不写，退出码 1：它可能还在跑，要人看一眼。`ps` 说不出来（失败了、不让看）时同样什么都不写，接着等，最后是 `still_running`。不写 `run` 就停所有在跑的，但只是在等人的（审阅台、`gate --wait`）要点名才停。
+
+怎么停：`bin/vh` exec 进去的工具（render、patch、页面工具）只给它自己发 SIGINT，浏览器和编码器它自己收；`bin/vh` 等着的工具（tts、deliver、proxy……）给它和它底下的进程发 SIGINT，和 Ctrl-C 一样，3 s 没停再发 SIGTERM（脚本里用 `&` 起的命令忽略 SIGINT）。还不停就不再加码，说出来，退出码 1；记号留着，工具卡在收不到信号的一步（`spawnSync` 的 ffmpeg）时，这一步结束它自己停，结束行还是写 `cancelled`。
+
+结束行都写清楚：`"cancelled": true`，`exit` 是 130 或 143，不是 `gone`。工具留了什么可以接着做，`kept` 一句话（render 的 chunk，tts 的句子），`--json` 的每个 `run` 里都有；没有就是什么也没留。字段见 `bin/vh cancel -h`。
+
+### 波形：`bin/vh peaks <音频|片子|项目> [--bins 1000] [--json]`
+
+每一格的最小和最大值（`peaks`：`[[min, max], …]`，-1 到 1，各声道放在一起算），ffmpeg 解成 48 kHz、声道不混、分块读，只用标准库，两小时的片子半分钟，内存 130 MB 上下，和片长无关。看不到的：两个采样点之间的峰值（真峰值可能更高），和 24 kHz 以上的内容。记录放在代理旁边（`out/proxy/<名字>.peaks.json`，别的 `--bins` 是 `<名字>.peaks-<N>.json`），带着来源的大小和修改时间，来源没变再跑一次只读记录，不起 ffmpeg。字段见 `bin/vh peaks -h`。
+
+### 一条时间线：`bin/vh timeline <项目> --resolved [zh|en] [--words] [--json]`
+
+`shots`（剪辑表的段，或 `shots.json` 的镜头，或页面渲染时记在 `.render.json` 里的镜头）、`narration`、`captions`、`beats`，每一项都有秒和帧（`start`、`end`、`start_frame`、`end_frame`，`end_frame` 是下一段的第一帧；节拍是 `t`、`frame`），`sources` 是每个来源文件的路径和 sha256。有剪辑表时读 `bin/vh edit build` 解出来的东西（`out/edit.resolved.json` 还是这份 `edit.json`、读的文件也都没变时就用它，否则同一段代码在内存里解一次，不写文件）。每一行带着表里的其他字段；章节来自剪辑表或片子的 `.render.json`；只渲了一段的片子，镜头从它自己的第一帧算，超出的不要、跨边界的截断。少的部分（读不了、不是 UTF-8、时间是 NaN 也算）是空列表，`missing` 说哪部分、为什么，退出码还是 0；模板自带的示例时间轴不算旁白。只读，不开浏览器，不记日志。字段见 `tools/resolved.py` 开头。
+
+### 文本的退路：`bin/vh history save|list|diff|restore`
+
+`tools/artifacts.json` 里 `made_by` 是 person 或 agent、格式是 markdown、json、text 的文件（不超过 1 MiB），按内容存在 `.ovh/history/objects/<sha256>`，每个快照是 `.ovh/history/index.jsonl` 的一行。`save` 没有变化就什么都不写；`bin/vh gate` 每发出一页存一次，存不了也不挡页面，锁被占着最多等 2 s，跳过时说一声；`restore <文件> [--at <快照>]` 先存当下的状态，读回来确认存下的就是这些字节，所以能撤销（`undo` 就是那条命令）；存不下（超过 1 MiB、里面像有 key）就什么都不写，退出码 1，`code` 是 `refused`；路径上有链接、那个位置是文件夹，同样拒绝。里面像有 key 的文件不进快照，`skipped` 说是哪个文件，不说内容；`.ovh/history/.gitignore` 让项目自己的 git 不提交这个库。`diff` 是 unified diff。很多项目不在 git 下，这是它们唯一的退路。字段见 `bin/vh history -h`。
+
+### 输出的契约：`tools/schemas/output/`
+
+上面这些 `--json` 输出（`status`、`activity`、`versions`、`check`、`commands`、`desk data`、`edit list`、`edit build`、`assets list`、`artifacts list`、`projects`、`cancel`、`peaks`、`proxy`、`thumbs`、`timeline --resolved`、`history list`、`save`、`diff`、`restore`、`gate`、`new`）和错误的形状各有一份 schema：只钉必需的字段和类型，多的字段允许，所以客户端要容忍不认识的字段。`tools/ci.sh` 的 `contract_checks` 每次都建一个小项目、真跑这些命令、对着 schema 查：少了字段、改了类型会红，多了 schema 没写的字段也会红（写进去，它的丢失以后才看得见）。要自己校验：`tools/schemalite.py`（只用标准库），或任何 JSON Schema 2020-12 的实现。
+
+### 现在还没有的
+
+这些是故意没做的，等 Studio 决定了再说，不要指望它们：
+
+- **写入的命令**：改一句旁白、改 BRIEF 的一行，都还是直接改文件；改之前 `bin/vh history save`，出了错能退。
+- **项目锁**：两个进程同时写同一个项目没有东西拦着。各命令自己的写是原子的、记录有各自的锁，但没有项目一级的。
+- **管多个项目的 HTTP 接口**：审阅台的服务一次只管一个项目，只绑 127.0.0.1；要多个项目，客户端自己调 `bin/vh projects --json`。
 
 ### 命令表：`bin/vh commands [--stage <阶段>] [--json]`
 
@@ -155,7 +232,7 @@ JSON 的格式：
 
 只读，只看已有的文件，不开浏览器、不跑 ffprobe（`tools/status.py`，零点一秒左右）。默认几行字；`--json` 的字段：
 
-- `project`：`path`、`slug`、`title`（BRIEF 第一行）、`type`（类型文档，如 `02-knowledge-short`）、`effort` 和 `effort_from`（BRIEF、LOCAL.md 或默认）、`director`（BRIEF 的 Director 一行）、`lang`（审阅语言）、`spec`（BRIEF 的 Spec 各行，原样的键）。
+- `project`：`id`（`.ovh/project.json` 的 id，还没有时是 `null`；见 `bin/vh projects`）、`path`、`slug`、`title`（BRIEF 第一行）、`type`（类型文档，如 `02-knowledge-short`）、`effort` 和 `effort_from`（BRIEF、LOCAL.md 或默认）、`director`（BRIEF 的 Director 一行）、`lang`（审阅语言）、`spec`（BRIEF 的 Spec 各行，原样的键）。
 - `stations`：按流程顺序的各站。关卡 ①②③ 总在；检查点 E0–E5 有页面、REVIEW.md 有它的一节或 Director 要它（写了 `stop=E3`，或者 `voice=own` 这种人要亲自定的事，按 `playbook/01` 导演模式的表落到最早的那一站：`voice`、`script` 在 E1，`character`、`theme` 在 E0）时才在；别的名字的审阅页（`final`）自成一站；最后是交付。每站：`id`、`name`、`kind`（gate、checkpoint、page、deliver）、`state`、`pages`（这一站的页名）、`page`（最新一页的路径）、`current`（是不是这一轮）、`record`（`decided`、`said`、`waived`、`from`：从哪读出来的，`gate1`（关卡 ① 按 gatecheck 的规则）、`page`（写了这一页的节）、`stop`（这一站的节，还没有页）、`stop_by_date`（这一站的节没写页面，按日期算它是关于这一页的）、`stop_older`（这一站的节有定了，但没写页面、又早于这一页，不算）；关卡 ① 另有 `concept_on_record`）、`feedback`（这一页之后的提交：`submitted`、`handed`、`pending`、`last`）、`note`（一句为什么）。
 - `state` 七种：`done`（REVIEW.md 里有它的"定了"：先看关于最新那一页的最后一节，审阅台为提交写的那节、或写了 `gate-<n>.html` 的那节，模板的三节都预先写了；没有这种节，就看这一站自己的节，而且 REVIEW.md 要晚于这一页，`note` 里会说是按日期算的。关卡 ① 和 `bin/vh render`、`check` 用同一条规则（`tools/gatecheck.py`）：关卡 ① 的节里有定了和人的原话，DECISIONS.md 里立意定了）、`skipped`（quick 档：这一站没有自己的页面，Director 也没要它（`stop=`、`x=own`）；或者 REVIEW.md 里有用户原话授权跳过）、`waiting_person`（这一页发出去了（`bin/vh gate` 出的页面：写好还没发的 gate JSON 不算，上一次被 `bin/vh gate` 拒绝、退出码 1 的也不算，那一次什么都没发给人），是这一轮（`out/review/.current`），还没有回音）、`waiting_agent`（人提交了还没交给 agent，或者交了但 REVIEW.md 还没写定了；或者这一轮已经往后走、这一页没有记录；或者关卡 ① 定了，但缺人的原话或 DECISIONS.md 的立意，render 和 check 会拒绝）、`in_progress`（前面都过了，agent 正朝这一站做）、`not_started`、`no_record`（standard、studio 的项目没有 REVIEW.md，模板有它之前做的：无从读起，gatecheck 也不查）。交付：`bin/vh deliver` 写过记录，或成片（`out/final*`、`out/final/`、直接放在 `media/` 下的文件、Manim 1080p 及以上的渲染；不含它 480p15、720p30 的草稿，也不含 `bin/vh patch` 留下的 `.failed`）有一份通过的检查记录、而且就是这支成片的（记录里的 `size` 和 `mtime_ns` 和它现在的一样；没有这两个字段的老记录，要比它晚），而且关卡 ③ 过了（`done` 或 `skipped`），就是 `done`；关卡 ③ 还没过时 `note` 会说；各站都过了是 `in_progress`；没有 REVIEW.md 是 `no_record`。
 - `waiting_on`：`person`、`agent`、`nobody`（交付了）或 `unknown`（没有 REVIEW.md，又没有命令在跑）；REVIEW.md 写了暂停（`paused: true`）也是 `person`。机器写的记录（检查记录、`.render.json`、`.deliver.json`、审阅台的提交）里类型不对的字段当作没有。`next`：一句话，谁下一步做什么。
@@ -166,25 +243,26 @@ JSON 的格式：
 - `versions`：版本记录（下面"版本"）的摘要，还没有记录时是 `null`：`record`、`keep`、`current`、`kept_bytes`、`list`（每版 `id`、`at`、`t`、`film`、`file`、`state`、`made_by`、`from`、`note`、`changed`、`frames`、`pixels`、`check`）；记录读不了时是 `{"error"}`。
 - `check`：最近一次 `bin/vh check` 的记录摘要：`record`、`video`、`at`、`verdict`、`exit`、`counts`、`fails`（前三条）、`stale`（视频不是检查时的那一支了：检查记录里的 `size` 或 `mtime_ns` 和视频现在的不同；没有这两个字段的老记录，看视频的修改时间是不是比记录晚，见"检查记录"）。
 - `activity`：`running`（正在跑的命令）、`listening`（在跑的审阅台、`gate --wait`：是在等人，不是在干活）、`recent`（最近结束的五条），每条是下面活动记录里的一个 run。
+- `media`：客户端播放和拖动要的文件，都是相对项目的路径，只读、不算什么：`film`（当前片子：最新的当前版，否则 `bin/vh check` 取的那支；都没有是 `null`）、`version`、`from`（`versions` 或 `newest`）、`proxy`、`thumbs`（它的 `thumbs.json`）、`peaks`（它的记录），还没做的是 `null`；`stale`：其中不是这支片子做的（记录里的大小和修改时间对不上），比如 `["proxy"]`，对应的命令再跑一遍就是新的。
 - `assets`：素材台账的摘要（`tools/assets/uses.py` 的 `overview`，下面"素材台账"）：`ledger`（有台账时是 `assets/ledger.json`，否则 `null`）、`records`（没删的记录条数）、`removed`、`uncleared`（许可有风险的：NC、ND、BY-SA、未知）、`not_taken`（其中这一档许可策略不收的）、`aigc`、`unregistered`（成片的页面载了、台账没有的素材个数；还没有一支成片记下载了哪些文件时是 `null`）、`films_known`（记下了的成片数）、`policy`、`policy_from`、`budget`（和 `bin/vh assets list --json` 的 `budget` 同一个形状，见下面"素材台账"）、`error`（台账或 Budget 一行读不了时）。不算哈希，很快。
 - `cast`：项目 `cast/` 里的定稿参考（`tools/cast.py` 的 `overview`，`bin/vh cast`），没有这个文件夹时是 `null`：`entries`（条数）、`by_kind`（`character`、`costume`、`prop`、`set` 各几条）、`final`（定稿的条数）、`failures`（`bin/vh cast check` 会报的失败数，例如参考图在记录之后改过）；读不了时是 `{"error"}`。只读文件，算参考图的哈希。
 - `research`：项目 `research/` 里的调研（`tools/scout/scout.py` 的 `overview`），没有这个文件夹时是 `null`：`scout`（`bin/vh scout` 的记录：`file`、`records` 行数、`latest` 看过的视频和帖子数、`films` 其中当作自己的片子记的、`last` 最后一条的 `fetched_at`）、`hot`（`days` 有热榜快照的天数、`first`、`last`）、`refs`（`bin/vh ref` 的参考：`file`、`records`、`error`）、`web`（`bin/vh web` 存下的网页：`file`、`records`、`error`、`last` 最后一条的 `retrieved`）；读不了时是 `{"error"}`。只读文件，不联网。
 
 ### 活动记录：`bin/vh activity <项目> [--json] [--follow] [--limit N]`
 
-每条作用在项目上的 `bin/vh` 命令往 `<项目>/.ovh/activity.jsonl` 追加 JSON 行；只读的 `status`、`activity`、`artifacts`、`desk data`、`doctor` 不记，找不到项目的命令也不记。项目从参数里找：第一个是文件夹或文件（含 `--out=f`、`voice=f` 这种）的参数，往上最近的带 BRIEF.md 的文件夹；`review`、`gate`、`desk` 这些也认 projects/ 下的项目名。每行都有 `v`（1）、`event`、`t`（epoch 秒），属于某条命令的还有 `run`：
+每条作用在项目上的 `bin/vh` 命令往 `<项目>/.ovh/activity.jsonl` 追加 JSON 行；只读的 `status`、`activity`、`artifacts`、`projects`、`desk data`、`doctor`、`timeline --resolved`、`history list`、`history diff` 不记，找不到项目的命令也不记。项目从参数里找：第一个是文件夹或文件（含 `--out=f`、`voice=f` 这种）的参数，往上最近的带 BRIEF.md 的文件夹；`review`、`gate`、`desk` 这些也认 projects/ 下的项目名。每行都有 `v`（1）、`event`、`t`（epoch 秒），属于某条命令的还有 `run`：
 
 | event | 字段 | 谁写 |
 |---|---|---|
-| `start` | `cmd`、`args`（照打的写，但不写秘密：名字（`=` 前那段）里带 key、token、secret、pass、auth、cred、cookie、header、bearer 的选项和 `名字=值` 的值，大写的 `NAME=值`、单字母选项后面的值，URL 里的 `用户:密码@`、查询参数的值和 `#` 后面，Bearer token，名字像秘密的 header，像 key 的参数，都写成 `…`；最多 24 个）、`cwd`、`pid`、`parent`（由另一条 `bin/vh` 起的） | `bin/vh` |
-| `progress` | `done`、`total`、`unit`（`render`：frames，开头、每 15 s、结尾各一行） | 工具 |
-| `note` | `summary`（一行）、`outputs`（写了哪些文件，项目里的写相对路径） | 工具：render、patch、review、gate、mix、qa、tts、check、`desk wait`、`versions compare`、`versions use` |
-| `end` | `exit`（退出码；Ctrl-C 是 130，写完 `bin/vh` 再用 SIGINT 结束自己，调用它的 shell 才知道是 Ctrl-C；自己处理信号 n 的工具（desk、`desk wait`、`gate --wait`）停下时是 128 + n；被 TERM、HUP 直接杀掉的命令当场结束，没有这一行，读出来是 `gone`）、`duration`（秒；没有 `EPOCHREALTIME` 的 bash，比如 macOS 自带的 3.2，只到整秒） | `bin/vh` 的 EXIT trap；`bin/vh` exec 进去的工具（render、patch、frames 这些页面工具，desk、gate）自己写 |
+| `start` | `cmd`、`args`（照打的写，但不写秘密：名字（`=` 前那段）里带 key、token、secret、pass、auth、cred、cookie、header、bearer 的选项和 `名字=值` 的值，大写的 `NAME=值`、单字母选项后面的值，URL 里的 `用户:密码@`、查询参数的值和 `#` 后面，Bearer token，名字像秘密的 header，像 key 的参数，都写成 `…`；最多 24 个）、`cwd`、`pid`、`project`（这条命令所在文件夹的真实路径，复制出来的一份不算它；路径太长时没有）、`parent`（由另一条 `bin/vh` 起的） | `bin/vh` |
+| `progress` | `done`、`total`、`unit`（`render`：frames，开头、每 15 s、结尾各一行；`patch`、`proxy`：frames；`tts`：lines；`thumbs`：pictures；`deliver`：percent，另有 `pass`、`passes`：这一行是第几遍；这些最多 5 到 10 s 一行，第一行和到头的一行总写） | 工具 |
+| `note` | `summary`（一行）、`outputs`（写了哪些文件，项目里的写相对路径）；为什么失败的那一条：`level`（`error`）、`code`（`tools/jsonerr.py` 的错误码）、`summary` 是那句话；`kept`（工具被停下时，留了什么可以接着做：`render` 的 chunk、`tts` 的句子）；`gone`（`true`：`bin/vh cancel` 发现这个 pid 已经是别的进程，这条命令读出来是 `gone`） | 工具：render、patch、review、gate、mix、qa、tts、check、`desk wait`、`versions compare`、`versions use`；为什么失败：`tools/jsonerr.py` 和 `bin/vh` 的 `vh_fail`，render、patch 自己 |
+| `end` | `exit`（退出码；Ctrl-C 是 130，写完 `bin/vh` 再用 SIGINT 结束自己，调用它的 shell 才知道是 Ctrl-C；自己处理信号 n 的工具（desk、`desk wait`、`gate --wait`）停下时是 128 + n；被 TERM、HUP 直接杀掉的命令当场结束，没有这一行，读出来是 `gone`）、`duration`（秒；没有 `EPOCHREALTIME` 的 bash，比如 macOS 自带的 3.2，只到整秒）、`cancelled`（`bin/vh cancel` 停的：`true`，`exit` 是 130 或 143） | `bin/vh` 的 EXIT trap；`bin/vh` exec 进去的工具（render、patch、frames 这些页面工具，desk、gate）自己写 |
 | `feedback` | `round`、`file`、`items`（按状态计数）、`decisions` | 审阅台存下一份提交时；不属于哪条命令 |
 
 `bin/vh` 把这条命令交给它起的进程：环境变量 `OVH_ACTIVITY_LOG`、`_RUN`、`_PID`、`_T0`、`_CMD`。不写进去的：环境变量、key、文件内容。每行一次 O_APPEND 的 write，几条命令同时写也不会把行写乱：`bin/vh` 写的不超过 1 KiB（bash 的 printf 会把更长的一行拆成 1024 字节一段段写），Python、Node 写的不超过 4 KiB；写不进去（磁盘满、项目只读）就丢掉这一行，命令照常跑完、不多说一句。
 
-`--json` 是 `{"version", "project", "log", "runs", "events"}`。`runs` 里每条命令一项：`run`、`cmd`、`args`、`cwd`、`pid`、`parent`、`start`、`end`、`exit`、`duration`、`summary`、`outputs`、`progress`、`state`。`state` 是 `running`（没有结束行，进程还在，开始不到 7 天）、`ok`（退出码 0）、`failed`、`gone`（没有结束行，进程也没了：被杀掉，或者机器重启过）。`events` 是不属于命令的行（`feedback`）。`--follow` 先打印最近的，再一行一行跟着打印新的；加 `--json` 是一行一个 JSON。读的时候，读不了的行跳过，类型不对的字段丢掉（`outputs` 不是列表、`summary` 不是字符串……），一行坏了不会让 `activity`、`status` 或客户端停下来。只读日志最后 4 MB。
+`--json` 是 `{"version", "project", "log", "runs", "events"}`。`runs` 里每条命令一项：`run`、`cmd`、`args`、`cwd`、`pid`、`parent`、`start`、`end`、`exit`、`duration`、`summary`、`outputs`、`progress`、`state`、`error`（为什么失败，工具说得出时是 `{"code", "message"}`，否则 `null`）、`cancelled`（`bin/vh cancel` 停的）、`kept`（留了什么可以接着做，否则 `null`）。`state` 是 `running`（没有结束行，进程还在，开始不到 7 天）、`ok`（退出码 0）、`failed`、`gone`（没有结束行，进程也没了：被杀掉，或者机器重启过）。`events` 是不属于命令的行（`feedback`）。`--follow` 先打印最近的，再一行一行跟着打印新的；加 `--json` 是一行一个 JSON。读的时候，读不了的行跳过，类型不对的字段丢掉（`outputs` 不是列表、`summary` 不是字符串……），一行坏了不会让 `activity`、`status` 或客户端停下来。只读日志最后 4 MB。
 
 ### 版本：`bin/vh versions <项目> [--json]`
 

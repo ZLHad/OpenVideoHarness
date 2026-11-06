@@ -1,0 +1,30 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/history.schema.json",
+ "title": "bin/vh history list <project> --json",
+ "description": "The snapshots of a project's text (tools/history.py): list's record; save, diff and restore have theirs beside it.",
+ "type": "object",
+ "required": ["version", "tool", "project", "file", "snapshots"],
+ "properties": {
+  "version": {"enum": [1]},
+  "tool": {"type": "string"},
+  "project": {"type": "string"},
+  "file": {"type": ["string", "null"]},
+  "snapshots": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["id", "t", "at", "note", "files", "changed", "removed"],
+    "properties": {
+     "id": {"type": "string"},
+     "t": {"type": ["number", "null"]},
+     "at": {"type": ["string", "null"]},
+     "note": {"type": ["string", "null"]},
+     "files": {"type": "integer"},
+     "changed": {"type": "array", "items": {"type": "string"}},
+     "removed": {"type": "array", "items": {"type": "string"}}
+    }
+   }
+  }
+ }
+}

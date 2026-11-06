@@ -199,9 +199,10 @@ project_dir() { # a project folder, or a name under the projects folder (the dat
 # activity: one JSON line per event in <project>/.ovh/activity.jsonl (tools/activity.py has the format and reads it: bin/vh
 # activity). A command that works on a project gets its start line here and its end line from the EXIT trap; the run goes to
 # what it runs through OVH_ACTIVITY_* (a tool bin/vh exec's into writes the end itself). It never fails or slows a command:
-# no fork but `date` on a bash without EPOCHREALTIME, every failure dropped, and nothing at all for a command without a project
+# one fork for the project's real path, and `date` on a bash without EPOCHREALTIME; every failure dropped, and nothing at all for a command without a project
 ACT_LOG="" ACT_RUN="" ACT_T0="" ACT_SUMMARY="" ACT_PROJ="" ACT_S="" ACT_NOW="" ACT_MS=0 ACT_RC=0 ACT_DONE="" NEW_DIR="" CHECK_TMP=""
 ACT_A="" ACT_B=0 ACT_HIDE="" ACT_PNAME=""
+ACT_KEYS='(^|[^A-Za-z0-9])((sk-|sk_|AIza|AQ\.|ghp_|gho_|ghu_|ghs_|github_pat_|glpat-|xox[abposr]-|eyJ|hf_|AKIA|ya29\.)[A-Za-z0-9_.+/=-]{8,})'
 ACT_C0=$'\001\002\003\004\005\006\007\010\013\014\016\017\020\021\022\023\024\025\026\027\030\031\032\033\034\035\036\037'
 act_now() { local r=${EPOCHREALTIME:-}   # s.mmm, or s (its digits only: after a failed write, text can come ahead of them)
   if [ -n "$r" ]; then r=${r/,/.}; ACT_NOW=${r%???}; else ACT_NOW=$(date +%s 2>/dev/null) || true; ACT_NOW=${ACT_NOW##*[!0-9]}; ACT_NOW=${ACT_NOW:-0}; fi; }
@@ -275,6 +276,12 @@ act_keyish() { # a vendor's key prefix; 32 or more letters, digits and _; or key
   case $v in *[!0-9a-fA-F-]*) return 1 ;; esac
   [ ${#v} -ge 20 ]
 }
+act_keys_inside() { # act_keys_inside <word>: into ACT_A, the word with what looks like a key inside it (in quotes, after a colon) as …; in bytes, so a stray one does not hide it
+  local LC_ALL=C
+  local v=$1 was
+  while [[ $v =~ $ACT_KEYS ]]; do was=$v; v=${v/"${BASH_REMATCH[2]}"/…}; [ "$was" != "$v" ] || { v="…"; break; }; done
+  ACT_A=$v
+}
 act_value() { # act_value <text>: into ACT_A, a value as the log shows it
   local v=$1 pre post au q k out="" n frag=""
   case $v in *://*)   # user:password@host, and the fragment
@@ -296,11 +303,41 @@ act_value() { # act_value <text>: into ACT_A, a value as the log shows it
   v=$v$frag
   case $v in *[Bb][Ee][Aa][Rr][Ee][Rr]' '*) v="${v%%[Bb][Ee][Aa][Rr][Ee][Rr] *}Bearer …" ;; esac
   case $v in [A-Za-z]*': '*) n=${v%%:*}; case $n in *[!A-Za-z0-9_-]*) ;; *) ! act_secret "$n" || v="$n: …" ;; esac ;; esac
-  if [ "$v" = "$1" ] && [ ! -e "$v" ]; then case $ACT_PNAME in "$v"|*-"$v") ;; *) ! act_keyish "$v" || v="…" ;; esac; fi
+  if [ "$v" = "$1" ] && [ ! -e "$v" ]; then
+    case $v in
+      *[$' \t\r\n']*) act_scrub "$v"; v=$ACT_A ;;   # free text (a --note): word by word
+      *) case $ACT_PNAME in "$v"|*-"$v") ;; *)
+           if act_keyish "$v"; then v="…"; else act_keys_inside "$v"; v=$ACT_A; fi ;; esac ;;
+    esac
+  fi
   ACT_A=$v
+}
+act_scrub() { # act_scrub <text>: into ACT_A, free text as a log line may hold it: word by word, as a start line shows an argument
+  # (act_shown), each word's quotes and punctuation aside, the white space as it was. A word that names a secret hides the next
+  # (--key x, Authorization: x, Bearer x). tools/activity.py's scrub is the same in Python, and tools/ci.sh holds the two to one table
+  local rest=$1 was w sep pre post core out="" hide="" named
+  while [ -n "$rest" ]; do
+    was=$rest
+    w=${rest%%[$' \t\r\n']*}; rest=${rest#"$w"}; sep=${rest%%[!$' \t\r\n']*}; rest=${rest#"$sep"}
+    [ "$rest" != "$was" ] || { out="$out…"; break; }   # (bytes a locale cannot read as text: when in doubt it is …)
+    pre=${w%%[!\"\'\(\[\{\<]*}; core=${w#"$pre"}; post=${core##*[!\"\'\)\]\}\>,\;:.\!\?]}; core=${core%"$post"}
+    case "$hide:$core" in
+      1:-*|:*)   # a word of its own
+        named=""
+        case $core in [Bb][Ee][Aa][Rr][Ee][Rr]) named=1 ;; esac
+        case $post in :*) case $core in ""|*[!A-Za-z0-9_-]*) ;; *) ! act_secret "$core" || named=1 ;; esac ;; esac
+        if [ -n "$named" ]; then hide=1; else act_shown "$core"; core=$ACT_A; hide=$ACT_HIDE; fi ;;
+      *)   # the value of the word before; Authorization: Bearer x has two
+        case $core in [Bb][Ee][Aa][Rr][Ee][Rr]) ;; *) hide="" ;; esac
+        [ -e "$core" ] || core="…" ;;
+    esac
+    out=$out$pre$core$post$sep
+  done
+  ACT_A=$out ACT_HIDE=""
 }
 act_shown() { # act_shown <argument>: into ACT_A, the argument as the log shows it; ACT_HIDE=1 when the next one is its value
   local a=$1 n=""
+  local LC_ALL=C   # in bytes, as tools/activity.py compares: bash 3.2 takes a range by the locale's order, and in a UTF-8 one [A-Z] has b to z: foo=bar read as a variable's, a slug with a digit as a mixed-case key
   ACT_HIDE=""
   case $a in
     --?*=*) n=${a%%=*} ;;
@@ -324,6 +361,9 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
   # existing folder); else, for the commands that take a project by name, a name under the projects folder. Else empty
   local cmd=$1 a d m n base
   ACT_PROJ=""; shift
+  case "$cmd:${1:-}" in   # a subcommand is no folder and no project's name (bin/vh history save real, with a project called save)
+    history:save|history:restore|assets:add|assets:remove|assets:credits|versions:compare|versions:use|footage:get|footage:sync|footage:frames|image:gen|image:cutout|bgm:pick|sound:add|sfx:lib|sfx:place|sfx:audition|sfx:pick|desk:wait|desk:feedback|scout:topic|scout:channel|scout:post|scout:hot|scout:add|ref:add|web:fetch|web:shot|concept:board|looks:add|cast:add|hf:add|components:add|style:apply|style:check|style:compare|style:gallery) shift ;;
+  esac
   for a in "$@"; do
     case $a in -*=*|[A-Za-z_]*=*) a=${a#*=} ;; -*) continue ;; esac
     if [ -z "$a" ]; then continue
@@ -340,7 +380,7 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
       d=${d%/*}
     done
   done
-  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs|assets|footage|image|sfx|bgm|ref|scout|web|concept|looks|check) ;; *) return 0 ;; esac
+  case $cmd in review|gate|desk|storyboard|rhythm|clean|style|versions|proxy|thumbs|peaks|assets|footage|image|sfx|bgm|ref|scout|web|concept|looks|check|cancel|history) ;; *) return 0 ;; esac
   base=$(projects_base)
   for a in "$@"; do
     case $a in -*|*/*|"") continue ;; esac
@@ -352,10 +392,12 @@ act_project() { # act_project <command> <args…>: into ACT_PROJ, the project th
 act_start() { act_project "$@"; [ -z "$ACT_PROJ" ] || act_begin "$ACT_PROJ" "$@"; }   # act_start <command> <args…>
 act_begin() { # act_begin <project> <command> <args…>: the start line; the run handed to what the command runs (OVH_ACTIVITY_*);
   # the EXIT trap writes its end (vh_trap), and a Ctrl-C ends it through ctrl_c_exit (the end line says 130). TERM and HUP
-  # kill bin/vh as they would without a log, at once: no end line, and the reader shows the run as gone
-  local proj=$1 cmd=$2 a args="" n=0 len=0 hide="" c parent="" line
+  # kill bin/vh as they would without a log, at once: no end line, and the reader shows the run as gone (bin/vh cancel writes it)
+  local proj=$1 cmd=$2 a args="" n=0 len=0 hide="" c parent="" line real=""
   shift 2
   [ -d "$proj/.ovh" ] || mkdir "$proj/.ovh" 2>/dev/null; [ -d "$proj/.ovh" ] || return 0   # (another bin/vh may make it first)
+  real=$(cd "$proj" 2>/dev/null && pwd -P) || real=""   # which folder this is the run of, whole or not at all: bin/vh cancel in a copy of it stops nothing (tools/cancel.py)
+  if [ -n "$real" ]; then act_str "$real"; act_bytes "$ACT_S"; if [ "$ACT_B" -le 480 ]; then real=",\"project\":$ACT_S"; else real=""; fi; fi
   [ -n "$ACT_T0" ] || { act_now; ACT_T0=$ACT_NOW; }
   ACT_LOG="$proj/.ovh/activity.jsonl" ACT_RUN="${ACT_T0%.*}-$$" ACT_PNAME=${proj##*/}
   for a in "$@"; do   # as typed, but never a secret (act_shown)
@@ -372,23 +414,49 @@ act_begin() { # act_begin <project> <command> <args…>: the start line; the run
   act_str "$cmd"; c=$ACT_S
   a=$PWD; [ ${#a} -le 120 ] || a="…${a: -120}"; act_str "$a"; act_bytes "$ACT_S"
   [ "$ACT_B" -le 240 ] || { a="…${a: -40}"; act_str "$a"; }   # (a path in another script: up to 3 bytes a character)
-  line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent}"
+  line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[$args],\"cwd\":$ACT_S,\"pid\":$$$parent$real}"
   act_bytes "$line"
-  [ "$ACT_B" -lt 1000 ] || line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[\"…\"],\"cwd\":$ACT_S,\"pid\":$$$parent}"
+  [ "$ACT_B" -lt 1000 ] || line="{\"v\":1,\"event\":\"start\",\"run\":\"$ACT_RUN\",\"t\":$ACT_T0,\"cmd\":$c,\"args\":[\"…\"],\"cwd\":$ACT_S,\"pid\":$$$parent$real}"
   act_line "$line"
   export OVH_ACTIVITY_LOG="$ACT_LOG" OVH_ACTIVITY_RUN="$ACT_RUN" OVH_ACTIVITY_PID=$$ OVH_ACTIVITY_T0="$ACT_T0" OVH_ACTIVITY_CMD="$cmd"
   trap ctrl_c_exit INT; vh_trap
 }
 act_end() { # act_end <status>: the run's end line (from the EXIT trap; a tool bin/vh exec'd into writes its own)
   [ -n "$ACT_RUN" ] || return 0
-  local d s="" ms sm=$ACT_SUMMARY
+  local d s="" ms sm=$ACT_SUMMARY rc=$1 c="" said=""
   act_now; act_ms "$ACT_NOW"; d=$ACT_MS; act_ms "$ACT_T0"; d=$((d - ACT_MS)); [ $d -ge 0 ] || d=0
+  if [ "$rc" != 0 ] && [ -e "${ACT_LOG%/*}/cancel/$ACT_RUN" ]; then   # bin/vh cancel is stopping it (tools/cancel.py): its mark says with which exit status
+    c=',"cancelled":true'; { read -r said < "${ACT_LOG%/*}/cancel/$ACT_RUN"; } 2>/dev/null || true
+    case $rc in 130|143) ;; *) rc=130; [ "$said" != 143 ] || rc=143 ;; esac
+  fi
   printf -v ms '%03d' $((d % 1000))
   [ ${#sm} -le 200 ] || sm="${sm:0:200}…"
   [ -z "$sm" ] || { act_str "$sm"; s=",\"summary\":$ACT_S"; }
   act_str "${OVH_ACTIVITY_CMD:-}"
-  act_line "{\"v\":1,\"event\":\"end\",\"run\":\"$ACT_RUN\",\"t\":$ACT_NOW,\"cmd\":$ACT_S,\"exit\":$1,\"duration\":$((d / 1000)).$ms$s}"
+  act_line "{\"v\":1,\"event\":\"end\",\"run\":\"$ACT_RUN\",\"t\":$ACT_NOW,\"cmd\":$ACT_S,\"exit\":$rc,\"duration\":$((d / 1000)).$ms$s$c}"
 }
+# a failure a program can read (tools/jsonerr.py has the shape and the codes): what fails here, before Python starts
+VH_JSON="" VH_JFD=1 VH_SAID="" VH_LOGGED="" VH_OWN=""   # --json among the arguments; the fd of its stdout; a record is out; its note is; new or check, which print their own JSON
+vh_log_error() { # vh_log_error <code> <message>: why the run failed, into its log (a note with level error), once
+  [ -n "$ACT_RUN" ] && [ -z "$VH_LOGGED" ] || return 0
+  VH_LOGGED=1
+  local m
+  act_scrub "$2"; m=$ACT_A   # it may repeat what was typed: a key given to the wrong option is … (tools/activity.py's scrub)
+  [ ${#m} -le 200 ] || m="${m:0:200}…"
+  act_now; act_str "$m"; m=$ACT_S; act_str "${OVH_ACTIVITY_CMD:-}"
+  act_line "{\"v\":1,\"event\":\"note\",\"run\":\"$ACT_RUN\",\"t\":$ACT_NOW,\"cmd\":$ACT_S,\"level\":\"error\",\"code\":\"$1\",\"summary\":$m}"
+}
+vh_said() { # vh_said <code> <message> [hint]: the failure on record: the note, and with --json its JSON on stdout, once. The line a person reads is the caller's
+  local s=${2#"$c_no "} h=${3:-} j=null
+  vh_log_error "$1" "$s"
+  [ -n "$VH_JSON" ] && [ -z "$VH_SAID" ] || return 0
+  VH_SAID=1
+  [ -n "$h" ] || case $1 in usage) h="bin/vh <command> -h prints its usage" ;; no_project) h="bin/vh projects lists the projects" ;; esac
+  [ -z "$h" ] || { act_scrub "$h"; act_str "$ACT_A"; j=$ACT_S; }
+  act_scrub "$s"; act_str "$ACT_A"
+  printf '{"version": 1, "error": {"code": "%s", "message": %s, "hint": %s}}\n' "$1" "$ACT_S" "$j" >&"$VH_JFD"
+}
+vh_fail() { printf '%s\n' "$3" >&2; vh_said "$1" "$3" "${4:-}"; exit "$2"; }   # vh_fail <code> <exit> <line> [hint]: the line on stderr, the record, the exit
 vh_trap() { # the EXIT trap, set by what needs it (a run, new's folder, check's scratch folder; a command without any has
   # none, as before the log). Under a pipe whose reader has gone (bin/vh … | head) bash runs it on SIGPIPE: SIGPIPE ignored
   # first and the output that failed thrown away, or bash dies at its next write and the stale output lands in the log
@@ -398,6 +466,7 @@ vh_exit() { # the EXIT trap's work: an unfinished bin/vh new takes its folder aw
   # gets its end line when bin/vh came to its end or exits with a status (from a TERM or a HUP, bash runs it with the status
   # of the command before: it writes none, and the run reads as gone)
   set +e
+  if [ -n "$VH_OWN" ] && [ "$ACT_RC" != 0 ] && [ "$ACT_RC" -lt 128 ]; then vh_said failed "bin/vh $VH_OWN stopped (exit $ACT_RC): stderr says where"; fi   # what no site said
   if [ -n "$NEW_DIR" ]; then rm -rf "$NEW_DIR"; echo "$c_no removed the unfinished $(rel "$NEW_DIR")" >&2; NEW_DIR=""; fi
   [ -z "$CHECK_TMP" ] || { rm -rf "$CHECK_TMP"; CHECK_TMP=""; }
   [ -n "$ACT_DONE" ] || [ "$ACT_RC" != 0 ] || return 0
@@ -464,13 +533,15 @@ PY
 
 cmd_new() {
   local x; for x in "$@"; do case "$x" in -h|--help) cmd_usage new; return ;; esac; done   # also as the slug or among the options: not a name for a folder
-  [ $# -ge 2 ] || { echo "usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three]] [--from <project>] [--dir <folder>] [--json]" >&2; cmd_types >&2; exit 2; }
+  VH_OWN=new; [ -z "$VH_JSON" ] || vh_trap   # (a step that stops it unsaid: vh_exit says so)
+  [ $# -ge 2 ] || { x="usage: bin/vh new <type> <slug> [--style <preset[,preset]>] [--effort quick|standard|studio] [--aspect 16:9|9:16|1:1|4:5|3:4] [--watch phone|feed|desktop] [--res 1080p|4k] [--lang zh|en] [--engine canvas-film [--three]] [--from <project>] [--dir <folder>] [--json]"; echo "$x" >&2; cmd_types >&2; vh_said usage "$x"; exit 2; }
+  case "$2" in -*) vh_fail usage 2 "bin/vh new: $2 is no slug: bin/vh new <type> <slug> [options]" ;; esac
   local type slug=$2 doc style="" effort="" aspect="" res="" parent="" wh="" watch="" outres="" lang="" frameh="" engine="" three="" from="" fromdir="" given="" fromsaid="" eff="" json="" todo=""
-  type=$(type_key "$1") || { echo "unknown type: $1" >&2; cmd_types >&2; exit 2; }
+  type=$(type_key "$1") || { echo "unknown type: $1" >&2; cmd_types >&2; vh_said usage "unknown type: $1" "bin/vh types lists them"; exit 2; }
   doc=$(type_doc "$type")
   local typed=("$@"); act_now; ACT_T0=$ACT_NOW   # the run goes into the new project's activity log once it is made
   shift 2
-  needv() { [ "$1" -ge 2 ] && [ -n "$2" ] || { echo "$3" >&2; exit 2; }; }   # needv $# "${2:-}" <message>: an option's value, or a usage error
+  needv() { [ "$1" -ge 2 ] && [ -n "$2" ] || vh_fail usage 2 "$3"; }   # needv $# "${2:-}" <message>: an option's value, or a usage error
   while [ $# -gt 0 ]; do case "$1" in
     --style)  needv $# "${2:-}" "--style needs a preset or a comma list (bin/vh style list)"; style=$2; shift 2 ;;
     --effort) needv $# "${2:-}" "--effort needs quick, standard or studio"; effort=$2; shift 2 ;;
@@ -483,12 +554,12 @@ cmd_new() {
     --three)  three=1; shift ;;
     --from)   needv $# "${2:-}" "--from needs a project (a folder, or a name under the projects folder)"; from=$2; shift 2 ;;
     --json)   json=1; shift ;;
-    *) echo "unknown option: $1" >&2; exit 2 ;;
+    *) vh_fail usage 2 "unknown option: $1" ;;
   esac; done
-  [ -z "$json" ] || exec 3>&1 1>&2   # --json: the record on stdout at the end, the lines a person reads on stderr
+  [ -z "$json" ] || { exec 3>&1 1>&2; VH_JFD=3; }   # --json: the record on stdout at the end, the lines a person reads on stderr
   if [ -n "$from" ]; then   # an episode of a series: the earlier project's frame and engine unless given now (tools/series.py carries the rest)
-    fromdir=$(project_dir "$from") || exit 2
-    [ -f "$fromdir/BRIEF.md" ] || { echo "--from: $fromdir is not a project (no BRIEF.md)" >&2; exit 2; }
+    fromdir=$(project_dir "$from" 2>/dev/null) || vh_fail no_project 2 "$(project_dir "$from" 2>&1 >/dev/null)"
+    [ -f "$fromdir/BRIEF.md" ] || vh_fail no_project 2 "--from: $fromdir is not a project (no BRIEF.md)"
     for x in aspect:"$aspect" watch:"$watch" res:"$outres" lang:"$lang" effort:"$effort" engine:"$engine" style:"$style"; do [ -z "${x#*:}" ] || given="$given${given:+,}${x%%:*}"; done
     [ -n "$engine" ] || ! grep -q '^- Engine: canvas-film' "$fromdir/BRIEF.md" || engine=canvas-film
     if [ -z "$aspect" ] && [ -z "$engine" ]; then
@@ -504,30 +575,30 @@ cmd_new() {
     fi
   fi
   [ -n "$engine" ] || case "$type" in long|recap) engine=canvas-film ;; esac   # these two types' own engine
-  case "$lang" in ""|zh|en) ;; *) echo "unknown --lang: $lang (zh | en: the language of the review pages, from the user's first request)" >&2; exit 2 ;; esac
-  case "$engine" in ""|canvas-film) ;; *) echo "unknown --engine: $engine (canvas-film; leave it out for the type's own engine)" >&2; exit 2 ;; esac
+  case "$lang" in ""|zh|en) ;; *) vh_fail usage 2 "unknown --lang: $lang (zh | en: the language of the review pages, from the user's first request)" ;; esac
+  case "$engine" in ""|canvas-film) ;; *) vh_fail usage 2 "unknown --engine: $engine (canvas-film; leave it out for the type's own engine)" ;; esac
   [ -z "$fromdir" ] || [ "$engine" != canvas-film ] || [ ! -f "$fromdir/three/layer.js" ] || three=1   # an episode keeps the series' Three.js layer
-  [ -z "$three" ] || [ "$engine" = canvas-film ] || { echo "--three is canvas-film's Three.js layer: add --engine canvas-film (engines/canvas-film/README.md, Three.js 层)" >&2; exit 2; }
-  local s styles=""; if [ -n "$style" ]; then styles=$(parse_styles "$style") || { cmd_style list >&2; exit 2; }; fi
-  case "${effort:-standard}" in quick|standard|studio) ;; *) echo "unknown effort: $effort (quick | standard | studio)" >&2; exit 2 ;; esac
-  case "$watch" in ""|phone|feed|desktop) ;; *) echo "unknown --watch: $watch (phone: a vertical phone · feed: landscape in a phone feed, not rotated · desktop: a computer, or a phone turned sideways)" >&2; exit 2 ;; esac
-  case "$outres" in ""|1080p) ;; 4k|4K|2160p) outres=4k ;; *) echo "unknown --res: $outres (1080p | 4k)" >&2; exit 2 ;; esac
-  if [ "$outres" = 4k ] && [ -z "$engine" ]; then case "$type" in handdrawn|mv) echo "--res 4k: the hand-drawn engine (ClaudeAnimationBase) has no 4K output yet; use 1080p, or another engine (engines/README.md)" >&2; exit 2 ;; esac; fi
+  [ -z "$three" ] || [ "$engine" = canvas-film ] || vh_fail usage 2 "--three is canvas-film's Three.js layer: add --engine canvas-film (engines/canvas-film/README.md, Three.js 层)"
+  local s styles=""; if [ -n "$style" ]; then styles=$(parse_styles "$style") || { cmd_style list >&2; vh_said usage "--style $style: no such preset" "bin/vh style list shows the presets"; exit 2; }; fi
+  case "${effort:-standard}" in quick|standard|studio) ;; *) vh_fail usage 2 "unknown effort: $effort (quick | standard | studio)" ;; esac
+  case "$watch" in ""|phone|feed|desktop) ;; *) vh_fail usage 2 "unknown --watch: $watch (phone: a vertical phone · feed: landscape in a phone feed, not rotated · desktop: a computer, or a phone turned sideways)" ;; esac
+  case "$outres" in ""|1080p) ;; 4k|4K|2160p) outres=4k ;; *) vh_fail usage 2 "unknown --res: $outres (1080p | 4k)" ;; esac
+  if [ "$outres" = 4k ] && [ -z "$engine" ]; then case "$type" in handdrawn|mv) vh_fail usage 2 "--res 4k: the hand-drawn engine (ClaudeAnimationBase) has no 4K output yet; use 1080p, or another engine (engines/README.md)" ;; esac; fi
   if [ "$engine" = canvas-film ]; then   # the canvas engine draws 16:9 whatever the type
     case "$aspect:$type" in :*|16:9:*|landscape:*) res=landscape ;;
       9:16:recap|portrait:recap) res=portrait; aspect=9:16 ;; 1:1:recap|square:recap) res=square; aspect=1:1 ;;   # a recap's film is an edit list, which takes any frame
       4:5:recap) res=portrait; frameh=1350 ;; 3:4:recap) res=portrait; frameh=1440 ;;
-      *:recap) echo "unknown aspect: $aspect (16:9 | 9:16 | 1:1 | 4:5 | 3:4)" >&2; exit 2 ;;
-      *) echo "--aspect: the canvas-film engine draws 16:9 (1920x1080); another frame means editing its template (engines/canvas-film/README.md, 局限)" >&2; exit 2 ;; esac
+      *:recap) vh_fail usage 2 "unknown aspect: $aspect (16:9 | 9:16 | 1:1 | 4:5 | 3:4)" ;;
+      *) vh_fail usage 2 "--aspect: the canvas-film engine draws 16:9 (1920x1080); another frame means editing its template (engines/canvas-film/README.md, 局限)" ;; esac
   elif [ -n "$aspect" ]; then   # HyperFrames types scaffold at any of these; the other engines set their size themselves
     case "$aspect" in 16:9|landscape) res=landscape; aspect=16:9 ;; 9:16|portrait) res=portrait; aspect=9:16 ;; 1:1|square) res=square; aspect=1:1 ;;
       4:5) res=portrait; frameh=1350 ;; 3:4) res=portrait; frameh=1440 ;;   # feed posts (Instagram, 小红书): the portrait scaffold, shorter
-      *) echo "unknown aspect: $aspect (16:9 | 9:16 | 1:1 | 4:5 | 3:4)" >&2; exit 2 ;; esac
+      *) vh_fail usage 2 "unknown aspect: $aspect (16:9 | 9:16 | 1:1 | 4:5 | 3:4)" ;; esac
     case "$type" in short|promo|data|meme) ;;
-      math|paper) echo "--aspect: Manim renders 16:9 here; for a vertical film set pixel_width/pixel_height in manim.cfg (engines/README.md, Manim 竖屏)" >&2; exit 2 ;;
-      handdrawn|mv) echo "--aspect: the hand-drawn engine (ClaudeAnimationBase) draws 1920x1080 only" >&2; exit 2 ;;
-      *) echo "--aspect works for short, promo, data and meme (HyperFrames); $type follows its footage (video-types/09-editing-talking-head.md)" >&2; exit 2 ;; esac
-    if [ -n "$frameh" ] && [ "$outres" = 4k ]; then echo "--res 4k: HyperFrames has no 4K preset for $aspect; it renders 1080x$frameh only" >&2; exit 2; fi
+      math|paper) vh_fail usage 2 "--aspect: Manim renders 16:9 here; for a vertical film set pixel_width/pixel_height in manim.cfg (engines/README.md, Manim 竖屏)" ;;
+      handdrawn|mv) vh_fail usage 2 "--aspect: the hand-drawn engine (ClaudeAnimationBase) draws 1920x1080 only" ;;
+      *) vh_fail usage 2 "--aspect works for short, promo, data and meme (HyperFrames); $type follows its footage (video-types/09-editing-talking-head.md)" ;; esac
+    if [ -n "$frameh" ] && [ "$outres" = 4k ]; then vh_fail usage 2 "--res 4k: HyperFrames has no 4K preset for $aspect; it renders 1080x$frameh only"; fi
   fi
   case "$type" in short) res=${res:-portrait} ;; promo|data|meme) res=${res:-landscape} ;; esac
   case "$res" in portrait) wh=1080x${frameh:-1920} ;; square) wh=1080x1080 ;; landscape) wh=1920x1080 ;; esac
@@ -538,16 +609,16 @@ cmd_new() {
   fi
   local frame=$res; case "$type" in math|paper) frame=${frame:-landscape} ;; esac   # Manim renders landscape
   case "$watch:$frame" in   # a frame and a target that contradict each other (the feed floor is for a 1920-wide frame)
-    feed:portrait|feed:square) echo "--watch feed is for a landscape film shown in a phone feed; a ${aspect:-vertical} frame is already --watch phone" >&2; exit 2 ;;
-    phone:landscape) echo "--watch phone is for a vertical or square frame; a landscape film watched on a phone is --watch feed (in a feed, not rotated) or desktop (turned sideways)" >&2; exit 2 ;;
+    feed:portrait|feed:square) vh_fail usage 2 "--watch feed is for a landscape film shown in a phone feed; a ${aspect:-vertical} frame is already --watch phone" ;;
+    phone:landscape) vh_fail usage 2 "--watch phone is for a vertical or square frame; a landscape film watched on a phone is --watch feed (in a feed, not rotated) or desktop (turned sideways)" ;;
   esac
   local base dir; base=$(projects_base "$parent")
-  mkdir -p "$base" || { echo "cannot create $base" >&2; exit 1; }
+  mkdir -p "$base" || vh_fail failed 1 "cannot create $base"
   base=$(cd "$base" && pwd); dir="$base/$(date +%F)-$slug"
   if [ -e "$dir" ]; then
     echo "$dir already exists" >&2
     [ ! -f "$dir/BRIEF.md" ] || echo "   bin/vh status $(rel "$dir") says where it stands and what finishes it (a scaffold that did not finish: bin/vh hf-init, npm install); another slug makes a new project" >&2
-    exit 1
+    vh_said exists "$dir already exists" "another slug makes a new project; bin/vh status says where this one stands"; exit 1
   fi
   # a step that fails from here on must not leave a half-built dir behind (a retry would say "already exists"): vh_exit removes it
   NEW_DIR=$dir; vh_trap
@@ -623,6 +694,7 @@ PY
   esac
   for s in $styles; do attach_style "$dir" "$s"; done   # presets as references: copies in style-refs/, listed in BRIEF, a DECISIONS line
   if [ -n "$fromdir" ]; then fromsaid=$(python3 "$ROOT/tools/series.py" carry "$fromdir" "$dir" --given "$given") || exit 1; fi   # the lines to show
+  python3 "$ROOT/tools/identity.py" "$dir" >/dev/null || echo "$c_wa no .ovh/project.json was written: bin/vh projects --assign gives $(rel "$dir") its id" >&2
   eff=$(sed -n 's/^- Effort: \([a-z]*\).*/\1/p' "$dir/BRIEF.md" | head -1); eff=${eff:-${effort:-standard}}   # as the BRIEF has it now
   NEW_DIR=""
   ACT_SUMMARY="created ${dir##*/} · $type · $eff${todo:+ · the scaffold did not finish}"; act_begin "$dir" new "${typed[@]}" || true
@@ -657,11 +729,12 @@ root, d, t, doc, eff, lang, watch, res, wh, engine, todo = sys.argv[1:12]
 st = json.loads(subprocess.run([sys.executable, root + "/tools/status.py", d, "--json"], capture_output=True, text=True).stdout)
 own = {"short": "hyperframes", "promo": "hyperframes", "data": "hyperframes", "meme": "hyperframes", "edit": "hyperframes", "math": "manim", "paper": "manim",
        "handdrawn": "ClaudeAnimationBase", "mv": "ClaudeAnimationBase"}
-print(json.dumps({"version": 1, "project": d, "type": t, "doc": f"video-types/{doc}.md", "effort": eff, "lang": lang, "frame": wh or None, "watch": watch,
+print(json.dumps({"version": 1, "project": d, "id": st["project"]["id"], "type": t, "doc": f"video-types/{doc}.md", "effort": eff, "lang": lang, "frame": wh or None, "watch": watch,
                   "resolution": res, "engine": engine or own.get(t), "scaffold": {"ok": not todo, "finish": todo or None}, "next": st["next_step"]},
                  ensure_ascii=False, indent=1))
 PY
   fi
+  VH_OWN=""   # it is made: what is left is the scaffold's own exit, said in the record
   [ -z "$todo" ] || exit 1
 }
 
@@ -798,11 +871,15 @@ cmd_concept() { # roulette reads files (stdlib); board draws a page (pillow, thr
 cmd_activity() { [ $# -gt 0 ] || { cmd_usage activity >&2; exit 2; }; exec python3 "$ROOT/tools/activity.py" "$@"; }   # read-only, not logged
 cmd_know() { [ $# -gt 0 ] || { cmd_usage know >&2; exit 2; }; exec python3 "$ROOT/tools/know.py" "$@"; }   # read-only, not logged; stdlib
 cmd_status() { [ $# -gt 0 ] || { cmd_usage status >&2; exit 2; }; exec python3 "$ROOT/tools/status.py" "$@"; }         # read-only, not logged
+cmd_projects() { exec python3 "$ROOT/tools/projects.py" "$@"; }   # about no one project: not logged; only --assign writes
+cmd_cancel() { [ $# -gt 0 ] || { cmd_usage cancel >&2; exit 2; }; python3 "$ROOT/tools/cancel.py" "$@"; }   # stdlib and ps; only what the log started
+cmd_history() { [ $# -gt 0 ] || { cmd_usage history >&2; exit 2; }; python3 "$ROOT/tools/history.py" "$@"; }   # stdlib only; save and restore are logged
 cmd_versions() { [ $# -gt 0 ] || { cmd_usage versions >&2; exit 2; }; python3 "$ROOT/tools/versions.py" "$@"; }   # the list is not logged; compare and use are
 cmd_proxy() { [ $# -gt 0 ] || { cmd_usage proxy >&2; exit 2; }; python3 "$ROOT/tools/proxy.py" proxy "$@"; }       # ffmpeg only
 cmd_thumbs() { [ $# -gt 0 ] || { cmd_usage thumbs >&2; exit 2; }   # a browser only for a project with no film (the page's frames)
   local b=""; b=$(film_browser thumbs "$(arg_dir "$@")" 2>/dev/null) || true
   python3 "$ROOT/tools/proxy.py" thumbs ${b:+--browser "$b"} "$@"; }
+cmd_peaks() { [ $# -gt 0 ] || { cmd_usage peaks >&2; exit 2; }; python3 "$ROOT/tools/peaks.py" "$@"; }       # ffmpeg only; a repeat none
 cmd_gate() { [ $# -gt 0 ] || { cmd_usage gate >&2; exit 2; }   # exec: stopping a backgrounded gate --wait stops its watcher;
   export OVH_BASH=$BASH; exec python3 "$ROOT/tools/gate.py" "$@"; }   # the desk it starts runs under this same bash
 cmd_desk() { [ $# -gt 0 ] || { cmd_usage desk >&2; exit 2; }   # stdlib only: no uv, works offline; exec, so stopping
@@ -931,34 +1008,34 @@ ck_note() { [ -z "${J:-}" ] || { printf '%s\n' "$2" >> "$J/$1"; } 2>/dev/null ||
 cmd_check() {
   local u="usage: bin/vh check <video | project> [--allow t,t…] [--against <reference.mp4>] [--json]"
   [ $# -gt 0 ] || { cmd_usage check >&2; exit 2; }
-  case "$1" in -*) echo "bin/vh check: unknown option $1 ($u)" >&2; exit 2 ;; esac   # an option where the video goes
+  VH_OWN=check; [ -z "$VH_JSON" ] || vh_trap   # (a step that stops it unsaid: vh_exit says so)
+  case "$1" in -*) vh_fail usage 2 "bin/vh check: unknown option $1 ($u)" ;; esac   # an option where the video goes
   local v=$1 allow="" against="" fail=0 json=""
   shift
   while [ $# -gt 0 ]; do case "$1" in   # a mistake in the command line is 2; 1 is a check that failed
-    --allow) [ $# -ge 2 ] || { echo "bin/vh check: --allow needs the seconds of designed flashes, comma-separated (e.g. 1.0,3.2 or 12-15)" >&2; return 2; }
+    --allow) [ $# -ge 2 ] || vh_fail usage 2 "bin/vh check: --allow needs the seconds of designed flashes, comma-separated (e.g. 1.0,3.2 or 12-15)"
       allow=$2; shift 2 ;;
     --allow=*) allow=${1#--allow=}; shift ;;
-    --against) [ $# -ge 2 ] || { echo "bin/vh check: --against needs the reference video (the approved 1080p cut)" >&2; return 2; }
+    --against) [ $# -ge 2 ] || vh_fail usage 2 "bin/vh check: --against needs the reference video (the approved 1080p cut)"
       against=$2; shift 2 ;;
     --against=*) against=${1#--against=}; shift ;;
     --json) json=1; shift ;;
-    *) echo "bin/vh check: unknown option $1 ($u)" >&2; return 2 ;;
+    *) vh_fail usage 2 "bin/vh check: unknown option $1 ($u)" ;;
   esac; done
-  [ -z "$against" ] || [ -f "$against" ] || { echo "bin/vh check: no reference video at $against" >&2; return 2; }
+  [ -z "$against" ] || [ -f "$against" ] || vh_fail not_found 2 "bin/vh check: no reference video at $against"
   if [ ! -f "$v" ]; then   # a project: its newest film (tools/proxy.py says which, or that there is none yet)
     local vp; vp=$(project_dir "$v" 2>/dev/null) && [ -f "$vp/BRIEF.md" ] || vp=""
-    [ -z "$vp" ] && [ -d "$v" ] && { echo "bin/vh check: $v is a folder with no BRIEF.md: give a video, or a project" >&2; return 2; }
+    [ -z "$vp" ] && [ -d "$v" ] && vh_fail no_project 2 "bin/vh check: $v is a folder with no BRIEF.md: give a video, or a project"
     if [ -z "$vp" ]; then   # one ffprobe cannot read is a failed check (1)
       vp=$(project_dir "$v" 2>&1 >/dev/null || true)
-      case "$vp" in *"several projects match"*) echo "bin/vh check: $vp" >&2 ;; *) echo "bin/vh check: no such video: $v" >&2 ;; esac
-      return 2
+      case "$vp" in *"several projects match"*) vh_fail no_project 2 "bin/vh check: $vp" ;; *) vh_fail not_found 2 "bin/vh check: no such video: $v" ;; esac
     fi
-    v=$(python3 "$ROOT/tools/proxy.py" film "$vp") || return 2
+    v=$(python3 "$ROOT/tools/proxy.py" film "$vp") || { vh_said not_found "$(python3 "$ROOT/tools/proxy.py" film "$vp" 2>&1 >/dev/null)"; exit 2; }
   fi
   # each check also leaves its result in CHECK_TMP (gone on exit, vh_exit); tools/checkrec.py makes the record of them at
   # the end, out/check/<name>.check.json. --json: that record on stdout, the lines a person reads on stderr. With no
   # scratch folder (mktemp cannot make one) the checks run all the same, and no record is made
-  local J=""
+  local J="" src=0 spec
   CHECK_TMP=$(mktemp -d "${TMPDIR:-/tmp}/vh-check.XXXXXX" 2>/dev/null) || CHECK_TMP=""
   if [ -n "$CHECK_TMP" ]; then J=$CHECK_TMP; vh_trap
   else echo "$c_wa bin/vh check: no scratch folder in ${TMPDIR:-/tmp} (mktemp -d failed): the checks run, but no record is made" >&2; fi
@@ -966,14 +1043,15 @@ cmd_check() {
   # place while they run is then not taken for the one that was checked
   [ -z "$J" ] || python3 -c 'import os, sys; s = os.stat(sys.argv[1]); print(s.st_size, s.st_mtime_ns)' "$v" > "$J/film.txt" 2>/dev/null || true
   if [ -n "$json" ]; then
-    exec 3>&1 1>&2
+    exec 3>&1 1>&2; VH_JFD=3
     if ! ffprobe -v error -show_entries format=duration -of csv=p=0 "$v" >/dev/null 2>&1; then
       act_str "$v"; printf '{"version": 1, "tool": "bin/vh check", "video": %s, "exit": 1, "verdict": "fail", "error": "ffprobe cannot read it"}\n' "$ACT_S" >&3
+      VH_SAID=1   # (its own record, as ever: a verdict of the film)
     fi
   fi
-  ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,r_frame_rate -of compact "$v"
+  ffprobe -v error -show_entries format=duration:stream=codec_type,codec_name,width,height,r_frame_rate -of compact "$v" || { src=$?; vh_log_error failed "ffprobe cannot read $v"; exit "$src"; }
   # spec: the frame size, rate and length against the project's BRIEF (Output, Resolution); playbook/01-pipeline.md, 规格
-  local spec src=0
+  src=0
   if [ -n "$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 "$v" 2>/dev/null)" ]; then
     spec=$(python3 "$ROOT/tools/speccheck.py" "$v" ${J:+--json "$J/spec.json"}) || src=$?
     case "$src" in
@@ -1104,6 +1182,7 @@ cmd_check() {
   # the record: out/check/<name>.check.json in the video's project (bin/vh status reads the last); with --json, on stdout too
   local ra=("$v" --dir "$J" --exit "$status")
   [ -z "$allow" ] || ra+=(--allow "$allow"); [ -z "$against" ] || ra+=(--against "$against")
+  VH_OWN=""; [ -z "$json" ] || VH_SAID=1   # the checks ran: from here the record is what goes out, its verdict the exit status
   if [ -z "$J" ]; then   # no scratch folder: no record (said above)
     [ -z "$json" ] || printf '{"version": 1, "tool": "bin/vh check", "exit": %s, "verdict": "%s", "error": "no scratch folder (mktemp -d failed): no record was made"}\n' "$status" "$([ $status = 0 ] && echo pass || echo fail)" >&3
   elif [ -n "$json" ]; then
@@ -1176,7 +1255,9 @@ cmd_captions() { # --media-end S: where a caption too short for its minimum may 
 cmd_beats() { # --png draws the check's picture: pillow joins librosa only then
   local a pil=""; for a in "$@"; do [ "$a" = --png ] && pil="--with pillow"; done
   on_ctrl_c uv run -q --no-project --with librosa $pil python "$ROOT/tools/audio/beats.py" "$@"; }
-cmd_timeline() { [ $# -gt 0 ] || { cmd_usage timeline >&2; exit 2; }; python3 "$ROOT/tools/audio/timeline_lint.py" "$@"; }
+cmd_timeline() { [ $# -gt 0 ] || { cmd_usage timeline >&2; exit 2; }   # --resolved: one document of the whole timeline (tools/resolved.py), else the narration's checks
+  case " $* " in *" --resolved "*) exec python3 "$ROOT/tools/resolved.py" "$@" ;; esac
+  python3 "$ROOT/tools/audio/timeline_lint.py" "$@"; }
 cmd_remap() { [ $# -gt 0 ] || { cmd_usage remap >&2; exit 2; }; python3 "$ROOT/tools/audio/remap.py" "$@"; }
 cmd_timemap() { [ $# -gt 0 ] || { cmd_usage timemap >&2; exit 2; }; python3 "$ROOT/tools/audio/time_map.py" "$@"; }   # stdlib only
 cmd_music() { # --roll draws pictures: pillow joins numpy and scipy only then; --provider lyria is a generated track (stdlib and ffmpeg)
@@ -1232,8 +1313,11 @@ cmd_gif() {
 cmd_help() { python3 "$ROOT/tools/commands.py" help; }            # every usage, by stage, from tools/commands.json
 cmd_usage() { python3 "$ROOT/tools/commands.py" usage "$1"; }    # one command's usage from there; exit 1 if it has none
 
+case " $* " in *" --json "*) VH_JSON=1 ;; esac
+# with --json, no python3 is said as any failure is (bin/vh doctor --json has its own record for it)
+if [ -n "$VH_JSON" ] && [ "${1:-}" != doctor ] && ! command -v python3 >/dev/null 2>&1; then vh_fail missing_tool 127 "bin/vh ${1:-}: python3 not found: most commands need it" "bin/vh doctor says how to get it"; fi
 case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead of running it with -h as a file, project or preset name
-  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|cast|know|artifacts|looks|breakdown|concept|components|hf|footage|image|model3d|hdri|bgm|sound|scout|ref|web) ;;   # these print their own, fuller help
+  case "$1" in captions|readcheck|review|storyboard|rhythm|edit|cover-preview|voices|mix|recipes|sfx|qa|assets|cast|know|artifacts|looks|breakdown|concept|components|hf|footage|image|model3d|hdri|bgm|sound|scout|ref|web|projects|cancel|peaks|history) ;;   # these print their own, fuller help
     tts) cmd_usage tts; echo; exec python3 "$ROOT/tools/audio/tts.py" -h ;;   # + every flag, without building the mlx-audio environment first
     pace) cmd_usage pace; echo; exec python3 "$ROOT/tools/audio/pace.py" -h ;;
     doctor) cmd_usage doctor; echo; exec python3 "$ROOT/tools/doctor.py" -h ;;   # + the --json fields
@@ -1241,7 +1325,7 @@ case "${2:-}" in -h|--help)   # `bin/vh <command> -h` prints its usage instead o
     *) cmd_usage "$1" && exit 0 ;; esac ;;
 esac
 case "${1:-}" in   # the activity log: every command that works on a project (act_start finds it) but the read-only views
-  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|new) ;;   # (new: once the project is made)
+  ""|help|-h|--help|setup|install-skill|sync-agents|types|effort|recipes|doctor|commands|status|activity|know|artifacts|projects|new) ;;   # (new: once the project is made)
   components) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list, check and sample touch no project
   desk) [ "${2:-}" = data ] || act_start "$@" || true ;;
   versions) case "${2:-}" in compare|use) act_start "$@" || true ;; esac ;;   # the list is a read-only view
@@ -1253,6 +1337,8 @@ case "${1:-}" in   # the activity log: every command that works on a project (ac
   hdri) [ "${2:-}" != get ] || act_start "$@" || true ;;   # search only reads
   concept) [ "${2:-}" != board ] || act_start "$@" || true ;;   # roulette only reads
   edit) case "${2:-}" in init|build) act_start "$@" || true ;; esac ;;   # check and list only read
+  timeline) case " $* " in *" --resolved "*) ;; *) act_start "$@" || true ;; esac ;;   # --resolved only reads
+  history) case "${2:-}" in save|restore) act_start "$@" || true ;; esac ;;   # list and diff only read
   assets) case "${2:-}" in add|remove|credits) act_start "$@" || true ;; esac ;;   # list and check only read
   cast) [ "${2:-}" != add ] || act_start "$@" || true ;;   # list and check only read
   scout|ref) case "${2:-}" in list) ;; *) act_start "$@" || true ;; esac ;;   # list only reads
@@ -1284,10 +1370,10 @@ case "${1:-help}" in
   gate) shift; cmd_gate "$@" ;;
   commands) shift; exec python3 "$ROOT/tools/commands.py" list "$@" ;;   # read-only, not logged
   artifacts) shift; exec python3 "$ROOT/tools/artifacts.py" "$@" ;;   # read-only, not logged; stdlib only
-  status) shift; cmd_status "$@" ;; activity) shift; cmd_activity "$@" ;; know) shift; cmd_know "$@" ;; versions) shift; cmd_versions "$@" ;; proxy) shift; cmd_proxy "$@" ;; thumbs) shift; cmd_thumbs "$@" ;;
+  status) shift; cmd_status "$@" ;; projects) shift; cmd_projects "$@" ;; cancel) shift; cmd_cancel "$@" ;; history) shift; cmd_history "$@" ;; activity) shift; cmd_activity "$@" ;; know) shift; cmd_know "$@" ;; versions) shift; cmd_versions "$@" ;; proxy) shift; cmd_proxy "$@" ;; thumbs) shift; cmd_thumbs "$@" ;; peaks) shift; cmd_peaks "$@" ;;
   new) shift; cmd_new "$@" ;; style) shift; cmd_style "$@" ;; readcheck) shift; cmd_readcheck "$@" ;; textcheck) shift; cmd_textcheck "$@" ;; frames) shift; cmd_frames "$@" ;; render) shift; cmd_film_tool render "$@" ;; fonts) shift; cmd_fonts "$@" ;; determinism) shift; cmd_film_tool determinism "$@" ;; cues) shift; cmd_film_tool cues "$@" ;; patch) shift; cmd_film_tool patch "$@" ;;
   storyboard) shift; cmd_storyboard "$@" ;; rhythm) shift; cmd_rhythm "$@" ;; edit) shift; cmd_edit "$@" ;; cover-preview) shift; cmd_cover_preview "$@" ;; effort) shift; cmd_effort "$@" ;; sync-agents) cmd_sync_agents ;; hf-init) shift; cmd_hf_init "$@" ;; sheet) shift; cmd_sheet "$@" ;; check) shift; cmd_check "$@" ;; gif) shift; cmd_gif "$@" ;; deliver) shift; cmd_deliver "$@" ;; clean) shift; cmd_clean "$@" ;; looks) shift; cmd_looks "$@" ;; breakdown) shift; cmd_breakdown "$@" ;;
   help|-h|--help) cmd_help ;;
-  *) python3 "$ROOT/tools/commands.py" unknown "$1" || true; exit 2 ;;   # a usage error: its message and the nearest names, on stderr
+  *) python3 "$ROOT/tools/commands.py" unknown "$1" ${VH_JSON:+--json} || true; exit 2 ;;   # a usage error: its message and the nearest names, on stderr
 esac
 ACT_DONE=1   # came to its end: the EXIT trap writes the run's end line (killed, it does not)

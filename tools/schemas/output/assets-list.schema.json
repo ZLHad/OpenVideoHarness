@@ -1,0 +1,67 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/assets-list.schema.json",
+ "title": "bin/vh assets list <project> --json",
+ "description": "The asset ledger with what is seen now (tools/assets/assets.py; tools/desk/README.md 素材台账). A record is tools/assets/asset.schema.json.",
+ "type": "object",
+ "required": ["version", "tool", "project", "ledger", "policy", "budget", "counts", "assets", "said"],
+ "properties": {
+  "version": {"enum": [1]},
+  "tool": {"type": "string"},
+  "project": {"type": ["string", "null"]},
+  "ledger": {"type": "string"},
+  "policy": {
+   "type": "object",
+   "required": ["assets", "from"],
+   "properties": {
+    "assets": {"type": "string"},
+    "from": {"type": "string"}
+   }
+  },
+  "budget": {
+   "type": ["object", "null"],
+   "required": ["limit", "unlimited", "from", "raw", "error", "spent", "held", "left", "over"],
+   "properties": {
+    "limit": {"type": "object"},
+    "unlimited": {"type": "boolean"},
+    "from": {},
+    "raw": {},
+    "error": {},
+    "spent": {"type": "object"},
+    "held": {"type": "object"},
+    "left": {"type": "object"},
+    "over": {"type": "array"}
+   }
+  },
+  "counts": {
+   "type": "object",
+   "required": ["assets", "removed", "uncleared", "aigc", "missing"],
+   "properties": {
+    "assets": {"type": "integer"},
+    "removed": {"type": "integer"},
+    "uncleared": {"type": "integer"},
+    "aigc": {"type": "integer"},
+    "missing": {"type": "integer"}
+   }
+  },
+  "assets": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["record", "from", "exists", "class", "risks", "accepted", "attribution", "removed", "problems"],
+    "properties": {
+     "record": {"type": "object"},
+     "from": {"type": "string"},
+     "exists": {"type": "boolean"},
+     "class": {"type": "string"},
+     "risks": {"type": "array"},
+     "accepted": {"type": "boolean"},
+     "attribution": {},
+     "removed": {"type": "boolean"},
+     "problems": {"type": "array"}
+    }
+   }
+  },
+  "said": {"type": "array"}
+ }
+}

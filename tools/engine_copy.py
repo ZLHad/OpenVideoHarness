@@ -61,6 +61,10 @@ def show(p):
 
 
 def main():
+    if "--json" in sys.argv[1:]:   # bin/vh doctor --json is this machine; a project's copy of its engine is a list for a person
+        sys.path.insert(0, str(ROOT / "tools"))
+        import jsonerr
+        sys.exit(jsonerr.fail("usage", "bin/vh doctor <project> has no --json: it lists what differs from the engine for a person; bin/vh doctor --json is this machine"))
     if len(sys.argv) != 2 or sys.argv[1] in ("-h", "--help"):
         print(__doc__.strip()); sys.exit(0 if len(sys.argv) == 2 else 2)
     proj = Path(sys.argv[1])

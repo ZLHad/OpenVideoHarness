@@ -33,6 +33,9 @@ not enough disk, a colour matrix untagged and not given, or Assets: strict and b
 import argparse, glob, json, math, os, re, shutil, signal, subprocess, sys, time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import activity, jsonerr   # noqa: E402,E401
+
 # name: (label, file limit in GB (10^9 bytes), length limit in s or None, source tag). playbook/10 §交付编码 cites them.
 PLATFORMS = {
     "bilibili": ("Bilibili web", 8, None, "second-hand, 2026-10-12: web upload 8 GB, 16 GB at higher creator levels"),
@@ -43,6 +46,8 @@ PLATFORMS = {
 
 def die(msg, code=2):
     print(f"deliver: {msg}", file=sys.stderr)
+    if code < 128:   # a stop by a signal is no failure to explain
+        jsonerr.report("failed", f"deliver: {msg}")   # the note in the log: why this run failed
     sys.exit(code)
 
 
@@ -278,23 +283,33 @@ def main():
     print(f"deliver: {master.name} · {v['width']}x{v['height']} · {fps:g} fps · {dur / 60:.1f} min · {master.stat().st_size / 1e9:.2f} GB"
           f" → x264 {a.preset}, {how}, keyframe every {gop}")
     r = None
-    def stop(sig, _frame):   # SIGTERM (a timeout) as Ctrl-C: subprocess.run then stops ffmpeg, and the files below go
+    def stop(sig, _frame):   # SIGTERM (a timeout) as Ctrl-C: ffmpeg is stopped, and the files below go
         raise KeyboardInterrupt
     signal.signal(signal.SIGTERM, stop)
+    passes = 2 if two else 1
+
+    def encode(cmd, n):
+        """One pass, its progress in the log: percent of the film, at most a line every 10 s."""
+        tick = activity.Progress(100, "percent", every=10, **{"pass": n, "passes": passes})
+        tick(0)
+        rc = activity.follow_ffmpeg(cmd, lambda _, s: s is not None and tick(min(99, int(s * 100 / dur))), keep_stderr=False)[0]
+        if not rc:
+            tick(100)
+        return rc
     try:
         if two:
-            r = subprocess.run([*head, "-map", "0:v:0", *venc, *rate, "-pass", "1", "-passlogfile", log, "-an", "-f", "null", "-"])
-        if not (r and r.returncode):
-            r = subprocess.run(final)
+            r = encode([*head, "-map", "0:v:0", *venc, *rate, "-pass", "1", "-passlogfile", log, "-an", "-f", "null", "-"], 1)
+        if not r:
+            r = encode(final, passes)
     except KeyboardInterrupt:
         r = None
     finally:   # this run's pass logs and part file, whatever happened (Ctrl-C too)
         for f in out.parent.glob(glob.escape(f".{out.name}.{os.getpid()}.") + "*"):
-            if f != part or r is None or r.returncode: f.unlink(missing_ok=True)
+            if f != part or r is None or r: f.unlink(missing_ok=True)
     if r is None:
         die("stopped; the part file is deleted", 130)
-    if r.returncode:
-        die(f"ffmpeg failed (exit {r.returncode})", 1)
+    if r:
+        die(f"ffmpeg failed (exit {r})", 1)
     os.replace(part, out)
     size = out.stat().st_size
     record(out, master, asset_rec)
@@ -341,4 +356,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(jsonerr.guard(main))

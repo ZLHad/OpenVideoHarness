@@ -116,6 +116,34 @@ def problems(schema, value):
     return out
 
 
+def undeclared(schema, value):
+    """The keys of the value's objects that the schema's properties do not name, where it names any ("$.a[0].b"). A schema allows
+    them: a client takes fields it does not know; tools/test_contract.py asks for each to be written down, so its loss is seen."""
+    out = []
+
+    def walk(s, v, at, depth):
+        if not isinstance(s, dict):
+            return
+        if "$ref" in s and depth < MAX_REF_DEPTH:
+            walk(_resolve(schema, s["$ref"]), v, at, depth + 1)
+        for sub in s.get("anyOf", []):
+            one = []
+            _check(sub, v, schema, at, one, 0)
+            if not one:
+                walk(sub, v, at, depth)
+                break
+        if isinstance(v, dict) and "properties" in s:
+            out.extend(f"{at}.{k}" for k in v if k not in s["properties"])
+            for k, sub in s["properties"].items():
+                if k in v:
+                    walk(sub, v[k], f"{at}.{k}", 0)
+        if isinstance(v, list) and "items" in s:
+            for i, x in enumerate(v):
+                walk(s["items"], x, f"{at}[{i}]", 0)
+    walk(schema, value, "$", 0)
+    return out
+
+
 def keywords(schema):
     """The keywords this schema uses that this validator does not read: {keyword, …}. It walks every subschema."""
     bad = set()

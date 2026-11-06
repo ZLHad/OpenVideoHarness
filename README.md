@@ -111,7 +111,7 @@ A few rules never relax ([CLAUDE.md](CLAUDE.md) has them all): every frame depen
 
 ## What's in the box
 
-The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 67 commands by pipeline stage, and any command takes `-h`.
+The tools follow the work: think, gather, make, check and deliver. Each name below is a `bin/vh` command; `bin/vh commands` lists all 71 commands by pipeline stage, and any command takes `-h`.
 
 | | Command | What it does |
 |---|---|---|
@@ -138,6 +138,7 @@ The tools follow the work: think, gather, make, check and deliver. Each name bel
 | | `patch` · `versions` | Redraw a few seconds of a finished film; compare renders or go back to one |
 | | `deliver` · `clean` | The copy to upload; a finished project cleared of its intermediates |
 | | `artifacts` | Every kind of file a project holds: what it is and who writes it; what this project has, lacks and has out of date |
+| | `projects` · `cancel` · `history` | Every project and where it stands; a running command stopped, with its end on record; a way back for the text you and the agent write |
 
 `bin/vh doctor` says which of the 40 outside programs, packages, models and services this machine can use (`tools/modules.json`).
 

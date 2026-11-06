@@ -592,7 +592,9 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import jsonerr
     try:
-        sys.exit(main(sys.argv[1:]))
+        sys.exit(jsonerr.guard(lambda: main(sys.argv[1:])))
     except KeyboardInterrupt:
         sys.exit(130)

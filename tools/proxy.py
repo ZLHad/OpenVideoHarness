@@ -21,16 +21,17 @@ thumbs  <name>.thumbs/: a tile every --every seconds (2), --width px wide (160),
         (edit.json or shots.json), else, for a film, its .render.json (the page's window.film.shots when it was rendered:
         no browser is started for a film, so a film without them gets no shot pictures), and with no film, the page's.
         Frames come from a proxy made of this same film when there is one (fast), else the film, else the page.
-        Run again after patches in place: only the tiles and shots in the frames drawn again are taken anew
+        Run again after patches in place: only the tiles and shots in the frames drawn again are taken anew. They are made in a folder beside
+        it (.<name>.thumbs.new) that takes its place when they are all there: stopped, what was there is as it was
 JSON (--json prints the record; "version": 1): tools/desk/README.md, 给客户端的数据, has the fields.
 Exit: 0 made or up to date · 1 ffmpeg or the page failed · 2 usage, no film (proxy) and nothing to draw (thumbs).
 """
-import concurrent.futures as cf, json, math, os, re, shutil, subprocess, sys, tempfile, time
+import concurrent.futures as cf, json, math, os, re, shutil, signal, subprocess, sys, tempfile, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import versions as V   # noqa: E402
+import activity, jsonerr, versions as V   # noqa: E402,E401
 from timegrid import frame_at, frame_from   # noqa: E402  (seconds to frames, the one way)
 
 VIDEO = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
@@ -40,7 +41,11 @@ FAILED = re.compile(r"\.failed(-\d+)?$", re.I)
 
 
 class Usage(Exception):
-    pass
+    """Exit 2. code: what tools/jsonerr.py calls it."""
+
+    def __init__(self, message, code="usage"):
+        super().__init__(message)
+        self.code = code
 
 
 def run(args, **kw):
@@ -124,6 +129,22 @@ def newest_film(project):
     return film_of(project)[0]
 
 
+def versioned_film(project):
+    """The film of the newest current version (bin/vh versions), or None: no record, one that cannot be read, none current."""
+    try:
+        cur = sorted((x for x in V.listing(project)["versions"] if x["state"] == "current"), key=lambda x: -(x.get("t") or 0))
+    except (ValueError, OSError):
+        return None
+    return Path(project) / cur[0]["file"] if cur else None
+
+
+
+def current_film(project):
+    """The film a client shows first, (the film or None, is it from versions): the newest current version, else what bin/vh check <project> takes."""
+    film = versioned_film(project)
+    return (film.resolve(), True) if film else (newest_film(project), False)
+
+
 def pick(target):
     """(film or None, project, page or None) for a film or a project."""
     p = Path(target).expanduser()
@@ -134,15 +155,8 @@ def pick(target):
         import review
         project = review.find_project(target)
     if project is None:
-        raise Usage(f"no film or project at {target}")
-    film = None
-    try:
-        L = V.listing(project)
-        cur = sorted((x for x in L["versions"] if x["state"] == "current"), key=lambda x: -(x.get("t") or 0))
-        if cur:
-            film = Path(project) / cur[0]["file"]
-    except ValueError:
-        pass
+        raise Usage(f"no film or project at {target}", "no_project")
+    film = versioned_film(project)
     if film is None:
         vids = films_in(project)
         film = next((f for f in vids if Path(str(f) + ".render.json").is_file()), vids[0] if vids else None)
@@ -216,11 +230,18 @@ def x264(o):
 def make_proxy(film, info, o, dst):
     vf = f"scale={o['size'][0]}:{o['size'][1]}:flags=bilinear,setsar=1"
     tmp = dst.with_name(f".{dst.name}.tmp.mp4")
-    r = run(["ffmpeg", "-v", "error", "-nostdin", "-y", "-i", str(film), "-map", "0:v:0", "-map", "0:a:0?", "-vf", vf, *x264(o),
-             "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(tmp)])
-    if r.returncode or not tmp.is_file():
+    tick = activity.Progress(info["frames"], "frames")
+    tick(0)
+    try:
+        rc, err = activity.follow_ffmpeg(["ffmpeg", "-v", "error", "-nostdin", "-y", "-i", str(film), "-map", "0:v:0", "-map", "0:a:0?", "-vf", vf, *x264(o),
+                                          "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(tmp)], lambda f, _: f is not None and tick(min(f, info["frames"] - 1)))
+    except BaseException:   # a Ctrl-C: the proxy there is as it was
         tmp.unlink(missing_ok=True)
-        raise RuntimeError(f"ffmpeg could not make the proxy: {(r.stderr or '').strip()[:300]}")
+        raise
+    if rc or not tmp.is_file():
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError(f"ffmpeg could not make the proxy: {(err or '').strip()[:300]}")
+    tick(info["frames"])
     os.replace(tmp, dst)
 
 
@@ -234,6 +255,8 @@ def refresh_proxy(film, info, o, dst, wins):
     with tempfile.TemporaryDirectory(prefix=".proxy-", dir=dst.parent) as w:
         w = Path(w)
         pieces = {}
+        tick, done = activity.Progress(sum(B - A for A, B in wins), "frames"), 0
+        tick(done)
         for i, (A, B) in enumerate(wins):
             piece = w / f"piece{i}.mp4"
             ss = ["-ss", f"{(A - 0.5) / fps:.6f}"] if A > 0 else []
@@ -244,6 +267,8 @@ def refresh_proxy(film, info, o, dst, wins):
             if pp["frames"] != B - A or pp["extradata"] != old["extradata"]:
                 return f"frames {A}–{B - 1} did not come out as the proxy's ({pp['frames']} frames, {'same' if pp['extradata'] == old['extradata'] else 'another'} encoder setup)"
             pieces[A] = (piece, B - A)
+            done += B - A
+            tick(done)
         cuts = sorted({k for A, B in wins for k in (A, B) if 0 < k < n})
         bounds = [0, *cuts, n]
         parts = []
@@ -272,7 +297,7 @@ def refresh_proxy(film, info, o, dst, wins):
 def cmd_proxy(a):
     film, project, _ = pick(a["target"])
     if film is None:
-        raise Usage(f"no film in {project} to make a proxy of: bin/vh render first (bin/vh thumbs draws the page)")
+        raise Usage(f"no film in {project} to make a proxy of: bin/vh render first (bin/vh thumbs draws the page)", "not_found")
     info = probe(film)
     if not (info["fps"] > 0 and info["frames"] > 0):
         raise RuntimeError(f"{film}: no frame rate or frames")
@@ -348,6 +373,20 @@ def even(x):
     return max(2, int(x / 2 + 0.5) * 2)
 
 
+def on_pool(fn, jobs, tick):
+    """fn over the jobs on a pool of threads, the progress as they end. Stopped (a Ctrl-C): what has not started never does."""
+    n = 0
+    tick(n)
+    with cf.ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as ex:
+        try:
+            for _ in ex.map(fn, jobs):
+                n += 1
+                tick(n)
+        except BaseException:
+            ex.shutdown(wait=False, cancel_futures=True)
+            raise
+
+
 def grab(src, fps, k, size, dst):
     ss = ["-ss", f"{(k - 0.5) / fps:.6f}"] if k > 0 else []
     r = run(["ffmpeg", "-v", "error", "-nostdin", "-y", *ss, "-i", str(src), "-frames:v", "1", "-vf", f"scale={size[0]}:{size[1]}:flags=bicubic", "-q:v", "4", str(dst)])
@@ -375,10 +414,20 @@ def sheets(tdir, n, cols=10, rows=10):
     return out
 
 
+def swap_in(new, d):
+    """A folder made beside d takes its place; d's old self goes."""
+    old = d.with_name(f".{d.name}.old")
+    shutil.rmtree(old, ignore_errors=True)
+    if d.exists():
+        os.rename(d, old)
+    os.rename(new, d)
+    shutil.rmtree(old, ignore_errors=True)
+
+
 def cmd_thumbs(a):
     film, project, page = pick(a["target"])
     if film is None and page is None:
-        raise Usage(f"nothing to take pictures of in {project}: no film and no page (film.html, index.html, studio.html)")
+        raise Usage(f"nothing to take pictures of in {project}: no film and no page (film.html, index.html, studio.html)", "not_found")
     T0 = time.time()
     side = V.load_json(str(film) + ".render.json") if film else None
     if film:
@@ -388,14 +437,14 @@ def cmd_thumbs(a):
         name, base = name_of(film, project), film
     else:
         if not a["browser"]:
-            raise Usage("no film, and no headless Chrome to draw the page: run it as bin/vh thumbs, or set CHROME_PATH")
+            raise Usage("no film, and no headless Chrome to draw the page: run it as bin/vh thumbs, or set CHROME_PATH", "missing_tool")
         import shot_source
         if shot_source.is_edit(page):   # an edit list with no film yet: its frames drawn as bin/vh frames draws them
             import edit
             try:
                 doc = edit.resolve(project)
             except edit.EditError as e:
-                raise Usage("edit.json does not resolve: " + "; ".join(e.problems[:3])) from None
+                raise Usage("edit.json does not resolve: " + "; ".join(e.problems[:3]), "invalid") from None
             live = {"shots": None}
             fps, dur, aspect, nfr = float(doc["fps"]), doc["frames"] / doc["fps"], doc["size"][0] / doc["size"][1], doc["frames"]
         else:
@@ -406,7 +455,7 @@ def cmd_thumbs(a):
     if not (dur > 0):
         raise RuntimeError("no length to take pictures of")
     d = out_dir(base, project, a["out"]) / f"{name}.thumbs"
-    (d / "tiles").mkdir(parents=True, exist_ok=True); (d / "shots").mkdir(exist_ok=True)
+    d.parent.mkdir(parents=True, exist_ok=True)
     recf = d / "thumbs.json"
     old = V.load_json(recf) if recf.is_file() else None
     every, W, SW = a["every"], a["width"], a["shot_width"]
@@ -450,43 +499,51 @@ def cmd_thumbs(a):
                 made = "refreshed"
             else:
                 why = "a step since its version was not a patch in place"
-    if made == "full":
-        for q in (d / "tiles").glob("*.jpg"):
-            q.unlink()
-        for q in (d / "shots").glob("*.jpg"):
-            q.unlink()
-    jobs = [(k, (W, H), d / "tiles" / f"{i + 1:05d}.jpg") for i, _, k in todo_t] + [(k, (SW, SH), d / "shots" / f"{fn}.jpg") for _, _, _, _, k, fn in todo_s]
-    if jobs and frm != "page":
-        fps_src = probe(src)["fps"] if frm == "proxy" else fps
-        with cf.ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as ex:
-            list(ex.map(lambda j: grab(src, fps_src, j[0], j[1], j[2]), jobs))
-    elif jobs:   # the page, through bin/vh frames: every time at once, then each picture scaled
-        with tempfile.TemporaryDirectory(prefix="vh-thumbs-") as tmp:
-            at = sorted({round(k / fps, 3) for k, _, _ in jobs})
-            r = run(["node", str(HERE / "film" / "frames.mjs"), str(page), "--browser", a["browser"], "--at", ",".join(f"{t:.3f}" for t in at), "--out", tmp])
-            if r.returncode:
-                raise RuntimeError(f"drawing the page failed: {(r.stderr or r.stdout or '').strip()[-400:]}")
-            stem = Path(page).stem
-            with cf.ThreadPoolExecutor(max_workers=min(8, os.cpu_count() or 4)) as ex:
-                list(ex.map(lambda j: from_png(Path(tmp) / f"{stem}-t{round(j[0] / fps, 3):08.3f}.png", j[1], j[2]), jobs))
-    changed_sheets = {i // 100 for i, _, _ in todo_t}
-    sh = sheets(d, len(tiles)) if made == "full" or changed_sheets or not all((d / f"sheet-{j + 1:02d}.jpg").is_file() for j in range(math.ceil(len(tiles) / 100))) \
-        else [(d / f"sheet-{j + 1:02d}.jpg", min(100, len(tiles) - j * 100)) for j in range(math.ceil(len(tiles) / 100))]
-    for q in d.glob("sheet-*.jpg"):   # sheets of an earlier, longer film
-        if int(q.stem[6:] or 0) > len(sh):
-            q.unlink()
-    rec = {"version": 1, "tool": "bin/vh thumbs", "source": rel(project, base), "from": frm, "source_ident": idn, "source_version": ver,
-           "fps": fps, "duration": round(dur, 6), "frames": nfr, "settings": settings, "tile": [W, H], "shot": [SW, SH],
-           "sheets": [{"file": rel(project, f), "tiles": k, "size": [min(10, k) * W, math.ceil(k / 10) * H]} for f, k in sh],
-           "tiles": [{"i": i, "t": t, "frame": k, "sheet": i // 100, "x": (i % 100) % 10 * W, "y": (i % 100) // 10 * H} for i, t, k in tiles],
-           "shots": [{"id": sid, "t": t, "frame": k, "start": round(s, 6), "end": round(e, 6), "file": rel(project, d / "shots" / f"{fn}.jpg")}
-                     for sid, s, e, t, k, fn in shot_rows],
-           "shots_from": shots_from, "made": made, "taken": {"tiles": len(todo_t), "shots": len(todo_s)},
-           "t": round(time.time(), 3), "at": V.iso(time.time()), "seconds": round(time.time() - T0, 2)}
+    w = d   # up to date, nothing is made but a sheet that is not there. Else the pictures are made in a folder beside it, which takes its place when they
+    # are all there: stopped, what was there is as it was
     if made != "up to date":
-        save(recf, rec)
-    else:
-        rec = old
+        w = d.with_name(f".{d.name}.new")
+        shutil.rmtree(w, ignore_errors=True)
+        if made == "refreshed":
+            shutil.copytree(d, w)
+        else:
+            (w / "tiles").mkdir(parents=True); (w / "shots").mkdir()
+    try:
+        jobs = [(k, (W, H), w / "tiles" / f"{i + 1:05d}.jpg") for i, _, k in todo_t] + [(k, (SW, SH), w / "shots" / f"{fn}.jpg") for _, _, _, _, k, fn in todo_s]
+        tick = activity.Progress(len(jobs), "pictures")
+        if jobs and frm != "page":
+            fps_src = probe(src)["fps"] if frm == "proxy" else fps
+            on_pool(lambda j: grab(src, fps_src, j[0], j[1], j[2]), jobs, tick)
+        elif jobs:   # the page, through bin/vh frames: every time at once, then each picture scaled
+            with tempfile.TemporaryDirectory(prefix="vh-thumbs-") as tmp:
+                at = sorted({round(k / fps, 3) for k, _, _ in jobs})
+                r = run(["node", str(HERE / "film" / "frames.mjs"), str(page), "--browser", a["browser"], "--at", ",".join(f"{t:.3f}" for t in at), "--out", tmp])
+                if r.returncode:
+                    raise RuntimeError(f"drawing the page failed: {(r.stderr or r.stdout or '').strip()[-400:]}")
+                stem = Path(page).stem
+                on_pool(lambda j: from_png(Path(tmp) / f"{stem}-t{round(j[0] / fps, 3):08.3f}.png", j[1], j[2]), jobs, tick)
+        changed_sheets = {i // 100 for i, _, _ in todo_t}
+        sh = sheets(w, len(tiles)) if made == "full" or changed_sheets or not all((w / f"sheet-{j + 1:02d}.jpg").is_file() for j in range(math.ceil(len(tiles) / 100))) \
+            else [(w / f"sheet-{j + 1:02d}.jpg", min(100, len(tiles) - j * 100)) for j in range(math.ceil(len(tiles) / 100))]
+        for q in w.glob("sheet-*.jpg"):   # sheets of an earlier, longer film
+            if int(q.stem[6:] or 0) > len(sh):
+                q.unlink()
+        rec = {"version": 1, "tool": "bin/vh thumbs", "source": rel(project, base), "from": frm, "source_ident": idn, "source_version": ver,
+               "fps": fps, "duration": round(dur, 6), "frames": nfr, "settings": settings, "tile": [W, H], "shot": [SW, SH],
+               "sheets": [{"file": rel(project, d / f.name), "tiles": k, "size": [min(10, k) * W, math.ceil(k / 10) * H]} for f, k in sh],
+               "tiles": [{"i": i, "t": t, "frame": k, "sheet": i // 100, "x": (i % 100) % 10 * W, "y": (i % 100) // 10 * H} for i, t, k in tiles],
+               "shots": [{"id": sid, "t": t, "frame": k, "start": round(s, 6), "end": round(e, 6), "file": rel(project, d / "shots" / f"{fn}.jpg")}
+                         for sid, s, e, t, k, fn in shot_rows],
+               "shots_from": shots_from, "made": made, "taken": {"tiles": len(todo_t), "shots": len(todo_s)},
+               "t": round(time.time(), 3), "at": V.iso(time.time()), "seconds": round(time.time() - T0, 2)}
+        if made != "up to date":
+            save(w / "thumbs.json", rec)
+            swap_in(w, d)
+        else:
+            rec = old
+    finally:
+        if w != d:
+            shutil.rmtree(w, ignore_errors=True)
     if a["json"]:
         print(json.dumps(dict(rec, state=made), ensure_ascii=False, indent=1))
     else:
@@ -561,6 +618,10 @@ def main_film(project):
     return 0
 
 
+def stopped(*_):
+    raise KeyboardInterrupt
+
+
 def main(argv):
     if argv[:1] == ["film"] and len(argv) == 2:
         return main_film(argv[1])
@@ -575,18 +636,20 @@ def main(argv):
         a = parse(argv[1:], cmd)
         for tool in ("ffmpeg", "ffprobe"):
             if not shutil.which(tool):
-                raise RuntimeError(f"{tool} is not installed")
+                return jsonerr.fail("missing_tool", f"{cmd}: {tool} is not installed", "bin/vh doctor says how to get it", rc=1)
         return (cmd_proxy if cmd == "proxy" else cmd_thumbs)(a)
     except Usage as e:
-        print(f"{cmd}: {e}", file=sys.stderr)
-        return 2
+        return jsonerr.fail(e.code, f"{cmd}: {e}")
     except (RuntimeError, OSError, SystemExit) as e:
-        print(f"{cmd}: {e}", file=sys.stderr)
-        return 1
+        return jsonerr.fail("failed", f"{cmd}: {e}", rc=1)
 
 
 if __name__ == "__main__":
+    signal.signal(signal.SIGTERM, stopped)   # as a Ctrl-C: what it made so far goes, what was there stays
     try:
-        sys.exit(main(sys.argv[1:]))
+        sys.exit(jsonerr.guard(lambda: main(sys.argv[1:])))
     except BrokenPipeError:
         sys.exit(0)
+    except KeyboardInterrupt:
+        print("stopped: nothing was put in place", file=sys.stderr)
+        sys.exit(130)

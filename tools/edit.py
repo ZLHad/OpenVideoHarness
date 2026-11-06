@@ -44,6 +44,9 @@ not there, footage that cannot be drawn as it is: all listed at once).
 import argparse, difflib, hashlib, json, math, os, re, shlex, subprocess, sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import jsonerr   # noqa: E402
+
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "audio"))
@@ -71,9 +74,9 @@ DRAW = {"page": "page", "image": "still", "color": "color", "clip": "clip", "fil
 class EditError(Exception):
     """The edit list does not resolve: code 2 (the file, its format, a reference) or 1 (the entries do not fit)."""
 
-    def __init__(self, code, problems):
+    def __init__(self, code, problems, kind="invalid"):
         super().__init__("; ".join(problems))
-        self.code, self.problems = code, list(problems)
+        self.code, self.problems, self.kind = code, list(problems), kind   # kind: tools/jsonerr.py's code
 
 
 def r3(x):
@@ -147,7 +150,7 @@ def project_of(arg):
     try:
         return vhdraw.project_dir(arg)
     except vhdraw.Usage as e:
-        raise EditError(2, [str(e)]) from None
+        raise EditError(2, [str(e)], "no_project") from None
 
 
 def find(project):
@@ -1163,10 +1166,10 @@ def brief_spec(project):
 def init(project, fps=None, size=None):
     project = Path(project)
     if find(project):
-        raise EditError(2, [f"{FILE} is there already: edit it, or move it away to fold shots.json in again"])
+        raise EditError(2, [f"{FILE} is there already: edit it, or move it away to fold shots.json in again"], "exists")
     sj = project / "shots.json"
     if not sj.is_file():
-        raise EditError(2, ["no shots.json to fold in: write edit.json by hand (engines/EDIT.md has the format)"])
+        raise EditError(2, ["no shots.json to fold in: write edit.json by hand (engines/EDIT.md has the format)"], "not_found")
     try:
         data = json.loads(sj.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError) as e:
@@ -1495,7 +1498,7 @@ def say_problems(e, prefix="edit"):
 def cmd_build(a):
     project = project_of(a.project)
     if not find(project):
-        raise EditError(2, [f"no {FILE} in {project} (bin/vh edit init folds shots.json into one)"])
+        raise EditError(2, [f"no {FILE} in {project} (bin/vh edit init folds shots.json into one)"], "not_found")
     doc, said = build(project, write=not a.no_write)
     if a.json:
         print(json.dumps(dict(doc, said=said), ensure_ascii=False))
@@ -1509,7 +1512,7 @@ def cmd_build(a):
 def cmd_check(a):
     project = project_of(a.project)
     if not find(project):
-        raise EditError(2, [f"no {FILE} in {project}"])
+        raise EditError(2, [f"no {FILE} in {project}"], "not_found")
     code, found, doc = check(project, a.browser)
     if a.json:
         print(json.dumps({"version": 1, "tool": "bin/vh edit check", "edit": str(project / FILE), "exit": code,
@@ -1527,7 +1530,7 @@ def cmd_check(a):
 def cmd_list(a):
     project = project_of(a.project)
     if not find(project):
-        raise EditError(2, [f"no {FILE} in {project}"])
+        raise EditError(2, [f"no {FILE} in {project}"], "not_found")
     doc = resolve(project)
     if a.json:
         print(json.dumps({"version": 1, "fps": doc["fps"], "frames": doc["frames"], "duration": doc["duration"], "entries": doc["entries"],
@@ -1577,8 +1580,9 @@ def main(argv=None):
         return {"init": cmd_init, "build": cmd_build, "check": cmd_check, "list": cmd_list}[a.cmd](a)
     except EditError as e:
         say_problems(e)
+        jsonerr.report(e.kind, "; ".join(e.problems[:5]) + (f" … and {len(e.problems) - 5} more" if len(e.problems) > 5 else ""))
         return e.code
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(jsonerr.guard(main))

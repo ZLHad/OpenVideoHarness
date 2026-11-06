@@ -1,0 +1,16 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/edit-list.schema.json",
+ "title": "bin/vh edit list <project> --json",
+ "description": "The entries of an edit list as resolved (tools/edit.py; engines/EDIT.md).",
+ "type": "object",
+ "required": ["version", "fps", "frames", "duration", "entries", "slates"],
+ "properties": {
+  "version": {"enum": [1]},
+  "fps": {"type": "number"},
+  "frames": {"type": "integer"},
+  "duration": {"type": "number"},
+  "entries": {"type": "array", "items": {"type": "object", "required": ["id", "track", "src", "kind", "frames", "start", "end", "ref"]}},
+  "slates": {"type": "array", "items": {"type": "string"}}
+ }
+}

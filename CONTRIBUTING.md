@@ -28,6 +28,8 @@
 
 `bin/vh` 的命令都登记在 `tools/commands.json`：名字、一句话、什么时候用、读什么写什么、属于 playbook/01 总表的哪个阶段（0–9；不属于某支片子的记 `env`，任何阶段都用的记 `any`）、用法和子命令。`bin/vh -h`、`bin/vh <命令> -h`、`bin/vh commands` 和 `CLAUDE.md` 的"命令行："那一行都从它生成。加一条命令：在 `bin/vh` 末尾的分发里加一个分支，在表里加一项，再跑 `bin/vh sync-agents`；`tools/ci.sh` 查这三处对得上。这张表是 agent 找工具的入口，以后也是 Studio 命令面板的入口，`bin/vh commands --json` 的字段只加不改。
 
+命令的 `--json` 输出是契约：字段只加不改，schema 在 `tools/schemas/output/`，`tools/ci.sh` 的 `contract_checks`（`tools/test_contract.py`）跑一遍真命令来对；少了字段、改了类型会红，新字段要写进 schema，失败一律是 `tools/jsonerr.py` 的形状。
+
 - **新命令按阶段或题目成组，不再往顶层加动词。** 一组相关的事做成一条命令带子命令，像 `assets add|list|check`、`scout`、`sfx` / `bgm` 这样；子命令记进表里的 `subcommands`。
 - **新命令的参数只写在 `-h` 和 `--json` 里。** 说明写进表里的 `usage`（`bin/vh <命令> -h` 打印它）或工具自己的 `-h`；机读的输出给 `--json`，字段名写进 `-h`，以后只加不改。README 里每条命令最多一行，说它干什么，不解释参数。
 - **新的状态写进机器可读的文件，项目根目录不再加 markdown。** 给工具读的放 JSON（追加的记录用 JSONL，像 `.ovh/activity.jsonl`），带 `"version": 1`，`bin/vh status --json` 能汇总；人写的想法和决定仍然写在模板现有的那几份 markdown 里。版本字段新文件一律拼 `version`；已有文件的 `v`（`edit.json`、台账、活动记录这些）不改名。
@@ -51,7 +53,7 @@
 ```bash
 tools/ci.sh                        # 全部检查；没装 shellcheck、pyflakes、ffmpeg 时，相应几项会跳过
 tools/ci.sh --committed            # 只检查已提交的内容（HEAD），和 CI 看到的一样；推送前用这个
-VH_BASH=/bin/bash tools/ci.sh      # macOS：用系统自带的 bash 3.2 跑，Mac 用户默认用的就是它
+LC_ALL=en_US.UTF-8 VH_BASH=/bin/bash /bin/bash tools/ci.sh   # macOS：系统自带的 bash 3.2 加 UTF-8 locale，Mac 用户默认就是这样，CI 的 macOS 也是
 tools/ci.sh --shard 1/2            # 只跑两个 shard 里的第 1 个，CI 的 macOS 就是这样分两半跑的
 ```
 

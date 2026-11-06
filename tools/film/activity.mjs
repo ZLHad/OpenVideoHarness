@@ -9,6 +9,9 @@ import path from "node:path";
 const E = process.env, LOG = E.OVH_ACTIVITY_LOG, RUN = E.OVH_ACTIVITY_RUN, CMD = E.OVH_ACTIVITY_CMD || "";
 const on = !!(LOG && RUN);
 const now = () => Math.round(Date.now()) / 1000;
+// whatever looks like a key is … (the page tools' words name an option, never its value; tools/activity.py's scrub has the full rules)
+const KEYS = /(^|[^A-Za-z0-9])((?:sk-|sk_|AIza|AQ\.|ghp_|gho_|ghu_|ghs_|github_pat_|glpat-|xox[abposr]-|eyJ|hf_|AKIA|ya29\.)[A-Za-z0-9_.+/=-]{8,})/g;
+const said = (s) => String(s).replace(/\s+/g, " ").replace(KEYS, "$1…").slice(0, 300);
 
 function write(rec) {
   if (!on) return;
@@ -36,14 +39,33 @@ function rel(p) {   // relative to the project when inside it, else absolute
 }
 
 // what this command made: one line, and the files it wrote
-export function note(summary, outputs = []) {
-  write({ event: "note", run: RUN, t: now(), cmd: CMD, ...(summary ? { summary: String(summary).replace(/\s+/g, " ").slice(0, 300) } : {}),
-    ...(outputs.length ? { outputs: outputs.filter(Boolean).map(rel).slice(0, 20) } : {}) });
+export function note(summary, outputs = [], extra = {}) {
+  write({ event: "note", run: RUN, t: now(), cmd: CMD, ...(summary ? { summary: said(summary) } : {}),
+    ...(outputs.length ? { outputs: outputs.filter(Boolean).map(rel).slice(0, 20) } : {}), ...extra });
+}
+
+// why it failed: a note with level error (tools/jsonerr.py has the codes), which bin/vh activity shows beside the exit status; once
+let errorSaid = false;
+export function error(message, code = "failed") {
+  if (errorSaid) return;
+  errorSaid = true;
+  write({ event: "note", run: RUN, t: now(), cmd: CMD, level: "error", code, summary: said(message) });
 }
 
 // how far a long command has come (render: frames)
 export function progress(done, total, unit) {
   write({ event: "progress", run: RUN, t: now(), cmd: CMD, done, ...(total != null ? { total } : {}), ...(unit ? { unit } : {}) });
+}
+
+// progress lines at a low rate: at most one every `every` seconds, always the first and the one that reaches total
+export function throttled(total, unit, every = 5) {
+  let at = null, last = null;
+  return (done) => {
+    const t = Date.now() / 1000, final = total != null && done >= total;
+    if (done === last || (at !== null && t - at < every && !final)) return;
+    at = t; last = done;
+    progress(done, total, unit);
+  };
 }
 
 // the run's end, from the process bin/vh exec'd into (the same pid): its exit status and how long it took
@@ -53,6 +75,12 @@ if (on && E.OVH_ACTIVITY_PID === String(process.pid)) {
     if (done) return;
     done = true;
     const t0 = Number(E.OVH_ACTIVITY_T0), t = now();
-    write({ event: "end", run: RUN, t, cmd: CMD, exit: code ?? 0, duration: Number.isFinite(t0) ? Math.max(0, Math.round((t - t0) * 1000) / 1000) : null });
+    // bin/vh cancel's mark for this run, there while it stops it (tools/cancel.py): any exit but 0 under it is the cancel's
+    let cancelled = false, status = code ?? 0;
+    try {
+      const said = fs.readFileSync(path.join(path.dirname(LOG), "cancel", RUN), "utf8").trim();
+      if (status !== 0) { cancelled = true; if (status !== 130 && status !== 143) status = said === "143" ? 143 : 130; }
+    } catch { /* no mark */ }
+    write({ event: "end", run: RUN, t, cmd: CMD, exit: status, duration: Number.isFinite(t0) ? Math.max(0, Math.round((t - t0) * 1000) / 1000) : null, ...(cancelled ? { cancelled } : {}) });
   });
 }

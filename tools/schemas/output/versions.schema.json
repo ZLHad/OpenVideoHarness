@@ -1,0 +1,64 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/versions.schema.json",
+ "title": "bin/vh versions <project> --json",
+ "description": "The record of a project's films as bin/vh versions lists it, each with its state now (tools/versions.py; tools/desk/README.md 版本).",
+ "type": "object",
+ "required": ["version", "project", "record", "keep", "current", "kept_bytes", "versions", "events"],
+ "properties": {
+  "version": {"enum": [1]},
+  "project": {"type": "string"},
+  "record": {"type": "string"},
+  "keep": {"type": "integer"},
+  "current": {"type": "object"},
+  "kept_bytes": {"type": "integer"},
+  "versions": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": ["id", "n", "t", "at", "film", "file", "sidecar", "made_by", "from", "note", "changed", "size", "frames", "fps", "pixels", "span", "edit", "problems", "gone", "state", "check"],
+    "properties": {
+     "id": {"type": "string"},
+     "n": {"type": "integer"},
+     "t": {"type": ["number", "null"]},
+     "at": {"type": ["string", "null"]},
+     "film": {"type": "string"},
+     "file": {"type": ["string", "null"]},
+     "sidecar": {"type": ["string", "null"]},
+     "made_by": {"type": ["string", "null"]},
+     "from": {},
+     "note": {},
+     "changed": {"type": ["object", "null"]},
+     "size": {"type": ["integer", "null"]},
+     "frames": {"type": ["integer", "null"]},
+     "fps": {"type": ["number", "null"]},
+     "pixels": {"type": ["array", "null"], "items": {"type": "number"}},
+     "span": {"type": ["array", "null"], "items": {"type": "number"}},
+     "edit": {},
+     "problems": {},
+     "gone": {},
+     "state": {"type": "string"},
+     "check": {
+      "type": ["object", "null"],
+      "required": ["verdict", "at", "counts", "record"],
+      "properties": {
+       "verdict": {"type": "string"},
+       "at": {"type": "string"},
+       "counts": {
+        "type": "object",
+        "required": ["fail", "warn", "info"],
+        "properties": {
+         "fail": {"type": "integer"},
+         "warn": {"type": "integer"},
+         "info": {"type": "integer"}
+        }
+       },
+       "record": {"type": "string"}
+      }
+     }
+    }
+   }
+  },
+  "events": {"type": "array"}
+ }
+}

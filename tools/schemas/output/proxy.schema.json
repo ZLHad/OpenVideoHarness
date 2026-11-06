@@ -1,0 +1,87 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/proxy.schema.json",
+ "title": "bin/vh proxy <film | project> --json",
+ "description": "What a client scrubs with: its record, and state: full, refreshed or up to date (tools/proxy.py).",
+ "type": "object",
+ "required": [
+  "version",
+  "tool",
+  "source",
+  "source_ident",
+  "source_version",
+  "proxy",
+  "settings",
+  "fps",
+  "frames",
+  "duration",
+  "audio",
+  "made",
+  "windows",
+  "t",
+  "at",
+  "seconds",
+  "state"
+ ],
+ "properties": {
+  "version": {
+   "enum": [
+    1
+   ]
+  },
+  "tool": {
+   "type": "string"
+  },
+  "source": {
+   "type": "string"
+  },
+  "source_ident": {
+   "type": "object"
+  },
+  "source_version": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "proxy": {
+   "type": "string"
+  },
+  "settings": {
+   "type": "object"
+  },
+  "fps": {
+   "type": "number"
+  },
+  "frames": {
+   "type": "integer"
+  },
+  "duration": {
+   "type": "number"
+  },
+  "audio": {
+   "type": "boolean"
+  },
+  "made": {
+   "type": "string"
+  },
+  "windows": {
+   "type": [
+    "array",
+    "null"
+   ]
+  },
+  "t": {
+   "type": "number"
+  },
+  "at": {
+   "type": "string"
+  },
+  "seconds": {
+   "type": "number"
+  },
+  "state": {
+   "type": "string"
+  }
+ }
+}

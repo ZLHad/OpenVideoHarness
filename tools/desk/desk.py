@@ -21,6 +21,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent))
+import jsonerr   # noqa: E402
 
 
 def find(arg):
@@ -47,9 +48,13 @@ def main(argv):
     elif sub == "feedback":
         ap.add_argument("--round", help="only this gate page (1, 2b, E3 …)")
         ap.add_argument("--json", action="store_true", help="print the JSON record instead of the text")
+    else:
+        jsonerr.force()   # bin/vh desk data speaks JSON: a failure too
+        ap.add_argument("--json", action="store_true", help="it always is (a client may say so)")
     a = ap.parse_args(rest)
     project = find(a.project)
     if not project:
+        jsonerr.mark("no_project")
         return 2
     if sub == "serve":
         import server
@@ -60,8 +65,7 @@ def main(argv):
     if sub == "feedback":
         path, rec = F.latest(project, a.round)
         if not path:
-            print(f"no feedback{' for round ' + a.round if a.round else ''} in {project}/out/review/feedback/", file=sys.stderr)
-            return 1
+            return jsonerr.fail("not_found", f"no feedback{' for round ' + a.round if a.round else ''} in {project}/out/review/feedback/", rc=1)
         if a.json:
             print(json.dumps(rec, ensure_ascii=False, indent=1))
         else:
@@ -75,4 +79,4 @@ def main(argv):
 
 if __name__ == "__main__":
     import activity   # tools/activity.py: bin/vh exec's into this, so this process writes the run's end
-    sys.exit(activity.exiting(lambda: main(sys.argv[1:])))
+    sys.exit(activity.exiting(lambda: jsonerr.guard(lambda: main(sys.argv[1:]))))

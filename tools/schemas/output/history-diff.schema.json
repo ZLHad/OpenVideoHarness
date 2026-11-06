@@ -1,0 +1,66 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/history-diff.schema.json",
+ "title": "bin/vh history diff <project> [<file>] --json",
+ "description": "A unified diff between snapshots, or from one to now (tools/history.py).",
+ "type": "object",
+ "required": [
+  "version",
+  "tool",
+  "project",
+  "from",
+  "to",
+  "files",
+  "diff",
+  "skipped"
+ ],
+ "properties": {
+  "version": {
+   "enum": [
+    1
+   ]
+  },
+  "tool": {
+   "type": "string"
+  },
+  "project": {
+   "type": "string"
+  },
+  "from": {
+   "type": "string"
+  },
+  "to": {
+   "type": [
+    "string",
+    "null"
+   ]
+  },
+  "files": {
+   "type": "array",
+   "items": {
+    "type": "string"
+   }
+  },
+  "diff": {
+   "type": "string"
+  },
+  "skipped": {
+   "type": "array",
+   "items": {
+    "type": "object",
+    "required": [
+     "path",
+     "why"
+    ],
+    "properties": {
+     "path": {
+      "type": "string"
+     },
+     "why": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ }
+}

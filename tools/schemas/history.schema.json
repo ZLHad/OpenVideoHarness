@@ -1,0 +1,18 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/history.schema.json",
+ "title": "One line of a project's text history, .ovh/history/index.jsonl, version 1",
+ "description": "A snapshot of the small text files a person or an agent writes: each file's sha256, its bytes in .ovh/history/objects/<sha256> (tools/history.py).",
+ "type": "object",
+ "required": ["version", "id", "t", "at", "note", "files", "changed", "removed"],
+ "properties": {
+  "version": {"enum": [1]},
+  "id": {"type": "string"},
+  "t": {"type": "number"},
+  "at": {"type": "string"},
+  "note": {"type": ["string", "null"]},
+  "files": {"type": "object"},
+  "changed": {"type": "array", "items": {"type": "string"}},
+  "removed": {"type": "array", "items": {"type": "string"}}
+ }
+}

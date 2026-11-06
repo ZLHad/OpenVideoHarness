@@ -45,6 +45,12 @@ static_checks() {
   # shell: parse with the bash that will run it, lint, and ban commands that only exist on one platform
   n=0; while IFS= read -r f; do "$VH_BASH" -n "$f" || { bad "bash -n $f"; n=$((n + 1)); }; done < <(files bin/vh '*.sh')
   [ $n = 0 ] && ok "shell syntax ($("$VH_BASH" -c 'echo $BASH_VERSION'))"
+  # the system's bash too, on a machine whose first bash is another: CI's macOS job runs this very file under bash 3.2, which reads a heredoc
+  # inside $( ) as shell (a \' in a Python string there opens a quote): it would stop at the first line, where a run here says nothing
+  if [ -x /bin/bash ] && [ "$(/bin/bash -c 'echo $BASH_VERSION')" != "$("$VH_BASH" -c 'echo $BASH_VERSION')" ]; then
+    n=0; while IFS= read -r f; do /bin/bash -n "$f" || { bad "/bin/bash -n $f"; n=$((n + 1)); }; done < <(files bin/vh '*.sh')
+    [ $n = 0 ] && ok "shell syntax, the system's bash ($(/bin/bash -c 'echo $BASH_VERSION'))"
+  fi
   if command -v shellcheck >/dev/null; then
     if out=$(files bin/vh '*.sh' | xargs shellcheck -S warning 2>&1); then ok "shellcheck -S warning"; else echo "$out"; bad "shellcheck"; fi
   else skip "shellcheck" "not installed; CONTRIBUTING.md shows how to run it through uv"; fi
@@ -647,7 +653,7 @@ PY
            textcheck fonts "fonts nope" frames render determinism cues patch activity status gate desk \
            tts "tts $t/no-such" sheet "sheet $t/no-such.mp4" gif "gif $t/no-such.mp4" hf-init "hf-init $t/no-such" "hf-init $t/empty 4k" "hf-init $t/empty 2:3" \
            check "check --bogus" "check $t/no-such.mp4 --bogus" "check $t/no-such.mp4 --allow" "check $t/no-such.mp4 --against" "check $t/no-such.mp4 --against $t/no-such-ref.mp4" \
-           "check $t/no-such.mp4" "check $t/no-such.mp4 --json" \
+           "check $t/no-such.mp4" \
            captions "captions $t/empty --media-end" "captions $t/empty --cps" "captions $t/empty --en-max" "captions $t/empty --bogus" \
            "captions $t/no-such" "captions $t/empty" "captions $t/empty zh" mix "style check" \
            "mux $t/no-such.mp4 $t/no-such.wav $t/o.mp4" "mux $t/v.mp4 $t/a.wav $t/no-dir/o.mp4" \
@@ -5363,6 +5369,1476 @@ sys.exit(0 if d("hook=own, stop=E1, stop=E3") == d("stop=E1,E3") == d("stop = e1
 
 # bin/vh status's next step, stop by stop: who has it, what to do, the commands, what to read. Every section it sends an
 # agent to is there, and the older fields stay as they were
+projects_checks() {   # bin/vh projects and a project's identity: what bin/vh new writes, what a read leaves alone, --assign, a moved
+  # folder, a broken project as one row, what is not walked into, and the time on 30 projects
+  local t a b rc i base
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd -P); base="$t/many"; mkdir -p "$base"   # (a row's path is the real one, as status has it)
+  # bin/vh new writes the identity; status and new --json say the id; an older project has none, and reading writes nothing
+  a=$(OVH_PROJECTS="$base" vh new math ci-one --json 2>/dev/null)
+  mkdir -p "$base/old-one"; printf '# BRIEF：旧项目\n- Effort: quick\n' > "$base/old-one/BRIEF.md"
+  mkdir -p "$base/out/skipped" "$base/old-one/out/x" "$base/node_modules/y" "$base/.hidden/z"
+  for i in out/skipped old-one/out/x node_modules/y .hidden/z; do printf '# BRIEF\n' > "$base/$i/BRIEF.md"; done
+  mkdir -p "$base/group/docs"; printf '# BRIEF：放在 docs 里\n' > "$base/group/docs/BRIEF.md"
+  find "$base" | sort > "$t/before"
+  b=$(OVH_PROJECTS="$base" vh projects --json 2>&1); rc=$?
+  OVH_PROJECTS="$base" vh projects >"$t/human" 2>&1 || rc=$?
+  find "$base" | sort > "$t/after"
+  if [ $rc = 0 ] && cmp -s "$t/before" "$t/after" && python3 - "$a" "$b" "$base" <<'PY'
+import json, re, sys
+new, rec, base = json.loads(sys.argv[1]), json.loads(sys.argv[2]), sys.argv[3]
+one = json.load(open(new["project"] + "/.ovh/project.json"))
+rows = {r["name"]: r for r in rec["projects"]}
+ok = one["version"] == 1 and re.fullmatch(r"[0-9a-f]{32}", one["id"]) and re.match(r"\d{4}-\d\d-\d\dT", one["created"]) and new["id"] == one["id"]
+ok = ok and sorted(rows) == sorted([new["project"].split("/")[-1], "old-one", "group/docs"]) and rec["count"] == 3
+r = rows["old-one"]
+ok = ok and r["id"] is None and r["effort"] == "quick" and r["title"] == "旧项目" and r["error"] is None and r["path"] == base + "/old-one"
+r = rows[new["project"].split("/")[-1]]
+ok = ok and r["id"] == one["id"] and r["type"] == "01-math-science-explainer" and r["waiting_on"] == "agent" and r["state"] == "in_progress" and r["station"]["id"] == "1" \
+    and r["next_step"]["who"] == "agent" and r["last_activity"]["cmd"] == "new" and r["last_activity"]["state"] == "ok" and r["film"] is None
+sys.exit(0 if ok else 1)
+PY
+  then ok "projects: bin/vh new writes .ovh/project.json and says the id; the list has every folder holding BRIEF.md (not in out/, node_modules, hidden folders), with its state, next step and last activity; an older project's id is null; listing writes nothing"
+  else bad "bin/vh projects (exit $rc): $(printf '%s' "$a$b" | tail -c 500) $(diff "$t/before" "$t/after" | head -5)"; fi
+  # --assign writes the missing ones and no other; again changes nothing; a moved folder keeps its id; a copy is said
+  OVH_PROJECTS="$base" vh projects --assign --json > "$t/a1" 2>&1; rc=$?
+  OVH_PROJECTS="$base" vh projects --assign --json > "$t/a2" 2>&1
+  mv "$base/old-one" "$base/moved-one"
+  OVH_PROJECTS="$base" vh projects --json > "$t/a3" 2>&1
+  cp -R "$base/moved-one" "$base/copied-one"
+  OVH_PROJECTS="$base" vh projects --json > "$t/a4" 2>&1
+  if [ $rc = 0 ] && python3 - "$t" "$base" <<'PY'
+import json, sys
+t, base = sys.argv[1:]
+a1, a2, a3, a4 = (json.load(open(f"{t}/a{i}")) for i in (1, 2, 3, 4))
+ids = lambda rec: {r["name"]: r["id"] for r in rec["projects"]}   # noqa: E731
+one = ids(a1)
+ok = all(one.values()) and sorted(a1["assigned"]) == sorted([base + "/old-one", base + "/group/docs"]) and a2["assigned"] == [] and ids(a2) == one
+ok = ok and ids(a3)["moved-one"] == one["old-one"]
+rows = {r["name"]: r for r in a4["projects"]}
+ok = ok and rows["copied-one"]["same_id_as"] == [base + "/moved-one"] and rows["moved-one"]["same_id_as"] == [base + "/copied-one"]
+sys.exit(0 if ok else 1)
+PY
+  then ok "projects --assign: gives only the projects without one an id, again changes nothing; a moved folder keeps its id; a copied folder is said (same_id_as)"
+  else bad "bin/vh projects --assign (exit $rc): $(tail -c 300 "$t/a1") $(tail -c 300 "$t/a4")"; fi
+  rm -rf "$base/copied-one"
+  # a project that cannot be read: one row with an error, the others as they were; the same through a real one, a BRIEF with no read permission
+  a=$(python3 - "$base" <<'PY' 2>&1
+import json, sys
+sys.path.insert(0, "tools")
+import projects, status
+base, real = sys.argv[1], status.collect
+def broken(project, **kw):
+    if project.name == "moved-one":
+        raise OSError("made up")
+    return real(project, **kw)
+status.collect = broken
+import os
+os.environ["OVH_PROJECTS"] = base
+rec = projects.listing()
+rows = {r["name"]: r for r in rec["projects"]}
+print("ok" if rows["moved-one"]["error"] == "OSError: made up" and rows["moved-one"]["state"] is None and rows["moved-one"]["id"] and rows["group/docs"]["error"] is None and rec["count"] == 3 else json.dumps(rec)[:600])
+PY
+  )
+  [ "$a" = ok ] && ok "projects: a project that cannot be read is one row with an error, and the list goes on" || bad "projects on a broken project: $a"
+  # a --root: added to the list, the same folder twice is one row; one that is not there is a usage error; the current film
+  mkdir -p "$t/other/p2/out" "$t/empty"; printf '# BRIEF：另一个\n- Effort: quick\n' > "$t/other/p2/BRIEF.md"; : > "$t/other/p2/out/final.mp4"
+  a=$(OVH_PROJECTS="$t/empty" vh projects --root "$t/other" --root "$t/other/" --json 2>&1); rc=$?
+  b=$(OVH_PROJECTS="$t/empty" vh projects --root "$t/nope" 2>&1); i=$?
+  if [ $rc = 0 ] && [ $i = 2 ] && python3 - "$a" <<'PY'
+import json, sys
+rec = json.loads(sys.argv[1])
+sys.exit(0 if rec["count"] == 1 and rec["projects"][0]["name"] == "p2" and rec["projects"][0]["film"]["path"] == "out/final.mp4" and [r["from"] for r in rec["roots"]] == ["OVH_PROJECTS", "repo", "--root"] else 1)
+PY
+  then ok "projects --root: looked in too, the same folder once; the film it names; a root that is not there is a usage error (exit 2)"
+  else bad "bin/vh projects --root (exit $rc, $i): $(printf '%s' "$a$b" | tail -c 400)"; fi
+  # a record of a later version is left as it is and said; a link and its folder go by the folder's name; an empty --root is refused; a name that is not UTF-8 prints
+  a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PY' 2>&1
+import json, os, subprocess, sys
+sh, root, t = sys.argv[1:]
+base = f"{t}/odd"
+os.makedirs(base)
+bad = []
+env = dict(os.environ, OVH_PROJECTS=base)
+def V(*a):
+    return subprocess.run([sh, f"{root}/bin/vh", *a], capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL)
+def brief(p):
+    os.makedirs(p, exist_ok=True)
+    with open(f"{p}/BRIEF.md", "w") as f: f.write("# BRIEF：x\n")
+    return p
+later = brief(f"{base}/later"); os.makedirs(f"{later}/.ovh")
+with open(f"{later}/.ovh/project.json", "w") as f: json.dump({"version": 2, "id": "keep-me"}, f)
+r = V("projects", "--assign", "--json"); d = json.loads(r.stdout)
+row = next(x for x in d["projects"] if x["name"] == "later")
+if not (row["id"] is None and "later" in row.get("assign_error", "") and sorted(os.listdir(f"{later}/.ovh")) == ["project.json"] and json.load(open(f"{later}/.ovh/project.json"))["id"] == "keep-me"):
+    bad.append(f"a record of a later version: {row}, {os.listdir(later + '/.ovh')}")
+h = V("projects", "--assign").stdout
+if "later bin/vh" not in h:
+    bad.append(f"a record of a later version, in the listing: {h[-300:]}")
+real = brief(f"{base}/zz-real"); os.symlink(real, f"{base}/aa-link")
+d = json.loads(V("projects", "--json").stdout)
+names = [x["name"] for x in d["projects"] if x["path"] == os.path.realpath(real)]
+if names != ["zz-real"]:
+    bad.append(f"a folder and a link to it: {names}")
+for root_word in ("", "  "):
+    r = subprocess.run([sh, f"{root}/bin/vh", "projects", "--root", root_word, "--json"], capture_output=True, text=True, env=env, cwd=t, stdin=subprocess.DEVNULL)
+    if r.returncode != 2 or json.loads(r.stdout)["error"]["code"] != "usage":
+        bad.append(f"an empty --root: exit {r.returncode}, {r.stdout[:200]}")
+try:
+    os.makedirs(os.fsencode(f"{base}/") + b"caf\xe9")
+    with open(os.fsencode(f"{base}/") + b"caf\xe9/BRIEF.md", "w") as f: f.write("# BRIEF\n")
+except OSError:   # (macOS: refused by the file system; the same through what prints)
+    sys.path.insert(0, f"{root}/tools")
+    import activity
+    if activity._text({"name": "caf\udce9", "l": ["caf\udce9"]}) != {"name": "caf\\xe9", "l": ["caf\\xe9"]}:
+        bad.append("activity._text")
+else:
+    for args in (["--json"], []):
+        r = V("projects", *args)
+        if r.returncode != 0 or "caf\\xe9" not in r.stdout.replace("\\\\", "\\"):
+            bad.append(f"a name that is not UTF-8, {args}: exit {r.returncode}, {r.stderr[-300:]}")
+print("\n".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "projects: a record of a later version is left as it is and said; a folder and a link to it go by the folder's name; an empty --root is a usage error; a name that is not UTF-8 prints" \
+    || bad "bin/vh projects on odd trees: $(printf '%s' "$a" | tail -c 900)"
+  # the time: 30 projects, each with a log of a few hundred lines
+  mkdir -p "$t/thirty"
+  python3 - "$t/thirty" <<'PY'
+import json, os, sys
+for i in range(30):
+    d = f"{sys.argv[1]}/p{i:02d}"
+    os.makedirs(d + "/.ovh"); os.makedirs(d + "/out/review")
+    open(d + "/BRIEF.md", "w").write("# BRIEF：第 %d 支\n- Effort: standard\n" % i)
+    open(d + "/REVIEW.md", "w").write("# REVIEW\n")
+    with open(d + "/.ovh/activity.jsonl", "w") as f:
+        for k in range(200):
+            f.write(json.dumps({"v": 1, "event": "start", "run": f"{k}-1", "t": 1790000000 + k, "cmd": "render", "args": ["a"], "cwd": "/x", "pid": 1}) + "\n")
+            f.write(json.dumps({"v": 1, "event": "end", "run": f"{k}-1", "t": 1790000000.5 + k, "cmd": "render", "exit": 0, "duration": 0.5}) + "\n")
+PY
+  a=$(OVH_PROJECTS="$t/thirty" vh projects --json 2>&1); rc=$?
+  if [ $rc = 0 ] && python3 - "$a" <<'PY'
+import json, sys
+rec = json.loads(sys.argv[1])
+print(f"{rec['count']} projects in {rec['seconds']} s")
+sys.exit(0 if rec["count"] == 30 and rec["seconds"] < 15 else 1)
+PY
+  then ok "projects: 30 projects with logs of 400 lines stay quick (a bound for a slow runner, 15 s)"
+  else bad "bin/vh projects on 30 projects (exit $rc): $(printf '%s' "$a" | tail -c 300)"; fi
+  rm -rf "$t"
+}
+
+contract_checks() {   # what a client relies on (tools/test_contract.py makes a small project and runs the commands): each --json output
+  # against tools/schemas/output/, a field removed fails; each command's failures in tools/jsonerr.py's shape, with the exit status
+  # they always had; why a run failed in the activity log, and no key in what it says. No network, no paid call
+  local t p a b c rc k m
+  t=$(mktemp "${TMPDIR:-/tmp}/vh-contract.XXXXXX")
+  python3 tools/test_contract.py "$VH_BASH" > "$t" 2>&1; rc=$?
+  while IFS=$'\t' read -r k m; do
+    case $k in ok) ok "$m" ;; bad) bad "$m" ;; esac
+  done < "$t"
+  { grep -q '^end' "$t" && [ "$(grep -c '^ok\|^bad' "$t")" = 3 ]; } || bad "tools/test_contract.py stopped (exit $rc): $(tail -n 4 "$t" | tr '\n' ' ' | tail -c 600)"
+  rm -f "$t"
+  # the schemas and the real jsonschema, as for tools/schemas/
+  if command -v uv >/dev/null 2>&1; then
+    if a=$(uv run -q --no-project --with "jsonschema==4.25.1" python - 2>&1 <<'PY'
+import json
+from pathlib import Path
+from jsonschema import Draft202012Validator
+n = 0
+for f in sorted(Path("tools/schemas/output").glob("*.schema.json")):
+    Draft202012Validator.check_schema(json.loads(f.read_text(encoding="utf-8")))
+    n += 1
+print(n)
+PY
+    ); then ok "tools/schemas/output: $a schemas, each a valid JSON Schema to the real jsonschema"
+    else bad "tools/schemas/output against the real jsonschema: $(printf '%s' "$a" | tail -c 500)"; fi
+  else skip "tools/schemas/output against the real jsonschema" "no uv"; fi
+  # schemalite.undeclared: a field no schema names is said, a map of data is not, through $ref, items and anyOf
+  a=$(python3 - <<'PY' 2>&1
+import sys
+sys.path.insert(0, "tools")
+import schemalite as L
+s = {"type": "object", "properties": {"a": {"type": "object", "properties": {"b": {"type": "integer"}}}, "m": {"type": "object"}, "r": {"$ref": "#/$defs/x"}, "l": {"type": "array", "items": {"$ref": "#/$defs/x"}},
+                                      "o": {"anyOf": [{"type": "null"}, {"type": "object", "properties": {"y": {}}}]}},
+     "$defs": {"x": {"type": "object", "properties": {"z": {}}}}}
+v = {"new": 1, "a": {"b": 1, "c": 2}, "m": {"any": 1}, "r": {"z": 1, "w": 2}, "l": [{"z": 1}, {"q": 1}], "o": {"y": 1, "u": 2}}
+got, want = sorted(L.undeclared(s, v)), sorted(["$.new", "$.a.c", "$.r.w", "$.l[1].q", "$.o.u"])
+print("ok" if got == want and L.undeclared(s, {"a": {"b": 1}, "o": None}) == [] else got)
+PY
+  )
+  [ "$a" = ok ] && ok "tools/schemalite.py undeclared: a key no properties names is said, in \$ref, items and anyOf; a map of data is left alone" || bad "schemalite.undeclared: $a"
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd)
+  OVH_PROJECTS="$t/projects" vh new math ci-contract >/dev/null 2>&1
+  p=$(ls -d "$t"/projects/*-ci-contract)
+  # the helper itself: argparse, words in a SystemExit and a traceback each get the shape; what printed its own record does not;
+  # exits from a signal say nothing; a mark names the code; with no --json nothing on stdout
+  a=$(python3 - "$ROOT" <<'PY' 2>&1
+import json, subprocess, sys
+root = sys.argv[1]
+def go(body, *args):
+    r = subprocess.run([sys.executable, "-c", f"import sys; sys.path.insert(0, {root + '/tools'!r}); import jsonerr\n{body}", *args], capture_output=True, text=True)
+    return r.returncode, r.stdout, r.stderr
+bad = []
+for name, body, want, code in (
+    ("argparse", "import argparse\ndef m():\n    ap = argparse.ArgumentParser(); ap.add_argument('--json', action='store_true'); ap.add_argument('x'); ap.parse_args()\nsys.exit(jsonerr.guard(m))", 2, "usage"),
+    ("words", "def m():\n    sys.exit('it went wrong')\nsys.exit(jsonerr.guard(m))", 1, "failed"),
+    ("traceback", "def m():\n    raise ValueError('broke')\nsys.exit(jsonerr.guard(m))", 1, "failed"),
+    ("a mark", "def m():\n    print('a line', file=sys.stderr); jsonerr.mark('no_project', 'look there'); return 2\nsys.exit(jsonerr.guard(m))", 2, "no_project"),
+    ("nothing said", "def m():\n    return 3\nsys.exit(jsonerr.guard(m))", 3, "failed")):
+    rc, out, err = go(body, "--json")
+    try:
+        e = json.loads(out)["error"]
+    except (ValueError, KeyError):
+        e = {}
+    if rc != want or e.get("code") != code or not e.get("message"):
+        bad.append(f"{name}: exit {rc}, {out!r}, {err[-120:]!r}")
+for name, body, want in (("its own record", "def m():\n    print(json.dumps({'version': 1, 'verdict': 'fail'})); return 1\nimport json\nsys.exit(jsonerr.guard(m))", 1),
+                         ("a signal", "def m():\n    print('stopped', file=sys.stderr); return 143\nsys.exit(jsonerr.guard(m))", 143)):
+    rc, out, err = go(body, "--json")
+    if rc != want or '"error"' in out:
+        bad.append(f"{name}: exit {rc}, {out!r}")
+rc, out, err = go("def m():\n    return jsonerr.fail('not_found', 'no such thing', rc=1)\nsys.exit(jsonerr.guard(m))")
+if rc != 1 or out or "no such thing" not in err:
+    bad.append(f"no --json: exit {rc}, {out!r}, {err!r}")
+print("\n".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "tools/jsonerr.py: a usage error from argparse, words in a SystemExit, a traceback and a marked failure all come out in the shape; a tool's own record and an exit from a signal are left alone; without --json nothing on stdout" \
+    || bad "tools/jsonerr.py: $a"
+  # why a run failed: the note a tool or bin/vh leaves, read back by bin/vh activity (--json: the run's error; the listing says it; --follow's line)
+  rm -f "$p/.ovh/activity.jsonl"
+  vh versions compare "$p" v1 v2 --t 1 >/dev/null 2>&1; vh check "$p/out/nofile.mp4" >/dev/null 2>&1; vh edit build "$p" >/dev/null 2>&1
+  vh timeline "$p" >/dev/null 2>&1   # (no error note: a tool with no helper yet says nothing, and an exit of its own)
+  a=$(python3 - "$p/.ovh/activity.jsonl" <<'PY' 2>&1
+import json, sys
+recs = [json.loads(x) for x in open(sys.argv[1], encoding="utf-8")]
+notes = [r for r in recs if r["event"] == "note" and r.get("level") == "error"]
+print("; ".join(f"{r['cmd']}/{r['code']}" for r in notes))
+PY
+  )
+  b=$(vh activity "$p" --json | python3 -c 'import json, sys; print(" | ".join(":".join((r["cmd"], r["state"], str((r["error"] or {}).get("code")))) for r in json.load(sys.stdin)["runs"]))' 2>&1)
+  c=$(vh activity "$p" 2>&1)
+  if [ "$a" = "versions/not_found; check/not_found; edit/not_found" ] && case "$b" in "versions:failed:not_found | check:failed:not_found | edit:failed:not_found | timeline:"*":None") true ;; *) false ;; esac && case "$c" in *"exit 1"*"v1"*"no such video"*"no edit.json"*) true ;; *) false ;; esac
+  then ok "activity: a run that failed says why (a note with level error, from a tool or bin/vh itself; --json: the run's error; the listing shows it)"
+  else bad "why a run failed: notes '$a', runs '$b', listing $(printf '%s' "$c" | tail -c 400)"; fi
+  # a key typed by mistake, in what a command repeats of its arguments: never in the log, in bin/vh activity or in --json's error; only on the person's own stderr
+  rm -f "$p/.ovh/activity.jsonl"
+  vh history save "$p" --api-key SECRETVALUE111 --json >"$t/k1" 2>"$t/k1.err"; rc=$?
+  vh peaks "$p" --token=SECRETVALUE222 --json >"$t/k2" 2>/dev/null; b=$?
+  vh check "$p" --key=SECRETVALUE666 --json >"$t/k3" 2>/dev/null; c=$?
+  vh activity "$p" > "$t/k4" 2>&1; vh activity "$p" --json > "$t/k5" 2>&1
+  m=$(python3 - "$t" "$p/.ovh/activity.jsonl" <<'PY' 2>&1
+import json, sys
+t, log = sys.argv[1:]
+codes = [json.load(open(f"{t}/k{i}"))["error"]["code"] for i in (1, 2, 3)]
+notes = [r for r in map(json.loads, open(log, encoding="utf-8")) if r.get("level") == "error"]
+want = ["--api-key …", "--token=…", "--key=…"]
+print("ok" if codes == ["usage"] * 3 and len(notes) == 3 and all(w in n["summary"] for w, n in zip(want, notes)) and all(w in json.load(open(f"{t}/k{i}"))["error"]["message"] for w, i in zip(want, (1, 2, 3))) else [codes, notes])
+PY
+  )
+  if [ "$rc:$b:$c:$m" = 2:2:2:ok ] && ! grep -l SECRETVALUE "$p/.ovh/activity.jsonl" "$t/k1" "$t/k2" "$t/k3" "$t/k4" "$t/k5" >/dev/null && grep -q SECRETVALUE111 "$t/k1.err"; then ok "errors: a key typed by mistake is … in the log's note, in bin/vh activity and in --json's error, from a tool (history, peaks) and from bin/vh itself (check)"
+  else bad "a key in an error: exit $rc, $b, $c, $m: $(grep -l SECRETVALUE "$p/.ovh/activity.jsonl" "$t"/k? | tr '\n' ' ')"; fi
+  # the filter's rules, one table for bash (through what bin/vh new repeats of an option it does not know) and Python
+  a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PY' 2>&1
+import json, os, subprocess, sys
+sh, root, t = sys.argv[1:]
+sys.path.insert(0, f"{root}/tools")
+import activity
+table = (("--api-key SECRETVALUE111", "--api-key …"), ("--api-key --json", None), ("--token=SECRETVALUE222", "--token=…"), ("GEMINI_API_KEY=abc123", "GEMINI_API_KEY=…"), ("cred=abc", "cred=…"), ("Authorization: Bearer abc.def", "Authorization: … …"),
+         ("Bearer abc.def", "Bearer …"), ("Cookie: abc", "Cookie: …"), ("token sk-ant-api03-SECRETVALUE1234567890abcdefgh", "token …"), ("AQ.Ab8RN6Lxyz_12345678 was refused", "… was refused"), ("AIzaSyA1234567890abcdefghijklmnop", "…"),
+         ("ghp_1234567890abcdefghij", "…"), ("{\"api_key\":\"sk-ant-api03-abcdefgh12345678\"}", "{\"api_key\":\"…\"}"), ("没有这个文件：sk-ant-abcdefgh12345678，请看", "没有这个文件：…，请看"), ("(sk-ant-abcdefgh12345678),", "(…),"),
+         ("https://u:pw@example.com/a?sig=abc&v=1#frag", "https://…@example.com/a?sig=…&v=…#…"), ("-k shortval", "-k …"), ("-abc", "-a…"), ("a" * 40, "…"), ("Ab3dEf6.hIj9kLm2n-opQ", "…"), ("0123456789abcdef0123", "…"),
+         ("\udcffsk-ant-abcdefgh12345678", "\\xff…"), ("no such video: /tmp/a b/nofile.mp4", None), ("two  spaces\nand a line", None), ("edit.json: S01: no such thing", None), ("2026-11-06-ci-contract", None), ("keepme.wav --crf 23 --out=a.wav foo=bar", None), ("FOO_BAR=baz", "FOO_BAR=…"), ("Foo=bar", None), ("--bogus word", None), ("片子.mp4", None), ("-5 and 1.5", None))
+bad = []
+# the bash a Mac has too, and a UTF-8 locale too: under bash 3.2 a range in a pattern goes by the locale, and there [A-Z] takes b
+shells = [sh] + [b for b in ("/bin/bash",) if b != sh and os.path.exists(b)]
+for typed, want in table:
+    want = typed if want is None else want
+    p = activity._text(activity.scrub(typed))
+    if p != want:
+        bad.append(f"{typed!r}: Python {p!r}, not {want!r}")
+    for s in shells:
+        for loc in ({}, {"LC_ALL": "en_US.UTF-8"}):
+            r = subprocess.run([s, f"{root}/bin/vh", "new", "short", "ci-never-made", typed, "--json"], capture_output=True, text=True, errors="replace", cwd=t, env=dict(os.environ, **loc))
+            q = json.loads(r.stdout)["error"]["message"] if r.stdout.strip() else r.stderr
+            if q != "unknown option: " + want:
+                bad.append(f"{typed!r}: {s} {loc}: {q!r}, not {want!r}")
+    if activity.scrub(p) != p:
+        bad.append(f"{typed!r}: said twice, {activity.scrub(p)!r}")
+print("\n".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "errors: tools/activity.py's scrub and bin/vh's act_scrub hide the same things: what a start line hides of an argument, URL query values, what looks like a key (AQ. and sk- tokens too), inside quotes and punctuation; a message's other words and its white space stay" \
+    || bad "the key filter: $(printf '%s' "$a" | tail -c 900)"
+  # a closed pipe is no failure: bin/vh … | head leaves no traceback, no note and the exit it always had
+  a=$(python3 - "$ROOT" <<'PY' 2>&1
+import subprocess, sys
+root = sys.argv[1]
+body = "def m():\n    raise BrokenPipeError(32, 'closed')\ntry:\n    sys.exit(jsonerr.guard(m))\nexcept BrokenPipeError:\n    print('raised'); sys.exit(0)"
+r = subprocess.run([sys.executable, "-c", f"import sys; sys.path.insert(0, {root + '/tools'!r}); import jsonerr\n{body}"], capture_output=True, text=True)
+print("ok" if r.stdout.strip() == "raised" and "Traceback" not in r.stderr else [r.returncode, r.stdout, r.stderr[-200:]])
+PY
+  )
+  python3 - "$p/.ovh/activity.jsonl" <<'PY'
+import json, sys, time
+with open(sys.argv[1], "w") as f:
+    for i in range(3000):
+        f.write(json.dumps({"v": 1, "event": "start", "run": f"1-{i}", "t": time.time() - 9000 + i, "cmd": "x" * 40, "args": ["y" * 30], "pid": 0}) + "\n")
+        f.write(json.dumps({"v": 1, "event": "end", "run": f"1-{i}", "t": time.time() - 9000 + i, "cmd": "x" * 40, "exit": 0, "duration": 1}) + "\n")
+PY
+  b=$({ vh activity "$p" --limit 3000 2>"$t/pipe.err"; echo "$?" >"$t/pipe.rc"; } | head -c 5 | wc -c | tr -d ' ')
+  c=$(grep -c Traceback "$t/pipe.err")
+  if [ "$a" = ok ] && [ "$b" = 5 ] && [ "$c" = 0 ] && [ "$(wc -l < "$t/pipe.err" | tr -d ' ')" -le 2 ]; then ok "errors: a closed pipe is no failure: tools/jsonerr.py lets it through, with no traceback and no note"
+  else bad "a closed pipe: $a, $b bytes, exit $(cat "$t/pipe.rc"), $c tracebacks: $(tail -c 300 "$t/pipe.err")"; fi
+  # the page tools: render's and patch's own failures, with a stand-in browser (no drawing: they stop before one starts)
+  if command -v node >/dev/null 2>&1; then
+    rm -f "$p/.ovh/activity.jsonl"
+    CHROME_PATH=/bin/sh vh render "$p" --frames 0:1 >/dev/null 2>&1; rc=$?
+    a=$(python3 -c 'import json, sys; print([r["code"] for r in map(json.loads, open(sys.argv[1], encoding="utf-8")) if r.get("level") == "error"])' "$p/.ovh/activity.jsonl" 2>&1)
+    [ "$rc" = 2 ] && [ "$a" = "['failed']" ] && ok "activity: bin/vh render's failure before it draws is in the log too" || bad "render's failure in the log: exit $rc, $a"
+    rm -f "$t/n.jsonl"
+    OVH_ACTIVITY_LOG="$t/n.jsonl" OVH_ACTIVITY_RUN=1-n OVH_ACTIVITY_CMD=render node --input-type=module -e "import { error, note } from '$ROOT/tools/film/activity.mjs'; error('a key sk-ant-abcdefgh12345678 here'); note('made with AQ.Ab8RN6Lxyz_12345678');" >/dev/null 2>&1
+    a=$(python3 -c 'import json, sys; print([r["summary"] for r in map(json.loads, open(sys.argv[1], encoding="utf-8"))])' "$t/n.jsonl" 2>&1)
+    [ "$a" = "['a key … here', 'made with …']" ] && ok "activity: the page tools' notes drop what looks like a key" || bad "the page tools' notes: $a"
+  else skip "render's failure in the log" "needs node"; fi
+  rm -rf "$t"
+}
+
+peaks_checks() {   # bin/vh peaks on a film with a known sound: the bins, the cache beside the proxies, a repeat that starts no ffmpeg, a source
+  # that changed; what has no sound; bin/vh status's media: only reads, with no ffmpeg at all, each path once it exists, what is out of date
+  local t p a b rc rc2 c
+  command -v ffmpeg >/dev/null || { skip "bin/vh peaks and status's media" "needs ffmpeg"; return; }
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd); p="$t/p"
+  mkdir -p "$p/out" "$p/audio" "$t/nof"; printf '# BRIEF\n- Effort: quick\n' > "$p/BRIEF.md"
+  printf '#!/bin/sh\necho "this ffmpeg should not run" >&2; exit 9\n' > "$t/nof/ffmpeg"; cp "$t/nof/ffmpeg" "$t/nof/ffprobe"; chmod +x "$t/nof/ffmpeg" "$t/nof/ffprobe"
+  a=$(vh status "$p" --json | python3 -c 'import json, sys; m = json.load(sys.stdin)["media"]; print(m["film"], m["proxy"], m["thumbs"], m["peaks"], m["stale"])')
+  [ "$a" = "None None None None []" ] && ok "status media: all null with no film" || bad "status media with no film: $a"
+  # one second of silence, one of a sine at full scale; a film with no sound
+  ffmpeg -nostdin -v error -f lavfi -i "anullsrc=r=44100:cl=mono:d=1" -f lavfi -i "sine=f=440:r=44100:d=1,volume=8" -filter_complex "[0][1]concat=n=2:v=0:a=1" -c:a pcm_s16le "$p/audio/mix.wav"
+  ffmpeg -nostdin -v error -f lavfi -i testsrc=s=160x90:r=10:d=2 -i "$p/audio/mix.wav" -pix_fmt yuv420p -c:a aac -shortest "$p/out/film.mp4"
+  ffmpeg -nostdin -v error -f lavfi -i testsrc=s=160x90:r=10:d=1 -pix_fmt yuv420p "$t/mute.mp4"
+  a=$(vh peaks "$p/audio/mix.wav" --bins 4 --json 2>&1); rc=$?
+  b=$(PATH="$t/nof:$PATH" vh peaks "$p/audio/mix.wav" --bins 4 --json 2>&1); rc2=$?
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && python3 - "$a" "$b" "$p" <<'PY'
+import json, os, sys
+a, b, p = json.loads(sys.argv[1]), json.loads(sys.argv[2]), sys.argv[3]
+ok = a["version"] == 1 and a["bins"] == 4 and len(a["peaks"]) == 4 and a["state"] == "made" and b["state"] == "up to date" and a["peaks"] == b["peaks"] and a["source"] == "audio/mix.wav"
+quiet, loud = a["peaks"][:2], a["peaks"][2:]
+ok = ok and all(abs(lo) < 0.02 and abs(hi) < 0.02 for lo, hi in quiet) and all(-1 <= lo < -0.5 and 0.5 < hi <= 1 for lo, hi in loud) and abs(a["duration"] - 2) < 0.01
+f = f"{p}/out/proxy/audio-mix.peaks-4.json"
+s = os.stat(f"{p}/audio/mix.wav")
+ok = ok and os.path.isfile(f) and json.load(open(f))["source_ident"]["size"] == s.st_size
+sys.exit(0 if ok else 1)
+PY
+  then ok "peaks: min and max per bin (the silence near 0, the sine near full scale), cached beside the proxies with its source's size and time; a repeat starts no ffmpeg"
+  else bad "bin/vh peaks (exit $rc, $rc2): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300)"; fi
+  # the source changed; another count; the default's name; a project means its film; outside a project; no sound; bad arguments
+  sleep 0.01; python3 -c 'import os, sys; f = sys.argv[1]; s = os.stat(f); os.utime(f, (s.st_atime, s.st_mtime + 5))' "$p/audio/mix.wav"
+  a=$(vh peaks "$p/audio/mix.wav" --bins 4 --json 2>&1 | python3 -c 'import json, sys; print(json.load(sys.stdin)["state"])')
+  b=$(vh peaks "$p" --json 2>&1 | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d["source"], d["bins"] > 100)')
+  cp "$p/audio/mix.wav" "$t/outside.wav"
+  vh peaks "$t/outside.wav" >/dev/null 2>&1; c=$?
+  vh peaks "$t/mute.mp4" --json >"$t/o1" 2>/dev/null; rc=$?
+  vh peaks "$t/no-such" --json >"$t/o2" 2>/dev/null; rc2=$?
+  if [ "$a" = made ] && [ "$b" = "out/film.mp4 True" ] && [ -f "$p/out/proxy/film.peaks.json" ] && [ "$c" = 0 ] && [ -f "$t/proxy/outside.peaks.json" ] && [ "$rc:$rc2" = 1:2 ] && python3 - "$t" <<'PY'
+import json, sys
+t = sys.argv[1]
+sys.exit(0 if json.load(open(f"{t}/o1"))["error"]["code"] == "not_found" and json.load(open(f"{t}/o2"))["error"]["code"] == "no_project" else 1)
+PY
+  then ok "peaks: a source that changed is read again; a project means its film; outside a project, proxy/ beside the file; no sound is exit 1 and no such file exit 2, in the error's shape"
+  else bad "bin/vh peaks: '$a' '$b' exit $c, $rc, $rc2: $(cat "$t/o1" "$t/o2" | tail -c 300)"; fi
+  # what it reads: high tones, one channel alone, two in opposite phase, more than two; a block's doubling; a record of another shape; a folder that takes no file
+  a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PY' 2>&1
+import array, io, json, os, subprocess, sys
+sh, root, t = sys.argv[1:]
+sys.path.insert(0, f"{root}/tools")
+bad = []
+def V(*a):
+    return subprocess.run([sh, f"{root}/bin/vh", *a], capture_output=True, text=True, stdin=subprocess.DEVNULL)
+os.makedirs(f"{t}/s", exist_ok=True)
+for name, expr, lo, hi in (("6 kHz", "0.9*sin(2*PI*6000*t)", 0.85, 0.95), ("3.9 kHz", "0.9*sin(2*PI*3900*t)", 0.85, 0.95), ("left only", "0.8*sin(2*PI*440*t)|0", 0.75, 0.85), ("opposite phase", "0.8*sin(2*PI*440*t)|-0.8*sin(2*PI*440*t)", 0.75, 0.85),
+                           ("third of three", "0|0|0.8*sin(2*PI*440*t)", 0.75, 0.85), ("a quiet mono", "0.1*sin(2*PI*440*t)", 0.08, 0.12)):
+    f = f"{t}/s/{name.replace(' ', '-')}.wav"
+    subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-y", "-f", "lavfi", "-i", f"aevalsrc={expr}:s=48000:d=1", f], check=True)
+    r = V("peaks", f, "--bins", "4", "--json")
+    d = json.loads(r.stdout) if r.returncode == 0 else {}
+    want = len(expr.split("|"))
+    if not (d.get("channels") == want and d.get("rate") == 48000 and abs(d.get("samples", 0) - 48000) < 2048 and abs(d.get("duration", 0) - 1) < 0.05 and all(lo < mx < hi and -hi < mn < -lo for mn, mx in d.get("peaks", [[9, 9]]))):
+        bad.append(f"{name}: exit {r.returncode}, channels {d.get('channels')}, {d.get('peaks')}, {r.stderr[-200:]}")
+# blocks: min and max of the whole, whatever the chunks and however often a block doubled; never more than cap
+import peaks
+for n, cap in ((5, 8), (8, 8), (9, 8), (100, 8), (100001, 16), (1 << 21, 64)):
+    a = array.array("h", ((i * 7919) % 40001 - 20000 for i in range(n)))
+    if sys.byteorder == "big":
+        a.byteswap()
+    mins, maxs, total = peaks.blocks(io.BytesIO(a.tobytes()).read, cap=cap)
+    if sys.byteorder == "big":
+        a.byteswap()
+    if total != n or min(mins) != min(a) or max(maxs) != max(a) or len(mins) > cap + 1 or len(mins) != len(maxs):
+        bad.append(f"blocks {n}, cap {cap}: {total}, {min(mins)}, {max(maxs)}, {len(mins)} blocks")
+    b = peaks.bins_of(mins, maxs, 4)
+    if len(b) != min(4, len(mins)) or min(x[0] for x in b) != round(min(a) / 32768, 4) or max(x[1] for x in b) != round(max(a) / 32768, 4):
+        bad.append(f"bins of {n}, cap {cap}: {b}")
+# a record of another shape, or another tool's rate, is made again; garbage too
+f = f"{t}/s/6-kHz.wav"
+rec = f"{t}/s/proxy/6-kHz.peaks-4.json"
+good = json.load(open(rec))
+for name, x in (("a list", "[1]"), ("no list of peaks", json.dumps(dict(good, peaks=7))), ("a peak of another shape", json.dumps(dict(good, peaks=[1, 2, 3, 4]))), ("no duration", json.dumps({k: v for k, v in good.items() if k != "duration"})), ("the old rate", json.dumps(dict(good, rate=8000))), ("garbage", "garbage")):
+    with open(rec, "w") as o: o.write(x)
+    r = V("peaks", f, "--bins", "4", "--json")
+    d = json.loads(r.stdout) if r.returncode == 0 else {}
+    r2 = V("peaks", f, "--bins", "4")
+    if d.get("state") != "made" or "up to date" not in r2.stdout:
+        bad.append(f"a record that is {name}: exit {r.returncode}, {d.get('state')}, {r.stderr[-200:]}")
+# a folder that takes no file: the record on stdout all the same, said on stderr
+ro = f"{t}/ro"; os.makedirs(ro); subprocess.run(["cp", f, f"{ro}/r.wav"], check=True); os.chmod(ro, 0o555)
+r = V("peaks", f"{ro}/r.wav", "--bins", "4", "--json")
+os.chmod(ro, 0o755)
+if os.geteuid() != 0:
+    d = json.loads(r.stdout) if r.returncode == 0 and r.stdout.strip() else {}
+    if not (len(d.get("peaks", [])) == 4 and d.get("state") == "made" and "could not be kept" in r.stderr):
+        bad.append(f"a read-only folder: exit {r.returncode}, {r.stdout[:120]}, {r.stderr[-200:]}")
+print("\n".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "peaks: every channel kept and 48 kHz: 6 kHz, one channel alone, opposite phase and the third of three read as they are; blocks that double keep the memory bounded and the extremes whole; a record of another shape is made again; a read-only folder still gets the record on stdout" \
+    || bad "bin/vh peaks, what it reads: $(printf '%s' "$a" | tail -c 1200)"
+  # status's media: the film from versions, each path once it exists; with no working ffmpeg, and it writes nothing
+  vh proxy "$p/out/film.mp4" >/dev/null 2>&1; vh thumbs "$p/out/film.mp4" --every 1 >/dev/null 2>&1
+  python3 - "$p" <<'PY'
+import json, os, sys
+p = sys.argv[1]; f = p + "/out/film.mp4"; s = os.stat(f)
+os.makedirs(p + "/out/versions", exist_ok=True)
+json.dump({"version": 1, "next": 2, "versions": [{"id": "v1", "n": 1, "t": s.st_mtime, "at": "2026-11-06T10:00:00+0800", "film": "out/film.mp4", "file": "out/film.mp4", "made_by": "render", "size": s.st_size, "mtime": s.st_mtime}], "events": []}, open(p + "/out/versions/versions.json", "w"))
+PY
+  find "$p" -type f | sort > "$t/before"
+  a=$(PATH="$t/nof:$PATH" vh status "$p" --json 2>&1); rc=$?
+  find "$p" -type f | sort > "$t/after"
+  python3 -c 'import os, sys; f = sys.argv[1]; s = os.stat(f); os.utime(f, (s.st_atime, s.st_mtime + 5))' "$p/out/film.mp4"
+  b=$(PATH="$t/nof:$PATH" vh status "$p" --json 2>&1)
+  if [ $rc = 0 ] && cmp -s "$t/before" "$t/after" && python3 - "$a" "$b" <<'PY'
+import json, sys
+m, n = json.loads(sys.argv[1])["media"], json.loads(sys.argv[2])["media"]
+ok = m == {"film": "out/film.mp4", "version": "v1", "from": "versions", "proxy": "out/proxy/film.mp4", "thumbs": "out/proxy/film.thumbs/thumbs.json", "peaks": "out/proxy/film.peaks.json", "stale": []}
+ok = ok and sorted(n["stale"]) == ["peaks", "proxy", "thumbs"]
+sys.exit(0 if ok else 1)
+PY
+  then ok "status media: the current film from versions, its proxy, thumbs and peaks as project-relative paths, what no longer fits the film said; it only reads, with no ffmpeg"
+  else bad "status media (exit $rc): $(printf '%s' "$a" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("media"))' 2>&1 | tail -c 400) $(diff "$t/before" "$t/after" | head -3)"; fi
+  rm -rf "$t"
+}
+
+resolved_checks() {   # bin/vh timeline --resolved: an edit list (its build's record, and resolved in memory with none), shots.json, a page's own shots
+  # from a render's record, parts missing, a template's example; the frames against the rule; nothing written, nothing logged; timeline's
+  # own arguments as they were
+  local t p a b rc c
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd -P)
+  # an edit list, with narration, captions and beats
+  p="$t/e"; mkdir -p "$p/audio"; printf '# BRIEF\n- Effort: quick\n' > "$p/BRIEF.md"
+  cat > "$p/edit.json" <<'EOF'
+{"v": 1, "fps": 30, "size": [320, 180], "refs": {"timeline": "audio/timeline.zh.json"}, "sources": {"black": {"color": "#000000"}, "white": {"color": "#ffffff"}},
+ "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "black", "end": "@l1>", "segment": "一", "reads": "黑"}, {"id": "S02", "src": "white", "dur": 1.5}, {"id": "S03", "src": null, "dur": 0.5, "unsure": "还没画"}]}],
+ "chapters": [{"t": 0, "title": "开头"}, {"t": "@|S02", "title": "后面"}]}
+EOF
+  printf '%s' '{"provider": "test", "lang": "zh", "duration": 3.1, "segments": [{"id": "l1", "start": 0, "end": 1.0333, "text": "第一句", "words": [{"w": "第一", "start": 0, "end": 0.5}, {"w": "句", "start": 0.5, "end": 1.0}]}, {"id": "l2", "start": 1.5, "end": 2.9, "text": "第二句"}]}' > "$p/audio/timeline.zh.json"
+  printf '%s' '[{"id": "c1", "start": 0, "end": 1.0333, "zh": ["第一句"], "words": []}, {"id": "c2", "start": 1.5, "end": 2.9, "zh": ["第二句"], "en": ["two"]}]' > "$p/audio/captions.json"
+  printf '%s' '{"bpm": 120, "offset": 0, "beats": [0, 0.5, 1.0, 1.5, 2.0], "downbeats": [0, 2.0], "duration": 3}' > "$p/audio/song.beats.json"
+  find "$p" -type f | sort > "$t/before"
+  a=$(vh timeline "$p" --resolved --json 2>&1); rc=$?
+  find "$p" -type f | sort > "$t/after"
+  vh edit build "$p" >/dev/null 2>&1
+  python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f)); d["note"] = "from the record"; d["entries"][0]["label"] = "from the record"; json.dump(d, open(f, "w"))' "$p/out/edit.resolved.json"
+  b=$(vh timeline "$p" --resolved --json --words 2>&1); c=$?
+  if [ $rc = 0 ] && [ $c = 0 ] && cmp -s "$t/before" "$t/after" && python3 - "$a" "$b" "$p" <<'PY'
+import hashlib, json, sys
+a, b, p = json.loads(sys.argv[1]), json.loads(sys.argv[2]), sys.argv[3]
+sha = lambda f: hashlib.sha256(open(f, "rb").read()).hexdigest()   # noqa: E731
+ok = a["version"] == 1 and a["fps"] == 30 and a["fps_from"] == "edit.json" and a["frames"] == 91 and a["duration_from"] == "edit.json" and a["shots_from"] == "edit.json" and a["size"] == [320, 180]
+s = a["shots"]
+ok = ok and [x["id"] for x in s] == ["S01", "S02", "S03"] and s[0]["end_frame"] == s[1]["start_frame"] == 31 and s[1]["end_frame"] == 76 and s[0]["start"] == 0 and s[0]["segment"] == "一" and s[2]["kind"] == "slate"
+n = a["narration"]
+ok = ok and [x["id"] for x in n] == ["l1", "l2"] and n[0]["end_frame"] == 31 and n[0]["word_count"] == 2 and "words" not in n[0] and n[1]["start_frame"] == 45 and n[1]["end_frame"] == 87 and n[0]["text"] == "第一句"
+c = a["captions"]
+ok = ok and [x["id"] for x in c] == ["c1", "c2"] and c[1]["start_frame"] == 45 and c[1]["en"] == ["two"] and "words" not in c[0]
+bt = a["beats"]
+ok = ok and [x["frame"] for x in bt] == [0, 15, 30, 45, 60] and [x["downbeat"] for x in bt] == [True, False, False, False, True] and a["bpm"] == 120
+ok = ok and a["chapters"] == [{"t": 0, "frame": 0, "title": "开头"}, {"t": s[1]["start"], "frame": 31, "title": "后面"}]
+want = {"shots": "edit.json", "narration": "audio/timeline.zh.json", "captions": "audio/captions.json", "beats": "audio/song.beats.json"}
+ok = ok and {k: v["path"] for k, v in a["sources"].items()} == want and all(v["sha256"] == sha(f"{p}/{v['path']}") for v in a["sources"].values()) and a["missing"] == []
+ok = ok and b["shots"][0].get("label") == "from the record" and b["narration"][0]["words"] == [{"w": "第一", "start": 0, "end": 0.5}, {"w": "句", "start": 0.5, "end": 1.0}]
+sys.exit(0 if ok else 1)
+PY
+  then ok "timeline --resolved on an edit list: shots, narration, captions and beats in seconds and frames, with each source's sha256; it takes bin/vh edit build's record while that is of this edit.json, the same code in memory with none; it writes nothing"
+  else bad "timeline --resolved on an edit list (exit $rc, $c): $(printf '%s' "$a" | tail -c 500)"; fi
+  # a record of another edit.json is not taken; one that does not resolve is said, and the rest is there
+  python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f)); d["fps"] = 30; d["tracks"][0]["entries"][1]["dur"] = 2; json.dump(d, open(f, "w"))' "$p/edit.json"
+  a=$(vh timeline "$p" --resolved --json 2>&1 | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d["shots"][1]["end_frame"], d["shots"][0].get("label"))' 2>&1)
+  printf 'not json' > "$p/edit.json"
+  b=$(vh timeline "$p" --resolved --json 2>&1); rc=$?
+  if [ "$a" = "91 None" ] && [ $rc = 0 ] && python3 - "$b" <<'PY'
+import json, sys
+d = json.loads(sys.argv[1])
+sys.exit(0 if d["shots"] == [] and d["missing"][0]["part"] == "shots" and "does not resolve" in d["missing"][0]["why"] and len(d["narration"]) == 2 and d["fps_from"] in ("BRIEF.md", "the default") else 1)
+PY
+  then ok "timeline --resolved: a build's record of another edit.json is not taken; an edit.json that does not resolve is said, and the other parts are there"
+  else bad "timeline --resolved, a changed or broken edit.json: '$a', exit $rc: $(printf '%s' "$b" | tail -c 400)"; fi
+  # shots.json, the frame rate from the BRIEF, the language asked for
+  p="$t/s"; mkdir -p "$p/audio"; printf '# BRIEF\n- Output: 1080x1920, 25 fps, 10 s\n' > "$p/BRIEF.md"
+  printf '%s' '{"shots": [{"id": "A", "start": 0, "end": 2.5, "reads": ["一"], "segment": "x"}, {"id": "B", "start": 2.5, "end": 4}]}' > "$p/shots.json"
+  printf '%s' '{"provider": "t", "lang": "en", "duration": 1, "segments": [{"id": "e1", "start": 0, "end": 1, "text": "one"}]}' > "$p/audio/timeline.en.json"
+  a=$(vh timeline "$p" --resolved en --json 2>&1); rc=$?
+  b=$(vh timeline "$p" --resolved zh --json 2>&1); c=$?
+  if [ "$rc:$c" = 0:0 ] && python3 - "$a" "$b" <<'PY'
+import json, sys
+a, b = json.loads(sys.argv[1]), json.loads(sys.argv[2])
+ok = a["fps"] == 25 and a["fps_from"] == "BRIEF.md" and a["shots_from"] == "shots.json" and [x["start_frame"] for x in a["shots"]] == [0, 63] and a["shots"][1]["end_frame"] == 100 and a["frames"] == 100 and a["duration"] == 4 and a["duration_from"] == "the last end"
+ok = ok and a["narration"][0]["text"] == "one" and a["sources"]["narration"]["path"] == "audio/timeline.en.json" and b["narration"] == [] and {m["part"] for m in a["missing"]} == {"captions", "beats"} and {m["part"] for m in b["missing"]} == {"narration", "captions", "beats"}
+sys.exit(0 if ok else 1)
+PY
+  then ok "timeline --resolved on shots.json: seconds and frames at the BRIEF's rate (a boundary as the repo counts it), the language asked for, what is missing said"
+  else bad "timeline --resolved on shots.json (exit $rc, $c): $(printf '%s' "$a$b" | tail -c 500)"; fi
+  # a page with neither: its film's .render.json, from the film's own first frame; with no film, said; the template's example is no take
+  p="$t/g"; mkdir -p "$p/out" "$p/audio"; printf '# BRIEF\n' > "$p/BRIEF.md"; : > "$p/film.html"
+  printf '%s' '{"provider": "example", "segments": [{"id": "x", "start": 0, "end": 1, "text": "示例"}]}' > "$p/audio/timeline.zh.json"
+  a=$(vh timeline "$p" --resolved --json 2>&1); rc=$?
+  : > "$p/out/film.mp4"
+  printf '%s' '{"version": 1, "fps": 30, "frames": 60, "first_frame": 30, "shots": [{"id": "P1", "start": 1, "end": 2, "segment": "s"}, {"id": "P2", "start": 2, "end": 3}]}' > "$p/out/film.mp4.render.json"
+  b=$(vh timeline "$p" --resolved --json 2>&1); c=$?
+  if [ "$rc:$c" = 0:0 ] && python3 - "$a" "$b" <<'PY'
+import json, sys
+a, b = json.loads(sys.argv[1]), json.loads(sys.argv[2])
+why = {m["part"]: m["why"] for m in a["missing"]}
+ok = a["shots"] == [] and "browser" in why["shots"] and "example" in why["narration"] and "narration" not in a["sources"] and a["fps"] == 30 and a["fps_from"] == "the default"
+ok = ok and b["shots_from"] == "out/film.mp4.render.json" and [(x["id"], x["start"], x["start_frame"], x["end_frame"]) for x in b["shots"]] == [("P1", 0, 0, 30), ("P2", 1, 30, 60)] and b["frames"] == 60 and b["duration"] == 2 and b["sources"]["shots"]["path"] == "out/film.mp4.render.json"
+sys.exit(0 if ok else 1)
+PY
+  then ok "timeline --resolved on a page: its own shots from its film's .render.json, with no browser; with no film that is said; the template's example is no take"
+  else bad "timeline --resolved on a page (exit $rc, $c): $(printf '%s' "$a$b" | tail -c 600)"; fi
+  # the record and the edit list agree after the narration is taken again; the table's other fields; a film that is a part; chapters from a render's record; what cannot be read
+  a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PY' 2>&1
+import json, os, shutil, subprocess, sys
+sh, root, t = sys.argv[1:]
+sys.path.insert(0, f"{root}/tools")
+import schemalite
+sch = schemalite.load(f"{root}/tools/schemas/output/timeline.schema.json")
+bad = []
+def V(*a):
+    return subprocess.run([sh, f"{root}/bin/vh", *a], capture_output=True, text=True, stdin=subprocess.DEVNULL)
+def strict(text):
+    def no(c):
+        raise ValueError(f"{c} in the JSON")
+    return json.loads(text, parse_constant=no)
+def R(p, *a):
+    r = V("timeline", p, "--resolved", *a, "--json")
+    try:
+        d = strict(r.stdout)
+    except ValueError as e:
+        bad.append(f"{os.path.basename(p)}: exit {r.returncode}, not JSON ({e}): {r.stdout[:120]!r} {r.stderr[-300:]}")
+        return {"shots": [], "missing": [], "chapters": [], "narration": [], "captions": [], "beats": [], "frames": None, "duration": None}
+    if r.returncode != 0 or "Traceback" in r.stderr:
+        bad.append(f"{os.path.basename(p)}: exit {r.returncode}: {r.stderr[-300:]}")
+    bad.extend(f"{os.path.basename(p)}: {x}" for x in schemalite.problems(sch, d)[:3])
+    return d
+def W(p, text):
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "wb" if isinstance(text, bytes) else "w", **({} if isinstance(text, bytes) else {"encoding": "utf-8"})) as o:
+        o.write(text if isinstance(text, (str, bytes)) else json.dumps(text, ensure_ascii=False))
+def mk(n, brief="# BRIEF\n- Output: 1920x1080, 30 fps\n"):
+    p = f"{t}/x/{n}"
+    W(f"{p}/BRIEF.md", brief)
+    return p
+# a cue-timed edit list, its narration taken again after the build: the same frames as bin/vh edit list
+p = mk("cue")
+tl = lambda e: {"provider": "x", "lang": "zh", "duration": e, "segments": [{"id": "l1", "start": 0, "end": e, "text": "一", "words": []}, {"id": "l2", "start": e, "end": e + 1, "text": "二", "words": []}]}
+W(f"{p}/audio/timeline.zh.json", tl(2.0))
+W(f"{p}/edit.json", {"v": 1, "fps": 30, "size": [320, 180], "refs": {"timeline": "audio/timeline.zh.json"}, "sources": {"k": {"color": "#000000"}, "w": {"color": "#ffffff"}}, "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "k", "end": "@l1>"}, {"id": "S02", "src": "w", "dur": 1}]}]})
+b = json.loads(V("edit", "build", p, "--json").stdout)
+W(f"{p}/audio/timeline.zh.json", tl(4.0))
+l = json.loads(V("edit", "list", p, "--json").stdout)
+d = R(p)
+if not (b["frames"] == 90 and l["frames"] == 150 and d["frames"] == 150 and [(x["id"], x["start_frame"], x["end_frame"]) for x in d["shots"]] == [("S01", 0, 120), ("S02", 120, 150)]):
+    bad.append(f"the narration taken again: build {b['frames']}, list {l['frames']}, resolved {d['frames']}, {d['shots'][:2]}")
+# shots.json: the table's other fields, as written
+p = mk("fields")
+W(f"{p}/shots.json", {"shots": [{"id": "A", "t0": 0, "t1": 2, "vo": "一句", "caption": "字幕", "transition": {"type": "cut"}, "segment": "x"}, {"id": "B", "start": 2, "end": 3}]})
+d = R(p)
+r = d["shots"][0] if d["shots"] else {}
+if not (r.get("vo") == "一句" and r.get("caption") == "字幕" and r.get("transition") == {"type": "cut"} and r.get("start") == 0 and r.get("end") == 2 and r.get("end_frame") == 60 and "t0" not in r and d["shots"][1].get("vo") is None):
+    bad.append(f"the table's other fields: {r}")
+# a film rendered as a part: its shots and chapters from its first frame, cut to what it holds; its other fields; with a table of the whole film, the table's length
+p = mk("part")
+W(f"{p}/film.html", "x"); W(f"{p}/out/final.mp4", "x")
+W(f"{p}/out/final.mp4.render.json", {"version": 1, "fps": 30, "frames": 30, "first_frame": 60, "shots": [{"id": "a", "start": 0, "end": 2}, {"id": "b", "start": 1.5, "end": 2.5, "vo": "这一句", "at": 2.25}, {"id": "c", "start": 2.5, "end": 5}, {"id": "d", "start": 5, "end": 6}],
+                                    "chapters": [{"t": 0, "title": "before"}, {"t": 2.5, "title": "in it"}, {"t": 4, "title": "after"}]})
+d = R(p)
+if not ([(x["id"], x["start"], x["end"], x["start_frame"], x["end_frame"]) for x in d["shots"]] == [("b", 0.0, 0.5, 0, 15), ("c", 0.5, 1.0, 15, 30)] and d["shots"][0].get("vo") == "这一句" and d["shots"][0].get("at") == 0.25 and d["frames"] == 30
+        and d["chapters"] == [{"t": 0.5, "frame": 15, "title": "in it"}]):
+    bad.append(f"a film that is a part: {d['shots']}, {d['chapters']}, {d['frames']}")
+W(f"{p}/shots.json", {"shots": [{"id": "A", "start": 0, "end": 10}]})
+d = R(p)
+if not (d["frames"] == 300 and d["duration_from"] == "the last end" and d["shots"][0]["end_frame"] == 300):
+    bad.append(f"a part, and a table of the whole film: {d['frames']}, {d['duration_from']}, {d['shots']}")
+os.remove(f"{p}/shots.json"); os.remove(f"{p}/out/final.mp4"); os.remove(f"{p}/out/final.mp4.render.json")
+d = R(p)
+if "chapters" not in {m["part"] for m in d["missing"]}:
+    bad.append(f"a page with no record says so of its chapters: {d['missing']}")
+# whatever cannot be read is a row of missing and exit 0, the other parts there: no permission, not UTF-8, not JSON, NaN
+good = {"shots.json": {"shots": [{"id": "A", "start": 0, "end": 1}, {"id": "B", "start": 1, "end": 2}]}, "audio/timeline.zh.json": {"provider": "t", "lang": "zh", "segments": [{"id": "l1", "start": 0, "end": 1, "text": "一"}, {"id": "l2", "start": 1, "end": 2, "text": "二"}]},
+        "audio/captions.json": [{"id": "c1", "start": 0, "end": 1, "zh": ["一"]}, {"id": "c2", "start": 1, "end": 2, "zh": ["二"]}], "audio/song.beats.json": {"bpm": 120, "beats": [0, 0.5, 1], "downbeats": [0]}}
+part = {"shots.json": "shots", "audio/timeline.zh.json": "narration", "audio/captions.json": "captions", "audio/song.beats.json": "beats"}
+nan = {"shots.json": '{"shots": [{"id": "A", "start": NaN, "end": 1}, {"id": "B", "start": 1, "end": Infinity}, {"id": "C", "start": 2, "end": 3}]}', "audio/timeline.zh.json": '{"provider": "t", "segments": [{"id": "l1", "start": NaN, "end": 1, "text": "一"}, {"id": "l2", "start": 1, "end": 2, "text": "二"}]}',
+       "audio/captions.json": '[{"id": "c1", "start": 0, "end": NaN}, {"id": "c2", "start": 1, "end": 2}]', "audio/song.beats.json": '{"bpm": NaN, "beats": [0, NaN, 1], "downbeats": [NaN, 0]}'}
+n = 0
+for rel, name in part.items():
+    for how, text in (("not UTF-8", b"\xff\xfe{\"a\": 1}"), ("not JSON", "not json"), ("a list where an object goes", "[1, 2]"), ("NaN", nan[rel]), ("no permission", None)):
+        if how == "no permission" and os.geteuid() == 0:
+            continue
+        n += 1
+        p = mk(f"bad{n}")
+        for k, v in good.items():
+            W(f"{p}/{k}", v)
+        if how == "no permission":
+            os.chmod(f"{p}/{rel}", 0)
+        else:
+            W(f"{p}/{rel}", text)
+        d = R(p)
+        if how == "no permission":
+            os.chmod(f"{p}/{rel}", 0o644)
+        said = {m["part"] for m in d["missing"]}
+        others = [x for x in part.values() if x != name]
+        if name not in said and not (how == "a list where an object goes" and name in ("shots", "captions")):
+            bad.append(f"{rel}, {how}: {name} not in missing: {d['missing']}")
+        if any(d[x] == [] for x in others):
+            bad.append(f"{rel}, {how}: another part went with it: {[x for x in others if d[x] == []]}")
+        if how == "NaN" and name != "shots" and not d[name]:
+            bad.append(f"{rel}, {how}: the rows with a time went too")
+# the record of a render, an edit list and a BRIEF that cannot be read: the same
+for name, files in (("side", {"out/final.mp4": "x", "out/final.mp4.render.json": '{"fps": NaN, "frames": NaN, "first_frame": "x", "shots": "no", "chapters": [1, {"t": NaN}]}'}), ("side2", {"out/final.mp4": "x", "out/final.mp4.render.json": b"\xff\xfe"}),
+                    ("edit", {"edit.json": b"\xff\xfe{"}), ("edit2", {"edit.json": "[1]"}), ("record", {"edit.json": '{"v": 1, "fps": 30, "size": [320, 180], "sources": {"k": {"color": "#000000"}}, "tracks": [{"id": "V1", "entries": [{"id": "S01", "src": "k", "dur": 1}]}]}', "out/edit.resolved.json": '{"edit": 7, "entries": "no"}'}),
+                    ("brief", {"BRIEF.md": b"# \xff\n- Output: \xfe\n"})):
+    p = mk(name)
+    for k, v in files.items():
+        W(f"{p}/{k}", v)
+    R(p)
+print("\n".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "timeline --resolved: a build's record holds only while the files it read are as they were; the table's other fields stay; a film that is a part has its shots and chapters from its own first frame, cut to what it holds; no permission, not UTF-8, not JSON and NaN are each a row of missing, exit 0, the other parts there" \
+    || bad "timeline --resolved on what it cannot read: $(printf '%s' "$a" | tail -c 1500)"
+  # nothing logged; timeline's own arguments as they were; a failure's shape
+  rm -f "$t/s/.ovh/activity.jsonl"
+  vh timeline "$t/s" --resolved >"$t/human" 2>&1; rc=$?
+  a=$(cat "$t/s/.ovh/activity.jsonl" 2>/dev/null | wc -l | tr -d ' ')
+  grep -q 'shots.*shots.json' "$t/human" && grep -q '! captions' "$t/human" || rc=9
+  vh timeline "$t/s" en >"$t/lint" 2>&1; c=$?
+  b=$(cat "$t/s/.ovh/activity.jsonl" 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$rc:$a:$c:$b" = 0:0:0:2 ] && grep -q 'timeline: sound' "$t/lint" && grep -q 'timeline.en.json' "$t/lint"; then ok "timeline: --resolved is read-only and not logged, with its human lines; timeline <project> [zh|en] is the same check as ever, and logged"
+  else bad "timeline's arguments: --resolved $rc, log $a; lint $c, log $b: $(tail -c 300 "$t/lint")"; fi
+  rm -rf "$t"
+}
+
+history_checks() {   # bin/vh history: what it keeps and leaves out, a save with nothing changed, list and diff, restore and its undo, what cannot be found; bin/vh
+  # gate saves on a page that went out and is never stopped by a save that fails; bin/vh clean leaves it
+  local t p g a b c d e f n0 n1 rc rc2
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd -P)
+  OVH_PROJECTS="$t/projects" vh new math ci-history >/dev/null 2>&1
+  p=$(ls -d "$t"/projects/*-ci-history)
+  printf '{"shots": [{"id": "A", "start": 0, "end": 1}]}\n' > "$p/shots.json"; mkdir -p "$p/audio"; printf '@a 一句\n' > "$p/audio/script.txt"; printf '[]\n' > "$p/audio/captions.json"
+  python3 -c 'import sys; open(sys.argv[1], "w").write("x" * (1 << 21))' "$p/NOTES.md"
+  ln -s BRIEF.md "$p/CHARACTER.md"
+  a=$(vh history save "$p" --note 第一次 --json 2>&1); rc=$?
+  find "$p/.ovh/history" -type f | sort > "$t/before"
+  b=$(vh history save "$p" --json 2>&1); rc2=$?
+  find "$p/.ovh/history" -type f | sort > "$t/after"
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && cmp -s "$t/before" "$t/after" && python3 - "$a" "$b" "$p" <<'PY'
+import hashlib, json, os, sys
+a, b, p = json.loads(sys.argv[1]), json.loads(sys.argv[2]), sys.argv[3]
+s = a["snapshot"]
+ok = a["version"] == 1 and a["saved"] is True and s["id"] == "s1" and s["note"] == "第一次" and b["saved"] is False and b["snapshot"] is None
+ok = ok and {"BRIEF.md", "REVIEW.md", "shots.json", "audio/script.txt", "STYLE.md"} <= set(s["files"]) and "NOTES.md" not in s["files"] and "audio/captions.json" not in s["files"] and not any(f.startswith(".ovh") for f in s["files"])
+ok = ok and {"path": "NOTES.md", "why": "over 1 MiB"} in a["skipped"] and {"path": "CHARACTER.md", "why": "a link"} in a["skipped"] and "CHARACTER.md" not in s["files"]
+for f, h in s["files"].items():
+    ok = ok and h == hashlib.sha256(open(f"{p}/{f}", "rb").read()).hexdigest() and open(f"{p}/.ovh/history/objects/{h}", "rb").read() == open(f"{p}/{f}", "rb").read()
+lines = [json.loads(x) for x in open(f"{p}/.ovh/history/index.jsonl", encoding="utf-8")]
+ok = ok and len(lines) == 1 and lines[0]["version"] == 1 and lines[0]["id"] == "s1"
+sys.exit(0 if ok else 1)
+PY
+  then ok "history save: the small text files a person or an agent writes, by content, a line in the index; a tool's file, one over the limit, a link and .ovh left out; nothing changed, nothing written"
+  else bad "bin/vh history save (exit $rc, $rc2): $(printf '%s' "$a$b" | tail -c 500) $(diff "$t/before" "$t/after" | head -3)"; fi
+  # a change: only it is stored again; list, with a file; diff; a file gone
+  rm -f "$p/NOTES.md"
+  printf '# 改过的\n' > "$p/BRIEF.md"; rm "$p/audio/script.txt"
+  a=$(vh history save "$p" --json 2>&1); rc=$?
+  b=$(vh history list "$p" --json 2>&1); c=$(vh history list "$p" BRIEF.md --json 2>&1)
+  d=$(vh history diff "$p" BRIEF.md --at s1 --to s2 2>&1); e=$(vh history diff "$p" --json 2>&1); printf '再改\n' >> "$p/BRIEF.md"; f=$(vh history diff "$p/BRIEF.md" 2>&1)
+  if [ $rc = 0 ] && python3 - "$a" "$b" "$c" "$e" <<'PY' && case "$d" in *'-'*'+# 改过的'*) true ;; *) false ;; esac && case "$f" in *'BRIEF.md (s2)'*'BRIEF.md (now)'*'+再改'*) true ;; *) false ;; esac
+import json, sys
+a, b, c, e = map(json.loads, sys.argv[1:])
+s = a["snapshot"]
+ok = s["id"] == "s2" and s["changed"] == ["BRIEF.md"] and s["removed"] == ["audio/script.txt"] and "audio/script.txt" not in s["files"]
+ok = ok and [x["id"] for x in b["snapshots"]] == ["s1", "s2"] and b["snapshots"][0]["note"] == "第一次" and b["file"] is None and [x["id"] for x in c["snapshots"]] == ["s1", "s2"] and c["file"] == "BRIEF.md"
+ok = ok and e["from"] == "s2" and e["to"] is None and e["files"] == [] and e["diff"] == ""
+sys.exit(0 if ok else 1)
+PY
+  then ok "history: a change stores only what changed, a file gone is said; list and list <file>; diff between two snapshots and from the last to now, a unified diff"
+  else bad "bin/vh history list and diff (exit $rc): $(printf '%s' "$a$b$c$e" | tail -c 400) | $d | $f"; fi
+  # restore: an overwrite undone; the state before it saved first, so the restore can be undone; a file already so; a deleted one back
+  cp "$p/BRIEF.md" "$t/good"; vh history save "$p" >/dev/null 2>&1
+  printf 'overwritten by mistake\n' > "$p/BRIEF.md"
+  a=$(vh history restore "$p" BRIEF.md --json 2>&1); rc=$?
+  cmp -s "$p/BRIEF.md" "$t/good" || rc=9
+  b=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["undo"])' "$a" 2>&1)
+  c=$(python3 -c 'import json, sys; print(json.loads(sys.argv[1])["saved_first"])' "$a" 2>&1)
+  vh history restore "$p" BRIEF.md --at "$c" >/dev/null 2>&1; rc2=$?
+  d=$(cat "$p/BRIEF.md")
+  e=$(vh history restore "$p" BRIEF.md --at "$c" --json 2>&1)
+  rm "$p/shots.json"; vh history restore "$p/shots.json" --at s1 >/dev/null 2>&1 || vh history restore "$p" shots.json >/dev/null 2>&1; [ -f "$p/shots.json" ] || rc=8
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && [ "$d" = "overwritten by mistake" ] && case "$b" in "bin/vh history restore "*" BRIEF.md --at "*) true ;; *) false ;; esac && python3 - "$a" "$e" <<'PY'
+import json, sys
+a, e = map(json.loads, sys.argv[1:])
+sys.exit(0 if a["restored"] is True and a["file"] == "BRIEF.md" and a["from"] == "s3" and a["saved_first"] == "s4" and e["restored"] is False else 1)
+PY
+  then ok "history restore: an overwrite undone from the newest snapshot that differs; what was there saved first, and that restored in turn; a file already so left alone; a deleted file back"
+  else bad "bin/vh history restore (exit $rc, $rc2): $(printf '%s' "$a" | tail -c 300) | '$d' | $e"; fi
+  # what cannot be found, and what is refused; a bad line in the index; reading writes nothing and is not logged; save and restore are logged
+  printf 'not json\n' >> "$p/.ovh/history/index.jsonl"
+  rm -f "$p/.ovh/activity.jsonl"
+  find "$p" -type f | sort > "$t/before"
+  a=$(vh history list "$p" --json 2>&1); vh history diff "$p" --json >/dev/null 2>&1
+  find "$p" -type f | sort > "$t/after"
+  vh history restore "$p" BRIEF.md --at s99 --json >"$t/o1" 2>/dev/null; rc=$?
+  vh history restore "$p" LESSONS.nope --json >"$t/o2" 2>/dev/null; rc2=$?
+  vh history restore "$p" ../../x --at s1 --json >"$t/o3" 2>/dev/null; c=$?
+  vh history diff "$p" nope.md --json >"$t/o4" 2>/dev/null; d=$?
+  vh history save nope --json >"$t/o5" 2>/dev/null; e=$?
+  if cmp -s "$t/before" "$t/after" && [ "$rc:$rc2:$c:$d:$e" = 1:1:2:1:2 ] && python3 - "$a" "$t" "$p" <<'PY'
+import json, os, sys
+a, t, p = sys.argv[1:]
+codes = [json.load(open(f"{t}/o{i}"))["error"]["code"] for i in range(1, 6)]
+ok = codes == ["not_found", "not_found", "usage", "not_found", "no_project"] and len(json.loads(a)["snapshots"]) >= 4 and not os.path.exists(f"{t}/x")
+sys.exit(0 if ok else 1)
+PY
+  then ok "history: no such snapshot or file is exit 1, a way out of the project and no project exit 2, each in the error's shape; a bad index line is skipped; list and diff write nothing and log nothing"
+  else bad "bin/vh history's failures (exit $rc, $rc2, $c, $d, $e): $(cat "$t"/o? | tail -c 500)"; fi
+  # bin/vh gate saves on a page that went out; a save that fails does not stop it; a page refused is no save
+  g="$t/g"; cp -R tools/desk/fixtures/zh "$g"
+  vh gate "$g" 1 --page >"$t/gate1" 2>&1; rc=$?
+  n1=$(wc -l < "$g/.ovh/history/index.jsonl" | tr -d ' ')
+  a=$(tail -n 1 "$g/.ovh/history/index.jsonl" | python3 -c 'import json, sys; d = json.loads(sys.stdin.read()); print(d["note"], "out/review/gate-1.json" in d["files"])' 2>&1)
+  mv "$g/.ovh/history" "$t/kept-history"; printf 'not a folder\n' > "$g/.ovh/history"
+  printf '# 又改\n' >> "$g/BRIEF.md"
+  vh gate "$g" 1 --page >"$t/gate2" 2>&1; rc2=$?
+  rm -f "$g/.ovh/history"; mkdir -p "$g/out/review"; printf 'not json' > "$g/out/review/gate-1.json"
+  vh gate "$g" 1 --page >/dev/null 2>&1; c=$?
+  if [ "$rc:$rc2:$c" = 0:0:2 ] && [ "$n1" = 1 ] && [ ! -e "$g/.ovh/history" ] && case "$a" in "gate 1: the page went out True") true ;; *) false ;; esac; then ok "gate: a page that went out is a snapshot of the text; a save that fails stops nothing; a page refused is no snapshot"
+  else bad "gate's save (exit $rc, $rc2, $c, $n1 lines, '$a'): $(tail -c 300 "$t/gate1") | $(tail -c 300 "$t/gate2")"; fi
+  # what a restore must never do: lose what is there now, say it saved what it did not, write outside the project or through a link; and what the store must never hold
+  a=$(python3 - "$VH_BASH" "$ROOT" "$t" <<'PY' 2>&1
+import glob, json, os, shlex, shutil, subprocess, sys, time
+sh, root, t = sys.argv[1:]
+vh = [sh, f"{root}/bin/vh"]
+base = f"{t}/hp"
+os.makedirs(base)
+env = dict(os.environ, OVH_PROJECTS=base, PYTHONDONTWRITEBYTECODE="1")
+bad = []
+def V(*a):
+    return subprocess.run([*vh, *a], capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL)
+def J(r):
+    try: return json.loads(r.stdout)
+    except ValueError: return {}
+def read(f):
+    return open(f, encoding="utf-8").read()
+def write(f, text):
+    with open(f, "w", encoding="utf-8") as o: o.write(text)
+def stored(p, word):
+    return any(word.encode() in open(x, "rb").read() for x in glob.glob(f"{p}/.ovh/**", recursive=True) + glob.glob(f"{p}/.ovh/history/.*") if os.path.isfile(x))
+n = [0]
+def mk(name=None):
+    n[0] += 1
+    p = f"{base}/{name or 'h%d' % n[0]}"
+    os.makedirs(f"{p}/audio"); os.makedirs(f"{p}/data")
+    for f, x in (("BRIEF.md", "# BRIEF\n"), ("NOTES.md", "first text\n"), ("STYLE.md", "style one\n"), ("audio/script.txt", "script one\n")):
+        write(f"{p}/{f}", x)
+    V("history", "save", p, "--note", "s1")
+    return p
+def refused(p, what, f, *args):
+    r = V("history", "restore", p, f, *args, "--json")
+    e = J(r).get("error") or {}
+    if r.returncode != 1 or e.get("code") != "refused":
+        bad.append(f"{what}: exit {r.returncode}, {r.stdout[:300]}")
+    return e.get("message") or ""
+def undo_of(d):
+    return subprocess.run([sh, *shlex.split(d["undo"].replace("bin/vh", f"{root}/bin/vh", 1))], capture_output=True, text=True, env=env, stdin=subprocess.DEVNULL)
+# a file now over the limit, which save leaves out: refused, the file as it is, and what to do said; moved aside, the restore goes
+p = mk(); big = "UNIQUE-CURRENT-TEXT\n" + "x" * (1 << 21)
+write(f"{p}/NOTES.md", big)
+m = refused(p, "a file over the limit", "NOTES.md", "--at", "s1")
+if read(f"{p}/NOTES.md") != big or "over 1 MiB" not in m or not [x for x in os.listdir(p) if x == "NOTES.md"]:
+    bad.append(f"a file over the limit was touched: {m}")
+# a parent folder that is a link out of the project: nothing written through it; and a file that is a link: still the link, its target as it was
+p = mk(); oa = f"{t}/outside-audio"; shutil.move(f"{p}/audio", oa); os.symlink(oa, f"{p}/audio"); write(f"{oa}/script.txt", "OUTSIDE current\n")
+m = refused(p, "a parent that is a link", "audio/script.txt", "--at", "s1")
+if read(f"{oa}/script.txt") != "OUTSIDE current\n" or "audio is a link" not in m:
+    bad.append(f"a parent that is a link: {read(f'{oa}/script.txt')!r}, {m}")
+p = mk(); out = f"{t}/shared-style.md"; write(out, "the shared style\n"); os.remove(f"{p}/STYLE.md"); os.symlink(out, f"{p}/STYLE.md")
+m = refused(p, "a file that is a link", "STYLE.md", "--at", "s1")
+if not os.path.islink(f"{p}/STYLE.md") or read(out) != "the shared style\n" or "STYLE.md is a link" not in m:
+    bad.append(f"a file that is a link: link {os.path.islink(f'{p}/STYLE.md')}, {m}")
+# a folder where the file was: refused, and nothing left beside it
+p = mk(); os.remove(f"{p}/STYLE.md"); os.makedirs(f"{p}/STYLE.md")
+refused(p, "a folder there", "STYLE.md", "--at", "s1")
+if [x for x in os.listdir(p) if x.startswith(".STYLE")]:
+    bad.append(f"a folder there: left {os.listdir(p)}")
+# the index with a torn last line: what restore says it saved first is in list, and undo brings it back
+p = mk(); idx = f"{p}/.ovh/history/index.jsonl"
+write(f"{p}/NOTES.md", "second text\n"); V("history", "save", p)
+b = open(idx, "rb").read(); open(idx, "wb").write(b[:-20])
+write(f"{p}/NOTES.md", "TORN-CURRENT\n")
+r = V("history", "restore", p, "NOTES.md", "--at", "s1", "--json"); d = J(r)
+ids = [x["id"] for x in J(V("history", "list", p, "--json"))["snapshots"]]
+if r.returncode != 0 or d.get("saved_first") not in ids:
+    bad.append(f"a torn index: exit {r.returncode}, saved first {d.get('saved_first')}, list {ids}")
+else:
+    u = undo_of(d)
+    if u.returncode != 0 or read(f"{p}/NOTES.md") != "TORN-CURRENT\n":
+        bad.append(f"a torn index, undo: exit {u.returncode}, {u.stderr[-200:]}, {read(f'{p}/NOTES.md')!r}")
+# a full disk (only part of the index's next line goes in): the save fails, the file is as it was; with room again the restore goes, and can be undone
+p = mk(); idx = f"{p}/.ovh/history/index.jsonl"
+write(f"{p}/NOTES.md", "FULL-CURRENT\n")
+size = os.path.getsize(idx)
+short = f"import os, sys\nsys.path.insert(0, {root + '/tools'!r})\nimport history\nreal = os.write\nos.write = lambda fd, b: real(fd, b[:40])\nsys.exit(history.main(sys.argv[1:]))"
+r = subprocess.run([sys.executable, "-c", short, "restore", p, "NOTES.md", "--at", "s1", "--json"], capture_output=True, text=True, env=env)
+if r.returncode != 1 or read(f"{p}/NOTES.md") != "FULL-CURRENT\n" or os.path.getsize(idx) != size + 40 or "40 of the" not in r.stderr:
+    bad.append(f"a full disk: exit {r.returncode}, file {read(f'{p}/NOTES.md')!r}, index {os.path.getsize(idx)} from {size}, {r.stdout[:200]} {r.stderr[-200:]}")
+r = V("history", "restore", p, "NOTES.md", "--at", "s1", "--json"); d = J(r)
+if r.returncode != 0 or read(f"{p}/NOTES.md") != "first text\n" or undo_of(d).returncode != 0 or read(f"{p}/NOTES.md") != "FULL-CURRENT\n":
+    bad.append(f"after the full disk: exit {r.returncode}, {d}")
+# an object that is not what it was stored as: said, and the file as it is; the same text saved again heals it
+p = mk(); sha = json.loads(open(f"{p}/.ovh/history/index.jsonl").readline())["files"]["NOTES.md"]; o = f"{p}/.ovh/history/objects/{sha}"; write(o, "rotted\n")
+write(f"{p}/NOTES.md", "current\n")
+r = V("history", "restore", p, "NOTES.md", "--at", "s1", "--json")
+if r.returncode != 1 or (J(r).get("error") or {}).get("code") != "not_found" or read(f"{p}/NOTES.md") != "current\n":
+    bad.append(f"a rotten object: exit {r.returncode}, {r.stdout[:200]}, {read(f'{p}/NOTES.md')!r}")
+write(f"{p}/NOTES.md", "first text\n"); write(f"{p}/STYLE.md", "style one\n")
+r = V("history", "save", p, "--json")
+if read(o) != "first text\n":
+    bad.append(f"a rotten object, saved again: {read(o)!r}")
+# a hand-made index: no way into .git or the store, nor to a path the table does not keep; nothing is made
+p = mk(); idx = f"{p}/.ovh/history/index.jsonl"; sha = json.loads(open(idx).readline())["files"]["NOTES.md"]; os.makedirs(f"{p}/.git/hooks")
+with open(idx, "a") as f:
+    f.write(json.dumps({"version": 1, "id": "s9", "t": 1, "at": "x", "note": None, "files": {w: sha for w in (".git/hooks/post-commit", ".ovh/evil.md", "film.html", "../evil.md", f"{t}/evil.md")}, "changed": [], "removed": []}) + "\n")
+for w, there in ((".git/hooks/post-commit", f"{p}/.git/hooks/post-commit"), (".ovh/evil.md", f"{p}/.ovh/evil.md"), ("film.html", f"{p}/film.html"), ("../evil.md", f"{base}/evil.md"), (f"{t}/evil.md", f"{t}/evil.md")):
+    r = V("history", "restore", p, w, "--at", "s9", "--json")
+    if r.returncode != 2 or (J(r).get("error") or {}).get("code") != "usage" or os.path.exists(there):
+        bad.append(f"a hand-made index, {w}: exit {r.returncode}, made {os.path.exists(there)}, {r.stdout[:160]}")
+# spaces in the undo; the store out of a project's git
+p = mk("有 空格 é"); f = "data/中 文 é.map.json"; write(f"{p}/{f}", "{\"a\": 1}\n"); V("history", "save", p); write(f"{p}/{f}", "{\"a\": 2}\n")
+r = V("history", "restore", p, f, "--json"); d = J(r)
+if r.returncode != 0 or read(f"{p}/{f}") != "{\"a\": 1}\n" or undo_of(d).returncode != 0 or read(f"{p}/{f}") != "{\"a\": 2}\n":
+    bad.append(f"spaces in the undo: exit {r.returncode}, {d.get('undo')}")
+g = subprocess.run(["git", "-C", p, "init", "-q"], capture_output=True)
+if g.returncode == 0:
+    c = subprocess.run(["git", "-C", p, "check-ignore", "-q", ".ovh/history/objects/x"], capture_output=True)
+    if c.returncode != 0 or read(f"{p}/.ovh/history/.gitignore") != "*\n":
+        bad.append(f"the store in a project's git: {c.returncode}")
+# what looks like a key: the file left out by name, its text nowhere in the store; a --note filtered in the index, the log's note and its start line
+key = "sk-ant-api03-SECRETVALUE1234567890abcdefgh"
+p = mk(); write(f"{p}/NOTES.md", f"the key {key}\n"); write(f"{p}/STYLE.md", f"GEMINI_API_KEY=AQ1234567890abcdefgh12\n"); write(f"{p}/BRIEF.md", "# BRIEF\nsk-learn and hf_cache_dir are no keys, nor is 0123456789abcdef0123456789abcdef\n")
+r = V("history", "save", p, "--note", f"token {key}", "--json"); d = J(r)
+why = {x["path"]: x["why"] for x in d.get("skipped", [])}
+if r.returncode != 0 or "holds what looks like a key" not in why.get("NOTES.md", "") or "holds what looks like a key" not in why.get("STYLE.md", "") or "BRIEF.md" in why or "BRIEF.md" not in d["snapshot"]["changed"] or d["snapshot"]["note"] != "token …":
+    bad.append(f"a key in a file: exit {r.returncode}, {r.stdout[:400]}")
+if stored(p, "SECRETVALUE") or stored(p, "AQ1234567890") or "SECRETVALUE" in r.stdout:
+    bad.append(f"a key is in the store or the log: {[x for x in glob.glob(f'{p}/.ovh/**', recursive=True) if os.path.isfile(x) and b'SECRETVALUE' in open(x, 'rb').read()]}")
+m = refused(p, "a key in what is there now", "NOTES.md", "--at", "s1")
+if "SECRETVALUE" in m or "NOTES.md" not in m or read(f"{p}/NOTES.md") != f"the key {key}\n":
+    bad.append(f"a key in what is there now: {m}")
+d = J(V("history", "diff", p, "--json"))
+if "SECRETVALUE" in d.get("diff", "x") or "NOTES.md" in d.get("files", ["NOTES.md"]) or "NOTES.md" not in [x["path"] for x in d.get("skipped", [])]:
+    bad.append(f"a file left out, in diff: {str(d)[:300]}")
+# a project called save, or x-save: bin/vh history save real's run is real's
+for name in ("save", "2026-11-06-save"):
+    os.makedirs(f"{base}/{name}"); write(f"{base}/{name}/BRIEF.md", "# x\n")
+p = mk("real")
+write(f"{p}/NOTES.md", "by name\n")
+r = V("history", "save", "real")
+if r.returncode != 0 or os.path.exists(f"{base}/save/.ovh") or os.path.exists(f"{base}/2026-11-06-save/.ovh") or not any(x.get("summary", "").startswith("s2") for x in map(json.loads, open(f"{p}/.ovh/activity.jsonl", encoding="utf-8"))):
+    bad.append(f"a project called save: exit {r.returncode}, {os.listdir(f'{base}/save')}, {r.stderr[-200:]}")
+# a name that is not UTF-8: left out with a word, and the record prints (real on a file system that takes one; on another, the same through the table's list)
+sys.path.insert(0, f"{root}/tools")
+import artifacts, history
+real = artifacts.holdings
+artifacts.holdings = lambda project, idx: {"time-map": ["data/\udcff.map.json"]}
+files, left = history.tracked(mk())
+artifacts.holdings = real
+if files or left != [{"path": "data/\\xff.map.json", "why": "its name is not UTF-8"}]:
+    bad.append(f"a name that is not UTF-8: {files}, {left}")
+try:
+    p = mk(); open(os.fsencode(f"{p}/data/") + b"\xff.map.json", "w").close()
+except OSError:   # (macOS: refused by the file system)
+    pass
+else:
+    r = V("history", "save", p, "--json")
+    if r.returncode != 0 or not any("not UTF-8" in x["why"] for x in J(r).get("skipped", [])):
+        bad.append(f"a raw name on disk: exit {r.returncode}, {r.stdout[:200]} {r.stderr[-200:]}")
+# bin/vh gate with the lock held elsewhere: at most 2 s, said, the page out all the same
+z = f"{t}/hz"; shutil.copytree(f"{root}/tools/desk/fixtures/zh", z)
+os.makedirs(f"{z}/.ovh/history", exist_ok=True); write(f"{z}/NOTES.md", "more\n")
+holder = subprocess.Popen([sys.executable, "-c", f"import fcntl, os, time\nf = os.open({z + '/.ovh/history/.lock'!r}, os.O_WRONLY | os.O_CREAT)\nfcntl.flock(f, fcntl.LOCK_EX)\nprint('held', flush=True)\ntime.sleep(60)\n"], stdout=subprocess.PIPE, text=True)
+holder.stdout.readline()
+t0 = time.time()
+r = V("gate", z, "1", "--page", "--json")
+took = time.time() - t0
+holder.kill(); holder.wait()
+if r.returncode != 0 or took > 20 or "no snapshot of this page" not in r.stderr or not J(r).get("page"):
+    bad.append(f"gate with the lock held: exit {r.returncode}, {took:.1f} s, {r.stderr[-300:]}")
+print("\n".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "history restore: what is there now is read back from the snapshot first, or nothing is written (over the limit, a key in it, a full disk); no link on the way, no folder, no path the table does not keep; a torn index takes the next line whole; a rotten object is said, and healed; the undo quotes its words. The store holds no key, stays out of a project's git, and gate waits at most 2 s for it" \
+    || bad "bin/vh history's safety: $(printf '%s' "$a" | tail -c 1800)"
+  # bin/vh clean leaves it, and it still restores
+  mkdir -p "$p/out/frames"; : > "$p/out/frames/a.png"; : > "$p/out/final.mp4"
+  OVH_TRASH_DIR="$t/trash" vh clean "$p" --yes >"$t/clean" 2>&1; rc=$?
+  n1=$(find "$p/.ovh/history" -type f | wc -l | tr -d ' ')
+  printf 'again\n' > "$p/REVIEW.md"; vh history restore "$p" REVIEW.md >/dev/null 2>&1; rc2=$?
+  a=$(cat "$p/REVIEW.md")
+  if [ "$rc:$rc2" = 0:0 ] && [ "$n1" -gt 2 ] && [ ! -e "$p/out/frames/a.png" ] && [ "$a" != again ]; then ok "clean: leaves .ovh/history, and a restore works after it"
+  else bad "history after bin/vh clean (exit $rc, $rc2, $n1 files, '$a'): $(tail -c 300 "$t/clean")"; fi
+  rm -rf "$t"
+}
+
+cancel_checks() {   # bin/vh cancel on commands a stand-in keeps busy (no network, no paid call): Ctrl-C's way, TERM's way when SIGINT is
+  # ignored, a tool bin/vh exec'd into, what it must not touch (a pid of another program or another time, a copy of the folder, a forged id), ps that fails; the progress lines
+  # of proxy, thumbs, deliver and tts; a real render and patch when there is a Chrome
+  local t p a rc b c d pid
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd); p="$t/p"
+  cp -R tools/desk/fixtures/zh "$p"; mkdir -p "$t/stub" "$p/audio"; : > "$p/audio/mix.wav"
+  printf '#!/bin/sh\ntrap "exit 130" INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n' > "$t/stub/uv"; chmod +x "$t/stub/uv"
+  a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY' 2>&1
+import json, os, re, shutil, signal, subprocess, sys, time
+sh, root, p, t = sys.argv[1:]
+vh = [sh, f"{root}/bin/vh"]
+log = f"{p}/.ovh/activity.jsonl"
+mark, env = f"{t}/started", dict(os.environ, PATH=f"{t}/stub:{os.environ['PATH']}", UVMARK=f"{t}/started")
+bad = []
+def start(*args, until=mark, ignore_int=False):
+    if os.path.exists(until): os.remove(until)
+    def pre():
+        os.setsid()
+        if ignore_int: signal.signal(signal.SIGINT, signal.SIG_IGN)   # what & in a script does
+    pr = subprocess.Popen([*vh, *args], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, preexec_fn=pre)
+    for _ in range(1200):
+        if os.path.exists(until) or pr.poll() is not None: break
+        time.sleep(0.05)
+    return pr
+records = []
+def cancel(*args, project=None):
+    r = subprocess.run([*vh, "cancel", project or p, *args, "--json"], capture_output=True, text=True, env=env)
+    rec = json.loads(r.stdout) if r.stdout.strip() else {}
+    records.append(rec)
+    return r.returncode, rec, r.stderr
+def ended(pr):
+    try: return pr.wait(10)
+    except subprocess.TimeoutExpired:
+        os.killpg(pr.pid, signal.SIGKILL); pr.wait(); return "still running"
+def stub_alive():
+    return subprocess.run(["pgrep", "-f", f"{t}/stub/uv"], capture_output=True).returncode == 0
+def runs():
+    return json.loads(subprocess.run([*vh, "activity", p, "--json"], capture_output=True, text=True).stdout)["runs"]
+def ends(run):
+    return [json.loads(x) for x in open(log, encoding="utf-8") if '"end"' in x and json.loads(x).get("run") == run and json.loads(x)["event"] == "end"]
+# a command bin/vh waits on, SIGINT reaching it: the tree stops as at a Ctrl-C, bin/vh writes the end, once; it reads as cancelled, not gone
+pr = start("qa", f"{p}/audio/mix.wav")
+rc, rec, err = cancel()
+r = (rec.get("runs") or [{}])[0]
+ex = ended(pr)
+one = next((x for x in runs() if x["cmd"] == "qa"), {})
+if not (rc == 0 and rec.get("cancelled") == 1 and r.get("state") == "cancelled" and r.get("signal") == "SIGINT" and r.get("exit") == 130 and ex in (-2, 130) and not stub_alive()
+        and one.get("state") == "failed" and one.get("cancelled") is True and one.get("exit") == 130 and len(ends(one["run"])) == 1 and ends(one["run"])[0].get("cancelled") is True
+        and "nothing is kept" in err and not os.path.exists(f"{p}/.ovh/cancel")):
+    bad.append(f"under bash, SIGINT: exit {rc}, {r}, ended {ex}, stand-in alive {stub_alive()}, run {one}, stderr {err[-200:]!r}")
+# SIGINT ignored, as for a command started with & from a script: SIGTERM after the wait; bash goes at once, so the end line is written here
+pr = start("qa", f"{p}/audio/mix.wav", ignore_int=True)
+t0 = time.time()
+rc, rec, err = cancel("--timeout", "1")
+r = (rec.get("runs") or [{}])[0]
+ex = ended(pr)
+one = [x for x in runs() if x["cmd"] == "qa"][-1]
+if not (rc == 0 and r.get("state") == "cancelled" and r.get("signal") == "SIGTERM" and r.get("exit") == 143 and ex == -15 and not stub_alive() and time.time() - t0 < 20
+        and one.get("state") == "failed" and one.get("cancelled") is True and one.get("exit") == 143):
+    bad.append(f"SIGINT ignored: exit {rc}, {r}, ended {ex}, stand-in alive {stub_alive()}, run {one}")
+# a tool bin/vh exec'd into, that waits for a person: left running without a name; by name it writes its own end, cancelled
+pr = start("desk", "wait", p, "--timeout", "30", until=f"{p}/out/review/feedback/.listening")
+rc, rec, err = cancel()
+one = [x for x in runs() if x["cmd"] == "desk"][-1]
+if not (rc == 0 and rec.get("runs") == [] and [x["cmd"] for x in rec.get("skipped", [])] == ["desk"] and pr.poll() is None and one["state"] == "running"):
+    bad.append(f"a desk wait, no name: exit {rc}, {rec}")
+rc, rec, err = cancel(one["run"])
+r = (rec.get("runs") or [{}])[0]
+ex = ended(pr)
+one = [x for x in runs() if x["cmd"] == "desk"][-1]
+if not (rc == 0 and r.get("state") == "cancelled" and r.get("exit") in (130, 143) and ex in (130, 143, -2) and one.get("cancelled") is True):
+    bad.append(f"a desk wait, by name: exit {rc}, {r}, ended {ex}, run {one}")
+# a run that is over, named: said, nothing done; part of an id does; an unknown one is an error
+rc, rec, err = cancel(one["run"][-6:])
+if not (rc == 0 and rec["runs"][0]["state"] == "not_running"):
+    bad.append(f"a run that is over: exit {rc}, {rec}")
+r2 = subprocess.run([*vh, "cancel", p, "nope-1", "--json"], capture_output=True, text=True)
+if r2.returncode != 2 or json.loads(r2.stdout or "{}").get("error", {}).get("code") != "not_found":
+    bad.append(f"an unknown run: exit {r2.returncode}, {r2.stdout[:200]}")
+# not started by this log: a pid of another time, untouched, and the run reads as gone from then on; a pid of its time that is another program, untouched, and no line: it may be running
+sl = subprocess.Popen(["sleep", "30"], start_new_session=True)
+real = os.path.realpath(p)
+def line(**rec):
+    with open(log, "a", encoding="utf-8") as f: f.write(json.dumps(dict({"v": 1}, **rec)) + "\n")
+def over(*ids):
+    for x in ids: line(event="end", run=x, t=time.time(), cmd="x", exit=0, duration=0)
+line(event="start", run="1-a", t=time.time() - 3600, cmd="render", args=[], cwd="/x", pid=sl.pid, project=real)
+rc, rec, err = cancel()
+r = next((x for x in rec.get("runs", []) if x["run"] == "1-a"), {})
+one = next(x for x in runs() if x["run"] == "1-a")
+if not (rc == 0 and r.get("state") == "not_that_process" and "another time" in (r.get("why") or "") and sl.poll() is None and one["state"] == "gone"):
+    bad.append(f"a pid of another time: exit {rc}, {r}, sleep {sl.poll()}, run {one}")
+line(event="start", run="1-o", t=time.time(), cmd="render", args=[], cwd="/x", pid=sl.pid, project=real)
+rc, rec, err = cancel()
+r = next((x for x in rec.get("runs", []) if x["run"] == "1-o"), {})
+one = next(x for x in runs() if x["run"] == "1-o")
+if not (rc == 1 and r.get("state") == "not_confirmed" and "command line" in (r.get("why") or "") and sl.poll() is None and one["state"] == "running" and not r.get("signal")):
+    bad.append(f"a pid of its time that is another program: exit {rc}, {r}, sleep {sl.poll()}, run {one}")
+over("1-o")
+sl.kill(); sl.wait()
+# a real bin/vh, but another time's: a reused pid; named, the exit status says it was not stopped
+pr = start("qa", f"{p}/audio/mix.wav")
+own = [x for x in runs() if x["cmd"] == "qa"][-1]
+line(event="start", run="1-b", t=time.time() - 3600, cmd="qa", args=[], cwd="/x", pid=pr.pid, project=real)
+rc, rec, err = cancel("1-b")
+r = (rec.get("runs") or [{}])[0]
+if not (rc == 1 and r.get("state") == "not_that_process" and pr.poll() is None and stub_alive()):
+    bad.append(f"a pid of another time: exit {rc}, {r}, process {pr.poll()}")
+# another bin/vh command at its time; an older start line, which says no project: nothing is sent, and nothing written
+line(event="start", run="1-c", t=own["start"], cmd="render", args=[], cwd="/x", pid=pr.pid, project=real)
+rc, rec, err = cancel("1-c")
+r = (rec.get("runs") or [{}])[0]
+if not (rc == 1 and r.get("state") == "not_confirmed" and pr.poll() is None and stub_alive() and next(x for x in runs() if x["run"] == "1-c")["state"] == "running"):
+    bad.append(f"another bin/vh command at its time: exit {rc}, {r}, process {pr.poll()}")
+over("1-c")
+line(event="start", run="1-d", t=own["start"], cmd="qa", args=[], cwd="/x", pid=pr.pid)
+rc, rec, err = cancel("1-d")
+r = (rec.get("runs") or [{}])[0]
+if not (rc == 1 and r.get("state") == "not_confirmed" and "older" in (r.get("why") or "") and pr.poll() is None and stub_alive() and next(x for x in runs() if x["run"] == "1-d")["state"] == "running"):
+    bad.append(f"an older start line: exit {rc}, {r}, process {pr.poll()}")
+over("1-d")
+# a run's id that would name a file elsewhere, relative or absolute: nothing is written or deleted there, nothing is sent
+victim, victim2 = f"{t}/victim.txt", f"{t}/victim2.txt"
+for v in (victim, victim2):
+    with open(v, "w") as f: f.write("precious\n")
+for x in (os.path.relpath(victim, f"{p}/.ovh/cancel"), victim2):
+    line(event="start", run=x, t=own["start"], cmd="qa", args=[], cwd="/x", pid=pr.pid, project=real)
+    rc, rec, err = cancel(x)
+    r = (rec.get("runs") or [{}])[0]
+    if not (rc == 1 and r.get("state") == "not_confirmed" and pr.poll() is None and stub_alive()):
+        bad.append(f"a run's id that is a path: exit {rc}, {r}, process {pr.poll()}")
+    over(x)
+if open(victim).read() != "precious\n" or open(victim2).read() != "precious\n":
+    bad.append("a run's id that is a path: the file it names was touched")
+# a copy of the folder, made while the run is on: its log has the run, and cancel there stops nothing and writes nothing about it
+copy = f"{t}/p-copy"
+shutil.copytree(p, copy)
+before = open(f"{copy}/.ovh/activity.jsonl").read()
+rc, rec, err = cancel(project=copy)
+r = next((x for x in rec.get("runs", []) if x["run"] == own["run"]), {})
+written = [json.loads(x) for x in open(f"{copy}/.ovh/activity.jsonl").read()[len(before):].splitlines() if json.loads(x).get("run") == own["run"]]
+rc2, rec2, _ = cancel(own["run"], project=copy)
+if not (rc == 0 and rc2 == 1 and r.get("state") == "not_that_process" and "copy" in (r.get("why") or "") and pr.poll() is None and stub_alive() and not written):
+    bad.append(f"a copy of the folder: exit {rc}, {rc2}, {r}, process {pr.poll()}, written {written}")
+# the mark is not written through a link: a link in its place stays a link's worth, the file it leads to as it was
+os.makedirs(f"{p}/.ovh/cancel"); os.symlink(victim, f"{p}/.ovh/cancel/{own['run']}")
+rc, rec, err = cancel()   # (the real one goes)
+if ended(pr) not in (-2, 130) or stub_alive() or open(victim).read() != "precious\n":
+    bad.append(f"after it, the real run: {rec}, {open(victim).read()!r}")
+# ./vh, from bin/: bin/vh all the same
+if os.path.exists(mark): os.remove(mark)
+pr = subprocess.Popen([sh, "./vh", "qa", f"{p}/audio/mix.wav"], cwd=f"{root}/bin", env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+for _ in range(1200):
+    if os.path.exists(mark) or pr.poll() is not None: break
+    time.sleep(0.05)
+rc, rec, err = cancel()
+r = (rec.get("runs") or [{}])[0]
+if not (rc == 0 and r.get("state") == "cancelled" and ended(pr) in (-2, 130) and not stub_alive()):
+    bad.append(f"./vh: exit {rc}, {r}, process {pr.poll()}")
+# a tool bin/vh exec's into that is not named after its command: music's lyria.py (a stand-in: no paid call) and style's render.sh
+os.makedirs(f"{t}/fake/tools/audio"); os.makedirs(f"{t}/fake/styles/_swatch")
+with open(f"{t}/fake/tools/audio/lyria.py", "w") as f: f.write("import sys, time\nopen(sys.argv[1], 'w').close()\ntime.sleep(60)\n")
+with open(f"{t}/fake/styles/_swatch/render.sh", "w") as f: f.write('#!/bin/sh\ntrap "exit 130" INT\n: > "$1"\nwhile :; do sleep 0.05; done\n')
+for cmd, argv in (("music", [sys.executable, f"{t}/fake/tools/audio/lyria.py", mark, "--provider", "lyria"]), ("style", [sh, f"{t}/fake/styles/_swatch/render.sh", mark])):
+    if os.path.exists(mark): os.remove(mark)
+    pr = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    for _ in range(600):
+        if os.path.exists(mark) or pr.poll() is not None: break
+        time.sleep(0.05)
+    line(event="start", run=f"1-{cmd}", t=time.time(), cmd=cmd, args=[], cwd="/x", pid=pr.pid, project=real)
+    rc, rec, err = cancel()
+    r = next((x for x in rec.get("runs", []) if x["run"] == f"1-{cmd}"), {})
+    ex = ended(pr)
+    one = next(x for x in runs() if x["run"] == f"1-{cmd}")
+    if not (rc == 0 and r.get("state") == "cancelled" and r.get("signal") == "SIGINT" and ex != "still running" and one["state"] == "failed" and one["cancelled"] is True):
+        bad.append(f"{cmd}'s tool: exit {rc}, {r}, ended {ex}, run {one}")
+# ps that fails: at the first look nothing is sent and nothing written; in the middle of the wait, no end line for what is alive, and it ends as still_running
+sys.path.insert(0, f"{root}/tools")
+import cancel as C
+ps_real = shutil.which("ps")
+os.makedirs(f"{t}/psshim"); os.makedirs(f"{t}/stub2")
+with open(f"{t}/psshim/ps", "w") as f:
+    f.write(f'#!/bin/sh\nn=$(cat "$PSCOUNT"); echo $((n + 1)) > "$PSCOUNT"\nif [ "$n" -ge "$PSOK" ] || [ -e "$GOTINT" ]; then exit 1; fi\nexec {ps_real} "$@"\n')
+with open(f"{t}/stub2/uv", "w") as f:
+    f.write("#!/bin/sh\ntrap ': > \"$GOTINT\"' INT\n: > \"$UVMARK\"\nwhile :; do sleep 0.05; done\n")
+os.chmod(f"{t}/psshim/ps", 0o755); os.chmod(f"{t}/stub2/uv", 0o755)
+def quick(ok, *args, path=None):
+    """bin/vh cancel with 0.5 s after SIGTERM, under a ps that fails after `ok` calls, or once GOTINT is there."""
+    open(f"{t}/ps-count", "w").write("0")
+    code = f"import sys; sys.path.insert(0, {root + '/tools'!r}); import cancel, jsonerr; cancel.AFTER_TERM = 0.5; sys.exit(jsonerr.guard(lambda: cancel.main(sys.argv[1:])))"
+    r = subprocess.run([sys.executable, "-c", code, p, "--json", *args], capture_output=True, text=True, env=dict(env, PATH=f"{t}/psshim:{os.environ['PATH']}", PSCOUNT=f"{t}/ps-count", PSOK=str(ok), GOTINT=f"{t}/got-int"))
+    rec = json.loads(r.stdout) if r.stdout.strip() else {}
+    records.append(rec)
+    return r.returncode, rec, r.stderr
+pr = start("qa", f"{p}/audio/mix.wav")
+own = [x for x in runs() if x["cmd"] == "qa"][-1]
+rc, rec, err = quick(1, "--timeout", "1")
+r = (rec.get("runs") or [{}])[0]
+one = next(x for x in runs() if x["run"] == own["run"])
+if not (rc == 1 and r.get("state") == "still_running" and r.get("signal") is None and pr.poll() is None and stub_alive() and one["state"] == "running" and not os.path.exists(f"{p}/.ovh/cancel")):
+    bad.append(f"ps that fails at the first look: exit {rc}, {r}, process {pr.poll()}, run {one}")
+rc, rec, err = cancel()
+if rc != 0 or ended(pr) not in (-2, 130) or stub_alive():
+    bad.append(f"after ps that failed at the first look: exit {rc}, {rec}")
+env2 = dict(env, PATH=f"{t}/stub2:{os.environ['PATH']}", GOTINT=f"{t}/got-int")
+if os.path.exists(mark): os.remove(mark)
+pr = subprocess.Popen([*vh, "qa", f"{p}/audio/mix.wav"], env=env2, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+for _ in range(1200):
+    if os.path.exists(mark) or pr.poll() is not None: break
+    time.sleep(0.05)
+own = [x for x in runs() if x["cmd"] == "qa"][-1]
+rc, rec, err = quick(100000, "--timeout", "1")
+r = (rec.get("runs") or [{}])[0]
+one = next(x for x in runs() if x["run"] == own["run"])
+if not (rc == 1 and r.get("state") == "still_running" and r.get("signal") == "SIGINT" and pr.poll() is None and one["state"] == "running" and not ends(own["run"]) and os.path.exists(f"{p}/.ovh/cancel/{own['run']}")):
+    bad.append(f"ps that fails in the middle of the wait: exit {rc}, {r}, process {pr.poll()}, run {one}, ends {ends(own['run'])}")
+os.killpg(pr.pid, signal.SIGKILL); pr.wait()
+subprocess.run(["pkill", "-9", "-f", f"{t}/stub2/uv"], capture_output=True)
+os.remove(f"{t}/got-int")
+one = next(x for x in runs() if x["run"] == own["run"])
+rc, rec, err = cancel()
+if one["state"] != "gone" or os.path.exists(f"{p}/.ovh/cancel"):
+    bad.append(f"the mark of a run that is over: {one}, {os.listdir(p + '/.ovh')}")
+# a tool in a step that takes no signal: still_running, the mark stays; it ends by itself, and its end line says cancelled
+with open(f"{t}/fake/tools/slow.py", "w") as f:
+    f.write(f"import os, signal, sys, time\nsys.path.insert(0, {root + '/tools'!r})\nimport activity\nsignal.signal(signal.SIGINT, signal.SIG_IGN); signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+            f"os.environ['OVH_ACTIVITY_PID'] = str(os.getpid())\nopen(sys.argv[1], 'w').close()\ndef main():\n    while not os.path.exists(sys.argv[2]): time.sleep(0.05)\n    return 130\nsys.exit(activity.exiting(main))\n")
+if os.path.exists(mark): os.remove(mark)
+pr = subprocess.Popen([sys.executable, f"{t}/fake/tools/slow.py", mark, f"{t}/slow-may-end"], env=dict(env, OVH_ACTIVITY_LOG=log, OVH_ACTIVITY_RUN="1-slow", OVH_ACTIVITY_CMD="slow", OVH_ACTIVITY_T0=str(time.time())), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+for _ in range(600):
+    if os.path.exists(mark) or pr.poll() is not None: break
+    time.sleep(0.05)
+line(event="start", run="1-slow", t=time.time(), cmd="slow", args=[], cwd="/x", pid=pr.pid, project=real)
+rc, rec, err = quick(100000, "--timeout", "0.5")
+r = (rec.get("runs") or [{}])[0]
+if not (rc == 1 and r.get("state") == "still_running" and r.get("signal") == "SIGTERM" and pr.poll() is None and os.path.exists(f"{p}/.ovh/cancel/1-slow") and "kill -9" in (r.get("why") or "")):
+    bad.append(f"a tool in a step that takes no signal: exit {rc}, {r}, process {pr.poll()}")
+open(f"{t}/slow-may-end", "w").close()
+ex = ended(pr)
+one = next(x for x in runs() if x["run"] == "1-slow")
+if not (ex == 130 and one["state"] == "failed" and one["cancelled"] is True and one["exit"] == 130):
+    bad.append(f"a tool in a step that takes no signal, after it: ended {ex}, run {one}")
+cancel()
+# each command bin/vh exec's into is known: the table of what its pid's command line looks like, and bin/vh's exec lines against it
+for cmd, cl in (("render", "node /r/tools/film/render.mjs --browser b p"), ("frames", "node /r/tools/film/frames.mjs p"), ("patch", "node /r/tools/film/patch.mjs f"), ("determinism", "node /r/tools/film/determinism.mjs p"), ("cues", "node /r/tools/film/cues.mjs p"), ("fonts", "node /r/tools/film/fonts.mjs p"),
+                ("textcheck", "node /r/tools/textcheck/textcheck.mjs p"), ("gate", "/usr/bin/python3 /r/tools/gate.py p 1"), ("desk", "python3 /r/tools/desk/desk.py p"), ("music", "/opt/x/Python /r/tools/audio/lyria.py p --provider lyria"), ("music", "bash /r/bin/vh music p"),
+                ("style", "bash /r/styles/_swatch/render.sh x"), ("qa", "/bin/bash /r/bin/vh qa x"), ("qa", "/bin/bash ./vh qa x"), ("qa", "bash vh qa x")):
+    if not C.is_ours(cmd, cl):
+        bad.append(f"is_ours: {cmd}, {cl}")
+for cmd, cl in (("render", "bash /r/bin/vh qa /p/render/x"), ("qa", "sleep 30"), ("", "bash /r/bin/vh qa"), ("music", "python3 /r/tools/audio/music.py p"), ("style", "bash /r/bin/vh qa x"), ("render", "node /elsewhere/render.mjs")):
+    if C.is_ours(cmd, cl):
+        bad.append(f"is_ours, not: {cmd}, {cl}")
+known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "status.py", "projects.py", "gate.py", "desk.py", "render.sh", "resolved.py", "lyria.py", "tts.py", "pace.py", "$1.mjs", "commands.py", "artifacts.py"}
+for m in re.finditer(r'\bexec\s+(?:python3|node)?\s*"?\$(?:ROOT|sw)/([^"\s]+)', open(f"{root}/bin/vh", encoding="utf-8").read()):
+    if m.group(1).rsplit("/", 1)[-1] not in known:
+        bad.append(f"bin/vh exec's into {m.group(1)}: say in tools/cancel.py's EXEC what its pid's command line is (a command not named after its tool), and add it here")
+# a process that goes before anything is sent, and says nothing: no cancel of it, and it reads as gone
+real_process = C.process
+answers = iter([("S", 1000.0, "bash /r/bin/vh qa x")])
+C.process = lambda pid: next(answers, None)
+r = C.stop(p, {"run": "1-x", "pid": 99999, "cmd": "qa", "start": 1000.0, "project": real}, 0.1)
+C.process = real_process
+one = next((x for x in runs() if x["run"] == "1-x"), {})
+if not (r["state"] == "not_that_process" and r["signal"] is None and one.get("state") == "gone" and not one.get("cancelled")):
+    bad.append(f"a process that went first: {r}, {one}")
+# the mark as a class: only an id bin/vh writes names a file; a folder that is a link is not written through
+try:
+    C.Mark(p, "../x"); bad.append("Mark took ../x")
+except ValueError:
+    pass
+os.makedirs(f"{t}/lm/.ovh"); os.makedirs(f"{t}/elsewhere"); os.symlink(f"{t}/elsewhere", f"{t}/lm/.ovh/cancel")
+C.Mark(f"{t}/lm", "1-1").set(130)
+if os.listdir(f"{t}/elsewhere"):
+    bad.append(f"the mark went through a folder that is a link: {os.listdir(f'{t}/elsewhere')}")
+# a tool that failed on its way out under the mark, and one that ended well: the writers' rule
+sys.path.insert(0, f"{root}/tools")
+import activity, schemalite
+sch = schemalite.load(f"{root}/tools/schemas/output/cancel.schema.json")
+for said in records:
+    wrong = schemalite.problems(sch, said) + schemalite.undeclared(sch, said)
+    if wrong:
+        bad.append(f"the record against its schema: {wrong[:4]}")
+os.makedirs(f"{p}/.ovh/cancel", exist_ok=True); open(f"{p}/.ovh/cancel/9-z", "w").write("143\n")
+got = [activity.cancelling(log, "9-z", 1), activity.cancelling(log, "9-z", 130), activity.cancelling(log, "9-z", 0), activity.cancelling(log, "9-y", 1)]
+if got != [(143, True), (130, True), (0, False), (1, False)]:
+    bad.append(f"cancelling: {got}")
+os.remove(f"{p}/.ovh/cancel/9-z"); os.rmdir(f"{p}/.ovh/cancel")
+print("; ".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "cancel: a command under bash stops as at a Ctrl-C, or by SIGTERM when SIGINT is ignored (the end line written for it); a tool bin/vh exec'd into writes its own, not-named-after-it ones too; each end line says cancelled, 130 or 143, not gone; a desk only by name. Not touched: a pid of another time (gone), another command at its time, an older start line and a run's id that is a path (not confirmed), a copy of the folder; ps that fails writes nothing, and a tool that takes no signal keeps its mark" \
+    || bad "bin/vh cancel: $(printf '%s' "$a" | tail -c 1500)"
+  # no project, no film: the error's shape; with nothing running, exit 0
+  a=$(vh cancel nope --json 2>/dev/null); rc=$?
+  b=$(vh cancel "$p" 2>&1); c=$?
+  case "$rc:$c:$a:$b" in 2:0:*'"code": "no_project"'*:*"nothing is running"*) ok "cancel: no project is exit 2 in the error's shape; nothing running is exit 0, and said" ;;
+    *) bad "bin/vh cancel with nothing to do: exit $rc, $c: $a | $b" ;; esac
+  # the progress lines: at a low rate, the first and the last always; proxy, thumbs and deliver on a real film; tts through a stand-in provider, and what a stop keeps
+  a=$(python3 - <<'PY' 2>&1
+import json, os, sys, tempfile
+sys.path.insert(0, "tools")
+os.environ.update(OVH_ACTIVITY_RUN="1-1", OVH_ACTIVITY_CMD="x")
+d = tempfile.mkdtemp(); log = os.environ["OVH_ACTIVITY_LOG"] = f"{d}/a.jsonl"
+import activity
+now = [0.0]
+tick = activity.Progress(100, "frames", every=5, clock=lambda: now[0], **{"pass": 1})
+said = []
+for t, done in ((0, 0), (1, 1), (2, 2), (5.1, 3), (5.2, 3), (6, 4), (6.1, 100)):
+    now[0] = t
+    tick(done)
+rows = [json.loads(x) for x in open(log)]
+ok = [r["done"] for r in rows] == [0, 3, 100] and all(r["total"] == 100 and r["unit"] == "frames" and r["pass"] == 1 and len(json.dumps(r)) < 200 for r in rows)
+print("ok" if ok else rows)
+PY
+  )
+  [ "$a" = ok ] && ok "activity.Progress: a line at most every several seconds, the first and the one that reaches the total always, each small" || bad "activity.Progress: $a"
+  # what ffmpeg's -progress says, report by report (a stand-in): frame and out_time_us or out_time_ms in microseconds, a report at each progress= line; its stderr kept; stopped by an exception, it goes too
+  mkdir -p "$t/ff"
+  printf '#!/bin/sh\nprintf "frame=1\\nout_time_us=500000\\nprogress=continue\\nframe=2\\nout_time_ms=1000000\\ndrop_frames=0\\nprogress=continue\\nframe=N/A\\nout_time_us=-5\\nprogress=end\\n"\necho "a warning" >&2\nexit 3\n' > "$t/ff/fake"; chmod +x "$t/ff/fake"
+  printf '#!/bin/sh\nprintf "frame=1\\nprogress=continue\\n"\nexec sleep 30\n' > "$t/ff/hang"; chmod +x "$t/ff/hang"
+  a=$(python3 - "$t" <<'PY' 2>&1
+import os, sys
+sys.path.insert(0, "tools")
+import activity
+t = sys.argv[1]
+got = []
+rc, err = activity.follow_ffmpeg([f"{t}/ff/fake", "x"], lambda f, s: got.append((f, s)))
+bad = []
+if not (rc == 3 and "a warning" in err and got == [(1, 0.5), (2, 1.0), (2, 0.0)]):
+    bad.append(f"{rc}, {err!r}, {got}")
+class Stop(Exception):
+    pass
+def tick(f, s):
+    raise Stop
+try:
+    activity.follow_ffmpeg([f"{t}/ff/hang"], tick)
+    bad.append("no exception")
+except Stop:
+    pass
+print("; ".join(bad) or "ok")
+PY
+  )
+  [ "$a" = ok ] && ok "activity.follow_ffmpeg: every report of -progress reaches the tick, with its frame and seconds; what ffmpeg says on stderr and its exit come back; stopped by an exception, it goes too" || bad "activity.follow_ffmpeg: $a"
+  if command -v ffmpeg >/dev/null; then
+    ffmpeg -nostdin -v error -f lavfi -i testsrc=s=160x90:r=10:d=2 -f lavfi -i sine=d=2 -pix_fmt yuv420p -c:a aac -shortest "$p/out/film.mp4"
+    rm -f "$p/.ovh/activity.jsonl"
+    vh proxy "$p/out/film.mp4" >/dev/null 2>&1; rc=$?
+    vh thumbs "$p/out/film.mp4" --every 0.5 >/dev/null 2>&1; b=$?
+    vh deliver "$p/out/film.mp4" --matrix bt709 --psnr off >/dev/null 2>"$t/deliver.err"; c=$?
+    ffmpeg -nostdin -v error -f lavfi -i testsrc2=s=640x360:r=10:d=2 -f lavfi -i sine=d=2 -crf 1 -pix_fmt yuv420p -c:a aac -shortest "$p/out/hi.mp4"   # (over the ceiling: two passes)
+    vh deliver "$p/out/hi.mp4" --matrix bt709 --max-gb 0.0002 --psnr off --out "$p/out/two.mp4" >/dev/null 2>>"$t/deliver.err"; d=$?
+    a=$(python3 - "$p/.ovh/activity.jsonl" <<'PY' 2>&1
+import json, sys
+recs = [json.loads(x) for x in open(sys.argv[1], encoding="utf-8")]
+bad = []
+def prog(cmd):
+    runs = {}
+    for r in recs:
+        if r["event"] == "progress" and r["cmd"] == cmd:
+            runs.setdefault(r["run"], []).append(r)
+    return list(runs.values())
+p = prog("proxy")[0]
+if not (p[0]["done"] == 0 and p[-1]["done"] == 20 and p[-1]["total"] == 20 and p[-1]["unit"] == "frames"): bad.append(f"proxy {p}")
+p = prog("thumbs")[0]
+if not (p[0]["done"] == 0 and p[-1]["done"] == p[-1]["total"] >= 4 and p[-1]["unit"] == "pictures"): bad.append(f"thumbs {p}")
+d = prog("deliver")
+if not (len(d) == 2 and d[0][-1]["done"] == 100 and d[0][-1]["unit"] == "percent" and d[0][-1]["passes"] == 1 and d[0][-1]["pass"] == 1): bad.append(f"deliver one pass {d[:1]}")
+two = sorted({(r["pass"], r["passes"]) for r in d[1]}) if len(d) == 2 else []
+if two != [(1, 2), (2, 2)]: bad.append(f"deliver two passes {two}")
+print("; ".join(bad) or "ok")
+PY
+    )
+    if [ "$rc:$b:$c" = 0:0:0 ] && { [ "$d" = 0 ] || [ "$d" = 1 ]; } && [ "$a" = ok ]; then ok "progress: proxy (frames), thumbs (pictures) and deliver (percent, of its pass of passes) leave progress lines, from 0 to the whole"
+    else bad "progress lines: exit $rc, $b, $c, $d: $(printf '%s' "$a" | tail -c 800) | $(tail -c 300 "$t/deliver.err")"; fi
+    a=$(python3 - "$p" <<'PY' 2>&1
+import importlib.util, json, os, signal, sys, wave
+p = sys.argv[1]
+sys.path.insert(0, "tools")
+log = os.environ["OVH_ACTIVITY_LOG"] = f"{p}/.ovh/tts.jsonl"
+os.environ.update(OVH_ACTIVITY_RUN="2-1", OVH_ACTIVITY_CMD="tts")
+os.makedirs(f"{p}/.ovh", exist_ok=True)
+with open(f"{p}/audio/script.txt", "w", encoding="utf-8") as f:
+    f.write("@a 第一句话在这里。\n@b 第二句话也在。\n@c 第三句话。\n")
+spec = importlib.util.spec_from_file_location("tts", "tools/audio/tts.py"); tts = importlib.util.module_from_spec(spec); spec.loader.exec_module(tts)
+said = []
+def fake(text, voice, out, tmp, lang, style):
+    said.append(text)
+    if len(said) == 3 and os.environ.get("STOP"):
+        os.kill(os.getpid(), signal.SIGTERM)
+    with wave.open(str(out), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(48000); w.writeframes(b"\1\0" * 4800)
+    return None
+tts.PROVIDERS["edge"] = fake
+sys.argv = ["tts.py", p, "--provider", "edge", "--voice", "x", "--lang", "zh"]
+try:
+    tts.main()
+except SystemExit as e:
+    print("first run", e.code)
+rows = [json.loads(x) for x in open(log, encoding="utf-8")]
+done = [r["done"] for r in rows if r["event"] == "progress"]
+os.environ["STOP"] = "1"; said.clear(); open(log, "w").close()
+try:
+    tts.entry()
+except SystemExit as e:
+    code = e.code
+rows = [json.loads(x) for x in open(log, encoding="utf-8")]
+kept = [r.get("kept") for r in rows if r["event"] == "note" and r.get("kept")]
+# a stop in the middle of writing a line (a stand-in provider that leaves half a file): it does not pass for done, and --resume makes it again, whole
+half = []
+def half_then_stop(text, voice, out, tmp, lang, style):
+    half.append(text)
+    with wave.open(str(out), "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(48000); w.writeframes(b"\1\0" * (480 if len(half) == 2 else 4800))
+    if len(half) == 2 and os.environ.get("STOP2"):
+        raise KeyboardInterrupt
+    return None
+tts.PROVIDERS["edge"] = half_then_stop
+for f in os.listdir(f"{p}/audio/vo/zh"):
+    os.remove(f"{p}/audio/vo/zh/{f}")
+os.environ["STOP2"] = "1"; sys.argv = ["tts.py", p, "--provider", "edge", "--voice", "x", "--lang", "zh"]
+try:
+    tts.entry()
+except SystemExit as e:
+    code2 = e.code
+line2 = os.path.exists(f"{p}/audio/vo/zh/02.wav")
+left = [f for f in os.listdir(f"{p}/audio/vo/zh") if f.startswith(".")]
+del os.environ["STOP2"]; half.clear(); sys.argv = ["tts.py", p, "--provider", "edge", "--voice", "x", "--lang", "zh", "--resume"]
+try:
+    tts.main()
+except SystemExit as e:
+    pass
+resumed = list(half)
+if code2 != 130 or line2 or left or len(resumed) != 2 or "第二句" not in resumed[0]:
+    print("half a line:", code2, line2, left, resumed)
+print("ok" if done and done[0] == 0 and done[-1] == 3 and code == 130 and kept and "2 of 3 line(s)" in kept[0] and "--resume" in kept[0] else [done, code, rows])
+PY
+    )
+    case "$a" in *"half a line"*) bad "tts: half a line under --resume: $(printf '%s' "$a" | tail -c 500)" ;; *ok) ok "progress: tts says its lines done; stopped, it says what a resume has, and a line cut short does not pass for done" ;; *) bad "tts's progress and stop: $(printf '%s' "$a" | tail -c 800)" ;; esac
+    # proxy and deliver stopped in the middle of an encode (a stand-in ffmpeg that starts its output and never ends): what they began goes, what was there stays
+    mkdir -p "$t/hang"
+    printf '#!/bin/sh\nfor a in "$@"; do last=$a; done\n: > "$last"\n: > "$HANGMARK"\nwhile :; do sleep 0.05; done\n' > "$t/hang/ffmpeg"; chmod +x "$t/hang/ffmpeg"
+    a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY' 2>&1
+import glob, json, os, signal, subprocess, sys, time
+sh, root, p, t = sys.argv[1:]
+vh = [sh, f"{root}/bin/vh"]
+mark, env = f"{t}/hanging", dict(os.environ, PATH=f"{t}/hang:{os.environ['PATH']}", HANGMARK=f"{t}/hanging")
+bad = []
+film = f"{p}/out/film.mp4"
+before = open(film, "rb").read()
+for cmd, args, left in (("proxy", [film, "--crf", "27"], f"{p}/out/proxy/.film.mp4.tmp.mp4"), ("deliver", [film, "--matrix", "bt709", "--psnr", "off", "--out", f"{p}/out/copy.mp4"], f"{p}/out/.copy.mp4.*")):
+    if os.path.exists(mark): os.remove(mark)
+    pr = subprocess.Popen([*vh, cmd, *args], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    for _ in range(1200):
+        if os.path.exists(mark) or pr.poll() is not None: break
+        time.sleep(0.05)
+    r = subprocess.run([*vh, "cancel", p, "--json"], capture_output=True, text=True)
+    rec = json.loads(r.stdout) if r.stdout.strip() else {}
+    row = (rec.get("runs") or [{}])[0]
+    try: ex = pr.wait(10)
+    except subprocess.TimeoutExpired:
+        os.killpg(pr.pid, signal.SIGKILL); pr.wait(); ex = "still running"
+    hung = subprocess.run(["pgrep", "-f", f"{t}/hang/ffmpeg"], capture_output=True).returncode == 0
+    if not (r.returncode == 0 and row.get("cmd") == cmd and row.get("state") == "cancelled" and row.get("exit") in (130, 143) and ex in (-2, -15, 130, 143) and not hung and not glob.glob(left) and open(film, "rb").read() == before):
+        bad.append(f"{cmd}: exit {r.returncode}, {row}, ended {ex}, stand-in left {hung}, files left {glob.glob(left)}")
+print("; ".join(bad) or "ok")
+PY
+    )
+    [ "$a" = ok ] && ok "cancel: proxy and deliver stopped in the middle of an encode: ffmpeg goes, what they began goes, the film is as it was" || bad "cancel of proxy and deliver: $(printf '%s' "$a" | tail -c 800)"
+    # thumbs --full stopped in the middle: the pictures that were there are all there, the record as it was, nothing left beside them
+    vh thumbs "$p/out/film.mp4" --every 0.5 >/dev/null 2>&1
+    a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY' 2>&1
+import glob, hashlib, json, os, signal, subprocess, sys, time
+sh, root, p, t = sys.argv[1:]
+d = f"{p}/out/proxy/film.thumbs"
+state = lambda: {f: hashlib.sha256(open(f, "rb").read()).hexdigest() for f in glob.glob(f"{d}/**", recursive=True) if os.path.isfile(f)}
+before = state()
+mark = f"{t}/hanging"
+if os.path.exists(mark): os.remove(mark)
+pr = subprocess.Popen([sh, f"{root}/bin/vh", "thumbs", f"{p}/out/film.mp4", "--every", "0.5", "--full"], env=dict(os.environ, PATH=f"{t}/hang:{os.environ['PATH']}", HANGMARK=mark), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+for _ in range(1200):
+    if os.path.exists(mark) or pr.poll() is not None: break
+    time.sleep(0.05)
+r = subprocess.run([sh, f"{root}/bin/vh", "cancel", p, "--json"], capture_output=True, text=True)
+rec = json.loads(r.stdout) if r.stdout.strip() else {}
+row = (rec.get("runs") or [{}])[0]
+try: ex = pr.wait(10)
+except subprocess.TimeoutExpired:
+    os.killpg(pr.pid, signal.SIGKILL); pr.wait(); ex = "still running"
+left = [x for x in os.listdir(f"{p}/out/proxy") if ".thumbs." in x]
+print("ok" if len(before) > 5 and state() == before and not left and r.returncode == 0 and row.get("state") == "cancelled" and ex in (-2, -15, 130, 143) else [len(before), len(state()), left, r.returncode, row, ex])
+PY
+    )
+    [ "$a" = ok ] && ok "cancel: thumbs --full stopped in the middle: the pictures that were there are all there, the record as it was, nothing left beside them" || bad "cancel of thumbs --full: $(printf '%s' "$a" | tail -c 800)"
+  else skip "progress lines of proxy, thumbs, deliver and tts" "needs ffmpeg"; fi
+  # a real render, cancelled with chunks kept (its page hangs after half a second), and a real patch's progress
+  if ! command -v ffmpeg >/dev/null; then skip "cancel of a real render, patch's progress" "needs ffmpeg"
+  else
+    mkdir -p "$t/r/out"; printf '# BRIEF\n- Effort: quick\n' > "$t/r/BRIEF.md"
+    sed 's|frame(t) {|frame(t) { if (t > 0.2) return new Promise(() => {});|' tools/film/fixture/blur.html > "$t/r/film.html"
+    "$VH_BASH" "$ROOT/bin/vh" render "$t/r/film.html" --gop 2 --workers 1 --frame-timeout 120 --no-estimate --out "$t/r/out/film.mp4" >/dev/null 2>"$t/r/err" & pid=$!
+    for _ in $(seq 1 1800); do [ -s "$t/r/out/.film.mp4.parts/part0000.mp4" ] && break; kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done   # a chunk finished, the next ones on their way to the hang
+    sleep 1
+    if grep -q "needs a headless Chrome" "$t/r/err"; then no_chrome "cancel of a real render, patch's progress"; rm -rf "$t"; return; fi
+    a=$(vh cancel "$t/r" --json 2>/dev/null); rc=$?
+    wait "$pid" 2>/dev/null; c=$?
+    for _ in $(seq 1 50); do b=$(pgrep -f "$t/r" | wc -l | tr -d ' '); [ "$b" = 0 ] && break; sleep 0.1; done
+    if [ "$rc" = 0 ] && [ "$c" = 130 ] && [ "$b" = 0 ] && python3 - "$a" "$t/r/.ovh/activity.jsonl" <<'PY'
+import json, sys
+rec = json.loads(sys.argv[1])
+r = rec["runs"][0]
+end = [json.loads(x) for x in open(sys.argv[2], encoding="utf-8") if '"end"' in x][-2]   # (the last: this cancel's own)
+sys.exit(0 if r["state"] == "cancelled" and r["exit"] == 130 and "chunks are kept" in (r["kept"] or "") and end["cmd"] == "render" and end["cancelled"] is True and end["exit"] == 130 else 1)
+PY
+    then ok "cancel: a real render stops by its own SIGINT, browser and encoder gone; its end line says cancelled, and it says the chunks it kept for a resume"
+    else bad "cancel of a real render: exit $rc, render $c, left $b: $(printf '%s' "$a" | tail -c 600) | $(tail -c 300 "$t/r/err")"; fi
+    cp tools/film/fixture/blur.html "$t/r/film.html"; rm -rf "$t/r/out" "$t/r/.ovh"; mkdir -p "$t/r/out"
+    vh render "$t/r/film.html" --gop 3 --workers 1 --no-estimate --out "$t/r/out/film.mp4" >/dev/null 2>&1; rc=$?
+    rm -f "$t/r/.ovh/activity.jsonl"
+    vh patch "$t/r/out/film.mp4" --frames 2-2 --workers 1 >/dev/null 2>"$t/r/err"; c=$?
+    a=$(python3 -c 'import json, sys; print([(r["done"], r["total"], r["unit"]) for r in map(json.loads, open(sys.argv[1], encoding="utf-8")) if r["event"] == "progress"])' "$t/r/.ovh/activity.jsonl" 2>&1)
+    case "$rc:$c:$a" in "0:0:[(0, "[0-9]*", 'frames'), ("[0-9]*", "[0-9]*", 'frames')]") ok "progress: patch says the frames drawn again, from 0 to the whole" ;;
+      *) bad "patch's progress: exit $rc, $c, $a: $(tail -c 300 "$t/r/err")" ;; esac
+    # a signal while the new film goes in place (a python3 that sends it as versions.py starts): patch does not say the film is as it was
+    mkdir -p "$t/pyshim"; printf '#!/bin/sh\ncase "$*" in *_commit*) kill -INT "$PPID"; sleep 0.2 ;; esac\nexec "%s" "$@"\n' "$(command -v python3)" > "$t/pyshim/python3"; chmod +x "$t/pyshim/python3"
+    PATH="$t/pyshim:$PATH" vh patch "$t/r/out/film.mp4" --frames 3-3 --workers 1 >"$t/r/out.txt" 2>"$t/r/err"; c=$?
+    if [ "$c" = 0 ] && ! grep -q 'the film is as it was' "$t/r/err" && grep -q 'patch: done' "$t/r/out.txt"; then ok "patch: a signal while the new film goes in place does not say the film is as it was"
+    else bad "patch, a signal as the film goes in place: exit $c: $(tail -c 300 "$t/r/err")"; fi
+  fi
+  rm -rf "$t"
+}
+
 next_step_checks() {
   local t=$1 p q a b c d e f
   # ns <project> <expression over n, c, r>…: prints what does not hold, and a crash too (these checks pass on empty output)
@@ -6690,7 +8166,7 @@ note = next(r for r in render if r["event"] == "note")
 sys.exit(0 if note["outputs"] == ["out/film.mp4", "out/film.mp4.render.json"] and [r["done"] for r in render if r["event"] == "progress"][-1] == 60 else 1)
 PY
     a=$(python3 "$t/act.py" "$t/p, x/.ovh/activity.jsonl" 2>&1); rc=$?
-    case "$rc:$a" in "0:start progress progress note end:0 | start note end:1 | start note end:0 | start end:2") ok "activity: render logs its progress and what it wrote, patch its outcome; node writes the end line of a run bin/vh exec'd into" ;;
+    case "$rc:$a" in "0:start progress progress note end:0 | start progress progress note end:1 | start progress progress note end:0 | start note end:2") ok "activity: render logs its progress and what it wrote, patch its progress and outcome, and why one was refused; node writes the end line of a run bin/vh exec'd into" ;;
       *) bad "activity of render and patch (rc $rc): $a" ;; esac
     # versions (tools/versions.py): in a project, each render and patch is a version; the film a render or an in-place
     # patch replaces is kept in out/versions/ (moved, the same bytes), its record says what changed; compare draws a

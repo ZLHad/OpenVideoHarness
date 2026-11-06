@@ -58,7 +58,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
-import { note as activityNote } from "./activity.mjs";   // the project's activity log (bin/vh activity)
+import { error as activityError, note as activityNote, throttled } from "./activity.mjs";   // the project's activity log (bin/vh activity)
 import { commit, moveBeside, there } from "./versions.mjs";   // the project's versions (bin/vh versions)
 import { findTable, readTable, tidyShots } from "./shot_source.mjs";   // the project's shot table (tools/shot_source.py's mirror)
 import { frameFrom } from "./timegrid.mjs";                           // seconds to frames (tools/timegrid.py)
@@ -70,7 +70,7 @@ const HERE = path.dirname(new URL(import.meta.url).pathname);
 const HELP = fs.readFileSync(new URL(import.meta.url), "utf8").split("\nimport ")[0].replace(/^\/\/ ?/gm, "");
 const argv = process.argv.slice(2);
 if (!argv.length || argv.includes("-h") || argv.includes("--help")) { process.stdout.write(HELP.trimEnd() + "\n"); process.exit(argv.length ? 0 : 2); }
-const die = (msg, code = 2) => { console.error("patch: " + msg); cleanUp(); process.exit(code); };
+const die = (msg, code = 2) => { console.error("patch: " + msg); activityError(msg); cleanUp(); process.exit(code); };
 const o = { workers: 4, verify: "seams", minPsnr: 40 };
 let film = null, sidecarFile = null, pageArg = null, out = null, inPlace = false, keep = false, browser = null, note = null;
 const frameLists = [], secondLists = [], shotIds = [], chapterIds = [];
@@ -293,14 +293,18 @@ if (2.2 * filmBytes > free) die(`about ${(2.2 * filmBytes / 1e9).toFixed(1)} GB 
 // ---- render the windows again, exactly as before ----
 work = path.join(path.dirname(outFile), `.${path.basename(outFile)}.patch`);
 fs.rmSync(work, { recursive: true, force: true }); fs.mkdirSync(work, { recursive: true });
-let child = null;
+let child = null, placing = false;
 for (const [sig, code] of [["SIGINT", 130], ["SIGTERM", 143]]) process.once(sig, () => {
+  if (placing) return;   // it came during the last, synchronous step: patch's last lines have said where the new film is, and it ends as they say
   console.error(`patch: stopped (${sig}); the work folder is deleted, the film is as it was`);
   if (child) child.kill(sig);
   keep = false; cleanUp(); process.exit(code);
 });
 const capture = String(side.capture || "jpeg q95"), q = capture.match(/jpeg q(\d+)/);
 const T0 = Date.now();
+const framesToDraw = wins.reduce((n, w) => n + w.B - w.A, 0), tick = throttled(framesToDraw, "frames");
+let framesDrawn = 0;
+tick(framesDrawn);
 // the pieces' renders: no activity lines of their own (the patch's run has its note), no versions (they are parts), and
 // no "render: done" line (a piece is a step: this patch's last line is the one that says it is done)
 const env = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("OVH_ACTIVITY_"))), OVH_VERSIONS: "off", OVH_RENDER_PIECE: "1" };
@@ -322,6 +326,7 @@ for (const [i, w] of wins.entries()) {
   });
   child = null;
   if (code !== 0) die(`rendering frames ${w.A}–${w.B - 1} failed (render exit ${code}); the film is as it was`, code === 2 ? 2 : 1);
+  tick(framesDrawn += w.B - w.A);
   const ps = JSON.parse(fs.readFileSync(w.piece + ".render.json", "utf8"));
   if (ps.frames !== w.B - w.A) die(`the page drew ${ps.frames} frames for ${w.A}–${w.B - 1}, not ${w.B - w.A}: it is shorter now than the film (${rel(page)}). Render the film again`, 1);
   if (side.browser && ps.browser !== side.browser && !notes.length) notes.push(`the film was rendered in ${side.browser}, these frames in ${ps.browser}: text and edges can differ a little (the PSNR below shows how much)`);
@@ -533,6 +538,7 @@ if (failures.length) {
 const sideTmp = joined + ".render.json";
 fs.writeFileSync(sideTmp, JSON.stringify(sideFor(outFile), null, 1) + "\n");
 // the new film in place: with --in-place the film it replaces is kept as an earlier version first (tools/film/versions.mjs)
+placing = true;
 const ver = commit({ film: outFile, new: joined, new_sidecar: sideTmp, made_by: "patch", source: inPlace ? null : film, expect: filmAt, note, changed });
 const placed = ver.placed;
 const tail = (ver.id ? ` · version ${ver.id}` : "") + (ver.error ? ` · ${ver.lines[0]}` : "");

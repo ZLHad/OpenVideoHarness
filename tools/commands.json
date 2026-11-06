@@ -194,6 +194,8 @@
       "when": "picking a project up again, or before telling the person what comes next",
       "stages": ["any"],
       "reads": [
+        "<project>/.ovh/project.json",
+        "<project>/out/proxy/ (media: what is there, and whether it is of this film)",
         "<project>/BRIEF.md, REVIEW.md, DECISIONS.md, NOTES.md",
         "<project>/out/review/",
         "<project>/out/check/*.check.json",
@@ -214,6 +216,83 @@
             "what to do, the commands and the sections to read (tools/status.py; --json: the fields in tools/desk/README.md)"
           ]
         }
+      ]
+    },
+    {
+      "name": "projects",
+      "summary": "Every project on this machine and where each stands: its id, type, effort, state, who is waited on, the next step, last activity and latest film.",
+      "when": "choosing what to pick up, or a client's list of projects",
+      "stages": ["any"],
+      "reads": [
+        "$OVH_PROJECTS, <repo>/projects and each --root: every folder holding BRIEF.md",
+        "<project>/.ovh/project.json",
+        "what bin/vh status reads of each project, but its asset ledger, cast and research"
+      ],
+      "writes": [
+        "<project>/.ovh/project.json (--assign, for a project without an id)"
+      ],
+      "usage": [
+        {
+          "synopsis": "projects [--root DIR …] [--assign] [--json]",
+          "text": [
+            "every folder holding BRIEF.md under $OVH_PROJECTS, <repo>/projects and each --root: its id (null until assigned; --assign",
+            "writes the missing ones in .ovh/project.json, and a moved folder keeps its id), name, path, type, effort, state, who is",
+            "waited on, the next step, last activity and latest film; a project that cannot be read is one row with an error",
+            "(tools/projects.py; --json: the fields in its -h)"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cancel",
+      "summary": "Stop what runs in a project, the way each tool stops best: its end line says it was cancelled, and it says what was kept for a resume.",
+      "when": "a render or another long command has to stop, from an agent or a client that did not start it in a terminal",
+      "stages": ["any"],
+      "reads": [
+        "<project>/.ovh/activity.jsonl"
+      ],
+      "writes": [
+        "<project>/.ovh/activity.jsonl (the end line of a run that could not write its own)",
+        "<project>/.ovh/cancel/<id> (a mark, while it stops that run; it stays with one that is still running)"
+      ],
+      "usage": [
+        {
+          "synopsis": "cancel <project> [run] [--timeout S] [--json]",
+          "text": [
+            "every running run of the project's log (a desk or gate --wait only by name; a pid that cannot be confirmed as that command",
+            "in this project is not touched): SIGINT, then SIGTERM after a bounded wait; the end line says \"cancelled\": true, exit 130 or",
+            "143, and what a tool kept for a resume is said (tools/cancel.py; --json: the fields in its -h)"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "history",
+      "summary": "A safety net for the text people and agents write: snapshots by content, list, a unified diff, restore with the state before it saved first.",
+      "when": "before a large rewrite of the docs, or to get back a file that was overwritten; bin/vh gate saves on every page that goes out",
+      "stages": ["any"],
+      "reads": [
+        "<project>/.ovh/history/index.jsonl",
+        "tools/artifacts.json: the kinds of file a person or an agent writes (md, json, txt)"
+      ],
+      "writes": [
+        "<project>/.ovh/history/index.jsonl, objects/<id>, .gitignore and .lock (save, restore)",
+        "the file restored"
+      ],
+      "usage": [
+        {
+          "synopsis": "history save <project> [--note text] [--json] | history list <project> [<file>] [--json] | history diff <project> [<file>] [--at s] [--to s] [--json] | history restore <project> <file> [--at s] [--json]",
+          "text": [
+            "the small text files a person or an agent writes, stored by content in .ovh/history (save writes nothing when nothing changed);",
+            "list the snapshots, diff a unified diff, restore a file as it was, what is there now saved first, so it can be undone (tools/history.py)"
+          ]
+        }
+      ],
+      "subcommands": [
+        { "name": "save", "summary": "a snapshot, if anything changed" },
+        { "name": "list", "summary": "the snapshots, or those where a file changed" },
+        { "name": "diff", "summary": "a unified diff between snapshots, or from one to now" },
+        { "name": "restore", "summary": "a file as it was, the state before it saved first" }
       ]
     },
     {
@@ -356,6 +435,7 @@
         "<project>/BRIEF.md, STYLE.md, style-refs/, STORYBOARD.md, audio/*events*.json (--from)"
       ],
       "writes": [
+        "<project>/.ovh/project.json",
         "projects/<date>-<slug>/ (or under --dir, $OVH_PROJECTS)",
         "<project>/BRIEF.md, STYLE.md, STORYBOARD.md, REVIEW.md, DECISIONS.md, NOTES.md, LESSONS.md, TASTE_CHECKLIST.md, ENGINE_README.md, film.html, src/, node_modules/ (the type's templates and its engine's files)",
         "<project>/three/, style-refs/<id>/, series.json (with --three, --style, --from)"
@@ -1023,6 +1103,7 @@
         "<project>/BRIEF.md"
       ],
       "writes": [
+        "<project>/.ovh/history/index.jsonl, objects/<id>, .gitignore and .lock (a snapshot on each page that goes out)",
         "<project>/out/review/gate-<n>.html, index.html, .current, .gate-<n>.refused.json (a page that breaks a rule: nothing is sent)",
         "<project>/out/review/gate-<n>.json (--init)",
         "<project>/out/review/feedback/.consumed (--wait: the submission handed over)",
@@ -1030,7 +1111,7 @@
       ],
       "usage": [
         {
-          "synopsis": "gate <project> [n] [--desk|--page|--chat] [--wait] [--timeout s]",
+          "synopsis": "gate <project> [n] [--desk|--page|--chat] [--wait] [--timeout s] [--json]",
           "text": [
             "a stop in one command: checks out/review/gate-<n>.json, builds",
             "the review page and makes it this round, opens the review desk when the stop is reviewed there",
@@ -1039,7 +1120,7 @@
           ]
         },
         {
-          "synopsis": "gate <project> <n> --init",
+          "synopsis": "gate <project> <n> --init [--json]",
           "text": [
             "writes out/review/gate-<n>.json as a skeleton for this stop: each {填：…} says what goes there, and gate refuses the file until none is left; never overwrites"
           ]
@@ -1481,11 +1562,12 @@
     },
     {
       "name": "timeline",
-      "summary": "Check a narration timeline: lines in order, word times forward and inside their line, the words spelling the line.",
+      "summary": "Check a narration timeline: lines in order, word times forward and inside their line, the words spelling the line. --resolved: the whole timeline as one document, in seconds and frames.",
       "when": "after editing a timeline by hand (tts prints it; captions and pace refuse a timeline that fails)",
       "stages": ["4"],
       "reads": [
-        "<project>/audio/timeline.json or timeline.<lang>.json"
+        "<project>/audio/timeline.json or timeline.<lang>.json",
+        "<project>/edit.json, out/edit.resolved.json, shots.json, audio/captions.json and audio/*.beats.json (--resolved)"
       ],
       "writes": [],
       "usage": [
@@ -1494,6 +1576,13 @@
           "text": [
             "the narration timeline's checks: lines in order, word times forward and inside their line, the words",
             "spelling the line's text (exit 1 on a problem); tts prints them, captions and pace refuse a timeline that fails"
+          ]
+        },
+        {
+          "synopsis": "timeline <project> --resolved [zh|en] [--words] [--json]",
+          "text": [
+            "one timeline to read: shots or the edit list, narration lines, captions and beats, each in seconds and frames, with the sha256",
+            "of each source file; a part that is not there is an empty list, and says why (tools/resolved.py; --json: the fields in its -h)"
           ]
         }
       ]
@@ -2014,6 +2103,27 @@
           "text": [
             "a tile every --every seconds in 10x10 sheets, a picture a shot (the shot table or window.film.shots), and thumbs.json mapping each to its",
             "time and place (out/proxy/<name>.thumbs/); from the film's proxy, the film, or the page (tools/proxy.py)"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "peaks",
+      "summary": "A waveform as min and max per bin, from any audio or film; cached beside the proxies, so a repeat starts no ffmpeg.",
+      "when": "a person or a client drawing the sound under a timeline",
+      "stages": ["7", "8"],
+      "reads": [
+        "<file>, an audio file or a film, or the project's current film"
+      ],
+      "writes": [
+        "<project>/out/proxy/<name>.peaks.json or <name>.peaks-<n>.json"
+      ],
+      "usage": [
+        {
+          "synopsis": "peaks <audio|film|project> [--bins 1000] [--json]",
+          "text": [
+            "the sound decoded at 48 kHz with every channel kept, min and max per bin across them in -1…1; the record beside the proxies with its source's size and mtime,",
+            "so a repeat is instant (tools/peaks.py; --json: the fields in its -h)"
           ]
         }
       ]

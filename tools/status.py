@@ -39,22 +39,23 @@ still open (a desk submission's change and ask items whose REVIEW.md section has
 still lists to verify, the last check, the material on record (bin/vh assets: how many, the licences not cleared, what
 the films loaded that the ledger lacks, the spend against the budget), the cast in cast/ (bin/vh cast: the entries by
 kind, the settled ones, what its check would fail), the research in research/ (bin/vh scout's
-records, the days with a hot-list snapshot, bin/vh ref's references), and the commands running now and the last ones
-(the activity log).
+records, the days with a hot-list snapshot, bin/vh ref's references), the commands running now and the last ones
+(the activity log), and in --json media: the current film, its proxy, thumbs and peaks as paths from the project.
 The next step, from the stop the project is at: who has it (the person, the agent), what to do, which commands, which sections
 to read (a file to read whole, or a "<file.md>#<section>" that bin/vh know --show prints), and how many {…} are still unfilled in
 BRIEF.md, STYLE.md and STORYBOARD.md (outside code; the template's kind of braces, not a stylesheet's). What the Director line keeps for the person (x=own) comes first in what to do, until it is on record: its stop
 done or skipped, or its row in DECISIONS.md decided. The line starts "next:"; --json has it as next_step (the older "next" is
 one sentence, and stays).
---json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1). Exit 0, 2 when there is no project.
+--json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1). Exit 0, 2 when there is no project
+(with --json, the error's shape: tools/jsonerr.py).
 """
-import json, os, re, shlex, sys, time
+import glob, json, os, re, shlex, sys, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
-import activity, checkrec as C, gatecheck as G, proxy as P, review as R, versions as V   # noqa: E402,E401
+import activity, checkrec as C, gatecheck as G, identity, jsonerr, proxy as P, review as R, versions as V   # noqa: E402,E401
 import feedback as F, reader   # noqa: E402,E401
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
@@ -96,14 +97,14 @@ def iso(t):
 
 
 def basics(project):
-    """The project as its BRIEF says: title, type, effort (and where it comes from), Director line, review language, Spec."""
+    """The project as its BRIEF says: title, type, effort (and where it comes from), Director line, review language, Spec; and its id (null until it has one)."""
     raw = reader._read(project / "BRIEF.md", [])
     brief = reader.strip_comments(raw)
     spec = {k: reader.plain(v) for k, v, _ in reader.bullets(reader.section(brief, r"^Spec", r"^规格"))}
     title = (re.search(r"^#\s+BRIEF\s*[：:]\s*(.+)$", brief, re.M) or [None, ""])[1].strip() or project.name
     m = re.search(r"video-types/(\d\d-[\w-]+)\.md", brief) or re.search(r"<!-- from (\d\d-[\w-]+)\.md -->", raw)
     effort, src = G.effort_of(project)
-    return {"path": str(project), "slug": project.name, "title": title, "type": m.group(1) if m else None, "effort": effort,
+    return {"id": identity.id_of(project), "path": str(project), "slug": project.name, "title": title, "type": m.group(1) if m else None, "effort": effort,
             "effort_from": src, "director": spec.get("Director") or "default", "lang": R.review_lang(project) or "zh", "spec": spec}
 
 
@@ -593,11 +594,46 @@ def main(argv):
     if project is None:
         project = R.find_project(a.project)
         if project is None:
+            jsonerr.mark("no_project")
             return 2
         if not (project / "BRIEF.md").is_file():
-            print(f"status: {project} is not a project (no BRIEF.md)", file=sys.stderr)
-            return 2
-    now = time.time()
+            return jsonerr.fail("no_project", f"status: {project} is not a project (no BRIEF.md)")
+    out = collect(project)
+    if a.json:
+        print(json.dumps(out, ensure_ascii=False, indent=1))
+        return 0
+    show(out, time.time())
+    return 0
+
+
+def media(project):
+    """What a client plays and scrubs, as paths from the project; only what is there. The current film (the newest current version, else
+    what bin/vh check takes), its proxy, thumbs and peaks (bin/vh proxy, thumbs, peaks), and which of those were made of another
+    film (stale: size and time, as they keep them; bin/vh proxy, thumbs and peaks make them anew). No hash, no ffprobe."""
+    film, versioned = P.current_film(project)
+    out = {"film": None, "version": None, "from": None, "proxy": None, "thumbs": None, "peaks": None, "stale": []}
+    if film is None:
+        return out
+    path = rel(project, film)
+    out.update(film=path, version=P.current_version(project, film), **{"from": "versions" if versioned else "newest"})
+    d, name = P.out_dir(film, project, None), P.name_of(film, project)
+    now = P.ident(film)
+    for key, f, record in (("proxy", d / f"{name}.mp4", d / f"{name}.mp4.json"), ("thumbs", d / f"{name}.thumbs" / "thumbs.json", d / f"{name}.thumbs" / "thumbs.json"),
+                           ("peaks", d / f"{name}.peaks.json", d / f"{name}.peaks.json")):
+        if key == "peaks" and not f.is_file():   # another --bins, when that is what there is
+            f = record = next(iter(sorted(d.glob(f"{glob.escape(name)}.peaks-*.json"))), f)
+        if f.is_file():
+            out[key] = rel(project, f)
+            j = load(record)
+            if not j or j.get("source_ident") != now:
+                out["stale"].append(key)
+    return out
+
+
+def collect(project, now=None, light=False):
+    """Everything bin/vh status says of a project, as its --json. Reads only, prints nothing. light leaves out what a list of
+    projects does not show and that takes the most on a large project: the asset ledger, the cast and the research (null)."""
+    now = time.time() if now is None else now
     proj = basics(project)
     rv = project / "REVIEW.md"
     review_text = G.strip_comments(G.read(rv)) if rv.is_file() else ""
@@ -708,27 +744,29 @@ def main(argv):
         except (ValueError, OSError) as e:
             vers = {"error": str(e)}
     cur_of = {f: i for f, i in (vers or {}).get("current", {}).items()}
-    # the material on record (bin/vh assets, tools/assets/uses.py): how many, the licences not cleared, what the films loaded
-    # that the ledger lacks, and the spend against the budget; a ledger that cannot be read is said, never a failure
-    try:
-        sys.path.insert(0, str(HERE / "assets"))
-        import uses as U
-        assets = U.overview(project)
-    except Exception as e:
-        assets = {"error": f"the asset ledger could not be read ({e})"}
-    # the cast's settled references (bin/vh cast, tools/cast.py's overview): files only, never a failure
-    try:
-        import cast as CA
-        cast = CA.overview(project)
-    except Exception as e:
-        cast = {"error": f"cast/ could not be read ({e})"}
-    # the research on record (bin/vh scout, bin/vh ref; tools/scout/scout.py's overview): files only, never a failure
-    try:
-        sys.path.insert(0, str(HERE / "scout"))
-        import scout as S
-        research = S.overview(project)
-    except Exception as e:
-        research = {"error": f"research/ could not be read ({e})"}
+    assets = cast = research = None
+    if not light:
+        # the material on record (bin/vh assets, tools/assets/uses.py): how many, the licences not cleared, what the films loaded
+        # that the ledger lacks, and the spend against the budget; a ledger that cannot be read is said, never a failure
+        try:
+            sys.path.insert(0, str(HERE / "assets"))
+            import uses as U
+            assets = U.overview(project)
+        except Exception as e:
+            assets = {"error": f"the asset ledger could not be read ({e})"}
+        # the cast's settled references (bin/vh cast, tools/cast.py's overview): files only, never a failure
+        try:
+            import cast as CA
+            cast = CA.overview(project)
+        except Exception as e:
+            cast = {"error": f"cast/ could not be read ({e})"}
+        # the research on record (bin/vh scout, bin/vh ref; tools/scout/scout.py's overview): files only, never a failure
+        try:
+            sys.path.insert(0, str(HERE / "scout"))
+            import scout as S
+            research = S.overview(project)
+        except Exception as e:
+            research = {"error": f"research/ could not be read ({e})"}
 
     def vinfo(v, s):
         side = load(str(v) + ".render.json")
@@ -745,16 +783,16 @@ def main(argv):
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
            "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "cast": cast, "research": research,
            "activity": {"running": working, "listening": listening, "recent": recent},
-           "next_step": None}
+           "media": None, "next_step": None}
+    try:   # what cannot be read is said, never a failure of status
+        out["media"] = media(project)
+    except Exception as e:
+        out["media"] = {"film": None, "version": None, "from": None, "proxy": None, "thumbs": None, "peaks": None, "stale": [], "error": f"{type(e).__name__}: {e}"}
     try:   # not the command that asks (bin/vh new); what cannot be worked out is said, never a failure of status
         out["next_step"] = next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], desk, by_video)
     except Exception as e:
         out["next_step"] = {"who": "unknown", "do": f"the next step could not be worked out ({e})", "commands": [], "read": [], "unfilled": {}}
-    if a.json:
-        print(json.dumps(out, ensure_ascii=False, indent=1))
-        return 0
-    show(out, now)
-    return 0
+    return out
 
 
 def show(o, now):
@@ -843,6 +881,6 @@ def show(o, now):
 
 if __name__ == "__main__":
     try:
-        sys.exit(main(sys.argv[1:]))
+        sys.exit(jsonerr.guard(lambda: main(sys.argv[1:])))
     except BrokenPipeError:
         sys.exit(0)

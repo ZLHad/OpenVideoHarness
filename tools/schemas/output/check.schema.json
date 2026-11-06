@@ -1,0 +1,60 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/ZLHad/OpenVideoHarness/tools/schemas/output/check.schema.json",
+ "title": "bin/vh check <video | project> --json",
+ "description": "The record bin/vh check keeps (tools/checkrec.py; tools/desk/README.md 检查记录). A film it cannot read has only version, tool, video, exit, verdict and error, a string: a verdict of the record.",
+ "type": "object",
+ "required": ["version", "tool", "exit", "verdict"],
+ "properties": {
+  "version": {"enum": [1]},
+  "tool": {"type": "string"},
+  "video": {"type": "string"},
+  "project": {"type": ["string", "null"]},
+  "record": {"type": ["string", "null"]},
+  "t": {"type": "number"},
+  "at": {"type": "string"},
+  "size": {"type": ["integer", "null"]},
+  "mtime_ns": {"type": ["integer", "null"]},
+  "args": {
+   "type": "object",
+   "required": ["allow", "against"],
+   "properties": {
+    "allow": {},
+    "against": {}
+   }
+  },
+  "exit": {"type": "integer"},
+  "verdict": {"enum": ["pass", "fail"]},
+  "counts": {
+   "type": "object",
+   "required": ["fail", "warn", "info"],
+   "properties": {
+    "fail": {"type": "integer"},
+    "warn": {"type": "integer"},
+    "info": {"type": "integer"}
+   }
+  },
+  "probe": {
+   "type": ["object", "null"],
+   "required": ["duration", "size", "streams"],
+   "properties": {
+    "duration": {"type": "number"},
+    "size": {"type": "integer"},
+    "streams": {"type": "array", "items": {"type": "object"}}
+   }
+  },
+  "motion": {
+   "type": ["object", "null"],
+   "required": ["moving", "still_share", "cuts"],
+   "properties": {
+    "moving": {"type": "number"},
+    "still_share": {"type": "number"},
+    "cuts": {"type": "number"}
+   }
+  },
+  "findings": {"type": "array", "items": {"type": "object", "required": ["kind", "severity", "message"]}},
+  "skipped": {"type": "array"},
+  "error": {"type": "string"}
+ },
+ "anyOf": [{"required": ["video", "project", "record", "t", "at", "size", "mtime_ns", "args", "counts", "probe", "motion", "findings", "skipped"]}, {"required": ["error"], "properties": {"error": {"type": "string"}}}]
+}
