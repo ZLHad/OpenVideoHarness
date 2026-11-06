@@ -45,6 +45,12 @@ static_checks() {
   # shell: parse with the bash that will run it, lint, and ban commands that only exist on one platform
   n=0; while IFS= read -r f; do "$VH_BASH" -n "$f" || { bad "bash -n $f"; n=$((n + 1)); }; done < <(files bin/vh '*.sh')
   [ $n = 0 ] && ok "shell syntax ($("$VH_BASH" -c 'echo $BASH_VERSION'))"
+  # the system's bash too, on a machine whose first bash is another: CI's macOS job runs this very file under bash 3.2, which reads a heredoc
+  # inside $( ) as shell (a \' in a Python string there opens a quote): it would stop at the first line, where a run here says nothing
+  if [ -x /bin/bash ] && [ "$(/bin/bash -c 'echo $BASH_VERSION')" != "$("$VH_BASH" -c 'echo $BASH_VERSION')" ]; then
+    n=0; while IFS= read -r f; do /bin/bash -n "$f" || { bad "/bin/bash -n $f"; n=$((n + 1)); }; done < <(files bin/vh '*.sh')
+    [ $n = 0 ] && ok "shell syntax, the system's bash ($(/bin/bash -c 'echo $BASH_VERSION'))"
+  fi
   if command -v shellcheck >/dev/null; then
     if out=$(files bin/vh '*.sh' | xargs shellcheck -S warning 2>&1); then ok "shellcheck -S warning"; else echo "$out"; bad "shellcheck"; fi
   else skip "shellcheck" "not installed; CONTRIBUTING.md shows how to run it through uv"; fi
@@ -6480,7 +6486,7 @@ os.makedirs(f"{t}/psshim"); os.makedirs(f"{t}/stub2")
 with open(f"{t}/psshim/ps", "w") as f:
     f.write(f'#!/bin/sh\nn=$(cat "$PSCOUNT"); echo $((n + 1)) > "$PSCOUNT"\nif [ "$n" -ge "$PSOK" ] || [ -e "$GOTINT" ]; then exit 1; fi\nexec {ps_real} "$@"\n')
 with open(f"{t}/stub2/uv", "w") as f:
-    f.write('#!/bin/sh\ntrap \': > "$GOTINT"\' INT\n: > "$UVMARK"\nwhile :; do sleep 0.05; done\n')
+    f.write("#!/bin/sh\ntrap ': > \"$GOTINT\"' INT\n: > \"$UVMARK\"\nwhile :; do sleep 0.05; done\n")
 os.chmod(f"{t}/psshim/ps", 0o755); os.chmod(f"{t}/stub2/uv", 0o755)
 def quick(ok, *args, path=None):
     """bin/vh cancel with 0.5 s after SIGTERM, under a ps that fails after `ok` calls, or once GOTINT is there."""
