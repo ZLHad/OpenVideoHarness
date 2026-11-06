@@ -195,6 +195,7 @@
       "stages": ["any"],
       "reads": [
         "<project>/.ovh/project.json",
+        "<project>/out/proxy/ (media: what is there, and whether it is of this film)",
         "<project>/BRIEF.md, REVIEW.md, DECISIONS.md, NOTES.md",
         "<project>/out/review/",
         "<project>/out/check/*.check.json",
@@ -2064,6 +2065,27 @@
           "text": [
             "a tile every --every seconds in 10x10 sheets, a picture a shot (the shot table or window.film.shots), and thumbs.json mapping each to its",
             "time and place (out/proxy/<name>.thumbs/); from the film's proxy, the film, or the page (tools/proxy.py)"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "peaks",
+      "summary": "A waveform as min and max per bin, from any audio or film; cached beside the proxies, so a repeat starts no ffmpeg.",
+      "when": "a person or a client drawing the sound under a timeline",
+      "stages": ["7", "8"],
+      "reads": [
+        "<file>, an audio file or a film, or the project's current film"
+      ],
+      "writes": [
+        "<project>/out/proxy/<name>.peaks.json or <name>.peaks-<n>.json"
+      ],
+      "usage": [
+        {
+          "synopsis": "peaks <audio|film|project> [--bins 1000] [--json]",
+          "text": [
+            "the sound decoded to mono at 8 kHz, min and max per bin in -1…1; the record beside the proxies with its source's size and mtime,",
+            "so a repeat is instant (tools/peaks.py; --json: the fields in its -h)"
           ]
         }
       ]

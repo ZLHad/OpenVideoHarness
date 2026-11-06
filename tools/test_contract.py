@@ -21,7 +21,7 @@ sys.path.insert(0, str(HERE))
 import schemalite   # noqa: E402
 
 SCHEMAS = HERE / "schemas" / "output"
-ALL = ("status", "activity", "versions", "check", "commands", "desk-data", "edit-list", "edit-build", "assets-list", "artifacts-list", "projects", "error", "cancel")
+ALL = ("status", "activity", "versions", "check", "commands", "desk-data", "edit-list", "edit-build", "assets-list", "artifacts-list", "projects", "error", "cancel", "peaks")
 
 
 class VH:
@@ -110,6 +110,7 @@ def outputs(vh, p, z, e, has_film):
             ("artifacts-list", ["artifacts", "list", z]), ("projects", ["projects"]), ("cancel", ["cancel", p])]
     if has_film:
         runs.insert(0, ("check", ["check", f"{p}/out/final.mp4"]))   # first: status and the others have its record
+        runs.append(("peaks", ["peaks", f"{p}/out/final.mp4", "--bins", "8"]))
     out, bad = {}, []
     for name, args in runs:
         r = vh(*args, "--json")
@@ -147,6 +148,7 @@ def failures(t, p):
         ("new short x --from nope", 2, "no_project", True), ("new math ci-contract", 1, "exists", True),
         ("nope", 2, "usage", True), ("statu", 2, "usage", True),
         ("cancel", 2, "usage", False), ("cancel nope", 2, "no_project", True), (f"cancel {p} 7-7", 2, "not_found", True),
+        ("peaks", 2, "usage", False), ("peaks nope", 2, "no_project", True), (f"peaks {t}/projects/e", 2, "not_found", True), (f"peaks {p} --bins 0", 2, "usage", True),
     ]
 
 

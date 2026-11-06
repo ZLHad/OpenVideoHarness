@@ -137,12 +137,6 @@ def versioned_film(project):
     return Path(project) / cur[0]["file"] if cur else None
 
 
-def current_film(project):
-    """The film a list or a client shows first: the newest current version, else what bin/vh check <project> takes; None when
-    there is neither. Resolved, like film_of's."""
-    film = versioned_film(project)
-    return film.resolve() if film else newest_film(project)
-
 
 def pick(target):
     """(film or None, project, page or None) for a film or a project."""

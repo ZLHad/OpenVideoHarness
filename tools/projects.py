@@ -69,7 +69,7 @@ def find(roots):
             return
         seen.add(real)
         rel = Path(d).relative_to(base).as_posix()
-        found.append((Path(d), Path(d).name if rel == "." else rel))
+        found.append((Path(real), Path(d).name if rel == "." else rel))   # its real path, as bin/vh status has it
     for r in roots:
         if not r["exists"]:
             continue
@@ -126,21 +126,20 @@ def last_activity(st):
             "state": r.get("state"), "exit": r.get("exit")}
 
 
-def film_of(project, st, P):
-    """The current film (tools/proxy.py's current_film) and what status has of it."""
-    film = P.current_film(project)
-    if film is None:
+def film_of(project, st):
+    """The current film (bin/vh status's media) and what status has of it."""
+    rel = st["media"]["film"]
+    if rel is None:
         return None
-    rel = P.rel(project, film)
     seen = next((r for r in st.get("renders") or [] if r["path"] == rel), None)
     if seen:
         c = seen.get("check") or {}
         return {"path": rel, "size": seen["size"], "mtime": seen["mtime"], "version": seen.get("version"), "check": c.get("verdict"), "stale": c.get("stale")}
-    s = film.stat()
-    return {"path": rel, "size": s.st_size, "mtime": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(s.st_mtime)), "version": None, "check": None, "stale": None}
+    s = (Path(project) / rel).stat()
+    return {"path": rel, "size": s.st_size, "mtime": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(s.st_mtime)), "version": st["media"]["version"], "check": None, "stale": None}
 
 
-def row(project, name, S, P, assign):
+def row(project, name, S, assign):
     """One project's row. Whatever goes wrong reading it stays in this row (error)."""
     r = {"id": identity.id_of(project), "name": name, "title": None, "path": str(project), "type": None, "effort": None, "state": None, "station": None, "waiting_on": None,
          "next_step": None, "running": [], "last_activity": None, "film": None, "same_id_as": [], "error": None}
@@ -154,7 +153,7 @@ def row(project, name, S, P, assign):
         state, at = overall(st)
         r.update(title=st["project"]["title"], type=st["project"]["type"], effort=st["project"]["effort"], state=state,
                  station={"id": at["id"], "name": at["name"]} if at else None, waiting_on=st["waiting_on"], next_step=st["next_step"],
-                 running=[x["cmd"] for x in st["activity"]["running"]], last_activity=last_activity(st), film=film_of(project, st, P))
+                 running=[x["cmd"] for x in st["activity"]["running"]], last_activity=last_activity(st), film=film_of(project, st))
     except (Exception, SystemExit) as e:   # one project's trouble is one row
         r["error"] = f"{type(e).__name__}: {e}"
     return r
@@ -163,10 +162,10 @@ def row(project, name, S, P, assign):
 def listing(given=(), assign=False):
     """The record --json prints."""
     t0 = time.time()
-    import proxy as P, status as S
+    import status as S
     roots = roots_of(given)
     found, truncated = find(roots)
-    rows = [row(p, name, S, P, assign) for p, name in found]
+    rows = [row(p, name, S, assign) for p, name in found]
     by_id = {}
     for r in rows:
         if r["id"]:

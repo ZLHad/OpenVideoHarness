@@ -5366,7 +5366,7 @@ sys.exit(0 if d("hook=own, stop=E1, stop=E3") == d("stop=E1,E3") == d("stop = e1
 projects_checks() {   # bin/vh projects and a project's identity: what bin/vh new writes, what a read leaves alone, --assign, a moved
   # folder, a broken project as one row, what is not walked into, and the time on 30 projects
   local t a b rc i base
-  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd); base="$t/many"; mkdir -p "$base"   # (no // in the path: a row's path has none)
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd -P); base="$t/many"; mkdir -p "$base"   # (a row's path is the real one, as status has it)
   # bin/vh new writes the identity; status and new --json say the id; an older project has none, and reading writes nothing
   a=$(OVH_PROJECTS="$base" vh new math ci-one --json 2>/dev/null)
   mkdir -p "$base/old-one"; printf '# BRIEF：旧项目\n- Effort: quick\n' > "$base/old-one/BRIEF.md"
@@ -5572,6 +5572,74 @@ PY
     a=$(python3 -c 'import json, sys; print([r["code"] for r in map(json.loads, open(sys.argv[1], encoding="utf-8")) if r.get("level") == "error"])' "$p/.ovh/activity.jsonl" 2>&1)
     [ "$rc" = 2 ] && [ "$a" = "['failed']" ] && ok "activity: bin/vh render's failure before it draws is in the log too" || bad "render's failure in the log: exit $rc, $a"
   else skip "render's failure in the log" "needs node"; fi
+  rm -rf "$t"
+}
+
+peaks_checks() {   # bin/vh peaks on a film with a known sound: the bins, the cache beside the proxies, a repeat that starts no ffmpeg, a source
+  # that changed; what has no sound; bin/vh status's media: only reads, with no ffmpeg at all, each path once it exists, what is out of date
+  local t p a b rc rc2 c
+  command -v ffmpeg >/dev/null || { skip "bin/vh peaks and status's media" "needs ffmpeg"; return; }
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); t=$(cd "$t" && pwd); p="$t/p"
+  mkdir -p "$p/out" "$p/audio" "$t/nof"; printf '# BRIEF\n- Effort: quick\n' > "$p/BRIEF.md"
+  printf '#!/bin/sh\necho "this ffmpeg should not run" >&2; exit 9\n' > "$t/nof/ffmpeg"; cp "$t/nof/ffmpeg" "$t/nof/ffprobe"; chmod +x "$t/nof/ffmpeg" "$t/nof/ffprobe"
+  a=$(vh status "$p" --json | python3 -c 'import json, sys; m = json.load(sys.stdin)["media"]; print(m["film"], m["proxy"], m["thumbs"], m["peaks"], m["stale"])')
+  [ "$a" = "None None None None []" ] && ok "status media: all null with no film" || bad "status media with no film: $a"
+  # one second of silence, one of a sine at full scale; a film with no sound
+  ffmpeg -nostdin -v error -f lavfi -i "anullsrc=r=44100:cl=mono:d=1" -f lavfi -i "sine=f=440:r=44100:d=1,volume=8" -filter_complex "[0][1]concat=n=2:v=0:a=1" -c:a pcm_s16le "$p/audio/mix.wav"
+  ffmpeg -nostdin -v error -f lavfi -i testsrc=s=160x90:r=10:d=2 -i "$p/audio/mix.wav" -pix_fmt yuv420p -c:a aac -shortest "$p/out/film.mp4"
+  ffmpeg -nostdin -v error -f lavfi -i testsrc=s=160x90:r=10:d=1 -pix_fmt yuv420p "$t/mute.mp4"
+  a=$(vh peaks "$p/audio/mix.wav" --bins 4 --json 2>&1); rc=$?
+  b=$(PATH="$t/nof:$PATH" vh peaks "$p/audio/mix.wav" --bins 4 --json 2>&1); rc2=$?
+  if [ $rc = 0 ] && [ $rc2 = 0 ] && python3 - "$a" "$b" "$p" <<'PY'
+import json, os, sys
+a, b, p = json.loads(sys.argv[1]), json.loads(sys.argv[2]), sys.argv[3]
+ok = a["version"] == 1 and a["bins"] == 4 and len(a["peaks"]) == 4 and a["state"] == "made" and b["state"] == "up to date" and a["peaks"] == b["peaks"] and a["source"] == "audio/mix.wav"
+quiet, loud = a["peaks"][:2], a["peaks"][2:]
+ok = ok and all(abs(lo) < 0.02 and abs(hi) < 0.02 for lo, hi in quiet) and all(-1 <= lo < -0.5 and 0.5 < hi <= 1 for lo, hi in loud) and abs(a["duration"] - 2) < 0.01
+f = f"{p}/out/proxy/audio-mix.peaks-4.json"
+s = os.stat(f"{p}/audio/mix.wav")
+ok = ok and os.path.isfile(f) and json.load(open(f))["source_ident"]["size"] == s.st_size
+sys.exit(0 if ok else 1)
+PY
+  then ok "peaks: min and max per bin (the silence near 0, the sine near full scale), cached beside the proxies with its source's size and time; a repeat starts no ffmpeg"
+  else bad "bin/vh peaks (exit $rc, $rc2): $(printf '%s' "$a" | tail -c 300) | $(printf '%s' "$b" | tail -c 300)"; fi
+  # the source changed; another count; the default's name; a project means its film; outside a project; no sound; bad arguments
+  sleep 0.01; python3 -c 'import os, sys; f = sys.argv[1]; s = os.stat(f); os.utime(f, (s.st_atime, s.st_mtime + 5))' "$p/audio/mix.wav"
+  a=$(vh peaks "$p/audio/mix.wav" --bins 4 --json 2>&1 | python3 -c 'import json, sys; print(json.load(sys.stdin)["state"])')
+  b=$(vh peaks "$p" --json 2>&1 | python3 -c 'import json, sys; d = json.load(sys.stdin); print(d["source"], d["bins"] > 100)')
+  cp "$p/audio/mix.wav" "$t/outside.wav"
+  vh peaks "$t/outside.wav" >/dev/null 2>&1; c=$?
+  vh peaks "$t/mute.mp4" --json >"$t/o1" 2>/dev/null; rc=$?
+  vh peaks "$t/no-such" --json >"$t/o2" 2>/dev/null; rc2=$?
+  if [ "$a" = made ] && [ "$b" = "out/film.mp4 True" ] && [ -f "$p/out/proxy/film.peaks.json" ] && [ "$c" = 0 ] && [ -f "$t/proxy/outside.peaks.json" ] && [ "$rc:$rc2" = 1:2 ] && python3 - "$t" <<'PY'
+import json, sys
+t = sys.argv[1]
+sys.exit(0 if json.load(open(f"{t}/o1"))["error"]["code"] == "not_found" and json.load(open(f"{t}/o2"))["error"]["code"] == "no_project" else 1)
+PY
+  then ok "peaks: a source that changed is read again; a project means its film; outside a project, proxy/ beside the file; no sound is exit 1 and no such file exit 2, in the error's shape"
+  else bad "bin/vh peaks: '$a' '$b' exit $c, $rc, $rc2: $(cat "$t/o1" "$t/o2" | tail -c 300)"; fi
+  # status's media: the film from versions, each path once it exists; with no working ffmpeg, and it writes nothing
+  vh proxy "$p/out/film.mp4" >/dev/null 2>&1; vh thumbs "$p/out/film.mp4" --every 1 >/dev/null 2>&1
+  python3 - "$p" <<'PY'
+import json, os, sys
+p = sys.argv[1]; f = p + "/out/film.mp4"; s = os.stat(f)
+os.makedirs(p + "/out/versions", exist_ok=True)
+json.dump({"version": 1, "next": 2, "versions": [{"id": "v1", "n": 1, "t": s.st_mtime, "at": "2026-11-06T10:00:00+0800", "film": "out/film.mp4", "file": "out/film.mp4", "made_by": "render", "size": s.st_size, "mtime": s.st_mtime}], "events": []}, open(p + "/out/versions/versions.json", "w"))
+PY
+  find "$p" -type f | sort > "$t/before"
+  a=$(PATH="$t/nof:$PATH" vh status "$p" --json 2>&1); rc=$?
+  find "$p" -type f | sort > "$t/after"
+  python3 -c 'import os, sys; f = sys.argv[1]; s = os.stat(f); os.utime(f, (s.st_atime, s.st_mtime + 5))' "$p/out/film.mp4"
+  b=$(PATH="$t/nof:$PATH" vh status "$p" --json 2>&1)
+  if [ $rc = 0 ] && cmp -s "$t/before" "$t/after" && python3 - "$a" "$b" <<'PY'
+import json, sys
+m, n = json.loads(sys.argv[1])["media"], json.loads(sys.argv[2])["media"]
+ok = m == {"film": "out/film.mp4", "version": "v1", "from": "versions", "proxy": "out/proxy/film.mp4", "thumbs": "out/proxy/film.thumbs/thumbs.json", "peaks": "out/proxy/film.peaks.json", "stale": []}
+ok = ok and sorted(n["stale"]) == ["peaks", "proxy", "thumbs"]
+sys.exit(0 if ok else 1)
+PY
+  then ok "status media: the current film from versions, its proxy, thumbs and peaks as project-relative paths, what no longer fits the film said; it only reads, with no ffmpeg"
+  else bad "status media (exit $rc): $(printf '%s' "$a" | python3 -c 'import json, sys; print(json.load(sys.stdin).get("media"))' 2>&1 | tail -c 400) $(diff "$t/before" "$t/after" | head -3)"; fi
   rm -rf "$t"
 }
 

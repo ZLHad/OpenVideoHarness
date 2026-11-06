@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**`bin/vh peaks`; `bin/vh status --json` has `media`**
+- Why: a client had a proxy to scrub and thumbnails, nothing to draw the sound with, and no one place that said which of these exist for the film it is showing.
+- `bin/vh peaks <audio | film | project> [--bins 1000] [--json]`: a waveform as min and max per bin, in -1…1, through ffmpeg and the standard library. The record goes beside the proxies (`out/proxy/<name>.peaks.json`) with its source's size and mtime, so a repeat reads it and starts no ffmpeg.
+- `bin/vh status --json` gains `media`: the current film (from versions, else what `bin/vh check` takes), its proxy, thumbs and peaks if they exist, as project-relative paths, and `stale`, which of them were made of another film. It only reads and computes nothing; `bin/vh projects` takes its film from there.
+
 **`bin/vh cancel`; tts, deliver, patch, proxy and thumbs say how far they are**
 - Why: only `render` wrote progress, and stopping a command meant finding its pid and knowing how it takes signals; one killed read as `gone`, as if it had crashed.
 - `tts` (lines), `deliver` (percent, of its pass of passes, from ffmpeg's `-progress`), `patch` and `proxy` (frames) and `thumbs` (pictures) write `progress` lines: at most one every 5 to 10 s, the first and the last always, each under 200 bytes (`activity.Progress`, its `throttled` for Node).

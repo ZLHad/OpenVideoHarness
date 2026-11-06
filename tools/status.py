@@ -49,7 +49,7 @@ one sentence, and stays).
 --json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1). Exit 0, 2 when there is no project
 (with --json, the error's shape: tools/jsonerr.py).
 """
-import json, os, re, shlex, sys, time
+import glob, json, os, re, shlex, sys, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -606,6 +606,31 @@ def main(argv):
     return 0
 
 
+def media(project):
+    """What a client plays and scrubs, as paths from the project; only what is there. The current film (the newest current version, else
+    what bin/vh check takes), its proxy, thumbs and peaks (bin/vh proxy, thumbs, peaks), and which of those were made of another
+    film (stale: size and time, as they keep them; bin/vh proxy, thumbs and peaks make them anew). No hash, no ffprobe."""
+    versioned = P.versioned_film(project)
+    film = versioned.resolve() if versioned else P.newest_film(project)
+    out = {"film": None, "version": None, "from": None, "proxy": None, "thumbs": None, "peaks": None, "stale": []}
+    if film is None:
+        return out
+    path = rel(project, film)
+    out.update(film=path, version=P.current_version(project, film), **{"from": "versions" if versioned else "newest"})
+    d, name = P.out_dir(film, project, None), P.name_of(film, project)
+    now = P.ident(film)
+    for key, f, record in (("proxy", d / f"{name}.mp4", d / f"{name}.mp4.json"), ("thumbs", d / f"{name}.thumbs" / "thumbs.json", d / f"{name}.thumbs" / "thumbs.json"),
+                           ("peaks", d / f"{name}.peaks.json", d / f"{name}.peaks.json")):
+        if key == "peaks" and not f.is_file():   # another --bins, when that is what there is
+            f = record = next(iter(sorted(d.glob(f"{glob.escape(name)}.peaks-*.json"))), f)
+        if f.is_file():
+            out[key] = rel(project, f)
+            j = load(record)
+            if not j or j.get("source_ident") != now:
+                out["stale"].append(key)
+    return out
+
+
 def collect(project, now=None, light=False):
     """Everything bin/vh status says of a project, as its --json. Reads only, prints nothing. light leaves out what a list of
     projects does not show and that takes the most on a large project: the asset ledger, the cast and the research (null)."""
@@ -759,7 +784,7 @@ def collect(project, now=None, light=False):
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
            "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "cast": cast, "research": research,
            "activity": {"running": working, "listening": listening, "recent": recent},
-           "next_step": None}
+           "media": media(project), "next_step": None}
     try:   # not the command that asks (bin/vh new); what cannot be worked out is said, never a failure of status
         out["next_step"] = next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], desk, by_video)
     except Exception as e:

@@ -420,6 +420,10 @@ def thumbs_state(r, rel):
     return _source_state(r, *read_json(r.project / rel / "thumbs.json"), "thumbs")
 
 
+def peaks_state(r, rel):
+    return _source_state(r, *read_json(r.project / rel), "peaks")
+
+
 def versions_state(r, _rel):
     import versions as V
     try:
@@ -477,7 +481,7 @@ def ledger_state(r, _rel):
 
 STALE = {"captions": captions_state, "captions-srt": captions_state, "mix": mix_state, "mix-record": mix_state, "check-record": check_state, "cues": cues_state,
          "render": film_state, "film-final": film_state, "mux-record": mux_state, "deliver-copy": deliver_state, "deliver-record": deliver_state,
-         "proxy": proxy_state, "thumbs": thumbs_state, "versions-record": versions_state, "edit-resolved": resolved_state,
+         "proxy": proxy_state, "thumbs": thumbs_state, "peaks": peaks_state, "versions-record": versions_state, "edit-resolved": resolved_state,
          "cast-record": cast_state, "ledger": ledger_state}
 
 

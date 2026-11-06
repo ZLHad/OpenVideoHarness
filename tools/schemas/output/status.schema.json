@@ -4,7 +4,7 @@
  "title": "bin/vh status <project> --json",
  "description": "Where a project stands (tools/status.py; tools/desk/README.md, 给客户端的数据, says what each field means). assets, cast and research are objects or {\"error\"}.",
  "type": "object",
- "required": ["version", "project", "paused", "waiting_on", "next", "stations", "review", "open", "renders", "deliveries", "versions", "check", "assets", "cast", "research", "activity", "next_step"],
+ "required": ["version", "project", "paused", "waiting_on", "next", "stations", "review", "open", "renders", "deliveries", "versions", "check", "assets", "cast", "research", "activity", "media", "next_step"],
  "properties": {
   "version": {"enum": [1]},
   "project": {
@@ -189,6 +189,19 @@
     "running": {"type": "array"},
     "listening": {"type": "array"},
     "recent": {"type": "array", "items": {"$ref": "#/$defs/run"}}
+   }
+  },
+  "media": {
+   "type": "object",
+   "required": ["film", "version", "from", "proxy", "thumbs", "peaks", "stale"],
+   "properties": {
+    "film": {"type": ["string", "null"]},
+    "version": {"type": ["string", "null"]},
+    "from": {"enum": ["versions", "newest", null]},
+    "proxy": {"type": ["string", "null"]},
+    "thumbs": {"type": ["string", "null"]},
+    "peaks": {"type": ["string", "null"]},
+    "stale": {"type": "array", "items": {"type": "string"}}
    }
   },
   "next_step": {
