@@ -5859,6 +5859,14 @@ sys.exit(0 if weak["strong"] is False and weak["hits"] and not any(h["strong"] f
 PY
   then ok "know: when every hit is weak it says so first, and --json says strong: false; words with a card are strong"
   else bad "know, weak and strong: $(printf '%s' "$a" | head -3)"; fi
+  # Chinese without spaces: the pair across two words does not count against a hit, so a compound the repo has is strong and one
+  # it lacks stays weak; one word it has no section on is told so, not that the repo may have nothing
+  a=""
+  for x in 婚礼回顾 口播剪辑 手绘转场 章节进度条; do vh know "$x" --json 2>/dev/null | python3 -c 'import json, sys; sys.exit(0 if json.load(sys.stdin)["strong"] else 1)' || a="$a $x is not strong;"; done
+  for x in 天气预报 足球比赛 红烧肉做法 股票分析; do vh know "$x" --json 2>/dev/null | python3 -c 'import json, sys; sys.exit(1 if json.load(sys.stdin)["strong"] else 0)' || a="$a $x is strong;"; done
+  for x in 粒子 gemini; do case "$(vh know "$x" 2>/dev/null)" in *"no section of its own on this; where it comes up:"*) ;; *"may have nothing"*) a="$a $x: told the repo may have nothing;" ;; *) ;; esac; done
+  case "$(vh know 天气预报 2>/dev/null)" in *"may have nothing on this"*) ;; *) a="$a 天气预报 is not told it is weak;" ;; esac
+  [ -z "$a" ] && ok "know: Chinese compounds without spaces count their words, not the pairs across them (and no false strong match on what the repo lacks); one word with no section of its own is told so" || bad "know, compounds and single words:$a"
   # --show: one section by its heading, the start of it or a part of it, with the ### under a ##; a file's sections; what
   # is not there, or is more than one, is said on stderr with exit 1
   a=$(vh know --show "playbook/01-pipeline.md#审阅页" 2>/dev/null); rc=$?

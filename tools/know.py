@@ -25,8 +25,9 @@ usage: bin/vh know <words…> [--kind recipe,component,style,doc,case] [-n N] [-
               shows its best one, marked partial. Each: where (file:line), its title, its summary, the words that
               matched. --index: the index itself, the metadata of every unit, without its text
   strong      a hit that has three quarters of the words or more, and either half of them in its title, tags or summary,
-              or a score of 10 or more. When no hit is strong the answer says so first: what follows is the nearest there
-              is, and the repo may have nothing on this
+              or a score of 10 or more. A Chinese word written without spaces counts here as pairs that do not overlap (婚礼回顾:
+              婚礼 and 回顾, not the 礼回 across them). When no hit is strong the answer says so first: what follows is the nearest
+              there is, and the repo may have nothing on this; for one word, it has no section of its own and that word comes up here
   --show      one section of a markdown file, to read it without the whole file ("<file>#..<section>": from the file's start
               through that section): its text, a ## section with the ### under
               it. <section> is the heading, or the start of it, or a part of it (审阅页, 4., 长片); when more than one fits at the
@@ -69,6 +70,16 @@ def terms(text):
         else:
             out += [w[i:i + 2] for i in range(len(w) - 1)] or [w]
     return out
+
+
+def wanted(query):
+    """The words a hit is asked to have, once each: as terms() splits them, but a Chinese word as pairs that do not overlap
+    (婚礼回顾: 婚礼 回顾; 章节进度条: 章节 进度 度条, the last pair taking the character left over)."""
+    out = []
+    for m in WORD.finditer(query or ""):
+        w = m.group(0)
+        out += terms(w) if w[0].isascii() else [w[i:i + 2] for i in range(0, len(w) - 1, 2)] + ([w[-2:]] if len(w) % 2 and len(w) > 1 else [w] if len(w) == 1 else [])
+    return list(dict.fromkeys(out))
 
 
 def first_sentence(text):
@@ -168,14 +179,14 @@ def build():
     return units
 
 
-def is_strong(u, q, cover, score):
+def is_strong(u, need, cover, score):
     """Most of the words, and not only somewhere in the body: half of them in the title, tags or summary, or a high score."""
     head = set(terms(u["title"])) | {x for tag in u["tags"] for x in terms(tag)} | set(terms(u["summary"]))
-    return cover >= 0.75 and (len(head & set(q)) / len(set(q)) >= 0.5 or score >= 10)
+    return cover >= 0.75 and (len(head & set(need)) / len(need) >= 0.5 or score >= 10)
 
 
 def search(units, query, kinds, n):
-    q = terms(query)
+    q, need = terms(query), wanted(query)
     if not q:
         return [], []
     whole = [w.lower() for w in query.split() if w.strip()]
@@ -204,7 +215,7 @@ def search(units, query, kinds, n):
             idf = math.log(1 + (N - df[t] + 0.5) / (df[t] + 0.5))
             score += idf * f * 2.2 / (f + 1.2 * (0.25 + 0.75 * length / max(1.0, avg)))
             matched.append(t)
-        cover = len(matched) / len(set(q))
+        cover = sum(t in tf for t in need) / len(need)
         score *= 0.5 + cover   # a unit with more of the words outranks one that repeats one of them
         head = (u["title"] + " " + " ".join(u["tags"])).lower()
         for w in whole:
@@ -213,7 +224,7 @@ def search(units, query, kinds, n):
                 matched.append(w)
         if score > 0:
             hits.append(dict({k: v for k, v in u.items() if k != "body"}, score=round(score, 3), matched=sorted(set(matched)),
-                             partial=len(set(q)) > 1 and cover < 0.5, strong=is_strong(u, q, cover, score)))
+                             partial=len(need) > 1 and cover < 0.5, strong=is_strong(u, need, cover, score)))
     hits.sort(key=lambda h: (-h["score"], h["file"], h["line"]))
     out, seen = [], Counter()
     for h in hits:   # those with half the words or more; a kind with none of them shows its best one, marked partial
@@ -332,7 +343,7 @@ def main(argv):
     print(f"know · {query} · {len(units)} units", file=out)
     strong = any(h["strong"] for h in hits)
     if hits and not strong:
-        print("nothing matched strongly: the repo may have nothing on this; the nearest it has:", file=out)
+        print("no section of its own on this; where it comes up:" if len(wanted(query)) == 1 else "nothing matched strongly: the repo may have nothing on this; the nearest it has:", file=out)
     kind = None
     for h in hits:
         if h["kind"] != kind:
