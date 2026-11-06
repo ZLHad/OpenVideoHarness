@@ -633,7 +633,7 @@ PY
   [ -z "$todo" ] || echo "   first    : $todo"
   case "$eff" in
     quick) echo "   next     : the agent reads playbook/quick.md and video-types/$doc.md (工作流, 禁止), fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
-    *) echo "   next     : the agent reads video-types/$doc.md, playbook/01-pipeline.md up to 规格 and playbook/02-verification.md's 七层检查, fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
+    *) echo "   next     : the agent reads video-types/$doc.md, playbook/01-pipeline.md up to 规格 and playbook/02-verification.md's 七层检查 and 预算, fills BRIEF.md, and asks bin/vh status $(rel "$dir") at any stop: what to do, which commands, what to read;" ;;
   esac
   echo "              a person starting here: open Claude Code or Codex in the repo root and say what the video is about;"
   case "$eff" in

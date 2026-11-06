@@ -358,7 +358,7 @@ import readpath
 rows = json.loads(subprocess.run([sys.executable, "tools/readpath.py", "--json"], capture_output=True, text=True).stdout)
 bad = [r["type"] for r in rows if not 0 < r["start"] < r["standard"]]
 step = next(line for line in open("CLAUDE.md", encoding="utf-8") if line.startswith("2. **读流程和自查**"))
-bad += [w for w in ('规格', '七层检查', '审阅页', '审阅台', '各引擎的取帧命令', '长片', '导演模式', 'bin/vh know --show') if w not in step]
+bad += [w for w in ('规格', '七层检查', '预算', '审阅页', '审阅台', '各引擎的取帧命令', '长片', '导演模式', 'bin/vh know --show') if w not in step]
 head = readpath.upto("playbook/01-pipeline.md", "### 导演模式")
 bad += [f"playbook/01 before 导演模式 lacks {w}" for w in ("## 总表", "## 努力程度", "## 项目目录约定", "## reads", "## 三道人工关卡", "### 规格") if w not in head]
 print("; ".join(bad) or f"start is under standard for all {len(rows)} types, and CLAUDE.md's step 2 names the sections it counts")
@@ -5370,6 +5370,7 @@ PY
   e=$(ns "$p" '"send the page" in n["do"] and "--init" not in c')
   vh gate "$p" 1 --page >/dev/null 2>&1
   f=$(ns "$p" 'n["who"] == "person"' '"stop here" in n["do"]' 'n["commands"] == []')
+  case "$b" in *"(with a #section: bin/vh know --show"*"without: the whole file)"*) ;; *) a="$a the read line does not say which entries know --show prints" ;; esac
   if [ -z "$a$d$e$f" ] && [ "$c" = 1 ]; then ok "status next: gate ① names BRIEF's placeholders, --init and what to read; a skeleton says how many are left; a filled one says send it; a page out is the person's"
   else bad "status next through gate ①: $a | ${c} next line(s) in: $b | $d | $e | $f"; fi
   # gate ① decided: gate ②'s files and commands; gate ② decided: no film, a draft to check, one that failed, one that passed
@@ -5393,6 +5394,25 @@ open(f, "w", encoding="utf-8").write(s[:i] + s[i:].replace("- 原话：\n", '- �
 PY
   b=$(ns "$p" '"render a draft" in n["do"]' '"bin/vh frames" not in c and "uv init" in c and "manim -ql -s" in c and "manim -ql scene.py" in c' '"各引擎的取帧命令" in r and "engines/README.md#Manim CE" in r')
   : > "$p/pyproject.toml"; b="$b$(ns "$p" '"uv init" not in c and "manim -ql -s" in c')"
+  # the first picture sends an agent to the rest of playbook/02, audio QA when there is sound; a stop with no decision on record to
+  # how a stop goes on record, not the whole of 三道人工关卡; a stylesheet in STYLE.md is no blank, a {…} in its text is; a section's
+  # entry has a #, the others are read whole, and the human line says so
+  b="$b$(ns "$p" '"确定性" in r and "静默失败" in r and "色彩标签" in r and "事实核查" in r and "已知的坑" in r' '"音频 QA" not in r')"
+  : > "$p/audio/script.txt"; b="$b$(ns "$p" '"音频 QA" in r')"; rm -f "$p/audio/script.txt"
+  a="$a$(python3 - "$p" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "tools"); sys.path.insert(0, "tools/desk")
+import status
+p = Path(sys.argv[1]); f = p / "STYLE.md"; was = f.read_text(encoding="utf-8"); n = status.unfilled(p)["STYLE.md"]
+f.write_text(was + "\n```css\n.bar { fill: #e33 }\n.x { color: red }\n```\nInline `{a}` and .y {fill: #111}, {\"a\": 1}, {}, ${HOME}, {none}.\n", encoding="utf-8")
+m = status.unfilled(p)["STYLE.md"]
+f.write_text(was + "\n- {what goes here}\n", encoding="utf-8")
+k = status.unfilled(p)["STYLE.md"]
+f.write_text(was, encoding="utf-8")
+print("" if m == n and k == n + 1 else f"unfilled: {n}, with code and values {m}, with a blank {k}")
+PY
+)"
   mkdir -p "$p/out/check"; : > "$p/out/draft.mp4"
   c=$(ns "$p" '"check out/draft.mp4" in n["do"]' '"bin/vh check" in c and "bin/vh sheet" in c')
   printf '{"version": 1, "video": "out/draft.mp4", "t": %s, "verdict": "fail", "exit": 1, "counts": {"fail": 1}, "findings": [{"severity": "fail", "message": "the frame size is wrong"}]}\n' "$(($(date +%s) + 5))" > "$p/out/check/draft.check.json"
