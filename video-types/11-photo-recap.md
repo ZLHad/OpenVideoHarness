@@ -18,7 +18,7 @@
 - **剪辑表 `edit.json`**（`engines/EDIT.md`，默认走这条）：一段一张照片或一个片段，硬切。照片写 `{"image": "assets/photos/a.jpg"}`，推拉写 `move`（画面中心落在照片的哪一点、放大多少）。浏览器解码，手机照片的方向和颜色配置都对。HEIC 不收，先转成 jpg（macOS：`sips -s format jpeg a.heic --out a.jpg`，拍摄时间留着；别的系统：libheif 的 `heif-convert a.heic a.jpg`）。片段写 `{"clip": "assets/clips/b.mov"}`，原声默认关，要留就写 `sound`；手机的可变帧率、旋转和 HDR 片段 `bin/vh edit build` 会拒绝，并给出规整它的 ffmpeg 命令（HDR 转 SDR 时颜色怎么转是个决定，要看一眼）。
 - **页面**（`src/50-shots.js`）：要在照片上写字、要叠化或翻页（`dim`、`turn`）、要照片墙时，写成镜头，整页作为一段放进剪辑表（`{"page": "film.html", "clock": "film"}`）。剪辑表这一版不画转场和上层字幕，所以这些都在页面里做。没有旁白时，时间用歌（`engines/canvas-film/README.md` 的"配乐主导片"）。
 
-**竖屏**：`bin/vh new recap <slug> --aspect 9:16`（也收 `4:5`、`3:4`、`1:1`），BRIEF 的 Output 和 `Watch on` 跟着写好，`bin/vh edit init` 的 `size` 按 Output 来。页面还是 16:9，片子走 `edit.json`：竖屏的剪辑表里放不了页面（`bin/vh render` 会拒绝），要用页面的那一段，先单独渲出来（`bin/vh render <项目>/film.html --range a:b --out assets/a.mp4`），再当片段放进来（`{"clip": "assets/a.mp4"}`，`fit: contain` 留边）。
+**竖屏**：`bin/vh new recap <slug> --aspect 9:16`（也收 `4:5`、`3:4`、`1:1`），BRIEF 的 Output 和 `Watch on` 跟着写好，`bin/vh edit init` 的 `size` 按 Output 来。页面还是 16:9，片子走 `edit.json`：竖屏的剪辑表里放不了页面（`bin/vh render` 会拒绝），要用页面的那一段，先单独渲出来（`bin/vh render <项目>/film.html --range a:b --out <项目>/assets/a.mp4`），再当片段放进来（`{"clip": "assets/a.mp4"}`，`fit: contain` 留边）。
 
 ## 工作流
 
