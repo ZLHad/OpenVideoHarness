@@ -276,6 +276,12 @@ act_keyish() { # a vendor's key prefix; 32 or more letters, digits and _; or key
   case $v in *[!0-9a-fA-F-]*) return 1 ;; esac
   [ ${#v} -ge 20 ]
 }
+act_keys_inside() { # act_keys_inside <word>: into ACT_A, the word with what looks like a key inside it (in quotes, after a colon) as …; in bytes, so a stray one does not hide it
+  local LC_ALL=C
+  local v=$1 was
+  while [[ $v =~ $ACT_KEYS ]]; do was=$v; v=${v/"${BASH_REMATCH[2]}"/…}; [ "$was" != "$v" ] || { v="…"; break; }; done
+  ACT_A=$v
+}
 act_value() { # act_value <text>: into ACT_A, a value as the log shows it
   local v=$1 pre post au q k out="" n frag=""
   case $v in *://*)   # user:password@host, and the fragment
@@ -301,7 +307,7 @@ act_value() { # act_value <text>: into ACT_A, a value as the log shows it
     case $v in
       *[$' \t\r\n']*) act_scrub "$v"; v=$ACT_A ;;   # free text (a --note): word by word
       *) case $ACT_PNAME in "$v"|*-"$v") ;; *)
-           if act_keyish "$v"; then v="…"; else while [[ $v =~ $ACT_KEYS ]]; do v=${v/"${BASH_REMATCH[2]}"/…}; done; fi ;; esac ;;
+           if act_keyish "$v"; then v="…"; else act_keys_inside "$v"; v=$ACT_A; fi ;; esac ;;
     esac
   fi
   ACT_A=$v
@@ -309,9 +315,11 @@ act_value() { # act_value <text>: into ACT_A, a value as the log shows it
 act_scrub() { # act_scrub <text>: into ACT_A, free text as a log line may hold it: word by word, as a start line shows an argument
   # (act_shown), each word's quotes and punctuation aside, the white space as it was. A word that names a secret hides the next
   # (--key x, Authorization: x, Bearer x). tools/activity.py's scrub is the same in Python, and tools/ci.sh holds the two to one table
-  local rest=$1 w sep pre post core out="" hide="" named
+  local rest=$1 was w sep pre post core out="" hide="" named
   while [ -n "$rest" ]; do
+    was=$rest
     w=${rest%%[$' \t\r\n']*}; rest=${rest#"$w"}; sep=${rest%%[!$' \t\r\n']*}; rest=${rest#"$sep"}
+    [ "$rest" != "$was" ] || { out="$out…"; break; }   # (bytes a locale cannot read as text: when in doubt it is …)
     pre=${w%%[!\"\'\(\[\{\<]*}; core=${w#"$pre"}; post=${core##*[!\"\'\)\]\}\>,\;:.\!\?]}; core=${core%"$post"}
     case "$hide:$core" in
       1:-*|:*)   # a word of its own

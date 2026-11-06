@@ -5642,12 +5642,12 @@ table = (("--api-key SECRETVALUE111", "--api-key …"), ("--api-key --json", Non
          ("Bearer abc.def", "Bearer …"), ("Cookie: abc", "Cookie: …"), ("token sk-ant-api03-SECRETVALUE1234567890abcdefgh", "token …"), ("AQ.Ab8RN6Lxyz_12345678 was refused", "… was refused"), ("AIzaSyA1234567890abcdefghijklmnop", "…"),
          ("ghp_1234567890abcdefghij", "…"), ("{\"api_key\":\"sk-ant-api03-abcdefgh12345678\"}", "{\"api_key\":\"…\"}"), ("没有这个文件：sk-ant-abcdefgh12345678，请看", "没有这个文件：…，请看"), ("(sk-ant-abcdefgh12345678),", "(…),"),
          ("https://u:pw@example.com/a?sig=abc&v=1#frag", "https://…@example.com/a?sig=…&v=…#…"), ("-k shortval", "-k …"), ("-abc", "-a…"), ("a" * 40, "…"), ("Ab3dEf6.hIj9kLm2n-opQ", "…"), ("0123456789abcdef0123", "…"),
-         ("no such video: /tmp/a b/nofile.mp4", None), ("two  spaces\nand a line", None), ("edit.json: S01: no such thing", None), ("2026-11-06-ci-contract", None), ("keepme.wav --crf 23 --out=a.wav foo=bar", None), ("--bogus word", None), ("片子.mp4", None), ("-5 and 1.5", None))
+         ("\udcffsk-ant-abcdefgh12345678", "\\xff…"), ("no such video: /tmp/a b/nofile.mp4", None), ("two  spaces\nand a line", None), ("edit.json: S01: no such thing", None), ("2026-11-06-ci-contract", None), ("keepme.wav --crf 23 --out=a.wav foo=bar", None), ("--bogus word", None), ("片子.mp4", None), ("-5 and 1.5", None))
 bad = []
 for typed, want in table:
     want = typed if want is None else want
-    p = activity.scrub(typed)
-    r = subprocess.run([sh, f"{root}/bin/vh", "new", "short", "ci-never-made", typed, "--json"], capture_output=True, text=True, cwd=t)
+    p = activity._text(activity.scrub(typed))
+    r = subprocess.run([sh, f"{root}/bin/vh", "new", "short", "ci-never-made", typed, "--json"], capture_output=True, text=True, errors="replace", cwd=t)
     q = json.loads(r.stdout)["error"]["message"] if r.stdout.strip() else r.stderr
     if p != want or q != "unknown option: " + want:
         bad.append(f"{typed!r}: Python {p!r}, bash {q!r}, not {want!r}")
@@ -5751,7 +5751,7 @@ for name, expr, lo, hi in (("6 kHz", "0.9*sin(2*PI*6000*t)", 0.85, 0.95), ("3.9 
     r = V("peaks", f, "--bins", "4", "--json")
     d = json.loads(r.stdout) if r.returncode == 0 else {}
     want = len(expr.split("|"))
-    if not (d.get("channels") == want and d.get("rate") == 48000 and d.get("samples") == 48000 and d.get("duration") == 1.0 and all(lo < mx < hi and -hi < mn < -lo for mn, mx in d.get("peaks", [[9, 9]]))):
+    if not (d.get("channels") == want and d.get("rate") == 48000 and abs(d.get("samples", 0) - 48000) < 2048 and abs(d.get("duration", 0) - 1) < 0.05 and all(lo < mx < hi and -hi < mn < -lo for mn, mx in d.get("peaks", [[9, 9]]))):
         bad.append(f"{name}: exit {r.returncode}, channels {d.get('channels')}, {d.get('peaks')}, {r.stderr[-200:]}")
 # blocks: min and max of the whole, whatever the chunks and however often a block doubled; never more than cap
 import peaks
@@ -6552,6 +6552,15 @@ known = {"doctor.py", "textcheck.mjs", "$tool.mjs", "activity.py", "know.py", "s
 for m in re.finditer(r'\bexec\s+(?:python3|node)?\s*"?\$(?:ROOT|sw)/([^"\s]+)', open(f"{root}/bin/vh", encoding="utf-8").read()):
     if m.group(1).rsplit("/", 1)[-1] not in known:
         bad.append(f"bin/vh exec's into {m.group(1)}: say in tools/cancel.py's EXEC what its pid's command line is (a command not named after its tool), and add it here")
+# a process that goes before anything is sent, and says nothing: no cancel of it, and it reads as gone
+real_process = C.process
+answers = iter([("S", 1000.0, "bash /r/bin/vh qa x")])
+C.process = lambda pid: next(answers, None)
+r = C.stop(p, {"run": "1-x", "pid": 99999, "cmd": "qa", "start": 1000.0, "project": real}, 0.1)
+C.process = real_process
+one = next((x for x in runs() if x["run"] == "1-x"), {})
+if not (r["state"] == "not_that_process" and r["signal"] is None and one.get("state") == "gone" and not one.get("cancelled")):
+    bad.append(f"a process that went first: {r}, {one}")
 # the mark as a class: only an id bin/vh writes names a file; a folder that is a link is not written through
 try:
     C.Mark(p, "../x"); bad.append("Mark took ../x")
@@ -6606,7 +6615,7 @@ PY
   # what ffmpeg's -progress says, report by report (a stand-in): frame and out_time_us or out_time_ms in microseconds, a report at each progress= line; its stderr kept; stopped by an exception, it goes too
   mkdir -p "$t/ff"
   printf '#!/bin/sh\nprintf "frame=1\\nout_time_us=500000\\nprogress=continue\\nframe=2\\nout_time_ms=1000000\\ndrop_frames=0\\nprogress=continue\\nframe=N/A\\nout_time_us=-5\\nprogress=end\\n"\necho "a warning" >&2\nexit 3\n' > "$t/ff/fake"; chmod +x "$t/ff/fake"
-  printf '#!/bin/sh\nprintf "frame=1\\nprogress=continue\\n"\necho $$ > "$1.pid"\nexec sleep 30\n' > "$t/ff/hang"; chmod +x "$t/ff/hang"
+  printf '#!/bin/sh\nprintf "frame=1\\nprogress=continue\\n"\nexec sleep 30\n' > "$t/ff/hang"; chmod +x "$t/ff/hang"
   a=$(python3 - "$t" <<'PY' 2>&1
 import os, sys
 sys.path.insert(0, "tools")

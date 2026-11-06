@@ -120,7 +120,7 @@ def confirmed(run, project):
     if run.get("start") is None or not run["start"] - EARLY <= p[1] <= run["start"] + LATE:
         return GONE, p, f"pid {pid} started at another time than this run: a reused pid"
     if not is_ours(run.get("cmd"), p[2]):
-        return UNSURE, p, f"pid {pid} started when this run did, but its command line is not bin/vh {run.get('cmd')}'s: nothing was sent ({p[2][:80]})"
+        return UNSURE, p, f"pid {pid} started when this run did, but its command line is not bin/vh {run.get('cmd')}'s: nothing was sent ({activity.scrub(p[2][:80])})"
     said = run.get("project")
     if said is None:
         return UNSURE, p, f"its start line does not say which project it is of (an older bin/vh wrote it), so pid {pid} cannot be said to be this project's: nothing was sent"
@@ -290,6 +290,10 @@ def stop(project, run, timeout):
         while end is None and time.time() < deadline:
             time.sleep(0.05)
             end = end_of(project, rid)
+        if end is None and not row["signal"]:   # it went before anything was sent, and said nothing: no cancel of this one
+            activity._write(str(activity.log_path(project)), {"event": "note", "run": rid, "t": round(time.time(), 3), "cmd": run.get("cmd") or "", "gone": True, "summary": f"its process is gone: pid {pid} (bin/vh cancel)"})
+            row.update(state="not_that_process", why=f"pid {pid} is gone")
+            return row
         if end is None:   # no line of its own (bash at a TERM, a tool that was killed): written here
             now = time.time()
             end = {"event": "end", "run": rid, "t": round(now, 3), "cmd": run.get("cmd") or "", "exit": code, "duration": round(max(0.0, now - (run.get("start") or now)), 3), "cancelled": True}
@@ -315,7 +319,7 @@ def show(rec, out):
         head = f"cancel: {said(r['cmd'])} ({said(r['run'])})"
         if r["state"] == "cancelled":
             print(f"{head}: stopped by {r['signal']}, exit {r['exit']}, in {r['seconds']} s", file=out)
-            print(f"  kept for a resume: {r['kept']}" if r["kept"] else "  nothing is kept for a resume", file=out)
+            print(f"  kept for a resume: {said(r['kept'])}" if r["kept"] else "  nothing is kept for a resume", file=out)
         elif r["state"] == "finished":
             print(f"{head}: it ended on its own, exit {r['exit']}", file=out)
         else:
@@ -325,6 +329,7 @@ def show(rec, out):
 
 
 def main(argv):
+    sys.stdout.reconfigure(errors="backslashreplace")   # (a folder's name that is not UTF-8 prints)
     ap = argparse.ArgumentParser(prog="bin/vh cancel", description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__.split("\n\n", 1)[1])
     ap.add_argument("project", help="project folder (or a file inside it), or its name under projects/")
     ap.add_argument("run", nargs="?", help="this run only: its id, or the first or last part of one (bin/vh activity --json)")

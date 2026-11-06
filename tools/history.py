@@ -404,6 +404,7 @@ def cmd_restore(a, project):
 
 
 def main(argv):
+    sys.stdout.reconfigure(errors="backslashreplace")   # (a folder's name that is not UTF-8 prints)
     if argv[:1] in (["-h"], ["--help"]):
         print(__doc__.strip())
         return 0

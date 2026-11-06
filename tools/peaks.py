@@ -133,7 +133,7 @@ def make(f, project, bins):
     if not mins:
         raise LookupError(f"{f} has no sound")
     peaks = bins_of(mins, maxs, bins)
-    rec = {"version": 1, "tool": "bin/vh peaks", "source": P.rel(project, f), "source_ident": now, "asked": bins, "bins": len(peaks), "rate": RATE, "channels": channels, "samples": samples,
+    rec = {"version": 1, "tool": "bin/vh peaks", "source": activity._text(P.rel(project, f)), "source_ident": now, "asked": bins, "bins": len(peaks), "rate": RATE, "channels": channels, "samples": samples,
            "duration": round(samples / RATE, 3), "peaks": peaks, "t": round(time.time(), 3), "at": V.iso(time.time())}
     tmp = path.with_name(f".{path.name}.{os.getpid()}")
     try:
@@ -170,6 +170,7 @@ def target(word):
 
 def main(argv):
     import argparse
+    sys.stdout.reconfigure(errors="backslashreplace")   # (a folder's name that is not UTF-8 prints)
     ap = argparse.ArgumentParser(prog="bin/vh peaks", description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__.split("\n\n", 1)[1])
     ap.add_argument("target", help="an audio file, a film, or a project (its current film)")
     ap.add_argument("--bins", type=int, default=DEFAULT_BINS, help=f"how many (default {DEFAULT_BINS})")
@@ -202,3 +203,6 @@ if __name__ == "__main__":
         sys.exit(jsonerr.guard(lambda: main(sys.argv[1:])))
     except BrokenPipeError:
         sys.exit(0)
+    except KeyboardInterrupt:   # ffmpeg has gone with it; the record is written only when it is whole
+        print("peaks: stopped: nothing was put in place", file=sys.stderr)
+        sys.exit(130)

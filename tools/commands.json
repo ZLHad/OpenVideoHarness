@@ -2122,7 +2122,7 @@
         {
           "synopsis": "peaks <audio|film|project> [--bins 1000] [--json]",
           "text": [
-            "the sound decoded to mono at 8 kHz, min and max per bin in -1…1; the record beside the proxies with its source's size and mtime,",
+            "the sound decoded at 48 kHz with every channel kept, min and max per bin across them in -1…1; the record beside the proxies with its source's size and mtime,",
             "so a repeat is instant (tools/peaks.py; --json: the fields in its -h)"
           ]
         }
