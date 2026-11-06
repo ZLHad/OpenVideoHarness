@@ -2660,7 +2660,7 @@ PY
   b=$(vh status "$g" --json | python3 -c 'import json, sys; d = json.load(sys.stdin); n = d["next_step"]; print(n["who"], d["waiting_on"], "refused" in n["do"] and "no/such.png" in n["do"], n["commands"][0].endswith(" 1"), "refused" in d["stations"][0]["note"])')
   e=$(vh gate "$g" 1 --desk --wait --timeout 0.01 2>/dev/null >/dev/null; echo $?)
   python3 -c 'import json, sys; f = sys.argv[1]; d = json.load(open(f, encoding="utf-8")); d.pop("assets"); json.dump(d, open(f, "w", encoding="utf-8"), ensure_ascii=False)' "$g/out/review/gate-1.json"
-  q=$(vh gate "$g" 1 --page 2>&1); rc2=$?; d=$(stnow "$g"); k=$(ls -A "$g/out/review" | grep -c refused)
+  q=$(vh gate "$g" 1 --page 2>&1); rc2=$?; d=$(stnow "$g"); k=0; [ ! -e "$g/out/review/.gate-1.refused.json" ] || k=1
   printf '%s\n' '{"summary": "一句", "decisions": [{"id": "c", "question": "哪个", "options": ["A", "B"], "recommend": "A"}], "assets": [{"path": "no/such.png", "caption": "x"}]}' > "$g/out/review/gate-1.json"
   vh gate "$g" 1 --page >/dev/null 2>&1; rc3=$?; i=$(stnow "$g")
   if [ "$rc:$rc2:$rc3" = 1:0:1 ] && [ -f "$g/out/review/gate-1.html" ] && [ "$c" = "in_progress None ['1']" ] && [ "$b" = "agent agent True True True" ] && [ "$e" = 1 ] && [ "$d" = "waiting_person 1 ['1']" ] && [ "$k" = 0 ] && [ "$i" = "in_progress 1 ['1']" ]

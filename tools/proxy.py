@@ -4,8 +4,9 @@ usage: bin/vh proxy <film | project> [--size 360] [--gop N] [--crf 28] [--full] 
        bin/vh thumbs <film | project> [--every 2] [--width 160] [--shot-width 320] [--full] [--out dir] [--json]
 A project means its film: the newest current version (bin/vh versions), else the newest video under out/ with a
 .render.json, else the newest video under out/ (not out/check, out/review, out/proxy, out/versions, nor a film bin/vh patch
-kept because a check failed); thumbs with no film draws the page instead (bin/vh frames). The outputs go to <project>/out/proxy/ (outside a project: proxy/ beside the film),
-named as bin/vh check names its records (out/review/sketch.mp4 → review-sketch).
+kept because a check failed); thumbs with no film draws the page instead (bin/vh frames). The outputs go to
+<project>/out/proxy/ (outside a project: proxy/ beside the film), named as bin/vh check names its records
+(out/review/sketch.mp4 → review-sketch).
 
 proxy   <name>.mp4: the film at --size px on its short side (360; never larger than the film), H.264 with a keyframe every
         --gop frames (a fifth of a second by default: 6 at 30 fps) and no B-frames, tuned for fast decoding, the film's
