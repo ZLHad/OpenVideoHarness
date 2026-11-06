@@ -5269,15 +5269,21 @@ sys.exit(0 if d("hook=own, stop=E1, stop=E3") == d("stop=E1,E3") == d("stop = e1
 # agent to is there, and the older fields stay as they were
 next_step_checks() {
   local t=$1 p q a b c d e f
+  # ns <project> <expression over n, c, r>…: prints what does not hold, and a crash too (these checks pass on empty output)
   cat > "$t/ns.py" <<'PY'
 import json, subprocess, sys
 vh, p = sys.argv[1:3]
-n = json.loads(subprocess.run([*vh.split("|"), "status", p, "--json"], capture_output=True, text=True).stdout)["next_step"]
-for k in sys.argv[3:]:
-    if not eval(k, {"n": n, "c": " | ".join(n["commands"]), "r": " | ".join(n["read"])}):
-        print(f"not {k}: {json.dumps(n, ensure_ascii=False)[:600]}")
+try:
+    n = json.loads(subprocess.run([*vh.split("|"), "status", p, "--json"], capture_output=True, text=True).stdout)["next_step"]
+    env = {"n": n, "c": " | ".join(n["commands"]), "r": " | ".join(n["read"])}
+    for k in sys.argv[3:]:
+        if not eval(k, env):
+            print(f"not {k}: {json.dumps(n, ensure_ascii=False)[:600]}")
+except Exception as e:
+    print(f"could not check {sys.argv[3:]} on {p}: {type(e).__name__}: {e}")
 PY
   ns() { python3 "$t/ns.py" "$VH_BASH|$ROOT/bin/vh" "$@"; }
+  a=$(ns "$t/no-such" 'True'); case "$a" in *"could not check"*) ok "status next: a check that crashes says so, so it fails" ;; *) bad "status next: a crash in the check passes: '$a'" ;; esac
   a=$(python3 - <<'PY'
 import sys
 sys.path.insert(0, "tools")
