@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**The docs no longer contradict each other on gates, quick's questions, the paper type and `bin/vh check`**
+- Why: an agent following `video-types/06` stopped at three "gates" that were not CLAUDE.md's, was told to run a paid provider by name, and had no word on what to do with no paper attached. Quick's question limit was 3 in one place and 1 in another, and CLAUDE.md's "run `bin/vh check`" did not say what it takes.
+- `video-types/06-paper-explainer.md`: Gate 1/2/3 are steps, each saying which gate it folds into (the script and the curriculum go with gate ②, the style's direction is on gate ①'s concept card), and its Prompt block no longer says to stop after each one. `NARRATION.md` is `SCRIPT.md`, the template the pipeline and the review desk read. `bin/vh tts` runs with its default provider. With no paper attached: ask for the `.tex`, PDF or arXiv id and write nothing yet. Ten minutes or more points to `video-types/10-long-explainer.md`, which comes later in this batch.
+- `CLAUDE.md`, step 1, and `playbook/quick.md`: quick has no gates and asks at most one question, as `playbook/01` and what `bin/vh new --effort quick` writes into REVIEW.md already said. `CLAUDE.md`'s floor and `playbook/quick.md` write `bin/vh check` with its argument.
+- `tools/ci.sh`, `doc_checks`: holds these places to each other.
+
 **A browser that stops answering as its tab comes up is replaced, not waited for**
 - Why: full Chrome on macOS sometimes stops answering for good as its tab comes up, its main thread blocked in RunningBoard (`rbs_acquire_appnap_assertion`). On an M-series Mac: 6 of 278 launches when two start together, 1 of 518 one at a time, none of 3550 for chrome-headless-shell, which the tools prefer when it is there. A tool with no watchdog of its own, such as `render`'s workers, would have waited for ever.
 - `tools/textcheck/browser.mjs`, `launchTab`: the tab's first commands have 30 s each (longer with `OVH_PAGE_TIMEOUT`); no answer, and the browser is killed and another started, 3 tries, then an error. `tools/film/host.mjs` and `tools/textcheck/textcheck.mjs` open their tab through it, and the page's 60 s to load now also covers `Page.navigate`.

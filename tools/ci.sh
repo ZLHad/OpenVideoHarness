@@ -207,6 +207,15 @@ print("\n".join(bad))
 sys.exit(1 if bad else 0)
 PY
   then ok "docs name only real bin/vh commands; tools/commands.json and CLAUDE.md's 命令行 line name the ones bin/vh dispatches"; else bad "docs vs bin/vh commands"; fi
+  # the rules that are stated in more than one place say the same: quick's one question, what bin/vh check takes, and the
+  # paper type's steps, which are not gates of their own
+  out=""
+  for g in CLAUDE.md playbook/quick.md playbook/01-pipeline.md bin/vh; do grep -q '最多问 1 个' "$g" || out="$out $g does not say quick asks at most 1 question;"; done
+  grep -q '出片前跑一次 `bin/vh check <' CLAUDE.md || out="$out CLAUDE.md's floor does not say what bin/vh check takes;"
+  grep -qE '^[0-9]+\. \*\*Gate|Stop after each gate|bin/vh tts <项目> dashscope' video-types/06-paper-explainer.md && out="$out video-types/06 has gates of its own, or a paid provider as the way to run tts;"
+  grep -q '没附论文时' video-types/06-paper-explainer.md || out="$out video-types/06 does not say what to do with no paper attached;"
+  if [ -z "$out" ]; then ok "docs agree: quick's one question in CLAUDE.md, playbook/quick.md, playbook/01 and what bin/vh new writes; what bin/vh check takes; video-types/06's steps are no gates of their own"
+  else bad "docs that disagree:$out"; fi
   # the front pages (tools/readme.py): every count the READMEs and the overview diagrams state is the repo's (commands,
   # styles, recipes …), their links and images are in the repo, and the two READMEs have the same sections and links
   if out=$(python3 tools/readme.py check 2>&1); then ok "$out"; else echo "$out"; bad "the READMEs against the repo (python3 tools/readme.py lists the counts)"; fi
