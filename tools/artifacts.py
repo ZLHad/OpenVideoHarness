@@ -128,18 +128,18 @@ class Index:
 def holdings(project, idx):
     """{entry id: [paths]} of the project, each path under its most specific entry. Skips .git and projects of their own,
     and does not go into a folder nothing in the table lies below."""
-    found = {}
+    found, above = {}, {"": -1}   # above: the most literal folder entry a folder lies in; a file's entry must say more than it
     project = Path(project)
     for d, dirs, files in os.walk(project):
         reld = Path(d).relative_to(project).as_posix()
         reld = "" if reld == "." else reld + "/"
-        above = idx.folder(reld)[1] if reld and idx.folder(reld) else -1   # the literal of the folder entry this one is
         keep = []
         for name in sorted(dirs):
             q = os.path.join(d, name)
             if name == ".git" or os.path.islink(q) or os.path.isfile(os.path.join(q, "BRIEF.md")):
                 continue
             hit = idx.folder(reld + name + "/")
+            above[reld + name + "/"] = max(above[reld], hit[1] if hit else -1)
             if hit:
                 found.setdefault(hit[0]["id"], []).append(reld + name + "/")
                 if hit[2] in idx.leaf:
@@ -148,7 +148,7 @@ def holdings(project, idx):
         dirs[:] = keep
         for name in sorted(files):
             hit = idx.file(reld + name)
-            if hit and hit[1] > above:
+            if hit and hit[1] > above[reld]:
                 found.setdefault(hit[0]["id"], []).append(reld + name)
     return found
 
@@ -605,10 +605,10 @@ def blanks_of(project, found, reached):
     required = reached["gate-1"] or bool(found.get("render") or found.get("film-final"))
     out = []
     line = speccheck.spec_line(text, "Output")
-    lacks = [w for w, pat in (("the frame size", r"\d{3,5}\s*[x×]\s*\d{3,5}"), ("the frame rate", r"\d+(?:\.\d+)?\s*fps")) if not re.search(pat, line or "", re.I)]
+    lacks = [w for w, pat in (("frame size", r"\d{3,5}\s*[x×]\s*\d{3,5}"), ("frame rate", r"\d+(?:\.\d+)?\s*fps")) if not re.search(pat, line or "", re.I)]
     if lacks:
         out.append({"file": "BRIEF.md", "key": "Output", "value": line, "required": required,
-                    "why": f"it has no {' and no '.join(lacks)}: bin/vh check cannot compare the film with them, and bin/vh edit init does not take them"})
+                    "why": f"it says no {' and no '.join(lacks)}: bin/vh check cannot compare the film with it, and bin/vh edit init cannot take it"})
     line = speccheck.spec_line(text, "Resolution")
     if line and "{" in line:
         out.append({"file": "BRIEF.md", "key": "Resolution", "value": line, "required": required, "why": "not filled: bin/vh check reads it as the deliveries to expect"})
@@ -706,7 +706,7 @@ def report(project, entries_all, stage):
         if found.get(e["id"]):
             rows.append({"id": e["id"], "kind": e["kind"], "required": e.get("required"), "clean": e["clean"], "files": [details(r, e, rel) for rel in found[e["id"]]]})
     miss = missing_of(project, entries, found, reached)
-    blanks = blanks_of(project, found, reached)
+    blanks = blanks_of(project, found, reached) if any(e["id"] == "brief" for e in entries) else []
     files = [f for x in rows for f in x["files"]]
     counts = {"kinds": len(entries), "found": len(rows), "files": len(files),
               "stale": sum(1 for f in files if f["stale"] and f["stale"]["state"] == STALE_),
@@ -960,7 +960,7 @@ def writes_problems(t, commands):
 
 
 # what the made-up tree needs beyond an empty file: a path, or a body, for the entries clean reads
-TREE_PATHS = {"deliver-record": ["out/x.upload.mp4.deliver.json"], "deliver-copy": ["out/x.upload.mp4"]}
+TREE_PATHS = {"deliver-record": ["out/x.upload.mp4.deliver.json"]}
 TREE_BODIES = {"out/x.upload.mp4.deliver.json": '{"output": "x.upload.mp4", "master": "finalx.mp4"}\n',
                "out/versions/versions.json": '{"version": 1, "next": 1, "versions": [], "events": []}\n',
                "assets/ledger.json": '{"v": 1, "assets": [], "events": []}\n'}

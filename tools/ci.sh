@@ -5836,7 +5836,7 @@ PY
     *) bad "bin/vh artifacts list on captions older than their timeline ($b): $(printf '%s' "$a" | tail -c 400)" ;; esac
   if command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null; then
     ffmpeg -nostdin -v error -f lavfi -i "testsrc2=s=320x180:r=30:d=1" -c:v libx264 -pix_fmt yuv420p "$p/out/film.mp4"
-    a=$(vh check "$p/out/film.mp4" 2>&1); rc=$?
+    a=$(vh check "$p/out/film.mp4" 2>&1)
     q2=$(cat <<'PY'
 import json, sys
 r = json.load(open(sys.argv[1] + "/out/check/film.check.json"))
@@ -5845,14 +5845,14 @@ print(len(f), f[0]["severity"] if f else "", any(x.get("run") == "bin/vh caption
 PY
 )
     b=$(python3 -c "$q2" "$p")
-    vh captions "$p" zh >/dev/null 2>&1; vh check "$p/out/film.mp4" >/dev/null 2>&1; rc2=$?
+    vh captions "$p" zh >/dev/null 2>&1; vh check "$p/out/film.mp4" >/dev/null 2>&1
     c=$(python3 -c "$q2" "$p")
     printf '{"cards": false, "zh_max": 16}\n' > "$p/audio/captions.args.json"
-    vh check "$p/out/film.mp4" >/dev/null 2>&1; rc3=$?
+    vh check "$p/out/film.mp4" >/dev/null 2>&1
     d=$(python3 -c "$q2" "$p")
-    if [ "$rc:$rc2:$rc3" = 0:0:0 ] && [ "$b" = "1 warn True []" ] && [ "$c" = "0   []" ] && [ "$d" = "0   ['captions']" ] && case "$a" in *"captions: audio/timeline.zh.json changed since"*) true ;; *) false ;; esac
+    if [ "$b" = "1 warn True []" ] && [ "$c" = "0   []" ] && [ "$d" = "0   ['captions']" ] && case "$a" in *"captions: audio/timeline.zh.json changed since"*) true ;; *) false ;; esac
     then ok "bin/vh check: captions older than their timeline are a warning with its way out (check.captions), gone once made again; a record from before there was one is a check skipped"
-    else bad "bin/vh check on captions older than their timeline ($rc, $rc2, $rc3): [$b] [$c] [$d] $(printf '%s' "$a" | tail -c 400)"; fi
+    else bad "bin/vh check on captions older than their timeline: [$b] [$c] [$d] $(printf '%s' "$a" | tail -c 400)"; fi
   else skip "bin/vh check on captions older than their timeline" "no ffmpeg"; fi
   rm -f "$p/audio/captions.args.json"
   b=$(vh artifacts list "$p" --json 2>/dev/null | python3 -c "$q")
@@ -6012,6 +6012,11 @@ if states(listed()).get("out/hand.mp4") != "not_checked":
 d = listed()
 if not d["reached"]["delivery"] or "check-record" not in [m["id"] for m in d["missing"]]:
     bad.append(f"a delivery with no check of its film: {d['missing']}")
+# a video in a folder of the review pages is theirs, at any depth; its record is a render's
+put("out/review/sub/cut.mp4", "x"); put("out/review/sub/cut.mp4.render.json", "{}")
+s = states(listed())
+if "out/review/sub/cut.mp4" in s or "out/review/sub/cut.mp4.render.json" not in s:
+    bad.append(f"a video under out/review: {sorted(k for k in s if 'cut' in k)}")
 # --stage: only the kinds of that stage
 d = listed("--stage", "9")
 if not all(x["id"] not in ("timeline", "shots") for x in d["artifacts"]) or "deliver-record" not in [x["id"] for x in d["artifacts"]] or d["stage"] != "9":
