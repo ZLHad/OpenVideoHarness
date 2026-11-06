@@ -13,7 +13,8 @@ Each has a state:
                   was written after that page (said in the stop's note). Gate ① goes by gatecheck.py's own rule, as
                   bin/vh render and check do: a decision and the person's words in a gate ① section, and the concept
                   on record in DECISIONS.md
-  skipped         Effort quick (and no page of its own), or waived in the user's own words in REVIEW.md
+  skipped         Effort quick (no page of its own, and the Director line does not ask for this stop), or waived in the
+                  user's own words in REVIEW.md
   waiting_person  its page is out (bin/vh gate made it: a gate JSON not sent yet is not), it is this round (out/review/.current),
                   and nothing has come back for it yet
   waiting_agent   the person submitted on the desk and no agent has it yet, or an agent has it and REVIEW.md has no
@@ -65,7 +66,7 @@ PLACEHOLDER = re.compile(r"\{[^{}\n]*\}")
 # what the next step sends an agent to read, each for bin/vh know --show (tools/ci.sh checks each is there)
 R_PAGE, R_DESK, R_GATES, R_DIRECTOR = (f"playbook/01-pipeline.md#{x}" for x in ("审阅页", "审阅台", "三道人工关卡", "导演模式"))
 R_ANIMATIC, R_LONG = "playbook/01-pipeline.md#animatic", "playbook/01-pipeline.md#长片"
-R_IDEAS, R_CARDS = "playbook/12-ideation.md#4.", "playbook/12-ideation.md#7."
+R_IDEAS, R_CARDS = "playbook/12-ideation.md#3.", "playbook/12-ideation.md#7."
 R_FRAMES, R_PHONE, R_SILENT = (f"playbook/02-verification.md#{x}" for x in ("各引擎的取帧命令", "手机测试", "静默失败"))
 R_SCORES, R_LAYERS, R_QUICK = "templates/TASTE_CHECKLIST.md#打分层", "playbook/02-verification.md#七层检查", "playbook/quick.md"
 R_NARRATIVE, R_SOUND, R_HF, R_MANIM = "playbook/09-narrative.md#5. 长片", "playbook/04-audio.md#常用命令", "engines/README.md#HyperFrames", "engines/README.md#Manim CE"
@@ -180,7 +181,7 @@ def stops(project, review_text, review_mtime, effort, asked, lang, no_review=Fal
         stub = f"out/review/gate-{pid or key}.html"
         if no_review and effort != "quick":
             st["state"] = "no_record"
-        elif waived or (effort == "quick" and not plist):
+        elif waived or (effort == "quick" and not plist and key not in asked):
             st["state"] = "skipped"
             st["note"] = f"waived in the user's words ({waived})" if waived else "Effort quick: no gates"
         elif decided and missing:   # gatecheck's verdict: not on record yet
@@ -617,7 +618,11 @@ def main(argv):
            "renders": [vinfo(v, s) for v, s in vids[:10]], "deliveries": deliveries, "versions": vers,
            "check": check_summary(project, *checks[0]) if checks else None, "assets": assets, "cast": cast, "research": research,
            "activity": {"running": working, "listening": listening, "recent": recent},
-           "next_step": next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], desk, by_video)}   # (not the command that asks: bin/vh new)
+           "next_step": None}
+    try:   # not the command that asks (bin/vh new); what cannot be worked out is said, never a failure of status
+        out["next_step"] = next_step(project, proj, st, paused, no_record, [r for r in working if r.get("run") != os.environ.get("OVH_ACTIVITY_RUN")], desk, by_video)
+    except Exception as e:
+        out["next_step"] = {"who": "unknown", "do": f"the next step could not be worked out ({e})", "commands": [], "read": [], "unfilled": {}}
     if a.json:
         print(json.dumps(out, ensure_ascii=False, indent=1))
         return 0
@@ -649,7 +654,7 @@ def show(o, now):
     if n["commands"]:
         print("  run: " + " · ".join(n["commands"]))
     if n["read"]:
-        print("  read (bin/vh know --show): " + " · ".join(n["read"]))
+        print("  read: " + " · ".join(n["read"]) + "  (a #section alone: bin/vh know --show \"<file>#<section>\")")
     ri, fv = o["open"]["review_items"], o["open"]["facts_to_verify"]
     if ri or fv:
         print("open: " + " · ".join(x for x in (f"{len(ri)} review item(s) (round {', '.join(dict.fromkeys(str(i['round']) for i in ri))})" if ri else "",

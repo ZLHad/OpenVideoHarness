@@ -558,6 +558,8 @@ b = open(brief).read().replace("- Type doc: {type doc}", f"- Type doc: `video-ty
 open(brief, "w").write(b.rstrip("\n") + f"\n<!-- from {name} -->\n")
 PY
   [ -n "$wh" ] && sedi "s/^- Output: {W}x{H},/- Output: $wh,/" "$dir/BRIEF.md"
+  case "$type" in short|promo|data|meme|edit) x=HyperFrames ;; math|paper) x="Manim CE" ;; handdrawn|mv) x="ClaudeAnimationBase (p5.brush)" ;; *) x="" ;; esac
+  [ -n "$engine" ] || [ -z "$x" ] || sedi "s/^- Engine: {[^}]*}/- Engine: $x/" "$dir/BRIEF.md"   # the type's own, until the concept says otherwise
   sedi "s/^- Watch on: {watch}/- Watch on: $watch/; s/^- Resolution: {res}/- Resolution: ${res4k:-1080p}/; s/^- Review language: zh /- Review language: ${lang:-zh} /" "$dir/BRIEF.md"
   local nframe='类型文档 Prompt 增量块写的画幅，以及按它算的尺寸（安全框、每行字数、字号），以这一行为准按新画幅重算。'
   if [ "$engine" = canvas-film ]; then   # 16:9 is these types' own frame except short and edit

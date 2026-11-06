@@ -27,7 +27,8 @@ usage: bin/vh know <words…> [--kind recipe,component,style,doc,case] [-n N] [-
   strong      a hit that has three quarters of the words or more, and either half of them in its title, tags or summary,
               or a score of 10 or more. When no hit is strong the answer says so first: what follows is the nearest there
               is, and the repo may have nothing on this
-  --show      one section of a markdown file, to read it without the whole file: its text, a ## section with the ### under
+  --show      one section of a markdown file, to read it without the whole file ("<file>#..<section>": from the file's start
+              through that section): its text, a ## section with the ### under
               it. <section> is the heading, or the start of it, or a part of it (审阅页, 4., 长片); when more than one fits at the
               best of those, the one that holds the rest, else they are listed, not guessed (exit 1). With no #section: the
               file's sections
@@ -242,6 +243,8 @@ def show(target):
                "chars": sum(len(x[3]) for x in secs[i:next((j for j in range(i + 1, len(secs)) if secs[j][0] <= lv), len(secs))])}
               for i, (lv, h, n, _) in enumerate(secs) if h]
     want = want.strip().lstrip("#").strip()
+    through = want.startswith("..")   # from the file's start through this section
+    want = want[2:].strip() if through else want
     if not want:
         return rel, None, listed, []
     low = want.lower()
@@ -258,8 +261,8 @@ def show(target):
     i = found[0]
     lv, h, n, _ = secs[i]
     end = span(i)
-    body = "\n".join(x[3] for x in secs[i:end]).rstrip() + "\n"
-    return rel, {"section": h, "level": lv, "line": n, "chars": len(body), "text": body}, listed, []
+    body = "\n".join(x[3] for x in secs[0 if through else i:end]).rstrip() + "\n"
+    return rel, {"section": h, "level": lv, "line": 1 if through else n, "chars": len(body), "text": body}, listed, []
 
 
 def main_show(target, as_json):

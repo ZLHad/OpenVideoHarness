@@ -262,7 +262,7 @@
         {
           "synopsis": "know --show \"<file.md>#<section>\" [--json]",
           "text": [
-            "one section of a markdown file, to read it without the whole file (a ## section with the ### under it; no #section: the file's sections)"
+            "one section of a markdown file, to read it without the whole file (a ## section with the ### under it; #..<section>: from the file's start through it; no #section: the file's sections)"
           ]
         }
       ]

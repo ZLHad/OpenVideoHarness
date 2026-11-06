@@ -1754,9 +1754,10 @@ new_checks() {   # bin/vh new: how a type may be written; a scaffold that fails 
     rm -rf "$t/ty"; vh new "$x" ty --dir "$t/ty" >/dev/null 2>&1 || a="$a | $x: exit $?"
     grep -q '^- Type doc: `video-types/01-math-science-explainer.md`' "$t"/ty/*-ty/BRIEF.md 2>/dev/null || a="$a | $x: the BRIEF's type doc"
   done
+  grep -q '^- Engine: Manim CE$' "$t"/ty/*-ty/BRIEF.md || a="$a | the BRIEF's Engine line is not the type's"
   b=$(vh new knowledge-short ci-x --watch feed 2>&1); rc=$?; c=$(vh new 02 ci-x --aspect 4:3 2>&1); rc2=$?; vh new 99 ci-x >/dev/null 2>&1; rc3=$?
   if [ -z "$a" ] && [ "$rc:$rc2:$rc3" = 2:2:2 ] && case "$b|$c" in *"already --watch phone"*"|"*"unknown aspect"*) true ;; *) false ;; esac && [ -z "$(ls -d "$ROOT"/projects/*-ci-x 2>/dev/null)" ]
-  then ok "new: the type by its short name, number, doc name, that name's stem or the doc's path, and the same rules apply after it; another word is a usage error"
+  then ok "new: the type by its short name, number, doc name, that name's stem or the doc's path, and the same rules apply after it; another word is a usage error; the BRIEF's Engine line is the type's"
   else bad "new, the ways to write a type:$a ($rc/$rc2/$rc3): $b | $c"; fi
   # long and recap: canvas-film without asking, their frame, where they are watched and their pace; each type in bin/vh's
   # table has its doc and a row in CLAUDE.md's routing table
@@ -5231,6 +5232,15 @@ PY
   printf '\n## 暂停 · 2026-10-19\n- 原话："先停一下"\n' >> "$p/REVIEW.md"
   b=$(ns "$p" 'n["who"] == "person"' '"paused" in n["do"]')
   [ -z "$a$b" ] && ok "status next: a checkpoint the Director line adds, and a pause, which is the person's" || bad "status next, a checkpoint and a pause: $a | $b"
+  # quick skips the gates, not a stop the person asked for; a link to a film that is gone breaks nothing
+  OVH_PROJECTS="$t" vh new math nd --effort quick >/dev/null 2>&1; d=$(ls -d "$t"/*-nd)
+  python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Director: default", "- Director: stop=E3", 1))' "$d"
+  a=$(st "$d" "1:skipped 2:skipped E3:in_progress 3:skipped deliver:not_started | agent")
+  b=$(ns "$d" '"E3" in n["do"]' '"E3 --init" in c')
+  ln -s "$t/gone.mp4" "$d/out/gone.mp4"
+  c=$(ns "$d" '"E3" in n["do"]')
+  [ "$a" = "1:skipped 2:skipped E3:in_progress 3:skipped deliver:not_started | agent" ] && [ -z "$b$c" ] && ok "status: in a quick project the Director's stop is a stop, and next says so; a link to a film that is gone breaks nothing" \
+    || bad "status, a quick project's Director stop: $a | $b | $c"
   # the older fields stay what they were: next is still a sentence
   a=$(vh status "$q" --json | python3 -c 'import json, sys; d = json.load(sys.stdin); print(isinstance(d["next"], str), isinstance(d["next_step"], dict), d["waiting_on"])')
   [ "$a" = "True True nobody" ] && ok "status: next stays one sentence, the object is next_step" || bad "status: next and next_step: $a"
@@ -5585,6 +5595,16 @@ sys.exit(0 if c["version"] == 1 and c["file"] == "playbook/03-motion-design.md" 
 PY
   then ok "know --show: a ### section alone, a ## with the ### under it and no further, by the start of its heading; --json; a file's sections"
   else bad "know --show (exit $rc/$rc2): ${a:0:200} | ${b:0:200} | ${c:0:200}"; fi
+  a=$(python3 - <<'PY'
+import sys
+sys.path.insert(0, "tools")
+import know, readpath
+sec = know.show("playbook/01-pipeline.md#..规格")[1]
+head = readpath.upto("playbook/01-pipeline.md", "### 导演模式")
+print("" if sec and sec["text"].rstrip() == head.rstrip() and sec["line"] == 1 and "### 规格" in sec["text"] else f"not what readpath counts: {sec and sec['chars']} against {len(head)}")
+PY
+)
+  [ -z "$a" ] && ok "know --show #..规格: from the file's start through that section, what tools/readpath.py counts as read before starting" || bad "know --show #..规格: $a"
   a=$(vh know --show "playbook/01-pipeline.md#没有这节" 2>&1 >/dev/null); rc=$?
   b=$(vh know --show "playbook/no-such.md#x" 2>&1 >/dev/null); rc2=$?
   c=$(vh know --show "../CLAUDE.md#x" 2>&1 >/dev/null); rc3=$?

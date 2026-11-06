@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+**What a walkthrough from a one-line request turned up**
+- Why: following the new `CLAUDE.md` from 「做一个 60 秒竖屏短视频，讲清楚为什么天是蓝的」 to gate ① in a temp project worked, with four small snags.
+- `bin/vh know --show "playbook/01-pipeline.md#..规格"`: from the file's start through that section, which is what step 2 asks for.
+- `bin/vh new`: the BRIEF's Engine line starts as the type's engine, one blank fewer.
+- `CLAUDE.md`, step 5, names `bin/vh gate … --init`. `bin/vh status`'s `read` adds `playbook/12`'s third section (think first), and says `know --show` is for the lines with a `#section`.
+
 **`CLAUDE.md`, step 3: what to do for someone who does not write Chinese**
 - Why: `bin/vh new --lang en` only showed up in the option list, and the rules for English narration and captions were spread over three documents.
 - One sentence in step 3: `--lang en` sets the review pages' language, the narration and captions follow the person's language, and where the line length and reading speed are.
@@ -16,7 +22,7 @@
 **Read less before starting: playbook/01 up to 规格 and 02's 七层检查; the rest at the stop that needs it**
 - Why: `CLAUDE.md`'s step 2 had every agent, and every subagent, read all of `playbook/01-pipeline.md` and `playbook/02-verification.md` before it started. About 12,000 of 01's 20,000 characters (director mode, the review page, the desk, animatic, look-dev, unattended runs, long films, subagents) and 18,000 of 02's 23,000 (frame commands, determinism, silent failures, colour, audio QA) only matter at a later stop. This changes a binding point (CONTRIBUTING.md, 四个绑定点).
 - `CLAUDE.md`, step 2: before starting, 01 from its start to 规格 and 02's 七层检查. Then the review page at the first gate, the frame commands and the rest of 02 at the first picture, 长片 for a long film, 导演模式 when someone names a decision as theirs. `bin/vh status`'s `next:` lists the sections for this stop and `bin/vh know --show` prints one. The floors stay in `CLAUDE.md`, as they were. Nothing is removed from any document, and `playbook/quick.md` already read only the sections it names.
-- `tools/readpath.py`: a `start` column, what a standard film reads before it starts; `standard` stays the total by the first draft. On `02-knowledge-short`, the 113,295 an agent read before it started is now 83,000 or so (the table in `tools/ci.sh` has every type). `tools/ci.sh` checks that `start` is under `standard`, that step 2 names the sections counted, and that a renamed heading stops the table.
+- `tools/readpath.py`: a `start` column, what a standard film reads before it starts; `standard` stays the total by the first draft. On `02-knowledge-short`, the 113,295 characters an agent read before it started are now about 84,000 (the table in `tools/ci.sh` has every type). `tools/ci.sh` checks that `start` is under `standard`, that step 2 names the sections counted, and that a renamed heading stops the table.
 - `playbook/01`, `playbook/02`, `playbook/quick.md`: one line each saying the same. `video-types/04` and `07` name the section they point to.
 
 **`bin/vh assets add --origin` takes the words people write**
@@ -39,7 +45,7 @@
 
 **`bin/vh status` says what to do next: who, what, which commands, what to read**
 - Why: it said "the agent: work towards 关卡 ①" and stopped there. An agent coming back to a project, or starting one, had to work out from the docs what that stop asks for, which commands do it and which sections to open.
-- `tools/status.py`: a `next:` line, and `next_step` in `--json`: `who`, `do`, `commands`, `read` (each a `<file>#<section>` for `bin/vh know --show`) and `unfilled`, computed from the stop the project is at: each gate, a checkpoint the director mode adds, quick's path, render, check and delivery, with the render command of the engine its files show. It names what is unfilled: how many `{…}` BRIEF, STYLE and STORYBOARD still have, how many `{填：…}` the gate's skeleton has. A scaffold that did not finish comes first. Every existing field stays as it was, so `next` is still one sentence.
+- `tools/status.py`: a `next:` line, and `next_step` in `--json`: `who`, `do`, `commands`, `read` (each a `<file>#<section>` for `bin/vh know --show`) and `unfilled`, computed from the stop the project is at: each gate, a checkpoint the director mode adds, quick's path, render, check and delivery, with the render command of the engine its files show. It names what is unfilled: how many `{…}` BRIEF, STYLE and STORYBOARD still have, how many `{填：…}` the gate's skeleton has. A scaffold that did not finish comes first. Every existing field stays as it was, so `next` is still one sentence. A gate JSON not sent yet no longer reads as waiting for the person, and in a quick project a stop the Director line asks for is no longer skipped.
 - `tools/proxy.py`: `newest_film`, for this and for `bin/vh check <project>`.
 - `tools/ci.sh`, `next_step_checks`: stop by stop, and every section it names is there.
 

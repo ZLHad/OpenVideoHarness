@@ -86,7 +86,7 @@ def films_in(project):
         for d, dirs, files in os.walk(out):
             depth = Path(d).relative_to(out).parts
             dirs[:] = [x for x in dirs if not x.startswith(".") and not (not depth and x in SKIP) and len(depth) < 3]
-            found += [Path(d) / f for f in files if Path(f).suffix.lower() in VIDEO and not f.startswith(".")]
+            found += [Path(d) / f for f in files if Path(f).suffix.lower() in VIDEO and not f.startswith(".") and (Path(d) / f).is_file()]
     return sorted(found, key=lambda p: -p.stat().st_mtime)
 
 
