@@ -3983,6 +3983,22 @@ PY
     *) bad "assets end to end: render (exit $rc): $(printf '%s' "$a" | tail -c 500)" ;;
   esac
   rm -rf "$t"
+  # --origin: the common words for an origin are taken and said; another word is a usage error that names the closest
+  t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); cp -R tools/assets/fixtures/project "$t/fx"; printf 'a' > "$t/fx/o1.png"; printf 'b' > "$t/fx/o2.png"; printf 'c' > "$t/fx/o3.png"
+  a=$(vh assets add "$t/fx" "$t/fx/o1.png" --origin self-made --id o1 --json 2>"$t/e1"); rc=$?
+  b=$(vh assets add "$t/fx" "$t/fx/o2.png" --origin 'Self Made' --id o2 --json 2>/dev/null); r1=$?
+  c=$(vh assets add "$t/fx" "$t/fx/o3.png" --origin download --source-url https://example.com/x --id o3 --json 2>"$t/e3"); r2=$?
+  d=$(vh assets add "$t/fx" "$t/fx/o3.png" --origin selfy --id o4 2>&1); r3=$?
+  e=$(vh assets add "$t/fx" "$t/fx/o3.png" --origin zzzqqq --id o5 2>&1); r4=$?
+  if [ "$rc:$r1:$r2:$r3:$r4" = 0:0:0:2:2 ] && grep -q 'self-made is read as self' "$t/e1" && [ ! -s "$t/e3" ] && case "$d" in *"--origin selfy: one of download, generated, self"*"the closest is self"*) true ;; *) false ;; esac \
+    && case "$e" in *"--origin zzzqqq: one of"*"closest"*) false ;; *"--origin zzzqqq: one of"*) true ;; *) false ;; esac && python3 - "$a" "$b" "$c" <<'PY'
+import json, sys
+o = [json.loads(x)["record"]["source"]["origin"] if "record" in json.loads(x) else json.loads(x)["source"]["origin"] for x in sys.argv[1:4]]
+sys.exit(0 if o == ["self", "self", "download"] else 1)
+PY
+  then ok "assets add --origin: self-made and other common words are taken and said; a word it does not know is a usage error, with the closest when there is one"
+  else bad "assets add --origin ($rc/$r1/$r2/$r3/$r4): $a | $d | $e | $(cat "$t/e1")"; fi
+  rm -rf "$t"
   footage_checks   # bin/vh footage: its records are the ledger's
   image_checks     # bin/vh image: so are its pictures, and its spend the budget's
   library_checks   # the sound library's picks: on record in the project's ledger

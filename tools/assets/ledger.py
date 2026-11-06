@@ -17,7 +17,7 @@ A collection is one of:
 A record's path is relative to its collection's base: the project folder for the project's ledger and the clips' (as
 their output.file always was), the library's folder for a library's.
 """
-import fcntl, hashlib, json, os, re, sys, tempfile, time
+import difflib, fcntl, hashlib, json, os, re, sys, tempfile, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -29,6 +29,22 @@ LOCK = Path("assets") / ".ledger.lock"
 GENCLIPS = "assets/genclips/*/ledger.json"
 KINDS = ("image", "video", "audio", "font", "model", "data", "other")
 ORIGINS = ("download", "generated", "self", "user", "library", "purchased")
+ORIGIN_ALIASES = {   # what people and agents write for them (self: made in the project; user: the user's own material)
+    "self-made": "self", "selfmade": "self", "made": "self", "own": "self", "handmade": "self", "hand-made": "self", "original": "self", "project": "self", "自制": "self",
+    "users": "user", "user-provided": "user", "provided": "user", "client": "user", "personal": "user", "用户": "user", "用户提供": "user",
+    "downloaded": "download", "web": "download", "internet": "download", "url": "download", "online": "download", "下载": "download",
+    "generate": "generated", "gen": "generated", "ai": "generated", "aigc": "generated", "ai-generated": "generated", "生成": "generated",
+    "stock": "library", "lib": "library", "素材库": "library",
+    "bought": "purchased", "purchase": "purchased", "paid": "purchased", "购买": "purchased"}
+
+
+def origin_of(word):
+    """--origin as written → one of ORIGINS: a common word for one is taken; anything else is a ValueError that names the closest."""
+    w = re.sub(r"[\s_]+", "-", word.strip().lower())
+    if w in ORIGINS or w in ORIGIN_ALIASES:
+        return ORIGIN_ALIASES.get(w, w)
+    near = difflib.get_close_matches(w, list(ORIGINS) + list(ORIGIN_ALIASES), n=1, cutoff=0.5)
+    raise ValueError(f"--origin {word}: one of {', '.join(ORIGINS)}" + (f"; the closest is {ORIGIN_ALIASES.get(near[0], near[0])}" if near else ""))
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 SHA = re.compile(r"^[0-9a-f]{64}$")
 CURRENCY = re.compile(r"^[A-Z][A-Z0-9-]{1,23}$")

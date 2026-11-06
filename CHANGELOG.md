@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`bin/vh assets add --origin` takes the words people write**
+- Why: on real films an agent lost 44 runs to `--origin self-made`, which only `self` satisfied, and the message listed nothing it could use from there.
+- `tools/assets/ledger.py`, `origin_of`: `self-made`, `selfmade`, `own`, `自制` and the like for `self`, and so on for each origin (case and spaces aside); what it took is said on stderr. An unknown word is a usage error with the six origins and the closest. `tools/assets/assets.py` calls it in `add`; the record still holds one of the six.
+
 **`bin/vh commands --brief`: one short line a command**
 - Why: `bin/vh commands --stage 1` runs to 150 lines, and the whole list to 400. An agent looking for the tool at a stage wants the names and what each does.
 - `tools/commands.py`: `--brief`, alone or with `--stage N`, prints each command with the first clause of its summary, cut at a word to fit one line. `--json` is the same with it or without it. `CLAUDE.md`, step 3, names it.
