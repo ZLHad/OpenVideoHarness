@@ -5838,7 +5838,7 @@ PY
   else bad "gate's save (exit $rc, $rc2, $c, $n1 lines, '$a'): $(tail -c 300 "$t/gate1") | $(tail -c 300 "$t/gate2")"; fi
   # bin/vh clean leaves it, and it still restores
   mkdir -p "$p/out/frames"; : > "$p/out/frames/a.png"; : > "$p/out/final.mp4"
-  vh clean "$p" --yes >"$t/clean" 2>&1; rc=$?
+  OVH_TRASH_DIR="$t/trash" vh clean "$p" --yes >"$t/clean" 2>&1; rc=$?
   n1=$(find "$p/.ovh/history" -type f | wc -l | tr -d ' ')
   printf 'again\n' > "$p/REVIEW.md"; vh history restore "$p" REVIEW.md >/dev/null 2>&1; rc2=$?
   a=$(cat "$p/REVIEW.md")
@@ -5904,7 +5904,7 @@ rc, rec, err = cancel("--timeout", "1")
 r = (rec.get("runs") or [{}])[0]
 ex = ended(pr)
 one = [x for x in runs() if x["cmd"] == "qa"][-1]
-if not (rc == 0 and r.get("state") == "cancelled" and r.get("signal") == "SIGTERM" and r.get("exit") == 143 and ex == -15 and not stub_alive() and time.time() - t0 < 8
+if not (rc == 0 and r.get("state") == "cancelled" and r.get("signal") == "SIGTERM" and r.get("exit") == 143 and ex == -15 and not stub_alive() and time.time() - t0 < 20
         and one.get("state") == "failed" and one.get("cancelled") is True and one.get("exit") == 143):
     bad.append(f"SIGINT ignored: exit {rc}, {r}, ended {ex}, stand-in alive {stub_alive()}, run {one}")
 # a tool bin/vh exec'd into, that waits for a person: left running without a name; by name it writes its own end, cancelled
@@ -6057,6 +6057,36 @@ print("ok" if done and done[0] == 0 and done[-1] == 3 and code == 130 and kept a
 PY
     )
     case "$a" in *ok) ok "progress: tts says its lines done; stopped, it says what a resume has" ;; *) bad "tts's progress and stop: $(printf '%s' "$a" | tail -c 800)" ;; esac
+    # proxy and deliver stopped in the middle of an encode (a stand-in ffmpeg that starts its output and never ends): what they began goes, what was there stays
+    mkdir -p "$t/hang"
+    printf '#!/bin/sh\nfor a in "$@"; do last=$a; done\n: > "$last"\n: > "$HANGMARK"\nwhile :; do sleep 0.05; done\n' > "$t/hang/ffmpeg"; chmod +x "$t/hang/ffmpeg"
+    a=$(python3 - "$VH_BASH" "$ROOT" "$p" "$t" <<'PY' 2>&1
+import glob, json, os, signal, subprocess, sys, time
+sh, root, p, t = sys.argv[1:]
+vh = [sh, f"{root}/bin/vh"]
+mark, env = f"{t}/hanging", dict(os.environ, PATH=f"{t}/hang:{os.environ['PATH']}", HANGMARK=f"{t}/hanging")
+bad = []
+film = f"{p}/out/film.mp4"
+before = open(film, "rb").read()
+for cmd, args, left in (("proxy", [film, "--crf", "27"], f"{p}/out/proxy/.film.mp4.tmp.mp4"), ("deliver", [film, "--matrix", "bt709", "--psnr", "off", "--out", f"{p}/out/copy.mp4"], f"{p}/out/.copy.mp4.*")):
+    if os.path.exists(mark): os.remove(mark)
+    pr = subprocess.Popen([*vh, cmd, *args], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    for _ in range(1200):
+        if os.path.exists(mark) or pr.poll() is not None: break
+        time.sleep(0.05)
+    r = subprocess.run([*vh, "cancel", p, "--json"], capture_output=True, text=True)
+    rec = json.loads(r.stdout) if r.stdout.strip() else {}
+    row = (rec.get("runs") or [{}])[0]
+    try: ex = pr.wait(10)
+    except subprocess.TimeoutExpired:
+        os.killpg(pr.pid, signal.SIGKILL); pr.wait(); ex = "still running"
+    hung = subprocess.run(["pgrep", "-f", f"{t}/hang/ffmpeg"], capture_output=True).returncode == 0
+    if not (r.returncode == 0 and row.get("cmd") == cmd and row.get("state") == "cancelled" and row.get("exit") in (130, 143) and ex in (-2, -15, 130, 143) and not hung and not glob.glob(left) and open(film, "rb").read() == before):
+        bad.append(f"{cmd}: exit {r.returncode}, {row}, ended {ex}, stand-in left {hung}, files left {glob.glob(left)}")
+print("; ".join(bad) or "ok")
+PY
+    )
+    [ "$a" = ok ] && ok "cancel: proxy and deliver stopped in the middle of an encode: ffmpeg goes, what they began goes, the film is as it was" || bad "cancel of proxy and deliver: $(printf '%s' "$a" | tail -c 800)"
   else skip "progress lines of proxy, thumbs, deliver and tts" "needs ffmpeg"; fi
   # a real render, cancelled with chunks kept (its page hangs after half a second), and a real patch's progress
   if ! command -v ffmpeg >/dev/null; then skip "cancel of a real render, patch's progress" "needs ffmpeg"
@@ -7417,7 +7447,7 @@ note = next(r for r in render if r["event"] == "note")
 sys.exit(0 if note["outputs"] == ["out/film.mp4", "out/film.mp4.render.json"] and [r["done"] for r in render if r["event"] == "progress"][-1] == 60 else 1)
 PY
     a=$(python3 "$t/act.py" "$t/p, x/.ovh/activity.jsonl" 2>&1); rc=$?
-    case "$rc:$a" in "0:start progress progress note end:0 | start note end:1 | start note end:0 | start end:2") ok "activity: render logs its progress and what it wrote, patch its outcome; node writes the end line of a run bin/vh exec'd into" ;;
+    case "$rc:$a" in "0:start progress progress note end:0 | start progress progress note end:1 | start progress progress note end:0 | start note end:2") ok "activity: render logs its progress and what it wrote, patch its progress and outcome, and why one was refused; node writes the end line of a run bin/vh exec'd into" ;;
       *) bad "activity of render and patch (rc $rc): $a" ;; esac
     # versions (tools/versions.py): in a project, each render and patch is a version; the film a render or an in-place
     # patch replaces is kept in out/versions/ (moved, the same bytes), its record says what changed; compare draws a

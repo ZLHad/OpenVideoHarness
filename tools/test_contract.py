@@ -253,6 +253,15 @@ def main(argv):
         for args, want, code in ((("gate", p, "2", "--init", "--json"), 2, "exists"), (("gate", p, "2", "--json"), 2, "invalid")):
             wrong = error_problems(sch, vh(*args), want, code)
             bad += [f"{' '.join(args[2:])}: {'; '.join(wrong)}"] if wrong else []
+        # a page that breaks a rule is refused; one that goes out says where, as a record, the lines a person reads on stderr
+        n += 2
+        shutil.copy(f"{z}/out/review/gate-1.json", f"{p}/out/review/gate-3b.json")
+        wrong = error_problems(sch, vh("gate", p, "3b", "--json"), 1, "refused")
+        bad += [f"gate with a page that breaks a rule: {'; '.join(wrong)}"] if wrong else []
+        r = vh("gate", z, "1", "--page", "--json")
+        d = json.loads(r.stdout) if r.returncode == 0 else {}
+        if not (d.get("version") == 1 and d.get("gate") == "1" and d.get("channel") == "page" and d.get("url") is None and d.get("message") and d.get("page", "").endswith("gate-1.html") and d["message"] not in r.stderr):
+            bad.append(f"gate --json: exit {r.returncode}, {r.stdout[:300]!r}")
         # no python3: said the same way, by bin/vh itself; bin/vh doctor --json keeps its own record
         bare = f"{t}/bare"
         os.makedirs(bare)

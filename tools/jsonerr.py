@@ -87,6 +87,25 @@ def mark(code, hint=None):
     _mark = (code, hint)
 
 
+def project_arg(word, tool):
+    """The project a command's argument names: a folder, a file inside one, or a name under $OVH_PROJECTS / projects/. None when there is
+    none, the failure said (no_project): the caller returns 2."""
+    from pathlib import Path
+    import gatecheck, review
+    p = Path(word).expanduser()
+    project = gatecheck.project_of(p) if p.exists() else None
+    if project is not None:
+        return project
+    project = review.find_project(word)   # (it says why, on stderr)
+    if project is None:
+        mark("no_project")
+        return None
+    if not (project / "BRIEF.md").is_file():
+        fail("no_project", f"{tool}: {project} is not a project (no BRIEF.md)")
+        return None
+    return project
+
+
 class _Through:
     """A stream that goes on to the real one (isatty, encoding, buffer and the rest too) and remembers what passed."""
 

@@ -63,8 +63,7 @@ class Doc:
     # ---- the film the page's shots and the frame grid can come from
     def film_side(self):
         import proxy as P, versions as V
-        versioned = P.versioned_film(self.project)
-        film = versioned.resolve() if versioned else P.newest_film(self.project)
+        film = P.current_film(self.project)[0]
         side = V.load_json(str(film) + ".render.json") if film else None
         return film, side if isinstance(side, dict) else None
 
@@ -253,21 +252,6 @@ def show(rec):
         print(f"  ! {m['part']}: {m['why']}")
 
 
-def find_project(word):
-    import gatecheck as G, review as R
-    p = Path(word).expanduser()
-    project = G.project_of(p) if p.exists() else None
-    if project is None:
-        project = R.find_project(word)
-        if project is None:
-            jsonerr.mark("no_project")
-            return None
-        if not (project / "BRIEF.md").is_file():
-            jsonerr.fail("no_project", f"timeline: {project} is not a project (no BRIEF.md)")
-            return None
-    return project
-
-
 def main(argv):
     import argparse
     ap = argparse.ArgumentParser(prog="bin/vh timeline", description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__.split("\n\n", 1)[1])
@@ -279,7 +263,7 @@ def main(argv):
     a = ap.parse_intermixed_args(argv)   # (the language after an option: Python before 3.12 takes it only so)
     if a.lang and not re.fullmatch(r"[a-z]{2,3}(-[A-Za-z0-9]{2,4})?", a.lang):
         return jsonerr.fail("usage", f"timeline: {a.lang} is no language (zh, en)")
-    project = find_project(a.project)
+    project = jsonerr.project_arg(a.project, "timeline")
     if project is None:
         return 2
     t0 = time.time()

@@ -147,7 +147,7 @@ JSON 的格式：
 | 一个项目认得住的身份 | `.ovh/project.json` 的 `id`；`bin/vh status --json` 的 `project.id` | 是 |
 | 一个项目的全貌和下一步 | `bin/vh status <项目> --json` | 是 |
 | 这支片子该有哪些文件，缺什么、什么过期了 | `bin/vh artifacts list <项目> --json` | 是 |
-| 播放和拖动用的文件（当前片子、代理、缩略图、波形） | `bin/vh status --json` 的 `media`；还没有的用 `bin/vh proxy`、`thumbs`、`peaks` 做 | `media` 是 |
+| 播放和拖动用的文件（当前片子、代理、缩略图、波形） | `bin/vh status --json` 的 `media`；还没有的，对着 `media.film` 这个路径跑 `bin/vh proxy`、`thumbs`、`peaks` | `media` 是 |
 | 整条时间线：镜头、旁白、字幕、节拍，秒和帧 | `bin/vh timeline <项目> --resolved --json` | 是 |
 | 一条命令跑得怎么样 | `bin/vh activity <项目> --follow --json`，见下面 | 是 |
 | 停下一条命令 | `bin/vh cancel <项目> [run] --json` | 写结束行 |

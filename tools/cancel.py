@@ -80,7 +80,7 @@ def confirmed(run):
 
 
 def tree(pid):
-    """Everything under a process, children first: (pid, start time)."""
+    """Every pid under a process."""
     rows = ps("-A", "-o", "pid=", "-o", "ppid=") or []
     kids = {}
     for row in rows:
@@ -140,15 +140,18 @@ def stop(project, run, timeout):
     t0 = time.time()
     ok, p, why = confirmed(run)
     if not ok:
-        row.update(state="not_that_process", why=why)
+        end = end_of(project, rid)   # it ended on its own, between the listing and this
+        if end:
+            row.update(state="cancelled" if end.get("cancelled") else "finished", exit=end.get("exit"))
+        else:
+            row.update(state="not_that_process", why=why)
         return row
     under_bash = bool(BASH_VH.search(p[2]))
     first_wait = min(timeout, INT_UNDER_BASH) if under_bash else timeout
     seen = set()
 
     def signal_all(sig):
-        ok, here, _ = confirmed(run)
-        if not ok:
+        if not confirmed(run)[0]:
             return
         kids = tree(pid) if under_bash else []
         seen.update(kids)
@@ -219,21 +222,6 @@ def show(rec, out):
         print(f"cancel: left running: {r['cmd']} ({r['run']}): {r['why']}", file=out)
 
 
-def find_project(word):
-    import gatecheck as G, review as R
-    p = Path(word).expanduser()
-    project = G.project_of(p) if p.exists() else None
-    if project is None:
-        project = R.find_project(word)
-        if project is None:
-            jsonerr.mark("no_project")
-            return None
-        if not (project / "BRIEF.md").is_file():
-            jsonerr.fail("no_project", f"cancel: {project} is not a project (no BRIEF.md)")
-            return None
-    return project
-
-
 def main(argv):
     ap = argparse.ArgumentParser(prog="bin/vh cancel", description=__doc__.split("\n\n")[0], formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__.split("\n\n", 1)[1])
     ap.add_argument("project", help="project folder (or a file inside it), or its name under projects/")
@@ -241,7 +229,7 @@ def main(argv):
     ap.add_argument("--timeout", type=float, default=15, help="seconds a tool has after SIGINT before SIGTERM (default 15; under bash at most 3)")
     ap.add_argument("--json", action="store_true", help="the record, as JSON (version 1)")
     a = ap.parse_intermixed_args(argv)   # (the run after an option: Python before 3.12 takes it only so)
-    project = find_project(a.project)
+    project = jsonerr.project_arg(a.project, "cancel")
     if project is None:
         return 2
     all_runs = [r for r in activity.runs(activity.read(project))[0] if r["run"] != os.environ.get("OVH_ACTIVITY_RUN")]   # not this command's own

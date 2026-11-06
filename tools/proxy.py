@@ -138,6 +138,12 @@ def versioned_film(project):
 
 
 
+def current_film(project):
+    """The film a client shows first, (the film or None, is it from versions): the newest current version, else what bin/vh check <project> takes."""
+    film = versioned_film(project)
+    return (film.resolve(), True) if film else (newest_film(project), False)
+
+
 def pick(target):
     """(film or None, project, page or None) for a film or a project."""
     p = Path(target).expanduser()

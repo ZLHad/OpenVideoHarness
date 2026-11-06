@@ -99,7 +99,7 @@ def find(roots):
 def overall(st):
     """A project's state in one word, from its stops (bin/vh status), and the stop it is at."""
     stops = st["stations"]
-    at = next((s for s in stops if s["state"] == "in_progress"), None)
+    at = None
     for word in STATE_ORDER:
         at = next((s for s in stops if s["state"] == word), None)
         if at:

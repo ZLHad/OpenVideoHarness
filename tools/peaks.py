@@ -1,7 +1,7 @@
 """bin/vh peaks: a waveform a client can draw, as min and max per bin. ffmpeg and the standard library.
 
 usage: bin/vh peaks <audio | film | project> [--bins 1000] [--json]
-A project means its current film (tools/proxy.py). The sound is decoded to mono at 8 kHz, so a two-hour film takes seconds and
+A project means its current film, the one bin/vh status --json has as media.film. The sound is decoded to mono at 8 kHz, so a two-hour film takes seconds and
 some 100 MB while it runs. The record goes beside the proxies (<project>/out/proxy/<name>.peaks.json; outside a project: proxy/
 beside the file; another --bins: <name>.peaks-<N>.json), named as bin/vh proxy names its files, with the source's size and
 modification time: while they are the same a repeat reads the record and starts no ffmpeg.
@@ -78,10 +78,16 @@ def target(word):
     p = Path(word).expanduser()
     if p.is_file():
         return p.resolve(), V.project_of(p)
-    film, project, _ = P.pick(word)
+    project = V.project_of(p) if p.exists() else None
+    if project is None:
+        import review
+        project = review.find_project(word)
+        if project is None:
+            raise P.Usage(f"no audio, film or project at {word}", "no_project")
+    film = P.current_film(project)[0]
     if film is None:
         raise P.Usage(f"no film in {project} to read the sound of: bin/vh render first, or name the audio file", "not_found")
-    return film, project
+    return film, Path(project)
 
 
 def main(argv):

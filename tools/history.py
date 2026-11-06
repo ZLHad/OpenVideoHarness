@@ -289,21 +289,6 @@ def cmd_restore(a, project):
     return 0
 
 
-def find_project(word):
-    import gatecheck as G, review as R
-    p = Path(word).expanduser()
-    project = G.project_of(p) if p.exists() else None
-    if project is None:
-        project = R.find_project(word)
-        if project is None:
-            jsonerr.mark("no_project")
-            return None
-        if not (project / "BRIEF.md").is_file():
-            jsonerr.fail("no_project", f"history: {project} is not a project (no BRIEF.md)")
-            return None
-    return project
-
-
 def main(argv):
     if argv[:1] in (["-h"], ["--help"]):
         print(__doc__.strip())
@@ -327,7 +312,7 @@ def main(argv):
         a.file = str(Path(a.project).resolve())
     if a.cmd == "restore" and a.file is None:
         return jsonerr.fail("usage", "bin/vh history restore <project> <file> [--at <snapshot>]: which file?")
-    project = find_project(a.project)
+    project = jsonerr.project_arg(a.project, "history")
     if project is None:
         return 2
     try:

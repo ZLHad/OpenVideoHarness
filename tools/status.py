@@ -610,8 +610,7 @@ def media(project):
     """What a client plays and scrubs, as paths from the project; only what is there. The current film (the newest current version, else
     what bin/vh check takes), its proxy, thumbs and peaks (bin/vh proxy, thumbs, peaks), and which of those were made of another
     film (stale: size and time, as they keep them; bin/vh proxy, thumbs and peaks make them anew). No hash, no ffprobe."""
-    versioned = P.versioned_film(project)
-    film = versioned.resolve() if versioned else P.newest_film(project)
+    film, versioned = P.current_film(project)
     out = {"film": None, "version": None, "from": None, "proxy": None, "thumbs": None, "peaks": None, "stale": []}
     if film is None:
         return out
