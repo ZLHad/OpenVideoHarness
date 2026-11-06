@@ -718,9 +718,20 @@ PY
   rm -rf "$t"
   # tts picks the uv dependencies from --provider too (a fake uv prints the command instead of running it)
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX"); printf '#!/bin/sh\necho "$*"\n' > "$t/uv"; chmod +x "$t/uv"
-  a=$(PATH="$t:$PATH" vh tts "$t" --provider edge --lang en; PATH="$t:$PATH" vh tts "$t" --provider=dashscope)
+  a=$(PATH="$t:$PATH" vh tts "$t" --provider edge --lang en; PATH="$t:$PATH" DASHSCOPE_API_KEY=ci vh tts "$t" --provider=dashscope)
   case "$a" in *"--with edge-tts "*"--provider edge"*"--with dashscope "*) ok "tts --provider picks the provider's dependencies" ;;
     *) bad "tts --provider: uv got '$a'" ;; esac
+  # a provider with no key: said before anything is fetched, synthesized or deleted, with the key it needs and what works
+  # with none (a stand-in uv that runs what comes after "python", so nothing is fetched)
+  mkdir -p "$t/nk/audio" "$t/nkbin"; printf '@a 一句。\n' > "$t/nk/audio/script.txt"; printf 'take' > "$t/nk/audio/voiceover.wav"
+  printf '#!/bin/sh\ncase "$*" in *"--with dashscope"*) echo "uv was asked for dashscope" >&2; exit 9 ;; esac\nwhile [ "$1" != python ]; do shift; done; shift\nexec python3 "$@"\n' > "$t/nkbin/uv"; chmod +x "$t/nkbin/uv"
+  a=""
+  for u in dashscope:DASHSCOPE_API_KEY elevenlabs:ELEVENLABS_API_KEY gemini:GEMINI_API_KEY gemini-lite:GEMINI_API_KEY minimax:MINIMAX_API_KEY; do
+    b=$(PATH="$t/nkbin:$PATH" env -u DASHSCOPE_API_KEY -u ELEVENLABS_API_KEY -u GEMINI_API_KEY -u MINIMAX_API_KEY -u MINIMAX_TOKEN_PLAN_KEY "$VH_BASH" "$ROOT/bin/vh" tts "$t/nk" "${u%%:*}" 2>&1); rc=$?
+    case "$rc:$b" in 1:*"set "*"${u#*:}"*"needs no key"*) ;; *) a="$a | ${u%%:*} (exit $rc): $b" ;; esac
+  done
+  if [ -z "$a" ] && [ "$(cat "$t/nk/audio/voiceover.wav")" = take ] && [ ! -e "$t/nk/audio/vo" ]; then ok "tts: a provider with no key says the key it needs and what works with none, before anything is fetched or the last take deleted"
+  else bad "tts with no key:$a"; fi
   # Ctrl-C (to the process group, as a terminal sends it) while a command runs through uv run ends bin/vh by SIGINT (130
   # to a shell; the caller sees the Ctrl-C), even when uv itself exits 2 ("Failed to get PID of child process", the race
   # when its Python has just exited): a fake uv that does exactly that, under each command that goes through uv

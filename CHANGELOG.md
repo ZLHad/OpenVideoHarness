@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**`bin/vh tts`: a provider with no key says the key it needs and what works with none**
+- Why: `set DASHSCOPE_API_KEY` was all an agent got, after uv had fetched the provider's package and with the last take already deleted, and nothing said the default needs no key.
+- `tools/audio/tts.py`: `no_key` names the key and where it comes from, then what needs none on this machine: leave the provider out on Apple Silicon (the local qwen), `--provider edge` elsewhere. The check for elevenlabs and dashscope moves up with gemini's and minimax's, before anything is synthesized or deleted.
+- `bin/vh tts`: `--with dashscope` only when the key is set.
+
 **The docs no longer contradict each other on gates, quick's questions, the paper type and `bin/vh check`**
 - Why: an agent following `video-types/06` stopped at three "gates" that were not CLAUDE.md's, was told to run a paid provider by name, and had no word on what to do with no paper attached. Quick's question limit was 3 in one place and 1 in another, and CLAUDE.md's "run `bin/vh check`" did not say what it takes.
 - `video-types/06-paper-explainer.md`: Gate 1/2/3 are steps, each saying which gate it folds into (the script and the curriculum go with gate ②, the style's direction is on gate ①'s concept card), and its Prompt block no longer says to stop after each one. `NARRATION.md` is `SCRIPT.md`, the template the pipeline and the review desk read. `bin/vh tts` runs with its default provider. With no paper attached: ask for the `.tex`, PDF or arXiv id and write nothing yet. Ten minutes or more points to `video-types/10-long-explainer.md`, which comes later in this batch.

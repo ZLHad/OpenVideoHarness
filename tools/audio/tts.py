@@ -141,7 +141,7 @@ Providers (API keys come from environment variables only, never from files):
               pronunciation_dict.tone. text_normalization is on: "1953 年" is read 一千九百五十三年, so write years
               as 一九五三年 in the spoken text.
 """
-import argparse, base64, difflib, hashlib, json, os, re, shutil, subprocess, sys, tempfile, time, unicodedata
+import argparse, base64, difflib, hashlib, json, os, platform, re, shutil, subprocess, sys, tempfile, time, unicodedata
 import urllib.error, urllib.parse, urllib.request, wave
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
@@ -233,6 +233,18 @@ def gemini_call(path, body=None, method=None, query=None, timeout=180, tries=3):
 
 # ---------- providers: each writes a WAV at `out` and may return word/char timings ----------
 
+KEY_OF = {"gemini": "GEMINI_API_KEY (Google AI Studio → Get API key)", "gemini-lite": "GEMINI_API_KEY (Google AI Studio → Get API key)",
+          "minimax": "MINIMAX_TOKEN_PLAN_KEY (Token Plan) or MINIMAX_API_KEY (pay-as-you-go), from platform.minimax.io",
+          "elevenlabs": "ELEVENLABS_API_KEY (elevenlabs.io)", "dashscope": "DASHSCOPE_API_KEY (Alibaba Cloud Model Studio, 阿里云百炼)"}
+
+def no_key(provider):
+    """Exit (1) on a provider with no key: the key it needs, and what works with none on this machine."""
+    if sys.platform == "darwin" and platform.machine() == "arm64":
+        free = "the local default needs no key: leave the provider out, bin/vh tts <project> (qwen, free, about 2 GB on first use)"
+    else:
+        free = "the local default (qwen) needs no key but only runs on Apple Silicon; here --provider edge needs none (free, online)"
+    sys.exit(f"set {KEY_OF[provider]} for {provider}; {free}")
+
 _QWEN = {}
 def p_qwen(text, voice, out: Path, tmp: Path, lang, instruct=None):
     import numpy as np
@@ -273,7 +285,7 @@ def p_edge(text, voice, out: Path, tmp: Path, lang, instruct=None):
     return None
 
 def p_elevenlabs(text, voice, out: Path, tmp: Path, lang, instruct=None):
-    key = os.environ.get("ELEVENLABS_API_KEY") or sys.exit("set ELEVENLABS_API_KEY")
+    key = os.environ.get("ELEVENLABS_API_KEY") or no_key("elevenlabs")
     voice = voice or sys.exit("--voice <voice_id> is required for elevenlabs")
     body = json.dumps({"text": text, "model_id": os.environ.get("ELEVENLABS_MODEL", "eleven_multilingual_v2")}).encode()
     req = urllib.request.Request(f"https://api.elevenlabs.io/v1/text-to-speech/{voice}/with-timestamps?output_format=mp3_44100_128",
@@ -296,7 +308,7 @@ def char_words(chars, starts, ends):
 
 def p_dashscope(text, voice, out: Path, tmp: Path, lang, instruct=None):
     import dashscope  # provided by `uv run --with dashscope`
-    key = os.environ.get("DASHSCOPE_API_KEY") or sys.exit("set DASHSCOPE_API_KEY")
+    key = os.environ.get("DASHSCOPE_API_KEY") or no_key("dashscope")
     if os.environ.get("DASHSCOPE_BASE_URL"):
         dashscope.base_http_api_url = os.environ["DASHSCOPE_BASE_URL"]
     resp = dashscope.MultiModalConversation.call(
@@ -407,7 +419,7 @@ def minimax_tts(text, voice, lang, emotion=None, timeout=600, tries=3):
     network errors are retried twice; any other error fails at once, with a hint for a rejected key or no balance."""
     key, var = minimax_key()
     if not key:
-        sys.exit("set MINIMAX_TOKEN_PLAN_KEY (Token Plan) or MINIMAX_API_KEY (pay-as-you-go), from platform.minimax.io")
+        no_key("minimax")
     if len(text) > MINIMAX_MAX_CHARS:
         raise MinimaxError(f"minimax: {len(text)} characters in one request, over the limit of {MINIMAX_MAX_CHARS}: use --join block"
                            f" (blank lines in script.txt split it) or --join none")
@@ -1193,8 +1205,10 @@ def main():
         print("  --join recovers line boundaries from word timestamps → --align gemini is on")
     if a.align == "local":   # before anything is synthesized or deleted
         need_local_asr()
-    if (gemini or (align and a.align != "local")) and not os.environ.get("GEMINI_API_KEY"):     # before anything is synthesized or deleted
-        sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key)" + ("" if gemini else ": --align gemini / --join transcribe with Gemini (or --align local)"))
+    if a.provider in ("elevenlabs", "dashscope", "gemini", "gemini-lite") and not os.environ.get(KEY_OF[a.provider].split()[0]):
+        no_key(a.provider)                                           # before anything is synthesized or deleted
+    if align and a.align != "local" and not os.environ.get("GEMINI_API_KEY"):
+        sys.exit("set GEMINI_API_KEY (Google AI Studio → Get API key): --align gemini / --join transcribe with Gemini (or --align local)")
     if man and a.provider == "minimax" and join != "none" and man.get("gap") != a.gap:
         sys.exit(f"--resume: --gap was {man.get('gap')} for the run, now {a.gap}; in a joined minimax request it is part of the"
                  f" text: pass --gap {man.get('gap')}, or drop --resume to start over")
@@ -1214,7 +1228,7 @@ def main():
     if a.provider == "minimax":
         minimax_settings()                                           # a value out of range exits here, not mid-run
         if not minimax_key()[0]:
-            sys.exit("set MINIMAX_TOKEN_PLAN_KEY (Token Plan) or MINIMAX_API_KEY (pay-as-you-go), from platform.minimax.io")
+            no_key("minimax")
         size, first = max(((len(linked([strip_tags(spoken(s), reactions, pauses=False) for s in blk])), blk[0]["id"]) for blk in blocks), default=(0, ""))
         if size > MINIMAX_MAX_CHARS:                                 # before the last take is deleted
             sys.exit(f"minimax: the request from @{first} would be {size} characters, over the limit of {MINIMAX_MAX_CHARS}: "
