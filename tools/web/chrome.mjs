@@ -9,29 +9,32 @@ const opt = JSON.parse(fs.readFileSync(0, "utf8"));
 const warnings = [];
 let browser, timer, stage = "checking the URL";
 const fail = (message) => { console.error(`web: ${message}`); process.exit(1); };
-// Startup and tab recovery need their own allowance: launchTab retries a Mac Chrome that never answers as its tab
-// comes up (30 s plus cleanup a try). --timeout below still caps navigation, not those existing recovery attempts.
-const budget = opt.timeout * 2 + (opt.wait ?? 5) * 4 + 120;
+// The whole run's last-resort deadline; bin/vh web passes it (tools/web/web.py chrome_budget). Each of the two attempts may
+// spend launchTab's own recovery (up to 3 launches: a first answer within 60 s, the tab's within OVH_PAGE_TIMEOUT or 30 s,
+// a close) before the page's own steps: the load, the settle, a selector's wait, then the read and the screenshot.
+const tabAnswer = Math.max(30, Number(process.env.OVH_PAGE_TIMEOUT) || 0);
+const budget = opt.budget ?? 2 * (3 * (70 + tabAnswer) + 3 * opt.timeout + (opt.wait ?? 1) + (opt.selector ? opt.wait ?? 5 : 0) + 10) + 10;
 timer = setTimeout(() => fail(`Chrome did not finish within ${budget} s (${stage}, including startup/recovery)`), budget * 1000);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 class CommandTimeout extends Error {
   constructor(method) { super(`CDP ${method} did not answer within --timeout ${opt.timeout} s`); }
 }
+// Not a public address: IANA's special-purpose IPv4 blocks; in IPv6, all outside global unicast (2000::/3) and, inside it,
+// the IETF protocol assignments (Teredo among them), documentation and 6to4, which wraps an IPv4 address. BlockList parses
+// every spelling (2::1 is 0002::, not in 2000::/3) and checks an IPv4-mapped address (::ffff:…) against the IPv4 blocks.
+const NOT_GLOBAL = new net.BlockList(), GLOBAL_UNICAST = new net.BlockList();
+for (const [a, p] of [["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8], ["169.254.0.0", 16], ["172.16.0.0", 12],
+  ["192.0.0.0", 24], ["192.0.2.0", 24], ["192.88.99.0", 24], ["192.168.0.0", 16], ["198.18.0.0", 15], ["198.51.100.0", 24],
+  ["203.0.113.0", 24], ["224.0.0.0", 3]]) NOT_GLOBAL.addSubnet(a, p, "ipv4");
+for (const [a, p] of [["2001::", 23], ["2001:db8::", 32], ["2002::", 16]]) NOT_GLOBAL.addSubnet(a, p, "ipv6");
+GLOBAL_UNICAST.addSubnet("2000::", 3, "ipv6");
 function privateIP(value) {
   const ip = value.toLowerCase().replace(/^\[|\]$/g, "");
-  if (ip.startsWith("::ffff:")) {
-    const mapped = ip.slice(7), m = mapped.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
-    if (!m) return privateIP(mapped);
-    const n = parseInt(m[1], 16) * 65536 + parseInt(m[2], 16);
-    return privateIP([Math.floor(n / 16777216), (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join("."));
-  }
-  if (net.isIP(ip) === 4) {
-    const [a, b] = ip.split(".").map(Number);
-    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31)
-      || (a === 192 && (b === 168 || b === 0)) || (a === 100 && b >= 64 && b <= 127)
-      || (a === 198 && (b === 18 || b === 19)) || a >= 224;
-  }
-  return net.isIP(ip) === 6 && !/^[23]/.test(ip);   // outside global unicast, including loopback and local/link-local
+  if (net.isIP(ip) === 4) return NOT_GLOBAL.check(ip, "ipv4");
+  if (net.isIP(ip) !== 6) return false;
+  const one = new URL(`http://[${ip}]/`).hostname.slice(1, -1);   // one spelling: every IPv4-mapped form is ::ffff:x:y
+  if (/^::ffff:[0-9a-f]{1,4}:[0-9a-f]{1,4}$/.test(one)) return NOT_GLOBAL.check(one, "ipv6");   // as its IPv4 address
+  return NOT_GLOBAL.check(one, "ipv6") || !GLOBAL_UNICAST.check(one, "ipv6");
 }
 const allowedHosts = new Map();
 async function allowed(url) {
@@ -50,10 +53,8 @@ async function allowed(url) {
 async function captureOnce() {
   if (!await allowed(opt.url)) throw new Error("private/local address blocked (only a local test: --allow-private-network)");
   stage = "starting Chrome and opening a tab";
-  // The throwaway profile has nothing worth keeping in the keychain, and touching the real login
-  // keychain can pop system dialogs (on macOS a missing one even offers to reset it). Mock it: the
-  // profile is discarded anyway, so its cookies only need a key for this one capture.
-  ({ browser, sessionId: opt.session } = await launchTab(opt.browser, ["--disable-background-networking", "--use-mock-keychain"], ["Page", "Runtime", "Network"]));
+  // launch() gives every throwaway browser --use-mock-keychain, so this one never reaches the macOS login keychain either
+  ({ browser, sessionId: opt.session } = await launchTab(opt.browser, ["--disable-background-networking"], ["Page", "Runtime", "Network"]));
   const current = browser;
   const session = opt.session;
   const send = (method, params = {}) => {
@@ -90,18 +91,34 @@ async function captureOnce() {
   });
   const loaded = current.once("Page.loadEventFired", session);
   loaded.catch(() => {});   // a failed navigation is reported below; closing the tab also rejects this pending wait
+  // Page.navigate answers when the navigation commits, so a server slow to answer holds it as long as it holds the load:
+  // one deadline covers both, and it is the page's time. When it passes, a browser-wide command tells a slow page
+  // (reported, not retried) from a browser that stopped answering (restarted once).
+  const answers = async () => {
+    let t;
+    try {
+      await Promise.race([current.send("Browser.getVersion"), new Promise((_, no) => { t = setTimeout(no, Math.min(5000, opt.timeout * 1000)); })]);
+      return true;
+    } catch { return false; } finally { clearTimeout(t); }
+  };
+  const late = new Error("deadline");
   let loadTimer;
   try {
-    // The page-load deadline includes Page.navigate itself, rather than starting only after CDP answers it.
     const navigation = (async () => {
-      const nav = await send("Page.navigate", { url: opt.url });
+      stage = "Page.navigate";
+      const nav = await current.send("Page.navigate", { url: opt.url }, session);
       if (nav.errorText) throw new Error(`the page could not be opened: ${nav.errorText}`);
       stage = "waiting for page load";
       await loaded;
     })();
+    navigation.catch(() => {});   // after the deadline nothing waits on it
     await Promise.race([navigation, new Promise((_, reject) => {
-      loadTimer = setTimeout(() => reject(new Error(`page load exceeded --timeout ${opt.timeout} s`)), opt.timeout * 1000);
+      loadTimer = setTimeout(() => reject(late), opt.timeout * 1000);
     })]);
+  } catch (e) {
+    if (e !== late) throw e;
+    if (!await answers()) throw new CommandTimeout(stage === "Page.navigate" ? "Page.navigate" : "Page.loadEventFired");
+    throw new Error(`page load exceeded --timeout ${opt.timeout} s`);
   } finally { clearTimeout(loadTimer); }
   if (opt.wait ?? 1) await sleep((opt.wait ?? 1) * 1000);
   if (opt.selector) {
@@ -114,11 +131,10 @@ async function captureOnce() {
     } while (true);
     if (!found) warnings.push(`selector '${opt.selector}' not found after ${opt.wait ?? 5}s`);
   }
-  // Both files use this one navigation. The screenshot follows this DOM read, without reloading the page.
+  // Both files use this one navigation. The screenshot follows this DOM read, without reloading the page. Only the dump
+  // asked for is built: the markdown walk reads every element's style, and each is a copy of the page through the pipe.
   const page = await evaluate(`(() => {
-    const text = document.body?.innerText || '';
-    const links = [...document.querySelectorAll('a[href]')].map(a => ({text: a.innerText.trim(), url: a.href}))
-      .filter(a => /^https?:/.test(a.url));
+    const want = ${JSON.stringify(opt.dump)};
     function md(node) {
       if (node.nodeType === Node.TEXT_NODE) return node.textContent;
       if (node.nodeType !== Node.ELEMENT_NODE) return '';
@@ -133,16 +149,19 @@ async function captureOnce() {
       return ['p','div','section','article','main','header','footer','ul','ol','blockquote','tr'].includes(tag)
         ? '\\n\\n' + body.trim() + '\\n\\n' : body;
     }
-    return { final_url: location.href, title: document.title, html: (document.doctype ? '<!DOCTYPE html>\\n' : '')
-      + document.documentElement.outerHTML, text, links: links.map(a => a.text + '\\t' + a.url).join('\\n'),
-      markdown: md(document.body || document.documentElement).replace(/\\n[ \\t]+/g, '\\n').replace(/\\n{3,}/g, '\\n\\n').trim() + '\\n' };
+    const body = want === 'html' ? (document.doctype ? '<!DOCTYPE html>\\n' : '') + document.documentElement.outerHTML
+      : want === 'text' ? document.body?.innerText || ''
+      : want === 'links' ? [...document.querySelectorAll('a[href]')].map(a => ({text: a.innerText.trim(), url: a.href}))
+          .filter(a => /^https?:/.test(a.url)).map(a => a.text + '\\t' + a.url).join('\\n')
+      : md(document.body || document.documentElement).replace(/\\n[ \\t]+/g, '\\n').replace(/\\n{3,}/g, '\\n\\n').trim() + '\\n';
+    return { final_url: location.href, title: document.title, body };
   })()`);
   if (opt.shot) {
     const png = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
     fs.writeFileSync(opt.shot, Buffer.from(png.data, "base64"));
   }
   if (status !== null && status >= 400) warnings.push(`HTTP ${status}: inspect the saved page before citing it`);
-  return { body: page[opt.dump], final_url: page.final_url, title: page.title,
+  return { body: page.body, final_url: page.final_url, title: page.title,
     status, browser: current.version, warnings };
 }
 

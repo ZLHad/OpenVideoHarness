@@ -113,7 +113,8 @@ def chrome():
 
 def browser_env(home):
     # Node options, provider keys, GitHub tokens and authentication helpers are deliberately not inherited.
-    names = ("PATH", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "LC_CTYPE", "SYSTEMROOT", "WINDIR", "DISPLAY", "WAYLAND_DISPLAY")
+    names = ("PATH", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "LC_CTYPE", "SYSTEMROOT", "WINDIR", "DISPLAY", "WAYLAND_DISPLAY",
+             "OVH_PAGE_TIMEOUT")   # the page tools' own allowance for a slow machine (tools/textcheck/browser.mjs launchTab)
     env = {k: os.environ[k] for k in names if k in os.environ}
     env.update(XDG_CONFIG_HOME=str(Path(home) / "config"), XDG_CACHE_HOME=str(Path(home) / "cache"))
     # The isolation boundary is the throwaway --user-data-dir, not $HOME. On macOS the Security
@@ -235,14 +236,27 @@ def run(exe, url, dump=None, shot=None, a=None):
     return r.stdout, info
 
 
+def chrome_budget(a):
+    """The capture's last-resort deadline in seconds, which chrome.mjs computes the same way when run alone: two attempts,
+    each with launchTab's own recovery (up to 3 launches: 60 s for a first answer, OVH_PAGE_TIMEOUT or 30 s for the tab's, a
+    close), then the load, the settle, a selector's wait, the read and the screenshot."""
+    try:
+        tab = max(30.0, float(os.environ.get("OVH_PAGE_TIMEOUT") or 0))
+    except ValueError:
+        tab = 30.0
+    settle = a.wait if a.wait is not None else 1
+    selector = (a.wait if a.wait is not None else 5) if getattr(a, "selector", None) else 0
+    return 2 * (3 * (70 + tab) + 3 * a.timeout + settle + selector + 10) + 10
+
+
 def run_chrome(exe, a, dump, shot):
     node = shutil.which("node")
     if not node:
         raise Failed("Chrome web capture needs Node 22: bin/vh doctor")
     config = {"browser": exe, "url": a.url, "dump": dump, "shot": str(shot) if shot else None,
               "timeout": a.timeout, "wait": a.wait, "selector": getattr(a, "selector", None),
-              "allowPrivate": a.allow_private_network}
-    budget = a.timeout * 2 + (a.wait if a.wait is not None else 5) * 4 + 130   # one restart, startup/tab recovery, cleanup
+              "allowPrivate": a.allow_private_network, "budget": chrome_budget(a)}
+    budget = config["budget"] + 30   # chrome.mjs ends itself at its own budget, and says where it was; this is the backstop
     try:
         with tempfile.TemporaryDirectory(prefix="vh-web-home-") as home:
             with subprocess.Popen([node, str(HERE / "chrome.mjs")], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -256,7 +270,7 @@ def run_chrome(exe, a, dump, shot):
                     except subprocess.TimeoutExpired:
                         proc.kill()
                         proc.communicate()
-                    raise Failed(f"Chrome did not finish in {budget} s")
+                    raise Failed(f"Chrome did not finish in {budget:.0f} s")
         if proc.returncode:
             raise Failed(f"Chrome could not capture the page: {stderr.strip()[-1000:] or 'no message'}")
         info = json.loads(stdout)
