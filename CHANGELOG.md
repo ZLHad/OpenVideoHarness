@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`bin/vh status` warns of HyperFrames' first Chrome download, and leaves nothing to fill after delivery**
+- Why: the first snapshot or render of a HyperFrames film downloads its own Chrome (about 200 MB) and shows nothing while it does, which reads as a hang; and after delivery, `status --json` still counted the template's blanks in BRIEF, STYLE and STORYBOARD as if something were left.
+- Until that Chrome is in `~/.cache/hyperframes` (or `HYPERFRAMES_BROWSER_PATH` names a browser), the next step says so beside the first render. A delivered film's `next_step.unfilled` is empty.
+
 **`bin/vh check` words its black, frozen and silent stretches**
 - Why: it printed ffmpeg's own lines (`lavfi.freezedetect.freeze_start: 1.966667`), and a stretch that ran to the end had no line for its end.
 - Each stretch is now one line, worded as the check record already had it: "a frozen picture from 2.97 s to the end", "silence 3.00–6.51 s (3.51 s)". `tools/checkrec.py --detect-lines` does the wording; when it cannot, ffmpeg's lines are printed as before.

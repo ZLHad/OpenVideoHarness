@@ -43,7 +43,8 @@ records, the days with a hot-list snapshot, bin/vh ref's references), the comman
 (the activity log), and in --json media: the current film, its proxy, thumbs and peaks as paths from the project.
 The next step, from the stop the project is at: who has it (the person, the agent), what to do, which commands, which sections
 to read (a file to read whole, or a "<file.md>#<section>" that bin/vh know --show prints), and how many {…} are still unfilled in
-BRIEF.md, STYLE.md and STORYBOARD.md (outside code; the template's kind of braces, not a stylesheet's). What the Director line keeps for the person (x=own) comes first in what to do, until it is on record: its stop
+BRIEF.md, STYLE.md and STORYBOARD.md (outside code; the template's kind of braces, not a stylesheet's; none once nobody has
+a next step, the film delivered). What the Director line keeps for the person (x=own) comes first in what to do, until it is on record: its stop
 done or skipped, or its row in DECISIONS.md decided. The line starts "next:"; --json has it as next_step (the older "next" is
 one sentence, and stays).
 --json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1). Exit 0, 2 when there is no project
@@ -425,6 +426,21 @@ def render_cmd(project, proj, final):
     return None if engine == "other" else f"bin/vh render {p} --out {p}/{name}"
 
 
+def hf_chrome_note(project, proj):
+    """HyperFrames' first snapshot or render downloads its own Chrome (chrome-headless-shell, about 200 MB, into
+    ~/.cache/hyperframes, which it finds from the home folder) and shows nothing while it does: the words that say so, or ""
+    once it is there, with a browser of one's own (HYPERFRAMES_BROWSER_PATH), and for the other engines."""
+    if engine_here(project, proj) != "hf" or os.environ.get("HYPERFRAMES_BROWSER_PATH"):
+        return ""
+    d = Path.home() / ".cache" / "hyperframes" / "chrome"
+    try:
+        if d.is_dir() and any(d.iterdir()):
+            return ""
+    except OSError:
+        return ""
+    return " (HyperFrames' first snapshot or render downloads its Chrome first: about 200 MB into ~/.cache/hyperframes, a minute or two with nothing shown)"
+
+
 def engine_docs(project, proj):
     """What to read for this project's engine at the first picture: its section or guide, and the edit list's where it goes through one."""
     kind = (proj["type"] or "")[:2]
@@ -479,7 +495,8 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
         if who == "agent" and own:
             names = ", ".join(f"{k} (at {R.gate_title(v, proj['lang'])})" if v else k for k, v in own.items())
             do, read = f"the Director line keeps {names} for the person, with no record yet: options and your pick at that stop, then wait for them; {do}", [R_DIRECTOR, *read]
-        return {"who": who, "do": do, "commands": [c for c in commands if c], "read": list(dict.fromkeys(x for x in read if x)), "unfilled": left}
+        return {"who": who, "do": do, "commands": [c for c in commands if c], "read": list(dict.fromkeys(x for x in read if x)),
+                "unfilled": {} if who == "nobody" else left}   # a delivered film has nothing left to fill
     busy = f"{working[0]['cmd']} is running (bin/vh activity {p}); when it ends: " if working else ""
     if no_record:
         return out("agent" if working else "unknown", busy + "no REVIEW.md: this project keeps no review record (made before the templates had one), so carry on from its files")
@@ -527,10 +544,10 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
 
     def first_scenes():
         """What the first picture is made of: an edit list for a recap, or a cut, with no edit.json yet; else scenes."""
-        kind = (proj["type"] or "")[:2]
+        kind, chrome = (proj["type"] or "")[:2], hf_chrome_note(project, proj)
         if kind in ("09", "11") and not (project / "edit.json").is_file():
-            return ("write the cut as edit.json" if kind == "09" else "write the photos and clips in their order as edit.json") + " (engines/EDIT.md), look at its frames, then render a draft"
-        return "write the scenes, look at their frames, then render a draft"
+            return ("write the cut as edit.json" if kind == "09" else "write the photos and clips in their order as edit.json") + " (engines/EDIT.md), look at its frames, then render a draft" + chrome
+        return "write the scenes, look at their frames, then render a draft" + chrome
 
     def page():
         """The gate JSON's state: what to say about it, and the commands that send it."""
