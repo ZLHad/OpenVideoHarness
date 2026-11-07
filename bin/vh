@@ -985,6 +985,8 @@ project_of() { # nearest ancestor of $1 that contains BRIEF.md (a project), else
 }
 cmd_sheet() {
   [ $# -gt 0 ] || { cmd_usage sheet >&2; exit 2; }
+  local a; for a in "$@"; do case $a in -?*) { echo "$c_no bin/vh sheet takes no options ($a): cols, fps and out go by position"; cmd_usage sheet; } >&2; exit 2 ;; esac; done
+  case ${2:-1} in *[!0123456789]*) { echo "$c_no bin/vh sheet: cols is a whole number, not $2"; cmd_usage sheet; } >&2; exit 2 ;; esac
   local v=$1 cols=${2:-6} fps=${3:-1} name base why="install uv"; name=$(basename "$v"); name=${name%.*}
   if [ -d "$v" ]; then   # a folder of pictures (covers): pillow draws it, there is no ffmpeg fallback
     command -v uv >/dev/null 2>&1 || { echo "$c_no bin/vh sheet: a folder of pictures needs uv (pillow)" >&2; exit 2; }

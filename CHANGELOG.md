@@ -2,6 +2,56 @@
 
 ## Unreleased
 
+## v0.4.0 — 2026-11-07
+
+The first release since v0.2.1: five weeks and 185 commits, most of them asked for by real films. OpenVideoHarness now brings real material into a film, holds up on long ones, and tells an agent or a program where things stand. The work planned as v0.3 ships here too, so there is no v0.3.0.
+
+### What's new
+
+**Any web page can be a film.** A page contract (`window.film`), and `bin/vh frames`, `render`, `determinism`, `patch` and `versions` for any engine that meets it: parallel chunks that resume, transparent films (`--alpha`), sub-frame motion blur (`--motion-blur`), every render kept as a version, a few seconds redrawn and put back. New engines: `canvas-film` with a Three.js layer, and ManimGX as an optional backend.
+
+**A film as an edit list.** `edit.json` and `bin/vh edit`: pages, images, footage, other films and sounds in a row, with a chunk cache, so a change redraws only the entries it touched.
+
+**Real material, on record.** `footage` (Internet Archive, Wikimedia Commons, NASA), `image` (Gemini, Codex), `sfx`, `bgm` and `sound` (your own library and Openverse), `hdri` (Poly Haven), `model3d`, `cast`, `music --provider lyria`. One ledger for all of it, `bin/vh assets`: where a file came from, its licence, what it cost, and what a page loaded against what is on record.
+
+**Thinking before making.** `scout`, `ref`, `web`, `breakdown`, `looks`, `know` and `concept`; 75 shot recipes, 10 whole-film skeletons and 24 shot-grammar cards; 5 motion components; `new --from` for the next episode of a series.
+
+**Sound.** A score written as code, with modelled instrument parts; an effects engine with a transition family per style; mix profiles and a mix report; `pace`, `cues`, `timeline`, `remap` and `timemap`; MiniMax narration and ElevenLabs word timing; captions that break between words.
+
+**You decide, at stops.** Director mode, review pages built around decisions, and a review desk (`bin/vh gate`, `bin/vh desk`) to tick, comment and submit in a page. Review rounds have caps. Effort levels now set how much iteration and review a film gets, not its quality.
+
+**Checks that catch what a person would.** `bin/vh check` reads the film against its brief: still stretches, cuts that flash, one-frame glitches, subtitles too short to read, colour tags, loudness. Each finding names a way out. Also `textcheck`, `readcheck`, `fonts` and `packcheck`, and `deliver` and `clean` at the end.
+
+**For agents and programs.** `bin/vh status` says what to do next, `gate --init` gives a skeleton for a stop, `commands` lists all 71 commands by stage, and an agent reads less before it starts. `tools/artifacts.json` and `bin/vh artifacts` describe every kind of file a project holds, with schemas in `tools/schemas/`. `bin/vh projects`, errors a program can read, output contracts held in CI, `cancel`, progress lines, `peaks`, `timeline --resolved` and `history` are the base for a local client.
+
+**More to start from.** Long explainers (type 10), photo recaps (type 11, experimental) and editing your own footage (type 09, experimental) bring the video types from 8 to 11; there are 32 styles, up from 28. `playbook/05` writes out a film shot by a video model: text first, then pictures, and only then paid video. That part is method only: no command calls a video model yet.
+
+### Before you upgrade
+
+- **The history was rewritten on 2026-10-04**, so every commit hash changed. Installed with the installer: run it again. A full clone from before that date: clone again. Never pull, merge or push an old branch into the new history; that brings the old videos back.
+- **A standard or studio film needs gate ① on record.** `bin/vh render` of the whole film and `bin/vh check` stop without it. `quick` has no gates.
+- **A paid call needs a budget:** `Budget:` in the BRIEF, or 默认预算 in `LOCAL.md`. With neither, the call is not made. Local tools, subscriptions and quotas go on as before.
+- **`Assets: strict` is the default.** `bin/vh deliver` stops when `bin/vh assets check` fails. `record` allows everything and keeps the record.
+- **`bin/vh deliver` refuses a limited-range master that tags no colour matrix**, because it can't tell how to read it. Say which with `--matrix bt601|bt709`.
+- **`bin/vh pace --target` is a speech rate now:** pauses of 0.12 s or more are left out, so the same number gives a different result.
+- **Usage errors exit 2 and failures exit 1**, in every command. A script that reads the exit status may need a look.
+- **Stopping a render:** `bin/vh style <slug>` now waits on its renderer. Ctrl-C and `bin/vh cancel` stop it; a `kill` of `bin/vh` alone doesn't.
+- **Older projects** keep working. `bin/vh doctor <project>` compares a project's copy of its engine with the current one, and `bin/vh projects --assign` gives it an id.
+
+### Thanks
+
+`bin/vh web` came from @Guilherme4Colamarco (#175).
+
+### Every change
+
+**`bin/vh sheet` says when it is given an option**
+- Why: `bin/vh sheet film.mp4 --out x.png` took `--out` for the number of columns, printed a Python traceback, then a `SyntaxError` from its ffmpeg fallback, and exited 1. `--out` is what an agent writes first; the command takes `cols`, `fps` and `out` by position.
+- An option, or columns that are not a whole number, is now a usage error: one line, the usage, exit 2.
+
+**`bin/vh readcheck <project>` reads the page of a film with no captions**
+- Why: a silent film's text is on its page, and the quick card says to run `bin/vh readcheck`. On a project it looked only for `audio/captions.json` and stopped with a bare "No such file". A clean install making its first film ran into this.
+- A folder with no captions now means its `index.html`, as a canvas-film's means its `film.html`. A folder with neither says so.
+
 **`cases/oneshot-five.md`: Tesseract's terms**
 - Why: it said the product page named no licence (2026-10-02). There are terms in its repository, and someone weighing it needs them: the licence can be revoked, and commercial use by or for a for-profit business with revenue of US$1M or more needs a separate agreement.
 
