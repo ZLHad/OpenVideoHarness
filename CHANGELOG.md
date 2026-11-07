@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**`bin/vh style <slug>` leaves an end line**
+- Why: it exec'd into `styles/_swatch/render.sh`, which writes none, so a run in a project read as gone once it had finished, and one that failed left no exit status.
+- `bin/vh` now waits on the renderer, as on `tts` or `deliver`: the end line has the renderer's exit, a Ctrl-C still stops the renderer and its browsers, and `bin/vh cancel` stops it as any command under bash.
+- As with those commands, a `kill` of `bin/vh` alone no longer reaches the renderer: it runs until it is done or its `--timeout` is up.
+
 **`tools/desk/README.md`: one place for a client's author**
 - Why: what a client can read had grown one command at a time, and how to follow a running command, or tell that it crashed, was written nowhere.
 - 给客户端的数据 starts with a table of what to read from where, then a section each for `projects` and the identity, following a run (`bin/vh activity --follow --json`, and that a crash leaves no line, so ask for its `state`), the error's shape, `cancel`, `peaks`, `timeline --resolved`, `history` and the output contracts. It says what is deliberately not there yet: write commands, a project lock, a many-project HTTP API.

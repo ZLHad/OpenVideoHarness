@@ -6467,11 +6467,10 @@ rc, rec, err = cancel()
 r = (rec.get("runs") or [{}])[0]
 if not (rc == 0 and r.get("state") == "cancelled" and ended(pr) in (-2, 130) and not stub_alive()):
     bad.append(f"./vh: exit {rc}, {r}, process {pr.poll()}")
-# a tool bin/vh exec's into that is not named after its command: music's lyria.py (a stand-in: no paid call) and style's render.sh
-os.makedirs(f"{t}/fake/tools/audio"); os.makedirs(f"{t}/fake/styles/_swatch")
+# a tool bin/vh exec's into that is not named after its command: music's lyria.py (a stand-in: no paid call)
+os.makedirs(f"{t}/fake/tools/audio")
 with open(f"{t}/fake/tools/audio/lyria.py", "w") as f: f.write("import sys, time\nopen(sys.argv[1], 'w').close()\ntime.sleep(60)\n")
-with open(f"{t}/fake/styles/_swatch/render.sh", "w") as f: f.write('#!/bin/sh\ntrap "exit 130" INT\n: > "$1"\nwhile :; do sleep 0.05; done\n')
-for cmd, argv in (("music", [sys.executable, f"{t}/fake/tools/audio/lyria.py", mark, "--provider", "lyria"]), ("style", [sh, f"{t}/fake/styles/_swatch/render.sh", mark])):
+for cmd, argv in (("music", [sys.executable, f"{t}/fake/tools/audio/lyria.py", mark, "--provider", "lyria"]),):
     if os.path.exists(mark): os.remove(mark)
     pr = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     for _ in range(600):
@@ -6554,7 +6553,7 @@ cancel()
 # each command bin/vh exec's into is known: the table of what its pid's command line looks like, and bin/vh's exec lines against it
 for cmd, cl in (("render", "node /r/tools/film/render.mjs --browser b p"), ("frames", "node /r/tools/film/frames.mjs p"), ("patch", "node /r/tools/film/patch.mjs f"), ("determinism", "node /r/tools/film/determinism.mjs p"), ("cues", "node /r/tools/film/cues.mjs p"), ("fonts", "node /r/tools/film/fonts.mjs p"),
                 ("textcheck", "node /r/tools/textcheck/textcheck.mjs p"), ("gate", "/usr/bin/python3 /r/tools/gate.py p 1"), ("desk", "python3 /r/tools/desk/desk.py p"), ("music", "/opt/x/Python /r/tools/audio/lyria.py p --provider lyria"), ("music", "bash /r/bin/vh music p"),
-                ("style", "bash /r/styles/_swatch/render.sh x"), ("qa", "/bin/bash /r/bin/vh qa x"), ("qa", "/bin/bash ./vh qa x"), ("qa", "bash vh qa x")):
+                ("style", "/bin/bash /r/bin/vh style x"), ("qa", "/bin/bash /r/bin/vh qa x"), ("qa", "/bin/bash ./vh qa x"), ("qa", "bash vh qa x")):
     if not C.is_ours(cmd, cl):
         bad.append(f"is_ours: {cmd}, {cl}")
 for cmd, cl in (("render", "bash /r/bin/vh qa /p/render/x"), ("qa", "sleep 30"), ("", "bash /r/bin/vh qa"), ("music", "python3 /r/tools/audio/music.py p"), ("style", "bash /r/bin/vh qa x"), ("render", "node /elsewhere/render.mjs")):
@@ -7306,6 +7305,14 @@ PY
   a=$(cat "$t"/new/*-ci-act/.ovh/activity.jsonl 2>&1)
   case "$a" in *'"event":"start"'*'"cmd":"new"'*'"event":"end"'*'"exit":0'*'"summary":"created '*'-ci-act · math · standard"'*) ok "activity: bin/vh new logs itself into the project it made" ;;
     *) bad "activity of bin/vh new: $a" ;; esac
+  # bin/vh waits on the swatch renderer: style on a scene in a project ends with an end line and the renderer's exit. -h and an
+  # unknown option end before anything is drawn; a scene of swatch.py alone has no HyperFrames to install
+  mkdir "$p/scene"; : > "$p/scene/swatch.py"
+  vh style "$p/scene" -h >/dev/null 2>&1; rc=$?
+  vh style "$p/scene" --no-such-option >/dev/null 2>&1; rc2=$?
+  a=$(vh activity "$p" --json | python3 -c 'import json, sys; print(sorted((r["state"], r["exit"]) for r in json.load(sys.stdin)["runs"] if r["cmd"] == "style"))')
+  case "$rc:$rc2:$a" in "0:1:[('failed', 1), ('ok', 0)]") ok "activity: bin/vh style on a scene in a project ends with its end line and the renderer's exit, ok and failed, not gone" ;;
+    *) bad "activity of bin/vh style: exit $rc, $rc2; $a" ;; esac
   rm -rf "$t"
 }
 

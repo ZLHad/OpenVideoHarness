@@ -186,7 +186,7 @@ JSON 的格式：
 
 ### 停下一条命令：`bin/vh cancel <项目> [run] [--timeout S] [--json]`
 
-只停这份日志起的：没有结束行、pid 活着、开始的时间对得上（pid 会被复用）、命令行还是那条命令（`./vh` 也算，exec 进去的工具也算：`music` 的 `lyria.py`、`style` 的 `render.sh`）、开始行写的项目（`project`，真实路径）就是这个文件夹。日志谁都能复制、能写，里面的话不照单全收：pid 没了或者是别的时间起的，状态 `not_that_process`，这个 run 从此读出来是 `gone`；开始行是别的文件夹的（这里是复制出来的一份，或者挪过），也是 `not_that_process`，什么都不发、不写；时间对得上而命令行对不上、开始行没写项目（旧版 `bin/vh` 写的）、run 的 id 不是 `bin/vh` 写的那种，状态 `not_confirmed`，什么都不发、不写，退出码 1：它可能还在跑，要人看一眼。`ps` 说不出来（失败了、不让看）时同样什么都不写，接着等，最后是 `still_running`。不写 `run` 就停所有在跑的，但只是在等人的（审阅台、`gate --wait`）要点名才停。
+只停这份日志起的：没有结束行、pid 活着、开始的时间对得上（pid 会被复用）、命令行还是那条命令（`./vh` 也算，exec 进去的工具也算：`music` 的 `lyria.py`）、开始行写的项目（`project`，真实路径）就是这个文件夹。日志谁都能复制、能写，里面的话不照单全收：pid 没了或者是别的时间起的，状态 `not_that_process`，这个 run 从此读出来是 `gone`；开始行是别的文件夹的（这里是复制出来的一份，或者挪过），也是 `not_that_process`，什么都不发、不写；时间对得上而命令行对不上、开始行没写项目（旧版 `bin/vh` 写的）、run 的 id 不是 `bin/vh` 写的那种，状态 `not_confirmed`，什么都不发、不写，退出码 1：它可能还在跑，要人看一眼。`ps` 说不出来（失败了、不让看）时同样什么都不写，接着等，最后是 `still_running`。不写 `run` 就停所有在跑的，但只是在等人的（审阅台、`gate --wait`）要点名才停。
 
 怎么停：`bin/vh` exec 进去的工具（render、patch、页面工具）只给它自己发 SIGINT，浏览器和编码器它自己收；`bin/vh` 等着的工具（tts、deliver、proxy……）给它和它底下的进程发 SIGINT，和 Ctrl-C 一样，3 s 没停再发 SIGTERM（脚本里用 `&` 起的命令忽略 SIGINT）。还不停就不再加码，说出来，退出码 1；记号留着，工具卡在收不到信号的一步（`spawnSync` 的 ffmpeg）时，这一步结束它自己停，结束行还是写 `cancelled`。
 
