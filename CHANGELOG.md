@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+**`cases/oneshot-five.md`: Tesseract's terms**
+- Why: it said the product page named no licence (2026-10-02). There are terms in its repository, and someone weighing it needs them: the licence can be revoked, and commercial use by or for a for-profit business with revenue of US$1M or more needs a separate agreement.
+
+**`recipes/fx/edited-plate-lapse.md` goes through `bin/vh image gen`**
+- Why: it told you to run `codex exec -i` by hand and register each picture yourself, from before `--ref` sent the picture (#178).
+- Now `bin/vh image gen --provider codex --ref`, which also keeps the record.
+
+**A check in `assets_checks` that could not fail**
+- Why: `provider == "jamendo" is False` is a chained comparison, always false, so a bgm pick from another provider passed it. Python said so in a `SyntaxWarning` on each run.
+- It says `!=` now, and the warning is gone.
+
+**`tools/ci.sh`'s table of seconds names every group**
+- Why: `smoke_checks` set a `g` of its own, over the one `run_groups` names a row by (a group runs in its shell), so the table said `ok 90`, a row `tools/ci-shards.txt` does not take.
+- `g` is local to it now, and the loop's variables have names no group uses.
+
+**`tools/audio/test_mixstate.py` passes under any umask**
+- Why: it set its umask after building the mix, so under umask 0002 the mix and its record were 664 where it expects 644. The test's fault, not the tool's: outputs follow the umask as they should.
+
+**`bin/vh style <slug>` leaves an end line**
+- Why: it exec'd into `styles/_swatch/render.sh`, which writes none, so a run in a project read as gone once it had finished, and one that failed left no exit status.
+- `bin/vh` now waits on the renderer, as on `tts` or `deliver`: the end line has the renderer's exit, a Ctrl-C still stops the renderer and its browsers, and `bin/vh cancel` stops it as any command under bash.
+- As with those commands, a `kill` of `bin/vh` alone no longer reaches the renderer: it runs until it is done or its `--timeout` is up.
+
 **`tools/desk/README.md`: one place for a client's author**
 - Why: what a client can read had grown one command at a time, and how to follow a running command, or tell that it crashed, was written nowhere.
 - 给客户端的数据 starts with a table of what to read from where, then a section each for `projects` and the identity, following a run (`bin/vh activity --follow --json`, and that a crash leaves no line, so ask for its `state`), the error's shape, `cancel`, `peaks`, `timeline --resolved`, `history` and the output contracts. It says what is deliberately not there yet: write commands, a project lock, a many-project HTTP API.

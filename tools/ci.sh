@@ -376,7 +376,7 @@ PY
 
 vh() { "$VH_BASH" "$ROOT/bin/vh" "$@"; }
 smoke_checks() {
-  local slug="ci-smoke-$$" dir t rc langs a h o u ad
+  local slug="ci-smoke-$$" dir t rc langs a h o u ad g
   vh help >/dev/null && vh --help >/dev/null && ok "bin/vh help exits 0" || bad "bin/vh help"
   vh no-such-command >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "unknown command exits 2 (a usage error)" || bad "unknown command exited $rc"
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")   # a throwaway HOME: an old bin/vh would install the skill for a bad target
@@ -3327,7 +3327,7 @@ else:
         bad.append(f"the sfx picks: {w} {wa}")
     if d["used_by"] != ["S03"] or d["source"]["provider"] != "kenney" or d["license"]["class"] != "cc0":
         bad.append(f"the library pick: {d}")
-    if m["used_by"] != ["bgm"] or m["source"]["provider"] == "jamendo" is False:
+    if m["used_by"] != ["bgm"] or m["source"]["provider"] != "jamendo":
         bad.append(f"the bgm pick: {m}")
 for f, want in (("audio/sfx/whoosh.wav", None), ("audio/music.wav", 8.0), ("audio/bed.wav", 7.3)):
     sr, dur = info(f"{p}/{f}")
@@ -6467,11 +6467,10 @@ rc, rec, err = cancel()
 r = (rec.get("runs") or [{}])[0]
 if not (rc == 0 and r.get("state") == "cancelled" and ended(pr) in (-2, 130) and not stub_alive()):
     bad.append(f"./vh: exit {rc}, {r}, process {pr.poll()}")
-# a tool bin/vh exec's into that is not named after its command: music's lyria.py (a stand-in: no paid call) and style's render.sh
-os.makedirs(f"{t}/fake/tools/audio"); os.makedirs(f"{t}/fake/styles/_swatch")
+# a tool bin/vh exec's into that is not named after its command: music's lyria.py (a stand-in: no paid call)
+os.makedirs(f"{t}/fake/tools/audio")
 with open(f"{t}/fake/tools/audio/lyria.py", "w") as f: f.write("import sys, time\nopen(sys.argv[1], 'w').close()\ntime.sleep(60)\n")
-with open(f"{t}/fake/styles/_swatch/render.sh", "w") as f: f.write('#!/bin/sh\ntrap "exit 130" INT\n: > "$1"\nwhile :; do sleep 0.05; done\n')
-for cmd, argv in (("music", [sys.executable, f"{t}/fake/tools/audio/lyria.py", mark, "--provider", "lyria"]), ("style", [sh, f"{t}/fake/styles/_swatch/render.sh", mark])):
+for cmd, argv in (("music", [sys.executable, f"{t}/fake/tools/audio/lyria.py", mark, "--provider", "lyria"]),):
     if os.path.exists(mark): os.remove(mark)
     pr = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
     for _ in range(600):
@@ -6554,7 +6553,7 @@ cancel()
 # each command bin/vh exec's into is known: the table of what its pid's command line looks like, and bin/vh's exec lines against it
 for cmd, cl in (("render", "node /r/tools/film/render.mjs --browser b p"), ("frames", "node /r/tools/film/frames.mjs p"), ("patch", "node /r/tools/film/patch.mjs f"), ("determinism", "node /r/tools/film/determinism.mjs p"), ("cues", "node /r/tools/film/cues.mjs p"), ("fonts", "node /r/tools/film/fonts.mjs p"),
                 ("textcheck", "node /r/tools/textcheck/textcheck.mjs p"), ("gate", "/usr/bin/python3 /r/tools/gate.py p 1"), ("desk", "python3 /r/tools/desk/desk.py p"), ("music", "/opt/x/Python /r/tools/audio/lyria.py p --provider lyria"), ("music", "bash /r/bin/vh music p"),
-                ("style", "bash /r/styles/_swatch/render.sh x"), ("qa", "/bin/bash /r/bin/vh qa x"), ("qa", "/bin/bash ./vh qa x"), ("qa", "bash vh qa x")):
+                ("style", "/bin/bash /r/bin/vh style x"), ("qa", "/bin/bash /r/bin/vh qa x"), ("qa", "/bin/bash ./vh qa x"), ("qa", "bash vh qa x")):
     if not C.is_ours(cmd, cl):
         bad.append(f"is_ours: {cmd}, {cl}")
 for cmd, cl in (("render", "bash /r/bin/vh qa /p/render/x"), ("qa", "sleep 30"), ("", "bash /r/bin/vh qa"), ("music", "python3 /r/tools/audio/music.py p"), ("style", "bash /r/bin/vh qa x"), ("render", "node /elsewhere/render.mjs")):
@@ -7306,6 +7305,14 @@ PY
   a=$(cat "$t"/new/*-ci-act/.ovh/activity.jsonl 2>&1)
   case "$a" in *'"event":"start"'*'"cmd":"new"'*'"event":"end"'*'"exit":0'*'"summary":"created '*'-ci-act · math · standard"'*) ok "activity: bin/vh new logs itself into the project it made" ;;
     *) bad "activity of bin/vh new: $a" ;; esac
+  # bin/vh waits on the swatch renderer: style on a scene in a project ends with an end line and the renderer's exit. -h and an
+  # unknown option end before anything is drawn; a scene of swatch.py alone has no HyperFrames to install
+  mkdir "$p/scene"; : > "$p/scene/swatch.py"
+  vh style "$p/scene" -h >/dev/null 2>&1; rc=$?
+  vh style "$p/scene" --no-such-option >/dev/null 2>&1; rc2=$?
+  a=$(vh activity "$p" --json | python3 -c 'import json, sys; print(sorted((r["state"], r["exit"]) for r in json.load(sys.stdin)["runs"] if r["cmd"] == "style"))')
+  case "$rc:$rc2:$a" in "0:1:[('failed', 1), ('ok', 0)]") ok "activity: bin/vh style on a scene in a project ends with its end line and the renderer's exit, ok and failed, not gone" ;;
+    *) bad "activity of bin/vh style: exit $rc, $rc2; $a" ;; esac
   rm -rf "$t"
 }
 
@@ -9938,13 +9945,13 @@ shard_of() { # shard_of <i> <n>: the groups of shard i of n, in the table's orde
 }
 run_groups() { # run_groups <group…>: each group's checks, timed; then how long the run took, each group's seconds as
   # tools/ci-shards.txt takes them (to copy there when the shards drift apart) and the ten slowest checks
-  local g g0 t0 s ms m tab=$'\t'
-  clock; t0=$CI_NOW
-  for g in "$@"; do
-    declare -F "$g" >/dev/null || { bad "${CI_TABLE#"$ROOT"/} names $g, which is no function in tools/ci.sh: nothing of it ran"; continue; }
-    clock; g0=$CI_NOW; CI_LAST=$CI_NOW; "$g"; clock; CI_GROUPS+=("$g $(( (CI_NOW - g0 + 500) / 1000 ))")
+  local ci_g ci_g0 ci_t0 s ms m tab=$'\t'   # (ci_…: a group runs in this shell, and what it sets without local lands here)
+  clock; ci_t0=$CI_NOW
+  for ci_g in "$@"; do
+    declare -F "$ci_g" >/dev/null || { bad "${CI_TABLE#"$ROOT"/} names $ci_g, which is no function in tools/ci.sh: nothing of it ran"; continue; }
+    clock; ci_g0=$CI_NOW; CI_LAST=$CI_NOW; "$ci_g"; clock; CI_GROUPS+=("$ci_g $(( (CI_NOW - ci_g0 + 500) / 1000 ))")
   done
-  s=$(( (CI_NOW - t0 + 500) / 1000 ))
+  s=$(( (CI_NOW - ci_t0 + 500) / 1000 ))
   printf '%s took %d min %02d s. Each group in seconds, as tools/ci-shards.txt takes them:\n' "$CI_RUN" $((s / 60)) $((s % 60))
   printf '  %s\n' ${CI_GROUPS[@]+"${CI_GROUPS[@]}"}
   echo "The ten slowest checks, in seconds (from the check before, or from the start of its group):"

@@ -261,7 +261,7 @@ def apply(t, env): …       # 按 t（= k/30）直接设好每个会动的属�
 ## 给 `bin/vh style` 的接线
 
 ```bash
-bin/vh style <slug> [--draft] [--hud] [--workers N]   →  exec "$ROOT/styles/_swatch/render.sh" "$@"
+bin/vh style <slug> [--draft] [--hud] [--workers N]   →  "$ROOT/styles/_swatch/render.sh" "$@"
 bin/vh style gallery [--mp4]                          →  uv run -q --with pillow python "$ROOT/styles/_swatch/gallery.py" [--mp4]
 bin/vh style check <slug> [workers_b]                 →  "$ROOT/styles/_swatch/determinism.sh" <slug> [workers_b]
 ```

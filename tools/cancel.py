@@ -10,7 +10,7 @@ copy or write, so nothing in it is taken on its word:
   a pid that is gone, or that started at another time than the log says (within a minute before, 3 s after: a reused pid started later
     than that): not_that_process, and a note in the log has the run read as gone from then on;
   a pid of that time whose command line is not bin/vh's with the command's name, or the tool bin/vh exec's into for it (lyria.py under
-    music, render.sh under style; ./vh is bin/vh), or whose start line does not say its project (an older bin/vh wrote it), or a run id
+    music; ./vh is bin/vh), or whose start line does not say its project (an older bin/vh wrote it), or a run id
     that is not bin/vh's kind ([A-Za-z0-9_-]): not_confirmed. Nothing is sent and no line written: it may well be running; a person looks;
   a start line of another folder (this one is a copy, made while it ran, or it has moved): not_that_process. Nothing is sent and no line
     written: it is someone else's run;
@@ -46,7 +46,7 @@ LISTENING = ("desk", "gate")   # someone waiting, not work being done (bin/vh st
 RUN_ID = re.compile(r"[A-Za-z0-9_-]+\Z")   # a run's id names a file in .ovh/cancel: bin/vh writes <seconds>-<pid>
 OURS = re.compile(r"(^|[\s/])vh(\s|$)|/tools/[\w./-]+\.(py|mjs)(\s|$)")
 SHELL = re.compile(r"^\S*\bbash\s|^(\S*/)?vh(\s|$)")   # the pid is a shell: what stops it is what is under it
-EXEC = {"music": r"/tools/audio/lyria\.py", "style": r"/styles/_swatch/render\.sh"}   # bin/vh's exec into a tool not named after its command
+EXEC = {"music": r"/tools/audio/lyria\.py"}   # bin/vh's exec into a tool not named after its command
 EARLY, LATE = 60, 3    # seconds a process may have started before and after its run's time
 GRACE = 0.4            # seconds its end line may come after its process has gone
 AFTER_TERM = 5

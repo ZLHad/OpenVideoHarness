@@ -919,7 +919,7 @@ PY
       [ -f "$dir/BRIEF.md" ] && [ -f "$dir/STYLE.md" ] || { echo "$(rel "$dir") has no BRIEF.md and STYLE.md: not a bin/vh project" >&2; exit 2; }
       for s in $styles; do attach_style "$dir" "$s"
         echo "$c_ok styles/$s attached to $(rel "$dir") as a reference (style-refs/$s/, BRIEF Style refs, a DECISIONS line to fill in)"; done ;;
-    *) swatch_deps "$1"; exec "$sw/render.sh" "$@" ;;
+    *) swatch_deps "$1"; on_ctrl_c "$sw/render.sh" "$@" ;;
   esac
 }
 
