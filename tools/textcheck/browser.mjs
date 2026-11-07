@@ -59,8 +59,10 @@ function disarm() {
 // launch(exe, flags) → { send(method, params, sessionId), once(event, sessionId), close(), version }
 export async function launch(exe, flags = []) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), "vh-textcheck-"));
+  // --use-mock-keychain: a throwaway profile's cookies need no key from the macOS login keychain, and reaching it can raise
+  // system dialogs (a missing one even offers to reset it). Every tool's browser comes from here; elsewhere Chrome ignores it
   const args = ["--headless", "--remote-debugging-pipe", "--no-first-run", "--no-default-browser-check", `--user-data-dir=${profile}`,
-    "--hide-scrollbars", "--mute-audio", "--force-color-profile=srgb", ...flags, "about:blank"];
+    "--hide-scrollbars", "--mute-audio", "--force-color-profile=srgb", "--use-mock-keychain", ...flags, "about:blank"];
   const proc = spawn(exe, args, { stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"], detached: true });   // its own group: see killGroup
   const live = { proc, profile };
   LIVE.add(live); arm();

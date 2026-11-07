@@ -1,22 +1,23 @@
-"""bin/vh web: read a web page through Obscura, the headless browser for agents (github.com/h4ckf0r0day/obscura), and
+"""bin/vh web: read a web page through the installed Chrome/Chromium, and
 keep what was read in the project with its URL and the time, so a fact in NOTES.md can cite the copy it was checked on.
 
 usage: bin/vh web fetch <project> <url> [--dump html|markdown|text|links] [--grep RE] [--context N] [--selector CSS]
-                        [--wait S] [--timeout S] [--why TEXT] [--id ID] [--json]
-       bin/vh web shot <project> <url> [--wait S] [--timeout S] [--why TEXT] [--id ID] [--json]
+                        [--provider chrome|obscura] [--wait S] [--timeout S] [--why TEXT] [--id ID] [--json]
+       bin/vh web shot <project> <url> [--provider chrome|obscura] [--wait S] [--timeout S] [--why TEXT] [--id ID] [--json]
        bin/vh web grep <project> <id|all> <RE> [--context N] [--json]
        bin/vh web list <project> [--json]
        bin/vh web install [--bin DIR] [--from FILE] [--accept-unpinned] [--force] [--dry-run] [--json]
 <project> is a folder (or a file inside it), or a name under $OVH_PROJECTS / projects/ (the date prefix optional).
 
-  fetch    the page as Obscura renders it (scripts run): --dump markdown (the default), text, html or links, kept as
+  fetch    the page as the browser renders it (scripts run): --dump markdown (the default), text, html or links, kept as
            research/web/<id>/page.<md|txt|html|links.txt> with meta.json beside it, and one line in research/web.jsonl.
            A page that renders its text from embedded JSON (a help centre, a store page) comes back nearly empty as
-           text or markdown: fetch says so; take --dump html and --grep the fact out of it. Obscura fails only when a
-           page cannot be opened: a 404, a login or a bot wall comes back as a page and is kept too, so read the title on
-           the ✓ line, and the warning when it ended on another host, before trusting what was read. --selector CSS waits
-           for that element, up to --wait (default 5 s), and says when it did not come; what is kept is still the whole page
-  shot     a 1280×720 screenshot of the settled page (shot.png) and the HTML of a second load (page.html), the same
+           text or markdown: fetch says so; take --dump html and --grep the fact out of it. A 404, a login or a bot wall
+           is kept too: read its HTTP status (Chrome), title and warnings before citing it. Chrome uses a fresh profile,
+           waits --wait seconds after load (default 1), then for --selector CSS (default 5 s, or --wait); the whole page
+           is kept. Markdown is a simple DOM conversion, not an article extractor. Obscura requires --provider obscura.
+  shot     a 1280×720 screenshot of the settled page (shot.png) and its HTML (page.html), from one Chrome navigation,
+           with the actual URL and HTTP status. Obscura needs a second load for the HTML. The same
            record; a page that will be shown or studied as a reference goes on to bin/vh ref add (studied) or bin/vh
            assets add (shown)
   grep     a Python regular expression (case-insensitive) over saved pages; HTML entities and JSON's \\uXXXX and \\/ are
@@ -33,9 +34,15 @@ usage: bin/vh web fetch <project> <url> [--dump html|markdown|text|links] [--gre
 After fetch, shot and grep a "cite:" line gives the URL, the date and the saved copy, for NOTES.md's sources. The
 copy is a check, not material: nothing here clears a page's text or picture for the film.
 
-The browser: $OVH_OBSCURA, else obscura on PATH, else ~/.local/bin/obscura, else this install's. It blocks private
-addresses (localhost, 192.168.x) as Obscura does. --json: {"version": 1, …} on stdout (fetch, shot: "capture": the
-record, with final_url and title; grep: "hits"; list: "captures"; install: "install"), the lines on stderr. Exit: 0 ·
+Chrome: CHROME_PATH or the installed Chrome/Chromium (bin/vh also finds the film tools' headless Chrome); Node 22.
+--provider obscura: $OVH_OBSCURA, else obscura on PATH, else ~/.local/bin/obscura, else this install's. No fallback
+silently installs or selects it. Browser subprocesses receive a small environment and temporary home; this is not OS
+isolation. Chrome checks hosts/DNS for HTTP(S) requests intercepted in this page's CDP session, including redirects
+and subresources, and rejects private/local destinations. This is best-effort filtering: WebSocket, WebRTC and other
+browser targets are not covered, and DNS rebinding is not contained. Obscura uses its own policy. Chrome's
+--allow-private-network permits local test pages. This is not an OS/network firewall. --json: {"version": 1, …} on stdout
+(fetch, shot: "capture", with final_url, title, provider, browser and status; legacy obscura is null for Chrome;
+grep: "hits"; list: "captures"; install: "install"), the lines on stderr. Exit: 0 ·
 1 the page could not be opened or the install failed · 2 usage.
 """
 import argparse, datetime, hashlib, html, json, os, platform, re, shutil, subprocess, sys, tarfile, tempfile
@@ -93,9 +100,39 @@ def browser():
     raise Failed("obscura not found: bin/vh web install (or set OVH_OBSCURA)")
 
 
+def chrome():
+    given = os.environ.get("CHROME_PATH")
+    choices = [given] if given else [shutil.which(n) for n in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")]
+    if not given:
+        choices.append("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+    for exe in choices:
+        if exe and os.access(exe, os.X_OK):
+            return str(exe)
+    raise Failed("needs a headless Chrome: install Chrome or Chromium, or set CHROME_PATH (Obscura is only --provider obscura)")
+
+
+def browser_env(home):
+    # Node options, provider keys, GitHub tokens and authentication helpers are deliberately not inherited.
+    names = ("PATH", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "LC_CTYPE", "SYSTEMROOT", "WINDIR", "DISPLAY", "WAYLAND_DISPLAY",
+             "OVH_PAGE_TIMEOUT")   # the page tools' own allowance for a slow machine (tools/textcheck/browser.mjs launchTab)
+    env = {k: os.environ[k] for k in names if k in os.environ}
+    env.update(XDG_CONFIG_HOME=str(Path(home) / "config"), XDG_CACHE_HOME=str(Path(home) / "cache"))
+    # The isolation boundary is the throwaway --user-data-dir, not $HOME. On macOS the Security
+    # framework resolves ~/Library/Keychains from $HOME itself; a fake HOME makes Chrome's
+    # SecItemAdd fail with -25307 (errSecNoDefaultKeychain) and macOS then offers to reset the
+    # login keychain, which would touch the real one. Keep the real HOME there.
+    if sys.platform == "darwin":
+        env["HOME"] = os.environ.get("HOME") or str(Path.home())
+        env["USERPROFILE"] = env["HOME"]
+    else:
+        env.update(HOME=home, USERPROFILE=home)
+    return env
+
+
 def version_of(exe):
     try:
-        r = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=20)
+        with tempfile.TemporaryDirectory(prefix="vh-web-home-") as home:
+            r = subprocess.run([exe, "--version"], capture_output=True, text=True, timeout=20, env=browser_env(home))
     except (OSError, subprocess.TimeoutExpired):
         return None
     m = re.search(r"(\d+\.\d+\.\d+)", r.stdout)
@@ -181,7 +218,8 @@ def run(exe, url, dump=None, shot=None, a=None):
         argv += ["--wait", str(a.wait)]
     budget = a.timeout + (a.wait if a.wait is not None else 5) * 2 + 60   # the load, then a settle and a selector's wait
     try:
-        r = subprocess.run(argv, capture_output=True, timeout=budget)
+        with tempfile.TemporaryDirectory(prefix="vh-web-home-") as home:
+            r = subprocess.run(argv, capture_output=True, timeout=budget, env=browser_env(home))
     except subprocess.TimeoutExpired:
         raise Failed(f"{url}: obscura did not finish in {budget} s")
     except OSError as e:
@@ -196,6 +234,50 @@ def run(exe, url, dump=None, shot=None, a=None):
         if m:
             info.update(final_url=m.group(1), title=html.unescape(m.group(2)).strip()[:200] or None)
     return r.stdout, info
+
+
+def chrome_budget(a):
+    """The capture's last-resort deadline in seconds, which chrome.mjs computes the same way when run alone: two attempts,
+    each with launchTab's own recovery (up to 3 launches: 60 s for a first answer, OVH_PAGE_TIMEOUT or 30 s for the tab's, a
+    close), then the load, the settle, a selector's wait, the read and the screenshot."""
+    try:
+        tab = max(30.0, float(os.environ.get("OVH_PAGE_TIMEOUT") or 0))
+    except ValueError:
+        tab = 30.0
+    settle = a.wait if a.wait is not None else 1
+    selector = (a.wait if a.wait is not None else 5) if getattr(a, "selector", None) else 0
+    return 2 * (3 * (70 + tab) + 3 * a.timeout + settle + selector + 10) + 10
+
+
+def run_chrome(exe, a, dump, shot):
+    node = shutil.which("node")
+    if not node:
+        raise Failed("Chrome web capture needs Node 22: bin/vh doctor")
+    config = {"browser": exe, "url": a.url, "dump": dump, "shot": str(shot) if shot else None,
+              "timeout": a.timeout, "wait": a.wait, "selector": getattr(a, "selector", None),
+              "allowPrivate": a.allow_private_network, "budget": chrome_budget(a)}
+    budget = config["budget"] + 30   # chrome.mjs ends itself at its own budget, and says where it was; this is the backstop
+    try:
+        with tempfile.TemporaryDirectory(prefix="vh-web-home-") as home:
+            with subprocess.Popen([node, str(HERE / "chrome.mjs")], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, text=True, env=browser_env(home)) as proc:
+                try:
+                    stdout, stderr = proc.communicate(json.dumps(config), timeout=budget)
+                except subprocess.TimeoutExpired:
+                    proc.terminate()   # browser.mjs cleans its browser group and temporary profile on SIGTERM
+                    try:
+                        proc.communicate(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        proc.kill()
+                        proc.communicate()
+                    raise Failed(f"Chrome did not finish in {budget:.0f} s")
+        if proc.returncode:
+            raise Failed(f"Chrome could not capture the page: {stderr.strip()[-1000:] or 'no message'}")
+        info = json.loads(stdout)
+        raw = info.pop("body").encode("utf-8")
+        return raw, info
+    except (OSError, ValueError, KeyError, AttributeError) as e:
+        raise Failed(f"Chrome capture: {e}")
 
 
 def title_of(raw):
@@ -262,21 +344,25 @@ def capture(a, kind):
     check_times(a)
     if getattr(a, "grep", None):
         compiled(a.grep)   # before anything is fetched or kept
-    exe = browser()
+    if a.allow_private_network and a.provider != "chrome":
+        raise Usage("--allow-private-network is only supported by --provider chrome")
+    exe = chrome() if a.provider == "chrome" else browser()
     when = now()
     cid = new_id(proj, a.url, when, a.id)
     d = proj / FOLDER / cid
     d.mkdir(parents=True)
     files, warn, first = {}, [], None
+    dump = "html" if kind == "shot" else a.dump
     try:
-        if kind == "shot":
+        if a.provider == "chrome":
+            raw, info = run_chrome(exe, a, dump, d / "shot.png" if kind == "shot" else None)
+        elif kind == "shot":
             _, first = run(exe, a.url, shot=d / "shot.png", a=a)
             if not (d / "shot.png").is_file():
                 raise Failed(f"{a.url}: obscura wrote no screenshot (a build without rendering? bin/vh web install)")
-            dump = "html"
+            raw, info = run(exe, a.url, dump=dump, a=a)
         else:
-            dump = a.dump
-        raw, info = run(exe, a.url, dump=dump, a=a)
+            raw, info = run(exe, a.url, dump=dump, a=a)
     except Failed:
         shutil.rmtree(d, ignore_errors=True)
         raise
@@ -288,14 +374,19 @@ def capture(a, kind):
     text = raw.decode("utf-8", "replace")
     warn += info["warnings"] + [w for w in (first or {}).get("warnings", []) if w not in info["warnings"]]
     final, title = info["final_url"], info["title"] or (title_of(raw) if dump == "html" else None)
+    if title:
+        title = title.strip()[:200]
     if final and host_of(final) != host_of(a.url):
         warn.append(f"it ended on {final}, another host: look at what came back before citing it (a login or a bot page?)")
     if dump in ("text", "markdown") and visible(text) < THIN:
         warn.append(f"only {visible(text)} visible characters: the page likely renders its text from embedded JSON; "
                     f"take --dump html and --grep the fact out of it")
+    obscura = version_of(exe) if a.provider == "obscura" else None
     rec = {"version": 1, "id": cid, "kind": kind, "url": a.url, "retrieved": when.isoformat().replace("+00:00", "Z"),
            "final_url": final, "dump": dump, "files": files, "title": title, "chars": visible(text),
-           "why": a.why, "obscura": version_of(exe), "warnings": warn}
+           "why": a.why, "obscura": obscura, "warnings": warn,
+           "provider": a.provider, "browser": info.get("browser") or f"Obscura {obscura or '?'}",
+           "status": info.get("status"), "attempts": info.get("attempts", 1)}
     keep(proj, rec)
     rel = f"{FOLDER.as_posix()}/{cid}/{page.name}"
     say(f"✓ {cid}: {rec['chars']} characters of {dump}" + (" and shot.png" if kind == "shot" else "") + f" → {rel}"
@@ -459,6 +550,8 @@ def parser():
         q.add_argument("project")
         if page:
             q.add_argument("url")
+            q.add_argument("--provider", choices=("chrome", "obscura"), default="chrome")
+            q.add_argument("--allow-private-network", action="store_true")
             q.add_argument("--wait", type=int)
             q.add_argument("--timeout", type=int, default=30)
             q.add_argument("--why")

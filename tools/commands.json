@@ -998,11 +998,11 @@
     },
     {
       "name": "web",
-      "summary": "A web page read through Obscura, the headless browser for agents: its markdown, text, HTML or links (scripts run), or a screenshot, kept in the project with the URL and the time, so a fact in NOTES.md cites the copy it was checked on; grep finds a fact in saved pages, the text kept in a script's JSON too.",
+      "summary": "A web page read with the installed Chrome/Chromium: its markdown, text, HTML or links (scripts run), or a screenshot, kept with its URL, time and HTTP status so a fact in NOTES.md cites the checked copy; grep searches saved pages. Obscura is an explicit optional provider.",
       "when": "checking a fact, a number or a quote against its source (the material list, the script, the publish copy before delivery); keeping a page as it looked when it is a reference",
       "stages": ["1", "3", "9"],
       "reads": [
-        "a URL, through obscura ($OVH_OBSCURA, else obscura on PATH, else ~/.local/bin/obscura)",
+        "a URL, through the installed Chrome/Chromium (CHROME_PATH or the film tools' browser); --provider obscura explicitly selects the optional Obscura",
         "<project>/research/web.jsonl and research/web/<id>/ (grep, list)",
         "install: the GitHub release asset tools/web/pins.json names, or --from FILE"
       ],
@@ -1013,17 +1013,21 @@
       ],
       "usage": [
         {
-          "synopsis": "web fetch <project> <url> [--dump markdown|text|html|links] [--grep RE] [--selector CSS] [--wait S] [--why TEXT] [--json]",
+          "synopsis": "web fetch <project> <url> [--provider chrome|obscura] [--dump markdown|text|html|links] [--grep RE] [--selector CSS] [--wait S] [--why TEXT] [--json]",
           "text": [
             "the page as rendered, kept with meta.json and a cite: line; a nearly empty text or markdown says to take",
             "--dump html and --grep (a page that renders its text from embedded JSON). A 404 or a bot wall is kept too: read",
-            "the title on the line it prints. --selector waits for an element; it does not narrow what is kept"
+            "the title and HTTP status (Chrome) on record. --selector waits for an element; it does not narrow what is kept",
+            "Chrome uses a fresh profile, a small environment and its sandbox. Best-effort host/DNS checks reject private/local",
+            "HTTP(S) destinations in this page's CDP session; WebSocket/WebRTC/other targets and DNS rebinding are not contained.",
+            "--allow-private-network permits local tests. This is not OS isolation or a network firewall"
           ]
         },
         {
-          "synopsis": "web shot <project> <url> [--wait S] [--why TEXT] [--json]",
+          "synopsis": "web shot <project> <url> [--provider chrome|obscura] [--wait S] [--why TEXT] [--json]",
           "text": [
-            "a 1280×720 screenshot and the HTML of a second load; a reference goes on to bin/vh ref add"
+            "a 1280×720 screenshot and HTML from one Chrome navigation, with its URL and HTTP status; Obscura needs",
+            "a second load for the HTML. A reference goes on to bin/vh ref add"
           ]
         },
         {
@@ -1041,7 +1045,7 @@
         {
           "synopsis": "web install [--bin DIR] [--from FILE] [--accept-unpinned] [--force] [--dry-run] [--json]",
           "text": [
-            "the pinned Obscura release for this platform (tools/web/pins.json), its size and sha256 checked"
+            "the optional pinned Obscura release (tools/web/pins.json), its size and sha256 checked; Chrome needs no such install"
           ]
         }
       ],

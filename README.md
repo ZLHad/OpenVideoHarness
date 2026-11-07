@@ -219,7 +219,7 @@ The tools follow the work: think, gather, make, check and deliver. Each name bel
 | **Think** | `know` | What the repo already knows about a few words (recipes, components, a style, a playbook section, a case) without reading the docs first |
 | | `scout` | A topic on the platforms before you pick it (top videos and their outliers, hot lists), and your film's numbers after it goes out; public interfaces only, no login |
 | | `ref` | A reference video, post, image or page on record: where it came from, its licence, why it matters |
-| | `web` | A web page read through Obscura, a headless browser, and kept with its URL and date, to check a fact against its source |
+| | `web` | Keep a rendered web page with its URL, date and HTTP status for fact checking; uses the installed Chrome/Chromium, with Obscura optional |
 | | `breakdown` | A reference film taken apart: its cuts and transitions against its beats, keyframes, what to swap |
 | | `concept` | Extras for the concept cards: a seeded "roulette" of frameworks and a six-then-three board |
 | **Gather** | `footage` | Real footage from Internet Archive, Wikimedia Commons and NASA: only the seconds you need, each clip's licence on record |
