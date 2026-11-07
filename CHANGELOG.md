@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`bin/vh check` words its black, frozen and silent stretches**
+- Why: it printed ffmpeg's own lines (`lavfi.freezedetect.freeze_start: 1.966667`), and a stretch that ran to the end had no line for its end.
+- Each stretch is now one line, worded as the check record already had it: "a frozen picture from 2.97 s to the end", "silence 3.00–6.51 s (3.51 s)". `tools/checkrec.py --detect-lines` does the wording; when it cannot, ffmpeg's lines are printed as before.
+
 **`bin/vh check` and `status` say what is left to fill in the BRIEF's Output line**
 - Why: with a blank in the Output line, `check` warned "the Output line still has placeholders" and offered one way out, rendering again; `status` asked for the BRIEF to be filled (32 blanks) without saying that `check` holds the film to that one line.
 - `check` names the blanks (`{N}`, `{frames}` …) and says to fill them in; beside rendering again, its ways out now point to the defaults in playbook/01's 规格. A `{frames}` after an exact length in seconds no longer counts as a blank, since the count follows from the length and the rate.
