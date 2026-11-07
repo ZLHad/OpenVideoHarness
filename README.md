@@ -57,7 +57,7 @@ It grew out of real films. Each time one went wrong, the lesson became a doc or 
 <td valign="top"><b>It can't watch, so it measures everything it can.</b><br>An agent can't see video or hear sound. So it reads contact sheets against a 20-point checklist, measures the sound, and hands the draft to a reviewer with a fresh context, who scores it on 8 points. <code>bin/vh check</code> catches frozen frames, flashes, subtitles too short to read and wrong colour tags, and names a way out of each.</td>
 </tr>
 <tr>
-<td valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ Press play: each harmonic sounds its own note.</sub></td>
+<td valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ Press play and turn the sound on: each harmonic sounds its own note.</sub></td>
 <td valign="top"><b>Sound comes first, and it's code too.</b><br>The narration or the music goes down first. Every word and beat gets a time, and the picture hangs on those times. The score is written as code, and sound effects land on the frame where things happen.</td>
 </tr>
 <tr>
@@ -118,7 +118,7 @@ Moments from a dozen films the author made with it in about a month, about 100 m
 
 ### The 5 showcase films, with sound
 
-Press play. Each has a folder in [`showcase/`](showcase/) with the request, the brief, the storyboard, the review notes and all the source: a ready starting point for a film like it. An agent made each one from this repo's docs alone.
+Press play and turn the sound on (players start muted). Each has a folder in [`showcase/`](showcase/) with the request, the brief, the storyboard, the review notes and all the source: a ready starting point for a film like it. An agent made each one from this repo's docs alone.
 
 <table>
 <tr>
@@ -126,7 +126,7 @@ Press play. Each has a folder in [`showcase/`](showcase/) with the request, the 
 <td valign="top"><b><a href="showcase/04-intro-film/">04 · Intro film</a></b><br><sub>Blender + HyperFrames + Three.js · 103 s · studio level</sub><br>A galaxy of 1.18 million stars, path-traced in Blender, collapses and flattens into a sea of films; one continuous 3D take then follows a request through the repo. The opening is here; the whole film is linked below.<br><b><a href="showcase/04-intro-film/README.md#what-was-asked">Request</a>, at gate ①:</b> "玻璃、宇宙、星穹……令人瘫坐眩晕的感觉" (glass, cosmos, a starry sky… dizzying)<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">1080p MP4 (297 MB)</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-4k.mp4">4K (1.04 GB)</a></sub></td>
 </tr>
 <tr>
-<td valign="top"><video src="https://github.com/user-attachments/assets/913f70cf-a168-4ca7-bd13-6e84b6737d99" controls width="100%"></video></td>
+<td valign="top"><video src="https://github.com/user-attachments/assets/efa32859-7bdc-4507-be20-504c429ec5f5" controls width="100%"></video></td>
 <td valign="top"><b><a href="showcase/02-short-leo-doppler/">02 · Vertical science short</a></b><br><sub>HyperFrames · 24.8 s · 1080×1920</sub><br>Why a low-orbit satellite's signal changes pitch, readable with the sound off. Chinese voiceover, Chinese and English subtitles.<br><b><a href="showcase/02-short-leo-doppler/README.md#the-request-this-was-built-from">Request</a>:</b> "为什么低轨卫星的信号会'变调'？——多普勒频移" (why does a low-orbit satellite's signal change pitch? The Doppler shift)</td>
 </tr>
 <tr>

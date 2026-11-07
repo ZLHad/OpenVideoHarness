@@ -57,7 +57,7 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 <td valign="top"><b>它看不见，所以凡是能量的都量一遍。</b><br>agent 看不了视频，也听不了声音。所以它对照 20 条的清单看联系表，用数据查声音，再把初版交给一个全新上下文的 reviewer，按 8 项打分。<code>bin/vh check</code> 能查出冻帧、闪烁、读不完的字幕和错误的色彩标记，每一项都告诉你怎么解决。</td>
 </tr>
 <tr>
-<td valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ 点开听：每个谐波有自己的音。</sub></td>
+<td valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ 点开，打开声音：每个谐波有自己的音。</sub></td>
 <td valign="top"><b>先有声音，声音也是代码。</b><br>旁白或音乐先定下来，量出每个字、每一拍的时间，画面就挂在这些时间上。配乐用代码写，音效落在动作发生的那一帧。</td>
 </tr>
 <tr>
@@ -118,7 +118,7 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 
 ### 5 支样片，点开有声音
 
-每支片子在 [`showcase/`](showcase/) 里有一个目录，放着需求、Brief、分镜、审阅记录和全部源码，可以直接拿来当同类片子的起点。每一支都是 agent 只照着本仓库的文档做出来的。
+播放器默认静音，点开后记得打开声音。每支片子在 [`showcase/`](showcase/) 里有一个目录，放着需求、Brief、分镜、审阅记录和全部源码，可以直接拿来当同类片子的起点。每一支都是 agent 只照着本仓库的文档做出来的。
 
 <table>
 <tr>
@@ -126,7 +126,7 @@ Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话�
 <td valign="top"><b><a href="showcase/04-intro-film/README.zh-CN.md">04 · 介绍片</a></b><br><sub>Blender + HyperFrames + Three.js · 103 秒 · 精品档</sub><br>118 万颗星组成的星系用 Blender 路径追踪渲出来，坍缩、压平成一片影片之海；之后一个连续的 3D 长镜头，跟着一句需求走完整个仓库。这里是开场，全片链接在下面。<br><b><a href="showcase/04-intro-film/README.zh-CN.md#你说了什么原话">需求</a>（关卡 ① 上的原话）：</b>"玻璃、宇宙、星穹……令人瘫坐眩晕的感觉"<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">1080p 原片（297 MB）</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-4k.mp4">4K（1.04 GB）</a></sub></td>
 </tr>
 <tr>
-<td valign="top"><video src="https://github.com/user-attachments/assets/913f70cf-a168-4ca7-bd13-6e84b6737d99" controls width="100%"></video></td>
+<td valign="top"><video src="https://github.com/user-attachments/assets/efa32859-7bdc-4507-be20-504c429ec5f5" controls width="100%"></video></td>
 <td valign="top"><b><a href="showcase/02-short-leo-doppler/">02 · 竖屏科普</a></b><br><sub>HyperFrames · 24.8 秒 · 1080×1920</sub><br>低轨卫星的信号为什么会"变调"，关掉声音也看得懂。中文配音，中英字幕。<br><b><a href="showcase/02-short-leo-doppler/README.md#the-request-this-was-built-from">需求</a>：</b>"为什么低轨卫星的信号会'变调'？——多普勒频移"</td>
 </tr>
 <tr>
