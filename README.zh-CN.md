@@ -187,7 +187,7 @@ curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install
 cd ~/OpenVideoHarness && claude        # 或者 codex
 ```
 
-安装脚本把仓库装到 `~/OpenVideoHarness`，装好依赖，拉取 37 个只读的参考仓库，并把 `open-video-harness` 的 skill 注册给 Claude Code 和 Codex，之后在任何目录说"做个视频"，agent 都能找到这里。一共占约 650 MB 磁盘。然后直接说你要什么：
+安装脚本把仓库装到 `~/OpenVideoHarness`，装好依赖，拉取 37 个只读的参考仓库，并把 `open-video-harness` 的 skill 注册给 Claude Code 和 Codex，之后在任何目录说"做个视频"，agent 都能找到这里。一共占约 650 MB 磁盘，不拉参考仓库约 380 MB。然后直接说你要什么：
 
 > 做一个 30 秒的竖屏科普：为什么低轨卫星的信号会"变调"。中文配音，中英双语字幕。
 
@@ -352,7 +352,7 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 
 - **成本**：渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量），以及你选用的云端配音、生成图、生成音乐、生成式视频，按各家收费。付费调用要有预算（Brief 的 `Budget:`，或者 `LOCAL.md` 里的默认预算），调用前先按预算占住；key 一律从环境变量读。
 - **时间**：30 秒的标准档片子大约 1–2 小时，大部分花在自查和返工上。
-- **限制**：agent 看不了视频、听不了声音，只能看渲染出的帧、读声音的数据，所以最后一关还是要你看、你听；目前只在 macOS（Apple Silicon）上完整跑过；写实人物要靠生成式视频；第 09 类剪辑还在试验，没有用真实素材试过。
+- **限制**：agent 看不了视频、听不了声音，只能看渲染出的帧、读声音的数据，所以最后一关还是要你看、你听；目前只在 macOS（Apple Silicon）上完整跑过，Linux 上在 Ubuntu 24.04（arm64，Docker 里）做过一支无声片，事先要备好的三样见 [engines/README.md](engines/README.md#hyperframeshtml--gsap)；写实人物要靠生成式视频；第 09 类剪辑还在试验，没有用真实素材试过。
 
 ## 安装、更新和国内网络
 
@@ -362,10 +362,10 @@ bash install.sh --no-refs                        # 先不拉参考仓库（之�
 bash install.sh --no-skill                       # 不注册全局 skill
 ```
 
-- 安装脚本只拉最新的一个提交（下载约 95 MB，占 197 MB 磁盘）；想参与贡献或翻历史，就正常 `git clone`，再运行 `bin/vh setup`。
+- 安装脚本只拉最新的一个提交，仓库本身下载约 95 MB、占约 200 MB 磁盘，依赖和参考仓库另算；想参与贡献或翻历史，就正常 `git clone`，再运行 `bin/vh setup`。
 - 更新：用同样的参数再运行一次安装命令；`LOCAL.md` 和 `projects/` 不动，要覆盖你改过的文件时会先停下来。
 - 样片的视频不在 git 里，要在本地复现样片时运行 `tools/fetch_media.sh`，它从 Release 下载到脚本要的位置。
-- 第一次渲染、第一次用声音工具时还会下载 Chrome、Python 依赖和配音模型，各有多大、放在哪里，见 wiki 的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)。国内网络连不上 npm、PyPI、Hugging Face 或 Google Fonts 时，镜像设置见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
+- 第一次渲染、第一次用声音工具时还会往 `~/.cache` 下载：Chrome 约 200 MB，Python 依赖最多约 1.5 GB，默认的本地配音模型约 2 GB（2026-11 实测；各放在哪里见 wiki 的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)）。国内网络连不上 npm、PyPI、Hugging Face 或 Google Fonts 时，镜像设置见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
 
 只装 skill：`npx skills add https://github.com/ZLHad/OpenVideoHarness --skill open-video-harness`。它只是一个指针，第一次用时会征得你同意，再把完整的工作台装好。
 
