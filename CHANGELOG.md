@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**The READMEs rewritten to sell the idea: why it exists, what sets it apart, and films that move**
+- Why: the page opened with a still image and links to download; only one film could be played on it, and the reason the project exists came a long way down.
+- Both READMEs now open with a moving wall of films, then why it exists, what makes it different (each point with a moving picture beside it), a gallery of moments from real films, the 5 showcase films playable with sound, the framework as four layers, and the quick start. The reference sections below them are unchanged.
+- The GIFs are in the `media` release, outside git; the players are GitHub attachments.
+
 ## v0.4.0 — 2026-11-07
 
 The first release since v0.2.1: five weeks and 185 commits, most of them asked for by real films. OpenVideoHarness now brings real material into a film, holds up on long ones, and tells an agent or a program where things stand. The work planned as v0.3 ships here too, so there is no v0.3.0.
