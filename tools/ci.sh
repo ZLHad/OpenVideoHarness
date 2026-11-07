@@ -3327,7 +3327,7 @@ else:
         bad.append(f"the sfx picks: {w} {wa}")
     if d["used_by"] != ["S03"] or d["source"]["provider"] != "kenney" or d["license"]["class"] != "cc0":
         bad.append(f"the library pick: {d}")
-    if m["used_by"] != ["bgm"] or m["source"]["provider"] == "jamendo" is False:
+    if m["used_by"] != ["bgm"] or m["source"]["provider"] != "jamendo":
         bad.append(f"the bgm pick: {m}")
 for f, want in (("audio/sfx/whoosh.wav", None), ("audio/music.wav", 8.0), ("audio/bed.wav", 7.3)):
     sr, dur = info(f"{p}/{f}")

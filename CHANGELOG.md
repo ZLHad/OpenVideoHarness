@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**A check in `assets_checks` that could not fail**
+- Why: `provider == "jamendo" is False` is a chained comparison, always false, so a bgm pick from another provider passed it. Python said so in a `SyntaxWarning` on each run.
+- It says `!=` now, and the warning is gone.
+
 **`tools/ci.sh`'s table of seconds names every group**
 - Why: `smoke_checks` set a `g` of its own, over the one `run_groups` names a row by (a group runs in its shell), so the table said `ok 90`, a row `tools/ci-shards.txt` does not take.
 - `g` is local to it now, and the loop's variables have names no group uses.
