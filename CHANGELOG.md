@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**`bin/vh check` and `status` say what is left to fill in the BRIEF's Output line**
+- Why: with a blank in the Output line, `check` warned "the Output line still has placeholders" and offered one way out, rendering again; `status` asked for the BRIEF to be filled (32 blanks) without saying that `check` holds the film to that one line.
+- `check` names the blanks (`{N}`, `{frames}` …) and says to fill them in; beside rendering again, its ways out now point to the defaults in playbook/01's 规格. A `{frames}` after an exact length in seconds no longer counts as a blank, since the count follows from the length and the rate.
+- `status` names the Output line's blanks in its next step. The BRIEF's comment writes `bin/vh artifacts list <项目>`, since the command takes a project.
+
 **`bin/vh new` fills the frame rate in the BRIEF's Output line**
 - Why: a new project's Output line kept `{fps}`, and `bin/vh check` holds the film to that line, so a first film was checked against a placeholder (a clean-install walkthrough, 11-07).
 - `new` writes the rate its engine renders at unless told otherwise: 24 for the hand-drawn engine, 30 for the others, as playbook/01's 规格 table has it. A cut (type 09) keeps its footage's rate, so its line keeps `{fps}`. The length is still the concept's to fill.

@@ -17,7 +17,7 @@ FAIL: a frame size that is none of the listed deliveries (4K when the BRIEF list
 an odd width or height, another frame rate (0.05 % tolerance: 29.97 is not 30, 30.0008 is), another length than an
 exact one (one frame of tolerance; the picture's length, an audio tail does not count). WARN: a frame smaller than every
 delivery in the same aspect (a draft: only an exact length in seconds is still checked), a length outside a range, an Output line that still has
-{placeholders} or gives no size or rate, frames that do not fill the stream's length at the nominal rate (a variable
+{placeholders} (not a {frames} after an exact length in seconds, which it follows from) or gives no size or rate, frames that do not fill the stream's length at the nominal rate (a variable
 frame rate, or an edit list such as a cut made with -c copy leaves), non-square pixels, audio running past the picture.
 The length is then the stream's own: its duration, a Matroska track's DURATION tag, else its packets' times.
 """
@@ -42,6 +42,15 @@ def spec_line(text, key):
 APPROX = re.compile(r"[~≈]|约(?!束)|左右|\babout\b|\baround\b|\bapprox|\btarget\b", re.I)
 NUM = r"(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)"   # 1,200 reads as 1200
 num = lambda x: float(x.replace(",", ""))
+
+
+def output_blanks(o):
+    """The placeholders an Output line still has ({W}x{H}, {fps}, {N}), each once. A range such as {60–90}s is none, and
+    neither is a {frames} after an exact length in seconds: the count follows from the length and the rate."""
+    blanks = list(dict.fromkeys(re.findall(r"\{[^}]*[A-Za-z][^}]*\}", o or "")))
+    if re.search(r"exactly\s*\**\s*" + NUM + r"\s*s", o or ""):
+        blanks = [b for b in blanks if b != "{frames}"]
+    return blanks
 
 def save_json(path, rec):
     """--json: the result for bin/vh check's record; a file that cannot be written is said, never a failure of the check."""
@@ -149,8 +158,9 @@ def main():
     if o is None:
         warns.append(f"{brief.name} has no '- Output:' line")
     else:
-        if re.search(r"\{[^}]*[A-Za-z][^}]*\}", o):   # {W}x{H}, {fps}; a range such as {60–90}s is not a placeholder
-            warns.append(f"the Output line still has placeholders: {o[:80]}")
+        blanks = output_blanks(o)
+        if blanks:
+            warns.append(f"the Output line still has {', '.join(blanks)}: fill in the film you mean (the length and rate it is made to); bin/vh check holds the film to that line")
         m = re.search(r"(\d{3,4})\s*[x×]\s*(\d{3,4})", o)
         ks = sorted({2 if x in ("4k", "2160p", "uhd") else 1 for x in re.findall(r"4k|2160p|uhd|1080p|720p", (r or "1080p").lower())} or {1})
         if m:

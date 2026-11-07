@@ -57,6 +57,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
 import activity, checkrec as C, gatecheck as G, identity, jsonerr, proxy as P, review as R, versions as V   # noqa: E402,E401
 import feedback as F, reader   # noqa: E402,E401
+from speccheck import output_blanks   # noqa: E402
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
 OUT_SKIP = {"versions", "proxy"}   # out/versions (listed from its record) and out/proxy: not renders; only directly in out/
@@ -518,8 +519,11 @@ def next_step(project, proj, st, paused, no_record, working, desk, by_video):
     named = film and film + (f" (also here: {P.also_here(project, also)})" if also else "")   # the film in a sentence
 
     def fill(what):
-        """what, with the {…} the files it names still have in front of it."""
-        return ", ".join(f"fill {n} ({left[n]} {{…}} left)" for n in what if n in left)
+        """what, with the {…} the files it names still have in front of it; for the BRIEF, the blanks of its Output line, which
+        bin/vh check holds the film to."""
+        blank = output_blanks(proj["spec"].get("Output"))
+        return ", ".join(f"fill {n} ({left[n]} {{…}} left" + (f"; its Output line's {', '.join(blank)} too: bin/vh check holds the film to that line" if n == "BRIEF.md" and blank else "") + ")"
+                         for n in what if n in left)
 
     def first_scenes():
         """What the first picture is made of: an edit list for a recap, or a cut, with no edit.json yet; else scenes."""
