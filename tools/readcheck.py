@@ -9,7 +9,7 @@ Input: a JSON list of {text, start, end} in seconds (`t0`/`t1` also accepted; `t
 or a dict holding that list under "captions" / "texts" / "items" / "cues". Items without `text` but with `zh` / `en`
 (the captions.json that `bin/vh captions` writes) are checked once per language, by the subtitle rule unless --mode
 names another; --lang picks one.
-A directory means <dir>/audio/captions.json. `start` must be the moment the text is fully shown and readable
+A directory means <dir>/audio/captions.json, or its index.html when it has no captions. `start` must be the moment the text is fully shown and readable
 (typing, decode and fly-in finished), `end` the moment it starts to leave.
 
 No fixed seconds: on-screen text has a floor and a target (templates/TASTE_CHECKLIST.md #5, playbook/03-motion-design.md §2).
@@ -93,12 +93,16 @@ def is_cjk(ch: str) -> bool:
     return any(a <= o <= b for a, b in CJK_RANGES)
 
 def load_items(path: Path):
+    if path.is_dir():
+        folder, path = path, path / "audio" / "captions.json"
+        if not path.exists():   # a film with no captions: its text is on its page
+            path = folder / "index.html"
+            if not path.is_file():
+                raise ValueError(f"{folder} has no audio/captions.json and no index.html: give a texts.json or a composition .html")
     if path.suffix.lower() in (".html", ".htm"):
         items, stats = export_html(path)
         LAST_STATS.clear(); LAST_STATS.update(stats)
         return path, items
-    if path.is_dir():
-        path = path / "audio" / "captions.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     if isinstance(data, dict):
         data = next((data[k] for k in ("captions", "texts", "items", "cues") if isinstance(data.get(k), list)), None)
@@ -545,7 +549,7 @@ def main():
     ap = argparse.ArgumentParser(prog="bin/vh readcheck", formatter_class=argparse.RawDescriptionHelpFormatter,
                                  description="\n\n".join(x for x in parts if x.startswith(("Reading-time", "No fixed", "Three kinds", "Exit:"))),
                                  epilog="data-read and data-pace marks, compositions and --budget: the top of tools/readcheck.py.")
-    ap.add_argument("path", type=Path, nargs="?", help="a texts.json, a project folder (its audio/captions.json) or a composition .html")
+    ap.add_argument("path", type=Path, nargs="?", help="a texts.json, a project folder (its audio/captions.json, else its index.html) or a composition .html")
     ap.add_argument("--pace", choices=tuple(PACES), help="the film's reading pace (default: the BRIEF's Pace line, else normal)")
     ap.add_argument("--mode", choices=("onscreen", "label", "subtitle"), help="the rule for texts without a data-read mark (default onscreen; caption items from bin/vh captions: subtitle)")
     ap.add_argument("--budget", type=float, metavar="SECONDS", help="how many characters fit in a span of this length")

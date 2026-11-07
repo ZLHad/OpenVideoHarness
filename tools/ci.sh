@@ -2052,6 +2052,12 @@ console.log(out.join(" "))' 2>&1)
     '<div id="c2" class="clip" data-start="6" data-duration="1.2">太短了的字</div></div><script>var x="<div>";</script></body></html>' > "$p/index.html"
   a=$(vh readcheck "$p/index.html"); rc=$?
   case "$rc:$a" in 1:*"OK   c1"*"FAIL c2"*"pace relaxed, Pace in"*"NOT checked: 1 text block"*) ok "readcheck reads a composition's clips and the new project's Pace (a math project: relaxed; and says what it left out)" ;; *) bad "readcheck index.html (rc $rc): $a" ;; esac
+  a=$(vh readcheck "$p"); rc=$?
+  case "$rc:$a" in 1:*"OK   c1"*"FAIL c2"*) ok "readcheck on a folder with no captions reads its page: a silent film's text is there" ;;
+    *) bad "readcheck on a folder with no captions (exit $rc): $(printf '%s' "$a" | tail -3)" ;; esac
+  mkdir "$t/no-film"; a=$(vh readcheck "$t/no-film" 2>&1); rc=$?
+  case "$rc:$a" in 2:*"NOT CHECKED"*"no audio/captions.json and no index.html"*) ok "readcheck on a folder with neither captions nor a page says so" ;;
+    *) bad "readcheck on an empty folder (exit $rc): $a" ;; esac
   vh readcheck --export "$p" >/dev/null && grep -q '"id": "c2"' "$p/texts.json" && { vh readcheck "$p" --export >/dev/null 2>&1; [ $? = 2 ]; } \
     && ok "readcheck --export writes texts.json and will not overwrite it" || bad "readcheck --export"
   mkdir "$t/hf-exports"

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`bin/vh readcheck <project>` reads the page of a film with no captions**
+- Why: a silent film's text is on its page, and the quick card says to run `bin/vh readcheck`. On a project it looked only for `audio/captions.json` and stopped with a bare "No such file". A clean install making its first film ran into this.
+- A folder with no captions now means its `index.html`, as a canvas-film's means its `film.html`. A folder with neither says so.
+
 **`cases/oneshot-five.md`: Tesseract's terms**
 - Why: it said the product page named no licence (2026-10-02). There are terms in its repository, and someone weighing it needs them: the licence can be revoked, and commercial use by or for a for-profit business with revenue of US$1M or more needs a separate agreement.
 
