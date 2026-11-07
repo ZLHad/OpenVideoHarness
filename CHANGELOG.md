@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`bin/vh sheet` says when it is given an option**
+- Why: `bin/vh sheet film.mp4 --out x.png` took `--out` for the number of columns, printed a Python traceback, then a `SyntaxError` from its ffmpeg fallback, and exited 1. `--out` is what an agent writes first; the command takes `cols`, `fps` and `out` by position.
+- An option, or columns that are not a whole number, is now a usage error: one line, the usage, exit 2.
+
 **`bin/vh readcheck <project>` reads the page of a film with no captions**
 - Why: a silent film's text is on its page, and the quick card says to run `bin/vh readcheck`. On a project it looked only for `audio/captions.json` and stopped with a bare "No such file". A clean install making its first film ran into this.
 - A folder with no captions now means its `index.html`, as a canvas-film's means its `film.html`. A folder with neither says so.
