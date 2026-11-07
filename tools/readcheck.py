@@ -92,7 +92,13 @@ def is_cjk(ch: str) -> bool:
     o = ord(ch)
     return any(a <= o <= b for a, b in CJK_RANGES)
 
+MEDIA = {".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi", ".gif", ".wav", ".mp3", ".m4a", ".aac", ".flac"}
+
+
 def load_items(path: Path):
+    if path.suffix.lower() in MEDIA:   # a film is not read as texts.json (it failed on its bytes)
+        raise ValueError(f"{path.name} is a film or a sound, and readcheck reads a film's text: give the project (its captions, "
+                         "else its index.html), a composition .html or a texts.json")
     if path.is_dir():
         folder, path = path, path / "audio" / "captions.json"
         if not path.exists():   # a film with no captions: its text is on its page
