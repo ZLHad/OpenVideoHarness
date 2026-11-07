@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+**`cases/oneshot-five.md`: Tesseract's terms**
+- Why: it said the product page named no licence (2026-10-02). There are terms in its repository, and someone weighing it needs them: the licence can be revoked, and a for-profit business with revenue of US$1M or more needs a separate agreement.
+
 **`recipes/fx/edited-plate-lapse.md` goes through `bin/vh image gen`**
 - Why: it told you to run `codex exec -i` by hand and register each picture yourself, from before `--ref` sent the picture (#178).
 - Now `bin/vh image gen --provider codex --ref`, which also keeps the record.
