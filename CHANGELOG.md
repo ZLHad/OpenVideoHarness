@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**The READMEs rewritten to sell the idea: why it exists, what sets it apart, and films that move**
+- Why: the page opened with a still image and links to download; only one film could be played on it, and the reason the project exists came a long way down.
+- Both READMEs now open with a moving wall of films, then why it exists, what makes it different (each point with a moving picture beside it), a gallery of moments from real films, the 5 showcase films playable with sound, the framework as four layers, and the quick start. The reference sections below them are unchanged.
+- The GIFs are in the `media` release, outside git; the players are GitHub attachments.
+
 **`bin/vh web` keeps the evidence without requiring Obscura**
 - Why: saving a page with its URL, retrieval time and hash is useful, but it does not require a second browser engine when the film tools already use Chrome.
 - `web fetch` and `web shot` default to the installed Chrome/Chromium through the existing CDP transport, without a new npm package or browser download. Obscura is used only with `--provider obscura`; `web install` remains its explicit installer, and there is no automatic fallback to it.

@@ -2,9 +2,9 @@
 
 # OpenVideoHarness
 
-**给 Claude Code、Codex 用的做视频工作台：一句话提需求，agent 写代码渲染出每一帧，自己检查，在三个节点停下来等你拍板。**
+### 做出一支好片不难，每次都好才难。
 
-科普短视频、3Blue1Brown 式讲解、发布片、MV、数据故事、论文讲解、手绘短片、梗图快剪，都能配音，配乐和音效也用代码写。
+给 Claude Code、Codex 用的做视频工作台。你说一句话，agent 想立意、用代码写片子、自己检查，在三个地方停下来等你拍板。
 
 [English](README.md) · **中文** · [官网](https://zlhad.top/OpenVideoHarness/docs/site/?lang=zh) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
@@ -12,50 +12,171 @@
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20canvas%20%2B%20Three.js%20%7C%20p5.brush%20%7C%20Manim%20%7C%20Blender-blue)
 
-<a href="showcase/"><img src="docs/assets/hero.jpg" width="880" alt="5 支样片和风格库的画面：Blender 渲的星系、Manim 的傅里叶级数、竖屏科普、手绘角色、审自己联系表的发布片，以及风格库里的 16 张样片"></a>
+<img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif" width="960" alt="用这套工作台做的片子里的十二个动态片段：黑洞、剖开的制动主缸、皮影、穿过灰色城市的股价线、发光的地图、蓝色地形、金色轨道、水墨、一支笔画蒸汽机、互为镜像的分子、影片之海、长出翅膀的剪影">
 
-<sub>5 支样片和风格库里的画面。每一支都是 agent 只照着本仓库的文档做出来的。</sub>
+<sub>十二段都出自用它做的真片子。下面还有更多，一部分带声音。</sub>
 
 </div>
 
+```bash
+curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
+cd ~/OpenVideoHarness && claude        # 或者 codex
+```
+
 ---
 
-## 能做出什么
+## 为什么做这个
 
-[`showcase/`](showcase/) 里每支片子一个目录，放着需求、Brief、分镜、审阅记录和全部源码，可以直接拿来当同类片子的起点。
+Claude、Codex 这样的 agent 已经能用代码写视频了。给它一句话，有时候出来的东西会吓你一跳：运动、字体、节奏都在线。这样的片子现在已经有好几百支。
 
-https://github.com/user-attachments/assets/48923404-eff1-41cd-b303-82c9ede51c1f
+可是再来一次，同一个模型就可能节奏全乱、满屏发光、数字乱编。这不是渲染的问题。HyperFrames、Manim、Blender 负责把代码变成画面，至于这支片子到底要说什么、这行字够不够时间读完、屏幕上的数字是不是真的，它们都不管。
 
-<sub>▶ 介绍片的开场（25 秒，有声音），用代码驱动 Blender 路径追踪渲出来。整支片子是下表第一行。</sub>
+**不缺工具，缺门道。**
+
+这个仓库就是把门道写下来，写成 agent 能照着做的样子：怎么想出一个不是人人都会先想到的立意，为什么先有声音再有画面，看不见片子又该怎么查片子。几条底线不让步，其余都是默认，好点子可以反着来。
+
+它是从真片子里长出来的。哪支片子出了问题，教训就变成一篇文档或一项检查，下一支片子从这里接着做。
+
+## 它哪里不一样
 
 <table>
 <tr>
-<td width="38%" valign="top"><a href="showcase/04-intro-film/README.zh-CN.md"><img src="docs/assets/films/04-intro.jpg" width="100%" alt="介绍片：发光地平线下被压平的影片之海"></a></td>
-<td valign="top"><b><a href="showcase/04-intro-film/README.zh-CN.md">04 · 介绍片</a></b><br><sub>Blender + HyperFrames + Three.js · 103 秒 · 1920×1080 · 精品档</sub><br>本仓库自己的产品片。118 万颗星组成的星系用 Blender 路径追踪渲出来，坍缩、压平成一片影片之海；之后一个连续的 3D 长镜头，跟着一句需求走完整个仓库。<br><b><a href="showcase/04-intro-film/README.zh-CN.md#你说了什么原话">需求</a>（关卡 ① 上的原话）：</b>"玻璃、宇宙、星穹……令人瘫坐眩晕的感觉"<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">1080p 原片（297 MB）</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-4k.mp4">4K（1.04 GB）</a></sub></td>
+<td width="44%" valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-11.gif" width="100%" alt="一条画成水墨山峦的股价线"><br><sub>一张股价图，同时也是一片山。</sub></td>
+<td valign="top"><b>写代码之前，先有立意。</b><br>先出两三张立意卡，每张配一帧画面和一个钩子。它会先说出同题视频都长什么样，然后避开。</td>
 </tr>
 <tr>
-<td width="38%" valign="top"><a href="showcase/02-short-leo-doppler/"><img src="docs/assets/films/02-doppler.jpg" width="100%" alt="竖屏科普的三帧：7.6 km/s 的轨道、头顶经过时跟踪卫星的天线、多普勒曲线"></a></td>
-<td valign="top"><b><a href="showcase/02-short-leo-doppler/">02 · 竖屏科普</a></b><br><sub>HyperFrames · 24.8 秒 · 1080×1920</sub><br>低轨卫星的信号为什么会"变调"，关掉声音也看得懂。中文配音，中英字幕。<br><b><a href="showcase/02-short-leo-doppler/README.md#the-request-this-was-built-from">需求</a>：</b>"为什么低轨卫星的信号会'变调'？——多普勒频移"<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/02-vertical-science-short.mp4">原片（6.0 MB）</a></sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-25.gif" width="100%" alt="影片之海坍缩，上面写着“差的是什么”"><br><sub>第一道关卡上的原话："玻璃、宇宙、星穹……令人瘫坐眩晕的感觉"。</sub></td>
+<td valign="top"><b>你来导演，它来干活。</b><br>拍板三次：立意、分镜、初版。还想亲自定钩子、配音、封面？点名就行。一个都不想管？说"直接出"。</td>
 </tr>
 <tr>
-<td width="38%" valign="top"><a href="showcase/03-math-fourier/"><img src="docs/assets/films/03-fourier.jpg" width="100%" alt="数学讲解：灰色方波上，黄色的部分和与蓝色的谐波"></a></td>
-<td valign="top"><b><a href="showcase/03-math-fourier/">03 · 3Blue1Brown 式数学讲解</a></b><br><sub>Manim · 25 秒 · 1920×1080</sub><br>正弦波一层层叠成方波，最后停在吉布斯过冲上。英文旁白，每个谐波有自己的音。<br><b><a href="showcase/03-math-fourier/README.md#the-request-this-was-built-from">需求</a>：</b>"Building a square wave from sine waves"（用正弦波拼出方波）<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/03-math-explainer.mp4">原片（2.9 MB）</a></sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-02.gif" width="100%" alt="一道闪光穿过探测器，计时器按微秒走"><br><sub>时间是唯一的输入。这道闪光按微秒算。</sub></td>
+<td valign="top"><b>每一帧都是时间的函数。</b><br>所以任何一帧都能单独画、乱序画、并行画。渲染断了，从断的地方接着来。一支做好的 4K 片子，可以只重画其中几秒放回去，别的地方一帧不动。</td>
 </tr>
 <tr>
-<td width="38%" valign="top"><a href="showcase/01-handdrawn-clawd-leaf/"><img src="docs/assets/films/01-clawd.jpg" width="100%" alt="手绘短片：Clawd 端着小摄影机，风把叶子抢走了"></a></td>
-<td valign="top"><b><a href="showcase/01-handdrawn-clawd-leaf/">01 · 手绘角色短片</a></b><br><sub>p5.brush · 12 秒 · 1920×1080</sub><br>没有字、没有旁白的三镜头默剧，配乐和拟音跟着每个动作走。<br><b><a href="showcase/01-handdrawn-clawd-leaf/README.md#the-request-this-was-built-from">需求</a>：</b>"Clawd tries to film a falling autumn leaf with a tiny hand-cranked movie camera; the wind keeps snatching the leaf just as Clawd frames it …"（Clawd 用手摇小摄影机拍一片落叶，风总在它对准的时候把叶子抢走……）<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/01-handdrawn-short.mp4">原片（9.0 MB）</a></sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-29.gif" width="100%" alt="agent 在终端里审自己渲出的帧"><br><sub>agent 在审自己渲出的帧。</sub></td>
+<td valign="top"><b>它看不见，所以凡是能量的都量一遍。</b><br>agent 看不了视频，也听不了声音。所以它对照 20 条的清单看联系表，用数据查声音，再把初版交给一个全新上下文的 reviewer，按 8 项打分。<code>bin/vh check</code> 能查出冻帧、闪烁、读不完的字幕和错误的色彩标记，每一项都告诉你怎么解决。</td>
 </tr>
 <tr>
-<td width="38%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="docs/assets/films/00-launch.jpg" width="100%" alt="发布短片：CLAUDE.md 的路由表，产品片那一行被选中"></a></td>
-<td valign="top"><b><a href="showcase/00-promo-launch-film/">00 · 发布短片</a></b><br><sub>HyperFrames · 20 秒 · 1920×1080</sub><br>用这个仓库自己的终端、路由表和联系表搭成，画面上每个动作都有音效。<br><b><a href="showcase/00-promo-launch-film/README.md#the-request">需求</a>：</b>"Produce the README hero video — a short launch film for OpenVideoHarness itself …"（做 README 首屏的主视频：一支给 OpenVideoHarness 本身的发布短片……）<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/00-launch-short.mp4">原片（6.8 MB）</a></sub></td>
+<td valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ 点开，打开声音：每个谐波有自己的音。</sub></td>
+<td valign="top"><b>先有声音，声音也是代码。</b><br>旁白或音乐先定下来，量出每个字、每一拍的时间，画面就挂在这些时间上。配乐用代码写，音效落在动作发生的那一帧。</td>
 </tr>
 <tr>
-<td width="38%" valign="top"><a href="styles/"><img src="docs/assets/films/styles.jpg" width="100%" alt="风格库里的 16 张样片，内容完全相同"></a></td>
-<td valign="top"><b><a href="styles/">风格连播</a></b><br><sub>32 种风格 · 每种约 1.5 秒</sub><br>同一段内容，用风格库里的每一种风格各渲一遍，每种配自己的音乐。<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/styles-gallery-v2.mp4">原片（7.9 MB）</a></sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-24.gif" width="100%" alt="霓虹街机厅，有一个对话气泡和发光招牌"><br><sub>底图是生成的，上面叠代码，都记在台账里。</sub></td>
+<td valign="top"><b>真材实料，都有记录。</b><br>档案影像、生成的图、录来的声音，一本台账记下每个文件的来源、许可和花费。没有预算，就不调付费接口。</td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-19.gif" width="100%" alt="一张发光的金色地图，河流和光点"><br><sub>出自一支 33 分钟的片子。</sub></td>
+<td valign="top"><b>长片也撑得住。</b><br>镜头、字幕、章节都挂在旁白的字上，加一段停顿，画面自己跟着走。剪辑表把页面和素材接起来，渲染能续，上传版按平台的上限出。目前最长的一支 33 分钟，4K。</td>
+</tr>
+</table>
+
+**而且不是同一张 AI 脸。** 放任不管，AI 视频会趋向同一张脸：暗底、发光、玻璃卡片。这里有 32 种风格，下面每一格说的都是同一句话：
+
+<a href="styles/"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-styles.gif" width="960" alt="所有风格同时动起来，每种都在渲同一句话：每一帧，都是代码"></a>
+
+## 能做出什么
+
+下面是作者用它在大约一个月里做的十二支片子的片段，这十二支加起来约 100 分钟。物理、化学、工程、金融、民俗、文学、思考，每支都有自己的世界。片子都是中文的，这里是无声的。
+
+<table>
+<tr>
+<td width="33%" valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-01.gif" width="100%" alt="黑洞和它的喷流"><br><sub>黑洞喷流，全部用 Canvas 2D 画<br>7 分半物理科普</sub></td>
+<td width="33%" valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-03.gif" width="100%" alt="一对互为镜像的分子"><br><sub>互为镜像的分子，Three.js<br>2 分钟化学科普</sub></td>
+<td width="33%" valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-04.gif" width="100%" alt="蓝底上盘旋的白色流线"><br><sub>流体把自己卷起来<br>3 分钟数学故事</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-07.gif" width="100%" alt="剖开的制动主缸"><br><sub>剖开制动主缸，镜头跟着油路走<br>14 分钟拆解，Three.js</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-08.gif" width="100%" alt="伪彩下发热的刹车盘"><br><sub>刹车盘发热，伪彩热成像</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-09.gif" width="100%" alt="受热胀大的鼓式刹车"><br><sub>鼓式刹车受热胀大</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-10.gif" width="100%" alt="红线穿过灰色的模型城市"><br><sub>2008 年是一座灰色的城<br>9 分半数据片，60 帧</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-12.gif" width="100%" alt="霓虹风的图表，粉色柱子往上长"><br><sub>2015 年是霓虹</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-05.gif" width="100%" alt="蓝色地形上横着一条紫色的带"><br><sub>把一个猜想做成地形</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-13.gif" width="100%" alt="皮影人物登山，大雁飞过"><br><sub>皮影，用代码画的<br>3 分钟民俗史</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-14.gif" width="100%" alt="水墨庭院里的菊花"><br><sub>水墨，菊花慢慢开</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-30.gif" width="100%" alt="青绿山水旁的一首唐诗"><br><sub>青绿山水，一首唐诗</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-15.gif" width="100%" alt="人们打着手电爬昏暗的楼梯"><br><sub>同一支片子，走到今天的楼道</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-16.gif" width="100%" alt="一支笔画出蒸汽机和铁路"><br><sub>一支笔当场画出机器<br>3 分钟科技史</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-17.gif" width="100%" alt="红底上长出翅膀的剪影"><br><sub>剪影长出翅膀<br>9 分钟作家小传</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-18.gif" width="100%" alt="一本书从盒子里展开"><br><sub>一本打开是盒子的书</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-20.gif" width="100%" alt="昏暗书房里，一盏灯照着大脑"><br><sub>灯、大脑、书房<br>33 分钟思考片</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-21.gif" width="100%" alt="一束光沿着分叉的树往上走"><br><sub>一束光走过整棵树</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-22.gif" width="100%" alt="一个应用被拆成发光的玻璃层"><br><sub>把软件拆成一层层玻璃<br>4 分钟技术故事，Three.js</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-23.gif" width="100%" alt="弯曲的金色轨道上亮起的胶囊"><br><sub>发现沿着轨道一个个亮起来</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-06.gif" width="100%" alt="平面插画：小船连上卫星"><br><sub>从手机到卫星，清爽的平面插画<br>2 分半科普</sub></td>
+</tr>
+</table>
+
+### 5 支样片，点开有声音
+
+播放器默认静音，点开后记得打开声音。每支片子在 [`showcase/`](showcase/) 里有一个目录，放着需求、Brief、分镜、审阅记录和全部源码，可以直接拿来当同类片子的起点。每一支都是 agent 只照着本仓库的文档做出来的。
+
+<table>
+<tr>
+<td width="42%" valign="top"><video src="https://github.com/user-attachments/assets/48923404-eff1-41cd-b303-82c9ede51c1f" controls width="100%"></video></td>
+<td valign="top"><b><a href="showcase/04-intro-film/README.zh-CN.md">04 · 介绍片</a></b><br><sub>Blender + HyperFrames + Three.js · 103 秒 · 精品档</sub><br>118 万颗星组成的星系用 Blender 路径追踪渲出来，坍缩、压平成一片影片之海；之后一个连续的 3D 长镜头，跟着一句需求走完整个仓库。这里是开场，全片链接在下面。<br><b><a href="showcase/04-intro-film/README.zh-CN.md#你说了什么原话">需求</a>（关卡 ① 上的原话）：</b>"玻璃、宇宙、星穹……令人瘫坐眩晕的感觉"<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">1080p 原片（297 MB）</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-4k.mp4">4K（1.04 GB）</a></sub></td>
+</tr>
+<tr>
+<td valign="top"><video src="https://github.com/user-attachments/assets/efa32859-7bdc-4507-be20-504c429ec5f5" controls width="100%"></video></td>
+<td valign="top"><b><a href="showcase/02-short-leo-doppler/">02 · 竖屏科普</a></b><br><sub>HyperFrames · 24.8 秒 · 1080×1920</sub><br>低轨卫星的信号为什么会"变调"，关掉声音也看得懂。中文配音，中英字幕。<br><b><a href="showcase/02-short-leo-doppler/README.md#the-request-this-was-built-from">需求</a>：</b>"为什么低轨卫星的信号会'变调'？——多普勒频移"</td>
+</tr>
+<tr>
+<td valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video></td>
+<td valign="top"><b><a href="showcase/03-math-fourier/">03 · 3Blue1Brown 式数学讲解</a></b><br><sub>Manim · 25 秒 · 1920×1080</sub><br>正弦波一层层叠成方波，最后停在吉布斯过冲上。英文旁白，每个谐波有自己的音。<br><b><a href="showcase/03-math-fourier/README.md#the-request-this-was-built-from">需求</a>：</b>"Building a square wave from sine waves"（用正弦波拼出方波）</td>
+</tr>
+<tr>
+<td valign="top"><video src="https://github.com/user-attachments/assets/b34576a9-f0f3-48b5-96b1-aba539b38d37" controls width="100%"></video></td>
+<td valign="top"><b><a href="showcase/01-handdrawn-clawd-leaf/">01 · 手绘角色短片</a></b><br><sub>p5.brush · 12 秒 · 1920×1080</sub><br>没有字、没有旁白的三镜头默剧，配乐和拟音跟着每个动作走。<br><b><a href="showcase/01-handdrawn-clawd-leaf/README.md#the-request-this-was-built-from">需求</a>：</b>"Clawd tries to film a falling autumn leaf with a tiny hand-cranked movie camera; the wind keeps snatching the leaf just as Clawd frames it …"（Clawd 用手摇小摄影机拍一片落叶，风总在它对准的时候把叶子抢走……）</td>
+</tr>
+<tr>
+<td valign="top"><video src="https://github.com/user-attachments/assets/4f662b1a-ba4d-4485-9a84-ac821f6be7b1" controls width="100%"></video></td>
+<td valign="top"><b><a href="showcase/00-promo-launch-film/">00 · 发布短片</a></b><br><sub>HyperFrames · 20 秒 · 1920×1080</sub><br>用这个仓库自己的终端、路由表和联系表搭成，画面上每个动作都有音效。<br><b><a href="showcase/00-promo-launch-film/README.md#the-request">需求</a>：</b>"Produce the README hero video — a short launch film for OpenVideoHarness itself …"（做 README 首屏的主视频：一支给 OpenVideoHarness 本身的发布短片……）</td>
+</tr>
+<tr>
+<td valign="top"><video src="https://github.com/user-attachments/assets/3ecb0f0c-5602-496b-aebc-4848a918a74c" controls width="100%"></video></td>
+<td valign="top"><b><a href="styles/">风格连播</a></b><br><sub>32 种风格 · 每种约 1.5 秒</sub><br>同一段内容，用风格库里的每一种风格各渲一遍，每种配自己的音乐。</td>
 </tr>
 </table>
 
 片子都放在 [Release `media`](https://github.com/ZLHad/OpenVideoHarness/releases/tag/media) 里，不进 git，克隆仓库不用下载它们。00–03 这四支先做成无声片，声音是后来配上的。社区里的同类作品和我们的拆解在 [`cases/`](cases/README.md)；你用本仓库做出的片子，也欢迎 PR 进 `showcase/`。
+
+## 它怎么工作
+
+片子就是代码。agent 写一个页面（或一段 Manim 场景、一个 Blender 脚本），里面每一帧都是时间 t 的函数；浏览器（或 Manim、Blender）逐帧画出来，FFmpeg 再接上音轨。
+
+<p align="center"><img src="docs/assets/overview.zh.svg" width="720" alt="一句话需求经过判断类型、三次人工拍板、声音先行的代码渲染和自查，变成成片；右侧是仓库提供的东西"></p>
+
+一共四层，agent 只读手上这支片子用得到的部分：
+
+| 哪一层 | 里面有什么 |
+|---|---|
+| **路由** | [CLAUDE.md](CLAUDE.md)：这是 11 类视频里的哪一类、做多认真、谁拍板什么，以及不让步的底线 |
+| **门道** | agent 照着做的文档：[视频类型](video-types/)、[playbook](playbook/)、[风格](styles/README.md)、[配方](recipes/README.md)、[组件](components/README.md)、[案例](cases/README.md) |
+| **工具** | 一个命令行 `bin/vh`：从选题调研到上传版（见[工具一览](#工具一览)） |
+| **引擎** | HyperFrames、canvas + Three.js、p5.brush、Manim、Blender，它告诉 agent 怎么用（见[引擎](#引擎)） |
+
+一支片子这样走：
+
+1. **判断类型**：路由表定下是哪一类、照哪份工作流做；做多认真、哪些事你要亲自定，按你的需求来。
+2. **关卡 ①：立意和大纲**：两三张立意卡，每张配一帧画面和一个钩子。选定一张，立意、画面风格和钩子就一起定了，这时还没写一行代码。
+3. **关卡 ②：分镜**：每个镜头写清观众要依次看懂什么、各占几秒，每镜一张关键帧。
+4. **声音先行**：先做旁白或配乐，量出每个字、每一拍的时间，画面挂在这些时间上。
+5. **写代码，自己查**：每写完一段，把帧拼成联系表，对着清单改，再用数据查声音；整片初版交给一个全新上下文的 reviewer 打分。
+6. **关卡 ③：初版**：给你看初版、联系表、评审分数和它最不满意的地方。你说不清哪里不对时，它把同一段做成两三个版本让你挑。
+7. **出片**：成片过一遍 `bin/vh check`，这次踩的坑写进项目的 `LESSONS.md`。
+
+几条从不放松的规则：每一帧只由 t 决定；有声音时声音定时长；先分镜后代码；数字、引文、论文信息照抄原文，拿不准的不编进片子；API key 只放在环境变量里。
+
+**量到什么就公开什么，对自己不利的也一样。** 我们做过一次小的盲评（[docs/research/06](docs/research/06-concept-first-ab.md)）：按流程做的片子点子更新，但评审觉得只守几条底线的那两支做得更好，两次都选了它们去发。评审指出的问题后来都变成了检查。其余的在[研究笔记](docs/research/README.md)里。
 
 ## 快速开始
 
@@ -76,7 +197,7 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 2. 再给分镜，每个镜头一张关键帧；
 3. 最后给初版，附上评审分数和它自己最不满意的两三处。
 
-你点了头，它才出成片。从零走到第一支片子的完整过程，见 wiki 的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)。
+你点了头，它才出成片。不想停？说"快速出一版"：在一台干净的环境里（跳过参考仓库），一个全新的 agent 只看这些文档，大约五分钟就做出了一支 15 秒的无声片。从零走到第一支片子的完整过程，见 wiki 的[快速开始](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%BF%AB%E9%80%9F%E5%BC%80%E5%A7%8B)。
 
 说清楚讲什么、给谁看、发在哪就够了，不用写长篇 brief：
 
@@ -88,26 +209,6 @@ cd ~/OpenVideoHarness && claude        # 或者 codex
 | 资料片 | "用 NASA 公有领域的发射影像剪一支 40 秒的倒计时短片，每段素材的许可都记下来。" |
 | 快速试一版 | "快速出一版 15 秒的草稿，看看赛博故障风适不适合我的游戏预告，不用问我。" |
 | 深度参与 | "做一支 90 秒的知识视频，讲卫星怎么避免相撞，要精品。开头钩子、主角、主旋律、标题和封面我来定，其余你定。" |
-
-## 它怎么工作
-
-现在让 AI"一句话做一支视频"已经不稀奇，难的是每次都做好。同一个模型，这次惊艳，下次就节奏乱、满屏发光、数字乱编，因为它手里没有一套做片子的流程，也没法检查自己的活。这个仓库就是这套流程和检查办法，写成 agent 能照着做的文档和一个命令行工具 `bin/vh`。
-
-<p align="center"><img src="docs/assets/overview.zh.svg" width="720" alt="一句话需求经过判断类型、三次人工拍板、声音先行的代码渲染和自查，变成成片；右侧是仓库提供的东西"></p>
-
-片子就是代码。agent 写一个页面（或一段 Manim 场景、一个 Blender 脚本），里面每一帧都是时间 t 的函数；浏览器（或 Manim、Blender）逐帧画出来，FFmpeg 再接上音轨。agent 看不了视频、听不了声音，所以每一步都做成能从帧、数据和文字上检查。
-
-1. **判断类型**：按 [CLAUDE.md](CLAUDE.md) 的路由表，定下是 11 类视频里的哪一类、照哪份工作流做；做多认真、哪些事你要亲自定，按你的需求来。
-2. **关卡 ①：立意和大纲**：两三张立意卡，每张配一帧画面和一个钩子。选定一张，立意、画面风格和钩子就一起定了，这时还没写一行代码。
-3. **关卡 ②：分镜**：每个镜头写清观众要依次看懂什么、各占几秒，每镜一张关键帧。
-4. **声音先行**：先做旁白或配乐，量出每个字、每一拍的时间，画面挂在这些时间上。
-5. **写代码，自己查**：每写完一段，把帧拼成联系表，对着 20 条的清单改，再用数据查声音；整片 draft 交给一个全新上下文的 reviewer，按 8 项打分。
-6. **关卡 ③：初版**：给你看初版、联系表、评审分数和它最不满意的地方。你说不清哪里不对时，它把同一段做成两三个版本让你挑。
-7. **出片**：成片过一遍 `bin/vh check`，这次踩的坑写进项目的 `LESSONS.md`。
-
-几条从不放松的规则（完整版见 [CLAUDE.md](CLAUDE.md)）：每一帧只由 t 决定，所以任何一帧都能单独渲、并行渲、乱序渲，也能抽查；有声音时声音定时长；先分镜后代码；数字、引文、论文信息照抄原文，拿不准的不编进片子；API key 只放在环境变量里。
-
-**和直接让 AI 做有什么不同？** 我们做过一次小的盲评（[docs/research/06](docs/research/06-concept-first-ab.md)）：两条一句话需求，各按流程（快出档）做一支、只给几条底线做一支，都是无声片。按流程做的点子更新，但评审觉得只守底线的那两支做得更好，两次都选了它们去发；两边的耗时和 token 差不多。评审指出的问题（字在手机上太小、开头太慢）后来都变成了检查。流程想省的是返工：方向在写代码前定，问题在出片前查；这一点还没有量过。
 
 ## 工具一览
 
