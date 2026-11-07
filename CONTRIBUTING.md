@@ -17,12 +17,23 @@
 
 1. 只推自己的分支。不推 main，不删分支，不动 tag。
 2. 推送前跑 `tools/ci.sh --committed`，全部通过才推。它在一份干净的检出上检查 HEAD，结果和 CI 一致；工作区里没提交的改动不算数。修 bug 要先复现，再证明修好，前后对比写进 PR。
-3. PR 一律开成草稿。合并由人决定：人在对话里明确让 agent 合并时，agent 先确认 CI 全绿、自己审过 diff，再用 squash 合并。人让 agent"检查通过后合并"时，agent 审过 diff 后用 `python3 tools/land.py ready <PR>` 把草稿转成正式 PR、打开 auto-merge（squash），不用守着 CI：必需的检查都通过后由 GitHub 合并，有一项失败就不合；合并以后用 `python3 tools/land.py done <PR> --clean` 核对和清理。规则集允许管理员在 PR 里"绕过规则合并"，这个开关只留给人用，agent 不碰。
+3. PR 一律开成草稿。合并前先按下节主动逐个介绍，再由人决定；旧的批量授权只覆盖当时明确列出的 PR。先核对 `LOCAL.md`：要求本人合并时，agent 只交付草稿 PR 和审查结论，不执行合并、不转正式 PR、不打开 auto-merge、不修改仓库权限或规则集。没有这项限制、且人在了解具体 PR 后明确让 agent 合并时，agent 先确认 CI 全绿、自己审过 diff，再用 squash 合并。明确授权“检查通过后合并”、且仓库允许 auto-merge 时，才用 `python3 tools/land.py ready <PR>` 排队；否则交回本人手动处理。合并以后可用 `python3 tools/land.py done <PR> --clean` 核对和清理。规则集允许管理员在 PR 里“绕过规则合并”，这个开关只留给人用，agent 不碰。
 4. 不提交 API key、`LOCAL.md`、`projects/` 和渲染产物。测试时改动了受版本管理的样片（`styles/<slug>/media/`），推送前要还原。视频不进 git（风格样片 `swatch.mp4` 除外）：成片、样片集锦这类文件放在 GitHub Release `media`，`tools/media.txt` 登记它们在仓库里的路径、文件名和 sha256，`tools/fetch_media.sh` 按它下载。往这个 Release 里放文件是维护者的事，agent 只在维护者要求时做。换一个文件时用新文件名上传（例如 `intro-film-1080p-v2.mp4`），在同一个 PR 里改 `tools/media.txt` 和引用它的链接，合并以后再删旧文件；不要覆盖 main 还在引用的文件，否则在合并之前，按 main 的校验和下载会失败。README 里要直接播放的短片段走 GitHub 的附件链接（每个不到 10 MB）。`tools/ci.sh` 会拦住视频和超过 8 MB 的文件。
 5. 用户能感知到的改动，在 `CHANGELOG.md` 的 Unreleased 里记一笔。改了 `CLAUDE.md` 或 `tools/commands.json`，跑 `bin/vh sync-agents`：它按命令表写好 `CLAUDE.md` 的命令行，再重新生成 `AGENTS.md`。
 6. 提交信息写清改了什么、为什么。末尾可以带 `Co-Authored-By:` 署名行。
 7. PR 说明里写"其余都没问题"之前，把涉及的每个子命令真跑一遍。只改措辞的 PR 也要逐句查行为变没变（#62 的评审就查出过一条底线和类型文档的阅读范围被顺手改了）。
 8. 改了配方的草图（`recipes/` 里"实现"一节定义 `renderAt` 的那段代码），用 `bin/vh recipes sample <id> --draft` 重渲它的联系表：`bin/vh recipes check`（CI 也跑）要求有草图的配方都带联系表，而且 `sketch_sha` 对得上现在的草图。渲联系表要风格样片的渲染器：`styles/_swatch` 里 `npm ci`，再加 ffmpeg、uv 和 Chrome（`bin/vh doctor` 会说缺哪样）；CI 不渲，只核对。
+
+### 合并前主动交接
+
+发现外部贡献时先介绍一次，准备接收时交付最新的逐项结论。每个 PR 至少说清：
+
+- 编号、链接、作者，以及要解决的具体问题。
+- 实际改变什么，是否新增第三方依赖、安装步骤、费用或权限。
+- 哪些行为已验证，哪些仍未验证；CI 通过不能替代这些说明。
+- 建议接收、修改后接收还是关闭，以及理由；点明接下来由谁执行合并。
+
+不要把外部 PR 混在“其余检查通过”里，也不要把“继续优化”“推到贡献者分支”当成新的合并授权。用户要求本人合并时，交接到此为止。
 
 ## 加命令、加状态
 
@@ -127,7 +138,9 @@ d=$(mktemp -d) && printf '#!/bin/sh\nexec uvx --from shellcheck-py shellcheck "$
 - **squash 加线性历史。** 一个 PR 在 main 上只留一个提交，说明取自它在 CHANGELOG 里加的条目。
 - **打开 auto-merge。** 它只是"检查过了就合并"的排队，规则集的每一项照样要满足，合并方式也只能是 squash；好处是 CI 要跑几分钟时，人和 agent 都不用守着。
 
-**规则集挡得住误操作，挡不住拿着管理员 token 的 agent。** agent 用的是主人的 token，技术上仍然可以在 PR 里用管理员身份绕过检查合并，甚至改掉规则集；现在靠的是上面"给 agent 的规则"。要在技术上真正限住 agent，给它单独一个低权限身份：比如一个只有 Contents 和 Pull requests 写权限、没有 Administration 权限的 fine-grained token。
+**账号权限与本人操作要分开。** agent 用主人的 GitHub 凭据时，GitHub 无法区分主人和 agent；文档约定和关闭 auto-merge 都不构成凭据隔离。只去掉 Administration 也不能阻止合并：[合并 API 需要的是 Contents 写权限](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request)。
+
+要在技术上把合并留给本人，agent 的运行环境不能再访问主人的 token、SSH 密钥或已登录浏览器。可选做法是给 agent 独立身份，只向它自己的 fork 推送、向主仓库提 PR，不授予主仓库 Contents 写权限；主人的合并凭据留在人自己的环境。若 agent 必须推主仓库的工作分支，则还需用分支规则限制该独立身份更新 main，不能仅凭“低权限 token”就宣称它无法合并。部署后分别以 agent 身份验证能提 PR、不能更新 main 或合并，再以主人身份验证能在检查通过后合并。
 
 ### 版本 tag 和 Release
 

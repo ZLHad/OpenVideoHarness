@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**Introduce each pull request before asking to accept it**
+- Why: a maintainer can overlook an outside contribution in a batch approval and later be surprised by the automatic merge.
+- CLAUDE.md and CONTRIBUTING require an individual handoff: author, purpose, effects, new dependencies or permissions, validation and a recommendation. A local preference for merging personally stops the agent at the draft PR; old batch approvals do not cover new PRs.
+- CONTRIBUTING distinguishes this agreement from credential isolation: removing Administration alone does not prevent a token with Contents write access from merging. It describes a separate agent identity and fork workflow instead.
+
 ## v0.4.0 — 2026-11-07
 
 The first release since v0.2.1: five weeks and 185 commits, most of them asked for by real films. OpenVideoHarness now brings real material into a film, holds up on long ones, and tells an agent or a program where things stand. The work planned as v0.3 ships here too, so there is no v0.3.0.
