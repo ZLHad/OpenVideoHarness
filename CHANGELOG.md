@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+**A HyperFrames film reads 7,500 characters less before it starts**
+- Why: every HyperFrames film's reading list holds `engines/README.md`'s HyperFrames section, 21,202 characters, and three of its parts serve some films only: 4K output, text drawn into a canvas, and the record of the 0.8.82 → 0.8.202 upgrade. A clean-install walkthrough (11-07) counted about 65,000 characters before a quick short could start.
+- Those three are sections of their own now, after HyperFrames, their text unchanged; the section a film reads is 13,636 characters (a quick short, by `tools/readpath.py`: 57,508 → 50,035). "最小写法" points to the canvas and 4K ones, and `bin/vh status` adds "出 4K" to the reading of a film whose Resolution has 4k.
+- This narrows a must-read (CONTRIBUTING, 改文档): nothing in the moved text changed, and a film that needs it is still sent to it.
+
 **An install without the reference repos says how to fetch the one a doc points to**
 - Why: after `install.sh --no-refs`, type docs and `engines/README.md` still point into `references/repos/…`, which is not there, and nothing said what to do (`video-types/02-knowledge-short.md` sends a silent short there first).
 - CLAUDE.md (and AGENTS.md), the installer's last lines and `bin/vh doctor` now say it: `bash references/fetch.sh <dir>` fetches the one repo a path names.

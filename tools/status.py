@@ -79,12 +79,13 @@ R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS, R_PITFALLS = (f"playbook/02-verification.
 R_SCORES, R_LAYERS, R_QUICK = "templates/TASTE_CHECKLIST.md#打分层", "playbook/02-verification.md#七层检查", "playbook/quick.md"
 R_NARRATIVE, R_SOUND, R_HF, R_MANIM = "playbook/09-narrative.md#5. 长片", "playbook/04-audio.md#常用命令", "engines/README.md#HyperFrames", "engines/README.md#Manim CE"
 R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING = "engines/canvas-film/README.md", "engines/ClaudeAnimationBase/ANIMATION_GUIDE.md", "engines/EDIT.md", "engines/editing.md"
+R_4K = "engines/README.md#出 4K"   # read only for a film delivered in 4K (the BRIEF's Resolution)
 TYPE_ENGINE = {"01": "manim", "06": "manim", "02": "hf", "03": "hf", "05": "hf", "08": "hf", "09": "hf", "04": "p5", "07": "p5", "10": "canvas", "11": "canvas"}
 # what a Director line can keep for the person (x=own), and the stop where playbook/01's 导演模式 table first has each
 OWN_STOP = {"concept": "1", "spec": "1", "outline": "1", "style": "1", "hook": "1", "character": "E0", "theme": "E0", "voice": "E1", "script": "E1",
             "storyboard": "2", "rhythm": "2", "packaging": "3"}
 READS = (R_PAGE, R_DESK, R_RECORD, R_DIRECTOR, R_ANIMATIC, R_LONG, R_LOOKDEV, R_ROLES, R_IDEAS, R_CARDS, R_FRAMES, R_PHONE, R_SILENT, R_BUDGET, R_PURE, R_COLOUR, R_AUDIO_QA, R_FACTS,
-         R_PITFALLS, R_SCORES, R_LAYERS, R_QUICK, R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING)
+         R_PITFALLS, R_SCORES, R_LAYERS, R_QUICK, R_NARRATIVE, R_SOUND, R_HF, R_MANIM, R_CANVAS, R_HANDDRAWN, R_EDIT, R_EDITING, R_4K)
 
 
 def rel(project, p):
@@ -445,7 +446,8 @@ def engine_docs(project, proj):
     """What to read for this project's engine at the first picture: its section or guide, and the edit list's where it goes through one."""
     kind = (proj["type"] or "")[:2]
     doc = {"canvas": R_CANVAS, "hf": R_HF, "p5": R_HANDDRAWN, "manim": R_MANIM}.get(engine_here(project, proj))
-    return [doc, R_EDITING if kind == "09" else None, R_EDIT if kind == "11" or (project / "edit.json").is_file() else None]
+    k4 = re.search(r"4k|2160p|uhd", (proj["spec"].get("Resolution") or "").lower())
+    return [doc, R_EDITING if kind == "09" else None, R_EDIT if kind == "11" or (project / "edit.json").is_file() else None, R_4K if k4 else None]
 
 
 def film_state(project, by_video):
