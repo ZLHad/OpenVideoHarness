@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+**`tools/audio/test_mixstate.py` passes under any umask**
+- Why: it set its umask after building the mix, so under umask 0002 the mix and its record were 664 where it expects 644. The test's fault, not the tool's: outputs follow the umask as they should.
+
 **`bin/vh style <slug>` leaves an end line**
 - Why: it exec'd into `styles/_swatch/render.sh`, which writes none, so a run in a project read as gone once it had finished, and one that failed left no exit status.
 - `bin/vh` now waits on the renderer, as on `tts` or `deliver`: the end line has the renderer's exit, a Ctrl-C still stops the renderer and its browsers, and `bin/vh cancel` stops it as any command under bash.

@@ -207,9 +207,9 @@ class MixBuildTests(unittest.TestCase):
                 pass
 
     def test_muxes_share_the_audio_and_outputs_follow_the_umask(self):
-        self.build()
-        old = os.umask(0o022)
+        old = os.umask(0o022)   # before the build: the mix and its record are made under it too
         self.addCleanup(os.umask, old)
+        self.build()
         with verified(self.mix):   # a mux in progress: another mux may read the mix, a mix may not write it
             self.assertEqual(self.mux().returncode, 0)
             with self.assertRaises(InvalidMix):
