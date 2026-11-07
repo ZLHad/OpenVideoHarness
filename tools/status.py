@@ -439,7 +439,8 @@ def hf_chrome_note(project, proj):
             return ""
     except OSError:
         return ""
-    return " (HyperFrames' first snapshot or render downloads its Chrome first: about 200 MB into ~/.cache/hyperframes, a minute or two with nothing shown)"
+    return (" (HyperFrames' first snapshot or render downloads its Chrome first, about 200 MB into ~/.cache/hyperframes, with nothing"
+            " shown; npx hyperframes browser ensure fetches it beforehand and shows the download)")
 
 
 def engine_docs(project, proj):

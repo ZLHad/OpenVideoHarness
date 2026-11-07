@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+**The READMEs' sizes say what they count**
+- Why: "about 650 MB on disk" and "197 MB on disk" read as two answers to one question (a clean-install walkthrough, 11-07): one was the whole install, the other the repo alone, and neither said what the first render and the sound tools add.
+- Now: about 650 MB with the reference repos and about 380 MB without; the repo itself about 200 MB; then Chrome about 200 MB, Python packages up to about 1.5 GB and the default voice's model about 2 GB on first use (measured from a fresh home folder, 11-08).
+
+**Linux: what to set up before the first film, said where it is needed**
+- Why: a walkthrough on Ubuntu 24.04 (arm64, in Docker, 11-08) installed and rendered only after three things nothing mentioned. On arm64, HyperFrames has no Chrome of its own and apt-installs Ubuntu's `chromium-browser`, a snap stub that cannot run: the render says `Target closed`, while `browser ensure` says it is ready. A bare system lacks Chrome's `libnss3` and `libnspr4`. With no Chinese font, Chinese text draws as boxes, with no warning.
+- engines/README.md's HyperFrames notes give the three and their fixes: a chrome-headless-shell from puppeteer for `HYPERFRAMES_BROWSER_PATH`, running the browser with `--version` to name a missing library, and `fonts-noto-cjk`. The READMEs' limits point there.
+- On Linux, `bin/vh doctor` says whether a Chinese font is installed (`fc-list`), and `bin/vh new` warns when a HyperFrames project starts without one. Doctor's Chrome hints no longer send Ubuntu to `apt install chromium` alone, or promise arm64 a downloaded headless shell; the installer says it again on an arm64 machine with no browser.
+- x86_64 Linux is still untested.
+
 **The starter scores map their notes, so `bin/vh qa` tells a rest from a dropout**
 - Why: a film scored from `bin/vh music --example lofi` came back from `qa` with its rests counted as dropouts. `qa` knows a rest only in parts with `"note_map": true`, which playbook/04 asks for and the starter scores left out (a walkthrough of a narrated film, 11-08).
 - The parts examples (`--example jazz|waltz|chip|lofi|guqin|trap`) now set it on every part that plays notes, not on textures such as vinyl or rain, which `music` refuses it on. playbook/04 says so, and that `mix` takes no `events=` or `lib=` when there are no sound effects.
@@ -21,7 +31,7 @@
 
 **`bin/vh status` warns of HyperFrames' first Chrome download, and leaves nothing to fill after delivery**
 - Why: the first snapshot or render of a HyperFrames film downloads its own Chrome (about 200 MB) and shows nothing while it does, which reads as a hang; and after delivery, `status --json` still counted the template's blanks in BRIEF, STYLE and STORYBOARD as if something were left.
-- Until that Chrome is in `~/.cache/hyperframes` (or `HYPERFRAMES_BROWSER_PATH` names a browser), the next step says so beside the first render. A delivered film's `next_step.unfilled` is empty.
+- Until that Chrome is in `~/.cache/hyperframes` (or `HYPERFRAMES_BROWSER_PATH` names a browser), the next step says so beside the first render, and that `npx hyperframes browser ensure` fetches it beforehand with the download shown. A delivered film's `next_step.unfilled` is empty.
 
 **`bin/vh check` words its black, frozen and silent stretches**
 - Why: it printed ffmpeg's own lines (`lavfi.freezedetect.freeze_start: 1.966667`), and a stretch that ran to the end had no line for its end.
