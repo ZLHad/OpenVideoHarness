@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+**The starter scores map their notes, so `bin/vh qa` tells a rest from a dropout**
+- Why: a film scored from `bin/vh music --example lofi` came back from `qa` with its rests counted as dropouts. `qa` knows a rest only in parts with `"note_map": true`, which playbook/04 asks for and the starter scores left out (a walkthrough of a narrated film, 11-08).
+- The parts examples (`--example jazz|waltz|chip|lofi|guqin|trap`) now set it on every part that plays notes, not on textures such as vinyl or rain, which `music` refuses it on. playbook/04 says so, and that `mix` takes no `events=` or `lib=` when there are no sound effects.
+
+**`bin/vh readcheck` says what to give it when handed a film**
+- Why: given `out/draft.mp4`, it read the video as a list of texts and stopped on `'utf-8' codec can't decode byte 0xca`; the quick card said to run it with no argument (the same walkthrough).
+- A film or a sound now gets a line naming what readcheck reads: the project (its captions, else its index.html), a composition .html or a texts.json. The quick card writes `bin/vh readcheck <项目>`.
+
 **A HyperFrames film reads 7,500 characters less before it starts**
 - Why: every HyperFrames film's reading list holds `engines/README.md`'s HyperFrames section, 21,202 characters, and three of its parts serve some films only: 4K output, text drawn into a canvas, and the record of the 0.8.82 → 0.8.202 upgrade. A clean-install walkthrough (11-07) counted about 65,000 characters before a quick short could start.
 - Those three are sections of their own now, after HyperFrames, their text unchanged; the section a film reads is 13,636 characters (a quick short, by `tools/readpath.py`: 57,508 → 50,035). "最小写法" points to the canvas and 4K ones, and `bin/vh status` adds "出 4K" to the reading of a film whose Resolution has 4k.

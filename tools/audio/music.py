@@ -1625,7 +1625,11 @@ def main():
             return
         if name in ("", "zh"): print(json.dumps(EXAMPLE_ZH if name == "zh" else EXAMPLE, indent=2)); return
         if name not in EXAMPLES: usage_error(f"music: no example {name!r} (--example list names them)")
-        print(compact(EXAMPLES[name][1])); return
+        score = json.loads(json.dumps(EXAMPLES[name][1]))   # each part that plays notes maps them, so qa tells a rest from a dropout
+        for p in score["parts"]:
+            if ins.INSTR[p["inst"]].kind != "texture":
+                p.setdefault("note_map", True)
+        print(compact(score)); return
     if len(sys.argv) > 1 and sys.argv[1] == "--instruments":
         for name, spec in ins.INSTR.items():
             doc = spec.about
