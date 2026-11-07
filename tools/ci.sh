@@ -7663,6 +7663,8 @@ sys.exit(0 if ok else 1)' "$b"
   else bad "bin/vh artifacts spec and usage errors ($rc, $rc2, $rc3): $(printf '%s' "$c $d" | tail -c 300)"; fi
   # list on a new project, read-only: every file there the same bytes after it, and no line in the activity log
   p=$(vh new math art --dir "$t" 2>&1 | sed -n 's/.*created //p' | head -1); p="$t/$(basename "$p")"
+  # its rate as a BRIEF from before bin/vh new filled it (a cut's, type 09, still keeps it): the blank tools rely on, said here and required once gate ① is reached
+  python3 -c 'import sys; f = sys.argv[1] + "/BRIEF.md"; s = open(f, encoding="utf-8").read(); open(f, "w", encoding="utf-8").write(s.replace("- Output: 1920x1080, 30 fps,", "- Output: 1920x1080, {fps} fps,", 1))' "$p"
   q=$(cat <<'PY'
 import hashlib, os, sys
 for d, _, fs in sorted(os.walk(sys.argv[1])):
