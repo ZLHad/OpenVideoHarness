@@ -3,17 +3,20 @@
 import fs from "node:fs";
 import dns from "node:dns/promises";
 import net from "node:net";
-import { launchTab } from "../textcheck/browser.mjs";
+import { BrowserGone, launchTab } from "../textcheck/browser.mjs";
 
 const opt = JSON.parse(fs.readFileSync(0, "utf8"));
 const warnings = [];
-let browser, timer;
+let browser, timer, stage = "checking the URL";
 const fail = (message) => { console.error(`web: ${message}`); process.exit(1); };
 // Startup and tab recovery need their own allowance: launchTab retries a Mac Chrome that never answers as its tab
 // comes up (30 s plus cleanup a try). --timeout below still caps navigation, not those existing recovery attempts.
-const budget = opt.timeout + (opt.wait ?? 5) * 2 + 120;
-timer = setTimeout(() => fail(`Chrome did not finish within ${budget} s, including startup/recovery`), budget * 1000);
+const budget = opt.timeout * 2 + (opt.wait ?? 5) * 4 + 120;
+timer = setTimeout(() => fail(`Chrome did not finish within ${budget} s (${stage}, including startup/recovery)`), budget * 1000);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+class CommandTimeout extends Error {
+  constructor(method) { super(`CDP ${method} did not answer within --timeout ${opt.timeout} s`); }
+}
 function privateIP(value) {
   const ip = value.toLowerCase().replace(/^\[|\]$/g, "");
   if (ip.startsWith("::ffff:")) {
@@ -44,11 +47,22 @@ async function allowed(url) {
   return allowedHosts.get(host);
 }
 
-try {
+async function captureOnce() {
   if (!await allowed(opt.url)) throw new Error("private/local address blocked (only a local test: --allow-private-network)");
-  ({ browser, sessionId: opt.session } = await launchTab(opt.browser, ["--disable-background-networking"], ["Page", "Runtime", "Network", "Fetch"]));
+  stage = "starting Chrome and opening a tab";
+  // The throwaway profile has nothing worth keeping in the keychain, and touching the real login
+  // keychain can pop system dialogs (on macOS a missing one even offers to reset it). Mock it: the
+  // profile is discarded anyway, so its cookies only need a key for this one capture.
+  ({ browser, sessionId: opt.session } = await launchTab(opt.browser, ["--disable-background-networking", "--use-mock-keychain"], ["Page", "Runtime", "Network"]));
+  const current = browser;
   const session = opt.session;
-  const send = (method, params = {}) => browser.send(method, params, session);
+  const send = (method, params = {}) => {
+    if (!/^Fetch\.(continue|fail)Request$/.test(method)) stage = method;
+    let deadline;
+    return Promise.race([current.send(method, params, session), new Promise((_, reject) => {
+      deadline = setTimeout(() => reject(new CommandTimeout(method)), opt.timeout * 1000);
+    })]).finally(() => clearTimeout(deadline));
+  };
   const evaluate = async (expression) => {
     const r = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
     if (r.exceptionDetails) throw new Error(r.exceptionDetails.text || "the page could not be read");
@@ -56,7 +70,7 @@ try {
   };
   // Check HTTP(S) requests paused in this page's CDP session, including redirects and subresources. WebSocket,
   // WebRTC, other targets and DNS rebinding are not contained: this host/DNS guard is not an OS egress firewall.
-  browser.on("Fetch.requestPaused", (p) => {
+  current.on("Fetch.requestPaused", (p) => {
     void (async () => {
       let permit = false;
       try { permit = await allowed(p.request.url); } catch { /* unresolved or unsupported URL */ }
@@ -71,16 +85,21 @@ try {
   await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
   const frame = (await send("Page.getFrameTree")).frameTree.frame.id;
   let status = null;
-  browser.on("Network.responseReceived", (p) => {
+  current.on("Network.responseReceived", (p) => {
     if (p.frameId === frame && p.type === "Document") status = p.response.status;
   });
-  const loaded = browser.once("Page.loadEventFired", session);
+  const loaded = current.once("Page.loadEventFired", session);
   loaded.catch(() => {});   // a failed navigation is reported below; closing the tab also rejects this pending wait
-  const nav = await send("Page.navigate", { url: opt.url });
-  if (nav.errorText) throw new Error(`the page could not be opened: ${nav.errorText}`);
   let loadTimer;
   try {
-    await Promise.race([loaded, new Promise((_, reject) => {
+    // The page-load deadline includes Page.navigate itself, rather than starting only after CDP answers it.
+    const navigation = (async () => {
+      const nav = await send("Page.navigate", { url: opt.url });
+      if (nav.errorText) throw new Error(`the page could not be opened: ${nav.errorText}`);
+      stage = "waiting for page load";
+      await loaded;
+    })();
+    await Promise.race([navigation, new Promise((_, reject) => {
       loadTimer = setTimeout(() => reject(new Error(`page load exceeded --timeout ${opt.timeout} s`)), opt.timeout * 1000);
     })]);
   } finally { clearTimeout(loadTimer); }
@@ -123,8 +142,29 @@ try {
     fs.writeFileSync(opt.shot, Buffer.from(png.data, "base64"));
   }
   if (status !== null && status >= 400) warnings.push(`HTTP ${status}: inspect the saved page before citing it`);
-  process.stdout.write(JSON.stringify({ body: page[opt.dump], final_url: page.final_url, title: page.title,
-    status, browser: browser.version, warnings }));
+  return { body: page[opt.dump], final_url: page.final_url, title: page.title,
+    status, browser: current.version, warnings };
+}
+
+try {
+  const recovered = [];
+  for (let attempt = 1; ; attempt++) {
+    warnings.length = 0;
+    try {
+      const result = await captureOnce();
+      process.stdout.write(JSON.stringify({ ...result, attempts: attempt, warnings: [...recovered, ...warnings] }));
+      break;
+    } catch (e) {
+      if (browser) await browser.close();
+      browser = undefined;
+      // A stalled/crashed CDP connection needs a new process. A slow or invalid page is reported without retrying it.
+      if (attempt < 2 && (e instanceof CommandTimeout || e instanceof BrowserGone)) {
+        recovered.push(`Chrome stopped answering (${e.message}); restarted once`);
+        continue;
+      }
+      throw e;
+    }
+  }
 } catch (e) {
   console.error(`web: ${e.message}`);
   process.exitCode = 1;

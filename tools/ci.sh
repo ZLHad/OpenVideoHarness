@@ -5091,6 +5091,8 @@ web_checks() {   # Chrome on a local synthetic page, then explicit Obscura with 
   # failed page that leaves nothing, usage errors; install from a made-up release (--from, --offline), its size and
   # sha256 checked, an unpinned asset only with --accept-unpinned, an obscura that is not its own left alone
   local t p q a b c d e rc rc2 rc3 rc4 o
+  a=$(python3 tools/web/test_protocol.py 2>&1); rc=$?
+  if [ "$rc" = 0 ]; then ok "$a"; else bad "Chrome CDP deadlines/recovery (exit $rc): $(printf '%s' "$a" | tail -c 1200)"; fi
   a=$(VH_BASH="$VH_BASH" python3 tools/web/test_chrome.py "$ROOT/bin/vh" 2>&1); rc=$?
   case "$rc" in
     0) ok "$a" ;;

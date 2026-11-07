@@ -115,7 +115,16 @@ def browser_env(home):
     # Node options, provider keys, GitHub tokens and authentication helpers are deliberately not inherited.
     names = ("PATH", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "LC_CTYPE", "SYSTEMROOT", "WINDIR", "DISPLAY", "WAYLAND_DISPLAY")
     env = {k: os.environ[k] for k in names if k in os.environ}
-    env.update(HOME=home, USERPROFILE=home, XDG_CONFIG_HOME=str(Path(home) / "config"), XDG_CACHE_HOME=str(Path(home) / "cache"))
+    env.update(XDG_CONFIG_HOME=str(Path(home) / "config"), XDG_CACHE_HOME=str(Path(home) / "cache"))
+    # The isolation boundary is the throwaway --user-data-dir, not $HOME. On macOS the Security
+    # framework resolves ~/Library/Keychains from $HOME itself; a fake HOME makes Chrome's
+    # SecItemAdd fail with -25307 (errSecNoDefaultKeychain) and macOS then offers to reset the
+    # login keychain, which would touch the real one. Keep the real HOME there.
+    if sys.platform == "darwin":
+        env["HOME"] = os.environ.get("HOME") or str(Path.home())
+        env["USERPROFILE"] = env["HOME"]
+    else:
+        env.update(HOME=home, USERPROFILE=home)
     return env
 
 
@@ -233,7 +242,7 @@ def run_chrome(exe, a, dump, shot):
     config = {"browser": exe, "url": a.url, "dump": dump, "shot": str(shot) if shot else None,
               "timeout": a.timeout, "wait": a.wait, "selector": getattr(a, "selector", None),
               "allowPrivate": a.allow_private_network}
-    budget = a.timeout + (a.wait if a.wait is not None else 5) * 2 + 130   # CDP startup/tab recovery, then cleanup
+    budget = a.timeout * 2 + (a.wait if a.wait is not None else 5) * 4 + 130   # one restart, startup/tab recovery, cleanup
     try:
         with tempfile.TemporaryDirectory(prefix="vh-web-home-") as home:
             with subprocess.Popen([node, str(HERE / "chrome.mjs")], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -363,7 +372,7 @@ def capture(a, kind):
            "final_url": final, "dump": dump, "files": files, "title": title, "chars": visible(text),
            "why": a.why, "obscura": obscura, "warnings": warn,
            "provider": a.provider, "browser": info.get("browser") or f"Obscura {obscura or '?'}",
-           "status": info.get("status")}
+           "status": info.get("status"), "attempts": info.get("attempts", 1)}
     keep(proj, rec)
     rel = f"{FOLDER.as_posix()}/{cid}/{page.name}"
     say(f"✓ {cid}: {rec['chars']} characters of {dump}" + (" and shot.png" if kind == "shot" else "") + f" → {rel}"
