@@ -175,7 +175,7 @@ def main():
                 want = " or ".join(f"{w}x{h}" for w, h in sizes)
                 extra = " (a 4K delivery: Resolution: 1080p, 4k)" if (W, H) == (cw * 2, ch * 2) else ""
                 fails.append(f"frame {W}x{H}, the BRIEF's deliveries are {want}{extra}")
-        elif not re.search(r"\{", o):
+        elif not blanks:   # a blank in its place is said above; a {frames} after an exact length is none, nor is a {60–90}s range
             warns.append("the Output line gives no frame size")
         mfps = re.search(r"(?:(\d+(?:\.\d+)?)\s*[–-]\s*)?(\d+(?:\.\d+)?)\s*fps", o, re.I)
         lo = float(mfps.group(1)) if mfps and mfps.group(1) else None
@@ -188,7 +188,7 @@ def main():
             want = float(mfps.group(2))
             if abs(fps - want) > want * 5e-4:
                 fails.append(f"{fps:.3f} fps, the BRIEF says {mfps.group(2)}")
-        elif not re.search(r"\{", o):
+        elif not blanks:
             warns.append("the Output line gives no frame rate")
         clause = lambda i: re.split(r"[,，;；]|exactly", o[:i])[-1]   # since the clause began; a bracket explains the figure before it
         approx = lambda mm: bool(APPROX.search(clause(mm.start())) or re.match(r"\s*左右", o[mm.end():]))

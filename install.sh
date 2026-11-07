@@ -81,4 +81,4 @@ cat <<MSG
          into ~/.cache; see "What gets downloaded" on the wiki's Getting Started page
 MSG
 [ "$REFS" = 1 ] || echo "  Refs:  not fetched (--no-refs). Where a doc points into references/repos/<dir>/, bash references/fetch.sh <dir> fetches that one"
-[ -z "$arm" ] || echo "  ! Linux arm64: no browser yet, and HyperFrames has none of its own here; set one up before the first render (engines/README.md, the HyperFrames notes)"
+[ -z "$arm" ] || echo "  ! Linux arm64: no browser yet, and HyperFrames has none of its own here; set one up before the first render (engines/README.md, \"Linux：渲染前要先备好的三样\")"

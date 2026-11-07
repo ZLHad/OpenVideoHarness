@@ -372,10 +372,24 @@ def probe(m, offline, recs):
     return {"state": "ok", "note": ", ".join(said)}
 
 
+def snap_stub(path):
+    """Ubuntu's chromium-browser with no chromium snap behind it: a script that only says to install the snap, which cannot run
+    where there is no snapd (Docker, many servers). HyperFrames installs it on Linux arm64 (engines/README.md, Linux)."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(4096)
+    except OSError:
+        return False
+    return head.startswith(b"#!") and b"snap" in head and not os.path.exists("/snap/bin/chromium")
+
+
 def repo_checks(webgl, found_by):
     """A browser for the page tools, WebGL, the reference repos, LOCAL.md and AGENTS.md: [{name, state, note}]."""
     out = []
-    if found_by.get("hf-chrome") or found_by.get("chrome"):
+    if found_by.get("chrome") and not found_by.get("hf-chrome") and snap_stub(found_by["chrome"]):
+        out.append({"name": "browser", "state": "missing", "note": f"{found_by['chrome']} is Ubuntu's stub for the Chromium snap, which does not run "
+                    "without snapd: apt purge chromium-browser, then a chrome-headless-shell (engines/README.md, Linux：渲染前要先备好的三样)"})
+    elif found_by.get("hf-chrome") or found_by.get("chrome"):
         out.append({"name": "browser", "state": "ok", "note": "the page tools draw with " + ("chrome-headless-shell" if found_by.get("hf-chrome") else "Chrome")})
     else:
         out.append({"name": "browser", "state": "missing", "note": "neither Chrome nor chrome-headless-shell: frames, render, textcheck and the other page tools need one (set CHROME_PATH, or see chrome above)"})

@@ -46,7 +46,7 @@ bin/vh doctor projects/<date>-<slug>              # 项目里的引擎副本和�
 
 ## HyperFrames（HTML + GSAP）
 
-要求 Node ≥ 22 和 FFmpeg。**版本固定在 0.8.202**（2026-10-26 从 0.8.82 升上来，查了什么、变了什么见下面"升级核对"；`bin/vh` 默认使用。想试新版，就设 `HYPERFRAMES_VERSION=<版本>`，照"升级核对"那几项跑一遍，再把默认版本改上去：`bin/vh`、`styles/_swatch/package.json` 和 `tools/modules.json` 三处一起改，CI 会对）。**`bin/vh new short|promo|data|meme <slug>` 会自动初始化**，也可以对已有项目单独运行 `bin/vh hf-init <项目目录> [landscape|portrait|square]`。
+要求 Node ≥ 22 和 FFmpeg。**版本固定在 0.8.202**（2026-10-26 从 0.8.82 升上来，查了什么、变了什么见下面"升级核对"；`bin/vh` 默认使用。想试新版，就设 `HYPERFRAMES_VERSION=<版本>`，照"升级核对"那几项跑一遍，再把默认版本改上去：`bin/vh`、`styles/_swatch/package.json` 和 `tools/modules.json` 三处一起改，CI 会对）。**`bin/vh new short|promo|data|meme <slug>` 会自动初始化**，也可以对已有项目单独运行 `bin/vh hf-init <项目目录> [landscape|portrait|square]`。在 Linux 上第一次渲染之前，先看下面的"Linux：渲染前要先备好的三样"。
 
 > ⚠️ HyperFrames 0.8.x 的 `init` 和 `skills update` 会把 skills 装进**全局**的 `~/.claude/skills` 和 `~/.agents/skills`。0.8.82 的 `--skip-skills` 参数不生效；0.8.202 的代码认它，帮助里却仍写着"暂时忽略"，所以照旧用环境变量 `HYPERFRAMES_SKIP_SKILLS=1` 跳过。`bin/vh hf-init` 已经设置了这个变量，并且只把工程文件拷进项目，不拷它生成的 CLAUDE.md 和 AGENTS.md，避免和本仓库的路由冲突。自己手动运行 npx 时，也要带上这个变量：
 
@@ -105,10 +105,6 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
 - **0.8.202 会自己更新。** 它在后台去 npm 查有没有新版，是全局安装（`npm -g`、bun、pnpm、Homebrew）时就自己装上，钉的版本被悄悄换掉；项目里本地装的、`npx` 跑的不会（它认得出来，跳过）。`bin/vh` 调它时都设了 `HYPERFRAMES_NO_UPDATE_CHECK=1`；自己在终端用的，照上面那一行 export。
 - **`snapshot` 一律带 `--describe false`。** 0.8.82 在环境里有 `GEMINI_API_KEY`（或 `GOOGLE_API_KEY`）时，`snapshot` 默认把每一帧发给 Gemini 做画面描述，结果写进 `snapshots/descriptions.md`：画面离开本机，还要按 Gemini 计费。本仓库的 `bin/vh tts … --align gemini` 也要这个 key，所以 key 多半是设了的。`--describe false` 和 `--describe=false` 都能关掉；没设 key 时它只打一行 "skipping"。`check` 不受影响。0.8.202 改成默认不发，`--describe false` 仍然读作关；照旧写上，换回旧版本时也不会发。
 - **第一次 `render` 会下载 chrome-headless-shell，而且几乎没有提示。** 现象：在非交互的 shell 里（agent 就是这样跑的），终端只有 "Checking browser…" 在转圈，没有大小和百分比，下载期间一直是这一行，网慢时看上去就像卡死了。原因：`render` 用 HyperFrames 自己管理的 chrome-headless-shell（0.8.82 和 0.8.202 都固定为 152.0.7977.30，macOS 12 上是 150.0.7871.124），缓存里没有就先下载：约 100 MB，解压后约 200 MB，放在 `~/.cache/hyperframes/chrome`，所有项目共用。它先看 `HYPERFRAMES_BROWSER_PATH`（设了就用它指的那个），再看这个缓存里的固定版本，都没有就下载；装了 Google Chrome、`~/.cache/puppeteer` 里有别的版本，也一样下载。下完会打出 `Browser: download`，以后是 `Browser: cache`。解决：第一次渲染之前先跑 `npx hyperframes browser ensure`，它会写明在下什么、多大，下完打印路径；下不了，看 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)。
-- **Linux 上要先备好的三样**（2026-11-08 在 Docker 里的 Ubuntu 24.04 arm64 上实测，x86_64 没测）：
-  - **arm64 上的浏览器**：HyperFrames 固定的那一版没有 linux-arm64 的 chrome-headless-shell，它就自己用 apt 装系统的 Chromium。Ubuntu 的 `chromium-browser` 只是一个要 snapd 的空壳，Docker 和没有 snapd 的服务器上跑不起来：渲染报 `Target closed`，`browser ensure` 却说已经就绪。办法是 `apt purge chromium-browser`，再用 `npx @puppeteer/browsers install chrome-headless-shell` 下一份 linux-arm64 的（那次是 159 版，比固定的 152 新，字的排布可能有细微差别），把 `HYPERFRAMES_BROWSER_PATH` 指向它。
-  - **Chrome 要的系统库**：报 `Target closed` 时，直接运行那个浏览器文件（`--version`），它会说缺哪个 `.so`。那台机器装过 ffmpeg 以后，只缺 `libnss3` 和 `libnspr4`。
-  - **中文字体**：裸系统没有，中文会画成方框，lint 和渲染都不报。`apt install fonts-noto-cjk`；`bin/vh doctor` 和 `bin/vh new` 在 Linux 上没有中文字体时会提醒，`bin/vh fonts check <项目>` 逐字查。
 - **`snapshot` 和 `render` 用的可能不是同一个 Chrome（0.8.202 已修）。** 0.8.202 的 `snapshot`、`check` 等也先用 HyperFrames 自己缓存里的固定版本（实测 `npx hyperframes browser path` 从 0.8.82 的 150.0.7871.24 变成 152.0.7977.30），下面这段只对旧版本成立。0.8.82 的 `snapshot`、`check`、`validate`、`layout`、`compare` 找浏览器的顺序和 `render` 不一样：`HYPERFRAMES_BROWSER_PATH`，然后 `~/.cache/puppeteer/chrome-headless-shell` 里最新的版本，再是上面那个固定版本，再是系统的 Chrome，都没有才下载。所以 `~/.cache/puppeteer` 里有 chrome-headless-shell 的机器上，快照和成片出自两个版本（实测一台 Mac 上 `snapshot` 用 150.0.7871.24，`render` 用 152.0.7977.30），字的排布会有细微差别。要让快照、成片、`bin/vh textcheck` 和别的机器上的结果可比，把 `HYPERFRAMES_BROWSER_PATH` 设成同一个 chrome-headless-shell 的路径（`npx hyperframes browser ensure` 下完打印的那个），这几样都认它；只固定 textcheck 就设 `CHROME_PATH`。
 - **`font-weight: 800` 在 macOS 自带的 PingFang SC 上等于 600。** 现象：字幕规格写了字重 800，渲出来却不够粗，也没有报错。原因：PingFang SC 只有 6 个字重，从 Ultralight 到 Semibold（CSS 的 100–600），没有 Bold 和 Heavy；请求 700、800、900 都落到 600，实测渲出的字和 600 逐像素相同，浏览器也不会再合成粗体。解决：用 PingFang SC 就写 600，并在 STYLE.md 里记下；真要 800，自己带一个有这个字重的字体（Noto Sans SC 等，不联网的取法见 wiki 的[国内网络](https://github.com/ZLHad/OpenVideoHarness/wiki/%E5%9B%BD%E5%86%85%E7%BD%91%E7%BB%9C)），或者换一个有更粗字重的系统字体（比如 Songti SC 有 900，`styles/_swatch/README.md` 的字体表列了各字体实测可用的字重）。
 - **`--format png-sequence` 写出的是 RGBA，而且不画 `html`、`body` 的背景。** 那些地方 alpha = 0，元素自己的底色会留下。0.8.82 连合成根元素（带 `data-composition-id` 的那个）上的 `background` 也不画；0.8.202 画它，根元素有不透明的底色时整帧不透明，PNG 就成了不带 alpha 的 RGB（2026-10-26 用 html、body、根元素三种写法各测一遍）。做确定性检查时要留意，细节和比对办法见 `playbook/02-verification.md` 的"确定性"一节。
@@ -153,6 +149,14 @@ HYPERFRAMES_RENDER_DETACHED=1 nohup caffeinate -i npx hyperframes render --quali
   - **Hermite 路径在"快甩、慢推"的站点会冲过头。** 关键帧的切线默认由前后两个邻居估出来，甩镜到站时，站点的切线带着甩镜的速度，镜头会冲进字里（介绍片的架构站把节点标签推出了画面）。给关键帧加一个切线模式：到站的关键帧用 `tm: "f"`，切线只取后面那段慢推；离站的关键帧用 `tm: "b"`，只取前面那段慢推。两站之间的甩镜就成了一条干净的 S 曲线。
   - **世界里的节点标签按屏幕像素定字号**，不要按画面宽度的比例缩放，否则长标签的中文会掉到 20 多 px。介绍片的 `pin()` 每帧把节点投影到屏幕，用 `2·d·tan(fov/2) / 1080` 算出这个深度上 1 px 对应的世界长度（d 是节点沿视线方向的深度，fov 是竖直视场角），据此缩放面向镜头的标签平面，字号就固定了（英文 54–56 px，中文 ≥ 46 px）。另外两件事：标签框夹在安全框里；节点出画、或者标签被推离节点太远时就淡出，否则镜头离开后，标签会在画面边上堆成一摞。
   - **变拍只改一个 `bar(k)`。** 画面、事件表、字幕、HUD 都从同一个 `bar(k, beat)` 取时间，不手写秒数。介绍片把第 11 小节改成 6/4 时，画面这边只在 `bar()` 里给第 12 小节以后统一加 2 拍，HUD 改用按真实拍号换算的 `barBeat()`；作曲那边在 `score.json` 写 `"meters": {"11": 6}`（`bin/vh music` 现在也支持这个字段，beat map 会多出 `bars`）。其他秒数一个都不用手改。
+
+## Linux：渲染前要先备好的三样
+
+2026-11-08 在 Docker 里的 Ubuntu 24.04 arm64 上实测，x86_64 没测。
+
+- **arm64 上的浏览器**：HyperFrames 固定的那一版没有 linux-arm64 的 chrome-headless-shell，它就自己用 apt 装系统的 Chromium。Ubuntu 的 `chromium-browser` 只是一个要 snapd 的空壳，Docker 和没有 snapd 的服务器上跑不起来：渲染报 `Target closed`，`browser ensure` 却说已经就绪。办法：先 `apt purge chromium-browser`，再 `npx @puppeteer/browsers install chrome-headless-shell --path ~/.cache/puppeteer` 下一份 linux-arm64 的（那次是 159 版，比固定的 152 新，字的排布可能有细微差别），然后把 `HYPERFRAMES_BROWSER_PATH` 指向里面的 `chrome-headless-shell`。`bin/vh` 的页面工具也会在 `~/.cache/puppeteer` 里找到它。
+- **Chrome 要的系统库**：报 `Target closed` 时，直接运行那个浏览器文件（`--version`），它会说缺哪个 `.so`。那台机器装过 ffmpeg 以后，只缺 `libnss3` 和 `libnspr4`。上面那条命令的 `--install-deps`（要 root）说能顺带装好这些库，没试过。
+- **中文字体**：裸系统没有，中文会画成方框，lint 和渲染都不报。装 `fonts-noto-cjk`。`bin/vh doctor` 在 Linux 上会说有没有中文字体；`bin/vh new` 建 HyperFrames 项目时，`fc-list` 查不到中文字体也会提醒（没装 fontconfig 时它不说）；`bin/vh fonts check <项目>` 逐字查。
 
 ## 出 4K
 

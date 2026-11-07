@@ -352,7 +352,7 @@ Apart from the level, you can name what you want to decide yourself: the hook, t
 
 - **Cost.** Rendering, music and sound effects run locally and cost nothing. What costs money is the agent itself (a Claude Code or Codex subscription, or API usage), plus any cloud voice, generated picture, generated music or generated video you choose, billed by that provider. A paid call needs a budget (the brief's `Budget:`, or a default in `LOCAL.md`) and is held against it before it's made; keys are always read from environment variables.
 - **Time.** A 30-second film at the standard level takes about 1–2 hours, most of it checking and fixing.
-- **Limits.** The agent can't watch or listen, only read frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon); on Linux, a silent film has been made on Ubuntu 24.04 (arm64, in Docker), and the three things it needed first are in [engines/README.md](engines/README.md#hyperframeshtml--gsap). Realistic people need generated video. Type 09 (editing your own footage) is experimental and hasn't been tried on real footage yet.
+- **Limits.** The agent can't watch or listen, only read frames and audio measurements, so the last look and listen are yours. The full workflow has only been run on macOS (Apple Silicon); on Linux, a silent film has been made on Ubuntu 24.04 (arm64, in Docker), and the three things it needed first are in [engines/README.md](engines/README.md#linux渲染前要先备好的三样). Realistic people need generated video. Type 09 (editing your own footage) is experimental and hasn't been tried on real footage yet.
 
 ## Install options and updates
 

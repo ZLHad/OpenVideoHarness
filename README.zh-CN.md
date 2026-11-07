@@ -352,7 +352,7 @@ AI 听不见，所以声音尽量做成能计算、能测量的。
 
 - **成本**：渲染、配乐、音效都在本地跑，不花钱。要花的是 agent 本身（Claude Code 或 Codex 的订阅或 API 用量），以及你选用的云端配音、生成图、生成音乐、生成式视频，按各家收费。付费调用要有预算（Brief 的 `Budget:`，或者 `LOCAL.md` 里的默认预算），调用前先按预算占住；key 一律从环境变量读。
 - **时间**：30 秒的标准档片子大约 1–2 小时，大部分花在自查和返工上。
-- **限制**：agent 看不了视频、听不了声音，只能看渲染出的帧、读声音的数据，所以最后一关还是要你看、你听；目前只在 macOS（Apple Silicon）上完整跑过，Linux 上在 Ubuntu 24.04（arm64，Docker 里）做过一支无声片，事先要备好的三样见 [engines/README.md](engines/README.md#hyperframeshtml--gsap)；写实人物要靠生成式视频；第 09 类剪辑还在试验，没有用真实素材试过。
+- **限制**：agent 看不了视频、听不了声音，只能看渲染出的帧、读声音的数据，所以最后一关还是要你看、你听；目前只在 macOS（Apple Silicon）上完整跑过，Linux 上在 Ubuntu 24.04（arm64，Docker 里）做过一支无声片，事先要备好的三样见 [engines/README.md](engines/README.md#linux渲染前要先备好的三样)；写实人物要靠生成式视频；第 09 类剪辑还在试验，没有用真实素材试过。
 
 ## 安装、更新和国内网络
 

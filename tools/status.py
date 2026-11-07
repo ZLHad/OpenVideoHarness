@@ -50,7 +50,7 @@ one sentence, and stays).
 --json: every field (tools/desk/README.md, 给客户端的数据, has the schema; "version": 1). Exit 0, 2 when there is no project
 (with --json, the error's shape: tools/jsonerr.py).
 """
-import glob, json, os, re, shlex, sys, time
+import glob, json, os, platform, re, shlex, sys, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -58,7 +58,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE / "desk"))
 import activity, checkrec as C, gatecheck as G, identity, jsonerr, proxy as P, review as R, versions as V   # noqa: E402,E401
 import feedback as F, reader   # noqa: E402,E401
-from speccheck import output_blanks   # noqa: E402
+from speccheck import output_blanks, spec_line   # noqa: E402
 
 ORDER = ["1", "E0", "E1", "2", "E2", "E3", "E4", "3", "E5"]
 OUT_SKIP = {"versions", "proxy"}   # out/versions (listed from its record) and out/proxy: not renders; only directly in out/
@@ -318,7 +318,7 @@ def render_info(side):
 
 def unfilled(project):
     """{file: how many {…} are still in it}, comments and code aside (a stylesheet in a ``` block or between `…`); braces that hold
-    a value (NOT_BLANK) are no blanks."""
+    a value (NOT_BLANK) are no blanks, nor is the BRIEF Output line's {frames} after an exact length (speccheck.output_blanks)."""
     out = {}
     for name in ("BRIEF.md", "STYLE.md", "STORYBOARD.md"):
         f = project / name
@@ -327,6 +327,10 @@ def unfilled(project):
         secs = G.sections(reader.strip_comments(G.read(f)))
         lines = [t for t, _ in secs] + [x for _, ls in secs for x, code in ls if not code]
         n = sum(1 for x in lines for b in PLACEHOLDER.findall(re.sub(r"`[^`\n]*`", "", x)) if not NOT_BLANK.match(b[1:-1]))
+        if name == "BRIEF.md":   # a {frames} after an exact length is no blank, as bin/vh check has it: the count follows from the length
+            o = spec_line(G.read(f), "Output") or ""
+            if "{frames}" in o and "{frames}" not in output_blanks(o):
+                n -= o.count("{frames}")
         if n:
             out[name] = n
     return out
@@ -429,25 +433,30 @@ def render_cmd(project, proj, final):
 
 def hf_chrome_note(project, proj):
     """HyperFrames' first snapshot or render downloads its own Chrome (chrome-headless-shell, about 200 MB, into
-    ~/.cache/hyperframes, which it finds from the home folder) and shows nothing while it does: the words that say so, or ""
-    once it is there, with a browser of one's own (HYPERFRAMES_BROWSER_PATH), and for the other engines."""
-    if engine_here(project, proj) != "hf" or os.environ.get("HYPERFRAMES_BROWSER_PATH"):
+    ~/.cache/hyperframes, which it finds from the home folder) and shows nothing while it does: the words that say so, or "" once a
+    version's folder there holds the browser (as bin/vh's hf_chrome takes it: an interrupted download leaves an empty one), with
+    a browser of one's own (HYPERFRAMES_BROWSER_PATH, PRODUCER_HEADLESS_SHELL_PATH), on Linux arm64 (it has none to download there:
+    bin/vh doctor and install.sh say what to do), and for the other engines."""
+    if engine_here(project, proj) != "hf" or (sys.platform.startswith("linux") and platform.machine().lower() in ("aarch64", "arm64")):
         return ""
-    d = Path.home() / ".cache" / "hyperframes" / "chrome"
+    if any(os.access(p, os.X_OK) for p in (os.environ.get("HYPERFRAMES_BROWSER_PATH"), os.environ.get("PRODUCER_HEADLESS_SHELL_PATH")) if p):
+        return ""
+    cache = Path.home() / ".cache" / "hyperframes" / "chrome" / "chrome-headless-shell"   # <platform>-<version>/…, the browser at most 3 down
     try:
-        if d.is_dir() and any(d.iterdir()):
+        if any(f.name in ("chrome-headless-shell", "chrome-headless-shell.exe") and f.is_file()
+               for v in cache.iterdir() for f in (*v.glob("*"), *v.glob("*/*"), *v.glob("*/*/*"))):
             return ""
     except OSError:
-        return ""
-    return (" (HyperFrames' first snapshot or render downloads its Chrome first, about 200 MB into ~/.cache/hyperframes, with nothing"
-            " shown; npx hyperframes browser ensure fetches it beforehand and shows the download)")
+        pass
+    return (f" (HyperFrames' first snapshot or render downloads its Chrome first, about 200 MB into ~/.cache/hyperframes, with nothing"
+            f" shown; (cd {shown(project)} && npx hyperframes browser ensure) fetches it beforehand and shows the download)")
 
 
 def engine_docs(project, proj):
     """What to read for this project's engine at the first picture: its section or guide, and the edit list's where it goes through one."""
-    kind = (proj["type"] or "")[:2]
-    doc = {"canvas": R_CANVAS, "hf": R_HF, "p5": R_HANDDRAWN, "manim": R_MANIM}.get(engine_here(project, proj))
-    k4 = re.search(r"4k|2160p|uhd", (proj["spec"].get("Resolution") or "").lower())
+    kind, engine = (proj["type"] or "")[:2], engine_here(project, proj)
+    doc = {"canvas": R_CANVAS, "hf": R_HF, "p5": R_HANDDRAWN, "manim": R_MANIM}.get(engine)
+    k4 = engine == "hf" and re.search(r"4k|2160p|uhd", (proj["spec"].get("Resolution") or "").lower())   # HyperFrames' 4K steps; the others' are in their own docs
     return [doc, R_EDITING if kind == "09" else None, R_EDIT if kind == "11" or (project / "edit.json").is_file() else None, R_4K if k4 else None]
 
 

@@ -8,8 +8,8 @@
 
 **Linux: what to set up before the first film, said where it is needed**
 - Why: a walkthrough on Ubuntu 24.04 (arm64, in Docker, 11-08) installed and rendered only after three things nothing mentioned. On arm64, HyperFrames has no Chrome of its own and apt-installs Ubuntu's `chromium-browser`, a snap stub that cannot run: the render says `Target closed`, while `browser ensure` says it is ready. A bare system lacks Chrome's `libnss3` and `libnspr4`. With no Chinese font, Chinese text draws as boxes, with no warning.
-- engines/README.md's HyperFrames notes give the three and their fixes: a chrome-headless-shell from puppeteer for `HYPERFRAMES_BROWSER_PATH`, running the browser with `--version` to name a missing library, and `fonts-noto-cjk`. The READMEs' limits point there.
-- On Linux, `bin/vh doctor` says whether a Chinese font is installed (`fc-list`), and `bin/vh new` warns when a HyperFrames project starts without one. Doctor's Chrome hints no longer send Ubuntu to `apt install chromium` alone, or promise arm64 a downloaded headless shell; the installer says it again on an arm64 machine with no browser.
+- A section of its own in engines/README.md, "Linux：渲染前要先备好的三样", gives the three and their fixes: a chrome-headless-shell from puppeteer in `~/.cache/puppeteer` for `HYPERFRAMES_BROWSER_PATH`, running the browser with `--version` to name a missing library, and `fonts-noto-cjk`. The HyperFrames section points to it in one line, and the READMEs' limits link to it.
+- On Linux, `bin/vh doctor` says whether a Chinese font is installed (`fc-list`), and no longer counts Ubuntu's snap stub as a browser. `bin/vh new` warns when a HyperFrames project starts where `fc-list` finds no Chinese font. Doctor's Chrome hints no longer send Ubuntu to `apt install chromium` alone, or promise arm64 a downloaded headless shell; the installer says it again on an arm64 machine with no browser.
 - x86_64 Linux is still untested.
 
 **The starter scores map their notes, so `bin/vh qa` tells a rest from a dropout**
@@ -20,9 +20,9 @@
 - Why: given `out/draft.mp4`, it read the video as a list of texts and stopped on `'utf-8' codec can't decode byte 0xca`; the quick card said to run it with no argument (the same walkthrough).
 - A film or a sound now gets a line naming what readcheck reads: the project (its captions, else its index.html), a composition .html or a texts.json. The quick card writes `bin/vh readcheck <项目>`.
 
-**A HyperFrames film reads 7,500 characters less before it starts**
+**A HyperFrames film reads about 7,400 characters less before it starts**
 - Why: every HyperFrames film's reading list holds `engines/README.md`'s HyperFrames section, 21,202 characters, and three of its parts serve some films only: 4K output, text drawn into a canvas, and the record of the 0.8.82 → 0.8.202 upgrade. A clean-install walkthrough (11-07) counted about 65,000 characters before a quick short could start.
-- Those three are sections of their own now, after HyperFrames, their text unchanged; the section a film reads is 13,636 characters (a quick short, by `tools/readpath.py`: 57,508 → 50,035). "最小写法" points to the canvas and 4K ones, and `bin/vh status` adds "出 4K" to the reading of a film whose Resolution has 4k.
+- Those three are sections of their own now, after HyperFrames, their text unchanged; the section a film reads is 13,677 characters (a quick short, by `tools/readpath.py`: 57,508 → 50,081). "最小写法" points to the canvas and 4K ones, and `bin/vh status` adds "出 4K" to the reading of a HyperFrames film whose Resolution has 4k.
 - This narrows a must-read (CONTRIBUTING, 改文档): nothing in the moved text changed, and a film that needs it is still sent to it.
 
 **An install without the reference repos says how to fetch the one a doc points to**
@@ -31,7 +31,7 @@
 
 **`bin/vh status` warns of HyperFrames' first Chrome download, and leaves nothing to fill after delivery**
 - Why: the first snapshot or render of a HyperFrames film downloads its own Chrome (about 200 MB) and shows nothing while it does, which reads as a hang; and after delivery, `status --json` still counted the template's blanks in BRIEF, STYLE and STORYBOARD as if something were left.
-- Until that Chrome is in `~/.cache/hyperframes` (or `HYPERFRAMES_BROWSER_PATH` names a browser), the next step says so beside the first render, and that `npx hyperframes browser ensure` fetches it beforehand with the download shown. A delivered film's `next_step.unfilled` is empty.
+- Until a version's folder in `~/.cache/hyperframes` holds that browser (an interrupted download leaves an empty one), or `HYPERFRAMES_BROWSER_PATH` names one, the next step says so beside the first render, and that `(cd <project> && npx hyperframes browser ensure)` fetches it beforehand with the download shown. Not on Linux arm64, where HyperFrames has none to download (the Linux entry above). A delivered film's `next_step.unfilled` is empty.
 
 **`bin/vh check` words its black, frozen and silent stretches**
 - Why: it printed ffmpeg's own lines (`lavfi.freezedetect.freeze_start: 1.966667`), and a stretch that ran to the end had no line for its end.
@@ -39,8 +39,8 @@
 
 **`bin/vh check` and `status` say what is left to fill in the BRIEF's Output line**
 - Why: with a blank in the Output line, `check` warned "the Output line still has placeholders" and offered one way out, rendering again; `status` asked for the BRIEF to be filled (32 blanks) without saying that `check` holds the film to that one line.
-- `check` names the blanks (`{N}`, `{frames}` …) and says to fill them in; beside rendering again, its ways out now point to the defaults in playbook/01's 规格. A `{frames}` after an exact length in seconds no longer counts as a blank, since the count follows from the length and the rate.
-- `status` names the Output line's blanks in its next step. The BRIEF's comment writes `bin/vh artifacts list <项目>`, since the command takes a project.
+- `check` names the blanks (`{N}`, `{frames}` …) and says to fill them in; beside rendering again, its ways out now point to the defaults in playbook/01's 规格. A `{frames}` after an exact length in seconds no longer counts as a blank, since the count follows from the length and the rate; a line that gives no rate or no size is still said, and so now is a line that gives only a range such as `{60–90}s`.
+- `status` names the Output line's blanks in its next step, and counts the BRIEF's blanks as `check` does. The BRIEF's comment writes `bin/vh artifacts list <项目>`, since the command takes a project.
 
 **`bin/vh new` fills the frame rate in the BRIEF's Output line**
 - Why: a new project's Output line kept `{fps}`, and `bin/vh check` holds the film to that line, so a first film was checked against a placeholder (a clean-install walkthrough, 11-07).
