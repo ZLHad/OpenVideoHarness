@@ -376,7 +376,7 @@ PY
 
 vh() { "$VH_BASH" "$ROOT/bin/vh" "$@"; }
 smoke_checks() {
-  local slug="ci-smoke-$$" dir t rc langs a h o u ad
+  local slug="ci-smoke-$$" dir t rc langs a h o u ad g
   vh help >/dev/null && vh --help >/dev/null && ok "bin/vh help exits 0" || bad "bin/vh help"
   vh no-such-command >/dev/null 2>&1; rc=$?; [ $rc = 2 ] && ok "unknown command exits 2 (a usage error)" || bad "unknown command exited $rc"
   t=$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")   # a throwaway HOME: an old bin/vh would install the skill for a bad target
@@ -9945,13 +9945,13 @@ shard_of() { # shard_of <i> <n>: the groups of shard i of n, in the table's orde
 }
 run_groups() { # run_groups <group…>: each group's checks, timed; then how long the run took, each group's seconds as
   # tools/ci-shards.txt takes them (to copy there when the shards drift apart) and the ten slowest checks
-  local g g0 t0 s ms m tab=$'\t'
-  clock; t0=$CI_NOW
-  for g in "$@"; do
-    declare -F "$g" >/dev/null || { bad "${CI_TABLE#"$ROOT"/} names $g, which is no function in tools/ci.sh: nothing of it ran"; continue; }
-    clock; g0=$CI_NOW; CI_LAST=$CI_NOW; "$g"; clock; CI_GROUPS+=("$g $(( (CI_NOW - g0 + 500) / 1000 ))")
+  local ci_g ci_g0 ci_t0 s ms m tab=$'\t'   # (ci_…: a group runs in this shell, and what it sets without local lands here)
+  clock; ci_t0=$CI_NOW
+  for ci_g in "$@"; do
+    declare -F "$ci_g" >/dev/null || { bad "${CI_TABLE#"$ROOT"/} names $ci_g, which is no function in tools/ci.sh: nothing of it ran"; continue; }
+    clock; ci_g0=$CI_NOW; CI_LAST=$CI_NOW; "$ci_g"; clock; CI_GROUPS+=("$ci_g $(( (CI_NOW - ci_g0 + 500) / 1000 ))")
   done
-  s=$(( (CI_NOW - t0 + 500) / 1000 ))
+  s=$(( (CI_NOW - ci_t0 + 500) / 1000 ))
   printf '%s took %d min %02d s. Each group in seconds, as tools/ci-shards.txt takes them:\n' "$CI_RUN" $((s / 60)) $((s % 60))
   printf '  %s\n' ${CI_GROUPS[@]+"${CI_GROUPS[@]}"}
   echo "The ten slowest checks, in seconds (from the check before, or from the start of its group):"

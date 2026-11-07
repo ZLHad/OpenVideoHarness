@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`tools/ci.sh`'s table of seconds names every group**
+- Why: `smoke_checks` set a `g` of its own, over the one `run_groups` names a row by (a group runs in its shell), so the table said `ok 90`, a row `tools/ci-shards.txt` does not take.
+- `g` is local to it now, and the loop's variables have names no group uses.
+
 **`tools/audio/test_mixstate.py` passes under any umask**
 - Why: it set its umask after building the mix, so under umask 0002 the mix and its record were 664 where it expects 644. The test's fault, not the tool's: outputs follow the umask as they should.
 
