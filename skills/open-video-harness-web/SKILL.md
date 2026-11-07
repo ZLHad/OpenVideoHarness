@@ -1,9 +1,9 @@
 ---
 name: open-video-harness-web
-description: Optional. Keep the web page a film's fact rests on, as it was read, with Obscura (a headless browser for agents) through the OpenVideoHarness workbench. Use it inside an OpenVideoHarness project when the user asks to check, verify or source something in a video (查证, 核对事实, checar fatos, conferir a fonte), or when a page has to be kept as a reference (its look, its layout).
+description: Optional. Keep the web page a film's fact rests on, as it was read, with the installed Chrome/Chromium through the OpenVideoHarness workbench. Use it inside an OpenVideoHarness project when the user asks to check, verify or source something in a video (查证, 核对事实, checar fatos, conferir a fonte), or when a page has to be kept as a reference (its look, its layout). Obscura is an explicit optional provider.
 ---
 
-# Facts and reference pages through Obscura
+# Facts and reference pages
 
 Harness path (set by install.sh): ~/OpenVideoHarness
 
@@ -14,10 +14,14 @@ path above, `~/OpenVideoHarness`, the current directory), and read `<harness>/CL
 
 ## 1. Is the browser there
 
-Obscura is optional. Without it, read the page however you can and still write the URL and the date in NOTES.md; a film does not
-stop to install it. `<harness>/bin/vh doctor` reports `obscura`. To add it, ask the user first (it downloads about 70 MB from
-github.com/h4ckf0r0day/obscura's releases), then `<harness>/bin/vh web install` (the pinned release, size and sha256
-checked; `--dry-run` says what it would do). An obscura already on PATH at the pinned version counts as installed.
+`bin/vh web` defaults to the installed Chrome/Chromium and the workbench's existing CDP transport, with Node 22.
+`CHROME_PATH` selects a browser; otherwise the same lookup as the film tools is used. Each capture uses a fresh temporary
+profile, a small subprocess environment and Chrome's sandbox. These measures are not OS isolation. If no browser is
+available, read the page another way and keep its URL and retrieval date in NOTES.md; making a film does not require this tool.
+
+Obscura is only used with `--provider obscura`; it is never an automatic fallback. Installing it is a separate choice:
+`bin/vh web install` downloads the pinned release (about 70 MB, size and sha256 checked). A matching hash proves the
+download matches the pinned asset, not that the binary is safe. Do not install it just to finish a fact check.
 
 ## 2. Read the page, keep the copy
 
@@ -30,22 +34,23 @@ bin/vh web grep  <project> all 'end-to-end'                                 # lo
 bin/vh web list  <project>
 ```
 
-Each capture lands in `<project>/research/web/<id>/` (the page, `meta.json` with the URL, the UTC time, the sha256,
-Obscura's version, why) and as one line in `research/web.jsonl`. Every fetch, shot and grep ends with a `cite:` line.
+Each capture lands in `<project>/research/web/<id>/` (the page, `meta.json` with the URL, UTC time, sha256, provider,
+browser version, HTTP status when available and why) and as one line in `research/web.jsonl`. Older Obscura records
+remain readable. Chrome's screenshot and HTML share one navigation. Every fetch, shot and grep ends with a `cite:` line.
 
-- **It came back, but is it the page?** Obscura fails only when a page cannot be opened: a 404, a login or a bot wall
-  comes back as a page and is kept. Read the title on the ✓ line, and the warning when it ended on another host, before
-  trusting it. A grep with no hits on such a copy says nothing about the source.
+- **It came back, but is it the page?** A 404, a login or a bot wall may still be kept. Inspect the recorded HTTP status
+  (Chrome), title, actual URL and warnings before trusting it. A grep with no hits on such a copy says nothing about the source.
 - **Text or markdown came back nearly empty** (fetch says so): the page draws its text from JSON in a script, as
   many help centres and stores do. Fetch it again with `--dump html` and `--grep` the fact: grep decodes HTML
   entities and JSON's `\uXXXX` and `\/` first, so the words are found as they read. Keep the pattern short; a
   long alternation is slower to read than two greps.
-- **A page that needs clicks, a login or a consent banner**: the Obscura MCP server (`browser_navigate`,
-  `browser_markdown`, `browser_snapshot`, `browser_click` …) drives the same browser; decline non-essential cookies,
-  never sign in or enter anything personal for the user. A fetch here is a new load: its copy may not hold what appeared
-  after the clicks, so say so next to the fact.
-- **Private addresses** (localhost, 192.168.x) are blocked by Obscura; a local preview is checked with the
-  harness's own frame tools, not this.
+- **A page that needs clicks, a login or a consent banner**: use the agent's available browser tools and keep the source
+  from that session. A later `web fetch` starts a new session and does not inherit its login or clicks. State that difference
+  next to the fact instead of treating the new page as the same evidence. Markdown is a simple DOM conversion, not an article extractor.
+- **Private/local destinations** (localhost, 192.168.x): Chrome rejects them using best-effort host/DNS checks on HTTP(S)
+  requests intercepted in this page's CDP session, including redirects and subresources. This does not cover WebSocket,
+  WebRTC or other browser targets, and does not contain DNS rebinding; it is not OS isolation or a network firewall.
+  Local synthetic tests may explicitly use `--allow-private-network`; ordinary local video previews use the frame tools.
 
 ## 3. Write it down
 

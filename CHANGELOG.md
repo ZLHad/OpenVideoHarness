@@ -2,9 +2,16 @@
 
 ## Unreleased
 
-**Introduce each pull request before asking to accept it**
+**`bin/vh web` keeps the evidence without requiring Obscura**
+- Why: saving a page with its URL, retrieval time and hash is useful, but it does not require a second browser engine when the film tools already use Chrome.
+- `web fetch` and `web shot` default to the installed Chrome/Chromium through the existing CDP transport, without a new npm package or browser download. Obscura is used only with `--provider obscura`; `web install` remains its explicit installer, and there is no automatic fallback to it.
+- Chrome keeps the HTML and screenshot after one navigation and records the actual URL, browser version and HTTP status. Existing records and `web grep` / `web list` remain readable. Markdown is a simple DOM conversion, not an article extractor, and a captured page still needs to be read before citing it.
+- Each browser subprocess gets a small environment and temporary home/profile. Chrome's sandbox stays enabled. Host/DNS checks filter private HTTP(S) requests on the controlled page as a best effort, not all browser network paths or DNS rebinding; this is not a firewall or OS isolation. `--allow-private-network` is an explicit local-test permission.
+- CI exercises Chrome against synthetic local pages, including scripts, redirects, 404s, same-navigation captures, credential filtering and cleanup; the explicit Obscura provider and its installer keep their offline stand-in tests. No real Obscura binary is run by these tests.
+
+**Introduce each outside contribution before asking to accept it**
 - Why: a maintainer can overlook an outside contribution in a batch approval and later be surprised by the automatic merge.
-- CLAUDE.md and CONTRIBUTING require an individual handoff: author, purpose, effects, new dependencies or permissions, validation and a recommendation. A local preference for merging personally stops the agent at the draft PR; old batch approvals do not cover new PRs.
+- CLAUDE.md and CONTRIBUTING require an individual handoff for outside PRs and imported outside commits: author, purpose, effects, new dependencies or permissions, validation and a recommendation. Standing authorization for the maintainer's own development PRs can still allow auto-merge; it does not approve outside contributions or their workflow runs. Old batch approvals do not cover new outside PRs.
 - CONTRIBUTING distinguishes this agreement from credential isolation: removing Administration alone does not prevent a token with Contents write access from merging. It describes a separate agent identity and fork workflow instead.
 
 ## v0.4.0 — 2026-11-07

@@ -5086,11 +5086,20 @@ PY
   rm -rf "$t"
 }
 
-web_checks() {   # bin/vh web (tools/web/web.py) with a stand-in obscura (OVH_OBSCURA), no network: a page kept with its record
+web_checks() {   # Chrome on a local synthetic page, then explicit Obscura with a stand-in (OVH_OBSCURA), no external network
   # and cite line, a thin text dump said to be thin, a fact found in a script's JSON (\uXXXX and \/ decoded), a shot, a
   # failed page that leaves nothing, usage errors; install from a made-up release (--from, --offline), its size and
   # sha256 checked, an unpinned asset only with --accept-unpinned, an obscura that is not its own left alone
   local t p q a b c d e rc rc2 rc3 rc4 o
+  a=$(VH_BASH="$VH_BASH" python3 tools/web/test_chrome.py "$ROOT/bin/vh" 2>&1); rc=$?
+  case "$rc" in
+    0) ok "$a" ;;
+    3) no_chrome "Chrome web captures" ;;
+    *) bad "Chrome web capture offline (exit $rc): $(printf '%s' "$a" | tail -c 1200)" ;;
+  esac
+  oweb() { # old provider's contract stays covered, including installations that do not have Chrome
+    case "$1" in fetch|shot) vh web "$@" --provider obscura ;; *) vh web "$@" ;; esac
+  }
   t=$(cd "$(mktemp -d "${TMPDIR:-/tmp}/vh-ci.XXXXXX")" && pwd); p="$t/proj"; mkdir -p "$p" "$t/stub" "$t/rel"; echo "# BRIEF" > "$p/BRIEF.md"
   cat > "$t/stub/obscura" <<'STUB'
 #!/bin/sh
@@ -5112,14 +5121,14 @@ case $dump in
 esac
 STUB
   chmod +x "$t/stub/obscura"; o="$t/stub/obscura"
-  a=$(OVH_OBSCURA="$o" vh web fetch "$p" https://faq.example/help --why "the 2 GB limit" --id first --wait 2 2>&1); rc=$?
-  b=$(OVH_OBSCURA="$o" vh web fetch "$p" https://faq.example/help --dump text 2>&1; OVH_OBSCURA="$o" vh web fetch "$p" https://faq.example/help --dump html --grep 'até 2 GB' 2>&1); rc2=$?
-  c=$(OVH_OBSCURA="$o" vh web shot "$p" https://faq.example/settings 2>&1; OVH_OBSCURA="$o" vh web grep "$p" all 'https://faq\.example/x' 2>&1); rc3=$?
-  d=$(OVH_OBSCURA="$o" vh web fetch "$p" https://fail.example/ 2>&1; echo "exit $?"
+  a=$(OVH_OBSCURA="$o" oweb fetch "$p" https://faq.example/help --why "the 2 GB limit" --id first --wait 2 2>&1); rc=$?
+  b=$(OVH_OBSCURA="$o" oweb fetch "$p" https://faq.example/help --dump text 2>&1; OVH_OBSCURA="$o" oweb fetch "$p" https://faq.example/help --dump html --grep 'até 2 GB' 2>&1); rc2=$?
+  c=$(OVH_OBSCURA="$o" oweb shot "$p" https://faq.example/settings 2>&1; OVH_OBSCURA="$o" oweb grep "$p" all 'https://faq\.example/x' 2>&1); rc3=$?
+  d=$(OVH_OBSCURA="$o" oweb fetch "$p" https://fail.example/ 2>&1; echo "exit $?"
       for x in "fetch $p notaurl" "fetch $p https://faq.example/ --id first" "grep $p nope x" "list" "nope"; do
         # shellcheck disable=SC2086   # each line is the arguments, split on purpose
-        OVH_OBSCURA="$o" vh web $x 2>&1; echo "exit $?"; done)
-  e=$(OVH_OBSCURA="$o" vh web list "$p" --json 2>/dev/null); rc4=$?
+        OVH_OBSCURA="$o" oweb $x 2>&1; echo "exit $?"; done)
+  e=$(OVH_OBSCURA="$o" oweb list "$p" --json 2>/dev/null); rc4=$?
   if [ "$rc:$rc2:$rc3:$rc4" = 0:0:0:0 ] && python3 - "$p" "$a" "$b" "$c" "$d" "$e" <<'PY'
 import hashlib, json, os, sys
 p, a, b, c, d, e = sys.argv[1:]; bad = []
@@ -5149,11 +5158,11 @@ PY
   # what success means: another host is a warning, a selector that never came is said, the title and the final URL are on
   # record and in the cite line; a bad expression or a bad URL fetches and keeps nothing; status counts the captures
   q="$t/proj2"; mkdir -p "$q"; echo "# BRIEF" > "$q/BRIEF.md"
-  a=$(OVH_OBSCURA="$o" vh web fetch "$q" https://moved.example/a --id moved 2>&1); rc=$?
-  b=$(OVH_OBSCURA="$o" vh web fetch "$q" https://faq.example/b --id sel --selector .missing 2>&1); rc2=$?
+  a=$(OVH_OBSCURA="$o" oweb fetch "$q" https://moved.example/a --id moved 2>&1); rc=$?
+  b=$(OVH_OBSCURA="$o" oweb fetch "$q" https://faq.example/b --id sel --selector .missing 2>&1); rc2=$?
   c=$(for x in "fetch $q https://faq.example/c --grep (" "fetch $q http://[bad/x" "fetch $q https://faq.example/d --timeout 0" "fetch $q https://faq.example/e --wait -1"; do
         # shellcheck disable=SC2086   # each line is the arguments, split on purpose
-        OVH_OBSCURA="$o" vh web $x 2>&1; echo "exit $?"; done; ls "$q/research/web" | wc -l)
+        OVH_OBSCURA="$o" oweb $x 2>&1; echo "exit $?"; done; ls "$q/research/web" | wc -l)
   d=$(OVH_OBSCURA="$o" vh status "$q" --json 2>/dev/null)
   e=$(OVH_OBSCURA="$o" vh doctor --json 2>/dev/null)
   if [ "$rc:$rc2" = 0:0 ] && python3 - "$q" "$a" "$b" "$c" "$d" "$e" "$o" <<'PY'
@@ -5186,7 +5195,7 @@ json.dump({**pins(len(b), h), "tag": "v0.2.6"}, open(f"{d}/newer.json", "w"))
 os.makedirs(f"{d}/rec", exist_ok=True); os.link(f"{d}/o.tar.gz", f"{d}/rec/o.tar.gz")
 json.dump({"v": 1, "responses": [{"url": "https://github.com/example/obscura/releases/download/v0.2.5/o.tar.gz", "status": 200, "headers": {}, "body": "o.tar.gz"}]}, open(f"{d}/rec/responses.json", "w"))
 PY
-  inst() { XDG_DATA_HOME="$t/share" vh web install --pins "$t/rel/$1.json" "${@:2}" 2>&1; echo "exit $?"; }
+  inst() { XDG_DATA_HOME="$t/share" oweb install --pins "$t/rel/$1.json" "${@:2}" 2>&1; echo "exit $?"; }
   a=$(inst good --from "$t/rel/o.tar.gz" --bin "$t/bin"; "$t/bin/obscura" --version; inst good --offline "$t/rel/rec" --bin "$t/bin2" --json)
   b=$(inst size --from "$t/rel/o.tar.gz" --bin "$t/b3"; inst sha --from "$t/rel/o.tar.gz" --bin "$t/b3"; inst unpinned --from "$t/rel/o.tar.gz" --bin "$t/b3"
       inst unpinned --from "$t/rel/o.tar.gz" --bin "$t/b3" --accept-unpinned)

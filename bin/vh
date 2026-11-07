@@ -1294,7 +1294,12 @@ cmd_assets() { [ $# -gt 0 ] || { cmd_usage assets >&2; exit 2; }; python3 "$ROOT
 cmd_cast() { [ $# -gt 0 ] || { cmd_usage cast >&2; exit 2; }; python3 "$ROOT/tools/cast.py" "$@"; }   # stdlib only
 cmd_scout() { [ $# -gt 0 ] || { cmd_usage scout >&2; exit 2; }; python3 "$ROOT/tools/scout/scout.py" "$@"; }    # stdlib; yt-dlp for YouTube
 cmd_ref() { [ $# -gt 0 ] || { cmd_usage ref >&2; exit 2; }; python3 "$ROOT/tools/scout/refs.py" "$@"; }        # stdlib; the look as scout's
-cmd_web() { [ $# -gt 0 ] || { cmd_usage web >&2; exit 2; }; python3 "$ROOT/tools/web/web.py" "$@"; }            # stdlib; the page through obscura
+cmd_web() { # stdlib + the existing Chrome CDP transport; Obscura is an explicit optional provider
+  [ $# -gt 0 ] || { cmd_usage web >&2; exit 2; }
+  local b=""
+  case "$1" in fetch|shot) b=$(film_browser web "${2:-}" 2>/dev/null) || b="" ;; esac
+  CHROME_PATH="${b:-${CHROME_PATH:-}}" python3 "$ROOT/tools/web/web.py" "$@"
+}
 cmd_hf() { [ $# -gt 0 ] || { cmd_usage hf >&2; exit 2; }; python3 "$ROOT/tools/hf.py" "$@"; }   # stdlib; add runs HyperFrames' own add
 cmd_components() { python3 "$ROOT/tools/components.py" "$@"; }   # stdlib; check reads component.js through node, sample runs the swatch renderer
 cmd_deliver() { [ $# -gt 0 ] || { cmd_usage deliver >&2; exit 2; }; python3 "$ROOT/tools/deliver.py" "$@"; }   # ffmpeg only

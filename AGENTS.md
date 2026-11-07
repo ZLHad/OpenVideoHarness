@@ -76,7 +76,7 @@ effort 管 agent 自己查得多细，导演模式管人拍板哪些事，两个
 - 特效、转场、粒子、着色器、声画联动：`playbook/08-vfx-and-motion-sources.md`；
 - 3 分钟以上、或靠故事推进的片子：`playbook/09-narrative.md`；
 - 要发平台的钩子、标题、封面：`playbook/10-hooks-and-packaging.md`；
-- 查网页上的事实并存下那一页（可选，要装 Obscura）：`skills/open-video-harness-web/SKILL.md`；
+- 查网页上的事实并存下那一页（可选，默认复用已装的 Chrome）：`skills/open-video-harness-web/SKILL.md`；
 - 新点子：`playbook/12-ideation.md`；某种风格：`styles/README.md`；镜头怎么动、全片的节奏：`recipes/README.md`；
 - 社区 skill 和画风库：`references/community-skills.md`；同类型的社区作品和提示词：`cases/opus55-gallery.md`（想完立意再看；3D 长片深读在它的第 6 节）。
 
@@ -114,7 +114,7 @@ OpenVideoHarness/
 ├── LOCAL.md                  本机环境（不入库；模板是 LOCAL.example.md）
 ├── bin/vh                    命令行：doctor · setup · install-skill · sync-agents · sound · commands · status · projects · cancel · history · activity · know · artifacts · types · effort · new · footage · assets · scout · ref · web · review · gate · desk · concept · breakdown · cast · style · recipes · storyboard · rhythm · edit · bgm · tts · pace · voices · captions · timeline · remap · timemap · beats · music · sfx · hf-init · determinism · image · model3d · hdri · hf · components · frames · cues · readcheck · textcheck · fonts · sheet · proxy · thumbs · peaks · render · patch · versions · check · mix · qa · mux · deliver · looks · clean · gif · cover-preview
 ├── tools/                    bin/vh 背后的脚本；commands.json 是命令表（`bin/vh commands` 按阶段列出），modules.json 是外接模块表（`bin/vh doctor` 报这台机器能用哪些），audio/README.md 是声音命令的参数手册，desk/README.md 是审阅台的读取约定；ci.sh 是仓库自检
-├── skills/                   轻量 skill（`bin/vh install-skill` 装上）：open-video-harness 在任何目录把做视频的请求引到本仓库；open-video-harness-web 用 Obscura 查网页事实、存参考页
+├── skills/                   轻量 skill（`bin/vh install-skill` 装上）：open-video-harness 在任何目录把做视频的请求引到本仓库；open-video-harness-web 用已装浏览器查网页事实、存参考页
 ├── video-types/              11 类视频（09、11 实验中）：工作流、审美、禁止项、Prompt 增量块、自查重点、案例
 ├── playbook/                 跨类型的通用知识：00 范式与引擎选型 · 01 流程、努力程度、关卡、导演模式、审阅页和审阅台 · 02 验证与取帧 · 03 运动、排版、安全区 · 04 音频 · 05 生成式视频 + 代码 · 06 学术工作里可借的机制 · 07 拉片 · 08 特效与声画联动 · 09 叙事与长片 · 10 钩子、标题、封面 · 11 作曲 · 12 立意，以及 quick.md（快出路径卡）、topics.md（选题卡）
 ├── templates/                新项目的文件：BRIEF、STORYBOARD、STYLE、REVIEW、DECISIONS、NOTES、LESSONS、TASTE_CHECKLIST；用到时再复制：SCRIPT、CHARACTER、PACKAGING
@@ -139,6 +139,6 @@ OpenVideoHarness/
 
 ## 改本仓库本身
 
-不是做视频，而是改 `bin/vh`、`tools/`、引擎、文档或风格库时，按 `CONTRIBUTING.md` 来：只在自己的分支上改，推送前跑 `tools/ci.sh`，开草稿 PR，不推 main，不自己合并。
+不是做视频，而是改 `bin/vh`、`tools/`、引擎、文档或风格库时，按 `CONTRIBUTING.md` 来：只在自己的分支上改，推送前跑 `tools/ci.sh`，开草稿 PR，不推 main，未获对应授权不合并。
 
-发现外部 PR、准备接收改动时，主动逐个说明 PR 编号与作者、实际作用、新增依赖或权限、验证结果和接收建议，再让人决定；不要只报“检查通过”。先核对 `LOCAL.md` 的维护偏好：要求本人合并时，agent 交付草稿 PR 和审查结论，由本人操作合并，不替人开启 auto-merge，也不把过去的批量授权延用到新 PR。
+发现外部 PR、准备接收外部提交时，主动逐个说明编号与作者、实际作用、新增依赖或权限、验证结果和接收建议，取得用户针对该外部贡献的明确批准后再接收；不要只报“检查通过”，也不把过去的批量授权延用到新贡献。先核对 `LOCAL.md` 的维护偏好：用户可长期授权自己账号的日常开发 PR 检查通过后自动合并；这不覆盖夹带的外部提交，也不等于批准外部工作流运行。

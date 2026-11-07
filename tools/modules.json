@@ -5,12 +5,12 @@
     {
       "name": "node",
       "kind": "program",
-      "purpose": "Runs the page tools (frames, render, patch, textcheck, fonts check, cues, determinism), HyperFrames and the hand-drawn engine.",
+      "purpose": "Runs the page tools (frames, render, patch, textcheck, fonts check, cues, determinism), Chrome web captures, HyperFrames and the hand-drawn engine.",
       "version": {"min": "22"},
       "license": "MIT",
       "needs": {},
-      "adapter": ["bin/vh (cmd_film_tool, webgl_probe)", "tools/film/", "tools/textcheck/"],
-      "commands": ["frames", "render", "patch", "determinism", "cues", "fonts", "textcheck", "readcheck", "storyboard", "rhythm", "thumbs", "new", "hf-init", "style", "setup"],
+      "adapter": ["bin/vh (cmd_film_tool, webgl_probe)", "tools/film/", "tools/textcheck/", "tools/web/chrome.mjs"],
+      "commands": ["frames", "render", "patch", "determinism", "cues", "fonts", "textcheck", "readcheck", "storyboard", "rhythm", "thumbs", "new", "hf-init", "style", "setup", "web"],
       "required": true,
       "check": {"program": "node", "version": ["node", "-v"], "pattern": "v(\\d+(?:\\.\\d+)*)"},
       "install": {"macos": "brew install node (or nvm install 22)", "linux": "nvm install 22, or NodeSource's packages"}
@@ -72,12 +72,12 @@
     {
       "name": "chrome",
       "kind": "program",
-      "purpose": "The browser the page tools draw with when CHROME_PATH names none and there is no chrome-headless-shell: Google Chrome, Chromium or Playwright's Chromium.",
+      "purpose": "The browser the page tools draw with, and web's default page capture: Google Chrome, Chromium or Playwright's Chromium. CHROME_PATH selects it; otherwise the installed or film tools' headless browser is used.",
       "version": {},
       "license": "Google Chrome: Google's terms; Chromium: BSD-3-Clause",
       "needs": {},
-      "adapter": ["bin/vh (chrome_path, film_browser)"],
-      "commands": ["frames", "render", "patch", "determinism", "cues", "fonts", "textcheck", "readcheck", "storyboard", "rhythm", "thumbs", "doctor"],
+      "adapter": ["bin/vh (chrome_path, film_browser)", "tools/web/chrome.mjs"],
+      "commands": ["frames", "render", "patch", "determinism", "cues", "fonts", "textcheck", "readcheck", "storyboard", "rhythm", "thumbs", "doctor", "web"],
       "required": false,
       "check": {"finder": "chrome"},
       "install": {"macos": "install Google Chrome, or set CHROME_PATH", "linux": "sudo apt install chromium, or npx playwright install chromium, or set CHROME_PATH"}
@@ -477,7 +477,7 @@
     {
       "name": "obscura",
       "kind": "program",
-      "purpose": "A headless browser for agents (a Rust engine with V8, no Chrome): bin/vh web reads a page with scripts run, as markdown, text, HTML or links, or as a screenshot, to check a fact against its source and keep the copy. Its own MCP server (obscura mcp) gives an agent the same browser for pages that need clicks. It blocks private addresses unless told otherwise.",
+      "purpose": "An optional headless browser (Rust and V8), used by bin/vh web only with --provider obscura; the default is the installed Chrome. It keeps a rendered page or screenshot for fact checking. Its own MCP server supports clicks. Its private-address policy is enforced by Obscura, not the wrapper.",
       "version": {"min": "0.2.5", "tested": "0.2.5 on Linux x86_64 (the release asset tools/web/pins.json pins); not yet run on macOS"},
       "license": "Apache-2.0",
       "needs": {},
