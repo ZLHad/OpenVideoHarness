@@ -105,7 +105,8 @@ def references_note(have, want, fetched, said):
     """doctor's line for references/repos when some are not fetched: the whole set's size worked out from the ones that
     are (fetched: their bytes), else what install.sh says (said), else none."""
     size = f"about {mb_text(fetched * want / have)}, at the size of the {have} here" if have and fetched else f"about {said}" if said else None
-    return f"{have}/{want} repos fetched → bash references/fetch.sh (all {want}{': ' + size if size else ''}; agents read them for the case studies)"
+    return (f"{have}/{want} repos fetched → bash references/fetch.sh (all {want}{': ' + size if size else ''}; agents read them for the case studies;"
+            " the one a doc points to, references/repos/<dir>/…: bash references/fetch.sh <dir>)")
 
 
 def this_platform():

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**An install without the reference repos says how to fetch the one a doc points to**
+- Why: after `install.sh --no-refs`, type docs and `engines/README.md` still point into `references/repos/…`, which is not there, and nothing said what to do (`video-types/02-knowledge-short.md` sends a silent short there first).
+- CLAUDE.md (and AGENTS.md), the installer's last lines and `bin/vh doctor` now say it: `bash references/fetch.sh <dir>` fetches the one repo a path names.
+
 **`bin/vh status` warns of HyperFrames' first Chrome download, and leaves nothing to fill after delivery**
 - Why: the first snapshot or render of a HyperFrames film downloads its own Chrome (about 200 MB) and shows nothing while it does, which reads as a hang; and after delivery, `status --json` still counted the template's blanks in BRIEF, STYLE and STORYBOARD as if something were left.
 - Until that Chrome is in `~/.cache/hyperframes` (or `HYPERFRAMES_BROWSER_PATH` names a browser), the next step says so beside the first render. A delivered film's `next_step.unfilled` is empty.

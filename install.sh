@@ -77,3 +77,4 @@ cat <<MSG
   Note:  the first render downloads Chrome (about 200 MB) and the first sound commands download Python packages (about 700 MB)
          into ~/.cache; see "What gets downloaded" on the wiki's Getting Started page
 MSG
+[ "$REFS" = 1 ] || echo "  Refs:  not fetched (--no-refs). Where a doc points into references/repos/<dir>/, bash references/fetch.sh <dir> fetches that one"
