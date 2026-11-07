@@ -379,6 +379,13 @@ def repo_checks(webgl, found_by):
         out.append({"name": "browser", "state": "ok", "note": "the page tools draw with " + ("chrome-headless-shell" if found_by.get("hf-chrome") else "Chrome")})
     else:
         out.append({"name": "browser", "state": "missing", "note": "neither Chrome nor chrome-headless-shell: frames, render, textcheck and the other page tools need one (set CHROME_PATH, or see chrome above)"})
+    if sys.platform.startswith("linux"):   # macOS has PingFang; a bare Linux has no Chinese font, and Chinese text then draws as boxes
+        try:
+            fams = [f for f in subprocess.run(["fc-list", ":lang=zh", "family"], capture_output=True, text=True, timeout=20).stdout.splitlines() if f.strip()]
+            out.append({"name": "fonts", "state": "ok", "note": f"Chinese: {len(fams)} font famil{'y' if len(fams) == 1 else 'ies'}, such as {fams[0].split(',')[0]}"} if fams else
+                       {"name": "fonts", "state": "missing", "note": "no Chinese font: Chinese text in a film draws as boxes → sudo apt install fonts-noto-cjk (bin/vh fonts check <project> says it per character)"})
+        except (OSError, subprocess.SubprocessError):
+            out.append({"name": "fonts", "state": "unchecked", "note": "no fc-list (fontconfig) to ask: bin/vh fonts check <project> says whether each character has a font"})
     kind, _, renderer = (webgl or "skipped|").partition("|")
     if kind in ("GPU", "software"):
         out.append({"name": "webgl", "state": "ok", "note": f"{kind}: {renderer}"})

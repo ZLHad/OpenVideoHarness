@@ -976,7 +976,11 @@ PY
     echo "   gsap     : $gv vendored locally (node_modules/gsap), no CDN at render time"
   fi
   case $font in
-    local) echo "   font     : Helvetica Neue (macOS), Liberation Sans or DejaVu Sans (Linux) through local(), no Google Fonts at render time" ;;
+    local) echo "   font     : Helvetica Neue (macOS), Liberation Sans or DejaVu Sans (Linux) through local(), no Google Fonts at render time"
+      # Chinese on screen needs a Chinese font, which macOS has and a bare Linux lacks: its text then draws as boxes, unsaid
+      if [ "$(uname -s)" = Linux ] && command -v fc-list >/dev/null 2>&1 && [ -z "$(fc-list :lang=zh family 2>/dev/null | head -1)" ]; then
+        echo "$c_wa no Chinese font on this machine: Chinese text would draw as boxes (Debian/Ubuntu: sudo apt install fonts-noto-cjk; bin/vh fonts check <project> says it per character)"
+      fi ;;
     own) echo "$c_wa the project's own index.html was kept as it is: its fonts${h:+ and its height (set the viewport, the CSS height and data-height to $h)} are yours to check" ;;
     "") echo "$c_wa the scaffold's font was not rewritten: give each font in index.html a local() @font-face before rendering, or the render fetches it from Google Fonts" ;;
   esac
