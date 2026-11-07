@@ -188,7 +188,7 @@
 
 **类型**：16:9 横屏产品发布片，31.3 s；声音没有量。
 **来源**：[X](https://x.com/trymirage/status/2105314048766033999)，Mirage 官方账号，2026-09-30 发布，页面标注"由 AI 生成"。10-01 时 11.1 万浏览。
-**产品**：Tesseract 是给 AI agent 用的创作运行时，让 agent 先做设计系统（字体、颜色、版式），再加动效、素材和声音，做成可以逐层修改的视频。贴文说支持 Opus 5.5 和 GPT-6 Astra，免费。[产品页](https://mirage.app/tesseract)（2026-10-02 查）说它是免费的创作引擎，agent 通过插件（ChatGPT）或 skill（Claude 等）接入，也能本地运行。[使用条款](https://github.com/mirage-hq/Tesseract/blob/main/LICENSE)（2026-11-06 查）：CLI 只发二进制，许可可随时撤销，产出归用户；年收入 100 万美元及以上的营利企业商用要另签协议，个人的非商业项目和非营利、教育、政府用途不受这一条限制。
+**产品**：Tesseract 是给 AI agent 用的创作运行时，让 agent 先做设计系统（字体、颜色、版式），再加动效、素材和声音，做成可以逐层修改的视频。贴文说支持 Opus 5.5 和 GPT-6 Astra，免费。[产品页](https://mirage.app/tesseract)（2026-10-02 查）说它是免费的创作引擎，agent 通过插件（ChatGPT）或 skill（Claude 等）接入，也能本地运行。[使用条款](https://github.com/mirage-hq/Tesseract/blob/main/LICENSE)（2026-11-06 查）：许可可随时撤销，禁止反编译，产出归用户。年收入 100 万美元及以上的营利企业（含独资经营者）自己用或别人替它做的商用，要另签协议；独立于雇主和客户的个人非商业项目，以及非营利、教育、政府机构为自身目的做的事，不受这一条限制，但这类企业委托或指示的活不算在内。
 
 ### 画面拆解
 
