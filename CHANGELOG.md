@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`bin/vh new` fills the frame rate in the BRIEF's Output line**
+- Why: a new project's Output line kept `{fps}`, and `bin/vh check` holds the film to that line, so a first film was checked against a placeholder (a clean-install walkthrough, 11-07).
+- `new` writes the rate its engine renders at unless told otherwise: 24 for the hand-drawn engine, 30 for the others, as playbook/01's 规格 table has it. A cut (type 09) keeps its footage's rate, so its line keeps `{fps}`. The length is still the concept's to fill.
+
 **The READMEs rewritten to sell the idea: why it exists, what sets it apart, and films that move**
 - Why: the page opened with a still image and links to download; only one film could be played on it, and the reason the project exists came a long way down.
 - Both READMEs now open with a moving wall of films, then why it exists, what makes it different (each point with a moving picture beside it), a gallery of moments from real films, the 5 showcase films playable with sound, the framework as four layers, and the quick start. The reference sections below them are unchanged.

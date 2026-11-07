@@ -643,6 +643,10 @@ b = open(brief).read().replace("- Type doc: {type doc}", f"- Type doc: `video-ty
 open(brief, "w").write(b.rstrip("\n") + f"\n<!-- from {name} -->\n")
 PY
   [ -n "$wh" ] && sedi "s/^- Output: {W}x{H},/- Output: $wh,/" "$dir/BRIEF.md"
+  # the rate the engine renders at unless told otherwise (playbook/01-pipeline.md, 规格): 24 for the hand-drawn engine, 30 for
+  # the others; a cut keeps its footage's rate, so its line keeps {fps}. The length is the concept's, so {N} stays
+  x=30; case "$engine:$type" in :handdrawn|:mv) x=24 ;; :edit) x="" ;; esac
+  [ -z "$x" ] || sedi "s/^\(- Output: [^,]*,\) {fps} fps,/\1 $x fps,/" "$dir/BRIEF.md"
   case "$type" in short|promo|data|meme|edit) x=HyperFrames ;; math|paper) x="Manim CE" ;; handdrawn|mv) x="ClaudeAnimationBase (p5.brush)" ;; *) x="" ;; esac
   [ -n "$engine" ] || [ -z "$x" ] || sedi "s/^- Engine: {[^}]*}/- Engine: $x/" "$dir/BRIEF.md"   # the type's own, until the concept says otherwise
   sedi "s/^- Watch on: {watch}/- Watch on: $watch/; s/^- Resolution: {res}/- Resolution: ${res4k:-1080p}/; s/^- Review language: zh /- Review language: ${lang:-zh} /" "$dir/BRIEF.md"
