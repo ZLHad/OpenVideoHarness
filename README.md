@@ -2,9 +2,9 @@
 
 # OpenVideoHarness
 
-**A video workbench for Claude Code and Codex. You ask for a film in one sentence; the agent writes the code that renders every frame, checks its own work, and stops at three points for your sign-off.**
+### Making one good film is easy. Making a good one every time is the hard part.
 
-Science shorts, 3Blue1Brown-style explainers, launch films, music videos, data stories, paper talks, hand-drawn shorts and meme edits, with voiceover, and with music and sound effects written as code.
+A video workbench for Claude Code and Codex. You say what you want in one sentence. The agent finds the idea, writes the film as code, checks its own work, and stops three times for your call.
 
 **English** · [中文](README.zh-CN.md) · [Website](https://zlhad.top/OpenVideoHarness/docs/site/) · [Wiki](https://github.com/ZLHad/OpenVideoHarness/wiki)
 
@@ -12,50 +12,171 @@ Science shorts, 3Blue1Brown-style explainers, launch films, music videos, data s
 ![Agents](https://img.shields.io/badge/agents-Claude%20Code%20%7C%20Codex-orange)
 ![Engines](https://img.shields.io/badge/engines-HyperFrames%20%7C%20canvas%20%2B%20Three.js%20%7C%20p5.brush%20%7C%20Manim%20%7C%20Blender-blue)
 
-<a href="showcase/"><img src="docs/assets/hero.jpg" width="880" alt="Frames from the five showcase films and the style library: a Blender galaxy, a Manim Fourier series, a vertical science short, a hand-drawn character, a launch film reviewing its own contact sheet, and sixteen style samples"></a>
+<img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-wall.gif" width="960" alt="Twelve moving moments from films made with this workbench: a black hole, a brake cylinder cut open, shadow puppets, a stock chart running through a grey city, a glowing map, a blue terrain, a gold track, ink wash, a pen drawing a steam engine, mirror-image molecules, a sea of films, paper silhouettes growing wings">
 
-<sub>Frames from the 5 showcase films and the style library. An agent made each film from this repo's docs alone.</sub>
+<sub>Twelve moments from real films made with it. More below, some with sound.</sub>
 
 </div>
 
+```bash
+curl -fsSL https://raw.githubusercontent.com/ZLHad/OpenVideoHarness/main/install.sh | bash
+cd ~/OpenVideoHarness && claude        # or: codex
+```
+
 ---
 
-## What it makes
+## Why this exists
 
-Each folder in [`showcase/`](showcase/) holds the request, the brief, the storyboard, the review notes and all the source: a ready starting point for a similar film.
+Coding agents can already write a video. Give one a sentence and what comes back can startle you: real motion, real type, real rhythm. There are hundreds of films like that out there now.
 
-https://github.com/user-attachments/assets/48923404-eff1-41cd-b303-82c9ede51c1f
+Ask again, and the same model loses the pacing, makes everything glow and invents a number. That isn't a rendering problem. HyperFrames, Manim and Blender turn code into pictures. None of them decides what the film is about, whether a line of text stays up long enough to read, or whether the number on screen is true.
 
-<sub>▶ The opening of the intro film (25 s, with sound), path-traced in Blender and driven by code. The whole film is the first row below.</sub>
+**What's missing isn't tools. It's craft.**
+
+This repo is that craft, written down where an agent can use it: how to find an idea that isn't the first one everybody has, why the sound comes before the picture, how to check a film you can't watch. A few rules never bend, and everything else is a default that a good idea can overrule.
+
+It grew out of real films. Each time one went wrong, the lesson became a doc or a check, and the next film started from there.
+
+## What makes it different
 
 <table>
 <tr>
-<td width="38%" valign="top"><a href="showcase/04-intro-film/"><img src="docs/assets/films/04-intro.jpg" width="100%" alt="The intro film: a flattened sea of film frames under a glowing horizon"></a></td>
-<td valign="top"><b><a href="showcase/04-intro-film/">04 · Intro film</a></b><br><sub>Blender + HyperFrames + Three.js · 103 s · 1920×1080 · studio level</sub><br>The repo's own product film. A galaxy of 1.18 million stars, path-traced in Blender, collapses and flattens into a sea of films; one continuous 3D take then follows a request through the repo.<br><b><a href="showcase/04-intro-film/README.md#what-was-asked">Request</a>, at gate ①:</b> "玻璃、宇宙、星穹……令人瘫坐眩晕的感觉" (glass, cosmos, a starry sky… dizzying)<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">1080p MP4 (297 MB)</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-4k.mp4">4K (1.04 GB)</a></sub></td>
+<td width="44%" valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-11.gif" width="100%" alt="A stock chart drawn as an ink-wash mountain range"><br><sub>A stock chart that is also a mountain range.</sub></td>
+<td valign="top"><b>It has an idea before it has code.</b><br>Two or three concept cards come first, each with a frame and a hook. It says what every other film on your topic looks like, then goes somewhere else.</td>
 </tr>
 <tr>
-<td width="38%" valign="top"><a href="showcase/02-short-leo-doppler/"><img src="docs/assets/films/02-doppler.jpg" width="100%" alt="Three frames of the vertical science short: an orbit at 7.6 km/s, a dish tracking a satellite overhead, the Doppler curve"></a></td>
-<td valign="top"><b><a href="showcase/02-short-leo-doppler/">02 · Vertical science short</a></b><br><sub>HyperFrames · 24.8 s · 1080×1920</sub><br>Why a low-orbit satellite's signal changes pitch, readable with the sound off. Chinese voiceover, Chinese and English subtitles.<br><b><a href="showcase/02-short-leo-doppler/README.md#the-request-this-was-built-from">Request</a>:</b> "为什么低轨卫星的信号会'变调'？——多普勒频移" (why does a low-orbit satellite's signal change pitch? The Doppler shift)<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/02-vertical-science-short.mp4">MP4 (6.0 MB)</a></sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-25.gif" width="100%" alt="A sea of films collapsing under the words What's missing?"><br><sub>Said at the first stop: "glass, cosmos, a starry sky… dizzying".</sub></td>
+<td valign="top"><b>You direct. It does the work.</b><br>Three stops: the concept, the storyboard, the first draft. Want to decide the hook, the voice or the cover too? Name them. Want none of it? Say "just make it".</td>
 </tr>
 <tr>
-<td width="38%" valign="top"><a href="showcase/03-math-fourier/"><img src="docs/assets/films/03-fourier.jpg" width="100%" alt="The math explainer: a yellow partial sum and a blue harmonic over a grey square wave"></a></td>
-<td valign="top"><b><a href="showcase/03-math-fourier/">03 · Math explainer in the 3Blue1Brown style</a></b><br><sub>Manim · 25 s · 1920×1080</sub><br>Sine waves stack into a square wave and land on the Gibbs overshoot. English narration; each harmonic sounds its own note.<br><b><a href="showcase/03-math-fourier/README.md#the-request-this-was-built-from">Request</a>:</b> "Building a square wave from sine waves"<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/03-math-explainer.mp4">MP4 (2.9 MB)</a></sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-02.gif" width="100%" alt="A flash crossing a detector, with a timer counting microseconds"><br><sub>Time is the only input. This flash is counted in microseconds.</sub></td>
+<td valign="top"><b>Every frame is a function of time.</b><br>So any frame can be drawn alone, in any order, in parallel. A render that stops picks up where it stopped. A few seconds of a finished 4K film can be redrawn and put back without touching the rest.</td>
 </tr>
 <tr>
-<td width="38%" valign="top"><a href="showcase/01-handdrawn-clawd-leaf/"><img src="docs/assets/films/01-clawd.jpg" width="100%" alt="The hand-drawn short: Clawd with a tiny movie camera as the wind snatches the leaf"></a></td>
-<td valign="top"><b><a href="showcase/01-handdrawn-clawd-leaf/">01 · Hand-drawn character short</a></b><br><sub>p5.brush · 12 s · 1920×1080</sub><br>A three-shot pantomime with no words and no voice; the score and foley follow every move.<br><b><a href="showcase/01-handdrawn-clawd-leaf/README.md#the-request-this-was-built-from">Request</a>:</b> "Clawd tries to film a falling autumn leaf with a tiny hand-cranked movie camera; the wind keeps snatching the leaf just as Clawd frames it …"<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/01-handdrawn-short.mp4">MP4 (9.0 MB)</a></sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-29.gif" width="100%" alt="The agent reviewing a contact sheet of its own frames in a terminal"><br><sub>The agent going through its own frames.</sub></td>
+<td valign="top"><b>It can't watch, so it measures everything it can.</b><br>An agent can't see video or hear sound. So it reads contact sheets against a 20-point checklist, measures the sound, and hands the draft to a reviewer with a fresh context, who scores it on 8 points. <code>bin/vh check</code> catches frozen frames, flashes, subtitles too short to read and wrong colour tags, and names a way out of each.</td>
 </tr>
 <tr>
-<td width="38%" valign="top"><a href="showcase/00-promo-launch-film/"><img src="docs/assets/films/00-launch.jpg" width="100%" alt="The launch short: the CLAUDE.md routing table with the product-film row picked"></a></td>
-<td valign="top"><b><a href="showcase/00-promo-launch-film/">00 · Launch short</a></b><br><sub>HyperFrames · 20 s · 1920×1080</sub><br>Built from the repo's own terminal, routing table and contact sheets, with a sound for every move on screen.<br><b><a href="showcase/00-promo-launch-film/README.md#the-request">Request</a>:</b> "Produce the README hero video — a short launch film for OpenVideoHarness itself …"<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/00-launch-short.mp4">MP4 (6.8 MB)</a></sub></td>
+<td valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video><br><sub>▶ Press play and turn the sound on: each harmonic sounds its own note.</sub></td>
+<td valign="top"><b>Sound comes first, and it's code too.</b><br>The narration or the music goes down first. Every word and beat gets a time, and the picture hangs on those times. The score is written as code, and sound effects land on the frame where things happen.</td>
 </tr>
 <tr>
-<td width="38%" valign="top"><a href="styles/"><img src="docs/assets/films/styles.jpg" width="100%" alt="Sixteen of the style samples, all with the same content"></a></td>
-<td valign="top"><b><a href="styles/">The style reel</a></b><br><sub>32 styles · about 1.5 s each</sub><br>The same content rendered in every style of the library, each with its own music.<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/styles-gallery-v2.mp4">MP4 (7.9 MB)</a></sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-24.gif" width="100%" alt="A neon arcade with a chat bubble and a glowing sign"><br><sub>A generated plate, with code on top, both on record.</sub></td>
+<td valign="top"><b>Real material, on the record.</b><br>Archive footage, generated pictures, recorded sound: one ledger keeps where each file came from, its licence and what it cost. No budget, no paid call.</td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-19.gif" width="100%" alt="A glowing gold map of rivers and points of light"><br><sub>From a film of 33 minutes.</sub></td>
+<td valign="top"><b>Long films hold up.</b><br>Shots, captions and chapters hang on the narration's words, so adding a pause moves the picture with it. Edit lists join pages and footage, renders resume, and the upload copy fits the platform's limit. The longest so far runs 33 minutes in 4K.</td>
+</tr>
+</table>
+
+**And not one AI look.** Left alone, AI video drifts toward one face: dark background, glow, glass cards. Here are 32 styles, all rendering the same sentence:
+
+<a href="styles/"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-styles.gif" width="960" alt="All the styles moving at once, each rendering the same sentence: every frame is code"></a>
+
+## What it makes
+
+Moments from a dozen films the author made with it in about a month, about 100 minutes in all. Physics, chemistry, engineering, money, folklore, literature, essays: each in a world of its own. They're in Chinese, and silent here.
+
+<table>
+<tr>
+<td width="33%" valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-01.gif" width="100%" alt="A black hole and its jet"><br><sub>A black hole's jet, all in Canvas 2D<br>7½-min physics explainer</sub></td>
+<td width="33%" valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-03.gif" width="100%" alt="Two mirror-image molecules"><br><sub>Mirror-image molecules in Three.js<br>2-min chemistry explainer</sub></td>
+<td width="33%" valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-04.gif" width="100%" alt="White strands of fluid spiralling on blue"><br><sub>A fluid winding itself up<br>3-min maths story</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-07.gif" width="100%" alt="A brake cylinder cut open"><br><sub>A brake cylinder cut open, the camera following the fluid<br>14-min teardown in Three.js</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-08.gif" width="100%" alt="A brake disc glowing in false colour"><br><sub>A disc under braking, in false colour</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-09.gif" width="100%" alt="A drum brake swelling with heat"><br><sub>A drum brake swelling with heat</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-10.gif" width="100%" alt="A red line running through a grey model city"><br><sub>2008 is a grey city<br>9½-min data film at 60 fps</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-12.gif" width="100%" alt="A chart in neon, pink bars climbing"><br><sub>2015 is neon</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-05.gif" width="100%" alt="A blue terrain crossed by a purple band"><br><sub>A conjecture as a landscape</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-13.gif" width="100%" alt="Shadow puppets climbing a hill as geese pass"><br><sub>Shadow puppets, drawn in code<br>3-min folk history</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-14.gif" width="100%" alt="An ink-wash garden with chrysanthemums"><br><sub>Ink wash, chrysanthemums opening</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-30.gif" width="100%" alt="Blue-and-green mountains beside a Tang poem"><br><sub>Blue-and-green mountains, a Tang poem</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-15.gif" width="100%" alt="People climbing a dim stairwell with a torch"><br><sub>The same film, reaching a stairwell today</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-16.gif" width="100%" alt="A pen drawing a steam engine and a railway"><br><sub>A pen draws the machines as you watch<br>3-min history of technology</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-17.gif" width="100%" alt="Silhouettes growing wings on red"><br><sub>Silhouettes growing wings<br>9-min portrait of a writer</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-18.gif" width="100%" alt="A book unfolding out of a box"><br><sub>A book that opens like a box</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-20.gif" width="100%" alt="A brain lit by a lantern in a dark library"><br><sub>A lamp, a brain, a library<br>33-min essay film</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-21.gif" width="100%" alt="Light travelling up a tree of branching paths"><br><sub>A path of light through a tree</sub></td>
+</tr>
+<tr>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-22.gif" width="100%" alt="An app separated into glowing glass layers"><br><sub>Software taken apart in glass layers<br>4-min tech story in Three.js</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-23.gif" width="100%" alt="Glowing capsules on a curved gold track"><br><sub>Findings lighting up along a track</sub></td>
+<td valign="top"><img src="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/readme-06.gif" width="100%" alt="A flat illustration of a boat linking to satellites"><br><sub>From a phone to a satellite, flat and calm<br>2½-min explainer</sub></td>
+</tr>
+</table>
+
+### The 5 showcase films, with sound
+
+Press play and turn the sound on (players start muted). Each has a folder in [`showcase/`](showcase/) with the request, the brief, the storyboard, the review notes and all the source: a ready starting point for a film like it. An agent made each one from this repo's docs alone.
+
+<table>
+<tr>
+<td width="42%" valign="top"><video src="https://github.com/user-attachments/assets/48923404-eff1-41cd-b303-82c9ede51c1f" controls width="100%"></video></td>
+<td valign="top"><b><a href="showcase/04-intro-film/">04 · Intro film</a></b><br><sub>Blender + HyperFrames + Three.js · 103 s · studio level</sub><br>A galaxy of 1.18 million stars, path-traced in Blender, collapses and flattens into a sea of films; one continuous 3D take then follows a request through the repo. The opening is here; the whole film is linked below.<br><b><a href="showcase/04-intro-film/README.md#what-was-asked">Request</a>, at gate ①:</b> "玻璃、宇宙、星穹……令人瘫坐眩晕的感觉" (glass, cosmos, a starry sky… dizzying)<br><sub><a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-1080p.mp4">1080p MP4 (297 MB)</a> · <a href="https://github.com/ZLHad/OpenVideoHarness/releases/download/media/intro-film-4k.mp4">4K (1.04 GB)</a></sub></td>
+</tr>
+<tr>
+<td valign="top"><video src="https://github.com/user-attachments/assets/efa32859-7bdc-4507-be20-504c429ec5f5" controls width="100%"></video></td>
+<td valign="top"><b><a href="showcase/02-short-leo-doppler/">02 · Vertical science short</a></b><br><sub>HyperFrames · 24.8 s · 1080×1920</sub><br>Why a low-orbit satellite's signal changes pitch, readable with the sound off. Chinese voiceover, Chinese and English subtitles.<br><b><a href="showcase/02-short-leo-doppler/README.md#the-request-this-was-built-from">Request</a>:</b> "为什么低轨卫星的信号会'变调'？——多普勒频移" (why does a low-orbit satellite's signal change pitch? The Doppler shift)</td>
+</tr>
+<tr>
+<td valign="top"><video src="https://github.com/user-attachments/assets/84cee687-619c-4d5a-ad49-e9b79412d419" controls width="100%"></video></td>
+<td valign="top"><b><a href="showcase/03-math-fourier/">03 · Math explainer in the 3Blue1Brown style</a></b><br><sub>Manim · 25 s · 1920×1080</sub><br>Sine waves stack into a square wave and land on the Gibbs overshoot. English narration; each harmonic sounds its own note.<br><b><a href="showcase/03-math-fourier/README.md#the-request-this-was-built-from">Request</a>:</b> "Building a square wave from sine waves"</td>
+</tr>
+<tr>
+<td valign="top"><video src="https://github.com/user-attachments/assets/b34576a9-f0f3-48b5-96b1-aba539b38d37" controls width="100%"></video></td>
+<td valign="top"><b><a href="showcase/01-handdrawn-clawd-leaf/">01 · Hand-drawn character short</a></b><br><sub>p5.brush · 12 s · 1920×1080</sub><br>A three-shot pantomime with no words and no voice; the score and foley follow every move.<br><b><a href="showcase/01-handdrawn-clawd-leaf/README.md#the-request-this-was-built-from">Request</a>:</b> "Clawd tries to film a falling autumn leaf with a tiny hand-cranked movie camera; the wind keeps snatching the leaf just as Clawd frames it …"</td>
+</tr>
+<tr>
+<td valign="top"><video src="https://github.com/user-attachments/assets/4f662b1a-ba4d-4485-9a84-ac821f6be7b1" controls width="100%"></video></td>
+<td valign="top"><b><a href="showcase/00-promo-launch-film/">00 · Launch short</a></b><br><sub>HyperFrames · 20 s · 1920×1080</sub><br>Built from the repo's own terminal, routing table and contact sheets, with a sound for every move on screen.<br><b><a href="showcase/00-promo-launch-film/README.md#the-request">Request</a>:</b> "Produce the README hero video — a short launch film for OpenVideoHarness itself …"</td>
+</tr>
+<tr>
+<td valign="top"><video src="https://github.com/user-attachments/assets/3ecb0f0c-5602-496b-aebc-4848a918a74c" controls width="100%"></video></td>
+<td valign="top"><b><a href="styles/">The style reel</a></b><br><sub>32 styles · about 1.5 s each</sub><br>The same content rendered in every style of the library, each with its own music.</td>
 </tr>
 </table>
 
 The films live in the [`media` release](https://github.com/ZLHad/OpenVideoHarness/releases/tag/media), outside git, so a clone doesn't download them. Films 00–03 were finished silent and their sound was fitted afterwards. Community films in the same vein, and how they were made, are in [`cases/`](cases/README.md); films you make with this repo are welcome in `showcase/`.
+
+## How it works
+
+The film is code. The agent writes a page (or a Manim scene, or a Blender script) in which every frame is a function of its time t; a browser (or Manim, or Blender) draws each frame, and FFmpeg joins them with the soundtrack.
+
+<p align="center"><img src="docs/assets/overview.en.svg" width="720" alt="A one-line request goes through type routing, three human sign-offs, sound-first code rendering and self-review to a finished film; beside it, what the repo provides"></p>
+
+Four layers, and an agent reads only what the film at hand needs:
+
+| Layer | What's in it |
+|---|---|
+| **The router** | [CLAUDE.md](CLAUDE.md): which of the 11 video types this is, how much review it gets, who decides what, and the rules that never bend |
+| **The craft** | Docs an agent follows: [video types](video-types/), the [playbook](playbook/), [styles](styles/README.md), [recipes](recipes/README.md), [components](components/README.md), [case studies](cases/README.md) |
+| **The tools** | One CLI, `bin/vh`: from topic research to the upload copy ([what's in the box](#whats-in-the-box)) |
+| **The engines** | HyperFrames, canvas + Three.js, p5.brush, Manim and Blender, which it tells the agent how to use ([engines](#engines)) |
+
+A film then goes like this:
+
+1. **Route.** The routing table picks the type and its workflow; your request sets the effort level and what you want to decide yourself.
+2. **Gate ①: direction and outline.** Two or three concept cards, each with a frame and a hook. Picking one settles the idea, the look and the hook together, before any code is written.
+3. **Gate ②: storyboard.** Every shot lists what the viewer must take in, in order and for how long, with one keyframe per shot.
+4. **Sound first.** Voiceover or music comes first; every word and beat is timed, and the picture hangs on those times.
+5. **Code, then check.** After each scene the agent tiles frames into a contact sheet and fixes it against the checklist, and measures the sound. A reviewer with a fresh context then scores the whole draft.
+6. **Gate ③: first draft.** You see the draft, its contact sheet, the scores and what the agent likes least. If you can't say what's wrong, it makes two or three versions of one passage for you to pick from.
+7. **Final.** The final render goes through `bin/vh check`, and what went wrong goes into the project's `LESSONS.md`.
+
+A few rules never relax: every frame depends only on t; when there is sound, it sets the timing; the storyboard comes before code; numbers, quotes and paper details are copied from the source, and anything uncertain stays out; API keys stay in environment variables.
+
+**We publish what we measure, including when it goes against us.** In one small blind test ([docs/research/06](docs/research/en/06-concept-first-ab.md)), the workflow's films had the fresher ideas, but the reviewer found the films made with only a few floor rules better made, and would have posted those. What it flagged became checks. The [research notes](docs/research/en/README.md) have the rest.
 
 ## Quick start
 
@@ -76,7 +197,7 @@ What happens next:
 2. A storyboard with a keyframe for every shot.
 3. A first draft, with the review scores and the two or three things it likes least.
 
-The final render comes after you say yes. The wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) walks from nothing to a first film.
+The final render comes after you say yes. Don't want to stop? Say "quick": on a clean install, without the reference repos, a fresh agent working only from these docs had a silent 15-second film done in about five minutes. The wiki's [Getting Started](https://github.com/ZLHad/OpenVideoHarness/wiki/Getting-Started) walks from nothing to a first film.
 
 Say what the film is about, who it's for and where it will be shown; a long brief isn't needed.
 
@@ -88,26 +209,6 @@ Say what the film is about, who it's for and where it will be shown; a long brie
 | Archive film | "A 40-second countdown film cut from public-domain NASA launch footage, with every clip's licence on record." |
 | Quick try | "A quick 15-second draft to see whether a cyber-glitch look suits my game trailer; don't ask me anything." |
 | Hands-on | "A 90-second explainer on how satellites avoid collisions, at the studio level. I'll choose the hook, the main character, the theme tune, the title and the cover; you decide the rest." |
-
-## How it works
-
-Coding agents can already make a video from one sentence. Getting a good one every time is the hard part: the same model can be brilliant once, then lose the pacing, glow everything and invent numbers the next time, because it has no production process to follow and no way to check its work. This repo is that process and those checks, written as docs an agent follows and a CLI, `bin/vh`.
-
-<p align="center"><img src="docs/assets/overview.en.svg" width="720" alt="A one-line request goes through type routing, three human sign-offs, sound-first code rendering and self-review to a finished film; beside it, what the repo provides"></p>
-
-The film is code. The agent writes a page (or a Manim scene, or a Blender script) in which every frame is a function of its time t; a browser (or Manim, or Blender) draws each frame, and FFmpeg joins them with the soundtrack. An agent can't watch video or hear sound, so every step is built to be checked from frames, numbers and text.
-
-1. **Route.** The routing table in [CLAUDE.md](CLAUDE.md) picks one of the 11 video types and its workflow; your request sets the effort level and what you want to decide yourself.
-2. **Gate ①: direction and outline.** Two or three concept cards, each with a frame and a hook. Picking one settles the idea, the look and the hook together, before any code is written.
-3. **Gate ②: storyboard.** Every shot lists what the viewer must take in, in order and for how long, with one keyframe per shot.
-4. **Sound first.** Voiceover or music comes first; every word and beat is timed, and the picture hangs on those times.
-5. **Code, then check.** After each scene the agent tiles frames into a contact sheet and fixes it against a 20-point checklist, and measures the sound. A reviewer agent with a fresh context then scores the whole draft on 8 points.
-6. **Gate ③: first draft.** You see the draft, its contact sheet, the scores and what the agent likes least. If you can't say what's wrong, it makes two or three versions of one passage for you to pick from.
-7. **Final.** The final render goes through `bin/vh check`, and what went wrong goes into the project's `LESSONS.md`.
-
-A few rules never relax ([CLAUDE.md](CLAUDE.md) has them all): every frame depends only on t, so any frame can be rendered alone, in parallel and in any order, and checked; when there is sound, it sets the timing; the storyboard comes before code; numbers, quotes and paper details are copied from the source, and anything uncertain stays out; API keys stay in environment variables.
-
-**How is this different from just asking an agent?** We ran one small blind comparison ([docs/research/06](docs/research/en/06-concept-first-ab.md)): two one-line requests, each made once with the workflow (at the quick level) and once with only a few floor rules, all silent. The workflow's films had the fresher ideas, but the reviewer found the floors-only films better made and would have posted those both times; time and tokens were about the same. What it flagged (text too small for a phone, slow openings) became checks. The process aims to save rework by settling direction before code and catching problems before the render; that saving hasn't been measured.
 
 ## What's in the box
 
