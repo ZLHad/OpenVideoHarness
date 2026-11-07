@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+**`recipes/fx/edited-plate-lapse.md` goes through `bin/vh image gen`**
+- Why: it told you to run `codex exec -i` by hand and register each picture yourself, from before `--ref` sent the picture (#178).
+- Now `bin/vh image gen --provider codex --ref`, which also keeps the record.
+
 **A check in `assets_checks` that could not fail**
 - Why: `provider == "jamendo" is False` is a chained comparison, always false, so a bgm pick from another provider passed it. Python said so in a `SyntaxWarning` on each run.
 - It says `!=` now, and the warning is gone.

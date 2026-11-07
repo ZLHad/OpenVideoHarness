@@ -56,7 +56,7 @@ derived_from: []
 
 ## 实现
 
-**1. 编辑出几版**：先定底图（夜景版），其余都从它编辑，每次只改一样东西，提示词开头把不变的说死。走 Codex 时用 `codex exec -i <底图> -` 把图带上，提示词从 stdin 进，生成的图在 `~/.codex/generated_images/<thread>/` 下（`bin/vh image gen --provider codex --ref` 在 PR #178 之前不发参考图）。每张都用 `bin/vh assets add` 登记（`--aigc`）。
+**1. 编辑出几版**：先定底图（夜景版），其余都从它编辑，每次只改一样东西，提示词开头把不变的说死。走 Codex 时用 `bin/vh image gen <项目> --provider codex --ref <底图> --prompt-file <提示词>` 把图带上：图放进 `assets/genimg/<id>/`，模型、提示词和参考图自动记进 `assets/ledger.json`，不用再手动登记。
 
 ```text
 Edit this photograph. Keep it exactly the same picture: the same camera, framing, perspective and scale,
