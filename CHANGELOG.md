@@ -2,6 +2,52 @@
 
 ## Unreleased
 
+## v0.4.1 — 2026-11-09
+
+A patch release: what four first-run walkthroughs turned up since v0.4.0. They were a silent short, a narrated one, one on Ubuntu arm64 and, for the first time, a standard film through all three gates. Nothing changes how a film is made: a first install says more, prints less noise and points to the right files.
+
+### What's new
+
+- **Install:** LOCAL.md gets this machine's lines when you install (`bin/vh doctor --fill-local`); an install without the reference repos says how to fetch the one a doc names; Linux has a section on what to set up before the first film; the READMEs' sizes are measured.
+- **Starting a film:** `bin/vh new` fills the frame rate in; a HyperFrames film reads about 7,400 characters less before it starts; `status` warns of HyperFrames' first Chrome download and leaves nothing to fill after delivery; HyperFrames' opt-outs go on every `npx hyperframes` command.
+- **Checking:** `check` describes its black, frozen and silent stretches in words and names the Output line's blanks; `readcheck` says what to give it when handed a film; `qa` names the beat map and stems a failing run went without, and the starter scores map their notes; `bin/vh` finds the Chrome HyperFrames 0.8.202 pins.
+- **Review pages:** gate ①'s concept cards show their picture, hook and ending a line each, under their own heading, on the page and on the review desk.
+- **Quieter:** the local voice's first run prints less; `artifacts list` and `storyboard` no longer read like problems where there are none.
+- **Elsewhere:** `bin/vh web` keeps its evidence through the installed Chrome, off the login keychain; `tools/ci.sh --committed` cleans up when it is stopped; the READMEs are rewritten.
+
+### Every change
+
+**HyperFrames' opt-outs go on every `npx hyperframes` command, not once per terminal**
+- Why: engines/README.md said to export `HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1` once per terminal, and the quick card to export them before the render. Each of an agent's commands is a new shell, so an export does not carry over: the walkthrough's first `npx hyperframes lint` ran without them and printed HyperFrames' telemetry notice (11-08).
+- Now: both say to put them in the same command as `npx`, and why. `bin/vh`'s own HyperFrames calls already set them, and `bin/vh status` writes them into the render commands it gives.
+
+**`bin/vh artifacts list` and `bin/vh storyboard` no longer read like problems where there are none**
+- Why: the same walkthrough:
+  - after delivery, `artifacts list` still said "NOTES.md · 3 {…} left" (the template's example rows), while `bin/vh status` says nothing is left;
+  - a film rendered with `npx hyperframes render`, as the docs say, was listed "not checked: no .render.json or .mux.json beside it", which reads as if `bin/vh check` never ran; it means that nothing records what the film was made from;
+  - `storyboard` printed "(? unsure, ! over 5 s: S07? S08?)", which reads as two shots over 5 s; S07 was 4 s, and its "?" marks it unsure.
+- Now: after delivery the listing leaves the {…} counts out (its JSON keeps them); a file whose freshness cannot be told says "whether it is up to date is not known: …"; the storyboard line gives the shots first and the marks' meaning after them: "· S07? S08? (? unsure, ! over 5 s)".
+
+**Gate ①'s page shows each concept card's picture, hook and ending a line each, under its own heading**
+- Why: a standard-effort walkthrough (11-08) put each card's picture, hook and ending into the option's `pro`, as `bin/vh gate <project> 1 --init`'s skeleton asks, and the page showed them as one dense paragraph under "好处" (benefit), which they are not.
+- Now: a decision may name its two columns (`columns`; without it, "好处 / 代价"; a count other than two is warned of). Gate ①'s skeleton names them "这张卡讲什么 / 风险或代价" and asks for the three a line each. The review page kept an option's line breaks already; the review desk keeps them now too, and shows the columns' names. playbook/01's 审阅页 lists the field, and the gate schema has it.
+
+**The local voice's first run prints what a run needs, not its libraries' chatter**
+- Why: the first `bin/vh tts` with the default qwen voice printed a progress bar redrawn through `\r`, a long transformers warning ("You are using a model of type `qwen3_tts` to instantiate a model of type …"), mlx-audio's own load lines and, while downloading, the Hugging Face Hub's note about unauthenticated requests: harmless, and noise in an agent's captured output (a walkthrough of a narrated film, 11-08). Every later run still printed the warning and the load lines.
+- Now: before the libraries load, tts sets their verbosity to errors (`TRANSFORMERS_VERBOSITY`, `HF_HUB_VERBOSITY`) and, when no terminal is watching, turns the Hub's progress bars off (`HF_HUB_DISABLE_PROGRESS_BARS`); a value set outside wins. mlx-audio's load lines are kept back and shown only if loading fails. The loading line says when the model is not downloaded yet (about 2 GB, once, for the default one), looking where the Hub itself looks; a model given as a local folder needs no download.
+
+**After install, LOCAL.md says what this machine has**
+- Why: the installer copied LOCAL.example.md to LOCAL.md and left every line a `{…}` placeholder. CLAUDE.md sends a new agent to read LOCAL.md first, so it read a template that said nothing, and `bin/vh doctor` asked for 15 placeholder lines to be filled in, though most are preferences whose `{…}` means the default (two first-run walkthroughs, 11-07 and 11-08).
+- Now: `bin/vh doctor --fill-local` writes LOCAL.md's machine lines (硬件, 已装工具, 已装引擎) from its check, only where a line's value is still the template's `{…}`, never one a person wrote, and copies LOCAL.example.md first when there is no LOCAL.md. It keeps the file's line endings, writes through a linked LOCAL.md, and says so when it cannot write. The installer's final check runs it. doctor's LOCAL.md line names the machine lines still to fill and counts the other `{…}` lines as defaults; CLAUDE.md's 本机环境 says the same.
+
+**`bin/vh qa` says when it ran without the project's beat map or stems, and gives the run with them**
+- Why: a walkthrough of a narrated film (11-08) ran `bin/vh qa` on the muxed film with nothing else and got "✗ 38 problem(s)" on a film that passes: without the beat map and the stems, the score's rests, its own dips and its ending count as dropouts, pumping and silence. The quick card wrote `bin/vh qa` with no arguments. A test project (a lofi bed, a mix with stems, a muxed film) shows the same: 17 problems on the film or on the mix alone, none with the beat map and the stems.
+- Now: a failing run that went without the beat map, the event list or the stems, in a project that has them, prints a line above its verdict naming what it lacked and the same command (`qa`, `qa scan` or `qa cues`) with them; the verdict stays the last line. A muxed film finds its mix by its `.mux.json`; the stems folder `bin/vh mix … stems=` wrote (beside the mix, or in the project's audio/) names its mix, its music (whose beat map lies beside it) and its events; with no stems folder, a lone `*.beats.json` beside the mix. The quick card's sound step writes `mix … stems=` and `qa <混音> <节拍表> --stems`.
+
+**`tools/ci.sh --committed` cleans up its checkout when it is stopped**
+- Why: it removed its clean checkout of HEAD (about 110 MB in `$TMPDIR/vh-ci.*/head`, registered as a git worktree) only after the checks finished. A Ctrl-C, or stopping it as a background task, sends the whole process group a signal and ended it before that, so the checkout stayed behind, still listed by `git worktree list` (11-08).
+- Now: the checkout and its folder go when the run ends and when INT, TERM or HUP ends it (exit 130, 143 or 129). Stopping a run both ways left the checkout registered before, and leaves nothing now. A SIGKILL cannot be caught and still leaves it (`git worktree prune` then), and a check that was running still leaves its own small temporary folder.
+
 **`bin/vh` finds the Chrome version HyperFrames 0.8.202 pins, so the page tools draw with the film's Chrome**
 - Why: `hf_pin` read the pinned version (`CHROME_VERSION`) from `dist/renderSetupWorker.js`, where it sat up to 0.8.84. 0.8.202, the version the repo pins, keeps it in a chunk whose name each build changes (`chunk-4UMPIPCQ.js`), so it was never found, and `hf_chrome` took the newest Chrome in `~/.cache/hyperframes`, whatever its version. With a newer Chrome cached beside the pinned one, `doctor` named the newer one and the page tools (`frames`, `textcheck` and the rest) drew with it; with only a newer one, `doctor`, `status` and `textcheck` said nothing, while the first render downloads the pinned one first.
 - Now: `hf_pin` reads `renderSetupWorker.js` first, then every `dist/*.js` (about 35 ms). `status`'s note before the first HyperFrames render reads the pin the same way and asks for that version; when the pin cannot be read, any version still counts, as before. The upgrade check in engines/README.md has a row for it: after an upgrade, `bin/vh doctor`'s chrome-headless-shell line says "the version HyperFrames pins".

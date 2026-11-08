@@ -12,7 +12,7 @@ prints the chat message: the decisions, the reply that takes every recommendatio
 of gate-<n>.html, which a later page does not overwrite. playbook/01-pipeline.md ("审阅页") explains the page and
 every field:
 
-  summary, decisions[{id, question, options[{id, label, pro, con} | "id"], recommend, why, cost, reply}],
+  summary, decisions[{id, question, options[{id, label, pro, con} | "id"], recommend, why, cost, reply, columns}],
   assets[{path, caption, for, t0, t1, poster}], least_sure[{id, note} | "note"], animatic,
   segments[{id, title, t0, t1, note, shots[{id, t0, t1, frame, see, vo, note}]}], appendix[{title, text, path}]
   optional: version (1, as bin/vh gate --init writes it; not read), gate, title, lang (zh | en; default: the BRIEF's "Review
@@ -352,6 +352,11 @@ class Page:
             dec["options"] = opts
             for k in ("id", "question", "recommend", "why", "cost", "reply"):
                 dec[k] = scalar(dec.get(k), f"decisions[{i - 1}].{k}").strip()
+            cols = as_list(dec.get("columns"), f"decisions[{i - 1}].columns")   # the pro and con columns' titles
+            if cols and len(cols) != 2:
+                self.warn(f"decision {i} ({dec['id'] or '?'}): `columns` takes two titles, the pro column's and the con column's; "
+                          f"it has {len(cols)}" + (", the first two are used" if len(cols) > 2 else ", the other column keeps its default"))
+            dec["columns"] = [scalar(c, f"decisions[{i - 1}].columns[{k}]").strip() for k, c in enumerate(cols[:2])]
             if not dec["question"]:
                 self.err(f"decision {i}: no `question`")
             if not dec["recommend"]:
@@ -574,7 +579,8 @@ class Page:
             opts, table = dec["options"], ""
             if opts:
                 has_pc = any(o["pro"] or o["con"] for o in opts)
-                head = f'<tr><th>{t["options"]}</th>' + (f'<th>{t["pro"]}</th><th>{t["con"]}</th>' if has_pc else "") + "</tr>"
+                cols = dec["columns"] + ["", ""]
+                head = f'<tr><th>{t["options"]}</th>' + (f'<th>{esc(cols[0]) or t["pro"]}</th><th>{esc(cols[1]) or t["con"]}</th>' if has_pc else "") + "</tr>"
                 body = []
                 for o in opts:
                     pick = o["id"] == dec["recommend"]

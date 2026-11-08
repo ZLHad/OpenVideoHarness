@@ -92,6 +92,7 @@ blockquote{margin:8px 0;padding:8px 14px;border-left:3px solid var(--acc);backgr
 .opt input{margin-top:4px}
 .opt .l{font-weight:600}
 .opt .pc{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;font-size:13px}
+.opt .pc>div{white-space:pre-line}
 .opt .pc b{margin-right:4px}.opt .pc .p b{color:var(--ok)}.opt .pc .c b{color:var(--chg)}
 .media img,.media video{display:block;max-width:100%;border-radius:10px;border:1px solid var(--line);background:#000}
 .media figcaption{color:var(--mute);font-size:13px;margin-top:6px}

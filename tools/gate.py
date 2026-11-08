@@ -60,13 +60,15 @@ def skeleton(gate, lang):
 
     def card(k):
         return {"id": k, "label": f(f"立意卡 {k}：一句话核心想法", f"concept card {k}: the idea in one line"),
-                "pro": f("为什么是这份材料；推出的画面和钩子", "why this material; the picture and the hook it leads to"),
+                "pro": f("推出的画面、钩子、首尾，各占一行（JSON 里用 \\n 换行）；为什么是这份材料",
+                         "the picture, the hook and the ending it leads to, a line each (\\n in the JSON); why this material"),
                 "con": f("风险或代价", "its risk or cost")}
     d = {"version": 1, "summary": f("一句话：这页要人定什么、看完要多久", "one line: what this page asks the person, and how long it takes")}
     stop = stop_of(gate)
     if stop == "1":
         d["decisions"] = [{"id": "concept", "question": f("选哪张立意卡？写成这支片子自己的问题", "which concept card? In this film's own words"),
                            "options": [card("A"), card("B"), card("C")], "recommend": f("A、B 或 C", "A, B or C"),
+                           "columns": ["这张卡讲什么", "风险或代价"] if zh else ["what the card is", "its risk or cost"],
                            "why": f("推荐它的一句理由", "why, in one line"), "cost": "现在改：低 · 分镜后改：很高" if zh else "now: low · after the storyboard: very high"}]
         d["assets"] = [{"path": f(f"立意卡 {k} 那一帧画面的路径", f"the path of card {k}'s frame"),
                         "caption": f("这一帧在说什么", "what this frame says"), "for": "concept"} for k in "ABC"]

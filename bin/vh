@@ -61,7 +61,7 @@ cmd_doctor() {
   local a skip="" live="" rec=""
   for a in "$@"; do   # a usage error is said at once (by doctor.py), before the probe below
     if [ -n "$skip" ]; then skip=""; continue; fi
-    case "$a" in -h|--help) exec python3 "$ROOT/tools/doctor.py" -h ;; --json|--only=*) ;; --only) skip=1 ;; --probe) live=1 ;; --offline=*) rec=1 ;; --offline) rec=1 skip=1 ;;
+    case "$a" in -h|--help) exec python3 "$ROOT/tools/doctor.py" -h ;; --json|--fill-local|--only=*) ;; --only) skip=1 ;; --probe) live=1 ;; --offline=*) rec=1 ;; --offline) rec=1 skip=1 ;;
       *) exec python3 "$ROOT/tools/doctor.py" "$@" ;; esac
   done
   [ -z "$rec" ] || [ -n "$live" ] || exec python3 "$ROOT/tools/doctor.py" "$@"
@@ -102,6 +102,7 @@ doctor_bare() { # doctor_bare [--json]: bin/vh doctor without python3, which rea
   done
   if [ -n "$json" ]; then echo "]}"
   else echo "   the rest (versions against tools/modules.json, packages, models, keys, WebGL, the repo) needs python3: install it, then bin/vh doctor again"; fi
+  case " $* " in *" --fill-local "*) echo "   --fill-local needs python3 too: LOCAL.md is left as it is" >&2 ;; esac
 }
 hf_chrome() { # hf_chrome [dir]: the chrome-headless-shell `hyperframes render` uses (its ensureRenderBrowser asks for the managed one, so
   # unlike snapshot and check it never looks in ~/.cache/puppeteer): HYPERFRAMES_BROWSER_PATH (or PRODUCER_HEADLESS_SHELL_PATH), else

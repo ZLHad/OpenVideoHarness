@@ -19,7 +19,9 @@ not a JSON object, an --out or --json in a folder that is not there, or no mix a
 as heard + meta.json); with it the scan knows the music's own dips, the cue check finds the events' sounds, and the
 mix report runs too. Exit status 1 if silence, dropouts, pumping, the cue check (on a lossless file; on an AAC encode
 only when the encode as a whole is off) or a hard target of the mix report fail (usable as a gate); clicks, marginal
-cues and single cue problems in an AAC encode are only warnings.
+cues and single cue problems in an AAC encode are only warnings. A failing run without the beat map, the event list or the
+stems that the project has ends with a line giving the same run with them (the stems folder bin/vh mix wrote names its
+mix, music and events; a muxed film names its mix in <film>.mux.json; with no stems folder, a lone beat map beside the mix).
 
 scan (checked span: --from, default 1.0 s, to --to, default the beat map's fade start, else the last 2.8 s)
   silence   digital-silence runs: every channel below −60 dBFS, sample by sample, for ≥ 20 ms (exact start–end).
@@ -206,6 +208,71 @@ def in_stems(stems, p):  # a path from meta.json: relative to the stems folder (
 def stem(stems, name):  # a stem of `bin/vh mix … stems=DIR`, or None
     p = os.path.join(stems, f"{name}.wav") if stems else None
     return p if p and os.path.exists(p) else None
+
+def with_context(path, beats, events, stems, mode="all", project=None):
+    """A suggestion, after a run that failed without the beat map, the event list or the stems: the same run with the
+    project's, when it has them; else None. A muxed film names its mix in <film>.mux.json. The stems folder bin/vh mix
+    wrote (in the mix's folder or one inside it, or in the project's audio/ or one inside it) names its mix ("mix") and
+    the music and events it read ("inputs"), all from that folder; the music's beat map is beside the music (music.wav →
+    music.beats.json). With no stems folder, a beat map alone beside the mix. Without them the score's rests, its own
+    dips and its ending count as dropouts, pumping and silence."""
+    import shlex
+
+    def rel(p):   # as typed from here; a path two folders up or more stays absolute
+        r = os.path.relpath(p)
+        return shlex.quote(p if r.startswith(os.pardir + os.sep + os.pardir) else r)
+
+    def file(p):
+        return p if p and os.path.isfile(p) else None
+
+    mix = os.path.realpath(path)
+    try:   # a muxed film: the mix it was muxed from
+        rec = json.load(open(path + ".mux.json", encoding="utf-8"))
+        if isinstance(rec, dict) and isinstance(rec.get("audio"), str):
+            mix = os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(path)), rec["audio"]))
+    except (OSError, ValueError):
+        pass
+    home = os.path.dirname(mix)
+    try:
+        names = sorted(os.listdir(home))
+    except OSError:
+        return None
+
+    def with_inside(d):   # a folder and the folders directly in it
+        try:
+            return [d] + sorted(os.path.join(d, n) for n in os.listdir(d) if os.path.isdir(os.path.join(d, n)))
+        except OSError:
+            return []
+    seen, dirs = set(), []
+    for d in with_inside(home) + (with_inside(os.path.join(str(project), "audio")) if project else []):
+        if os.path.realpath(d) not in seen:   # each folder once, by the name it was first reached under
+            seen.add(os.path.realpath(d))
+            dirs.append(d)
+    b = e = s = None
+    for d in dirs:
+        try:
+            meta = json.load(open(os.path.join(d, "meta.json"), encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(meta, dict) and isinstance(meta.get("mix"), str) and os.path.realpath(os.path.join(d, meta["mix"])) == mix:
+            ins = meta.get("inputs") if isinstance(meta.get("inputs"), dict) else {}
+            music = file(os.path.join(d, ins["music"])) if isinstance(ins.get("music"), str) else None
+            b = file(os.path.splitext(music)[0] + ".beats.json" if music else None)
+            e = file(os.path.join(d, ins["events"])) if isinstance(ins.get("events"), str) else None
+            s = d
+            break
+    else:
+        maps = [n for n in names if n.endswith(".beats.json")]
+        b = os.path.join(home, maps[0]) if len(maps) == 1 else None
+    missing = [w for w, given, now in (("the beat map", beats, b), ("the event list", events, e), ("the stems", stems, s)) if not given and now]
+    if not missing:
+        return None
+    b, e, s = beats or b, events or e, stems or s
+    cmd = " ".join(["bin/vh qa"] + ([mode] if mode in ("scan", "cues") else []) + [rel(path)] + ([rel(b)] if b else ["-"] if e else [])
+                   + ([rel(e)] if e else []) + (["--stems", rel(s)] if s else []))
+    return (f"→ run without {' and '.join(missing)}: the score's rests, its own dips and its ending count as problems here. "
+            f"With {'them' if len(missing) > 1 else 'it'}: {cmd}"
+            + ("" if s else " (a mix made with stems=DIR also lets qa tell the music's own dips: --stems DIR)"))
 
 def seconds(path):  # the first audio stream's length from the container (no decode), else None
     try:
@@ -1118,6 +1185,9 @@ def main():
                + (" (advice above)" if any(r.startswith("advice") for r in out) else "")
                + (" · STALE? this may be an earlier mix (see the top)" if old else "")
                + (f" · full report {opt('--out')}" if "--out" in a else ""))
+    hint = with_context(mix_path, pos[1] if len(pos) > 1 and pos[1] != "-" else None,
+                        (pos[2] if len(pos) > 2 else None) or opt("--events"), stems, mode, home) if fails else None
+    if hint: print(hint)   # above the verdict, which stays the last line
     print(verdict)
     import activity   # tools/activity.py: the verdict in the project's log, when bin/vh ran us
     activity.note(f"{os.path.basename(mix_path)}: {verdict}", [opt("--out")] if "--out" in a else [])

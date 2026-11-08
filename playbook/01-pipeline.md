@@ -178,7 +178,7 @@ projects/2026-10-01-leo-doppler/
 ```
 
 - **必填**：`summary`，一句话说这页要你定什么、看完要多久；`decisions`，没有要定的写 `[]`。每个决定要有 `question`、`recommend` 和 `reply`（不写 `reply` 就用选项名拼）。选项的 `id` 别用纯数字，免得和决定的编号混在一起；同一页的几个决定也别共用 `id`（一个用 A / B，另一个用 H1 / H2），人随手回一个"A"才不会有歧义。
-- **选填**：`version`（骨架带的 1，不读）、`why`、`cost`，选项的 `label` / `pro` / `con`；`decided` 和 `delegated`（都是列表，一项一条）、`not_reviewed`（一句话：这页不审什么）、`title`、`lang`（`zh` / `en`；不写就用 BRIEF 的 `Review language`）、`gate`（和文件名不一致时以文件名为准）。审阅台还认 `listen`、`music`、`film` 三个可选字段（见下面的"审阅台"），这一页不管它们。
+- **选填**：`version`（骨架带的 1，不读）、`why`、`cost`，选项的 `label` / `pro` / `con`（文字里的换行照样换行），决定的 `columns`（`pro`、`con` 两列的标题，不写是"好处 / 代价"；关卡 ① 的骨架写"这张卡讲什么 / 风险或代价"）；`decided` 和 `delegated`（都是列表，一项一条）、`not_reviewed`（一句话：这页不审什么）、`title`、`lang`（`zh` / `en`；不写就用 BRIEF 的 `Review language`）、`gate`（和文件名不一致时以文件名为准）。审阅台还认 `listen`、`music`、`film` 三个可选字段（见下面的"审阅台"），这一页不管它们。
 - `assets[].for` 写决定或分段的 `id`，图就放在它下面，不写就放进"其他材料"；视频加 `t0` / `t1` 只播一段，加 `poster` 指定封面帧。附录的 `text` 可以放简单的竖线表格（`| a | b |`、`|---|---|`）。写了 `animatic`，每个分段页只播自己那一段，播到段尾就停。
 - `least_sure` 写镜头号，那一镜就标红；文字里出现的镜头号会链到那一镜。镜头的 `note` 写"默认会这样改"，照样默认通过，但单独标出来。
 - `include`：一个 JSON 文件（或几个的列表），路径相对项目，只补 gate JSON 没写的键，gate JSON 写了的优先；`bin/vh storyboard` 写的 `out/check/storyboard/review.json` 就是给它用的。

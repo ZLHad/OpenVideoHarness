@@ -499,7 +499,7 @@ def main():
     for p, (name, ch, part) in zip(written, pages):
         flags = [s["id"] + ("?" if s["unsure"] is not None else "") + ("!" if sheet.long(s) else "") for s in ch if s["unsure"] is not None or sheet.long(s)]
         legend = "? unsure" + (f", ! over {limit:g} s" if limit is not None else "")
-        print(f"  {V.shown(p)}  {V.plural(len(ch), 'shot')}" + (f"  ({legend}: {' '.join(flags)})" if flags else ""))
+        print(f"  {V.shown(p)}  {V.plural(len(ch), 'shot')}" + (f"  · {' '.join(flags)} ({legend})" if flags else ""))
     if limit is None:
         print(f"  note: {limit_src}")
     if nun == 0:

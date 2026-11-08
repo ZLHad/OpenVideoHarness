@@ -51,7 +51,7 @@ bin/vh doctor projects/<date>-<slug>              # 项目里的引擎副本和�
 > ⚠️ HyperFrames 0.8.x 的 `init` 和 `skills update` 会把 skills 装进**全局**的 `~/.claude/skills` 和 `~/.agents/skills`。0.8.82 的 `--skip-skills` 参数不生效；0.8.202 的代码认它，帮助里却仍写着"暂时忽略"，所以照旧用环境变量 `HYPERFRAMES_SKIP_SKILLS=1` 跳过。`bin/vh hf-init` 已经设置了这个变量，并且只把工程文件拷进项目，不拷它生成的 CLAUDE.md 和 AGENTS.md，避免和本仓库的路由冲突。自己手动运行 npx 时，也要带上这个变量：
 
 ```bash
-export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1   # 每次开终端先设置
+export HYPERFRAMES_SKIP_SKILLS=1 DO_NOT_TRACK=1 HYPERFRAMES_NO_UPDATE_CHECK=1   # 和 npx 写在同一条命令里：agent 每次调用都是新 shell，上一条的 export 带不过来；不带就装全局 skills、发遥测
 npx hyperframes lint                                    # 写的过程中随时检查
 npx hyperframes check --snapshots                       # 最终关卡
 npx hyperframes snapshot --at 1.5,4.2 --describe false  # 单帧；--describe false 不能省，见下

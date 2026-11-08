@@ -13,8 +13,9 @@ a stage of tools/commands.json, by its id (0–9, env, any) or a part of its nam
          of date and why, the {…} left in a markdown file or a gate JSON, and what is required by now and missing. A path goes
          to the most specific entry that matches it. Out of date comes from what each record keeps: tools/audio/mixstate.py,
          the check record's film_changed, the sha256 values in a .render.json, out/cues.json, audio/captions.args.json and
-         the others (their rules are STALE below); "not checked" where nothing can tell, or when telling would mean reading
-         more than 1 GiB (the tool that owns it reads it all: bin/vh assets check, bin/vh mux).
+         the others (their rules are STALE below); not_checked ("whether it is up to date is not known") where nothing can
+         tell, or when telling would mean reading more than 1 GiB (the tool that owns it reads it all: bin/vh assets check,
+         bin/vh mux). Once the film is delivered, the listing leaves the {…} counts out (the JSON keeps them).
          By now: new always; gate-1, gate-2, gate-3 once that stop is decided, or its page is out, or a later stop is
          (a stop skipped by Effort quick or the user's own words requires nothing); narration once there is a script, a
          voiceover or a timeline that is not the template's example; delivery once there is a final film or a delivery record.
@@ -767,7 +768,7 @@ def show(rec):
         if sch and all(f["schema"]["ok"] for f in sch):
             bits.append("schema ok")
         n = sum(f["placeholders"] or 0 for f in fs)
-        if n:
+        if n and not rec["reached"].get("delivery"):   # after delivery nothing is left to fill (bin/vh status says so too); the JSON keeps the count
             bits.append(f"{n} {{…}} left")
         states = [f["stale"]["state"] for f in fs if f["stale"]]
         if states and all(x == FRESH for x in states):
@@ -775,7 +776,7 @@ def show(rec):
         elif NOT_CHECKED in states:
             why = next(f["stale"]["why"] for f in fs if f["stale"] and f["stale"]["state"] == NOT_CHECKED)
             n_not = states.count(NOT_CHECKED)
-            bits.append(f"not checked{f' ({n_not} of {len(fs)})' if len(fs) > 1 else ''}: {why}")
+            bits.append(f"whether it is up to date is not known{f' ({n_not} of {len(fs)})' if len(fs) > 1 else ''}: {why}")
         print(f"  {x['id']:<{width}}  {paths}" + (" · " + " · ".join(bits) if bits else ""))
         said_here = 0
         for f in fs:
